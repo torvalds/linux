@@ -2670,6 +2670,7 @@ const struct file_operations ocfs2_fops_no_plocks = {
 	.flock		= ocfs2_flock,
 	.splice_read	= ocfs2_file_splice_read,
 	.splice_write	= ocfs2_file_splice_write,
+	.fallocate	= ocfs2_fallocate,
 };
 
 const struct file_operations ocfs2_dops_no_plocks = {

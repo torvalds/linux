@@ -29,6 +29,7 @@
 #include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/quotaops.h>
+#include <linux/blkdev.h>
 
 #include <cluster/masklog.h>
 
@@ -7181,6 +7182,171 @@ int ocfs2_truncate_inline(struct inode *inode, struct buffer_head *di_bh,
 out_commit:
 	ocfs2_commit_trans(osb, handle);
 
+out:
+	return ret;
+}
+
+static int ocfs2_trim_extent(struct super_block *sb,
+			     struct ocfs2_group_desc *gd,
+			     u32 start, u32 count)
+{
+	u64 discard, bcount;
+
+	bcount = ocfs2_clusters_to_blocks(sb, count);
+	discard = le64_to_cpu(gd->bg_blkno) +
+			ocfs2_clusters_to_blocks(sb, start);
+
+	trace_ocfs2_trim_extent(sb, (unsigned long long)discard, bcount);
+
+	return sb_issue_discard(sb, discard, bcount, GFP_NOFS, 0);
+}
+
+static int ocfs2_trim_group(struct super_block *sb,
+			    struct ocfs2_group_desc *gd,
+			    u32 start, u32 max, u32 minbits)
+{
+	int ret = 0, count = 0, next;
+	void *bitmap = gd->bg_bitmap;
+
+	if (le16_to_cpu(gd->bg_free_bits_count) < minbits)
+		return 0;
+
+	trace_ocfs2_trim_group((unsigned long long)le64_to_cpu(gd->bg_blkno),
+			       start, max, minbits);
+
+	while (start < max) {
+		start = ocfs2_find_next_zero_bit(bitmap, max, start);
+		if (start >= max)
+			break;
+		next = ocfs2_find_next_bit(bitmap, max, start);
+
+		if ((next - start) >= minbits) {
+			ret = ocfs2_trim_extent(sb, gd,
+						start, next - start);
+			if (ret < 0) {
+				mlog_errno(ret);
+				break;
+			}
+			count += next - start;
+		}
+		start = next + 1;
+
+		if (fatal_signal_pending(current)) {
+			count = -ERESTARTSYS;
+			break;
+		}
+
+		if ((le16_to_cpu(gd->bg_free_bits_count) - count) < minbits)
+			break;
+	}
+
+	if (ret < 0)
+		count = ret;
+
+	return count;
+}
+
+int ocfs2_trim_fs(struct super_block *sb, struct fstrim_range *range)
+{
+	struct ocfs2_super *osb = OCFS2_SB(sb);
+	u64 start, len, trimmed, first_group, last_group, group;
+	int ret, cnt;
+	u32 first_bit, last_bit, minlen;
+	struct buffer_head *main_bm_bh = NULL;
+	struct inode *main_bm_inode = NULL;
+	struct buffer_head *gd_bh = NULL;
+	struct ocfs2_dinode *main_bm;
+	struct ocfs2_group_desc *gd = NULL;
+
+	start = range->start >> osb->s_clustersize_bits;
+	len = range->len >> osb->s_clustersize_bits;
+	minlen = range->minlen >> osb->s_clustersize_bits;
+	trimmed = 0;
+
+	if (!len) {
+		range->len = 0;
+		return 0;
+	}
+
+	if (minlen >= osb->bitmap_cpg)
+		return -EINVAL;
+
+	main_bm_inode = ocfs2_get_system_file_inode(osb,
+						    GLOBAL_BITMAP_SYSTEM_INODE,
+						    OCFS2_INVALID_SLOT);
+	if (!main_bm_inode) {
+		ret = -EIO;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	mutex_lock(&main_bm_inode->i_mutex);
+
+	ret = ocfs2_inode_lock(main_bm_inode, &main_bm_bh, 0);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out_mutex;
+	}
+	main_bm = (struct ocfs2_dinode *)main_bm_bh->b_data;
+
+	if (start >= le32_to_cpu(main_bm->i_clusters)) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (start + len > le32_to_cpu(main_bm->i_clusters))
+		len = le32_to_cpu(main_bm->i_clusters) - start;
+
+	trace_ocfs2_trim_fs(start, len, minlen);
+
+	/* Determine first and last group to examine based on start and len */
+	first_group = ocfs2_which_cluster_group(main_bm_inode, start);
+	if (first_group == osb->first_cluster_group_blkno)
+		first_bit = start;
+	else
+		first_bit = start - ocfs2_blocks_to_clusters(sb, first_group);
+	last_group = ocfs2_which_cluster_group(main_bm_inode, start + len - 1);
+	last_bit = osb->bitmap_cpg;
+
+	for (group = first_group; group <= last_group;) {
+		if (first_bit + len >= osb->bitmap_cpg)
+			last_bit = osb->bitmap_cpg;
+		else
+			last_bit = first_bit + len;
+
+		ret = ocfs2_read_group_descriptor(main_bm_inode,
+						  main_bm, group,
+						  &gd_bh);
+		if (ret < 0) {
+			mlog_errno(ret);
+			break;
+		}
+
+		gd = (struct ocfs2_group_desc *)gd_bh->b_data;
+		cnt = ocfs2_trim_group(sb, gd, first_bit, last_bit, minlen);
+		brelse(gd_bh);
+		gd_bh = NULL;
+		if (cnt < 0) {
+			ret = cnt;
+			mlog_errno(ret);
+			break;
+		}
+
+		trimmed += cnt;
+		len -= osb->bitmap_cpg - first_bit;
+		first_bit = 0;
+		if (group == osb->first_cluster_group_blkno)
+			group = ocfs2_clusters_to_blocks(sb, osb->bitmap_cpg);
+		else
+			group += ocfs2_clusters_to_blocks(sb, osb->bitmap_cpg);
+	}
+	range->len = trimmed * sb->s_blocksize;
+out_unlock:
+	ocfs2_inode_unlock(main_bm_inode, 0);
+	brelse(main_bm_bh);
+out_mutex:
+	mutex_unlock(&main_bm_inode->i_mutex);
+	iput(main_bm_inode);
 out:
 	return ret;
 }

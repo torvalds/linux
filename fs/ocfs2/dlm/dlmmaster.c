@@ -2339,65 +2339,55 @@ static void dlm_deref_lockres_worker(struct dlm_work_item *item, void *data)
 	dlm_lockres_put(res);
 }
 
-/* Checks whether the lockres can be migrated. Returns 0 if yes, < 0
- * if not. If 0, numlocks is set to the number of locks in the lockres.
+/*
+ * A migrateable resource is one that is :
+ * 1. locally mastered, and,
+ * 2. zero local locks, and,
+ * 3. one or more non-local locks, or, one or more references
+ * Returns 1 if yes, 0 if not.
  */
 static int dlm_is_lockres_migrateable(struct dlm_ctxt *dlm,
-				      struct dlm_lock_resource *res,
-				      int *numlocks,
-				      int *hasrefs)
+				      struct dlm_lock_resource *res)
 {
-	int ret;
-	int i;
-	int count = 0;
+	enum dlm_lockres_list idx;
+	int nonlocal = 0, node_ref;
 	struct list_head *queue;
 	struct dlm_lock *lock;
+	u64 cookie;
 
 	assert_spin_locked(&res->spinlock);
 
-	*numlocks = 0;
-	*hasrefs = 0;
+	if (res->owner != dlm->node_num)
+		return 0;
 
-	ret = -EINVAL;
-	if (res->owner == DLM_LOCK_RES_OWNER_UNKNOWN) {
-		mlog(0, "cannot migrate lockres with unknown owner!\n");
-		goto leave;
-	}
-
-	if (res->owner != dlm->node_num) {
-		mlog(0, "cannot migrate lockres this node doesn't own!\n");
-		goto leave;
-	}
-
-	ret = 0;
-	queue = &res->granted;
-	for (i = 0; i < 3; i++) {
+        for (idx = DLM_GRANTED_LIST; idx <= DLM_BLOCKED_LIST; idx++) {
+		queue = dlm_list_idx_to_ptr(res, idx);
 		list_for_each_entry(lock, queue, list) {
-			++count;
-			if (lock->ml.node == dlm->node_num) {
-				mlog(0, "found a lock owned by this node still "
-				     "on the %s queue!  will not migrate this "
-				     "lockres\n", (i == 0 ? "granted" :
-						   (i == 1 ? "converting" :
-						    "blocked")));
-				ret = -ENOTEMPTY;
-				goto leave;
+			if (lock->ml.node != dlm->node_num) {
+				nonlocal++;
+				continue;
 			}
+			cookie = be64_to_cpu(lock->ml.cookie);
+			mlog(0, "%s: Not migrateable res %.*s, lock %u:%llu on "
+			     "%s list\n", dlm->name, res->lockname.len,
+			     res->lockname.name,
+			     dlm_get_lock_cookie_node(cookie),
+			     dlm_get_lock_cookie_seq(cookie),
+			     dlm_list_in_text(idx));
+			return 0;
 		}
-		queue++;
 	}
 
-	*numlocks = count;
+	if (!nonlocal) {
+		node_ref = find_next_bit(res->refmap, O2NM_MAX_NODES, 0);
+		if (node_ref >= O2NM_MAX_NODES)
+			return 0;
+	}
 
-	count = find_next_bit(res->refmap, O2NM_MAX_NODES, 0);
-	if (count < O2NM_MAX_NODES)
-		*hasrefs = 1;
+	mlog(0, "%s: res %.*s, Migrateable\n", dlm->name, res->lockname.len,
+	     res->lockname.name);
 
-	mlog(0, "%s: res %.*s, Migrateable, locks %d, refs %d\n", dlm->name,
-	     res->lockname.len, res->lockname.name, *numlocks, *hasrefs);
-
-leave:
-	return ret;
+	return 1;
 }
 
 /*
@@ -2406,8 +2396,7 @@ leave:
 
 
 static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
-			       struct dlm_lock_resource *res,
-			       u8 target)
+			       struct dlm_lock_resource *res, u8 target)
 {
 	struct dlm_master_list_entry *mle = NULL;
 	struct dlm_master_list_entry *oldmle = NULL;
@@ -2416,37 +2405,20 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 	const char *name;
 	unsigned int namelen;
 	int mle_added = 0;
-	int numlocks, hasrefs;
 	int wake = 0;
 
 	if (!dlm_grab(dlm))
 		return -EINVAL;
 
+	BUG_ON(target == O2NM_MAX_NODES);
+
 	name = res->lockname.name;
 	namelen = res->lockname.len;
 
-	mlog(0, "%s: Migrating %.*s to %u\n", dlm->name, namelen, name, target);
+	mlog(0, "%s: Migrating %.*s to node %u\n", dlm->name, namelen, name,
+	     target);
 
-	/*
-	 * ensure this lockres is a proper candidate for migration
-	 */
-	spin_lock(&res->spinlock);
-	ret = dlm_is_lockres_migrateable(dlm, res, &numlocks, &hasrefs);
-	if (ret < 0) {
-		spin_unlock(&res->spinlock);
-		goto leave;
-	}
-	spin_unlock(&res->spinlock);
-
-	/* no work to do */
-	if (numlocks == 0 && !hasrefs)
-		goto leave;
-
-	/*
-	 * preallocate up front
-	 * if this fails, abort
-	 */
-
+	/* preallocate up front. if this fails, abort */
 	ret = -ENOMEM;
 	mres = (struct dlm_migratable_lockres *) __get_free_page(GFP_NOFS);
 	if (!mres) {
@@ -2462,35 +2434,10 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 	ret = 0;
 
 	/*
-	 * find a node to migrate the lockres to
-	 */
-
-	spin_lock(&dlm->spinlock);
-	/* pick a new node */
-	if (!test_bit(target, dlm->domain_map) ||
-	    target >= O2NM_MAX_NODES) {
-		target = dlm_pick_migration_target(dlm, res);
-	}
-	mlog(0, "%s: res %.*s, Node %u chosen for migration\n", dlm->name,
-	     namelen, name, target);
-
-	if (target >= O2NM_MAX_NODES ||
-	    !test_bit(target, dlm->domain_map)) {
-		/* target chosen is not alive */
-		ret = -EINVAL;
-	}
-
-	if (ret) {
-		spin_unlock(&dlm->spinlock);
-		goto fail;
-	}
-
-	mlog(0, "continuing with target = %u\n", target);
-
-	/*
 	 * clear any existing master requests and
 	 * add the migration mle to the list
 	 */
+	spin_lock(&dlm->spinlock);
 	spin_lock(&dlm->master_lock);
 	ret = dlm_add_migration_mle(dlm, res, mle, &oldmle, name,
 				    namelen, target, dlm->node_num);
@@ -2531,6 +2478,7 @@ fail:
 			dlm_put_mle(mle);
 		} else if (mle) {
 			kmem_cache_free(dlm_mle_cache, mle);
+			mle = NULL;
 		}
 		goto leave;
 	}
@@ -2652,69 +2600,52 @@ leave:
 	if (wake)
 		wake_up(&res->wq);
 
-	/* TODO: cleanup */
 	if (mres)
 		free_page((unsigned long)mres);
 
 	dlm_put(dlm);
 
-	mlog(0, "returning %d\n", ret);
+	mlog(0, "%s: Migrating %.*s to %u, returns %d\n", dlm->name, namelen,
+	     name, target, ret);
 	return ret;
 }
 
 #define DLM_MIGRATION_RETRY_MS  100
 
-/* Should be called only after beginning the domain leave process.
+/*
+ * Should be called only after beginning the domain leave process.
  * There should not be any remaining locks on nonlocal lock resources,
  * and there should be no local locks left on locally mastered resources.
  *
  * Called with the dlm spinlock held, may drop it to do migration, but
  * will re-acquire before exit.
  *
- * Returns: 1 if dlm->spinlock was dropped/retaken, 0 if never dropped */
+ * Returns: 1 if dlm->spinlock was dropped/retaken, 0 if never dropped
+ */
 int dlm_empty_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 {
 	int ret;
 	int lock_dropped = 0;
-	int numlocks, hasrefs;
+	u8 target = O2NM_MAX_NODES;
+
+	assert_spin_locked(&dlm->spinlock);
 
 	spin_lock(&res->spinlock);
-	if (res->owner != dlm->node_num) {
-		if (!__dlm_lockres_unused(res)) {
-			mlog(ML_ERROR, "%s:%.*s: this node is not master, "
-			     "trying to free this but locks remain\n",
-			     dlm->name, res->lockname.len, res->lockname.name);
-		}
-		spin_unlock(&res->spinlock);
-		goto leave;
-	}
-
-	/* No need to migrate a lockres having no locks */
-	ret = dlm_is_lockres_migrateable(dlm, res, &numlocks, &hasrefs);
-	if (ret >= 0 && numlocks == 0 && !hasrefs) {
-		spin_unlock(&res->spinlock);
-		goto leave;
-	}
+	if (dlm_is_lockres_migrateable(dlm, res))
+		target = dlm_pick_migration_target(dlm, res);
 	spin_unlock(&res->spinlock);
+
+	if (target == O2NM_MAX_NODES)
+		goto leave;
 
 	/* Wheee! Migrate lockres here! Will sleep so drop spinlock. */
 	spin_unlock(&dlm->spinlock);
 	lock_dropped = 1;
-	while (1) {
-		ret = dlm_migrate_lockres(dlm, res, O2NM_MAX_NODES);
-		if (ret >= 0)
-			break;
-		if (ret == -ENOTEMPTY) {
-			mlog(ML_ERROR, "lockres %.*s still has local locks!\n",
-		     		res->lockname.len, res->lockname.name);
-			BUG();
-		}
-
-		mlog(0, "lockres %.*s: migrate failed, "
-		     "retrying\n", res->lockname.len,
-		     res->lockname.name);
-		msleep(DLM_MIGRATION_RETRY_MS);
-	}
+	ret = dlm_migrate_lockres(dlm, res, target);
+	if (ret)
+		mlog(0, "%s: res %.*s, Migrate to node %u failed with %d\n",
+		     dlm->name, res->lockname.len, res->lockname.name,
+		     target, ret);
 	spin_lock(&dlm->spinlock);
 leave:
 	return lock_dropped;
@@ -2898,60 +2829,54 @@ static void dlm_remove_nonlocal_locks(struct dlm_ctxt *dlm,
 	}
 }
 
-/* for now this is not too intelligent.  we will
- * need stats to make this do the right thing.
- * this just finds the first lock on one of the
- * queues and uses that node as the target. */
+/*
+ * Pick a node to migrate the lock resource to. This function selects a
+ * potential target based first on the locks and then on refmap. It skips
+ * nodes that are in the process of exiting the domain.
+ */
 static u8 dlm_pick_migration_target(struct dlm_ctxt *dlm,
 				    struct dlm_lock_resource *res)
 {
-	int i;
+	enum dlm_lockres_list idx;
 	struct list_head *queue = &res->granted;
 	struct dlm_lock *lock;
-	int nodenum;
+	int noderef;
+	u8 nodenum = O2NM_MAX_NODES;
 
 	assert_spin_locked(&dlm->spinlock);
+	assert_spin_locked(&res->spinlock);
 
-	spin_lock(&res->spinlock);
-	for (i=0; i<3; i++) {
+	/* Go through all the locks */
+	for (idx = DLM_GRANTED_LIST; idx <= DLM_BLOCKED_LIST; idx++) {
+		queue = dlm_list_idx_to_ptr(res, idx);
 		list_for_each_entry(lock, queue, list) {
-			/* up to the caller to make sure this node
-			 * is alive */
-			if (lock->ml.node != dlm->node_num) {
-				spin_unlock(&res->spinlock);
-				return lock->ml.node;
-			}
+			if (lock->ml.node == dlm->node_num)
+				continue;
+			if (test_bit(lock->ml.node, dlm->exit_domain_map))
+				continue;
+			nodenum = lock->ml.node;
+			goto bail;
 		}
-		queue++;
 	}
 
-	nodenum = find_next_bit(res->refmap, O2NM_MAX_NODES, 0);
-	if (nodenum < O2NM_MAX_NODES) {
-		spin_unlock(&res->spinlock);
-		return nodenum;
-	}
-	spin_unlock(&res->spinlock);
-	mlog(0, "have not found a suitable target yet! checking domain map\n");
-
-	/* ok now we're getting desperate.  pick anyone alive. */
-	nodenum = -1;
+	/* Go thru the refmap */
+	noderef = -1;
 	while (1) {
-		nodenum = find_next_bit(dlm->domain_map,
-					O2NM_MAX_NODES, nodenum+1);
-		mlog(0, "found %d in domain map\n", nodenum);
-		if (nodenum >= O2NM_MAX_NODES)
+		noderef = find_next_bit(res->refmap, O2NM_MAX_NODES,
+					noderef + 1);
+		if (noderef >= O2NM_MAX_NODES)
 			break;
-		if (nodenum != dlm->node_num) {
-			mlog(0, "picking %d\n", nodenum);
-			return nodenum;
-		}
+		if (noderef == dlm->node_num)
+			continue;
+		if (test_bit(noderef, dlm->exit_domain_map))
+			continue;
+		nodenum = noderef;
+		goto bail;
 	}
 
-	mlog(0, "giving up.  no master to migrate to\n");
-	return DLM_LOCK_RES_OWNER_UNKNOWN;
+bail:
+	return nodenum;
 }
-
-
 
 /* this is called by the new master once all lockres
  * data has been received */
