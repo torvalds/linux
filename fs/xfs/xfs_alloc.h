@@ -137,10 +137,11 @@ xfs_alloc_longest_free_extent(struct xfs_mount *mp,
 #ifdef __KERNEL__
 void
 xfs_alloc_busy_insert(struct xfs_trans *tp, xfs_agnumber_t agno,
-	xfs_agblock_t bno, xfs_extlen_t len);
+	xfs_agblock_t bno, xfs_extlen_t len, unsigned int flags);
 
 void
-xfs_alloc_busy_clear(struct xfs_mount *mp, struct list_head *list);
+xfs_alloc_busy_clear(struct xfs_mount *mp, struct list_head *list,
+	bool do_discard);
 
 int
 xfs_alloc_busy_search(struct xfs_mount *mp, xfs_agnumber_t agno,
