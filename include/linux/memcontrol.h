@@ -20,6 +20,8 @@
 #ifndef _LINUX_MEMCONTROL_H
 #define _LINUX_MEMCONTROL_H
 #include <linux/cgroup.h>
+#include <linux/vm_event_item.h>
+
 struct mem_cgroup;
 struct page_cgroup;
 struct page;
@@ -149,6 +151,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
 						unsigned long *total_scanned);
 u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
 
+void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail);
 #endif
@@ -357,6 +360,10 @@ static inline void mem_cgroup_split_huge_fixup(struct page *head,
 {
 }
 
+static inline
+void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
+{
+}
 #endif /* CONFIG_CGROUP_MEM_CONT */
 
 #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
