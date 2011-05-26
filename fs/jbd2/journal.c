@@ -479,9 +479,12 @@ int __jbd2_log_space_left(journal_t *journal)
 int __jbd2_log_start_commit(journal_t *journal, tid_t target)
 {
 	/*
-	 * Are we already doing a recent enough commit?
+	 * The only transaction we can possibly wait upon is the
+	 * currently running transaction (if it exists).  Otherwise,
+	 * the target tid must be an old one.
 	 */
-	if (!tid_geq(journal->j_commit_request, target)) {
+	if (journal->j_running_transaction &&
+	    journal->j_running_transaction->t_tid == target) {
 		/*
 		 * We want a new commit: OK, mark the request and wakeup the
 		 * commit thread.  We do _not_ do the commit ourselves.
@@ -493,7 +496,15 @@ int __jbd2_log_start_commit(journal_t *journal, tid_t target)
 			  journal->j_commit_sequence);
 		wake_up(&journal->j_wait_commit);
 		return 1;
-	}
+	} else if (!tid_geq(journal->j_commit_request, target))
+		/* This should never happen, but if it does, preserve
+		   the evidence before kjournald goes into a loop and
+		   increments j_commit_sequence beyond all recognition. */
+		WARN_ONCE(1, "jbd: bad log_start_commit: %u %u %u %u\n",
+			  journal->j_commit_request,
+			  journal->j_commit_sequence,
+			  target, journal->j_running_transaction ? 
+			  journal->j_running_transaction->t_tid : 0);
 	return 0;
 }
 
@@ -575,6 +586,47 @@ int jbd2_journal_start_commit(journal_t *journal, tid_t *ptid)
 	write_unlock(&journal->j_state_lock);
 	return ret;
 }
+
+/*
+ * Return 1 if a given transaction has not yet sent barrier request
+ * connected with a transaction commit. If 0 is returned, transaction
+ * may or may not have sent the barrier. Used to avoid sending barrier
+ * twice in common cases.
+ */
+int jbd2_trans_will_send_data_barrier(journal_t *journal, tid_t tid)
+{
+	int ret = 0;
+	transaction_t *commit_trans;
+
+	if (!(journal->j_flags & JBD2_BARRIER))
+		return 0;
+	read_lock(&journal->j_state_lock);
+	/* Transaction already committed? */
+	if (tid_geq(journal->j_commit_sequence, tid))
+		goto out;
+	commit_trans = journal->j_committing_transaction;
+	if (!commit_trans || commit_trans->t_tid != tid) {
+		ret = 1;
+		goto out;
+	}
+	/*
+	 * Transaction is being committed and we already proceeded to
+	 * submitting a flush to fs partition?
+	 */
+	if (journal->j_fs_dev != journal->j_dev) {
+		if (!commit_trans->t_need_data_flush ||
+		    commit_trans->t_state >= T_COMMIT_DFLUSH)
+			goto out;
+	} else {
+		if (commit_trans->t_state >= T_COMMIT_JFLUSH)
+			goto out;
+	}
+	ret = 1;
+out:
+	read_unlock(&journal->j_state_lock);
+	return ret;
+}
+EXPORT_SYMBOL(jbd2_trans_will_send_data_barrier);
 
 /*
  * Wait for a specified commit to complete.
