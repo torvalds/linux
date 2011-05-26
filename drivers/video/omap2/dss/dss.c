@@ -62,8 +62,6 @@ static struct {
 	struct platform_device *pdev;
 	void __iomem    *base;
 
-	int		ctx_loss_cnt;
-
 	struct clk	*dpll4_m4_ck;
 	struct clk	*dss_clk;
 
@@ -631,61 +629,6 @@ void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select hdmi)
 	REG_FLD_MOD(DSS_CONTROL, hdmi, 15, 15);	/* VENC_HDMI_SWITCH */
 }
 
-/* CONTEXT */
-static void dss_init_ctx_loss_count(void)
-{
-	struct device *dev = &dss.pdev->dev;
-	struct omap_display_platform_data *pdata = dev->platform_data;
-	struct omap_dss_board_info *board_data = pdata->board_data;
-	int cnt = 0;
-
-	/*
-	 * get_context_loss_count returns negative on error. We'll ignore the
-	 * error and store the error to ctx_loss_cnt, which will cause
-	 * dss_need_ctx_restore() call to return true.
-	 */
-
-	if (board_data->get_context_loss_count)
-		cnt = board_data->get_context_loss_count(dev);
-
-	WARN_ON(cnt < 0);
-
-	dss.ctx_loss_cnt = cnt;
-
-	DSSDBG("initial ctx_loss_cnt %u\n", cnt);
-}
-
-static bool dss_need_ctx_restore(void)
-{
-	struct device *dev = &dss.pdev->dev;
-	struct omap_display_platform_data *pdata = dev->platform_data;
-	struct omap_dss_board_info *board_data = pdata->board_data;
-	int cnt;
-
-	/*
-	 * If get_context_loss_count is not available, assume that we need
-	 * context restore always.
-	 */
-	if (!board_data->get_context_loss_count)
-		return true;
-
-	cnt = board_data->get_context_loss_count(dev);
-	if (cnt < 0) {
-		dev_err(dev, "getting context loss count failed, will force "
-				"context restore\n");
-		dss.ctx_loss_cnt = cnt;
-		return true;
-	}
-
-	if (cnt == dss.ctx_loss_cnt)
-		return false;
-
-	DSSDBG("ctx_loss_cnt %d -> %d\n", dss.ctx_loss_cnt, cnt);
-	dss.ctx_loss_cnt = cnt;
-
-	return true;
-}
-
 static int dss_get_clocks(void)
 {
 	struct clk *clk;
@@ -797,8 +740,6 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 	if (r)
 		goto err_clocks;
 
-	dss_init_ctx_loss_count();
-
 	pm_runtime_enable(&pdev->dev);
 
 	r = dss_runtime_get();
@@ -875,8 +816,7 @@ static int dss_runtime_suspend(struct device *dev)
 static int dss_runtime_resume(struct device *dev)
 {
 	clk_enable(dss.dss_clk);
-	if (dss_need_ctx_restore())
-		dss_restore_context();
+	dss_restore_context();
 	return 0;
 }
 
