@@ -236,7 +236,8 @@ containing the following files describing that cgroup:
  - cgroup.procs: list of tgids in the cgroup.  This list is not
    guaranteed to be sorted or free of duplicate tgids, and userspace
    should sort/uniquify the list if this property is required.
-   This is a read-only file, for now.
+   Writing a thread group id into this file moves all threads in that
+   group into this cgroup.
  - notify_on_release flag: run the release agent on exit?
  - release_agent: the path to use for release notifications (this file
    exists in the top cgroup only)
@@ -429,6 +430,12 @@ If you have several tasks to attach, you have to do it one after another:
 You can attach the current shell task by echoing 0:
 
 # echo 0 > tasks
+
+You can use the cgroup.procs file instead of the tasks file to move all
+threads in a threadgroup at once. Echoing the pid of any task in a
+threadgroup to cgroup.procs causes all tasks in that threadgroup to be
+be attached to the cgroup. Writing 0 to cgroup.procs moves all tasks
+in the writing task's threadgroup.
 
 Note: Since every task is always a member of exactly one cgroup in each
 mounted hierarchy, to remove a task from its current cgroup you must
