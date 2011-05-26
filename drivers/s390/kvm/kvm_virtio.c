@@ -441,7 +441,7 @@ static int __init kvm_devices_init(void)
 
 	INIT_WORK(&hotplug_work, hotplug_devices);
 
-	ctl_set_bit(0, 9);
+	service_subclass_irq_register();
 	register_external_interrupt(0x2603, kvm_extint_handler);
 
 	scan_devices();

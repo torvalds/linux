@@ -106,3 +106,26 @@ void __irq_entry do_extint(struct pt_regs *regs, unsigned int ext_int_code,
 	irq_exit();
 	set_irq_regs(old_regs);
 }
+
+static DEFINE_SPINLOCK(sc_irq_lock);
+static int sc_irq_refcount;
+
+void service_subclass_irq_register(void)
+{
+	spin_lock(&sc_irq_lock);
+	if (!sc_irq_refcount)
+		ctl_set_bit(0, 9);
+	sc_irq_refcount++;
+	spin_unlock(&sc_irq_lock);
+}
+EXPORT_SYMBOL(service_subclass_irq_register);
+
+void service_subclass_irq_unregister(void)
+{
+	spin_lock(&sc_irq_lock);
+	sc_irq_refcount--;
+	if (!sc_irq_refcount)
+		ctl_clear_bit(0, 9);
+	spin_unlock(&sc_irq_lock);
+}
+EXPORT_SYMBOL(service_subclass_irq_unregister);

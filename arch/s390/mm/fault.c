@@ -613,7 +613,7 @@ static int __init pfault_irq_init(void)
 	rc = pfault_init() == 0 ? 0 : -EOPNOTSUPP;
 	if (rc)
 		goto out_pfault;
-	ctl_set_bit(0, 9);
+	service_subclass_irq_register();
 	hotcpu_notifier(pfault_cpu_notify, 0);
 	return 0;
 
