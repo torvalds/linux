@@ -50,6 +50,10 @@
  */
 struct objlayout {
 	struct pnfs_layout_hdr pnfs_layout;
+
+	 /* for layout_return */
+	spinlock_t lock;
+	struct list_head err_list;
 };
 
 static inline struct objlayout *
@@ -76,6 +80,16 @@ struct objlayout_io_state {
 	int status;             /* res */
 	int eof;                /* res */
 	int committed;          /* res */
+
+	/* Error reporting (layout_return) */
+	struct list_head err_list;
+	unsigned num_comps;
+	/* Pointer to array of error descriptors of size num_comps.
+	 * It should contain as many entries as devices in the osd_layout
+	 * that participate in the I/O. It is up to the io_engine to allocate
+	 * needed space and set num_comps.
+	 */
+	struct pnfs_osd_ioerr *ioerrs;
 };
 
 /*
@@ -101,6 +115,10 @@ extern ssize_t objio_write_pagelist(struct objlayout_io_state *ol_state,
 /*
  * callback API
  */
+extern void objlayout_io_set_result(struct objlayout_io_state *state,
+			unsigned index, struct pnfs_osd_objid *pooid,
+			int osd_error, u64 offset, u64 length, bool is_write);
+
 extern void objlayout_read_done(struct objlayout_io_state *state,
 				ssize_t status, bool sync);
 extern void objlayout_write_done(struct objlayout_io_state *state,
@@ -130,5 +148,10 @@ extern enum pnfs_try_status objlayout_read_pagelist(
 extern enum pnfs_try_status objlayout_write_pagelist(
 	struct nfs_write_data *,
 	int how);
+
+extern void objlayout_encode_layoutreturn(
+	struct pnfs_layout_hdr *,
+	struct xdr_stream *,
+	const struct nfs4_layoutreturn_args *);
 
 #endif /* _OBJLAYOUT_H */

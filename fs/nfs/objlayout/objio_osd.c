@@ -396,12 +396,16 @@ int objio_alloc_io_state(struct pnfs_layout_segment *lseg,
 	struct objio_state *ios;
 	const unsigned first_size = sizeof(*ios) +
 				objio_seg->num_comps * sizeof(ios->per_dev[0]);
+	const unsigned sec_size = objio_seg->num_comps *
+						sizeof(ios->ol_state.ioerrs[0]);
 
-	ios = kzalloc(first_size, gfp_flags);
+	ios = kzalloc(first_size + sec_size, gfp_flags);
 	if (unlikely(!ios))
 		return -ENOMEM;
 
 	ios->layout = objio_seg;
+	ios->ol_state.ioerrs = ((void *)ios) + first_size;
+	ios->ol_state.num_comps = objio_seg->num_comps;
 
 	*outp = &ios->ol_state;
 	return 0;
@@ -413,6 +417,36 @@ void objio_free_io_state(struct objlayout_io_state *ol_state)
 					       ol_state);
 
 	kfree(ios);
+}
+
+enum pnfs_osd_errno osd_pri_2_pnfs_err(enum osd_err_priority oep)
+{
+	switch (oep) {
+	case OSD_ERR_PRI_NO_ERROR:
+		return (enum pnfs_osd_errno)0;
+
+	case OSD_ERR_PRI_CLEAR_PAGES:
+		BUG_ON(1);
+		return 0;
+
+	case OSD_ERR_PRI_RESOURCE:
+		return PNFS_OSD_ERR_RESOURCE;
+	case OSD_ERR_PRI_BAD_CRED:
+		return PNFS_OSD_ERR_BAD_CRED;
+	case OSD_ERR_PRI_NO_ACCESS:
+		return PNFS_OSD_ERR_NO_ACCESS;
+	case OSD_ERR_PRI_UNREACHABLE:
+		return PNFS_OSD_ERR_UNREACHABLE;
+	case OSD_ERR_PRI_NOT_FOUND:
+		return PNFS_OSD_ERR_NOT_FOUND;
+	case OSD_ERR_PRI_NO_SPACE:
+		return PNFS_OSD_ERR_NO_SPACE;
+	default:
+		WARN_ON(1);
+		/* fallthrough */
+	case OSD_ERR_PRI_EIO:
+		return PNFS_OSD_ERR_EIO;
+	}
 }
 
 static void _clear_bio(struct bio *bio)
@@ -461,6 +495,12 @@ static int _io_check(struct objio_state *ios, bool is_write)
 			continue; /* we recovered */
 		}
 		dev = ios->per_dev[i].dev;
+		objlayout_io_set_result(&ios->ol_state, dev,
+					&ios->layout->comps[dev].oc_object_id,
+					osd_pri_2_pnfs_err(osi.osd_err_pri),
+					ios->per_dev[i].offset,
+					ios->per_dev[i].length,
+					is_write);
 
 		if (osi.osd_err_pri >= oep) {
 			oep = osi.osd_err_pri;
@@ -977,6 +1017,8 @@ static struct pnfs_layoutdriver_type objlayout_type = {
 	.pg_test                 = objlayout_pg_test,
 
 	.free_deviceid_node	 = objio_free_deviceid_node,
+
+	.encode_layoutreturn     = objlayout_encode_layoutreturn,
 };
 
 MODULE_DESCRIPTION("pNFS Layout Driver for OSD2 objects");
