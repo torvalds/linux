@@ -169,7 +169,7 @@ static int rf2959_init_hw(struct zd_rf *rf)
 		{ CR85,  0x00 }, { CR86,  0x10 }, { CR87,  0x2A },
 		{ CR88,  0x10 }, { CR89,  0x24 }, { CR90,  0x18 },
 		/* { CR91,  0x18 }, */
-		/* should solve continous CTS frame problems */
+		/* should solve continuous CTS frame problems */
 		{ CR91,  0x00 },
 		{ CR92,  0x0a }, { CR93,  0x00 }, { CR94,  0x01 },
 		{ CR95,  0x00 }, { CR96,  0x40 }, { CR97,  0x37 },

@@ -6,7 +6,7 @@
  * This dts file allows core0 to have memory, l2, i2c, spi, gpio, dma1, usb,
  * eth1, eth2, sdhc, crypto, global-util, pci0.
  *
- * Copyright 2009 Freescale Semiconductor Inc.
+ * Copyright 2009-2011 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -342,7 +342,7 @@
 		reg = <0 0xffe09000 0 0x1000>;
 		bus-range = <0 255>;
 		ranges = <0x2000000 0x0 0xa0000000 0 0xa0000000 0x0 0x20000000
-			  0x1000000 0x0 0x00000000 0 0xffc30000 0x0 0x10000>;
+			  0x1000000 0x0 0x00000000 0 0xffc10000 0x0 0x10000>;
 		clock-frequency = <33333333>;
 		interrupt-parent = <&mpic>;
 		interrupts = <25 2>;

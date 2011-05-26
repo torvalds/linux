@@ -672,7 +672,7 @@ void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
 		block->counters.ce_count++;
 	}
 
-	/* Propogate the count up the 'totals' tree */
+	/* Propagate the count up the 'totals' tree */
 	instance->counters.ce_count++;
 	edac_dev->counters.ce_count++;
 
@@ -718,7 +718,7 @@ void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
 		block->counters.ue_count++;
 	}
 
-	/* Propogate the count up the 'totals' tree */
+	/* Propagate the count up the 'totals' tree */
 	instance->counters.ue_count++;
 	edac_dev->counters.ue_count++;
 

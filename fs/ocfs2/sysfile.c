@@ -27,7 +27,6 @@
 #include <linux/types.h>
 #include <linux/highmem.h>
 
-#define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"

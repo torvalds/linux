@@ -36,6 +36,7 @@
 #include "nouveau_drm.h"
 #include "nouveau_ramht.h"
 #include "nouveau_vm.h"
+#include "nv50_display.h"
 
 struct nouveau_gpuobj_method {
 	struct list_head head;
@@ -490,16 +491,22 @@ nouveau_gpuobj_dma_new(struct nouveau_channel *chan, int class, u64 base,
 	}
 
 	if (target == NV_MEM_TARGET_GART) {
-		if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
-			target = NV_MEM_TARGET_PCI_NOSNOOP;
-			base  += dev_priv->gart_info.aper_base;
-		} else
-		if (base != 0) {
-			base = nouveau_sgdma_get_physical(dev, base);
+		struct nouveau_gpuobj *gart = dev_priv->gart_info.sg_ctxdma;
+
+		if (dev_priv->gart_info.type == NOUVEAU_GART_PDMA) {
+			if (base == 0) {
+				nouveau_gpuobj_ref(gart, pobj);
+				return 0;
+			}
+
+			base   = nouveau_sgdma_get_physical(dev, base);
 			target = NV_MEM_TARGET_PCI;
 		} else {
-			nouveau_gpuobj_ref(dev_priv->gart_info.sg_ctxdma, pobj);
-			return 0;
+			base += dev_priv->gart_info.aper_base;
+			if (dev_priv->gart_info.type == NOUVEAU_GART_AGP)
+				target = NV_MEM_TARGET_PCI_NOSNOOP;
+			else
+				target = NV_MEM_TARGET_PCI;
 		}
 	}
 
@@ -776,7 +783,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *vram = NULL, *tt = NULL;
-	int ret;
+	int ret, i;
 
 	NV_DEBUG(dev, "ch%d vram=0x%08x tt=0x%08x\n", chan->id, vram_h, tt_h);
 
@@ -841,6 +848,25 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 		nouveau_gpuobj_ref(NULL, &ramht);
 		if (ret)
 			return ret;
+
+		/* dma objects for display sync channel semaphore blocks */
+		for (i = 0; i < 2; i++) {
+			struct nouveau_gpuobj *sem = NULL;
+			struct nv50_display_crtc *dispc =
+				&nv50_display(dev)->crtc[i];
+			u64 offset = dispc->sem.bo->bo.mem.start << PAGE_SHIFT;
+
+			ret = nouveau_gpuobj_dma_new(chan, 0x3d, offset, 0xfff,
+						     NV_MEM_ACCESS_RW,
+						     NV_MEM_TARGET_VRAM, &sem);
+			if (ret)
+				return ret;
+
+			ret = nouveau_ramht_insert(chan, NvEvoSema0 + i, sem);
+			nouveau_gpuobj_ref(NULL, &sem);
+			if (ret)
+				return ret;
+		}
 	}
 
 	/* VRAM ctxdma */
@@ -909,7 +935,7 @@ nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 	nouveau_vm_ref(NULL, &chan->vm, chan->vm_pd);
 	nouveau_gpuobj_ref(NULL, &chan->vm_pd);
 
-	if (chan->ramin_heap.free_stack.next)
+	if (drm_mm_initialized(&chan->ramin_heap))
 		drm_mm_takedown(&chan->ramin_heap);
 	nouveau_gpuobj_ref(NULL, &chan->ramin);
 }
@@ -1013,19 +1039,20 @@ nv_ro32(struct nouveau_gpuobj *gpuobj, u32 offset)
 {
 	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
 	struct drm_device *dev = gpuobj->dev;
+	unsigned long flags;
 
 	if (gpuobj->pinst == ~0 || !dev_priv->ramin_available) {
 		u64  ptr = gpuobj->vinst + offset;
 		u32 base = ptr >> 16;
 		u32  val;
 
-		spin_lock(&dev_priv->ramin_lock);
+		spin_lock_irqsave(&dev_priv->vm_lock, flags);
 		if (dev_priv->ramin_base != base) {
 			dev_priv->ramin_base = base;
 			nv_wr32(dev, 0x001700, dev_priv->ramin_base);
 		}
 		val = nv_rd32(dev, 0x700000 + (ptr & 0xffff));
-		spin_unlock(&dev_priv->ramin_lock);
+		spin_unlock_irqrestore(&dev_priv->vm_lock, flags);
 		return val;
 	}
 
@@ -1037,18 +1064,19 @@ nv_wo32(struct nouveau_gpuobj *gpuobj, u32 offset, u32 val)
 {
 	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
 	struct drm_device *dev = gpuobj->dev;
+	unsigned long flags;
 
 	if (gpuobj->pinst == ~0 || !dev_priv->ramin_available) {
 		u64  ptr = gpuobj->vinst + offset;
 		u32 base = ptr >> 16;
 
-		spin_lock(&dev_priv->ramin_lock);
+		spin_lock_irqsave(&dev_priv->vm_lock, flags);
 		if (dev_priv->ramin_base != base) {
 			dev_priv->ramin_base = base;
 			nv_wr32(dev, 0x001700, dev_priv->ramin_base);
 		}
 		nv_wr32(dev, 0x700000 + (ptr & 0xffff), val);
-		spin_unlock(&dev_priv->ramin_lock);
+		spin_unlock_irqrestore(&dev_priv->vm_lock, flags);
 		return;
 	}
 

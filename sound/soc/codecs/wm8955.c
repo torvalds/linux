@@ -176,7 +176,7 @@ static int wm8995_pll_factors(struct device *dev,
 	return 0;
 }
 
-/* Lookup table specifiying SRATE (table 25 in datasheet); some of the
+/* Lookup table specifying SRATE (table 25 in datasheet); some of the
  * output frequencies have been rounded to the standard frequencies
  * they are intended to match where the error is slight. */
 static struct {
@@ -934,16 +934,27 @@ static int wm8955_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Change some default settings - latch VU and enable ZC */
-	reg_cache[WM8955_LEFT_DAC_VOLUME] |= WM8955_LDVU;
-	reg_cache[WM8955_RIGHT_DAC_VOLUME] |= WM8955_RDVU;
-	reg_cache[WM8955_LOUT1_VOLUME] |= WM8955_LO1VU | WM8955_LO1ZC;
-	reg_cache[WM8955_ROUT1_VOLUME] |= WM8955_RO1VU | WM8955_RO1ZC;
-	reg_cache[WM8955_LOUT2_VOLUME] |= WM8955_LO2VU | WM8955_LO2ZC;
-	reg_cache[WM8955_ROUT2_VOLUME] |= WM8955_RO2VU | WM8955_RO2ZC;
-	reg_cache[WM8955_MONOOUT_VOLUME] |= WM8955_MOZC;
+	snd_soc_update_bits(codec, WM8955_LEFT_DAC_VOLUME,
+			    WM8955_LDVU, WM8955_LDVU);
+	snd_soc_update_bits(codec, WM8955_RIGHT_DAC_VOLUME,
+			    WM8955_RDVU, WM8955_RDVU);
+	snd_soc_update_bits(codec, WM8955_LOUT1_VOLUME,
+			    WM8955_LO1VU | WM8955_LO1ZC,
+			    WM8955_LO1VU | WM8955_LO1ZC);
+	snd_soc_update_bits(codec, WM8955_ROUT1_VOLUME,
+			    WM8955_RO1VU | WM8955_RO1ZC,
+			    WM8955_RO1VU | WM8955_RO1ZC);
+	snd_soc_update_bits(codec, WM8955_LOUT2_VOLUME,
+			    WM8955_LO2VU | WM8955_LO2ZC,
+			    WM8955_LO2VU | WM8955_LO2ZC);
+	snd_soc_update_bits(codec, WM8955_ROUT2_VOLUME,
+			    WM8955_RO2VU | WM8955_RO2ZC,
+			    WM8955_RO2VU | WM8955_RO2ZC);
+	snd_soc_update_bits(codec, WM8955_MONOOUT_VOLUME,
+			    WM8955_MOZC, WM8955_MOZC);
 
 	/* Also enable adaptive bass boost by default */
-	reg_cache[WM8955_BASS_CONTROL] |= WM8955_BB;
+	snd_soc_update_bits(codec, WM8955_BASS_CONTROL, WM8955_BB, WM8955_BB);
 
 	/* Set platform data values */
 	if (pdata) {

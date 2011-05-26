@@ -31,7 +31,7 @@
 #define IXGBE_VFCTRL           0x00000
 #define IXGBE_VFSTATUS         0x00008
 #define IXGBE_VFLINKS          0x00010
-#define IXGBE_VFRTIMER         0x00048
+#define IXGBE_VFFRTIMER        0x00048
 #define IXGBE_VFRXMEMWRAP      0x03190
 #define IXGBE_VTEICR           0x00100
 #define IXGBE_VTEICS           0x00104

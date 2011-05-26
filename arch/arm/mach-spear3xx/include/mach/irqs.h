@@ -69,7 +69,7 @@
 #define IRQ_CLCD				IRQ_GEN_RAS_3
 
 /* IRQs sharing IRQ_INTRCOMM_RAS_ARM */
-#define IRQ_SDIO				IRQ_INTRCOMM_RAS_ARM
+#define IRQ_SDHCI				IRQ_INTRCOMM_RAS_ARM
 
 /* GPIO pins virtual irqs */
 #define SPEAR_GPIO_INT_BASE			(VIRQ_START + 9)
@@ -115,7 +115,7 @@
 #define VIRQ_SPP				(VIRQ_START + 2)
 
 /* IRQs sharing IRQ_GEN_RAS_2 */
-#define IRQ_SDIO				IRQ_GEN_RAS_2
+#define IRQ_SDHCI				IRQ_GEN_RAS_2
 
 /* IRQs sharing IRQ_GEN_RAS_3 */
 #define VIRQ_PLGPIO				(VIRQ_START + 3)

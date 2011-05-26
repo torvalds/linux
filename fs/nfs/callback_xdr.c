@@ -241,7 +241,7 @@ static __be32 decode_layoutrecall_args(struct svc_rqst *rqstp,
 
 	args->cbl_layout_type = ntohl(*p++);
 	/* Depite the spec's xdr, iomode really belongs in the FILE switch,
-	 * as it is unuseable and ignored with the other types.
+	 * as it is unusable and ignored with the other types.
 	 */
 	iomode = ntohl(*p++);
 	args->cbl_layoutchanged = ntohl(*p++);

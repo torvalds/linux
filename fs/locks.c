@@ -145,7 +145,6 @@ static DEFINE_SPINLOCK(file_lock_lock);
 
 /*
  * Protects the two list heads above, plus the inode->i_flock list
- * FIXME: should use a spinlock, once lockd and ceph are ready.
  */
 void lock_flocks(void)
 {
@@ -415,17 +414,7 @@ static int flock64_to_posix_lock(struct file *filp, struct file_lock *fl,
 	fl->fl_ops = NULL;
 	fl->fl_lmops = NULL;
 
-	switch (l->l_type) {
-	case F_RDLCK:
-	case F_WRLCK:
-	case F_UNLCK:
-		fl->fl_type = l->l_type;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return (0);
+	return assign_type(fl, l->l_type);
 }
 #endif
 

@@ -7,6 +7,7 @@
 /* declare packet_type enums */
 enum packet_types {
 #define NL_PACKET(name, number, fields) P_ ## name = number,
+#define NL_RESPONSE(name, number) P_ ## name = number,
 #define NL_INTEGER(pn, pr, member)
 #define NL_INT64(pn, pr, member)
 #define NL_BIT(pn, pr, member)

@@ -5,12 +5,12 @@ config SQUASHFS
 	help
 	  Saying Y here includes support for SquashFS 4.0 (a Compressed
 	  Read-Only File System).  Squashfs is a highly compressed read-only
-	  filesystem for Linux.  It uses zlib/lzo compression to compress both
-	  files, inodes and directories.  Inodes in the system are very small
-	  and all blocks are packed to minimise data overhead. Block sizes
-	  greater than 4K are supported up to a maximum of 1 Mbytes (default
-	  block size 128K).  SquashFS 4.0 supports 64 bit filesystems and files
-	  (larger than 4GB), full uid/gid information, hard links and
+	  filesystem for Linux.  It uses zlib, lzo or xz compression to
+	  compress both files, inodes and directories.  Inodes in the system
+	  are very small and all blocks are packed to minimise data overhead.
+	  Block sizes greater than 4K are supported up to a maximum of 1 Mbytes
+	  (default block size 128K).  SquashFS 4.0 supports 64 bit filesystems
+	  and files (larger than 4GB), full uid/gid information, hard links and
 	  timestamps.
 
 	  Squashfs is intended for general read-only filesystem use, for

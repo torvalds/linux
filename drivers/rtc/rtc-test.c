@@ -78,11 +78,16 @@ static ssize_t test_irq_store(struct device *dev,
 	struct rtc_device *rtc = platform_get_drvdata(plat_dev);
 
 	retval = count;
-	if (strncmp(buf, "tick", 4) == 0)
+	if (strncmp(buf, "tick", 4) == 0 && rtc->pie_enabled)
 		rtc_update_irq(rtc, 1, RTC_PF | RTC_IRQF);
-	else if (strncmp(buf, "alarm", 5) == 0)
-		rtc_update_irq(rtc, 1, RTC_AF | RTC_IRQF);
-	else if (strncmp(buf, "update", 6) == 0)
+	else if (strncmp(buf, "alarm", 5) == 0) {
+		struct rtc_wkalrm alrm;
+		int err = rtc_read_alarm(rtc, &alrm);
+
+		if (!err && alrm.enabled)
+			rtc_update_irq(rtc, 1, RTC_AF | RTC_IRQF);
+
+	} else if (strncmp(buf, "update", 6) == 0 && rtc->uie_rtctimer.enabled)
 		rtc_update_irq(rtc, 1, RTC_UF | RTC_IRQF);
 	else
 		retval = -EINVAL;

@@ -13,7 +13,7 @@
  * TODO: Erase/program both banks of a 8MB SIMM.
  *
  * It is anticipated that programming an OS Flash will be a routine
- * procedure. In the same time it is exeedingly dangerous because
+ * procedure. In the same time it is exceedingly dangerous because
  * a user can program its OBP flash with OS image and effectively
  * kill the machine.
  *

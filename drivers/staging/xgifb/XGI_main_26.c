@@ -43,8 +43,6 @@
 #include "XGI_main.h"
 #include "vb_util.h"
 
-int XGIfb_accel = 0;
-
 #define Index_CR_GPIO_Reg1 0x48
 #define Index_CR_GPIO_Reg2 0x49
 #define Index_CR_GPIO_Reg3 0x4a
@@ -53,6 +51,8 @@ int XGIfb_accel = 0;
 #define GPIOG_WRITE (1<<6)
 #define GPIOG_READ  (1<<1)
 int XGIfb_GetXG21DefaultLVDSModeIdx(void);
+
+#define XGIFB_ROM_SIZE	65536
 
 /* -------------------- Macro definitions ---------------------------- */
 
@@ -182,8 +182,6 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 
 	*/
 	ClockIndex = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
-	if (HwDeviceExtension->jChipType < XGI_315H)
-		ClockIndex &= 0x3F;
 
 	Clock = XGI_Pr->VCLKData[ClockIndex].CLOCK * 1000;
 
@@ -859,12 +857,6 @@ static int XGIfb_validate_mode(int myindex)
 				if (XGIbios_mode[myindex].bpp == 32)
 					return -1;
 			}
-			/* TW: LVDS/CHRONTEL only supports < 800 (1024 on 650/Ch7019) */
-			if (xgi_video_info.hasVB == HASVB_LVDS_CHRONTEL
-					|| xgi_video_info.hasVB	== HASVB_CHRONTEL) {
-				if (xgi_video_info.chip < XGI_315H)
-					return -1;
-			}
 			break;
 		default:
 			return -1;
@@ -896,24 +888,6 @@ static void XGIfb_search_crt2type(const char *name)
 	}
 	if (XGIfb_crt2type < 0)
 		printk(KERN_INFO "XGIfb: Invalid CRT2 type: %s\n", name);
-}
-
-static void XGIfb_search_queuemode(const char *name)
-{
-	int i = 0;
-
-	if (name == NULL)
-		return;
-
-	while (XGI_queuemode[i].type_no != -1) {
-		if (!strcmp(name, XGI_queuemode[i].name)) {
-			XGIfb_queuemode = XGI_queuemode[i].type_no;
-			break;
-		}
-		i++;
-	}
-	if (XGIfb_queuemode < 0)
-		printk(KERN_INFO "XGIfb: Invalid queuemode type: %s\n", name);
 }
 
 static u8 XGIfb_search_refresh_rate(unsigned int rate)
@@ -980,61 +954,6 @@ static void XGIfb_search_tvstd(const char *name)
 		}
 		i++;
 	}
-}
-
-static unsigned char XGIfb_bridgeisslave(void)
-{
-	unsigned char usScratchP1_00;
-
-	if (xgi_video_info.hasVB == HASVB_NONE)
-		return 0;
-
-	inXGIIDXREG(XGIPART1, 0x00, usScratchP1_00);
-	if ((usScratchP1_00 & 0x50) == 0x10)
-		return 1;
-	else
-		return 0;
-}
-
-static unsigned char XGIfbcheckvretracecrt1(void)
-{
-	unsigned char temp;
-
-	inXGIIDXREG(XGICR, 0x17, temp);
-	if (!(temp & 0x80))
-		return 0;
-
-	inXGIIDXREG(XGISR, 0x1f, temp);
-	if (temp & 0xc0)
-		return 0;
-
-	if (inXGIREG(XGIINPSTAT) & 0x08)
-		return 1;
-	else
-		return 0;
-}
-
-static unsigned char XGIfbcheckvretracecrt2(void)
-{
-	unsigned char temp;
-	if (xgi_video_info.hasVB == HASVB_NONE)
-		return 0;
-	inXGIIDXREG(XGIPART1, 0x30, temp);
-	if (temp & 0x02)
-		return 0;
-	else
-		return 1;
-}
-
-static unsigned char XGIfb_CheckVBRetrace(void)
-{
-	if (xgi_video_info.disp_state & DISPTYPE_DISP2) {
-		if (XGIfb_bridgeisslave())
-			return XGIfbcheckvretracecrt1();
-		else
-			return XGIfbcheckvretracecrt2();
-	}
-	return XGIfbcheckvretracecrt1();
 }
 
 /* ----------- FBDev related routines for all series ----------- */
@@ -1187,11 +1106,6 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		xgi_video_info.org_x = xgi_video_info.org_y = 0;
 		xgi_video_info.video_linelength = info->var.xres_virtual
 				* (xgi_video_info.video_bpp >> 3);
-		xgi_video_info.accel = 0;
-		if (XGIfb_accel) {
-			xgi_video_info.accel = (var->accel_flags
-					& FB_ACCELF_TEXT) ? -1 : 0;
-		}
 		switch (xgi_video_info.video_bpp) {
 		case 8:
 			xgi_video_info.DstColor = 0x0000;
@@ -1223,7 +1137,6 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		default:
 			xgi_video_info.video_cmap_len = 16;
 			printk(KERN_ERR "XGIfb: Unsupported depth %d", xgi_video_info.video_bpp);
-			xgi_video_info.accel = 0;
 			break;
 		}
 	}
@@ -1285,26 +1198,6 @@ static int XGIfb_pan_var(struct fb_var_screeninfo *var)
 	return 0;
 }
 #endif
-
-void XGI_dispinfo(struct ap_data *rec)
-{
-	rec->minfo.bpp = xgi_video_info.video_bpp;
-	rec->minfo.xres = xgi_video_info.video_width;
-	rec->minfo.yres = xgi_video_info.video_height;
-	rec->minfo.v_xres = xgi_video_info.video_vwidth;
-	rec->minfo.v_yres = xgi_video_info.video_vheight;
-	rec->minfo.org_x = xgi_video_info.org_x;
-	rec->minfo.org_y = xgi_video_info.org_y;
-	rec->minfo.vrate = xgi_video_info.refresh_rate;
-	rec->iobase = xgi_video_info.vga_base - 0x30;
-	rec->mem_size = xgi_video_info.video_size;
-	rec->disp_state = xgi_video_info.disp_state;
-	rec->version = (VER_MAJOR << 24) | (VER_MINOR << 16) | VER_LEVEL;
-	rec->hasVB = xgi_video_info.hasVB;
-	rec->TV_type = xgi_video_info.TV_type;
-	rec->TV_plug = xgi_video_info.TV_plug;
-	rec->chip = xgi_video_info.chip;
-}
 
 static int XGIfb_open(struct fb_info *info, int user)
 {
@@ -1580,109 +1473,6 @@ static int XGIfb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,
-		unsigned long arg)
-{
-	DEBUGPRN("inside ioctl");
-	switch (cmd) {
-	case FBIO_ALLOC:
-		if (!capable(CAP_SYS_RAWIO))
-			return -EPERM;
-		XGI_malloc((struct XGI_memreq *) arg);
-		break;
-	case FBIO_FREE:
-		if (!capable(CAP_SYS_RAWIO))
-			return -EPERM;
-		XGI_free(*(unsigned long *) arg);
-		break;
-	case FBIOGET_HWCINFO: {
-		unsigned long *hwc_offset = (unsigned long *) arg;
-
-		if (XGIfb_caps & HW_CURSOR_CAP)
-			*hwc_offset
-					= XGIfb_hwcursor_vbase
-							- (unsigned long) xgi_video_info.video_vbase;
-		else
-			*hwc_offset = 0;
-
-		break;
-	}
-	case FBIOPUT_MODEINFO: {
-		struct mode_info *x = (struct mode_info *) arg;
-
-		xgi_video_info.video_bpp = x->bpp;
-		xgi_video_info.video_width = x->xres;
-		xgi_video_info.video_height = x->yres;
-		xgi_video_info.video_vwidth = x->v_xres;
-		xgi_video_info.video_vheight = x->v_yres;
-		xgi_video_info.org_x = x->org_x;
-		xgi_video_info.org_y = x->org_y;
-		xgi_video_info.refresh_rate = x->vrate;
-		xgi_video_info.video_linelength = xgi_video_info.video_vwidth
-				* (xgi_video_info.video_bpp >> 3);
-		switch (xgi_video_info.video_bpp) {
-		case 8:
-			xgi_video_info.DstColor = 0x0000;
-			xgi_video_info.XGI310_AccelDepth = 0x00000000;
-			xgi_video_info.video_cmap_len = 256;
-			break;
-		case 16:
-			xgi_video_info.DstColor = 0x8000;
-			xgi_video_info.XGI310_AccelDepth = 0x00010000;
-			xgi_video_info.video_cmap_len = 16;
-			break;
-		case 32:
-			xgi_video_info.DstColor = 0xC000;
-			xgi_video_info.XGI310_AccelDepth = 0x00020000;
-			xgi_video_info.video_cmap_len = 16;
-			break;
-		default:
-			xgi_video_info.video_cmap_len = 16;
-			printk(KERN_ERR "XGIfb: Unsupported accel depth %d", xgi_video_info.video_bpp);
-			xgi_video_info.accel = 0;
-			break;
-		}
-
-		break;
-	}
-	case FBIOGET_DISPINFO:
-		XGI_dispinfo((struct ap_data *) arg);
-		break;
-	case XGIFB_GET_INFO: /* TW: New for communication with X driver */
-	{
-		struct XGIfb_info *x = (struct XGIfb_info *) arg;
-
-		/* x->XGIfb_id = XGIFB_ID; */
-		x->XGIfb_version = VER_MAJOR;
-		x->XGIfb_revision = VER_MINOR;
-		x->XGIfb_patchlevel = VER_LEVEL;
-		x->chip_id = xgi_video_info.chip_id;
-		x->memory = xgi_video_info.video_size / 1024;
-		x->heapstart = xgi_video_info.heapstart / 1024;
-		x->fbvidmode = XGIfb_mode_no;
-		x->XGIfb_caps = XGIfb_caps;
-		x->XGIfb_tqlen = 512; /* yet unused */
-		x->XGIfb_pcibus = xgi_video_info.pcibus;
-		x->XGIfb_pcislot = xgi_video_info.pcislot;
-		x->XGIfb_pcifunc = xgi_video_info.pcifunc;
-		x->XGIfb_lcdpdc = XGIfb_detectedpdc;
-		x->XGIfb_lcda = XGIfb_detectedlcda;
-		break;
-	}
-	case XGIFB_GET_VBRSTATUS: {
-		unsigned long *vbrstatus = (unsigned long *) arg;
-		if (XGIfb_CheckVBRetrace())
-			*vbrstatus = 1;
-		else
-			*vbrstatus = 0;
-	}
-	default:
-		return -EINVAL;
-	} DEBUGPRN("end of ioctl");
-	return 0;
-
-}
-
 /* ----------- FBDev related routines for all series ---------- */
 
 static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
@@ -1697,16 +1487,6 @@ static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 
 	fix->smem_len = xgi_video_info.video_size;
 
-	/*        if((!XGIfb_mem) || (XGIfb_mem > (xgi_video_info.video_size/1024))) {
-	 if (xgi_video_info.video_size > 0x1000000) {
-	 fix->smem_len = 0xD00000;
-	 } else if (xgi_video_info.video_size > 0x800000)
-	 fix->smem_len = 0x800000;
-	 else
-	 fix->smem_len = 0x400000;
-	 } else
-	 fix->smem_len = XGIfb_mem * 1024;
-	 */
 	fix->type = video_type;
 	fix->type_aux = 0;
 	if (xgi_video_info.video_bpp == 8)
@@ -1721,11 +1501,8 @@ static int XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 	fix->ywrapstep = 0;
 	fix->line_length = xgi_video_info.video_linelength;
 	fix->mmio_start = xgi_video_info.mmio_base;
-	fix->mmio_len = XGIfb_mmio_size;
-	if (xgi_video_info.chip >= XG40)
-		fix->accel = FB_ACCEL_XGI_XABRE;
-	else
-		fix->accel = FB_ACCEL_XGI_GLAMOUR_2;
+	fix->mmio_len = xgi_video_info.mmio_size;
+	fix->accel = FB_ACCEL_XGI_XABRE;
 
 	DEBUGPRN("end of get_fix");
 	return 0;
@@ -1742,11 +1519,9 @@ static struct fb_ops XGIfb_ops = {
 	.fb_pan_display = XGIfb_pan_display,
 #endif
 	.fb_blank = XGIfb_blank,
-	.fb_fillrect = fbcon_XGI_fillrect,
-	.fb_copyarea = fbcon_XGI_copyarea,
+	.fb_fillrect = cfb_fillrect,
+	.fb_copyarea = cfb_copyarea,
 	.fb_imageblit = cfb_imageblit,
-	.fb_sync = fbcon_XGI_sync,
-	.fb_ioctl = XGIfb_ioctl,
 	/* .fb_mmap = XGIfb_mmap, */
 };
 
@@ -1898,24 +1673,11 @@ static void XGIfb_detect_VB(void)
 		xgi_video_info.TV_plug = TVPLUG_SCART;
 
 	if (xgi_video_info.TV_type == 0) {
-		/* TW: PAL/NTSC changed for 650 */
-		if ((xgi_video_info.chip <= XGI_315PRO) || (xgi_video_info.chip
-				>= XGI_330)) {
-
-			inXGIIDXREG(XGICR, 0x38, temp);
-			if (temp & 0x10)
-				xgi_video_info.TV_type = TVMODE_PAL;
-			else
-				xgi_video_info.TV_type = TVMODE_NTSC;
-
-		} else {
-
-			inXGIIDXREG(XGICR, 0x79, temp);
-			if (temp & 0x20)
-				xgi_video_info.TV_type = TVMODE_PAL;
-			else
-				xgi_video_info.TV_type = TVMODE_NTSC;
-		}
+		inXGIIDXREG(XGICR, 0x38, temp);
+		if (temp & 0x10)
+			xgi_video_info.TV_type = TVMODE_PAL;
+		else
+			xgi_video_info.TV_type = TVMODE_NTSC;
 	}
 
 	/* TW: Copy forceCRT1 option to CRT1off if option is given */
@@ -2087,495 +1849,6 @@ void XGI_Sense30x(void)
 	outXGIIDXREG(XGIPART4, 0x0d, backupP4_0d);
 }
 
-/* ------------------------ Heap routines -------------------------- */
-
-static int XGIfb_heap_init(void)
-{
-	XGI_OH *poh;
-	u8 temp = 0;
-
-	int agp_enabled = 1;
-	u32 agp_size;
-	unsigned long *cmdq_baseport = NULL;
-	unsigned long *read_port = NULL;
-	unsigned long *write_port = NULL;
-	XGI_CMDTYPE cmd_type;
-#ifndef AGPOFF
-	struct agp_kern_info *agp_info;
-	struct agp_memory *agp;
-	u32 agp_phys;
-#endif
-
-	/* TW: The heap start is either set manually using the "mem" parameter, or
-	 *     defaults as follows:
-	 *     -) If more than 16MB videoRAM available, let our heap start at 12MB.
-	 *     -) If more than  8MB videoRAM available, let our heap start at  8MB.
-	 *     -) If 4MB or less is available, let it start at 4MB.
-	 *     This is for avoiding a clash with X driver which uses the beginning
-	 *     of the videoRAM. To limit size of X framebuffer, use Option MaxXFBMem
-	 *     in XF86Config-4.
-	 *     The heap start can also be specified by parameter "mem" when starting the XGIfb
-	 *     driver. XGIfb mem=1024 lets heap starts at 1MB, etc.
-	 */
-	if ((!XGIfb_mem) || (XGIfb_mem > (xgi_video_info.video_size / 1024))) {
-		if (xgi_video_info.video_size > 0x1000000)
-			xgi_video_info.heapstart = 0xD00000;
-		else if (xgi_video_info.video_size > 0x800000)
-			xgi_video_info.heapstart = 0x800000;
-		else
-			xgi_video_info.heapstart = 0x400000;
-	} else {
-		xgi_video_info.heapstart = XGIfb_mem * 1024;
-	}
-	XGIfb_heap_start = (unsigned long) (xgi_video_info.video_vbase
-			+ xgi_video_info.heapstart);
-	printk(KERN_INFO "XGIfb: Memory heap starting at %dK\n",
-			(int)(xgi_video_info.heapstart / 1024));
-
-	XGIfb_heap_end = (unsigned long) xgi_video_info.video_vbase
-			+ xgi_video_info.video_size;
-	XGIfb_heap_size = XGIfb_heap_end - XGIfb_heap_start;
-
-	/* TW: Now initialize the 310 series' command queue mode.
-	 * On 310/325, there are three queue modes available which
-	 * are chosen by setting bits 7:5 in SR26:
-	 * 1. MMIO queue mode (bit 5, 0x20). The hardware will keep
-	 *    track of the queue, the FIFO, command parsing and so
-	 *    on. This is the one comparable to the 300 series.
-	 * 2. VRAM queue mode (bit 6, 0x40). In this case, one will
-	 *    have to do queue management himself. Register 0x85c4 will
-	 *    hold the location of the next free queue slot, 0x85c8
-	 *    is the "queue read pointer" whose way of working is
-	 *    unknown to me. Anyway, this mode would require a
-	 *    translation of the MMIO commands to some kind of
-	 *    accelerator assembly and writing these commands
-	 *    to the memory location pointed to by 0x85c4.
-	 *    We will not use this, as nobody knows how this
-	 *    "assembly" works, and as it would require a complete
-	 *    re-write of the accelerator code.
-	 * 3. AGP queue mode (bit 7, 0x80). Works as 2., but keeps the
-	 *    queue in AGP memory space.
-	 *
-	 * SR26 bit 4 is called "Bypass H/W queue".
-	 * SR26 bit 1 is called "Enable Command Queue Auto Correction"
-	 * SR26 bit 0 resets the queue
-	 * Size of queue memory is encoded in bits 3:2 like this:
-	 *    00  (0x00)  512K
-	 *    01  (0x04)  1M
-	 *    10  (0x08)  2M
-	 *    11  (0x0C)  4M
-	 * The queue location is to be written to 0x85C0.
-	 *
-	 */
-	cmdq_baseport = (unsigned long *) (xgi_video_info.mmio_vbase
-			+ MMIO_QUEUE_PHYBASE);
-	write_port = (unsigned long *) (xgi_video_info.mmio_vbase
-			+ MMIO_QUEUE_WRITEPORT);
-	read_port = (unsigned long *) (xgi_video_info.mmio_vbase
-			+ MMIO_QUEUE_READPORT);
-
-	DPRINTK("AGP base: 0x%p, read: 0x%p, write: 0x%p\n", cmdq_baseport, read_port, write_port);
-
-	agp_size = COMMAND_QUEUE_AREA_SIZE;
-
-#ifndef AGPOFF
-	if (XGIfb_queuemode == AGP_CMD_QUEUE) {
-		agp_info = vzalloc(sizeof(*agp_info));
-		agp_copy_info(agp_info);
-
-		agp_backend_acquire();
-
-		agp = agp_allocate_memory(COMMAND_QUEUE_AREA_SIZE / PAGE_SIZE,
-				AGP_NORMAL_MEMORY);
-		if (agp == NULL) {
-			DPRINTK("XGIfb: Allocating AGP buffer failed.\n");
-			agp_enabled = 0;
-		} else {
-			if (agp_bind_memory(agp, agp->pg_start) != 0) {
-				DPRINTK("XGIfb: AGP: Failed to bind memory\n");
-				/* TODO: Free AGP memory here */
-				agp_enabled = 0;
-			} else {
-				agp_enable(0);
-			}
-		}
-	}
-#else
-	agp_enabled = 0;
-#endif
-
-	/* TW: Now select the queue mode */
-
-	if ((agp_enabled) && (XGIfb_queuemode == AGP_CMD_QUEUE)) {
-		cmd_type = AGP_CMD_QUEUE;
-		printk(KERN_INFO "XGIfb: Using AGP queue mode\n");
-	/* } else if (XGIfb_heap_size >= COMMAND_QUEUE_AREA_SIZE)  */
-	} else if (XGIfb_queuemode == VM_CMD_QUEUE) {
-		cmd_type = VM_CMD_QUEUE;
-		printk(KERN_INFO "XGIfb: Using VRAM queue mode\n");
-	} else {
-		printk(KERN_INFO "XGIfb: Using MMIO queue mode\n");
-		cmd_type = MMIO_CMD;
-	}
-
-	switch (agp_size) {
-	case 0x80000:
-		temp = XGI_CMD_QUEUE_SIZE_512k;
-		break;
-	case 0x100000:
-		temp = XGI_CMD_QUEUE_SIZE_1M;
-		break;
-	case 0x200000:
-		temp = XGI_CMD_QUEUE_SIZE_2M;
-		break;
-	case 0x400000:
-		temp = XGI_CMD_QUEUE_SIZE_4M;
-		break;
-	}
-
-	switch (cmd_type) {
-	case AGP_CMD_QUEUE:
-#ifndef AGPOFF
-		DPRINTK("XGIfb: AGP buffer base = 0x%lx, offset = 0x%x, size = %dK\n",
-			agp_info->aper_base, agp->physical, agp_size/1024);
-
-		agp_phys = agp_info->aper_base + agp->physical;
-
-		outXGIIDXREG(XGICR, IND_XGI_AGP_IO_PAD, 0);
-		outXGIIDXREG(XGICR, IND_XGI_AGP_IO_PAD, XGI_AGP_2X);
-
-		outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_THRESHOLD, COMMAND_QUEUE_THRESHOLD);
-
-		outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_SET, XGI_CMD_QUEUE_RESET);
-
-		*write_port = *read_port;
-
-		temp |= XGI_AGP_CMDQUEUE_ENABLE;
-		outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_SET, temp);
-
-		*cmdq_baseport = agp_phys;
-
-		XGIfb_caps |= AGP_CMD_QUEUE_CAP;
-#endif
-		break;
-
-	case VM_CMD_QUEUE:
-		XGIfb_heap_end -= COMMAND_QUEUE_AREA_SIZE;
-		XGIfb_heap_size -= COMMAND_QUEUE_AREA_SIZE;
-
-		outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_THRESHOLD, COMMAND_QUEUE_THRESHOLD);
-
-		outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_SET, XGI_CMD_QUEUE_RESET);
-
-		*write_port = *read_port;
-
-		temp |= XGI_VRAM_CMDQUEUE_ENABLE;
-		outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_SET, temp);
-
-		*cmdq_baseport = xgi_video_info.video_size - COMMAND_QUEUE_AREA_SIZE;
-
-		XGIfb_caps |= VM_CMD_QUEUE_CAP;
-
-		DPRINTK("XGIfb: VM Cmd Queue offset = 0x%lx, size is %dK\n",
-			*cmdq_baseport, COMMAND_QUEUE_AREA_SIZE/1024);
-		break;
-
-	default: /* MMIO */
-
-		/* printk("%s:%d - I'm here\n", __FUNCTION__, __LINE__); */
-		/* TW: This previously only wrote XGI_MMIO_CMD_ENABLE
-		 * to IND_XGI_CMDQUEUE_SET. I doubt that this is
-		 * enough. Reserve memory in any way.
-		 */
-		/* FIXME XGIfb_heap_end -= COMMAND_QUEUE_AREA_SIZE; */
-		/* FIXME XGIfb_heap_size -= COMMAND_QUEUE_AREA_SIZE; */
-		/* FIXME */
-		/* FIXME outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_THRESHOLD, COMMAND_QUEUE_THRESHOLD); */
-		/* FIXME outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_SET, XGI_CMD_QUEUE_RESET); */
-		/* FIXME */
-		/* FIXME *write_port = *read_port; */
-		/* FIXME */
-		/* FIXME *//* TW: Set Auto_Correction bit */
-		/* FIXME temp |= (XGI_MMIO_CMD_ENABLE | XGI_CMD_AUTO_CORR); */
-		/* FIXME outXGIIDXREG(XGISR, IND_XGI_CMDQUEUE_SET, temp); */
-		/* FIXME */
-		/* FIXME *cmdq_baseport = xgi_video_info.video_size - COMMAND_QUEUE_AREA_SIZE; */
-		/* FIXME */
-		/* FIXME XGIfb_caps |= MMIO_CMD_QUEUE_CAP; */
-		/* FIXME */
-		/* FIXME DPRINTK("XGIfb: MMIO Cmd Queue offset = 0x%lx, size is %dK\n", */
-		/* FIXME	*cmdq_baseport, COMMAND_QUEUE_AREA_SIZE/1024); */
-	break;
-}
-
-	/* TW: Now reserve memory for the HWCursor. It is always located at the very
-	top of the videoRAM, right below the TB memory area (if used). */
-	if (XGIfb_heap_size >= XGIfb_hwcursor_size) {
-		XGIfb_heap_end -= XGIfb_hwcursor_size;
-		XGIfb_heap_size -= XGIfb_hwcursor_size;
-		XGIfb_hwcursor_vbase = XGIfb_heap_end;
-
-		XGIfb_caps |= HW_CURSOR_CAP;
-
-		DPRINTK("XGIfb: Hardware Cursor start at 0x%lx, size is %dK\n",
-				XGIfb_heap_end, XGIfb_hwcursor_size/1024);
-	}
-
-	XGIfb_heap.poha_chain = NULL;
-	XGIfb_heap.poh_freelist = NULL;
-
-	poh = XGIfb_poh_new_node();
-
-	if (poh == NULL)
-		return 1;
-
-	poh->poh_next = &XGIfb_heap.oh_free;
-	poh->poh_prev = &XGIfb_heap.oh_free;
-	poh->size = XGIfb_heap_end - XGIfb_heap_start + 1;
-	poh->offset = XGIfb_heap_start - (unsigned long) xgi_video_info.video_vbase;
-
-	DPRINTK("XGIfb: Heap start:0x%p, end:0x%p, len=%dk\n",
-		(char *) XGIfb_heap_start, (char *) XGIfb_heap_end,
-		(unsigned int) poh->size / 1024);
-
-	DPRINTK("XGIfb: First Node offset:0x%x, size:%dk\n",
-		(unsigned int) poh->offset, (unsigned int) poh->size / 1024);
-
-	XGIfb_heap.oh_free.poh_next = poh;
-	XGIfb_heap.oh_free.poh_prev = poh;
-	XGIfb_heap.oh_free.size = 0;
-	XGIfb_heap.max_freesize = poh->size;
-
-	XGIfb_heap.oh_used.poh_next = &XGIfb_heap.oh_used;
-	XGIfb_heap.oh_used.poh_prev = &XGIfb_heap.oh_used;
-	XGIfb_heap.oh_used.size = SENTINEL;
-
-	return 0;
-}
-
-static XGI_OH *XGIfb_poh_new_node(void)
-{
-	int i;
-	unsigned long cOhs;
-	XGI_OHALLOC *poha;
-	XGI_OH *poh;
-
-	if (XGIfb_heap.poh_freelist == NULL) {
-		poha = kmalloc(OH_ALLOC_SIZE, GFP_KERNEL);
-		if (!poha)
-			return NULL;
-
-		poha->poha_next = XGIfb_heap.poha_chain;
-		XGIfb_heap.poha_chain = poha;
-
-		cOhs = (OH_ALLOC_SIZE - sizeof(XGI_OHALLOC)) / sizeof(XGI_OH)
-				+ 1;
-
-		poh = &poha->aoh[0];
-		for (i = cOhs - 1; i != 0; i--) {
-			poh->poh_next = poh + 1;
-			poh = poh + 1;
-		}
-
-		poh->poh_next = NULL;
-		XGIfb_heap.poh_freelist = &poha->aoh[0];
-	}
-
-	poh = XGIfb_heap.poh_freelist;
-	XGIfb_heap.poh_freelist = poh->poh_next;
-
-	return poh;
-}
-
-static XGI_OH *XGIfb_poh_allocate(unsigned long size)
-{
-	XGI_OH *pohThis;
-	XGI_OH *pohRoot;
-	int bAllocated = 0;
-
-	if (size > XGIfb_heap.max_freesize) {
-		DPRINTK("XGIfb: Can't allocate %dk size on offscreen\n",
-				(unsigned int) size / 1024);
-		return NULL;
-	}
-
-	pohThis = XGIfb_heap.oh_free.poh_next;
-
-	while (pohThis != &XGIfb_heap.oh_free) {
-		if (size <= pohThis->size) {
-			bAllocated = 1;
-			break;
-		}
-		pohThis = pohThis->poh_next;
-	}
-
-	if (!bAllocated) {
-		DPRINTK("XGIfb: Can't allocate %dk size on offscreen\n",
-				(unsigned int) size / 1024);
-		return NULL;
-	}
-
-	if (size == pohThis->size) {
-		pohRoot = pohThis;
-		XGIfb_delete_node(pohThis);
-	} else {
-		pohRoot = XGIfb_poh_new_node();
-
-		if (pohRoot == NULL)
-			return NULL;
-
-		pohRoot->offset = pohThis->offset;
-		pohRoot->size = size;
-
-		pohThis->offset += size;
-		pohThis->size -= size;
-	}
-
-	XGIfb_heap.max_freesize -= size;
-
-	pohThis = &XGIfb_heap.oh_used;
-	XGIfb_insert_node(pohThis, pohRoot);
-
-	return pohRoot;
-}
-
-static void XGIfb_delete_node(XGI_OH *poh)
-{
-	XGI_OH *poh_prev;
-	XGI_OH *poh_next;
-
-	poh_prev = poh->poh_prev;
-	poh_next = poh->poh_next;
-
-	poh_prev->poh_next = poh_next;
-	poh_next->poh_prev = poh_prev;
-
-}
-
-static void XGIfb_insert_node(XGI_OH *pohList, XGI_OH *poh)
-{
-	XGI_OH *pohTemp;
-
-	pohTemp = pohList->poh_next;
-
-	pohList->poh_next = poh;
-	pohTemp->poh_prev = poh;
-
-	poh->poh_prev = pohList;
-	poh->poh_next = pohTemp;
-}
-
-static XGI_OH *XGIfb_poh_free(unsigned long base)
-{
-	XGI_OH *pohThis;
-	XGI_OH *poh_freed;
-	XGI_OH *poh_prev;
-	XGI_OH *poh_next;
-	unsigned long ulUpper;
-	unsigned long ulLower;
-	int foundNode = 0;
-
-	poh_freed = XGIfb_heap.oh_used.poh_next;
-
-	while (poh_freed != &XGIfb_heap.oh_used) {
-		if (poh_freed->offset == base) {
-			foundNode = 1;
-			break;
-		}
-
-		poh_freed = poh_freed->poh_next;
-	}
-
-	if (!foundNode)
-		return NULL;
-
-	XGIfb_heap.max_freesize += poh_freed->size;
-
-	poh_prev = poh_next = NULL;
-	ulUpper = poh_freed->offset + poh_freed->size;
-	ulLower = poh_freed->offset;
-
-	pohThis = XGIfb_heap.oh_free.poh_next;
-
-	while (pohThis != &XGIfb_heap.oh_free) {
-		if (pohThis->offset == ulUpper)
-			poh_next = pohThis;
-		else if ((pohThis->offset + pohThis->size) == ulLower)
-			poh_prev = pohThis;
-
-		pohThis = pohThis->poh_next;
-	}
-
-	XGIfb_delete_node(poh_freed);
-
-	if (poh_prev && poh_next) {
-		poh_prev->size += (poh_freed->size + poh_next->size);
-		XGIfb_delete_node(poh_next);
-		XGIfb_free_node(poh_freed);
-		XGIfb_free_node(poh_next);
-		return poh_prev;
-	}
-
-	if (poh_prev) {
-		poh_prev->size += poh_freed->size;
-		XGIfb_free_node(poh_freed);
-		return poh_prev;
-	}
-
-	if (poh_next) {
-		poh_next->size += poh_freed->size;
-		poh_next->offset = poh_freed->offset;
-		XGIfb_free_node(poh_freed);
-		return poh_next;
-	}
-
-	XGIfb_insert_node(&XGIfb_heap.oh_free, poh_freed);
-
-	return poh_freed;
-}
-
-static void XGIfb_free_node(XGI_OH *poh)
-{
-	if (poh == NULL)
-		return;
-
-	poh->poh_next = XGIfb_heap.poh_freelist;
-	XGIfb_heap.poh_freelist = poh;
-
-}
-
-void XGI_malloc(struct XGI_memreq *req)
-{
-	XGI_OH *poh;
-
-	poh = XGIfb_poh_allocate(req->size);
-
-	if (poh == NULL) {
-		req->offset = 0;
-		req->size = 0;
-		DPRINTK("XGIfb: Video RAM allocation failed\n");
-	} else {
-		DPRINTK("XGIfb: Video RAM allocation succeeded: 0x%p\n",
-				(char *) (poh->offset + (unsigned long) xgi_video_info.video_vbase));
-
-		req->offset = poh->offset;
-		req->size = poh->size;
-	}
-
-}
-
-void XGI_free(unsigned long base)
-{
-	XGI_OH *poh;
-
-	poh = XGIfb_poh_free(base);
-
-	if (poh == NULL) {
-		DPRINTK("XGIfb: XGIfb_poh_free() failed at base 0x%x\n",
-				(unsigned int) base);
-	}
-}
-
 /* --------------------- SetMode routines ------------------------- */
 
 static void XGIfb_pre_setmode(void)
@@ -2622,10 +1895,6 @@ static void XGIfb_pre_setmode(void)
 	outXGIIDXREG(XGICR, IND_XGI_SCRATCH_REG_CR30, cr30);
 	outXGIIDXREG(XGICR, IND_XGI_SCRATCH_REG_CR31, cr31);
 	outXGIIDXREG(XGICR, IND_XGI_SCRATCH_REG_CR33, (XGIfb_rate_idx & 0x0F));
-
-	if (xgi_video_info.accel)
-		XGIfb_syncaccel();
-
 }
 
 static void XGIfb_post_setmode(void)
@@ -2840,22 +2109,16 @@ XGIINITSTATIC int __init XGIfb_setup(char *options)
 			XGIfb_search_tvstd(this_opt + 7);
 		} else if (!strncmp(this_opt, "tvstandard:", 11)) {
 			XGIfb_search_tvstd(this_opt + 7);
-		} else if (!strncmp(this_opt, "mem:", 4)) {
-			XGIfb_mem = simple_strtoul(this_opt + 4, NULL, 0);
 		} else if (!strncmp(this_opt, "dstn", 4)) {
 			enable_dstn = 1;
 			/* TW: DSTN overrules forcecrt2type */
 			XGIfb_crt2type = DISPTYPE_LCD;
-		} else if (!strncmp(this_opt, "queuemode:", 10)) {
-			XGIfb_search_queuemode(this_opt + 10);
 		} else if (!strncmp(this_opt, "pdc:", 4)) {
 			XGIfb_pdc = simple_strtoul(this_opt + 4, NULL, 0);
 			if (XGIfb_pdc & ~0x3c) {
 				printk(KERN_INFO "XGIfb: Illegal pdc parameter\n");
 				XGIfb_pdc = 0;
 			}
-		} else if (!strncmp(this_opt, "noaccel", 7)) {
-			XGIfb_accel = 0;
 		} else if (!strncmp(this_opt, "noypan", 6)) {
 			XGIfb_ypan = 0;
 		} else if (!strncmp(this_opt, "userom:", 7)) {
@@ -2867,74 +2130,43 @@ XGIINITSTATIC int __init XGIfb_setup(char *options)
 			/* printk(KERN_INFO "XGIfb: Invalid option %s\n", this_opt); */
 		}
 
-		/* TW: Acceleration only with MMIO mode */
-		if ((XGIfb_queuemode != -1) && (XGIfb_queuemode != MMIO_CMD)) {
-			XGIfb_ypan = 0;
-			XGIfb_accel = 0;
-		}
 		/* TW: Panning only with acceleration */
-		if (XGIfb_accel == 0)
-			XGIfb_ypan = 0;
+		XGIfb_ypan = 0;
 
 	}
 	printk("\nxgifb: outa xgifb_setup 3450");
 	return 0;
 }
 
-static unsigned char VBIOS_BUF[65535];
-
-static unsigned char *attempt_map_rom(struct pci_dev *dev, void *copy_address)
+static unsigned char *xgifb_copy_rom(struct pci_dev *dev)
 {
-	u32 rom_size = 0;
-	u32 rom_address = 0;
-	int j;
+	void __iomem *rom_address;
+	unsigned char *rom_copy;
+	size_t rom_size;
 
-	/*  Get the size of the expansion rom */
-	pci_write_config_dword(dev, PCI_ROM_ADDRESS, 0xFFFFFFFF);
-	pci_read_config_dword(dev, PCI_ROM_ADDRESS, &rom_size);
-	if ((rom_size & 0x01) == 0) {
-		printk("No ROM\n");
+	rom_address = pci_map_rom(dev, &rom_size);
+	if (rom_address == NULL)
 		return NULL;
-	}
 
-	rom_size &= 0xFFFFF800;
-	rom_size = (~rom_size) + 1;
+	rom_copy = vzalloc(XGIFB_ROM_SIZE);
+	if (rom_copy == NULL)
+		goto done;
 
-	rom_address = pci_resource_start(dev, 0);
-	if (rom_address == 0 || rom_address == 0xFFFFFFF0) {
-		printk("No suitable rom address found\n");
-		return NULL;
-	}
+	rom_size = min_t(size_t, rom_size, XGIFB_ROM_SIZE);
+	memcpy_fromio(rom_copy, rom_address, rom_size);
 
-	printk("ROM Size is %dK, Address is %x\n", rom_size / 1024, rom_address);
-
-	/*  Map ROM */
-	pci_write_config_dword(dev, PCI_ROM_ADDRESS, rom_address
-			| PCI_ROM_ADDRESS_ENABLE);
-
-	/* memcpy(copy_address, rom_address, rom_size); */
-	{
-		unsigned char *virt_addr = ioremap(rom_address, 0x8000000);
-
-		unsigned char *from = (unsigned char *) virt_addr;
-		unsigned char *to = (unsigned char *) copy_address;
-		for (j = 0; j < 65536 /*rom_size*/; j++)
-			*to++ = *from++;
-	}
-
-	pci_write_config_dword(dev, PCI_ROM_ADDRESS, 0);
-
-	printk("Copy is done\n");
-
-	return copy_address;
+done:
+	pci_unmap_rom(dev, rom_address);
+	return rom_copy;
 }
 
 static int __devinit xgifb_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
-	u16 reg16;
 	u8 reg, reg1;
 	u8 CR48, CR38;
+	int ret;
+
 	if (XGIfb_off)
 		return -ENXIO;
 
@@ -2947,9 +2179,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	xgi_video_info.chip_id = pdev->device;
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &xgi_video_info.revision_id);
-	pci_read_config_word(pdev, PCI_COMMAND, &reg16);
 	XGIhw_ext.jChipRevision = xgi_video_info.revision_id;
-	XGIvga_enabled = reg16 & 0x01;
 
 	xgi_video_info.pcibus = pdev->bus->number;
 	xgi_video_info.pcislot = PCI_SLOT(pdev->devfn);
@@ -2959,15 +2189,17 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	xgi_video_info.video_base = pci_resource_start(pdev, 0);
 	xgi_video_info.mmio_base = pci_resource_start(pdev, 1);
-	XGIfb_mmio_size = pci_resource_len(pdev, 1);
+	xgi_video_info.mmio_size = pci_resource_len(pdev, 1);
 	xgi_video_info.vga_base = pci_resource_start(pdev, 2) + 0x30;
 	XGIhw_ext.pjIOAddress = (unsigned char *)xgi_video_info.vga_base;
 	/* XGI_Pr.RelIO  = ioremap(pci_resource_start(pdev, 2), 128) + 0x30; */
 	printk("XGIfb: Relocate IO address: %lx [%08lx]\n",
 			(unsigned long)pci_resource_start(pdev, 2), XGI_Pr.RelIO);
 
-	if (pci_enable_device(pdev))
-		return -EIO;
+	if (pci_enable_device(pdev)) {
+		ret = -EIO;
+		goto error;
+	}
 
 	XGIRegInit(&XGI_Pr, (unsigned long)XGIhw_ext.pjIOAddress);
 
@@ -2976,7 +2208,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 	if (reg1 != 0xa1) { /*I/O error */
 		printk("\nXGIfb: I/O error!!!");
-		return -EIO;
+		ret = -EIO;
+		goto error;
 	}
 
 	switch (xgi_video_info.chip_id) {
@@ -2987,54 +2220,34 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			xgi_video_info.chip = XG21;
 		else
 			xgi_video_info.chip = XG20;
-		XGIfb_hwcursor_size = HW_CURSOR_AREA_SIZE_315 * 2;
 		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	case PCI_DEVICE_ID_XG_40:
 		xgi_video_info.chip = XG40;
-		XGIfb_hwcursor_size = HW_CURSOR_AREA_SIZE_315 * 2;
 		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	case PCI_DEVICE_ID_XG_41:
 		xgi_video_info.chip = XG41;
-		XGIfb_hwcursor_size = HW_CURSOR_AREA_SIZE_315 * 2;
 		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	case PCI_DEVICE_ID_XG_42:
 		xgi_video_info.chip = XG42;
-		XGIfb_hwcursor_size = HW_CURSOR_AREA_SIZE_315 * 2;
 		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	case PCI_DEVICE_ID_XG_27:
 		xgi_video_info.chip = XG27;
-		XGIfb_hwcursor_size = HW_CURSOR_AREA_SIZE_315 * 2;
 		XGIfb_CRT2_write_enable = IND_XGI_CRT2_WRITE_ENABLE_315;
 		break;
 	default:
-		return -ENODEV;
+		ret = -ENODEV;
+		goto error;
 	}
 
 	printk("XGIfb:chipid = %x\n", xgi_video_info.chip);
 	XGIhw_ext.jChipType = xgi_video_info.chip;
 
-	switch (xgi_video_info.chip) {
-	case XG40:
-	case XG41:
-	case XG42:
-	case XG45:
-	case XG20:
-	case XG21:
-	case XG27:
-		XGIhw_ext.bIntegratedMMEnabled = 1;
-		break;
-	default:
-		break;
-	}
-
-	XGIhw_ext.pDevice = NULL;
 	if ((xgi_video_info.chip == XG21) || (XGIfb_userom)) {
-		XGIhw_ext.pjVirtualRomBase = attempt_map_rom(pdev, VBIOS_BUF);
-
+		XGIhw_ext.pjVirtualRomBase = xgifb_copy_rom(pdev);
 		if (XGIhw_ext.pjVirtualRomBase)
 			printk(KERN_INFO "XGIfb: Video ROM found and mapped to %p\n", XGIhw_ext.pjVirtualRomBase);
 		else
@@ -3043,64 +2256,12 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		XGIhw_ext.pjVirtualRomBase = NULL;
 		printk(KERN_INFO "XGIfb: Video ROM usage disabled\n");
 	}
-	XGIhw_ext.pjCustomizedROMImage = NULL;
-	XGIhw_ext.bSkipDramSizing = 0;
 	XGIhw_ext.pQueryVGAConfigSpace = &XGIfb_query_VGA_config_space;
-	/* XGIhw_ext.pQueryNorthBridgeSpace = &XGIfb_query_north_bridge_space; */
-	strcpy(XGIhw_ext.szVBIOSVer, "0.84");
 
-	XGIhw_ext.pSR = vmalloc(sizeof(struct XGI_DSReg) * SR_BUFFER_SIZE);
-	if (XGIhw_ext.pSR == NULL) {
-		printk(KERN_ERR "XGIfb: Fatal error: Allocating SRReg space failed.\n");
-		return -ENODEV;
-	}
-	XGIhw_ext.pSR[0].jIdx = XGIhw_ext.pSR[0].jVal = 0xFF;
-
-	XGIhw_ext.pCR = vmalloc(sizeof(struct XGI_DSReg) * CR_BUFFER_SIZE);
-	if (XGIhw_ext.pCR == NULL) {
-		vfree(XGIhw_ext.pSR);
-		printk(KERN_ERR "XGIfb: Fatal error: Allocating CRReg space failed.\n");
-		return -ENODEV;
-	}
-	XGIhw_ext.pCR[0].jIdx = XGIhw_ext.pCR[0].jVal = 0xFF;
-
-	if (!XGIvga_enabled) {
-		/* Mapping Max FB Size for 315 Init */
-		XGIhw_ext.pjVideoMemoryAddress = ioremap(xgi_video_info.video_base, 0x10000000);
-		if ((xgifb_mode_idx < 0) || ((XGIbios_mode[xgifb_mode_idx].mode_no) != 0xFF)) {
-#ifdef LINUXBIOS
-			printk("XGIfb: XGIInit() ...");
-			/* XGIInitNewt for LINUXBIOS only */
-			if (XGIInitNew(&XGIhw_ext))
-				printk("OK\n");
-			else
-				printk("Fail\n");
-#endif
-
-			outXGIIDXREG(XGISR, IND_XGI_PASSWORD, XGI_PASSWORD);
-
-		}
-	}
-#ifdef LINUXBIOS
-	else {
-		XGIhw_ext.pjVideoMemoryAddress = ioremap(xgi_video_info.video_base, 0x10000000);
-		if ((xgifb_mode_idx < 0) || ((XGIbios_mode[xgifb_mode_idx].mode_no) != 0xFF)) {
-
-			outXGIIDXREG(XGISR, IND_XGI_PASSWORD, XGI_PASSWORD);
-
-			/* yilin Because no VBIOS DRAM Sizing, Dram size will error. */
-			/* Set SR13 ,14 temporarily for UDtech */
-			outXGIIDXREG(XGISR, 0x13, 0x45);
-			outXGIIDXREG(XGISR, 0x14, 0x51);
-
-		}
-	}
-#endif
 	if (XGIfb_get_dram_size()) {
-		vfree(XGIhw_ext.pSR);
-		vfree(XGIhw_ext.pCR);
 		printk(KERN_INFO "XGIfb: Fatal error: Unable to determine RAM size.\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto error;
 	}
 
 	if ((xgifb_mode_idx < 0) || ((XGIbios_mode[xgifb_mode_idx].mode_no) != 0xFF)) {
@@ -3116,36 +2277,34 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		printk("unable request memory size %x", xgi_video_info.video_size);
 		printk(KERN_ERR "XGIfb: Fatal error: Unable to reserve frame buffer memory\n");
 		printk(KERN_ERR "XGIfb: Is there another framebuffer driver active?\n");
-		vfree(XGIhw_ext.pSR);
-		vfree(XGIhw_ext.pCR);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto error;
 	}
 
-	if (!request_mem_region(xgi_video_info.mmio_base, XGIfb_mmio_size, "XGIfb MMIO")) {
+	if (!request_mem_region(xgi_video_info.mmio_base,
+				xgi_video_info.mmio_size,
+				"XGIfb MMIO")) {
 		printk(KERN_ERR "XGIfb: Fatal error: Unable to reserve MMIO region\n");
-		release_mem_region(xgi_video_info.video_base, xgi_video_info.video_size);
-		vfree(XGIhw_ext.pSR);
-		vfree(XGIhw_ext.pCR);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto error_0;
 	}
 
 	xgi_video_info.video_vbase = XGIhw_ext.pjVideoMemoryAddress =
 	ioremap(xgi_video_info.video_base, xgi_video_info.video_size);
-	xgi_video_info.mmio_vbase = ioremap(xgi_video_info.mmio_base, XGIfb_mmio_size);
+	xgi_video_info.mmio_vbase = ioremap(xgi_video_info.mmio_base,
+					    xgi_video_info.mmio_size);
 
 	printk(KERN_INFO "XGIfb: Framebuffer at 0x%lx, mapped to 0x%p, size %dk\n",
 			xgi_video_info.video_base, xgi_video_info.video_vbase, xgi_video_info.video_size / 1024);
 
 	printk(KERN_INFO "XGIfb: MMIO at 0x%lx, mapped to 0x%p, size %ldk\n",
-			xgi_video_info.mmio_base, xgi_video_info.mmio_vbase, XGIfb_mmio_size / 1024);
+	       xgi_video_info.mmio_base, xgi_video_info.mmio_vbase,
+	       xgi_video_info.mmio_size / 1024);
 	printk("XGIfb: XGIInitNew() ...");
 	if (XGIInitNew(&XGIhw_ext))
 		printk("OK\n");
 	else
 		printk("Fail\n");
-
-	if (XGIfb_heap_init())
-		printk(KERN_WARNING "XGIfb: Failed to initialize offscreen memory heap\n");
 
 	xgi_video_info.mtrr = (unsigned int) 0;
 
@@ -3162,7 +2321,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 					for (m = 0; m < sizeof(XGI21_LCDCapList)/sizeof(struct XGI21_LVDSCapStruct); m++) {
 						if ((XGI21_LCDCapList[m].LVDSHDE == XGIbios_mode[xgifb_mode_idx].xres) &&
 								(XGI21_LCDCapList[m].LVDSVDE == XGIbios_mode[xgifb_mode_idx].yres)) {
-							XGINew_SetReg1(XGI_Pr.P3d4, 0x36, m);
+							xgifb_reg_set(XGI_Pr.P3d4, 0x36, m);
 						}
 					}
 				}
@@ -3265,7 +2424,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		XGIfb_detectedpdc = 0;
 
 		XGIfb_detectedlcda = 0xff;
-#ifndef LINUXBIOS
 
 		/* TW: Try to find about LCDA */
 
@@ -3297,8 +2455,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			}
 
 		}
-
-#endif
 
 		if (xgifb_mode_idx >= 0)
 			xgifb_mode_idx = XGIfb_validate_mode(xgifb_mode_idx);
@@ -3387,13 +2543,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 		}
 
-		xgi_video_info.accel = 0;
-		if (XGIfb_accel) {
-			xgi_video_info.accel = -1;
-			default_var.accel_flags |= FB_ACCELF_TEXT;
-			XGIfb_initaccel();
-		}
-
 		fb_info->flags = FBINFO_FLAG_DEFAULT;
 		fb_info->var = default_var;
 		fb_info->fix = XGIfb_fix;
@@ -3413,8 +2562,10 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 			printk(KERN_INFO "XGIfb: Added MTRRs\n");
 #endif
 
-		if (register_framebuffer(fb_info) < 0)
-			return -EINVAL;
+		if (register_framebuffer(fb_info) < 0) {
+			ret = -EINVAL;
+			goto error_1;
+		}
 
 		XGIfb_registered = 1;
 
@@ -3426,6 +2577,18 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	dumpVGAReg();
 
 	return 0;
+
+error_1:
+	iounmap(xgi_video_info.mmio_vbase);
+	iounmap(xgi_video_info.video_vbase);
+	release_mem_region(xgi_video_info.mmio_base, xgi_video_info.mmio_size);
+error_0:
+	release_mem_region(xgi_video_info.video_base,
+			   xgi_video_info.video_size);
+error:
+	vfree(XGIhw_ext.pjVirtualRomBase);
+	framebuffer_release(fb_info);
+	return ret;
 }
 
 /*****************************************************/
@@ -3434,15 +2597,16 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 
 static void __devexit xgifb_remove(struct pci_dev *pdev)
 {
-	/* Unregister the framebuffer */
-	/* if (xgi_video_info.registered) { */
 	unregister_framebuffer(fb_info);
+	iounmap(xgi_video_info.mmio_vbase);
+	iounmap(xgi_video_info.video_vbase);
+	release_mem_region(xgi_video_info.mmio_base, xgi_video_info.mmio_size);
+	release_mem_region(xgi_video_info.video_base,
+			   xgi_video_info.video_size);
+	vfree(XGIhw_ext.pjVirtualRomBase);
 	framebuffer_release(fb_info);
-	/* } */
-
 	pci_set_drvdata(pdev, NULL);
-
-};
+}
 
 static struct pci_driver xgifb_driver = {
 	.name = "xgifb",
@@ -3480,9 +2644,7 @@ static char *forcecrt2type = NULL;
 static int forcecrt1 = -1;
 static int pdc = -1;
 static int pdc1 = -1;
-static int noaccel = -1;
 static int noypan = -1;
-static int nomax = -1;
 static int userom = -1;
 static int useoem = -1;
 static char *tvstandard = NULL;
@@ -3501,9 +2663,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("XGITECH , Others");
 
 module_param(mem, int, 0);
-module_param(noaccel, int, 0);
 module_param(noypan, int, 0);
-module_param(nomax, int, 0);
 module_param(userom, int, 0);
 module_param(useoem, int, 0);
 module_param(mode, charp, 0);
@@ -3526,29 +2686,9 @@ module_param(resetcard, int, 0);
 module_param(videoram, int, 0);
 #endif
 
-MODULE_PARM_DESC(mem,
-		"\nDetermines the beginning of the video memory heap in KB. This heap is used\n"
-		"for video RAM management for eg. DRM/DRI. On 300 series, the default depends\n"
-		"on the amount of video RAM available. If 8MB of video RAM or less is available,\n"
-		"the heap starts at 4096KB, if between 8 and 16MB are available at 8192KB,\n"
-		"otherwise at 12288KB. On 315 and Xabre series, the heap size is 32KB by default.\n"
-		"The value is to be specified without 'KB' and must match the MaxXFBMem setting\n"
-		"for XFree86 4.x/X.org 6.7 and later.\n");
-
-MODULE_PARM_DESC(noaccel,
-		"\nIf set to anything other than 0, 2D acceleration will be disabled.\n"
-		"(default: 0)\n");
-
 MODULE_PARM_DESC(noypan,
 		"\nIf set to anything other than 0, y-panning will be disabled and scrolling\n"
 		"will be performed by redrawing the screen. (default: 0)\n");
-
-MODULE_PARM_DESC(nomax,
-		"\nIf y-panning is enabled, xgifb will by default use the entire available video\n"
-		"memory for the virtual screen in order to optimize scrolling performance. If\n"
-		"this is set to anything other than 0, xgifb will not do this and thereby\n"
-		"enable the user to positively specify a virtual Y size of the screen using\n"
-		"fbset. (default: 0)\n");
 
 MODULE_PARM_DESC(mode,
 		"\nSelects the desired default display mode in the format XxYxDepth,\n"
@@ -3647,7 +2787,3 @@ module_init(xgifb_init_module);
 module_exit(xgifb_remove_module);
 
 #endif	/*  /MODULE  */
-
-EXPORT_SYMBOL(XGI_malloc);
-EXPORT_SYMBOL(XGI_free);
-

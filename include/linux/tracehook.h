@@ -169,7 +169,7 @@ static inline int tracehook_unsafe_exec(struct task_struct *task)
  * tracehook_tracer_task - return the task that is tracing the given task
  * @tsk:		task to consider
  *
- * Returns NULL if noone is tracing @task, or the &struct task_struct
+ * Returns NULL if no one is tracing @task, or the &struct task_struct
  * pointer to its tracer.
  *
  * Must called under rcu_read_lock().  The pointer returned might be kept
@@ -448,7 +448,7 @@ static inline int tracehook_force_sigpending(void)
  *
  * Return zero to check for a real pending signal normally.
  * Return -1 after releasing the siglock to repeat the check.
- * Return a signal number to induce an artifical signal delivery,
+ * Return a signal number to induce an artificial signal delivery,
  * setting *@info and *@return_ka to specify its details and behavior.
  *
  * The @return_ka->sa_handler value controls the disposition of the

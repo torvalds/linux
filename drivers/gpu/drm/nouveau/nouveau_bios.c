@@ -269,7 +269,7 @@ struct init_tbl_entry {
 	int (*handler)(struct nvbios *, uint16_t, struct init_exec *);
 };
 
-static int parse_init_table(struct nvbios *, unsigned int, struct init_exec *);
+static int parse_init_table(struct nvbios *, uint16_t, struct init_exec *);
 
 #define MACRO_INDEX_SIZE	2
 #define MACRO_SIZE		8
@@ -282,7 +282,7 @@ static void still_alive(void)
 {
 #if 0
 	sync();
-	msleep(2);
+	mdelay(2);
 #endif
 }
 
@@ -1904,7 +1904,7 @@ init_condition_time(struct nvbios *bios, uint16_t offset,
 			BIOSLOG(bios, "0x%04X: "
 				"Condition not met, sleeping for 20ms\n",
 								offset);
-			msleep(20);
+			mdelay(20);
 		}
 	}
 
@@ -1938,7 +1938,7 @@ init_ltime(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	BIOSLOG(bios, "0x%04X: Sleeping for 0x%04X milliseconds\n",
 		offset, time);
 
-	msleep(time);
+	mdelay(time);
 
 	return 3;
 }
@@ -2008,6 +2008,27 @@ init_sub_direct(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	BIOSLOG(bios, "0x%04X: End of 0x%04X subroutine\n", offset, sub_offset);
 
 	return 3;
+}
+
+static int
+init_jump(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
+{
+	/*
+	 * INIT_JUMP   opcode: 0x5C ('\')
+	 *
+	 * offset      (8  bit): opcode
+	 * offset + 1  (16 bit): offset (in bios)
+	 *
+	 * Continue execution of init table from 'offset'
+	 */
+
+	uint16_t jmp_offset = ROM16(bios->data[offset + 1]);
+
+	if (!iexec->execute)
+		return 3;
+
+	BIOSLOG(bios, "0x%04X: Jump to 0x%04X\n", offset, jmp_offset);
+	return jmp_offset - offset;
 }
 
 static int
@@ -2962,7 +2983,7 @@ init_time(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	if (time < 1000)
 		udelay(time);
 	else
-		msleep((time + 900) / 1000);
+		mdelay((time + 900) / 1000);
 
 	return 3;
 }
@@ -3659,6 +3680,7 @@ static struct init_tbl_entry itbl_entry[] = {
 	{ "INIT_ZM_REG_SEQUENCE"              , 0x58, init_zm_reg_sequence            },
 	/* INIT_INDIRECT_REG (0x5A, 7, 0, 0) removed due to no example of use */
 	{ "INIT_SUB_DIRECT"                   , 0x5B, init_sub_direct                 },
+	{ "INIT_JUMP"                         , 0x5C, init_jump                       },
 	{ "INIT_I2C_IF"                       , 0x5E, init_i2c_if                     },
 	{ "INIT_COPY_NV_REG"                  , 0x5F, init_copy_nv_reg                },
 	{ "INIT_ZM_INDEX_IO"                  , 0x62, init_zm_index_io                },
@@ -3700,8 +3722,7 @@ static struct init_tbl_entry itbl_entry[] = {
 #define MAX_TABLE_OPS 1000
 
 static int
-parse_init_table(struct nvbios *bios, unsigned int offset,
-		 struct init_exec *iexec)
+parse_init_table(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 {
 	/*
 	 * Parses all commands in an init table.
@@ -3856,7 +3877,7 @@ static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_entr
 
 	if (script == LVDS_PANEL_OFF) {
 		/* off-on delay in ms */
-		msleep(ROM16(bios->data[bios->fp.xlated_entry + 7]));
+		mdelay(ROM16(bios->data[bios->fp.xlated_entry + 7]));
 	}
 #ifdef __powerpc__
 	/* Powerbook specific quirks */
@@ -5950,6 +5971,11 @@ apply_dcb_connector_quirks(struct nvbios *bios, int idx)
 	}
 }
 
+static const u8 hpd_gpio[16] = {
+	0xff, 0x07, 0x08, 0xff, 0xff, 0x51, 0x52, 0xff,
+	0xff, 0xff, 0xff, 0xff, 0xff, 0x5e, 0x5f, 0x60,
+};
+
 static void
 parse_dcb_connector_table(struct nvbios *bios)
 {
@@ -5986,23 +6012,9 @@ parse_dcb_connector_table(struct nvbios *bios)
 
 		cte->type  = (cte->entry & 0x000000ff) >> 0;
 		cte->index2 = (cte->entry & 0x00000f00) >> 8;
-		switch (cte->entry & 0x00033000) {
-		case 0x00001000:
-			cte->gpio_tag = 0x07;
-			break;
-		case 0x00002000:
-			cte->gpio_tag = 0x08;
-			break;
-		case 0x00010000:
-			cte->gpio_tag = 0x51;
-			break;
-		case 0x00020000:
-			cte->gpio_tag = 0x52;
-			break;
-		default:
-			cte->gpio_tag = 0xff;
-			break;
-		}
+
+		cte->gpio_tag = ffs((cte->entry & 0x07033000) >> 12);
+		cte->gpio_tag = hpd_gpio[cte->gpio_tag];
 
 		if (cte->type == 0xff)
 			continue;
@@ -6339,6 +6351,32 @@ apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 		if (*conn == 0xf2005014 && *conf == 0xffffffff) {
 			fabricate_dcb_output(dcb, OUTPUT_TMDS, 1, 1, 1);
 			return false;
+		}
+	}
+
+	/* XFX GT-240X-YA
+	 *
+	 * So many things wrong here, replace the entire encoder table..
+	 */
+	if (nv_match_device(dev, 0x0ca3, 0x1682, 0x3003)) {
+		if (idx == 0) {
+			*conn = 0x02001300; /* VGA, connector 1 */
+			*conf = 0x00000028;
+		} else
+		if (idx == 1) {
+			*conn = 0x01010312; /* DVI, connector 0 */
+			*conf = 0x00020030;
+		} else
+		if (idx == 2) {
+			*conn = 0x01010310; /* VGA, connector 0 */
+			*conf = 0x00000028;
+		} else
+		if (idx == 3) {
+			*conn = 0x02022362; /* HDMI, connector 2 */
+			*conf = 0x00020010;
+		} else {
+			*conn = 0x0000000e; /* EOL */
+			*conf = 0x00000000;
 		}
 	}
 
@@ -6702,11 +6740,11 @@ nouveau_bios_run_init_table(struct drm_device *dev, uint16_t table,
 	struct nvbios *bios = &dev_priv->vbios;
 	struct init_exec iexec = { true, false };
 
-	mutex_lock(&bios->lock);
+	spin_lock_bh(&bios->lock);
 	bios->display.output = dcbent;
 	parse_init_table(bios, table, &iexec);
 	bios->display.output = NULL;
-	mutex_unlock(&bios->lock);
+	spin_unlock_bh(&bios->lock);
 }
 
 static bool NVInitVBIOS(struct drm_device *dev)
@@ -6715,7 +6753,7 @@ static bool NVInitVBIOS(struct drm_device *dev)
 	struct nvbios *bios = &dev_priv->vbios;
 
 	memset(bios, 0, sizeof(struct nvbios));
-	mutex_init(&bios->lock);
+	spin_lock_init(&bios->lock);
 	bios->dev = dev;
 
 	if (!NVShadowVBIOS(dev, bios->data))

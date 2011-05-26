@@ -773,7 +773,7 @@ static int __devinit snd_intelmad_sst_register(
 		if (ret_val)
 			return ret_val;
 		sst_card_vendor_id = (vendor_addr.value & (MASK2|MASK1|MASK0));
-		pr_debug("orginal n extrated vendor id = 0x%x %d\n",
+		pr_debug("original n extrated vendor id = 0x%x %d\n",
 				vendor_addr.value, sst_card_vendor_id);
 		if (sst_card_vendor_id < 0 || sst_card_vendor_id > 2) {
 			pr_err("vendor card not supported!!\n");

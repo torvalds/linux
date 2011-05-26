@@ -427,7 +427,7 @@ static u32 carl9170_def_val(u32 reg, bool is_2ghz, bool is_40mhz)
 
 /*
  * initialize some phy regs from eeprom values in modal_header[]
- * acc. to band and bandwith
+ * acc. to band and bandwidth
  */
 static int carl9170_init_phy_from_eeprom(struct ar9170 *ar,
 				bool is_2ghz, bool is_40mhz)

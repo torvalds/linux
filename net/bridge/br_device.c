@@ -78,6 +78,8 @@ static int br_dev_open(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
 
+	netif_carrier_off(dev);
+
 	br_features_recompute(br);
 	netif_start_queue(dev);
 	br_stp_enable_bridge(br);
@@ -93,6 +95,8 @@ static void br_dev_set_multicast_list(struct net_device *dev)
 static int br_dev_stop(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
+
+	netif_carrier_off(dev);
 
 	br_stp_disable_bridge(br);
 	br_multicast_stop(br);
@@ -297,6 +301,21 @@ void br_netpoll_disable(struct net_bridge_port *p)
 
 #endif
 
+static int br_add_slave(struct net_device *dev, struct net_device *slave_dev)
+
+{
+	struct net_bridge *br = netdev_priv(dev);
+
+	return br_add_if(br, slave_dev);
+}
+
+static int br_del_slave(struct net_device *dev, struct net_device *slave_dev)
+{
+	struct net_bridge *br = netdev_priv(dev);
+
+	return br_del_if(br, slave_dev);
+}
+
 static const struct ethtool_ops br_ethtool_ops = {
 	.get_drvinfo    = br_getinfo,
 	.get_link	= ethtool_op_get_link,
@@ -326,6 +345,8 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_netpoll_cleanup	 = br_netpoll_cleanup,
 	.ndo_poll_controller	 = br_poll_controller,
 #endif
+	.ndo_add_slave		 = br_add_slave,
+	.ndo_del_slave		 = br_del_slave,
 };
 
 static void br_dev_free(struct net_device *dev)

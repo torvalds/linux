@@ -319,7 +319,7 @@ static int atm_tc_delete(struct Qdisc *sch, unsigned long arg)
 	 * creation), and one for the reference held when calling delete.
 	 */
 	if (flow->ref < 2) {
-		printk(KERN_ERR "atm_tc_delete: flow->ref == %d\n", flow->ref);
+		pr_err("atm_tc_delete: flow->ref == %d\n", flow->ref);
 		return -EINVAL;
 	}
 	if (flow->ref > 2)
@@ -384,12 +384,12 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 			}
 		}
 		flow = NULL;
-	done:
-		;		
+done:
+		;
 	}
-	if (!flow)
+	if (!flow) {
 		flow = &p->link;
-	else {
+	} else {
 		if (flow->vcc)
 			ATM_SKB(skb)->atm_options = flow->vcc->atm_options;
 		/*@@@ looks good ... but it's not supposed to work :-) */
@@ -576,8 +576,7 @@ static void atm_tc_destroy(struct Qdisc *sch)
 
 	list_for_each_entry_safe(flow, tmp, &p->flows, list) {
 		if (flow->ref > 1)
-			printk(KERN_ERR "atm_destroy: %p->ref = %d\n", flow,
-			       flow->ref);
+			pr_err("atm_destroy: %p->ref = %d\n", flow, flow->ref);
 		atm_tc_put(sch, (unsigned long)flow);
 	}
 	tasklet_kill(&p->task);
@@ -616,9 +615,8 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 	}
 	if (flow->excess)
 		NLA_PUT_U32(skb, TCA_ATM_EXCESS, flow->classid);
-	else {
+	else
 		NLA_PUT_U32(skb, TCA_ATM_EXCESS, 0);
-	}
 
 	nla_nest_end(skb, nest);
 	return skb->len;

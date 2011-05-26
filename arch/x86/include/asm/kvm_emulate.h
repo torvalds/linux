@@ -142,9 +142,9 @@ struct x86_emulate_ops {
 	int (*pio_out_emulated)(int size, unsigned short port, const void *val,
 				unsigned int count, struct kvm_vcpu *vcpu);
 
-	bool (*get_cached_descriptor)(struct desc_struct *desc,
+	bool (*get_cached_descriptor)(struct desc_struct *desc, u32 *base3,
 				      int seg, struct kvm_vcpu *vcpu);
-	void (*set_cached_descriptor)(struct desc_struct *desc,
+	void (*set_cached_descriptor)(struct desc_struct *desc, u32 base3,
 				      int seg, struct kvm_vcpu *vcpu);
 	u16 (*get_segment_selector)(int seg, struct kvm_vcpu *vcpu);
 	void (*set_segment_selector)(u16 sel, int seg, struct kvm_vcpu *vcpu);
@@ -239,6 +239,7 @@ struct x86_emulate_ctxt {
 	int interruptibility;
 
 	bool perm_ok; /* do not check permissions if true */
+	bool only_vendor_specific_insn;
 
 	bool have_exception;
 	struct x86_exception exception;

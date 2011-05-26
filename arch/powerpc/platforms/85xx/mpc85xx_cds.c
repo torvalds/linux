@@ -255,7 +255,7 @@ static int mpc85xx_cds_8259_attach(void)
 	}
 
 	/* Success. Connect our low-level cascade handler. */
-	set_irq_handler(cascade_irq, mpc85xx_8259_cascade_handler);
+	irq_set_handler(cascade_irq, mpc85xx_8259_cascade_handler);
 
 	return 0;
 }

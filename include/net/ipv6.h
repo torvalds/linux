@@ -492,7 +492,7 @@ extern int			ip6_rcv_finish(struct sk_buff *skb);
  */
 extern int			ip6_xmit(struct sock *sk,
 					 struct sk_buff *skb,
-					 struct flowi *fl,
+					 struct flowi6 *fl6,
 					 struct ipv6_txoptions *opt);
 
 extern int			ip6_nd_hdr(struct sock *sk,
@@ -512,7 +512,7 @@ extern int			ip6_append_data(struct sock *sk,
 		      				int hlimit,
 		      				int tclass,
 						struct ipv6_txoptions *opt,
-						struct flowi *fl,
+						struct flowi6 *fl6,
 						struct rt6_info *rt,
 						unsigned int flags,
 						int dontfrag);
@@ -523,13 +523,17 @@ extern void			ip6_flush_pending_frames(struct sock *sk);
 
 extern int			ip6_dst_lookup(struct sock *sk,
 					       struct dst_entry **dst,
-					       struct flowi *fl);
-extern int			ip6_dst_blackhole(struct sock *sk,
-						  struct dst_entry **dst,
-						  struct flowi *fl);
-extern int			ip6_sk_dst_lookup(struct sock *sk,
-						  struct dst_entry **dst,
-						  struct flowi *fl);
+					       struct flowi6 *fl6);
+extern struct dst_entry *	ip6_dst_lookup_flow(struct sock *sk,
+						    struct flowi6 *fl6,
+						    const struct in6_addr *final_dst,
+						    bool can_sleep);
+extern struct dst_entry *	ip6_sk_dst_lookup_flow(struct sock *sk,
+						       struct flowi6 *fl6,
+						       const struct in6_addr *final_dst,
+						       bool can_sleep);
+extern struct dst_entry *	ip6_blackhole_route(struct net *net,
+						    struct dst_entry *orig_dst);
 
 /*
  *	skb processing functions
@@ -562,7 +566,7 @@ extern int 			ipv6_ext_hdr(u8 nexthdr);
 
 extern int ipv6_find_tlv(struct sk_buff *skb, int offset, int type);
 
-extern struct in6_addr *fl6_update_dst(struct flowi *fl,
+extern struct in6_addr *fl6_update_dst(struct flowi6 *fl6,
 				       const struct ipv6_txoptions *opt,
 				       struct in6_addr *orig);
 
@@ -596,8 +600,8 @@ extern int 			ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len);
 extern int 			ipv6_recv_rxpmtu(struct sock *sk, struct msghdr *msg, int len);
 extern void			ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err, __be16 port,
 						u32 info, u8 *payload);
-extern void			ipv6_local_error(struct sock *sk, int err, struct flowi *fl, u32 info);
-extern void			ipv6_local_rxpmtu(struct sock *sk, struct flowi *fl, u32 mtu);
+extern void			ipv6_local_error(struct sock *sk, int err, struct flowi6 *fl6, u32 info);
+extern void			ipv6_local_rxpmtu(struct sock *sk, struct flowi6 *fl6, u32 mtu);
 
 extern int inet6_release(struct socket *sock);
 extern int inet6_bind(struct socket *sock, struct sockaddr *uaddr, 

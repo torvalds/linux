@@ -70,7 +70,7 @@ int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info 
 		}
 #endif
 		ieee->current_network.channel = fwrq->m;
-		ieee->set_chan(ieee->dev, ieee->current_network.channel);
+		ieee->set_chan(ieee, ieee->current_network.channel);
 
 		if(ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 			if(ieee->state == IEEE80211_LINKED){
@@ -98,8 +98,6 @@ int ieee80211_wx_get_freq(struct ieee80211_device *ieee,
 	//NM 0.7.0 will not accept channel any more.
 	fwrq->m = ieee80211_wlan_frequencies[ieee->current_network.channel-1] * 100000;
 	fwrq->e = 1;
-//	fwrq->m = ieee->current_network.channel;
-//	fwrq->e = 0;
 
 	return 0;
 }
@@ -233,23 +231,8 @@ int ieee80211_wx_get_rate(struct ieee80211_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	u32 tmp_rate;
-#if 0
-	printk("===>mode:%d, halfNmode:%d\n", ieee->mode, ieee->bHalfWirelessN24GMode);
-	if (ieee->mode & (IEEE_A | IEEE_B | IEEE_G))
-		tmp_rate = ieee->rate;
-	else if (ieee->mode & IEEE_N_5G)
-		tmp_rate = 580;
-	else if (ieee->mode & IEEE_N_24G)
-	{
-		if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
-			tmp_rate = HTHalfMcsToDataRate(ieee, 15);
-		else
-			tmp_rate = HTMcsToDataRate(ieee, 15);
-	}
-#else
 	tmp_rate = TxCountToDataRate(ieee, ieee->softmac_stats.CurrentShowTxate);
 
-#endif
 	wrqu->bitrate.value = tmp_rate * 500000;
 
 	return 0;
@@ -324,7 +307,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 
 #ifdef ENABLE_LPS
 	if (ieee->LeisurePSLeave) {
-		ieee->LeisurePSLeave(ieee->dev);
+		ieee->LeisurePSLeave(ieee);
 	}
 
 	/* notify AP to be in PS mode */
@@ -333,37 +316,37 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 #endif
 
 	if (ieee->data_hard_stop)
-		ieee->data_hard_stop(ieee->dev);
+		ieee->data_hard_stop(ieee);
 
 	ieee80211_stop_send_beacons(ieee);
 
 	ieee->state = IEEE80211_LINKED_SCANNING;
-	ieee->link_change(ieee->dev);
-	ieee->InitialGainHandler(ieee->dev,IG_Backup);
+	ieee->link_change(ieee);
+	ieee->InitialGainHandler(ieee, IG_Backup);
 	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT && ieee->pHTInfo->bCurBW40MHz) {
 		b40M = 1;
 		chan_offset = ieee->pHTInfo->CurSTAExtChnlOffset;
 		bandwidth = (HT_CHANNEL_WIDTH)ieee->pHTInfo->bCurBW40MHz;
 		printk("Scan in 40M, force to 20M first:%d, %d\n", chan_offset, bandwidth);
-		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
+		ieee->SetBWModeHandler(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 		}
 	ieee80211_start_scan_syncro(ieee);
 	if (b40M) {
 		printk("Scan in 20M, back to 40M\n");
 		if (chan_offset == HT_EXTCHNL_OFFSET_UPPER)
-			ieee->set_chan(ieee->dev, chan + 2);
+			ieee->set_chan(ieee, chan + 2);
 		else if (chan_offset == HT_EXTCHNL_OFFSET_LOWER)
-			ieee->set_chan(ieee->dev, chan - 2);
+			ieee->set_chan(ieee, chan - 2);
 		else
-			ieee->set_chan(ieee->dev, chan);
-		ieee->SetBWModeHandler(ieee->dev, bandwidth, chan_offset);
+			ieee->set_chan(ieee, chan);
+		ieee->SetBWModeHandler(ieee, bandwidth, chan_offset);
 	} else {
-		ieee->set_chan(ieee->dev, chan);
+		ieee->set_chan(ieee, chan);
 	}
 
-	ieee->InitialGainHandler(ieee->dev,IG_Restore);
+	ieee->InitialGainHandler(ieee, IG_Restore);
 	ieee->state = IEEE80211_LINKED;
-	ieee->link_change(ieee->dev);
+	ieee->link_change(ieee);
 
 #ifdef ENABLE_LPS
 	/* Notify AP that I wake up again */
@@ -377,7 +360,7 @@ void ieee80211_wx_sync_scan_wq(struct work_struct *work)
 		ieee->LinkDetectInfo.NumRecvDataInPeriod= 1;
 	}
 	if (ieee->data_hard_resume)
-		ieee->data_hard_resume(ieee->dev);
+		ieee->data_hard_resume(ieee);
 
 	if(ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 		ieee80211_start_send_beacons(ieee);
@@ -496,7 +479,7 @@ out:
 	{
 		if(prev == 0 && ieee->raw_tx){
 			if (ieee->data_hard_resume)
-				ieee->data_hard_resume(ieee->dev);
+				ieee->data_hard_resume(ieee);
 
 			netif_carrier_on(ieee->dev);
 		}
@@ -531,18 +514,15 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 				 union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
-#if 1
+
 	if(
 		(!ieee->sta_wake_up) ||
-	//	(!ieee->ps_request_tx_ack) ||
 		(!ieee->enter_sleep_state) ||
 		(!ieee->ps_is_queue_empty)){
 
-	//	printk("ERROR. PS mode is tryied to be use but driver missed a callback\n\n");
-
 		return -1;
 	}
-#endif
+
 	down(&ieee->wx_sem);
 
 	if (wrqu->power.disabled){
@@ -550,16 +530,11 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 		goto exit;
 	}
 	if (wrqu->power.flags & IW_POWER_TIMEOUT) {
-		//ieee->ps_period = wrqu->power.value / 1000;
 		ieee->ps_timeout = wrqu->power.value / 1000;
 	}
 
 	if (wrqu->power.flags & IW_POWER_PERIOD) {
-
-		//ieee->ps_timeout = wrqu->power.value / 1000;
 		ieee->ps_period = wrqu->power.value / 1000;
-		//wrq->value / 1024;
-
 	}
 	switch (wrqu->power.flags & IW_POWER_MODE) {
 	case IW_POWER_UNICAST_R:
@@ -573,7 +548,6 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 		break;
 
 	case IW_POWER_ON:
-	//	ieee->ps = IEEE80211_PS_DISABLED;
 		break;
 
 	default:
@@ -607,11 +581,8 @@ int ieee80211_wx_get_power(struct ieee80211_device *ieee,
 		wrqu->power.flags = IW_POWER_TIMEOUT;
 		wrqu->power.value = ieee->ps_timeout * 1000;
 	} else {
-//		ret = -EOPNOTSUPP;
-//		goto exit;
 		wrqu->power.flags = IW_POWER_PERIOD;
 		wrqu->power.value = ieee->ps_period * 1000;
-//ieee->current_network.dtim_period * ieee->current_network.beacon_interval * 1024;
 	}
 
        if ((ieee->ps & (IEEE80211_PS_MBCAST | IEEE80211_PS_UNICAST)) == (IEEE80211_PS_MBCAST | IEEE80211_PS_UNICAST))

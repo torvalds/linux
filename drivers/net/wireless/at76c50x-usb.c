@@ -1728,7 +1728,7 @@ static void at76_mac80211_tx_callback(struct urb *urb)
 	ieee80211_wake_queues(priv->hw);
 }
 
-static int at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct at76_priv *priv = hw->priv;
 	struct at76_tx_buffer *tx_buffer = priv->bulk_out_buffer;
@@ -1741,7 +1741,8 @@ static int at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (priv->tx_urb->status == -EINPROGRESS) {
 		wiphy_err(priv->hw->wiphy,
 			  "%s called while tx urb is pending\n", __func__);
-		return NETDEV_TX_BUSY;
+		dev_kfree_skb_any(skb);
+		return;
 	}
 
 	/* The following code lines are important when the device is going to
@@ -1755,7 +1756,8 @@ static int at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (compare_ether_addr(priv->bssid, mgmt->bssid)) {
 			memcpy(priv->bssid, mgmt->bssid, ETH_ALEN);
 			ieee80211_queue_work(hw, &priv->work_join_bssid);
-			return NETDEV_TX_BUSY;
+			dev_kfree_skb_any(skb);
+			return;
 		}
 	}
 
@@ -1795,8 +1797,6 @@ static int at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 				  priv->tx_urb,
 				  priv->tx_urb->hcpriv, priv->tx_urb->complete);
 	}
-
-	return 0;
 }
 
 static int at76_mac80211_start(struct ieee80211_hw *hw)

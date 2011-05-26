@@ -77,6 +77,9 @@ bool ieee80211_set_channel_type(struct ieee80211_local *local,
 		switch (tmp->vif.bss_conf.channel_type) {
 		case NL80211_CHAN_NO_HT:
 		case NL80211_CHAN_HT20:
+			if (superchan > tmp->vif.bss_conf.channel_type)
+				break;
+
 			superchan = tmp->vif.bss_conf.channel_type;
 			break;
 		case NL80211_CHAN_HT40PLUS:

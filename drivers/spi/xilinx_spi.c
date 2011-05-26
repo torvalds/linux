@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/core.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/spi/xilinx_spi.h>
@@ -351,14 +352,12 @@ static irqreturn_t xilinx_spi_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id xilinx_spi_of_match[] = {
 	{ .compatible = "xlnx,xps-spi-2.00.a", },
 	{ .compatible = "xlnx,xps-spi-2.00.b", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, xilinx_spi_of_match);
-#endif
 
 struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 	u32 irq, s16 bus_num, int num_cs, int little_endian, int bits_per_word)
@@ -394,9 +393,7 @@ struct spi_master *xilinx_spi_init(struct device *dev, struct resource *mem,
 
 	master->bus_num = bus_num;
 	master->num_chipselect = num_cs;
-#ifdef CONFIG_OF
 	master->dev.of_node = dev->of_node;
-#endif
 
 	xspi->mem = *mem;
 	xspi->irq = irq;
@@ -474,7 +471,7 @@ static int __devinit xilinx_spi_probe(struct platform_device *dev)
 	struct spi_master *master;
 	u8 i;
 
-	pdata = dev->dev.platform_data;
+	pdata = mfd_get_data(dev);
 	if (pdata) {
 		num_cs = pdata->num_chipselect;
 		little_endian = pdata->little_endian;
@@ -539,9 +536,7 @@ static struct platform_driver xilinx_spi_driver = {
 	.driver = {
 		.name = XILINX_SPI_NAME,
 		.owner = THIS_MODULE,
-#ifdef CONFIG_OF
 		.of_match_table = xilinx_spi_of_match,
-#endif
 	},
 };
 

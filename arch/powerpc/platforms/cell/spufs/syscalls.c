@@ -70,7 +70,7 @@ static long do_spu_create(const char __user *pathname, unsigned int flags,
 	if (!IS_ERR(tmp)) {
 		struct nameidata nd;
 
-		ret = path_lookup(tmp, LOOKUP_PARENT, &nd);
+		ret = kern_path_parent(tmp, &nd);
 		if (!ret) {
 			nd.flags |= LOOKUP_OPEN | LOOKUP_CREATE;
 			ret = spufs_create(&nd, flags, mode, neighbor);

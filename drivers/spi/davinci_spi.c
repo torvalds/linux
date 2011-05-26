@@ -571,6 +571,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 		unsigned long tx_reg, rx_reg;
 		struct edmacc_param param;
 		void *rx_buf;
+		int b, c;
 
 		dma = &dspi->dma;
 
@@ -591,22 +592,38 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 		if (t->tx_buf) {
 			t->tx_dma = dma_map_single(&spi->dev, (void *)t->tx_buf,
-						dspi->wcount, DMA_TO_DEVICE);
+						t->len, DMA_TO_DEVICE);
 			if (dma_mapping_error(&spi->dev, t->tx_dma)) {
 				dev_dbg(sdev, "Unable to DMA map %d bytes"
-						"TX buffer\n", dspi->wcount);
+						"TX buffer\n", t->len);
 				return -ENOMEM;
 			}
 		}
 
+		/*
+		 * If number of words is greater than 65535, then we need
+		 * to configure a 3 dimension transfer.  Use the BCNTRLD
+		 * feature to allow for transfers that aren't even multiples
+		 * of 65535 (or any other possible b size) by first transferring
+		 * the remainder amount then grabbing the next N blocks of
+		 * 65535 words.
+		 */
+
+		c = dspi->wcount / (SZ_64K - 1);	/* N 65535 Blocks */
+		b = dspi->wcount - c * (SZ_64K - 1);	/* Remainder */
+		if (b)
+			c++;
+		else
+			b = SZ_64K - 1;
+
 		param.opt = TCINTEN | EDMA_TCC(dma->tx_channel);
 		param.src = t->tx_buf ? t->tx_dma : tx_reg;
-		param.a_b_cnt = dspi->wcount << 16 | data_type;
+		param.a_b_cnt = b << 16 | data_type;
 		param.dst = tx_reg;
 		param.src_dst_bidx = t->tx_buf ? data_type : 0;
-		param.link_bcntrld = 0xffff;
-		param.src_dst_cidx = 0;
-		param.ccnt = 1;
+		param.link_bcntrld = 0xffffffff;
+		param.src_dst_cidx = t->tx_buf ? data_type : 0;
+		param.ccnt = c;
 		edma_write_slot(dma->tx_channel, &param);
 		edma_link(dma->tx_channel, dma->dummy_param_slot);
 
@@ -624,7 +641,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 
 		if (t->rx_buf) {
 			rx_buf = t->rx_buf;
-			rx_buf_count = dspi->rcount;
+			rx_buf_count = t->len;
 		} else {
 			rx_buf = dspi->rx_tmp_buf;
 			rx_buf_count = sizeof(dspi->rx_tmp_buf);
@@ -636,19 +653,19 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 			dev_dbg(sdev, "Couldn't DMA map a %d bytes RX buffer\n",
 								rx_buf_count);
 			if (t->tx_buf)
-				dma_unmap_single(NULL, t->tx_dma, dspi->wcount,
+				dma_unmap_single(NULL, t->tx_dma, t->len,
 								DMA_TO_DEVICE);
 			return -ENOMEM;
 		}
 
 		param.opt = TCINTEN | EDMA_TCC(dma->rx_channel);
 		param.src = rx_reg;
-		param.a_b_cnt = dspi->rcount << 16 | data_type;
+		param.a_b_cnt = b << 16 | data_type;
 		param.dst = t->rx_dma;
 		param.src_dst_bidx = (t->rx_buf ? data_type : 0) << 16;
-		param.link_bcntrld = 0xffff;
-		param.src_dst_cidx = 0;
-		param.ccnt = 1;
+		param.link_bcntrld = 0xffffffff;
+		param.src_dst_cidx = (t->rx_buf ? data_type : 0) << 16;
+		param.ccnt = c;
 		edma_write_slot(dma->rx_channel, &param);
 
 		if (pdata->cshold_bug)
@@ -675,7 +692,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	if (spicfg->io_type == SPI_IO_TYPE_DMA) {
 
 		if (t->tx_buf)
-			dma_unmap_single(NULL, t->tx_dma, dspi->wcount,
+			dma_unmap_single(NULL, t->tx_dma, t->len,
 								DMA_TO_DEVICE);
 
 		dma_unmap_single(NULL, t->rx_dma, rx_buf_count,
@@ -790,7 +807,6 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	struct resource *r, *mem;
 	resource_size_t dma_rx_chan = SPI_NO_RESOURCE;
 	resource_size_t	dma_tx_chan = SPI_NO_RESOURCE;
-	resource_size_t	dma_eventq = SPI_NO_RESOURCE;
 	int i = 0, ret = 0;
 	u32 spipc0;
 
@@ -878,17 +894,13 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (r)
 		dma_tx_chan = r->start;
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 2);
-	if (r)
-		dma_eventq = r->start;
 
 	dspi->bitbang.txrx_bufs = davinci_spi_bufs;
 	if (dma_rx_chan != SPI_NO_RESOURCE &&
-	    dma_tx_chan != SPI_NO_RESOURCE &&
-	    dma_eventq != SPI_NO_RESOURCE) {
+	    dma_tx_chan != SPI_NO_RESOURCE) {
 		dspi->dma.rx_channel = dma_rx_chan;
 		dspi->dma.tx_channel = dma_tx_chan;
-		dspi->dma.eventq = dma_eventq;
+		dspi->dma.eventq = pdata->dma_event_q;
 
 		ret = davinci_spi_request_dma(dspi);
 		if (ret)
@@ -897,7 +909,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "DMA: supported\n");
 		dev_info(&pdev->dev, "DMA: RX channel: %d, TX channel: %d, "
 				"event queue: %d\n", dma_rx_chan, dma_tx_chan,
-				dma_eventq);
+				pdata->dma_event_q);
 	}
 
 	dspi->get_rx = davinci_spi_rx_buf_u8;

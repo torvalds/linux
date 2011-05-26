@@ -160,6 +160,7 @@ EXPORT_SYMBOL(find_first_zero_bit);
 #endif /* CONFIG_GENERIC_FIND_FIRST_BIT */
 
 #ifdef __BIG_ENDIAN
+#ifdef CONFIG_GENERIC_FIND_BIT_LE
 
 /* include/linux/byteorder does not support "unsigned long" type */
 static inline unsigned long ext2_swabp(const unsigned long * x)
@@ -185,15 +186,16 @@ static inline unsigned long ext2_swab(const unsigned long y)
 #endif
 }
 
-unsigned long generic_find_next_zero_le_bit(const unsigned long *addr, unsigned
+unsigned long find_next_zero_bit_le(const void *addr, unsigned
 		long size, unsigned long offset)
 {
-	const unsigned long *p = addr + BITOP_WORD(offset);
+	const unsigned long *p = addr;
 	unsigned long result = offset & ~(BITS_PER_LONG - 1);
 	unsigned long tmp;
 
 	if (offset >= size)
 		return size;
+	p += BITOP_WORD(offset);
 	size -= result;
 	offset &= (BITS_PER_LONG - 1UL);
 	if (offset) {
@@ -226,18 +228,18 @@ found_middle:
 found_middle_swap:
 	return result + ffz(ext2_swab(tmp));
 }
+EXPORT_SYMBOL(find_next_zero_bit_le);
 
-EXPORT_SYMBOL(generic_find_next_zero_le_bit);
-
-unsigned long generic_find_next_le_bit(const unsigned long *addr, unsigned
+unsigned long find_next_bit_le(const void *addr, unsigned
 		long size, unsigned long offset)
 {
-	const unsigned long *p = addr + BITOP_WORD(offset);
+	const unsigned long *p = addr;
 	unsigned long result = offset & ~(BITS_PER_LONG - 1);
 	unsigned long tmp;
 
 	if (offset >= size)
 		return size;
+	p += BITOP_WORD(offset);
 	size -= result;
 	offset &= (BITS_PER_LONG - 1UL);
 	if (offset) {
@@ -271,5 +273,7 @@ found_middle:
 found_middle_swap:
 	return result + __ffs(ext2_swab(tmp));
 }
-EXPORT_SYMBOL(generic_find_next_le_bit);
+EXPORT_SYMBOL(find_next_bit_le);
+
+#endif /* CONFIG_GENERIC_FIND_BIT_LE */
 #endif /* __BIG_ENDIAN */

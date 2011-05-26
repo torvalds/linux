@@ -241,7 +241,7 @@ static inline int ghes_severity(int severity)
 	case CPER_SEV_FATAL:
 		return GHES_SEV_PANIC;
 	default:
-		/* Unkown, go panic */
+		/* Unknown, go panic */
 		return GHES_SEV_PANIC;
 	}
 }

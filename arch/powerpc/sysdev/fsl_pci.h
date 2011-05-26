@@ -1,7 +1,7 @@
 /*
  * MPC85xx/86xx PCI Express structure define
  *
- * Copyright 2007 Freescale Semiconductor, Inc
+ * Copyright 2007,2011 Freescale Semiconductor, Inc
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -21,6 +21,7 @@
 #define PIWAR_TGI_LOCAL		0x00f00000	/* target - local memory */
 #define PIWAR_READ_SNOOP	0x00050000
 #define PIWAR_WRITE_SNOOP	0x00005000
+#define PIWAR_SZ_MASK          0x0000003f
 
 /* PCI/PCI Express outbound window reg */
 struct pci_outbound_window_regs {
@@ -49,7 +50,9 @@ struct ccsr_pci {
 	__be32	int_ack;		/* 0x.008 - PCI Interrupt Acknowledge Register */
 	__be32	pex_otb_cpl_tor;	/* 0x.00c - PCIE Outbound completion timeout register */
 	__be32	pex_conf_tor;		/* 0x.010 - PCIE configuration timeout register */
-	u8	res2[12];
+	__be32	pex_config;		/* 0x.014 - PCIE CONFIG Register */
+	__be32	pex_int_status;		/* 0x.018 - PCIE interrupt status */
+	u8	res2[4];
 	__be32	pex_pme_mes_dr;		/* 0x.020 - PCIE PME and message detect register */
 	__be32	pex_pme_mes_disr;	/* 0x.024 - PCIE PME and message disable register */
 	__be32	pex_pme_mes_ier;	/* 0x.028 - PCIE PME and message interrupt enable register */
@@ -62,14 +65,14 @@ struct ccsr_pci {
  * in all of the other outbound windows.
  */
 	struct pci_outbound_window_regs pow[5];
-
-	u8	res14[256];
-
-/* PCI/PCI Express inbound window 3-1
+	u8	res14[96];
+	struct pci_inbound_window_regs	pmit;	/* 0xd00 - 0xd9c Inbound MSI */
+	u8	res6[96];
+/* PCI/PCI Express inbound window 3-0
  * inbound window 1 supports only a 32-bit base address and does not
  * define an inbound window base extended address register.
  */
-	struct pci_inbound_window_regs piw[3];
+	struct pci_inbound_window_regs piw[4];
 
 	__be32	pex_err_dr;		/* 0x.e00 - PCI/PCIE error detect register */
 	u8	res21[4];

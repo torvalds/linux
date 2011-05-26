@@ -108,14 +108,14 @@ TRACE_EVENT(module_request,
 	TP_ARGS(name, wait, ip),
 
 	TP_STRUCT__entry(
-		__field(	bool,		wait		)
 		__field(	unsigned long,	ip		)
+		__field(	bool,		wait		)
 		__string(	name,		name		)
 	),
 
 	TP_fast_assign(
-		__entry->wait	= wait;
 		__entry->ip	= ip;
+		__entry->wait	= wait;
 		__assign_str(name, name);
 	),
 
@@ -129,4 +129,3 @@ TRACE_EVENT(module_request,
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>
-

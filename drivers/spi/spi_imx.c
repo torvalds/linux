@@ -174,7 +174,7 @@ static unsigned int spi_imx_clkdiv_2(unsigned int fin,
 #define SPI_IMX2_3_CTRL		0x08
 #define SPI_IMX2_3_CTRL_ENABLE		(1 <<  0)
 #define SPI_IMX2_3_CTRL_XCH		(1 <<  2)
-#define SPI_IMX2_3_CTRL_MODE(cs)	(1 << ((cs) +  4))
+#define SPI_IMX2_3_CTRL_MODE_MASK	(0xf << 4)
 #define SPI_IMX2_3_CTRL_POSTDIV_OFFSET	8
 #define SPI_IMX2_3_CTRL_PREDIV_OFFSET	12
 #define SPI_IMX2_3_CTRL_CS(cs)		((cs) << 18)
@@ -253,8 +253,14 @@ static int __maybe_unused spi_imx2_3_config(struct spi_imx_data *spi_imx,
 {
 	u32 ctrl = SPI_IMX2_3_CTRL_ENABLE, cfg = 0;
 
-	/* set master mode */
-	ctrl |= SPI_IMX2_3_CTRL_MODE(config->cs);
+	/*
+	 * The hardware seems to have a race condition when changing modes. The
+	 * current assumption is that the selection of the channel arrives
+	 * earlier in the hardware than the mode bits when they are written at
+	 * the same time.
+	 * So set master mode for all channels as we do not support slave mode.
+	 */
+	ctrl |= SPI_IMX2_3_CTRL_MODE_MASK;
 
 	/* set clock speed */
 	ctrl |= spi_imx2_3_clkdiv(spi_imx->spi_clk, config->speed_hz);

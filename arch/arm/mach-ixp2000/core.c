@@ -476,8 +476,8 @@ void __init ixp2000_init_irq(void)
 	 */
 	for (irq = IRQ_IXP2000_SOFT_INT; irq <= IRQ_IXP2000_THDB3; irq++) {
 		if ((1 << irq) & IXP2000_VALID_IRQ_MASK) {
-			set_irq_chip(irq, &ixp2000_irq_chip);
-			set_irq_handler(irq, handle_level_irq);
+			irq_set_chip_and_handler(irq, &ixp2000_irq_chip,
+						 handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID);
 		} else set_irq_flags(irq, 0);
 	}
@@ -485,21 +485,21 @@ void __init ixp2000_init_irq(void)
 	for (irq = IRQ_IXP2000_DRAM0_MIN_ERR; irq <= IRQ_IXP2000_SP_INT; irq++) {
 		if((1 << (irq - IRQ_IXP2000_DRAM0_MIN_ERR)) &
 				IXP2000_VALID_ERR_IRQ_MASK) {
-			set_irq_chip(irq, &ixp2000_err_irq_chip);
-			set_irq_handler(irq, handle_level_irq);
+			irq_set_chip_and_handler(irq, &ixp2000_err_irq_chip,
+						 handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID);
 		}
 		else
 			set_irq_flags(irq, 0);
 	}
-	set_irq_chained_handler(IRQ_IXP2000_ERRSUM, ixp2000_err_irq_handler);
+	irq_set_chained_handler(IRQ_IXP2000_ERRSUM, ixp2000_err_irq_handler);
 
 	for (irq = IRQ_IXP2000_GPIO0; irq <= IRQ_IXP2000_GPIO7; irq++) {
-		set_irq_chip(irq, &ixp2000_GPIO_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &ixp2000_GPIO_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
-	set_irq_chained_handler(IRQ_IXP2000_GPIO, ixp2000_GPIO_irq_handler);
+	irq_set_chained_handler(IRQ_IXP2000_GPIO, ixp2000_GPIO_irq_handler);
 
 	/*
 	 * Enable PCI irqs.  The actual PCI[AB] decoding is done in
@@ -508,8 +508,8 @@ void __init ixp2000_init_irq(void)
 	 */
 	ixp2000_reg_write(IXP2000_IRQ_ENABLE_SET, (1 << IRQ_IXP2000_PCI));
 	for (irq = IRQ_IXP2000_PCIA; irq <= IRQ_IXP2000_PCIB; irq++) {
-		set_irq_chip(irq, &ixp2000_pci_irq_chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &ixp2000_pci_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 }

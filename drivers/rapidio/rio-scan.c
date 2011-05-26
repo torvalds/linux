@@ -295,7 +295,7 @@ static int __devinit rio_add_device(struct rio_dev *rdev)
 }
 
 /**
- * rio_enable_rx_tx_port - enable input reciever and output transmitter of
+ * rio_enable_rx_tx_port - enable input receiver and output transmitter of
  * given port
  * @port: Master port associated with the RIO network
  * @local: local=1 select local port otherwise a far device is reached
@@ -517,7 +517,7 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 	return rdev;
 
 cleanup:
-	if (rswitch->route_table)
+	if (rio_is_switch(rdev))
 		kfree(rswitch->route_table);
 
 	kfree(rdev);

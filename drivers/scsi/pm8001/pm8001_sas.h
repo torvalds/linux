@@ -50,6 +50,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 #include <scsi/libsas.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/sas_ata.h>
@@ -379,18 +380,16 @@ struct pm8001_hba_info {
 #ifdef PM8001_USE_TASKLET
 	struct tasklet_struct	tasklet;
 #endif
-	struct list_head 	wq_list;
 	u32			logging_level;
 	u32			fw_status;
 	const struct firmware 	*fw_image;
 };
 
-struct pm8001_wq {
-	struct delayed_work work_q;
+struct pm8001_work {
+	struct work_struct work;
 	struct pm8001_hba_info *pm8001_ha;
 	void *data;
 	int handler;
-	struct list_head entry;
 };
 
 struct pm8001_fw_image_header {
@@ -446,7 +445,7 @@ struct fw_control_info {
 struct fw_control_ex {
 	struct fw_control_info *fw_control;
 	void			*buffer;/* keep buffer pointer to be
-	freed when the responce comes*/
+	freed when the response comes*/
 	void			*virtAddr;/* keep virtual address of the data */
 	void			*usrAddr;/* keep virtual address of the
 	user data */
@@ -459,6 +458,9 @@ struct fw_control_ex {
 	void			*param2;
 	void			*param3;
 };
+
+/* pm8001 workqueue */
+extern struct workqueue_struct *pm8001_wq;
 
 /******************** function prototype *********************/
 int pm8001_tag_alloc(struct pm8001_hba_info *pm8001_ha, u32 *tag_out);

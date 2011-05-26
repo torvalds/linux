@@ -565,7 +565,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_ioprio_get		2	/* 4315 */
 	sys	sys_utimensat		4
 	sys	sys_signalfd		3
-	sys	sys_ni_syscall		0
+	sys	sys_ni_syscall		0	/* was timerfd */
 	sys	sys_eventfd		1
 	sys	sys_fallocate		6	/* 4320 */
 	sys	sys_timerfd_create	2
@@ -586,6 +586,10 @@ einval:	li	v0, -ENOSYS
 	sys	sys_fanotify_init	2
 	sys	sys_fanotify_mark	6
 	sys	sys_prlimit64		4
+	sys	sys_name_to_handle_at	5
+	sys	sys_open_by_handle_at	3	/* 4340 */
+	sys	sys_clock_adjtime	2
+	sys	sys_syncfs		1
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

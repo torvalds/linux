@@ -33,7 +33,6 @@ extern void pmac_setup_pci_dma(void);
 extern void pmac_check_ht_link(void);
 
 extern void pmac_setup_smp(void);
-extern void pmac32_cpu_die(void);
 extern void low_cpu_die(void) __attribute__((noreturn));
 
 extern int pmac_nvram_init(void);

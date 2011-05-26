@@ -441,7 +441,6 @@ struct vme_resource *vme_master_request(struct device *dev,
 
 	return resource;
 
-	kfree(resource);
 err_alloc:
 	/* Unlock image */
 	spin_lock(&master_image->lock);
@@ -768,7 +767,6 @@ struct vme_dma_attr *vme_dma_pattern_attribute(u32 pattern,
 
 	return attributes;
 
-	kfree(pattern_attr);
 err_pat:
 	kfree(attributes);
 err_attr:
@@ -809,7 +807,6 @@ struct vme_dma_attr *vme_dma_pci_attribute(dma_addr_t address)
 
 	return attributes;
 
-	kfree(pci_attr);
 err_pci:
 	kfree(attributes);
 err_attr:
@@ -851,7 +848,6 @@ struct vme_dma_attr *vme_dma_vme_attribute(unsigned long long address,
 
 	return attributes;
 
-	kfree(vme_attr);
 err_vme:
 	kfree(attributes);
 err_attr:
@@ -1363,9 +1359,8 @@ int vme_register_bridge(struct vme_bridge *bridge)
 
 	return retval;
 
-	i = VME_SLOTS_MAX;
 err_reg:
-	while (i > -1) {
+	while (--i >= 0) {
 		dev = &bridge->dev[i];
 		device_unregister(dev);
 	}

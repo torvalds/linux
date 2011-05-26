@@ -2,6 +2,7 @@
 #define __ASM_ARM_CPUTYPE_H
 
 #include <linux/stringify.h>
+#include <linux/kernel.h>
 
 #define CPUID_ID	0
 #define CPUID_CACHETYPE	1
@@ -23,6 +24,8 @@
 #define CPUID_EXT_ISAR4	"c2, 4"
 #define CPUID_EXT_ISAR5	"c2, 5"
 
+extern unsigned int processor_id;
+
 #ifdef CONFIG_CPU_CP15
 #define read_cpuid(reg)							\
 	({								\
@@ -43,7 +46,6 @@
 		__val;							\
 	})
 #else
-extern unsigned int processor_id;
 #define read_cpuid(reg) (processor_id)
 #define read_cpuid_ext(reg) 0
 #endif

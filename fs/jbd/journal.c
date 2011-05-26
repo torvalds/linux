@@ -770,7 +770,7 @@ journal_t * journal_init_dev(struct block_device *bdev,
 	journal->j_wbufsize = n;
 	journal->j_wbuf = kmalloc(n * sizeof(struct buffer_head*), GFP_KERNEL);
 	if (!journal->j_wbuf) {
-		printk(KERN_ERR "%s: Cant allocate bhs for commit thread\n",
+		printk(KERN_ERR "%s: Can't allocate bhs for commit thread\n",
 			__func__);
 		goto out_err;
 	}
@@ -831,7 +831,7 @@ journal_t * journal_init_inode (struct inode *inode)
 	journal->j_wbufsize = n;
 	journal->j_wbuf = kmalloc(n * sizeof(struct buffer_head*), GFP_KERNEL);
 	if (!journal->j_wbuf) {
-		printk(KERN_ERR "%s: Cant allocate bhs for commit thread\n",
+		printk(KERN_ERR "%s: Can't allocate bhs for commit thread\n",
 			__func__);
 		goto out_err;
 	}
@@ -839,7 +839,7 @@ journal_t * journal_init_inode (struct inode *inode)
 	err = journal_bmap(journal, 0, &blocknr);
 	/* If that failed, give up */
 	if (err) {
-		printk(KERN_ERR "%s: Cannnot locate journal superblock\n",
+		printk(KERN_ERR "%s: Cannot locate journal superblock\n",
 		       __func__);
 		goto out_err;
 	}

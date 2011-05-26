@@ -59,10 +59,8 @@ static int physmap_flash_remove(struct platform_device *dev)
 #else
 		del_mtd_device(info->cmtd);
 #endif
-#ifdef CONFIG_MTD_CONCAT
 		if (info->cmtd != info->mtd[0])
 			mtd_concat_destroy(info->cmtd);
-#endif
 	}
 
 	for (i = 0; i < MAX_RESOURCES; i++) {
@@ -159,15 +157,9 @@ static int physmap_flash_probe(struct platform_device *dev)
 		/*
 		 * We detected multiple devices. Concatenate them together.
 		 */
-#ifdef CONFIG_MTD_CONCAT
 		info->cmtd = mtd_concat_create(info->mtd, devices_found, dev_name(&dev->dev));
 		if (info->cmtd == NULL)
 			err = -ENXIO;
-#else
-		printk(KERN_ERR "physmap-flash: multiple devices "
-		       "found but MTD concat support disabled.\n");
-		err = -ENXIO;
-#endif
 	}
 	if (err)
 		goto err_out;

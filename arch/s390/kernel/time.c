@@ -724,7 +724,7 @@ static void clock_sync_cpu(struct clock_sync_data *sync)
 }
 
 /*
- * Sync the TOD clock using the port refered to by aibp. This port
+ * Sync the TOD clock using the port referred to by aibp. This port
  * has to be enabled and the other port has to be disabled. The
  * last eacr update has to be more than 1.6 seconds in the past.
  */
@@ -1012,7 +1012,7 @@ static void etr_work_fn(struct work_struct *work)
 		eacr = etr_handle_update(&aib, eacr);
 
 	/*
-	 * Select ports to enable. The prefered synchronization mode is PPS.
+	 * Select ports to enable. The preferred synchronization mode is PPS.
 	 * If a port can be enabled depends on a number of things:
 	 * 1) The port needs to be online and uptodate. A port is not
 	 *    disabled just because it is not uptodate, but it is only
@@ -1091,7 +1091,7 @@ static void etr_work_fn(struct work_struct *work)
 	/*
 	 * Update eacr and try to synchronize the clock. If the update
 	 * of eacr caused a stepping port switch (or if we have to
-	 * assume that a stepping port switch has occured) or the
+	 * assume that a stepping port switch has occurred) or the
 	 * clock syncing failed, reset the sync check control bit
 	 * and set up a timer to try again after 0.5 seconds
 	 */

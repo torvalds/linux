@@ -1093,3 +1093,33 @@ int gdbstub_state(struct kgdb_state *ks, char *cmd)
 	put_packet(remcom_out_buffer);
 	return 0;
 }
+
+/**
+ * gdbstub_exit - Send an exit message to GDB
+ * @status: The exit code to report.
+ */
+void gdbstub_exit(int status)
+{
+	unsigned char checksum, ch, buffer[3];
+	int loop;
+
+	buffer[0] = 'W';
+	buffer[1] = hex_asc_hi(status);
+	buffer[2] = hex_asc_lo(status);
+
+	dbg_io_ops->write_char('$');
+	checksum = 0;
+
+	for (loop = 0; loop < 3; loop++) {
+		ch = buffer[loop];
+		checksum += ch;
+		dbg_io_ops->write_char(ch);
+	}
+
+	dbg_io_ops->write_char('#');
+	dbg_io_ops->write_char(hex_asc_hi(checksum));
+	dbg_io_ops->write_char(hex_asc_lo(checksum));
+
+	/* make sure the output is flushed, lest the bootloader clobber it */
+	dbg_io_ops->flush();
+}

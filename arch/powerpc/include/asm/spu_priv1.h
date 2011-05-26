@@ -223,7 +223,7 @@ spu_disable_spu (struct spu_context *ctx)
 }
 
 /*
- * The declarations folowing are put here for convenience
+ * The declarations following are put here for convenience
  * and only intended to be used by the platform setup code.
  */
 

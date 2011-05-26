@@ -204,7 +204,7 @@ static int i2o_scsi_remove(struct device *dev)
  *	i2o_scsi_probe - verify if dev is a I2O SCSI device and install it
  *	@dev: device to verify if it is a I2O SCSI device
  *
- *	Retrieve channel, id and lun for I2O device. If everthing goes well
+ *	Retrieve channel, id and lun for I2O device. If everything goes well
  *	register the I2O device as SCSI device on the I2O SCSI controller.
  *
  *	Returns 0 on success or negative error code on failure.

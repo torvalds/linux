@@ -1241,7 +1241,7 @@ static int __devinit sonypi_setup_ioports(struct sonypi_device *dev,
 	while (check_ioport && check->port1) {
 		if (!request_region(check->port1,
 				   sonypi_device.region_size,
-				   "Sony Programable I/O Device Check")) {
+				   "Sony Programmable I/O Device Check")) {
 			printk(KERN_ERR "sonypi: ioport 0x%.4x busy, using sony-laptop? "
 					"if not use check_ioport=0\n",
 					check->port1);
@@ -1255,7 +1255,7 @@ static int __devinit sonypi_setup_ioports(struct sonypi_device *dev,
 
 		if (request_region(ioport_list->port1,
 				   sonypi_device.region_size,
-				   "Sony Programable I/O Device")) {
+				   "Sony Programmable I/O Device")) {
 			dev->ioport1 = ioport_list->port1;
 			dev->ioport2 = ioport_list->port2;
 			return 0;

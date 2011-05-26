@@ -171,11 +171,11 @@ jensen_init_irq(void)
 {
 	init_i8259a_irqs();
 
-	set_irq_chip_and_handler(1, &jensen_local_irq_type, handle_level_irq);
-	set_irq_chip_and_handler(4, &jensen_local_irq_type, handle_level_irq);
-	set_irq_chip_and_handler(3, &jensen_local_irq_type, handle_level_irq);
-	set_irq_chip_and_handler(7, &jensen_local_irq_type, handle_level_irq);
-	set_irq_chip_and_handler(9, &jensen_local_irq_type, handle_level_irq);
+	irq_set_chip_and_handler(1, &jensen_local_irq_type, handle_level_irq);
+	irq_set_chip_and_handler(4, &jensen_local_irq_type, handle_level_irq);
+	irq_set_chip_and_handler(3, &jensen_local_irq_type, handle_level_irq);
+	irq_set_chip_and_handler(7, &jensen_local_irq_type, handle_level_irq);
+	irq_set_chip_and_handler(9, &jensen_local_irq_type, handle_level_irq);
 
 	common_init_isa_dma();
 }

@@ -1764,16 +1764,20 @@ static struct ccw_device_id ctcm_ids[] = {
 MODULE_DEVICE_TABLE(ccw, ctcm_ids);
 
 static struct ccw_driver ctcm_ccw_driver = {
-	.owner	= THIS_MODULE,
-	.name	= "ctcm",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "ctcm",
+	},
 	.ids	= ctcm_ids,
 	.probe	= ccwgroup_probe_ccwdev,
 	.remove	= ccwgroup_remove_ccwdev,
 };
 
 static struct ccwgroup_driver ctcm_group_driver = {
-	.owner       = THIS_MODULE,
-	.name        = CTC_DRIVER_NAME,
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= CTC_DRIVER_NAME,
+	},
 	.max_slaves  = 2,
 	.driver_id   = 0xC3E3C3D4,	/* CTCM */
 	.probe       = ctcm_probe_device,

@@ -109,7 +109,7 @@ void cpu_idle(void)
 	}
 }
 
-struct thread_info *alloc_thread_info(struct task_struct *task)
+struct thread_info *alloc_thread_info_node(struct task_struct *task, int node)
 {
 	struct page *page;
 	gfp_t flags = GFP_KERNEL;
@@ -118,7 +118,7 @@ struct thread_info *alloc_thread_info(struct task_struct *task)
 	flags |= __GFP_ZERO;
 #endif
 
-	page = alloc_pages(flags, THREAD_SIZE_ORDER);
+	page = alloc_pages_node(node, flags, THREAD_SIZE_ORDER);
 	if (!page)
 		return NULL;
 
@@ -165,7 +165,7 @@ void free_thread_info(struct thread_info *info)
 		kfree(step_state);
 	}
 
-	free_page((unsigned long)info);
+	free_pages((unsigned long)info, THREAD_SIZE_ORDER);
 }
 
 static void save_arch_state(struct thread_struct *t);
@@ -574,6 +574,8 @@ SYSCALL_DEFINE4(execve, const char __user *, path,
 		goto out;
 	error = do_execve(filename, argv, envp, regs);
 	putname(filename);
+	if (error == 0)
+		single_step_execve();
 out:
 	return error;
 }
@@ -593,6 +595,8 @@ long compat_sys_execve(const char __user *path,
 		goto out;
 	error = compat_do_execve(filename, argv, envp, regs);
 	putname(filename);
+	if (error == 0)
+		single_step_execve();
 out:
 	return error;
 }

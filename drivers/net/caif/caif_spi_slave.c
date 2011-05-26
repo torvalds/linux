@@ -98,7 +98,7 @@ void cfspi_xfer(struct work_struct *work)
 
 			cfspi_dbg_state(cfspi, CFSPI_STATE_FETCH_PKT);
 
-			/* Copy commited SPI frames after the SPI indication. */
+			/* Copy committed SPI frames after the SPI indication. */
 			ptr = (u8 *) cfspi->xfer.va_tx;
 			ptr += SPI_IND_SZ;
 			len = cfspi_xmitfrm(cfspi, ptr, cfspi->tx_cpck_len);
@@ -158,7 +158,7 @@ void cfspi_xfer(struct work_struct *work)
 
 		cfspi_dbg_state(cfspi, CFSPI_STATE_SIG_ACTIVE);
 
-		/* Signal that we are ready to recieve data. */
+		/* Signal that we are ready to receive data. */
 		cfspi->dev->sig_xfer(true, cfspi->dev);
 
 		cfspi_dbg_state(cfspi, CFSPI_STATE_WAIT_XFER_DONE);

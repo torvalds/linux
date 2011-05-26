@@ -701,7 +701,7 @@ Byte | 8 7 6 5 4 3 2 1
 #define PROTCAP_FREE12    0x1000  /* not used                            */
 #define PROTCAP_FREE13    0x2000  /* not used                            */
 #define PROTCAP_FREE14    0x4000  /* not used                            */
-#define PROTCAP_EXTENSION 0x8000  /* used for future extentions          */
+#define PROTCAP_EXTENSION 0x8000  /* used for future extensions          */
 /* -----------------------------------------------------------* */
 /* Onhook data transmission ETS30065901 */
 /* Message Type */

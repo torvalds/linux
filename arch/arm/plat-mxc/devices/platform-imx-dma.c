@@ -94,7 +94,7 @@ static struct sdma_script_start_addrs addr_imx25_to1 = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_MX31
+#ifdef CONFIG_SOC_IMX31
 static struct sdma_script_start_addrs addr_imx31_to1 = {
 	.per_2_per_addr = 1677,
 };
@@ -106,7 +106,7 @@ static struct sdma_script_start_addrs addr_imx31_to2 = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_MX35
+#ifdef CONFIG_SOC_IMX35
 static struct sdma_script_start_addrs addr_imx35_to1 = {
 	.ap_2_ap_addr = 642,
 	.uart_2_mcu_addr = 817,
@@ -194,7 +194,7 @@ static int __init imxXX_add_imx_dma(void)
 	} else
 #endif
 
-#if defined(CONFIG_ARCH_MX51)
+#if defined(CONFIG_SOC_IMX51)
 	if (cpu_is_mx51()) {
 		imx51_imx_sdma_data.pdata.script_addrs = &addr_imx51_to1;
 		ret = imx_add_imx_sdma(&imx51_imx_sdma_data);

@@ -605,7 +605,7 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 		break;
 
 	case INSN_CONFIG_DIO_QUERY:
-		/* retreive from shadow register */
+		/* retrieve from shadow register */
 		data[1] =
 		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;

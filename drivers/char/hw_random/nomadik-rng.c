@@ -39,7 +39,7 @@ static struct hwrng nmk_rng = {
 	.read		= nmk_rng_read,
 };
 
-static int nmk_rng_probe(struct amba_device *dev, struct amba_id *id)
+static int nmk_rng_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	void __iomem *base;
 	int ret;

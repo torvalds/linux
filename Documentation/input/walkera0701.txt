@@ -77,7 +77,7 @@ pulse length:
 
 24 bin+oct values + 1 bin value = 24*4+1 bits  = 97 bits
 
-(Warning, pulses on ACK ar inverted by transistor, irq is rised up on sync
+(Warning, pulses on ACK are inverted by transistor, irq is raised up on sync
 to bin change or octal value to bin change).
 
 Binary data representations:

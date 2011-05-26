@@ -244,7 +244,7 @@ static void pxa25x_cpu_pm_enter(suspend_state_t state)
 
 	switch (state) {
 	case PM_SUSPEND_MEM:
-		pxa25x_cpu_suspend(PWRMODE_SLEEP);
+		pxa25x_cpu_suspend(PWRMODE_SLEEP, PLAT_PHYS_OFFSET - PAGE_OFFSET);
 		break;
 	}
 }
@@ -252,7 +252,7 @@ static void pxa25x_cpu_pm_enter(suspend_state_t state)
 static int pxa25x_cpu_pm_prepare(void)
 {
 	/* set resume return address */
-	PSPR = virt_to_phys(pxa_cpu_resume);
+	PSPR = virt_to_phys(cpu_resume);
 	return 0;
 }
 
@@ -285,7 +285,7 @@ static inline void pxa25x_init_pm(void) {}
 
 static int pxa25x_set_wake(struct irq_data *d, unsigned int on)
 {
-	int gpio = IRQ_TO_GPIO(d->irq);
+	int gpio = irq_to_gpio(d->irq);
 	uint32_t mask = 0;
 
 	if (gpio >= 0 && gpio < 85)
@@ -347,6 +347,7 @@ static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa25x_device_assp,
 	&pxa25x_device_pwm0,
 	&pxa25x_device_pwm1,
+	&pxa_device_asoc_platform,
 };
 
 static struct sys_device pxa25x_sysdev[] = {

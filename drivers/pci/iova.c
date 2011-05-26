@@ -391,7 +391,7 @@ reserve_iova(struct iova_domain *iovad,
 				break;
 	}
 
-	/* We are here either becasue this is the first reserver node
+	/* We are here either because this is the first reserver node
 	 * or need to insert remaining non overlap addr range
 	 */
 	iova = __insert_new_range(iovad, pfn_lo, pfn_hi);

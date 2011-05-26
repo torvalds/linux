@@ -109,9 +109,9 @@
 #define INTCHW_INTC0_DMA0C0               (1<<INTCHW_INTC0_DMA0C0_BITNUM)
 
 /* INTC1 - interrupt controller 1 */
-#define INTCHW_INTC1_DDRVPMP_BITNUM       27	/* DDR and VPM PLL clock phase relationship interupt (Not for A0) */
+#define INTCHW_INTC1_DDRVPMP_BITNUM       27	/* DDR and VPM PLL clock phase relationship interrupt (Not for A0) */
 #define INTCHW_INTC1_DDRVPMT_BITNUM       26	/* DDR and VPM HW phase align timeout interrupt (Not for A0) */
-#define INTCHW_INTC1_DDRP_BITNUM          26	/* DDR and PLL clock phase relationship interupt (For A0 only)) */
+#define INTCHW_INTC1_DDRP_BITNUM          26	/* DDR and PLL clock phase relationship interrupt (For A0 only)) */
 #define INTCHW_INTC1_RTC2_BITNUM          25	/* Real time clock tamper interrupt */
 #define INTCHW_INTC1_VDEC_BITNUM          24	/* Hantro Video Decoder interrupt */
 /* Bits 13-23 are non-secure versions of the corresponding secure bits in SINTC bits 0-10. */

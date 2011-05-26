@@ -165,7 +165,7 @@ struct irlap_cb *irlap_open(struct net_device *dev, struct qos_info *qos,
 
 	irlap_apply_default_connection_parameters(self);
 
-	self->N3 = 3; /* # connections attemts to try before giving up */
+	self->N3 = 3; /* # connections attempts to try before giving up */
 
 	self->state = LAP_NDM;
 

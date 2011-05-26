@@ -14,6 +14,7 @@
 #include <asm/setup.h>
 #include <asm/processor.h>
 #include <asm/lowcore.h>
+#include <asm/cmpxchg.h>
 
 #ifdef __KERNEL__
 
@@ -120,161 +121,6 @@ extern int memcpy_real(void *, void *, size_t);
 
 #define nop() asm volatile("nop")
 
-#define xchg(ptr,x)							  \
-({									  \
-	__typeof__(*(ptr)) __ret;					  \
-	__ret = (__typeof__(*(ptr)))					  \
-		__xchg((unsigned long)(x), (void *)(ptr),sizeof(*(ptr))); \
-	__ret;								  \
-})
-
-extern void __xchg_called_with_bad_pointer(void);
-
-static inline unsigned long __xchg(unsigned long x, void * ptr, int size)
-{
-	unsigned long addr, old;
-	int shift;
-
-        switch (size) {
-	case 1:
-		addr = (unsigned long) ptr;
-		shift = (3 ^ (addr & 3)) << 3;
-		addr ^= addr & 3;
-		asm volatile(
-			"	l	%0,%4\n"
-			"0:	lr	0,%0\n"
-			"	nr	0,%3\n"
-			"	or	0,%2\n"
-			"	cs	%0,0,%4\n"
-			"	jl	0b\n"
-			: "=&d" (old), "=Q" (*(int *) addr)
-			: "d" (x << shift), "d" (~(255 << shift)),
-			  "Q" (*(int *) addr) : "memory", "cc", "0");
-		return old >> shift;
-	case 2:
-		addr = (unsigned long) ptr;
-		shift = (2 ^ (addr & 2)) << 3;
-		addr ^= addr & 2;
-		asm volatile(
-			"	l	%0,%4\n"
-			"0:	lr	0,%0\n"
-			"	nr	0,%3\n"
-			"	or	0,%2\n"
-			"	cs	%0,0,%4\n"
-			"	jl	0b\n"
-			: "=&d" (old), "=Q" (*(int *) addr)
-			: "d" (x << shift), "d" (~(65535 << shift)),
-			  "Q" (*(int *) addr) : "memory", "cc", "0");
-		return old >> shift;
-	case 4:
-		asm volatile(
-			"	l	%0,%3\n"
-			"0:	cs	%0,%2,%3\n"
-			"	jl	0b\n"
-			: "=&d" (old), "=Q" (*(int *) ptr)
-			: "d" (x), "Q" (*(int *) ptr)
-			: "memory", "cc");
-		return old;
-#ifdef __s390x__
-	case 8:
-		asm volatile(
-			"	lg	%0,%3\n"
-			"0:	csg	%0,%2,%3\n"
-			"	jl	0b\n"
-			: "=&d" (old), "=m" (*(long *) ptr)
-			: "d" (x), "Q" (*(long *) ptr)
-			: "memory", "cc");
-		return old;
-#endif /* __s390x__ */
-	}
-	__xchg_called_with_bad_pointer();
-	return x;
-}
-
-/*
- * Atomic compare and exchange.  Compare OLD with MEM, if identical,
- * store NEW in MEM.  Return the initial value in MEM.  Success is
- * indicated by comparing RETURN with OLD.
- */
-
-#define __HAVE_ARCH_CMPXCHG 1
-
-#define cmpxchg(ptr, o, n)						\
-	((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o),	\
-					(unsigned long)(n), sizeof(*(ptr))))
-
-extern void __cmpxchg_called_with_bad_pointer(void);
-
-static inline unsigned long
-__cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
-{
-	unsigned long addr, prev, tmp;
-	int shift;
-
-        switch (size) {
-	case 1:
-		addr = (unsigned long) ptr;
-		shift = (3 ^ (addr & 3)) << 3;
-		addr ^= addr & 3;
-		asm volatile(
-			"	l	%0,%2\n"
-			"0:	nr	%0,%5\n"
-			"	lr	%1,%0\n"
-			"	or	%0,%3\n"
-			"	or	%1,%4\n"
-			"	cs	%0,%1,%2\n"
-			"	jnl	1f\n"
-			"	xr	%1,%0\n"
-			"	nr	%1,%5\n"
-			"	jnz	0b\n"
-			"1:"
-			: "=&d" (prev), "=&d" (tmp), "=Q" (*(int *) ptr)
-			: "d" (old << shift), "d" (new << shift),
-			  "d" (~(255 << shift)), "Q" (*(int *) ptr)
-			: "memory", "cc");
-		return prev >> shift;
-	case 2:
-		addr = (unsigned long) ptr;
-		shift = (2 ^ (addr & 2)) << 3;
-		addr ^= addr & 2;
-		asm volatile(
-			"	l	%0,%2\n"
-			"0:	nr	%0,%5\n"
-			"	lr	%1,%0\n"
-			"	or	%0,%3\n"
-			"	or	%1,%4\n"
-			"	cs	%0,%1,%2\n"
-			"	jnl	1f\n"
-			"	xr	%1,%0\n"
-			"	nr	%1,%5\n"
-			"	jnz	0b\n"
-			"1:"
-			: "=&d" (prev), "=&d" (tmp), "=Q" (*(int *) ptr)
-			: "d" (old << shift), "d" (new << shift),
-			  "d" (~(65535 << shift)), "Q" (*(int *) ptr)
-			: "memory", "cc");
-		return prev >> shift;
-	case 4:
-		asm volatile(
-			"	cs	%0,%3,%1\n"
-			: "=&d" (prev), "=Q" (*(int *) ptr)
-			: "0" (old), "d" (new), "Q" (*(int *) ptr)
-			: "memory", "cc");
-		return prev;
-#ifdef __s390x__
-	case 8:
-		asm volatile(
-			"	csg	%0,%3,%1\n"
-			: "=&d" (prev), "=Q" (*(long *) ptr)
-			: "0" (old), "d" (new), "Q" (*(long *) ptr)
-			: "memory", "cc");
-		return prev;
-#endif /* __s390x__ */
-        }
-	__cmpxchg_called_with_bad_pointer();
-	return old;
-}
-
 /*
  * Force strict CPU ordering.
  * And yes, this is required on UP too when we're talking
@@ -352,46 +198,6 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 	__dummy &= ~(1UL << (bit));	\
 	__ctl_load(__dummy, cr, cr);	\
 })
-
-#include <linux/irqflags.h>
-
-#include <asm-generic/cmpxchg-local.h>
-
-static inline unsigned long __cmpxchg_local(volatile void *ptr,
-				      unsigned long old,
-				      unsigned long new, int size)
-{
-	switch (size) {
-	case 1:
-	case 2:
-	case 4:
-#ifdef __s390x__
-	case 8:
-#endif
-		return __cmpxchg(ptr, old, new, size);
-	default:
-		return __cmpxchg_local_generic(ptr, old, new, size);
-	}
-
-	return old;
-}
-
-/*
- * cmpxchg_local and cmpxchg64_local are atomic wrt current CPU. Always make
- * them available.
- */
-#define cmpxchg_local(ptr, o, n)					\
-	((__typeof__(*(ptr)))__cmpxchg_local((ptr), (unsigned long)(o),	\
-			(unsigned long)(n), sizeof(*(ptr))))
-#ifdef __s390x__
-#define cmpxchg64_local(ptr, o, n)					\
-  ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
-	cmpxchg_local((ptr), (o), (n));					\
-  })
-#else
-#define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
-#endif
 
 /*
  * Use to set psw mask except for the first byte which

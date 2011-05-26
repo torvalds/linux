@@ -67,7 +67,7 @@
  * cp foo.bit /dev/icap0
  *
  * Note that unless foo.bit is an appropriately constructed partial
- * bitstream, this has a high likelyhood of overwriting the design
+ * bitstream, this has a high likelihood of overwriting the design
  * currently programmed in the FPGA.
  */
 
@@ -714,11 +714,61 @@ static int __devexit hwicap_remove(struct device *dev)
 	return 0;		/* success */
 }
 
+#ifdef CONFIG_OF
+static int __devinit hwicap_of_probe(struct platform_device *op,
+				     const struct hwicap_driver_config *config)
+{
+	struct resource res;
+	const unsigned int *id;
+	const char *family;
+	int rc;
+	const struct config_registers *regs;
+
+
+	rc = of_address_to_resource(op->dev.of_node, 0, &res);
+	if (rc) {
+		dev_err(&op->dev, "invalid address\n");
+		return rc;
+	}
+
+	id = of_get_property(op->dev.of_node, "port-number", NULL);
+
+	/* It's most likely that we're using V4, if the family is not
+	   specified */
+	regs = &v4_config_registers;
+	family = of_get_property(op->dev.of_node, "xlnx,family", NULL);
+
+	if (family) {
+		if (!strcmp(family, "virtex2p")) {
+			regs = &v2_config_registers;
+		} else if (!strcmp(family, "virtex4")) {
+			regs = &v4_config_registers;
+		} else if (!strcmp(family, "virtex5")) {
+			regs = &v5_config_registers;
+		}
+	}
+	return hwicap_setup(&op->dev, id ? *id : -1, &res, config,
+			regs);
+}
+#else
+static inline int hwicap_of_probe(struct platform_device *op,
+				  const struct hwicap_driver_config *config)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_OF */
+
+static const struct of_device_id __devinitconst hwicap_of_match[];
 static int __devinit hwicap_drv_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
 	struct resource *res;
 	const struct config_registers *regs;
 	const char *family;
+
+	match = of_match_device(hwicap_of_match, &pdev->dev);
+	if (match)
+		return hwicap_of_probe(pdev, match->data);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -748,97 +798,27 @@ static int __devexit hwicap_drv_remove(struct platform_device *pdev)
 	return hwicap_remove(&pdev->dev);
 }
 
-static struct platform_driver hwicap_platform_driver = {
-	.probe = hwicap_drv_probe,
-	.remove = hwicap_drv_remove,
-	.driver = {
-		.owner = THIS_MODULE,
-		.name = DRIVER_NAME,
-	},
-};
-
-/* ---------------------------------------------------------------------
- * OF bus binding
- */
-
-#if defined(CONFIG_OF)
-static int __devinit
-hwicap_of_probe(struct platform_device *op, const struct of_device_id *match)
-{
-	struct resource res;
-	const unsigned int *id;
-	const char *family;
-	int rc;
-	const struct hwicap_driver_config *config = match->data;
-	const struct config_registers *regs;
-
-	dev_dbg(&op->dev, "hwicap_of_probe(%p, %p)\n", op, match);
-
-	rc = of_address_to_resource(op->dev.of_node, 0, &res);
-	if (rc) {
-		dev_err(&op->dev, "invalid address\n");
-		return rc;
-	}
-
-	id = of_get_property(op->dev.of_node, "port-number", NULL);
-
-	/* It's most likely that we're using V4, if the family is not
-	   specified */
-	regs = &v4_config_registers;
-	family = of_get_property(op->dev.of_node, "xlnx,family", NULL);
-
-	if (family) {
-		if (!strcmp(family, "virtex2p")) {
-			regs = &v2_config_registers;
-		} else if (!strcmp(family, "virtex4")) {
-			regs = &v4_config_registers;
-		} else if (!strcmp(family, "virtex5")) {
-			regs = &v5_config_registers;
-		}
-	}
-	return hwicap_setup(&op->dev, id ? *id : -1, &res, config,
-			regs);
-}
-
-static int __devexit hwicap_of_remove(struct platform_device *op)
-{
-	return hwicap_remove(&op->dev);
-}
-
-/* Match table for of_platform binding */
+#ifdef CONFIG_OF
+/* Match table for device tree binding */
 static const struct of_device_id __devinitconst hwicap_of_match[] = {
 	{ .compatible = "xlnx,opb-hwicap-1.00.b", .data = &buffer_icap_config},
 	{ .compatible = "xlnx,xps-hwicap-1.00.a", .data = &fifo_icap_config},
 	{},
 };
 MODULE_DEVICE_TABLE(of, hwicap_of_match);
+#else
+#define hwicap_of_match NULL
+#endif
 
-static struct of_platform_driver hwicap_of_driver = {
-	.probe = hwicap_of_probe,
-	.remove = __devexit_p(hwicap_of_remove),
+static struct platform_driver hwicap_platform_driver = {
+	.probe = hwicap_drv_probe,
+	.remove = hwicap_drv_remove,
 	.driver = {
-		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
+		.name = DRIVER_NAME,
 		.of_match_table = hwicap_of_match,
 	},
 };
-
-/* Registration helpers to keep the number of #ifdefs to a minimum */
-static inline int __init hwicap_of_register(void)
-{
-	pr_debug("hwicap: calling of_register_platform_driver()\n");
-	return of_register_platform_driver(&hwicap_of_driver);
-}
-
-static inline void __exit hwicap_of_unregister(void)
-{
-	of_unregister_platform_driver(&hwicap_of_driver);
-}
-#else /* CONFIG_OF */
-/* CONFIG_OF not enabled; do nothing helpers */
-static inline int __init hwicap_of_register(void) { return 0; }
-static inline void __exit hwicap_of_unregister(void) { }
-#endif /* CONFIG_OF */
 
 static int __init hwicap_module_init(void)
 {
@@ -856,21 +836,12 @@ static int __init hwicap_module_init(void)
 		return retval;
 
 	retval = platform_driver_register(&hwicap_platform_driver);
-
 	if (retval)
-		goto failed1;
-
-	retval = hwicap_of_register();
-
-	if (retval)
-		goto failed2;
+		goto failed;
 
 	return retval;
 
- failed2:
-	platform_driver_unregister(&hwicap_platform_driver);
-
- failed1:
+ failed:
 	unregister_chrdev_region(devt, HWICAP_DEVICES);
 
 	return retval;
@@ -883,8 +854,6 @@ static void __exit hwicap_module_cleanup(void)
 	class_destroy(icap_class);
 
 	platform_driver_unregister(&hwicap_platform_driver);
-
-	hwicap_of_unregister();
 
 	unregister_chrdev_region(devt, HWICAP_DEVICES);
 }

@@ -208,7 +208,7 @@ static void __init zylonite_init_lcd(void)
 	platform_device_register(&zylonite_backlight_device);
 
 	if (lcd_id & 0x20) {
-		set_pxa_fb_info(&zylonite_sharp_lcd_info);
+		pxa_set_fb_info(NULL, &zylonite_sharp_lcd_info);
 		return;
 	}
 
@@ -220,7 +220,7 @@ static void __init zylonite_init_lcd(void)
 	else
 		zylonite_toshiba_lcd_info.modes = &toshiba_ltm04c380k_mode;
 
-	set_pxa_fb_info(&zylonite_toshiba_lcd_info);
+	pxa_set_fb_info(NULL, &zylonite_toshiba_lcd_info);
 }
 #else
 static inline void zylonite_init_lcd(void) {}

@@ -1097,7 +1097,7 @@ static int drx397x_init(struct dvb_frontend *fe)
 	s->config.ifagc.w0A = 0x3ff;
 	s->config.ifagc.w0C = 0x388;
 
-	/* for signal strenght calculations */
+	/* for signal strength calculations */
 	s->config.ss76 = 820;
 	s->config.ss78 = 2200;
 	s->config.ss7A = 150;

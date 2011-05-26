@@ -14,7 +14,6 @@
  */
 
 #include <linux/compat.h>
-#define __OLD_VIDIOC_ /* To allow fixing old calls*/
 #include <linux/videodev2.h>
 #include <linux/module.h>
 #include <media/v4l2-ioctl.h>
@@ -97,9 +96,25 @@ static inline int get_v4l2_pix_format(struct v4l2_pix_format *kp, struct v4l2_pi
 	return 0;
 }
 
+static inline int get_v4l2_pix_format_mplane(struct v4l2_pix_format_mplane *kp,
+				struct v4l2_pix_format_mplane __user *up)
+{
+	if (copy_from_user(kp, up, sizeof(struct v4l2_pix_format_mplane)))
+		return -EFAULT;
+	return 0;
+}
+
 static inline int put_v4l2_pix_format(struct v4l2_pix_format *kp, struct v4l2_pix_format __user *up)
 {
 	if (copy_to_user(up, kp, sizeof(struct v4l2_pix_format)))
+		return -EFAULT;
+	return 0;
+}
+
+static inline int put_v4l2_pix_format_mplane(struct v4l2_pix_format_mplane *kp,
+				struct v4l2_pix_format_mplane __user *up)
+{
+	if (copy_to_user(up, kp, sizeof(struct v4l2_pix_format_mplane)))
 		return -EFAULT;
 	return 0;
 }
@@ -136,6 +151,7 @@ struct v4l2_format32 {
 	enum v4l2_buf_type type;
 	union {
 		struct v4l2_pix_format	pix;
+		struct v4l2_pix_format_mplane	pix_mp;
 		struct v4l2_window32	win;
 		struct v4l2_vbi_format	vbi;
 		struct v4l2_sliced_vbi_format	sliced;
@@ -152,6 +168,10 @@ static int get_v4l2_format32(struct v4l2_format *kp, struct v4l2_format32 __user
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 		return get_v4l2_pix_format(&kp->fmt.pix, &up->fmt.pix);
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
+		return get_v4l2_pix_format_mplane(&kp->fmt.pix_mp,
+						  &up->fmt.pix_mp);
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
 		return get_v4l2_window32(&kp->fmt.win, &up->fmt.win);
@@ -181,6 +201,10 @@ static int put_v4l2_format32(struct v4l2_format *kp, struct v4l2_format32 __user
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 		return put_v4l2_pix_format(&kp->fmt.pix, &up->fmt.pix);
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
+		return put_v4l2_pix_format_mplane(&kp->fmt.pix_mp,
+						  &up->fmt.pix_mp);
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
 		return put_v4l2_window32(&kp->fmt.win, &up->fmt.win);
@@ -232,6 +256,17 @@ static int put_v4l2_standard32(struct v4l2_standard *kp, struct v4l2_standard32 
 	return 0;
 }
 
+struct v4l2_plane32 {
+	__u32			bytesused;
+	__u32			length;
+	union {
+		__u32		mem_offset;
+		compat_long_t	userptr;
+	} m;
+	__u32			data_offset;
+	__u32			reserved[11];
+};
+
 struct v4l2_buffer32 {
 	__u32			index;
 	enum v4l2_buf_type      type;
@@ -247,14 +282,64 @@ struct v4l2_buffer32 {
 	union {
 		__u32           offset;
 		compat_long_t   userptr;
+		compat_caddr_t  planes;
 	} m;
 	__u32			length;
 	__u32			input;
 	__u32			reserved;
 };
 
+static int get_v4l2_plane32(struct v4l2_plane *up, struct v4l2_plane32 *up32,
+				enum v4l2_memory memory)
+{
+	void __user *up_pln;
+	compat_long_t p;
+
+	if (copy_in_user(up, up32, 2 * sizeof(__u32)) ||
+		copy_in_user(&up->data_offset, &up32->data_offset,
+				sizeof(__u32)))
+		return -EFAULT;
+
+	if (memory == V4L2_MEMORY_USERPTR) {
+		if (get_user(p, &up32->m.userptr))
+			return -EFAULT;
+		up_pln = compat_ptr(p);
+		if (put_user((unsigned long)up_pln, &up->m.userptr))
+			return -EFAULT;
+	} else {
+		if (copy_in_user(&up->m.mem_offset, &up32->m.mem_offset,
+					sizeof(__u32)))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int put_v4l2_plane32(struct v4l2_plane *up, struct v4l2_plane32 *up32,
+				enum v4l2_memory memory)
+{
+	if (copy_in_user(up32, up, 2 * sizeof(__u32)) ||
+		copy_in_user(&up32->data_offset, &up->data_offset,
+				sizeof(__u32)))
+		return -EFAULT;
+
+	/* For MMAP, driver might've set up the offset, so copy it back.
+	 * USERPTR stays the same (was userspace-provided), so no copying. */
+	if (memory == V4L2_MEMORY_MMAP)
+		if (copy_in_user(&up32->m.mem_offset, &up->m.mem_offset,
+					sizeof(__u32)))
+			return -EFAULT;
+
+	return 0;
+}
+
 static int get_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user *up)
 {
+	struct v4l2_plane32 __user *uplane32;
+	struct v4l2_plane __user *uplane;
+	compat_caddr_t p;
+	int num_planes;
+	int ret;
 
 	if (!access_ok(VERIFY_READ, up, sizeof(struct v4l2_buffer32)) ||
 		get_user(kp->index, &up->index) ||
@@ -263,33 +348,84 @@ static int get_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 		get_user(kp->memory, &up->memory) ||
 		get_user(kp->input, &up->input))
 			return -EFAULT;
-	switch (kp->memory) {
-	case V4L2_MEMORY_MMAP:
-		if (get_user(kp->length, &up->length) ||
-			get_user(kp->m.offset, &up->m.offset))
-			return -EFAULT;
-		break;
-	case V4L2_MEMORY_USERPTR:
-		{
-		compat_long_t tmp;
 
-		if (get_user(kp->length, &up->length) ||
-		    get_user(tmp, &up->m.userptr))
+	if (V4L2_TYPE_IS_OUTPUT(kp->type))
+		if (get_user(kp->bytesused, &up->bytesused) ||
+			get_user(kp->field, &up->field) ||
+			get_user(kp->timestamp.tv_sec, &up->timestamp.tv_sec) ||
+			get_user(kp->timestamp.tv_usec,
+					&up->timestamp.tv_usec))
 			return -EFAULT;
 
-		kp->m.userptr = (unsigned long)compat_ptr(tmp);
+	if (V4L2_TYPE_IS_MULTIPLANAR(kp->type)) {
+		if (get_user(kp->length, &up->length))
+			return -EFAULT;
+
+		num_planes = kp->length;
+		if (num_planes == 0) {
+			kp->m.planes = NULL;
+			/* num_planes == 0 is legal, e.g. when userspace doesn't
+			 * need planes array on DQBUF*/
+			return 0;
 		}
-		break;
-	case V4L2_MEMORY_OVERLAY:
-		if (get_user(kp->m.offset, &up->m.offset))
+
+		if (get_user(p, &up->m.planes))
 			return -EFAULT;
-		break;
+
+		uplane32 = compat_ptr(p);
+		if (!access_ok(VERIFY_READ, uplane32,
+				num_planes * sizeof(struct v4l2_plane32)))
+			return -EFAULT;
+
+		/* We don't really care if userspace decides to kill itself
+		 * by passing a very big num_planes value */
+		uplane = compat_alloc_user_space(num_planes *
+						sizeof(struct v4l2_plane));
+		kp->m.planes = uplane;
+
+		while (--num_planes >= 0) {
+			ret = get_v4l2_plane32(uplane, uplane32, kp->memory);
+			if (ret)
+				return ret;
+			++uplane;
+			++uplane32;
+		}
+	} else {
+		switch (kp->memory) {
+		case V4L2_MEMORY_MMAP:
+			if (get_user(kp->length, &up->length) ||
+				get_user(kp->m.offset, &up->m.offset))
+				return -EFAULT;
+			break;
+		case V4L2_MEMORY_USERPTR:
+			{
+			compat_long_t tmp;
+
+			if (get_user(kp->length, &up->length) ||
+			    get_user(tmp, &up->m.userptr))
+				return -EFAULT;
+
+			kp->m.userptr = (unsigned long)compat_ptr(tmp);
+			}
+			break;
+		case V4L2_MEMORY_OVERLAY:
+			if (get_user(kp->m.offset, &up->m.offset))
+				return -EFAULT;
+			break;
+		}
 	}
+
 	return 0;
 }
 
 static int put_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user *up)
 {
+	struct v4l2_plane32 __user *uplane32;
+	struct v4l2_plane __user *uplane;
+	compat_caddr_t p;
+	int num_planes;
+	int ret;
+
 	if (!access_ok(VERIFY_WRITE, up, sizeof(struct v4l2_buffer32)) ||
 		put_user(kp->index, &up->index) ||
 		put_user(kp->type, &up->type) ||
@@ -297,22 +433,7 @@ static int put_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 		put_user(kp->memory, &up->memory) ||
 		put_user(kp->input, &up->input))
 			return -EFAULT;
-	switch (kp->memory) {
-	case V4L2_MEMORY_MMAP:
-		if (put_user(kp->length, &up->length) ||
-			put_user(kp->m.offset, &up->m.offset))
-			return -EFAULT;
-		break;
-	case V4L2_MEMORY_USERPTR:
-		if (put_user(kp->length, &up->length) ||
-			put_user(kp->m.userptr, &up->m.userptr))
-			return -EFAULT;
-		break;
-	case V4L2_MEMORY_OVERLAY:
-		if (put_user(kp->m.offset, &up->m.offset))
-			return -EFAULT;
-		break;
-	}
+
 	if (put_user(kp->bytesused, &up->bytesused) ||
 		put_user(kp->field, &up->field) ||
 		put_user(kp->timestamp.tv_sec, &up->timestamp.tv_sec) ||
@@ -321,6 +442,43 @@ static int put_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 		put_user(kp->sequence, &up->sequence) ||
 		put_user(kp->reserved, &up->reserved))
 			return -EFAULT;
+
+	if (V4L2_TYPE_IS_MULTIPLANAR(kp->type)) {
+		num_planes = kp->length;
+		if (num_planes == 0)
+			return 0;
+
+		uplane = kp->m.planes;
+		if (get_user(p, &up->m.planes))
+			return -EFAULT;
+		uplane32 = compat_ptr(p);
+
+		while (--num_planes >= 0) {
+			ret = put_v4l2_plane32(uplane, uplane32, kp->memory);
+			if (ret)
+				return ret;
+			++uplane;
+			++uplane32;
+		}
+	} else {
+		switch (kp->memory) {
+		case V4L2_MEMORY_MMAP:
+			if (put_user(kp->length, &up->length) ||
+				put_user(kp->m.offset, &up->m.offset))
+				return -EFAULT;
+			break;
+		case V4L2_MEMORY_USERPTR:
+			if (put_user(kp->length, &up->length) ||
+				put_user(kp->m.userptr, &up->m.userptr))
+				return -EFAULT;
+			break;
+		case V4L2_MEMORY_OVERLAY:
+			if (put_user(kp->m.offset, &up->m.offset))
+				return -EFAULT;
+			break;
+		}
+	}
+
 	return 0;
 }
 
@@ -442,12 +600,13 @@ static int get_v4l2_ext_controls32(struct v4l2_ext_controls *kp, struct v4l2_ext
 	if (get_user(p, &up->controls))
 		return -EFAULT;
 	ucontrols = compat_ptr(p);
-	if (!access_ok(VERIFY_READ, ucontrols, n * sizeof(struct v4l2_ext_control)))
+	if (!access_ok(VERIFY_READ, ucontrols,
+			n * sizeof(struct v4l2_ext_control32)))
 		return -EFAULT;
 	kcontrols = compat_alloc_user_space(n * sizeof(struct v4l2_ext_control));
 	kp->controls = kcontrols;
 	while (--n >= 0) {
-		if (copy_in_user(kcontrols, ucontrols, sizeof(*kcontrols)))
+		if (copy_in_user(kcontrols, ucontrols, sizeof(*ucontrols)))
 			return -EFAULT;
 		if (ctrl_is_pointer(kcontrols->id)) {
 			void __user *s;
@@ -483,7 +642,8 @@ static int put_v4l2_ext_controls32(struct v4l2_ext_controls *kp, struct v4l2_ext
 	if (get_user(p, &up->controls))
 		return -EFAULT;
 	ucontrols = compat_ptr(p);
-	if (!access_ok(VERIFY_WRITE, ucontrols, n * sizeof(struct v4l2_ext_control)))
+	if (!access_ok(VERIFY_WRITE, ucontrols,
+			n * sizeof(struct v4l2_ext_control32)))
 		return -EFAULT;
 
 	while (--n >= 0) {
@@ -517,9 +677,6 @@ static int put_v4l2_ext_controls32(struct v4l2_ext_controls *kp, struct v4l2_ext
 #define VIDIOC_TRY_EXT_CTRLS32  _IOWR('V', 73, struct v4l2_ext_controls32)
 
 #define VIDIOC_OVERLAY32	_IOW ('V', 14, s32)
-#ifdef __OLD_VIDIOC_
-#define VIDIOC_OVERLAY32_OLD	_IOWR('V', 14, s32)
-#endif
 #define VIDIOC_STREAMON32	_IOW ('V', 18, s32)
 #define VIDIOC_STREAMOFF32	_IOW ('V', 19, s32)
 #define VIDIOC_G_INPUT32	_IOR ('V', 38, s32)
@@ -559,9 +716,6 @@ static long do_video_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	case VIDIOC_S_EXT_CTRLS32: cmd = VIDIOC_S_EXT_CTRLS; break;
 	case VIDIOC_TRY_EXT_CTRLS32: cmd = VIDIOC_TRY_EXT_CTRLS; break;
 	case VIDIOC_OVERLAY32: cmd = VIDIOC_OVERLAY; break;
-#ifdef __OLD_VIDIOC_
-	case VIDIOC_OVERLAY32_OLD: cmd = VIDIOC_OVERLAY; break;
-#endif
 	case VIDIOC_STREAMON32: cmd = VIDIOC_STREAMON; break;
 	case VIDIOC_STREAMOFF32: cmd = VIDIOC_STREAMOFF; break;
 	case VIDIOC_G_INPUT32: cmd = VIDIOC_G_INPUT; break;
@@ -695,14 +849,6 @@ long v4l2_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 		return ret;
 
 	switch (cmd) {
-#ifdef __OLD_VIDIOC_
-	case VIDIOC_OVERLAY32_OLD:
-	case VIDIOC_S_PARM_OLD:
-	case VIDIOC_S_CTRL_OLD:
-	case VIDIOC_G_AUDIO_OLD:
-	case VIDIOC_G_AUDOUT_OLD:
-	case VIDIOC_CROPCAP_OLD:
-#endif
 	case VIDIOC_QUERYCAP:
 	case VIDIOC_RESERVED:
 	case VIDIOC_ENUM_FMT:

@@ -67,7 +67,7 @@ nvc0_channel_del(struct nouveau_channel **pchan)
 		return;
 
 	nouveau_vm_ref(NULL, &chan->vm, NULL);
-	if (chan->ramin_heap.free_stack.next)
+	if (drm_mm_initialized(&chan->ramin_heap))
 		drm_mm_takedown(&chan->ramin_heap);
 	nouveau_gpuobj_ref(NULL, &chan->ramin);
 	kfree(chan);

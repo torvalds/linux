@@ -89,6 +89,7 @@ static int always_connected (struct usbnet *dev)
 
 static const struct driver_info	ali_m5632_info = {
 	.description =	"ALi M5632",
+	.flags       = FLAG_POINTTOPOINT,
 };
 
 #endif
@@ -110,6 +111,7 @@ static const struct driver_info	ali_m5632_info = {
 
 static const struct driver_info	an2720_info = {
 	.description =	"AnchorChips/Cypress 2720",
+	.flags       = FLAG_POINTTOPOINT,
 	// no reset available!
 	// no check_connect available!
 
@@ -132,6 +134,7 @@ static const struct driver_info	an2720_info = {
 
 static const struct driver_info	belkin_info = {
 	.description =	"Belkin, eTEK, or compatible",
+	.flags       = FLAG_POINTTOPOINT,
 };
 
 #endif	/* CONFIG_USB_BELKIN */
@@ -157,6 +160,7 @@ static const struct driver_info	belkin_info = {
 static const struct driver_info	epson2888_info = {
 	.description =	"Epson USB Device",
 	.check_connect = always_connected,
+	.flags = FLAG_POINTTOPOINT,
 
 	.in = 4, .out = 3,
 };
@@ -173,6 +177,7 @@ static const struct driver_info	epson2888_info = {
 #define HAVE_HARDWARE
 static const struct driver_info kc2190_info = {
 	.description =  "KC Technology KC-190",
+	.flags = FLAG_POINTTOPOINT,
 };
 #endif /* CONFIG_USB_KC2190 */
 
@@ -200,16 +205,19 @@ static const struct driver_info kc2190_info = {
 static const struct driver_info	linuxdev_info = {
 	.description =	"Linux Device",
 	.check_connect = always_connected,
+	.flags = FLAG_POINTTOPOINT,
 };
 
 static const struct driver_info	yopy_info = {
 	.description =	"Yopy",
 	.check_connect = always_connected,
+	.flags = FLAG_POINTTOPOINT,
 };
 
 static const struct driver_info	blob_info = {
 	.description =	"Boot Loader OBject",
 	.check_connect = always_connected,
+	.flags = FLAG_POINTTOPOINT,
 };
 
 #endif	/* CONFIG_USB_ARMLINUX */

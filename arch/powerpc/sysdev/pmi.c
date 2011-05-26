@@ -121,8 +121,7 @@ static void pmi_notify_handlers(struct work_struct *work)
 	spin_unlock(&data->handler_spinlock);
 }
 
-static int pmi_of_probe(struct platform_device *dev,
-			const struct of_device_id *match)
+static int pmi_of_probe(struct platform_device *dev)
 {
 	struct device_node *np = dev->dev.of_node;
 	int rc;
@@ -205,7 +204,7 @@ static int pmi_of_remove(struct platform_device *dev)
 	return 0;
 }
 
-static struct of_platform_driver pmi_of_platform_driver = {
+static struct platform_driver pmi_of_platform_driver = {
 	.probe		= pmi_of_probe,
 	.remove		= pmi_of_remove,
 	.driver = {
@@ -217,13 +216,13 @@ static struct of_platform_driver pmi_of_platform_driver = {
 
 static int __init pmi_module_init(void)
 {
-	return of_register_platform_driver(&pmi_of_platform_driver);
+	return platform_driver_register(&pmi_of_platform_driver);
 }
 module_init(pmi_module_init);
 
 static void __exit pmi_module_exit(void)
 {
-	of_unregister_platform_driver(&pmi_of_platform_driver);
+	platform_driver_unregister(&pmi_of_platform_driver);
 }
 module_exit(pmi_module_exit);
 

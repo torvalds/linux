@@ -54,9 +54,9 @@
 
 static struct proc_dir_entry *ext4_proc_root;
 static struct kset *ext4_kset;
-struct ext4_lazy_init *ext4_li_info;
-struct mutex ext4_li_mtx;
-struct ext4_features *ext4_feat;
+static struct ext4_lazy_init *ext4_li_info;
+static struct mutex ext4_li_mtx;
+static struct ext4_features *ext4_feat;
 
 static int ext4_load_journal(struct super_block *, struct ext4_super_block *,
 			     unsigned long journal_devnum);
@@ -75,6 +75,7 @@ static void ext4_write_super(struct super_block *sb);
 static int ext4_freeze(struct super_block *sb);
 static struct dentry *ext4_mount(struct file_system_type *fs_type, int flags,
 		       const char *dev_name, void *data);
+static int ext4_feature_set_ok(struct super_block *sb, int readonly);
 static void ext4_destroy_lazyinit_thread(void);
 static void ext4_unregister_li_request(struct super_block *sb);
 static void ext4_clear_request_list(void);
@@ -241,27 +242,44 @@ static void ext4_put_nojournal(handle_t *handle)
  * journal_end calls result in the superblock being marked dirty, so
  * that sync() will call the filesystem's write_super callback if
  * appropriate.
+ *
+ * To avoid j_barrier hold in userspace when a user calls freeze(),
+ * ext4 prevents a new handle from being started by s_frozen, which
+ * is in an upper layer.
  */
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 {
 	journal_t *journal;
+	handle_t  *handle;
 
 	if (sb->s_flags & MS_RDONLY)
 		return ERR_PTR(-EROFS);
 
-	vfs_check_frozen(sb, SB_FREEZE_TRANS);
-	/* Special case here: if the journal has aborted behind our
-	 * backs (eg. EIO in the commit thread), then we still need to
-	 * take the FS itself readonly cleanly. */
 	journal = EXT4_SB(sb)->s_journal;
-	if (journal) {
-		if (is_journal_aborted(journal)) {
-			ext4_abort(sb, "Detected aborted journal");
-			return ERR_PTR(-EROFS);
-		}
-		return jbd2_journal_start(journal, nblocks);
+	handle = ext4_journal_current_handle();
+
+	/*
+	 * If a handle has been started, it should be allowed to
+	 * finish, otherwise deadlock could happen between freeze
+	 * and others(e.g. truncate) due to the restart of the
+	 * journal handle if the filesystem is forzen and active
+	 * handles are not stopped.
+	 */
+	if (!handle)
+		vfs_check_frozen(sb, SB_FREEZE_TRANS);
+
+	if (!journal)
+		return ext4_get_nojournal();
+	/*
+	 * Special case here: if the journal has aborted behind our
+	 * backs (eg. EIO in the commit thread), then we still need to
+	 * take the FS itself readonly cleanly.
+	 */
+	if (is_journal_aborted(journal)) {
+		ext4_abort(sb, "Detected aborted journal");
+		return ERR_PTR(-EROFS);
 	}
-	return ext4_get_nojournal();
+	return jbd2_journal_start(journal, nblocks);
 }
 
 /*
@@ -594,7 +612,7 @@ __acquires(bitlock)
 
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: group %u",
+	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: group %u, ",
 	       sb->s_id, function, line, grp);
 	if (ino)
 		printk(KERN_CONT "inode %lu: ", ino);
@@ -616,7 +634,7 @@ __acquires(bitlock)
 	 * filesystem will have already been marked read/only and the
 	 * journal has been aborted.  We return 1 as a hint to callers
 	 * who might what to use the return value from
-	 * ext4_grp_locked_error() to distinguish beween the
+	 * ext4_grp_locked_error() to distinguish between the
 	 * ERRORS_CONT and ERRORS_RO case, and perhaps return more
 	 * aggressively from the ext4 function in question, with a
 	 * more appropriate error code.
@@ -997,13 +1015,10 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (test_opt(sb, OLDALLOC))
 		seq_puts(seq, ",oldalloc");
 #ifdef CONFIG_EXT4_FS_XATTR
-	if (test_opt(sb, XATTR_USER) &&
-		!(def_mount_opts & EXT4_DEFM_XATTR_USER))
+	if (test_opt(sb, XATTR_USER))
 		seq_puts(seq, ",user_xattr");
-	if (!test_opt(sb, XATTR_USER) &&
-	    (def_mount_opts & EXT4_DEFM_XATTR_USER)) {
+	if (!test_opt(sb, XATTR_USER))
 		seq_puts(seq, ",nouser_xattr");
-	}
 #endif
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
 	if (test_opt(sb, POSIX_ACL) && !(def_mount_opts & EXT4_DEFM_ACL))
@@ -1041,8 +1056,8 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	    !(def_mount_opts & EXT4_DEFM_NODELALLOC))
 		seq_puts(seq, ",nodelalloc");
 
-	if (test_opt(sb, MBLK_IO_SUBMIT))
-		seq_puts(seq, ",mblk_io_submit");
+	if (!test_opt(sb, MBLK_IO_SUBMIT))
+		seq_puts(seq, ",nomblk_io_submit");
 	if (sbi->s_stripe)
 		seq_printf(seq, ",stripe=%lu", sbi->s_stripe);
 	/*
@@ -1451,7 +1466,7 @@ static int parse_options(char *options, struct super_block *sb,
 		 * Initialize args struct so we know whether arg was
 		 * found; some options take optional arguments.
 		 */
-		args[0].to = args[0].from = 0;
+		args[0].to = args[0].from = NULL;
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_bsd_df:
@@ -1771,7 +1786,7 @@ set_qf_format:
 				return 0;
 			if (option < 0 || option > (1 << 30))
 				return 0;
-			if (!is_power_of_2(option)) {
+			if (option && !is_power_of_2(option)) {
 				ext4_msg(sb, KERN_ERR,
 					 "EXT4-fs: inode_readahead_blks"
 					 " must be a power of 2");
@@ -2120,6 +2135,13 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 		return;
 	}
 
+	/* Check if feature set would not allow a r/w mount */
+	if (!ext4_feature_set_ok(sb, 0)) {
+		ext4_msg(sb, KERN_INFO, "Skipping orphan cleanup due to "
+			 "unknown ROCOMPAT features");
+		return;
+	}
+
 	if (EXT4_SB(sb)->s_mount_state & EXT4_ERROR_FS) {
 		if (es->s_last_orphan)
 			jbd_debug(1, "Errors on filesystem, "
@@ -2412,7 +2434,7 @@ static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
 	if (parse_strtoul(buf, 0x40000000, &t))
 		return -EINVAL;
 
-	if (!is_power_of_2(t))
+	if (t && !is_power_of_2(t))
 		return -EINVAL;
 
 	sbi->s_inode_readahead_blks = t;
@@ -2970,6 +2992,12 @@ static int ext4_register_li_request(struct super_block *sb,
 	mutex_unlock(&ext4_li_info->li_list_mtx);
 
 	sbi->s_li_request = elr;
+	/*
+	 * set elr to NULL here since it has been inserted to
+	 * the request_list and the removal and free of it is
+	 * handled by ext4_clear_request_list from now on.
+	 */
+	elr = NULL;
 
 	if (!(ext4_li_info->li_state & EXT4_LAZYINIT_RUNNING)) {
 		ret = ext4_run_lazyinit_thread();
@@ -3095,14 +3123,14 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	if (def_mount_opts & EXT4_DEFM_UID16)
 		set_opt(sb, NO_UID32);
+	/* xattr user namespace & acls are now defaulted on */
 #ifdef CONFIG_EXT4_FS_XATTR
-	if (def_mount_opts & EXT4_DEFM_XATTR_USER)
-		set_opt(sb, XATTR_USER);
+	set_opt(sb, XATTR_USER);
 #endif
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
-	if (def_mount_opts & EXT4_DEFM_ACL)
-		set_opt(sb, POSIX_ACL);
+	set_opt(sb, POSIX_ACL);
 #endif
+	set_opt(sb, MBLK_IO_SUBMIT);
 	if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_DATA)
 		set_opt(sb, JOURNAL_DATA);
 	else if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_ORDERED)
@@ -3380,6 +3408,10 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 	spin_lock_init(&sbi->s_next_gen_lock);
 
+	init_timer(&sbi->s_err_report);
+	sbi->s_err_report.function = print_daily_error_info;
+	sbi->s_err_report.data = (unsigned long) sb;
+
 	err = percpu_counter_init(&sbi->s_freeblocks_counter,
 			ext4_count_free_blocks(sb));
 	if (!err) {
@@ -3415,6 +3447,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_qcop = &ext4_qctl_operations;
 	sb->dq_op = &ext4_quota_operations;
 #endif
+	memcpy(sb->s_uuid, es->s_uuid, sizeof(es->s_uuid));
+
 	INIT_LIST_HEAD(&sbi->s_orphan); /* unlinked but open files */
 	mutex_init(&sbi->s_orphan_lock);
 	mutex_init(&sbi->s_resize_lock);
@@ -3509,7 +3543,12 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	percpu_counter_set(&sbi->s_dirtyblocks_counter, 0);
 
 no_journal:
-	EXT4_SB(sb)->dio_unwritten_wq = create_workqueue("ext4-dio-unwritten");
+	/*
+	 * The maximum number of concurrent works can be high and
+	 * concurrency isn't really necessary.  Limit it to 1.
+	 */
+	EXT4_SB(sb)->dio_unwritten_wq =
+		alloc_workqueue("ext4-dio-unwritten", WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
 	if (!EXT4_SB(sb)->dio_unwritten_wq) {
 		printk(KERN_ERR "EXT4-fs: failed to create DIO workqueue\n");
 		goto failed_mount_wq;
@@ -3524,17 +3563,16 @@ no_journal:
 	if (IS_ERR(root)) {
 		ext4_msg(sb, KERN_ERR, "get root inode failed");
 		ret = PTR_ERR(root);
+		root = NULL;
 		goto failed_mount4;
 	}
 	if (!S_ISDIR(root->i_mode) || !root->i_blocks || !root->i_size) {
-		iput(root);
 		ext4_msg(sb, KERN_ERR, "corrupt root inode, run e2fsck");
 		goto failed_mount4;
 	}
 	sb->s_root = d_alloc_root(root);
 	if (!sb->s_root) {
 		ext4_msg(sb, KERN_ERR, "get root dentry failed");
-		iput(root);
 		ret = -ENOMEM;
 		goto failed_mount4;
 	}
@@ -3635,9 +3673,6 @@ no_journal:
 		 "Opts: %s%s%s", descr, sbi->s_es->s_mount_opts,
 		 *sbi->s_es->s_mount_opts ? "; " : "", orig_data);
 
-	init_timer(&sbi->s_err_report);
-	sbi->s_err_report.function = print_daily_error_info;
-	sbi->s_err_report.data = (unsigned long) sb;
 	if (es->s_error_count)
 		mod_timer(&sbi->s_err_report, jiffies + 300*HZ); /* 5 minutes */
 
@@ -3650,6 +3685,8 @@ cantfind_ext4:
 	goto failed_mount;
 
 failed_mount4:
+	iput(root);
+	sb->s_root = NULL;
 	ext4_msg(sb, KERN_ERR, "mount failed");
 	destroy_workqueue(EXT4_SB(sb)->dio_unwritten_wq);
 failed_mount_wq:
@@ -3659,6 +3696,7 @@ failed_mount_wq:
 		sbi->s_journal = NULL;
 	}
 failed_mount3:
+	del_timer(&sbi->s_err_report);
 	if (sbi->s_flex_groups) {
 		if (is_vmalloc_addr(sbi->s_flex_groups))
 			vfree(sbi->s_flex_groups);
@@ -4125,6 +4163,11 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 /*
  * LVM calls this function before a (read-only) snapshot is created.  This
  * gives us a chance to flush the journal completely and mark the fs clean.
+ *
+ * Note that only this function cannot bring a filesystem to be in a clean
+ * state independently, because ext4 prevents a new handle from being started
+ * by @sb->s_frozen, which stays in an upper layer.  It thus needs help from
+ * the upper layer.
  */
 static int ext4_freeze(struct super_block *sb)
 {
@@ -4601,17 +4644,30 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 
 static int ext4_quota_off(struct super_block *sb, int type)
 {
+	struct inode *inode = sb_dqopt(sb)->files[type];
+	handle_t *handle;
+
 	/* Force all delayed allocation blocks to be allocated.
 	 * Caller already holds s_umount sem */
 	if (test_opt(sb, DELALLOC))
 		sync_filesystem(sb);
 
+	/* Update modification times of quota files when userspace can
+	 * start looking at them */
+	handle = ext4_journal_start(inode, 1);
+	if (IS_ERR(handle))
+		goto out;
+	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	ext4_mark_inode_dirty(handle, inode);
+	ext4_journal_stop(handle);
+
+out:
 	return dquot_quota_off(sb, type);
 }
 
 /* Read data from quotafile - avoid pagecache and such because we cannot afford
  * acquiring the locks... As quota files are never truncated and quota code
- * itself serializes the operations (and noone else should touch the files)
+ * itself serializes the operations (and no one else should touch the files)
  * we don't have to be afraid of races */
 static ssize_t ext4_quota_read(struct super_block *sb, int type, char *data,
 			       size_t len, loff_t off)
@@ -4701,9 +4757,8 @@ out:
 	if (inode->i_size < off + len) {
 		i_size_write(inode, off + len);
 		EXT4_I(inode)->i_disksize = inode->i_size;
+		ext4_mark_inode_dirty(handle, inode);
 	}
-	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-	ext4_mark_inode_dirty(handle, inode);
 	mutex_unlock(&inode->i_mutex);
 	return len;
 }

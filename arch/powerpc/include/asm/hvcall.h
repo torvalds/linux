@@ -122,7 +122,7 @@
 #define H_DABRX_KERNEL		(1UL<<(63-62))
 #define H_DABRX_USER		(1UL<<(63-63))
 
-/* Each control block has to be on a 4K bondary */
+/* Each control block has to be on a 4K boundary */
 #define H_CB_ALIGNMENT          4096
 
 /* pSeries hypervisor opcodes */

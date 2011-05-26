@@ -14,7 +14,7 @@
  *	Andre Hedrick
  *
  * Documentation:
- *	Obsolete device documentation publically available from via.com.tw
+ *	Obsolete device documentation publicly available from via.com.tw
  *	Current device documentation available under NDA only
  */
 

@@ -4277,7 +4277,7 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 
 	snprintf(phba->wq_name, sizeof(phba->wq_name), "beiscsi_q_irq%u",
 		 phba->shost->host_no);
-	phba->wq = create_workqueue(phba->wq_name);
+	phba->wq = alloc_workqueue(phba->wq_name, WQ_MEM_RECLAIM, 1);
 	if (!phba->wq) {
 		shost_printk(KERN_ERR, phba->shost, "beiscsi_dev_probe-"
 				"Failed to allocate work queue\n");
@@ -4384,7 +4384,7 @@ struct iscsi_transport beiscsi_iscsi_transport = {
 	.bind_conn = beiscsi_conn_bind,
 	.destroy_conn = iscsi_conn_teardown,
 	.set_param = beiscsi_set_param,
-	.get_conn_param = beiscsi_conn_get_param,
+	.get_conn_param = iscsi_conn_get_param,
 	.get_session_param = iscsi_session_get_param,
 	.get_host_param = beiscsi_get_host_param,
 	.start_conn = beiscsi_conn_start,
@@ -4395,6 +4395,7 @@ struct iscsi_transport beiscsi_iscsi_transport = {
 	.alloc_pdu = beiscsi_alloc_pdu,
 	.parse_pdu_itt = beiscsi_parse_pdu,
 	.get_stats = beiscsi_conn_get_stats,
+	.get_ep_param = beiscsi_ep_get_param,
 	.ep_connect = beiscsi_ep_connect,
 	.ep_poll = beiscsi_ep_poll,
 	.ep_disconnect = beiscsi_ep_disconnect,

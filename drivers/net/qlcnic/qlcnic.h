@@ -99,6 +99,7 @@
 #define TX_UDPV6_PKT	0x0c
 
 /* Tx defines */
+#define QLCNIC_MAX_FRAGS_PER_TX	14
 #define MAX_TSO_HEADER_DESC	2
 #define MGMT_CMD_DESC_RESV	4
 #define TX_STOP_THRESH		((MAX_SKB_FRAGS >> 2) + MAX_TSO_HEADER_DESC \
@@ -867,7 +868,6 @@ struct qlcnic_nic_intr_coalesce {
 #define LINKEVENT_LINKSPEED_MBPS	0
 #define LINKEVENT_LINKSPEED_ENCODED	1
 
-#define AUTO_FW_RESET_ENABLED	0x01
 /* firmware response header:
  *	63:58 - message type
  *	57:56 - owner
@@ -1133,14 +1133,10 @@ struct qlcnic_eswitch {
 #define MAX_BW			100	/* % of link speed */
 #define MAX_VLAN_ID		4095
 #define MIN_VLAN_ID		2
-#define MAX_TX_QUEUES		1
-#define MAX_RX_QUEUES		4
 #define DEFAULT_MAC_LEARN	1
 
 #define IS_VALID_VLAN(vlan)	(vlan >= MIN_VLAN_ID && vlan < MAX_VLAN_ID)
 #define IS_VALID_BW(bw)		(bw <= MAX_BW)
-#define IS_VALID_TX_QUEUES(que)	(que > 0 && que <= MAX_TX_QUEUES)
-#define IS_VALID_RX_QUEUES(que)	(que > 0 && que <= MAX_RX_QUEUES)
 
 struct qlcnic_pci_func_cfg {
 	u16	func_type;

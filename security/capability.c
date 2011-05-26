@@ -761,7 +761,7 @@ static int cap_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 sk_sid, u8 dir)
 
 static int cap_xfrm_state_pol_flow_match(struct xfrm_state *x,
 					 struct xfrm_policy *xp,
-					 struct flowi *fl)
+					 const struct flowi *fl)
 {
 	return 1;
 }

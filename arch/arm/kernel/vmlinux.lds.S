@@ -64,6 +64,10 @@ SECTIONS
 		__smpalt_end = .;
 #endif
 
+		__pv_table_begin = .;
+			*(.pv_table)
+		__pv_table_end = .;
+
 		INIT_SETUP(16)
 
 		INIT_CALLS
@@ -78,7 +82,7 @@ SECTIONS
 #endif
 	}
 
-	PERCPU(PAGE_SIZE)
+	PERCPU(32, PAGE_SIZE)
 
 #ifndef CONFIG_XIP_KERNEL
 	. = ALIGN(PAGE_SIZE);

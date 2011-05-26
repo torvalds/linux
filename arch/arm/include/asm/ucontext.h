@@ -47,7 +47,7 @@ struct crunch_sigframe {
 #endif
 
 #ifdef CONFIG_IWMMXT
-/* iwmmxt_area is 0x98 bytes long, preceeded by 8 bytes of signature */
+/* iwmmxt_area is 0x98 bytes long, preceded by 8 bytes of signature */
 #define IWMMXT_MAGIC		0x12ef842a
 #define IWMMXT_STORAGE_SIZE	(IWMMXT_SIZE + 8)
 

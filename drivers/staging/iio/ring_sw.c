@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
+#include <linux/poll.h>
 #include "ring_sw.h"
 #include "trigger.h"
 
@@ -152,11 +153,12 @@ error_ret:
 }
 
 int iio_rip_sw_rb(struct iio_ring_buffer *r,
-		  size_t count, u8 **data, int *dead_offset)
+		  size_t count, char __user *buf, int *dead_offset)
 {
 	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(r);
 
 	u8 *initial_read_p, *initial_write_p, *current_read_p, *end_read_p;
+	u8 *data;
 	int ret, max_copied;
 	int bytes_to_rip;
 
@@ -174,8 +176,8 @@ int iio_rip_sw_rb(struct iio_ring_buffer *r,
 	/* Limit size to whole of ring buffer */
 	bytes_to_rip = min((size_t)(ring->buf.bytes_per_datum*ring->buf.length), count);
 
-	*data = kmalloc(bytes_to_rip, GFP_KERNEL);
-	if (*data == NULL) {
+	data = kmalloc(bytes_to_rip, GFP_KERNEL);
+	if (data == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
@@ -204,30 +206,30 @@ int iio_rip_sw_rb(struct iio_ring_buffer *r,
 	if (initial_write_p >= initial_read_p + bytes_to_rip) {
 		/* write_p is greater than necessary, all is easy */
 		max_copied = bytes_to_rip;
-		memcpy(*data, initial_read_p, max_copied);
+		memcpy(data, initial_read_p, max_copied);
 		end_read_p = initial_read_p + max_copied;
 	} else if (initial_write_p > initial_read_p) {
 		/*not enough data to cpy */
 		max_copied = initial_write_p - initial_read_p;
-		memcpy(*data, initial_read_p, max_copied);
+		memcpy(data, initial_read_p, max_copied);
 		end_read_p = initial_write_p;
 	} else {
 		/* going through 'end' of ring buffer */
 		max_copied = ring->data
 			+ ring->buf.length*ring->buf.bytes_per_datum - initial_read_p;
-		memcpy(*data, initial_read_p, max_copied);
+		memcpy(data, initial_read_p, max_copied);
 		/* possible we are done if we align precisely with end */
 		if (max_copied == bytes_to_rip)
 			end_read_p = ring->data;
 		else if (initial_write_p
 			 > ring->data + bytes_to_rip - max_copied) {
 			/* enough data to finish */
-			memcpy(*data + max_copied, ring->data,
+			memcpy(data + max_copied, ring->data,
 			       bytes_to_rip - max_copied);
 			max_copied = bytes_to_rip;
 			end_read_p = ring->data + (bytes_to_rip - max_copied);
 		} else {  /* not enough data */
-			memcpy(*data + max_copied, ring->data,
+			memcpy(data + max_copied, ring->data,
 			       initial_write_p - ring->data);
 			max_copied += initial_write_p - ring->data;
 			end_read_p = initial_write_p;
@@ -264,11 +266,16 @@ int iio_rip_sw_rb(struct iio_ring_buffer *r,
 	while (ring->read_p != end_read_p)
 		ring->read_p = end_read_p;
 
-	return max_copied - *dead_offset;
+	ret = max_copied - *dead_offset;
 
+	if (copy_to_user(buf, data + *dead_offset, ret))  {
+		ret =  -EFAULT;
+		goto error_free_data_cpy;
+	}
 error_free_data_cpy:
-	kfree(*data);
+	kfree(data);
 error_ret:
+
 	return ret;
 }
 EXPORT_SYMBOL(iio_rip_sw_rb);

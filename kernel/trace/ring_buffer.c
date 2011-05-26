@@ -5,7 +5,6 @@
  */
 #include <linux/ring_buffer.h>
 #include <linux/trace_clock.h>
-#include <linux/ftrace_irq.h>
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
@@ -669,7 +668,7 @@ static struct list_head *rb_list_head(struct list_head *list)
  * the reader page). But if the next page is a header page,
  * its flags will be non zero.
  */
-static int inline
+static inline int
 rb_is_head_page(struct ring_buffer_per_cpu *cpu_buffer,
 		struct buffer_page *page, struct list_head *list)
 {
@@ -1429,6 +1428,17 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_resize);
 
+void ring_buffer_change_overwrite(struct ring_buffer *buffer, int val)
+{
+	mutex_lock(&buffer->mutex);
+	if (val)
+		buffer->flags |= RB_FL_OVERWRITE;
+	else
+		buffer->flags &= ~RB_FL_OVERWRITE;
+	mutex_unlock(&buffer->mutex);
+}
+EXPORT_SYMBOL_GPL(ring_buffer_change_overwrite);
+
 static inline void *
 __rb_data_page_index(struct buffer_data_page *bpage, unsigned index)
 {
@@ -1468,7 +1478,7 @@ static inline unsigned long rb_page_entries(struct buffer_page *bpage)
 	return local_read(&bpage->entries) & RB_WRITE_MASK;
 }
 
-/* Size is determined by what has been commited */
+/* Size is determined by what has been committed */
 static inline unsigned rb_page_size(struct buffer_page *bpage)
 {
 	return rb_page_commit(bpage);
@@ -2162,11 +2172,19 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	if (likely(ts >= cpu_buffer->write_stamp)) {
 		delta = diff;
 		if (unlikely(test_time_stamp(delta))) {
+			int local_clock_stable = 1;
+#ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+			local_clock_stable = sched_clock_stable;
+#endif
 			WARN_ONCE(delta > (1ULL << 59),
-				  KERN_WARNING "Delta way too big! %llu ts=%llu write stamp = %llu\n",
+				  KERN_WARNING "Delta way too big! %llu ts=%llu write stamp = %llu\n%s",
 				  (unsigned long long)delta,
 				  (unsigned long long)ts,
-				  (unsigned long long)cpu_buffer->write_stamp);
+				  (unsigned long long)cpu_buffer->write_stamp,
+				  local_clock_stable ? "" :
+				  "If you just came from a suspend/resume,\n"
+				  "please switch to the trace global clock:\n"
+				  "  echo global > /sys/kernel/debug/tracing/trace_clock\n");
 			add_timestamp = 1;
 		}
 	}
@@ -2914,7 +2932,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	/*
 	 * cpu_buffer->pages just needs to point to the buffer, it
 	 *  has no specific buffer page to point to. Lets move it out
-	 *  of our way so we don't accidently swap it.
+	 *  of our way so we don't accidentally swap it.
 	 */
 	cpu_buffer->pages = reader->list.prev;
 

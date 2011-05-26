@@ -151,7 +151,7 @@ static int nomadik_nand_probe(struct platform_device *pdev)
 	nand->options = pdata->options;
 
 	/*
-	 * Scan to find existance of the device
+	 * Scan to find existence of the device
 	 */
 	if (nand_scan(&host->mtd, 1)) {
 		ret = -ENXIO;

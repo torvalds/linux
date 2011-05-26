@@ -208,15 +208,13 @@ static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 	if (pdata->audio) {
 		cell = &codec->cells[childs];
 		cell->name = "twl4030-codec";
-		cell->platform_data = pdata->audio;
-		cell->data_size = sizeof(*pdata->audio);
+		cell->mfd_data = pdata->audio;
 		childs++;
 	}
 	if (pdata->vibra) {
 		cell = &codec->cells[childs];
 		cell->name = "twl4030-vibra";
-		cell->platform_data = pdata->vibra;
-		cell->data_size = sizeof(*pdata->vibra);
+		cell->mfd_data = pdata->vibra;
 		childs++;
 	}
 

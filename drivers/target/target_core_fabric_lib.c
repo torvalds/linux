@@ -28,13 +28,13 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_device.h>
 #include <target/target_core_transport.h>
+#include <target/target_core_fabric_lib.h>
 #include <target/target_core_fabric_ops.h>
 #include <target/target_core_configfs.h>
 
@@ -433,7 +433,7 @@ char *iscsi_parse_pr_out_transport_id(
 		/*
 		 * Go ahead and do the lower case conversion of the received
 		 * 12 ASCII characters representing the ISID in the TransportID
-		 * for comparision against the running iSCSI session's ISID from
+		 * for comparison against the running iSCSI session's ISID from
 		 * iscsi_target.c:lio_sess_get_initiator_sid()
 		 */
 		for (i = 0; i < 12; i++) {

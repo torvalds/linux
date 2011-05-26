@@ -778,11 +778,12 @@ static struct platform_device bfin_sport3_uart_device = {
 #endif
 
 #if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
-static unsigned short bfin_can_peripherals[] = {
+
+static unsigned short bfin_can0_peripherals[] = {
 	P_CAN0_RX, P_CAN0_TX, 0
 };
 
-static struct resource bfin_can_resources[] = {
+static struct resource bfin_can0_resources[] = {
 	{
 		.start = 0xFFC02A00,
 		.end = 0xFFC02FFF,
@@ -805,14 +806,53 @@ static struct resource bfin_can_resources[] = {
 	},
 };
 
-static struct platform_device bfin_can_device = {
+static struct platform_device bfin_can0_device = {
 	.name = "bfin_can",
-	.num_resources = ARRAY_SIZE(bfin_can_resources),
-	.resource = bfin_can_resources,
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_can0_resources),
+	.resource = bfin_can0_resources,
 	.dev = {
-		.platform_data = &bfin_can_peripherals, /* Passed to driver */
+		.platform_data = &bfin_can0_peripherals, /* Passed to driver */
 	},
 };
+
+static unsigned short bfin_can1_peripherals[] = {
+	P_CAN1_RX, P_CAN1_TX, 0
+};
+
+static struct resource bfin_can1_resources[] = {
+	{
+		.start = 0xFFC03200,
+		.end = 0xFFC037FF,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_CAN1_RX,
+		.end = IRQ_CAN1_RX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_CAN1_TX,
+		.end = IRQ_CAN1_TX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_CAN1_ERROR,
+		.end = IRQ_CAN1_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bfin_can1_device = {
+	.name = "bfin_can",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_can1_resources),
+	.resource = bfin_can1_resources,
+	.dev = {
+		.platform_data = &bfin_can1_peripherals, /* Passed to driver */
+	},
+};
+
 #endif
 
 #if defined(CONFIG_PATA_BF54X) || defined(CONFIG_PATA_BF54X_MODULE)
@@ -1366,7 +1406,8 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
-	&bfin_can_device,
+	&bfin_can0_device,
+	&bfin_can1_device,
 #endif
 
 #if defined(CONFIG_PATA_BF54X) || defined(CONFIG_PATA_BF54X_MODULE)

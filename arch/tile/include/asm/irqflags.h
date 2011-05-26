@@ -18,6 +18,8 @@
 #include <arch/interrupts.h>
 #include <arch/chip.h>
 
+#if !defined(__tilegx__) && defined(__ASSEMBLY__)
+
 /*
  * The set of interrupts we want to allow when interrupts are nominally
  * disabled.  The remainder are effectively "NMI" interrupts from
@@ -25,11 +27,23 @@
  * interrupts (aka "non-queued") are not blocked by the mask in any case.
  */
 #if CHIP_HAS_AUX_PERF_COUNTERS()
+#define LINUX_MASKABLE_INTERRUPTS_HI \
+       (~(INT_MASK_HI(INT_PERF_COUNT) | INT_MASK_HI(INT_AUX_PERF_COUNT)))
+#else
+#define LINUX_MASKABLE_INTERRUPTS_HI \
+       (~(INT_MASK_HI(INT_PERF_COUNT)))
+#endif
+
+#else
+
+#if CHIP_HAS_AUX_PERF_COUNTERS()
 #define LINUX_MASKABLE_INTERRUPTS \
 	(~(INT_MASK(INT_PERF_COUNT) | INT_MASK(INT_AUX_PERF_COUNT)))
 #else
 #define LINUX_MASKABLE_INTERRUPTS \
 	(~(INT_MASK(INT_PERF_COUNT)))
+#endif
+
 #endif
 
 #ifndef __ASSEMBLY__
@@ -224,11 +238,11 @@ DECLARE_PER_CPU(unsigned long long, interrupts_enabled_mask);
 #define IRQ_DISABLE(tmp0, tmp1)					\
 	{							\
 	 movei  tmp0, -1;					\
-	 moveli tmp1, lo16(LINUX_MASKABLE_INTERRUPTS)		\
+	 moveli tmp1, lo16(LINUX_MASKABLE_INTERRUPTS_HI)	\
 	};							\
 	{							\
 	 mtspr  SPR_INTERRUPT_MASK_SET_K_0, tmp0;		\
-	 auli   tmp1, tmp1, ha16(LINUX_MASKABLE_INTERRUPTS)	\
+	 auli   tmp1, tmp1, ha16(LINUX_MASKABLE_INTERRUPTS_HI)	\
 	};							\
 	mtspr   SPR_INTERRUPT_MASK_SET_K_1, tmp1
 

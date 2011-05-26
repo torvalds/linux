@@ -999,8 +999,7 @@ int wpa_ioctl(PSDevice pDevice, struct iw_point *p)
 	}
 
 out:
-	if (param != NULL)
-		kfree(param);
+	kfree(param);
 
 	return ret;
 }

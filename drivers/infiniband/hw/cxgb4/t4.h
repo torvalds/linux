@@ -507,8 +507,14 @@ static inline void t4_swcq_consume(struct t4_cq *cq)
 static inline void t4_hwcq_consume(struct t4_cq *cq)
 {
 	cq->bits_type_ts = cq->queue[cq->cidx].bits_type_ts;
-	if (++cq->cidx_inc == cq->size)
+	if (++cq->cidx_inc == (cq->size >> 4)) {
+		u32 val;
+
+		val = SEINTARM(0) | CIDXINC(cq->cidx_inc) | TIMERREG(7) |
+		      INGRESSQID(cq->cqid);
+		writel(val, cq->gts);
 		cq->cidx_inc = 0;
+	}
 	if (++cq->cidx == cq->size) {
 		cq->cidx = 0;
 		cq->gen ^= 1;

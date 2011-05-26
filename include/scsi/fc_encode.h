@@ -46,6 +46,22 @@ struct fc_ct_req {
 	} payload;
 };
 
+static inline void __fc_fill_fc_hdr(struct fc_frame_header *fh,
+				    enum fc_rctl r_ctl,
+				    u32 did, u32 sid, enum fc_fh_type type,
+				    u32 f_ctl, u32 parm_offset)
+{
+	WARN_ON(r_ctl == 0);
+	fh->fh_r_ctl = r_ctl;
+	hton24(fh->fh_d_id, did);
+	hton24(fh->fh_s_id, sid);
+	fh->fh_type = type;
+	hton24(fh->fh_f_ctl, f_ctl);
+	fh->fh_cs_ctl = 0;
+	fh->fh_df_ctl = 0;
+	fh->fh_parm_offset = htonl(parm_offset);
+}
+
 /**
  * fill FC header fields in specified fc_frame
  */
@@ -56,15 +72,7 @@ static inline void fc_fill_fc_hdr(struct fc_frame *fp, enum fc_rctl r_ctl,
 	struct fc_frame_header *fh;
 
 	fh = fc_frame_header_get(fp);
-	WARN_ON(r_ctl == 0);
-	fh->fh_r_ctl = r_ctl;
-	hton24(fh->fh_d_id, did);
-	hton24(fh->fh_s_id, sid);
-	fh->fh_type = type;
-	hton24(fh->fh_f_ctl, f_ctl);
-	fh->fh_cs_ctl = 0;
-	fh->fh_df_ctl = 0;
-	fh->fh_parm_offset = htonl(parm_offset);
+	__fc_fill_fc_hdr(fh, r_ctl, did, sid, type, f_ctl, parm_offset);
 }
 
 /**

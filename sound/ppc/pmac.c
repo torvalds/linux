@@ -1034,7 +1034,11 @@ static int __devinit snd_pmac_detect(struct snd_pmac *chip)
 	if (of_device_is_compatible(sound, "tumbler")) {
 		chip->model = PMAC_TUMBLER;
 		chip->can_capture = of_machine_is_compatible("PowerMac4,2")
-				|| of_machine_is_compatible("PowerBook4,1");
+				|| of_machine_is_compatible("PowerBook3,2")
+				|| of_machine_is_compatible("PowerBook3,3")
+				|| of_machine_is_compatible("PowerBook4,1")
+				|| of_machine_is_compatible("PowerBook4,2")
+				|| of_machine_is_compatible("PowerBook4,3");
 		chip->can_duplex = 0;
 		// chip->can_byte_swap = 0; /* FIXME: check this */
 		chip->num_freqs = ARRAY_SIZE(tumbler_freqs);

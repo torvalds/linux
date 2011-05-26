@@ -2,7 +2,7 @@
  * net/tipc/msg.h: Include file for TIPC message header routines
  *
  * Copyright (c) 2000-2007, Ericsson AB
- * Copyright (c) 2005-2008, Wind River Systems
+ * Copyright (c) 2005-2008, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -421,39 +421,12 @@ static inline int msg_is_dest(struct tipc_msg *m, u32 d)
 	return msg_short(m) || (msg_destnode(m) == d);
 }
 
-static inline u32 msg_routed(struct tipc_msg *m)
-{
-	if (likely(msg_short(m)))
-		return 0;
-	return (msg_destnode(m) ^ msg_orignode(m)) >> 11;
-}
-
 static inline u32 msg_nametype(struct tipc_msg *m)
 {
 	return msg_word(m, 8);
 }
 
 static inline void msg_set_nametype(struct tipc_msg *m, u32 n)
-{
-	msg_set_word(m, 8, n);
-}
-
-static inline u32 msg_transp_seqno(struct tipc_msg *m)
-{
-	return msg_word(m, 8);
-}
-
-static inline void msg_set_timestamp(struct tipc_msg *m, u32 n)
-{
-	msg_set_word(m, 8, n);
-}
-
-static inline u32 msg_timestamp(struct tipc_msg *m)
-{
-	return msg_word(m, 8);
-}
-
-static inline void msg_set_transp_seqno(struct tipc_msg *m, u32 n)
 {
 	msg_set_word(m, 8, n);
 }
@@ -545,7 +518,6 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 #define  NAME_DISTRIBUTOR     11
 #define  MSG_FRAGMENTER       12
 #define  LINK_CONFIG          13
-#define  DSC_H_SIZE           40
 
 /*
  *  Connection management protocol messages
@@ -575,16 +547,6 @@ static inline u32 msg_seq_gap(struct tipc_msg *m)
 static inline void msg_set_seq_gap(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 1, 16, 0x1fff, n);
-}
-
-static inline u32 msg_req_links(struct tipc_msg *m)
-{
-	return msg_bits(m, 1, 16, 0xfff);
-}
-
-static inline void msg_set_req_links(struct tipc_msg *m, u32 n)
-{
-	msg_set_bits(m, 1, 16, 0xfff, n);
 }
 
 
@@ -749,14 +711,9 @@ static inline u32 msg_redundant_link(struct tipc_msg *m)
 	return msg_bits(m, 5, 12, 0x1);
 }
 
-static inline void msg_set_redundant_link(struct tipc_msg *m)
+static inline void msg_set_redundant_link(struct tipc_msg *m, u32 r)
 {
-	msg_set_bits(m, 5, 12, 0x1, 1);
-}
-
-static inline void msg_clear_redundant_link(struct tipc_msg *m)
-{
-	msg_set_bits(m, 5, 12, 0x1, 0);
+	msg_set_bits(m, 5, 12, 0x1, r);
 }
 
 
@@ -802,21 +759,6 @@ static inline u32 msg_link_tolerance(struct tipc_msg *m)
 static inline void msg_set_link_tolerance(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 9, 0, 0xffff, n);
-}
-
-/*
- * Routing table message data
- */
-
-
-static inline u32 msg_remote_node(struct tipc_msg *m)
-{
-	return msg_word(m, msg_hdr_sz(m)/4);
-}
-
-static inline void msg_set_remote_node(struct tipc_msg *m, u32 a)
-{
-	msg_set_word(m, msg_hdr_sz(m)/4, a);
 }
 
 /*

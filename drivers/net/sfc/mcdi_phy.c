@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2009 Solarflare Communications Inc.
+ * Copyright 2009-2010 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -449,7 +449,7 @@ void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa)
 	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u32 rmtadv;
 
-	/* The link partner capabilities are only relevent if the
+	/* The link partner capabilities are only relevant if the
 	 * link supports flow control autonegotiation */
 	if (~phy_cfg->supported_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
 		return;

@@ -75,7 +75,8 @@ config FIREWIRE_NOSY
 	  The following cards are known to be based on PCILynx or PCILynx-2:
 	  IOI IOI-1394TT (PCI card), Unibrain Fireboard 400 PCI Lynx-2
 	  (PCI card), Newer Technology FireWire 2 Go (CardBus card),
-	  Apple Power Mac G3 blue & white (onboard controller).
+	  Apple Power Mac G3 blue & white and G4 with PCI graphics
+	  (onboard controller).
 
 	  To compile this driver as a module, say M here:  The module will be
 	  called nosy.  Source code of a userspace interface to nosy, called

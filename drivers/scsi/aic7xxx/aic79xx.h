@@ -473,7 +473,7 @@ struct hardware_scb {
  *	o A residual has occurred if SG_FULL_RESID is set in sgptr,
  *	  or residual_sgptr does not have SG_LIST_NULL set.
  *
- *	o We are transfering the last segment if residual_datacnt has
+ *	o We are transferring the last segment if residual_datacnt has
  *	  the SG_LAST_SEG flag set.
  *
  * Host:
@@ -516,7 +516,7 @@ struct hardware_scb {
  */
 
 /*
- * Definition of a scatter/gather element as transfered to the controller.
+ * Definition of a scatter/gather element as transferred to the controller.
  * The aic7xxx chips only support a 24bit length.  We use the top byte of
  * the length to store additional address bits and a flag to indicate
  * that a given segment terminates the transfer.  This gives us an
@@ -672,7 +672,7 @@ struct scb_data {
 /************************ Target Mode Definitions *****************************/
 
 /*
- * Connection desciptor for select-in requests in target mode.
+ * Connection descriptor for select-in requests in target mode.
  */
 struct target_cmd {
 	uint8_t scsiid;		/* Our ID and the initiator's ID */

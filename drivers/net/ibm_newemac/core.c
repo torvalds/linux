@@ -2719,8 +2719,7 @@ static const struct net_device_ops emac_gige_netdev_ops = {
 	.ndo_change_mtu		= emac_change_mtu,
 };
 
-static int __devinit emac_probe(struct platform_device *ofdev,
-				const struct of_device_id *match)
+static int __devinit emac_probe(struct platform_device *ofdev)
 {
 	struct net_device *ndev;
 	struct emac_instance *dev;
@@ -2994,7 +2993,7 @@ static struct of_device_id emac_match[] =
 };
 MODULE_DEVICE_TABLE(of, emac_match);
 
-static struct of_platform_driver emac_driver = {
+static struct platform_driver emac_driver = {
 	.driver = {
 		.name = "emac",
 		.owner = THIS_MODULE,
@@ -3069,7 +3068,7 @@ static int __init emac_init(void)
 	rc = tah_init();
 	if (rc)
 		goto err_rgmii;
-	rc = of_register_platform_driver(&emac_driver);
+	rc = platform_driver_register(&emac_driver);
 	if (rc)
 		goto err_tah;
 
@@ -3091,7 +3090,7 @@ static void __exit emac_exit(void)
 {
 	int i;
 
-	of_unregister_platform_driver(&emac_driver);
+	platform_driver_unregister(&emac_driver);
 
 	tah_exit();
 	rgmii_exit();

@@ -200,7 +200,7 @@ static void mdp_ppp_flush_dirty_djobs(void *cond)
 		msm_fb_ensure_mem_coherency_after_dma(job->info, &job->req, 1);
 
 		/* Schedule jobs for cleanup
-		 * A seperate worker thread does this */
+		 * A separate worker thread does this */
 		queue_delayed_work(mdp_ppp_djob_clnr, &job->cleaner,
 			mdp_timer_duration);
 	}

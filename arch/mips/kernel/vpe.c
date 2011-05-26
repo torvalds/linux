@@ -19,7 +19,7 @@
  * VPE support module
  *
  * Provides support for loading a MIPS SP program on VPE1.
- * The SP enviroment is rather simple, no tlb's.  It needs to be relocatable
+ * The SP environment is rather simple, no tlb's.  It needs to be relocatable
  * (or partially linked). You should initialise your stack in the startup
  * code. This loader looks for the symbol __start and sets up
  * execution to resume from there. The MIPS SDE kit contains suitable examples.
@@ -148,9 +148,9 @@ struct {
 	spinlock_t tc_list_lock;
 	struct list_head tc_list;	/* Thread contexts */
 } vpecontrol = {
-	.vpe_list_lock	= SPIN_LOCK_UNLOCKED,
+	.vpe_list_lock	= __SPIN_LOCK_UNLOCKED(vpe_list_lock),
 	.vpe_list	= LIST_HEAD_INIT(vpecontrol.vpe_list),
-	.tc_list_lock	= SPIN_LOCK_UNLOCKED,
+	.tc_list_lock	= __SPIN_LOCK_UNLOCKED(tc_list_lock),
 	.tc_list	= LIST_HEAD_INIT(vpecontrol.tc_list)
 };
 

@@ -117,6 +117,7 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 					struct module *owner)
 {
 	struct rtc_device *rtc;
+	struct rtc_wkalrm alrm;
 	int id, err;
 
 	if (idr_pre_get(&rtc_idr, GFP_KERNEL) == 0) {
@@ -165,6 +166,12 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	hrtimer_init(&rtc->pie_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	rtc->pie_timer.function = rtc_pie_update_irq;
 	rtc->pie_enabled = 0;
+
+	/* Check to see if there is an ALARM already set in hw */
+	err = __rtc_read_alarm(rtc, &alrm);
+
+	if (!err && !rtc_valid_tm(&alrm.time))
+		rtc_initialize_alarm(rtc, &alrm);
 
 	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
 	dev_set_name(&rtc->dev, "rtc%d", id);

@@ -8,6 +8,9 @@ struct inode;
 struct super_block;
 struct vfsmount;
 
+/* limit the handle size to NFSv4 handle size now */
+#define MAX_HANDLE_SZ 128
+
 /*
  * The fileid_type identifies how the file within the filesystem is encoded.
  * In theory this is freely set and parsed by the filesystem, but we try to
@@ -117,12 +120,14 @@ struct fid {
  * encode_fh:
  *    @encode_fh should store in the file handle fragment @fh (using at most
  *    @max_len bytes) information that can be used by @decode_fh to recover the
- *    file refered to by the &struct dentry @de.  If the @connectable flag is
+ *    file referred to by the &struct dentry @de.  If the @connectable flag is
  *    set, the encode_fh() should store sufficient information so that a good
  *    attempt can be made to find not only the file but also it's place in the
  *    filesystem.   This typically means storing a reference to de->d_parent in
- *    the filehandle fragment.  encode_fh() should return the number of bytes
- *    stored or a negative error code such as %-ENOSPC
+ *    the filehandle fragment.  encode_fh() should return the fileid_type on
+ *    success and on error returns 255 (if the space needed to encode fh is
+ *    greater than @max_len*4 bytes). On error @max_len contains the minimum
+ *    size(in 4 byte unit) needed to encode the file handle.
  *
  * fh_to_dentry:
  *    @fh_to_dentry is given a &struct super_block (@sb) and a file handle

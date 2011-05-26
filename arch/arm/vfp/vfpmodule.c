@@ -78,6 +78,14 @@ static void vfp_thread_exit(struct thread_info *thread)
 	put_cpu();
 }
 
+static void vfp_thread_copy(struct thread_info *thread)
+{
+	struct thread_info *parent = current_thread_info();
+
+	vfp_sync_hwstate(parent);
+	thread->vfpstate = parent->vfpstate;
+}
+
 /*
  * When this function is called with the following 'cmd's, the following
  * is true while this function is being run:
@@ -104,12 +112,17 @@ static void vfp_thread_exit(struct thread_info *thread)
 static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 {
 	struct thread_info *thread = v;
+	u32 fpexc;
+#ifdef CONFIG_SMP
+	unsigned int cpu;
+#endif
 
-	if (likely(cmd == THREAD_NOTIFY_SWITCH)) {
-		u32 fpexc = fmrx(FPEXC);
+	switch (cmd) {
+	case THREAD_NOTIFY_SWITCH:
+		fpexc = fmrx(FPEXC);
 
 #ifdef CONFIG_SMP
-		unsigned int cpu = thread->cpu;
+		cpu = thread->cpu;
 
 		/*
 		 * On SMP, if VFP is enabled, save the old state in
@@ -134,13 +147,20 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 		 * old state.
 		 */
 		fmxr(FPEXC, fpexc & ~FPEXC_EN);
-		return NOTIFY_DONE;
-	}
+		break;
 
-	if (cmd == THREAD_NOTIFY_FLUSH)
+	case THREAD_NOTIFY_FLUSH:
 		vfp_thread_flush(thread);
-	else
+		break;
+
+	case THREAD_NOTIFY_EXIT:
 		vfp_thread_exit(thread);
+		break;
+
+	case THREAD_NOTIFY_COPY:
+		vfp_thread_copy(thread);
+		break;
+	}
 
 	return NOTIFY_DONE;
 }
@@ -153,7 +173,7 @@ static struct notifier_block vfp_notifier_block = {
  * Raise a SIGFPE for the current process.
  * sicode describes the signal being raised.
  */
-void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
+static void vfp_raise_sigfpe(unsigned int sicode, struct pt_regs *regs)
 {
 	siginfo_t info;
 
@@ -489,8 +509,11 @@ void vfp_flush_hwstate(struct thread_info *thread)
 
 /*
  * VFP hardware can lose all context when a CPU goes offline.
- * Safely clear our held state when a CPU has been killed, and
- * re-enable access to VFP when the CPU comes back online.
+ * As we will be running in SMP mode with CPU hotplug, we will save the
+ * hardware state at every thread switch.  We clear our held state when
+ * a CPU has been killed, indicating that the VFP hardware doesn't contain
+ * a threads VFP state.  When a CPU starts up, we re-enable access to the
+ * VFP hardware.
  *
  * Both CPU_DYING and CPU_STARTING are called on the CPU which
  * is being offlined/onlined.

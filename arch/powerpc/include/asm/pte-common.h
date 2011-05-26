@@ -86,7 +86,7 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
 #define PTE_RPN_MASK	(~((1UL<<PTE_RPN_SHIFT)-1))
 #endif
 
-/* _PAGE_CHG_MASK masks of bits that are to be preserved accross
+/* _PAGE_CHG_MASK masks of bits that are to be preserved across
  * pgprot changes
  */
 #define _PAGE_CHG_MASK	(PTE_RPN_MASK | _PAGE_HPTEFLAGS | _PAGE_DIRTY | \
@@ -162,7 +162,7 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
  * on platforms where such control is possible.
  */
 #if defined(CONFIG_KGDB) || defined(CONFIG_XMON) || defined(CONFIG_BDI_SWITCH) ||\
-	defined(CONFIG_KPROBES)
+	defined(CONFIG_KPROBES) || defined(CONFIG_DYNAMIC_FTRACE)
 #define PAGE_KERNEL_TEXT	PAGE_KERNEL_X
 #else
 #define PAGE_KERNEL_TEXT	PAGE_KERNEL_ROX
@@ -174,7 +174,7 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
 /*
  * Don't just check for any non zero bits in __PAGE_USER, since for book3e
  * and PTE_64BIT, PAGE_KERNEL_X contains _PAGE_BAP_SR which is also in
- * _PAGE_USER.  Need to explictly match _PAGE_BAP_UR bit in that case too.
+ * _PAGE_USER.  Need to explicitly match _PAGE_BAP_UR bit in that case too.
  */
 #define pte_user(val)		((val & _PAGE_USER) == _PAGE_USER)
 

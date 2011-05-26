@@ -440,11 +440,6 @@ evm_u35_setup(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 	gpio_request(gpio + 7, "nCF_SEL");
 	gpio_direction_output(gpio + 7, 1);
 
-	/* irlml6401 switches over 1A, in under 8 msec;
-	 * now it can be managed by nDRV_VBUS ...
-	 */
-	davinci_setup_usb(1000, 8);
-
 	return 0;
 }
 
@@ -704,6 +699,9 @@ static __init void davinci_evm_init(void)
 
 	davinci_serial_init(&uart_config);
 	dm644x_init_asp(&dm644x_evm_snd_data);
+
+	/* irlml6401 switches over 1A, in under 8 msec */
+	davinci_setup_usb(1000, 8);
 
 	soc_info->emac_pdata->phy_id = DM644X_EVM_PHY_ID;
 	/* Register the fixup for PHY on DaVinci */

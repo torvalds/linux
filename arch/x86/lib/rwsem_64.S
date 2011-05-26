@@ -23,43 +23,50 @@
 #include <asm/dwarf2.h>
 
 #define save_common_regs \
-	pushq %rdi; \
-	pushq %rsi; \
-	pushq %rcx; \
-	pushq %r8; \
-	pushq %r9; \
-	pushq %r10; \
-	pushq %r11
+	pushq_cfi %rdi; CFI_REL_OFFSET rdi, 0; \
+	pushq_cfi %rsi; CFI_REL_OFFSET rsi, 0; \
+	pushq_cfi %rcx; CFI_REL_OFFSET rcx, 0; \
+	pushq_cfi %r8;  CFI_REL_OFFSET r8,  0; \
+	pushq_cfi %r9;  CFI_REL_OFFSET r9,  0; \
+	pushq_cfi %r10; CFI_REL_OFFSET r10, 0; \
+	pushq_cfi %r11; CFI_REL_OFFSET r11, 0
 
 #define restore_common_regs \
-	popq %r11; \
-	popq %r10; \
-	popq %r9; \
-	popq %r8; \
-	popq %rcx; \
-	popq %rsi; \
-	popq %rdi
+	popq_cfi %r11; CFI_RESTORE r11; \
+	popq_cfi %r10; CFI_RESTORE r10; \
+	popq_cfi %r9;  CFI_RESTORE r9; \
+	popq_cfi %r8;  CFI_RESTORE r8; \
+	popq_cfi %rcx; CFI_RESTORE rcx; \
+	popq_cfi %rsi; CFI_RESTORE rsi; \
+	popq_cfi %rdi; CFI_RESTORE rdi
 
 /* Fix up special calling conventions */
 ENTRY(call_rwsem_down_read_failed)
+	CFI_STARTPROC
 	save_common_regs
-	pushq %rdx
+	pushq_cfi %rdx
+	CFI_REL_OFFSET rdx, 0
 	movq %rax,%rdi
 	call rwsem_down_read_failed
-	popq %rdx
+	popq_cfi %rdx
+	CFI_RESTORE rdx
 	restore_common_regs
 	ret
-	ENDPROC(call_rwsem_down_read_failed)
+	CFI_ENDPROC
+ENDPROC(call_rwsem_down_read_failed)
 
 ENTRY(call_rwsem_down_write_failed)
+	CFI_STARTPROC
 	save_common_regs
 	movq %rax,%rdi
 	call rwsem_down_write_failed
 	restore_common_regs
 	ret
-	ENDPROC(call_rwsem_down_write_failed)
+	CFI_ENDPROC
+ENDPROC(call_rwsem_down_write_failed)
 
 ENTRY(call_rwsem_wake)
+	CFI_STARTPROC
 	decl %edx	/* do nothing if still outstanding active readers */
 	jnz 1f
 	save_common_regs
@@ -67,15 +74,20 @@ ENTRY(call_rwsem_wake)
 	call rwsem_wake
 	restore_common_regs
 1:	ret
-	ENDPROC(call_rwsem_wake)
+	CFI_ENDPROC
+ENDPROC(call_rwsem_wake)
 
 /* Fix up special calling conventions */
 ENTRY(call_rwsem_downgrade_wake)
+	CFI_STARTPROC
 	save_common_regs
-	pushq %rdx
+	pushq_cfi %rdx
+	CFI_REL_OFFSET rdx, 0
 	movq %rax,%rdi
 	call rwsem_downgrade_wake
-	popq %rdx
+	popq_cfi %rdx
+	CFI_RESTORE rdx
 	restore_common_regs
 	ret
-	ENDPROC(call_rwsem_downgrade_wake)
+	CFI_ENDPROC
+ENDPROC(call_rwsem_downgrade_wake)

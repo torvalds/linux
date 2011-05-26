@@ -70,15 +70,7 @@ enum model_type {
 
 struct device;
 struct input_dev;
-struct firedtv;
-
-struct firedtv_backend {
-	int (*lock)(struct firedtv *fdtv, u64 addr, void *data);
-	int (*read)(struct firedtv *fdtv, u64 addr, void *data);
-	int (*write)(struct firedtv *fdtv, u64 addr, void *data, size_t len);
-	int (*start_iso)(struct firedtv *fdtv);
-	void (*stop_iso)(struct firedtv *fdtv);
-};
+struct fdtv_ir_context;
 
 struct firedtv {
 	struct device *device;
@@ -104,11 +96,10 @@ struct firedtv {
 	enum model_type		type;
 	char			subunit;
 	char			isochannel;
+	struct fdtv_ir_context	*ir_context;
+
 	fe_sec_voltage_t	voltage;
 	fe_sec_tone_mode_t	tone;
-
-	const struct firedtv_backend *backend;
-	void			*backend_data;
 
 	struct mutex		demux_mutex;
 	unsigned long		channel_active;
@@ -117,15 +108,6 @@ struct firedtv {
 	int			avc_data_length;
 	u8			avc_data[512];
 };
-
-/* firedtv-1394.c */
-#ifdef CONFIG_DVB_FIREDTV_IEEE1394
-int fdtv_1394_init(void);
-void fdtv_1394_exit(void);
-#else
-static inline int fdtv_1394_init(void) { return 0; }
-static inline void fdtv_1394_exit(void) {}
-#endif
 
 /* firedtv-avc.c */
 int avc_recv(struct firedtv *fdtv, void *data, size_t length);
@@ -158,25 +140,18 @@ void fdtv_ca_release(struct firedtv *fdtv);
 /* firedtv-dvb.c */
 int fdtv_start_feed(struct dvb_demux_feed *dvbdmxfeed);
 int fdtv_stop_feed(struct dvb_demux_feed *dvbdmxfeed);
-int fdtv_dvb_register(struct firedtv *fdtv);
+int fdtv_dvb_register(struct firedtv *fdtv, const char *name);
 void fdtv_dvb_unregister(struct firedtv *fdtv);
-struct firedtv *fdtv_alloc(struct device *dev,
-			   const struct firedtv_backend *backend,
-			   const char *name, size_t name_len);
-extern const char *fdtv_model_names[];
-extern const struct ieee1394_device_id fdtv_id_table[];
 
 /* firedtv-fe.c */
-void fdtv_frontend_init(struct firedtv *fdtv);
+void fdtv_frontend_init(struct firedtv *fdtv, const char *name);
 
 /* firedtv-fw.c */
-#ifdef CONFIG_DVB_FIREDTV_FIREWIRE
-int fdtv_fw_init(void);
-void fdtv_fw_exit(void);
-#else
-static inline int fdtv_fw_init(void) { return 0; }
-static inline void fdtv_fw_exit(void) {}
-#endif
+int fdtv_lock(struct firedtv *fdtv, u64 addr, void *data);
+int fdtv_read(struct firedtv *fdtv, u64 addr, void *data);
+int fdtv_write(struct firedtv *fdtv, u64 addr, void *data, size_t len);
+int fdtv_start_iso(struct firedtv *fdtv);
+void fdtv_stop_iso(struct firedtv *fdtv);
 
 /* firedtv-rc.c */
 #ifdef CONFIG_DVB_FIREDTV_INPUT

@@ -115,12 +115,12 @@ static int ks8695_irq_set_type(struct irq_data *d, unsigned int type)
 	}
 
 	if (level_triggered) {
-		set_irq_chip(d->irq, &ks8695_irq_level_chip);
-		set_irq_handler(d->irq, handle_level_irq);
+		irq_set_chip_and_handler(d->irq, &ks8695_irq_level_chip,
+					 handle_level_irq);
 	}
 	else {
-		set_irq_chip(d->irq, &ks8695_irq_edge_chip);
-		set_irq_handler(d->irq, handle_edge_irq);
+		irq_set_chip_and_handler(d->irq, &ks8695_irq_edge_chip,
+					 handle_edge_irq);
 	}
 
 	__raw_writel(ctrl, KS8695_GPIO_VA + KS8695_IOPC);
@@ -158,16 +158,18 @@ void __init ks8695_init_irq(void)
 			case KS8695_IRQ_UART_RX:
 			case KS8695_IRQ_COMM_TX:
 			case KS8695_IRQ_COMM_RX:
-				set_irq_chip(irq, &ks8695_irq_level_chip);
-				set_irq_handler(irq, handle_level_irq);
+				irq_set_chip_and_handler(irq,
+							 &ks8695_irq_level_chip,
+							 handle_level_irq);
 				break;
 
 			/* Edge-triggered interrupts */
 			default:
 				/* clear pending bit */
 				ks8695_irq_ack(irq_get_irq_data(irq));
-				set_irq_chip(irq, &ks8695_irq_edge_chip);
-				set_irq_handler(irq, handle_edge_irq);
+				irq_set_chip_and_handler(irq,
+							 &ks8695_irq_edge_chip,
+							 handle_edge_irq);
 		}
 
 		set_irq_flags(irq, IRQF_VALID);

@@ -150,8 +150,7 @@ static int __devinit fs_mii_bitbang_init(struct mii_bus *bus,
 	return 0;
 }
 
-static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev,
-                                        const struct of_device_id *match)
+static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev)
 {
 	struct mii_bus *new_bus;
 	struct bb_info *bitbang;
@@ -223,7 +222,7 @@ static struct of_device_id fs_enet_mdio_bb_match[] = {
 };
 MODULE_DEVICE_TABLE(of, fs_enet_mdio_bb_match);
 
-static struct of_platform_driver fs_enet_bb_mdio_driver = {
+static struct platform_driver fs_enet_bb_mdio_driver = {
 	.driver = {
 		.name = "fsl-bb-mdio",
 		.owner = THIS_MODULE,
@@ -235,12 +234,12 @@ static struct of_platform_driver fs_enet_bb_mdio_driver = {
 
 static int fs_enet_mdio_bb_init(void)
 {
-	return of_register_platform_driver(&fs_enet_bb_mdio_driver);
+	return platform_driver_register(&fs_enet_bb_mdio_driver);
 }
 
 static void fs_enet_mdio_bb_exit(void)
 {
-	of_unregister_platform_driver(&fs_enet_bb_mdio_driver);
+	platform_driver_unregister(&fs_enet_bb_mdio_driver);
 }
 
 module_init(fs_enet_mdio_bb_init);

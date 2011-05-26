@@ -1492,8 +1492,8 @@ static inline void cvmx_pow_tag_sw_full(cvmx_wqe_t *wqp, uint32_t tag,
 /**
  * Switch to a NULL tag, which ends any ordering or
  * synchronization provided by the POW for the current
- * work queue entry.  This operation completes immediatly,
- * so completetion should not be waited for.
+ * work queue entry.  This operation completes immediately,
+ * so completion should not be waited for.
  * This function does NOT wait for previous tag switches to complete,
  * so the caller must ensure that any previous tag switches have completed.
  */
@@ -1532,8 +1532,8 @@ static inline void cvmx_pow_tag_sw_null_nocheck(void)
 /**
  * Switch to a NULL tag, which ends any ordering or
  * synchronization provided by the POW for the current
- * work queue entry.  This operation completes immediatly,
- * so completetion should not be waited for.
+ * work queue entry.  This operation completes immediately,
+ * so completion should not be waited for.
  * This function waits for any pending tag switches to complete
  * before requesting the switch to NULL.
  */
@@ -1672,7 +1672,7 @@ static inline void cvmx_pow_set_priority(uint64_t core_num,
 
 /**
  * Performs a tag switch and then an immediate deschedule. This completes
- * immediatly, so completion must not be waited for.  This function does NOT
+ * immediately, so completion must not be waited for.  This function does NOT
  * update the wqe in DRAM to match arguments.
  *
  * This function does NOT wait for any prior tag switches to complete, so the
@@ -1758,7 +1758,7 @@ static inline void cvmx_pow_tag_sw_desched_nocheck(
 
 /**
  * Performs a tag switch and then an immediate deschedule. This completes
- * immediatly, so completion must not be waited for.  This function does NOT
+ * immediately, so completion must not be waited for.  This function does NOT
  * update the wqe in DRAM to match arguments.
  *
  * This function waits for any prior tag switches to complete, so the

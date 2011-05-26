@@ -74,7 +74,6 @@ int eucr_resume(struct usb_interface *iface)
          us->Power_IsResum = true;
 	//
 	//us->SD_Status.Ready = 0; //??
-	us->SD_Status = *(PSD_STATUS)&tmp;
     	us->MS_Status = *(PMS_STATUS)&tmp;
     	us->SM_Status = *(PSM_STATUS)&tmp;
     	
@@ -98,7 +97,6 @@ int eucr_reset_resume(struct usb_interface *iface)
  	us->Power_IsResum = true;
 	//
 	//us->SD_Status.Ready = 0; //??
-	us->SD_Status = *(PSD_STATUS)&tmp;
     	us->MS_Status = *(PMS_STATUS)&tmp;
     	us->SM_Status = *(PSM_STATUS)&tmp;
 	return 0;
@@ -582,6 +580,7 @@ static int eucr_probe(struct usb_interface *intf, const struct usb_device_id *id
 	struct Scsi_Host *host;
 	struct us_data *us;
 	int result;
+	BYTE	MiscReg03 = 0;
 	struct task_struct *th;
 
       printk("usb --- eucr_probe\n");
@@ -647,6 +646,24 @@ static int eucr_probe(struct usb_interface *intf, const struct usb_device_id *id
 		goto BadDevice;
 	}
 	wake_up_process(th);
+
+	/* probe card type */
+	result = ENE_Read_BYTE(us, REG_CARD_STATUS, &MiscReg03);
+	if (result != USB_STOR_XFER_GOOD) {
+		result = USB_STOR_TRANSPORT_ERROR;
+		quiesce_and_remove_host(us);
+		goto BadDevice;
+	}
+
+	if (!(MiscReg03 & 0x02)) {
+		result = -ENODEV;
+		quiesce_and_remove_host(us);
+		printk(KERN_NOTICE "keucr: The driver only supports SM/MS card.\
+			To use SD card, \
+			please build driver/usb/storage/ums-eneub6250.ko\n");
+		goto BadDevice;
+	}
+
 	return 0;
 
 	/* We come here if there are any problems */

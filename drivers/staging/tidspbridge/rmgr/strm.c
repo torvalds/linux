@@ -55,7 +55,7 @@
  */
 struct strm_mgr {
 	struct dev_object *dev_obj;	/* Device for this processor */
-	struct chnl_mgr *hchnl_mgr;	/* Channel manager */
+	struct chnl_mgr *chnl_mgr;	/* Channel manager */
 	/* Function interface to Bridge driver */
 	struct bridge_drv_interface *intf_fxns;
 };
@@ -68,16 +68,16 @@ struct strm_object {
 	struct strm_mgr *strm_mgr_obj;
 	struct chnl_object *chnl_obj;
 	u32 dir;		/* DSP_TONODE or DSP_FROMNODE */
-	u32 utimeout;
+	u32 timeout;
 	u32 num_bufs;		/* Max # of bufs allowed in stream */
-	u32 un_bufs_in_strm;	/* Current # of bufs in stream */
-	u32 ul_n_bytes;		/* bytes transferred since idled */
+	u32 bufs_in_strm;	/* Current # of bufs in stream */
+	u32 bytes;		/* bytes transferred since idled */
 	/* STREAM_IDLE, STREAM_READY, ... */
 	enum dsp_streamstate strm_state;
 	void *user_event;	/* Saved for strm_get_info() */
 	enum dsp_strmmode strm_mode;	/* STRMMODE_[PROCCOPY][ZEROCOPY]... */
-	u32 udma_chnl_id;	/* DMA chnl id */
-	u32 udma_priority;	/* DMA priority:DMAPRI_[LOW][HIGH] */
+	u32 dma_chnl_id;	/* DMA chnl id */
+	u32 dma_priority;	/* DMA priority:DMAPRI_[LOW][HIGH] */
 	u32 segment_id;		/* >0 is SM segment.=0 is local heap */
 	u32 buf_alignment;	/* Alignment for stream bufs */
 	/* Stream's SM address translator */
@@ -102,7 +102,7 @@ int strm_allocate_buffer(struct strm_res_object *strmres, u32 usize,
 	int status = 0;
 	u32 alloc_cnt = 0;
 	u32 i;
-	struct strm_object *stream_obj = strmres->hstream;
+	struct strm_object *stream_obj = strmres->stream;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(ap_buffer != NULL);
@@ -154,7 +154,7 @@ int strm_close(struct strm_res_object *strmres,
 	struct bridge_drv_interface *intf_fxns;
 	struct chnl_info chnl_info_obj;
 	int status = 0;
-	struct strm_object *stream_obj = strmres->hstream;
+	struct strm_object *stream_obj = strmres->stream;
 
 	DBC_REQUIRE(refs > 0);
 
@@ -165,7 +165,7 @@ int strm_close(struct strm_res_object *strmres,
 		 * -EPIPE */
 		intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 		status =
-		    (*intf_fxns->pfn_chnl_get_info) (stream_obj->chnl_obj,
+		    (*intf_fxns->chnl_get_info) (stream_obj->chnl_obj,
 						     &chnl_info_obj);
 		DBC_ASSERT(!status);
 
@@ -213,7 +213,7 @@ int strm_create(struct strm_mgr **strm_man,
 
 	/* Get Channel manager and Bridge function interface */
 	if (!status) {
-		status = dev_get_chnl_mgr(dev_obj, &(strm_mgr_obj->hchnl_mgr));
+		status = dev_get_chnl_mgr(dev_obj, &(strm_mgr_obj->chnl_mgr));
 		if (!status) {
 			(void)dev_get_intf_fxns(dev_obj,
 						&(strm_mgr_obj->intf_fxns));
@@ -268,7 +268,7 @@ int strm_free_buffer(struct strm_res_object *strmres, u8 ** ap_buffer,
 {
 	int status = 0;
 	u32 i = 0;
-	struct strm_object *stream_obj = strmres->hstream;
+	struct strm_object *stream_obj = strmres->stream;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(ap_buffer != NULL);
@@ -323,7 +323,7 @@ int strm_get_info(struct strm_object *stream_obj,
 
 	intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 	status =
-	    (*intf_fxns->pfn_chnl_get_info) (stream_obj->chnl_obj,
+	    (*intf_fxns->chnl_get_info) (stream_obj->chnl_obj,
 						  &chnl_info_obj);
 	if (status)
 		goto func_end;
@@ -341,10 +341,10 @@ int strm_get_info(struct strm_object *stream_obj,
 	stream_info->user_strm->number_bufs_in_stream = chnl_info_obj.cio_cs +
 	    chnl_info_obj.cio_reqs;
 	/* # of bytes transferred since last call to DSPStream_Idle() */
-	stream_info->user_strm->ul_number_bytes = chnl_info_obj.bytes_tx;
+	stream_info->user_strm->number_bytes = chnl_info_obj.bytes_tx;
 	stream_info->user_strm->sync_object_handle = chnl_info_obj.event_obj;
 	/* Determine stream state based on channel state and info */
-	if (chnl_info_obj.dw_state & CHNL_STATEEOS) {
+	if (chnl_info_obj.state & CHNL_STATEEOS) {
 		stream_info->user_strm->ss_stream_state = STREAM_DONE;
 	} else {
 		if (chnl_info_obj.cio_cs > 0)
@@ -377,8 +377,8 @@ int strm_idle(struct strm_object *stream_obj, bool flush_data)
 	} else {
 		intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 
-		status = (*intf_fxns->pfn_chnl_idle) (stream_obj->chnl_obj,
-						      stream_obj->utimeout,
+		status = (*intf_fxns->chnl_idle) (stream_obj->chnl_obj,
+						      stream_obj->timeout,
 						      flush_data);
 	}
 
@@ -435,7 +435,7 @@ int strm_issue(struct strm_object *stream_obj, u8 *pbuf, u32 ul_bytes,
 
 		}
 		if (!status) {
-			status = (*intf_fxns->pfn_chnl_add_io_req)
+			status = (*intf_fxns->chnl_add_io_req)
 			    (stream_obj->chnl_obj, pbuf, ul_bytes, ul_buf_size,
 			     (u32) tmp_buf, dw_arg);
 		}
@@ -494,8 +494,8 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 			strm_obj->strm_state = STREAM_IDLE;
 			strm_obj->user_event = pattr->user_event;
 			if (pattr->stream_attr_in != NULL) {
-				strm_obj->utimeout =
-				    pattr->stream_attr_in->utimeout;
+				strm_obj->timeout =
+				    pattr->stream_attr_in->timeout;
 				strm_obj->num_bufs =
 				    pattr->stream_attr_in->num_bufs;
 				strm_obj->strm_mode =
@@ -504,25 +504,25 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 				    pattr->stream_attr_in->segment_id;
 				strm_obj->buf_alignment =
 				    pattr->stream_attr_in->buf_alignment;
-				strm_obj->udma_chnl_id =
-				    pattr->stream_attr_in->udma_chnl_id;
-				strm_obj->udma_priority =
-				    pattr->stream_attr_in->udma_priority;
+				strm_obj->dma_chnl_id =
+				    pattr->stream_attr_in->dma_chnl_id;
+				strm_obj->dma_priority =
+				    pattr->stream_attr_in->dma_priority;
 				chnl_attr_obj.uio_reqs =
 				    pattr->stream_attr_in->num_bufs;
 			} else {
-				strm_obj->utimeout = DEFAULTTIMEOUT;
+				strm_obj->timeout = DEFAULTTIMEOUT;
 				strm_obj->num_bufs = DEFAULTNUMBUFS;
 				strm_obj->strm_mode = STRMMODE_PROCCOPY;
 				strm_obj->segment_id = 0;	/* local mem */
 				strm_obj->buf_alignment = 0;
-				strm_obj->udma_chnl_id = 0;
-				strm_obj->udma_priority = 0;
+				strm_obj->dma_chnl_id = 0;
+				strm_obj->dma_priority = 0;
 				chnl_attr_obj.uio_reqs = DEFAULTNUMBUFS;
 			}
 			chnl_attr_obj.reserved1 = NULL;
 			/* DMA chnl flush timeout */
-			chnl_attr_obj.reserved2 = strm_obj->utimeout;
+			chnl_attr_obj.reserved2 = strm_obj->timeout;
 			chnl_attr_obj.event_obj = NULL;
 			if (pattr->user_event != NULL)
 				chnl_attr_obj.event_obj = pattr->user_event;
@@ -532,7 +532,7 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 	if (status)
 		goto func_cont;
 
-	if ((pattr->virt_base == NULL) || !(pattr->ul_virt_size > 0))
+	if ((pattr->virt_base == NULL) || !(pattr->virt_size > 0))
 		goto func_cont;
 
 	/* No System DMA */
@@ -547,7 +547,7 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 			/*  Set translators Virt Addr attributes */
 			status = cmm_xlator_info(strm_obj->xlator,
 						 (u8 **) &pattr->virt_base,
-						 pattr->ul_virt_size,
+						 pattr->virt_size,
 						 strm_obj->segment_id, true);
 		}
 	}
@@ -557,8 +557,8 @@ func_cont:
 		chnl_mode = (dir == DSP_TONODE) ?
 		    CHNL_MODETODSP : CHNL_MODEFROMDSP;
 		intf_fxns = strm_mgr_obj->intf_fxns;
-		status = (*intf_fxns->pfn_chnl_open) (&(strm_obj->chnl_obj),
-						      strm_mgr_obj->hchnl_mgr,
+		status = (*intf_fxns->chnl_open) (&(strm_obj->chnl_obj),
+						      strm_mgr_obj->chnl_mgr,
 						      chnl_mode, ul_chnl_id,
 						      &chnl_attr_obj);
 		if (status) {
@@ -572,7 +572,7 @@ func_cont:
 				 * We got a status that's not return-able.
 				 * Assert that we got something we were
 				 * expecting (-EFAULT isn't acceptable,
-				 * strm_mgr_obj->hchnl_mgr better be valid or we
+				 * strm_mgr_obj->chnl_mgr better be valid or we
 				 * assert here), and then return -EPERM.
 				 */
 				DBC_ASSERT(status == -ENOSR ||
@@ -631,15 +631,15 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 	intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 
 	status =
-	    (*intf_fxns->pfn_chnl_get_ioc) (stream_obj->chnl_obj,
-					    stream_obj->utimeout,
+	    (*intf_fxns->chnl_get_ioc) (stream_obj->chnl_obj,
+					    stream_obj->timeout,
 					    &chnl_ioc_obj);
 	if (!status) {
 		*nbytes = chnl_ioc_obj.byte_size;
 		if (buff_size)
 			*buff_size = chnl_ioc_obj.buf_size;
 
-		*pdw_arg = chnl_ioc_obj.dw_arg;
+		*pdw_arg = chnl_ioc_obj.arg;
 		if (!CHNL_IS_IO_COMPLETE(chnl_ioc_obj)) {
 			if (CHNL_IS_TIMED_OUT(chnl_ioc_obj)) {
 				status = -ETIME;
@@ -655,14 +655,14 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 		    && (!CHNL_IS_IO_CANCELLED(chnl_ioc_obj))
 		    && (stream_obj->strm_mode == STRMMODE_ZEROCOPY)) {
 			/*
-			 *  This is a zero-copy channel so chnl_ioc_obj.pbuf
+			 *  This is a zero-copy channel so chnl_ioc_obj.buf
 			 *  contains the DSP address of SM. We need to
 			 *  translate it to a virtual address for the user
 			 *  thread to access.
 			 *  Note: Could add CMM_DSPPA2VA to CMM in the future.
 			 */
 			tmp_buf = cmm_xlator_translate(stream_obj->xlator,
-						       chnl_ioc_obj.pbuf,
+						       chnl_ioc_obj.buf,
 						       CMM_DSPPA2PA);
 			if (tmp_buf != NULL) {
 				/* now convert this GPP Pa to Va */
@@ -674,9 +674,9 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 			if (tmp_buf == NULL)
 				status = -ESRCH;
 
-			chnl_ioc_obj.pbuf = tmp_buf;
+			chnl_ioc_obj.buf = tmp_buf;
 		}
-		*buf_ptr = chnl_ioc_obj.pbuf;
+		*buf_ptr = chnl_ioc_obj.buf;
 	}
 func_end:
 	/* ensure we return a documented return code */
@@ -719,7 +719,7 @@ int strm_register_notify(struct strm_object *stream_obj, u32 event_mask,
 		intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 
 		status =
-		    (*intf_fxns->pfn_chnl_register_notify) (stream_obj->
+		    (*intf_fxns->chnl_register_notify) (stream_obj->
 							    chnl_obj,
 							    event_mask,
 							    notify_type,
@@ -765,7 +765,7 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 	/* Determine which channels have IO ready */
 	for (i = 0; i < strms; i++) {
 		intf_fxns = strm_tab[i]->strm_mgr_obj->intf_fxns;
-		status = (*intf_fxns->pfn_chnl_get_info) (strm_tab[i]->chnl_obj,
+		status = (*intf_fxns->chnl_get_info) (strm_tab[i]->chnl_obj,
 							  &chnl_info_obj);
 		if (status) {
 			break;
@@ -786,7 +786,7 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 			for (i = 0; i < strms; i++) {
 				intf_fxns =
 				    strm_tab[i]->strm_mgr_obj->intf_fxns;
-				status = (*intf_fxns->pfn_chnl_get_info)
+				status = (*intf_fxns->chnl_get_info)
 				    (strm_tab[i]->chnl_obj, &chnl_info_obj);
 				if (status)
 					break;
@@ -832,7 +832,7 @@ static int delete_strm(struct strm_object *stream_obj)
 			intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 			/* Channel close can fail only if the channel handle
 			 * is invalid. */
-			status = (*intf_fxns->pfn_chnl_close)
+			status = (*intf_fxns->chnl_close)
 					(stream_obj->chnl_obj);
 		}
 		/* Free all SM address translator resources */

@@ -451,9 +451,9 @@ static void ehci_hub_descriptor(struct oxu_hcd *oxu,
 	temp = 1 + (ports / 8);
 	desc->bDescLength = 7 + 2 * temp;
 
-	/* two bitmaps:  ports removable, and usb 1.0 legacy PortPwrCtrlMask */
-	memset(&desc->bitmap[0], 0, temp);
-	memset(&desc->bitmap[temp], 0xff, temp);
+	/* ports removable, and usb 1.0 legacy PortPwrCtrlMask */
+	memset(&desc->u.hs.DeviceRemovable[0], 0, temp);
+	memset(&desc->u.hs.DeviceRemovable[temp], 0xff, temp);
 
 	temp = 0x0008;			/* per-port overcurrent reporting */
 	if (HCS_PPC(oxu->hcs_params))
@@ -2879,7 +2879,7 @@ static int oxu_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 	/* Ok, we have more job to do! :) */
 
 	for (i = 0; i < num - 1; i++) {
-		/* Get free micro URB poll till a free urb is recieved */
+		/* Get free micro URB poll till a free urb is received */
 
 		do {
 			murb = (struct urb *) oxu_murb_alloc(oxu);
@@ -2911,7 +2911,7 @@ static int oxu_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	/* Last urb requires special handling  */
 
-	/* Get free micro URB poll till a free urb is recieved */
+	/* Get free micro URB poll till a free urb is received */
 	do {
 		murb = (struct urb *) oxu_murb_alloc(oxu);
 		if (!murb)
@@ -3832,7 +3832,7 @@ static int oxu_drv_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	ret = set_irq_type(irq, IRQF_TRIGGER_FALLING);
+	ret = irq_set_irq_type(irq, IRQF_TRIGGER_FALLING);
 	if (ret) {
 		dev_err(&pdev->dev, "error setting irq type\n");
 		ret = -EFAULT;

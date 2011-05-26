@@ -75,7 +75,7 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char *buffer)
 
 	num_cores = cvmx_octeon_num_cores();
 
-	/* Make sure the non existant devices look disabled */
+	/* Make sure the non existent devices look disabled */
 	switch ((chip_id >> 8) & 0xff) {
 	case 6:		/* CN50XX */
 	case 2:		/* CN30XX */

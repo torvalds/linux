@@ -46,6 +46,7 @@ static struct clk *rtc_clk;
 static void __iomem *s3c_rtc_base;
 static int s3c_rtc_alarmno = NO_IRQ;
 static int s3c_rtc_tickno  = NO_IRQ;
+static bool wake_en;
 static enum s3c_cpu_type s3c_rtc_cpu_type;
 
 static DEFINE_SPINLOCK(s3c_rtc_pie_lock);
@@ -89,37 +90,6 @@ static int s3c_rtc_setaie(struct device *dev, unsigned int enabled)
 		tmp |= S3C2410_RTCALM_ALMEN;
 
 	writeb(tmp, s3c_rtc_base + S3C2410_RTCALM);
-
-	return 0;
-}
-
-static int s3c_rtc_setpie(struct device *dev, int enabled)
-{
-	unsigned int tmp;
-
-	pr_debug("%s: pie=%d\n", __func__, enabled);
-
-	spin_lock_irq(&s3c_rtc_pie_lock);
-
-	if (s3c_rtc_cpu_type == TYPE_S3C64XX) {
-		tmp = readw(s3c_rtc_base + S3C2410_RTCCON);
-		tmp &= ~S3C64XX_RTCCON_TICEN;
-
-		if (enabled)
-			tmp |= S3C64XX_RTCCON_TICEN;
-
-		writew(tmp, s3c_rtc_base + S3C2410_RTCCON);
-	} else {
-		tmp = readb(s3c_rtc_base + S3C2410_TICNT);
-		tmp &= ~S3C2410_TICNT_ENABLE;
-
-		if (enabled)
-			tmp |= S3C2410_TICNT_ENABLE;
-
-		writeb(tmp, s3c_rtc_base + S3C2410_TICNT);
-	}
-
-	spin_unlock_irq(&s3c_rtc_pie_lock);
 
 	return 0;
 }
@@ -367,7 +337,6 @@ static void s3c_rtc_release(struct device *dev)
 
 	/* do not clear AIE here, it may be needed for wake */
 
-	s3c_rtc_setpie(dev, 0);
 	free_irq(s3c_rtc_alarmno, rtc_dev);
 	free_irq(s3c_rtc_tickno, rtc_dev);
 }
@@ -379,8 +348,6 @@ static const struct rtc_class_ops s3c_rtcops = {
 	.set_time	= s3c_rtc_settime,
 	.read_alarm	= s3c_rtc_getalarm,
 	.set_alarm	= s3c_rtc_setalarm,
-	.irq_set_freq	= s3c_rtc_setfreq,
-	.irq_set_state	= s3c_rtc_setpie,
 	.proc		= s3c_rtc_proc,
 	.alarm_irq_enable = s3c_rtc_setaie,
 };
@@ -441,7 +408,6 @@ static int __devexit s3c_rtc_remove(struct platform_device *dev)
 	platform_set_drvdata(dev, NULL);
 	rtc_device_unregister(rtc);
 
-	s3c_rtc_setpie(&dev->dev, 0);
 	s3c_rtc_setaie(&dev->dev, 0);
 
 	clk_disable(rtc_clk);
@@ -597,8 +563,12 @@ static int s3c_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 	}
 	s3c_rtc_enable(pdev, 0);
 
-	if (device_may_wakeup(&pdev->dev))
-		enable_irq_wake(s3c_rtc_alarmno);
+	if (device_may_wakeup(&pdev->dev) && !wake_en) {
+		if (enable_irq_wake(s3c_rtc_alarmno) == 0)
+			wake_en = true;
+		else
+			dev_err(&pdev->dev, "enable_irq_wake failed\n");
+	}
 
 	return 0;
 }
@@ -614,8 +584,10 @@ static int s3c_rtc_resume(struct platform_device *pdev)
 		writew(tmp | ticnt_en_save, s3c_rtc_base + S3C2410_RTCCON);
 	}
 
-	if (device_may_wakeup(&pdev->dev))
+	if (device_may_wakeup(&pdev->dev) && wake_en) {
 		disable_irq_wake(s3c_rtc_alarmno);
+		wake_en = false;
+	}
 
 	return 0;
 }

@@ -440,7 +440,7 @@ static int gigaset_set_modem_ctrl(struct cardstate *cs, unsigned old_state,
 	if (!set && !clear)
 		return 0;
 	gig_dbg(DEBUG_IF, "tiocmset set %x clear %x", set, clear);
-	return tty->ops->tiocmset(tty, NULL, set, clear);
+	return tty->ops->tiocmset(tty, set, clear);
 }
 
 static int gigaset_baud_rate(struct cardstate *cs, unsigned cflag)

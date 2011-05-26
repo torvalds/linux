@@ -147,9 +147,6 @@ void __init dove_mpp_conf(unsigned int *mpp_list)
 	u32 pmu_sig_ctrl[PMU_SIG_REGS];
 	int i;
 
-	/* Initialize gpiolib. */
-	orion_gpio_init();
-
 	for (i = 0; i < MPP_NR_REGS; i++)
 		mpp_ctrl[i] = readl(MPP_CTRL(i));
 

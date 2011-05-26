@@ -41,7 +41,7 @@
  * The normal show_free_areas() is too verbose on Tile, with dozens
  * of processors and often four NUMA zones each with high and lowmem.
  */
-void show_mem(void)
+void show_mem(unsigned int filter)
 {
 	struct zone *zone;
 
@@ -142,6 +142,76 @@ pte_t *_pte_offset_map(pmd_t *dir, unsigned long address)
 }
 #endif
 
+/**
+ * shatter_huge_page() - ensure a given address is mapped by a small page.
+ *
+ * This function converts a huge PTE mapping kernel LOWMEM into a bunch
+ * of small PTEs with the same caching.  No cache flush required, but we
+ * must do a global TLB flush.
+ *
+ * Any caller that wishes to modify a kernel mapping that might
+ * have been made with a huge page should call this function,
+ * since doing so properly avoids race conditions with installing the
+ * newly-shattered page and then flushing all the TLB entries.
+ *
+ * @addr: Address at which to shatter any existing huge page.
+ */
+void shatter_huge_page(unsigned long addr)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	unsigned long flags = 0;  /* happy compiler */
+#ifdef __PAGETABLE_PMD_FOLDED
+	struct list_head *pos;
+#endif
+
+	/* Get a pointer to the pmd entry that we need to change. */
+	addr &= HPAGE_MASK;
+	BUG_ON(pgd_addr_invalid(addr));
+	BUG_ON(addr < PAGE_OFFSET);  /* only for kernel LOWMEM */
+	pgd = swapper_pg_dir + pgd_index(addr);
+	pud = pud_offset(pgd, addr);
+	BUG_ON(!pud_present(*pud));
+	pmd = pmd_offset(pud, addr);
+	BUG_ON(!pmd_present(*pmd));
+	if (!pmd_huge_page(*pmd))
+		return;
+
+	/*
+	 * Grab the pgd_lock, since we may need it to walk the pgd_list,
+	 * and since we need some kind of lock here to avoid races.
+	 */
+	spin_lock_irqsave(&pgd_lock, flags);
+	if (!pmd_huge_page(*pmd)) {
+		/* Lost the race to convert the huge page. */
+		spin_unlock_irqrestore(&pgd_lock, flags);
+		return;
+	}
+
+	/* Shatter the huge page into the preallocated L2 page table. */
+	pmd_populate_kernel(&init_mm, pmd,
+			    get_prealloc_pte(pte_pfn(*(pte_t *)pmd)));
+
+#ifdef __PAGETABLE_PMD_FOLDED
+	/* Walk every pgd on the system and update the pmd there. */
+	list_for_each(pos, &pgd_list) {
+		pmd_t *copy_pmd;
+		pgd = list_to_pgd(pos) + pgd_index(addr);
+		pud = pud_offset(pgd, addr);
+		copy_pmd = pmd_offset(pud, addr);
+		__set_pmd(copy_pmd, *pmd);
+	}
+#endif
+
+	/* Tell every cpu to notice the change. */
+	flush_remote(0, 0, NULL, addr, HPAGE_SIZE, HPAGE_SIZE,
+		     cpu_possible_mask, NULL, 0);
+
+	/* Hold the lock until the TLB flush is finished to avoid races. */
+	spin_unlock_irqrestore(&pgd_lock, flags);
+}
+
 /*
  * List of all pgd's needed so it can invalidate entries in both cached
  * and uncached pgd's. This is essentially codepath-based locking
@@ -184,9 +254,9 @@ static void pgd_ctor(pgd_t *pgd)
 	BUG_ON(((u64 *)swapper_pg_dir)[pgd_index(MEM_USER_INTRPT)] != 0);
 #endif
 
-	clone_pgd_range(pgd + KERNEL_PGD_INDEX_START,
-			swapper_pg_dir + KERNEL_PGD_INDEX_START,
-			KERNEL_PGD_PTRS);
+	memcpy(pgd + KERNEL_PGD_INDEX_START,
+	       swapper_pg_dir + KERNEL_PGD_INDEX_START,
+	       KERNEL_PGD_PTRS * sizeof(pgd_t));
 
 	pgd_list_add(pgd);
 	spin_unlock_irqrestore(&pgd_lock, flags);
@@ -220,8 +290,11 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 
 struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
-	gfp_t flags = GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO|__GFP_COMP;
+	gfp_t flags = GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO;
 	struct page *p;
+#if L2_USER_PGTABLE_ORDER > 0
+	int i;
+#endif
 
 #ifdef CONFIG_HIGHPTE
 	flags |= __GFP_HIGHMEM;
@@ -230,6 +303,18 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	p = alloc_pages(flags, L2_USER_PGTABLE_ORDER);
 	if (p == NULL)
 		return NULL;
+
+#if L2_USER_PGTABLE_ORDER > 0
+	/*
+	 * Make every page have a page_count() of one, not just the first.
+	 * We don't use __GFP_COMP since it doesn't look like it works
+	 * correctly with tlb_remove_page().
+	 */
+	for (i = 1; i < L2_USER_PGTABLE_PAGES; ++i) {
+		init_page_count(p+i);
+		inc_zone_page_state(p+i, NR_PAGETABLE);
+	}
+#endif
 
 	pgtable_page_ctor(p);
 	return p;
@@ -242,8 +327,15 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
  */
 void pte_free(struct mm_struct *mm, struct page *p)
 {
+	int i;
+
 	pgtable_page_dtor(p);
-	__free_pages(p, L2_USER_PGTABLE_ORDER);
+	__free_page(p);
+
+	for (i = 1; i < L2_USER_PGTABLE_PAGES; ++i) {
+		__free_page(p+i);
+		dec_zone_page_state(p+i, NR_PAGETABLE);
+	}
 }
 
 void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte,
@@ -252,18 +344,11 @@ void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte,
 	int i;
 
 	pgtable_page_dtor(pte);
-	tlb->need_flush = 1;
-	if (tlb_fast_mode(tlb)) {
-		struct page *pte_pages[L2_USER_PGTABLE_PAGES];
-		for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i)
-			pte_pages[i] = pte + i;
-		free_pages_and_swap_cache(pte_pages, L2_USER_PGTABLE_PAGES);
-		return;
-	}
-	for (i = 0; i < L2_USER_PGTABLE_PAGES; ++i) {
-		tlb->pages[tlb->nr++] = pte + i;
-		if (tlb->nr >= FREE_PTE_NR)
-			tlb_flush_mmu(tlb, 0, 0);
+	tlb_remove_page(tlb, pte);
+
+	for (i = 1; i < L2_USER_PGTABLE_PAGES; ++i) {
+		tlb_remove_page(tlb, pte + i);
+		dec_zone_page_state(pte + i, NR_PAGETABLE);
 	}
 }
 
@@ -346,35 +431,51 @@ int get_remote_cache_cpu(pgprot_t prot)
 	return x + y * smp_width;
 }
 
-void set_pte_order(pte_t *ptep, pte_t pte, int order)
+/*
+ * Convert a kernel VA to a PA and homing information.
+ */
+int va_to_cpa_and_pte(void *va, unsigned long long *cpa, pte_t *pte)
 {
-	unsigned long pfn = pte_pfn(pte);
-	struct page *page = pfn_to_page(pfn);
+	struct page *page = virt_to_page(va);
+	pte_t null_pte = { 0 };
+
+	*cpa = __pa(va);
+
+	/* Note that this is not writing a page table, just returning a pte. */
+	*pte = pte_set_home(null_pte, page_home(page));
+
+	return 0; /* return non-zero if not hfh? */
+}
+EXPORT_SYMBOL(va_to_cpa_and_pte);
+
+void __set_pte(pte_t *ptep, pte_t pte)
+{
+#ifdef __tilegx__
+	*ptep = pte;
+#else
+# if HV_PTE_INDEX_PRESENT >= 32 || HV_PTE_INDEX_MIGRATING >= 32
+#  error Must write the present and migrating bits last
+# endif
+	if (pte_present(pte)) {
+		((u32 *)ptep)[1] = (u32)(pte_val(pte) >> 32);
+		barrier();
+		((u32 *)ptep)[0] = (u32)(pte_val(pte));
+	} else {
+		((u32 *)ptep)[0] = (u32)(pte_val(pte));
+		barrier();
+		((u32 *)ptep)[1] = (u32)(pte_val(pte) >> 32);
+	}
+#endif /* __tilegx__ */
+}
+
+void set_pte(pte_t *ptep, pte_t pte)
+{
+	struct page *page = pfn_to_page(pte_pfn(pte));
 
 	/* Update the home of a PTE if necessary */
 	pte = pte_set_home(pte, page_home(page));
 
-#ifdef __tilegx__
-	*ptep = pte;
-#else
-	/*
-	 * When setting a PTE, write the high bits first, then write
-	 * the low bits.  This sets the "present" bit only after the
-	 * other bits are in place.  If a particular PTE update
-	 * involves transitioning from one valid PTE to another, it
-	 * may be necessary to call set_pte_order() more than once,
-	 * transitioning via a suitable intermediate state.
-	 * Note that this sequence also means that if we are transitioning
-	 * from any migrating PTE to a non-migrating one, we will not
-	 * see a half-updated PTE with the migrating bit off.
-	 */
-#if HV_PTE_INDEX_PRESENT >= 32 || HV_PTE_INDEX_MIGRATING >= 32
-# error Must write the present and migrating bits last
-#endif
-	((u32 *)ptep)[1] = (u32)(pte_val(pte) >> 32);
-	barrier();
-	((u32 *)ptep)[0] = (u32)(pte_val(pte));
-#endif
+	__set_pte(ptep, pte);
 }
 
 /* Can this mm load a PTE with cached_priority set? */

@@ -424,7 +424,7 @@ static u32 ar9170_get_default_phy_reg_val(u32 reg, bool is_2ghz, bool is_40mhz)
 
 /*
  * initialize some phy regs from eeprom values in modal_header[]
- * acc. to band and bandwith
+ * acc. to band and bandwidth
  */
 static int ar9170_init_phy_from_eeprom(struct ar9170 *ar,
 				bool is_2ghz, bool is_40mhz)

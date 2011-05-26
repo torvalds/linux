@@ -302,12 +302,15 @@ static void qeth_issue_ipa_msg(struct qeth_ipa_cmd *cmd, int rc,
 	int com = cmd->hdr.command;
 	ipa_name = qeth_get_ipa_cmd_name(com);
 	if (rc)
-		QETH_DBF_MESSAGE(2, "IPA: %s(x%X) for %s returned x%X \"%s\"\n",
-				ipa_name, com, QETH_CARD_IFNAME(card),
-					rc, qeth_get_ipa_msg(rc));
+		QETH_DBF_MESSAGE(2, "IPA: %s(x%X) for %s/%s returned "
+				"x%X \"%s\"\n",
+				ipa_name, com, dev_name(&card->gdev->dev),
+				QETH_CARD_IFNAME(card), rc,
+				qeth_get_ipa_msg(rc));
 	else
-		QETH_DBF_MESSAGE(5, "IPA: %s(x%X) for %s succeeded\n",
-				ipa_name, com, QETH_CARD_IFNAME(card));
+		QETH_DBF_MESSAGE(5, "IPA: %s(x%X) for %s/%s succeeded\n",
+				ipa_name, com, dev_name(&card->gdev->dev),
+				QETH_CARD_IFNAME(card));
 }
 
 static struct qeth_ipa_cmd *qeth_check_ipa_data(struct qeth_card *card,
@@ -1023,7 +1026,10 @@ static void qeth_init_qdio_info(struct qeth_card *card)
 	atomic_set(&card->qdio.state, QETH_QDIO_UNINITIALIZED);
 	/* inbound */
 	card->qdio.in_buf_size = QETH_IN_BUF_SIZE_DEFAULT;
-	card->qdio.init_pool.buf_count = QETH_IN_BUF_COUNT_DEFAULT;
+	if (card->info.type == QETH_CARD_TYPE_IQD)
+		card->qdio.init_pool.buf_count = QETH_IN_BUF_COUNT_HSDEFAULT;
+	else
+		card->qdio.init_pool.buf_count = QETH_IN_BUF_COUNT_DEFAULT;
 	card->qdio.in_buf_pool.buf_count = card->qdio.init_pool.buf_count;
 	INIT_LIST_HEAD(&card->qdio.in_buf_pool.entry_list);
 	INIT_LIST_HEAD(&card->qdio.init_pool.entry_list);
@@ -1083,7 +1089,6 @@ static int qeth_setup_card(struct qeth_card *card)
 	card->data.state  = CH_STATE_DOWN;
 	card->state = CARD_STATE_DOWN;
 	card->lan_online = 0;
-	card->use_hard_stop = 0;
 	card->read_or_write_problem = 0;
 	card->dev = NULL;
 	spin_lock_init(&card->vlanlock);
@@ -1102,7 +1107,7 @@ static int qeth_setup_card(struct qeth_card *card)
 	INIT_LIST_HEAD(card->ip_tbd_list);
 	INIT_LIST_HEAD(&card->cmd_waiter_list);
 	init_waitqueue_head(&card->wait_q);
-	/* intial options */
+	/* initial options */
 	qeth_set_intial_options(card);
 	/* IP address takeover */
 	INIT_LIST_HEAD(&card->ipato.entries);
@@ -1732,20 +1737,22 @@ int qeth_send_control_data(struct qeth_card *card, int len,
 		};
 	}
 
+	if (reply->rc == -EIO)
+		goto error;
 	rc = reply->rc;
 	qeth_put_reply(reply);
 	return rc;
 
 time_err:
+	reply->rc = -ETIME;
 	spin_lock_irqsave(&reply->card->lock, flags);
 	list_del_init(&reply->list);
 	spin_unlock_irqrestore(&reply->card->lock, flags);
-	reply->rc = -ETIME;
 	atomic_inc(&reply->received);
+error:
 	atomic_set(&card->write.irq_pending, 0);
 	qeth_release_buffer(iob->channel, iob);
 	card->write.buf_no = (card->write.buf_no + 1) % QETH_CMD_BUFFER_NO;
-	wake_up(&reply->wait_q);
 	rc = reply->rc;
 	qeth_put_reply(reply);
 	return rc;
@@ -2490,44 +2497,18 @@ int qeth_send_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 }
 EXPORT_SYMBOL_GPL(qeth_send_ipa_cmd);
 
-static int qeth_send_startstoplan(struct qeth_card *card,
-		enum qeth_ipa_cmds ipacmd, enum qeth_prot_versions prot)
+int qeth_send_startlan(struct qeth_card *card)
 {
 	int rc;
 	struct qeth_cmd_buffer *iob;
 
-	iob = qeth_get_ipacmd_buffer(card, ipacmd, prot);
-	rc = qeth_send_ipa_cmd(card, iob, NULL, NULL);
-
-	return rc;
-}
-
-int qeth_send_startlan(struct qeth_card *card)
-{
-	int rc;
-
 	QETH_DBF_TEXT(SETUP, 2, "strtlan");
 
-	rc = qeth_send_startstoplan(card, IPA_CMD_STARTLAN, 0);
+	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_STARTLAN, 0);
+	rc = qeth_send_ipa_cmd(card, iob, NULL, NULL);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(qeth_send_startlan);
-
-int qeth_send_stoplan(struct qeth_card *card)
-{
-	int rc = 0;
-
-	/*
-	 * TODO: according to the IPA format document page 14,
-	 * TCP/IP (we!) never issue a STOPLAN
-	 * is this right ?!?
-	 */
-	QETH_DBF_TEXT(SETUP, 2, "stoplan");
-
-	rc = qeth_send_startstoplan(card, IPA_CMD_STOPLAN, 0);
-	return rc;
-}
-EXPORT_SYMBOL_GPL(qeth_send_stoplan);
 
 int qeth_default_setadapterparms_cb(struct qeth_card *card,
 		struct qeth_reply *reply, unsigned long data)
@@ -3921,7 +3902,9 @@ static struct ccw_device_id qeth_ids[] = {
 MODULE_DEVICE_TABLE(ccw, qeth_ids);
 
 static struct ccw_driver qeth_ccw_driver = {
-	.name = "qeth",
+	.driver = {
+		.name = "qeth",
+	},
 	.ids = qeth_ids,
 	.probe = ccwgroup_probe_ccwdev,
 	.remove = ccwgroup_remove_ccwdev,
@@ -4447,8 +4430,10 @@ static int qeth_core_restore(struct ccwgroup_device *gdev)
 }
 
 static struct ccwgroup_driver qeth_core_ccwgroup_driver = {
-	.owner = THIS_MODULE,
-	.name = "qeth",
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "qeth",
+	},
 	.driver_id = 0xD8C5E3C8,
 	.probe = qeth_core_probe_device,
 	.remove = qeth_core_remove_device,

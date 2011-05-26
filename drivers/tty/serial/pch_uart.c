@@ -15,12 +15,12 @@
  *Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
  */
 #include <linux/serial_reg.h>
-#include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/serial_core.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/dmi.h>
 
 #include <linux/dmaengine.h>
 #include <linux/pch_dma.h>
@@ -40,10 +40,11 @@ enum {
 
 #define PCH_UART_DRIVER_DEVICE "ttyPCH"
 
-#define PCH_UART_NR_GE_256FIFO		1
-#define PCH_UART_NR_GE_64FIFO		3
-#define PCH_UART_NR_GE	(PCH_UART_NR_GE_256FIFO+PCH_UART_NR_GE_64FIFO)
-#define PCH_UART_NR	PCH_UART_NR_GE
+/* Set the max number of UART port
+ * Intel EG20T PCH: 4 port
+ * OKI SEMICONDUCTOR ML7213 IOH: 3 port
+*/
+#define PCH_UART_NR	4
 
 #define PCH_UART_HANDLED_RX_INT	(1<<((PCH_UART_HANDLED_RX_INT_SHIFT)<<1))
 #define PCH_UART_HANDLED_TX_INT	(1<<((PCH_UART_HANDLED_TX_INT_SHIFT)<<1))
@@ -192,6 +193,8 @@ enum {
 #define PCH_UART_HAL_LOOP		(PCH_UART_MCR_LOOP)
 #define PCH_UART_HAL_AFE		(PCH_UART_MCR_AFE)
 
+#define PCI_VENDOR_ID_ROHM		0x10DB
+
 struct pch_uart_buffer {
 	unsigned char *buf;
 	int size;
@@ -215,6 +218,7 @@ struct eg20t_port {
 	struct pch_uart_buffer rxbuf;
 	unsigned int dmsr;
 	unsigned int fcr;
+	unsigned int mcr;
 	unsigned int use_dma;
 	unsigned int use_dma_flag;
 	struct dma_async_tx_descriptor	*desc_tx;
@@ -223,11 +227,42 @@ struct eg20t_port {
 	struct pch_dma_slave		param_rx;
 	struct dma_chan			*chan_tx;
 	struct dma_chan			*chan_rx;
-	struct scatterlist		sg_tx;
+	struct scatterlist		*sg_tx_p;
+	int				nent;
 	struct scatterlist		sg_rx;
 	int				tx_dma_use;
 	void				*rx_buf_virt;
 	dma_addr_t			rx_buf_dma;
+};
+
+/**
+ * struct pch_uart_driver_data - private data structure for UART-DMA
+ * @port_type:			The number of DMA channel
+ * @line_no:			UART port line number (0, 1, 2...)
+ */
+struct pch_uart_driver_data {
+	int port_type;
+	int line_no;
+};
+
+enum pch_uart_num_t {
+	pch_et20t_uart0 = 0,
+	pch_et20t_uart1,
+	pch_et20t_uart2,
+	pch_et20t_uart3,
+	pch_ml7213_uart0,
+	pch_ml7213_uart1,
+	pch_ml7213_uart2,
+};
+
+static struct pch_uart_driver_data drv_dat[] = {
+	[pch_et20t_uart0] = {PCH_UART_8LINE, 0},
+	[pch_et20t_uart1] = {PCH_UART_2LINE, 1},
+	[pch_et20t_uart2] = {PCH_UART_2LINE, 2},
+	[pch_et20t_uart3] = {PCH_UART_2LINE, 3},
+	[pch_ml7213_uart0] = {PCH_UART_8LINE, 0},
+	[pch_ml7213_uart1] = {PCH_UART_2LINE, 1},
+	[pch_ml7213_uart2] = {PCH_UART_2LINE, 2},
 };
 
 static unsigned int default_baud = 9600;
@@ -278,7 +313,7 @@ static int pch_uart_hal_set_line(struct eg20t_port *priv, int baud,
 
 	div = DIV_ROUND(priv->base_baud / 16, baud);
 	if (div < 0 || USHRT_MAX <= div) {
-		pr_err("Invalid Baud(div=0x%x)\n", div);
+		dev_err(priv->port.dev, "Invalid Baud(div=0x%x)\n", div);
 		return -EINVAL;
 	}
 
@@ -286,17 +321,17 @@ static int pch_uart_hal_set_line(struct eg20t_port *priv, int baud,
 	dlm = ((unsigned int)div >> 8) & 0x00FFU;
 
 	if (parity & ~(PCH_UART_LCR_PEN | PCH_UART_LCR_EPS | PCH_UART_LCR_SP)) {
-		pr_err("Invalid parity(0x%x)\n", parity);
+		dev_err(priv->port.dev, "Invalid parity(0x%x)\n", parity);
 		return -EINVAL;
 	}
 
 	if (bits & ~PCH_UART_LCR_WLS) {
-		pr_err("Invalid bits(0x%x)\n", bits);
+		dev_err(priv->port.dev, "Invalid bits(0x%x)\n", bits);
 		return -EINVAL;
 	}
 
 	if (stb & ~PCH_UART_LCR_STB) {
-		pr_err("Invalid STB(0x%x)\n", stb);
+		dev_err(priv->port.dev, "Invalid STB(0x%x)\n", stb);
 		return -EINVAL;
 	}
 
@@ -304,7 +339,7 @@ static int pch_uart_hal_set_line(struct eg20t_port *priv, int baud,
 	lcr |= bits;
 	lcr |= stb;
 
-	pr_debug("%s:baud = %d, div = %04x, lcr = %02x (%lu)\n",
+	dev_dbg(priv->port.dev, "%s:baud = %d, div = %04x, lcr = %02x (%lu)\n",
 		 __func__, baud, div, lcr, jiffies);
 	iowrite8(PCH_UART_LCR_DLAB, priv->membase + UART_LCR);
 	iowrite8(dll, priv->membase + PCH_UART_DLL);
@@ -318,7 +353,8 @@ static int pch_uart_hal_fifo_reset(struct eg20t_port *priv,
 				    unsigned int flag)
 {
 	if (flag & ~(PCH_UART_FCR_TFR | PCH_UART_FCR_RFR)) {
-		pr_err("%s:Invalid flag(0x%x)\n", __func__, flag);
+		dev_err(priv->port.dev, "%s:Invalid flag(0x%x)\n",
+			__func__, flag);
 		return -EINVAL;
 	}
 
@@ -337,17 +373,20 @@ static int pch_uart_hal_set_fifo(struct eg20t_port *priv,
 	u8 fcr;
 
 	if (dmamode & ~PCH_UART_FCR_DMS) {
-		pr_err("%s:Invalid DMA Mode(0x%x)\n", __func__, dmamode);
+		dev_err(priv->port.dev, "%s:Invalid DMA Mode(0x%x)\n",
+			__func__, dmamode);
 		return -EINVAL;
 	}
 
 	if (fifo_size & ~(PCH_UART_FCR_FIFOE | PCH_UART_FCR_FIFO256)) {
-		pr_err("%s:Invalid FIFO SIZE(0x%x)\n", __func__, fifo_size);
+		dev_err(priv->port.dev, "%s:Invalid FIFO SIZE(0x%x)\n",
+			__func__, fifo_size);
 		return -EINVAL;
 	}
 
 	if (trigger & ~PCH_UART_FCR_RFTL) {
-		pr_err("%s:Invalid TRIGGER(0x%x)\n", __func__, trigger);
+		dev_err(priv->port.dev, "%s:Invalid TRIGGER(0x%x)\n",
+			__func__, trigger);
 		return -EINVAL;
 	}
 
@@ -386,7 +425,7 @@ static u8 pch_uart_hal_get_modem(struct eg20t_port *priv)
 	return get_msr(priv, priv->membase);
 }
 
-static int pch_uart_hal_write(struct eg20t_port *priv,
+static void pch_uart_hal_write(struct eg20t_port *priv,
 			      const unsigned char *buf, int tx_size)
 {
 	int i;
@@ -396,7 +435,6 @@ static int pch_uart_hal_write(struct eg20t_port *priv,
 		thr = buf[i++];
 		iowrite8(thr, priv->membase + PCH_UART_THR);
 	}
-	return i;
 }
 
 static int pch_uart_hal_read(struct eg20t_port *priv, unsigned char *buf,
@@ -452,7 +490,7 @@ static int push_rx(struct eg20t_port *priv, const unsigned char *buf,
 	port = &priv->port;
 	tty = tty_port_tty_get(&port->state->port);
 	if (!tty) {
-		pr_debug("%s:tty is busy now", __func__);
+		dev_dbg(priv->port.dev, "%s:tty is busy now", __func__);
 		return -EBUSY;
 	}
 
@@ -469,8 +507,8 @@ static int pop_tx_x(struct eg20t_port *priv, unsigned char *buf)
 	struct uart_port *port = &priv->port;
 
 	if (port->x_char) {
-		pr_debug("%s:X character send %02x (%lu)\n", __func__,
-			port->x_char, jiffies);
+		dev_dbg(priv->port.dev, "%s:X character send %02x (%lu)\n",
+			__func__, port->x_char, jiffies);
 		buf[0] = port->x_char;
 		port->x_char = 0;
 		ret = 1;
@@ -490,7 +528,7 @@ static int dma_push_rx(struct eg20t_port *priv, int size)
 	port = &priv->port;
 	tty = tty_port_tty_get(&port->state->port);
 	if (!tty) {
-		pr_debug("%s:tty is busy now", __func__);
+		dev_dbg(priv->port.dev, "%s:tty is busy now", __func__);
 		return 0;
 	}
 
@@ -560,11 +598,13 @@ static void pch_request_dma(struct uart_port *port)
 	/* Set Tx DMA */
 	param = &priv->param_tx;
 	param->dma_dev = &dma_dev->dev;
-	param->chan_id = priv->port.line;
+	param->chan_id = priv->port.line * 2; /* Tx = 0, 2, 4, ... */
+
 	param->tx_reg = port->mapbase + UART_TX;
 	chan = dma_request_channel(mask, filter, param);
 	if (!chan) {
-		pr_err("%s:dma_request_channel FAILS(Tx)\n", __func__);
+		dev_err(priv->port.dev, "%s:dma_request_channel FAILS(Tx)\n",
+			__func__);
 		return;
 	}
 	priv->chan_tx = chan;
@@ -572,11 +612,13 @@ static void pch_request_dma(struct uart_port *port)
 	/* Set Rx DMA */
 	param = &priv->param_rx;
 	param->dma_dev = &dma_dev->dev;
-	param->chan_id = priv->port.line + 1; /* Rx = Tx + 1 */
+	param->chan_id = priv->port.line * 2 + 1; /* Rx = Tx + 1 */
+
 	param->rx_reg = port->mapbase + UART_RX;
 	chan = dma_request_channel(mask, filter, param);
 	if (!chan) {
-		pr_err("%s:dma_request_channel FAILS(Rx)\n", __func__);
+		dev_err(priv->port.dev, "%s:dma_request_channel FAILS(Rx)\n",
+			__func__);
 		dma_release_channel(priv->chan_tx);
 		return;
 	}
@@ -592,16 +634,20 @@ static void pch_dma_rx_complete(void *arg)
 	struct eg20t_port *priv = arg;
 	struct uart_port *port = &priv->port;
 	struct tty_struct *tty = tty_port_tty_get(&port->state->port);
+	int count;
 
 	if (!tty) {
-		pr_debug("%s:tty is busy now", __func__);
+		dev_dbg(priv->port.dev, "%s:tty is busy now", __func__);
 		return;
 	}
 
-	if (dma_push_rx(priv, priv->trigger_level))
+	dma_sync_sg_for_cpu(port->dev, &priv->sg_rx, 1, DMA_FROM_DEVICE);
+	count = dma_push_rx(priv, priv->trigger_level);
+	if (count)
 		tty_flip_buffer_push(tty);
-
 	tty_kref_put(tty);
+	async_tx_ack(priv->desc_rx);
+	pch_uart_hal_enable_interrupt(priv, PCH_UART_HAL_RX_INT);
 }
 
 static void pch_dma_tx_complete(void *arg)
@@ -609,16 +655,23 @@ static void pch_dma_tx_complete(void *arg)
 	struct eg20t_port *priv = arg;
 	struct uart_port *port = &priv->port;
 	struct circ_buf *xmit = &port->state->xmit;
+	struct scatterlist *sg = priv->sg_tx_p;
+	int i;
 
-	xmit->tail += sg_dma_len(&priv->sg_tx);
+	for (i = 0; i < priv->nent; i++, sg++) {
+		xmit->tail += sg_dma_len(sg);
+		port->icount.tx += sg_dma_len(sg);
+	}
 	xmit->tail &= UART_XMIT_SIZE - 1;
-	port->icount.tx += sg_dma_len(&priv->sg_tx);
-
 	async_tx_ack(priv->desc_tx);
+	dma_unmap_sg(port->dev, sg, priv->nent, DMA_TO_DEVICE);
 	priv->tx_dma_use = 0;
+	priv->nent = 0;
+	kfree(priv->sg_tx_p);
+	pch_uart_hal_enable_interrupt(priv, PCH_UART_HAL_TX_INT);
 }
 
-static int pop_tx(struct eg20t_port *priv, unsigned char *buf, int size)
+static int pop_tx(struct eg20t_port *priv, int size)
 {
 	int count = 0;
 	struct uart_port *port = &priv->port;
@@ -631,13 +684,13 @@ static int pop_tx(struct eg20t_port *priv, unsigned char *buf, int size)
 		int cnt_to_end =
 		    CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 		int sz = min(size - count, cnt_to_end);
-		memcpy(&buf[count], &xmit->buf[xmit->tail], sz);
+		pch_uart_hal_write(priv, &xmit->buf[xmit->tail], sz);
 		xmit->tail = (xmit->tail + sz) & (UART_XMIT_SIZE - 1);
 		count += sz;
 	} while (!uart_circ_empty(xmit) && count < size);
 
 pop_tx_end:
-	pr_debug("%d characters. Remained %d characters. (%lu)\n",
+	dev_dbg(priv->port.dev, "%d characters. Remained %d characters.(%lu)\n",
 		 count, size - count, jiffies);
 
 	return count;
@@ -679,7 +732,7 @@ static int dma_handle_rx(struct eg20t_port *priv)
 
 	sg_init_table(&priv->sg_rx, 1); /* Initialize SG table */
 
-	sg_dma_len(sg) = priv->fifo_size;
+	sg_dma_len(sg) = priv->trigger_level;
 
 	sg_set_page(&priv->sg_rx, virt_to_page(priv->rx_buf_virt),
 		     sg_dma_len(sg), (unsigned long)priv->rx_buf_virt &
@@ -689,7 +742,8 @@ static int dma_handle_rx(struct eg20t_port *priv)
 
 	desc = priv->chan_rx->device->device_prep_slave_sg(priv->chan_rx,
 			sg, 1, DMA_FROM_DEVICE,
-			DMA_PREP_INTERRUPT);
+			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+
 	if (!desc)
 		return 0;
 
@@ -706,14 +760,14 @@ static unsigned int handle_tx(struct eg20t_port *priv)
 {
 	struct uart_port *port = &priv->port;
 	struct circ_buf *xmit = &port->state->xmit;
-	int ret;
 	int fifo_size;
 	int tx_size;
 	int size;
 	int tx_empty;
 
 	if (!priv->start_tx) {
-		pr_info("%s:Tx isn't started. (%lu)\n", __func__, jiffies);
+		dev_info(priv->port.dev, "%s:Tx isn't started. (%lu)\n",
+			__func__, jiffies);
 		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
 		priv->tx_empty = 1;
 		return 0;
@@ -728,17 +782,21 @@ static unsigned int handle_tx(struct eg20t_port *priv)
 		fifo_size--;
 	}
 	size = min(xmit->head - xmit->tail, fifo_size);
-	tx_size = pop_tx(priv, xmit->buf, size);
+	if (size < 0)
+		size = fifo_size;
+
+	tx_size = pop_tx(priv, size);
 	if (tx_size > 0) {
-		ret = pch_uart_hal_write(priv, xmit->buf, tx_size);
-		port->icount.tx += ret;
+		port->icount.tx += tx_size;
 		tx_empty = 0;
 	}
 
 	priv->tx_empty = tx_empty;
 
-	if (tx_empty)
+	if (tx_empty) {
 		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
+		uart_write_wakeup(port);
+	}
 
 	return PCH_UART_HANDLED_TX_INT;
 }
@@ -747,14 +805,28 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 {
 	struct uart_port *port = &priv->port;
 	struct circ_buf *xmit = &port->state->xmit;
-	struct scatterlist *sg = &priv->sg_tx;
+	struct scatterlist *sg;
 	int nent;
 	int fifo_size;
 	int tx_empty;
 	struct dma_async_tx_descriptor *desc;
+	int num;
+	int i;
+	int bytes;
+	int size;
+	int rem;
 
 	if (!priv->start_tx) {
-		pr_info("%s:Tx isn't started. (%lu)\n", __func__, jiffies);
+		dev_info(priv->port.dev, "%s:Tx isn't started. (%lu)\n",
+			__func__, jiffies);
+		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
+		priv->tx_empty = 1;
+		return 0;
+	}
+
+	if (priv->tx_dma_use) {
+		dev_dbg(priv->port.dev, "%s:Tx is not completed. (%lu)\n",
+			__func__, jiffies);
 		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
 		priv->tx_empty = 1;
 		return 0;
@@ -769,37 +841,73 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 		fifo_size--;
 	}
 
-	pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
+	bytes = min((int)CIRC_CNT(xmit->head, xmit->tail,
+			     UART_XMIT_SIZE), CIRC_CNT_TO_END(xmit->head,
+			     xmit->tail, UART_XMIT_SIZE));
+	if (!bytes) {
+		dev_dbg(priv->port.dev, "%s 0 bytes return\n", __func__);
+		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
+		uart_write_wakeup(port);
+		return 0;
+	}
+
+	if (bytes > fifo_size) {
+		num = bytes / fifo_size + 1;
+		size = fifo_size;
+		rem = bytes % fifo_size;
+	} else {
+		num = 1;
+		size = bytes;
+		rem = bytes;
+	}
+
+	dev_dbg(priv->port.dev, "%s num=%d size=%d rem=%d\n",
+		__func__, num, size, rem);
 
 	priv->tx_dma_use = 1;
 
-	sg_init_table(&priv->sg_tx, 1); /* Initialize SG table */
+	priv->sg_tx_p = kzalloc(sizeof(struct scatterlist)*num, GFP_ATOMIC);
 
-	sg_set_page(&priv->sg_tx, virt_to_page(xmit->buf),
-		    UART_XMIT_SIZE, (int)xmit->buf & ~PAGE_MASK);
+	sg_init_table(priv->sg_tx_p, num); /* Initialize SG table */
+	sg = priv->sg_tx_p;
 
-	nent = dma_map_sg(port->dev, &priv->sg_tx, 1, DMA_TO_DEVICE);
-	if (!nent) {
-		pr_err("%s:dma_map_sg Failed\n", __func__);
-		return 0;
+	for (i = 0; i < num; i++, sg++) {
+		if (i == (num - 1))
+			sg_set_page(sg, virt_to_page(xmit->buf),
+				    rem, fifo_size * i);
+		else
+			sg_set_page(sg, virt_to_page(xmit->buf),
+				    size, fifo_size * i);
 	}
 
-	sg->offset = xmit->tail & (UART_XMIT_SIZE - 1);
-	sg_dma_address(sg) = (sg_dma_address(sg) & ~(UART_XMIT_SIZE - 1)) +
-			      sg->offset;
-	sg_dma_len(sg) = min((int)CIRC_CNT(xmit->head, xmit->tail,
-			     UART_XMIT_SIZE), CIRC_CNT_TO_END(xmit->head,
-			     xmit->tail, UART_XMIT_SIZE));
+	sg = priv->sg_tx_p;
+	nent = dma_map_sg(port->dev, sg, num, DMA_TO_DEVICE);
+	if (!nent) {
+		dev_err(priv->port.dev, "%s:dma_map_sg Failed\n", __func__);
+		return 0;
+	}
+	priv->nent = nent;
+
+	for (i = 0; i < nent; i++, sg++) {
+		sg->offset = (xmit->tail & (UART_XMIT_SIZE - 1)) +
+			      fifo_size * i;
+		sg_dma_address(sg) = (sg_dma_address(sg) &
+				    ~(UART_XMIT_SIZE - 1)) + sg->offset;
+		if (i == (nent - 1))
+			sg_dma_len(sg) = rem;
+		else
+			sg_dma_len(sg) = size;
+	}
 
 	desc = priv->chan_tx->device->device_prep_slave_sg(priv->chan_tx,
-		sg, nent, DMA_TO_DEVICE, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+					priv->sg_tx_p, nent, DMA_TO_DEVICE,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
-		pr_err("%s:device_prep_slave_sg Failed\n", __func__);
+		dev_err(priv->port.dev, "%s:device_prep_slave_sg Failed\n",
+			__func__);
 		return 0;
 	}
-
-	dma_sync_sg_for_device(port->dev, sg, 1, DMA_TO_DEVICE);
-
+	dma_sync_sg_for_device(port->dev, priv->sg_tx_p, nent, DMA_TO_DEVICE);
 	priv->desc_tx = desc;
 	desc->callback = pch_dma_tx_complete;
 	desc->callback_param = priv;
@@ -854,10 +962,16 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 			}
 			break;
 		case PCH_UART_IID_RDR:	/* Received Data Ready */
-			if (priv->use_dma)
+			if (priv->use_dma) {
+				pch_uart_hal_disable_interrupt(priv,
+							PCH_UART_HAL_RX_INT);
 				ret = dma_handle_rx(priv);
-			else
+				if (!ret)
+					pch_uart_hal_enable_interrupt(priv,
+							PCH_UART_HAL_RX_INT);
+			} else {
 				ret = handle_rx(priv);
+			}
 			break;
 		case PCH_UART_IID_RDR_TO:	/* Received Data Ready
 						   (FIFO Timeout) */
@@ -874,7 +988,8 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 			ret = PCH_UART_HANDLED_MS_INT;
 			break;
 		default:	/* Never junp to this label */
-			pr_err("%s:iid=%d (%lu)\n", __func__, iid, jiffies);
+			dev_err(priv->port.dev, "%s:iid=%d (%lu)\n", __func__,
+				iid, jiffies);
 			ret = -1;
 			break;
 		}
@@ -932,7 +1047,6 @@ static unsigned int pch_uart_get_mctrl(struct uart_port *port)
 static void pch_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	u32 mcr = 0;
-	unsigned int dat;
 	struct eg20t_port *priv = container_of(port, struct eg20t_port, port);
 
 	if (mctrl & TIOCM_DTR)
@@ -942,11 +1056,11 @@ static void pch_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	if (mctrl & TIOCM_LOOP)
 		mcr |= UART_MCR_LOOP;
 
-	if (mctrl) {
-		dat = pch_uart_get_mctrl(port);
-		dat |= mcr;
-		iowrite8(dat, priv->membase + UART_MCR);
-	}
+	if (priv->mcr & UART_MCR_AFE)
+		mcr |= UART_MCR_AFE;
+
+	if (mctrl)
+		iowrite8(mcr, priv->membase + UART_MCR);
 }
 
 static void pch_uart_stop_tx(struct uart_port *port)
@@ -963,9 +1077,13 @@ static void pch_uart_start_tx(struct uart_port *port)
 
 	priv = container_of(port, struct eg20t_port, port);
 
-	if (priv->use_dma)
-		if (priv->tx_dma_use)
+	if (priv->use_dma) {
+		if (priv->tx_dma_use) {
+			dev_dbg(priv->port.dev, "%s : Tx DMA is NOT empty.\n",
+				__func__);
 			return;
+		}
+	}
 
 	priv->start_tx = 1;
 	pch_uart_hal_enable_interrupt(priv, PCH_UART_HAL_TX_INT);
@@ -1010,7 +1128,12 @@ static int pch_uart_startup(struct uart_port *port)
 
 	priv = container_of(port, struct eg20t_port, port);
 	priv->tx_empty = 1;
-	port->uartclk = priv->base_baud;
+
+	if (port->uartclk)
+		priv->base_baud = port->uartclk;
+	else
+		port->uartclk = priv->base_baud;
+
 	pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_ALL_INT);
 	ret = pch_uart_hal_set_line(priv, default_baud,
 			      PCH_UART_HAL_PARITY_NONE, PCH_UART_HAL_8BIT,
@@ -1081,7 +1204,8 @@ static void pch_uart_shutdown(struct uart_port *port)
 	ret = pch_uart_hal_set_fifo(priv, PCH_UART_HAL_DMA_MODE0,
 			      PCH_UART_HAL_FIFO_DIS, PCH_UART_HAL_TRIGGER1);
 	if (ret)
-		pr_err("pch_uart_hal_set_fifo Failed(ret=%d)\n", ret);
+		dev_err(priv->port.dev,
+			"pch_uart_hal_set_fifo Failed(ret=%d)\n", ret);
 
 	if (priv->use_dma_flag)
 		pch_free_dma(port);
@@ -1130,6 +1254,13 @@ static void pch_uart_set_termios(struct uart_port *port,
 	} else {
 		parity = PCH_UART_HAL_PARITY_NONE;
 	}
+
+	/* Only UART0 has auto hardware flow function */
+	if ((termios->c_cflag & CRTSCTS) && (priv->fifo_size == 256))
+		priv->mcr |= UART_MCR_AFE;
+	else
+		priv->mcr &= ~UART_MCR_AFE;
+
 	termios->c_cflag &= ~CMSPAR; /* Mark/Space parity is not supported */
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
@@ -1202,17 +1333,19 @@ static int pch_uart_verify_port(struct uart_port *port,
 
 	priv = container_of(port, struct eg20t_port, port);
 	if (serinfo->flags & UPF_LOW_LATENCY) {
-		pr_info("PCH UART : Use PIO Mode (without DMA)\n");
+		dev_info(priv->port.dev,
+			"PCH UART : Use PIO Mode (without DMA)\n");
 		priv->use_dma = 0;
 		serinfo->flags &= ~UPF_LOW_LATENCY;
 	} else {
 #ifndef CONFIG_PCH_DMA
-		pr_err("%s : PCH DMA is not Loaded.\n", __func__);
+		dev_err(priv->port.dev, "%s : PCH DMA is not Loaded.\n",
+			__func__);
 		return -EOPNOTSUPP;
 #endif
 		priv->use_dma = 1;
 		priv->use_dma_flag = 1;
-		pr_info("PCH UART : Use DMA Mode\n");
+		dev_info(priv->port.dev, "PCH UART : Use DMA Mode\n");
 	}
 
 	return 0;
@@ -1249,7 +1382,7 @@ static struct uart_driver pch_uart_driver = {
 };
 
 static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
-						int port_type)
+					     const struct pci_device_id *id)
 {
 	struct eg20t_port *priv;
 	int ret;
@@ -1257,7 +1390,11 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	unsigned int mapbase;
 	unsigned char *rxbuf;
 	int fifosize, base_baud;
-	static int num;
+	int port_type;
+	struct pch_uart_driver_data *board;
+
+	board = &drv_dat[id->driver_data];
+	port_type = board->port_type;
 
 	priv = kzalloc(sizeof(struct eg20t_port), GFP_KERNEL);
 	if (priv == NULL)
@@ -1267,14 +1404,18 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	if (!rxbuf)
 		goto init_port_free_txbuf;
 
+	base_baud = 1843200; /* 1.8432MHz */
+
+	/* quirk for CM-iTC board */
+	if (strstr(dmi_get_system_info(DMI_BOARD_NAME), "CM-iTC"))
+		base_baud = 192000000; /* 192.0MHz */
+
 	switch (port_type) {
 	case PORT_UNKNOWN:
-		fifosize = 256; /* UART0 */
-		base_baud = 1843200; /* 1.8432MHz */
+		fifosize = 256; /* EG20T/ML7213: UART0 */
 		break;
 	case PORT_8250:
-		fifosize = 64; /* UART1~3 */
-		base_baud = 1843200; /* 1.8432MHz */
+		fifosize = 64; /* EG20T:UART1~3  ML7213: UART1~2*/
 		break;
 	default:
 		dev_err(&pdev->dev, "Invalid Port Type(=%d)\n", port_type);
@@ -1302,11 +1443,14 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	priv->port.ops = &pch_uart_ops;
 	priv->port.flags = UPF_BOOT_AUTOCONF;
 	priv->port.fifosize = fifosize;
-	priv->port.line = num++;
+	priv->port.line = board->line_no;
 	priv->trigger = PCH_UART_HAL_TRIGGER_M;
+
+	spin_lock_init(&priv->port.lock);
 
 	pci_set_drvdata(pdev, priv);
 	pch_uart_hal_request(pdev, fifosize, base_baud);
+
 	ret = uart_add_one_port(&pch_uart_driver, &priv->port);
 	if (ret < 0)
 		goto init_port_hal_free;
@@ -1377,13 +1521,19 @@ static int pch_uart_pci_resume(struct pci_dev *pdev)
 
 static DEFINE_PCI_DEVICE_TABLE(pch_uart_pci_id) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8811),
-	 .driver_data = PCH_UART_8LINE},
+	 .driver_data = pch_et20t_uart0},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8812),
-	 .driver_data = PCH_UART_2LINE},
+	 .driver_data = pch_et20t_uart1},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8813),
-	 .driver_data = PCH_UART_2LINE},
+	 .driver_data = pch_et20t_uart2},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8814),
-	 .driver_data = PCH_UART_2LINE},
+	 .driver_data = pch_et20t_uart3},
+	{PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8027),
+	 .driver_data = pch_ml7213_uart0},
+	{PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8028),
+	 .driver_data = pch_ml7213_uart1},
+	{PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8029),
+	 .driver_data = pch_ml7213_uart2},
 	{0,},
 };
 
@@ -1397,7 +1547,7 @@ static int __devinit pch_uart_pci_probe(struct pci_dev *pdev,
 	if (ret < 0)
 		goto probe_error;
 
-	priv = pch_uart_init_port(pdev, id->driver_data);
+	priv = pch_uart_init_port(pdev, id);
 	if (!priv) {
 		ret = -EBUSY;
 		goto probe_disable_device;

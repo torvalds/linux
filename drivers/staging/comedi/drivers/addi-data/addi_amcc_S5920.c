@@ -59,7 +59,7 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 /*+----------------------------------------------------------------------------+*/
 /*| Input Parameters  : int    i_NbOfWordsToRead : Nbr. of word to read        |*/
 /*|                     unsigned int dw_PCIBoardEepromAddress : Address of the eeprom |*/
-/*|                     unsigned short   w_EepromStartAddress : Eeprom strat address     |*/
+/*|                     unsigned short   w_EepromStartAddress : Eeprom start address     |*/
 /*+----------------------------------------------------------------------------+*/
 /*| Output Parameters : unsigned short * pw_DataRead : Read data                          |*/
 /*+----------------------------------------------------------------------------+*/

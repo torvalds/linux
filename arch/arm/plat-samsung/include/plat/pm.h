@@ -52,12 +52,10 @@ extern unsigned char pm_uart_udivslot;  /* true to save UART UDIVSLOT */
 
 /* from sleep.S */
 
-extern int  s3c_cpu_save(unsigned long *saveblk);
+extern int  s3c_cpu_save(unsigned long *saveblk, long);
 extern void s3c_cpu_resume(void);
 
 extern void s3c2410_cpu_suspend(void);
-
-extern unsigned long s3c_sleep_save_phys;
 
 /* sleep save info */
 
@@ -180,14 +178,6 @@ extern void s3c_pm_restore_gpios(void);
  * Save the GPIO states for resotration on resume. See s3c_pm_restore_gpios().
  */
 extern void s3c_pm_save_gpios(void);
-
-/**
- * s3c_pm_cb_flushcache - callback for assembly code
- *
- * Callback to issue flush_cache_all() as this call is
- * not a directly callable object.
- */
-extern void s3c_pm_cb_flushcache(void);
 
 extern void s3c_pm_save_core(void);
 extern void s3c_pm_restore_core(void);

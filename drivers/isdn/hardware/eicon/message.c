@@ -2639,7 +2639,7 @@ static byte connect_b3_req(dword Id, word Number, DIVA_CAPI_ADAPTER *a,
     }
     else
     {
-      /* local reply if assign unsuccessfull
+      /* local reply if assign unsuccessful
          or B3 protocol allows only one layer 3 connection
            and already connected
              or B2 protocol not any LAPD
@@ -8189,7 +8189,7 @@ static word add_b23(PLCI *plci, API_PARSE *bp)
       dlc[ 0] = 15;
       if(b2_config->length >= 8) { /* PIAFS control abilities */
         dlc[ 7] = 10; 
-        dlc[16] = 2; /* Length of PIAFS extention */
+        dlc[16] = 2; /* Length of PIAFS extension */
         dlc[17] = PIAFS_UDATA_ABILITIES; /* control (UDATA) ability */
         dlc[18] = b2_config_parms[4].info[0]; /* value */
         dlc[ 0] = 18;

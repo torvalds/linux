@@ -252,7 +252,7 @@ static struct regulator_init_data cam_data = {
 	.consumer_supplies = cam_consumers,
 };
 
-static struct mc13783_regulator_init_data pcm038_regulators[] = {
+static struct mc13xxx_regulator_init_data pcm038_regulators[] = {
 	{
 		.id = MC13783_REG_VCAM,
 		.init_data = &cam_data,
@@ -262,9 +262,11 @@ static struct mc13783_regulator_init_data pcm038_regulators[] = {
 	},
 };
 
-static struct mc13783_platform_data pcm038_pmic = {
-	.regulators = pcm038_regulators,
-	.num_regulators = ARRAY_SIZE(pcm038_regulators),
+static struct mc13xxx_platform_data pcm038_pmic = {
+	.regulators = {
+		.regulators = pcm038_regulators,
+		.num_regulators = ARRAY_SIZE(pcm038_regulators),
+	},
 	.flags = MC13783_USE_ADC | MC13783_USE_REGULATOR |
 		 MC13783_USE_TOUCHSCREEN,
 };
@@ -281,9 +283,15 @@ static struct spi_board_info pcm038_spi_board_info[] __initdata = {
 	}
 };
 
+static int pcm038_usbh2_init(struct platform_device *pdev)
+{
+	return mx27_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED |
+			MXC_EHCI_INTERFACE_DIFF_UNI);
+}
+
 static const struct mxc_usbh_platform_data usbh2_pdata __initconst = {
+	.init	= pcm038_usbh2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
 static void __init pcm038_init(void)
@@ -340,9 +348,10 @@ static struct sys_timer pcm038_timer = {
 };
 
 MACHINE_START(PCM038, "phyCORE-i.MX27")
-	.boot_params    = MX27_PHYS_OFFSET + 0x100,
-	.map_io         = mx27_map_io,
-	.init_irq       = mx27_init_irq,
-	.init_machine   = pcm038_init,
-	.timer          = &pcm038_timer,
+	.boot_params = MX27_PHYS_OFFSET + 0x100,
+	.map_io = mx27_map_io,
+	.init_early = imx27_init_early,
+	.init_irq = mx27_init_irq,
+	.timer = &pcm038_timer,
+	.init_machine = pcm038_init,
 MACHINE_END

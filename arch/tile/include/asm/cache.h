@@ -40,7 +40,7 @@
 #define INTERNODE_CACHE_BYTES   L2_CACHE_BYTES
 
 /* Group together read-mostly things to avoid cache false sharing */
-#define __read_mostly __attribute__((__section__(".data.read_mostly")))
+#define __read_mostly __attribute__((__section__(".data..read_mostly")))
 
 /*
  * Attribute for data that is kept read/write coherent until the end of

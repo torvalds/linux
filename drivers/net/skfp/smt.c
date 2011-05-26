@@ -219,7 +219,7 @@ void smt_emulate_token_ct(struct s_smc *smc, int mac_index)
 
 	/*
 	 * Only when ring is up we will have a token count. The
-	 * flag is unfortunatly a single instance value. This
+	 * flag is unfortunately a single instance value. This
 	 * doesn't matter now, because we currently have only
 	 * one MAC instance.
 	 */

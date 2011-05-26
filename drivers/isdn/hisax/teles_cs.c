@@ -9,7 +9,7 @@
     Also inspired by ELSA PCMCIA driver 
     by Klaus Lichtenwalder <Lichtenwalder@ACM.org>
     
-    Extentions to new hisax_pcmcia by Karsten Keil
+    Extensions to new hisax_pcmcia by Karsten Keil
 
     minor changes to be compatible with kernel 2.4.x
     by Jan.Schubert@GMX.li

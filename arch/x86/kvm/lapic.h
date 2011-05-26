@@ -13,7 +13,6 @@ struct kvm_lapic {
 	u32 divide_count;
 	struct kvm_vcpu *vcpu;
 	bool irr_pending;
-	struct page *regs_page;
 	void *regs;
 	gpa_t vapic_addr;
 	struct page *vapic_page;

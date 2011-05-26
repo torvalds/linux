@@ -21,6 +21,7 @@
 #include "meta_io.h"
 #include "quota.h"
 #include "rgrp.h"
+#include "super.h"
 #include "trans.h"
 #include "dir.h"
 #include "util.h"
@@ -757,7 +758,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrp_list rlist;
 	u64 bn, bstart;
-	u32 blen;
+	u32 blen, btotal;
 	__be64 *p;
 	unsigned int rg_blocks = 0;
 	int metadata;
@@ -839,6 +840,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 
 	bstart = 0;
 	blen = 0;
+	btotal = 0;
 
 	for (p = top; p < bottom; p++) {
 		if (!*p)
@@ -851,9 +853,11 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 		else {
 			if (bstart) {
 				if (metadata)
-					gfs2_free_meta(ip, bstart, blen);
+					__gfs2_free_meta(ip, bstart, blen);
 				else
-					gfs2_free_data(ip, bstart, blen);
+					__gfs2_free_data(ip, bstart, blen);
+
+				btotal += blen;
 			}
 
 			bstart = bn;
@@ -865,10 +869,16 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	}
 	if (bstart) {
 		if (metadata)
-			gfs2_free_meta(ip, bstart, blen);
+			__gfs2_free_meta(ip, bstart, blen);
 		else
-			gfs2_free_data(ip, bstart, blen);
+			__gfs2_free_data(ip, bstart, blen);
+
+		btotal += blen;
 	}
+
+	gfs2_statfs_change(sdp, 0, +btotal, 0);
+	gfs2_quota_change(ip, -(s64)btotal, ip->i_inode.i_uid,
+			  ip->i_inode.i_gid);
 
 	ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 
@@ -1126,7 +1136,7 @@ void gfs2_trim_blocks(struct inode *inode)
  * earlier versions of GFS2 have a bug in the stuffed file reading
  * code which will result in a buffer overrun if the size is larger
  * than the max stuffed file size. In order to prevent this from
- * occuring, such files are unstuffed, but in other cases we can
+ * occurring, such files are unstuffed, but in other cases we can
  * just update the inode size directly.
  *
  * Returns: 0 on success, or -ve on error

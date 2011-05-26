@@ -255,7 +255,7 @@ static unsigned int ir_update_mapping(struct rc_dev *dev,
  * @rc_map:	scancode table to be searched
  * @scancode:	the desired scancode
  * @resize:	controls whether we allowed to resize the table to
- *		accomodate not yet present scancodes
+ *		accommodate not yet present scancodes
  * @return:	index of the mapping containing scancode in question
  *		or -1U in case of failure.
  *
@@ -707,7 +707,8 @@ static void ir_close(struct input_dev *idev)
 {
 	struct rc_dev *rdev = input_get_drvdata(idev);
 
-	rdev->close(rdev);
+	 if (rdev)
+		rdev->close(rdev);
 }
 
 /* class for /sys/class/rc */
@@ -733,6 +734,7 @@ static struct {
 	{ RC_TYPE_SONY,		"sony"		},
 	{ RC_TYPE_RC5_SZ,	"rc-5-sz"	},
 	{ RC_TYPE_LIRC,		"lirc"		},
+	{ RC_TYPE_OTHER,	"other"		},
 };
 
 #define PROTO_NONE	"none"
@@ -850,7 +852,7 @@ static ssize_t store_protocols(struct device *device,
 			count++;
 		} else {
 			for (i = 0; i < ARRAY_SIZE(proto_names); i++) {
-				if (!strncasecmp(tmp, proto_names[i].name, strlen(proto_names[i].name))) {
+				if (!strcasecmp(tmp, proto_names[i].name)) {
 					tmp += strlen(proto_names[i].name);
 					mask = proto_names[i].type;
 					break;
@@ -966,8 +968,8 @@ struct rc_dev *rc_allocate_device(void)
 		return NULL;
 	}
 
-	dev->input_dev->getkeycode_new = ir_getkeycode;
-	dev->input_dev->setkeycode_new = ir_setkeycode;
+	dev->input_dev->getkeycode = ir_getkeycode;
+	dev->input_dev->setkeycode = ir_setkeycode;
 	input_set_drvdata(dev->input_dev, dev);
 
 	spin_lock_init(&dev->rc_map.lock);
@@ -1037,7 +1039,7 @@ int rc_register_device(struct rc_dev *dev)
 		goto out_table;
 
 	/*
-	 * Default delay of 250ms is too short for some protocols, expecially
+	 * Default delay of 250ms is too short for some protocols, especially
 	 * since the timeout is currently set to 250ms. Increase it to 500ms,
 	 * to avoid wrong repetition of the keycodes. Note that this must be
 	 * set after the call to input_register_device().

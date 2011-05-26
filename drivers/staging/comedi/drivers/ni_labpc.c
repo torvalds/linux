@@ -183,11 +183,11 @@ NI manuals:
 #define   OVERRUN_BIT	0x2
 /* fifo overflow */
 #define   OVERFLOW_BIT	0x4
-/* timer interrupt has occured */
+/* timer interrupt has occurred */
 #define   TIMER_BIT	0x8
-/* dma terminal count has occured */
+/* dma terminal count has occurred */
 #define   DMATC_BIT	0x10
-/* external trigger has occured */
+/* external trigger has occurred */
 #define   EXT_TRIG_BIT	0x40
 /* 1200 boards only */
 #define STATUS2_REG	0x1d
@@ -797,8 +797,7 @@ int labpc_common_detach(struct comedi_device *dev)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
 
 	/* only free stuff if it has been allocated by _attach */
-	if (devpriv->dma_buffer)
-		kfree(devpriv->dma_buffer);
+	kfree(devpriv->dma_buffer);
 	if (devpriv->dma_chan)
 		free_dma(devpriv->dma_chan);
 	if (dev->irq)
@@ -1150,7 +1149,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	range = CR_RANGE(cmd->chanlist[0]);
 	aref = CR_AREF(cmd->chanlist[0]);
 
-	/* make sure board is disabled before setting up aquisition */
+	/* make sure board is disabled before setting up acquisition */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->command2_bits &= ~SWTRIG_BIT & ~HWTRIG_BIT & ~PRETRIG_BIT;
 	devpriv->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
@@ -1350,7 +1349,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->command3_bits &= ~ADC_FNE_INTR_EN_BIT;
 	devpriv->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
 
-	/*  startup aquisition */
+	/*  startup acquisition */
 
 	/*  command2 reg */
 	/*  use 2 cascaded counters for pacing */
@@ -1572,8 +1571,8 @@ static void handle_isa_dma(struct comedi_device *dev)
 	devpriv->write_byte(0x1, dev->iobase + DMATC_CLEAR_REG);
 }
 
-/* makes sure all data acquired by board is transfered to comedi (used
- * when aquisition is terminated by stop_src == TRIG_EXT). */
+/* makes sure all data acquired by board is transferred to comedi (used
+ * when acquisition is terminated by stop_src == TRIG_EXT). */
 static void labpc_drain_dregs(struct comedi_device *dev)
 {
 	if (devpriv->current_transfer == isa_dma_transfer)

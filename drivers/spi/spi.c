@@ -957,7 +957,7 @@ EXPORT_SYMBOL_GPL(spi_sync);
  * drivers may DMA directly into and out of the message buffers.
  *
  * This call should be used by drivers that require exclusive access to the
- * SPI bus. It has to be preceeded by a spi_bus_lock call. The SPI bus must
+ * SPI bus. It has to be preceded by a spi_bus_lock call. The SPI bus must
  * be released by a spi_bus_unlock call when the exclusive access is over.
  *
  * It returns zero on success, else a negative error code.

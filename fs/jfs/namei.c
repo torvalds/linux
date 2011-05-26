@@ -809,9 +809,6 @@ static int jfs_link(struct dentry *old_dentry,
 	if (ip->i_nlink == JFS_LINK_MAX)
 		return -EMLINK;
 
-	if (ip->i_nlink == 0)
-		return -ENOENT;
-
 	dquot_initialize(dir);
 
 	tid = txBegin(ip->i_sb, 0);
@@ -1600,7 +1597,7 @@ out:
 
 static int jfs_ci_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	if (nd->flags & LOOKUP_RCU)
+	if (nd && nd->flags & LOOKUP_RCU)
 		return -ECHILD;
 	/*
 	 * This is not negative dentry. Always valid.

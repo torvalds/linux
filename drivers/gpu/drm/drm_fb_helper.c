@@ -342,9 +342,22 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_debug_leave);
 
+bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
+{
+	bool error = false;
+	int i, ret;
+	for (i = 0; i < fb_helper->crtc_count; i++) {
+		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
+		ret = drm_crtc_helper_set_config(mode_set);
+		if (ret)
+			error = true;
+	}
+	return error;
+}
+EXPORT_SYMBOL(drm_fb_helper_restore_fbdev_mode);
+
 bool drm_fb_helper_force_kernel_mode(void)
 {
-	int i = 0;
 	bool ret, error = false;
 	struct drm_fb_helper *helper;
 
@@ -352,12 +365,12 @@ bool drm_fb_helper_force_kernel_mode(void)
 		return false;
 
 	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
-		for (i = 0; i < helper->crtc_count; i++) {
-			struct drm_mode_set *mode_set = &helper->crtc_info[i].mode_set;
-			ret = drm_crtc_helper_set_config(mode_set);
-			if (ret)
-				error = true;
-		}
+		if (helper->dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+			continue;
+
+		ret = drm_fb_helper_restore_fbdev_mode(helper);
+		if (ret)
+			error = true;
 	}
 	return error;
 }
@@ -627,6 +640,11 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		value = (red << info->var.red.offset) |
 			(green << info->var.green.offset) |
 			(blue << info->var.blue.offset);
+		if (info->var.transp.length > 0) {
+			u32 mask = (1 << info->var.transp.length) - 1;
+			mask <<= info->var.transp.offset;
+			value |= mask;
+		}
 		palette[regno] = value;
 		return 0;
 	}
@@ -672,7 +690,7 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 	struct drm_crtc_helper_funcs *crtc_funcs;
 	u16 *red, *green, *blue, *transp;
 	struct drm_crtc *crtc;
-	int i, rc = 0;
+	int i, j, rc = 0;
 	int start;
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
@@ -685,7 +703,7 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 		transp = cmap->transp;
 		start = cmap->start;
 
-		for (i = 0; i < cmap->len; i++) {
+		for (j = 0; j < cmap->len; j++) {
 			u16 hred, hgreen, hblue, htransp = 0xffff;
 
 			hred = *red++;
@@ -1498,17 +1516,33 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 }
 EXPORT_SYMBOL(drm_fb_helper_initial_config);
 
-bool drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
+/**
+ * drm_fb_helper_hotplug_event - respond to a hotplug notification by
+ *                               probing all the outputs attached to the fb.
+ * @fb_helper: the drm_fb_helper
+ *
+ * LOCKING:
+ * Called at runtime, must take mode config lock.
+ *
+ * Scan the connectors attached to the fb_helper and try to put together a
+ * setup after *notification of a change in output configuration.
+ *
+ * RETURNS:
+ * 0 on success and a non-zero error code otherwise.
+ */
+int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 {
+	struct drm_device *dev = fb_helper->dev;
 	int count = 0;
 	u32 max_width, max_height, bpp_sel;
 	bool bound = false, crtcs_bound = false;
 	struct drm_crtc *crtc;
 
 	if (!fb_helper->fb)
-		return false;
+		return 0;
 
-	list_for_each_entry(crtc, &fb_helper->dev->mode_config.crtc_list, head) {
+	mutex_lock(&dev->mode_config.mutex);
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (crtc->fb)
 			crtcs_bound = true;
 		if (crtc->fb == fb_helper->fb)
@@ -1517,7 +1551,8 @@ bool drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 
 	if (!bound && crtcs_bound) {
 		fb_helper->delayed_hotplug = true;
-		return false;
+		mutex_unlock(&dev->mode_config.mutex);
+		return 0;
 	}
 	DRM_DEBUG_KMS("\n");
 
@@ -1528,6 +1563,7 @@ bool drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	count = drm_fb_helper_probe_connector_modes(fb_helper, max_width,
 						    max_height);
 	drm_setup_crtcs(fb_helper);
+	mutex_unlock(&dev->mode_config.mutex);
 
 	return drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
 }

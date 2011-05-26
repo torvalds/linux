@@ -650,51 +650,6 @@ static int pmac_pci_probe_mode(struct pci_bus *bus)
 		return PCI_PROBE_NORMAL;
 	return PCI_PROBE_DEVTREE;
 }
-
-#ifdef CONFIG_HOTPLUG_CPU
-/* access per cpu vars from generic smp.c */
-DECLARE_PER_CPU(int, cpu_state);
-
-static void pmac64_cpu_die(void)
-{
-	/*
-	 * turn off as much as possible, we'll be
-	 * kicked out as this will only be invoked
-	 * on core99 platforms for now ...
-	 */
-
-	printk(KERN_INFO "CPU#%d offline\n", smp_processor_id());
-	__get_cpu_var(cpu_state) = CPU_DEAD;
-	smp_wmb();
-
-	/*
-	 * during the path that leads here preemption is disabled,
-	 * reenable it now so that when coming up preempt count is
-	 * zero correctly
-	 */
-	preempt_enable();
-
-	/*
-	 * hard-disable interrupts for the non-NAP case, the NAP code
-	 * needs to re-enable interrupts (but soft-disables them)
-	 */
-	hard_irq_disable();
-
-	while (1) {
-		/* let's not take timer interrupts too often ... */
-		set_dec(0x7fffffff);
-
-		/* should always be true at this point */
-		if (cpu_has_feature(CPU_FTR_CAN_NAP))
-			power4_cpu_offline_powersave();
-		else {
-			HMT_low();
-			HMT_very_low();
-		}
-	}
-}
-#endif /* CONFIG_HOTPLUG_CPU */
-
 #endif /* CONFIG_PPC64 */
 
 define_machine(powermac) {
@@ -725,16 +680,5 @@ define_machine(powermac) {
 	.pcibios_enable_device_hook = pmac_pci_enable_device_hook,
 	.pcibios_after_init	= pmac_pcibios_after_init,
 	.phys_mem_access_prot	= pci_phys_mem_access_prot,
-#endif
-#ifdef CONFIG_HOTPLUG_CPU
-#ifdef CONFIG_PPC64
-	.cpu_die		= pmac64_cpu_die,
-#endif
-#ifdef CONFIG_PPC32
-	.cpu_die		= pmac32_cpu_die,
-#endif
-#endif
-#if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PPC32)
-	.cpu_die		= generic_mach_cpu_die,
 #endif
 };

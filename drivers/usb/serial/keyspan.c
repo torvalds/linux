@@ -301,7 +301,7 @@ static void keyspan_set_termios(struct tty_struct *tty,
 	keyspan_send_setup(port, 0);
 }
 
-static int keyspan_tiocmget(struct tty_struct *tty, struct file *file)
+static int keyspan_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct keyspan_port_private *p_priv = usb_get_serial_port_data(port);
@@ -317,7 +317,7 @@ static int keyspan_tiocmget(struct tty_struct *tty, struct file *file)
 	return value;
 }
 
-static int keyspan_tiocmset(struct tty_struct *tty, struct file *file,
+static int keyspan_tiocmset(struct tty_struct *tty,
 			    unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -2121,15 +2121,15 @@ static int keyspan_usa49_send_setup(struct usb_serial *serial,
 	/* Work out which port within the device is being setup */
 	device_port = port->number - port->serial->minor;
 
-	dbg("%s - endpoint %d port %d (%d)",
-			__func__, usb_pipeendpoint(this_urb->pipe),
-			port->number, device_port);
-
-		/* Make sure we have an urb then send the message */
+	/* Make sure we have an urb then send the message */
 	if (this_urb == NULL) {
 		dbg("%s - oops no urb for port %d.", __func__, port->number);
 		return -1;
 	}
+
+	dbg("%s - endpoint %d port %d (%d)",
+			__func__, usb_pipeendpoint(this_urb->pipe),
+			port->number, device_port);
 
 	/* Save reset port val for resend.
 	   Don't overwrite resend for open/close condition. */

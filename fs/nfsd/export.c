@@ -299,7 +299,6 @@ svc_expkey_update(struct svc_expkey *new, struct svc_expkey *old)
 
 #define	EXPORT_HASHBITS		8
 #define	EXPORT_HASHMAX		(1<< EXPORT_HASHBITS)
-#define	EXPORT_HASHMASK		(EXPORT_HASHMAX -1)
 
 static struct cache_head *export_table[EXPORT_HASHMAX];
 

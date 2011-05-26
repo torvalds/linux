@@ -49,6 +49,40 @@ ifeq ($(KBUILD_NOPEDANTIC),)
                 $(error CFLAGS was changed in "$(kbuild-file)". Fix it to use EXTRA_CFLAGS)
         endif
 endif
+
+#
+# make W=1 settings
+#
+# $(call cc-option... ) handles gcc -W.. options which
+# are not supported by all versions of the compiler
+ifdef KBUILD_ENABLE_EXTRA_GCC_CHECKS
+KBUILD_EXTRA_WARNINGS := -Wextra
+KBUILD_EXTRA_WARNINGS += -Wunused -Wno-unused-parameter
+KBUILD_EXTRA_WARNINGS += -Waggregate-return
+KBUILD_EXTRA_WARNINGS += -Wbad-function-cast
+KBUILD_EXTRA_WARNINGS += -Wcast-qual
+KBUILD_EXTRA_WARNINGS += -Wcast-align
+KBUILD_EXTRA_WARNINGS += -Wconversion
+KBUILD_EXTRA_WARNINGS += -Wdisabled-optimization
+KBUILD_EXTRA_WARNINGS += -Wlogical-op
+KBUILD_EXTRA_WARNINGS += -Wmissing-declarations
+KBUILD_EXTRA_WARNINGS += -Wmissing-format-attribute
+KBUILD_EXTRA_WARNINGS += $(call cc-option, -Wmissing-include-dirs,)
+KBUILD_EXTRA_WARNINGS += -Wmissing-prototypes
+KBUILD_EXTRA_WARNINGS += -Wnested-externs
+KBUILD_EXTRA_WARNINGS += -Wold-style-definition
+KBUILD_EXTRA_WARNINGS += $(call cc-option, -Woverlength-strings,)
+KBUILD_EXTRA_WARNINGS += -Wpacked
+KBUILD_EXTRA_WARNINGS += -Wpacked-bitfield-compat
+KBUILD_EXTRA_WARNINGS += -Wpadded
+KBUILD_EXTRA_WARNINGS += -Wpointer-arith
+KBUILD_EXTRA_WARNINGS += -Wredundant-decls
+KBUILD_EXTRA_WARNINGS += -Wshadow
+KBUILD_EXTRA_WARNINGS += -Wswitch-default
+KBUILD_EXTRA_WARNINGS += $(call cc-option, -Wvla,)
+KBUILD_CFLAGS += $(KBUILD_EXTRA_WARNINGS)
+endif
+
 include scripts/Makefile.lib
 
 ifdef host-progs
@@ -402,7 +436,6 @@ cmd_files := $(wildcard $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
 ifneq ($(cmd_files),)
   include $(cmd_files)
 endif
-
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
 # information in a variable se we can use it in if_changed and friends.

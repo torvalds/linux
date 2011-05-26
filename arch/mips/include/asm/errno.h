@@ -121,6 +121,8 @@
 
 #define	ERFKILL		167	/* Operation not possible due to RF-kill */
 
+#define EHWPOISON	168	/* Memory page has hardware error */
+
 #define EDQUOT		1133	/* Quota exceeded */
 
 #ifdef __KERNEL__

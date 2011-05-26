@@ -149,7 +149,7 @@ void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf)
 
 		netif_carrier_off(dev);
 retry_tx:
-		/* Wait untill all tx queues are empty.
+		/* Wait until all tx queues are empty.
 		 * there should not be any additional incoming traffic
 		 * since we turned the carrier off */
 		msleep(200);

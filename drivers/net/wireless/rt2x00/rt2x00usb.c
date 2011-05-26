@@ -173,7 +173,7 @@ static void rt2x00usb_work_txdone_entry(struct queue_entry *entry)
 	/*
 	 * If the transfer to hardware succeeded, it does not mean the
 	 * frame was send out correctly. It only means the frame
-	 * was succesfully pushed to the hardware, we have no
+	 * was successfully pushed to the hardware, we have no
 	 * way to determine the transmission status right now.
 	 * (Only indirectly by looking at the failed TX counters
 	 * in the register).
@@ -227,7 +227,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 * Schedule the delayed work for reading the TX status
 	 * from the device.
 	 */
-	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->txdone_work);
+	queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
 }
 
 static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
@@ -320,7 +320,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * Schedule the delayed work for reading the RX status
 	 * from the device.
 	 */
-	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->rxdone_work);
+	queue_work(rt2x00dev->workqueue, &rt2x00dev->rxdone_work);
 }
 
 static void rt2x00usb_kick_rx_entry(struct queue_entry *entry)
@@ -429,7 +429,7 @@ void rt2x00usb_flush_queue(struct data_queue *queue)
 		 * Schedule the completion handler manually, when this
 		 * worker function runs, it should cleanup the queue.
 		 */
-		ieee80211_queue_work(queue->rt2x00dev->hw, completion);
+		queue_work(queue->rt2x00dev->workqueue, completion);
 
 		/*
 		 * Wait for a little while to give the driver
@@ -453,7 +453,7 @@ static void rt2x00usb_watchdog_tx_status(struct data_queue *queue)
 	WARNING(queue->rt2x00dev, "TX queue %d status timed out,"
 		" invoke forced tx handler\n", queue->qid);
 
-	ieee80211_queue_work(queue->rt2x00dev->hw, &queue->rt2x00dev->txdone_work);
+	queue_work(queue->rt2x00dev->workqueue, &queue->rt2x00dev->txdone_work);
 }
 
 void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev)

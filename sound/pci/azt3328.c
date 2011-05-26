@@ -1,6 +1,5 @@
-/*
- *  azt3328.c - driver for Aztech AZF3328 based soundcards (e.g. PCI168).
- *  Copyright (C) 2002, 2005 - 2010 by Andreas Mohr <andi AT lisas.de>
+/*  azt3328.c - driver for Aztech AZF3328 based soundcards (e.g. PCI168).
+ *  Copyright (C) 2002, 2005 - 2011 by Andreas Mohr <andi AT lisas.de>
  *
  *  Framework borrowed from Bart Hartgers's als4000.c.
  *  Driver developed on PCI168 AP(W) version (PCI rev. 10, subsystem ID 1801),
@@ -66,6 +65,13 @@
  *    addresses illegally. So far unfortunately it looks like the very flexible
  *    ALSA AC97 support is still not enough to easily compensate for such a
  *    grave layout violation despite all tweaks and quirks mechanisms it offers.
+ *    Well, not quite: now ac97 layer is much improved (bus-specific ops!),
+ *    thus I was able to implement support - it's actually working quite well.
+ *    An interesting item might be Aztech AMR 2800-W, since it's an AC97
+ *    modem card which might reveal the Aztech-specific codec ID which
+ *    we might want to pretend, too. Dito PCI168's brother, PCI368,
+ *    where the advertising datasheet says it's AC97-based and has a
+ *    Digital Enhanced Game Port.
  *  - builtin genuine OPL3 - verified to work fine, 20080506
  *  - full duplex 16bit playback/record at independent sampling rate
  *  - MPU401 (+ legacy address support, claimed by one official spec sheet)
@@ -134,7 +140,7 @@
  *  Possible remedies:
  *  - use speaker (amplifier) output instead of headphone output
  *    (in case crackling is due to overloaded output clipping)
- *  - plug card into a different PCI slot, preferrably one that isn't shared
+ *  - plug card into a different PCI slot, preferably one that isn't shared
  *    too much (this helps a lot, but not completely!)
  *  - get rid of PCI VGA card, use AGP instead
  *  - upgrade or downgrade BIOS
@@ -189,6 +195,16 @@
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 #include <sound/initval.h>
+/*
+ * Config switch, to use ALSA's AC97 layer instead of old custom mixer crap.
+ * If the AC97 compatibility parts we needed to implement locally turn out
+ * to work nicely, then remove the old implementation eventually.
+ */
+#define AZF_USE_AC97_LAYER 1
+
+#ifdef AZF_USE_AC97_LAYER
+#include <sound/ac97_codec.h>
+#endif
 #include "azt3328.h"
 
 MODULE_AUTHOR("Andreas Mohr <andi AT lisas.de>");
@@ -327,6 +343,10 @@ struct snd_azf3328 {
 
 	/* playback, recording and I2S out codecs */
 	struct snd_azf3328_codec_data codecs[3];
+
+#ifdef AZF_USE_AC97_LAYER
+	struct snd_ac97 *ac97;
+#endif
 
 	struct snd_card *card;
 	struct snd_rawmidi *rmidi;
@@ -506,7 +526,7 @@ snd_azf3328_mixer_inw(const struct snd_azf3328 *chip, unsigned reg)
 #define AZF_MUTE_BIT 0x80
 
 static bool
-snd_azf3328_mixer_set_mute(const struct snd_azf3328 *chip,
+snd_azf3328_mixer_mute_control(const struct snd_azf3328 *chip,
 			   unsigned reg, bool do_mute
 )
 {
@@ -521,6 +541,323 @@ snd_azf3328_mixer_set_mute(const struct snd_azf3328 *chip,
 	return (do_mute) ? !updated : updated;
 }
 
+static inline bool
+snd_azf3328_mixer_mute_control_master(const struct snd_azf3328 *chip,
+			   bool do_mute
+)
+{
+	return snd_azf3328_mixer_mute_control(
+		chip,
+		IDX_MIXER_PLAY_MASTER,
+		do_mute
+	);
+}
+
+static inline bool
+snd_azf3328_mixer_mute_control_pcm(const struct snd_azf3328 *chip,
+			   bool do_mute
+)
+{
+	return snd_azf3328_mixer_mute_control(
+		chip,
+		IDX_MIXER_WAVEOUT,
+		do_mute
+	);
+}
+
+static inline void
+snd_azf3328_mixer_reset(const struct snd_azf3328 *chip)
+{
+	/* reset (close) mixer:
+	 * first mute master volume, then reset
+	 */
+	snd_azf3328_mixer_mute_control_master(chip, 1);
+	snd_azf3328_mixer_outw(chip, IDX_MIXER_RESET, 0x0000);
+}
+
+#ifdef AZF_USE_AC97_LAYER
+
+static inline void
+snd_azf3328_mixer_ac97_map_unsupported(unsigned short reg, const char *mode)
+{
+	/* need to add some more or less clever emulation? */
+	printk(KERN_WARNING
+		"azt3328: missing %s emulation for AC97 register 0x%02x!\n",
+		mode, reg);
+}
+
+/*
+ * Need to have _special_ AC97 mixer hardware register index mapper,
+ * to compensate for the issue of a rather AC97-incompatible hardware layout.
+ */
+#define AZF_REG_MASK 0x3f
+#define AZF_AC97_REG_UNSUPPORTED 0x8000
+#define AZF_AC97_REG_REAL_IO_READ 0x4000
+#define AZF_AC97_REG_REAL_IO_WRITE 0x2000
+#define AZF_AC97_REG_REAL_IO_RW \
+	(AZF_AC97_REG_REAL_IO_READ | AZF_AC97_REG_REAL_IO_WRITE)
+#define AZF_AC97_REG_EMU_IO_READ 0x0400
+#define AZF_AC97_REG_EMU_IO_WRITE 0x0200
+#define AZF_AC97_REG_EMU_IO_RW \
+	(AZF_AC97_REG_EMU_IO_READ | AZF_AC97_REG_EMU_IO_WRITE)
+static unsigned short
+snd_azf3328_mixer_ac97_map_reg_idx(unsigned short reg)
+{
+	static const struct {
+		unsigned short azf_reg;
+	} azf_reg_mapper[] = {
+		/* Especially when taking into consideration
+		 * mono/stereo-based sequence of azf vs. AC97 control series,
+		 * it's quite obvious that azf simply got rid
+		 * of the AC97_HEADPHONE control at its intended offset,
+		 * thus shifted _all_ controls by one,
+		 * and _then_ simply added it as an FMSYNTH control at the end,
+		 * to make up for the offset.
+		 * This means we'll have to translate indices here as
+		 * needed and then do some tiny AC97 patch action
+		 * (snd_ac97_rename_vol_ctl() etc.) - that's it.
+		 */
+		{ /* AC97_RESET */ IDX_MIXER_RESET
+			| AZF_AC97_REG_REAL_IO_WRITE
+			| AZF_AC97_REG_EMU_IO_READ },
+		{ /* AC97_MASTER */ IDX_MIXER_PLAY_MASTER },
+		 /* note large shift: AC97_HEADPHONE to IDX_MIXER_FMSYNTH! */
+		{ /* AC97_HEADPHONE */ IDX_MIXER_FMSYNTH },
+		{ /* AC97_MASTER_MONO */ IDX_MIXER_MODEMOUT },
+		{ /* AC97_MASTER_TONE */ IDX_MIXER_BASSTREBLE },
+		{ /* AC97_PC_BEEP */ IDX_MIXER_PCBEEP },
+		{ /* AC97_PHONE */ IDX_MIXER_MODEMIN },
+		{ /* AC97_MIC */ IDX_MIXER_MIC },
+		{ /* AC97_LINE */ IDX_MIXER_LINEIN },
+		{ /* AC97_CD */ IDX_MIXER_CDAUDIO },
+		{ /* AC97_VIDEO */ IDX_MIXER_VIDEO },
+		{ /* AC97_AUX */ IDX_MIXER_AUX },
+		{ /* AC97_PCM */ IDX_MIXER_WAVEOUT },
+		{ /* AC97_REC_SEL */ IDX_MIXER_REC_SELECT },
+		{ /* AC97_REC_GAIN */ IDX_MIXER_REC_VOLUME },
+		{ /* AC97_REC_GAIN_MIC */ AZF_AC97_REG_EMU_IO_RW },
+		{ /* AC97_GENERAL_PURPOSE */ IDX_MIXER_ADVCTL2 },
+		{ /* AC97_3D_CONTROL */ IDX_MIXER_ADVCTL1 },
+	};
+
+	unsigned short reg_azf = AZF_AC97_REG_UNSUPPORTED;
+
+	/* azf3328 supports the low-numbered and low-spec:ed range
+	   of AC97 regs only */
+	if (reg <= AC97_3D_CONTROL) {
+		unsigned short reg_idx = reg / 2;
+		reg_azf = azf_reg_mapper[reg_idx].azf_reg;
+		/* a translation-only entry means it's real read/write: */
+		if (!(reg_azf & ~AZF_REG_MASK))
+			reg_azf |= AZF_AC97_REG_REAL_IO_RW;
+	} else {
+		switch (reg) {
+		case AC97_POWERDOWN:
+			reg_azf = AZF_AC97_REG_EMU_IO_RW;
+			break;
+		case AC97_EXTENDED_ID:
+			reg_azf = AZF_AC97_REG_EMU_IO_READ;
+			break;
+		case AC97_EXTENDED_STATUS:
+			/* I don't know what the h*ll AC97 layer
+			 * would consult this _extended_ register for
+			 * given a base-AC97-advertised card,
+			 * but let's just emulate it anyway :-P
+			 */
+			reg_azf = AZF_AC97_REG_EMU_IO_RW;
+			break;
+		case AC97_VENDOR_ID1:
+		case AC97_VENDOR_ID2:
+			reg_azf = AZF_AC97_REG_EMU_IO_READ;
+			break;
+		}
+	}
+	return reg_azf;
+}
+
+static const unsigned short
+azf_emulated_ac97_caps =
+	AC97_BC_DEDICATED_MIC |
+	AC97_BC_BASS_TREBLE |
+	/* Headphone is an FM Synth control here */
+	AC97_BC_HEADPHONE |
+	/* no AC97_BC_LOUDNESS! */
+	/* mask 0x7c00 is
+	   vendor-specific 3D enhancement
+	   vendor indicator.
+	   Since there actually _is_ an
+	   entry for Aztech Labs
+	   (13), make damn sure
+	   to indicate it. */
+	(13 << 10);
+
+static const unsigned short
+azf_emulated_ac97_powerdown =
+	/* pretend everything to be active */
+		AC97_PD_ADC_STATUS |
+		AC97_PD_DAC_STATUS |
+		AC97_PD_MIXER_STATUS |
+		AC97_PD_VREF_STATUS;
+
+/*
+ * Emulated, _inofficial_ vendor ID
+ * (there might be some devices such as the MR 2800-W
+ * which could reveal the real Aztech AC97 ID).
+ * We choose to use "AZT" prefix, and then use 1 to indicate PCI168
+ * (better don't use 0x68 since there's a PCI368 as well).
+ */
+static const unsigned int
+azf_emulated_ac97_vendor_id = 0x415a5401;
+
+static unsigned short
+snd_azf3328_mixer_ac97_read(struct snd_ac97 *ac97, unsigned short reg_ac97)
+{
+	const struct snd_azf3328 *chip = ac97->private_data;
+	unsigned short reg_azf = snd_azf3328_mixer_ac97_map_reg_idx(reg_ac97);
+	unsigned short reg_val = 0;
+	bool unsupported = 0;
+
+	snd_azf3328_dbgmixer(
+		"snd_azf3328_mixer_ac97_read reg_ac97 %u\n",
+			reg_ac97
+	);
+	if (reg_azf & AZF_AC97_REG_UNSUPPORTED)
+		unsupported = 1;
+	else {
+		if (reg_azf & AZF_AC97_REG_REAL_IO_READ)
+			reg_val = snd_azf3328_mixer_inw(chip,
+						reg_azf & AZF_REG_MASK);
+		else {
+			/*
+			 * Proceed with dummy I/O read,
+			 * to ensure compatible timing where this may matter.
+			 * (ALSA AC97 layer usually doesn't call I/O functions
+			 * due to intelligent I/O caching anyway)
+			 * Choose a mixer register that's thoroughly unrelated
+			 * to common audio (try to minimize distortion).
+			 */
+			snd_azf3328_mixer_inw(chip, IDX_MIXER_SOMETHING30H);
+		}
+
+		if (reg_azf & AZF_AC97_REG_EMU_IO_READ) {
+			switch (reg_ac97) {
+			case AC97_RESET:
+				reg_val |= azf_emulated_ac97_caps;
+				break;
+			case AC97_POWERDOWN:
+				reg_val |= azf_emulated_ac97_powerdown;
+				break;
+			case AC97_EXTENDED_ID:
+			case AC97_EXTENDED_STATUS:
+				/* AFAICS we simply can't support anything: */
+				reg_val |= 0;
+				break;
+			case AC97_VENDOR_ID1:
+				reg_val = azf_emulated_ac97_vendor_id >> 16;
+				break;
+			case AC97_VENDOR_ID2:
+				reg_val = azf_emulated_ac97_vendor_id & 0xffff;
+				break;
+			default:
+				unsupported = 1;
+				break;
+			}
+		}
+	}
+	if (unsupported)
+		snd_azf3328_mixer_ac97_map_unsupported(reg_ac97, "read");
+
+	return reg_val;
+}
+
+static void
+snd_azf3328_mixer_ac97_write(struct snd_ac97 *ac97,
+		     unsigned short reg_ac97, unsigned short val)
+{
+	const struct snd_azf3328 *chip = ac97->private_data;
+	unsigned short reg_azf = snd_azf3328_mixer_ac97_map_reg_idx(reg_ac97);
+	bool unsupported = 0;
+
+	snd_azf3328_dbgmixer(
+		"snd_azf3328_mixer_ac97_write reg_ac97 %u val %u\n",
+			reg_ac97, val
+	);
+	if (reg_azf & AZF_AC97_REG_UNSUPPORTED)
+		unsupported = 1;
+	else {
+		if (reg_azf & AZF_AC97_REG_REAL_IO_WRITE)
+			snd_azf3328_mixer_outw(
+				chip,
+				reg_azf & AZF_REG_MASK,
+				val
+			);
+		else
+		if (reg_azf & AZF_AC97_REG_EMU_IO_WRITE) {
+			switch (reg_ac97) {
+			case AC97_REC_GAIN_MIC:
+			case AC97_POWERDOWN:
+			case AC97_EXTENDED_STATUS:
+				/*
+				 * Silently swallow these writes.
+				 * Since for most registers our card doesn't
+				 * actually support a comparable feature,
+				 * this is exactly what we should do here.
+				 * The AC97 layer's I/O caching probably
+				 * automatically takes care of all the rest...
+				 * (remembers written values etc.)
+				 */
+				break;
+			default:
+				unsupported = 1;
+				break;
+			}
+		}
+	}
+	if (unsupported)
+		snd_azf3328_mixer_ac97_map_unsupported(reg_ac97, "write");
+}
+
+static int __devinit
+snd_azf3328_mixer_new(struct snd_azf3328 *chip)
+{
+	struct snd_ac97_bus *bus;
+	struct snd_ac97_template ac97;
+	static struct snd_ac97_bus_ops ops = {
+		.write = snd_azf3328_mixer_ac97_write,
+		.read = snd_azf3328_mixer_ac97_read,
+	};
+	int rc;
+
+	memset(&ac97, 0, sizeof(ac97));
+	ac97.scaps = AC97_SCAP_SKIP_MODEM
+			| AC97_SCAP_AUDIO /* we support audio! */
+			| AC97_SCAP_NO_SPDIF;
+	ac97.private_data = chip;
+	ac97.pci = chip->pci;
+
+	/*
+	 * ALSA's AC97 layer has terrible init crackling issues,
+	 * unfortunately, and since it makes use of AC97_RESET,
+	 * there's no use trying to mute Master Playback proactively.
+	 */
+
+	rc = snd_ac97_bus(chip->card, 0, &ops, NULL, &bus);
+	if (!rc)
+		rc = snd_ac97_mixer(bus, &ac97, &chip->ac97);
+		/*
+		 * Make sure to complain loudly in case of AC97 init failure,
+		 * since failure may happen quite often,
+		 * due to this card being a very quirky AC97 "lookalike".
+		 */
+	if (rc)
+		printk(KERN_ERR "azt3328: AC97 init failed, err %d!\n", rc);
+
+	/* If we return an error here, then snd_card_free() should
+	 * free up any ac97 codecs that got created, as well as the bus.
+	 */
+	return rc;
+}
+#else /* AZF_USE_AC97_LAYER */
 static void
 snd_azf3328_mixer_write_volume_gradually(const struct snd_azf3328 *chip,
 					 unsigned reg,
@@ -945,6 +1282,7 @@ snd_azf3328_mixer_new(struct snd_azf3328 *chip)
 	snd_azf3328_dbgcallleave();
 	return 0;
 }
+#endif /* AZF_USE_AC97_LAYER */
 
 static int
 snd_azf3328_hw_params(struct snd_pcm_substream *substream,
@@ -1233,8 +1571,8 @@ snd_azf3328_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		if (is_main_mixer_playback_codec) {
 			/* mute WaveOut (avoid clicking during setup) */
 			previously_muted =
-				snd_azf3328_mixer_set_mute(
-						chip, IDX_MIXER_WAVEOUT, 1
+				snd_azf3328_mixer_mute_control_pcm(
+						chip, 1
 				);
 		}
 
@@ -1290,8 +1628,8 @@ snd_azf3328_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		if (is_main_mixer_playback_codec) {
 			/* now unmute WaveOut */
 			if (!previously_muted)
-				snd_azf3328_mixer_set_mute(
-						chip, IDX_MIXER_WAVEOUT, 0
+				snd_azf3328_mixer_mute_control_pcm(
+						chip, 0
 				);
 		}
 
@@ -1315,8 +1653,8 @@ snd_azf3328_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		if (is_main_mixer_playback_codec) {
 			/* mute WaveOut (avoid clicking during setup) */
 			previously_muted =
-				snd_azf3328_mixer_set_mute(
-						chip, IDX_MIXER_WAVEOUT, 1
+				snd_azf3328_mixer_mute_control_pcm(
+						chip, 1
 				);
 		}
 
@@ -1341,8 +1679,8 @@ snd_azf3328_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		if (is_main_mixer_playback_codec) {
 			/* now unmute WaveOut */
 			if (!previously_muted)
-				snd_azf3328_mixer_set_mute(
-						chip, IDX_MIXER_WAVEOUT, 0
+				snd_azf3328_mixer_mute_control_pcm(
+						chip, 0
 				);
 		}
 
@@ -2050,11 +2388,7 @@ snd_azf3328_free(struct snd_azf3328 *chip)
 	if (chip->irq < 0)
 		goto __end_hw;
 
-	/* reset (close) mixer:
-	 * first mute master volume, then reset
-	 */
-	snd_azf3328_mixer_set_mute(chip, IDX_MIXER_PLAY_MASTER, 1);
-	snd_azf3328_mixer_outw(chip, IDX_MIXER_RESET, 0x0000);
+	snd_azf3328_mixer_reset(chip);
 
 	snd_azf3328_timer_stop(chip->timer);
 	snd_azf3328_gameport_free(chip);
@@ -2407,6 +2741,55 @@ snd_azf3328_suspend_regs(unsigned long io_addr, unsigned count, u32 *saved_regs)
 	}
 }
 
+static inline void
+snd_azf3328_resume_regs(const u32 *saved_regs,
+			unsigned long io_addr,
+			unsigned count
+)
+{
+	unsigned reg;
+
+	for (reg = 0; reg < count; ++reg) {
+		outl(*saved_regs, io_addr);
+		snd_azf3328_dbgpm("resume: io 0x%04lx: 0x%08x --> 0x%08x\n",
+			io_addr, *saved_regs, inl(io_addr));
+		++saved_regs;
+		io_addr += sizeof(*saved_regs);
+	}
+}
+
+static inline void
+snd_azf3328_suspend_ac97(struct snd_azf3328 *chip)
+{
+#ifdef AZF_USE_AC97_LAYER
+	snd_ac97_suspend(chip->ac97);
+#else
+	snd_azf3328_suspend_regs(chip->mixer_io,
+		ARRAY_SIZE(chip->saved_regs_mixer), chip->saved_regs_mixer);
+
+	/* make sure to disable master volume etc. to prevent looping sound */
+	snd_azf3328_mixer_mute_control_master(chip, 1);
+	snd_azf3328_mixer_mute_control_pcm(chip, 1);
+#endif /* AZF_USE_AC97_LAYER */
+}
+
+static inline void
+snd_azf3328_resume_ac97(const struct snd_azf3328 *chip)
+{
+#ifdef AZF_USE_AC97_LAYER
+	snd_ac97_resume(chip->ac97);
+#else
+	snd_azf3328_resume_regs(chip->saved_regs_mixer, chip->mixer_io,
+					ARRAY_SIZE(chip->saved_regs_mixer));
+
+	/* unfortunately with 32bit transfers, IDX_MIXER_PLAY_MASTER (0x02)
+	   and IDX_MIXER_RESET (offset 0x00) get touched at the same time,
+	   resulting in a mixer reset condition persisting until _after_
+	   master vol was restored. Thus master vol needs an extra restore. */
+	outw(((u16 *)chip->saved_regs_mixer)[1], chip->mixer_io + 2);
+#endif /* AZF_USE_AC97_LAYER */
+}
+
 static int
 snd_azf3328_suspend(struct pci_dev *pci, pm_message_t state)
 {
@@ -2420,12 +2803,7 @@ snd_azf3328_suspend(struct pci_dev *pci, pm_message_t state)
 	snd_pcm_suspend_all(chip->pcm[AZF_CODEC_PLAYBACK]);
 	snd_pcm_suspend_all(chip->pcm[AZF_CODEC_I2S_OUT]);
 
-	snd_azf3328_suspend_regs(chip->mixer_io,
-		ARRAY_SIZE(chip->saved_regs_mixer), chip->saved_regs_mixer);
-
-	/* make sure to disable master volume etc. to prevent looping sound */
-	snd_azf3328_mixer_set_mute(chip, IDX_MIXER_PLAY_MASTER, 1);
-	snd_azf3328_mixer_set_mute(chip, IDX_MIXER_WAVEOUT, 1);
+	snd_azf3328_suspend_ac97(chip);
 
 	snd_azf3328_suspend_regs(chip->ctrl_io,
 		ARRAY_SIZE(chip->saved_regs_ctrl), chip->saved_regs_ctrl);
@@ -2445,23 +2823,6 @@ snd_azf3328_suspend(struct pci_dev *pci, pm_message_t state)
 	pci_save_state(pci);
 	pci_set_power_state(pci, pci_choose_state(pci, state));
 	return 0;
-}
-
-static inline void
-snd_azf3328_resume_regs(const u32 *saved_regs,
-			unsigned long io_addr,
-			unsigned count
-)
-{
-	unsigned reg;
-
-	for (reg = 0; reg < count; ++reg) {
-		outl(*saved_regs, io_addr);
-		snd_azf3328_dbgpm("resume: io 0x%04lx: 0x%08x --> 0x%08x\n",
-			io_addr, *saved_regs, inl(io_addr));
-		++saved_regs;
-		io_addr += sizeof(*saved_regs);
-	}
 }
 
 static int
@@ -2487,14 +2848,7 @@ snd_azf3328_resume(struct pci_dev *pci)
 	snd_azf3328_resume_regs(chip->saved_regs_opl3, chip->opl3_io,
 					ARRAY_SIZE(chip->saved_regs_opl3));
 
-	snd_azf3328_resume_regs(chip->saved_regs_mixer, chip->mixer_io,
-					ARRAY_SIZE(chip->saved_regs_mixer));
-
-	/* unfortunately with 32bit transfers, IDX_MIXER_PLAY_MASTER (0x02)
-	   and IDX_MIXER_RESET (offset 0x00) get touched at the same time,
-	   resulting in a mixer reset condition persisting until _after_
-	   master vol was restored. Thus master vol needs an extra restore. */
-	outw(((u16 *)chip->saved_regs_mixer)[1], chip->mixer_io + 2);
+	snd_azf3328_resume_ac97(chip);
 
 	snd_azf3328_resume_regs(chip->saved_regs_ctrl, chip->ctrl_io,
 					ARRAY_SIZE(chip->saved_regs_ctrl));

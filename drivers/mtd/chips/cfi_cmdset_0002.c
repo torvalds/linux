@@ -263,7 +263,7 @@ static void fixup_old_sst_eraseregion(struct mtd_info *mtd)
 	struct cfi_private *cfi = map->fldrv_priv;
 
 	/*
-	 * These flashes report two seperate eraseblock regions based on the
+	 * These flashes report two separate eraseblock regions based on the
 	 * sector_erase-size and block_erase-size, although they both operate on the
 	 * same memory. This is not allowed according to CFI, so we just pick the
 	 * sector_erase-size.
@@ -349,6 +349,7 @@ static struct cfi_fixup cfi_fixup_table[] = {
 	{ CFI_MFR_ATMEL, CFI_ID_ANY, fixup_convert_atmel_pri },
 #ifdef AMD_BOOTLOC_BUG
 	{ CFI_MFR_AMD, CFI_ID_ANY, fixup_amd_bootblock },
+	{ CFI_MFR_AMIC, CFI_ID_ANY, fixup_amd_bootblock },
 	{ CFI_MFR_MACRONIX, CFI_ID_ANY, fixup_amd_bootblock },
 #endif
 	{ CFI_MFR_AMD, 0x0050, fixup_use_secsi },
@@ -440,7 +441,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	mtd->flags   = MTD_CAP_NORFLASH;
 	mtd->name    = map->name;
 	mtd->writesize = 1;
-	mtd->writebufsize = 1 << cfi->cfiq->MaxBufWriteSize;
+	mtd->writebufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;
 
 	DEBUG(MTD_DEBUG_LEVEL3, "MTD %s(): write buffer size %d\n",
 		__func__, mtd->writebufsize);
@@ -610,8 +611,8 @@ static struct mtd_info *cfi_amdstd_setup(struct mtd_info *mtd)
  *
  * Note that anything more complicated than checking if no bits are toggling
  * (including checking DQ5 for an error status) is tricky to get working
- * correctly and is therefore not done	(particulary with interleaved chips
- * as each chip must be checked independantly of the others).
+ * correctly and is therefore not done	(particularly with interleaved chips
+ * as each chip must be checked independently of the others).
  */
 static int __xipram chip_ready(struct map_info *map, unsigned long addr)
 {
@@ -634,8 +635,8 @@ static int __xipram chip_ready(struct map_info *map, unsigned long addr)
  *
  * Note that anything more complicated than checking if no bits are toggling
  * (including checking DQ5 for an error status) is tricky to get working
- * correctly and is therefore not done	(particulary with interleaved chips
- * as each chip must be checked independantly of the others).
+ * correctly and is therefore not done	(particularly with interleaved chips
+ * as each chip must be checked independently of the others).
  *
  */
 static int __xipram chip_good(struct map_info *map, unsigned long addr, map_word expected)

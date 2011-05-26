@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/ulpi.h>
 
 #include <mach/ulpi.h>
 
@@ -111,3 +112,7 @@ struct otg_io_access_ops mxc_ulpi_access_ops = {
 };
 EXPORT_SYMBOL_GPL(mxc_ulpi_access_ops);
 
+struct otg_transceiver *imx_otg_ulpi_create(unsigned int flags)
+{
+	return otg_ulpi_create(&mxc_ulpi_access_ops, flags);
+}

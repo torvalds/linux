@@ -1224,7 +1224,7 @@ static void dmfe_timer(unsigned long data)
 
 
 	/* If chip reports that link is failed it could be because external
-		PHY link status pin is not conected correctly to chip
+		PHY link status pin is not connected correctly to chip
 		To be sure ask PHY too.
 	*/
 

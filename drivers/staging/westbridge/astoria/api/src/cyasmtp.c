@@ -346,7 +346,7 @@ cy_as_mtp_start(cy_as_device_handle handle,
 
 		dev_p->mtp_event_cb = event_c_b;
 		/*
-		* we register here becuase the start request may cause
+		* we register here because the start request may cause
 		* events to occur before the response to the start request.
 		*/
 		cy_as_ll_register_request_callback(dev_p,
@@ -402,6 +402,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_mtp_start);
 
 static cy_as_return_status_t
 my_handle_response_mtp_stop(cy_as_device *dev_p,
@@ -423,7 +424,7 @@ my_handle_response_mtp_stop(cy_as_device *dev_p,
 		goto destroy;
 
 	/*
-	* we sucessfully shutdown the stack, so decrement
+	* we successfully shutdown the stack, so decrement
 	* to make the count zero.
 	*/
 	dev_p->mtp_count--;
@@ -744,6 +745,7 @@ cy_as_mtp_init_send_object(cy_as_device_handle handle,
 		client, CY_RQT_INIT_SEND_OBJECT);
 
 }
+EXPORT_SYMBOL(cy_as_mtp_init_send_object);
 
 cy_as_return_status_t
 cy_as_mtp_init_get_object(cy_as_device_handle handle,
@@ -763,6 +765,7 @@ cy_as_mtp_init_get_object(cy_as_device_handle handle,
 		transaction_id, cb, client, CY_RQT_INIT_GET_OBJECT);
 
 }
+EXPORT_SYMBOL(cy_as_mtp_init_get_object);
 
 static cy_as_return_status_t
 my_handle_response_cancel_send_object(cy_as_device *dev_p,
@@ -850,6 +853,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_mtp_cancel_send_object);
 
 static cy_as_return_status_t
 my_handle_response_cancel_get_object(cy_as_device *dev_p,
@@ -937,6 +941,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_mtp_cancel_get_object);
 
 cy_as_return_status_t
 cy_as_mtp_send_block_table(cy_as_device_handle handle,
@@ -1058,6 +1063,7 @@ cy_as_mtp_storage_only_start(cy_as_device_handle handle)
 	dev_p->is_storage_only_mode = cy_true;
 	return CY_AS_ERROR_SUCCESS;
 }
+EXPORT_SYMBOL(cy_as_mtp_storage_only_start);
 
 cy_as_return_status_t
 cy_as_mtp_storage_only_stop(cy_as_device_handle handle,
@@ -1126,3 +1132,5 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_mtp_storage_only_stop);
+

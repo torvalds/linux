@@ -176,13 +176,21 @@ next_hook:
 		ret = 1;
 	} else if ((verdict & NF_VERDICT_MASK) == NF_DROP) {
 		kfree_skb(skb);
-		ret = -(verdict >> NF_VERDICT_BITS);
+		ret = NF_DROP_GETERR(verdict);
 		if (ret == 0)
 			ret = -EPERM;
 	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
-		if (!nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
-			      verdict >> NF_VERDICT_BITS))
-			goto next_hook;
+		ret = nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
+			       verdict >> NF_VERDICT_QBITS);
+		if (ret < 0) {
+			if (ret == -ECANCELED)
+				goto next_hook;
+			if (ret == -ESRCH &&
+			   (verdict & NF_VERDICT_FLAG_QUEUE_BYPASS))
+				goto next_hook;
+			kfree_skb(skb);
+		}
+		ret = 0;
 	}
 	rcu_read_unlock();
 	return ret;
@@ -215,7 +223,7 @@ EXPORT_SYMBOL(skb_make_writable);
 /* This does not belong here, but locally generated errors need it if connection
    tracking in use: without this, connection may not be in hash table, and hence
    manufactured ICMP or RST packets will not be associated with it. */
-void (*ip_ct_attach)(struct sk_buff *, struct sk_buff *);
+void (*ip_ct_attach)(struct sk_buff *, struct sk_buff *) __rcu __read_mostly;
 EXPORT_SYMBOL(ip_ct_attach);
 
 void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb)
@@ -232,7 +240,7 @@ void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(nf_ct_attach);
 
-void (*nf_ct_destroy)(struct nf_conntrack *);
+void (*nf_ct_destroy)(struct nf_conntrack *) __rcu __read_mostly;
 EXPORT_SYMBOL(nf_ct_destroy);
 
 void nf_conntrack_destroy(struct nf_conntrack *nfct)

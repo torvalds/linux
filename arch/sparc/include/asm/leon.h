@@ -375,9 +375,6 @@ void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu);
 
 extern unsigned int real_irq_entry[], smpleon_ticker[];
 extern unsigned int patchme_maybe_smp_msg[];
-extern unsigned long trapbase_cpu1[];
-extern unsigned long trapbase_cpu2[];
-extern unsigned long trapbase_cpu3[];
 extern unsigned int t_nmi[], linux_trap_ipi15_leon[];
 extern unsigned int linux_trap_ipi15_sun4m[];
 

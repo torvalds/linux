@@ -98,7 +98,8 @@ mikasa_init_irq(void)
 	mikasa_update_irq_hw(0);
 
 	for (i = 16; i < 32; ++i) {
-		set_irq_chip_and_handler(i, &mikasa_irq_type, handle_level_irq);
+		irq_set_chip_and_handler(i, &mikasa_irq_type,
+					 handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 

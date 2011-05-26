@@ -557,6 +557,7 @@ static ssize_t store_reset(struct device *dev,
 		dev_info(dev,"Unit %d is disabled, can't reset\n",
 			 dd->ipath_unit);
 		ret = -EINVAL;
+		goto bail;
 	}
 	ret = ipath_reset_device(dd->ipath_unit);
 bail:

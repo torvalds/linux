@@ -185,7 +185,7 @@ static void r852_do_dma(struct r852_device *dev, uint8_t *buf, int do_read)
 
 	dbg_verbose("doing dma %s ", do_read ? "read" : "write");
 
-	/* Set intial dma state: for reading first fill on board buffer,
+	/* Set initial dma state: for reading first fill on board buffer,
 	  from device, for writes first fill the buffer  from memory*/
 	dev->dma_state = do_read ? DMA_INTERNAL : DMA_MEMORY;
 
@@ -766,7 +766,7 @@ static irqreturn_t r852_irq(int irq, void *data)
 		ret = IRQ_HANDLED;
 		dev->card_detected = !!(card_status & R852_CARD_IRQ_INSERT);
 
-		/* we shouldn't recieve any interrupts if we wait for card
+		/* we shouldn't receive any interrupts if we wait for card
 			to settle */
 		WARN_ON(dev->card_unstable);
 
@@ -794,13 +794,13 @@ static irqreturn_t r852_irq(int irq, void *data)
 		ret = IRQ_HANDLED;
 
 		if (dma_status & R852_DMA_IRQ_ERROR) {
-			dbg("recieved dma error IRQ");
+			dbg("received dma error IRQ");
 			r852_dma_done(dev, -EIO);
 			complete(&dev->dma_done);
 			goto out;
 		}
 
-		/* recieved DMA interrupt out of nowhere? */
+		/* received DMA interrupt out of nowhere? */
 		WARN_ON_ONCE(dev->dma_stage == 0);
 
 		if (dev->dma_stage == 0)
@@ -960,7 +960,7 @@ int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		&dev->card_detect_work, 0);
 
 
-	printk(KERN_NOTICE DRV_NAME ": driver loaded succesfully\n");
+	printk(KERN_NOTICE DRV_NAME ": driver loaded successfully\n");
 	return 0;
 
 error10:

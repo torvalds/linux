@@ -140,6 +140,21 @@ static struct ieee80211_rate ath9k_legacy_rates[] = {
 	RATE(540, 0x0c, 0),
 };
 
+#ifdef CONFIG_MAC80211_LEDS
+static const struct ieee80211_tpt_blink ath9k_tpt_blink[] = {
+	{ .throughput = 0 * 1024, .blink_time = 334 },
+	{ .throughput = 1 * 1024, .blink_time = 260 },
+	{ .throughput = 5 * 1024, .blink_time = 220 },
+	{ .throughput = 10 * 1024, .blink_time = 190 },
+	{ .throughput = 20 * 1024, .blink_time = 170 },
+	{ .throughput = 50 * 1024, .blink_time = 150 },
+	{ .throughput = 70 * 1024, .blink_time = 130 },
+	{ .throughput = 100 * 1024, .blink_time = 110 },
+	{ .throughput = 200 * 1024, .blink_time = 80 },
+	{ .throughput = 300 * 1024, .blink_time = 50 },
+};
+#endif
+
 static void ath9k_deinit_softc(struct ath_softc *sc);
 
 /*
@@ -250,8 +265,7 @@ static int ath9k_reg_notifier(struct wiphy *wiphy,
 			      struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
+	struct ath_softc *sc = hw->priv;
 	struct ath_regulatory *reg = ath9k_hw_regulatory(sc->sc_ah);
 
 	return ath_reg_notifier_apply(wiphy, request, reg);
@@ -438,9 +452,10 @@ static int ath9k_init_queues(struct ath_softc *sc)
 	sc->config.cabqReadytime = ATH_CABQ_READY_TIME;
 	ath_cabq_update(sc);
 
-	for (i = 0; i < WME_NUM_AC; i++)
+	for (i = 0; i < WME_NUM_AC; i++) {
 		sc->tx.txq_map[i] = ath_txq_setup(sc, ATH9K_TX_QUEUE_DATA, i);
-
+		sc->tx.txq_map[i]->mac80211_qnum = i;
+	}
 	return 0;
 }
 
@@ -512,10 +527,8 @@ static void ath9k_init_misc(struct ath_softc *sc)
 
 	sc->beacon.slottime = ATH9K_SLOT_TIME_9;
 
-	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++) {
+	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++)
 		sc->beacon.bslot[i] = NULL;
-		sc->beacon.bslot_aphy[i] = NULL;
-	}
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)
 		sc->ant_comb.count = ATH_ANT_DIV_COMB_INIT_COUNT;
@@ -533,6 +546,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	if (!ah)
 		return -ENOMEM;
 
+	ah->hw = sc->hw;
 	ah->hw_version.devid = devid;
 	ah->hw_version.subsysid = subsysid;
 	sc->sc_ah = ah;
@@ -550,10 +564,13 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	common->btcoex_enabled = ath9k_btcoex_enable == 1;
 	spin_lock_init(&common->cc_lock);
 
-	spin_lock_init(&sc->wiphy_lock);
 	spin_lock_init(&sc->sc_serial_rw);
 	spin_lock_init(&sc->sc_pm_lock);
 	mutex_init(&sc->mutex);
+#ifdef CONFIG_ATH9K_DEBUGFS
+	spin_lock_init(&sc->nodes_lock);
+	INIT_LIST_HEAD(&sc->nodes);
+#endif
 	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);
 	tasklet_init(&sc->bcon_tasklet, ath_beacon_tasklet,
 		     (unsigned long)sc);
@@ -695,7 +712,6 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 		    const struct ath_bus_ops *bus_ops)
 {
 	struct ieee80211_hw *hw = sc->hw;
-	struct ath_wiphy *aphy = hw->priv;
 	struct ath_common *common;
 	struct ath_hw *ah;
 	int error = 0;
@@ -730,6 +746,13 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 
 	ath9k_init_txpower_limits(sc);
 
+#ifdef CONFIG_MAC80211_LEDS
+	/* must be initialized before ieee80211_register_hw */
+	sc->led_cdev.default_trigger = ieee80211_create_tpt_led_trigger(sc->hw,
+		IEEE80211_TPT_LEDTRIG_FL_RADIO, ath9k_tpt_blink,
+		ARRAY_SIZE(ath9k_tpt_blink));
+#endif
+
 	/* Register with mac80211 */
 	error = ieee80211_register_hw(hw);
 	if (error)
@@ -750,10 +773,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 
 	INIT_WORK(&sc->hw_check_work, ath_hw_check);
 	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
-	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
-	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
-	sc->wiphy_scheduler_int = msecs_to_jiffies(500);
-	aphy->last_rssi = ATH_RSSI_DUMMY_MARKER;
+	sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
 
 	ath_init_leds(sc);
 	ath_start_rfkill_poll(sc);
@@ -805,7 +825,6 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 void ath9k_deinit_device(struct ath_softc *sc)
 {
 	struct ieee80211_hw *hw = sc->hw;
-	int i = 0;
 
 	ath9k_ps_wakeup(sc);
 
@@ -814,20 +833,10 @@ void ath9k_deinit_device(struct ath_softc *sc)
 
 	ath9k_ps_restore(sc);
 
-	for (i = 0; i < sc->num_sec_wiphy; i++) {
-		struct ath_wiphy *aphy = sc->sec_wiphy[i];
-		if (aphy == NULL)
-			continue;
-		sc->sec_wiphy[i] = NULL;
-		ieee80211_unregister_hw(aphy->hw);
-		ieee80211_free_hw(aphy->hw);
-	}
-
 	ieee80211_unregister_hw(hw);
 	ath_rx_cleanup(sc);
 	ath_tx_cleanup(sc);
 	ath9k_deinit_softc(sc);
-	kfree(sc->sec_wiphy);
 }
 
 void ath_descdma_cleanup(struct ath_softc *sc,

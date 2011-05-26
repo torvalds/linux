@@ -61,6 +61,9 @@ db8500_add_ssp(const char *name, resource_size_t base, int irq,
 #define db8500_add_rtc() \
 	dbx500_add_rtc(U8500_RTC_BASE, IRQ_DB8500_RTC);
 
+#define db8500_add_usb(rx_cfg, tx_cfg) \
+	ux500_add_usb(U8500_USBOTG_BASE, IRQ_DB8500_USBOTG, rx_cfg, tx_cfg)
+
 #define db8500_add_sdi0(pdata) \
 	dbx500_add_sdi("sdi0", U8500_SDI0_BASE, IRQ_DB8500_SDMMC0, pdata)
 #define db8500_add_sdi1(pdata) \
@@ -88,11 +91,11 @@ db8500_add_ssp(const char *name, resource_size_t base, int irq,
 #define db8500_add_spi3(pdata) \
 	dbx500_add_spi("spi3", U8500_SPI3_BASE, IRQ_DB8500_SPI3, pdata)
 
-#define db8500_add_uart0() \
-	dbx500_add_uart("uart0", U8500_UART0_BASE, IRQ_DB8500_UART0)
-#define db8500_add_uart1() \
-	dbx500_add_uart("uart1", U8500_UART1_BASE, IRQ_DB8500_UART1)
-#define db8500_add_uart2() \
-	dbx500_add_uart("uart2", U8500_UART2_BASE, IRQ_DB8500_UART2)
+#define db8500_add_uart0(pdata) \
+	dbx500_add_uart("uart0", U8500_UART0_BASE, IRQ_DB8500_UART0, pdata)
+#define db8500_add_uart1(pdata) \
+	dbx500_add_uart("uart1", U8500_UART1_BASE, IRQ_DB8500_UART1, pdata)
+#define db8500_add_uart2(pdata) \
+	dbx500_add_uart("uart2", U8500_UART2_BASE, IRQ_DB8500_UART2, pdata)
 
 #endif

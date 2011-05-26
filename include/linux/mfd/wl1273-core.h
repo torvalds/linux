@@ -280,7 +280,9 @@ struct wl1273_core {
 
 	struct i2c_client *client;
 
+	int (*read)(struct wl1273_core *core, u8, u16 *);
 	int (*write)(struct wl1273_core *core, u8, u16);
+	int (*write_data)(struct wl1273_core *core, u8 *, u16);
 	int (*set_audio)(struct wl1273_core *core, unsigned int);
 	int (*set_volume)(struct wl1273_core *core, unsigned int);
 };

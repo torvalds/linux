@@ -48,12 +48,17 @@ char *strxfrchar(char *s, char from, char to);
 
 #define BUILD_ID_SIZE 20
 
+/** struct symbol - symtab entry
+ *
+ * @ignore - resolvable but tools ignore it (e.g. idle routines)
+ */
 struct symbol {
 	struct rb_node	rb_node;
 	u64		start;
 	u64		end;
 	u16		namelen;
 	u8		binding;
+	bool		ignore;
 	char		name[0];
 };
 
@@ -132,13 +137,12 @@ struct dso {
 	struct rb_root	 symbol_names[MAP__NR_TYPES];
 	enum dso_kernel_type	kernel;
 	u8		 adjust_symbols:1;
-	u8		 slen_calculated:1;
 	u8		 has_build_id:1;
 	u8		 hit:1;
 	u8		 annotate_warned:1;
 	u8		 sname_alloc:1;
 	u8		 lname_alloc:1;
-	unsigned char	 origin;
+	unsigned char	 symtab_type;
 	u8		 sorted_by_name;
 	u8		 loaded;
 	u8		 build_id[BUILD_ID_SIZE];
@@ -189,18 +193,18 @@ size_t dso__fprintf_buildid(struct dso *self, FILE *fp);
 size_t dso__fprintf_symbols_by_name(struct dso *self, enum map_type type, FILE *fp);
 size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp);
 
-enum dso_origin {
-	DSO__ORIG_KERNEL = 0,
-	DSO__ORIG_GUEST_KERNEL,
-	DSO__ORIG_JAVA_JIT,
-	DSO__ORIG_BUILD_ID_CACHE,
-	DSO__ORIG_FEDORA,
-	DSO__ORIG_UBUNTU,
-	DSO__ORIG_BUILDID,
-	DSO__ORIG_DSO,
-	DSO__ORIG_GUEST_KMODULE,
-	DSO__ORIG_KMODULE,
-	DSO__ORIG_NOT_FOUND,
+enum symtab_type {
+	SYMTAB__KALLSYMS = 0,
+	SYMTAB__GUEST_KALLSYMS,
+	SYMTAB__JAVA_JIT,
+	SYMTAB__BUILD_ID_CACHE,
+	SYMTAB__FEDORA_DEBUGINFO,
+	SYMTAB__UBUNTU_DEBUGINFO,
+	SYMTAB__BUILDID_DEBUGINFO,
+	SYMTAB__SYSTEM_PATH_DSO,
+	SYMTAB__GUEST_KMODULE,
+	SYMTAB__SYSTEM_PATH_KMODULE,
+	SYMTAB__NOT_FOUND,
 };
 
 char dso__symtab_origin(const struct dso *self);

@@ -176,7 +176,6 @@ struct c4iw_dev {
 	struct idr mmidr;
 	spinlock_t lock;
 	struct list_head entry;
-	struct delayed_work db_drop_task;
 	struct dentry *debugfs_root;
 	u8 registered;
 };

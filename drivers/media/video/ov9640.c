@@ -273,7 +273,7 @@ static int ov9640_reset(struct i2c_client *client)
 	ret = ov9640_reg_write(client, OV9640_COM7, OV9640_COM7_SCCB_RESET);
 	if (ret)
 		dev_err(&client->dev,
-			"An error occured while entering soft reset!\n");
+			"An error occurred while entering soft reset!\n");
 
 	return ret;
 }

@@ -35,6 +35,8 @@
 #ifndef __MUSB_GADGET_H
 #define __MUSB_GADGET_H
 
+#include <linux/list.h>
+
 enum buffer_map_state {
 	UN_MAPPED = 0,
 	PRE_MAPPED,
@@ -43,6 +45,7 @@ enum buffer_map_state {
 
 struct musb_request {
 	struct usb_request	request;
+	struct list_head	list;
 	struct musb_ep		*ep;
 	struct musb		*musb;
 	u8 tx;			/* endpoint direction */
@@ -94,13 +97,13 @@ static inline struct musb_ep *to_musb_ep(struct usb_ep *ep)
 	return ep ? container_of(ep, struct musb_ep, end_point) : NULL;
 }
 
-static inline struct usb_request *next_request(struct musb_ep *ep)
+static inline struct musb_request *next_request(struct musb_ep *ep)
 {
 	struct list_head	*queue = &ep->req_list;
 
 	if (list_empty(queue))
 		return NULL;
-	return container_of(queue->next, struct usb_request, list);
+	return container_of(queue->next, struct musb_request, list);
 }
 
 extern void musb_g_tx(struct musb *musb, u8 epnum);

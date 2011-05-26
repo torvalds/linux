@@ -19,6 +19,7 @@
 #include <linux/sysdev.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
@@ -31,8 +32,6 @@
 #include <mach/pm.h>
 #include <mach/dma.h>
 #include <mach/smemc.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -300,7 +299,7 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 		pxa_cpu_standby();
 		break;
 	case PM_SUSPEND_MEM:
-		pxa27x_cpu_suspend(pwrmode);
+		pxa27x_cpu_suspend(pwrmode, PLAT_PHYS_OFFSET - PAGE_OFFSET);
 		break;
 	}
 }
@@ -313,7 +312,7 @@ static int pxa27x_cpu_pm_valid(suspend_state_t state)
 static int pxa27x_cpu_pm_prepare(void)
 {
 	/* set resume return address */
-	PSPR = virt_to_phys(pxa_cpu_resume);
+	PSPR = virt_to_phys(cpu_resume);
 	return 0;
 }
 
@@ -346,7 +345,7 @@ static inline void pxa27x_init_pm(void) {}
  */
 static int pxa27x_set_wake(struct irq_data *d, unsigned int on)
 {
-	int gpio = IRQ_TO_GPIO(d->irq);
+	int gpio = irq_to_gpio(d->irq);
 	uint32_t mask;
 
 	if (gpio >= 0 && gpio < 128)

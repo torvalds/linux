@@ -109,6 +109,7 @@ static int __devinit hp680bl_probe(struct platform_device *pdev)
 	struct backlight_device *bd;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = HP680_MAX_INTENSITY;
 	bd = backlight_device_register("hp680-bl", &pdev->dev, NULL,
 				       &hp680bl_ops, &props);

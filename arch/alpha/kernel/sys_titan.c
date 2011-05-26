@@ -149,6 +149,7 @@ static int
 titan_set_irq_affinity(struct irq_data *d, const struct cpumask *affinity,
 		       bool force)
 { 
+	unsigned int irq = d->irq;
 	spin_lock(&titan_irq_lock);
 	titan_cpu_set_irq_affinity(irq - 16, *affinity);
 	titan_update_irq_hw(titan_cached_irq_mask);
@@ -178,7 +179,7 @@ init_titan_irqs(struct irq_chip * ops, int imin, int imax)
 {
 	long i;
 	for (i = imin; i <= imax; ++i) {
-		set_irq_chip_and_handler(i, ops, handle_level_irq);
+		irq_set_chip_and_handler(i, ops, handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 }

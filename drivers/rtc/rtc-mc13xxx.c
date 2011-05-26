@@ -282,12 +282,6 @@ static irqreturn_t mc13xxx_rtc_update_handler(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int mc13xxx_rtc_update_irq_enable(struct device *dev,
-		unsigned int enabled)
-{
-	return mc13xxx_rtc_irq_enable(dev, enabled, MC13XXX_IRQ_1HZ);
-}
-
 static int mc13xxx_rtc_alarm_irq_enable(struct device *dev,
 		unsigned int enabled)
 {
@@ -300,7 +294,6 @@ static const struct rtc_class_ops mc13xxx_rtc_ops = {
 	.read_alarm = mc13xxx_rtc_read_alarm,
 	.set_alarm = mc13xxx_rtc_set_alarm,
 	.alarm_irq_enable = mc13xxx_rtc_alarm_irq_enable,
-	.update_irq_enable = mc13xxx_rtc_update_irq_enable,
 };
 
 static irqreturn_t mc13xxx_rtc_reset_handler(int irq, void *dev)
@@ -356,10 +349,14 @@ static int __devinit mc13xxx_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_alarm_irq_request;
 
+	mc13xxx_unlock(mc13xxx);
+
 	priv->rtc = rtc_device_register(pdev->name,
 			&pdev->dev, &mc13xxx_rtc_ops, THIS_MODULE);
 	if (IS_ERR(priv->rtc)) {
 		ret = PTR_ERR(priv->rtc);
+
+		mc13xxx_lock(mc13xxx);
 
 		mc13xxx_irq_free(mc13xxx, MC13XXX_IRQ_TODA, priv);
 err_alarm_irq_request:
@@ -372,11 +369,11 @@ err_reset_irq_status:
 		mc13xxx_irq_free(mc13xxx, MC13XXX_IRQ_RTCRST, priv);
 err_reset_irq_request:
 
+		mc13xxx_unlock(mc13xxx);
+
 		platform_set_drvdata(pdev, NULL);
 		kfree(priv);
 	}
-
-	mc13xxx_unlock(mc13xxx);
 
 	return ret;
 }
@@ -408,6 +405,7 @@ const struct platform_device_id mc13xxx_rtc_idtable[] = {
 	}, {
 		.name = "mc13892-rtc",
 	},
+	{ }
 };
 
 static struct platform_driver mc13xxx_rtc_driver = {

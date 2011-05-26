@@ -158,7 +158,7 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 
 	if (res == 0) {
 		/*
-		 * Barrier also required between aquiring a lock for a
+		 * Barrier also required between acquiring a lock for a
 		 * protected resource and accessing the resource. Inserted for
 		 * same reason as above.
 		 */

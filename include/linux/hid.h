@@ -504,6 +504,9 @@ struct hid_device {							/* device report descriptor */
 				  struct hid_usage *, __s32);
 	void (*hiddev_report_event) (struct hid_device *, struct hid_report *);
 
+	/* handler for raw input (Get_Report) data, used by hidraw */
+	int (*hid_get_raw_report) (struct hid_device *, unsigned char, __u8 *, size_t, unsigned char);
+
 	/* handler for raw output data, used by hidraw */
 	int (*hid_output_raw_report) (struct hid_device *, __u8 *, size_t, unsigned char);
 
@@ -638,7 +641,7 @@ struct hid_driver {
 			struct hid_input *hidinput, struct hid_field *field,
 			struct hid_usage *usage, unsigned long **bit, int *max);
 	void (*feature_mapping)(struct hid_device *hdev,
-			struct hid_input *hidinput, struct hid_field *field,
+			struct hid_field *field,
 			struct hid_usage *usage);
 #ifdef CONFIG_PM
 	int (*suspend)(struct hid_device *hdev, pm_message_t message);
@@ -796,7 +799,7 @@ static inline int __must_check hid_parse(struct hid_device *hdev)
  *
  * Call this in probe function *after* hid_parse. This will setup HW buffers
  * and start the device (if not deffered to device open). hid_hw_stop must be
- * called if this was successfull.
+ * called if this was successful.
  */
 static inline int __must_check hid_hw_start(struct hid_device *hdev,
 		unsigned int connect_mask)

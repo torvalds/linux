@@ -114,6 +114,11 @@ docscope()
 	cscope -b -f cscope.out
 }
 
+dogtags()
+{
+	all_sources | gtags -f -
+}
+
 exuberant()
 {
 	all_sources | xargs $1 -a                               \
@@ -185,6 +190,10 @@ fi
 case "$1" in
 	"cscope")
 		docscope
+		;;
+
+	"gtags")
+		dogtags
 		;;
 
 	"tags")

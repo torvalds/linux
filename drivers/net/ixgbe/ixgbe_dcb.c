@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -32,6 +32,42 @@
 #include "ixgbe_dcb.h"
 #include "ixgbe_dcb_82598.h"
 #include "ixgbe_dcb_82599.h"
+
+/**
+ * ixgbe_ieee_credits - This calculates the ieee traffic class
+ * credits from the configured bandwidth percentages. Credits
+ * are the smallest unit programmable into the underlying
+ * hardware. The IEEE 802.1Qaz specification do not use bandwidth
+ * groups so this is much simplified from the CEE case.
+ */
+s32 ixgbe_ieee_credits(__u8 *bw, __u16 *refill, __u16 *max, int max_frame)
+{
+	int min_percent = 100;
+	int min_credit, multiplier;
+	int i;
+
+	min_credit = ((max_frame / 2) + DCB_CREDIT_QUANTUM - 1) /
+			DCB_CREDIT_QUANTUM;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		if (bw[i] < min_percent && bw[i])
+			min_percent = bw[i];
+	}
+
+	multiplier = (min_credit / min_percent) + 1;
+
+	/* Find out the hw credits for each TC */
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		int val = min(bw[i] * multiplier, MAX_CREDIT_REFILL);
+
+		if (val < min_credit)
+			val = min_credit;
+		refill[i] = val;
+
+		max[i] = bw[i] ? (bw[i] * MAX_CREDIT)/100 : min_credit;
+	}
+	return 0;
+}
 
 /**
  * ixgbe_dcb_calculate_tc_credits - Calculates traffic class credits
@@ -141,6 +177,59 @@ out:
 	return ret_val;
 }
 
+void ixgbe_dcb_unpack_pfc(struct ixgbe_dcb_config *cfg, u8 *pfc_en)
+{
+	int i;
+
+	*pfc_en = 0;
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
+		*pfc_en |= (cfg->tc_config[i].dcb_pfc & 0xF) << i;
+}
+
+void ixgbe_dcb_unpack_refill(struct ixgbe_dcb_config *cfg, int direction,
+			     u16 *refill)
+{
+	struct tc_bw_alloc *p;
+	int i;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		p = &cfg->tc_config[i].path[direction];
+		refill[i] = p->data_credits_refill;
+	}
+}
+
+void ixgbe_dcb_unpack_max(struct ixgbe_dcb_config *cfg, u16 *max)
+{
+	int i;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
+		max[i] = cfg->tc_config[i].desc_credits_max;
+}
+
+void ixgbe_dcb_unpack_bwgid(struct ixgbe_dcb_config *cfg, int direction,
+			    u8 *bwgid)
+{
+	struct tc_bw_alloc *p;
+	int i;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		p = &cfg->tc_config[i].path[direction];
+		bwgid[i] = p->bwg_id;
+	}
+}
+
+void ixgbe_dcb_unpack_prio(struct ixgbe_dcb_config *cfg, int direction,
+			    u8 *ptype)
+{
+	struct tc_bw_alloc *p;
+	int i;
+
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		p = &cfg->tc_config[i].path[direction];
+		ptype[i] = p->prio_type;
+	}
+}
+
 /**
  * ixgbe_dcb_hw_config - Config and enable DCB
  * @hw: pointer to hardware structure
@@ -152,13 +241,32 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
                         struct ixgbe_dcb_config *dcb_config)
 {
 	s32 ret = 0;
+	u8 pfc_en;
+	u8 ptype[MAX_TRAFFIC_CLASS];
+	u8 bwgid[MAX_TRAFFIC_CLASS];
+	u16 refill[MAX_TRAFFIC_CLASS];
+	u16 max[MAX_TRAFFIC_CLASS];
+	/* CEE does not define a priority to tc mapping so map 1:1 */
+	u8 prio_tc[MAX_TRAFFIC_CLASS] = {0, 1, 2, 3, 4, 5, 6, 7};
+
+	/* Unpack CEE standard containers */
+	ixgbe_dcb_unpack_pfc(dcb_config, &pfc_en);
+	ixgbe_dcb_unpack_refill(dcb_config, DCB_TX_CONFIG, refill);
+	ixgbe_dcb_unpack_max(dcb_config, max);
+	ixgbe_dcb_unpack_bwgid(dcb_config, DCB_TX_CONFIG, bwgid);
+	ixgbe_dcb_unpack_prio(dcb_config, DCB_TX_CONFIG, ptype);
+
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
-		ret = ixgbe_dcb_hw_config_82598(hw, dcb_config);
+		ret = ixgbe_dcb_hw_config_82598(hw, dcb_config->rx_pba_cfg,
+						pfc_en, refill, max, bwgid,
+						ptype);
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
-		ret = ixgbe_dcb_hw_config_82599(hw, dcb_config);
+		ret = ixgbe_dcb_hw_config_82599(hw, dcb_config->rx_pba_cfg,
+						pfc_en, refill, max, bwgid,
+						ptype, prio_tc);
 		break;
 	default:
 		break;
@@ -166,3 +274,49 @@ s32 ixgbe_dcb_hw_config(struct ixgbe_hw *hw,
 	return ret;
 }
 
+/* Helper routines to abstract HW specifics from DCB netlink ops */
+s32 ixgbe_dcb_hw_pfc_config(struct ixgbe_hw *hw, u8 pfc_en)
+{
+	int ret = -EINVAL;
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+		ret = ixgbe_dcb_config_pfc_82598(hw, pfc_en);
+		break;
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		ret = ixgbe_dcb_config_pfc_82599(hw, pfc_en);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+s32 ixgbe_dcb_hw_ets_config(struct ixgbe_hw *hw,
+			    u16 *refill, u16 *max, u8 *bwg_id,
+			    u8 *prio_type, u8 *prio_tc)
+{
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+		ixgbe_dcb_config_rx_arbiter_82598(hw, refill, max,
+							prio_type);
+		ixgbe_dcb_config_tx_desc_arbiter_82598(hw, refill, max,
+							     bwg_id, prio_type);
+		ixgbe_dcb_config_tx_data_arbiter_82598(hw, refill, max,
+							     bwg_id, prio_type);
+		break;
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		ixgbe_dcb_config_rx_arbiter_82599(hw, refill, max,
+						  bwg_id, prio_type, prio_tc);
+		ixgbe_dcb_config_tx_desc_arbiter_82599(hw, refill, max,
+						       bwg_id, prio_type);
+		ixgbe_dcb_config_tx_data_arbiter_82599(hw, refill, max, bwg_id,
+						       prio_type, prio_tc);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}

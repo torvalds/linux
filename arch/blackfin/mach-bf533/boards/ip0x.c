@@ -289,8 +289,6 @@ static struct platform_device *ip0x_devices[] __initdata = {
 
 static int __init ip0x_init(void)
 {
-	int i;
-
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	platform_add_devices(ip0x_devices, ARRAY_SIZE(ip0x_devices));
 

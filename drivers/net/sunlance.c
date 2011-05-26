@@ -1495,7 +1495,7 @@ fail:
 	return -ENODEV;
 }
 
-static int __devinit sunlance_sbus_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit sunlance_sbus_probe(struct platform_device *op)
 {
 	struct platform_device *parent = to_platform_device(op->dev.parent);
 	struct device_node *parent_dp = parent->dev.of_node;
@@ -1536,7 +1536,7 @@ static const struct of_device_id sunlance_sbus_match[] = {
 
 MODULE_DEVICE_TABLE(of, sunlance_sbus_match);
 
-static struct of_platform_driver sunlance_sbus_driver = {
+static struct platform_driver sunlance_sbus_driver = {
 	.driver = {
 		.name = "sunlance",
 		.owner = THIS_MODULE,
@@ -1550,12 +1550,12 @@ static struct of_platform_driver sunlance_sbus_driver = {
 /* Find all the lance cards on the system and initialize them */
 static int __init sparc_lance_init(void)
 {
-	return of_register_platform_driver(&sunlance_sbus_driver);
+	return platform_driver_register(&sunlance_sbus_driver);
 }
 
 static void __exit sparc_lance_exit(void)
 {
-	of_unregister_platform_driver(&sunlance_sbus_driver);
+	platform_driver_unregister(&sunlance_sbus_driver);
 }
 
 module_init(sparc_lance_init);

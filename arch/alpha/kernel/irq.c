@@ -67,68 +67,21 @@ int irq_select_affinity(unsigned int irq)
 }
 #endif /* CONFIG_SMP */
 
-int
-show_interrupts(struct seq_file *p, void *v)
+int arch_show_interrupts(struct seq_file *p, int prec)
 {
 	int j;
-	int irq = *(loff_t *) v;
-	struct irqaction * action;
-	struct irq_desc *desc;
-	unsigned long flags;
 
 #ifdef CONFIG_SMP
-	if (irq == 0) {
-		seq_puts(p, "           ");
-		for_each_online_cpu(j)
-			seq_printf(p, "CPU%d       ", j);
-		seq_putc(p, '\n');
-	}
+	seq_puts(p, "IPI: ");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10lu ", cpu_data[j].ipi_count);
+	seq_putc(p, '\n');
 #endif
-
-	if (irq < ACTUAL_NR_IRQS) {
-		desc = irq_to_desc(irq);
-
-		if (!desc)
-			return 0;
-
-		raw_spin_lock_irqsave(&desc->lock, flags);
-		action = desc->action;
-		if (!action) 
-			goto unlock;
-		seq_printf(p, "%3d: ", irq);
-#ifndef CONFIG_SMP
-		seq_printf(p, "%10u ", kstat_irqs(irq));
-#else
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(irq, j));
-#endif
-		seq_printf(p, " %14s", get_irq_desc_chip(desc)->name);
-		seq_printf(p, "  %c%s",
-			(action->flags & IRQF_DISABLED)?'+':' ',
-			action->name);
-
-		for (action=action->next; action; action = action->next) {
-			seq_printf(p, ", %c%s",
-				  (action->flags & IRQF_DISABLED)?'+':' ',
-				   action->name);
-		}
-
-		seq_putc(p, '\n');
-unlock:
-		raw_spin_unlock_irqrestore(&desc->lock, flags);
-	} else if (irq == ACTUAL_NR_IRQS) {
-#ifdef CONFIG_SMP
-		seq_puts(p, "IPI: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10lu ", cpu_data[j].ipi_count);
-		seq_putc(p, '\n');
-#endif
-		seq_puts(p, "PMI: ");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10lu ", per_cpu(irq_pmi_count, j));
-		seq_puts(p, "          Performance Monitoring\n");
-		seq_printf(p, "ERR: %10lu\n", irq_err_count);
-	}
+	seq_puts(p, "PMI: ");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10lu ", per_cpu(irq_pmi_count, j));
+	seq_puts(p, "          Performance Monitoring\n");
+	seq_printf(p, "ERR: %10lu\n", irq_err_count);
 	return 0;
 }
 

@@ -503,7 +503,7 @@ static int hpet_assign_irq(struct hpet_dev *dev)
 	if (!irq)
 		return -EINVAL;
 
-	set_irq_data(irq, dev);
+	irq_set_handler_data(irq, dev);
 
 	if (hpet_setup_msi_irq(irq))
 		return -EINVAL;

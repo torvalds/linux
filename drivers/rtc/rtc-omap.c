@@ -135,44 +135,6 @@ static irqreturn_t rtc_irq(int irq, void *rtc)
 	return IRQ_HANDLED;
 }
 
-#ifdef	CONFIG_RTC_INTF_DEV
-
-static int
-omap_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
-{
-	u8 reg;
-
-	switch (cmd) {
-	case RTC_UIE_OFF:
-	case RTC_UIE_ON:
-		break;
-	default:
-		return -ENOIOCTLCMD;
-	}
-
-	local_irq_disable();
-	rtc_wait_not_busy();
-	reg = rtc_read(OMAP_RTC_INTERRUPTS_REG);
-	switch (cmd) {
-	/* UIE = Update Interrupt Enable (1/second) */
-	case RTC_UIE_OFF:
-		reg &= ~OMAP_RTC_INTERRUPTS_IT_TIMER;
-		break;
-	case RTC_UIE_ON:
-		reg |= OMAP_RTC_INTERRUPTS_IT_TIMER;
-		break;
-	}
-	rtc_wait_not_busy();
-	rtc_write(reg, OMAP_RTC_INTERRUPTS_REG);
-	local_irq_enable();
-
-	return 0;
-}
-
-#else
-#define	omap_rtc_ioctl	NULL
-#endif
-
 static int omap_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	u8 reg;
@@ -313,7 +275,6 @@ static int omap_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 }
 
 static struct rtc_class_ops omap_rtc_ops = {
-	.ioctl		= omap_rtc_ioctl,
 	.read_time	= omap_rtc_read_time,
 	.set_time	= omap_rtc_set_time,
 	.read_alarm	= omap_rtc_read_alarm,
@@ -433,7 +394,7 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 fail2:
-	free_irq(omap_rtc_timer, NULL);
+	free_irq(omap_rtc_timer, rtc);
 fail1:
 	rtc_device_unregister(rtc);
 fail0:

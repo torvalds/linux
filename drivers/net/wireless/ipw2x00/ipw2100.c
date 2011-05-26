@@ -63,7 +63,7 @@ When data is sent to the firmware, the first TBD is used to indicate to the
 firmware if a Command or Data is being sent.  If it is Command, all of the
 command information is contained within the physical address referred to by the
 TBD.  If it is Data, the first TBD indicates the type of data packet, number
-of fragments, etc.  The next TBD then referrs to the actual packet location.
+of fragments, etc.  The next TBD then refers to the actual packet location.
 
 The Tx flow cycle is as follows:
 
@@ -706,11 +706,10 @@ static void schedule_reset(struct ipw2100_priv *priv)
 		netif_stop_queue(priv->net_dev);
 		priv->status |= STATUS_RESET_PENDING;
 		if (priv->reset_backoff)
-			queue_delayed_work(priv->workqueue, &priv->reset_work,
-					   priv->reset_backoff * HZ);
+			schedule_delayed_work(&priv->reset_work,
+					      priv->reset_backoff * HZ);
 		else
-			queue_delayed_work(priv->workqueue, &priv->reset_work,
-					   0);
+			schedule_delayed_work(&priv->reset_work, 0);
 
 		if (priv->reset_backoff < MAX_RESET_BACKOFF)
 			priv->reset_backoff++;
@@ -1397,7 +1396,7 @@ static int ipw2100_power_cycle_adapter(struct ipw2100_priv *priv)
 }
 
 /*
- * Send the CARD_DISABLE_PHY_OFF comamnd to the card to disable it
+ * Send the CARD_DISABLE_PHY_OFF command to the card to disable it
  *
  * After disabling, if the card was associated, a STATUS_ASSN_LOST will be sent.
  *
@@ -1474,7 +1473,7 @@ static int ipw2100_enable_adapter(struct ipw2100_priv *priv)
 
 	if (priv->stop_hang_check) {
 		priv->stop_hang_check = 0;
-		queue_delayed_work(priv->workqueue, &priv->hang_check, HZ / 2);
+		schedule_delayed_work(&priv->hang_check, HZ / 2);
 	}
 
       fail_up:
@@ -1808,8 +1807,8 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 
 		if (priv->stop_rf_kill) {
 			priv->stop_rf_kill = 0;
-			queue_delayed_work(priv->workqueue, &priv->rf_kill,
-					   round_jiffies_relative(HZ));
+			schedule_delayed_work(&priv->rf_kill,
+					      round_jiffies_relative(HZ));
 		}
 
 		deferred = 1;
@@ -2086,7 +2085,7 @@ static void isr_indicate_associated(struct ipw2100_priv *priv, u32 status)
 	priv->status |= STATUS_ASSOCIATING;
 	priv->connect_start = get_seconds();
 
-	queue_delayed_work(priv->workqueue, &priv->wx_event_work, HZ / 10);
+	schedule_delayed_work(&priv->wx_event_work, HZ / 10);
 }
 
 static int ipw2100_set_essid(struct ipw2100_priv *priv, char *essid,
@@ -2166,9 +2165,9 @@ static void isr_indicate_association_lost(struct ipw2100_priv *priv, u32 status)
 		return;
 
 	if (priv->status & STATUS_SECURITY_UPDATED)
-		queue_delayed_work(priv->workqueue, &priv->security_work, 0);
+		schedule_delayed_work(&priv->security_work, 0);
 
-	queue_delayed_work(priv->workqueue, &priv->wx_event_work, 0);
+	schedule_delayed_work(&priv->wx_event_work, 0);
 }
 
 static void isr_indicate_rf_kill(struct ipw2100_priv *priv, u32 status)
@@ -2183,8 +2182,7 @@ static void isr_indicate_rf_kill(struct ipw2100_priv *priv, u32 status)
 	/* Make sure the RF Kill check timer is running */
 	priv->stop_rf_kill = 0;
 	cancel_delayed_work(&priv->rf_kill);
-	queue_delayed_work(priv->workqueue, &priv->rf_kill,
-			   round_jiffies_relative(HZ));
+	schedule_delayed_work(&priv->rf_kill, round_jiffies_relative(HZ));
 }
 
 static void send_scan_event(void *data)
@@ -2219,13 +2217,12 @@ static void isr_scan_complete(struct ipw2100_priv *priv, u32 status)
 	/* Only userspace-requested scan completion events go out immediately */
 	if (!priv->user_requested_scan) {
 		if (!delayed_work_pending(&priv->scan_event_later))
-			queue_delayed_work(priv->workqueue,
-					&priv->scan_event_later,
-					round_jiffies_relative(msecs_to_jiffies(4000)));
+			schedule_delayed_work(&priv->scan_event_later,
+					      round_jiffies_relative(msecs_to_jiffies(4000)));
 	} else {
 		priv->user_requested_scan = 0;
 		cancel_delayed_work(&priv->scan_event_later);
-		queue_work(priv->workqueue, &priv->scan_event_now);
+		schedule_work(&priv->scan_event_now);
 	}
 }
 
@@ -4329,8 +4326,8 @@ static int ipw_radio_kill_sw(struct ipw2100_priv *priv, int disable_radio)
 			/* Make sure the RF_KILL check timer is running */
 			priv->stop_rf_kill = 0;
 			cancel_delayed_work(&priv->rf_kill);
-			queue_delayed_work(priv->workqueue, &priv->rf_kill,
-					   round_jiffies_relative(HZ));
+			schedule_delayed_work(&priv->rf_kill,
+					      round_jiffies_relative(HZ));
 		} else
 			schedule_reset(priv);
 	}
@@ -4461,20 +4458,17 @@ static void bd_queue_initialize(struct ipw2100_priv *priv,
 	IPW_DEBUG_INFO("exit\n");
 }
 
-static void ipw2100_kill_workqueue(struct ipw2100_priv *priv)
+static void ipw2100_kill_works(struct ipw2100_priv *priv)
 {
-	if (priv->workqueue) {
-		priv->stop_rf_kill = 1;
-		priv->stop_hang_check = 1;
-		cancel_delayed_work(&priv->reset_work);
-		cancel_delayed_work(&priv->security_work);
-		cancel_delayed_work(&priv->wx_event_work);
-		cancel_delayed_work(&priv->hang_check);
-		cancel_delayed_work(&priv->rf_kill);
-		cancel_delayed_work(&priv->scan_event_later);
-		destroy_workqueue(priv->workqueue);
-		priv->workqueue = NULL;
-	}
+	priv->stop_rf_kill = 1;
+	priv->stop_hang_check = 1;
+	cancel_delayed_work_sync(&priv->reset_work);
+	cancel_delayed_work_sync(&priv->security_work);
+	cancel_delayed_work_sync(&priv->wx_event_work);
+	cancel_delayed_work_sync(&priv->hang_check);
+	cancel_delayed_work_sync(&priv->rf_kill);
+	cancel_work_sync(&priv->scan_event_now);
+	cancel_delayed_work_sync(&priv->scan_event_later);
 }
 
 static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
@@ -6046,7 +6040,7 @@ static void ipw2100_hang_check(struct work_struct *work)
 	priv->last_rtc = rtc;
 
 	if (!priv->stop_hang_check)
-		queue_delayed_work(priv->workqueue, &priv->hang_check, HZ / 2);
+		schedule_delayed_work(&priv->hang_check, HZ / 2);
 
 	spin_unlock_irqrestore(&priv->low_lock, flags);
 }
@@ -6062,8 +6056,8 @@ static void ipw2100_rf_kill(struct work_struct *work)
 	if (rf_kill_active(priv)) {
 		IPW_DEBUG_RF_KILL("RF Kill active, rescheduling GPIO check\n");
 		if (!priv->stop_rf_kill)
-			queue_delayed_work(priv->workqueue, &priv->rf_kill,
-					   round_jiffies_relative(HZ));
+			schedule_delayed_work(&priv->rf_kill,
+					      round_jiffies_relative(HZ));
 		goto exit_unlock;
 	}
 
@@ -6208,8 +6202,6 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 
 	INIT_LIST_HEAD(&priv->fw_pend_list);
 	INIT_STAT(&priv->fw_pend_stat);
-
-	priv->workqueue = create_workqueue(DRV_NAME);
 
 	INIT_DELAYED_WORK(&priv->reset_work, ipw2100_reset_adapter);
 	INIT_DELAYED_WORK(&priv->security_work, ipw2100_security_work);
@@ -6410,7 +6402,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 		if (dev->irq)
 			free_irq(dev->irq, priv);
 
-		ipw2100_kill_workqueue(priv);
+		ipw2100_kill_works(priv);
 
 		/* These are safe to call even if they weren't allocated */
 		ipw2100_queues_free(priv);
@@ -6460,9 +6452,7 @@ static void __devexit ipw2100_pci_remove_one(struct pci_dev *pci_dev)
 		 * first, then close() will crash. */
 		unregister_netdev(dev);
 
-		/* ipw2100_down will ensure that there is no more pending work
-		 * in the workqueue's, so we can safely remove them now. */
-		ipw2100_kill_workqueue(priv);
+		ipw2100_kill_works(priv);
 
 		ipw2100_queues_free(priv);
 

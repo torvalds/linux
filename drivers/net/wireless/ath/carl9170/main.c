@@ -662,6 +662,13 @@ init:
 			goto unlock;
 	}
 
+	if (ar->fw.tx_seq_table) {
+		err = carl9170_write_reg(ar, ar->fw.tx_seq_table + vif_id * 4,
+					 0);
+		if (err)
+			goto unlock;
+	}
+
 unlock:
 	if (err && (vif_id >= 0)) {
 		vif_priv->active = false;
@@ -1279,7 +1286,7 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    enum ieee80211_ampdu_mlme_action action,
 				    struct ieee80211_sta *sta,
-				    u16 tid, u16 *ssn)
+				    u16 tid, u16 *ssn, u8 buf_size)
 {
 	struct ar9170 *ar = hw->priv;
 	struct carl9170_sta_info *sta_info = (void *) sta->drv_priv;
@@ -1348,6 +1355,7 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 		tid_info = rcu_dereference(sta_info->agg[tid]);
 
 		sta_info->stats[tid].clear = true;
+		sta_info->stats[tid].req = false;
 
 		if (tid_info) {
 			bitmap_zero(tid_info->bitmap, CARL9170_BAW_SIZE);

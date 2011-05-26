@@ -35,6 +35,7 @@ int css_init_done = 0;
 int max_ssid;
 
 struct channel_subsystem *channel_subsystems[__MAX_CSSID + 1];
+static struct bus_type css_bus_type;
 
 int
 for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
@@ -1214,7 +1215,7 @@ static const struct dev_pm_ops css_pm_ops = {
 	.restore = css_pm_restore,
 };
 
-struct bus_type css_bus_type = {
+static struct bus_type css_bus_type = {
 	.name     = "css",
 	.match    = css_bus_match,
 	.probe    = css_probe,
@@ -1233,9 +1234,7 @@ struct bus_type css_bus_type = {
  */
 int css_driver_register(struct css_driver *cdrv)
 {
-	cdrv->drv.name = cdrv->name;
 	cdrv->drv.bus = &css_bus_type;
-	cdrv->drv.owner = cdrv->owner;
 	return driver_register(&cdrv->drv);
 }
 EXPORT_SYMBOL_GPL(css_driver_register);
@@ -1253,4 +1252,3 @@ void css_driver_unregister(struct css_driver *cdrv)
 EXPORT_SYMBOL_GPL(css_driver_unregister);
 
 MODULE_LICENSE("GPL");
-EXPORT_SYMBOL(css_bus_type);

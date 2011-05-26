@@ -662,7 +662,7 @@ static void thermostat_create_files(void)
 		err |= device_create_file(&of_dev->dev, &dev_attr_sensor2_fan_speed);
 	if (err)
 		printk(KERN_WARNING
-			"Failed to create tempertaure attribute file(s).\n");
+			"Failed to create temperature attribute file(s).\n");
 }
 
 static void thermostat_remove_files(void)

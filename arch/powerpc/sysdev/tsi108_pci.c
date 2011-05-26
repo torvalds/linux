@@ -343,24 +343,9 @@ static inline unsigned int get_pci_source(void)
  * Linux descriptor level callbacks
  */
 
-static void tsi108_pci_irq_enable(u_int irq)
+static void tsi108_pci_irq_unmask(struct irq_data *d)
 {
-	tsi108_pci_int_unmask(irq);
-}
-
-static void tsi108_pci_irq_disable(u_int irq)
-{
-	tsi108_pci_int_mask(irq);
-}
-
-static void tsi108_pci_irq_ack(u_int irq)
-{
-	tsi108_pci_int_mask(irq);
-}
-
-static void tsi108_pci_irq_end(u_int irq)
-{
-	tsi108_pci_int_unmask(irq);
+	tsi108_pci_int_unmask(d->irq);
 
 	/* Enable interrupts from PCI block */
 	tsi108_write_reg(TSI108_PCI_OFFSET + TSI108_PCI_IRP_ENABLE,
@@ -370,16 +355,25 @@ static void tsi108_pci_irq_end(u_int irq)
 	mb();
 }
 
+static void tsi108_pci_irq_mask(struct irq_data *d)
+{
+	tsi108_pci_int_mask(d->irq);
+}
+
+static void tsi108_pci_irq_ack(struct irq_data *d)
+{
+	tsi108_pci_int_mask(d->irq);
+}
+
 /*
  * Interrupt controller descriptor for cascaded PCI interrupt controller.
  */
 
 static struct irq_chip tsi108_pci_irq = {
 	.name = "tsi108_PCI_int",
-	.mask = tsi108_pci_irq_disable,
-	.ack = tsi108_pci_irq_ack,
-	.end = tsi108_pci_irq_end,
-	.unmask = tsi108_pci_irq_enable,
+	.irq_mask = tsi108_pci_irq_mask,
+	.irq_ack = tsi108_pci_irq_ack,
+	.irq_unmask = tsi108_pci_irq_unmask,
 };
 
 static int pci_irq_host_xlate(struct irq_host *h, struct device_node *ct,
@@ -397,8 +391,8 @@ static int pci_irq_host_map(struct irq_host *h, unsigned int virq,
 	DBG("%s(%d, 0x%lx)\n", __func__, virq, hw);
 	if ((virq >= 1) && (virq <= 4)){
 		irq = virq + IRQ_PCI_INTAD_BASE - 1;
-		irq_to_desc(irq)->status |= IRQ_LEVEL;
-		set_irq_chip(irq, &tsi108_pci_irq);
+		irq_set_status_flags(irq, IRQ_LEVEL);
+		irq_set_chip(irq, &tsi108_pci_irq);
 	}
 	return 0;
 }
@@ -437,8 +431,11 @@ void __init tsi108_pci_int_init(struct device_node *node)
 
 void tsi108_irq_cascade(unsigned int irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = get_pci_source();
+
 	if (cascade_irq != NO_IRQ)
 		generic_handle_irq(cascade_irq);
-	desc->chip->eoi(irq);
+
+	chip->irq_eoi(&desc->irq_data);
 }

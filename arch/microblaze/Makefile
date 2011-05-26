@@ -18,7 +18,7 @@ export CPU_VER CPU_MAJOR CPU_MINOR CPU_REV
 # rather than bools y/n
 
 # Work out HW multipler support. This is tricky.
-# 1. Spartan2 has no HW multiplers.
+# 1. Spartan2 has no HW multipliers.
 # 2. MicroBlaze v3.x always uses them, except in Spartan 2
 # 3. All other FPGa/CPU ver combos, we can trust the CONFIG_ settings
 ifeq (,$(findstring spartan2,$(CONFIG_XILINX_MICROBLAZE0_FAMILY)))

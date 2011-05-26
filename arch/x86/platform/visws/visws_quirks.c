@@ -471,15 +471,7 @@ static unsigned int startup_piix4_master_irq(struct irq_data *data)
 {
 	legacy_pic->init(0);
 	enable_cobalt_irq(data);
-}
-
-static void end_piix4_master_irq(struct irq_data *data)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&cobalt_lock, flags);
-	enable_cobalt_irq(data);
-	spin_unlock_irqrestore(&cobalt_lock, flags);
+	return 0;
 }
 
 static struct irq_chip piix4_master_irq_type = {
@@ -492,7 +484,7 @@ static void pii4_mask(struct irq_data *data) { }
 
 static struct irq_chip piix4_virtual_irq_type = {
 	.name		= "PIIX4-virtual",
-	.mask		= pii4_mask,
+	.irq_mask	= pii4_mask,
 };
 
 /*
@@ -569,18 +561,20 @@ out_unlock:
 static struct irqaction master_action = {
 	.handler =	piix4_master_intr,
 	.name =		"PIIX4-8259",
+	.flags =	IRQF_NO_THREAD,
 };
 
 static struct irqaction cascade_action = {
 	.handler = 	no_action,
 	.name =		"cascade",
+	.flags =	IRQF_NO_THREAD,
 };
 
 static inline void set_piix4_virtual_irq_type(void)
 {
-	piix4_virtual_irq_type.enable =	i8259A_chip.unmask;
-	piix4_virtual_irq_type.disable = i8259A_chip.mask;
-	piix4_virtual_irq_type.unmask =	i8259A_chip.unmask;
+	piix4_virtual_irq_type.irq_enable = i8259A_chip.irq_unmask;
+	piix4_virtual_irq_type.irq_disable = i8259A_chip.irq_mask;
+	piix4_virtual_irq_type.irq_unmask = i8259A_chip.irq_unmask;
 }
 
 static void __init visws_pre_intr_init(void)
@@ -597,7 +591,7 @@ static void __init visws_pre_intr_init(void)
 		else if (i == CO_IRQ_IDE0)
 			chip = &cobalt_irq_type;
 		else if (i == CO_IRQ_IDE1)
-			>chip = &cobalt_irq_type;
+			chip = &cobalt_irq_type;
 		else if (i == CO_IRQ_8259)
 			chip = &piix4_master_irq_type;
 		else if (i < CO_IRQ_APIC0)
@@ -606,7 +600,7 @@ static void __init visws_pre_intr_init(void)
 			chip = &cobalt_irq_type;
 
 		if (chip)
-			set_irq_chip(i, chip);
+			irq_set_chip(i, chip);
 	}
 
 	setup_irq(CO_IRQ_8259, &master_action);

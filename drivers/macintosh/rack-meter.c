@@ -283,7 +283,7 @@ static void __devinit rackmeter_init_cpu_sniffer(struct rackmeter *rm)
 	}
 }
 
-static void __devexit rackmeter_stop_cpu_sniffer(struct rackmeter *rm)
+static void rackmeter_stop_cpu_sniffer(struct rackmeter *rm)
 {
 	cancel_delayed_work_sync(&rm->cpu[0].sniffer);
 	cancel_delayed_work_sync(&rm->cpu[1].sniffer);

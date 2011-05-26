@@ -26,17 +26,8 @@
 
 #include <linux/bitops.h>
 
-#include "prm2xxx_3xxx.h"
-#include "prm-regbits-24xx.h"
-#include "cm2xxx_3xxx.h"
-#include "cm-regbits-24xx.h"
-#include "cminst44xx.h"
-#include "prcm44xx.h"
-
 #include <plat/clock.h>
-#include "powerdomain.h"
 #include "clockdomain.h"
-#include <plat/prcm.h>
 
 /* clkdm_list contains all registered struct clockdomains */
 static LIST_HEAD(clkdm_list);
@@ -44,6 +35,7 @@ static LIST_HEAD(clkdm_list);
 /* array of clockdomain deps to be added/removed when clkdm in hwsup mode */
 static struct clkdm_autodep *autodeps;
 
+static struct clkdm_ops *arch_clkdm;
 
 /* Private functions */
 
@@ -177,11 +169,11 @@ static void _autodep_lookup(struct clkdm_autodep *autodep)
  * XXX autodeps are deprecated and should be removed at the earliest
  * opportunity
  */
-static void _clkdm_add_autodeps(struct clockdomain *clkdm)
+void _clkdm_add_autodeps(struct clockdomain *clkdm)
 {
 	struct clkdm_autodep *autodep;
 
-	if (!autodeps)
+	if (!autodeps || clkdm->flags & CLKDM_NO_AUTODEPS)
 		return;
 
 	for (autodep = autodeps; autodep->clkdm.ptr; autodep++) {
@@ -211,11 +203,11 @@ static void _clkdm_add_autodeps(struct clockdomain *clkdm)
  * XXX autodeps are deprecated and should be removed at the earliest
  * opportunity
  */
-static void _clkdm_del_autodeps(struct clockdomain *clkdm)
+void _clkdm_del_autodeps(struct clockdomain *clkdm)
 {
 	struct clkdm_autodep *autodep;
 
-	if (!autodeps)
+	if (!autodeps || clkdm->flags & CLKDM_NO_AUTODEPS)
 		return;
 
 	for (autodep = autodeps; autodep->clkdm.ptr; autodep++) {
@@ -235,55 +227,29 @@ static void _clkdm_del_autodeps(struct clockdomain *clkdm)
 }
 
 /**
- * _enable_hwsup - place a clockdomain into hardware-supervised idle
- * @clkdm: struct clockdomain *
+ * _resolve_clkdm_deps() - resolve clkdm_names in @clkdm_deps to clkdms
+ * @clkdm: clockdomain that we are resolving dependencies for
+ * @clkdm_deps: ptr to array of struct clkdm_deps to resolve
  *
- * Place the clockdomain into hardware-supervised idle mode.  No return
- * value.
- *
- * XXX Should this return an error if the clockdomain does not support
- * hardware-supervised idle mode?
- */
-static void _enable_hwsup(struct clockdomain *clkdm)
-{
-	if (cpu_is_omap24xx())
-		omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-					       clkdm->clktrctrl_mask);
-	else if (cpu_is_omap34xx())
-		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-					       clkdm->clktrctrl_mask);
-	else if (cpu_is_omap44xx())
-		return omap4_cminst_clkdm_enable_hwsup(clkdm->prcm_partition,
-						       clkdm->cm_inst,
-						       clkdm->clkdm_offs);
-	else
-		BUG();
-}
-
-/**
- * _disable_hwsup - place a clockdomain into software-supervised idle
- * @clkdm: struct clockdomain *
- *
- * Place the clockdomain @clkdm into software-supervised idle mode.
+ * Iterates through @clkdm_deps, looking up the struct clockdomain named by
+ * clkdm_name and storing the clockdomain pointer in the struct clkdm_dep.
  * No return value.
- *
- * XXX Should this return an error if the clockdomain does not support
- * software-supervised idle mode?
  */
-static void _disable_hwsup(struct clockdomain *clkdm)
+static void _resolve_clkdm_deps(struct clockdomain *clkdm,
+				struct clkdm_dep *clkdm_deps)
 {
-	if (cpu_is_omap24xx())
-		omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-						clkdm->clktrctrl_mask);
-	else if (cpu_is_omap34xx())
-		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-						clkdm->clktrctrl_mask);
-	else if (cpu_is_omap44xx())
-		return omap4_cminst_clkdm_disable_hwsup(clkdm->prcm_partition,
-							clkdm->cm_inst,
-							clkdm->clkdm_offs);
-	else
-		BUG();
+	struct clkdm_dep *cd;
+
+	for (cd = clkdm_deps; cd && cd->clkdm_name; cd++) {
+		if (!omap_chip_is(cd->omap_chip))
+			continue;
+		if (cd->clkdm)
+			continue;
+		cd->clkdm = _clkdm_lookup(cd->clkdm_name);
+
+		WARN(!cd->clkdm, "clockdomain: %s: could not find clkdm %s while resolving dependencies - should never happen",
+		     clkdm->name, cd->clkdm_name);
+	}
 }
 
 /* Public functions */
@@ -292,6 +258,7 @@ static void _disable_hwsup(struct clockdomain *clkdm)
  * clkdm_init - set up the clockdomain layer
  * @clkdms: optional pointer to an array of clockdomains to register
  * @init_autodeps: optional pointer to an array of autodeps to register
+ * @custom_funcs: func pointers for arch specific implementations
  *
  * Set up internal state.  If a pointer to an array of clockdomains
  * @clkdms was supplied, loop through the list of clockdomains,
@@ -300,11 +267,17 @@ static void _disable_hwsup(struct clockdomain *clkdm)
  * @init_autodeps was provided, register those.  No return value.
  */
 void clkdm_init(struct clockdomain **clkdms,
-		struct clkdm_autodep *init_autodeps)
+		struct clkdm_autodep *init_autodeps,
+		struct clkdm_ops *custom_funcs)
 {
 	struct clockdomain **c = NULL;
 	struct clockdomain *clkdm;
 	struct clkdm_autodep *autodep = NULL;
+
+	if (!custom_funcs)
+		WARN(1, "No custom clkdm functions registered\n");
+	else
+		arch_clkdm = custom_funcs;
 
 	if (clkdms)
 		for (c = clkdms; *c; c++)
@@ -321,11 +294,14 @@ void clkdm_init(struct clockdomain **clkdms,
 	 */
 	list_for_each_entry(clkdm, &clkdm_list, node) {
 		if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
-			omap2_clkdm_wakeup(clkdm);
+			clkdm_wakeup(clkdm);
 		else if (clkdm->flags & CLKDM_CAN_DISABLE_AUTO)
-			omap2_clkdm_deny_idle(clkdm);
+			clkdm_deny_idle(clkdm);
 
+		_resolve_clkdm_deps(clkdm, clkdm->wkdep_srcs);
 		clkdm_clear_all_wkdeps(clkdm);
+
+		_resolve_clkdm_deps(clkdm, clkdm->sleepdep_srcs);
 		clkdm_clear_all_sleepdeps(clkdm);
 	}
 }
@@ -422,32 +398,32 @@ struct powerdomain *clkdm_get_pwrdm(struct clockdomain *clkdm)
 int clkdm_add_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
 	struct clkdm_dep *cd;
-
-	if (!cpu_is_omap24xx() && !cpu_is_omap34xx()) {
-		pr_err("clockdomain: %s/%s: %s: not yet implemented\n",
-		       clkdm1->name, clkdm2->name, __func__);
-		return -EINVAL;
-	}
+	int ret = 0;
 
 	if (!clkdm1 || !clkdm2)
 		return -EINVAL;
 
 	cd = _clkdm_deps_lookup(clkdm2, clkdm1->wkdep_srcs);
-	if (IS_ERR(cd)) {
+	if (IS_ERR(cd))
+		ret = PTR_ERR(cd);
+
+	if (!arch_clkdm || !arch_clkdm->clkdm_add_wkdep)
+		ret = -EINVAL;
+
+	if (ret) {
 		pr_debug("clockdomain: hardware cannot set/clear wake up of "
 			 "%s when %s wakes up\n", clkdm1->name, clkdm2->name);
-		return PTR_ERR(cd);
+		return ret;
 	}
 
 	if (atomic_inc_return(&cd->wkdep_usecount) == 1) {
 		pr_debug("clockdomain: hardware will wake up %s when %s wakes "
 			 "up\n", clkdm1->name, clkdm2->name);
 
-		omap2_prm_set_mod_reg_bits((1 << clkdm2->dep_bit),
-				     clkdm1->pwrdm.ptr->prcm_offs, PM_WKDEP);
+		ret = arch_clkdm->clkdm_add_wkdep(clkdm1, clkdm2);
 	}
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -463,32 +439,32 @@ int clkdm_add_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 int clkdm_del_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
 	struct clkdm_dep *cd;
-
-	if (!cpu_is_omap24xx() && !cpu_is_omap34xx()) {
-		pr_err("clockdomain: %s/%s: %s: not yet implemented\n",
-		       clkdm1->name, clkdm2->name, __func__);
-		return -EINVAL;
-	}
+	int ret = 0;
 
 	if (!clkdm1 || !clkdm2)
 		return -EINVAL;
 
 	cd = _clkdm_deps_lookup(clkdm2, clkdm1->wkdep_srcs);
-	if (IS_ERR(cd)) {
+	if (IS_ERR(cd))
+		ret = PTR_ERR(cd);
+
+	if (!arch_clkdm || !arch_clkdm->clkdm_del_wkdep)
+		ret = -EINVAL;
+
+	if (ret) {
 		pr_debug("clockdomain: hardware cannot set/clear wake up of "
 			 "%s when %s wakes up\n", clkdm1->name, clkdm2->name);
-		return PTR_ERR(cd);
+		return ret;
 	}
 
 	if (atomic_dec_return(&cd->wkdep_usecount) == 0) {
 		pr_debug("clockdomain: hardware will no longer wake up %s "
 			 "after %s wakes up\n", clkdm1->name, clkdm2->name);
 
-		omap2_prm_clear_mod_reg_bits((1 << clkdm2->dep_bit),
-				       clkdm1->pwrdm.ptr->prcm_offs, PM_WKDEP);
+		ret = arch_clkdm->clkdm_del_wkdep(clkdm1, clkdm2);
 	}
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -508,26 +484,26 @@ int clkdm_del_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 int clkdm_read_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
 	struct clkdm_dep *cd;
+	int ret = 0;
 
 	if (!clkdm1 || !clkdm2)
 		return -EINVAL;
 
-	if (!cpu_is_omap24xx() && !cpu_is_omap34xx()) {
-		pr_err("clockdomain: %s/%s: %s: not yet implemented\n",
-		       clkdm1->name, clkdm2->name, __func__);
-		return -EINVAL;
-	}
-
 	cd = _clkdm_deps_lookup(clkdm2, clkdm1->wkdep_srcs);
-	if (IS_ERR(cd)) {
+	if (IS_ERR(cd))
+		ret = PTR_ERR(cd);
+
+	if (!arch_clkdm || !arch_clkdm->clkdm_read_wkdep)
+		ret = -EINVAL;
+
+	if (ret) {
 		pr_debug("clockdomain: hardware cannot set/clear wake up of "
 			 "%s when %s wakes up\n", clkdm1->name, clkdm2->name);
-		return PTR_ERR(cd);
+		return ret;
 	}
 
 	/* XXX It's faster to return the atomic wkdep_usecount */
-	return omap2_prm_read_mod_bits_shift(clkdm1->pwrdm.ptr->prcm_offs, PM_WKDEP,
-				       (1 << clkdm2->dep_bit));
+	return arch_clkdm->clkdm_read_wkdep(clkdm1, clkdm2);
 }
 
 /**
@@ -542,33 +518,13 @@ int clkdm_read_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
  */
 int clkdm_clear_all_wkdeps(struct clockdomain *clkdm)
 {
-	struct clkdm_dep *cd;
-	u32 mask = 0;
-
-	if (!cpu_is_omap24xx() && !cpu_is_omap34xx()) {
-		pr_err("clockdomain: %s: %s: not yet implemented\n",
-		       clkdm->name, __func__);
-		return -EINVAL;
-	}
-
 	if (!clkdm)
 		return -EINVAL;
 
-	for (cd = clkdm->wkdep_srcs; cd && cd->clkdm_name; cd++) {
-		if (!omap_chip_is(cd->omap_chip))
-			continue;
+	if (!arch_clkdm || !arch_clkdm->clkdm_clear_all_wkdeps)
+		return -EINVAL;
 
-		if (!cd->clkdm && cd->clkdm_name)
-			cd->clkdm = _clkdm_lookup(cd->clkdm_name);
-
-		/* PRM accesses are slow, so minimize them */
-		mask |= 1 << cd->clkdm->dep_bit;
-		atomic_set(&cd->wkdep_usecount, 0);
-	}
-
-	omap2_prm_clear_mod_reg_bits(mask, clkdm->pwrdm.ptr->prcm_offs, PM_WKDEP);
-
-	return 0;
+	return arch_clkdm->clkdm_clear_all_wkdeps(clkdm);
 }
 
 /**
@@ -586,31 +542,33 @@ int clkdm_clear_all_wkdeps(struct clockdomain *clkdm)
 int clkdm_add_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
 	struct clkdm_dep *cd;
-
-	if (!cpu_is_omap34xx())
-		return -EINVAL;
+	int ret = 0;
 
 	if (!clkdm1 || !clkdm2)
 		return -EINVAL;
 
 	cd = _clkdm_deps_lookup(clkdm2, clkdm1->sleepdep_srcs);
-	if (IS_ERR(cd)) {
+	if (IS_ERR(cd))
+		ret = PTR_ERR(cd);
+
+	if (!arch_clkdm || !arch_clkdm->clkdm_add_sleepdep)
+		ret = -EINVAL;
+
+	if (ret) {
 		pr_debug("clockdomain: hardware cannot set/clear sleep "
 			 "dependency affecting %s from %s\n", clkdm1->name,
 			 clkdm2->name);
-		return PTR_ERR(cd);
+		return ret;
 	}
 
 	if (atomic_inc_return(&cd->sleepdep_usecount) == 1) {
 		pr_debug("clockdomain: will prevent %s from sleeping if %s "
 			 "is active\n", clkdm1->name, clkdm2->name);
 
-		omap2_cm_set_mod_reg_bits((1 << clkdm2->dep_bit),
-				    clkdm1->pwrdm.ptr->prcm_offs,
-				    OMAP3430_CM_SLEEPDEP);
+		ret = arch_clkdm->clkdm_add_sleepdep(clkdm1, clkdm2);
 	}
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -628,19 +586,23 @@ int clkdm_add_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 int clkdm_del_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
 	struct clkdm_dep *cd;
-
-	if (!cpu_is_omap34xx())
-		return -EINVAL;
+	int ret = 0;
 
 	if (!clkdm1 || !clkdm2)
 		return -EINVAL;
 
 	cd = _clkdm_deps_lookup(clkdm2, clkdm1->sleepdep_srcs);
-	if (IS_ERR(cd)) {
+	if (IS_ERR(cd))
+		ret = PTR_ERR(cd);
+
+	if (!arch_clkdm || !arch_clkdm->clkdm_del_sleepdep)
+		ret = -EINVAL;
+
+	if (ret) {
 		pr_debug("clockdomain: hardware cannot set/clear sleep "
 			 "dependency affecting %s from %s\n", clkdm1->name,
 			 clkdm2->name);
-		return PTR_ERR(cd);
+		return ret;
 	}
 
 	if (atomic_dec_return(&cd->sleepdep_usecount) == 0) {
@@ -648,12 +610,10 @@ int clkdm_del_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 			 "sleeping if %s is active\n", clkdm1->name,
 			 clkdm2->name);
 
-		omap2_cm_clear_mod_reg_bits((1 << clkdm2->dep_bit),
-				      clkdm1->pwrdm.ptr->prcm_offs,
-				      OMAP3430_CM_SLEEPDEP);
+		ret = arch_clkdm->clkdm_del_sleepdep(clkdm1, clkdm2);
 	}
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -675,25 +635,27 @@ int clkdm_del_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 int clkdm_read_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 {
 	struct clkdm_dep *cd;
-
-	if (!cpu_is_omap34xx())
-		return -EINVAL;
+	int ret = 0;
 
 	if (!clkdm1 || !clkdm2)
 		return -EINVAL;
 
 	cd = _clkdm_deps_lookup(clkdm2, clkdm1->sleepdep_srcs);
-	if (IS_ERR(cd)) {
+	if (IS_ERR(cd))
+		ret = PTR_ERR(cd);
+
+	if (!arch_clkdm || !arch_clkdm->clkdm_read_sleepdep)
+		ret = -EINVAL;
+
+	if (ret) {
 		pr_debug("clockdomain: hardware cannot set/clear sleep "
 			 "dependency affecting %s from %s\n", clkdm1->name,
 			 clkdm2->name);
-		return PTR_ERR(cd);
+		return ret;
 	}
 
 	/* XXX It's faster to return the atomic sleepdep_usecount */
-	return omap2_prm_read_mod_bits_shift(clkdm1->pwrdm.ptr->prcm_offs,
-				       OMAP3430_CM_SLEEPDEP,
-				       (1 << clkdm2->dep_bit));
+	return arch_clkdm->clkdm_read_sleepdep(clkdm1, clkdm2);
 }
 
 /**
@@ -708,35 +670,17 @@ int clkdm_read_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
  */
 int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
 {
-	struct clkdm_dep *cd;
-	u32 mask = 0;
-
-	if (!cpu_is_omap34xx())
-		return -EINVAL;
-
 	if (!clkdm)
 		return -EINVAL;
 
-	for (cd = clkdm->sleepdep_srcs; cd && cd->clkdm_name; cd++) {
-		if (!omap_chip_is(cd->omap_chip))
-			continue;
+	if (!arch_clkdm || !arch_clkdm->clkdm_clear_all_sleepdeps)
+		return -EINVAL;
 
-		if (!cd->clkdm && cd->clkdm_name)
-			cd->clkdm = _clkdm_lookup(cd->clkdm_name);
-
-		/* PRM accesses are slow, so minimize them */
-		mask |= 1 << cd->clkdm->dep_bit;
-		atomic_set(&cd->sleepdep_usecount, 0);
-	}
-
-	omap2_prm_clear_mod_reg_bits(mask, clkdm->pwrdm.ptr->prcm_offs,
-			       OMAP3430_CM_SLEEPDEP);
-
-	return 0;
+	return arch_clkdm->clkdm_clear_all_sleepdeps(clkdm);
 }
 
 /**
- * omap2_clkdm_sleep - force clockdomain sleep transition
+ * clkdm_sleep - force clockdomain sleep transition
  * @clkdm: struct clockdomain *
  *
  * Instruct the CM to force a sleep transition on the specified
@@ -744,7 +688,7 @@ int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
  * clockdomain does not support software-initiated sleep; 0 upon
  * success.
  */
-int omap2_clkdm_sleep(struct clockdomain *clkdm)
+int clkdm_sleep(struct clockdomain *clkdm)
 {
 	if (!clkdm)
 		return -EINVAL;
@@ -755,33 +699,16 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
 		return -EINVAL;
 	}
 
+	if (!arch_clkdm || !arch_clkdm->clkdm_sleep)
+		return -EINVAL;
+
 	pr_debug("clockdomain: forcing sleep on %s\n", clkdm->name);
 
-	if (cpu_is_omap24xx()) {
-
-		omap2_cm_set_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
-			    clkdm->pwrdm.ptr->prcm_offs, OMAP2_PM_PWSTCTRL);
-
-	} else if (cpu_is_omap34xx()) {
-
-		omap3xxx_cm_clkdm_force_sleep(clkdm->pwrdm.ptr->prcm_offs,
-					      clkdm->clktrctrl_mask);
-
-	} else if (cpu_is_omap44xx()) {
-
-		omap4_cminst_clkdm_force_sleep(clkdm->prcm_partition,
-					       clkdm->cm_inst,
-					       clkdm->clkdm_offs);
-
-	} else {
-		BUG();
-	};
-
-	return 0;
+	return arch_clkdm->clkdm_sleep(clkdm);
 }
 
 /**
- * omap2_clkdm_wakeup - force clockdomain wakeup transition
+ * clkdm_wakeup - force clockdomain wakeup transition
  * @clkdm: struct clockdomain *
  *
  * Instruct the CM to force a wakeup transition on the specified
@@ -789,7 +716,7 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
  * clockdomain does not support software-controlled wakeup; 0 upon
  * success.
  */
-int omap2_clkdm_wakeup(struct clockdomain *clkdm)
+int clkdm_wakeup(struct clockdomain *clkdm)
 {
 	if (!clkdm)
 		return -EINVAL;
@@ -800,33 +727,16 @@ int omap2_clkdm_wakeup(struct clockdomain *clkdm)
 		return -EINVAL;
 	}
 
+	if (!arch_clkdm || !arch_clkdm->clkdm_wakeup)
+		return -EINVAL;
+
 	pr_debug("clockdomain: forcing wakeup on %s\n", clkdm->name);
 
-	if (cpu_is_omap24xx()) {
-
-		omap2_cm_clear_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
-			      clkdm->pwrdm.ptr->prcm_offs, OMAP2_PM_PWSTCTRL);
-
-	} else if (cpu_is_omap34xx()) {
-
-		omap3xxx_cm_clkdm_force_wakeup(clkdm->pwrdm.ptr->prcm_offs,
-					       clkdm->clktrctrl_mask);
-
-	} else if (cpu_is_omap44xx()) {
-
-		omap4_cminst_clkdm_force_wakeup(clkdm->prcm_partition,
-						clkdm->cm_inst,
-						clkdm->clkdm_offs);
-
-	} else {
-		BUG();
-	};
-
-	return 0;
+	return arch_clkdm->clkdm_wakeup(clkdm);
 }
 
 /**
- * omap2_clkdm_allow_idle - enable hwsup idle transitions for clkdm
+ * clkdm_allow_idle - enable hwsup idle transitions for clkdm
  * @clkdm: struct clockdomain *
  *
  * Allow the hardware to automatically switch the clockdomain @clkdm into
@@ -835,7 +745,7 @@ int omap2_clkdm_wakeup(struct clockdomain *clkdm)
  * framework, wkdep/sleepdep autodependencies are added; this is so
  * device drivers can read and write to the device.  No return value.
  */
-void omap2_clkdm_allow_idle(struct clockdomain *clkdm)
+void clkdm_allow_idle(struct clockdomain *clkdm)
 {
 	if (!clkdm)
 		return;
@@ -846,27 +756,18 @@ void omap2_clkdm_allow_idle(struct clockdomain *clkdm)
 		return;
 	}
 
+	if (!arch_clkdm || !arch_clkdm->clkdm_allow_idle)
+		return;
+
 	pr_debug("clockdomain: enabling automatic idle transitions for %s\n",
 		 clkdm->name);
 
-	/*
-	 * XXX This should be removed once TI adds wakeup/sleep
-	 * dependency code and data for OMAP4.
-	 */
-	if (cpu_is_omap44xx()) {
-		pr_err("clockdomain: %s: OMAP4 wakeup/sleep dependency support: not yet implemented\n", clkdm->name);
-	} else {
-		if (atomic_read(&clkdm->usecount) > 0)
-			_clkdm_add_autodeps(clkdm);
-	}
-
-	_enable_hwsup(clkdm);
-
+	arch_clkdm->clkdm_allow_idle(clkdm);
 	pwrdm_clkdm_state_switch(clkdm);
 }
 
 /**
- * omap2_clkdm_deny_idle - disable hwsup idle transitions for clkdm
+ * clkdm_deny_idle - disable hwsup idle transitions for clkdm
  * @clkdm: struct clockdomain *
  *
  * Prevent the hardware from automatically switching the clockdomain
@@ -874,7 +775,7 @@ void omap2_clkdm_allow_idle(struct clockdomain *clkdm)
  * downstream clocks enabled in the clock framework, wkdep/sleepdep
  * autodependencies are removed.  No return value.
  */
-void omap2_clkdm_deny_idle(struct clockdomain *clkdm)
+void clkdm_deny_idle(struct clockdomain *clkdm)
 {
 	if (!clkdm)
 		return;
@@ -885,28 +786,20 @@ void omap2_clkdm_deny_idle(struct clockdomain *clkdm)
 		return;
 	}
 
+	if (!arch_clkdm || !arch_clkdm->clkdm_deny_idle)
+		return;
+
 	pr_debug("clockdomain: disabling automatic idle transitions for %s\n",
 		 clkdm->name);
 
-	_disable_hwsup(clkdm);
-
-	/*
-	 * XXX This should be removed once TI adds wakeup/sleep
-	 * dependency code and data for OMAP4.
-	 */
-	if (cpu_is_omap44xx()) {
-		pr_err("clockdomain: %s: OMAP4 wakeup/sleep dependency support: not yet implemented\n", clkdm->name);
-	} else {
-		if (atomic_read(&clkdm->usecount) > 0)
-			_clkdm_del_autodeps(clkdm);
-	}
+	arch_clkdm->clkdm_deny_idle(clkdm);
 }
 
 
 /* Clockdomain-to-clock framework interface code */
 
 /**
- * omap2_clkdm_clk_enable - add an enabled downstream clock to this clkdm
+ * clkdm_clk_enable - add an enabled downstream clock to this clkdm
  * @clkdm: struct clockdomain *
  * @clk: struct clk * of the enabled downstream clock
  *
@@ -919,16 +812,17 @@ void omap2_clkdm_deny_idle(struct clockdomain *clkdm)
  * by on-chip processors.  Returns -EINVAL if passed null pointers;
  * returns 0 upon success or if the clockdomain is in hwsup idle mode.
  */
-int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
+int clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 {
-	bool hwsup = false;
-
 	/*
 	 * XXX Rewrite this code to maintain a list of enabled
 	 * downstream clocks for debugging purposes?
 	 */
 
 	if (!clkdm || !clk)
+		return -EINVAL;
+
+	if (!arch_clkdm || !arch_clkdm->clkdm_clk_enable)
 		return -EINVAL;
 
 	if (atomic_inc_return(&clkdm->usecount) > 1)
@@ -939,31 +833,7 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 	pr_debug("clockdomain: clkdm %s: clk %s now enabled\n", clkdm->name,
 		 clk->name);
 
-	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
-
-		if (!clkdm->clktrctrl_mask)
-			return 0;
-
-		hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-						   clkdm->clktrctrl_mask);
-
-	} else if (cpu_is_omap44xx()) {
-
-		hwsup = omap4_cminst_is_clkdm_in_hwsup(clkdm->prcm_partition,
-						       clkdm->cm_inst,
-						       clkdm->clkdm_offs);
-
-	}
-
-	if (hwsup) {
-		/* Disable HW transitions when we are changing deps */
-		_disable_hwsup(clkdm);
-		_clkdm_add_autodeps(clkdm);
-		_enable_hwsup(clkdm);
-	} else {
-		omap2_clkdm_wakeup(clkdm);
-	}
-
+	arch_clkdm->clkdm_clk_enable(clkdm);
 	pwrdm_wait_transition(clkdm->pwrdm.ptr);
 	pwrdm_clkdm_state_switch(clkdm);
 
@@ -971,7 +841,7 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 }
 
 /**
- * omap2_clkdm_clk_disable - remove an enabled downstream clock from this clkdm
+ * clkdm_clk_disable - remove an enabled downstream clock from this clkdm
  * @clkdm: struct clockdomain *
  * @clk: struct clk * of the disabled downstream clock
  *
@@ -984,16 +854,17 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
  * is enabled; or returns 0 upon success or if the clockdomain is in
  * hwsup idle mode.
  */
-int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
+int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 {
-	bool hwsup = false;
-
 	/*
 	 * XXX Rewrite this code to maintain a list of enabled
 	 * downstream clocks for debugging purposes?
 	 */
 
 	if (!clkdm || !clk)
+		return -EINVAL;
+
+	if (!arch_clkdm || !arch_clkdm->clkdm_clk_disable)
 		return -EINVAL;
 
 #ifdef DEBUG
@@ -1011,31 +882,7 @@ int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 	pr_debug("clockdomain: clkdm %s: clk %s now disabled\n", clkdm->name,
 		 clk->name);
 
-	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
-
-		if (!clkdm->clktrctrl_mask)
-			return 0;
-
-		hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
-						   clkdm->clktrctrl_mask);
-
-	} else if (cpu_is_omap44xx()) {
-
-		hwsup = omap4_cminst_is_clkdm_in_hwsup(clkdm->prcm_partition,
-						       clkdm->cm_inst,
-						       clkdm->clkdm_offs);
-
-	}
-
-	if (hwsup) {
-		/* Disable HW transitions when we are changing deps */
-		_disable_hwsup(clkdm);
-		_clkdm_del_autodeps(clkdm);
-		_enable_hwsup(clkdm);
-	} else {
-		omap2_clkdm_sleep(clkdm);
-	}
-
+	arch_clkdm->clkdm_clk_disable(clkdm);
 	pwrdm_clkdm_state_switch(clkdm);
 
 	return 0;

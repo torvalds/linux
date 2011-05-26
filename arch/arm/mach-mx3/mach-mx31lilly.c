@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/smsc911x.h>
@@ -110,54 +111,8 @@ static struct platform_device physmap_flash_device = {
 
 /* USB */
 
-#if defined(CONFIG_USB_ULPI)
-
 #define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
 			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
-
-static int usbotg_init(struct platform_device *pdev)
-{
-	unsigned int pins[] = {
-		MX31_PIN_USBOTG_DATA0__USBOTG_DATA0,
-		MX31_PIN_USBOTG_DATA1__USBOTG_DATA1,
-		MX31_PIN_USBOTG_DATA2__USBOTG_DATA2,
-		MX31_PIN_USBOTG_DATA3__USBOTG_DATA3,
-		MX31_PIN_USBOTG_DATA4__USBOTG_DATA4,
-		MX31_PIN_USBOTG_DATA5__USBOTG_DATA5,
-		MX31_PIN_USBOTG_DATA6__USBOTG_DATA6,
-		MX31_PIN_USBOTG_DATA7__USBOTG_DATA7,
-		MX31_PIN_USBOTG_CLK__USBOTG_CLK,
-		MX31_PIN_USBOTG_DIR__USBOTG_DIR,
-		MX31_PIN_USBOTG_NXT__USBOTG_NXT,
-		MX31_PIN_USBOTG_STP__USBOTG_STP,
-	};
-
-	mxc_iomux_setup_multiple_pins(pins, ARRAY_SIZE(pins), "USB OTG");
-
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA0, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA1, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA2, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA3, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA4, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA5, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA6, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA7, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_CLK, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_DIR, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_NXT, USB_PAD_CFG);
-	mxc_iomux_set_pad(MX31_PIN_USBOTG_STP, USB_PAD_CFG);
-
-	mxc_iomux_set_gpr(MUX_PGP_USB_4WIRE, true);
-	mxc_iomux_set_gpr(MUX_PGP_USB_COMMON, true);
-
-	/* chip select */
-	mxc_iomux_alloc_pin(IOMUX_MODE(MX31_PIN_DTR_DCE2, IOMUX_CONFIG_GPIO),
-				"USBOTG_CS");
-	gpio_request(IOMUX_TO_GPIO(MX31_PIN_DTR_DCE2), "USBH1 CS");
-	gpio_direction_output(IOMUX_TO_GPIO(MX31_PIN_DTR_DCE2), 0);
-
-	return 0;
-}
 
 static int usbh1_init(struct platform_device *pdev)
 {
@@ -183,7 +138,10 @@ static int usbh1_init(struct platform_device *pdev)
 
 	mxc_iomux_set_gpr(MUX_PGP_USB_SUSPEND, true);
 
-	return 0;
+	mdelay(10);
+
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED |
+			MXC_EHCI_INTERFACE_SINGLE_UNI);
 }
 
 static int usbh2_init(struct platform_device *pdev)
@@ -220,41 +178,30 @@ static int usbh2_init(struct platform_device *pdev)
 	gpio_request(IOMUX_TO_GPIO(MX31_PIN_DTR_DCE1), "USBH2 CS");
 	gpio_direction_output(IOMUX_TO_GPIO(MX31_PIN_DTR_DCE1), 0);
 
-	return 0;
-}
+	mdelay(10);
 
-static struct mxc_usbh_platform_data usbotg_pdata = {
-	.init	= usbotg_init,
-	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
-};
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED);
+}
 
 static const struct mxc_usbh_platform_data usbh1_pdata __initconst = {
 	.init	= usbh1_init,
 	.portsc	= MXC_EHCI_MODE_UTMI | MXC_EHCI_SERIAL,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_SINGLE_UNI,
 };
 
 static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.init	= usbh2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
 
 static void lilly1131_usb_init(void)
 {
-	usbotg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
 	imx31_add_mxc_ehci_hs(1, &usbh1_pdata);
-	imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
-}
 
-#else
-static inline void lilly1131_usb_init(void) {}
-#endif /* CONFIG_USB_ULPI */
+	usbh2_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT);
+	if (usbh2_pdata.otg)
+		imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
+}
 
 /* SPI */
 
@@ -274,8 +221,8 @@ static const struct spi_imx_master spi1_pdata __initconst = {
 	.num_chipselect = ARRAY_SIZE(spi_internal_chipselect),
 };
 
-static struct mc13783_platform_data mc13783_pdata __initdata = {
-	.flags = MC13783_USE_RTC | MC13783_USE_TOUCHSCREEN,
+static struct mc13xxx_platform_data mc13783_pdata __initdata = {
+	.flags = MC13XXX_USE_RTC | MC13XXX_USE_TOUCHSCREEN,
 };
 
 static struct spi_board_info mc13783_dev __initdata = {
@@ -347,10 +294,10 @@ static struct sys_timer mx31lilly_timer = {
 };
 
 MACHINE_START(LILLY1131, "INCO startec LILLY-1131")
-	.boot_params	= MX3x_PHYS_OFFSET + 0x100,
-	.map_io		= mx31_map_io,
-	.init_irq	= mx31_init_irq,
-	.init_machine	= mx31lilly_board_init,
-	.timer		= &mx31lilly_timer,
+	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.map_io = mx31_map_io,
+	.init_early = imx31_init_early,
+	.init_irq = mx31_init_irq,
+	.timer = &mx31lilly_timer,
+	.init_machine = mx31lilly_board_init,
 MACHINE_END
-

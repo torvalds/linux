@@ -116,7 +116,7 @@ Configuration
     Allows the entire memory to be checksummed before and after the
     suspend to see if there has been any corruption of the contents.
 
-    Note, the time to calculate the CRC is dependant on the CPU speed
+    Note, the time to calculate the CRC is dependent on the CPU speed
     and the size of memory. For an 64Mbyte RAM area on an 200MHz
     S3C2410, this can take approximately 4 seconds to complete.
 

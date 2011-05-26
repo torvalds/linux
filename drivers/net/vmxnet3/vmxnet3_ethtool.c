@@ -304,12 +304,15 @@ vmxnet3_set_flags(struct net_device *netdev, u32 data)
 	u8 lro_present = (netdev->features & NETIF_F_LRO) == 0 ? 0 : 1;
 	unsigned long flags;
 
-	if (data & ~ETH_FLAG_LRO)
-		return -EOPNOTSUPP;
+	if (ethtool_invalid_flags(netdev, data, ETH_FLAG_LRO))
+		return -EINVAL;
 
 	if (lro_requested ^ lro_present) {
 		/* toggle the LRO feature*/
 		netdev->features ^= NETIF_F_LRO;
+
+		/* Update private LRO flag */
+		adapter->lro = lro_requested;
 
 		/* update harware LRO capability accordingly */
 		if (lro_requested)

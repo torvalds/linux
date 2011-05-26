@@ -97,7 +97,7 @@ static void __init move_device_tree(void)
 	start = __pa(initial_boot_params);
 	size = be32_to_cpu(initial_boot_params->totalsize);
 
-	if ((memory_limit && (start + size) > memory_limit) ||
+	if ((memory_limit && (start + size) > PHYSICAL_START + memory_limit) ||
 			overlaps_crashkernel(start, size)) {
 		p = __va(memblock_alloc(size, PAGE_SIZE));
 		memcpy(p, initial_boot_params, size);
@@ -683,7 +683,7 @@ void __init early_init_devtree(void *params)
 #endif
 
 #ifdef CONFIG_PHYP_DUMP
-	/* scan tree to see if dump occured during last boot */
+	/* scan tree to see if dump occurred during last boot */
 	of_scan_flat_dt(early_init_dt_scan_phyp_dump, NULL);
 #endif
 
@@ -739,7 +739,7 @@ void __init early_init_devtree(void *params)
 
 	DBG("Scanning CPUs ...\n");
 
-	/* Retreive CPU related informations from the flat tree
+	/* Retrieve CPU related informations from the flat tree
 	 * (altivec support, boot CPU ID, ...)
 	 */
 	of_scan_flat_dt(early_init_dt_scan_cpus, NULL);

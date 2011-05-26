@@ -22,7 +22,8 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/dw_spi.h>
+
+#include "dw_spi.h"
 
 #ifdef CONFIG_SPI_DW_MID_DMA
 #include <linux/intel_mid_dma.h>

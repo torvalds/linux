@@ -401,7 +401,7 @@ static int fhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		/* 1 td fro setup,1 for ack */
 		size = 2;
 	case PIPE_BULK:
-		/* one td for every 4096 bytes(can be upto 8k) */
+		/* one td for every 4096 bytes(can be up to 8k) */
 		size += urb->transfer_buffer_length / 4096;
 		/* ...add for any remaining bytes... */
 		if ((urb->transfer_buffer_length % 4096) != 0)
@@ -561,8 +561,7 @@ static const struct hc_driver fhci_driver = {
 	.hub_control = fhci_hub_control,
 };
 
-static int __devinit of_fhci_probe(struct platform_device *ofdev,
-				   const struct of_device_id *ofid)
+static int __devinit of_fhci_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct device_node *node = dev->of_node;
@@ -812,7 +811,7 @@ static const struct of_device_id of_fhci_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_fhci_match);
 
-static struct of_platform_driver of_fhci_driver = {
+static struct platform_driver of_fhci_driver = {
 	.driver = {
 		.name = "fsl,usb-fhci",
 		.owner = THIS_MODULE,
@@ -824,13 +823,13 @@ static struct of_platform_driver of_fhci_driver = {
 
 static int __init fhci_module_init(void)
 {
-	return of_register_platform_driver(&of_fhci_driver);
+	return platform_driver_register(&of_fhci_driver);
 }
 module_init(fhci_module_init);
 
 static void __exit fhci_module_exit(void)
 {
-	of_unregister_platform_driver(&of_fhci_driver);
+	platform_driver_unregister(&of_fhci_driver);
 }
 module_exit(fhci_module_exit);
 

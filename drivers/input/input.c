@@ -791,22 +791,9 @@ int input_get_keycode(struct input_dev *dev, struct input_keymap_entry *ke)
 	int retval;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-
-	if (dev->getkeycode) {
-		/*
-		 * Support for legacy drivers, that don't implement the new
-		 * ioctls
-		 */
-		u32 scancode = ke->index;
-
-		memcpy(ke->scancode, &scancode, sizeof(scancode));
-		ke->len = sizeof(scancode);
-		retval = dev->getkeycode(dev, scancode, &ke->keycode);
-	} else {
-		retval = dev->getkeycode_new(dev, ke);
-	}
-
+	retval = dev->getkeycode(dev, ke);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+
 	return retval;
 }
 EXPORT_SYMBOL(input_get_keycode);
@@ -831,35 +818,7 @@ int input_set_keycode(struct input_dev *dev,
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
-	if (dev->setkeycode) {
-		/*
-		 * Support for legacy drivers, that don't implement the new
-		 * ioctls
-		 */
-		unsigned int scancode;
-
-		retval = input_scancode_to_scalar(ke, &scancode);
-		if (retval)
-			goto out;
-
-		/*
-		 * We need to know the old scancode, in order to generate a
-		 * keyup effect, if the set operation happens successfully
-		 */
-		if (!dev->getkeycode) {
-			retval = -EINVAL;
-			goto out;
-		}
-
-		retval = dev->getkeycode(dev, scancode, &old_keycode);
-		if (retval)
-			goto out;
-
-		retval = dev->setkeycode(dev, scancode, ke->keycode);
-	} else {
-		retval = dev->setkeycode_new(dev, ke, &old_keycode);
-	}
-
+	retval = dev->setkeycode(dev, ke, &old_keycode);
 	if (retval)
 		goto out;
 
@@ -1787,6 +1746,42 @@ void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int
 }
 EXPORT_SYMBOL(input_set_capability);
 
+static unsigned int input_estimate_events_per_packet(struct input_dev *dev)
+{
+	int mt_slots;
+	int i;
+	unsigned int events;
+
+	if (dev->mtsize) {
+		mt_slots = dev->mtsize;
+	} else if (test_bit(ABS_MT_TRACKING_ID, dev->absbit)) {
+		mt_slots = dev->absinfo[ABS_MT_TRACKING_ID].maximum -
+			   dev->absinfo[ABS_MT_TRACKING_ID].minimum + 1,
+		clamp(mt_slots, 2, 32);
+	} else if (test_bit(ABS_MT_POSITION_X, dev->absbit)) {
+		mt_slots = 2;
+	} else {
+		mt_slots = 0;
+	}
+
+	events = mt_slots + 1; /* count SYN_MT_REPORT and SYN_REPORT */
+
+	for (i = 0; i < ABS_CNT; i++) {
+		if (test_bit(i, dev->absbit)) {
+			if (input_is_mt_axis(i))
+				events += mt_slots;
+			else
+				events++;
+		}
+	}
+
+	for (i = 0; i < REL_CNT; i++)
+		if (test_bit(i, dev->relbit))
+			events++;
+
+	return events;
+}
+
 #define INPUT_CLEANSE_BITMASK(dev, type, bits)				\
 	do {								\
 		if (!test_bit(EV_##type, dev->evbit))			\
@@ -1834,6 +1829,10 @@ int input_register_device(struct input_dev *dev)
 	/* Make sure that bitmasks not mentioned in dev->evbit are clean. */
 	input_cleanse_bitmasks(dev);
 
+	if (!dev->hint_events_per_packet)
+		dev->hint_events_per_packet =
+				input_estimate_events_per_packet(dev);
+
 	/*
 	 * If delay and period are pre-set by the driver, then autorepeating
 	 * is handled by the driver itself and we don't do it in input.c.
@@ -1846,11 +1845,11 @@ int input_register_device(struct input_dev *dev)
 		dev->rep[REP_PERIOD] = 33;
 	}
 
-	if (!dev->getkeycode && !dev->getkeycode_new)
-		dev->getkeycode_new = input_default_getkeycode;
+	if (!dev->getkeycode)
+		dev->getkeycode = input_default_getkeycode;
 
-	if (!dev->setkeycode && !dev->setkeycode_new)
-		dev->setkeycode_new = input_default_setkeycode;
+	if (!dev->setkeycode)
+		dev->setkeycode = input_default_setkeycode;
 
 	dev_set_name(&dev->dev, "input%ld",
 		     (unsigned long) atomic_inc_return(&input_no) - 1);

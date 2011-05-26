@@ -67,7 +67,7 @@ int pwr_sleep_dsp(const u32 sleep_code, const u32 timeout)
 			status = -EINVAL;
 
 		if (status != -EINVAL) {
-			status = (*intf_fxns->pfn_dev_cntrl) (dw_context,
+			status = (*intf_fxns->dev_cntrl) (dw_context,
 							      ioctlcode,
 							      (void *)&arg);
 		}
@@ -97,7 +97,7 @@ int pwr_wake_dsp(const u32 timeout)
 			if (!(dev_get_intf_fxns(hdev_obj,
 			      (struct bridge_drv_interface **)&intf_fxns))) {
 				status =
-				    (*intf_fxns->pfn_dev_cntrl) (dw_context,
+				    (*intf_fxns->dev_cntrl) (dw_context,
 							BRDIOCTL_WAKEUP,
 							(void *)&arg);
 			}
@@ -131,7 +131,7 @@ int pwr_pm_pre_scale(u16 voltage_domain, u32 level)
 			if (!(dev_get_intf_fxns(hdev_obj,
 			      (struct bridge_drv_interface **)&intf_fxns))) {
 				status =
-				    (*intf_fxns->pfn_dev_cntrl) (dw_context,
+				    (*intf_fxns->dev_cntrl) (dw_context,
 						BRDIOCTL_PRESCALE_NOTIFY,
 						(void *)&arg);
 			}
@@ -165,7 +165,7 @@ int pwr_pm_post_scale(u16 voltage_domain, u32 level)
 			if (!(dev_get_intf_fxns(hdev_obj,
 			      (struct bridge_drv_interface **)&intf_fxns))) {
 				status =
-				    (*intf_fxns->pfn_dev_cntrl) (dw_context,
+				    (*intf_fxns->dev_cntrl) (dw_context,
 						BRDIOCTL_POSTSCALE_NOTIFY,
 						(void *)&arg);
 			}

@@ -59,6 +59,7 @@ obj-$(CONFIG_SAMSUNG_DEV_ADC)	+= dev-adc.o
 obj-$(CONFIG_SAMSUNG_DEV_IDE)	+= dev-ide.o
 obj-$(CONFIG_SAMSUNG_DEV_TS)	+= dev-ts.o
 obj-$(CONFIG_SAMSUNG_DEV_KEYPAD)	+= dev-keypad.o
+obj-$(CONFIG_SAMSUNG_DEV_PWM)	+= dev-pwm.o
 
 # DMA support
 

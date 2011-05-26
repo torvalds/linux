@@ -13,12 +13,16 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * Note: This driver is made seperate from 8250 driver as we cannot
+ * Note: This driver is made separate from 8250 driver as we cannot
  * over load 8250 driver with omap platform specific configuration for
  * features like DMA, it makes easier to implement features like DMA and
  * hardware flow control and software flow control configuration with
  * this driver as required for the omap-platform.
  */
+
+#if defined(CONFIG_SERIAL_OMAP_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#define SUPPORT_SYSRQ
+#endif
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -190,7 +194,6 @@ static inline void receive_chars(struct uart_omap_port *up, int *status)
 			if (up->port.line == up->port.cons->index) {
 				/* Recover the break flag from console xmit */
 				lsr |= up->lsr_break_flag;
-				up->lsr_break_flag = 0;
 			}
 #endif
 			if (lsr & UART_LSR_BI)
@@ -517,6 +520,9 @@ static int serial_omap_startup(struct uart_port *port)
 	up->ier = UART_IER_RLSI | UART_IER_RDI;
 	serial_out(up, UART_IER, up->ier);
 
+	/* Enable module level wake up */
+	serial_out(up, UART_OMAP_WER, OMAP_UART_WER_MOD_WKUP);
+
 	up->port_activity = jiffies;
 	return 0;
 }
@@ -824,9 +830,6 @@ serial_omap_pm(struct uart_port *port, unsigned int state,
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_out(up, UART_EFR, efr);
 	serial_out(up, UART_LCR, 0);
-	/* Enable module level wake up */
-	serial_out(up, UART_OMAP_WER,
-		(state != 0) ? OMAP_UART_WER_MOD_WKUP : 0);
 }
 
 static void serial_omap_release_port(struct uart_port *port)

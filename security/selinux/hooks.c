@@ -79,6 +79,7 @@
 #include <linux/mutex.h>
 #include <linux/posix-timers.h>
 #include <linux/syslog.h>
+#include <linux/user_namespace.h>
 
 #include "avc.h"
 #include "objsec.h"
@@ -1866,11 +1867,11 @@ static int selinux_capset(struct cred *new, const struct cred *old,
  */
 
 static int selinux_capable(struct task_struct *tsk, const struct cred *cred,
-			   int cap, int audit)
+			   struct user_namespace *ns, int cap, int audit)
 {
 	int rc;
 
-	rc = cap_capable(tsk, cred, cap, audit);
+	rc = cap_capable(tsk, cred, ns, cap, audit);
 	if (rc)
 		return rc;
 
@@ -1951,7 +1952,8 @@ static int selinux_vm_enough_memory(struct mm_struct *mm, long pages)
 {
 	int rc, cap_sys_admin = 0;
 
-	rc = selinux_capable(current, current_cred(), CAP_SYS_ADMIN,
+	rc = selinux_capable(current, current_cred(),
+			     &init_user_ns, CAP_SYS_ADMIN,
 			     SECURITY_CAP_NOAUDIT);
 	if (rc == 0)
 		cap_sys_admin = 1;
@@ -2746,7 +2748,7 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 	if (!(sbsec->flags & SE_SBLABELSUPP))
 		return -EOPNOTSUPP;
 
-	if (!is_owner_or_cap(inode))
+	if (!inode_owner_or_capable(inode))
 		return -EPERM;
 
 	COMMON_AUDIT_DATA_INIT(&ad, DENTRY);
@@ -2857,7 +2859,8 @@ static int selinux_inode_getsecurity(const struct inode *inode, const char *name
 	 * and lack of permission just means that we fall back to the
 	 * in-core context value, not a denial.
 	 */
-	error = selinux_capable(current, current_cred(), CAP_MAC_ADMIN,
+	error = selinux_capable(current, current_cred(),
+				&init_user_ns, CAP_MAC_ADMIN,
 				SECURITY_CAP_NOAUDIT);
 	if (!error)
 		error = security_sid_to_context_force(isec->sid, &context,
@@ -2991,7 +2994,7 @@ static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 	case KDSKBENT:
 	case KDSKBSENT:
 		error = task_has_capability(current, cred, CAP_SYS_TTY_CONFIG,
-					    SECURITY_CAP_AUDIT);
+					SECURITY_CAP_AUDIT);
 		break;
 
 	/* default case assumes that the command will go
@@ -4369,7 +4372,7 @@ static void selinux_secmark_refcount_dec(void)
 static void selinux_req_classify_flow(const struct request_sock *req,
 				      struct flowi *fl)
 {
-	fl->secid = req->secid;
+	fl->flowi_secid = req->secid;
 }
 
 static int selinux_tun_dev_create(void)
@@ -4718,6 +4721,7 @@ static int selinux_netlink_recv(struct sk_buff *skb, int capability)
 {
 	int err;
 	struct common_audit_data ad;
+	u32 sid;
 
 	err = cap_netlink_recv(skb, capability);
 	if (err)
@@ -4726,8 +4730,9 @@ static int selinux_netlink_recv(struct sk_buff *skb, int capability)
 	COMMON_AUDIT_DATA_INIT(&ad, CAP);
 	ad.u.cap = capability;
 
-	return avc_has_perm(NETLINK_CB(skb).sid, NETLINK_CB(skb).sid,
-			    SECCLASS_CAPABILITY, CAP_TO_MASK(capability), &ad);
+	security_task_getsecid(current, &sid);
+	return avc_has_perm(sid, sid, SECCLASS_CAPABILITY,
+			    CAP_TO_MASK(capability), &ad);
 }
 
 static int ipc_alloc_security(struct task_struct *task,

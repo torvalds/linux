@@ -20,7 +20,7 @@ extern struct olpc_platform_t olpc_platform_info;
 
 /*
  * OLPC board IDs contain the major build number within the mask 0x0ff0,
- * and the minor build number withing 0x000f.  Pre-builds have a minor
+ * and the minor build number within 0x000f.  Pre-builds have a minor
  * number less than 8, and normal builds start at 8.  For example, 0x0B10
  * is a PreB1, and 0x0C18 is a C1.
  */

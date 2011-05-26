@@ -15,9 +15,9 @@
 #include <linux/amba/pl061.h>
 #include <linux/ptrace.h>
 #include <asm/irq.h>
-#include <mach/generic.h>
-#include <mach/spear.h>
 #include <plat/shirq.h>
+#include <mach/generic.h>
+#include <mach/hardware.h>
 
 /* pad multiplexing support */
 /* muxing registers */
@@ -310,7 +310,7 @@ struct pmx_dev pmx_telecom_boot_pins = {
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_telecom_sdio_4bit_modes[] = {
+struct pmx_dev_mode pmx_telecom_sdhci_4bit_modes[] = {
 	{
 		.ids = PHOTO_FRAME_MODE | LEND_IP_PHONE_MODE |
 			HEND_IP_PHONE_MODE | LEND_WIFI_PHONE_MODE |
@@ -323,14 +323,14 @@ struct pmx_dev_mode pmx_telecom_sdio_4bit_modes[] = {
 	},
 };
 
-struct pmx_dev pmx_telecom_sdio_4bit = {
-	.name = "telecom_sdio_4bit",
-	.modes = pmx_telecom_sdio_4bit_modes,
-	.mode_count = ARRAY_SIZE(pmx_telecom_sdio_4bit_modes),
+struct pmx_dev pmx_telecom_sdhci_4bit = {
+	.name = "telecom_sdhci_4bit",
+	.modes = pmx_telecom_sdhci_4bit_modes,
+	.mode_count = ARRAY_SIZE(pmx_telecom_sdhci_4bit_modes),
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_telecom_sdio_8bit_modes[] = {
+struct pmx_dev_mode pmx_telecom_sdhci_8bit_modes[] = {
 	{
 		.ids = PHOTO_FRAME_MODE | LEND_IP_PHONE_MODE |
 			HEND_IP_PHONE_MODE | LEND_WIFI_PHONE_MODE |
@@ -342,10 +342,10 @@ struct pmx_dev_mode pmx_telecom_sdio_8bit_modes[] = {
 	},
 };
 
-struct pmx_dev pmx_telecom_sdio_8bit = {
-	.name = "telecom_sdio_8bit",
-	.modes = pmx_telecom_sdio_8bit_modes,
-	.mode_count = ARRAY_SIZE(pmx_telecom_sdio_8bit_modes),
+struct pmx_dev pmx_telecom_sdhci_8bit = {
+	.name = "telecom_sdhci_8bit",
+	.modes = pmx_telecom_sdhci_8bit_modes,
+	.mode_count = ARRAY_SIZE(pmx_telecom_sdhci_8bit_modes),
 	.enb_on_reset = 1,
 };
 
@@ -368,26 +368,6 @@ struct pmx_dev pmx_gpio1 = {
 struct pmx_driver pmx_driver = {
 	.mode_reg = {.offset = MODE_CONFIG_REG, .mask = 0x0000000f},
 	.mux_reg = {.offset = PAD_MUX_CONFIG_REG, .mask = 0x00007fff},
-};
-
-/* Add spear300 specific devices here */
-/* arm gpio1 device registration */
-static struct pl061_platform_data gpio1_plat_data = {
-	.gpio_base	= 8,
-	.irq_base	= SPEAR_GPIO1_INT_BASE,
-};
-
-struct amba_device gpio1_device = {
-	.dev = {
-		.init_name = "gpio1",
-		.platform_data = &gpio1_plat_data,
-	},
-	.res = {
-		.start = SPEAR300_GPIO_BASE,
-		.end = SPEAR300_GPIO_BASE + SPEAR300_GPIO_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = {VIRQ_GPIO1, NO_IRQ},
 };
 
 /* spear3xx shared irq */
@@ -443,6 +423,26 @@ struct spear_shirq shirq_ras1 = {
 	},
 };
 
+/* Add spear300 specific devices here */
+/* arm gpio1 device registration */
+static struct pl061_platform_data gpio1_plat_data = {
+	.gpio_base	= 8,
+	.irq_base	= SPEAR_GPIO1_INT_BASE,
+};
+
+struct amba_device gpio1_device = {
+	.dev = {
+		.init_name = "gpio1",
+		.platform_data = &gpio1_plat_data,
+	},
+	.res = {
+		.start = SPEAR300_GPIO_BASE,
+		.end = SPEAR300_GPIO_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	.irq = {VIRQ_GPIO1, NO_IRQ},
+};
+
 /* spear300 routines */
 void __init spear300_init(void)
 {
@@ -452,17 +452,21 @@ void __init spear300_init(void)
 	spear3xx_init();
 
 	/* shared irq registration */
-	shirq_ras1.regs.base =
-		ioremap(SPEAR300_TELECOM_BASE, SPEAR300_TELECOM_REG_SIZE);
+	shirq_ras1.regs.base = ioremap(SPEAR300_TELECOM_BASE, SZ_4K);
 	if (shirq_ras1.regs.base) {
 		ret = spear_shirq_register(&shirq_ras1);
 		if (ret)
 			printk(KERN_ERR "Error registering Shared IRQ\n");
 	}
-}
 
-void spear300_pmx_init(void)
-{
-	spear_pmx_init(&pmx_driver, SPEAR300_SOC_CONFIG_BASE,
-			SPEAR300_SOC_CONFIG_SIZE);
+	/* pmx initialization */
+	pmx_driver.base = ioremap(SPEAR300_SOC_CONFIG_BASE, SZ_4K);
+	if (pmx_driver.base) {
+		ret = pmx_register(&pmx_driver);
+		if (ret)
+			printk(KERN_ERR "padmux: registeration failed. err no"
+					": %d\n", ret);
+		/* Free Mapping, device selection already done */
+		iounmap(pmx_driver.base);
+	}
 }

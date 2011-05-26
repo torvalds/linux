@@ -12,280 +12,266 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
+#include <asm/pgtable.h>
+
 #include <mach/map.h>
 #include <mach/regs-sysmmu.h>
-#include <mach/sysmmu.h>
+#include <plat/sysmmu.h>
 
-struct sysmmu_controller s5p_sysmmu_cntlrs[S5P_SYSMMU_TOTAL_IPNUM];
+#define CTRL_ENABLE	0x5
+#define CTRL_BLOCK	0x7
+#define CTRL_DISABLE	0x0
 
-void s5p_sysmmu_register(struct sysmmu_controller *sysmmuconp)
+static struct device *dev;
+
+static unsigned short fault_reg_offset[SYSMMU_FAULTS_NUM] = {
+	S5P_PAGE_FAULT_ADDR,
+	S5P_AR_FAULT_ADDR,
+	S5P_AW_FAULT_ADDR,
+	S5P_DEFAULT_SLAVE_ADDR,
+	S5P_AR_FAULT_ADDR,
+	S5P_AR_FAULT_ADDR,
+	S5P_AW_FAULT_ADDR,
+	S5P_AW_FAULT_ADDR
+};
+
+static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
+	"PAGE FAULT",
+	"AR MULTI-HIT FAULT",
+	"AW MULTI-HIT FAULT",
+	"BUS ERROR",
+	"AR SECURITY PROTECTION FAULT",
+	"AR ACCESS PROTECTION FAULT",
+	"AW SECURITY PROTECTION FAULT",
+	"AW ACCESS PROTECTION FAULT"
+};
+
+static int (*fault_handlers[S5P_SYSMMU_TOTAL_IPNUM])(
+		enum S5P_SYSMMU_INTERRUPT_TYPE itype,
+		unsigned long pgtable_base,
+		unsigned long fault_addr);
+
+/*
+ * If adjacent 2 bits are true, the system MMU is enabled.
+ * The system MMU is disabled, otherwise.
+ */
+static unsigned long sysmmu_states;
+
+static inline void set_sysmmu_active(sysmmu_ips ips)
 {
-	unsigned int reg_mmu_ctrl;
-	unsigned int reg_mmu_status;
-	unsigned int reg_pt_base_addr;
-	unsigned int reg_int_status;
-	unsigned int reg_page_ft_addr;
+	sysmmu_states |= 3 << (ips * 2);
+}
 
-	reg_int_status = __raw_readl(sysmmuconp->regs + S5P_INT_STATUS);
-	reg_mmu_ctrl = __raw_readl(sysmmuconp->regs + S5P_MMU_CTRL);
-	reg_mmu_status = __raw_readl(sysmmuconp->regs + S5P_MMU_STATUS);
-	reg_pt_base_addr = __raw_readl(sysmmuconp->regs + S5P_PT_BASE_ADDR);
-	reg_page_ft_addr = __raw_readl(sysmmuconp->regs + S5P_PAGE_FAULT_ADDR);
+static inline void set_sysmmu_inactive(sysmmu_ips ips)
+{
+	sysmmu_states &= ~(3 << (ips * 2));
+}
 
-	printk(KERN_INFO "%s: ips:%s\n", __func__, sysmmuconp->name);
-	printk(KERN_INFO "%s: MMU_CTRL:0x%X, ", __func__, reg_mmu_ctrl);
-	printk(KERN_INFO "MMU_STATUS:0x%X, PT_BASE_ADDR:0x%X\n", reg_mmu_status, reg_pt_base_addr);
-	printk(KERN_INFO "%s: INT_STATUS:0x%X, PAGE_FAULT_ADDR:0x%X\n", __func__, reg_int_status, reg_page_ft_addr);
+static inline int is_sysmmu_active(sysmmu_ips ips)
+{
+	return sysmmu_states & (3 << (ips * 2));
+}
 
-	switch (reg_int_status & 0xFF) {
-	case 0x1:
-		printk(KERN_INFO "%s: Page fault\n", __func__);
-		printk(KERN_INFO "%s: Virtual address causing last page fault or bus error : 0x%x\n", __func__ , reg_page_ft_addr);
-		break;
-	case 0x2:
-		printk(KERN_INFO "%s: AR multi-hit fault\n", __func__);
-		break;
-	case 0x4:
-		printk(KERN_INFO "%s: AW multi-hit fault\n", __func__);
-		break;
-	case 0x8:
-		printk(KERN_INFO "%s: Bus error\n", __func__);
-		break;
-	case 0x10:
-		printk(KERN_INFO "%s: AR Security protection fault\n", __func__);
-		break;
-	case 0x20:
-		printk(KERN_INFO "%s: AR Access protection fault\n", __func__);
-		break;
-	case 0x40:
-		printk(KERN_INFO "%s: AW Security protection fault\n", __func__);
-		break;
-	case 0x80:
-		printk(KERN_INFO "%s: AW Access protection fault\n", __func__);
-		break;
+static void __iomem *sysmmusfrs[S5P_SYSMMU_TOTAL_IPNUM];
+
+static inline void sysmmu_block(sysmmu_ips ips)
+{
+	__raw_writel(CTRL_BLOCK, sysmmusfrs[ips] + S5P_MMU_CTRL);
+	dev_dbg(dev, "%s is blocked.\n", sysmmu_ips_name[ips]);
+}
+
+static inline void sysmmu_unblock(sysmmu_ips ips)
+{
+	__raw_writel(CTRL_ENABLE, sysmmusfrs[ips] + S5P_MMU_CTRL);
+	dev_dbg(dev, "%s is unblocked.\n", sysmmu_ips_name[ips]);
+}
+
+static inline void __sysmmu_tlb_invalidate(sysmmu_ips ips)
+{
+	__raw_writel(0x1, sysmmusfrs[ips] + S5P_MMU_FLUSH);
+	dev_dbg(dev, "TLB of %s is invalidated.\n", sysmmu_ips_name[ips]);
+}
+
+static inline void __sysmmu_set_ptbase(sysmmu_ips ips, unsigned long pgd)
+{
+	if (unlikely(pgd == 0)) {
+		pgd = (unsigned long)ZERO_PAGE(0);
+		__raw_writel(0x20, sysmmusfrs[ips] + S5P_MMU_CFG); /* 4KB LV1 */
+	} else {
+		__raw_writel(0x0, sysmmusfrs[ips] + S5P_MMU_CFG); /* 16KB LV1 */
 	}
+
+	__raw_writel(pgd, sysmmusfrs[ips] + S5P_PT_BASE_ADDR);
+
+	dev_dbg(dev, "Page table base of %s is initialized with 0x%08lX.\n",
+						sysmmu_ips_name[ips], pgd);
+	__sysmmu_tlb_invalidate(ips);
+}
+
+void sysmmu_set_fault_handler(sysmmu_ips ips,
+			int (*handler)(enum S5P_SYSMMU_INTERRUPT_TYPE itype,
+					unsigned long pgtable_base,
+					unsigned long fault_addr))
+{
+	BUG_ON(!((ips >= SYSMMU_MDMA) && (ips < S5P_SYSMMU_TOTAL_IPNUM)));
+	fault_handlers[ips] = handler;
 }
 
 static irqreturn_t s5p_sysmmu_irq(int irq, void *dev_id)
 {
-	unsigned int i;
-	unsigned int reg_int_status;
-	struct sysmmu_controller *sysmmuconp;
+	/* SYSMMU is in blocked when interrupt occurred. */
+	unsigned long base = 0;
+	sysmmu_ips ips = (sysmmu_ips)dev_id;
+	enum S5P_SYSMMU_INTERRUPT_TYPE itype;
 
-	for (i = 0; i < S5P_SYSMMU_TOTAL_IPNUM; i++) {
-		sysmmuconp = &s5p_sysmmu_cntlrs[i];
+	itype = (enum S5P_SYSMMU_INTERRUPT_TYPE)
+		__ffs(__raw_readl(sysmmusfrs[ips] + S5P_INT_STATUS));
 
-		if (sysmmuconp->enable == true) {
-			reg_int_status = __raw_readl(sysmmuconp->regs + S5P_INT_STATUS);
+	BUG_ON(!((itype >= 0) && (itype < 8)));
 
-			if (reg_int_status & 0xFF)
-				s5p_sysmmu_register(sysmmuconp);
+	dev_alert(dev, "%s occurred by %s.\n", sysmmu_fault_name[itype],
+							sysmmu_ips_name[ips]);
+
+	if (fault_handlers[ips]) {
+		unsigned long addr;
+
+		base = __raw_readl(sysmmusfrs[ips] + S5P_PT_BASE_ADDR);
+		addr = __raw_readl(sysmmusfrs[ips] + fault_reg_offset[itype]);
+
+		if (fault_handlers[ips](itype, base, addr)) {
+			__raw_writel(1 << itype,
+					sysmmusfrs[ips] + S5P_INT_CLEAR);
+			dev_notice(dev, "%s from %s is resolved."
+					" Retrying translation.\n",
+				sysmmu_fault_name[itype], sysmmu_ips_name[ips]);
+		} else {
+			base = 0;
 		}
 	}
+
+	sysmmu_unblock(ips);
+
+	if (!base)
+		dev_notice(dev, "%s from %s is not handled.\n",
+			sysmmu_fault_name[itype], sysmmu_ips_name[ips]);
+
 	return IRQ_HANDLED;
 }
 
-int s5p_sysmmu_set_tablebase_pgd(sysmmu_ips ips, unsigned long pgd)
+void s5p_sysmmu_set_tablebase_pgd(sysmmu_ips ips, unsigned long pgd)
 {
-	struct sysmmu_controller *sysmmuconp = NULL;
-
-	sysmmuconp = &s5p_sysmmu_cntlrs[ips];
-
-	if (sysmmuconp == NULL) {
-		printk(KERN_ERR "failed to get ip's sysmmu info\n");
-		return 1;
+	if (is_sysmmu_active(ips)) {
+		sysmmu_block(ips);
+		__sysmmu_set_ptbase(ips, pgd);
+		sysmmu_unblock(ips);
+	} else {
+		dev_dbg(dev, "%s is disabled. "
+			"Skipping initializing page table base.\n",
+						sysmmu_ips_name[ips]);
 	}
-
-	/* Set sysmmu page table base address */
-	__raw_writel(pgd, sysmmuconp->regs + S5P_PT_BASE_ADDR);
-
-	if (s5p_sysmmu_tlb_invalidate(ips) != 0)
-		printk(KERN_ERR "failed s5p_sysmmu_tlb_invalidate\n");
-
-	return 0;
 }
 
-static int s5p_sysmmu_set_tablebase(sysmmu_ips ips)
+void s5p_sysmmu_enable(sysmmu_ips ips, unsigned long pgd)
 {
-	unsigned int pg;
-	struct sysmmu_controller *sysmmuconp;
+	if (!is_sysmmu_active(ips)) {
+		sysmmu_clk_enable(ips);
 
-	sysmmuconp = &s5p_sysmmu_cntlrs[ips];
+		__sysmmu_set_ptbase(ips, pgd);
 
-	if (sysmmuconp == NULL) {
-		printk(KERN_ERR "failed to get ip's sysmmu info\n");
-		return 1;
+		__raw_writel(CTRL_ENABLE, sysmmusfrs[ips] + S5P_MMU_CTRL);
+
+		set_sysmmu_active(ips);
+		dev_dbg(dev, "%s is enabled.\n", sysmmu_ips_name[ips]);
+	} else {
+		dev_dbg(dev, "%s is already enabled.\n", sysmmu_ips_name[ips]);
 	}
-
-	__asm__("mrc	p15, 0, %0, c2, c0, 0"	\
-		: "=r" (pg) : : "cc");		\
-		pg &= ~0x3fff;
-
-	printk(KERN_INFO "%s: CP15 TTBR0 : 0x%x\n", __func__, pg);
-
-	/* Set sysmmu page table base address */
-	__raw_writel(pg, sysmmuconp->regs + S5P_PT_BASE_ADDR);
-
-	return 0;
 }
 
-int s5p_sysmmu_enable(sysmmu_ips ips)
+void s5p_sysmmu_disable(sysmmu_ips ips)
 {
-	unsigned int reg;
-
-	struct sysmmu_controller *sysmmuconp;
-
-	sysmmuconp = &s5p_sysmmu_cntlrs[ips];
-
-	if (sysmmuconp == NULL) {
-		printk(KERN_ERR "failed to get ip's sysmmu info\n");
-		return 1;
+	if (is_sysmmu_active(ips)) {
+		__raw_writel(CTRL_DISABLE, sysmmusfrs[ips] + S5P_MMU_CTRL);
+		set_sysmmu_inactive(ips);
+		sysmmu_clk_disable(ips);
+		dev_dbg(dev, "%s is disabled.\n", sysmmu_ips_name[ips]);
+	} else {
+		dev_dbg(dev, "%s is already disabled.\n", sysmmu_ips_name[ips]);
 	}
-
-	s5p_sysmmu_set_tablebase(ips);
-
-	/* replacement policy : LRU */
-	reg = __raw_readl(sysmmuconp->regs + S5P_MMU_CFG);
-	reg |= 0x1;
-	__raw_writel(reg, sysmmuconp->regs + S5P_MMU_CFG);
-
-	/* Enable interrupt, Enable MMU */
-	reg = __raw_readl(sysmmuconp->regs + S5P_MMU_CTRL);
-	reg |= (0x1 << 2) | (0x1 << 0);
-
-	__raw_writel(reg, sysmmuconp->regs + S5P_MMU_CTRL);
-
-	sysmmuconp->enable = true;
-
-	return 0;
 }
 
-int s5p_sysmmu_disable(sysmmu_ips ips)
+void s5p_sysmmu_tlb_invalidate(sysmmu_ips ips)
 {
-	unsigned int reg;
-
-	struct sysmmu_controller *sysmmuconp = NULL;
-
-	if (ips > S5P_SYSMMU_TOTAL_IPNUM)
-		printk(KERN_ERR "failed to get ips parameter\n");
-
-	sysmmuconp = &s5p_sysmmu_cntlrs[ips];
-
-	if (sysmmuconp == NULL) {
-		printk(KERN_ERR "failed to get ip's sysmmu info\n");
-		return 1;
+	if (is_sysmmu_active(ips)) {
+		sysmmu_block(ips);
+		__sysmmu_tlb_invalidate(ips);
+		sysmmu_unblock(ips);
+	} else {
+		dev_dbg(dev, "%s is disabled. "
+			"Skipping invalidating TLB.\n", sysmmu_ips_name[ips]);
 	}
-
-	reg = __raw_readl(sysmmuconp->regs + S5P_MMU_CFG);
-
-	/* replacement policy : LRU */
-	reg |= 0x1;
-	__raw_writel(reg, sysmmuconp->regs + S5P_MMU_CFG);
-
-	reg = __raw_readl(sysmmuconp->regs + S5P_MMU_CTRL);
-
-	/* Disable MMU */
-	reg &= ~0x1;
-	__raw_writel(reg, sysmmuconp->regs + S5P_MMU_CTRL);
-
-	sysmmuconp->enable = false;
-
-	return 0;
-}
-
-int s5p_sysmmu_tlb_invalidate(sysmmu_ips ips)
-{
-	unsigned int reg;
-	struct sysmmu_controller *sysmmuconp = NULL;
-
-	sysmmuconp = &s5p_sysmmu_cntlrs[ips];
-
-	if (sysmmuconp == NULL) {
-		printk(KERN_ERR "failed to get ip's sysmmu info\n");
-		return 1;
-	}
-
-	/* set Block MMU for flush TLB */
-	reg = __raw_readl(sysmmuconp->regs + S5P_MMU_CTRL);
-	reg |= 0x1 << 1;
-	__raw_writel(reg, sysmmuconp->regs + S5P_MMU_CTRL);
-
-	/* flush all TLB entry */
-	__raw_writel(0x1, sysmmuconp->regs + S5P_MMU_FLUSH);
-
-	/* set Un-block MMU after flush TLB */
-	reg = __raw_readl(sysmmuconp->regs + S5P_MMU_CTRL);
-	reg &= ~(0x1 << 1);
-	__raw_writel(reg, sysmmuconp->regs + S5P_MMU_CTRL);
-
-	return 0;
 }
 
 static int s5p_sysmmu_probe(struct platform_device *pdev)
 {
-	int i;
-	int ret;
-	struct resource *res;
-	struct sysmmu_controller *sysmmuconp;
-	sysmmu_ips ips;
+	int i, ret;
+	struct resource *res, *mem;
+
+	dev = &pdev->dev;
 
 	for (i = 0; i < S5P_SYSMMU_TOTAL_IPNUM; i++) {
-		sysmmuconp = &s5p_sysmmu_cntlrs[i];
-		if (sysmmuconp == NULL) {
-			printk(KERN_ERR "failed to get ip's sysmmu info\n");
-			ret = -ENOENT;
-			goto err_res;
-		}
+		int irq;
 
-		sysmmuconp->name = sysmmu_ips_name[i];
+		sysmmu_clk_init(dev, i);
+		sysmmu_clk_disable(i);
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res) {
-			printk(KERN_ERR "failed to get sysmmu resource\n");
+			dev_err(dev, "Failed to get the resource of %s.\n",
+							sysmmu_ips_name[i]);
 			ret = -ENODEV;
 			goto err_res;
 		}
 
-		sysmmuconp->mem = request_mem_region(res->start,
+		mem = request_mem_region(res->start,
 				((res->end) - (res->start)) + 1, pdev->name);
-		if (!sysmmuconp->mem) {
-			pr_err("failed to request sysmmu memory region\n");
+		if (!mem) {
+			dev_err(dev, "Failed to request the memory region of %s.\n",
+							sysmmu_ips_name[i]);
 			ret = -EBUSY;
 			goto err_res;
 		}
 
-		sysmmuconp->regs = ioremap(res->start, res->end - res->start + 1);
-		if (!sysmmuconp->regs) {
-			pr_err("failed to sysmmu ioremap\n");
+		sysmmusfrs[i] = ioremap(res->start, res->end - res->start + 1);
+		if (!sysmmusfrs[i]) {
+			dev_err(dev, "Failed to ioremap() for %s.\n",
+							sysmmu_ips_name[i]);
 			ret = -ENXIO;
 			goto err_reg;
 		}
 
-		sysmmuconp->irq = platform_get_irq(pdev, i);
-		if (sysmmuconp->irq <= 0) {
-			pr_err("failed to get sysmmu irq resource\n");
+		irq = platform_get_irq(pdev, i);
+		if (irq <= 0) {
+			dev_err(dev, "Failed to get the IRQ resource of %s.\n",
+							sysmmu_ips_name[i]);
 			ret = -ENOENT;
 			goto err_map;
 		}
 
-		ret = request_irq(sysmmuconp->irq, s5p_sysmmu_irq, IRQF_DISABLED, pdev->name, sysmmuconp);
-		if (ret) {
-			pr_err("failed to request irq\n");
+		if (request_irq(irq, s5p_sysmmu_irq, IRQF_DISABLED,
+						pdev->name, (void *)i)) {
+			dev_err(dev, "Failed to request IRQ for %s.\n",
+							sysmmu_ips_name[i]);
 			ret = -ENOENT;
 			goto err_map;
 		}
-
-		ips = (sysmmu_ips)i;
-
-		sysmmuconp->ips = ips;
 	}
 
 	return 0;
 
-err_reg:
-	release_mem_region((resource_size_t)sysmmuconp->mem, (resource_size_t)((res->end) - (res->start) + 1));
 err_map:
-	iounmap(sysmmuconp->regs);
+	iounmap(sysmmusfrs[i]);
+err_reg:
+	release_mem_region(mem->start, resource_size(mem));
 err_res:
 	return ret;
 }

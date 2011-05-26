@@ -1,7 +1,7 @@
 /*
  * MPC83xx/85xx/86xx PCI/PCIE support routing.
  *
- * Copyright 2007-2010 Freescale Semiconductor, Inc.
+ * Copyright 2007-2011 Freescale Semiconductor, Inc.
  * Copyright 2008-2009 MontaVista Software, Inc.
  *
  * Initial author: Xianghua Xiao <x.xiao@freescale.com>
@@ -99,7 +99,7 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 				  struct resource *rsrc)
 {
 	struct ccsr_pci __iomem *pci;
-	int i, j, n, mem_log, win_idx = 2;
+	int i, j, n, mem_log, win_idx = 3, start_idx = 1, end_idx = 4;
 	u64 mem, sz, paddr_hi = 0;
 	u64 paddr_lo = ULLONG_MAX;
 	u32 pcicsrbar = 0, pcicsrbar_sz;
@@ -109,6 +109,13 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 
 	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
 		    (u64)rsrc->start, (u64)rsrc->end - (u64)rsrc->start + 1);
+
+	if (of_device_is_compatible(hose->dn, "fsl,qoriq-pcie-v2.2")) {
+		win_idx = 2;
+		start_idx = 0;
+		end_idx = 3;
+	}
+
 	pci = ioremap(rsrc->start, rsrc->end - rsrc->start + 1);
 	if (!pci) {
 	    dev_err(hose->parent, "Unable to map ATMU registers\n");
@@ -118,7 +125,7 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 	/* Disable all windows (except powar0 since it's ignored) */
 	for(i = 1; i < 5; i++)
 		out_be32(&pci->pow[i].powar, 0);
-	for(i = 0; i < 3; i++)
+	for (i = start_idx; i < end_idx; i++)
 		out_be32(&pci->piw[i].piwar, 0);
 
 	/* Setup outbound MEM window */
@@ -204,7 +211,7 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 			mem_log++;
 		}
 
-		piwar |= (mem_log - 1);
+		piwar |= ((mem_log - 1) & PIWAR_SZ_MASK);
 
 		/* Setup inbound memory window */
 		out_be32(&pci->piw[win_idx].pitar,  0x00000000);
@@ -316,6 +323,11 @@ int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 	struct pci_controller *hose;
 	struct resource rsrc;
 	const int *bus_range;
+
+	if (!of_device_is_available(dev)) {
+		pr_warning("%s: disabled\n", dev->full_name);
+		return -ENODEV;
+	}
 
 	pr_debug("Adding PCI host bridge %s\n", dev->full_name);
 

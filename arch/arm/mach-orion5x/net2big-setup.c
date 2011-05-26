@@ -190,7 +190,7 @@ err_free_1:
  * The power front LEDs (blue and red) and SATA red LEDs are controlled via a
  * single GPIO line and are compatible with the leds-gpio driver.
  *
- * The SATA blue LEDs have some hardware blink capabilities which are detailled
+ * The SATA blue LEDs have some hardware blink capabilities which are detailed
  * in the following array:
  *
  * SATAx blue LED | SATAx activity | LED state
@@ -422,6 +422,7 @@ MACHINE_START(NET2BIG, "LaCie 2Big Network")
 	.boot_params	= 0x00000100,
 	.init_machine	= net2big_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

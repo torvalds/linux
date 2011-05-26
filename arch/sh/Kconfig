@@ -23,8 +23,8 @@ config SUPERH
 	select HAVE_SPARSE_IRQ
 	select RTC_LIB
 	select GENERIC_ATOMIC64
-	# Support the deprecated APIs until MFD and GPIOLIB catch up.
-	select GENERIC_HARDIRQS_NO_DEPRECATED if !MFD_SUPPORT && !GPIOLIB
+	select GENERIC_IRQ_SHOW
+	select ARCH_NO_SYSDEV_OPS
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast
@@ -72,6 +72,9 @@ config GENERIC_CSUM
 	depends on SUPERH64
 
 config GENERIC_FIND_NEXT_BIT
+	def_bool y
+
+config GENERIC_FIND_BIT_LE
 	def_bool y
 
 config GENERIC_HWEIGHT
@@ -434,6 +437,8 @@ config CPU_SUBTYPE_SH7757
 	select CPU_SH4A
 	select CPU_SHX2
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select USB_ARCH_HAS_OHCI
+	select USB_ARCH_HAS_EHCI
 	help
 	  Select SH7757 if you have a SH4A SH7757 CPU.
 

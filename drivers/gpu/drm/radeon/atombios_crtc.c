@@ -61,8 +61,8 @@ static void atombios_overscan_setup(struct drm_crtc *crtc,
 			args.usOverscanLeft = cpu_to_le16((adjusted_mode->crtc_hdisplay - (a2 / mode->crtc_vdisplay)) / 2);
 			args.usOverscanRight = cpu_to_le16((adjusted_mode->crtc_hdisplay - (a2 / mode->crtc_vdisplay)) / 2);
 		} else if (a2 > a1) {
-			args.usOverscanLeft = cpu_to_le16((adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2);
-			args.usOverscanRight = cpu_to_le16((adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2);
+			args.usOverscanTop = cpu_to_le16((adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2);
+			args.usOverscanBottom = cpu_to_le16((adjusted_mode->crtc_vdisplay - (a1 / mode->crtc_hdisplay)) / 2);
 		}
 		break;
 	case RMX_FULL:
@@ -531,6 +531,9 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 			pll->flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
 		else
 			pll->flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
+
+		if (rdev->family < CHIP_RV770)
+			pll->flags |= RADEON_PLL_PREFER_MINM_OVER_MAXP;
 	} else {
 		pll->flags |= RADEON_PLL_LEGACY;
 
@@ -559,7 +562,6 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 				if (ss_enabled) {
 					if (ss->refdiv) {
-						pll->flags |= RADEON_PLL_PREFER_MINM_OVER_MAXP;
 						pll->flags |= RADEON_PLL_USE_REF_DIV;
 						pll->reference_div = ss->refdiv;
 						if (ASIC_IS_AVIVO(rdev))
@@ -957,7 +959,11 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 	/* adjust pixel clock as needed */
 	adjusted_clock = atombios_adjust_pll(crtc, mode, pll, ss_enabled, &ss);
 
-	if (ASIC_IS_AVIVO(rdev))
+	if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT))
+		/* TV seems to prefer the legacy algo on some boards */
+		radeon_compute_pll_legacy(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
+					  &ref_div, &post_div);
+	else if (ASIC_IS_AVIVO(rdev))
 		radeon_compute_pll_avivo(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
 					 &ref_div, &post_div);
 	else
@@ -1005,6 +1011,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
+	u32 tmp;
 	int r;
 
 	/* no fb bound */
@@ -1026,7 +1033,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	 * just update base pointers
 	 */
 	obj = radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
 		return r;
@@ -1133,9 +1140,18 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(EVERGREEN_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
 	       (crtc->mode.hdisplay << 16) | crtc->mode.vdisplay);
 
+	/* pageflip setup */
+	/* make sure flip is at vb rather than hb */
+	tmp = RREG32(EVERGREEN_GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset);
+	tmp &= ~EVERGREEN_GRPH_SURFACE_UPDATE_H_RETRACE_EN;
+	WREG32(EVERGREEN_GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset, tmp);
+
+	/* set pageflip to happen anywhere in vblank interval */
+	WREG32(EVERGREEN_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
+
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
-		rbo = radeon_fb->obj->driver_private;
+		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
 			return r;
@@ -1163,6 +1179,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 	u32 fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
+	u32 tmp;
 	int r;
 
 	/* no fb bound */
@@ -1181,7 +1198,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	}
 
 	obj = radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
 		return r;
@@ -1290,9 +1307,18 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
 	       (crtc->mode.hdisplay << 16) | crtc->mode.vdisplay);
 
+	/* pageflip setup */
+	/* make sure flip is at vb rather than hb */
+	tmp = RREG32(AVIVO_D1GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset);
+	tmp &= ~AVIVO_D1GRPH_SURFACE_UPDATE_H_RETRACE_EN;
+	WREG32(AVIVO_D1GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset, tmp);
+
+	/* set pageflip to happen anywhere in vblank interval */
+	WREG32(AVIVO_D1MODE_MASTER_UPDATE_MODE + radeon_crtc->crtc_offset, 0);
+
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
-		rbo = radeon_fb->obj->driver_private;
+		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
 			return r;

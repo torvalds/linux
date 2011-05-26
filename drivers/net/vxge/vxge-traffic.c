@@ -218,6 +218,68 @@ exit:
 	return status;
 }
 
+void vxge_hw_vpath_tti_ci_set(struct __vxge_hw_fifo *fifo)
+{
+	struct vxge_hw_vpath_reg __iomem *vp_reg;
+	struct vxge_hw_vp_config *config;
+	u64 val64;
+
+	if (fifo->config->enable != VXGE_HW_FIFO_ENABLE)
+		return;
+
+	vp_reg = fifo->vp_reg;
+	config = container_of(fifo->config, struct vxge_hw_vp_config, fifo);
+
+	if (config->tti.timer_ci_en != VXGE_HW_TIM_TIMER_CI_ENABLE) {
+		config->tti.timer_ci_en = VXGE_HW_TIM_TIMER_CI_ENABLE;
+		val64 = readq(&vp_reg->tim_cfg1_int_num[VXGE_HW_VPATH_INTR_TX]);
+		val64 |= VXGE_HW_TIM_CFG1_INT_NUM_TIMER_CI;
+		fifo->tim_tti_cfg1_saved = val64;
+		writeq(val64, &vp_reg->tim_cfg1_int_num[VXGE_HW_VPATH_INTR_TX]);
+	}
+}
+
+void vxge_hw_vpath_dynamic_rti_ci_set(struct __vxge_hw_ring *ring)
+{
+	u64 val64 = ring->tim_rti_cfg1_saved;
+
+	val64 |= VXGE_HW_TIM_CFG1_INT_NUM_TIMER_CI;
+	ring->tim_rti_cfg1_saved = val64;
+	writeq(val64, &ring->vp_reg->tim_cfg1_int_num[VXGE_HW_VPATH_INTR_RX]);
+}
+
+void vxge_hw_vpath_dynamic_tti_rtimer_set(struct __vxge_hw_fifo *fifo)
+{
+	u64 val64 = fifo->tim_tti_cfg3_saved;
+	u64 timer = (fifo->rtimer * 1000) / 272;
+
+	val64 &= ~VXGE_HW_TIM_CFG3_INT_NUM_RTIMER_VAL(0x3ffffff);
+	if (timer)
+		val64 |= VXGE_HW_TIM_CFG3_INT_NUM_RTIMER_VAL(timer) |
+			VXGE_HW_TIM_CFG3_INT_NUM_RTIMER_EVENT_SF(5);
+
+	writeq(val64, &fifo->vp_reg->tim_cfg3_int_num[VXGE_HW_VPATH_INTR_TX]);
+	/* tti_cfg3_saved is not updated again because it is
+	 * initialized at one place only - init time.
+	 */
+}
+
+void vxge_hw_vpath_dynamic_rti_rtimer_set(struct __vxge_hw_ring *ring)
+{
+	u64 val64 = ring->tim_rti_cfg3_saved;
+	u64 timer = (ring->rtimer * 1000) / 272;
+
+	val64 &= ~VXGE_HW_TIM_CFG3_INT_NUM_RTIMER_VAL(0x3ffffff);
+	if (timer)
+		val64 |= VXGE_HW_TIM_CFG3_INT_NUM_RTIMER_VAL(timer) |
+			VXGE_HW_TIM_CFG3_INT_NUM_RTIMER_EVENT_SF(4);
+
+	writeq(val64, &ring->vp_reg->tim_cfg3_int_num[VXGE_HW_VPATH_INTR_RX]);
+	/* rti_cfg3_saved is not updated again because it is
+	 * initialized at one place only - init time.
+	 */
+}
+
 /**
  * vxge_hw_channel_msix_mask - Mask MSIX Vector.
  * @channeh: Channel for rx or tx handle
@@ -251,6 +313,23 @@ vxge_hw_channel_msix_unmask(struct __vxge_hw_channel *channel, int msix_id)
 	__vxge_hw_pio_mem_write32_upper(
 		(u32)vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
 		&channel->common_reg->clear_msix_mask_vect[msix_id%4]);
+}
+
+/**
+ * vxge_hw_channel_msix_clear - Unmask the MSIX Vector.
+ * @channel: Channel for rx or tx handle
+ * @msix_id:  MSI ID
+ *
+ * The function unmasks the msix interrupt for the given msix_id
+ * if configured in MSIX oneshot mode
+ *
+ * Returns: 0
+ */
+void vxge_hw_channel_msix_clear(struct __vxge_hw_channel *channel, int msix_id)
+{
+	__vxge_hw_pio_mem_write32_upper(
+		(u32) vxge_bVALn(vxge_mBIT(msix_id >> 2), 0, 32),
+		&channel->common_reg->clr_msix_one_shot_vec[msix_id % 4]);
 }
 
 /**
@@ -1032,7 +1111,7 @@ void vxge_hw_channel_dtr_free(struct __vxge_hw_channel *channel, void *dtrh)
  * vxge_hw_channel_dtr_count
  * @channel: Channel handle. Obtained via vxge_hw_channel_open().
  *
- * Retreive number of DTRs available. This function can not be called
+ * Retrieve number of DTRs available. This function can not be called
  * from data path. ring_initial_replenishi() is the only user.
  */
 int vxge_hw_channel_dtr_count(struct __vxge_hw_channel *channel)
@@ -1981,7 +2060,7 @@ enum vxge_hw_status vxge_hw_vpath_promisc_enable(
 
 	vpath = vp->vpath;
 
-	/* Enable promiscous mode for function 0 only */
+	/* Enable promiscuous mode for function 0 only */
 	if (!(vpath->hldev->access_rights &
 		VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM))
 		return VXGE_HW_OK;
@@ -2191,19 +2270,14 @@ vxge_hw_vpath_msix_set(struct __vxge_hw_vpath_handle *vp, int *tim_msix_id,
 	if (vpath->hldev->config.intr_mode ==
 					VXGE_HW_INTR_MODE_MSIX_ONE_SHOT) {
 		__vxge_hw_pio_mem_write32_upper((u32)vxge_bVALn(
+				VXGE_HW_ONE_SHOT_VECT0_EN_ONE_SHOT_VECT0_EN,
+				0, 32), &vp_reg->one_shot_vect0_en);
+		__vxge_hw_pio_mem_write32_upper((u32)vxge_bVALn(
 				VXGE_HW_ONE_SHOT_VECT1_EN_ONE_SHOT_VECT1_EN,
 				0, 32), &vp_reg->one_shot_vect1_en);
-	}
-
-	if (vpath->hldev->config.intr_mode ==
-		VXGE_HW_INTR_MODE_MSIX_ONE_SHOT) {
 		__vxge_hw_pio_mem_write32_upper((u32)vxge_bVALn(
 				VXGE_HW_ONE_SHOT_VECT2_EN_ONE_SHOT_VECT2_EN,
 				0, 32), &vp_reg->one_shot_vect2_en);
-
-		__vxge_hw_pio_mem_write32_upper((u32)vxge_bVALn(
-				VXGE_HW_ONE_SHOT_VECT3_EN_ONE_SHOT_VECT3_EN,
-				0, 32), &vp_reg->one_shot_vect3_en);
 	}
 }
 
@@ -2226,6 +2300,32 @@ vxge_hw_vpath_msix_mask(struct __vxge_hw_vpath_handle *vp, int msix_id)
 	__vxge_hw_pio_mem_write32_upper(
 		(u32) vxge_bVALn(vxge_mBIT(msix_id  >> 2), 0, 32),
 		&hldev->common_reg->set_msix_mask_vect[msix_id % 4]);
+}
+
+/**
+ * vxge_hw_vpath_msix_clear - Clear MSIX Vector.
+ * @vp: Virtual Path handle.
+ * @msix_id:  MSI ID
+ *
+ * The function clears the msix interrupt for the given msix_id
+ *
+ * Returns: 0,
+ * Otherwise, VXGE_HW_ERR_WRONG_IRQ if the msix index is out of range
+ * status.
+ * See also:
+ */
+void vxge_hw_vpath_msix_clear(struct __vxge_hw_vpath_handle *vp, int msix_id)
+{
+	struct __vxge_hw_device *hldev = vp->vpath->hldev;
+
+	if ((hldev->config.intr_mode == VXGE_HW_INTR_MODE_MSIX_ONE_SHOT))
+		__vxge_hw_pio_mem_write32_upper(
+			(u32) vxge_bVALn(vxge_mBIT((msix_id >> 2)), 0, 32),
+			&hldev->common_reg->clr_msix_one_shot_vec[msix_id % 4]);
+	else
+		__vxge_hw_pio_mem_write32_upper(
+			(u32) vxge_bVALn(vxge_mBIT((msix_id >> 2)), 0, 32),
+			&hldev->common_reg->clear_msix_mask_vect[msix_id % 4]);
 }
 
 /**

@@ -512,9 +512,12 @@ static int init_constants_early(struct ubifs_info *c)
 
 	c->leb_cnt = c->vi.size;
 	c->leb_size = c->vi.usable_leb_size;
+	c->leb_start = c->di.leb_start;
 	c->half_leb_size = c->leb_size / 2;
 	c->min_io_size = c->di.min_io_size;
 	c->min_io_shift = fls(c->min_io_size) - 1;
+	c->max_write_size = c->di.max_write_size;
+	c->max_write_shift = fls(c->max_write_size) - 1;
 
 	if (c->leb_size < UBIFS_MIN_LEB_SZ) {
 		ubifs_err("too small LEBs (%d bytes), min. is %d bytes",
@@ -534,6 +537,18 @@ static int init_constants_early(struct ubifs_info *c)
 	}
 
 	/*
+	 * Maximum write size has to be greater or equivalent to min. I/O
+	 * size, and be multiple of min. I/O size.
+	 */
+	if (c->max_write_size < c->min_io_size ||
+	    c->max_write_size % c->min_io_size ||
+	    !is_power_of_2(c->max_write_size)) {
+		ubifs_err("bad write buffer size %d for %d min. I/O unit",
+			  c->max_write_size, c->min_io_size);
+		return -EINVAL;
+	}
+
+	/*
 	 * UBIFS aligns all node to 8-byte boundary, so to make function in
 	 * io.c simpler, assume minimum I/O unit size to be 8 bytes if it is
 	 * less than 8.
@@ -541,6 +556,10 @@ static int init_constants_early(struct ubifs_info *c)
 	if (c->min_io_size < 8) {
 		c->min_io_size = 8;
 		c->min_io_shift = 3;
+		if (c->max_write_size < c->min_io_size) {
+			c->max_write_size = c->min_io_size;
+			c->max_write_shift = c->min_io_shift;
+		}
 	}
 
 	c->ref_node_alsz = ALIGN(UBIFS_REF_NODE_SZ, c->min_io_size);
@@ -1202,11 +1221,14 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (c->bulk_read == 1)
 		bu_init(c);
 
-	/*
-	 * We have to check all CRCs, even for data nodes, when we mount the FS
-	 * (specifically, when we are replaying).
-	 */
-	c->always_chk_crc = 1;
+	if (!c->ro_mount) {
+		c->write_reserve_buf = kmalloc(COMPRESSED_DATA_NODE_BUF_SZ,
+					       GFP_KERNEL);
+		if (!c->write_reserve_buf)
+			goto out_free;
+	}
+
+	c->mounting = 1;
 
 	err = ubifs_read_superblock(c);
 	if (err)
@@ -1235,12 +1257,12 @@ static int mount_ubifs(struct ubifs_info *c)
 		goto out_free;
 	}
 
+	err = alloc_wbufs(c);
+	if (err)
+		goto out_cbuf;
+
 	sprintf(c->bgt_name, BGT_NAME_PATTERN, c->vi.ubi_num, c->vi.vol_id);
 	if (!c->ro_mount) {
-		err = alloc_wbufs(c);
-		if (err)
-			goto out_cbuf;
-
 		/* Create background thread */
 		c->bgt = kthread_create(ubifs_bg_thread, c, "%s", c->bgt_name);
 		if (IS_ERR(c->bgt)) {
@@ -1382,7 +1404,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_infos;
 
-	c->always_chk_crc = 0;
+	c->mounting = 0;
 
 	ubifs_msg("mounted UBI device %d, volume %d, name \"%s\"",
 		  c->vi.ubi_num, c->vi.vol_id, c->vi.name);
@@ -1403,6 +1425,7 @@ static int mount_ubifs(struct ubifs_info *c)
 
 	dbg_msg("compiled on:         " __DATE__ " at " __TIME__);
 	dbg_msg("min. I/O unit size:  %d bytes", c->min_io_size);
+	dbg_msg("max. write size:     %d bytes", c->max_write_size);
 	dbg_msg("LEB size:            %d bytes (%d KiB)",
 		c->leb_size, c->leb_size >> 10);
 	dbg_msg("data journal heads:  %d",
@@ -1432,9 +1455,9 @@ static int mount_ubifs(struct ubifs_info *c)
 		UBIFS_TRUN_NODE_SZ, UBIFS_SB_NODE_SZ, UBIFS_MST_NODE_SZ);
 	dbg_msg("node sizes:          ref %zu, cmt. start %zu, orph %zu",
 		UBIFS_REF_NODE_SZ, UBIFS_CS_NODE_SZ, UBIFS_ORPH_NODE_SZ);
-	dbg_msg("max. node sizes:     data %zu, inode %zu dentry %zu",
+	dbg_msg("max. node sizes:     data %zu, inode %zu dentry %zu, idx %d",
 	        UBIFS_MAX_DATA_NODE_SZ, UBIFS_MAX_INO_NODE_SZ,
-		UBIFS_MAX_DENT_NODE_SZ);
+		UBIFS_MAX_DENT_NODE_SZ, ubifs_idx_node_sz(c, c->fanout));
 	dbg_msg("dead watermark:      %d", c->dead_wm);
 	dbg_msg("dark watermark:      %d", c->dark_wm);
 	dbg_msg("LEB overhead:        %d", c->leb_overhead);
@@ -1474,6 +1497,7 @@ out_wbufs:
 out_cbuf:
 	kfree(c->cbuf);
 out_free:
+	kfree(c->write_reserve_buf);
 	kfree(c->bu.buf);
 	vfree(c->ileb_buf);
 	vfree(c->sbuf);
@@ -1512,6 +1536,7 @@ static void ubifs_umount(struct ubifs_info *c)
 	kfree(c->cbuf);
 	kfree(c->rcvrd_mst_node);
 	kfree(c->mst_node);
+	kfree(c->write_reserve_buf);
 	kfree(c->bu.buf);
 	vfree(c->ileb_buf);
 	vfree(c->sbuf);
@@ -1543,7 +1568,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	mutex_lock(&c->umount_mutex);
 	dbg_save_space_info(c);
 	c->remounting_rw = 1;
-	c->always_chk_crc = 1;
+	c->ro_mount = 0;
 
 	err = check_free_space(c);
 	if (err)
@@ -1598,15 +1623,13 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		goto out;
 	}
 
+	c->write_reserve_buf = kmalloc(COMPRESSED_DATA_NODE_BUF_SZ, GFP_KERNEL);
+	if (!c->write_reserve_buf)
+		goto out;
+
 	err = ubifs_lpt_init(c, 0, 1);
 	if (err)
 		goto out;
-
-	err = alloc_wbufs(c);
-	if (err)
-		goto out;
-
-	ubifs_create_buds_lists(c);
 
 	/* Create background thread */
 	c->bgt = kthread_create(ubifs_bg_thread, c, "%s", c->bgt_name);
@@ -1642,20 +1665,30 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	if (err)
 		goto out;
 
+	dbg_gen("re-mounted read-write");
+	c->remounting_rw = 0;
+
 	if (c->need_recovery) {
 		c->need_recovery = 0;
 		ubifs_msg("deferred recovery completed");
+	} else {
+		/*
+		 * Do not run the debugging space check if the were doing
+		 * recovery, because when we saved the information we had the
+		 * file-system in a state where the TNC and lprops has been
+		 * modified in memory, but all the I/O operations (including a
+		 * commit) were deferred. So the file-system was in
+		 * "non-committed" state. Now the file-system is in committed
+		 * state, and of course the amount of free space will change
+		 * because, for example, the old index size was imprecise.
+		 */
+		err = dbg_check_space_info(c);
 	}
-
-	dbg_gen("re-mounted read-write");
-	c->ro_mount = 0;
-	c->remounting_rw = 0;
-	c->always_chk_crc = 0;
-	err = dbg_check_space_info(c);
 	mutex_unlock(&c->umount_mutex);
 	return err;
 
 out:
+	c->ro_mount = 1;
 	vfree(c->orph_buf);
 	c->orph_buf = NULL;
 	if (c->bgt) {
@@ -1663,11 +1696,12 @@ out:
 		c->bgt = NULL;
 	}
 	free_wbufs(c);
+	kfree(c->write_reserve_buf);
+	c->write_reserve_buf = NULL;
 	vfree(c->ileb_buf);
 	c->ileb_buf = NULL;
 	ubifs_lpt_free(c, 1);
 	c->remounting_rw = 0;
-	c->always_chk_crc = 0;
 	mutex_unlock(&c->umount_mutex);
 	return err;
 }
@@ -1704,9 +1738,10 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 	if (err)
 		ubifs_ro_mode(c, err);
 
-	free_wbufs(c);
 	vfree(c->orph_buf);
 	c->orph_buf = NULL;
+	kfree(c->write_reserve_buf);
+	c->write_reserve_buf = NULL;
 	vfree(c->ileb_buf);
 	c->ileb_buf = NULL;
 	ubifs_lpt_free(c, 1);
@@ -1730,10 +1765,12 @@ static void ubifs_put_super(struct super_block *sb)
 	 * of the media. For example, there will be dirty inodes if we failed
 	 * to write them back because of I/O errors.
 	 */
-	ubifs_assert(atomic_long_read(&c->dirty_pg_cnt) == 0);
-	ubifs_assert(c->budg_idx_growth == 0);
-	ubifs_assert(c->budg_dd_growth == 0);
-	ubifs_assert(c->budg_data_growth == 0);
+	if (!c->ro_error) {
+		ubifs_assert(atomic_long_read(&c->dirty_pg_cnt) == 0);
+		ubifs_assert(c->budg_idx_growth == 0);
+		ubifs_assert(c->budg_dd_growth == 0);
+		ubifs_assert(c->budg_data_growth == 0);
+	}
 
 	/*
 	 * The 'c->umount_lock' prevents races between UBIFS memory shrinker
@@ -1937,6 +1974,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	mutex_init(&c->mst_mutex);
 	mutex_init(&c->umount_mutex);
 	mutex_init(&c->bu_mutex);
+	mutex_init(&c->write_reserve_mutex);
 	init_waitqueue_head(&c->cmt_wq);
 	c->buds = RB_ROOT;
 	c->old_idx = RB_ROOT;
@@ -1954,6 +1992,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	INIT_LIST_HEAD(&c->old_buds);
 	INIT_LIST_HEAD(&c->orph_list);
 	INIT_LIST_HEAD(&c->orph_new);
+	c->no_chk_data_crc = 1;
 
 	c->vfs_sb = sb;
 	c->highest_inum = UBIFS_FIRST_INO;
@@ -1979,7 +2018,6 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	c->bdi.name = "ubifs",
 	c->bdi.capabilities = BDI_CAP_MAP_COPY;
-	c->bdi.unplug_io_fn = default_unplug_io_fn;
 	err  = bdi_init(&c->bdi);
 	if (err)
 		goto out_close;

@@ -99,6 +99,7 @@ static int sharp_ls_panel_probe(struct omap_dss_device *dssdev)
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.max_brightness = dssdev->max_backlight_level;
+	props.type = BACKLIGHT_RAW;
 
 	bl = backlight_device_register("sharp-ls", &dssdev->dev, dssdev,
 			&sharp_ls_bl_ops, &props);

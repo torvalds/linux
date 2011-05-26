@@ -135,6 +135,19 @@ config IR_MCEUSB
 	   To compile this driver as a module, choose M here: the
 	   module will be called mceusb.
 
+config IR_ITE_CIR
+	tristate "ITE Tech Inc. IT8712/IT8512 Consumer Infrared Transceiver"
+	depends on PNP
+	depends on RC_CORE
+	---help---
+	   Say Y here to enable support for integrated infrared receivers
+	   /transceivers made by ITE Tech Inc. These are found in
+	   several ASUS devices, like the ASUS Digimatrix or the ASUS
+	   EEEBox 1501U.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called ite-cir.
+
 config IR_NUVOTON
 	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
 	depends on PNP
@@ -161,20 +174,20 @@ config IR_STREAMZAP
 	   module will be called streamzap.
 
 config IR_WINBOND_CIR
-        tristate "Winbond IR remote control"
-        depends on X86 && PNP
+	tristate "Winbond IR remote control"
+	depends on X86 && PNP
 	depends on RC_CORE
-        select NEW_LEDS
-        select LEDS_CLASS
-        select LEDS_TRIGGERS
-        select BITREVERSE
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_TRIGGERS
+	select BITREVERSE
 	---help---
-           Say Y here if you want to use the IR remote functionality found
-           in some Winbond SuperI/O chips. Currently only the WPCD376I
-           chip is supported (included in some Intel Media series
+	   Say Y here if you want to use the IR remote functionality found
+	   in some Winbond SuperI/O chips. Currently only the WPCD376I
+	   chip is supported (included in some Intel Media series
 	   motherboards).
 
-           To compile this driver as a module, choose M here: the module will
+	   To compile this driver as a module, choose M here: the module will
 	   be called winbond_cir.
 
 config RC_LOOPBACK

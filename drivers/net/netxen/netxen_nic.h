@@ -174,7 +174,7 @@
 
 #define	MAX_NUM_CARDS		4
 
-#define MAX_BUFFERS_PER_CMD	32
+#define NETXEN_MAX_FRAGS_PER_TX	14
 #define MAX_TSO_HEADER_DESC	2
 #define MGMT_CMD_DESC_RESV	4
 #define TX_STOP_THRESH		((MAX_SKB_FRAGS >> 2) + MAX_TSO_HEADER_DESC \
@@ -558,7 +558,7 @@ struct netxen_recv_crb {
  */
 struct netxen_cmd_buffer {
 	struct sk_buff *skb;
-	struct netxen_skb_frag frag_array[MAX_BUFFERS_PER_CMD + 1];
+	struct netxen_skb_frag frag_array[MAX_SKB_FRAGS + 1];
 	u32 frag_count;
 };
 
@@ -739,7 +739,8 @@ struct netxen_recv_context {
 #define NX_CDRP_CMD_READ_PEXQ_PARAMETERS	0x0000001c
 #define NX_CDRP_CMD_GET_LIC_CAPABILITIES	0x0000001d
 #define NX_CDRP_CMD_READ_MAX_LRO_PER_BOARD	0x0000001e
-#define NX_CDRP_CMD_MAX				0x0000001f
+#define NX_CDRP_CMD_CONFIG_GBE_PORT		0x0000001f
+#define NX_CDRP_CMD_MAX				0x00000020
 
 #define NX_RCODE_SUCCESS		0
 #define NX_RCODE_NO_HOST_MEM		1
@@ -1054,6 +1055,7 @@ typedef struct {
 #define NX_FW_CAPABILITY_BDG			(1 << 8)
 #define NX_FW_CAPABILITY_FVLANTX		(1 << 9)
 #define NX_FW_CAPABILITY_HW_LRO			(1 << 10)
+#define NX_FW_CAPABILITY_GBE_LINK_CFG		(1 << 11)
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -1349,6 +1351,8 @@ void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup);
 void netxen_pci_camqm_read_2M(struct netxen_adapter *, u64, u64 *);
 void netxen_pci_camqm_write_2M(struct netxen_adapter *, u64, u64);
 
+int nx_fw_cmd_set_gbe_port(struct netxen_adapter *adapter,
+				u32 speed, u32 duplex, u32 autoneg);
 int nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, int mtu);
 int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
 int netxen_config_hw_lro(struct netxen_adapter *adapter, int enable);

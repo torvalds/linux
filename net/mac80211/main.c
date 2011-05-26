@@ -34,7 +34,7 @@
 #include "debugfs.h"
 
 
-bool ieee80211_disable_40mhz_24ghz;
+static bool ieee80211_disable_40mhz_24ghz;
 module_param(ieee80211_disable_40mhz_24ghz, bool, 0644);
 MODULE_PARM_DESC(ieee80211_disable_40mhz_24ghz,
 		 "Disable 40MHz support in the 2.4GHz band");
@@ -98,6 +98,47 @@ static void ieee80211_reconfig_filter(struct work_struct *work)
 	ieee80211_configure_filter(local);
 }
 
+/*
+ * Returns true if we are logically configured to be on
+ * the operating channel AND the hardware-conf is currently
+ * configured on the operating channel.  Compares channel-type
+ * as well.
+ */
+bool ieee80211_cfg_on_oper_channel(struct ieee80211_local *local)
+{
+	struct ieee80211_channel *chan, *scan_chan;
+	enum nl80211_channel_type channel_type;
+
+	/* This logic needs to match logic in ieee80211_hw_config */
+	if (local->scan_channel) {
+		chan = local->scan_channel;
+		/* If scanning on oper channel, use whatever channel-type
+		 * is currently in use.
+		 */
+		if (chan == local->oper_channel)
+			channel_type = local->_oper_channel_type;
+		else
+			channel_type = NL80211_CHAN_NO_HT;
+	} else if (local->tmp_channel) {
+		chan = scan_chan = local->tmp_channel;
+		channel_type = local->tmp_channel_type;
+	} else {
+		chan = local->oper_channel;
+		channel_type = local->_oper_channel_type;
+	}
+
+	if (chan != local->oper_channel ||
+	    channel_type != local->_oper_channel_type)
+		return false;
+
+	/* Check current hardware-config against oper_channel. */
+	if ((local->oper_channel != local->hw.conf.channel) ||
+	    (local->_oper_channel_type != local->hw.conf.channel_type))
+		return false;
+
+	return true;
+}
+
 int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 {
 	struct ieee80211_channel *chan, *scan_chan;
@@ -110,21 +151,33 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 
 	scan_chan = local->scan_channel;
 
+	/* If this off-channel logic ever changes,  ieee80211_on_oper_channel
+	 * may need to change as well.
+	 */
 	offchannel_flag = local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 	if (scan_chan) {
 		chan = scan_chan;
-		channel_type = NL80211_CHAN_NO_HT;
-		local->hw.conf.flags |= IEEE80211_CONF_OFFCHANNEL;
-	} else if (local->tmp_channel &&
-		   local->oper_channel != local->tmp_channel) {
+		/* If scanning on oper channel, use whatever channel-type
+		 * is currently in use.
+		 */
+		if (chan == local->oper_channel)
+			channel_type = local->_oper_channel_type;
+		else
+			channel_type = NL80211_CHAN_NO_HT;
+	} else if (local->tmp_channel) {
 		chan = scan_chan = local->tmp_channel;
 		channel_type = local->tmp_channel_type;
-		local->hw.conf.flags |= IEEE80211_CONF_OFFCHANNEL;
 	} else {
 		chan = local->oper_channel;
 		channel_type = local->_oper_channel_type;
-		local->hw.conf.flags &= ~IEEE80211_CONF_OFFCHANNEL;
 	}
+
+	if (chan != local->oper_channel ||
+	    channel_type != local->_oper_channel_type)
+		local->hw.conf.flags |= IEEE80211_CONF_OFFCHANNEL;
+	else
+		local->hw.conf.flags &= ~IEEE80211_CONF_OFFCHANNEL;
+
 	offchannel_flag ^= local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 
 	if (offchannel_flag || chan != local->hw.conf.channel ||
@@ -146,7 +199,8 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		changed |= IEEE80211_CONF_CHANGE_SMPS;
 	}
 
-	if (scan_chan)
+	if ((local->scanning & SCAN_SW_SCANNING) ||
+	    (local->scanning & SCAN_HW_SCANNING))
 		power = chan->max_power;
 	else
 		power = local->power_constr_level ?
@@ -231,7 +285,7 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		if (local->quiescing || !ieee80211_sdata_running(sdata) ||
-		    test_bit(SCAN_SW_SCANNING, &local->scanning)) {
+		    test_bit(SDATA_STATE_OFFCHANNEL, &sdata->state)) {
 			sdata->vif.bss_conf.enable_beacon = false;
 		} else {
 			/*
@@ -325,6 +379,9 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw)
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	trace_api_restart_hw(local);
+
+	wiphy_info(hw->wiphy,
+		   "Hardware restart was requested\n");
 
 	/* use this reason, ieee80211_reconfig will unblock it */
 	ieee80211_stop_queues_by_reason(hw,
@@ -554,6 +611,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->hw.queues = 1;
 	local->hw.max_rates = 1;
 	local->hw.max_report_rates = 0;
+	local->hw.max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
 	local->hw.conf.long_frame_max_tx_count = wiphy->retry_long;
 	local->hw.conf.short_frame_max_tx_count = wiphy->retry_short;
 	local->user_power_level = -1;
@@ -667,6 +725,18 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			local->hw.conf.channel_type = NL80211_CHAN_NO_HT;
 		}
 		channels += sband->n_channels;
+
+		/*
+		 * Since ieee80211_disable_40mhz_24ghz is global, we can
+		 * modify the sband's ht data even if the driver uses a
+		 * global structure for that.
+		 */
+		if (ieee80211_disable_40mhz_24ghz &&
+		    band == IEEE80211_BAND_2GHZ &&
+		    sband->ht_cap.ht_supported) {
+			sband->ht_cap.cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+			sband->ht_cap.cap &= ~IEEE80211_HT_CAP_SGI_40;
+		}
 
 		if (max_bitrates < sband->n_bitrates)
 			max_bitrates = sband->n_bitrates;

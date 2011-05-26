@@ -250,6 +250,7 @@ enum CountryCode {
 };
 
 bool ath_is_world_regd(struct ath_regulatory *reg);
+bool ath_is_49ghz_allowed(u16 redomain);
 int ath_regd_init(struct ath_regulatory *reg, struct wiphy *wiphy,
 		  int (*reg_notifier)(struct wiphy *wiphy,
 		  struct regulatory_request *request));

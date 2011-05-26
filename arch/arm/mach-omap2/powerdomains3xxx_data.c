@@ -2,7 +2,7 @@
  * OMAP3 powerdomain definitions
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2010 Nokia Corporation
+ * Copyright (C) 2007-2011 Nokia Corporation
  *
  * Paul Walmsley, Jouni Högander
  *
@@ -47,10 +47,10 @@ static struct powerdomain iva2_pwrdm = {
 		[3] = PWRSTS_OFF_RET,
 	},
 	.pwrsts_mem_on	  = {
-		[0] = PWRDM_POWER_ON,
-		[1] = PWRDM_POWER_ON,
+		[0] = PWRSTS_ON,
+		[1] = PWRSTS_ON,
 		[2] = PWRSTS_OFF_ON,
-		[3] = PWRDM_POWER_ON,
+		[3] = PWRSTS_ON,
 	},
 };
 
@@ -72,7 +72,7 @@ static struct powerdomain mpu_3xxx_pwrdm = {
 
 /*
  * The USBTLL Save-and-Restore mechanism is broken on
- * 3430s upto ES3.0 and 3630ES1.0. Hence this feature
+ * 3430s up to ES3.0 and 3630ES1.0. Hence this feature
  * needs to be disabled on these chips.
  * Refer: 3430 errata ID i459 and 3630 errata ID i579
  *
@@ -128,13 +128,13 @@ static struct powerdomain dss_pwrdm = {
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 	.prcm_offs	  = OMAP3430_DSS_MOD,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
-	.pwrsts_logic_ret = PWRDM_POWER_RET,
+	.pwrsts_logic_ret = PWRSTS_RET,
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
-		[0] = PWRDM_POWER_RET, /* MEMRETSTATE */
+		[0] = PWRSTS_RET, /* MEMRETSTATE */
 	},
 	.pwrsts_mem_on	  = {
-		[0] = PWRDM_POWER_ON,  /* MEMONSTATE */
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
 };
 
@@ -149,13 +149,13 @@ static struct powerdomain sgx_pwrdm = {
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 	/* XXX This is accurate for 3430 SGX, but what about GFX? */
 	.pwrsts		  = PWRSTS_OFF_ON,
-	.pwrsts_logic_ret = PWRDM_POWER_RET,
+	.pwrsts_logic_ret = PWRSTS_RET,
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
-		[0] = PWRDM_POWER_RET, /* MEMRETSTATE */
+		[0] = PWRSTS_RET, /* MEMRETSTATE */
 	},
 	.pwrsts_mem_on	  = {
-		[0] = PWRDM_POWER_ON,  /* MEMONSTATE */
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
 };
 
@@ -164,13 +164,13 @@ static struct powerdomain cam_pwrdm = {
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 	.prcm_offs	  = OMAP3430_CAM_MOD,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
-	.pwrsts_logic_ret = PWRDM_POWER_RET,
+	.pwrsts_logic_ret = PWRSTS_RET,
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
-		[0] = PWRDM_POWER_RET, /* MEMRETSTATE */
+		[0] = PWRSTS_RET, /* MEMRETSTATE */
 	},
 	.pwrsts_mem_on	  = {
-		[0] = PWRDM_POWER_ON,  /* MEMONSTATE */
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
 };
 
@@ -182,10 +182,10 @@ static struct powerdomain per_pwrdm = {
 	.pwrsts_logic_ret = PWRSTS_OFF_RET,
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
-		[0] = PWRDM_POWER_RET, /* MEMRETSTATE */
+		[0] = PWRSTS_RET, /* MEMRETSTATE */
 	},
 	.pwrsts_mem_on	  = {
-		[0] = PWRDM_POWER_ON,  /* MEMONSTATE */
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
 };
 
@@ -200,7 +200,7 @@ static struct powerdomain neon_pwrdm = {
 	.prcm_offs	  = OMAP3430_NEON_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
-	.pwrsts_logic_ret = PWRDM_POWER_RET,
+	.pwrsts_logic_ret = PWRSTS_RET,
 };
 
 static struct powerdomain usbhost_pwrdm = {
@@ -208,7 +208,7 @@ static struct powerdomain usbhost_pwrdm = {
 	.prcm_offs	  = OMAP3430ES2_USBHOST_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
-	.pwrsts_logic_ret = PWRDM_POWER_RET,
+	.pwrsts_logic_ret = PWRSTS_RET,
 	/*
 	 * REVISIT: Enabling usb host save and restore mechanism seems to
 	 * leave the usb host domain permanently in ACTIVE mode after
@@ -218,10 +218,10 @@ static struct powerdomain usbhost_pwrdm = {
 	/*.flags	  = PWRDM_HAS_HDWR_SAR,*/ /* for USBHOST ctrlr only */
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
-		[0] = PWRDM_POWER_RET, /* MEMRETSTATE */
+		[0] = PWRSTS_RET, /* MEMRETSTATE */
 	},
 	.pwrsts_mem_on	  = {
-		[0] = PWRDM_POWER_ON,  /* MEMONSTATE */
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
 };
 

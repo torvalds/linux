@@ -80,13 +80,18 @@ static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 /*
  * Try to register a serial port
  */
-static int __devinit of_platform_serial_probe(struct platform_device *ofdev,
-						const struct of_device_id *id)
+static struct of_device_id of_platform_serial_table[];
+static int __devinit of_platform_serial_probe(struct platform_device *ofdev)
 {
+	const struct of_device_id *match;
 	struct of_serial_info *info;
 	struct uart_port port;
 	int port_type;
 	int ret;
+
+	match = of_match_device(of_platform_serial_table, &ofdev->dev);
+	if (!match)
+		return -EINVAL;
 
 	if (of_find_property(ofdev->dev.of_node, "used-by-rtas", NULL))
 		return -EBUSY;
@@ -95,7 +100,7 @@ static int __devinit of_platform_serial_probe(struct platform_device *ofdev,
 	if (info == NULL)
 		return -ENOMEM;
 
-	port_type = (unsigned long)id->data;
+	port_type = (unsigned long)match->data;
 	ret = of_platform_serial_setup(ofdev, port_type, &port);
 	if (ret)
 		goto out;
@@ -160,21 +165,21 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
  * A few common types, add more as needed.
  */
 static struct of_device_id __devinitdata of_platform_serial_table[] = {
-	{ .type = "serial", .compatible = "ns8250",   .data = (void *)PORT_8250, },
-	{ .type = "serial", .compatible = "ns16450",  .data = (void *)PORT_16450, },
-	{ .type = "serial", .compatible = "ns16550a", .data = (void *)PORT_16550A, },
-	{ .type = "serial", .compatible = "ns16550",  .data = (void *)PORT_16550, },
-	{ .type = "serial", .compatible = "ns16750",  .data = (void *)PORT_16750, },
-	{ .type = "serial", .compatible = "ns16850",  .data = (void *)PORT_16850, },
+	{ .compatible = "ns8250",   .data = (void *)PORT_8250, },
+	{ .compatible = "ns16450",  .data = (void *)PORT_16450, },
+	{ .compatible = "ns16550a", .data = (void *)PORT_16550A, },
+	{ .compatible = "ns16550",  .data = (void *)PORT_16550, },
+	{ .compatible = "ns16750",  .data = (void *)PORT_16750, },
+	{ .compatible = "ns16850",  .data = (void *)PORT_16850, },
 #ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
-	{ .type = "serial", .compatible = "ibm,qpace-nwp-serial",
-					.data = (void *)PORT_NWPSERIAL, },
+	{ .compatible = "ibm,qpace-nwp-serial",
+		.data = (void *)PORT_NWPSERIAL, },
 #endif
-	{ .type = "serial",			      .data = (void *)PORT_UNKNOWN, },
+	{ .type = "serial",         .data = (void *)PORT_UNKNOWN, },
 	{ /* end of list */ },
 };
 
-static struct of_platform_driver of_platform_serial_driver = {
+static struct platform_driver of_platform_serial_driver = {
 	.driver = {
 		.name = "of_serial",
 		.owner = THIS_MODULE,
@@ -186,13 +191,13 @@ static struct of_platform_driver of_platform_serial_driver = {
 
 static int __init of_platform_serial_init(void)
 {
-	return of_register_platform_driver(&of_platform_serial_driver);
+	return platform_driver_register(&of_platform_serial_driver);
 }
 module_init(of_platform_serial_init);
 
 static void __exit of_platform_serial_exit(void)
 {
-	return of_unregister_platform_driver(&of_platform_serial_driver);
+	return platform_driver_unregister(&of_platform_serial_driver);
 };
 module_exit(of_platform_serial_exit);
 

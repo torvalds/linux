@@ -87,17 +87,22 @@ static int dump_qp(int id, void *p, void *data)
 		return 1;
 
 	if (qp->ep)
-		cc = snprintf(qpd->buf + qpd->pos, space, "qp id %u state %u "
+		cc = snprintf(qpd->buf + qpd->pos, space,
+			     "qp sq id %u rq id %u state %u onchip %u "
 			     "ep tid %u state %u %pI4:%u->%pI4:%u\n",
-			     qp->wq.sq.qid, (int)qp->attr.state,
+			     qp->wq.sq.qid, qp->wq.rq.qid, (int)qp->attr.state,
+			     qp->wq.sq.flags & T4_SQ_ONCHIP,
 			     qp->ep->hwtid, (int)qp->ep->com.state,
 			     &qp->ep->com.local_addr.sin_addr.s_addr,
 			     ntohs(qp->ep->com.local_addr.sin_port),
 			     &qp->ep->com.remote_addr.sin_addr.s_addr,
 			     ntohs(qp->ep->com.remote_addr.sin_port));
 	else
-		cc = snprintf(qpd->buf + qpd->pos, space, "qp id %u state %u\n",
-			      qp->wq.sq.qid, (int)qp->attr.state);
+		cc = snprintf(qpd->buf + qpd->pos, space,
+			     "qp sq id %u rq id %u state %u onchip %u\n",
+			      qp->wq.sq.qid, qp->wq.rq.qid,
+			      (int)qp->attr.state,
+			      qp->wq.sq.flags & T4_SQ_ONCHIP);
 	if (cc < space)
 		qpd->pos += cc;
 	return 0;
@@ -368,7 +373,6 @@ static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 static void c4iw_remove(struct c4iw_dev *dev)
 {
 	PDBG("%s c4iw_dev %p\n", __func__,  dev);
-	cancel_delayed_work_sync(&dev->db_drop_task);
 	list_del(&dev->entry);
 	if (dev->registered)
 		c4iw_unregister_device(dev);
@@ -523,8 +527,16 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 	case CXGB4_STATE_START_RECOVERY:
 		printk(KERN_INFO MOD "%s: Fatal Error\n",
 		       pci_name(dev->rdev.lldi.pdev));
-		if (dev->registered)
+		dev->rdev.flags |= T4_FATAL_ERROR;
+		if (dev->registered) {
+			struct ib_event event;
+
+			memset(&event, 0, sizeof event);
+			event.event  = IB_EVENT_DEVICE_FATAL;
+			event.device = &dev->ibdev;
+			ib_dispatch_event(&event);
 			c4iw_unregister_device(dev);
+		}
 		break;
 	case CXGB4_STATE_DETACH:
 		printk(KERN_INFO MOD "%s: Detach\n",

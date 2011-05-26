@@ -1,6 +1,5 @@
 #ifndef _LINUX_XGIFB
 #define _LINUX_XGIFB
-#include <linux/spinlock.h>
 #include <asm/ioctl.h>
 #include <asm/types.h>
 
@@ -28,23 +27,6 @@
 #endif
 
 enum XGI_CHIP_TYPE {
-    XGI_VGALegacy = 0,
-    XGI_300,
-    XGI_630,
-    XGI_730,
-    XGI_540,
-    XGI_315H,
-    XGI_315,
-    XGI_315PRO,
-    XGI_550,
-    XGI_640,
-    XGI_740,
-    XGI_650,
-    XGI_650M,
-    XGI_330 = 16,
-    XGI_660,
-    XGI_661,
-    XGI_760,
     XG40 = 32,
     XG41,
     XG42,
@@ -52,7 +34,6 @@ enum XGI_CHIP_TYPE {
     XG20 = 48,
     XG21,
     XG27,
-    MAX_XGI_CHIP
 };
 
 enum xgi_tvtype {
@@ -64,36 +45,6 @@ enum xgi_tvtype {
     	TVTYPE_NTSCJ,	// vicki@030226
 	TVMODE_TOTAL
 };
-
-
-struct XGIfb_info {
-	unsigned long XGIfb_id;
- 	int    chip_id;			/* PCI ID of detected chip */
-	int    memory;			/* video memory in KB which XGIfb manages */
-	int    heapstart;               /* heap start (= XGIfb "mem" argument) in KB */
-	unsigned char fbvidmode;	/* current XGIfb mode */
-
-	unsigned char XGIfb_version;
-	unsigned char XGIfb_revision;
-	unsigned char XGIfb_patchlevel;
-
-	unsigned char XGIfb_caps;	/* XGIfb capabilities */
-
-	int    XGIfb_tqlen;		/* turbo queue length (in KB) */
-
-	unsigned int XGIfb_pcibus;      /* The card's PCI ID */
-	unsigned int XGIfb_pcislot;
-	unsigned int XGIfb_pcifunc;
-
-	unsigned char XGIfb_lcdpdc;	/* PanelDelayCompensation */
-
-	unsigned char XGIfb_lcda;	/* Detected status of LCDA for low res/text modes */
-
-	char reserved[235]; 		/* for future use */
-};
-
-
-
 
 enum xgi_tv_plug {	/* vicki@030226 */
 //	TVPLUG_Legacy = 0,
@@ -113,58 +64,16 @@ enum xgi_tv_plug {	/* vicki@030226 */
 	TVPLUG_TOTAL
 };
 
-
-struct mode_info {
-	int    bpp;
-	int    xres;
-	int    yres;
-	int    v_xres;
-	int    v_yres;
-	int    org_x;
-	int    org_y;
-	unsigned int  vrate;
-};
-
-struct ap_data {
-	struct mode_info minfo;
-	unsigned long iobase;
-	unsigned int  mem_size;
-	unsigned long disp_state;
-	enum XGI_CHIP_TYPE chip;
-	unsigned char hasVB;
-	enum xgi_tvtype TV_type;
-	enum xgi_tv_plug TV_plug;
-	unsigned long version;
-	char reserved[256];
-};
-
-
-
-/*     If changing this, vgatypes.h must also be changed (for X driver)    */
-
-
-/*
- * NOTE! The ioctl types used to be "size_t" by mistake, but were
- * really meant to be __u32. Changed to "__u32" even though that
- * changes the value on 64-bit architectures, because the value
- * (with a 4-byte size) is also hardwired in vgatypes.h for user
- * space exports. So "__u32" is actually more compatible, duh!
- */
-#define XGIFB_GET_INFO	  	_IOR('n',0xF8,__u32)
-#define XGIFB_GET_VBRSTATUS  	_IOR('n',0xF9,__u32)
-
-
-
 struct video_info{
         int           chip_id;
         unsigned int  video_size;
         unsigned long video_base;
         char  *       video_vbase;
         unsigned long mmio_base;
+	unsigned long mmio_size;
         char  *       mmio_vbase;
         unsigned long vga_base;
         unsigned long mtrr;
-        unsigned long heapstart;
 
         int    video_bpp;
         int    video_cmap_len;
@@ -189,13 +98,10 @@ struct video_info{
         unsigned long  XGI310_AccelDepth;
         unsigned long  CommandReg;
 
-        spinlock_t     lockaccel;
-
         unsigned int   pcibus;
         unsigned int   pcislot;
         unsigned int   pcifunc;
 
-        int            accel;
         unsigned short subsysvendor;
         unsigned short subsysdevice;
 

@@ -9,9 +9,22 @@
 #define _ASM_S390_DIAG_H
 
 /*
- * Diagnose 10: Release pages
+ * Diagnose 10: Release page range
  */
-extern void diag10(unsigned long addr);
+static inline void diag10_range(unsigned long start_pfn, unsigned long num_pfn)
+{
+	unsigned long start_addr, end_addr;
+
+	start_addr = start_pfn << PAGE_SHIFT;
+	end_addr = (start_pfn + num_pfn - 1) << PAGE_SHIFT;
+
+	asm volatile(
+		"0:	diag	%0,%1,0x10\n"
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		EX_TABLE(1b, 1b)
+		: : "a" (start_addr), "a" (end_addr));
+}
 
 /*
  * Diagnose 14: Input spool file manipulation

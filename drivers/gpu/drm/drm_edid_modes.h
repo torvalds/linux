@@ -32,7 +32,7 @@
  * This table is copied from xfree86/modes/xf86EdidModes.c.
  * But the mode with Reduced blank feature is deleted.
  */
-static struct drm_display_mode drm_dmt_modes[] = {
+static const struct drm_display_mode drm_dmt_modes[] = {
 	/* 640x350@85Hz */
 	{ DRM_MODE("640x350", DRM_MODE_TYPE_DRIVER, 31500, 640, 672,
 		   736, 832, 0, 350, 382, 385, 445, 0,
@@ -266,7 +266,7 @@ static struct drm_display_mode drm_dmt_modes[] = {
 static const int drm_num_dmt_modes =
 	sizeof(drm_dmt_modes) / sizeof(struct drm_display_mode);
 
-static struct drm_display_mode edid_est_modes[] = {
+static const struct drm_display_mode edid_est_modes[] = {
 	{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 40000, 800, 840,
 		   968, 1056, 0, 600, 601, 605, 628, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 800x600@60Hz */

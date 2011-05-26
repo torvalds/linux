@@ -424,7 +424,7 @@ void clear_user_page(void *page, unsigned long vaddr, struct page *pg)
 	clear_page(page);
 
 	/*
-	 * We shouldnt have to do this, but some versions of glibc
+	 * We shouldn't have to do this, but some versions of glibc
 	 * require it (ld.so assumes zero filled pages are icache clean)
 	 * - Anton
 	 */

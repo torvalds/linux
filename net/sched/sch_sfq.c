@@ -21,6 +21,7 @@
 #include <linux/skbuff.h>
 #include <linux/jhash.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <net/ip.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
@@ -76,7 +77,8 @@
 #define SFQ_DEPTH		128 /* max number of packets per flow */
 #define SFQ_SLOTS		128 /* max number of flows */
 #define SFQ_EMPTY_SLOT		255
-#define SFQ_HASH_DIVISOR	1024
+#define SFQ_DEFAULT_HASH_DIVISOR 1024
+
 /* We use 16 bits to store allot, and want to handle packets up to 64K
  * Scale allot by 8 (1<<3) so that no overflow occurs.
  */
@@ -92,8 +94,7 @@ typedef unsigned char sfq_index;
  * while following values [SFQ_SLOTS ... SFQ_SLOTS + SFQ_DEPTH - 1]
  * are 'pointers' to dep[] array
  */
-struct sfq_head
-{
+struct sfq_head {
 	sfq_index	next;
 	sfq_index	prev;
 };
@@ -108,13 +109,12 @@ struct sfq_slot {
 	short		allot; /* credit for this slot */
 };
 
-struct sfq_sched_data
-{
+struct sfq_sched_data {
 /* Parameters */
 	int		perturb_period;
-	unsigned	quantum;	/* Allotment per round: MUST BE >= MTU */
+	unsigned int	quantum;	/* Allotment per round: MUST BE >= MTU */
 	int		limit;
-
+	unsigned int	divisor;	/* number of slots in hash table */
 /* Variables */
 	struct tcf_proto *filter_list;
 	struct timer_list perturb_timer;
@@ -122,7 +122,7 @@ struct sfq_sched_data
 	sfq_index	cur_depth;	/* depth of longest slot */
 	unsigned short  scaled_quantum; /* SFQ_ALLOT_SIZE(quantum) */
 	struct sfq_slot *tail;		/* current slot in round */
-	sfq_index	ht[SFQ_HASH_DIVISOR];	/* Hash table */
+	sfq_index	*ht;		/* Hash table (divisor slots) */
 	struct sfq_slot	slots[SFQ_SLOTS];
 	struct sfq_head	dep[SFQ_DEPTH];	/* Linked list of slots, indexed by depth */
 };
@@ -137,12 +137,12 @@ static inline struct sfq_head *sfq_dep_head(struct sfq_sched_data *q, sfq_index 
 	return &q->dep[val - SFQ_SLOTS];
 }
 
-static __inline__ unsigned sfq_fold_hash(struct sfq_sched_data *q, u32 h, u32 h1)
+static unsigned int sfq_fold_hash(struct sfq_sched_data *q, u32 h, u32 h1)
 {
-	return jhash_2words(h, h1, q->perturbation) & (SFQ_HASH_DIVISOR - 1);
+	return jhash_2words(h, h1, q->perturbation) & (q->divisor - 1);
 }
 
-static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
+static unsigned int sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 {
 	u32 h, h2;
 
@@ -157,13 +157,13 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 		iph = ip_hdr(skb);
 		h = (__force u32)iph->daddr;
 		h2 = (__force u32)iph->saddr ^ iph->protocol;
-		if (iph->frag_off & htons(IP_MF|IP_OFFSET))
+		if (iph->frag_off & htons(IP_MF | IP_OFFSET))
 			break;
 		poff = proto_ports_offset(iph->protocol);
 		if (poff >= 0 &&
 		    pskb_network_may_pull(skb, iph->ihl * 4 + 4 + poff)) {
 			iph = ip_hdr(skb);
-			h2 ^= *(u32*)((void *)iph + iph->ihl * 4 + poff);
+			h2 ^= *(u32 *)((void *)iph + iph->ihl * 4 + poff);
 		}
 		break;
 	}
@@ -181,7 +181,7 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 		if (poff >= 0 &&
 		    pskb_network_may_pull(skb, sizeof(*iph) + 4 + poff)) {
 			iph = ipv6_hdr(skb);
-			h2 ^= *(u32*)((void *)iph + sizeof(*iph) + poff);
+			h2 ^= *(u32 *)((void *)iph + sizeof(*iph) + poff);
 		}
 		break;
 	}
@@ -203,7 +203,7 @@ static unsigned int sfq_classify(struct sk_buff *skb, struct Qdisc *sch,
 
 	if (TC_H_MAJ(skb->priority) == sch->handle &&
 	    TC_H_MIN(skb->priority) > 0 &&
-	    TC_H_MIN(skb->priority) <= SFQ_HASH_DIVISOR)
+	    TC_H_MIN(skb->priority) <= q->divisor)
 		return TC_H_MIN(skb->priority);
 
 	if (!q->filter_list)
@@ -221,7 +221,7 @@ static unsigned int sfq_classify(struct sk_buff *skb, struct Qdisc *sch,
 			return 0;
 		}
 #endif
-		if (TC_H_MIN(res.classid) <= SFQ_HASH_DIVISOR)
+		if (TC_H_MIN(res.classid) <= q->divisor)
 			return TC_H_MIN(res.classid);
 	}
 	return 0;
@@ -491,13 +491,18 @@ static int sfq_change(struct Qdisc *sch, struct nlattr *opt)
 	if (opt->nla_len < nla_attr_size(sizeof(*ctl)))
 		return -EINVAL;
 
+	if (ctl->divisor &&
+	    (!is_power_of_2(ctl->divisor) || ctl->divisor > 65536))
+		return -EINVAL;
+
 	sch_tree_lock(sch);
 	q->quantum = ctl->quantum ? : psched_mtu(qdisc_dev(sch));
 	q->scaled_quantum = SFQ_ALLOT_SIZE(q->quantum);
 	q->perturb_period = ctl->perturb_period * HZ;
 	if (ctl->limit)
 		q->limit = min_t(u32, ctl->limit, SFQ_DEPTH - 1);
-
+	if (ctl->divisor)
+		q->divisor = ctl->divisor;
 	qlen = sch->q.qlen;
 	while (sch->q.qlen > q->limit)
 		sfq_drop(sch);
@@ -515,14 +520,12 @@ static int sfq_change(struct Qdisc *sch, struct nlattr *opt)
 static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
+	size_t sz;
 	int i;
 
 	q->perturb_timer.function = sfq_perturbation;
 	q->perturb_timer.data = (unsigned long)sch;
 	init_timer_deferrable(&q->perturb_timer);
-
-	for (i = 0; i < SFQ_HASH_DIVISOR; i++)
-		q->ht[i] = SFQ_EMPTY_SLOT;
 
 	for (i = 0; i < SFQ_DEPTH; i++) {
 		q->dep[i].next = i + SFQ_SLOTS;
@@ -532,6 +535,7 @@ static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 	q->limit = SFQ_DEPTH - 1;
 	q->cur_depth = 0;
 	q->tail = NULL;
+	q->divisor = SFQ_DEFAULT_HASH_DIVISOR;
 	if (opt == NULL) {
 		q->quantum = psched_mtu(qdisc_dev(sch));
 		q->scaled_quantum = SFQ_ALLOT_SIZE(q->quantum);
@@ -543,10 +547,23 @@ static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 			return err;
 	}
 
+	sz = sizeof(q->ht[0]) * q->divisor;
+	q->ht = kmalloc(sz, GFP_KERNEL);
+	if (!q->ht && sz > PAGE_SIZE)
+		q->ht = vmalloc(sz);
+	if (!q->ht)
+		return -ENOMEM;
+	for (i = 0; i < q->divisor; i++)
+		q->ht[i] = SFQ_EMPTY_SLOT;
+
 	for (i = 0; i < SFQ_SLOTS; i++) {
 		slot_queue_init(&q->slots[i]);
 		sfq_link(q, i);
 	}
+	if (q->limit >= 1)
+		sch->flags |= TCQ_F_CAN_BYPASS;
+	else
+		sch->flags &= ~TCQ_F_CAN_BYPASS;
 	return 0;
 }
 
@@ -557,6 +574,10 @@ static void sfq_destroy(struct Qdisc *sch)
 	tcf_destroy_chain(&q->filter_list);
 	q->perturb_period = 0;
 	del_timer_sync(&q->perturb_timer);
+	if (is_vmalloc_addr(q->ht))
+		vfree(q->ht);
+	else
+		kfree(q->ht);
 }
 
 static int sfq_dump(struct Qdisc *sch, struct sk_buff *skb)
@@ -569,7 +590,7 @@ static int sfq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	opt.perturb_period = q->perturb_period / HZ;
 
 	opt.limit = q->limit;
-	opt.divisor = SFQ_HASH_DIVISOR;
+	opt.divisor = q->divisor;
 	opt.flows = q->limit;
 
 	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
@@ -594,6 +615,8 @@ static unsigned long sfq_get(struct Qdisc *sch, u32 classid)
 static unsigned long sfq_bind(struct Qdisc *sch, unsigned long parent,
 			      u32 classid)
 {
+	/* we cannot bypass queue discipline anymore */
+	sch->flags &= ~TCQ_F_CAN_BYPASS;
 	return 0;
 }
 
@@ -647,7 +670,7 @@ static void sfq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 	if (arg->stop)
 		return;
 
-	for (i = 0; i < SFQ_HASH_DIVISOR; i++) {
+	for (i = 0; i < q->divisor; i++) {
 		if (q->ht[i] == SFQ_EMPTY_SLOT ||
 		    arg->count < arg->skip) {
 			arg->count++;

@@ -24,6 +24,7 @@
 #include "reg.h"
 #include "ps.h"
 #include "io.h"
+#include "tx.h"
 
 #define WL1271_WAKEUP_TIMEOUT 500
 
@@ -68,7 +69,7 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 	}
 }
 
-int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake)
+int wl1271_ps_elp_wakeup(struct wl1271 *wl)
 {
 	DECLARE_COMPLETION_ONSTACK(compl);
 	unsigned long flags;
@@ -86,7 +87,7 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake)
 	 * the completion variable in one entity.
 	 */
 	spin_lock_irqsave(&wl->wl_lock, flags);
-	if (work_pending(&wl->irq_work) || chip_awake)
+	if (test_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags))
 		pending = true;
 	else
 		wl->elp_compl = &compl;
@@ -139,8 +140,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 			return ret;
 		}
 
-		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE,
-					 rates, send);
+		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE);
 		if (ret < 0)
 			return ret;
 
@@ -149,7 +149,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 	case STATION_ACTIVE_MODE:
 	default:
 		wl1271_debug(DEBUG_PSM, "leaving psm");
-		ret = wl1271_ps_elp_wakeup(wl, false);
+		ret = wl1271_ps_elp_wakeup(wl);
 		if (ret < 0)
 			return ret;
 
@@ -163,8 +163,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 		if (ret < 0)
 			return ret;
 
-		ret = wl1271_cmd_ps_mode(wl, STATION_ACTIVE_MODE,
-					 rates, send);
+		ret = wl1271_cmd_ps_mode(wl, STATION_ACTIVE_MODE);
 		if (ret < 0)
 			return ret;
 
@@ -175,4 +174,81 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 	return ret;
 }
 
+static void wl1271_ps_filter_frames(struct wl1271 *wl, u8 hlid)
+{
+	int i, filtered = 0;
+	struct sk_buff *skb;
+	struct ieee80211_tx_info *info;
+	unsigned long flags;
 
+	/* filter all frames currently the low level queus for this hlid */
+	for (i = 0; i < NUM_TX_QUEUES; i++) {
+		while ((skb = skb_dequeue(&wl->links[hlid].tx_queue[i]))) {
+			info = IEEE80211_SKB_CB(skb);
+			info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
+			info->status.rates[0].idx = -1;
+			ieee80211_tx_status(wl->hw, skb);
+			filtered++;
+		}
+	}
+
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	wl->tx_queue_count -= filtered;
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	wl1271_handle_tx_low_watermark(wl);
+}
+
+void wl1271_ps_link_start(struct wl1271 *wl, u8 hlid, bool clean_queues)
+{
+	struct ieee80211_sta *sta;
+
+	if (test_bit(hlid, &wl->ap_ps_map))
+		return;
+
+	wl1271_debug(DEBUG_PSM, "start mac80211 PSM on hlid %d blks %d "
+		     "clean_queues %d", hlid, wl->links[hlid].allocated_blks,
+		     clean_queues);
+
+	rcu_read_lock();
+	sta = ieee80211_find_sta(wl->vif, wl->links[hlid].addr);
+	if (!sta) {
+		wl1271_error("could not find sta %pM for starting ps",
+			     wl->links[hlid].addr);
+		rcu_read_unlock();
+		return;
+	}
+
+	ieee80211_sta_ps_transition_ni(sta, true);
+	rcu_read_unlock();
+
+	/* do we want to filter all frames from this link's queues? */
+	if (clean_queues)
+		wl1271_ps_filter_frames(wl, hlid);
+
+	__set_bit(hlid, &wl->ap_ps_map);
+}
+
+void wl1271_ps_link_end(struct wl1271 *wl, u8 hlid)
+{
+	struct ieee80211_sta *sta;
+
+	if (!test_bit(hlid, &wl->ap_ps_map))
+		return;
+
+	wl1271_debug(DEBUG_PSM, "end mac80211 PSM on hlid %d", hlid);
+
+	__clear_bit(hlid, &wl->ap_ps_map);
+
+	rcu_read_lock();
+	sta = ieee80211_find_sta(wl->vif, wl->links[hlid].addr);
+	if (!sta) {
+		wl1271_error("could not find sta %pM for ending ps",
+			     wl->links[hlid].addr);
+		goto end;
+	}
+
+	ieee80211_sta_ps_transition_ni(sta, false);
+end:
+	rcu_read_unlock();
+}

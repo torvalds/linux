@@ -196,6 +196,9 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 /* TCP thin-stream limits */
 #define TCP_THIN_LINEAR_RETRIES 6       /* After 6 linear retries, do exp. backoff */
 
+/* TCP initial congestion window as per draft-hkchu-tcpm-initcwnd-01 */
+#define TCP_INIT_CWND		10
+
 extern struct inet_timewait_death_row tcp_death_row;
 
 /* sysctl variables for tcp */
@@ -799,15 +802,6 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 /* Use define here intentionally to get WARN_ON location shown at the caller */
 #define tcp_verify_left_out(tp)	WARN_ON(tcp_left_out(tp) > tp->packets_out)
 
-/*
- * Convert RFC 3390 larger initial window into an equivalent number of packets.
- * This is based on the numbers specified in RFC 5681, 3.1.
- */
-static inline u32 rfc3390_bytes_to_packets(const u32 smss)
-{
-	return smss <= 1095 ? 4 : (smss > 2190 ? 2 : 3);
-}
-
 extern void tcp_enter_cwr(struct sock *sk, const int set_ssthresh);
 extern __u32 tcp_init_cwnd(struct tcp_sock *tp, struct dst_entry *dst);
 
@@ -1073,8 +1067,6 @@ static inline int tcp_paws_reject(const struct tcp_options_received *rx_opt,
 		return 0;
 	return 1;
 }
-
-#define TCP_CHECK_TIMER(sk) do { } while (0)
 
 static inline void tcp_mib_init(struct net *net)
 {
@@ -1404,7 +1396,7 @@ extern struct request_sock_ops tcp6_request_sock_ops;
 extern void tcp_v4_destroy_sock(struct sock *sk);
 
 extern int tcp_v4_gso_send_check(struct sk_buff *skb);
-extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features);
+extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb, u32 features);
 extern struct sk_buff **tcp_gro_receive(struct sk_buff **head,
 					struct sk_buff *skb);
 extern struct sk_buff **tcp4_gro_receive(struct sk_buff **head,

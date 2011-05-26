@@ -5,6 +5,7 @@ config STUB_POULSBO
 	# Poulsbo stub depends on ACPI_VIDEO when ACPI is enabled
 	# but for select to work, need to select ACPI_VIDEO's dependencies, ick
 	select BACKLIGHT_CLASS_DEVICE if ACPI
+	select VIDEO_OUTPUT_CONTROL if ACPI
 	select INPUT if ACPI
 	select ACPI_VIDEO if ACPI
 	select THERMAL if ACPI

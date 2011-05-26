@@ -62,17 +62,10 @@ struct wakeup_source {
  * Changes to device_may_wakeup take effect on the next pm state change.
  */
 
-static inline void device_set_wakeup_capable(struct device *dev, bool capable)
-{
-	dev->power.can_wakeup = capable;
-}
-
 static inline bool device_can_wakeup(struct device *dev)
 {
 	return dev->power.can_wakeup;
 }
-
-
 
 static inline bool device_may_wakeup(struct device *dev)
 {
@@ -88,6 +81,7 @@ extern struct wakeup_source *wakeup_source_register(const char *name);
 extern void wakeup_source_unregister(struct wakeup_source *ws);
 extern int device_wakeup_enable(struct device *dev);
 extern int device_wakeup_disable(struct device *dev);
+extern void device_set_wakeup_capable(struct device *dev, bool capable);
 extern int device_init_wakeup(struct device *dev, bool val);
 extern int device_set_wakeup_enable(struct device *dev, bool enable);
 extern void __pm_stay_awake(struct wakeup_source *ws);

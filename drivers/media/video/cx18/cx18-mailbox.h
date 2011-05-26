@@ -81,11 +81,6 @@ struct cx18_mailbox {
 
 struct cx18_stream;
 
-struct cx18_api_func_private {
-	struct cx18 *cx;
-	struct cx18_stream *s;
-};
-
 int cx18_api(struct cx18 *cx, u32 cmd, int args, u32 data[]);
 int cx18_vapi_result(struct cx18 *cx, u32 data[MAX_MB_ARGUMENTS], u32 cmd,
 		int args, ...);

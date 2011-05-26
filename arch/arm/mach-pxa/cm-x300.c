@@ -29,6 +29,7 @@
 
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <linux/mfd/da903x.h>
 #include <linux/regulator/machine.h>
@@ -48,7 +49,6 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
-#include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
 #include <mach/audio.h>
 #include <mach/pxa3xx-u2d.h>
@@ -296,7 +296,7 @@ static struct pxafb_mach_info cm_x300_lcd = {
 
 static void __init cm_x300_init_lcd(void)
 {
-	set_pxa_fb_info(&cm_x300_lcd);
+	pxa_set_fb_info(NULL, &cm_x300_lcd);
 }
 #else
 static inline void cm_x300_init_lcd(void) {}
@@ -765,7 +765,7 @@ static void __init cm_x300_init_da9030(void)
 {
 	pxa3xx_set_i2c_power_info(&cm_x300_pwr_i2c_info);
 	i2c_register_board_info(1, &cm_x300_pmic_info, 1);
-	set_irq_wake(IRQ_WAKEUP0, 1);
+	irq_set_irq_wake(IRQ_WAKEUP0, 1);
 }
 
 static void __init cm_x300_init_wi2wi(void)

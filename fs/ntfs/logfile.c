@@ -669,7 +669,7 @@ err_out:
  * of cases where we think that a volume is dirty when in fact it is clean.
  * This should only affect volumes that have not been shutdown cleanly but did
  * not have any pending, non-check-pointed i/o, i.e. they were completely idle
- * at least for the five seconds preceeding the unclean shutdown.
+ * at least for the five seconds preceding the unclean shutdown.
  *
  * This function assumes that the $LogFile journal has already been consistency
  * checked by a call to ntfs_check_logfile() and in particular if the $LogFile

@@ -14,21 +14,8 @@
 #include <linux/slab.h>
 #include <linux/thread_info.h>
 #include <linux/syscalls.h>
+#include <linux/bitmap.h>
 #include <asm/syscalls.h>
-
-/* Set EXTENT bits starting at BASE in BITMAP to value TURN_ON. */
-static void set_bitmap(unsigned long *bitmap, unsigned int base,
-		       unsigned int extent, int new_value)
-{
-	unsigned int i;
-
-	for (i = base; i < base + extent; i++) {
-		if (new_value)
-			__set_bit(i, bitmap);
-		else
-			__clear_bit(i, bitmap);
-	}
-}
 
 /*
  * this changes the io permissions bitmap in the current task.
@@ -69,7 +56,10 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	 */
 	tss = &per_cpu(init_tss, get_cpu());
 
-	set_bitmap(t->io_bitmap_ptr, from, num, !turn_on);
+	if (turn_on)
+		bitmap_clear(t->io_bitmap_ptr, from, num);
+	else
+		bitmap_set(t->io_bitmap_ptr, from, num);
 
 	/*
 	 * Search for a (possibly new) maximum. This is simple and stupid,

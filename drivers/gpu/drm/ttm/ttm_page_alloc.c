@@ -38,6 +38,7 @@
 #include <linux/mm.h>
 #include <linux/seq_file.h> /* for seq_printf */
 #include <linux/slab.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/atomic.h>
 
@@ -662,7 +663,8 @@ out:
  * cached pages.
  */
 int ttm_get_pages(struct list_head *pages, int flags,
-		enum ttm_caching_state cstate, unsigned count)
+		  enum ttm_caching_state cstate, unsigned count,
+		  dma_addr_t *dma_address)
 {
 	struct ttm_page_pool *pool = ttm_get_pool(flags, cstate);
 	struct page *p = NULL;
@@ -720,7 +722,7 @@ int ttm_get_pages(struct list_head *pages, int flags,
 			printk(KERN_ERR TTM_PFX
 			       "Failed to allocate extra pages "
 			       "for large request.");
-			ttm_put_pages(pages, 0, flags, cstate);
+			ttm_put_pages(pages, 0, flags, cstate, NULL);
 			return r;
 		}
 	}
@@ -731,7 +733,7 @@ int ttm_get_pages(struct list_head *pages, int flags,
 
 /* Put all pages in pages list to correct pool to wait for reuse */
 void ttm_put_pages(struct list_head *pages, unsigned page_count, int flags,
-		enum ttm_caching_state cstate)
+		   enum ttm_caching_state cstate, dma_addr_t *dma_address)
 {
 	unsigned long irq_flags;
 	struct ttm_page_pool *pool = ttm_get_pool(flags, cstate);

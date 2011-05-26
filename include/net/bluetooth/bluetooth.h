@@ -64,6 +64,11 @@ struct bt_security {
 
 #define BT_DEFER_SETUP	7
 
+#define BT_FLUSHABLE	8
+
+#define BT_FLUSHABLE_OFF	0
+#define BT_FLUSHABLE_ON		1
+
 #define BT_INFO(fmt, arg...) printk(KERN_INFO "Bluetooth: " fmt "\n" , ## arg)
 #define BT_ERR(fmt, arg...)  printk(KERN_ERR "%s: " fmt "\n" , __func__ , ## arg)
 #define BT_DBG(fmt, arg...)  pr_debug("%s: " fmt "\n" , __func__ , ## arg)
@@ -199,5 +204,33 @@ extern int bt_sysfs_init(void);
 extern void bt_sysfs_cleanup(void);
 
 extern struct dentry *bt_debugfs;
+
+#ifdef CONFIG_BT_L2CAP
+int l2cap_init(void);
+void l2cap_exit(void);
+#else
+static inline int l2cap_init(void)
+{
+	return 0;
+}
+
+static inline void l2cap_exit(void)
+{
+}
+#endif
+
+#ifdef CONFIG_BT_SCO
+int sco_init(void);
+void sco_exit(void);
+#else
+static inline int sco_init(void)
+{
+	return 0;
+}
+
+static inline void sco_exit(void)
+{
+}
+#endif
 
 #endif /* __BLUETOOTH_H */

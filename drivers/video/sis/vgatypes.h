@@ -87,6 +87,7 @@ typedef enum _SIS_CHIP_TYPE {
     SIS_341,
     SIS_342,
     XGI_20  = 75,
+    XGI_21,
     XGI_40,
     MAX_SIS_CHIP
 } SIS_CHIP_TYPE;

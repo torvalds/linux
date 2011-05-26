@@ -128,7 +128,7 @@ alloc_inode:
 destroy_inode:
 dirty_inode:				(must not sleep)
 write_inode:
-drop_inode:				!!!inode_lock!!!
+drop_inode:				!!!inode->i_lock!!!
 evict_inode:
 put_super:		write
 write_super:		read
@@ -166,13 +166,11 @@ prototypes:
 	void (*kill_sb) (struct super_block *);
 locking rules:
 		may block
-get_sb		yes
 mount		yes
 kill_sb		yes
 
-->get_sb() returns error or 0 with locked superblock attached to the vfsmount
-(exclusive on ->s_umount).
-->mount() returns ERR_PTR or the root dentry.
+->mount() returns ERR_PTR or the root dentry; its superblock should be locked
+on return.
 ->kill_sb() takes a write-locked superblock, does all shutdown work on it,
 unlocks and drops the reference.
 

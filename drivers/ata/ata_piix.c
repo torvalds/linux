@@ -38,16 +38,16 @@
  *  Hardware documentation available at http://developer.intel.com/
  *
  * Documentation
- *	Publically available from Intel web site. Errata documentation
- * is also publically available. As an aide to anyone hacking on this
+ *	Publicly available from Intel web site. Errata documentation
+ * is also publicly available. As an aide to anyone hacking on this
  * driver the list of errata that are relevant is below, going back to
  * PIIX4. Older device documentation is now a bit tricky to find.
  *
  * The chipsets all follow very much the same design. The original Triton
- * series chipsets do _not_ support independant device timings, but this
+ * series chipsets do _not_ support independent device timings, but this
  * is fixed in Triton II. With the odd mobile exception the chips then
  * change little except in gaining more modes until SATA arrives. This
- * driver supports only the chips with independant timing (that is those
+ * driver supports only the chips with independent timing (that is those
  * with SITRE and the 0x44 timing register). See pata_oldpiix and pata_mpiix
  * for the early chip drivers.
  *
@@ -122,7 +122,7 @@ enum {
 	P2			= 2,  /* port 2 */
 	P3			= 3,  /* port 3 */
 	IDE			= -1, /* IDE */
-	NA			= -2, /* not avaliable */
+	NA			= -2, /* not available */
 	RV			= -3, /* reserved */
 
 	PIIX_AHCI_DEVICE	= 6,
@@ -230,7 +230,7 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	{ 0x8086, 0x2850, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
 
 	/* SATA ports */
-	
+
 	/* 82801EB (ICH5) */
 	{ 0x8086, 0x24d1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_sata },
 	/* 82801EB (ICH5) */
@@ -309,6 +309,14 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	{ 0x8086, 0x1d00, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata },
 	/* SATA Controller IDE (PBG) */
 	{ 0x8086, 0x1d08, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_2port_sata },
+	/* SATA Controller IDE (Panther Point) */
+	{ 0x8086, 0x1e00, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata },
+	/* SATA Controller IDE (Panther Point) */
+	{ 0x8086, 0x1e01, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_sata },
+	/* SATA Controller IDE (Panther Point) */
+	{ 0x8086, 0x1e08, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_2port_sata },
+	/* SATA Controller IDE (Panther Point) */
+	{ 0x8086, 0x1e09, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich8_2port_sata },
 	{ }	/* terminate list */
 };
 

@@ -32,6 +32,7 @@
 #include "wmi.h"
 
 #define ATH_STA_SHORT_CALINTERVAL 1000    /* 1 second */
+#define ATH_AP_SHORT_CALINTERVAL  100     /* 100 ms */
 #define ATH_ANI_POLLINTERVAL      100     /* 100 ms */
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
@@ -204,8 +205,50 @@ struct ath9k_htc_target_stats {
 	__be32 ht_tx_xretries;
 } __packed;
 
+#define ATH9K_HTC_MAX_VIF 2
+#define ATH9K_HTC_MAX_BCN_VIF 2
+
+#define INC_VIF(_priv, _type) do {		\
+		switch (_type) {		\
+		case NL80211_IFTYPE_STATION:	\
+			_priv->num_sta_vif++;	\
+			break;			\
+		case NL80211_IFTYPE_ADHOC:	\
+			_priv->num_ibss_vif++;	\
+			break;			\
+		case NL80211_IFTYPE_AP:		\
+			_priv->num_ap_vif++;	\
+			break;			\
+		default:			\
+			break;			\
+		}				\
+	} while (0)
+
+#define DEC_VIF(_priv, _type) do {		\
+		switch (_type) {		\
+		case NL80211_IFTYPE_STATION:	\
+			_priv->num_sta_vif--;	\
+			break;			\
+		case NL80211_IFTYPE_ADHOC:	\
+			_priv->num_ibss_vif--;	\
+			break;			\
+		case NL80211_IFTYPE_AP:		\
+			_priv->num_ap_vif--;	\
+			break;			\
+		default:			\
+			break;			\
+		}				\
+	} while (0)
+
 struct ath9k_htc_vif {
 	u8 index;
+	u16 seq_no;
+	bool beacon_configured;
+};
+
+struct ath9k_vif_iter_data {
+	const u8 *hw_macaddr;
+	u8 mask[ETH_ALEN];
 };
 
 #define ATH9K_HTC_MAX_STA 8
@@ -310,10 +353,8 @@ struct ath_led {
 
 struct htc_beacon_config {
 	u16 beacon_interval;
-	u16 listen_interval;
 	u16 dtim_period;
 	u16 bmiss_timeout;
-	u8 dtim_count;
 };
 
 struct ath_btcoex {
@@ -333,13 +374,12 @@ void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv);
 #define OP_SCANNING		   BIT(1)
 #define OP_LED_ASSOCIATED	   BIT(2)
 #define OP_LED_ON		   BIT(3)
-#define OP_PREAMBLE_SHORT	   BIT(4)
-#define OP_PROTECT_ENABLE	   BIT(5)
-#define OP_ASSOCIATED		   BIT(6)
-#define OP_ENABLE_BEACON	   BIT(7)
-#define OP_LED_DEINIT		   BIT(8)
-#define OP_BT_PRIORITY_DETECTED    BIT(9)
-#define OP_BT_SCAN                 BIT(10)
+#define OP_ENABLE_BEACON	   BIT(4)
+#define OP_LED_DEINIT		   BIT(5)
+#define OP_BT_PRIORITY_DETECTED    BIT(6)
+#define OP_BT_SCAN                 BIT(7)
+#define OP_ANI_RUNNING             BIT(8)
+#define OP_TSF_RESET               BIT(9)
 
 struct ath9k_htc_priv {
 	struct device *dev;
@@ -358,15 +398,24 @@ struct ath9k_htc_priv {
 	enum htc_endpoint_id data_vi_ep;
 	enum htc_endpoint_id data_vo_ep;
 
+	u8 vif_slot;
+	u8 mon_vif_idx;
+	u8 sta_slot;
+	u8 vif_sta_pos[ATH9K_HTC_MAX_VIF];
+	u8 num_ibss_vif;
+	u8 num_sta_vif;
+	u8 num_ap_vif;
+
 	u16 op_flags;
 	u16 curtxpow;
 	u16 txpowlimit;
 	u16 nvifs;
 	u16 nstations;
-	u16 seq_no;
 	u32 bmiss_cnt;
+	bool rearm_ani;
+	bool reconfig_beacon;
 
-	struct ath9k_hw_cal_data caldata[ATH9K_NUM_CHANNELS];
+	struct ath9k_hw_cal_data caldata;
 
 	spinlock_t beacon_lock;
 
@@ -382,7 +431,7 @@ struct ath9k_htc_priv {
 	struct ath9k_htc_rx rx;
 	struct tasklet_struct tx_tasklet;
 	struct sk_buff_head tx_queue;
-	struct delayed_work ath9k_ani_work;
+	struct delayed_work ani_work;
 	struct work_struct ps_work;
 	struct work_struct fatal_work;
 
@@ -424,6 +473,7 @@ void ath9k_htc_reset(struct ath9k_htc_priv *priv);
 void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv);
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif);
+void ath9k_htc_beacon_reconfig(struct ath9k_htc_priv *priv);
 void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending);
 
 void ath9k_htc_rxep(void *priv, struct sk_buff *skb,
@@ -436,8 +486,9 @@ void ath9k_htc_beaconep(void *drv_priv, struct sk_buff *skb,
 int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv);
 void ath9k_htc_station_work(struct work_struct *work);
 void ath9k_htc_aggr_work(struct work_struct *work);
-void ath9k_ani_work(struct work_struct *work);;
-void ath_start_ani(struct ath9k_htc_priv *priv);
+void ath9k_htc_ani_work(struct work_struct *work);
+void ath9k_htc_start_ani(struct ath9k_htc_priv *priv);
+void ath9k_htc_stop_ani(struct ath9k_htc_priv *priv);
 
 int ath9k_tx_init(struct ath9k_htc_priv *priv);
 void ath9k_tx_tasklet(unsigned long data);
@@ -460,7 +511,6 @@ void ath9k_htc_ps_restore(struct ath9k_htc_priv *priv);
 void ath9k_ps_work(struct work_struct *work);
 bool ath9k_htc_setpower(struct ath9k_htc_priv *priv,
 			enum ath9k_power_mode mode);
-void ath_update_txpow(struct ath9k_htc_priv *priv);
 
 void ath9k_start_rfkill_poll(struct ath9k_htc_priv *priv);
 void ath9k_htc_rfkill_poll_state(struct ieee80211_hw *hw);

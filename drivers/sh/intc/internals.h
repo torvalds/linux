@@ -53,7 +53,6 @@ struct intc_desc_int {
 	struct list_head list;
 	struct sys_device sysdev;
 	struct radix_tree_root tree;
-	pm_message_t state;
 	raw_spinlock_t lock;
 	unsigned int index;
 	unsigned long *reg;
@@ -87,7 +86,7 @@ enum {	MODE_ENABLE_REG = 0, /* Bit(s) set -> interrupt enabled */
 
 static inline struct intc_desc_int *get_intc_desc(unsigned int irq)
 {
-	struct irq_chip *chip = get_irq_chip(irq);
+	struct irq_chip *chip = irq_get_chip(irq);
 
 	return container_of(chip, struct intc_desc_int, chip);
 }
@@ -104,7 +103,7 @@ static inline void activate_irq(int irq)
 	set_irq_flags(irq, IRQF_VALID);
 #else
 	/* same effect on other architectures */
-	set_irq_noprobe(irq);
+	irq_set_noprobe(irq);
 #endif
 }
 

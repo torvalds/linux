@@ -319,7 +319,8 @@ int phy_mii_ioctl(struct phy_device *phydev,
 		/* fall through */
 
 	case SIOCGMIIREG:
-		mii_data->val_out = phy_read(phydev, mii_data->reg_num);
+		mii_data->val_out = mdiobus_read(phydev->bus, mii_data->phy_id,
+						 mii_data->reg_num);
 		break;
 
 	case SIOCSMIIREG:
@@ -350,8 +351,9 @@ int phy_mii_ioctl(struct phy_device *phydev,
 			}
 		}
 
-		phy_write(phydev, mii_data->reg_num, val);
-		
+		mdiobus_write(phydev->bus, mii_data->phy_id,
+			      mii_data->reg_num, val);
+
 		if (mii_data->reg_num == MII_BMCR &&
 		    val & BMCR_RESET &&
 		    phydev->drv->config_init) {

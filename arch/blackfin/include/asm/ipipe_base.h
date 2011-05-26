@@ -24,8 +24,10 @@
 
 #ifdef CONFIG_IPIPE
 
+#include <asm/bitsperlong.h>
+#include <mach/irq.h>
+
 #define IPIPE_NR_XIRQS		NR_IRQS
-#define IPIPE_IRQ_ISHIFT	5	/* 2^5 for 32bits arch. */
 
 /* Blackfin-specific, per-cpu pipeline status */
 #define IPIPE_SYNCDEFER_FLAG	15
@@ -42,10 +44,13 @@
 #define IPIPE_EVENT_INIT	(IPIPE_FIRST_EVENT + 4)
 #define IPIPE_EVENT_EXIT	(IPIPE_FIRST_EVENT + 5)
 #define IPIPE_EVENT_CLEANUP	(IPIPE_FIRST_EVENT + 6)
-#define IPIPE_LAST_EVENT	IPIPE_EVENT_CLEANUP
+#define IPIPE_EVENT_RETURN	(IPIPE_FIRST_EVENT + 7)
+#define IPIPE_LAST_EVENT	IPIPE_EVENT_RETURN
 #define IPIPE_NR_EVENTS		(IPIPE_LAST_EVENT + 1)
 
 #define IPIPE_TIMER_IRQ		IRQ_CORETMR
+
+#define __IPIPE_FEATURE_SYSINFO_V2	1
 
 #ifndef __ASSEMBLY__
 
@@ -62,6 +67,8 @@ void __ipipe_lock_root(void);
 void __ipipe_unlock_root(void);
 
 #endif /* !__ASSEMBLY__ */
+
+#define __IPIPE_FEATURE_SYSINFO_V2	1
 
 #endif /* CONFIG_IPIPE */
 

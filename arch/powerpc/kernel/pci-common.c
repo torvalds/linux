@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/of_address.h>
+#include <linux/of_pci.h>
 #include <linux/mm.h>
 #include <linux/list.h>
 #include <linux/syscalls.h>
@@ -260,7 +261,7 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 
 		virq = irq_create_mapping(NULL, line);
 		if (virq != NO_IRQ)
-			set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(virq, IRQ_TYPE_LEVEL_LOW);
 	} else {
 		pr_debug(" Got one, spec %d cells (0x%08x 0x%08x...) on %s\n",
 			 oirq.size, oirq.specifier[0], oirq.specifier[1],
@@ -1687,13 +1688,8 @@ int early_find_capability(struct pci_controller *hose, int bus, int devfn,
 /**
  * pci_scan_phb - Given a pci_controller, setup and scan the PCI bus
  * @hose: Pointer to the PCI host controller instance structure
- * @sysdata: value to use for sysdata pointer.  ppc32 and ppc64 differ here
- *
- * Note: the 'data' pointer is a temporary measure.  As 32 and 64 bit
- * pci code gets merged, this parameter should become unnecessary because
- * both will use the same value.
  */
-void __devinit pcibios_scan_phb(struct pci_controller *hose, void *sysdata)
+void __devinit pcibios_scan_phb(struct pci_controller *hose)
 {
 	struct pci_bus *bus;
 	struct device_node *node = hose->dn;
@@ -1703,13 +1699,13 @@ void __devinit pcibios_scan_phb(struct pci_controller *hose, void *sysdata)
 		 node ? node->full_name : "<NO NAME>");
 
 	/* Create an empty bus for the toplevel */
-	bus = pci_create_bus(hose->parent, hose->first_busno, hose->ops,
-			     sysdata);
+	bus = pci_create_bus(hose->parent, hose->first_busno, hose->ops, hose);
 	if (bus == NULL) {
 		pr_err("Failed to create bus for PCI domain %04x\n",
 			hose->global_number);
 		return;
 	}
+	bus->dev.of_node = of_node_get(node);
 	bus->secondary = hose->first_busno;
 	hose->bus = bus;
 

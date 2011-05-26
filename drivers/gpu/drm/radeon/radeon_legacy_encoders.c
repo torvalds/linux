@@ -28,6 +28,10 @@
 #include "radeon_drm.h"
 #include "radeon.h"
 #include "atom.h"
+#include <linux/backlight.h>
+#ifdef CONFIG_PMAC_BACKLIGHT
+#include <asm/backlight.h>
+#endif
 
 static void radeon_legacy_encoder_disable(struct drm_encoder *encoder)
 {
@@ -39,7 +43,7 @@ static void radeon_legacy_encoder_disable(struct drm_encoder *encoder)
 	radeon_encoder->active_device = 0;
 }
 
-static void radeon_legacy_lvds_dpms(struct drm_encoder *encoder, int mode)
+static void radeon_legacy_lvds_update(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -47,15 +51,23 @@ static void radeon_legacy_lvds_dpms(struct drm_encoder *encoder, int mode)
 	uint32_t lvds_gen_cntl, lvds_pll_cntl, pixclks_cntl, disp_pwr_man;
 	int panel_pwr_delay = 2000;
 	bool is_mac = false;
+	uint8_t backlight_level;
 	DRM_DEBUG_KMS("\n");
+
+	lvds_gen_cntl = RREG32(RADEON_LVDS_GEN_CNTL);
+	backlight_level = (lvds_gen_cntl >> RADEON_LVDS_BL_MOD_LEVEL_SHIFT) & 0xff;
 
 	if (radeon_encoder->enc_priv) {
 		if (rdev->is_atom_bios) {
 			struct radeon_encoder_atom_dig *lvds = radeon_encoder->enc_priv;
 			panel_pwr_delay = lvds->panel_pwr_delay;
+			if (lvds->bl_dev)
+				backlight_level = lvds->backlight_level;
 		} else {
 			struct radeon_encoder_lvds *lvds = radeon_encoder->enc_priv;
 			panel_pwr_delay = lvds->panel_pwr_delay;
+			if (lvds->bl_dev)
+				backlight_level = lvds->backlight_level;
 		}
 	}
 
@@ -82,11 +94,13 @@ static void radeon_legacy_lvds_dpms(struct drm_encoder *encoder, int mode)
 		lvds_pll_cntl &= ~RADEON_LVDS_PLL_RESET;
 		WREG32(RADEON_LVDS_PLL_CNTL, lvds_pll_cntl);
 
-		lvds_gen_cntl = RREG32(RADEON_LVDS_GEN_CNTL);
-		lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_EN | RADEON_LVDS_DIGON | RADEON_LVDS_BLON);
+		lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS |
+				   RADEON_LVDS_BL_MOD_LEVEL_MASK);
+		lvds_gen_cntl |= (RADEON_LVDS_ON | RADEON_LVDS_EN |
+				  RADEON_LVDS_DIGON | RADEON_LVDS_BLON |
+				  (backlight_level << RADEON_LVDS_BL_MOD_LEVEL_SHIFT));
 		if (is_mac)
 			lvds_gen_cntl |= RADEON_LVDS_BL_MOD_EN;
-		lvds_gen_cntl &= ~(RADEON_LVDS_DISPLAY_DIS);
 		udelay(panel_pwr_delay * 1000);
 		WREG32(RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
 		break;
@@ -95,7 +109,6 @@ static void radeon_legacy_lvds_dpms(struct drm_encoder *encoder, int mode)
 	case DRM_MODE_DPMS_OFF:
 		pixclks_cntl = RREG32_PLL(RADEON_PIXCLKS_CNTL);
 		WREG32_PLL_P(RADEON_PIXCLKS_CNTL, 0, ~RADEON_PIXCLK_LVDS_ALWAYS_ONb);
-		lvds_gen_cntl = RREG32(RADEON_LVDS_GEN_CNTL);
 		lvds_gen_cntl |= RADEON_LVDS_DISPLAY_DIS;
 		if (is_mac) {
 			lvds_gen_cntl &= ~RADEON_LVDS_BL_MOD_EN;
@@ -117,6 +130,25 @@ static void radeon_legacy_lvds_dpms(struct drm_encoder *encoder, int mode)
 	else
 		radeon_combios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
 
+}
+
+static void radeon_legacy_lvds_dpms(struct drm_encoder *encoder, int mode)
+{
+	struct radeon_device *rdev = encoder->dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	DRM_DEBUG("\n");
+
+	if (radeon_encoder->enc_priv) {
+		if (rdev->is_atom_bios) {
+			struct radeon_encoder_atom_dig *lvds = radeon_encoder->enc_priv;
+			lvds->dpms_mode = mode;
+		} else {
+			struct radeon_encoder_lvds *lvds = radeon_encoder->enc_priv;
+			lvds->dpms_mode = mode;
+		}
+	}
+
+	radeon_legacy_lvds_update(encoder, mode);
 }
 
 static void radeon_legacy_lvds_prepare(struct drm_encoder *encoder)
@@ -237,9 +269,222 @@ static const struct drm_encoder_helper_funcs radeon_legacy_lvds_helper_funcs = {
 	.disable = radeon_legacy_encoder_disable,
 };
 
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+
+#define MAX_RADEON_LEVEL 0xFF
+
+struct radeon_backlight_privdata {
+	struct radeon_encoder *encoder;
+	uint8_t negative;
+};
+
+static uint8_t radeon_legacy_lvds_level(struct backlight_device *bd)
+{
+	struct radeon_backlight_privdata *pdata = bl_get_data(bd);
+	uint8_t level;
+
+	/* Convert brightness to hardware level */
+	if (bd->props.brightness < 0)
+		level = 0;
+	else if (bd->props.brightness > MAX_RADEON_LEVEL)
+		level = MAX_RADEON_LEVEL;
+	else
+		level = bd->props.brightness;
+
+	if (pdata->negative)
+		level = MAX_RADEON_LEVEL - level;
+
+	return level;
+}
+
+static int radeon_legacy_backlight_update_status(struct backlight_device *bd)
+{
+	struct radeon_backlight_privdata *pdata = bl_get_data(bd);
+	struct radeon_encoder *radeon_encoder = pdata->encoder;
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	int dpms_mode = DRM_MODE_DPMS_ON;
+
+	if (radeon_encoder->enc_priv) {
+		if (rdev->is_atom_bios) {
+			struct radeon_encoder_atom_dig *lvds = radeon_encoder->enc_priv;
+			dpms_mode = lvds->dpms_mode;
+			lvds->backlight_level = radeon_legacy_lvds_level(bd);
+		} else {
+			struct radeon_encoder_lvds *lvds = radeon_encoder->enc_priv;
+			dpms_mode = lvds->dpms_mode;
+			lvds->backlight_level = radeon_legacy_lvds_level(bd);
+		}
+	}
+
+	if (bd->props.brightness > 0)
+		radeon_legacy_lvds_update(&radeon_encoder->base, dpms_mode);
+	else
+		radeon_legacy_lvds_update(&radeon_encoder->base, DRM_MODE_DPMS_OFF);
+
+	return 0;
+}
+
+static int radeon_legacy_backlight_get_brightness(struct backlight_device *bd)
+{
+	struct radeon_backlight_privdata *pdata = bl_get_data(bd);
+	struct radeon_encoder *radeon_encoder = pdata->encoder;
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	uint8_t backlight_level;
+
+	backlight_level = (RREG32(RADEON_LVDS_GEN_CNTL) >>
+			   RADEON_LVDS_BL_MOD_LEVEL_SHIFT) & 0xff;
+
+	return pdata->negative ? MAX_RADEON_LEVEL - backlight_level : backlight_level;
+}
+
+static const struct backlight_ops radeon_backlight_ops = {
+	.get_brightness = radeon_legacy_backlight_get_brightness,
+	.update_status	= radeon_legacy_backlight_update_status,
+};
+
+void radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
+				  struct drm_connector *drm_connector)
+{
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct backlight_device *bd;
+	struct backlight_properties props;
+	struct radeon_backlight_privdata *pdata;
+	uint8_t backlight_level;
+
+	if (!radeon_encoder->enc_priv)
+		return;
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+	if (!pmac_has_backlight_type("ati") &&
+	    !pmac_has_backlight_type("mnca"))
+		return;
+#endif
+
+	pdata = kmalloc(sizeof(struct radeon_backlight_privdata), GFP_KERNEL);
+	if (!pdata) {
+		DRM_ERROR("Memory allocation failed\n");
+		goto error;
+	}
+
+	props.max_brightness = MAX_RADEON_LEVEL;
+	props.type = BACKLIGHT_RAW;
+	bd = backlight_device_register("radeon_bl", &drm_connector->kdev,
+				       pdata, &radeon_backlight_ops, &props);
+	if (IS_ERR(bd)) {
+		DRM_ERROR("Backlight registration failed\n");
+		goto error;
+	}
+
+	pdata->encoder = radeon_encoder;
+
+	backlight_level = (RREG32(RADEON_LVDS_GEN_CNTL) >>
+			   RADEON_LVDS_BL_MOD_LEVEL_SHIFT) & 0xff;
+
+	/* First, try to detect backlight level sense based on the assumption
+	 * that firmware set it up at full brightness
+	 */
+	if (backlight_level == 0)
+		pdata->negative = true;
+	else if (backlight_level == 0xff)
+		pdata->negative = false;
+	else {
+		/* XXX hack... maybe some day we can figure out in what direction
+		 * backlight should work on a given panel?
+		 */
+		pdata->negative = (rdev->family != CHIP_RV200 &&
+				   rdev->family != CHIP_RV250 &&
+				   rdev->family != CHIP_RV280 &&
+				   rdev->family != CHIP_RV350);
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+		pdata->negative = (pdata->negative ||
+				   of_machine_is_compatible("PowerBook4,3") ||
+				   of_machine_is_compatible("PowerBook6,3") ||
+				   of_machine_is_compatible("PowerBook6,5"));
+#endif
+	}
+
+	if (rdev->is_atom_bios) {
+		struct radeon_encoder_atom_dig *lvds = radeon_encoder->enc_priv;
+		lvds->bl_dev = bd;
+	} else {
+		struct radeon_encoder_lvds *lvds = radeon_encoder->enc_priv;
+		lvds->bl_dev = bd;
+	}
+
+	bd->props.brightness = radeon_legacy_backlight_get_brightness(bd);
+	bd->props.power = FB_BLANK_UNBLANK;
+	backlight_update_status(bd);
+
+	DRM_INFO("radeon legacy LVDS backlight initialized\n");
+
+	return;
+
+error:
+	kfree(pdata);
+	return;
+}
+
+static void radeon_legacy_backlight_exit(struct radeon_encoder *radeon_encoder)
+{
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct backlight_device *bd = NULL;
+
+	if (!radeon_encoder->enc_priv)
+		return;
+
+	if (rdev->is_atom_bios) {
+		struct radeon_encoder_atom_dig *lvds = radeon_encoder->enc_priv;
+		bd = lvds->bl_dev;
+		lvds->bl_dev = NULL;
+	} else {
+		struct radeon_encoder_lvds *lvds = radeon_encoder->enc_priv;
+		bd = lvds->bl_dev;
+		lvds->bl_dev = NULL;
+	}
+
+	if (bd) {
+		struct radeon_legacy_backlight_privdata *pdata;
+
+		pdata = bl_get_data(bd);
+		backlight_device_unregister(bd);
+		kfree(pdata);
+
+		DRM_INFO("radeon legacy LVDS backlight unloaded\n");
+	}
+}
+
+#else /* !CONFIG_BACKLIGHT_CLASS_DEVICE */
+
+void radeon_legacy_backlight_init(struct radeon_encoder *encoder)
+{
+}
+
+static void radeon_legacy_backlight_exit(struct radeon_encoder *encoder)
+{
+}
+
+#endif
+
+
+static void radeon_lvds_enc_destroy(struct drm_encoder *encoder)
+{
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+
+	if (radeon_encoder->enc_priv) {
+		radeon_legacy_backlight_exit(radeon_encoder);
+		kfree(radeon_encoder->enc_priv);
+	}
+	drm_encoder_cleanup(encoder);
+	kfree(radeon_encoder);
+}
 
 static const struct drm_encoder_funcs radeon_legacy_lvds_enc_funcs = {
-	.destroy = radeon_enc_destroy,
+	.destroy = radeon_lvds_enc_destroy,
 };
 
 static void radeon_legacy_primary_dac_dpms(struct drm_encoder *encoder, int mode)

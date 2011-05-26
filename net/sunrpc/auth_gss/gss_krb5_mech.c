@@ -427,7 +427,7 @@ static int
 context_derive_keys_rc4(struct krb5_ctx *ctx)
 {
 	struct crypto_hash *hmac;
-	static const char sigkeyconstant[] = "signaturekey";
+	char sigkeyconstant[] = "signaturekey";
 	int slen = strlen(sigkeyconstant) + 1;	/* include null terminator */
 	struct hash_desc desc;
 	struct scatterlist sg[1];
@@ -750,7 +750,7 @@ static struct gss_api_mech gss_kerberos_mech = {
 	.gm_ops		= &gss_kerberos_ops,
 	.gm_pf_num	= ARRAY_SIZE(gss_kerberos_pfs),
 	.gm_pfs		= gss_kerberos_pfs,
-	.gm_upcall_enctypes = "enctypes=18,17,16,23,3,1,2 ",
+	.gm_upcall_enctypes = "18,17,16,23,3,1,2",
 };
 
 static int __init init_kerberos_module(void)

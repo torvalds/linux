@@ -50,7 +50,7 @@ void cifs_fscache_unregister(void)
  */
 struct cifs_server_key {
 	uint16_t	family;		/* address family */
-	uint16_t	port;		/* IP port */
+	__be16		port;		/* IP port */
 	union {
 		struct in_addr	ipv4_addr;
 		struct in6_addr	ipv6_addr;

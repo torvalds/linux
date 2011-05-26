@@ -30,7 +30,7 @@ static struct rc_map_table rc6_mce[] = {
 	{ 0x800f040a, KEY_DELETE },
 	{ 0x800f040b, KEY_ENTER },
 	{ 0x800f040c, KEY_POWER },		/* PC Power */
-	{ 0x800f040d, KEY_PROG1 },		/* Windows MCE button */
+	{ 0x800f040d, KEY_LEFTMETA },		/* Windows MCE button */
 	{ 0x800f040e, KEY_MUTE },
 	{ 0x800f040f, KEY_INFO },
 

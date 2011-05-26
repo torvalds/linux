@@ -780,7 +780,7 @@ module_exit(exit_axnet_cs);
   Alexey Kuznetsov	: use the 8390's six bit hash multicast filter.
   Paul Gortmaker	: tweak ANK's above multicast changes a bit.
   Paul Gortmaker	: update packet statistics for v2.1.x
-  Alan Cox		: support arbitary stupid port mappings on the
+  Alan Cox		: support arbitrary stupid port mappings on the
   			  68K Macintosh. Support >16bit I/O spaces
   Paul Gortmaker	: add kmod support for auto-loading of the 8390
 			  module by all drivers that require it.
@@ -842,7 +842,7 @@ static void do_set_multicast_list(struct net_device *dev);
 /*
  *	SMP and the 8390 setup.
  *
- *	The 8390 isnt exactly designed to be multithreaded on RX/TX. There is
+ *	The 8390 isn't exactly designed to be multithreaded on RX/TX. There is
  *	a page register that controls bank and packet buffer access. We guard
  *	this with ei_local->page_lock. Nobody should assume or set the page other
  *	than zero when the lock is not held. Lock holders must restore page 0

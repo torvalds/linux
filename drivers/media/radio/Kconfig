@@ -441,6 +441,7 @@ config RADIO_TIMBERDALE
 config RADIO_WL1273
 	tristate "Texas Instruments WL1273 I2C FM Radio"
 	depends on I2C && VIDEO_V4L2
+	select MFD_CORE
 	select MFD_WL1273_CORE
 	select FW_LOADER
 	---help---
@@ -453,5 +454,8 @@ config RADIO_WL1273
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-wl1273.
+
+# TI's ST based wl128x FM radio
+source "drivers/media/radio/wl128x/Kconfig"
 
 endif # RADIO_ADAPTERS

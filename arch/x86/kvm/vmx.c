@@ -93,14 +93,14 @@ module_param(yield_on_hlt, bool, S_IRUGO);
  * These 2 parameters are used to config the controls for Pause-Loop Exiting:
  * ple_gap:    upper bound on the amount of time between two successive
  *             executions of PAUSE in a loop. Also indicate if ple enabled.
- *             According to test, this time is usually small than 41 cycles.
+ *             According to test, this time is usually smaller than 128 cycles.
  * ple_window: upper bound on the amount of time a guest is allowed to execute
  *             in a PAUSE loop. Tests indicate that most spinlocks are held for
  *             less than 2^12 cycles
  * Time is measured based on a counter that runs at the same rate as the TSC,
  * refer SDM volume 3b section 21.6.13 & 22.1.3.
  */
-#define KVM_VMX_DEFAULT_PLE_GAP    41
+#define KVM_VMX_DEFAULT_PLE_GAP    128
 #define KVM_VMX_DEFAULT_PLE_WINDOW 4096
 static int ple_gap = KVM_VMX_DEFAULT_PLE_GAP;
 module_param(ple_gap, int, S_IRUGO);
@@ -176,11 +176,11 @@ static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 	return container_of(vcpu, struct vcpu_vmx, vcpu);
 }
 
-static int init_rmode(struct kvm *kvm);
 static u64 construct_eptp(unsigned long root_hpa);
 static void kvm_cpu_vmxon(u64 addr);
 static void kvm_cpu_vmxoff(void);
 static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);
+static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr);
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
 static DEFINE_PER_CPU(struct vmcs *, current_vmcs);
@@ -1333,19 +1333,25 @@ static __init int vmx_disabled_by_bios(void)
 
 	rdmsrl(MSR_IA32_FEATURE_CONTROL, msr);
 	if (msr & FEATURE_CONTROL_LOCKED) {
+		/* launched w/ TXT and VMX disabled */
 		if (!(msr & FEATURE_CONTROL_VMXON_ENABLED_INSIDE_SMX)
 			&& tboot_enabled())
 			return 1;
+		/* launched w/o TXT and VMX only enabled w/ TXT */
 		if (!(msr & FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX)
+			&& (msr & FEATURE_CONTROL_VMXON_ENABLED_INSIDE_SMX)
 			&& !tboot_enabled()) {
 			printk(KERN_WARNING "kvm: disable TXT in the BIOS or "
-				" activate TXT before enabling KVM\n");
+				"activate TXT before enabling KVM\n");
 			return 1;
 		}
+		/* launched w/o TXT and VMX disabled */
+		if (!(msr & FEATURE_CONTROL_VMXON_ENABLED_OUTSIDE_SMX)
+			&& !tboot_enabled())
+			return 1;
 	}
 
 	return 0;
-	/* locked but not enabled */
 }
 
 static void kvm_cpu_vmxon(u64 addr)
@@ -1683,6 +1689,7 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	vmx->emulation_required = 1;
 	vmx->rmode.vm86_active = 0;
 
+	vmcs_write16(GUEST_TR_SELECTOR, vmx->rmode.tr.selector);
 	vmcs_writel(GUEST_TR_BASE, vmx->rmode.tr.base);
 	vmcs_write32(GUEST_TR_LIMIT, vmx->rmode.tr.limit);
 	vmcs_write32(GUEST_TR_AR_BYTES, vmx->rmode.tr.ar);
@@ -1756,6 +1763,19 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	vmx->emulation_required = 1;
 	vmx->rmode.vm86_active = 1;
 
+	/*
+	 * Very old userspace does not call KVM_SET_TSS_ADDR before entering
+	 * vcpu. Call it here with phys address pointing 16M below 4G.
+	 */
+	if (!vcpu->kvm->arch.tss_addr) {
+		printk_once(KERN_WARNING "kvm: KVM_SET_TSS_ADDR need to be "
+			     "called before entering vcpu\n");
+		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
+		vmx_set_tss_addr(vcpu->kvm, 0xfeffd000);
+		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+	}
+
+	vmx->rmode.tr.selector = vmcs_read16(GUEST_TR_SELECTOR);
 	vmx->rmode.tr.base = vmcs_readl(GUEST_TR_BASE);
 	vmcs_writel(GUEST_TR_BASE, rmode_tss_base(vcpu->kvm));
 
@@ -1794,7 +1814,6 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 
 continue_rmode:
 	kvm_mmu_reset_context(vcpu);
-	init_rmode(vcpu->kvm);
 }
 
 static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
@@ -2030,23 +2049,40 @@ static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	vmcs_writel(GUEST_CR4, hw_cr4);
 }
 
-static u64 vmx_get_segment_base(struct kvm_vcpu *vcpu, int seg)
-{
-	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
-
-	return vmcs_readl(sf->base);
-}
-
 static void vmx_get_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
+	struct kvm_save_segment *save;
 	u32 ar;
 
+	if (vmx->rmode.vm86_active
+	    && (seg == VCPU_SREG_TR || seg == VCPU_SREG_ES
+		|| seg == VCPU_SREG_DS || seg == VCPU_SREG_FS
+		|| seg == VCPU_SREG_GS)
+	    && !emulate_invalid_guest_state) {
+		switch (seg) {
+		case VCPU_SREG_TR: save = &vmx->rmode.tr; break;
+		case VCPU_SREG_ES: save = &vmx->rmode.es; break;
+		case VCPU_SREG_DS: save = &vmx->rmode.ds; break;
+		case VCPU_SREG_FS: save = &vmx->rmode.fs; break;
+		case VCPU_SREG_GS: save = &vmx->rmode.gs; break;
+		default: BUG();
+		}
+		var->selector = save->selector;
+		var->base = save->base;
+		var->limit = save->limit;
+		ar = save->ar;
+		if (seg == VCPU_SREG_TR
+		    || var->selector == vmcs_read16(sf->selector))
+			goto use_saved_rmode_seg;
+	}
 	var->base = vmcs_readl(sf->base);
 	var->limit = vmcs_read32(sf->limit);
 	var->selector = vmcs_read16(sf->selector);
 	ar = vmcs_read32(sf->ar_bytes);
+use_saved_rmode_seg:
 	if ((ar & AR_UNUSABLE_MASK) && !emulate_invalid_guest_state)
 		ar = 0;
 	var->type = ar & 15;
@@ -2058,6 +2094,18 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 	var->db = (ar >> 14) & 1;
 	var->g = (ar >> 15) & 1;
 	var->unusable = (ar >> 16) & 1;
+}
+
+static u64 vmx_get_segment_base(struct kvm_vcpu *vcpu, int seg)
+{
+	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
+	struct kvm_segment s;
+
+	if (to_vmx(vcpu)->rmode.vm86_active) {
+		vmx_get_segment(vcpu, &s, seg);
+		return s.base;
+	}
+	return vmcs_readl(sf->base);
 }
 
 static int vmx_get_cpl(struct kvm_vcpu *vcpu)
@@ -2101,6 +2149,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	u32 ar;
 
 	if (vmx->rmode.vm86_active && seg == VCPU_SREG_TR) {
+		vmcs_write16(sf->selector, var->selector);
 		vmx->rmode.tr.selector = var->selector;
 		vmx->rmode.tr.base = var->base;
 		vmx->rmode.tr.limit = var->limit;
@@ -2361,11 +2410,12 @@ static bool guest_state_valid(struct kvm_vcpu *vcpu)
 
 static int init_rmode_tss(struct kvm *kvm)
 {
-	gfn_t fn = rmode_tss_base(kvm) >> PAGE_SHIFT;
+	gfn_t fn;
 	u16 data = 0;
-	int ret = 0;
-	int r;
+	int r, idx, ret = 0;
 
+	idx = srcu_read_lock(&kvm->srcu);
+	fn = rmode_tss_base(kvm) >> PAGE_SHIFT;
 	r = kvm_clear_guest_page(kvm, fn, 0, PAGE_SIZE);
 	if (r < 0)
 		goto out;
@@ -2389,12 +2439,13 @@ static int init_rmode_tss(struct kvm *kvm)
 
 	ret = 1;
 out:
+	srcu_read_unlock(&kvm->srcu, idx);
 	return ret;
 }
 
 static int init_rmode_identity_map(struct kvm *kvm)
 {
-	int i, r, ret;
+	int i, idx, r, ret;
 	pfn_t identity_map_pfn;
 	u32 tmp;
 
@@ -2409,6 +2460,7 @@ static int init_rmode_identity_map(struct kvm *kvm)
 		return 1;
 	ret = 0;
 	identity_map_pfn = kvm->arch.ept_identity_map_addr >> PAGE_SHIFT;
+	idx = srcu_read_lock(&kvm->srcu);
 	r = kvm_clear_guest_page(kvm, identity_map_pfn, 0, PAGE_SIZE);
 	if (r < 0)
 		goto out;
@@ -2424,6 +2476,7 @@ static int init_rmode_identity_map(struct kvm *kvm)
 	kvm->arch.ept_identity_pagetable_done = true;
 	ret = 1;
 out:
+	srcu_read_unlock(&kvm->srcu, idx);
 	return ret;
 }
 
@@ -2699,22 +2752,6 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	return 0;
 }
 
-static int init_rmode(struct kvm *kvm)
-{
-	int idx, ret = 0;
-
-	idx = srcu_read_lock(&kvm->srcu);
-	if (!init_rmode_tss(kvm))
-		goto exit;
-	if (!init_rmode_identity_map(kvm))
-		goto exit;
-
-	ret = 1;
-exit:
-	srcu_read_unlock(&kvm->srcu, idx);
-	return ret;
-}
-
 static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -2722,10 +2759,6 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	int ret;
 
 	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP));
-	if (!init_rmode(vmx->vcpu.kvm)) {
-		ret = -ENOMEM;
-		goto out;
-	}
 
 	vmx->rmode.vm86_active = 0;
 
@@ -2805,7 +2838,7 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, 0);
 		if (vm_need_tpr_shadow(vmx->vcpu.kvm))
 			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR,
-				page_to_phys(vmx->vcpu.arch.apic->regs_page));
+				     __pa(vmx->vcpu.arch.apic->regs));
 		vmcs_write32(TPR_THRESHOLD, 0);
 	}
 
@@ -2971,6 +3004,9 @@ static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr)
 	if (ret)
 		return ret;
 	kvm->arch.tss_addr = addr;
+	if (!init_rmode_tss(kvm))
+		return  -ENOMEM;
+
 	return 0;
 }
 
@@ -3962,7 +3998,7 @@ static void vmx_cancel_injection(struct kvm_vcpu *vcpu)
 #define Q "l"
 #endif
 
-static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
+static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
@@ -3991,6 +4027,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	asm(
 		/* Store host registers */
 		"push %%"R"dx; push %%"R"bp;"
+		"push %%"R"cx \n\t" /* placeholder for guest rcx */
 		"push %%"R"cx \n\t"
 		"cmp %%"R"sp, %c[host_rsp](%0) \n\t"
 		"je 1f \n\t"
@@ -4032,10 +4069,11 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		".Llaunched: " __ex(ASM_VMX_VMRESUME) "\n\t"
 		".Lkvm_vmx_return: "
 		/* Save guest registers, load host registers, keep flags */
-		"xchg %0,     (%%"R"sp) \n\t"
+		"mov %0, %c[wordsize](%%"R"sp) \n\t"
+		"pop %0 \n\t"
 		"mov %%"R"ax, %c[rax](%0) \n\t"
 		"mov %%"R"bx, %c[rbx](%0) \n\t"
-		"push"Q" (%%"R"sp); pop"Q" %c[rcx](%0) \n\t"
+		"pop"Q" %c[rcx](%0) \n\t"
 		"mov %%"R"dx, %c[rdx](%0) \n\t"
 		"mov %%"R"si, %c[rsi](%0) \n\t"
 		"mov %%"R"di, %c[rdi](%0) \n\t"
@@ -4053,7 +4091,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		"mov %%cr2, %%"R"ax   \n\t"
 		"mov %%"R"ax, %c[cr2](%0) \n\t"
 
-		"pop  %%"R"bp; pop  %%"R"bp; pop  %%"R"dx \n\t"
+		"pop  %%"R"bp; pop  %%"R"dx \n\t"
 		"setbe %c[fail](%0) \n\t"
 	      : : "c"(vmx), "d"((unsigned long)HOST_RSP),
 		[launched]"i"(offsetof(struct vcpu_vmx, launched)),
@@ -4076,7 +4114,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		[r14]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R14])),
 		[r15]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R15])),
 #endif
-		[cr2]"i"(offsetof(struct vcpu_vmx, vcpu.arch.cr2))
+		[cr2]"i"(offsetof(struct vcpu_vmx, vcpu.arch.cr2)),
+		[wordsize]"i"(sizeof(ulong))
 	      : "cc", "memory"
 		, R"ax", R"bx", R"di", R"si"
 #ifdef CONFIG_X86_64
@@ -4183,7 +4222,10 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 		if (!kvm->arch.ept_identity_map_addr)
 			kvm->arch.ept_identity_map_addr =
 				VMX_EPT_IDENTITY_PAGETABLE_ADDR;
+		err = -ENOMEM;
 		if (alloc_identity_pagetable(kvm) != 0)
+			goto free_vmcs;
+		if (!init_rmode_identity_map(kvm))
 			goto free_vmcs;
 	}
 

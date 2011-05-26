@@ -16,7 +16,7 @@
  * When reading the process is almost equal except that the header starts with
  * 0x00 0x20.
  *
- * The device simply need some stuff to understand data comming from the usb
+ * The device simply need some stuff to understand data coming from the usb
  * buffer: The First and Second byte is used for a Header, the Third and Fourth
  * tells the  device the amount of information the package holds.
  * Packages are 60 bytes long Header Stuff.
@@ -30,7 +30,7 @@
  * one.
  *
  * The driver registers himself with the USB-serial core and the USB Core. I had
- * to implement a probe function agains USB-serial, because other way, the
+ * to implement a probe function against USB-serial, because other way, the
  * driver was attaching himself to both interfaces. I have tryed with different
  * configurations of usb_serial_driver with out exit, only the probe function
  * could handle this correctly.

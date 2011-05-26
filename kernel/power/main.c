@@ -17,9 +17,6 @@
 
 DEFINE_MUTEX(pm_mutex);
 
-unsigned int pm_flags;
-EXPORT_SYMBOL(pm_flags);
-
 #ifdef CONFIG_PM_SLEEP
 
 /* Routines for PM-transition notifications */
@@ -227,7 +224,7 @@ power_attr(state);
  * writing to 'state'.  It first should read from 'wakeup_count' and store
  * the read value.  Then, after carrying out its own preparations for the system
  * transition to a sleep state, it should write the stored value to
- * 'wakeup_count'.  If that fails, at least one wakeup event has occured since
+ * 'wakeup_count'.  If that fails, at least one wakeup event has occurred since
  * 'wakeup_count' was read and 'state' should not be written to.  Otherwise, it
  * is allowed to write to 'state', but the transition will be aborted if there
  * are any wakeup events detected after 'wakeup_count' was written to.

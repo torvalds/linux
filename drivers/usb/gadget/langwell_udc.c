@@ -642,7 +642,7 @@ static int queue_dtd(struct langwell_ep *ep, struct langwell_request *req)
 	dqh->dtd_status &= dtd_status;
 	dev_vdbg(&dev->pdev->dev, "dqh->dtd_status = 0x%x\n", dqh->dtd_status);
 
-	/* ensure that updates to the dQH will occure before priming */
+	/* ensure that updates to the dQH will occur before priming */
 	wmb();
 
 	/* write 1 to endptprime register to PRIME endpoint */

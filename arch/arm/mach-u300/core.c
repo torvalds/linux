@@ -3,7 +3,7 @@
  * arch/arm/mach-u300/core.c
  *
  *
- * Copyright (C) 2007-2010 ST-Ericsson AB
+ * Copyright (C) 2007-2010 ST-Ericsson SA
  * License terms: GNU General Public License (GPL) version 2
  * Core platform support, IRQ handling and device definitions.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
@@ -16,7 +16,9 @@
 #include <linux/device.h>
 #include <linux/mm.h>
 #include <linux/termios.h>
+#include <linux/dmaengine.h>
 #include <linux/amba/bus.h>
+#include <linux/amba/serial.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
@@ -96,10 +98,20 @@ void __init u300_map_io(void)
  * Declaration of devices found on the U300 board and
  * their respective memory locations.
  */
+
+static struct amba_pl011_data uart0_plat_data = {
+#ifdef CONFIG_COH901318
+	.dma_filter = coh901318_filter_id,
+	.dma_rx_param = (void *) U300_DMA_UART0_RX,
+	.dma_tx_param = (void *) U300_DMA_UART0_TX,
+#endif
+};
+
 static struct amba_device uart0_device = {
 	.dev = {
+		.coherent_dma_mask = ~0,
 		.init_name = "uart0", /* Slow device at 0x3000 offset */
-		.platform_data = NULL,
+		.platform_data = &uart0_plat_data,
 	},
 	.res = {
 		.start = U300_UART0_BASE,
@@ -111,10 +123,19 @@ static struct amba_device uart0_device = {
 
 /* The U335 have an additional UART1 on the APP CPU */
 #ifdef CONFIG_MACH_U300_BS335
+static struct amba_pl011_data uart1_plat_data = {
+#ifdef CONFIG_COH901318
+	.dma_filter = coh901318_filter_id,
+	.dma_rx_param = (void *) U300_DMA_UART1_RX,
+	.dma_tx_param = (void *) U300_DMA_UART1_TX,
+#endif
+};
+
 static struct amba_device uart1_device = {
 	.dev = {
+		.coherent_dma_mask = ~0,
 		.init_name = "uart1", /* Fast device at 0x7000 offset */
-		.platform_data = NULL,
+		.platform_data = &uart1_plat_data,
 	},
 	.res = {
 		.start = U300_UART1_BASE,
@@ -960,42 +981,37 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.priority_high = 0,
 		.dev_addr = U300_MSL_BASE + 6 * 0x40 + 0x220,
 	},
+	/*
+	 * Don't set up device address, burst count or size of src
+	 * or dst bus for this peripheral - handled by PrimeCell
+	 * DMA extension.
+	 */
 	{
 		.number = U300_DMA_MMCSD_RX_TX,
 		.name = "MMCSD RX TX",
 		.priority_high = 0,
-		.dev_addr =  U300_MMCSD_BASE + 0x080,
 		.param.config = COH901318_CX_CFG_CH_DISABLE |
 				COH901318_CX_CFG_LCR_DISABLE |
 				COH901318_CX_CFG_TC_IRQ_ENABLE |
 				COH901318_CX_CFG_BE_IRQ_ENABLE,
 		.param.ctrl_lli_chained = 0 |
 				COH901318_CX_CTRL_TC_ENABLE |
-				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
-				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
-				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
 				COH901318_CX_CTRL_MASTER_MODE_M1RW |
 				COH901318_CX_CTRL_TCP_ENABLE |
-				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
 				COH901318_CX_CTRL_HSP_ENABLE |
 				COH901318_CX_CTRL_HSS_DISABLE |
 				COH901318_CX_CTRL_DDMA_LEGACY,
 		.param.ctrl_lli = 0 |
 				COH901318_CX_CTRL_TC_ENABLE |
-				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
-				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
-				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
 				COH901318_CX_CTRL_MASTER_MODE_M1RW |
 				COH901318_CX_CTRL_TCP_ENABLE |
-				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
 				COH901318_CX_CTRL_HSP_ENABLE |
 				COH901318_CX_CTRL_HSS_DISABLE |
 				COH901318_CX_CTRL_DDMA_LEGACY,
 		.param.ctrl_lli_last = 0 |
 				COH901318_CX_CTRL_TC_ENABLE |
-				COH901318_CX_CTRL_BURST_COUNT_32_BYTES |
-				COH901318_CX_CTRL_SRC_BUS_SIZE_32_BITS |
-				COH901318_CX_CTRL_DST_BUS_SIZE_32_BITS |
 				COH901318_CX_CTRL_MASTER_MODE_M1RW |
 				COH901318_CX_CTRL_TCP_DISABLE |
 				COH901318_CX_CTRL_TC_IRQ_ENABLE |
@@ -1014,15 +1030,76 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.name = "MSPRO RX",
 		.priority_high = 0,
 	},
+	/*
+	 * Don't set up device address, burst count or size of src
+	 * or dst bus for this peripheral - handled by PrimeCell
+	 * DMA extension.
+	 */
 	{
 		.number = U300_DMA_UART0_TX,
 		.name = "UART0 TX",
 		.priority_high = 0,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
 	},
 	{
 		.number = U300_DMA_UART0_RX,
 		.name = "UART0 RX",
 		.priority_high = 0,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
 	},
 	{
 		.number = U300_DMA_APEX_TX,
@@ -1080,7 +1157,7 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 				COH901318_CX_CTRL_DST_ADDR_INC_DISABLE |
 				COH901318_CX_CTRL_MASTER_MODE_M1RW |
 				COH901318_CX_CTRL_TCP_ENABLE |
-				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
 				COH901318_CX_CTRL_HSP_ENABLE |
 				COH901318_CX_CTRL_HSS_DISABLE |
 				COH901318_CX_CTRL_DDMA_LEGACY |
@@ -1252,15 +1329,77 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.name = "XGAM PDI",
 		.priority_high = 0,
 	},
+	/*
+	 * Don't set up device address, burst count or size of src
+	 * or dst bus for this peripheral - handled by PrimeCell
+	 * DMA extension.
+	 */
 	{
 		.number = U300_DMA_SPI_TX,
 		.name = "SPI TX",
 		.priority_high = 0,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
 	},
 	{
 		.number = U300_DMA_SPI_RX,
 		.name = "SPI RX",
 		.priority_high = 0,
+		.param.config = COH901318_CX_CFG_CH_DISABLE |
+				COH901318_CX_CFG_LCR_DISABLE |
+				COH901318_CX_CFG_TC_IRQ_ENABLE |
+				COH901318_CX_CFG_BE_IRQ_ENABLE,
+		.param.ctrl_lli_chained = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_DISABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
+		.param.ctrl_lli = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
+		.param.ctrl_lli_last = 0 |
+				COH901318_CX_CTRL_TC_ENABLE |
+				COH901318_CX_CTRL_MASTER_MODE_M1RW |
+				COH901318_CX_CTRL_TCP_DISABLE |
+				COH901318_CX_CTRL_TC_IRQ_ENABLE |
+				COH901318_CX_CTRL_HSP_ENABLE |
+				COH901318_CX_CTRL_HSS_DISABLE |
+				COH901318_CX_CTRL_DDMA_LEGACY,
+
 	},
 	{
 		.number = U300_DMA_GENERAL_PURPOSE_0,
@@ -1617,7 +1756,7 @@ static void __init u300_init_check_chip(void)
 #endif
 #ifdef CONFIG_MACH_U300_BS335
 	if ((val & 0xFF00U) != 0xf000 && (val & 0xFF00U) != 0xf100) {
-		printk(KERN_ERR "Platform configured for BS365 " \
+		printk(KERN_ERR "Platform configured for BS335 " \
 		       " with DB3350 but %s detected, expect problems!",
 		       chipname);
 	}
@@ -1692,11 +1831,11 @@ void __init u300_init_devices(void)
 	/* Register subdevices on the I2C buses */
 	u300_i2c_register_board_devices();
 
-	/* Register subdevices on the SPI bus */
-	u300_spi_register_board_devices();
-
 	/* Register the platform devices */
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
+
+	/* Register subdevices on the SPI bus */
+	u300_spi_register_board_devices();
 
 #ifndef CONFIG_MACH_U300_SEMI_IS_SHARED
 	/*

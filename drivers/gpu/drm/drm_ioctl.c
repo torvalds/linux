@@ -96,7 +96,7 @@ int drm_setunique(struct drm_device *dev, void *data,
 {
 	struct drm_unique *u = data;
 	struct drm_master *master = file_priv->master;
-	int domain, bus, slot, func, ret;
+	int ret;
 
 	if (master->unique_len || master->unique)
 		return -EBUSY;
@@ -104,50 +104,12 @@ int drm_setunique(struct drm_device *dev, void *data,
 	if (!u->unique_len || u->unique_len > 1024)
 		return -EINVAL;
 
-	master->unique_len = u->unique_len;
-	master->unique_size = u->unique_len + 1;
-	master->unique = kmalloc(master->unique_size, GFP_KERNEL);
-	if (!master->unique) {
-		ret = -ENOMEM;
+	if (!dev->driver->bus->set_unique)
+		return -EINVAL;
+
+	ret = dev->driver->bus->set_unique(dev, master, u);
+	if (ret)
 		goto err;
-	}
-
-	if (copy_from_user(master->unique, u->unique, master->unique_len)) {
-		ret = -EFAULT;
-		goto err;
-	}
-
-	master->unique[master->unique_len] = '\0';
-
-	dev->devname = kmalloc(strlen(dev->driver->pci_driver.name) +
-			       strlen(master->unique) + 2, GFP_KERNEL);
-	if (!dev->devname) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	sprintf(dev->devname, "%s@%s", dev->driver->pci_driver.name,
-		master->unique);
-
-	/* Return error if the busid submitted doesn't match the device's actual
-	 * busid.
-	 */
-	ret = sscanf(master->unique, "PCI:%d:%d:%d", &bus, &slot, &func);
-	if (ret != 3) {
-		ret = -EINVAL;
-		goto err;
-	}
-
-	domain = bus >> 8;
-	bus &= 0xff;
-
-	if ((domain != drm_get_pci_domain(dev)) ||
-	    (bus != dev->pdev->bus->number) ||
-	    (slot != PCI_SLOT(dev->pdev->devfn)) ||
-	    (func != PCI_FUNC(dev->pdev->devfn))) {
-		ret = -EINVAL;
-		goto err;
-	}
 
 	return 0;
 
@@ -159,74 +121,15 @@ err:
 static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_master *master = file_priv->master;
-	int len, ret;
+	int ret;
 
 	if (master->unique != NULL)
 		drm_unset_busid(dev, master);
 
-	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE)) {
-		master->unique_len = 10 + strlen(dev->platformdev->name);
-		master->unique = kmalloc(master->unique_len + 1, GFP_KERNEL);
-
-		if (master->unique == NULL)
-			return -ENOMEM;
-
-		len = snprintf(master->unique, master->unique_len,
-			"platform:%s", dev->platformdev->name);
-
-		if (len > master->unique_len) {
-			DRM_ERROR("Unique buffer overflowed\n");
-			ret = -EINVAL;
-			goto err;
-		}
-
-		dev->devname =
-			kmalloc(strlen(dev->platformdev->name) +
-				master->unique_len + 2, GFP_KERNEL);
-
-		if (dev->devname == NULL) {
-			ret = -ENOMEM;
-			goto err;
-		}
-
-		sprintf(dev->devname, "%s@%s", dev->platformdev->name,
-			master->unique);
-
-	} else {
-		master->unique_len = 40;
-		master->unique_size = master->unique_len;
-		master->unique = kmalloc(master->unique_size, GFP_KERNEL);
-		if (master->unique == NULL)
-			return -ENOMEM;
-
-		len = snprintf(master->unique, master->unique_len,
-			"pci:%04x:%02x:%02x.%d",
-			drm_get_pci_domain(dev),
-			dev->pdev->bus->number,
-			PCI_SLOT(dev->pdev->devfn),
-			PCI_FUNC(dev->pdev->devfn));
-		if (len >= master->unique_len) {
-			DRM_ERROR("buffer overflow");
-			ret = -EINVAL;
-			goto err;
-		} else
-			master->unique_len = len;
-
-		dev->devname =
-			kmalloc(strlen(dev->driver->pci_driver.name) +
-				master->unique_len + 2, GFP_KERNEL);
-
-		if (dev->devname == NULL) {
-			ret = -ENOMEM;
-			goto err;
-		}
-
-		sprintf(dev->devname, "%s@%s", dev->driver->pci_driver.name,
-			master->unique);
-	}
-
+	ret = dev->driver->bus->set_busid(dev, master);
+	if (ret)
+		goto err;
 	return 0;
-
 err:
 	drm_unset_busid(dev, master);
 	return ret;
@@ -361,6 +264,28 @@ int drm_getstats(struct drm_device *dev, void *data,
 
 	mutex_unlock(&dev->struct_mutex);
 
+	return 0;
+}
+
+/**
+ * Get device/driver capabilities
+ */
+int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
+{
+	struct drm_get_cap *req = data;
+
+	req->value = 0;
+	switch (req->capability) {
+	case DRM_CAP_DUMB_BUFFER:
+		if (dev->driver->dumb_create)
+			req->value = 1;
+		break;
+	case DRM_CAP_VBLANK_HIGH_CRTC:
+		req->value = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 

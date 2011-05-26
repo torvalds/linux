@@ -234,8 +234,7 @@ static const struct attribute_group env_group = {
 	.attrs = env_attributes,
 };
 
-static int __devinit env_probe(struct platform_device *op,
-			       const struct of_device_id *match)
+static int __devinit env_probe(struct platform_device *op)
 {
 	struct env *p = kzalloc(sizeof(*p), GFP_KERNEL);
 	int err = -ENOMEM;
@@ -299,7 +298,7 @@ static const struct of_device_id env_match[] = {
 };
 MODULE_DEVICE_TABLE(of, env_match);
 
-static struct of_platform_driver env_driver = {
+static struct platform_driver env_driver = {
 	.driver = {
 		.name = "ultra45_env",
 		.owner = THIS_MODULE,
@@ -311,12 +310,12 @@ static struct of_platform_driver env_driver = {
 
 static int __init env_init(void)
 {
-	return of_register_platform_driver(&env_driver);
+	return platform_driver_register(&env_driver);
 }
 
 static void __exit env_exit(void)
 {
-	of_unregister_platform_driver(&env_driver);
+	platform_driver_unregister(&env_driver);
 }
 
 module_init(env_init);

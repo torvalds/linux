@@ -23,6 +23,7 @@
 #include <linux/spi/spi_gpio.h>
 #include <linux/power_supply.h>
 #include <linux/power/jz4740-battery.h>
+#include <linux/power/gpio-charger.h>
 
 #include <asm/mach-jz4740/jz4740_fb.h>
 #include <asm/mach-jz4740/jz4740_mmc.h>
@@ -49,14 +50,14 @@ static bool is_avt2;
 
 /* NAND */
 static struct nand_ecclayout qi_lb60_ecclayout_1gb = {
-/*	.eccbytes = 36,
+	.eccbytes = 36,
 	.eccpos = {
 		6,  7,  8,  9,  10, 11, 12, 13,
 		14, 15, 16, 17, 18, 19, 20, 21,
 		22, 23, 24, 25, 26, 27, 28, 29,
 		30, 31, 32, 33, 34, 35, 36, 37,
 		38, 39, 40, 41
-	},*/
+	},
 	.oobfree = {
 		{ .offset = 2, .length = 4 },
 		{ .offset = 42, .length = 22 }
@@ -64,7 +65,7 @@ static struct nand_ecclayout qi_lb60_ecclayout_1gb = {
 };
 
 /* Early prototypes of the QI LB60 had only 1GB of NAND.
- * In order to support these devices aswell the partition and ecc layout is
+ * In order to support these devices as well the partition and ecc layout is
  * initialized depending on the NAND size */
 static struct mtd_partition qi_lb60_partitions_1gb[] = {
 	{
@@ -85,7 +86,7 @@ static struct mtd_partition qi_lb60_partitions_1gb[] = {
 };
 
 static struct nand_ecclayout qi_lb60_ecclayout_2gb = {
-/*	.eccbytes = 72,
+	.eccbytes = 72,
 	.eccpos = {
 		12, 13, 14, 15, 16, 17, 18, 19,
 		20, 21, 22, 23, 24, 25, 26, 27,
@@ -96,7 +97,7 @@ static struct nand_ecclayout qi_lb60_ecclayout_2gb = {
 		60, 61, 62, 63, 64, 65, 66, 67,
 		68, 69, 70, 71, 72, 73, 74, 75,
 		76, 77, 78, 79, 80, 81, 82, 83
-	},*/
+	},
 	.oobfree = {
 		{ .offset = 2, .length = 10 },
 		{ .offset = 84, .length = 44 },
@@ -396,6 +397,28 @@ static struct platform_device qi_lb60_pwm_beeper = {
 	},
 };
 
+/* charger */
+static char *qi_lb60_batteries[] = {
+	"battery",
+};
+
+static struct gpio_charger_platform_data qi_lb60_charger_pdata = {
+	.name = "usb",
+	.type = POWER_SUPPLY_TYPE_USB,
+	.gpio = JZ_GPIO_PORTD(28),
+	.gpio_active_low = 1,
+	.supplied_to = qi_lb60_batteries,
+	.num_supplicants = ARRAY_SIZE(qi_lb60_batteries),
+};
+
+static struct platform_device qi_lb60_charger_device = {
+	.name = "gpio-charger",
+	.dev = {
+		.platform_data = &qi_lb60_charger_pdata,
+	},
+};
+
+
 static struct platform_device *jz_platform_devices[] __initdata = {
 	&jz4740_udc_device,
 	&jz4740_mmc_device,
@@ -410,12 +433,13 @@ static struct platform_device *jz_platform_devices[] __initdata = {
 	&jz4740_adc_device,
 	&qi_lb60_gpio_keys,
 	&qi_lb60_pwm_beeper,
+	&qi_lb60_charger_device,
 };
 
 static void __init board_gpio_setup(void)
 {
 	/* We only need to enable/disable pullup here for pins used in generic
-	 * drivers. Everything else is done by the drivers themselfs. */
+	 * drivers. Everything else is done by the drivers themselves. */
 	jz_gpio_disable_pullup(QI_LB60_GPIO_SD_VCC_EN_N);
 	jz_gpio_disable_pullup(QI_LB60_GPIO_SD_CD);
 }

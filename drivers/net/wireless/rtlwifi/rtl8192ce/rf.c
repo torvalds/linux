@@ -61,7 +61,7 @@ void rtl92c_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
 	}
 }
 
-void rtl92c_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
+void rtl92ce_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 				       u8 *ppowerlevel)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -410,7 +410,7 @@ static void _rtl92c_write_ofdm_power_reg(struct ieee80211_hw *hw,
 	}
 }
 
-void rtl92c_phy_rf6052_set_ofdm_txpower(struct ieee80211_hw *hw,
+void rtl92ce_phy_rf6052_set_ofdm_txpower(struct ieee80211_hw *hw,
 					u8 *ppowerlevel, u8 channel)
 {
 	u32 writeVal[2], powerBase0[2], powerBase1[2];
@@ -430,7 +430,7 @@ void rtl92c_phy_rf6052_set_ofdm_txpower(struct ieee80211_hw *hw,
 	}
 }
 
-bool rtl92c_phy_rf6052_config(struct ieee80211_hw *hw)
+bool rtl92ce_phy_rf6052_config(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -484,11 +484,11 @@ static bool _rtl92c_phy_rf6052_config_parafile(struct ieee80211_hw *hw)
 
 		switch (rfpath) {
 		case RF90_PATH_A:
-			rtstatus = rtl92c_phy_config_rf_with_headerfile(hw,
+			rtstatus = rtl92ce_phy_config_rf_with_headerfile(hw,
 					(enum radio_path) rfpath);
 			break;
 		case RF90_PATH_B:
-			rtstatus = rtl92c_phy_config_rf_with_headerfile(hw,
+			rtstatus = rtl92ce_phy_config_rf_with_headerfile(hw,
 					(enum radio_path) rfpath);
 			break;
 		case RF90_PATH_C:

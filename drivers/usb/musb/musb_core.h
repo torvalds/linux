@@ -212,8 +212,8 @@ enum musb_g_ep0_state {
  * directly with the "flat" model, or after setting up an index register.
  */
 
-#if defined(CONFIG_ARCH_DAVINCI) || defined(CONFIG_ARCH_OMAP2430) \
-		|| defined(CONFIG_ARCH_OMAP3430) || defined(CONFIG_BLACKFIN) \
+#if defined(CONFIG_ARCH_DAVINCI) || defined(CONFIG_SOC_OMAP2430) \
+		|| defined(CONFIG_SOC_OMAP3430) || defined(CONFIG_BLACKFIN) \
 		|| defined(CONFIG_ARCH_OMAP4)
 /* REVISIT indexed access seemed to
  * misbehave (on DaVinci) for at least peripheral IN ...
@@ -261,6 +261,7 @@ enum musb_g_ep0_state {
  * @try_ilde:	tries to idle the IP
  * @vbus_status: returns vbus status if possible
  * @set_vbus:	forces vbus status
+ * @channel_program: pre check for standard dma channel_program func
  */
 struct musb_platform_ops {
 	int	(*init)(struct musb *musb);
@@ -274,6 +275,10 @@ struct musb_platform_ops {
 
 	int	(*vbus_status)(struct musb *musb);
 	void	(*set_vbus)(struct musb *musb, int on);
+
+	int	(*adjust_channel_params)(struct dma_channel *channel,
+				u16 packet_sz, u8 *mode,
+				dma_addr_t *dma_addr, u32 *len);
 };
 
 /*
@@ -328,7 +333,7 @@ struct musb_hw_ep {
 #endif
 };
 
-static inline struct usb_request *next_in_request(struct musb_hw_ep *hw_ep)
+static inline struct musb_request *next_in_request(struct musb_hw_ep *hw_ep)
 {
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	return next_request(&hw_ep->ep_in);
@@ -337,7 +342,7 @@ static inline struct usb_request *next_in_request(struct musb_hw_ep *hw_ep)
 #endif
 }
 
-static inline struct usb_request *next_out_request(struct musb_hw_ep *hw_ep)
+static inline struct musb_request *next_out_request(struct musb_hw_ep *hw_ep)
 {
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	return next_request(&hw_ep->ep_out);
@@ -358,10 +363,6 @@ struct musb_csr_regs {
 
 struct musb_context_registers {
 
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
-    defined(CONFIG_ARCH_OMAP4)
-	u32 otg_sysconfig, otg_forcestandby;
-#endif
 	u8 power;
 	u16 intrtxe, intrrxe;
 	u8 intrusbe;

@@ -27,6 +27,7 @@ struct sock;
 struct ctl_table_header;
 struct net_generic;
 struct sock;
+struct netns_ipvs;
 
 
 #define NETDEV_HASHBITS    8
@@ -94,6 +95,7 @@ struct net {
 #ifdef CONFIG_XFRM
 	struct netns_xfrm	xfrm;
 #endif
+	struct netns_ipvs	*ipvs;
 };
 
 

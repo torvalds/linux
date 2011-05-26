@@ -5,7 +5,7 @@ Introduction
 ------------
 
 This outlines the Samsung GPIO implementation and the architecture
-specfic calls provided alongisde the drivers/gpio core.
+specific calls provided alongisde the drivers/gpio core.
 
 
 S3C24XX (Legacy)

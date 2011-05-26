@@ -154,7 +154,7 @@ xfs_rtmount_init(
 	if (mp->m_sb.sb_rblocks == 0)
 		return 0;
 
-	cmn_err(CE_WARN, "XFS: Not built with CONFIG_XFS_RT");
+	xfs_warn(mp, "Not built with CONFIG_XFS_RT");
 	return ENOSYS;
 }
 # define xfs_rtmount_inodes(m)  (((mp)->m_sb.sb_rblocks == 0)? 0 : (ENOSYS))

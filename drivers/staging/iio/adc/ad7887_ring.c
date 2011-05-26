@@ -27,6 +27,8 @@
 
 static IIO_SCAN_EL_C(in0, 0, 0, NULL);
 static IIO_SCAN_EL_C(in1, 1, 0, NULL);
+static IIO_SCAN_EL_TIMESTAMP(2);
+static IIO_CONST_ATTR_SCAN_EL_TYPE(timestamp, s, 64, 64);
 
 static ssize_t ad7887_show_type(struct device *dev,
 				struct device_attribute *attr,
@@ -47,6 +49,9 @@ static struct attribute *ad7887_scan_el_attrs[] = {
 	&iio_const_attr_in0_index.dev_attr.attr,
 	&iio_scan_el_in1.dev_attr.attr,
 	&iio_const_attr_in1_index.dev_attr.attr,
+	&iio_const_attr_timestamp_index.dev_attr.attr,
+	&iio_scan_el_timestamp.dev_attr.attr,
+	&iio_const_attr_timestamp_type.dev_attr.attr,
 	&iio_dev_attr_in_type.dev_attr.attr,
 	NULL,
 };
@@ -118,15 +123,19 @@ static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7887_state *st = indio_dev->dev_data;
 	struct iio_ring_buffer *ring = indio_dev->ring;
-	size_t d_size;
 
-	if (indio_dev->ring->access.set_bytes_per_datum) {
-		d_size = st->chip_info->storagebits / 8 + sizeof(s64);
-		if (d_size % 8)
-			d_size += 8 - (d_size % 8);
-		indio_dev->ring->access.set_bytes_per_datum(indio_dev->ring,
-							    d_size);
+	st->d_size = ring->scan_count * st->chip_info->storagebits / 8;
+
+	if (ring->scan_timestamp) {
+		st->d_size += sizeof(s64);
+
+		if (st->d_size % sizeof(s64))
+			st->d_size += sizeof(s64) - (st->d_size % sizeof(s64));
 	}
+
+	if (indio_dev->ring->access.set_bytes_per_datum)
+		indio_dev->ring->access.set_bytes_per_datum(indio_dev->ring,
+							    st->d_size);
 
 	switch (ring->scan_mask) {
 	case (1 << 0):
@@ -156,7 +165,7 @@ static int ad7887_ring_postdisable(struct iio_dev *indio_dev)
 /**
  * ad7887_poll_func_th() th of trigger launched polling to ring buffer
  *
- * As sampling only occurs on spi comms occuring, leave timestamping until
+ * As sampling only occurs on spi comms occurring, leave timestamping until
  * then.  Some triggers will generate their own time stamp.  Currently
  * there is no way of notifying them when no one cares.
  **/
@@ -186,20 +195,14 @@ static void ad7887_poll_bh_to_ring(struct work_struct *work_s)
 	s64 time_ns;
 	__u8 *buf;
 	int b_sent;
-	size_t d_size;
 
 	unsigned int bytes = ring->scan_count * st->chip_info->storagebits / 8;
-
-	/* Ensure the timestamp is 8 byte aligned */
-	d_size = bytes + sizeof(s64);
-	if (d_size % sizeof(s64))
-		d_size += sizeof(s64) - (d_size % sizeof(s64));
 
 	/* Ensure only one copy of this function running at a time */
 	if (atomic_inc_return(&st->protect_ring) > 1)
 		return;
 
-	buf = kzalloc(d_size, GFP_KERNEL);
+	buf = kzalloc(st->d_size, GFP_KERNEL);
 	if (buf == NULL)
 		return;
 
@@ -210,7 +213,9 @@ static void ad7887_poll_bh_to_ring(struct work_struct *work_s)
 	time_ns = iio_get_time_ns();
 
 	memcpy(buf, st->data, bytes);
-	memcpy(buf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
+	if (ring->scan_timestamp)
+		memcpy(buf + st->d_size - sizeof(s64),
+			&time_ns, sizeof(time_ns));
 
 	indio_dev->ring->access.store_to(&sw_ring->buf, buf, time_ns);
 done:
@@ -241,6 +246,7 @@ int ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
 	indio_dev->ring->postdisable = &ad7887_ring_postdisable;
 	indio_dev->ring->scan_el_attrs = &ad7887_scan_el_group;
+	indio_dev->ring->scan_timestamp = true;
 
 	INIT_WORK(&st->poll_work, &ad7887_poll_bh_to_ring);
 

@@ -1248,7 +1248,7 @@ static void icom_set_termios(struct uart_port *port,
 		}
 	}
 
-	/* Enable Transmitter and Reciever */
+	/* Enable Transmitter and Receiver */
 	offset =
 	    (unsigned long) &ICOM_PORT->statStg->rcv[0] -
 	    (unsigned long) ICOM_PORT->statStg;

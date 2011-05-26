@@ -1,0 +1,7 @@
+Altera UART
+
+Required properties:
+- compatible : should be "ALTR,uart-1.0"
+
+Optional properties:
+- clock-frequency : frequency of the clock input to the UART

@@ -126,10 +126,24 @@ ssize_t res_counter_read(struct res_counter *counter, int member,
 			pos, buf, s - buf);
 }
 
+#if BITS_PER_LONG == 32
+u64 res_counter_read_u64(struct res_counter *counter, int member)
+{
+	unsigned long flags;
+	u64 ret;
+
+	spin_lock_irqsave(&counter->lock, flags);
+	ret = *res_counter_member(counter, member);
+	spin_unlock_irqrestore(&counter->lock, flags);
+
+	return ret;
+}
+#else
 u64 res_counter_read_u64(struct res_counter *counter, int member)
 {
 	return *res_counter_member(counter, member);
 }
+#endif
 
 int res_counter_memparse_write_strategy(const char *buf,
 					unsigned long long *res)

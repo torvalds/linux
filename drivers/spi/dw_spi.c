@@ -22,9 +22,9 @@
 #include <linux/highmem.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-
-#include <linux/spi/dw_spi.h>
 #include <linux/spi/spi.h>
+
+#include "dw_spi.h"
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
@@ -345,7 +345,7 @@ static void int_error_stop(struct dw_spi *dws, const char *msg)
 
 void dw_spi_xfer_done(struct dw_spi *dws)
 {
-	/* Update total byte transfered return count actual bytes read */
+	/* Update total byte transferred return count actual bytes read */
 	dws->cur_msg->actual_length += dws->len;
 
 	/* Move to next transfer */
@@ -821,7 +821,7 @@ static int stop_queue(struct dw_spi *dws)
 
 	spin_lock_irqsave(&dws->lock, flags);
 	dws->run = QUEUE_STOPPED;
-	while (!list_empty(&dws->queue) && dws->busy && limit--) {
+	while ((!list_empty(&dws->queue) || dws->busy) && limit--) {
 		spin_unlock_irqrestore(&dws->lock, flags);
 		msleep(10);
 		spin_lock_irqsave(&dws->lock, flags);

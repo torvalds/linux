@@ -2,7 +2,7 @@
  * OMAP2/3 common powerdomain definitions
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2010 Nokia Corporation
+ * Copyright (C) 2007-2011 Nokia Corporation
  *
  * Paul Walmsley, Jouni Högander
  *
@@ -62,13 +62,13 @@ struct powerdomain gfx_omap2_pwrdm = {
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX |
 					   CHIP_IS_OMAP3430ES1),
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
-	.pwrsts_logic_ret = PWRDM_POWER_RET,
+	.pwrsts_logic_ret = PWRSTS_RET,
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
-		[0] = PWRDM_POWER_RET, /* MEMRETSTATE */
+		[0] = PWRSTS_RET, /* MEMRETSTATE */
 	},
 	.pwrsts_mem_on	  = {
-		[0] = PWRDM_POWER_ON,  /* MEMONSTATE */
+		[0] = PWRSTS_ON,  /* MEMONSTATE */
 	},
 };
 
@@ -76,4 +76,5 @@ struct powerdomain wkup_omap2_pwrdm = {
 	.name		= "wkup_pwrdm",
 	.prcm_offs	= WKUP_MOD,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP24XX | CHIP_IS_OMAP3430),
+	.pwrsts		= PWRSTS_ON,
 };

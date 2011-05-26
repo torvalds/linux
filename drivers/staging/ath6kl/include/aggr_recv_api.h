@@ -30,7 +30,7 @@ extern "C" {
 
 typedef void (* RX_CALLBACK)(void * dev, void *osbuf);
 
-typedef void (* ALLOC_NETBUFS)(A_NETBUF_QUEUE_T *q, A_UINT16 num);
+typedef void (* ALLOC_NETBUFS)(A_NETBUF_QUEUE_T *q, u16 num);
 
 /*
  * aggr_init:
@@ -64,7 +64,7 @@ aggr_register_rx_dispatcher(void *cntxt, void * dev,  RX_CALLBACK fn);
  * up to the indicated sequence number.
  */
 void
-aggr_process_bar(void *cntxt, A_UINT8 tid, A_UINT16 seq_no);
+aggr_process_bar(void *cntxt, u8 tid, u16 seq_no);
 
 
 /*
@@ -72,7 +72,7 @@ aggr_process_bar(void *cntxt, A_UINT8 tid, A_UINT16 seq_no);
  * This event is to initiate/modify the receive side window.
  * Target will send WMI_ADDBA_REQ_EVENTID event to host - to setup 
  * recv re-ordering queues. Target will negotiate ADDBA with peer, 
- * and indicate via this event after succesfully completing the 
+ * and indicate via this event after successfully completing the 
  * negotiation. This happens in two situations:
  *  1. Initial setup of aggregation
  *  2. Renegotiation of current recv window.
@@ -82,7 +82,7 @@ aggr_process_bar(void *cntxt, A_UINT8 tid, A_UINT16 seq_no);
  * in hold_q to OS.
  */
 void
-aggr_recv_addba_req_evt(void * cntxt, A_UINT8 tid, A_UINT16 seq_no, A_UINT8 win_sz);
+aggr_recv_addba_req_evt(void * cntxt, u8 tid, u16 seq_no, u8 win_sz);
 
 
 /*
@@ -93,7 +93,7 @@ aggr_recv_addba_req_evt(void * cntxt, A_UINT8 tid, A_UINT16 seq_no, A_UINT8 win_
  * aggr is not enabled on any tid.
  */
 void
-aggr_recv_delba_req_evt(void * cntxt, A_UINT8 tid);
+aggr_recv_delba_req_evt(void * cntxt, u8 tid);
 
 
 
@@ -108,7 +108,7 @@ aggr_recv_delba_req_evt(void * cntxt, A_UINT8 tid);
  * callback may be called to deliver frames in order.
  */
 void
-aggr_process_recv_frm(void *cntxt, A_UINT8 tid, A_UINT16 seq_no, A_BOOL is_amsdu, void **osbuf);
+aggr_process_recv_frm(void *cntxt, u8 tid, u16 seq_no, bool is_amsdu, void **osbuf);
 
 
 /*

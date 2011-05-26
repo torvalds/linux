@@ -2409,9 +2409,7 @@ static u32 e1000_get_phy_addr_for_bm_page(u32 page, u32 reg)
 s32 e1000e_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data)
 {
 	s32 ret_val;
-	u32 page_select = 0;
 	u32 page = offset >> IGP_PAGE_SHIFT;
-	u32 page_shift = 0;
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
@@ -2427,6 +2425,8 @@ s32 e1000e_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data)
 	hw->phy.addr = e1000_get_phy_addr_for_bm_page(page, offset);
 
 	if (offset > MAX_PHY_MULTI_PAGE_REG) {
+		u32 page_shift, page_select;
+
 		/*
 		 * Page select is register 31 for phy address 1 and 22 for
 		 * phy address 2 and 3. Page select is shifted only for
@@ -2468,9 +2468,7 @@ out:
 s32 e1000e_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	s32 ret_val;
-	u32 page_select = 0;
 	u32 page = offset >> IGP_PAGE_SHIFT;
-	u32 page_shift = 0;
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
@@ -2486,6 +2484,8 @@ s32 e1000e_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data)
 	hw->phy.addr = e1000_get_phy_addr_for_bm_page(page, offset);
 
 	if (offset > MAX_PHY_MULTI_PAGE_REG) {
+		u32 page_shift, page_select;
+
 		/*
 		 * Page select is register 31 for phy address 1 and 22 for
 		 * phy address 2 and 3. Page select is shifted only for

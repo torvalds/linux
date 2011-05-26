@@ -81,6 +81,8 @@ struct platform_device *__init imx_add_platform_device_dmamask(
 	ret = platform_device_add(pdev);
 	if (ret) {
 err:
+		if (dmamask)
+			kfree(pdev->dev.dma_mask);
 		platform_device_put(pdev);
 		return ERR_PTR(ret);
 	}

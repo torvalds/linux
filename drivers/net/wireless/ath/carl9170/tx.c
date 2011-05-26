@@ -383,6 +383,7 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 
 	if (sta_info->stats[tid].clear) {
 		sta_info->stats[tid].clear = false;
+		sta_info->stats[tid].req = false;
 		sta_info->stats[tid].ampdu_len = 0;
 		sta_info->stats[tid].ampdu_ack_len = 0;
 	}
@@ -391,10 +392,16 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 	if (txinfo->status.rates[0].count == 1)
 		sta_info->stats[tid].ampdu_ack_len++;
 
+	if (!(txinfo->flags & IEEE80211_TX_STAT_ACK))
+		sta_info->stats[tid].req = true;
+
 	if (super->f.mac_control & cpu_to_le16(AR9170_TX_MAC_IMM_BA)) {
 		super->s.rix = sta_info->stats[tid].ampdu_len;
 		super->s.cnt = sta_info->stats[tid].ampdu_ack_len;
 		txinfo->flags |= IEEE80211_TX_STAT_AMPDU;
+		if (sta_info->stats[tid].req)
+			txinfo->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
+
 		sta_info->stats[tid].clear = true;
 	}
 	spin_unlock_bh(&tid_info->lock);
@@ -861,6 +868,9 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 
 	if (unlikely(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM))
 		txc->s.misc |= CARL9170_TX_SUPER_MISC_CAB;
+
+	if (unlikely(info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
+		txc->s.misc |= CARL9170_TX_SUPER_MISC_ASSIGN_SEQ;
 
 	if (unlikely(ieee80211_is_probe_resp(hdr->frame_control)))
 		txc->s.misc |= CARL9170_TX_SUPER_MISC_FILL_IN_TSF;
@@ -1336,7 +1346,7 @@ err_unlock_rcu:
 	return false;
 }
 
-int carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+void carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct ar9170 *ar = hw->priv;
 	struct ieee80211_tx_info *info;
@@ -1370,12 +1380,11 @@ int carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	carl9170_tx(ar);
-	return NETDEV_TX_OK;
+	return;
 
 err_free:
 	ar->tx_dropped++;
 	dev_kfree_skb_any(skb);
-	return NETDEV_TX_OK;
 }
 
 void carl9170_tx_scheduler(struct ar9170 *ar)

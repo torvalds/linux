@@ -92,3 +92,11 @@
 #if !defined(__noclone)
 #define __noclone	/* not needed */
 #endif
+
+/*
+ * A trick to suppress uninitialized variable warning without generating any
+ * code
+ */
+#define uninitialized_var(x) x = x
+
+#define __always_inline		inline __attribute__((always_inline))

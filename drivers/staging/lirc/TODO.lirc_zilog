@@ -1,34 +1,33 @@
-1. Both ir-kbd-i2c and lirc_zilog provide support for RX events.
-The 'tx_only' lirc_zilog module parameter will allow ir-kbd-i2c
-and lirc_zilog to coexist in the kernel, if the user requires such a set-up.
-However the IR unit will not work well without coordination between the
-two modules.  A shared mutex, for transceiver access locking, needs to be
-supplied by bridge drivers, in struct IR_i2_init_data, to both ir-kbd-i2c
-and lirc_zilog, before they will coexist usefully.  This should be fixed
-before moving out of staging.
+1. Both ir-kbd-i2c and lirc_zilog provide support for RX events for
+the chips supported by lirc_zilog.  Before moving lirc_zilog out of staging:
 
-2. References and locking need careful examination.  For cx18 and ivtv PCI
-cards, which are not easily "hot unplugged", the imperfect state of reference
-counting and locking is acceptable if not correct.  For USB connected units
-like HD PVR, PVR USB2, HVR-1900, and HVR1950, the likelyhood of an Ooops on
-unplug is probably great.  Proper reference counting and locking needs to be
-implemented before this module is moved out of staging.
+a. ir-kbd-i2c needs a module parameter added to allow the user to tell
+   ir-kbd-i2c to ignore Z8 IR units.
 
-3. The binding between hdpvr and lirc_zilog is currently disabled,
-due to an OOPS reported a few years ago when both the hdpvr and cx18
-drivers were loaded in his system. More details can be seen at:
-	http://www.mail-archive.com/linux-media@vger.kernel.org/msg09163.html
-More tests need to be done, in order to fix the reported issue.
+b. lirc_zilog should provide Rx key presses to the rc core like ir-kbd-i2c
+   does.
 
-4. In addition to providing a shared mutex for transceiver access
-locking, bridge drivers, if able, should provide a chip reset() callback
+
+2. lirc_zilog module ref-counting need examination.  It has not been
+verified that cdev and lirc_dev will take the proper module references on
+lirc_zilog to prevent removal of lirc_zilog when the /dev/lircN device node
+is open.
+
+(The good news is ref-counting of lirc_zilog internal structures appears to be
+complete.  Testing has shown the cx18 module can be unloaded out from under
+irw + lircd + lirc_dev, with the /dev/lirc0 device node open, with no adverse
+effects.  The cx18 module could then be reloaded and irw properly began
+receiving button presses again and ir_send worked without error.)
+
+
+3. Bridge drivers, if able, should provide a chip reset() callback
 to lirc_zilog via struct IR_i2c_init_data.  cx18 and ivtv already have routines
-to perform Z8 chip resets via GPIO manipulations.  This will allow lirc_zilog
+to perform Z8 chip resets via GPIO manipulations.  This would allow lirc_zilog
 to bring the chip back to normal when it hangs, in the same places the
 original lirc_pvr150 driver code does.  This is not strictly needed, so it
 is not required to move lirc_zilog out of staging.
 
-5. Both lirc_zilog and ir-kbd-i2c support the Zilog Z8 for IR, as programmed
+Note: Both lirc_zilog and ir-kbd-i2c support the Zilog Z8 for IR, as programmed
 and installed on Hauppauge products.  When working on either module, developers
 must consider at least the following bridge drivers which mention an IR Rx unit
 at address 0x71 (indicative of a Z8):

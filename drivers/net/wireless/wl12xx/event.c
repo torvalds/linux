@@ -135,20 +135,6 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 		/* go to extremely low power mode */
 		wl1271_ps_elp_sleep(wl);
 		break;
-	case EVENT_EXIT_POWER_SAVE_FAIL:
-		wl1271_debug(DEBUG_PSM, "PSM exit failed");
-
-		if (test_bit(WL1271_FLAG_PSM, &wl->flags)) {
-			wl->psm_entry_retry = 0;
-			break;
-		}
-
-		/* make sure the firmware goes to active mode - the frame to
-		   be sent next will indicate to the AP, that we are active. */
-		ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
-					 wl->basic_rate, false);
-		break;
-	case EVENT_EXIT_POWER_SAVE_SUCCESS:
 	default:
 		break;
 	}
@@ -186,6 +172,7 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	int ret;
 	u32 vector;
 	bool beacon_loss = false;
+	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
 
 	wl1271_event_mbox_dump(mbox);
 
@@ -218,21 +205,21 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	 * BSS_LOSE_EVENT, beacon loss has to be reported to the stack.
 	 *
 	 */
-	if (vector & BSS_LOSE_EVENT_ID) {
+	if ((vector & BSS_LOSE_EVENT_ID) && !is_ap) {
 		wl1271_info("Beacon loss detected.");
 
 		/* indicate to the stack, that beacons have been lost */
 		beacon_loss = true;
 	}
 
-	if (vector & PS_REPORT_EVENT_ID) {
+	if ((vector & PS_REPORT_EVENT_ID) && !is_ap) {
 		wl1271_debug(DEBUG_EVENT, "PS_REPORT_EVENT");
 		ret = wl1271_event_ps_report(wl, mbox, &beacon_loss);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (vector & PSPOLL_DELIVERY_FAILURE_EVENT_ID)
+	if ((vector & PSPOLL_DELIVERY_FAILURE_EVENT_ID) && !is_ap)
 		wl1271_event_pspoll_delivery_fail(wl);
 
 	if (vector & RSSI_SNR_TRIGGER_0_EVENT_ID) {

@@ -23,7 +23,7 @@
  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
  */
 
-#define PHYS_OFFSET CFG_GLOBAL_RAM_BASE
+#define PLAT_PHYS_OFFSET CFG_GLOBAL_RAM_BASE
 
 /*
  * Maximum DMA memory allowed is 14M

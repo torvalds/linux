@@ -31,7 +31,6 @@
 	#define PT_LVL_ADDR_MASK(lvl) PT64_LVL_ADDR_MASK(lvl)
 	#define PT_LVL_OFFSET_MASK(lvl) PT64_LVL_OFFSET_MASK(lvl)
 	#define PT_INDEX(addr, level) PT64_INDEX(addr, level)
-	#define PT_LEVEL_MASK(level) PT64_LEVEL_MASK(level)
 	#define PT_LEVEL_BITS PT64_LEVEL_BITS
 	#ifdef CONFIG_X86_64
 	#define PT_MAX_FULL_LEVELS 4
@@ -48,7 +47,6 @@
 	#define PT_LVL_ADDR_MASK(lvl) PT32_LVL_ADDR_MASK(lvl)
 	#define PT_LVL_OFFSET_MASK(lvl) PT32_LVL_OFFSET_MASK(lvl)
 	#define PT_INDEX(addr, level) PT32_INDEX(addr, level)
-	#define PT_LEVEL_MASK(level) PT32_LEVEL_MASK(level)
 	#define PT_LEVEL_BITS PT32_LEVEL_BITS
 	#define PT_MAX_FULL_LEVELS 2
 	#define CMPXCHG cmpxchg
@@ -327,7 +325,7 @@ no_present:
 }
 
 static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
-			      u64 *spte, const void *pte)
+			      u64 *spte, const void *pte, unsigned long mmu_seq)
 {
 	pt_element_t gpte;
 	unsigned pte_access;
@@ -339,16 +337,16 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 
 	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
 	pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
-	if (gpte_to_gfn(gpte) != vcpu->arch.update_pte.gfn)
+	pfn = gfn_to_pfn_atomic(vcpu->kvm, gpte_to_gfn(gpte));
+	if (is_error_pfn(pfn)) {
+		kvm_release_pfn_clean(pfn);
 		return;
-	pfn = vcpu->arch.update_pte.pfn;
-	if (is_error_pfn(pfn))
+	}
+	if (mmu_notifier_retry(vcpu, mmu_seq))
 		return;
-	if (mmu_notifier_retry(vcpu, vcpu->arch.update_pte.mmu_seq))
-		return;
-	kvm_get_pfn(pfn);
+
 	/*
-	 * we call mmu_set_spte() with host_writable = true beacuse that
+	 * we call mmu_set_spte() with host_writable = true because that
 	 * vcpu->arch.update_pte.pfn was fetched from get_user_pages(write = 1).
 	 */
 	mmu_set_spte(vcpu, spte, sp->role.access, pte_access, 0, 0,
@@ -829,7 +827,6 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 #undef FNAME
 #undef PT_BASE_ADDR_MASK
 #undef PT_INDEX
-#undef PT_LEVEL_MASK
 #undef PT_LVL_ADDR_MASK
 #undef PT_LVL_OFFSET_MASK
 #undef PT_LEVEL_BITS

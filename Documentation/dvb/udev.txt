@@ -1,7 +1,7 @@
 The DVB subsystem currently registers to the sysfs subsystem using the
 "class_simple" interface.
 
-This means that only the basic informations like module loading parameters
+This means that only the basic information like module loading parameters
 are presented through sysfs. Other things that might be interesting are
 currently *not* available.
 

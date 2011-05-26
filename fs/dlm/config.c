@@ -977,9 +977,9 @@ int dlm_our_addr(struct sockaddr_storage *addr, int num)
 /* Config file defaults */
 #define DEFAULT_TCP_PORT       21064
 #define DEFAULT_BUFFER_SIZE     4096
-#define DEFAULT_RSBTBL_SIZE      256
+#define DEFAULT_RSBTBL_SIZE     1024
 #define DEFAULT_LKBTBL_SIZE     1024
-#define DEFAULT_DIRTBL_SIZE      512
+#define DEFAULT_DIRTBL_SIZE     1024
 #define DEFAULT_RECOVER_TIMER      5
 #define DEFAULT_TOSS_SECS         10
 #define DEFAULT_SCAN_SECS          5

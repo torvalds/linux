@@ -11,22 +11,11 @@
  * published by the Free Software Foundation.
 */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/timer.h>
-#include <linux/interrupt.h>
-#include <linux/platform_device.h>
-#include <linux/clk.h>
-
-#include <sound/core.h>
-#include <sound/pcm.h>
 #include <sound/soc.h>
 
 #include <asm/mach-types.h>
 
-#include "dma.h"
 #include "s3c2412-i2s.h"
-
 #include "../codecs/wm8750.h"
 
 static const struct snd_soc_dapm_route audio_map[] = {

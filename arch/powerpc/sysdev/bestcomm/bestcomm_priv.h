@@ -97,7 +97,7 @@ struct bcom_task_header {
 	u8	reserved[8];
 };
 
-/* Descriptors stucture & co */
+/* Descriptors structure & co */
 #define BCOM_DESC_NOP		0x000001f8
 #define BCOM_LCD_MASK		0x80000000
 #define BCOM_DRD_EXTENDED	0x40000000

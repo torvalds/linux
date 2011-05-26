@@ -50,7 +50,7 @@ typedef unsigned int kprobe_opcode_t;
  * Handle cases where:
  * 		- User passes a <.symbol> or <module:.symbol>
  * 		- User passes a <symbol> or <module:symbol>
- * 		- User passes a non-existant symbol, kallsyms_lookup_name
+ * 		- User passes a non-existent symbol, kallsyms_lookup_name
  * 		  returns 0. Don't deref the NULL pointer in that case
  */
 #define kprobe_lookup_name(name, addr)					\

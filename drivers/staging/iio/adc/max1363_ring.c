@@ -108,7 +108,7 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 /**
  * max1363_poll_func_th() - th of trigger launched polling to ring buffer
  *
- * As sampling only occurs on i2c comms occuring, leave timestamping until
+ * As sampling only occurs on i2c comms occurring, leave timestamping until
  * then.  Some triggers will generate their own time stamp.  Currently
  * there is no way of notifying them when no one cares.
  **/

@@ -73,6 +73,7 @@
 #define TCSETXF		0x5434
 #define TCSETXW		0x5435
 #define TIOCSIG		_IOW('T', 0x36, int)  /* pty: generate signal */
+#define TIOCVHANGUP	0x5437
 
 #define FIONCLEX	0x5450
 #define FIOCLEX		0x5451

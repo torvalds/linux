@@ -502,7 +502,7 @@ static inline void vbi_get_next_buf(struct au0828_dmaqueue *dma_q,
 
 	/* Get the next buffer */
 	*buf = list_entry(dma_q->active.next, struct au0828_buffer, vb.queue);
-	/* Cleans up buffer - Usefull for testing for frame/URB loss */
+	/* Cleans up buffer - Useful for testing for frame/URB loss */
 	outp = videobuf_to_vmalloc(&(*buf)->vb);
 	memset(outp, 0x00, (*buf)->vb.size);
 
@@ -1177,10 +1177,6 @@ static int au0828_set_format(struct au0828_dev *dev, unsigned int cmd,
 	int ret;
 	int width = format->fmt.pix.width;
 	int height = format->fmt.pix.height;
-	unsigned int maxwidth, maxheight;
-
-	maxwidth = 720;
-	maxheight = 480;
 
 	if (format->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1758,7 +1754,12 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	return videobuf_reqbufs(&fh->vb_vidq, rb);
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		rc = videobuf_reqbufs(&fh->vb_vidq, rb);
+	else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
+		rc = videobuf_reqbufs(&fh->vb_vbiq, rb);
+
+	return rc;
 }
 
 static int vidioc_querybuf(struct file *file, void *priv,
@@ -1772,7 +1773,12 @@ static int vidioc_querybuf(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	return videobuf_querybuf(&fh->vb_vidq, b);
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		rc = videobuf_querybuf(&fh->vb_vidq, b);
+	else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
+		rc = videobuf_querybuf(&fh->vb_vbiq, b);
+
+	return rc;
 }
 
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
@@ -1785,7 +1791,12 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 	if (rc < 0)
 		return rc;
 
-	return videobuf_qbuf(&fh->vb_vidq, b);
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		rc = videobuf_qbuf(&fh->vb_vidq, b);
+	else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
+		rc = videobuf_qbuf(&fh->vb_vbiq, b);
+
+	return rc;
 }
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
@@ -1806,7 +1817,12 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 		dev->greenscreen_detected = 0;
 	}
 
-	return videobuf_dqbuf(&fh->vb_vidq, b, file->f_flags & O_NONBLOCK);
+	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		rc = videobuf_dqbuf(&fh->vb_vidq, b, file->f_flags & O_NONBLOCK);
+	else if (fh->type == V4L2_BUF_TYPE_VBI_CAPTURE)
+		rc = videobuf_dqbuf(&fh->vb_vbiq, b, file->f_flags & O_NONBLOCK);
+
+	return rc;
 }
 
 static struct v4l2_file_operations au0828_v4l_fops = {

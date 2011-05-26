@@ -153,6 +153,7 @@ static struct i2c_board_info __initdata snapper9260_i2c_devices[] = {
 	{
 		/* RTC */
 		I2C_BOARD_INFO("isl1208", 0x6f),
+		.irq = gpio_to_irq(AT91_PIN_PA31),
 	},
 };
 

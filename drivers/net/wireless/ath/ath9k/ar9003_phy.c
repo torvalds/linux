@@ -1020,28 +1020,29 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 static void ar9003_hw_do_getnf(struct ath_hw *ah,
 			      int16_t nfarray[NUM_NF_READINGS])
 {
+#define AR_PHY_CH_MINCCA_PWR	0x1FF00000
+#define AR_PHY_CH_MINCCA_PWR_S	20
+#define AR_PHY_CH_EXT_MINCCA_PWR 0x01FF0000
+#define AR_PHY_CH_EXT_MINCCA_PWR_S 16
+
 	int16_t nf;
+	int i;
 
-	nf = MS(REG_READ(ah, AR_PHY_CCA_0), AR_PHY_MINCCA_PWR);
-	nfarray[0] = sign_extend32(nf, 8);
+	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+		if (ah->rxchainmask & BIT(i)) {
+			nf = MS(REG_READ(ah, ah->nf_regs[i]),
+					 AR_PHY_CH_MINCCA_PWR);
+			nfarray[i] = sign_extend32(nf, 8);
 
-	nf = MS(REG_READ(ah, AR_PHY_CCA_1), AR_PHY_CH1_MINCCA_PWR);
-	nfarray[1] = sign_extend32(nf, 8);
+			if (IS_CHAN_HT40(ah->curchan)) {
+				u8 ext_idx = AR9300_MAX_CHAINS + i;
 
-	nf = MS(REG_READ(ah, AR_PHY_CCA_2), AR_PHY_CH2_MINCCA_PWR);
-	nfarray[2] = sign_extend32(nf, 8);
-
-	if (!IS_CHAN_HT40(ah->curchan))
-		return;
-
-	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA), AR_PHY_EXT_MINCCA_PWR);
-	nfarray[3] = sign_extend32(nf, 8);
-
-	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA_1), AR_PHY_CH1_EXT_MINCCA_PWR);
-	nfarray[4] = sign_extend32(nf, 8);
-
-	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA_2), AR_PHY_CH2_EXT_MINCCA_PWR);
-	nfarray[5] = sign_extend32(nf, 8);
+				nf = MS(REG_READ(ah, ah->nf_regs[ext_idx]),
+						 AR_PHY_CH_EXT_MINCCA_PWR);
+				nfarray[ext_idx] = sign_extend32(nf, 8);
+			}
+		}
+	}
 }
 
 static void ar9003_hw_set_nf_limits(struct ath_hw *ah)

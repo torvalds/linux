@@ -866,6 +866,11 @@ struct hda_codec {
 	/* codec-specific additional proc output */
 	void (*proc_widget_hook)(struct snd_info_buffer *buffer,
 				 struct hda_codec *codec, hda_nid_t nid);
+
+#ifdef CONFIG_SND_HDA_INPUT_JACK
+	/* jack detection */
+	struct snd_array jacks;
+#endif
 };
 
 /* direction */

@@ -66,7 +66,7 @@
  *    1.5: Fix segment register reloading (in case of bad segments saved
  *         across BIOS call).
  *         Stephen Rothwell
- *    1.6: Cope with complier/assembler differences.
+ *    1.6: Cope with compiler/assembler differences.
  *         Only try to turn off the first display device.
  *         Fix OOPS at power off with no APM BIOS by Jan Echternach
  *                   <echter@informatik.uni-rostock.de>
@@ -227,6 +227,8 @@
 #include <linux/suspend.h>
 #include <linux/kthread.h>
 #include <linux/jiffies.h>
+#include <linux/acpi.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -975,20 +977,10 @@ recalc:
 
 static void apm_power_off(void)
 {
-	unsigned char po_bios_call[] = {
-		0xb8, 0x00, 0x10,	/* movw  $0x1000,ax  */
-		0x8e, 0xd0,		/* movw  ax,ss       */
-		0xbc, 0x00, 0xf0,	/* movw  $0xf000,sp  */
-		0xb8, 0x07, 0x53,	/* movw  $0x5307,ax  */
-		0xbb, 0x01, 0x00,	/* movw  $0x0001,bx  */
-		0xb9, 0x03, 0x00,	/* movw  $0x0003,cx  */
-		0xcd, 0x15		/* int   $0x15       */
-	};
-
 	/* Some bioses don't like being called from CPU != 0 */
 	if (apm_info.realmode_power_off) {
 		set_cpus_allowed_ptr(current, cpumask_of(0));
-		machine_real_restart(po_bios_call, sizeof(po_bios_call));
+		machine_real_restart(MRR_APM);
 	} else {
 		(void)set_system_power_state(APM_STATE_OFF);
 	}
@@ -1247,6 +1239,7 @@ static int suspend(int vetoable)
 
 	local_irq_disable();
 	sysdev_suspend(PMSG_SUSPEND);
+	syscore_suspend();
 
 	local_irq_enable();
 
@@ -1264,6 +1257,7 @@ static int suspend(int vetoable)
 		apm_error("suspend", err);
 	err = (err == APM_SUCCESS) ? 0 : -EIO;
 
+	syscore_resume();
 	sysdev_resume();
 	local_irq_enable();
 
@@ -1289,6 +1283,7 @@ static void standby(void)
 
 	local_irq_disable();
 	sysdev_suspend(PMSG_SUSPEND);
+	syscore_suspend();
 	local_irq_enable();
 
 	err = set_system_power_state(APM_STATE_STANDBY);
@@ -1296,6 +1291,7 @@ static void standby(void)
 		apm_error("standby", err);
 
 	local_irq_disable();
+	syscore_resume();
 	sysdev_resume();
 	local_irq_enable();
 
@@ -2331,12 +2327,11 @@ static int __init apm_init(void)
 		apm_info.disabled = 1;
 		return -ENODEV;
 	}
-	if (pm_flags & PM_ACPI) {
+	if (!acpi_disabled) {
 		printk(KERN_NOTICE "apm: overridden by ACPI.\n");
 		apm_info.disabled = 1;
 		return -ENODEV;
 	}
-	pm_flags |= PM_APM;
 
 	/*
 	 * Set up the long jump entry point to the APM BIOS, which is called
@@ -2428,7 +2423,6 @@ static void __exit apm_exit(void)
 		kthread_stop(kapmd_task);
 		kapmd_task = NULL;
 	}
-	pm_flags &= ~PM_APM;
 }
 
 module_init(apm_init);

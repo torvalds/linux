@@ -92,7 +92,7 @@ void r8712_set_ps_mode(struct _adapter *padapter, uint ps_mode, uint smart_ps)
  *
  * This will be called when CPWM interrupt is up.
  *
- * using to update cpwn of drv; and drv willl make a decision to up or
+ * using to update cpwn of drv; and drv will make a decision to up or
  * down pwr level
  */
 void r8712_cpwm_int_hdl(struct _adapter *padapter,

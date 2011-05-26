@@ -1,6 +1,8 @@
 #ifndef _XT_SOCKET_H
 #define _XT_SOCKET_H
 
+#include <linux/types.h>
+
 enum {
 	XT_SOCKET_TRANSPARENT = 1 << 0,
 };

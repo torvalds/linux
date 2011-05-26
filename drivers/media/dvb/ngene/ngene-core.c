@@ -45,6 +45,9 @@ static int one_adapter = 1;
 module_param(one_adapter, int, 0444);
 MODULE_PARM_DESC(one_adapter, "Use only one adapter.");
 
+static int shutdown_workaround;
+module_param(shutdown_workaround, int, 0644);
+MODULE_PARM_DESC(shutdown_workaround, "Activate workaround for shutdown problem with some chipsets.");
 
 static int debug;
 module_param(debug, int, 0444);
@@ -119,7 +122,7 @@ static void demux_tasklet(unsigned long data)
 						Cur->ngeneBuffer.SR.Flags &=
 							~0x40;
 						break;
-						/* Stop proccessing stream */
+						/* Stop processing stream */
 					}
 				} else {
 					/* We got a valid buffer,
@@ -130,7 +133,7 @@ static void demux_tasklet(unsigned long data)
 				printk(KERN_ERR DEVICE_NAME ": OOPS\n");
 				if (chan->HWState == HWSTATE_RUN) {
 					Cur->ngeneBuffer.SR.Flags &= ~0x40;
-					break;	/* Stop proccessing stream */
+					break;	/* Stop processing stream */
 				}
 			}
 			if (chan->AudioDTOUpdated) {
@@ -143,7 +146,7 @@ static void demux_tasklet(unsigned long data)
 			}
 		} else {
 			if (chan->HWState == HWSTATE_RUN) {
-				u32 Flags = 0;
+				u32 Flags = chan->DataFormatFlags;
 				IBufferExchange *exch1 = chan->pBufferExchange;
 				IBufferExchange *exch2 = chan->pBufferExchange2;
 				if (Cur->ngeneBuffer.SR.Flags & 0x01)
@@ -474,9 +477,9 @@ static u8 SPDIFConfiguration[10] = {
 
 /* Set NGENE I2S Config to transport stream compatible mode */
 
-static u8 TS_I2SConfiguration[4] = { 0x3E, 0x1A, 0x00, 0x00 }; /*3e 18 00 00 ?*/
+static u8 TS_I2SConfiguration[4] = { 0x3E, 0x18, 0x00, 0x00 };
 
-static u8 TS_I2SOutConfiguration[4] = { 0x80, 0x20, 0x00, 0x00 };
+static u8 TS_I2SOutConfiguration[4] = { 0x80, 0x04, 0x00, 0x00 };
 
 static u8 ITUDecoderSetup[4][16] = {
 	{0x1c, 0x13, 0x01, 0x68, 0x3d, 0x90, 0x14, 0x20,  /* SDTV */
@@ -749,13 +752,11 @@ void set_transfer(struct ngene_channel *chan, int state)
 		if (chan->mode & NGENE_IO_TSOUT) {
 			chan->pBufferExchange = tsout_exchange;
 			/* 0x66666666 = 50MHz *2^33 /250MHz */
-			chan->AudioDTOValue = 0x66666666;
-			/* set_dto(chan, 38810700+1000); */
-			/* set_dto(chan, 19392658); */
+			chan->AudioDTOValue = 0x80000000;
+			chan->AudioDTOUpdated = 1;
 		}
 		if (chan->mode & NGENE_IO_TSIN)
 			chan->pBufferExchange = tsin_exchange;
-		/* ngwritel(0, 0x9310); */
 		spin_unlock_irq(&chan->state_lock);
 	} else
 		;/* printk(KERN_INFO DEVICE_NAME ": lock=%08x\n",
@@ -1168,6 +1169,7 @@ static void ngene_release_buffers(struct ngene *dev)
 		iounmap(dev->iomem);
 	free_common_buffers(dev);
 	vfree(dev->tsout_buf);
+	vfree(dev->tsin_buf);
 	vfree(dev->ain_buf);
 	vfree(dev->vin_buf);
 	vfree(dev);
@@ -1183,6 +1185,13 @@ static int ngene_get_buffers(struct ngene *dev)
 			return -ENOMEM;
 		dvb_ringbuffer_init(&dev->tsout_rbuf,
 				    dev->tsout_buf, TSOUT_BUF_SIZE);
+	}
+	if (dev->card_info->io_type[2]&NGENE_IO_TSIN) {
+		dev->tsin_buf = vmalloc(TSIN_BUF_SIZE);
+		if (!dev->tsin_buf)
+			return -ENOMEM;
+		dvb_ringbuffer_init(&dev->tsin_rbuf,
+				    dev->tsin_buf, TSIN_BUF_SIZE);
 	}
 	if (dev->card_info->io_type[2] & NGENE_IO_AIN) {
 		dev->ain_buf = vmalloc(AIN_BUF_SIZE);
@@ -1257,6 +1266,10 @@ static int ngene_load_firm(struct ngene *dev)
 		fw_name = "ngene_17.fw";
 		dev->cmd_timeout_workaround = true;
 		break;
+	case 18:
+		size = 0;
+		fw_name = "ngene_18.fw";
+		break;
 	}
 
 	if (request_firmware(&fw, fw_name, &dev->pci_dev->dev) < 0) {
@@ -1266,6 +1279,8 @@ static int ngene_load_firm(struct ngene *dev)
 			": Copy %s to your hotplug directory!\n", fw_name);
 		return -1;
 	}
+	if (size == 0)
+		size = fw->size;
 	if (size != fw->size) {
 		printk(KERN_ERR DEVICE_NAME
 			": Firmware %s has invalid size!", fw_name);
@@ -1300,6 +1315,35 @@ static void ngene_stop(struct ngene *dev)
 		pci_disable_msi(dev->pci_dev);
 #endif
 }
+
+static int ngene_buffer_config(struct ngene *dev)
+{
+	int stat;
+
+	if (dev->card_info->fw_version >= 17) {
+		u8 tsin12_config[6]   = { 0x60, 0x60, 0x00, 0x00, 0x00, 0x00 };
+		u8 tsin1234_config[6] = { 0x30, 0x30, 0x00, 0x30, 0x30, 0x00 };
+		u8 tsio1235_config[6] = { 0x30, 0x30, 0x00, 0x28, 0x00, 0x38 };
+		u8 *bconf = tsin12_config;
+
+		if (dev->card_info->io_type[2]&NGENE_IO_TSIN &&
+		    dev->card_info->io_type[3]&NGENE_IO_TSIN) {
+			bconf = tsin1234_config;
+			if (dev->card_info->io_type[4]&NGENE_IO_TSOUT &&
+			    dev->ci.en)
+				bconf = tsio1235_config;
+		}
+		stat = ngene_command_config_free_buf(dev, bconf);
+	} else {
+		int bconf = BUFFER_CONFIG_4422;
+
+		if (dev->card_info->io_type[3] == NGENE_IO_TSIN)
+			bconf = BUFFER_CONFIG_3333;
+		stat = ngene_command_config_buf(dev, bconf);
+	}
+	return stat;
+}
+
 
 static int ngene_start(struct ngene *dev)
 {
@@ -1365,23 +1409,6 @@ static int ngene_start(struct ngene *dev)
 	if (stat < 0)
 		goto fail;
 
-	if (dev->card_info->fw_version == 17) {
-		u8 tsin4_config[6] = {
-			3072 / 64, 3072 / 64, 0, 3072 / 64, 3072 / 64, 0};
-		u8 default_config[6] = {
-			4096 / 64, 4096 / 64, 0, 2048 / 64, 2048 / 64, 0};
-		u8 *bconf = default_config;
-
-		if (dev->card_info->io_type[3] == NGENE_IO_TSIN)
-			bconf = tsin4_config;
-		dprintk(KERN_DEBUG DEVICE_NAME ": FW 17 buffer config\n");
-		stat = ngene_command_config_free_buf(dev, bconf);
-	} else {
-		int bconf = BUFFER_CONFIG_4422;
-		if (dev->card_info->io_type[3] == NGENE_IO_TSIN)
-			bconf = BUFFER_CONFIG_3333;
-		stat = ngene_command_config_buf(dev, bconf);
-	}
 	if (!stat)
 		return stat;
 
@@ -1397,9 +1424,6 @@ fail2:
 	return stat;
 }
 
-
-
-
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
@@ -1408,20 +1432,25 @@ static void release_channel(struct ngene_channel *chan)
 {
 	struct dvb_demux *dvbdemux = &chan->demux;
 	struct ngene *dev = chan->dev;
-	struct ngene_info *ni = dev->card_info;
-	int io = ni->io_type[chan->number];
 
-	if (chan->dev->cmd_timeout_workaround && chan->running)
+	if (chan->running)
 		set_transfer(chan, 0);
 
 	tasklet_kill(&chan->demux_tasklet);
 
-	if (io & (NGENE_IO_TSIN | NGENE_IO_TSOUT)) {
-		if (chan->fe) {
-			dvb_unregister_frontend(chan->fe);
-			dvb_frontend_detach(chan->fe);
-			chan->fe = NULL;
-		}
+	if (chan->ci_dev) {
+		dvb_unregister_device(chan->ci_dev);
+		chan->ci_dev = NULL;
+	}
+
+	if (chan->fe) {
+		dvb_unregister_frontend(chan->fe);
+		dvb_frontend_detach(chan->fe);
+		chan->fe = NULL;
+	}
+
+	if (chan->has_demux) {
+		dvb_net_release(&chan->dvbnet);
 		dvbdemux->dmx.close(&dvbdemux->dmx);
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
 					      &chan->hw_frontend);
@@ -1429,9 +1458,12 @@ static void release_channel(struct ngene_channel *chan)
 					      &chan->mem_frontend);
 		dvb_dmxdev_release(&chan->dmxdev);
 		dvb_dmx_release(&chan->demux);
+		chan->has_demux = false;
+	}
 
-		if (chan->number == 0 || !one_adapter)
-			dvb_unregister_adapter(&dev->adapter[chan->number]);
+	if (chan->has_adapter) {
+		dvb_unregister_adapter(&dev->adapter[chan->number]);
+		chan->has_adapter = false;
 	}
 }
 
@@ -1449,9 +1481,27 @@ static int init_channel(struct ngene_channel *chan)
 	chan->type = io;
 	chan->mode = chan->type;	/* for now only one mode */
 
+	if (io & NGENE_IO_TSIN) {
+		chan->fe = NULL;
+		if (ni->demod_attach[nr]) {
+			ret = ni->demod_attach[nr](chan);
+			if (ret < 0)
+				goto err;
+		}
+		if (chan->fe && ni->tuner_attach[nr]) {
+			ret = ni->tuner_attach[nr](chan);
+			if (ret < 0)
+				goto err;
+		}
+	}
+
+	if (!dev->ci.en && (io & NGENE_IO_TSOUT))
+		return 0;
+
 	if (io & (NGENE_IO_TSIN | NGENE_IO_TSOUT)) {
 		if (nr >= STREAM_AUDIOIN1)
 			chan->DataFormatFlags = DF_SWAP32;
+
 		if (nr == 0 || !one_adapter || dev->first_adapter == NULL) {
 			adapter = &dev->adapter[nr];
 			ret = dvb_register_adapter(adapter, "nGene",
@@ -1459,40 +1509,51 @@ static int init_channel(struct ngene_channel *chan)
 						   &chan->dev->pci_dev->dev,
 						   adapter_nr);
 			if (ret < 0)
-				return ret;
+				goto err;
 			if (dev->first_adapter == NULL)
 				dev->first_adapter = adapter;
-		} else {
+			chan->has_adapter = true;
+		} else
 			adapter = dev->first_adapter;
-		}
+	}
 
+	if (dev->ci.en && (io & NGENE_IO_TSOUT)) {
+		dvb_ca_en50221_init(adapter, dev->ci.en, 0, 1);
+		set_transfer(chan, 1);
+		chan->dev->channel[2].DataFormatFlags = DF_SWAP32;
+		set_transfer(&chan->dev->channel[2], 1);
+		dvb_register_device(adapter, &chan->ci_dev,
+				    &ngene_dvbdev_ci, (void *) chan,
+				    DVB_DEVICE_SEC);
+		if (!chan->ci_dev)
+			goto err;
+	}
+
+	if (chan->fe) {
+		if (dvb_register_frontend(adapter, chan->fe) < 0)
+			goto err;
+		chan->has_demux = true;
+	}
+
+	if (chan->has_demux) {
 		ret = my_dvb_dmx_ts_card_init(dvbdemux, "SW demux",
 					      ngene_start_feed,
 					      ngene_stop_feed, chan);
 		ret = my_dvb_dmxdev_ts_card_init(&chan->dmxdev, &chan->demux,
 						 &chan->hw_frontend,
 						 &chan->mem_frontend, adapter);
+		ret = dvb_net_init(adapter, &chan->dvbnet, &chan->demux.dmx);
 	}
 
-	if (io & NGENE_IO_TSIN) {
-		chan->fe = NULL;
-		if (ni->demod_attach[nr])
-			ni->demod_attach[nr](chan);
-		if (chan->fe) {
-			if (dvb_register_frontend(adapter, chan->fe) < 0) {
-				if (chan->fe->ops.release)
-					chan->fe->ops.release(chan->fe);
-				chan->fe = NULL;
-			}
-		}
-		if (chan->fe && ni->tuner_attach[nr])
-			if (ni->tuner_attach[nr] (chan) < 0) {
-				printk(KERN_ERR DEVICE_NAME
-				       ": Tuner attach failed on channel %d!\n",
-				       nr);
-			}
-	}
 	return ret;
+
+err:
+	if (chan->fe) {
+		dvb_frontend_detach(chan->fe);
+		chan->fe = NULL;
+	}
+	release_channel(chan);
+	return 0;
 }
 
 static int init_channels(struct ngene *dev)
@@ -1510,6 +1571,57 @@ static int init_channels(struct ngene *dev)
 	return 0;
 }
 
+static void cxd_attach(struct ngene *dev)
+{
+	struct ngene_ci *ci = &dev->ci;
+
+	ci->en = cxd2099_attach(0x40, dev, &dev->channel[0].i2c_adapter);
+	ci->dev = dev;
+	return;
+}
+
+static void cxd_detach(struct ngene *dev)
+{
+	struct ngene_ci *ci = &dev->ci;
+
+	dvb_ca_en50221_release(ci->en);
+	kfree(ci->en);
+	ci->en = 0;
+}
+
+/***********************************/
+/* workaround for shutdown failure */
+/***********************************/
+
+static void ngene_unlink(struct ngene *dev)
+{
+	struct ngene_command com;
+
+	com.cmd.hdr.Opcode = CMD_MEM_WRITE;
+	com.cmd.hdr.Length = 3;
+	com.cmd.MemoryWrite.address = 0x910c;
+	com.cmd.MemoryWrite.data = 0xff;
+	com.in_len = 3;
+	com.out_len = 1;
+
+	down(&dev->cmd_mutex);
+	ngwritel(0, NGENE_INT_ENABLE);
+	ngene_command_mutex(dev, &com);
+	up(&dev->cmd_mutex);
+}
+
+void ngene_shutdown(struct pci_dev *pdev)
+{
+	struct ngene *dev = (struct ngene *)pci_get_drvdata(pdev);
+
+	if (!dev || !shutdown_workaround)
+		return;
+
+	printk(KERN_INFO DEVICE_NAME ": shutdown workaround...\n");
+	ngene_unlink(dev);
+	pci_disable_device(pdev);
+}
+
 /****************************************************************************/
 /* device probe/remove calls ************************************************/
 /****************************************************************************/
@@ -1522,6 +1634,8 @@ void __devexit ngene_remove(struct pci_dev *pdev)
 	tasklet_kill(&dev->event_tasklet);
 	for (i = MAX_STREAM - 1; i >= 0; i--)
 		release_channel(&dev->channel[i]);
+	if (dev->ci.en)
+		cxd_detach(dev);
 	ngene_stop(dev);
 	ngene_release_buffers(dev);
 	pci_set_drvdata(pdev, NULL);
@@ -1556,6 +1670,13 @@ int __devinit ngene_probe(struct pci_dev *pci_dev,
 	stat = ngene_start(dev);
 	if (stat < 0)
 		goto fail1;
+
+	cxd_attach(dev);
+
+	stat = ngene_buffer_config(dev);
+	if (stat < 0)
+		goto fail1;
+
 
 	dev->i2c_current_bus = -1;
 

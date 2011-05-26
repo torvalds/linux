@@ -87,22 +87,6 @@ static int linear_mergeable_bvec(struct request_queue *q,
 	return maxsectors << 9;
 }
 
-static void linear_unplug(struct request_queue *q)
-{
-	mddev_t *mddev = q->queuedata;
-	linear_conf_t *conf;
-	int i;
-
-	rcu_read_lock();
-	conf = rcu_dereference(mddev->private);
-
-	for (i=0; i < mddev->raid_disks; i++) {
-		struct request_queue *r_queue = bdev_get_queue(conf->disks[i].rdev->bdev);
-		blk_unplug(r_queue);
-	}
-	rcu_read_unlock();
-}
-
 static int linear_congested(void *data, int bits)
 {
 	mddev_t *mddev = data;
@@ -224,11 +208,9 @@ static int linear_run (mddev_t *mddev)
 	md_set_array_sectors(mddev, linear_size(mddev, 0, 0));
 
 	blk_queue_merge_bvec(mddev->queue, linear_mergeable_bvec);
-	mddev->queue->unplug_fn = linear_unplug;
 	mddev->queue->backing_dev_info.congested_fn = linear_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
-	md_integrity_register(mddev);
-	return 0;
+	return md_integrity_register(mddev);
 }
 
 static void free_conf(struct rcu_head *head)

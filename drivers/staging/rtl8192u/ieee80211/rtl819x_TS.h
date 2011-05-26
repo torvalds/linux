@@ -44,7 +44,7 @@ typedef struct _RX_TS_RECORD {
 	u16				RxTimeoutIndicateSeq;
 	struct list_head		RxPendingPktList;
 	struct timer_list		RxPktPendingTimer;
-	BA_RECORD			RxAdmittedBARecord;	 // For BA Recepient
+	BA_RECORD			RxAdmittedBARecord;	 // For BA Recipient
 	u16				RxLastSeqNum;
 	u8				RxLastFragNum;
 	u8				num;

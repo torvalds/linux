@@ -57,7 +57,7 @@ struct node_memory_chunk_s {
 static struct node_memory_chunk_s __initdata node_memory_chunk[MAXCHUNKS];
 
 static int __initdata num_memory_chunks; /* total number of memory chunks */
-static u8 __initdata apicid_to_pxm[MAX_APICID];
+static u8 __initdata apicid_to_pxm[MAX_LOCAL_APIC];
 
 int acpi_numa __initdata;
 
@@ -211,8 +211,10 @@ int __init get_memcfg_from_srat(void)
 {
 	int i, j, nid;
 
-
 	if (srat_disabled())
+		goto out_fail;
+
+	if (acpi_numa_init() < 0)
 		goto out_fail;
 
 	if (num_memory_chunks == 0) {
@@ -254,8 +256,8 @@ int __init get_memcfg_from_srat(void)
 	printk(KERN_DEBUG "Number of memory chunks in system = %d\n",
 			 num_memory_chunks);
 
-	for (i = 0; i < MAX_APICID; i++)
-		apicid_2_node[i] = pxm_to_node(apicid_to_pxm[i]);
+	for (i = 0; i < MAX_LOCAL_APIC; i++)
+		set_apicid_to_node(i, pxm_to_node(apicid_to_pxm[i]));
 
 	for (j = 0; j < num_memory_chunks; j++){
 		struct node_memory_chunk_s * chunk = &node_memory_chunk[j];

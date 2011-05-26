@@ -1978,15 +1978,15 @@ static s32 e1000_ready_nvm_eeprom(struct e1000_hw *hw)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	u32 eecd = er32(EECD);
-	u16 timeout = 0;
 	u8 spi_stat_reg;
 
 	if (nvm->type == e1000_nvm_eeprom_spi) {
+		u16 timeout = NVM_MAX_RETRY_SPI;
+
 		/* Clear SK and CS */
 		eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
 		ew32(EECD, eecd);
 		udelay(1);
-		timeout = NVM_MAX_RETRY_SPI;
 
 		/*
 		 * Read "Status Register" repeatedly until the LSB is cleared.

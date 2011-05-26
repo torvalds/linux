@@ -239,7 +239,7 @@ sbecom_proc_get_sbe_info (char *buffer, char **start, off_t offset,
      */
 
 #if 1
-    /* #4 - intepretation of above = set EOF, return len */
+    /* #4 - interpretation of above = set EOF, return len */
     *eof = 1;
 #endif
 

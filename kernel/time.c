@@ -150,7 +150,7 @@ static inline void warp_clock(void)
  * various programs will get confused when the clock gets warped.
  */
 
-int do_sys_settimeofday(struct timespec *tv, struct timezone *tz)
+int do_sys_settimeofday(const struct timespec *tv, const struct timezone *tz)
 {
 	static int firsttime = 1;
 	int error = 0;
@@ -645,7 +645,7 @@ u64 nsec_to_clock_t(u64 x)
 }
 
 /**
- * nsecs_to_jiffies - Convert nsecs in u64 to jiffies
+ * nsecs_to_jiffies64 - Convert nsecs in u64 to jiffies64
  *
  * @n:	nsecs in u64
  *
@@ -657,7 +657,7 @@ u64 nsec_to_clock_t(u64 x)
  *   NSEC_PER_SEC = 10^9 = (5^9 * 2^9) = (1953125 * 512)
  *   ULLONG_MAX ns = 18446744073.709551615 secs = about 584 years
  */
-unsigned long nsecs_to_jiffies(u64 n)
+u64 nsecs_to_jiffies64(u64 n)
 {
 #if (NSEC_PER_SEC % HZ) == 0
 	/* Common case, HZ = 100, 128, 200, 250, 256, 500, 512, 1000 etc. */
@@ -674,22 +674,23 @@ unsigned long nsecs_to_jiffies(u64 n)
 #endif
 }
 
-#if (BITS_PER_LONG < 64)
-u64 get_jiffies_64(void)
+/**
+ * nsecs_to_jiffies - Convert nsecs in u64 to jiffies
+ *
+ * @n:	nsecs in u64
+ *
+ * Unlike {m,u}secs_to_jiffies, type of input is not unsigned int but u64.
+ * And this doesn't return MAX_JIFFY_OFFSET since this function is designed
+ * for scheduler, not for use in device drivers to calculate timeout value.
+ *
+ * note:
+ *   NSEC_PER_SEC = 10^9 = (5^9 * 2^9) = (1953125 * 512)
+ *   ULLONG_MAX ns = 18446744073.709551615 secs = about 584 years
+ */
+unsigned long nsecs_to_jiffies(u64 n)
 {
-	unsigned long seq;
-	u64 ret;
-
-	do {
-		seq = read_seqbegin(&xtime_lock);
-		ret = jiffies_64;
-	} while (read_seqretry(&xtime_lock, seq));
-	return ret;
+	return (unsigned long)nsecs_to_jiffies64(n);
 }
-EXPORT_SYMBOL(get_jiffies_64);
-#endif
-
-EXPORT_SYMBOL(jiffies);
 
 /*
  * Add two timespec values and do a safety check for overflow.

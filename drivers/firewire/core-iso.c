@@ -235,45 +235,45 @@ static int manage_bandwidth(struct fw_card *card, int irm_id, int generation,
 static int manage_channel(struct fw_card *card, int irm_id, int generation,
 		u32 channels_mask, u64 offset, bool allocate, __be32 data[2])
 {
-	__be32 c, all, old;
-	int i, ret = -EIO, retry = 5;
+	__be32 bit, all, old;
+	int channel, ret = -EIO, retry = 5;
 
 	old = all = allocate ? cpu_to_be32(~0) : 0;
 
-	for (i = 0; i < 32; i++) {
-		if (!(channels_mask & 1 << i))
+	for (channel = 0; channel < 32; channel++) {
+		if (!(channels_mask & 1 << channel))
 			continue;
 
 		ret = -EBUSY;
 
-		c = cpu_to_be32(1 << (31 - i));
-		if ((old & c) != (all & c))
+		bit = cpu_to_be32(1 << (31 - channel));
+		if ((old & bit) != (all & bit))
 			continue;
 
 		data[0] = old;
-		data[1] = old ^ c;
+		data[1] = old ^ bit;
 		switch (fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
 					   irm_id, generation, SCODE_100,
 					   offset, data, 8)) {
 		case RCODE_GENERATION:
 			/* A generation change frees all channels. */
-			return allocate ? -EAGAIN : i;
+			return allocate ? -EAGAIN : channel;
 
 		case RCODE_COMPLETE:
 			if (data[0] == old)
-				return i;
+				return channel;
 
 			old = data[0];
 
 			/* Is the IRM 1394a-2000 compliant? */
-			if ((data[0] & c) == (data[1] & c))
+			if ((data[0] & bit) == (data[1] & bit))
 				continue;
 
 			/* 1394-1995 IRM, fall through to retry. */
 		default:
 			if (retry) {
 				retry--;
-				i--;
+				channel--;
 			} else {
 				ret = -EIO;
 			}
@@ -362,3 +362,4 @@ void fw_iso_resource_manage(struct fw_card *card, int generation,
 		*channel = ret;
 	}
 }
+EXPORT_SYMBOL(fw_iso_resource_manage);

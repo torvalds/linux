@@ -40,7 +40,7 @@
 
 #define ICCR0_AME	(1 << 7)	/* Address match enable */
 #define ICCR0_TIE	(1 << 6)	/* Transmit FIFO interrupt enable */
-#define ICCR0_RIE	(1 << 5)	/* Recieve FIFO interrupt enable */
+#define ICCR0_RIE	(1 << 5)	/* Receive FIFO interrupt enable */
 #define ICCR0_RXE	(1 << 4)	/* Receive enable */
 #define ICCR0_TXE	(1 << 3)	/* Transmit enable */
 #define ICCR0_TUS	(1 << 2)	/* Transmit FIFO underrun select */
@@ -483,7 +483,7 @@ static irqreturn_t pxa_irda_fir_irq(int irq, void *dev_id)
 	}
 
 	if (icsr0 & ICSR0_EIF) {
-		/* An error in FIFO occured, or there is a end of frame */
+		/* An error in FIFO occurred, or there is a end of frame */
 		pxa_irda_fir_irq_eif(si, dev, icsr0);
 	}
 

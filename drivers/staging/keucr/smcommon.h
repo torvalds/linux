@@ -25,8 +25,6 @@ Define Difinetion
 #define ERR_NoSmartMedia    0x003A /* Medium Not Present */
 
 /***************************************************************************/
-char Bit_D_Count(BYTE);
-char Bit_D_CountWord(WORD);
 void StringCopy(char *, char *, int);
 int  StringCmp(char *, char *, int);
 

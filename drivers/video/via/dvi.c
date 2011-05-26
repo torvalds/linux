@@ -195,7 +195,9 @@ void viafb_dvi_set_mode(struct VideoModeTable *mode, int mode_bpp,
 	struct crt_mode_table *pDviTiming;
 	unsigned long desirePixelClock, maxPixelClock;
 	pDviTiming = mode->crtc;
-	desirePixelClock = pDviTiming->clk / 1000000;
+	desirePixelClock = pDviTiming->refresh_rate
+		* pDviTiming->crtc.hor_total * pDviTiming->crtc.ver_total
+		/ 1000000;
 	maxPixelClock = (unsigned long)viaparinfo->
 		tmds_setting_info->max_pixel_clock;
 

@@ -832,7 +832,7 @@ static int rfcomm_tty_write_room(struct tty_struct *tty)
 	return room;
 }
 
-static int rfcomm_tty_ioctl(struct tty_struct *tty, struct file *filp, unsigned int cmd, unsigned long arg)
+static int rfcomm_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 {
 	BT_DBG("tty %p cmd 0x%02x", tty, cmd);
 
@@ -1091,7 +1091,7 @@ static void rfcomm_tty_hangup(struct tty_struct *tty)
 	}
 }
 
-static int rfcomm_tty_tiocmget(struct tty_struct *tty, struct file *filp)
+static int rfcomm_tty_tiocmget(struct tty_struct *tty)
 {
 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
 
@@ -1100,7 +1100,7 @@ static int rfcomm_tty_tiocmget(struct tty_struct *tty, struct file *filp)
 	return dev->modem_status;
 }
 
-static int rfcomm_tty_tiocmset(struct tty_struct *tty, struct file *filp, unsigned int set, unsigned int clear)
+static int rfcomm_tty_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear)
 {
 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
 	struct rfcomm_dlc *dlc = dev->dlc;

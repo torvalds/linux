@@ -37,6 +37,16 @@
 #ifndef _TIPC_ADDR_H
 #define _TIPC_ADDR_H
 
+static inline u32 tipc_zone_mask(u32 addr)
+{
+	return addr & 0xff000000u;
+}
+
+static inline u32 tipc_cluster_mask(u32 addr)
+{
+	return addr & 0xfffff000u;
+}
+
 static inline int in_own_cluster(u32 addr)
 {
 	return !((addr ^ tipc_own_addr) >> 12);
@@ -49,14 +59,13 @@ static inline int in_own_cluster(u32 addr)
  * after a network hop.
  */
 
-static inline int addr_domain(int sc)
+static inline u32 addr_domain(u32 sc)
 {
 	if (likely(sc == TIPC_NODE_SCOPE))
 		return tipc_own_addr;
 	if (sc == TIPC_CLUSTER_SCOPE)
-		return tipc_addr(tipc_zone(tipc_own_addr),
-				 tipc_cluster(tipc_own_addr), 0);
-	return tipc_addr(tipc_zone(tipc_own_addr), 0, 0);
+		return tipc_cluster_mask(tipc_own_addr);
+	return tipc_zone_mask(tipc_own_addr);
 }
 
 int tipc_addr_domain_valid(u32);

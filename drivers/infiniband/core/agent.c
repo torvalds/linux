@@ -101,7 +101,8 @@ void agent_send_response(struct ib_mad *mad, struct ib_grh *grh,
 	agent = port_priv->agent[qpn];
 	ah = ib_create_ah_from_wc(agent->qp->pd, wc, grh, port_num);
 	if (IS_ERR(ah)) {
-		printk(KERN_ERR SPFX "ib_create_ah_from_wc error\n");
+		printk(KERN_ERR SPFX "ib_create_ah_from_wc error %ld\n",
+			PTR_ERR(ah));
 		return;
 	}
 

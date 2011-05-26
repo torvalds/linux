@@ -15,20 +15,31 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/thread_info.h>
-#include <asm/fixmap.h>
-#include <hv/hypervisor.h>
+#include <asm/timex.h>
 
 void __udelay(unsigned long usecs)
 {
-	hv_nanosleep(usecs * 1000);
+	if (usecs > ULONG_MAX / 1000) {
+		WARN_ON_ONCE(usecs > ULONG_MAX / 1000);
+		usecs = ULONG_MAX / 1000;
+	}
+	__ndelay(usecs * 1000);
 }
 EXPORT_SYMBOL(__udelay);
 
 void __ndelay(unsigned long nsecs)
 {
-	hv_nanosleep(nsecs);
+	cycles_t target = get_cycles();
+	target += ns2cycles(nsecs);
+	while (get_cycles() < target)
+		cpu_relax();
 }
 EXPORT_SYMBOL(__ndelay);
 
-/* FIXME: should be declared in a header somewhere. */
+void __delay(unsigned long cycles)
+{
+	cycles_t target = get_cycles() + cycles;
+	while (get_cycles() < target)
+		cpu_relax();
+}
 EXPORT_SYMBOL(__delay);

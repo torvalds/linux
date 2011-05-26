@@ -146,7 +146,8 @@ static void test_cipher_speed(const char *algo, int enc, unsigned int sec,
 			      unsigned int tcount, u8 *keysize)
 {
 	unsigned int ret, i, j, iv_len;
-	const char *key, iv[128];
+	const char *key;
+	char iv[128];
 	struct crypto_blkcipher *tfm;
 	struct blkcipher_desc desc;
 	const char *e;

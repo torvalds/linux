@@ -12,7 +12,6 @@
 #include <linux/uio.h>
 #include <linux/socket.h>
 #include <linux/in.h>
-#include <linux/kref.h>
 #include <linux/ktime.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/xdr.h>
@@ -146,7 +145,7 @@ enum xprt_transports {
 };
 
 struct rpc_xprt {
-	struct kref		kref;		/* Reference count */
+	atomic_t		count;		/* Reference count */
 	struct rpc_xprt_ops *	ops;		/* transport methods */
 
 	const struct rpc_timeout *timeout;	/* timeout parms */

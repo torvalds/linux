@@ -840,8 +840,7 @@ static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 /* OF Driver                                                                */
 /* ======================================================================== */
 
-static int __devinit
-mpc52xx_fec_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit mpc52xx_fec_probe(struct platform_device *op)
 {
 	int rv;
 	struct net_device *ndev;
@@ -1049,7 +1048,7 @@ static struct of_device_id mpc52xx_fec_match[] = {
 
 MODULE_DEVICE_TABLE(of, mpc52xx_fec_match);
 
-static struct of_platform_driver mpc52xx_fec_driver = {
+static struct platform_driver mpc52xx_fec_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -1073,21 +1072,21 @@ mpc52xx_fec_init(void)
 {
 #ifdef CONFIG_FEC_MPC52xx_MDIO
 	int ret;
-	ret = of_register_platform_driver(&mpc52xx_fec_mdio_driver);
+	ret = platform_driver_register(&mpc52xx_fec_mdio_driver);
 	if (ret) {
 		printk(KERN_ERR DRIVER_NAME ": failed to register mdio driver\n");
 		return ret;
 	}
 #endif
-	return of_register_platform_driver(&mpc52xx_fec_driver);
+	return platform_driver_register(&mpc52xx_fec_driver);
 }
 
 static void __exit
 mpc52xx_fec_exit(void)
 {
-	of_unregister_platform_driver(&mpc52xx_fec_driver);
+	platform_driver_unregister(&mpc52xx_fec_driver);
 #ifdef CONFIG_FEC_MPC52xx_MDIO
-	of_unregister_platform_driver(&mpc52xx_fec_mdio_driver);
+	platform_driver_unregister(&mpc52xx_fec_mdio_driver);
 #endif
 }
 

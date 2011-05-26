@@ -229,6 +229,9 @@ static u64 scan_dispatch_log(u64 stop_tb)
 	u64 stolen = 0;
 	u64 dtb;
 
+	if (!dtl)
+		return 0;
+
 	if (i == vpa->dtl_idx)
 		return 0;
 	while (i < vpa->dtl_idx) {
@@ -356,7 +359,7 @@ void account_system_vtime(struct task_struct *tsk)
 	}
 	get_paca()->user_time_scaled += user_scaled;
 
-	if (in_irq() || idle_task(smp_processor_id()) != tsk) {
+	if (in_interrupt() || idle_task(smp_processor_id()) != tsk) {
 		account_system_time(tsk, 0, delta, sys_scaled);
 		if (stolen)
 			account_steal_time(stolen);
@@ -577,13 +580,20 @@ void timer_interrupt(struct pt_regs * regs)
 	struct clock_event_device *evt = &decrementer->event;
 	u64 now;
 
+	/* Ensure a positive value is written to the decrementer, or else
+	 * some CPUs will continue to take decrementer exceptions.
+	 */
+	set_dec(DECREMENTER_MAX);
+
+	/* Some implementations of hotplug will get timer interrupts while
+	 * offline, just ignore these
+	 */
+	if (!cpu_online(smp_processor_id()))
+		return;
+
 	trace_timer_interrupt_entry(regs);
 
 	__get_cpu_var(irq_stat).timer_irqs++;
-
-	/* Ensure a positive value is written to the decrementer, or else
-	 * some CPUs will continuue to take decrementer exceptions */
-	set_dec(DECREMENTER_MAX);
 
 #if defined(CONFIG_PPC32) && defined(CONFIG_PMAC)
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)

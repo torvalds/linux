@@ -51,7 +51,7 @@
  * use byte 27 of the SCB as a pseudo-next pointer and to thread a list
  * of SCBs that are awaiting selection.  Since 0-0xfe are valid SCB indexes, 
  * SCB_LIST_NULL is 0xff which is out of range.  An entry is also added to
- * this list everytime a request sense occurs or after completing a non-tagged
+ * this list every time a request sense occurs or after completing a non-tagged
  * command for which a second SCB has been queued.  The sequencer will
  * automatically consume the entries.
  */
@@ -696,7 +696,7 @@ p_status:
  * This is done to allow the hsot to send messages outside of an identify
  * sequence while protecting the seqencer from testing the MK_MESSAGE bit
  * on an SCB that might not be for the current nexus. (For example, a
- * BDR message in responce to a bad reselection would leave us pointed to
+ * BDR message in response to a bad reselection would leave us pointed to
  * an SCB that doesn't have anything to do with the current target).
  * Otherwise, treat MSG_OUT as a 1 byte message to send (abort, abort tag,
  * bus device reset).
@@ -716,8 +716,8 @@ p_mesgout_identify:
 	} else {
 		and	SINDEX,0x7,SCB_TCL;	/* lun */
 	}
-	and	A,DISCENB,SCB_CONTROL;	/* mask off disconnect privledge */
-	or	SINDEX,A;		/* or in disconnect privledge */
+	and	A,DISCENB,SCB_CONTROL;	/* mask off disconnect privilege */
+	or	SINDEX,A;		/* or in disconnect privilege */
 	or	SINDEX,MSG_IDENTIFYFLAG;
 p_mesgout_mk_message:
 	test	SCB_CONTROL,MK_MESSAGE  jz p_mesgout_tag;

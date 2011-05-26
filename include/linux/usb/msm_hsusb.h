@@ -55,7 +55,7 @@ enum otg_control_type {
 
 /**
  * struct msm_otg_platform_data - platform device data
- *              for msm72k_otg driver.
+ *              for msm_otg driver.
  * @phy_init_seq: PHY configuration sequence. val, reg pairs
  *              terminated by -1.
  * @vbus_power: VBUS power on/off routine.

@@ -151,13 +151,13 @@ static struct snd_soc_ops raumfeld_cs4270_ops = {
 	.hw_params = raumfeld_cs4270_hw_params,
 };
 
-static int raumfeld_line_suspend(struct platform_device *pdev, pm_message_t state)
+static int raumfeld_line_suspend(struct snd_soc_card *card)
 {
 	raumfeld_enable_audio(false);
 	return 0;
 }
 
-static int raumfeld_line_resume(struct platform_device *pdev)
+static int raumfeld_line_resume(struct snd_soc_card *card)
 {
 	raumfeld_enable_audio(true);
 	return 0;
@@ -229,19 +229,19 @@ static struct snd_soc_dai_link raumfeld_dai[] = {
 {
 	.name		= "ak4104",
 	.stream_name	= "Playback",
-	.cpu_dai_name = "pxa-ssp-dai.1",
-	.codec_dai_name = "ak4104-hifi",
-	.platform_name = "pxa-pcm-audio",
+	.cpu_dai_name	= "pxa-ssp-dai.1",
+	.codec_dai_name	= "ak4104-hifi",
+	.platform_name	= "pxa-pcm-audio",
 	.ops		= &raumfeld_ak4104_ops,
-	.codec_name = "ak4104-codec.0",
+	.codec_name	= "ak4104-codec.0",
 },
 {
 	.name		= "CS4270",
 	.stream_name	= "CS4270",
-	.cpu_dai_name = "pxa-ssp-dai.0",
-	.platform_name = "pxa-pcm-audio",
-	.codec_dai_name = "cs4270-hifi",
-	.codec_name = "cs4270-codec.0-0048",
+	.cpu_dai_name	= "pxa-ssp-dai.0",
+	.platform_name	= "pxa-pcm-audio",
+	.codec_dai_name	= "cs4270-hifi",
+	.codec_name	= "cs4270-codec.0-0048",
 	.ops		= &raumfeld_cs4270_ops,
 },};
 

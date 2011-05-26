@@ -73,11 +73,27 @@ static struct stedma40_chan_cfg dma40_memcpy_conf_log = {
  */
 static const dma_addr_t dma40_rx_map[DB5500_DMA_NR_DEV] = {
 	[DB5500_DMA_DEV24_SDMMC0_RX] = -1,
+	[DB5500_DMA_DEV38_USB_OTG_IEP_8] = -1,
+	[DB5500_DMA_DEV23_USB_OTG_IEP_7_15] = -1,
+	[DB5500_DMA_DEV22_USB_OTG_IEP_6_14] = -1,
+	[DB5500_DMA_DEV21_USB_OTG_IEP_5_13] = -1,
+	[DB5500_DMA_DEV20_USB_OTG_IEP_4_12] = -1,
+	[DB5500_DMA_DEV6_USB_OTG_IEP_3_11] = -1,
+	[DB5500_DMA_DEV5_USB_OTG_IEP_2_10] = -1,
+	[DB5500_DMA_DEV4_USB_OTG_IEP_1_9] = -1,
 };
 
 /* Mapping between destination event lines and physical device address */
 static const dma_addr_t dma40_tx_map[DB5500_DMA_NR_DEV] = {
 	[DB5500_DMA_DEV24_SDMMC0_TX] = -1,
+	[DB5500_DMA_DEV38_USB_OTG_OEP_8] = -1,
+	[DB5500_DMA_DEV23_USB_OTG_OEP_7_15] = -1,
+	[DB5500_DMA_DEV22_USB_OTG_OEP_6_14] = -1,
+	[DB5500_DMA_DEV21_USB_OTG_OEP_5_13] = -1,
+	[DB5500_DMA_DEV20_USB_OTG_OEP_4_12] = -1,
+	[DB5500_DMA_DEV6_USB_OTG_OEP_3_11] = -1,
+	[DB5500_DMA_DEV5_USB_OTG_OEP_2_10] = -1,
+	[DB5500_DMA_DEV4_USB_OTG_OEP_1_9] = -1,
 };
 
 static int dma40_memcpy_event[] = {

@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/core.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/timb_gpio.h>
@@ -195,7 +196,7 @@ out:
 
 static void timbgpio_irq(unsigned int irq, struct irq_desc *desc)
 {
-	struct timbgpio *tgpio = get_irq_data(irq);
+	struct timbgpio *tgpio = irq_get_handler_data(irq);
 	unsigned long ipr;
 	int offset;
 
@@ -228,7 +229,7 @@ static int __devinit timbgpio_probe(struct platform_device *pdev)
 	struct gpio_chip *gc;
 	struct timbgpio *tgpio;
 	struct resource *iomem;
-	struct timbgpio_platform_data *pdata = pdev->dev.platform_data;
+	struct timbgpio_platform_data *pdata = mfd_get_data(pdev);
 	int irq = platform_get_irq(pdev, 0);
 
 	if (!pdata || pdata->nr_pins > 32) {
@@ -291,16 +292,16 @@ static int __devinit timbgpio_probe(struct platform_device *pdev)
 		return 0;
 
 	for (i = 0; i < pdata->nr_pins; i++) {
-		set_irq_chip_and_handler_name(tgpio->irq_base + i,
+		irq_set_chip_and_handler_name(tgpio->irq_base + i,
 			&timbgpio_irqchip, handle_simple_irq, "mux");
-		set_irq_chip_data(tgpio->irq_base + i, tgpio);
+		irq_set_chip_data(tgpio->irq_base + i, tgpio);
 #ifdef CONFIG_ARM
 		set_irq_flags(tgpio->irq_base + i, IRQF_VALID | IRQF_PROBE);
 #endif
 	}
 
-	set_irq_data(irq, tgpio);
-	set_irq_chained_handler(irq, timbgpio_irq);
+	irq_set_handler_data(irq, tgpio);
+	irq_set_chained_handler(irq, timbgpio_irq);
 
 	return 0;
 
@@ -319,20 +320,19 @@ err_mem:
 static int __devexit timbgpio_remove(struct platform_device *pdev)
 {
 	int err;
-	struct timbgpio_platform_data *pdata = pdev->dev.platform_data;
 	struct timbgpio *tgpio = platform_get_drvdata(pdev);
 	struct resource *iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int irq = platform_get_irq(pdev, 0);
 
 	if (irq >= 0 && tgpio->irq_base > 0) {
 		int i;
-		for (i = 0; i < pdata->nr_pins; i++) {
-			set_irq_chip(tgpio->irq_base + i, NULL);
-			set_irq_chip_data(tgpio->irq_base + i, NULL);
+		for (i = 0; i < tgpio->gpio.ngpio; i++) {
+			irq_set_chip(tgpio->irq_base + i, NULL);
+			irq_set_chip_data(tgpio->irq_base + i, NULL);
 		}
 
-		set_irq_handler(irq, NULL);
-		set_irq_data(irq, NULL);
+		irq_set_handler(irq, NULL);
+		irq_set_handler_data(irq, NULL);
 	}
 
 	err = gpiochip_remove(&tgpio->gpio);

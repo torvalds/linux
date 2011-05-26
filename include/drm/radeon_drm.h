@@ -641,7 +641,7 @@ typedef struct drm_radeon_vertex2 {
 } drm_radeon_vertex2_t;
 
 /* v1.3 - obsoletes drm_radeon_vertex2
- *      - allows arbitarily large cliprect list
+ *      - allows arbitrarily large cliprect list
  *      - allows updating of tcl packet, vector and scalar state
  *      - allows memory-efficient description of state updates
  *      - allows state to be emitted without a primitive
@@ -908,6 +908,9 @@ struct drm_radeon_cs {
 #define RADEON_INFO_WANT_HYPERZ		0x07
 #define RADEON_INFO_WANT_CMASK		0x08 /* get access to CMASK on r300 */
 #define RADEON_INFO_CLOCK_CRYSTAL_FREQ	0x09 /* clock crystal frequency */
+#define RADEON_INFO_NUM_BACKENDS	0x0a /* DB/backends for r600+ - need for OQ */
+#define RADEON_INFO_NUM_TILE_PIPES	0x0b /* tile pipes for r600+ */
+#define RADEON_INFO_FUSION_GART_WORKING	0x0c /* fusion writes to GTT were broken before this */
 
 struct drm_radeon_info {
 	uint32_t		request;

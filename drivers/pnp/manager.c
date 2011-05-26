@@ -171,6 +171,7 @@ __add:
 	return 0;
 }
 
+#ifdef CONFIG_ISA_DMA_API
 static int pnp_assign_dma(struct pnp_dev *dev, struct pnp_dma *rule, int idx)
 {
 	struct resource *res, local_res;
@@ -210,6 +211,7 @@ __add:
 	pnp_add_dma_resource(dev, res->start, res->flags);
 	return 0;
 }
+#endif /* CONFIG_ISA_DMA_API */
 
 void pnp_init_resources(struct pnp_dev *dev)
 {
@@ -234,7 +236,8 @@ static void pnp_clean_resource_table(struct pnp_dev *dev)
 static int pnp_assign_resources(struct pnp_dev *dev, int set)
 {
 	struct pnp_option *option;
-	int nport = 0, nmem = 0, nirq = 0, ndma = 0;
+	int nport = 0, nmem = 0, nirq = 0;
+	int ndma __maybe_unused = 0;
 	int ret = 0;
 
 	pnp_dbg(&dev->dev, "pnp_assign_resources, try dependent set %d\n", set);
@@ -256,9 +259,11 @@ static int pnp_assign_resources(struct pnp_dev *dev, int set)
 		case IORESOURCE_IRQ:
 			ret = pnp_assign_irq(dev, &option->u.irq, nirq++);
 			break;
+#ifdef CONFIG_ISA_DMA_API
 		case IORESOURCE_DMA:
 			ret = pnp_assign_dma(dev, &option->u.dma, ndma++);
 			break;
+#endif
 		default:
 			ret = -EINVAL;
 			break;

@@ -662,6 +662,7 @@ again:
 		goto vcpu_run_fail;
 
 	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+	vcpu->mode = IN_GUEST_MODE;
 	kvm_guest_enter();
 
 	/*
@@ -683,6 +684,7 @@ again:
 	 */
 	barrier();
 	kvm_guest_exit();
+	vcpu->mode = OUTSIDE_GUEST_MODE;
 	preempt_enable();
 
 	idx = srcu_read_lock(&vcpu->kvm->srcu);

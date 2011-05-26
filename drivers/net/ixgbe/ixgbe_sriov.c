@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -108,6 +108,33 @@ static int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid,
 			     u32 vf)
 {
 	return adapter->hw.mac.ops.set_vfta(&adapter->hw, vid, vf, (bool)add);
+}
+
+void ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int new_mtu = msgbuf[1];
+	u32 max_frs;
+	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
+
+	/* Only X540 supports jumbo frames in IOV mode */
+	if (adapter->hw.mac.type != ixgbe_mac_X540)
+		return;
+
+	/* MTU < 68 is an error and causes problems on some kernels */
+	if ((new_mtu < 68) || (max_frame > IXGBE_MAX_JUMBO_FRAME_SIZE)) {
+		e_err(drv, "VF mtu %d out of range\n", new_mtu);
+		return;
+	}
+
+	max_frs = (IXGBE_READ_REG(hw, IXGBE_MAXFRS) &
+		   IXGBE_MHADD_MFS_MASK) >> IXGBE_MHADD_MFS_SHIFT;
+	if (max_frs < new_mtu) {
+		max_frs = new_mtu << IXGBE_MHADD_MFS_SHIFT;
+		IXGBE_WRITE_REG(hw, IXGBE_MAXFRS, max_frs);
+	}
+
+	e_info(hw, "VF requests change max MTU to %d\n", new_mtu);
 }
 
 static void ixgbe_set_vmolr(struct ixgbe_hw *hw, u32 vf, bool aupe)
@@ -302,7 +329,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		                                 hash_list, vf);
 		break;
 	case IXGBE_VF_SET_LPE:
-		WARN_ON((msgbuf[0] & 0xFFFF) == IXGBE_VF_SET_LPE);
+		ixgbe_set_vf_lpe(adapter, msgbuf);
 		break;
 	case IXGBE_VF_SET_VLAN:
 		add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK)
@@ -451,9 +478,90 @@ out:
        return err;
 }
 
+static int ixgbe_link_mbps(int internal_link_speed)
+{
+	switch (internal_link_speed) {
+	case IXGBE_LINK_SPEED_100_FULL:
+		return 100;
+	case IXGBE_LINK_SPEED_1GB_FULL:
+		return 1000;
+	case IXGBE_LINK_SPEED_10GB_FULL:
+		return 10000;
+	default:
+		return 0;
+	}
+}
+
+static void ixgbe_set_vf_rate_limit(struct ixgbe_hw *hw, int vf, int tx_rate,
+				    int link_speed)
+{
+	int rf_dec, rf_int;
+	u32 bcnrc_val;
+
+	if (tx_rate != 0) {
+		/* Calculate the rate factor values to set */
+		rf_int = link_speed / tx_rate;
+		rf_dec = (link_speed - (rf_int * tx_rate));
+		rf_dec = (rf_dec * (1<<IXGBE_RTTBCNRC_RF_INT_SHIFT)) / tx_rate;
+
+		bcnrc_val = IXGBE_RTTBCNRC_RS_ENA;
+		bcnrc_val |= ((rf_int<<IXGBE_RTTBCNRC_RF_INT_SHIFT) &
+		               IXGBE_RTTBCNRC_RF_INT_MASK);
+		bcnrc_val |= (rf_dec & IXGBE_RTTBCNRC_RF_DEC_MASK);
+	} else {
+		bcnrc_val = 0;
+	}
+
+	IXGBE_WRITE_REG(hw, IXGBE_RTTDQSEL, 2*vf); /* vf Y uses queue 2*Y */
+	IXGBE_WRITE_REG(hw, IXGBE_RTTBCNRC, bcnrc_val);
+}
+
+void ixgbe_check_vf_rate_limit(struct ixgbe_adapter *adapter)
+{
+	int actual_link_speed, i;
+	bool reset_rate = false;
+
+	/* VF Tx rate limit was not set */
+	if (adapter->vf_rate_link_speed == 0)
+		return;
+
+	actual_link_speed = ixgbe_link_mbps(adapter->link_speed);
+	if (actual_link_speed != adapter->vf_rate_link_speed) {
+		reset_rate = true;
+		adapter->vf_rate_link_speed = 0;
+		dev_info(&adapter->pdev->dev,
+		         "Link speed has been changed. VF Transmit rate "
+		         "is disabled\n");
+	}
+
+	for (i = 0; i < adapter->num_vfs; i++) {
+		if (reset_rate)
+			adapter->vfinfo[i].tx_rate = 0;
+
+		ixgbe_set_vf_rate_limit(&adapter->hw, i,
+					adapter->vfinfo[i].tx_rate,
+					actual_link_speed);
+	}
+}
+
 int ixgbe_ndo_set_vf_bw(struct net_device *netdev, int vf, int tx_rate)
 {
-	return -EOPNOTSUPP;
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	int actual_link_speed;
+
+	actual_link_speed = ixgbe_link_mbps(adapter->link_speed);
+	if ((vf >= adapter->num_vfs) || (!adapter->link_up) ||
+	    (tx_rate > actual_link_speed) || (actual_link_speed != 10000) ||
+	    ((tx_rate != 0) && (tx_rate <= 10)))
+	    /* rate limit cannot be set to 10Mb or less in 10Gb adapters */
+		return -EINVAL;
+
+	adapter->vf_rate_link_speed = actual_link_speed;
+	adapter->vfinfo[vf].tx_rate = (u16)tx_rate;
+	ixgbe_set_vf_rate_limit(hw, vf, tx_rate, actual_link_speed);
+
+	return 0;
 }
 
 int ixgbe_ndo_get_vf_config(struct net_device *netdev,
@@ -464,7 +572,7 @@ int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 		return -EINVAL;
 	ivi->vf = vf;
 	memcpy(&ivi->mac, adapter->vfinfo[vf].vf_mac_addresses, ETH_ALEN);
-	ivi->tx_rate = 0;
+	ivi->tx_rate = adapter->vfinfo[vf].tx_rate;
 	ivi->vlan = adapter->vfinfo[vf].pf_vlan;
 	ivi->qos = adapter->vfinfo[vf].pf_qos;
 	return 0;

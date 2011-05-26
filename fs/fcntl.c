@@ -131,7 +131,7 @@ SYSCALL_DEFINE2(dup2, unsigned int, oldfd, unsigned int, newfd)
 SYSCALL_DEFINE1(dup, unsigned int, fildes)
 {
 	int ret = -EBADF;
-	struct file *file = fget(fildes);
+	struct file *file = fget_raw(fildes);
 
 	if (file) {
 		ret = get_unused_fd();
@@ -159,7 +159,7 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 
 	/* O_NOATIME can only be set by the owner or superuser */
 	if ((arg & O_NOATIME) && !(filp->f_flags & O_NOATIME))
-		if (!is_owner_or_cap(inode))
+		if (!inode_owner_or_capable(inode))
 			return -EPERM;
 
 	/* required for strict SunOS emulation */
@@ -426,14 +426,34 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	return err;
 }
 
+static int check_fcntl_cmd(unsigned cmd)
+{
+	switch (cmd) {
+	case F_DUPFD:
+	case F_DUPFD_CLOEXEC:
+	case F_GETFD:
+	case F_SETFD:
+	case F_GETFL:
+		return 1;
+	}
+	return 0;
+}
+
 SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
 {	
 	struct file *filp;
 	long err = -EBADF;
 
-	filp = fget(fd);
+	filp = fget_raw(fd);
 	if (!filp)
 		goto out;
+
+	if (unlikely(filp->f_mode & FMODE_PATH)) {
+		if (!check_fcntl_cmd(cmd)) {
+			fput(filp);
+			goto out;
+		}
+	}
 
 	err = security_file_fcntl(filp, cmd, arg);
 	if (err) {
@@ -456,9 +476,16 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 	long err;
 
 	err = -EBADF;
-	filp = fget(fd);
+	filp = fget_raw(fd);
 	if (!filp)
 		goto out;
+
+	if (unlikely(filp->f_mode & FMODE_PATH)) {
+		if (!check_fcntl_cmd(cmd)) {
+			fput(filp);
+			goto out;
+		}
+	}
 
 	err = security_file_fcntl(filp, cmd, arg);
 	if (err) {
@@ -808,14 +835,14 @@ static int __init fcntl_init(void)
 	 * Exceptions: O_NONBLOCK is a two bit define on parisc; O_NDELAY
 	 * is defined as O_NONBLOCK on some platforms and not on others.
 	 */
-	BUILD_BUG_ON(18 - 1 /* for O_RDONLY being 0 */ != HWEIGHT32(
+	BUILD_BUG_ON(19 - 1 /* for O_RDONLY being 0 */ != HWEIGHT32(
 		O_RDONLY	| O_WRONLY	| O_RDWR	|
 		O_CREAT		| O_EXCL	| O_NOCTTY	|
 		O_TRUNC		| O_APPEND	| /* O_NONBLOCK	| */
 		__O_SYNC	| O_DSYNC	| FASYNC	|
 		O_DIRECT	| O_LARGEFILE	| O_DIRECTORY	|
 		O_NOFOLLOW	| O_NOATIME	| O_CLOEXEC	|
-		__FMODE_EXEC
+		__FMODE_EXEC	| O_PATH
 		));
 
 	fasync_cache = kmem_cache_create("fasync_cache",

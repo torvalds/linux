@@ -17,8 +17,7 @@ comparison, an actual rescue disk used up 3202 blocks with ext2, while
 with romfs, it needed 3079 blocks.
 
 To create such a file system, you'll need a user program named
-genromfs.  It is available via anonymous ftp on sunsite.unc.edu and
-its mirrors, in the /pub/Linux/system/recovery/ directory.
+genromfs. It is available on http://romfs.sourceforge.net/
 
 As the name suggests, romfs could be also used (space-efficiently) on
 various read-only media, like (E)EPROM disks if someone will have the

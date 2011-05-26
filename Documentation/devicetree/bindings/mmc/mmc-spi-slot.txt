@@ -7,8 +7,13 @@ Required properties:
 - voltage-ranges : two cells are required, first cell specifies minimum
   slot voltage (mV), second cell specifies maximum slot voltage (mV).
   Several ranges could be specified.
-- gpios : (optional) may specify GPIOs in this order: Card-Detect GPIO,
+
+Optional properties:
+- gpios : may specify GPIOs in this order: Card-Detect GPIO,
   Write-Protect GPIO.
+- interrupts : the interrupt of a card detect interrupt.
+- interrupt-parent : the phandle for the interrupt controller that
+  services interrupts for this device.
 
 Example:
 
@@ -20,4 +25,6 @@ Example:
 			 &qe_pio_d 15 0>;
 		voltage-ranges = <3300 3300>;
 		spi-max-frequency = <50000000>;
+		interrupts = <42>;
+		interrupt-parent = <&PIC>;
 	};

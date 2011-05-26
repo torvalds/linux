@@ -172,7 +172,7 @@ Source file list / functional overview:
     to provide a streaming API usable by a read() system call style of
     I/O.  Right now this is the only layer on top of pvrusb2-io.[ch],
     however the underlying architecture here was intended to allow for
-    other styles of I/O to be implemented with additonal modules, like
+    other styles of I/O to be implemented with additional modules, like
     mmap()'ed buffers or something even more exotic.
 
   pvrusb2-main.c - This is the top level of the driver.  Module level
