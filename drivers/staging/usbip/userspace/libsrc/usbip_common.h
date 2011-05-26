@@ -26,7 +26,11 @@
 #define VHCI_STATE_PATH "/var/run/vhci_hcd"
 #endif
 
-//#include <linux/usb_ch9.h>
+/* kernel module names */
+#define USBIP_CORE_MOD_NAME	"usbip-core"
+#define USBIP_HOST_DRV_NAME	"usbip-host"
+#define USBIP_VHCI_DRV_NAME	"vhci_hcd"
+
 enum usb_device_speed {
 	USB_SPEED_UNKNOWN = 0,                  /* enumerating */
 	USB_SPEED_LOW, USB_SPEED_FULL,          /* usb 1.1 */

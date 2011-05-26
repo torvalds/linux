@@ -3,13 +3,12 @@
  * Copyright (C) 2005-2007 Takahiro Hirofuchi
  */
 
-#include "utils.h"
-
 #define _GNU_SOURCE
 #include <getopt.h>
 #include <glib.h>
 
-
+#include "usbip.h"
+#include "utils.h"
 
 static const struct option longopts[] = {
 	{"usbip",	required_argument,	NULL, 'u'},
@@ -26,9 +25,6 @@ static const struct option longopts[] = {
 
 	{NULL,		0,			NULL,  0}
 };
-
-static const char match_busid_path[] = "/sys/bus/usb/drivers/usbip-host/match_busid";
-
 
 static void show_help(void)
 {
@@ -51,6 +47,18 @@ static int modify_match_busid(char *busid, int add)
 	int fd;
 	int ret;
 	char buff[BUS_ID_SIZE + 4];
+	char sysfs_mntpath[SYSFS_PATH_MAX];
+	char match_busid_path[SYSFS_PATH_MAX];
+
+	ret = sysfs_get_mnt_path(sysfs_mntpath, SYSFS_PATH_MAX);
+	if (ret < 0) {
+		err("sysfs must be mounted");
+		return -1;
+	}
+
+	snprintf(match_busid_path, sizeof(match_busid_path),
+		 "%s/%s/usb/%s/%s/match_busid", sysfs_mntpath, SYSFS_BUS_NAME,
+		 SYSFS_DRIVERS_NAME, USBIP_HOST_DRV_NAME);
 
 	/* BUS_IS_SIZE includes NULL termination? */
 	if (strnlen(busid, BUS_ID_SIZE) > BUS_ID_SIZE - 1) {
@@ -228,7 +236,8 @@ static int bind_to_usbip(char *busid)
 	for (i = 0; i < ninterface; i++) {
 		int ret;
 
-		ret = bind_interface(busid, configvalue, i, "usbip-host");
+		ret = bind_interface(busid, configvalue, i,
+				     USBIP_HOST_DRV_NAME);
 		if (ret < 0) {
 			g_warning("bind usbip at %s:%d.%d, failed",
 					busid, configvalue, i);

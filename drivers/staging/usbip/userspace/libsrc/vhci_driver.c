@@ -5,9 +5,6 @@
 
 #include "usbip.h"
 
-
-static const char vhci_driver_name[] = "vhci_hcd";
-
 struct usbip_vhci_driver *vhci_driver;
 
 static struct usbip_imported_device *imported_device_init(struct usbip_imported_device *idev, char *busid)
@@ -277,12 +274,13 @@ static int get_hc_busid(char *sysfs_mntpath, char *hc_busid)
 
         snprintf(sdriver_path, SYSFS_PATH_MAX, "%s/%s/platform/%s/%s",
                                 sysfs_mntpath, SYSFS_BUS_NAME, SYSFS_DRIVERS_NAME,
-                                vhci_driver_name);
+                                USBIP_VHCI_DRV_NAME);
 
         sdriver = sysfs_open_driver_path(sdriver_path);
         if (!sdriver) {
 		info("%s is not found", sdriver_path);
-                info("load usbip-core.ko and vhci-hcd.ko !");
+                info("please load " USBIP_CORE_MOD_NAME ".ko and "
+		     USBIP_VHCI_DRV_NAME ".ko!");
                 return -1;
         }
 

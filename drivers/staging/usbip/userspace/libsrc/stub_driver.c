@@ -8,10 +8,6 @@
 
 #include "usbip.h"
 
-/* kernel module name */
-static const char *usbip_stub_driver_name = "usbip-host";
-
-
 struct usbip_stub_driver *stub_driver;
 
 static struct sysfs_driver *open_sysfs_stub_driver(void)
@@ -31,11 +27,12 @@ static struct sysfs_driver *open_sysfs_stub_driver(void)
 
 	snprintf(stub_driver_path, SYSFS_PATH_MAX, "%s/%s/usb/%s/%s",
 			sysfs_mntpath, SYSFS_BUS_NAME, SYSFS_DRIVERS_NAME,
-			usbip_stub_driver_name);
+			USBIP_HOST_DRV_NAME);
 
 	stub_driver = sysfs_open_driver_path(stub_driver_path);
 	if (!stub_driver) {
-		err("usbip-core.ko and usbip-host.ko must be loaded");
+		err(USBIP_CORE_MOD_NAME ".ko and " USBIP_HOST_DRV_NAME
+		    ".ko must be loaded");
 		return NULL;
 	}
 
@@ -200,7 +197,8 @@ static int refresh_exported_devices(void)
 
 	suinf_list = sysfs_get_driver_devices(stub_driver->sysfs_driver);
 	if (!suinf_list) {
-		printf("Bind usbip-host.ko to a usb device to be exportable!\n");
+		info("bind " USBIP_HOST_DRV_NAME ".ko to a usb device to be "
+		     "exportable!\n");
 		goto bye;
 	}
 
