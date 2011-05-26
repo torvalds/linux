@@ -1209,7 +1209,7 @@ nvc0_grctx_generate_9197(struct drm_device *dev)
 		for (mthd = 0x3400; mthd <= 0x35fc; mthd += 4)
 			nv_mthd(dev, 0x9197, mthd, 0x00000000);
 	}
-	nv_mthd(dev, 0x9297, 0x02e4, 0x0000b001);
+	nv_mthd(dev, 0x9197, 0x02e4, 0x0000b001);
 }
 
 static void
