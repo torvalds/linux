@@ -1977,11 +1977,14 @@ restart:
  * If a zone is deemed to be full of pinned pages then just give it a light
  * scan then give up on it.
  */
-static void shrink_zones(int priority, struct zonelist *zonelist,
+static unsigned long shrink_zones(int priority, struct zonelist *zonelist,
 					struct scan_control *sc)
 {
 	struct zoneref *z;
 	struct zone *zone;
+	unsigned long nr_soft_reclaimed;
+	unsigned long nr_soft_scanned;
+	unsigned long total_scanned = 0;
 
 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
 					gfp_zone(sc->gfp_mask), sc->nodemask) {
@@ -1998,8 +2001,17 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
 				continue;	/* Let kswapd poll it */
 		}
 
+		nr_soft_scanned = 0;
+		nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,
+							sc->order, sc->gfp_mask,
+							&nr_soft_scanned);
+		sc->nr_reclaimed += nr_soft_reclaimed;
+		total_scanned += nr_soft_scanned;
+
 		shrink_zone(priority, zone, sc);
 	}
+
+	return total_scanned;
 }
 
 static bool zone_reclaimable(struct zone *zone)
@@ -2064,7 +2076,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 		sc->nr_scanned = 0;
 		if (!priority)
 			disable_swap_token();
-		shrink_zones(priority, zonelist, sc);
+		total_scanned += shrink_zones(priority, zonelist, sc);
 		/*
 		 * Don't shrink slabs when reclaiming memory from
 		 * over limit cgroups
