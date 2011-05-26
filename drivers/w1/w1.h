@@ -194,7 +194,9 @@ void w1_destroy_master_attributes(struct w1_master *master);
 void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb);
 void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb);
 struct w1_slave *w1_search_slave(struct w1_reg_num *id);
-void w1_search_process(struct w1_master *dev, u8 search_type);
+void w1_slave_found(struct w1_master *dev, u64 rn);
+void w1_search_process_cb(struct w1_master *dev, u8 search_type,
+	w1_slave_found_callback cb);
 struct w1_master *w1_search_master_id(u32 id);
 
 /* Disconnect and reconnect devices in the given family.  Used for finding
