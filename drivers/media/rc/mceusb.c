@@ -682,9 +682,9 @@ static void mce_async_out(struct mceusb_dev *ir, unsigned char *data, int size)
 	mce_request_packet(ir, data, size, MCEUSB_TX);
 }
 
-static void mce_sync_in(struct mceusb_dev *ir, unsigned char *data, int size)
+static void mce_flush_rx_buffer(struct mceusb_dev *ir, int size)
 {
-	mce_request_packet(ir, data, size, MCEUSB_RX);
+	mce_request_packet(ir, NULL, size, MCEUSB_RX);
 }
 
 /* Send data out the IR blaster port(s) */
@@ -970,7 +970,6 @@ static void mceusb_dev_recv(struct urb *urb, struct pt_regs *regs)
 static void mceusb_gen1_init(struct mceusb_dev *ir)
 {
 	int ret;
-	int maxp = ir->len_in;
 	struct device *dev = ir->dev;
 	char *data;
 
@@ -1012,55 +1011,40 @@ static void mceusb_gen1_init(struct mceusb_dev *ir)
 
 	/* device reset */
 	mce_async_out(ir, DEVICE_RESET, sizeof(DEVICE_RESET));
-	mce_sync_in(ir, NULL, maxp);
 
 	/* get hw/sw revision? */
 	mce_async_out(ir, GET_REVISION, sizeof(GET_REVISION));
-	mce_sync_in(ir, NULL, maxp);
 
 	kfree(data);
 };
 
 static void mceusb_gen2_init(struct mceusb_dev *ir)
 {
-	int maxp = ir->len_in;
-
 	/* device reset */
 	mce_async_out(ir, DEVICE_RESET, sizeof(DEVICE_RESET));
-	mce_sync_in(ir, NULL, maxp);
 
 	/* get hw/sw revision? */
 	mce_async_out(ir, GET_REVISION, sizeof(GET_REVISION));
-	mce_sync_in(ir, NULL, maxp);
 
 	/* unknown what the next two actually return... */
 	mce_async_out(ir, GET_UNKNOWN, sizeof(GET_UNKNOWN));
-	mce_sync_in(ir, NULL, maxp);
 	mce_async_out(ir, GET_UNKNOWN2, sizeof(GET_UNKNOWN2));
-	mce_sync_in(ir, NULL, maxp);
 }
 
 static void mceusb_get_parameters(struct mceusb_dev *ir)
 {
-	int maxp = ir->len_in;
-
 	/* get the carrier and frequency */
 	mce_async_out(ir, GET_CARRIER_FREQ, sizeof(GET_CARRIER_FREQ));
-	mce_sync_in(ir, NULL, maxp);
 
-	if (!ir->flags.no_tx) {
+	if (!ir->flags.no_tx)
 		/* get the transmitter bitmask */
 		mce_async_out(ir, GET_TX_BITMASK, sizeof(GET_TX_BITMASK));
-		mce_sync_in(ir, NULL, maxp);
-	}
 
 	/* get receiver timeout value */
 	mce_async_out(ir, GET_RX_TIMEOUT, sizeof(GET_RX_TIMEOUT));
-	mce_sync_in(ir, NULL, maxp);
 
 	/* get receiver sensor setting */
 	mce_async_out(ir, GET_RX_SENSOR, sizeof(GET_RX_SENSOR));
-	mce_sync_in(ir, NULL, maxp);
 }
 
 static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
@@ -1224,15 +1208,15 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	if (!ir->rc)
 		goto rc_dev_fail;
 
-	/* flush buffers on the device */
-	mce_sync_in(ir, NULL, maxp);
-	mce_sync_in(ir, NULL, maxp);
-
 	/* wire up inbound data handler */
 	usb_fill_int_urb(ir->urb_in, dev, pipe, ir->buf_in,
 		maxp, (usb_complete_t) mceusb_dev_recv, ir, ep_in->bInterval);
 	ir->urb_in->transfer_dma = ir->dma_in;
 	ir->urb_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+
+	/* flush buffers on the device */
+	mce_dbg(&intf->dev, "Flushing receive buffers\n");
+	mce_flush_rx_buffer(ir, maxp);
 
 	/* initialize device */
 	if (ir->flags.microsoft_gen1)
