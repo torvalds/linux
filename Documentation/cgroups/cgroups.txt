@@ -651,7 +651,7 @@ always handled well.
 void post_clone(struct cgroup_subsys *ss, struct cgroup *cgrp)
 (cgroup_mutex held by caller)
 
-Called at the end of cgroup_clone() to do any parameter
+Called during cgroup_create() to do any parameter
 initialization which might be required before a task could attach.  For
 example in cpusets, no task may attach before 'cpus' and 'mems' are set
 up.
