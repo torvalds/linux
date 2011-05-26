@@ -1110,7 +1110,7 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 	trace_snd_soc_dapm_start(card);
 
 	list_for_each_entry(d, &card->dapm_list, list)
-		if (d->n_widgets)
+		if (d->n_widgets || d->codec == NULL)
 			d->dev_power = 0;
 
 	/* Check which widgets we need to power and store them in
