@@ -193,30 +193,37 @@ static int get_family_id(int sd)
 	return id;
 }
 
+#define average_ms(t, c) (t / 1000000ULL / (c ? c : 1))
+
 static void print_delayacct(struct taskstats *t)
 {
-	printf("\n\nCPU   %15s%15s%15s%15s\n"
-	       "      %15llu%15llu%15llu%15llu\n"
-	       "IO    %15s%15s\n"
-	       "      %15llu%15llu\n"
-	       "SWAP  %15s%15s\n"
-	       "      %15llu%15llu\n"
-	       "RECLAIM  %12s%15s\n"
-	       "      %15llu%15llu\n",
-	       "count", "real total", "virtual total", "delay total",
+	printf("\n\nCPU   %15s%15s%15s%15s%15s\n"
+	       "      %15llu%15llu%15llu%15llu%15.3fms\n"
+	       "IO    %15s%15s%15s\n"
+	       "      %15llu%15llu%15llums\n"
+	       "SWAP  %15s%15s%15s\n"
+	       "      %15llu%15llu%15llums\n"
+	       "RECLAIM  %12s%15s%15s\n"
+	       "      %15llu%15llu%15llums\n",
+	       "count", "real total", "virtual total",
+	       "delay total", "delay average",
 	       (unsigned long long)t->cpu_count,
 	       (unsigned long long)t->cpu_run_real_total,
 	       (unsigned long long)t->cpu_run_virtual_total,
 	       (unsigned long long)t->cpu_delay_total,
-	       "count", "delay total",
+	       average_ms((double)t->cpu_delay_total, t->cpu_count),
+	       "count", "delay total", "delay average",
 	       (unsigned long long)t->blkio_count,
 	       (unsigned long long)t->blkio_delay_total,
-	       "count", "delay total",
+	       average_ms(t->blkio_delay_total, t->blkio_count),
+	       "count", "delay total", "delay average",
 	       (unsigned long long)t->swapin_count,
 	       (unsigned long long)t->swapin_delay_total,
-	       "count", "delay total",
+	       average_ms(t->swapin_delay_total, t->swapin_count),
+	       "count", "delay total", "delay average",
 	       (unsigned long long)t->freepages_count,
-	       (unsigned long long)t->freepages_delay_total);
+	       (unsigned long long)t->freepages_delay_total,
+	       average_ms(t->freepages_delay_total, t->freepages_count));
 }
 
 static void task_context_switch_counts(struct taskstats *t)
