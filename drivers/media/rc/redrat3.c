@@ -1186,7 +1186,7 @@ static int __devinit redrat3_dev_probe(struct usb_interface *intf,
 	rr3 = kzalloc(sizeof(*rr3), GFP_KERNEL);
 	if (rr3 == NULL) {
 		dev_err(dev, "Memory allocation failure\n");
-		goto error;
+		goto no_endpoints;
 	}
 
 	rr3->dev = &intf->dev;
