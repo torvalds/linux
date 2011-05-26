@@ -424,7 +424,7 @@ static void update_ttarget(__u8 cpu_model, struct temp_data *tdata,
 	}
 }
 
-static int chk_ucode_version(struct platform_device *pdev)
+static int __devinit chk_ucode_version(struct platform_device *pdev)
 {
 	struct cpuinfo_x86 *c = &cpu_data(pdev->id);
 	int err;
