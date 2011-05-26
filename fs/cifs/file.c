@@ -725,8 +725,8 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			else
 				posix_lock_type = CIFS_WRLCK;
 			rc = CIFSSMBPosixLock(xid, tcon, netfid, 1 /* get */,
-					length,	pfLock,
-					posix_lock_type, wait_flag);
+					length, pfLock, posix_lock_type,
+					wait_flag);
 			FreeXid(xid);
 			return rc;
 		}
@@ -797,8 +797,8 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			posix_lock_type = CIFS_UNLCK;
 
 		rc = CIFSSMBPosixLock(xid, tcon, netfid, 0 /* set */,
-				      length, pfLock,
-				      posix_lock_type, wait_flag);
+				      length, pfLock, posix_lock_type,
+				      wait_flag);
 	} else {
 		struct cifsFileInfo *fid = file->private_data;
 
@@ -1346,6 +1346,14 @@ static int cifs_write_end(struct file *file, struct address_space *mapping,
 {
 	int rc;
 	struct inode *inode = mapping->host;
+	struct cifsFileInfo *cfile = file->private_data;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(cfile->dentry->d_sb);
+	__u32 pid;
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
+		pid = cfile->pid;
+	else
+		pid = current->tgid;
 
 	cFYI(1, "write_end for page %p from pos %lld with %d bytes",
 		 page, pos, copied);
@@ -1369,8 +1377,7 @@ static int cifs_write_end(struct file *file, struct address_space *mapping,
 		/* BB check if anything else missing out of ppw
 		   such as updating last write time */
 		page_data = kmap(page);
-		rc = cifs_write(file->private_data, current->tgid,
-				page_data + offset, copied, &pos);
+		rc = cifs_write(cfile, pid, page_data + offset, copied, &pos);
 		/* if (rc < 0) should we set writebehind rc? */
 		kunmap(page);
 
@@ -1523,6 +1530,7 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_io_parms io_parms;
 	int xid, rc;
+	__u32 pid;
 
 	len = iov_length(iov, nr_segs);
 	if (!len)
@@ -1554,6 +1562,12 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 
 	xid = GetXid();
 	open_file = file->private_data;
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
+		pid = open_file->pid;
+	else
+		pid = current->tgid;
+
 	pTcon = tlink_tcon(open_file->tlink);
 	inode = file->f_path.dentry->d_inode;
 
@@ -1581,7 +1595,7 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 					break;
 			}
 			io_parms.netfid = open_file->netfid;
-			io_parms.pid = current->tgid;
+			io_parms.pid = pid;
 			io_parms.tcon = pTcon;
 			io_parms.offset = *poffset;
 			io_parms.length = cur_len;
@@ -1682,7 +1696,9 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 	struct cifsTconInfo *pTcon;
 	struct cifsFileInfo *open_file;
 	struct smb_com_read_rsp *pSMBr;
+	struct cifs_io_parms io_parms;
 	char *read_data;
+	__u32 pid;
 
 	if (!nr_segs)
 		return 0;
@@ -1696,6 +1712,11 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 
 	open_file = file->private_data;
 	pTcon = tlink_tcon(open_file->tlink);
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
+		pid = open_file->pid;
+	else
+		pid = current->tgid;
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, "attempting read on write only file instance");
@@ -1712,8 +1733,12 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 				if (rc != 0)
 					break;
 			}
-			rc = CIFSSMBRead(xid, pTcon, open_file->netfid,
-					 cur_len, *poffset, &bytes_read,
+			io_parms.netfid = open_file->netfid;
+			io_parms.pid = pid;
+			io_parms.tcon = pTcon;
+			io_parms.offset = *poffset;
+			io_parms.length = len;
+			rc = CIFSSMBRead(xid, &io_parms, &bytes_read,
 					 &read_data, &buf_type);
 			pSMBr = (struct smb_com_read_rsp *)read_data;
 			if (read_data) {
@@ -1794,7 +1819,9 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	int xid;
 	char *current_offset;
 	struct cifsFileInfo *open_file;
+	struct cifs_io_parms io_parms;
 	int buf_type = CIFS_NO_BUFFER;
+	__u32 pid;
 
 	xid = GetXid();
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
@@ -1806,6 +1833,11 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	}
 	open_file = file->private_data;
 	pTcon = tlink_tcon(open_file->tlink);
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
+		pid = open_file->pid;
+	else
+		pid = current->tgid;
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, "attempting read on write only file instance");
@@ -1829,11 +1861,13 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 				if (rc != 0)
 					break;
 			}
-			rc = CIFSSMBRead(xid, pTcon,
-					 open_file->netfid,
-					 current_read_size, *poffset,
-					 &bytes_read, &current_offset,
-					 &buf_type);
+			io_parms.netfid = open_file->netfid;
+			io_parms.pid = pid;
+			io_parms.tcon = pTcon;
+			io_parms.offset = *poffset;
+			io_parms.length = current_read_size;
+			rc = CIFSSMBRead(xid, &io_parms, &bytes_read,
+					 &current_offset, &buf_type);
 		}
 		if (rc || (bytes_read == 0)) {
 			if (total_read) {
@@ -1970,7 +2004,9 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	char *smb_read_data = NULL;
 	struct smb_com_read_rsp *pSMBr;
 	struct cifsFileInfo *open_file;
+	struct cifs_io_parms io_parms;
 	int buf_type = CIFS_NO_BUFFER;
+	__u32 pid;
 
 	xid = GetXid();
 	if (file->private_data == NULL) {
@@ -1992,6 +2028,11 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		goto read_complete;
 
 	cFYI(DBG2, "rpages: num pages %d", num_pages);
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
+		pid = open_file->pid;
+	else
+		pid = current->tgid;
+
 	for (i = 0; i < num_pages; ) {
 		unsigned contig_pages;
 		struct page *tmp_page;
@@ -2033,12 +2074,13 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 				if (rc != 0)
 					break;
 			}
-
-			rc = CIFSSMBRead(xid, pTcon,
-					 open_file->netfid,
-					 read_size, offset,
-					 &bytes_read, &smb_read_data,
-					 &buf_type);
+			io_parms.netfid = open_file->netfid;
+			io_parms.pid = pid;
+			io_parms.tcon = pTcon;
+			io_parms.offset = offset;
+			io_parms.length = read_size;
+			rc = CIFSSMBRead(xid, &io_parms, &bytes_read,
+					 &smb_read_data, &buf_type);
 			/* BB more RC checks ? */
 			if (rc == -EAGAIN) {
 				if (smb_read_data) {

@@ -235,6 +235,7 @@ CIFSQueryMFSymLink(const int xid, struct cifsTconInfo *tcon,
 	unsigned int bytes_read = 0;
 	int buf_type = CIFS_NO_BUFFER;
 	unsigned int link_len = 0;
+	struct cifs_io_parms io_parms;
 	FILE_ALL_INFO file_info;
 
 	rc = CIFSSMBOpen(xid, tcon, searchName, FILE_OPEN, GENERIC_READ,
@@ -253,11 +254,13 @@ CIFSQueryMFSymLink(const int xid, struct cifsTconInfo *tcon,
 	if (!buf)
 		return -ENOMEM;
 	pbuf = buf;
+	io_parms.netfid = netfid;
+	io_parms.pid = current->tgid;
+	io_parms.tcon = tcon;
+	io_parms.offset = 0;
+	io_parms.length = CIFS_MF_SYMLINK_FILE_SIZE;
 
-	rc = CIFSSMBRead(xid, tcon, netfid,
-			 CIFS_MF_SYMLINK_FILE_SIZE /* length */,
-			 0 /* offset */,
-			 &bytes_read, &pbuf, &buf_type);
+	rc = CIFSSMBRead(xid, &io_parms, &bytes_read, &pbuf, &buf_type);
 	CIFSSMBClose(xid, tcon, netfid);
 	if (rc != 0) {
 		kfree(buf);
@@ -296,6 +299,7 @@ CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 	__u16 netfid = 0;
 	struct tcon_link *tlink;
 	struct cifsTconInfo *pTcon;
+	struct cifs_io_parms io_parms;
 	u8 *buf;
 	char *pbuf;
 	unsigned int bytes_read = 0;
@@ -332,11 +336,13 @@ CIFSCheckMFSymlink(struct cifs_fattr *fattr,
 		goto out;
 	}
 	pbuf = buf;
+	io_parms.netfid = netfid;
+	io_parms.pid = current->tgid;
+	io_parms.tcon = pTcon;
+	io_parms.offset = 0;
+	io_parms.length = CIFS_MF_SYMLINK_FILE_SIZE;
 
-	rc = CIFSSMBRead(xid, pTcon, netfid,
-			 CIFS_MF_SYMLINK_FILE_SIZE /* length */,
-			 0 /* offset */,
-			 &bytes_read, &pbuf, &buf_type);
+	rc = CIFSSMBRead(xid, &io_parms, &bytes_read, &pbuf, &buf_type);
 	CIFSSMBClose(xid, pTcon, netfid);
 	if (rc != 0) {
 		kfree(buf);

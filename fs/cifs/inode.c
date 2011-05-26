@@ -374,6 +374,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const unsigned char *path,
 	__u16 netfid;
 	struct tcon_link *tlink;
 	struct cifsTconInfo *tcon;
+	struct cifs_io_parms io_parms;
 	char buf[24];
 	unsigned int bytes_read;
 	char *pbuf;
@@ -405,9 +406,13 @@ cifs_sfu_type(struct cifs_fattr *fattr, const unsigned char *path,
 	if (rc == 0) {
 		int buf_type = CIFS_NO_BUFFER;
 			/* Read header */
-		rc = CIFSSMBRead(xid, tcon, netfid,
-				 24 /* length */, 0 /* offset */,
-				 &bytes_read, &pbuf, &buf_type);
+		io_parms.netfid = netfid;
+		io_parms.pid = current->tgid;
+		io_parms.tcon = tcon;
+		io_parms.offset = 0;
+		io_parms.length = 24;
+		rc = CIFSSMBRead(xid, &io_parms, &bytes_read, &pbuf,
+				 &buf_type);
 		if ((rc == 0) && (bytes_read >= 8)) {
 			if (memcmp("IntxBLK", pbuf, 8) == 0) {
 				cFYI(1, "Block device");

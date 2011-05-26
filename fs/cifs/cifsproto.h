@@ -345,9 +345,8 @@ extern int CIFSSMBClose(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSSMBFlush(const int xid, struct cifsTconInfo *tcon,
 			const int smb_file_id);
 
-extern int CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
-			const int netfid, unsigned int count,
-			const __u64 lseek, unsigned int *nbytes, char **buf,
+extern int CIFSSMBRead(const int xid, struct cifs_io_parms *io_parms,
+			unsigned int *nbytes, char **buf,
 			int *return_buf_type);
 extern int CIFSSMBWrite(const int xid, struct cifs_io_parms *io_parms,
 			unsigned int *nbytes, const char *buf,
