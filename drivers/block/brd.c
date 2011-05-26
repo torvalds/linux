@@ -571,10 +571,10 @@ static int __init brd_init(void)
 	 *
 	 * (1) if rd_nr is specified, create that many upfront, and this
 	 *     also becomes a hard limit.
-	 * (2) if rd_nr is not specified, create 1 rd device on module
-	 *     load, user can further extend brd device by create dev node
-	 *     themselves and have kernel automatically instantiate actual
-	 *     device on-demand.
+	 * (2) if rd_nr is not specified, create CONFIG_BLK_DEV_RAM_COUNT
+	 *     (default 16) rd device on module load, user can further
+	 *     extend brd device by create dev node themselves and have
+	 *     kernel automatically instantiate actual device on-demand.
 	 */
 
 	part_shift = 0;
