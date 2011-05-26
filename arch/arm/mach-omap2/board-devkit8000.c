@@ -51,7 +51,6 @@
 #include <plat/mcspi.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
 #include <linux/dm9000.h>
 #include <linux/interrupt.h>
 
@@ -60,6 +59,7 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "timer-gp.h"
+#include "common-board-devices.h"
 
 #define NAND_BLOCK_SIZE		SZ_128K
 
@@ -95,13 +95,6 @@ static struct mtd_partition devkit8000_nand_partitions[] = {
 		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x680000 */
 		.size		= MTDPART_SIZ_FULL,
 	},
-};
-
-static struct omap_nand_platform_data devkit8000_nand_data = {
-	.options	= NAND_BUSWIDTH_16,
-	.parts		= devkit8000_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(devkit8000_nand_partitions),
-	.dma_channel	= -1,		/* disable DMA in OMAP NAND driver */
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -249,7 +242,7 @@ static int devkit8000_twl_gpio_setup(struct device *dev,
 	/* TWL4030_GPIO_MAX + 0 is "LCD_PWREN" (out, active high) */
 	devkit8000_lcd_device.reset_gpio = gpio + TWL4030_GPIO_MAX + 0;
 	ret = gpio_request_one(devkit8000_lcd_device.reset_gpio,
-			GPIOF_DIR_OUT | GPIOF_INIT_LOW, "LCD_PWREN");
+			       GPIOF_OUT_INIT_LOW, "LCD_PWREN");
 	if (ret < 0) {
 		devkit8000_lcd_device.reset_gpio = -EINVAL;
 		printk(KERN_ERR "Failed to request GPIO for LCD_PWRN\n");
@@ -258,7 +251,7 @@ static int devkit8000_twl_gpio_setup(struct device *dev,
 	/* gpio + 7 is "DVI_PD" (out, active low) */
 	devkit8000_dvi_device.reset_gpio = gpio + 7;
 	ret = gpio_request_one(devkit8000_dvi_device.reset_gpio,
-			GPIOF_DIR_OUT | GPIOF_INIT_LOW, "DVI PowerDown");
+			       GPIOF_OUT_INIT_LOW, "DVI PowerDown");
 	if (ret < 0) {
 		devkit8000_dvi_device.reset_gpio = -EINVAL;
 		printk(KERN_ERR "Failed to request GPIO for DVI PowerDown\n");
@@ -366,19 +359,9 @@ static struct twl4030_platform_data devkit8000_twldata = {
 	.keypad		= &devkit8000_kp_data,
 };
 
-static struct i2c_board_info __initdata devkit8000_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("tps65930", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &devkit8000_twldata,
-	},
-};
-
 static int __init devkit8000_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 2600, devkit8000_i2c_boardinfo,
-			ARRAY_SIZE(devkit8000_i2c_boardinfo));
+	omap3_pmic_init("tps65930", &devkit8000_twldata);
 	/* Bus 3 is attached to the DVI port where devices like the pico DLP
 	 * projector don't work reliably with 400kHz */
 	omap_register_i2c_bus(3, 400, NULL, 0);
@@ -463,56 +446,6 @@ static void __init devkit8000_init_irq(void)
 #endif
 }
 
-static void __init devkit8000_ads7846_init(void)
-{
-	int gpio = OMAP3_DEVKIT_TS_GPIO;
-	int ret;
-
-	ret = gpio_request(gpio, "ads7846_pen_down");
-	if (ret < 0) {
-		printk(KERN_ERR "Failed to request GPIO %d for "
-				"ads7846 pen down IRQ\n", gpio);
-		return;
-	}
-
-	gpio_direction_input(gpio);
-}
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(OMAP3_DEVKIT_TS_GPIO);
-}
-
-static struct ads7846_platform_data ads7846_config = {
-	.x_max                  = 0x0fff,
-	.y_max                  = 0x0fff,
-	.x_plate_ohms           = 180,
-	.pressure_max           = 255,
-	.debounce_max           = 10,
-	.debounce_tol           = 5,
-	.debounce_rep           = 1,
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-	.settle_delay_usecs     = 150,
-};
-
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
-	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
-};
-
-static struct spi_board_info devkit8000_spi_board_info[] __initdata = {
-	{
-		.modalias		= "ads7846",
-		.bus_num		= 2,
-		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &ads7846_mcspi_config,
-		.irq			= OMAP_GPIO_IRQ(OMAP3_DEVKIT_TS_GPIO),
-		.platform_data		= &ads7846_config,
-	}
-};
-
 #define OMAP_DM9000_BASE	0x2c000000
 
 static struct resource omap_dm9000_resources[] = {
@@ -550,14 +483,14 @@ static void __init omap_dm9000_init(void)
 {
 	unsigned char *eth_addr = omap_dm9000_platdata.dev_addr;
 	struct omap_die_id odi;
+	int ret;
 
-	if (gpio_request(OMAP_DM9000_GPIO_IRQ, "dm9000 irq") < 0) {
+	ret = gpio_request_one(OMAP_DM9000_GPIO_IRQ, GPIOF_IN, "dm9000 irq");
+	if (ret < 0) {
 		printk(KERN_ERR "Failed to request GPIO%d for dm9000 IRQ\n",
 			OMAP_DM9000_GPIO_IRQ);
 		return;
-		}
-
-	gpio_direction_input(OMAP_DM9000_GPIO_IRQ);
+	}
 
 	/* init the mac address using DIE id */
 	omap_get_die_id(&odi);
@@ -574,45 +507,6 @@ static struct platform_device *devkit8000_devices[] __initdata = {
 	&leds_gpio,
 	&keys_gpio,
 	&omap_dm9000_dev,
-};
-
-static void __init devkit8000_flash_init(void)
-{
-	u8 cs = 0;
-	u8 nandcs = GPMC_CS_NUM + 1;
-
-	/* find out the chip-select on which NAND exists */
-	while (cs < GPMC_CS_NUM) {
-		u32 ret = 0;
-		ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
-
-		if ((ret & 0xC00) == 0x800) {
-			printk(KERN_INFO "Found NAND on CS%d\n", cs);
-			if (nandcs > GPMC_CS_NUM)
-				nandcs = cs;
-		}
-		cs++;
-	}
-
-	if (nandcs > GPMC_CS_NUM) {
-		printk(KERN_INFO "NAND: Unable to find configuration "
-				 "in GPMC\n ");
-		return;
-	}
-
-	if (nandcs < GPMC_CS_NUM) {
-		devkit8000_nand_data.cs = nandcs;
-
-		printk(KERN_INFO "Registering NAND on CS%d\n", nandcs);
-		if (gpmc_nand_init(&devkit8000_nand_data) < 0)
-			printk(KERN_ERR "Unable to register NAND device\n");
-	}
-}
-
-static struct omap_musb_board_data musb_board_data = {
-	.interface_type		= MUSB_INTERFACE_ULPI,
-	.mode			= MUSB_OTG,
-	.power			= 100,
 };
 
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
@@ -795,14 +689,13 @@ static void __init devkit8000_init(void)
 			ARRAY_SIZE(devkit8000_devices));
 
 	omap_display_init(&devkit8000_dss_data);
-	spi_register_board_info(devkit8000_spi_board_info,
-	ARRAY_SIZE(devkit8000_spi_board_info));
 
-	devkit8000_ads7846_init();
+	omap_ads7846_init(2, OMAP3_DEVKIT_TS_GPIO, 0, NULL);
 
-	usb_musb_init(&musb_board_data);
+	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
-	devkit8000_flash_init();
+	omap_nand_flash_init(NAND_BUSWIDTH_16, devkit8000_nand_partitions,
+			     ARRAY_SIZE(devkit8000_nand_partitions));
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);

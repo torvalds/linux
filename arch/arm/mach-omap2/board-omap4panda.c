@@ -46,6 +46,7 @@
 #include "hsmmc.h"
 #include "control.h"
 #include "mux.h"
+#include "common-board-devices.h"
 
 #define GPIO_HUB_POWER		1
 #define GPIO_HUB_NRESET		62
@@ -111,6 +112,11 @@ static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 	.reset_gpio_port[2]  = -EINVAL
 };
 
+static struct gpio panda_ehci_gpios[] __initdata = {
+	{ GPIO_HUB_POWER,	GPIOF_OUT_INIT_LOW,  "hub_power"  },
+	{ GPIO_HUB_NRESET,	GPIOF_OUT_INIT_LOW,  "hub_nreset" },
+};
+
 static void __init omap4_ehci_init(void)
 {
 	int ret;
@@ -120,44 +126,27 @@ static void __init omap4_ehci_init(void)
 	phy_ref_clk = clk_get(NULL, "auxclk3_ck");
 	if (IS_ERR(phy_ref_clk)) {
 		pr_err("Cannot request auxclk3\n");
-		goto error1;
+		return;
 	}
 	clk_set_rate(phy_ref_clk, 19200000);
 	clk_enable(phy_ref_clk);
 
-	/* disable the power to the usb hub prior to init */
-	ret = gpio_request(GPIO_HUB_POWER, "hub_power");
+	/* disable the power to the usb hub prior to init and reset phy+hub */
+	ret = gpio_request_array(panda_ehci_gpios,
+				 ARRAY_SIZE(panda_ehci_gpios));
 	if (ret) {
-		pr_err("Cannot request GPIO %d\n", GPIO_HUB_POWER);
-		goto error1;
+		pr_err("Unable to initialize EHCI power/reset\n");
+		return;
 	}
-	gpio_export(GPIO_HUB_POWER, 0);
-	gpio_direction_output(GPIO_HUB_POWER, 0);
-	gpio_set_value(GPIO_HUB_POWER, 0);
 
-	/* reset phy+hub */
-	ret = gpio_request(GPIO_HUB_NRESET, "hub_nreset");
-	if (ret) {
-		pr_err("Cannot request GPIO %d\n", GPIO_HUB_NRESET);
-		goto error2;
-	}
+	gpio_export(GPIO_HUB_POWER, 0);
 	gpio_export(GPIO_HUB_NRESET, 0);
-	gpio_direction_output(GPIO_HUB_NRESET, 0);
-	gpio_set_value(GPIO_HUB_NRESET, 0);
 	gpio_set_value(GPIO_HUB_NRESET, 1);
 
 	usbhs_init(&usbhs_bdata);
 
 	/* enable power to hub */
 	gpio_set_value(GPIO_HUB_POWER, 1);
-	return;
-
-error2:
-	gpio_free(GPIO_HUB_POWER);
-error1:
-	pr_err("Unable to initialize EHCI power/reset\n");
-	return;
-
 }
 
 static struct omap_musb_board_data musb_board_data = {
@@ -408,15 +397,6 @@ static struct twl4030_platform_data omap4_panda_twldata = {
 	.usb		= &omap4_usbphy_data,
 };
 
-static struct i2c_board_info __initdata omap4_panda_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl6030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = OMAP44XX_IRQ_SYS_1N,
-		.platform_data = &omap4_panda_twldata,
-	},
-};
-
 /*
  * Display monitor features are burnt in their EEPROM as EDID data. The EEPROM
  * is connected as I2C slave device, and can be accessed at address 0x50
@@ -429,12 +409,7 @@ static struct i2c_board_info __initdata panda_i2c_eeprom[] = {
 
 static int __init omap4_panda_i2c_init(void)
 {
-	/*
-	 * Phoenix Audio IC needs I2C1 to
-	 * start with 400 KHz or less
-	 */
-	omap_register_i2c_bus(1, 400, omap4_panda_i2c_boardinfo,
-			ARRAY_SIZE(omap4_panda_i2c_boardinfo));
+	omap4_pmic_init("twl6030", &omap4_panda_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	/*
 	 * Bus 3 is attached to the DVI port where devices like the pico DLP
@@ -651,27 +626,19 @@ static void omap4_panda_hdmi_mux_init(void)
 			OMAP_PIN_INPUT_PULLUP);
 }
 
+static struct gpio panda_hdmi_gpios[] = {
+	{ HDMI_GPIO_HPD,	GPIOF_OUT_INIT_HIGH, "hdmi_gpio_hpd"   },
+	{ HDMI_GPIO_LS_OE,	GPIOF_OUT_INIT_HIGH, "hdmi_gpio_ls_oe" },
+};
+
 static int omap4_panda_panel_enable_hdmi(struct omap_dss_device *dssdev)
 {
 	int status;
 
-	status = gpio_request_one(HDMI_GPIO_HPD, GPIOF_OUT_INIT_HIGH,
-							"hdmi_gpio_hpd");
-	if (status) {
-		pr_err("Cannot request GPIO %d\n", HDMI_GPIO_HPD);
-		return status;
-	}
-	status = gpio_request_one(HDMI_GPIO_LS_OE, GPIOF_OUT_INIT_HIGH,
-							"hdmi_gpio_ls_oe");
-	if (status) {
-		pr_err("Cannot request GPIO %d\n", HDMI_GPIO_LS_OE);
-		goto error1;
-	}
-
-	return 0;
-
-error1:
-	gpio_free(HDMI_GPIO_HPD);
+	status = gpio_request_array(panda_hdmi_gpios,
+				    ARRAY_SIZE(panda_hdmi_gpios));
+	if (status)
+		pr_err("Cannot request HDMI GPIOs\n");
 
 	return status;
 }

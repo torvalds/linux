@@ -148,13 +148,12 @@ static void __init cm_t3517_init_rtc(void)
 {
 	int err;
 
-	err = gpio_request(RTC_CS_EN_GPIO, "rtc cs en");
+	err = gpio_request_one(RTC_CS_EN_GPIO, GPIOF_OUT_INIT_HIGH,
+			       "rtc cs en");
 	if (err) {
 		pr_err("CM-T3517: rtc cs en gpio request failed: %d\n", err);
 		return;
 	}
-
-	gpio_direction_output(RTC_CS_EN_GPIO, 1);
 
 	platform_device_register(&cm_t3517_rtc_device);
 }
@@ -182,11 +181,11 @@ static int cm_t3517_init_usbh(void)
 {
 	int err;
 
-	err = gpio_request(USB_HUB_RESET_GPIO, "usb hub rst");
+	err = gpio_request_one(USB_HUB_RESET_GPIO, GPIOF_OUT_INIT_LOW,
+			       "usb hub rst");
 	if (err) {
 		pr_err("CM-T3517: usb hub rst gpio request failed: %d\n", err);
 	} else {
-		gpio_direction_output(USB_HUB_RESET_GPIO, 0);
 		udelay(10);
 		gpio_set_value(USB_HUB_RESET_GPIO, 1);
 		msleep(1);

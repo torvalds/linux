@@ -52,6 +52,7 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "timer-gp.h"
+#include "common-board-devices.h"
 
 #include <asm/setup.h>
 
@@ -93,15 +94,6 @@ static struct mtd_partition omap3touchbook_nand_partitions[] = {
 		.offset		= MTDPART_OFS_APPEND,	/* Offset = 0x680000 */
 		.size		= MTDPART_SIZ_FULL,
 	},
-};
-
-static struct omap_nand_platform_data omap3touchbook_nand_data = {
-	.options	= NAND_BUSWIDTH_16,
-	.parts		= omap3touchbook_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(omap3touchbook_nand_partitions),
-	.dma_channel	= -1,		/* disable DMA in OMAP NAND driver */
-	.nand_setup	= NULL,
-	.dev_ready	= NULL,
 };
 
 #include "sdram-micron-mt46h32m32lf-6.h"
@@ -154,13 +146,11 @@ static int touchbook_twl_gpio_setup(struct device *dev,
 	/* REVISIT: need ehci-omap hooks for external VBUS
 	 * power switch and overcurrent detect
 	 */
-
-	gpio_request(gpio + 1, "EHCI_nOC");
-	gpio_direction_input(gpio + 1);
+	gpio_request_one(gpio + 1, GPIOF_IN, "EHCI_nOC");
 
 	/* TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, active low) */
-	gpio_request(gpio + TWL4030_GPIO_MAX, "nEN_USB_PWR");
-	gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+	gpio_request_one(gpio + TWL4030_GPIO_MAX, GPIOF_OUT_INIT_LOW,
+			 "nEN_USB_PWR");
 
 	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
@@ -273,15 +263,6 @@ static struct twl4030_platform_data touchbook_twldata = {
 	.vpll2		= &touchbook_vpll2,
 };
 
-static struct i2c_board_info __initdata touchbook_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl4030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &touchbook_twldata,
-	},
-};
-
 static struct i2c_board_info __initdata touchBook_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("bq27200", 0x55),
@@ -291,8 +272,7 @@ static struct i2c_board_info __initdata touchBook_i2c_boardinfo[] = {
 static int __init omap3_touchbook_i2c_init(void)
 {
 	/* Standard TouchBook bus */
-	omap_register_i2c_bus(1, 2600, touchbook_i2c_boardinfo,
-			ARRAY_SIZE(touchbook_i2c_boardinfo));
+	omap3_pmic_init("twl4030", &touchbook_twldata);
 
 	/* Additional TouchBook bus */
 	omap_register_i2c_bus(3, 100, touchBook_i2c_boardinfo,
@@ -301,19 +281,7 @@ static int __init omap3_touchbook_i2c_init(void)
 	return 0;
 }
 
-static void __init omap3_ads7846_init(void)
-{
-	if (gpio_request(OMAP3_TS_GPIO, "ads7846_pen_down")) {
-		printk(KERN_ERR "Failed to request GPIO %d for "
-				"ads7846 pen down IRQ\n", OMAP3_TS_GPIO);
-		return;
-	}
-
-	gpio_direction_input(OMAP3_TS_GPIO);
-	gpio_set_debounce(OMAP3_TS_GPIO, 310);
-}
-
-static struct ads7846_platform_data ads7846_config = {
+static struct ads7846_platform_data ads7846_pdata = {
 	.x_min			= 100,
 	.y_min			= 265,
 	.x_max			= 3950,
@@ -325,23 +293,6 @@ static struct ads7846_platform_data ads7846_config = {
 	.debounce_rep		= 1,
 	.gpio_pendown		= OMAP3_TS_GPIO,
 	.keep_vref_on		= 1,
-};
-
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
-	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
-};
-
-static struct spi_board_info omap3_ads7846_spi_board_info[] __initdata = {
-	{
-		.modalias		= "ads7846",
-		.bus_num		= 4,
-		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &ads7846_mcspi_config,
-		.irq			= OMAP_GPIO_IRQ(OMAP3_TS_GPIO),
-		.platform_data		= &ads7846_config,
-	}
 };
 
 static struct gpio_led gpio_leds[] = {
@@ -434,39 +385,6 @@ static struct platform_device *omap3_touchbook_devices[] __initdata = {
 	&keys_gpio,
 };
 
-static void __init omap3touchbook_flash_init(void)
-{
-	u8 cs = 0;
-	u8 nandcs = GPMC_CS_NUM + 1;
-
-	/* find out the chip-select on which NAND exists */
-	while (cs < GPMC_CS_NUM) {
-		u32 ret = 0;
-		ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
-
-		if ((ret & 0xC00) == 0x800) {
-			printk(KERN_INFO "Found NAND on CS%d\n", cs);
-			if (nandcs > GPMC_CS_NUM)
-				nandcs = cs;
-		}
-		cs++;
-	}
-
-	if (nandcs > GPMC_CS_NUM) {
-		printk(KERN_INFO "NAND: Unable to find configuration "
-				 "in GPMC\n ");
-		return;
-	}
-
-	if (nandcs < GPMC_CS_NUM) {
-		omap3touchbook_nand_data.cs = nandcs;
-
-		printk(KERN_INFO "Registering NAND on CS%d\n", nandcs);
-		if (gpmc_nand_init(&omap3touchbook_nand_data) < 0)
-			printk(KERN_ERR "Unable to register NAND device\n");
-	}
-}
-
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
@@ -481,15 +399,10 @@ static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 
 static void omap3_touchbook_poweroff(void)
 {
-	int r;
+	int pwr_off = TB_KILL_POWER_GPIO;
 
-	r = gpio_request(TB_KILL_POWER_GPIO, "DVI reset");
-	if (r < 0) {
+	if (gpio_request_one(pwr_off, GPIOF_OUT_INIT_LOW, "DVI reset") < 0)
 		printk(KERN_ERR "Unable to get kill power GPIO\n");
-		return;
-	}
-
-	gpio_direction_output(TB_KILL_POWER_GPIO, 0);
 }
 
 static int __init early_touchbook_revision(char *p)
@@ -500,12 +413,6 @@ static int __init early_touchbook_revision(char *p)
 	return strict_strtoul(p, 10, &touchbook_revision);
 }
 early_param("tbr", early_touchbook_revision);
-
-static struct omap_musb_board_data musb_board_data = {
-	.interface_type		= MUSB_INTERFACE_ULPI,
-	.mode			= MUSB_OTG,
-	.power			= 100,
-};
 
 static void __init omap3_touchbook_init(void)
 {
@@ -521,17 +428,15 @@ static void __init omap3_touchbook_init(void)
 	omap_serial_init();
 
 	omap_mux_init_gpio(170, OMAP_PIN_INPUT);
-	gpio_request(176, "DVI_nPD");
 	/* REVISIT leave DVI powered down until it's needed ... */
-	gpio_direction_output(176, true);
+	gpio_request_one(176, GPIOF_OUT_INIT_HIGH, "DVI_nPD");
 
 	/* Touchscreen and accelerometer */
-	spi_register_board_info(omap3_ads7846_spi_board_info,
-				ARRAY_SIZE(omap3_ads7846_spi_board_info));
-	omap3_ads7846_init();
-	usb_musb_init(&musb_board_data);
+	omap_ads7846_init(4, OMAP3_TS_GPIO, 310, &ads7846_pdata);
+	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
-	omap3touchbook_flash_init();
+	omap_nand_flash_init(NAND_BUSWIDTH_16, omap3touchbook_nand_partitions,
+			     ARRAY_SIZE(omap3touchbook_nand_partitions));
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);

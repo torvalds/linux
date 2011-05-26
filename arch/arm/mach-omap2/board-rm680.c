@@ -31,6 +31,7 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "sdram-nokia.h"
+#include "common-board-devices.h"
 
 static struct regulator_consumer_supply rm680_vemmc_consumers[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
@@ -90,19 +91,9 @@ static struct twl4030_platform_data rm680_twl_data = {
 	/* add rest of the children here */
 };
 
-static struct i2c_board_info __initdata rm680_twl_i2c_board_info[] = {
-	{
-		I2C_BOARD_INFO("twl5031", 0x48),
-		.flags		= I2C_CLIENT_WAKE,
-		.irq		= INT_34XX_SYS_NIRQ,
-		.platform_data	= &rm680_twl_data,
-	},
-};
-
 static void __init rm680_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 2900, rm680_twl_i2c_board_info,
-				ARRAY_SIZE(rm680_twl_i2c_board_info));
+	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
 }
@@ -153,17 +144,11 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static struct omap_musb_board_data rm680_musb_data = {
-	.interface_type	= MUSB_INTERFACE_ULPI,
-	.mode		= MUSB_PERIPHERAL,
-	.power		= 100,
-};
-
 static void __init rm680_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
-	usb_musb_init(&rm680_musb_data);
+	usb_musb_init(NULL);
 	rm680_peripherals_init();
 }
 

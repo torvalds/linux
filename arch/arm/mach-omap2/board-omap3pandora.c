@@ -22,7 +22,6 @@
 #include <linux/platform_device.h>
 
 #include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
 #include <linux/wl12xx.h>
@@ -52,6 +51,7 @@
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
+#include "common-board-devices.h"
 
 #define PANDORA_WIFI_IRQ_GPIO		21
 #define PANDORA_WIFI_NRESET_GPIO	23
@@ -305,24 +305,13 @@ static int omap3pandora_twl_gpio_setup(struct device *dev,
 
 	/* gpio + 13 drives 32kHz buffer for wifi module */
 	gpio_32khz = gpio + 13;
-	ret = gpio_request(gpio_32khz, "wifi 32kHz");
+	ret = gpio_request_one(gpio_32khz, GPIOF_OUT_INIT_HIGH, "wifi 32kHz");
 	if (ret < 0) {
 		pr_err("Cannot get GPIO line %d, ret=%d\n", gpio_32khz, ret);
-		goto fail;
-	}
-
-	ret = gpio_direction_output(gpio_32khz, 1);
-	if (ret < 0) {
-		pr_err("Cannot set GPIO line %d, ret=%d\n", gpio_32khz, ret);
-		goto fail_direction;
+		return -ENODEV;
 	}
 
 	return 0;
-
-fail_direction:
-	gpio_free(gpio_32khz);
-fail:
-	return -ENODEV;
 }
 
 static struct twl4030_gpio_platform_data omap3pandora_gpio_data = {
@@ -544,15 +533,6 @@ static struct twl4030_platform_data omap3pandora_twldata = {
 	.bci		= &pandora_bci_data,
 };
 
-static struct i2c_board_info __initdata omap3pandora_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("tps65950", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &omap3pandora_twldata,
-	},
-};
-
 static struct i2c_board_info __initdata omap3pandora_i2c3_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("bq27500", 0x55),
@@ -562,61 +542,15 @@ static struct i2c_board_info __initdata omap3pandora_i2c3_boardinfo[] = {
 
 static int __init omap3pandora_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 2600, omap3pandora_i2c_boardinfo,
-			ARRAY_SIZE(omap3pandora_i2c_boardinfo));
+	omap3_pmic_init("tps65950", &omap3pandora_twldata);
 	/* i2c2 pins are not connected */
 	omap_register_i2c_bus(3, 100, omap3pandora_i2c3_boardinfo,
 			ARRAY_SIZE(omap3pandora_i2c3_boardinfo));
 	return 0;
 }
 
-static void __init omap3pandora_ads7846_init(void)
-{
-	int gpio = OMAP3_PANDORA_TS_GPIO;
-	int ret;
-
-	ret = gpio_request(gpio, "ads7846_pen_down");
-	if (ret < 0) {
-		printk(KERN_ERR "Failed to request GPIO %d for "
-				"ads7846 pen down IRQ\n", gpio);
-		return;
-	}
-
-	gpio_direction_input(gpio);
-}
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(OMAP3_PANDORA_TS_GPIO);
-}
-
-static struct ads7846_platform_data ads7846_config = {
-	.x_max			= 0x0fff,
-	.y_max			= 0x0fff,
-	.x_plate_ohms		= 180,
-	.pressure_max		= 255,
-	.debounce_max		= 10,
-	.debounce_tol		= 3,
-	.debounce_rep		= 1,
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-};
-
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
-	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
-};
-
 static struct spi_board_info omap3pandora_spi_board_info[] __initdata = {
 	{
-		.modalias		= "ads7846",
-		.bus_num		= 1,
-		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &ads7846_mcspi_config,
-		.irq			= OMAP_GPIO_IRQ(OMAP3_PANDORA_TS_GPIO),
-		.platform_data		= &ads7846_config,
-	}, {
 		.modalias		= "tpo_td043mtea1_panel_spi",
 		.bus_num		= 1,
 		.chip_select		= 1,
@@ -639,13 +573,9 @@ static void __init pandora_wl1251_init(void)
 
 	memset(&pandora_wl1251_pdata, 0, sizeof(pandora_wl1251_pdata));
 
-	ret = gpio_request(PANDORA_WIFI_IRQ_GPIO, "wl1251 irq");
+	ret = gpio_request_one(PANDORA_WIFI_IRQ_GPIO, GPIOF_IN, "wl1251 irq");
 	if (ret < 0)
 		goto fail;
-
-	ret = gpio_direction_input(PANDORA_WIFI_IRQ_GPIO);
-	if (ret < 0)
-		goto fail_irq;
 
 	pandora_wl1251_pdata.irq = gpio_to_irq(PANDORA_WIFI_IRQ_GPIO);
 	if (pandora_wl1251_pdata.irq < 0)
@@ -688,12 +618,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static struct omap_musb_board_data musb_board_data = {
-	.interface_type		= MUSB_INTERFACE_ULPI,
-	.mode			= MUSB_OTG,
-	.power			= 100,
-};
-
 static void __init omap3pandora_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
@@ -705,9 +629,9 @@ static void __init omap3pandora_init(void)
 	omap_serial_init();
 	spi_register_board_info(omap3pandora_spi_board_info,
 			ARRAY_SIZE(omap3pandora_spi_board_info));
-	omap3pandora_ads7846_init();
+	omap_ads7846_init(1, OMAP3_PANDORA_TS_GPIO, 0, NULL);
 	usbhs_init(&usbhs_bdata);
-	usb_musb_init(&musb_board_data);
+	usb_musb_init(NULL);
 	gpmc_nand_init(&pandora_nand_data);
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
