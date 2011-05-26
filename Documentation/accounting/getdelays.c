@@ -433,8 +433,6 @@ int main(int argc, char *argv[])
 	}
 
 	do {
-		int i;
-
 		rep_len = recv(nl_sd, &msg, sizeof(msg), 0);
 		PRINTF("received %d bytes\n", rep_len);
 
@@ -459,7 +457,6 @@ int main(int argc, char *argv[])
 
 		na = (struct nlattr *) GENLMSG_DATA(&msg);
 		len = 0;
-		i = 0;
 		while (len < rep_len) {
 			len += NLA_ALIGN(na->nla_len);
 			switch (na->nla_type) {
