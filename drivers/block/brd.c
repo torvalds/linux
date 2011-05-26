@@ -581,6 +581,9 @@ static int __init brd_init(void)
 	if (max_part > 0)
 		part_shift = fls(max_part);
 
+	if ((1UL << part_shift) > DISK_MAX_PARTS)
+		return -EINVAL;
+
 	if (rd_nr > 1UL << (MINORBITS - part_shift))
 		return -EINVAL;
 
