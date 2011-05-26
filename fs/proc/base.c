@@ -894,18 +894,18 @@ static ssize_t mem_write(struct file * file, const char __user *buf,
 	if (!task)
 		goto out_no_task;
 
-	mm = check_mem_permission(task);
-	copied = PTR_ERR(mm);
-	if (IS_ERR(mm))
-		goto out_task;
-
-	copied = -EIO;
-	if (file->private_data != (void *)((long)current->self_exec_id))
-		goto out_mm;
-
 	copied = -ENOMEM;
 	page = (char *)__get_free_page(GFP_TEMPORARY);
 	if (!page)
+		goto out_task;
+
+	mm = check_mem_permission(task);
+	copied = PTR_ERR(mm);
+	if (IS_ERR(mm))
+		goto out_free;
+
+	copied = -EIO;
+	if (file->private_data != (void *)((long)current->self_exec_id))
 		goto out_mm;
 
 	copied = 0;
@@ -929,9 +929,11 @@ static ssize_t mem_write(struct file * file, const char __user *buf,
 		count -= retval;			
 	}
 	*ppos = dst;
-	free_page((unsigned long) page);
+
 out_mm:
 	mmput(mm);
+out_free:
+	free_page((unsigned long) page);
 out_task:
 	put_task_struct(task);
 out_no_task:
