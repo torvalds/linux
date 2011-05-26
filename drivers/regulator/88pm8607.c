@@ -413,8 +413,8 @@ static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 			break;
 	}
 	if ((i < 0) || (i > PM8607_ID_RG_MAX)) {
-		dev_err(&pdev->dev, "Failed to find regulator %d\n",
-			res->start);
+		dev_err(&pdev->dev, "Failed to find regulator %llu\n",
+			(unsigned long long)res->start);
 		return -EINVAL;
 	}
 	info->i2c = (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
