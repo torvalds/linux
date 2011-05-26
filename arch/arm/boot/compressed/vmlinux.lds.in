@@ -33,20 +33,24 @@ SECTIONS
     *(.text.*)
     *(.fixup)
     *(.gnu.warning)
+    *(.glue_7t)
+    *(.glue_7)
+  }
+  .rodata : {
     *(.rodata)
     *(.rodata.*)
-    *(.glue_7)
-    *(.glue_7t)
+  }
+  .piggydata : {
     *(.piggydata)
-    . = ALIGN(4);
   }
 
+  . = ALIGN(4);
   _etext = .;
 
+  .got.plt		: { *(.got.plt) }
   _got_start = .;
   .got			: { *(.got) }
   _got_end = .;
-  .got.plt		: { *(.got.plt) }
   _edata = .;
 
   . = BSS_START;
