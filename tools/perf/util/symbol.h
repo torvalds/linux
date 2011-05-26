@@ -75,7 +75,8 @@ struct symbol_conf {
 			use_callchain,
 			exclude_other,
 			show_cpu_utilization,
-			initialized;
+			initialized,
+			kptr_restrict;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,

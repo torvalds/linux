@@ -676,9 +676,30 @@ discard_symbol:		rb_erase(&pos->rb_node, root);
 	return count + moved;
 }
 
+static bool symbol__restricted_filename(const char *filename,
+					const char *restricted_filename)
+{
+	bool restricted = false;
+
+	if (symbol_conf.kptr_restrict) {
+		char *r = realpath(filename, NULL);
+
+		if (r != NULL) {
+			restricted = strcmp(r, restricted_filename) == 0;
+			free(r);
+			return restricted;
+		}
+	}
+
+	return restricted;
+}
+
 int dso__load_kallsyms(struct dso *dso, const char *filename,
 		       struct map *map, symbol_filter_t filter)
 {
+	if (symbol__restricted_filename(filename, "/proc/kallsyms"))
+		return -1;
+
 	if (dso__load_all_kallsyms(dso, filename, map) < 0)
 		return -1;
 
@@ -1790,6 +1811,9 @@ static int machine__create_modules(struct machine *machine)
 		modules = path;
 	}
 
+	if (symbol__restricted_filename(path, "/proc/modules"))
+		return -1;
+
 	file = fopen(modules, "r");
 	if (file == NULL)
 		return -1;
@@ -2239,6 +2263,9 @@ static u64 machine__get_kernel_start_addr(struct machine *machine)
 		}
 	}
 
+	if (symbol__restricted_filename(filename, "/proc/kallsyms"))
+		return 0;
+
 	if (kallsyms__parse(filename, &args, symbol__in_kernel) <= 0)
 		return 0;
 
@@ -2410,6 +2437,25 @@ static int setup_list(struct strlist **list, const char *list_str,
 	return 0;
 }
 
+static bool symbol__read_kptr_restrict(void)
+{
+	bool value = false;
+
+	if (geteuid() != 0) {
+		FILE *fp = fopen("/proc/sys/kernel/kptr_restrict", "r");
+		if (fp != NULL) {
+			char line[8];
+
+			if (fgets(line, sizeof(line), fp) != NULL)
+				value = atoi(line) != 0;
+
+			fclose(fp);
+		}
+	}
+
+	return value;
+}
+
 int symbol__init(void)
 {
 	const char *symfs;
@@ -2455,6 +2501,8 @@ int symbol__init(void)
 		symbol_conf.symfs = "";
 	if (symfs != symbol_conf.symfs)
 		free((void *)symfs);
+
+	symbol_conf.kptr_restrict = symbol__read_kptr_restrict();
 
 	symbol_conf.initialized = true;
 	return 0;
