@@ -682,6 +682,14 @@ config RTC_DRV_WM8350
 	  This driver can also be built as a module. If so, the module
 	  will be called "rtc-wm8350".
 
+config RTC_DRV_SPEAR
+	tristate "SPEAR ST RTC"
+	depends on PLAT_SPEAR
+	default y
+	help
+	 If you say Y here you will get support for the RTC found on
+	 spear
+
 config RTC_DRV_PCF50633
 	depends on MFD_PCF50633
 	tristate "NXP PCF50633 RTC"
