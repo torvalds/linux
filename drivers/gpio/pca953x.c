@@ -397,7 +397,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 
 			irq_set_chip_data(irq, chip);
 			irq_set_chip_and_handler(irq, &pca953x_irq_chip,
-						 handle_edge_irq);
+						 handle_simple_irq);
 #ifdef CONFIG_ARM
 			set_irq_flags(irq, IRQF_VALID);
 #else
