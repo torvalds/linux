@@ -37,6 +37,7 @@
 #include <linux/etherdevice.h>
 #include <linux/input-polldev.h>
 #include <linux/kfifo.h>
+#include <linux/timer.h>
 
 #include <net/mac80211.h>
 
@@ -348,6 +349,11 @@ struct link {
 	 * to bring the device/driver back into the desired state.
 	 */
 	struct delayed_work watchdog_work;
+
+	/*
+	 * Work structure for scheduling periodic AGC adjustments.
+	 */
+	struct delayed_work agc_work;
 };
 
 enum rt2x00_delayed_flags {
@@ -556,6 +562,7 @@ struct rt2x00lib_ops {
 			     struct link_qual *qual);
 	void (*link_tuner) (struct rt2x00_dev *rt2x00dev,
 			    struct link_qual *qual, const u32 count);
+	void (*gain_calibration) (struct rt2x00_dev *rt2x00dev);
 
 	/*
 	 * Data queue handlers.
@@ -564,7 +571,8 @@ struct rt2x00lib_ops {
 	void (*start_queue) (struct data_queue *queue);
 	void (*kick_queue) (struct data_queue *queue);
 	void (*stop_queue) (struct data_queue *queue);
-	void (*flush_queue) (struct data_queue *queue);
+	void (*flush_queue) (struct data_queue *queue, bool drop);
+	void (*tx_dma_done) (struct queue_entry *entry);
 
 	/*
 	 * TX control handlers
@@ -637,11 +645,11 @@ struct rt2x00_ops {
 };
 
 /*
- * rt2x00 device flags
+ * rt2x00 state flags
  */
-enum rt2x00_flags {
+enum rt2x00_state_flags {
 	/*
-	 * Device state flags
+	 * Device flags
 	 */
 	DEVICE_STATE_PRESENT,
 	DEVICE_STATE_REGISTERED_HW,
@@ -651,40 +659,47 @@ enum rt2x00_flags {
 	DEVICE_STATE_SCANNING,
 
 	/*
-	 * Driver requirements
-	 */
-	DRIVER_REQUIRE_FIRMWARE,
-	DRIVER_REQUIRE_BEACON_GUARD,
-	DRIVER_REQUIRE_ATIM_QUEUE,
-	DRIVER_REQUIRE_DMA,
-	DRIVER_REQUIRE_COPY_IV,
-	DRIVER_REQUIRE_L2PAD,
-	DRIVER_REQUIRE_TXSTATUS_FIFO,
-	DRIVER_REQUIRE_TASKLET_CONTEXT,
-	DRIVER_REQUIRE_SW_SEQNO,
-	DRIVER_REQUIRE_HT_TX_DESC,
-
-	/*
-	 * Driver features
-	 */
-	CONFIG_SUPPORT_HW_BUTTON,
-	CONFIG_SUPPORT_HW_CRYPTO,
-	CONFIG_SUPPORT_POWER_LIMIT,
-	DRIVER_SUPPORT_CONTROL_FILTERS,
-	DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL,
-	DRIVER_SUPPORT_PRE_TBTT_INTERRUPT,
-	DRIVER_SUPPORT_LINK_TUNING,
-	DRIVER_SUPPORT_WATCHDOG,
-
-	/*
 	 * Driver configuration
 	 */
-	CONFIG_FRAME_TYPE,
-	CONFIG_RF_SEQUENCE,
-	CONFIG_EXTERNAL_LNA_A,
-	CONFIG_EXTERNAL_LNA_BG,
-	CONFIG_DOUBLE_ANTENNA,
 	CONFIG_CHANNEL_HT40,
+	CONFIG_POWERSAVING,
+};
+
+/*
+ * rt2x00 capability flags
+ */
+enum rt2x00_capability_flags {
+	/*
+	 * Requirements
+	 */
+	REQUIRE_FIRMWARE,
+	REQUIRE_BEACON_GUARD,
+	REQUIRE_ATIM_QUEUE,
+	REQUIRE_DMA,
+	REQUIRE_COPY_IV,
+	REQUIRE_L2PAD,
+	REQUIRE_TXSTATUS_FIFO,
+	REQUIRE_TASKLET_CONTEXT,
+	REQUIRE_SW_SEQNO,
+	REQUIRE_HT_TX_DESC,
+	REQUIRE_PS_AUTOWAKE,
+
+	/*
+	 * Capabilities
+	 */
+	CAPABILITY_HW_BUTTON,
+	CAPABILITY_HW_CRYPTO,
+	CAPABILITY_POWER_LIMIT,
+	CAPABILITY_CONTROL_FILTERS,
+	CAPABILITY_CONTROL_FILTER_PSPOLL,
+	CAPABILITY_PRE_TBTT_INTERRUPT,
+	CAPABILITY_LINK_TUNING,
+	CAPABILITY_FRAME_TYPE,
+	CAPABILITY_RF_SEQUENCE,
+	CAPABILITY_EXTERNAL_LNA_A,
+	CAPABILITY_EXTERNAL_LNA_BG,
+	CAPABILITY_DOUBLE_ANTENNA,
+	CAPABILITY_BT_COEXIST,
 };
 
 /*
@@ -733,11 +748,18 @@ struct rt2x00_dev {
 #endif /* CONFIG_RT2X00_LIB_LEDS */
 
 	/*
-	 * Device flags.
-	 * In these flags the current status and some
-	 * of the device capabilities are stored.
+	 * Device state flags.
+	 * In these flags the current status is stored.
+	 * Access to these flags should occur atomically.
 	 */
 	unsigned long flags;
+
+	/*
+	 * Device capabiltiy flags.
+	 * In these flags the device/driver capabilities are stored.
+	 * Access to these flags should occur non-atomically.
+	 */
+	unsigned long cap_flags;
 
 	/*
 	 * Device information, Bus IRQ and name (PCI, SoC)
@@ -855,9 +877,19 @@ struct rt2x00_dev {
 	u8 calibration[2];
 
 	/*
+	 * Association id.
+	 */
+	u16 aid;
+
+	/*
 	 * Beacon interval.
 	 */
 	u16 beacon_int;
+
+	/**
+	 * Timestamp of last received beacon
+	 */
+	unsigned long last_beacon;
 
 	/*
 	 * Low level statistics which will have
@@ -887,6 +919,11 @@ struct rt2x00_dev {
 	struct work_struct txdone_work;
 
 	/*
+	 * Powersaving work
+	 */
+	struct delayed_work autowakeup_work;
+
+	/*
 	 * Data queue arrays for RX, TX, Beacon and ATIM.
 	 */
 	unsigned int data_queues;
@@ -904,6 +941,11 @@ struct rt2x00_dev {
 	 * FIFO for storing tx status reports between isr and tasklet.
 	 */
 	DECLARE_KFIFO_PTR(txstatus_fifo, u32);
+
+	/*
+	 * Timer to ensure tx status reports are read (rt2800usb).
+	 */
+	struct timer_list txstatus_timer;
 
 	/*
 	 * Tasklet for processing tx status reports (rt2800pci).
@@ -1230,6 +1272,10 @@ int rt2x00mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		      const struct ieee80211_tx_queue_params *params);
 void rt2x00mac_rfkill_poll(struct ieee80211_hw *hw);
 void rt2x00mac_flush(struct ieee80211_hw *hw, bool drop);
+int rt2x00mac_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant);
+int rt2x00mac_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant);
+void rt2x00mac_get_ringparam(struct ieee80211_hw *hw,
+			     u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max);
 
 /*
  * Driver allocation handlers.

@@ -946,6 +946,8 @@ void __init setup_arch(char **cmdline_p)
 	if (init_ohci1394_dma_early)
 		init_ohci1394_dma_on_all_controllers();
 #endif
+	/* Allocate bigger log buffer */
+	setup_log_buf(1);
 
 	reserve_initrd();
 
@@ -964,7 +966,6 @@ void __init setup_arch(char **cmdline_p)
 
 	initmem_init();
 	memblock_find_dma_reserve();
-	dma32_reserve_bootmem();
 
 #ifdef CONFIG_KVM_CLOCK
 	kvmclock_init();

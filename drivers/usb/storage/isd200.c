@@ -499,7 +499,6 @@ static int isd200_action( struct us_data *us, int action,
 	memset(&ata, 0, sizeof(ata));
 	srb->cmnd = info->cmnd;
 	srb->device = &srb_dev;
-	++srb->serial_number;
 
 	ata.generic.SignatureByte0 = info->ConfigData.ATAMajorCommand;
 	ata.generic.SignatureByte1 = info->ConfigData.ATAMinorCommand;

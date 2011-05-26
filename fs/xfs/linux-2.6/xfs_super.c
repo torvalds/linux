@@ -1787,10 +1787,6 @@ init_xfs_fs(void)
 	if (error)
 		goto out_cleanup_procfs;
 
-	error = xfs_init_workqueues();
-	if (error)
-		goto out_sysctl_unregister;
-
 	vfs_initquota();
 
 	error = register_filesystem(&xfs_fs_type);

@@ -210,6 +210,8 @@ struct dtl_entry {
 #define DISPATCH_LOG_BYTES	4096	/* bytes per cpu */
 #define N_DISPATCH_LOG		(DISPATCH_LOG_BYTES / sizeof(struct dtl_entry))
 
+extern struct kmem_cache *dtl_cache;
+
 /*
  * When CONFIG_VIRT_CPU_ACCOUNTING = y, the cpu accounting code controls
  * reading from the dispatch trace log.  If other code wants to consume

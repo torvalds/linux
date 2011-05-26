@@ -2,7 +2,7 @@
  * cpu.h: Values of the PRId register used to match up
  *        various MIPS cpu types.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 2004  Maciej W. Rozycki
  */
 #ifndef _ASM_CPU_H

@@ -133,6 +133,7 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags);
 
 void b43_mac_suspend(struct b43_wldev *dev);
 void b43_mac_enable(struct b43_wldev *dev);
+void b43_mac_phy_clock_set(struct b43_wldev *dev, bool on);
 
 
 struct b43_request_fw_context;

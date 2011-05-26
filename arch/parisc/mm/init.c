@@ -31,8 +31,6 @@
 #include <asm/mmzone.h>
 #include <asm/sections.h>
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
 extern int  data_start;
 
 #ifdef CONFIG_DISCONTIGMEM
@@ -371,24 +369,158 @@ static void __init setup_bootmem(void)
 	request_resource(&sysram_resources[0], &pdcdata_resource);
 }
 
+static void __init map_pages(unsigned long start_vaddr,
+			     unsigned long start_paddr, unsigned long size,
+			     pgprot_t pgprot, int force)
+{
+	pgd_t *pg_dir;
+	pmd_t *pmd;
+	pte_t *pg_table;
+	unsigned long end_paddr;
+	unsigned long start_pmd;
+	unsigned long start_pte;
+	unsigned long tmp1;
+	unsigned long tmp2;
+	unsigned long address;
+	unsigned long vaddr;
+	unsigned long ro_start;
+	unsigned long ro_end;
+	unsigned long fv_addr;
+	unsigned long gw_addr;
+	extern const unsigned long fault_vector_20;
+	extern void * const linux_gateway_page;
+
+	ro_start = __pa((unsigned long)_text);
+	ro_end   = __pa((unsigned long)&data_start);
+	fv_addr  = __pa((unsigned long)&fault_vector_20) & PAGE_MASK;
+	gw_addr  = __pa((unsigned long)&linux_gateway_page) & PAGE_MASK;
+
+	end_paddr = start_paddr + size;
+
+	pg_dir = pgd_offset_k(start_vaddr);
+
+#if PTRS_PER_PMD == 1
+	start_pmd = 0;
+#else
+	start_pmd = ((start_vaddr >> PMD_SHIFT) & (PTRS_PER_PMD - 1));
+#endif
+	start_pte = ((start_vaddr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1));
+
+	address = start_paddr;
+	vaddr = start_vaddr;
+	while (address < end_paddr) {
+#if PTRS_PER_PMD == 1
+		pmd = (pmd_t *)__pa(pg_dir);
+#else
+		pmd = (pmd_t *)pgd_address(*pg_dir);
+
+		/*
+		 * pmd is physical at this point
+		 */
+
+		if (!pmd) {
+			pmd = (pmd_t *) alloc_bootmem_low_pages_node(NODE_DATA(0), PAGE_SIZE << PMD_ORDER);
+			pmd = (pmd_t *) __pa(pmd);
+		}
+
+		pgd_populate(NULL, pg_dir, __va(pmd));
+#endif
+		pg_dir++;
+
+		/* now change pmd to kernel virtual addresses */
+
+		pmd = (pmd_t *)__va(pmd) + start_pmd;
+		for (tmp1 = start_pmd; tmp1 < PTRS_PER_PMD; tmp1++, pmd++) {
+
+			/*
+			 * pg_table is physical at this point
+			 */
+
+			pg_table = (pte_t *)pmd_address(*pmd);
+			if (!pg_table) {
+				pg_table = (pte_t *)
+					alloc_bootmem_low_pages_node(NODE_DATA(0), PAGE_SIZE);
+				pg_table = (pte_t *) __pa(pg_table);
+			}
+
+			pmd_populate_kernel(NULL, pmd, __va(pg_table));
+
+			/* now change pg_table to kernel virtual addresses */
+
+			pg_table = (pte_t *) __va(pg_table) + start_pte;
+			for (tmp2 = start_pte; tmp2 < PTRS_PER_PTE; tmp2++, pg_table++) {
+				pte_t pte;
+
+				/*
+				 * Map the fault vector writable so we can
+				 * write the HPMC checksum.
+				 */
+				if (force)
+					pte =  __mk_pte(address, pgprot);
+				else if (core_kernel_text(vaddr) &&
+					 address != fv_addr)
+					pte = __mk_pte(address, PAGE_KERNEL_EXEC);
+				else
+#if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
+				if (address >= ro_start && address < ro_end
+							&& address != fv_addr
+							&& address != gw_addr)
+					pte = __mk_pte(address, PAGE_KERNEL_RO);
+				else
+#endif
+					pte = __mk_pte(address, pgprot);
+
+				if (address >= end_paddr) {
+					if (force)
+						break;
+					else
+						pte_val(pte) = 0;
+				}
+
+				set_pte(pg_table, pte);
+
+				address += PAGE_SIZE;
+				vaddr += PAGE_SIZE;
+			}
+			start_pte = 0;
+
+			if (address >= end_paddr)
+			    break;
+		}
+		start_pmd = 0;
+	}
+}
+
 void free_initmem(void)
 {
 	unsigned long addr;
 	unsigned long init_begin = (unsigned long)__init_begin;
 	unsigned long init_end = (unsigned long)__init_end;
 
-#ifdef CONFIG_DEBUG_KERNEL
+	/* The init text pages are marked R-X.  We have to
+	 * flush the icache and mark them RW-
+	 *
+	 * This is tricky, because map_pages is in the init section.
+	 * Do a dummy remap of the data section first (the data
+	 * section is already PAGE_KERNEL) to pull in the TLB entries
+	 * for map_kernel */
+	map_pages(init_begin, __pa(init_begin), init_end - init_begin,
+		  PAGE_KERNEL_RWX, 1);
+	/* now remap at PAGE_KERNEL since the TLB is pre-primed to execute
+	 * map_pages */
+	map_pages(init_begin, __pa(init_begin), init_end - init_begin,
+		  PAGE_KERNEL, 1);
+
+	/* force the kernel to see the new TLB entries */
+	__flush_tlb_range(0, init_begin, init_end);
 	/* Attempt to catch anyone trying to execute code here
 	 * by filling the page with BRK insns.
 	 */
 	memset((void *)init_begin, 0x00, init_end - init_begin);
+	/* finally dump all the instructions which were cached, since the
+	 * pages are no-longer executable */
 	flush_icache_range(init_begin, init_end);
-#endif
 	
-	/* align __init_begin and __init_end to page size,
-	   ignoring linker script where we might have tried to save RAM */
-	init_begin = PAGE_ALIGN(init_begin);
-	init_end = PAGE_ALIGN(init_end);
 	for (addr = init_begin; addr < init_end; addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));
@@ -552,7 +684,7 @@ void show_mem(unsigned int filter)
 	int shared = 0, cached = 0;
 
 	printk(KERN_INFO "Mem-info:\n");
-	show_free_areas();
+	show_free_areas(filter);
 #ifndef CONFIG_DISCONTIGMEM
 	i = max_mapnr;
 	while (i-- > 0) {
@@ -618,114 +750,6 @@ void show_mem(unsigned int filter)
 #endif
 }
 
-
-static void __init map_pages(unsigned long start_vaddr, unsigned long start_paddr, unsigned long size, pgprot_t pgprot)
-{
-	pgd_t *pg_dir;
-	pmd_t *pmd;
-	pte_t *pg_table;
-	unsigned long end_paddr;
-	unsigned long start_pmd;
-	unsigned long start_pte;
-	unsigned long tmp1;
-	unsigned long tmp2;
-	unsigned long address;
-	unsigned long ro_start;
-	unsigned long ro_end;
-	unsigned long fv_addr;
-	unsigned long gw_addr;
-	extern const unsigned long fault_vector_20;
-	extern void * const linux_gateway_page;
-
-	ro_start = __pa((unsigned long)_text);
-	ro_end   = __pa((unsigned long)&data_start);
-	fv_addr  = __pa((unsigned long)&fault_vector_20) & PAGE_MASK;
-	gw_addr  = __pa((unsigned long)&linux_gateway_page) & PAGE_MASK;
-
-	end_paddr = start_paddr + size;
-
-	pg_dir = pgd_offset_k(start_vaddr);
-
-#if PTRS_PER_PMD == 1
-	start_pmd = 0;
-#else
-	start_pmd = ((start_vaddr >> PMD_SHIFT) & (PTRS_PER_PMD - 1));
-#endif
-	start_pte = ((start_vaddr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1));
-
-	address = start_paddr;
-	while (address < end_paddr) {
-#if PTRS_PER_PMD == 1
-		pmd = (pmd_t *)__pa(pg_dir);
-#else
-		pmd = (pmd_t *)pgd_address(*pg_dir);
-
-		/*
-		 * pmd is physical at this point
-		 */
-
-		if (!pmd) {
-			pmd = (pmd_t *) alloc_bootmem_low_pages_node(NODE_DATA(0),PAGE_SIZE << PMD_ORDER);
-			pmd = (pmd_t *) __pa(pmd);
-		}
-
-		pgd_populate(NULL, pg_dir, __va(pmd));
-#endif
-		pg_dir++;
-
-		/* now change pmd to kernel virtual addresses */
-
-		pmd = (pmd_t *)__va(pmd) + start_pmd;
-		for (tmp1 = start_pmd; tmp1 < PTRS_PER_PMD; tmp1++,pmd++) {
-
-			/*
-			 * pg_table is physical at this point
-			 */
-
-			pg_table = (pte_t *)pmd_address(*pmd);
-			if (!pg_table) {
-				pg_table = (pte_t *)
-					alloc_bootmem_low_pages_node(NODE_DATA(0),PAGE_SIZE);
-				pg_table = (pte_t *) __pa(pg_table);
-			}
-
-			pmd_populate_kernel(NULL, pmd, __va(pg_table));
-
-			/* now change pg_table to kernel virtual addresses */
-
-			pg_table = (pte_t *) __va(pg_table) + start_pte;
-			for (tmp2 = start_pte; tmp2 < PTRS_PER_PTE; tmp2++,pg_table++) {
-				pte_t pte;
-
-				/*
-				 * Map the fault vector writable so we can
-				 * write the HPMC checksum.
-				 */
-#if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
-				if (address >= ro_start && address < ro_end
-							&& address != fv_addr
-							&& address != gw_addr)
-				    pte = __mk_pte(address, PAGE_KERNEL_RO);
-				else
-#endif
-				    pte = __mk_pte(address, pgprot);
-
-				if (address >= end_paddr)
-					pte_val(pte) = 0;
-
-				set_pte(pg_table, pte);
-
-				address += PAGE_SIZE;
-			}
-			start_pte = 0;
-
-			if (address >= end_paddr)
-			    break;
-		}
-		start_pmd = 0;
-	}
-}
-
 /*
  * pagetable_init() sets up the page tables
  *
@@ -750,14 +774,14 @@ static void __init pagetable_init(void)
 		size = pmem_ranges[range].pages << PAGE_SHIFT;
 
 		map_pages((unsigned long)__va(start_paddr), start_paddr,
-			size, PAGE_KERNEL);
+			  size, PAGE_KERNEL, 0);
 	}
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_end && initrd_end > mem_limit) {
 		printk(KERN_INFO "initrd: mapping %08lx-%08lx\n", initrd_start, initrd_end);
 		map_pages(initrd_start, __pa(initrd_start),
-			initrd_end - initrd_start, PAGE_KERNEL);
+			  initrd_end - initrd_start, PAGE_KERNEL, 0);
 	}
 #endif
 
@@ -782,7 +806,7 @@ static void __init gateway_init(void)
 	 */
 
 	map_pages(linux_gateway_page_addr, __pa(&linux_gateway_page),
-		PAGE_SIZE, PAGE_GATEWAY);
+		  PAGE_SIZE, PAGE_GATEWAY, 1);
 }
 
 #ifdef CONFIG_HPUX

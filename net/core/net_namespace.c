@@ -8,6 +8,8 @@
 #include <linux/idr.h>
 #include <linux/rculist.h>
 #include <linux/nsproxy.h>
+#include <linux/proc_fs.h>
+#include <linux/file.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
@@ -208,10 +210,13 @@ static void net_free(struct net *net)
 	kmem_cache_free(net_cachep, net);
 }
 
-static struct net *net_create(void)
+struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 {
 	struct net *net;
 	int rv;
+
+	if (!(flags & CLONE_NEWNET))
+		return get_net(old_net);
 
 	net = net_alloc();
 	if (!net)
@@ -229,13 +234,6 @@ static struct net *net_create(void)
 		return ERR_PTR(rv);
 	}
 	return net;
-}
-
-struct net *copy_net_ns(unsigned long flags, struct net *old_net)
-{
-	if (!(flags & CLONE_NEWNET))
-		return get_net(old_net);
-	return net_create();
 }
 
 static DEFINE_SPINLOCK(cleanup_list_lock);
@@ -306,12 +304,39 @@ void __put_net(struct net *net)
 }
 EXPORT_SYMBOL_GPL(__put_net);
 
+struct net *get_net_ns_by_fd(int fd)
+{
+	struct proc_inode *ei;
+	struct file *file;
+	struct net *net;
+
+	net = ERR_PTR(-EINVAL);
+	file = proc_ns_fget(fd);
+	if (!file)
+		goto out;
+
+	ei = PROC_I(file->f_dentry->d_inode);
+	if (ei->ns_ops != &netns_operations)
+		goto out;
+
+	net = get_net(ei->ns);
+out:
+	if (file)
+		fput(file);
+	return net;
+}
+
 #else
 struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 {
 	if (flags & CLONE_NEWNET)
 		return ERR_PTR(-EINVAL);
 	return old_net;
+}
+
+struct net *get_net_ns_by_fd(int fd)
+{
+	return ERR_PTR(-EINVAL);
 }
 #endif
 
@@ -565,3 +590,39 @@ void unregister_pernet_device(struct pernet_operations *ops)
 	mutex_unlock(&net_mutex);
 }
 EXPORT_SYMBOL_GPL(unregister_pernet_device);
+
+#ifdef CONFIG_NET_NS
+static void *netns_get(struct task_struct *task)
+{
+	struct net *net = NULL;
+	struct nsproxy *nsproxy;
+
+	rcu_read_lock();
+	nsproxy = task_nsproxy(task);
+	if (nsproxy)
+		net = get_net(nsproxy->net_ns);
+	rcu_read_unlock();
+
+	return net;
+}
+
+static void netns_put(void *ns)
+{
+	put_net(ns);
+}
+
+static int netns_install(struct nsproxy *nsproxy, void *ns)
+{
+	put_net(nsproxy->net_ns);
+	nsproxy->net_ns = get_net(ns);
+	return 0;
+}
+
+const struct proc_ns_operations netns_operations = {
+	.name		= "net",
+	.type		= CLONE_NEWNET,
+	.get		= netns_get,
+	.put		= netns_put,
+	.install	= netns_install,
+};
+#endif

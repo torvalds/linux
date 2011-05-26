@@ -196,8 +196,20 @@ static irqreturn_t iic_ipi_action(int irq, void *dev_id)
 {
 	int ipi = (int)(long)dev_id;
 
-	smp_message_recv(ipi);
-
+	switch(ipi) {
+	case PPC_MSG_CALL_FUNCTION:
+		generic_smp_call_function_interrupt();
+		break;
+	case PPC_MSG_RESCHEDULE:
+		scheduler_ipi();
+		break;
+	case PPC_MSG_CALL_FUNC_SINGLE:
+		generic_smp_call_function_single_interrupt();
+		break;
+	case PPC_MSG_DEBUGGER_BREAK:
+		debug_ipi_action(0, NULL);
+		break;
+	}
 	return IRQ_HANDLED;
 }
 static void iic_request_ipi(int ipi, const char *name)

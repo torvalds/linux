@@ -321,10 +321,10 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	 * the ACK carries the same options again (see RFC1122 4.2.3.8)
 	 */
 	if (opt && opt->optlen) {
-		int opt_size = sizeof(struct ip_options) + opt->optlen;
+		int opt_size = sizeof(struct ip_options_rcu) + opt->optlen;
 
 		ireq->opt = kmalloc(opt_size, GFP_ATOMIC);
-		if (ireq->opt != NULL && ip_options_echo(ireq->opt, skb)) {
+		if (ireq->opt != NULL && ip_options_echo(&ireq->opt->opt, skb)) {
 			kfree(ireq->opt);
 			ireq->opt = NULL;
 		}
@@ -345,17 +345,13 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	 * no easy way to do this.
 	 */
 	{
-		struct flowi4 fl4 = {
-			.flowi4_mark = sk->sk_mark,
-			.daddr = ((opt && opt->srr) ?
-				  opt->faddr : ireq->rmt_addr),
-			.saddr = ireq->loc_addr,
-			.flowi4_tos = RT_CONN_FLAGS(sk),
-			.flowi4_proto = IPPROTO_TCP,
-			.flowi4_flags = inet_sk_flowi_flags(sk),
-			.fl4_sport = th->dest,
-			.fl4_dport = th->source,
-		};
+		struct flowi4 fl4;
+
+		flowi4_init_output(&fl4, 0, sk->sk_mark, RT_CONN_FLAGS(sk),
+				   RT_SCOPE_UNIVERSE, IPPROTO_TCP,
+				   inet_sk_flowi_flags(sk),
+				   (opt && opt->srr) ? opt->faddr : ireq->rmt_addr,
+				   ireq->loc_addr, th->source, th->dest);
 		security_req_classify_flow(req, flowi4_to_flowi(&fl4));
 		rt = ip_route_output_key(sock_net(sk), &fl4);
 		if (IS_ERR(rt)) {

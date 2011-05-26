@@ -34,9 +34,9 @@
 #include "rf.h"
 #include "dm.h"
 
-static bool _rtl92c_phy_rf6052_config_parafile(struct ieee80211_hw *hw);
+static bool _rtl92ce_phy_rf6052_config_parafile(struct ieee80211_hw *hw);
 
-void rtl92c_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
+void rtl92ce_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -62,7 +62,7 @@ void rtl92c_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
 }
 
 void rtl92ce_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
-				       u8 *ppowerlevel)
+					u8 *ppowerlevel)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -128,8 +128,7 @@ void rtl92ce_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 
 	tmpval = tx_agc[RF90_PATH_A] >> 8;
 
-	if (mac->mode == WIRELESS_MODE_B)
-		tmpval = tmpval & 0xff00ffff;
+	tmpval = tmpval & 0xff00ffff;
 
 	rtl_set_bbreg(hw, RTXAGC_B_CCK11_A_CCK2_11, 0xffffff00, tmpval);
 
@@ -202,7 +201,7 @@ static void _rtl92c_get_txpower_writeval_by_regulatory(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
-	u8 i, chnlgroup, pwr_diff_limit[4];
+	u8 i, chnlgroup = 0, pwr_diff_limit[4];
 	u32 writeVal, customer_limit, rf;
 
 	for (rf = 0; rf < 2; rf++) {
@@ -440,16 +439,17 @@ bool rtl92ce_phy_rf6052_config(struct ieee80211_hw *hw)
 	else
 		rtlphy->num_total_rfpath = 2;
 
-	return _rtl92c_phy_rf6052_config_parafile(hw);
+	return _rtl92ce_phy_rf6052_config_parafile(hw);
+
 }
 
-static bool _rtl92c_phy_rf6052_config_parafile(struct ieee80211_hw *hw)
+static bool _rtl92ce_phy_rf6052_config_parafile(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	u32 u4_regvalue;
+	u32 u4_regvalue = 0;
 	u8 rfpath;
-	bool rtstatus;
+	bool rtstatus = true;
 	struct bb_reg_def *pphyreg;
 
 	for (rfpath = 0; rfpath < rtlphy->num_total_rfpath; rfpath++) {
@@ -484,12 +484,12 @@ static bool _rtl92c_phy_rf6052_config_parafile(struct ieee80211_hw *hw)
 
 		switch (rfpath) {
 		case RF90_PATH_A:
-			rtstatus = rtl92ce_phy_config_rf_with_headerfile(hw,
-					(enum radio_path) rfpath);
+			rtstatus = rtl92c_phy_config_rf_with_headerfile(hw,
+						(enum radio_path)rfpath);
 			break;
 		case RF90_PATH_B:
-			rtstatus = rtl92ce_phy_config_rf_with_headerfile(hw,
-					(enum radio_path) rfpath);
+			rtstatus = rtl92c_phy_config_rf_with_headerfile(hw,
+						(enum radio_path)rfpath);
 			break;
 		case RF90_PATH_C:
 			break;

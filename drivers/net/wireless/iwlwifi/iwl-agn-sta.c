@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -144,7 +144,7 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv,
 	size_t cmd_size  = sizeof(struct iwl_wep_cmd);
 	struct iwl_host_cmd cmd = {
 		.id = ctx->wep_key_cmd,
-		.data = wep_cmd,
+		.data = { wep_cmd, },
 		.flags = CMD_SYNC,
 	};
 
@@ -172,7 +172,7 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv,
 
 	cmd_size += sizeof(struct iwl_wep_key) * WEP_KEYS_MAX;
 
-	cmd.len = cmd_size;
+	cmd.len[0] = cmd_size;
 
 	if (not_empty || send_if_empty)
 		return iwl_send_cmd(priv, &cmd);
@@ -474,7 +474,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	memset(&priv->stations[sta_id].keyinfo, 0,
 					sizeof(struct iwl_hw_key));
 	memset(&priv->stations[sta_id].sta.key, 0,
-					sizeof(struct iwl4965_keyinfo));
+					sizeof(struct iwl_keyinfo));
 	priv->stations[sta_id].sta.key.key_flags =
 			STA_KEY_FLG_NO_ENC | STA_KEY_FLG_INVALID;
 	priv->stations[sta_id].sta.key.key_offset = WEP_INVALID_OFFSET;

@@ -1336,15 +1336,20 @@ static int restart_autoneg(struct net_device *dev)
 	return 0;
 }
 
-static int identify_port(struct net_device *dev, u32 data)
+static int identify_port(struct net_device *dev,
+			 enum ethtool_phys_id_state state)
 {
+	unsigned int val;
 	struct adapter *adap = netdev2adap(dev);
 
-	if (data == 0)
-		data = 2;     /* default to 2 seconds */
+	if (state == ETHTOOL_ID_ACTIVE)
+		val = 0xffff;
+	else if (state == ETHTOOL_ID_INACTIVE)
+		val = 0;
+	else
+		return -EINVAL;
 
-	return t4_identify_port(adap, adap->fn, netdev2pinfo(dev)->viid,
-				data * 5);
+	return t4_identify_port(adap, adap->fn, netdev2pinfo(dev)->viid, val);
 }
 
 static unsigned int from_fw_linkcaps(unsigned int type, unsigned int caps)
@@ -1431,7 +1436,8 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	cmd->supported = from_fw_linkcaps(p->port_type, p->link_cfg.supported);
 	cmd->advertising = from_fw_linkcaps(p->port_type,
 					    p->link_cfg.advertising);
-	cmd->speed = netif_carrier_ok(dev) ? p->link_cfg.speed : 0;
+	ethtool_cmd_speed_set(cmd,
+			      netif_carrier_ok(dev) ? p->link_cfg.speed : 0);
 	cmd->duplex = DUPLEX_FULL;
 	cmd->autoneg = p->link_cfg.autoneg;
 	cmd->maxtxpkt = 0;
@@ -1455,6 +1461,7 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	unsigned int cap;
 	struct port_info *p = netdev_priv(dev);
 	struct link_config *lc = &p->link_cfg;
+	u32 speed = ethtool_cmd_speed(cmd);
 
 	if (cmd->duplex != DUPLEX_FULL)     /* only full-duplex supported */
 		return -EINVAL;
@@ -1465,16 +1472,16 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		 * being requested.
 		 */
 		if (cmd->autoneg == AUTONEG_DISABLE &&
-		    (lc->supported & speed_to_caps(cmd->speed)))
-				return 0;
+		    (lc->supported & speed_to_caps(speed)))
+			return 0;
 		return -EINVAL;
 	}
 
 	if (cmd->autoneg == AUTONEG_DISABLE) {
-		cap = speed_to_caps(cmd->speed);
+		cap = speed_to_caps(speed);
 
-		if (!(lc->supported & cap) || cmd->speed == SPEED_1000 ||
-		    cmd->speed == SPEED_10000)
+		if (!(lc->supported & cap) || (speed == SPEED_1000) ||
+		    (speed == SPEED_10000))
 			return -EINVAL;
 		lc->requested_speed = cap;
 		lc->advertising = 0;
@@ -1523,24 +1530,6 @@ static int set_pauseparam(struct net_device *dev,
 	if (netif_running(dev))
 		return t4_link_start(p->adapter, p->adapter->fn, p->tx_chan,
 				     lc);
-	return 0;
-}
-
-static u32 get_rx_csum(struct net_device *dev)
-{
-	struct port_info *p = netdev_priv(dev);
-
-	return p->rx_offload & RX_CSO;
-}
-
-static int set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct port_info *p = netdev_priv(dev);
-
-	if (data)
-		p->rx_offload |= RX_CSO;
-	else
-		p->rx_offload &= ~RX_CSO;
 	return 0;
 }
 
@@ -1865,36 +1854,20 @@ static int set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return err;
 }
 
-#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
-
-static int set_tso(struct net_device *dev, u32 value)
+static int cxgb_set_features(struct net_device *dev, u32 features)
 {
-	if (value)
-		dev->features |= TSO_FLAGS;
-	else
-		dev->features &= ~TSO_FLAGS;
-	return 0;
-}
-
-static int set_flags(struct net_device *dev, u32 flags)
-{
+	const struct port_info *pi = netdev_priv(dev);
+	u32 changed = dev->features ^ features;
 	int err;
-	unsigned long old_feat = dev->features;
 
-	err = ethtool_op_set_flags(dev, flags, ETH_FLAG_RXHASH |
-				   ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN);
-	if (err)
-		return err;
+	if (!(changed & NETIF_F_HW_VLAN_RX))
+		return 0;
 
-	if ((old_feat ^ dev->features) & NETIF_F_HW_VLAN_RX) {
-		const struct port_info *pi = netdev_priv(dev);
-
-		err = t4_set_rxmode(pi->adapter, pi->adapter->fn, pi->viid, -1,
-				    -1, -1, -1, !!(flags & ETH_FLAG_RXVLAN),
-				    true);
-		if (err)
-			dev->features = old_feat;
-	}
+	err = t4_set_rxmode(pi->adapter, pi->adapter->fn, pi->viid, -1,
+			    -1, -1, -1,
+			    !!(features & NETIF_F_HW_VLAN_RX), true);
+	if (unlikely(err))
+		dev->features = features ^ NETIF_F_HW_VLAN_RX;
 	return err;
 }
 
@@ -2005,13 +1978,9 @@ static struct ethtool_ops cxgb_ethtool_ops = {
 	.set_eeprom        = set_eeprom,
 	.get_pauseparam    = get_pauseparam,
 	.set_pauseparam    = set_pauseparam,
-	.get_rx_csum       = get_rx_csum,
-	.set_rx_csum       = set_rx_csum,
-	.set_tx_csum       = ethtool_op_set_tx_ipv6_csum,
-	.set_sg            = ethtool_op_set_sg,
 	.get_link          = ethtool_op_get_link,
 	.get_strings       = get_strings,
-	.phys_id           = identify_port,
+	.set_phys_id       = identify_port,
 	.nway_reset        = restart_autoneg,
 	.get_sset_count    = get_sset_count,
 	.get_ethtool_stats = get_stats,
@@ -2019,8 +1988,6 @@ static struct ethtool_ops cxgb_ethtool_ops = {
 	.get_regs          = get_regs,
 	.get_wol           = get_wol,
 	.set_wol           = set_wol,
-	.set_tso           = set_tso,
-	.set_flags         = set_flags,
 	.get_rxnfc         = get_rxnfc,
 	.get_rxfh_indir    = get_rss_table,
 	.set_rxfh_indir    = set_rss_table,
@@ -2877,6 +2844,7 @@ static const struct net_device_ops cxgb4_netdev_ops = {
 	.ndo_get_stats64      = cxgb_get_stats,
 	.ndo_set_rx_mode      = cxgb_set_rxmode,
 	.ndo_set_mac_address  = cxgb_set_mac_addr,
+	.ndo_set_features     = cxgb_set_features,
 	.ndo_validate_addr    = eth_validate_addr,
 	.ndo_do_ioctl         = cxgb_ioctl,
 	.ndo_change_mtu       = cxgb_change_mtu,
@@ -3559,6 +3527,7 @@ static void free_some_resources(struct adapter *adapter)
 		t4_fw_bye(adapter, adapter->fn);
 }
 
+#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 #define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | TSO_FLAGS | \
 		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 
@@ -3660,14 +3629,14 @@ static int __devinit init_one(struct pci_dev *pdev,
 		pi = netdev_priv(netdev);
 		pi->adapter = adapter;
 		pi->xact_addr_filt = -1;
-		pi->rx_offload = RX_CSO;
 		pi->port_id = i;
 		netdev->irq = pdev->irq;
 
-		netdev->features |= NETIF_F_SG | TSO_FLAGS;
-		netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-		netdev->features |= NETIF_F_GRO | NETIF_F_RXHASH | highdma;
-		netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+		netdev->hw_features = NETIF_F_SG | TSO_FLAGS |
+			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			NETIF_F_RXCSUM | NETIF_F_RXHASH |
+			NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+		netdev->features |= netdev->hw_features | highdma;
 		netdev->vlan_features = netdev->features & VLAN_FEAT;
 
 		netdev->netdev_ops = &cxgb4_netdev_ops;

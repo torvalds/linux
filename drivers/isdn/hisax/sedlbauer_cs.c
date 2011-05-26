@@ -186,7 +186,7 @@ static int sedlbauer_resume(struct pcmcia_device *link)
 }
 
 
-static struct pcmcia_device_id sedlbauer_ids[] = {
+static const struct pcmcia_device_id sedlbauer_ids[] = {
 	PCMCIA_DEVICE_PROD_ID123("SEDLBAUER", "speed star II", "V 3.1", 0x81fb79f5, 0xf3612e1d, 0x6b95c78a),
 	PCMCIA_DEVICE_PROD_ID123("SEDLBAUER", "ISDN-Adapter", "4D67", 0x81fb79f5, 0xe4e9bc12, 0x397b7e90),
 	PCMCIA_DEVICE_PROD_ID123("SEDLBAUER", "ISDN-Adapter", "4D98", 0x81fb79f5, 0xe4e9bc12, 0x2e5c7fce),

@@ -126,6 +126,7 @@ MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{Intel, ICH10},"
 			 "{Intel, PCH},"
 			 "{Intel, CPT},"
+			 "{Intel, PPT},"
 			 "{Intel, PBG},"
 			 "{Intel, SCH},"
 			 "{ATI, SB450},"
@@ -1091,7 +1092,13 @@ static void azx_init_pci(struct azx *chip)
 				? "Failed" : "OK");
 		}
 		break;
-
+	default:
+		/* AMD Hudson needs the similar snoop, as it seems... */
+		if (chip->pci->vendor == PCI_VENDOR_ID_AMD)
+			update_pci_byte(chip->pci,
+				ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR,
+				0x07, ATI_SB450_HDAUDIO_ENABLE_SNOOP);
+		break;
         }
 }
 
@@ -1444,6 +1451,17 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 				azx_init_chip(chip, 1);
 			}
 		}
+	}
+
+	/* AMD chipsets often cause the communication stalls upon certain
+	 * sequence like the pin-detection.  It seems that forcing the synced
+	 * access works around the stall.  Grrr...
+	 */
+	if (chip->pci->vendor == PCI_VENDOR_ID_AMD ||
+	    chip->pci->vendor == PCI_VENDOR_ID_ATI) {
+		snd_printk(KERN_INFO SFX "Enable sync_write for AMD chipset\n");
+		chip->bus->sync_write = 1;
+		chip->bus->allow_bus_reset = 1;
 	}
 
 	/* Then create codec instances */
@@ -2349,9 +2367,16 @@ static int __devinit check_position_fix(struct azx *chip, int fix)
 	/* Check VIA/ATI HD Audio Controller exist */
 	switch (chip->driver_type) {
 	case AZX_DRIVER_VIA:
-	case AZX_DRIVER_ATI:
 		/* Use link position directly, avoid any transfer problem. */
 		return POS_FIX_VIACOMBO;
+	case AZX_DRIVER_ATI:
+		/* ATI chipsets don't work well with position-buffer */
+		return POS_FIX_LPIB;
+	case AZX_DRIVER_GENERIC:
+		/* AMD chipsets also don't work with position-buffer */
+		if (chip->pci->vendor == PCI_VENDOR_ID_AMD)
+			return POS_FIX_LPIB;
+		break;
 	}
 
 	return POS_FIX_AUTO;
@@ -2549,6 +2574,13 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 				gcap &= ~ICH6_GCAP_64OK;
 			pci_dev_put(p_smbus);
 		}
+	} else {
+		/* FIXME: not sure whether this is really needed, but
+		 * Hudson isn't stable enough for allowing everything...
+		 * let's check later again.
+		 */
+		if (chip->pci->vendor == PCI_VENDOR_ID_AMD)
+			gcap &= ~ICH6_GCAP_64OK;
 	}
 
 	/* disable 64bit DMA address for Teradici */
@@ -2759,6 +2791,8 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	{ PCI_DEVICE(0x8086, 0x1c20), .driver_data = AZX_DRIVER_PCH },
 	/* PBG */
 	{ PCI_DEVICE(0x8086, 0x1d20), .driver_data = AZX_DRIVER_PCH },
+	/* Panther Point */
+	{ PCI_DEVICE(0x8086, 0x1e20), .driver_data = AZX_DRIVER_PCH },
 	/* SCH */
 	{ PCI_DEVICE(0x8086, 0x811b), .driver_data = AZX_DRIVER_SCH },
 	/* Generic Intel */

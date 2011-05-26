@@ -1011,7 +1011,6 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
 		break;
 	case TOMOYO_TYPE_RMDIR:
 	case TOMOYO_TYPE_CHROOT:
-	case TOMOYO_TYPE_UMOUNT:
 		tomoyo_add_slash(&buf);
 		break;
 	}

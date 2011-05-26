@@ -110,19 +110,22 @@ static IIO_DEVICE_ATTR(temp_raw, S_IRUGO, adis16080_read, NULL,
 		       ADIS16080_DIN_TEMP);
 static IIO_DEV_ATTR_IN_RAW(0, adis16080_read, ADIS16080_DIN_AIN1);
 static IIO_DEV_ATTR_IN_RAW(1, adis16080_read, ADIS16080_DIN_AIN2);
-static IIO_CONST_ATTR(name, "adis16080");
 
 static struct attribute *adis16080_attributes[] = {
 	&iio_dev_attr_gyro_z_raw.dev_attr.attr,
 	&iio_dev_attr_temp_raw.dev_attr.attr,
 	&iio_dev_attr_in0_raw.dev_attr.attr,
 	&iio_dev_attr_in1_raw.dev_attr.attr,
-	&iio_const_attr_name.dev_attr.attr,
 	NULL
 };
 
 static const struct attribute_group adis16080_attribute_group = {
 	.attrs = adis16080_attributes,
+};
+
+static const struct iio_info adis16080_info = {
+	.attrs = &adis16080_attribute_group,
+	.driver_module = THIS_MODULE,
 };
 
 static int __devinit adis16080_probe(struct spi_device *spi)
@@ -140,16 +143,16 @@ static int __devinit adis16080_probe(struct spi_device *spi)
 	st->us = spi;
 	mutex_init(&st->buf_lock);
 	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_st;
 	}
 
+	st->indio_dev->name = spi->dev.driver->name;
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &adis16080_attribute_group;
+	st->indio_dev->info = &adis16080_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->indio_dev);

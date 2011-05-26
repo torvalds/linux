@@ -46,8 +46,6 @@ module_param(debug, int, 0);
 #endif
 int st5481_debug;
 
-static LIST_HEAD(adapter_list);
-
 /* ======================================================================
  * registration/deregistration with the USB layer
  */
@@ -86,7 +84,6 @@ static int probe_st5481(struct usb_interface *intf,
 		adapter->bcs[i].b_if.ifc.priv = &adapter->bcs[i];
 		adapter->bcs[i].b_if.ifc.l2l1 = st5481_b_l2l1;
 	}
-	list_add(&adapter->list, &adapter_list);
 
 	retval = st5481_setup_usb(adapter);
 	if (retval < 0)
@@ -125,6 +122,7 @@ static int probe_st5481(struct usb_interface *intf,
  err_usb:
 	st5481_release_usb(adapter);
  err:
+	kfree(adapter);
 	return -EIO;
 }
 
@@ -142,8 +140,6 @@ static void disconnect_st5481(struct usb_interface *intf)
 	if (!adapter)
 		return;
 	
-	list_del(&adapter->list);
-
 	st5481_stop(adapter);
 	st5481_release_b(&adapter->bcs[1]);
 	st5481_release_b(&adapter->bcs[0]);

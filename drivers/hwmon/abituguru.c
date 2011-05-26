@@ -1448,15 +1448,12 @@ static int __init abituguru_init(void)
 {
 	int address, err;
 	struct resource res = { .flags = IORESOURCE_IO };
-
-#ifdef CONFIG_DMI
 	const char *board_vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
 
 	/* safety check, refuse to load on non Abit motherboards */
 	if (!force && (!board_vendor ||
 			strcmp(board_vendor, "http://www.abit.com.tw/")))
 		return -ENODEV;
-#endif
 
 	address = abituguru_detect();
 	if (address < 0)

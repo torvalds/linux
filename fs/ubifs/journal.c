@@ -141,14 +141,8 @@ again:
 	 * LEB with some empty space.
 	 */
 	lnum = ubifs_find_free_space(c, len, &offs, squeeze);
-	if (lnum >= 0) {
-		/* Found an LEB, add it to the journal head */
-		err = ubifs_add_bud_to_log(c, jhead, lnum, offs);
-		if (err)
-			goto out_return;
-		/* A new bud was successfully allocated and added to the log */
+	if (lnum >= 0)
 		goto out;
-	}
 
 	err = lnum;
 	if (err != -ENOSPC)
@@ -203,12 +197,23 @@ again:
 		return 0;
 	}
 
-	err = ubifs_add_bud_to_log(c, jhead, lnum, 0);
-	if (err)
-		goto out_return;
 	offs = 0;
 
 out:
+	/*
+	 * Make sure we synchronize the write-buffer before we add the new bud
+	 * to the log. Otherwise we may have a power cut after the log
+	 * reference node for the last bud (@lnum) is written but before the
+	 * write-buffer data are written to the next-to-last bud
+	 * (@wbuf->lnum). And the effect would be that the recovery would see
+	 * that there is corruption in the next-to-last bud.
+	 */
+	err = ubifs_wbuf_sync_nolock(wbuf);
+	if (err)
+		goto out_return;
+	err = ubifs_add_bud_to_log(c, jhead, lnum, offs);
+	if (err)
+		goto out_return;
 	err = ubifs_wbuf_seek_nolock(wbuf, lnum, offs, wbuf->dtype);
 	if (err)
 		goto out_unlock;
@@ -380,10 +385,8 @@ out:
 	if (err == -ENOSPC) {
 		/* This are some budgeting problems, print useful information */
 		down_write(&c->commit_sem);
-		spin_lock(&c->space_lock);
 		dbg_dump_stack();
-		dbg_dump_budg(c);
-		spin_unlock(&c->space_lock);
+		dbg_dump_budg(c, &c->bi);
 		dbg_dump_lprops(c);
 		cmt_retries = dbg_check_lprops(c);
 		up_write(&c->commit_sem);

@@ -93,6 +93,19 @@ Additional Configurations
   REQUIREMENTS: MSI-X support is required for Multiqueue. If MSI-X is not
   found, the system will fallback to MSI or to Legacy interrupts.
 
+  MAC and VLAN anti-spoofing feature
+  ----------------------------------
+  When a malicious driver attempts to send a spoofed packet, it is dropped by
+  the hardware and not transmitted.  An interrupt is sent to the PF driver
+  notifying it of the spoof attempt.
+
+  When a spoofed packet is detected the PF driver will send the following
+  message to the system log (displayed by  the "dmesg" command):
+
+  Spoof event(s) detected on VF(n)
+
+  Where n=the VF that attempted to do the spoofing.
+
 Support
 =======
 

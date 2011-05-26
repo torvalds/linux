@@ -163,12 +163,6 @@ int pci_bus_add_child(struct pci_bus *bus)
 
 	bus->is_added = 1;
 
-	retval = device_create_file(&bus->dev, &dev_attr_cpuaffinity);
-	if (retval)
-		return retval;
-
-	retval = device_create_file(&bus->dev, &dev_attr_cpulistaffinity);
-
 	/* Create legacy_io and legacy_mem files for this bus */
 	pci_create_legacy_files(bus);
 

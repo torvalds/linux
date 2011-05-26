@@ -10,6 +10,7 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/kref.h>
+#include <linux/rculist.h>
 
 struct cfsrvl {
 	struct cflayer layer;
@@ -17,12 +18,13 @@ struct cfsrvl {
 	bool phy_flow_on;
 	bool modem_flow_on;
 	bool supports_flowctrl;
-	void (*release)(struct kref *);
+	void (*release)(struct cflayer *layer);
 	struct dev_info dev_info;
-	struct kref ref;
+	void (*hold)(struct cflayer *lyr);
+	void (*put)(struct cflayer *lyr);
+	struct rcu_head rcu;
 };
 
-void cfsrvl_release(struct kref *kref);
 struct cflayer *cfvei_create(u8 linkid, struct dev_info *dev_info);
 struct cflayer *cfdgml_create(u8 linkid, struct dev_info *dev_info);
 struct cflayer *cfutill_create(u8 linkid, struct dev_info *dev_info);
@@ -30,8 +32,12 @@ struct cflayer *cfvidl_create(u8 linkid, struct dev_info *dev_info);
 struct cflayer *cfrfml_create(u8 linkid, struct dev_info *dev_info,
 				int mtu_size);
 struct cflayer *cfdbgl_create(u8 linkid, struct dev_info *dev_info);
+
+void cfsrvl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
+		     int phyid);
+
 bool cfsrvl_phyid_match(struct cflayer *layer, int phyid);
-void cfservl_destroy(struct cflayer *layer);
+
 void cfsrvl_init(struct cfsrvl *service,
 			u8 channel_id,
 			struct dev_info *dev_info,
@@ -41,23 +47,19 @@ u8 cfsrvl_getphyid(struct cflayer *layer);
 
 static inline void cfsrvl_get(struct cflayer *layr)
 {
-	struct cfsrvl *s;
-	if (layr == NULL)
+	struct cfsrvl *s = container_of(layr, struct cfsrvl, layer);
+	if (layr == NULL || layr->up == NULL || s->hold == NULL)
 		return;
-	s = container_of(layr, struct cfsrvl, layer);
-	kref_get(&s->ref);
+
+	s->hold(layr->up);
 }
 
 static inline void cfsrvl_put(struct cflayer *layr)
 {
-	struct cfsrvl *s;
-	if (layr == NULL)
+	struct cfsrvl *s = container_of(layr, struct cfsrvl, layer);
+	if (layr == NULL || layr->up == NULL || s->hold == NULL)
 		return;
-	s = container_of(layr, struct cfsrvl, layer);
 
-	WARN_ON(!s->release);
-	if (s->release)
-		kref_put(&s->ref, s->release);
+	s->put(layr->up);
 }
-
 #endif				/* CFSRVL_H_ */

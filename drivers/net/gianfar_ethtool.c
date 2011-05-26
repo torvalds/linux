@@ -517,15 +517,15 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 	return err;
 }
 
-static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
+int gfar_set_features(struct net_device *dev, u32 features)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	unsigned long flags;
 	int err = 0, i = 0;
+	u32 changed = dev->features ^ features;
 
-	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
-		return -EOPNOTSUPP;
-
+	if (!(changed & NETIF_F_RXCSUM))
+		return 0;
 
 	if (dev->flags & IFF_UP) {
 		/* Halt TX and RX, and process the frames which
@@ -546,56 +546,13 @@ static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
-	}
 
-	spin_lock_irqsave(&priv->bflock, flags);
-	priv->rx_csum_enable = data;
-	spin_unlock_irqrestore(&priv->bflock, flags);
+		dev->features = features;
 
-	if (dev->flags & IFF_UP) {
 		err = startup_gfar(dev);
 		netif_tx_wake_all_queues(dev);
 	}
 	return err;
-}
-
-static uint32_t gfar_get_rx_csum(struct net_device *dev)
-{
-	struct gfar_private *priv = netdev_priv(dev);
-
-	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
-		return 0;
-
-	return priv->rx_csum_enable;
-}
-
-static int gfar_set_tx_csum(struct net_device *dev, uint32_t data)
-{
-	struct gfar_private *priv = netdev_priv(dev);
-
-	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
-		return -EOPNOTSUPP;
-
-	netif_tx_lock_bh(dev);
-
-	if (data)
-		dev->features |= NETIF_F_IP_CSUM;
-	else
-		dev->features &= ~NETIF_F_IP_CSUM;
-
-	netif_tx_unlock_bh(dev);
-
-	return 0;
-}
-
-static uint32_t gfar_get_tx_csum(struct net_device *dev)
-{
-	struct gfar_private *priv = netdev_priv(dev);
-
-	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
-		return 0;
-
-	return (dev->features & NETIF_F_IP_CSUM) != 0;
 }
 
 static uint32_t gfar_get_msglevel(struct net_device *dev)
@@ -644,42 +601,6 @@ static int gfar_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 #endif
-
-static int gfar_ethflow_to_class(int flow_type, u64 *class)
-{
-	switch (flow_type) {
-	case TCP_V4_FLOW:
-		*class = CLASS_CODE_TCP_IPV4;
-		break;
-	case UDP_V4_FLOW:
-		*class = CLASS_CODE_UDP_IPV4;
-		break;
-	case AH_V4_FLOW:
-	case ESP_V4_FLOW:
-		*class = CLASS_CODE_AH_ESP_IPV4;
-		break;
-	case SCTP_V4_FLOW:
-		*class = CLASS_CODE_SCTP_IPV4;
-		break;
-	case TCP_V6_FLOW:
-		*class = CLASS_CODE_TCP_IPV6;
-		break;
-	case UDP_V6_FLOW:
-		*class = CLASS_CODE_UDP_IPV6;
-		break;
-	case AH_V6_FLOW:
-	case ESP_V6_FLOW:
-		*class = CLASS_CODE_AH_ESP_IPV6;
-		break;
-	case SCTP_V6_FLOW:
-		*class = CLASS_CODE_SCTP_IPV6;
-		break;
-	default:
-		return 0;
-	}
-
-	return 1;
-}
 
 static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 {
@@ -778,11 +699,6 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow, u
 	case UDP_V6_FLOW:
 		cmp_rqfpr = RQFPR_IPV6 |RQFPR_UDP;
 		break;
-	case IPV4_FLOW:
-		cmp_rqfpr = RQFPR_IPV4;
-	case IPV6_FLOW:
-		cmp_rqfpr = RQFPR_IPV6;
-		break;
 	default:
 		printk(KERN_ERR "Right now this class is not supported\n");
 		return 0;
@@ -848,18 +764,9 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow, u
 
 static int gfar_set_hash_opts(struct gfar_private *priv, struct ethtool_rxnfc *cmd)
 {
-	u64 class;
-
-	if (!gfar_ethflow_to_class(cmd->flow_type, &class))
-		return -EINVAL;
-
-	if (class < CLASS_CODE_USER_PROG1 ||
-			class > CLASS_CODE_SCTP_IPV6)
-		return -EINVAL;
-
 	/* write the filer rules here */
 	if (!gfar_ethflow_to_filer_table(priv, cmd->data, cmd->flow_type))
-		return -1;
+		return -EINVAL;
 
 	return 0;
 }
@@ -894,11 +801,6 @@ const struct ethtool_ops gfar_ethtool_ops = {
 	.get_strings = gfar_gstrings,
 	.get_sset_count = gfar_sset_count,
 	.get_ethtool_stats = gfar_fill_stats,
-	.get_rx_csum = gfar_get_rx_csum,
-	.get_tx_csum = gfar_get_tx_csum,
-	.set_rx_csum = gfar_set_rx_csum,
-	.set_tx_csum = gfar_set_tx_csum,
-	.set_sg = ethtool_op_set_sg,
 	.get_msglevel = gfar_get_msglevel,
 	.set_msglevel = gfar_set_msglevel,
 #ifdef CONFIG_PM

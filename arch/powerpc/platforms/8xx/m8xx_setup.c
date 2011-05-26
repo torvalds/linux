@@ -150,7 +150,7 @@ void __init mpc8xx_calibrate_decr(void)
 	 */
 	cpu = of_find_node_by_type(NULL, "cpu");
 	virq= irq_of_parse_and_map(cpu, 0);
-	irq = irq_map[virq].hwirq;
+	irq = virq_to_hw(virq);
 
 	sys_tmr2 = immr_map(im_sit);
 	out_be16(&sys_tmr2->sit_tbscr, ((1 << (7 - (irq/2))) << 8) |

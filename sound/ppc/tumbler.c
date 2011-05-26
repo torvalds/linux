@@ -1000,7 +1000,7 @@ static void device_change_handler(struct work_struct *work)
 				   chip->lineout_sw_ctl);
 		if (mix->anded_reset)
 			msleep(10);
-		check_mute(chip, &mix->amp_mute, 1, mix->auto_mute_notify,
+		check_mute(chip, &mix->amp_mute, !IS_G4DA, mix->auto_mute_notify,
 			   chip->speaker_sw_ctl);
 	} else {
 		/* unmute speaker, mute others */

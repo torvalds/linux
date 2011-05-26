@@ -852,7 +852,6 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 	unsigned expected_ptr;
 	bool rx_ev_pkt_ok, discard = false, checksummed;
 	struct efx_rx_queue *rx_queue;
-	struct efx_nic *efx = channel->efx;
 
 	/* Basic packet information */
 	rx_ev_byte_cnt = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_BYTE_CNT);
@@ -875,9 +874,8 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 		 * UDP/IP, then we can rely on the hardware checksum.
 		 */
 		checksummed =
-			likely(efx->rx_checksum_enabled) &&
-			(rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_TCP ||
-			 rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_UDP);
+			rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_TCP ||
+			rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_UDP;
 	} else {
 		efx_handle_rx_not_ok(rx_queue, event, &rx_ev_pkt_ok, &discard);
 		checksummed = false;

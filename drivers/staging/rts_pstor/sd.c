@@ -2227,6 +2227,7 @@ static int sd_read_lba0(struct rtsx_chip *chip)
 	retval = sd_read_data(chip, SD_TM_NORMAL_READ, cmd,
 		5, 512, 1, bus_width, NULL, 0, 100);
 	if (retval != STATUS_SUCCESS) {
+		rtsx_clear_sd_error(chip);
 		TRACE_RET(chip, STATUS_FAIL);
 	}
 

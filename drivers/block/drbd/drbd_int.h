@@ -42,6 +42,7 @@
 #include <linux/genhd.h>
 #include <net/tcp.h>
 #include <linux/lru_cache.h>
+#include <linux/prefetch.h>
 
 #ifdef __CHECKER__
 # define __protected_by(x)       __attribute__((require_context(x,1,999,"rdwr")))
@@ -699,7 +700,7 @@ struct drbd_request {
 	 * see drbd_endio_pri(). */
 	struct bio *private_bio;
 
-	struct hlist_node colision;
+	struct hlist_node collision;
 	sector_t sector;
 	unsigned int size;
 	unsigned int epoch; /* barrier_nr */
@@ -765,7 +766,7 @@ struct digest_info {
 
 struct drbd_epoch_entry {
 	struct drbd_work w;
-	struct hlist_node colision;
+	struct hlist_node collision;
 	struct drbd_epoch *epoch; /* for writes */
 	struct drbd_conf *mdev;
 	struct page *pages;
@@ -1128,6 +1129,8 @@ struct drbd_conf {
 	int rs_in_flight; /* resync sectors in flight (to proxy, in proxy and from proxy) */
 	int rs_planed;    /* resync sectors already planned */
 	atomic_t ap_in_flight; /* App sectors in flight (waiting for ack) */
+	int peer_max_bio_size;
+	int local_max_bio_size;
 };
 
 static inline struct drbd_conf *minor_to_mdev(unsigned int minor)
@@ -1217,8 +1220,6 @@ extern void drbd_free_resources(struct drbd_conf *mdev);
 extern void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
 		       unsigned int set_size);
 extern void tl_clear(struct drbd_conf *mdev);
-enum drbd_req_event;
-extern void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what);
 extern void _tl_add_barrier(struct drbd_conf *, struct drbd_tl_epoch *);
 extern void drbd_free_sock(struct drbd_conf *mdev);
 extern int drbd_send(struct drbd_conf *mdev, struct socket *sock,
@@ -1433,6 +1434,7 @@ struct bm_extent {
  * hash table. */
 #define HT_SHIFT 8
 #define DRBD_MAX_BIO_SIZE (1U<<(9+HT_SHIFT))
+#define DRBD_MAX_BIO_SIZE_SAFE (1 << 12)       /* Works always = 4k */
 
 #define DRBD_MAX_SIZE_H80_PACKET (1 << 15) /* The old header only allows packets up to 32Kib data */
 
@@ -1517,9 +1519,9 @@ extern void drbd_resume_io(struct drbd_conf *mdev);
 extern char *ppsize(char *buf, unsigned long long size);
 extern sector_t drbd_new_dev_size(struct drbd_conf *, struct drbd_backing_dev *, int);
 enum determine_dev_size { dev_size_error = -1, unchanged = 0, shrunk = 1, grew = 2 };
-extern enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *, enum dds_flags) __must_hold(local);
+extern enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *, enum dds_flags) __must_hold(local);
 extern void resync_after_online_grow(struct drbd_conf *);
-extern void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int) __must_hold(local);
+extern void drbd_reconsider_max_bio_size(struct drbd_conf *mdev);
 extern enum drbd_state_rv drbd_set_role(struct drbd_conf *mdev,
 					enum drbd_role new_role,
 					int force);
@@ -1827,6 +1829,8 @@ static inline void __drbd_chk_io_error_(struct drbd_conf *mdev, int forcedetach,
 		if (!forcedetach) {
 			if (__ratelimit(&drbd_ratelimit_state))
 				dev_err(DEV, "Local IO failed in %s.\n", where);
+			if (mdev->state.disk > D_INCONSISTENT)
+				_drbd_set_state(_NS(mdev, disk, D_INCONSISTENT), CS_HARD, NULL);
 			break;
 		}
 		/* NOTE fall through to detach case if forcedetach set */
@@ -2152,6 +2156,10 @@ static inline int get_net_conf(struct drbd_conf *mdev)
 static inline void put_ldev(struct drbd_conf *mdev)
 {
 	int i = atomic_dec_return(&mdev->local_cnt);
+
+	/* This may be called from some endio handler,
+	 * so we must not sleep here. */
+
 	__release(local);
 	D_ASSERT(i >= 0);
 	if (i == 0) {

@@ -62,8 +62,6 @@
  *	LME2510: SHARP:BS2F7HZ0194(MV0194) cannot cold reset and share system
  * with other tuners. After a cold reset streaming will not start.
  *
- *	PID functions have been removed from this driver version due to
- * problems with different firmware and application versions.
  */
 #define DVB_USB_LOG_PREFIX "LME2510(C)"
 #include <linux/usb.h>
@@ -104,6 +102,10 @@ static int dvb_usb_lme2510_firmware;
 module_param_named(firmware, dvb_usb_lme2510_firmware, int, 0644);
 MODULE_PARM_DESC(firmware, "set default firmware 0=Sharp7395 1=LG");
 
+static int pid_filter;
+module_param_named(pid, pid_filter, int, 0644);
+MODULE_PARM_DESC(pid, "set default 0=on 1=off");
+
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -125,6 +127,7 @@ struct lme2510_state {
 	u8 i2c_tuner_gate_r;
 	u8 i2c_tuner_addr;
 	u8 stream_on;
+	u8 pid_size;
 	void *buffer;
 	struct urb *lme_urb;
 	void *usb_buffer;
@@ -167,13 +170,13 @@ static int lme2510_usb_talk(struct dvb_usb_device *d,
 	}
 	buff = st->usb_buffer;
 
-	/* the read/write capped at 512 */
-	memcpy(buff, wbuf, (wlen > 512) ? 512 : wlen);
-
 	ret = mutex_lock_interruptible(&d->usb_mutex);
 
 	if (ret < 0)
 		return -EAGAIN;
+
+	/* the read/write capped at 512 */
+	memcpy(buff, wbuf, (wlen > 512) ? 512 : wlen);
 
 	ret |= usb_clear_halt(d->udev, usb_sndbulkpipe(d->udev, 0x01));
 
@@ -214,6 +217,37 @@ static int lme2510_remote_keypress(struct dvb_usb_adapter *adap, u32 keypress)
 		rc_keydown(d->rc_dev, keypress, 0);
 
 	return 0;
+}
+
+static int lme2510_enable_pid(struct dvb_usb_device *d, u8 index, u16 pid_out)
+{
+	struct lme2510_state *st = d->priv;
+	static u8 pid_buff[] = LME_ZERO_PID;
+	static u8 rbuf[1];
+	u8 pid_no = index * 2;
+	u8 pid_len = pid_no + 2;
+	int ret = 0;
+	deb_info(1, "PID Setting Pid %04x", pid_out);
+
+	if (st->pid_size == 0)
+		ret |= lme2510_stream_restart(d);
+
+	pid_buff[2] = pid_no;
+	pid_buff[3] = (u8)pid_out & 0xff;
+	pid_buff[4] = pid_no + 1;
+	pid_buff[5] = (u8)(pid_out >> 8);
+
+	if (pid_len > st->pid_size)
+		st->pid_size = pid_len;
+	pid_buff[7] = 0x80 + st->pid_size;
+
+	ret |= lme2510_usb_talk(d, pid_buff ,
+		sizeof(pid_buff) , rbuf, sizeof(rbuf));
+
+	if (st->stream_on)
+		ret |= lme2510_stream_restart(d);
+
+	return ret;
 }
 
 static void lme2510_int_response(struct urb *lme_urb)
@@ -326,16 +360,68 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static int lme2510_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
+{
+	struct lme2510_state *st = adap->dev->priv;
+	static u8 clear_pid_reg[] = LME_CLEAR_PID;
+	static u8 rbuf[1];
+	int ret;
+
+	deb_info(1, "PID Clearing Filter");
+
+	ret = mutex_lock_interruptible(&adap->dev->i2c_mutex);
+	if (ret < 0)
+		return -EAGAIN;
+
+	if (!onoff)
+		ret |= lme2510_usb_talk(adap->dev, clear_pid_reg,
+			sizeof(clear_pid_reg), rbuf, sizeof(rbuf));
+
+	st->pid_size = 0;
+
+	mutex_unlock(&adap->dev->i2c_mutex);
+
+	return 0;
+}
+
+static int lme2510_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid,
+	int onoff)
+{
+	int ret = 0;
+
+	deb_info(3, "%s PID=%04x Index=%04x onoff=%02x", __func__,
+		pid, index, onoff);
+
+	if (onoff)
+		if (!pid_filter) {
+			ret = mutex_lock_interruptible(&adap->dev->i2c_mutex);
+			if (ret < 0)
+				return -EAGAIN;
+			ret |= lme2510_enable_pid(adap->dev, index, pid);
+			mutex_unlock(&adap->dev->i2c_mutex);
+	}
+
+
+	return ret;
+}
+
+
 static int lme2510_return_status(struct usb_device *dev)
 {
 	int ret = 0;
-	u8 data[10] = {0};
+	u8 *data;
+
+	data = kzalloc(10, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	ret |= usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
 			0x06, 0x80, 0x0302, 0x00, data, 0x0006, 200);
 	info("Firmware Status: %x (%x)", ret , data[2]);
 
-	return (ret < 0) ? -ENODEV : data[2];
+	ret = (ret < 0) ? -ENODEV : data[2];
+	kfree(data);
+	return ret;
 }
 
 static int lme2510_msg(struct dvb_usb_device *d,
@@ -591,9 +677,10 @@ static int lme2510_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	else {
 		deb_info(1, "STM Steam Off");
 		/* mutex is here only to avoid collision with I2C */
-		ret = mutex_lock_interruptible(&adap->dev->i2c_mutex);
+		if (mutex_lock_interruptible(&adap->dev->i2c_mutex) < 0)
+			return -EAGAIN;
 
-		ret |= lme2510_usb_talk(adap->dev, clear_reg_3,
+		ret = lme2510_usb_talk(adap->dev, clear_reg_3,
 				sizeof(clear_reg_3), rbuf, rlen);
 		st->stream_on = 0;
 		st->i2c_talk_onoff = 1;
@@ -655,7 +742,7 @@ static int lme2510_download_firmware(struct usb_device *dev,
 					const struct firmware *fw)
 {
 	int ret = 0;
-	u8 data[512] = {0};
+	u8 *data;
 	u16 j, wlen, len_in, start, end;
 	u8 packet_size, dlen, i;
 	u8 *fw_data;
@@ -663,6 +750,11 @@ static int lme2510_download_firmware(struct usb_device *dev,
 	packet_size = 0x31;
 	len_in = 1;
 
+	data = kzalloc(512, GFP_KERNEL);
+	if (!data) {
+		info("FRM Could not start Firmware Download (Buffer allocation failed)");
+		return -ENOMEM;
+	}
 
 	info("FRM Starting Firmware Download");
 
@@ -678,15 +770,15 @@ static int lme2510_download_firmware(struct usb_device *dev,
 				data[0] = i | 0x80;
 				dlen = (u8)(end - j)-1;
 			}
-		data[1] = dlen;
-		memcpy(&data[2], fw_data, dlen+1);
-		wlen = (u8) dlen + 4;
-		data[wlen-1] = check_sum(fw_data, dlen+1);
-		deb_info(1, "Data S=%02x:E=%02x CS= %02x", data[3],
+			data[1] = dlen;
+			memcpy(&data[2], fw_data, dlen+1);
+			wlen = (u8) dlen + 4;
+			data[wlen-1] = check_sum(fw_data, dlen+1);
+			deb_info(1, "Data S=%02x:E=%02x CS= %02x", data[3],
 				data[dlen+2], data[dlen+3]);
-		ret |= lme2510_bulk_write(dev, data,  wlen, 1);
-		ret |= lme2510_bulk_read(dev, data, len_in , 1);
-		ret |= (data[0] == 0x88) ? 0 : -1;
+			ret |= lme2510_bulk_write(dev, data,  wlen, 1);
+			ret |= lme2510_bulk_read(dev, data, len_in , 1);
+			ret |= (data[0] == 0x88) ? 0 : -1;
 		}
 	}
 
@@ -706,7 +798,7 @@ static int lme2510_download_firmware(struct usb_device *dev,
 	else
 		info("FRM Firmware Download Completed - Resetting Device");
 
-
+	kfree(data);
 	return (ret < 0) ? -ENODEV : 0;
 }
 
@@ -747,7 +839,7 @@ static int lme_firmware_switch(struct usb_device *udev, int cold)
 			fw_lme = fw_s0194;
 			ret = request_firmware(&fw, fw_lme, &udev->dev);
 			if (ret == 0) {
-				cold = 0;/*lme2510-s0194 cannot cold reset*/
+				cold = 0;
 				break;
 			}
 			dvb_usb_lme2510_firmware = TUNER_LG;
@@ -769,8 +861,10 @@ static int lme_firmware_switch(struct usb_device *udev, int cold)
 		case TUNER_S7395:
 			fw_lme = fw_c_s7395;
 			ret = request_firmware(&fw, fw_lme, &udev->dev);
-			if (ret == 0)
+			if (ret == 0) {
+				cold = 0;
 				break;
+			}
 			dvb_usb_lme2510_firmware = TUNER_LG;
 		case TUNER_LG:
 			fw_lme = fw_c_lg;
@@ -796,13 +890,13 @@ static int lme_firmware_switch(struct usb_device *udev, int cold)
 		ret = lme2510_download_firmware(udev, fw);
 	}
 
+	release_firmware(fw);
+
 	if (cold) {
 		info("FRM Changing to %s firmware", fw_lme);
 		lme_coldreset(udev);
 		return -ENODEV;
 	}
-
-	release_firmware(fw);
 
 	return ret;
 }
@@ -1017,12 +1111,13 @@ static int lme2510_powerup(struct dvb_usb_device *d, int onoff)
 	static u8 rbuf[1];
 	int ret, len = 3, rlen = 1;
 
-	ret = mutex_lock_interruptible(&d->i2c_mutex);
+	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
+		return -EAGAIN;
 
 	if (onoff)
-		ret |= lme2510_usb_talk(d, lnb_on, len, rbuf, rlen);
+		ret = lme2510_usb_talk(d, lnb_on, len, rbuf, rlen);
 	else
-		ret |= lme2510_usb_talk(d, lnb_off, len, rbuf, rlen);
+		ret = lme2510_usb_talk(d, lnb_off, len, rbuf, rlen);
 
 	st->i2c_talk_onoff = 1;
 
@@ -1086,7 +1181,13 @@ static struct dvb_usb_device_properties lme2510_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER|
+				DVB_USB_ADAP_NEED_PID_FILTERING|
+				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 			.streaming_ctrl   = lme2510_streaming_ctrl,
+			.pid_filter_count = 15,
+			.pid_filter = lme2510_pid_filter,
+			.pid_filter_ctrl  = lme2510_pid_filter_ctrl,
 			.frontend_attach  = dm04_lme2510_frontend_attach,
 			.tuner_attach = dm04_lme2510_tuner,
 			/* parameter for the MPEG2-data transfer */
@@ -1122,7 +1223,13 @@ static struct dvb_usb_device_properties lme2510c_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
+			.caps = DVB_USB_ADAP_HAS_PID_FILTER|
+				DVB_USB_ADAP_NEED_PID_FILTERING|
+				DVB_USB_ADAP_PID_FILTER_CAN_BE_TURNED_OFF,
 			.streaming_ctrl   = lme2510_streaming_ctrl,
+			.pid_filter_count = 15,
+			.pid_filter = lme2510_pid_filter,
+			.pid_filter_ctrl  = lme2510_pid_filter_ctrl,
 			.frontend_attach  = dm04_lme2510_frontend_attach,
 			.tuner_attach = dm04_lme2510_tuner,
 			/* parameter for the MPEG2-data transfer */
@@ -1151,7 +1258,7 @@ static struct dvb_usb_device_properties lme2510c_properties = {
 	}
 };
 
-void *lme2510_exit_int(struct dvb_usb_device *d)
+static void *lme2510_exit_int(struct dvb_usb_device *d)
 {
 	struct lme2510_state *st = d->priv;
 	struct dvb_usb_adapter *adap = &d->adapter[0];
@@ -1178,7 +1285,7 @@ void *lme2510_exit_int(struct dvb_usb_device *d)
 	return buffer;
 }
 
-void lme2510_exit(struct usb_interface *intf)
+static void lme2510_exit(struct usb_interface *intf)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
 	void *usb_buffer;
@@ -1220,5 +1327,5 @@ module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.80");
+MODULE_VERSION("1.86");
 MODULE_LICENSE("GPL");

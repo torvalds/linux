@@ -176,13 +176,15 @@ static void keyring_describe(const struct key *keyring, struct seq_file *m)
 	else
 		seq_puts(m, "[anon]");
 
-	rcu_read_lock();
-	klist = rcu_dereference(keyring->payload.subscriptions);
-	if (klist)
-		seq_printf(m, ": %u/%u", klist->nkeys, klist->maxkeys);
-	else
-		seq_puts(m, ": empty");
-	rcu_read_unlock();
+	if (key_is_instantiated(keyring)) {
+		rcu_read_lock();
+		klist = rcu_dereference(keyring->payload.subscriptions);
+		if (klist)
+			seq_printf(m, ": %u/%u", klist->nkeys, klist->maxkeys);
+		else
+			seq_puts(m, ": empty");
+		rcu_read_unlock();
+	}
 }
 
 /*
@@ -271,6 +273,7 @@ struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
  * @type: The type of key to search for.
  * @description: Parameter for @match.
  * @match: Function to rule on whether or not a key is the one required.
+ * @no_state_check: Don't check if a matching key is bad
  *
  * Search the supplied keyring tree for a key that matches the criteria given.
  * The root keyring and any linked keyrings must grant Search permission to the
@@ -303,7 +306,8 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 			     const struct cred *cred,
 			     struct key_type *type,
 			     const void *description,
-			     key_match_func_t match)
+			     key_match_func_t match,
+			     bool no_state_check)
 {
 	struct {
 		struct keyring_list *keylist;
@@ -345,6 +349,8 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 	kflags = keyring->flags;
 	if (keyring->type == type && match(keyring, description)) {
 		key = keyring;
+		if (no_state_check)
+			goto found;
 
 		/* check it isn't negative and hasn't expired or been
 		 * revoked */
@@ -384,11 +390,13 @@ descend:
 			continue;
 
 		/* skip revoked keys and expired keys */
-		if (kflags & (1 << KEY_FLAG_REVOKED))
-			continue;
+		if (!no_state_check) {
+			if (kflags & (1 << KEY_FLAG_REVOKED))
+				continue;
 
-		if (key->expiry && now.tv_sec >= key->expiry)
-			continue;
+			if (key->expiry && now.tv_sec >= key->expiry)
+				continue;
+		}
 
 		/* keys that don't match */
 		if (!match(key, description))
@@ -398,6 +406,9 @@ descend:
 		if (key_task_permission(make_key_ref(key, possessed),
 					cred, KEY_SEARCH) < 0)
 			continue;
+
+		if (no_state_check)
+			goto found;
 
 		/* we set a different error code if we pass a negative key */
 		if (kflags & (1 << KEY_FLAG_NEGATIVE)) {
@@ -478,7 +489,7 @@ key_ref_t keyring_search(key_ref_t keyring,
 		return ERR_PTR(-ENOKEY);
 
 	return keyring_search_aux(keyring, current->cred,
-				  type, description, type->match);
+				  type, description, type->match, false);
 }
 EXPORT_SYMBOL(keyring_search);
 

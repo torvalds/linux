@@ -78,7 +78,7 @@ static struct irq_host *mv64x60_irq_host;
 
 static void mv64x60_mask_low(struct irq_data *d)
 {
-	int level2 = irq_map[d->irq].hwirq & MV64x60_LEVEL2_MASK;
+	int level2 = irqd_to_hwirq(d) & MV64x60_LEVEL2_MASK;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mv64x60_lock, flags);
@@ -91,7 +91,7 @@ static void mv64x60_mask_low(struct irq_data *d)
 
 static void mv64x60_unmask_low(struct irq_data *d)
 {
-	int level2 = irq_map[d->irq].hwirq & MV64x60_LEVEL2_MASK;
+	int level2 = irqd_to_hwirq(d) & MV64x60_LEVEL2_MASK;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mv64x60_lock, flags);
@@ -115,7 +115,7 @@ static struct irq_chip mv64x60_chip_low = {
 
 static void mv64x60_mask_high(struct irq_data *d)
 {
-	int level2 = irq_map[d->irq].hwirq & MV64x60_LEVEL2_MASK;
+	int level2 = irqd_to_hwirq(d) & MV64x60_LEVEL2_MASK;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mv64x60_lock, flags);
@@ -128,7 +128,7 @@ static void mv64x60_mask_high(struct irq_data *d)
 
 static void mv64x60_unmask_high(struct irq_data *d)
 {
-	int level2 = irq_map[d->irq].hwirq & MV64x60_LEVEL2_MASK;
+	int level2 = irqd_to_hwirq(d) & MV64x60_LEVEL2_MASK;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mv64x60_lock, flags);
@@ -152,7 +152,7 @@ static struct irq_chip mv64x60_chip_high = {
 
 static void mv64x60_mask_gpp(struct irq_data *d)
 {
-	int level2 = irq_map[d->irq].hwirq & MV64x60_LEVEL2_MASK;
+	int level2 = irqd_to_hwirq(d) & MV64x60_LEVEL2_MASK;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mv64x60_lock, flags);
@@ -165,7 +165,7 @@ static void mv64x60_mask_gpp(struct irq_data *d)
 
 static void mv64x60_mask_ack_gpp(struct irq_data *d)
 {
-	int level2 = irq_map[d->irq].hwirq & MV64x60_LEVEL2_MASK;
+	int level2 = irqd_to_hwirq(d) & MV64x60_LEVEL2_MASK;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mv64x60_lock, flags);
@@ -180,7 +180,7 @@ static void mv64x60_mask_ack_gpp(struct irq_data *d)
 
 static void mv64x60_unmask_gpp(struct irq_data *d)
 {
-	int level2 = irq_map[d->irq].hwirq & MV64x60_LEVEL2_MASK;
+	int level2 = irqd_to_hwirq(d) & MV64x60_LEVEL2_MASK;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mv64x60_lock, flags);

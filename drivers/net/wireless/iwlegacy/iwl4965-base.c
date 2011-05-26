@@ -1069,9 +1069,12 @@ static void iwl4965_irq_tasklet(struct iwl_priv *priv)
 	}
 
 	/* Re-enable all interrupts */
-	/* only Re-enable if diabled by irq */
+	/* only Re-enable if disabled by irq */
 	if (test_bit(STATUS_INT_ENABLED, &priv->status))
 		iwl_legacy_enable_interrupts(priv);
+	/* Re-enable RF_KILL if it occurred */
+	else if (handled & CSR_INT_BIT_RF_KILL)
+		iwl_legacy_enable_rfkill_int(priv);
 
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 	if (iwl_legacy_get_debug_level(priv) & (IWL_DL_ISR)) {
@@ -2139,7 +2142,7 @@ static void iwl4965_cancel_deferred_work(struct iwl_priv *priv);
 static void __iwl4965_down(struct iwl_priv *priv)
 {
 	unsigned long flags;
-	int exit_pending = test_bit(STATUS_EXIT_PENDING, &priv->status);
+	int exit_pending;
 
 	IWL_DEBUG_INFO(priv, DRV_NAME " is going down\n");
 
@@ -2401,11 +2404,12 @@ static void iwl4965_bg_init_alive_start(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, init_alive_start.work);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
 	mutex_lock(&priv->mutex);
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		goto out;
+
 	priv->cfg->ops->lib->init_alive_start(priv);
+out:
 	mutex_unlock(&priv->mutex);
 }
 
@@ -2414,11 +2418,12 @@ static void iwl4965_bg_alive_start(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, alive_start.work);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
 	mutex_lock(&priv->mutex);
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		goto out;
+
 	iwl4965_alive_start(priv);
+out:
 	mutex_unlock(&priv->mutex);
 }
 
@@ -2468,10 +2473,12 @@ static void iwl4965_bg_restart(struct work_struct *data)
 	} else {
 		iwl4965_down(priv);
 
-		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-			return;
-
 		mutex_lock(&priv->mutex);
+		if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
+			mutex_unlock(&priv->mutex);
+			return;
+		}
+
 		__iwl4965_up(priv);
 		mutex_unlock(&priv->mutex);
 	}
@@ -2624,9 +2631,10 @@ void iwl4965_mac_stop(struct ieee80211_hw *hw)
 
 	flush_workqueue(priv->workqueue);
 
-	/* enable interrupts again in order to receive rfkill changes */
+	/* User space software may expect getting rfkill changes
+	 * even if interface is down */
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
-	iwl_legacy_enable_interrupts(priv);
+	iwl_legacy_enable_rfkill_int(priv);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
@@ -2847,21 +2855,22 @@ void iwl4965_mac_channel_switch(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
+	mutex_lock(&priv->mutex);
+
 	if (iwl_legacy_is_rfkill(priv))
-		goto out_exit;
+		goto out;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
 	    test_bit(STATUS_SCANNING, &priv->status))
-		goto out_exit;
+		goto out;
 
 	if (!iwl_legacy_is_associated_ctx(ctx))
-		goto out_exit;
+		goto out;
 
 	/* channel switch in progress */
 	if (priv->switch_rxon.switch_in_progress == true)
-		goto out_exit;
+		goto out;
 
-	mutex_lock(&priv->mutex);
 	if (priv->cfg->ops->lib->set_channel_switch) {
 
 		ch = channel->hw_value;
@@ -2917,7 +2926,6 @@ void iwl4965_mac_channel_switch(struct ieee80211_hw *hw,
 	}
 out:
 	mutex_unlock(&priv->mutex);
-out_exit:
 	if (!priv->switch_rxon.switch_in_progress)
 		ieee80211_chswitch_done(ctx->vif, false);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
@@ -3116,7 +3124,6 @@ static int iwl4965_init_drv(struct iwl_priv *priv)
 	INIT_LIST_HEAD(&priv->free_frames);
 
 	mutex_init(&priv->mutex);
-	mutex_init(&priv->sync_cmd_mutex);
 
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
@@ -3173,7 +3180,7 @@ static void iwl4965_hw_detect(struct iwl_priv *priv)
 {
 	priv->hw_rev = _iwl_legacy_read32(priv, CSR_HW_REV);
 	priv->hw_wa_rev = _iwl_legacy_read32(priv, CSR_HW_REV_WA_REG);
-	pci_read_config_byte(priv->pci_dev, PCI_REVISION_ID, &priv->rev_id);
+	priv->rev_id = priv->pci_dev->revision;
 	IWL_DEBUG_INFO(priv, "HW Revision ID = 0x%X\n", priv->rev_id);
 }
 
@@ -3406,14 +3413,14 @@ iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * 8. Enable interrupts and read RFKILL state
 	 *********************************************/
 
-	/* enable interrupts if needed: hw bug w/a */
+	/* enable rfkill interrupt: hw bug w/a */
 	pci_read_config_word(priv->pci_dev, PCI_COMMAND, &pci_cmd);
 	if (pci_cmd & PCI_COMMAND_INTX_DISABLE) {
 		pci_cmd &= ~PCI_COMMAND_INTX_DISABLE;
 		pci_write_config_word(priv->pci_dev, PCI_COMMAND, pci_cmd);
 	}
 
-	iwl_legacy_enable_interrupts(priv);
+	iwl_legacy_enable_rfkill_int(priv);
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (iwl_read32(priv, CSR_GP_CNTRL) &

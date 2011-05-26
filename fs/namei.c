@@ -1378,12 +1378,12 @@ static inline int nested_symlink(struct path *path, struct nameidata *nd)
 {
 	int res;
 
-	BUG_ON(nd->depth >= MAX_NESTED_LINKS);
 	if (unlikely(current->link_count >= MAX_NESTED_LINKS)) {
 		path_put_conditional(path, nd);
 		path_put(&nd->path);
 		return -ELOOP;
 	}
+	BUG_ON(nd->depth >= MAX_NESTED_LINKS);
 
 	nd->depth++;
 	current->link_count++;

@@ -75,6 +75,11 @@ static const struct attribute_group ad2s90_attribute_group = {
 	.attrs = ad2s90_attributes,
 };
 
+static const struct iio_info ad2s90_info = {
+	.attrs = &ad2s90_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit ad2s90_probe(struct spi_device *spi)
 {
 	struct ad2s90_state *st;
@@ -90,18 +95,15 @@ static int __devinit ad2s90_probe(struct spi_device *spi)
 	mutex_init(&st->lock);
 	st->sdev = spi;
 
-	st->idev = iio_allocate_device();
+	st->idev = iio_allocate_device(0);
 	if (st->idev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_st;
 	}
 	st->idev->dev.parent = &spi->dev;
-	st->idev->num_interrupt_lines = 0;
-	st->idev->event_attrs = NULL;
 
-	st->idev->attrs = &ad2s90_attribute_group;
+	st->idev->info = &ad2s90_info;
 	st->idev->dev_data = (void *)(st);
-	st->idev->driver_module = THIS_MODULE;
 	st->idev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->idev);

@@ -35,6 +35,14 @@
 <revhistory>
 <!-- Put document revisions here, newest first. -->
 <revision>
+	<revnumber>2.0.4</revnumber>
+	<date>2011-05-06</date>
+	<authorinitials>mcc</authorinitials>
+	<revremark>
+		Add more information about DVB APIv5, better describing the frontend GET/SET props ioctl's.
+	</revremark>
+</revision>
+<revision>
 	<revnumber>2.0.3</revnumber>
 	<date>2010-07-03</date>
 	<authorinitials>mcc</authorinitials>

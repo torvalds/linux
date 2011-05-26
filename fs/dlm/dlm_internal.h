@@ -209,6 +209,7 @@ struct dlm_args {
 #define DLM_IFL_WATCH_TIMEWARN	0x00400000
 #define DLM_IFL_TIMEOUT_CANCEL	0x00800000
 #define DLM_IFL_DEADLOCK_CANCEL	0x01000000
+#define DLM_IFL_STUB_MS		0x02000000 /* magic number for m_flags */
 #define DLM_IFL_USER		0x00000001
 #define DLM_IFL_ORPHAN		0x00000002
 
@@ -245,6 +246,7 @@ struct dlm_lkb {
 
 	int8_t			lkb_wait_type;	/* type of reply waiting for */
 	int8_t			lkb_wait_count;
+	int			lkb_wait_nodeid; /* for debugging */
 
 	struct list_head	lkb_idtbl_list;	/* lockspace lkbtbl */
 	struct list_head	lkb_statequeue;	/* rsb g/c/w list */
@@ -254,6 +256,7 @@ struct dlm_lkb {
 	struct list_head	lkb_ownqueue;	/* list of locks for a process */
 	struct list_head	lkb_time_list;
 	ktime_t			lkb_timestamp;
+	ktime_t			lkb_wait_time;
 	unsigned long		lkb_timeout_cs;
 
 	struct dlm_callback	lkb_callbacks[DLM_CALLBACKS_SIZE];

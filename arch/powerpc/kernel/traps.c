@@ -198,7 +198,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 	} else if (show_unhandled_signals &&
 		    unhandled_signal(current, signr) &&
 		    printk_ratelimit()) {
-			printk(regs->msr & MSR_SF ? fmt64 : fmt32,
+			printk(regs->msr & MSR_64BIT ? fmt64 : fmt32,
 				current->comm, current->pid, signr,
 				addr, regs->nip, regs->link, code);
 		}
@@ -220,7 +220,7 @@ void system_reset_exception(struct pt_regs *regs)
 	}
 
 #ifdef CONFIG_KEXEC
-	cpu_set(smp_processor_id(), cpus_in_sr);
+	cpumask_set_cpu(smp_processor_id(), &cpus_in_sr);
 #endif
 
 	die("System Reset", regs, SIGABRT);
@@ -908,6 +908,26 @@ static int emulate_instruction(struct pt_regs *regs)
 		return emulate_isel(regs, instword);
 	}
 
+#ifdef CONFIG_PPC64
+	/* Emulate the mfspr rD, DSCR. */
+	if (((instword & PPC_INST_MFSPR_DSCR_MASK) == PPC_INST_MFSPR_DSCR) &&
+			cpu_has_feature(CPU_FTR_DSCR)) {
+		PPC_WARN_EMULATED(mfdscr, regs);
+		rd = (instword >> 21) & 0x1f;
+		regs->gpr[rd] = mfspr(SPRN_DSCR);
+		return 0;
+	}
+	/* Emulate the mtspr DSCR, rD. */
+	if (((instword & PPC_INST_MTSPR_DSCR_MASK) == PPC_INST_MTSPR_DSCR) &&
+			cpu_has_feature(CPU_FTR_DSCR)) {
+		PPC_WARN_EMULATED(mtdscr, regs);
+		rd = (instword >> 21) & 0x1f;
+		mtspr(SPRN_DSCR, regs->gpr[rd]);
+		current->thread.dscr_inherit = 1;
+		return 0;
+	}
+#endif
+
 	return -EINVAL;
 }
 
@@ -1504,6 +1524,10 @@ struct ppc_emulated ppc_emulated = {
 #endif
 #ifdef CONFIG_VSX
 	WARN_EMULATED_SETUP(vsx),
+#endif
+#ifdef CONFIG_PPC64
+	WARN_EMULATED_SETUP(mfdscr),
+	WARN_EMULATED_SETUP(mtdscr),
 #endif
 };
 

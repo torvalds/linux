@@ -45,6 +45,19 @@ typedef uint64_t blkif_sector_t;
 #define BLKIF_OP_WRITE_BARRIER     2
 
 /*
+ * Recognised if "feature-flush-cache" is present in backend xenbus
+ * info.  A flush will ask the underlying storage hardware to flush its
+ * non-volatile caches as appropriate.  The "feature-flush-cache" node
+ * contains a boolean indicating whether flush requests are likely to
+ * succeed or fail. Either way, a flush request may fail at any time
+ * with BLKIF_RSP_EOPNOTSUPP if it is unsupported by the underlying
+ * block-device hardware. The boolean simply indicates whether or not it
+ * is worthwhile for the frontend to attempt flushes.  If a backend does
+ * not recognise BLKIF_OP_WRITE_FLUSH_CACHE, it should *not* create the
+ * "feature-flush-cache" node!
+ */
+#define BLKIF_OP_FLUSH_DISKCACHE   3
+/*
  * Maximum scatter/gather segments per request.
  * This is carefully chosen so that sizeof(struct blkif_ring) <= PAGE_SIZE.
  * NB. This could be 12 if the ring indexes weren't stored in the same page.

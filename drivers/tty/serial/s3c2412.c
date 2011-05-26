@@ -1,5 +1,4 @@
-/* linux/drivers/serial/s3c2412.c
- *
+/*
  * Driver for Samsung S3C2412 and S3C2413 SoC onboard UARTs.
  *
  * Ben Dooks, Copyright (c) 2003-2008 Simtec Electronics

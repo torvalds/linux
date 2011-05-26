@@ -44,13 +44,6 @@
 
 #define BCLINK_WIN_DEFAULT 20		/* bcast link window size (default) */
 
-/*
- * Loss rate for incoming broadcast frames; used to test retransmission code.
- * Set to N to cause every N'th frame to be discarded; 0 => don't discard any.
- */
-
-#define TIPC_BCAST_LOSS_RATE 0
-
 /**
  * struct bcbearer_pair - a pair of bearers used by broadcast link
  * @primary: pointer to primary bearer
@@ -414,9 +407,7 @@ int tipc_bclink_send_msg(struct sk_buff *buf)
 	spin_lock_bh(&bc_lock);
 
 	res = tipc_link_send_buf(bcl, buf);
-	if (unlikely(res == -ELINKCONG))
-		buf_discard(buf);
-	else
+	if (likely(res > 0))
 		bclink_set_last_sent();
 
 	bcl->stats.queue_sz_counts++;
@@ -434,9 +425,6 @@ int tipc_bclink_send_msg(struct sk_buff *buf)
 
 void tipc_bclink_recv_pkt(struct sk_buff *buf)
 {
-#if (TIPC_BCAST_LOSS_RATE)
-	static int rx_count;
-#endif
 	struct tipc_msg *msg = buf_msg(buf);
 	struct tipc_node *node = tipc_node_find(msg_prevnode(msg));
 	u32 next_in;
@@ -469,14 +457,6 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 		buf_discard(buf);
 		return;
 	}
-
-#if (TIPC_BCAST_LOSS_RATE)
-	if (++rx_count == TIPC_BCAST_LOSS_RATE) {
-		rx_count = 0;
-		buf_discard(buf);
-		return;
-	}
-#endif
 
 	tipc_node_lock(node);
 receive:

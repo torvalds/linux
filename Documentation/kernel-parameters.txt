@@ -1777,9 +1777,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nosoftlockup	[KNL] Disable the soft-lockup detector.
 
-	noswapaccount	[KNL] Disable accounting of swap in memory resource
-			controller. (See Documentation/cgroups/memory.txt)
-
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
 
 	notsc		[BUGS=X86-32] Disable Time Stamp Counter
@@ -2585,6 +2582,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					bytes of sense data);
 				c = FIX_CAPACITY (decrease the reported
 					device capacity by one sector);
+				d = NO_READ_DISC_INFO (don't use
+					READ_DISC_INFO command);
+				e = NO_READ_CAPACITY_16 (don't use
+					READ_CAPACITY_16 command);
 				h = CAPACITY_HEURISTICS (decrease the
 					reported device capacity by one
 					sector if the number is odd);

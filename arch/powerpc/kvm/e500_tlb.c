@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (C) 2008-2011 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Author: Yu Liu, yu.liu@freescale.com
  *
@@ -24,6 +24,7 @@
 #include "../mm/mmu_decl.h"
 #include "e500_tlb.h"
 #include "trace.h"
+#include "timing.h"
 
 #define to_htlb1_esel(esel) (tlb1_entry_num - (esel) - 1)
 
@@ -506,6 +507,7 @@ int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb)
 		vcpu_e500->mas7 = 0;
 	}
 
+	kvmppc_set_exit_type(vcpu, EMULATED_TLBSX_EXITS);
 	return EMULATE_DONE;
 }
 
@@ -571,6 +573,7 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 		write_host_tlbe(vcpu_e500, stlbsel, sesel);
 	}
 
+	kvmppc_set_exit_type(vcpu, EMULATED_TLBWE_EXITS);
 	return EMULATE_DONE;
 }
 
@@ -670,6 +673,14 @@ int kvmppc_e500_tlb_search(struct kvm_vcpu *vcpu,
 	}
 
 	return -1;
+}
+
+void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid)
+{
+	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
+
+	vcpu_e500->pid[0] = vcpu->arch.shadow_pid =
+		vcpu->arch.pid = pid;
 }
 
 void kvmppc_e500_tlb_setup(struct kvmppc_vcpu_e500 *vcpu_e500)

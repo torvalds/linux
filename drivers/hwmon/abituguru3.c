@@ -1119,8 +1119,6 @@ static struct platform_driver abituguru3_driver = {
 	.resume = abituguru3_resume
 };
 
-#ifdef CONFIG_DMI
-
 static int __init abituguru3_dmi_detect(void)
 {
 	const char *board_vendor, *board_name;
@@ -1158,15 +1156,6 @@ static int __init abituguru3_dmi_detect(void)
 	/* No match found */
 	return 1;
 }
-
-#else /* !CONFIG_DMI */
-
-static inline int abituguru3_dmi_detect(void)
-{
-	return 1;
-}
-
-#endif /* CONFIG_DMI */
 
 /* FIXME: Manual detection should die eventually; we need to collect stable
  *        DMI model names first before we can rely entirely on CONFIG_DMI.
@@ -1216,10 +1205,8 @@ static int __init abituguru3_init(void)
 		if (err)
 			return err;
 
-#ifdef CONFIG_DMI
 		pr_warn("this motherboard was not detected using DMI. "
 			"Please send the output of \"dmidecode\" to the abituguru3 maintainer (see MAINTAINERS)\n");
-#endif
 	}
 
 	err = platform_driver_register(&abituguru3_driver);

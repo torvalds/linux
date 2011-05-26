@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -65,17 +65,19 @@ static void ath_btcoex_period_work(struct work_struct *work)
 	u32 timer_period;
 	bool is_btscan;
 	int ret;
-	u8 cmd_rsp, aggr;
 
 	ath_detect_bt_priority(priv);
 
 	is_btscan = !!(priv->op_flags & OP_BT_SCAN);
 
-	aggr = priv->op_flags & OP_BT_PRIORITY_DETECTED;
+	ret = ath9k_htc_update_cap_target(priv,
+				  !!(priv->op_flags & OP_BT_PRIORITY_DETECTED));
+	if (ret) {
+		ath_err(common, "Unable to set BTCOEX parameters\n");
+		return;
+	}
 
-	WMI_CMD_BUF(WMI_AGGR_LIMIT_CMD, &aggr);
-
-	ath9k_cmn_btcoex_bt_stomp(common, is_btscan ? ATH_BTCOEX_STOMP_ALL :
+	ath9k_hw_btcoex_bt_stomp(priv->ah, is_btscan ? ATH_BTCOEX_STOMP_ALL :
 			btcoex->bt_stomp_type);
 
 	timer_period = is_btscan ? btcoex->btscan_no_stomp :
@@ -103,9 +105,9 @@ static void ath_btcoex_duty_cycle_work(struct work_struct *work)
 		"time slice work for bt and wlan\n");
 
 	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW || is_btscan)
-		ath9k_cmn_btcoex_bt_stomp(common, ATH_BTCOEX_STOMP_NONE);
+		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_NONE);
 	else if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_ALL)
-		ath9k_cmn_btcoex_bt_stomp(common, ATH_BTCOEX_STOMP_LOW);
+		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_LOW);
 }
 
 void ath_htc_init_btcoex_work(struct ath9k_htc_priv *priv)
@@ -152,140 +154,41 @@ void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv)
 /* LED */
 /*******/
 
-static void ath9k_led_blink_work(struct work_struct *work)
+#ifdef CONFIG_MAC80211_LEDS
+void ath9k_led_work(struct work_struct *work)
 {
-	struct ath9k_htc_priv *priv = container_of(work, struct ath9k_htc_priv,
-						   ath9k_led_blink_work.work);
+	struct ath9k_htc_priv *priv = container_of(work,
+						   struct ath9k_htc_priv,
+						   led_work);
 
-	if (!(priv->op_flags & OP_LED_ASSOCIATED))
-		return;
-
-	if ((priv->led_on_duration == ATH_LED_ON_DURATION_IDLE) ||
-	    (priv->led_off_duration == ATH_LED_OFF_DURATION_IDLE))
-		ath9k_hw_set_gpio(priv->ah, priv->ah->led_pin, 0);
-	else
-		ath9k_hw_set_gpio(priv->ah, priv->ah->led_pin,
-				  (priv->op_flags & OP_LED_ON) ? 1 : 0);
-
-	ieee80211_queue_delayed_work(priv->hw,
-				     &priv->ath9k_led_blink_work,
-				     (priv->op_flags & OP_LED_ON) ?
-				     msecs_to_jiffies(priv->led_off_duration) :
-				     msecs_to_jiffies(priv->led_on_duration));
-
-	priv->led_on_duration = priv->led_on_cnt ?
-		max((ATH_LED_ON_DURATION_IDLE - priv->led_on_cnt), 25) :
-		ATH_LED_ON_DURATION_IDLE;
-	priv->led_off_duration = priv->led_off_cnt ?
-		max((ATH_LED_OFF_DURATION_IDLE - priv->led_off_cnt), 10) :
-		ATH_LED_OFF_DURATION_IDLE;
-	priv->led_on_cnt = priv->led_off_cnt = 0;
-
-	if (priv->op_flags & OP_LED_ON)
-		priv->op_flags &= ~OP_LED_ON;
-	else
-		priv->op_flags |= OP_LED_ON;
-}
-
-static void ath9k_led_brightness_work(struct work_struct *work)
-{
-	struct ath_led *led = container_of(work, struct ath_led,
-					   brightness_work.work);
-	struct ath9k_htc_priv *priv = led->priv;
-
-	switch (led->brightness) {
-	case LED_OFF:
-		if (led->led_type == ATH_LED_ASSOC ||
-		    led->led_type == ATH_LED_RADIO) {
-			ath9k_hw_set_gpio(priv->ah, priv->ah->led_pin,
-					  (led->led_type == ATH_LED_RADIO));
-			priv->op_flags &= ~OP_LED_ASSOCIATED;
-			if (led->led_type == ATH_LED_RADIO)
-				priv->op_flags &= ~OP_LED_ON;
-		} else {
-			priv->led_off_cnt++;
-		}
-		break;
-	case LED_FULL:
-		if (led->led_type == ATH_LED_ASSOC) {
-			priv->op_flags |= OP_LED_ASSOCIATED;
-			ieee80211_queue_delayed_work(priv->hw,
-					     &priv->ath9k_led_blink_work, 0);
-		} else if (led->led_type == ATH_LED_RADIO) {
-			ath9k_hw_set_gpio(priv->ah, priv->ah->led_pin, 0);
-			priv->op_flags |= OP_LED_ON;
-		} else {
-			priv->led_on_cnt++;
-		}
-		break;
-	default:
-		break;
-	}
+	ath9k_hw_set_gpio(priv->ah, priv->ah->led_pin,
+			  (priv->brightness == LED_OFF));
 }
 
 static void ath9k_led_brightness(struct led_classdev *led_cdev,
 				 enum led_brightness brightness)
 {
-	struct ath_led *led = container_of(led_cdev, struct ath_led, led_cdev);
-	struct ath9k_htc_priv *priv = led->priv;
+	struct ath9k_htc_priv *priv = container_of(led_cdev,
+						   struct ath9k_htc_priv,
+						   led_cdev);
 
-	led->brightness = brightness;
-	if (!(priv->op_flags & OP_LED_DEINIT))
-		ieee80211_queue_delayed_work(priv->hw,
-					     &led->brightness_work, 0);
-}
-
-void ath9k_led_stop_brightness(struct ath9k_htc_priv *priv)
-{
-	cancel_delayed_work_sync(&priv->radio_led.brightness_work);
-	cancel_delayed_work_sync(&priv->assoc_led.brightness_work);
-	cancel_delayed_work_sync(&priv->tx_led.brightness_work);
-	cancel_delayed_work_sync(&priv->rx_led.brightness_work);
-}
-
-static int ath9k_register_led(struct ath9k_htc_priv *priv, struct ath_led *led,
-			      char *trigger)
-{
-	int ret;
-
-	led->priv = priv;
-	led->led_cdev.name = led->name;
-	led->led_cdev.default_trigger = trigger;
-	led->led_cdev.brightness_set = ath9k_led_brightness;
-
-	ret = led_classdev_register(wiphy_dev(priv->hw->wiphy), &led->led_cdev);
-	if (ret)
-		ath_err(ath9k_hw_common(priv->ah),
-			"Failed to register led:%s", led->name);
-	else
-		led->registered = 1;
-
-	INIT_DELAYED_WORK(&led->brightness_work, ath9k_led_brightness_work);
-
-	return ret;
-}
-
-static void ath9k_unregister_led(struct ath_led *led)
-{
-	if (led->registered) {
-		led_classdev_unregister(&led->led_cdev);
-		led->registered = 0;
-	}
+	/* Not locked, but it's just a tiny green light..*/
+	priv->brightness = brightness;
+	ieee80211_queue_work(priv->hw, &priv->led_work);
 }
 
 void ath9k_deinit_leds(struct ath9k_htc_priv *priv)
 {
-	priv->op_flags |= OP_LED_DEINIT;
-	ath9k_unregister_led(&priv->assoc_led);
-	priv->op_flags &= ~OP_LED_ASSOCIATED;
-	ath9k_unregister_led(&priv->tx_led);
-	ath9k_unregister_led(&priv->rx_led);
-	ath9k_unregister_led(&priv->radio_led);
+	if (!priv->led_registered)
+		return;
+
+	ath9k_led_brightness(&priv->led_cdev, LED_OFF);
+	led_classdev_unregister(&priv->led_cdev);
+	cancel_work_sync(&priv->led_work);
 }
 
 void ath9k_init_leds(struct ath9k_htc_priv *priv)
 {
-	char *trigger;
 	int ret;
 
 	if (AR_SREV_9287(priv->ah))
@@ -303,48 +206,21 @@ void ath9k_init_leds(struct ath9k_htc_priv *priv)
 	/* LED off, active low */
 	ath9k_hw_set_gpio(priv->ah, priv->ah->led_pin, 1);
 
-	INIT_DELAYED_WORK(&priv->ath9k_led_blink_work, ath9k_led_blink_work);
+	snprintf(priv->led_name, sizeof(priv->led_name),
+		"ath9k_htc-%s", wiphy_name(priv->hw->wiphy));
+	priv->led_cdev.name = priv->led_name;
+	priv->led_cdev.brightness_set = ath9k_led_brightness;
 
-	trigger = ieee80211_get_radio_led_name(priv->hw);
-	snprintf(priv->radio_led.name, sizeof(priv->radio_led.name),
-		"ath9k-%s::radio", wiphy_name(priv->hw->wiphy));
-	ret = ath9k_register_led(priv, &priv->radio_led, trigger);
-	priv->radio_led.led_type = ATH_LED_RADIO;
-	if (ret)
-		goto fail;
+	ret = led_classdev_register(wiphy_dev(priv->hw->wiphy), &priv->led_cdev);
+	if (ret < 0)
+		return;
 
-	trigger = ieee80211_get_assoc_led_name(priv->hw);
-	snprintf(priv->assoc_led.name, sizeof(priv->assoc_led.name),
-		"ath9k-%s::assoc", wiphy_name(priv->hw->wiphy));
-	ret = ath9k_register_led(priv, &priv->assoc_led, trigger);
-	priv->assoc_led.led_type = ATH_LED_ASSOC;
-	if (ret)
-		goto fail;
-
-	trigger = ieee80211_get_tx_led_name(priv->hw);
-	snprintf(priv->tx_led.name, sizeof(priv->tx_led.name),
-		"ath9k-%s::tx", wiphy_name(priv->hw->wiphy));
-	ret = ath9k_register_led(priv, &priv->tx_led, trigger);
-	priv->tx_led.led_type = ATH_LED_TX;
-	if (ret)
-		goto fail;
-
-	trigger = ieee80211_get_rx_led_name(priv->hw);
-	snprintf(priv->rx_led.name, sizeof(priv->rx_led.name),
-		"ath9k-%s::rx", wiphy_name(priv->hw->wiphy));
-	ret = ath9k_register_led(priv, &priv->rx_led, trigger);
-	priv->rx_led.led_type = ATH_LED_RX;
-	if (ret)
-		goto fail;
-
-	priv->op_flags &= ~OP_LED_DEINIT;
+	INIT_WORK(&priv->led_work, ath9k_led_work);
+	priv->led_registered = true;
 
 	return;
-
-fail:
-	cancel_delayed_work_sync(&priv->ath9k_led_blink_work);
-	ath9k_deinit_leds(priv);
 }
+#endif
 
 /*******************/
 /*	Rfkill	   */
@@ -398,9 +274,9 @@ void ath9k_htc_radio_enable(struct ieee80211_hw *hw)
 
 	/* Start TX */
 	htc_start(priv->htc);
-	spin_lock_bh(&priv->tx_lock);
-	priv->tx_queues_stop = false;
-	spin_unlock_bh(&priv->tx_lock);
+	spin_lock_bh(&priv->tx.tx_lock);
+	priv->tx.flags &= ~ATH9K_HTC_OP_TX_QUEUES_STOP;
+	spin_unlock_bh(&priv->tx.tx_lock);
 	ieee80211_wake_queues(hw);
 
 	WMI_CMD(WMI_ENABLE_INTR_CMDID);
@@ -429,12 +305,14 @@ void ath9k_htc_radio_disable(struct ieee80211_hw *hw)
 
 	/* Stop TX */
 	ieee80211_stop_queues(hw);
-	htc_stop(priv->htc);
+	ath9k_htc_tx_drain(priv);
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
-	skb_queue_purge(&priv->tx_queue);
 
 	/* Stop RX */
 	WMI_CMD(WMI_STOP_RECV_CMDID);
+
+	/* Clear the WMI event queue */
+	ath9k_wmi_event_drain(priv);
 
 	/*
 	 * The MIB counters have to be disabled here,

@@ -695,7 +695,7 @@ void prism2_disconnected(wlandevice_t *wlandev)
 
 void prism2_roamed(wlandevice_t *wlandev)
 {
-	cfg80211_roamed(wlandev->netdev, wlandev->bssid,
+	cfg80211_roamed(wlandev->netdev, NULL, wlandev->bssid,
 		NULL, 0, NULL, 0, GFP_KERNEL);
 }
 

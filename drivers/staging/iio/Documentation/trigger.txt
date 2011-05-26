@@ -5,13 +5,10 @@ an IIO device.  Whilst this can create device specific complexities
 such triggers are registered with the core in the same way as
 stand-alone triggers.
 
-struct iio_trig *trig = iio_allocate_trigger();
+struct iio_trig *trig = iio_allocate_trigger("<trigger format string>", ...);
 
 allocates a trigger structure.  The key elements to then fill in within
 a driver are:
-
-trig->control_attrs
-	Any sysfs attributes needed to control parameters of the trigger
 
 trig->private_data
 	Device specific private data.
@@ -20,8 +17,12 @@ trig->owner
 	Typically set to THIS_MODULE. Used to ensure correct
 	ownership of core allocated resources.
 
-trig->name
-	A unique name for the trigger.
+trig->set_trigger_state:
+	Function that enables / disables the underlying source of the trigger.
+
+There is also a
+trig->alloc_list which is useful for drivers that allocate multiple
+triggers to keep track of what they have created.
 
 When these have been set call:
 
@@ -30,9 +31,8 @@ iio_trigger_register(trig);
 to register the trigger with the core, making it available to trigger
 consumers.
 
-
 Trigger Consumers
 
-Currently triggers are only used for the filling of software ring
+Currently triggers are only used for the filling of software
 buffers and as such any device supporting INDIO_RING_TRIGGERED has the
 consumer interface automatically created.

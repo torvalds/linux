@@ -740,7 +740,7 @@ static int ipv6_gso_pull_exthdrs(struct sk_buff *skb, int proto)
 
 static int ipv6_gso_send_check(struct sk_buff *skb)
 {
-	struct ipv6hdr *ipv6h;
+	const struct ipv6hdr *ipv6h;
 	const struct inet6_protocol *ops;
 	int err = -EINVAL;
 

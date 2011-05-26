@@ -7,7 +7,6 @@ rt2x00lib-$(CONFIG_RT2X00_LIB_DEBUGFS)	+= rt2x00debug.o
 rt2x00lib-$(CONFIG_RT2X00_LIB_CRYPTO)	+= rt2x00crypto.o
 rt2x00lib-$(CONFIG_RT2X00_LIB_FIRMWARE)	+= rt2x00firmware.o
 rt2x00lib-$(CONFIG_RT2X00_LIB_LEDS)	+= rt2x00leds.o
-rt2x00lib-$(CONFIG_RT2X00_LIB_HT)	+= rt2x00ht.o
 
 obj-$(CONFIG_RT2X00_LIB)		+= rt2x00lib.o
 obj-$(CONFIG_RT2X00_LIB_PCI)		+= rt2x00pci.o

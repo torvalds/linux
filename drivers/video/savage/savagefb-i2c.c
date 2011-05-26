@@ -171,6 +171,8 @@ void savagefb_create_i2c_busses(struct fb_info *info)
 
 	switch (par->chip) {
 	case S3_PROSAVAGE:
+	case S3_PROSAVAGEDDR:
+	case S3_TWISTER:
 		par->chan.reg         = CR_SERIAL2;
 		par->chan.ioaddr      = par->mmio.vbase;
 		par->chan.algo.setsda = prosavage_gpio_setsda;

@@ -2522,5 +2522,51 @@
 	</tgroup>
       </table>
     </section>
+
+    <section>
+      <title>JPEG Compressed Formats</title>
+
+      <para>Those data formats consist of an ordered sequence of 8-bit bytes
+	obtained from JPEG compression process. Additionally to the
+	<constant>_JPEG</constant> prefix the format code is made of
+	the following information.
+	<itemizedlist>
+	  <listitem>The number of bus samples per entropy encoded byte.</listitem>
+	  <listitem>The bus width.</listitem>
+	</itemizedlist>
+
+	<para>For instance, for a JPEG baseline process and an 8-bit bus width
+	  the format will be named <constant>V4L2_MBUS_FMT_JPEG_1X8</constant>.
+	</para>
+      </para>
+
+      <para>The following table lists existing JPEG compressed formats.</para>
+
+      <table pgwide="0" frame="none" id="v4l2-mbus-pixelcode-jpeg">
+	<title>JPEG Formats</title>
+	<tgroup cols="3">
+	  <colspec colname="id" align="left" />
+	  <colspec colname="code" align="left"/>
+	  <colspec colname="remarks" align="left"/>
+	  <thead>
+	    <row>
+	      <entry>Identifier</entry>
+	      <entry>Code</entry>
+	      <entry>Remarks</entry>
+	    </row>
+	  </thead>
+	  <tbody valign="top">
+	    <row id="V4L2-MBUS-FMT-JPEG-1X8">
+	      <entry>V4L2_MBUS_FMT_JPEG_1X8</entry>
+	      <entry>0x4001</entry>
+	      <entry>Besides of its usage for the parallel bus this format is
+		recommended for transmission of JPEG data over MIPI CSI bus
+		using the User Defined 8-bit Data types.
+	      </entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </table>
+    </section>
   </section>
 </section>

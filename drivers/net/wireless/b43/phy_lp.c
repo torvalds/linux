@@ -86,7 +86,7 @@ static void b43_lpphy_op_free(struct b43_wldev *dev)
 static void lpphy_read_band_sprom(struct b43_wldev *dev)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 	u16 cckpo, maxpwr;
 	u32 ofdmpo;
 	int i;
@@ -214,7 +214,7 @@ static void lpphy_table_init(struct b43_wldev *dev)
 
 static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 	u16 tmp, tmp2;
 
@@ -412,7 +412,7 @@ static void lpphy_restore_dig_flt_state(struct b43_wldev *dev)
 
 static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 
 	b43_phy_write(dev, B43_LPPHY_AFE_DAC_CTL, 0x50);
@@ -519,7 +519,7 @@ struct b2062_freqdata {
 static void lpphy_2062_init(struct b43_wldev *dev)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 	u32 crystalfreq, tmp, ref;
 	unsigned int i;
 	const struct b2062_freqdata *fd = NULL;
@@ -697,7 +697,7 @@ static void lpphy_radio_init(struct b43_wldev *dev)
 		lpphy_sync_stx(dev);
 		b43_phy_write(dev, B43_PHY_OFDM(0xF0), 0x5F80);
 		b43_phy_write(dev, B43_PHY_OFDM(0xF1), 0);
-		if (dev->dev->bus->chip_id == 0x4325) {
+		if (dev->sdev->bus->chip_id == 0x4325) {
 			// TODO SSB PMU recalibration
 		}
 	}
@@ -1289,7 +1289,7 @@ finish:
 
 static void lpphy_rev2plus_rc_calib(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 	u32 crystal_freq = bus->chipco.pmu.crystalfreq * 1000;
 	u8 tmp = b43_radio_read(dev, B2063_RX_BB_SP8) & 0xFF;
 	int i;
@@ -1840,7 +1840,7 @@ static void lpphy_papd_cal(struct b43_wldev *dev, struct lpphy_tx_gains gains,
 static void lpphy_papd_cal_txpwr(struct b43_wldev *dev)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 	struct lpphy_tx_gains gains, oldgains;
 	int old_txpctl, old_afe_ovr, old_rf, old_bbmult;
 
@@ -1870,7 +1870,7 @@ static int lpphy_rx_iq_cal(struct b43_wldev *dev, bool noise, bool tx,
 			    bool rx, bool pa, struct lpphy_tx_gains *gains)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 	const struct lpphy_rx_iq_comp *iqcomp = NULL;
 	struct lpphy_tx_gains nogains, oldgains;
 	u16 tmp;
@@ -2408,7 +2408,7 @@ static const struct b206x_channel b2063_chantbl[] = {
 
 static void lpphy_b2062_reset_pll_bias(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 
 	b43_radio_write(dev, B2062_S_RFPLL_CTL2, 0xFF);
 	udelay(20);
@@ -2432,7 +2432,7 @@ static int lpphy_b2062_tune(struct b43_wldev *dev,
 			    unsigned int channel)
 {
 	struct b43_phy_lp *lpphy = dev->phy.lp;
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 	const struct b206x_channel *chandata = NULL;
 	u32 crystal_freq = bus->chipco.pmu.crystalfreq * 1000;
 	u32 tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9;
@@ -2522,7 +2522,7 @@ static void lpphy_b2063_vco_calib(struct b43_wldev *dev)
 static int lpphy_b2063_tune(struct b43_wldev *dev,
 			    unsigned int channel)
 {
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 
 	static const struct b206x_channel *chandata = NULL;
 	u32 crystal_freq = bus->chipco.pmu.crystalfreq * 1000;

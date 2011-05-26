@@ -768,7 +768,7 @@ static void * __cpuinit mdesc_iterate_over_cpus(void *(*func)(struct mdesc_handl
 			       cpuid, NR_CPUS);
 			continue;
 		}
-		if (!cpu_isset(cpuid, *mask))
+		if (!cpumask_test_cpu(cpuid, mask))
 			continue;
 #endif
 

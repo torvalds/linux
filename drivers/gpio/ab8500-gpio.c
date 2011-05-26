@@ -482,8 +482,8 @@ static int __devexit ab8500_gpio_remove(struct platform_device *pdev)
 
 	ret = gpiochip_remove(&ab8500_gpio->chip);
 	if (ret < 0) {
-		dev_err(ab8500_gpio->dev, "unable to remove gpiochip:\
-				%d\n", ret);
+		dev_err(ab8500_gpio->dev, "unable to remove gpiochip: %d\n",
+			ret);
 		return ret;
 	}
 
@@ -516,7 +516,6 @@ static void __exit ab8500_gpio_exit(void)
 module_exit(ab8500_gpio_exit);
 
 MODULE_AUTHOR("BIBEK BASU <bibek.basu@stericsson.com>");
-MODULE_DESCRIPTION("Driver allows to use AB8500 unused pins\
-			to be used as GPIO");
+MODULE_DESCRIPTION("Driver allows to use AB8500 unused pins to be used as GPIO");
 MODULE_ALIAS("AB8500 GPIO driver");
 MODULE_LICENSE("GPL v2");

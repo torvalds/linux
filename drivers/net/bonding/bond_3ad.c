@@ -716,11 +716,9 @@ static void __set_agg_ports_ready(struct aggregator *aggregator, int val)
 static u32 __get_agg_bandwidth(struct aggregator *aggregator)
 {
 	u32 bandwidth = 0;
-	u32 basic_speed;
 
 	if (aggregator->num_of_ports) {
-		basic_speed = __get_link_speed(aggregator->lag_ports);
-		switch (basic_speed) {
+		switch (__get_link_speed(aggregator->lag_ports)) {
 		case AD_LINK_SPEED_BITMASK_1MBPS:
 			bandwidth = aggregator->num_of_ports;
 			break;
@@ -2405,14 +2403,6 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 	struct ad_info ad_info;
 	int res = 1;
 
-	/* make sure that the slaves list will
-	 * not change during tx
-	 */
-	read_lock(&bond->lock);
-
-	if (!BOND_IS_OK(bond))
-		goto out;
-
 	if (bond_3ad_get_active_agg_info(bond, &ad_info)) {
 		pr_debug("%s: Error: bond_3ad_get_active_agg_info failed\n",
 			 dev->name);
@@ -2466,39 +2456,20 @@ out:
 		/* no suitable interface, frame not sent */
 		dev_kfree_skb(skb);
 	}
-	read_unlock(&bond->lock);
+
 	return NETDEV_TX_OK;
 }
 
-int bond_3ad_lacpdu_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type* ptype, struct net_device *orig_dev)
+void bond_3ad_lacpdu_recv(struct sk_buff *skb, struct bonding *bond,
+			  struct slave *slave)
 {
-	struct bonding *bond = netdev_priv(dev);
-	struct slave *slave = NULL;
-	int ret = NET_RX_DROP;
-
-	if (!(dev->flags & IFF_MASTER))
-		goto out;
-
-	skb = skb_share_check(skb, GFP_ATOMIC);
-	if (!skb)
-		goto out;
+	if (skb->protocol != PKT_TYPE_LACPDU)
+		return;
 
 	if (!pskb_may_pull(skb, sizeof(struct lacpdu)))
-		goto out;
+		return;
 
 	read_lock(&bond->lock);
-	slave = bond_get_slave_by_dev(netdev_priv(dev), orig_dev);
-	if (!slave)
-		goto out_unlock;
-
 	bond_3ad_rx_indication((struct lacpdu *) skb->data, slave, skb->len);
-
-	ret = NET_RX_SUCCESS;
-
-out_unlock:
 	read_unlock(&bond->lock);
-out:
-	dev_kfree_skb(skb);
-
-	return ret;
 }

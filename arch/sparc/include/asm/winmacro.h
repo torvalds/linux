@@ -103,6 +103,7 @@
         st       %scratch, [%cur_reg + TI_W_SAVED];
 
 #ifdef CONFIG_SMP
+/* Results of LOAD_CURRENT() after BTFIXUP for SUN4M, SUN4D & LEON (comments) */
 #define LOAD_CURRENT4M(dest_reg, idreg) \
         rd       %tbr, %idreg; \
 	sethi    %hi(current_set), %dest_reg; \
@@ -116,6 +117,14 @@
 	sethi	%hi(C_LABEL(current_set)), %dest_reg; \
 	sll	%idreg, 2, %idreg; \
 	or	%dest_reg, %lo(C_LABEL(current_set)), %dest_reg; \
+	ld	[%idreg + %dest_reg], %dest_reg;
+
+#define LOAD_CURRENT_LEON(dest_reg, idreg)			\
+	rd	%asr17, %idreg;					\
+	sethi	%hi(current_set), %dest_reg;			\
+	srl	%idreg, 0x1c, %idreg;				\
+	or	%dest_reg, %lo(current_set), %dest_reg;		\
+	sll	%idreg, 0x2, %idreg;				\
 	ld	[%idreg + %dest_reg], %dest_reg;
 
 /* Blackbox - take care with this... - check smp4m and smp4d before changing this. */

@@ -205,7 +205,9 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 					goto unwind;
 				}
 				smp_mb();
-				netif_tx_start_queue(tx_queue->core_txq);
+				if (likely(!efx->loopback_selftest))
+					netif_tx_start_queue(
+						tx_queue->core_txq);
 			}
 
 			insert_ptr = tx_queue->insert_count & tx_queue->ptr_mask;
@@ -338,8 +340,7 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 	struct efx_tx_queue *tx_queue;
 	unsigned index, type;
 
-	if (unlikely(efx->port_inhibited))
-		return NETDEV_TX_BUSY;
+	EFX_WARN_ON_PARANOID(!netif_device_present(net_dev));
 
 	index = skb_get_queue_mapping(skb);
 	type = skb->ip_summed == CHECKSUM_PARTIAL ? EFX_TXQ_TYPE_OFFLOAD : 0;
@@ -436,7 +437,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	smp_mb();
 	if (unlikely(netif_tx_queue_stopped(tx_queue->core_txq)) &&
 	    likely(efx->port_enabled) &&
-	    likely(!efx->port_inhibited)) {
+	    likely(netif_device_present(efx->net_dev))) {
 		fill_level = tx_queue->insert_count - tx_queue->read_count;
 		if (fill_level < EFX_TXQ_THRESHOLD(efx)) {
 			EFX_BUG_ON_PARANOID(!efx_dev_registered(efx));

@@ -122,7 +122,7 @@ static irqreturn_t ras_epow_interrupt(int irq, void *dev_id)
 
 	status = rtas_call(ras_check_exception_token, 6, 1, NULL,
 			   RTAS_VECTOR_EXTERNAL_INTERRUPT,
-			   irq_map[irq].hwirq,
+			   virq_to_hw(irq),
 			   RTAS_EPOW_WARNING | RTAS_POWERMGM_EVENTS,
 			   critical, __pa(&ras_log_buf),
 				rtas_get_error_log_max());
@@ -157,7 +157,7 @@ static irqreturn_t ras_error_interrupt(int irq, void *dev_id)
 
 	status = rtas_call(ras_check_exception_token, 6, 1, NULL,
 			   RTAS_VECTOR_EXTERNAL_INTERRUPT,
-			   irq_map[irq].hwirq,
+			   virq_to_hw(irq),
 			   RTAS_INTERNAL_ERROR, 1 /*Time Critical */,
 			   __pa(&ras_log_buf),
 				rtas_get_error_log_max());
@@ -227,7 +227,7 @@ static struct rtas_error_log *fwnmi_get_errinfo(struct pt_regs *regs)
 	struct rtas_error_log *h, *errhdr = NULL;
 
 	if (!VALID_FWNMI_BUFFER(regs->gpr[3])) {
-		printk(KERN_ERR "FWNMI: corrupt r3\n");
+		printk(KERN_ERR "FWNMI: corrupt r3 0x%016lx\n", regs->gpr[3]);
 		return NULL;
 	}
 

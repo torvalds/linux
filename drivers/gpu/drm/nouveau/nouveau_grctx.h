@@ -87,10 +87,10 @@ _cp_bra(struct nouveau_grctx *ctx, u32 mod, int flag, int state, int name)
 	cp_out(ctx, CP_BRA | (mod << 18) | ip | flag |
 		    (state ? 0 : CP_BRA_IF_CLEAR));
 }
-#define cp_bra(c,f,s,n) _cp_bra((c), 0, CP_FLAG_##f, CP_FLAG_##f##_##s, n)
+#define cp_bra(c, f, s, n) _cp_bra((c), 0, CP_FLAG_##f, CP_FLAG_##f##_##s, n)
 #ifdef CP_BRA_MOD
-#define cp_cal(c,f,s,n) _cp_bra((c), 1, CP_FLAG_##f, CP_FLAG_##f##_##s, n)
-#define cp_ret(c,f,s) _cp_bra((c), 2, CP_FLAG_##f, CP_FLAG_##f##_##s, 0)
+#define cp_cal(c, f, s, n) _cp_bra((c), 1, CP_FLAG_##f, CP_FLAG_##f##_##s, n)
+#define cp_ret(c, f, s) _cp_bra((c), 2, CP_FLAG_##f, CP_FLAG_##f##_##s, 0)
 #endif
 
 static inline void
@@ -98,14 +98,14 @@ _cp_wait(struct nouveau_grctx *ctx, int flag, int state)
 {
 	cp_out(ctx, CP_WAIT | flag | (state ? CP_WAIT_SET : 0));
 }
-#define cp_wait(c,f,s) _cp_wait((c), CP_FLAG_##f, CP_FLAG_##f##_##s)
+#define cp_wait(c, f, s) _cp_wait((c), CP_FLAG_##f, CP_FLAG_##f##_##s)
 
 static inline void
 _cp_set(struct nouveau_grctx *ctx, int flag, int state)
 {
 	cp_out(ctx, CP_SET | flag | (state ? CP_SET_1 : 0));
 }
-#define cp_set(c,f,s) _cp_set((c), CP_FLAG_##f, CP_FLAG_##f##_##s)
+#define cp_set(c, f, s) _cp_set((c), CP_FLAG_##f, CP_FLAG_##f##_##s)
 
 static inline void
 cp_pos(struct nouveau_grctx *ctx, int offset)

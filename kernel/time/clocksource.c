@@ -639,7 +639,7 @@ static void clocksource_enqueue(struct clocksource *cs)
  */
 void __clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq)
 {
-	unsigned long sec;
+	u64 sec;
 
 	/*
 	 * Calc the maximum number of seconds which we can run before

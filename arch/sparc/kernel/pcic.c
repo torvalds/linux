@@ -164,6 +164,9 @@ void __iomem *pcic_regs;
 volatile int pcic_speculative;
 volatile int pcic_trapped;
 
+/* forward */
+unsigned int pcic_build_device_irq(struct platform_device *op,
+                                   unsigned int real_irq);
 
 #define CONFIG_CMD(bus, device_fn, where) (0x80000000 | (((unsigned int)bus) << 16) | (((unsigned int)device_fn) << 8) | (where & ~3))
 
@@ -523,6 +526,7 @@ static void
 pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 {
 	struct pcic_ca2irq *p;
+	unsigned int real_irq;
 	int i, ivec;
 	char namebuf[64];
 
@@ -551,26 +555,25 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 	i = p->pin;
 	if (i >= 0 && i < 4) {
 		ivec = readw(pcic->pcic_regs+PCI_INT_SELECT_LO);
-		dev->irq = ivec >> (i << 2) & 0xF;
+		real_irq = ivec >> (i << 2) & 0xF;
 	} else if (i >= 4 && i < 8) {
 		ivec = readw(pcic->pcic_regs+PCI_INT_SELECT_HI);
-		dev->irq = ivec >> ((i-4) << 2) & 0xF;
+		real_irq = ivec >> ((i-4) << 2) & 0xF;
 	} else {					/* Corrupted map */
 		printk("PCIC: BAD PIN %d\n", i); for (;;) {}
 	}
 /* P3 */ /* printk("PCIC: device %s pin %d ivec 0x%x irq %x\n", namebuf, i, ivec, dev->irq); */
 
-	/*
-	 * dev->irq=0 means PROM did not bother to program the upper
+	/* real_irq means PROM did not bother to program the upper
 	 * half of PCIC. This happens on JS-E with PROM 3.11, for instance.
 	 */
-	if (dev->irq == 0 || p->force) {
+	if (real_irq == 0 || p->force) {
 		if (p->irq == 0 || p->irq >= 15) {	/* Corrupted map */
 			printk("PCIC: BAD IRQ %d\n", p->irq); for (;;) {}
 		}
 		printk("PCIC: setting irq %d at pin %d for device %02x:%02x\n",
 		    p->irq, p->pin, dev->bus->number, dev->devfn);
-		dev->irq = p->irq;
+		real_irq = p->irq;
 
 		i = p->pin;
 		if (i >= 4) {
@@ -584,7 +587,8 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 			ivec |= p->irq << (i << 2);
 			writew(ivec, pcic->pcic_regs+PCI_INT_SELECT_LO);
 		}
- 	}
+	}
+	dev->irq = pcic_build_device_irq(NULL, real_irq);
 }
 
 /*
@@ -729,6 +733,7 @@ void __init pci_time_init(void)
 	struct linux_pcic *pcic = &pcic0;
 	unsigned long v;
 	int timer_irq, irq;
+	int err;
 
 	do_arch_gettimeoffset = pci_gettimeoffset;
 
@@ -740,9 +745,10 @@ void __init pci_time_init(void)
 	timer_irq = PCI_COUNTER_IRQ_SYS(v);
 	writel (PCI_COUNTER_IRQ_SET(timer_irq, 0),
 		pcic->pcic_regs+PCI_COUNTER_IRQ);
-	irq = request_irq(timer_irq, pcic_timer_handler,
-			  (IRQF_DISABLED | SA_STATIC_ALLOC), "timer", NULL);
-	if (irq) {
+	irq = pcic_build_device_irq(NULL, timer_irq);
+	err = request_irq(irq, pcic_timer_handler,
+			  IRQF_TIMER, "timer", NULL);
+	if (err) {
 		prom_printf("time_init: unable to attach IRQ%d\n", timer_irq);
 		prom_halt();
 	}
@@ -803,50 +809,73 @@ static inline unsigned long get_irqmask(int irq_nr)
 	return 1 << irq_nr;
 }
 
-static void pcic_disable_irq(unsigned int irq_nr)
+static void pcic_mask_irq(struct irq_data *data)
 {
 	unsigned long mask, flags;
 
-	mask = get_irqmask(irq_nr);
+	mask = (unsigned long)data->chip_data;
 	local_irq_save(flags);
 	writel(mask, pcic0.pcic_regs+PCI_SYS_INT_TARGET_MASK_SET);
 	local_irq_restore(flags);
 }
 
-static void pcic_enable_irq(unsigned int irq_nr)
+static void pcic_unmask_irq(struct irq_data *data)
 {
 	unsigned long mask, flags;
 
-	mask = get_irqmask(irq_nr);
+	mask = (unsigned long)data->chip_data;
 	local_irq_save(flags);
 	writel(mask, pcic0.pcic_regs+PCI_SYS_INT_TARGET_MASK_CLEAR);
 	local_irq_restore(flags);
 }
+
+static unsigned int pcic_startup_irq(struct irq_data *data)
+{
+	irq_link(data->irq);
+	pcic_unmask_irq(data);
+	return 0;
+}
+
+static struct irq_chip pcic_irq = {
+	.name		= "pcic",
+	.irq_startup	= pcic_startup_irq,
+	.irq_mask	= pcic_mask_irq,
+	.irq_unmask	= pcic_unmask_irq,
+};
+
+unsigned int pcic_build_device_irq(struct platform_device *op,
+                                   unsigned int real_irq)
+{
+	unsigned int irq;
+	unsigned long mask;
+
+	irq = 0;
+	mask = get_irqmask(real_irq);
+	if (mask == 0)
+		goto out;
+
+	irq = irq_alloc(real_irq, real_irq);
+	if (irq == 0)
+		goto out;
+
+	irq_set_chip_and_handler_name(irq, &pcic_irq,
+	                              handle_level_irq, "PCIC");
+	irq_set_chip_data(irq, (void *)mask);
+
+out:
+	return irq;
+}
+
 
 static void pcic_load_profile_irq(int cpu, unsigned int limit)
 {
 	printk("PCIC: unimplemented code: FILE=%s LINE=%d", __FILE__, __LINE__);
 }
 
-/* We assume the caller has disabled local interrupts when these are called,
- * or else very bizarre behavior will result.
- */
-static void pcic_disable_pil_irq(unsigned int pil)
-{
-	writel(get_irqmask(pil), pcic0.pcic_regs+PCI_SYS_INT_TARGET_MASK_SET);
-}
-
-static void pcic_enable_pil_irq(unsigned int pil)
-{
-	writel(get_irqmask(pil), pcic0.pcic_regs+PCI_SYS_INT_TARGET_MASK_CLEAR);
-}
-
 void __init sun4m_pci_init_IRQ(void)
 {
-	BTFIXUPSET_CALL(enable_irq, pcic_enable_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(disable_irq, pcic_disable_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(enable_pil_irq, pcic_enable_pil_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(disable_pil_irq, pcic_disable_pil_irq, BTFIXUPCALL_NORM);
+	sparc_irq_config.build_device_irq = pcic_build_device_irq;
+
 	BTFIXUPSET_CALL(clear_clock_irq, pcic_clear_clock_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(load_profile_irq, pcic_load_profile_irq, BTFIXUPCALL_NORM);
 }

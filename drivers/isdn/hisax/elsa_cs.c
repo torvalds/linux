@@ -129,12 +129,10 @@ static int elsa_cs_configcheck(struct pcmcia_device *p_dev, void *priv_data)
 
 static int __devinit elsa_cs_config(struct pcmcia_device *link)
 {
-    local_info_t *dev;
     int i;
     IsdnCard_t icard;
 
     dev_dbg(&link->dev, "elsa_config(0x%p)\n", link);
-    dev = link->priv;
 
     link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
@@ -202,7 +200,7 @@ static int elsa_resume(struct pcmcia_device *link)
 	return 0;
 }
 
-static struct pcmcia_device_id elsa_ids[] = {
+static const struct pcmcia_device_id elsa_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("ELSA AG (Aachen, Germany)", "MicroLink ISDN/MC ", 0x983de2c4, 0x333ba257),
 	PCMCIA_DEVICE_PROD_ID12("ELSA GmbH, Aachen", "MicroLink ISDN/MC ", 0x639e5718, 0x333ba257),
 	PCMCIA_DEVICE_NULL

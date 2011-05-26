@@ -684,10 +684,11 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev, int crtc,
 	 */
 	*vblank_time = ns_to_timeval(timeval_to_ns(&raw_time) - delta_ns);
 
-	DRM_DEBUG("crtc %d : v %d p(%d,%d)@ %d.%d -> %d.%d [e %d us, %d rep]\n",
-		  crtc, (int) vbl_status, hpos, vpos, raw_time.tv_sec,
-		  raw_time.tv_usec, vblank_time->tv_sec, vblank_time->tv_usec,
-		  (int) duration_ns/1000, i);
+	DRM_DEBUG("crtc %d : v %d p(%d,%d)@ %ld.%ld -> %ld.%ld [e %d us, %d rep]\n",
+		  crtc, (int)vbl_status, hpos, vpos,
+		  (long)raw_time.tv_sec, (long)raw_time.tv_usec,
+		  (long)vblank_time->tv_sec, (long)vblank_time->tv_usec,
+		  (int)duration_ns/1000, i);
 
 	vbl_status = DRM_VBLANKTIME_SCANOUTPOS_METHOD;
 	if (invbl)

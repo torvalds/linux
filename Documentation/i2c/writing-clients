@@ -38,7 +38,7 @@ static struct i2c_driver foo_driver = {
 		.name	= "foo",
 	},
 
-	.id_table	= foo_ids,
+	.id_table	= foo_idtable,
 	.probe		= foo_probe,
 	.remove		= foo_remove,
 	/* if device autodetection is needed: */

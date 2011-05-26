@@ -130,8 +130,6 @@ extern int wlc_bmac_state_get(struct wlc_hw_info *wlc_hw,
 			      wlc_bmac_state_t *state);
 extern void wlc_bmac_write_shm(struct wlc_hw_info *wlc_hw, uint offset, u16 v);
 extern u16 wlc_bmac_read_shm(struct wlc_hw_info *wlc_hw, uint offset);
-extern void wlc_bmac_set_shm(struct wlc_hw_info *wlc_hw, uint offset, u16 v,
-			     int len);
 extern void wlc_bmac_write_template_ram(struct wlc_hw_info *wlc_hw, int offset,
 					int len, void *buf);
 extern void wlc_bmac_copyfrom_vars(struct wlc_hw_info *wlc_hw, char **buf,
@@ -151,8 +149,6 @@ extern void wlc_ucode_wake_override_set(struct wlc_hw_info *wlc_hw,
 extern void wlc_ucode_wake_override_clear(struct wlc_hw_info *wlc_hw,
 					  u32 override_bit);
 
-extern void wlc_bmac_set_rcmta(struct wlc_hw_info *wlc_hw, int idx,
-			       const u8 *addr);
 extern void wlc_bmac_set_addrmatch(struct wlc_hw_info *wlc_hw,
 				   int match_reg_offset,
 				   const u8 *addr);
@@ -163,7 +159,6 @@ extern void wlc_bmac_read_tsf(struct wlc_hw_info *wlc_hw, u32 *tsf_l_ptr,
 			      u32 *tsf_h_ptr);
 extern void wlc_bmac_set_cwmin(struct wlc_hw_info *wlc_hw, u16 newmin);
 extern void wlc_bmac_set_cwmax(struct wlc_hw_info *wlc_hw, u16 newmax);
-extern void wlc_bmac_set_noreset(struct wlc_hw_info *wlc, bool noreset_flag);
 
 extern void wlc_bmac_retrylimit_upd(struct wlc_hw_info *wlc_hw, u16 SRL,
 				    u16 LRL);
@@ -176,7 +171,6 @@ extern void wlc_bmac_fifoerrors(struct wlc_hw_info *wlc_hw);
 extern void wlc_bmac_bw_set(struct wlc_hw_info *wlc_hw, u16 bw);
 extern void wlc_bmac_pllreq(struct wlc_hw_info *wlc_hw, bool set,
 			    mbool req_bit);
-extern bool wlc_bmac_taclear(struct wlc_hw_info *wlc_hw, bool ta_ok);
 extern void wlc_bmac_hw_up(struct wlc_hw_info *wlc_hw);
 extern u16 wlc_bmac_rate_shm_offset(struct wlc_hw_info *wlc_hw, u8 rate);
 extern void wlc_bmac_antsel_set(struct wlc_hw_info *wlc_hw, u32 antsel_avail);

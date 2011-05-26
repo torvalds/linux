@@ -5,6 +5,7 @@
 config PLAT_NOMADIK
 	bool
 	depends on ARCH_NOMADIK || ARCH_U8500
+	select CLKSRC_MMIO
 	default y
 	help
 	  Common platform code for Nomadik and other ST-Ericsson

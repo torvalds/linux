@@ -659,14 +659,14 @@ static const struct inode_operations msdos_dir_inode_operations = {
 
 static void setup(struct super_block *sb)
 {
+	MSDOS_SB(sb)->dir_ops = &msdos_dir_inode_operations;
 	sb->s_d_op = &msdos_dentry_operations;
 	sb->s_flags |= MS_NOATIME;
 }
 
 static int msdos_fill_super(struct super_block *sb, void *data, int silent)
 {
-	return fat_fill_super(sb, data, silent, &msdos_dir_inode_operations,
-			     0, setup);
+	return fat_fill_super(sb, data, silent, 0, setup);
 }
 
 static struct dentry *msdos_mount(struct file_system_type *fs_type,

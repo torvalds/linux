@@ -294,19 +294,8 @@ static int jz4740_codec_set_bias_level(struct snd_soc_codec *codec,
 
 static int jz4740_codec_dev_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
 	snd_soc_update_bits(codec, JZ4740_REG_CODEC_1,
 			JZ4740_CODEC_1_SW2_ENABLE, JZ4740_CODEC_1_SW2_ENABLE);
-
-	snd_soc_add_controls(codec, jz4740_codec_controls,
-		ARRAY_SIZE(jz4740_codec_controls));
-
-	snd_soc_dapm_new_controls(dapm, jz4740_codec_dapm_widgets,
-		ARRAY_SIZE(jz4740_codec_dapm_widgets));
-
-	snd_soc_dapm_add_routes(dapm, jz4740_codec_dapm_routes,
-		ARRAY_SIZE(jz4740_codec_dapm_routes));
 
 	jz4740_codec_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -348,6 +337,13 @@ static struct snd_soc_codec_driver soc_codec_dev_jz4740_codec = {
 	.reg_cache_default	= jz4740_codec_regs,
 	.reg_word_size = sizeof(u32),
 	.reg_cache_size	= 2,
+
+	.controls = jz4740_codec_controls,
+	.num_controls = ARRAY_SIZE(jz4740_codec_controls),
+	.dapm_widgets = jz4740_codec_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(jz4740_codec_dapm_widgets),
+	.dapm_routes = jz4740_codec_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(jz4740_codec_dapm_routes),
 };
 
 static int __devinit jz4740_codec_probe(struct platform_device *pdev)

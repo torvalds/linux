@@ -17,7 +17,7 @@
 #include <linux/firmware.h>
 #include <linux/i2c.h>
 #include <linux/i2c/atmel_mxt_ts.h>
-#include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 
@@ -196,9 +196,12 @@
 #define MXT_PRESS		(1 << 6)
 #define MXT_DETECT		(1 << 7)
 
+/* Touch orient bits */
+#define MXT_XY_SWITCH		(1 << 0)
+#define MXT_X_INVERT		(1 << 1)
+#define MXT_Y_INVERT		(1 << 2)
+
 /* Touchscreen absolute values */
-#define MXT_MAX_XC		0x3ff
-#define MXT_MAX_YC		0x3ff
 #define MXT_MAX_AREA		0xff
 
 #define MXT_MAX_FINGER		10
@@ -246,6 +249,8 @@ struct mxt_data {
 	struct mxt_info info;
 	struct mxt_finger finger[MXT_MAX_FINGER];
 	unsigned int irq;
+	unsigned int max_x;
+	unsigned int max_y;
 };
 
 static bool mxt_object_readable(unsigned int type)
@@ -499,19 +504,21 @@ static void mxt_input_report(struct mxt_data *data, int single_id)
 		if (!finger[id].status)
 			continue;
 
-		input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR,
-				finger[id].status != MXT_RELEASE ?
-				finger[id].area : 0);
-		input_report_abs(input_dev, ABS_MT_POSITION_X,
-				finger[id].x);
-		input_report_abs(input_dev, ABS_MT_POSITION_Y,
-				finger[id].y);
-		input_mt_sync(input_dev);
+		input_mt_slot(input_dev, id);
+		input_mt_report_slot_state(input_dev, MT_TOOL_FINGER,
+				finger[id].status != MXT_RELEASE);
 
-		if (finger[id].status == MXT_RELEASE)
-			finger[id].status = 0;
-		else
+		if (finger[id].status != MXT_RELEASE) {
 			finger_num++;
+			input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR,
+					finger[id].area);
+			input_report_abs(input_dev, ABS_MT_POSITION_X,
+					finger[id].x);
+			input_report_abs(input_dev, ABS_MT_POSITION_Y,
+					finger[id].y);
+		} else {
+			finger[id].status = 0;
+		}
 	}
 
 	input_report_key(input_dev, BTN_TOUCH, finger_num > 0);
@@ -549,8 +556,13 @@ static void mxt_input_touchevent(struct mxt_data *data,
 	if (!(status & (MXT_PRESS | MXT_MOVE)))
 		return;
 
-	x = (message->message[1] << 2) | ((message->message[3] & ~0x3f) >> 6);
-	y = (message->message[2] << 2) | ((message->message[3] & ~0xf3) >> 2);
+	x = (message->message[1] << 4) | ((message->message[3] >> 4) & 0xf);
+	y = (message->message[2] << 4) | ((message->message[3] & 0xf));
+	if (data->max_x < 1024)
+		x = x >> 2;
+	if (data->max_y < 1024)
+		y = y >> 2;
+
 	area = message->message[4];
 
 	dev_dbg(dev, "[%d] %s x: %d, y: %d, area: %d\n", id,
@@ -804,10 +816,6 @@ static int mxt_initialize(struct mxt_data *data)
 	if (error)
 		return error;
 
-	error = mxt_make_highchg(data);
-	if (error)
-		return error;
-
 	mxt_handle_pdata(data);
 
 	/* Backup to memory */
@@ -843,6 +851,20 @@ static int mxt_initialize(struct mxt_data *data)
 			info->object_num);
 
 	return 0;
+}
+
+static void mxt_calc_resolution(struct mxt_data *data)
+{
+	unsigned int max_x = data->pdata->x_size - 1;
+	unsigned int max_y = data->pdata->y_size - 1;
+
+	if (data->pdata->orient & MXT_XY_SWITCH) {
+		data->max_x = max_y;
+		data->max_y = max_x;
+	} else {
+		data->max_x = max_x;
+		data->max_y = max_y;
+	}
 }
 
 static ssize_t mxt_object_show(struct device *dev,
@@ -981,6 +1003,10 @@ static ssize_t mxt_update_fw_store(struct device *dev,
 
 	enable_irq(data->irq);
 
+	error = mxt_make_highchg(data);
+	if (error)
+		return error;
+
 	return count;
 }
 
@@ -1052,31 +1078,33 @@ static int __devinit mxt_probe(struct i2c_client *client,
 	input_dev->open = mxt_input_open;
 	input_dev->close = mxt_input_close;
 
+	data->client = client;
+	data->input_dev = input_dev;
+	data->pdata = pdata;
+	data->irq = client->irq;
+
+	mxt_calc_resolution(data);
+
 	__set_bit(EV_ABS, input_dev->evbit);
 	__set_bit(EV_KEY, input_dev->evbit);
 	__set_bit(BTN_TOUCH, input_dev->keybit);
 
 	/* For single touch */
 	input_set_abs_params(input_dev, ABS_X,
-			     0, MXT_MAX_XC, 0, 0);
+			     0, data->max_x, 0, 0);
 	input_set_abs_params(input_dev, ABS_Y,
-			     0, MXT_MAX_YC, 0, 0);
+			     0, data->max_y, 0, 0);
 
 	/* For multi touch */
+	input_mt_init_slots(input_dev, MXT_MAX_FINGER);
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
 			     0, MXT_MAX_AREA, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X,
-			     0, MXT_MAX_XC, 0, 0);
+			     0, data->max_x, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
-			     0, MXT_MAX_YC, 0, 0);
+			     0, data->max_y, 0, 0);
 
 	input_set_drvdata(input_dev, data);
-
-	data->client = client;
-	data->input_dev = input_dev;
-	data->pdata = pdata;
-	data->irq = client->irq;
-
 	i2c_set_clientdata(client, data);
 
 	error = mxt_initialize(data);
@@ -1089,6 +1117,10 @@ static int __devinit mxt_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Failed to register interrupt\n");
 		goto err_free_object;
 	}
+
+	error = mxt_make_highchg(data);
+	if (error)
+		goto err_free_irq;
 
 	error = input_register_device(input_dev);
 	if (error)

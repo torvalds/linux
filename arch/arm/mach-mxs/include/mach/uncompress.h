@@ -20,7 +20,7 @@
 
 #include <asm/mach-types.h>
 
-static unsigned long mxs_duart_base;
+unsigned long mxs_duart_base;
 
 #define MXS_DUART(x)	(*(volatile unsigned long *)(mxs_duart_base + (x)))
 

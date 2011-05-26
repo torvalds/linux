@@ -17,25 +17,19 @@
 #ifndef _wl_dbg_h_
 #define _wl_dbg_h_
 
+#include <linux/device.h>			/* dev_err() */
+
 /* wl_msg_level is a bit vector with defs in wlioctl.h */
 extern u32 wl_msg_level;
 
-#define WL_NONE(fmt, args...) no_printk(fmt, ##args)
-
-#define WL_PRINT(level, fmt, args...)		\
+#define BCMMSG(dev, fmt, args...)		\
 do {						\
-	if (wl_msg_level & level)		\
-		printk(fmt, ##args);		\
+	if (wl_msg_level & WL_TRACE_VAL)	\
+		wiphy_err(dev, "%s: " fmt, __func__, ##args);	\
 } while (0)
 
 #ifdef BCMDBG
 
-#define	WL_ERROR(fmt, args...)	WL_PRINT(WL_ERROR_VAL, fmt, ##args)
-#define	WL_TRACE(fmt, args...)	WL_PRINT(WL_TRACE_VAL, fmt, ##args)
-#define WL_AMPDU(fmt, args...)	WL_PRINT(WL_AMPDU_VAL, fmt, ##args)
-#define WL_FFPLD(fmt, args...)	WL_PRINT(WL_FFPLD_VAL, fmt, ##args)
-
-#define WL_ERROR_ON()		(wl_msg_level & WL_ERROR_VAL)
 
 /* Extra message control for AMPDU debugging */
 #define   WL_AMPDU_UPDN_VAL	0x00000001	/* Config up/down related  */
@@ -78,12 +72,6 @@ do {						\
 
 #else				/* BCMDBG */
 
-#define	WL_ERROR(fmt, args...)		no_printk(fmt, ##args)
-#define	WL_TRACE(fmt, args...)		no_printk(fmt, ##args)
-#define WL_AMPDU(fmt, args...)		no_printk(fmt, ##args)
-#define WL_FFPLD(fmt, args...)		no_printk(fmt, ##args)
-
-#define WL_ERROR_ON()		0
 
 #define WL_AMPDU_UPDN(fmt, args...)	no_printk(fmt, ##args)
 #define WL_AMPDU_RX(fmt, args...)	no_printk(fmt, ##args)
@@ -98,5 +86,7 @@ do {						\
 #define WL_AMPDU_HWTXS_ON()     0
 
 #endif				/* BCMDBG */
+
+#define WL_ERROR_ON()		(wl_msg_level & WL_ERROR_VAL)
 
 #endif				/* _wl_dbg_h_ */

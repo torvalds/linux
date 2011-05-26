@@ -9,7 +9,7 @@
 #include <linux/mutex.h>
 
 /* compilation option */
-#define GSPCA_DEBUG 1
+/*#define GSPCA_DEBUG 1*/
 
 #ifdef GSPCA_DEBUG
 /* GSPCA our debug messages */
@@ -25,8 +25,8 @@ extern int gspca_debug;
 #define D_STREAM 0x08
 #define D_FRAM 0x10
 #define D_PACK 0x20
-#define D_USBI 0x40
-#define D_USBO 0x80
+#define D_USBI 0x00
+#define D_USBO 0x00
 #define D_V4L2 0x0100
 #else
 #define PDEBUG(level, fmt, args...)

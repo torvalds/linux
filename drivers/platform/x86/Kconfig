@@ -111,7 +111,7 @@ config DELL_WMI_AIO
 	  All-In-One machines.
 
 	  To compile this driver as a module, choose M here: the module will
-	  be called dell-wmi.
+	  be called dell-wmi-aio.
 
 
 config FUJITSU_LAPTOP
@@ -752,5 +752,12 @@ config SAMSUNG_LAPTOP
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called samsung-laptop.
+
+config MXM_WMI
+       tristate "WMI support for MXM Laptop Graphics"
+       depends on ACPI_WMI
+       ---help---
+          MXM is a standard for laptop graphics cards, the WMI interface
+	  is required for switchable nvidia graphics machines
 
 endif # X86_PLATFORM_DEVICES

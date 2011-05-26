@@ -280,9 +280,11 @@ static int acpi_atomic_read_mem(u64 paddr, u64 *val, u32 width)
 	case 32:
 		*val = readl(addr);
 		break;
+#ifdef readq
 	case 64:
 		*val = readq(addr);
 		break;
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -307,9 +309,11 @@ static int acpi_atomic_write_mem(u64 paddr, u64 val, u32 width)
 	case 32:
 		writel(val, addr);
 		break;
+#ifdef writeq
 	case 64:
 		writeq(val, addr);
 		break;
+#endif
 	default:
 		return -EINVAL;
 	}

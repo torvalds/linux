@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -33,10 +33,10 @@ struct ath9k_htc_hif {
 	u8 control_dl_pipe;
 	u8 control_ul_pipe;
 
-	void (*start) (void *hif_handle, u8 pipe);
-	void (*stop) (void *hif_handle, u8 pipe);
-	int (*send) (void *hif_handle, u8 pipe, struct sk_buff *buf,
-		     struct ath9k_htc_tx_ctl *tx_ctl);
+	void (*start) (void *hif_handle);
+	void (*stop) (void *hif_handle);
+	void (*sta_drain) (void *hif_handle, u8 idx);
+	int (*send) (void *hif_handle, u8 pipe, struct sk_buff *buf);
 };
 
 enum htc_endpoint_id {
@@ -83,21 +83,10 @@ struct htc_ep_callbacks {
 	void (*rx) (void *, struct sk_buff *, enum htc_endpoint_id);
 };
 
-#define HTC_TX_QUEUE_SIZE 256
-
-struct htc_txq {
-	struct sk_buff *buf[HTC_TX_QUEUE_SIZE];
-	u32 txqdepth;
-	u16 txbuf_cnt;
-	u16 txq_head;
-	u16 txq_tail;
-};
-
 struct htc_endpoint {
 	u16 service_id;
 
 	struct htc_ep_callbacks ep_callbacks;
-	struct htc_txq htc_txq;
 	u32 max_txqdepth;
 	int max_msglen;
 
@@ -205,10 +194,12 @@ int htc_init(struct htc_target *target);
 int htc_connect_service(struct htc_target *target,
 			  struct htc_service_connreq *service_connreq,
 			  enum htc_endpoint_id *conn_rsp_eid);
-int htc_send(struct htc_target *target, struct sk_buff *skb,
-	     enum htc_endpoint_id eid, struct ath9k_htc_tx_ctl *tx_ctl);
+int htc_send(struct htc_target *target, struct sk_buff *skb);
+int htc_send_epid(struct htc_target *target, struct sk_buff *skb,
+		  enum htc_endpoint_id epid);
 void htc_stop(struct htc_target *target);
 void htc_start(struct htc_target *target);
+void htc_sta_drain(struct htc_target *target, u8 idx);
 
 void ath9k_htc_rx_msg(struct htc_target *htc_handle,
 		      struct sk_buff *skb, u32 len, u8 pipe_id);

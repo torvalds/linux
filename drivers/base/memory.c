@@ -389,15 +389,14 @@ memory_probe_store(struct class *class, struct class_attribute *attr,
 		ret = add_memory(nid, phys_addr,
 				 PAGES_PER_SECTION << PAGE_SHIFT);
 		if (ret)
-			break;
+			goto out;
 
 		phys_addr += MIN_MEMORY_BLOCK_SIZE;
 	}
 
-	if (ret)
-		count = ret;
-
-	return count;
+	ret = count;
+out:
+	return ret;
 }
 static CLASS_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
 

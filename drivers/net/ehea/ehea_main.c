@@ -41,6 +41,7 @@
 #include <linux/memory.h>
 #include <asm/kexec.h>
 #include <linux/mutex.h>
+#include <linux/prefetch.h>
 
 #include <net/ip.h>
 
@@ -2082,7 +2083,7 @@ static void ehea_set_multicast_list(struct net_device *dev)
 	struct netdev_hw_addr *ha;
 	int ret;
 
-	if (dev->flags & IFF_PROMISC) {
+	if (port->promisc) {
 		ehea_promiscuous(dev, 1);
 		return;
 	}
@@ -3262,10 +3263,12 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	dev->netdev_ops = &ehea_netdev_ops;
 	ehea_set_ethtool_ops(dev);
 
+	dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_TSO
+		      | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX | NETIF_F_LRO;
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_TSO
 		      | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX
 		      | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER
-		      | NETIF_F_LLTX;
+		      | NETIF_F_LLTX | NETIF_F_RXCSUM;
 	dev->watchdog_timeo = EHEA_WATCH_DOG_TIMEOUT;
 
 	if (use_lro)

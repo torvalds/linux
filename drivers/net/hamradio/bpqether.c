@@ -516,10 +516,6 @@ static int bpq_new_device(struct net_device *edev)
 	memcpy(bpq->dest_addr, bcast_addr, sizeof(bpq_eth_addr));
 	memcpy(bpq->acpt_addr, bcast_addr, sizeof(bpq_eth_addr));
 
-	err = dev_alloc_name(ndev, ndev->name);
-	if (err < 0) 
-		goto error;
-
 	err = register_netdevice(ndev);
 	if (err)
 		goto error;

@@ -338,12 +338,14 @@ static int __cpuinit mmu_context_cpu_notify(struct notifier_block *self,
 		return NOTIFY_OK;
 
 	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
+	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
 		pr_devel("MMU: Allocating stale context map for CPU %d\n", cpu);
 		stale_map[cpu] = kzalloc(CTX_MAP_SIZE, GFP_KERNEL);
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
+	case CPU_UP_CANCELED:
+	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 		pr_devel("MMU: Freeing stale context map for CPU %d\n", cpu);
@@ -407,7 +409,17 @@ void __init mmu_context_init(void)
 	} else if (mmu_has_feature(MMU_FTR_TYPE_47x)) {
 		first_context = 1;
 		last_context = 65535;
-	} else {
+	} else
+#ifdef CONFIG_PPC_BOOK3E_MMU
+	if (mmu_has_feature(MMU_FTR_TYPE_3E)) {
+		u32 mmucfg = mfspr(SPRN_MMUCFG);
+		u32 pid_bits = (mmucfg & MMUCFG_PIDSIZE_MASK)
+				>> MMUCFG_PIDSIZE_SHIFT;
+		first_context = 1;
+		last_context = (1UL << (pid_bits + 1)) - 1;
+	} else
+#endif
+	{
 		first_context = 1;
 		last_context = 255;
 	}

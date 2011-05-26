@@ -620,7 +620,7 @@ static int es7000_mps_oem_check_cluster(struct mpc_table *mpc, char *oem,
 }
 
 /* We've been warned by a false positive warning.Use __refdata to keep calm. */
-struct apic __refdata apic_es7000_cluster = {
+static struct apic __refdata apic_es7000_cluster = {
 
 	.name				= "es7000",
 	.probe				= probe_es7000,
@@ -685,7 +685,7 @@ struct apic __refdata apic_es7000_cluster = {
 	.x86_32_early_logical_apicid	= es7000_early_logical_apicid,
 };
 
-struct apic __refdata apic_es7000 = {
+static struct apic __refdata apic_es7000 = {
 
 	.name				= "es7000",
 	.probe				= probe_es7000,
@@ -747,3 +747,9 @@ struct apic __refdata apic_es7000 = {
 
 	.x86_32_early_logical_apicid	= es7000_early_logical_apicid,
 };
+
+/*
+ * Need to check for es7000 followed by es7000_cluster, so this order
+ * in apic_drivers is important.
+ */
+apic_drivers(apic_es7000, apic_es7000_cluster);

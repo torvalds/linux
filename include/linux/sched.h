@@ -652,9 +652,8 @@ struct signal_struct {
  * Bits in flags field of signal_struct.
  */
 #define SIGNAL_STOP_STOPPED	0x00000001 /* job control stop in effect */
-#define SIGNAL_STOP_DEQUEUED	0x00000002 /* stop signal dequeued */
-#define SIGNAL_STOP_CONTINUED	0x00000004 /* SIGCONT since WCONTINUED reap */
-#define SIGNAL_GROUP_EXIT	0x00000008 /* group exit in progress */
+#define SIGNAL_STOP_CONTINUED	0x00000002 /* SIGCONT since WCONTINUED reap */
+#define SIGNAL_GROUP_EXIT	0x00000004 /* group exit in progress */
 /*
  * Pending notifications to parent.
  */
@@ -787,17 +786,39 @@ enum cpu_idle_type {
 };
 
 /*
- * sched-domains (multiprocessor balancing) declarations:
+ * Increase resolution of nice-level calculations for 64-bit architectures.
+ * The extra resolution improves shares distribution and load balancing of
+ * low-weight task groups (eg. nice +19 on an autogroup), deeper taskgroup
+ * hierarchies, especially on larger systems. This is not a user-visible change
+ * and does not change the user-interface for setting shares/weights.
+ *
+ * We increase resolution only if we have enough bits to allow this increased
+ * resolution (i.e. BITS_PER_LONG > 32). The costs for increasing resolution
+ * when BITS_PER_LONG <= 32 are pretty high and the returns do not justify the
+ * increased costs.
  */
+#if BITS_PER_LONG > 32
+# define SCHED_LOAD_RESOLUTION	10
+# define scale_load(w)		((w) << SCHED_LOAD_RESOLUTION)
+# define scale_load_down(w)	((w) >> SCHED_LOAD_RESOLUTION)
+#else
+# define SCHED_LOAD_RESOLUTION	0
+# define scale_load(w)		(w)
+# define scale_load_down(w)	(w)
+#endif
 
-/*
- * Increase resolution of nice-level calculations:
- */
-#define SCHED_LOAD_SHIFT	10
+#define SCHED_LOAD_SHIFT	(10 + SCHED_LOAD_RESOLUTION)
 #define SCHED_LOAD_SCALE	(1L << SCHED_LOAD_SHIFT)
 
-#define SCHED_LOAD_SCALE_FUZZ	SCHED_LOAD_SCALE
+/*
+ * Increase resolution of cpu_power calculations
+ */
+#define SCHED_POWER_SHIFT	10
+#define SCHED_POWER_SCALE	(1L << SCHED_POWER_SHIFT)
 
+/*
+ * sched-domains (multiprocessor balancing) declarations:
+ */
 #ifdef CONFIG_SMP
 #define SD_LOAD_BALANCE		0x0001	/* Do load balancing on this domain. */
 #define SD_BALANCE_NEWIDLE	0x0002	/* Balance when about to become idle */
@@ -1250,6 +1271,7 @@ struct task_struct {
 	int exit_state;
 	int exit_code, exit_signal;
 	int pdeath_signal;  /*  The signal sent when the parent dies  */
+	unsigned int group_stop;	/* GROUP_STOP_*, siglock protected */
 	/* ??? */
 	unsigned int personality;
 	unsigned did_exec:1;
@@ -1731,7 +1753,6 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
 #define PF_FROZEN	0x00010000	/* frozen for system suspend */
 #define PF_FSTRANS	0x00020000	/* inside a filesystem transaction */
 #define PF_KSWAPD	0x00040000	/* I am kswapd */
-#define PF_OOM_ORIGIN	0x00080000	/* Allocating much memory to others */
 #define PF_LESS_THROTTLE 0x00100000	/* Throttle me less: I clean memory */
 #define PF_KTHREAD	0x00200000	/* I am a kernel thread */
 #define PF_RANDOMIZE	0x00400000	/* randomize virtual address space */
@@ -1769,6 +1790,17 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
 /* NOTE: this will return 0 or PF_USED_MATH, it will never return 1 */
 #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
 #define used_math() tsk_used_math(current)
+
+/*
+ * task->group_stop flags
+ */
+#define GROUP_STOP_SIGMASK	0xffff    /* signr of the last group stop */
+#define GROUP_STOP_PENDING	(1 << 16) /* task should stop for group stop */
+#define GROUP_STOP_CONSUME	(1 << 17) /* consume group stop count */
+#define GROUP_STOP_TRAPPING	(1 << 18) /* switching from STOPPED to TRACED */
+#define GROUP_STOP_DEQUEUED	(1 << 19) /* stop signal dequeued */
+
+extern void task_clear_group_stop_pending(struct task_struct *task);
 
 #ifdef CONFIG_PREEMPT_RCU
 
@@ -2144,6 +2176,7 @@ static inline void mmdrop(struct mm_struct * mm)
 	if (unlikely(atomic_dec_and_test(&mm->mm_count)))
 		__mmdrop(mm);
 }
+extern int mm_init_cpumask(struct mm_struct *mm, struct mm_struct *oldmm);
 
 /* mmput gets rid of the mappings and all user-space */
 extern void mmput(struct mm_struct *);

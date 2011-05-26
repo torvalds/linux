@@ -1182,6 +1182,16 @@
   forge.net/>  and explains these in detail, as well as
   some other issues.
 
+  There is also a related point-to-point only "ucast" transport.
+  This is useful when your network does not support multicast, and
+  all network connections are simple point to point links.
+
+  The full set of command line options for this transport are
+
+
+       ethn=ucast,ethernet address,remote address,listen port,remote port
+
+
 
 
   66..66..  TTUUNN//TTAAPP wwiitthh tthhee uummll__nneett hheellppeerr

@@ -49,8 +49,8 @@ static int bh1780_write(struct bh1780_data *ddata, u8 reg, u8 val, char *msg)
 	int ret = i2c_smbus_write_byte_data(ddata->client, reg, val);
 	if (ret < 0)
 		dev_err(&ddata->client->dev,
-			"i2c_smbus_write_byte_data failed error %d\
-			Register (%s)\n", ret, msg);
+			"i2c_smbus_write_byte_data failed error %d Register (%s)\n",
+			ret, msg);
 	return ret;
 }
 
@@ -59,8 +59,8 @@ static int bh1780_read(struct bh1780_data *ddata, u8 reg, char *msg)
 	int ret = i2c_smbus_read_byte_data(ddata->client, reg);
 	if (ret < 0)
 		dev_err(&ddata->client->dev,
-			"i2c_smbus_read_byte_data failed error %d\
-			 Register (%s)\n", ret, msg);
+			"i2c_smbus_read_byte_data failed error %d Register (%s)\n",
+			ret, msg);
 	return ret;
 }
 

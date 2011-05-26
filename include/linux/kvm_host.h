@@ -27,6 +27,10 @@
 
 #include <asm/kvm_host.h>
 
+#ifndef KVM_MMIO_SIZE
+#define KVM_MMIO_SIZE 8
+#endif
+
 /*
  * vcpu->requests bit members
  */
@@ -43,7 +47,6 @@
 #define KVM_REQ_DEACTIVATE_FPU    10
 #define KVM_REQ_EVENT             11
 #define KVM_REQ_APF_HALT          12
-#define KVM_REQ_NMI               13
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID	0
 
@@ -133,7 +136,8 @@ struct kvm_vcpu {
 	int mmio_read_completed;
 	int mmio_is_write;
 	int mmio_size;
-	unsigned char mmio_data[8];
+	int mmio_index;
+	unsigned char mmio_data[KVM_MMIO_SIZE];
 	gpa_t mmio_phys_addr;
 #endif
 
@@ -292,9 +296,10 @@ static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 }
 
 #define kvm_for_each_vcpu(idx, vcpup, kvm) \
-	for (idx = 0, vcpup = kvm_get_vcpu(kvm, idx); \
-	     idx < atomic_read(&kvm->online_vcpus) && vcpup; \
-	     vcpup = kvm_get_vcpu(kvm, ++idx))
+	for (idx = 0; \
+	     idx < atomic_read(&kvm->online_vcpus) && \
+	     (vcpup = kvm_get_vcpu(kvm, idx)) != NULL; \
+	     idx++)
 
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id);
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
@@ -365,7 +370,6 @@ pfn_t gfn_to_pfn_prot(struct kvm *kvm, gfn_t gfn, bool write_fault,
 		      bool *writable);
 pfn_t gfn_to_pfn_memslot(struct kvm *kvm,
 			 struct kvm_memory_slot *slot, gfn_t gfn);
-int memslot_id(struct kvm *kvm, gfn_t gfn);
 void kvm_release_pfn_dirty(pfn_t);
 void kvm_release_pfn_clean(pfn_t pfn);
 void kvm_set_pfn_dirty(pfn_t pfn);
@@ -513,6 +517,7 @@ struct kvm_assigned_dev_kernel {
 	struct kvm *kvm;
 	spinlock_t intx_lock;
 	char irq_name[32];
+	struct pci_saved_state *pci_saved_state;
 };
 
 struct kvm_irq_mask_notifier {
@@ -587,14 +592,28 @@ static inline int kvm_deassign_device(struct kvm *kvm,
 
 static inline void kvm_guest_enter(void)
 {
+	BUG_ON(preemptible());
 	account_system_vtime(current);
 	current->flags |= PF_VCPU;
+	/* KVM does not hold any references to rcu protected data when it
+	 * switches CPU into a guest mode. In fact switching to a guest mode
+	 * is very similar to exiting to userspase from rcu point of view. In
+	 * addition CPU may stay in a guest mode for quite a long time (up to
+	 * one time slice). Lets treat guest mode as quiescent state, just like
+	 * we do with user-mode execution.
+	 */
+	rcu_virt_note_context_switch(smp_processor_id());
 }
 
 static inline void kvm_guest_exit(void)
 {
 	account_system_vtime(current);
 	current->flags &= ~PF_VCPU;
+}
+
+static inline int memslot_id(struct kvm *kvm, gfn_t gfn)
+{
+	return gfn_to_memslot(kvm, gfn)->id;
 }
 
 static inline unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot,

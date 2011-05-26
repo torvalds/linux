@@ -287,7 +287,6 @@ struct iwl_cfg {
 	struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
-	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
 	enum iwl_led_mode led_mode;
 };
 

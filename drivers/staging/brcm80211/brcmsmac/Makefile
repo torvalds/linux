@@ -25,7 +25,6 @@ ccflags-y :=				\
 	-DBCMNVRAMR				\
 	-Idrivers/staging/brcm80211/brcmsmac \
 	-Idrivers/staging/brcm80211/brcmsmac/phy \
-	-Idrivers/staging/brcm80211/util \
 	-Idrivers/staging/brcm80211/include
 
 BRCMSMAC_OFILES := \
@@ -38,26 +37,23 @@ BRCMSMAC_OFILES := \
 	wlc_channel.o \
 	wlc_main.o \
 	wlc_phy_shim.o \
+	wlc_pmu.o \
 	wlc_rate.o \
 	wlc_stf.o \
+	aiutils.o \
 	phy/wlc_phy_cmn.o \
 	phy/wlc_phy_lcn.o \
 	phy/wlc_phy_n.o \
 	phy/wlc_phytbl_lcn.o \
 	phy/wlc_phytbl_n.o \
-	../util/aiutils.o \
-	../util/siutils.o \
-	../util/bcmutils.o \
-	../util/bcmwifi.o \
-	../util/bcmotp.o \
-	../util/bcmsrom.o \
-	../util/hnddma.o \
-	../util/hndpmu.o \
-	../util/nicpci.o \
-	../util/qmath.o \
-	../util/nvram/nvram_ro.o
+	phy/wlc_phy_qmath.o \
+	bcmotp.o \
+	bcmsrom.o \
+	hnddma.o \
+	nicpci.o \
+	nvram.o
 
 MODULEPFX := brcmsmac
 
-obj-m	+= $(MODULEPFX).o
+obj-$(CONFIG_BRCMSMAC)	+= $(MODULEPFX).o
 $(MODULEPFX)-objs	= $(BRCMSMAC_OFILES)

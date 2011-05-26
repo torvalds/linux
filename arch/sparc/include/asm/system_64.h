@@ -29,10 +29,6 @@ enum sparc_cpu {
 /* This cannot ever be a sun4c :) That's just history. */
 #define ARCH_SUN4C 0
 
-extern const char *sparc_cpu_type;
-extern const char *sparc_fpu_type;
-extern const char *sparc_pmu_type;
-
 extern char reboot_command[];
 
 /* These are here in an effort to more fully work around Spitfire Errata

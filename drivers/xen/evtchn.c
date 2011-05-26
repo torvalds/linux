@@ -470,7 +470,7 @@ static int evtchn_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = u;
 
-	return nonseekable_open(inode, filp);;
+	return nonseekable_open(inode, filp);
 }
 
 static int evtchn_release(struct inode *inode, struct file *filp)

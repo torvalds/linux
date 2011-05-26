@@ -598,7 +598,6 @@ __raw3270_size_device(struct raw3270 *rp)
 	static const unsigned char wbuf[] =
 		{ 0x00, 0x07, 0x01, 0xff, 0x03, 0x00, 0x81 };
 	struct raw3270_ua *uap;
-	unsigned short count;
 	int rc;
 
 	/*
@@ -653,7 +652,6 @@ __raw3270_size_device(struct raw3270 *rp)
 	if (rc)
 		return rc;
 	/* Got a Query Reply */
-	count = sizeof(rp->init_data) - rp->init_request.rescnt;
 	uap = (struct raw3270_ua *) (rp->init_data + 1);
 	/* Paranoia check. */
 	if (rp->init_data[0] != 0x88 || uap->uab.qcode != 0x81)

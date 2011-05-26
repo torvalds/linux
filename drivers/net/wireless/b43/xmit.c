@@ -547,7 +547,7 @@ static s8 b43_rssi_postprocess(struct b43_wldev *dev,
 			else
 				tmp -= 3;
 		} else {
-			if (dev->dev->bus->sprom.
+			if (dev->sdev->bus->sprom.
 			    boardflags_lo & B43_BFL_RSSI) {
 				if (in_rssi > 63)
 					in_rssi = 63;

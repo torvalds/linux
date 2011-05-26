@@ -239,7 +239,11 @@ void shake_page(struct page *p, int access)
 	if (access) {
 		int nr;
 		do {
-			nr = shrink_slab(1000, GFP_KERNEL, 1000);
+			struct shrink_control shrink = {
+				.gfp_mask = GFP_KERNEL,
+			};
+
+			nr = shrink_slab(&shrink, 1000, 1000);
 			if (page_count(p) == 1)
 				break;
 		} while (nr > 10);
@@ -429,7 +433,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
 	 */
 
 	read_lock(&tasklist_lock);
-	spin_lock(&mapping->i_mmap_lock);
+	mutex_lock(&mapping->i_mmap_mutex);
 	for_each_process(tsk) {
 		pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
 
@@ -449,7 +453,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
 				add_to_kill(tsk, page, vma, to_kill, tkc);
 		}
 	}
-	spin_unlock(&mapping->i_mmap_lock);
+	mutex_unlock(&mapping->i_mmap_mutex);
 	read_unlock(&tasklist_lock);
 }
 
@@ -1440,16 +1444,12 @@ int soft_offline_page(struct page *page, int flags)
 	 */
 	ret = invalidate_inode_page(page);
 	unlock_page(page);
-
 	/*
-	 * Drop count because page migration doesn't like raised
-	 * counts. The page could get re-allocated, but if it becomes
-	 * LRU the isolation will just fail.
 	 * RED-PEN would be better to keep it isolated here, but we
 	 * would need to fix isolation locking first.
 	 */
-	put_page(page);
 	if (ret == 1) {
+		put_page(page);
 		ret = 0;
 		pr_info("soft_offline: %#lx: invalidated\n", pfn);
 		goto done;
@@ -1461,6 +1461,11 @@ int soft_offline_page(struct page *page, int flags)
 	 * handles a large number of cases for us.
 	 */
 	ret = isolate_lru_page(page);
+	/*
+	 * Drop page reference which is came from get_any_page()
+	 * successful isolate_lru_page() already took another one.
+	 */
+	put_page(page);
 	if (!ret) {
 		LIST_HEAD(pagelist);
 

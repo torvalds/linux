@@ -37,8 +37,6 @@
 #include "irq.h"
 
 volatile unsigned long cpu_callin_map[NR_CPUS] __cpuinitdata = {0,};
-unsigned char boot_cpu_id = 0;
-unsigned char boot_cpu_id4 = 0; /* boot_cpu_id << 2 */
 
 cpumask_t smp_commenced_mask = CPU_MASK_NONE;
 
@@ -130,12 +128,55 @@ struct linux_prom_registers smp_penguin_ctable __cpuinitdata = { 0 };
 void smp_send_reschedule(int cpu)
 {
 	/*
-	 * XXX missing reschedule IPI, see scheduler_ipi()
+	 * CPU model dependent way of implementing IPI generation targeting
+	 * a single CPU. The trap handler needs only to do trap entry/return
+	 * to call schedule.
 	 */
+	BTFIXUP_CALL(smp_ipi_resched)(cpu);
 }
 
 void smp_send_stop(void)
 {
+}
+
+void arch_send_call_function_single_ipi(int cpu)
+{
+	/* trigger one IPI single call on one CPU */
+	BTFIXUP_CALL(smp_ipi_single)(cpu);
+}
+
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
+{
+	int cpu;
+
+	/* trigger IPI mask call on each CPU */
+	for_each_cpu(cpu, mask)
+		BTFIXUP_CALL(smp_ipi_mask_one)(cpu);
+}
+
+void smp_resched_interrupt(void)
+{
+	irq_enter();
+	scheduler_ipi();
+	local_cpu_data().irq_resched_count++;
+	irq_exit();
+	/* re-schedule routine called by interrupt return code. */
+}
+
+void smp_call_function_single_interrupt(void)
+{
+	irq_enter();
+	generic_smp_call_function_single_interrupt();
+	local_cpu_data().irq_call_count++;
+	irq_exit();
+}
+
+void smp_call_function_interrupt(void)
+{
+	irq_enter();
+	generic_smp_call_function_interrupt();
+	local_cpu_data().irq_call_count++;
+	irq_exit();
 }
 
 void smp_flush_cache_all(void)
@@ -153,9 +194,10 @@ void smp_flush_tlb_all(void)
 void smp_flush_cache_mm(struct mm_struct *mm)
 {
 	if(mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask = *mm_cpumask(mm);
-		cpu_clear(smp_processor_id(), cpu_mask);
-		if (!cpus_empty(cpu_mask))
+		cpumask_t cpu_mask;
+		cpumask_copy(&cpu_mask, mm_cpumask(mm));
+		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+		if (!cpumask_empty(&cpu_mask))
 			xc1((smpfunc_t) BTFIXUP_CALL(local_flush_cache_mm), (unsigned long) mm);
 		local_flush_cache_mm(mm);
 	}
@@ -164,9 +206,10 @@ void smp_flush_cache_mm(struct mm_struct *mm)
 void smp_flush_tlb_mm(struct mm_struct *mm)
 {
 	if(mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask = *mm_cpumask(mm);
-		cpu_clear(smp_processor_id(), cpu_mask);
-		if (!cpus_empty(cpu_mask)) {
+		cpumask_t cpu_mask;
+		cpumask_copy(&cpu_mask, mm_cpumask(mm));
+		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+		if (!cpumask_empty(&cpu_mask)) {
 			xc1((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_mm), (unsigned long) mm);
 			if(atomic_read(&mm->mm_users) == 1 && current->active_mm == mm)
 				cpumask_copy(mm_cpumask(mm),
@@ -182,9 +225,10 @@ void smp_flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 	struct mm_struct *mm = vma->vm_mm;
 
 	if (mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask = *mm_cpumask(mm);
-		cpu_clear(smp_processor_id(), cpu_mask);
-		if (!cpus_empty(cpu_mask))
+		cpumask_t cpu_mask;
+		cpumask_copy(&cpu_mask, mm_cpumask(mm));
+		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+		if (!cpumask_empty(&cpu_mask))
 			xc3((smpfunc_t) BTFIXUP_CALL(local_flush_cache_range), (unsigned long) vma, start, end);
 		local_flush_cache_range(vma, start, end);
 	}
@@ -196,9 +240,10 @@ void smp_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	struct mm_struct *mm = vma->vm_mm;
 
 	if (mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask = *mm_cpumask(mm);
-		cpu_clear(smp_processor_id(), cpu_mask);
-		if (!cpus_empty(cpu_mask))
+		cpumask_t cpu_mask;
+		cpumask_copy(&cpu_mask, mm_cpumask(mm));
+		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+		if (!cpumask_empty(&cpu_mask))
 			xc3((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_range), (unsigned long) vma, start, end);
 		local_flush_tlb_range(vma, start, end);
 	}
@@ -209,9 +254,10 @@ void smp_flush_cache_page(struct vm_area_struct *vma, unsigned long page)
 	struct mm_struct *mm = vma->vm_mm;
 
 	if(mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask = *mm_cpumask(mm);
-		cpu_clear(smp_processor_id(), cpu_mask);
-		if (!cpus_empty(cpu_mask))
+		cpumask_t cpu_mask;
+		cpumask_copy(&cpu_mask, mm_cpumask(mm));
+		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+		if (!cpumask_empty(&cpu_mask))
 			xc2((smpfunc_t) BTFIXUP_CALL(local_flush_cache_page), (unsigned long) vma, page);
 		local_flush_cache_page(vma, page);
 	}
@@ -222,17 +268,13 @@ void smp_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 	struct mm_struct *mm = vma->vm_mm;
 
 	if(mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask = *mm_cpumask(mm);
-		cpu_clear(smp_processor_id(), cpu_mask);
-		if (!cpus_empty(cpu_mask))
+		cpumask_t cpu_mask;
+		cpumask_copy(&cpu_mask, mm_cpumask(mm));
+		cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+		if (!cpumask_empty(&cpu_mask))
 			xc2((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_page), (unsigned long) vma, page);
 		local_flush_tlb_page(vma, page);
 	}
-}
-
-void smp_reschedule_irq(void)
-{
-	set_need_resched();
 }
 
 void smp_flush_page_to_ram(unsigned long page)
@@ -251,9 +293,10 @@ void smp_flush_page_to_ram(unsigned long page)
 
 void smp_flush_sig_insns(struct mm_struct *mm, unsigned long insn_addr)
 {
-	cpumask_t cpu_mask = *mm_cpumask(mm);
-	cpu_clear(smp_processor_id(), cpu_mask);
-	if (!cpus_empty(cpu_mask))
+	cpumask_t cpu_mask;
+	cpumask_copy(&cpu_mask, mm_cpumask(mm));
+	cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
+	if (!cpumask_empty(&cpu_mask))
 		xc2((smpfunc_t) BTFIXUP_CALL(local_flush_sig_insns), (unsigned long) mm, insn_addr);
 	local_flush_sig_insns(mm, insn_addr);
 }
@@ -407,7 +450,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	};
 
 	if (!ret) {
-		cpu_set(cpu, smp_commenced_mask);
+		cpumask_set_cpu(cpu, &smp_commenced_mask);
 		while (!cpu_online(cpu))
 			mb();
 	}

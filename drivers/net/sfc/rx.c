@@ -14,6 +14,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
+#include <linux/prefetch.h>
 #include <net/ip.h>
 #include <net/checksum.h>
 #include "net_driver.h"
@@ -604,6 +605,9 @@ void __efx_rx_packet(struct efx_channel *channel,
 
 		skb_record_rx_queue(skb, channel->channel);
 	}
+
+	if (unlikely(!(efx->net_dev->features & NETIF_F_RXCSUM)))
+		checksummed = false;
 
 	if (likely(checksummed || rx_buf->is_page)) {
 		efx_rx_packet_gro(channel, rx_buf, eh, checksummed);

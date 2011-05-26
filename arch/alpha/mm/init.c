@@ -32,8 +32,6 @@
 #include <asm/console.h>
 #include <asm/tlb.h>
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
 extern void die_if_kernel(char *,struct pt_regs *,long);
 
 static struct pcb_struct original_pcb;

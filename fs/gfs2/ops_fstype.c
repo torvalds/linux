@@ -126,8 +126,10 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
  * changed.
  */
 
-static int gfs2_check_sb(struct gfs2_sbd *sdp, struct gfs2_sb_host *sb, int silent)
+static int gfs2_check_sb(struct gfs2_sbd *sdp, int silent)
 {
+	struct gfs2_sb_host *sb = &sdp->sd_sb;
+
 	if (sb->sb_magic != GFS2_MAGIC ||
 	    sb->sb_type != GFS2_METATYPE_SB) {
 		if (!silent)
@@ -157,8 +159,10 @@ static void end_bio_io_page(struct bio *bio, int error)
 	unlock_page(page);
 }
 
-static void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
+static void gfs2_sb_in(struct gfs2_sbd *sdp, const void *buf)
 {
+	struct gfs2_sb_host *sb = &sdp->sd_sb;
+	struct super_block *s = sdp->sd_vfs;
 	const struct gfs2_sb *str = buf;
 
 	sb->sb_magic = be32_to_cpu(str->sb_header.mh_magic);
@@ -175,7 +179,7 @@ static void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
 
 	memcpy(sb->sb_lockproto, str->sb_lockproto, GFS2_LOCKNAME_LEN);
 	memcpy(sb->sb_locktable, str->sb_locktable, GFS2_LOCKNAME_LEN);
-	memcpy(sb->sb_uuid, str->sb_uuid, 16);
+	memcpy(s->s_uuid, str->sb_uuid, 16);
 }
 
 /**
@@ -197,7 +201,7 @@ static void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
  * Returns: 0 on success or error
  */
 
-static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector)
+static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
 {
 	struct super_block *sb = sdp->sd_vfs;
 	struct gfs2_sb *p;
@@ -227,10 +231,10 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector)
 		return -EIO;
 	}
 	p = kmap(page);
-	gfs2_sb_in(&sdp->sd_sb, p);
+	gfs2_sb_in(sdp, p);
 	kunmap(page);
 	__free_page(page);
-	return 0;
+	return gfs2_check_sb(sdp, silent);
 }
 
 /**
@@ -247,16 +251,12 @@ static int gfs2_read_sb(struct gfs2_sbd *sdp, int silent)
 	unsigned int x;
 	int error;
 
-	error = gfs2_read_super(sdp, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift);
+	error = gfs2_read_super(sdp, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift, silent);
 	if (error) {
 		if (!silent)
 			fs_err(sdp, "can't read superblock\n");
 		return error;
 	}
-
-	error = gfs2_check_sb(sdp, &sdp->sd_sb, silent);
-	if (error)
-		return error;
 
 	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift -
 			       GFS2_BASIC_BLOCK_SHIFT;
@@ -340,13 +340,9 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 	/*  Try to autodetect  */
 
 	if (!proto[0] || !table[0]) {
-		error = gfs2_read_super(sdp, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift);
+		error = gfs2_read_super(sdp, GFS2_SB_ADDR >> sdp->sd_fsb2bb_shift, silent);
 		if (error)
 			return error;
-
-		error = gfs2_check_sb(sdp, &sdp->sd_sb, silent);
-		if (error)
-			goto out;
 
 		if (!proto[0])
 			proto = sdp->sd_sb.sb_lockproto;
@@ -364,7 +360,6 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 	while ((table = strchr(table, '/')))
 		*table = '_';
 
-out:
 	return error;
 }
 
@@ -1119,8 +1114,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	if (sdp->sd_args.ar_statfs_quantum) {
 		sdp->sd_tune.gt_statfs_slow = 0;
 		sdp->sd_tune.gt_statfs_quantum = sdp->sd_args.ar_statfs_quantum;
-	}
-	else {
+	} else {
 		sdp->sd_tune.gt_statfs_slow = 1;
 		sdp->sd_tune.gt_statfs_quantum = 30;
 	}

@@ -1150,7 +1150,7 @@ static int el3_close(struct net_device *dev)
 	return 0;
 }
 
-static struct pcmcia_device_id tc574_ids[] = {
+static const struct pcmcia_device_id tc574_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0101, 0x0574),
 	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(0, 0x0101, 0x0556, "cis/3CCFEM556.cis"),
 	PCMCIA_DEVICE_NULL,

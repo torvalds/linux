@@ -92,9 +92,9 @@ struct paca_struct {
 	 * Now, starting in cacheline 2, the exception save areas
 	 */
 	/* used for most interrupts/exceptions */
-	u64 exgen[10] __attribute__((aligned(0x80)));
-	u64 exmc[10];		/* used for machine checks */
-	u64 exslb[10];		/* used for SLB/segment table misses
+	u64 exgen[11] __attribute__((aligned(0x80)));
+	u64 exmc[11];		/* used for machine checks */
+	u64 exslb[11];		/* used for SLB/segment table misses
  				 * on the linear mapping */
 	/* SLB related definitions */
 	u16 vmalloc_sllp;
@@ -106,7 +106,8 @@ struct paca_struct {
 	pgd_t *pgd;			/* Current PGD */
 	pgd_t *kernel_pgd;		/* Kernel PGD */
 	u64 exgen[8] __attribute__((aligned(0x80)));
-	u64 extlb[EX_TLB_SIZE*3] __attribute__((aligned(0x80)));
+	/* We can have up to 3 levels of reentrancy in the TLB miss handler */
+	u64 extlb[3][EX_TLB_SIZE / sizeof(u64)] __attribute__((aligned(0x80)));
 	u64 exmc[8];		/* used for machine checks */
 	u64 excrit[8];		/* used for crit interrupts */
 	u64 exdbg[8];		/* used for debug interrupts */
@@ -125,7 +126,7 @@ struct paca_struct {
 	struct task_struct *__current;	/* Pointer to current */
 	u64 kstack;			/* Saved Kernel stack addr */
 	u64 stab_rr;			/* stab/slb round-robin counter */
-	u64 saved_r1;			/* r1 save for RTAS calls */
+	u64 saved_r1;			/* r1 save for RTAS calls or PM */
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
 	u16 trap_save;			/* Used when bad stack is encountered */
 	u8 soft_enabled;		/* irq soft-enable flag */

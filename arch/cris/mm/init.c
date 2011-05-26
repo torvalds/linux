@@ -13,8 +13,6 @@
 #include <linux/bootmem.h>
 #include <asm/tlb.h>
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
 unsigned long empty_zero_page;
 
 extern char _stext, _edata, _etext; /* From linkerscript */

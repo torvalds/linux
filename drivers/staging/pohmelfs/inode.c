@@ -29,6 +29,7 @@
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/writeback.h>
+#include <linux/prefetch.h>
 
 #include "netfs.h"
 

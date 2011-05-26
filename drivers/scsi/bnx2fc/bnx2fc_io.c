@@ -1663,6 +1663,12 @@ int bnx2fc_queuecommand(struct Scsi_Host *host,
 	tgt = (struct bnx2fc_rport *)&rp[1];
 
 	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags)) {
+		if (test_bit(BNX2FC_FLAG_UPLD_REQ_COMPL, &tgt->flags))  {
+			sc_cmd->result = DID_NO_CONNECT << 16;
+			sc_cmd->scsi_done(sc_cmd);
+			return 0;
+
+		}
 		/*
 		 * Session is not offloaded yet. Let SCSI-ml retry
 		 * the command.

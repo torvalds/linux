@@ -207,7 +207,7 @@ struct qe_frame{
 
 /* Frame status field */
 /* Receive side */
-#define FRAME_OK               0x00000000 /* Frame tranmitted or received OK */
+#define FRAME_OK               0x00000000 /* Frame transmitted or received OK */
 #define FRAME_ERROR            0x80000000 /* Error occurred on frame */
 #define START_FRAME_LOST       0x40000000 /* START_FRAME_LOST */
 #define END_FRAME_LOST         0x20000000 /* END_FRAME_LOST */

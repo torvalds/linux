@@ -175,7 +175,6 @@ struct vm_area_struct {
 					   units, *not* PAGE_CACHE_SIZE */
 	struct file * vm_file;		/* File we map to (can be NULL). */
 	void * vm_private_data;		/* was vm_pte (shared mem) */
-	unsigned long vm_truncate_count;/* truncate_count or restart_addr */
 
 #ifndef CONFIG_MMU
 	struct vm_region *vm_region;	/* NOMMU mapping region */
@@ -205,19 +204,16 @@ enum {
 
 #if USE_SPLIT_PTLOCKS && defined(CONFIG_MMU)
 #define SPLIT_RSS_COUNTING
-struct mm_rss_stat {
-	atomic_long_t count[NR_MM_COUNTERS];
-};
 /* per-thread cached information, */
 struct task_rss_stat {
 	int events;	/* for synchronization threshold */
 	int count[NR_MM_COUNTERS];
 };
-#else  /* !USE_SPLIT_PTLOCKS */
+#endif /* USE_SPLIT_PTLOCKS */
+
 struct mm_rss_stat {
-	unsigned long count[NR_MM_COUNTERS];
+	atomic_long_t count[NR_MM_COUNTERS];
 };
-#endif /* !USE_SPLIT_PTLOCKS */
 
 struct mm_struct {
 	struct vm_area_struct * mmap;		/* list of VMAs */
@@ -265,8 +261,6 @@ struct mm_struct {
 	struct mm_rss_stat rss_stat;
 
 	struct linux_binfmt *binfmt;
-
-	cpumask_t cpu_vm_mask;
 
 	/* Architecture-specific MM context */
 	mm_context_t context;
@@ -317,9 +311,14 @@ struct mm_struct {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
 #endif
+
+	cpumask_var_t cpu_vm_mask_var;
 };
 
 /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
-#define mm_cpumask(mm) (&(mm)->cpu_vm_mask)
+static inline cpumask_t *mm_cpumask(struct mm_struct *mm)
+{
+	return mm->cpu_vm_mask_var;
+}
 
 #endif /* _LINUX_MM_TYPES_H */

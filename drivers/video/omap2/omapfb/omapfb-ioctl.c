@@ -28,7 +28,7 @@
 #include <linux/omapfb.h>
 #include <linux/vmalloc.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/vrfb.h>
 #include <plat/vram.h>
 
@@ -895,8 +895,16 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 
 		p.display_info.xres = xres;
 		p.display_info.yres = yres;
-		p.display_info.width = 0;
-		p.display_info.height = 0;
+
+		if (display->driver->get_dimensions) {
+			u32 w, h;
+			display->driver->get_dimensions(display, &w, &h);
+			p.display_info.width = w;
+			p.display_info.height = h;
+		} else {
+			p.display_info.width = 0;
+			p.display_info.height = 0;
+		}
 
 		if (copy_to_user((void __user *)arg, &p.display_info,
 					sizeof(p.display_info)))

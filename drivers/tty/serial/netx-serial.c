@@ -1,6 +1,4 @@
 /*
- * drivers/serial/netx-serial.c
- *
  * Copyright (c) 2005 Sascha Hauer <s.hauer@pengutronix.de>, Pengutronix
  *
  * This program is free software; you can redistribute it and/or modify

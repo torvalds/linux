@@ -261,6 +261,7 @@ extern void dec_zone_state(struct zone *, enum zone_stat_item);
 extern void __dec_zone_state(struct zone *, enum zone_stat_item);
 
 void refresh_cpu_vm_stats(int);
+void refresh_zone_stat_thresholds(void);
 
 int calculate_pressure_threshold(struct zone *zone);
 int calculate_normal_threshold(struct zone *zone);
@@ -313,6 +314,10 @@ static inline void __dec_zone_page_state(struct page *page,
 #define set_pgdat_percpu_threshold(pgdat, callback) { }
 
 static inline void refresh_cpu_vm_stats(int cpu) { }
-#endif
+static inline void refresh_zone_stat_thresholds(void) { }
+
+#endif		/* CONFIG_SMP */
+
+extern const char * const vmstat_text[];
 
 #endif /* _LINUX_VMSTAT_H */

@@ -119,17 +119,11 @@ struct ath_ops {
 	void (*write)(void *, u32 val, u32 reg_offset);
 	void (*enable_write_buffer)(void *);
 	void (*write_flush) (void *);
+	u32 (*rmw)(void *, u32 reg_offset, u32 set, u32 clr);
 };
 
 struct ath_common;
-
-struct ath_bus_ops {
-	enum ath_bus_type ath_bus_type;
-	void (*read_cachesize)(struct ath_common *common, int *csz);
-	bool (*eeprom_read)(struct ath_common *common, u32 off, u16 *data);
-	void (*bt_coex_prep)(struct ath_common *common);
-	void (*extn_synch_en)(struct ath_common *common);
-};
+struct ath_bus_ops;
 
 struct ath_common {
 	void *ah;

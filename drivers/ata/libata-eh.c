@@ -3423,7 +3423,7 @@ fail:
 	return rc;
 }
 
-static int ata_link_nr_enabled(struct ata_link *link)
+int ata_link_nr_enabled(struct ata_link *link)
 {
 	struct ata_device *dev;
 	int cnt = 0;

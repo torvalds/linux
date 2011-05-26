@@ -608,10 +608,8 @@ STATIC void
 xfs_trans_free(
 	struct xfs_trans	*tp)
 {
-	struct xfs_busy_extent	*busyp, *n;
-
-	list_for_each_entry_safe(busyp, n, &tp->t_busy, list)
-		xfs_alloc_busy_clear(tp->t_mountp, busyp);
+	xfs_alloc_busy_sort(&tp->t_busy);
+	xfs_alloc_busy_clear(tp->t_mountp, &tp->t_busy);
 
 	atomic_dec(&tp->t_mountp->m_active_trans);
 	xfs_trans_free_dqinfo(tp);

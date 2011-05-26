@@ -3324,7 +3324,7 @@ resync_start_store(mddev_t *mddev, const char *buf, size_t len)
 	char *e;
 	unsigned long long n = simple_strtoull(buf, &e, 10);
 
-	if (mddev->pers)
+	if (mddev->pers && !test_bit(MD_RECOVERY_FROZEN, &mddev->recovery))
 		return -EBUSY;
 	if (cmd_match(buf, "none"))
 		n = MaxSector;
@@ -4347,13 +4347,19 @@ static int md_alloc(dev_t dev, char *name)
 	disk->fops = &md_fops;
 	disk->private_data = mddev;
 	disk->queue = mddev->queue;
+	blk_queue_flush(mddev->queue, REQ_FLUSH | REQ_FUA);
 	/* Allow extended partitions.  This makes the
 	 * 'mdp' device redundant, but we can't really
 	 * remove it now.
 	 */
 	disk->flags |= GENHD_FL_EXT_DEVT;
-	add_disk(disk);
 	mddev->gendisk = disk;
+	/* As soon as we call add_disk(), another thread could get
+	 * through to md_open, so make sure it doesn't get too far
+	 */
+	mutex_lock(&mddev->open_mutex);
+	add_disk(disk);
+
 	error = kobject_init_and_add(&mddev->kobj, &md_ktype,
 				     &disk_to_dev(disk)->kobj, "%s", "md");
 	if (error) {
@@ -4367,8 +4373,7 @@ static int md_alloc(dev_t dev, char *name)
 	if (mddev->kobj.sd &&
 	    sysfs_create_group(&mddev->kobj, &md_bitmap_group))
 		printk(KERN_DEBUG "pointless warning\n");
-
-	blk_queue_flush(mddev->queue, REQ_FLUSH | REQ_FUA);
+	mutex_unlock(&mddev->open_mutex);
  abort:
 	mutex_unlock(&disks_mutex);
 	if (!error && mddev->kobj.sd) {
@@ -5211,6 +5216,16 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		} else
 			super_types[mddev->major_version].
 				validate_super(mddev, rdev);
+		if ((info->state & (1<<MD_DISK_SYNC)) &&
+		    (!test_bit(In_sync, &rdev->flags) ||
+		     rdev->raid_disk != info->raid_disk)) {
+			/* This was a hot-add request, but events doesn't
+			 * match, so reject it.
+			 */
+			export_rdev(rdev);
+			return -EINVAL;
+		}
+
 		if (test_bit(In_sync, &rdev->flags))
 			rdev->saved_raid_disk = rdev->raid_disk;
 		else

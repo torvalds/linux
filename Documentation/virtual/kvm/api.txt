@@ -175,7 +175,10 @@ Parameters: vcpu id (apic id on x86)
 Returns: vcpu fd on success, -1 on error
 
 This API adds a vcpu to a virtual machine.  The vcpu id is a small integer
-in the range [0, max_vcpus).
+in the range [0, max_vcpus).  You can use KVM_CAP_NR_VCPUS of the
+KVM_CHECK_EXTENSION ioctl() to determine the value for max_vcpus at run-time.
+If the KVM_CAP_NR_VCPUS does not exist, you should assume that max_vcpus is 4
+cpus max.
 
 4.8 KVM_GET_DIRTY_LOG (vm ioctl)
 
@@ -261,7 +264,7 @@ See KVM_GET_REGS for the data structure.
 4.13 KVM_GET_SREGS
 
 Capability: basic
-Architectures: x86
+Architectures: x86, ppc
 Type: vcpu ioctl
 Parameters: struct kvm_sregs (out)
 Returns: 0 on success, -1 on error
@@ -279,6 +282,8 @@ struct kvm_sregs {
 	__u64 interrupt_bitmap[(KVM_NR_INTERRUPTS + 63) / 64];
 };
 
+/* ppc -- see arch/powerpc/include/asm/kvm.h */
+
 interrupt_bitmap is a bitmap of pending external interrupts.  At most
 one bit may be set.  This interrupt has been acknowledged by the APIC
 but not yet injected into the cpu core.
@@ -286,7 +291,7 @@ but not yet injected into the cpu core.
 4.14 KVM_SET_SREGS
 
 Capability: basic
-Architectures: x86
+Architectures: x86, ppc
 Type: vcpu ioctl
 Parameters: struct kvm_sregs (in)
 Returns: 0 on success, -1 on error
@@ -1262,6 +1267,29 @@ struct kvm_assigned_msix_entry {
 	__u16 entry; /* The index of entry in the MSI-X table */
 	__u16 padding[3];
 };
+
+4.54 KVM_SET_TSC_KHZ
+
+Capability: KVM_CAP_TSC_CONTROL
+Architectures: x86
+Type: vcpu ioctl
+Parameters: virtual tsc_khz
+Returns: 0 on success, -1 on error
+
+Specifies the tsc frequency for the virtual machine. The unit of the
+frequency is KHz.
+
+4.55 KVM_GET_TSC_KHZ
+
+Capability: KVM_CAP_GET_TSC_KHZ
+Architectures: x86
+Type: vcpu ioctl
+Parameters: none
+Returns: virtual tsc-khz on success, negative value on error
+
+Returns the tsc frequency of the guest. The unit of the return value is
+KHz. If the host has unstable tsc this ioctl returns -EIO instead as an
+error.
 
 5. The kvm_run structure
 

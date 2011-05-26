@@ -8,9 +8,6 @@ menu "Graphics support"
 config HAVE_FB_ATMEL
 	bool
 
-config HAVE_FB_IMX
-	bool
-
 config SH_MIPI_DSI
 	tristate
 	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
@@ -359,7 +356,7 @@ config FB_SA1100
 
 config FB_IMX
 	tristate "Freescale i.MX LCD support"
-	depends on FB && (HAVE_FB_IMX || ARCH_MX1 || ARCH_MX2)
+	depends on FB && IMX_HAVE_PLATFORM_IMX_FB
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -1463,6 +1460,14 @@ config FB_S3
 	---help---
 	  Driver for graphics boards with S3 Trio / S3 Virge chip.
 
+config FB_S3_DDC
+	bool "DDC for S3 support"
+	depends on FB_S3
+	select FB_DDC
+	default y
+	help
+	  Say Y here if you want DDC support for your S3 graphics card.
+
 config FB_SAVAGE
 	tristate "S3 Savage support"
 	depends on FB && PCI && EXPERIMENTAL
@@ -1561,6 +1566,17 @@ config FB_VIA_DIRECT_PROCFS
 	  This is dangerous but may provide the only chance to get the
 	  correct output device configuration.
 	  Its use is strongly discouraged.
+
+config FB_VIA_X_COMPATIBILITY
+	bool "X server compatibility"
+	depends on FB_VIA
+	default n
+	help
+	  This option reduces the functionality (power saving, ...) of the
+	  framebuffer to avoid negative impact on the OpenChrome X server.
+	  If you use any X server other than fbdev you should enable this
+	  otherwise it should be safe to disable it and allow using all
+	  features.
 
 endif
 
@@ -1975,6 +1991,18 @@ config FB_SH_MOBILE_HDMI
 	---help---
 	  Driver for the on-chip SH-Mobile HDMI controller.
 
+config FB_SH_MOBILE_MERAM
+	tristate "SuperH Mobile MERAM read ahead support for LCDC"
+	depends on FB_SH_MOBILE_LCDC
+	default y
+	---help---
+	  Enable MERAM support for the SH-Mobile LCD controller.
+
+	  This will allow for caching of the framebuffer to provide more
+	  reliable access under heavy main memory bus traffic situations.
+	  Up to 4 memory channels can be configured, allowing 4 RGB or
+	  2 YCbCr framebuffers to be configured.
+
 config FB_TMIO
 	tristate "Toshiba Mobile IO FrameBuffer support"
 	depends on FB && MFD_CORE
@@ -2238,28 +2266,42 @@ config FB_METRONOME
 config FB_MB862XX
 	tristate "Fujitsu MB862xx GDC support"
 	depends on FB
+	depends on PCI || (OF && PPC)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	---help---
 	  Frame buffer driver for Fujitsu Carmine/Coral-P(A)/Lime controllers.
 
+choice
+	prompt "GDC variant"
+	depends on FB_MB862XX
+
 config FB_MB862XX_PCI_GDC
 	bool "Carmine/Coral-P(A) GDC"
-	depends on PCI && FB_MB862XX
+	depends on PCI
 	---help---
 	  This enables framebuffer support for Fujitsu Carmine/Coral-P(A)
 	  PCI graphics controller devices.
 
 config FB_MB862XX_LIME
 	bool "Lime GDC"
-	depends on FB_MB862XX
-	depends on OF && !FB_MB862XX_PCI_GDC
-	depends on PPC
+	depends on OF && PPC
 	select FB_FOREIGN_ENDIAN
 	select FB_LITTLE_ENDIAN
 	---help---
 	  Framebuffer support for Fujitsu Lime GDC on host CPU bus.
+
+endchoice
+
+config FB_MB862XX_I2C
+	bool "Support I2C bus on MB862XX GDC"
+	depends on FB_MB862XX && I2C
+	default y
+	help
+	  Selecting this option adds Coral-P(A)/Lime GDC I2C bus adapter
+	  driver to support accessing I2C devices on controller's I2C bus.
+	  These are usually some video decoder chips.
 
 config FB_EP93XX
 	tristate "EP93XX frame buffer support"

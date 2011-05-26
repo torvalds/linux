@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2011 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -164,6 +164,20 @@ module_param(ql2xasynctmfenable, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xasynctmfenable,
 		"Enables issue of TM IOCBs asynchronously via IOCB mechanism"
 		"Default is 0 - Issue TM IOCBs via mailbox mechanism.");
+
+int ql2xdontresethba;
+module_param(ql2xdontresethba, int, S_IRUGO);
+MODULE_PARM_DESC(ql2xdontresethba,
+	"Option to specify reset behaviour\n"
+	" 0 (Default) -- Reset on failure.\n"
+	" 1 -- Do not reset on failure.\n");
+
+uint ql2xmaxlun = MAX_LUNS;
+module_param(ql2xmaxlun, uint, S_IRUGO);
+MODULE_PARM_DESC(ql2xmaxlun,
+		"Defines the maximum LU number to register with the SCSI "
+		"midlayer. Default is 65535.");
+
 /*
  * SCSI host template entry points
  */
@@ -528,7 +542,7 @@ qla2x00_get_new_sp(scsi_qla_host_t *vha, fc_port_t *fcport,
 static int
 qla2xxx_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 {
-	scsi_qla_host_t *vha = shost_priv(cmd->device->host);
+	scsi_qla_host_t *vha = shost_priv(host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmd->device));
 	struct qla_hw_data *ha = vha->hw;
@@ -2128,7 +2142,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		host->max_cmd_len = MAX_CMDSZ;
 	host->max_channel = MAX_BUSES - 1;
-	host->max_lun = MAX_LUNS;
+	host->max_lun = ql2xmaxlun;
 	host->transportt = qla2xxx_transport_template;
 	sht->vendor_id = (SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_QLOGIC);
 
@@ -2360,21 +2374,26 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	base_vha = pci_get_drvdata(pdev);
 	ha = base_vha->hw;
 
-	spin_lock_irqsave(&ha->vport_slock, flags);
-	list_for_each_entry(vha, &ha->vp_list, list) {
-		atomic_inc(&vha->vref_count);
+	mutex_lock(&ha->vport_lock);
+	while (ha->cur_vport_count) {
+		struct Scsi_Host *scsi_host;
 
-		if (vha->fc_vport) {
-			spin_unlock_irqrestore(&ha->vport_slock, flags);
+		spin_lock_irqsave(&ha->vport_slock, flags);
 
-			fc_vport_terminate(vha->fc_vport);
+		BUG_ON(base_vha->list.next == &ha->vp_list);
+		/* This assumes first entry in ha->vp_list is always base vha */
+		vha = list_first_entry(&base_vha->list, scsi_qla_host_t, list);
+		scsi_host = scsi_host_get(vha->host);
 
-			spin_lock_irqsave(&ha->vport_slock, flags);
-		}
+		spin_unlock_irqrestore(&ha->vport_slock, flags);
+		mutex_unlock(&ha->vport_lock);
 
-		atomic_dec(&vha->vref_count);
+		fc_vport_terminate(vha->fc_vport);
+		scsi_host_put(vha->host);
+
+		mutex_lock(&ha->vport_lock);
 	}
-	spin_unlock_irqrestore(&ha->vport_slock, flags);
+	mutex_unlock(&ha->vport_lock);
 
 	set_bit(UNLOADING, &base_vha->dpc_flags);
 
@@ -2544,7 +2563,7 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *vha, fc_port_t *fcport,
 {
 	if (atomic_read(&fcport->state) == FCS_ONLINE &&
 	    vha->vp_idx == fcport->vp_idx) {
-		atomic_set(&fcport->state, FCS_DEVICE_LOST);
+		qla2x00_set_fcport_state(fcport, FCS_DEVICE_LOST);
 		qla2x00_schedule_rport_del(vha, fcport, defer);
 	}
 	/*
@@ -2552,7 +2571,7 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *vha, fc_port_t *fcport,
 	 * port but do the retries.
 	 */
 	if (atomic_read(&fcport->state) != FCS_DEVICE_DEAD)
-		atomic_set(&fcport->state, FCS_DEVICE_LOST);
+		qla2x00_set_fcport_state(fcport, FCS_DEVICE_LOST);
 
 	if (!do_login)
 		return;
@@ -2607,7 +2626,7 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *vha, int defer)
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD)
 			continue;
 		if (atomic_read(&fcport->state) == FCS_ONLINE) {
-			atomic_set(&fcport->state, FCS_DEVICE_LOST);
+			qla2x00_set_fcport_state(fcport, FCS_DEVICE_LOST);
 			if (defer)
 				qla2x00_schedule_rport_del(vha, fcport, defer);
 			else if (vha->vp_idx == fcport->vp_idx)
@@ -3214,6 +3233,17 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 							fcport->d_id.b.area,
 							fcport->d_id.b.al_pa);
 
+				if (fcport->loop_id == FC_NO_LOOP_ID) {
+					fcport->loop_id = next_loopid =
+					    ha->min_external_loopid;
+					status = qla2x00_find_new_loop_id(
+					    vha, fcport);
+					if (status != QLA_SUCCESS) {
+						/* Ran out of IDs to use */
+						break;
+					}
+				}
+
 				if (IS_ALOGIO_CAPABLE(ha)) {
 					fcport->flags |= FCF_ASYNC_SENT;
 					data[0] = 0;
@@ -3604,7 +3634,8 @@ qla2x00_timer(scsi_qla_host_t *vha)
 	if (!pci_channel_offline(ha->pdev))
 		pci_read_config_word(ha->pdev, PCI_VENDOR_ID, &w);
 
-	if (IS_QLA82XX(ha)) {
+	/* Make sure qla82xx_watchdog is run only for physical port */
+	if (!vha->vp_idx && IS_QLA82XX(ha)) {
 		if (test_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags))
 			start_dpc++;
 		qla82xx_watchdog(vha);
@@ -3612,7 +3643,8 @@ qla2x00_timer(scsi_qla_host_t *vha)
 
 	/* Loop down handler. */
 	if (atomic_read(&vha->loop_down_timer) > 0 &&
-	    !(test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags))
+	    !(test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags)) &&
+	    !(test_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags))
 		&& vha->flags.online) {
 
 		if (atomic_read(&vha->loop_down_timer) ==
@@ -3648,7 +3680,11 @@ qla2x00_timer(scsi_qla_host_t *vha)
 					if (!(sfcp->flags & FCF_FCP2_DEVICE))
 						continue;
 
-					set_bit(ISP_ABORT_NEEDED,
+					if (IS_QLA82XX(ha))
+						set_bit(FCOE_CTX_RESET_NEEDED,
+							&vha->dpc_flags);
+					else
+						set_bit(ISP_ABORT_NEEDED,
 							&vha->dpc_flags);
 					break;
 				}
@@ -3667,7 +3703,12 @@ qla2x00_timer(scsi_qla_host_t *vha)
 				qla_printk(KERN_WARNING, ha,
 				    "Loop down - aborting ISP.\n");
 
-				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+				if (IS_QLA82XX(ha))
+					set_bit(FCOE_CTX_RESET_NEEDED,
+						&vha->dpc_flags);
+				else
+					set_bit(ISP_ABORT_NEEDED,
+						&vha->dpc_flags);
 			}
 		}
 		DEBUG3(printk("scsi(%ld): Loop Down - seconds remaining %d\n",
@@ -3675,8 +3716,8 @@ qla2x00_timer(scsi_qla_host_t *vha)
 		    atomic_read(&vha->loop_down_timer)));
 	}
 
-	/* Check if beacon LED needs to be blinked */
-	if (ha->beacon_blink_led == 1) {
+	/* Check if beacon LED needs to be blinked for physical host only */
+	if (!vha->vp_idx && (ha->beacon_blink_led == 1)) {
 		set_bit(BEACON_BLINK_NEEDED, &vha->dpc_flags);
 		start_dpc++;
 	}

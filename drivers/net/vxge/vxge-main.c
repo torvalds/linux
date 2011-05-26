@@ -52,6 +52,7 @@
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
 #include <linux/net_tstamp.h>
+#include <linux/prefetch.h>
 #include "vxge-main.h"
 #include "vxge-reg.h"
 
@@ -304,22 +305,14 @@ vxge_rx_complete(struct vxge_ring *ring, struct sk_buff *skb, u16 vlan,
 		"%s: %s:%d  skb protocol = %d",
 		ring->ndev->name, __func__, __LINE__, skb->protocol);
 
-	if (ring->gro_enable) {
-		if (ring->vlgrp && ext_info->vlan &&
-			(ring->vlan_tag_strip ==
-				VXGE_HW_VPATH_RPA_STRIP_VLAN_TAG_ENABLE))
-			vlan_gro_receive(ring->napi_p, ring->vlgrp,
-					ext_info->vlan, skb);
-		else
-			napi_gro_receive(ring->napi_p, skb);
-	} else {
-		if (ring->vlgrp && vlan &&
-			(ring->vlan_tag_strip ==
-				VXGE_HW_VPATH_RPA_STRIP_VLAN_TAG_ENABLE))
-			vlan_hwaccel_receive_skb(skb, ring->vlgrp, vlan);
-		else
-			netif_receive_skb(skb);
-	}
+	if (ring->vlgrp && ext_info->vlan &&
+		(ring->vlan_tag_strip ==
+			VXGE_HW_VPATH_RPA_STRIP_VLAN_TAG_ENABLE))
+		vlan_gro_receive(ring->napi_p, ring->vlgrp,
+				ext_info->vlan, skb);
+	else
+		napi_gro_receive(ring->napi_p, skb);
+
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s: %s:%d Exiting...", ring->ndev->name, __func__, __LINE__);
 }
@@ -490,7 +483,7 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 
 		if ((ext_info.proto & VXGE_HW_FRAME_PROTO_TCP_OR_UDP) &&
 		    !(ext_info.proto & VXGE_HW_FRAME_PROTO_IP_FRAG) &&
-		    ring->rx_csum && /* Offload Rx side CSUM */
+		    (dev->features & NETIF_F_RXCSUM) && /* Offload Rx side CSUM */
 		    ext_info.l3_cksum == VXGE_HW_L3_CKSUM_OK &&
 		    ext_info.l4_cksum == VXGE_HW_L4_CKSUM_OK)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -2094,11 +2087,9 @@ static int vxge_open_vpaths(struct vxgedev *vdev)
 				vdev->config.fifo_indicate_max_pkts;
 			vpath->fifo.tx_vector_no = 0;
 			vpath->ring.rx_vector_no = 0;
-			vpath->ring.rx_csum = vdev->rx_csum;
 			vpath->ring.rx_hwts = vdev->rx_hwts;
 			vpath->is_open = 1;
 			vdev->vp_handles[i] = vpath->handle;
-			vpath->ring.gro_enable = vdev->config.gro_enable;
 			vpath->ring.vlan_tag_strip = vdev->vlan_tag_strip;
 			vdev->stats.vpaths_open++;
 		} else {
@@ -2670,6 +2661,40 @@ static void vxge_poll_vp_lockup(unsigned long data)
 	mod_timer(&vdev->vp_lockup_timer, jiffies + HZ / 1000);
 }
 
+static u32 vxge_fix_features(struct net_device *dev, u32 features)
+{
+	u32 changed = dev->features ^ features;
+
+	/* Enabling RTH requires some of the logic in vxge_device_register and a
+	 * vpath reset.  Due to these restrictions, only allow modification
+	 * while the interface is down.
+	 */
+	if ((changed & NETIF_F_RXHASH) && netif_running(dev))
+		features ^= NETIF_F_RXHASH;
+
+	return features;
+}
+
+static int vxge_set_features(struct net_device *dev, u32 features)
+{
+	struct vxgedev *vdev = netdev_priv(dev);
+	u32 changed = dev->features ^ features;
+
+	if (!(changed & NETIF_F_RXHASH))
+		return 0;
+
+	/* !netif_running() ensured by vxge_fix_features() */
+
+	vdev->devh->config.rth_en = !!(features & NETIF_F_RXHASH);
+	if (vxge_reset_all_vpaths(vdev) != VXGE_HW_OK) {
+		dev->features = features ^ NETIF_F_RXHASH;
+		vdev->devh->config.rth_en = !!(dev->features & NETIF_F_RXHASH);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /**
  * vxge_open
  * @dev: pointer to the device structure.
@@ -3112,8 +3137,7 @@ vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 	return net_stats;
 }
 
-static enum vxge_hw_status vxge_timestamp_config(struct vxgedev *vdev,
-						 int enable)
+static enum vxge_hw_status vxge_timestamp_config(struct __vxge_hw_device *devh)
 {
 	enum vxge_hw_status status;
 	u64 val64;
@@ -3123,27 +3147,24 @@ static enum vxge_hw_status vxge_timestamp_config(struct vxgedev *vdev,
 	 * required for the driver to load (due to a hardware bug),
 	 * there is no need to do anything special here.
 	 */
-	if (enable)
-		val64 = VXGE_HW_XMAC_TIMESTAMP_EN |
-			VXGE_HW_XMAC_TIMESTAMP_USE_LINK_ID(0) |
-			VXGE_HW_XMAC_TIMESTAMP_INTERVAL(0);
-	else
-		val64 = 0;
+	val64 = VXGE_HW_XMAC_TIMESTAMP_EN |
+		VXGE_HW_XMAC_TIMESTAMP_USE_LINK_ID(0) |
+		VXGE_HW_XMAC_TIMESTAMP_INTERVAL(0);
 
-	status = vxge_hw_mgmt_reg_write(vdev->devh,
+	status = vxge_hw_mgmt_reg_write(devh,
 					vxge_hw_mgmt_reg_type_mrpcim,
 					0,
 					offsetof(struct vxge_hw_mrpcim_reg,
 						 xmac_timestamp),
 					val64);
-	vxge_hw_device_flush_io(vdev->devh);
+	vxge_hw_device_flush_io(devh);
+	devh->config.hwts_en = VXGE_HW_HWTS_ENABLE;
 	return status;
 }
 
 static int vxge_hwtstamp_ioctl(struct vxgedev *vdev, void __user *data)
 {
 	struct hwtstamp_config config;
-	enum vxge_hw_status status;
 	int i;
 
 	if (copy_from_user(&config, data, sizeof(config)))
@@ -3164,10 +3185,6 @@ static int vxge_hwtstamp_ioctl(struct vxgedev *vdev, void __user *data)
 
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		status = vxge_timestamp_config(vdev, 0);
-		if (status != VXGE_HW_OK)
-			return -EFAULT;
-
 		vdev->rx_hwts = 0;
 		config.rx_filter = HWTSTAMP_FILTER_NONE;
 		break;
@@ -3186,8 +3203,7 @@ static int vxge_hwtstamp_ioctl(struct vxgedev *vdev, void __user *data)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-		status = vxge_timestamp_config(vdev, 1);
-		if (status != VXGE_HW_OK)
+		if (vdev->devh->config.hwts_en != VXGE_HW_HWTS_ENABLE)
 			return -EFAULT;
 
 		vdev->rx_hwts = 1;
@@ -3378,6 +3394,8 @@ static const struct net_device_ops vxge_netdev_ops = {
 	.ndo_do_ioctl           = vxge_ioctl,
 	.ndo_set_mac_address    = vxge_set_mac_addr,
 	.ndo_change_mtu         = vxge_change_mtu,
+	.ndo_fix_features	= vxge_fix_features,
+	.ndo_set_features	= vxge_set_features,
 	.ndo_vlan_rx_register   = vxge_vlan_rx_register,
 	.ndo_vlan_rx_kill_vid   = vxge_vlan_rx_kill_vid,
 	.ndo_vlan_rx_add_vid	= vxge_vlan_rx_add_vid,
@@ -3424,14 +3442,21 @@ static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 	vdev->devh = hldev;
 	vdev->pdev = hldev->pdev;
 	memcpy(&vdev->config, config, sizeof(struct vxge_config));
-	vdev->rx_csum = 1;	/* Enable Rx CSUM by default. */
 	vdev->rx_hwts = 0;
 	vdev->titan1 = (vdev->pdev->revision == VXGE_HW_TITAN1_PCI_REVISION);
 
 	SET_NETDEV_DEV(ndev, &vdev->pdev->dev);
 
-	ndev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-				NETIF_F_HW_VLAN_FILTER;
+	ndev->hw_features = NETIF_F_RXCSUM | NETIF_F_SG |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+		NETIF_F_TSO | NETIF_F_TSO6 |
+		NETIF_F_HW_VLAN_TX;
+	if (vdev->config.rth_steering != NO_STEERING)
+		ndev->hw_features |= NETIF_F_RXHASH;
+
+	ndev->features |= ndev->hw_features |
+		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
+
 	/*  Driver entry points */
 	ndev->irq = vdev->pdev->irq;
 	ndev->base_addr = (unsigned long) hldev->bar0;
@@ -3442,11 +3467,6 @@ static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 	INIT_WORK(&vdev->reset_task, vxge_reset);
 
 	vxge_initialize_ethtool_ops(ndev);
-
-	if (vdev->config.rth_steering != NO_STEERING) {
-		ndev->features |= NETIF_F_RXHASH;
-		hldev->config.rth_en = VXGE_HW_RTH_ENABLE;
-	}
 
 	/* Allocate memory for vpath */
 	vdev->vpaths = kzalloc((sizeof(struct vxge_vpath)) *
@@ -3459,9 +3479,6 @@ static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 		goto _out1;
 	}
 
-	ndev->features |= NETIF_F_SG;
-
-	ndev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	vxge_debug_init(vxge_hw_device_trace_level_get(hldev),
 		"%s : checksuming enabled", __func__);
 
@@ -3470,11 +3487,6 @@ static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 		vxge_debug_init(vxge_hw_device_trace_level_get(hldev),
 			"%s : using High DMA", __func__);
 	}
-
-	ndev->features |= NETIF_F_TSO | NETIF_F_TSO6;
-
-	if (vdev->config.gro_enable)
-		ndev->features |= NETIF_F_GRO;
 
 	ret = register_netdev(ndev);
 	if (ret) {
@@ -4004,15 +4016,6 @@ static void __devinit vxge_print_parm(struct vxgedev *vdev, u64 vpath_mask)
 			"%s: Tx steering disabled", vdev->ndev->name);
 		vdev->config.tx_steering_type = 0;
 	}
-
-	if (vdev->config.gro_enable) {
-		vxge_debug_init(VXGE_ERR,
-			"%s: Generic receive offload enabled",
-			vdev->ndev->name);
-	} else
-		vxge_debug_init(VXGE_TRACE,
-			"%s: Generic receive offload disabled",
-			vdev->ndev->name);
 
 	if (vdev->config.addr_learn_en)
 		vxge_debug_init(VXGE_TRACE,
@@ -4575,12 +4578,29 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto _exit4;
 	}
 
+	/* Always enable HWTS.  This will always cause the FCS to be invalid,
+	 * due to the fact that HWTS is using the FCS as the location of the
+	 * timestamp.  The HW FCS checking will still correctly determine if
+	 * there is a valid checksum, and the FCS is being removed by the driver
+	 * anyway.  So no fucntionality is being lost.  Since it is always
+	 * enabled, we now simply use the ioctl call to set whether or not the
+	 * driver should be paying attention to the HWTS.
+	 */
+	if (is_privileged == VXGE_HW_OK) {
+		status = vxge_timestamp_config(hldev);
+		if (status != VXGE_HW_OK) {
+			vxge_debug_init(VXGE_ERR, "%s: HWTS enable failed",
+					VXGE_DRIVER_NAME);
+			ret = -EFAULT;
+			goto _exit4;
+		}
+	}
+
 	vxge_hw_device_debug_set(hldev, VXGE_ERR, VXGE_COMPONENT_LL);
 
 	/* set private device info */
 	pci_set_drvdata(pdev, hldev);
 
-	ll_config->gro_enable = VXGE_GRO_ALWAYS_AGGREGATE;
 	ll_config->fifo_indicate_max_pkts = VXGE_FIFO_INDICATE_MAX_PKTS;
 	ll_config->addr_learn_en = addr_learn_en;
 	ll_config->rth_algorithm = RTH_ALG_JENKINS;

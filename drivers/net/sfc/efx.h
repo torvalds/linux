@@ -142,6 +142,6 @@ static inline void efx_schedule_channel(struct efx_channel *channel)
 
 extern void efx_link_status_changed(struct efx_nic *efx);
 extern void efx_link_set_advertising(struct efx_nic *efx, u32);
-extern void efx_link_set_wanted_fc(struct efx_nic *efx, enum efx_fc_type);
+extern void efx_link_set_wanted_fc(struct efx_nic *efx, u8);
 
 #endif /* EFX_EFX_H */

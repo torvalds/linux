@@ -1059,6 +1059,11 @@ struct rq_context {
 #define lpfc_rq_context_rqe_size_SHIFT	8		/* Version 1 Only */
 #define lpfc_rq_context_rqe_size_MASK	0x0000000F
 #define lpfc_rq_context_rqe_size_WORD	word0
+#define LPFC_RQE_SIZE_8		2
+#define LPFC_RQE_SIZE_16	3
+#define LPFC_RQE_SIZE_32	4
+#define LPFC_RQE_SIZE_64	5
+#define LPFC_RQE_SIZE_128	6
 #define lpfc_rq_context_page_size_SHIFT	0		/* Version 1 Only */
 #define lpfc_rq_context_page_size_MASK	0x000000FF
 #define lpfc_rq_context_page_size_WORD	word0
@@ -2108,6 +2113,8 @@ struct lpfc_mbx_pc_sli4_params {
 #define sgl_pp_align_WORD			word12
 	uint32_t rsvd_13_63[51];
 };
+#define SLI4_PAGE_ALIGN(addr) (((addr)+((SLI4_PAGE_SIZE)-1)) \
+			       &(~((SLI4_PAGE_SIZE)-1)))
 
 struct lpfc_sli4_parameters {
 	uint32_t word0;
@@ -2491,6 +2498,9 @@ struct wqe_common {
 #define wqe_reqtag_SHIFT      0
 #define wqe_reqtag_MASK       0x0000FFFF
 #define wqe_reqtag_WORD       word9
+#define wqe_temp_rpi_SHIFT    16
+#define wqe_temp_rpi_MASK     0x0000FFFF
+#define wqe_temp_rpi_WORD     word9
 #define wqe_rcvoxid_SHIFT     16
 #define wqe_rcvoxid_MASK      0x0000FFFF
 #define wqe_rcvoxid_WORD      word9
@@ -2524,7 +2534,7 @@ struct wqe_common {
 #define wqe_wqes_WORD         word10
 /* Note that this field overlaps above fields */
 #define wqe_wqid_SHIFT        1
-#define wqe_wqid_MASK         0x0000007f
+#define wqe_wqid_MASK         0x00007fff
 #define wqe_wqid_WORD         word10
 #define wqe_pri_SHIFT         16
 #define wqe_pri_MASK          0x00000007
@@ -2621,7 +2631,11 @@ struct xmit_els_rsp64_wqe {
 	uint32_t rsvd4;
 	struct wqe_did wqe_dest;
 	struct wqe_common wqe_com; /* words 6-11 */
-	uint32_t rsvd_12_15[4];
+	uint32_t word12;
+#define wqe_rsp_temp_rpi_SHIFT    0
+#define wqe_rsp_temp_rpi_MASK     0x0000FFFF
+#define wqe_rsp_temp_rpi_WORD     word12
+	uint32_t rsvd_13_15[3];
 };
 
 struct xmit_bls_rsp64_wqe {

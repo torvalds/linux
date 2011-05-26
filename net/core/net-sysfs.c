@@ -28,6 +28,7 @@
 static const char fmt_hex[] = "%#x\n";
 static const char fmt_long_hex[] = "%#lx\n";
 static const char fmt_dec[] = "%d\n";
+static const char fmt_udec[] = "%u\n";
 static const char fmt_ulong[] = "%lu\n";
 static const char fmt_u64[] = "%llu\n";
 
@@ -145,13 +146,10 @@ static ssize_t show_speed(struct device *dev,
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (netif_running(netdev) &&
-	    netdev->ethtool_ops &&
-	    netdev->ethtool_ops->get_settings) {
-		struct ethtool_cmd cmd = { ETHTOOL_GSET };
-
-		if (!netdev->ethtool_ops->get_settings(netdev, &cmd))
-			ret = sprintf(buf, fmt_dec, ethtool_cmd_speed(&cmd));
+	if (netif_running(netdev)) {
+		struct ethtool_cmd cmd;
+		if (!dev_ethtool_get_settings(netdev, &cmd))
+			ret = sprintf(buf, fmt_udec, ethtool_cmd_speed(&cmd));
 	}
 	rtnl_unlock();
 	return ret;
@@ -166,13 +164,11 @@ static ssize_t show_duplex(struct device *dev,
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (netif_running(netdev) &&
-	    netdev->ethtool_ops &&
-	    netdev->ethtool_ops->get_settings) {
-		struct ethtool_cmd cmd = { ETHTOOL_GSET };
-
-		if (!netdev->ethtool_ops->get_settings(netdev, &cmd))
-			ret = sprintf(buf, "%s\n", cmd.duplex ? "full" : "half");
+	if (netif_running(netdev)) {
+		struct ethtool_cmd cmd;
+		if (!dev_ethtool_get_settings(netdev, &cmd))
+			ret = sprintf(buf, "%s\n",
+				      cmd.duplex ? "full" : "half");
 	}
 	rtnl_unlock();
 	return ret;
@@ -946,7 +942,7 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 		} else
 			pos = map_len = alloc_len = 0;
 
-		need_set = cpu_isset(cpu, *mask) && cpu_online(cpu);
+		need_set = cpumask_test_cpu(cpu, mask) && cpu_online(cpu);
 #ifdef CONFIG_NUMA
 		if (need_set) {
 			if (numa_node == -2)

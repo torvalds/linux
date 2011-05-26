@@ -14,6 +14,13 @@ config LEDS_CLASS
 	  This option enables the led sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
 
+config LEDS_GPIO_REGISTER
+	bool
+	help
+	  This option provides the function gpio_led_register_device.
+	  As this function is used by arch code it must not be compiled as a
+	  module.
+
 if NEW_LEDS
 
 comment "LED drivers"
@@ -115,13 +122,6 @@ config LEDS_ALIX2
 	  This option enables support for the PCEngines ALIX.2 and ALIX.3 LEDs.
 	  You have to set leds-alix2.force=1 for boards with Award BIOS.
 
-config LEDS_H1940
-	tristate "LED Support for iPAQ H1940 device"
-	depends on LEDS_CLASS
-	depends on ARCH_H1940
-	help
-	  This option enables support for the LEDs on the h1940.
-
 config LEDS_COBALT_QUBE
 	tristate "LED Support for the Cobalt Qube series front LED"
 	depends on LEDS_CLASS
@@ -161,6 +161,16 @@ config LEDS_PCA9532
 	  This option enables support for NXP pca9532
 	  LED controller. It is generally only useful
 	  as a platform driver
+
+config LEDS_PCA9532_GPIO
+	bool "Enable GPIO support for PCA9532"
+	depends on LEDS_PCA9532
+	depends on GPIOLIB
+	help
+	  Allow unused pins on PCA9532 to be used as gpio.
+
+	  To use a pin as gpio pca9532_type in pca9532_platform data needs to
+	  set to PCA9532_TYPE_GPIO.
 
 config LEDS_GPIO
 	tristate "LED Support for GPIO connected LEDs"

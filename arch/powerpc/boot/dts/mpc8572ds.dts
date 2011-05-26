@@ -324,6 +324,19 @@
 			};
 		};
 
+		ptp_clock@24E00 {
+			compatible = "fsl,etsec-ptp";
+			reg = <0x24E00 0xB0>;
+			interrupts = <68 2 69 2 70 2 71 2>;
+			interrupt-parent = < &mpic >;
+			fsl,tclk-period = <5>;
+			fsl,tmr-prsc = <200>;
+			fsl,tmr-add = <0xAAAAAAAB>;
+			fsl,tmr-fiper1 = <0x3B9AC9FB>;
+			fsl,tmr-fiper2 = <0x3B9AC9FB>;
+			fsl,max-adj = <499999999>;
+		};
+
 		enet0: ethernet@24000 {
 			#address-cells = <1>;
 			#size-cells = <1>;

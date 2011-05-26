@@ -75,7 +75,6 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm);
 void kvm_destroy_pic(struct kvm *kvm);
 int kvm_pic_read_irq(struct kvm *kvm);
 void kvm_pic_update_irq(struct kvm_pic *s);
-void kvm_pic_clear_isr_ack(struct kvm *kvm);
 
 static inline struct kvm_pic *pic_irqchip(struct kvm *kvm)
 {
@@ -100,7 +99,6 @@ void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu);
 void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu);
 void __kvm_migrate_timers(struct kvm_vcpu *vcpu);
 
-int pit_has_pending_timer(struct kvm_vcpu *vcpu);
 int apic_has_pending_timer(struct kvm_vcpu *vcpu);
 
 #endif

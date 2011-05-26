@@ -31,6 +31,7 @@ config IIO_SYSFS_TRIGGER
 config IIO_BFIN_TMR_TRIGGER
 	tristate "Blackfin TIMER trigger"
 	depends on BLACKFIN
+	select BFIN_GPTIMERS
 	help
 	  Provides support for using a Blackfin timer as IIO triggers.
 	  If unsure, say N (but it's safe to say "Y").

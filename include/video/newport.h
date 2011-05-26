@@ -3,7 +3,7 @@
  * newport.h: Defines and register layout for NEWPORT graphics
  *            hardware.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * 
  * Ulf Carlsson - Compatibility with the IRIX structures added
  */

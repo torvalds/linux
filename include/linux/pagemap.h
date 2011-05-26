@@ -219,6 +219,12 @@ static inline struct page *page_cache_alloc_cold(struct address_space *x)
 	return __page_cache_alloc(mapping_gfp_mask(x)|__GFP_COLD);
 }
 
+static inline struct page *page_cache_alloc_readahead(struct address_space *x)
+{
+	return __page_cache_alloc(mapping_gfp_mask(x) |
+				  __GFP_COLD | __GFP_NORETRY | __GFP_NOWARN);
+}
+
 typedef int filler_t(void *, struct page *);
 
 extern struct page * find_get_page(struct address_space *mapping,
@@ -356,6 +362,15 @@ static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
  * Never use this directly!
  */
 extern void wait_on_page_bit(struct page *page, int bit_nr);
+
+extern int wait_on_page_bit_killable(struct page *page, int bit_nr);
+
+static inline int wait_on_page_locked_killable(struct page *page)
+{
+	if (PageLocked(page))
+		return wait_on_page_bit_killable(page, PG_locked);
+	return 0;
+}
 
 /* 
  * Wait for a page to be unlocked.

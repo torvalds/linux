@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2010 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -517,23 +517,7 @@ static void ar9002_hw_set_nf_limits(struct ath_hw *ah)
 	}
 }
 
-void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
-{
-	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
-
-	priv_ops->set_rf_regs = NULL;
-	priv_ops->rf_alloc_ext_banks = NULL;
-	priv_ops->rf_free_ext_banks = NULL;
-	priv_ops->rf_set_freq = ar9002_hw_set_channel;
-	priv_ops->spur_mitigate_freq = ar9002_hw_spur_mitigate;
-	priv_ops->olc_init = ar9002_olc_init;
-	priv_ops->compute_pll_control = ar9002_hw_compute_pll_control;
-	priv_ops->do_getnf = ar9002_hw_do_getnf;
-
-	ar9002_hw_set_nf_limits(ah);
-}
-
-void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
+static void ar9002_hw_antdiv_comb_conf_get(struct ath_hw *ah,
 				   struct ath_hw_antcomb_conf *antconf)
 {
 	u32 regval;
@@ -545,10 +529,11 @@ void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
 				 AR_PHY_9285_ANT_DIV_ALT_LNACONF_S;
 	antconf->fast_div_bias = (regval & AR_PHY_9285_FAST_DIV_BIAS) >>
 				  AR_PHY_9285_FAST_DIV_BIAS_S;
+	antconf->lna1_lna2_delta = -3;
+	antconf->div_group = 0;
 }
-EXPORT_SYMBOL(ath9k_hw_antdiv_comb_conf_get);
 
-void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
+static void ar9002_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 				   struct ath_hw_antcomb_conf *antconf)
 {
 	u32 regval;
@@ -566,4 +551,23 @@ void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
 
 	REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regval);
 }
-EXPORT_SYMBOL(ath9k_hw_antdiv_comb_conf_set);
+
+void ar9002_hw_attach_phy_ops(struct ath_hw *ah)
+{
+	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
+	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
+
+	priv_ops->set_rf_regs = NULL;
+	priv_ops->rf_alloc_ext_banks = NULL;
+	priv_ops->rf_free_ext_banks = NULL;
+	priv_ops->rf_set_freq = ar9002_hw_set_channel;
+	priv_ops->spur_mitigate_freq = ar9002_hw_spur_mitigate;
+	priv_ops->olc_init = ar9002_olc_init;
+	priv_ops->compute_pll_control = ar9002_hw_compute_pll_control;
+	priv_ops->do_getnf = ar9002_hw_do_getnf;
+
+	ops->antdiv_comb_conf_get = ar9002_hw_antdiv_comb_conf_get;
+	ops->antdiv_comb_conf_set = ar9002_hw_antdiv_comb_conf_set;
+
+	ar9002_hw_set_nf_limits(ah);
+}

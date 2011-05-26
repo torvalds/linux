@@ -92,7 +92,7 @@ struct mesh_path {
 	u8 dst[ETH_ALEN];
 	u8 mpp[ETH_ALEN];	/* used for MPP or MAP */
 	struct ieee80211_sub_if_data *sdata;
-	struct sta_info *next_hop;
+	struct sta_info __rcu *next_hop;
 	struct timer_list timer;
 	struct sk_buff_head frame_queue;
 	struct rcu_head rcu;
@@ -120,6 +120,7 @@ struct mesh_path {
  *	buckets
  * @mean_chain_len: maximum average length for the hash buckets' list, if it is
  *	reached, the table will grow
+ * rcu_head: RCU head to free the table
  */
 struct mesh_table {
 	/* Number of buckets will be 2^N */
@@ -132,6 +133,8 @@ struct mesh_table {
 	int (*copy_node) (struct hlist_node *p, struct mesh_table *newtbl);
 	int size_order;
 	int mean_chain_len;
+
+	struct rcu_head rcu_head;
 };
 
 /* Recent multicast cache */
@@ -226,7 +229,8 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata);
 /* Mesh plinks */
 void mesh_neighbour_update(u8 *hw_addr, u32 rates,
-		struct ieee80211_sub_if_data *sdata, bool add);
+		struct ieee80211_sub_if_data *sdata,
+		struct ieee802_11_elems *ie);
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie);
 void mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata);
 void mesh_plink_broken(struct sta_info *sta);
@@ -239,12 +243,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 
 /* Private interfaces */
 /* Mesh tables */
-struct mesh_table *mesh_table_alloc(int size_order);
-void mesh_table_free(struct mesh_table *tbl, bool free_leafs);
 void mesh_mpath_table_grow(void);
 void mesh_mpp_table_grow(void);
-u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata,
-		struct mesh_table *tbl);
 /* Mesh paths */
 int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn, __le16 target_rcode,
 		       const u8 *ra, struct ieee80211_sub_if_data *sdata);
@@ -288,10 +288,6 @@ static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
 {
 	return sdata->u.mesh.mesh_pp_id == IEEE80211_PATH_PROTOCOL_HWMP;
 }
-
-#define for_each_mesh_entry(x, p, node, i) \
-	for (i = 0; i <= x->hash_mask; i++) \
-		hlist_for_each_entry_rcu(node, p, &x->hash_buckets[i], list)
 
 void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local);
 

@@ -2,6 +2,7 @@
 #define __ASM_SH_MOBILE_LCDC_H__
 
 #include <linux/fb.h>
+#include <video/sh_mobile_meram.h>
 
 enum {
 	RGB8,   /* 24bpp, 8:8:8 */
@@ -87,11 +88,13 @@ struct sh_mobile_lcdc_chan_cfg {
 	struct sh_mobile_lcdc_bl_info bl_info;
 	struct sh_mobile_lcdc_sys_bus_cfg sys_bus_cfg; /* only for SYSn I/F */
 	int nonstd;
+	struct sh_mobile_meram_cfg *meram_cfg;
 };
 
 struct sh_mobile_lcdc_info {
 	int clock_source;
 	struct sh_mobile_lcdc_chan_cfg ch[2];
+	struct sh_mobile_meram_info *meram_dev;
 };
 
 #endif /* __ASM_SH_MOBILE_LCDC_H__ */

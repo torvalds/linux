@@ -274,6 +274,13 @@ config REGULATOR_AB8500
 	  This driver supports the regulators found on the ST-Ericsson mixed
 	  signal AB8500 PMIC
 
+config REGULATOR_DB8500_PRCMU
+	bool "ST-Ericsson DB8500 Voltage Domain Regulators"
+	depends on MFD_DB8500_PRCMU
+	help
+	  This driver supports the voltage domain regulators controlled by the
+	  DB8500 PRCMU
+
 config REGULATOR_TPS6586X
 	tristate "TI TPS6586X Power regulators"
 	depends on MFD_TPS6586X

@@ -38,21 +38,11 @@
 #include <asm/portmux.h>
 
 #include "../codecs/ad193x.h"
-#include "bf5xx-sport.h"
 
 #include "bf5xx-tdm-pcm.h"
 #include "bf5xx-tdm.h"
 
 static struct snd_soc_card bf5xx_ad193x;
-
-static int bf5xx_ad193x_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-
-	snd_soc_dai_set_drvdata(cpu_dai, sport_handle);
-	return 0;
-}
 
 static int bf5xx_ad193x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -60,8 +50,16 @@ static int bf5xx_ad193x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	unsigned int clk = 0;
 	unsigned int channel_map[] = {0, 1, 2, 3, 4, 5, 6, 7};
 	int ret = 0;
+
+	switch (params_rate(params)) {
+	case 48000:
+		clk = 12288000;
+		break;
+	}
+
 	/* set cpu DAI configuration */
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_DSP_A |
 		SND_SOC_DAIFMT_IB_IF | SND_SOC_DAIFMT_CBM_CFM);
@@ -71,6 +69,12 @@ static int bf5xx_ad193x_hw_params(struct snd_pcm_substream *substream,
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
 		SND_SOC_DAIFMT_IB_IF | SND_SOC_DAIFMT_CBM_CFM);
+	if (ret < 0)
+		return ret;
+
+	/* set the codec system clock for DAC and ADC */
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0, clk,
+		SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
 
@@ -89,23 +93,33 @@ static int bf5xx_ad193x_hw_params(struct snd_pcm_substream *substream,
 }
 
 static struct snd_soc_ops bf5xx_ad193x_ops = {
-	.startup = bf5xx_ad193x_startup,
 	.hw_params = bf5xx_ad193x_hw_params,
 };
 
-static struct snd_soc_dai_link bf5xx_ad193x_dai = {
-	.name = "ad193x",
-	.stream_name = "AD193X",
-	.cpu_dai_name = "bf5xx-tdm",
-	.codec_dai_name ="ad193x-hifi",
-	.platform_name = "bf5xx-tdm-pcm-audio",
-	.codec_name = "ad193x-codec.5",
-	.ops = &bf5xx_ad193x_ops,
+static struct snd_soc_dai_link bf5xx_ad193x_dai[] = {
+	{
+		.name = "ad193x",
+		.stream_name = "AD193X",
+		.cpu_dai_name = "bfin-tdm.0",
+		.codec_dai_name ="ad193x-hifi",
+		.platform_name = "bfin-tdm-pcm-audio",
+		.codec_name = "ad193x.5",
+		.ops = &bf5xx_ad193x_ops,
+	},
+	{
+		.name = "ad193x",
+		.stream_name = "AD193X",
+		.cpu_dai_name = "bfin-tdm.1",
+		.codec_dai_name ="ad193x-hifi",
+		.platform_name = "bfin-tdm-pcm-audio",
+		.codec_name = "ad193x.5",
+		.ops = &bf5xx_ad193x_ops,
+	},
 };
 
 static struct snd_soc_card bf5xx_ad193x = {
-	.name = "bf5xx_ad193x",
-	.dai_link = &bf5xx_ad193x_dai,
+	.name = "bfin-ad193x",
+	.dai_link = &bf5xx_ad193x_dai[CONFIG_SND_BF5XX_SPORT_NUM],
 	.num_links = 1,
 };
 

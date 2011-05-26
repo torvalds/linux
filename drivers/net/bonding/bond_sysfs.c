@@ -227,12 +227,6 @@ static ssize_t bonding_store_slaves(struct device *d,
 	struct net_device *dev;
 	struct bonding *bond = to_bond(d);
 
-	/* Quick sanity check -- is the bond interface up? */
-	if (!(bond->dev->flags & IFF_UP)) {
-		pr_warning("%s: doing slave updates when interface is down.\n",
-			   bond->dev->name);
-	}
-
 	if (!rtnl_trylock())
 		return restart_syscall();
 
@@ -421,11 +415,6 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 	pr_info("%s: setting arp_validate to %s (%d).\n",
 		bond->dev->name, arp_validate_tbl[new_value].modename,
 		new_value);
-
-	if (!bond->params.arp_validate && new_value)
-		bond_register_arp(bond);
-	else if (bond->params.arp_validate && !new_value)
-		bond_unregister_arp(bond);
 
 	bond->params.arp_validate = new_value;
 
@@ -874,82 +863,28 @@ static DEVICE_ATTR(ad_select, S_IRUGO | S_IWUSR,
 		   bonding_show_ad_select, bonding_store_ad_select);
 
 /*
- * Show and set the number of grat ARP to send after a failover event.
+ * Show and set the number of peer notifications to send after a failover event.
  */
-static ssize_t bonding_show_n_grat_arp(struct device *d,
-				   struct device_attribute *attr,
-				   char *buf)
+static ssize_t bonding_show_num_peer_notif(struct device *d,
+					   struct device_attribute *attr,
+					   char *buf)
 {
 	struct bonding *bond = to_bond(d);
-
-	return sprintf(buf, "%d\n", bond->params.num_grat_arp);
+	return sprintf(buf, "%d\n", bond->params.num_peer_notif);
 }
 
-static ssize_t bonding_store_n_grat_arp(struct device *d,
-				    struct device_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t bonding_store_num_peer_notif(struct device *d,
+					    struct device_attribute *attr,
+					    const char *buf, size_t count)
 {
-	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
-
-	if (sscanf(buf, "%d", &new_value) != 1) {
-		pr_err("%s: no num_grat_arp value specified.\n",
-		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-	if (new_value < 0 || new_value > 255) {
-		pr_err("%s: Invalid num_grat_arp value %d not in range 0-255; rejected.\n",
-		       bond->dev->name, new_value);
-		ret = -EINVAL;
-		goto out;
-	} else {
-		bond->params.num_grat_arp = new_value;
-	}
-out:
-	return ret;
+	int err = kstrtou8(buf, 10, &bond->params.num_peer_notif);
+	return err ? err : count;
 }
 static DEVICE_ATTR(num_grat_arp, S_IRUGO | S_IWUSR,
-		   bonding_show_n_grat_arp, bonding_store_n_grat_arp);
-
-/*
- * Show and set the number of unsolicited NA's to send after a failover event.
- */
-static ssize_t bonding_show_n_unsol_na(struct device *d,
-				       struct device_attribute *attr,
-				       char *buf)
-{
-	struct bonding *bond = to_bond(d);
-
-	return sprintf(buf, "%d\n", bond->params.num_unsol_na);
-}
-
-static ssize_t bonding_store_n_unsol_na(struct device *d,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
-{
-	int new_value, ret = count;
-	struct bonding *bond = to_bond(d);
-
-	if (sscanf(buf, "%d", &new_value) != 1) {
-		pr_err("%s: no num_unsol_na value specified.\n",
-		       bond->dev->name);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (new_value < 0 || new_value > 255) {
-		pr_err("%s: Invalid num_unsol_na value %d not in range 0-255; rejected.\n",
-		       bond->dev->name, new_value);
-		ret = -EINVAL;
-		goto out;
-	} else
-		bond->params.num_unsol_na = new_value;
-out:
-	return ret;
-}
+		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
 static DEVICE_ATTR(num_unsol_na, S_IRUGO | S_IWUSR,
-		   bonding_show_n_unsol_na, bonding_store_n_unsol_na);
+		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
 
 /*
  * Show and set the MII monitor interval.  There are two tricky bits
@@ -1001,7 +936,6 @@ static ssize_t bonding_store_miimon(struct device *d,
 				bond->dev->name);
 			bond->params.arp_interval = 0;
 			if (bond->params.arp_validate) {
-				bond_unregister_arp(bond);
 				bond->params.arp_validate =
 					BOND_ARP_VALIDATE_NONE;
 			}
@@ -1599,8 +1533,8 @@ static DEVICE_ATTR(all_slaves_active, S_IRUGO | S_IWUSR,
  * Show and set the number of IGMP membership reports to send on link failure
  */
 static ssize_t bonding_show_resend_igmp(struct device *d,
-					 struct device_attribute *attr,
-					 char *buf)
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct bonding *bond = to_bond(d);
 
@@ -1608,8 +1542,8 @@ static ssize_t bonding_show_resend_igmp(struct device *d,
 }
 
 static ssize_t bonding_store_resend_igmp(struct device *d,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
 {
 	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
@@ -1621,7 +1555,7 @@ static ssize_t bonding_store_resend_igmp(struct device *d,
 		goto out;
 	}
 
-	if (new_value < 0) {
+	if (new_value < 0 || new_value > 255) {
 		pr_err("%s: Invalid resend_igmp value %d not in range 0-255; rejected.\n",
 		       bond->dev->name, new_value);
 		ret = -EINVAL;

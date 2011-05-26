@@ -2544,20 +2544,18 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	if (!intel_sdvo)
 		return false;
 
+	intel_sdvo->sdvo_reg = sdvo_reg;
+	intel_sdvo->slave_addr = intel_sdvo_get_slave_addr(dev, sdvo_reg) >> 1;
+	intel_sdvo_select_i2c_bus(dev_priv, intel_sdvo, sdvo_reg);
 	if (!intel_sdvo_init_ddc_proxy(intel_sdvo, dev)) {
 		kfree(intel_sdvo);
 		return false;
 	}
 
-	intel_sdvo->sdvo_reg = sdvo_reg;
-
+	/* encoder type will be decided later */
 	intel_encoder = &intel_sdvo->base;
 	intel_encoder->type = INTEL_OUTPUT_SDVO;
-	/* encoder type will be decided later */
 	drm_encoder_init(dev, &intel_encoder->base, &intel_sdvo_enc_funcs, 0);
-
-	intel_sdvo->slave_addr = intel_sdvo_get_slave_addr(dev, sdvo_reg) >> 1;
-	intel_sdvo_select_i2c_bus(dev_priv, intel_sdvo, sdvo_reg);
 
 	/* Read the regs to test if we can talk to the device */
 	for (i = 0; i < 0x40; i++) {

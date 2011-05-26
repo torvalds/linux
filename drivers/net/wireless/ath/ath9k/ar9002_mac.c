@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -290,7 +290,6 @@ static void ar9002_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 		| (flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
 		| SM(txPower, AR_XmitPower)
 		| (flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
-		| (flags & ATH9K_TXDESC_CLRDMASK ? AR_ClrDestMask : 0)
 		| (flags & ATH9K_TXDESC_INTREQ ? AR_TxIntrReq : 0)
 		| (keyIx != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0);
 
@@ -309,6 +308,16 @@ static void ar9002_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 		ads->ds_ctl10 = 0;
 		ads->ds_ctl11 = 0;
 	}
+}
+
+static void ar9002_hw_set_clrdmask(struct ath_hw *ah, void *ds, bool val)
+{
+	struct ar5416_desc *ads = AR5416DESC(ds);
+
+	if (val)
+		ads->ds_ctl0 |= AR_ClrDestMask;
+	else
+		ads->ds_ctl0 &= ~AR_ClrDestMask;
 }
 
 static void ar9002_hw_set11n_ratescenario(struct ath_hw *ah, void *ds,
@@ -406,26 +415,6 @@ static void ar9002_hw_clr11n_aggr(struct ath_hw *ah, void *ds)
 	ads->ds_ctl1 &= (~AR_IsAggr & ~AR_MoreAggr);
 }
 
-static void ar9002_hw_set11n_burstduration(struct ath_hw *ah, void *ds,
-					   u32 burstDuration)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	ads->ds_ctl2 &= ~AR_BurstDur;
-	ads->ds_ctl2 |= SM(burstDuration, AR_BurstDur);
-}
-
-static void ar9002_hw_set11n_virtualmorefrag(struct ath_hw *ah, void *ds,
-					    u32 vmf)
-{
-	struct ar5416_desc *ads = AR5416DESC(ds);
-
-	if (vmf)
-		ads->ds_ctl0 |= AR_VirtMoreFrag;
-	else
-		ads->ds_ctl0 &= ~AR_VirtMoreFrag;
-}
-
 void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			  u32 size, u32 flags)
 {
@@ -458,6 +447,5 @@ void ar9002_hw_attach_mac_ops(struct ath_hw *ah)
 	ops->set11n_aggr_middle = ar9002_hw_set11n_aggr_middle;
 	ops->set11n_aggr_last = ar9002_hw_set11n_aggr_last;
 	ops->clr11n_aggr = ar9002_hw_clr11n_aggr;
-	ops->set11n_burstduration = ar9002_hw_set11n_burstduration;
-	ops->set11n_virtualmorefrag = ar9002_hw_set11n_virtualmorefrag;
+	ops->set_clrdmask = ar9002_hw_set_clrdmask;
 }

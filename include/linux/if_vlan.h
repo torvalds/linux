@@ -86,7 +86,6 @@ struct vlan_group {
 					    * the vlan is attached to.
 					    */
 	unsigned int		nr_vlans;
-	int			killall;
 	struct hlist_node	hlist;	/* linked list */
 	struct net_device **vlan_devices_arrays[VLAN_GROUP_ARRAY_SPLIT_PARTS];
 	struct rcu_head		rcu;
@@ -111,6 +110,11 @@ static inline void vlan_group_set_device(struct vlan_group *vg,
 	array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] = dev;
 }
 
+static inline int is_vlan_dev(struct net_device *dev)
+{
+        return dev->priv_flags & IFF_802_1Q_VLAN;
+}
+
 #define vlan_tx_tag_present(__skb)	((__skb)->vlan_tci & VLAN_TAG_PRESENT)
 #define vlan_tx_tag_get(__skb)		((__skb)->vlan_tci & ~VLAN_TAG_PRESENT)
 
@@ -132,7 +136,8 @@ extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 
 extern int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 			     u16 vlan_tci, int polling);
-extern bool vlan_hwaccel_do_receive(struct sk_buff **skb);
+extern bool vlan_do_receive(struct sk_buff **skb);
+extern struct sk_buff *vlan_untag(struct sk_buff *skb);
 extern gro_result_t
 vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
 		 unsigned int vlan_tci, struct sk_buff *skb);
@@ -166,11 +171,16 @@ static inline int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 	return NET_XMIT_SUCCESS;
 }
 
-static inline bool vlan_hwaccel_do_receive(struct sk_buff **skb)
+static inline bool vlan_do_receive(struct sk_buff **skb)
 {
 	if ((*skb)->vlan_tci & VLAN_VID_MASK)
 		(*skb)->pkt_type = PACKET_OTHERHOST;
 	return false;
+}
+
+static inline struct sk_buff *vlan_untag(struct sk_buff *skb)
+{
+	return skb;
 }
 
 static inline gro_result_t

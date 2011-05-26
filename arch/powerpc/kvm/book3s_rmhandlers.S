@@ -35,9 +35,7 @@
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 
-#define LOAD_SHADOW_VCPU(reg)				\
-	mfspr	reg, SPRN_SPRG_PACA
-
+#define LOAD_SHADOW_VCPU(reg)	GET_PACA(reg)					
 #define SHADOW_VCPU_OFF		PACA_KVM_SVCPU
 #define MSR_NOIRQ		MSR_KERNEL & ~(MSR_IR | MSR_DR)
 #define FUNC(name) 		GLUE(.,name)
@@ -72,7 +70,7 @@
 .global kvmppc_trampoline_\intno
 kvmppc_trampoline_\intno:
 
-	mtspr	SPRN_SPRG_SCRATCH0, r13		/* Save r13 */
+	SET_SCRATCH0(r13)		/* Save r13 */
 
 	/*
 	 * First thing to do is to find out if we're coming
@@ -91,7 +89,7 @@ kvmppc_trampoline_\intno:
 	lwz	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
 	mtcr	r12
 	PPC_LL	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
-	mfspr	r13, SPRN_SPRG_SCRATCH0		/* r13 = original r13 */
+	GET_SCRATCH0(r13)			/* r13 = original r13 */
 	b	kvmppc_resume_\intno		/* Get back original handler */
 
 	/* Now we know we're handling a KVM guest */
@@ -114,6 +112,9 @@ INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_MACHINE_CHECK
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_DATA_STORAGE
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_INST_STORAGE
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_EXTERNAL
+#ifdef CONFIG_PPC_BOOK3S_64
+INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_EXTERNAL_HV
+#endif
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_ALIGNMENT
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_PROGRAM
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_FP_UNAVAIL
@@ -158,7 +159,7 @@ kvmppc_handler_skip_ins:
 	lwz	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
 	mtcr	r12
 	PPC_LL	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
-	mfspr	r13, SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r13)
 
 	/* And get back into the code */
 	RFI

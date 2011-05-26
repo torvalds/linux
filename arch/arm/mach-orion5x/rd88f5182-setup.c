@@ -241,28 +241,28 @@ static struct mv_sata_platform_data rd88f5182_sata_data = {
 /*****************************************************************************
  * General Setup
  ****************************************************************************/
-static struct orion5x_mpp_mode rd88f5182_mpp_modes[] __initdata = {
-	{  0, MPP_GPIO },		/* Debug Led */
-	{  1, MPP_GPIO },		/* Reset Switch */
-	{  2, MPP_UNUSED },
-	{  3, MPP_GPIO },		/* RTC Int */
-	{  4, MPP_GPIO },
-	{  5, MPP_GPIO },
-	{  6, MPP_GPIO },		/* PCI_intA */
-	{  7, MPP_GPIO },		/* PCI_intB */
-	{  8, MPP_UNUSED },
-	{  9, MPP_UNUSED },
-	{ 10, MPP_UNUSED },
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_SATA_LED },		/* SATA 0 presence */
-	{ 13, MPP_SATA_LED },		/* SATA 1 presence */
-	{ 14, MPP_SATA_LED },		/* SATA 0 active */
-	{ 15, MPP_SATA_LED },		/* SATA 1 active */
-	{ 16, MPP_UNUSED },
-	{ 17, MPP_UNUSED },
-	{ 18, MPP_UNUSED },
-	{ 19, MPP_UNUSED },
-	{ -1 },
+static unsigned int rd88f5182_mpp_modes[] __initdata = {
+	MPP0_GPIO,		/* Debug Led */
+	MPP1_GPIO,		/* Reset Switch */
+	MPP2_UNUSED,
+	MPP3_GPIO,		/* RTC Int */
+	MPP4_GPIO,
+	MPP5_GPIO,
+	MPP6_GPIO,		/* PCI_intA */
+	MPP7_GPIO,		/* PCI_intB */
+	MPP8_UNUSED,
+	MPP9_UNUSED,
+	MPP10_UNUSED,
+	MPP11_UNUSED,
+	MPP12_SATA_LED,		/* SATA 0 presence */
+	MPP13_SATA_LED,		/* SATA 1 presence */
+	MPP14_SATA_LED,		/* SATA 0 active */
+	MPP15_SATA_LED,		/* SATA 1 active */
+	MPP16_UNUSED,
+	MPP17_UNUSED,
+	MPP18_UNUSED,
+	MPP19_UNUSED,
+	0,
 };
 
 static void __init rd88f5182_init(void)

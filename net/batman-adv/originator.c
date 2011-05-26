@@ -19,8 +19,6 @@
  *
  */
 
-/* increase the reference counter for this originator */
-
 #include "main.h"
 #include "originator.h"
 #include "hash.h"
@@ -62,6 +60,21 @@ void neigh_node_free_ref(struct neigh_node *neigh_node)
 		kfree_rcu(neigh_node, rcu);
 }
 
+/* increases the refcounter of a found router */
+struct neigh_node *orig_node_get_router(struct orig_node *orig_node)
+{
+	struct neigh_node *router;
+
+	rcu_read_lock();
+	router = rcu_dereference(orig_node->router);
+
+	if (router && !atomic_inc_not_zero(&router->refcount))
+		router = NULL;
+
+	rcu_read_unlock();
+	return router;
+}
+
 struct neigh_node *create_neighbor(struct orig_node *orig_node,
 				   struct orig_node *orig_neigh_node,
 				   uint8_t *neigh,
@@ -79,6 +92,7 @@ struct neigh_node *create_neighbor(struct orig_node *orig_node,
 
 	INIT_HLIST_NODE(&neigh_node->list);
 	INIT_LIST_HEAD(&neigh_node->bonding_list);
+	spin_lock_init(&neigh_node->tq_lock);
 
 	memcpy(neigh_node->addr, neigh, ETH_ALEN);
 	neigh_node->orig_node = orig_neigh_node;
@@ -120,7 +134,7 @@ static void orig_node_free_rcu(struct rcu_head *rcu)
 	spin_unlock_bh(&orig_node->neigh_list_lock);
 
 	frag_list_free(&orig_node->frag_list);
-	hna_global_del_orig(orig_node->bat_priv, orig_node,
+	tt_global_del_orig(orig_node->bat_priv, orig_node,
 			    "originator timed out");
 
 	kfree(orig_node->bcast_own);
@@ -198,7 +212,7 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	orig_node->bat_priv = bat_priv;
 	memcpy(orig_node->orig, addr, ETH_ALEN);
 	orig_node->router = NULL;
-	orig_node->hna_buff = NULL;
+	orig_node->tt_buff = NULL;
 	orig_node->bcast_seqno_reset = jiffies - 1
 					- msecs_to_jiffies(RESET_PROTECTION_MS);
 	orig_node->batman_seqno_reset = jiffies - 1
@@ -309,8 +323,8 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 							&best_neigh_node)) {
 			update_routes(bat_priv, orig_node,
 				      best_neigh_node,
-				      orig_node->hna_buff,
-				      orig_node->hna_buff_len);
+				      orig_node->tt_buff,
+				      orig_node->tt_buff_len);
 		}
 	}
 
@@ -381,29 +395,34 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 	struct hashtable_t *hash = bat_priv->orig_hash;
 	struct hlist_node *node, *node_tmp;
 	struct hlist_head *head;
+	struct hard_iface *primary_if;
 	struct orig_node *orig_node;
-	struct neigh_node *neigh_node;
+	struct neigh_node *neigh_node, *neigh_node_tmp;
 	int batman_count = 0;
 	int last_seen_secs;
 	int last_seen_msecs;
-	int i;
+	int i, ret = 0;
 
-	if ((!bat_priv->primary_if) ||
-	    (bat_priv->primary_if->if_status != IF_ACTIVE)) {
-		if (!bat_priv->primary_if)
-			return seq_printf(seq, "BATMAN mesh %s disabled - "
-				     "please specify interfaces to enable it\n",
-				     net_dev->name);
+	primary_if = primary_if_get_selected(bat_priv);
 
-		return seq_printf(seq, "BATMAN mesh %s "
-				  "disabled - primary interface not active\n",
-				  net_dev->name);
+	if (!primary_if) {
+		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
+				 "please specify interfaces to enable it\n",
+				 net_dev->name);
+		goto out;
+	}
+
+	if (primary_if->if_status != IF_ACTIVE) {
+		ret = seq_printf(seq, "BATMAN mesh %s "
+				 "disabled - primary interface not active\n",
+				 net_dev->name);
+		goto out;
 	}
 
 	seq_printf(seq, "[B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%pM (%s)]\n",
 		   SOURCE_VERSION, REVISION_VERSION_STR,
-		   bat_priv->primary_if->net_dev->name,
-		   bat_priv->primary_if->net_dev->dev_addr, net_dev->name);
+		   primary_if->net_dev->name,
+		   primary_if->net_dev->dev_addr, net_dev->name);
 	seq_printf(seq, "  %-15s %s (%s/%i) %17s [%10s]: %20s ...\n",
 		   "Originator", "last-seen", "#", TQ_MAX_VALUE, "Nexthop",
 		   "outgoingIF", "Potential nexthops");
@@ -413,40 +432,47 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
-			if (!orig_node->router)
+			neigh_node = orig_node_get_router(orig_node);
+			if (!neigh_node)
 				continue;
 
-			if (orig_node->router->tq_avg == 0)
-				continue;
+			if (neigh_node->tq_avg == 0)
+				goto next;
 
 			last_seen_secs = jiffies_to_msecs(jiffies -
 						orig_node->last_valid) / 1000;
 			last_seen_msecs = jiffies_to_msecs(jiffies -
 						orig_node->last_valid) % 1000;
 
-			neigh_node = orig_node->router;
 			seq_printf(seq, "%pM %4i.%03is   (%3i) %pM [%10s]:",
 				   orig_node->orig, last_seen_secs,
 				   last_seen_msecs, neigh_node->tq_avg,
 				   neigh_node->addr,
 				   neigh_node->if_incoming->net_dev->name);
 
-			hlist_for_each_entry_rcu(neigh_node, node_tmp,
+			hlist_for_each_entry_rcu(neigh_node_tmp, node_tmp,
 						 &orig_node->neigh_list, list) {
-				seq_printf(seq, " %pM (%3i)", neigh_node->addr,
-						neigh_node->tq_avg);
+				seq_printf(seq, " %pM (%3i)",
+					   neigh_node_tmp->addr,
+					   neigh_node_tmp->tq_avg);
 			}
 
 			seq_printf(seq, "\n");
 			batman_count++;
+
+next:
+			neigh_node_free_ref(neigh_node);
 		}
 		rcu_read_unlock();
 	}
 
-	if ((batman_count == 0))
+	if (batman_count == 0)
 		seq_printf(seq, "No batman nodes in range ...\n");
 
-	return 0;
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
+	return ret;
 }
 
 static int orig_node_add_if(struct orig_node *orig_node, int max_if_num)

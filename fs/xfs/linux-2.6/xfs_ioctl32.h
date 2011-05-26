@@ -184,6 +184,7 @@ typedef struct compat_xfs_flock64 {
 #define XFS_IOC_UNRESVSP_32	_IOW('X', 41, struct compat_xfs_flock64)
 #define XFS_IOC_RESVSP64_32	_IOW('X', 42, struct compat_xfs_flock64)
 #define XFS_IOC_UNRESVSP64_32	_IOW('X', 43, struct compat_xfs_flock64)
+#define XFS_IOC_ZERO_RANGE_32	_IOW('X', 57, struct compat_xfs_flock64)
 
 typedef struct compat_xfs_fsop_geom_v1 {
 	__u32		blocksize;	/* filesystem (data) block size */

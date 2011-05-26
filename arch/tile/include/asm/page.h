@@ -16,7 +16,8 @@
 #define _ASM_TILE_PAGE_H
 
 #include <linux/const.h>
-#include <hv/pagesize.h>
+#include <hv/hypervisor.h>
+#include <arch/chip.h>
 
 /* PAGE_SHIFT and HPAGE_SHIFT determine the page sizes. */
 #define PAGE_SHIFT	HV_LOG2_PAGE_SIZE_SMALL
@@ -28,8 +29,6 @@
 #define PAGE_MASK	(~(PAGE_SIZE - 1))
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 
-#ifdef __KERNEL__
-
 /*
  * If the Kconfig doesn't specify, set a maximum zone order that
  * is enough so that we can create huge pages from small pages given
@@ -38,9 +37,6 @@
 #ifndef CONFIG_FORCE_MAX_ZONEORDER
 #define CONFIG_FORCE_MAX_ZONEORDER (HPAGE_SHIFT - PAGE_SHIFT + 1)
 #endif
-
-#include <hv/hypervisor.h>
-#include <arch/chip.h>
 
 #ifndef __ASSEMBLY__
 
@@ -91,6 +87,10 @@ typedef struct page *pgtable_t;
 /* Must be a macro since it is used to create constants. */
 #define __pgprot(val) hv_pte(val)
 
+/* Rarely-used initializers, typically with a "zero" value. */
+#define __pte(x) hv_pte(x)
+#define __pgd(x) hv_pte(x)
+
 static inline u64 pgprot_val(pgprot_t pgprot)
 {
 	return hv_pte_val(pgprot);
@@ -109,6 +109,8 @@ static inline u64 pgd_val(pgd_t pgd)
 #ifdef __tilegx__
 
 typedef HV_PTE pmd_t;
+
+#define __pmd(x) hv_pte(x)
 
 static inline u64 pmd_val(pmd_t pmd)
 {
@@ -318,7 +320,7 @@ static inline int pfn_valid(unsigned long pfn)
 
 /* Provide as macros since these require some other headers included. */
 #define page_to_pa(page) ((phys_addr_t)(page_to_pfn(page)) << PAGE_SHIFT)
-#define virt_to_page(kaddr) pfn_to_page(kaddr_to_pfn(kaddr))
+#define virt_to_page(kaddr) pfn_to_page(kaddr_to_pfn((void *)(kaddr)))
 #define page_to_virt(page) pfn_to_kaddr(page_to_pfn(page))
 
 struct mm_struct;
@@ -330,7 +332,5 @@ extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 	(VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/memory_model.h>
-
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_TILE_PAGE_H */

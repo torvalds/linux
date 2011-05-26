@@ -537,7 +537,7 @@ config SERIAL_S3C6400
 
 config SERIAL_S5PV210
 	tristate "Samsung S5PV210 Serial port support"
-	depends on SERIAL_SAMSUNG && (CPU_S5PV210 || CPU_S5P6442 || CPU_EXYNOS4210)
+	depends on SERIAL_SAMSUNG && (CPU_S5PV210 || CPU_EXYNOS4210)
 	select SERIAL_SAMSUNG_UARTS_4 if (CPU_S5PV210 || CPU_EXYNOS4210)
 	default y
 	help
@@ -1585,7 +1585,7 @@ config SERIAL_IFX6X60
 	  Support for the IFX6x60 modem devices on Intel MID platforms.
 
 config SERIAL_PCH_UART
-	tristate "Intel EG20T PCH UART/OKI SEMICONDUCTOR ML7213 IOH"
+	tristate "Intel EG20T PCH / OKI SEMICONDUCTOR IOH(ML7213/ML7223) UART"
 	depends on PCI
 	select SERIAL_CORE
 	help
@@ -1593,10 +1593,12 @@ config SERIAL_PCH_UART
 	  which is an IOH(Input/Output Hub) for x86 embedded processor.
 	  Enabling PCH_DMA, this PCH UART works as DMA mode.
 
-	  This driver also can be used for OKI SEMICONDUCTOR ML7213 IOH(Input/
-	  Output Hub) which is for IVI(In-Vehicle Infotainment) use.
-	  ML7213 is companion chip for Intel Atom E6xx series.
-	  ML7213 is completely compatible for Intel EG20T PCH.
+	  This driver also can be used for OKI SEMICONDUCTOR IOH(Input/
+	  Output Hub), ML7213 and ML7223.
+	  ML7213 IOH is for IVI(In-Vehicle Infotainment) use and ML7223 IOH is
+	  for MP(Media Phone) use.
+	  ML7213/ML7223 is companion chip for Intel Atom E6xx series.
+	  ML7213/ML7223 is completely compatible for Intel EG20T PCH.
 
 config SERIAL_MSM_SMD
 	bool "Enable tty device interface for some SMD ports"
@@ -1619,5 +1621,18 @@ config SERIAL_MXS_AUART_CONSOLE
 	select SERIAL_CORE_CONSOLE
 	help
 	  Enable a MXS AUART port to be the system console.
+
+config SERIAL_XILINX_PS_UART
+	tristate "Xilinx PS UART support"
+	select SERIAL_CORE
+	help
+	  This driver supports the Xilinx PS UART port.
+
+config SERIAL_XILINX_PS_UART_CONSOLE
+	bool "Xilinx PS UART console support"
+	depends on SERIAL_XILINX_PS_UART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable a Xilinx PS UART port to be the system console.
 
 endmenu

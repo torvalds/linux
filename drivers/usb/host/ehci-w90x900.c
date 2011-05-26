@@ -57,7 +57,7 @@ static int __devinit usb_w90x900_probe(const struct hc_driver *driver,
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs;
 	ehci->regs = hcd->regs +
-		 HC_LENGTH(ehci_readl(ehci, &ehci->caps->hc_capbase));
+		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 
 	/* enable PHY 0,1,the regs only apply to w90p910
 	*  0xA4,0xA8 were offsets of PHY0 and PHY1 controller of

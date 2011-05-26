@@ -23,15 +23,12 @@
 
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 
-#include "AR6002/hw2.0/hw/mbox_host_reg.h"
-#include "AR6002/hw2.0/hw/apb_map.h"
-#include "AR6002/hw2.0/hw/si_reg.h"
-#include "AR6002/hw2.0/hw/gpio_reg.h"
-#include "AR6002/hw2.0/hw/rtc_reg.h"
-#include "AR6002/hw2.0/hw/vmc_reg.h"
-#include "AR6002/hw2.0/hw/mbox_reg.h"
+#include "hw/mbox_host_reg.h"
+#include "gpio_reg.h"
+#include "hw/rtc_reg.h"
+#include "hw/mbox_reg.h"
+#include "hw/apb_map.h"
 
 #include "a_osapi.h"
 #include "targaddrs.h"
@@ -682,119 +679,6 @@ int ar6000_set_htc_params(struct hif_device *hifDevice,
 
     return status;
 }
-
-
-static int prepare_ar6002(struct hif_device *hifDevice, u32 TargetVersion)
-{
-    int status = 0;
-
-    /* placeholder */
-
-    return status;
-}
-
-static int prepare_ar6003(struct hif_device *hifDevice, u32 TargetVersion)
-{
-    int status = 0;
-
-    /* placeholder */
-
-    return status;
-}
-
-/* this function assumes the caller has already initialized the BMI APIs */
-int ar6000_prepare_target(struct hif_device *hifDevice,
-                               u32 TargetType,
-                               u32 TargetVersion)
-{
-    if (TargetType == TARGET_TYPE_AR6002) {
-            /* do any preparations for AR6002 devices */
-        return prepare_ar6002(hifDevice,TargetVersion);
-    } else if (TargetType == TARGET_TYPE_AR6003) {
-        return prepare_ar6003(hifDevice,TargetVersion);
-    }
-
-    return 0;
-}
-
-#if defined(CONFIG_AR6002_REV1_FORCE_HOST)
-/*
- * Call this function just before the call to BMIInit
- * in order to force* AR6002 rev 1.x firmware to detect a Host.
- * THIS IS FOR USE ONLY WITH AR6002 REV 1.x.
- * TBDXXX: Remove this function when REV 1.x is desupported.
- */
-int
-ar6002_REV1_reset_force_host (struct hif_device *hifDevice)
-{
-    s32 i;
-    struct forceROM_s {
-        u32 addr;
-        u32 data;
-    };
-    struct forceROM_s *ForceROM;
-    s32 szForceROM;
-    int status = 0;
-    u32 address;
-    u32 data;
-
-    /* Force AR6002 REV1.x to recognize Host presence.
-     *
-     * Note: Use RAM at 0x52df80..0x52dfa0 with ROM Remap entry 0
-     * so that this workaround functions with AR6002.war1.sh.  We
-     * could fold that entire workaround into this one, but it's not
-     * worth the effort at this point.  This workaround cannot be
-     * merged into the other workaround because this must be done
-     * before BMI.
-     */
-
-    static struct forceROM_s ForceROM_NEW[] = {
-        {0x52df80, 0x20f31c07},
-        {0x52df84, 0x92374420},
-        {0x52df88, 0x1d120c03},
-        {0x52df8c, 0xff8216f0},
-        {0x52df90, 0xf01d120c},
-        {0x52df94, 0x81004136},
-        {0x52df98, 0xbc9100bd},
-        {0x52df9c, 0x00bba100},
-
-        {0x00008000|MC_TCAM_TARGET_ADDRESS, 0x0012dfe0}, /* Use remap entry 0 */
-        {0x00008000|MC_TCAM_COMPARE_ADDRESS, 0x000e2380},
-        {0x00008000|MC_TCAM_MASK_ADDRESS, 0x00000000},
-        {0x00008000|MC_TCAM_VALID_ADDRESS, 0x00000001},
-
-        {0x00018000|(LOCAL_COUNT_ADDRESS+0x10), 0}, /* clear BMI credit counter */
-
-        {0x00004000|AR6002_RESET_CONTROL_ADDRESS, RESET_CONTROL_WARM_RST_MASK},
-    };
-
-    address = 0x004ed4b0; /* REV1 target software ID is stored here */
-    status = ar6000_ReadRegDiag(hifDevice, &address, &data);
-    if (status || (data != AR6002_VERSION_REV1)) {
-        return A_ERROR; /* Not AR6002 REV1 */
-    }
-
-    ForceROM = ForceROM_NEW;
-    szForceROM = sizeof(ForceROM_NEW)/sizeof(*ForceROM);
-
-    ATH_DEBUG_PRINTF (DBG_MISC_DRV, ATH_DEBUG_TRC, ("Force Target to recognize Host....\n"));
-    for (i = 0; i < szForceROM; i++)
-    {
-        if (ar6000_WriteRegDiag(hifDevice,
-                                &ForceROM[i].addr,
-                                &ForceROM[i].data) != 0)
-        {
-            ATH_DEBUG_PRINTF (DBG_MISC_DRV, ATH_DEBUG_TRC, ("Cannot force Target to recognize Host!\n"));
-            return A_ERROR;
-        }
-    }
-
-    A_MDELAY(1000);
-
-    return 0;
-}
-
-#endif /* CONFIG_AR6002_REV1_FORCE_HOST */
 
 void DebugDumpBytes(u8 *buffer, u16 length, char *pDescription)
 {

@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2011 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -496,8 +496,8 @@ do_read:
 			offset = 0;
 		}
 
-		rval = qla2x00_read_sfp(vha, ha->sfp_data_dma, addr, offset,
-		    SFP_BLOCK_SIZE);
+		rval = qla2x00_read_sfp(vha, ha->sfp_data_dma, ha->sfp_data,
+		    addr, offset, SFP_BLOCK_SIZE, 0);
 		if (rval != QLA_SUCCESS) {
 			qla_printk(KERN_WARNING, ha,
 			    "Unable to read SFP data (%x/%x/%x).\n", rval,
@@ -628,12 +628,12 @@ qla2x00_sysfs_write_edc(struct file *filp, struct kobject *kobj,
 
 	memcpy(ha->edc_data, &buf[8], len);
 
-	rval = qla2x00_write_edc(vha, dev, adr, ha->edc_data_dma,
-	    ha->edc_data, len, opt);
+	rval = qla2x00_write_sfp(vha, ha->edc_data_dma, ha->edc_data,
+	    dev, adr, len, opt);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "Unable to write EDC (%x) %02x:%02x:%04x:%02x:%02x.\n",
-		    rval, dev, adr, opt, len, *buf));
+		    rval, dev, adr, opt, len, buf[8]));
 		return 0;
 	}
 
@@ -685,8 +685,8 @@ qla2x00_sysfs_write_edc_status(struct file *filp, struct kobject *kobj,
 			return -EINVAL;
 
 	memset(ha->edc_data, 0, len);
-	rval = qla2x00_read_edc(vha, dev, adr, ha->edc_data_dma,
-	    ha->edc_data, len, opt);
+	rval = qla2x00_read_sfp(vha, ha->edc_data_dma, ha->edc_data,
+			dev, adr, len, opt);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "Unable to write EDC status (%x) %02x:%02x:%04x:%02x.\n",
@@ -1568,7 +1568,7 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 	/* Now that the rport has been deleted, set the fcport state to
 	   FCS_DEVICE_DEAD */
-	atomic_set(&fcport->state, FCS_DEVICE_DEAD);
+	qla2x00_set_fcport_state(fcport, FCS_DEVICE_DEAD);
 
 	/*
 	 * Transport has effectively 'deleted' the rport, clear
@@ -1877,13 +1877,14 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 
 	scsi_remove_host(vha->host);
 
+	/* Allow timer to run to drain queued items, when removing vp */
+	qla24xx_deallocate_vp_id(vha);
+
 	if (vha->timer_active) {
 		qla2x00_vp_stop_timer(vha);
 		DEBUG15(printk(KERN_INFO "scsi(%ld): timer for the vport[%d]"
 		" = %p has stopped\n", vha->host_no, vha->vp_idx, vha));
 	}
-
-	qla24xx_deallocate_vp_id(vha);
 
 	/* No pending activities shall be there on the vha now */
 	DEBUG(msleep(random32()%10));  /* Just to see if something falls on

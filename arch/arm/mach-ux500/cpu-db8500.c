@@ -87,6 +87,8 @@ void __init u8500_map_io(void)
 		iotable_init(u8500_v1_io_desc, ARRAY_SIZE(u8500_v1_io_desc));
 	else if (cpu_is_u8500v2())
 		iotable_init(u8500_v2_io_desc, ARRAY_SIZE(u8500_v2_io_desc));
+
+	_PRCMU_BASE = __io_address(U8500_PRCMU_BASE);
 }
 
 static struct resource db8500_pmu_resources[] = {
@@ -129,9 +131,14 @@ static struct platform_device db8500_pmu_device = {
 	.dev.platform_data	= &db8500_pmu_platdata,
 };
 
+static struct platform_device db8500_prcmu_device = {
+	.name			= "db8500-prcmu",
+};
+
 static struct platform_device *platform_devs[] __initdata = {
 	&u8500_dma40_device,
 	&db8500_pmu_device,
+	&db8500_prcmu_device,
 };
 
 static resource_size_t __initdata db8500_gpio_base[] = {

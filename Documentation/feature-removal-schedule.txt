@@ -35,17 +35,6 @@ Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
 
 ---------------------------
 
-What:	AR9170USB
-When:	2.6.40
-
-Why:	This driver is deprecated and the firmware is no longer
-	maintained. The replacement driver "carl9170" has been
-	around for a while, so the devices are still supported.
-
-Who:	Christian Lamparter <chunkeey@googlemail.com>
-
----------------------------
-
 What:	IRQF_SAMPLE_RANDOM
 Check:	IRQF_SAMPLE_RANDOM
 When:	July 2009
@@ -226,7 +215,7 @@ Who:	Zhang Rui <rui.zhang@intel.com>
 What:	CONFIG_ACPI_PROCFS_POWER
 When:	2.6.39
 Why:	sysfs I/F for ACPI power devices, including AC and Battery,
-        has been working in upstream kenrel since 2.6.24, Sep 2007.
+        has been working in upstream kernel since 2.6.24, Sep 2007.
 	In 2.6.37, we make the sysfs I/F always built in and this option
 	disabled by default.
 	Remove this option and the ACPI power procfs interface in 2.6.39.
@@ -405,16 +394,6 @@ Who: 	anybody or Florian Mickler <florian@mickler.org>
 
 ----------------------------
 
-What:	capifs
-When:	February 2011
-Files:	drivers/isdn/capi/capifs.*
-Why:	udev fully replaces this special file system that only contains CAPI
-	NCCI TTY device nodes. User space (pppdcapiplugin) works without
-	noticing the difference.
-Who:	Jan Kiszka <jan.kiszka@web.de>
-
-----------------------------
-
 What:	KVM paravirt mmu host support
 When:	January 2011
 Why:	The paravirt mmu host support is slower than non-paravirt mmu, both
@@ -570,5 +549,28 @@ When:	September 2011
 Why:	These legacy callbacks should no longer be used as i2c-core offers
 	a variety of preferable alternative ways to instantiate I2C devices.
 Who:	Jean Delvare <khali@linux-fr.org>
+
+----------------------------
+
+What:	Support for UVCIOC_CTRL_ADD in the uvcvideo driver
+When:	2.6.42
+Why:	The information passed to the driver by this ioctl is now queried
+	dynamically from the device.
+Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+----------------------------
+
+What:	Support for UVCIOC_CTRL_MAP_OLD in the uvcvideo driver
+When:	2.6.42
+Why:	Used only by applications compiled against older driver versions.
+	Superseded by UVCIOC_CTRL_MAP which supports V4L2 menu controls.
+Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+----------------------------
+
+What:	Support for UVCIOC_CTRL_GET and UVCIOC_CTRL_SET in the uvcvideo driver
+When:	2.6.42
+Why:	Superseded by the UVCIOC_CTRL_QUERY ioctl.
+Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
 ----------------------------

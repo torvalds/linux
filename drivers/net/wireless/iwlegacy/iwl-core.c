@@ -211,10 +211,7 @@ int iwl_legacy_init_geos(struct iwl_priv *priv)
 		if (!iwl_legacy_is_channel_valid(ch))
 			continue;
 
-		if (iwl_legacy_is_channel_a_band(ch))
-			sband =  &priv->bands[IEEE80211_BAND_5GHZ];
-		else
-			sband =  &priv->bands[IEEE80211_BAND_2GHZ];
+		sband = &priv->bands[ch->band];
 
 		geo_ch = &sband->channels[sband->n_channels++];
 
@@ -2117,10 +2114,9 @@ int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed)
 	IWL_DEBUG_MAC80211(priv, "enter to channel %d changed 0x%X\n",
 					channel->hw_value, changed);
 
-	if (unlikely(!priv->cfg->mod_params->disable_hw_scan &&
-			test_bit(STATUS_SCANNING, &priv->status))) {
+	if (unlikely(test_bit(STATUS_SCANNING, &priv->status))) {
 		scan_active = 1;
-		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
+		IWL_DEBUG_MAC80211(priv, "scan active\n");
 	}
 
 	if (changed & (IEEE80211_CONF_CHANGE_SMPS |
@@ -2440,10 +2436,12 @@ void iwl_legacy_mac_bss_info_changed(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_MAC80211(priv, "changes = 0x%X\n", changes);
 
-	if (!iwl_legacy_is_alive(priv))
-		return;
-
 	mutex_lock(&priv->mutex);
+
+	if (!iwl_legacy_is_alive(priv)) {
+		mutex_unlock(&priv->mutex);
+		return;
+	}
 
 	if (changes & BSS_CHANGED_QOS) {
 		unsigned long flags;
@@ -2653,7 +2651,7 @@ unplugged:
 
 none:
 	/* re-enable interrupts here since we don't have anything to service. */
-	/* only Re-enable if diabled by irq */
+	/* only Re-enable if disabled by irq */
 	if (test_bit(STATUS_INT_ENABLED, &priv->status))
 		iwl_legacy_enable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);

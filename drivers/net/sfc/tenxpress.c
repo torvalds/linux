@@ -460,7 +460,7 @@ tenxpress_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	/* In loopback, the PHY automatically brings up the correct interface,
 	 * but doesn't advertise the correct speed. So override it */
 	if (LOOPBACK_EXTERNAL(efx))
-		ecmd->speed = SPEED_10000;
+		ethtool_cmd_speed_set(ecmd, SPEED_10000);
 }
 
 static int tenxpress_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
@@ -478,7 +478,7 @@ static void sfx7101_set_npage_adv(struct efx_nic *efx, u32 advertising)
 			  advertising & ADVERTISED_10000baseT_Full);
 }
 
-struct efx_phy_operations falcon_sfx7101_phy_ops = {
+const struct efx_phy_operations falcon_sfx7101_phy_ops = {
 	.probe		  = tenxpress_phy_probe,
 	.init             = tenxpress_phy_init,
 	.reconfigure      = tenxpress_phy_reconfigure,

@@ -116,7 +116,7 @@ static int __init mmapper_init(void)
 	if (err) {
 		printk(KERN_ERR "mmapper - misc_register failed, err = %d\n",
 		       err);
-		return err;;
+		return err;
 	}
 	return 0;
 }

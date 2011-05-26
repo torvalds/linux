@@ -574,6 +574,12 @@ The contents of each smp_affinity file is the same by default:
   > cat /proc/irq/0/smp_affinity
   ffffffff
 
+There is an alternate interface, smp_affinity_list which allows specifying
+a cpu range instead of a bitmask:
+
+  > cat /proc/irq/0/smp_affinity_list
+  1024-1031
+
 The default_smp_affinity mask applies to all non-active IRQs, which are the
 IRQs which have not yet been allocated/activated, and hence which lack a
 /proc/irq/[0-9]* directory.
@@ -583,12 +589,13 @@ reports itself as being attached. This hardware locality information does not
 include information about any possible driver locality preference.
 
 prof_cpu_mask specifies which CPUs are to be profiled by the system wide
-profiler. Default value is ffffffff (all cpus).
+profiler. Default value is ffffffff (all cpus if there are only 32 of them).
 
 The way IRQs are routed is handled by the IO-APIC, and it's Round Robin
 between all the CPUs which are allowed to handle it. As usual the kernel has
 more info than you and does a better job than you, so the defaults are the
-best choice for almost everyone.
+best choice for almost everyone.  [Note this applies only to those IO-APIC's
+that support "Round Robin" interrupt distribution.]
 
 There are  three  more  important subdirectories in /proc: net, scsi, and sys.
 The general  rule  is  that  the  contents,  or  even  the  existence of these

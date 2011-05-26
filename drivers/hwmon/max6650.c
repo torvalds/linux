@@ -41,13 +41,6 @@
 #include <linux/err.h>
 
 /*
- * Addresses to scan. There are four disjoint possibilities, by pin config.
- */
-
-static const unsigned short normal_i2c[] = {0x1b, 0x1f, 0x48, 0x4b,
-						I2C_CLIENT_END};
-
-/*
  * Insmod parameters
  */
 
@@ -114,8 +107,6 @@ module_param(clock, int, S_IRUGO);
 
 static int max6650_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int max6650_detect(struct i2c_client *client,
-			  struct i2c_board_info *info);
 static int max6650_init_client(struct i2c_client *client);
 static int max6650_remove(struct i2c_client *client);
 static struct max6650_data *max6650_update_device(struct device *dev);
@@ -125,21 +116,19 @@ static struct max6650_data *max6650_update_device(struct device *dev);
  */
 
 static const struct i2c_device_id max6650_id[] = {
-	{ "max6650", 0 },
+	{ "max6650", 1 },
+	{ "max6651", 4 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max6650_id);
 
 static struct i2c_driver max6650_driver = {
-	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "max6650",
 	},
 	.probe		= max6650_probe,
 	.remove		= max6650_remove,
 	.id_table	= max6650_id,
-	.detect		= max6650_detect,
-	.address_list	= normal_i2c,
 };
 
 /*
@@ -150,6 +139,7 @@ struct max6650_data
 {
 	struct device *hwmon_dev;
 	struct mutex update_lock;
+	int nr_fans;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
@@ -501,9 +491,6 @@ static mode_t max6650_attrs_visible(struct kobject *kobj, struct attribute *a,
 
 static struct attribute *max6650_attrs[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
-	&sensor_dev_attr_fan2_input.dev_attr.attr,
-	&sensor_dev_attr_fan3_input.dev_attr.attr,
-	&sensor_dev_attr_fan4_input.dev_attr.attr,
 	&dev_attr_fan1_target.attr,
 	&dev_attr_fan1_div.attr,
 	&dev_attr_pwm1_enable.attr,
@@ -521,41 +508,20 @@ static struct attribute_group max6650_attr_grp = {
 	.is_visible = max6650_attrs_visible,
 };
 
+static struct attribute *max6651_attrs[] = {
+	&sensor_dev_attr_fan2_input.dev_attr.attr,
+	&sensor_dev_attr_fan3_input.dev_attr.attr,
+	&sensor_dev_attr_fan4_input.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group max6651_attr_grp = {
+	.attrs = max6651_attrs,
+};
+
 /*
  * Real code
  */
-
-/* Return 0 if detection is successful, -ENODEV otherwise */
-static int max6650_detect(struct i2c_client *client,
-			  struct i2c_board_info *info)
-{
-	struct i2c_adapter *adapter = client->adapter;
-	int address = client->addr;
-
-	dev_dbg(&adapter->dev, "max6650_detect called\n");
-
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_dbg(&adapter->dev, "max6650: I2C bus doesn't support "
-					"byte read mode, skipping.\n");
-		return -ENODEV;
-	}
-
-	if (((i2c_smbus_read_byte_data(client, MAX6650_REG_CONFIG) & 0xC0)
-	    ||(i2c_smbus_read_byte_data(client, MAX6650_REG_GPIO_STAT) & 0xE0)
-	    ||(i2c_smbus_read_byte_data(client, MAX6650_REG_ALARM_EN) & 0xE0)
-	    ||(i2c_smbus_read_byte_data(client, MAX6650_REG_ALARM) & 0xE0)
-	    ||(i2c_smbus_read_byte_data(client, MAX6650_REG_COUNT) & 0xFC))) {
-		dev_dbg(&adapter->dev,
-			"max6650: detection failed at 0x%02x.\n", address);
-		return -ENODEV;
-	}
-
-	dev_info(&adapter->dev, "max6650: chip found at 0x%02x.\n", address);
-
-	strlcpy(info->type, "max6650", I2C_NAME_SIZE);
-
-	return 0;
-}
 
 static int max6650_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -570,6 +536,7 @@ static int max6650_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
+	data->nr_fans = id->driver_data;
 
 	/*
 	 * Initialize the max6650 chip
@@ -581,6 +548,12 @@ static int max6650_probe(struct i2c_client *client,
 	err = sysfs_create_group(&client->dev.kobj, &max6650_attr_grp);
 	if (err)
 		goto err_free;
+	/* 3 additional fan inputs for the MAX6651 */
+	if (data->nr_fans == 4) {
+		err = sysfs_create_group(&client->dev.kobj, &max6651_attr_grp);
+		if (err)
+			goto err_remove;
+	}
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (!IS_ERR(data->hwmon_dev))
@@ -588,6 +561,9 @@ static int max6650_probe(struct i2c_client *client,
 
 	err = PTR_ERR(data->hwmon_dev);
 	dev_err(&client->dev, "error registering hwmon device.\n");
+	if (data->nr_fans == 4)
+		sysfs_remove_group(&client->dev.kobj, &max6651_attr_grp);
+err_remove:
 	sysfs_remove_group(&client->dev.kobj, &max6650_attr_grp);
 err_free:
 	kfree(data);
@@ -598,8 +574,10 @@ static int max6650_remove(struct i2c_client *client)
 {
 	struct max6650_data *data = i2c_get_clientdata(client);
 
-	sysfs_remove_group(&client->dev.kobj, &max6650_attr_grp);
 	hwmon_device_unregister(data->hwmon_dev);
+	if (data->nr_fans == 4)
+		sysfs_remove_group(&client->dev.kobj, &max6651_attr_grp);
+	sysfs_remove_group(&client->dev.kobj, &max6650_attr_grp);
 	kfree(data);
 	return 0;
 }
@@ -712,7 +690,7 @@ static struct max6650_data *max6650_update_device(struct device *dev)
 						       MAX6650_REG_SPEED);
 		data->config = i2c_smbus_read_byte_data(client,
 							MAX6650_REG_CONFIG);
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < data->nr_fans; i++) {
 			data->tach[i] = i2c_smbus_read_byte_data(client,
 								 tach_reg[i]);
 		}

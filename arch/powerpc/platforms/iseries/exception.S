@@ -31,6 +31,7 @@
 #include <asm/thread_info.h>
 #include <asm/ptrace.h>
 #include <asm/cputable.h>
+#include <asm/mmu.h>
 
 #include "exception.h"
 
@@ -60,29 +61,31 @@ system_reset_iSeries:
 /* Spin on __secondary_hold_spinloop until it is updated by the boot cpu. */
 /* In the UP case we'll yield() later, and we will not access the paca anyway */
 #ifdef CONFIG_SMP
-1:
+iSeries_secondary_wait_paca:
 	HMT_LOW
 	LOAD_REG_ADDR(r23, __secondary_hold_spinloop)
 	ld	r23,0(r23)
-	sync
-	LOAD_REG_ADDR(r3,current_set)
-	sldi	r28,r24,3		/* get current_set[cpu#] */
-	ldx	r3,r3,r28
-	addi	r1,r3,THREAD_SIZE
-	subi	r1,r1,STACK_FRAME_OVERHEAD
 
-	cmpwi	0,r23,0			/* Keep poking the Hypervisor until */
-	bne	2f			/* we're released */
-	/* Let the Hypervisor know we are alive */
+	cmpdi	0,r23,0
+	bne	2f			/* go on when the master is ready */
+
+	/* Keep poking the Hypervisor until we're released */
 	/* 8002 is a call to HvCallCfg::getLps, a harmless Hypervisor function */
 	lis	r3,0x8002
 	rldicr	r3,r3,32,15		/* r0 = (r3 << 32) & 0xffff000000000000 */
 	li	r0,-1			/* r0=-1 indicates a Hypervisor call */
 	sc				/* Invoke the hypervisor via a system call */
-	b	1b
-#endif
+	b	iSeries_secondary_wait_paca
 
 2:
+	HMT_MEDIUM
+	sync
+
+	LOAD_REG_ADDR(r3, nr_cpu_ids)	/* get number of pacas allocated */
+	lwz	r3,0(r3)		/* nr_cpus= or NR_CPUS can limit */
+	cmpld	0,r24,r3		/* is our cpu number allocated? */
+	bge	iSeries_secondary_yield	/* no, yield forever */
+
 	/* Load our paca now that it's been allocated */
 	LOAD_REG_ADDR(r13, paca)
 	ld	r13,0(r13)
@@ -93,10 +96,24 @@ system_reset_iSeries:
 	ori	r23,r23,MSR_RI
 	mtmsrd	r23			/* RI on */
 
-	HMT_LOW
-#ifdef CONFIG_SMP
+iSeries_secondary_smp_loop:
 	lbz	r23,PACAPROCSTART(r13)	/* Test if this processor
 					 * should start */
+	cmpwi	0,r23,0
+	bne	3f			/* go on when we are told */
+
+	HMT_LOW
+	/* Let the Hypervisor know we are alive */
+	/* 8002 is a call to HvCallCfg::getLps, a harmless Hypervisor function */
+	lis	r3,0x8002
+	rldicr	r3,r3,32,15		/* r0 = (r3 << 32) & 0xffff000000000000 */
+	li	r0,-1			/* r0=-1 indicates a Hypervisor call */
+	sc				/* Invoke the hypervisor via a system call */
+	mfspr	r13,SPRN_SPRG_PACA	/* Put r13 back ???? */
+	b	iSeries_secondary_smp_loop /* wait for signal to start */
+
+3:
+	HMT_MEDIUM
 	sync
 	LOAD_REG_ADDR(r3,current_set)
 	sldi	r28,r24,3		/* get current_set[cpu#] */
@@ -104,27 +121,22 @@ system_reset_iSeries:
 	addi	r1,r3,THREAD_SIZE
 	subi	r1,r1,STACK_FRAME_OVERHEAD
 
-	cmpwi	0,r23,0
-	beq	iSeries_secondary_smp_loop	/* Loop until told to go */
 	b	__secondary_start		/* Loop until told to go */
-iSeries_secondary_smp_loop:
-	/* Let the Hypervisor know we are alive */
-	/* 8002 is a call to HvCallCfg::getLps, a harmless Hypervisor function */
-	lis	r3,0x8002
-	rldicr	r3,r3,32,15		/* r0 = (r3 << 32) & 0xffff000000000000 */
-#else /* CONFIG_SMP */
+#endif /* CONFIG_SMP */
+
+iSeries_secondary_yield:
 	/* Yield the processor.  This is required for non-SMP kernels
 		which are running on multi-threaded machines. */
+	HMT_LOW
 	lis	r3,0x8000
 	rldicr	r3,r3,32,15		/* r3 = (r3 << 32) & 0xffff000000000000 */
 	addi	r3,r3,18		/* r3 = 0x8000000000000012 which is "yield" */
 	li	r4,0			/* "yield timed" */
 	li	r5,-1			/* "yield forever" */
-#endif /* CONFIG_SMP */
 	li	r0,-1			/* r0=-1 indicates a Hypervisor call */
 	sc				/* Invoke the hypervisor via a system call */
 	mfspr	r13,SPRN_SPRG_PACA	/* Put r13 back ???? */
-	b	2b			/* If SMP not configured, secondaries
+	b	iSeries_secondary_yield	/* If SMP not configured, secondaries
 					 * loop forever */
 
 /***  ISeries-LPAR interrupt handlers ***/
@@ -157,7 +169,7 @@ BEGIN_FTR_SECTION
 FTR_SECTION_ELSE
 	EXCEPTION_PROLOG_1(PACA_EXGEN)
 	EXCEPTION_PROLOG_ISERIES_1
-ALT_FTR_SECTION_END_IFCLR(CPU_FTR_SLB)
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_SLB)
 	b	data_access_common
 
 .do_stab_bolted_iSeries:

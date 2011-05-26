@@ -521,12 +521,10 @@ static inline struct ipic * ipic_from_irq(unsigned int virq)
 	return primary_ipic;
 }
 
-#define ipic_irq_to_hw(virq)	((unsigned int)irq_map[virq].hwirq)
-
 static void ipic_unmask_irq(struct irq_data *d)
 {
 	struct ipic *ipic = ipic_from_irq(d->irq);
-	unsigned int src = ipic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 temp;
 
@@ -542,7 +540,7 @@ static void ipic_unmask_irq(struct irq_data *d)
 static void ipic_mask_irq(struct irq_data *d)
 {
 	struct ipic *ipic = ipic_from_irq(d->irq);
-	unsigned int src = ipic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 temp;
 
@@ -562,7 +560,7 @@ static void ipic_mask_irq(struct irq_data *d)
 static void ipic_ack_irq(struct irq_data *d)
 {
 	struct ipic *ipic = ipic_from_irq(d->irq);
-	unsigned int src = ipic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 temp;
 
@@ -581,7 +579,7 @@ static void ipic_ack_irq(struct irq_data *d)
 static void ipic_mask_irq_and_ack(struct irq_data *d)
 {
 	struct ipic *ipic = ipic_from_irq(d->irq);
-	unsigned int src = ipic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 temp;
 
@@ -604,7 +602,7 @@ static void ipic_mask_irq_and_ack(struct irq_data *d)
 static int ipic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
 	struct ipic *ipic = ipic_from_irq(d->irq);
-	unsigned int src = ipic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned int vold, vnew, edibit;
 
 	if (flow_type == IRQ_TYPE_NONE)
@@ -793,7 +791,7 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 int ipic_set_priority(unsigned int virq, unsigned int priority)
 {
 	struct ipic *ipic = ipic_from_irq(virq);
-	unsigned int src = ipic_irq_to_hw(virq);
+	unsigned int src = virq_to_hw(virq);
 	u32 temp;
 
 	if (priority > 7)
@@ -821,7 +819,7 @@ int ipic_set_priority(unsigned int virq, unsigned int priority)
 void ipic_set_highest_priority(unsigned int virq)
 {
 	struct ipic *ipic = ipic_from_irq(virq);
-	unsigned int src = ipic_irq_to_hw(virq);
+	unsigned int src = virq_to_hw(virq);
 	u32 temp;
 
 	temp = ipic_read(ipic->regs, IPIC_SICFR);

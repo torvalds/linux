@@ -340,4 +340,21 @@ static inline void ubifs_release_lprops(struct ubifs_info *c)
 	mutex_unlock(&c->lp_mutex);
 }
 
+/**
+ * ubifs_next_log_lnum - switch to the next log LEB.
+ * @c: UBIFS file-system description object
+ * @lnum: current log LEB
+ *
+ * This helper function returns the log LEB number which goes next after LEB
+ * 'lnum'.
+ */
+static inline int ubifs_next_log_lnum(const struct ubifs_info *c, int lnum)
+{
+	lnum += 1;
+	if (lnum > c->log_last)
+		lnum = UBIFS_LOG_LNUM;
+
+	return lnum;
+}
+
 #endif /* __UBIFS_MISC_H__ */

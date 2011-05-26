@@ -41,23 +41,6 @@ __xfs_printk(
 	printk("%sXFS: %pV\n", level, vaf);
 }
 
-void xfs_printk(
-	const char		*level,
-	const struct xfs_mount	*mp,
-	const char		*fmt, ...)
-{
-	struct va_format	vaf;
-	va_list			args;
-
-	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	__xfs_printk(level, mp, &vaf);
-	va_end(args);
-}
-
 #define define_xfs_printk_level(func, kern_level)		\
 void func(const struct xfs_mount *mp, const char *fmt, ...)	\
 {								\
@@ -95,8 +78,7 @@ xfs_alert_tag(
 	int			do_panic = 0;
 
 	if (xfs_panic_mask && (xfs_panic_mask & panic_tag)) {
-		xfs_printk(KERN_ALERT, mp,
-			"XFS: Transforming an alert into a BUG.");
+		xfs_alert(mp, "Transforming an alert into a BUG.");
 		do_panic = 1;
 	}
 

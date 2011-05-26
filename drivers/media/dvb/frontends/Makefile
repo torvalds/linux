@@ -8,6 +8,8 @@ EXTRA_CFLAGS += -Idrivers/media/common/tuners/
 stb0899-objs = stb0899_drv.o stb0899_algo.o
 stv0900-objs = stv0900_core.o stv0900_sw.o
 au8522-objs = au8522_dig.o au8522_decoder.o
+drxd-objs = drxd_firm.o drxd_hard.o
+cxd2820r-objs = cxd2820r_core.o cxd2820r_c.o cxd2820r_t.o cxd2820r_t2.o
 
 obj-$(CONFIG_DVB_PLL) += dvb-pll.o
 obj-$(CONFIG_DVB_STV0299) += stv0299.o
@@ -36,7 +38,7 @@ obj-$(CONFIG_DVB_ZL10036) += zl10036.o
 obj-$(CONFIG_DVB_ZL10039) += zl10039.o
 obj-$(CONFIG_DVB_ZL10353) += zl10353.o
 obj-$(CONFIG_DVB_CX22702) += cx22702.o
-obj-$(CONFIG_DVB_DRX397XD) += drx397xD.o
+obj-$(CONFIG_DVB_DRXD) += drxd.o
 obj-$(CONFIG_DVB_TDA10021) += tda10021.o
 obj-$(CONFIG_DVB_TDA10023) += tda10023.o
 obj-$(CONFIG_DVB_STV0297) += stv0297.o
@@ -85,3 +87,5 @@ obj-$(CONFIG_DVB_MB86A16) += mb86a16.o
 obj-$(CONFIG_DVB_MB86A20S) += mb86a20s.o
 obj-$(CONFIG_DVB_IX2505V) += ix2505v.o
 obj-$(CONFIG_DVB_STV0367) += stv0367.o
+obj-$(CONFIG_DVB_CXD2820R) += cxd2820r.o
+

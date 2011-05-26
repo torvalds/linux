@@ -1658,11 +1658,9 @@ static int tile_net_stop(struct net_device *dev)
 	while (tile_net_lepp_free_comps(dev, true))
 		/* loop */;
 
-	/* Wipe the EPP queue. */
+	/* Wipe the EPP queue, and wait till the stores hit the EPP. */
 	memset(priv->eq, 0, sizeof(lepp_queue_t));
-
-	/* Evict the EPP queue. */
-	finv_buffer(priv->eq, EQ_SIZE);
+	mb();
 
 	return 0;
 }
@@ -1930,7 +1928,7 @@ static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 	unsigned int len = skb->len;
 	unsigned char *data = skb->data;
 
-	unsigned int csum_start = skb->csum_start - skb_headroom(skb);
+	unsigned int csum_start = skb_checksum_start_offset(skb);
 
 	lepp_frag_t frags[LEPP_MAX_FRAGS];
 
@@ -2398,7 +2396,7 @@ static void tile_net_cleanup(void)
 			struct net_device *dev = tile_net_devs[i];
 			struct tile_net_priv *priv = netdev_priv(dev);
 			unregister_netdev(dev);
-			finv_buffer(priv->eq, EQ_SIZE);
+			finv_buffer_remote(priv->eq, EQ_SIZE, 0);
 			__free_pages(priv->eq_pages, EQ_ORDER);
 			free_netdev(dev);
 		}

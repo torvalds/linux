@@ -545,7 +545,7 @@ static void txc43128_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	mdio45_ethtool_gset(&efx->mdio, ecmd);
 }
 
-struct efx_phy_operations falcon_txc_phy_ops = {
+const struct efx_phy_operations falcon_txc_phy_ops = {
 	.probe		= txc43128_phy_probe,
 	.init		= txc43128_phy_init,
 	.reconfigure	= txc43128_phy_reconfigure,

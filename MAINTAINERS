@@ -287,35 +287,35 @@ F:	sound/pci/ad1889.*
 
 AD525X ANALOG DEVICES DIGITAL POTENTIOMETERS DRIVER
 M:	Michael Hennerich <michael.hennerich@analog.com>
-L:	device-driver-devel@blackfin.uclinux.org
+L:	device-drivers-devel@blackfin.uclinux.org
 W:	http://wiki.analog.com/AD5254
 S:	Supported
 F:	drivers/misc/ad525x_dpot.c
 
 AD5398 CURRENT REGULATOR DRIVER (AD5398/AD5821)
 M:	Michael Hennerich <michael.hennerich@analog.com>
-L:	device-driver-devel@blackfin.uclinux.org
+L:	device-drivers-devel@blackfin.uclinux.org
 W:	http://wiki.analog.com/AD5398
 S:	Supported
 F:	drivers/regulator/ad5398.c
 
 AD714X CAPACITANCE TOUCH SENSOR DRIVER (AD7142/3/7/8/7A)
 M:	Michael Hennerich <michael.hennerich@analog.com>
-L:	device-driver-devel@blackfin.uclinux.org
+L:	device-drivers-devel@blackfin.uclinux.org
 W:	http://wiki.analog.com/AD7142
 S:	Supported
 F:	drivers/input/misc/ad714x.c
 
 AD7877 TOUCHSCREEN DRIVER
 M:	Michael Hennerich <michael.hennerich@analog.com>
-L:	device-driver-devel@blackfin.uclinux.org
+L:	device-drivers-devel@blackfin.uclinux.org
 W:	http://wiki.analog.com/AD7877
 S:	Supported
 F:	drivers/input/touchscreen/ad7877.c
 
 AD7879 TOUCHSCREEN DRIVER (AD7879/AD7889)
 M:	Michael Hennerich <michael.hennerich@analog.com>
-L:	device-driver-devel@blackfin.uclinux.org
+L:	device-drivers-devel@blackfin.uclinux.org
 W:	http://wiki.analog.com/AD7879
 S:	Supported
 F:	drivers/input/touchscreen/ad7879.c
@@ -341,7 +341,7 @@ F:	drivers/net/wireless/adm8211.*
 
 ADP5520 BACKLIGHT DRIVER WITH IO EXPANDER (ADP5520/ADP5501)
 M:	Michael Hennerich <michael.hennerich@analog.com>
-L:	device-driver-devel@blackfin.uclinux.org
+L:	device-drivers-devel@blackfin.uclinux.org
 W:	http://wiki.analog.com/ADP5520
 S:	Supported
 F:	drivers/mfd/adp5520.c
@@ -352,7 +352,7 @@ F:	drivers/input/keyboard/adp5520-keys.c
 
 ADP5588 QWERTY KEYPAD AND IO EXPANDER DRIVER (ADP5588/ADP5587)
 M:	Michael Hennerich <michael.hennerich@analog.com>
-L:	device-driver-devel@blackfin.uclinux.org
+L:	device-drivers-devel@blackfin.uclinux.org
 W:	http://wiki.analog.com/ADP5588
 S:	Supported
 F:	drivers/input/keyboard/adp5588-keys.c
@@ -360,7 +360,7 @@ F:	drivers/gpio/adp5588-gpio.c
 
 ADP8860 BACKLIGHT DRIVER (ADP8860/ADP8861/ADP8863)
 M:	Michael Hennerich <michael.hennerich@analog.com>
-L:	device-driver-devel@blackfin.uclinux.org
+L:	device-drivers-devel@blackfin.uclinux.org
 W:	http://wiki.analog.com/ADP8860
 S:	Supported
 F:	drivers/video/backlight/adp8860_bl.c
@@ -387,7 +387,7 @@ F:	drivers/hwmon/adt7475.c
 
 ADXL34X THREE-AXIS DIGITAL ACCELEROMETER DRIVER (ADXL345/ADXL346)
 M:	Michael Hennerich <michael.hennerich@analog.com>
-L:	device-driver-devel@blackfin.uclinux.org
+L:	device-drivers-devel@blackfin.uclinux.org
 W:	http://wiki.analog.com/ADXL345
 S:	Supported
 F:	drivers/input/misc/adxl34x.c
@@ -483,6 +483,13 @@ F:	drivers/tty/serial/altera_jtaguart.c
 F:	include/linux/altera_uart.h
 F:	include/linux/altera_jtaguart.h
 
+AMD FAM15H PROCESSOR POWER MONITORING DRIVER
+M:	Andreas Herrmann <andreas.herrmann3@amd.com>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/fam15h_power
+F:	drivers/hwmon/fam15h_power.c
+
 AMD GEODE CS5536 USB DEVICE CONTROLLER DRIVER
 M:	Thomas Dahlmann <dahlmann.thomas@arcor.de>
 L:	linux-geode@lists.infradead.org (moderated for non-subscribers)
@@ -526,7 +533,7 @@ S:	Maintained
 F:	drivers/infiniband/hw/amso1100/
 
 ANALOG DEVICES INC ASOC CODEC DRIVERS
-L:	device-driver-devel@blackfin.uclinux.org
+L:	device-drivers-devel@blackfin.uclinux.org
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://wiki.analog.com/
 S:	Supported
@@ -548,10 +555,11 @@ S:	Maintained
 F:	sound/aoa/
 
 APM DRIVER
-L:	linux-laptop@vger.kernel.org
-S:	Orphan
+M:	Jiri Kosina <jkosina@suse.cz>
+S:	Odd fixes
 F:	arch/x86/kernel/apm_32.c
 F:	include/linux/apm_bios.h
+F:	drivers/char/apm-emulation.c
 
 APPLE BCM5974 MULTITOUCH DRIVER
 M:	Henrik Rydberg <rydberg@euromail.se>
@@ -729,7 +737,7 @@ ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
 M:	Daniel Ribeiro <drwyrm@gmail.com>
 M:	Stefan Schmidt <stefan@openezx.org>
 M:	Harald Welte <laforge@openezx.org>
-L:	openezx-devel@lists.openezx.org (subscribers-only)
+L:	openezx-devel@lists.openezx.org (moderated for non-subscribers)
 W:	http://www.openezx.org/
 S:	Maintained
 T:	topgit git://git.openezx.org/openezx.git
@@ -1231,13 +1239,6 @@ L:	ath9k-devel@lists.ath9k.org
 W:	http://wireless.kernel.org/en/users/Drivers/ath9k
 S:	Supported
 F:	drivers/net/wireless/ath/ath9k/
-
-ATHEROS AR9170 WIRELESS DRIVER
-M:	Christian Lamparter <chunkeey@web.de>
-L:	linux-wireless@vger.kernel.org
-W:	http://wireless.kernel.org/en/users/Drivers/ar9170
-S:	Obsolete
-F:	drivers/net/wireless/ath/ar9170/
 
 CARL9170 LINUX COMMUNITY WIRELESS DRIVER
 M:	Christian Lamparter <chunkeey@googlemail.com>
@@ -2040,9 +2041,8 @@ F:	net/ax25/ax25_timer.c
 F:	net/ax25/sysctl_net_ax25.c
 
 DAVICOM FAST ETHERNET (DMFE) NETWORK DRIVER
-M:	Tobias Ringstrom <tori@unhappy.mine.nu>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	Documentation/networking/dmfe.txt
 F:	drivers/net/tulip/dmfe.c
 
@@ -2251,10 +2251,10 @@ F:	drivers/gpu/drm/
 F:	include/drm/
 
 INTEL DRM DRIVERS (excluding Poulsbo, Moorestown and derivative chipsets)
-M:	Chris Wilson <chris@chris-wilson.co.uk>
+M:	Keith Packard <keithp@keithp.com>
 L:	intel-gfx@lists.freedesktop.org (subscribers-only)
 L:	dri-devel@lists.freedesktop.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ickle/drm-intel.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/keithp/linux-2.6.git
 S:	Supported
 F:	drivers/gpu/drm/i915
 F:	include/drm/i915*
@@ -3363,6 +3363,12 @@ F:	Documentation/wimax/README.i2400m
 F:	drivers/net/wimax/i2400m/
 F:	include/linux/wimax/i2400m.h
 
+INTEL WIRELESS 3945ABG/BG, 4965AGN (iwlegacy)
+M:	Stanislaw Gruszka <sgruszka@redhat.com>
+L:	linux-wireless@vger.kernel.org
+S:	Supported
+F:	drivers/net/wireless/iwlegacy/
+
 INTEL WIRELESS WIFI LINK (iwlwifi)
 M:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
@@ -3591,10 +3597,9 @@ F:	Documentation/hwmon/k8temp
 F:	drivers/hwmon/k8temp.c
 
 KCONFIG
-M:	Roman Zippel <zippel@linux-m68k.org>
+M:	Michal Marek <mmarek@suse.cz>
 L:	linux-kbuild@vger.kernel.org
-Q:	http://patchwork.kernel.org/project/linux-kbuild/list/
-S:	Maintained
+S:	Odd Fixes
 F:	Documentation/kbuild/kconfig-language.txt
 F:	scripts/kconfig/
 
@@ -3898,7 +3903,6 @@ F:	drivers/*/*/*pasemi*
 LINUX SECURITY MODULE (LSM) FRAMEWORK
 M:	Chris Wright <chrisw@sous-sol.org>
 L:	linux-security-module@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/chrisw/lsm-2.6.git
 S:	Supported
 
 LIS3LV02D ACCELEROMETER DRIVER
@@ -4253,7 +4257,7 @@ F:	include/linux/isicom.h
 MUSB MULTIPOINT HIGH SPEED DUAL-ROLE CONTROLLER
 M:	Felipe Balbi <balbi@ti.com>
 L:	linux-usb@vger.kernel.org
-T:	git git://gitorious.org/usb/usb.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 S:	Maintained
 F:	drivers/usb/musb/
 
@@ -4269,6 +4273,13 @@ NATSEMI ETHERNET DRIVER (DP8381x)
 M:	Tim Hockin <thockin@hockin.org>
 S:	Maintained
 F:	drivers/net/natsemi.c
+
+NATIVE INSTRUMENTS USB SOUND INTERFACE DRIVER
+M:	Daniel Mack <zonque@gmail.com>
+S:	Maintained
+L:	alsa-devel@alsa-project.org
+W:	http://www.native-instruments.com
+F:	sound/usb/caiaq/
 
 NCP FILESYSTEM
 M:	Petr Vandrovec <petr@vandrovec.name>
@@ -4385,6 +4396,7 @@ S:	Maintained
 F:	net/ipv4/
 F:	net/ipv6/
 F:	include/net/ip*
+F:	arch/x86/net/*
 
 NETWORKING [LABELED] (NetLabel, CIPSO, Labeled IPsec, SECMARK)
 M:	Paul Moore <paul.moore@hp.com>
@@ -4580,6 +4592,7 @@ M:	Felipe Balbi <balbi@ti.com>
 M:	David Brownell <dbrownell@users.sourceforge.net>
 L:	linux-usb@vger.kernel.org
 L:	linux-omap@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 S:	Maintained
 F:	drivers/usb/*/*omap*
 F:	arch/arm/*omap*/usb*
@@ -5431,6 +5444,7 @@ F:	include/linux/timex.h
 F:	kernel/time/clocksource.c
 F:	kernel/time/time*.c
 F:	kernel/time/ntp.c
+F:	drivers/clocksource
 
 TLG2300 VIDEO4LINUX-2 DRIVER
 M:	Huang Shijie <shijie8@gmail.com>
@@ -5582,10 +5596,11 @@ M:	James Morris <jmorris@namei.org>
 M:	Eric Paris <eparis@parisplace.org>
 L:	selinux@tycho.nsa.gov (subscribers-only, general discussion)
 W:	http://selinuxproject.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
+T:	git git://git.infradead.org/users/eparis/selinux.git
 S:	Supported
 F:	include/linux/selinux*
 F:	security/selinux/
+F:	scripts/selinux/
 
 APPARMOR SECURITY MODULE
 M:	John Johansen <john.johansen@canonical.com>
@@ -5611,9 +5626,9 @@ F:	include/linux/ata.h
 F:	include/linux/libata.h
 
 SERVER ENGINES 10Gbps iSCSI - BladeEngine 2 DRIVER
-M:	Jayamohan Kallickal <jayamohank@serverengines.com>
+M:	Jayamohan Kallickal <jayamohan.kallickal@emulex.com>
 L:	linux-scsi@vger.kernel.org
-W:	http://www.serverengines.com
+W:	http://www.emulex.com
 S:	Supported
 F:	drivers/scsi/be2iscsi/
 
@@ -5831,6 +5846,13 @@ S:	Maintained
 F:	drivers/ssb/
 F:	include/linux/ssb/
 
+BROADCOM SPECIFIC AMBA DRIVER (BCMA)
+M:	Rafał Miłecki <zajec5@gmail.com>
+L:	linux-wireless@vger.kernel.org
+S:	Maintained
+F:	drivers/bcma/
+F:	include/linux/bcma/
+
 SONY VAIO CONTROL DEVICE DRIVER
 M:	Mattia Dongili <malattia@linux.it>
 L:	platform-driver-x86@vger.kernel.org
@@ -5860,7 +5882,7 @@ F:	include/sound/
 F:	sound/
 
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
-M:	Liam Girdwood <lrg@slimlogic.co.uk>
+M:	Liam Girdwood <lrg@ti.com>
 M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound-2.6.git
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
@@ -6111,7 +6133,7 @@ F:	drivers/mmc/host/tifm_sd.c
 F:	include/linux/tifm.h
 
 TI TWL4030 SERIES SOC CODEC DRIVER
-M:	Peter Ujfalusi <peter.ujfalusi@nokia.com>
+M:	Peter Ujfalusi <peter.ujfalusi@ti.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	sound/soc/codecs/twl4030*
@@ -6214,6 +6236,7 @@ TRIVIAL PATCHES
 M:	Jiri Kosina <trivial@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/trivial.git
 S:	Maintained
+K:	^Subject:.*(?i)trivial
 
 TTY LAYER
 M:	Greg Kroah-Hartman <gregkh@suse.de>
@@ -6755,7 +6778,7 @@ F:	drivers/scsi/vmw_pvscsi.c
 F:	drivers/scsi/vmw_pvscsi.h
 
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
-M:	Liam Girdwood <lrg@slimlogic.co.uk>
+M:	Liam Girdwood <lrg@ti.com>
 M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
 W:	http://opensource.wolfsonmicro.com/node/15
 W:	http://www.slimlogic.co.uk/?p=48
@@ -6776,6 +6799,13 @@ M:	Roger Lucas <vt8231@hiddenengine.co.uk>
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/vt8231.c
+
+VUB300 USB to SDIO/SD/MMC bridge chip
+M:	Tony Olech <tony.olech@elandigitalsystems.com>
+L:	linux-mmc@vger.kernel.org
+L:	linux-usb@vger.kernel.org
+S:	Supported
+F:	drivers/mmc/host/vub300.c
 
 W1 DALLAS'S 1-WIRE BUS
 M:	Evgeniy Polyakov <johnpol@2ka.mipt.ru>

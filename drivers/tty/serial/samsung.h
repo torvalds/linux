@@ -1,5 +1,4 @@
-/* linux/drivers/serial/samsung.h
- *
+/*
  * Driver for Samsung SoC onboard UARTs.
  *
  * Ben Dooks, Copyright (c) 2003-2008 Simtec Electronics

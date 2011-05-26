@@ -1348,7 +1348,8 @@ static inline struct xfrm_dst *xfrm_alloc_dst(struct net *net, int family)
 	default:
 		BUG();
 	}
-	xdst = dst_alloc(dst_ops, 0);
+	xdst = dst_alloc(dst_ops, NULL, 0, 0, 0);
+	memset(&xdst->u.rt6.rt6i_table, 0, sizeof(*xdst) - sizeof(struct dst_entry));
 	xfrm_policy_put_afinfo(afinfo);
 
 	if (likely(xdst))

@@ -377,15 +377,13 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 				c->gap_lebs = NULL;
 				return err;
 			}
-			if (!dbg_force_in_the_gaps_enabled) {
+			if (dbg_force_in_the_gaps_enabled()) {
 				/*
 				 * Do not print scary warnings if the debugging
 				 * option which forces in-the-gaps is enabled.
 				 */
-				ubifs_err("out of space");
-				spin_lock(&c->space_lock);
-				dbg_dump_budg(c);
-				spin_unlock(&c->space_lock);
+				ubifs_warn("out of space");
+				dbg_dump_budg(c, &c->bi);
 				dbg_dump_lprops(c);
 			}
 			/* Try to commit anyway */
@@ -796,16 +794,16 @@ int ubifs_tnc_start_commit(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 	spin_lock(&c->space_lock);
 	/*
 	 * Although we have not finished committing yet, update size of the
-	 * committed index ('c->old_idx_sz') and zero out the index growth
+	 * committed index ('c->bi.old_idx_sz') and zero out the index growth
 	 * budget. It is OK to do this now, because we've reserved all the
 	 * space which is needed to commit the index, and it is save for the
 	 * budgeting subsystem to assume the index is already committed,
 	 * even though it is not.
 	 */
-	ubifs_assert(c->min_idx_lebs == ubifs_calc_min_idx_lebs(c));
-	c->old_idx_sz = c->calc_idx_sz;
-	c->budg_uncommitted_idx = 0;
-	c->min_idx_lebs = ubifs_calc_min_idx_lebs(c);
+	ubifs_assert(c->bi.min_idx_lebs == ubifs_calc_min_idx_lebs(c));
+	c->bi.old_idx_sz = c->calc_idx_sz;
+	c->bi.uncommitted_idx = 0;
+	c->bi.min_idx_lebs = ubifs_calc_min_idx_lebs(c);
 	spin_unlock(&c->space_lock);
 	mutex_unlock(&c->tnc_mutex);
 

@@ -739,7 +739,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	up_write(&ehci_cf_port_reset_rwsem);
 	ehci->last_periodic_enable = ktime_get_real();
 
-	temp = HC_VERSION(ehci_readl(ehci, &ehci->caps->hc_capbase));
+	temp = HC_VERSION(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
 	ehci_info (ehci,
 		"USB %x.%x started, EHCI %x.%02x%s\n",
 		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),
@@ -777,8 +777,9 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		goto dead;
 	}
 
+	/* Shared IRQ? */
 	masked_status = status & INTR_MASK;
-	if (!masked_status) {		/* irq sharing? */
+	if (!masked_status || unlikely(hcd->state == HC_STATE_HALT)) {
 		spin_unlock(&ehci->lock);
 		return IRQ_NONE;
 	}
@@ -873,6 +874,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 dead:
 		ehci_reset(ehci);
 		ehci_writel(ehci, 0, &ehci->regs->configured_flag);
+		usb_hc_died(hcd);
 		/* generic layer kills/unlinks all urbs, then
 		 * uses ehci_stop to clean up the rest
 		 */
@@ -1263,6 +1265,21 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_USB_EHCI_TEGRA
 #include "ehci-tegra.c"
 #define PLATFORM_DRIVER		tegra_ehci_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_S5P
+#include "ehci-s5p.c"
+#define PLATFORM_DRIVER		s5p_ehci_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_ATH79
+#include "ehci-ath79.c"
+#define PLATFORM_DRIVER		ehci_ath79_driver
+#endif
+
+#ifdef CONFIG_SPARC_LEON
+#include "ehci-grlib.c"
+#define PLATFORM_DRIVER		ehci_grlib_driver
 #endif
 
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \

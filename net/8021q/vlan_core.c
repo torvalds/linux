@@ -4,7 +4,7 @@
 #include <linux/netpoll.h>
 #include "vlan.h"
 
-bool vlan_hwaccel_do_receive(struct sk_buff **skbp)
+bool vlan_do_receive(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
 	u16 vlan_id = skb->vlan_tci & VLAN_VID_MASK;
@@ -88,3 +88,86 @@ gro_result_t vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
 	return napi_gro_frags(napi);
 }
 EXPORT_SYMBOL(vlan_gro_frags);
+
+static struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
+{
+	if (vlan_dev_info(skb->dev)->flags & VLAN_FLAG_REORDER_HDR) {
+		if (skb_cow(skb, skb_headroom(skb)) < 0)
+			skb = NULL;
+		if (skb) {
+			/* Lifted from Gleb's VLAN code... */
+			memmove(skb->data - ETH_HLEN,
+				skb->data - VLAN_ETH_HLEN, 12);
+			skb->mac_header += VLAN_HLEN;
+		}
+	}
+	return skb;
+}
+
+static void vlan_set_encap_proto(struct sk_buff *skb, struct vlan_hdr *vhdr)
+{
+	__be16 proto;
+	unsigned char *rawp;
+
+	/*
+	 * Was a VLAN packet, grab the encapsulated protocol, which the layer
+	 * three protocols care about.
+	 */
+
+	proto = vhdr->h_vlan_encapsulated_proto;
+	if (ntohs(proto) >= 1536) {
+		skb->protocol = proto;
+		return;
+	}
+
+	rawp = skb->data;
+	if (*(unsigned short *) rawp == 0xFFFF)
+		/*
+		 * This is a magic hack to spot IPX packets. Older Novell
+		 * breaks the protocol design and runs IPX over 802.3 without
+		 * an 802.2 LLC layer. We look for FFFF which isn't a used
+		 * 802.2 SSAP/DSAP. This won't work for fault tolerant netware
+		 * but does for the rest.
+		 */
+		skb->protocol = htons(ETH_P_802_3);
+	else
+		/*
+		 * Real 802.2 LLC
+		 */
+		skb->protocol = htons(ETH_P_802_2);
+}
+
+struct sk_buff *vlan_untag(struct sk_buff *skb)
+{
+	struct vlan_hdr *vhdr;
+	u16 vlan_tci;
+
+	if (unlikely(vlan_tx_tag_present(skb))) {
+		/* vlan_tci is already set-up so leave this for another time */
+		return skb;
+	}
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (unlikely(!skb))
+		goto err_free;
+
+	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN)))
+		goto err_free;
+
+	vhdr = (struct vlan_hdr *) skb->data;
+	vlan_tci = ntohs(vhdr->h_vlan_TCI);
+	__vlan_hwaccel_put_tag(skb, vlan_tci);
+
+	skb_pull_rcsum(skb, VLAN_HLEN);
+	vlan_set_encap_proto(skb, vhdr);
+
+	skb = vlan_check_reorder_header(skb);
+	if (unlikely(!skb))
+		goto err_free;
+
+	return skb;
+
+err_free:
+	kfree_skb(skb);
+	return NULL;
+}

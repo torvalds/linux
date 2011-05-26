@@ -189,8 +189,8 @@ retry:
 		}
 
 		if (retries++ < UBI_IO_RETRIES) {
-			dbg_io("error %d%s while reading %d bytes from PEB %d:%d,"
-			       " read only %zd bytes, retry",
+			dbg_io("error %d%s while reading %d bytes from PEB "
+			       "%d:%d, read only %zd bytes, retry",
 			       err, errstr, len, pnum, offset, read);
 			yield();
 			goto retry;
@@ -465,7 +465,7 @@ static int torture_peb(struct ubi_device *ubi, int pnum)
 	}
 
 	err = patt_count;
-	ubi_msg("PEB %d passed torture test, do not mark it a bad", pnum);
+	ubi_msg("PEB %d passed torture test, do not mark it as bad", pnum);
 
 out:
 	mutex_unlock(&ubi->buf_mutex);

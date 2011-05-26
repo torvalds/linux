@@ -58,7 +58,7 @@ _GLOBAL(slb_miss_kernel_load_linear)
 	li	r11,0
 BEGIN_FTR_SECTION
 	b	slb_finish_load
-END_FTR_SECTION_IFCLR(CPU_FTR_1T_SEGMENT)
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
 	b	slb_finish_load_1T
 
 1:
@@ -87,7 +87,7 @@ _GLOBAL(slb_miss_kernel_load_vmemmap)
 6:
 BEGIN_FTR_SECTION
 	b	slb_finish_load
-END_FTR_SECTION_IFCLR(CPU_FTR_1T_SEGMENT)
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
 	b	slb_finish_load_1T
 
 0:	/* user address: proto-VSID = context << 15 | ESID. First check
@@ -138,11 +138,11 @@ END_FTR_SECTION_IFCLR(CPU_FTR_1T_SEGMENT)
 	ld	r9,PACACONTEXTID(r13)
 BEGIN_FTR_SECTION
 	cmpldi	r10,0x1000
-END_FTR_SECTION_IFSET(CPU_FTR_1T_SEGMENT)
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	rldimi	r10,r9,USER_ESID_BITS,0
 BEGIN_FTR_SECTION
 	bge	slb_finish_load_1T
-END_FTR_SECTION_IFSET(CPU_FTR_1T_SEGMENT)
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	b	slb_finish_load
 
 8:	/* invalid EA */

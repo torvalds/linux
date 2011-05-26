@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -239,7 +239,6 @@ struct ath_desc {
 	void *ds_vdata;
 } __packed __aligned(4);
 
-#define ATH9K_TXDESC_CLRDMASK		0x0001
 #define ATH9K_TXDESC_NOACK		0x0002
 #define ATH9K_TXDESC_RTSENA		0x0004
 #define ATH9K_TXDESC_CTSENA		0x0008

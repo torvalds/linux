@@ -1072,6 +1072,12 @@ nj_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
+	if (pdev->subsystem_vendor == 0xb100 &&
+	    pdev->subsystem_device == 0x0003 ) {
+		pr_notice("Netjet: Digium TDM400P not handled yet\n");
+		return -ENODEV;
+	}
+
 	card = kzalloc(sizeof(struct tiger_hw), GFP_ATOMIC);
 	if (!card) {
 		pr_info("No kmem for Netjet\n");

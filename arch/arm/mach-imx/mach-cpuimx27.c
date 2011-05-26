@@ -38,7 +38,6 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
-#include <mach/mxc_nand.h>
 #include <mach/ulpi.h>
 
 #include "devices-imx27.h"

@@ -29,6 +29,8 @@
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/pagemap.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/spinlock.h>
 
 #define DRIVER_NAME	"sh_mmcif"
 #define DRIVER_VERSION	"2010-04-28"
@@ -153,6 +155,12 @@
 #define CLKDEV_MMC_DATA		20000000 /* 20MHz */
 #define CLKDEV_INIT		400000   /* 400 KHz */
 
+enum mmcif_state {
+	STATE_IDLE,
+	STATE_REQUEST,
+	STATE_IOS,
+};
+
 struct sh_mmcif_host {
 	struct mmc_host *mmc;
 	struct mmc_data *data;
@@ -164,6 +172,9 @@ struct sh_mmcif_host {
 	long timeout;
 	void __iomem *addr;
 	struct completion intr_wait;
+	enum mmcif_state state;
+	spinlock_t lock;
+	bool power;
 
 	/* DMA support */
 	struct dma_chan		*chan_rx;
@@ -798,17 +809,31 @@ static void sh_mmcif_stop_cmd(struct sh_mmcif_host *host,
 static void sh_mmcif_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct sh_mmcif_host *host = mmc_priv(mmc);
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	if (host->state != STATE_IDLE) {
+		spin_unlock_irqrestore(&host->lock, flags);
+		mrq->cmd->error = -EAGAIN;
+		mmc_request_done(mmc, mrq);
+		return;
+	}
+
+	host->state = STATE_REQUEST;
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	switch (mrq->cmd->opcode) {
 	/* MMCIF does not support SD/SDIO command */
 	case SD_IO_SEND_OP_COND:
 	case MMC_APP_CMD:
+		host->state = STATE_IDLE;
 		mrq->cmd->error = -ETIMEDOUT;
 		mmc_request_done(mmc, mrq);
 		return;
 	case MMC_SEND_EXT_CSD: /* = SD_SEND_IF_COND (8) */
 		if (!mrq->data) {
 			/* send_if_cond cmd (not support) */
+			host->state = STATE_IDLE;
 			mrq->cmd->error = -ETIMEDOUT;
 			mmc_request_done(mmc, mrq);
 			return;
@@ -830,12 +855,9 @@ static void sh_mmcif_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	sh_mmcif_start_cmd(host, mrq, mrq->cmd);
 	host->data = NULL;
 
-	if (mrq->cmd->error != 0) {
-		mmc_request_done(mmc, mrq);
-		return;
-	}
-	if (mrq->stop)
+	if (!mrq->cmd->error && mrq->stop)
 		sh_mmcif_stop_cmd(host, mrq, mrq->stop);
+	host->state = STATE_IDLE;
 	mmc_request_done(mmc, mrq);
 }
 
@@ -843,15 +865,39 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct sh_mmcif_host *host = mmc_priv(mmc);
 	struct sh_mmcif_plat_data *p = host->pd->dev.platform_data;
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	if (host->state != STATE_IDLE) {
+		spin_unlock_irqrestore(&host->lock, flags);
+		return;
+	}
+
+	host->state = STATE_IOS;
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	if (ios->power_mode == MMC_POWER_UP) {
 		if (p->set_pwr)
 			p->set_pwr(host->pd, ios->power_mode);
+		if (!host->power) {
+			/* See if we also get DMA */
+			sh_mmcif_request_dma(host, host->pd->dev.platform_data);
+			pm_runtime_get_sync(&host->pd->dev);
+			host->power = true;
+		}
 	} else if (ios->power_mode == MMC_POWER_OFF || !ios->clock) {
 		/* clock stop */
 		sh_mmcif_clock_control(host, 0);
-		if (ios->power_mode == MMC_POWER_OFF && p->down_pwr)
-			p->down_pwr(host->pd);
+		if (ios->power_mode == MMC_POWER_OFF) {
+			if (host->power) {
+				pm_runtime_put(&host->pd->dev);
+				sh_mmcif_release_dma(host);
+				host->power = false;
+			}
+			if (p->down_pwr)
+				p->down_pwr(host->pd);
+		}
+		host->state = STATE_IDLE;
 		return;
 	}
 
@@ -859,6 +905,7 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		sh_mmcif_clock_control(host, ios->clock);
 
 	host->bus_width = ios->bus_width;
+	host->state = STATE_IDLE;
 }
 
 static int sh_mmcif_get_cd(struct mmc_host *mmc)
@@ -925,7 +972,7 @@ static irqreturn_t sh_mmcif_intr(int irq, void *dev_id)
 		sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, state);
 		err = 1;
 	} else {
-		dev_dbg(&host->pd->dev, "Not support int\n");
+		dev_dbg(&host->pd->dev, "Unsupported interrupt: 0x%x\n", state);
 		sh_mmcif_writel(host->addr, MMCIF_CE_INT, ~state);
 		sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, state);
 		err = 1;
@@ -996,6 +1043,7 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 	host->pd = pdev;
 
 	init_completion(&host->intr_wait);
+	spin_lock_init(&host->lock);
 
 	mmc->ops = &sh_mmcif_ops;
 	mmc->f_max = host->clk;
@@ -1020,24 +1068,29 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 	sh_mmcif_sync_reset(host);
 	platform_set_drvdata(pdev, host);
 
-	/* See if we also get DMA */
-	sh_mmcif_request_dma(host, pd);
+	pm_runtime_enable(&pdev->dev);
+	host->power = false;
+
+	ret = pm_runtime_resume(&pdev->dev);
+	if (ret < 0)
+		goto clean_up2;
 
 	mmc_add_host(mmc);
+
+	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
 
 	ret = request_irq(irq[0], sh_mmcif_intr, 0, "sh_mmc:error", host);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq error (sh_mmc:error)\n");
-		goto clean_up2;
+		goto clean_up3;
 	}
 	ret = request_irq(irq[1], sh_mmcif_intr, 0, "sh_mmc:int", host);
 	if (ret) {
 		free_irq(irq[0], host);
 		dev_err(&pdev->dev, "request_irq error (sh_mmc:int)\n");
-		goto clean_up2;
+		goto clean_up3;
 	}
 
-	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
 	sh_mmcif_detect(host->mmc);
 
 	dev_info(&pdev->dev, "driver version %s\n", DRIVER_VERSION);
@@ -1045,7 +1098,11 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 		sh_mmcif_readl(host->addr, MMCIF_CE_VERSION) & 0x0000ffff);
 	return ret;
 
+clean_up3:
+	mmc_remove_host(mmc);
+	pm_runtime_suspend(&pdev->dev);
 clean_up2:
+	pm_runtime_disable(&pdev->dev);
 	clk_disable(host->hclk);
 clean_up1:
 	mmc_free_host(mmc);
@@ -1060,13 +1117,13 @@ static int __devexit sh_mmcif_remove(struct platform_device *pdev)
 	struct sh_mmcif_host *host = platform_get_drvdata(pdev);
 	int irq[2];
 
+	pm_runtime_get_sync(&pdev->dev);
+
 	mmc_remove_host(host->mmc);
-	sh_mmcif_release_dma(host);
+	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
 
 	if (host->addr)
 		iounmap(host->addr);
-
-	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
 
 	irq[0] = platform_get_irq(pdev, 0);
 	irq[1] = platform_get_irq(pdev, 1);
@@ -1078,15 +1135,52 @@ static int __devexit sh_mmcif_remove(struct platform_device *pdev)
 
 	clk_disable(host->hclk);
 	mmc_free_host(host->mmc);
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int sh_mmcif_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sh_mmcif_host *host = platform_get_drvdata(pdev);
+	int ret = mmc_suspend_host(host->mmc);
+
+	if (!ret) {
+		sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
+		clk_disable(host->hclk);
+	}
+
+	return ret;
+}
+
+static int sh_mmcif_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct sh_mmcif_host *host = platform_get_drvdata(pdev);
+
+	clk_enable(host->hclk);
+
+	return mmc_resume_host(host->mmc);
+}
+#else
+#define sh_mmcif_suspend	NULL
+#define sh_mmcif_resume		NULL
+#endif	/* CONFIG_PM */
+
+static const struct dev_pm_ops sh_mmcif_dev_pm_ops = {
+	.suspend = sh_mmcif_suspend,
+	.resume = sh_mmcif_resume,
+};
 
 static struct platform_driver sh_mmcif_driver = {
 	.probe		= sh_mmcif_probe,
 	.remove		= sh_mmcif_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
+		.pm	= &sh_mmcif_dev_pm_ops,
 	},
 };
 

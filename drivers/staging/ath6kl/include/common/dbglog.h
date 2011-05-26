@@ -24,10 +24,6 @@
 #ifndef _DBGLOG_H_
 #define _DBGLOG_H_
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -125,10 +121,6 @@ PREPACK struct dbglog_config_s {
 
 #ifdef __cplusplus
 }
-#endif
-
-#ifndef ATH_TARGET
-#include "athendpack.h"
 #endif
 
 #endif /* _DBGLOG_H_ */
