@@ -4719,7 +4719,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			   cfg->dig_out_pins[0], cfg->dig_out_pins[1]);
 	snd_printd("   inputs:");
 	for (i = 0; i < cfg->num_inputs; i++) {
-		snd_printdd(" %s=0x%x",
+		snd_printd(" %s=0x%x",
 			    hda_get_autocfg_input_label(codec, cfg, i),
 			    cfg->inputs[i].pin);
 	}
