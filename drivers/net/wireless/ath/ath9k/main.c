@@ -134,7 +134,7 @@ void ath9k_ps_restore(struct ath_softc *sc)
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 }
 
-static void ath_start_ani(struct ath_common *common)
+void ath_start_ani(struct ath_common *common)
 {
 	struct ath_hw *ah = common->ah;
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
@@ -300,7 +300,8 @@ static int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 			ath_set_beacon(sc);
 		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/2);
-		ath_start_ani(common);
+		if (!common->disable_ani)
+			ath_start_ani(common);
 	}
 
  ps_restore:
@@ -968,6 +969,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	sc->hw_busy_count = 0;
 
 	/* Stop ANI */
+
 	del_timer_sync(&common->ani.timer);
 
 	ath9k_ps_wakeup(sc);
@@ -1017,7 +1019,9 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
 	/* Start ANI */
-	ath_start_ani(common);
+	if (!common->disable_ani)
+		ath_start_ani(common);
+
 	ath9k_ps_restore(sc);
 
 	return r;
@@ -1408,8 +1412,12 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	/* Set up ANI */
 	if (iter_data.naps > 0) {
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
-		sc->sc_flags |= SC_OP_ANI_RUN;
-		ath_start_ani(common);
+
+		if (!common->disable_ani) {
+			sc->sc_flags |= SC_OP_ANI_RUN;
+			ath_start_ani(common);
+		}
+
 	} else {
 		sc->sc_flags &= ~SC_OP_ANI_RUN;
 		del_timer_sync(&common->ani.timer);
@@ -1973,8 +1981,11 @@ static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
-		sc->sc_flags |= SC_OP_ANI_RUN;
-		ath_start_ani(common);
+		if (!common->disable_ani) {
+			sc->sc_flags |= SC_OP_ANI_RUN;
+			ath_start_ani(common);
+		}
+
 	}
 }
 
@@ -2043,8 +2054,12 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 
 		if (bss_conf->ibss_joined) {
 			sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
-			sc->sc_flags |= SC_OP_ANI_RUN;
-			ath_start_ani(common);
+
+			if (!common->disable_ani) {
+				sc->sc_flags |= SC_OP_ANI_RUN;
+				ath_start_ani(common);
+			}
+
 		} else {
 			sc->sc_flags &= ~SC_OP_ANI_RUN;
 			del_timer_sync(&common->ani.timer);
