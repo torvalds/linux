@@ -1,7 +1,7 @@
 /*
  * Defines for zoom boards
  */
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 #define ZOOM_NAND_CS    0
 

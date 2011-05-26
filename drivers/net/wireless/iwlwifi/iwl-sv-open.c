@@ -97,6 +97,13 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 
 	[IWL_TM_ATTR_SYNC_RSP] = { .type = NLA_UNSPEC, },
 	[IWL_TM_ATTR_UCODE_RX_PKT] = { .type = NLA_UNSPEC, },
+
+	[IWL_TM_ATTR_EEPROM] = { .type = NLA_UNSPEC, },
+
+	[IWL_TM_ATTR_TRACE_ADDR] = { .type = NLA_UNSPEC, },
+	[IWL_TM_ATTR_TRACE_DATA] = { .type = NLA_UNSPEC, },
+
+	[IWL_TM_ATTR_FIXRATE] = { .type = NLA_U32, },
 };
 
 /*
@@ -167,6 +174,31 @@ nla_put_failure:
 void iwl_testmode_init(struct iwl_priv *priv)
 {
 	priv->pre_rx_handler = iwl_testmode_ucode_rx_pkt;
+	priv->testmode_trace.trace_enabled = false;
+}
+
+static void iwl_trace_cleanup(struct iwl_priv *priv)
+{
+	struct device *dev = &priv->pci_dev->dev;
+
+	if (priv->testmode_trace.trace_enabled) {
+		if (priv->testmode_trace.cpu_addr &&
+		    priv->testmode_trace.dma_addr)
+			dma_free_coherent(dev,
+					TRACE_TOTAL_SIZE,
+					priv->testmode_trace.cpu_addr,
+					priv->testmode_trace.dma_addr);
+		priv->testmode_trace.trace_enabled = false;
+		priv->testmode_trace.cpu_addr = NULL;
+		priv->testmode_trace.trace_addr = NULL;
+		priv->testmode_trace.dma_addr = 0;
+	}
+}
+
+
+void iwl_testmode_cleanup(struct iwl_priv *priv)
+{
+	iwl_trace_cleanup(priv);
 }
 
 /*
@@ -198,10 +230,11 @@ static int iwl_testmode_ucode(struct ieee80211_hw *hw, struct nlattr **tb)
 	}
 
 	cmd.id = nla_get_u8(tb[IWL_TM_ATTR_UCODE_CMD_ID]);
-	cmd.data = nla_data(tb[IWL_TM_ATTR_UCODE_CMD_DATA]);
-	cmd.len = nla_len(tb[IWL_TM_ATTR_UCODE_CMD_DATA]);
+	cmd.data[0] = nla_data(tb[IWL_TM_ATTR_UCODE_CMD_DATA]);
+	cmd.len[0] = nla_len(tb[IWL_TM_ATTR_UCODE_CMD_DATA]);
+	cmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
 	IWL_INFO(priv, "testmode ucode command ID 0x%x, flags 0x%x,"
-				" len %d\n", cmd.id, cmd.flags, cmd.len);
+				" len %d\n", cmd.id, cmd.flags, cmd.len[0]);
 	/* ok, let's submit the command to ucode */
 	return iwl_send_cmd(priv, &cmd);
 }
@@ -388,6 +421,38 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 				"Error starting the device: %d\n", status);
 		break;
 
+	case IWL_TM_CMD_APP2DEV_GET_EEPROM:
+		if (priv->eeprom) {
+			skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
+				priv->cfg->base_params->eeprom_size + 20);
+			if (!skb) {
+				IWL_DEBUG_INFO(priv,
+				       "Error allocating memory\n");
+				return -ENOMEM;
+			}
+			NLA_PUT_U32(skb, IWL_TM_ATTR_COMMAND,
+				IWL_TM_CMD_DEV2APP_EEPROM_RSP);
+			NLA_PUT(skb, IWL_TM_ATTR_EEPROM,
+				priv->cfg->base_params->eeprom_size,
+				priv->eeprom);
+			status = cfg80211_testmode_reply(skb);
+			if (status < 0)
+				IWL_DEBUG_INFO(priv,
+					       "Error sending msg : %d\n",
+					       status);
+		} else
+			return -EFAULT;
+		break;
+
+	case IWL_TM_CMD_APP2DEV_FIXRATE_REQ:
+		if (!tb[IWL_TM_ATTR_FIXRATE]) {
+			IWL_DEBUG_INFO(priv,
+				       "Error finding fixrate setting\n");
+			return -ENOMSG;
+		}
+		priv->dbg_fixed_rate = nla_get_u32(tb[IWL_TM_ATTR_FIXRATE]);
+		break;
+
 	default:
 		IWL_DEBUG_INFO(priv, "Unknown testmode driver command ID\n");
 		return -ENOSYS;
@@ -396,6 +461,102 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 
 nla_put_failure:
 	kfree_skb(skb);
+	return -EMSGSIZE;
+}
+
+
+/*
+ * This function handles the user application commands for uCode trace
+ *
+ * It retrieves command ID carried with IWL_TM_ATTR_COMMAND and calls to the
+ * handlers respectively.
+ *
+ * If it's an unknown commdn ID, -ENOSYS is replied; otherwise, the returned
+ * value of the actual command execution is replied to the user application.
+ *
+ * @hw: ieee80211_hw object that represents the device
+ * @tb: gnl message fields from the user space
+ */
+static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
+{
+	struct iwl_priv *priv = hw->priv;
+	struct sk_buff *skb;
+	int status = 0;
+	struct device *dev = &priv->pci_dev->dev;
+
+	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
+	case IWL_TM_CMD_APP2DEV_BEGIN_TRACE:
+		if (priv->testmode_trace.trace_enabled)
+			return -EBUSY;
+
+		priv->testmode_trace.cpu_addr =
+			dma_alloc_coherent(dev,
+					   TRACE_TOTAL_SIZE,
+					   &priv->testmode_trace.dma_addr,
+					   GFP_KERNEL);
+		if (!priv->testmode_trace.cpu_addr)
+			return -ENOMEM;
+		priv->testmode_trace.trace_enabled = true;
+		priv->testmode_trace.trace_addr = (u8 *)PTR_ALIGN(
+			priv->testmode_trace.cpu_addr, 0x100);
+		memset(priv->testmode_trace.trace_addr, 0x03B,
+			TRACE_BUFF_SIZE);
+		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
+			sizeof(priv->testmode_trace.dma_addr) + 20);
+		if (!skb) {
+			IWL_DEBUG_INFO(priv,
+				"Error allocating memory\n");
+			iwl_trace_cleanup(priv);
+			return -ENOMEM;
+		}
+		NLA_PUT(skb, IWL_TM_ATTR_TRACE_ADDR,
+			sizeof(priv->testmode_trace.dma_addr),
+			(u64 *)&priv->testmode_trace.dma_addr);
+		status = cfg80211_testmode_reply(skb);
+		if (status < 0) {
+			IWL_DEBUG_INFO(priv,
+				       "Error sending msg : %d\n",
+				       status);
+		}
+		break;
+
+	case IWL_TM_CMD_APP2DEV_END_TRACE:
+		iwl_trace_cleanup(priv);
+		break;
+
+	case IWL_TM_CMD_APP2DEV_READ_TRACE:
+		if (priv->testmode_trace.trace_enabled &&
+		    priv->testmode_trace.trace_addr) {
+			skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
+				20 + TRACE_BUFF_SIZE);
+			if (skb == NULL) {
+				IWL_DEBUG_INFO(priv,
+					"Error allocating memory\n");
+				return -ENOMEM;
+			}
+			NLA_PUT(skb, IWL_TM_ATTR_TRACE_DATA,
+				TRACE_BUFF_SIZE,
+				priv->testmode_trace.trace_addr);
+			status = cfg80211_testmode_reply(skb);
+			if (status < 0) {
+				IWL_DEBUG_INFO(priv,
+				       "Error sending msg : %d\n", status);
+			}
+		} else
+			return -EFAULT;
+		break;
+
+	default:
+		IWL_DEBUG_INFO(priv, "Unknown testmode mem command ID\n");
+		return -ENOSYS;
+	}
+	return status;
+
+nla_put_failure:
+	kfree_skb(skb);
+	if (nla_get_u32(tb[IWL_TM_ATTR_COMMAND]) ==
+	    IWL_TM_CMD_APP2DEV_BEGIN_TRACE)
+		iwl_trace_cleanup(priv);
 	return -EMSGSIZE;
 }
 
@@ -455,9 +616,19 @@ int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	case IWL_TM_CMD_APP2DEV_LOAD_INIT_FW:
 	case IWL_TM_CMD_APP2DEV_CFG_INIT_CALIB:
 	case IWL_TM_CMD_APP2DEV_LOAD_RUNTIME_FW:
+	case IWL_TM_CMD_APP2DEV_GET_EEPROM:
+	case IWL_TM_CMD_APP2DEV_FIXRATE_REQ:
 		IWL_DEBUG_INFO(priv, "testmode cmd to driver\n");
 		result = iwl_testmode_driver(hw, tb);
 		break;
+
+	case IWL_TM_CMD_APP2DEV_BEGIN_TRACE:
+	case IWL_TM_CMD_APP2DEV_END_TRACE:
+	case IWL_TM_CMD_APP2DEV_READ_TRACE:
+		IWL_DEBUG_INFO(priv, "testmode uCode trace cmd to driver\n");
+		result = iwl_testmode_trace(hw, tb);
+		break;
+
 	default:
 		IWL_DEBUG_INFO(priv, "Unknown testmode command\n");
 		result = -ENOSYS;

@@ -770,8 +770,17 @@ resend_igmp
 	a failover event. One membership report is issued immediately after
 	the failover, subsequent packets are sent in each 200ms interval.
 
-	The valid range is 0 - 255; the default value is 1. This option
-	was added for bonding version 3.7.0.
+	The valid range is 0 - 255; the default value is 1. A value of 0
+	prevents the IGMP membership report from being issued in response
+	to the failover event.
+
+	This option is useful for bonding modes balance-rr (0), active-backup
+	(1), balance-tlb (5) and balance-alb (6), in which a failover can
+	switch the IGMP traffic from one slave to another.  Therefore a fresh
+	IGMP report must be issued to cause the switch to forward the incoming
+	IGMP traffic over the newly selected slave.
+
+	This option was added for bonding version 3.7.0.
 
 3. Configuring Bonding Devices
 ==============================

@@ -22,6 +22,7 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <asm/irq_regs.h>
 #include <asm/traps.h>
 #include <hv/hypervisor.h>
@@ -56,6 +57,7 @@ cycles_t get_cycles(void)
 
 	return (((cycles_t)high) << 32) | low;
 }
+EXPORT_SYMBOL(get_cycles);
 #endif
 
 /*

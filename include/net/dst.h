@@ -111,6 +111,8 @@ static inline u32 *dst_metrics_write_ptr(struct dst_entry *dst)
 {
 	unsigned long p = dst->_metrics;
 
+	BUG_ON(!p);
+
 	if (p & DST_METRICS_READ_ONLY)
 		return dst->ops->cow_metrics(dst, p);
 	return __DST_METRICS_PTR(p);

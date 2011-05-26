@@ -14,6 +14,8 @@ struct task_struct;
 #include "registers.h"
 #include "sysdep/archsetjmp.h"
 
+#include <linux/prefetch.h>
+
 struct mm_struct;
 
 struct thread_struct {

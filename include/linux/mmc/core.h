@@ -92,7 +92,7 @@ struct mmc_command {
  *              actively failing requests
  */
 
-	unsigned int		erase_timeout;	/* in milliseconds */
+	unsigned int		cmd_timeout_ms;	/* in milliseconds */
 
 	struct mmc_data		*data;		/* data segment associated with cmd */
 	struct mmc_request	*mrq;		/* associated request */
@@ -120,6 +120,7 @@ struct mmc_data {
 };
 
 struct mmc_request {
+	struct mmc_command	*sbc;		/* SET_BLOCK_COUNT for multiblock */
 	struct mmc_command	*cmd;
 	struct mmc_data		*data;
 	struct mmc_command	*stop;
@@ -133,8 +134,10 @@ struct mmc_card;
 
 extern void mmc_wait_for_req(struct mmc_host *, struct mmc_request *);
 extern int mmc_wait_for_cmd(struct mmc_host *, struct mmc_command *, int);
+extern int mmc_app_cmd(struct mmc_host *, struct mmc_card *);
 extern int mmc_wait_for_app_cmd(struct mmc_host *, struct mmc_card *,
 	struct mmc_command *, int);
+extern int mmc_switch(struct mmc_card *, u8, u8, u8, unsigned int);
 
 #define MMC_ERASE_ARG		0x00000000
 #define MMC_SECURE_ERASE_ARG	0x80000000

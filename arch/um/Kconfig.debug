@@ -28,13 +28,13 @@ config GCOV
 	  If you're involved in UML kernel development and want to use gcov,
 	  say Y.  If you're unsure, say N.
 
-config DEBUG_STACK_USAGE
-	bool "Stack utilization instrumentation"
-	default N
-	help
-	  Track the maximum kernel stack usage - this will look at each
-	  kernel stack at process exit and log it if it's the deepest
-	  stack seen so far.
+config EARLY_PRINTK
+	bool "Early printk"
+	default y
+	---help---
+	  Write kernel log output directly to stdout.
 
-	  This option will slow down process creation and destruction somewhat.
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized.
+
 endmenu

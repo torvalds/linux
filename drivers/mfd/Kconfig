@@ -538,7 +538,7 @@ config AB8500_CORE
 
 config AB8500_I2C_CORE
 	bool "AB8500 register access via PRCMU I2C"
-	depends on AB8500_CORE && UX500_SOC_DB8500
+	depends on AB8500_CORE && MFD_DB8500_PRCMU
 	default y
 	help
 	  This enables register access to the AB8500 chip via PRCMU I2C.
@@ -574,6 +574,26 @@ config AB3550_CORE
 	  of the AB3550 such as battery-backed RTC, charging control,
 	  LEDs, vibrator, system power and temperature, power management
 	  and ALSA sound.
+
+config MFD_DB8500_PRCMU
+	bool "ST-Ericsson DB8500 Power Reset Control Management Unit"
+	depends on UX500_SOC_DB8500
+	select MFD_CORE
+	help
+	  Select this option to enable support for the DB8500 Power Reset
+	  and Control Management Unit. This is basically an autonomous
+	  system controller running an XP70 microprocessor, which is accessed
+	  through a register map.
+
+config MFD_DB5500_PRCMU
+	bool "ST-Ericsson DB5500 Power Reset Control Management Unit"
+	depends on UX500_SOC_DB5500
+	select MFD_CORE
+	help
+	  Select this option to enable support for the DB5500 Power Reset
+	  and Control Management Unit. This is basically an autonomous
+	  system controller running an XP70 microprocessor, which is accessed
+	  through a register map.
 
 config MFD_CS5535
 	tristate "Support for CS5535 and CS5536 southbridge core functions"

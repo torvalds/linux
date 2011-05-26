@@ -9,15 +9,6 @@ config DEBUG_STACKOVERFLOW
 	  This option will cause messages to be printed if free stack space
 	  drops below a certain limit.
 
-config DEBUG_STACK_USAGE
-	bool "Enable stack utilization instrumentation"
-	depends on DEBUG_KERNEL
-	help
-	  Enables the display of the minimum amount of free stack which each
-	  task has ever had available in the sysrq-T output.
-
-	  This option will slow down process creation somewhat.
-
 config DEBUG_VERBOSE
 	bool "Verbose fault messages"
 	default y
@@ -32,7 +23,7 @@ config DEBUG_VERBOSE
 	  Most people should say N here.
 
 config DEBUG_MMRS
-	bool "Generate Blackfin MMR tree"
+	tristate "Generate Blackfin MMR tree"
 	select DEBUG_FS
 	help
 	  Create a tree of Blackfin MMRs via the debugfs tree.  If

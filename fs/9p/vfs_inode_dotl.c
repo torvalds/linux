@@ -259,7 +259,7 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 		if (IS_ERR(inode_fid)) {
 			err = PTR_ERR(inode_fid);
 			mutex_unlock(&v9inode->v_mutex);
-			goto error;
+			goto err_clunk_old_fid;
 		}
 		v9inode->writeback_fid = (void *) inode_fid;
 	}
@@ -267,8 +267,8 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	/* Since we are opening a file, assign the open fid to the file */
 	filp = lookup_instantiate_filp(nd, dentry, generic_file_open);
 	if (IS_ERR(filp)) {
-		p9_client_clunk(ofid);
-		return PTR_ERR(filp);
+		err = PTR_ERR(filp);
+		goto err_clunk_old_fid;
 	}
 	filp->private_data = ofid;
 #ifdef CONFIG_9P_FSCACHE
@@ -278,10 +278,11 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 	return 0;
 
 error:
-	if (ofid)
-		p9_client_clunk(ofid);
 	if (fid)
 		p9_client_clunk(fid);
+err_clunk_old_fid:
+	if (ofid)
+		p9_client_clunk(ofid);
 	return err;
 }
 

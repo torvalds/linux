@@ -316,8 +316,16 @@ static struct resource sdhi0_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = evt2irq(0x0e00) /* SDHI0 */,
-		.flags  = IORESOURCE_IRQ,
+		.start	= evt2irq(0x0e00) /* SDHI0_SDHI0I0 */,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= evt2irq(0x0e20) /* SDHI0_SDHI0I1 */,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= evt2irq(0x0e40) /* SDHI0_SDHI0I2 */,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -349,8 +357,16 @@ static struct resource sdhi1_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = evt2irq(0x0e80),
-		.flags  = IORESOURCE_IRQ,
+		.start	= evt2irq(0x0e80), /* SDHI1_SDHI1I0 */
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= evt2irq(0x0ea0), /* SDHI1_SDHI1I1 */
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= evt2irq(0x0ec0), /* SDHI1_SDHI1I2 */
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -980,11 +996,6 @@ static void __init hdmi_init_pm_clock(void)
 		goto out;
 	}
 
-	ret = clk_enable(&sh7372_pllc2_clk);
-	if (ret < 0) {
-		pr_err("Cannot enable pllc2 clock\n");
-		goto out;
-	}
 	pr_debug("PLLC2 set frequency %lu\n", rate);
 
 	ret = clk_set_parent(hdmi_ick, &sh7372_pllc2_clk);
@@ -1343,6 +1354,7 @@ static void __init ap4evb_init(void)
 
 	hdmi_init_pm_clock();
 	fsi_init_pm_clock();
+	sh7372_pm_init();
 }
 
 static void __init ap4evb_timer_init(void)

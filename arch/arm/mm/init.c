@@ -85,7 +85,7 @@ void show_mem(unsigned int filter)
 	struct meminfo * mi = &meminfo;
 
 	printk("Mem-info:\n");
-	show_free_areas();
+	show_free_areas(filter);
 
 	for_each_bank (i, mi) {
 		struct membank *bank = &mi->bank[i];

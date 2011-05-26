@@ -52,10 +52,10 @@
 
 #define bfin_read(addr) \
 ({ \
-    sizeof(*(addr)) == 1 ? bfin_read8(addr)  : \
-    sizeof(*(addr)) == 2 ? bfin_read16(addr) : \
-    sizeof(*(addr)) == 4 ? bfin_read32(addr) : \
-    ({ BUG(); 0; }); \
+	sizeof(*(addr)) == 1 ? bfin_read8(addr)  : \
+	sizeof(*(addr)) == 2 ? bfin_read16(addr) : \
+	sizeof(*(addr)) == 4 ? bfin_read32(addr) : \
+	({ BUG(); 0; }); \
 })
 #define bfin_write(addr, val) \
 do { \
@@ -69,13 +69,13 @@ do { \
 
 #define bfin_write_or(addr, bits) \
 do { \
-	void *__addr = (void *)(addr); \
+	typeof(addr) __addr = (addr); \
 	bfin_write(__addr, bfin_read(__addr) | (bits)); \
 } while (0)
 
 #define bfin_write_and(addr, bits) \
 do { \
-	void *__addr = (void *)(addr); \
+	typeof(addr) __addr = (addr); \
 	bfin_write(__addr, bfin_read(__addr) & (bits)); \
 } while (0)
 

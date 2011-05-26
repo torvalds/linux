@@ -94,8 +94,6 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 #define NO_PROC_ID (0xff)	/* No processor magic marker */
 
-#define PROC_CHANGE_PENALTY	(15)	/* Schedule penalty */
-
 /*
  * M32R-mp IPI
  */

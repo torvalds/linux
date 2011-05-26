@@ -266,11 +266,11 @@ static int irq_cpu(int irq)
 
 
 	/* Let the interrupt stay if possible */
-	if (cpu_isset(cpu, irq_allocations[irq - FIRST_IRQ].mask))
+	if (cpumask_test_cpu(cpu, &irq_allocations[irq - FIRST_IRQ].mask))
 		goto out;
 
 	/* IRQ must be moved to another CPU. */
-	cpu = first_cpu(irq_allocations[irq - FIRST_IRQ].mask);
+	cpu = cpumask_first(&irq_allocations[irq - FIRST_IRQ].mask);
 	irq_allocations[irq - FIRST_IRQ].cpu = cpu;
 out:
 	spin_unlock_irqrestore(&irq_lock, flags);

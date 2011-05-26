@@ -19,6 +19,7 @@
 #include <linux/highmem.h>
 #include <linux/mmc/tmio.h>
 #include <linux/pagemap.h>
+#include <linux/spinlock.h>
 
 /* Definitions for values the CTRL_SDIO_STATUS register can take. */
 #define TMIO_SDIO_STAT_IOIRQ	0x0001
@@ -44,12 +45,13 @@ struct tmio_mmc_host {
 	struct mmc_request      *mrq;
 	struct mmc_data         *data;
 	struct mmc_host         *mmc;
-	int                     irq;
 	unsigned int		sdio_irq_enabled;
 
 	/* Callbacks for clock / power control */
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);
+
+	int			pm_error;
 
 	/* pio related stuff */
 	struct scatterlist      *sg_ptr;
@@ -83,6 +85,7 @@ void tmio_mmc_do_data_irq(struct tmio_mmc_host *host);
 
 void tmio_mmc_enable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
 void tmio_mmc_disable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
+irqreturn_t tmio_mmc_irq(int irq, void *devid);
 
 static inline char *tmio_mmc_kmap_atomic(struct scatterlist *sg,
 					 unsigned long *flags)
@@ -119,5 +122,16 @@ static inline void tmio_mmc_release_dma(struct tmio_mmc_host *host)
 {
 }
 #endif
+
+#ifdef CONFIG_PM
+int tmio_mmc_host_suspend(struct device *dev);
+int tmio_mmc_host_resume(struct device *dev);
+#else
+#define tmio_mmc_host_suspend NULL
+#define tmio_mmc_host_resume NULL
+#endif
+
+int tmio_mmc_host_runtime_suspend(struct device *dev);
+int tmio_mmc_host_runtime_resume(struct device *dev);
 
 #endif

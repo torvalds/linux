@@ -200,7 +200,7 @@ struct ctlr_info
  * the above.
  */
 #define CCISS_BOARD_READY_WAIT_SECS (120)
-#define CCISS_BOARD_NOT_READY_WAIT_SECS (10)
+#define CCISS_BOARD_NOT_READY_WAIT_SECS (100)
 #define CCISS_BOARD_READY_POLL_INTERVAL_MSECS (100)
 #define CCISS_BOARD_READY_ITERATIONS \
 	((CCISS_BOARD_READY_WAIT_SECS * 1000) / \
@@ -209,8 +209,9 @@ struct ctlr_info
 	((CCISS_BOARD_NOT_READY_WAIT_SECS * 1000) / \
 		CCISS_BOARD_READY_POLL_INTERVAL_MSECS)
 #define CCISS_POST_RESET_PAUSE_MSECS (3000)
-#define CCISS_POST_RESET_NOOP_INTERVAL_MSECS (1000)
+#define CCISS_POST_RESET_NOOP_INTERVAL_MSECS (4000)
 #define CCISS_POST_RESET_NOOP_RETRIES (12)
+#define CCISS_POST_RESET_NOOP_TIMEOUT_MSECS (10000)
 
 /* 
 	Send the command to the hardware 
@@ -239,11 +240,13 @@ static void SA5_intr_mask(ctlr_info_t *h, unsigned long val)
 	{ /* Turn interrupts on */
 		h->interrupts_enabled = 1;
 		writel(0, h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+		(void) readl(h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
 	} else /* Turn them off */
 	{
 		h->interrupts_enabled = 0;
         	writel( SA5_INTR_OFF, 
 			h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+		(void) readl(h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
 	}
 }
 /*
@@ -257,11 +260,13 @@ static void SA5B_intr_mask(ctlr_info_t *h, unsigned long val)
         { /* Turn interrupts on */
 		h->interrupts_enabled = 1;
                 writel(0, h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+		(void) readl(h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
         } else /* Turn them off */
         {
 		h->interrupts_enabled = 0;
                 writel( SA5B_INTR_OFF,
                         h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+		(void) readl(h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
         }
 }
 
@@ -271,10 +276,12 @@ static void SA5_performant_intr_mask(ctlr_info_t *h, unsigned long val)
 	if (val) { /* turn on interrupts */
 		h->interrupts_enabled = 1;
 		writel(0, h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+		(void) readl(h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
 	} else {
 		h->interrupts_enabled = 0;
 		writel(SA5_PERF_INTR_OFF,
 				h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+		(void) readl(h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
 	}
 }
 

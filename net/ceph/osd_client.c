@@ -124,7 +124,7 @@ static void calc_layout(struct ceph_osd_client *osdc,
 	ceph_calc_raw_layout(osdc, layout, vino.snap, off,
 			     plen, &bno, req, op);
 
-	sprintf(req->r_oid, "%llx.%08llx", vino.ino, bno);
+	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx", vino.ino, bno);
 	req->r_oid_len = strlen(req->r_oid);
 }
 
@@ -1421,6 +1421,15 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 done:
 	downgrade_write(&osdc->map_sem);
 	ceph_monc_got_osdmap(&osdc->client->monc, osdc->osdmap->epoch);
+
+	/*
+	 * subscribe to subsequent osdmap updates if full to ensure
+	 * we find out when we are no longer full and stop returning
+	 * ENOSPC.
+	 */
+	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL))
+		ceph_monc_request_next_osdmap(&osdc->client->monc);
+
 	send_queued(osdc);
 	up_read(&osdc->map_sem);
 	wake_up_all(&osdc->client->auth_wq);
@@ -1677,8 +1686,14 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 	 */
 	if (req->r_sent == 0) {
 		rc = __map_request(osdc, req);
-		if (rc < 0)
+		if (rc < 0) {
+			if (nofail) {
+				dout("osdc_start_request failed map, "
+				     " will retry %lld\n", req->r_tid);
+				rc = 0;
+			}
 			goto out_unlock;
+		}
 		if (req->r_osd == NULL) {
 			dout("send_request %p no up osds in pg\n", req);
 			ceph_monc_request_next_osdmap(&osdc->client->monc);

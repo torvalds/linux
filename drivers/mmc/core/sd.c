@@ -130,7 +130,7 @@ static int mmc_decode_csd(struct mmc_card *card)
 		break;
 	case 1:
 		/*
-		 * This is a block-addressed SDHC card. Most
+		 * This is a block-addressed SDHC or SDXC card. Most
 		 * interesting fields are unused and have fixed
 		 * values. To avoid getting tripped by buggy cards,
 		 * we assume those fixed values ourselves.
@@ -144,6 +144,11 @@ static int mmc_decode_csd(struct mmc_card *card)
 		e = UNSTUFF_BITS(resp, 96, 3);
 		csd->max_dtr	  = tran_exp[e] * tran_mant[m];
 		csd->cmdclass	  = UNSTUFF_BITS(resp, 84, 12);
+		csd->c_size	  = UNSTUFF_BITS(resp, 48, 22);
+
+		/* SDXC cards have a minimum C_SIZE of 0x00FFFF */
+		if (csd->c_size >= 0xFFFF)
+			mmc_card_set_ext_capacity(card);
 
 		m = UNSTUFF_BITS(resp, 48, 22);
 		csd->capacity     = (1 + m) << 10;
@@ -189,12 +194,17 @@ static int mmc_decode_scr(struct mmc_card *card)
 
 	scr->sda_vsn = UNSTUFF_BITS(resp, 56, 4);
 	scr->bus_widths = UNSTUFF_BITS(resp, 48, 4);
+	if (scr->sda_vsn == SCR_SPEC_VER_2)
+		/* Check if Physical Layer Spec v3.0 is supported */
+		scr->sda_spec3 = UNSTUFF_BITS(resp, 47, 1);
 
 	if (UNSTUFF_BITS(resp, 55, 1))
 		card->erased_byte = 0xFF;
 	else
 		card->erased_byte = 0x0;
 
+	if (scr->sda_spec3)
+		scr->cmds = UNSTUFF_BITS(resp, 32, 2);
 	return 0;
 }
 
@@ -274,29 +284,74 @@ static int mmc_read_switch(struct mmc_card *card)
 	status = kmalloc(64, GFP_KERNEL);
 	if (!status) {
 		printk(KERN_ERR "%s: could not allocate a buffer for "
-			"switch capabilities.\n", mmc_hostname(card->host));
+			"switch capabilities.\n",
+			mmc_hostname(card->host));
 		return -ENOMEM;
 	}
 
+	/* Find out the supported Bus Speed Modes. */
 	err = mmc_sd_switch(card, 0, 0, 1, status);
 	if (err) {
-		/* If the host or the card can't do the switch,
-		 * fail more gracefully. */
-		if ((err != -EINVAL)
-		 && (err != -ENOSYS)
-		 && (err != -EFAULT))
+		/*
+		 * If the host or the card can't do the switch,
+		 * fail more gracefully.
+		 */
+		if (err != -EINVAL && err != -ENOSYS && err != -EFAULT)
 			goto out;
 
-		printk(KERN_WARNING "%s: problem reading switch "
-			"capabilities, performance might suffer.\n",
+		printk(KERN_WARNING "%s: problem reading Bus Speed modes.\n",
 			mmc_hostname(card->host));
 		err = 0;
 
 		goto out;
 	}
 
-	if (status[13] & 0x02)
-		card->sw_caps.hs_max_dtr = 50000000;
+	if (card->scr.sda_spec3) {
+		card->sw_caps.sd3_bus_mode = status[13];
+
+		/* Find out Driver Strengths supported by the card */
+		err = mmc_sd_switch(card, 0, 2, 1, status);
+		if (err) {
+			/*
+			 * If the host or the card can't do the switch,
+			 * fail more gracefully.
+			 */
+			if (err != -EINVAL && err != -ENOSYS && err != -EFAULT)
+				goto out;
+
+			printk(KERN_WARNING "%s: problem reading "
+				"Driver Strength.\n",
+				mmc_hostname(card->host));
+			err = 0;
+
+			goto out;
+		}
+
+		card->sw_caps.sd3_drv_type = status[9];
+
+		/* Find out Current Limits supported by the card */
+		err = mmc_sd_switch(card, 0, 3, 1, status);
+		if (err) {
+			/*
+			 * If the host or the card can't do the switch,
+			 * fail more gracefully.
+			 */
+			if (err != -EINVAL && err != -ENOSYS && err != -EFAULT)
+				goto out;
+
+			printk(KERN_WARNING "%s: problem reading "
+				"Current Limit.\n",
+				mmc_hostname(card->host));
+			err = 0;
+
+			goto out;
+		}
+
+		card->sw_caps.sd3_curr_limit = status[7];
+	} else {
+		if (status[13] & 0x02)
+			card->sw_caps.hs_max_dtr = 50000000;
+	}
 
 out:
 	kfree(status);
@@ -352,6 +407,232 @@ out:
 	return err;
 }
 
+static int sd_select_driver_type(struct mmc_card *card, u8 *status)
+{
+	int host_drv_type = 0, card_drv_type = 0;
+	int err;
+
+	/*
+	 * If the host doesn't support any of the Driver Types A,C or D,
+	 * default Driver Type B is used.
+	 */
+	if (!(card->host->caps & (MMC_CAP_DRIVER_TYPE_A | MMC_CAP_DRIVER_TYPE_C
+	    | MMC_CAP_DRIVER_TYPE_D)))
+		return 0;
+
+	if (card->host->caps & MMC_CAP_DRIVER_TYPE_A) {
+		host_drv_type = MMC_SET_DRIVER_TYPE_A;
+		if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_A)
+			card_drv_type = MMC_SET_DRIVER_TYPE_A;
+		else if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_B)
+			card_drv_type = MMC_SET_DRIVER_TYPE_B;
+		else if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_C)
+			card_drv_type = MMC_SET_DRIVER_TYPE_C;
+	} else if (card->host->caps & MMC_CAP_DRIVER_TYPE_C) {
+		host_drv_type = MMC_SET_DRIVER_TYPE_C;
+		if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_C)
+			card_drv_type = MMC_SET_DRIVER_TYPE_C;
+	} else if (!(card->host->caps & MMC_CAP_DRIVER_TYPE_D)) {
+		/*
+		 * If we are here, that means only the default driver type
+		 * B is supported by the host.
+		 */
+		host_drv_type = MMC_SET_DRIVER_TYPE_B;
+		if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_B)
+			card_drv_type = MMC_SET_DRIVER_TYPE_B;
+		else if (card->sw_caps.sd3_drv_type & SD_DRIVER_TYPE_C)
+			card_drv_type = MMC_SET_DRIVER_TYPE_C;
+	}
+
+	err = mmc_sd_switch(card, 1, 2, card_drv_type, status);
+	if (err)
+		return err;
+
+	if ((status[15] & 0xF) != card_drv_type) {
+		printk(KERN_WARNING "%s: Problem setting driver strength!\n",
+			mmc_hostname(card->host));
+		return 0;
+	}
+
+	mmc_set_driver_type(card->host, host_drv_type);
+
+	return 0;
+}
+
+static int sd_set_bus_speed_mode(struct mmc_card *card, u8 *status)
+{
+	unsigned int bus_speed = 0, timing = 0;
+	int err;
+
+	/*
+	 * If the host doesn't support any of the UHS-I modes, fallback on
+	 * default speed.
+	 */
+	if (!(card->host->caps & (MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
+	    MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 | MMC_CAP_UHS_DDR50)))
+		return 0;
+
+	if ((card->host->caps & MMC_CAP_UHS_SDR104) &&
+	    (card->sw_caps.sd3_bus_mode & SD_MODE_UHS_SDR104)) {
+			bus_speed = UHS_SDR104_BUS_SPEED;
+			timing = MMC_TIMING_UHS_SDR104;
+			card->sw_caps.uhs_max_dtr = UHS_SDR104_MAX_DTR;
+	} else if ((card->host->caps & MMC_CAP_UHS_DDR50) &&
+		   (card->sw_caps.sd3_bus_mode & SD_MODE_UHS_DDR50)) {
+			bus_speed = UHS_DDR50_BUS_SPEED;
+			timing = MMC_TIMING_UHS_DDR50;
+			card->sw_caps.uhs_max_dtr = UHS_DDR50_MAX_DTR;
+	} else if ((card->host->caps & (MMC_CAP_UHS_SDR104 |
+		    MMC_CAP_UHS_SDR50)) && (card->sw_caps.sd3_bus_mode &
+		    SD_MODE_UHS_SDR50)) {
+			bus_speed = UHS_SDR50_BUS_SPEED;
+			timing = MMC_TIMING_UHS_SDR50;
+			card->sw_caps.uhs_max_dtr = UHS_SDR50_MAX_DTR;
+	} else if ((card->host->caps & (MMC_CAP_UHS_SDR104 |
+		    MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR25)) &&
+		   (card->sw_caps.sd3_bus_mode & SD_MODE_UHS_SDR25)) {
+			bus_speed = UHS_SDR25_BUS_SPEED;
+			timing = MMC_TIMING_UHS_SDR25;
+			card->sw_caps.uhs_max_dtr = UHS_SDR25_MAX_DTR;
+	} else if ((card->host->caps & (MMC_CAP_UHS_SDR104 |
+		    MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR25 |
+		    MMC_CAP_UHS_SDR12)) && (card->sw_caps.sd3_bus_mode &
+		    SD_MODE_UHS_SDR12)) {
+			bus_speed = UHS_SDR12_BUS_SPEED;
+			timing = MMC_TIMING_UHS_SDR12;
+			card->sw_caps.uhs_max_dtr = UHS_SDR12_MAX_DTR;
+	}
+
+	card->sd_bus_speed = bus_speed;
+	err = mmc_sd_switch(card, 1, 0, bus_speed, status);
+	if (err)
+		return err;
+
+	if ((status[16] & 0xF) != bus_speed)
+		printk(KERN_WARNING "%s: Problem setting bus speed mode!\n",
+			mmc_hostname(card->host));
+	else {
+		mmc_set_timing(card->host, timing);
+		mmc_set_clock(card->host, card->sw_caps.uhs_max_dtr);
+	}
+
+	return 0;
+}
+
+static int sd_set_current_limit(struct mmc_card *card, u8 *status)
+{
+	int current_limit = 0;
+	int err;
+
+	/*
+	 * Current limit switch is only defined for SDR50, SDR104, and DDR50
+	 * bus speed modes. For other bus speed modes, we set the default
+	 * current limit of 200mA.
+	 */
+	if ((card->sd_bus_speed == UHS_SDR50_BUS_SPEED) ||
+	    (card->sd_bus_speed == UHS_SDR104_BUS_SPEED) ||
+	    (card->sd_bus_speed == UHS_DDR50_BUS_SPEED)) {
+		if (card->host->caps & MMC_CAP_MAX_CURRENT_800) {
+			if (card->sw_caps.sd3_curr_limit & SD_MAX_CURRENT_800)
+				current_limit = SD_SET_CURRENT_LIMIT_800;
+			else if (card->sw_caps.sd3_curr_limit &
+					SD_MAX_CURRENT_600)
+				current_limit = SD_SET_CURRENT_LIMIT_600;
+			else if (card->sw_caps.sd3_curr_limit &
+					SD_MAX_CURRENT_400)
+				current_limit = SD_SET_CURRENT_LIMIT_400;
+			else if (card->sw_caps.sd3_curr_limit &
+					SD_MAX_CURRENT_200)
+				current_limit = SD_SET_CURRENT_LIMIT_200;
+		} else if (card->host->caps & MMC_CAP_MAX_CURRENT_600) {
+			if (card->sw_caps.sd3_curr_limit & SD_MAX_CURRENT_600)
+				current_limit = SD_SET_CURRENT_LIMIT_600;
+			else if (card->sw_caps.sd3_curr_limit &
+					SD_MAX_CURRENT_400)
+				current_limit = SD_SET_CURRENT_LIMIT_400;
+			else if (card->sw_caps.sd3_curr_limit &
+					SD_MAX_CURRENT_200)
+				current_limit = SD_SET_CURRENT_LIMIT_200;
+		} else if (card->host->caps & MMC_CAP_MAX_CURRENT_400) {
+			if (card->sw_caps.sd3_curr_limit & SD_MAX_CURRENT_400)
+				current_limit = SD_SET_CURRENT_LIMIT_400;
+			else if (card->sw_caps.sd3_curr_limit &
+					SD_MAX_CURRENT_200)
+				current_limit = SD_SET_CURRENT_LIMIT_200;
+		} else if (card->host->caps & MMC_CAP_MAX_CURRENT_200) {
+			if (card->sw_caps.sd3_curr_limit & SD_MAX_CURRENT_200)
+				current_limit = SD_SET_CURRENT_LIMIT_200;
+		}
+	} else
+		current_limit = SD_SET_CURRENT_LIMIT_200;
+
+	err = mmc_sd_switch(card, 1, 3, current_limit, status);
+	if (err)
+		return err;
+
+	if (((status[15] >> 4) & 0x0F) != current_limit)
+		printk(KERN_WARNING "%s: Problem setting current limit!\n",
+			mmc_hostname(card->host));
+
+	return 0;
+}
+
+/*
+ * UHS-I specific initialization procedure
+ */
+static int mmc_sd_init_uhs_card(struct mmc_card *card)
+{
+	int err;
+	u8 *status;
+
+	if (!card->scr.sda_spec3)
+		return 0;
+
+	if (!(card->csd.cmdclass & CCC_SWITCH))
+		return 0;
+
+	status = kmalloc(64, GFP_KERNEL);
+	if (!status) {
+		printk(KERN_ERR "%s: could not allocate a buffer for "
+			"switch capabilities.\n", mmc_hostname(card->host));
+		return -ENOMEM;
+	}
+
+	/* Set 4-bit bus width */
+	if ((card->host->caps & MMC_CAP_4_BIT_DATA) &&
+	    (card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
+		err = mmc_app_set_bus_width(card, MMC_BUS_WIDTH_4);
+		if (err)
+			goto out;
+
+		mmc_set_bus_width(card->host, MMC_BUS_WIDTH_4);
+	}
+
+	/* Set the driver strength for the card */
+	err = sd_select_driver_type(card, status);
+	if (err)
+		goto out;
+
+	/* Set bus speed mode of the card */
+	err = sd_set_bus_speed_mode(card, status);
+	if (err)
+		goto out;
+
+	/* Set current limit for the card */
+	err = sd_set_current_limit(card, status);
+	if (err)
+		goto out;
+
+	/* SPI mode doesn't define CMD19 */
+	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning)
+		err = card->host->ops->execute_tuning(card->host);
+
+out:
+	kfree(status);
+
+	return err;
+}
+
 MMC_DEV_ATTR(cid, "%08x%08x%08x%08x\n", card->raw_cid[0], card->raw_cid[1],
 	card->raw_cid[2], card->raw_cid[3]);
 MMC_DEV_ATTR(csd, "%08x%08x%08x%08x\n", card->raw_csd[0], card->raw_csd[1],
@@ -400,7 +681,7 @@ struct device_type sd_type = {
 /*
  * Fetch CID from card.
  */
-int mmc_sd_get_cid(struct mmc_host *host, u32 ocr, u32 *cid)
+int mmc_sd_get_cid(struct mmc_host *host, u32 ocr, u32 *cid, u32 *rocr)
 {
 	int err;
 
@@ -420,11 +701,38 @@ int mmc_sd_get_cid(struct mmc_host *host, u32 ocr, u32 *cid)
 	 */
 	err = mmc_send_if_cond(host, ocr);
 	if (!err)
-		ocr |= 1 << 30;
+		ocr |= SD_OCR_CCS;
 
-	err = mmc_send_app_op_cond(host, ocr, NULL);
+	/*
+	 * If the host supports one of UHS-I modes, request the card
+	 * to switch to 1.8V signaling level.
+	 */
+	if (host->caps & (MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
+	    MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 | MMC_CAP_UHS_DDR50))
+		ocr |= SD_OCR_S18R;
+
+	/* If the host can supply more than 150mA, XPC should be set to 1. */
+	if (host->caps & (MMC_CAP_SET_XPC_330 | MMC_CAP_SET_XPC_300 |
+	    MMC_CAP_SET_XPC_180))
+		ocr |= SD_OCR_XPC;
+
+try_again:
+	err = mmc_send_app_op_cond(host, ocr, rocr);
 	if (err)
 		return err;
+
+	/*
+	 * In case CCS and S18A in the response is set, start Signal Voltage
+	 * Switch procedure. SPI mode doesn't support CMD11.
+	 */
+	if (!mmc_host_is_spi(host) && rocr &&
+	   ((*rocr & 0x41000000) == 0x41000000)) {
+		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180, true);
+		if (err) {
+			ocr &= ~SD_OCR_S18R;
+			goto try_again;
+		}
+	}
 
 	if (mmc_host_is_spi(host))
 		err = mmc_send_cid(host, cid);
@@ -553,11 +861,12 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	struct mmc_card *card;
 	int err;
 	u32 cid[4];
+	u32 rocr = 0;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
-	err = mmc_sd_get_cid(host, ocr, cid);
+	err = mmc_sd_get_cid(host, ocr, cid, &rocr);
 	if (err)
 		return err;
 
@@ -610,30 +919,47 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	if (err)
 		goto free_card;
 
-	/*
-	 * Attempt to change to high-speed (if supported)
-	 */
-	err = mmc_sd_switch_hs(card);
-	if (err > 0)
-		mmc_sd_go_highspeed(card);
-	else if (err)
-		goto free_card;
-
-	/*
-	 * Set bus speed.
-	 */
-	mmc_set_clock(host, mmc_sd_get_max_clock(card));
-
-	/*
-	 * Switch to wider bus (if supported).
-	 */
-	if ((host->caps & MMC_CAP_4_BIT_DATA) &&
-		(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
-		err = mmc_app_set_bus_width(card, MMC_BUS_WIDTH_4);
+	/* Initialization sequence for UHS-I cards */
+	if (rocr & SD_ROCR_S18A) {
+		err = mmc_sd_init_uhs_card(card);
 		if (err)
 			goto free_card;
 
-		mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
+		/* Card is an ultra-high-speed card */
+		mmc_sd_card_set_uhs(card);
+
+		/*
+		 * Since initialization is now complete, enable preset
+		 * value registers for UHS-I cards.
+		 */
+		if (host->ops->enable_preset_value)
+			host->ops->enable_preset_value(host, true);
+	} else {
+		/*
+		 * Attempt to change to high-speed (if supported)
+		 */
+		err = mmc_sd_switch_hs(card);
+		if (err > 0)
+			mmc_sd_go_highspeed(card);
+		else if (err)
+			goto free_card;
+
+		/*
+		 * Set bus speed.
+		 */
+		mmc_set_clock(host, mmc_sd_get_max_clock(card));
+
+		/*
+		 * Switch to wider bus (if supported).
+		 */
+		if ((host->caps & MMC_CAP_4_BIT_DATA) &&
+			(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
+			err = mmc_app_set_bus_width(card, MMC_BUS_WIDTH_4);
+			if (err)
+				goto free_card;
+
+			mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
+		}
 	}
 
 	host->card = card;
@@ -772,6 +1098,15 @@ int mmc_attach_sd(struct mmc_host *host)
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
+
+	/* Make sure we are at 3.3V signalling voltage */
+	err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, false);
+	if (err)
+		return err;
+
+	/* Disable preset value enable if already set since last time */
+	if (host->ops->enable_preset_value)
+		host->ops->enable_preset_value(host, false);
 
 	err = mmc_send_app_op_cond(host, 0, &ocr);
 	if (err)

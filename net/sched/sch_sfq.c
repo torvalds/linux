@@ -361,7 +361,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	unsigned int hash;
-	sfq_index x;
+	sfq_index x, qlen;
 	struct sfq_slot *slot;
 	int uninitialized_var(ret);
 
@@ -405,20 +405,12 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (++sch->q.qlen <= q->limit)
 		return NET_XMIT_SUCCESS;
 
+	qlen = slot->qlen;
 	sfq_drop(sch);
-	return NET_XMIT_CN;
-}
-
-static struct sk_buff *
-sfq_peek(struct Qdisc *sch)
-{
-	struct sfq_sched_data *q = qdisc_priv(sch);
-
-	/* No active slots */
-	if (q->tail == NULL)
-		return NULL;
-
-	return q->slots[q->tail->next].skblist_next;
+	/* Return Congestion Notification only if we dropped a packet
+	 * from this flow.
+	 */
+	return (qlen != slot->qlen) ? NET_XMIT_CN : NET_XMIT_SUCCESS;
 }
 
 static struct sk_buff *
@@ -702,7 +694,7 @@ static struct Qdisc_ops sfq_qdisc_ops __read_mostly = {
 	.priv_size	=	sizeof(struct sfq_sched_data),
 	.enqueue	=	sfq_enqueue,
 	.dequeue	=	sfq_dequeue,
-	.peek		=	sfq_peek,
+	.peek		=	qdisc_peek_dequeued,
 	.drop		=	sfq_drop,
 	.init		=	sfq_init,
 	.reset		=	sfq_reset,

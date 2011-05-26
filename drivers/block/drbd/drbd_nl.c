@@ -272,9 +272,28 @@ static int _try_outdate_peer_async(void *data)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *)data;
 	enum drbd_disk_state nps;
+	union drbd_state ns;
 
 	nps = drbd_try_outdate_peer(mdev);
-	drbd_request_state(mdev, NS(pdsk, nps));
+
+	/* Not using
+	   drbd_request_state(mdev, NS(pdsk, nps));
+	   here, because we might were able to re-establish the connection
+	   in the meantime. This can only partially be solved in the state's
+	   engine is_valid_state() and is_valid_state_transition()
+	   functions.
+
+	   nps can be D_INCONSISTENT, D_OUTDATED or D_UNKNOWN.
+	   pdsk == D_INCONSISTENT while conn >= C_CONNECTED is valid,
+	   therefore we have to have the pre state change check here.
+	*/
+	spin_lock_irq(&mdev->req_lock);
+	ns = mdev->state;
+	if (ns.conn < C_WF_REPORT_PARAMS) {
+		ns.pdsk = nps;
+		_drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
+	}
+	spin_unlock_irq(&mdev->req_lock);
 
 	return 0;
 }
@@ -577,7 +596,7 @@ void drbd_resume_io(struct drbd_conf *mdev)
  * Returns 0 on success, negative return values indicate errors.
  * You should call drbd_md_sync() after calling this function.
  */
-enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *mdev, enum dds_flags flags) __must_hold(local)
+enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds_flags flags) __must_hold(local)
 {
 	sector_t prev_first_sect, prev_size; /* previous meta location */
 	sector_t la_size;
@@ -773,28 +792,76 @@ static int drbd_check_al_size(struct drbd_conf *mdev)
 	return 0;
 }
 
-void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_bio_size) __must_hold(local)
+static void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_bio_size)
 {
 	struct request_queue * const q = mdev->rq_queue;
-	struct request_queue * const b = mdev->ldev->backing_bdev->bd_disk->queue;
-	int max_segments = mdev->ldev->dc.max_bio_bvecs;
-	int max_hw_sectors = min(queue_max_hw_sectors(b), max_bio_size >> 9);
+	int max_hw_sectors = max_bio_size >> 9;
+	int max_segments = 0;
+
+	if (get_ldev_if_state(mdev, D_ATTACHING)) {
+		struct request_queue * const b = mdev->ldev->backing_bdev->bd_disk->queue;
+
+		max_hw_sectors = min(queue_max_hw_sectors(b), max_bio_size >> 9);
+		max_segments = mdev->ldev->dc.max_bio_bvecs;
+		put_ldev(mdev);
+	}
 
 	blk_queue_logical_block_size(q, 512);
 	blk_queue_max_hw_sectors(q, max_hw_sectors);
 	/* This is the workaround for "bio would need to, but cannot, be split" */
 	blk_queue_max_segments(q, max_segments ? max_segments : BLK_MAX_SEGMENTS);
 	blk_queue_segment_boundary(q, PAGE_CACHE_SIZE-1);
-	blk_queue_stack_limits(q, b);
 
-	dev_info(DEV, "max BIO size = %u\n", queue_max_hw_sectors(q) << 9);
+	if (get_ldev_if_state(mdev, D_ATTACHING)) {
+		struct request_queue * const b = mdev->ldev->backing_bdev->bd_disk->queue;
 
-	if (q->backing_dev_info.ra_pages != b->backing_dev_info.ra_pages) {
-		dev_info(DEV, "Adjusting my ra_pages to backing device's (%lu -> %lu)\n",
-		     q->backing_dev_info.ra_pages,
-		     b->backing_dev_info.ra_pages);
-		q->backing_dev_info.ra_pages = b->backing_dev_info.ra_pages;
+		blk_queue_stack_limits(q, b);
+
+		if (q->backing_dev_info.ra_pages != b->backing_dev_info.ra_pages) {
+			dev_info(DEV, "Adjusting my ra_pages to backing device's (%lu -> %lu)\n",
+				 q->backing_dev_info.ra_pages,
+				 b->backing_dev_info.ra_pages);
+			q->backing_dev_info.ra_pages = b->backing_dev_info.ra_pages;
+		}
+		put_ldev(mdev);
 	}
+}
+
+void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
+{
+	int now, new, local, peer;
+
+	now = queue_max_hw_sectors(mdev->rq_queue) << 9;
+	local = mdev->local_max_bio_size; /* Eventually last known value, from volatile memory */
+	peer = mdev->peer_max_bio_size; /* Eventually last known value, from meta data */
+
+	if (get_ldev_if_state(mdev, D_ATTACHING)) {
+		local = queue_max_hw_sectors(mdev->ldev->backing_bdev->bd_disk->queue) << 9;
+		mdev->local_max_bio_size = local;
+		put_ldev(mdev);
+	}
+
+	/* We may ignore peer limits if the peer is modern enough.
+	   Because new from 8.3.8 onwards the peer can use multiple
+	   BIOs for a single peer_request */
+	if (mdev->state.conn >= C_CONNECTED) {
+		if (mdev->agreed_pro_version < 94)
+			peer = mdev->peer_max_bio_size;
+		else if (mdev->agreed_pro_version == 94)
+			peer = DRBD_MAX_SIZE_H80_PACKET;
+		else /* drbd 8.3.8 onwards */
+			peer = DRBD_MAX_BIO_SIZE;
+	}
+
+	new = min_t(int, local, peer);
+
+	if (mdev->state.role == R_PRIMARY && new < now)
+		dev_err(DEV, "ASSERT FAILED new < now; (%d < %d)\n", new, now);
+
+	if (new != now)
+		dev_info(DEV, "max BIO size = %u\n", new);
+
+	drbd_setup_queue_param(mdev, new);
 }
 
 /* serialize deconfig (worker exiting, doing cleanup)
@@ -865,7 +932,6 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	struct block_device *bdev;
 	struct lru_cache *resync_lru = NULL;
 	union drbd_state ns, os;
-	unsigned int max_bio_size;
 	enum drbd_state_rv rv;
 	int cp_discovered = 0;
 	int logical_block_size;
@@ -1117,20 +1183,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	mdev->read_cnt = 0;
 	mdev->writ_cnt = 0;
 
-	max_bio_size = DRBD_MAX_BIO_SIZE;
-	if (mdev->state.conn == C_CONNECTED) {
-		/* We are Primary, Connected, and now attach a new local
-		 * backing store. We must not increase the user visible maximum
-		 * bio size on this device to something the peer may not be
-		 * able to handle. */
-		if (mdev->agreed_pro_version < 94)
-			max_bio_size = queue_max_hw_sectors(mdev->rq_queue) << 9;
-		else if (mdev->agreed_pro_version == 94)
-			max_bio_size = DRBD_MAX_SIZE_H80_PACKET;
-		/* else: drbd 8.3.9 and later, stay with default */
-	}
-
-	drbd_setup_queue_param(mdev, max_bio_size);
+	drbd_reconsider_max_bio_size(mdev);
 
 	/* If I am currently not R_PRIMARY,
 	 * but meta data primary indicator is set,
@@ -1152,7 +1205,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	    !drbd_md_test_flag(mdev->ldev, MDF_CONNECTED_IND))
 		set_bit(USE_DEGR_WFC_T, &mdev->flags);
 
-	dd = drbd_determin_dev_size(mdev, 0);
+	dd = drbd_determine_dev_size(mdev, 0);
 	if (dd == dev_size_error) {
 		retcode = ERR_NOMEM_BITMAP;
 		goto force_diskless_dec;
@@ -1281,11 +1334,19 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 static int drbd_nl_detach(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			  struct drbd_nl_cfg_reply *reply)
 {
+	enum drbd_ret_code retcode;
+	int ret;
 	drbd_suspend_io(mdev); /* so no-one is stuck in drbd_al_begin_io */
-	reply->ret_code = drbd_request_state(mdev, NS(disk, D_DISKLESS));
-	if (mdev->state.disk == D_DISKLESS)
-		wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
+	retcode = drbd_request_state(mdev, NS(disk, D_FAILED));
+	/* D_FAILED will transition to DISKLESS. */
+	ret = wait_event_interruptible(mdev->misc_wait,
+			mdev->state.disk != D_FAILED);
 	drbd_resume_io(mdev);
+	if ((int)retcode == (int)SS_IS_DISKLESS)
+		retcode = SS_NOTHING_TO_DO;
+	if (ret)
+		retcode = ERR_INTR;
+	reply->ret_code = retcode;
 	return 0;
 }
 
@@ -1658,7 +1719,7 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 
 	mdev->ldev->dc.disk_size = (sector_t)rs.resize_size;
 	ddsf = (rs.resize_force ? DDSF_FORCED : 0) | (rs.no_resync ? DDSF_NO_RESYNC : 0);
-	dd = drbd_determin_dev_size(mdev, ddsf);
+	dd = drbd_determine_dev_size(mdev, ddsf);
 	drbd_md_sync(mdev);
 	put_ldev(mdev);
 	if (dd == dev_size_error) {

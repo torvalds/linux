@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -26,7 +26,7 @@ static enum htc_phymode ath9k_htc_get_curmode(struct ath9k_htc_priv *priv,
 {
 	enum htc_phymode mode;
 
-	mode = HTC_MODE_AUTO;
+	mode = -EINVAL;
 
 	switch (ichan->chanmode) {
 	case CHANNEL_G:
@@ -44,6 +44,8 @@ static enum htc_phymode ath9k_htc_get_curmode(struct ath9k_htc_priv *priv,
 	default:
 		break;
 	}
+
+	WARN_ON(mode < 0);
 
 	return mode;
 }
@@ -500,9 +502,6 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 		tsta.maxampdu = cpu_to_be16(maxampdu);
 	}
 
-	if (sta && sta->ht_cap.ht_supported)
-		tsta.flags = cpu_to_be16(ATH_HTC_STA_HT);
-
 	WMI_CMD_BUF(WMI_NODE_CREATE_CMDID, &tsta);
 	if (ret) {
 		if (sta)
@@ -582,7 +581,7 @@ int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv,
 	memset(&tcap, 0, sizeof(struct ath9k_htc_cap_target));
 
 	tcap.ampdu_limit = cpu_to_be32(0xffff);
-	tcap.ampdu_subframes = priv->hw->max_tx_aggregation_subframes;
+	tcap.ampdu_subframes = 0xff;
 	tcap.enable_coex = enable_coex;
 	tcap.tx_chainmask = priv->ah->caps.tx_chainmask;
 
@@ -1165,6 +1164,8 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 
 	ath9k_htc_set_opmode(priv);
 
+	ath9k_htc_set_bssid_mask(priv, vif);
+
 	/*
 	 * Stop ANI only if there are no associated station interfaces.
 	 */
@@ -1435,6 +1436,37 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 	return ret;
 }
 
+static void ath9k_htc_set_bssid(struct ath9k_htc_priv *priv)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+
+	ath9k_hw_write_associd(priv->ah);
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"BSSID: %pM aid: 0x%x\n",
+		common->curbssid, common->curaid);
+}
+
+static void ath9k_htc_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+
+	if ((vif->type == NL80211_IFTYPE_STATION) && bss_conf->assoc) {
+		common->curaid = bss_conf->aid;
+		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
+	}
+}
+
+static void ath9k_htc_choose_set_bssid(struct ath9k_htc_priv *priv)
+{
+	if (priv->num_sta_assoc_vif == 1) {
+		ieee80211_iterate_active_interfaces_atomic(priv->hw,
+							   ath9k_htc_bss_iter, priv);
+		ath9k_htc_set_bssid(priv);
+	}
+}
+
 static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_bss_conf *bss_conf,
@@ -1443,43 +1475,32 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath9k_htc_priv *priv = hw->priv;
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);
-	bool set_assoc;
 
 	mutex_lock(&priv->mutex);
 	ath9k_htc_ps_wakeup(priv);
 
-	/*
-	 * Set the HW AID/BSSID only for the first station interface
-	 * or in IBSS mode.
-	 */
-	set_assoc = !!((priv->ah->opmode == NL80211_IFTYPE_ADHOC) ||
-		       ((priv->ah->opmode == NL80211_IFTYPE_STATION) &&
-			(priv->num_sta_vif == 1)));
-
-
 	if (changed & BSS_CHANGED_ASSOC) {
-		if (set_assoc) {
-			ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
-				bss_conf->assoc);
+		ath_dbg(common, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
+			bss_conf->assoc);
 
-			common->curaid = bss_conf->assoc ?
-				bss_conf->aid : 0;
+		bss_conf->assoc ?
+			priv->num_sta_assoc_vif++ : priv->num_sta_assoc_vif--;
 
-			if (bss_conf->assoc)
+		if (priv->ah->opmode == NL80211_IFTYPE_STATION) {
+			if (bss_conf->assoc && (priv->num_sta_assoc_vif == 1))
 				ath9k_htc_start_ani(priv);
-			else
+			else if (priv->num_sta_assoc_vif == 0)
 				ath9k_htc_stop_ani(priv);
 		}
 	}
 
 	if (changed & BSS_CHANGED_BSSID) {
-		if (set_assoc) {
+		if (priv->ah->opmode == NL80211_IFTYPE_ADHOC) {
+			common->curaid = bss_conf->aid;
 			memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
-			ath9k_hw_write_associd(ah);
-
-			ath_dbg(common, ATH_DBG_CONFIG,
-				"BSSID: %pM aid: 0x%x\n",
-				common->curbssid, common->curaid);
+			ath9k_htc_set_bssid(priv);
+		} else if (priv->ah->opmode == NL80211_IFTYPE_STATION) {
+			ath9k_htc_choose_set_bssid(priv);
 		}
 	}
 

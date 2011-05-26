@@ -39,6 +39,7 @@
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
@@ -243,8 +244,12 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 	spin_lock_irqsave(&host->lock, flags);
 	mrq = host->mrq;
 
-	/* request already finished */
-	if (!mrq
+	/*
+	 * is request already finished? Since we use a non-blocking
+	 * cancel_delayed_work(), it can happen, that a .set_ios() call preempts
+	 * us, so, have to check for IS_ERR(host->mrq)
+	 */
+	if (IS_ERR_OR_NULL(mrq)
 	    || time_is_after_jiffies(host->last_req_ts +
 		msecs_to_jiffies(2000))) {
 		spin_unlock_irqrestore(&host->lock, flags);
@@ -264,16 +269,19 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 
 	host->cmd = NULL;
 	host->data = NULL;
-	host->mrq = NULL;
 	host->force_pio = false;
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	tmio_mmc_reset(host);
 
+	/* Ready for new calls */
+	host->mrq = NULL;
+
 	mmc_request_done(host->mmc, mrq);
 }
 
+/* called with host->lock held, interrupts disabled */
 static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 {
 	struct mmc_request *mrq = host->mrq;
@@ -281,13 +289,15 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	if (!mrq)
 		return;
 
-	host->mrq = NULL;
 	host->cmd = NULL;
 	host->data = NULL;
 	host->force_pio = false;
 
 	cancel_delayed_work(&host->delayed_reset_work);
 
+	host->mrq = NULL;
+
+	/* FIXME: mmc_request_done() can schedule! */
 	mmc_request_done(host->mmc, mrq);
 }
 
@@ -554,7 +564,7 @@ out:
 	spin_unlock(&host->lock);
 }
 
-static irqreturn_t tmio_mmc_irq(int irq, void *devid)
+irqreturn_t tmio_mmc_irq(int irq, void *devid)
 {
 	struct tmio_mmc_host *host = devid;
 	struct tmio_mmc_data *pdata = host->pdata;
@@ -649,6 +659,7 @@ static irqreturn_t tmio_mmc_irq(int irq, void *devid)
 out:
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL(tmio_mmc_irq);
 
 static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 	struct mmc_data *data)
@@ -685,14 +696,26 @@ static int tmio_mmc_start_data(struct tmio_mmc_host *host,
 static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
+	unsigned long flags;
 	int ret;
 
-	if (host->mrq)
+	spin_lock_irqsave(&host->lock, flags);
+
+	if (host->mrq) {
 		pr_debug("request not null\n");
+		if (IS_ERR(host->mrq)) {
+			spin_unlock_irqrestore(&host->lock, flags);
+			mrq->cmd->error = -EAGAIN;
+			mmc_request_done(mmc, mrq);
+			return;
+		}
+	}
 
 	host->last_req_ts = jiffies;
 	wmb();
 	host->mrq = mrq;
+
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	if (mrq->data) {
 		ret = tmio_mmc_start_data(host, mrq->data);
@@ -708,8 +731,8 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 
 fail:
-	host->mrq = NULL;
 	host->force_pio = false;
+	host->mrq = NULL;
 	mrq->cmd->error = ret;
 	mmc_request_done(mmc, mrq);
 }
@@ -723,19 +746,54 @@ fail:
 static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct tmio_mmc_data *pdata = host->pdata;
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	if (host->mrq) {
+		if (IS_ERR(host->mrq)) {
+			dev_dbg(&host->pdev->dev,
+				"%s.%d: concurrent .set_ios(), clk %u, mode %u\n",
+				current->comm, task_pid_nr(current),
+				ios->clock, ios->power_mode);
+			host->mrq = ERR_PTR(-EINTR);
+		} else {
+			dev_dbg(&host->pdev->dev,
+				"%s.%d: CMD%u active since %lu, now %lu!\n",
+				current->comm, task_pid_nr(current),
+				host->mrq->cmd->opcode, host->last_req_ts, jiffies);
+		}
+		spin_unlock_irqrestore(&host->lock, flags);
+		return;
+	}
+
+	host->mrq = ERR_PTR(-EBUSY);
+
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	if (ios->clock)
 		tmio_mmc_set_clock(host, ios->clock);
 
 	/* Power sequence - OFF -> UP -> ON */
 	if (ios->power_mode == MMC_POWER_UP) {
+		if ((pdata->flags & TMIO_MMC_HAS_COLD_CD) && !pdata->power) {
+			pm_runtime_get_sync(&host->pdev->dev);
+			pdata->power = true;
+		}
 		/* power up SD bus */
 		if (host->set_pwr)
 			host->set_pwr(host->pdev, 1);
 	} else if (ios->power_mode == MMC_POWER_OFF || !ios->clock) {
 		/* power down SD bus */
-		if (ios->power_mode == MMC_POWER_OFF && host->set_pwr)
-			host->set_pwr(host->pdev, 0);
+		if (ios->power_mode == MMC_POWER_OFF) {
+			if (host->set_pwr)
+				host->set_pwr(host->pdev, 0);
+			if ((pdata->flags & TMIO_MMC_HAS_COLD_CD) &&
+			    pdata->power) {
+				pdata->power = false;
+				pm_runtime_put(&host->pdev->dev);
+			}
+		}
 		tmio_mmc_clk_stop(host);
 	} else {
 		/* start bus clock */
@@ -753,6 +811,12 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	/* Let things settle. delay taken from winCE driver */
 	udelay(140);
+	if (PTR_ERR(host->mrq) == -EINTR)
+		dev_dbg(&host->pdev->dev,
+			"%s.%d: IOS interrupted: clk %u, mode %u",
+			current->comm, task_pid_nr(current),
+			ios->clock, ios->power_mode);
+	host->mrq = NULL;
 }
 
 static int tmio_mmc_get_ro(struct mmc_host *mmc)
@@ -801,6 +865,7 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	if (!mmc)
 		return -ENOMEM;
 
+	pdata->dev = &pdev->dev;
 	_host = mmc_priv(mmc);
 	_host->pdata = pdata;
 	_host->mmc = mmc;
@@ -834,23 +899,18 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	else
 		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
+	pdata->power = false;
+	pm_runtime_enable(&pdev->dev);
+	ret = pm_runtime_resume(&pdev->dev);
+	if (ret < 0)
+		goto pm_disable;
+
 	tmio_mmc_clk_stop(_host);
 	tmio_mmc_reset(_host);
-
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0)
-		goto unmap_ctl;
-
-	_host->irq = ret;
 
 	tmio_mmc_disable_mmc_irqs(_host, TMIO_MASK_ALL);
 	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
 		tmio_mmc_enable_sdio_irq(mmc, 0);
-
-	ret = request_irq(_host->irq, tmio_mmc_irq, IRQF_DISABLED |
-		IRQF_TRIGGER_FALLING, dev_name(&pdev->dev), _host);
-	if (ret)
-		goto unmap_ctl;
 
 	spin_lock_init(&_host->lock);
 
@@ -859,6 +919,10 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 
 	/* See if we also get DMA */
 	tmio_mmc_request_dma(_host, pdata);
+
+	/* We have to keep the device powered for its card detection to work */
+	if (!(pdata->flags & TMIO_MMC_HAS_COLD_CD))
+		pm_runtime_get_noresume(&pdev->dev);
 
 	mmc_add_host(mmc);
 
@@ -874,7 +938,8 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 
 	return 0;
 
-unmap_ctl:
+pm_disable:
+	pm_runtime_disable(&pdev->dev);
 	iounmap(_host->ctl);
 host_free:
 	mmc_free_host(mmc);
@@ -885,13 +950,88 @@ EXPORT_SYMBOL(tmio_mmc_host_probe);
 
 void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 {
+	struct platform_device *pdev = host->pdev;
+
+	/*
+	 * We don't have to manipulate pdata->power here: if there is a card in
+	 * the slot, the runtime PM is active and our .runtime_resume() will not
+	 * be run. If there is no card in the slot and the platform can suspend
+	 * the controller, the runtime PM is suspended and pdata->power == false,
+	 * so, our .runtime_resume() will not try to detect a card in the slot.
+	 */
+	if (host->pdata->flags & TMIO_MMC_HAS_COLD_CD)
+		pm_runtime_get_sync(&pdev->dev);
+
 	mmc_remove_host(host->mmc);
 	cancel_delayed_work_sync(&host->delayed_reset_work);
 	tmio_mmc_release_dma(host);
-	free_irq(host->irq, host);
+
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
 	iounmap(host->ctl);
 	mmc_free_host(host->mmc);
 }
 EXPORT_SYMBOL(tmio_mmc_host_remove);
+
+#ifdef CONFIG_PM
+int tmio_mmc_host_suspend(struct device *dev)
+{
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	int ret = mmc_suspend_host(mmc);
+
+	if (!ret)
+		tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_ALL);
+
+	host->pm_error = pm_runtime_put_sync(dev);
+
+	return ret;
+}
+EXPORT_SYMBOL(tmio_mmc_host_suspend);
+
+int tmio_mmc_host_resume(struct device *dev)
+{
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+
+	/* The MMC core will perform the complete set up */
+	host->pdata->power = false;
+
+	if (!host->pm_error)
+		pm_runtime_get_sync(dev);
+
+	tmio_mmc_reset(mmc_priv(mmc));
+	tmio_mmc_request_dma(host, host->pdata);
+
+	return mmc_resume_host(mmc);
+}
+EXPORT_SYMBOL(tmio_mmc_host_resume);
+
+#endif	/* CONFIG_PM */
+
+int tmio_mmc_host_runtime_suspend(struct device *dev)
+{
+	return 0;
+}
+EXPORT_SYMBOL(tmio_mmc_host_runtime_suspend);
+
+int tmio_mmc_host_runtime_resume(struct device *dev)
+{
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct tmio_mmc_data *pdata = host->pdata;
+
+	tmio_mmc_reset(host);
+
+	if (pdata->power) {
+		/* Only entered after a card-insert interrupt */
+		tmio_mmc_set_ios(mmc, &mmc->ios);
+		mmc_detect_change(mmc, msecs_to_jiffies(100));
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(tmio_mmc_host_runtime_resume);
 
 MODULE_LICENSE("GPL v2");

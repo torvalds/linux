@@ -191,12 +191,10 @@ int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
 void iwl_setup_rx_handlers(struct iwl_priv *priv);
 
 /* tx */
-void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
-int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
+void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
+int iwlagn_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 				 struct iwl_tx_queue *txq,
-				 dma_addr_t addr, u16 len, u8 reset, u8 pad);
-int iwl_hw_tx_queue_init(struct iwl_priv *priv,
-			 struct iwl_tx_queue *txq);
+				 dma_addr_t addr, u16 len, u8 reset);
 void iwlagn_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 			      struct ieee80211_tx_info *info);
 int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
@@ -345,6 +343,7 @@ extern int iwl_alive_start(struct iwl_priv *priv);
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 extern int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len);
 extern void iwl_testmode_init(struct iwl_priv *priv);
+extern void iwl_testmode_cleanup(struct iwl_priv *priv);
 #else
 static inline
 int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
@@ -353,6 +352,10 @@ int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 }
 static inline
 void iwl_testmode_init(struct iwl_priv *priv)
+{
+}
+static inline
+void iwl_testmode_cleanup(struct iwl_priv *priv)
 {
 }
 #endif

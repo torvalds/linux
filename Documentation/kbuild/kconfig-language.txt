@@ -113,6 +113,13 @@ applicable everywhere (see syntax).
 	That will limit the usefulness but on the other hand avoid
 	the illegal configurations all over.
 
+- limiting menu display: "visible if" <expr>
+  This attribute is only applicable to menu blocks, if the condition is
+  false, the menu block is not displayed to the user (the symbols
+  contained there can still be selected by other symbols, though). It is
+  similar to a conditional "prompt" attribude for individual menu
+  entries. Default value of "visible" is true.
+
 - numerical ranges: "range" <symbol> <symbol> ["if" <expr>]
   This allows to limit the range of possible input values for int
   and hex symbols. The user can only input a value which is larger than
@@ -303,7 +310,8 @@ menu:
 	"endmenu"
 
 This defines a menu block, see "Menu structure" above for more
-information. The only possible options are dependencies.
+information. The only possible options are dependencies and "visible"
+attributes.
 
 if:
 
@@ -381,3 +389,25 @@ config FOO
 
 limits FOO to module (=m) or disabled (=n).
 
+Kconfig symbol existence
+~~~~~~~~~~~~~~~~~~~~~~~~
+The following two methods produce the same kconfig symbol dependencies
+but differ greatly in kconfig symbol existence (production) in the
+generated config file.
+
+case 1:
+
+config FOO
+	tristate "about foo"
+	depends on BAR
+
+vs. case 2:
+
+if BAR
+config FOO
+	tristate "about foo"
+endif
+
+In case 1, the symbol FOO will always exist in the config file (given
+no other dependencies).  In case 2, the symbol FOO will only exist in
+the config file if BAR is enabled.

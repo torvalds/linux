@@ -299,9 +299,6 @@ EXPORT_SYMBOL(flush_tlb_range);
 void tlb_flush(struct mmu_gather *tlb)
 {
 	flush_tlb_mm(tlb->mm);
-
-	/* Push out batch of freed page tables */
-	pte_free_finish();
 }
 
 /*

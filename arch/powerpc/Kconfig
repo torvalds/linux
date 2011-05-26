@@ -140,6 +140,7 @@ config PPC
 	select IRQ_PER_CPU
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IRQ_SHOW_LEVEL
+	select HAVE_RCU_TABLE_FREE if SMP
 
 config EARLY_PRINTK
 	bool

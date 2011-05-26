@@ -1581,7 +1581,9 @@ static int xennet_connect(struct net_device *dev)
 	if (err)
 		return err;
 
+	rtnl_lock();
 	netdev_update_features(dev);
+	rtnl_unlock();
 
 	spin_lock_bh(&np->rx_lock);
 	spin_lock_irq(&np->tx_lock);

@@ -20,12 +20,6 @@
 
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
-/*
- * at the moment, there's not a big penalty for changing CPUs
- * (the >big< penalty is running SMP in the first place)
- */
-#define PROC_CHANGE_PENALTY		15
-
 struct seq_file;
 
 /*

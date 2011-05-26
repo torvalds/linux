@@ -75,6 +75,26 @@ static inline bool __attribute_const__ cpu_is_u8500v2(void)
 	return cpu_is_u8500() && ((dbx500_revision() & 0xf0) == 0xB0);
 }
 
+static inline bool cpu_is_u8500v20(void)
+{
+	return cpu_is_u8500() && (dbx500_revision() == 0xB0);
+}
+
+static inline bool cpu_is_u8500v21(void)
+{
+	return cpu_is_u8500() && (dbx500_revision() == 0xB1);
+}
+
+static inline bool cpu_is_u8500v20_or_later(void)
+{
+	return cpu_is_u8500() && !cpu_is_u8500v10() && !cpu_is_u8500v11();
+}
+
+static inline bool ux500_is_svp(void)
+{
+	return false;
+}
+
 #define ux500_unknown_soc()	BUG()
 
 #endif

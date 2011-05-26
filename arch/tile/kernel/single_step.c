@@ -186,6 +186,8 @@ static tile_bundle_bits rewrite_load_store_unaligned(
 			.si_code = SEGV_MAPERR,
 			.si_addr = addr
 		};
+		trace_unhandled_signal("segfault", regs,
+				       (unsigned long)addr, SIGSEGV);
 		force_sig_info(info.si_signo, &info, current);
 		return (tile_bundle_bits) 0;
 	}
@@ -196,6 +198,8 @@ static tile_bundle_bits rewrite_load_store_unaligned(
 			.si_code = BUS_ADRALN,
 			.si_addr = addr
 		};
+		trace_unhandled_signal("unaligned trap", regs,
+				       (unsigned long)addr, SIGBUS);
 		force_sig_info(info.si_signo, &info, current);
 		return (tile_bundle_bits) 0;
 	}
@@ -317,6 +321,14 @@ void single_step_once(struct pt_regs *regs)
 "    j .\n"
 "    .popsection\n"
 	);
+
+	/*
+	 * Enable interrupts here to allow touching userspace and the like.
+	 * The callers expect this: do_trap() already has interrupts
+	 * enabled, and do_work_pending() handles functions that enable
+	 * interrupts internally.
+	 */
+	local_irq_enable();
 
 	if (state == NULL) {
 		/* allocate a page of writable, executable memory */
