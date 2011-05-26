@@ -60,12 +60,12 @@ again:
 
 	while (1) {
 		smp_mb();
-		if (fs_info->closing > 1)
+		if (fs_info->closing)
 			goto out;
 
 		leaf = path->nodes[0];
 		slot = path->slots[0];
-		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
+		if (slot >= btrfs_header_nritems(leaf)) {
 			ret = btrfs_next_leaf(root, path);
 			if (ret < 0)
 				goto out;
@@ -100,7 +100,7 @@ again:
 		if (key.type != BTRFS_INODE_ITEM_KEY)
 			goto next;
 
-		if (key.objectid >= BTRFS_LAST_FREE_OBJECTID)
+		if (key.objectid >= root->highest_objectid)
 			break;
 
 		if (last != (u64)-1 && last + 1 != key.objectid) {
@@ -114,9 +114,9 @@ next:
 		path->slots[0]++;
 	}
 
-	if (last < BTRFS_LAST_FREE_OBJECTID - 1) {
+	if (last < root->highest_objectid - 1) {
 		__btrfs_add_free_space(ctl, last + 1,
-				       BTRFS_LAST_FREE_OBJECTID - last - 1);
+				       root->highest_objectid - last - 1);
 	}
 
 	spin_lock(&root->cache_lock);
@@ -136,8 +136,10 @@ out:
 
 static void start_caching(struct btrfs_root *root)
 {
+	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
 	struct task_struct *tsk;
 	int ret;
+	u64 objectid;
 
 	spin_lock(&root->cache_lock);
 	if (root->cached != BTRFS_CACHE_NO) {
@@ -154,6 +156,19 @@ static void start_caching(struct btrfs_root *root)
 		root->cached = BTRFS_CACHE_FINISHED;
 		spin_unlock(&root->cache_lock);
 		return;
+	}
+
+	/*
+	 * It can be quite time-consuming to fill the cache by searching
+	 * through the extent tree, and this can keep ino allocation path
+	 * waiting. Therefore at start we quickly find out the highest
+	 * inode number and we know we can use inode numbers which fall in
+	 * [highest_ino + 1, BTRFS_LAST_FREE_OBJECTID].
+	 */
+	ret = btrfs_find_free_objectid(root, &objectid);
+	if (!ret && objectid <= BTRFS_LAST_FREE_OBJECTID) {
+		__btrfs_add_free_space(ctl, objectid,
+				       BTRFS_LAST_FREE_OBJECTID - objectid + 1);
 	}
 
 	tsk = kthread_run(caching_kthread, root, "btrfs-ino-cache-%llu\n",
@@ -209,7 +224,8 @@ again:
 
 		start_caching(root);
 
-		if (objectid <= root->cache_progress)
+		if (objectid <= root->cache_progress ||
+		    objectid > root->highest_objectid)
 			__btrfs_add_free_space(ctl, objectid, 1);
 		else
 			__btrfs_add_free_space(pinned, objectid, 1);
