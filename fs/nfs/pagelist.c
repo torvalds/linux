@@ -18,6 +18,7 @@
 #include <linux/nfs_page.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
+#include <linux/export.h>
 
 #include "internal.h"
 #include "pnfs.h"
