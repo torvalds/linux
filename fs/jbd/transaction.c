@@ -26,6 +26,7 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/hrtimer.h>
+#include <linux/backing-dev.h>
 
 static void __journal_temp_unlink_buffer(struct journal_head *jh);
 
@@ -99,11 +100,10 @@ static int start_this_handle(journal_t *journal, handle_t *handle)
 
 alloc_transaction:
 	if (!journal->j_running_transaction) {
-		new_transaction = kzalloc(sizeof(*new_transaction),
-						GFP_NOFS|__GFP_NOFAIL);
+		new_transaction = kzalloc(sizeof(*new_transaction), GFP_NOFS);
 		if (!new_transaction) {
-			ret = -ENOMEM;
-			goto out;
+			congestion_wait(BLK_RW_ASYNC, HZ/50);
+			goto alloc_transaction;
 		}
 	}
 
