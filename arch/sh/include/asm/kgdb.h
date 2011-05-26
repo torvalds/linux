@@ -34,5 +34,6 @@ static inline void arch_kgdb_breakpoint(void)
 
 #define CACHE_FLUSH_IS_SAFE	1
 #define BREAK_INSTR_SIZE	2
+#define GDB_ADJUSTS_BREAK_OFFSET
 
 #endif /* __ASM_SH_KGDB_H */
