@@ -38,6 +38,7 @@
 #include <linux/debugfs.h>
 #include <linux/edac_mce.h>
 #include <linux/irq_work.h>
+#include <linux/export.h>
 
 #include <asm/processor.h>
 #include <asm/mce.h>

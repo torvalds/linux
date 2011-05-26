@@ -5,6 +5,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/acpi.h>
 #include <linux/bcd.h>
+#include <linux/export.h>
 #include <linux/pnp.h>
 #include <linux/of.h>
 
