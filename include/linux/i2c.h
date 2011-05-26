@@ -28,7 +28,6 @@
 
 #include <linux/types.h>
 #ifdef __KERNEL__
-#include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/device.h>	/* for struct device */
 #include <linux/sched.h>	/* for completion */
@@ -48,6 +47,8 @@ struct i2c_client;
 struct i2c_driver;
 union i2c_smbus_data;
 struct i2c_board_info;
+
+struct module;
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 /*

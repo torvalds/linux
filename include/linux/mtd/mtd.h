@@ -21,7 +21,6 @@
 #define __MTD_MTD_H__
 
 #include <linux/types.h>
-#include <linux/module.h>
 #include <linux/uio.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
@@ -124,6 +123,8 @@ struct nand_ecclayout {
 	__u32 oobavail;
 	struct nand_oobfree oobfree[MTD_MAX_OOBFREE_ENTRIES_LARGE];
 };
+
+struct module;	/* only needed for owner field in mtd_info */
 
 struct mtd_info {
 	u_char type;

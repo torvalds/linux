@@ -22,7 +22,6 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/sched.h>		/* wake_up() */
 #include <linux/mutex.h>		/* struct mutex */
 #include <linux/rwsem.h>		/* struct rw_semaphore */
@@ -43,6 +42,7 @@
 #ifdef CONFIG_PCI
 struct pci_dev;
 #endif
+struct module;
 
 /* device allocation stuff */
 

@@ -14,10 +14,10 @@
 #ifndef _UIO_DRIVER_H_
 #define _UIO_DRIVER_H_
 
-#include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 
+struct module;
 struct uio_map;
 
 /**
