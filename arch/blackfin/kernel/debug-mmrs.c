@@ -1337,6 +1337,10 @@ static int __init bfin_debug_mmrs_init(void)
 	D16(RSI_PID1);
 	D16(RSI_PID2);
 	D16(RSI_PID3);
+	D16(RSI_PID4);
+	D16(RSI_PID5);
+	D16(RSI_PID6);
+	D16(RSI_PID7);
 	D16(RSI_PWR_CONTROL);
 	D16(RSI_RD_WAIT_EN);
 	D32(RSI_RESPONSE0);
