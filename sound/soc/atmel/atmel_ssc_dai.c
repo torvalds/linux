@@ -838,10 +838,8 @@ int atmel_ssc_set_audio(int ssc_id)
 	}
 
 	ssc_pdev = platform_device_alloc("atmel-ssc-dai", ssc_id);
-	if (!ssc_pdev) {
-		ssc_free(ssc);
+	if (!ssc_pdev)
 		return -ENOMEM;
-	}
 
 	/* If we can grab the SSC briefly to parent the DAI device off it */
 	ssc = ssc_request(ssc_id);
