@@ -7,7 +7,7 @@
 
 static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
 {
-	return vma->vm_flags & VM_HUGETLB;
+	return !!(vma->vm_flags & VM_HUGETLB);
 }
 
 #else

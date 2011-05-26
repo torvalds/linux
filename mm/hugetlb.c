@@ -2833,7 +2833,7 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 int hugetlb_reserve_pages(struct inode *inode,
 					long from, long to,
 					struct vm_area_struct *vma,
-					int acctflag)
+					vm_flags_t vm_flags)
 {
 	long ret, chg;
 	struct hstate *h = hstate_inode(inode);
@@ -2843,7 +2843,7 @@ int hugetlb_reserve_pages(struct inode *inode,
 	 * attempt will be made for VM_NORESERVE to allocate a page
 	 * and filesystem quota without using reserves
 	 */
-	if (acctflag & VM_NORESERVE)
+	if (vm_flags & VM_NORESERVE)
 		return 0;
 
 	/*
