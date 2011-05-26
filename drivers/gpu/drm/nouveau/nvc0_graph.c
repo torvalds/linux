@@ -865,6 +865,18 @@ nvc0_graph_create(struct drm_device *dev)
 		priv->magic_not_rop_nr = 0x01;
 		priv->magicgpc918      = 0x00124925;
 		break;
+	case 0xc1: /* 2/0/0/0, 1 */
+		priv->magic_not_rop_nr = 0x01;
+		priv->magicgpc918      = 0x00400000;
+		break;
+	case 0xc8: /* 4/4/3/4, 5 */
+		priv->magic_not_rop_nr = 0x06;
+		priv->magicgpc918      = 0x00088889;
+		break;
+	case 0xce: /* 4/4/0/0, 4 */
+		priv->magic_not_rop_nr = 0x03;
+		priv->magicgpc918      = 0x00100000;
+		break;
 	}
 
 	if (!priv->magic_not_rop_nr) {
