@@ -635,7 +635,7 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 		 * Scan quietly until there is an error from which we cannot
 		 * recover
 		 */
-		ret = ubifs_scan_a_node(c, buf, len, lnum, offs, 0);
+		ret = ubifs_scan_a_node(c, buf, len, lnum, offs, 1);
 		if (ret == SCANNED_A_NODE) {
 			/* A valid node, and not a padding node */
 			struct ubifs_ch *ch = buf;
@@ -701,7 +701,7 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 	 * While we are in the middle of the same min. I/O unit keep dropping
 	 * nodes. So basically, what we want is to make sure that the last min.
 	 * I/O unit where we saw the corruption is dropped completely with all
-	 * the uncorrupted node which may possibly sit there.
+	 * the uncorrupted nodes which may possibly sit there.
 	 *
 	 * In other words, let's name the min. I/O unit where the corruption
 	 * starts B, and the previous min. I/O unit A. The below code tries to
