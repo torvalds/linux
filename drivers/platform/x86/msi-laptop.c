@@ -800,7 +800,7 @@ static void msi_laptop_input_destroy(void)
 	input_unregister_device(msi_laptop_input_dev);
 }
 
-static int load_scm_model_init(struct platform_device *sdev)
+static int __init load_scm_model_init(struct platform_device *sdev)
 {
 	u8 data;
 	int result;
