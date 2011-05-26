@@ -858,8 +858,12 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 
 	hci_dev_lock(hdev);
 
-	if (cp->enable == 0x01)
+	if (cp->enable == 0x01) {
+		del_timer(&hdev->adv_timer);
 		hci_adv_entries_clear(hdev);
+	} else if (cp->enable == 0x00) {
+		mod_timer(&hdev->adv_timer, jiffies + ADV_CLEAR_TIMEOUT);
+	}
 
 	hci_dev_unlock(hdev);
 }
