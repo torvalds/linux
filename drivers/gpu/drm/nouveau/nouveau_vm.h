@@ -53,8 +53,7 @@ struct nouveau_vm {
 	int refcount;
 
 	struct list_head pgd_list;
-	atomic_t pgraph_refs;
-	atomic_t pcrypt_refs;
+	atomic_t engref[16];
 
 	struct nouveau_vm_pgt *pgt;
 	u32 fpde;

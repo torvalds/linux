@@ -1570,7 +1570,8 @@ void ubi_wl_close(struct ubi_device *ubi)
  * @ec: the erase counter to check
  *
  * This function returns zero if the erase counter of physical eraseblock @pnum
- * is equivalent to @ec, and a negative error code if not or if an error occurred.
+ * is equivalent to @ec, and a negative error code if not or if an error
+ * occurred.
  */
 static int paranoid_check_ec(struct ubi_device *ubi, int pnum, int ec)
 {

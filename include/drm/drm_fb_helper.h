@@ -40,20 +40,6 @@ struct drm_fb_helper_crtc {
 	struct drm_display_mode *desired_mode;
 };
 
-/* mode specified on the command line */
-struct drm_fb_helper_cmdline_mode {
-	bool specified;
-	bool refresh_specified;
-	bool bpp_specified;
-	int xres, yres;
-	int bpp;
-	int refresh;
-	bool rb;
-	bool interlace;
-	bool cvt;
-	bool margins;
-};
-
 struct drm_fb_helper_surface_size {
 	u32 fb_width;
 	u32 fb_height;
@@ -74,8 +60,8 @@ struct drm_fb_helper_funcs {
 };
 
 struct drm_fb_helper_connector {
-	struct drm_fb_helper_cmdline_mode cmdline_mode;
 	struct drm_connector *connector;
+	struct drm_cmdline_mode cmdline_mode;
 };
 
 struct drm_fb_helper {

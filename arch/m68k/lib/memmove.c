@@ -4,8 +4,6 @@
  * for more details.
  */
 
-#define __IN_STRING_C
-
 #include <linux/module.h>
 #include <linux/string.h>
 

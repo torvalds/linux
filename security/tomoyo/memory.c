@@ -75,6 +75,7 @@ void *tomoyo_commit_ok(void *data, const unsigned int size)
 		memset(data, 0, size);
 		return ptr;
 	}
+	kfree(ptr);
 	return NULL;
 }
 

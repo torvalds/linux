@@ -11,7 +11,6 @@
  *  Linux/m68k support by Hamish Macdonald
  */
 
-#include <linux/sys.h>
 #include <linux/linkage.h>
 
 #ifndef CONFIG_MMU

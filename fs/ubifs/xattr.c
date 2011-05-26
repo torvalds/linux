@@ -80,8 +80,8 @@ enum {
 	SECURITY_XATTR,
 };
 
-static const struct inode_operations none_inode_operations;
-static const struct file_operations none_file_operations;
+static const struct inode_operations empty_iops;
+static const struct file_operations empty_fops;
 
 /**
  * create_xattr - create an extended attribute.
@@ -131,8 +131,8 @@ static int create_xattr(struct ubifs_info *c, struct inode *host,
 
 	/* Re-define all operations to be "nothing" */
 	inode->i_mapping->a_ops = &empty_aops;
-	inode->i_op = &none_inode_operations;
-	inode->i_fop = &none_file_operations;
+	inode->i_op = &empty_iops;
+	inode->i_fop = &empty_fops;
 
 	inode->i_flags |= S_SYNC | S_NOATIME | S_NOCMTIME | S_NOQUOTA;
 	ui = ubifs_inode(inode);

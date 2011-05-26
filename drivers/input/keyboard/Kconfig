@@ -32,6 +32,16 @@ config KEYBOARD_ADP5588
 	  To compile this driver as a module, choose M here: the
 	  module will be called adp5588-keys.
 
+config KEYBOARD_ADP5589
+	tristate "ADP5589 I2C QWERTY Keypad and IO Expander"
+	depends on I2C
+	help
+	  Say Y here if you want to use a ADP5589 attached to your
+	  system I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adp5589-keys.
+
 config KEYBOARD_AMIGA
 	tristate "Amiga keyboard"
 	depends on AMIGA
@@ -324,6 +334,18 @@ config KEYBOARD_MCS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mcs_touchkey.
+
+config KEYBOARD_MPR121
+	tristate "Freescale MPR121 Touchkey"
+	depends on I2C
+	help
+	  Say Y here if you have Freescale MPR121 touchkey controller
+	  chip in your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mpr121_touchkey.
 
 config KEYBOARD_IMX
 	tristate "IMX keypad support"

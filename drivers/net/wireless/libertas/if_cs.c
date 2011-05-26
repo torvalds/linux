@@ -983,7 +983,7 @@ static void if_cs_detach(struct pcmcia_device *p_dev)
 /* Module initialization                                            */
 /********************************************************************/
 
-static struct pcmcia_device_id if_cs_ids[] = {
+static const struct pcmcia_device_id if_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(CF8305_MANFID, CF8305_CARDID),
 	PCMCIA_DEVICE_MANF_CARD(CF8381_MANFID, CF8381_CARDID),
 	PCMCIA_DEVICE_MANF_CARD(CF8385_MANFID, CF8385_CARDID),

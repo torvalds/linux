@@ -21,7 +21,7 @@
 #ifndef __LINUX_UBI_H__
 #define __LINUX_UBI_H__
 
-#include <asm/ioctl.h>
+#include <linux/ioctl.h>
 #include <linux/types.h>
 #include <mtd/ubi-user.h>
 
@@ -87,7 +87,7 @@ enum {
  * physical eraseblock size and on how much bytes UBI headers consume. But
  * because of the volume alignment (@alignment), the usable size of logical
  * eraseblocks if a volume may be less. The following equation is true:
- * 	@usable_leb_size = LEB size - (LEB size mod @alignment),
+ *	@usable_leb_size = LEB size - (LEB size mod @alignment),
  * where LEB size is the logical eraseblock size defined by the UBI device.
  *
  * The alignment is multiple to the minimal flash input/output unit size or %1

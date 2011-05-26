@@ -157,7 +157,7 @@ static void ixj_cs_release(struct pcmcia_device *link)
 	pcmcia_disable_device(link);
 }
 
-static struct pcmcia_device_id ixj_ids[] = {
+static const struct pcmcia_device_id ixj_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0257, 0x0600),
 	PCMCIA_DEVICE_NULL
 };

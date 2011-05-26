@@ -1623,7 +1623,7 @@ nvc0_grctx_generate_rop(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	// ROPC_BROADCAST
+	/* ROPC_BROADCAST */
 	nv_wr32(dev, 0x408800, 0x02802a3c);
 	nv_wr32(dev, 0x408804, 0x00000040);
 	nv_wr32(dev, 0x408808, 0x0003e00d);
@@ -1647,7 +1647,7 @@ nvc0_grctx_generate_gpc(struct drm_device *dev)
 {
 	int i;
 
-	// GPC_BROADCAST
+	/* GPC_BROADCAST */
 	nv_wr32(dev, 0x418380, 0x00000016);
 	nv_wr32(dev, 0x418400, 0x38004e00);
 	nv_wr32(dev, 0x418404, 0x71e0ffff);
@@ -1728,7 +1728,7 @@ nvc0_grctx_generate_tp(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	// GPC_BROADCAST.TP_BROADCAST
+	/* GPC_BROADCAST.TP_BROADCAST */
 	nv_wr32(dev, 0x419848, 0x00000000);
 	nv_wr32(dev, 0x419864, 0x0000012a);
 	nv_wr32(dev, 0x419888, 0x00000000);
@@ -1741,7 +1741,7 @@ nvc0_grctx_generate_tp(struct drm_device *dev)
 	nv_wr32(dev, 0x419a1c, 0x00000000);
 	nv_wr32(dev, 0x419a20, 0x00000800);
 	if (dev_priv->chipset != 0xc0)
-		nv_wr32(dev, 0x00419ac4, 0x0007f440); // 0xc3
+		nv_wr32(dev, 0x00419ac4, 0x0007f440); /* 0xc3 */
 	nv_wr32(dev, 0x419b00, 0x0a418820);
 	nv_wr32(dev, 0x419b04, 0x062080e6);
 	nv_wr32(dev, 0x419b08, 0x020398a4);
@@ -1797,8 +1797,8 @@ int
 nvc0_grctx_generate(struct nouveau_channel *chan)
 {
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
-	struct nvc0_graph_priv *priv = dev_priv->engine.graph.priv;
-	struct nvc0_graph_chan *grch = chan->pgraph_ctx;
+	struct nvc0_graph_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
+	struct nvc0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
 	struct drm_device *dev = chan->dev;
 	int i, gpc, tp, id;
 	u32 r000260, tmp;
@@ -1912,13 +1912,13 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 		for (i = 1; i < 7; i++)
 			data2[1] |= ((1 << (i + 5)) % ntpcv) << ((i - 1) * 5);
 
-		// GPC_BROADCAST
+		/* GPC_BROADCAST */
 		nv_wr32(dev, 0x418bb8, (priv->tp_total << 8) |
 					priv->magic_not_rop_nr);
 		for (i = 0; i < 6; i++)
 			nv_wr32(dev, 0x418b08 + (i * 4), data[i]);
 
-		// GPC_BROADCAST.TP_BROADCAST
+		/* GPC_BROADCAST.TP_BROADCAST */
 		nv_wr32(dev, 0x419bd0, (priv->tp_total << 8) |
 				       priv->magic_not_rop_nr |
 				       data2[0]);
@@ -1926,7 +1926,7 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 		for (i = 0; i < 6; i++)
 			nv_wr32(dev, 0x419b00 + (i * 4), data[i]);
 
-		// UNK78xx
+		/* UNK78xx */
 		nv_wr32(dev, 0x4078bc, (priv->tp_total << 8) |
 					priv->magic_not_rop_nr);
 		for (i = 0; i < 6; i++)
@@ -1944,7 +1944,7 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 		gpc = -1;
 		for (i = 0, gpc = -1; i < 32; i++) {
 			int ltp = i * (priv->tp_total - 1) / 32;
-			
+
 			do {
 				gpc = (gpc + 1) % priv->gpc_nr;
 			} while (!tpnr[gpc]);
