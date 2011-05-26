@@ -326,16 +326,19 @@ static inline int find_first_zero_bit_le(const void *p, unsigned size)
 {
 	return _find_first_zero_bit_le(p, size);
 }
+#define find_first_zero_bit_le find_first_zero_bit_le
 
 static inline int find_next_zero_bit_le(const void *p, int size, int offset)
 {
 	return _find_next_zero_bit_le(p, size, offset);
 }
+#define find_next_zero_bit_le find_next_zero_bit_le
 
 static inline int find_next_bit_le(const void *p, int size, int offset)
 {
 	return _find_next_bit_le(p, size, offset);
 }
+#define find_next_bit_le find_next_bit_le
 
 /*
  * Ext2 is defined to use little-endian byte ordering.

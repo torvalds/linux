@@ -621,6 +621,7 @@ static inline unsigned long find_first_zero_bit(const unsigned long *addr,
 	bits = __ffz_word(bytes*8, __load_ulong_be(addr, bytes));
 	return (bits < size) ? bits : size;
 }
+#define find_first_zero_bit find_first_zero_bit
 
 /**
  * find_first_bit - find the first set bit in a memory region
@@ -641,6 +642,7 @@ static inline unsigned long find_first_bit(const unsigned long * addr,
 	bits = __ffs_word(bytes*8, __load_ulong_be(addr, bytes));
 	return (bits < size) ? bits : size;
 }
+#define find_first_bit find_first_bit
 
 /**
  * find_next_zero_bit - find the first zero bit in a memory region
@@ -677,6 +679,7 @@ static inline int find_next_zero_bit (const unsigned long * addr,
 	}
 	return offset + find_first_zero_bit(p, size);
 }
+#define find_next_zero_bit find_next_zero_bit
 
 /**
  * find_next_bit - find the first set bit in a memory region
@@ -713,6 +716,7 @@ static inline int find_next_bit (const unsigned long * addr,
 	}
 	return offset + find_first_bit(p, size);
 }
+#define find_next_bit find_next_bit
 
 /*
  * Every architecture must define this function. It's the fastest
@@ -787,6 +791,7 @@ static inline int find_first_zero_bit_le(void *vaddr, unsigned int size)
 	bits = __ffz_word(bytes*8, __load_ulong_le(vaddr, bytes));
 	return (bits < size) ? bits : size;
 }
+#define find_first_zero_bit_le find_first_zero_bit_le
 
 static inline int find_next_zero_bit_le(void *vaddr, unsigned long size,
 					  unsigned long offset)
@@ -816,6 +821,7 @@ static inline int find_next_zero_bit_le(void *vaddr, unsigned long size,
         }
 	return offset + find_first_zero_bit_le(p, size);
 }
+#define find_next_zero_bit_le find_next_zero_bit_le
 
 static inline unsigned long find_first_bit_le(void *vaddr, unsigned long size)
 {
@@ -827,6 +833,7 @@ static inline unsigned long find_first_bit_le(void *vaddr, unsigned long size)
 	bits = __ffs_word(bytes*8, __load_ulong_le(vaddr, bytes));
 	return (bits < size) ? bits : size;
 }
+#define find_first_bit_le find_first_bit_le
 
 static inline int find_next_bit_le(void *vaddr, unsigned long size,
 				     unsigned long offset)
@@ -856,6 +863,7 @@ static inline int find_next_bit_le(void *vaddr, unsigned long size,
 	}
 	return offset + find_first_bit_le(p, size);
 }
+#define find_next_bit_le find_next_bit_le
 
 #define ext2_set_bit_atomic(lock, nr, addr)	\
 	test_and_set_bit_le(nr, addr)

@@ -200,6 +200,7 @@ out:
 	res += ((long)p - (long)vaddr - 4) * 8;
 	return res < size ? res : size;
 }
+#define find_first_zero_bit find_first_zero_bit
 
 static inline int find_next_zero_bit(const unsigned long *vaddr, int size,
 				     int offset)
@@ -229,6 +230,7 @@ static inline int find_next_zero_bit(const unsigned long *vaddr, int size,
 	/* No zero yet, search remaining full bytes for a zero */
 	return offset + find_first_zero_bit(p, size - offset);
 }
+#define find_next_zero_bit find_next_zero_bit
 
 static inline int find_first_bit(const unsigned long *vaddr, unsigned size)
 {
@@ -253,6 +255,7 @@ out:
 	res += ((long)p - (long)vaddr - 4) * 8;
 	return res < size ? res : size;
 }
+#define find_first_bit find_first_bit
 
 static inline int find_next_bit(const unsigned long *vaddr, int size,
 				int offset)
@@ -282,6 +285,7 @@ static inline int find_next_bit(const unsigned long *vaddr, int size,
 	/* No one yet, search remaining full bytes for a one */
 	return offset + find_first_bit(p, size - offset);
 }
+#define find_next_bit find_next_bit
 
 /*
  * ffz = Find First Zero in word. Undefined if no zero exists,
@@ -398,6 +402,7 @@ out:
 	res += (p - addr) * 32;
 	return res < size ? res : size;
 }
+#define find_first_zero_bit_le find_first_zero_bit_le
 
 static inline unsigned long find_next_zero_bit_le(const void *addr,
 		unsigned long size, unsigned long offset)
@@ -427,6 +432,7 @@ static inline unsigned long find_next_zero_bit_le(const void *addr,
 	/* No zero yet, search remaining full bytes for a zero */
 	return offset + find_first_zero_bit_le(p, size - offset);
 }
+#define find_next_zero_bit_le find_next_zero_bit_le
 
 static inline int find_first_bit_le(const void *vaddr, unsigned size)
 {
@@ -451,6 +457,7 @@ out:
 	res += (p - addr) * 32;
 	return res < size ? res : size;
 }
+#define find_first_bit_le find_first_bit_le
 
 static inline unsigned long find_next_bit_le(const void *addr,
 		unsigned long size, unsigned long offset)
@@ -480,6 +487,7 @@ static inline unsigned long find_next_bit_le(const void *addr,
 	/* No set bit yet, search remaining full bytes for a set bit */
 	return offset + find_first_bit_le(p, size - offset);
 }
+#define find_next_bit_le find_next_bit_le
 
 /* Bitmap functions for the ext2 filesystem. */
 
