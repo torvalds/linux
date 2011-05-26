@@ -630,6 +630,7 @@ cifs_do_mount(struct file_system_type *fs_type,
 	struct super_block *sb;
 	struct cifs_sb_info *cifs_sb;
 	struct smb_vol *volume_info;
+	struct cifs_mnt_data mnt_data;
 	struct dentry *root;
 
 	cFYI(1, "Devname: %s flags: %d ", dev_name, flags);
@@ -646,10 +647,19 @@ cifs_do_mount(struct file_system_type *fs_type,
 
 	cifs_setup_cifs_sb(volume_info, cifs_sb);
 
-	sb = sget(fs_type, NULL, set_anon_super, NULL);
+	mnt_data.vol = volume_info;
+	mnt_data.cifs_sb = cifs_sb;
+	mnt_data.flags = flags;
+
+	sb = sget(fs_type, cifs_match_super, set_anon_super, &mnt_data);
 	if (IS_ERR(sb)) {
 		root = ERR_CAST(sb);
 		goto out_cifs_sb;
+	}
+
+	if (sb->s_fs_info) {
+		cFYI(1, "Use existing superblock");
+		goto out_shared;
 	}
 
 	/*
@@ -680,7 +690,14 @@ cifs_do_mount(struct file_system_type *fs_type,
 	root = cifs_get_root(volume_info, sb);
 	if (root == NULL)
 		goto out_super;
+
 	cFYI(1, "dentry root is: %p", root);
+	goto out;
+
+out_shared:
+	root = cifs_get_root(volume_info, sb);
+	if (root)
+		cFYI(1, "dentry root is: %p", root);
 	goto out;
 
 out_super:

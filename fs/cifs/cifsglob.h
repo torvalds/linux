@@ -210,6 +210,25 @@ struct smb_vol {
 	struct nls_table *local_nls;
 };
 
+#define CIFS_MOUNT_MASK (CIFS_MOUNT_NO_PERM | CIFS_MOUNT_SET_UID | \
+			 CIFS_MOUNT_SERVER_INUM | CIFS_MOUNT_DIRECT_IO | \
+			 CIFS_MOUNT_NO_XATTR | CIFS_MOUNT_MAP_SPECIAL_CHR | \
+			 CIFS_MOUNT_UNX_EMUL | CIFS_MOUNT_NO_BRL | \
+			 CIFS_MOUNT_CIFS_ACL | CIFS_MOUNT_OVERR_UID | \
+			 CIFS_MOUNT_OVERR_GID | CIFS_MOUNT_DYNPERM | \
+			 CIFS_MOUNT_NOPOSIXBRL | CIFS_MOUNT_NOSSYNC | \
+			 CIFS_MOUNT_FSCACHE | CIFS_MOUNT_MF_SYMLINKS | \
+			 CIFS_MOUNT_MULTIUSER | CIFS_MOUNT_STRICT_IO)
+
+#define CIFS_MS_MASK (MS_RDONLY | MS_MANDLOCK | MS_NOEXEC | MS_NOSUID | \
+		      MS_NODEV | MS_SYNCHRONOUS)
+
+struct cifs_mnt_data {
+	struct cifs_sb_info *cifs_sb;
+	struct smb_vol *vol;
+	int flags;
+};
+
 struct TCP_Server_Info {
 	struct list_head tcp_ses_list;
 	struct list_head smb_ses_list;

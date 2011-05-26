@@ -2146,6 +2146,100 @@ cifs_put_tlink(struct tcon_link *tlink)
 	return;
 }
 
+static inline struct tcon_link *
+cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb);
+
+static int
+compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
+{
+	struct cifs_sb_info *old = CIFS_SB(sb);
+	struct cifs_sb_info *new = mnt_data->cifs_sb;
+
+	if ((sb->s_flags & CIFS_MS_MASK) != (mnt_data->flags & CIFS_MS_MASK))
+		return 0;
+
+	if ((old->mnt_cifs_flags & CIFS_MOUNT_MASK) !=
+	    (new->mnt_cifs_flags & CIFS_MOUNT_MASK))
+		return 0;
+
+	if (old->rsize != new->rsize)
+		return 0;
+
+	/*
+	 * We want to share sb only if we don't specify wsize or specified wsize
+	 * is greater or equal than existing one.
+	 */
+	if (new->wsize && new->wsize < old->wsize)
+		return 0;
+
+	if (old->mnt_uid != new->mnt_uid || old->mnt_gid != new->mnt_gid)
+		return 0;
+
+	if (old->mnt_file_mode != new->mnt_file_mode ||
+	    old->mnt_dir_mode != new->mnt_dir_mode)
+		return 0;
+
+	if (strcmp(old->local_nls->charset, new->local_nls->charset))
+		return 0;
+
+	if (old->actimeo != new->actimeo)
+		return 0;
+
+	return 1;
+}
+
+int
+cifs_match_super(struct super_block *sb, void *data)
+{
+	struct cifs_mnt_data *mnt_data = (struct cifs_mnt_data *)data;
+	struct smb_vol *volume_info;
+	struct cifs_sb_info *cifs_sb;
+	struct TCP_Server_Info *tcp_srv;
+	struct cifsSesInfo *ses;
+	struct cifsTconInfo *tcon;
+	struct tcon_link *tlink;
+	struct sockaddr_storage addr;
+	int rc = 0;
+
+	memset(&addr, 0, sizeof(struct sockaddr_storage));
+
+	spin_lock(&cifs_tcp_ses_lock);
+	cifs_sb = CIFS_SB(sb);
+	tlink = cifs_get_tlink(cifs_sb_master_tlink(cifs_sb));
+	if (IS_ERR(tlink)) {
+		spin_unlock(&cifs_tcp_ses_lock);
+		return rc;
+	}
+	tcon = tlink_tcon(tlink);
+	ses = tcon->ses;
+	tcp_srv = ses->server;
+
+	volume_info = mnt_data->vol;
+
+	if (!volume_info->UNCip || !volume_info->UNC)
+		goto out;
+
+	rc = cifs_fill_sockaddr((struct sockaddr *)&addr,
+				volume_info->UNCip,
+				strlen(volume_info->UNCip),
+				volume_info->port);
+	if (!rc)
+		goto out;
+
+	if (!match_server(tcp_srv, (struct sockaddr *)&addr, volume_info) ||
+	    !match_session(ses, volume_info) ||
+	    !match_tcon(tcon, volume_info->UNC)) {
+		rc = 0;
+		goto out;
+	}
+
+	rc = compare_mount_options(sb, mnt_data);
+out:
+	cifs_put_tlink(tlink);
+	spin_unlock(&cifs_tcp_ses_lock);
+	return rc;
+}
+
 int
 get_dfs_path(int xid, struct cifsSesInfo *pSesInfo, const char *old_path,
 	     const struct nls_table *nls_codepage, unsigned int *pnum_referrals,
@@ -2578,6 +2672,14 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 		/* Windows ME may prefer this */
 		cFYI(1, "readsize set to minimum: 2048");
 	}
+
+	/*
+	 * Temporarily set wsize for matching superblock. If we end up using
+	 * new sb then cifs_negotiate_wsize will later negotiate it downward
+	 * if needed.
+	 */
+	cifs_sb->wsize = pvolume_info->wsize;
+
 	cifs_sb->mnt_uid = pvolume_info->linux_uid;
 	cifs_sb->mnt_gid = pvolume_info->linux_gid;
 	cifs_sb->mnt_file_mode = pvolume_info->file_mode;
