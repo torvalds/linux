@@ -980,11 +980,6 @@ static void set_address(struct fusb300 *fusb300, struct usb_ctrlrequest *ctrl)
 		} \
 	} while (0)
 
-static void fusb300_ep0_complete(struct usb_ep *ep,
-				struct usb_request *req)
-{
-}
-
 static int setup_packet(struct fusb300 *fusb300, struct usb_ctrlrequest *ctrl)
 {
 	u8 *p = (u8 *)ctrl;
