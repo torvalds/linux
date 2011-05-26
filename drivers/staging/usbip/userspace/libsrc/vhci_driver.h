@@ -7,7 +7,7 @@
 
 #include "usbip.h"
 
-
+#define USBIP_VHCI_BUS_TYPE "platform"
 
 #define MAXNPORT 128
 

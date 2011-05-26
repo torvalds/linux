@@ -186,9 +186,20 @@ static int refresh_class_device_list(void)
 	int ret;
 	struct dlist *cname_list;
 	char *cname;
+	char sysfs_mntpath[SYSFS_PATH_MAX];
+	char class_path[SYSFS_PATH_MAX];
+
+	ret = sysfs_get_mnt_path(sysfs_mntpath, SYSFS_PATH_MAX);
+	if (ret < 0) {
+		err("sysfs must be mounted");
+		return -1;
+	}
+
+	snprintf(class_path, sizeof(class_path), "%s/%s", sysfs_mntpath,
+		 SYSFS_CLASS_NAME);
 
 	/* search under /sys/class */
-	cname_list = sysfs_open_directory_list("/sys/class");
+	cname_list = sysfs_open_directory_list(class_path);
 	if (!cname_list) {
 		err("open class directory");
 		return -1;
@@ -274,9 +285,9 @@ static int get_hc_busid(char *sysfs_mntpath, char *hc_busid)
 
 	int found = 0;
 
-        snprintf(sdriver_path, SYSFS_PATH_MAX, "%s/%s/platform/%s/%s",
-                                sysfs_mntpath, SYSFS_BUS_NAME, SYSFS_DRIVERS_NAME,
-                                USBIP_VHCI_DRV_NAME);
+        snprintf(sdriver_path, SYSFS_PATH_MAX, "%s/%s/%s/%s/%s", sysfs_mntpath,
+		 SYSFS_BUS_NAME, USBIP_VHCI_BUS_TYPE, SYSFS_DRIVERS_NAME,
+		 USBIP_VHCI_DRV_NAME);
 
         sdriver = sysfs_open_driver_path(sdriver_path);
         if (!sdriver) {
@@ -333,7 +344,8 @@ int usbip_vhci_driver_open(void)
 		goto err;
 
 	/* will be freed in usbip_driver_close() */
-	vhci_driver->hc_device = sysfs_open_device("platform", hc_busid);
+	vhci_driver->hc_device = sysfs_open_device(USBIP_VHCI_BUS_TYPE,
+						   hc_busid);
 	if (!vhci_driver->hc_device) {
 		err("get sysfs vhci_driver");
 		goto err;
