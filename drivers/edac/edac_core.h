@@ -421,10 +421,6 @@ struct mem_ctl_info {
 	u32 ce_count;		/* Total Correctable Errors for this MC */
 	unsigned long start_time;	/* mci load start time (in jiffies) */
 
-	/* this stuff is for safe removal of mc devices from global list while
-	 * NMI handlers may be traversing list
-	 */
-	struct rcu_head rcu;
 	struct completion complete;
 
 	/* edac sysfs device control */
@@ -620,10 +616,6 @@ struct edac_device_ctl_info {
 
 	unsigned long start_time;	/* edac_device load start time (jiffies) */
 
-	/* these are for safe removal of mc devices from global list while
-	 * NMI handlers may be traversing list
-	 */
-	struct rcu_head rcu;
 	struct completion removal_complete;
 
 	/* sysfs top name under 'edac' directory
@@ -722,10 +714,6 @@ struct edac_pci_ctl_info {
 
 	unsigned long start_time;	/* edac_pci load start time (jiffies) */
 
-	/* these are for safe removal of devices from global list while
-	 * NMI handlers may be traversing list
-	 */
-	struct rcu_head rcu;
 	struct completion complete;
 
 	/* sysfs top name under 'edac' directory
