@@ -57,8 +57,7 @@ struct nvc0_graph_priv {
 	struct nouveau_gpuobj *unk4188b4;
 	struct nouveau_gpuobj *unk4188b8;
 
-	u8  magic_not_rop_nr;
-	u32 magicgpc918;
+	u8 magic_not_rop_nr;
 };
 
 struct nvc0_graph_chan {

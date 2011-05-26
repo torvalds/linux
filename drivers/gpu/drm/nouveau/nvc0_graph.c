@@ -350,6 +350,7 @@ static void
 nvc0_graph_init_gpc_0(struct drm_device *dev)
 {
 	struct nvc0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
+	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, priv->tp_total);
 	u32 data[TP_MAX / 8];
 	u8  tpnr[GPC_MAX];
 	int i, gpc, tpc;
@@ -361,13 +362,6 @@ nvc0_graph_init_gpc_0(struct drm_device *dev)
 	 * 465: 3/4/4/0 4        7
 	 * 470: 3/3/4/4 5        5
 	 * 480: 3/4/4/4 6        6
-	 *
-	 * magicgpc918
-	 * 450: 00200000 00000000001000000000000000000000
-	 * 460: 00124925 00000000000100100100100100100101
-	 * 465: 000ba2e9 00000000000010111010001011101001
-	 * 470: 00092493 00000000000010010010010010010011
-	 * 480: 00088889 00000000000010001000100010001001
 	 */
 
 	memset(data, 0x00, sizeof(data));
@@ -390,10 +384,10 @@ nvc0_graph_init_gpc_0(struct drm_device *dev)
 		nv_wr32(dev, GPC_UNIT(gpc, 0x0914), priv->magic_not_rop_nr << 8 |
 						  priv->tp_nr[gpc]);
 		nv_wr32(dev, GPC_UNIT(gpc, 0x0910), 0x00040000 | priv->tp_total);
-		nv_wr32(dev, GPC_UNIT(gpc, 0x0918), priv->magicgpc918);
+		nv_wr32(dev, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
-	nv_wr32(dev, GPC_BCAST(0x1bd4), priv->magicgpc918);
+	nv_wr32(dev, GPC_BCAST(0x1bd4), magicgpc918);
 	nv_wr32(dev, GPC_BCAST(0x08ac), priv->rop_nr);
 }
 
@@ -845,37 +839,28 @@ nvc0_graph_create(struct drm_device *dev)
 	case 0xc0:
 		if (priv->tp_total == 11) { /* 465, 3/4/4/0, 4 */
 			priv->magic_not_rop_nr = 0x07;
-			/* filled values up to tp_total, the rest 0 */
-			priv->magicgpc918      = 0x000ba2e9;
 		} else
 		if (priv->tp_total == 14) { /* 470, 3/3/4/4, 5 */
 			priv->magic_not_rop_nr = 0x05;
-			priv->magicgpc918      = 0x00092493;
 		} else
 		if (priv->tp_total == 15) { /* 480, 3/4/4/4, 6 */
 			priv->magic_not_rop_nr = 0x06;
-			priv->magicgpc918      = 0x00088889;
 		}
 		break;
 	case 0xc3: /* 450, 4/0/0/0, 2 */
 		priv->magic_not_rop_nr = 0x03;
-		priv->magicgpc918      = 0x00200000;
 		break;
 	case 0xc4: /* 460, 3/4/0/0, 4 */
 		priv->magic_not_rop_nr = 0x01;
-		priv->magicgpc918      = 0x00124925;
 		break;
 	case 0xc1: /* 2/0/0/0, 1 */
 		priv->magic_not_rop_nr = 0x01;
-		priv->magicgpc918      = 0x00400000;
 		break;
 	case 0xc8: /* 4/4/3/4, 5 */
 		priv->magic_not_rop_nr = 0x06;
-		priv->magicgpc918      = 0x00088889;
 		break;
 	case 0xce: /* 4/4/0/0, 4 */
 		priv->magic_not_rop_nr = 0x03;
-		priv->magicgpc918      = 0x00100000;
 		break;
 	}
 
@@ -885,7 +870,6 @@ nvc0_graph_create(struct drm_device *dev)
 			 priv->tp_nr[3], priv->rop_nr);
 		/* use 0xc3's values... */
 		priv->magic_not_rop_nr = 0x03;
-		priv->magicgpc918      = 0x00200000;
 	}
 
 	NVOBJ_CLASS(dev, 0x902d, GR); /* 2D */
