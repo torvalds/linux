@@ -49,7 +49,7 @@ struct tipc_sock {
 	struct sock sk;
 	struct tipc_port *p;
 	struct tipc_portid peer_name;
-	long conn_timeout;
+	unsigned int conn_timeout;
 };
 
 #define tipc_sk(sk) ((struct tipc_sock *)(sk))
@@ -231,7 +231,7 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol,
 	sock_init_data(sock, sk);
 	sk->sk_backlog_rcv = backlog_rcv;
 	tipc_sk(sk)->p = tp_ptr;
-	tipc_sk(sk)->conn_timeout = msecs_to_jiffies(CONN_TIMEOUT_DEFAULT);
+	tipc_sk(sk)->conn_timeout = CONN_TIMEOUT_DEFAULT;
 
 	spin_unlock_bh(tp_ptr->lock);
 
@@ -1369,7 +1369,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	struct msghdr m = {NULL,};
 	struct sk_buff *buf;
 	struct tipc_msg *msg;
-	long timeout;
+	unsigned int timeout;
 	int res;
 
 	lock_sock(sk);
@@ -1434,7 +1434,8 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	res = wait_event_interruptible_timeout(*sk_sleep(sk),
 			(!skb_queue_empty(&sk->sk_receive_queue) ||
 			(sock->state != SS_CONNECTING)),
-			timeout ? timeout : MAX_SCHEDULE_TIMEOUT);
+			timeout ? (long)msecs_to_jiffies(timeout)
+				: MAX_SCHEDULE_TIMEOUT);
 	lock_sock(sk);
 
 	if (res > 0) {
@@ -1696,7 +1697,7 @@ static int setsockopt(struct socket *sock,
 		res = tipc_set_portunreturnable(tport->ref, value);
 		break;
 	case TIPC_CONN_TIMEOUT:
-		tipc_sk(sk)->conn_timeout = msecs_to_jiffies(value);
+		tipc_sk(sk)->conn_timeout = value;
 		/* no need to set "res", since already 0 at this point */
 		break;
 	default:
@@ -1752,7 +1753,7 @@ static int getsockopt(struct socket *sock,
 		res = tipc_portunreturnable(tport->ref, &value);
 		break;
 	case TIPC_CONN_TIMEOUT:
-		value = jiffies_to_msecs(tipc_sk(sk)->conn_timeout);
+		value = tipc_sk(sk)->conn_timeout;
 		/* no need to set "res", since already 0 at this point */
 		break;
 	case TIPC_NODE_RECVQ_DEPTH:
