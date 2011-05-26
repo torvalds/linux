@@ -267,9 +267,11 @@ static int nfs4_handle_exception(struct nfs_server *server, int errorcode, struc
 				break;
 			nfs4_schedule_stateid_recovery(server, state);
 			goto wait_on_recovery;
+		case -NFS4ERR_EXPIRED:
+			if (state != NULL)
+				nfs4_schedule_stateid_recovery(server, state);
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_STALE_CLIENTID:
-		case -NFS4ERR_EXPIRED:
 			nfs4_schedule_lease_recovery(clp);
 			goto wait_on_recovery;
 #if defined(CONFIG_NFS_V4_1)
@@ -3670,9 +3672,11 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 				break;
 			nfs4_schedule_stateid_recovery(server, state);
 			goto wait_on_recovery;
+		case -NFS4ERR_EXPIRED:
+			if (state != NULL)
+				nfs4_schedule_stateid_recovery(server, state);
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_STALE_CLIENTID:
-		case -NFS4ERR_EXPIRED:
 			nfs4_schedule_lease_recovery(clp);
 			goto wait_on_recovery;
 #if defined(CONFIG_NFS_V4_1)
@@ -4543,6 +4547,7 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
 			case -ESTALE:
 				goto out;
 			case -NFS4ERR_EXPIRED:
+				nfs4_schedule_stateid_recovery(server, state);
 			case -NFS4ERR_STALE_CLIENTID:
 			case -NFS4ERR_STALE_STATEID:
 				nfs4_schedule_lease_recovery(server->nfs_client);
