@@ -3,7 +3,60 @@
  * Copyright (C) 2005-2007 Takahiro Hirofuchi
  */
 
+#include <sysfs/libsysfs.h>
+#include <fcntl.h>
+#include <libgen.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "usbip_common.h"
 #include "utils.h"
+
+int modify_match_busid(char *busid, int add)
+{
+	int fd;
+	int ret;
+	char buff[BUS_ID_SIZE + 4];
+	char sysfs_mntpath[SYSFS_PATH_MAX];
+	char match_busid_path[SYSFS_PATH_MAX];
+
+	ret = sysfs_get_mnt_path(sysfs_mntpath, SYSFS_PATH_MAX);
+	if (ret < 0) {
+		err("sysfs must be mounted");
+		return -1;
+	}
+
+	snprintf(match_busid_path, sizeof(match_busid_path),
+		 "%s/%s/usb/%s/%s/match_busid", sysfs_mntpath, SYSFS_BUS_NAME,
+		 SYSFS_DRIVERS_NAME, USBIP_HOST_DRV_NAME);
+
+	/* BUS_IS_SIZE includes NULL termination? */
+	if (strnlen(busid, BUS_ID_SIZE) > BUS_ID_SIZE - 1) {
+		dbg("busid is too long");
+		return -1;
+	}
+
+	fd = open(match_busid_path, O_WRONLY);
+	if (fd < 0)
+		return -1;
+
+	if (add)
+		snprintf(buff, BUS_ID_SIZE + 4, "add %s", busid);
+	else
+		snprintf(buff, BUS_ID_SIZE + 4, "del %s", busid);
+
+	dbg("write \"%s\" to %s", buff, match_busid_path);
+
+	ret = write(fd, buff, sizeof(buff));
+	if (ret < 0) {
+		close(fd);
+		return -1;
+	}
+
+	close(fd);
+
+	return 0;
+}
 
 int read_integer(char *path)
 {
@@ -36,7 +89,7 @@ int read_string(char *path, char *string, size_t len)
 	int ret = 0;
 	char  *p;
 
-	bzero(string, len);
+	memset(string, 0, len);
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
@@ -122,15 +175,16 @@ int getdriver(char *busid, int conf, int infnum, char *driver, size_t len)
 {
 	char path[PATH_MAX];
 	char linkto[PATH_MAX];
+	const char none[] = "none";
 	int ret;
 
 	snprintf(path, PATH_MAX, "/sys/bus/usb/devices/%s:%d.%d/driver", busid, conf, infnum);
 
 	/* readlink does not add NULL */
-	bzero(linkto, sizeof(linkto));
+	memset(linkto, 0, sizeof(linkto));
 	ret = readlink(path, linkto, sizeof(linkto)-1);
 	if (ret < 0) {
-		strncpy(driver, "none", len);
+		strncpy(driver, none, len);
 		return -1;
 	} else {
 		strncpy(driver, basename(linkto), len);

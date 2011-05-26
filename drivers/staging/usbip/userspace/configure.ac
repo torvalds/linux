@@ -1,8 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([usbip], [0.1.8], [usbip-devel@lists.sourceforge.net])
-AC_DEFINE([USBIP_VERSION], [0x000106], [numeric version number])
+AC_INIT([usbip], [1.0.0], [usbip-devel@lists.sourceforge.net])
+AC_DEFINE([USBIP_VERSION], [0x00000100], [binary-coded decimal version number])
 
 CURRENT=0
 REVISION=1
