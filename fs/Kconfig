@@ -121,6 +121,20 @@ config TMPFS
 
 	  See <file:Documentation/filesystems/tmpfs.txt> for details.
 
+config TMPFS_POSIX_ACL
+	bool "Tmpfs POSIX Access Control Lists"
+	depends on TMPFS
+	select TMPFS_XATTR
+	select GENERIC_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N.
+
 config TMPFS_XATTR
 	bool "Tmpfs extended attributes"
 	depends on TMPFS
@@ -133,22 +147,9 @@ config TMPFS_XATTR
 	  Currently this enables support for the trusted.* and
 	  security.* namespaces.
 
-	  If unsure, say N.
-
 	  You need this for POSIX ACL support on tmpfs.
 
-config TMPFS_POSIX_ACL
-	bool "Tmpfs POSIX Access Control Lists"
-	depends on TMPFS_XATTR
-	select GENERIC_ACL
-	help
-	  POSIX Access Control Lists (ACLs) support permissions for users and
-	  groups beyond the owner/group/world scheme.
-
-	  To learn more about Access Control Lists, visit the POSIX ACLs for
-	  Linux website <http://acl.bestbits.at/>.
-
-	  If you don't know what Access Control Lists are, say N.
+	  If unsure, say N.
 
 config HUGETLBFS
 	bool "HugeTLB file system support"
