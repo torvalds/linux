@@ -413,7 +413,7 @@ static int __devinit efifb_probe(struct platform_device *dev)
 	info->apertures->ranges[0].base = efifb_fix.smem_start;
 	info->apertures->ranges[0].size = size_remap;
 
-	info->screen_base = ioremap(efifb_fix.smem_start, efifb_fix.smem_len);
+	info->screen_base = ioremap_wc(efifb_fix.smem_start, efifb_fix.smem_len);
 	if (!info->screen_base) {
 		printk(KERN_ERR "efifb: abort, cannot ioremap video memory "
 				"0x%x @ 0x%lx\n",
