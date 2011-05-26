@@ -29,7 +29,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 	printk(KERN_WARNING fmt , ## arg); } while (0)
 
 #define SENSOR_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
-#define SENSOR_DG(format, ...) dprintk(0, format, ## __VA_ARGS__)
+#define SENSOR_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
 
 
 #define _CONS(a,b) a##b
