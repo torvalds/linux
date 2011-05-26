@@ -35,10 +35,6 @@
  */
 struct brd_device {
 	int		brd_number;
-	int		brd_refcnt;
-	loff_t		brd_offset;
-	loff_t		brd_sizelimit;
-	unsigned	brd_blocksize;
 
 	struct request_queue	*brd_queue;
 	struct gendisk		*brd_disk;
