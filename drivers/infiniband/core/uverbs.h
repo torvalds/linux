@@ -127,6 +127,11 @@ struct ib_uxrcd_object {
 	atomic_t		refcnt;
 };
 
+struct ib_usrq_object {
+	struct ib_uevent_object	uevent;
+	struct ib_uxrcd_object *uxrcd;
+};
+
 struct ib_uqp_object {
 	struct ib_uevent_object	uevent;
 	struct list_head 	mcast_list;
@@ -204,6 +209,7 @@ IB_UVERBS_DECLARE_CMD(create_srq);
 IB_UVERBS_DECLARE_CMD(modify_srq);
 IB_UVERBS_DECLARE_CMD(query_srq);
 IB_UVERBS_DECLARE_CMD(destroy_srq);
+IB_UVERBS_DECLARE_CMD(create_xsrq);
 IB_UVERBS_DECLARE_CMD(open_xrcd);
 IB_UVERBS_DECLARE_CMD(close_xrcd);
 
