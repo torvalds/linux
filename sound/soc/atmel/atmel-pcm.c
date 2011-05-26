@@ -382,7 +382,7 @@ static int atmel_pcm_new(struct snd_card *card,
 	}
 
 	if (dai->driver->capture.channels_min) {
-		pr_debug("at32-pcm:"
+		pr_debug("atmel-pcm:"
 				"Allocating PCM capture DMA buffer\n");
 		ret = atmel_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);
