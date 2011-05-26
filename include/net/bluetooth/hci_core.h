@@ -89,6 +89,12 @@ struct oob_data {
 	u8 randomizer[16];
 };
 
+struct adv_entry {
+	struct list_head list;
+	bdaddr_t bdaddr;
+	u8 bdaddr_type;
+};
+
 #define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
@@ -180,6 +186,8 @@ struct hci_dev {
 	struct list_head	link_keys;
 
 	struct list_head	remote_oob_data;
+
+	struct list_head	adv_entries;
 
 	struct hci_dev_stats	stat;
 
@@ -529,6 +537,11 @@ struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
 int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
 								u8 *randomizer);
 int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr);
+
+int hci_adv_entries_clear(struct hci_dev *hdev);
+struct adv_entry *hci_find_adv_entry(struct hci_dev *hdev, bdaddr_t *bdaddr);
+int hci_add_adv_entry(struct hci_dev *hdev,
+					struct hci_ev_le_advertising_info *ev);
 
 void hci_del_off_timer(struct hci_dev *hdev);
 
