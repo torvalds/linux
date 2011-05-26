@@ -13,7 +13,6 @@
 #include <linux/err.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/core.h>
 #include <linux/mfd/db8500-prcmu.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -471,7 +470,8 @@ static struct db8500_regulator_info
 
 static int __devinit db8500_regulator_probe(struct platform_device *pdev)
 {
-	struct regulator_init_data *db8500_init_data = mfd_get_data(pdev);
+	struct regulator_init_data *db8500_init_data =
+					dev_get_platdata(&pdev->dev);
 	int i, err;
 
 	/* register all regulators */
