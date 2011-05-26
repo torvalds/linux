@@ -15,6 +15,7 @@
 #include <linux/genhd.h>
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
+#include <linux/export.h>
 #include "aoe.h"
 
 static DEFINE_MUTEX(aoeblk_mutex);
