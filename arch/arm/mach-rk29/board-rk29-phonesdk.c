@@ -1293,6 +1293,7 @@ int rk29_gps_power_down(void)
 {	
 	printk("%s \n", __FUNCTION__);	
 
+    gpio_request(RK29_GPS_POWER_PIN, NULL);
 	gpio_direction_output(RK29_GPS_POWER_PIN, GPIO_LOW);		
 
 	return 0;
