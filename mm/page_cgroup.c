@@ -130,7 +130,7 @@ struct page *lookup_cgroup_page(struct page_cgroup *pc)
 	return page;
 }
 
-static void *__init_refok alloc_page_cgroup(size_t size, int nid)
+static void *__meminit alloc_page_cgroup(size_t size, int nid)
 {
 	void *addr = NULL;
 
@@ -162,7 +162,7 @@ static void free_page_cgroup(void *addr)
 }
 #endif
 
-static int __init_refok init_section_page_cgroup(unsigned long pfn)
+static int __meminit init_section_page_cgroup(unsigned long pfn)
 {
 	struct page_cgroup *base, *pc;
 	struct mem_section *section;
