@@ -119,15 +119,16 @@ static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 	else
 		training_power = ar9003_get_training_power_5g(ah);
 
+	ath_dbg(common, ATH_DBG_CALIBRATE,
+		"Training power: %d, Target power: %d\n",
+		training_power, ah->paprd_target_power);
+
 	if (training_power < 0) {
 		ath_dbg(common, ATH_DBG_CALIBRATE,
 			"PAPRD target power delta out of range");
 		return -ERANGE;
 	}
 	ah->paprd_training_power = training_power;
-	ath_dbg(common, ATH_DBG_CALIBRATE,
-		"Training power: %d, Target power: %d\n",
-		ah->paprd_training_power, ah->paprd_target_power);
 
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_AM2AM, AR_PHY_PAPRD_AM2AM_MASK,
 		      ah->paprd_ratemask);
