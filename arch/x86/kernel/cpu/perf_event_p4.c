@@ -950,11 +950,20 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 			x86_pmu_stop(event, 0);
 	}
 
-	if (handled) {
-		/* p4 quirk: unmask it again */
-		apic_write(APIC_LVTPC, apic_read(APIC_LVTPC) & ~APIC_LVT_MASKED);
+	if (handled)
 		inc_irq_stat(apic_perf_irqs);
-	}
+
+	/*
+	 * When dealing with the unmasking of the LVTPC on P4 perf hw, it has
+	 * been observed that the OVF bit flag has to be cleared first _before_
+	 * the LVTPC can be unmasked.
+	 *
+	 * The reason is the NMI line will continue to be asserted while the OVF
+	 * bit is set.  This causes a second NMI to generate if the LVTPC is
+	 * unmasked before the OVF bit is cleared, leading to unknown NMI
+	 * messages.
+	 */
+	apic_write(APIC_LVTPC, APIC_DM_NMI);
 
 	return handled;
 }

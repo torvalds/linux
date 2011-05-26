@@ -1275,6 +1275,20 @@ static __init void xen_pagetable_setup_start(pgd_t *base)
 {
 }
 
+static __init void xen_mapping_pagetable_reserve(u64 start, u64 end)
+{
+	/* reserve the range used */
+	native_pagetable_reserve(start, end);
+
+	/* set as RW the rest */
+	printk(KERN_DEBUG "xen: setting RW the range %llx - %llx\n", end,
+			PFN_PHYS(pgt_buf_top));
+	while (end < PFN_PHYS(pgt_buf_top)) {
+		make_lowmem_page_readwrite(__va(end));
+		end += PAGE_SIZE;
+	}
+}
+
 static void xen_post_allocator_init(void);
 
 static __init void xen_pagetable_setup_done(pgd_t *base)
@@ -1495,7 +1509,7 @@ static __init pte_t mask_rw_pte(pte_t *ptep, pte_t pte)
 	 * it is RO.
 	 */
 	if (((!is_early_ioremap_ptep(ptep) &&
-			pfn >= pgt_buf_start && pfn < pgt_buf_end)) ||
+			pfn >= pgt_buf_start && pfn < pgt_buf_top)) ||
 			(is_early_ioremap_ptep(ptep) && pfn != (pgt_buf_end - 1)))
 		pte = pte_wrprotect(pte);
 
@@ -2105,6 +2119,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initdata = {
 
 void __init xen_init_mmu_ops(void)
 {
+	x86_init.mapping.pagetable_reserve = xen_mapping_pagetable_reserve;
 	x86_init.paging.pagetable_setup_start = xen_pagetable_setup_start;
 	x86_init.paging.pagetable_setup_done = xen_pagetable_setup_done;
 	pv_mmu_ops = xen_mmu_ops;

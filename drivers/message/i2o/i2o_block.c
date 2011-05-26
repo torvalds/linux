@@ -1000,7 +1000,6 @@ static struct i2o_block_device *i2o_block_device_alloc(void)
 	gd->major = I2O_MAJOR;
 	gd->queue = queue;
 	gd->fops = &i2o_block_fops;
-	gd->events = DISK_EVENT_MEDIA_CHANGE;
 	gd->private_data = dev;
 
 	dev->gd = gd;

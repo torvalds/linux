@@ -42,7 +42,8 @@ nouveau_sgdma_populate(struct ttm_backend *be, unsigned long num_pages,
 
 	nvbe->nr_pages = 0;
 	while (num_pages--) {
-		if (dma_addrs[nvbe->nr_pages] != DMA_ERROR_CODE) {
+		/* this code path isn't called and is incorrect anyways */
+		if (0) { /*dma_addrs[nvbe->nr_pages] != DMA_ERROR_CODE)*/
 			nvbe->pages[nvbe->nr_pages] =
 					dma_addrs[nvbe->nr_pages];
 		 	nvbe->ttm_alloced[nvbe->nr_pages] = true;

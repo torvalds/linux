@@ -737,7 +737,7 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 		nf_bridge->mask |= BRNF_PKT_TYPE;
 	}
 
-	if (br_parse_ip_options(skb))
+	if (pf == PF_INET && br_parse_ip_options(skb))
 		return NF_DROP;
 
 	/* The physdev module checks on this */

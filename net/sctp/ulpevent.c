@@ -554,7 +554,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_send_failed(
 	memcpy(&ssf->ssf_info, &chunk->sinfo, sizeof(struct sctp_sndrcvinfo));
 
 	/* Per TSVWG discussion with Randy. Allow the application to
-	 * resemble a fragmented message.
+	 * reassemble a fragmented message.
 	 */
 	ssf->ssf_info.sinfo_flags = chunk->chunk_hdr->flags;
 

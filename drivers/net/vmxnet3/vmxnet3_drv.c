@@ -178,6 +178,7 @@ static void
 vmxnet3_process_events(struct vmxnet3_adapter *adapter)
 {
 	int i;
+	unsigned long flags;
 	u32 events = le32_to_cpu(adapter->shared->ecr);
 	if (!events)
 		return;
@@ -190,10 +191,10 @@ vmxnet3_process_events(struct vmxnet3_adapter *adapter)
 
 	/* Check if there is an error on xmit/recv queues */
 	if (events & (VMXNET3_ECR_TQERR | VMXNET3_ECR_RQERR)) {
-		spin_lock(&adapter->cmd_lock);
+		spin_lock_irqsave(&adapter->cmd_lock, flags);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 				       VMXNET3_CMD_GET_QUEUE_STATUS);
-		spin_unlock(&adapter->cmd_lock);
+		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
 		for (i = 0; i < adapter->num_tx_queues; i++)
 			if (adapter->tqd_start[i].status.stopped)
@@ -2733,13 +2734,14 @@ static void
 vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 {
 	u32 cfg;
+	unsigned long flags;
 
 	/* intr settings */
-	spin_lock(&adapter->cmd_lock);
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_GET_CONF_INTR);
 	cfg = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
-	spin_unlock(&adapter->cmd_lock);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 	adapter->intr.type = cfg & 0x3;
 	adapter->intr.mask_mode = (cfg >> 2) & 0x3;
 

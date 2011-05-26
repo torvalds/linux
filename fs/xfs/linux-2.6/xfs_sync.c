@@ -926,6 +926,7 @@ restart:
 					XFS_LOOKUP_BATCH,
 					XFS_ICI_RECLAIM_TAG);
 			if (!nr_found) {
+				done = 1;
 				rcu_read_unlock();
 				break;
 			}

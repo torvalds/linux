@@ -1019,7 +1019,7 @@ struct ocfs2_xattr_entry {
 	__le16	xe_name_offset;  /* byte offset from the 1st entry in the
 				    local xattr storage(inode, xattr block or
 				    xattr bucket). */
-	__u8	xe_name_len;	 /* xattr name len, does't include prefix. */
+	__u8	xe_name_len;	 /* xattr name len, doesn't include prefix. */
 	__u8	xe_type;         /* the low 7 bits indicate the name prefix
 				  * type and the highest bit indicates whether
 				  * the EA is stored in the local storage. */

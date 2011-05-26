@@ -561,27 +561,6 @@ void ahci_start_engine(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 tmp;
-	u8 status;
-
-	status = readl(port_mmio + PORT_TFDATA) & 0xFF;
-
-	/*
-	 * At end of section 10.1 of AHCI spec (rev 1.3), it states
-	 * Software shall not set PxCMD.ST to 1 until it is determined
-	 * that a functoinal device is present on the port as determined by
-	 * PxTFD.STS.BSY=0, PxTFD.STS.DRQ=0 and PxSSTS.DET=3h
-	 *
-	 * Even though most AHCI host controllers work without this check,
-	 * specific controller will fail under this condition
-	 */
-	if (status & (ATA_BUSY | ATA_DRQ))
-		return;
-	else {
-		ahci_scr_read(&ap->link, SCR_STATUS, &tmp);
-
-		if ((tmp & 0xf) != 0x3)
-			return;
-	}
 
 	/* start DMA */
 	tmp = readl(port_mmio + PORT_CMD);

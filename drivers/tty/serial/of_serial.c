@@ -80,14 +80,17 @@ static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 /*
  * Try to register a serial port
  */
+static struct of_device_id of_platform_serial_table[];
 static int __devinit of_platform_serial_probe(struct platform_device *ofdev)
 {
+	const struct of_device_id *match;
 	struct of_serial_info *info;
 	struct uart_port port;
 	int port_type;
 	int ret;
 
-	if (!ofdev->dev.of_match)
+	match = of_match_device(of_platform_serial_table, &ofdev->dev);
+	if (!match)
 		return -EINVAL;
 
 	if (of_find_property(ofdev->dev.of_node, "used-by-rtas", NULL))
@@ -97,7 +100,7 @@ static int __devinit of_platform_serial_probe(struct platform_device *ofdev)
 	if (info == NULL)
 		return -ENOMEM;
 
-	port_type = (unsigned long)ofdev->dev.of_match->data;
+	port_type = (unsigned long)match->data;
 	ret = of_platform_serial_setup(ofdev, port_type, &port);
 	if (ret)
 		goto out;

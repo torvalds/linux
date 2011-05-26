@@ -119,7 +119,7 @@ Elong:
 }
 
 #ifdef CONFIG_NFS_V4
-static rpc_authflavor_t nfs_find_best_sec(struct nfs4_secinfo_flavors *flavors, struct inode *inode)
+static rpc_authflavor_t nfs_find_best_sec(struct nfs4_secinfo_flavors *flavors)
 {
 	struct gss_api_mech *mech;
 	struct xdr_netobj oid;
@@ -166,7 +166,7 @@ static int nfs_negotiate_security(const struct dentry *parent,
 		}
 		flavors = page_address(page);
 		ret = secinfo(parent->d_inode, &dentry->d_name, flavors);
-		*flavor = nfs_find_best_sec(flavors, dentry->d_inode);
+		*flavor = nfs_find_best_sec(flavors);
 		put_page(page);
 	}
 

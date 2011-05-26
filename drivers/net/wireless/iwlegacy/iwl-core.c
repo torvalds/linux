@@ -2155,6 +2155,13 @@ int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed)
 			goto set_ch_out;
 		}
 
+		if (priv->iw_mode == NL80211_IFTYPE_ADHOC &&
+		    !iwl_legacy_is_channel_ibss(ch_info)) {
+			IWL_DEBUG_MAC80211(priv, "leave - not IBSS channel\n");
+			ret = -EINVAL;
+			goto set_ch_out;
+		}
+
 		spin_lock_irqsave(&priv->lock, flags);
 
 		for_each_context(priv, ctx) {

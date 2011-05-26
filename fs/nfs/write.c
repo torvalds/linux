@@ -680,7 +680,6 @@ static int nfs_writepage_setup(struct nfs_open_context *ctx, struct page *page,
 	req = nfs_setup_write_request(ctx, page, offset, count);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	nfs_mark_request_dirty(req);
 	/* Update file length */
 	nfs_grow_file(page, offset, count);
 	nfs_mark_uptodate(page, req->wb_pgbase, req->wb_bytes);
@@ -940,7 +939,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc)
 	atomic_set(&req->wb_complete, requests);
 
 	BUG_ON(desc->pg_lseg);
-	lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_RW);
+	lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_RW, GFP_NOFS);
 	ClearPageError(page);
 	offset = 0;
 	nbytes = desc->pg_count;
@@ -1014,7 +1013,7 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc)
 	}
 	req = nfs_list_entry(data->pages.next);
 	if ((!lseg) && list_is_singular(&data->pages))
-		lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_RW);
+		lseg = pnfs_update_layout(desc->pg_inode, req->wb_context, IOMODE_RW, GFP_NOFS);
 
 	if ((desc->pg_ioflags & FLUSH_COND_STABLE) &&
 	    (desc->pg_moreio || NFS_I(desc->pg_inode)->ncommit))
@@ -1418,8 +1417,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
                                 task->tk_pid, task->tk_status);
 
 	/* Call the NFS version-specific code */
-	if (NFS_PROTO(data->inode)->commit_done(task, data) != 0)
-		return;
+	NFS_PROTO(data->inode)->commit_done(task, data);
 }
 
 void nfs_commit_release_pages(struct nfs_write_data *data)

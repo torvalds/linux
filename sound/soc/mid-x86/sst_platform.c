@@ -376,6 +376,11 @@ static int sst_platform_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int sst_platform_pcm_hw_free(struct snd_pcm_substream *substream)
+{
+	return snd_pcm_lib_free_pages(substream);
+}
+
 static struct snd_pcm_ops sst_platform_ops = {
 	.open = sst_platform_open,
 	.close = sst_platform_close,
@@ -384,6 +389,7 @@ static struct snd_pcm_ops sst_platform_ops = {
 	.trigger = sst_platform_pcm_trigger,
 	.pointer = sst_platform_pcm_pointer,
 	.hw_params = sst_platform_pcm_hw_params,
+	.hw_free = sst_platform_pcm_hw_free,
 };
 
 static void sst_pcm_free(struct snd_pcm *pcm)
