@@ -1728,7 +1728,7 @@ static void disk_add_events(struct gendisk *disk)
 {
 	struct disk_events *ev;
 
-	if (!disk->fops->check_events || !(disk->events | disk->async_events))
+	if (!disk->fops->check_events)
 		return;
 
 	ev = kzalloc(sizeof(*ev), GFP_KERNEL);
