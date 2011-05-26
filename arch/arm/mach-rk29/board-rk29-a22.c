@@ -1282,6 +1282,7 @@ int rk29_gps_power_down(void)
 {	
 	printk("%s \n", __FUNCTION__);	
 
+    gpio_request(RK29_GPS_POWER_PIN, NULL);    
 	gpio_direction_output(RK29_GPS_POWER_PIN, GPIO_LOW);		
 
 	return 0;
@@ -1442,7 +1443,7 @@ struct wm8994_pdata wm8994_platdata = {
 #define HEADSET_GPIO RK29_PIN3_PA6
 struct rk2818_headset_data rk2818_headset_info = {
 	.gpio		= HEADSET_GPIO,
-	.irq_type	= IRQF_TRIGGER_RISING,//IRQF_TRIGGER_RISING -- ÉÏÉýÑØ	IRQF_TRIGGER_FALLING -- ÏÂ½µÑØ
+	.irq_type	= IRQF_TRIGGER_RISING,//IRQF_TRIGGER_RISING -- ??????	IRQF_TRIGGER_FALLING -- ?Â½???
 	.headset_in_type= HEADSET_IN_HIGH,
 };
 
@@ -2667,7 +2668,7 @@ struct rk29xx_spi_platform_data rk29xx_spi1_platdata = {
  * author: hhb@rock-chips.com
  *****************************************************************************************/
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_TSLIB_SPI)
-#define XPT2046_GPIO_INT           RK29_PIN4_PD5 //ä¸­æ–­è„?#define DEBOUNCE_REPTIME  3
+#define XPT2046_GPIO_INT           RK29_PIN4_PD5 //ä¸­æ–­???#define DEBOUNCE_REPTIME  3
 
 static struct xpt2046_platform_data xpt2046_info = {
 	.model			= 2046,
