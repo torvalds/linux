@@ -463,7 +463,7 @@ static int __devexit nuc900_spi_remove(struct platform_device *dev)
 
 	platform_set_drvdata(dev, NULL);
 
-	spi_unregister_master(hw->master);
+	spi_bitbang_stop(&hw->bitbang);
 
 	clk_disable(hw->clk);
 	clk_put(hw->clk);

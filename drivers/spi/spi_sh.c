@@ -427,10 +427,10 @@ static int __devexit spi_sh_remove(struct platform_device *pdev)
 {
 	struct spi_sh_data *ss = dev_get_drvdata(&pdev->dev);
 
+	spi_unregister_master(ss->master);
 	destroy_workqueue(ss->workqueue);
 	free_irq(ss->irq, ss);
 	iounmap(ss->addr);
-	spi_master_put(ss->master);
 
 	return 0;
 }
