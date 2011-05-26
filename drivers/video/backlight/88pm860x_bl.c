@@ -16,7 +16,6 @@
 #include <linux/fb.h>
 #include <linux/i2c.h>
 #include <linux/backlight.h>
-#include <linux/mfd/core.h>
 #include <linux/mfd/88pm860x.h>
 
 #define MAX_BRIGHTNESS		(0xFF)
@@ -168,7 +167,6 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	struct pm860x_backlight_pdata *pdata = NULL;
 	struct pm860x_backlight_data *data;
 	struct backlight_device *bl;
-	struct mfd_cell *cell;
 	struct resource *res;
 	struct backlight_properties props;
 	unsigned char value;
@@ -181,10 +179,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	cell = pdev->dev.platform_data;
-	if (cell == NULL)
-		return -ENODEV;
-	pdata = cell->mfd_data;
+	pdata = pdev->dev.platform_data;
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "platform data isn't assigned to "
 			"backlight\n");

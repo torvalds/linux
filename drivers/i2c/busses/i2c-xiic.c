@@ -34,7 +34,6 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/core.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
@@ -705,7 +704,7 @@ static int __devinit xiic_i2c_probe(struct platform_device *pdev)
 	if (irq < 0)
 		goto resource_missing;
 
-	pdata = mfd_get_data(pdev);
+	pdata = (struct xiic_i2c_platform_data *) pdev->dev.platform_data;
 	if (!pdata)
 		return -EINVAL;
 

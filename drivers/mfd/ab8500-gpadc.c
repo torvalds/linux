@@ -57,6 +57,7 @@
 #define SW_AVG_16			0x60
 #define ADC_SW_CONV			0x04
 #define EN_ICHAR			0x80
+#define BTEMP_PULL_UP			0x08
 #define EN_BUF				0x40
 #define DIS_ZERO			0x00
 #define GPADC_BUSY			0x01
@@ -101,6 +102,7 @@ struct adc_cal_data {
 
 /**
  * struct ab8500_gpadc - AB8500 GPADC device information
+ * @chip_id			ABB chip id
  * @dev:			pointer to the struct device
  * @node:			a list of AB8500 GPADCs, hence prepared for
 				reentrance
@@ -112,6 +114,7 @@ struct adc_cal_data {
  * @cal_data			array of ADC calibration data structs
  */
 struct ab8500_gpadc {
+	u8 chip_id;
 	struct device *dev;
 	struct list_head node;
 	struct completion ab8500_gpadc_complete;
@@ -274,6 +277,7 @@ int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 input)
 		dev_err(gpadc->dev, "gpadc_conversion: enable gpadc failed\n");
 		goto out;
 	}
+
 	/* Select the input source and set average samples to 16 */
 	ret = abx500_set_register_interruptible(gpadc->dev, AB8500_GPADC,
 		AB8500_GPADC_CTRL2_REG, (input | SW_AVG_16));
@@ -282,9 +286,11 @@ int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 input)
 			"gpadc_conversion: set avg samples failed\n");
 		goto out;
 	}
+
 	/*
 	 * Enable ADC, buffering, select rising edge and enable ADC path
-	 * charging current sense if it needed
+	 * charging current sense if it needed, ABB 3.0 needs some special
+	 * treatment too.
 	 */
 	switch (input) {
 	case MAIN_CHARGER_C:
@@ -294,6 +300,23 @@ int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 input)
 			EN_BUF | EN_ICHAR,
 			EN_BUF | EN_ICHAR);
 		break;
+	case BTEMP_BALL:
+		if (gpadc->chip_id >= AB8500_CUT3P0) {
+			/* Turn on btemp pull-up on ABB 3.0 */
+			ret = abx500_mask_and_set_register_interruptible(
+				gpadc->dev,
+				AB8500_GPADC, AB8500_GPADC_CTRL1_REG,
+				EN_BUF | BTEMP_PULL_UP,
+				EN_BUF | BTEMP_PULL_UP);
+
+		 /*
+		  * Delay might be needed for ABB8500 cut 3.0, if not, remove
+		  * when hardware will be availible
+		  */
+			msleep(1);
+			break;
+		}
+		/* Intentional fallthrough */
 	default:
 		ret = abx500_mask_and_set_register_interruptible(gpadc->dev,
 			AB8500_GPADC, AB8500_GPADC_CTRL1_REG, EN_BUF, EN_BUF);
@@ -304,6 +327,7 @@ int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 input)
 			"gpadc_conversion: select falling edge failed\n");
 		goto out;
 	}
+
 	ret = abx500_mask_and_set_register_interruptible(gpadc->dev,
 		AB8500_GPADC, AB8500_GPADC_CTRL1_REG, ADC_SW_CONV, ADC_SW_CONV);
 	if (ret < 0) {
@@ -551,6 +575,14 @@ static int __devinit ab8500_gpadc_probe(struct platform_device *pdev)
 			gpadc->irq);
 		goto fail;
 	}
+
+	/* Get Chip ID of the ABB ASIC  */
+	ret = abx500_get_chip_id(gpadc->dev);
+	if (ret < 0) {
+		dev_err(gpadc->dev, "failed to get chip ID\n");
+		goto fail_irq;
+	}
+	gpadc->chip_id = (u8) ret;
 
 	/* VTVout LDO used to power up ab8500-GPADC */
 	gpadc->regu = regulator_get(&pdev->dev, "vddadc");

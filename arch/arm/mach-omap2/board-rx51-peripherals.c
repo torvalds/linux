@@ -729,7 +729,7 @@ static struct twl4030_resconfig twl4030_rconfig[] __initdata = {
 	{ .resource = RES_RESET, .devgroup = -1,
 	  .type = 1, .type2 = -1, .remap_off = -1, .remap_sleep = -1
 	},
-	{ .resource = RES_Main_Ref, .devgroup = -1,
+	{ .resource = RES_MAIN_REF, .devgroup = -1,
 	  .type = 1, .type2 = -1, .remap_off = -1, .remap_sleep = -1
 	},
 	{ 0, 0},
