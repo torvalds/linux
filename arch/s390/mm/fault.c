@@ -245,9 +245,12 @@ static noinline void do_fault_error(struct pt_regs *regs, long int_code,
 		do_no_context(regs, int_code, trans_exc_code);
 		break;
 	default: /* fault & VM_FAULT_ERROR */
-		if (fault & VM_FAULT_OOM)
-			pagefault_out_of_memory();
-		else if (fault & VM_FAULT_SIGBUS) {
+		if (fault & VM_FAULT_OOM) {
+			if (!(regs->psw.mask & PSW_MASK_PSTATE))
+				do_no_context(regs, int_code, trans_exc_code);
+			else
+				pagefault_out_of_memory();
+		} else if (fault & VM_FAULT_SIGBUS) {
 			/* Kernel mode? Handle exceptions or die */
 			if (!(regs->psw.mask & PSW_MASK_PSTATE))
 				do_no_context(regs, int_code, trans_exc_code);
@@ -429,10 +432,9 @@ int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
 	access = write ? VM_WRITE : VM_READ;
 	fault = do_exception(&regs, access, uaddr | 2);
 	if (unlikely(fault)) {
-		if (fault & VM_FAULT_OOM) {
-			pagefault_out_of_memory();
-			fault = 0;
-		} else if (fault & VM_FAULT_SIGBUS)
+		if (fault & VM_FAULT_OOM)
+			return -EFAULT;
+		else if (fault & VM_FAULT_SIGBUS)
 			do_sigbus(&regs, pgm_int_code, uaddr);
 	}
 	return fault ? -EFAULT : 0;
