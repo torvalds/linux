@@ -361,6 +361,15 @@ config RTC_DRV_RX8025
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rx8025.
 
+config RTC_DRV_EM3027
+	tristate "EM Microelectronic EM3027"
+	help
+	  If you say yes here you get support for the EM
+	  Microelectronic EM3027 RTC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-em3027.
+
 endif # I2C
 
 comment "SPI RTC drivers"
