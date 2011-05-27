@@ -100,7 +100,7 @@ int usbip_send_op_common(int sockfd, uint32_t code, uint32_t status)
 	int ret;
 	struct op_common op_common;
 
-	bzero(&op_common, sizeof(op_common));
+	memset(&op_common, 0, sizeof(op_common));
 
 	op_common.version	= USBIP_VERSION;
 	op_common.code		= code;
@@ -122,7 +122,7 @@ int usbip_recv_op_common(int sockfd, uint16_t *code)
 	int ret;
 	struct op_common op_common;
 
-	bzero(&op_common, sizeof(op_common));
+	memset(&op_common, 0, sizeof(op_common));
 
 	ret = usbip_recv(sockfd, (void *) &op_common, sizeof(op_common));
 	if (ret < 0) {

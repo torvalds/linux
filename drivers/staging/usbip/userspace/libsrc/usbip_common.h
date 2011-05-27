@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <strings.h>
 
 #include <sysfs/libsysfs.h>
 #include <netdb.h>

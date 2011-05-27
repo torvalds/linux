@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <netdb.h>
-#include <strings.h>
+#include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -100,7 +100,7 @@ static int recv_request_devlist(int sockfd)
 	int ret;
 	struct op_devlist_request req;
 
-	bzero(&req, sizeof(req));
+	memset(&req, 0, sizeof(req));
 
 	ret = usbip_recv(sockfd, (void *) &req, sizeof(req));
 	if (ret < 0) {
@@ -127,8 +127,8 @@ static int recv_request_import(int sockfd)
 	int found = 0;
 	int error = 0;
 
-	bzero(&req, sizeof(req));
-	bzero(&reply, sizeof(reply));
+	memset(&req, 0, sizeof(req));
+	memset(&reply, 0, sizeof(reply));
 
 	ret = usbip_recv(sockfd, (void *) &req, sizeof(req));
 	if (ret < 0) {
@@ -244,7 +244,7 @@ static struct addrinfo *my_getaddrinfo(char *host, int ai_family)
 	int ret;
 	struct addrinfo hints, *ai_head;
 
-	bzero(&hints, sizeof(hints));
+	memset(&hints, 0, sizeof(hints));
 
 	hints.ai_family   = ai_family;
 	hints.ai_socktype = SOCK_STREAM;
@@ -337,7 +337,7 @@ static int my_accept(int lsock)
 	char host[NI_MAXHOST], port[NI_MAXSERV];
 	int ret;
 
-	bzero(&ss, sizeof(ss));
+	memset(&ss, 0, sizeof(ss));
 
 	csock = accept(lsock, (struct sockaddr *) &ss, &len);
 	if (csock < 0) {
@@ -380,7 +380,7 @@ static void set_signal(void)
 {
 	struct sigaction act;
 
-	bzero(&act, sizeof(act));
+	memset(&act, 0, sizeof(act));
 	act.sa_handler = signal_handler;
 	sigemptyset(&act.sa_mask);
 	sigaction(SIGTERM, &act, NULL);

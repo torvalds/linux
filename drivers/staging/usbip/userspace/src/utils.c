@@ -64,7 +64,7 @@ int read_integer(char *path)
 	int fd;
 	int ret = 0;
 
-	bzero(buff, sizeof(buff));
+	memset(buff, 0, sizeof(buff));
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
