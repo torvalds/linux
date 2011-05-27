@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/export.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/console.h>

@@ -5,6 +5,7 @@
  * busses using the iommu infrastructure
  */
 
+#include <linux/export.h>
 #include <asm/iommu.h>
 
 /*

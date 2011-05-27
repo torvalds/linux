@@ -24,6 +24,7 @@
 #include <linux/preempt.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/anon_inodes.h>
 #include <linux/cpumask.h>

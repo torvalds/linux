@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/suspend.h>
 #include <linux/delay.h>
 #include <linux/device.h>

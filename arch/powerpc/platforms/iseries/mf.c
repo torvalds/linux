@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/proc_fs.h>
 #include <linux/dma-mapping.h>
 #include <linux/bcd.h>

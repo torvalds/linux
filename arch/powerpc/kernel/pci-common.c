@@ -21,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/export.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/mm.h>

@@ -37,6 +37,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/export.h>
 #include <linux/console.h>
 #include <linux/kobject.h>
 #include <linux/dma-mapping.h>

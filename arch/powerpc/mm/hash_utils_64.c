@@ -27,6 +27,7 @@
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/sysctl.h>
+#include <linux/export.h>
 #include <linux/ctype.h>
 #include <linux/cache.h>
 #include <linux/init.h>
