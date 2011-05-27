@@ -156,21 +156,15 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	if (!dev)
 		return -ENODEV;
 
-	/* Find Ethernet bearer for device (or create one) */
+	/* Create Ethernet bearer for device */
 
-	while ((eb_ptr != stop) && eb_ptr->dev && (eb_ptr->dev != dev))
-		eb_ptr++;
-	if (eb_ptr == stop)
-		return -EDQUOT;
-	if (!eb_ptr->dev) {
-		eb_ptr->dev = dev;
-		eb_ptr->tipc_packet_type.type = htons(ETH_P_TIPC);
-		eb_ptr->tipc_packet_type.dev = dev;
-		eb_ptr->tipc_packet_type.func = recv_msg;
-		eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
-		INIT_LIST_HEAD(&(eb_ptr->tipc_packet_type.list));
-		dev_add_pack(&eb_ptr->tipc_packet_type);
-	}
+	eb_ptr->dev = dev;
+	eb_ptr->tipc_packet_type.type = htons(ETH_P_TIPC);
+	eb_ptr->tipc_packet_type.dev = dev;
+	eb_ptr->tipc_packet_type.func = recv_msg;
+	eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
+	INIT_LIST_HEAD(&(eb_ptr->tipc_packet_type.list));
+	dev_add_pack(&eb_ptr->tipc_packet_type);
 
 	/* Associate TIPC bearer with Ethernet bearer */
 
