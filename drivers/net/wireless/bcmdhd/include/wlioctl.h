@@ -633,8 +633,17 @@ typedef struct _pmkid_cand_list {
 	pmkid_cand_t    pmkid_cand[1];
 } pmkid_cand_list_t;
 
+typedef struct wl_assoc_info {
+	uint32      req_len;
+	uint32      resp_len;
+	uint32      flags;
+	struct dot11_assoc_req req;
+	struct ether_addr reassoc_bssid; /* used in reassoc's */
+	struct dot11_assoc_resp resp;
+} wl_assoc_info_t;
 
-
+/* flags */
+#define WLC_ASSOC_REQ_IS_REASSOC 0x01 /* assoc req was actually a reassoc */
 
 #define WLC_TXFILTER_OVERRIDE_DISABLED  0
 #define WLC_TXFILTER_OVERRIDE_ENABLED   1

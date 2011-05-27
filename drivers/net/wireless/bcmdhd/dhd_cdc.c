@@ -116,7 +116,7 @@ dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
 	return ret;
 }
 
-static int
+int
 dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uint8 action)
 {
 	dhd_prot_t *prot = dhd->prot;
@@ -203,7 +203,7 @@ done:
 	return ret;
 }
 
-static int
+int
 dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uint8 action)
 {
 	dhd_prot_t *prot = dhd->prot;
@@ -270,6 +270,7 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t * ioc, void * buf, int len)
 		DHD_ERROR(("%s : bus is down. we have nothing to do\n", __FUNCTION__));
 		goto done;
 	}
+
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
@@ -2292,6 +2293,7 @@ dhd_prot_init(dhd_pub_t *dhd)
 	int ret = 0;
 	wlc_rev_info_t revinfo;
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
+
 
 
 	/* Get the device rev info */

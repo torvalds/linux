@@ -936,7 +936,7 @@ dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 	int ret;
 	osl_t *osh;
 	uint8 *frame;
-	uint16 len, pad = 0;
+	uint16 len, pad1 = 0;
 	uint32 swheader;
 	uint retries = 0;
 	bcmsdh_info_t *sdh;
@@ -972,10 +972,10 @@ dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 #endif /* WLMEDIA_HTSF */
 
 	/* Add alignment padding, allocate new packet if needed */
-	if ((pad = ((uintptr)frame % DHD_SDALIGN))) {
-		if (PKTHEADROOM(osh, pkt) < pad) {
-			DHD_INFO(("%s: insufficient headroom %d for %d pad\n",
-			          __FUNCTION__, (int)PKTHEADROOM(osh, pkt), pad));
+	if ((pad1 = ((uintptr)frame % DHD_SDALIGN))) {
+		if (PKTHEADROOM(osh, pkt) < pad1) {
+			DHD_INFO(("%s: insufficient headroom %d for %d pad1\n",
+			          __FUNCTION__, (int)PKTHEADROOM(osh, pkt), pad1));
 			bus->dhd->tx_realloc++;
 			new = PKTGET(osh, (PKTLEN(osh, pkt) + DHD_SDALIGN), TRUE);
 			if (!new) {
@@ -994,16 +994,16 @@ dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 			pkt = new;
 			frame = (uint8*)PKTDATA(osh, pkt);
 			ASSERT(((uintptr)frame % DHD_SDALIGN) == 0);
-			pad = 0;
+			pad1 = 0;
 		} else {
-			PKTPUSH(osh, pkt, pad);
+			PKTPUSH(osh, pkt, pad1);
 			frame = (uint8*)PKTDATA(osh, pkt);
 
-			ASSERT((pad + SDPCM_HDRLEN) <= (int) PKTLEN(osh, pkt));
-			bzero(frame, pad + SDPCM_HDRLEN);
+			ASSERT((pad1 + SDPCM_HDRLEN) <= (int) PKTLEN(osh, pkt));
+			bzero(frame, pad1 + SDPCM_HDRLEN);
 		}
 	}
-	ASSERT(pad < DHD_SDALIGN);
+	ASSERT(pad1 < DHD_SDALIGN);
 
 	/* Hardware tag: 2 byte len followed by 2 byte ~len check (all LE) */
 	len = (uint16)PKTLEN(osh, pkt);
@@ -1012,7 +1012,7 @@ dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 
 	/* Software tag: channel, sequence number, data offset */
 	swheader = ((chan << SDPCM_CHANNEL_SHIFT) & SDPCM_CHANNEL_MASK) | bus->tx_seq |
-	        (((pad + SDPCM_HDRLEN) << SDPCM_DOFFSET_SHIFT) & SDPCM_DOFFSET_MASK);
+	        (((pad1 + SDPCM_HDRLEN) << SDPCM_DOFFSET_SHIFT) & SDPCM_DOFFSET_MASK);
 	htol32_ua_store(swheader, frame + SDPCM_FRAMETAG_LEN);
 	htol32_ua_store(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
 
@@ -1029,12 +1029,12 @@ dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 
 	/* Raise len to next SDIO block to eliminate tail command */
 	if (bus->roundup && bus->blocksize && (len > bus->blocksize)) {
-		uint16 pad = bus->blocksize - (len % bus->blocksize);
-		if ((pad <= bus->roundup) && (pad < bus->blocksize))
+		uint16 pad2 = bus->blocksize - (len % bus->blocksize);
+		if ((pad2 <= bus->roundup) && (pad2 < bus->blocksize))
 #ifdef NOTUSED
-			if (pad <= PKTTAILROOM(osh, pkt))
+			if (pad2 <= PKTTAILROOM(osh, pkt))
 #endif /* NOTUSED */
-				len += pad;
+				len += pad2;
 	} else if (len % DHD_SDALIGN) {
 		len += DHD_SDALIGN - (len % DHD_SDALIGN);
 	}
@@ -1087,7 +1087,7 @@ dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 
 done:
 	/* restore pkt buffer pointer before calling tx complete routine */
-	PKTPULL(osh, pkt, SDPCM_HDRLEN + pad);
+	PKTPULL(osh, pkt, SDPCM_HDRLEN + pad1);
 #ifdef PROP_TXSTATUS
 	if (bus->dhd->wlfc_state) {
 		dhd_os_sdunlock(bus->dhd);
@@ -5791,7 +5791,7 @@ dhdsdio_download_code_array(struct dhd_bus *bus)
 
 	/* Download image */
 	while ((offset + MEMBLOCK) < sizeof(dlarray)) {
-		bcmerror = dhdsdio_membytes(bus, TRUE, offset, dlarray + offset, MEMBLOCK);
+		bcmerror = dhdsdio_membytes(bus, TRUE, offset, (uint8 *) (dlarray + offset), MEMBLOCK);
 		if (bcmerror) {
 			DHD_ERROR(("%s: error %d on writing %d membytes at 0x%08x\n",
 			        __FUNCTION__, bcmerror, MEMBLOCK, offset));
@@ -5803,7 +5803,7 @@ dhdsdio_download_code_array(struct dhd_bus *bus)
 
 	if (offset < sizeof(dlarray)) {
 		bcmerror = dhdsdio_membytes(bus, TRUE, offset,
-			dlarray + offset, sizeof(dlarray) - offset);
+			(uint8 *) (dlarray + offset), sizeof(dlarray) - offset);
 		if (bcmerror) {
 			DHD_ERROR(("%s: error %d on writing %d membytes at 0x%08x\n",
 			        __FUNCTION__, bcmerror, sizeof(dlarray) - offset, offset));

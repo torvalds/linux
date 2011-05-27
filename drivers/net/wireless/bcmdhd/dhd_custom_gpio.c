@@ -89,12 +89,12 @@ int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 #ifdef CUSTOMER_HW2
 	host_oob_irq = wifi_get_irq_number(irq_flags_ptr);
 
-#else /* for NOT  CUSTOMER_HW2 */
+#else
 #if defined(CUSTOM_OOB_GPIO_NUM)
 	if (dhd_oob_gpio_num < 0) {
 		dhd_oob_gpio_num = CUSTOM_OOB_GPIO_NUM;
 	}
-#endif
+#endif /* CUSTOMER_HW2 */
 
 	if (dhd_oob_gpio_num < 0) {
 		WL_ERROR(("%s: ERROR customer specific Host GPIO is NOT defined \n",
@@ -199,18 +199,48 @@ dhd_custom_get_mac_address(unsigned char *buf)
 const struct cntry_locales_custom translate_custom_table[] = {
 /* Table should be filled out based on custom platform regulatory requirement */
 #ifdef EXAMPLE_TABLE
+	{"",   "XY", 4},  /* Universal if Country code is unknown or empty */
 	{"US", "US", 69}, /* input ISO "US" to : US regrev 69 */
 	{"CA", "US", 69}, /* input ISO "CA" to : US regrev 69 */
-	{"EU", "EU", 05}, /* input ISO "CA" to : US regrev 69 */
-	{"FR", "EU", 05},
-	{"DE", "EU", 05},
-	{"IE", "EU", 05},
-	{"GB", "EU", 05}, /* input ISO "GB" to : EU regrev 05 */
-	{"KR", "XY", 03},
-	{"AU", "XY", 03},
-	{"CN", "XY", 03}, /* input ISO "CN" to : XY regrev 03 */
-	{"TW", "XY", 03},
-	{"AR", "XY", 03}
+	{"EU", "EU", 5},  /* European union countries to : EU regrev 05 */
+	{"AT", "EU", 5},
+	{"BE", "EU", 5},
+	{"BG", "EU", 5},
+	{"CY", "EU", 5},
+	{"CZ", "EU", 5},
+	{"DK", "EU", 5},
+	{"EE", "EU", 5},
+	{"FI", "EU", 5},
+	{"FR", "EU", 5},
+	{"DE", "EU", 5},
+	{"GR", "EU", 5},
+	{"HU", "EU", 5},
+	{"IE", "EU", 5},
+	{"IT", "EU", 5},
+	{"LV", "EU", 5},
+	{"LI", "EU", 5},
+	{"LT", "EU", 5},
+	{"LU", "EU", 5},
+	{"MT", "EU", 5},
+	{"NL", "EU", 5},
+	{"PL", "EU", 5},
+	{"PT", "EU", 5},
+	{"RO", "EU", 5},
+	{"SK", "EU", 5},
+	{"SI", "EU", 5},
+	{"ES", "EU", 5},
+	{"SE", "EU", 5},
+	{"GB", "EU", 5},
+	{"KR", "XY", 3},
+	{"AU", "XY", 3},
+	{"CN", "XY", 3}, /* input ISO "CN" to : XY regrev 03 */
+	{"TW", "XY", 3},
+	{"AR", "XY", 3},
+	{"MX", "XY", 3},
+	{"IL", "IL", 0},
+	{"CH", "CH", 0},
+	{"TR", "TR", 0},
+	{"NO", "NO", 0},
 #endif /* EXMAPLE_TABLE */
 };
 
@@ -232,11 +262,17 @@ void get_customized_country_code(char *country_iso_code, wl_country_t *cspec)
 		 return;
 
 	for (i = 0; i < size; i++) {
-	if (strcmp(country_iso_code, translate_custom_table[i].iso_abbrev) == 0) {
-		memcpy(cspec->ccode,  translate_custom_table[i].custom_locale, WLC_CNTRY_BUF_SZ);
-		cspec->rev = translate_custom_table[i].custom_locale_rev;
-			break;
+		if (strcmp(country_iso_code, translate_custom_table[i].iso_abbrev) == 0) {
+			memcpy(cspec->ccode,
+				translate_custom_table[i].custom_locale, WLC_CNTRY_BUF_SZ);
+			cspec->rev = translate_custom_table[i].custom_locale_rev;
+			return;
 		}
 	}
+#ifdef EXAMPLE_TABLE
+	/* if no country code matched return first universal code from translate_custom_table */
+	memcpy(cspec->ccode, translate_custom_table[0].custom_locale, WLC_CNTRY_BUF_SZ);
+	cspec->rev = translate_custom_table[0].custom_locale_rev;
+#endif /* EXMAPLE_TABLE */
 	return;
 }

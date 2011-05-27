@@ -41,8 +41,15 @@
 #include <dhd_dbg.h>
 #include <msgtrace.h>
 
+#ifdef WL_CFG80211
+#include <wl_cfg80211.h>
+#endif
 #include <proto/bt_amp_hci.h>
 #include <dhd_bta.h>
+#ifdef SET_RANDOM_MAC_SOFTAP
+#include <linux/random.h>
+#include <linux/jiffies.h>
+#endif
 
 #ifdef PROP_TXSTATUS
 #include <wlfc_proto.h>
@@ -80,6 +87,13 @@ extern int dhd_iscan_in_progress(void *h);
 void dhd_iscan_lock(void);
 void dhd_iscan_unlock(void);
 extern int dhd_change_mtu(dhd_pub_t *dhd, int new_mtu, int ifidx);
+#if defined(SOFTAP)
+extern bool ap_fw_loaded;
+#endif 
+
+#if defined(KEEP_ALIVE)
+int dhd_keep_alive_onoff(dhd_pub_t *dhd, int ka_on);
+#endif /* KEEP_ALIVE */
 
 /* Packet alignment for most efficient SDIO (can change based on platform) */
 #ifndef DHD_SDALIGN
@@ -1025,12 +1039,30 @@ wl_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
 }
 #endif /* PROP_TXSTATUS */
 
-		if (ifevent->ifidx > 0 && ifevent->ifidx < DHD_MAX_IFS) {
+#ifdef WL_CFG80211
+			if (wl_cfg80211_is_progress_ifchange()) {
+				DHD_ERROR(("%s:  ifidx %d for %s action %d\n",
+					__FUNCTION__, ifevent->ifidx,
+					event->ifname, ifevent->action));
 			if (ifevent->action == WLC_E_IF_ADD)
-				dhd_add_if(dhd_pub->info, ifevent->ifidx,
-				           NULL, event->ifname,
-				           event->addr.octet,
-				           ifevent->flags, ifevent->bssidx);
+					wl_cfg80211_notify_ifchange();
+				return (BCME_OK);
+			}
+#endif /* WL_CFG80211 */
+				if (ifevent->ifidx > 0 && ifevent->ifidx < DHD_MAX_IFS) {
+					if (ifevent->action == WLC_E_IF_ADD) {
+						if (dhd_add_if(dhd_pub->info, ifevent->ifidx,
+							NULL, event->ifname,
+							event->addr.octet,
+							ifevent->flags, ifevent->bssidx)) {
+							DHD_ERROR(("%s: dhd_add_if failed!!"
+									" ifidx: %d for %s\n",
+									__FUNCTION__,
+									ifevent->ifidx,
+									event->ifname));
+							return (BCME_ERROR);
+						}
+					}
 			else
 				dhd_del_if(dhd_pub->info, ifevent->ifidx);
 		} else {
@@ -1114,6 +1146,7 @@ wl_event_to_host_order(wl_event_msg_t * evt)
 void
 dhd_print_buf(void *pbuf, int len, int bytes_per_line)
 {
+#ifdef DHD_DEBUG
 	int i, j = 0;
 	unsigned char *buf = pbuf;
 
@@ -1132,6 +1165,7 @@ dhd_print_buf(void *pbuf, int len, int bytes_per_line)
 		}
 	}
 	printf("\n");
+#endif /* DHD_DEBUG */
 }
 
 #define strtoul(nptr, endptr, base) bcm_strtoul((nptr), (endptr), (base))
@@ -1366,6 +1400,10 @@ fail:
 		MFREE(dhd->osh, buf, BUF_SIZE);
 }
 
+/* ========================== */
+/* ==== ARP OFFLOAD SUPPORT = */
+/* ========================== */
+#ifdef ARP_OFFLOAD_SUPPORT
 void
 dhd_arp_offload_set(dhd_pub_t * dhd, int arp_mode)
 {
@@ -1400,6 +1438,86 @@ dhd_arp_offload_enable(dhd_pub_t * dhd, int arp_enable)
 		__FUNCTION__, arp_enable));
 }
 
+void dhd_aoe_arp_clr(dhd_pub_t *dhd)
+{
+	int ret = 0;
+	int iov_len = 0;
+	char iovbuf[128];
+
+	if (dhd == NULL) return;
+
+	iov_len = bcm_mkiovar("arp_table_clear", 0, 0, iovbuf, sizeof(iovbuf));
+	if ((ret  = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, 0) < 0))
+		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
+}
+
+void dhd_aoe_hostip_clr(dhd_pub_t *dhd)
+{
+	int ret = 0;
+	int iov_len = 0;
+	char iovbuf[128];
+
+	if (dhd == NULL) return;
+
+	iov_len = bcm_mkiovar("arp_hostip_clear", 0, 0, iovbuf, sizeof(iovbuf));
+	if ((ret  = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, 0)) < 0)
+		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
+}
+
+void dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr)
+{
+	int iov_len = 0;
+	char iovbuf[32];
+	int retcode;
+
+	iov_len = bcm_mkiovar("arp_hostip", (char *)&ipaddr, 4, iovbuf, sizeof(iovbuf));
+	retcode = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, iov_len, TRUE, 0);
+
+	if (retcode)
+		DHD_TRACE(("%s: ARP ip addr add failed, retcode = %d\n",
+		__FUNCTION__, retcode));
+	else
+		DHD_TRACE(("%s: sARP H ipaddr entry added \n",
+		__FUNCTION__));
+}
+
+
+int dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen)
+{
+#define MAX_IPV4_ENTRIES 8
+
+	int retcode, i;
+	int iov_len = 0;
+	uint32 *ptr32 = buf;
+	bool clr_bottom = FALSE;
+
+	if (!buf)
+		return -1;
+
+	iov_len = bcm_mkiovar("arp_hostip", 0, 0, buf, buflen);
+	retcode = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, buflen, TRUE, 0);
+
+	/* clean up the buf, ascii reminder */
+	for (i = 0; i < MAX_IPV4_ENTRIES; i++) {
+
+		if (!clr_bottom) {
+			if (*ptr32 == 0)
+			clr_bottom = TRUE;
+		} else {
+			*ptr32 = 0;
+		}
+		ptr32++;
+	}
+
+	if (retcode) {
+		DHD_TRACE(("%s: ioctl WLC_GET_VAR error %d\n",
+		__FUNCTION__, retcode));
+
+		return -1;
+	}
+	return 0;
+}
+#endif /* ARP_OFFLOAD_SUPPORT  */
 int
 dhd_preinit_ioctls(dhd_pub_t *dhd)
 {
@@ -1411,10 +1529,11 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint power_mode = PM_FAST;
 	uint32 dongle_align = DHD_SDALIGN;
 	uint32 glom = 0;
+	uint bcn_timeout = 4;
 	int arpoe = 1;
 	int arp_ol = 0xf;
 	int scan_assoc_time = 40;
-	int scan_unassoc_time = 80;
+	int scan_unassoc_time = 40;
 	const char 				*str;
 	wl_pkt_filter_t		pkt_filter;
 	wl_pkt_filter_t		*pkt_filterp;
@@ -1426,18 +1545,67 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	char *ptr;
 	uint filter_mode = 1;
 	uint32 listen_interval = LISTEN_INTERVAL; /* Default Listen Interval in Beacons */
+#if defined(SOFTAP)
+	uint dtim = 1;
+#endif
 #ifdef AP
 	uint32 mpc = 0; /* Turn MPC off for AP/APSTA mode */
 	uint32 apsta = 1; /* Enable APSTA mode */
 #endif
+#ifdef GET_CUSTOM_MAC_ENABLE
+	struct ether_addr ea_addr;
+#endif /* GET_CUSTOM_MAC_ENABLE */
 
-	/* Get the device MAC address */
+#ifdef GET_CUSTOM_MAC_ENABLE
+	/*
+	** Read MAC address from external customer place
+	** NOTE that default mac address has to be present in otp or nvram file
+	** to bring up firmware but unique per board mac address maybe provided
+	** by customer code
+	*/
+	ret = dhd_custom_get_mac_address(ea_addr.octet);
+	if (!ret) {
+		bcm_mkiovar("cur_etheraddr", (void *)&ea_addr, ETHER_ADDR_LEN, buf, sizeof(buf));
+		ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
+		if (ret < 0) {
+			DHD_ERROR(("%s: can't set MAC address , error=%d\n", __FUNCTION__, ret));
+		} else
+			memcpy(dhd->mac.octet, (void *)&ea_addr, ETHER_ADDR_LEN);
+	}
+#else
+	/* Get the default device MAC address directly from firmware */
 	strcpy(iovbuf, "cur_etheraddr");
 	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, iovbuf, sizeof(iovbuf), FALSE, 0)) < 0) {
 		DHD_ERROR(("%s: can't get MAC address , error=%d\n", __FUNCTION__, ret));
 		return BCME_NOTUP;
 	}
 	memcpy(dhd->mac.octet, iovbuf, ETHER_ADDR_LEN);
+#endif /* GET_CUSTOM_MAC_ENABLE */
+
+#ifdef SET_RANDOM_MAC_SOFTAP
+	if (strstr(fw_path, "apsta") != NULL) {
+		uint rand_mac;
+
+		srandom32((uint)jiffies);
+		rand_mac = random32();
+		iovbuf[0] = 0x02;              /* locally administered bit */
+		iovbuf[1] = 0x1A;
+		iovbuf[2] = 0x11;
+		iovbuf[3] = (unsigned char)(rand_mac & 0x0F) | 0xF0;
+		iovbuf[4] = (unsigned char)(rand_mac >> 8);
+		iovbuf[5] = (unsigned char)(rand_mac >> 16);
+
+		printk("Broadcom Dongle Host Driver mac=%02x:%02x:%02x:%02x:%02x:%02x\n",
+			iovbuf[0], iovbuf[1], iovbuf[2], iovbuf[3], iovbuf[4], iovbuf[5]);
+
+		bcm_mkiovar("cur_etheraddr", (void *)iovbuf, ETHER_ADDR_LEN, buf, sizeof(buf));
+		ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
+		if (ret < 0) {
+			DHD_ERROR(("%s: can't set MAC address , error=%d\n", __FUNCTION__, ret));
+		} else
+			memcpy(dhd->mac.octet, iovbuf, ETHER_ADDR_LEN);
+	}
+#endif /* SET_RANDOM_MAC_SOFTAP */
 
 	/* Set Country code  */
 	if (dhd->dhd_cspec.ccode[0] != 0) {
@@ -1472,6 +1640,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	bcm_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 
+	/* Setup timeout if Beacons are lost and roam is off to report link down */
+	bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf, sizeof(iovbuf));
+	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 #ifdef AP
 	/* Turn off MPC in AP mode */
 	bcm_mkiovar("mpc", (char *)&mpc, 4, iovbuf, sizeof(iovbuf));
@@ -1480,6 +1651,24 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* Enable APSTA mode */
 	bcm_mkiovar("apsta", (char *)&apsta, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+#endif
+#if defined(SOFTAP)
+	if (ap_fw_loaded == TRUE) {
+		dhd_wl_ioctl_cmd(dhd, WLC_SET_DTIMPRD, (char *)&dtim, sizeof(dtim), TRUE, 0);
+	}
+#endif
+
+#if defined(KEEP_ALIVE)
+	{
+	/* Set Keep Alive : be sure to use FW with -keepalive */
+	int res;
+
+	if (ap_fw_loaded == FALSE) {
+		if ((res = dhd_keep_alive_onoff(dhd, 1)) < 0)
+			DHD_ERROR(("%s set keeplive failed %d\n",
+			__FUNCTION__, res));
+		}
+	}
 #endif
 
 	/* Force STA UP */
@@ -1518,6 +1707,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #endif
 	bcm_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_SCAN_CHANNEL_TIME, (char *)&scan_assoc_time,
 		sizeof(scan_assoc_time), TRUE, 0);
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_SCAN_UNASSOC_TIME, (char *)&scan_unassoc_time,
@@ -1579,6 +1769,12 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* set mode to allow pattern */
 	bcm_mkiovar("pkt_filter_mode", (char *)&filter_mode, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+#ifdef ARP_OFFLOAD_SUPPORT
+	/* Set and enable ARP offload feature */
+	if (dhd_arp_enable)
+		dhd_arp_offload_set(dhd, dhd_arp_mode);
+	dhd_arp_offload_enable(dhd, dhd_arp_enable);
+#endif /* ARP_OFFLOAD_SUPPORT */
 
 
 done:
@@ -2030,6 +2226,53 @@ dhd_pno_get_status(dhd_pub_t *dhd)
 
 #endif /* PNO_SUPPORT */
 
+#if defined(KEEP_ALIVE)
+int dhd_keep_alive_onoff(dhd_pub_t *dhd, int ka_on)
+{
+	char buf[256];
+	char *buf_ptr = buf;
+	wl_keep_alive_pkt_t keep_alive_pkt;
+	char * str;
+	int str_len, buf_len;
+	int res = -1;
+	int keep_alive_period = KEEP_ALIVE_PERIOD; /* in ms */
+
+	DHD_TRACE(("%s: param=%d\n", __FUNCTION__, ka_on));
+
+	if (ka_on) { /* on suspend */
+		keep_alive_pkt.period_msec = keep_alive_period;
+
+	} else {
+		/* on resume, turn off keep_alive packets  */
+		keep_alive_pkt.period_msec = 0;
+	}
+
+	/* IOC var name  */
+	str = "keep_alive";
+	str_len = strlen(str);
+	strncpy(buf, str, str_len);
+	buf[str_len] = '\0';
+	buf_len = str_len + 1;
+
+	/* set ptr to IOCTL payload after the var name */
+	buf_ptr += buf_len; /* include term Z */
+
+	/* copy Keep-alive attributes from local var keep_alive_pkt */
+	str = NULL_PKT_STR;
+	keep_alive_pkt.len_bytes = strlen(str);
+
+	memcpy(buf_ptr, &keep_alive_pkt, WL_KEEP_ALIVE_FIXED_LEN);
+	buf_ptr += WL_KEEP_ALIVE_FIXED_LEN;
+
+	/* copy packet data */
+	memcpy(buf_ptr, str, keep_alive_pkt.len_bytes);
+	buf_len += (WL_KEEP_ALIVE_FIXED_LEN + keep_alive_pkt.len_bytes);
+/*
+	res = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, buf_len, TRUE, 0);
+*/
+	return res;
+}
+#endif /* defined(KEEP_ALIVE) */
 /* Android ComboSCAN support */
 
 /*
