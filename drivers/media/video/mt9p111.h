@@ -40,4 +40,5 @@ struct reginfo
 #define ADJUST_FOR_720P_FALG      1
 #define ADJUST_FOR_VGA_FALG       1
 #define ADJUST_FOR_CAPTURE_FALG   1
+#define ADJUST_PCLK_FRE_FALG      1
 #endif
