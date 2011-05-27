@@ -1669,17 +1669,24 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 			goto cont;
 		tipc_node_lock(n_ptr);
 
-		/* Don't talk to neighbor during cleanup after last session */
-
-		if (n_ptr->cleanup_required) {
-			tipc_node_unlock(n_ptr);
-			goto cont;
-		}
-
 		/* Locate unicast link endpoint that should handle message */
 
 		l_ptr = n_ptr->links[b_ptr->identity];
 		if (unlikely(!l_ptr)) {
+			tipc_node_unlock(n_ptr);
+			goto cont;
+		}
+
+		/* Verify that communication with node is currently allowed */
+
+		if ((n_ptr->block_setup & WAIT_PEER_DOWN) &&
+			msg_user(msg) == LINK_PROTOCOL &&
+			(msg_type(msg) == RESET_MSG ||
+					msg_type(msg) == ACTIVATE_MSG) &&
+			!msg_redundant_link(msg))
+			n_ptr->block_setup &= ~WAIT_PEER_DOWN;
+
+		if (n_ptr->block_setup) {
 			tipc_node_unlock(n_ptr);
 			goto cont;
 		}
@@ -1914,6 +1921,12 @@ void tipc_link_send_proto_msg(struct link *l_ptr, u32 msg_typ, int probe_msg,
 
 	if (link_blocked(l_ptr))
 		return;
+
+	/* Abort non-RESET send if communication with node is prohibited */
+
+	if ((l_ptr->owner->block_setup) && (msg_typ != RESET_MSG))
+		return;
+
 	msg_set_type(msg, msg_typ);
 	msg_set_net_plane(msg, l_ptr->b_ptr->net_plane);
 	msg_set_bcast_ack(msg, mod(l_ptr->owner->bclink.last_in));
@@ -2045,6 +2058,16 @@ static void link_recv_proto_msg(struct link *l_ptr, struct sk_buff *buf)
 			if (less_eq(msg_session(msg), l_ptr->peer_session))
 				break; /* duplicate or old reset: ignore */
 		}
+
+		if (!msg_redundant_link(msg) && (link_working_working(l_ptr) ||
+				link_working_unknown(l_ptr))) {
+			/*
+			 * peer has lost contact -- don't allow peer's links
+			 * to reactivate before we recognize loss & clean up
+			 */
+			l_ptr->owner->block_setup = WAIT_NODE_DOWN;
+		}
+
 		/* fall thru' */
 	case ACTIVATE_MSG:
 		/* Update link settings according other endpoint's values */
