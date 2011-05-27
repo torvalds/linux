@@ -248,7 +248,7 @@ uint32_t uvc_fraction_to_interval(uint32_t numerator, uint32_t denominator)
  * Terminal and unit management
  */
 
-static struct uvc_entity *uvc_entity_by_id(struct uvc_device *dev, int id)
+struct uvc_entity *uvc_entity_by_id(struct uvc_device *dev, int id)
 {
 	struct uvc_entity *entity;
 
@@ -795,9 +795,12 @@ static struct uvc_entity *uvc_alloc_entity(u16 type, u8 id,
 	struct uvc_entity *entity;
 	unsigned int num_inputs;
 	unsigned int size;
+	unsigned int i;
 
+	extra_size = ALIGN(extra_size, sizeof(*entity->pads));
 	num_inputs = (type & UVC_TERM_OUTPUT) ? num_pads : num_pads - 1;
-	size = sizeof(*entity) + extra_size + num_inputs;
+	size = sizeof(*entity) + extra_size + sizeof(*entity->pads) * num_pads
+	     + num_inputs;
 	entity = kzalloc(size, GFP_KERNEL);
 	if (entity == NULL)
 		return NULL;
@@ -805,8 +808,17 @@ static struct uvc_entity *uvc_alloc_entity(u16 type, u8 id,
 	entity->id = id;
 	entity->type = type;
 
+	entity->num_links = 0;
+	entity->num_pads = num_pads;
+	entity->pads = ((void *)(entity + 1)) + extra_size;
+
+	for (i = 0; i < num_inputs; ++i)
+		entity->pads[i].flags = MEDIA_PAD_FL_SINK;
+	if (!UVC_ENTITY_IS_OTERM(entity))
+		entity->pads[num_pads-1].flags = MEDIA_PAD_FL_SOURCE;
+
 	entity->bNrInPins = num_inputs;
-	entity->baSourceID = ((__u8 *)entity) + sizeof(*entity) + extra_size;
+	entity->baSourceID = (__u8 *)(&entity->pads[num_pads]);
 
 	return entity;
 }
@@ -1585,6 +1597,13 @@ static void uvc_delete(struct uvc_device *dev)
 	uvc_status_cleanup(dev);
 	uvc_ctrl_cleanup_device(dev);
 
+	if (dev->vdev.dev)
+		v4l2_device_unregister(&dev->vdev);
+#ifdef CONFIG_MEDIA_CONTROLLER
+	if (media_devnode_is_registered(&dev->mdev.devnode))
+		media_device_unregister(&dev->mdev);
+#endif
+
 	list_for_each_safe(p, n, &dev->chains) {
 		struct uvc_video_chain *chain;
 		chain = list_entry(p, struct uvc_video_chain, list);
@@ -1594,6 +1613,13 @@ static void uvc_delete(struct uvc_device *dev)
 	list_for_each_safe(p, n, &dev->entities) {
 		struct uvc_entity *entity;
 		entity = list_entry(p, struct uvc_entity, list);
+#ifdef CONFIG_MEDIA_CONTROLLER
+		uvc_mc_cleanup_entity(entity);
+#endif
+		if (entity->vdev) {
+			video_device_release(entity->vdev);
+			entity->vdev = NULL;
+		}
 		kfree(entity);
 	}
 
@@ -1615,8 +1641,6 @@ static void uvc_release(struct video_device *vdev)
 {
 	struct uvc_streaming *stream = video_get_drvdata(vdev);
 	struct uvc_device *dev = stream->dev;
-
-	video_device_release(vdev);
 
 	/* Decrement the registered streams count and delete the device when it
 	 * reaches zero.
@@ -1682,7 +1706,7 @@ static int uvc_register_video(struct uvc_device *dev,
 	 * unregistered before the reference is released, so we don't need to
 	 * get another one.
 	 */
-	vdev->parent = &dev->intf->dev;
+	vdev->v4l2_dev = &dev->vdev;
 	vdev->fops = &uvc_fops;
 	vdev->release = uvc_release;
 	strlcpy(vdev->name, dev->name, sizeof vdev->name);
@@ -1731,6 +1755,8 @@ static int uvc_register_terms(struct uvc_device *dev,
 		ret = uvc_register_video(dev, stream);
 		if (ret < 0)
 			return ret;
+
+		term->vdev = stream->vdev;
 	}
 
 	return 0;
@@ -1745,6 +1771,14 @@ static int uvc_register_chains(struct uvc_device *dev)
 		ret = uvc_register_terms(dev, chain);
 		if (ret < 0)
 			return ret;
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+		ret = uvc_mc_register_entities(chain);
+		if (ret < 0) {
+			uvc_printk(KERN_INFO, "Failed to register entites "
+				"(%d).\n", ret);
+		}
+#endif
 	}
 
 	return 0;
@@ -1814,6 +1848,24 @@ static int uvc_probe(struct usb_interface *intf,
 			"linux-uvc-devel mailing list.\n");
 	}
 
+	/* Register the media and V4L2 devices. */
+#ifdef CONFIG_MEDIA_CONTROLLER
+	dev->mdev.dev = &intf->dev;
+	strlcpy(dev->mdev.model, dev->name, sizeof(dev->mdev.model));
+	if (udev->serial)
+		strlcpy(dev->mdev.serial, udev->serial,
+			sizeof(dev->mdev.serial));
+	strcpy(dev->mdev.bus_info, udev->devpath);
+	dev->mdev.hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
+	dev->mdev.driver_version = DRIVER_VERSION_NUMBER;
+	if (media_device_register(&dev->mdev) < 0)
+		goto error;
+
+	dev->vdev.mdev = &dev->mdev;
+#endif
+	if (v4l2_device_register(&intf->dev, &dev->vdev) < 0)
+		goto error;
+
 	/* Initialize controls. */
 	if (uvc_ctrl_init_device(dev) < 0)
 		goto error;
@@ -1822,7 +1874,7 @@ static int uvc_probe(struct usb_interface *intf,
 	if (uvc_scan_device(dev) < 0)
 		goto error;
 
-	/* Register video devices. */
+	/* Register video device nodes. */
 	if (uvc_register_chains(dev) < 0)
 		goto error;
 
