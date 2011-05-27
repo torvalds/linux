@@ -3754,10 +3754,6 @@ static int nl80211_send_survey(struct sk_buff *msg, u32 pid, u32 seq,
 	void *hdr;
 	struct nlattr *infoattr;
 
-	/* Survey without a channel doesn't make sense */
-	if (!survey->channel)
-		return -EINVAL;
-
 	hdr = nl80211hdr_put(msg, pid, seq, flags,
 			     NL80211_CMD_NEW_SURVEY_RESULTS);
 	if (!hdr)
@@ -3820,12 +3816,27 @@ static int nl80211_dump_survey(struct sk_buff *skb,
 	}
 
 	while (1) {
+		struct ieee80211_channel *chan;
+
 		res = dev->ops->dump_survey(&dev->wiphy, netdev, survey_idx,
 					    &survey);
 		if (res == -ENOENT)
 			break;
 		if (res)
 			goto out_err;
+
+		/* Survey without a channel doesn't make sense */
+		if (!survey.channel) {
+			res = -EINVAL;
+			goto out;
+		}
+
+		chan = ieee80211_get_channel(&dev->wiphy,
+					     survey.channel->center_freq);
+		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED) {
+			survey_idx++;
+			continue;
+		}
 
 		if (nl80211_send_survey(skb,
 				NETLINK_CB(cb->skb).pid,
