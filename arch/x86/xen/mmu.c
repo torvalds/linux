@@ -75,66 +75,11 @@
 #include "mmu.h"
 #include "debugfs.h"
 
-#define MMU_UPDATE_HISTO	30
-
 /*
  * Protects atomic reservation decrease/increase against concurrent increases.
  * Also protects non-atomic updates of current_pages and balloon lists.
  */
 DEFINE_SPINLOCK(xen_reservation_lock);
-
-#ifdef CONFIG_XEN_DEBUG_FS
-
-static struct {
-	u32 pgd_update;
-	u32 pgd_update_pinned;
-	u32 pgd_update_batched;
-
-	u32 pud_update;
-	u32 pud_update_pinned;
-	u32 pud_update_batched;
-
-	u32 pmd_update;
-	u32 pmd_update_pinned;
-	u32 pmd_update_batched;
-
-	u32 pte_update;
-	u32 pte_update_pinned;
-	u32 pte_update_batched;
-
-	u32 mmu_update;
-	u32 mmu_update_extended;
-	u32 mmu_update_histo[MMU_UPDATE_HISTO];
-
-	u32 prot_commit;
-	u32 prot_commit_batched;
-
-	u32 set_pte_at;
-	u32 set_pte_at_batched;
-	u32 set_pte_at_pinned;
-	u32 set_pte_at_current;
-	u32 set_pte_at_kernel;
-} mmu_stats;
-
-static u8 zero_stats;
-
-static inline void check_zero(void)
-{
-	if (unlikely(zero_stats)) {
-		memset(&mmu_stats, 0, sizeof(mmu_stats));
-		zero_stats = 0;
-	}
-}
-
-#define ADD_STATS(elem, val)			\
-	do { check_zero(); mmu_stats.elem += (val); } while(0)
-
-#else  /* !CONFIG_XEN_DEBUG_FS */
-
-#define ADD_STATS(elem, val)	do { (void)(val); } while(0)
-
-#endif /* CONFIG_XEN_DEBUG_FS */
-
 
 /*
  * Identity map, in addition to plain kernel map.  This needs to be
@@ -243,11 +188,6 @@ static bool xen_page_pinned(void *ptr)
 	return PagePinned(page);
 }
 
-static bool xen_iomap_pte(pte_t pte)
-{
-	return pte_flags(pte) & _PAGE_IOMAP;
-}
-
 void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid)
 {
 	struct multicall_space mcs;
@@ -257,7 +197,7 @@ void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid)
 	u = mcs.args;
 
 	/* ptep might be kmapped when using 32-bit HIGHPTE */
-	u->ptr = arbitrary_virt_to_machine(ptep).maddr;
+	u->ptr = virt_to_machine(ptep).maddr;
 	u->val = pte_val_ma(pteval);
 
 	MULTI_mmu_update(mcs.mc, mcs.args, 1, NULL, domid);
@@ -265,11 +205,6 @@ void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid)
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
 EXPORT_SYMBOL_GPL(xen_set_domain_pte);
-
-static void xen_set_iomap_pte(pte_t *ptep, pte_t pteval)
-{
-	xen_set_domain_pte(ptep, pteval, DOMID_IO);
-}
 
 static void xen_extend_mmu_update(const struct mmu_update *update)
 {
@@ -279,27 +214,17 @@ static void xen_extend_mmu_update(const struct mmu_update *update)
 	mcs = xen_mc_extend_args(__HYPERVISOR_mmu_update, sizeof(*u));
 
 	if (mcs.mc != NULL) {
-		ADD_STATS(mmu_update_extended, 1);
-		ADD_STATS(mmu_update_histo[mcs.mc->args[1]], -1);
-
 		mcs.mc->args[1]++;
-
-		if (mcs.mc->args[1] < MMU_UPDATE_HISTO)
-			ADD_STATS(mmu_update_histo[mcs.mc->args[1]], 1);
-		else
-			ADD_STATS(mmu_update_histo[0], 1);
 	} else {
-		ADD_STATS(mmu_update, 1);
 		mcs = __xen_mc_entry(sizeof(*u));
 		MULTI_mmu_update(mcs.mc, mcs.args, 1, NULL, DOMID_SELF);
-		ADD_STATS(mmu_update_histo[1], 1);
 	}
 
 	u = mcs.args;
 	*u = *update;
 }
 
-void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
+static void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
 {
 	struct mmu_update u;
 
@@ -312,25 +237,19 @@ void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
 	u.val = pmd_val_ma(val);
 	xen_extend_mmu_update(&u);
 
-	ADD_STATS(pmd_update_batched, paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU);
-
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 
 	preempt_enable();
 }
 
-void xen_set_pmd(pmd_t *ptr, pmd_t val)
+static void xen_set_pmd(pmd_t *ptr, pmd_t val)
 {
-	ADD_STATS(pmd_update, 1);
-
 	/* If page is not pinned, we can just update the entry
 	   directly */
 	if (!xen_page_pinned(ptr)) {
 		*ptr = val;
 		return;
 	}
-
-	ADD_STATS(pmd_update_pinned, 1);
 
 	xen_set_pmd_hyper(ptr, val);
 }
@@ -344,35 +263,34 @@ void set_pte_mfn(unsigned long vaddr, unsigned long mfn, pgprot_t flags)
 	set_pte_vaddr(vaddr, mfn_pte(mfn, flags));
 }
 
-void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
+static bool xen_batched_set_pte(pte_t *ptep, pte_t pteval)
+{
+	struct mmu_update u;
+
+	if (paravirt_get_lazy_mode() != PARAVIRT_LAZY_MMU)
+		return false;
+
+	xen_mc_batch();
+
+	u.ptr = virt_to_machine(ptep).maddr | MMU_NORMAL_PT_UPDATE;
+	u.val = pte_val_ma(pteval);
+	xen_extend_mmu_update(&u);
+
+	xen_mc_issue(PARAVIRT_LAZY_MMU);
+
+	return true;
+}
+
+static void xen_set_pte(pte_t *ptep, pte_t pteval)
+{
+	if (!xen_batched_set_pte(ptep, pteval))
+		native_set_pte(ptep, pteval);
+}
+
+static void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		    pte_t *ptep, pte_t pteval)
 {
-	if (xen_iomap_pte(pteval)) {
-		xen_set_iomap_pte(ptep, pteval);
-		goto out;
-	}
-
-	ADD_STATS(set_pte_at, 1);
-//	ADD_STATS(set_pte_at_pinned, xen_page_pinned(ptep));
-	ADD_STATS(set_pte_at_current, mm == current->mm);
-	ADD_STATS(set_pte_at_kernel, mm == &init_mm);
-
-	if (mm == current->mm || mm == &init_mm) {
-		if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
-			struct multicall_space mcs;
-			mcs = xen_mc_entry(0);
-
-			MULTI_update_va_mapping(mcs.mc, addr, pteval, 0);
-			ADD_STATS(set_pte_at_batched, 1);
-			xen_mc_issue(PARAVIRT_LAZY_MMU);
-			goto out;
-		} else
-			if (HYPERVISOR_update_va_mapping(addr, pteval, 0) == 0)
-				goto out;
-	}
 	xen_set_pte(ptep, pteval);
-
-out:	return;
 }
 
 pte_t xen_ptep_modify_prot_start(struct mm_struct *mm,
@@ -389,12 +307,9 @@ void xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 
 	xen_mc_batch();
 
-	u.ptr = arbitrary_virt_to_machine(ptep).maddr | MMU_PT_UPDATE_PRESERVE_AD;
+	u.ptr = virt_to_machine(ptep).maddr | MMU_PT_UPDATE_PRESERVE_AD;
 	u.val = pte_val_ma(pte);
 	xen_extend_mmu_update(&u);
-
-	ADD_STATS(prot_commit, 1);
-	ADD_STATS(prot_commit_batched, paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
@@ -463,7 +378,7 @@ static pteval_t iomap_pte(pteval_t val)
 	return val;
 }
 
-pteval_t xen_pte_val(pte_t pte)
+static pteval_t xen_pte_val(pte_t pte)
 {
 	pteval_t pteval = pte.pte;
 
@@ -480,7 +395,7 @@ pteval_t xen_pte_val(pte_t pte)
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_pte_val);
 
-pgdval_t xen_pgd_val(pgd_t pgd)
+static pgdval_t xen_pgd_val(pgd_t pgd)
 {
 	return pte_mfn_to_pfn(pgd.pgd);
 }
@@ -511,7 +426,7 @@ void xen_set_pat(u64 pat)
 	WARN_ON(pat != 0x0007010600070106ull);
 }
 
-pte_t xen_make_pte(pteval_t pte)
+static pte_t xen_make_pte(pteval_t pte)
 {
 	phys_addr_t addr = (pte & PTE_PFN_MASK);
 
@@ -581,20 +496,20 @@ pte_t xen_make_pte_debug(pteval_t pte)
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pte_debug);
 #endif
 
-pgd_t xen_make_pgd(pgdval_t pgd)
+static pgd_t xen_make_pgd(pgdval_t pgd)
 {
 	pgd = pte_pfn_to_mfn(pgd);
 	return native_make_pgd(pgd);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pgd);
 
-pmdval_t xen_pmd_val(pmd_t pmd)
+static pmdval_t xen_pmd_val(pmd_t pmd)
 {
 	return pte_mfn_to_pfn(pmd.pmd);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_pmd_val);
 
-void xen_set_pud_hyper(pud_t *ptr, pud_t val)
+static void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 {
 	struct mmu_update u;
 
@@ -607,17 +522,13 @@ void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 	u.val = pud_val_ma(val);
 	xen_extend_mmu_update(&u);
 
-	ADD_STATS(pud_update_batched, paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU);
-
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 
 	preempt_enable();
 }
 
-void xen_set_pud(pud_t *ptr, pud_t val)
+static void xen_set_pud(pud_t *ptr, pud_t val)
 {
-	ADD_STATS(pud_update, 1);
-
 	/* If page is not pinned, we can just update the entry
 	   directly */
 	if (!xen_page_pinned(ptr)) {
@@ -625,56 +536,28 @@ void xen_set_pud(pud_t *ptr, pud_t val)
 		return;
 	}
 
-	ADD_STATS(pud_update_pinned, 1);
-
 	xen_set_pud_hyper(ptr, val);
 }
 
-void xen_set_pte(pte_t *ptep, pte_t pte)
-{
-	if (xen_iomap_pte(pte)) {
-		xen_set_iomap_pte(ptep, pte);
-		return;
-	}
-
-	ADD_STATS(pte_update, 1);
-//	ADD_STATS(pte_update_pinned, xen_page_pinned(ptep));
-	ADD_STATS(pte_update_batched, paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU);
-
 #ifdef CONFIG_X86_PAE
-	ptep->pte_high = pte.pte_high;
-	smp_wmb();
-	ptep->pte_low = pte.pte_low;
-#else
-	*ptep = pte;
-#endif
-}
-
-#ifdef CONFIG_X86_PAE
-void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
+static void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
-	if (xen_iomap_pte(pte)) {
-		xen_set_iomap_pte(ptep, pte);
-		return;
-	}
-
 	set_64bit((u64 *)ptep, native_pte_val(pte));
 }
 
-void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+static void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	ptep->pte_low = 0;
-	smp_wmb();		/* make sure low gets written first */
-	ptep->pte_high = 0;
+	if (!xen_batched_set_pte(ptep, native_make_pte(0)))
+		native_pte_clear(mm, addr, ptep);
 }
 
-void xen_pmd_clear(pmd_t *pmdp)
+static void xen_pmd_clear(pmd_t *pmdp)
 {
 	set_pmd(pmdp, __pmd(0));
 }
 #endif	/* CONFIG_X86_PAE */
 
-pmd_t xen_make_pmd(pmdval_t pmd)
+static pmd_t xen_make_pmd(pmdval_t pmd)
 {
 	pmd = pte_pfn_to_mfn(pmd);
 	return native_make_pmd(pmd);
@@ -682,13 +565,13 @@ pmd_t xen_make_pmd(pmdval_t pmd)
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pmd);
 
 #if PAGETABLE_LEVELS == 4
-pudval_t xen_pud_val(pud_t pud)
+static pudval_t xen_pud_val(pud_t pud)
 {
 	return pte_mfn_to_pfn(pud.pud);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_pud_val);
 
-pud_t xen_make_pud(pudval_t pud)
+static pud_t xen_make_pud(pudval_t pud)
 {
 	pud = pte_pfn_to_mfn(pud);
 
@@ -696,7 +579,7 @@ pud_t xen_make_pud(pudval_t pud)
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pud);
 
-pgd_t *xen_get_user_pgd(pgd_t *pgd)
+static pgd_t *xen_get_user_pgd(pgd_t *pgd)
 {
 	pgd_t *pgd_page = (pgd_t *)(((unsigned long)pgd) & PAGE_MASK);
 	unsigned offset = pgd - pgd_page;
@@ -728,7 +611,7 @@ static void __xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
  *  2. It is always pinned
  *  3. It has no user pagetable attached to it
  */
-void __init xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
+static void __init xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
 {
 	preempt_disable();
 
@@ -741,11 +624,9 @@ void __init xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
 	preempt_enable();
 }
 
-void xen_set_pgd(pgd_t *ptr, pgd_t val)
+static void xen_set_pgd(pgd_t *ptr, pgd_t val)
 {
 	pgd_t *user_ptr = xen_get_user_pgd(ptr);
-
-	ADD_STATS(pgd_update, 1);
 
 	/* If page is not pinned, we can just update the entry
 	   directly */
@@ -757,9 +638,6 @@ void xen_set_pgd(pgd_t *ptr, pgd_t val)
 		}
 		return;
 	}
-
-	ADD_STATS(pgd_update_pinned, 1);
-	ADD_STATS(pgd_update_batched, paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU);
 
 	/* If it's pinned, then we can at least batch the kernel and
 	   user updates together. */
@@ -1162,14 +1040,14 @@ void xen_mm_unpin_all(void)
 	spin_unlock(&pgd_lock);
 }
 
-void xen_activate_mm(struct mm_struct *prev, struct mm_struct *next)
+static void xen_activate_mm(struct mm_struct *prev, struct mm_struct *next)
 {
 	spin_lock(&next->page_table_lock);
 	xen_pgd_pin(next);
 	spin_unlock(&next->page_table_lock);
 }
 
-void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+static void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 {
 	spin_lock(&mm->page_table_lock);
 	xen_pgd_pin(mm);
@@ -1256,7 +1134,7 @@ static void xen_drop_mm_ref(struct mm_struct *mm)
  * pagetable because of lazy tlb flushing.  This means we need need to
  * switch all CPUs off this pagetable before we can unpin it.
  */
-void xen_exit_mmap(struct mm_struct *mm)
+static void xen_exit_mmap(struct mm_struct *mm)
 {
 	get_cpu();		/* make sure we don't move around */
 	xen_drop_mm_ref(mm);
@@ -2371,7 +2249,7 @@ static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
 	struct remap_data *rmd = data;
 	pte_t pte = pte_mkspecial(pfn_pte(rmd->mfn++, rmd->prot));
 
-	rmd->mmu_update->ptr = arbitrary_virt_to_machine(ptep).maddr;
+	rmd->mmu_update->ptr = virt_to_machine(ptep).maddr;
 	rmd->mmu_update->val = pte_val_ma(pte);
 	rmd->mmu_update++;
 
@@ -2425,7 +2303,6 @@ out:
 EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
 
 #ifdef CONFIG_XEN_DEBUG_FS
-
 static int p2m_dump_open(struct inode *inode, struct file *filp)
 {
 	return single_open(filp, p2m_dump_show, NULL);
@@ -2437,65 +2314,4 @@ static const struct file_operations p2m_dump_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
-
-static struct dentry *d_mmu_debug;
-
-static int __init xen_mmu_debugfs(void)
-{
-	struct dentry *d_xen = xen_init_debugfs();
-
-	if (d_xen == NULL)
-		return -ENOMEM;
-
-	d_mmu_debug = debugfs_create_dir("mmu", d_xen);
-
-	debugfs_create_u8("zero_stats", 0644, d_mmu_debug, &zero_stats);
-
-	debugfs_create_u32("pgd_update", 0444, d_mmu_debug, &mmu_stats.pgd_update);
-	debugfs_create_u32("pgd_update_pinned", 0444, d_mmu_debug,
-			   &mmu_stats.pgd_update_pinned);
-	debugfs_create_u32("pgd_update_batched", 0444, d_mmu_debug,
-			   &mmu_stats.pgd_update_pinned);
-
-	debugfs_create_u32("pud_update", 0444, d_mmu_debug, &mmu_stats.pud_update);
-	debugfs_create_u32("pud_update_pinned", 0444, d_mmu_debug,
-			   &mmu_stats.pud_update_pinned);
-	debugfs_create_u32("pud_update_batched", 0444, d_mmu_debug,
-			   &mmu_stats.pud_update_pinned);
-
-	debugfs_create_u32("pmd_update", 0444, d_mmu_debug, &mmu_stats.pmd_update);
-	debugfs_create_u32("pmd_update_pinned", 0444, d_mmu_debug,
-			   &mmu_stats.pmd_update_pinned);
-	debugfs_create_u32("pmd_update_batched", 0444, d_mmu_debug,
-			   &mmu_stats.pmd_update_pinned);
-
-	debugfs_create_u32("pte_update", 0444, d_mmu_debug, &mmu_stats.pte_update);
-//	debugfs_create_u32("pte_update_pinned", 0444, d_mmu_debug,
-//			   &mmu_stats.pte_update_pinned);
-	debugfs_create_u32("pte_update_batched", 0444, d_mmu_debug,
-			   &mmu_stats.pte_update_pinned);
-
-	debugfs_create_u32("mmu_update", 0444, d_mmu_debug, &mmu_stats.mmu_update);
-	debugfs_create_u32("mmu_update_extended", 0444, d_mmu_debug,
-			   &mmu_stats.mmu_update_extended);
-	xen_debugfs_create_u32_array("mmu_update_histo", 0444, d_mmu_debug,
-				     mmu_stats.mmu_update_histo, 20);
-
-	debugfs_create_u32("set_pte_at", 0444, d_mmu_debug, &mmu_stats.set_pte_at);
-	debugfs_create_u32("set_pte_at_batched", 0444, d_mmu_debug,
-			   &mmu_stats.set_pte_at_batched);
-	debugfs_create_u32("set_pte_at_current", 0444, d_mmu_debug,
-			   &mmu_stats.set_pte_at_current);
-	debugfs_create_u32("set_pte_at_kernel", 0444, d_mmu_debug,
-			   &mmu_stats.set_pte_at_kernel);
-
-	debugfs_create_u32("prot_commit", 0444, d_mmu_debug, &mmu_stats.prot_commit);
-	debugfs_create_u32("prot_commit_batched", 0444, d_mmu_debug,
-			   &mmu_stats.prot_commit_batched);
-
-	debugfs_create_file("p2m", 0600, d_mmu_debug, NULL, &p2m_dump_fops);
-	return 0;
-}
-fs_initcall(xen_mmu_debugfs);
-
-#endif	/* CONFIG_XEN_DEBUG_FS */
+#endif /* CONFIG_XEN_DEBUG_FS */
