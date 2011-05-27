@@ -272,7 +272,7 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	struct dfs_info3_param *referrals = NULL;
 	unsigned int num_referrals = 0;
 	struct cifs_sb_info *cifs_sb;
-	struct cifsSesInfo *ses;
+	struct cifs_ses *ses;
 	char *full_path;
 	int xid, i;
 	int rc;

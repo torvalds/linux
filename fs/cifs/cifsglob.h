@@ -254,7 +254,7 @@ struct TCP_Server_Info {
 	struct mutex srv_mutex;
 	struct task_struct *tsk;
 	char server_GUID[16];
-	char secMode;
+	char sec_mode;
 	bool session_estab; /* mark when very first sess is established */
 	u16 dialect; /* dialect index that server chose */
 	enum securityEnum secType;
@@ -329,7 +329,7 @@ static inline void cifs_set_net_ns(struct TCP_Server_Info *srv, struct net *net)
 /*
  * Session structure.  One of these for each uid session with a particular host
  */
-struct cifsSesInfo {
+struct cifs_ses {
 	struct list_head smb_ses_list;
 	struct list_head tcon_list;
 	struct mutex session_mutex;
@@ -369,11 +369,11 @@ struct cifsSesInfo {
  * there is one of these for each connection to a resource on a particular
  * session
  */
-struct cifsTconInfo {
+struct cifs_tcon {
 	struct list_head tcon_list;
 	int tc_count;
 	struct list_head openFileList;
-	struct cifsSesInfo *ses;	/* pointer to session associated with */
+	struct cifs_ses *ses;	/* pointer to session associated with */
 	char treeName[MAX_TREE_SIZE + 1]; /* UNC name of resource in ASCII */
 	char *nativeFileSystem;
 	char *password;		/* for share-level security */
@@ -455,12 +455,12 @@ struct tcon_link {
 #define TCON_LINK_IN_TREE	2
 	unsigned long		tl_time;
 	atomic_t		tl_count;
-	struct cifsTconInfo	*tl_tcon;
+	struct cifs_tcon	*tl_tcon;
 };
 
 extern struct tcon_link *cifs_sb_tlink(struct cifs_sb_info *cifs_sb);
 
-static inline struct cifsTconInfo *
+static inline struct cifs_tcon *
 tlink_tcon(struct tcon_link *tlink)
 {
 	return tlink->tl_tcon;
@@ -477,7 +477,7 @@ cifs_get_tlink(struct tcon_link *tlink)
 }
 
 /* This function is always expected to succeed */
-extern struct cifsTconInfo *cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb);
+extern struct cifs_tcon *cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb);
 
 /*
  * This info hangs off the cifsFileInfo structure, pointed to by llist.
@@ -535,7 +535,7 @@ struct cifs_io_parms {
 	__u32 pid;
 	__u64 offset;
 	unsigned int length;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 };
 
 /*
@@ -615,7 +615,7 @@ convert_delimiter(char *path, char delim)
 #ifdef CONFIG_CIFS_STATS
 #define cifs_stats_inc atomic_inc
 
-static inline void cifs_stats_bytes_written(struct cifsTconInfo *tcon,
+static inline void cifs_stats_bytes_written(struct cifs_tcon *tcon,
 					    unsigned int bytes)
 {
 	if (bytes) {
@@ -625,7 +625,7 @@ static inline void cifs_stats_bytes_written(struct cifsTconInfo *tcon,
 	}
 }
 
-static inline void cifs_stats_bytes_read(struct cifsTconInfo *tcon,
+static inline void cifs_stats_bytes_read(struct cifs_tcon *tcon,
 					 unsigned int bytes)
 {
 	spin_lock(&tcon->stat_lock);
@@ -675,7 +675,7 @@ struct mid_q_entry {
 struct oplock_q_entry {
 	struct list_head qhead;
 	struct inode *pinode;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	__u16 netfid;
 };
 

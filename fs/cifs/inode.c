@@ -295,7 +295,7 @@ int cifs_get_file_info_unix(struct file *filp)
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsFileInfo *cfile = filp->private_data;
-	struct cifsTconInfo *tcon = tlink_tcon(cfile->tlink);
+	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 
 	xid = GetXid();
 	rc = CIFSSMBUnixQFileInfo(xid, tcon, cfile->netfid, &find_data);
@@ -318,7 +318,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 	int rc;
 	FILE_UNIX_BASIC_INFO find_data;
 	struct cifs_fattr fattr;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 
@@ -373,7 +373,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const unsigned char *path,
 	int oplock = 0;
 	__u16 netfid;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	struct cifs_io_parms io_parms;
 	char buf[24];
 	unsigned int bytes_read;
@@ -473,7 +473,7 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 	char ea_value[4];
 	__u32 mode;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
@@ -507,7 +507,7 @@ static void
 cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 		       struct cifs_sb_info *cifs_sb, bool adjust_tz)
 {
-	struct cifsTconInfo *tcon = cifs_sb_master_tcon(cifs_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 
 	memset(fattr, 0, sizeof(*fattr));
 	fattr->cf_cifsattrs = le32_to_cpu(info->Attributes);
@@ -558,7 +558,7 @@ int cifs_get_file_info(struct file *filp)
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsFileInfo *cfile = filp->private_data;
-	struct cifsTconInfo *tcon = tlink_tcon(cfile->tlink);
+	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 
 	xid = GetXid();
 	rc = CIFSSMBQFileInfo(xid, tcon, cfile->netfid, &find_data);
@@ -595,7 +595,7 @@ int cifs_get_inode_info(struct inode **pinode,
 	struct super_block *sb, int xid, const __u16 *pfid)
 {
 	int rc = 0, tmprc;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	struct tcon_link *tlink;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	char *buf = NULL;
@@ -741,7 +741,7 @@ static const struct inode_operations cifs_ipc_inode_ops = {
 };
 
 char *cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
-			      struct cifsTconInfo *tcon)
+			      struct cifs_tcon *tcon)
 {
 	int pplen = vol->prepath ? strlen(vol->prepath) : 0;
 	int dfsplen;
@@ -889,7 +889,7 @@ struct inode *cifs_root_iget(struct super_block *sb)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct inode *inode = NULL;
 	long rc;
-	struct cifsTconInfo *tcon = cifs_sb_master_tcon(cifs_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 
 	xid = GetXid();
 	if (tcon->unix_ext)
@@ -941,7 +941,7 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = NULL;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	FILE_BASIC_INFO	info_buf;
 
 	if (attrs == NULL)
@@ -1059,7 +1059,7 @@ cifs_rename_pending_delete(char *full_path, struct dentry *dentry, int xid)
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	__u32 dosattr, origattr;
 	FILE_BASIC_INFO *info_buf = NULL;
 
@@ -1177,7 +1177,7 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 	struct super_block *sb = dir->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct tcon_link *tlink;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	struct iattr *attrs = NULL;
 	__u32 dosattr = 0, origattr = 0;
 
@@ -1275,7 +1275,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 	int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
 	struct cifs_fattr fattr;
@@ -1453,7 +1453,7 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	char *full_path = NULL;
 	struct cifsInodeInfo *cifsInode;
 
@@ -1510,7 +1510,7 @@ cifs_do_rename(int xid, struct dentry *from_dentry, const char *fromPath,
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(from_dentry->d_sb);
 	struct tcon_link *tlink;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	__u16 srcfid;
 	int oplock, rc;
 
@@ -1562,7 +1562,7 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 	char *toName = NULL;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	FILE_UNIX_BASIC_INFO *info_buf_source = NULL;
 	FILE_UNIX_BASIC_INFO *info_buf_target;
 	int xid, rc, tmprc;
@@ -1792,7 +1792,7 @@ int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		 struct kstat *stat)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
-	struct cifsTconInfo *tcon = cifs_sb_master_tcon(cifs_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	struct inode *inode = dentry->d_inode;
 	int rc;
 
@@ -1870,7 +1870,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = NULL;
-	struct cifsTconInfo *pTcon = NULL;
+	struct cifs_tcon *pTcon = NULL;
 	struct cifs_io_parms io_parms;
 
 	/*
@@ -1971,7 +1971,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	struct cifs_unix_set_info_args *args = NULL;
 	struct cifsFileInfo *open_file;
 
@@ -2257,7 +2257,7 @@ cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 {
 	struct inode *inode = direntry->d_inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct cifsTconInfo *pTcon = cifs_sb_master_tcon(cifs_sb);
+	struct cifs_tcon *pTcon = cifs_sb_master_tcon(cifs_sb);
 
 	if (pTcon->unix_ext)
 		return cifs_setattr_unix(direntry, attrs);
