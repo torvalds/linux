@@ -206,8 +206,12 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 			container_of(uobj, struct ib_uqp_object, uevent.uobject);
 
 		idr_remove_uobj(&ib_uverbs_qp_idr, uobj);
-		ib_uverbs_detach_umcast(qp, uqp);
-		ib_destroy_qp(qp);
+		if (qp->qp_type == IB_QPT_XRC_TGT) {
+			ib_release_qp(qp);
+		} else {
+			ib_uverbs_detach_umcast(qp, uqp);
+			ib_destroy_qp(qp);
+		}
 		ib_uverbs_release_uevent(file, &uqp->uevent);
 		kfree(uqp);
 	}
