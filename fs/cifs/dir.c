@@ -50,7 +50,6 @@ build_path_from_dentry(struct dentry *direntry)
 {
 	struct dentry *temp;
 	int namelen;
-	int pplen;
 	int dfsplen;
 	char *full_path;
 	char dirsep;
@@ -63,13 +62,12 @@ build_path_from_dentry(struct dentry *direntry)
 		when the server crashed */
 
 	dirsep = CIFS_DIR_SEP(cifs_sb);
-	pplen = cifs_sb->prepathlen;
 	if (tcon->Flags & SMB_SHARE_IS_IN_DFS)
 		dfsplen = strnlen(tcon->treeName, MAX_TREE_SIZE + 1);
 	else
 		dfsplen = 0;
 cifs_bp_rename_retry:
-	namelen = pplen + dfsplen;
+	namelen = dfsplen;
 	for (temp = direntry; !IS_ROOT(temp);) {
 		namelen += (1 + temp->d_name.len);
 		temp = temp->d_parent;
@@ -100,7 +98,7 @@ cifs_bp_rename_retry:
 			return NULL;
 		}
 	}
-	if (namelen != pplen + dfsplen) {
+	if (namelen != dfsplen) {
 		cERROR(1, "did not end path lookup where expected namelen is %d",
 			namelen);
 		/* presumably this is only possible if racing with a rename
@@ -126,7 +124,6 @@ cifs_bp_rename_retry:
 			}
 		}
 	}
-	strncpy(full_path + dfsplen, CIFS_SB(direntry->d_sb)->prepath, pplen);
 	return full_path;
 }
 

@@ -57,61 +57,6 @@
 
 extern mempool_t *cifs_req_poolp;
 
-struct smb_vol {
-	char *username;
-	char *password;
-	char *domainname;
-	char *UNC;
-	char *UNCip;
-	char *iocharset;  /* local code page for mapping to and from Unicode */
-	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
-	char target_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* srvr nb name */
-	uid_t cred_uid;
-	uid_t linux_uid;
-	gid_t linux_gid;
-	mode_t file_mode;
-	mode_t dir_mode;
-	unsigned secFlg;
-	bool retry:1;
-	bool intr:1;
-	bool setuids:1;
-	bool override_uid:1;
-	bool override_gid:1;
-	bool dynperm:1;
-	bool noperm:1;
-	bool no_psx_acl:1; /* set if posix acl support should be disabled */
-	bool cifs_acl:1;
-	bool no_xattr:1;   /* set if xattr (EA) support should be disabled*/
-	bool server_ino:1; /* use inode numbers from server ie UniqueId */
-	bool direct_io:1;
-	bool strict_io:1; /* strict cache behavior */
-	bool remap:1;      /* set to remap seven reserved chars in filenames */
-	bool posix_paths:1; /* unset to not ask for posix pathnames. */
-	bool no_linux_ext:1;
-	bool sfu_emul:1;
-	bool nullauth:1;   /* attempt to authenticate with null user */
-	bool nocase:1;     /* request case insensitive filenames */
-	bool nobrl:1;      /* disable sending byte range locks to srv */
-	bool mand_lock:1;  /* send mandatory not posix byte range lock reqs */
-	bool seal:1;       /* request transport encryption on share */
-	bool nodfs:1;      /* Do not request DFS, even if available */
-	bool local_lease:1; /* check leases only on local system, not remote */
-	bool noblocksnd:1;
-	bool noautotune:1;
-	bool nostrictsync:1; /* do not force expensive SMBflush on every sync */
-	bool fsc:1;	/* enable fscache */
-	bool mfsymlinks:1; /* use Minshall+French Symlinks */
-	bool multiuser:1;
-	unsigned int rsize;
-	unsigned int wsize;
-	bool sockopt_tcp_nodelay:1;
-	unsigned short int port;
-	unsigned long actimeo; /* attribute cache timeout (jiffies) */
-	char *prepath;
-	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
-	struct nls_table *local_nls;
-};
-
 /* FIXME: should these be tunable? */
 #define TLINK_ERROR_EXPIRE	(1 * HZ)
 #define TLINK_IDLE_EXPIRE	(600 * HZ)
@@ -2569,12 +2514,6 @@ void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
 					CIFS_MOUNT_POSIX_PATHS;
 		}
 
-		/* We might be setting the path sep back to a different
-		form if we are reconnecting and the server switched its
-		posix path capability for this share */
-		if (sb && (CIFS_SB(sb)->prepathlen > 0))
-			CIFS_SB(sb)->prepath[0] = CIFS_DIR_SEP(CIFS_SB(sb));
-
 		if (sb && (CIFS_SB(sb)->rsize > 127 * 1024)) {
 			if ((cap & CIFS_UNIX_LARGE_READ_CAP) == 0) {
 				CIFS_SB(sb)->rsize = 127 * 1024;
@@ -2619,26 +2558,6 @@ void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
 	}
 }
 
-static void
-convert_delimiter(char *path, char delim)
-{
-	int i;
-	char old_delim;
-
-	if (path == NULL)
-		return;
-
-	if (delim == '/')
-		old_delim = '\\';
-	else
-		old_delim = '/';
-
-	for (i = 0; path[i] != '\0'; i++) {
-		if (path[i] == old_delim)
-			path[i] = delim;
-	}
-}
-
 void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 			struct cifs_sb_info *cifs_sb)
 {
@@ -2659,18 +2578,6 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 		/* Windows ME may prefer this */
 		cFYI(1, "readsize set to minimum: 2048");
 	}
-	/* calculate prepath */
-	cifs_sb->prepath = pvolume_info->prepath;
-	if (cifs_sb->prepath) {
-		cifs_sb->prepathlen = strlen(cifs_sb->prepath);
-		/* we can not convert the / to \ in the path
-		separators in the prefixpath yet because we do not
-		know (until reset_cifs_unix_caps is called later)
-		whether POSIX PATH CAP is available. We normalize
-		the / to \ after reset_cifs_unix_caps is called */
-		pvolume_info->prepath = NULL;
-	} else
-		cifs_sb->prepathlen = 0;
 	cifs_sb->mnt_uid = pvolume_info->linux_uid;
 	cifs_sb->mnt_gid = pvolume_info->linux_gid;
 	cifs_sb->mnt_file_mode = pvolume_info->file_mode;
@@ -2834,24 +2741,13 @@ build_unc_path_to_root(const struct smb_vol *volume_info,
 	char *full_path;
 
 	int unc_len = strnlen(volume_info->UNC, MAX_TREE_SIZE + 1);
-	full_path = kmalloc(unc_len + cifs_sb->prepathlen + 1, GFP_KERNEL);
+	full_path = kmalloc(unc_len + 1, GFP_KERNEL);
 	if (full_path == NULL)
 		return ERR_PTR(-ENOMEM);
 
 	strncpy(full_path, volume_info->UNC, unc_len);
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) {
-		int i;
-		for (i = 0; i < unc_len; i++) {
-			if (full_path[i] == '\\')
-				full_path[i] = '/';
-		}
-	}
-
-	if (cifs_sb->prepathlen)
-		strncpy(full_path + unc_len, cifs_sb->prepath,
-				cifs_sb->prepathlen);
-
-	full_path[unc_len + cifs_sb->prepathlen] = 0; /* add trailing null */
+	full_path[unc_len] = 0; /* add trailing null */
+	convert_delimiter(full_path, CIFS_DIR_SEP(cifs_sb));
 	return full_path;
 }
 
@@ -3049,10 +2945,6 @@ try_mount_again:
 		CIFSSMBQFSAttributeInfo(xid, tcon);
 	}
 
-	/* convert forward to back slashes in prepath here if needed */
-	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) == 0)
-		convert_delimiter(cifs_sb->prepath, CIFS_DIR_SEP(cifs_sb));
-
 	if ((tcon->unix_ext == 0) && (cifs_sb->rsize > (1024 * 127))) {
 		cifs_sb->rsize = 1024 * 127;
 		cFYI(DBG2, "no very large read support, rsize now 127K");
@@ -3082,10 +2974,10 @@ remote_path_check:
 	}
 #endif
 
-	/* check if a whole path (including prepath) is not remote */
+	/* check if a whole path is not remote */
 	if (!rc && tcon) {
 		/* build_path_to_root works only when we have a valid tcon */
-		full_path = cifs_build_path_to_root(cifs_sb, tcon);
+		full_path = cifs_build_path_to_root(volume_info, cifs_sb, tcon);
 		if (full_path == NULL) {
 			rc = -ENOMEM;
 			goto mount_fail_check;
@@ -3111,10 +3003,6 @@ remote_path_check:
 			rc = -ELOOP;
 			goto mount_fail_check;
 		}
-		/* convert forward to back slashes in prepath here if needed */
-		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) == 0)
-			convert_delimiter(cifs_sb->prepath,
-					CIFS_DIR_SEP(cifs_sb));
 
 		rc = expand_dfs_referral(xid, pSesInfo, volume_info, cifs_sb,
 					 true);
@@ -3340,7 +3228,6 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 	struct rb_root *root = &cifs_sb->tlink_tree;
 	struct rb_node *node;
 	struct tcon_link *tlink;
-	char *tmp;
 
 	cancel_delayed_work_sync(&cifs_sb->prune_tlinks);
 
@@ -3356,11 +3243,6 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 		spin_lock(&cifs_sb->tlink_tree_lock);
 	}
 	spin_unlock(&cifs_sb->tlink_tree_lock);
-
-	tmp = cifs_sb->prepath;
-	cifs_sb->prepathlen = 0;
-	cifs_sb->prepath = NULL;
-	kfree(tmp);
 
 	return 0;
 }

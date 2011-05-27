@@ -415,8 +415,6 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 		seq_printf(s, ",nocase");
 	if (tcon->retry)
 		seq_printf(s, ",hard");
-	if (cifs_sb->prepath)
-		seq_printf(s, ",prepath=%s", cifs_sb->prepath);
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
 		seq_printf(s, ",posixpaths");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID)
@@ -530,6 +528,100 @@ static const struct super_operations cifs_super_ops = {
 #endif
 };
 
+/*
+ * Get root dentry from superblock according to prefix path mount option.
+ * Return dentry with refcount + 1 on success and NULL otherwise.
+ */
+static struct dentry *
+cifs_get_root(struct smb_vol *vol, struct super_block *sb)
+{
+	int xid, rc;
+	struct inode *inode;
+	struct qstr name;
+	struct dentry *dparent = NULL, *dchild = NULL, *alias;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	unsigned int i, full_len, len;
+	char *full_path = NULL, *pstart;
+	char sep;
+
+	full_path = cifs_build_path_to_root(vol, cifs_sb,
+					    cifs_sb_master_tcon(cifs_sb));
+	if (full_path == NULL)
+		return NULL;
+
+	cFYI(1, "Get root dentry for %s", full_path);
+
+	xid = GetXid();
+	sep = CIFS_DIR_SEP(cifs_sb);
+	dparent = dget(sb->s_root);
+	full_len = strlen(full_path);
+	full_path[full_len] = sep;
+	pstart = full_path + 1;
+
+	for (i = 1, len = 0; i <= full_len; i++) {
+		if (full_path[i] != sep || !len) {
+			len++;
+			continue;
+		}
+
+		full_path[i] = 0;
+		cFYI(1, "get dentry for %s", pstart);
+
+		name.name = pstart;
+		name.len = len;
+		name.hash = full_name_hash(pstart, len);
+		dchild = d_lookup(dparent, &name);
+		if (dchild == NULL) {
+			cFYI(1, "not exists");
+			dchild = d_alloc(dparent, &name);
+			if (dchild == NULL) {
+				dput(dparent);
+				dparent = NULL;
+				goto out;
+			}
+		}
+
+		cFYI(1, "get inode");
+		if (dchild->d_inode == NULL) {
+			cFYI(1, "not exists");
+			inode = NULL;
+			if (cifs_sb_master_tcon(CIFS_SB(sb))->unix_ext)
+				rc = cifs_get_inode_info_unix(&inode, full_path,
+							      sb, xid);
+			else
+				rc = cifs_get_inode_info(&inode, full_path,
+							 NULL, sb, xid, NULL);
+			if (rc) {
+				dput(dchild);
+				dput(dparent);
+				dparent = NULL;
+				goto out;
+			}
+			alias = d_materialise_unique(dchild, inode);
+			if (alias != NULL) {
+				dput(dchild);
+				if (IS_ERR(alias)) {
+					dput(dparent);
+					dparent = NULL;
+					goto out;
+				}
+				dchild = alias;
+			}
+		}
+		cFYI(1, "parent %p, child %p", dparent, dchild);
+
+		dput(dparent);
+		dparent = dchild;
+		len = 0;
+		pstart = full_path + i + 1;
+		full_path[i] = sep;
+	}
+out:
+	_FreeXid(xid);
+	kfree(full_path);
+	return dparent;
+}
+
 static struct dentry *
 cifs_do_mount(struct file_system_type *fs_type,
 	      int flags, const char *dev_name, void *data)
@@ -585,7 +677,10 @@ cifs_do_mount(struct file_system_type *fs_type,
 
 	sb->s_flags |= MS_ACTIVE;
 
-	root = dget(sb->s_root);
+	root = cifs_get_root(volume_info, sb);
+	if (root == NULL)
+		goto out_super;
+	cFYI(1, "dentry root is: %p", root);
 	goto out;
 
 out_super:

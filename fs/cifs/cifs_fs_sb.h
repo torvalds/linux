@@ -56,8 +56,6 @@ struct cifs_sb_info {
 	mode_t	mnt_file_mode;
 	mode_t	mnt_dir_mode;
 	unsigned int mnt_cifs_flags;
-	int	prepathlen;
-	char   *prepath; /* relative path under the share to mount to */
 	char   *mountdata; /* options received at mount time or via DFS refs */
 	struct backing_dev_info bdi;
 	struct delayed_work prune_tlinks;

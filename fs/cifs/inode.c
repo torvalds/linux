@@ -735,10 +735,10 @@ static const struct inode_operations cifs_ipc_inode_ops = {
 	.lookup = cifs_lookup,
 };
 
-char *cifs_build_path_to_root(struct cifs_sb_info *cifs_sb,
-				struct cifsTconInfo *tcon)
+char *cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
+			      struct cifsTconInfo *tcon)
 {
-	int pplen = cifs_sb->prepathlen;
+	int pplen = vol->prepath ? strlen(vol->prepath) : 0;
 	int dfsplen;
 	char *full_path = NULL;
 
@@ -772,7 +772,7 @@ char *cifs_build_path_to_root(struct cifs_sb_info *cifs_sb,
 			}
 		}
 	}
-	strncpy(full_path + dfsplen, cifs_sb->prepath, pplen);
+	strncpy(full_path + dfsplen, vol->prepath, pplen);
 	full_path[dfsplen + pplen] = 0; /* add trailing null */
 	return full_path;
 }
@@ -884,19 +884,13 @@ struct inode *cifs_root_iget(struct super_block *sb)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct inode *inode = NULL;
 	long rc;
-	char *full_path;
 	struct cifsTconInfo *tcon = cifs_sb_master_tcon(cifs_sb);
-
-	full_path = cifs_build_path_to_root(cifs_sb, tcon);
-	if (full_path == NULL)
-		return ERR_PTR(-ENOMEM);
 
 	xid = GetXid();
 	if (tcon->unix_ext)
-		rc = cifs_get_inode_info_unix(&inode, full_path, sb, xid);
+		rc = cifs_get_inode_info_unix(&inode, "", sb, xid);
 	else
-		rc = cifs_get_inode_info(&inode, full_path, NULL, sb,
-						xid, NULL);
+		rc = cifs_get_inode_info(&inode, "", NULL, sb, xid, NULL);
 
 	if (!inode) {
 		inode = ERR_PTR(rc);
@@ -922,7 +916,6 @@ struct inode *cifs_root_iget(struct super_block *sb)
 	}
 
 out:
-	kfree(full_path);
 	/* can not call macro FreeXid here since in a void func
 	 * TODO: This is no longer true
 	 */
