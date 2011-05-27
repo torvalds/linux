@@ -1007,6 +1007,13 @@ static struct mfd_cell wm8310_devs[] = {
 		.num_resources	= 0,
 	},
 #endif
+#if defined(CONFIG_WM831X_CHARGER_DISPLAY)
+	{
+		.name		= "wm831x_charger_display",
+		.num_resources	= 0,
+	},
+#endif
+
 
 };
 

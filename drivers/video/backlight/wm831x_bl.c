@@ -187,6 +187,13 @@ static void wm831x_bl_resume(struct early_suspend *h)
 }
 
 #endif
+
+int rk29_backlight_ctrl(int open)
+{
+	gwm831x_data->suspend_flag = !open;
+	schedule_delayed_work(&gwm831x_data->work, 0);
+}
+
 static int wm831x_backlight_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);

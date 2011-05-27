@@ -49,6 +49,17 @@ static struct backlight_device *g_aw9364_bl;
 static struct aw9364_backlight_data *g_aw9364_data;
 #endif
 
+int rk29_backlight_ctrl(int open)
+{
+	if(open)
+		gpio_direction_output(g_aw9364_data->pin_en, GPIO_HIGH);
+	else
+		gpio_direction_output(g_aw9364_data->pin_en, GPIO_LOW);
+	mdelay(3);
+	return 0;
+}
+
+
 static int aw9364_backlight_set(struct backlight_device *bl, int brightness)
 {
 	struct aw9364_backlight_data *data = bl_get_data(bl);
@@ -68,7 +79,7 @@ static int aw9364_backlight_set(struct backlight_device *bl, int brightness)
 	if(brightness < 16)
 	{
 		gpio_direction_output(data->pin_en, GPIO_LOW);
-		mdelay(2);
+		mdelay(3);
 	}
 	
 	for(i=0; i<num_clk; i++)
@@ -91,6 +102,7 @@ static int aw9364_backlight_set(struct backlight_device *bl, int brightness)
 	return 0;
 	
 }
+
 
 static int aw9364_backlight_update_status(struct backlight_device *bl)
 {
