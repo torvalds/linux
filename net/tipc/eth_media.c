@@ -2,7 +2,7 @@
  * net/tipc/eth_media.c: Ethernet bearer support for TIPC
  *
  * Copyright (c) 2001-2007, Ericsson AB
- * Copyright (c) 2005-2007, Wind River Systems
+ * Copyright (c) 2005-2008, 2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -144,12 +144,15 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 
 	/* Find device with specified name */
 
+	read_lock(&dev_base_lock);
 	for_each_netdev(&init_net, pdev) {
 		if (!strncmp(pdev->name, driver_name, IFNAMSIZ)) {
 			dev = pdev;
+			dev_hold(dev);
 			break;
 		}
 	}
+	read_unlock(&dev_base_lock);
 	if (!dev)
 		return -ENODEV;
 
@@ -166,7 +169,6 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 		eb_ptr->tipc_packet_type.func = recv_msg;
 		eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
 		INIT_LIST_HEAD(&(eb_ptr->tipc_packet_type.list));
-		dev_hold(dev);
 		dev_add_pack(&eb_ptr->tipc_packet_type);
 	}
 
