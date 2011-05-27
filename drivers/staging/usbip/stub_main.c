@@ -39,13 +39,9 @@ static void init_busid_table(void)
 {
 	int i;
 
-	for (i = 0; i < MAX_BUSID; i++) {
-		memset(busid_table[i].name, 0, BUSID_SIZE);
+	memset(busid_table, 0, sizeof(busid_table));
+	for (i = 0; i < MAX_BUSID; i++)
 		busid_table[i].status = STUB_BUSID_OTHER;
-		busid_table[i].interf_count = 0;
-		busid_table[i].sdev = NULL;
-		busid_table[i].shutdown_busid = 0;
-	}
 
 	spin_lock_init(&busid_table_lock);
 }
