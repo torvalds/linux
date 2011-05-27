@@ -22,6 +22,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <scsi/scsi_dh.h>
 #include "../scsi_priv.h"
 
