@@ -80,6 +80,7 @@ static bool			use_tui, use_stdio;
 
 static int			default_interval		=      0;
 
+static bool			kptr_restrict_warned;
 static bool			inherit				=  false;
 static int			realtime_prio			=      0;
 static bool			group				=  false;
@@ -737,6 +738,20 @@ static void perf_event__process_sample(const union perf_event *event,
 					  symbol_filter) < 0 ||
 	    al.filtered)
 		return;
+
+	if (!kptr_restrict_warned &&
+	    symbol_conf.kptr_restrict &&
+	    al.cpumode == PERF_RECORD_MISC_KERNEL) {
+		ui__warning(
+"Kernel address maps (/proc/{kallsyms,modules}) are restricted.\n\n"
+"Check /proc/sys/kernel/kptr_restrict.\n\n"
+"Kernel%s samples will not be resolved.\n",
+			  !RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION]) ?
+			  " modules" : "");
+		if (use_browser <= 0)
+			sleep(5);
+		kptr_restrict_warned = true;
+	}
 
 	if (al.sym == NULL) {
 		/*
