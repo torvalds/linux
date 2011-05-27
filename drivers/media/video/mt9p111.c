@@ -17,6 +17,8 @@
 #include <linux/circ_buf.h>
 #include <linux/hardirq.h>
 #include <linux/miscdevice.h>
+#include <asm/io.h>
+
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
@@ -3138,23 +3140,32 @@ static struct reginfo* sensor_fmt_catch(int set_w, int set_h, int *ret_w, int *r
 /*in the first line have misplace with the last 32 pixel data in the last line*/
 static int sensor_cb(struct videobuf_buffer  *vb)
 {
-  // struct videobuf_buffer *
+   void __iomem *vbpmem;
    struct videobuf_buffer *buffer = vb;
    char *imagey_addr =NULL;
    char *imageuv_addr = NULL;
    char *tempaddr = NULL;
    int  tempsize = 0;
+   
 
    if(buffer->width!=SENSOR_MAX_WIDTH||buffer->height!=SENSOR_MAX_HEIGHT||buffer==NULL)
-    return -1;
+    return -EINVAL;
  
    if (buffer->bsize< YUV420_BUFFER_MAX_SIZE)        //yuv420 format size
-    return -1;
+    return -EINVAL;
 
-   imagey_addr = (char*)buffer->boff;         // y data  to be dealed with
+   vbpmem = ioremap(buffer->boff,buffer->bsize);
+   if(vbpmem == NULL)
+    {
+      SENSOR_DG("\n%s..%s..ioremap fail\n",__FUNCTION__,SENSOR_NAME_STRING());
+      return -ENXIO;
+    }
+     
+   imagey_addr = (char*)vbpmem;         // y data  to be dealed with
    imageuv_addr = imagey_addr+buffer->width*buffer->height;
-   SENSOR_DG("\n%s..%s..imagey_addr = 0x%x; imageuv_addr = 0x%x\n",__FUNCTION__,SENSOR_NAME_STRING(),imagey_addr,imageuv_addr);
-   SENSOR_DG("\n%s..%s..buffer->bsize=%d\n",__FUNCTION__,SENSOR_NAME_STRING());
+   
+ //  SENSOR_DG("\n%s..%s..imagey_addr = 0x%x; imageuv_addr = 0x%x\n",__FUNCTION__,SENSOR_NAME_STRING(),imagey_addr,imageuv_addr);
+//   SENSOR_DG("\n%s..%s..buffer->bsize=%d\n",__FUNCTION__,SENSOR_NAME_STRING(),buffer->bsize);
 
    tempaddr =  imageuv_addr - 32;  
    memcpy(tempaddr,imagey_addr,32);
@@ -4355,7 +4366,7 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
         case RK29_CAM_SUBDEV_CB_REGISTER:
         {
            icd_cb = (rk29_camera_sensor_cb_s*)(arg);
-           //icd_cb->sensor_cb = sensor_cb;
+           icd_cb->sensor_cb = sensor_cb;
            break;    
         }
 		default:
