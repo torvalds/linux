@@ -54,7 +54,7 @@
 #include <asm/atomic.h>
 #include <asm/ebcdic.h>
 #include <asm/io.h>
-#include <asm/s390_ext.h>
+#include <asm/irq.h>
 #include <asm/smp.h>
 
 /*

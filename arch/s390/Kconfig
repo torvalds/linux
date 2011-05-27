@@ -2,7 +2,7 @@ config MMU
 	def_bool y
 
 config ZONE_DMA
-	def_bool y if 64BIT
+	def_bool y
 
 config LOCKDEP_SUPPORT
 	def_bool y
