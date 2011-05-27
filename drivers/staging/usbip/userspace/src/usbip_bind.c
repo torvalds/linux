@@ -57,7 +57,7 @@ static int unbind_interface_busid(char *busid)
 		return -1;
 	}
 
-	ret = write(fd, busid, strnlen(busid, BUS_ID_SIZE));
+	ret = write(fd, busid, strnlen(busid, SYSFS_BUS_ID_SIZE));
 	if (ret < 0) {
 		dbg("write to unbind_path failed: %d", ret);
 		close(fd);
@@ -71,10 +71,11 @@ static int unbind_interface_busid(char *busid)
 
 static int unbind_interface(char *busid, int configvalue, int interface)
 {
-	char inf_busid[BUS_ID_SIZE];
+	char inf_busid[SYSFS_BUS_ID_SIZE];
 	dbg("unbinding interface");
 
-	snprintf(inf_busid, BUS_ID_SIZE, "%s:%d.%d", busid, configvalue, interface);
+	snprintf(inf_busid, SYSFS_BUS_ID_SIZE, "%s:%d.%d", busid, configvalue,
+		 interface);
 
 	return unbind_interface_busid(inf_busid);
 }
@@ -148,7 +149,7 @@ static int bind_interface_busid(char *busid, char *driver)
 	if (fd < 0)
 		return -1;
 
-	ret = write(fd, busid, strnlen(busid, BUS_ID_SIZE));
+	ret = write(fd, busid, strnlen(busid, SYSFS_BUS_ID_SIZE));
 	if (ret < 0) {
 		close(fd);
 		return -1;
@@ -161,9 +162,10 @@ static int bind_interface_busid(char *busid, char *driver)
 
 static int bind_interface(char *busid, int configvalue, int interface, char *driver)
 {
-	char inf_busid[BUS_ID_SIZE];
+	char inf_busid[SYSFS_BUS_ID_SIZE];
 
-	snprintf(inf_busid, BUS_ID_SIZE, "%s:%d.%d", busid, configvalue, interface);
+	snprintf(inf_busid, SYSFS_BUS_ID_SIZE, "%s:%d.%d", busid, configvalue,
+		 interface);
 
 	return bind_interface_busid(inf_busid, driver);
 }

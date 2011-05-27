@@ -20,7 +20,7 @@ int modify_match_busid(char *busid, int add)
 {
 	int fd;
 	int ret;
-	char buff[BUS_ID_SIZE + 4];
+	char buff[SYSFS_BUS_ID_SIZE + 4];
 	char sysfs_mntpath[SYSFS_PATH_MAX];
 	char match_busid_path[SYSFS_PATH_MAX];
 
@@ -35,7 +35,7 @@ int modify_match_busid(char *busid, int add)
 		 SYSFS_DRIVERS_NAME, USBIP_HOST_DRV_NAME);
 
 	/* BUS_IS_SIZE includes NULL termination? */
-	if (strnlen(busid, BUS_ID_SIZE) > BUS_ID_SIZE - 1) {
+	if (strnlen(busid, SYSFS_BUS_ID_SIZE) > SYSFS_BUS_ID_SIZE - 1) {
 		dbg("busid is too long");
 		return -1;
 	}
@@ -45,9 +45,9 @@ int modify_match_busid(char *busid, int add)
 		return -1;
 
 	if (add)
-		snprintf(buff, BUS_ID_SIZE + 4, "add %s", busid);
+		snprintf(buff, SYSFS_BUS_ID_SIZE + 4, "add %s", busid);
 	else
-		snprintf(buff, BUS_ID_SIZE + 4, "del %s", busid);
+		snprintf(buff, SYSFS_BUS_ID_SIZE + 4, "del %s", busid);
 
 	dbg("write \"%s\" to %s", buff, match_busid_path);
 

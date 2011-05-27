@@ -3,9 +3,6 @@
 
 #include <stdlib.h>
 
-/* Be sync to kernel header */
-#define BUS_ID_SIZE 20
-
 int modify_match_busid(char *busid, int add);
 int read_string(char *path, char *, size_t len);
 int read_integer(char *path);
