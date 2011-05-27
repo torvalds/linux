@@ -57,6 +57,7 @@
 #include <linux/scatterlist.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <net/sock.h>
 

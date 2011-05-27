@@ -35,6 +35,7 @@
 #include <rdma/ib_mad.h>
 #include <rdma/ib_user_verbs.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/utsname.h>
 #include <linux/rculist.h>
 #include <linux/mm.h>

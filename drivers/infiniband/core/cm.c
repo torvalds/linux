@@ -36,6 +36,7 @@
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
+#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/idr.h>
 #include <linux/interrupt.h>
