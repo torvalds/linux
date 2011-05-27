@@ -2310,7 +2310,7 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 	sb = &root->fs_info->super_for_commit;
 	dev_item = &sb->dev_item;
 
-	rcu_read_lock();
+	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
 	head = &root->fs_info->fs_devices->devices;
 	list_for_each_entry_rcu(dev, head, dev_list) {
 		if (!dev->bdev) {
@@ -2355,7 +2355,7 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 		if (ret)
 			total_errors++;
 	}
-	rcu_read_unlock();
+	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 	if (total_errors > max_errors) {
 		printk(KERN_ERR "btrfs: %d errors while writing supers\n",
 		       total_errors);
