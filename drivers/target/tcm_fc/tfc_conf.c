@@ -223,7 +223,7 @@ static struct se_node_acl *ft_add_acl(
 		return ERR_PTR(-EINVAL);
 
 	acl = kzalloc(sizeof(struct ft_node_acl), GFP_KERNEL);
-	if (!(acl))
+	if (!acl)
 		return ERR_PTR(-ENOMEM);
 	acl->node_auth.port_name = wwpn;
 
@@ -280,7 +280,7 @@ struct se_node_acl *ft_tpg_alloc_fabric_acl(struct se_portal_group *se_tpg)
 	struct ft_node_acl *acl;
 
 	acl = kzalloc(sizeof(*acl), GFP_KERNEL);
-	if (!(acl)) {
+	if (!acl) {
 		printk(KERN_ERR "Unable to allocate struct ft_node_acl\n");
 		return NULL;
 	}

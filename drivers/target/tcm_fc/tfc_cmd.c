@@ -94,15 +94,17 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 
 static void ft_queue_cmd(struct ft_sess *sess, struct ft_cmd *cmd)
 {
-	struct se_queue_obj *qobj;
+	struct ft_tpg *tpg = sess->tport->tpg;
+	struct se_queue_obj *qobj = &tpg->qobj;
 	unsigned long flags;
 
 	qobj = &sess->tport->tpg->qobj;
 	spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
 	list_add_tail(&cmd->se_req.qr_list, &qobj->qobj_list);
-	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
 	atomic_inc(&qobj->queue_cnt);
-	wake_up_interruptible(&qobj->thread_wq);
+	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
+
+	wake_up_process(tpg->thread);
 }
 
 static struct ft_cmd *ft_dequeue_cmd(struct se_queue_obj *qobj)
@@ -688,15 +690,12 @@ int ft_thread(void *arg)
 	struct ft_tpg *tpg = arg;
 	struct se_queue_obj *qobj = &tpg->qobj;
 	struct ft_cmd *cmd;
-	int ret;
-
-	set_user_nice(current, -20);
 
 	while (!kthread_should_stop()) {
-		ret = wait_event_interruptible(qobj->thread_wq,
-			atomic_read(&qobj->queue_cnt) || kthread_should_stop());
-		if (ret < 0 || kthread_should_stop())
+		schedule_timeout_interruptible(MAX_SCHEDULE_TIMEOUT);
+		if (kthread_should_stop())
 			goto out;
+
 		cmd = ft_dequeue_cmd(qobj);
 		if (cmd)
 			ft_exec_req(cmd);
