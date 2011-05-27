@@ -192,7 +192,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 	/* check sockfd */
 	socket = sockfd_to_socket(sockfd);
 	if (!socket)
-		return  -EINVAL;
+		return -EINVAL;
 
 	/* now need lock until setting vdev status as used */
 
