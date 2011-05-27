@@ -494,6 +494,12 @@ config HID_SONY
 	---help---
 	Support for Sony PS3 controller.
 
+config HID_SPEEDLINK
+	tristate "Speedlink VAD Cezanne mouse support"
+	depends on USB_HID
+	---help---
+	Support for Speedlink Vicious and Divine Cezanne mouse.
+
 config HID_SUNPLUS
 	tristate "Sunplus wireless desktop"
 	depends on USB_HID
