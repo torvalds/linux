@@ -24,7 +24,7 @@
 #include <plat/mtu.h>
 
 void __iomem *mtu_base; /* Assigned by machine code */
-
+#ifdef CONFIG_NOMADIK_MTU_SCHED_CLOCK
 /*
  * Override the global weak sched_clock symbol with this
  * local implementation which uses the clocksource to get some
@@ -48,7 +48,7 @@ static void notrace nomadik_update_sched_clock(void)
 	u32 cyc = -readl(mtu_base + MTU_VAL(0));
 	update_sched_clock(&cd, cyc, (u32)~0);
 }
-
+#endif
 /* Clockevent device: use one-shot mode */
 static void nmdk_clkevt_mode(enum clock_event_mode mode,
 			     struct clock_event_device *dev)
@@ -153,9 +153,9 @@ void __init nmdk_timer_init(void)
 			rate, 200, 32, clocksource_mmio_readl_down))
 		pr_err("timer: failed to initialize clock source %s\n",
 		       "mtu_0");
-
+#ifdef CONFIG_NOMADIK_MTU_SCHED_CLOCK
 	init_sched_clock(&cd, nomadik_update_sched_clock, 32, rate);
-
+#endif
 	/* Timer 1 is used for events */
 
 	clockevents_calc_mult_shift(&nmdk_clkevt, rate, MTU_MIN_RANGE);
