@@ -46,6 +46,7 @@ static struct lpj_info global_lpj_ref;
 #endif
 
 static struct cpufreq_frequency_table *freq_table;
+static atomic_t freq_table_users = ATOMIC_INIT(0);
 static struct clk *mpu_clk;
 static char *mpu_clk_name;
 static struct device *mpu_dev;
@@ -150,6 +151,12 @@ static int omap_target(struct cpufreq_policy *policy,
 	return ret;
 }
 
+static inline void freq_table_free(void)
+{
+	if (atomic_dec_and_test(&freq_table_users))
+		opp_free_cpufreq_table(mpu_dev, &freq_table);
+}
+
 static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 {
 	int result = 0;
@@ -164,7 +171,9 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	policy->cur = policy->min = policy->max = omap_getspeed(policy->cpu);
-	result = opp_init_cpufreq_table(mpu_dev, &freq_table);
+
+	if (atomic_inc_return(&freq_table_users) == 1)
+		result = opp_init_cpufreq_table(mpu_dev, &freq_table);
 
 	if (result) {
 		dev_err(mpu_dev, "%s: cpu%d: failed creating freq table[%d]\n",
@@ -173,10 +182,10 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	result = cpufreq_frequency_table_cpuinfo(policy, freq_table);
-	if (!result)
-		cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
-	else
-		goto fail_ck;
+	if (result)
+		goto fail_table;
+
+	cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
 
 	policy->min = policy->cpuinfo.min_freq;
 	policy->max = policy->cpuinfo.max_freq;
@@ -199,6 +208,8 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 
 	return 0;
 
+fail_table:
+	freq_table_free();
 fail_ck:
 	clk_put(mpu_clk);
 	return result;
@@ -206,6 +217,7 @@ fail_ck:
 
 static int omap_cpu_exit(struct cpufreq_policy *policy)
 {
+	freq_table_free();
 	clk_put(mpu_clk);
 	return 0;
 }
