@@ -37,7 +37,7 @@
 #include "core.h"
 #include "bearer.h"
 
-#define MAX_ETH_BEARERS		2
+#define MAX_ETH_BEARERS		MAX_BEARERS
 #define ETH_LINK_PRIORITY	TIPC_DEF_LINK_PRI
 #define ETH_LINK_TOLERANCE	TIPC_DEF_LINK_TOL
 #define ETH_LINK_WINDOW		TIPC_DEF_LINK_WIN
