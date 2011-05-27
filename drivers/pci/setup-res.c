@@ -18,6 +18,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
