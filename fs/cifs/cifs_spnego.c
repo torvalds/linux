@@ -95,7 +95,7 @@ struct key_type cifs_spnego_key_type = {
 
 /* get a key struct with a SPNEGO security blob, suitable for session setup */
 struct key *
-cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
+cifs_get_spnego_key(struct cifs_ses *sesInfo)
 {
 	struct TCP_Server_Info *server = sesInfo->server;
 	struct sockaddr_in *sa = (struct sockaddr_in *) &server->dstaddr;
