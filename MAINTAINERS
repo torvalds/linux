@@ -2302,7 +2302,7 @@ F:	net/bridge/netfilter/ebt*.c
 ECRYPT FILE SYSTEM
 M:	Tyler Hicks <tyhicks@linux.vnet.ibm.com>
 M:	Dustin Kirkland <kirkland@canonical.com>
-L:	ecryptfs-devel@lists.launchpad.net
+L:	ecryptfs@vger.kernel.org
 W:	https://launchpad.net/ecryptfs
 S:	Supported
 F:	Documentation/filesystems/ecryptfs.txt
