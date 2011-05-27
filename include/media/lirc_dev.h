@@ -9,7 +9,7 @@
 #ifndef _LINUX_LIRC_DEV_H
 #define _LINUX_LIRC_DEV_H
 
-#define MAX_IRCTL_DEVICES 4
+#define MAX_IRCTL_DEVICES 8
 #define BUFLEN            16
 
 #define mod(n, div) ((n) % (div))
