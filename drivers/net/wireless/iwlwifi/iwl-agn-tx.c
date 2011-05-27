@@ -1236,9 +1236,9 @@ int iwlagn_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 	struct ieee80211_hdr *hdr;
 
 	if ((index >= q->n_bd) || (iwl_queue_used(q, index) == 0)) {
-		IWL_ERR(priv, "Read index for DMA queue txq id (%d), index %d, "
-			  "is out of range [0-%d] %d %d.\n", txq_id,
-			  index, q->n_bd, q->write_ptr, q->read_ptr);
+		IWL_ERR(priv, "%s: Read index for DMA queue txq id (%d), "
+			  "index %d is out of range [0-%d] %d %d.\n", __func__,
+			  txq_id, index, q->n_bd, q->write_ptr, q->read_ptr);
 		return 0;
 	}
 
