@@ -2420,6 +2420,77 @@ unlock:
  *
  *****************************************************************************/
 
+static const struct ieee80211_iface_limit iwlagn_sta_ap_limits[] = {
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_AP),
+	},
+};
+
+static const struct ieee80211_iface_limit iwlagn_2sta_limits[] = {
+	{
+		.max = 2,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+};
+
+static const struct ieee80211_iface_limit iwlagn_p2p_sta_go_limits[] = {
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_GO) |
+			 BIT(NL80211_IFTYPE_AP),
+	},
+};
+
+static const struct ieee80211_iface_limit iwlagn_p2p_2sta_limits[] = {
+	{
+		.max = 2,
+		.types = BIT(NL80211_IFTYPE_STATION),
+	},
+	{
+		.max = 1,
+		.types = BIT(NL80211_IFTYPE_P2P_CLIENT),
+	},
+};
+
+static const struct ieee80211_iface_combination
+iwlagn_iface_combinations_dualmode[] = {
+	{ .num_different_channels = 1,
+	  .max_interfaces = 2,
+	  .beacon_int_infra_match = true,
+	  .limits = iwlagn_sta_ap_limits,
+	  .n_limits = ARRAY_SIZE(iwlagn_sta_ap_limits),
+	},
+	{ .num_different_channels = 1,
+	  .max_interfaces = 2,
+	  .limits = iwlagn_2sta_limits,
+	  .n_limits = ARRAY_SIZE(iwlagn_2sta_limits),
+	},
+};
+
+static const struct ieee80211_iface_combination
+iwlagn_iface_combinations_p2p[] = {
+	{ .num_different_channels = 1,
+	  .max_interfaces = 2,
+	  .beacon_int_infra_match = true,
+	  .limits = iwlagn_p2p_sta_go_limits,
+	  .n_limits = ARRAY_SIZE(iwlagn_p2p_sta_go_limits),
+	},
+	{ .num_different_channels = 1,
+	  .max_interfaces = 2,
+	  .limits = iwlagn_p2p_2sta_limits,
+	  .n_limits = ARRAY_SIZE(iwlagn_p2p_2sta_limits),
+	},
+};
+
 /*
  * Not a mac80211 entry point function, but it fits in with all the
  * other mac80211 functions grouped here.
@@ -2458,6 +2529,18 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 	for_each_context(priv, ctx) {
 		hw->wiphy->interface_modes |= ctx->interface_modes;
 		hw->wiphy->interface_modes |= ctx->exclusive_interface_modes;
+	}
+
+	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
+
+	if (hw->wiphy->interface_modes & NL80211_IFTYPE_P2P_CLIENT) {
+		hw->wiphy->iface_combinations = iwlagn_iface_combinations_p2p;
+		hw->wiphy->n_iface_combinations =
+			ARRAY_SIZE(iwlagn_iface_combinations_p2p);
+	} else if (hw->wiphy->interface_modes & NL80211_IFTYPE_AP) {
+		hw->wiphy->iface_combinations = iwlagn_iface_combinations_dualmode;
+		hw->wiphy->n_iface_combinations =
+			ARRAY_SIZE(iwlagn_iface_combinations_dualmode);
 	}
 
 	hw->wiphy->max_remain_on_channel_duration = 1000;
