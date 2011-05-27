@@ -55,6 +55,12 @@ static struct irq_data *irq_list[NR_IRQS];
 static struct irq_chip *irq_chip[NR_IRQS];
 static int irq_depth[NR_IRQS];
 
+static inline int irq_set_chip(unsigned int irq, struct irq_chip *chip)
+{
+	irq_chip[irq] = chip;
+	return 0;
+}
+
 static int m68k_first_user_vec;
 
 static struct irq_chip auto_irq_chip = {
@@ -94,7 +100,7 @@ void __init init_IRQ(void)
 	}
 
 	for (i = IRQ_AUTO_1; i <= IRQ_AUTO_7; i++)
-		irq_chip[i] = &auto_irq_chip;
+		irq_set_chip(i, &auto_irq_chip);
 
 	mach_init_IRQ();
 }
@@ -134,7 +140,7 @@ void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
 	BUG_ON(IRQ_USER + cnt > NR_IRQS);
 	m68k_first_user_vec = vec;
 	for (i = 0; i < cnt; i++)
-		irq_chip[IRQ_USER + i] = &user_irq_chip;
+		irq_set_chip(IRQ_USER + i, &user_irq_chip);
 	*user_irqvec_fixup = vec - IRQ_USER;
 	if (handler)
 		*user_irqhandler_fixup = (u32)handler;
@@ -157,7 +163,7 @@ void m68k_setup_irq_chip(struct irq_chip *contr, unsigned int irq,
 	int i;
 
 	for (i = 0; i < cnt; i++)
-		irq_chip[irq + i] = contr;
+		irq_set_chip(irq + i, contr);
 }
 
 struct irq_data *new_irq_node(void)
