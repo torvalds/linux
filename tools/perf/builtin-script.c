@@ -30,7 +30,8 @@ enum perf_output_field {
 	PERF_OUTPUT_CPU             = 1U << 4,
 	PERF_OUTPUT_EVNAME          = 1U << 5,
 	PERF_OUTPUT_TRACE           = 1U << 6,
-	PERF_OUTPUT_SYM             = 1U << 7,
+	PERF_OUTPUT_IP              = 1U << 7,
+	PERF_OUTPUT_SYM             = 1U << 8,
 };
 
 struct output_option {
@@ -44,6 +45,7 @@ struct output_option {
 	{.str = "cpu",   .field = PERF_OUTPUT_CPU},
 	{.str = "event", .field = PERF_OUTPUT_EVNAME},
 	{.str = "trace", .field = PERF_OUTPUT_TRACE},
+	{.str = "ip",    .field = PERF_OUTPUT_IP},
 	{.str = "sym",   .field = PERF_OUTPUT_SYM},
 };
 
@@ -60,7 +62,8 @@ static struct {
 
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
-			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_SYM,
+			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
+				  PERF_OUTPUT_SYM,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -70,7 +73,8 @@ static struct {
 
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
-			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_SYM,
+			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
+				  PERF_OUTPUT_SYM,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -88,7 +92,8 @@ static struct {
 
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
-			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_SYM,
+			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
+				  PERF_OUTPUT_SYM,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -157,14 +162,19 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 		!perf_session__has_traces(session, "record -R"))
 		return -EINVAL;
 
-	if (PRINT_FIELD(SYM)) {
+	if (PRINT_FIELD(IP)) {
 		if (perf_event_attr__check_stype(attr, PERF_SAMPLE_IP, "IP",
-					   PERF_OUTPUT_SYM))
+					   PERF_OUTPUT_IP))
 			return -EINVAL;
 
 		if (!no_callchain &&
 		    !(attr->sample_type & PERF_SAMPLE_CALLCHAIN))
 			symbol_conf.use_callchain = false;
+	}
+	if (PRINT_FIELD(SYM) && !PRINT_FIELD(IP)) {
+		pr_err("Display of symbols requested but IP is not selected.\n"
+		       "No addresses to convert to symbols.\n");
+		return -EINVAL;
 	}
 
 	if ((PRINT_FIELD(PID) || PRINT_FIELD(TID)) &&
@@ -230,7 +240,7 @@ static void print_sample_start(struct perf_sample *sample,
 	if (PRINT_FIELD(COMM)) {
 		if (latency_format)
 			printf("%8.8s ", thread->comm);
-		else if (PRINT_FIELD(SYM) && symbol_conf.use_callchain)
+		else if (PRINT_FIELD(IP) && symbol_conf.use_callchain)
 			printf("%s ", thread->comm);
 		else
 			printf("%16s ", thread->comm);
@@ -288,12 +298,13 @@ static void process_event(union perf_event *event __unused,
 		print_trace_event(sample->cpu, sample->raw_data,
 				  sample->raw_size);
 
-	if (PRINT_FIELD(SYM)) {
+	if (PRINT_FIELD(IP)) {
 		if (!symbol_conf.use_callchain)
 			printf(" ");
 		else
 			printf("\n");
-		perf_session__print_symbols(event, sample, session);
+		perf_session__print_ip(event, sample, session,
+					      PRINT_FIELD(SYM));
 	}
 
 	printf("\n");
@@ -985,7 +996,7 @@ static const struct option options[] = {
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
 	OPT_CALLBACK('f', "fields", NULL, "str",
-		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace,raw. Fields: comm,tid,pid,time,cpu,event,trace,sym",
+		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace,raw. Fields: comm,tid,pid,time,cpu,event,trace,ip,sym",
 		     parse_output_fields),
 
 	OPT_END()
