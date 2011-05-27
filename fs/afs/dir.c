@@ -845,8 +845,6 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 	_enter("{%x:%u},{%s}",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name);
 
-	dentry_unhash(dentry);
-
 	ret = -ENAMETOOLONG;
 	if (dentry->d_name.len >= AFSNAMEMAX)
 		goto error;
@@ -1147,9 +1145,6 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct afs_vnode *orig_dvnode, *new_dvnode, *vnode;
 	struct key *key;
 	int ret;
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	vnode = AFS_FS_I(old_dentry->d_inode);
 	orig_dvnode = AFS_FS_I(old_dir);
