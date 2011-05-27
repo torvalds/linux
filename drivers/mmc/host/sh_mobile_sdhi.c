@@ -165,13 +165,14 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 
 	p->pdata = NULL;
 
+	tmio_mmc_host_remove(host);
+
 	for (i = 0; i < 3; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq >= 0)
 			free_irq(irq, host);
 	}
 
-	tmio_mmc_host_remove(host);
 	clk_disable(priv->clk);
 	clk_put(priv->clk);
 	kfree(priv);
