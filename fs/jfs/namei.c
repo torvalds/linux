@@ -360,8 +360,6 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 
 	jfs_info("jfs_rmdir: dip:0x%p name:%s", dip, dentry->d_name.name);
 
-	dentry_unhash(dentry);
-
 	/* Init inode for quota operations. */
 	dquot_initialize(dip);
 	dquot_initialize(ip);
@@ -1096,9 +1094,6 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	jfs_info("jfs_rename: %s %s", old_dentry->d_name.name,
 		 new_dentry->d_name.name);
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	dquot_initialize(old_dir);
 	dquot_initialize(new_dir);
