@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
 

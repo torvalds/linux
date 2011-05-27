@@ -12,6 +12,7 @@
  */
 
 #include <linux/workqueue.h>
+#include <linux/module.h>
 #include <crypto/algapi.h>
 #include <crypto/crypto_wq.h>
 
