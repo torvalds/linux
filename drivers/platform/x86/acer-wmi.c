@@ -754,6 +754,8 @@ WMI_execute_u32(u32 method_id, u32 in, u32 *out)
 		(obj->buffer.length == sizeof(u32) ||
 		obj->buffer.length == sizeof(u64))) {
 		tmp = *((u32 *) obj->buffer.pointer);
+	} else if (obj->type == ACPI_TYPE_INTEGER) {
+		tmp = (u32) obj->integer.value;
 	} else {
 		tmp = 0;
 	}
@@ -884,6 +886,8 @@ static acpi_status WMID_set_capabilities(void)
 		(obj->buffer.length == sizeof(u32) ||
 		obj->buffer.length == sizeof(u64))) {
 		devices = *((u32 *) obj->buffer.pointer);
+	} else if (obj->type == ACPI_TYPE_INTEGER) {
+		devices = (u32) obj->integer.value;
 	} else {
 		kfree(out.pointer);
 		return AE_ERROR;
@@ -1636,6 +1640,8 @@ static u32 get_wmid_devices(void)
 		(obj->buffer.length == sizeof(u32) ||
 		obj->buffer.length == sizeof(u64))) {
 		devices = *((u32 *) obj->buffer.pointer);
+	} else if (obj->type == ACPI_TYPE_INTEGER) {
+		devices = (u32) obj->integer.value;
 	}
 
 	kfree(out.pointer);
