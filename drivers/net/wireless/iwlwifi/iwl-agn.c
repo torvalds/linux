@@ -3615,8 +3615,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
 	free_irq(priv->pci_dev->irq, priv);
-	iwl_free_isr_ict(priv);
  out_disable_msi:
+	iwl_free_isr_ict(priv);
 	pci_disable_msi(priv->pci_dev);
 	iwl_uninit_drv(priv);
  out_free_eeprom:
