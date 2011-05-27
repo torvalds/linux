@@ -6537,11 +6537,12 @@ static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 	struct ixgbe_tx_buffer *tx_buffer_info;
 	unsigned int len;
 	unsigned int total = skb->len;
-	unsigned int offset = 0, size, count = 0, i;
+	unsigned int offset = 0, size, count = 0;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int f;
 	unsigned int bytecount = skb->len;
 	u16 gso_segs = 1;
+	u16 i;
 
 	i = tx_ring->next_to_use;
 
@@ -6807,7 +6808,7 @@ static void ixgbe_atr(struct ixgbe_ring *ring, struct sk_buff *skb,
 					      input, common, ring->queue_index);
 }
 
-static int __ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, int size)
+static int __ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, u16 size)
 {
 	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
 	/* Herbert's original patch had:
@@ -6826,7 +6827,7 @@ static int __ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, int size)
 	return 0;
 }
 
-static int ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, int size)
+static int ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, u16 size)
 {
 	if (likely(ixgbe_desc_unused(tx_ring) >= size))
 		return 0;
@@ -6864,13 +6865,13 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 			  struct ixgbe_adapter *adapter,
 			  struct ixgbe_ring *tx_ring)
 {
-	unsigned int first;
 	unsigned int tx_flags = 0;
-	u8 hdr_len = 0;
 	int tso;
-	int count = 0;
+	u16 count = 0;
+	u16 first;
 	unsigned int f;
 	__be16 protocol;
+	u8 hdr_len = 0;
 
 	protocol = vlan_get_protocol(skb);
 
