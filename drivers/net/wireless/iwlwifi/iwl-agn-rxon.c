@@ -81,6 +81,21 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	return ret;
 }
 
+static int iwlagn_disconn_pan(struct iwl_priv *priv,
+			      struct iwl_rxon_context *ctx,
+			      struct iwl_rxon_cmd *send)
+{
+	__le32 old_filter = send->filter_flags;
+	int ret;
+
+	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+	ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd, sizeof(*send), send);
+
+	send->filter_flags = old_filter;
+
+	return ret;
+}
+
 static void iwlagn_update_qos(struct iwl_priv *priv,
 			      struct iwl_rxon_context *ctx)
 {
@@ -175,10 +190,21 @@ static int iwlagn_rxon_disconn(struct iwl_priv *priv,
 	int ret;
 	struct iwl_rxon_cmd *active = (void *)&ctx->active;
 
-	if (ctx->ctxid == IWL_RXON_CTX_BSS)
+	if (ctx->ctxid == IWL_RXON_CTX_BSS) {
 		ret = iwlagn_disable_bss(priv, ctx, &ctx->staging);
-	else
+	} else {
 		ret = iwlagn_disable_pan(priv, ctx, &ctx->staging);
+		if (ret)
+			return ret;
+		if (ctx->vif) {
+			ret = iwl_send_rxon_timing(priv, ctx);
+			if (ret) {
+				IWL_ERR(priv, "Failed to send timing (%d)!\n", ret);
+				return ret;
+			}
+			ret = iwlagn_disconn_pan(priv, ctx, &ctx->staging);
+		}
+	}
 	if (ret)
 		return ret;
 
@@ -205,10 +231,12 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 	struct iwl_rxon_cmd *active = (void *)&ctx->active;
 
 	/* RXON timing must be before associated RXON */
-	ret = iwl_send_rxon_timing(priv, ctx);
-	if (ret) {
-		IWL_ERR(priv, "Failed to send timing (%d)!\n", ret);
-		return ret;
+	if (ctx->ctxid == IWL_RXON_CTX_BSS) {
+		ret = iwl_send_rxon_timing(priv, ctx);
+		if (ret) {
+			IWL_ERR(priv, "Failed to send timing (%d)!\n", ret);
+			return ret;
+		}
 	}
 	/* QoS info may be cleared by previous un-assoc RXON */
 	iwlagn_update_qos(priv, ctx);
@@ -370,12 +398,6 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		return 0;
 	}
 
-	if (priv->cfg->ops->hcmd->set_pan_params) {
-		ret = priv->cfg->ops->hcmd->set_pan_params(priv);
-		if (ret)
-			return ret;
-	}
-
 	iwl_set_rxon_hwcrypto(priv, ctx, !iwlagn_mod_params.sw_crypto);
 
 	IWL_DEBUG_INFO(priv,
@@ -396,6 +418,12 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	ret = iwlagn_rxon_disconn(priv, ctx);
 	if (ret)
 		return ret;
+
+	if (priv->cfg->ops->hcmd->set_pan_params) {
+		ret = priv->cfg->ops->hcmd->set_pan_params(priv);
+		if (ret)
+			return ret;
+	}
 
 	if (new_assoc)
 		return iwlagn_rxon_connect(priv, ctx);
