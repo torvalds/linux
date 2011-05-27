@@ -158,8 +158,10 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 	if (IS_ERR(mpu_clk))
 		return PTR_ERR(mpu_clk);
 
-	if (policy->cpu >= NR_CPUS)
-		return -EINVAL;
+	if (policy->cpu >= NR_CPUS) {
+		result = -EINVAL;
+		goto fail_ck;
+	}
 
 	policy->cur = policy->min = policy->max = omap_getspeed(policy->cpu);
 	result = opp_init_cpufreq_table(mpu_dev, &freq_table);
@@ -167,12 +169,14 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 	if (result) {
 		dev_err(mpu_dev, "%s: cpu%d: failed creating freq table[%d]\n",
 				__func__, policy->cpu, result);
-		return result;
+		goto fail_ck;
 	}
 
 	result = cpufreq_frequency_table_cpuinfo(policy, freq_table);
 	if (!result)
 		cpufreq_frequency_table_get_attr(freq_table, policy->cpu);
+	else
+		goto fail_ck;
 
 	policy->min = policy->cpuinfo.min_freq;
 	policy->max = policy->cpuinfo.max_freq;
@@ -194,6 +198,10 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.transition_latency = 300 * 1000;
 
 	return 0;
+
+fail_ck:
+	clk_put(mpu_clk);
+	return result;
 }
 
 static int omap_cpu_exit(struct cpufreq_policy *policy)
