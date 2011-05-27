@@ -1417,6 +1417,23 @@ again:
 	return 0;
 }
 
+static u64 add_bytes_to_bitmap(struct btrfs_free_space_ctl *ctl,
+			       struct btrfs_free_space *info, u64 offset,
+			       u64 bytes)
+{
+	u64 bytes_to_set = 0;
+	u64 end;
+
+	end = info->offset + (u64)(BITS_PER_BITMAP * ctl->unit);
+
+	bytes_to_set = min(end - offset, bytes);
+
+	bitmap_set_bits(ctl, info, offset, bytes_to_set);
+
+	return bytes_to_set;
+
+}
+
 static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 		      struct btrfs_free_space *info)
 {
@@ -1453,12 +1470,18 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 	return true;
 }
 
+static struct btrfs_free_space_op free_space_op = {
+	.recalc_thresholds	= recalculate_thresholds,
+	.use_bitmap		= use_bitmap,
+};
+
 static int insert_into_bitmap(struct btrfs_free_space_ctl *ctl,
 			      struct btrfs_free_space *info)
 {
 	struct btrfs_free_space *bitmap_info;
+	struct btrfs_block_group_cache *block_group = NULL;
 	int added = 0;
-	u64 bytes, offset, end;
+	u64 bytes, offset, bytes_added;
 	int ret;
 
 	bytes = info->bytes;
@@ -1467,6 +1490,47 @@ static int insert_into_bitmap(struct btrfs_free_space_ctl *ctl,
 	if (!ctl->op->use_bitmap(ctl, info))
 		return 0;
 
+	if (ctl->op == &free_space_op)
+		block_group = ctl->private;
+
+	/*
+	 * Since we link bitmaps right into the cluster we need to see if we
+	 * have a cluster here, and if so and it has our bitmap we need to add
+	 * the free space to that bitmap.
+	 */
+	if (block_group && !list_empty(&block_group->cluster_list)) {
+		struct btrfs_free_cluster *cluster;
+		struct rb_node *node;
+		struct btrfs_free_space *entry;
+
+		cluster = list_entry(block_group->cluster_list.next,
+				     struct btrfs_free_cluster,
+				     block_group_list);
+		spin_lock(&cluster->lock);
+		node = rb_first(&cluster->root);
+		if (!node) {
+			spin_unlock(&cluster->lock);
+			goto again;
+		}
+
+		entry = rb_entry(node, struct btrfs_free_space, offset_index);
+		if (!entry->bitmap) {
+			spin_unlock(&cluster->lock);
+			goto again;
+		}
+
+		if (entry->offset == offset_to_bitmap(ctl, offset)) {
+			bytes_added = add_bytes_to_bitmap(ctl, entry,
+							  offset, bytes);
+			bytes -= bytes_added;
+			offset += bytes_added;
+		}
+		spin_unlock(&cluster->lock);
+		if (!bytes) {
+			ret = 1;
+			goto out;
+		}
+	}
 again:
 	bitmap_info = tree_search_offset(ctl, offset_to_bitmap(ctl, offset),
 					 1, 0);
@@ -1475,19 +1539,10 @@ again:
 		goto new_bitmap;
 	}
 
-	end = bitmap_info->offset + (u64)(BITS_PER_BITMAP * ctl->unit);
-
-	if (offset >= bitmap_info->offset && offset + bytes > end) {
-		bitmap_set_bits(ctl, bitmap_info, offset, end - offset);
-		bytes -= end - offset;
-		offset = end;
-		added = 0;
-	} else if (offset >= bitmap_info->offset && offset + bytes <= end) {
-		bitmap_set_bits(ctl, bitmap_info, offset, bytes);
-		bytes = 0;
-	} else {
-		BUG();
-	}
+	bytes_added = add_bytes_to_bitmap(ctl, bitmap_info, offset, bytes);
+	bytes -= bytes_added;
+	offset += bytes_added;
+	added = 0;
 
 	if (!bytes) {
 		ret = 1;
@@ -1765,11 +1820,6 @@ void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
 	printk(KERN_INFO "%d blocks of free space at or bigger than bytes is"
 	       "\n", count);
 }
-
-static struct btrfs_free_space_op free_space_op = {
-	.recalc_thresholds	= recalculate_thresholds,
-	.use_bitmap		= use_bitmap,
-};
 
 void btrfs_init_free_space_ctl(struct btrfs_block_group_cache *block_group)
 {
