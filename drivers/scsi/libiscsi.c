@@ -360,7 +360,7 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 	struct iscsi_conn *conn = task->conn;
 	struct iscsi_session *session = conn->session;
 	struct scsi_cmnd *sc = task->sc;
-	struct iscsi_cmd *hdr;
+	struct iscsi_scsi_req *hdr;
 	unsigned hdrlength, cmd_len;
 	itt_t itt;
 	int rc;
@@ -374,7 +374,7 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 		if (rc)
 			return rc;
 	}
-	hdr = (struct iscsi_cmd *) task->hdr;
+	hdr = (struct iscsi_scsi_req *)task->hdr;
 	itt = hdr->itt;
 	memset(hdr, 0, sizeof(*hdr));
 
@@ -830,7 +830,7 @@ static void iscsi_scsi_cmd_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			       struct iscsi_task *task, char *data,
 			       int datalen)
 {
-	struct iscsi_cmd_rsp *rhdr = (struct iscsi_cmd_rsp *)hdr;
+	struct iscsi_scsi_rsp *rhdr = (struct iscsi_scsi_rsp *)hdr;
 	struct iscsi_session *session = conn->session;
 	struct scsi_cmnd *sc = task->sc;
 
