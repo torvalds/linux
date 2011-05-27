@@ -81,18 +81,9 @@ config MMC_RICOH_MMC
 
 	  If unsure, say Y.
 
-config MMC_SDHCI_OF
-	tristate "SDHCI support on OpenFirmware platforms"
-	depends on MMC_SDHCI && OF
-	help
-	  This selects the OF support for Secure Digital Host Controller
-	  Interfaces.
-
-	  If unsure, say N.
-
 config MMC_SDHCI_OF_ESDHC
 	bool "SDHCI OF support for the Freescale eSDHC controller"
-	depends on MMC_SDHCI_OF
+	depends on MMC_SDHCI
 	depends on PPC_OF
 	select MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 	help
@@ -102,7 +93,7 @@ config MMC_SDHCI_OF_ESDHC
 
 config MMC_SDHCI_OF_HLWD
 	bool "SDHCI OF support for the Nintendo Wii SDHCI controllers"
-	depends on MMC_SDHCI_OF
+	depends on MMC_SDHCI
 	depends on PPC_OF
 	select MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 	help

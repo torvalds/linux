@@ -16,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/mmc/host.h>
-#include "sdhci-of.h"
+#include "sdhci-pltfm.h"
 #include "sdhci.h"
 #include "sdhci-esdhc.h"
 
@@ -85,9 +85,58 @@ static struct sdhci_ops sdhci_esdhc_ops = {
 	.get_min_clock = esdhc_of_get_min_clock,
 };
 
-struct sdhci_pltfm_data sdhci_esdhc_pdata = {
+static struct sdhci_pltfm_data sdhci_esdhc_pdata = {
 	/* card detection could be handled via GPIO */
 	.quirks = ESDHC_DEFAULT_QUIRKS | SDHCI_QUIRK_BROKEN_CARD_DETECTION
 		| SDHCI_QUIRK_NO_CARD_NO_RESET,
 	.ops = &sdhci_esdhc_ops,
 };
+
+static int __devinit sdhci_esdhc_probe(struct platform_device *pdev)
+{
+	return sdhci_pltfm_register(pdev, &sdhci_esdhc_pdata);
+}
+
+static int __devexit sdhci_esdhc_remove(struct platform_device *pdev)
+{
+	return sdhci_pltfm_unregister(pdev);
+}
+
+static const struct of_device_id sdhci_esdhc_of_match[] = {
+	{ .compatible = "fsl,mpc8379-esdhc" },
+	{ .compatible = "fsl,mpc8536-esdhc" },
+	{ .compatible = "fsl,esdhc" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sdhci_esdhc_of_match);
+
+static struct platform_driver sdhci_esdhc_driver = {
+	.driver = {
+		.name = "sdhci-esdhc",
+		.owner = THIS_MODULE,
+		.of_match_table = sdhci_esdhc_of_match,
+	},
+	.probe = sdhci_esdhc_probe,
+	.remove = __devexit_p(sdhci_esdhc_remove),
+#ifdef CONFIG_PM
+	.suspend = sdhci_pltfm_suspend,
+	.resume = sdhci_pltfm_resume,
+#endif
+};
+
+static int __init sdhci_esdhc_init(void)
+{
+	return platform_driver_register(&sdhci_esdhc_driver);
+}
+module_init(sdhci_esdhc_init);
+
+static void __exit sdhci_esdhc_exit(void)
+{
+	platform_driver_unregister(&sdhci_esdhc_driver);
+}
+module_exit(sdhci_esdhc_exit);
+
+MODULE_DESCRIPTION("SDHCI OF driver for Freescale MPC eSDHC");
+MODULE_AUTHOR("Xiaobo Xie <X.Xie@freescale.com>, "
+	      "Anton Vorontsov <avorontsov@ru.mvista.com>");
+MODULE_LICENSE("GPL v2");

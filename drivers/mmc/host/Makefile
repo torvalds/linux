@@ -52,11 +52,10 @@ obj-$(CONFIG_MMC_SDHCI_DOVE)		+= sdhci-dove.o
 sdhci-dove-objs				:= sdhci-pltfm.o
 obj-$(CONFIG_MMC_SDHCI_TEGRA)		+= sdhci-tegra.o
 sdhci-tegra-objs			:= sdhci-pltfm.o
-
-obj-$(CONFIG_MMC_SDHCI_OF)	+= sdhci-of.o
-sdhci-of-y				:= sdhci-of-core.o
-sdhci-of-$(CONFIG_MMC_SDHCI_OF_ESDHC)	+= sdhci-of-esdhc.o
-sdhci-of-$(CONFIG_MMC_SDHCI_OF_HLWD)	+= sdhci-of-hlwd.o
+obj-$(CONFIG_MMC_SDHCI_OF_ESDHC)	+= sdhci-of-esdhc.o
+sdhci-of-esdhc-objs			:= sdhci-pltfm.o
+obj-$(CONFIG_MMC_SDHCI_OF_HLWD)		+= sdhci-of-hlwd.o
+sdhci-of-hlwd-objs			:= sdhci-pltfm.o
 
 ifeq ($(CONFIG_CB710_DEBUG),y)
 	CFLAGS-cb710-mmc	+= -DDEBUG
