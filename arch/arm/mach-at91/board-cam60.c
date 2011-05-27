@@ -45,7 +45,7 @@
 #include "generic.h"
 
 
-static void __init cam60_map_io(void)
+static void __init cam60_init_early(void)
 {
 	/* Initialize processor: 10 MHz crystal */
 	at91sam9260_initialize(10000000);
@@ -198,9 +198,9 @@ static void __init cam60_board_init(void)
 
 MACHINE_START(CAM60, "KwikByte CAM60")
 	/* Maintainer: KwikByte */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= cam60_map_io,
+	.map_io		= at91sam9260_map_io,
+	.init_early	= cam60_init_early,
 	.init_irq	= cam60_init_irq,
 	.init_machine	= cam60_board_init,
 MACHINE_END
