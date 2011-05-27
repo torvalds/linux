@@ -170,6 +170,6 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 void perf_session__print_ip(union perf_event *event,
 				 struct perf_sample *sample,
 				 struct perf_session *session,
-				 int print_sym);
+				 int print_sym, int print_dso);
 
 #endif /* __PERF_SESSION_H */

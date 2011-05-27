@@ -32,6 +32,7 @@ enum perf_output_field {
 	PERF_OUTPUT_TRACE           = 1U << 6,
 	PERF_OUTPUT_IP              = 1U << 7,
 	PERF_OUTPUT_SYM             = 1U << 8,
+	PERF_OUTPUT_DSO             = 1U << 9,
 };
 
 struct output_option {
@@ -47,6 +48,7 @@ struct output_option {
 	{.str = "trace", .field = PERF_OUTPUT_TRACE},
 	{.str = "ip",    .field = PERF_OUTPUT_IP},
 	{.str = "sym",   .field = PERF_OUTPUT_SYM},
+	{.str = "dso",   .field = PERF_OUTPUT_DSO},
 };
 
 /* default set to maintain compatibility with current format */
@@ -63,7 +65,7 @@ static struct {
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
-				  PERF_OUTPUT_SYM,
+				  PERF_OUTPUT_SYM | PERF_OUTPUT_DSO,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -74,7 +76,7 @@ static struct {
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
-				  PERF_OUTPUT_SYM,
+				  PERF_OUTPUT_SYM | PERF_OUTPUT_DSO,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -93,7 +95,7 @@ static struct {
 		.fields = PERF_OUTPUT_COMM | PERF_OUTPUT_TID |
 			      PERF_OUTPUT_CPU | PERF_OUTPUT_TIME |
 			      PERF_OUTPUT_EVNAME | PERF_OUTPUT_IP |
-				  PERF_OUTPUT_SYM,
+				  PERF_OUTPUT_SYM | PERF_OUTPUT_DSO,
 
 		.invalid_fields = PERF_OUTPUT_TRACE,
 	},
@@ -174,6 +176,11 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 	if (PRINT_FIELD(SYM) && !PRINT_FIELD(IP)) {
 		pr_err("Display of symbols requested but IP is not selected.\n"
 		       "No addresses to convert to symbols.\n");
+		return -EINVAL;
+	}
+	if (PRINT_FIELD(DSO) && !PRINT_FIELD(IP)) {
+		pr_err("Display of DSO requested but IP is not selected.\n"
+		       "No addresses to convert to dso.\n");
 		return -EINVAL;
 	}
 
@@ -304,7 +311,7 @@ static void process_event(union perf_event *event __unused,
 		else
 			printf("\n");
 		perf_session__print_ip(event, sample, session,
-					      PRINT_FIELD(SYM));
+					      PRINT_FIELD(SYM), PRINT_FIELD(DSO));
 	}
 
 	printf("\n");
@@ -996,7 +1003,7 @@ static const struct option options[] = {
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
 	OPT_CALLBACK('f', "fields", NULL, "str",
-		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace,raw. Fields: comm,tid,pid,time,cpu,event,trace,ip,sym",
+		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace,raw. Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso",
 		     parse_output_fields),
 
 	OPT_END()

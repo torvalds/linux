@@ -1205,7 +1205,7 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 void perf_session__print_ip(union perf_event *event,
 			    struct perf_sample *sample,
 			    struct perf_session *session,
-			    int print_sym)
+			    int print_sym, int print_dso)
 {
 	struct addr_location al;
 	const char *symname, *dsoname;
@@ -1241,12 +1241,15 @@ void perf_session__print_ip(union perf_event *event,
 				else
 					symname = "";
 
+				printf(" %s", symname);
+			}
+			if (print_dso) {
 				if (node->map && node->map->dso && node->map->dso->name)
 					dsoname = node->map->dso->name;
 				else
 					dsoname = "";
 
-				printf(" %s (%s)", symname, dsoname);
+				printf(" (%s)", dsoname);
 			}
 			printf("\n");
 
@@ -1261,12 +1264,16 @@ void perf_session__print_ip(union perf_event *event,
 			else
 				symname = "";
 
+			printf(" %s", symname);
+		}
+
+		if (print_dso) {
 			if (al.map && al.map->dso && al.map->dso->name)
 				dsoname = al.map->dso->name;
 			else
 				dsoname = "";
 
-			printf(" %s (%s)", symname, dsoname);
+			printf(" (%s)", dsoname);
 		}
 	}
 }
