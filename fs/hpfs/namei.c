@@ -439,8 +439,6 @@ static int hpfs_rmdir(struct inode *dir, struct dentry *dentry)
 	int err;
 	int r;
 
-	dentry_unhash(dentry);
-
 	hpfs_adjust_length(name, &len);
 	hpfs_lock(dir->i_sb);
 	err = -ENOENT;
@@ -534,9 +532,6 @@ static int hpfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct buffer_head *bh;
 	struct fnode *fnode;
 	int err;
-
-	if (new_inode && S_ISDIR(new_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	if ((err = hpfs_chk_name(new_name, &new_len))) return err;
 	err = 0;
