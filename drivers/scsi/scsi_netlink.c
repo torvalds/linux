@@ -23,6 +23,7 @@
 #include <linux/security.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 

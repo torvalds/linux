@@ -25,6 +25,7 @@
 
 #include <linux/kthread.h>
 #include <linux/firmware.h>
+#include <linux/export.h>
 #include <linux/ctype.h>
 
 #include "sas_internal.h"
