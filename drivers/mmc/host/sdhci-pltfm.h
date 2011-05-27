@@ -14,8 +14,12 @@
 #include <linux/clk.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
-#include <linux/mmc/sdhci-pltfm.h>
 #include <linux/mmc/sdhci.h>
+
+struct sdhci_pltfm_data {
+	struct sdhci_ops *ops;
+	unsigned int quirks;
+};
 
 struct sdhci_pltfm_host {
 	struct clk *clk;
