@@ -23,6 +23,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/sched.h>
 
 #include <asm/pasemi_dma.h>
 

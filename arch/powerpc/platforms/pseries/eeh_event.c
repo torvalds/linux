@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>

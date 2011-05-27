@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/sched.h>	/* for idle_task_exit */
 #include <linux/cpu.h>
 #include <asm/system.h>
 #include <asm/prom.h>

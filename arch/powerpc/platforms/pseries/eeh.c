@@ -22,6 +22,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/sched.h>	/* for init_mm */
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/pci.h>
