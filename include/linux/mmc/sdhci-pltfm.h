@@ -15,21 +15,15 @@
 #define _SDHCI_PLTFM_H
 
 struct sdhci_ops;
-struct sdhci_host;
 
 /**
  * struct sdhci_pltfm_data - SDHCI platform-specific information & hooks
  * @ops: optional pointer to the platform-provided SDHCI ops
  * @quirks: optional SDHCI quirks
- * @init: optional hook that is called during device probe, before the
- *        driver tries to access any SDHCI registers
- * @exit: optional hook that is called during device removal
  */
 struct sdhci_pltfm_data {
 	struct sdhci_ops *ops;
 	unsigned int quirks;
-	int (*init)(struct sdhci_host *host, struct sdhci_pltfm_data *pdata);
-	void (*exit)(struct sdhci_host *host);
 };
 
 #endif /* _SDHCI_PLTFM_H */

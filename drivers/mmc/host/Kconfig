@@ -112,29 +112,19 @@ config MMC_SDHCI_OF_HLWD
 
 	  If unsure, say N.
 
-config MMC_SDHCI_PLTFM
-	tristate "SDHCI support on the platform specific bus"
-	depends on MMC_SDHCI
-	help
-	  This selects the platform specific bus support for Secure Digital Host
-	  Controller Interface.
-
-	  If you have a controller with this interface, say Y or M here.
-
-	  If unsure, say N.
-
 config MMC_SDHCI_CNS3XXX
-	bool "SDHCI support on the Cavium Networks CNS3xxx SoC"
+	tristate "SDHCI support on the Cavium Networks CNS3xxx SoC"
 	depends on ARCH_CNS3XXX
-	depends on MMC_SDHCI_PLTFM
+	depends on MMC_SDHCI
 	help
 	  This selects the SDHCI support for CNS3xxx System-on-Chip devices.
 
 	  If unsure, say N.
 
 config MMC_SDHCI_ESDHC_IMX
-	bool "SDHCI platform support for the Freescale eSDHC i.MX controller"
-	depends on MMC_SDHCI_PLTFM && (ARCH_MX25 || ARCH_MX35 || ARCH_MX5)
+	tristate "SDHCI platform support for the Freescale eSDHC i.MX controller"
+	depends on ARCH_MX25 || ARCH_MX35 || ARCH_MX5
+	depends on MMC_SDHCI
 	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Freescale eSDHC controller support on the platform
@@ -143,9 +133,9 @@ config MMC_SDHCI_ESDHC_IMX
 	  If unsure, say N.
 
 config MMC_SDHCI_DOVE
-	bool "SDHCI support on Marvell's Dove SoC"
+	tristate "SDHCI support on Marvell's Dove SoC"
 	depends on ARCH_DOVE
-	depends on MMC_SDHCI_PLTFM
+	depends on MMC_SDHCI
 	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Secure Digital Host Controller Interface in
@@ -154,8 +144,9 @@ config MMC_SDHCI_DOVE
 	  If unsure, say N.
 
 config MMC_SDHCI_TEGRA
-	bool "SDHCI platform support for the Tegra SD/MMC Controller"
-	depends on MMC_SDHCI_PLTFM && ARCH_TEGRA
+	tristate "SDHCI platform support for the Tegra SD/MMC Controller"
+	depends on ARCH_TEGRA
+	depends on MMC_SDHCI
 	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Tegra SD/MMC controller. If you have a Tegra
