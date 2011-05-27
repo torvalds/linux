@@ -337,10 +337,12 @@ wl1271_scan_get_sched_scan_channels(struct wl1271 *wl,
 	     i++) {
 		flags = req->channels[i]->flags;
 
-		if (!(flags & IEEE80211_CHAN_DISABLED) &&
-		    (!!(flags & IEEE80211_CHAN_PASSIVE_SCAN) == passive) &&
+		if ((req->channels[i]->band == band) &&
+		    !(flags & IEEE80211_CHAN_DISABLED) &&
 		    (!!(flags & IEEE80211_CHAN_RADAR) == radar) &&
-		    (req->channels[i]->band == band)) {
+		    /* if radar is set, we ignore the passive flag */
+		    (radar ||
+		     !!(flags & IEEE80211_CHAN_PASSIVE_SCAN) == passive)) {
 			wl1271_debug(DEBUG_SCAN, "band %d, center_freq %d ",
 				     req->channels[i]->band,
 				     req->channels[i]->center_freq);
@@ -350,6 +352,8 @@ wl1271_scan_get_sched_scan_channels(struct wl1271 *wl,
 			wl1271_debug(DEBUG_SCAN, "max_power %d",
 				     req->channels[i]->max_power);
 
+			if (flags & IEEE80211_CHAN_RADAR)
+				channels[j].flags |= SCAN_CHANNEL_FLAGS_DFS;
 			if (flags & IEEE80211_CHAN_PASSIVE_SCAN) {
 				channels[j].passive_duration =
 					cpu_to_le16(c->dwell_time_passive);
@@ -359,7 +363,7 @@ wl1271_scan_get_sched_scan_channels(struct wl1271 *wl,
 				channels[j].max_duration =
 					cpu_to_le16(c->max_dwell_time_active);
 			}
-			channels[j].tx_power_att = req->channels[j]->max_power;
+			channels[j].tx_power_att = req->channels[i]->max_power;
 			channels[j].channel = req->channels[i]->hw_value;
 
 			j++;
@@ -386,7 +390,11 @@ wl1271_scan_sched_scan_channels(struct wl1271 *wl,
 		wl1271_scan_get_sched_scan_channels(wl, req, cfg->channels,
 						    IEEE80211_BAND_2GHZ,
 						    false, false, idx);
-	idx += cfg->active[0];
+	/*
+	 * 5GHz channels always start at position 14, not immediately
+	 * after the last 2.4GHz channel
+	 */
+	idx = 14;
 
 	cfg->passive[1] =
 		wl1271_scan_get_sched_scan_channels(wl, req, cfg->channels,
@@ -394,22 +402,23 @@ wl1271_scan_sched_scan_channels(struct wl1271 *wl,
 						    false, true, idx);
 	idx += cfg->passive[1];
 
-	cfg->active[1] =
-		wl1271_scan_get_sched_scan_channels(wl, req, cfg->channels,
-						    IEEE80211_BAND_5GHZ,
-						    false, false, 14);
-	idx += cfg->active[1];
-
 	cfg->dfs =
 		wl1271_scan_get_sched_scan_channels(wl, req, cfg->channels,
 						    IEEE80211_BAND_5GHZ,
-						    true, false, idx);
+						    true, true, idx);
 	idx += cfg->dfs;
+
+	cfg->active[1] =
+		wl1271_scan_get_sched_scan_channels(wl, req, cfg->channels,
+						    IEEE80211_BAND_5GHZ,
+						    false, false, idx);
+	idx += cfg->active[1];
 
 	wl1271_debug(DEBUG_SCAN, "    2.4GHz: active %d passive %d",
 		     cfg->active[0], cfg->passive[0]);
 	wl1271_debug(DEBUG_SCAN, "    5GHz: active %d passive %d",
 		     cfg->active[1], cfg->passive[1]);
+	wl1271_debug(DEBUG_SCAN, "    DFS: %d", cfg->dfs);
 
 	return idx;
 }
