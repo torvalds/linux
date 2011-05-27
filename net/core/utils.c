@@ -27,6 +27,7 @@
 #include <linux/ratelimit.h>
 
 #include <net/sock.h>
+#include <net/net_ratelimit.h>
 
 #include <asm/byteorder.h>
 #include <asm/system.h>

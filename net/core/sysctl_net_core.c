@@ -17,6 +17,7 @@
 
 #include <net/ip.h>
 #include <net/sock.h>
+#include <net/net_ratelimit.h>
 
 #ifdef CONFIG_RPS
 static int rps_sock_flow_sysctl(ctl_table *table, int write,
