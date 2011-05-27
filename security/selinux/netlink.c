@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 #include <linux/selinux_netlink.h>
