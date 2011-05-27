@@ -170,10 +170,9 @@ struct bcma_driver {
 };
 extern
 int __bcma_driver_register(struct bcma_driver *drv, struct module *owner);
-static inline int bcma_driver_register(struct bcma_driver *drv)
-{
-	return __bcma_driver_register(drv, THIS_MODULE);
-}
+#define bcma_driver_register(drv) \
+	__bcma_driver_register(drv, THIS_MODULE)
+
 extern void bcma_driver_unregister(struct bcma_driver *drv);
 
 struct bcma_bus {

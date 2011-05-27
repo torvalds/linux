@@ -101,11 +101,11 @@ extern int __must_check
 	__uio_register_device(struct module *owner,
 			      struct device *parent,
 			      struct uio_info *info);
-static inline int __must_check
-	uio_register_device(struct device *parent, struct uio_info *info)
-{
-	return __uio_register_device(THIS_MODULE, parent, info);
-}
+
+/* use a define to avoid include chaining to get THIS_MODULE */
+#define uio_register_device(parent, info) \
+	__uio_register_device(THIS_MODULE, parent, info)
+
 extern void uio_unregister_device(struct uio_info *info);
 extern void uio_event_notify(struct uio_info *info);
 
