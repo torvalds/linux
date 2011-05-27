@@ -27,6 +27,7 @@
  *
  *****************************************************************************/
 
+#include <linux/export.h>
 #include "wifi.h"
 #include "base.h"
 #include "ps.h"

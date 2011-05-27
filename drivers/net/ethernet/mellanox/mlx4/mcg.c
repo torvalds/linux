@@ -35,6 +35,7 @@
 #include <linux/etherdevice.h>
 
 #include <linux/mlx4/cmd.h>
+#include <linux/export.h>
 
 #include "mlx4.h"
 

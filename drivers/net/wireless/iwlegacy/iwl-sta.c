@@ -31,6 +31,7 @@
 #include <linux/etherdevice.h>
 #include <linux/sched.h>
 #include <linux/lockdep.h>
+#include <linux/export.h>
 
 #include "iwl-dev.h"
 #include "iwl-core.h"

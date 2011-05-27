@@ -15,6 +15,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include "hw.h"
 #include "hw-ops.h"
 

@@ -16,6 +16,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #include "ath9k.h"
 

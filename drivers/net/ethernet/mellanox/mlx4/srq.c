@@ -32,6 +32,7 @@
  */
 
 #include <linux/mlx4/cmd.h>
+#include <linux/export.h>
 #include <linux/gfp.h>
 
 #include "mlx4.h"

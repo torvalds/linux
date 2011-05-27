@@ -1,5 +1,6 @@
 #include <linux/etherdevice.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <net/lib80211.h>
 #include <linux/if_arp.h>
 

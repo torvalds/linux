@@ -35,6 +35,7 @@
  */
 
 #include <linux/hardirq.h>
+#include <linux/export.h>
 #include <linux/gfp.h>
 
 #include <linux/mlx4/cmd.h>
