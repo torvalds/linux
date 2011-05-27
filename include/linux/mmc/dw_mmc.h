@@ -11,8 +11,8 @@
  * (at your option) any later version.
  */
 
-#ifndef _LINUX_MMC_DW_MMC_H_
-#define _LINUX_MMC_DW_MMC_H_
+#ifndef LINUX_MMC_DW_MMC_H
+#define LINUX_MMC_DW_MMC_H
 
 #define MAX_MCI_SLOTS	2
 
@@ -219,4 +219,4 @@ struct dw_mci_board {
 	struct block_settings *blk_settings;
 };
 
-#endif /* _LINUX_MMC_DW_MMC_H_ */
+#endif /* LINUX_MMC_DW_MMC_H */

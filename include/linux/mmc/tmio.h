@@ -12,8 +12,8 @@
  *
  * TC6393XB TC6391XB TC6387XB T7L66XB ASIC3
  */
-#ifndef _LINUX_MMC_TMIO_H_
-#define _LINUX_MMC_TMIO_H_
+#ifndef LINUX_MMC_TMIO_H
+#define LINUX_MMC_TMIO_H
 
 #define CTL_SD_CMD 0x00
 #define CTL_ARG_REG 0x04
@@ -60,4 +60,4 @@
 
 #define TMIO_BBS		512		/* Boot block size */
 
-#endif /* _LINUX_MMC_TMIO_H_ */
+#endif /* LINUX_MMC_TMIO_H */
