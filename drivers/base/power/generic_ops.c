@@ -8,6 +8,7 @@
 
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/export.h>
 
 #ifdef CONFIG_PM_RUNTIME
 /**
