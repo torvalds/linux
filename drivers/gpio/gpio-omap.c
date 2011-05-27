@@ -1524,7 +1524,7 @@ static void omap_gpio_mod_init(struct gpio_bank *bank, int id)
 	}
 }
 
-static void __init omap_gpio_chip_init(struct gpio_bank *bank)
+static void __devinit omap_gpio_chip_init(struct gpio_bank *bank)
 {
 	int j;
 	static int gpio;
