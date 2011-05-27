@@ -141,7 +141,6 @@ struct iwl_lib_ops {
 	struct iwl_apm_ops apm_ops;
 
 	/* power */
-	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */

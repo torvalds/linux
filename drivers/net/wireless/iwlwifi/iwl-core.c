@@ -1131,9 +1131,6 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	if (priv->tx_power_user_lmt == tx_power && !force)
 		return 0;
 
-	if (!priv->cfg->ops->lib->send_tx_power)
-		return -EOPNOTSUPP;
-
 	if (tx_power < IWLAGN_TX_POWER_TARGET_POWER_MIN) {
 		IWL_WARN(priv,
 			 "Requested user TXPOWER %d below lower limit %d.\n",
@@ -1167,7 +1164,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	prev_tx_power = priv->tx_power_user_lmt;
 	priv->tx_power_user_lmt = tx_power;
 
-	ret = priv->cfg->ops->lib->send_tx_power(priv);
+	ret = iwlagn_send_tx_power(priv);
 
 	/* if fail to set tx_power, restore the orig. tx power */
 	if (ret) {
