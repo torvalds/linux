@@ -424,4 +424,11 @@ config AB8500_GPIO
 	depends on AB8500_CORE && BROKEN
 	help
 	  Select this to enable the AB8500 IC GPIO driver
+
+config GPIO_TPS65910
+	bool "TPS65910 GPIO"
+	depends on MFD_TPS65910
+	help
+	  Select this option to enable GPIO driver for the TPS65910
+	  chip family.
 endif
