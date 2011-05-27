@@ -281,17 +281,14 @@ static int __cmd_report(void)
 	      kernel_kmap->ref_reloc_sym->addr == 0))) {
 		const struct dso *kdso = kernel_map->dso;
 
-		ui__warning("Kernel address maps "
-			    "(/proc/{kallsyms,modules}) were restricted, "
-			    "check /proc/sys/kernel/kptr_restrict before "
-			    "running 'perf record'.\n\n%s\n\n"
-			    "Samples in kernel modules can't be resolved "
-			    "as well.\n\n",
+		ui__warning(
+"Kernel address maps (/proc/{kallsyms,modules}) were restricted.\n\n"
+"Check /proc/sys/kernel/kptr_restrict before running 'perf record'.\n\n%s\n\n"
+"Samples in kernel modules can't be resolved as well.\n\n",
 			    RB_EMPTY_ROOT(&kdso->symbols[MAP__FUNCTION]) ?
-			    "As no suitable kallsyms nor vmlinux was found, "
-			    "kernel samples can't be resolved." :
-			    "If some relocation was applied (e.g. kexec) "
-			    "symbols may be misresolved.");
+"As no suitable kallsyms nor vmlinux was found, kernel samples\n"
+"can't be resolved." :
+"If some relocation was applied (e.g. kexec) symbols may be misresolved.");
 	}
 
 	if (dump_trace) {
