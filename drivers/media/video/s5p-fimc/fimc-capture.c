@@ -526,7 +526,7 @@ static struct fimc_fmt *fimc_capture_try_format(struct fimc_ctx *ctx,
 	max_w = rotation ? pl->out_rot_en_w : pl->out_rot_dis_w;
 	min_w = ctx->state & FIMC_DST_CROP ? dst->width : var->min_out_pixsize;
 	min_h = ctx->state & FIMC_DST_CROP ? dst->height : var->min_out_pixsize;
-	if (fimc->id == 1 && var->pix_hoff)
+	if (var->min_vsize_align == 1 && !rotation)
 		align_h = fimc_fmt_is_rgb(ffmt->color) ? 0 : 1;
 
 	depth = fimc_get_format_depth(ffmt);
