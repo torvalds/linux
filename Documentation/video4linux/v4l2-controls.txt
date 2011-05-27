@@ -277,16 +277,13 @@ implement g_volatile_ctrl like this:
 	{
 		switch (ctrl->id) {
 		case V4L2_CID_BRIGHTNESS:
-			ctrl->cur.val = read_reg(0x123);
+			ctrl->val = read_reg(0x123);
 			break;
 		}
 	}
 
-The 'new value' union is not used in g_volatile_ctrl. In general controls
-that need to implement g_volatile_ctrl are read-only controls.
-
-Note that if one or more controls in a control cluster are marked as volatile,
-then all the controls in the cluster are seen as volatile.
+Note that you use the 'new value' union as well in g_volatile_ctrl. In general
+controls that need to implement g_volatile_ctrl are read-only controls.
 
 To mark a control as volatile you have to set the is_volatile flag:
 
@@ -636,9 +633,7 @@ button controls are write-only controls.
 -EINVAL as the spec says.
 
 5) The spec does not mention what should happen when you try to set/get a
-control class controls. ivtv currently returns -EINVAL (indicating that the
-control ID does not exist) while the framework will return -EACCES, which
-makes more sense.
+control class controls. The framework will return -EACCES.
 
 
 Proposals for Extensions
