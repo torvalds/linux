@@ -951,29 +951,21 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 	return true;
 }
 
-static void follow_mount_rcu(struct nameidata *nd, struct path *path,
-			       struct inode **inode)
+static void follow_mount_rcu(struct nameidata *nd)
 {
-	for (;;) {
+	while (d_mountpoint(nd->path.dentry)) {
 		struct vfsmount *mounted;
-		*inode = path->dentry->d_inode;
-
-		if (!d_mountpoint(path->dentry))
-			break;
-
-		mounted = __lookup_mnt(path->mnt, path->dentry, 1);
+		mounted = __lookup_mnt(nd->path.mnt, nd->path.dentry, 1);
 		if (!mounted)
 			break;
-		path->mnt = mounted;
-		path->dentry = mounted->mnt_root;
-		nd->seq = read_seqcount_begin(&path->dentry->d_seq);
+		nd->path.mnt = mounted;
+		nd->path.dentry = mounted->mnt_root;
+		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
 	}
 }
 
 static int follow_dotdot_rcu(struct nameidata *nd)
 {
-	struct inode *inode = nd->inode;
-
 	set_root_rcu(nd);
 
 	while (1) {
@@ -989,7 +981,6 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 			seq = read_seqcount_begin(&parent->d_seq);
 			if (read_seqcount_retry(&old->d_seq, nd->seq))
 				goto failed;
-			inode = parent->d_inode;
 			nd->path.dentry = parent;
 			nd->seq = seq;
 			break;
@@ -997,10 +988,9 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 		if (!follow_up_rcu(&nd->path))
 			break;
 		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
-		inode = nd->path.dentry->d_inode;
 	}
-	follow_mount_rcu(nd, &nd->path, &inode);
-	nd->inode = inode;
+	follow_mount_rcu(nd);
+	nd->inode = nd->path.dentry->d_inode;
 	return 0;
 
 failed:
