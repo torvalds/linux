@@ -11,6 +11,7 @@
 
 #include <linux/i2c.h>
 #include <linux/rtc.h>
+#include <linux/module.h>
 
 #define DRV_VERSION "0.4"
 

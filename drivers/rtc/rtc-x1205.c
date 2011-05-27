@@ -21,6 +21,7 @@
 #include <linux/bcd.h>
 #include <linux/rtc.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 
 #define DRV_VERSION "1.0.8"
 
