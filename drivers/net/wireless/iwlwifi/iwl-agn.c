@@ -2844,6 +2844,9 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 
 		iwl_send_lq_cmd(priv, iwl_rxon_ctx_from_vif(vif),
 				&sta_priv->lq_sta.lq, CMD_ASYNC, false);
+
+		IWL_INFO(priv, "Tx aggregation enabled on ra = %pM tid = %d\n",
+			 sta->addr, tid);
 		ret = 0;
 		break;
 	}

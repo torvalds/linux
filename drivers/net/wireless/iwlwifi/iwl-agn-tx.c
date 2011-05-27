@@ -1033,8 +1033,8 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	if (unlikely(tx_fifo < 0))
 		return tx_fifo;
 
-	IWL_WARN(priv, "%s on ra = %pM tid = %d\n",
-			__func__, sta->addr, tid);
+	IWL_DEBUG_HT(priv, "TX AGG request on ra = %pM tid = %d\n",
+		     sta->addr, tid);
 
 	sta_id = iwl_sta_id(sta);
 	if (sta_id == IWL_INVALID_STATION) {
