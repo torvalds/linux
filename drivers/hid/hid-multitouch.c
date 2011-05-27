@@ -593,6 +593,11 @@ static const struct hid_device_id mt_devices[] = {
 		HID_USB_DEVICE(USB_VENDOR_ID_CANDO,
 			USB_DEVICE_ID_CANDO_MULTI_TOUCH_15_6) },
 
+	/* Chunghwa Telecom touch panels */
+	{  .driver_data = MT_CLS_DEFAULT,
+		HID_USB_DEVICE(USB_VENDOR_ID_CHUNGHWAT,
+			USB_DEVICE_ID_CHUNGHWAT_MULTITOUCH) },
+
 	/* CVTouch panels */
 	{ .driver_data = MT_CLS_DEFAULT,
 		HID_USB_DEVICE(USB_VENDOR_ID_CVTOUCH,
