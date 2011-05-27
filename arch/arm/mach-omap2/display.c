@@ -46,17 +46,6 @@ static struct omap_device_pm_latency omap_dss_latency[] = {
 /* oh_core is used for getting opt-clocks */
 static struct omap_hwmod	*oh_core;
 
-static bool opt_clock_available(const char *clk_role)
-{
-	int i;
-
-	for (i = 0; i < oh_core->opt_clks_cnt; i++) {
-		if (!strcmp(oh_core->opt_clks[i].role, clk_role))
-			return true;
-	}
-	return false;
-}
-
 struct omap_dss_hwmod_data {
 	const char *oh_name;
 	const char *dev_name;
@@ -120,7 +109,6 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 	pdata.board_data = board_data;
 	pdata.board_data->get_context_loss_count =
 		omap_pm_get_dev_context_loss_count;
-	pdata.opt_clock_available = opt_clock_available;
 
 	for (i = 0; i < oh_count; i++) {
 		oh = omap_hwmod_lookup(curr_dss_hwmod[i].oh_name);

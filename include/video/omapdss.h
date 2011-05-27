@@ -258,8 +258,6 @@ static inline int omap_display_init(struct omap_dss_board_info *board_data)
 struct omap_display_platform_data {
 	struct omap_dss_board_info *board_data;
 	/* TODO: Additional members to be added when PM is considered */
-
-	bool (*opt_clock_available)(const char *clk_role);
 };
 
 struct omap_video_timings {
