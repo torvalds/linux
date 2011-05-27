@@ -23,7 +23,8 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
 	req = ceph_mdsc_create_request(mdsc, operation, USE_AUTH_MDS);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	req->r_inode = igrab(inode);
+	req->r_inode = inode;
+	ihold(inode);
 
 	/* mds requires start and length rather than start and end */
 	if (LLONG_MAX == fl->fl_end)

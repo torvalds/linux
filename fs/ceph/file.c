@@ -191,7 +191,8 @@ int ceph_open(struct inode *inode, struct file *file)
 		err = PTR_ERR(req);
 		goto out;
 	}
-	req->r_inode = igrab(inode);
+	req->r_inode = inode;
+	ihold(inode);
 	req->r_num_caps = 1;
 	err = ceph_mdsc_do_request(mdsc, parent_inode, req);
 	if (!err)
