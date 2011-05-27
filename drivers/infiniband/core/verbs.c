@@ -316,6 +316,20 @@ EXPORT_SYMBOL(ib_destroy_srq);
 
 /* Queue pairs */
 
+static void __ib_insert_xrcd_qp(struct ib_xrcd *xrcd, struct ib_qp *qp)
+{
+	mutex_lock(&xrcd->tgt_qp_mutex);
+	list_add(&qp->xrcd_list, &xrcd->tgt_qp_list);
+	mutex_unlock(&xrcd->tgt_qp_mutex);
+}
+
+static void __ib_remove_xrcd_qp(struct ib_xrcd *xrcd, struct ib_qp *qp)
+{
+	mutex_lock(&xrcd->tgt_qp_mutex);
+	list_del(&qp->xrcd_list);
+	mutex_unlock(&xrcd->tgt_qp_mutex);
+}
+
 struct ib_qp *ib_create_qp(struct ib_pd *pd,
 			   struct ib_qp_init_attr *qp_init_attr)
 {
@@ -334,6 +348,7 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 			qp->srq = NULL;
 			qp->xrcd = qp_init_attr->xrcd;
 			atomic_inc(&qp_init_attr->xrcd->usecnt);
+			__ib_insert_xrcd_qp(qp_init_attr->xrcd, qp);
 		} else {
 			if (qp_init_attr->qp_type == IB_QPT_XRC_INI) {
 				qp->recv_cq = NULL;
@@ -730,6 +745,8 @@ int ib_destroy_qp(struct ib_qp *qp)
 	rcq  = qp->recv_cq;
 	srq  = qp->srq;
 	xrcd = qp->xrcd;
+	if (xrcd)
+		__ib_remove_xrcd_qp(xrcd, qp);
 
 	ret = qp->device->destroy_qp(qp);
 	if (!ret) {
@@ -743,11 +760,29 @@ int ib_destroy_qp(struct ib_qp *qp)
 			atomic_dec(&srq->usecnt);
 		if (xrcd)
 			atomic_dec(&xrcd->usecnt);
+	} else if (xrcd) {
+		__ib_insert_xrcd_qp(xrcd, qp);
 	}
 
 	return ret;
 }
 EXPORT_SYMBOL(ib_destroy_qp);
+
+int ib_release_qp(struct ib_qp *qp)
+{
+	unsigned long flags;
+
+	if (qp->qp_type != IB_QPT_XRC_TGT)
+		return -EINVAL;
+
+	spin_lock_irqsave(&qp->device->event_handler_lock, flags);
+	qp->event_handler = NULL;
+	spin_unlock_irqrestore(&qp->device->event_handler_lock, flags);
+
+	atomic_dec(&qp->xrcd->usecnt);
+	return 0;
+}
+EXPORT_SYMBOL(ib_release_qp);
 
 /* Completion queues */
 
@@ -1062,6 +1097,8 @@ struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device)
 	if (!IS_ERR(xrcd)) {
 		xrcd->device = device;
 		atomic_set(&xrcd->usecnt, 0);
+		mutex_init(&xrcd->tgt_qp_mutex);
+		INIT_LIST_HEAD(&xrcd->tgt_qp_list);
 	}
 
 	return xrcd;
@@ -1070,8 +1107,18 @@ EXPORT_SYMBOL(ib_alloc_xrcd);
 
 int ib_dealloc_xrcd(struct ib_xrcd *xrcd)
 {
+	struct ib_qp *qp;
+	int ret;
+
 	if (atomic_read(&xrcd->usecnt))
 		return -EBUSY;
+
+	while (!list_empty(&xrcd->tgt_qp_list)) {
+		qp = list_entry(xrcd->tgt_qp_list.next, struct ib_qp, xrcd_list);
+		ret = ib_destroy_qp(qp);
+		if (ret)
+			return ret;
+	}
 
 	return xrcd->device->dealloc_xrcd(xrcd);
 }

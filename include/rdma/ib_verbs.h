@@ -880,7 +880,10 @@ struct ib_pd {
 
 struct ib_xrcd {
 	struct ib_device       *device;
-	atomic_t          	usecnt; /* count all resources */
+	atomic_t		usecnt; /* count all exposed resources */
+
+	struct mutex		tgt_qp_mutex;
+	struct list_head	tgt_qp_list;
 };
 
 struct ib_ah {
@@ -926,6 +929,7 @@ struct ib_qp {
 	struct ib_cq	       *recv_cq;
 	struct ib_srq	       *srq;
 	struct ib_xrcd	       *xrcd; /* XRC TGT QPs only */
+	struct list_head	xrcd_list;
 	struct ib_uobject      *uobject;
 	void                  (*event_handler)(struct ib_event *, void *);
 	void		       *qp_context;
@@ -1480,6 +1484,17 @@ int ib_query_qp(struct ib_qp *qp,
  * @qp: The QP to destroy.
  */
 int ib_destroy_qp(struct ib_qp *qp);
+
+/**
+ * ib_release_qp - Release an external reference to a QP.
+ * @qp: The QP handle to release
+ *
+ * The specified QP handle is released by the caller.  If the QP is
+ * referenced internally, it is not destroyed until all internal
+ * references are released.  After releasing the qp, the caller
+ * can no longer access it and all events on the QP are discarded.
+ */
+int ib_release_qp(struct ib_qp *qp);
 
 /**
  * ib_post_send - Posts a list of work requests to the send queue of
