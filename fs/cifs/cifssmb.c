@@ -571,18 +571,10 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	if (pSMBr->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
 		memcpy(ses->server->cryptkey, pSMBr->u.EncryptionKey,
 		       CIFS_CRYPTO_KEY_SIZE);
-	} else if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC)
-			&& (pSMBr->EncryptionKeyLength == 0)) {
+	} else if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC ||
+			server->capabilities & CAP_EXTENDED_SECURITY) &&
+				(pSMBr->EncryptionKeyLength == 0)) {
 		/* decode security blob */
-	} else if (server->secMode & SECMODE_PW_ENCRYPT) {
-		rc = -EIO; /* no crypt key only if plain text pwd */
-		goto neg_err_exit;
-	}
-
-	/* BB might be helpful to save off the domain of server here */
-
-	if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC) &&
-		(server->capabilities & CAP_EXTENDED_SECURITY)) {
 		count = get_bcc(&pSMBr->hdr);
 		if (count < 16) {
 			rc = -EIO;
@@ -625,6 +617,9 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 			} else
 					rc = -EOPNOTSUPP;
 		}
+	} else if (server->secMode & SECMODE_PW_ENCRYPT) {
+		rc = -EIO; /* no crypt key only if plain text pwd */
+		goto neg_err_exit;
 	} else
 		server->capabilities &= ~CAP_EXTENDED_SECURITY;
 
