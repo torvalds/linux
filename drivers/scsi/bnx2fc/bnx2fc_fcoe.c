@@ -679,6 +679,9 @@ static void bnx2fc_link_speed_update(struct fc_lport *lport)
 		case SPEED_1000:
 			lport->link_speed = FC_PORTSPEED_1GBIT;
 			break;
+		case SPEED_2500:
+			lport->link_speed = FC_PORTSPEED_2GBIT;
+			break;
 		case SPEED_10000:
 			lport->link_speed = FC_PORTSPEED_10GBIT;
 			break;
