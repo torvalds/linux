@@ -27,7 +27,7 @@ struct usbip_imported_device {
 
 	/* usbip_class_device list */
 	struct dlist *cdev_list;
-	struct usb_device udev;
+	struct usbip_usb_device udev;
 };
 
 struct usbip_vhci_driver {

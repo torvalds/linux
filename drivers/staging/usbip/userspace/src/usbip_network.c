@@ -4,10 +4,10 @@
  */
 
 #include <sys/socket.h>
-#include <arpa/inet.h>
 
 #include <string.h>
 
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/tcp.h>
 #include <unistd.h>
@@ -39,7 +39,7 @@ void pack_uint16_t(int pack, uint16_t *num)
 	*num = i;
 }
 
-void pack_usb_device(int pack, struct usb_device *udev)
+void pack_usb_device(int pack, struct usbip_usb_device *udev)
 {
 	pack_uint32_t(pack, &udev->busnum);
 	pack_uint32_t(pack, &udev->devnum);
@@ -51,7 +51,7 @@ void pack_usb_device(int pack, struct usb_device *udev)
 }
 
 void pack_usb_interface(int pack __attribute__((unused)),
-			struct usb_interface *udev __attribute__((unused)))
+			struct usbip_usb_interface *udev __attribute__((unused)))
 {
 	/* uint8_t members need nothing */
 }
@@ -102,15 +102,15 @@ int usbip_send_op_common(int sockfd, uint32_t code, uint32_t status)
 
 	memset(&op_common, 0, sizeof(op_common));
 
-	op_common.version	= USBIP_VERSION;
-	op_common.code		= code;
-	op_common.status	= status;
+	op_common.version = USBIP_VERSION;
+	op_common.code    = code;
+	op_common.status  = status;
 
 	PACK_OP_COMMON(1, &op_common);
 
 	ret = usbip_send(sockfd, (void *) &op_common, sizeof(op_common));
 	if (ret < 0) {
-		err("send op_common");
+		err("usbip_send has failed");
 		return -1;
 	}
 
@@ -126,7 +126,7 @@ int usbip_recv_op_common(int sockfd, uint16_t *code)
 
 	ret = usbip_recv(sockfd, (void *) &op_common, sizeof(op_common));
 	if (ret < 0) {
-		err("recv op_common, %d", ret);
+		err("usbip_recv has failed ret=%d", ret);
 		goto err;
 	}
 

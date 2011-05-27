@@ -43,7 +43,7 @@ static struct sysfs_driver *open_sysfs_stub_driver(void)
 #define SYSFS_OPEN_RETRIES 100
 
 /* only the first interface value is true! */
-static int32_t read_attr_usbip_status(struct usb_device *udev)
+static int32_t read_attr_usbip_status(struct usbip_usb_device *udev)
 {
 	char attrpath[SYSFS_PATH_MAX];
 	struct sysfs_attribute *attr;
@@ -145,7 +145,8 @@ static struct usbip_exported_device *usbip_exported_device_new(char *sdevpath)
 		goto err;
 
 	/* reallocate buffer to include usb interface data */
-	size_t size = sizeof(*edev) + edev->udev.bNumInterfaces * sizeof(struct usb_interface);
+	size_t size = sizeof(*edev) + edev->udev.bNumInterfaces *
+		sizeof(struct usbip_usb_interface);
 	edev = (struct usbip_exported_device *) realloc(edev, size);
 	if (!edev) {
 		err("alloc device");

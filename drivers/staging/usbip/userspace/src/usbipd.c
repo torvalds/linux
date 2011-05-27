@@ -64,7 +64,7 @@ static int send_reply_devlist(int sockfd)
 	}
 
 	dlist_for_each_data(stub_driver->edev_list, edev, struct usbip_exported_device) {
-		struct usb_device pdu_udev;
+		struct usbip_usb_device pdu_udev;
 
 		dump_usb_device(&edev->udev);
 		memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
@@ -77,7 +77,7 @@ static int send_reply_devlist(int sockfd)
 		}
 
 		for (int i=0; i < edev->udev.bNumInterfaces; i++) {
-			struct usb_interface pdu_uinf;
+			struct usbip_usb_interface pdu_uinf;
 
 			dump_usb_interface(&edev->uinf[i]);
 			memcpy(&pdu_uinf, &edev->uinf[i], sizeof(pdu_uinf));
@@ -167,7 +167,7 @@ static int recv_request_import(int sockfd)
 	}
 
 	if (!error) {
-		struct usb_device pdu_udev;
+		struct usbip_usb_device pdu_udev;
 
 		memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
 		pack_usb_device(1, &pdu_udev);

@@ -73,7 +73,7 @@ static int record_connection(char *host, char *port, char *busid, int rhport)
 	return 0;
 }
 
-static int import_device(int sockfd, struct usb_device *udev)
+static int import_device(int sockfd, struct usbip_usb_device *udev)
 {
 	int rc;
 	int port;

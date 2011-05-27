@@ -64,7 +64,7 @@ const char *usbip_speed_string(int num)
 #define DBG_UINF_INTEGER(name)\
 	dbg("%-20s = %x", to_string(name), (int) uinf->name)
 
-void dump_usb_interface(struct usb_interface *uinf)
+void dump_usb_interface(struct usbip_usb_interface *uinf)
 {
 	char buff[100];
 	usbip_names_get_class(buff, sizeof(buff),
@@ -74,7 +74,7 @@ void dump_usb_interface(struct usb_interface *uinf)
 	dbg("%-20s = %s", "Interface(C/SC/P)", buff);
 }
 
-void dump_usb_device(struct usb_device *udev)
+void dump_usb_device(struct usbip_usb_device *udev)
 {
 	char buff[100];
 
@@ -181,7 +181,7 @@ err:
 	do { (object)->name = (type) read_attr_value(dev, to_string(name), format); } while (0)
 
 
-int read_usb_device(struct sysfs_device *sdev, struct usb_device *udev)
+int read_usb_device(struct sysfs_device *sdev, struct usbip_usb_device *udev)
 {
 	uint32_t busnum, devnum;
 
@@ -209,7 +209,8 @@ int read_usb_device(struct sysfs_device *sdev, struct usb_device *udev)
 	return 0;
 }
 
-int read_usb_interface(struct usb_device *udev, int i, struct usb_interface *uinf)
+int read_usb_interface(struct usbip_usb_device *udev, int i,
+		       struct usbip_usb_interface *uinf)
 {
 	char busid[SYSFS_BUS_ID_SIZE];
 	struct sysfs_device *sif;

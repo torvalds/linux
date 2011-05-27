@@ -56,8 +56,8 @@ struct op_devinfo_request {
 } __attribute__((packed));
 
 struct op_devinfo_reply {
-	struct usb_device udev;
-	struct usb_interface uinf[];
+	struct usbip_usb_device udev;
+	struct usbip_usb_interface uinf[];
 } __attribute__((packed));
 
 /* ---------------------------------------------------------------------- */
@@ -71,8 +71,8 @@ struct op_import_request {
 } __attribute__((packed));
 
 struct op_import_reply {
-	struct usb_device udev;
-//	struct usb_interface uinf[];
+	struct usbip_usb_device udev;
+//	struct usbip_usb_interface uinf[];
 } __attribute__((packed));
 
 #define PACK_OP_IMPORT_REQUEST(pack, request)  do {\
@@ -89,7 +89,7 @@ struct op_import_reply {
 #define OP_REP_EXPORT	(OP_REPLY   | OP_EXPORT)
 
 struct op_export_request {
-	struct usb_device udev;
+	struct usbip_usb_device udev;
 } __attribute__((packed));
 
 struct op_export_reply {
@@ -111,7 +111,7 @@ struct op_export_reply {
 #define OP_REP_UNEXPORT	(OP_REPLY   | OP_UNEXPORT)
 
 struct op_unexport_request {
-	struct usb_device udev;
+	struct usbip_usb_device udev;
 } __attribute__((packed));
 
 struct op_unexport_reply {
@@ -156,8 +156,8 @@ struct op_devlist_reply {
 } __attribute__((packed));
 
 struct op_devlist_reply_extra {
-	struct usb_device    udev;
-	struct usb_interface uinf[];
+	struct usbip_usb_device    udev;
+	struct usbip_usb_interface uinf[];
 } __attribute__((packed));
 
 #define PACK_OP_DEVLIST_REQUEST(pack, request)  do {\
@@ -169,8 +169,8 @@ struct op_devlist_reply_extra {
 
 void pack_uint32_t(int pack, uint32_t *num);
 void pack_uint16_t(int pack, uint16_t *num);
-void pack_usb_device(int pack, struct usb_device *udev);
-void pack_usb_interface(int pack, struct usb_interface *uinf);
+void pack_usb_device(int pack, struct usbip_usb_device *udev);
+void pack_usb_interface(int pack, struct usbip_usb_interface *uinf);
 
 ssize_t usbip_recv(int sockfd, void *buff, size_t bufflen);
 ssize_t usbip_send(int sockfd, void *buff, size_t bufflen);

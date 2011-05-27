@@ -77,13 +77,13 @@ static int query_exported_devices(int sockfd)
 	for (unsigned int i=0; i < rep.ndev; i++) {
 		char product_name[100];
 		char class_name[100];
-		struct usb_device udev;
+		struct usbip_usb_device udev;
 
 		memset(&udev, 0, sizeof(udev));
 
 		ret = usbip_recv(sockfd, (void *) &udev, sizeof(udev));
 		if (ret < 0) {
-			err("recv usb_device[%d]", i);
+			err("recv usbip_usb_device[%d]", i);
 			return -1;
 		}
 		pack_usb_device(0, &udev);
@@ -99,11 +99,11 @@ static int query_exported_devices(int sockfd)
 		printf("%8s: %s\n", " ", class_name);
 
 		for (int j=0; j < udev.bNumInterfaces; j++) {
-			struct usb_interface uinf;
+			struct usbip_usb_interface uinf;
 
 			ret = usbip_recv(sockfd, (void *) &uinf, sizeof(uinf));
 			if (ret < 0) {
-				err("recv usb_interface[%d]", j);
+				err("recv usbip_usb_interface[%d]", j);
 				return -1;
 			}
 
