@@ -102,7 +102,7 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
 	 * UBIFS has to fully control "clean <-> dirty" transitions of inodes
 	 * to make budgeting work.
 	 */
-	inode->i_flags |= (S_NOCMTIME);
+	inode->i_flags |= S_NOCMTIME;
 
 	inode_init_owner(inode, dir, mode);
 	inode->i_mtime = inode->i_atime = inode->i_ctime =
