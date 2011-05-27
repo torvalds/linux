@@ -411,25 +411,35 @@ static struct ip_vs_app ip_vs_ftp = {
 static int __net_init __ip_vs_ftp_init(struct net *net)
 {
 	int i, ret;
-	struct ip_vs_app *app = &ip_vs_ftp;
+	struct ip_vs_app *app;
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	app = kmemdup(&ip_vs_ftp, sizeof(struct ip_vs_app), GFP_KERNEL);
+	if (!app)
+		return -ENOMEM;
+	INIT_LIST_HEAD(&app->a_list);
+	INIT_LIST_HEAD(&app->incs_list);
+	ipvs->ftp_app = app;
 
 	ret = register_ip_vs_app(net, app);
 	if (ret)
-		return ret;
+		goto err_exit;
 
 	for (i=0; i<IP_VS_APP_MAX_PORTS; i++) {
 		if (!ports[i])
 			continue;
 		ret = register_ip_vs_app_inc(net, app, app->protocol, ports[i]);
 		if (ret)
-			break;
+			goto err_unreg;
 		pr_info("%s: loaded support on port[%d] = %d\n",
 			app->name, i, ports[i]);
 	}
+	return 0;
 
-	if (ret)
-		unregister_ip_vs_app(net, app);
-
+err_unreg:
+	unregister_ip_vs_app(net, app);
+err_exit:
+	kfree(ipvs->ftp_app);
 	return ret;
 }
 /*
@@ -437,9 +447,10 @@ static int __net_init __ip_vs_ftp_init(struct net *net)
  */
 static void __ip_vs_ftp_exit(struct net *net)
 {
-	struct ip_vs_app *app = &ip_vs_ftp;
+	struct netns_ipvs *ipvs = net_ipvs(net);
 
-	unregister_ip_vs_app(net, app);
+	unregister_ip_vs_app(net, ipvs->ftp_app);
+	kfree(ipvs->ftp_app);
 }
 
 static struct pernet_operations ip_vs_ftp_ops = {

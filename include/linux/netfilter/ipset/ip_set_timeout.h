@@ -45,7 +45,7 @@ ip_set_timeout_test(unsigned long timeout)
 {
 	return timeout != IPSET_ELEM_UNSET &&
 	       (timeout == IPSET_ELEM_PERMANENT ||
-		time_after(timeout, jiffies));
+		time_is_after_jiffies(timeout));
 }
 
 static inline bool
@@ -53,7 +53,7 @@ ip_set_timeout_expired(unsigned long timeout)
 {
 	return timeout != IPSET_ELEM_UNSET &&
 	       timeout != IPSET_ELEM_PERMANENT &&
-	       time_before(timeout, jiffies);
+	       time_is_before_jiffies(timeout);
 }
 
 static inline unsigned long
@@ -64,7 +64,7 @@ ip_set_timeout_set(u32 timeout)
 	if (!timeout)
 		return IPSET_ELEM_PERMANENT;
 
-	t = timeout * HZ + jiffies;
+	t = msecs_to_jiffies(timeout * 1000) + jiffies;
 	if (t == IPSET_ELEM_UNSET || t == IPSET_ELEM_PERMANENT)
 		/* Bingo! */
 		t++;
@@ -75,7 +75,8 @@ ip_set_timeout_set(u32 timeout)
 static inline u32
 ip_set_timeout_get(unsigned long timeout)
 {
-	return timeout == IPSET_ELEM_PERMANENT ? 0 : (timeout - jiffies)/HZ;
+	return timeout == IPSET_ELEM_PERMANENT ? 0 : 
+		jiffies_to_msecs(timeout - jiffies)/1000;
 }
 
 #else
@@ -89,14 +90,14 @@ static inline bool
 ip_set_timeout_test(unsigned long timeout)
 {
 	return timeout == IPSET_ELEM_PERMANENT ||
-	       time_after(timeout, jiffies);
+	       time_is_after_jiffies(timeout);
 }
 
 static inline bool
 ip_set_timeout_expired(unsigned long timeout)
 {
 	return timeout != IPSET_ELEM_PERMANENT &&
-	       time_before(timeout, jiffies);
+	       time_is_before_jiffies(timeout);
 }
 
 static inline unsigned long
@@ -107,7 +108,7 @@ ip_set_timeout_set(u32 timeout)
 	if (!timeout)
 		return IPSET_ELEM_PERMANENT;
 
-	t = timeout * HZ + jiffies;
+	t = msecs_to_jiffies(timeout * 1000) + jiffies;
 	if (t == IPSET_ELEM_PERMANENT)
 		/* Bingo! :-) */
 		t++;
@@ -118,7 +119,8 @@ ip_set_timeout_set(u32 timeout)
 static inline u32
 ip_set_timeout_get(unsigned long timeout)
 {
-	return timeout == IPSET_ELEM_PERMANENT ? 0 : (timeout - jiffies)/HZ;
+	return timeout == IPSET_ELEM_PERMANENT ? 0 :
+		jiffies_to_msecs(timeout - jiffies)/1000;
 }
 #endif /* ! IP_SET_BITMAP_TIMEOUT */
 
