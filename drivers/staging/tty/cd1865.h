@@ -32,7 +32,7 @@
 #define SX_ID           0x10
 
 /* Definitions for Cirrus Logic CL-CD186x 8-port async mux chip */
- 
+
 #define CD186x_NCH       8       /* Total number of channels                */
 #define CD186x_TPC       16      /* Ticks per character                     */
 #define CD186x_NFIFO	 8	 /* TX FIFO size                            */
@@ -95,7 +95,7 @@
 
 
 /* Global Interrupt Channel Register (R/W) */
- 
+
 #define GICR_CHAN       0x1c    /* Channel Number Mask                     */
 #define GICR_CHAN_OFF   2       /* Channel Number shift                    */
 
