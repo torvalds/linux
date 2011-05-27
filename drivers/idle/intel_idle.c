@@ -61,6 +61,7 @@
 #include <linux/sched.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
+#include <linux/module.h>
 #include <asm/mwait.h>
 #include <asm/msr.h>
 
