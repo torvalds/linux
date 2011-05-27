@@ -338,8 +338,8 @@ wl1271_scan_get_sched_scan_channels(struct wl1271 *wl,
 		flags = req->channels[i]->flags;
 
 		if (!(flags & IEEE80211_CHAN_DISABLED) &&
-		    ((flags & IEEE80211_CHAN_PASSIVE_SCAN) == passive) &&
-		    ((flags & IEEE80211_CHAN_RADAR) == radar) &&
+		    (!!(flags & IEEE80211_CHAN_PASSIVE_SCAN) == passive) &&
+		    (!!(flags & IEEE80211_CHAN_RADAR) == radar) &&
 		    (req->channels[i]->band == band)) {
 			wl1271_debug(DEBUG_SCAN, "band %d, center_freq %d ",
 				     req->channels[i]->band,
