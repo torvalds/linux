@@ -580,10 +580,10 @@ extern void ixgbe_clear_rscctl(struct ixgbe_adapter *adapter,
                                struct ixgbe_ring *ring);
 extern void ixgbe_set_rx_mode(struct net_device *netdev);
 extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
+extern void ixgbe_tx_ctxtdesc(struct ixgbe_ring *, u32, u32, u32, u32);
 #ifdef IXGBE_FCOE
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
-extern int ixgbe_fso(struct ixgbe_adapter *adapter,
-                     struct ixgbe_ring *tx_ring, struct sk_buff *skb,
+extern int ixgbe_fso(struct ixgbe_ring *tx_ring, struct sk_buff *skb,
                      u32 tx_flags, u8 *hdr_len);
 extern void ixgbe_cleanup_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
