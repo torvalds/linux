@@ -238,6 +238,9 @@ static ssize_t overlay_global_alpha_store(struct omap_overlay *ovl,
 	u8 alpha;
 	struct omap_overlay_info info;
 
+	if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
+		return -ENODEV;
+
 	r = kstrtou8(buf, 0, &alpha);
 	if (r)
 		return r;

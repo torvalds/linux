@@ -52,6 +52,9 @@ enum dss_feat_id {
 	FEAT_HANDLE_UV_SEPARATE         = 1 << 20,
 	FEAT_ATTR2                      = 1 << 21,
 	FEAT_VENC_REQUIRES_TV_DAC_CLK	= 1 << 22,
+	FEAT_CPR			= 1 << 23,
+	FEAT_PRELOAD			= 1 << 24,
+	FEAT_FIR_COEF_V			= 1 << 25,
 };
 
 /* DSS register field id */
