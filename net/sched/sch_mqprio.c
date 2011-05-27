@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
+#include <linux/module.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/sch_generic.h>

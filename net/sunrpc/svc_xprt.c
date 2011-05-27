@@ -14,6 +14,7 @@
 #include <linux/sunrpc/svc_xprt.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/sunrpc/xprt.h>
+#include <linux/module.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
