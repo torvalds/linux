@@ -1540,9 +1540,9 @@ static const struct block_device_operations lo_fops = {
  * And now the modules code and kernel interface.
  */
 static int max_loop;
-module_param(max_loop, int, 0);
+module_param(max_loop, int, S_IRUGO);
 MODULE_PARM_DESC(max_loop, "Maximum number of loop devices");
-module_param(max_part, int, 0);
+module_param(max_part, int, S_IRUGO);
 MODULE_PARM_DESC(max_part, "Maximum number of partitions per loop device");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_BLOCKDEV_MAJOR(LOOP_MAJOR);
@@ -1688,8 +1688,19 @@ static int __init loop_init(void)
 	 */
 
 	part_shift = 0;
-	if (max_part > 0)
+	if (max_part > 0) {
 		part_shift = fls(max_part);
+
+		/*
+		 * Adjust max_part according to part_shift as it is exported
+		 * to user space so that user can decide correct minor number
+		 * if [s]he want to create more devices.
+		 *
+		 * Note that -1 is required because partition 0 is reserved
+		 * for the whole disk.
+		 */
+		max_part = (1UL << part_shift) - 1;
+	}
 
 	if ((1UL << part_shift) > DISK_MAX_PARTS)
 		return -EINVAL;
