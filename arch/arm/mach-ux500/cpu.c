@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/mfd/db8500-prcmu.h>
 #include <linux/mfd/db5500-prcmu.h>
+#include <linux/clksrc-dbx500-prcmu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -140,7 +141,15 @@ static void __init ux500_timer_init(void)
 	else
 		ux500_unknown_soc();
 
+	if (cpu_is_u8500())
+		clksrc_dbx500_timer_base = __io_address(U8500_PRCMU_TIMER_4_BASE);
+	else if (cpu_is_u5500())
+		clksrc_dbx500_timer_base = __io_address(U5500_PRCMU_TIMER_3_BASE);
+	else
+		ux500_unknown_soc();
+
 	nmdk_timer_init();
+	clksrc_dbx500_prcmu_init();
 }
 
 struct sys_timer ux500_timer = {
