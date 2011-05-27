@@ -919,12 +919,11 @@ static inline bool managed_dentry_might_block(struct dentry *dentry)
 }
 
 /*
- * Skip to top of mountpoint pile in rcuwalk mode.  We abort the rcu-walk if we
- * meet a managed dentry and we're not walking to "..".  True is returned to
- * continue, false to abort.
+ * Try to skip to top of mountpoint pile in rcuwalk mode.  Fail if
+ * we meet a managed dentry that would need blocking.
  */
 static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
-			       struct inode **inode, bool reverse_transit)
+			       struct inode **inode)
 {
 	for (;;) {
 		struct vfsmount *mounted;
@@ -933,8 +932,7 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		 * that wants to block transit.
 		 */
 		*inode = path->dentry->d_inode;
-		if (!reverse_transit &&
-		     unlikely(managed_dentry_might_block(path->dentry)))
+		if (unlikely(managed_dentry_might_block(path->dentry)))
 			return false;
 
 		if (!d_mountpoint(path->dentry))
@@ -949,8 +947,27 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 	}
 
 	if (unlikely(path->dentry->d_flags & DCACHE_NEED_AUTOMOUNT))
-		return reverse_transit;
+		return false;
 	return true;
+}
+
+static void follow_mount_rcu(struct nameidata *nd, struct path *path,
+			       struct inode **inode)
+{
+	for (;;) {
+		struct vfsmount *mounted;
+		*inode = path->dentry->d_inode;
+
+		if (!d_mountpoint(path->dentry))
+			break;
+
+		mounted = __lookup_mnt(path->mnt, path->dentry, 1);
+		if (!mounted)
+			break;
+		path->mnt = mounted;
+		path->dentry = mounted->mnt_root;
+		nd->seq = read_seqcount_begin(&path->dentry->d_seq);
+	}
 }
 
 static int follow_dotdot_rcu(struct nameidata *nd)
@@ -982,7 +999,7 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
 		inode = nd->path.dentry->d_inode;
 	}
-	__follow_mount_rcu(nd, &nd->path, &inode, true);
+	follow_mount_rcu(nd, &nd->path, &inode);
 	nd->inode = inode;
 	return 0;
 
@@ -1157,7 +1174,7 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 		}
 		path->mnt = mnt;
 		path->dentry = dentry;
-		if (likely(__follow_mount_rcu(nd, path, inode, false)))
+		if (likely(__follow_mount_rcu(nd, path, inode)))
 			return 0;
 unlazy:
 		if (unlazy_walk(nd, dentry))
