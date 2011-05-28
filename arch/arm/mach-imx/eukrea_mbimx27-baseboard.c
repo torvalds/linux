@@ -112,7 +112,7 @@ eukrea_mbimx27_keymap_data __initconst = {
 	.keymap_size    = ARRAY_SIZE(eukrea_mbimx27_keymap),
 };
 
-static struct gpio_led gpio_leds[] = {
+static const struct gpio_led eukrea_mbimx27_gpio_leds[] __initconst = {
 	{
 		.name			= "led1",
 		.default_trigger	= "heartbeat",
@@ -127,17 +127,10 @@ static struct gpio_led gpio_leds[] = {
 	},
 };
 
-static struct gpio_led_platform_data gpio_led_info = {
-	.leds		= gpio_leds,
-	.num_leds	= ARRAY_SIZE(gpio_leds),
-};
-
-static struct platform_device leds_gpio = {
-	.name	= "leds-gpio",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &gpio_led_info,
-	},
+static const struct gpio_led_platform_data
+		eukrea_mbimx27_gpio_led_info __initconst = {
+	.leds		= eukrea_mbimx27_gpio_leds,
+	.num_leds	= ARRAY_SIZE(eukrea_mbimx27_gpio_leds),
 };
 
 static struct imx_fb_videomode eukrea_mbimx27_modes[] = {
@@ -293,10 +286,6 @@ static struct i2c_board_info eukrea_mbimx27_i2c_devices[] = {
 	},
 };
 
-static struct platform_device *platform_devices[] __initdata = {
-	&leds_gpio,
-};
-
 static const struct imxmmc_platform_data sdhc_pdata __initconst = {
 	.dat3_card_detect = 1,
 };
@@ -377,5 +366,5 @@ void __init eukrea_mbimx27_baseboard_init(void)
 
 	imx27_add_imx_keypad(&eukrea_mbimx27_keymap_data);
 
-	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	gpio_led_register_device(-1, &eukrea_mbimx27_gpio_led_info);
 }
