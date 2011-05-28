@@ -405,6 +405,7 @@ out:
 struct anon_vma *page_lock_anon_vma(struct page *page)
 {
 	struct anon_vma *anon_vma = NULL;
+	struct anon_vma *root_anon_vma;
 	unsigned long anon_mapping;
 
 	rcu_read_lock();
@@ -415,13 +416,15 @@ struct anon_vma *page_lock_anon_vma(struct page *page)
 		goto out;
 
 	anon_vma = (struct anon_vma *) (anon_mapping - PAGE_MAPPING_ANON);
-	if (mutex_trylock(&anon_vma->root->mutex)) {
+	root_anon_vma = ACCESS_ONCE(anon_vma->root);
+	if (mutex_trylock(&root_anon_vma->mutex)) {
 		/*
-		 * If we observe a !0 refcount, then holding the lock ensures
-		 * the anon_vma will not go away, see __put_anon_vma().
+		 * If the page is still mapped, then this anon_vma is still
+		 * its anon_vma, and holding the mutex ensures that it will
+		 * not go away, see __put_anon_vma().
 		 */
-		if (!atomic_read(&anon_vma->refcount)) {
-			anon_vma_unlock(anon_vma);
+		if (!page_mapped(page)) {
+			mutex_unlock(&root_anon_vma->mutex);
 			anon_vma = NULL;
 		}
 		goto out;
