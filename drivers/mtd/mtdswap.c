@@ -1374,11 +1374,10 @@ static int mtdswap_init(struct mtdswap_dev *d, unsigned int eblocks,
 		goto revmap_fail;
 
 	eblk_bytes = sizeof(struct swap_eb)*d->eblks;
-	d->eb_data = vmalloc(eblk_bytes);
+	d->eb_data = vzalloc(eblk_bytes);
 	if (!d->eb_data)
 		goto eb_data_fail;
 
-	memset(d->eb_data, 0, eblk_bytes);
 	for (i = 0; i < pages; i++)
 		d->page_data[i] = BLOCK_UNDEF;
 
