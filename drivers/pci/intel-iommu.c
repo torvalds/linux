@@ -46,6 +46,8 @@
 #define ROOT_SIZE		VTD_PAGE_SIZE
 #define CONTEXT_SIZE		VTD_PAGE_SIZE
 
+#define IS_BRIDGE_HOST_DEVICE(pdev) \
+			    ((pdev->class >> 8) == PCI_CLASS_BRIDGE_HOST)
 #define IS_GFX_DEVICE(pdev) ((pdev->class >> 16) == PCI_BASE_CLASS_DISPLAY)
 #define IS_ISA_DEVICE(pdev) ((pdev->class >> 8) == PCI_CLASS_BRIDGE_ISA)
 #define IS_AZALIA(pdev) ((pdev)->vendor == 0x8086 && (pdev)->device == 0x3a3e)
@@ -2343,6 +2345,9 @@ static int __init iommu_prepare_static_identity_mapping(int hw)
 		return -EFAULT;
 
 	for_each_pci_dev(pdev) {
+		/* Skip Host/PCI Bridge devices */
+		if (IS_BRIDGE_HOST_DEVICE(pdev))
+			continue;
 		if (iommu_should_identity_map(pdev, 1)) {
 			printk(KERN_INFO "IOMMU: %s identity mapping for device %s\n",
 			       hw ? "hardware" : "software", pci_name(pdev));
