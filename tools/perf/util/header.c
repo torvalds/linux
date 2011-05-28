@@ -193,9 +193,13 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 	     *linkname = malloc(size), *targetname;
 	int len, err = -1;
 
-	if (is_kallsyms)
+	if (is_kallsyms) {
+		if (symbol_conf.kptr_restrict) {
+			pr_debug("Not caching a kptr_restrict'ed /proc/kallsyms\n");
+			return 0;
+		}
 		realname = (char *)name;
-	else
+	} else
 		realname = realpath(name, NULL);
 
 	if (realname == NULL || filename == NULL || linkname == NULL)
