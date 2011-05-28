@@ -3537,8 +3537,8 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 	spin_lock_irqsave(&device_domain_lock, flags);
 	list_for_each_safe(entry, tmp, &domain->devices) {
 		info = list_entry(entry, struct device_domain_info, link);
-		/* No need to compare PCI domain; it has to be the same */
-		if (info->bus == pdev->bus->number &&
+		if (info->segment == pci_domain_nr(pdev->bus) &&
+		    info->bus == pdev->bus->number &&
 		    info->devfn == pdev->devfn) {
 			list_del(&info->link);
 			list_del(&info->global);
