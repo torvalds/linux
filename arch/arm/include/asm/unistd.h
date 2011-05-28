@@ -400,6 +400,7 @@
 #define __NR_open_by_handle_at		(__NR_SYSCALL_BASE+371)
 #define __NR_clock_adjtime		(__NR_SYSCALL_BASE+372)
 #define __NR_syncfs			(__NR_SYSCALL_BASE+373)
+#define __NR_sendmmsg			(__NR_SYSCALL_BASE+374)
 
 /*
  * The following SWIs are ARM private.
