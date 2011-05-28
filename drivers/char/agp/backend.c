@@ -171,7 +171,7 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 	}
 	got_gatt = 1;
 
-	bridge->key_list = vmalloc(PAGE_SIZE * 4);
+	bridge->key_list = vzalloc(PAGE_SIZE * 4);
 	if (bridge->key_list == NULL) {
 		dev_err(&bridge->dev->dev,
 			"can't allocate memory for key lists\n");
@@ -181,7 +181,6 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 	got_keylist = 1;
 
 	/* FIXME vmalloc'd memory not guaranteed contiguous */
-	memset(bridge->key_list, 0, PAGE_SIZE * 4);
 
 	if (bridge->driver->configure()) {
 		dev_err(&bridge->dev->dev, "error configuring host chipset\n");
