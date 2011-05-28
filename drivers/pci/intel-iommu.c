@@ -2316,8 +2316,19 @@ static int iommu_should_identity_map(struct pci_dev *pdev, int startup)
 	 * Assume that they will -- if they turn out not to be, then we can 
 	 * take them out of the 1:1 domain later.
 	 */
-	if (!startup)
-		return pdev->dma_mask > DMA_BIT_MASK(32);
+	if (!startup) {
+		/*
+		 * If the device's dma_mask is less than the system's memory
+		 * size then this is not a candidate for identity mapping.
+		 */
+		u64 dma_mask = pdev->dma_mask;
+
+		if (pdev->dev.coherent_dma_mask &&
+		    pdev->dev.coherent_dma_mask < dma_mask)
+			dma_mask = pdev->dev.coherent_dma_mask;
+
+		return dma_mask >= dma_get_required_mask(&pdev->dev);
+	}
 
 	return 1;
 }
