@@ -1323,6 +1323,36 @@ struct kvm_lapic_state {
 Copies the input argument into the the Local APIC registers.  The data format
 and layout are the same as documented in the architecture manual.
 
+4.56 KVM_IOEVENTFD
+
+Capability: KVM_CAP_IOEVENTFD
+Architectures: all
+Type: vm ioctl
+Parameters: struct kvm_ioeventfd (in)
+Returns: 0 on success, !0 on error
+
+This ioctl attaches or detaches an ioeventfd to a legal pio/mmio address
+within the guest.  A guest write in the registered address will signal the
+provided event instead of triggering an exit.
+
+struct kvm_ioeventfd {
+	__u64 datamatch;
+	__u64 addr;        /* legal pio/mmio address */
+	__u32 len;         /* 1, 2, 4, or 8 bytes    */
+	__s32 fd;
+	__u32 flags;
+	__u8  pad[36];
+};
+
+The following flags are defined:
+
+#define KVM_IOEVENTFD_FLAG_DATAMATCH (1 << kvm_ioeventfd_flag_nr_datamatch)
+#define KVM_IOEVENTFD_FLAG_PIO       (1 << kvm_ioeventfd_flag_nr_pio)
+#define KVM_IOEVENTFD_FLAG_DEASSIGN  (1 << kvm_ioeventfd_flag_nr_deassign)
+
+If datamatch flag is set, the event will be signaled only if the written value
+to the registered address is equal to datamatch in struct kvm_ioeventfd.
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by
