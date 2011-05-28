@@ -319,11 +319,12 @@
 #define __NR_open_by_handle_at  	1327
 #define __NR_clock_adjtime		1328
 #define __NR_syncfs			1329
+#define __NR_setns			1330
 
 #ifdef __KERNEL__
 
 
-#define NR_syscalls			306 /* length of syscall table */
+#define NR_syscalls			307 /* length of syscall table */
 
 /*
  * The following defines stop scripts/checksyscalls.sh from complaining about

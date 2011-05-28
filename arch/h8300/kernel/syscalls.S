@@ -333,6 +333,7 @@ SYMBOL_NAME_LABEL(sys_call_table)
 	.long SYMBOL_NAME(sys_ni_syscall)	/* sys_move_pages */
 	.long SYMBOL_NAME(sys_getcpu)
 	.long SYMBOL_NAME(sys_ni_syscall)	/* sys_epoll_pwait */
+	.long SYMBOL_NAME(sys_setns)		/* 320 */
 
 	.macro	call_sp addr
 	mov.l	#SYMBOL_NAME(\addr),er6

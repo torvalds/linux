@@ -401,6 +401,7 @@
 #define __NR_clock_adjtime		(__NR_SYSCALL_BASE+372)
 #define __NR_syncfs			(__NR_SYSCALL_BASE+373)
 #define __NR_sendmmsg			(__NR_SYSCALL_BASE+374)
+#define __NR_setns			(__NR_SYSCALL_BASE+375)
 
 /*
  * The following SWIs are ARM private.
