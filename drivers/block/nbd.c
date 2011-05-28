@@ -192,7 +192,8 @@ static int sock_xmit(struct nbd_device *lo, int send, void *buf, int size,
 			if (lo->xmit_timeout)
 				del_timer_sync(&ti);
 		} else
-			result = kernel_recvmsg(sock, &msg, &iov, 1, size, 0);
+			result = kernel_recvmsg(sock, &msg, &iov, 1, size,
+						msg.msg_flags);
 
 		if (signal_pending(current)) {
 			siginfo_t info;
