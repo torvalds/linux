@@ -172,6 +172,11 @@ static struct imxi2c_platform_data babbage_hsi2c_data = {
 	.bitrate = 400000,
 };
 
+static struct gpio mx51_babbage_usbh1_gpios[] = {
+	{ BABBAGE_USBH1_STP, GPIOF_OUT_INIT_LOW, "usbh1_stp" },
+	{ BABBAGE_USB_PHY_RESET, GPIOF_OUT_INIT_LOW, "usbh1_phy_reset" },
+};
+
 static int gpio_usbh1_active(void)
 {
 	iomux_v3_cfg_t usbh1stp_gpio = MX51_PAD_USBH1_STP__GPIO1_27;
@@ -179,25 +184,19 @@ static int gpio_usbh1_active(void)
 
 	/* Set USBH1_STP to GPIO and toggle it */
 	mxc_iomux_v3_setup_pad(usbh1stp_gpio);
-	ret = gpio_request(BABBAGE_USBH1_STP, "usbh1_stp");
+	ret = gpio_request_array(mx51_babbage_usbh1_gpios,
+					ARRAY_SIZE(mx51_babbage_usbh1_gpios));
 
 	if (ret) {
-		pr_debug("failed to get MX51_PAD_USBH1_STP__GPIO_1_27: %d\n", ret);
+		pr_debug("failed to get USBH1 pins: %d\n", ret);
 		return ret;
 	}
-	gpio_direction_output(BABBAGE_USBH1_STP, 0);
-	gpio_set_value(BABBAGE_USBH1_STP, 1);
+
 	msleep(100);
-	gpio_free(BABBAGE_USBH1_STP);
-
-	/* De-assert USB PHY RESETB */
-	ret = gpio_request(BABBAGE_USB_PHY_RESET, "phy_reset");
-
-	if (ret) {
-		pr_debug("failed to get MX51_PAD_EIM_D21__GPIO_2_5: %d\n", ret);
-		return ret;
-	}
-	gpio_direction_output(BABBAGE_USB_PHY_RESET, 1);
+	gpio_set_value(BABBAGE_USBH1_STP, 1);
+	gpio_set_value(BABBAGE_USB_PHY_RESET, 1);
+	gpio_free_array(mx51_babbage_usbh1_gpios,
+					ARRAY_SIZE(mx51_babbage_usbh1_gpios));
 	return 0;
 }
 
