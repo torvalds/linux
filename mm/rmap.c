@@ -1014,7 +1014,7 @@ void do_page_add_anon_rmap(struct page *page,
 		return;
 
 	VM_BUG_ON(!PageLocked(page));
-	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+	/* address might be in next vma when migration races vma_adjust */
 	if (first)
 		__page_set_anon_rmap(page, vma, address, exclusive);
 	else
@@ -1709,7 +1709,7 @@ void hugepage_add_anon_rmap(struct page *page,
 
 	BUG_ON(!PageLocked(page));
 	BUG_ON(!anon_vma);
-	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+	/* address might be in next vma when migration races vma_adjust */
 	first = atomic_inc_and_test(&page->_mapcount);
 	if (first)
 		__hugepage_set_anon_rmap(page, vma, address, 0);
