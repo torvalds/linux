@@ -93,7 +93,7 @@ __le64 *squashfs_read_id_index_table(struct super_block *sb,
 	 * table[0] points to the first id lookup table metadata block, this
 	 * should be less than id_table_start
 	 */
-	if (!IS_ERR(table) && table[0] >= id_table_start) {
+	if (!IS_ERR(table) && le64_to_cpu(table[0]) >= id_table_start) {
 		kfree(table);
 		return ERR_PTR(-EINVAL);
 	}
