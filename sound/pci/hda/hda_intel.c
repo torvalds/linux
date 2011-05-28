@@ -1085,7 +1085,7 @@ static void azx_init_pci(struct azx *chip)
 	 * codecs.
 	 * The PCI register TCSEL is defined in the Intel manuals.
 	 */
-	if (chip->driver_caps & AZX_DCAPS_NO_TCSEL) {
+	if (!(chip->driver_caps & AZX_DCAPS_NO_TCSEL)) {
 		snd_printdd(SFX "Clearing TCSEL\n");
 		update_pci_byte(chip->pci, ICH6_PCIREG_TCSEL, 0x07, 0);
 	}
