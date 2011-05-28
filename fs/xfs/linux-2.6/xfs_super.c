@@ -925,7 +925,8 @@ xfs_fs_inode_init_once(
  */
 STATIC void
 xfs_fs_dirty_inode(
-	struct inode	*inode)
+	struct inode	*inode,
+	int		flags)
 {
 	barrier();
 	XFS_I(inode)->i_update_core = 1;

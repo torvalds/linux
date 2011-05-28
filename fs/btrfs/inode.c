@@ -4294,7 +4294,7 @@ int btrfs_write_inode(struct inode *inode, struct writeback_control *wbc)
  * FIXME, needs more benchmarking...there are no reasons other than performance
  * to keep or drop this code.
  */
-void btrfs_dirty_inode(struct inode *inode)
+void btrfs_dirty_inode(struct inode *inode, int flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;

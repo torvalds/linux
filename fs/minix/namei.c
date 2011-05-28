@@ -168,8 +168,6 @@ static int minix_rmdir(struct inode * dir, struct dentry *dentry)
 	struct inode * inode = dentry->d_inode;
 	int err = -ENOTEMPTY;
 
-	dentry_unhash(dentry);
-
 	if (minix_empty_dir(inode)) {
 		err = minix_unlink(dir, dentry);
 		if (!err) {
@@ -191,9 +189,6 @@ static int minix_rename(struct inode * old_dir, struct dentry *old_dentry,
 	struct page * old_page;
 	struct minix_dir_entry * old_de;
 	int err = -ENOENT;
-
-	if (new_inode && S_ISDIR(new_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	old_de = minix_find_entry(old_dentry, &old_page);
 	if (!old_de)

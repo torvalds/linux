@@ -919,12 +919,11 @@ static inline bool managed_dentry_might_block(struct dentry *dentry)
 }
 
 /*
- * Skip to top of mountpoint pile in rcuwalk mode.  We abort the rcu-walk if we
- * meet a managed dentry and we're not walking to "..".  True is returned to
- * continue, false to abort.
+ * Try to skip to top of mountpoint pile in rcuwalk mode.  Fail if
+ * we meet a managed dentry that would need blocking.
  */
 static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
-			       struct inode **inode, bool reverse_transit)
+			       struct inode **inode)
 {
 	for (;;) {
 		struct vfsmount *mounted;
@@ -933,8 +932,7 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		 * that wants to block transit.
 		 */
 		*inode = path->dentry->d_inode;
-		if (!reverse_transit &&
-		     unlikely(managed_dentry_might_block(path->dentry)))
+		if (unlikely(managed_dentry_might_block(path->dentry)))
 			return false;
 
 		if (!d_mountpoint(path->dentry))
@@ -947,16 +945,24 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		path->dentry = mounted->mnt_root;
 		nd->seq = read_seqcount_begin(&path->dentry->d_seq);
 	}
-
-	if (unlikely(path->dentry->d_flags & DCACHE_NEED_AUTOMOUNT))
-		return reverse_transit;
 	return true;
+}
+
+static void follow_mount_rcu(struct nameidata *nd)
+{
+	while (d_mountpoint(nd->path.dentry)) {
+		struct vfsmount *mounted;
+		mounted = __lookup_mnt(nd->path.mnt, nd->path.dentry, 1);
+		if (!mounted)
+			break;
+		nd->path.mnt = mounted;
+		nd->path.dentry = mounted->mnt_root;
+		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
+	}
 }
 
 static int follow_dotdot_rcu(struct nameidata *nd)
 {
-	struct inode *inode = nd->inode;
-
 	set_root_rcu(nd);
 
 	while (1) {
@@ -972,7 +978,6 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 			seq = read_seqcount_begin(&parent->d_seq);
 			if (read_seqcount_retry(&old->d_seq, nd->seq))
 				goto failed;
-			inode = parent->d_inode;
 			nd->path.dentry = parent;
 			nd->seq = seq;
 			break;
@@ -980,10 +985,9 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 		if (!follow_up_rcu(&nd->path))
 			break;
 		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
-		inode = nd->path.dentry->d_inode;
 	}
-	__follow_mount_rcu(nd, &nd->path, &inode, true);
-	nd->inode = inode;
+	follow_mount_rcu(nd);
+	nd->inode = nd->path.dentry->d_inode;
 	return 0;
 
 failed:
@@ -1157,8 +1161,11 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 		}
 		path->mnt = mnt;
 		path->dentry = dentry;
-		if (likely(__follow_mount_rcu(nd, path, inode, false)))
-			return 0;
+		if (unlikely(!__follow_mount_rcu(nd, path, inode)))
+			goto unlazy;
+		if (unlikely(path->dentry->d_flags & DCACHE_NEED_AUTOMOUNT))
+			goto unlazy;
+		return 0;
 unlazy:
 		if (unlazy_walk(nd, dentry))
 			return -ECHILD;

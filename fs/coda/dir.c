@@ -336,8 +336,6 @@ static int coda_rmdir(struct inode *dir, struct dentry *de)
 	int len = de->d_name.len;
 	int error;
 
-	dentry_unhash(de);
-
 	error = venus_rmdir(dir->i_sb, coda_i2f(dir), name, len);
 	if (!error) {
 		/* VFS may delete the child */
@@ -360,9 +358,6 @@ static int coda_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int old_length = old_dentry->d_name.len;
 	int new_length = new_dentry->d_name.len;
 	int error;
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	error = venus_rename(old_dir->i_sb, coda_i2f(old_dir),
 			     coda_i2f(new_dir), old_length, new_length,
