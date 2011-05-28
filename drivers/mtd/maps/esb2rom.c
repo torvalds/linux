@@ -128,7 +128,7 @@ static void esb2rom_cleanup(struct esb2rom_window *window)
 	list_for_each_entry_safe(map, scratch, &window->maps, list) {
 		if (map->rsrc.parent)
 			release_resource(&map->rsrc);
-		del_mtd_device(map->mtd);
+		mtd_device_unregister(map->mtd);
 		map_destroy(map->mtd);
 		list_del(&map->list);
 		kfree(map);
@@ -352,7 +352,7 @@ static int __devinit esb2rom_init_one(struct pci_dev *pdev,
 
 		/* Now that the mtd devices is complete claim and export it */
 		map->mtd->owner = THIS_MODULE;
-		if (add_mtd_device(map->mtd)) {
+		if (mtd_device_register(map->mtd, NULL, 0)) {
 			map_destroy(map->mtd);
 			map->mtd = NULL;
 			goto out;
