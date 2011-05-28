@@ -38,6 +38,7 @@
 #define MX53_LOCO_UI1			IMX_GPIO_NR(2, 14)
 #define MX53_LOCO_UI2			IMX_GPIO_NR(2, 15)
 #define LOCO_FEC_PHY_RST		IMX_GPIO_NR(7, 6)
+#define LOCO_LED			IMX_GPIO_NR(7, 7)
 
 static iomux_v3_cfg_t mx53_loco_pads[] = {
 	/* FEC */
@@ -163,7 +164,7 @@ static iomux_v3_cfg_t mx53_loco_pads[] = {
 	MX53_PAD_GPIO_7__SPDIF_PLOCK,
 	MX53_PAD_GPIO_17__SPDIF_OUT1,
 	/* GPIO */
-	MX53_PAD_PATA_DA_1__GPIO7_7,
+	MX53_PAD_PATA_DA_1__GPIO7_7,		/* LED */
 	MX53_PAD_PATA_DA_2__GPIO7_8,
 	MX53_PAD_PATA_DATA5__GPIO2_5,
 	MX53_PAD_PATA_DATA6__GPIO2_6,
@@ -225,6 +226,19 @@ static const struct imxi2c_platform_data mx53_loco_i2c_data __initconst = {
 	.bitrate = 100000,
 };
 
+static const struct gpio_led mx53loco_leds[] __initconst = {
+	{
+		.name			= "green",
+		.default_trigger	= "heartbeat",
+		.gpio			= LOCO_LED,
+	},
+};
+
+static const struct gpio_led_platform_data mx53loco_leds_data __initconst = {
+	.leds		= mx53loco_leds,
+	.num_leds	= ARRAY_SIZE(mx53loco_leds),
+};
+
 static void __init mx53_loco_board_init(void)
 {
 	imx53_soc_init();
@@ -240,6 +254,7 @@ static void __init mx53_loco_board_init(void)
 	imx53_add_sdhci_esdhc_imx(0, NULL);
 	imx53_add_sdhci_esdhc_imx(2, NULL);
 	imx_add_gpio_keys(&loco_button_data);
+	gpio_led_register_device(-1, &mx53loco_leds_data);
 }
 
 static void __init mx53_loco_timer_init(void)
