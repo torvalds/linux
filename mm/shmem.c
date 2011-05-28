@@ -1114,8 +1114,8 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		delete_from_page_cache(page);
 		shmem_swp_set(info, entry, swap.val);
 		shmem_swp_unmap(entry);
-		spin_unlock(&info->lock);
 		swap_shmem_alloc(swap);
+		spin_unlock(&info->lock);
 		BUG_ON(page_mapped(page));
 		swap_writepage(page, wbc);
 		return 0;
