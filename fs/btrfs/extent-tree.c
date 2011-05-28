@@ -348,7 +348,7 @@ static int caching_kthread(void *data)
 	 */
 	path->skip_locking = 1;
 	path->search_commit_root = 1;
-	path->reada = 2;
+	path->reada = 1;
 
 	key.objectid = last;
 	key.offset = 0;
@@ -379,15 +379,18 @@ again:
 			if (ret)
 				break;
 
-			caching_ctl->progress = last;
-			btrfs_release_path(path);
-			up_read(&fs_info->extent_commit_sem);
-			mutex_unlock(&caching_ctl->mutex);
-			if (btrfs_transaction_in_commit(fs_info))
-				schedule_timeout(1);
-			else
+			if (need_resched() ||
+			    btrfs_next_leaf(extent_root, path)) {
+				caching_ctl->progress = last;
+				btrfs_release_path(path);
+				up_read(&fs_info->extent_commit_sem);
+				mutex_unlock(&caching_ctl->mutex);
 				cond_resched();
-			goto again;
+				goto again;
+			}
+			leaf = path->nodes[0];
+			nritems = btrfs_header_nritems(leaf);
+			continue;
 		}
 
 		if (key.objectid < block_group->key.objectid) {
@@ -3065,7 +3068,7 @@ again:
 			spin_unlock(&data_sinfo->lock);
 alloc:
 			alloc_target = btrfs_get_alloc_profile(root, 1);
-			trans = btrfs_join_transaction(root, 1);
+			trans = btrfs_join_transaction(root);
 			if (IS_ERR(trans))
 				return PTR_ERR(trans);
 
@@ -3091,9 +3094,10 @@ alloc:
 
 		/* commit the current transaction and try again */
 commit_trans:
-		if (!committed && !root->fs_info->open_ioctl_trans) {
+		if (!committed &&
+		    !atomic_read(&root->fs_info->open_ioctl_trans)) {
 			committed = 1;
-			trans = btrfs_join_transaction(root, 1);
+			trans = btrfs_join_transaction(root);
 			if (IS_ERR(trans))
 				return PTR_ERR(trans);
 			ret = btrfs_commit_transaction(trans, root);
@@ -3472,7 +3476,7 @@ again:
 		goto out;
 
 	ret = -ENOSPC;
-	trans = btrfs_join_transaction(root, 1);
+	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		goto out;
 	ret = btrfs_commit_transaction(trans, root);
@@ -3699,7 +3703,7 @@ int btrfs_block_rsv_check(struct btrfs_trans_handle *trans,
 		if (trans)
 			return -EAGAIN;
 
-		trans = btrfs_join_transaction(root, 1);
+		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
 		ret = btrfs_commit_transaction(trans, root);
 		return 0;
@@ -3837,6 +3841,37 @@ static void release_global_block_rsv(struct btrfs_fs_info *fs_info)
 	WARN_ON(fs_info->chunk_block_rsv.reserved > 0);
 }
 
+int btrfs_truncate_reserve_metadata(struct btrfs_trans_handle *trans,
+				    struct btrfs_root *root,
+				    struct btrfs_block_rsv *rsv)
+{
+	struct btrfs_block_rsv *trans_rsv = &root->fs_info->trans_block_rsv;
+	u64 num_bytes;
+	int ret;
+
+	/*
+	 * Truncate should be freeing data, but give us 2 items just in case it
+	 * needs to use some space.  We may want to be smarter about this in the
+	 * future.
+	 */
+	num_bytes = btrfs_calc_trans_metadata_size(root, 2);
+
+	/* We already have enough bytes, just return */
+	if (rsv->reserved >= num_bytes)
+		return 0;
+
+	num_bytes -= rsv->reserved;
+
+	/*
+	 * You should have reserved enough space before hand to do this, so this
+	 * should not fail.
+	 */
+	ret = block_rsv_migrate_bytes(trans_rsv, rsv, num_bytes);
+	BUG_ON(ret);
+
+	return 0;
+}
+
 int btrfs_trans_reserve_metadata(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 int num_items)
@@ -3877,23 +3912,18 @@ int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
 	struct btrfs_block_rsv *dst_rsv = root->orphan_block_rsv;
 
 	/*
-	 * one for deleting orphan item, one for updating inode and
-	 * two for calling btrfs_truncate_inode_items.
-	 *
-	 * btrfs_truncate_inode_items is a delete operation, it frees
-	 * more space than it uses in most cases. So two units of
-	 * metadata space should be enough for calling it many times.
-	 * If all of the metadata space is used, we can commit
-	 * transaction and use space it freed.
+	 * We need to hold space in order to delete our orphan item once we've
+	 * added it, so this takes the reservation so we can release it later
+	 * when we are truly done with the orphan item.
 	 */
-	u64 num_bytes = btrfs_calc_trans_metadata_size(root, 4);
+	u64 num_bytes = btrfs_calc_trans_metadata_size(root, 1);
 	return block_rsv_migrate_bytes(src_rsv, dst_rsv, num_bytes);
 }
 
 void btrfs_orphan_release_metadata(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 num_bytes = btrfs_calc_trans_metadata_size(root, 4);
+	u64 num_bytes = btrfs_calc_trans_metadata_size(root, 1);
 	btrfs_block_rsv_release(root, root->orphan_block_rsv, num_bytes);
 }
 
@@ -4987,6 +5017,15 @@ have_block_group:
 		if (unlikely(block_group->ro))
 			goto loop;
 
+		spin_lock(&block_group->free_space_ctl->tree_lock);
+		if (cached &&
+		    block_group->free_space_ctl->free_space <
+		    num_bytes + empty_size) {
+			spin_unlock(&block_group->free_space_ctl->tree_lock);
+			goto loop;
+		}
+		spin_unlock(&block_group->free_space_ctl->tree_lock);
+
 		/*
 		 * Ok we want to try and use the cluster allocator, so lets look
 		 * there, unless we are on LOOP_NO_EMPTY_SIZE, since we will
@@ -5150,6 +5189,7 @@ checks:
 			btrfs_add_free_space(block_group, offset,
 					     search_start - offset);
 		BUG_ON(offset > search_start);
+		btrfs_put_block_group(block_group);
 		break;
 loop:
 		failed_cluster_refill = false;
@@ -5242,14 +5282,7 @@ loop:
 		ret = -ENOSPC;
 	} else if (!ins->objectid) {
 		ret = -ENOSPC;
-	}
-
-	/* we found what we needed */
-	if (ins->objectid) {
-		if (!(data & BTRFS_BLOCK_GROUP_DATA))
-			trans->block_group = block_group->key.objectid;
-
-		btrfs_put_block_group(block_group);
+	} else if (ins->objectid) {
 		ret = 0;
 	}
 
@@ -6526,7 +6559,7 @@ int btrfs_set_block_group_ro(struct btrfs_root *root,
 
 	BUG_ON(cache->ro);
 
-	trans = btrfs_join_transaction(root, 1);
+	trans = btrfs_join_transaction(root);
 	BUG_ON(IS_ERR(trans));
 
 	alloc_flags = update_block_group_flags(root, cache->flags);
@@ -6882,6 +6915,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+	path->reada = 1;
 
 	cache_gen = btrfs_super_cache_generation(&root->fs_info->super_copy);
 	if (cache_gen != 0 &&
