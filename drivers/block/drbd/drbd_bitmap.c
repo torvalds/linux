@@ -378,15 +378,14 @@ static struct page **bm_realloc_pages(struct drbd_bitmap *b, unsigned long want)
 	 * thread.  As we have no disk yet, we are not in the IO path,
 	 * not even the IO path of the peer. */
 	bytes = sizeof(struct page *)*want;
-	new_pages = kmalloc(bytes, GFP_KERNEL);
+	new_pages = kzalloc(bytes, GFP_KERNEL);
 	if (!new_pages) {
-		new_pages = vmalloc(bytes);
+		new_pages = vzalloc(bytes);
 		if (!new_pages)
 			return NULL;
 		vmalloced = 1;
 	}
 
-	memset(new_pages, 0, bytes);
 	if (want >= have) {
 		for (i = 0; i < have; i++)
 			new_pages[i] = old_pages[i];
