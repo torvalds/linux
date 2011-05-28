@@ -227,7 +227,8 @@ unsigned long omap_vp_get_curr_volt(struct voltagedomain *voltdm)
 		return 0;
 	}
 
-	curr_vsel = voltdm->read(vp->voltage);
+	curr_vsel = (voltdm->read(vp->voltage) & vp->common->vpvoltage_mask)
+		>> __ffs(vp->common->vpvoltage_mask);
 
 	if (!voltdm->pmic || !voltdm->pmic->vsel_to_uv) {
 		pr_warning("%s: PMIC function to convert vsel to voltage"

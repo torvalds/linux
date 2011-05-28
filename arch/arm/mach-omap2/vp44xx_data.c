@@ -51,6 +51,7 @@ static const struct omap_vp_common omap4_vp_common = {
 	.vlimitto_vddmin_shift = OMAP4430_VDDMIN_SHIFT,
 	.vlimitto_vddmax_shift = OMAP4430_VDDMAX_SHIFT,
 	.vlimitto_timeout_shift = OMAP4430_TIMEOUT_SHIFT,
+	.vpvoltage_mask = OMAP4430_VPVOLTAGE_MASK,
 	.ops = &omap4_vp_ops,
 };
 

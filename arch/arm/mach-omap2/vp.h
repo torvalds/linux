@@ -63,6 +63,7 @@ struct omap_vp_ops {
  * @vlimitto_vddmin_shift: VDDMIN field shift in PRM_VP*_VLIMITTO reg
  * @vlimitto_vddmax_shift: VDDMAX field shift in PRM_VP*_VLIMITTO reg
  * @vlimitto_timeout_shift: TIMEOUT field shift in PRM_VP*_VLIMITTO reg
+ * @vpvoltage_mask: VPVOLTAGE field mask in PRM_VP*_VOLTAGE reg
  */
 struct omap_vp_common {
 	u32 vpconfig_erroroffset_mask;
@@ -79,6 +80,7 @@ struct omap_vp_common {
 	u8 vlimitto_vddmin_shift;
 	u8 vlimitto_vddmax_shift;
 	u8 vlimitto_timeout_shift;
+	u8 vpvoltage_mask;
 
 	const struct omap_vp_ops *ops;
 };

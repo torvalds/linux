@@ -51,6 +51,8 @@ static const struct omap_vp_common omap3_vp_common = {
 	.vlimitto_vddmin_shift = OMAP3430_VDDMIN_SHIFT,
 	.vlimitto_vddmax_shift = OMAP3430_VDDMAX_SHIFT,
 	.vlimitto_timeout_shift = OMAP3430_TIMEOUT_SHIFT,
+	.vpvoltage_mask = OMAP3430_VPVOLTAGE_MASK,
+
 	.ops = &omap3_vp_ops,
 };
 
