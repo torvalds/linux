@@ -61,7 +61,6 @@ static struct mtd_partition static_partitions[] =
 static int mtd_parts_nb[NUM_FLASHBANKS];
 static struct mtd_partition *mtd_parts[NUM_FLASHBANKS];
 
-static const char *probes[] = { "cmdlinepart", NULL };
 
 static int __init init_impa7(void)
 {
@@ -98,7 +97,7 @@ static int __init init_impa7(void)
 			impa7_mtd[i]->owner = THIS_MODULE;
 			devicesfound++;
 			mtd_parts_nb[i] = parse_mtd_partitions(impa7_mtd[i],
-							       probes,
+							       NULL,
 							       &mtd_parts[i],
 							       0);
 			if (mtd_parts_nb[i] > 0) {
