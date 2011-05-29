@@ -3769,7 +3769,6 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
 	int saved_dst_type = c->dst.type;
-	int irq; /* Used for int 3, int, and into */
 
 	c->mem_read.pos = 0;
 
@@ -3963,18 +3962,14 @@ special_insn:
 		rc = emulate_load_segment(ctxt, VCPU_SREG_DS);
 		break;
 	case 0xcc:		/* int3 */
-		irq = 3;
-		goto do_interrupt;
+		rc = emulate_int(ctxt, 3);
+		break;
 	case 0xcd:		/* int n */
-		irq = c->src.val;
-	do_interrupt:
-		rc = emulate_int(ctxt, irq);
+		rc = emulate_int(ctxt, c->src.val);
 		break;
 	case 0xce:		/* into */
-		if (ctxt->eflags & EFLG_OF) {
-			irq = 4;
-			goto do_interrupt;
-		}
+		if (ctxt->eflags & EFLG_OF)
+			rc = emulate_int(ctxt, 4);
 		break;
 	case 0xd0 ... 0xd1:	/* Grp2 */
 		rc = em_grp2(ctxt);
