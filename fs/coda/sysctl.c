@@ -13,7 +13,6 @@
 
 #ifdef CONFIG_SYSCTL
 static struct ctl_table_header *fs_table_header;
-#endif
 
 static ctl_table coda_table[] = {
 	{
@@ -40,7 +39,6 @@ static ctl_table coda_table[] = {
 	{}
 };
 
-#ifdef CONFIG_SYSCTL
 static ctl_table fs_table[] = {
 	{
 		.procname	= "coda",
@@ -49,22 +47,27 @@ static ctl_table fs_table[] = {
 	},
 	{}
 };
-#endif
 
 void coda_sysctl_init(void)
 {
-#ifdef CONFIG_SYSCTL
 	if ( !fs_table_header )
 		fs_table_header = register_sysctl_table(fs_table);
-#endif
 }
 
 void coda_sysctl_clean(void)
 {
-#ifdef CONFIG_SYSCTL
 	if ( fs_table_header ) {
 		unregister_sysctl_table(fs_table_header);
 		fs_table_header = NULL;
 	}
-#endif
 }
+
+#else
+void coda_sysctl_init(void)
+{
+}
+
+void coda_sysctl_clean(void)
+{
+}
+#endif

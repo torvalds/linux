@@ -498,7 +498,7 @@ void v_APCI2032_Interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	unsigned int ui_DO;
 
-	ui_DO = inl(devpriv->iobase + APCI2032_DIGITAL_OP_IRQ) & 0x1;	/* Check if VCC OR CC interrupt has occured. */
+	ui_DO = inl(devpriv->iobase + APCI2032_DIGITAL_OP_IRQ) & 0x1;	/* Check if VCC OR CC interrupt has occurred. */
 
 	if (ui_DO == 0) {
 		printk("\nInterrupt from unKnown source\n");

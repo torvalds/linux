@@ -31,7 +31,7 @@ extern unsigned int picl_shift;
 
 /* In order to commonize as much of the implementation as
  * possible, we use PICH as our counter.  Mostly this is
- * to accomodate Niagara-1 which can only count insn cycles
+ * to accommodate Niagara-1 which can only count insn cycles
  * in PICH.
  */
 static inline u64 picl_value(unsigned int nmi_hz)

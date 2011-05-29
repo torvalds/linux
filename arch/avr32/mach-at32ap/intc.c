@@ -34,12 +34,12 @@ extern struct platform_device at32_intc0_device;
  * TODO: We may be able to implement mask/unmask by setting IxM flags
  * in the status register.
  */
-static void intc_mask_irq(unsigned int irq)
+static void intc_mask_irq(struct irq_data *d)
 {
 
 }
 
-static void intc_unmask_irq(unsigned int irq)
+static void intc_unmask_irq(struct irq_data *d)
 {
 
 }
@@ -47,8 +47,8 @@ static void intc_unmask_irq(unsigned int irq)
 static struct intc intc0 = {
 	.chip = {
 		.name		= "intc",
-		.mask		= intc_mask_irq,
-		.unmask		= intc_unmask_irq,
+		.irq_mask	= intc_mask_irq,
+		.irq_unmask	= intc_unmask_irq,
 	},
 };
 
@@ -57,7 +57,6 @@ static struct intc intc0 = {
  */
 asmlinkage void do_IRQ(int level, struct pt_regs *regs)
 {
-	struct irq_desc *desc;
 	struct pt_regs *old_regs;
 	unsigned int irq;
 	unsigned long status_reg;
@@ -69,8 +68,7 @@ asmlinkage void do_IRQ(int level, struct pt_regs *regs)
 	irq_enter();
 
 	irq = intc_readl(&intc0, INTCAUSE0 - 4 * level);
-	desc = irq_desc + irq;
-	desc->handle_irq(irq, desc);
+	generic_handle_irq(irq);
 
 	/*
 	 * Clear all interrupt level masks so that we may handle
@@ -128,7 +126,7 @@ void __init init_IRQ(void)
 		intc_writel(&intc0, INTPR0 + 4 * i, offset);
 		readback = intc_readl(&intc0, INTPR0 + 4 * i);
 		if (readback == offset)
-			set_irq_chip_and_handler(i, &intc0.chip,
+			irq_set_chip_and_handler(i, &intc0.chip,
 						 handle_simple_irq);
 	}
 

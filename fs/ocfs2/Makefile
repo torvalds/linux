@@ -1,6 +1,6 @@
-EXTRA_CFLAGS += -Ifs/ocfs2
+ccflags-y := -Ifs/ocfs2
 
-EXTRA_CFLAGS += -DCATCH_BH_JBD_RACES
+ccflags-y += -DCATCH_BH_JBD_RACES
 
 obj-$(CONFIG_OCFS2_FS) += 	\
 	ocfs2.o			\

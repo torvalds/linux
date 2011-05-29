@@ -1938,7 +1938,7 @@ static const struct wm8962_reg_access {
 	[21139] = { 0xFFFF, 0xFFFF, 0x0000 }, /* R21139 - VSS_XTS32_0 */
 };
 
-static int wm8962_volatile_register(unsigned int reg)
+static int wm8962_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	if (wm8962_reg_access[reg].vol)
 		return 1;
@@ -1946,7 +1946,7 @@ static int wm8962_volatile_register(unsigned int reg)
 		return 0;
 }
 
-static int wm8962_readable_register(unsigned int reg)
+static int wm8962_readable_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	if (wm8962_reg_access[reg].read)
 		return 1;
@@ -3137,7 +3137,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 
 	pr_debug("FLL Fvco=%dHz\n", target);
 
-	/* Find an appropraite FLL_FRATIO and factor it out of the target */
+	/* Find an appropriate FLL_FRATIO and factor it out of the target */
 	for (i = 0; i < ARRAY_SIZE(fll_fratios); i++) {
 		if (fll_fratios[i].min <= Fref && Fref <= fll_fratios[i].max) {
 			fll_div->fll_fratio = fll_fratios[i].fll_fratio;
@@ -3635,7 +3635,7 @@ static void wm8962_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	struct snd_soc_codec *codec = wm8962->codec;
 
 	snd_soc_update_bits(codec, WM8962_GPIO_BASE + offset,
-			    WM8962_GP2_LVL, value << WM8962_GP2_LVL_SHIFT);
+			    WM8962_GP2_LVL, !!value << WM8962_GP2_LVL_SHIFT);
 }
 
 static int wm8962_gpio_direction_out(struct gpio_chip *chip,
@@ -3822,16 +3822,26 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Latch volume update bits */
-	reg_cache[WM8962_LEFT_INPUT_VOLUME] |= WM8962_IN_VU;
-	reg_cache[WM8962_RIGHT_INPUT_VOLUME] |= WM8962_IN_VU;
-	reg_cache[WM8962_LEFT_ADC_VOLUME] |= WM8962_ADC_VU;
-	reg_cache[WM8962_RIGHT_ADC_VOLUME] |= WM8962_ADC_VU;
-	reg_cache[WM8962_LEFT_DAC_VOLUME] |= WM8962_DAC_VU;
-	reg_cache[WM8962_RIGHT_DAC_VOLUME] |= WM8962_DAC_VU;
-	reg_cache[WM8962_SPKOUTL_VOLUME] |= WM8962_SPKOUT_VU;
-	reg_cache[WM8962_SPKOUTR_VOLUME] |= WM8962_SPKOUT_VU;
-	reg_cache[WM8962_HPOUTL_VOLUME] |= WM8962_HPOUT_VU;
-	reg_cache[WM8962_HPOUTR_VOLUME] |= WM8962_HPOUT_VU;
+	snd_soc_update_bits(codec, WM8962_LEFT_INPUT_VOLUME,
+			    WM8962_IN_VU, WM8962_IN_VU);
+	snd_soc_update_bits(codec, WM8962_RIGHT_INPUT_VOLUME,
+			    WM8962_IN_VU, WM8962_IN_VU);
+	snd_soc_update_bits(codec, WM8962_LEFT_ADC_VOLUME,
+			    WM8962_ADC_VU, WM8962_ADC_VU);
+	snd_soc_update_bits(codec, WM8962_RIGHT_ADC_VOLUME,
+			    WM8962_ADC_VU, WM8962_ADC_VU);
+	snd_soc_update_bits(codec, WM8962_LEFT_DAC_VOLUME,
+			    WM8962_DAC_VU, WM8962_DAC_VU);
+	snd_soc_update_bits(codec, WM8962_RIGHT_DAC_VOLUME,
+			    WM8962_DAC_VU, WM8962_DAC_VU);
+	snd_soc_update_bits(codec, WM8962_SPKOUTL_VOLUME,
+			    WM8962_SPKOUT_VU, WM8962_SPKOUT_VU);
+	snd_soc_update_bits(codec, WM8962_SPKOUTR_VOLUME,
+			    WM8962_SPKOUT_VU, WM8962_SPKOUT_VU);
+	snd_soc_update_bits(codec, WM8962_HPOUTL_VOLUME,
+			    WM8962_HPOUT_VU, WM8962_HPOUT_VU);
+	snd_soc_update_bits(codec, WM8962_HPOUTR_VOLUME,
+			    WM8962_HPOUT_VU, WM8962_HPOUT_VU);
 
 	wm8962_add_widgets(codec);
 

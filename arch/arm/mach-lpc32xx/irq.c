@@ -290,7 +290,7 @@ static int lpc32xx_set_irq_type(struct irq_data *d, unsigned int type)
 	}
 
 	/* Ok to use the level handler for all types */
-	set_irq_handler(d->irq, handle_level_irq);
+	irq_set_handler(d->irq, handle_level_irq);
 
 	return 0;
 }
@@ -390,8 +390,8 @@ void __init lpc32xx_init_irq(void)
 
 	/* Configure supported IRQ's */
 	for (i = 0; i < NR_IRQS; i++) {
-		set_irq_chip(i, &lpc32xx_irq_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &lpc32xx_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 
@@ -406,8 +406,8 @@ void __init lpc32xx_init_irq(void)
 	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_SIC2_BASE));
 
 	/* MIC SUBIRQx interrupts will route handling to the chain handlers */
-	set_irq_chained_handler(IRQ_LPC32XX_SUB1IRQ, lpc32xx_sic1_handler);
-	set_irq_chained_handler(IRQ_LPC32XX_SUB2IRQ, lpc32xx_sic2_handler);
+	irq_set_chained_handler(IRQ_LPC32XX_SUB1IRQ, lpc32xx_sic1_handler);
+	irq_set_chained_handler(IRQ_LPC32XX_SUB2IRQ, lpc32xx_sic2_handler);
 
 	/* Initially disable all wake events */
 	__raw_writel(0, LPC32XX_CLKPWR_P01_ER);

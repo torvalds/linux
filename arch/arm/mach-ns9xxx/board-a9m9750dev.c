@@ -107,8 +107,8 @@ void __init board_a9m9750dev_init_irq(void)
 				__func__);
 
 	for (i = FPGA_IRQ(0); i <= FPGA_IRQ(7); ++i) {
-		set_irq_chip(i, &a9m9750dev_fpga_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &a9m9750dev_fpga_chip,
+					 handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 
@@ -118,8 +118,8 @@ void __init board_a9m9750dev_init_irq(void)
 	REGSET(eic, SYS_EIC, LVEDG, LEVEL);
 	__raw_writel(eic, SYS_EIC(2));
 
-	set_irq_chained_handler(IRQ_NS9XXX_EXT2,
-			a9m9750dev_fpga_demux_handler);
+	irq_set_chained_handler(IRQ_NS9XXX_EXT2,
+				a9m9750dev_fpga_demux_handler);
 }
 
 void __init board_a9m9750dev_init_machine(void)

@@ -139,7 +139,7 @@ static inline unsigned long __cmpxchg(volatile unsigned long *m,
  * Atomically reads the value of @v.  Note that the guaranteed
  * useful range of an atomic_t is only 24 bits.
  */
-#define atomic_read(v)	((v)->counter)
+#define atomic_read(v)	(ACCESS_ONCE((v)->counter))
 
 /**
  * atomic_set - set atomic variable

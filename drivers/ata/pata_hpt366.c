@@ -14,6 +14,7 @@
  *	Look into engine reset on timeout errors. Should not be required.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -25,7 +26,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt366"
-#define DRV_VERSION	"0.6.10"
+#define DRV_VERSION	"0.6.11"
 
 struct hpt_clock {
 	u8	xfer_mode;
@@ -160,8 +161,8 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr,
 
 	while (list[i] != NULL) {
 		if (!strcmp(list[i], model_num)) {
-			pr_warning(DRV_NAME ": %s is not supported for %s.\n",
-				   modestr, list[i]);
+			pr_warn("%s is not supported for %s\n",
+				modestr, list[i]);
 			return 1;
 		}
 		i++;

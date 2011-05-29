@@ -283,7 +283,7 @@ void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev)
 	/**
 	 * While scanning, link tuning is disabled. By default
 	 * the most sensitive settings will be used to make sure
-	 * that all beacons and probe responses will be recieved
+	 * that all beacons and probe responses will be received
 	 * during the scan.
 	 */
 	if (test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))
@@ -417,7 +417,8 @@ void rt2x00link_start_watchdog(struct rt2x00_dev *rt2x00dev)
 	    !test_bit(DRIVER_SUPPORT_WATCHDOG, &rt2x00dev->flags))
 		return;
 
-	schedule_delayed_work(&link->watchdog_work, WATCHDOG_INTERVAL);
+	ieee80211_queue_delayed_work(rt2x00dev->hw,
+				     &link->watchdog_work, WATCHDOG_INTERVAL);
 }
 
 void rt2x00link_stop_watchdog(struct rt2x00_dev *rt2x00dev)
@@ -441,7 +442,9 @@ static void rt2x00link_watchdog(struct work_struct *work)
 	rt2x00dev->ops->lib->watchdog(rt2x00dev);
 
 	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
-		schedule_delayed_work(&link->watchdog_work, WATCHDOG_INTERVAL);
+		ieee80211_queue_delayed_work(rt2x00dev->hw,
+					     &link->watchdog_work,
+					     WATCHDOG_INTERVAL);
 }
 
 void rt2x00link_register(struct rt2x00_dev *rt2x00dev)

@@ -59,8 +59,6 @@
 #include <asm/uaccess.h>        /* copy_to/from_user */
 #include <linux/init.h>         /* __initfunc et al. */
 
-#define KMEM_SAFETYZONE 8
-
 #define DEV_TO_SLAVE(dev)	(*((struct net_device **)netdev_priv(dev)))
 
 /*

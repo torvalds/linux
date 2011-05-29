@@ -70,24 +70,6 @@ asmlinkage void fpu_exception(struct pt_regs *regs, enum exception_code code)
 }
 
 /*
- * handle an FPU invalid_op exception
- * - Derived from DO_EINFO() macro in arch/mn10300/kernel/traps.c
- */
-asmlinkage void fpu_invalid_op(struct pt_regs *regs, enum exception_code code)
-{
-	siginfo_t info;
-
-	if (!user_mode(regs))
-		die_if_no_fixup("FPU invalid opcode", regs, code);
-
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code = ILL_COPROC;
-	info.si_addr = (void *) regs->pc;
-	force_sig_info(info.si_signo, &info, current);
-}
-
-/*
  * save the FPU state to a signal context
  */
 int fpu_setup_sigcontext(struct fpucontext *fpucontext)

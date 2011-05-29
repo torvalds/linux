@@ -64,21 +64,6 @@ extern void kdump_move_device_tree(void);
 /* CPU OF node matching */
 struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
 
-/**
- * of_irq_map_pci - Resolve the interrupt for a PCI device
- * @pdev:	the device whose interrupt is to be resolved
- * @out_irq:	structure of_irq filled by this function
- *
- * This function resolves the PCI interrupt for a given PCI device. If a
- * device-node exists for a given pci_dev, it will use normal OF tree
- * walking. If not, it will implement standard swizzling and walk up the
- * PCI tree until an device-node is found, at which point it will finish
- * resolving using the OF tree walking.
- */
-struct pci_dev;
-struct of_irq;
-extern int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq);
-
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 

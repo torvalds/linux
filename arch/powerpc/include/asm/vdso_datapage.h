@@ -57,7 +57,7 @@ struct vdso_data {
 	} version;
 
 	/* Note about the platform flags: it now only contains the lpar
-	 * bit. The actual platform number is dead and burried
+	 * bit. The actual platform number is dead and buried
 	 */
 	__u32 platform;			/* Platform flags		0x18 */
 	__u32 processor;		/* Processor type		0x1C */

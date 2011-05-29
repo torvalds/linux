@@ -188,7 +188,7 @@ ep_choose(struct usb_gadget *g, struct usb_endpoint_descriptor *hs,
  * @bind() method is then used to initialize all the functions and then
  * call @usb_add_function() for them.
  *
- * Those functions would normally be independant of each other, but that's
+ * Those functions would normally be independent of each other, but that's
  * not mandatory.  CDC WMC devices are an example where functions often
  * depend on other functions, with some functions subsidiary to others.
  * Such interdependency may be managed in any way, so long as all of the

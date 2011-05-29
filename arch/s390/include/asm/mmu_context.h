@@ -23,7 +23,7 @@ static inline int init_new_context(struct task_struct *tsk,
 #ifdef CONFIG_64BIT
 	mm->context.asce_bits |= _ASCE_TYPE_REGION3;
 #endif
-	if (current->mm->context.alloc_pgste) {
+	if (current->mm && current->mm->context.alloc_pgste) {
 		/*
 		 * alloc_pgste indicates, that any NEW context will be created
 		 * with extended page tables. The old context is unchanged. The

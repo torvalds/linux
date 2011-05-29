@@ -26,6 +26,7 @@ static inline void __dma_sync_page(unsigned long paddr, unsigned long offset,
 {
 	switch (direction) {
 	case DMA_TO_DEVICE:
+	case DMA_BIDIRECTIONAL:
 		flush_dcache_range(paddr + offset, paddr + offset + size);
 		break;
 	case DMA_FROM_DEVICE:

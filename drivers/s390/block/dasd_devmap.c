@@ -302,7 +302,7 @@ dasd_parse_keyword( char *parsestring ) {
 /*
  * Try to interprete the first element on the comma separated parse string
  * as a device number or a range of devices. If the interpretation is
- * successfull, create the matching dasd_devmap entries and return a pointer
+ * successful, create the matching dasd_devmap entries and return a pointer
  * to the residual string.
  * If interpretation fails or in case of an error, return an error code.
  */
@@ -671,6 +671,36 @@ dasd_device_from_cdev(struct ccw_device *cdev)
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	device = dasd_device_from_cdev_locked(cdev);
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
+	return device;
+}
+
+void dasd_add_link_to_gendisk(struct gendisk *gdp, struct dasd_device *device)
+{
+	struct dasd_devmap *devmap;
+
+	devmap = dasd_find_busid(dev_name(&device->cdev->dev));
+	if (IS_ERR(devmap))
+		return;
+	spin_lock(&dasd_devmap_lock);
+	gdp->private_data = devmap;
+	spin_unlock(&dasd_devmap_lock);
+}
+
+struct dasd_device *dasd_device_from_gendisk(struct gendisk *gdp)
+{
+	struct dasd_device *device;
+	struct dasd_devmap *devmap;
+
+	if (!gdp->private_data)
+		return NULL;
+	device = NULL;
+	spin_lock(&dasd_devmap_lock);
+	devmap = gdp->private_data;
+	if (devmap && devmap->device) {
+		device = devmap->device;
+		dasd_get_device(device);
+	}
+	spin_unlock(&dasd_devmap_lock);
 	return device;
 }
 

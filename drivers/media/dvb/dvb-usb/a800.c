@@ -38,8 +38,8 @@ static int a800_identify_state(struct usb_device *udev, struct dvb_usb_device_pr
 }
 
 static struct rc_map_table rc_map_a800_table[] = {
-	{ 0x0201, KEY_PROG1 },       /* SOURCE */
-	{ 0x0200, KEY_POWER },       /* POWER */
+	{ 0x0201, KEY_MODE },      /* SOURCE */
+	{ 0x0200, KEY_POWER2 },      /* POWER */
 	{ 0x0205, KEY_1 },           /* 1 */
 	{ 0x0206, KEY_2 },           /* 2 */
 	{ 0x0207, KEY_3 },           /* 3 */
@@ -52,8 +52,8 @@ static struct rc_map_table rc_map_a800_table[] = {
 	{ 0x0212, KEY_LEFT },        /* L / DISPLAY */
 	{ 0x0211, KEY_0 },           /* 0 */
 	{ 0x0213, KEY_RIGHT },       /* R / CH RTN */
-	{ 0x0217, KEY_PROG2 },       /* SNAP SHOT */
-	{ 0x0210, KEY_PROG3 },       /* 16-CH PREV */
+	{ 0x0217, KEY_CAMERA },      /* SNAP SHOT */
+	{ 0x0210, KEY_LAST },        /* 16-CH PREV */
 	{ 0x021e, KEY_VOLUMEDOWN },  /* VOL DOWN */
 	{ 0x020c, KEY_ZOOM },        /* FULL SCREEN */
 	{ 0x021f, KEY_VOLUMEUP },    /* VOL UP */

@@ -64,8 +64,10 @@ static int ur_set_offline(struct ccw_device *cdev);
 static int ur_pm_suspend(struct ccw_device *cdev);
 
 static struct ccw_driver ur_driver = {
-	.name		= "vmur",
-	.owner		= THIS_MODULE,
+	.driver = {
+		.name	= "vmur",
+		.owner	= THIS_MODULE,
+	},
 	.ids		= ur_ids,
 	.probe		= ur_probe,
 	.remove		= ur_remove,

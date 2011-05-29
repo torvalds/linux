@@ -1510,7 +1510,7 @@ isp1301_start_hnp(struct otg_transceiver *dev)
 
 /*-------------------------------------------------------------------------*/
 
-static int __init
+static int __devinit
 isp1301_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	int			status;
@@ -1531,7 +1531,7 @@ isp1301_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	i2c_set_clientdata(i2c, isp);
 	isp->client = i2c;
 
-	/* verify the chip (shouldn't be necesary) */
+	/* verify the chip (shouldn't be necessary) */
 	status = isp1301_get_u16(isp, ISP1301_VENDOR_ID);
 	if (status != I2C_VENDOR_ID_PHILIPS) {
 		dev_dbg(&i2c->dev, "not philips id: %d\n", status);

@@ -21,9 +21,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 # USA
 
-ifeq ($(CONFIG_SCSI_MVSAS_DEBUG),y)
-	EXTRA_CFLAGS += -DMV_DEBUG
-endif
+ccflags-$(CONFIG_SCSI_MVSAS_DEBUG) := -DMV_DEBUG
 
 obj-$(CONFIG_SCSI_MVSAS) += mvsas.o
 mvsas-y +=  mv_init.o  \

@@ -71,6 +71,10 @@ sub-device instances, the video_device struct stores V4L2 device node data
 and in the future a v4l2_fh struct will keep track of filehandle instances
 (this is not yet implemented).
 
+The V4L2 framework also optionally integrates with the media framework. If a
+driver sets the struct v4l2_device mdev field, sub-devices and video nodes
+will automatically appear in the media framework as entities.
+
 
 struct v4l2_device
 ------------------
@@ -83,11 +87,20 @@ You must register the device instance:
 
 	v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev);
 
-Registration will initialize the v4l2_device struct and link dev->driver_data
-to v4l2_dev. If v4l2_dev->name is empty then it will be set to a value derived
-from dev (driver name followed by the bus_id, to be precise). If you set it
-up before calling v4l2_device_register then it will be untouched. If dev is
-NULL, then you *must* setup v4l2_dev->name before calling v4l2_device_register.
+Registration will initialize the v4l2_device struct. If the dev->driver_data
+field is NULL, it will be linked to v4l2_dev.
+
+Drivers that want integration with the media device framework need to set
+dev->driver_data manually to point to the driver-specific device structure
+that embed the struct v4l2_device instance. This is achieved by a
+dev_set_drvdata() call before registering the V4L2 device instance. They must
+also set the struct v4l2_device mdev field to point to a properly initialized
+and registered media_device instance.
+
+If v4l2_dev->name is empty then it will be set to a value derived from dev
+(driver name followed by the bus_id, to be precise). If you set it up before
+calling v4l2_device_register then it will be untouched. If dev is NULL, then
+you *must* setup v4l2_dev->name before calling v4l2_device_register.
 
 You can use v4l2_device_set_name() to set the name based on a driver name and
 a driver-global atomic_t instance. This will generate names like ivtv0, ivtv1,
@@ -108,6 +121,7 @@ You unregister with:
 
 	v4l2_device_unregister(struct v4l2_device *v4l2_dev);
 
+If the dev->driver_data field points to v4l2_dev, it will be reset to NULL.
 Unregistering will also automatically unregister all subdevs from the device.
 
 If you have a hotpluggable device (e.g. a USB device), then when a disconnect
@@ -167,6 +181,21 @@ static int __devinit drv_probe(struct pci_dev *pdev,
 	state->instance = atomic_inc_return(&drv_instance) - 1;
 }
 
+If you have multiple device nodes then it can be difficult to know when it is
+safe to unregister v4l2_device. For this purpose v4l2_device has refcounting
+support. The refcount is increased whenever video_register_device is called and
+it is decreased whenever that device node is released. When the refcount reaches
+zero, then the v4l2_device release() callback is called. You can do your final
+cleanup there.
+
+If other device nodes (e.g. ALSA) are created, then you can increase and
+decrease the refcount manually as well by calling:
+
+void v4l2_device_get(struct v4l2_device *v4l2_dev);
+
+or:
+
+int v4l2_device_put(struct v4l2_device *v4l2_dev);
 
 struct v4l2_subdev
 ------------------
@@ -254,6 +283,26 @@ A sub-device driver initializes the v4l2_subdev struct using:
 Afterwards you need to initialize subdev->name with a unique name and set the
 module owner. This is done for you if you use the i2c helper functions.
 
+If integration with the media framework is needed, you must initialize the
+media_entity struct embedded in the v4l2_subdev struct (entity field) by
+calling media_entity_init():
+
+	struct media_pad *pads = &my_sd->pads;
+	int err;
+
+	err = media_entity_init(&sd->entity, npads, pads, 0);
+
+The pads array must have been previously initialized. There is no need to
+manually set the struct media_entity type and name fields, but the revision
+field must be initialized if needed.
+
+A reference to the entity will be automatically acquired/released when the
+subdev device node (if any) is opened/closed.
+
+Don't forget to cleanup the media entity before the sub-device is destroyed:
+
+	media_entity_cleanup(&sd->entity);
+
 A device (bridge) driver needs to register the v4l2_subdev with the
 v4l2_device:
 
@@ -262,6 +311,9 @@ v4l2_device:
 This can fail if the subdev module disappeared before it could be registered.
 After this function was called successfully the subdev->dev field points to
 the v4l2_device.
+
+If the v4l2_device parent device has a non-NULL mdev field, the sub-device
+entity will be automatically registered with the media device.
 
 You can unregister a sub-device using:
 
@@ -291,7 +343,7 @@ ignored. If you want to check for errors use this:
 	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_chip_ident, &chip);
 
 Any error except -ENOIOCTLCMD will exit the loop with that error. If no
-errors (except -ENOIOCTLCMD) occured, then 0 is returned.
+errors (except -ENOIOCTLCMD) occurred, then 0 is returned.
 
 The second argument to both calls is a group ID. If 0, then all subdevs are
 called. If non-zero, then only those whose group ID match that value will
@@ -317,6 +369,61 @@ not contain any knowledge about the underlying hardware. So a driver might
 contain several subdevs that use an I2C bus, but also a subdev that is
 controlled through GPIO pins. This distinction is only relevant when setting
 up the device, but once the subdev is registered it is completely transparent.
+
+
+V4L2 sub-device userspace API
+-----------------------------
+
+Beside exposing a kernel API through the v4l2_subdev_ops structure, V4L2
+sub-devices can also be controlled directly by userspace applications.
+
+Device nodes named v4l-subdevX can be created in /dev to access sub-devices
+directly. If a sub-device supports direct userspace configuration it must set
+the V4L2_SUBDEV_FL_HAS_DEVNODE flag before being registered.
+
+After registering sub-devices, the v4l2_device driver can create device nodes
+for all registered sub-devices marked with V4L2_SUBDEV_FL_HAS_DEVNODE by calling
+v4l2_device_register_subdev_nodes(). Those device nodes will be automatically
+removed when sub-devices are unregistered.
+
+The device node handles a subset of the V4L2 API.
+
+VIDIOC_QUERYCTRL
+VIDIOC_QUERYMENU
+VIDIOC_G_CTRL
+VIDIOC_S_CTRL
+VIDIOC_G_EXT_CTRLS
+VIDIOC_S_EXT_CTRLS
+VIDIOC_TRY_EXT_CTRLS
+
+	The controls ioctls are identical to the ones defined in V4L2. They
+	behave identically, with the only exception that they deal only with
+	controls implemented in the sub-device. Depending on the driver, those
+	controls can be also be accessed through one (or several) V4L2 device
+	nodes.
+
+VIDIOC_DQEVENT
+VIDIOC_SUBSCRIBE_EVENT
+VIDIOC_UNSUBSCRIBE_EVENT
+
+	The events ioctls are identical to the ones defined in V4L2. They
+	behave identically, with the only exception that they deal only with
+	events generated by the sub-device. Depending on the driver, those
+	events can also be reported by one (or several) V4L2 device nodes.
+
+	Sub-device drivers that want to use events need to set the
+	V4L2_SUBDEV_USES_EVENTS v4l2_subdev::flags and initialize
+	v4l2_subdev::nevents to events queue depth before registering the
+	sub-device. After registration events can be queued as usual on the
+	v4l2_subdev::devnode device node.
+
+	To properly support events, the poll() file operation is also
+	implemented.
+
+Private ioctls
+
+	All ioctls not in the above list are passed directly to the sub-device
+	driver through the core::ioctl operation.
 
 
 I2C sub-device drivers
@@ -457,6 +564,10 @@ You should also set these fields:
   Otherwise you give it a pointer to a struct mutex_lock and before any
   of the v4l2_file_operations is called this lock will be taken by the
   core and released afterwards.
+- prio: keeps track of the priorities. Used to implement VIDIOC_G/S_PRIORITY.
+  If left to NULL, then it will use the struct v4l2_prio_state in v4l2_device.
+  If you want to have a separate priority state per (group of) device node(s),
+  then you can point it to your own struct v4l2_prio_state.
 - parent: you only set this if v4l2_device was registered with NULL as
   the parent device struct. This only happens in cases where one hardware
   device has multiple PCI devices that all share the same v4l2_device core.
@@ -466,12 +577,33 @@ You should also set these fields:
   (cx8802). Since the v4l2_device cannot be associated with a particular
   PCI device it is setup without a parent device. But when the struct
   video_device is setup you do know which parent PCI device to use.
+- flags: optional. Set to V4L2_FL_USE_FH_PRIO if you want to let the framework
+  handle the VIDIOC_G/S_PRIORITY ioctls. This requires that you use struct
+  v4l2_fh. Eventually this flag will disappear once all drivers use the core
+  priority handling. But for now it has to be set explicitly.
 
-If you use v4l2_ioctl_ops, then you should set either .unlocked_ioctl or
-.ioctl to video_ioctl2 in your v4l2_file_operations struct.
+If you use v4l2_ioctl_ops, then you should set .unlocked_ioctl to video_ioctl2
+in your v4l2_file_operations struct.
+
+Do not use .ioctl! This is deprecated and will go away in the future.
 
 The v4l2_file_operations struct is a subset of file_operations. The main
 difference is that the inode argument is omitted since it is never used.
+
+If integration with the media framework is needed, you must initialize the
+media_entity struct embedded in the video_device struct (entity field) by
+calling media_entity_init():
+
+	struct media_pad *pad = &my_vdev->pad;
+	int err;
+
+	err = media_entity_init(&vdev->entity, 1, pad, 0);
+
+The pads array must have been previously initialized. There is no need to
+manually set the struct media_entity type and name fields.
+
+A reference to the entity will be automatically acquired/released when the
+video device is opened/closed.
 
 v4l2_file_operations and locking
 --------------------------------
@@ -501,6 +633,9 @@ for you.
 		video_device_release(vdev); /* or kfree(my_vdev); */
 		return err;
 	}
+
+If the v4l2_device parent device has a non-NULL mdev field, the video device
+entity will be automatically registered with the media device.
 
 Which device is registered depends on the type argument. The following
 types exist:
@@ -577,6 +712,13 @@ release, of course) will return an error as well.
 When the last user of the video device node exits, then the vdev->release()
 callback is called and you can do the final cleanup there.
 
+Don't forget to cleanup the media entity associated with the video device if
+it has been initialized:
+
+	media_entity_cleanup(&vdev->entity);
+
+This can be done from the release callback.
+
 
 video_device helper functions
 -----------------------------
@@ -636,39 +778,25 @@ struct v4l2_fh
 --------------
 
 struct v4l2_fh provides a way to easily keep file handle specific data
-that is used by the V4L2 framework. Using v4l2_fh is optional for
-drivers.
+that is used by the V4L2 framework. New drivers must use struct v4l2_fh
+since it is also used to implement priority handling (VIDIOC_G/S_PRIORITY)
+if the video_device flag V4L2_FL_USE_FH_PRIO is also set.
 
 The users of v4l2_fh (in the V4L2 framework, not the driver) know
 whether a driver uses v4l2_fh as its file->private_data pointer by
-testing the V4L2_FL_USES_V4L2_FH bit in video_device->flags.
-
-Useful functions:
-
-- v4l2_fh_init()
-
-  Initialise the file handle. This *MUST* be performed in the driver's
-  v4l2_file_operations->open() handler.
-
-- v4l2_fh_add()
-
-  Add a v4l2_fh to video_device file handle list. May be called after
-  initialising the file handle.
-
-- v4l2_fh_del()
-
-  Unassociate the file handle from video_device(). The file handle
-  exit function may now be called.
-
-- v4l2_fh_exit()
-
-  Uninitialise the file handle. After uninitialisation the v4l2_fh
-  memory can be freed.
+testing the V4L2_FL_USES_V4L2_FH bit in video_device->flags. This bit is
+set whenever v4l2_fh_init() is called.
 
 struct v4l2_fh is allocated as a part of the driver's own file handle
-structure and is set to file->private_data in the driver's open
-function by the driver. Drivers can extract their own file handle
-structure by using the container_of macro. Example:
+structure and file->private_data is set to it in the driver's open
+function by the driver.
+
+In many cases the struct v4l2_fh will be embedded in a larger structure.
+In that case you should call v4l2_fh_init+v4l2_fh_add in open() and
+v4l2_fh_del+v4l2_fh_exit in release().
+
+Drivers can extract their own file handle structure by using the container_of
+macro. Example:
 
 struct my_fh {
 	int blah;
@@ -685,15 +813,21 @@ int my_open(struct file *file)
 
 	...
 
-	ret = v4l2_fh_init(&my_fh->fh, vfd);
-	if (ret)
-		return ret;
-
-	v4l2_fh_add(&my_fh->fh);
-
-	file->private_data = &my_fh->fh;
+	my_fh = kzalloc(sizeof(*my_fh), GFP_KERNEL);
 
 	...
+
+	ret = v4l2_fh_init(&my_fh->fh, vfd);
+	if (ret) {
+		kfree(my_fh);
+		return ret;
+	}
+
+	...
+
+	file->private_data = &my_fh->fh;
+	v4l2_fh_add(&my_fh->fh);
+	return 0;
 }
 
 int my_release(struct file *file)
@@ -702,7 +836,64 @@ int my_release(struct file *file)
 	struct my_fh *my_fh = container_of(fh, struct my_fh, fh);
 
 	...
+	v4l2_fh_del(&my_fh->fh);
+	v4l2_fh_exit(&my_fh->fh);
+	kfree(my_fh);
+	return 0;
 }
+
+Below is a short description of the v4l2_fh functions used:
+
+int v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev)
+
+  Initialise the file handle. This *MUST* be performed in the driver's
+  v4l2_file_operations->open() handler.
+
+void v4l2_fh_add(struct v4l2_fh *fh)
+
+  Add a v4l2_fh to video_device file handle list. Must be called once the
+  file handle is completely initialized.
+
+void v4l2_fh_del(struct v4l2_fh *fh)
+
+  Unassociate the file handle from video_device(). The file handle
+  exit function may now be called.
+
+void v4l2_fh_exit(struct v4l2_fh *fh)
+
+  Uninitialise the file handle. After uninitialisation the v4l2_fh
+  memory can be freed.
+
+
+If struct v4l2_fh is not embedded, then you can use these helper functions:
+
+int v4l2_fh_open(struct file *filp)
+
+  This allocates a struct v4l2_fh, initializes it and adds it to the struct
+  video_device associated with the file struct.
+
+int v4l2_fh_release(struct file *filp)
+
+  This deletes it from the struct video_device associated with the file
+  struct, uninitialised the v4l2_fh and frees it.
+
+These two functions can be plugged into the v4l2_file_operation's open() and
+release() ops.
+
+
+Several drivers need to do something when the first file handle is opened and
+when the last file handle closes. Two helper functions were added to check
+whether the v4l2_fh struct is the only open filehandle of the associated
+device node:
+
+int v4l2_fh_is_singular(struct v4l2_fh *fh)
+
+  Returns 1 if the file handle is the only open file handle, else 0.
+
+int v4l2_fh_is_singular_file(struct file *filp)
+
+  Same, but it calls v4l2_fh_is_singular with filp->private_data.
+
 
 V4L2 events
 -----------

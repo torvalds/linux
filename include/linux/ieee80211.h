@@ -1325,6 +1325,9 @@ enum {
 /* Although the spec says 8 I'm seeing 6 in practice */
 #define IEEE80211_COUNTRY_IE_MIN_LEN	6
 
+/* The Country String field of the element shall be 3 octets in length */
+#define IEEE80211_COUNTRY_STRING_LEN	3
+
 /*
  * For regulatory extension stuff see IEEE 802.11-2007
  * Annex I (page 1141) and Annex J (page 1147). Also

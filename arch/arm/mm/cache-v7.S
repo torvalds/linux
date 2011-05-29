@@ -96,7 +96,7 @@ ENDPROC(v7_flush_dcache_all)
  *	Flush the entire cache system.
  *  The data cache flush is now achieved using atomic clean / invalidates
  *  working outwards from L1 cache. This is done using Set/Way based cache
- *  maintainance instructions.
+ *  maintenance instructions.
  *  The instruction cache can still be invalidated back to the point of
  *  unification in a single instruction.
  *

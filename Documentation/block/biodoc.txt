@@ -497,7 +497,7 @@ The scatter gather list is in the form of an array of <page, offset, len>
 entries with their corresponding dma address mappings filled in at the
 appropriate time. As an optimization, contiguous physical pages can be
 covered by a single entry where <page> refers to the first page and <len>
-covers the range of pages (upto 16 contiguous pages could be covered this
+covers the range of pages (up to 16 contiguous pages could be covered this
 way). There is a helper routine (blk_rq_map_sg) which drivers can use to build
 the sg list.
 
@@ -565,7 +565,7 @@ struct request {
 	.
 	int tag;	/* command tag associated with request */
 	void *special;  /* same as before */
-	char *buffer;   /* valid only for low memory buffers upto
+	char *buffer;   /* valid only for low memory buffers up to
 			 current_nr_sectors */
 	.
 	.
@@ -962,11 +962,6 @@ elevator_dispatch_fn*		fills the dispatch queue with ready requests.
 				they belong to generic dispatch queue.
 
 elevator_add_req_fn*		called to add a new request into the scheduler
-
-elevator_queue_empty_fn		returns true if the merge queue is empty.
-				Drivers shouldn't use this, but rather check
-				if elv_next_request is NULL (without losing the
-				request if one exists!)
 
 elevator_former_req_fn
 elevator_latter_req_fn		These return the request before or after the

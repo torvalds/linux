@@ -63,7 +63,7 @@ struct omap2_onenand {
 	struct completion dma_done;
 	int dma_channel;
 	int freq;
-	int (*setup)(void __iomem *base, int freq);
+	int (*setup)(void __iomem *base, int *freq_ptr);
 	struct regulator *regulator;
 };
 
@@ -148,11 +148,9 @@ static int omap2_onenand_wait(struct mtd_info *mtd, int state)
 			wait_err("controller error", state, ctrl, intr);
 			return -EIO;
 		}
-		if ((intr & intr_flags) != intr_flags) {
-			wait_err("timeout", state, ctrl, intr);
-			return -EIO;
-		}
-		return 0;
+		if ((intr & intr_flags) == intr_flags)
+			return 0;
+		/* Continue in wait for interrupt branch */
 	}
 
 	if (state != FL_READING) {
@@ -581,7 +579,7 @@ static int __adjust_timing(struct device *dev, void *data)
 
 	/* DMA is not in use so this is all that is needed */
 	/* Revisit for OMAP3! */
-	ret = c->setup(c->onenand.base, c->freq);
+	ret = c->setup(c->onenand.base, &c->freq);
 
 	return ret;
 }
@@ -610,7 +608,7 @@ static int omap2_onenand_enable(struct mtd_info *mtd)
 
 	ret = regulator_enable(c->regulator);
 	if (ret != 0)
-		dev_err(&c->pdev->dev, "cant enable regulator\n");
+		dev_err(&c->pdev->dev, "can't enable regulator\n");
 
 	return ret;
 }
@@ -622,7 +620,7 @@ static int omap2_onenand_disable(struct mtd_info *mtd)
 
 	ret = regulator_disable(c->regulator);
 	if (ret != 0)
-		dev_err(&c->pdev->dev, "cant disable regulator\n");
+		dev_err(&c->pdev->dev, "can't disable regulator\n");
 
 	return ret;
 }
@@ -631,6 +629,7 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 {
 	struct omap_onenand_platform_data *pdata;
 	struct omap2_onenand *c;
+	struct onenand_chip *this;
 	int r;
 
 	pdata = pdev->dev.platform_data;
@@ -673,7 +672,7 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	}
 
 	if (pdata->onenand_setup != NULL) {
-		r = pdata->onenand_setup(c->onenand.base, c->freq);
+		r = pdata->onenand_setup(c->onenand.base, &c->freq);
 		if (r < 0) {
 			dev_err(&pdev->dev, "Onenand platform setup failed: "
 				"%d\n", r);
@@ -718,8 +717,8 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "initializing on CS%d, phys base 0x%08lx, virtual "
-		 "base %p\n", c->gpmc_cs, c->phys_base,
-		 c->onenand.base);
+		 "base %p, freq %d MHz\n", c->gpmc_cs, c->phys_base,
+		 c->onenand.base, c->freq);
 
 	c->pdev = pdev;
 	c->mtd.name = dev_name(&pdev->dev);
@@ -728,9 +727,8 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 
 	c->mtd.dev.parent = &pdev->dev;
 
+	this = &c->onenand;
 	if (c->dma_channel >= 0) {
-		struct onenand_chip *this = &c->onenand;
-
 		this->wait = omap2_onenand_wait;
 		if (cpu_is_omap34xx()) {
 			this->read_bufferram = omap3_onenand_read_bufferram;
@@ -751,26 +749,11 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 		c->onenand.disable = omap2_onenand_disable;
 	}
 
+	if (pdata->skip_initial_unlocking)
+		this->options |= ONENAND_SKIP_INITIAL_UNLOCKING;
+
 	if ((r = onenand_scan(&c->mtd, 1)) < 0)
 		goto err_release_regulator;
-
-	switch ((c->onenand.version_id >> 4) & 0xf) {
-	case 0:
-		c->freq = 40;
-		break;
-	case 1:
-		c->freq = 54;
-		break;
-	case 2:
-		c->freq = 66;
-		break;
-	case 3:
-		c->freq = 83;
-		break;
-	case 4:
-		c->freq = 104;
-		break;
-	}
 
 #ifdef CONFIG_MTD_PARTITIONS
 	r = parse_mtd_partitions(&c->mtd, part_probes, &c->parts, 0);
@@ -860,7 +843,7 @@ static void __exit omap2_onenand_exit(void)
 module_init(omap2_onenand_init);
 module_exit(omap2_onenand_exit);
 
-MODULE_ALIAS(DRIVER_NAME);
+MODULE_ALIAS("platform:" DRIVER_NAME);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jarkko Lavinen <jarkko.lavinen@nokia.com>");
 MODULE_DESCRIPTION("Glue layer for OneNAND flash on OMAP2 / OMAP3");

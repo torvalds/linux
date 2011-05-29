@@ -393,8 +393,8 @@ typedef struct fec {
 	uint	fec_addr_low;		/* lower 32 bits of station address	*/
 	ushort	fec_addr_high;		/* upper 16 bits of station address	*/
 	ushort	res1;			/* reserved				*/
-	uint	fec_hash_table_high;	/* upper 32-bits of hash table		*/
-	uint	fec_hash_table_low;	/* lower 32-bits of hash table		*/
+	uint	fec_grp_hash_table_high;	/* upper 32-bits of hash table		*/
+	uint	fec_grp_hash_table_low;	/* lower 32-bits of hash table		*/
 	uint	fec_r_des_start;	/* beginning of Rx descriptor ring	*/
 	uint	fec_x_des_start;	/* beginning of Tx descriptor ring	*/
 	uint	fec_r_buff_size;	/* Rx buffer size			*/

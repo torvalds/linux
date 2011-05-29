@@ -893,8 +893,6 @@ struct iga2_crtc_timing {
 /* VT3410 chipset*/
 #define VX900_FUNCTION3     0x3410
 
-#define NUM_TOTAL_PLL_TABLE ARRAY_SIZE(pll_value)
-
 struct IODATA {
 	u8 Index;
 	u8 Mask;
@@ -951,8 +949,7 @@ void __devinit viafb_init_chip_info(int chip_type);
 void __devinit viafb_init_dac(int set_iga);
 int viafb_get_pixclock(int hres, int vres, int vmode_refresh);
 int viafb_get_refresh(int hres, int vres, u32 float_refresh);
-void viafb_update_device_setting(int hres, int vres, int bpp,
-			   int vmode_refresh, int flag);
+void viafb_update_device_setting(int hres, int vres, int bpp, int flag);
 
 void viafb_set_iga_path(void);
 void viafb_set_primary_color_register(u8 index, u8 red, u8 green, u8 blue);

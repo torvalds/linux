@@ -4,7 +4,7 @@
  * License Terms: GNU General Public License v2
  * Author: Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
  * Author: Rabin Vincent <rabin.vincent@stericsson.com>
- * Changes: Mattias Wallin <mattias.wallin@stericsson.com>
+ * Author: Mattias Wallin <mattias.wallin@stericsson.com>
  */
 
 #include <linux/kernel.h>
@@ -90,6 +90,7 @@
 #define AB8500_IT_MASK24_REG		0x57
 
 #define AB8500_REV_REG			0x80
+#define AB8500_SWITCH_OFF_STATUS	0x00
 
 /*
  * Map interrupt numbers to the LATCH and MASK register offsets, Interrupt
@@ -333,14 +334,14 @@ static int ab8500_irq_init(struct ab8500 *ab8500)
 	int irq;
 
 	for (irq = base; irq < base + AB8500_NR_IRQS; irq++) {
-		set_irq_chip_data(irq, ab8500);
-		set_irq_chip_and_handler(irq, &ab8500_irq_chip,
+		irq_set_chip_data(irq, ab8500);
+		irq_set_chip_and_handler(irq, &ab8500_irq_chip,
 					 handle_simple_irq);
-		set_irq_nested_thread(irq, 1);
+		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID);
 #else
-		set_irq_noprobe(irq);
+		irq_set_noprobe(irq);
 #endif
 	}
 
@@ -356,10 +357,19 @@ static void ab8500_irq_remove(struct ab8500 *ab8500)
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, 0);
 #endif
-		set_irq_chip_and_handler(irq, NULL, NULL);
-		set_irq_chip_data(irq, NULL);
+		irq_set_chip_and_handler(irq, NULL, NULL);
+		irq_set_chip_data(irq, NULL);
 	}
 }
+
+static struct resource ab8500_gpio_resources[] = {
+	{
+		.name	= "GPIO_INT6",
+		.start	= AB8500_INT_GPIO6R,
+		.end	= AB8500_INT_GPIO41F,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
 
 static struct resource ab8500_gpadc_resources[] = {
 	{
@@ -595,6 +605,11 @@ static struct mfd_cell ab8500_devs[] = {
 		.name = "ab8500-regulator",
 	},
 	{
+		.name = "ab8500-gpio",
+		.num_resources = ARRAY_SIZE(ab8500_gpio_resources),
+		.resources = ab8500_gpio_resources,
+	},
+	{
 		.name = "ab8500-gpadc",
 		.num_resources = ARRAY_SIZE(ab8500_gpadc_resources),
 		.resources = ab8500_gpadc_resources,
@@ -652,10 +667,38 @@ static ssize_t show_chip_id(struct device *dev,
 	return sprintf(buf, "%#x\n", ab8500 ? ab8500->chip_id : -EINVAL);
 }
 
+/*
+ * ab8500 has switched off due to (SWITCH_OFF_STATUS):
+ * 0x01 Swoff bit programming
+ * 0x02 Thermal protection activation
+ * 0x04 Vbat lower then BattOk falling threshold
+ * 0x08 Watchdog expired
+ * 0x10 Non presence of 32kHz clock
+ * 0x20 Battery level lower than power on reset threshold
+ * 0x40 Power on key 1 pressed longer than 10 seconds
+ * 0x80 DB8500 thermal shutdown
+ */
+static ssize_t show_switch_off_status(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int ret;
+	u8 value;
+	struct ab8500 *ab8500;
+
+	ab8500 = dev_get_drvdata(dev);
+	ret = get_register_interruptible(ab8500, AB8500_RTC,
+		AB8500_SWITCH_OFF_STATUS, &value);
+	if (ret < 0)
+		return ret;
+	return sprintf(buf, "%#x\n", value);
+}
+
 static DEVICE_ATTR(chip_id, S_IRUGO, show_chip_id, NULL);
+static DEVICE_ATTR(switch_off_status, S_IRUGO, show_switch_off_status, NULL);
 
 static struct attribute *ab8500_sysfs_entries[] = {
 	&dev_attr_chip_id.attr,
+	&dev_attr_switch_off_status.attr,
 	NULL,
 };
 
@@ -686,15 +729,34 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 	 * 0x10 - Cut 1.0
 	 * 0x11 - Cut 1.1
 	 * 0x20 - Cut 2.0
+	 * 0x30 - Cut 3.0
 	 */
-	if (value == 0x0 || value == 0x10 || value == 0x11 || value == 0x20) {
-		ab8500->revision = value;
+	if (value == 0x0 || value == 0x10 || value == 0x11 || value == 0x20 ||
+		value == 0x30) {
 		dev_info(ab8500->dev, "detected chip, revision: %#x\n", value);
 	} else {
 		dev_err(ab8500->dev, "unknown chip, revision: %#x\n", value);
 		return -EINVAL;
 	}
 	ab8500->chip_id = value;
+
+	/*
+	 * ab8500 has switched off due to (SWITCH_OFF_STATUS):
+	 * 0x01 Swoff bit programming
+	 * 0x02 Thermal protection activation
+	 * 0x04 Vbat lower then BattOk falling threshold
+	 * 0x08 Watchdog expired
+	 * 0x10 Non presence of 32kHz clock
+	 * 0x20 Battery level lower than power on reset threshold
+	 * 0x40 Power on key 1 pressed longer than 10 seconds
+	 * 0x80 DB8500 thermal shutdown
+	 */
+
+	ret = get_register_interruptible(ab8500, AB8500_RTC,
+		AB8500_SWITCH_OFF_STATUS, &value);
+	if (ret < 0)
+		return ret;
+	dev_info(ab8500->dev, "switch off status: %#x", value);
 
 	if (plat && plat->init)
 		plat->init(ab8500);
@@ -764,6 +826,6 @@ int __devexit ab8500_exit(struct ab8500 *ab8500)
 	return 0;
 }
 
-MODULE_AUTHOR("Srinidhi Kasagar, Rabin Vincent");
+MODULE_AUTHOR("Mattias Wallin, Srinidhi Kasagar, Rabin Vincent");
 MODULE_DESCRIPTION("AB8500 MFD core");
 MODULE_LICENSE("GPL v2");

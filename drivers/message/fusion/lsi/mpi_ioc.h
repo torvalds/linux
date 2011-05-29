@@ -841,6 +841,7 @@ typedef struct _EVENT_DATA_SAS_PHY_LINK_STATUS
 #define MPI_EVENT_SAS_PLS_LR_RATE_SATA_OOB_COMPLETE         (0x03)
 #define MPI_EVENT_SAS_PLS_LR_RATE_1_5                       (0x08)
 #define MPI_EVENT_SAS_PLS_LR_RATE_3_0                       (0x09)
+#define MPI_EVENT_SAS_PLS_LR_RATE_6_0                       (0x0A)
 
 /* SAS Discovery Event data */
 

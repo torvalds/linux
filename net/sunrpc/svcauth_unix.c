@@ -38,6 +38,14 @@ struct unix_domain {
 
 extern struct auth_ops svcauth_unix;
 
+static void svcauth_unix_domain_release(struct auth_domain *dom)
+{
+	struct unix_domain *ud = container_of(dom, struct unix_domain, h);
+
+	kfree(dom->name);
+	kfree(ud);
+}
+
 struct auth_domain *unix_domain_find(char *name)
 {
 	struct auth_domain *rv;
@@ -47,7 +55,7 @@ struct auth_domain *unix_domain_find(char *name)
 	while(1) {
 		if (rv) {
 			if (new && rv != &new->h)
-				auth_domain_put(&new->h);
+				svcauth_unix_domain_release(&new->h);
 
 			if (rv->flavour != &svcauth_unix) {
 				auth_domain_put(rv);
@@ -73,14 +81,6 @@ struct auth_domain *unix_domain_find(char *name)
 	}
 }
 EXPORT_SYMBOL_GPL(unix_domain_find);
-
-static void svcauth_unix_domain_release(struct auth_domain *dom)
-{
-	struct unix_domain *ud = container_of(dom, struct unix_domain, h);
-
-	kfree(dom->name);
-	kfree(ud);
-}
 
 
 /**************************************************

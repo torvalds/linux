@@ -40,7 +40,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/net.h>
@@ -432,15 +431,6 @@ void x25_destroy_socket_from_timer(struct sock *sk)
 	sock_put(sk);
 }
 
-static void x25_destroy_socket(struct sock *sk)
-{
-	sock_hold(sk);
-	lock_sock(sk);
-	__x25_destroy_socket(sk);
-	release_sock(sk);
-	sock_put(sk);
-}
-
 /*
  *	Handling for system calls applied via the various interfaces to a
  *	X.25 socket object.
@@ -647,18 +637,19 @@ static int x25_release(struct socket *sock)
 	struct sock *sk = sock->sk;
 	struct x25_sock *x25;
 
-	lock_kernel();
 	if (!sk)
-		goto out;
+		return 0;
 
 	x25 = x25_sk(sk);
 
+	sock_hold(sk);
+	lock_sock(sk);
 	switch (x25->state) {
 
 		case X25_STATE_0:
 		case X25_STATE_2:
 			x25_disconnect(sk, 0, 0, 0);
-			x25_destroy_socket(sk);
+			__x25_destroy_socket(sk);
 			goto out;
 
 		case X25_STATE_1:
@@ -678,7 +669,8 @@ static int x25_release(struct socket *sock)
 
 	sock_orphan(sk);
 out:
-	unlock_kernel();
+	release_sock(sk);
+	sock_put(sk);
 	return 0;
 }
 
@@ -1085,7 +1077,7 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	size_t size;
 	int qbit = 0, rc = -EINVAL;
 
-	lock_kernel();
+	lock_sock(sk);
 	if (msg->msg_flags & ~(MSG_DONTWAIT|MSG_OOB|MSG_EOR|MSG_CMSG_COMPAT))
 		goto out;
 
@@ -1148,7 +1140,9 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	size = len + X25_MAX_L2_LEN + X25_EXT_MIN_LEN;
 
+	release_sock(sk);
 	skb = sock_alloc_send_skb(sk, size, noblock, &rc);
+	lock_sock(sk);
 	if (!skb)
 		goto out;
 	X25_SKB_CB(skb)->flags = msg->msg_flags;
@@ -1231,26 +1225,10 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 			len++;
 	}
 
-	/*
-	 * lock_sock() is currently only used to serialize this x25_kick()
-	 * against input-driven x25_kick() calls. It currently only blocks
-	 * incoming packets for this socket and does not protect against
-	 * any other socket state changes and is not called from anywhere
-	 * else. As x25_kick() cannot block and as long as all socket
-	 * operations are BKL-wrapped, we don't need take to care about
-	 * purging the backlog queue in x25_release().
-	 *
-	 * Using lock_sock() to protect all socket operations entirely
-	 * (and making the whole x25 stack SMP aware) unfortunately would
-	 * require major changes to {send,recv}msg and skb allocation methods.
-	 * -> 2.5 ;)
-	 */
-	lock_sock(sk);
 	x25_kick(sk);
-	release_sock(sk);
 	rc = len;
 out:
-	unlock_kernel();
+	release_sock(sk);
 	return rc;
 out_kfree_skb:
 	kfree_skb(skb);
@@ -1271,7 +1249,7 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 	unsigned char *asmptr;
 	int rc = -ENOTCONN;
 
-	lock_kernel();
+	lock_sock(sk);
 	/*
 	 * This works for seqpacket too. The receiver has ordered the queue for
 	 * us! We do one quick check first though
@@ -1300,8 +1278,10 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 		msg->msg_flags |= MSG_OOB;
 	} else {
 		/* Now we can treat all alike */
+		release_sock(sk);
 		skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
 					flags & MSG_DONTWAIT, &rc);
+		lock_sock(sk);
 		if (!skb)
 			goto out;
 
@@ -1338,14 +1318,12 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	msg->msg_namelen = sizeof(struct sockaddr_x25);
 
-	lock_sock(sk);
 	x25_check_rbuf(sk);
-	release_sock(sk);
 	rc = copied;
 out_free_dgram:
 	skb_free_datagram(sk, skb);
 out:
-	unlock_kernel();
+	release_sock(sk);
 	return rc;
 }
 
@@ -1581,18 +1559,18 @@ out_cud_release:
 
 		case SIOCX25CALLACCPTAPPRV: {
 			rc = -EINVAL;
-			lock_kernel();
+			lock_sock(sk);
 			if (sk->sk_state != TCP_CLOSE)
 				break;
 			clear_bit(X25_ACCPT_APPRV_FLAG, &x25->flags);
-			unlock_kernel();
+			release_sock(sk);
 			rc = 0;
 			break;
 		}
 
 		case SIOCX25SENDCALLACCPT:  {
 			rc = -EINVAL;
-			lock_kernel();
+			lock_sock(sk);
 			if (sk->sk_state != TCP_ESTABLISHED)
 				break;
 			/* must call accptapprv above */
@@ -1600,7 +1578,7 @@ out_cud_release:
 				break;
 			x25_write_internal(sk, X25_CALL_ACCEPTED);
 			x25->state = X25_STATE_3;
-			unlock_kernel();
+			release_sock(sk);
 			rc = 0;
 			break;
 		}

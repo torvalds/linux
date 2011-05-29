@@ -4898,7 +4898,7 @@ static netdev_tx_t netdev_tx(struct sk_buff *skb, struct net_device *dev)
 				goto unlock;
 			}
 			skb_copy_and_csum_dev(org_skb, skb->data);
-			org_skb->ip_summed = 0;
+			org_skb->ip_summed = CHECKSUM_NONE;
 			skb->len = org_skb->len;
 			copy_old_skb(org_skb, skb);
 		}

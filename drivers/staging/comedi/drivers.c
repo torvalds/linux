@@ -471,9 +471,9 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		async->buf_page_list =
 		    vzalloc(sizeof(struct comedi_buf_page) * n_pages);
-		if (async->buf_page_list) {
+		if (async->buf_page_list)
 			pages = vmalloc(sizeof(struct page *) * n_pages);
-		}
+
 		if (pages) {
 			for (i = 0; i < n_pages; i++) {
 				if (s->async_dma_dir != DMA_NONE) {

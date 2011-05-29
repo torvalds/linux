@@ -44,12 +44,6 @@ static inline void writeq(u64 val, void __iomem *reg)
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-enum vnic_dev_hw_version {
-	VNIC_DEV_HW_VER_UNKNOWN,
-	VNIC_DEV_HW_VER_A1,
-	VNIC_DEV_HW_VER_A2,
-};
-
 enum vnic_dev_intr_mode {
 	VNIC_DEV_INTR_MODE_UNKNOWN,
 	VNIC_DEV_INTR_MODE_INTX,
@@ -93,8 +87,6 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	u64 *a0, u64 *a1, int wait);
 int vnic_dev_fw_info(struct vnic_dev *vdev,
 	struct vnic_devcmd_fw_info **fw_info);
-int vnic_dev_hw_version(struct vnic_dev *vdev,
-	enum vnic_dev_hw_version *hw_ver);
 int vnic_dev_spec(struct vnic_dev *vdev, unsigned int offset, unsigned int size,
 	void *value);
 int vnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats);

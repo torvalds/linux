@@ -225,8 +225,7 @@ err:
 	return ret;
 }
 
-static int __devinit ndfc_probe(struct platform_device *ofdev,
-				const struct of_device_id *match)
+static int __devinit ndfc_probe(struct platform_device *ofdev)
 {
 	struct ndfc_controller *ndfc = &ndfc_ctrl;
 	const __be32 *reg;
@@ -292,7 +291,7 @@ static const struct of_device_id ndfc_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ndfc_match);
 
-static struct of_platform_driver ndfc_driver = {
+static struct platform_driver ndfc_driver = {
 	.driver = {
 		.name = "ndfc",
 		.owner = THIS_MODULE,
@@ -304,12 +303,12 @@ static struct of_platform_driver ndfc_driver = {
 
 static int __init ndfc_nand_init(void)
 {
-	return of_register_platform_driver(&ndfc_driver);
+	return platform_driver_register(&ndfc_driver);
 }
 
 static void __exit ndfc_nand_exit(void)
 {
-	of_unregister_platform_driver(&ndfc_driver);
+	platform_driver_unregister(&ndfc_driver);
 }
 
 module_init(ndfc_nand_init);

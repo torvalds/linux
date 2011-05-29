@@ -76,6 +76,7 @@
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
 /* Misc flags */
+#define VendorSpecific (1<<22) /* Vendor specific instruction */
 #define NoAccess    (1<<23) /* Don't access memory (lea/invlpg/verr etc) */
 #define Op3264      (1<<24) /* Operand is 64b in long mode, 32b otherwise */
 #define Undefined   (1<<25) /* No Such Instruction */
@@ -877,7 +878,8 @@ static void get_descriptor_table_ptr(struct x86_emulate_ctxt *ctxt,
 	if (selector & 1 << 2) {
 		struct desc_struct desc;
 		memset (dt, 0, sizeof *dt);
-		if (!ops->get_cached_descriptor(&desc, VCPU_SREG_LDTR, ctxt->vcpu))
+		if (!ops->get_cached_descriptor(&desc, NULL, VCPU_SREG_LDTR,
+						ctxt->vcpu))
 			return;
 
 		dt->size = desc_limit_scaled(&desc); /* what if limit > 65535? */
@@ -929,6 +931,7 @@ static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	return ret;
 }
 
+/* Does not support long mode */
 static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 				   struct x86_emulate_ops *ops,
 				   u16 selector, int seg)
@@ -1040,7 +1043,7 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	}
 load:
 	ops->set_segment_selector(selector, seg, ctxt->vcpu);
-	ops->set_cached_descriptor(&seg_desc, seg, ctxt->vcpu);
+	ops->set_cached_descriptor(&seg_desc, 0, seg, ctxt->vcpu);
 	return X86EMUL_CONTINUE;
 exception:
 	emulate_exception(ctxt, err_vec, err_code, true);
@@ -1560,7 +1563,7 @@ setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 			struct desc_struct *ss)
 {
 	memset(cs, 0, sizeof(struct desc_struct));
-	ops->get_cached_descriptor(cs, VCPU_SREG_CS, ctxt->vcpu);
+	ops->get_cached_descriptor(cs, NULL, VCPU_SREG_CS, ctxt->vcpu);
 	memset(ss, 0, sizeof(struct desc_struct));
 
 	cs->l = 0;		/* will be adjusted later */
@@ -1607,9 +1610,9 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 		cs.d = 0;
 		cs.l = 1;
 	}
-	ops->set_cached_descriptor(&cs, VCPU_SREG_CS, ctxt->vcpu);
+	ops->set_cached_descriptor(&cs, 0, VCPU_SREG_CS, ctxt->vcpu);
 	ops->set_segment_selector(cs_sel, VCPU_SREG_CS, ctxt->vcpu);
-	ops->set_cached_descriptor(&ss, VCPU_SREG_SS, ctxt->vcpu);
+	ops->set_cached_descriptor(&ss, 0, VCPU_SREG_SS, ctxt->vcpu);
 	ops->set_segment_selector(ss_sel, VCPU_SREG_SS, ctxt->vcpu);
 
 	c->regs[VCPU_REGS_RCX] = c->eip;
@@ -1679,9 +1682,9 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 		cs.l = 1;
 	}
 
-	ops->set_cached_descriptor(&cs, VCPU_SREG_CS, ctxt->vcpu);
+	ops->set_cached_descriptor(&cs, 0, VCPU_SREG_CS, ctxt->vcpu);
 	ops->set_segment_selector(cs_sel, VCPU_SREG_CS, ctxt->vcpu);
-	ops->set_cached_descriptor(&ss, VCPU_SREG_SS, ctxt->vcpu);
+	ops->set_cached_descriptor(&ss, 0, VCPU_SREG_SS, ctxt->vcpu);
 	ops->set_segment_selector(ss_sel, VCPU_SREG_SS, ctxt->vcpu);
 
 	ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_EIP, &msr_data);
@@ -1736,9 +1739,9 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	cs_sel |= SELECTOR_RPL_MASK;
 	ss_sel |= SELECTOR_RPL_MASK;
 
-	ops->set_cached_descriptor(&cs, VCPU_SREG_CS, ctxt->vcpu);
+	ops->set_cached_descriptor(&cs, 0, VCPU_SREG_CS, ctxt->vcpu);
 	ops->set_segment_selector(cs_sel, VCPU_SREG_CS, ctxt->vcpu);
-	ops->set_cached_descriptor(&ss, VCPU_SREG_SS, ctxt->vcpu);
+	ops->set_cached_descriptor(&ss, 0, VCPU_SREG_SS, ctxt->vcpu);
 	ops->set_segment_selector(ss_sel, VCPU_SREG_SS, ctxt->vcpu);
 
 	c->eip = c->regs[VCPU_REGS_RDX];
@@ -1764,24 +1767,28 @@ static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
 					    u16 port, u16 len)
 {
 	struct desc_struct tr_seg;
+	u32 base3;
 	int r;
-	u16 io_bitmap_ptr;
-	u8 perm, bit_idx = port & 0x7;
+	u16 io_bitmap_ptr, perm, bit_idx = port & 0x7;
 	unsigned mask = (1 << len) - 1;
+	unsigned long base;
 
-	ops->get_cached_descriptor(&tr_seg, VCPU_SREG_TR, ctxt->vcpu);
+	ops->get_cached_descriptor(&tr_seg, &base3, VCPU_SREG_TR, ctxt->vcpu);
 	if (!tr_seg.p)
 		return false;
 	if (desc_limit_scaled(&tr_seg) < 103)
 		return false;
-	r = ops->read_std(get_desc_base(&tr_seg) + 102, &io_bitmap_ptr, 2,
-			  ctxt->vcpu, NULL);
+	base = get_desc_base(&tr_seg);
+#ifdef CONFIG_X86_64
+	base |= ((u64)base3) << 32;
+#endif
+	r = ops->read_std(base + 102, &io_bitmap_ptr, 2, ctxt->vcpu, NULL);
 	if (r != X86EMUL_CONTINUE)
 		return false;
 	if (io_bitmap_ptr + port/8 > desc_limit_scaled(&tr_seg))
 		return false;
-	r = ops->read_std(get_desc_base(&tr_seg) + io_bitmap_ptr + port/8,
-			  &perm, 1, ctxt->vcpu, NULL);
+	r = ops->read_std(base + io_bitmap_ptr + port/8, &perm, 2, ctxt->vcpu,
+			  NULL);
 	if (r != X86EMUL_CONTINUE)
 		return false;
 	if ((perm >> bit_idx) & mask)
@@ -2126,7 +2133,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	}
 
 	ops->set_cr(0,  ops->get_cr(0, ctxt->vcpu) | X86_CR0_TS, ctxt->vcpu);
-	ops->set_cached_descriptor(&next_tss_desc, VCPU_SREG_TR, ctxt->vcpu);
+	ops->set_cached_descriptor(&next_tss_desc, 0, VCPU_SREG_TR, ctxt->vcpu);
 	ops->set_segment_selector(tss_selector, VCPU_SREG_TR, ctxt->vcpu);
 
 	if (has_error_code) {
@@ -2365,7 +2372,8 @@ static struct group_dual group7 = { {
 	D(SrcMem16 | ModRM | Mov | Priv),
 	D(SrcMem | ModRM | ByteOp | Priv | NoAccess),
 }, {
-	D(SrcNone | ModRM | Priv), N, N, D(SrcNone | ModRM | Priv),
+	D(SrcNone | ModRM | Priv | VendorSpecific), N,
+	N, D(SrcNone | ModRM | Priv | VendorSpecific),
 	D(SrcNone | ModRM | DstMem | Mov), N,
 	D(SrcMem16 | ModRM | Mov | Priv), N,
 } };
@@ -2489,7 +2497,7 @@ static struct opcode opcode_table[256] = {
 static struct opcode twobyte_table[256] = {
 	/* 0x00 - 0x0F */
 	N, GD(0, &group7), N, N,
-	N, D(ImplicitOps), D(ImplicitOps | Priv), N,
+	N, D(ImplicitOps | VendorSpecific), D(ImplicitOps | Priv), N,
 	D(ImplicitOps | Priv), D(ImplicitOps | Priv), N, N,
 	N, D(ImplicitOps | ModRM), N, N,
 	/* 0x10 - 0x1F */
@@ -2502,7 +2510,8 @@ static struct opcode twobyte_table[256] = {
 	/* 0x30 - 0x3F */
 	D(ImplicitOps | Priv), I(ImplicitOps, em_rdtsc),
 	D(ImplicitOps | Priv), N,
-	D(ImplicitOps), D(ImplicitOps | Priv), N, N,
+	D(ImplicitOps | VendorSpecific), D(ImplicitOps | Priv | VendorSpecific),
+	N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x40 - 0x4F */
 	X16(D(DstReg | SrcMem | ModRM | Mov)),
@@ -2739,6 +2748,9 @@ done_prefixes:
 
 	/* Unrecognised? */
 	if (c->d == 0 || (c->d & Undefined))
+		return -1;
+
+	if (!(c->d & VendorSpecific) && ctxt->only_vendor_specific_insn)
 		return -1;
 
 	if (mode == X86EMUL_MODE_PROT64 && (c->d & Stack))

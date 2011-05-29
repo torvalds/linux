@@ -136,7 +136,7 @@ Patched instructions
 ====================
 
 The "ld" and "std" instructions are transormed to "lwz" and "stw" instructions
-respectively on 32 bit systems with an added offset of 4 to accomodate for big
+respectively on 32 bit systems with an added offset of 4 to accommodate for big
 endianness.
 
 The following is a list of mapping the Linux kernel performs when running as

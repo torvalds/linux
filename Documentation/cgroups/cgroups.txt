@@ -110,22 +110,22 @@ university server with various users - students, professors, system
 tasks etc. The resource planning for this server could be along the
 following lines:
 
-       CPU :           Top cpuset
+       CPU :          "Top cpuset"
                        /       \
                CPUSet1         CPUSet2
-                  |              |
-               (Profs)         (Students)
+                  |               |
+               (Professors)    (Students)
 
                In addition (system tasks) are attached to topcpuset (so
                that they can run anywhere) with a limit of 20%
 
-       Memory : Professors (50%), students (30%), system (20%)
+       Memory : Professors (50%), Students (30%), system (20%)
 
-       Disk : Prof (50%), students (30%), system (20%)
+       Disk : Professors (50%), Students (30%), system (20%)
 
        Network : WWW browsing (20%), Network File System (60%), others (20%)
                                / \
-                       Prof (15%) students (5%)
+               Professors (15%)  students (5%)
 
 Browsers like Firefox/Lynx go into the WWW network class, while (k)nfsd go
 into NFS network class.
@@ -349,6 +349,10 @@ To mount a cgroup hierarchy with all available subsystems, type:
 The "xxx" is not interpreted by the cgroup code, but will appear in
 /proc/mounts so may be any useful identifying string that you like.
 
+Note: Some subsystems do not work without some user input first.  For instance,
+if cpusets are enabled the user will have to populate the cpus and mems files
+for each new cgroup created before that group can be used.
+
 To mount a cgroup hierarchy with just the cpuset and memory
 subsystems, type:
 # mount -t cgroup -o cpuset,memory hier1 /dev/cgroup
@@ -425,6 +429,14 @@ If you have several tasks to attach, you have to do it one after another:
 You can attach the current shell task by echoing 0:
 
 # echo 0 > tasks
+
+Note: Since every task is always a member of exactly one cgroup in each
+mounted hierarchy, to remove a task from its current cgroup you must
+move it into a new cgroup (possibly the root cgroup) by writing to the
+new cgroup's tasks file.
+
+Note: If the ns cgroup is active, moving a process to another cgroup can
+fail.
 
 2.3 Mounting hierarchies by name
 --------------------------------

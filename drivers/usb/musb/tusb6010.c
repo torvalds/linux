@@ -943,7 +943,7 @@ static void tusb_musb_enable(struct musb *musb)
 	musb_writel(tbase, TUSB_INT_CTRL_CONF,
 			TUSB_INT_CTRL_CONF_INT_RELCYC(0));
 
-	set_irq_type(musb->nIrq, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(musb->nIrq, IRQ_TYPE_LEVEL_LOW);
 
 	/* maybe force into the Default-A OTG state machine */
 	if (!(musb_readl(tbase, TUSB_DEV_OTG_STAT)

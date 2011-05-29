@@ -359,7 +359,7 @@ fail:
  * @e: serialized data extent information  (NOT NULL)
  * @profile: profile to add the accept table to (NOT NULL)
  *
- * Returns: 1 if table succesfully unpacked
+ * Returns: 1 if table successfully unpacked
  */
 static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 {

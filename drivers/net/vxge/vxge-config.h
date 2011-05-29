@@ -682,6 +682,10 @@ struct __vxge_hw_virtualpath {
 	u32				vsport_number;
 	u32				max_kdfc_db;
 	u32				max_nofl_db;
+	u64				tim_tti_cfg1_saved;
+	u64				tim_tti_cfg3_saved;
+	u64				tim_rti_cfg1_saved;
+	u64				tim_rti_cfg3_saved;
 
 	struct __vxge_hw_ring *____cacheline_aligned ringh;
 	struct __vxge_hw_fifo *____cacheline_aligned fifoh;
@@ -921,6 +925,9 @@ struct __vxge_hw_ring {
 	u32					doorbell_cnt;
 	u32					total_db_cnt;
 	u64					rxds_limit;
+	u32					rtimer;
+	u64					tim_rti_cfg1_saved;
+	u64					tim_rti_cfg3_saved;
 
 	enum vxge_hw_status (*callback)(
 			struct __vxge_hw_ring *ringh,
@@ -1000,6 +1007,9 @@ struct __vxge_hw_fifo {
 	u32					per_txdl_space;
 	u32					vp_id;
 	u32					tx_intr_num;
+	u32					rtimer;
+	u64					tim_tti_cfg1_saved;
+	u64					tim_tti_cfg3_saved;
 
 	enum vxge_hw_status (*callback)(
 			struct __vxge_hw_fifo *fifo_handle,

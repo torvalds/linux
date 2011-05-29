@@ -948,13 +948,10 @@ static struct sctp_association *__sctp_rcv_init_lookup(struct sk_buff *skb,
 	union sctp_addr addr;
 	union sctp_addr *paddr = &addr;
 	struct sctphdr *sh = sctp_hdr(skb);
-	sctp_chunkhdr_t *ch;
 	union sctp_params params;
 	sctp_init_chunk_t *init;
 	struct sctp_transport *transport;
 	struct sctp_af *af;
-
-	ch = (sctp_chunkhdr_t *) skb->data;
 
 	/*
 	 * This code will NOT touch anything inside the chunk--it is
@@ -1037,7 +1034,7 @@ static struct sctp_association *__sctp_rcv_asconf_lookup(
 *    association.
 *
 * This means that any chunks that can help us identify the association need
-* to be looked at to find this assocation.
+* to be looked at to find this association.
 */
 static struct sctp_association *__sctp_rcv_walk_lookup(struct sk_buff *skb,
 				      const union sctp_addr *laddr,

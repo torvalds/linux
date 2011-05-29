@@ -169,7 +169,7 @@ struct ext4_allocation_context {
 	/* original request */
 	struct ext4_free_extent ac_o_ex;
 
-	/* goal request (after normalization) */
+	/* goal request (normalized ac_o_ex) */
 	struct ext4_free_extent ac_g_ex;
 
 	/* the best found extent */

@@ -124,6 +124,9 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 
 	grp->nr_vlans--;
 
+	if (vlan->flags & VLAN_FLAG_GVRP)
+		vlan_gvrp_request_leave(dev);
+
 	vlan_group_set_device(grp, vlan_id, NULL);
 	if (!grp->killall)
 		synchronize_net();
@@ -327,7 +330,7 @@ static void vlan_sync_address(struct net_device *dev,
 static void vlan_transfer_features(struct net_device *dev,
 				   struct net_device *vlandev)
 {
-	unsigned long old_features = vlandev->features;
+	u32 old_features = vlandev->features;
 
 	vlandev->features &= ~dev->vlan_features;
 	vlandev->features |= dev->features & dev->vlan_features;

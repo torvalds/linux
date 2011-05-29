@@ -29,7 +29,7 @@ config KERNEL_BASE_ADDR
 	  BASE Address for kernel
 
 config XILINX_MICROBLAZE0_FAMILY
-	string "Targetted FPGA family"
+	string "Targeted FPGA family"
 	default "virtex5"
 
 config XILINX_MICROBLAZE0_USE_MSR_INSTR

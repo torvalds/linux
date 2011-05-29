@@ -32,6 +32,16 @@ Supported chips:
     Addresses scanned: I2C 0x4c and 0x4d
     Datasheet: Publicly available at the ON Semiconductor website
                http://www.onsemi.com/PowerSolutions/product.do?id=ADT7461
+  * Analog Devices ADT7461A
+    Prefix: 'adt7461a'
+    Addresses scanned: I2C 0x4c and 0x4d
+    Datasheet: Publicly available at the ON Semiconductor website
+               http://www.onsemi.com/PowerSolutions/product.do?id=ADT7461A
+  * ON Semiconductor NCT1008
+    Prefix: 'nct1008'
+    Addresses scanned: I2C 0x4c and 0x4d
+    Datasheet: Publicly available at the ON Semiconductor website
+               http://www.onsemi.com/PowerSolutions/product.do?id=NCT1008
   * Maxim MAX6646
     Prefix: 'max6646'
     Addresses scanned: I2C 0x4d
@@ -149,7 +159,7 @@ ADM1032:
   * ALERT is triggered by open remote sensor.
   * SMBus PEC support for Write Byte and Receive Byte transactions.
 
-ADT7461:
+ADT7461, ADT7461A, NCT1008:
   * Extended temperature range (breaks compatibility)
   * Lower resolution for remote temperature
 
@@ -195,9 +205,9 @@ are exported, one for each channel, but these values are of course linked.
 Only the local hysteresis can be set from user-space, and the same delta
 applies to the remote hysteresis.
 
-The lm90 driver will not update its values more frequently than every
-other second; reading them more often will do no harm, but will return
-'old' values.
+The lm90 driver will not update its values more frequently than configured with
+the update_interval attribute; reading them more often will do no harm, but will
+return 'old' values.
 
 SMBus Alert Support
 -------------------
@@ -205,11 +215,12 @@ SMBus Alert Support
 This driver has basic support for SMBus alert. When an alert is received,
 the status register is read and the faulty temperature channel is logged.
 
-The Analog Devices chips (ADM1032 and ADT7461) do not implement the SMBus
-alert protocol properly so additional care is needed: the ALERT output is
-disabled when an alert is received, and is re-enabled only when the alarm
-is gone. Otherwise the chip would block alerts from other chips in the bus
-as long as the alarm is active.
+The Analog Devices chips (ADM1032, ADT7461 and ADT7461A) and ON
+Semiconductor chips (NCT1008) do not implement the SMBus alert protocol
+properly so additional care is needed: the ALERT output is disabled when
+an alert is received, and is re-enabled only when the alarm is gone.
+Otherwise the chip would block alerts from other chips in the bus as long
+as the alarm is active.
 
 PEC Support
 -----------

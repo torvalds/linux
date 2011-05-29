@@ -16,9 +16,9 @@ static inline void cfq_blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 }
 
 static inline void cfq_blkiocg_update_timeslice_used(struct blkio_group *blkg,
-			unsigned long time)
+			unsigned long time, unsigned long unaccounted_time)
 {
-	blkiocg_update_timeslice_used(blkg, time);
+	blkiocg_update_timeslice_used(blkg, time, unaccounted_time);
 }
 
 static inline void cfq_blkiocg_set_start_empty_time(struct blkio_group *blkg)
@@ -85,7 +85,7 @@ static inline void cfq_blkiocg_update_dequeue_stats(struct blkio_group *blkg,
 			unsigned long dequeue) {}
 
 static inline void cfq_blkiocg_update_timeslice_used(struct blkio_group *blkg,
-			unsigned long time) {}
+			unsigned long time, unsigned long unaccounted_time) {}
 static inline void cfq_blkiocg_set_start_empty_time(struct blkio_group *blkg) {}
 static inline void cfq_blkiocg_update_io_remove_stats(struct blkio_group *blkg,
 				bool direction, bool sync) {}

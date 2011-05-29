@@ -17,7 +17,7 @@
 
 struct sdhci_pltfm_host {
 	struct clk *clk;
-	u32 scratchpad; /* to handle quirks across io-accessor calls */
+	void *priv; /* to handle quirks across io-accessor calls */
 };
 
 extern struct sdhci_pltfm_data sdhci_cns3xxx_pdata;

@@ -164,6 +164,7 @@ struct rpcrdma_mr_seg {		/* chunk descriptors */
 				struct {
 					struct ib_fast_reg_page_list *fr_pgl;
 					struct ib_mr *fr_mr;
+					enum { FRMR_IS_INVALID, FRMR_IS_VALID  } state;
 				} frmr;
 			} r;
 			struct list_head mw_list;

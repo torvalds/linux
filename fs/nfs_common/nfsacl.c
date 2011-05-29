@@ -117,7 +117,6 @@ int nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
 		 * invoked in contexts where a memory allocation failure is
 		 * fatal.  Fortunately this fake ACL is small enough to
 		 * construct on the stack. */
-		memset(acl2, 0, sizeof(acl2));
 		posix_acl_init(acl2, 4);
 
 		/* Insert entries in canonical order: other orders seem
@@ -174,7 +173,7 @@ xdr_nfsace_decode(struct xdr_array2_desc *desc, void *elem)
 				return -EINVAL;
 			break;
 		case ACL_MASK:
-			/* Solaris sometimes sets additonal bits in the mask */
+			/* Solaris sometimes sets additional bits in the mask */
 			entry->e_perm &= S_IRWXO;
 			break;
 		default:

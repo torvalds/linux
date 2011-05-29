@@ -48,7 +48,7 @@ static inline unsigned long virt_to_phys_from_pte(void *addr)
 				/* check for a valid page */
 				if (pte_present(pte)) {
 					/* get the physical address the page is
-					 * refering to */
+					 * referring to */
 					phys_addr = (unsigned long)
 						page_to_phys(pte_page(pte));
 					/* add the offset within the page */

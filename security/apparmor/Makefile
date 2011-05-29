@@ -6,19 +6,47 @@ apparmor-y := apparmorfs.o audit.o capability.o context.o ipc.o lib.o match.o \
               path.o domain.o policy.o policy_unpack.o procattr.o lsm.o \
               resource.o sid.o file.o
 
-clean-files: capability_names.h af_names.h
+clean-files := capability_names.h rlim_names.h
 
+
+# Build a lower case string table of capability names
+# Transforms lines from
+#    #define CAP_DAC_OVERRIDE     1
+# to
+#    [1] = "dac_override",
 quiet_cmd_make-caps = GEN     $@
-cmd_make-caps = echo "static const char *capability_names[] = {" > $@ ; sed -n -e "/CAP_FS_MASK/d" -e "s/^\#define[ \\t]\\+CAP_\\([A-Z0-9_]\\+\\)[ \\t]\\+\\([0-9]\\+\\)\$$/[\\2]  = \"\\1\",/p" $< | tr A-Z a-z >> $@ ; echo "};" >> $@
+cmd_make-caps = echo "static const char *capability_names[] = {" > $@ ;\
+	sed $< >>$@ -r -n -e '/CAP_FS_MASK/d' \
+	-e 's/^\#define[ \t]+CAP_([A-Z0-9_]+)[ \t]+([0-9]+)/[\2] = "\L\1",/p';\
+	echo "};" >> $@
 
+
+# Build a lower case string table of rlimit names.
+# Transforms lines from
+#    #define RLIMIT_STACK		3	/* max stack size */
+# to
+#    [RLIMIT_STACK] = "stack",
+#
+# and build a second integer table (with the second sed cmd), that maps
+# RLIMIT defines to the order defined in asm-generic/resource.h  Thi is
+# required by policy load to map policy ordering of RLIMITs to internal
+# ordering for architectures that redefine an RLIMIT.
+# Transforms lines from
+#    #define RLIMIT_STACK		3	/* max stack size */
+# to
+# RLIMIT_STACK, 
 quiet_cmd_make-rlim = GEN     $@
-cmd_make-rlim = echo "static const char *rlim_names[] = {" > $@ ; sed -n --e "/AF_MAX/d" -e "s/^\# \\?define[ \\t]\\+RLIMIT_\\([A-Z0-9_]\\+\\)[ \\t]\\+\\([0-9]\\+\\)\\(.*\\)\$$/[\\2]  = \"\\1\",/p" $< | tr A-Z a-z >> $@ ; echo "};" >> $@ ; echo "static const int rlim_map[] = {" >> $@ ; sed -n -e "/AF_MAX/d" -e "s/^\# \\?define[ \\t]\\+\\(RLIMIT_[A-Z0-9_]\\+\\)[ \\t]\\+\\([0-9]\\+\\)\\(.*\\)\$$/\\1,/p" $< >> $@ ; echo "};" >> $@
+cmd_make-rlim = echo "static const char *rlim_names[] = {" > $@ ;\
+	sed $< >> $@ -r -n \
+	    -e 's/^\# ?define[ \t]+(RLIMIT_([A-Z0-9_]+)).*/[\1] = "\L\2",/p';\
+	echo "};" >> $@ ;\
+	echo "static const int rlim_map[] = {" >> $@ ;\
+	sed -r -n "s/^\# ?define[ \t]+(RLIMIT_[A-Z0-9_]+).*/\1,/p" $< >> $@ ;\
+	echo "};" >> $@
 
 $(obj)/capability.o : $(obj)/capability_names.h
 $(obj)/resource.o : $(obj)/rlim_names.h
 $(obj)/capability_names.h : $(srctree)/include/linux/capability.h
 	$(call cmd,make-caps)
-$(obj)/af_names.h : $(srctree)/include/linux/socket.h
-	$(call cmd,make-af)
 $(obj)/rlim_names.h : $(srctree)/include/asm-generic/resource.h
 	$(call cmd,make-rlim)

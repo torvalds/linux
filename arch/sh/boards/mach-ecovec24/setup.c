@@ -11,9 +11,9 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/sh_mobile_sdhi.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
@@ -142,6 +142,8 @@ static struct resource sh_eth_resources[] = {
 static struct sh_eth_plat_data sh_eth_plat = {
 	.phy = 0x1f, /* SMSC LAN8700 */
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
+	.register_type = SH_ETH_REG_FAST_SH4,
+	.phy_interface = PHY_INTERFACE_MODE_MII,
 	.ether_link_active_low = 1
 };
 
@@ -261,6 +263,18 @@ const static struct fb_videomode ecovec_dvi_modes[] = {
 	},
 };
 
+static int ecovec24_set_brightness(void *board_data, int brightness)
+{
+	gpio_set_value(GPIO_PTR1, brightness);
+
+	return 0;
+}
+
+static int ecovec24_get_brightness(void *board_data)
+{
+	return gpio_get_value(GPIO_PTR1);
+}
+
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.ch[0] = {
 		.interface_type = RGB18,
@@ -271,6 +285,12 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.height = 91,
 		},
 		.board_cfg = {
+			.set_brightness = ecovec24_set_brightness,
+			.get_brightness = ecovec24_get_brightness,
+		},
+		.bl_info = {
+			.name = "sh_mobile_lcdc_bl",
+			.max_brightness = 1,
 		},
 	}
 };
@@ -462,7 +482,7 @@ static struct i2c_board_info ts_i2c_clients = {
 	.irq		= IRQ0,
 };
 
-#ifdef CONFIG_MFD_SH_MOBILE_SDHI
+#if defined(CONFIG_MMC_TMIO) || defined(CONFIG_MMC_TMIO_MODULE)
 /* SDHI0 */
 static void sdhi0_set_pwr(struct platform_device *pdev, int state)
 {
@@ -480,7 +500,7 @@ static struct resource sdhi0_resources[] = {
 	[0] = {
 		.name	= "SDHI0",
 		.start  = 0x04ce0000,
-		.end    = 0x04ce01ff,
+		.end    = 0x04ce00ff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -520,7 +540,7 @@ static struct resource sdhi1_resources[] = {
 	[0] = {
 		.name	= "SDHI1",
 		.start  = 0x04cf0000,
-		.end    = 0x04cf01ff,
+		.end    = 0x04cf00ff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -723,11 +743,7 @@ static struct platform_device camera_devices[] = {
 
 /* FSI */
 static struct sh_fsi_platform_info fsi_info = {
-	.portb_flags = SH_FSI_BRS_INV |
-		       SH_FSI_OUT_SLAVE_MODE |
-		       SH_FSI_IN_SLAVE_MODE |
-		       SH_FSI_OFMT(I2S) |
-		       SH_FSI_IFMT(I2S),
+	.portb_flags = SH_FSI_BRS_INV,
 };
 
 static struct resource fsi_resources[] = {
@@ -882,7 +898,7 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&ceu0_device,
 	&ceu1_device,
 	&keysc_device,
-#ifdef CONFIG_MFD_SH_MOBILE_SDHI
+#if defined(CONFIG_MMC_TMIO) || defined(CONFIG_MMC_TMIO_MODULE)
 	&sdhi0_device,
 #if !defined(CONFIG_MMC_SH_MMCIF)
 	&sdhi1_device,
@@ -938,7 +954,7 @@ static void __init sh_eth_init(struct sh_eth_plat_data *pd)
 		return;
 	}
 
-	/* read MAC address frome EEPROM */
+	/* read MAC address from EEPROM */
 	for (i = 0; i < sizeof(pd->mac_addr); i++) {
 		pd->mac_addr[i] = mac_read(a, 0x10 + i);
 		msleep(10);
@@ -1104,7 +1120,7 @@ static int __init arch_setup(void)
 
 		/* enable TouchScreen */
 		i2c_register_board_info(0, &ts_i2c_clients, 1);
-		set_irq_type(IRQ0, IRQ_TYPE_LEVEL_LOW);
+		irq_set_irq_type(IRQ0, IRQ_TYPE_LEVEL_LOW);
 	}
 
 	/* enable CEU0 */
@@ -1164,7 +1180,7 @@ static int __init arch_setup(void)
 	gpio_direction_input(GPIO_PTR5);
 	gpio_direction_input(GPIO_PTR6);
 
-#ifdef CONFIG_MFD_SH_MOBILE_SDHI
+#if defined(CONFIG_MMC_TMIO) || defined(CONFIG_MMC_TMIO_MODULE)
 	/* enable SDHI0 on CN11 (needs DS2.4 set to ON) */
 	gpio_request(GPIO_FN_SDHI0CD,  NULL);
 	gpio_request(GPIO_FN_SDHI0WP,  NULL);

@@ -95,7 +95,7 @@ static int parse_one(char *param,
 	/* Find parameter */
 	for (i = 0; i < num_params; i++) {
 		if (parameq(param, params[i].name)) {
-			/* Noone handled NULL, so do it here. */
+			/* No one handled NULL, so do it here. */
 			if (!val && params[i].ops->set != param_set_bool)
 				return -EINVAL;
 			DEBUGP("They are equal!  Calling %p\n",

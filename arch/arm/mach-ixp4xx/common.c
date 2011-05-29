@@ -252,8 +252,8 @@ void __init ixp4xx_init_irq(void)
 
         /* Default to all level triggered */
 	for(i = 0; i < NR_IRQS; i++) {
-		set_irq_chip(i, &ixp4xx_irq_chip);
-		set_irq_handler(i, handle_level_irq);
+		irq_set_chip_and_handler(i, &ixp4xx_irq_chip,
+					 handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
 }

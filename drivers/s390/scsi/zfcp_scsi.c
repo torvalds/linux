@@ -292,7 +292,37 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 	return SUCCESS;
 }
 
-int zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
+struct scsi_transport_template *zfcp_scsi_transport_template;
+
+static struct scsi_host_template zfcp_scsi_host_template = {
+	.module			 = THIS_MODULE,
+	.name			 = "zfcp",
+	.queuecommand		 = zfcp_scsi_queuecommand,
+	.eh_abort_handler	 = zfcp_scsi_eh_abort_handler,
+	.eh_device_reset_handler = zfcp_scsi_eh_device_reset_handler,
+	.eh_target_reset_handler = zfcp_scsi_eh_target_reset_handler,
+	.eh_host_reset_handler	 = zfcp_scsi_eh_host_reset_handler,
+	.slave_alloc		 = zfcp_scsi_slave_alloc,
+	.slave_configure	 = zfcp_scsi_slave_configure,
+	.slave_destroy		 = zfcp_scsi_slave_destroy,
+	.change_queue_depth	 = zfcp_scsi_change_queue_depth,
+	.proc_name		 = "zfcp",
+	.can_queue		 = 4096,
+	.this_id		 = -1,
+	.sg_tablesize		 = ZFCP_QDIO_MAX_SBALES_PER_REQ,
+	.max_sectors		 = (ZFCP_QDIO_MAX_SBALES_PER_REQ * 8),
+	.dma_boundary		 = ZFCP_QDIO_SBALE_LEN - 1,
+	.cmd_per_lun		 = 1,
+	.use_clustering		 = 1,
+	.shost_attrs		 = zfcp_sysfs_shost_attrs,
+	.sdev_attrs		 = zfcp_sysfs_sdev_attrs,
+};
+
+/**
+ * zfcp_scsi_adapter_register - Register SCSI and FC host with SCSI midlayer
+ * @adapter: The zfcp adapter to register with the SCSI midlayer
+ */
+int zfcp_scsi_adapter_register(struct zfcp_adapter *adapter)
 {
 	struct ccw_dev_id dev_id;
 
@@ -301,7 +331,7 @@ int zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 
 	ccw_device_get_id(adapter->ccw_device, &dev_id);
 	/* register adapter as SCSI host with mid layer of SCSI stack */
-	adapter->scsi_host = scsi_host_alloc(&zfcp_data.scsi_host_template,
+	adapter->scsi_host = scsi_host_alloc(&zfcp_scsi_host_template,
 					     sizeof (struct zfcp_adapter *));
 	if (!adapter->scsi_host) {
 		dev_err(&adapter->ccw_device->dev,
@@ -316,7 +346,7 @@ int zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 	adapter->scsi_host->max_channel = 0;
 	adapter->scsi_host->unique_id = dev_id.devno;
 	adapter->scsi_host->max_cmd_len = 16; /* in struct fcp_cmnd */
-	adapter->scsi_host->transportt = zfcp_data.scsi_transport_template;
+	adapter->scsi_host->transportt = zfcp_scsi_transport_template;
 
 	adapter->scsi_host->hostdata[0] = (unsigned long) adapter;
 
@@ -328,7 +358,11 @@ int zfcp_adapter_scsi_register(struct zfcp_adapter *adapter)
 	return 0;
 }
 
-void zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
+/**
+ * zfcp_scsi_adapter_unregister - Unregister SCSI and FC host from SCSI midlayer
+ * @adapter: The zfcp adapter to unregister.
+ */
+void zfcp_scsi_adapter_unregister(struct zfcp_adapter *adapter)
 {
 	struct Scsi_Host *shost;
 	struct zfcp_port *port;
@@ -346,8 +380,6 @@ void zfcp_adapter_scsi_unregister(struct zfcp_adapter *adapter)
 	scsi_remove_host(shost);
 	scsi_host_put(shost);
 	adapter->scsi_host = NULL;
-
-	return;
 }
 
 static struct fc_host_statistics*
@@ -688,33 +720,8 @@ struct fc_function_template zfcp_transport_functions = {
 	/* no functions registered for following dynamic attributes but
 	   directly set by LLDD */
 	.show_host_port_type = 1,
+	.show_host_symbolic_name = 1,
 	.show_host_speed = 1,
 	.show_host_port_id = 1,
 	.dd_bsg_size = sizeof(struct zfcp_fsf_ct_els),
-};
-
-struct zfcp_data zfcp_data = {
-	.scsi_host_template = {
-		.name			 = "zfcp",
-		.module			 = THIS_MODULE,
-		.proc_name		 = "zfcp",
-		.change_queue_depth	 = zfcp_scsi_change_queue_depth,
-		.slave_alloc		 = zfcp_scsi_slave_alloc,
-		.slave_configure	 = zfcp_scsi_slave_configure,
-		.slave_destroy		 = zfcp_scsi_slave_destroy,
-		.queuecommand		 = zfcp_scsi_queuecommand,
-		.eh_abort_handler	 = zfcp_scsi_eh_abort_handler,
-		.eh_device_reset_handler = zfcp_scsi_eh_device_reset_handler,
-		.eh_target_reset_handler = zfcp_scsi_eh_target_reset_handler,
-		.eh_host_reset_handler	 = zfcp_scsi_eh_host_reset_handler,
-		.can_queue		 = 4096,
-		.this_id		 = -1,
-		.sg_tablesize		 = ZFCP_QDIO_MAX_SBALES_PER_REQ,
-		.cmd_per_lun		 = 1,
-		.use_clustering		 = 1,
-		.sdev_attrs		 = zfcp_sysfs_sdev_attrs,
-		.max_sectors		 = (ZFCP_QDIO_MAX_SBALES_PER_REQ * 8),
-		.dma_boundary		 = ZFCP_QDIO_SBALE_LEN - 1,
-		.shost_attrs		 = zfcp_sysfs_shost_attrs,
-	},
 };

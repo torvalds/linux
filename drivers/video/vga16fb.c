@@ -152,7 +152,7 @@ static inline int setop(int op)
 }
 
 /* Set the Enable Set/Reset Register and return its old value.  
-   The code here always uses value 0xf for thsi register. */
+   The code here always uses value 0xf for this register. */
 static inline int setsr(int sr)
 {
 	int oldsr;

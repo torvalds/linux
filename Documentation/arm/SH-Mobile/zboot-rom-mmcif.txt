@@ -1,0 +1,29 @@
+ROM-able zImage boot from MMC
+-----------------------------
+
+An ROM-able zImage compiled with ZBOOT_ROM_MMCIF may be written to MMC and
+SuperH Mobile ARM will to boot directly from the MMCIF hardware block.
+
+This is achieved by the mask ROM loading the first portion of the image into
+MERAM and then jumping to it. This portion contains loader code which
+copies the entire image to SDRAM and jumps to it. From there the zImage
+boot code proceeds as normal, uncompressing the image into its final
+location and then jumping to it.
+
+This code has been tested on an AP4EB board using the developer 1A eMMC
+boot mode which is configured using the following jumper settings.
+The board used for testing required a patched mask ROM in order for
+this mode to function.
+
+   8 7 6 5 4 3 2 1
+   x|x|x|x|x| |x|
+S4 -+-+-+-+-+-+-+-
+    | | | | |x| |x on
+
+The zImage must be written to the MMC card at sector 1 (512 bytes) in
+vrl4 format. A utility vrl4 is supplied to accomplish this.
+
+e.g.
+	vrl4 < zImage | dd of=/dev/sdX bs=512 seek=1
+
+A dual-voltage MMC 4.0 card was used for testing.

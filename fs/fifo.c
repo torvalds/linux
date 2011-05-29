@@ -66,8 +66,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 				/* suppress POLLHUP until we have
 				 * seen a writer */
 				filp->f_version = pipe->w_counter;
-			} else 
-			{
+			} else {
 				wait_for_partner(inode, &pipe->w_counter);
 				if(signal_pending(current))
 					goto err_rd;

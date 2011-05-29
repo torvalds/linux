@@ -24,16 +24,20 @@
 #define NF_MAX_VERDICT NF_STOP
 
 /* we overload the higher bits for encoding auxiliary data such as the queue
- * number. Not nice, but better than additional function arguments. */
-#define NF_VERDICT_MASK 0x0000ffff
-#define NF_VERDICT_BITS 16
+ * number or errno values. Not nice, but better than additional function
+ * arguments. */
+#define NF_VERDICT_MASK 0x000000ff
 
+/* extra verdict flags have mask 0x0000ff00 */
+#define NF_VERDICT_FLAG_QUEUE_BYPASS	0x00008000
+
+/* queue number (NF_QUEUE) or errno (NF_DROP) */
 #define NF_VERDICT_QMASK 0xffff0000
 #define NF_VERDICT_QBITS 16
 
-#define NF_QUEUE_NR(x) ((((x) << NF_VERDICT_BITS) & NF_VERDICT_QMASK) | NF_QUEUE)
+#define NF_QUEUE_NR(x) ((((x) << 16) & NF_VERDICT_QMASK) | NF_QUEUE)
 
-#define NF_DROP_ERR(x) (((-x) << NF_VERDICT_BITS) | NF_DROP)
+#define NF_DROP_ERR(x) (((-x) << 16) | NF_DROP)
 
 /* only for userspace compatibility */
 #ifndef __KERNEL__
@@ -41,6 +45,9 @@
    <= 0x2000 is used for protocol-flags. */
 #define NFC_UNKNOWN 0x4000
 #define NFC_ALTERED 0x8000
+
+/* NF_VERDICT_BITS should be 8 now, but userspace might break if this changes */
+#define NF_VERDICT_BITS 16
 #endif
 
 enum nf_inet_hooks {
@@ -72,6 +79,10 @@ union nf_inet_addr {
 
 #ifdef __KERNEL__
 #ifdef CONFIG_NETFILTER
+static inline int NF_DROP_GETERR(int verdict)
+{
+	return -(verdict >> NF_VERDICT_QBITS);
+}
 
 static inline int nf_inet_addr_cmp(const union nf_inet_addr *a1,
 				   const union nf_inet_addr *a2)
@@ -259,7 +270,8 @@ struct nf_afinfo {
 					    unsigned int dataoff,
 					    unsigned int len,
 					    u_int8_t protocol);
-	int		(*route)(struct dst_entry **dst, struct flowi *fl);
+	int		(*route)(struct net *net, struct dst_entry **dst,
+				 struct flowi *fl, bool strict);
 	void		(*saveroute)(const struct sk_buff *skb,
 				     struct nf_queue_entry *entry);
 	int		(*reroute)(struct sk_buff *skb,
@@ -267,7 +279,7 @@ struct nf_afinfo {
 	int		route_key_size;
 };
 
-extern const struct nf_afinfo *nf_afinfo[NFPROTO_NUMPROTO];
+extern const struct nf_afinfo __rcu *nf_afinfo[NFPROTO_NUMPROTO];
 static inline const struct nf_afinfo *nf_get_afinfo(unsigned short family)
 {
 	return rcu_dereference(nf_afinfo[family]);
@@ -357,9 +369,9 @@ nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 #endif /*CONFIG_NETFILTER*/
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
-extern void (*ip_ct_attach)(struct sk_buff *, struct sk_buff *);
+extern void (*ip_ct_attach)(struct sk_buff *, struct sk_buff *) __rcu;
 extern void nf_ct_attach(struct sk_buff *, struct sk_buff *);
-extern void (*nf_ct_destroy)(struct nf_conntrack *);
+extern void (*nf_ct_destroy)(struct nf_conntrack *) __rcu;
 #else
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
 #endif

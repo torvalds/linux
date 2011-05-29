@@ -179,3 +179,21 @@ static int __init dma_init(void)
        return 0;
 }
 fs_initcall(dma_init);
+
+int dma_mmap_coherent(struct device *dev, struct vm_area_struct *vma,
+		      void *cpu_addr, dma_addr_t handle, size_t size)
+{
+	unsigned long pfn;
+
+#ifdef CONFIG_NOT_COHERENT_CACHE
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	pfn = __dma_get_coherent_pfn((unsigned long)cpu_addr);
+#else
+	pfn = page_to_pfn(virt_to_page(cpu_addr));
+#endif
+	return remap_pfn_range(vma, vma->vm_start,
+			       pfn + vma->vm_pgoff,
+			       vma->vm_end - vma->vm_start,
+			       vma->vm_page_prot);
+}
+EXPORT_SYMBOL_GPL(dma_mmap_coherent);

@@ -64,8 +64,9 @@ extern void xenbus_dev_changed(const char *node, struct xen_bus_type *bus);
 
 extern void xenbus_dev_shutdown(struct device *_dev);
 
-extern int xenbus_dev_suspend(struct device *dev, pm_message_t state);
+extern int xenbus_dev_suspend(struct device *dev);
 extern int xenbus_dev_resume(struct device *dev);
+extern int xenbus_dev_cancel(struct device *dev);
 
 extern void xenbus_otherend_changed(struct xenbus_watch *watch,
 				    const char **vec, unsigned int len,

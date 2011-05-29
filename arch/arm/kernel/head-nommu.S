@@ -44,9 +44,6 @@ ENTRY(stext)
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
 	beq	__error_p				@ yes, error 'p'
-	bl	__lookup_machine_type		@ r5=machinfo
-	movs	r8, r5				@ invalid machine (r5=0)?
-	beq	__error_a			@ yes, error 'a'
 
 	adr	lr, BSYM(__after_proc_init)	@ return (PIC) address
  ARM(	add	pc, r10, #PROCINFO_INITFUNC	)

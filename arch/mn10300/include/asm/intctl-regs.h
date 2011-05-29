@@ -60,11 +60,6 @@
 
 #ifndef __ASSEMBLY__
 extern void set_intr_level(int irq, u16 level);
-extern void mn10300_intc_set_level(unsigned int irq, unsigned int level);
-extern void mn10300_intc_clear(unsigned int irq);
-extern void mn10300_intc_set(unsigned int irq);
-extern void mn10300_intc_enable(unsigned int irq);
-extern void mn10300_intc_disable(unsigned int irq);
 extern void mn10300_set_lateack_irq_type(int irq);
 #endif
 

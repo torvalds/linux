@@ -139,7 +139,7 @@ static struct snd_soc_dai_link am3517evm_dai = {
 	.cpu_dai_name ="omap-mcbsp-dai.0",
 	.codec_dai_name = "tlv320aic23-hifi",
 	.platform_name = "omap-pcm-audio",
-	.codec_name = "tlv320aic23-codec",
+	.codec_name = "tlv320aic23-codec.2-001a",
 	.init = am3517evm_aic23_init,
 	.ops = &am3517evm_ops,
 };

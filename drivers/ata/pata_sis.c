@@ -331,7 +331,7 @@ static void sis_old_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 
 	if (adev->dma_mode < XFER_UDMA_0) {
 		/* bits 3-0 hold recovery timing bits 8-10 active timing and
-		   the higher bits are dependant on the device */
+		   the higher bits are dependent on the device */
 		timing &= ~0x870F;
 		timing |= mwdma_bits[speed];
 	} else {
@@ -371,7 +371,7 @@ static void sis_66_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 
 	if (adev->dma_mode < XFER_UDMA_0) {
 		/* bits 3-0 hold recovery timing bits 8-10 active timing and
-		   the higher bits are dependant on the device, bit 15 udma */
+		   the higher bits are dependent on the device, bit 15 udma */
 		timing &= ~0x870F;
 		timing |= mwdma_bits[speed];
 	} else {
@@ -593,7 +593,7 @@ static const struct ata_port_info sis_info133 = {
 	.port_ops	= &sis_133_ops,
 };
 const struct ata_port_info sis_info133_for_sata = {
-	.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
+	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
 	/* No MWDMA */
 	.udma_mask	= ATA_UDMA6,

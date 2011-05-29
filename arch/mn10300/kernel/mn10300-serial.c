@@ -119,6 +119,10 @@ static int mn10300_serial_request_port(struct uart_port *);
 static void mn10300_serial_config_port(struct uart_port *, int);
 static int mn10300_serial_verify_port(struct uart_port *,
 					struct serial_struct *);
+#ifdef CONFIG_CONSOLE_POLL
+static void mn10300_serial_poll_put_char(struct uart_port *, unsigned char);
+static int mn10300_serial_poll_get_char(struct uart_port *);
+#endif
 
 static const struct uart_ops mn10300_serial_ops = {
 	.tx_empty	= mn10300_serial_tx_empty,
@@ -138,6 +142,10 @@ static const struct uart_ops mn10300_serial_ops = {
 	.request_port	= mn10300_serial_request_port,
 	.config_port	= mn10300_serial_config_port,
 	.verify_port	= mn10300_serial_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_put_char	= mn10300_serial_poll_put_char,
+	.poll_get_char	= mn10300_serial_poll_get_char,
+#endif
 };
 
 static irqreturn_t mn10300_serial_interrupt(int irq, void *dev_id);
@@ -384,17 +392,21 @@ static void mn10300_serial_mask_ack(unsigned int irq)
 	arch_local_irq_restore(flags);
 }
 
-static void mn10300_serial_nop(unsigned int irq)
+static void mn10300_serial_chip_mask_ack(struct irq_data *d)
+{
+	mn10300_serial_mask_ack(d->irq);
+}
+
+static void mn10300_serial_nop(struct irq_data *d)
 {
 }
 
 static struct irq_chip mn10300_serial_pic = {
 	.name		= "mnserial",
-	.ack		= mn10300_serial_mask_ack,
-	.mask		= mn10300_serial_mask_ack,
-	.mask_ack	= mn10300_serial_mask_ack,
-	.unmask		= mn10300_serial_nop,
-	.end		= mn10300_serial_nop,
+	.irq_ack	= mn10300_serial_chip_mask_ack,
+	.irq_mask	= mn10300_serial_chip_mask_ack,
+	.irq_mask_ack	= mn10300_serial_chip_mask_ack,
+	.irq_unmask	= mn10300_serial_nop,
 };
 
 
@@ -921,7 +933,7 @@ static int mn10300_serial_startup(struct uart_port *_port)
 		NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL));
 	set_intr_level(port->tx_irq,
 		NUM2GxICR_LEVEL(CONFIG_MN10300_SERIAL_IRQ_LEVEL));
-	set_irq_chip(port->tm_irq, &mn10300_serial_pic);
+	irq_set_chip(port->tm_irq, &mn10300_serial_pic);
 
 	if (request_irq(port->rx_irq, mn10300_serial_interrupt,
 			IRQF_DISABLED, port->rx_name, port) < 0)
@@ -1630,3 +1642,70 @@ static int __init mn10300_serial_console_init(void)
 
 console_initcall(mn10300_serial_console_init);
 #endif
+
+#ifdef CONFIG_CONSOLE_POLL
+/*
+ * Polled character reception for the kernel debugger
+ */
+static int mn10300_serial_poll_get_char(struct uart_port *_port)
+{
+	struct mn10300_serial_port *port =
+		container_of(_port, struct mn10300_serial_port, uart);
+	unsigned ix;
+	u8 st, ch;
+
+	_enter("%s", port->name);
+
+	do {
+		/* pull chars out of the hat */
+		ix = port->rx_outp;
+		if (ix == port->rx_inp)
+			return NO_POLL_CHAR;
+
+		ch = port->rx_buffer[ix++];
+		st = port->rx_buffer[ix++];
+		smp_rmb();
+		port->rx_outp = ix & (MNSC_BUFFER_SIZE - 1);
+
+	} while (st & (SC01STR_FEF | SC01STR_PEF | SC01STR_OEF));
+
+	return ch;
+}
+
+
+/*
+ * Polled character transmission for the kernel debugger
+ */
+static void mn10300_serial_poll_put_char(struct uart_port *_port,
+					 unsigned char ch)
+{
+	struct mn10300_serial_port *port =
+		container_of(_port, struct mn10300_serial_port, uart);
+	u8 intr, tmp;
+
+	/* wait for the transmitter to finish anything it might be doing (and
+	 * this includes the virtual DMA handler, so it might take a while) */
+	while (*port->_status & (SC01STR_TBF | SC01STR_TXF))
+		continue;
+
+	/* disable the Tx ready interrupt */
+	intr = *port->_intr;
+	*port->_intr = intr & ~SC01ICR_TI;
+	tmp = *port->_intr;
+
+	if (ch == 0x0a) {
+		*(u8 *) port->_txb = 0x0d;
+		while (*port->_status & SC01STR_TBF)
+			continue;
+	}
+
+	*(u8 *) port->_txb = ch;
+	while (*port->_status & SC01STR_TBF)
+		continue;
+
+	/* restore the Tx interrupt flag */
+	*port->_intr = intr;
+	tmp = *port->_intr;
+}
+
+#endif /* CONFIG_CONSOLE_POLL */

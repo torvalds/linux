@@ -5,14 +5,21 @@ Required properties:
   first is "fsl,CHIP-msi", where CHIP is the processor(mpc8610, mpc8572,
   etc.) and the second is "fsl,mpic-msi" or "fsl,ipic-msi" depending on
   the parent type.
+
 - reg : should contain the address and the length of the shared message
   interrupt register set.
+
 - msi-available-ranges: use <start count> style section to define which
   msi interrupt can be used in the 256 msi interrupts. This property is
   optional, without this, all the 256 MSI interrupts can be used.
+  Each available range must begin and end on a multiple of 32 (i.e.
+  no splitting an individual MSI register or the associated PIC interrupt).
+
 - interrupts : each one of the interrupts here is one entry per 32 MSIs,
   and routed to the host interrupt controller. the interrupts should
-  be set as edge sensitive.
+  be set as edge sensitive.  If msi-available-ranges is present, only
+  the interrupts that correspond to available ranges shall be present.
+
 - interrupt-parent: the phandle for the interrupt controller
   that services interrupts for this device. for 83xx cpu, the interrupts
   are routed to IPIC, and for 85xx/86xx cpu the interrupts are routed

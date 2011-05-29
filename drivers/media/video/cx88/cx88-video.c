@@ -40,6 +40,7 @@
 #include "cx88.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/wm8775.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
@@ -989,6 +990,32 @@ int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 		ctl->value = c->v.minimum;
 	if (ctl->value > c->v.maximum)
 		ctl->value = c->v.maximum;
+
+	/* Pass changes onto any WM8775 */
+	if (core->board.audio_chip == V4L2_IDENT_WM8775) {
+		struct v4l2_control client_ctl;
+		memset(&client_ctl, 0, sizeof(client_ctl));
+		client_ctl.id = ctl->id;
+
+		switch (ctl->id) {
+		case V4L2_CID_AUDIO_MUTE:
+			client_ctl.value = ctl->value;
+			break;
+		case V4L2_CID_AUDIO_VOLUME:
+			client_ctl.value = (ctl->value) ?
+				(0x90 + ctl->value) << 8 : 0;
+			break;
+		case V4L2_CID_AUDIO_BALANCE:
+			client_ctl.value = ctl->value << 9;
+			break;
+		default:
+			client_ctl.id = 0;
+			break;
+		}
+		if (client_ctl.id)
+			call_hw(core, WM8775_GID, core, s_ctrl, &client_ctl);
+	}
+
 	mask=c->mask;
 	switch (ctl->id) {
 	case V4L2_CID_AUDIO_BALANCE:
@@ -1526,7 +1553,9 @@ static int radio_queryctrl (struct file *file, void *priv,
 	if (c->id <  V4L2_CID_BASE ||
 		c->id >= V4L2_CID_LASTP1)
 		return -EINVAL;
-	if (c->id == V4L2_CID_AUDIO_MUTE) {
+	if (c->id == V4L2_CID_AUDIO_MUTE ||
+		c->id == V4L2_CID_AUDIO_VOLUME ||
+		c->id == V4L2_CID_AUDIO_BALANCE) {
 		for (i = 0; i < CX8800_CTLS; i++) {
 			if (cx8800_ctls[i].v.id == c->id)
 				break;
@@ -1672,7 +1701,7 @@ static const struct v4l2_file_operations video_fops =
 	.read	       = video_read,
 	.poll          = video_poll,
 	.mmap	       = video_mmap,
-	.ioctl	       = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
@@ -1722,7 +1751,7 @@ static const struct v4l2_file_operations radio_fops =
 	.owner         = THIS_MODULE,
 	.open          = video_open,
 	.release       = video_release,
-	.ioctl         = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {
@@ -1856,9 +1885,24 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* load and configure helper modules */
 
-	if (core->board.audio_chip == V4L2_IDENT_WM8775)
-		v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
-				"wm8775", 0x36 >> 1, NULL);
+	if (core->board.audio_chip == V4L2_IDENT_WM8775) {
+		struct i2c_board_info wm8775_info = {
+			.type = "wm8775",
+			.addr = 0x36 >> 1,
+			.platform_data = &core->wm8775_data,
+		};
+		struct v4l2_subdev *sd;
+
+		if (core->boardnr == CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1)
+			core->wm8775_data.is_nova_s = true;
+		else
+			core->wm8775_data.is_nova_s = false;
+
+		sd = v4l2_i2c_new_subdev_board(&core->v4l2_dev, &core->i2c_adap,
+				&wm8775_info, NULL);
+		if (sd != NULL)
+			sd->grp_id = WM8775_GID;
+	}
 
 	if (core->board.audio_chip == V4L2_IDENT_TVAUDIO) {
 		/* This probes for a tda9874 as is used on some
@@ -1881,6 +1925,15 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 		request_module("ir-kbd-i2c");
 	}
+
+	/* Sets device info at pci_dev */
+	pci_set_drvdata(pci_dev, dev);
+
+	/* initial device configuration */
+	mutex_lock(&core->lock);
+	cx88_set_tvnorm(core, core->tvnorm);
+	init_controls(core);
+	cx88_video_mux(core, 0);
 
 	/* register v4l devices */
 	dev->video_dev = cx88_vdev_init(core,dev->pci,
@@ -1923,16 +1976,6 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		       core->name, video_device_node_name(dev->radio_dev));
 	}
 
-	/* everything worked */
-	pci_set_drvdata(pci_dev,dev);
-
-	/* initial device configuration */
-	mutex_lock(&core->lock);
-	cx88_set_tvnorm(core,core->tvnorm);
-	init_controls(core);
-	cx88_video_mux(core,0);
-	mutex_unlock(&core->lock);
-
 	/* start tvaudio thread */
 	if (core->board.tuner_type != TUNER_ABSENT) {
 		core->kthread = kthread_run(cx88_audio_thread, core, "cx88 tvaudio");
@@ -1942,11 +1985,14 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 			       core->name, err);
 		}
 	}
+	mutex_unlock(&core->lock);
+
 	return 0;
 
 fail_unreg:
 	cx8800_unregister_video(dev);
 	free_irq(pci_dev->irq, dev);
+	mutex_unlock(&core->lock);
 fail_core:
 	cx88_core_put(core,dev->pci);
 fail_free:

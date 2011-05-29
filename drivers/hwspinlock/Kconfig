@@ -1,0 +1,23 @@
+#
+# Generic HWSPINLOCK framework
+#
+
+config HWSPINLOCK
+	tristate "Generic Hardware Spinlock framework"
+	depends on ARCH_OMAP4
+	help
+	  Say y here to support the generic hardware spinlock framework.
+	  You only need to enable this if you have hardware spinlock module
+	  on your system (usually only relevant if your system has remote slave
+	  coprocessors).
+
+	  If unsure, say N.
+
+config HWSPINLOCK_OMAP
+	tristate "OMAP Hardware Spinlock device"
+	depends on HWSPINLOCK && ARCH_OMAP4
+	help
+	  Say y here to support the OMAP Hardware Spinlock device (firstly
+	  introduced in OMAP4).
+
+	  If unsure, say N.

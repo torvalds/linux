@@ -319,7 +319,6 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 {
 	struct in6_addr *source, *group;
 	struct ipv6_mc_socklist *pmc;
-	struct net_device *dev;
 	struct inet6_dev *idev;
 	struct ipv6_pinfo *inet6 = inet6_sk(sk);
 	struct ip6_sf_socklist *psl;
@@ -341,7 +340,6 @@ int ip6_mc_source(int add, int omode, struct sock *sk,
 		rcu_read_unlock();
 		return -ENODEV;
 	}
-	dev = idev->dev;
 
 	err = -EADDRNOTAVAIL;
 
@@ -455,7 +453,6 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 {
 	struct in6_addr *group;
 	struct ipv6_mc_socklist *pmc;
-	struct net_device *dev;
 	struct inet6_dev *idev;
 	struct ipv6_pinfo *inet6 = inet6_sk(sk);
 	struct ip6_sf_socklist *newpsl, *psl;
@@ -478,7 +475,6 @@ int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf)
 		rcu_read_unlock();
 		return -ENODEV;
 	}
-	dev = idev->dev;
 
 	err = 0;
 
@@ -549,7 +545,6 @@ int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 	struct in6_addr *group;
 	struct ipv6_mc_socklist *pmc;
 	struct inet6_dev *idev;
-	struct net_device *dev;
 	struct ipv6_pinfo *inet6 = inet6_sk(sk);
 	struct ip6_sf_socklist *psl;
 	struct net *net = sock_net(sk);
@@ -566,7 +561,6 @@ int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 		rcu_read_unlock();
 		return -ENODEV;
 	}
-	dev = idev->dev;
 
 	err = -EADDRNOTAVAIL;
 	/*
@@ -1402,7 +1396,7 @@ static void mld_sendpack(struct sk_buff *skb)
 	struct inet6_dev *idev;
 	struct net *net = dev_net(skb->dev);
 	int err;
-	struct flowi fl;
+	struct flowi6 fl6;
 	struct dst_entry *dst;
 
 	rcu_read_lock();
@@ -1425,11 +1419,16 @@ static void mld_sendpack(struct sk_buff *skb)
 		goto err_out;
 	}
 
-	icmpv6_flow_init(net->ipv6.igmp_sk, &fl, ICMPV6_MLD2_REPORT,
+	icmpv6_flow_init(net->ipv6.igmp_sk, &fl6, ICMPV6_MLD2_REPORT,
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
 
-	err = xfrm_lookup(net, &dst, &fl, NULL, 0);
+	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
+	err = 0;
+	if (IS_ERR(dst)) {
+		err = PTR_ERR(dst);
+		dst = NULL;
+	}
 	skb_dst_set(skb, dst);
 	if (err)
 		goto err_out;
@@ -1732,7 +1731,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 	u8 ra[8] = { IPPROTO_ICMPV6, 0,
 		     IPV6_TLV_ROUTERALERT, 2, 0, 0,
 		     IPV6_TLV_PADN, 0 };
-	struct flowi fl;
+	struct flowi6 fl6;
 	struct dst_entry *dst;
 
 	if (type == ICMPV6_MGM_REDUCTION)
@@ -1792,13 +1791,15 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 		goto err_out;
 	}
 
-	icmpv6_flow_init(sk, &fl, type,
+	icmpv6_flow_init(sk, &fl6, type,
 			 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
 			 skb->dev->ifindex);
 
-	err = xfrm_lookup(net, &dst, &fl, NULL, 0);
-	if (err)
+	dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), NULL, 0);
+	if (IS_ERR(dst)) {
+		err = PTR_ERR(dst);
 		goto err_out;
+	}
 
 	skb_dst_set(skb, dst);
 	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb, NULL, skb->dev,

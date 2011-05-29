@@ -301,7 +301,7 @@ static int ali_notify_sys(struct notifier_block *this,
  *	want to register another driver on the same PCI id.
  */
 
-static struct pci_device_id ali_pci_tbl[] __used = {
+static DEFINE_PCI_DEVICE_TABLE(ali_pci_tbl) __used = {
 	{ PCI_VENDOR_ID_AL, 0x1533, PCI_ANY_ID, PCI_ANY_ID,},
 	{ PCI_VENDOR_ID_AL, 0x1535, PCI_ANY_ID, PCI_ANY_ID,},
 	{ 0, },
@@ -362,12 +362,12 @@ static int __init ali_find_watchdog(void)
  */
 
 static const struct file_operations ali_fops = {
-	.owner 		=	THIS_MODULE,
-	.llseek 	=	no_llseek,
+	.owner		=	THIS_MODULE,
+	.llseek		=	no_llseek,
 	.write		=	ali_write,
 	.unlocked_ioctl =	ali_ioctl,
-	.open 		=	ali_open,
-	.release 	=	ali_release,
+	.open		=	ali_open,
+	.release	=	ali_release,
 };
 
 static struct miscdevice ali_miscdev = {

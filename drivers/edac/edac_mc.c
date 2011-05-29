@@ -724,7 +724,7 @@ void edac_mc_handle_ce(struct mem_ctl_info *mci,
 		 * Some MC's can remap memory so that it is still available
 		 * at a different address when PCI devices map into memory.
 		 * MC's that can't do this lose the memory where PCI devices
-		 * are mapped.  This mapping is MC dependant and so we call
+		 * are mapped.  This mapping is MC dependent and so we call
 		 * back into the MC driver for it to map the MC page to
 		 * a physical (CPU) page which can then be mapped to a virtual
 		 * page - which can then be scrubbed.

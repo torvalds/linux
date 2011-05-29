@@ -97,6 +97,18 @@ config RT2800PCI_RT35XX
 	  Support for these devices is non-functional at the moment and is
 	  intended for testers and developers.
 
+config RT2800PCI_RT53XX
+       bool "rt2800-pci - Include support for rt53xx devices (EXPERIMENTAL)"
+       depends on EXPERIMENTAL
+       default n
+       ---help---
+         This adds support for rt53xx wireless chipset family to the
+         rt2800pci driver.
+         Supported chips: RT5390
+
+         Support for these devices is non-functional at the moment and is
+         intended for testers and developers.
+
 endif
 
 config RT2500USB

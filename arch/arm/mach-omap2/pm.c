@@ -18,8 +18,8 @@
 #include <plat/omap-pm.h>
 #include <plat/omap_device.h>
 #include <plat/common.h>
-#include <plat/voltage.h>
 
+#include "voltage.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
 #include "pm.h"
@@ -83,10 +83,13 @@ static int _init_omap_device(char *name, struct device **new_dev)
 static void omap2_init_processor_devices(void)
 {
 	_init_omap_device("mpu", &mpu_dev);
-	_init_omap_device("iva", &iva_dev);
+	if (omap3_has_iva())
+		_init_omap_device("iva", &iva_dev);
+
 	if (cpu_is_omap44xx()) {
 		_init_omap_device("l3_main_1", &l3_dev);
 		_init_omap_device("dsp", &dsp_dev);
+		_init_omap_device("iva", &iva_dev);
 	} else {
 		_init_omap_device("l3_main", &l3_dev);
 	}
@@ -124,7 +127,7 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 			(pwrdm->flags & PWRDM_HAS_LOWPOWERSTATECHANGE)) {
 			sleep_switch = LOWPOWERSTATE_SWITCH;
 		} else {
-			omap2_clkdm_wakeup(pwrdm->pwrdm_clkdms[0]);
+			clkdm_wakeup(pwrdm->pwrdm_clkdms[0]);
 			pwrdm_wait_transition(pwrdm);
 			sleep_switch = FORCEWAKEUP_SWITCH;
 		}
@@ -140,9 +143,9 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 	switch (sleep_switch) {
 	case FORCEWAKEUP_SWITCH:
 		if (pwrdm->pwrdm_clkdms[0]->flags & CLKDM_CAN_ENABLE_AUTO)
-			omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
+			clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
 		else
-			omap2_clkdm_sleep(pwrdm->pwrdm_clkdms[0]);
+			clkdm_sleep(pwrdm->pwrdm_clkdms[0]);
 		break;
 	case LOWPOWERSTATE_SWITCH:
 		pwrdm_set_lowpwrstchange(pwrdm);

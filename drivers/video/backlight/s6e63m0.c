@@ -778,6 +778,7 @@ static int __devinit s6e63m0_probe(struct spi_device *spi)
 
 	bd->props.max_brightness = MAX_BRIGHTNESS;
 	bd->props.brightness = MAX_BRIGHTNESS;
+	bd->props.type = BACKLIGHT_RAW;
 	lcd->bd = bd;
 
 	/*

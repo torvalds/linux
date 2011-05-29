@@ -207,7 +207,7 @@ static enum v4l2_mbus_pixelcode ov6650_codes[] = {
 	V4L2_MBUS_FMT_YVYU8_2X8,
 	V4L2_MBUS_FMT_VYUY8_2X8,
 	V4L2_MBUS_FMT_SBGGR8_1X8,
-	V4L2_MBUS_FMT_GREY8_1X8,
+	V4L2_MBUS_FMT_Y8_1X8,
 };
 
 static const struct v4l2_queryctrl ov6650_controls[] = {
@@ -800,7 +800,7 @@ static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 
 	/* select color matrix configuration for given color encoding */
 	switch (code) {
-	case V4L2_MBUS_FMT_GREY8_1X8:
+	case V4L2_MBUS_FMT_Y8_1X8:
 		dev_dbg(&client->dev, "pixel format GREY8_1X8\n");
 		coma_mask |= COMA_RGB | COMA_WORD_SWAP | COMA_BYTE_SWAP;
 		coma_set |= COMA_BW;
@@ -846,7 +846,7 @@ static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 	}
 	priv->code = code;
 
-	if (code == V4L2_MBUS_FMT_GREY8_1X8 ||
+	if (code == V4L2_MBUS_FMT_Y8_1X8 ||
 			code == V4L2_MBUS_FMT_SBGGR8_1X8) {
 		coml_mask = COML_ONE_CHANNEL;
 		coml_set = 0;
@@ -936,8 +936,8 @@ static int ov6650_try_fmt(struct v4l2_subdev *sd,
 
 	switch (mf->code) {
 	case V4L2_MBUS_FMT_Y10_1X10:
-		mf->code = V4L2_MBUS_FMT_GREY8_1X8;
-	case V4L2_MBUS_FMT_GREY8_1X8:
+		mf->code = V4L2_MBUS_FMT_Y8_1X8;
+	case V4L2_MBUS_FMT_Y8_1X8:
 	case V4L2_MBUS_FMT_YVYU8_2X8:
 	case V4L2_MBUS_FMT_YUYV8_2X8:
 	case V4L2_MBUS_FMT_VYUY8_2X8:
@@ -1038,7 +1038,7 @@ static int ov6650_reset(struct i2c_client *client)
 	ret = ov6650_reg_rmw(client, REG_COMA, COMA_RESET, 0);
 	if (ret)
 		dev_err(&client->dev,
-			"An error occured while entering soft reset!\n");
+			"An error occurred while entering soft reset!\n");
 
 	return ret;
 }

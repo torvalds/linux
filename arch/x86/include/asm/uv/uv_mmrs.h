@@ -5,7 +5,7 @@
  *
  * SGI UV MMR definitions
  *
- * Copyright (C) 2007-2010 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2007-2011 Silicon Graphics, Inc. All rights reserved.
  */
 
 #ifndef _ASM_X86_UV_UV_MMRS_H
@@ -1099,5 +1099,19 @@ union uvh_rtc1_int_config_u {
     } s;
 };
 
+/* ========================================================================= */
+/*                               UVH_SCRATCH5                                */
+/* ========================================================================= */
+#define UVH_SCRATCH5 0x2d0200UL
+#define UVH_SCRATCH5_32 0x00778
+
+#define UVH_SCRATCH5_SCRATCH5_SHFT 0
+#define UVH_SCRATCH5_SCRATCH5_MASK 0xffffffffffffffffUL
+union uvh_scratch5_u {
+    unsigned long	v;
+    struct uvh_scratch5_s {
+	unsigned long	scratch5 : 64;  /* RW, W1CS */
+    } s;
+};
 
 #endif /* __ASM_UV_MMRS_X86_H__ */

@@ -64,7 +64,7 @@ extern struct SSFDCTYPE  Ssfdc;
 extern struct ADDRESS    Media;
 extern struct CIS_AREA   CisArea;
 
-//BIT Controll Macro
+//BIT Control Macro
 BYTE BitData[] = { 0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80 } ;
 #define Set_D_Bit(a,b)    (a[(BYTE)((b)/8)]|= BitData[(b)%8])
 #define Clr_D_Bit(a,b)    (a[(BYTE)((b)/8)]&=~BitData[(b)%8])
@@ -76,7 +76,7 @@ extern BYTE     IsXDCompliance;
 
 
 //
-////Power Controll & Media Exist Check Function
+////Power Control & Media Exist Check Function
 ////----- Init_D_SmartMedia() --------------------------------------------
 //int Init_D_SmartMedia(void)
 //{
@@ -575,7 +575,7 @@ int Media_D_OneSectWriteFlush(PFDO_DEVICE_EXTENSION fdoExt)
 //    return(SUCCESS);
 //}
 //
-////Power Controll & Media Exist Check Subroutine
+////Power Control & Media Exist Check Subroutine
 ////----- Initialize_D_Media() -------------------------------------------
 //void Initialize_D_Media(void)
 //{
@@ -738,7 +738,7 @@ int Check_D_MediaFmt(struct us_data *us)
 //    return(SUCCESS);
 //}
 */
-//SmartMedia Physical Address Controll Subroutine
+//SmartMedia Physical Address Control Subroutine
 //----- Conv_D_MediaAddr() ---------------------------------------------
 int Conv_D_MediaAddr(struct us_data *us, DWORD addr)
 {

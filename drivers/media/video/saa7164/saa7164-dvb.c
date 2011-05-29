@@ -309,8 +309,8 @@ static int dvb_register(struct saa7164_port *port)
 
 	port->hw_streamingparams.pitch = 188;
 	port->hw_streamingparams.linethreshold = 0;
-	port->hw_streamingparams.pagetablelistvirt = 0;
-	port->hw_streamingparams.pagetablelistphys = 0;
+	port->hw_streamingparams.pagetablelistvirt = NULL;
+	port->hw_streamingparams.pagetablelistphys = NULL;
 	port->hw_streamingparams.numpagetables = 2 +
 		((SAA7164_TS_NUMBER_OF_LINES * 188) / PAGE_SIZE);
 

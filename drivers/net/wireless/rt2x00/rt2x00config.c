@@ -60,7 +60,7 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 	 * Note that when NULL is passed as address we will send
 	 * 00:00:00:00:00 to the device to clear the address.
 	 * This will prevent the device being confused when it wants
-	 * to ACK frames or consideres itself associated.
+	 * to ACK frames or considers itself associated.
 	 */
 	memset(conf.mac, 0, sizeof(conf.mac));
 	if (mac)

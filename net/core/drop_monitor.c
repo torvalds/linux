@@ -350,7 +350,7 @@ static int __init init_net_drop_monitor(void)
 	struct per_cpu_dm_data *data;
 	int cpu, rc;
 
-	printk(KERN_INFO "Initalizing network drop monitor service\n");
+	printk(KERN_INFO "Initializing network drop monitor service\n");
 
 	if (sizeof(void *) > 8) {
 		printk(KERN_ERR "Unable to store program counters on this arch, Drop monitor failed\n");

@@ -142,14 +142,28 @@ this array to zero.</entry>
 	  <row>
 	    <entry><constant>V4L2_CAP_VIDEO_CAPTURE</constant></entry>
 	    <entry>0x00000001</entry>
-	    <entry>The device supports the <link
+	    <entry>The device supports the single-planar API through the <link
 linkend="capture">Video Capture</link> interface.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_VIDEO_CAPTURE_MPLANE</constant></entry>
+	    <entry>0x00001000</entry>
+	    <entry>The device supports the
+	    <link linkend="planar-apis">multi-planar API</link> through the
+	    <link linkend="capture">Video Capture</link> interface.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CAP_VIDEO_OUTPUT</constant></entry>
 	    <entry>0x00000002</entry>
-	    <entry>The device supports the <link
+	    <entry>The device supports the single-planar API through the <link
 linkend="output">Video Output</link> interface.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_VIDEO_OUTPUT_MPLANE</constant></entry>
+	    <entry>0x00002000</entry>
+	    <entry>The device supports the
+	    <link linkend="planar-apis">multi-planar API</link> through the
+	    <link linkend="output">Video Output</link> interface.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CAP_VIDEO_OVERLAY</constant></entry>

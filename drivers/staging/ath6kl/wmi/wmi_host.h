@@ -31,8 +31,8 @@ extern "C" {
 #endif
 
 struct wmi_stats {
-    A_UINT32    cmd_len_err;
-    A_UINT32    cmd_id_err;
+    u32 cmd_len_err;
+    u32 cmd_id_err;
 };
 
 #define SSID_IE_LEN_INDEX 13
@@ -42,14 +42,14 @@ struct wmi_stats {
 #define SIGNAL_QUALITY_UPPER_THRESHOLD_LEVELS SIGNAL_QUALITY_THRESHOLD_LEVELS
 #define SIGNAL_QUALITY_LOWER_THRESHOLD_LEVELS SIGNAL_QUALITY_THRESHOLD_LEVELS
 typedef struct sq_threshold_params_s {
-    A_INT16 upper_threshold[SIGNAL_QUALITY_UPPER_THRESHOLD_LEVELS];
-    A_INT16 lower_threshold[SIGNAL_QUALITY_LOWER_THRESHOLD_LEVELS];
-    A_UINT32 upper_threshold_valid_count;
-    A_UINT32 lower_threshold_valid_count;
-    A_UINT32 polling_interval;
-    A_UINT8 weight;
-    A_UINT8  last_rssi; //normally you would expect this to be bss specific but we keep only one instance because its only valid when the device is in a connected state. Not sure if it belongs to host or target.
-    A_UINT8  last_rssi_poll_event; //Not sure if it belongs to host or target
+    s16 upper_threshold[SIGNAL_QUALITY_UPPER_THRESHOLD_LEVELS];
+    s16 lower_threshold[SIGNAL_QUALITY_LOWER_THRESHOLD_LEVELS];
+    u32 upper_threshold_valid_count;
+    u32 lower_threshold_valid_count;
+    u32 polling_interval;
+    u8 weight;
+    u8 last_rssi; //normally you would expect this to be bss specific but we keep only one instance because its only valid when the device is in a connected state. Not sure if it belongs to host or target.
+    u8 last_rssi_poll_event; //Not sure if it belongs to host or target
 } SQ_THRESHOLD_PARAMS;
 
 /*
@@ -60,17 +60,17 @@ typedef struct sq_threshold_params_s {
 #define A_NUM_BANDS            2
 
 struct wmi_t {
-    A_BOOL                          wmi_ready;
-    A_BOOL                          wmi_numQoSStream;
-    A_UINT16                        wmi_streamExistsForAC[WMM_NUM_AC];
-    A_UINT8                         wmi_fatPipeExists;
+    bool                          wmi_ready;
+    bool                          wmi_numQoSStream;
+    u16 wmi_streamExistsForAC[WMM_NUM_AC];
+    u8 wmi_fatPipeExists;
     void                           *wmi_devt;
     struct wmi_stats                wmi_stats;
     struct ieee80211_node_table     wmi_scan_table;
-    A_UINT8                         wmi_bssid[ATH_MAC_LEN];
-    A_UINT8                         wmi_powerMode;
-    A_UINT8                         wmi_phyMode;
-    A_UINT8                         wmi_keepaliveInterval;
+    u8 wmi_bssid[ATH_MAC_LEN];
+    u8 wmi_powerMode;
+    u8 wmi_phyMode;
+    u8 wmi_keepaliveInterval;
 #ifdef THREAD_X
     A_CSECT_T                       wmi_lock;
 #else 
@@ -80,9 +80,9 @@ struct wmi_t {
     SQ_THRESHOLD_PARAMS             wmi_SqThresholdParams[SIGNAL_QUALITY_METRICS_NUM_MAX];
     CRYPTO_TYPE                     wmi_pair_crypto_type;
     CRYPTO_TYPE                     wmi_grp_crypto_type;
-    A_BOOL                          wmi_is_wmm_enabled;
-    A_UINT8                         wmi_ht_allowed[A_NUM_BANDS];
-    A_UINT8                         wmi_traffic_class;
+    bool                          wmi_is_wmm_enabled;
+    u8 wmi_ht_allowed[A_NUM_BANDS];
+    u8 wmi_traffic_class;
 };
 
 #ifdef THREAD_X

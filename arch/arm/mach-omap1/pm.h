@@ -123,9 +123,9 @@ extern void allow_idle_sleep(void);
 extern void omap1_pm_idle(void);
 extern void omap1_pm_suspend(void);
 
-extern void omap7xx_cpu_suspend(unsigned short, unsigned short);
-extern void omap1510_cpu_suspend(unsigned short, unsigned short);
-extern void omap1610_cpu_suspend(unsigned short, unsigned short);
+extern void omap7xx_cpu_suspend(unsigned long, unsigned long);
+extern void omap1510_cpu_suspend(unsigned long, unsigned long);
+extern void omap1610_cpu_suspend(unsigned long, unsigned long);
 extern void omap7xx_idle_loop_suspend(void);
 extern void omap1510_idle_loop_suspend(void);
 extern void omap1610_idle_loop_suspend(void);

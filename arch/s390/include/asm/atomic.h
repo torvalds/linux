@@ -9,7 +9,7 @@
  *
  * Atomic operations that C can't guarantee us.
  * Useful for resource counting etc.
- * s390 uses 'Compare And Swap' for atomicity in SMP enviroment.
+ * s390 uses 'Compare And Swap' for atomicity in SMP environment.
  *
  */
 

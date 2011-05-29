@@ -706,6 +706,7 @@ f_audio_unbind(struct usb_configuration *c, struct usb_function *f)
 	struct f_audio		*audio = func_to_audio(f);
 
 	usb_free_descriptors(f->descriptors);
+	usb_free_descriptors(f->hs_descriptors);
 	kfree(audio);
 }
 
@@ -742,7 +743,7 @@ int __init control_selector_init(struct f_audio *audio)
 }
 
 /**
- * audio_bind_config - add USB audio fucntion to a configuration
+ * audio_bind_config - add USB audio function to a configuration
  * @c: the configuration to supcard the USB audio function
  * Context: single threaded during gadget setup
  *

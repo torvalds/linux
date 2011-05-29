@@ -144,6 +144,17 @@ static inline __wsum udp_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 	return csum;
 }
 
+static inline __wsum udp_csum(struct sk_buff *skb)
+{
+	__wsum csum = csum_partial(skb_transport_header(skb),
+				   sizeof(struct udphdr), skb->csum);
+
+	for (skb = skb_shinfo(skb)->frag_list; skb; skb = skb->next) {
+		csum = csum_add(csum, skb->csum);
+	}
+	return csum;
+}
+
 /* hash routines shared between UDPv4/6 and UDP-Litev4/6 */
 static inline void udp_lib_hash(struct sock *sk)
 {
@@ -245,5 +256,5 @@ extern void udp4_proc_exit(void);
 extern void udp_init(void);
 
 extern int udp4_ufo_send_check(struct sk_buff *skb);
-extern struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb, int features);
+extern struct sk_buff *udp4_ufo_fragment(struct sk_buff *skb, u32 features);
 #endif	/* _UDP_H */

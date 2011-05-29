@@ -36,8 +36,7 @@ Additional features for the PVR-350 (CX23415 based):
  * Provides comprehensive OSD (On Screen Display: ie. graphics overlaying the
    video signal)
  * Provides a framebuffer (allowing X applications to appear on the video
-   device) (this framebuffer is not yet part of the kernel. In the meantime it
-   is available from www.ivtvdriver.org).
+   device)
  * Supports raw YUV output.
 
 IMPORTANT: In case of problems first read this page:

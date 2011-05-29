@@ -165,7 +165,7 @@ static struct map_desc ams_delta_io_desc[] __initdata = {
 	}
 };
 
-static struct omap_lcd_config ams_delta_lcd_config __initdata = {
+static struct omap_lcd_config ams_delta_lcd_config = {
 	.ctrl_name	= "internal",
 };
 
@@ -175,7 +175,7 @@ static struct omap_usb_config ams_delta_usb_config __initdata = {
 	.pins[0]	= 2,
 };
 
-static struct omap_board_config_kernel ams_delta_config[] = {
+static struct omap_board_config_kernel ams_delta_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&ams_delta_lcd_config },
 };
 
@@ -208,14 +208,14 @@ static const struct matrix_keymap_data ams_delta_keymap_data = {
 	.keymap_size	= ARRAY_SIZE(ams_delta_keymap),
 };
 
-static struct omap_kp_platform_data ams_delta_kp_data = {
+static struct omap_kp_platform_data ams_delta_kp_data __initdata = {
 	.rows		= 8,
 	.cols		= 8,
 	.keymap_data	= &ams_delta_keymap_data,
 	.delay		= 9,
 };
 
-static struct platform_device ams_delta_kp_device = {
+static struct platform_device ams_delta_kp_device __initdata = {
 	.name		= "omap-keypad",
 	.id		= -1,
 	.dev		= {
@@ -225,12 +225,12 @@ static struct platform_device ams_delta_kp_device = {
 	.resource	= ams_delta_kp_resources,
 };
 
-static struct platform_device ams_delta_lcd_device = {
+static struct platform_device ams_delta_lcd_device __initdata = {
 	.name	= "lcd_ams_delta",
 	.id	= -1,
 };
 
-static struct platform_device ams_delta_led_device = {
+static struct platform_device ams_delta_led_device __initdata = {
 	.name	= "ams-delta-led",
 	.id	= -1
 };
@@ -259,7 +259,7 @@ static int ams_delta_camera_power(struct device *dev, int power)
 #define ams_delta_camera_power	NULL
 #endif
 
-static struct soc_camera_link __initdata ams_delta_iclink = {
+static struct soc_camera_link ams_delta_iclink = {
 	.bus_id         = 0,	/* OMAP1 SoC camera bus */
 	.i2c_adapter_id = 1,
 	.board_info     = &ams_delta_camera_board_info[0],
@@ -267,7 +267,7 @@ static struct soc_camera_link __initdata ams_delta_iclink = {
 	.power		= ams_delta_camera_power,
 };
 
-static struct platform_device ams_delta_camera_device = {
+static struct platform_device ams_delta_camera_device __initdata = {
 	.name   = "soc-camera-pdrv",
 	.id     = 0,
 	.dev    = {

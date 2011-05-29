@@ -210,7 +210,7 @@ static struct irq_chip pl061_irqchip = {
 
 static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct list_head *chip_list = get_irq_data(irq);
+	struct list_head *chip_list = irq_get_handler_data(irq);
 	struct list_head *ptr;
 	struct pl061_gpio *chip;
 
@@ -232,7 +232,7 @@ static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 	desc->irq_data.chip->irq_unmask(&desc->irq_data);
 }
 
-static int pl061_probe(struct amba_device *dev, struct amba_id *id)
+static int pl061_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	struct pl061_platform_data *pdata;
 	struct pl061_gpio *chip;
@@ -294,7 +294,7 @@ static int pl061_probe(struct amba_device *dev, struct amba_id *id)
 		ret = -ENODEV;
 		goto iounmap;
 	}
-	set_irq_chained_handler(irq, pl061_irq_handler);
+	irq_set_chained_handler(irq, pl061_irq_handler);
 	if (!test_and_set_bit(irq, init_irq)) { /* list initialized? */
 		chip_list = kmalloc(sizeof(*chip_list), GFP_KERNEL);
 		if (chip_list == NULL) {
@@ -303,9 +303,9 @@ static int pl061_probe(struct amba_device *dev, struct amba_id *id)
 			goto iounmap;
 		}
 		INIT_LIST_HEAD(chip_list);
-		set_irq_data(irq, chip_list);
+		irq_set_handler_data(irq, chip_list);
 	} else
-		chip_list = get_irq_data(irq);
+		chip_list = irq_get_handler_data(irq);
 	list_add(&chip->list, chip_list);
 
 	for (i = 0; i < PL061_GPIO_NR; i++) {
@@ -315,10 +315,10 @@ static int pl061_probe(struct amba_device *dev, struct amba_id *id)
 		else
 			pl061_direction_input(&chip->gc, i);
 
-		set_irq_chip(i+chip->irq_base, &pl061_irqchip);
-		set_irq_handler(i+chip->irq_base, handle_simple_irq);
+		irq_set_chip_and_handler(i + chip->irq_base, &pl061_irqchip,
+					 handle_simple_irq);
 		set_irq_flags(i+chip->irq_base, IRQF_VALID);
-		set_irq_chip_data(i+chip->irq_base, chip);
+		irq_set_chip_data(i + chip->irq_base, chip);
 	}
 
 	return 0;

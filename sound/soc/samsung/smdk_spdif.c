@@ -10,15 +10,10 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/device.h>
 #include <linux/clk.h>
-
-#include <plat/devs.h>
 
 #include <sound/soc.h>
 
-#include "dma.h"
 #include "spdif.h"
 
 /* Audio clock settings are belonged to board specific part. Every

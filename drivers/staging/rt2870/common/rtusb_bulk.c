@@ -298,7 +298,7 @@ void RTUSBBulkOutDataPacket(struct rt_rtmp_adapter *pAd,
 				/*|| ( (ThisBulkSize != 0)  && (pTxWI->AMPDU == 0)) */
 				) {
 				/* For USB 1.1 or peer which didn't support AMPDU, limit the BulkOut size. */
-				/* For performence in b/g mode, now just check for USB 1.1 and didn't care about the APMDU or not! 2008/06/04. */
+				/* For performance in b/g mode, now just check for USB 1.1 and didn't care about the APMDU or not! 2008/06/04. */
 				pHTTXContext->ENextBulkOutPosition =
 				    TmpBulkEndPos;
 				break;
@@ -311,7 +311,7 @@ void RTUSBBulkOutDataPacket(struct rt_rtmp_adapter *pAd,
 				    TmpBulkEndPos;
 				break;
 			} else if (((pAd->BulkOutMaxPacketSize < 512) && ((ThisBulkSize & 0xfffff800) != 0)) /*|| ( (ThisBulkSize != 0)  && (pTxWI->AMPDU == 0)) */) {	/* For USB 1.1 or peer which didn't support AMPDU, limit the BulkOut size. */
-				/* For performence in b/g mode, now just check for USB 1.1 and didn't care about the APMDU or not! 2008/06/04. */
+				/* For performance in b/g mode, now just check for USB 1.1 and didn't care about the APMDU or not! 2008/06/04. */
 				pHTTXContext->ENextBulkOutPosition =
 				    TmpBulkEndPos;
 				break;
@@ -1016,7 +1016,7 @@ void RTUSBKickBulkOut(struct rt_rtmp_adapter *pAd)
 				RTUSBBulkOutNullFrame(pAd);
 			}
 		}
-		/* 8. No data avaliable */
+		/* 8. No data available */
 		else
 			;
 	}

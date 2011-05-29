@@ -841,7 +841,7 @@ restart_base:
 	mvc	__LC_SYSTEM_TIMER(8),__TI_system_timer(%r1)
 	xc	__LC_STEAL_TIMER(8),__LC_STEAL_TIMER
 	stosm	__SF_EMPTY(%r15),0x04	# now we can turn dat on
-	jg	start_secondary
+	brasl	%r14,start_secondary
 	.align	8
 restart_vtime:
 	.long	0x7fffffff,0xffffffff

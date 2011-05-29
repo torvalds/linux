@@ -174,8 +174,8 @@ union intel_mid_dma_cfg_hi {
  * @dma: dma device struture pointer
  * @busy: bool representing if ch is busy (active txn) or not
  * @in_use: bool representing if ch is in use or not
- * @raw_tfr: raw trf interrupt recieved
- * @raw_block: raw block interrupt recieved
+ * @raw_tfr: raw trf interrupt received
+ * @raw_block: raw block interrupt received
  */
 struct intel_mid_dma_chan {
 	struct dma_chan		chan;

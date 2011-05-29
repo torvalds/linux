@@ -944,6 +944,7 @@ static int picolcd_init_backlight(struct picolcd_data *data, struct hid_report *
 	}
 
 	memset(&props, 0, sizeof(props));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = 0xff;
 	bdev = backlight_device_register(dev_name(dev), dev, data,
 			&picolcd_blops, &props);
@@ -1805,13 +1806,13 @@ static ssize_t picolcd_debug_flash_write(struct file *f, const char __user *u,
 /*
  * Notes:
  * - concurrent writing is prevented by mutex and all writes must be
- *   n*64 bytes and 64-byte aligned, each write being preceeded by an
+ *   n*64 bytes and 64-byte aligned, each write being preceded by an
  *   ERASE which erases a 64byte block.
  *   If less than requested was written or an error is returned for an
  *   otherwise correct write request the next 64-byte block which should
  *   have been written is in undefined state (mostly: original, erased,
  *   (half-)written with write error)
- * - reading can happend without special restriction
+ * - reading can happen without special restriction
  */
 static const struct file_operations picolcd_debug_flash_fops = {
 	.owner    = THIS_MODULE,

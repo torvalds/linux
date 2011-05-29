@@ -26,6 +26,14 @@ Supported chips:
     Prefix: 'emc6d102'
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
     Datasheet: http://www.smsc.com/main/catalog/emc6d102.html
+  * SMSC EMC6D103
+    Prefix: 'emc6d103'
+    Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+    Datasheet: http://www.smsc.com/main/catalog/emc6d103.html
+  * SMSC EMC6D103S
+    Prefix: 'emc6d103s'
+    Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+    Datasheet: http://www.smsc.com/main/catalog/emc6d103s.html
 
 Authors:
         Philip Pokorny <ppokorny@penguincomputing.com>,
@@ -122,9 +130,11 @@ to be register compatible. The EMC6D100 offers all the features of the
 EMC6D101 plus additional voltage monitoring and system control features.
 Unfortunately it is not possible to distinguish between the package
 versions on register level so these additional voltage inputs may read
-zero. The EMC6D102 features addtional ADC bits thus extending precision
+zero. EMC6D102 and EMC6D103 feature additional ADC bits thus extending precision
 of voltage and temperature channels.
 
+SMSC EMC6D103S is similar to EMC6D103, but does not support pwm#_auto_pwm_minctl
+and temp#_auto_temp_off.
 
 Hardware Configurations
 -----------------------

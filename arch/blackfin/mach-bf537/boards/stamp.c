@@ -2530,7 +2530,7 @@ static struct resource bfin_pata_resources[] = {
 static struct pata_platform_info bfin_pata_platform_data = {
 	.ioport_shift = 0,
 };
-/* CompactFlash Storage Card Memory Mapped Adressing
+/* CompactFlash Storage Card Memory Mapped Addressing
  * /REG = A11 = 1
  */
 static struct resource bfin_pata_resources[] = {

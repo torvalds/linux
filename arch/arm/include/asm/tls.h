@@ -28,15 +28,14 @@
 #define tls_emu		1
 #define has_tls_reg		1
 #define set_tls		set_tls_none
-#elif __LINUX_ARM_ARCH__ >= 7 ||					\
-	(__LINUX_ARM_ARCH__ == 6 && defined(CONFIG_CPU_32v6K))
-#define tls_emu		0
-#define has_tls_reg		1
-#define set_tls		set_tls_v6k
-#elif __LINUX_ARM_ARCH__ == 6
+#elif defined(CONFIG_CPU_V6)
 #define tls_emu		0
 #define has_tls_reg		(elf_hwcap & HWCAP_TLS)
 #define set_tls		set_tls_v6
+#elif defined(CONFIG_CPU_32v6K)
+#define tls_emu		0
+#define has_tls_reg		1
+#define set_tls		set_tls_v6k
 #else
 #define tls_emu		0
 #define has_tls_reg		0

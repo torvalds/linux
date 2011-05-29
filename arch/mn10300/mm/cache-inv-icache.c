@@ -69,7 +69,7 @@ static void flush_icache_page_range(unsigned long start, unsigned long end)
 
 	/* invalidate the icache coverage on that region */
 	mn10300_local_icache_inv_range2(addr + off, size);
-	smp_cache_call(SMP_ICACHE_INV_FLUSH_RANGE, start, end);
+	smp_cache_call(SMP_ICACHE_INV_RANGE, start, end);
 }
 
 /**
@@ -101,7 +101,7 @@ void flush_icache_range(unsigned long start, unsigned long end)
 		 * directly */
 		start_page = (start >= 0x80000000UL) ? start : 0x80000000UL;
 		mn10300_icache_inv_range(start_page, end);
-		smp_cache_call(SMP_ICACHE_INV_FLUSH_RANGE, start, end);
+		smp_cache_call(SMP_ICACHE_INV_RANGE, start, end);
 		if (start_page == start)
 			goto done;
 		end = start_page;

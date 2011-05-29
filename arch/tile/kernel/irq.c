@@ -176,43 +176,43 @@ void disable_percpu_irq(unsigned int irq)
 EXPORT_SYMBOL(disable_percpu_irq);
 
 /* Mask an interrupt. */
-static void tile_irq_chip_mask(unsigned int irq)
+static void tile_irq_chip_mask(struct irq_data *d)
 {
-	mask_irqs(1UL << irq);
+	mask_irqs(1UL << d->irq);
 }
 
 /* Unmask an interrupt. */
-static void tile_irq_chip_unmask(unsigned int irq)
+static void tile_irq_chip_unmask(struct irq_data *d)
 {
-	unmask_irqs(1UL << irq);
+	unmask_irqs(1UL << d->irq);
 }
 
 /*
  * Clear an interrupt before processing it so that any new assertions
  * will trigger another irq.
  */
-static void tile_irq_chip_ack(unsigned int irq)
+static void tile_irq_chip_ack(struct irq_data *d)
 {
-	if ((unsigned long)get_irq_chip_data(irq) != IS_HW_CLEARED)
-		clear_irqs(1UL << irq);
+	if ((unsigned long)irq_data_get_irq_chip_data(d) != IS_HW_CLEARED)
+		clear_irqs(1UL << d->irq);
 }
 
 /*
  * For per-cpu interrupts, we need to avoid unmasking any interrupts
  * that we disabled via disable_percpu_irq().
  */
-static void tile_irq_chip_eoi(unsigned int irq)
+static void tile_irq_chip_eoi(struct irq_data *d)
 {
-	if (!(__get_cpu_var(irq_disable_mask) & (1UL << irq)))
-		unmask_irqs(1UL << irq);
+	if (!(__get_cpu_var(irq_disable_mask) & (1UL << d->irq)))
+		unmask_irqs(1UL << d->irq);
 }
 
 static struct irq_chip tile_irq_chip = {
 	.name = "tile_irq_chip",
-	.ack = tile_irq_chip_ack,
-	.eoi = tile_irq_chip_eoi,
-	.mask = tile_irq_chip_mask,
-	.unmask = tile_irq_chip_unmask,
+	.irq_ack = tile_irq_chip_ack,
+	.irq_eoi = tile_irq_chip_eoi,
+	.irq_mask = tile_irq_chip_mask,
+	.irq_unmask = tile_irq_chip_unmask,
 };
 
 void __init init_IRQ(void)
@@ -241,14 +241,14 @@ void tile_irq_activate(unsigned int irq, int tile_irq_type)
 	irq_flow_handler_t handle = handle_level_irq;
 	if (tile_irq_type == TILE_IRQ_PERCPU)
 		handle = handle_percpu_irq;
-	set_irq_chip_and_handler(irq, &tile_irq_chip, handle);
+	irq_set_chip_and_handler(irq, &tile_irq_chip, handle);
 
 	/*
 	 * Flag interrupts that are hardware-cleared so that ack()
 	 * won't clear them.
 	 */
 	if (tile_irq_type == TILE_IRQ_HW_CLEAR)
-		set_irq_chip_data(irq, (void *)IS_HW_CLEARED);
+		irq_set_chip_data(irq, (void *)IS_HW_CLEARED);
 }
 EXPORT_SYMBOL(tile_irq_activate);
 
@@ -261,45 +261,6 @@ void ack_bad_irq(unsigned int irq)
 /*
  * Generic, controller-independent functions:
  */
-
-int show_interrupts(struct seq_file *p, void *v)
-{
-	int i = *(loff_t *) v, j;
-	struct irqaction *action;
-	unsigned long flags;
-
-	if (i == 0) {
-		seq_printf(p, "           ");
-		for (j = 0; j < NR_CPUS; j++)
-			if (cpu_online(j))
-				seq_printf(p, "CPU%-8d", j);
-		seq_putc(p, '\n');
-	}
-
-	if (i < NR_IRQS) {
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
-		if (!action)
-			goto skip;
-		seq_printf(p, "%3d: ", i);
-#ifndef CONFIG_SMP
-		seq_printf(p, "%10u ", kstat_irqs(i));
-#else
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-#endif
-		seq_printf(p, " %14s", irq_desc[i].chip->name);
-		seq_printf(p, "  %s", action->name);
-
-		for (action = action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-
-		seq_putc(p, '\n');
-skip:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	}
-	return 0;
-}
 
 #if CHIP_HAS_IPI()
 int create_irq(void)

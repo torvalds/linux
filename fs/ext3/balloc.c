@@ -590,7 +590,7 @@ do_more:
 				BUFFER_TRACE(debug_bh, "Deleted!");
 				if (!bh2jh(bitmap_bh)->b_committed_data)
 					BUFFER_TRACE(debug_bh,
-						"No commited data in bitmap");
+						"No committed data in bitmap");
 				BUFFER_TRACE2(debug_bh, bitmap_bh, "bitmap");
 				__brelse(debug_bh);
 			}
@@ -1063,7 +1063,7 @@ static int find_next_reservable_window(
 		rsv_window_remove(sb, my_rsv);
 
 	/*
-	 * Let's book the whole avaliable window for now.  We will check the
+	 * Let's book the whole available window for now.  We will check the
 	 * disk bitmap later and then, if there are free blocks then we adjust
 	 * the window size if it's larger than requested.
 	 * Otherwise, we will remove this node from the tree next time
@@ -1456,7 +1456,7 @@ static int ext3_has_free_blocks(struct ext3_sb_info *sbi)
  *
  * ext3_should_retry_alloc() is called when ENOSPC is returned, and if
  * it is profitable to retry the operation, this function will wait
- * for the current or commiting transaction to complete, and then
+ * for the current or committing transaction to complete, and then
  * return TRUE.
  *
  * if the total number of retries exceed three times, return FALSE.
@@ -1632,9 +1632,9 @@ retry_alloc:
 			goto allocated;
 	}
 	/*
-	 * We may end up a bogus ealier ENOSPC error due to
+	 * We may end up a bogus earlier ENOSPC error due to
 	 * filesystem is "full" of reservations, but
-	 * there maybe indeed free blocks avaliable on disk
+	 * there maybe indeed free blocks available on disk
 	 * In this case, we just forget about the reservations
 	 * just do block allocation as without reservations.
 	 */
@@ -1991,6 +1991,7 @@ ext3_grpblk_t ext3_trim_all_free(struct super_block *sb, unsigned int group,
 		spin_unlock(sb_bgl_lock(sbi, group));
 		percpu_counter_sub(&sbi->s_freeblocks_counter, next - start);
 
+		free_blocks -= next - start;
 		/* Do not issue a TRIM on extents smaller than minblocks */
 		if ((next - start) < minblocks)
 			goto free_extent;
@@ -2040,7 +2041,7 @@ free_extent:
 		cond_resched();
 
 		/* No more suitable extents */
-		if ((free_blocks - count) < minblocks)
+		if (free_blocks < minblocks)
 			break;
 	}
 
@@ -2090,7 +2091,8 @@ int ext3_trim_fs(struct super_block *sb, struct fstrim_range *range)
 	ext3_fsblk_t max_blks = le32_to_cpu(es->s_blocks_count);
 	int ret = 0;
 
-	start = range->start >> sb->s_blocksize_bits;
+	start = (range->start >> sb->s_blocksize_bits) +
+		le32_to_cpu(es->s_first_data_block);
 	len = range->len >> sb->s_blocksize_bits;
 	minlen = range->minlen >> sb->s_blocksize_bits;
 	trimmed = 0;
@@ -2099,10 +2101,6 @@ int ext3_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		return -EINVAL;
 	if (start >= max_blks)
 		goto out;
-	if (start < le32_to_cpu(es->s_first_data_block)) {
-		len -= le32_to_cpu(es->s_first_data_block) - start;
-		start = le32_to_cpu(es->s_first_data_block);
-	}
 	if (start + len > max_blks)
 		len = max_blks - start;
 
@@ -2129,10 +2127,15 @@ int ext3_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		if (free_blocks < minlen)
 			continue;
 
-		if (len >= EXT3_BLOCKS_PER_GROUP(sb))
-			len -= (EXT3_BLOCKS_PER_GROUP(sb) - first_block);
-		else
+		/*
+		 * For all the groups except the last one, last block will
+		 * always be EXT3_BLOCKS_PER_GROUP(sb), so we only need to
+		 * change it for the last group in which case first_block +
+		 * len < EXT3_BLOCKS_PER_GROUP(sb).
+		 */
+		if (first_block + len < EXT3_BLOCKS_PER_GROUP(sb))
 			last_block = first_block + len;
+		len -= last_block - first_block;
 
 		ret = ext3_trim_all_free(sb, group, first_block,
 					last_block, minlen);

@@ -460,7 +460,7 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 				   PM_QOS_CPU_DMA_LATENCY, usecs);
 	return 0;
  _error:
-	/* hardware might be unuseable from this time,
+	/* hardware might be unusable from this time,
 	   so we force application to retry to set
 	   the correct hardware parameter settings */
 	runtime->status->state = SNDRV_PCM_STATE_OPEN;
@@ -941,7 +941,7 @@ static struct action_ops snd_pcm_action_stop = {
  *
  * The state of each stream is then changed to the given state unconditionally.
  */
-int snd_pcm_stop(struct snd_pcm_substream *substream, int state)
+int snd_pcm_stop(struct snd_pcm_substream *substream, snd_pcm_state_t state)
 {
 	return snd_pcm_action(&snd_pcm_action_stop, substream, state);
 }
@@ -3200,15 +3200,6 @@ int snd_pcm_lib_mmap_iomem(struct snd_pcm_substream *substream,
 
 EXPORT_SYMBOL(snd_pcm_lib_mmap_iomem);
 #endif /* SNDRV_PCM_INFO_MMAP */
-
-/* mmap callback with pgprot_noncached */
-int snd_pcm_lib_mmap_noncached(struct snd_pcm_substream *substream,
-			       struct vm_area_struct *area)
-{
-	area->vm_page_prot = pgprot_noncached(area->vm_page_prot);
-	return snd_pcm_default_mmap(substream, area);
-}
-EXPORT_SYMBOL(snd_pcm_lib_mmap_noncached);
 
 /*
  * mmap DMA buffer

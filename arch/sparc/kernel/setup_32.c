@@ -184,7 +184,6 @@ static void __init boot_flags_init(char *commands)
  */
 
 extern void sun4c_probe_vac(void);
-extern char cputypval;
 
 extern unsigned short root_flags;
 extern unsigned short root_dev;
@@ -218,21 +217,21 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Set sparc_cpu_model */
 	sparc_cpu_model = sun_unknown;
-	if (!strcmp(&cputypval,"sun4 "))
+	if (!strcmp(&cputypval[0], "sun4 "))
 		sparc_cpu_model = sun4;
-	if (!strcmp(&cputypval,"sun4c"))
+	if (!strcmp(&cputypval[0], "sun4c"))
 		sparc_cpu_model = sun4c;
-	if (!strcmp(&cputypval,"sun4m"))
+	if (!strcmp(&cputypval[0], "sun4m"))
 		sparc_cpu_model = sun4m;
-	if (!strcmp(&cputypval,"sun4s"))
+	if (!strcmp(&cputypval[0], "sun4s"))
 		sparc_cpu_model = sun4m; /* CP-1200 with PROM 2.30 -E */
-	if (!strcmp(&cputypval,"sun4d"))
+	if (!strcmp(&cputypval[0], "sun4d"))
 		sparc_cpu_model = sun4d;
-	if (!strcmp(&cputypval,"sun4e"))
+	if (!strcmp(&cputypval[0], "sun4e"))
 		sparc_cpu_model = sun4e;
-	if (!strcmp(&cputypval,"sun4u"))
+	if (!strcmp(&cputypval[0], "sun4u"))
 		sparc_cpu_model = sun4u;
-	if (!strncmp(&cputypval, "leon" , 4))
+	if (!strncmp(&cputypval[0], "leon" , 4))
 		sparc_cpu_model = sparc_leon;
 
 	printk("ARCH: ");
@@ -335,7 +334,7 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   prom_rev,
 		   romvec->pv_printrev >> 16,
 		   romvec->pv_printrev & 0xffff,
-		   &cputypval,
+		   &cputypval[0],
 		   ncpus_probed,
 		   num_online_cpus()
 #ifndef CONFIG_SMP

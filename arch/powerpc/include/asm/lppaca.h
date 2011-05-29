@@ -33,8 +33,24 @@
 //
 //----------------------------------------------------------------------------
 #include <linux/cache.h>
+#include <linux/threads.h>
 #include <asm/types.h>
 #include <asm/mmu.h>
+
+/*
+ * We only have to have statically allocated lppaca structs on
+ * legacy iSeries, which supports at most 64 cpus.
+ */
+#ifdef CONFIG_PPC_ISERIES
+#if NR_CPUS < 64
+#define NR_LPPACAS	NR_CPUS
+#else
+#define NR_LPPACAS	64
+#endif
+#else /* not iSeries */
+#define NR_LPPACAS	1
+#endif
+
 
 /* The Hypervisor barfs if the lppaca crosses a page boundary.  A 1k
  * alignment is sufficient to prevent this */
@@ -89,7 +105,7 @@ struct lppaca {
 	// processing of external interrupts.  Note that PLIC will store the
 	// XIRR directly into the xXirrValue field so that another XIRR will
 	// not be presented until this one clears.  The layout of the low
-	// 4-bytes of this Dword is upto SLIC - PLIC just checks whether the
+	// 4-bytes of this Dword is up to SLIC - PLIC just checks whether the
 	// entire Dword is zero or not.  A non-zero value in the low order
 	// 2-bytes will result in SLIC being granted the highest thread
 	// priority upon return.  A 0 will return to SLIC as medium priority.

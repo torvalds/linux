@@ -339,8 +339,7 @@ extern int pwc_camera_power(struct pwc_device *pdev, int power);
 /* Private ioctl()s; see pwc-ioctl.h */
 extern long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg);
 
-/** Functions in pwc-v4l.c */
-extern long pwc_video_do_ioctl(struct file *file, unsigned int cmd, void *arg);
+extern const struct v4l2_ioctl_ops pwc_ioctl_ops;
 
 /** pwc-uncompress.c */
 /* Expand frame to image, possibly including decompression. Uses read_frame and fill_image */

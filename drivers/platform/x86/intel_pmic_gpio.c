@@ -74,6 +74,19 @@ struct pmic_gpio {
 	u32			trigger_type;
 };
 
+static void pmic_program_irqtype(int gpio, int type)
+{
+	if (type & IRQ_TYPE_EDGE_RISING)
+		intel_scu_ipc_update_register(GPIO0 + gpio, 0x20, 0x20);
+	else
+		intel_scu_ipc_update_register(GPIO0 + gpio, 0x00, 0x20);
+
+	if (type & IRQ_TYPE_EDGE_FALLING)
+		intel_scu_ipc_update_register(GPIO0 + gpio, 0x10, 0x10);
+	else
+		intel_scu_ipc_update_register(GPIO0 + gpio, 0x00, 0x10);
+};
+
 static int pmic_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	if (offset > 8) {
@@ -166,16 +179,38 @@ static int pmic_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return pg->irq_base + offset;
 }
 
+static void pmic_bus_lock(struct irq_data *data)
+{
+	struct pmic_gpio *pg = irq_data_get_irq_chip_data(data);
+
+	mutex_lock(&pg->buslock);
+}
+
+static void pmic_bus_sync_unlock(struct irq_data *data)
+{
+	struct pmic_gpio *pg = irq_data_get_irq_chip_data(data);
+
+	if (pg->update_type) {
+		unsigned int gpio = pg->update_type & ~GPIO_UPDATE_TYPE;
+
+		pmic_program_irqtype(gpio, pg->trigger_type);
+		pg->update_type = 0;
+	}
+	mutex_unlock(&pg->buslock);
+}
+
 /* the gpiointr register is read-clear, so just do nothing. */
 static void pmic_irq_unmask(struct irq_data *data) { }
 
 static void pmic_irq_mask(struct irq_data *data) { }
 
 static struct irq_chip pmic_irqchip = {
-	.name		= "PMIC-GPIO",
-	.irq_mask	= pmic_irq_mask,
-	.irq_unmask	= pmic_irq_unmask,
-	.irq_set_type	= pmic_irq_type,
+	.name			= "PMIC-GPIO",
+	.irq_mask		= pmic_irq_mask,
+	.irq_unmask		= pmic_irq_unmask,
+	.irq_set_type		= pmic_irq_type,
+	.irq_bus_lock		= pmic_bus_lock,
+	.irq_bus_sync_unlock	= pmic_bus_sync_unlock,
 };
 
 static irqreturn_t pmic_irq_handler(int irq, void *data)
@@ -257,9 +292,11 @@ static int __devinit platform_pmic_gpio_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < 8; i++) {
-		set_irq_chip_and_handler_name(i + pg->irq_base, &pmic_irqchip,
-					handle_simple_irq, "demux");
-		set_irq_chip_data(i + pg->irq_base, pg);
+		irq_set_chip_and_handler_name(i + pg->irq_base,
+					      &pmic_irqchip,
+					      handle_simple_irq,
+					      "demux");
+		irq_set_chip_data(i + pg->irq_base, pg);
 	}
 	return 0;
 err:

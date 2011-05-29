@@ -335,7 +335,7 @@ static void fsmc_enable_hwecc(struct mtd_info *mtd, int mode)
 
 /*
  * fsmc_read_hwecc_ecc4 - Hardware ECC calculator for ecc4 option supported by
- * FSMC. ECC is 13 bytes for 512 bytes of data (supports error correction upto
+ * FSMC. ECC is 13 bytes for 512 bytes of data (supports error correction up to
  * max of 8-bits)
  */
 static int fsmc_read_hwecc_ecc4(struct mtd_info *mtd, const uint8_t *data,
@@ -381,7 +381,7 @@ static int fsmc_read_hwecc_ecc4(struct mtd_info *mtd, const uint8_t *data,
 
 /*
  * fsmc_read_hwecc_ecc1 - Hardware ECC calculator for ecc1 option supported by
- * FSMC. ECC is 3 bytes for 512 bytes of data (supports error correction upto
+ * FSMC. ECC is 3 bytes for 512 bytes of data (supports error correction up to
  * max of 1-bit)
  */
 static int fsmc_read_hwecc_ecc1(struct mtd_info *mtd, const uint8_t *data,
@@ -408,10 +408,10 @@ static int fsmc_read_hwecc_ecc1(struct mtd_info *mtd, const uint8_t *data,
  * @buf:	buffer to store read data
  * @page:	page number to read
  *
- * This routine is needed for fsmc verison 8 as reading from NAND chip has to be
+ * This routine is needed for fsmc version 8 as reading from NAND chip has to be
  * performed in a strict sequence as follows:
  * data(512 byte) -> ecc(13 byte)
- * After this read, fsmc hardware generates and reports error data bits(upto a
+ * After this read, fsmc hardware generates and reports error data bits(up to a
  * max of 8 bits)
  */
 static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
@@ -686,7 +686,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Scan to find existance of the device
+	 * Scan to find existence of the device
 	 */
 	if (nand_scan_ident(&host->mtd, 1, NULL)) {
 		ret = -ENXIO;

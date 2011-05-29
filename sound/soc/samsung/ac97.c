@@ -12,23 +12,23 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 
 #include <sound/soc.h>
 
-#include <plat/regs-ac97.h>
 #include <mach/dma.h>
+#include <plat/regs-ac97.h>
 #include <plat/audio.h>
 
 #include "dma.h"
-#include "ac97.h"
 
 #define AC_CMD_ADDR(x) (x << 16)
 #define AC_CMD_DATA(x) (x & 0xffff)
+
+#define S3C_AC97_DAI_PCM 0
+#define S3C_AC97_DAI_MIC 1
 
 struct s3c_ac97_info {
 	struct clk         *ac97_clk;

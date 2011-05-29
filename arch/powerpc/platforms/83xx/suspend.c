@@ -318,13 +318,20 @@ static const struct platform_suspend_ops mpc83xx_suspend_ops = {
 	.end = mpc83xx_suspend_end,
 };
 
-static int pmc_probe(struct platform_device *ofdev,
-                     const struct of_device_id *match)
+static struct of_device_id pmc_match[];
+static int pmc_probe(struct platform_device *ofdev)
 {
+	const struct of_device_id *match;
 	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
-	struct pmc_type *type = match->data;
+	struct pmc_type *type;
 	int ret = 0;
+
+	match = of_match_device(pmc_match, &ofdev->dev);
+	if (!match)
+		return -EINVAL;
+
+	type = match->data;
 
 	if (!of_device_is_available(np))
 		return -ENODEV;
@@ -422,7 +429,7 @@ static struct of_device_id pmc_match[] = {
 	{}
 };
 
-static struct of_platform_driver pmc_driver = {
+static struct platform_driver pmc_driver = {
 	.driver = {
 		.name = "mpc83xx-pmc",
 		.owner = THIS_MODULE,
@@ -434,7 +441,7 @@ static struct of_platform_driver pmc_driver = {
 
 static int pmc_init(void)
 {
-	return of_register_platform_driver(&pmc_driver);
+	return platform_driver_register(&pmc_driver);
 }
 
 module_init(pmc_init);

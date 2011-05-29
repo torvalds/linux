@@ -125,6 +125,9 @@ void unset_dram_srfs(void);
 
 #define VRPAIR(vlev, freq) (((vlev) << 16) | ((freq) >> 16))
 
+#ifdef CONFIG_CPU_FREQ
+#define CPUFREQ_CPU 0
+#endif
 struct bfin_dpmc_platform_data {
 	const unsigned int *tuple_tab;
 	unsigned short tabsize;

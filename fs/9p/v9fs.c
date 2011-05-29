@@ -39,6 +39,7 @@
 
 static DEFINE_SPINLOCK(v9fs_sessionlist_lock);
 static LIST_HEAD(v9fs_sessionlist);
+struct kmem_cache *v9fs_inode_cache;
 
 /*
  * Option Parsing (code inspired by NFS code)
@@ -55,7 +56,7 @@ enum {
 	/* Cache options */
 	Opt_cache_loose, Opt_fscache,
 	/* Access options */
-	Opt_access,
+	Opt_access, Opt_posixacl,
 	/* Error token */
 	Opt_err
 };
@@ -73,6 +74,7 @@ static const match_table_t tokens = {
 	{Opt_fscache, "fscache"},
 	{Opt_cachetag, "cachetag=%s"},
 	{Opt_access, "access=%s"},
+	{Opt_posixacl, "posixacl"},
 	{Opt_err, NULL}
 };
 
@@ -194,15 +196,7 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			else if (strcmp(s, "any") == 0)
 				v9ses->flags |= V9FS_ACCESS_ANY;
 			else if (strcmp(s, "client") == 0) {
-#ifdef CONFIG_9P_FS_POSIX_ACL
 				v9ses->flags |= V9FS_ACCESS_CLIENT;
-#else
-				P9_DPRINTK(P9_DEBUG_ERROR,
-					"access=client option not supported\n");
-				kfree(s);
-				ret = -EINVAL;
-				goto free_and_return;
-#endif
 			} else {
 				v9ses->flags |= V9FS_ACCESS_SINGLE;
 				v9ses->uid = simple_strtoul(s, &e, 10);
@@ -210,6 +204,16 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 					v9ses->uid = ~0;
 			}
 			kfree(s);
+			break;
+
+		case Opt_posixacl:
+#ifdef CONFIG_9P_FS_POSIX_ACL
+			v9ses->flags |= V9FS_POSIX_ACL;
+#else
+			P9_DPRINTK(P9_DEBUG_ERROR,
+					"Not defined CONFIG_9P_FS_POSIX_ACL. "
+					"Ignoring posixacl option\n");
+#endif
 			break;
 
 		default:
@@ -260,18 +264,11 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	list_add(&v9ses->slist, &v9fs_sessionlist);
 	spin_unlock(&v9fs_sessionlist_lock);
 
-	v9ses->flags = V9FS_ACCESS_USER;
 	strcpy(v9ses->uname, V9FS_DEFUSER);
 	strcpy(v9ses->aname, V9FS_DEFANAME);
 	v9ses->uid = ~0;
 	v9ses->dfltuid = V9FS_DEFUID;
 	v9ses->dfltgid = V9FS_DEFGID;
-
-	rc = v9fs_parse_options(v9ses, data);
-	if (rc < 0) {
-		retval = rc;
-		goto error;
-	}
 
 	v9ses->clnt = p9_client_create(dev_name, data);
 	if (IS_ERR(v9ses->clnt)) {
@@ -281,10 +278,20 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		goto error;
 	}
 
-	if (p9_is_proto_dotl(v9ses->clnt))
+	v9ses->flags = V9FS_ACCESS_USER;
+
+	if (p9_is_proto_dotl(v9ses->clnt)) {
+		v9ses->flags = V9FS_ACCESS_CLIENT;
 		v9ses->flags |= V9FS_PROTO_2000L;
-	else if (p9_is_proto_dotu(v9ses->clnt))
+	} else if (p9_is_proto_dotu(v9ses->clnt)) {
 		v9ses->flags |= V9FS_PROTO_2000U;
+	}
+
+	rc = v9fs_parse_options(v9ses, data);
+	if (rc < 0) {
+		retval = rc;
+		goto error;
+	}
 
 	v9ses->maxdata = v9ses->clnt->msize - P9_IOHDRSZ;
 
@@ -305,6 +312,14 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		v9ses->flags &= ~V9FS_ACCESS_MASK;
 		v9ses->flags |= V9FS_ACCESS_ANY;
 		v9ses->uid = ~0;
+	}
+	if (!v9fs_proto_dotl(v9ses) ||
+		!((v9ses->flags & V9FS_ACCESS_MASK) == V9FS_ACCESS_CLIENT)) {
+		/*
+		 * We support ACL checks on clinet only if the protocol is
+		 * 9P2000.L and access is V9FS_ACCESS_CLIENT.
+		 */
+		v9ses->flags &= ~V9FS_ACL_MASK;
 	}
 
 	fid = p9_client_attach(v9ses->clnt, NULL, v9ses->uname, ~0,
@@ -465,6 +480,63 @@ static void v9fs_sysfs_cleanup(void)
 {
 	sysfs_remove_group(v9fs_kobj, &v9fs_attr_group);
 	kobject_put(v9fs_kobj);
+}
+
+static void v9fs_inode_init_once(void *foo)
+{
+	struct v9fs_inode *v9inode = (struct v9fs_inode *)foo;
+#ifdef CONFIG_9P_FSCACHE
+	v9inode->fscache = NULL;
+	v9inode->fscache_key = NULL;
+#endif
+	inode_init_once(&v9inode->vfs_inode);
+}
+
+/**
+ * v9fs_init_inode_cache - initialize a cache for 9P
+ * Returns 0 on success.
+ */
+static int v9fs_init_inode_cache(void)
+{
+	v9fs_inode_cache = kmem_cache_create("v9fs_inode_cache",
+					  sizeof(struct v9fs_inode),
+					  0, (SLAB_RECLAIM_ACCOUNT|
+					      SLAB_MEM_SPREAD),
+					  v9fs_inode_init_once);
+	if (!v9fs_inode_cache)
+		return -ENOMEM;
+
+	return 0;
+}
+
+/**
+ * v9fs_destroy_inode_cache - destroy the cache of 9P inode
+ *
+ */
+static void v9fs_destroy_inode_cache(void)
+{
+	kmem_cache_destroy(v9fs_inode_cache);
+}
+
+static int v9fs_cache_register(void)
+{
+	int ret;
+	ret = v9fs_init_inode_cache();
+	if (ret < 0)
+		return ret;
+#ifdef CONFIG_9P_FSCACHE
+	return fscache_register_netfs(&v9fs_cache_netfs);
+#else
+	return ret;
+#endif
+}
+
+static void v9fs_cache_unregister(void)
+{
+	v9fs_destroy_inode_cache();
+#ifdef CONFIG_9P_FSCACHE
+	fscache_unregister_netfs(&v9fs_cache_netfs);
+#endif
 }
 
 /**

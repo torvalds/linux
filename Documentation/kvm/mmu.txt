@@ -23,7 +23,7 @@ The mmu code attempts to satisfy the following requirements:
                and framebuffer-based displays
 - footprint:   keep the amount of pinned kernel memory low (most memory
                should be shrinkable)
-- reliablity:  avoid multipage or GFP_ATOMIC allocations
+- reliability:  avoid multipage or GFP_ATOMIC allocations
 
 Acronyms
 ========

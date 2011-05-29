@@ -180,7 +180,7 @@ static const u16 wm8900_reg_defaults[WM8900_MAXREG] = {
 	/* Remaining registers all zero */
 };
 
-static int wm8900_volatile_register(unsigned int reg)
+static int wm8900_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM8900_REG_ID:

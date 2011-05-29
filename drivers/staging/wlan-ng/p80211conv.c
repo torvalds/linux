@@ -379,7 +379,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 
 	} else if ((payload_length >= sizeof(struct wlan_llc) +
 		sizeof(struct wlan_snap))
-		&&(e_llc->dsap == 0xaa)
+		&& (e_llc->dsap == 0xaa)
 		&& (e_llc->ssap == 0xaa)
 		&& (e_llc->ctl == 0x03)
 		   &&
@@ -415,7 +415,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 
 	} else if ((payload_length >= sizeof(struct wlan_llc) +
 		sizeof(struct wlan_snap))
-		&&(e_llc->dsap == 0xaa)
+		&& (e_llc->dsap == 0xaa)
 		&& (e_llc->ssap == 0xaa)
 		&& (e_llc->ctl == 0x03)) {
 		pr_debug("802.1h/RFC1042 len: %d\n", payload_length);

@@ -9,7 +9,7 @@
 #include <net/sock.h>
 #include <net/tcp.h>
 
-#define TARGET_CORE_MOD_VERSION		"v4.0.0-rc6"
+#define TARGET_CORE_MOD_VERSION		"v4.0.0-rc7-ml"
 #define SHUTDOWN_SIGS	(sigmask(SIGKILL)|sigmask(SIGINT)|sigmask(SIGABRT))
 
 /* Used by transport_generic_allocate_iovecs() */
@@ -22,7 +22,7 @@
  * Note that both include/scsi/scsi_cmnd.h:MAX_COMMAND_SIZE and
  * include/linux/blkdev.h:BLOCK_MAX_CDB as of v2.6.36-rc4 still use
  * 16-byte CDBs by default and require an extra allocation for
- * 32-byte CDBs to becasue of legacy issues.
+ * 32-byte CDBs to because of legacy issues.
  *
  * Within TCM Core there are no such legacy limitiations, so we go ahead
  * use 32-byte CDBs by default and use include/scsi/scsi.h:scsi_command_size()
@@ -239,7 +239,7 @@ struct t10_alua_lu_gp {
 } ____cacheline_aligned;
 
 struct t10_alua_lu_gp_member {
-	int lu_gp_assoc:1;
+	bool lu_gp_assoc;
 	atomic_t lu_gp_mem_ref_cnt;
 	spinlock_t lu_gp_mem_lock;
 	struct t10_alua_lu_gp *lu_gp;
@@ -271,7 +271,7 @@ struct t10_alua_tg_pt_gp {
 } ____cacheline_aligned;
 
 struct t10_alua_tg_pt_gp_member {
-	int tg_pt_gp_assoc:1;
+	bool tg_pt_gp_assoc;
 	atomic_t tg_pt_gp_mem_ref_cnt;
 	spinlock_t tg_pt_gp_mem_lock;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
@@ -302,7 +302,7 @@ struct t10_wwn {
 
 
 /*
- * Used by TCM Core internally to signal if >= SPC-3 peristent reservations
+ * Used by TCM Core internally to signal if >= SPC-3 persistent reservations
  * emulation is enabled or disabled, or running in with TCM/pSCSI passthrough
  * mode
  */
@@ -336,7 +336,7 @@ struct t10_pr_registration {
 	int pr_res_type;
 	int pr_res_scope;
 	/* Used for fabric initiator WWPNs using a ISID */
-	int isid_present_at_reg:1;
+	bool isid_present_at_reg;
 	u32 pr_res_mapped_lun;
 	u32 pr_aptpl_target_lun;
 	u32 pr_res_generation;
@@ -418,7 +418,7 @@ struct se_transport_task {
 	unsigned long long	t_task_lba;
 	int			t_tasks_failed;
 	int			t_tasks_fua;
-	int			t_tasks_bidi:1;
+	bool			t_tasks_bidi;
 	u32			t_task_cdbs;
 	u32			t_tasks_check;
 	u32			t_tasks_no;
@@ -470,7 +470,7 @@ struct se_task {
 	u8		task_flags;
 	int		task_error_status;
 	int		task_state_flags;
-	int		task_padded_sg:1;
+	bool		task_padded_sg;
 	unsigned long long	task_lba;
 	u32		task_no;
 	u32		task_sectors;
@@ -494,8 +494,8 @@ struct se_task {
 	struct list_head t_state_list;
 } ____cacheline_aligned;
 
-#define TASK_CMD(task)	((struct se_cmd *)task->task_se_cmd)
-#define TASK_DEV(task)	((struct se_device *)task->se_dev)
+#define TASK_CMD(task)	((task)->task_se_cmd)
+#define TASK_DEV(task)	((task)->se_dev)
 
 struct se_cmd {
 	/* SAM response code being sent to initiator */
@@ -551,8 +551,8 @@ struct se_cmd {
 	void (*transport_complete_callback)(struct se_cmd *);
 } ____cacheline_aligned;
 
-#define T_TASK(cmd)     ((struct se_transport_task *)(cmd->t_task))
-#define CMD_TFO(cmd) ((struct target_core_fabric_ops *)cmd->se_tfo)
+#define T_TASK(cmd)     ((cmd)->t_task)
+#define CMD_TFO(cmd)	((cmd)->se_tfo)
 
 struct se_tmr_req {
 	/* Task Management function to be preformed */
@@ -583,7 +583,7 @@ struct se_ua {
 struct se_node_acl {
 	char			initiatorname[TRANSPORT_IQN_LEN];
 	/* Used to signal demo mode created ACL, disabled by default */
-	int			dynamic_node_acl:1;
+	bool			dynamic_node_acl;
 	u32			queue_depth;
 	u32			acl_index;
 	u64			num_cmds;
@@ -601,7 +601,8 @@ struct se_node_acl {
 	struct config_group	acl_attrib_group;
 	struct config_group	acl_auth_group;
 	struct config_group	acl_param_group;
-	struct config_group	*acl_default_groups[4];
+	struct config_group	acl_fabric_stat_group;
+	struct config_group	*acl_default_groups[5];
 	struct list_head	acl_list;
 	struct list_head	acl_sess_list;
 } ____cacheline_aligned;
@@ -615,12 +616,18 @@ struct se_session {
 	struct list_head	sess_acl_list;
 } ____cacheline_aligned;
 
-#define SE_SESS(cmd)		((struct se_session *)(cmd)->se_sess)
-#define SE_NODE_ACL(sess)	((struct se_node_acl *)(sess)->se_node_acl)
+#define SE_SESS(cmd)		((cmd)->se_sess)
+#define SE_NODE_ACL(sess)	((sess)->se_node_acl)
 
 struct se_device;
 struct se_transform_info;
 struct scatterlist;
+
+struct se_ml_stat_grps {
+	struct config_group	stat_group;
+	struct config_group	scsi_auth_intr_group;
+	struct config_group	scsi_att_intr_port_group;
+};
 
 struct se_lun_acl {
 	char			initiatorname[TRANSPORT_IQN_LEN];
@@ -629,10 +636,13 @@ struct se_lun_acl {
 	struct se_lun		*se_lun;
 	struct list_head	lacl_list;
 	struct config_group	se_lun_group;
+	struct se_ml_stat_grps	ml_stat_grps;
 }  ____cacheline_aligned;
 
+#define ML_STAT_GRPS(lacl)	(&(lacl)->ml_stat_grps)
+
 struct se_dev_entry {
-	int			def_pr_registered:1;
+	bool			def_pr_registered;
 	/* See transport_lunflags_table */
 	u32			lun_flags;
 	u32			deve_cmds;
@@ -693,6 +703,13 @@ struct se_dev_attrib {
 	struct config_group da_group;
 } ____cacheline_aligned;
 
+struct se_dev_stat_grps {
+	struct config_group stat_group;
+	struct config_group scsi_dev_group;
+	struct config_group scsi_tgt_dev_group;
+	struct config_group scsi_lu_group;
+};
+
 struct se_subsystem_dev {
 /* Used for struct se_subsystem_dev-->se_dev_alias, must be less than PAGE_SIZE */
 #define SE_DEV_ALIAS_LEN		512
@@ -716,11 +733,14 @@ struct se_subsystem_dev {
 	struct config_group se_dev_group;
 	/* For T10 Reservations */
 	struct config_group se_dev_pr_group;
+	/* For target_core_stat.c groups */
+	struct se_dev_stat_grps dev_stat_grps;
 } ____cacheline_aligned;
 
 #define T10_ALUA(su_dev)	(&(su_dev)->t10_alua)
 #define T10_RES(su_dev)		(&(su_dev)->t10_reservation)
 #define T10_PR_OPS(su_dev)	(&(su_dev)->t10_reservation.pr_ops)
+#define DEV_STAT_GRP(dev)	(&(dev)->dev_stat_grps)
 
 struct se_device {
 	/* Set to 1 if thread is NOT sleeping on thread_sem */
@@ -803,8 +823,8 @@ struct se_device {
 	struct list_head	g_se_dev_list;
 }  ____cacheline_aligned;
 
-#define SE_DEV(cmd)		((struct se_device *)(cmd)->se_lun->lun_se_dev)
-#define SU_DEV(dev)		((struct se_subsystem_dev *)(dev)->se_sub_dev)
+#define SE_DEV(cmd)		((cmd)->se_lun->lun_se_dev)
+#define SU_DEV(dev)		((dev)->se_sub_dev)
 #define DEV_ATTRIB(dev)		(&(dev)->se_sub_dev->se_dev_attrib)
 #define DEV_T10_WWN(dev)	(&(dev)->se_sub_dev->t10_wwn)
 
@@ -832,7 +852,14 @@ struct se_hba {
 	struct se_subsystem_api *transport;
 }  ____cacheline_aligned;
 
-#define SE_HBA(d)		((struct se_hba *)(d)->se_hba)
+#define SE_HBA(dev)		((dev)->se_hba)
+
+struct se_port_stat_grps {
+	struct config_group stat_group;
+	struct config_group scsi_port_group;
+	struct config_group scsi_tgt_port_group;
+	struct config_group scsi_transport_group;
+};
 
 struct se_lun {
 	/* See transport_lun_status_table */
@@ -848,11 +875,13 @@ struct se_lun {
 	struct list_head	lun_cmd_list;
 	struct list_head	lun_acl_list;
 	struct se_device	*lun_se_dev;
+	struct se_port		*lun_sep;
 	struct config_group	lun_group;
-	struct se_port	*lun_sep;
+	struct se_port_stat_grps port_stat_grps;
 } ____cacheline_aligned;
 
-#define SE_LUN(c)		((struct se_lun *)(c)->se_lun)
+#define SE_LUN(cmd)		((cmd)->se_lun)
+#define PORT_STAT_GRP(lun)	(&(lun)->port_stat_grps)
 
 struct scsi_port_stats {
        u64     cmd_pdus;
@@ -905,7 +934,7 @@ struct se_portal_group {
 	struct list_head	acl_node_list;
 	struct se_lun		*tpg_lun_list;
 	struct se_lun		tpg_virt_lun0;
-	/* List of TCM sessions assoicated wth this TPG */
+	/* List of TCM sessions associated wth this TPG */
 	struct list_head	tpg_sess_list;
 	/* Pointer to $FABRIC_MOD dependent code */
 	struct target_core_fabric_ops *se_tpg_tfo;
@@ -919,11 +948,13 @@ struct se_portal_group {
 	struct config_group	tpg_param_group;
 } ____cacheline_aligned;
 
-#define TPG_TFO(se_tpg)	((struct target_core_fabric_ops *)(se_tpg)->se_tpg_tfo)
+#define TPG_TFO(se_tpg)	((se_tpg)->se_tpg_tfo)
 
 struct se_wwn {
 	struct target_fabric_configfs *wwn_tf;
 	struct config_group	wwn_group;
+	struct config_group	*wwn_default_groups[2];
+	struct config_group	fabric_stat_group;
 } ____cacheline_aligned;
 
 struct se_global {

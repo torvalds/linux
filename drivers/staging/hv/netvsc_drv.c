@@ -36,7 +36,7 @@
 #include <net/route.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
-#include "osd.h"
+#include "hv_api.h"
 #include "logging.h"
 #include "version_info.h"
 #include "vmbus.h"
@@ -44,16 +44,11 @@
 
 struct net_device_context {
 	/* point back to our device context */
-	struct vm_device *device_ctx;
+	struct hv_device *device_ctx;
 	unsigned long avail;
+	struct work_struct work;
 };
 
-struct netvsc_driver_context {
-	/* !! These must be the first 2 fields !! */
-	/* Which is a bug FIXME! */
-	struct driver_context drv_ctx;
-	struct netvsc_driver drv_obj;
-};
 
 #define PACKET_PAGES_LOWATER  8
 /* Need this many pages to handle worst case fragmented packet */
@@ -64,7 +59,7 @@ module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
 
 /* The one and only one */
-static struct netvsc_driver_context g_netvsc_drv;
+static struct  netvsc_driver g_netvsc_drv;
 
 /* no-op so the netdev core doesn't return -EINVAL when modifying the the
  * multicast address list in SIOCADDMULTI. hv is setup to get all multicast
@@ -76,7 +71,7 @@ static void netvsc_set_multicast_list(struct net_device *net)
 static int netvsc_open(struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_device *device_obj = &net_device_ctx->device_ctx->device_obj;
+	struct hv_device *device_obj = net_device_ctx->device_ctx;
 	int ret = 0;
 
 	if (netif_carrier_ok(net)) {
@@ -99,7 +94,7 @@ static int netvsc_open(struct net_device *net)
 static int netvsc_close(struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct hv_device *device_obj = &net_device_ctx->device_ctx->device_obj;
+	struct hv_device *device_obj = net_device_ctx->device_ctx;
 	int ret;
 
 	netif_stop_queue(net);
@@ -126,7 +121,8 @@ static void netvsc_xmit_completion(void *context)
 
 		dev_kfree_skb_any(skb);
 
-		if ((net_device_ctx->avail += num_pages) >= PACKET_PAGES_HIWATER)
+		net_device_ctx->avail += num_pages;
+		if (net_device_ctx->avail >= PACKET_PAGES_HIWATER)
  			netif_wake_queue(net);
 	}
 }
@@ -134,11 +130,9 @@ static void netvsc_xmit_completion(void *context)
 static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
-	struct driver_context *driver_ctx =
-	    driver_to_driver_context(net_device_ctx->device_ctx->device.driver);
-	struct netvsc_driver_context *net_drv_ctx =
-		(struct netvsc_driver_context *)driver_ctx;
-	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
+	struct hv_driver *drv =
+	    drv_to_hv_drv(net_device_ctx->device_ctx->device.driver);
+	struct netvsc_driver *net_drv_obj = drv->priv;
 	struct hv_netvsc_packet *packet;
 	int ret;
 	unsigned int i, num_pages;
@@ -178,18 +172,18 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet->total_data_buflen	= skb->len;
 
 	/* Start filling in the page buffers starting after RNDIS buffer. */
-	packet->page_buf[1].Pfn = virt_to_phys(skb->data) >> PAGE_SHIFT;
-	packet->page_buf[1].Offset
+	packet->page_buf[1].pfn = virt_to_phys(skb->data) >> PAGE_SHIFT;
+	packet->page_buf[1].offset
 		= (unsigned long)skb->data & (PAGE_SIZE - 1);
-	packet->page_buf[1].Length = skb_headlen(skb);
+	packet->page_buf[1].len = skb_headlen(skb);
 
 	/* Additional fragments are after SKB data */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
 
-		packet->page_buf[i+2].Pfn = page_to_pfn(f->page);
-		packet->page_buf[i+2].Offset = f->page_offset;
-		packet->page_buf[i+2].Length = f->size;
+		packet->page_buf[i+2].pfn = page_to_pfn(f->page);
+		packet->page_buf[i+2].offset = f->page_offset;
+		packet->page_buf[i+2].len = f->size;
 	}
 
 	/* Set the completion routine */
@@ -197,7 +191,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	packet->completion.send.send_completion_ctx = packet;
 	packet->completion.send.send_completion_tid = (unsigned long)skb;
 
-	ret = net_drv_obj->send(&net_device_ctx->device_ctx->device_obj,
+	ret = net_drv_obj->send(net_device_ctx->device_ctx,
 				  packet);
 	if (ret == 0) {
 		net->stats.tx_bytes += skb->len;
@@ -207,7 +201,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 			   net->stats.tx_packets,
 			   net->stats.tx_bytes);
 
-		if ((net_device_ctx->avail -= num_pages) < PACKET_PAGES_LOWATER)
+		net_device_ctx->avail -= num_pages;
+		if (net_device_ctx->avail < PACKET_PAGES_LOWATER)
 			netif_stop_queue(net);
 	} else {
 		/* we are shutting down or bus overloaded, just drop packet */
@@ -224,8 +219,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				       unsigned int status)
 {
-	struct vm_device *device_ctx = to_vm_device(device_obj);
-	struct net_device *net = dev_get_drvdata(&device_ctx->device);
+	struct net_device *net = dev_get_drvdata(&device_obj->device);
+	struct net_device_context *ndev_ctx;
 
 	if (!net) {
 		DPRINT_ERR(NETVSC_DRV, "got link status but net device "
@@ -237,6 +232,8 @@ static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 		netif_carrier_on(net);
 		netif_wake_queue(net);
 		netif_notify_peers(net);
+		ndev_ctx = netdev_priv(net);
+		schedule_work(&ndev_ctx->work);
 	} else {
 		netif_carrier_off(net);
 		netif_stop_queue(net);
@@ -250,8 +247,7 @@ static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 static int netvsc_recv_callback(struct hv_device *device_obj,
 				struct hv_netvsc_packet *packet)
 {
-	struct vm_device *device_ctx = to_vm_device(device_obj);
-	struct net_device *net = dev_get_drvdata(&device_ctx->device);
+	struct net_device *net = dev_get_drvdata(&device_obj->device);
 	struct sk_buff *skb;
 	void *data;
 	int i;
@@ -278,16 +274,16 @@ static int netvsc_recv_callback(struct hv_device *device_obj,
 	 * hv_netvsc_packet cannot be deallocated
 	 */
 	for (i = 0; i < packet->page_buf_cnt; i++) {
-		data = kmap_atomic(pfn_to_page(packet->page_buf[i].Pfn),
+		data = kmap_atomic(pfn_to_page(packet->page_buf[i].pfn),
 					       KM_IRQ1);
 		data = (void *)(unsigned long)data +
-				packet->page_buf[i].Offset;
+				packet->page_buf[i].offset;
 
-		memcpy(skb_put(skb, packet->page_buf[i].Length), data,
-		       packet->page_buf[i].Length);
+		memcpy(skb_put(skb, packet->page_buf[i].len), data,
+		       packet->page_buf[i].len);
 
 		kunmap_atomic((void *)((unsigned long)data -
-				       packet->page_buf[i].Offset), KM_IRQ1);
+				       packet->page_buf[i].offset), KM_IRQ1);
 	}
 
 	local_irq_restore(flags);
@@ -336,21 +332,37 @@ static const struct net_device_ops device_ops = {
 	.ndo_set_mac_address =		eth_mac_addr,
 };
 
+/*
+ * Send GARP packet to network peers after migrations.
+ * After Quick Migration, the network is not immediately operational in the
+ * current context when receiving RNDIS_STATUS_MEDIA_CONNECT event. So, add
+ * another netif_notify_peers() into a scheduled work, otherwise GARP packet
+ * will not be sent after quick migration, and cause network disconnection.
+ */
+static void netvsc_send_garp(struct work_struct *w)
+{
+	struct net_device_context *ndev_ctx;
+	struct net_device *net;
+
+	msleep(20);
+	ndev_ctx = container_of(w, struct net_device_context, work);
+	net = dev_get_drvdata(&ndev_ctx->device_ctx->device);
+	netif_notify_peers(net);
+}
+
+
 static int netvsc_probe(struct device *device)
 {
-	struct driver_context *driver_ctx =
-		driver_to_driver_context(device->driver);
-	struct netvsc_driver_context *net_drv_ctx =
-		(struct netvsc_driver_context *)driver_ctx;
-	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
+	struct hv_driver *drv =
+		drv_to_hv_drv(device->driver);
+	struct netvsc_driver *net_drv_obj = drv->priv;
+	struct hv_device *device_obj = device_to_hv_device(device);
 	struct net_device *net = NULL;
 	struct net_device_context *net_device_ctx;
 	struct netvsc_device_info device_info;
 	int ret;
 
-	if (!net_drv_obj->base.OnDeviceAdd)
+	if (!net_drv_obj->base.dev_add)
 		return -1;
 
 	net = alloc_etherdev(sizeof(struct net_device_context));
@@ -361,12 +373,13 @@ static int netvsc_probe(struct device *device)
 	netif_carrier_off(net);
 
 	net_device_ctx = netdev_priv(net);
-	net_device_ctx->device_ctx = device_ctx;
+	net_device_ctx->device_ctx = device_obj;
 	net_device_ctx->avail = ring_size;
 	dev_set_drvdata(device, net);
+	INIT_WORK(&net_device_ctx->work, netvsc_send_garp);
 
 	/* Notify the netvsc driver of the new device */
-	ret = net_drv_obj->base.OnDeviceAdd(device_obj, &device_info);
+	ret = net_drv_obj->base.dev_add(device_obj, &device_info);
 	if (ret != 0) {
 		free_netdev(net);
 		dev_set_drvdata(device, NULL);
@@ -401,7 +414,7 @@ static int netvsc_probe(struct device *device)
 	ret = register_netdev(net);
 	if (ret != 0) {
 		/* Remove the device and release the resource */
-		net_drv_obj->base.OnDeviceRemove(device_obj);
+		net_drv_obj->base.dev_rm(device_obj);
 		free_netdev(net);
 	}
 
@@ -410,14 +423,11 @@ static int netvsc_probe(struct device *device)
 
 static int netvsc_remove(struct device *device)
 {
-	struct driver_context *driver_ctx =
-		driver_to_driver_context(device->driver);
-	struct netvsc_driver_context *net_drv_ctx =
-		(struct netvsc_driver_context *)driver_ctx;
-	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
-	struct vm_device *device_ctx = device_to_vm_device(device);
-	struct net_device *net = dev_get_drvdata(&device_ctx->device);
-	struct hv_device *device_obj = &device_ctx->device_obj;
+	struct hv_driver *drv =
+		drv_to_hv_drv(device->driver);
+	struct netvsc_driver *net_drv_obj = drv->priv;
+	struct hv_device *device_obj = device_to_hv_device(device);
+	struct net_device *net = dev_get_drvdata(&device_obj->device);
 	int ret;
 
 	if (net == NULL) {
@@ -425,7 +435,7 @@ static int netvsc_remove(struct device *device)
 		return 0;
 	}
 
-	if (!net_drv_obj->base.OnDeviceRemove)
+	if (!net_drv_obj->base.dev_rm)
 		return -1;
 
 	/* Stop outbound asap */
@@ -438,7 +448,7 @@ static int netvsc_remove(struct device *device)
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	ret = net_drv_obj->base.OnDeviceRemove(device_obj);
+	ret = net_drv_obj->base.dev_rm(device_obj);
 	if (ret != 0) {
 		/* TODO: */
 		DPRINT_ERR(NETVSC, "unable to remove vsc device (ret %d)", ret);
@@ -459,8 +469,8 @@ static int netvsc_drv_exit_cb(struct device *dev, void *data)
 
 static void netvsc_drv_exit(void)
 {
-	struct netvsc_driver *netvsc_drv_obj = &g_netvsc_drv.drv_obj;
-	struct driver_context *drv_ctx = &g_netvsc_drv.drv_ctx;
+	struct netvsc_driver *netvsc_drv_obj = &g_netvsc_drv;
+	struct hv_driver *drv = &g_netvsc_drv.base;
 	struct device *current_dev;
 	int ret;
 
@@ -468,7 +478,7 @@ static void netvsc_drv_exit(void)
 		current_dev = NULL;
 
 		/* Get the device */
-		ret = driver_for_each_device(&drv_ctx->driver, NULL,
+		ret = driver_for_each_device(&drv->driver, NULL,
 					     &current_dev, netvsc_drv_exit_cb);
 		if (ret)
 			DPRINT_WARN(NETVSC_DRV,
@@ -484,36 +494,35 @@ static void netvsc_drv_exit(void)
 		device_unregister(current_dev);
 	}
 
-	if (netvsc_drv_obj->base.OnCleanup)
-		netvsc_drv_obj->base.OnCleanup(&netvsc_drv_obj->base);
+	if (netvsc_drv_obj->base.cleanup)
+		netvsc_drv_obj->base.cleanup(&netvsc_drv_obj->base);
 
-	vmbus_child_driver_unregister(drv_ctx);
+	vmbus_child_driver_unregister(&drv->driver);
 
 	return;
 }
 
 static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 {
-	struct netvsc_driver *net_drv_obj = &g_netvsc_drv.drv_obj;
-	struct driver_context *drv_ctx = &g_netvsc_drv.drv_ctx;
+	struct netvsc_driver *net_drv_obj = &g_netvsc_drv;
+	struct hv_driver *drv = &g_netvsc_drv.base;
 	int ret;
 
 	net_drv_obj->ring_buf_size = ring_size * PAGE_SIZE;
 	net_drv_obj->recv_cb = netvsc_recv_callback;
 	net_drv_obj->link_status_change = netvsc_linkstatus_callback;
+	drv->priv = net_drv_obj;
 
 	/* Callback to client driver to complete the initialization */
 	drv_init(&net_drv_obj->base);
 
-	drv_ctx->driver.name = net_drv_obj->base.name;
-	memcpy(&drv_ctx->class_id, &net_drv_obj->base.deviceType,
-	       sizeof(struct hv_guid));
+	drv->driver.name = net_drv_obj->base.name;
 
-	drv_ctx->probe = netvsc_probe;
-	drv_ctx->remove = netvsc_remove;
+	drv->driver.probe = netvsc_probe;
+	drv->driver.remove = netvsc_remove;
 
 	/* The driver belongs to vmbus */
-	ret = vmbus_child_driver_register(drv_ctx);
+	ret = vmbus_child_driver_register(&drv->driver);
 
 	return ret;
 }

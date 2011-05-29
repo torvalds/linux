@@ -18,7 +18,7 @@
  * During system-wide suspend or hibernation device drivers need to be prevented
  * from receiving interrupts and this function is provided for this purpose.
  * It marks all interrupt lines in use, except for the timer ones, as disabled
- * and sets the IRQ_SUSPENDED flag for each of them.
+ * and sets the IRQS_SUSPENDED flag for each of them.
  */
 void suspend_device_irqs(void)
 {
@@ -34,7 +34,7 @@ void suspend_device_irqs(void)
 	}
 
 	for_each_irq_desc(irq, desc)
-		if (desc->status & IRQ_SUSPENDED)
+		if (desc->istate & IRQS_SUSPENDED)
 			synchronize_irq(irq);
 }
 EXPORT_SYMBOL_GPL(suspend_device_irqs);
@@ -43,7 +43,7 @@ EXPORT_SYMBOL_GPL(suspend_device_irqs);
  * resume_device_irqs - enable interrupt lines disabled by suspend_device_irqs()
  *
  * Enable all interrupt lines previously disabled by suspend_device_irqs() that
- * have the IRQ_SUSPENDED flag set.
+ * have the IRQS_SUSPENDED flag set.
  */
 void resume_device_irqs(void)
 {
@@ -52,9 +52,6 @@ void resume_device_irqs(void)
 
 	for_each_irq_desc(irq, desc) {
 		unsigned long flags;
-
-		if (!(desc->status & IRQ_SUSPENDED))
-			continue;
 
 		raw_spin_lock_irqsave(&desc->lock, flags);
 		__enable_irq(desc, irq, true);
@@ -71,9 +68,24 @@ int check_wakeup_irqs(void)
 	struct irq_desc *desc;
 	int irq;
 
-	for_each_irq_desc(irq, desc)
-		if ((desc->status & IRQ_WAKEUP) && (desc->status & IRQ_PENDING))
-			return -EBUSY;
+	for_each_irq_desc(irq, desc) {
+		if (irqd_is_wakeup_set(&desc->irq_data)) {
+			if (desc->istate & IRQS_PENDING)
+				return -EBUSY;
+			continue;
+		}
+		/*
+		 * Check the non wakeup interrupts whether they need
+		 * to be masked before finally going into suspend
+		 * state. That's for hardware which has no wakeup
+		 * source configuration facility. The chip
+		 * implementation indicates that with
+		 * IRQCHIP_MASK_ON_SUSPEND.
+		 */
+		if (desc->istate & IRQS_SUSPENDED &&
+		    irq_desc_get_chip(desc)->flags & IRQCHIP_MASK_ON_SUSPEND)
+			mask_irq(desc);
+	}
 
 	return 0;
 }

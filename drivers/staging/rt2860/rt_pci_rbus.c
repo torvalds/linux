@@ -619,7 +619,7 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance)
 	   Or kernel will panic after ifconfig ra0 down sometimes */
 
 	/* */
-	/* Inital the Interrupt source. */
+	/* Initial the Interrupt source. */
 	/* */
 	IntSource.word = 0x00000000L;
 /*      McuIntSource.word = 0x00000000L; */

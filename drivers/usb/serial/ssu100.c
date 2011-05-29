@@ -439,7 +439,7 @@ static int ssu100_get_icount(struct tty_struct *tty,
 
 
 
-static int ssu100_ioctl(struct tty_struct *tty, struct file *file,
+static int ssu100_ioctl(struct tty_struct *tty,
 		    unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -484,7 +484,7 @@ static int ssu100_attach(struct usb_serial *serial)
 	return ssu100_initdevice(serial->dev);
 }
 
-static int ssu100_tiocmget(struct tty_struct *tty, struct file *file)
+static int ssu100_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_device *dev = port->serial->dev;
@@ -517,7 +517,7 @@ mget_out:
 	return r;
 }
 
-static int ssu100_tiocmset(struct tty_struct *tty, struct file *file,
+static int ssu100_tiocmset(struct tty_struct *tty,
 			   unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;

@@ -1644,7 +1644,7 @@ static void mos7840_unthrottle(struct tty_struct *tty)
 	}
 }
 
-static int mos7840_tiocmget(struct tty_struct *tty, struct file *file)
+static int mos7840_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct moschip_port *mos7840_port;
@@ -1674,7 +1674,7 @@ static int mos7840_tiocmget(struct tty_struct *tty, struct file *file)
 	return result;
 }
 
-static int mos7840_tiocmset(struct tty_struct *tty, struct file *file,
+static int mos7840_tiocmset(struct tty_struct *tty,
 			    unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -2235,7 +2235,7 @@ static int mos7840_get_icount(struct tty_struct *tty,
  *	this function handles any ioctl calls to the driver
  *****************************************************************************/
 
-static int mos7840_ioctl(struct tty_struct *tty, struct file *file,
+static int mos7840_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;

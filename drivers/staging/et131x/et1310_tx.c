@@ -547,7 +547,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, struct tcb *tcb)
 	tcb->index_start = etdev->tx_ring.send_idx;
 	tcb->stale = 0;
 
-	spin_lock_irqsave(&etdev->SendHWLock, flags);
+	spin_lock_irqsave(&etdev->send_hw_lock, flags);
 
 	thiscopy = NUM_DESC_PER_RING_TX -
 				INDEX10(etdev->tx_ring.send_idx);
@@ -613,7 +613,7 @@ static int nic_send_packet(struct et131x_adapter *etdev, struct tcb *tcb)
 		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
 		       &etdev->regs->global.watchdog_timer);
 	}
-	spin_unlock_irqrestore(&etdev->SendHWLock, flags);
+	spin_unlock_irqrestore(&etdev->send_hw_lock, flags);
 
 	return 0;
 }

@@ -13,13 +13,14 @@
 
 #define	CPU_NAME		"COLDFIRE(m520x)"
 #define	CPU_INSTR_PER_JIFFY	3
+#define	MCF_BUSCLK		(MCF_CLK / 2)
 
 #include <asm/m52xxacr.h>
 
 /*
  *  Define the 520x SIM register set addresses.
  */
-#define MCFICM_INTC0        0x48000     /* Base for Interrupt Ctrl 0 */
+#define MCFICM_INTC0        0xFC048000  /* Base for Interrupt Ctrl 0 */
 #define MCFINTC_IPRH        0x00        /* Interrupt pending 32-63 */
 #define MCFINTC_IPRL        0x04        /* Interrupt pending 1-31 */
 #define MCFINTC_IMRH        0x08        /* Interrupt mask 32-63 */
@@ -35,9 +36,9 @@
  *  address to the SIMR and CIMR registers (not offsets into IPSBAR).
  *  The 520x family only has a single INTC unit.
  */
-#define MCFINTC0_SIMR       (MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_SIMR)
-#define MCFINTC0_CIMR       (MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_CIMR)
-#define	MCFINTC0_ICR0       (MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0)
+#define MCFINTC0_SIMR       (MCFICM_INTC0 + MCFINTC_SIMR)
+#define MCFINTC0_CIMR       (MCFICM_INTC0 + MCFINTC_CIMR)
+#define	MCFINTC0_ICR0       (MCFICM_INTC0 + MCFINTC_ICR0)
 #define MCFINTC1_SIMR       (0)
 #define MCFINTC1_CIMR       (0)
 #define	MCFINTC1_ICR0       (0)
@@ -52,19 +53,22 @@
 /*
  *  SDRAM configuration registers.
  */
-#define MCFSIM_SDMR         0x000a8000	/* SDRAM Mode/Extended Mode Register */
-#define MCFSIM_SDCR         0x000a8004	/* SDRAM Control Register */
-#define MCFSIM_SDCFG1       0x000a8008	/* SDRAM Configuration Register 1 */
-#define MCFSIM_SDCFG2       0x000a800c	/* SDRAM Configuration Register 2 */
-#define MCFSIM_SDCS0        0x000a8110	/* SDRAM Chip Select 0 Configuration */
-#define MCFSIM_SDCS1        0x000a8114	/* SDRAM Chip Select 1 Configuration */
+#define MCFSIM_SDMR         0xFC0a8000	/* SDRAM Mode/Extended Mode Register */
+#define MCFSIM_SDCR         0xFC0a8004	/* SDRAM Control Register */
+#define MCFSIM_SDCFG1       0xFC0a8008	/* SDRAM Configuration Register 1 */
+#define MCFSIM_SDCFG2       0xFC0a800c	/* SDRAM Configuration Register 2 */
+#define MCFSIM_SDCS0        0xFC0a8110	/* SDRAM Chip Select 0 Configuration */
+#define MCFSIM_SDCS1        0xFC0a8114	/* SDRAM Chip Select 1 Configuration */
 
 /*
  * EPORT and GPIO registers.
  */
+#define MCFEPORT_EPPAR			0xFC088000
 #define MCFEPORT_EPDDR			0xFC088002
+#define MCFEPORT_EPIER			0xFC088003
 #define MCFEPORT_EPDR			0xFC088004
 #define MCFEPORT_EPPDR			0xFC088005
+#define MCFEPORT_EPFR			0xFC088006
 
 #define MCFGPIO_PODR_BUSCTL		0xFC0A4000
 #define MCFGPIO_PODR_BE			0xFC0A4001
@@ -119,10 +123,10 @@
 #define MCFGPIO_IRQ_MAX			8
 #define MCFGPIO_IRQ_VECBASE		MCFINT_VECBASE
 
-#define MCF_GPIO_PAR_UART                   (0xA4036)
-#define MCF_GPIO_PAR_FECI2C                 (0xA4033)
-#define MCF_GPIO_PAR_QSPI                   (0xA4034)
-#define MCF_GPIO_PAR_FEC                    (0xA4038)
+#define MCF_GPIO_PAR_UART		0xFC0A4036
+#define MCF_GPIO_PAR_FECI2C		0xFC0A4033
+#define MCF_GPIO_PAR_QSPI		0xFC0A4034
+#define MCF_GPIO_PAR_FEC		0xFC0A4038
 
 #define MCF_GPIO_PAR_UART_PAR_URXD0         (0x0001)
 #define MCF_GPIO_PAR_UART_PAR_UTXD0         (0x0002)
@@ -134,14 +138,26 @@
 #define MCF_GPIO_PAR_FECI2C_PAR_SCL_UTXD2   (0x04)
 
 /*
- *  UART module.
+ *  PIT timer module.
  */
-#define MCFUART_BASE1		0x60000		/* Base address of UART1 */
-#define MCFUART_BASE2		0x64000		/* Base address of UART2 */
-#define MCFUART_BASE3		0x68000		/* Base address of UART2 */
+#define	MCFPIT_BASE1		0xFC080000	/* Base address of TIMER1 */
+#define	MCFPIT_BASE2		0xFC084000	/* Base address of TIMER2 */
 
 /*
- *  Reset Controll Unit.
+ *  UART module.
+ */
+#define MCFUART_BASE1		0xFC060000	/* Base address of UART1 */
+#define MCFUART_BASE2		0xFC064000	/* Base address of UART2 */
+#define MCFUART_BASE3		0xFC068000	/* Base address of UART2 */
+
+/*
+ *  FEC module.
+ */
+#define	MCFFEC_BASE		0xFC030000	/* Base of FEC ethernet */
+#define	MCFFEC_SIZE		0x800		/* Register set size */
+
+/*
+ *  Reset Control Unit.
  */
 #define	MCF_RCR			0xFC0A0000
 #define	MCF_RSR			0xFC0A0001

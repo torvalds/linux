@@ -460,7 +460,7 @@ u32 read_nic_dword(struct net_device *dev, int indx)
 /* u8 read_phy_cck(struct net_device *dev, u8 adr); */
 /* u8 read_phy_ofdm(struct net_device *dev, u8 adr); */
 /* this might still called in what was the PHY rtl8185/rtl8192 common code
- * plans are to possibilty turn it again in one common code...
+ * plans are to possibility turn it again in one common code...
  */
 inline void force_pci_posting(struct net_device *dev)
 {
@@ -1378,7 +1378,7 @@ struct sk_buff *DrvAggr_Aggregation(struct net_device *dev, struct ieee80211_drv
 		//tx_agg_desc->LINIP = 0;
 		//tx_agg_desc->CmdInit = 1;
 		tx_agg_desc->Offset =  sizeof(tx_fwinfo_819x_usb) + 8;
-		/* already raw data, need not to substract header length */
+		/* already raw data, need not to subtract header length */
 		tx_agg_desc->PktSize = skb->len & 0xffff;
 
 		/*DWORD 1*/
@@ -2242,12 +2242,8 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 
 
 destroy:
-	if (priv->pp_rxskb) {
-		kfree(priv->pp_rxskb);
-	}
-	if (priv->rx_urb) {
-		kfree(priv->rx_urb);
-	}
+	kfree(priv->pp_rxskb);
+	kfree(priv->rx_urb);
 
 	priv->pp_rxskb = NULL;
 	priv->rx_urb = NULL;
@@ -2276,10 +2272,8 @@ void rtl8192_usb_deleteendpoints(struct net_device *dev)
 		kfree(priv->rx_urb);
 		priv->rx_urb = NULL;
 	}
-	if(priv->oldaddr){
-		kfree(priv->oldaddr);
-		priv->oldaddr = NULL;
-	}
+	kfree(priv->oldaddr);
+	priv->oldaddr = NULL;
 	if (priv->pp_rxskb) {
 		kfree(priv->pp_rxskb);
 		priv->pp_rxskb = 0;
@@ -2304,14 +2298,10 @@ void rtl8192_usb_deleteendpoints(struct net_device *dev)
 
 	}
 #else
-	if(priv->rx_urb){
-		kfree(priv->rx_urb);
-		priv->rx_urb = NULL;
-	}
-	if(priv->oldaddr){
-		kfree(priv->oldaddr);
-		priv->oldaddr = NULL;
-	}
+	kfree(priv->rx_urb);
+	priv->rx_urb = NULL;
+	kfree(priv->oldaddr);
+	priv->oldaddr = NULL;
 	if (priv->pp_rxskb) {
 		kfree(priv->pp_rxskb);
 		priv->pp_rxskb = 0;
@@ -2898,7 +2888,7 @@ static void rtl8192_get_eeprom_size(struct net_device* dev)
 	RT_TRACE(COMP_EPROM, "<===========%s(), epromtype:%d\n", __FUNCTION__, priv->epromtype);
 }
 
-//used to swap endian. as ntohl & htonl are not neccessary to swap endian, so use this instead.
+//used to swap endian. as ntohl & htonl are not necessary to swap endian, so use this instead.
 static inline u16 endian_swap(u16* data)
 {
 	u16 tmp = *data;
@@ -5828,10 +5818,8 @@ static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 
 fail2:
 	rtl8192_down(dev);
-	if (priv->pFirmware) {
-		kfree(priv->pFirmware);
-		priv->pFirmware = NULL;
-	}
+	kfree(priv->pFirmware);
+	priv->pFirmware = NULL;
 	rtl8192_usb_deleteendpoints(dev);
 	destroy_workqueue(priv->priv_wq);
 	mdelay(10);
@@ -5869,11 +5857,8 @@ static void __devexit rtl8192_usb_disconnect(struct usb_interface *intf)
 		rtl8192_proc_remove_one(dev);
 
 			rtl8192_down(dev);
-		if (priv->pFirmware)
-		{
-			kfree(priv->pFirmware);
-			priv->pFirmware = NULL;
-		}
+		kfree(priv->pFirmware);
+		priv->pFirmware = NULL;
 	//	priv->rf_close(dev);
 //		rtl8192_SetRFPowerState(dev, eRfOff);
 		rtl8192_usb_deleteendpoints(dev);

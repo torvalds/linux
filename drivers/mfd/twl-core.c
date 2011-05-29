@@ -721,13 +721,13 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 
 	}
 
-	if (twl_has_watchdog()) {
+	if (twl_has_watchdog() && twl_class_is_4030()) {
 		child = add_child(0, "twl4030_wdt", NULL, 0, false, 0, 0);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
 
-	if (twl_has_pwrbutton()) {
+	if (twl_has_pwrbutton() && twl_class_is_4030()) {
 		child = add_child(1, "twl4030_pwrbutton",
 				NULL, 0, true, pdata->irq_base + 8 + 0, 0);
 		if (IS_ERR(child))
@@ -862,6 +862,10 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 			return PTR_ERR(child);
 
 		child = add_regulator(TWL6030_REG_VAUX3_6030, pdata->vaux3);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_CLK32KG, pdata->clk32kg);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}

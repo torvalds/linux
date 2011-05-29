@@ -21,7 +21,7 @@
 #include <linux/acpi.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
 #include <linux/msi.h>
 #include <asm/pci-direct.h>
@@ -1260,7 +1260,7 @@ static void disable_iommus(void)
  * disable suspend until real resume implemented
  */
 
-static int amd_iommu_resume(struct sys_device *dev)
+static void amd_iommu_resume(void)
 {
 	struct amd_iommu *iommu;
 
@@ -1276,11 +1276,9 @@ static int amd_iommu_resume(struct sys_device *dev)
 	 */
 	amd_iommu_flush_all_devices();
 	amd_iommu_flush_all_domains();
-
-	return 0;
 }
 
-static int amd_iommu_suspend(struct sys_device *dev, pm_message_t state)
+static int amd_iommu_suspend(void)
 {
 	/* disable IOMMUs to go out of the way for BIOS */
 	disable_iommus();
@@ -1288,15 +1286,9 @@ static int amd_iommu_suspend(struct sys_device *dev, pm_message_t state)
 	return 0;
 }
 
-static struct sysdev_class amd_iommu_sysdev_class = {
-	.name = "amd_iommu",
+static struct syscore_ops amd_iommu_syscore_ops = {
 	.suspend = amd_iommu_suspend,
 	.resume = amd_iommu_resume,
-};
-
-static struct sys_device device_amd_iommu = {
-	.id = 0,
-	.cls = &amd_iommu_sysdev_class,
 };
 
 /*
@@ -1415,14 +1407,6 @@ static int __init amd_iommu_init(void)
 		goto free;
 	}
 
-	ret = sysdev_class_register(&amd_iommu_sysdev_class);
-	if (ret)
-		goto free;
-
-	ret = sysdev_register(&device_amd_iommu);
-	if (ret)
-		goto free;
-
 	ret = amd_iommu_init_devices();
 	if (ret)
 		goto free;
@@ -1440,6 +1424,8 @@ static int __init amd_iommu_init(void)
 	amd_iommu_init_api();
 
 	amd_iommu_init_notifier();
+
+	register_syscore_ops(&amd_iommu_syscore_ops);
 
 	if (iommu_pass_through)
 		goto out;

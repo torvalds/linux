@@ -69,7 +69,7 @@ void cfcnfg_remove(struct cfcnfg *cfg);
  *		cfcnfg_add_adapt_layer to specify PHY for the link.
  * @pref:	The phy (link layer) preference.
  * @fcs:	Specify if checksum is used in CAIF Framing Layer.
- * @stx:	Specify if Start Of Frame eXtention is used.
+ * @stx:	Specify if Start Of Frame extension is used.
  */
 
 void

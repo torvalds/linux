@@ -14,14 +14,14 @@
 #define AIC26_PAGE_ADDR(page, offset)	((page << 6) | offset)
 #define AIC26_NUM_REGS			AIC26_PAGE_ADDR(3, 0)
 
-/* Page 0: Auxillary data registers */
+/* Page 0: Auxiliary data registers */
 #define AIC26_REG_BAT1			AIC26_PAGE_ADDR(0, 0x05)
 #define AIC26_REG_BAT2			AIC26_PAGE_ADDR(0, 0x06)
 #define AIC26_REG_AUX			AIC26_PAGE_ADDR(0, 0x07)
 #define AIC26_REG_TEMP1			AIC26_PAGE_ADDR(0, 0x09)
 #define AIC26_REG_TEMP2			AIC26_PAGE_ADDR(0, 0x0A)
 
-/* Page 1: Auxillary control registers */
+/* Page 1: Auxiliary control registers */
 #define AIC26_REG_AUX_ADC		AIC26_PAGE_ADDR(1, 0x00)
 #define AIC26_REG_STATUS		AIC26_PAGE_ADDR(1, 0x01)
 #define AIC26_REG_REFERENCE		AIC26_PAGE_ADDR(1, 0x03)

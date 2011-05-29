@@ -75,7 +75,7 @@ static int __init octeon_cf_device_init(void)
 		 * zero.
 		 */
 
-		/* Asume that CS1 immediately follows. */
+		/* Assume that CS1 immediately follows. */
 		mio_boot_reg_cfg.u64 =
 			cvmx_read_csr(CVMX_MIO_BOOT_REG_CFGX(i + 1));
 		region_base = mio_boot_reg_cfg.s.base << 16;

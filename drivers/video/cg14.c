@@ -463,7 +463,7 @@ static void cg14_unmap_regs(struct platform_device *op, struct fb_info *info,
 			   info->screen_base, info->fix.smem_len);
 }
 
-static int __devinit cg14_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit cg14_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
@@ -565,6 +565,7 @@ out_dealloc_cmap:
 
 out_unmap_regs:
 	cg14_unmap_regs(op, info, par);
+	framebuffer_release(info);
 
 out_err:
 	return err;
@@ -595,7 +596,7 @@ static const struct of_device_id cg14_match[] = {
 };
 MODULE_DEVICE_TABLE(of, cg14_match);
 
-static struct of_platform_driver cg14_driver = {
+static struct platform_driver cg14_driver = {
 	.driver = {
 		.name = "cg14",
 		.owner = THIS_MODULE,
@@ -610,12 +611,12 @@ static int __init cg14_init(void)
 	if (fb_get_options("cg14fb", NULL))
 		return -ENODEV;
 
-	return of_register_platform_driver(&cg14_driver);
+	return platform_driver_register(&cg14_driver);
 }
 
 static void __exit cg14_exit(void)
 {
-	of_unregister_platform_driver(&cg14_driver);
+	platform_driver_unregister(&cg14_driver);
 }
 
 module_init(cg14_init);

@@ -1,5 +1,5 @@
 
-/* Hand composed "Miniscule" 4x6 font, with binary data generated using
+/* Hand composed "Minuscule" 4x6 font, with binary data generated using
  * Perl stub.
  *
  * Use 'perl -x mini_4x6.c < mini_4x6.c > new_version.c' to regenerate

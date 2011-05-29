@@ -395,10 +395,12 @@ static int gdrom_drivestatus(struct cdrom_device_info *cd_info, int ignore)
 	return CDS_NO_INFO;
 }
 
-static int gdrom_mediachanged(struct cdrom_device_info *cd_info, int ignore)
+static unsigned int gdrom_check_events(struct cdrom_device_info *cd_info,
+				       unsigned int clearing, int ignore)
 {
 	/* check the sense key */
-	return (__raw_readb(GDROM_ERROR_REG) & 0xF0) == 0x60;
+	return (__raw_readb(GDROM_ERROR_REG) & 0xF0) == 0x60 ?
+		DISK_EVENT_MEDIA_CHANGE : 0;
 }
 
 /* reset the G1 bus */
@@ -483,7 +485,7 @@ static struct cdrom_device_ops gdrom_ops = {
 	.open			= gdrom_open,
 	.release		= gdrom_release,
 	.drive_status		= gdrom_drivestatus,
-	.media_changed		= gdrom_mediachanged,
+	.check_events		= gdrom_check_events,
 	.get_last_session	= gdrom_get_last_session,
 	.reset			= gdrom_hardreset,
 	.audio_ioctl		= gdrom_audio_ioctl,
@@ -509,9 +511,10 @@ static int gdrom_bdops_release(struct gendisk *disk, fmode_t mode)
 	return 0;
 }
 
-static int gdrom_bdops_mediachanged(struct gendisk *disk)
+static unsigned int gdrom_bdops_check_events(struct gendisk *disk,
+					     unsigned int clearing)
 {
-	return cdrom_media_changed(gd.cd_info);
+	return cdrom_check_events(gd.cd_info, clearing);
 }
 
 static int gdrom_bdops_ioctl(struct block_device *bdev, fmode_t mode,
@@ -530,7 +533,7 @@ static const struct block_device_operations gdrom_bdops = {
 	.owner			= THIS_MODULE,
 	.open			= gdrom_bdops_open,
 	.release		= gdrom_bdops_release,
-	.media_changed		= gdrom_bdops_mediachanged,
+	.check_events		= gdrom_bdops_check_events,
 	.ioctl			= gdrom_bdops_ioctl,
 };
 

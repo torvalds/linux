@@ -8,7 +8,15 @@
  * published by the Free Software Foundation.
  */
 
+#include <plat/gpmc.h>
 #include <linux/mtd/partitions.h>
+
+enum nand_io {
+	NAND_OMAP_PREFETCH_POLLED = 0,	/* prefetch polled mode, default */
+	NAND_OMAP_POLLED,		/* polled mode, without prefetch */
+	NAND_OMAP_PREFETCH_DMA,		/* prefetch enabled sDMA mode */
+	NAND_OMAP_PREFETCH_IRQ		/* prefetch enabled irq mode */
+};
 
 struct omap_nand_platform_data {
 	unsigned int		options;
@@ -20,8 +28,11 @@ struct omap_nand_platform_data {
 	int			(*nand_setup)(void);
 	int			(*dev_ready)(struct omap_nand_platform_data *);
 	int			dma_channel;
+	int			gpmc_irq;
+	enum nand_io		xfer_type;
 	unsigned long		phys_base;
 	int			devsize;
+	enum omap_ecc           ecc_opt;
 };
 
 /* minimum size for IO mapping */

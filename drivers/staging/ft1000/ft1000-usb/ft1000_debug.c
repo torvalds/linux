@@ -471,14 +471,14 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
         // Connect Message
         DEBUG("FT1000:ft1000_ioctl: IOCTL_FT1000_CONNECT\n");
         ConnectionMsg[79] = 0xfc;
-			   CardSendCommand(ft1000dev, (unsigned short *)ConnectionMsg, 0x4c);
+			   card_send_command(ft1000dev, (unsigned short *)ConnectionMsg, 0x4c);
 
         break;
     case IOCTL_DISCONNECT:
         // Disconnect Message
         DEBUG("FT1000:ft1000_ioctl: IOCTL_FT1000_DISCONNECT\n");
         ConnectionMsg[79] = 0xfd;
-			   CardSendCommand(ft1000dev, (unsigned short *)ConnectionMsg, 0x4c);
+			   card_send_command(ft1000dev, (unsigned short *)ConnectionMsg, 0x4c);
         break;
     case IOCTL_GET_DSP_STAT_CMD:
         //DEBUG("FT1000:ft1000_ioctl: IOCTL_FT1000_GET_DSP_STAT called\n");
@@ -642,7 +642,7 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
                             }
                             pmsg++;
 				ppseudo_hdr = (struct pseudo_hdr *)pmsg;
-                           CardSendCommand(ft1000dev,(unsigned short*)dpram_data,total_len+2);
+                           card_send_command(ft1000dev,(unsigned short*)dpram_data,total_len+2);
 
 
                             info->app_info[app_index].nTxMsg++;

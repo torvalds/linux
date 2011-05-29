@@ -20,7 +20,7 @@ EXPORT_SYMBOL_GPL(user_return_notifier_register);
 
 /*
  * Removes a registered user return notifier.  Must be called from atomic
- * context, and from the same cpu registration occured in.
+ * context, and from the same cpu registration occurred in.
  */
 void user_return_notifier_unregister(struct user_return_notifier *urn)
 {

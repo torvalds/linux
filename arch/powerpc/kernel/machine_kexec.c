@@ -26,20 +26,23 @@ void machine_kexec_mask_interrupts(void) {
 
 	for_each_irq(i) {
 		struct irq_desc *desc = irq_to_desc(i);
+		struct irq_chip *chip;
 
-		if (!desc || !desc->chip)
+		if (!desc)
 			continue;
 
-		if (desc->chip->eoi &&
-		    desc->status & IRQ_INPROGRESS)
-			desc->chip->eoi(i);
+		chip = irq_desc_get_chip(desc);
+		if (!chip)
+			continue;
 
-		if (desc->chip->mask)
-			desc->chip->mask(i);
+		if (chip->irq_eoi && irqd_irq_inprogress(&desc->irq_data))
+			chip->irq_eoi(&desc->irq_data);
 
-		if (desc->chip->disable &&
-		    !(desc->status & IRQ_DISABLED))
-			desc->chip->disable(i);
+		if (chip->irq_mask)
+			chip->irq_mask(&desc->irq_data);
+
+		if (chip->irq_disable && !irqd_irq_disabled(&desc->irq_data))
+			chip->irq_disable(&desc->irq_data);
 	}
 }
 
@@ -87,7 +90,10 @@ void machine_kexec(struct kimage *image)
 
 	save_ftrace_enabled = __ftrace_enabled_save();
 
-	default_machine_kexec(image);
+	if (ppc_md.machine_kexec)
+		ppc_md.machine_kexec(image);
+	else
+		default_machine_kexec(image);
 
 	__ftrace_enabled_restore(save_ftrace_enabled);
 

@@ -9,9 +9,6 @@
 #include "vb_struct.h"
 #include "vb_def.h"
 
-//#define LINUXBIOS   /* turn this on when compiling for LINUXBIOS */
-#define AGPOFF     /* default is turn off AGP */
-
 #define XGIFAIL(x) do { printk(x "\n"); return -EINVAL; } while(0)
 
 #define VER_MAJOR                 0
@@ -65,27 +62,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #endif
 
 #define MAX_ROM_SCAN              0x10000
-
-#define HW_CURSOR_CAP             0x80
-#define TURBO_QUEUE_CAP           0x40
-#define AGP_CMD_QUEUE_CAP         0x20
-#define VM_CMD_QUEUE_CAP          0x10
-#define MMIO_CMD_QUEUE_CAP        0x08
-
-
-
-/* For 315 series */
-
-#define COMMAND_QUEUE_AREA_SIZE   0x80000 /* 512K */
-#define COMMAND_QUEUE_THRESHOLD   0x1F
-
-
-/* TW */
-#define HW_CURSOR_AREA_SIZE_315   0x4000  /* 16K */
-#define HW_CURSOR_AREA_SIZE_300   0x1000  /* 4K */
-
-#define OH_ALLOC_SIZE             4000
-#define SENTINEL                  0x7fffffff
 
 #define SEQ_ADR                   0x14
 #define SEQ_DATA                  0x15
@@ -194,16 +170,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 
 #define XGI_MEM_MAP_IO_ENABLE     0x01  /* SR20 */
 #define XGI_PCI_ADDR_ENABLE       0x80
-
-#define XGI_AGP_CMDQUEUE_ENABLE   0x80  /* 315/650/740 SR26 */
-#define XGI_VRAM_CMDQUEUE_ENABLE  0x40
-#define XGI_MMIO_CMD_ENABLE       0x20
-#define XGI_CMD_QUEUE_SIZE_512k   0x00
-#define XGI_CMD_QUEUE_SIZE_1M     0x04
-#define XGI_CMD_QUEUE_SIZE_2M     0x08
-#define XGI_CMD_QUEUE_SIZE_4M     0x0C
-#define XGI_CMD_QUEUE_RESET       0x01
-#define XGI_CMD_AUTO_CORR	  0x02
 
 #define XGI_SIMULTANEOUS_VIEW_ENABLE  0x01  /* CR30 */
 #define XGI_MODE_SELECT_CRT2      0x02
@@ -337,26 +303,21 @@ static u32 pseudo_palette[17];
 static int XGIfb_off = 0;
 static int XGIfb_crt1off = 0;
 static int XGIfb_forcecrt1 = -1;
-static int XGIvga_enabled = 0;
 static int XGIfb_userom = 0;
 //static int XGIfb_useoem = -1;
 
 /* global flags */
 static int XGIfb_registered;
 static int XGIfb_tvmode = 0;
-static int XGIfb_mem = 0;
 static int XGIfb_pdc = 0;
 static int enable_dstn = 0;
 static int XGIfb_ypan = -1;
 
 
-static int XGIfb_hwcursor_size = 0;
 static int XGIfb_CRT2_write_enable = 0;
 
 static int XGIfb_crt2type = -1; /* TW: CRT2 type (for overriding autodetection) */
 static int XGIfb_tvplug = -1; /* PR: Tv plug type (for overriding autodetection) */
-
-static int XGIfb_queuemode = -1; /* TW: Use MMIO queue mode by default (310/325 series only) */
 
 static unsigned char XGIfb_detectedpdc = 0;
 
@@ -373,16 +334,6 @@ static struct xgi_hw_device_info XGIhw_ext;
 
 /* TW: XGI private structure */
 static struct vb_device_info  XGI_Pr;
-
-/* card parameters */
-static unsigned long XGIfb_mmio_size = 0;
-static u8            XGIfb_caps = 0;
-
-typedef enum _XGI_CMDTYPE {
-	MMIO_CMD = 0,
-	AGP_CMD_QUEUE,
-	VM_CMD_QUEUE,
-} XGI_CMDTYPE;
 
 #define MD_XGI300 1
 #define MD_XGI315 2
@@ -526,20 +477,6 @@ static const struct _XGI_crt2type {
 	{"\0",  	-1, 		-1}
 };
 
-/* Queue mode selection for 310 series */
-static const struct _XGI_queuemode {
-	char name[6];
-	int type_no;
-} XGI_queuemode[] = {
-	{"AGP",  	AGP_CMD_QUEUE},
-	{"VRAM", 	VM_CMD_QUEUE},
-	{"MMIO", 	MMIO_CMD},
-	{"agp",  	AGP_CMD_QUEUE},
-	{"vram", 	VM_CMD_QUEUE},
-	{"mmio", 	MMIO_CMD},
-	{"\0",   	-1}
-};
-
 /* TV standard */
 static const struct _XGI_tvtype {
 	char name[6];
@@ -593,33 +530,6 @@ static const struct _chswtable {
         { 0x1631, 0x1002, "Mitachi", "0x1002" },
 	{ 0,      0,      ""       , ""       }
 };
-
-typedef struct _XGI_OH {
-	struct _XGI_OH *poh_next;
-	struct _XGI_OH *poh_prev;
-	unsigned long offset;
-	unsigned long size;
-} XGI_OH;
-
-typedef struct _XGI_OHALLOC {
-	struct _XGI_OHALLOC *poha_next;
-	XGI_OH aoh[1];
-} XGI_OHALLOC;
-
-typedef struct _XGI_HEAP {
-	XGI_OH oh_free;
-	XGI_OH oh_used;
-	XGI_OH *poh_freelist;
-	XGI_OHALLOC *poha_chain;
-	unsigned long max_freesize;
-} XGI_HEAP;
-
-static unsigned long XGIfb_hwcursor_vbase;
-
-static unsigned long XGIfb_heap_start;
-static unsigned long XGIfb_heap_end;
-static unsigned long XGIfb_heap_size;
-static XGI_HEAP      XGIfb_heap;
 
 // Eden Chen
 static const struct _XGI_TV_filter {
@@ -794,14 +704,6 @@ static int      XGIfb_blank(int blank,
 /*static int 	XGIfb_mmap(struct fb_info *info, struct file *file,
 		           struct vm_area_struct *vma);
 */
-extern void     fbcon_XGI_fillrect(struct fb_info *info,
-                                   const struct fb_fillrect *rect);
-extern void     fbcon_XGI_copyarea(struct fb_info *info,
-                                   const struct fb_copyarea *area);
-extern int      fbcon_XGI_sync(struct fb_info *info);
-
-static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,
-			    unsigned long arg);
 
 /*
 extern int	XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr,
@@ -820,10 +722,6 @@ extern unsigned char XGI_SearchModeID(unsigned short ModeNo,
 static int      XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 			      struct fb_info *info);
 
-/* Internal 2D accelerator functions */
-extern int      XGIfb_initaccel(void);
-extern void     XGIfb_syncaccel(void);
-
 /* Internal general routines */
 static void     XGIfb_search_mode(const char *name);
 static int      XGIfb_validate_mode(int modeindex);
@@ -835,21 +733,6 @@ static int      XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 		      	struct fb_info *info);
 static void     XGIfb_pre_setmode(void);
 static void     XGIfb_post_setmode(void);
-
-static unsigned char  XGIfb_CheckVBRetrace(void);
-static unsigned char  XGIfbcheckvretracecrt2(void);
-static unsigned char  XGIfbcheckvretracecrt1(void);
-static unsigned char  XGIfb_bridgeisslave(void);
-
-struct XGI_memreq {
-	unsigned long offset;
-	unsigned long size;
-};
-
-/* XGI-specific Export functions */
-void            XGI_dispinfo(struct ap_data *rec);
-void            XGI_malloc(struct XGI_memreq *req);
-void            XGI_free(unsigned long base);
 
 /* Internal hardware access routines */
 void            XGIfb_set_reg4(u16 port, unsigned long data);
@@ -863,15 +746,6 @@ static void     XGIfb_detect_VB(void);
 static void     XGIfb_get_VB_type(void);
 static int      XGIfb_has_VB(void);
 
-
-/* Internal heap routines */
-static int      XGIfb_heap_init(void);
-static XGI_OH   *XGIfb_poh_new_node(void);
-static XGI_OH   *XGIfb_poh_allocate(unsigned long size);
-static void     XGIfb_delete_node(XGI_OH *poh);
-static void     XGIfb_insert_node(XGI_OH *pohList, XGI_OH *poh);
-static XGI_OH   *XGIfb_poh_free(unsigned long base);
-static void     XGIfb_free_node(XGI_OH *poh);
 
 /* Internal routines to access PCI configuration space */
 unsigned char XGIfb_query_VGA_config_space(struct xgi_hw_device_info *pXGIhw_ext,

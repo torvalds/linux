@@ -27,6 +27,20 @@
 #ifdef CONFIG_MTD_UBI_DEBUG
 
 #include "ubi.h"
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+
+unsigned int ubi_msg_flags;
+unsigned int ubi_chk_flags;
+unsigned int ubi_tst_flags;
+
+module_param_named(debug_msgs, ubi_msg_flags, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug_chks, ubi_chk_flags, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug_tsts, ubi_chk_flags, uint, S_IRUGO | S_IWUSR);
+
+MODULE_PARM_DESC(debug_msgs, "Debug message type flags");
+MODULE_PARM_DESC(debug_chks, "Debug check flags");
+MODULE_PARM_DESC(debug_tsts, "Debug special test flags");
 
 /**
  * ubi_dbg_dump_ec_hdr - dump an erase counter header.

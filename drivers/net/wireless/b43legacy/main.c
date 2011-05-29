@@ -2442,8 +2442,8 @@ static int b43legacy_rng_init(struct b43legacy_wl *wl)
 	return err;
 }
 
-static int b43legacy_op_tx(struct ieee80211_hw *hw,
-			   struct sk_buff *skb)
+static void b43legacy_op_tx(struct ieee80211_hw *hw,
+			    struct sk_buff *skb)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev = wl->current_dev;
@@ -2466,7 +2466,6 @@ out:
 		/* Drop the packet. */
 		dev_kfree_skb_any(skb);
 	}
-	return NETDEV_TX_OK;
 }
 
 static int b43legacy_op_conf_tx(struct ieee80211_hw *hw, u16 queue,

@@ -614,7 +614,7 @@ void __cpuinit *per_cpu_init(void)
  * Shows a simple page count of reserved and used pages in the system.
  * For discontig machines, it does this on a per-pgdat basis.
  */
-void show_mem(void)
+void show_mem(unsigned int filter)
 {
 	int i, total_reserved = 0;
 	int total_shared = 0, total_cached = 0;

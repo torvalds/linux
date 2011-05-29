@@ -498,8 +498,8 @@ static void allocate_sections(struct dload_state *dlthis)
 		return;
 	}
 	/* initialize the handle header */
-	hndl->dm.hnext = hndl->dm.hprev = hndl;	/* circular list */
-	hndl->dm.hroot = NULL;
+	hndl->dm.next = hndl->dm.prev = hndl;	/* circular list */
+	hndl->dm.root = NULL;
 	hndl->dm.dbthis = 0;
 	dlthis->myhandle = hndl;	/* save away for return */
 	/* pointer to the section list of allocated sections */
@@ -718,7 +718,7 @@ static void dload_symbols(struct dload_state *dlthis)
 	 * as a temporary for .dllview record construction.
 	 * Allocate storage for the whole table.  Add 1 to the section count
 	 * in case a trampoline section is auto-generated as well as the
-	 * size of the trampoline section name so DLLView doens't get lost.
+	 * size of the trampoline section name so DLLView doesn't get lost.
 	 */
 
 	siz = sym_count * sizeof(struct local_symbol);
@@ -1131,9 +1131,6 @@ static void dload_data(struct dload_state *dlthis)
 	u16 curr_sect;
 	struct doff_scnhdr_t *sptr = dlthis->sect_hdrs;
 	struct ldr_section_info *lptr = dlthis->ldr_sections;
-#ifdef OPT_ZERO_COPY_LOADER
-	bool zero_copy = false;
-#endif
 	u8 *dest;
 
 	struct {
@@ -1192,17 +1189,6 @@ static void dload_data(struct dload_state *dlthis)
 					return;
 				}
 				dest = ibuf.bufr;
-#ifdef OPT_ZERO_COPY_LOADER
-				zero_copy = false;
-				if (!dload_check_type(sptr, DLOAD_CINIT) {
-					dlthis->myio->writemem(dlthis->myio,
-							       &dest,
-							       lptr->load_addr +
-							       image_offset,
-							       lptr, 0);
-					zero_copy = (dest != ibuf.bufr);
-				}
-#endif
 				/* End of determination */
 
 				if (dlthis->strm->read_buffer(dlthis->strm,
@@ -1266,33 +1252,27 @@ static void dload_data(struct dload_state *dlthis)
 							    &ibuf.ipacket);
 						cinit_processed = true;
 					} else {
-#ifdef OPT_ZERO_COPY_LOADER
-						if (!zero_copy) {
-#endif
-							/* FIXME */
-							if (!dlthis->myio->
-							    writemem(dlthis->
-								myio,
-								ibuf.bufr,
-								lptr->
-								load_addr +
-								image_offset,
-								lptr,
-								BYTE_TO_HOST
-								(ibuf.
-								ipacket.
-								packet_size))) {
-								DL_ERROR
-								  ("Write to "
-								  FMT_UI32
-								  " failed",
-								  lptr->
-								  load_addr +
-								  image_offset);
-							}
-#ifdef OPT_ZERO_COPY_LOADER
+						/* FIXME */
+						if (!dlthis->myio->
+						    writemem(dlthis->
+							myio,
+							ibuf.bufr,
+							lptr->
+							load_addr +
+							image_offset,
+							lptr,
+							BYTE_TO_HOST
+							(ibuf.
+							ipacket.
+							packet_size))) {
+							DL_ERROR
+							  ("Write to "
+							  FMT_UI32
+							  " failed",
+							  lptr->
+							  load_addr +
+							  image_offset);
 						}
-#endif
 					}
 				}
 				image_offset +=
@@ -1646,7 +1626,7 @@ static void init_module_handle(struct dload_state *dlthis)
 			DL_ERROR(err_alloc, sizeof(struct dbg_mirror_root));
 			return;
 		}
-		mlst->hnext = NULL;
+		mlst->next = NULL;
 		mlst->changes = 0;
 		mlst->refcount = 0;
 		mlst->dbthis = TDATA_TO_TADDR(dlmodsym->value);
@@ -1671,7 +1651,7 @@ static void init_module_handle(struct dload_state *dlthis)
 #else
 	mlist = (struct dbg_mirror_root *)&debug_list_header;
 #endif
-	hndl->dm.hroot = mlist;	/* set pointer to root into our handle */
+	hndl->dm.root = mlist;	/* set pointer to root into our handle */
 	if (!dlthis->allocated_secn_count)
 		return;		/* no load addresses to be recorded */
 	/* reuse temporary symbol storage */
@@ -1722,9 +1702,9 @@ static void init_module_handle(struct dload_state *dlthis)
 	dllview_info.context = 0;
 	hndl->dm.context = 0;
 	/* fill in next pointer and size */
-	if (mlist->hnext) {
-		dbmod->next_module = TADDR_TO_TDATA(mlist->hnext->dm.dbthis);
-		dbmod->next_module_size = mlist->hnext->dm.dbsiz;
+	if (mlist->next) {
+		dbmod->next_module = TADDR_TO_TDATA(mlist->next->dm.dbthis);
+		dbmod->next_module_size = mlist->next->dm.dbsiz;
 	} else {
 		dbmod->next_module_size = 0;
 		dbmod->next_module = 0;
@@ -1770,11 +1750,11 @@ static void init_module_handle(struct dload_state *dlthis)
 	}
 	/* Add the module handle to this processor's list
 	   of handles with debug info */
-	hndl->dm.hnext = mlist->hnext;
-	if (hndl->dm.hnext)
-		hndl->dm.hnext->dm.hprev = hndl;
-	hndl->dm.hprev = (struct my_handle *)mlist;
-	mlist->hnext = hndl;	/* insert after root */
+	hndl->dm.next = mlist->next;
+	if (hndl->dm.next)
+		hndl->dm.next->dm.prev = hndl;
+	hndl->dm.prev = (struct my_handle *)mlist;
+	mlist->next = hndl;	/* insert after root */
 }				/* init_module_handle */
 
 /*************************************************************************
@@ -1830,7 +1810,7 @@ int dynamic_unload_module(void *mhandle,
 			asecs->name = NULL;
 			alloc->dload_deallocate(alloc, asecs++);
 		}
-	root = hndl->dm.hroot;
+	root = hndl->dm.root;
 	if (!root) {
 		/* there is a debug list containing this module */
 		goto func_end;
@@ -1840,20 +1820,20 @@ int dynamic_unload_module(void *mhandle,
 	}
 	/* Retrieve memory context in which .dllview was allocated */
 	dllview_info.context = hndl->dm.context;
-	if (hndl->dm.hprev == hndl)
+	if (hndl->dm.prev == hndl)
 		goto exitunltgt;
 
 	/* target-side dllview record is in list */
 	/* dequeue this record from our GPP-side mirror list */
-	hndl->dm.hprev->dm.hnext = hndl->dm.hnext;
-	if (hndl->dm.hnext)
-		hndl->dm.hnext->dm.hprev = hndl->dm.hprev;
+	hndl->dm.prev->dm.next = hndl->dm.next;
+	if (hndl->dm.next)
+		hndl->dm.next->dm.prev = hndl->dm.prev;
 	/* Update next_module of previous entry in target list
 	 * We are using mhdr here as a surrogate for either a
 	 struct modules_header or a dll_module */
-	if (hndl->dm.hnext) {
-		mhdr.first_module = TADDR_TO_TDATA(hndl->dm.hnext->dm.dbthis);
-		mhdr.first_module_size = hndl->dm.hnext->dm.dbsiz;
+	if (hndl->dm.next) {
+		mhdr.first_module = TADDR_TO_TDATA(hndl->dm.next->dm.dbthis);
+		mhdr.first_module_size = hndl->dm.next->dm.dbsiz;
 	} else {
 		mhdr.first_module = 0;
 		mhdr.first_module_size = 0;
@@ -1871,7 +1851,7 @@ int dynamic_unload_module(void *mhandle,
 		swap_words(&mhdr, sizeof(struct modules_header) - sizeof(u16),
 			   MODULES_HEADER_BITMAP);
 	}
-	if (!init->writemem(init, &mhdr, hndl->dm.hprev->dm.dbthis,
+	if (!init->writemem(init, &mhdr, hndl->dm.prev->dm.dbthis,
 			    &dllview_info, sizeof(struct modules_header) -
 			    sizeof(mhdr.update_flag))) {
 		dload_syms_error(syms, dlvwrite);

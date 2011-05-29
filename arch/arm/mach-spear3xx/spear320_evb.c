@@ -14,7 +14,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <mach/generic.h>
-#include <mach/spear.h>
+#include <mach/hardware.h>
 
 /* padmux devices to enable */
 static struct pmx_dev *pmx_devs[] = {
@@ -26,7 +26,7 @@ static struct pmx_dev *pmx_devs[] = {
 
 	/* spear320 specific devices */
 	&pmx_fsmc,
-	&pmx_sdio,
+	&pmx_sdhci,
 	&pmx_i2s,
 	&pmx_uart1,
 	&pmx_uart2,
@@ -55,14 +55,13 @@ static void __init spear320_evb_init(void)
 {
 	unsigned int i;
 
-	/* call spear320 machine init function */
-	spear320_init();
-
-	/* padmux initialization */
+	/* padmux initialization, must be done before spear320_init */
 	pmx_driver.mode = &auto_net_mii_mode;
 	pmx_driver.devs = pmx_devs;
 	pmx_driver.devs_count = ARRAY_SIZE(pmx_devs);
-	spear320_pmx_init();
+
+	/* call spear320 machine init function */
+	spear320_init();
 
 	/* Add Platform Devices */
 	platform_add_devices(plat_devs, ARRAY_SIZE(plat_devs));
@@ -76,6 +75,6 @@ MACHINE_START(SPEAR320, "ST-SPEAR320-EVB")
 	.boot_params	=	0x00000100,
 	.map_io		=	spear3xx_map_io,
 	.init_irq	=	spear3xx_init_irq,
-	.timer		=	&spear_sys_timer,
+	.timer		=	&spear3xx_timer,
 	.init_machine	=	spear320_evb_init,
 MACHINE_END

@@ -15,6 +15,7 @@
 #include <linux/string.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/vfs.h>
+#include <linux/sunrpc/gss_api.h>
 #include "internal.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
@@ -25,33 +26,31 @@ static LIST_HEAD(nfs_automount_list);
 static DECLARE_DELAYED_WORK(nfs_automount_task, nfs_expire_automounts);
 int nfs_mountpoint_expiry_timeout = 500 * HZ;
 
-static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
-					const struct dentry *dentry,
+static struct vfsmount *nfs_do_submount(struct dentry *dentry,
 					struct nfs_fh *fh,
-					struct nfs_fattr *fattr);
+					struct nfs_fattr *fattr,
+					rpc_authflavor_t authflavor);
 
 /*
  * nfs_path - reconstruct the path given an arbitrary dentry
- * @base - arbitrary string to prepend to the path
- * @droot - pointer to root dentry for mountpoint
+ * @base - used to return pointer to the end of devname part of path
  * @dentry - pointer to dentry
  * @buffer - result buffer
  * @buflen - length of buffer
  *
- * Helper function for constructing the path from the
- * root dentry to an arbitrary hashed dentry.
+ * Helper function for constructing the server pathname
+ * by arbitrary hashed dentry.
  *
  * This is mainly for use in figuring out the path on the
- * server side when automounting on top of an existing partition.
+ * server side when automounting on top of an existing partition
+ * and in generating /proc/mounts and friends.
  */
-char *nfs_path(const char *base,
-	       const struct dentry *droot,
-	       const struct dentry *dentry,
-	       char *buffer, ssize_t buflen)
+char *nfs_path(char **p, struct dentry *dentry, char *buffer, ssize_t buflen)
 {
 	char *end;
 	int namelen;
 	unsigned seq;
+	const char *base;
 
 rename_retry:
 	end = buffer+buflen;
@@ -60,7 +59,10 @@ rename_retry:
 
 	seq = read_seqbegin(&rename_lock);
 	rcu_read_lock();
-	while (!IS_ROOT(dentry) && dentry != droot) {
+	while (1) {
+		spin_lock(&dentry->d_lock);
+		if (IS_ROOT(dentry))
+			break;
 		namelen = dentry->d_name.len;
 		buflen -= namelen + 1;
 		if (buflen < 0)
@@ -68,33 +70,146 @@ rename_retry:
 		end -= namelen;
 		memcpy(end, dentry->d_name.name, namelen);
 		*--end = '/';
+		spin_unlock(&dentry->d_lock);
 		dentry = dentry->d_parent;
 	}
-	rcu_read_unlock();
-	if (read_seqretry(&rename_lock, seq))
+	if (read_seqretry(&rename_lock, seq)) {
+		spin_unlock(&dentry->d_lock);
+		rcu_read_unlock();
 		goto rename_retry;
+	}
 	if (*end != '/') {
-		if (--buflen < 0)
+		if (--buflen < 0) {
+			spin_unlock(&dentry->d_lock);
+			rcu_read_unlock();
 			goto Elong;
+		}
 		*--end = '/';
+	}
+	*p = end;
+	base = dentry->d_fsdata;
+	if (!base) {
+		spin_unlock(&dentry->d_lock);
+		rcu_read_unlock();
+		WARN_ON(1);
+		return end;
 	}
 	namelen = strlen(base);
 	/* Strip off excess slashes in base string */
 	while (namelen > 0 && base[namelen - 1] == '/')
 		namelen--;
 	buflen -= namelen;
-	if (buflen < 0)
+	if (buflen < 0) {
+		spin_unlock(&dentry->d_lock);
+		rcu_read_unlock();
 		goto Elong;
+	}
 	end -= namelen;
 	memcpy(end, base, namelen);
+	spin_unlock(&dentry->d_lock);
+	rcu_read_unlock();
 	return end;
 Elong_unlock:
+	spin_unlock(&dentry->d_lock);
 	rcu_read_unlock();
 	if (read_seqretry(&rename_lock, seq))
 		goto rename_retry;
 Elong:
 	return ERR_PTR(-ENAMETOOLONG);
 }
+
+#ifdef CONFIG_NFS_V4
+static rpc_authflavor_t nfs_find_best_sec(struct nfs4_secinfo_flavors *flavors)
+{
+	struct gss_api_mech *mech;
+	struct xdr_netobj oid;
+	int i;
+	rpc_authflavor_t pseudoflavor = RPC_AUTH_UNIX;
+
+	for (i = 0; i < flavors->num_flavors; i++) {
+		struct nfs4_secinfo_flavor *flavor;
+		flavor = &flavors->flavors[i];
+
+		if (flavor->flavor == RPC_AUTH_NULL || flavor->flavor == RPC_AUTH_UNIX) {
+			pseudoflavor = flavor->flavor;
+			break;
+		} else if (flavor->flavor == RPC_AUTH_GSS) {
+			oid.len  = flavor->gss.sec_oid4.len;
+			oid.data = flavor->gss.sec_oid4.data;
+			mech = gss_mech_get_by_OID(&oid);
+			if (!mech)
+				continue;
+			pseudoflavor = gss_svc_to_pseudoflavor(mech, flavor->gss.service);
+			gss_mech_put(mech);
+			break;
+		}
+	}
+
+	return pseudoflavor;
+}
+
+static int nfs_negotiate_security(const struct dentry *parent,
+				  const struct dentry *dentry,
+				  rpc_authflavor_t *flavor)
+{
+	struct page *page;
+	struct nfs4_secinfo_flavors *flavors;
+	int (*secinfo)(struct inode *, const struct qstr *, struct nfs4_secinfo_flavors *);
+	int ret = -EPERM;
+
+	secinfo = NFS_PROTO(parent->d_inode)->secinfo;
+	if (secinfo != NULL) {
+		page = alloc_page(GFP_KERNEL);
+		if (!page) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		flavors = page_address(page);
+		ret = secinfo(parent->d_inode, &dentry->d_name, flavors);
+		*flavor = nfs_find_best_sec(flavors);
+		put_page(page);
+	}
+
+out:
+	return ret;
+}
+
+static int nfs_lookup_with_sec(struct nfs_server *server, struct dentry *parent,
+			       struct dentry *dentry, struct path *path,
+			       struct nfs_fh *fh, struct nfs_fattr *fattr,
+			       rpc_authflavor_t *flavor)
+{
+	struct rpc_clnt *clone;
+	struct rpc_auth *auth;
+	int err;
+
+	err = nfs_negotiate_security(parent, path->dentry, flavor);
+	if (err < 0)
+		goto out;
+	clone  = rpc_clone_client(server->client);
+	auth   = rpcauth_create(*flavor, clone);
+	if (!auth) {
+		err = -EIO;
+		goto out_shutdown;
+	}
+	err = server->nfs_client->rpc_ops->lookup(clone, parent->d_inode,
+						  &path->dentry->d_name,
+						  fh, fattr);
+out_shutdown:
+	rpc_shutdown_client(clone);
+out:
+	return err;
+}
+#else /* CONFIG_NFS_V4 */
+static inline int nfs_lookup_with_sec(struct nfs_server *server,
+				      struct dentry *parent, struct dentry *dentry,
+				      struct path *path, struct nfs_fh *fh,
+				      struct nfs_fattr *fattr,
+				      rpc_authflavor_t *flavor)
+{
+	return -EPERM;
+}
+#endif /* CONFIG_NFS_V4 */
 
 /*
  * nfs_d_automount - Handle crossing a mountpoint on the server
@@ -116,6 +231,7 @@ struct vfsmount *nfs_d_automount(struct path *path)
 	struct nfs_fh *fh = NULL;
 	struct nfs_fattr *fattr = NULL;
 	int err;
+	rpc_authflavor_t flavor = RPC_AUTH_UNIX;
 
 	dprintk("--> nfs_d_automount()\n");
 
@@ -133,9 +249,11 @@ struct vfsmount *nfs_d_automount(struct path *path)
 
 	/* Look it up again to get its attributes */
 	parent = dget_parent(path->dentry);
-	err = server->nfs_client->rpc_ops->lookup(parent->d_inode,
+	err = server->nfs_client->rpc_ops->lookup(server->client, parent->d_inode,
 						  &path->dentry->d_name,
 						  fh, fattr);
+	if (err == -EPERM && NFS_PROTO(parent->d_inode)->secinfo != NULL)
+		err = nfs_lookup_with_sec(server, parent, path->dentry, path, fh, fattr, &flavor);
 	dput(parent);
 	if (err != 0) {
 		mnt = ERR_PTR(err);
@@ -143,9 +261,9 @@ struct vfsmount *nfs_d_automount(struct path *path)
 	}
 
 	if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
-		mnt = nfs_do_refmount(path->mnt, path->dentry);
+		mnt = nfs_do_refmount(path->dentry);
 	else
-		mnt = nfs_do_submount(path->mnt, path->dentry, fh, fattr);
+		mnt = nfs_do_submount(path->dentry, fh, fattr, flavor);
 	if (IS_ERR(mnt))
 		goto out;
 
@@ -209,22 +327,23 @@ static struct vfsmount *nfs_do_clone_mount(struct nfs_server *server,
 
 /**
  * nfs_do_submount - set up mountpoint when crossing a filesystem boundary
- * @mnt_parent - mountpoint of parent directory
  * @dentry - parent directory
  * @fh - filehandle for new root dentry
  * @fattr - attributes for new root inode
+ * @authflavor - security flavor to use when performing the mount
  *
  */
-static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
-					const struct dentry *dentry,
+static struct vfsmount *nfs_do_submount(struct dentry *dentry,
 					struct nfs_fh *fh,
-					struct nfs_fattr *fattr)
+					struct nfs_fattr *fattr,
+					rpc_authflavor_t authflavor)
 {
 	struct nfs_clone_mount mountdata = {
-		.sb = mnt_parent->mnt_sb,
+		.sb = dentry->d_sb,
 		.dentry = dentry,
 		.fh = fh,
 		.fattr = fattr,
+		.authflavor = authflavor,
 	};
 	struct vfsmount *mnt = ERR_PTR(-ENOMEM);
 	char *page = (char *) __get_free_page(GFP_USER);
@@ -237,11 +356,11 @@ static struct vfsmount *nfs_do_submount(const struct vfsmount *mnt_parent,
 			dentry->d_name.name);
 	if (page == NULL)
 		goto out;
-	devname = nfs_devname(mnt_parent, dentry, page, PAGE_SIZE);
+	devname = nfs_devname(dentry, page, PAGE_SIZE);
 	mnt = (struct vfsmount *)devname;
 	if (IS_ERR(devname))
 		goto free_page;
-	mnt = nfs_do_clone_mount(NFS_SB(mnt_parent->mnt_sb), devname, &mountdata);
+	mnt = nfs_do_clone_mount(NFS_SB(dentry->d_sb), devname, &mountdata);
 free_page:
 	free_page((unsigned long)page);
 out:

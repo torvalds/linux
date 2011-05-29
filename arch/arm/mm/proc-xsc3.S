@@ -413,8 +413,51 @@ ENTRY(cpu_xsc3_set_pte_ext)
 	mov	pc, lr
 
 	.ltorg
-
 	.align
+
+.globl	cpu_xsc3_suspend_size
+.equ	cpu_xsc3_suspend_size, 4 * 8
+#ifdef CONFIG_PM_SLEEP
+ENTRY(cpu_xsc3_do_suspend)
+	stmfd	sp!, {r4 - r10, lr}
+	mrc	p14, 0, r4, c6, c0, 0	@ clock configuration, for turbo mode
+	mrc	p15, 0, r5, c15, c1, 0	@ CP access reg
+	mrc	p15, 0, r6, c13, c0, 0	@ PID
+	mrc 	p15, 0, r7, c3, c0, 0	@ domain ID
+	mrc 	p15, 0, r8, c2, c0, 0	@ translation table base addr
+	mrc	p15, 0, r9, c1, c0, 1	@ auxiliary control reg
+	mrc 	p15, 0, r10, c1, c0, 0	@ control reg
+	bic	r4, r4, #2		@ clear frequency change bit
+	stmia	r0, {r1, r4 - r10}	@ store v:p offset + cp regs
+	ldmia	sp!, {r4 - r10, pc}
+ENDPROC(cpu_xsc3_do_suspend)
+
+ENTRY(cpu_xsc3_do_resume)
+	ldmia	r0, {r1, r4 - r10}	@ load v:p offset + cp regs
+	mov	ip, #0
+	mcr	p15, 0, ip, c7, c7, 0	@ invalidate I & D caches, BTB
+	mcr	p15, 0, ip, c7, c10, 4	@ drain write (&fill) buffer
+	mcr	p15, 0, ip, c7, c5, 4	@ flush prefetch buffer
+	mcr	p15, 0, ip, c8, c7, 0	@ invalidate I & D TLBs
+	mcr	p14, 0, r4, c6, c0, 0	@ clock configuration, turbo mode.
+	mcr	p15, 0, r5, c15, c1, 0	@ CP access reg
+	mcr	p15, 0, r6, c13, c0, 0	@ PID
+	mcr	p15, 0, r7, c3, c0, 0	@ domain ID
+	mcr	p15, 0, r8, c2, c0, 0	@ translation table base addr
+	mcr	p15, 0, r9, c1, c0, 1	@ auxiliary control reg
+
+	@ temporarily map resume_turn_on_mmu into the page table,
+	@ otherwise prefetch abort occurs after MMU is turned on
+	mov	r0, r10			@ control register
+	mov	r2, r8, lsr #14		@ get TTB0 base
+	mov	r2, r2, lsl #14
+	ldr	r3, =0x542e		@ section flags
+	b	cpu_resume_mmu
+ENDPROC(cpu_xsc3_do_resume)
+#else
+#define cpu_xsc3_do_suspend	0
+#define cpu_xsc3_do_resume	0
+#endif
 
 	__CPUINIT
 
@@ -476,6 +519,9 @@ ENTRY(xsc3_processor_functions)
 	.word	cpu_xsc3_dcache_clean_area
 	.word	cpu_xsc3_switch_mm
 	.word	cpu_xsc3_set_pte_ext
+	.word	cpu_xsc3_suspend_size
+	.word	cpu_xsc3_do_suspend
+	.word	cpu_xsc3_do_resume
 	.size	xsc3_processor_functions, . - xsc3_processor_functions
 
 	.section ".rodata"

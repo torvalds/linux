@@ -23,34 +23,30 @@
 #include <net/pkt_cls.h>
 
 /*
-   1. For now we assume that route tags < 256.
-      It allows to use direct table lookups, instead of hash tables.
-   2. For now we assume that "from TAG" and "fromdev DEV" statements
-      are mutually  exclusive.
-   3. "to TAG from ANY" has higher priority, than "to ANY from XXX"
+ * 1. For now we assume that route tags < 256.
+ *    It allows to use direct table lookups, instead of hash tables.
+ * 2. For now we assume that "from TAG" and "fromdev DEV" statements
+ *    are mutually  exclusive.
+ * 3. "to TAG from ANY" has higher priority, than "to ANY from XXX"
  */
 
-struct route4_fastmap
-{
+struct route4_fastmap {
 	struct route4_filter	*filter;
 	u32			id;
 	int			iif;
 };
 
-struct route4_head
-{
+struct route4_head {
 	struct route4_fastmap	fastmap[16];
-	struct route4_bucket	*table[256+1];
+	struct route4_bucket	*table[256 + 1];
 };
 
-struct route4_bucket
-{
+struct route4_bucket {
 	/* 16 FROM buckets + 16 IIF buckets + 1 wildcard bucket */
-	struct route4_filter	*ht[16+16+1];
+	struct route4_filter	*ht[16 + 16 + 1];
 };
 
-struct route4_filter
-{
+struct route4_filter {
 	struct route4_filter	*next;
 	u32			id;
 	int			iif;
@@ -61,20 +57,20 @@ struct route4_filter
 	struct route4_bucket	*bkt;
 };
 
-#define ROUTE4_FAILURE ((struct route4_filter*)(-1L))
+#define ROUTE4_FAILURE ((struct route4_filter *)(-1L))
 
 static const struct tcf_ext_map route_ext_map = {
 	.police = TCA_ROUTE4_POLICE,
 	.action = TCA_ROUTE4_ACT
 };
 
-static __inline__ int route4_fastmap_hash(u32 id, int iif)
+static inline int route4_fastmap_hash(u32 id, int iif)
 {
-	return id&0xF;
+	return id & 0xF;
 }
 
-static inline
-void route4_reset_fastmap(struct Qdisc *q, struct route4_head *head, u32 id)
+static void
+route4_reset_fastmap(struct Qdisc *q, struct route4_head *head, u32 id)
 {
 	spinlock_t *root_lock = qdisc_root_sleeping_lock(q);
 
@@ -83,32 +79,33 @@ void route4_reset_fastmap(struct Qdisc *q, struct route4_head *head, u32 id)
 	spin_unlock_bh(root_lock);
 }
 
-static inline void
+static void
 route4_set_fastmap(struct route4_head *head, u32 id, int iif,
 		   struct route4_filter *f)
 {
 	int h = route4_fastmap_hash(id, iif);
+
 	head->fastmap[h].id = id;
 	head->fastmap[h].iif = iif;
 	head->fastmap[h].filter = f;
 }
 
-static __inline__ int route4_hash_to(u32 id)
+static inline int route4_hash_to(u32 id)
 {
-	return id&0xFF;
+	return id & 0xFF;
 }
 
-static __inline__ int route4_hash_from(u32 id)
+static inline int route4_hash_from(u32 id)
 {
-	return (id>>16)&0xF;
+	return (id >> 16) & 0xF;
 }
 
-static __inline__ int route4_hash_iif(int iif)
+static inline int route4_hash_iif(int iif)
 {
-	return 16 + ((iif>>16)&0xF);
+	return 16 + ((iif >> 16) & 0xF);
 }
 
-static __inline__ int route4_hash_wild(void)
+static inline int route4_hash_wild(void)
 {
 	return 32;
 }
@@ -131,21 +128,22 @@ static __inline__ int route4_hash_wild(void)
 static int route4_classify(struct sk_buff *skb, struct tcf_proto *tp,
 			   struct tcf_result *res)
 {
-	struct route4_head *head = (struct route4_head*)tp->root;
+	struct route4_head *head = (struct route4_head *)tp->root;
 	struct dst_entry *dst;
 	struct route4_bucket *b;
 	struct route4_filter *f;
 	u32 id, h;
 	int iif, dont_cache = 0;
 
-	if ((dst = skb_dst(skb)) == NULL)
+	dst = skb_dst(skb);
+	if (!dst)
 		goto failure;
 
 	id = dst->tclassid;
 	if (head == NULL)
 		goto old_method;
 
-	iif = ((struct rtable*)dst)->fl.iif;
+	iif = ((struct rtable *)dst)->rt_iif;
 
 	h = route4_fastmap_hash(id, iif);
 	if (id == head->fastmap[h].id &&
@@ -161,7 +159,8 @@ static int route4_classify(struct sk_buff *skb, struct tcf_proto *tp,
 	h = route4_hash_to(id);
 
 restart:
-	if ((b = head->table[h]) != NULL) {
+	b = head->table[h];
+	if (b) {
 		for (f = b->ht[route4_hash_from(id)]; f; f = f->next)
 			if (f->id == id)
 				ROUTE4_APPLY_RESULT();
@@ -197,8 +196,9 @@ old_method:
 
 static inline u32 to_hash(u32 id)
 {
-	u32 h = id&0xFF;
-	if (id&0x8000)
+	u32 h = id & 0xFF;
+
+	if (id & 0x8000)
 		h += 256;
 	return h;
 }
@@ -211,17 +211,17 @@ static inline u32 from_hash(u32 id)
 	if (!(id & 0x8000)) {
 		if (id > 255)
 			return 256;
-		return id&0xF;
+		return id & 0xF;
 	}
-	return 16 + (id&0xF);
+	return 16 + (id & 0xF);
 }
 
 static unsigned long route4_get(struct tcf_proto *tp, u32 handle)
 {
-	struct route4_head *head = (struct route4_head*)tp->root;
+	struct route4_head *head = (struct route4_head *)tp->root;
 	struct route4_bucket *b;
 	struct route4_filter *f;
-	unsigned h1, h2;
+	unsigned int h1, h2;
 
 	if (!head)
 		return 0;
@@ -230,11 +230,12 @@ static unsigned long route4_get(struct tcf_proto *tp, u32 handle)
 	if (h1 > 256)
 		return 0;
 
-	h2 = from_hash(handle>>16);
+	h2 = from_hash(handle >> 16);
 	if (h2 > 32)
 		return 0;
 
-	if ((b = head->table[h1]) != NULL) {
+	b = head->table[h1];
+	if (b) {
 		for (f = b->ht[h2]; f; f = f->next)
 			if (f->handle == handle)
 				return (unsigned long)f;
@@ -251,7 +252,7 @@ static int route4_init(struct tcf_proto *tp)
 	return 0;
 }
 
-static inline void
+static void
 route4_delete_filter(struct tcf_proto *tp, struct route4_filter *f)
 {
 	tcf_unbind_filter(tp, &f->res);
@@ -267,11 +268,12 @@ static void route4_destroy(struct tcf_proto *tp)
 	if (head == NULL)
 		return;
 
-	for (h1=0; h1<=256; h1++) {
+	for (h1 = 0; h1 <= 256; h1++) {
 		struct route4_bucket *b;
 
-		if ((b = head->table[h1]) != NULL) {
-			for (h2=0; h2<=32; h2++) {
+		b = head->table[h1];
+		if (b) {
+			for (h2 = 0; h2 <= 32; h2++) {
 				struct route4_filter *f;
 
 				while ((f = b->ht[h2]) != NULL) {
@@ -287,9 +289,9 @@ static void route4_destroy(struct tcf_proto *tp)
 
 static int route4_delete(struct tcf_proto *tp, unsigned long arg)
 {
-	struct route4_head *head = (struct route4_head*)tp->root;
-	struct route4_filter **fp, *f = (struct route4_filter*)arg;
-	unsigned h = 0;
+	struct route4_head *head = (struct route4_head *)tp->root;
+	struct route4_filter **fp, *f = (struct route4_filter *)arg;
+	unsigned int h = 0;
 	struct route4_bucket *b;
 	int i;
 
@@ -299,7 +301,7 @@ static int route4_delete(struct tcf_proto *tp, unsigned long arg)
 	h = f->handle;
 	b = f->bkt;
 
-	for (fp = &b->ht[from_hash(h>>16)]; *fp; fp = &(*fp)->next) {
+	for (fp = &b->ht[from_hash(h >> 16)]; *fp; fp = &(*fp)->next) {
 		if (*fp == f) {
 			tcf_tree_lock(tp);
 			*fp = f->next;
@@ -310,7 +312,7 @@ static int route4_delete(struct tcf_proto *tp, unsigned long arg)
 
 			/* Strip tree */
 
-			for (i=0; i<=32; i++)
+			for (i = 0; i <= 32; i++)
 				if (b->ht[i])
 					return 0;
 
@@ -380,7 +382,8 @@ static int route4_set_parms(struct tcf_proto *tp, unsigned long base,
 	}
 
 	h1 = to_hash(nhandle);
-	if ((b = head->table[h1]) == NULL) {
+	b = head->table[h1];
+	if (!b) {
 		err = -ENOBUFS;
 		b = kzalloc(sizeof(struct route4_bucket), GFP_KERNEL);
 		if (b == NULL)
@@ -391,6 +394,7 @@ static int route4_set_parms(struct tcf_proto *tp, unsigned long base,
 		tcf_tree_unlock(tp);
 	} else {
 		unsigned int h2 = from_hash(nhandle >> 16);
+
 		err = -EEXIST;
 		for (fp = b->ht[h2]; fp; fp = fp->next)
 			if (fp->handle == f->handle)
@@ -444,7 +448,8 @@ static int route4_change(struct tcf_proto *tp, unsigned long base,
 	if (err < 0)
 		return err;
 
-	if ((f = (struct route4_filter*)*arg) != NULL) {
+	f = (struct route4_filter *)*arg;
+	if (f) {
 		if (f->handle != handle && handle)
 			return -EINVAL;
 
@@ -481,7 +486,7 @@ static int route4_change(struct tcf_proto *tp, unsigned long base,
 
 reinsert:
 	h = from_hash(f->handle >> 16);
-	for (fp = &f->bkt->ht[h]; (f1=*fp) != NULL; fp = &f1->next)
+	for (fp = &f->bkt->ht[h]; (f1 = *fp) != NULL; fp = &f1->next)
 		if (f->handle < f1->handle)
 			break;
 
@@ -492,7 +497,8 @@ reinsert:
 	if (old_handle && f->handle != old_handle) {
 		th = to_hash(old_handle);
 		h = from_hash(old_handle >> 16);
-		if ((b = head->table[th]) != NULL) {
+		b = head->table[th];
+		if (b) {
 			for (fp = &b->ht[h]; *fp; fp = &(*fp)->next) {
 				if (*fp == f) {
 					*fp = f->next;
@@ -515,7 +521,7 @@ errout:
 static void route4_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 {
 	struct route4_head *head = tp->root;
-	unsigned h, h1;
+	unsigned int h, h1;
 
 	if (head == NULL)
 		arg->stop = 1;
@@ -549,7 +555,7 @@ static void route4_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 static int route4_dump(struct tcf_proto *tp, unsigned long fh,
 		       struct sk_buff *skb, struct tcmsg *t)
 {
-	struct route4_filter *f = (struct route4_filter*)fh;
+	struct route4_filter *f = (struct route4_filter *)fh;
 	unsigned char *b = skb_tail_pointer(skb);
 	struct nlattr *nest;
 	u32 id;
@@ -563,15 +569,15 @@ static int route4_dump(struct tcf_proto *tp, unsigned long fh,
 	if (nest == NULL)
 		goto nla_put_failure;
 
-	if (!(f->handle&0x8000)) {
-		id = f->id&0xFF;
+	if (!(f->handle & 0x8000)) {
+		id = f->id & 0xFF;
 		NLA_PUT_U32(skb, TCA_ROUTE4_TO, id);
 	}
-	if (f->handle&0x80000000) {
-		if ((f->handle>>16) != 0xFFFF)
+	if (f->handle & 0x80000000) {
+		if ((f->handle >> 16) != 0xFFFF)
 			NLA_PUT_U32(skb, TCA_ROUTE4_IIF, f->iif);
 	} else {
-		id = f->id>>16;
+		id = f->id >> 16;
 		NLA_PUT_U32(skb, TCA_ROUTE4_FROM, id);
 	}
 	if (f->res.classid)

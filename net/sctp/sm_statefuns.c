@@ -551,7 +551,7 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(const struct sctp_endpoint *ep,
 		 *
 		 * This means that if we only want to abort associations
 		 * in an authenticated way (i.e AUTH+ABORT), then we
-		 * can't destroy this association just becuase the packet
+		 * can't destroy this association just because the packet
 		 * was malformed.
 		 */
 		if (sctp_auth_recv_cid(SCTP_CID_ABORT, asoc))
@@ -1546,7 +1546,7 @@ cleanup:
 }
 
 /*
- * Handle simultanous INIT.
+ * Handle simultaneous INIT.
  * This means we started an INIT and then we got an INIT request from
  * our peer.
  *
@@ -2079,7 +2079,7 @@ sctp_disposition_t sctp_sf_shutdown_pending_abort(
 	 * RFC 2960, Section 3.3.7
 	 *    If an endpoint receives an ABORT with a format error or for an
 	 *    association that doesn't exist, it MUST silently discard it.
-	 * Becasue the length is "invalid", we can't really discard just
+	 * Because the length is "invalid", we can't really discard just
 	 * as we do not know its true length.  So, to be safe, discard the
 	 * packet.
 	 */
@@ -2120,7 +2120,7 @@ sctp_disposition_t sctp_sf_shutdown_sent_abort(const struct sctp_endpoint *ep,
 	 * RFC 2960, Section 3.3.7
 	 *    If an endpoint receives an ABORT with a format error or for an
 	 *    association that doesn't exist, it MUST silently discard it.
-	 * Becasue the length is "invalid", we can't really discard just
+	 * Because the length is "invalid", we can't really discard just
 	 * as we do not know its true length.  So, to be safe, discard the
 	 * packet.
 	 */
@@ -2381,7 +2381,7 @@ sctp_disposition_t sctp_sf_do_9_1_abort(const struct sctp_endpoint *ep,
 	 * RFC 2960, Section 3.3.7
 	 *    If an endpoint receives an ABORT with a format error or for an
 	 *    association that doesn't exist, it MUST silently discard it.
-	 * Becasue the length is "invalid", we can't really discard just
+	 * Because the length is "invalid", we can't really discard just
 	 * as we do not know its true length.  So, to be safe, discard the
 	 * packet.
 	 */
@@ -2448,7 +2448,7 @@ sctp_disposition_t sctp_sf_cookie_wait_abort(const struct sctp_endpoint *ep,
 	 * RFC 2960, Section 3.3.7
 	 *    If an endpoint receives an ABORT with a format error or for an
 	 *    association that doesn't exist, it MUST silently discard it.
-	 * Becasue the length is "invalid", we can't really discard just
+	 * Because the length is "invalid", we can't really discard just
 	 * as we do not know its true length.  So, to be safe, discard the
 	 * packet.
 	 */
@@ -3855,7 +3855,7 @@ gen_shutdown:
 }
 
 /*
- * SCTP-AUTH Section 6.3 Receving authenticated chukns
+ * SCTP-AUTH Section 6.3 Receiving authenticated chukns
  *
  *    The receiver MUST use the HMAC algorithm indicated in the HMAC
  *    Identifier field.  If this algorithm was not specified by the
@@ -4231,7 +4231,7 @@ static sctp_disposition_t sctp_sf_abort_violation(
 	 *
 	 * This means that if we only want to abort associations
 	 * in an authenticated way (i.e AUTH+ABORT), then we
-	 * can't destroy this association just becuase the packet
+	 * can't destroy this association just because the packet
 	 * was malformed.
 	 */
 	if (sctp_auth_recv_cid(SCTP_CID_ABORT, asoc))
@@ -4402,9 +4402,9 @@ static sctp_disposition_t sctp_sf_violation_ctsn(
 }
 
 /* Handle protocol violation of an invalid chunk bundling.  For example,
- * when we have an association and we recieve bundled INIT-ACK, or
+ * when we have an association and we receive bundled INIT-ACK, or
  * SHUDOWN-COMPLETE, our peer is clearly violationg the "MUST NOT bundle"
- * statement from the specs.  Additinally, there might be an attacker
+ * statement from the specs.  Additionally, there might be an attacker
  * on the path and we may not want to continue this communication.
  */
 static sctp_disposition_t sctp_sf_violation_chunk(

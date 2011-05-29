@@ -42,6 +42,10 @@
 
 #include <asm/hardware/timer-sp.h>
 
+#include <plat/clcd.h>
+#include <plat/fpga-irq.h>
+#include <plat/sched_clock.h>
+
 #include "common.h"
 
 #define INTCP_PA_FLASH_BASE		0x24000000
@@ -49,9 +53,9 @@
 
 #define INTCP_PA_CLCD_BASE		0xc0000000
 
-#define INTCP_VA_CIC_BASE		IO_ADDRESS(INTEGRATOR_HDR_BASE + 0x40)
-#define INTCP_VA_PIC_BASE		IO_ADDRESS(INTEGRATOR_IC_BASE)
-#define INTCP_VA_SIC_BASE		IO_ADDRESS(INTEGRATOR_CP_SIC_BASE)
+#define INTCP_VA_CIC_BASE		__io_address(INTEGRATOR_HDR_BASE + 0x40)
+#define INTCP_VA_PIC_BASE		__io_address(INTEGRATOR_IC_BASE)
+#define INTCP_VA_SIC_BASE		__io_address(INTEGRATOR_CP_SIC_BASE)
 
 #define INTCP_ETH_SIZE			0x10
 
@@ -139,129 +143,48 @@ static void __init intcp_map_io(void)
 	iotable_init(intcp_io_desc, ARRAY_SIZE(intcp_io_desc));
 }
 
-#define cic_writel	__raw_writel
-#define cic_readl	__raw_readl
-#define pic_writel	__raw_writel
-#define pic_readl	__raw_readl
-#define sic_writel	__raw_writel
-#define sic_readl	__raw_readl
-
-static void cic_mask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_CIC_START;
-	cic_writel(1 << irq, INTCP_VA_CIC_BASE + IRQ_ENABLE_CLEAR);
-}
-
-static void cic_unmask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_CIC_START;
-	cic_writel(1 << irq, INTCP_VA_CIC_BASE + IRQ_ENABLE_SET);
-}
-
-static struct irq_chip cic_chip = {
-	.name		= "CIC",
-	.irq_ack	= cic_mask_irq,
-	.irq_mask	= cic_mask_irq,
-	.irq_unmask	= cic_unmask_irq,
+static struct fpga_irq_data cic_irq_data = {
+	.base		= INTCP_VA_CIC_BASE,
+	.irq_start	= IRQ_CIC_START,
+	.chip.name	= "CIC",
 };
 
-static void pic_mask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_PIC_START;
-	pic_writel(1 << irq, INTCP_VA_PIC_BASE + IRQ_ENABLE_CLEAR);
-}
-
-static void pic_unmask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_PIC_START;
-	pic_writel(1 << irq, INTCP_VA_PIC_BASE + IRQ_ENABLE_SET);
-}
-
-static struct irq_chip pic_chip = {
-	.name		= "PIC",
-	.irq_ack	= pic_mask_irq,
-	.irq_mask	= pic_mask_irq,
-	.irq_unmask	= pic_unmask_irq,
+static struct fpga_irq_data pic_irq_data = {
+	.base		= INTCP_VA_PIC_BASE,
+	.irq_start	= IRQ_PIC_START,
+	.chip.name	= "PIC",
 };
 
-static void sic_mask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_SIC_START;
-	sic_writel(1 << irq, INTCP_VA_SIC_BASE + IRQ_ENABLE_CLEAR);
-}
-
-static void sic_unmask_irq(struct irq_data *d)
-{
-	unsigned int irq = d->irq - IRQ_SIC_START;
-	sic_writel(1 << irq, INTCP_VA_SIC_BASE + IRQ_ENABLE_SET);
-}
-
-static struct irq_chip sic_chip = {
-	.name		= "SIC",
-	.irq_ack	= sic_mask_irq,
-	.irq_mask	= sic_mask_irq,
-	.irq_unmask	= sic_unmask_irq,
+static struct fpga_irq_data sic_irq_data = {
+	.base		= INTCP_VA_SIC_BASE,
+	.irq_start	= IRQ_SIC_START,
+	.chip.name	= "SIC",
 };
-
-static void
-sic_handle_irq(unsigned int irq, struct irq_desc *desc)
-{
-	unsigned long status = sic_readl(INTCP_VA_SIC_BASE + IRQ_STATUS);
-
-	if (status == 0) {
-		do_bad_IRQ(irq, desc);
-		return;
-	}
-
-	do {
-		irq = ffs(status) - 1;
-		status &= ~(1 << irq);
-
-		irq += IRQ_SIC_START;
-
-		generic_handle_irq(irq);
-	} while (status);
-}
 
 static void __init intcp_init_irq(void)
 {
-	unsigned int i;
+	u32 pic_mask, sic_mask;
+
+	pic_mask = ~((~0u) << (11 - IRQ_PIC_START));
+	pic_mask |= (~((~0u) << (29 - 22))) << 22;
+	sic_mask = ~((~0u) << (1 + IRQ_SIC_END - IRQ_SIC_START));
 
 	/*
 	 * Disable all interrupt sources
 	 */
-	pic_writel(0xffffffff, INTCP_VA_PIC_BASE + IRQ_ENABLE_CLEAR);
-	pic_writel(0xffffffff, INTCP_VA_PIC_BASE + FIQ_ENABLE_CLEAR);
+	writel(0xffffffff, INTCP_VA_PIC_BASE + IRQ_ENABLE_CLEAR);
+	writel(0xffffffff, INTCP_VA_PIC_BASE + FIQ_ENABLE_CLEAR);
+	writel(0xffffffff, INTCP_VA_CIC_BASE + IRQ_ENABLE_CLEAR);
+	writel(0xffffffff, INTCP_VA_CIC_BASE + FIQ_ENABLE_CLEAR);
+	writel(sic_mask, INTCP_VA_SIC_BASE + IRQ_ENABLE_CLEAR);
+	writel(sic_mask, INTCP_VA_SIC_BASE + FIQ_ENABLE_CLEAR);
 
-	for (i = IRQ_PIC_START; i <= IRQ_PIC_END; i++) {
-		if (i == 11)
-			i = 22;
-		if (i == 29)
-			break;
-		set_irq_chip(i, &pic_chip);
-		set_irq_handler(i, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
-	}
+	fpga_irq_init(-1, pic_mask, &pic_irq_data);
 
-	cic_writel(0xffffffff, INTCP_VA_CIC_BASE + IRQ_ENABLE_CLEAR);
-	cic_writel(0xffffffff, INTCP_VA_CIC_BASE + FIQ_ENABLE_CLEAR);
+	fpga_irq_init(-1, ~((~0u) << (1 + IRQ_CIC_END - IRQ_CIC_START)),
+		&cic_irq_data);
 
-	for (i = IRQ_CIC_START; i <= IRQ_CIC_END; i++) {
-		set_irq_chip(i, &cic_chip);
-		set_irq_handler(i, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID);
-	}
-
-	sic_writel(0x00000fff, INTCP_VA_SIC_BASE + IRQ_ENABLE_CLEAR);
-	sic_writel(0x00000fff, INTCP_VA_SIC_BASE + FIQ_ENABLE_CLEAR);
-
-	for (i = IRQ_SIC_START; i <= IRQ_SIC_END; i++) {
-		set_irq_chip(i, &sic_chip);
-		set_irq_handler(i, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
-	}
-
-	set_irq_chained_handler(IRQ_CP_CPPLDINT, sic_handle_irq);
+	fpga_irq_init(IRQ_CP_CPPLDINT, sic_mask, &sic_irq_data);
 }
 
 /*
@@ -449,43 +372,21 @@ static struct amba_device aaci_device = {
 /*
  * CLCD support
  */
-static struct clcd_panel vga = {
-	.mode		= {
-		.name		= "VGA",
-		.refresh	= 60,
-		.xres		= 640,
-		.yres		= 480,
-		.pixclock	= 39721,
-		.left_margin	= 40,
-		.right_margin	= 24,
-		.upper_margin	= 32,
-		.lower_margin	= 11,
-		.hsync_len	= 96,
-		.vsync_len	= 2,
-		.sync		= 0,
-		.vmode		= FB_VMODE_NONINTERLACED,
-	},
-	.width		= -1,
-	.height		= -1,
-	.tim2		= TIM2_BCD | TIM2_IPC,
-	.cntl		= CNTL_LCDTFT | CNTL_LCDVCOMP(1),
-	.bpp		= 16,
-	.grayscale	= 0,
-};
-
 /*
  * Ensure VGA is selected.
  */
 static void cp_clcd_enable(struct clcd_fb *fb)
 {
-	u32 val;
+	struct fb_var_screeninfo *var = &fb->fb.var;
+	u32 val = CM_CTRL_STATIC1 | CM_CTRL_STATIC2;
 
-	if (fb->fb.var.bits_per_pixel <= 8)
-		val = CM_CTRL_LCDMUXSEL_VGA_8421BPP;
+	if (var->bits_per_pixel <= 8 ||
+	    (var->bits_per_pixel == 16 && var->green.length == 5))
+		/* Pseudocolor, RGB555, BGR555 */
+		val |= CM_CTRL_LCDMUXSEL_VGA555_TFT555;
 	else if (fb->fb.var.bits_per_pixel <= 16)
-		val = CM_CTRL_LCDMUXSEL_VGA_16BPP
-			| CM_CTRL_LCDEN0 | CM_CTRL_LCDEN1
-			| CM_CTRL_STATIC1 | CM_CTRL_STATIC2;
+		/* truecolor RGB565 */
+		val |= CM_CTRL_LCDMUXSEL_VGA565_TFT555;
 	else
 		val = 0; /* no idea for this, don't trust the docs */
 
@@ -498,49 +399,24 @@ static void cp_clcd_enable(struct clcd_fb *fb)
 		   CM_CTRL_n24BITEN, val);
 }
 
-static unsigned long framesize = SZ_1M;
-
 static int cp_clcd_setup(struct clcd_fb *fb)
 {
-	dma_addr_t dma;
+	fb->panel = versatile_clcd_get_panel("VGA");
+	if (!fb->panel)
+		return -EINVAL;
 
-	fb->panel = &vga;
-
-	fb->fb.screen_base = dma_alloc_writecombine(&fb->dev->dev, framesize,
-						    &dma, GFP_KERNEL);
-	if (!fb->fb.screen_base) {
-		printk(KERN_ERR "CLCD: unable to map framebuffer\n");
-		return -ENOMEM;
-	}
-
-	fb->fb.fix.smem_start	= dma;
-	fb->fb.fix.smem_len	= framesize;
-
-	return 0;
-}
-
-static int cp_clcd_mmap(struct clcd_fb *fb, struct vm_area_struct *vma)
-{
-	return dma_mmap_writecombine(&fb->dev->dev, vma,
-				     fb->fb.screen_base,
-				     fb->fb.fix.smem_start,
-				     fb->fb.fix.smem_len);
-}
-
-static void cp_clcd_remove(struct clcd_fb *fb)
-{
-	dma_free_writecombine(&fb->dev->dev, fb->fb.fix.smem_len,
-			      fb->fb.screen_base, fb->fb.fix.smem_start);
+	return versatile_clcd_setup_dma(fb, SZ_1M);
 }
 
 static struct clcd_board clcd_data = {
 	.name		= "Integrator/CP",
+	.caps		= CLCD_CAP_5551 | CLCD_CAP_RGB565 | CLCD_CAP_888,
 	.check		= clcdfb_check,
 	.decode		= clcdfb_decode,
 	.enable		= cp_clcd_enable,
 	.setup		= cp_clcd_setup,
-	.mmap		= cp_clcd_mmap,
-	.remove		= cp_clcd_remove,
+	.mmap		= versatile_clcd_mmap_dma,
+	.remove		= versatile_clcd_remove_dma,
 };
 
 static struct amba_device clcd_device = {
@@ -565,11 +441,23 @@ static struct amba_device *amba_devs[] __initdata = {
 	&clcd_device,
 };
 
+#define REFCOUNTER (__io_address(INTEGRATOR_HDR_BASE) + 0x28)
+
+static void __init intcp_init_early(void)
+{
+	clkdev_add_table(cp_lookups, ARRAY_SIZE(cp_lookups));
+
+	integrator_init_early();
+
+#ifdef CONFIG_PLAT_VERSATILE_SCHED_CLOCK
+	versatile_sched_clock_init(REFCOUNTER, 24000000);
+#endif
+}
+
 static void __init intcp_init(void)
 {
 	int i;
 
-	clkdev_add_table(cp_lookups, ARRAY_SIZE(cp_lookups));
 	platform_add_devices(intcp_devs, ARRAY_SIZE(intcp_devs));
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
@@ -599,8 +487,9 @@ static struct sys_timer cp_timer = {
 MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.boot_params	= 0x00000100,
-	.map_io		= intcp_map_io,
 	.reserve	= integrator_reserve,
+	.map_io		= intcp_map_io,
+	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq,
 	.timer		= &cp_timer,
 	.init_machine	= intcp_init,

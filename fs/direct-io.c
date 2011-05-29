@@ -645,11 +645,11 @@ static int dio_send_cur_page(struct dio *dio)
 		/*
 		 * See whether this new request is contiguous with the old.
 		 *
-		 * Btrfs cannot handl having logically non-contiguous requests
-		 * submitted.  For exmple if you have
+		 * Btrfs cannot handle having logically non-contiguous requests
+		 * submitted.  For example if you have
 		 *
 		 * Logical:  [0-4095][HOLE][8192-12287]
-		 * Phyiscal: [0-4095]      [4096-8181]
+		 * Physical: [0-4095]      [4096-8191]
 		 *
 		 * We cannot submit those pages together as one BIO.  So if our
 		 * current logical offset in the file does not equal what would
@@ -1110,11 +1110,8 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 	    ((rw & READ) || (dio->result == dio->size)))
 		ret = -EIOCBQUEUED;
 
-	if (ret != -EIOCBQUEUED) {
-		/* All IO is now issued, send it on its way */
-		blk_run_address_space(inode->i_mapping);
+	if (ret != -EIOCBQUEUED)
 		dio_await_completion(dio);
-	}
 
 	/*
 	 * Sync will always be dropping the final ref and completing the
@@ -1176,7 +1173,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	struct dio *dio;
 
 	if (rw & WRITE)
-		rw = WRITE_ODIRECT_PLUG;
+		rw = WRITE_ODIRECT;
 
 	if (bdev)
 		bdev_blkbits = blksize_bits(bdev_logical_block_size(bdev));

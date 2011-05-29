@@ -282,6 +282,9 @@ int core_tmr_lun_reset(
 
 			atomic_set(&task->task_active, 0);
 			atomic_set(&task->task_stop, 0);
+		} else {
+			if (atomic_read(&task->task_execute_queue) != 0)
+				transport_remove_task_from_execute_queue(task, dev);
 		}
 		__transport_stop_task_timer(task, &flags);
 
@@ -301,6 +304,7 @@ int core_tmr_lun_reset(
 			DEBUG_LR("LUN_RESET: got t_transport_active = 1 for"
 				" task: %p, t_fe_count: %d dev: %p\n", task,
 				fe_count, dev);
+			atomic_set(&T_TASK(cmd)->t_transport_aborted, 1);
 			spin_unlock_irqrestore(&T_TASK(cmd)->t_state_lock,
 						flags);
 			core_tmr_handle_tas_abort(tmr_nacl, cmd, tas, fe_count);
@@ -310,6 +314,7 @@ int core_tmr_lun_reset(
 		}
 		DEBUG_LR("LUN_RESET: Got t_transport_active = 0 for task: %p,"
 			" t_fe_count: %d dev: %p\n", task, fe_count, dev);
+		atomic_set(&T_TASK(cmd)->t_transport_aborted, 1);
 		spin_unlock_irqrestore(&T_TASK(cmd)->t_state_lock, flags);
 		core_tmr_handle_tas_abort(tmr_nacl, cmd, tas, fe_count);
 

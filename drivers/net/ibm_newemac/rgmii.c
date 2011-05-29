@@ -228,8 +228,7 @@ void *rgmii_dump_regs(struct platform_device *ofdev, void *buf)
 }
 
 
-static int __devinit rgmii_probe(struct platform_device *ofdev,
-				 const struct of_device_id *match)
+static int __devinit rgmii_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct rgmii_instance *dev;
@@ -318,7 +317,7 @@ static struct of_device_id rgmii_match[] =
 	{},
 };
 
-static struct of_platform_driver rgmii_driver = {
+static struct platform_driver rgmii_driver = {
 	.driver = {
 		.name = "emac-rgmii",
 		.owner = THIS_MODULE,
@@ -330,10 +329,10 @@ static struct of_platform_driver rgmii_driver = {
 
 int __init rgmii_init(void)
 {
-	return of_register_platform_driver(&rgmii_driver);
+	return platform_driver_register(&rgmii_driver);
 }
 
 void rgmii_exit(void)
 {
-	of_unregister_platform_driver(&rgmii_driver);
+	platform_driver_unregister(&rgmii_driver);
 }

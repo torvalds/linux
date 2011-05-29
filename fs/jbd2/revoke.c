@@ -71,7 +71,7 @@
  * switching hash tables under them. For operations on the lists of entries in
  * the hash table j_revoke_lock is used.
  *
- * Finally, also replay code uses the hash tables but at this moment noone else
+ * Finally, also replay code uses the hash tables but at this moment no one else
  * can touch them (filesystem isn't mounted yet) and hence no locking is
  * needed.
  */

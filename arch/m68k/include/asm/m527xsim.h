@@ -13,14 +13,16 @@
 
 #define	CPU_NAME		"COLDFIRE(m527x)"
 #define	CPU_INSTR_PER_JIFFY	3
+#define	MCF_BUSCLK		(MCF_CLK / 2)
 
 #include <asm/m52xxacr.h>
 
 /*
  *	Define the 5270/5271 SIM register set addresses.
  */
-#define	MCFICM_INTC0		0x0c00		/* Base for Interrupt Ctrl 0 */
-#define	MCFICM_INTC1		0x0d00		/* Base for Interrupt Ctrl 1 */
+#define	MCFICM_INTC0		(MCF_IPSBAR + 0x0c00)	/* Base for Interrupt Ctrl 0 */
+#define	MCFICM_INTC1		(MCF_IPSBAR + 0x0d00)	/* Base for Interrupt Ctrl 1 */
+
 #define	MCFINTC_IPRH		0x00		/* Interrupt pending 32-63 */
 #define	MCFINTC_IPRL		0x04		/* Interrupt pending 1-31 */
 #define	MCFINTC_IMRH		0x08		/* Interrupt mask 32-63 */
@@ -42,29 +44,45 @@
  *	SDRAM configuration registers.
  */
 #ifdef CONFIG_M5271
-#define	MCFSIM_DCR		0x40		/* SDRAM control */
-#define	MCFSIM_DACR0		0x48		/* SDRAM base address 0 */
-#define	MCFSIM_DMR0		0x4c		/* SDRAM address mask 0 */
-#define	MCFSIM_DACR1		0x50		/* SDRAM base address 1 */
-#define	MCFSIM_DMR1		0x54		/* SDRAM address mask 1 */
+#define	MCFSIM_DCR		(MCF_IPSBAR + 0x40)	/* Control */
+#define	MCFSIM_DACR0		(MCF_IPSBAR + 0x48)	/* Base address 0 */
+#define	MCFSIM_DMR0		(MCF_IPSBAR + 0x4c)	/* Address mask 0 */
+#define	MCFSIM_DACR1		(MCF_IPSBAR + 0x50)	/* Base address 1 */
+#define	MCFSIM_DMR1		(MCF_IPSBAR + 0x54)	/* Address mask 1 */
 #endif
 #ifdef CONFIG_M5275
-#define	MCFSIM_DMR		0x40		/* SDRAM mode */
-#define	MCFSIM_DCR		0x44		/* SDRAM control */
-#define	MCFSIM_DCFG1		0x48		/* SDRAM configuration 1 */
-#define	MCFSIM_DCFG2		0x4c		/* SDRAM configuration 2 */
-#define	MCFSIM_DBAR0		0x50		/* SDRAM base address 0 */
-#define	MCFSIM_DMR0		0x54		/* SDRAM address mask 0 */
-#define	MCFSIM_DBAR1		0x58		/* SDRAM base address 1 */
-#define	MCFSIM_DMR1		0x5c		/* SDRAM address mask 1 */
+#define	MCFSIM_DMR		(MCF_IPSBAR + 0x40)	/* Mode */
+#define	MCFSIM_DCR		(MCF_IPSBAR + 0x44)	/* Control */
+#define	MCFSIM_DCFG1		(MCF_IPSBAR + 0x48)	/* Configuration 1 */
+#define	MCFSIM_DCFG2		(MCF_IPSBAR + 0x4c)	/* Configuration 2 */
+#define	MCFSIM_DBAR0		(MCF_IPSBAR + 0x50)	/* Base address 0 */
+#define	MCFSIM_DMR0		(MCF_IPSBAR + 0x54)	/* Address mask 0 */
+#define	MCFSIM_DBAR1		(MCF_IPSBAR + 0x58)	/* Base address 1 */
+#define	MCFSIM_DMR1		(MCF_IPSBAR + 0x5c)	/* Address mask 1 */
 #endif
+
+/*
+ *	DMA unit base addresses.
+ */
+#define	MCFDMA_BASE0		(MCF_IPSBAR + 0x100)
+#define	MCFDMA_BASE1		(MCF_IPSBAR + 0x140)
+#define	MCFDMA_BASE2		(MCF_IPSBAR + 0x180)
+#define	MCFDMA_BASE3		(MCF_IPSBAR + 0x1C0)
 
 /*
  *	UART module.
  */
-#define MCFUART_BASE1		0x200           /* Base address of UART1 */
-#define MCFUART_BASE2		0x240           /* Base address of UART2 */
-#define MCFUART_BASE3		0x280           /* Base address of UART3 */
+#define MCFUART_BASE1		(MCF_IPSBAR + 0x200)
+#define MCFUART_BASE2		(MCF_IPSBAR + 0x240)
+#define MCFUART_BASE3		(MCF_IPSBAR + 0x280)
+
+/*
+ *	FEC ethernet module.
+ */
+#define	MCFFEC_BASE0		(MCF_IPSBAR + 0x1000)
+#define	MCFFEC_SIZE0		0x800
+#define	MCFFEC_BASE1		(MCF_IPSBAR + 0x1800)
+#define	MCFFEC_SIZE1		0x800
 
 #ifdef CONFIG_M5271
 #define MCFGPIO_PODR_ADDR	(MCF_IPSBAR + 0x100000)
@@ -231,14 +249,22 @@
 #endif
 
 /*
+ * PIT timer base addresses.
+ */
+#define	MCFPIT_BASE1		(MCF_IPSBAR + 0x150000)
+#define	MCFPIT_BASE2		(MCF_IPSBAR + 0x160000)
+#define	MCFPIT_BASE3		(MCF_IPSBAR + 0x170000)
+#define	MCFPIT_BASE4		(MCF_IPSBAR + 0x180000)
+
+/*
  * EPort
  */
-
+#define MCFEPORT_EPPAR		(MCF_IPSBAR + 0x130000)
 #define MCFEPORT_EPDDR		(MCF_IPSBAR + 0x130002)
+#define MCFEPORT_EPIER		(MCF_IPSBAR + 0x130003)
 #define MCFEPORT_EPDR		(MCF_IPSBAR + 0x130004)
 #define MCFEPORT_EPPDR		(MCF_IPSBAR + 0x130005)
-
-
+#define MCFEPORT_EPFR		(MCF_IPSBAR + 0x130006)
 
 /*
  *	GPIO pins setups to enable the UARTs.
@@ -257,7 +283,7 @@
 #endif
 
 /*
- *  Reset Controll Unit (relative to IPSBAR).
+ *  Reset Control Unit (relative to IPSBAR).
  */
 #define	MCF_RCR			0x110000
 #define	MCF_RSR			0x110001

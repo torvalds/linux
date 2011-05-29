@@ -53,5 +53,5 @@ implementation in an architecture: lockdep will detect that and will
 turn itself off. I.e. the lock validator will still be reliable. There
 should be no crashes due to irq-tracing bugs. (except if the assembly
 changes break other code by modifying conditions or registers that
-shouldnt be)
+shouldn't be)
 

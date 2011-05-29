@@ -522,7 +522,7 @@ extern void *pasemi_dma_alloc_buf(struct pasemi_dmachan *chan, int size,
 extern void pasemi_dma_free_buf(struct pasemi_dmachan *chan, int size,
 				dma_addr_t *handle);
 
-/* Routines to allocate flags (events) for channel syncronization */
+/* Routines to allocate flags (events) for channel synchronization */
 extern int  pasemi_dma_alloc_flag(void);
 extern void pasemi_dma_free_flag(int flag);
 extern void pasemi_dma_set_flag(int flag);

@@ -169,7 +169,7 @@ do {						\
 /*
  * This is the default if a program doesn't have a PT_GNU_STACK
  * program header entry. The PPC64 ELF ABI has a non executable stack
- * stack by default, so in the absense of a PT_GNU_STACK program header
+ * stack by default, so in the absence of a PT_GNU_STACK program header
  * we turn execute permission off.
  */
 #define VM_STACK_DEFAULT_FLAGS32	(VM_READ | VM_WRITE | VM_EXEC | \

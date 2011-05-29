@@ -91,17 +91,28 @@ config USB_EHCI_TT_NEWSCHED
 
 	  If unsure, say Y.
 
+config USB_EHCI_HCD_PMC_MSP
+	tristate "EHCI support for on-chip PMC MSP71xx USB controller"
+	depends on USB_EHCI_HCD && MSP_HAS_USB
+	default n
+	select USB_EHCI_BIG_ENDIAN_DESC
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	---help---
+		Enables support for the onchip USB controller on the PMC_MSP7100 Family SoC's.
+		If unsure, say N.
+
 config USB_EHCI_BIG_ENDIAN_MMIO
 	bool
 	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || \
 				    ARCH_IXP4XX || XPS_USB_HCD_XILINX || \
-				    PPC_MPC512x || CPU_CAVIUM_OCTEON)
+				    PPC_MPC512x || CPU_CAVIUM_OCTEON || \
+				    PMC_MSP)
 	default y
 
 config USB_EHCI_BIG_ENDIAN_DESC
 	bool
 	depends on USB_EHCI_HCD && (440EPX || ARCH_IXP4XX || XPS_USB_HCD_XILINX || \
-				    PPC_MPC512x)
+				    PPC_MPC512x || PMC_MSP)
 	default y
 
 config XPS_USB_HCD_XILINX
@@ -145,7 +156,7 @@ config USB_EHCI_MSM
 	bool "Support for MSM on-chip EHCI USB controller"
 	depends on USB_EHCI_HCD && ARCH_MSM
 	select USB_EHCI_ROOT_HUB_TT
-	select USB_MSM_OTG_72K
+	select USB_MSM_OTG
 	---help---
 	  Enables support for the USB Host controller present on the
 	  Qualcomm chipsets. Root Hub has inbuilt TT.
@@ -154,6 +165,14 @@ config USB_EHCI_MSM
 	  This driver is not supported on boards like trout which
 	  has an external PHY.
 
+config USB_EHCI_TEGRA
+       boolean "NVIDIA Tegra HCD support"
+       depends on USB_EHCI_HCD && ARCH_TEGRA
+       select USB_EHCI_ROOT_HUB_TT
+       help
+         This driver enables support for the internal USB Host Controllers
+         found in NVIDIA Tegra SoCs. The controllers are EHCI compliant.
+
 config USB_EHCI_HCD_PPC_OF
 	bool "EHCI support for PPC USB controller on OF platform bus"
 	depends on USB_EHCI_HCD && PPC_OF
@@ -161,6 +180,13 @@ config USB_EHCI_HCD_PPC_OF
 	---help---
 	  Enables support for the USB controller present on the PowerPC
 	  OpenFirmware platform bus.
+
+config USB_EHCI_SH
+	bool "EHCI support for SuperH USB controller"
+	depends on USB_EHCI_HCD && SUPERH
+	---help---
+	  Enables support for the on-chip EHCI controller on the SuperH.
+	  If you use the PCI EHCI controller, this option is not necessary.
 
 config USB_W90X900_EHCI
 	bool "W90X900(W90P910) EHCI support"
@@ -315,6 +341,13 @@ config USB_OHCI_HCD_SSB
 
 	  If unsure, say N.
 
+config USB_OHCI_SH
+	bool "OHCI support for SuperH USB controller"
+	depends on USB_OHCI_HCD && SUPERH
+	---help---
+	  Enables support for the on-chip OHCI controller on the SuperH.
+	  If you use the PCI OHCI controller, this option is not necessary.
+
 config USB_CNS3XXX_OHCI
 	bool "Cavium CNS3XXX OHCI Module"
 	depends on USB_OHCI_HCD && ARCH_CNS3XXX
@@ -369,7 +402,7 @@ config FHCI_DEBUG
 	depends on USB_FHCI_HCD && DEBUG_FS
 	help
 	  Say "y" to see some FHCI debug information and statistics
-	  throught debugfs.
+	  through debugfs.
 
 config USB_U132_HCD
 	tristate "Elan U132 Adapter Host Controller"

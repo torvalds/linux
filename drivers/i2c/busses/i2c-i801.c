@@ -44,11 +44,12 @@
   ICH10                 0x3a30     32     hard     yes     yes     yes
   ICH10                 0x3a60     32     hard     yes     yes     yes
   5/3400 Series (PCH)   0x3b30     32     hard     yes     yes     yes
-  Cougar Point (PCH)    0x1c22     32     hard     yes     yes     yes
+  6 Series (PCH)        0x1c22     32     hard     yes     yes     yes
   Patsburg (PCH)        0x1d22     32     hard     yes     yes     yes
   Patsburg (PCH) IDF    0x1d70     32     hard     yes     yes     yes
   Patsburg (PCH) IDF    0x1d71     32     hard     yes     yes     yes
   Patsburg (PCH) IDF    0x1d72     32     hard     yes     yes     yes
+  DH89xxCC (PCH)        0x2330     32     hard     yes     yes     yes
 
   Features supported by this driver:
   Software PEC                     no
@@ -95,7 +96,7 @@
 #define SMBHSTCFG_SMB_SMI_EN	2
 #define SMBHSTCFG_I2C_EN	4
 
-/* Auxillary control register bits, ICH4+ only */
+/* Auxiliary control register bits, ICH4+ only */
 #define SMBAUXCTL_CRC		1
 #define SMBAUXCTL_E32B		2
 
@@ -133,10 +134,15 @@
 				 SMBHSTSTS_BUS_ERR | SMBHSTSTS_DEV_ERR | \
 				 SMBHSTSTS_INTR)
 
+/* Older devices have their ID defined in <linux/pci_ids.h> */
+#define PCI_DEVICE_ID_INTEL_COUGARPOINT_SMBUS	0x1c22
+#define PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS	0x1d22
 /* Patsburg also has three 'Integrated Device Function' SMBus controllers */
 #define PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF0	0x1d70
 #define PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF1	0x1d71
 #define PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF2	0x1d72
+#define PCI_DEVICE_ID_INTEL_DH89XXCC_SMBUS	0x2330
+#define PCI_DEVICE_ID_INTEL_5_3400_SERIES_SMBUS	0x3b30
 
 struct i801_priv {
 	struct i2c_adapter adapter;
@@ -621,6 +627,7 @@ static const struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF0) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF1) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_PATSBURG_SMBUS_IDF2) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_DH89XXCC_SMBUS) },
 	{ 0, }
 };
 

@@ -81,7 +81,7 @@ which will contain list of all registered master ids in the following
 format:
 
 	cn_msg (CN_W1_IDX.CN_W1_VAL as id, len is equal to sizeof(struct
-	w1_netlink_msg) plus number of masters multipled by 4)
+	w1_netlink_msg) plus number of masters multiplied by 4)
 	w1_netlink_msg (type: W1_LIST_MASTERS, len is equal to
 		number of masters multiplied by 4 (u32 size))
 	id0 ... idN

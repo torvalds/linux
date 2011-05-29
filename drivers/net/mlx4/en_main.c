@@ -236,21 +236,23 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 		goto err_mr;
 	}
 
-	/* Configure wich ports to start according to module parameters */
+	/* Configure which ports to start according to module parameters */
 	mdev->port_cnt = 0;
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH)
 		mdev->port_cnt++;
 
-	/* If we did not receive an explicit number of Rx rings, default to
-	 * the number of completion vectors populated by the mlx4_core */
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_ETH) {
-		mlx4_info(mdev, "Using %d tx rings for port:%d\n",
-			  mdev->profile.prof[i].tx_ring_num, i);
-		mdev->profile.prof[i].rx_ring_num = min_t(int,
-			roundup_pow_of_two(dev->caps.num_comp_vectors),
-			MAX_RX_RINGS);
-		mlx4_info(mdev, "Defaulting to %d rx rings for port:%d\n",
-			  mdev->profile.prof[i].rx_ring_num, i);
+		if (!dev->caps.comp_pool) {
+			mdev->profile.prof[i].rx_ring_num =
+				rounddown_pow_of_two(max_t(int, MIN_RX_RINGS,
+							   min_t(int,
+								 dev->caps.num_comp_vectors,
+								 MAX_RX_RINGS)));
+		} else {
+			mdev->profile.prof[i].rx_ring_num = rounddown_pow_of_two(
+				min_t(int, dev->caps.comp_pool/
+				      dev->caps.num_ports - 1 , MAX_MSIX_P_PORT - 1));
+		}
 	}
 
 	/* Create our own workqueue for reset/multicast tasks
@@ -294,7 +296,7 @@ static struct mlx4_interface mlx4_en_interface = {
 	.remove		= mlx4_en_remove,
 	.event		= mlx4_en_event,
 	.get_dev	= mlx4_en_get_netdev,
-	.protocol	= MLX4_PROTOCOL_EN,
+	.protocol	= MLX4_PROT_ETH,
 };
 
 static int __init mlx4_en_init(void)

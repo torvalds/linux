@@ -444,12 +444,12 @@ sticky_done:
 	{
 		struct ipv6_txoptions *opt = NULL;
 		struct msghdr msg;
-		struct flowi fl;
+		struct flowi6 fl6;
 		int junk;
 
-		fl.fl6_flowlabel = 0;
-		fl.oif = sk->sk_bound_dev_if;
-		fl.mark = sk->sk_mark;
+		memset(&fl6, 0, sizeof(fl6));
+		fl6.flowi6_oif = sk->sk_bound_dev_if;
+		fl6.flowi6_mark = sk->sk_mark;
 
 		if (optlen == 0)
 			goto update;
@@ -475,7 +475,7 @@ sticky_done:
 		msg.msg_controllen = optlen;
 		msg.msg_control = (void*)(opt+1);
 
-		retv = datagram_send_ctl(net, &msg, &fl, opt, &junk, &junk,
+		retv = datagram_send_ctl(net, &msg, &fl6, opt, &junk, &junk,
 					 &junk);
 		if (retv)
 			goto done;

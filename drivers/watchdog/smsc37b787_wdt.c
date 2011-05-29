@@ -191,7 +191,7 @@ static inline void wdt_timer_conf(unsigned char conf)
 static inline void wdt_timer_ctrl(unsigned char reg)
 {
 	/* -- Watchdog timer control --
-	 * Bit 0   Status Bit: 0 = Timer counting, 1 = Timeout occured
+	 * Bit 0   Status Bit: 0 = Timer counting, 1 = Timeout occurred
 	 * Bit 1   Power LED Toggle: 0 = Disable Toggle, 1 = Toggle at 1 Hz
 	 * Bit 2   Force Timeout: 1 = Forces WD timeout event (self-cleaning)
 	 * Bit 3   P20 Force Timeout enabled:
@@ -434,11 +434,11 @@ static long wb_smsc_wdt_ioctl(struct file *file,
 	} uarg;
 
 	static const struct watchdog_info ident = {
-		.options = 		WDIOF_KEEPALIVEPING |
+		.options =		WDIOF_KEEPALIVEPING |
 					WDIOF_SETTIMEOUT |
 					WDIOF_MAGICCLOSE,
 		.firmware_version =	0,
-		.identity = 		"SMsC 37B787 Watchdog",
+		.identity =		"SMsC 37B787 Watchdog",
 	};
 
 	uarg.i = (int __user *)arg;

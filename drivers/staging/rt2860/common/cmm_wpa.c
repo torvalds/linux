@@ -1222,7 +1222,7 @@ void PeerGroupMsg2Action(struct rt_rtmp_adapter *pAd,
 
 	Note:
 		All these constants are defined in wpa.h
-		For supplicant, there is only EAPOL Key message avaliable
+		For supplicant, there is only EAPOL Key message available
 
 	========================================================================
 */
@@ -1267,7 +1267,7 @@ BOOLEAN WpaMsgTypeSubst(u8 EAPType, int * MsgType)
 		int		prefix_len	-	the length of the label
 		u8	*data		-	a specific data with variable length
 		int		data_len	-	the length of a specific data
-		int		len			-	the output lenght
+		int		len			-	the output length
 
 	Return Value:
 		u8	*output		-	the calculated result

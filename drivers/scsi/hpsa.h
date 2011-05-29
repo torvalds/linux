@@ -72,11 +72,12 @@ struct ctlr_info {
 	unsigned int intr[4];
 	unsigned int msix_vector;
 	unsigned int msi_vector;
+	int intr_mode; /* either PERF_MODE_INT or SIMPLE_MODE_INT */
 	struct access_method access;
 
 	/* queue and queue Info */
-	struct hlist_head reqQ;
-	struct hlist_head cmpQ;
+	struct list_head reqQ;
+	struct list_head cmpQ;
 	unsigned int Qdepth;
 	unsigned int maxQsinceinit;
 	unsigned int maxSG;
@@ -154,11 +155,15 @@ struct ctlr_info {
  * HPSA_BOARD_READY_ITERATIONS are derived from those.
  */
 #define HPSA_BOARD_READY_WAIT_SECS (120)
+#define HPSA_BOARD_NOT_READY_WAIT_SECS (10)
 #define HPSA_BOARD_READY_POLL_INTERVAL_MSECS (100)
 #define HPSA_BOARD_READY_POLL_INTERVAL \
 	((HPSA_BOARD_READY_POLL_INTERVAL_MSECS * HZ) / 1000)
 #define HPSA_BOARD_READY_ITERATIONS \
 	((HPSA_BOARD_READY_WAIT_SECS * 1000) / \
+		HPSA_BOARD_READY_POLL_INTERVAL_MSECS)
+#define HPSA_BOARD_NOT_READY_ITERATIONS \
+	((HPSA_BOARD_NOT_READY_WAIT_SECS * 1000) / \
 		HPSA_BOARD_READY_POLL_INTERVAL_MSECS)
 #define HPSA_POST_RESET_PAUSE_MSECS (3000)
 #define HPSA_POST_RESET_NOOP_RETRIES (12)

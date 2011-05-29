@@ -22,7 +22,6 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <linux/kmod.h>
 #include <linux/vmalloc.h>

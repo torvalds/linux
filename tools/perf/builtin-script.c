@@ -12,6 +12,8 @@
 #include "util/trace-event.h"
 #include "util/parse-options.h"
 #include "util/util.h"
+#include "util/evlist.h"
+#include "util/evsel.h"
 
 static char const		*script_name;
 static char const		*generate_script_lang;
@@ -19,6 +21,175 @@ static bool			debug_mode;
 static u64			last_timestamp;
 static u64			nr_unordered;
 extern const struct option	record_options[];
+static bool			no_callchain;
+
+enum perf_output_field {
+	PERF_OUTPUT_COMM            = 1U << 0,
+	PERF_OUTPUT_TID             = 1U << 1,
+	PERF_OUTPUT_PID             = 1U << 2,
+	PERF_OUTPUT_TIME            = 1U << 3,
+	PERF_OUTPUT_CPU             = 1U << 4,
+	PERF_OUTPUT_EVNAME          = 1U << 5,
+	PERF_OUTPUT_TRACE           = 1U << 6,
+	PERF_OUTPUT_SYM             = 1U << 7,
+};
+
+struct output_option {
+	const char *str;
+	enum perf_output_field field;
+} all_output_options[] = {
+	{.str = "comm",  .field = PERF_OUTPUT_COMM},
+	{.str = "tid",   .field = PERF_OUTPUT_TID},
+	{.str = "pid",   .field = PERF_OUTPUT_PID},
+	{.str = "time",  .field = PERF_OUTPUT_TIME},
+	{.str = "cpu",   .field = PERF_OUTPUT_CPU},
+	{.str = "event", .field = PERF_OUTPUT_EVNAME},
+	{.str = "trace", .field = PERF_OUTPUT_TRACE},
+	{.str = "sym",   .field = PERF_OUTPUT_SYM},
+};
+
+/* default set to maintain compatibility with current format */
+static u64 output_fields[PERF_TYPE_MAX] = {
+	[PERF_TYPE_HARDWARE] = PERF_OUTPUT_COMM | PERF_OUTPUT_TID | \
+			       PERF_OUTPUT_CPU | PERF_OUTPUT_TIME | \
+			       PERF_OUTPUT_EVNAME | PERF_OUTPUT_SYM,
+
+	[PERF_TYPE_SOFTWARE] = PERF_OUTPUT_COMM | PERF_OUTPUT_TID | \
+			       PERF_OUTPUT_CPU | PERF_OUTPUT_TIME | \
+			       PERF_OUTPUT_EVNAME | PERF_OUTPUT_SYM,
+
+	[PERF_TYPE_TRACEPOINT] = PERF_OUTPUT_COMM | PERF_OUTPUT_TID | \
+				 PERF_OUTPUT_CPU | PERF_OUTPUT_TIME | \
+				 PERF_OUTPUT_EVNAME | PERF_OUTPUT_TRACE,
+};
+
+static bool output_set_by_user;
+
+#define PRINT_FIELD(x)  (output_fields[attr->type] & PERF_OUTPUT_##x)
+
+static int perf_session__check_attr(struct perf_session *session,
+				    struct perf_event_attr *attr)
+{
+	if (PRINT_FIELD(TRACE) &&
+		!perf_session__has_traces(session, "record -R"))
+		return -EINVAL;
+
+	if (PRINT_FIELD(SYM)) {
+		if (!(session->sample_type & PERF_SAMPLE_IP)) {
+			pr_err("Samples do not contain IP data.\n");
+			return -EINVAL;
+		}
+		if (!no_callchain &&
+		    !(session->sample_type & PERF_SAMPLE_CALLCHAIN))
+			symbol_conf.use_callchain = false;
+	}
+
+	if ((PRINT_FIELD(PID) || PRINT_FIELD(TID)) &&
+		!(session->sample_type & PERF_SAMPLE_TID)) {
+		pr_err("Samples do not contain TID/PID data.\n");
+		return -EINVAL;
+	}
+
+	if (PRINT_FIELD(TIME) &&
+		!(session->sample_type & PERF_SAMPLE_TIME)) {
+		pr_err("Samples do not contain timestamps.\n");
+		return -EINVAL;
+	}
+
+	if (PRINT_FIELD(CPU) &&
+		!(session->sample_type & PERF_SAMPLE_CPU)) {
+		pr_err("Samples do not contain cpu.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void print_sample_start(struct perf_sample *sample,
+			       struct thread *thread,
+			       struct perf_event_attr *attr)
+{
+	int type;
+	struct event *event;
+	const char *evname = NULL;
+	unsigned long secs;
+	unsigned long usecs;
+	unsigned long long nsecs;
+
+	if (PRINT_FIELD(COMM)) {
+		if (latency_format)
+			printf("%8.8s ", thread->comm);
+		else if (PRINT_FIELD(SYM) && symbol_conf.use_callchain)
+			printf("%s ", thread->comm);
+		else
+			printf("%16s ", thread->comm);
+	}
+
+	if (PRINT_FIELD(PID) && PRINT_FIELD(TID))
+		printf("%5d/%-5d ", sample->pid, sample->tid);
+	else if (PRINT_FIELD(PID))
+		printf("%5d ", sample->pid);
+	else if (PRINT_FIELD(TID))
+		printf("%5d ", sample->tid);
+
+	if (PRINT_FIELD(CPU)) {
+		if (latency_format)
+			printf("%3d ", sample->cpu);
+		else
+			printf("[%03d] ", sample->cpu);
+	}
+
+	if (PRINT_FIELD(TIME)) {
+		nsecs = sample->time;
+		secs = nsecs / NSECS_PER_SEC;
+		nsecs -= secs * NSECS_PER_SEC;
+		usecs = nsecs / NSECS_PER_USEC;
+		printf("%5lu.%06lu: ", secs, usecs);
+	}
+
+	if (PRINT_FIELD(EVNAME)) {
+		if (attr->type == PERF_TYPE_TRACEPOINT) {
+			type = trace_parse_common_type(sample->raw_data);
+			event = trace_find_event(type);
+			if (event)
+				evname = event->name;
+		} else
+			evname = __event_name(attr->type, attr->config);
+
+		printf("%s: ", evname ? evname : "(unknown)");
+	}
+}
+
+static void process_event(union perf_event *event __unused,
+			  struct perf_sample *sample,
+			  struct perf_evsel *evsel,
+			  struct perf_session *session,
+			  struct thread *thread)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+
+	if (output_fields[attr->type] == 0)
+		return;
+
+	if (perf_session__check_attr(session, attr) < 0)
+		return;
+
+	print_sample_start(sample, thread, attr);
+
+	if (PRINT_FIELD(TRACE))
+		print_trace_event(sample->cpu, sample->raw_data,
+				  sample->raw_size);
+
+	if (PRINT_FIELD(SYM)) {
+		if (!symbol_conf.use_callchain)
+			printf(" ");
+		else
+			printf("\n");
+		perf_session__print_symbols(event, sample, session);
+	}
+
+	printf("\n");
+}
 
 static int default_start_script(const char *script __unused,
 				int argc __unused,
@@ -40,7 +211,7 @@ static int default_generate_script(const char *outfile __unused)
 static struct scripting_ops default_scripting_ops = {
 	.start_script		= default_start_script,
 	.stop_script		= default_stop_script,
-	.process_event		= print_event,
+	.process_event		= process_event,
 	.generate_script	= default_generate_script,
 };
 
@@ -63,7 +234,9 @@ static int cleanup_scripting(void)
 
 static char const		*input_name = "perf.data";
 
-static int process_sample_event(event_t *event, struct sample_data *sample,
+static int process_sample_event(union perf_event *event,
+				struct perf_sample *sample,
+				struct perf_evsel *evsel,
 				struct perf_session *session)
 {
 	struct thread *thread = perf_session__findnew(session, event->ip.pid);
@@ -74,40 +247,34 @@ static int process_sample_event(event_t *event, struct sample_data *sample,
 		return -1;
 	}
 
-	if (session->sample_type & PERF_SAMPLE_RAW) {
-		if (debug_mode) {
-			if (sample->time < last_timestamp) {
-				pr_err("Samples misordered, previous: %" PRIu64
-					" this: %" PRIu64 "\n", last_timestamp,
-					sample->time);
-				nr_unordered++;
-			}
-			last_timestamp = sample->time;
-			return 0;
+	if (debug_mode) {
+		if (sample->time < last_timestamp) {
+			pr_err("Samples misordered, previous: %" PRIu64
+				" this: %" PRIu64 "\n", last_timestamp,
+				sample->time);
+			nr_unordered++;
 		}
-		/*
-		 * FIXME: better resolve from pid from the struct trace_entry
-		 * field, although it should be the same than this perf
-		 * event pid
-		 */
-		scripting_ops->process_event(sample->cpu, sample->raw_data,
-					     sample->raw_size,
-					     sample->time, thread->comm);
+		last_timestamp = sample->time;
+		return 0;
 	}
+	scripting_ops->process_event(event, sample, evsel, session, thread);
 
 	session->hists.stats.total_period += sample->period;
 	return 0;
 }
 
 static struct perf_event_ops event_ops = {
-	.sample	= process_sample_event,
-	.comm	= event__process_comm,
-	.attr	= event__process_attr,
-	.event_type = event__process_event_type,
-	.tracing_data = event__process_tracing_data,
-	.build_id = event__process_build_id,
-	.ordering_requires_timestamps = true,
+	.sample		 = process_sample_event,
+	.mmap		 = perf_event__process_mmap,
+	.comm		 = perf_event__process_comm,
+	.exit		 = perf_event__process_task,
+	.fork		 = perf_event__process_task,
+	.attr		 = perf_event__process_attr,
+	.event_type	 = perf_event__process_event_type,
+	.tracing_data	 = perf_event__process_tracing_data,
+	.build_id	 = perf_event__process_build_id,
 	.ordered_samples = true,
+	.ordering_requires_timestamps = true,
 };
 
 extern volatile int session_done;
@@ -277,6 +444,68 @@ static int parse_scriptname(const struct option *opt __used,
 	script_name = strdup(script);
 
 	return 0;
+}
+
+static int parse_output_fields(const struct option *opt __used,
+			    const char *arg, int unset __used)
+{
+	char *tok;
+	int i, imax = sizeof(all_output_options) / sizeof(struct output_option);
+	int rc = 0;
+	char *str = strdup(arg);
+	int type = -1;
+
+	if (!str)
+		return -ENOMEM;
+
+	tok = strtok(str, ":");
+	if (!tok) {
+		fprintf(stderr,
+			"Invalid field string - not prepended with type.");
+		return -EINVAL;
+	}
+
+	/* first word should state which event type user
+	 * is specifying the fields
+	 */
+	if (!strcmp(tok, "hw"))
+		type = PERF_TYPE_HARDWARE;
+	else if (!strcmp(tok, "sw"))
+		type = PERF_TYPE_SOFTWARE;
+	else if (!strcmp(tok, "trace"))
+		type = PERF_TYPE_TRACEPOINT;
+	else {
+		fprintf(stderr, "Invalid event type in field string.");
+		return -EINVAL;
+	}
+
+	output_fields[type] = 0;
+	while (1) {
+		tok = strtok(NULL, ",");
+		if (!tok)
+			break;
+		for (i = 0; i < imax; ++i) {
+			if (strcmp(tok, all_output_options[i].str) == 0) {
+				output_fields[type] |= all_output_options[i].field;
+				break;
+			}
+		}
+		if (i == imax) {
+			fprintf(stderr, "Invalid field requested.");
+			rc = -EINVAL;
+			break;
+		}
+	}
+
+	if (output_fields[type] == 0) {
+		pr_debug("No fields requested for %s type. "
+			 "Events will not be displayed\n", event_type(type));
+	}
+
+	output_set_by_user = true;
+
+	free(str);
+	return rc;
 }
 
 /* Helper function for filesystems that return a dent->d_type DT_UNKNOWN */
@@ -591,6 +820,17 @@ static const struct option options[] = {
 		    "input file name"),
 	OPT_BOOLEAN('d', "debug-mode", &debug_mode,
 		   "do various checks like samples ordering and lost events"),
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
+	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
+		   "file", "kallsyms pathname"),
+	OPT_BOOLEAN('G', "hide-call-graph", &no_callchain,
+		    "When printing symbols do not display call chain"),
+	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
+		    "Look for files with symbols relative to this directory"),
+	OPT_CALLBACK('f', "fields", NULL, "str",
+		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace. Fields: comm,tid,pid,time,cpu,event,trace,sym",
+		     parse_output_fields),
 
 	OPT_END()
 };
@@ -771,14 +1011,22 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 	if (session == NULL)
 		return -ENOMEM;
 
-	if (strcmp(input_name, "-") &&
-	    !perf_session__has_traces(session, "record -R"))
-		return -EINVAL;
+	if (!no_callchain)
+		symbol_conf.use_callchain = true;
+	else
+		symbol_conf.use_callchain = false;
 
 	if (generate_script_lang) {
 		struct stat perf_stat;
+		int input;
 
-		int input = open(input_name, O_RDONLY);
+		if (output_set_by_user) {
+			fprintf(stderr,
+				"custom fields not supported for generated scripts");
+			return -1;
+		}
+
+		input = open(input_name, O_RDONLY);
 		if (input < 0) {
 			perror("failed to open file");
 			exit(-1);

@@ -654,7 +654,7 @@ void vnic_dev_unregister(struct vnic_dev *vdev)
 				vdev->linkstatus_pa);
 		if (vdev->stats)
 			pci_free_consistent(vdev->pdev,
-				sizeof(struct vnic_dev),
+				sizeof(struct vnic_stats),
 				vdev->stats, vdev->stats_pa);
 		if (vdev->fw_info)
 			pci_free_consistent(vdev->pdev,

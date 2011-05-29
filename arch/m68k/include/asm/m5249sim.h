@@ -13,8 +13,14 @@
 
 #define	CPU_NAME		"COLDFIRE(m5249)"
 #define	CPU_INSTR_PER_JIFFY	3
+#define	MCF_BUSCLK		(MCF_CLK / 2)
 
 #include <asm/m52xxacr.h>
+
+/*
+ *	The 5249 has a second MBAR region, define its address.
+ */
+#define MCF_MBAR2		0x80000000
 
 /*
  *	Define the 5249 SIM register set addresses.
@@ -55,17 +61,31 @@
 #define MCFSIM_CSMR3		0xa8		/* CS 3 Mask reg (r/w) */
 #define MCFSIM_CSCR3		0xae		/* CS 3 Control reg (r/w) */
 
-#define MCFSIM_DCR		0x100		/* DRAM Control reg (r/w) */
-#define MCFSIM_DACR0		0x108		/* DRAM 0 Addr and Ctrl (r/w) */
-#define MCFSIM_DMR0		0x10c		/* DRAM 0 Mask reg (r/w) */
-#define MCFSIM_DACR1		0x110		/* DRAM 1 Addr and Ctrl (r/w) */
-#define MCFSIM_DMR1		0x114		/* DRAM 1 Mask reg (r/w) */
+#define MCFSIM_DCR		(MCF_MBAR + 0x100)	/* DRAM Control */
+#define MCFSIM_DACR0		(MCF_MBAR + 0x108)	/* DRAM 0 Addr/Ctrl */
+#define MCFSIM_DMR0		(MCF_MBAR + 0x10c)	/* DRAM 0 Mask */
+#define MCFSIM_DACR1		(MCF_MBAR + 0x110)	/* DRAM 1 Addr/Ctrl */
+#define MCFSIM_DMR1		(MCF_MBAR + 0x114)	/* DRAM 1 Mask */
+
+/*
+ *	Timer module.
+ */
+#define MCFTIMER_BASE1		(MCF_MBAR + 0x140)	/* Base of TIMER1 */
+#define MCFTIMER_BASE2		(MCF_MBAR + 0x180)	/* Base of TIMER2 */
 
 /*
  *	UART module.
  */
 #define MCFUART_BASE1		0x1c0           /* Base address of UART1 */
 #define MCFUART_BASE2		0x200           /* Base address of UART2 */
+
+/*
+ *	DMA unit base addresses.
+ */
+#define MCFDMA_BASE0		(MCF_MBAR + 0x300)	/* Base address DMA 0 */
+#define MCFDMA_BASE1		(MCF_MBAR + 0x340)	/* Base address DMA 1 */
+#define MCFDMA_BASE2		(MCF_MBAR + 0x380)	/* Base address DMA 2 */
+#define MCFDMA_BASE3		(MCF_MBAR + 0x3C0)	/* Base address DMA 3 */
 
 /*
  *	Some symbol defines for the above...

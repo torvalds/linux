@@ -153,7 +153,8 @@ static int nes_inetaddr_event(struct notifier_block *notifier,
 				nesdev, nesdev->netdev[0]->name);
 		netdev = nesdev->netdev[0];
 		nesvnic = netdev_priv(netdev);
-		is_bonded = (netdev->master == event_netdev);
+		is_bonded = netif_is_bond_slave(netdev) &&
+			    (netdev->master == event_netdev);
 		if ((netdev == event_netdev) || is_bonded) {
 			if (nesvnic->rdma_enabled == 0) {
 				nes_debug(NES_DBG_NETDEV, "Returning without processing event for %s since"
@@ -693,7 +694,7 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	nesdev->netdev_count++;
 	nesdev->nesadapter->netdev_count++;
 
-	printk(KERN_ERR PFX "%s: NetEffect RNIC driver successfully loaded.\n",
+	printk(KERN_INFO PFX "%s: NetEffect RNIC driver successfully loaded.\n",
 			pci_name(pcidev));
 	return 0;
 

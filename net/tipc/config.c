@@ -2,7 +2,7 @@
  * net/tipc/config.c: TIPC configuration management code
  *
  * Copyright (c) 2002-2006, Ericsson AB
- * Copyright (c) 2004-2007, Wind River Systems
+ * Copyright (c) 2004-2007, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -148,7 +148,7 @@ static struct sk_buff *cfg_enable_bearer(void)
 
 	args = (struct tipc_bearer_config *)TLV_DATA(req_tlv_area);
 	if (tipc_enable_bearer(args->name,
-			       ntohl(args->detect_scope),
+			       ntohl(args->disc_domain),
 			       ntohl(args->priority)))
 		return tipc_cfg_reply_error_string("unable to enable bearer");
 
@@ -257,25 +257,6 @@ static struct sk_buff *cfg_set_max_ports(void)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 			" (cannot change max ports while TIPC is active)");
 	tipc_max_ports = value;
-	return tipc_cfg_reply_none();
-}
-
-static struct sk_buff *cfg_set_max_nodes(void)
-{
-	u32 value;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value == tipc_max_nodes)
-		return tipc_cfg_reply_none();
-	if (value != delimit(value, 8, 2047))
-		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-						   " (max nodes must be 8-2047)");
-	if (tipc_mode == TIPC_NET_MODE)
-		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-			" (cannot change max nodes once TIPC has joined a network)");
-	tipc_max_nodes = value;
 	return tipc_cfg_reply_none();
 }
 
@@ -397,9 +378,6 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_SET_MAX_SUBSCR:
 		rep_tlv_buf = cfg_set_max_subscriptions();
 		break;
-	case TIPC_CMD_SET_MAX_NODES:
-		rep_tlv_buf = cfg_set_max_nodes();
-		break;
 	case TIPC_CMD_SET_NETID:
 		rep_tlv_buf = cfg_set_netid();
 		break;
@@ -415,9 +393,6 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_GET_MAX_SUBSCR:
 		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_subscriptions);
 		break;
-	case TIPC_CMD_GET_MAX_NODES:
-		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_nodes);
-		break;
 	case TIPC_CMD_GET_NETID:
 		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_net_id);
 		break;
@@ -431,6 +406,8 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_GET_MAX_SLAVES:
 	case TIPC_CMD_SET_MAX_CLUSTERS:
 	case TIPC_CMD_GET_MAX_CLUSTERS:
+	case TIPC_CMD_SET_MAX_NODES:
+	case TIPC_CMD_GET_MAX_NODES:
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 							  " (obsolete command)");
 		break;

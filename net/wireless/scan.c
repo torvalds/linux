@@ -124,6 +124,15 @@ void cfg80211_bss_age(struct cfg80211_registered_device *dev,
 }
 
 /* must hold dev->bss_lock! */
+static void __cfg80211_unlink_bss(struct cfg80211_registered_device *dev,
+				  struct cfg80211_internal_bss *bss)
+{
+	list_del_init(&bss->list);
+	rb_erase(&bss->rbn, &dev->bss_tree);
+	kref_put(&bss->ref, bss_release);
+}
+
+/* must hold dev->bss_lock! */
 void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
 {
 	struct cfg80211_internal_bss *bss, *tmp;
@@ -134,9 +143,7 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
 			continue;
 		if (!time_after(jiffies, bss->ts + IEEE80211_SCAN_RESULT_EXPIRE))
 			continue;
-		list_del(&bss->list);
-		rb_erase(&bss->rbn, &dev->bss_tree);
-		kref_put(&bss->ref, bss_release);
+		__cfg80211_unlink_bss(dev, bss);
 		expired = true;
 	}
 
@@ -585,15 +592,22 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 	struct cfg80211_internal_bss *res;
 	size_t ielen = len - offsetof(struct ieee80211_mgmt,
 				      u.probe_resp.variable);
-	size_t privsz = wiphy->bss_priv_size;
+	size_t privsz;
+
+	if (WARN_ON(!mgmt))
+		return NULL;
+
+	if (WARN_ON(!wiphy))
+		return NULL;
 
 	if (WARN_ON(wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
 	            (signal < 0 || signal > 100)))
 		return NULL;
 
-	if (WARN_ON(!mgmt || !wiphy ||
-		    len < offsetof(struct ieee80211_mgmt, u.probe_resp.variable)))
+	if (WARN_ON(len < offsetof(struct ieee80211_mgmt, u.probe_resp.variable)))
 		return NULL;
+
+	privsz = wiphy->bss_priv_size;
 
 	res = kzalloc(sizeof(*res) + privsz + ielen, gfp);
 	if (!res)
@@ -662,11 +676,8 @@ void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 
 	spin_lock_bh(&dev->bss_lock);
 	if (!list_empty(&bss->list)) {
-		list_del_init(&bss->list);
+		__cfg80211_unlink_bss(dev, bss);
 		dev->bss_generation++;
-		rb_erase(&bss->rbn, &dev->bss_tree);
-
-		kref_put(&bss->ref, bss_release);
 	}
 	spin_unlock_bh(&dev->bss_lock);
 }

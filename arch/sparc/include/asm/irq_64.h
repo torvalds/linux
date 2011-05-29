@@ -33,34 +33,34 @@
 
 /* The largest number of unique interrupt sources we support.
  * If this needs to ever be larger than 255, you need to change
- * the type of ino_bucket->virt_irq as appropriate.
+ * the type of ino_bucket->irq as appropriate.
  *
- * ino_bucket->virt_irq allocation is made during {sun4v_,}build_irq().
+ * ino_bucket->irq allocation is made during {sun4v_,}build_irq().
  */
 #define NR_IRQS    255
 
-extern void irq_install_pre_handler(int virt_irq,
+extern void irq_install_pre_handler(int irq,
 				    void (*func)(unsigned int, void *, void *),
 				    void *arg1, void *arg2);
 #define irq_canonicalize(irq)	(irq)
 extern unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap);
 extern unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino);
 extern unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino);
-extern unsigned int sun4v_build_msi(u32 devhandle, unsigned int *virt_irq_p,
+extern unsigned int sun4v_build_msi(u32 devhandle, unsigned int *irq_p,
 				    unsigned int msi_devino_start,
 				    unsigned int msi_devino_end);
-extern void sun4v_destroy_msi(unsigned int virt_irq);
-extern unsigned int sun4u_build_msi(u32 portid, unsigned int *virt_irq_p,
+extern void sun4v_destroy_msi(unsigned int irq);
+extern unsigned int sun4u_build_msi(u32 portid, unsigned int *irq_p,
 				    unsigned int msi_devino_start,
 				    unsigned int msi_devino_end,
 				    unsigned long imap_base,
 				    unsigned long iclr_base);
-extern void sun4u_destroy_msi(unsigned int virt_irq);
+extern void sun4u_destroy_msi(unsigned int irq);
 
-extern unsigned char virt_irq_alloc(unsigned int dev_handle,
+extern unsigned char irq_alloc(unsigned int dev_handle,
 				    unsigned int dev_ino);
 #ifdef CONFIG_PCI_MSI
-extern void virt_irq_free(unsigned int virt_irq);
+extern void irq_free(unsigned int irq);
 #endif
 
 extern void __init init_IRQ(void);
@@ -96,5 +96,7 @@ extern void *hardirq_stack[NR_CPUS];
 extern void *softirq_stack[NR_CPUS];
 #define __ARCH_HAS_DO_SOFTIRQ
 #define ARCH_HAS_NMI_WATCHDOG
+
+#define NO_IRQ		0xffffffff
 
 #endif

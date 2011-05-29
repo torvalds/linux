@@ -42,7 +42,7 @@
 
 #include "fc_libfc.h"
 
-struct kmem_cache *scsi_pkt_cachep;
+static struct kmem_cache *scsi_pkt_cachep;
 
 /* SRB state definitions */
 #define FC_SRB_FREE		0		/* cmd is free */
@@ -155,6 +155,7 @@ static struct fc_fcp_pkt *fc_fcp_pkt_alloc(struct fc_lport *lport, gfp_t gfp)
 	if (fsp) {
 		memset(fsp, 0, sizeof(*fsp));
 		fsp->lp = lport;
+		fsp->xfer_ddp = FC_XID_UNKNOWN;
 		atomic_set(&fsp->ref_cnt, 1);
 		init_timer(&fsp->timer);
 		INIT_LIST_HEAD(&fsp->list);
@@ -869,7 +870,7 @@ static void fc_fcp_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 				fsp->scsi_resid = ntohl(rp_ex->fr_resid);
 				/*
 				 * The cmnd->underflow is the minimum number of
-				 * bytes that must be transfered for this
+				 * bytes that must be transferred for this
 				 * command.  Provided a sense condition is not
 				 * present, make sure the actual amount
 				 * transferred is at least the underflow value
@@ -1201,6 +1202,7 @@ unlock:
 static int fc_fcp_pkt_abort(struct fc_fcp_pkt *fsp)
 {
 	int rc = FAILED;
+	unsigned long ticks_left;
 
 	if (fc_fcp_send_abort(fsp))
 		return FAILED;
@@ -1209,13 +1211,13 @@ static int fc_fcp_pkt_abort(struct fc_fcp_pkt *fsp)
 	fsp->wait_for_comp = 1;
 
 	spin_unlock_bh(&fsp->scsi_pkt_lock);
-	rc = wait_for_completion_timeout(&fsp->tm_done, FC_SCSI_TM_TOV);
+	ticks_left = wait_for_completion_timeout(&fsp->tm_done,
+							FC_SCSI_TM_TOV);
 	spin_lock_bh(&fsp->scsi_pkt_lock);
 	fsp->wait_for_comp = 0;
 
-	if (!rc) {
+	if (!ticks_left) {
 		FC_FCP_DBG(fsp, "target abort cmd  failed\n");
-		rc = FAILED;
 	} else if (fsp->state & FC_SRB_ABORTED) {
 		FC_FCP_DBG(fsp, "target abort cmd  passed\n");
 		rc = SUCCESS;
@@ -1304,7 +1306,7 @@ static int fc_lun_reset(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 }
 
 /**
- * fc_tm_done() - Task Managment response handler
+ * fc_tm_done() - Task Management response handler
  * @seq: The sequence that the response is on
  * @fp:	 The response frame
  * @arg: The FCP packet the response is for
@@ -1321,7 +1323,7 @@ static void fc_tm_done(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 		 *
 		 * scsi-eh will escalate for when either happens.
 		 */
-		goto out;
+		return;
 	}
 
 	if (fc_fcp_lock_pkt(fsp))
@@ -1787,15 +1789,14 @@ static inline int fc_fcp_lport_queue_ready(struct fc_lport *lport)
 
 /**
  * fc_queuecommand() - The queuecommand function of the SCSI template
+ * @shost: The Scsi_Host that the command was issued to
  * @cmd:   The scsi_cmnd to be executed
- * @done:  The callback function to be called when the scsi_cmnd is complete
  *
- * This is the i/o strategy routine, called by the SCSI layer. This routine
- * is called with the host_lock held.
+ * This is the i/o strategy routine, called by the SCSI layer.
  */
-static int fc_queuecommand_lck(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
+int fc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc_cmd)
 {
-	struct fc_lport *lport;
+	struct fc_lport *lport = shost_priv(shost);
 	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
 	struct fc_fcp_pkt *fsp;
 	struct fc_rport_libfc_priv *rpriv;
@@ -1803,15 +1804,12 @@ static int fc_queuecommand_lck(struct scsi_cmnd *sc_cmd, void (*done)(struct scs
 	int rc = 0;
 	struct fcoe_dev_stats *stats;
 
-	lport = shost_priv(sc_cmd->device->host);
-
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
 		sc_cmd->result = rval;
-		done(sc_cmd);
+		sc_cmd->scsi_done(sc_cmd);
 		return 0;
 	}
-	spin_unlock_irq(lport->host->host_lock);
 
 	if (!*(struct fc_remote_port **)rport->dd_data) {
 		/*
@@ -1819,7 +1817,7 @@ static int fc_queuecommand_lck(struct scsi_cmnd *sc_cmd, void (*done)(struct scs
 		 * online
 		 */
 		sc_cmd->result = DID_IMM_RETRY << 16;
-		done(sc_cmd);
+		sc_cmd->scsi_done(sc_cmd);
 		goto out;
 	}
 
@@ -1842,10 +1840,7 @@ static int fc_queuecommand_lck(struct scsi_cmnd *sc_cmd, void (*done)(struct scs
 	 * build the libfc request pkt
 	 */
 	fsp->cmd = sc_cmd;	/* save the cmd */
-	fsp->lp = lport;	/* save the softc ptr */
 	fsp->rport = rport;	/* set the remote port ptr */
-	fsp->xfer_ddp = FC_XID_UNKNOWN;
-	sc_cmd->scsi_done = done;
 
 	/*
 	 * set up the transfer length
@@ -1886,11 +1881,8 @@ static int fc_queuecommand_lck(struct scsi_cmnd *sc_cmd, void (*done)(struct scs
 		rc = SCSI_MLQUEUE_HOST_BUSY;
 	}
 out:
-	spin_lock_irq(lport->host->host_lock);
 	return rc;
 }
-
-DEF_SCSI_QCMD(fc_queuecommand)
 EXPORT_SYMBOL(fc_queuecommand);
 
 /**
@@ -2112,7 +2104,6 @@ int fc_eh_device_reset(struct scsi_cmnd *sc_cmd)
 	 * the sc passed in is not setup for execution like when sent
 	 * through the queuecommand callout.
 	 */
-	fsp->lp = lport;	/* save the softc ptr */
 	fsp->rport = rport;	/* set the remote port ptr */
 
 	/*
@@ -2245,7 +2236,7 @@ void fc_fcp_destroy(struct fc_lport *lport)
 }
 EXPORT_SYMBOL(fc_fcp_destroy);
 
-int fc_setup_fcp()
+int fc_setup_fcp(void)
 {
 	int rc = 0;
 
@@ -2261,7 +2252,7 @@ int fc_setup_fcp()
 	return rc;
 }
 
-void fc_destroy_fcp()
+void fc_destroy_fcp(void)
 {
 	if (scsi_pkt_cachep)
 		kmem_cache_destroy(scsi_pkt_cachep);

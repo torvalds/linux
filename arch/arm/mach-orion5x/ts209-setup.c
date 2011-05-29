@@ -36,7 +36,7 @@
 
 /****************************************************************************
  * 8MiB NOR flash. The struct mtd_partition is not in the same order as the
- *     partitions on the device because we want to keep compatability with
+ *     partitions on the device because we want to keep compatibility with
  *     existing QNAP firmware.
  *
  * Layout as used by QNAP:
@@ -117,7 +117,7 @@ void __init qnap_ts209_pci_preinit(void)
 	pin = QNAP_TS209_PCI_SLOT0_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int1") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "qnap_ts209_pci_preinit failed to "
 					"set_irq_type pin %d\n", pin);
@@ -131,7 +131,7 @@ void __init qnap_ts209_pci_preinit(void)
 	pin = QNAP_TS209_PCI_SLOT1_IRQ_PIN;
 	if (gpio_request(pin, "PCI Int2") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
+			irq_set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "qnap_ts209_pci_preinit failed "
 					"to set_irq_type pin %d\n", pin);
@@ -325,6 +325,7 @@ MACHINE_START(TS209, "QNAP TS-109/TS-209")
 	.boot_params	= 0x00000100,
 	.init_machine	= qnap_ts209_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

@@ -80,7 +80,10 @@ struct wm831x_touch_pdata {
 	int isel;              /** Current for pen down (uA) */
 	int rpu;               /** Pen down sensitivity resistor divider */
 	int pressure;          /** Report pressure (boolean) */
-	int data_irq;          /** Touch data ready IRQ */
+	unsigned int data_irq; /** Touch data ready IRQ */
+	int data_irqf;         /** IRQ flags for data ready IRQ */
+	unsigned int pd_irq;   /** Touch pendown detect IRQ */
+	int pd_irqf;           /** IRQ flags for pen down IRQ */
 };
 
 enum wm831x_watchdog_action {
@@ -103,10 +106,16 @@ struct wm831x_watchdog_pdata {
 #define WM831X_MAX_ISINK  2
 
 struct wm831x_pdata {
+	/** Used to distinguish multiple WM831x chips */
+	int wm831x_num;
+
 	/** Called before subdevices are set up */
 	int (*pre_init)(struct wm831x *wm831x);
 	/** Called after subdevices are set up */
 	int (*post_init)(struct wm831x *wm831x);
+
+	/** Put the /IRQ line into CMOS mode */
+	bool irq_cmos;
 
 	int irq_base;
 	int gpio_base;

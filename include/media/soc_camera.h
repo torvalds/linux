@@ -17,6 +17,7 @@
 #include <linux/pm.h>
 #include <linux/videodev2.h>
 #include <media/videobuf-core.h>
+#include <media/videobuf2-core.h>
 #include <media/v4l2-device.h>
 
 extern struct bus_type soc_camera_bus_type;
@@ -29,6 +30,8 @@ struct soc_camera_device {
 	struct device *pdev;		/* Platform device */
 	s32 user_width;
 	s32 user_height;
+	u32 bytesperline;		/* for padding, zero if unused */
+	u32 sizeimage;
 	enum v4l2_colorspace colorspace;
 	unsigned char iface;		/* Host number */
 	unsigned char devnum;		/* Device number per host */
@@ -44,7 +47,10 @@ struct soc_camera_device {
 	int use_count;
 	struct mutex video_lock;	/* Protects device data */
 	struct file *streamer;		/* stream owner */
-	struct videobuf_queue vb_vidq;
+	union {
+		struct videobuf_queue vb_vidq;
+		struct vb2_queue vb2_vidq;
+	};
 };
 
 struct soc_camera_host {
@@ -78,6 +84,8 @@ struct soc_camera_host_ops {
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	void (*init_videobuf)(struct videobuf_queue *,
 			      struct soc_camera_device *);
+	int (*init_videobuf2)(struct vb2_queue *,
+			      struct soc_camera_device *);
 	int (*reqbufs)(struct soc_camera_device *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
 	int (*set_bus_param)(struct soc_camera_device *, __u32);
@@ -85,6 +93,7 @@ struct soc_camera_host_ops {
 	int (*set_ctrl)(struct soc_camera_device *, struct v4l2_control *);
 	int (*get_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	int (*set_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
+	int (*enum_fsizes)(struct soc_camera_device *, struct v4l2_frmsizeenum *);
 	unsigned int (*poll)(struct file *, poll_table *);
 	const struct v4l2_queryctrl *controls;
 	int num_controls;
@@ -298,5 +307,18 @@ static inline struct video_device *soc_camera_i2c_to_vdev(struct i2c_client *cli
 	struct soc_camera_device *icd = client->dev.platform_data;
 	return icd->vdev;
 }
+
+static inline struct soc_camera_device *soc_camera_from_vb2q(struct vb2_queue *vq)
+{
+	return container_of(vq, struct soc_camera_device, vb2_vidq);
+}
+
+static inline struct soc_camera_device *soc_camera_from_vbq(struct videobuf_queue *vq)
+{
+	return container_of(vq, struct soc_camera_device, vb_vidq);
+}
+
+void soc_camera_lock(struct vb2_queue *vq);
+void soc_camera_unlock(struct vb2_queue *vq);
 
 #endif

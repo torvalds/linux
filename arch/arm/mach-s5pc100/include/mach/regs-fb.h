@@ -29,7 +29,7 @@
 #define WPALCON_H					(0x19c)
 #define WPALCON_L					(0x1a0)
 
-/* Pallete contro for WPAL0 and WPAL1 is the same as in S3C64xx, but
+/* Palette control for WPAL0 and WPAL1 is the same as in S3C64xx, but
  * different for WPAL2-4
  */
 /* In WPALCON_L (aka WPALCON) */

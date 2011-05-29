@@ -533,6 +533,16 @@ config I6300ESB_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called i6300esb.
 
+config INTEL_SCU_WATCHDOG
+	bool "Intel SCU Watchdog for Mobile Platforms"
+	depends on WATCHDOG
+	depends on INTEL_SCU_IPC
+	---help---
+	  Hardware driver for the watchdog time built into the Intel SCU
+	  for Intel Mobile Platforms.
+
+	  To compile this driver as a module, choose M here.
+
 config ITCO_WDT
 	tristate "Intel TCO Timer/Watchdog"
 	depends on (X86 || IA64) && PCI
@@ -580,7 +590,7 @@ config IT87_WDT
 	depends on X86 && EXPERIMENTAL
 	---help---
 	  This is the driver for the hardware watchdog on the ITE IT8702,
-	  IT8712, IT8716, IT8718, IT8720, IT8726, IT8712 Super I/O chips.
+	  IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 Super I/O chips.
 	  This watchdog simply watches your kernel to make sure it doesn't
 	  freeze, and if it does, it reboots your computer after a certain
 	  amount of time.
@@ -589,18 +599,20 @@ config IT87_WDT
 	  be called it87_wdt.
 
 config HP_WATCHDOG
-	tristate "HP Proliant iLO2+ Hardware Watchdog Timer"
+	tristate "HP ProLiant iLO2+ Hardware Watchdog Timer"
 	depends on X86
+	default m
 	help
 	  A software monitoring watchdog and NMI sourcing driver. This driver
 	  will detect lockups and provide a stack trace. This is a driver that
-	  will only load on a HP ProLiant system with a minimum of iLO2 support.
+	  will only load on an HP ProLiant system with a minimum of iLO2 support.
 	  To compile this driver as a module, choose M here: the module will be
 	  called hpwdt.
 
 config HPWDT_NMI_DECODING
 	bool "NMI decoding support for the HP ProLiant iLO2+ Hardware Watchdog Timer"
 	depends on HP_WATCHDOG
+	default y
 	help
 	  When an NMI occurs this feature will make the necessary BIOS calls to
 	  log the cause of the NMI.
@@ -903,6 +915,12 @@ config INDYDOG
 	  timer expired and no process has written to /dev/watchdog during
 	  that time.
 
+config JZ4740_WDT
+	tristate "Ingenic jz4740 SoC hardware watchdog"
+	depends on MACH_JZ4740
+	help
+	  Hardware driver for the built-in watchdog timer on Ingenic jz4740 SoCs.
+
 config WDT_MTX1
 	tristate "MTX-1 Hardware Watchdog"
 	depends on MIPS_MTX1
@@ -915,7 +933,7 @@ config PNX833X_WDT
 	depends on SOC_PNX8335
 	help
 	  Hardware driver for the PNX833x's watchdog. This is a
-	  watchdog timer that will reboot the machine after a programable
+	  watchdog timer that will reboot the machine after a programmable
 	  timer has expired and no process has written to /dev/watchdog during
 	  that time.
 
@@ -1083,14 +1101,6 @@ config SH_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called shwdt.
 
-config SH_WDT_MMAP
-	bool "Allow mmap of SH WDT"
-	default n
-	depends on SH_WDT
-	help
-	  If you say Y here, user applications will be able to mmap the
-	  WDT/CPG registers.
-
 # SPARC Architecture
 
 # SPARC64 Architecture
@@ -1118,6 +1128,16 @@ config WATCHDOG_RIO
 	  can be changed with a boot-time parameter.
 
 # XTENSA Architecture
+
+# Xen Architecture
+
+config XEN_WDT
+	tristate "Xen Watchdog support"
+	depends on XEN
+	help
+	  Say Y here to support the hypervisor watchdog capability provided
+	  by Xen 4.0 and newer.  The watchdog timeout period is normally one
+	  minute but can be changed with a boot-time parameter.
 
 #
 # ISA-based Watchdog Cards

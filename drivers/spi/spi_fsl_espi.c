@@ -474,7 +474,7 @@ static int fsl_espi_setup(struct spi_device *spi)
 	mpc8xxx_spi = spi_master_get_devdata(spi->master);
 	reg_base = mpc8xxx_spi->reg_base;
 
-	hw_mode = cs->hw_mode; /* Save orginal settings */
+	hw_mode = cs->hw_mode; /* Save original settings */
 	cs->hw_mode = mpc8xxx_spi_read_reg(
 			&reg_base->csmode[spi->chip_select]);
 	/* mask out bits we are going to set */
@@ -685,8 +685,7 @@ static int of_fsl_espi_get_chipselects(struct device *dev)
 	return 0;
 }
 
-static int __devinit of_fsl_espi_probe(struct platform_device *ofdev,
-					const struct of_device_id *ofid)
+static int __devinit of_fsl_espi_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct device_node *np = ofdev->dev.of_node;
@@ -695,7 +694,7 @@ static int __devinit of_fsl_espi_probe(struct platform_device *ofdev,
 	struct resource irq;
 	int ret = -ENOMEM;
 
-	ret = of_mpc8xxx_spi_probe(ofdev, ofid);
+	ret = of_mpc8xxx_spi_probe(ofdev);
 	if (ret)
 		return ret;
 
@@ -736,7 +735,7 @@ static const struct of_device_id of_fsl_espi_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_fsl_espi_match);
 
-static struct of_platform_driver fsl_espi_driver = {
+static struct platform_driver fsl_espi_driver = {
 	.driver = {
 		.name = "fsl_espi",
 		.owner = THIS_MODULE,
@@ -748,13 +747,13 @@ static struct of_platform_driver fsl_espi_driver = {
 
 static int __init fsl_espi_init(void)
 {
-	return of_register_platform_driver(&fsl_espi_driver);
+	return platform_driver_register(&fsl_espi_driver);
 }
 module_init(fsl_espi_init);
 
 static void __exit fsl_espi_exit(void)
 {
-	of_unregister_platform_driver(&fsl_espi_driver);
+	platform_driver_unregister(&fsl_espi_driver);
 }
 module_exit(fsl_espi_exit);
 

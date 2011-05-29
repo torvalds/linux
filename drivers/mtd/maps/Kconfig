@@ -114,7 +114,7 @@ config MTD_SUN_UFLASH
 
 config MTD_SC520CDP
 	tristate "CFI Flash device mapped on AMD SC520 CDP"
-	depends on X86 && MTD_CFI && MTD_CONCAT
+	depends on X86 && MTD_CFI
 	help
 	  The SC520 CDP board has two banks of CFI-compliant chips and one
 	  Dual-in-line JEDEC chip. This 'mapping' driver supports that
@@ -262,7 +262,7 @@ config MTD_BCM963XX
 
 config MTD_DILNETPC
 	tristate "CFI Flash device mapped on DIL/Net PC"
-	depends on X86 && MTD_CONCAT && MTD_PARTITIONS && MTD_CFI_INTELEXT && BROKEN
+	depends on X86 && MTD_PARTITIONS && MTD_CFI_INTELEXT && BROKEN
 	help
 	  MTD map driver for SSV DIL/Net PC Boards "DNP" and "ADNP".
 	  For details, see <http://www.ssv-embedded.de/ssv/pc104/p169.htm>
@@ -551,5 +551,14 @@ config MTD_PISMO
 	  and/or MTD_PLATRAM according to the devices on your module.
 
 	  When built as a module, it will be called pismo.ko
+
+config MTD_LATCH_ADDR
+        tristate "Latch-assisted Flash Chip Support"
+        depends on MTD_COMPLEX_MAPPINGS
+        help
+          Map driver which allows flashes to be partially physically addressed
+          and have the upper address lines set by a board specific code.
+
+          If compiled as a module, it will be called latch-addr-flash.
 
 endmenu

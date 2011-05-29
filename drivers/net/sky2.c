@@ -932,7 +932,7 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_CLR);
 	sky2_write16(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_OPER_ON);
 
-	/* On chips without ram buffer, pause is controled by MAC level */
+	/* On chips without ram buffer, pause is controlled by MAC level */
 	if (!(hw->flags & SKY2_HW_RAM_BUFFER)) {
 		/* Pause threshold is scaled by 8 in bytes */
 		if (hw->chip_id == CHIP_ID_YUKON_FE_P &&
@@ -3255,7 +3255,7 @@ static void sky2_reset(struct sky2_hw *hw)
 
 /* Take device down (offline).
  * Equivalent to doing dev_stop() but this does not
- * inform upper layers of the transistion.
+ * inform upper layers of the transition.
  */
 static void sky2_detach(struct net_device *dev)
 {
@@ -4983,7 +4983,7 @@ static int sky2_suspend(struct device *dev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int sky2_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);

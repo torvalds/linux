@@ -59,7 +59,7 @@ nvc0_vm_addr(struct nouveau_vma *vma, u64 phys, u32 memtype, u32 target)
 
 void
 nvc0_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
-	    struct nouveau_vram *mem, u32 pte, u32 cnt, u64 phys)
+	    struct nouveau_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
 	u32 next = 1 << (vma->node->type - 8);
 
@@ -75,11 +75,11 @@ nvc0_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 
 void
 nvc0_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
-	       u32 pte, dma_addr_t *list, u32 cnt)
+	       struct nouveau_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
 	pte <<= 3;
 	while (cnt--) {
-		u64 phys = nvc0_vm_addr(vma, *list++, 0, 5);
+		u64 phys = nvc0_vm_addr(vma, *list++, mem->memtype, 5);
 		nv_wo32(pgt, pte + 0, lower_32_bits(phys));
 		nv_wo32(pgt, pte + 4, upper_32_bits(phys));
 		pte += 8;
@@ -104,20 +104,27 @@ nvc0_vm_flush(struct nouveau_vm *vm)
 	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
 	struct drm_device *dev = vm->dev;
 	struct nouveau_vm_pgd *vpgd;
-	u32 r100c80, engine;
+	unsigned long flags;
+	u32 engine = (dev_priv->chan_vm == vm) ? 1 : 5;
 
 	pinstmem->flush(vm->dev);
 
-	if (vm == dev_priv->chan_vm)
-		engine = 1;
-	else
-		engine = 5;
-
+	spin_lock_irqsave(&dev_priv->vm_lock, flags);
 	list_for_each_entry(vpgd, &vm->pgd_list, head) {
-		r100c80 = nv_rd32(dev, 0x100c80);
+		/* looks like maybe a "free flush slots" counter, the
+		 * faster you write to 0x100cbc to more it decreases
+		 */
+		if (!nv_wait_ne(dev, 0x100c80, 0x00ff0000, 0x00000000)) {
+			NV_ERROR(dev, "vm timeout 0: 0x%08x %d\n",
+				 nv_rd32(dev, 0x100c80), engine);
+		}
 		nv_wr32(dev, 0x100cb8, vpgd->obj->vinst >> 8);
 		nv_wr32(dev, 0x100cbc, 0x80000000 | engine);
-		if (!nv_wait(dev, 0x100c80, 0xffffffff, r100c80))
-			NV_ERROR(dev, "vm flush timeout eng %d\n", engine);
+		/* wait for flush to be queued? */
+		if (!nv_wait(dev, 0x100c80, 0x00008000, 0x00008000)) {
+			NV_ERROR(dev, "vm timeout 1: 0x%08x %d\n",
+				 nv_rd32(dev, 0x100c80), engine);
+		}
 	}
+	spin_unlock_irqrestore(&dev_priv->vm_lock, flags);
 }

@@ -101,7 +101,7 @@ drm_gem_init(struct drm_device *dev)
 
 	dev->mm_private = mm;
 
-	if (drm_ht_create(&mm->offset_hash, 19)) {
+	if (drm_ht_create(&mm->offset_hash, 12)) {
 		kfree(mm);
 		return -ENOMEM;
 	}
@@ -181,7 +181,7 @@ EXPORT_SYMBOL(drm_gem_object_alloc);
 /**
  * Removes the mapping from handle to filp for this object.
  */
-static int
+int
 drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 {
 	struct drm_device *dev;
@@ -214,6 +214,7 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 
 	return 0;
 }
+EXPORT_SYMBOL(drm_gem_handle_delete);
 
 /**
  * Create a handle for this object. This adds a handle reference
@@ -498,11 +499,12 @@ EXPORT_SYMBOL(drm_gem_vm_open);
 void drm_gem_vm_close(struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
+	struct drm_device *dev = obj->dev;
 
-	mutex_lock(&obj->dev->struct_mutex);
+	mutex_lock(&dev->struct_mutex);
 	drm_vm_close_locked(vma);
 	drm_gem_object_unreference(obj);
-	mutex_unlock(&obj->dev->struct_mutex);
+	mutex_unlock(&dev->struct_mutex);
 }
 EXPORT_SYMBOL(drm_gem_vm_close);
 

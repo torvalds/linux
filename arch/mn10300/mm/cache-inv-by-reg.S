@@ -15,6 +15,7 @@
 #include <asm/cache.h>
 #include <asm/irqflags.h>
 #include <asm/cacheflush.h>
+#include "cache.inc"
 
 #define mn10300_local_dcache_inv_range_intr_interval \
 	+((1 << MN10300_DCACHE_INV_RANGE_INTR_LOG2_INTERVAL) - 1)
@@ -62,10 +63,7 @@ mn10300_local_icache_inv:
 	btst	CHCTR_ICEN,d0
 	beq	mn10300_local_icache_inv_end
 
-	# invalidate
-	or	CHCTR_ICINV,d0
-	movhu	d0,(a0)
-	movhu	(a0),d0
+	invalidate_icache 1
 
 mn10300_local_icache_inv_end:
 	ret	[],0
@@ -87,11 +85,8 @@ mn10300_local_dcache_inv:
 	btst	CHCTR_DCEN,d0
 	beq	mn10300_local_dcache_inv_end
 
-	# invalidate
-	or	CHCTR_DCINV,d0
-	movhu	d0,(a0)
-	movhu	(a0),d0
-
+	invalidate_dcache 1
+	
 mn10300_local_dcache_inv_end:
 	ret	[],0
 	.size	mn10300_local_dcache_inv,.-mn10300_local_dcache_inv
@@ -121,9 +116,9 @@ mn10300_local_dcache_inv_range:
 	# and if they're not cacheline-aligned, we must flush any bits outside
 	# the range that share cachelines with stuff inside the range
 #ifdef CONFIG_MN10300_CACHE_WBACK
-	btst	~(L1_CACHE_BYTES-1),d0
+	btst	~L1_CACHE_TAG_MASK,d0
 	bne	1f
-	btst	~(L1_CACHE_BYTES-1),d1
+	btst	~L1_CACHE_TAG_MASK,d1
 	beq	2f
 1:
 	bra	mn10300_local_dcache_flush_inv_range
@@ -141,12 +136,11 @@ mn10300_local_dcache_inv_range:
 	# writeback mode, in which case we would be in flush and invalidate by
 	# now
 #ifndef CONFIG_MN10300_CACHE_WBACK
-	and	L1_CACHE_TAG_ADDRESS|L1_CACHE_TAG_ENTRY,d0	# round start
-								# addr down
+	and	L1_CACHE_TAG_MASK,d0	# round start addr down
 
 	mov	L1_CACHE_BYTES-1,d2
 	add	d2,d1
-	and	L1_CACHE_TAG_ADDRESS|L1_CACHE_TAG_ENTRY,d1	# round end addr up
+	and	L1_CACHE_TAG_MASK,d1	# round end addr up
 #endif /* !CONFIG_MN10300_CACHE_WBACK */
 
 	sub	d0,d1,d2		# calculate the total size

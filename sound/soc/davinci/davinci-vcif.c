@@ -205,7 +205,7 @@ static struct snd_soc_dai_driver davinci_vcif_dai = {
 
 static int davinci_vcif_probe(struct platform_device *pdev)
 {
-	struct davinci_vc *davinci_vc = platform_get_drvdata(pdev);
+	struct davinci_vc *davinci_vc = mfd_get_data(pdev);
 	struct davinci_vcif_dev *davinci_vcif_dev;
 	int ret;
 

@@ -36,21 +36,18 @@
 #include <asm/sn/sn0/hubio.h>
 #include <asm/pci/bridge.h>
 
-static void enable_rt_irq(unsigned int irq)
+static void enable_rt_irq(struct irq_data *d)
 {
 }
 
-static void disable_rt_irq(unsigned int irq)
+static void disable_rt_irq(struct irq_data *d)
 {
 }
 
 static struct irq_chip rt_irq_type = {
 	.name		= "SN HUB RT timer",
-	.ack		= disable_rt_irq,
-	.mask		= disable_rt_irq,
-	.mask_ack	= disable_rt_irq,
-	.unmask		= enable_rt_irq,
-	.eoi		= enable_rt_irq,
+	.irq_mask	= disable_rt_irq,
+	.irq_unmask	= enable_rt_irq,
 };
 
 static int rt_next_event(unsigned long delta, struct clock_event_device *evt)
@@ -156,7 +153,7 @@ static void __init hub_rt_clock_event_global_init(void)
 			panic("Allocation of irq number for timer failed");
 	} while (xchg(&rt_timer_irq, irq));
 
-	set_irq_chip_and_handler(irq, &rt_irq_type, handle_percpu_irq);
+	irq_set_chip_and_handler(irq, &rt_irq_type, handle_percpu_irq);
 	setup_irq(irq, &hub_rt_irqaction);
 }
 

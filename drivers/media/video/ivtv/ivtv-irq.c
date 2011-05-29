@@ -628,22 +628,66 @@ static void ivtv_irq_enc_pio_complete(struct ivtv *itv)
 static void ivtv_irq_dma_err(struct ivtv *itv)
 {
 	u32 data[CX2341X_MBOX_MAX_DATA];
+	u32 status;
 
 	del_timer(&itv->dma_timer);
+
 	ivtv_api_get_data(&itv->enc_mbox, IVTV_MBOX_DMA_END, 2, data);
+	status = read_reg(IVTV_REG_DMASTATUS);
 	IVTV_DEBUG_WARN("DMA ERROR %08x %08x %08x %d\n", data[0], data[1],
-				read_reg(IVTV_REG_DMASTATUS), itv->cur_dma_stream);
-	write_reg(read_reg(IVTV_REG_DMASTATUS) & 3, IVTV_REG_DMASTATUS);
+				status, itv->cur_dma_stream);
+	/*
+	 * We do *not* write back to the IVTV_REG_DMASTATUS register to
+	 * clear the error status, if either the encoder write (0x02) or
+	 * decoder read (0x01) bus master DMA operation do not indicate
+	 * completed.  We can race with the DMA engine, which may have
+	 * transitioned to completed status *after* we read the register.
+	 * Setting a IVTV_REG_DMASTATUS flag back to "busy" status, after the
+	 * DMA engine has completed, will cause the DMA engine to stop working.
+	 */
+	status &= 0x3;
+	if (status == 0x3)
+		write_reg(status, IVTV_REG_DMASTATUS);
+
 	if (!test_bit(IVTV_F_I_UDMA, &itv->i_flags) &&
 	    itv->cur_dma_stream >= 0 && itv->cur_dma_stream < IVTV_MAX_STREAMS) {
 		struct ivtv_stream *s = &itv->streams[itv->cur_dma_stream];
 
-		/* retry */
-		if (s->type >= IVTV_DEC_STREAM_TYPE_MPG)
+		if (s->type >= IVTV_DEC_STREAM_TYPE_MPG) {
+			/* retry */
+			/*
+			 * FIXME - handle cases of DMA error similar to
+			 * encoder below, except conditioned on status & 0x1
+			 */
 			ivtv_dma_dec_start(s);
-		else
-			ivtv_dma_enc_start(s);
-		return;
+			return;
+		} else {
+			if ((status & 0x2) == 0) {
+				/*
+				 * CX2341x Bus Master DMA write is ongoing.
+				 * Reset the timer and let it complete.
+				 */
+				itv->dma_timer.expires =
+						jiffies + msecs_to_jiffies(600);
+				add_timer(&itv->dma_timer);
+				return;
+			}
+
+			if (itv->dma_retries < 3) {
+				/*
+				 * CX2341x Bus Master DMA write has ended.
+				 * Retry the write, starting with the first
+				 * xfer segment. Just retrying the current
+				 * segment is not sufficient.
+				 */
+				s->sg_processed = 0;
+				itv->dma_retries++;
+				ivtv_dma_enc_start_xfer(s);
+				return;
+			}
+			/* Too many retries, give up on this one */
+		}
+
 	}
 	if (test_bit(IVTV_F_I_UDMA, &itv->i_flags)) {
 		ivtv_udma_start(itv);

@@ -50,9 +50,9 @@ static struct rc_map_table adstech_dvb_t_pci[] = {
 	{ 0x13, KEY_TUNER },		/* Live */
 	{ 0x0a, KEY_A },
 	{ 0x12, KEY_B },
-	{ 0x03, KEY_PROG1 },		/* 1 */
-	{ 0x01, KEY_PROG2 },		/* 2 */
-	{ 0x00, KEY_PROG3 },		/* 3 */
+	{ 0x03, KEY_RED },		/* 1 */
+	{ 0x01, KEY_GREEN },		/* 2 */
+	{ 0x00, KEY_YELLOW },		/* 3 */
 	{ 0x06, KEY_DVD },
 	{ 0x48, KEY_AUX },		/* Photo */
 	{ 0x40, KEY_VIDEO },

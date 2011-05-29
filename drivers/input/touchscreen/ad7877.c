@@ -41,6 +41,7 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ad7877.h>
@@ -826,39 +827,37 @@ static int __devexit ad7877_remove(struct spi_device *spi)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ad7877_suspend(struct spi_device *spi, pm_message_t message)
+#ifdef CONFIG_PM_SLEEP
+static int ad7877_suspend(struct device *dev)
 {
-	struct ad7877 *ts = dev_get_drvdata(&spi->dev);
+	struct ad7877 *ts = dev_get_drvdata(dev);
 
 	ad7877_disable(ts);
 
 	return 0;
 }
 
-static int ad7877_resume(struct spi_device *spi)
+static int ad7877_resume(struct device *dev)
 {
-	struct ad7877 *ts = dev_get_drvdata(&spi->dev);
+	struct ad7877 *ts = dev_get_drvdata(dev);
 
 	ad7877_enable(ts);
 
 	return 0;
 }
-#else
-#define ad7877_suspend NULL
-#define ad7877_resume  NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(ad7877_pm, ad7877_suspend, ad7877_resume);
 
 static struct spi_driver ad7877_driver = {
 	.driver = {
 		.name	= "ad7877",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
+		.pm	= &ad7877_pm,
 	},
 	.probe		= ad7877_probe,
 	.remove		= __devexit_p(ad7877_remove),
-	.suspend	= ad7877_suspend,
-	.resume		= ad7877_resume,
 };
 
 static int __init ad7877_init(void)

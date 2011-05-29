@@ -31,4 +31,7 @@ config DEBUG_STRICT_USER_COPY_CHECKS
 
 	  If unsure, or if you run an older (pre 4.4) gcc, say N.
 
+config DEBUG_SET_MODULE_RONX
+	def_bool y
+	depends on MODULES
 endmenu

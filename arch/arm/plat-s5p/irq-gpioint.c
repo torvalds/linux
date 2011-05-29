@@ -17,82 +17,79 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #include <mach/map.h>
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 
-#define S5P_GPIOREG(x)			(S5P_VA_GPIO + (x))
+#define GPIO_BASE(chip)		(((unsigned long)(chip)->base) & 0xFFFFF000u)
 
-#define GPIOINT_CON_OFFSET		0x700
-#define GPIOINT_MASK_OFFSET		0x900
-#define GPIOINT_PEND_OFFSET		0xA00
+#define CON_OFFSET		0x700
+#define MASK_OFFSET		0x900
+#define PEND_OFFSET		0xA00
+#define REG_OFFSET(x)		((x) << 2)
 
-static struct s3c_gpio_chip *irq_chips[S5P_GPIOINT_GROUP_MAXNR];
+struct s5p_gpioint_bank {
+	struct list_head	list;
+	int			start;
+	int			nr_groups;
+	int			irq;
+	struct s3c_gpio_chip	**chips;
+	void			(*handler)(unsigned int, struct irq_desc *);
+};
 
-static int s5p_gpioint_get_group(struct irq_data *data)
-{
-	struct gpio_chip *chip = irq_data_get_irq_data(data);
-	struct s3c_gpio_chip *s3c_chip = container_of(chip,
-			struct s3c_gpio_chip, chip);
-	int group;
-
-	for (group = 0; group < S5P_GPIOINT_GROUP_MAXNR; group++)
-		if (s3c_chip == irq_chips[group])
-			break;
-
-	return group;
-}
+LIST_HEAD(banks);
 
 static int s5p_gpioint_get_offset(struct irq_data *data)
 {
-	struct gpio_chip *chip = irq_data_get_irq_data(data);
-	struct s3c_gpio_chip *s3c_chip = container_of(chip,
-			struct s3c_gpio_chip, chip);
-
-	return data->irq - s3c_chip->irq_base;
+	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
+	return data->irq - chip->irq_base;
 }
 
 static void s5p_gpioint_ack(struct irq_data *data)
 {
+	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
 	int group, offset, pend_offset;
 	unsigned int value;
 
-	group = s5p_gpioint_get_group(data);
+	group = chip->group;
 	offset = s5p_gpioint_get_offset(data);
-	pend_offset = group << 2;
+	pend_offset = REG_OFFSET(group);
 
-	value = __raw_readl(S5P_GPIOREG(GPIOINT_PEND_OFFSET) + pend_offset);
-	value |= 1 << offset;
-	__raw_writel(value, S5P_GPIOREG(GPIOINT_PEND_OFFSET) + pend_offset);
+	value = __raw_readl(GPIO_BASE(chip) + PEND_OFFSET + pend_offset);
+	value |= BIT(offset);
+	__raw_writel(value, GPIO_BASE(chip) + PEND_OFFSET + pend_offset);
 }
 
 static void s5p_gpioint_mask(struct irq_data *data)
 {
+	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
 	int group, offset, mask_offset;
 	unsigned int value;
 
-	group = s5p_gpioint_get_group(data);
+	group = chip->group;
 	offset = s5p_gpioint_get_offset(data);
-	mask_offset = group << 2;
+	mask_offset = REG_OFFSET(group);
 
-	value = __raw_readl(S5P_GPIOREG(GPIOINT_MASK_OFFSET) + mask_offset);
-	value |= 1 << offset;
-	__raw_writel(value, S5P_GPIOREG(GPIOINT_MASK_OFFSET) + mask_offset);
+	value = __raw_readl(GPIO_BASE(chip) + MASK_OFFSET + mask_offset);
+	value |= BIT(offset);
+	__raw_writel(value, GPIO_BASE(chip) + MASK_OFFSET + mask_offset);
 }
 
 static void s5p_gpioint_unmask(struct irq_data *data)
 {
+	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
 	int group, offset, mask_offset;
 	unsigned int value;
 
-	group = s5p_gpioint_get_group(data);
+	group = chip->group;
 	offset = s5p_gpioint_get_offset(data);
-	mask_offset = group << 2;
+	mask_offset = REG_OFFSET(group);
 
-	value = __raw_readl(S5P_GPIOREG(GPIOINT_MASK_OFFSET) + mask_offset);
-	value &= ~(1 << offset);
-	__raw_writel(value, S5P_GPIOREG(GPIOINT_MASK_OFFSET) + mask_offset);
+	value = __raw_readl(GPIO_BASE(chip) + MASK_OFFSET + mask_offset);
+	value &= ~BIT(offset);
+	__raw_writel(value, GPIO_BASE(chip) + MASK_OFFSET + mask_offset);
 }
 
 static void s5p_gpioint_mask_ack(struct irq_data *data)
@@ -103,12 +100,13 @@ static void s5p_gpioint_mask_ack(struct irq_data *data)
 
 static int s5p_gpioint_set_type(struct irq_data *data, unsigned int type)
 {
+	struct s3c_gpio_chip *chip = irq_data_get_irq_handler_data(data);
 	int group, offset, con_offset;
 	unsigned int value;
 
-	group = s5p_gpioint_get_group(data);
+	group = chip->group;
 	offset = s5p_gpioint_get_offset(data);
-	con_offset = group << 2;
+	con_offset = REG_OFFSET(group);
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_RISING:
@@ -132,15 +130,15 @@ static int s5p_gpioint_set_type(struct irq_data *data, unsigned int type)
 		return -EINVAL;
 	}
 
-	value = __raw_readl(S5P_GPIOREG(GPIOINT_CON_OFFSET) + con_offset);
+	value = __raw_readl(GPIO_BASE(chip) + CON_OFFSET + con_offset);
 	value &= ~(0x7 << (offset * 0x4));
 	value |= (type << (offset * 0x4));
-	__raw_writel(value, S5P_GPIOREG(GPIOINT_CON_OFFSET) + con_offset);
+	__raw_writel(value, GPIO_BASE(chip) + CON_OFFSET + con_offset);
 
 	return 0;
 }
 
-struct irq_chip s5p_gpioint = {
+static struct irq_chip s5p_gpioint = {
 	.name		= "s5p_gpioint",
 	.irq_ack	= s5p_gpioint_ack,
 	.irq_mask	= s5p_gpioint_mask,
@@ -151,30 +149,29 @@ struct irq_chip s5p_gpioint = {
 
 static void s5p_gpioint_handler(unsigned int irq, struct irq_desc *desc)
 {
-	int group, offset, pend_offset, mask_offset;
-	int real_irq;
+	struct s5p_gpioint_bank *bank = irq_get_handler_data(irq);
+	int group, pend_offset, mask_offset;
 	unsigned int pend, mask;
 
-	for (group = 0; group < S5P_GPIOINT_GROUP_MAXNR; group++) {
-		pend_offset = group << 2;
-		pend = __raw_readl(S5P_GPIOREG(GPIOINT_PEND_OFFSET) +
-				pend_offset);
+	for (group = 0; group < bank->nr_groups; group++) {
+		struct s3c_gpio_chip *chip = bank->chips[group];
+		if (!chip)
+			continue;
+
+		pend_offset = REG_OFFSET(group);
+		pend = __raw_readl(GPIO_BASE(chip) + PEND_OFFSET + pend_offset);
 		if (!pend)
 			continue;
 
-		mask_offset = group << 2;
-		mask = __raw_readl(S5P_GPIOREG(GPIOINT_MASK_OFFSET) +
-				mask_offset);
+		mask_offset = REG_OFFSET(group);
+		mask = __raw_readl(GPIO_BASE(chip) + MASK_OFFSET + mask_offset);
 		pend &= ~mask;
 
-		for (offset = 0; offset < 8; offset++) {
-			if (pend & (1 << offset)) {
-				struct s3c_gpio_chip *chip = irq_chips[group];
-				if (chip) {
-					real_irq = chip->irq_base + offset;
-					generic_handle_irq(real_irq);
-				}
-			}
+		while (pend) {
+			int offset = fls(pend) - 1;
+			int real_irq = chip->irq_base + offset;
+			generic_handle_irq(real_irq);
+			pend &= ~BIT(offset);
 		}
 	}
 }
@@ -182,28 +179,49 @@ static void s5p_gpioint_handler(unsigned int irq, struct irq_desc *desc)
 static __init int s5p_gpioint_add(struct s3c_gpio_chip *chip)
 {
 	static int used_gpioint_groups = 0;
-	static bool handler_registered = 0;
 	int irq, group = chip->group;
 	int i;
+	struct s5p_gpioint_bank *bank = NULL;
 
 	if (used_gpioint_groups >= S5P_GPIOINT_GROUP_COUNT)
 		return -ENOMEM;
+
+	list_for_each_entry(bank, &banks, list) {
+		if (group >= bank->start &&
+		    group < bank->start + bank->nr_groups)
+			break;
+	}
+	if (!bank)
+		return -EINVAL;
+
+	if (!bank->handler) {
+		bank->chips = kzalloc(sizeof(struct s3c_gpio_chip *) *
+				      bank->nr_groups, GFP_KERNEL);
+		if (!bank->chips)
+			return -ENOMEM;
+
+		irq_set_chained_handler(bank->irq, s5p_gpioint_handler);
+		irq_set_handler_data(bank->irq, bank);
+		bank->handler = s5p_gpioint_handler;
+		printk(KERN_INFO "Registered chained gpio int handler for interrupt %d.\n",
+		       bank->irq);
+	}
+
+	/*
+	 * chained GPIO irq has been successfully registered, allocate new gpio
+	 * int group and assign irq nubmers
+	 */
 
 	chip->irq_base = S5P_GPIOINT_BASE +
 			 used_gpioint_groups * S5P_GPIOINT_GROUP_SIZE;
 	used_gpioint_groups++;
 
-	if (!handler_registered) {
-		set_irq_chained_handler(IRQ_GPIOINT, s5p_gpioint_handler);
-		handler_registered = 1;
-	}
-
-	irq_chips[group] = chip;
+	bank->chips[group - bank->start] = chip;
 	for (i = 0; i < chip->chip.ngpio; i++) {
 		irq = chip->irq_base + i;
-		set_irq_chip(irq, &s5p_gpioint);
-		set_irq_data(irq, &chip->chip);
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip(irq, &s5p_gpioint);
+		irq_set_handler_data(irq, chip);
+		irq_set_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID);
 	}
 	return 0;
@@ -234,4 +252,20 @@ int __init s5p_register_gpio_interrupt(int pin)
 		return my_chip->irq_base + offset;
 	}
 	return ret;
+}
+
+int __init s5p_register_gpioint_bank(int chain_irq, int start, int nr_groups)
+{
+	struct s5p_gpioint_bank *bank;
+
+	bank = kzalloc(sizeof(*bank), GFP_KERNEL);
+	if (!bank)
+		return -ENOMEM;
+
+	bank->start = start;
+	bank->nr_groups = nr_groups;
+	bank->irq = chain_irq;
+
+	list_add_tail(&bank->list, &banks);
+	return 0;
 }

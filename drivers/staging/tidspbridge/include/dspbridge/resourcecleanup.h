@@ -17,22 +17,11 @@
 #include <dspbridge/nodepriv.h>
 #include <dspbridge/drv.h>
 
-extern int drv_get_proc_ctxt_list(struct process_context **pctxt,
-					 struct drv_object *hdrv_obj);
-
-extern int drv_insert_proc_context(struct drv_object *driver_obj,
-					  void *process_ctxt);
-
 extern int drv_remove_all_dmm_res_elements(void *process_ctxt);
 
 extern int drv_remove_all_node_res_elements(void *process_ctxt);
 
-extern int drv_proc_set_pid(void *ctxt, s32 process);
-
 extern int drv_remove_all_resources(void *process_ctxt);
-
-extern int drv_remove_proc_context(struct drv_object *driver_obj,
-					  void *pr_ctxt);
 
 extern int drv_insert_node_res_element(void *hnode, void *node_resource,
 					      void *process_ctxt);

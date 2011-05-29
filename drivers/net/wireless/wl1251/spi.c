@@ -286,7 +286,7 @@ static int __devinit wl1251_spi_probe(struct spi_device *spi)
 		goto out_free;
 	}
 
-	set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
+	irq_set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
 
 	disable_irq(wl->irq);
 

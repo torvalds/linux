@@ -1123,7 +1123,7 @@ void fnic_rport_exch_reset(struct fnic *fnic, u32 port_id)
 					    fc_lun.scsi_lun, io_req)) {
 			/*
 			 * Revert the cmd state back to old state, if
-			 * it hasnt changed in between. This cmd will get
+			 * it hasn't changed in between. This cmd will get
 			 * aborted later by scsi_eh, or cleaned up during
 			 * lun reset
 			 */
@@ -1208,7 +1208,7 @@ void fnic_terminate_rport_io(struct fc_rport *rport)
 					    fc_lun.scsi_lun, io_req)) {
 			/*
 			 * Revert the cmd state back to old state, if
-			 * it hasnt changed in between. This cmd will get
+			 * it hasn't changed in between. This cmd will get
 			 * aborted later by scsi_eh, or cleaned up during
 			 * lun reset
 			 */

@@ -2592,7 +2592,7 @@ static void snd_dbri_free(struct snd_dbri *dbri)
 				  (void *)dbri->dma, dbri->dma_dvma);
 }
 
-static int __devinit dbri_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit dbri_probe(struct platform_device *op)
 {
 	struct snd_dbri *dbri;
 	struct resource *rp;
@@ -2686,7 +2686,7 @@ static const struct of_device_id dbri_match[] = {
 
 MODULE_DEVICE_TABLE(of, dbri_match);
 
-static struct of_platform_driver dbri_sbus_driver = {
+static struct platform_driver dbri_sbus_driver = {
 	.driver = {
 		.name = "dbri",
 		.owner = THIS_MODULE,
@@ -2699,12 +2699,12 @@ static struct of_platform_driver dbri_sbus_driver = {
 /* Probe for the dbri chip and then attach the driver. */
 static int __init dbri_init(void)
 {
-	return of_register_platform_driver(&dbri_sbus_driver);
+	return platform_driver_register(&dbri_sbus_driver);
 }
 
 static void __exit dbri_exit(void)
 {
-	of_unregister_platform_driver(&dbri_sbus_driver);
+	platform_driver_unregister(&dbri_sbus_driver);
 }
 
 module_init(dbri_init);

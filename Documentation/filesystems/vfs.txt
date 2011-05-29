@@ -95,10 +95,11 @@ functions:
    extern int unregister_filesystem(struct file_system_type *);
 
 The passed struct file_system_type describes your filesystem. When a
-request is made to mount a device onto a directory in your filespace,
-the VFS will call the appropriate get_sb() method for the specific
-filesystem. The dentry for the mount point will then be updated to
-point to the root inode for the new filesystem.
+request is made to mount a filesystem onto a directory in your namespace,
+the VFS will call the appropriate mount() method for the specific
+filesystem.  New vfsmount referring to the tree returned by ->mount()
+will be attached to the mountpoint, so that when pathname resolution
+reaches the mountpoint it will jump into the root of that vfsmount.
 
 You can see all filesystems that are registered to the kernel in the
 file /proc/filesystems.
@@ -107,14 +108,14 @@ file /proc/filesystems.
 struct file_system_type
 -----------------------
 
-This describes the filesystem. As of kernel 2.6.22, the following
+This describes the filesystem. As of kernel 2.6.39, the following
 members are defined:
 
 struct file_system_type {
 	const char *name;
 	int fs_flags;
-        int (*get_sb) (struct file_system_type *, int,
-                       const char *, void *, struct vfsmount *);
+        struct dentry (*mount) (struct file_system_type *, int,
+                       const char *, void *);
         void (*kill_sb) (struct super_block *);
         struct module *owner;
         struct file_system_type * next;
@@ -128,11 +129,11 @@ struct file_system_type {
 
   fs_flags: various flags (i.e. FS_REQUIRES_DEV, FS_NO_DCACHE, etc.)
 
-  get_sb: the method to call when a new instance of this
+  mount: the method to call when a new instance of this
 	filesystem should be mounted
 
   kill_sb: the method to call when an instance of this filesystem
-	should be unmounted
+	should be shut down
 
   owner: for internal VFS use: you should initialize this to THIS_MODULE in
   	most cases.
@@ -141,7 +142,7 @@ struct file_system_type {
 
   s_lock_key, s_umount_key: lockdep-specific
 
-The get_sb() method has the following arguments:
+The mount() method has the following arguments:
 
   struct file_system_type *fs_type: describes the filesystem, partly initialized
   	by the specific filesystem code
@@ -153,32 +154,39 @@ The get_sb() method has the following arguments:
   void *data: arbitrary mount options, usually comes as an ASCII
 	string (see "Mount Options" section)
 
-  struct vfsmount *mnt: a vfs-internal representation of a mount point
+The mount() method must return the root dentry of the tree requested by
+caller.  An active reference to its superblock must be grabbed and the
+superblock must be locked.  On failure it should return ERR_PTR(error).
 
-The get_sb() method must determine if the block device specified
-in the dev_name and fs_type contains a filesystem of the type the method
-supports. If it succeeds in opening the named block device, it initializes a
-struct super_block descriptor for the filesystem contained by the block device.
-On failure it returns an error.
+The arguments match those of mount(2) and their interpretation
+depends on filesystem type.  E.g. for block filesystems, dev_name is
+interpreted as block device name, that device is opened and if it
+contains a suitable filesystem image the method creates and initializes
+struct super_block accordingly, returning its root dentry to caller.
+
+->mount() may choose to return a subtree of existing filesystem - it
+doesn't have to create a new one.  The main result from the caller's
+point of view is a reference to dentry at the root of (sub)tree to
+be attached; creation of new superblock is a common side effect.
 
 The most interesting member of the superblock structure that the
-get_sb() method fills in is the "s_op" field. This is a pointer to
+mount() method fills in is the "s_op" field. This is a pointer to
 a "struct super_operations" which describes the next level of the
 filesystem implementation.
 
-Usually, a filesystem uses one of the generic get_sb() implementations
-and provides a fill_super() method instead. The generic methods are:
+Usually, a filesystem uses one of the generic mount() implementations
+and provides a fill_super() callback instead. The generic variants are:
 
-  get_sb_bdev: mount a filesystem residing on a block device
+  mount_bdev: mount a filesystem residing on a block device
 
-  get_sb_nodev: mount a filesystem that is not backed by a device
+  mount_nodev: mount a filesystem that is not backed by a device
 
-  get_sb_single: mount a filesystem which shares the instance between
+  mount_single: mount a filesystem which shares the instance between
   	all mounts
 
-A fill_super() method implementation has the following arguments:
+A fill_super() callback implementation has the following arguments:
 
-  struct super_block *sb: the superblock structure. The method fill_super()
+  struct super_block *sb: the superblock structure. The callback
   	must initialize this properly.
 
   void *data: arbitrary mount options, usually comes as an ASCII
@@ -246,7 +254,7 @@ or bottom half).
 	should be synchronous or not, not all filesystems check this flag.
 
   drop_inode: called when the last access to the inode is dropped,
-	with the inode_lock spinlock held.
+	with the inode->i_lock spinlock held.
 
 	This method should be either NULL (normal UNIX filesystem
 	semantics) or "generic_delete_inode" (for filesystems that do not
@@ -865,7 +873,7 @@ struct dentry_operations {
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
-	int (*d_manage)(struct dentry *, bool, bool);
+	int (*d_manage)(struct dentry *, bool);
 };
 
   d_revalidate: called when the VFS needs to revalidate a dentry. This
@@ -960,10 +968,6 @@ struct dentry_operations {
 	use this directory as an ordinary directory and to ignore anything
 	mounted on it and not to check the automount flag.  Any other error
 	code will abort pathwalk completely.
-
-	If the 'mounting_here' parameter is true, then namespace_sem is being
-	held by the caller and the function should not initiate any mounts or
-	unmounts that it will then wait for.
 
 	If the 'rcu_walk' parameter is true, then the caller is doing a
 	pathwalk in RCU-walk mode.  Sleeping is not permitted in this mode,

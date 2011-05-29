@@ -739,7 +739,7 @@ cy_as_usb_start(cy_as_device_handle handle,
 		cy_as_usb_reset_e_p0_state(dev_p);
 
 		/*
-		* we register here becuase the start request may cause
+		* we register here because the start request may cause
 		* events to occur before the response to the start request.
 		*/
 		cy_as_ll_register_request_callback(dev_p,
@@ -800,6 +800,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_start);
 
 void
 cy_as_usb_reset(cy_as_device *dev_p)
@@ -866,7 +867,7 @@ my_handle_response_usb_stop(cy_as_device *dev_p,
 		goto destroy;
 
 	/*
-	 * we sucessfully shutdown the stack, so
+	 * we successfully shutdown the stack, so
 	 * decrement to make the count zero.
 	 */
 	cy_as_usb_cleanup(dev_p);
@@ -977,6 +978,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_stop);
 
 /*
 * This function registers a callback to be called when
@@ -1004,7 +1006,7 @@ cy_as_usb_register_callback(cy_as_device_handle handle,
 	dev_p->usb_event_cb_ms = callback;
 	return CY_AS_ERROR_SUCCESS;
 }
-
+EXPORT_SYMBOL(cy_as_usb_register_callback);
 
 static cy_as_return_status_t
 my_handle_response_no_data(cy_as_device *dev_p,
@@ -1056,8 +1058,8 @@ destroy:
 * This method asks the West Bridge device to connect the
 * internal USB D+ and D- signals to the USB pins, thus
 * starting the enumeration processes if the external pins
-* are connnected to a USB host. If the external pins are
-* not connect to a USB host, enumeration will begin as soon
+* are connected to a USB host. If the external pins are
+* not connected to a USB host, enumeration will begin as soon
 * as the USB pins are connected to a host.
 */
 cy_as_return_status_t
@@ -1124,6 +1126,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_connect);
 
 static cy_as_return_status_t
 my_handle_response_disconnect(cy_as_device *dev_p,
@@ -1222,6 +1225,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_disconnect);
 
 static cy_as_return_status_t
 my_handle_response_set_enum_config(cy_as_device *dev_p,
@@ -1437,7 +1441,7 @@ cy_as_usb_set_enum_config(cy_as_device_handle handle,
 			client
 		);
 }
-
+EXPORT_SYMBOL(cy_as_usb_set_enum_config);
 
 static cy_as_return_status_t
 my_handle_response_get_enum_config(cy_as_device *dev_p,
@@ -1622,7 +1626,7 @@ cy_as_usb_get_enum_config(cy_as_device_handle handle,
 	return my_usb_get_enum_config(handle,
 		CY_AS_REQUEST_RESPONSE_MS, config_p, cb, client);
 }
-
+EXPORT_SYMBOL(cy_as_usb_get_enum_config);
 
 /*
 * This method sets the USB descriptor for a given entity.
@@ -1705,6 +1709,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_set_descriptor);
 
 /*
  * This method clears all descriptors that were previously
@@ -1771,6 +1776,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_clear_descriptors);
 
 static cy_as_return_status_t
 my_handle_response_get_descriptor(cy_as_device *dev_p,
@@ -1881,6 +1887,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_get_descriptor);
 
 cy_as_return_status_t
 cy_as_usb_set_physical_configuration(cy_as_device_handle handle,
@@ -1910,6 +1917,7 @@ cy_as_usb_set_physical_configuration(cy_as_device_handle handle,
 
 	return CY_AS_ERROR_SUCCESS;
 }
+EXPORT_SYMBOL(cy_as_usb_set_physical_configuration);
 
 static cy_bool
 is_physical_valid(uint8_t config, cy_as_end_point_number_t ep)
@@ -2027,6 +2035,7 @@ cy_as_usb_set_end_point_config(cy_as_device_handle handle,
 	return cy_as_dma_enable_end_point(dev_p, ep,
 		config_p->enabled, (cy_as_dma_direction)config_p->dir);
 }
+EXPORT_SYMBOL(cy_as_usb_set_end_point_config);
 
 cy_as_return_status_t
 cy_as_usb_get_end_point_config(cy_as_device_handle handle,
@@ -2053,6 +2062,7 @@ cy_as_usb_get_end_point_config(cy_as_device_handle handle,
 
 	return CY_AS_ERROR_SUCCESS;
 }
+EXPORT_SYMBOL(cy_as_usb_get_end_point_config);
 
 /*
 * Commit the configuration of the various endpoints to the hardware.
@@ -2180,6 +2190,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_commit_config);
 
 static void
 sync_request_callback(cy_as_device *dev_p,
@@ -2381,6 +2392,7 @@ cy_as_usb_read_data(cy_as_device_handle handle,
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_read_data);
 
 cy_as_return_status_t
 cy_as_usb_read_data_async(cy_as_device_handle handle,
@@ -2459,6 +2471,7 @@ cy_as_usb_read_data_async(cy_as_device_handle handle,
 	}
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_read_data_async);
 
 cy_as_return_status_t
 cy_as_usb_write_data(cy_as_device_handle handle,
@@ -2571,6 +2584,7 @@ cy_as_usb_write_data(cy_as_device_handle handle,
 	ret = dev_p->usb_error;
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_write_data);
 
 static void
 mtp_write_callback(
@@ -2736,6 +2750,7 @@ cy_as_usb_write_data_async(cy_as_device_handle handle,
 
 	return CY_AS_ERROR_SUCCESS;
 }
+EXPORT_SYMBOL(cy_as_usb_write_data_async);
 
 static void
 my_usb_cancel_async_callback(
@@ -2827,6 +2842,7 @@ cy_as_usb_cancel_async(cy_as_device_handle handle,
 
 	return CY_AS_ERROR_SUCCESS;
 }
+EXPORT_SYMBOL(cy_as_usb_cancel_async);
 
 static void
 cy_as_usb_ack_callback(
@@ -3212,7 +3228,7 @@ cy_as_usb_set_nak(cy_as_device_handle handle,
 	return cy_as_usb_nak_stall_request(handle, ep,
 		CY_RQT_ENDPOINT_SET_NAK, cy_true, 0, cb, client);
 }
-
+EXPORT_SYMBOL(cy_as_usb_set_nak);
 
 cy_as_return_status_t
 cy_as_usb_clear_nak(cy_as_device_handle handle,
@@ -3238,6 +3254,7 @@ cy_as_usb_clear_nak(cy_as_device_handle handle,
 	return cy_as_usb_nak_stall_request(handle, ep,
 		CY_RQT_ENDPOINT_SET_NAK, cy_false, 0, cb, client);
 }
+EXPORT_SYMBOL(cy_as_usb_clear_nak);
 
 cy_as_return_status_t
 cy_as_usb_get_nak(cy_as_device_handle handle,
@@ -3265,7 +3282,7 @@ cy_as_usb_get_nak(cy_as_device_handle handle,
 		CY_RQT_GET_ENDPOINT_NAK, CY_RESP_ENDPOINT_NAK,
 		nak_p, cb, client);
 }
-
+EXPORT_SYMBOL(cy_as_usb_get_nak);
 
 cy_as_return_status_t
 cy_as_usb_set_stall(cy_as_device_handle handle,
@@ -3291,6 +3308,7 @@ cy_as_usb_set_stall(cy_as_device_handle handle,
 	return cy_as_usb_nak_stall_request(handle, ep,
 		CY_RQT_STALL_ENDPOINT, cy_true, 0, cb, client);
 }
+EXPORT_SYMBOL(cy_as_usb_set_stall);
 
 cy_as_return_status_t
 cy_as_usb_clear_stall(cy_as_device_handle handle,
@@ -3316,6 +3334,7 @@ cy_as_usb_clear_stall(cy_as_device_handle handle,
 	return cy_as_usb_nak_stall_request(handle, ep,
 		CY_RQT_STALL_ENDPOINT, cy_false, 0, cb, client);
 }
+EXPORT_SYMBOL(cy_as_usb_clear_stall);
 
 cy_as_return_status_t
 cy_as_usb_get_stall(cy_as_device_handle handle,
@@ -3342,6 +3361,7 @@ cy_as_usb_get_stall(cy_as_device_handle handle,
 	return cy_as_usb_get_nak_stall(handle, ep,
 		CY_RQT_GET_STALL, CY_RESP_ENDPOINT_STALL, stall_p, cb, client);
 }
+EXPORT_SYMBOL(cy_as_usb_get_stall);
 
 cy_as_return_status_t
 cy_as_usb_signal_remote_wakeup(cy_as_device_handle handle,
@@ -3405,6 +3425,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_signal_remote_wakeup);
 
 cy_as_return_status_t
 cy_as_usb_set_m_s_report_threshold(cy_as_device_handle handle,
@@ -3482,6 +3503,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_set_m_s_report_threshold);
 
 cy_as_return_status_t
 cy_as_usb_select_m_s_partitions(
@@ -3563,6 +3585,7 @@ destroy:
 
 	return ret;
 }
+EXPORT_SYMBOL(cy_as_usb_select_m_s_partitions);
 
 static void
 cy_as_usb_func_callback(

@@ -85,7 +85,7 @@ sparc_ramdisk_image64:
 sparc64_boot:
 	mov	%o4, %l7
 
-	/* We need to remap the kernel.  Use position independant
+	/* We need to remap the kernel.  Use position independent
 	 * code to remap us to KERNBASE.
 	 *
 	 * SILO can invoke us with 32-bit address masking enabled,

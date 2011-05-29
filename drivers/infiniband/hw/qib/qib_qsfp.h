@@ -79,6 +79,8 @@
 extern const char *const qib_qsfp_devtech[16];
 /* Active Equalization includes fiber, copper full EQ, and copper near Eq */
 #define QSFP_IS_ACTIVE(tech) ((0xA2FF >> ((tech) >> 4)) & 1)
+/* Active Equalization includes fiber, copper full EQ, and copper far Eq */
+#define QSFP_IS_ACTIVE_FAR(tech) ((0x32FF >> ((tech) >> 4)) & 1)
 /* Attenuation should be valid for copper other than full/near Eq */
 #define QSFP_HAS_ATTEN(tech) ((0x4D00 >> ((tech) >> 4)) & 1)
 /* Length is only valid if technology is "copper" */

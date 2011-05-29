@@ -134,47 +134,26 @@ static struct pl022_ssp_controller ssp0_plat_data = {
  * RealView PB1176 AMBA devices
  */
 #define GPIO2_IRQ	{ IRQ_PB1176_GPIO2, NO_IRQ }
-#define GPIO2_DMA	{ 0, 0 }
 #define GPIO3_IRQ	{ IRQ_PB1176_GPIO3, NO_IRQ }
-#define GPIO3_DMA	{ 0, 0 }
 #define AACI_IRQ	{ IRQ_PB1176_AACI, NO_IRQ }
-#define AACI_DMA	{ 0x80, 0x81 }
 #define MMCI0_IRQ	{ IRQ_PB1176_MMCI0A, IRQ_PB1176_MMCI0B }
-#define MMCI0_DMA	{ 0x84, 0 }
 #define KMI0_IRQ	{ IRQ_PB1176_KMI0, NO_IRQ }
-#define KMI0_DMA	{ 0, 0 }
 #define KMI1_IRQ	{ IRQ_PB1176_KMI1, NO_IRQ }
-#define KMI1_DMA	{ 0, 0 }
 #define PB1176_SMC_IRQ	{ NO_IRQ, NO_IRQ }
-#define PB1176_SMC_DMA	{ 0, 0 }
 #define MPMC_IRQ	{ NO_IRQ, NO_IRQ }
-#define MPMC_DMA	{ 0, 0 }
 #define PB1176_CLCD_IRQ	{ IRQ_DC1176_CLCD, NO_IRQ }
-#define PB1176_CLCD_DMA	{ 0, 0 }
 #define SCTL_IRQ	{ NO_IRQ, NO_IRQ }
-#define SCTL_DMA	{ 0, 0 }
 #define PB1176_WATCHDOG_IRQ	{ IRQ_DC1176_WATCHDOG, NO_IRQ }
-#define PB1176_WATCHDOG_DMA	{ 0, 0 }
 #define PB1176_GPIO0_IRQ	{ IRQ_PB1176_GPIO0, NO_IRQ }
-#define PB1176_GPIO0_DMA	{ 0, 0 }
 #define GPIO1_IRQ	{ IRQ_PB1176_GPIO1, NO_IRQ }
-#define GPIO1_DMA	{ 0, 0 }
 #define PB1176_RTC_IRQ	{ IRQ_DC1176_RTC, NO_IRQ }
-#define PB1176_RTC_DMA	{ 0, 0 }
 #define SCI_IRQ		{ IRQ_PB1176_SCI, NO_IRQ }
-#define SCI_DMA		{ 7, 6 }
 #define PB1176_UART0_IRQ	{ IRQ_DC1176_UART0, NO_IRQ }
-#define PB1176_UART0_DMA	{ 15, 14 }
 #define PB1176_UART1_IRQ	{ IRQ_DC1176_UART1, NO_IRQ }
-#define PB1176_UART1_DMA	{ 13, 12 }
 #define PB1176_UART2_IRQ	{ IRQ_DC1176_UART2, NO_IRQ }
-#define PB1176_UART2_DMA	{ 11, 10 }
 #define PB1176_UART3_IRQ	{ IRQ_DC1176_UART3, NO_IRQ }
-#define PB1176_UART3_DMA	{ 0x86, 0x87 }
 #define PB1176_UART4_IRQ	{ IRQ_PB1176_UART4, NO_IRQ }
-#define PB1176_UART4_DMA	{ 0, 0 }
 #define PB1176_SSP_IRQ		{ IRQ_DC1176_SSP, NO_IRQ }
-#define PB1176_SSP_DMA		{ 9, 8 }
 
 /* FPGA Primecells */
 AMBA_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
@@ -379,9 +358,10 @@ static void __init realview_pb1176_init(void)
 
 MACHINE_START(REALVIEW_PB1176, "ARM-RealView PB1176")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.boot_params	= PHYS_OFFSET + 0x00000100,
+	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
 	.fixup		= realview_pb1176_fixup,
 	.map_io		= realview_pb1176_map_io,
+	.init_early	= realview_init_early,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pb1176_timer,
 	.init_machine	= realview_pb1176_init,

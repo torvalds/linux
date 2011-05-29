@@ -48,30 +48,18 @@ module_param(led_mode, int, S_IRUGO);
 MODULE_PARM_DESC(led_mode, "0=system default, "
 		"1=On(RF On)/Off(RF Off), 2=blinking");
 
-static const struct {
-	u16 tpt;	/* Mb/s */
-	u8 on_time;
-	u8 off_time;
-} blink_tbl[] =
-{
-	{300, 25, 25},
-	{200, 40, 40},
-	{100, 55, 55},
-	{70, 65, 65},
-	{50, 75, 75},
-	{20, 85, 85},
-	{10, 95, 95},
-	{5, 110, 110},
-	{1, 130, 130},
-	{0, 167, 167},
-	/* SOLID_ON */
-	{-1, IWL_LED_SOLID, 0}
+static const struct ieee80211_tpt_blink iwl_blink[] = {
+	{ .throughput = 0 * 1024 - 1, .blink_time = 334 },
+	{ .throughput = 1 * 1024 - 1, .blink_time = 260 },
+	{ .throughput = 5 * 1024 - 1, .blink_time = 220 },
+	{ .throughput = 10 * 1024 - 1, .blink_time = 190 },
+	{ .throughput = 20 * 1024 - 1, .blink_time = 170 },
+	{ .throughput = 50 * 1024 - 1, .blink_time = 150 },
+	{ .throughput = 70 * 1024 - 1, .blink_time = 130 },
+	{ .throughput = 100 * 1024 - 1, .blink_time = 110 },
+	{ .throughput = 200 * 1024 - 1, .blink_time = 80 },
+	{ .throughput = 300 * 1024 - 1, .blink_time = 50 },
 };
-
-#define IWL_1MB_RATE (128 * 1024)
-#define IWL_LED_THRESHOLD (16)
-#define IWL_MAX_BLINK_TBL (ARRAY_SIZE(blink_tbl) - 1) /* exclude SOLID_ON */
-#define IWL_SOLID_BLINK_IDX (ARRAY_SIZE(blink_tbl) - 1)
 
 /*
  * Adjust led blink rate to compensate on a MAC Clock difference on every HW
@@ -97,133 +85,102 @@ static inline u8 iwl_blink_compensation(struct iwl_priv *priv,
 }
 
 /* Set led pattern command */
-static int iwl_led_pattern(struct iwl_priv *priv, unsigned int idx)
+static int iwl_led_cmd(struct iwl_priv *priv,
+		       unsigned long on,
+		       unsigned long off)
 {
 	struct iwl_led_cmd led_cmd = {
 		.id = IWL_LED_LINK,
 		.interval = IWL_DEF_LED_INTRVL
 	};
+	int ret;
 
-	BUG_ON(idx > IWL_MAX_BLINK_TBL);
+	if (!test_bit(STATUS_READY, &priv->status))
+		return -EBUSY;
 
-	IWL_DEBUG_LED(priv, "Led blink time compensation= %u\n",
+	if (priv->blink_on == on && priv->blink_off == off)
+		return 0;
+
+	IWL_DEBUG_LED(priv, "Led blink time compensation=%u\n",
 			priv->cfg->base_params->led_compensation);
-	led_cmd.on =
-		iwl_blink_compensation(priv, blink_tbl[idx].on_time,
+	led_cmd.on = iwl_blink_compensation(priv, on,
 				priv->cfg->base_params->led_compensation);
-	led_cmd.off =
-		iwl_blink_compensation(priv, blink_tbl[idx].off_time,
+	led_cmd.off = iwl_blink_compensation(priv, off,
 				priv->cfg->base_params->led_compensation);
 
-	return priv->cfg->ops->led->cmd(priv, &led_cmd);
-}
-
-int iwl_led_start(struct iwl_priv *priv)
-{
-	return priv->cfg->ops->led->on(priv);
-}
-EXPORT_SYMBOL(iwl_led_start);
-
-int iwl_led_associate(struct iwl_priv *priv)
-{
-	IWL_DEBUG_LED(priv, "Associated\n");
-	if (priv->cfg->led_mode == IWL_LED_BLINK)
-		priv->allow_blinking = 1;
-	priv->last_blink_time = jiffies;
-
-	return 0;
-}
-EXPORT_SYMBOL(iwl_led_associate);
-
-int iwl_led_disassociate(struct iwl_priv *priv)
-{
-	priv->allow_blinking = 0;
-
-	return 0;
-}
-EXPORT_SYMBOL(iwl_led_disassociate);
-
-/*
- * calculate blink rate according to last second Tx/Rx activities
- */
-static int iwl_get_blink_rate(struct iwl_priv *priv)
-{
-	int i;
-	/* count both tx and rx traffic to be able to
-	 * handle traffic in either direction
-	 */
-	u64 current_tpt = priv->tx_stats.data_bytes +
-			  priv->rx_stats.data_bytes;
-	s64 tpt = current_tpt - priv->led_tpt;
-
-	if (tpt < 0) /* wraparound */
-		tpt = -tpt;
-
-	IWL_DEBUG_LED(priv, "tpt %lld current_tpt %llu\n",
-		(long long)tpt,
-		(unsigned long long)current_tpt);
-	priv->led_tpt = current_tpt;
-
-	if (!priv->allow_blinking)
-		i = IWL_MAX_BLINK_TBL;
-	else
-		for (i = 0; i < IWL_MAX_BLINK_TBL; i++)
-			if (tpt > (blink_tbl[i].tpt * IWL_1MB_RATE))
-				break;
-
-	IWL_DEBUG_LED(priv, "LED BLINK IDX=%d\n", i);
-	return i;
-}
-
-/*
- * this function called from handler. Since setting Led command can
- * happen very frequent we postpone led command to be called from
- * REPLY handler so we know ucode is up
- */
-void iwl_leds_background(struct iwl_priv *priv)
-{
-	u8 blink_idx;
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
-		priv->last_blink_time = 0;
-		return;
+	ret = priv->cfg->ops->led->cmd(priv, &led_cmd);
+	if (!ret) {
+		priv->blink_on = on;
+		priv->blink_off = off;
 	}
-	if (iwl_is_rfkill(priv)) {
-		priv->last_blink_time = 0;
-		return;
-	}
-
-	if (!priv->allow_blinking) {
-		priv->last_blink_time = 0;
-		if (priv->last_blink_rate != IWL_SOLID_BLINK_IDX) {
-			priv->last_blink_rate = IWL_SOLID_BLINK_IDX;
-			iwl_led_pattern(priv, IWL_SOLID_BLINK_IDX);
-		}
-		return;
-	}
-	if (!priv->last_blink_time ||
-	    !time_after(jiffies, priv->last_blink_time +
-			msecs_to_jiffies(1000)))
-		return;
-
-	blink_idx = iwl_get_blink_rate(priv);
-
-	/* call only if blink rate change */
-	if (blink_idx != priv->last_blink_rate)
-		iwl_led_pattern(priv, blink_idx);
-
-	priv->last_blink_time = jiffies;
-	priv->last_blink_rate = blink_idx;
+	return ret;
 }
-EXPORT_SYMBOL(iwl_leds_background);
+
+static void iwl_led_brightness_set(struct led_classdev *led_cdev,
+				   enum led_brightness brightness)
+{
+	struct iwl_priv *priv = container_of(led_cdev, struct iwl_priv, led);
+	unsigned long on = 0;
+
+	if (brightness > 0)
+		on = IWL_LED_SOLID;
+
+	iwl_led_cmd(priv, on, 0);
+}
+
+static int iwl_led_blink_set(struct led_classdev *led_cdev,
+			     unsigned long *delay_on,
+			     unsigned long *delay_off)
+{
+	struct iwl_priv *priv = container_of(led_cdev, struct iwl_priv, led);
+
+	return iwl_led_cmd(priv, *delay_on, *delay_off);
+}
 
 void iwl_leds_init(struct iwl_priv *priv)
 {
-	priv->last_blink_rate = 0;
-	priv->last_blink_time = 0;
-	priv->allow_blinking = 0;
-	if (led_mode != IWL_LED_DEFAULT &&
-	    led_mode != priv->cfg->led_mode)
-		priv->cfg->led_mode = led_mode;
+	int mode = led_mode;
+	int ret;
+
+	if (mode == IWL_LED_DEFAULT)
+		mode = priv->cfg->led_mode;
+
+	priv->led.name = kasprintf(GFP_KERNEL, "%s-led",
+				   wiphy_name(priv->hw->wiphy));
+	priv->led.brightness_set = iwl_led_brightness_set;
+	priv->led.blink_set = iwl_led_blink_set;
+	priv->led.max_brightness = 1;
+
+	switch (mode) {
+	case IWL_LED_DEFAULT:
+		WARN_ON(1);
+		break;
+	case IWL_LED_BLINK:
+		priv->led.default_trigger =
+			ieee80211_create_tpt_led_trigger(priv->hw,
+					IEEE80211_TPT_LEDTRIG_FL_CONNECTED,
+					iwl_blink, ARRAY_SIZE(iwl_blink));
+		break;
+	case IWL_LED_RF_STATE:
+		priv->led.default_trigger =
+			ieee80211_get_radio_led_name(priv->hw);
+		break;
+	}
+
+	ret = led_classdev_register(&priv->pci_dev->dev, &priv->led);
+	if (ret) {
+		kfree(priv->led.name);
+		return;
+	}
+
+	priv->led_registered = true;
 }
-EXPORT_SYMBOL(iwl_leds_init);
+
+void iwl_leds_exit(struct iwl_priv *priv)
+{
+	if (!priv->led_registered)
+		return;
+
+	led_classdev_unregister(&priv->led);
+	kfree(priv->led.name);
+}

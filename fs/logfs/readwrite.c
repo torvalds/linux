@@ -1616,7 +1616,7 @@ int logfs_rewrite_block(struct inode *inode, u64 bix, u64 ofs,
 		err = logfs_write_buf(inode, page, flags);
 		if (!err && shrink_level(gc_level) == 0) {
 			/* Rewrite cannot mark the inode dirty but has to
-			 * write it immediatly.
+			 * write it immediately.
 			 * Q: Can't we just create an alias for the inode
 			 * instead?  And if not, why not?
 			 */

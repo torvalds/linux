@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2010-2011 B.A.T.M.A.N. contributors:
  *
  * Andreas Langer
  *
@@ -22,6 +22,8 @@
 #ifndef _NET_BATMAN_ADV_UNICAST_H_
 #define _NET_BATMAN_ADV_UNICAST_H_
 
+#include "packet.h"
+
 #define FRAG_TIMEOUT 10000	/* purge frag list entrys after time in ms */
 #define FRAG_BUFFER_SIZE 6	/* number of list elements in buffer */
 
@@ -30,6 +32,27 @@ int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 void frag_list_free(struct list_head *head);
 int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv);
 int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
-		  struct batman_if *batman_if, uint8_t dstaddr[]);
+		  struct hard_iface *hard_iface, uint8_t dstaddr[]);
+
+static inline int frag_can_reassemble(struct sk_buff *skb, int mtu)
+{
+	struct unicast_frag_packet *unicast_packet;
+	int uneven_correction = 0;
+	unsigned int merged_size;
+
+	unicast_packet = (struct unicast_frag_packet *)skb->data;
+
+	if (unicast_packet->flags & UNI_FRAG_LARGETAIL) {
+		if (unicast_packet->flags & UNI_FRAG_HEAD)
+			uneven_correction = 1;
+		else
+			uneven_correction = -1;
+	}
+
+	merged_size = (skb->len - sizeof(struct unicast_frag_packet)) * 2;
+	merged_size += sizeof(struct unicast_packet) + uneven_correction;
+
+	return merged_size <= mtu;
+}
 
 #endif /* _NET_BATMAN_ADV_UNICAST_H_ */

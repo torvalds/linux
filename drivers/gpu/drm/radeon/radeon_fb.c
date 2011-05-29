@@ -64,7 +64,7 @@ static struct fb_ops radeonfb_ops = {
 };
 
 
-static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled)
+int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled)
 {
 	int aligned = width;
 	int align_large = (ASIC_IS_AVIVO(rdev)) || tiled;
@@ -90,7 +90,7 @@ static int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bo
 
 static void radeonfb_destroy_pinned_object(struct drm_gem_object *gobj)
 {
-	struct radeon_bo *rbo = gobj->driver_private;
+	struct radeon_bo *rbo = gem_to_radeon_bo(gobj);
 	int ret;
 
 	ret = radeon_bo_reserve(rbo, false);
@@ -131,7 +131,7 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 		       aligned_size);
 		return -ENOMEM;
 	}
-	rbo = gobj->driver_private;
+	rbo = gem_to_radeon_bo(gobj);
 
 	if (fb_tiled)
 		tiling_flags = RADEON_TILING_MACRO;
@@ -205,7 +205,7 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	mode_cmd.depth = sizes->surface_depth;
 
 	ret = radeonfb_create_pinned_object(rfbdev, &mode_cmd, &gobj);
-	rbo = gobj->driver_private;
+	rbo = gem_to_radeon_bo(gobj);
 
 	/* okay we have an object now allocate the framebuffer */
 	info = framebuffer_alloc(0, device);
@@ -406,14 +406,14 @@ int radeon_fbdev_total_size(struct radeon_device *rdev)
 	struct radeon_bo *robj;
 	int size = 0;
 
-	robj = rdev->mode_info.rfbdev->rfb.obj->driver_private;
+	robj = gem_to_radeon_bo(rdev->mode_info.rfbdev->rfb.obj);
 	size += radeon_bo_size(robj);
 	return size;
 }
 
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
 {
-	if (robj == rdev->mode_info.rfbdev->rfb.obj->driver_private)
+	if (robj == gem_to_radeon_bo(rdev->mode_info.rfbdev->rfb.obj))
 		return true;
 	return false;
 }

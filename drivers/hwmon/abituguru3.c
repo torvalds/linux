@@ -1,7 +1,7 @@
 /*
     abituguru3.c
 
-    Copyright (c) 2006-2008 Hans de Goede <j.w.r.degoede@hhs.nl>
+    Copyright (c) 2006-2008 Hans de Goede <hdegoede@redhat.com>
     Copyright (c) 2008 Alistair John Strachan <alistair@devzero.co.uk>
 
     This program is free software; you can redistribute it and/or modify
@@ -151,7 +151,7 @@ struct abituguru3_data {
 	/* Pointer to the sensors info for the detected motherboard */
 	const struct abituguru3_sensor_info *sensors;
 
-	/* The abituguru3 supports upto 48 sensors, and thus has registers
+	/* The abituguru3 supports up to 48 sensors, and thus has registers
 	   sets for 48 sensors, for convienence reasons / simplicity of the
 	   code we always read and store all registers for all 48 sensors */
 
@@ -1266,7 +1266,7 @@ static void __exit abituguru3_exit(void)
 	platform_driver_unregister(&abituguru3_driver);
 }
 
-MODULE_AUTHOR("Hans de Goede <j.w.r.degoede@hhs.nl>");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Abit uGuru3 Sensor device");
 MODULE_LICENSE("GPL");
 

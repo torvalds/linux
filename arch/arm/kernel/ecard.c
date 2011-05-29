@@ -1043,8 +1043,8 @@ ecard_probe(int slot, card_type_t type)
 	 */
 	if (slot < 8) {
 		ec->irq = 32 + slot;
-		set_irq_chip(ec->irq, &ecard_chip);
-		set_irq_handler(ec->irq, handle_level_irq);
+		irq_set_chip_and_handler(ec->irq, &ecard_chip,
+					 handle_level_irq);
 		set_irq_flags(ec->irq, IRQF_VALID);
 	}
 
@@ -1103,7 +1103,7 @@ static int __init ecard_init(void)
 
 	irqhw = ecard_probeirqhw();
 
-	set_irq_chained_handler(IRQ_EXPANSIONCARD,
+	irq_set_chained_handler(IRQ_EXPANSIONCARD,
 				irqhw ? ecard_irqexp_handler : ecard_irq_handler);
 
 	ecard_proc_init();

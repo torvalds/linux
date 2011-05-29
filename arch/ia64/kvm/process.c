@@ -987,7 +987,7 @@ static void vmm_sanity_check(struct kvm_vcpu *vcpu)
 
 static void kvm_do_resume_op(struct kvm_vcpu *vcpu)
 {
-	vmm_sanity_check(vcpu); /*Guarantee vcpu runing on healthy vmm!*/
+	vmm_sanity_check(vcpu); /*Guarantee vcpu running on healthy vmm!*/
 
 	if (test_and_clear_bit(KVM_REQ_RESUME, &vcpu->requests)) {
 		vcpu_do_resume(vcpu);

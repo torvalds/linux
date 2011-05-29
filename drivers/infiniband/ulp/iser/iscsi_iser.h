@@ -91,7 +91,7 @@
 #define SIZE_4K	(1UL << SHIFT_4K)
 #define MASK_4K	(~(SIZE_4K-1))
 
-					/* support upto 512KB in one RDMA */
+					/* support up to 512KB in one RDMA */
 #define ISCSI_ISER_SG_TABLESIZE         (0x80000 >> SHIFT_4K)
 #define ISER_DEF_CMD_PER_LUN		128
 

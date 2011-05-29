@@ -9,4 +9,4 @@ lib-$(CONFIG_ARC_MEMORY)	+= memory.o
 lib-$(CONFIG_ARC_CONSOLE)	+= arc_con.o
 lib-$(CONFIG_ARC_PROMLIB)	+= promlib.o
 
-EXTRA_CFLAGS			+= -Werror
+ccflags-y			:= -Werror

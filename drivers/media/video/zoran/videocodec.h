@@ -57,7 +57,7 @@
    therfor they may not be initialized.
 
    The other functions are just for convenience, as they are for sure used by
-   most/all of the codecs. The last ones may be ommited, too.
+   most/all of the codecs. The last ones may be omitted, too.
 
    See the structure declaration below for more information and which data has
    to be set up for the master and the slave.

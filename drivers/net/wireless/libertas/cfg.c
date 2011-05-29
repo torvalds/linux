@@ -607,7 +607,8 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 		/* No channel, no luck */
 		if (chan_no != -1) {
 			struct wiphy *wiphy = priv->wdev->wiphy;
-			int freq = ieee80211_channel_to_frequency(chan_no);
+			int freq = ieee80211_channel_to_frequency(chan_no,
+							IEEE80211_BAND_2GHZ);
 			struct ieee80211_channel *channel =
 				ieee80211_get_channel(wiphy, freq);
 
@@ -1349,7 +1350,7 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 		 * we remove all keys like in the WPA/WPA2 setup,
 		 * we just don't set RSN.
 		 *
-		 * Therefore: fall-throught
+		 * Therefore: fall-through
 		 */
 	case WLAN_CIPHER_SUITE_TKIP:
 	case WLAN_CIPHER_SUITE_CCMP:
@@ -1597,7 +1598,8 @@ static int lbs_get_survey(struct wiphy *wiphy, struct net_device *dev,
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
 	survey->channel = ieee80211_get_channel(wiphy,
-		ieee80211_channel_to_frequency(priv->channel));
+		ieee80211_channel_to_frequency(priv->channel,
+					       IEEE80211_BAND_2GHZ));
 
 	ret = lbs_get_rssi(priv, &signal, &noise);
 	if (ret == 0) {

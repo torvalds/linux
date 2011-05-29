@@ -171,8 +171,7 @@ static struct miscdevice d7s_miscdev = {
 	.fops		= &d7s_fops
 };
 
-static int __devinit d7s_probe(struct platform_device *op,
-			       const struct of_device_id *match)
+static int __devinit d7s_probe(struct platform_device *op)
 {
 	struct device_node *opts;
 	int err = -EINVAL;
@@ -266,7 +265,7 @@ static const struct of_device_id d7s_match[] = {
 };
 MODULE_DEVICE_TABLE(of, d7s_match);
 
-static struct of_platform_driver d7s_driver = {
+static struct platform_driver d7s_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -278,12 +277,12 @@ static struct of_platform_driver d7s_driver = {
 
 static int __init d7s_init(void)
 {
-	return of_register_platform_driver(&d7s_driver);
+	return platform_driver_register(&d7s_driver);
 }
 
 static void __exit d7s_exit(void)
 {
-	of_unregister_platform_driver(&d7s_driver);
+	platform_driver_unregister(&d7s_driver);
 }
 
 module_init(d7s_init);

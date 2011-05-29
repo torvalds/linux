@@ -146,20 +146,20 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
 
 #ifdef CONFIG_DEBUG_STACK_USAGE
-#define alloc_thread_info(tsk)					\
-({								\
-	struct thread_info *ret;				\
-								\
-	ret = (struct thread_info *)				\
-	  __get_free_pages(GFP_KERNEL, __THREAD_INFO_ORDER);	\
-	if (ret)						\
-		memset(ret, 0, PAGE_SIZE<<__THREAD_INFO_ORDER);	\
-	ret;							\
-})
+#define THREAD_FLAGS (GFP_KERNEL | __GFP_ZERO)
 #else
-#define alloc_thread_info(tsk) \
-	((struct thread_info *)__get_free_pages(GFP_KERNEL, __THREAD_INFO_ORDER))
+#define THREAD_FLAGS (GFP_KERNEL)
 #endif
+
+#define alloc_thread_info_node(tsk, node)				\
+({									\
+	struct page *page = alloc_pages_node(node, THREAD_FLAGS,	\
+					     __THREAD_INFO_ORDER);	\
+	struct thread_info *ret;					\
+									\
+	ret = page ? page_address(page) : NULL;				\
+	ret;								\
+})
 
 #define free_thread_info(ti) \
 	free_pages((unsigned long)(ti),__THREAD_INFO_ORDER)

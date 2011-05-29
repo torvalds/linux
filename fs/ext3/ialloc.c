@@ -404,7 +404,8 @@ static int find_group_other(struct super_block *sb, struct inode *parent)
  * For other inodes, search forward from the parent directory's block
  * group to find a free inode.
  */
-struct inode *ext3_new_inode(handle_t *handle, struct inode * dir, int mode)
+struct inode *ext3_new_inode(handle_t *handle, struct inode * dir,
+			     const struct qstr *qstr, int mode)
 {
 	struct super_block *sb;
 	struct buffer_head *bitmap_bh = NULL;
@@ -589,7 +590,7 @@ got:
 	if (err)
 		goto fail_free_drop;
 
-	err = ext3_init_security(handle,inode, dir);
+	err = ext3_init_security(handle, inode, dir, qstr);
 	if (err)
 		goto fail_free_drop;
 

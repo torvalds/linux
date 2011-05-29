@@ -24,9 +24,9 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <linux/mfd/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -312,7 +312,7 @@ static struct resource sdhi0_resources[] = {
 	[0] = {
 		.name	= "SDHI0",
 		.start  = 0xe6850000,
-		.end    = 0xe68501ff,
+		.end    = 0xe68500ff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -345,7 +345,7 @@ static struct resource sdhi1_resources[] = {
 	[0] = {
 		.name	= "SDHI1",
 		.start  = 0xe6860000,
-		.end    = 0xe68601ff,
+		.end    = 0xe68600ff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -673,16 +673,12 @@ static int fsi_set_rate(struct device *dev, int is_porta, int rate, int enable)
 }
 
 static struct sh_fsi_platform_info fsi_info = {
-	.porta_flags = SH_FSI_BRS_INV |
-		       SH_FSI_OUT_SLAVE_MODE |
-		       SH_FSI_IN_SLAVE_MODE |
-		       SH_FSI_OFMT(PCM) |
-		       SH_FSI_IFMT(PCM),
+	.porta_flags = SH_FSI_BRS_INV,
 
 	.portb_flags = SH_FSI_BRS_INV |
 		       SH_FSI_BRM_INV |
 		       SH_FSI_LRS_INV |
-		       SH_FSI_OFMT(SPDIF),
+		       SH_FSI_FMT_SPDIF,
 	.set_rate = fsi_set_rate,
 };
 
@@ -781,6 +777,10 @@ static struct platform_device hdmi_device = {
 	.dev	= {
 		.platform_data	= &hdmi_info,
 	},
+};
+
+static struct platform_device fsi_hdmi_device = {
+	.name		= "sh_fsi2_b_hdmi",
 };
 
 static long ap4evb_clk_optimize(unsigned long target, unsigned long *best_freq,
@@ -923,7 +923,8 @@ static struct platform_device ceu_device = {
 	.num_resources	= ARRAY_SIZE(ceu_resources),
 	.resource	= ceu_resources,
 	.dev	= {
-		.platform_data	= &sh_mobile_ceu_info,
+		.platform_data		= &sh_mobile_ceu_info,
+		.coherent_dma_mask	= 0xffffffff,
 	},
 };
 
@@ -936,6 +937,7 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&usb1_host_device,
 	&fsi_device,
 	&fsi_ak4643_device,
+	&fsi_hdmi_device,
 	&sh_mmcif_device,
 	&lcdc1_device,
 	&lcdc_device,
@@ -945,7 +947,7 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&ap4evb_camera,
 };
 
-static int __init hdmi_init_pm_clock(void)
+static void __init hdmi_init_pm_clock(void)
 {
 	struct clk *hdmi_ick = clk_get(&hdmi_device.dev, "ick");
 	int ret;
@@ -986,20 +988,15 @@ static int __init hdmi_init_pm_clock(void)
 	pr_debug("PLLC2 set frequency %lu\n", rate);
 
 	ret = clk_set_parent(hdmi_ick, &sh7372_pllc2_clk);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_err("Cannot set HDMI parent: %d\n", ret);
-		goto out;
-	}
 
 out:
 	if (!IS_ERR(hdmi_ick))
 		clk_put(hdmi_ick);
-	return ret;
 }
 
-device_initcall(hdmi_init_pm_clock);
-
-static int __init fsi_init_pm_clock(void)
+static void __init fsi_init_pm_clock(void)
 {
 	struct clk *fsia_ick;
 	int ret;
@@ -1008,7 +1005,7 @@ static int __init fsi_init_pm_clock(void)
 	if (IS_ERR(fsia_ick)) {
 		ret = PTR_ERR(fsia_ick);
 		pr_err("Cannot get FSI ICK: %d\n", ret);
-		return ret;
+		return;
 	}
 
 	ret = clk_set_parent(fsia_ick, &sh7372_fsiack_clk);
@@ -1016,10 +1013,7 @@ static int __init fsi_init_pm_clock(void)
 		pr_err("Cannot set FSI-A parent: %d\n", ret);
 
 	clk_put(fsia_ick);
-
-	return ret;
 }
-device_initcall(fsi_init_pm_clock);
 
 /*
  * FIXME !!
@@ -1253,7 +1247,7 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_KEYIN4,     NULL);
 
 	/* enable TouchScreen */
-	set_irq_type(IRQ28, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IRQ28, IRQ_TYPE_LEVEL_LOW);
 
 	tsc_device.irq = IRQ28;
 	i2c_register_board_info(1, &tsc_device, 1);
@@ -1303,13 +1297,13 @@ static void __init ap4evb_init(void)
 
 	lcdc_info.clock_source			= LCDC_CLK_BUS;
 	lcdc_info.ch[0].interface_type		= RGB18;
-	lcdc_info.ch[0].clock_divider		= 2;
+	lcdc_info.ch[0].clock_divider		= 3;
 	lcdc_info.ch[0].flags			= 0;
 	lcdc_info.ch[0].lcd_size_cfg.width	= 152;
 	lcdc_info.ch[0].lcd_size_cfg.height	= 91;
 
 	/* enable TouchScreen */
-	set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
+	irq_set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
 
 	tsc_device.irq = IRQ7;
 	i2c_register_board_info(0, &tsc_device, 1);
@@ -1346,6 +1340,9 @@ static void __init ap4evb_init(void)
 	__raw_writel(srcr4 & ~(1 << 13), SRCR4);
 
 	platform_add_devices(ap4evb_devices, ARRAY_SIZE(ap4evb_devices));
+
+	hdmi_init_pm_clock();
+	fsi_init_pm_clock();
 }
 
 static void __init ap4evb_timer_init(void)

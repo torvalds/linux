@@ -11,3 +11,18 @@ obj-$(CONFIG_R3964)		+= n_r3964.o
 obj-y				+= vt/
 obj-$(CONFIG_HVC_DRIVER)	+= hvc/
 obj-y				+= serial/
+
+# tty drivers
+obj-$(CONFIG_AMIGA_BUILTIN_SERIAL) += amiserial.o
+obj-$(CONFIG_BFIN_JTAG_COMM)	+= bfin_jtag_comm.o
+obj-$(CONFIG_CYCLADES)		+= cyclades.o
+obj-$(CONFIG_ISI)		+= isicom.o
+obj-$(CONFIG_MOXA_INTELLIO)	+= moxa.o
+obj-$(CONFIG_MOXA_SMARTIO)	+= mxser.o
+obj-$(CONFIG_NOZOMI)		+= nozomi.o
+obj-$(CONFIG_ROCKETPORT)	+= rocket.o
+obj-$(CONFIG_SYNCLINK_GT)	+= synclink_gt.o
+obj-$(CONFIG_SYNCLINKMP)	+= synclinkmp.o
+obj-$(CONFIG_SYNCLINK)		+= synclink.o
+
+obj-y += ipwireless/

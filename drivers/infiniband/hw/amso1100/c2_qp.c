@@ -612,7 +612,7 @@ void c2_free_qp(struct c2_dev *c2dev, struct c2_qp *qp)
 	c2_unlock_cqs(send_cq, recv_cq);
 
 	/*
-	 * Destory qp in the rnic...
+	 * Destroy qp in the rnic...
 	 */
 	destroy_qp(c2dev, qp);
 

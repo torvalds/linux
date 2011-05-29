@@ -314,7 +314,7 @@ static struct clk timer2_clk = {
 	.name = "timer2",
 	.parent = &pll1_aux_clk,
 	.lpsc = DAVINCI_LPSC_TIMER2,
-	.usecount = 1,              /* REVISIT: why cant' this be disabled? */
+	.usecount = 1,              /* REVISIT: why can't this be disabled? */
 };
 
 static struct clk timer3_clk = {
@@ -403,16 +403,13 @@ static struct resource dm355_spi0_resources[] = {
 		.start = 16,
 		.flags = IORESOURCE_DMA,
 	},
-	{
-		.start = EVENTQ_1,
-		.flags = IORESOURCE_DMA,
-	},
 };
 
 static struct davinci_spi_platform_data dm355_spi0_pdata = {
 	.version 	= SPI_VERSION_1,
 	.num_chipselect = 2,
 	.cshold_bug	= true,
+	.dma_event_q	= EVENTQ_1,
 };
 static struct platform_device dm355_spi0_device = {
 	.name = "spi_davinci",

@@ -869,7 +869,7 @@ spdif_passthru_playback_setup(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	mutex_lock(&atc->atc_mutex);
 	dao->ops->get_spos(dao, &status);
 	if (((status >> 24) & IEC958_AES3_CON_FS) != iec958_con_fs) {
-		status &= ((~IEC958_AES3_CON_FS) << 24);
+		status &= ~(IEC958_AES3_CON_FS << 24);
 		status |= (iec958_con_fs << 24);
 		dao->ops->set_spos(dao, status);
 		dao->ops->commit_write(dao);
@@ -1627,7 +1627,7 @@ static struct ct_atc atc_preset __devinitdata = {
  *  Creates and initializes a hardware manager.
  *
  *  Creates kmallocated ct_atc structure. Initializes hardware.
- *  Returns 0 if suceeds, or negative error code if fails.
+ *  Returns 0 if succeeds, or negative error code if fails.
  */
 
 int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,

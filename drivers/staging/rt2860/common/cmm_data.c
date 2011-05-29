@@ -337,7 +337,7 @@ int MlmeHardTransmitMgmtRing(struct rt_rtmp_adapter *pAd,
 
 	/* */
 	/* In WMM-UAPSD, mlme frame should be set psm as power saving but probe request frame */
-	/* Data-Null packets alse pass through MMRequest in RT2860, however, we hope control the psm bit to pass APSD */
+	/* Data-Null packets also pass through MMRequest in RT2860, however, we hope control the psm bit to pass APSD */
 /*      if ((pHeader_802_11->FC.Type != BTYPE_DATA) && (pHeader_802_11->FC.Type != BTYPE_CNTL)) */
 	{
 		if ((pHeader_802_11->FC.SubType == SUBTYPE_ACTION) ||
@@ -1481,7 +1481,7 @@ u32 deaggregate_AMSDU_announce(struct rt_rtmp_adapter *pAd,
 	return nMSDU;
 }
 
-u32 BA_Reorder_AMSDU_Annnounce(struct rt_rtmp_adapter *pAd, void *pPacket)
+u32 BA_Reorder_AMSDU_Announce(struct rt_rtmp_adapter *pAd, void *pPacket)
 {
 	u8 *pData;
 	u16 DataSize;
@@ -1933,7 +1933,7 @@ BOOLEAN RTMPCheckEtherType(struct rt_rtmp_adapter *pAd, void *pPacket)
 
 	if (TypeLen <= 1500) {	/* 802.3, 802.3 LLC */
 		/*
-		   DestMAC(6) + SrcMAC(6) + Lenght(2) +
+		   DestMAC(6) + SrcMAC(6) + Length(2) +
 		   DSAP(1) + SSAP(1) + Control(1) +
 		   if the DSAP = 0xAA, SSAP=0xAA, Contorl = 0x03, it has a 5-bytes SNAP header.
 		   => + SNAP (5, OriginationID(3) + etherType(2))

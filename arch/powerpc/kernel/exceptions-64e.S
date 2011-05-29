@@ -379,7 +379,7 @@ interrupt_end_book3e:
 	mfspr	r13,SPRN_SPRG_PACA	/* get our PACA */
 	b	system_call_common
 
-/* Auxillary Processor Unavailable Interrupt */
+/* Auxiliary Processor Unavailable Interrupt */
 	START_EXCEPTION(ap_unavailable);
 	NORMAL_EXCEPTION_PROLOG(0xf20, PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0xf20, PACA_EXGEN, INTS_KEEP)

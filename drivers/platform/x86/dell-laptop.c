@@ -671,6 +671,7 @@ static int __init dell_init(void)
 	if (max_intensity) {
 		struct backlight_properties props;
 		memset(&props, 0, sizeof(struct backlight_properties));
+		props.type = BACKLIGHT_PLATFORM;
 		props.max_brightness = max_intensity;
 		dell_backlight_device = backlight_device_register("dell_backlight",
 								  &platform_device->dev,

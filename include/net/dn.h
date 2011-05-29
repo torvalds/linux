@@ -192,10 +192,10 @@ static inline void dn_dn2eth(unsigned char *ethaddr, __le16 addr)
 	ethaddr[5] = (__u8)(a >> 8);
 }
 
-static inline void dn_sk_ports_copy(struct flowi *fl, struct dn_scp *scp)
+static inline void dn_sk_ports_copy(struct flowidn *fld, struct dn_scp *scp)
 {
-	fl->uli_u.dnports.sport = scp->addrloc;
-	fl->uli_u.dnports.dport = scp->addrrem;
+	fld->fld_sport = scp->addrloc;
+	fld->fld_dport = scp->addrrem;
 }
 
 extern unsigned dn_mss_from_pmtu(struct net_device *dev, int mtu);

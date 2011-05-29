@@ -63,6 +63,7 @@ struct ad7887_state {
 	struct regulator		*reg;
 	struct work_struct		poll_work;
 	atomic_t			protect_ring;
+	size_t				d_size;
 	u16				int_vref_mv;
 	bool				en_dual;
 	struct spi_transfer		xfer[4];

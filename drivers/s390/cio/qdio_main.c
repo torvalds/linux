@@ -407,8 +407,11 @@ static inline void account_sbals(struct qdio_q *q, int count)
 	q->q_stats.nr_sbals[pos]++;
 }
 
-static void announce_buffer_error(struct qdio_q *q, int count)
+static void process_buffer_error(struct qdio_q *q, int count)
 {
+	unsigned char state = (q->is_input_q) ? SLSB_P_INPUT_NOT_INIT :
+					SLSB_P_OUTPUT_NOT_INIT;
+
 	q->qdio_error |= QDIO_ERROR_SLSB_STATE;
 
 	/* special handling for no target buffer empty */
@@ -426,6 +429,12 @@ static void announce_buffer_error(struct qdio_q *q, int count)
 	DBF_ERROR("F14:%2x F15:%2x",
 		  q->sbal[q->first_to_check]->element[14].flags & 0xff,
 		  q->sbal[q->first_to_check]->element[15].flags & 0xff);
+
+	/*
+	 * Interrupts may be avoided as long as the error is present
+	 * so change the buffer state immediately to avoid starvation.
+	 */
+	set_buf_states(q, q->first_to_check, state, count);
 }
 
 static inline void inbound_primed(struct qdio_q *q, int count)
@@ -506,8 +515,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 			account_sbals(q, count);
 		break;
 	case SLSB_P_INPUT_ERROR:
-		announce_buffer_error(q, count);
-		/* process the buffer, the upper layer will take care of it */
+		process_buffer_error(q, count);
 		q->first_to_check = add_buf(q->first_to_check, count);
 		atomic_sub(count, &q->nr_buf_used);
 		if (q->irq_ptr->perf_stat_enabled)
@@ -677,8 +685,7 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 			account_sbals(q, count);
 		break;
 	case SLSB_P_OUTPUT_ERROR:
-		announce_buffer_error(q, count);
-		/* process the buffer, the upper layer will take care of it */
+		process_buffer_error(q, count);
 		q->first_to_check = add_buf(q->first_to_check, count);
 		atomic_sub(count, &q->nr_buf_used);
 		if (q->irq_ptr->perf_stat_enabled)
@@ -1508,7 +1515,8 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 
 	if (irq_ptr->state != QDIO_IRQ_STATE_ACTIVE)
 		return -EBUSY;
-
+	if (!count)
+		return 0;
 	if (callflags & QDIO_FLAG_SYNC_INPUT)
 		return handle_inbound(irq_ptr->input_qs[q_nr],
 				      callflags, bufnr, count);
@@ -1648,26 +1656,26 @@ static int __init init_QDIO(void)
 {
 	int rc;
 
-	rc = qdio_setup_init();
+	rc = qdio_debug_init();
 	if (rc)
 		return rc;
+	rc = qdio_setup_init();
+	if (rc)
+		goto out_debug;
 	rc = tiqdio_allocate_memory();
 	if (rc)
 		goto out_cache;
-	rc = qdio_debug_init();
-	if (rc)
-		goto out_ti;
 	rc = tiqdio_register_thinints();
 	if (rc)
-		goto out_debug;
+		goto out_ti;
 	return 0;
 
-out_debug:
-	qdio_debug_exit();
 out_ti:
 	tiqdio_free_memory();
 out_cache:
 	qdio_setup_exit();
+out_debug:
+	qdio_debug_exit();
 	return rc;
 }
 
@@ -1675,8 +1683,8 @@ static void __exit exit_QDIO(void)
 {
 	tiqdio_unregister_thinints();
 	tiqdio_free_memory();
-	qdio_debug_exit();
 	qdio_setup_exit();
+	qdio_debug_exit();
 }
 
 module_init(init_QDIO);

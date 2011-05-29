@@ -44,7 +44,7 @@
  * reserved symbols (along with \ and /), otherwise illegal to store
  * in filenames in NTFS
  */
-#define UNI_ASTERIK     (__u16) ('*' + 0xF000)
+#define UNI_ASTERISK    (__u16) ('*' + 0xF000)
 #define UNI_QUESTION    (__u16) ('?' + 0xF000)
 #define UNI_COLON       (__u16) (':' + 0xF000)
 #define UNI_GRTRTHAN    (__u16) ('>' + 0xF000)

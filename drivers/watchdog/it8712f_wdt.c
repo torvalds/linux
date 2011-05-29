@@ -69,7 +69,7 @@ static unsigned short address;
 #define IT8712F_DEVID	0x8712
 
 #define LDN_GPIO	0x07	/* GPIO and Watch Dog Timer */
-#define LDN_GAME 	0x09	/* Game Port */
+#define LDN_GAME	0x09	/* Game Port */
 
 #define WDT_CONTROL	0x71	/* WDT Register: Control */
 #define WDT_CONFIG	0x72	/* WDT Register: Configuration */

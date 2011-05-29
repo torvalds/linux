@@ -1742,11 +1742,20 @@ int dasd_sleep_on_interruptible(struct dasd_ccw_req *cqr)
 static inline int _dasd_term_running_cqr(struct dasd_device *device)
 {
 	struct dasd_ccw_req *cqr;
+	int rc;
 
 	if (list_empty(&device->ccw_queue))
 		return 0;
 	cqr = list_entry(device->ccw_queue.next, struct dasd_ccw_req, devlist);
-	return device->discipline->term_IO(cqr);
+	rc = device->discipline->term_IO(cqr);
+	if (!rc)
+		/*
+		 * CQR terminated because a more important request is pending.
+		 * Undo decreasing of retry counter because this is
+		 * not an error case.
+		 */
+		cqr->retries++;
+	return rc;
 }
 
 int dasd_sleep_on_immediatly(struct dasd_ccw_req *cqr)
@@ -1917,7 +1926,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 		return;
 	}
 	/* Now we try to fetch requests from the request queue */
-	while (!blk_queue_plugged(queue) && (req = blk_peek_request(queue))) {
+	while ((req = blk_peek_request(queue))) {
 		if (basedev->features & DASD_FEATURE_READONLY &&
 		    rq_data_dir(req) == WRITE) {
 			DBF_DEV_EVENT(DBF_ERR, basedev,
@@ -2314,15 +2323,14 @@ static void dasd_flush_request_queue(struct dasd_block *block)
 
 static int dasd_open(struct block_device *bdev, fmode_t mode)
 {
-	struct dasd_block *block = bdev->bd_disk->private_data;
 	struct dasd_device *base;
 	int rc;
 
-	if (!block)
+	base = dasd_device_from_gendisk(bdev->bd_disk);
+	if (!base)
 		return -ENODEV;
 
-	base = block->base;
-	atomic_inc(&block->open_count);
+	atomic_inc(&base->block->open_count);
 	if (test_bit(DASD_FLAG_OFFLINE, &base->flags)) {
 		rc = -ENODEV;
 		goto unlock;
@@ -2355,21 +2363,28 @@ static int dasd_open(struct block_device *bdev, fmode_t mode)
 		goto out;
 	}
 
+	dasd_put_device(base);
 	return 0;
 
 out:
 	module_put(base->discipline->owner);
 unlock:
-	atomic_dec(&block->open_count);
+	atomic_dec(&base->block->open_count);
+	dasd_put_device(base);
 	return rc;
 }
 
 static int dasd_release(struct gendisk *disk, fmode_t mode)
 {
-	struct dasd_block *block = disk->private_data;
+	struct dasd_device *base;
 
-	atomic_dec(&block->open_count);
-	module_put(block->base->discipline->owner);
+	base = dasd_device_from_gendisk(disk);
+	if (!base)
+		return -ENODEV;
+
+	atomic_dec(&base->block->open_count);
+	module_put(base->discipline->owner);
+	dasd_put_device(base);
 	return 0;
 }
 
@@ -2378,20 +2393,20 @@ static int dasd_release(struct gendisk *disk, fmode_t mode)
  */
 static int dasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct dasd_block *block;
 	struct dasd_device *base;
 
-	block = bdev->bd_disk->private_data;
-	if (!block)
+	base = dasd_device_from_gendisk(bdev->bd_disk);
+	if (!base)
 		return -ENODEV;
-	base = block->base;
 
 	if (!base->discipline ||
-	    !base->discipline->fill_geometry)
+	    !base->discipline->fill_geometry) {
+		dasd_put_device(base);
 		return -EINVAL;
-
-	base->discipline->fill_geometry(block, geo);
-	geo->start = get_start_sect(bdev) >> block->s2b_shift;
+	}
+	base->discipline->fill_geometry(base->block, geo);
+	geo->start = get_start_sect(bdev) >> base->block->s2b_shift;
+	dasd_put_device(base);
 	return 0;
 }
 
@@ -2528,7 +2543,6 @@ void dasd_generic_remove(struct ccw_device *cdev)
 	dasd_set_target_state(device, DASD_STATE_NEW);
 	/* dasd_delete_device destroys the device reference. */
 	block = device->block;
-	device->block = NULL;
 	dasd_delete_device(device);
 	/*
 	 * life cycle of block is bound to device, so delete it after
@@ -2650,7 +2664,6 @@ int dasd_generic_set_offline(struct ccw_device *cdev)
 	dasd_set_target_state(device, DASD_STATE_NEW);
 	/* dasd_delete_device destroys the device reference. */
 	block = device->block;
-	device->block = NULL;
 	dasd_delete_device(device);
 	/*
 	 * life cycle of block is bound to device, so delete it after

@@ -826,7 +826,7 @@ done:
 	return status;
 }
 
-/* reinit == restore inital software state */
+/* reinit == restore initial software state */
 static void udc_reinit(struct at91_udc *udc)
 {
 	u32 i;
@@ -1798,8 +1798,10 @@ static int __init at91udc_probe(struct platform_device *pdev)
 	}
 
 	retval = device_register(&udc->gadget.dev);
-	if (retval < 0)
+	if (retval < 0) {
+		put_device(&udc->gadget.dev);
 		goto fail0b;
+	}
 
 	/* don't do anything until we have both gadget driver and VBUS */
 	clk_enable(udc->iclk);

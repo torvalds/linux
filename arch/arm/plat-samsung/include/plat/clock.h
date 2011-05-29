@@ -21,7 +21,7 @@ struct clk;
  * @set_parent: set the clock's parent, see clk_set_parent().
  *
  * Group the common clock implementations together so that we
- * don't have to keep setting the same fiels again. We leave
+ * don't have to keep setting the same fields again. We leave
  * enable in struct clk.
  *
  * Adding an extra layer of indirection into the process should

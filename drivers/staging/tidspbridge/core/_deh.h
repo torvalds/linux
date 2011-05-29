@@ -25,7 +25,7 @@
 
 /* DEH Manager: only one created per board: */
 struct deh_mgr {
-	struct bridge_dev_context *hbridge_context;	/* Bridge context. */
+	struct bridge_dev_context *bridge_context;	/* Bridge context. */
 	struct ntfy_object *ntfy_obj;	/* NTFY object */
 
 	/* MMU Fault DPC */

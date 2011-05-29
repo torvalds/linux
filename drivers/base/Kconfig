@@ -168,4 +168,11 @@ config SYS_HYPERVISOR
 	bool
 	default n
 
+config ARCH_NO_SYSDEV_OPS
+	bool
+	---help---
+	  To be selected by architectures that don't use sysdev class or
+	  sysdev driver power management (suspend/resume) and shutdown
+	  operations.
+
 endmenu

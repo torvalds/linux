@@ -33,6 +33,11 @@
 
 #define DRV_NAME "pata_palmld"
 
+static struct gpio palmld_hdd_gpios[] = {
+	{ GPIO_NR_PALMLD_IDE_PWEN,	GPIOF_INIT_HIGH,	"HDD Power" },
+	{ GPIO_NR_PALMLD_IDE_RESET,	GPIOF_INIT_LOW,		"HDD Reset" },
+};
+
 static struct scsi_host_template palmld_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
@@ -52,28 +57,23 @@ static __devinit int palmld_pata_probe(struct platform_device *pdev)
 
 	/* allocate host */
 	host = ata_host_alloc(&pdev->dev, 1);
-	if (!host)
-		return -ENOMEM;
+	if (!host) {
+		ret = -ENOMEM;
+		goto err1;
+	}
 
 	/* remap drive's physical memory address */
 	mem = devm_ioremap(&pdev->dev, PALMLD_IDE_PHYS, 0x1000);
-	if (!mem)
-		return -ENOMEM;
+	if (!mem) {
+		ret = -ENOMEM;
+		goto err1;
+	}
 
 	/* request and activate power GPIO, IRQ GPIO */
-	ret = gpio_request(GPIO_NR_PALMLD_IDE_PWEN, "HDD PWR");
+	ret = gpio_request_array(palmld_hdd_gpios,
+				ARRAY_SIZE(palmld_hdd_gpios));
 	if (ret)
 		goto err1;
-	ret = gpio_direction_output(GPIO_NR_PALMLD_IDE_PWEN, 1);
-	if (ret)
-		goto err2;
-
-	ret = gpio_request(GPIO_NR_PALMLD_IDE_RESET, "HDD RST");
-	if (ret)
-		goto err2;
-	ret = gpio_direction_output(GPIO_NR_PALMLD_IDE_RESET, 0);
-	if (ret)
-		goto err3;
 
 	/* reset the drive */
 	gpio_set_value(GPIO_NR_PALMLD_IDE_RESET, 0);
@@ -85,7 +85,7 @@ static __devinit int palmld_pata_probe(struct platform_device *pdev)
 	ap = host->ports[0];
 	ap->ops	= &palmld_port_ops;
 	ap->pio_mask = ATA_PIO4;
-	ap->flags |= ATA_FLAG_MMIO | ATA_FLAG_NO_LEGACY | ATA_FLAG_PIO_POLLING;
+	ap->flags |= ATA_FLAG_PIO_POLLING;
 
 	/* memory mapping voodoo */
 	ap->ioaddr.cmd_addr = mem + 0x10;
@@ -96,13 +96,15 @@ static __devinit int palmld_pata_probe(struct platform_device *pdev)
 	ata_sff_std_ports(&ap->ioaddr);
 
 	/* activate host */
-	return ata_host_activate(host, 0, NULL, IRQF_TRIGGER_RISING,
+	ret = ata_host_activate(host, 0, NULL, IRQF_TRIGGER_RISING,
 					&palmld_sht);
+	if (ret)
+		goto err2;
 
-err3:
-	gpio_free(GPIO_NR_PALMLD_IDE_RESET);
+	return ret;
+
 err2:
-	gpio_free(GPIO_NR_PALMLD_IDE_PWEN);
+	gpio_free_array(palmld_hdd_gpios, ARRAY_SIZE(palmld_hdd_gpios));
 err1:
 	return ret;
 }
@@ -116,8 +118,7 @@ static __devexit int palmld_pata_remove(struct platform_device *dev)
 	/* power down the HDD */
 	gpio_set_value(GPIO_NR_PALMLD_IDE_PWEN, 0);
 
-	gpio_free(GPIO_NR_PALMLD_IDE_RESET);
-	gpio_free(GPIO_NR_PALMLD_IDE_PWEN);
+	gpio_free_array(palmld_hdd_gpios, ARRAY_SIZE(palmld_hdd_gpios));
 
 	return 0;
 }

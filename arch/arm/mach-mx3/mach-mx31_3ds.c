@@ -21,9 +21,13 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/mc13783.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/l4f00242t03.h>
 #include <linux/regulator/machine.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
+#include <linux/memblock.h>
+
+#include <media/soc_camera.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -35,16 +39,16 @@
 #include <mach/iomux-mx3.h>
 #include <mach/3ds_debugboard.h>
 #include <mach/ulpi.h>
+#include <mach/mmc.h>
+#include <mach/ipu.h>
+#include <mach/mx3fb.h>
+#include <mach/mx3_camera.h>
 
 #include "devices-imx31.h"
 #include "devices.h"
 
 /* CPLD IRQ line for external uart, external ethernet etc */
 #define EXPIO_PARENT_INT	IOMUX_TO_IRQ(MX31_PIN_GPIO1_1)
-
-/*
- * This file contains the board-specific initialization routines.
- */
 
 static int mx31_3ds_pins[] = {
 	/* UART1 */
@@ -53,6 +57,12 @@ static int mx31_3ds_pins[] = {
 	MX31_PIN_TXD1__TXD1,
 	MX31_PIN_RXD1__RXD1,
 	IOMUX_MODE(MX31_PIN_GPIO1_1, IOMUX_CONFIG_GPIO),
+	/*SPI0*/
+	MX31_PIN_CSPI1_SCLK__SCLK,
+	MX31_PIN_CSPI1_MOSI__MOSI,
+	MX31_PIN_CSPI1_MISO__MISO,
+	MX31_PIN_CSPI1_SPI_RDY__SPI_RDY,
+	MX31_PIN_CSPI1_SS2__SS2, /* CS for LCD */
 	/* SPI 1 */
 	MX31_PIN_CSPI2_SCLK__SCLK,
 	MX31_PIN_CSPI2_MOSI__MOSI,
@@ -100,6 +110,252 @@ static int mx31_3ds_pins[] = {
 	IOMUX_MODE(MX31_PIN_PC_RW_B, IOMUX_CONFIG_ALT1),
 	/* USB Host2 reset */
 	IOMUX_MODE(MX31_PIN_USB_BYP, IOMUX_CONFIG_GPIO),
+	/* I2C1 */
+	MX31_PIN_I2C_CLK__I2C1_SCL,
+	MX31_PIN_I2C_DAT__I2C1_SDA,
+	/* SDHC1 */
+	MX31_PIN_SD1_DATA3__SD1_DATA3,
+	MX31_PIN_SD1_DATA2__SD1_DATA2,
+	MX31_PIN_SD1_DATA1__SD1_DATA1,
+	MX31_PIN_SD1_DATA0__SD1_DATA0,
+	MX31_PIN_SD1_CLK__SD1_CLK,
+	MX31_PIN_SD1_CMD__SD1_CMD,
+	MX31_PIN_GPIO3_1__GPIO3_1, /* Card detect */
+	MX31_PIN_GPIO3_0__GPIO3_0, /* OE */
+	/* Framebuffer */
+	MX31_PIN_LD0__LD0,
+	MX31_PIN_LD1__LD1,
+	MX31_PIN_LD2__LD2,
+	MX31_PIN_LD3__LD3,
+	MX31_PIN_LD4__LD4,
+	MX31_PIN_LD5__LD5,
+	MX31_PIN_LD6__LD6,
+	MX31_PIN_LD7__LD7,
+	MX31_PIN_LD8__LD8,
+	MX31_PIN_LD9__LD9,
+	MX31_PIN_LD10__LD10,
+	MX31_PIN_LD11__LD11,
+	MX31_PIN_LD12__LD12,
+	MX31_PIN_LD13__LD13,
+	MX31_PIN_LD14__LD14,
+	MX31_PIN_LD15__LD15,
+	MX31_PIN_LD16__LD16,
+	MX31_PIN_LD17__LD17,
+	MX31_PIN_VSYNC3__VSYNC3,
+	MX31_PIN_HSYNC__HSYNC,
+	MX31_PIN_FPSHIFT__FPSHIFT,
+	MX31_PIN_CONTRAST__CONTRAST,
+	/* CSI */
+	MX31_PIN_CSI_D6__CSI_D6,
+	MX31_PIN_CSI_D7__CSI_D7,
+	MX31_PIN_CSI_D8__CSI_D8,
+	MX31_PIN_CSI_D9__CSI_D9,
+	MX31_PIN_CSI_D10__CSI_D10,
+	MX31_PIN_CSI_D11__CSI_D11,
+	MX31_PIN_CSI_D12__CSI_D12,
+	MX31_PIN_CSI_D13__CSI_D13,
+	MX31_PIN_CSI_D14__CSI_D14,
+	MX31_PIN_CSI_D15__CSI_D15,
+	MX31_PIN_CSI_HSYNC__CSI_HSYNC,
+	MX31_PIN_CSI_MCLK__CSI_MCLK,
+	MX31_PIN_CSI_PIXCLK__CSI_PIXCLK,
+	MX31_PIN_CSI_VSYNC__CSI_VSYNC,
+	MX31_PIN_CSI_D5__GPIO3_5, /* CMOS PWDN */
+	IOMUX_MODE(MX31_PIN_RI_DTE1, IOMUX_CONFIG_GPIO), /* CMOS reset */
+};
+
+/*
+ * Camera support
+ */
+static phys_addr_t mx3_camera_base __initdata;
+#define MX31_3DS_CAMERA_BUF_SIZE SZ_8M
+
+#define MX31_3DS_GPIO_CAMERA_PW IOMUX_TO_GPIO(MX31_PIN_CSI_D5)
+#define MX31_3DS_GPIO_CAMERA_RST IOMUX_TO_GPIO(MX31_PIN_RI_DTE1)
+
+static struct gpio mx31_3ds_camera_gpios[] = {
+	{ MX31_3DS_GPIO_CAMERA_PW, GPIOF_OUT_INIT_HIGH, "camera-power" },
+	{ MX31_3DS_GPIO_CAMERA_RST, GPIOF_OUT_INIT_HIGH, "camera-reset" },
+};
+
+static int __init mx31_3ds_camera_alloc_dma(void)
+{
+	int dma;
+
+	if (!mx3_camera_base)
+		return -ENOMEM;
+
+	dma = dma_declare_coherent_memory(&mx3_camera.dev,
+					mx3_camera_base, mx3_camera_base,
+					MX31_3DS_CAMERA_BUF_SIZE,
+					DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
+
+	if (!(dma & DMA_MEMORY_MAP))
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int mx31_3ds_camera_power(struct device *dev, int on)
+{
+	/* enable or disable the camera */
+	pr_debug("%s: %s the camera\n", __func__, on ? "ENABLE" : "DISABLE");
+	gpio_set_value(MX31_3DS_GPIO_CAMERA_PW, on ? 0 : 1);
+
+	if (!on)
+		goto out;
+
+	/* If enabled, give a reset impulse */
+	gpio_set_value(MX31_3DS_GPIO_CAMERA_RST, 0);
+	msleep(20);
+	gpio_set_value(MX31_3DS_GPIO_CAMERA_RST, 1);
+	msleep(100);
+
+out:
+	return 0;
+}
+
+static struct i2c_board_info mx31_3ds_i2c_camera = {
+	I2C_BOARD_INFO("ov2640", 0x30),
+};
+
+static struct regulator_bulk_data mx31_3ds_camera_regs[] = {
+	{ .supply = "cmos_vcore" },
+	{ .supply = "cmos_2v8" },
+};
+
+static struct soc_camera_link iclink_ov2640 = {
+	.bus_id		= 0,
+	.board_info	= &mx31_3ds_i2c_camera,
+	.i2c_adapter_id	= 0,
+	.power		= mx31_3ds_camera_power,
+	.regulators	= mx31_3ds_camera_regs,
+	.num_regulators	= ARRAY_SIZE(mx31_3ds_camera_regs),
+};
+
+static struct platform_device mx31_3ds_ov2640 = {
+	.name	= "soc-camera-pdrv",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &iclink_ov2640,
+	},
+};
+
+struct mx3_camera_pdata mx31_3ds_camera_pdata = {
+	.dma_dev	= &mx3_ipu.dev,
+	.flags		= MX3_CAMERA_DATAWIDTH_10,
+	.mclk_10khz	= 2600,
+};
+
+/*
+ * FB support
+ */
+static const struct fb_videomode fb_modedb[] = {
+	{	/* 480x640 @ 60 Hz */
+		.name		= "Epson-VGA",
+		.refresh	= 60,
+		.xres		= 480,
+		.yres		= 640,
+		.pixclock	= 41701,
+		.left_margin	= 20,
+		.right_margin	= 41,
+		.upper_margin	= 10,
+		.lower_margin	= 5,
+		.hsync_len	= 20,
+		.vsync_len	= 10,
+		.sync		= FB_SYNC_OE_ACT_HIGH | FB_SYNC_CLK_INVERT,
+		.vmode		= FB_VMODE_NONINTERLACED,
+		.flag		= 0,
+	},
+};
+
+static struct ipu_platform_data mx3_ipu_data = {
+	.irq_base = MXC_IPU_IRQ_START,
+};
+
+static struct mx3fb_platform_data mx3fb_pdata = {
+	.dma_dev	= &mx3_ipu.dev,
+	.name		= "Epson-VGA",
+	.mode		= fb_modedb,
+	.num_modes	= ARRAY_SIZE(fb_modedb),
+};
+
+/* LCD */
+static struct l4f00242t03_pdata mx31_3ds_l4f00242t03_pdata = {
+	.reset_gpio		= IOMUX_TO_GPIO(MX31_PIN_LCS1),
+	.data_enable_gpio	= IOMUX_TO_GPIO(MX31_PIN_SER_RS),
+	.core_supply		= "lcd_2v8",
+	.io_supply		= "vdd_lcdio",
+};
+
+/*
+ * Support for SD card slot in personality board
+ */
+#define MX31_3DS_GPIO_SDHC1_CD IOMUX_TO_GPIO(MX31_PIN_GPIO3_1)
+#define MX31_3DS_GPIO_SDHC1_BE IOMUX_TO_GPIO(MX31_PIN_GPIO3_0)
+
+static struct gpio mx31_3ds_sdhc1_gpios[] = {
+	{ MX31_3DS_GPIO_SDHC1_CD, GPIOF_IN, "sdhc1-card-detect" },
+	{ MX31_3DS_GPIO_SDHC1_BE, GPIOF_OUT_INIT_LOW, "sdhc1-bus-en" },
+};
+
+static int mx31_3ds_sdhc1_init(struct device *dev,
+			       irq_handler_t detect_irq,
+			       void *data)
+{
+	int ret;
+
+	ret = gpio_request_array(mx31_3ds_sdhc1_gpios,
+				 ARRAY_SIZE(mx31_3ds_sdhc1_gpios));
+	if (ret) {
+		pr_warning("Unable to request the SD/MMC GPIOs.\n");
+		return ret;
+	}
+
+	ret = request_irq(IOMUX_TO_IRQ(MX31_PIN_GPIO3_1),
+			  detect_irq, IRQF_DISABLED |
+			  IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
+			  "sdhc1-detect", data);
+	if (ret) {
+		pr_warning("Unable to request the SD/MMC card-detect IRQ.\n");
+		goto gpio_free;
+	}
+
+	return 0;
+
+gpio_free:
+	gpio_free_array(mx31_3ds_sdhc1_gpios,
+			ARRAY_SIZE(mx31_3ds_sdhc1_gpios));
+	return ret;
+}
+
+static void mx31_3ds_sdhc1_exit(struct device *dev, void *data)
+{
+	free_irq(IOMUX_TO_IRQ(MX31_PIN_GPIO3_1), data);
+	gpio_free_array(mx31_3ds_sdhc1_gpios,
+			 ARRAY_SIZE(mx31_3ds_sdhc1_gpios));
+}
+
+static void mx31_3ds_sdhc1_setpower(struct device *dev, unsigned int vdd)
+{
+	/*
+	 * While the voltage stuff is done by the driver, activate the
+	 * Buffer Enable Pin only if there is a card in slot to fix the card
+	 * voltage issue caused by bi-directional chip TXB0108 on 3Stack.
+	 * Done here because at this stage we have for sure a debounced value
+	 * of the presence of the card, showed by the value of vdd.
+	 * 7 == ilog2(MMC_VDD_165_195)
+	 */
+	if (vdd > 7)
+		gpio_set_value(MX31_3DS_GPIO_SDHC1_BE, 1);
+	else
+		gpio_set_value(MX31_3DS_GPIO_SDHC1_BE, 0);
+}
+
+static struct imxmmc_platform_data sdhc1_pdata = {
+	.init		= mx31_3ds_sdhc1_init,
+	.exit		= mx31_3ds_sdhc1_exit,
+	.setpower	= mx31_3ds_sdhc1_setpower,
 };
 
 /*
@@ -138,7 +394,71 @@ static struct regulator_init_data gpo_init = {
 	}
 };
 
-static struct mc13783_regulator_init_data mx31_3ds_regulators[] = {
+static struct regulator_consumer_supply vmmc2_consumers[] = {
+	REGULATOR_SUPPLY("vmmc", "mxc-mmc.0"),
+};
+
+static struct regulator_init_data vmmc2_init = {
+	.constraints = {
+		.min_uV = 3000000,
+		.max_uV = 3000000,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+				  REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(vmmc2_consumers),
+	.consumer_supplies = vmmc2_consumers,
+};
+
+static struct regulator_consumer_supply vmmc1_consumers[] = {
+	REGULATOR_SUPPLY("lcd_2v8", NULL),
+	REGULATOR_SUPPLY("cmos_2v8", "soc-camera-pdrv.0"),
+};
+
+static struct regulator_init_data vmmc1_init = {
+	.constraints = {
+		.min_uV = 2800000,
+		.max_uV = 2800000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+				  REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(vmmc1_consumers),
+	.consumer_supplies = vmmc1_consumers,
+};
+
+static struct regulator_consumer_supply vgen_consumers[] = {
+	REGULATOR_SUPPLY("vdd_lcdio", NULL),
+};
+
+static struct regulator_init_data vgen_init = {
+	.constraints = {
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+				  REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(vgen_consumers),
+	.consumer_supplies = vgen_consumers,
+};
+
+static struct regulator_consumer_supply vvib_consumers[] = {
+	REGULATOR_SUPPLY("cmos_vcore", "soc-camera-pdrv.0"),
+};
+
+static struct regulator_init_data vvib_init = {
+	.constraints = {
+		.min_uV = 1300000,
+		.max_uV = 1300000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE |
+				  REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(vvib_consumers),
+	.consumer_supplies = vvib_consumers,
+};
+
+static struct mc13xxx_regulator_init_data mx31_3ds_regulators[] = {
 	{
 		.id = MC13783_REG_PWGT1SPI, /* Power Gate for ARM core. */
 		.init_data = &pwgtx_init,
@@ -152,17 +472,40 @@ static struct mc13783_regulator_init_data mx31_3ds_regulators[] = {
 	}, {
 		.id = MC13783_REG_GPO3, /* Turn on 3.3V */
 		.init_data = &gpo_init,
+	}, {
+		.id = MC13783_REG_VMMC2, /* Power MMC/SD, WiFi/Bluetooth. */
+		.init_data = &vmmc2_init,
+	}, {
+		.id = MC13783_REG_VMMC1, /* Power LCD, CMOS, FM, GPS, Accel. */
+		.init_data = &vmmc1_init,
+	}, {
+		.id = MC13783_REG_VGEN,  /* Power LCD */
+		.init_data = &vgen_init,
+	}, {
+		.id = MC13783_REG_VVIB,  /* Power CMOS */
+		.init_data = &vvib_init,
 	},
 };
 
 /* MC13783 */
-static struct mc13783_platform_data mc13783_pdata __initdata = {
-	.regulators = mx31_3ds_regulators,
-	.num_regulators = ARRAY_SIZE(mx31_3ds_regulators),
+static struct mc13xxx_platform_data mc13783_pdata = {
+	.regulators = {
+		.regulators = mx31_3ds_regulators,
+		.num_regulators = ARRAY_SIZE(mx31_3ds_regulators),
+	},
 	.flags  = MC13783_USE_REGULATOR | MC13783_USE_TOUCHSCREEN,
 };
 
 /* SPI */
+static int spi0_internal_chipselect[] = {
+	MXC_SPI_CS(2),
+};
+
+static const struct spi_imx_master spi0_pdata __initconst = {
+	.chipselect	= spi0_internal_chipselect,
+	.num_chipselect	= ARRAY_SIZE(spi0_internal_chipselect),
+};
+
 static int spi1_internal_chipselect[] = {
 	MXC_SPI_CS(0),
 	MXC_SPI_CS(2),
@@ -182,6 +525,12 @@ static struct spi_board_info mx31_3ds_spi_devs[] __initdata = {
 		.platform_data	= &mc13783_pdata,
 		.irq		= IOMUX_TO_IRQ(MX31_PIN_GPIO1_3),
 		.mode = SPI_CS_HIGH,
+	}, {
+		.modalias	= "l4f00242t03",
+		.max_speed_hz	= 5000000,
+		.bus_num	= 0,
+		.chip_select	= 0, /* SS2 */
+		.platform_data	= &mx31_3ds_l4f00242t03_pdata,
 	},
 };
 
@@ -245,6 +594,11 @@ usbotg_free_reset:
 	return err;
 }
 
+static int mx31_3ds_otg_init(struct platform_device *pdev)
+{
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED);
+}
+
 static int mx31_3ds_host2_init(struct platform_device *pdev)
 {
 	int err;
@@ -276,25 +630,25 @@ static int mx31_3ds_host2_init(struct platform_device *pdev)
 
 	mdelay(1);
 	gpio_set_value(USBH2_RST_B, 1);
-	return 0;
+
+	mdelay(10);
+
+	return mx31_initialize_usb_hw(pdev->id, MXC_EHCI_POWER_PINS_ENABLED);
 
 usbotg_free_reset:
 	gpio_free(USBH2_RST_B);
 	return err;
 }
 
-#if defined(CONFIG_USB_ULPI)
 static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.init	= mx31_3ds_otg_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
 
 static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
 	.init = mx31_3ds_host2_init,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
-#endif
 
 static const struct fsl_usb2_platform_data usbotg_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
@@ -320,19 +674,18 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-/*
- * Set up static virtual mappings.
- */
-static void __init mx31_3ds_map_io(void)
-{
-	mx31_map_io();
-}
+static const struct imxi2c_platform_data mx31_3ds_i2c0_data __initconst = {
+	.bitrate = 100000,
+};
 
-/*!
- * Board specific initialization.
- */
-static void __init mxc_board_init(void)
+static struct platform_device *devices[] __initdata = {
+	&mx31_3ds_ov2640,
+};
+
+static void __init mx31_3ds_init(void)
 {
+	int ret;
+
 	mxc_iomux_setup_multiple_pins(mx31_3ds_pins, ARRAY_SIZE(mx31_3ds_pins),
 				      "mx31_3ds");
 
@@ -343,20 +696,22 @@ static void __init mxc_board_init(void)
 	spi_register_board_info(mx31_3ds_spi_devs,
 						ARRAY_SIZE(mx31_3ds_spi_devs));
 
+	platform_add_devices(devices, ARRAY_SIZE(devices));
+
 	imx31_add_imx_keypad(&mx31_3ds_keymap_data);
 
 	mx31_3ds_usbotg_init();
-#if defined(CONFIG_USB_ULPI)
 	if (otg_mode_host) {
-		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
-		imx31_add_mxc_ehci_otg(&otg_pdata);
+		otg_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+				ULPI_OTG_DRVVBUS_EXT);
+		if (otg_pdata.otg)
+			imx31_add_mxc_ehci_otg(&otg_pdata);
 	}
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-	imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
-#endif
+	usbh2_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+			ULPI_OTG_DRVVBUS_EXT);
+	if (usbh2_pdata.otg)
+		imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
+
 	if (!otg_mode_host)
 		imx31_add_fsl_usb2_udc(&usbotg_pdata);
 
@@ -364,6 +719,26 @@ static void __init mxc_board_init(void)
 		printk(KERN_WARNING "Init of the debug board failed, all "
 				    "devices on the debug board are unusable.\n");
 	imx31_add_imx2_wdt(NULL);
+	imx31_add_imx_i2c0(&mx31_3ds_i2c0_data);
+	imx31_add_mxc_mmc(0, &sdhc1_pdata);
+
+	imx31_add_spi_imx0(&spi0_pdata);
+	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
+	mxc_register_device(&mx3_fb, &mx3fb_pdata);
+
+	/* CSI */
+	/* Camera power: default - off */
+	ret = gpio_request_array(mx31_3ds_camera_gpios,
+				 ARRAY_SIZE(mx31_3ds_camera_gpios));
+	if (ret) {
+		pr_err("Failed to request camera gpios");
+		iclink_ov2640.power = NULL;
+	}
+
+	if (!mx31_3ds_camera_alloc_dma())
+		mxc_register_device(&mx3_camera, &mx31_3ds_camera_pdata);
+	else
+		pr_err("Failed to allocate dma memory for camera");
 }
 
 static void __init mx31_3ds_timer_init(void)
@@ -375,15 +750,22 @@ static struct sys_timer mx31_3ds_timer = {
 	.init	= mx31_3ds_timer_init,
 };
 
-/*
- * The following uses standard kernel macros defined in arch.h in order to
- * initialize __mach_desc_MX31_3DS data structure.
- */
+static void __init mx31_3ds_reserve(void)
+{
+	/* reserve MX31_3DS_CAMERA_BUF_SIZE bytes for mx3-camera */
+	mx3_camera_base = memblock_alloc(MX31_3DS_CAMERA_BUF_SIZE,
+					 MX31_3DS_CAMERA_BUF_SIZE);
+	memblock_free(mx3_camera_base, MX31_3DS_CAMERA_BUF_SIZE);
+	memblock_remove(mx3_camera_base, MX31_3DS_CAMERA_BUF_SIZE);
+}
+
 MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
-	.map_io         = mx31_3ds_map_io,
-	.init_irq       = mx31_init_irq,
-	.init_machine   = mxc_board_init,
-	.timer          = &mx31_3ds_timer,
+	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.map_io = mx31_map_io,
+	.init_early = imx31_init_early,
+	.init_irq = mx31_init_irq,
+	.timer = &mx31_3ds_timer,
+	.init_machine = mx31_3ds_init,
+	.reserve = mx31_3ds_reserve,
 MACHINE_END

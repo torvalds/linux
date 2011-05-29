@@ -13,6 +13,7 @@ config CPU_S5PV210
 	bool
 	select S3C_PL330_DMA
 	select S5P_EXT_INT
+	select S5P_HRT
 	select S5PV210_PM if PM
 	help
 	  Enable S5PV210 CPU support
@@ -52,6 +53,11 @@ config S5PV210_SETUP_SDHCI_GPIO
 	bool
 	help
 	  Common setup code for SDHCI gpio.
+
+config S5PV210_SETUP_FIMC
+	bool
+	help
+	  Common setup code for the camera interfaces.
 
 menu "S5PC110 Machines"
 
@@ -130,6 +136,7 @@ config MACH_SMDKV210
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_IDE
 	select SAMSUNG_DEV_KEYPAD
+	select SAMSUNG_DEV_PWM
 	select SAMSUNG_DEV_TS
 	select S5PV210_SETUP_FB_24BPP
 	select S5PV210_SETUP_I2C1

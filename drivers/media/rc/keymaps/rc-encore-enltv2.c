@@ -32,7 +32,7 @@ static struct rc_map_table encore_enltv2[] = {
 	{ 0x64, KEY_LAST },		/* +100 */
 	{ 0x4e, KEY_AGAIN },		/* Recall */
 
-	{ 0x6c, KEY_SWITCHVIDEOMODE },	/* Video Source */
+	{ 0x6c, KEY_VIDEO },		/* Video Source */
 	{ 0x5e, KEY_MENU },
 	{ 0x56, KEY_SCREEN },
 	{ 0x7a, KEY_SETUP },

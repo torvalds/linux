@@ -12,7 +12,7 @@ drm-y       :=	drm_auth.o drm_buffer.o drm_bufs.o drm_cache.o \
 		drm_platform.o drm_sysfs.o drm_hashtab.o drm_sman.o drm_mm.o \
 		drm_crtc.o drm_modes.o drm_edid.o \
 		drm_info.o drm_debugfs.o drm_encoder_slave.o \
-		drm_trace_points.o drm_global.o
+		drm_trace_points.o drm_global.o drm_usb.o
 
 drm-$(CONFIG_COMPAT) += drm_ioc32.o
 
@@ -29,7 +29,6 @@ obj-$(CONFIG_DRM_R128)	+= r128/
 obj-$(CONFIG_DRM_RADEON)+= radeon/
 obj-$(CONFIG_DRM_MGA)	+= mga/
 obj-$(CONFIG_DRM_I810)	+= i810/
-obj-$(CONFIG_DRM_I830)	+= i830/
 obj-$(CONFIG_DRM_I915)  += i915/
 obj-$(CONFIG_DRM_SIS)   += sis/
 obj-$(CONFIG_DRM_SAVAGE)+= savage/

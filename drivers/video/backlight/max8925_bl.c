@@ -136,6 +136,7 @@ static int __devinit max8925_backlight_probe(struct platform_device *pdev)
 	data->current_brightness = 0;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = MAX_BRIGHTNESS;
 	bl = backlight_device_register(name, &pdev->dev, data,
 					&max8925_backlight_ops, &props);

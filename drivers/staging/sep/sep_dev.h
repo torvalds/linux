@@ -69,31 +69,6 @@ struct sep_device {
 	size_t shared_size;
 	void *shared_addr;
 
-	/* restricted access region (coherent alloc) */
-	dma_addr_t rar_bus;
-	size_t rar_size;
-	void *rar_addr;
-
-	/* Firmware regions; cache is at rar for Moorestown and
-	   resident is at rar for Medfield */
-	dma_addr_t cache_bus;
-	size_t cache_size;
-	void *cache_addr;
-
-	dma_addr_t resident_bus;
-	size_t resident_size;
-	void *resident_addr;
-
-	/* sep's scratchpad */
-	dma_addr_t dcache_bus;
-	size_t dcache_size;
-	void *dcache_addr;
-
-	/* Only used on Medfield */
-	dma_addr_t extapp_bus;
-	size_t extapp_size;
-	void *extapp_addr;
-
 	/* start address of the access to the SEP registers from driver */
 	dma_addr_t reg_physical_addr;
 	dma_addr_t reg_physical_end;

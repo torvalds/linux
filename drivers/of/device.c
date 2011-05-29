@@ -47,40 +47,6 @@ void of_dev_put(struct platform_device *dev)
 }
 EXPORT_SYMBOL(of_dev_put);
 
-static ssize_t devspec_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct platform_device *ofdev;
-
-	ofdev = to_platform_device(dev);
-	return sprintf(buf, "%s\n", ofdev->dev.of_node->full_name);
-}
-
-static ssize_t name_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct platform_device *ofdev;
-
-	ofdev = to_platform_device(dev);
-	return sprintf(buf, "%s\n", ofdev->dev.of_node->name);
-}
-
-static ssize_t modalias_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	ssize_t len = of_device_get_modalias(dev, buf, PAGE_SIZE - 2);
-	buf[len] = '\n';
-	buf[len+1] = 0;
-	return len+1;
-}
-
-struct device_attribute of_platform_device_attrs[] = {
-	__ATTR_RO(devspec),
-	__ATTR_RO(name),
-	__ATTR_RO(modalias),
-	__ATTR_NULL
-};
-
 int of_device_add(struct platform_device *ofdev)
 {
 	BUG_ON(ofdev->dev.of_node == NULL);

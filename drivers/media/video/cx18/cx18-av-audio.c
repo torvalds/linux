@@ -342,17 +342,6 @@ void cx18_av_audio_set_path(struct cx18 *cx)
 	}
 }
 
-static int get_volume(struct cx18 *cx)
-{
-	/* Volume runs +18dB to -96dB in 1/2dB steps
-	 * change to fit the msp3400 -114dB to +12dB range */
-
-	/* check PATH1_VOLUME */
-	int vol = 228 - cx18_av_read(cx, 0x8d4);
-	vol = (vol / 2) + 23;
-	return vol << 9;
-}
-
 static void set_volume(struct cx18 *cx, int volume)
 {
 	/* First convert the volume to msp3400 values (0-127) */
@@ -369,50 +358,16 @@ static void set_volume(struct cx18 *cx, int volume)
 	cx18_av_write(cx, 0x8d4, 228 - (vol * 2));
 }
 
-static int get_bass(struct cx18 *cx)
-{
-	/* bass is 49 steps +12dB to -12dB */
-
-	/* check PATH1_EQ_BASS_VOL */
-	int bass = cx18_av_read(cx, 0x8d9) & 0x3f;
-	bass = (((48 - bass) * 0xffff) + 47) / 48;
-	return bass;
-}
-
 static void set_bass(struct cx18 *cx, int bass)
 {
 	/* PATH1_EQ_BASS_VOL */
 	cx18_av_and_or(cx, 0x8d9, ~0x3f, 48 - (bass * 48 / 0xffff));
 }
 
-static int get_treble(struct cx18 *cx)
-{
-	/* treble is 49 steps +12dB to -12dB */
-
-	/* check PATH1_EQ_TREBLE_VOL */
-	int treble = cx18_av_read(cx, 0x8db) & 0x3f;
-	treble = (((48 - treble) * 0xffff) + 47) / 48;
-	return treble;
-}
-
 static void set_treble(struct cx18 *cx, int treble)
 {
 	/* PATH1_EQ_TREBLE_VOL */
 	cx18_av_and_or(cx, 0x8db, ~0x3f, 48 - (treble * 48 / 0xffff));
-}
-
-static int get_balance(struct cx18 *cx)
-{
-	/* balance is 7 bit, 0 to -96dB */
-
-	/* check PATH1_BAL_LEVEL */
-	int balance = cx18_av_read(cx, 0x8d5) & 0x7f;
-	/* check PATH1_BAL_LEFT */
-	if ((cx18_av_read(cx, 0x8d5) & 0x80) == 0)
-		balance = 0x80 - balance;
-	else
-		balance = 0x80 + balance;
-	return balance << 8;
 }
 
 static void set_balance(struct cx18 *cx, int balance)
@@ -429,12 +384,6 @@ static void set_balance(struct cx18 *cx, int balance)
 		/* PATH1_BAL_LEVEL */
 		cx18_av_and_or(cx, 0x8d5, ~0x7f, 0x80 - bal);
 	}
-}
-
-static int get_mute(struct cx18 *cx)
-{
-	/* check SRC1_MUTE_EN */
-	return cx18_av_read(cx, 0x8d3) & 0x2 ? 1 : 0;
 }
 
 static void set_mute(struct cx18 *cx, int mute)
@@ -490,23 +439,26 @@ int cx18_av_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 	return retval;
 }
 
-int cx18_av_audio_g_ctrl(struct cx18 *cx, struct v4l2_control *ctrl)
+static int cx18_av_audio_s_ctrl(struct v4l2_ctrl *ctrl)
 {
+	struct v4l2_subdev *sd = to_sd(ctrl);
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_VOLUME:
-		ctrl->value = get_volume(cx);
+		set_volume(cx, ctrl->val);
 		break;
 	case V4L2_CID_AUDIO_BASS:
-		ctrl->value = get_bass(cx);
+		set_bass(cx, ctrl->val);
 		break;
 	case V4L2_CID_AUDIO_TREBLE:
-		ctrl->value = get_treble(cx);
+		set_treble(cx, ctrl->val);
 		break;
 	case V4L2_CID_AUDIO_BALANCE:
-		ctrl->value = get_balance(cx);
+		set_balance(cx, ctrl->val);
 		break;
 	case V4L2_CID_AUDIO_MUTE:
-		ctrl->value = get_mute(cx);
+		set_mute(cx, ctrl->val);
 		break;
 	default:
 		return -EINVAL;
@@ -514,26 +466,6 @@ int cx18_av_audio_g_ctrl(struct cx18 *cx, struct v4l2_control *ctrl)
 	return 0;
 }
 
-int cx18_av_audio_s_ctrl(struct cx18 *cx, struct v4l2_control *ctrl)
-{
-	switch (ctrl->id) {
-	case V4L2_CID_AUDIO_VOLUME:
-		set_volume(cx, ctrl->value);
-		break;
-	case V4L2_CID_AUDIO_BASS:
-		set_bass(cx, ctrl->value);
-		break;
-	case V4L2_CID_AUDIO_TREBLE:
-		set_treble(cx, ctrl->value);
-		break;
-	case V4L2_CID_AUDIO_BALANCE:
-		set_balance(cx, ctrl->value);
-		break;
-	case V4L2_CID_AUDIO_MUTE:
-		set_mute(cx, ctrl->value);
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
+const struct v4l2_ctrl_ops cx18_av_audio_ctrl_ops = {
+	.s_ctrl = cx18_av_audio_s_ctrl,
+};

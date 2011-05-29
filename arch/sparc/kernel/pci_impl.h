@@ -131,9 +131,9 @@ struct pci_pbm_info {
 	void				*msi_queues;
 	unsigned long			*msi_bitmap;
 	unsigned int			*msi_irq_table;
-	int (*setup_msi_irq)(unsigned int *virt_irq_p, struct pci_dev *pdev,
+	int (*setup_msi_irq)(unsigned int *irq_p, struct pci_dev *pdev,
 			     struct msi_desc *entry);
-	void (*teardown_msi_irq)(unsigned int virt_irq, struct pci_dev *pdev);
+	void (*teardown_msi_irq)(unsigned int irq, struct pci_dev *pdev);
 	const struct sparc64_msiq_ops	*msi_ops;
 #endif /* !(CONFIG_PCI_MSI) */
 

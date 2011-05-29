@@ -1595,7 +1595,7 @@ l3dss1_setup(struct l3_process *pc, u_char pr, void *arg)
 	 * Bearer Capabilities
 	 */
 	p = skb->data;
-	/* only the first occurence 'll be detected ! */
+	/* only the first occurrence 'll be detected ! */
 	if ((p = findie(p, skb->len, 0x04, 0))) {
 		if ((p[1] < 2) || (p[1] > 11))
 			err = 1;
@@ -2161,7 +2161,7 @@ static void l3dss1_redir_req_early(struct l3_process *pc, u_char pr, void *arg)
 
 /***********************************************/
 /* handle special commands for this protocol.  */
-/* Examples are call independant services like */
+/* Examples are call independent services like */
 /* remote operations with dummy  callref.      */
 /***********************************************/
 static int l3dss1_cmd_global(struct PStack *st, isdn_ctrl *ic)

@@ -26,9 +26,9 @@
 #if defined(CONFIG_ARCH_DAVINCI_DA8XX) && defined(CONFIG_ARCH_DAVINCI_DMx)
 #error Cannot enable DaVinci and DA8XX platforms concurrently
 #elif defined(CONFIG_ARCH_DAVINCI_DA8XX)
-#define PHYS_OFFSET DA8XX_DDR_BASE
+#define PLAT_PHYS_OFFSET DA8XX_DDR_BASE
 #else
-#define PHYS_OFFSET DAVINCI_DDR_BASE
+#define PLAT_PHYS_OFFSET DAVINCI_DDR_BASE
 #endif
 
 #define DDR2_SDRCR_OFFSET	0xc

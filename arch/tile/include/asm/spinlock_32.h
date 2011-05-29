@@ -78,13 +78,6 @@ void arch_spin_unlock_wait(arch_spinlock_t *lock);
 #define _RD_COUNT_SHIFT 24
 #define _RD_COUNT_WIDTH 8
 
-/* Internal functions; do not use. */
-void arch_read_lock_slow(arch_rwlock_t *, u32);
-int arch_read_trylock_slow(arch_rwlock_t *);
-void arch_read_unlock_slow(arch_rwlock_t *);
-void arch_write_lock_slow(arch_rwlock_t *, u32);
-void arch_write_unlock_slow(arch_rwlock_t *, u32);
-
 /**
  * arch_read_can_lock() - would read_trylock() succeed?
  */
@@ -104,94 +97,32 @@ static inline int arch_write_can_lock(arch_rwlock_t *rwlock)
 /**
  * arch_read_lock() - acquire a read lock.
  */
-static inline void arch_read_lock(arch_rwlock_t *rwlock)
-{
-	u32 val = __insn_tns((int *)&rwlock->lock);
-	if (unlikely(val << _RD_COUNT_WIDTH)) {
-		arch_read_lock_slow(rwlock, val);
-		return;
-	}
-	rwlock->lock = val + (1 << _RD_COUNT_SHIFT);
-}
+void arch_read_lock(arch_rwlock_t *rwlock);
 
 /**
- * arch_read_lock() - acquire a write lock.
+ * arch_write_lock() - acquire a write lock.
  */
-static inline void arch_write_lock(arch_rwlock_t *rwlock)
-{
-	u32 val = __insn_tns((int *)&rwlock->lock);
-	if (unlikely(val != 0)) {
-		arch_write_lock_slow(rwlock, val);
-		return;
-	}
-	rwlock->lock = 1 << _WR_NEXT_SHIFT;
-}
+void arch_write_lock(arch_rwlock_t *rwlock);
 
 /**
  * arch_read_trylock() - try to acquire a read lock.
  */
-static inline int arch_read_trylock(arch_rwlock_t *rwlock)
-{
-	int locked;
-	u32 val = __insn_tns((int *)&rwlock->lock);
-	if (unlikely(val & 1))
-		return arch_read_trylock_slow(rwlock);
-	locked = (val << _RD_COUNT_WIDTH) == 0;
-	rwlock->lock = val + (locked << _RD_COUNT_SHIFT);
-	return locked;
-}
+int arch_read_trylock(arch_rwlock_t *rwlock);
 
 /**
  * arch_write_trylock() - try to acquire a write lock.
  */
-static inline int arch_write_trylock(arch_rwlock_t *rwlock)
-{
-	u32 val = __insn_tns((int *)&rwlock->lock);
-
-	/*
-	 * If a tns is in progress, or there's a waiting or active locker,
-	 * or active readers, we can't take the lock, so give up.
-	 */
-	if (unlikely(val != 0)) {
-		if (!(val & 1))
-			rwlock->lock = val;
-		return 0;
-	}
-
-	/* Set the "next" field to mark it locked. */
-	rwlock->lock = 1 << _WR_NEXT_SHIFT;
-	return 1;
-}
+int arch_write_trylock(arch_rwlock_t *rwlock);
 
 /**
  * arch_read_unlock() - release a read lock.
  */
-static inline void arch_read_unlock(arch_rwlock_t *rwlock)
-{
-	u32 val;
-	mb();  /* guarantee anything modified under the lock is visible */
-	val = __insn_tns((int *)&rwlock->lock);
-	if (unlikely(val & 1)) {
-		arch_read_unlock_slow(rwlock);
-		return;
-	}
-	rwlock->lock = val - (1 << _RD_COUNT_SHIFT);
-}
+void arch_read_unlock(arch_rwlock_t *rwlock);
 
 /**
  * arch_write_unlock() - release a write lock.
  */
-static inline void arch_write_unlock(arch_rwlock_t *rwlock)
-{
-	u32 val;
-	mb();  /* guarantee anything modified under the lock is visible */
-	val = __insn_tns((int *)&rwlock->lock);
-	if (unlikely(val != (1 << _WR_NEXT_SHIFT))) {
-		arch_write_unlock_slow(rwlock, val);
-		return;
-	}
-	rwlock->lock = 0;
-}
+void arch_write_unlock(arch_rwlock_t *rwlock);
 
 #define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
 #define arch_write_lock_flags(lock, flags) arch_write_lock(lock)

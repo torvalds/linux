@@ -9,7 +9,6 @@
  *
  *  Common directory handling for ADFS
  */
-#include <linux/smp_lock.h>
 #include "adfs.h"
 
 /*
@@ -26,8 +25,6 @@ adfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	struct object_info obj;
 	struct adfs_dir dir;
 	int ret = 0;
-
-	lock_kernel();	
 
 	if (filp->f_pos >> 32)
 		goto out;
@@ -70,7 +67,6 @@ free_out:
 	ops->free(&dir);
 
 out:
-	unlock_kernel();
 	return ret;
 }
 
@@ -276,7 +272,6 @@ adfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	struct object_info obj;
 	int error;
 
-	lock_kernel();
 	error = adfs_dir_lookup_byname(dir, &dentry->d_name, &obj);
 	if (error == 0) {
 		error = -EACCES;
@@ -288,7 +283,6 @@ adfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 		if (inode)
 			error = 0;
 	}
-	unlock_kernel();
 	d_add(dentry, inode);
 	return ERR_PTR(error);
 }

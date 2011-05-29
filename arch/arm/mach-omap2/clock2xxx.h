@@ -20,16 +20,16 @@ u32 omap2xxx_get_apll_clkin(void);
 u32 omap2xxx_get_sysclkdiv(void);
 void omap2xxx_clk_prepare_for_reboot(void);
 
-#ifdef CONFIG_ARCH_OMAP2420
+#ifdef CONFIG_SOC_OMAP2420
 int omap2420_clk_init(void);
 #else
-#define omap2420_clk_init()	0
+#define omap2420_clk_init()	do { } while(0)
 #endif
 
-#ifdef CONFIG_ARCH_OMAP2430
+#ifdef CONFIG_SOC_OMAP2430
 int omap2430_clk_init(void);
 #else
-#define omap2430_clk_init()	0
+#define omap2430_clk_init()	do { } while(0)
 #endif
 
 extern void __iomem *prcm_clksrc_ctrl, *cm_idlest_pll;

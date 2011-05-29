@@ -29,6 +29,7 @@
 #include <linux/workqueue.h>
 #include <linux/i2c/twl.h>
 #include <linux/mfd/twl4030-codec.h>
+#include <linux/mfd/core.h>
 #include <linux/input.h>
 #include <linux/slab.h>
 
@@ -196,7 +197,7 @@ static SIMPLE_DEV_PM_OPS(twl4030_vibra_pm_ops,
 
 static int __devinit twl4030_vibra_probe(struct platform_device *pdev)
 {
-	struct twl4030_codec_vibra_data *pdata = pdev->dev.platform_data;
+	struct twl4030_codec_vibra_data *pdata = mfd_get_data(pdev);
 	struct vibra_info *info;
 	int ret;
 

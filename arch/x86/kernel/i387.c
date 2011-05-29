@@ -145,7 +145,7 @@ EXPORT_SYMBOL_GPL(fpu_finit);
  * The _current_ task is using the FPU for the first time
  * so initialize it and set the mxcsr to its default
  * value at reset if we support XMM instructions and then
- * remeber the current task has used the FPU.
+ * remember the current task has used the FPU.
  */
 int init_fpu(struct task_struct *tsk)
 {

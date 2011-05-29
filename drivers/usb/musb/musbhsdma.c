@@ -169,6 +169,14 @@ static int dma_channel_program(struct dma_channel *channel,
 	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);
 
+	/* Let targets check/tweak the arguments */
+	if (musb->ops->adjust_channel_params) {
+		int ret = musb->ops->adjust_channel_params(channel,
+			packet_sz, &mode, &dma_addr, &len);
+		if (ret)
+			return ret;
+	}
+
 	/*
 	 * The DMA engine in RTL1.8 and above cannot handle
 	 * DMA addresses that are not aligned to a 4 byte boundary.

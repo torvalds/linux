@@ -103,6 +103,13 @@
 #define WLAN_CONFIG_PM_WOW2                 0
 
 /*
+ * This configuration item enables/disables transmit bursting 
+ * 0 - Enable tx Bursting (default)
+ * 1 - Disable tx bursting 
+ */
+#define WLAN_CONFIG_DISABLE_TX_BURSTING     0
+
+/*
  * Platform specific function to power ON/OFF AR6000 
  * and enable/disable SDIO card detection
  */

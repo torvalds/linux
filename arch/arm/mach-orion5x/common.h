@@ -9,6 +9,7 @@ struct mv_sata_platform_data;
  * Basic Orion init functions used early by machine-setup.
  */
 void orion5x_map_io(void);
+void orion5x_init_early(void);
 void orion5x_init_irq(void);
 void orion5x_init(void);
 extern int orion5x_tclk;

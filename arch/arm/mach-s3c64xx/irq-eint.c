@@ -197,16 +197,15 @@ static int __init s3c64xx_init_irq_eint(void)
 	int irq;
 
 	for (irq = IRQ_EINT(0); irq <= IRQ_EINT(27); irq++) {
-		set_irq_chip(irq, &s3c_irq_eint);
-		set_irq_chip_data(irq, (void *)eint_irq_to_bit(irq));
-		set_irq_handler(irq, handle_level_irq);
+		irq_set_chip_and_handler(irq, &s3c_irq_eint, handle_level_irq);
+		irq_set_chip_data(irq, (void *)eint_irq_to_bit(irq));
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
-	set_irq_chained_handler(IRQ_EINT0_3, s3c_irq_demux_eint0_3);
-	set_irq_chained_handler(IRQ_EINT4_11, s3c_irq_demux_eint4_11);
-	set_irq_chained_handler(IRQ_EINT12_19, s3c_irq_demux_eint12_19);
-	set_irq_chained_handler(IRQ_EINT20_27, s3c_irq_demux_eint20_27);
+	irq_set_chained_handler(IRQ_EINT0_3, s3c_irq_demux_eint0_3);
+	irq_set_chained_handler(IRQ_EINT4_11, s3c_irq_demux_eint4_11);
+	irq_set_chained_handler(IRQ_EINT12_19, s3c_irq_demux_eint12_19);
+	irq_set_chained_handler(IRQ_EINT20_27, s3c_irq_demux_eint20_27);
 
 	return 0;
 }

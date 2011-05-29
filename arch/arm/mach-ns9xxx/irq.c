@@ -31,15 +31,9 @@ static void ns9xxx_mask_irq(struct irq_data *d)
 	__raw_writel(ic, SYS_IC(prio / 4));
 }
 
-static void ns9xxx_ack_irq(struct irq_data *d)
+static void ns9xxx_eoi_irq(struct irq_data *d)
 {
 	__raw_writel(0, SYS_ISRADDR);
-}
-
-static void ns9xxx_maskack_irq(struct irq_data *d)
-{
-	ns9xxx_mask_irq(d);
-	ns9xxx_ack_irq(d);
 }
 
 static void ns9xxx_unmask_irq(struct irq_data *d)
@@ -52,55 +46,10 @@ static void ns9xxx_unmask_irq(struct irq_data *d)
 }
 
 static struct irq_chip ns9xxx_chip = {
-	.irq_ack	= ns9xxx_ack_irq,
+	.irq_eoi	= ns9xxx_eoi_irq,
 	.irq_mask	= ns9xxx_mask_irq,
-	.irq_mask_ack	= ns9xxx_maskack_irq,
 	.irq_unmask	= ns9xxx_unmask_irq,
 };
-
-#if 0
-#define handle_irq handle_level_irq
-#else
-static void handle_prio_irq(unsigned int irq, struct irq_desc *desc)
-{
-	struct irqaction *action;
-	irqreturn_t action_ret;
-
-	raw_spin_lock(&desc->lock);
-
-	BUG_ON(desc->status & IRQ_INPROGRESS);
-
-	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
-	kstat_incr_irqs_this_cpu(irq, desc);
-
-	action = desc->action;
-	if (unlikely(!action || (desc->status & IRQ_DISABLED)))
-		goto out_mask;
-
-	desc->status |= IRQ_INPROGRESS;
-	raw_spin_unlock(&desc->lock);
-
-	action_ret = handle_IRQ_event(irq, action);
-
-	/* XXX: There is no direct way to access noirqdebug, so check
-	 * unconditionally for spurious irqs...
-	 * Maybe this function should go to kernel/irq/chip.c? */
-	note_interrupt(irq, desc, action_ret);
-
-	raw_spin_lock(&desc->lock);
-	desc->status &= ~IRQ_INPROGRESS;
-
-	if (desc->status & IRQ_DISABLED)
-out_mask:
-		desc->irq_data.chip->irq_mask(&desc->irq_data);
-
-	/* ack unconditionally to unmask lower prio irqs */
-	desc->irq_data.chip->irq_ack(&desc->irq_data);
-
-	raw_spin_unlock(&desc->lock);
-}
-#define handle_irq handle_prio_irq
-#endif
 
 void __init ns9xxx_init_irq(void)
 {
@@ -118,8 +67,8 @@ void __init ns9xxx_init_irq(void)
 		__raw_writel(prio2irq(i), SYS_IVA(i));
 
 	for (i = 0; i <= 31; ++i) {
-		set_irq_chip(i, &ns9xxx_chip);
-		set_irq_handler(i, handle_irq);
+		irq_set_chip_and_handler(i, &ns9xxx_chip, handle_fasteoi_irq);
 		set_irq_flags(i, IRQF_VALID);
+		irq_set_status_flags(i, IRQ_LEVEL);
 	}
 }

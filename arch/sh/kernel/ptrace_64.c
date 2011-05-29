@@ -403,6 +403,9 @@ long arch_ptrace(struct task_struct *child, long request,
 		else if ((addr >= offsetof(struct user, fpu)) &&
 			 (addr <  offsetof(struct user, u_fpvalid))) {
 			unsigned long index;
+			ret = init_fpu(child);
+			if (ret)
+				break;
 			index = addr - offsetof(struct user, fpu);
 			tmp = get_fpu_long(child, index);
 		} else if (addr == offsetof(struct user, u_fpvalid)) {
@@ -442,6 +445,9 @@ long arch_ptrace(struct task_struct *child, long request,
 		else if ((addr >= offsetof(struct user, fpu)) &&
 			 (addr <  offsetof(struct user, u_fpvalid))) {
 			unsigned long index;
+			ret = init_fpu(child);
+			if (ret)
+				break;
 			index = addr - offsetof(struct user, fpu);
 			ret = put_fpu_long(child, index, data);
 		}

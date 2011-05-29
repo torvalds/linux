@@ -10,6 +10,16 @@
 void __delay(unsigned long loops)
 {
 	__asm__ __volatile__(
+		/*
+		 * ST40-300 appears to have an issue with this code,
+		 * normally taking two cycles each loop, as with all
+		 * other SH variants. If however the branch and the
+		 * delay slot straddle an 8 byte boundary, this increases
+		 * to 3 cycles.
+		 * This align directive ensures this doesn't occur.
+		 */
+		".balign 8\n\t"
+
 		"tst	%0, %0\n\t"
 		"1:\t"
 		"bf/s	1b\n\t"

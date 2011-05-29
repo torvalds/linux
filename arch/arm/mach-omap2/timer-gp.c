@@ -40,10 +40,11 @@
 #include <plat/dmtimer.h>
 #include <asm/localtimer.h>
 #include <asm/sched_clock.h>
+#include <plat/common.h>
+#include <plat/omap_hwmod.h>
 
 #include "timer-gp.h"
 
-#include <plat/common.h>
 
 /* MAX_GPTIMER_ID: number of GPTIMERs on the chip */
 #define MAX_GPTIMER_ID		12
@@ -133,8 +134,12 @@ static void __init omap2_gp_clockevent_init(void)
 {
 	u32 tick_rate;
 	int src;
+	char clockevent_hwmod_name[8]; /* 8 = sizeof("timerXX0") */
 
 	inited = 1;
+
+	sprintf(clockevent_hwmod_name, "timer%d", gptimer_id);
+	omap_hwmod_setup_one(clockevent_hwmod_name);
 
 	gptimer = omap_dm_timer_request_specific(gptimer_id);
 	BUG_ON(gptimer == NULL);

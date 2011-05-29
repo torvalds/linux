@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -152,20 +152,35 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		ecmd->supported |= (SUPPORTED_1000baseT_Full |
 		                    SUPPORTED_Autoneg);
 
+		switch (hw->mac.type) {
+		case ixgbe_mac_X540:
+			ecmd->supported |= SUPPORTED_100baseT_Full;
+			break;
+		default:
+			break;
+		}
+
 		ecmd->advertising = ADVERTISED_Autoneg;
-		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_10GB_FULL)
-			ecmd->advertising |= ADVERTISED_10000baseT_Full;
-		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_1GB_FULL)
-			ecmd->advertising |= ADVERTISED_1000baseT_Full;
-		/*
-		 * It's possible that phy.autoneg_advertised may not be
-		 * set yet.  If so display what the default would be -
-		 * both 1G and 10G supported.
-		 */
-		if (!(ecmd->advertising & (ADVERTISED_1000baseT_Full |
-					   ADVERTISED_10000baseT_Full)))
+		if (hw->phy.autoneg_advertised) {
+			if (hw->phy.autoneg_advertised &
+			    IXGBE_LINK_SPEED_100_FULL)
+				ecmd->advertising |= ADVERTISED_100baseT_Full;
+			if (hw->phy.autoneg_advertised &
+			    IXGBE_LINK_SPEED_10GB_FULL)
+				ecmd->advertising |= ADVERTISED_10000baseT_Full;
+			if (hw->phy.autoneg_advertised &
+			    IXGBE_LINK_SPEED_1GB_FULL)
+				ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		} else {
+			/*
+			 * Default advertised modes in case
+			 * phy.autoneg_advertised isn't set.
+			 */
 			ecmd->advertising |= (ADVERTISED_10000baseT_Full |
 					      ADVERTISED_1000baseT_Full);
+			if (hw->mac.type == ixgbe_mac_X540)
+				ecmd->advertising |= ADVERTISED_100baseT_Full;
+		}
 
 		if (hw->phy.media_type == ixgbe_media_type_copper) {
 			ecmd->supported |= SUPPORTED_TP;
@@ -271,8 +286,19 @@ static int ixgbe_get_settings(struct net_device *netdev,
 
 	hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
 	if (link_up) {
-		ecmd->speed = (link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
-		               SPEED_10000 : SPEED_1000;
+		switch (link_speed) {
+		case IXGBE_LINK_SPEED_10GB_FULL:
+			ecmd->speed = SPEED_10000;
+			break;
+		case IXGBE_LINK_SPEED_1GB_FULL:
+			ecmd->speed = SPEED_1000;
+			break;
+		case IXGBE_LINK_SPEED_100_FULL:
+			ecmd->speed = SPEED_100;
+			break;
+		default:
+			break;
+		}
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
 		ecmd->speed = -1;
@@ -305,6 +331,9 @@ static int ixgbe_set_settings(struct net_device *netdev,
 
 		if (ecmd->advertising & ADVERTISED_1000baseT_Full)
 			advertised |= IXGBE_LINK_SPEED_1GB_FULL;
+
+		if (ecmd->advertising & ADVERTISED_100baseT_Full)
+			advertised |= IXGBE_LINK_SPEED_100_FULL;
 
 		if (old == advertised)
 			return err;

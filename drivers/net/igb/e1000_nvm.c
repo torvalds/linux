@@ -318,6 +318,68 @@ out:
 }
 
 /**
+ *  igb_read_nvm_spi - Read EEPROM's using SPI
+ *  @hw: pointer to the HW structure
+ *  @offset: offset of word in the EEPROM to read
+ *  @words: number of words to read
+ *  @data: word read from the EEPROM
+ *
+ *  Reads a 16 bit word from the EEPROM.
+ **/
+s32 igb_read_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
+{
+	struct e1000_nvm_info *nvm = &hw->nvm;
+	u32 i = 0;
+	s32 ret_val;
+	u16 word_in;
+	u8 read_opcode = NVM_READ_OPCODE_SPI;
+
+	/*
+	 * A check for invalid values:  offset too large, too many words,
+	 * and not enough words.
+	 */
+	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
+	    (words == 0)) {
+		hw_dbg("nvm parameter(s) out of bounds\n");
+		ret_val = -E1000_ERR_NVM;
+		goto out;
+	}
+
+	ret_val = nvm->ops.acquire(hw);
+	if (ret_val)
+		goto out;
+
+	ret_val = igb_ready_nvm_eeprom(hw);
+	if (ret_val)
+		goto release;
+
+	igb_standby_nvm(hw);
+
+	if ((nvm->address_bits == 8) && (offset >= 128))
+		read_opcode |= NVM_A8_OPCODE_SPI;
+
+	/* Send the READ command (opcode + addr) */
+	igb_shift_out_eec_bits(hw, read_opcode, nvm->opcode_bits);
+	igb_shift_out_eec_bits(hw, (u16)(offset*2), nvm->address_bits);
+
+	/*
+	 * Read the data.  SPI NVMs increment the address with each byte
+	 * read and will roll over if reading beyond the end.  This allows
+	 * us to read the whole NVM from any offset
+	 */
+	for (i = 0; i < words; i++) {
+		word_in = igb_shift_in_eec_bits(hw, 16);
+		data[i] = (word_in >> 8) | (word_in << 8);
+	}
+
+release:
+	nvm->ops.release(hw);
+
+out:
+	return ret_val;
+}
+
+/**
  *  igb_read_nvm_eerd - Reads EEPROM using EERD register
  *  @hw: pointer to the HW structure
  *  @offset: offset of word in the EEPROM to read
@@ -353,7 +415,7 @@ s32 igb_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 			break;
 
 		data[i] = (rd32(E1000_EERD) >>
-			   E1000_NVM_RW_REG_DATA);
+			E1000_NVM_RW_REG_DATA);
 	}
 
 out:

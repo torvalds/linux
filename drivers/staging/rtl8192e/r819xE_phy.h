@@ -6,25 +6,6 @@
 #define MAX_RFDEPENDCMD_CNT 16
 #define MAX_POSTCMD_CNT 16
 
-#ifdef RTL8190P
-#define MACPHY_Array_PGLength 21
-#define Rtl819XMACPHY_Array_PG Rtl8190PciMACPHY_Array_PG
-#define Rtl819XMACPHY_Array Rtl8190PciMACPHY_Array
-#define RadioC_ArrayLength 246
-#define RadioD_ArrayLength 78
-#define Rtl819XRadioA_Array Rtl8190PciRadioA_Array
-#define Rtl819XRadioB_Array Rtl8190PciRadioB_Array
-#define Rtl819XRadioC_Array Rtl8190PciRadioC_Array
-#define Rtl819XRadioD_Array Rtl8190PciRadioD_Array
-#define Rtl819XAGCTAB_Array Rtl8190PciAGCTAB_Array
-#define PHY_REGArrayLength 280
-#define Rtl819XPHY_REGArray Rtl8190PciPHY_REGArray
-#define PHY_REG_1T2RArrayLength 280
-#define Rtl819XPHY_REG_1T2RArray Rtl8190PciPHY_REG_1T2RArray
-#endif
-
-
-#ifdef RTL8192E
 #define MACPHY_Array_PGLength 30
 #define Rtl819XMACPHY_Array_PG Rtl8192PciEMACPHY_Array_PG
 #define Rtl819XMACPHY_Array Rtl8192PciEMACPHY_Array
@@ -39,7 +20,6 @@
 #define Rtl819XPHY_REGArray Rtl8192PciEPHY_REGArray
 #define PHY_REG_1T2RArrayLength 296
 #define Rtl819XPHY_REG_1T2RArray Rtl8192PciEPHY_REG_1T2RArray
-#endif
 
 #define AGCTAB_ArrayLength 384
 #define MACPHY_ArrayLength 18
@@ -102,50 +82,50 @@ typedef enum _RF90_RADIO_PATH {
 #define bMaskLWord 0x0000ffff
 #define bMaskDWord 0xffffffff
 
-u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device *dev, u32 eRFPath);
+u8 rtl8192_phy_CheckIsLegalRFPath(struct r8192_priv *priv, u32 eRFPath);
 
-void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr,
+void rtl8192_setBBreg(struct r8192_priv *priv, u32 dwRegAddr,
 			     u32 dwBitMask, u32 dwData);
 
-u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr,
+u32 rtl8192_QueryBBReg(struct r8192_priv *priv, u32 dwRegAddr,
 			     u32 dwBitMask);
 
-void rtl8192_phy_SetRFReg(struct net_device *dev,
+void rtl8192_phy_SetRFReg(struct r8192_priv *priv,
 		RF90_RADIO_PATH_E eRFPath, u32 RegAddr,
 		u32 BitMask, u32 Data);
 
-u32 rtl8192_phy_QueryRFReg(struct net_device *dev,
+u32 rtl8192_phy_QueryRFReg(struct r8192_priv *priv,
 		RF90_RADIO_PATH_E eRFPath, u32 RegAddr, u32 BitMask);
 
-void rtl8192_phy_configmac(struct net_device *dev);
+void rtl8192_phy_configmac(struct r8192_priv *priv);
 
-void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType);
+void rtl8192_phyConfigBB(struct r8192_priv *priv, u8 ConfigType);
 
-RT_STATUS rtl8192_phy_checkBBAndRF(struct net_device *dev,
+RT_STATUS rtl8192_phy_checkBBAndRF(struct r8192_priv *priv,
 		HW90_BLOCK_E CheckBlock, RF90_RADIO_PATH_E eRFPath);
 
-RT_STATUS rtl8192_BBConfig(struct net_device *dev);
+RT_STATUS rtl8192_BBConfig(struct r8192_priv *priv);
 
-void rtl8192_phy_getTxPower(struct net_device *dev);
+void rtl8192_phy_getTxPower(struct r8192_priv *priv);
 
-void rtl8192_phy_setTxPower(struct net_device *dev, u8 channel);
+void rtl8192_phy_setTxPower(struct r8192_priv *priv, u8 channel);
 
-RT_STATUS rtl8192_phy_RFConfig(struct net_device* dev);
+RT_STATUS rtl8192_phy_RFConfig(struct r8192_priv *priv);
 
-void rtl8192_phy_updateInitGain(struct net_device* dev);
+void rtl8192_phy_updateInitGain(struct r8192_priv *priv);
 
-u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev,
+u8 rtl8192_phy_ConfigRFWithHeaderFile(struct r8192_priv *priv,
 					RF90_RADIO_PATH_E eRFPath);
 
-u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel);
+u8 rtl8192_phy_SwChnl(struct ieee80211_device *ieee80211, u8 channel);
 
-void rtl8192_SetBWMode(struct net_device *dev,
+void rtl8192_SetBWMode(struct ieee80211_device *ieee80211,
 		HT_CHANNEL_WIDTH Bandwidth, HT_EXTCHNL_OFFSET Offset);
 
-void rtl8192_SwChnl_WorkItem(struct net_device *dev);
+void rtl8192_SwChnl_WorkItem(struct r8192_priv *priv);
 
-void rtl8192_SetBWModeWorkItem(struct net_device *dev);
+void rtl8192_SetBWModeWorkItem(struct r8192_priv *priv);
 
-void InitialGain819xPci(struct net_device *dev, u8 Operation);
+void InitialGain819xPci(struct ieee80211_device *ieee, u8 Operation);
 
 #endif /* _R819XU_PHY_H */

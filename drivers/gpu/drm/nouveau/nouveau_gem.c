@@ -61,18 +61,35 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 
 int
 nouveau_gem_new(struct drm_device *dev, struct nouveau_channel *chan,
-		int size, int align, uint32_t flags, uint32_t tile_mode,
-		uint32_t tile_flags, bool no_vm, bool mappable,
-		struct nouveau_bo **pnvbo)
+		int size, int align, uint32_t domain, uint32_t tile_mode,
+		uint32_t tile_flags, struct nouveau_bo **pnvbo)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *nvbo;
+	u32 flags = 0;
 	int ret;
 
+	if (domain & NOUVEAU_GEM_DOMAIN_VRAM)
+		flags |= TTM_PL_FLAG_VRAM;
+	if (domain & NOUVEAU_GEM_DOMAIN_GART)
+		flags |= TTM_PL_FLAG_TT;
+	if (!flags || domain & NOUVEAU_GEM_DOMAIN_CPU)
+		flags |= TTM_PL_FLAG_SYSTEM;
+
 	ret = nouveau_bo_new(dev, chan, size, align, flags, tile_mode,
-			     tile_flags, no_vm, mappable, pnvbo);
+			     tile_flags, pnvbo);
 	if (ret)
 		return ret;
 	nvbo = *pnvbo;
+
+	/* we restrict allowed domains on nv50+ to only the types
+	 * that were requested at creation time.  not possibly on
+	 * earlier chips without busting the ABI.
+	 */
+	nvbo->valid_domains = NOUVEAU_GEM_DOMAIN_VRAM |
+			      NOUVEAU_GEM_DOMAIN_GART;
+	if (dev_priv->card_type >= NV_50)
+		nvbo->valid_domains &= domain;
 
 	nvbo->gem = drm_gem_object_alloc(dev, nvbo->bo.mem.size);
 	if (!nvbo->gem) {
@@ -80,7 +97,7 @@ nouveau_gem_new(struct drm_device *dev, struct nouveau_channel *chan,
 		return -ENOMEM;
 	}
 
-	nvbo->bo.persistant_swap_storage = nvbo->gem->filp;
+	nvbo->bo.persistent_swap_storage = nvbo->gem->filp;
 	nvbo->gem->driver_private = nvbo;
 	return 0;
 }
@@ -97,7 +114,7 @@ nouveau_gem_info(struct drm_gem_object *gem, struct drm_nouveau_gem_info *rep)
 
 	rep->size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
 	rep->offset = nvbo->bo.offset;
-	rep->map_handle = nvbo->mappable ? nvbo->bo.addr_space_offset : 0;
+	rep->map_handle = nvbo->bo.addr_space_offset;
 	rep->tile_mode = nvbo->tile_mode;
 	rep->tile_flags = nvbo->tile_flags;
 	return 0;
@@ -111,18 +128,10 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	struct drm_nouveau_gem_new *req = data;
 	struct nouveau_bo *nvbo = NULL;
 	struct nouveau_channel *chan = NULL;
-	uint32_t flags = 0;
 	int ret = 0;
 
 	if (unlikely(dev_priv->ttm.bdev.dev_mapping == NULL))
 		dev_priv->ttm.bdev.dev_mapping = dev_priv->dev->dev_mapping;
-
-	if (req->info.domain & NOUVEAU_GEM_DOMAIN_VRAM)
-		flags |= TTM_PL_FLAG_VRAM;
-	if (req->info.domain & NOUVEAU_GEM_DOMAIN_GART)
-		flags |= TTM_PL_FLAG_TT;
-	if (!flags || req->info.domain & NOUVEAU_GEM_DOMAIN_CPU)
-		flags |= TTM_PL_FLAG_SYSTEM;
 
 	if (!dev_priv->engine.vram.flags_valid(dev, req->info.tile_flags)) {
 		NV_ERROR(dev, "bad page flags: 0x%08x\n", req->info.tile_flags);
@@ -135,10 +144,9 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 			return PTR_ERR(chan);
 	}
 
-	ret = nouveau_gem_new(dev, chan, req->info.size, req->align, flags,
-			      req->info.tile_mode, req->info.tile_flags, false,
-			      (req->info.domain & NOUVEAU_GEM_DOMAIN_MAPPABLE),
-			      &nvbo);
+	ret = nouveau_gem_new(dev, chan, req->info.size, req->align,
+			      req->info.domain, req->info.tile_mode,
+			      req->info.tile_flags, &nvbo);
 	if (chan)
 		nouveau_channel_put(&chan);
 	if (ret)
@@ -161,7 +169,7 @@ nouveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
 {
 	struct nouveau_bo *nvbo = gem->driver_private;
 	struct ttm_buffer_object *bo = &nvbo->bo;
-	uint32_t domains = valid_domains &
+	uint32_t domains = valid_domains & nvbo->valid_domains &
 		(write_domains ? write_domains : read_domains);
 	uint32_t pref_flags = 0, valid_flags = 0;
 
@@ -592,7 +600,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		if (push[i].bo_index >= req->nr_buffers) {
 			NV_ERROR(dev, "push %d buffer not in list\n", i);
 			ret = -EINVAL;
-			goto out;
+			goto out_prevalid;
 		}
 
 		bo[push[i].bo_index].read_domains |= (1 << 31);
@@ -604,7 +612,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	if (ret) {
 		if (ret != -ERESTARTSYS)
 			NV_ERROR(dev, "validate: %d\n", ret);
-		goto out;
+		goto out_prevalid;
 	}
 
 	/* Apply any relocations that are required */
@@ -697,6 +705,8 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 out:
 	validate_fini(&op, fence);
 	nouveau_fence_unref(&fence);
+
+out_prevalid:
 	kfree(bo);
 	kfree(push);
 

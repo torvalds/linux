@@ -29,12 +29,6 @@ struct nvram_header {
 	u32 config_ncdl;	/* ncdl values for memc */
 };
 
-struct nvram_tuple {
-	char *name;
-	char *value;
-	struct nvram_tuple *next;
-};
-
 /*
  * Get default value for an NVRAM variable
  */

@@ -907,12 +907,8 @@ static int serial2002_detach(struct comedi_device *dev)
 	printk("comedi%d: serial2002: remove\n", dev->minor);
 	for (i = 0; i < 5; i++) {
 		s = &dev->subdevices[i];
-		if (s->maxdata_list) {
-			kfree(s->maxdata_list);
-		}
-		if (s->range_table_list) {
-			kfree(s->range_table_list);
-		}
+		kfree(s->maxdata_list);
+		kfree(s->range_table_list);
 	}
 	return 0;
 }

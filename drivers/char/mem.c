@@ -47,10 +47,7 @@ static inline unsigned long size_inside_page(unsigned long start,
 #ifndef ARCH_HAS_VALID_PHYS_ADDR_RANGE
 static inline int valid_phys_addr_range(unsigned long addr, size_t count)
 {
-	if (addr + count > __pa(high_memory))
-		return 0;
-
-	return 1;
+	return addr + count <= __pa(high_memory);
 }
 
 static inline int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)

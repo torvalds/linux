@@ -44,7 +44,7 @@ static inline void set_vtimer(__u64 expires)
 	__u64 timer;
 
 	asm volatile ("  STPT %0\n"  /* Store current cpu timer value */
-		      "  SPT %1"     /* Set new value immediatly afterwards */
+		      "  SPT %1"     /* Set new value immediately afterwards */
 		      : "=m" (timer) : "m" (expires) );
 	S390_lowcore.system_timer += S390_lowcore.last_update_timer - timer;
 	S390_lowcore.last_update_timer = expires;

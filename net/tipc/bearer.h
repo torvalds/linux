@@ -2,7 +2,7 @@
  * net/tipc/bearer.h: Include file for TIPC bearer code
  *
  * Copyright (c) 1996-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,26 +61,7 @@ struct tipc_media_addr {
 	} dev_addr;
 };
 
-/**
- * struct tipc_bearer - TIPC bearer info available to media code
- * @usr_handle: pointer to additional media-specific information about bearer
- * @mtu: max packet size bearer can support
- * @blocked: non-zero if bearer is blocked
- * @lock: spinlock for controlling access to bearer
- * @addr: media-specific address associated with bearer
- * @name: bearer name (format = media:interface)
- *
- * Note: TIPC initializes "name" and "lock" fields; media code is responsible
- * for initialization all other fields when a bearer is enabled.
- */
-struct tipc_bearer {
-	void *usr_handle;
-	u32 mtu;
-	int blocked;
-	spinlock_t lock;
-	struct tipc_media_addr addr;
-	char name[TIPC_MAX_BEARER_NAME];
-};
+struct tipc_bearer;
 
 /**
  * struct media - TIPC media information available to internal users
@@ -89,7 +70,6 @@ struct tipc_bearer {
  * @disable_bearer: routine which disables a bearer
  * @addr2str: routine which converts bearer's address to string form
  * @bcast_addr: media address used in broadcasting
- * @bcast: non-zero if media supports broadcasting [currently mandatory]
  * @priority: default link (and bearer) priority
  * @tolerance: default time (in ms) before declaring link failure
  * @window: default window (in packets) before declaring link congestion
@@ -106,7 +86,6 @@ struct media {
 	char *(*addr2str)(struct tipc_media_addr *a,
 			  char *str_buf, int str_size);
 	struct tipc_media_addr bcast_addr;
-	int bcast;
 	u32 priority;
 	u32 tolerance;
 	u32 window;
@@ -115,11 +94,15 @@ struct media {
 };
 
 /**
- * struct bearer - TIPC bearer information available to internal users
- * @publ: bearer information available to privileged users
+ * struct tipc_bearer - TIPC bearer structure
+ * @usr_handle: pointer to additional media-specific information about bearer
+ * @mtu: max packet size bearer can support
+ * @blocked: non-zero if bearer is blocked
+ * @lock: spinlock for controlling access to bearer
+ * @addr: media-specific address associated with bearer
+ * @name: bearer name (format = media:interface)
  * @media: ptr to media structure associated with bearer
  * @priority: default link priority for bearer
- * @detect_scope: network address mask used during automatic link creation
  * @identity: array index of this bearer within TIPC bearer array
  * @link_req: ptr to (optional) structure making periodic link setup requests
  * @links: list of non-congested links associated with bearer
@@ -128,13 +111,20 @@ struct media {
  * @active: non-zero if bearer structure is represents a bearer
  * @net_plane: network plane ('A' through 'H') currently associated with bearer
  * @nodes: indicates which nodes in cluster can be reached through bearer
+ *
+ * Note: media-specific code is responsible for initialization of the fields
+ * indicated below when a bearer is enabled; TIPC's generic bearer code takes
+ * care of initializing all other fields.
  */
-
-struct bearer {
-	struct tipc_bearer publ;
+struct tipc_bearer {
+	void *usr_handle;			/* initalized by media */
+	u32 mtu;				/* initalized by media */
+	int blocked;				/* initalized by media */
+	struct tipc_media_addr addr;		/* initalized by media */
+	char name[TIPC_MAX_BEARER_NAME];
+	spinlock_t lock;
 	struct media *media;
 	u32 priority;
-	u32 detect_scope;
 	u32 identity;
 	struct link_req *link_req;
 	struct list_head links;
@@ -152,7 +142,7 @@ struct bearer_name {
 
 struct link;
 
-extern struct bearer tipc_bearers[];
+extern struct tipc_bearer tipc_bearers[];
 
 /*
  * TIPC routines available to supported media types
@@ -173,7 +163,7 @@ void tipc_recv_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr);
 int  tipc_block_bearer(const char *name);
 void tipc_continue(struct tipc_bearer *tb_ptr);
 
-int tipc_enable_bearer(const char *bearer_name, u32 bcast_scope, u32 priority);
+int tipc_enable_bearer(const char *bearer_name, u32 disc_domain, u32 priority);
 int tipc_disable_bearer(const char *name);
 
 /*
@@ -186,14 +176,14 @@ void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a);
 struct sk_buff *tipc_media_get_names(void);
 
 struct sk_buff *tipc_bearer_get_names(void);
-void tipc_bearer_add_dest(struct bearer *b_ptr, u32 dest);
-void tipc_bearer_remove_dest(struct bearer *b_ptr, u32 dest);
-void tipc_bearer_schedule(struct bearer *b_ptr, struct link *l_ptr);
-struct bearer *tipc_bearer_find_interface(const char *if_name);
-int tipc_bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr);
-int tipc_bearer_congested(struct bearer *b_ptr, struct link *l_ptr);
+void tipc_bearer_add_dest(struct tipc_bearer *b_ptr, u32 dest);
+void tipc_bearer_remove_dest(struct tipc_bearer *b_ptr, u32 dest);
+void tipc_bearer_schedule(struct tipc_bearer *b_ptr, struct link *l_ptr);
+struct tipc_bearer *tipc_bearer_find_interface(const char *if_name);
+int tipc_bearer_resolve_congestion(struct tipc_bearer *b_ptr, struct link *l_ptr);
+int tipc_bearer_congested(struct tipc_bearer *b_ptr, struct link *l_ptr);
 void tipc_bearer_stop(void);
-void tipc_bearer_lock_push(struct bearer *b_ptr);
+void tipc_bearer_lock_push(struct tipc_bearer *b_ptr);
 
 
 /**
@@ -214,10 +204,11 @@ void tipc_bearer_lock_push(struct bearer *b_ptr);
  * and let TIPC's link code deal with the undelivered message.
  */
 
-static inline int tipc_bearer_send(struct bearer *b_ptr, struct sk_buff *buf,
+static inline int tipc_bearer_send(struct tipc_bearer *b_ptr,
+				   struct sk_buff *buf,
 				   struct tipc_media_addr *dest)
 {
-	return !b_ptr->media->send_msg(buf, &b_ptr->publ, dest);
+	return !b_ptr->media->send_msg(buf, b_ptr, dest);
 }
 
 #endif	/* _TIPC_BEARER_H */

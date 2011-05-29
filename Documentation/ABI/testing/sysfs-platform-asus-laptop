@@ -27,7 +27,7 @@ KernelVersion:	2.6.20
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
 Description:
 		Some models like the W1N have a LED display that can be
-		used to display several informations.
+		used to display several items of information.
 		To control the LED display, use the following :
 		    echo 0x0T000DDD > /sys/devices/platform/asus_laptop/
 		where T control the 3 letters display, and DDD the 3 digits display.

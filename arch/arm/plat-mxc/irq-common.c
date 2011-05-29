@@ -29,7 +29,7 @@ int imx_irq_set_priority(unsigned char irq, unsigned char prio)
 
 	ret = -ENOSYS;
 
-	base = get_irq_chip(irq);
+	base = irq_get_chip(irq);
 	if (base) {
 		chip = container_of(base, struct mxc_irq_chip, base);
 		if (chip->set_priority)
@@ -48,7 +48,7 @@ int mxc_set_irq_fiq(unsigned int irq, unsigned int type)
 
 	ret = -ENOSYS;
 
-	base = get_irq_chip(irq);
+	base = irq_get_chip(irq);
 	if (base) {
 		chip = container_of(base, struct mxc_irq_chip, base);
 		if (chip->set_irq_fiq)

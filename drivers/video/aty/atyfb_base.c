@@ -2241,6 +2241,7 @@ static void aty_bl_init(struct atyfb_par *par)
 	snprintf(name, sizeof(name), "atybl%d", info->node);
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
 	bd = backlight_device_register(name, info->dev, par, &aty_bl_data,
 				       &props);
@@ -3123,12 +3124,12 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 		M = pll_regs[2];
 
 		/*
-		 * PLL Feedback Divider N (Dependant on CLOCK_CNTL):
+		 * PLL Feedback Divider N (Dependent on CLOCK_CNTL):
 		 */
 		N = pll_regs[7 + (clock_cntl & 3)];
 
 		/*
-		 * PLL Post Divider P (Dependant on CLOCK_CNTL):
+		 * PLL Post Divider P (Dependent on CLOCK_CNTL):
 		 */
 		P = 1 << (pll_regs[6] >> ((clock_cntl & 3) << 1));
 

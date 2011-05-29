@@ -148,7 +148,7 @@ struct rxkad_challenge {
  * Kerberos security type-2 response packet
  */
 struct rxkad_response {
-	__be32		version;	/* version of this reponse type */
+	__be32		version;	/* version of this response type */
 	__be32		__pad;
 
 	/* encrypted bit of the response */

@@ -7,13 +7,16 @@
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/ata_platform.h>
 #include <linux/smsc911x.h>
 #include <linux/spinlock.h>
 #include <linux/sysdev.h>
 #include <linux/usb/isp1760.h>
 #include <linux/clkdev.h>
 
+#include <asm/mach-types.h>
 #include <asm/sizes.h>
+#include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -21,6 +24,7 @@
 #include <asm/hardware/timer-sp.h>
 #include <asm/hardware/sp810.h>
 
+#include <mach/ct-ca9x4.h>
 #include <mach/motherboard.h>
 
 #include <plat/sched_clock.h>
@@ -42,18 +46,15 @@ static struct map_desc v2m_io_desc[] __initdata = {
 	},
 };
 
-void __init v2m_map_io(struct map_desc *tile, size_t num)
+static void __init v2m_init_early(void)
 {
-	iotable_init(v2m_io_desc, ARRAY_SIZE(v2m_io_desc));
-	iotable_init(tile, num);
+	ct_desc->init_early();
+	versatile_sched_clock_init(MMIO_P2V(V2M_SYS_24MHZ), 24000000);
 }
-
 
 static void __init v2m_timer_init(void)
 {
 	u32 scctrl;
-
-	versatile_sched_clock_init(MMIO_P2V(V2M_SYS_24MHZ), 24000000);
 
 	/* Select 1MHz TIMCLK as the reference clock for SP804 timers */
 	scctrl = readl(MMIO_P2V(V2M_SYSCTL + SCCTRL));
@@ -68,7 +69,7 @@ static void __init v2m_timer_init(void)
 	sp804_clockevents_init(MMIO_P2V(V2M_TIMER0), IRQ_V2M_TIMER0);
 }
 
-struct sys_timer v2m_timer = {
+static struct sys_timer v2m_timer = {
 	.init	= v2m_timer_init,
 };
 
@@ -249,6 +250,29 @@ static struct platform_device v2m_flash_device = {
 	.dev.platform_data = &v2m_flash_data,
 };
 
+static struct pata_platform_info v2m_pata_data = {
+	.ioport_shift	= 2,
+};
+
+static struct resource v2m_pata_resources[] = {
+	{
+		.start	= V2M_CF,
+		.end	= V2M_CF + 0xff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= V2M_CF + 0x100,
+		.end	= V2M_CF + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device v2m_cf_device = {
+	.name		= "pata_platform",
+	.id		= -1,
+	.resource	= v2m_pata_resources,
+	.num_resources	= ARRAY_SIZE(v2m_pata_resources),
+	.dev.platform_data = &v2m_pata_data,
+};
 
 static unsigned int v2m_mmci_status(struct device *dev)
 {
@@ -354,7 +378,44 @@ static void v2m_restart(char str, const char *cmd)
 		printk(KERN_EMERG "Unable to reboot\n");
 }
 
-static int __init v2m_init(void)
+struct ct_desc *ct_desc;
+
+static struct ct_desc *ct_descs[] __initdata = {
+#ifdef CONFIG_ARCH_VEXPRESS_CA9X4
+	&ct_ca9x4_desc,
+#endif
+};
+
+static void __init v2m_populate_ct_desc(void)
+{
+	int i;
+	u32 current_tile_id;
+
+	ct_desc = NULL;
+	current_tile_id = readl(MMIO_P2V(V2M_SYS_PROCID0)) & V2M_CT_ID_MASK;
+
+	for (i = 0; i < ARRAY_SIZE(ct_descs) && !ct_desc; ++i)
+		if (ct_descs[i]->id == current_tile_id)
+			ct_desc = ct_descs[i];
+
+	if (!ct_desc)
+		panic("vexpress: failed to populate core tile description "
+		      "for tile ID 0x%8x\n", current_tile_id);
+}
+
+static void __init v2m_map_io(void)
+{
+	iotable_init(v2m_io_desc, ARRAY_SIZE(v2m_io_desc));
+	v2m_populate_ct_desc();
+	ct_desc->map_io();
+}
+
+static void __init v2m_init_irq(void)
+{
+	ct_desc->init_irq();
+}
+
+static void __init v2m_init(void)
 {
 	int i;
 
@@ -363,6 +424,7 @@ static int __init v2m_init(void)
 	platform_device_register(&v2m_pcie_i2c_device);
 	platform_device_register(&v2m_ddc_i2c_device);
 	platform_device_register(&v2m_flash_device);
+	platform_device_register(&v2m_cf_device);
 	platform_device_register(&v2m_eth_device);
 	platform_device_register(&v2m_usb_device);
 
@@ -372,6 +434,14 @@ static int __init v2m_init(void)
 	pm_power_off = v2m_power_off;
 	arm_pm_restart = v2m_restart;
 
-	return 0;
+	ct_desc->init_tile();
 }
-arch_initcall(v2m_init);
+
+MACHINE_START(VEXPRESS, "ARM-Versatile Express")
+	.boot_params	= PLAT_PHYS_OFFSET + 0x00000100,
+	.map_io		= v2m_map_io,
+	.init_early	= v2m_init_early,
+	.init_irq	= v2m_init_irq,
+	.timer		= &v2m_timer,
+	.init_machine	= v2m_init,
+MACHINE_END

@@ -319,24 +319,24 @@ static const struct bpwr_clk_t bpwr_clks[] = {
 
 /* This Bridge driver's device context: */
 struct bridge_dev_context {
-	struct dev_object *hdev_obj;	/* Handle to Bridge device object. */
-	u32 dw_dsp_base_addr;	/* Arm's API to DSP virt base addr */
+	struct dev_object *dev_obj;	/* Handle to Bridge device object. */
+	u32 dsp_base_addr;	/* Arm's API to DSP virt base addr */
 	/*
 	 * DSP External memory prog address as seen virtually by the OS on
 	 * the host side.
 	 */
-	u32 dw_dsp_ext_base_addr;	/* See the comment above */
-	u32 dw_api_reg_base;	/* API mem map'd registers */
-	void __iomem *dw_dsp_mmu_base;	/* DSP MMU Mapped registers */
-	u32 dw_api_clk_base;	/* CLK Registers */
-	u32 dw_dsp_clk_m2_base;	/* DSP Clock Module m2 */
-	u32 dw_public_rhea;	/* Pub Rhea */
-	u32 dw_int_addr;	/* MB INTR reg */
-	u32 dw_tc_endianism;	/* TC Endianism register */
-	u32 dw_test_base;	/* DSP MMU Mapped registers */
-	u32 dw_self_loop;	/* Pointer to the selfloop */
-	u32 dw_dsp_start_add;	/* API Boot vector */
-	u32 dw_internal_size;	/* Internal memory size */
+	u32 dsp_ext_base_addr;	/* See the comment above */
+	u32 api_reg_base;	/* API mem map'd registers */
+	void __iomem *dsp_mmu_base;	/* DSP MMU Mapped registers */
+	u32 api_clk_base;	/* CLK Registers */
+	u32 dsp_clk_m2_base;	/* DSP Clock Module m2 */
+	u32 public_rhea;	/* Pub Rhea */
+	u32 int_addr;		/* MB INTR reg */
+	u32 tc_endianism;	/* TC Endianism register */
+	u32 test_base;		/* DSP MMU Mapped registers */
+	u32 self_loop;		/* Pointer to the selfloop */
+	u32 dsp_start_add;	/* API Boot vector */
+	u32 internal_size;	/* Internal memory size */
 
 	struct omap_mbox *mbox;		/* Mail box handle */
 
@@ -348,7 +348,7 @@ struct bridge_dev_context {
 	 */
 	/* DMMU TLB entries */
 	struct bridge_ioctl_extproc atlb_entry[BRDIOCTL_NUMOFMMUTLB];
-	u32 dw_brd_state;       /* Last known board state. */
+	u32 brd_state;       /* Last known board state. */
 
 	/* TC Settings */
 	bool tc_word_swap_on;	/* Traffic Controller Word Swap */
@@ -366,7 +366,7 @@ extern s32 dsp_debug;
  *  ======== sm_interrupt_dsp ========
  *  Purpose:
  *      Set interrupt value & send an interrupt to the DSP processor(s).
- *      This is typicaly used when mailbox interrupt mechanisms allow data
+ *      This is typically used when mailbox interrupt mechanisms allow data
  *      to be associated with interrupt such as for OMAP's CMD/DATA regs.
  *  Parameters:
  *      dev_context:    Handle to Bridge driver defined device info.

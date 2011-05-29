@@ -165,7 +165,6 @@ static uint32_t fpga_tx(struct solos_card *);
 static irqreturn_t solos_irq(int irq, void *dev_id);
 static struct atm_vcc* find_vcc(struct atm_dev *dev, short vpi, int vci);
 static int list_vccs(int vci);
-static void release_vccs(struct atm_dev *dev);
 static int atm_init(struct solos_card *, struct device *);
 static void atm_remove(struct solos_card *);
 static int send_command(struct solos_card *card, int dev, const char *buf, size_t size);
@@ -384,7 +383,6 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 	/* Anything but 'Showtime' is down */
 	if (strcmp(state_str, "Showtime")) {
 		atm_dev_signal_change(card->atmdev[port], ATM_PHY_SIG_LOST);
-		release_vccs(card->atmdev[port]);
 		dev_info(&card->dev->dev, "Port %d: %s\n", port, state_str);
 		return 0;
 	}
@@ -697,7 +695,7 @@ void solos_bh(unsigned long card_arg)
 					      size);
 			}
 			if (atmdebug) {
-				dev_info(&card->dev->dev, "Received: device %d\n", port);
+				dev_info(&card->dev->dev, "Received: port %d\n", port);
 				dev_info(&card->dev->dev, "size: %d VPI: %d VCI: %d\n",
 					 size, le16_to_cpu(header->vpi),
 					 le16_to_cpu(header->vci));
@@ -710,8 +708,8 @@ void solos_bh(unsigned long card_arg)
 					       le16_to_cpu(header->vci));
 				if (!vcc) {
 					if (net_ratelimit())
-						dev_warn(&card->dev->dev, "Received packet for unknown VCI.VPI %d.%d on port %d\n",
-							 le16_to_cpu(header->vci), le16_to_cpu(header->vpi),
+						dev_warn(&card->dev->dev, "Received packet for unknown VPI.VCI %d.%d on port %d\n",
+							 le16_to_cpu(header->vpi), le16_to_cpu(header->vci),
 							 port);
 					continue;
 				}
@@ -828,28 +826,6 @@ static int list_vccs(int vci)
 	}
 	read_unlock(&vcc_sklist_lock);
 	return num_found;
-}
-
-static void release_vccs(struct atm_dev *dev)
-{
-        int i;
-
-        write_lock_irq(&vcc_sklist_lock);
-        for (i = 0; i < VCC_HTABLE_SIZE; i++) {
-                struct hlist_head *head = &vcc_hash[i];
-                struct hlist_node *node, *tmp;
-                struct sock *s;
-                struct atm_vcc *vcc;
-
-                sk_for_each_safe(s, node, tmp, head) {
-                        vcc = atm_sk(s);
-                        if (vcc->dev == dev) {
-                                vcc_release_async(vcc, -EPIPE);
-                                sk_del_node_init(s);
-                        }
-                }
-        }
-        write_unlock_irq(&vcc_sklist_lock);
 }
 
 
@@ -1018,8 +994,15 @@ static uint32_t fpga_tx(struct solos_card *card)
 
 			/* Clean up and free oldskb now it's gone */
 			if (atmdebug) {
+				struct pkt_hdr *header = (void *)oldskb->data;
+				int size = le16_to_cpu(header->size);
+
+				skb_pull(oldskb, sizeof(*header));
 				dev_info(&card->dev->dev, "Transmitted: port %d\n",
 					 port);
+				dev_info(&card->dev->dev, "size: %d VPI: %d VCI: %d\n",
+					 size, le16_to_cpu(header->vpi),
+					 le16_to_cpu(header->vci));
 				print_buffer(oldskb);
 			}
 
@@ -1262,7 +1245,7 @@ static int atm_init(struct solos_card *card, struct device *parent)
 		card->atmdev[i]->ci_range.vci_bits = 16;
 		card->atmdev[i]->dev_data = card;
 		card->atmdev[i]->phy_data = (void *)(unsigned long)i;
-		atm_dev_signal_change(card->atmdev[i], ATM_PHY_SIG_UNKNOWN);
+		atm_dev_signal_change(card->atmdev[i], ATM_PHY_SIG_FOUND);
 
 		skb = alloc_skb(sizeof(*header), GFP_ATOMIC);
 		if (!skb) {

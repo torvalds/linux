@@ -65,7 +65,7 @@
  *  with EEH.
  *
  *  Ideally, a PCI device driver, when suspecting that an isolation
- *  event has occured (e.g. by reading 0xff's), will then ask EEH
+ *  event has occurred (e.g. by reading 0xff's), will then ask EEH
  *  whether this is the case, and then take appropriate steps to
  *  reset the PCI slot, the PCI device, and then resume operations.
  *  However, until that day,  the checking is done here, with the
@@ -876,7 +876,7 @@ void eeh_restore_bars(struct pci_dn *pdn)
  *
  * Save the values of the device bars. Unlike the restore
  * routine, this routine is *not* recursive. This is because
- * PCI devices are added individuallly; but, for the restore,
+ * PCI devices are added individually; but, for the restore,
  * an entire slot is reset at a time.
  */
 static void eeh_save_bars(struct pci_dn *pdn)

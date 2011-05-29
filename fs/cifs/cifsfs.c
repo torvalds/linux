@@ -53,7 +53,6 @@ int cifsFYI = 0;
 int cifsERROR = 1;
 int traceSMB = 0;
 unsigned int oplockEnabled = 1;
-unsigned int experimEnabled = 0;
 unsigned int linuxExtEnabled = 1;
 unsigned int lookupCacheEnabled = 1;
 unsigned int multiuser_mount = 0;
@@ -127,6 +126,7 @@ cifs_read_super(struct super_block *sb, void *data,
 		kfree(cifs_sb);
 		return rc;
 	}
+	cifs_sb->bdi.ra_pages = default_backing_dev_info.ra_pages;
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	/* copy mount params to sb for use in submounts */
@@ -409,8 +409,8 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER)
 		seq_printf(s, ",multiuser");
-	else if (tcon->ses->userName)
-		seq_printf(s, ",username=%s", tcon->ses->userName);
+	else if (tcon->ses->user_name)
+		seq_printf(s, ",username=%s", tcon->ses->user_name);
 
 	if (tcon->ses->domainName)
 		seq_printf(s, ",domain=%s", tcon->ses->domainName);

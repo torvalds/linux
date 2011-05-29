@@ -216,7 +216,7 @@ static void pseries_cpu_die(unsigned int cpu)
 		       cpu, pcpu, cpu_status);
 	}
 
-	/* Isolation and deallocation are definatly done by
+	/* Isolation and deallocation are definitely done by
 	 * drslot_chrp_cpu.  If they were not they would be
 	 * done here.  Change isolate state to Isolate and
 	 * change allocation-state to Unusable.

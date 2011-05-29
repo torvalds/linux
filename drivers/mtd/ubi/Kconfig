@@ -52,6 +52,12 @@ config MTD_UBI_GLUEBI
 	   work on top of UBI. Do not enable this unless you use legacy
 	   software.
 
-source "drivers/mtd/ubi/Kconfig.debug"
+config MTD_UBI_DEBUG
+	bool "UBI debugging"
+	depends on SYSFS
+	select DEBUG_FS
+	select KALLSYMS
+	help
+	  This option enables UBI debugging.
 
 endif # MTD_UBI

@@ -28,6 +28,7 @@
 #include <linux/leds.h>
 #include <linux/mfd/da903x.h>
 #include <linux/i2c/max732x.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -45,7 +46,6 @@
 #include <mach/mmc.h>
 #include <plat/pxa27x_keypad.h>
 #include <mach/littleton.h>
-#include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
 
 #include "generic.h"
@@ -185,7 +185,7 @@ static struct pxafb_mach_info littleton_lcd_info = {
 
 static void littleton_init_lcd(void)
 {
-	set_pxa_fb_info(&littleton_lcd_info);
+	pxa_set_fb_info(NULL, &littleton_lcd_info);
 }
 #else
 static inline void littleton_init_lcd(void) {};

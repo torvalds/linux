@@ -8,6 +8,7 @@
 #ifndef _SELINUX_SECURITY_H_
 #define _SELINUX_SECURITY_H_
 
+#include <linux/dcache.h>
 #include <linux/magic.h>
 #include <linux/types.h>
 #include "flask.h"
@@ -28,13 +29,14 @@
 #define POLICYDB_VERSION_POLCAP		22
 #define POLICYDB_VERSION_PERMISSIVE	23
 #define POLICYDB_VERSION_BOUNDARY	24
+#define POLICYDB_VERSION_FILENAME_TRANS	25
 
 /* Range of policy versions we understand*/
 #define POLICYDB_VERSION_MIN   POLICYDB_VERSION_BASE
 #ifdef CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX
 #define POLICYDB_VERSION_MAX	CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX_VALUE
 #else
-#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_BOUNDARY
+#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_FILENAME_TRANS
 #endif
 
 /* Mask for just the mount related flags */
@@ -106,8 +108,8 @@ void security_compute_av(u32 ssid, u32 tsid,
 void security_compute_av_user(u32 ssid, u32 tsid,
 			     u16 tclass, struct av_decision *avd);
 
-int security_transition_sid(u32 ssid, u32 tsid,
-			    u16 tclass, u32 *out_sid);
+int security_transition_sid(u32 ssid, u32 tsid, u16 tclass,
+			    const struct qstr *qstr, u32 *out_sid);
 
 int security_transition_sid_user(u32 ssid, u32 tsid,
 				 u16 tclass, u32 *out_sid);

@@ -254,6 +254,7 @@ MACHINE_START(EDMINI_V2, "LaCie Ethernet Disk mini V2")
 	.boot_params	= 0x00000100,
 	.init_machine	= edmini_v2_init,
 	.map_io		= orion5x_map_io,
+	.init_early	= orion5x_init_early,
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,

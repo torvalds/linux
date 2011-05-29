@@ -12,7 +12,50 @@
 #include <linux/syscalls.h>
 #include <linux/keyctl.h>
 #include <linux/compat.h>
+#include <linux/slab.h>
 #include "internal.h"
+
+/*
+ * Instantiate a key with the specified compatibility multipart payload and
+ * link the key into the destination keyring if one is given.
+ *
+ * The caller must have the appropriate instantiation permit set for this to
+ * work (see keyctl_assume_authority).  No other permissions are required.
+ *
+ * If successful, 0 will be returned.
+ */
+long compat_keyctl_instantiate_key_iov(
+	key_serial_t id,
+	const struct compat_iovec __user *_payload_iov,
+	unsigned ioc,
+	key_serial_t ringid)
+{
+	struct iovec iovstack[UIO_FASTIOV], *iov = iovstack;
+	long ret;
+
+	if (_payload_iov == 0 || ioc == 0)
+		goto no_payload;
+
+	ret = compat_rw_copy_check_uvector(WRITE, _payload_iov, ioc,
+					   ARRAY_SIZE(iovstack),
+					   iovstack, &iov);
+	if (ret < 0)
+		return ret;
+	if (ret == 0)
+		goto no_payload_free;
+
+	ret = keyctl_instantiate_key_common(id, iov, ioc, ret, ringid);
+
+	if (iov != iovstack)
+		kfree(iov);
+	return ret;
+
+no_payload_free:
+	if (iov != iovstack)
+		kfree(iov);
+no_payload:
+	return keyctl_instantiate_key_common(id, NULL, 0, 0, ringid);
+}
 
 /*
  * The key control system call, 32-bit compatibility version for 64-bit archs
@@ -84,6 +127,13 @@ asmlinkage long compat_sys_keyctl(u32 option,
 
 	case KEYCTL_SESSION_TO_PARENT:
 		return keyctl_session_to_parent();
+
+	case KEYCTL_REJECT:
+		return keyctl_reject_key(arg2, arg3, arg4, arg5);
+
+	case KEYCTL_INSTANTIATE_IOV:
+		return compat_keyctl_instantiate_key_iov(
+			arg2, compat_ptr(arg3), arg4, arg5);
 
 	default:
 		return -EOPNOTSUPP;

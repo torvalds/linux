@@ -300,8 +300,8 @@ static int is_static_library(const char *objfile)
 		return 0;
 }
 
-/* We have dir/file.o.  Open dir/.file.o.cmd, look for deps_ line to
- * figure out source file. */
+/* We have dir/file.o.  Open dir/.file.o.cmd, look for source_ and deps_ line
+ * to figure out source files. */
 static int parse_source_files(const char *objfile, struct md4_ctx *md)
 {
 	char *cmd, *file, *line, *dir;
@@ -340,6 +340,21 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 	*/
 	while ((line = get_next_line(&pos, file, flen)) != NULL) {
 		char* p = line;
+
+		if (strncmp(line, "source_", sizeof("source_")-1) == 0) {
+			p = strrchr(line, ' ');
+			if (!p) {
+				warn("malformed line: %s\n", line);
+				goto out_file;
+			}
+			p++;
+			if (!parse_file(p, md)) {
+				warn("could not open %s: %s\n",
+				     p, strerror(errno));
+				goto out_file;
+			}
+			continue;
+		}
 		if (strncmp(line, "deps_", sizeof("deps_")-1) == 0) {
 			check_files = 1;
 			continue;

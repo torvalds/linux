@@ -199,7 +199,7 @@ struct llc_pdu_sn {
 	u8 ssap;
 	u8 ctrl_1;
 	u8 ctrl_2;
-};
+} __packed;
 
 static inline struct llc_pdu_sn *llc_pdu_sn_hdr(struct sk_buff *skb)
 {
@@ -211,7 +211,7 @@ struct llc_pdu_un {
 	u8 dsap;
 	u8 ssap;
 	u8 ctrl_1;
-};
+} __packed;
 
 static inline struct llc_pdu_un *llc_pdu_un_hdr(struct sk_buff *skb)
 {
@@ -359,7 +359,7 @@ struct llc_xid_info {
 	u8 fmt_id;	/* always 0x81 for LLC */
 	u8 type;	/* different if NULL/non-NULL LSAP */
 	u8 rw;		/* sender receive window */
-};
+} __packed;
 
 /**
  *	llc_pdu_init_as_xid_cmd - sets bytes 3, 4 & 5 of LLC header as XID
@@ -415,7 +415,7 @@ struct llc_frmr_info {
 	u8  curr_ssv;		/* current send state variable val */
 	u8  curr_rsv;		/* current receive state variable */
 	u8  ind_bits;		/* indicator bits set with macro */
-};
+} __packed;
 
 extern void llc_pdu_set_cmd_rsp(struct sk_buff *skb, u8 type);
 extern void llc_pdu_set_pf_bit(struct sk_buff *skb, u8 bit_value);

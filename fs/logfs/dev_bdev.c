@@ -39,7 +39,6 @@ static int sync_request(struct page *page, struct block_device *bdev, int rw)
 	bio.bi_end_io = request_complete;
 
 	submit_bio(rw, &bio);
-	generic_unplug_device(bdev_get_queue(bdev));
 	wait_for_completion(&complete);
 	return test_bit(BIO_UPTODATE, &bio.bi_flags) ? 0 : -EIO;
 }
@@ -168,7 +167,6 @@ static void bdev_writeseg(struct super_block *sb, u64 ofs, size_t len)
 	}
 	len = PAGE_ALIGN(len);
 	__bdev_writeseg(sb, ofs, ofs >> PAGE_SHIFT, len >> PAGE_SHIFT);
-	generic_unplug_device(bdev_get_queue(logfs_super(sb)->s_bdev));
 }
 
 

@@ -1403,7 +1403,7 @@ int jbd2_journal_stop(handle_t *handle)
 
 	/*
 	 * Once we drop t_updates, if it goes to zero the transaction
-	 * could start commiting on us and eventually disappear.  So
+	 * could start committing on us and eventually disappear.  So
 	 * once we do this, we must not dereference transaction
 	 * pointer again.
 	 */

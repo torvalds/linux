@@ -41,6 +41,9 @@ struct key_type {
 	 */
 	size_t def_datalen;
 
+	/* vet a description */
+	int (*vet_description)(const char *description);
+
 	/* instantiate a key of this type
 	 * - this method should call key_payload_reserve() to determine if the
 	 *   user's quota will hold the payload
@@ -102,11 +105,20 @@ extern int key_instantiate_and_link(struct key *key,
 				    size_t datalen,
 				    struct key *keyring,
 				    struct key *instkey);
-extern int key_negate_and_link(struct key *key,
+extern int key_reject_and_link(struct key *key,
 			       unsigned timeout,
+			       unsigned error,
 			       struct key *keyring,
 			       struct key *instkey);
 extern void complete_request_key(struct key_construction *cons, int error);
+
+static inline int key_negate_and_link(struct key *key,
+				      unsigned timeout,
+				      struct key *keyring,
+				      struct key *instkey)
+{
+	return key_reject_and_link(key, timeout, ENOKEY, keyring, instkey);
+}
 
 #endif /* CONFIG_KEYS */
 #endif /* _LINUX_KEY_TYPE_H */

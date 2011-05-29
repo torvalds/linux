@@ -54,7 +54,7 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 #endif
 
 /*
- *	These are pretty much arbitary with the CoMEM implementation.
+ *	These are pretty much arbitrary with the CoMEM implementation.
  *	We have the whole address space to ourselves.
  */
 #define PCIBIOS_MIN_IO		0x100

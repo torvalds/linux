@@ -544,7 +544,7 @@ static int cx24110_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	cx24110_set_inversion (state, p->inversion);
 	cx24110_set_fec (state, p->u.qpsk.fec_inner);
 	cx24110_set_symbolrate (state, p->u.qpsk.symbol_rate);
-	cx24110_writereg(state,0x04,0x05); /* start aquisition */
+	cx24110_writereg(state,0x04,0x05); /* start acquisition */
 
 	return 0;
 }

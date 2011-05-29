@@ -27,6 +27,7 @@
 #include "cmd.h"
 #include "scan.h"
 #include "acx.h"
+#include "ps.h"
 
 void wl1271_scan_complete_work(struct work_struct *work)
 {
@@ -40,10 +41,11 @@ void wl1271_scan_complete_work(struct work_struct *work)
 
 	mutex_lock(&wl->mutex);
 
-	if (wl->scan.state == WL1271_SCAN_STATE_IDLE) {
-		mutex_unlock(&wl->mutex);
-		return;
-	}
+	if (wl->state == WL1271_STATE_OFF)
+		goto out;
+
+	if (wl->scan.state == WL1271_SCAN_STATE_IDLE)
+		goto out;
 
 	wl->scan.state = WL1271_SCAN_STATE_IDLE;
 	kfree(wl->scan.scanned_ch);
@@ -52,13 +54,19 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	ieee80211_scan_completed(wl->hw, false);
 
 	/* restore hardware connection monitoring template */
-	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
-		wl1271_cmd_build_ap_probe_req(wl, wl->probereq);
+	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
+		if (wl1271_ps_elp_wakeup(wl) == 0) {
+			wl1271_cmd_build_ap_probe_req(wl, wl->probereq);
+			wl1271_ps_elp_sleep(wl);
+		}
+	}
 
 	if (wl->scan.failed) {
 		wl1271_info("Scan completed due to error.");
 		ieee80211_queue_work(wl->hw, &wl->recovery_work);
 	}
+
+out:
 	mutex_unlock(&wl->mutex);
 
 }

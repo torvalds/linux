@@ -223,7 +223,7 @@
 #define  PCI_PM_CAP_PME_CLOCK	0x0008	/* PME clock required */
 #define  PCI_PM_CAP_RESERVED    0x0010  /* Reserved field */
 #define  PCI_PM_CAP_DSI		0x0020	/* Device specific initialization */
-#define  PCI_PM_CAP_AUX_POWER	0x01C0	/* Auxilliary power support mask */
+#define  PCI_PM_CAP_AUX_POWER	0x01C0	/* Auxiliary power support mask */
 #define  PCI_PM_CAP_D1		0x0200	/* D1 power state support */
 #define  PCI_PM_CAP_D2		0x0400	/* D2 power state support */
 #define  PCI_PM_CAP_PME		0x0800	/* PME pin supported */
@@ -435,7 +435,7 @@
 #define  PCI_EXP_LNKCAP_L0SEL	0x00007000 /* L0s Exit Latency */
 #define  PCI_EXP_LNKCAP_L1EL	0x00038000 /* L1 Exit Latency */
 #define  PCI_EXP_LNKCAP_CLKPM	0x00040000 /* L1 Clock Power Management */
-#define  PCI_EXP_LNKCAP_SDERC	0x00080000 /* Suprise Down Error Reporting Capable */
+#define  PCI_EXP_LNKCAP_SDERC	0x00080000 /* Surprise Down Error Reporting Capable */
 #define  PCI_EXP_LNKCAP_DLLLARC	0x00100000 /* Data Link Layer Link Active Reporting Capable */
 #define  PCI_EXP_LNKCAP_LBNC	0x00200000 /* Link Bandwidth Notification Capability */
 #define  PCI_EXP_LNKCAP_PN	0xff000000 /* Port Number */

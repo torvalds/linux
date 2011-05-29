@@ -9,10 +9,10 @@ obj-$(CONFIG_IMX_HAVE_DMA_V1) += dma-v1.o
 obj-$(CONFIG_ARCH_MX1) += clock-imx1.o mm-imx1.o
 obj-$(CONFIG_MACH_MX21) += clock-imx21.o mm-imx21.o
 
-obj-$(CONFIG_ARCH_MX25) += clock-imx25.o mm-imx25.o
+obj-$(CONFIG_ARCH_MX25) += clock-imx25.o mm-imx25.o ehci-imx25.o
 
 obj-$(CONFIG_MACH_MX27) += cpu-imx27.o pm-imx27.o
-obj-$(CONFIG_MACH_MX27) += clock-imx27.o mm-imx27.o
+obj-$(CONFIG_MACH_MX27) += clock-imx27.o mm-imx27.o ehci-imx27.o
 
 # Support for CMOS sensor interface
 obj-$(CONFIG_MX1_VIDEO)	+= mx1-camera-fiq.o mx1-camera-fiq-ksym.o
@@ -36,3 +36,4 @@ obj-$(CONFIG_MACH_CPUIMX27) += mach-cpuimx27.o
 obj-$(CONFIG_MACH_EUKREA_MBIMX27_BASEBOARD) += eukrea_mbimx27-baseboard.o
 obj-$(CONFIG_MACH_PCA100) += mach-pca100.o
 obj-$(CONFIG_MACH_MXT_TD60) += mach-mxt_td60.o
+obj-$(CONFIG_MACH_IMX27IPCAM) += mach-imx27ipcam.o

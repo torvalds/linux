@@ -26,6 +26,7 @@
 #include <linux/dm9000.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -47,7 +48,6 @@
 #include <mach/irda.h>
 #include <mach/ohci.h>
 #include <mach/smemc.h>
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -516,9 +516,9 @@ static void __init trizeps4_init(void)
 	pxa_set_stuart_info(NULL);
 
 	if (0)	/* dont know how to determine LCD */
-		set_pxa_fb_info(&sharp_lcd);
+		pxa_set_fb_info(NULL, &sharp_lcd);
 	else
-		set_pxa_fb_info(&toshiba_lcd);
+		pxa_set_fb_info(NULL, &toshiba_lcd);
 
 	pxa_set_mci_info(&trizeps4_mci_platform_data);
 #ifndef STATUS_LEDS_ON_STUART_PINS

@@ -48,12 +48,15 @@ static DEFINE_PER_CPU(struct perf_event *, watchdog_ev);
  * Should we panic when a soft-lockup or hard-lockup occurs:
  */
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
-static int hardlockup_panic;
+static int hardlockup_panic =
+			CONFIG_BOOTPARAM_HARDLOCKUP_PANIC_VALUE;
 
 static int __init hardlockup_panic_setup(char *str)
 {
 	if (!strncmp(str, "panic", 5))
 		hardlockup_panic = 1;
+	else if (!strncmp(str, "nopanic", 7))
+		hardlockup_panic = 0;
 	else if (!strncmp(str, "0", 1))
 		watchdog_enabled = 0;
 	return 1;
@@ -415,19 +418,25 @@ static int watchdog_prepare_cpu(int cpu)
 static int watchdog_enable(int cpu)
 {
 	struct task_struct *p = per_cpu(softlockup_watchdog, cpu);
-	int err;
+	int err = 0;
 
 	/* enable the perf event */
 	err = watchdog_nmi_enable(cpu);
-	if (err)
-		return err;
+
+	/* Regardless of err above, fall through and start softlockup */
 
 	/* create the watchdog thread */
 	if (!p) {
 		p = kthread_create(watchdog, (void *)(unsigned long)cpu, "watchdog/%d", cpu);
 		if (IS_ERR(p)) {
 			printk(KERN_ERR "softlockup watchdog for %i failed\n", cpu);
-			return PTR_ERR(p);
+			if (!err) {
+				/* if hardlockup hasn't already set this */
+				err = PTR_ERR(p);
+				/* and disable the perf event */
+				watchdog_nmi_disable(cpu);
+			}
+			goto out;
 		}
 		kthread_bind(p, cpu);
 		per_cpu(watchdog_touch_ts, cpu) = 0;
@@ -435,7 +444,8 @@ static int watchdog_enable(int cpu)
 		wake_up_process(p);
 	}
 
-	return 0;
+out:
+	return err;
 }
 
 static void watchdog_disable(int cpu)
@@ -547,7 +557,13 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		break;
 #endif /* CONFIG_HOTPLUG_CPU */
 	}
-	return notifier_from_errno(err);
+
+	/*
+	 * hardlockup and softlockup are not important enough
+	 * to block cpu bring up.  Just always succeed and
+	 * rely on printk output to flag problems.
+	 */
+	return NOTIFY_OK;
 }
 
 static struct notifier_block __cpuinitdata cpu_nfb = {

@@ -522,7 +522,7 @@ static int snd_atiixp_aclink_reset(struct atiixp *chip)
 		atiixp_read(chip, CMD);
 		mdelay(1);
 		atiixp_update(chip, CMD, ATI_REG_CMD_AC_RESET, ATI_REG_CMD_AC_RESET);
-		if (--timeout) {
+		if (!--timeout) {
 			snd_printk(KERN_ERR "atiixp: codec reset timeout\n");
 			break;
 		}

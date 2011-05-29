@@ -830,7 +830,7 @@ EXPORT_SYMBOL(bitmap_bitremap);
  *  @orig (i.e. bits 3, 5, 7 and 9) were also set.
  *
  *  When bit 11 is set in @orig, it means turn on the bit in
- *  @dst corresponding to whatever is the twelth bit that is
+ *  @dst corresponding to whatever is the twelfth bit that is
  *  turned on in @relmap.  In the above example, there were
  *  only ten bits turned on in @relmap (30..39), so that bit
  *  11 was set in @orig had no affect on @dst.

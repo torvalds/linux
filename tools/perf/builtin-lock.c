@@ -202,8 +202,19 @@ static struct thread_stat *thread_stat_findnew_first(u32 tid)
 SINGLE_KEY(nr_acquired)
 SINGLE_KEY(nr_contended)
 SINGLE_KEY(wait_time_total)
-SINGLE_KEY(wait_time_min)
 SINGLE_KEY(wait_time_max)
+
+static int lock_stat_key_wait_time_min(struct lock_stat *one,
+					struct lock_stat *two)
+{
+	u64 s1 = one->wait_time_min;
+	u64 s2 = two->wait_time_min;
+	if (s1 == ULLONG_MAX)
+		s1 = 0;
+	if (s2 == ULLONG_MAX)
+		s2 = 0;
+	return s1 > s2;
+}
 
 struct lock_key {
 	/*
@@ -834,14 +845,16 @@ static void dump_info(void)
 		die("Unknown type of information\n");
 }
 
-static int process_sample_event(event_t *self, struct sample_data *sample,
+static int process_sample_event(union perf_event *event,
+				struct perf_sample *sample,
+				struct perf_evsel *evsel __used,
 				struct perf_session *s)
 {
 	struct thread *thread = perf_session__findnew(s, sample->tid);
 
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
-			self->header.type);
+			event->header.type);
 		return -1;
 	}
 
@@ -852,7 +865,7 @@ static int process_sample_event(event_t *self, struct sample_data *sample,
 
 static struct perf_event_ops eops = {
 	.sample			= process_sample_event,
-	.comm			= event__process_comm,
+	.comm			= perf_event__process_comm,
 	.ordered_samples	= true,
 };
 
@@ -893,7 +906,7 @@ static const char * const report_usage[] = {
 
 static const struct option report_options[] = {
 	OPT_STRING('k', "key", &sort_key, "acquired",
-		    "key for sorting"),
+		    "key for sorting (acquired / contended / wait_total / wait_max / wait_min)"),
 	/* TODO: type */
 	OPT_END()
 };

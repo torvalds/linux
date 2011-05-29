@@ -28,6 +28,7 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/card.h>
+#include <linux/mmc/host.h>
 #include <linux/gpio.h>
 #include <linux/wl12xx.h>
 #include <linux/pm_runtime.h>
@@ -60,7 +61,7 @@ static struct device *wl1271_sdio_wl_to_dev(struct wl1271 *wl)
 	return &(wl_to_func(wl)->dev);
 }
 
-static irqreturn_t wl1271_irq(int irq, void *cookie)
+static irqreturn_t wl1271_hardirq(int irq, void *cookie)
 {
 	struct wl1271 *wl = cookie;
 	unsigned long flags;
@@ -69,17 +70,14 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 
 	/* complete the ELP completion */
 	spin_lock_irqsave(&wl->wl_lock, flags);
+	set_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
 	if (wl->elp_compl) {
 		complete(wl->elp_compl);
 		wl->elp_compl = NULL;
 	}
-
-	if (!test_and_set_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags))
-		ieee80211_queue_work(wl->hw, &wl->irq_work);
-	set_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags);
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 static void wl1271_sdio_disable_interrupts(struct wl1271 *wl)
@@ -106,8 +104,6 @@ static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
 	int ret;
 	struct sdio_func *func = wl_to_func(wl);
 
-	sdio_claim_host(func);
-
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
 		((u8 *)buf)[0] = sdio_f0_readb(func, addr, &ret);
 		wl1271_debug(DEBUG_SDIO, "sdio read 52 addr 0x%x, byte 0x%02x",
@@ -123,8 +119,6 @@ static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
 		wl1271_dump_ascii(DEBUG_SDIO, "data: ", buf, len);
 	}
 
-	sdio_release_host(func);
-
 	if (ret)
 		wl1271_error("sdio read failed (%d)", ret);
 }
@@ -134,8 +128,6 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 {
 	int ret;
 	struct sdio_func *func = wl_to_func(wl);
-
-	sdio_claim_host(func);
 
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
 		sdio_f0_writeb(func, ((u8 *)buf)[0], addr, &ret);
@@ -152,8 +144,6 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 			ret = sdio_memcpy_toio(func, addr, buf, len);
 	}
 
-	sdio_release_host(func);
-
 	if (ret)
 		wl1271_error("sdio write failed (%d)", ret);
 }
@@ -163,14 +153,18 @@ static int wl1271_sdio_power_on(struct wl1271 *wl)
 	struct sdio_func *func = wl_to_func(wl);
 	int ret;
 
-	/* Power up the card */
+	/* Make sure the card will not be powered off by runtime PM */
 	ret = pm_runtime_get_sync(&func->dev);
+	if (ret < 0)
+		goto out;
+
+	/* Runtime PM might be disabled, so power up the card manually */
+	ret = mmc_power_restore_host(func->card->host);
 	if (ret < 0)
 		goto out;
 
 	sdio_claim_host(func);
 	sdio_enable_func(func);
-	sdio_release_host(func);
 
 out:
 	return ret;
@@ -179,12 +173,17 @@ out:
 static int wl1271_sdio_power_off(struct wl1271 *wl)
 {
 	struct sdio_func *func = wl_to_func(wl);
+	int ret;
 
-	sdio_claim_host(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);
 
-	/* Power down the card */
+	/* Runtime PM might be disabled, so power off the card manually */
+	ret = mmc_power_save_host(func->card->host);
+	if (ret < 0)
+		return ret;
+
+	/* Let runtime PM know the card is powered off */
 	return pm_runtime_put_sync(&func->dev);
 }
 
@@ -241,13 +240,13 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	wl->irq = wlan_data->irq;
 	wl->ref_clock = wlan_data->board_ref_clock;
 
-	ret = request_irq(wl->irq, wl1271_irq, 0, DRIVER_NAME, wl);
+	ret = request_threaded_irq(wl->irq, wl1271_hardirq, wl1271_irq,
+				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+				   DRIVER_NAME, wl);
 	if (ret < 0) {
 		wl1271_error("request_irq() failed: %d", ret);
 		goto out_free;
 	}
-
-	set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
 
 	disable_irq(wl->irq);
 
@@ -270,7 +269,6 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 
  out_irq:
 	free_irq(wl->irq, wl);
-
 
  out_free:
 	wl1271_free_hw(wl);
@@ -342,6 +340,7 @@ module_init(wl1271_init);
 module_exit(wl1271_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");
+MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
 MODULE_FIRMWARE(WL1271_FW_NAME);
+MODULE_FIRMWARE(WL1271_AP_FW_NAME);

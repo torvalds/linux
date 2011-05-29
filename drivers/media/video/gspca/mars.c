@@ -361,7 +361,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		mi_w(gspca_dev, i + 1, mi_data[i]);
 
 	data[0] = 0x00;
-	data[1] = 0x4d;		/* ISOC transfering enable... */
+	data[1] = 0x4d;		/* ISOC transferring enable... */
 	reg_w(gspca_dev, 2);
 
 	gspca_dev->ctrl_inac = 0; /* activate the illuminator controls */

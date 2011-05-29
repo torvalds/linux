@@ -152,10 +152,6 @@ static inline void pnx833x_hard_disable_pic_irq(unsigned int irq)
 	PNX833X_PIC_INT_REG(irq) = 0;
 }
 
-static int irqflags[PNX833X_PIC_NUM_IRQ];	/* initialized by zeroes */
-#define IRQFLAG_STARTED		1
-#define IRQFLAG_DISABLED	2
-
 static DEFINE_RAW_SPINLOCK(pnx833x_irq_lock);
 
 static unsigned int pnx833x_startup_pic_irq(unsigned int irq)
@@ -164,108 +160,54 @@ static unsigned int pnx833x_startup_pic_irq(unsigned int irq)
 	unsigned int pic_irq = irq - PNX833X_PIC_IRQ_BASE;
 
 	raw_spin_lock_irqsave(&pnx833x_irq_lock, flags);
-
-	irqflags[pic_irq] = IRQFLAG_STARTED;	/* started, not disabled */
 	pnx833x_hard_enable_pic_irq(pic_irq);
-
 	raw_spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
 	return 0;
 }
 
-static void pnx833x_shutdown_pic_irq(unsigned int irq)
+static void pnx833x_enable_pic_irq(struct irq_data *d)
 {
 	unsigned long flags;
-	unsigned int pic_irq = irq - PNX833X_PIC_IRQ_BASE;
+	unsigned int pic_irq = d->irq - PNX833X_PIC_IRQ_BASE;
 
 	raw_spin_lock_irqsave(&pnx833x_irq_lock, flags);
+	pnx833x_hard_enable_pic_irq(pic_irq);
+	raw_spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
+}
 
-	irqflags[pic_irq] = 0;			/* not started */
+static void pnx833x_disable_pic_irq(struct irq_data *d)
+{
+	unsigned long flags;
+	unsigned int pic_irq = d->irq - PNX833X_PIC_IRQ_BASE;
+
+	raw_spin_lock_irqsave(&pnx833x_irq_lock, flags);
 	pnx833x_hard_disable_pic_irq(pic_irq);
-
 	raw_spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
-}
-
-static void pnx833x_enable_pic_irq(unsigned int irq)
-{
-	unsigned long flags;
-	unsigned int pic_irq = irq - PNX833X_PIC_IRQ_BASE;
-
-	raw_spin_lock_irqsave(&pnx833x_irq_lock, flags);
-
-	irqflags[pic_irq] &= ~IRQFLAG_DISABLED;
-	if (irqflags[pic_irq] == IRQFLAG_STARTED)
-		pnx833x_hard_enable_pic_irq(pic_irq);
-
-	raw_spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
-}
-
-static void pnx833x_disable_pic_irq(unsigned int irq)
-{
-	unsigned long flags;
-	unsigned int pic_irq = irq - PNX833X_PIC_IRQ_BASE;
-
-	raw_spin_lock_irqsave(&pnx833x_irq_lock, flags);
-
-	irqflags[pic_irq] |= IRQFLAG_DISABLED;
-	pnx833x_hard_disable_pic_irq(pic_irq);
-
-	raw_spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
-}
-
-static void pnx833x_ack_pic_irq(unsigned int irq)
-{
-}
-
-static void pnx833x_end_pic_irq(unsigned int irq)
-{
 }
 
 static DEFINE_RAW_SPINLOCK(pnx833x_gpio_pnx833x_irq_lock);
 
-static unsigned int pnx833x_startup_gpio_irq(unsigned int irq)
+static void pnx833x_enable_gpio_irq(struct irq_data *d)
 {
-	int pin = irq - PNX833X_GPIO_IRQ_BASE;
-	unsigned long flags;
-	raw_spin_lock_irqsave(&pnx833x_gpio_pnx833x_irq_lock, flags);
-	pnx833x_gpio_enable_irq(pin);
-	raw_spin_unlock_irqrestore(&pnx833x_gpio_pnx833x_irq_lock, flags);
-	return 0;
-}
-
-static void pnx833x_enable_gpio_irq(unsigned int irq)
-{
-	int pin = irq - PNX833X_GPIO_IRQ_BASE;
+	int pin = d->irq - PNX833X_GPIO_IRQ_BASE;
 	unsigned long flags;
 	raw_spin_lock_irqsave(&pnx833x_gpio_pnx833x_irq_lock, flags);
 	pnx833x_gpio_enable_irq(pin);
 	raw_spin_unlock_irqrestore(&pnx833x_gpio_pnx833x_irq_lock, flags);
 }
 
-static void pnx833x_disable_gpio_irq(unsigned int irq)
+static void pnx833x_disable_gpio_irq(struct irq_data *d)
 {
-	int pin = irq - PNX833X_GPIO_IRQ_BASE;
+	int pin = d->irq - PNX833X_GPIO_IRQ_BASE;
 	unsigned long flags;
 	raw_spin_lock_irqsave(&pnx833x_gpio_pnx833x_irq_lock, flags);
 	pnx833x_gpio_disable_irq(pin);
 	raw_spin_unlock_irqrestore(&pnx833x_gpio_pnx833x_irq_lock, flags);
 }
 
-static void pnx833x_ack_gpio_irq(unsigned int irq)
+static int pnx833x_set_type_gpio_irq(struct irq_data *d, unsigned int flow_type)
 {
-}
-
-static void pnx833x_end_gpio_irq(unsigned int irq)
-{
-	int pin = irq - PNX833X_GPIO_IRQ_BASE;
-	unsigned long flags;
-	raw_spin_lock_irqsave(&pnx833x_gpio_pnx833x_irq_lock, flags);
-	pnx833x_gpio_clear_irq(pin);
-	raw_spin_unlock_irqrestore(&pnx833x_gpio_pnx833x_irq_lock, flags);
-}
-
-static int pnx833x_set_type_gpio_irq(unsigned int irq, unsigned int flow_type)
-{
-	int pin = irq - PNX833X_GPIO_IRQ_BASE;
+	int pin = d->irq - PNX833X_GPIO_IRQ_BASE;
 	int gpio_mode;
 
 	switch (flow_type) {
@@ -296,23 +238,15 @@ static int pnx833x_set_type_gpio_irq(unsigned int irq, unsigned int flow_type)
 
 static struct irq_chip pnx833x_pic_irq_type = {
 	.name = "PNX-PIC",
-	.startup = pnx833x_startup_pic_irq,
-	.shutdown = pnx833x_shutdown_pic_irq,
-	.enable = pnx833x_enable_pic_irq,
-	.disable = pnx833x_disable_pic_irq,
-	.ack = pnx833x_ack_pic_irq,
-	.end = pnx833x_end_pic_irq
+	.irq_enable = pnx833x_enable_pic_irq,
+	.irq_disable = pnx833x_disable_pic_irq,
 };
 
 static struct irq_chip pnx833x_gpio_irq_type = {
 	.name = "PNX-GPIO",
-	.startup = pnx833x_startup_gpio_irq,
-	.shutdown = pnx833x_disable_gpio_irq,
-	.enable = pnx833x_enable_gpio_irq,
-	.disable = pnx833x_disable_gpio_irq,
-	.ack = pnx833x_ack_gpio_irq,
-	.end = pnx833x_end_gpio_irq,
-	.set_type = pnx833x_set_type_gpio_irq
+	.irq_enable = pnx833x_enable_gpio_irq,
+	.irq_disable = pnx833x_disable_gpio_irq,
+	.irq_set_type = pnx833x_set_type_gpio_irq,
 };
 
 void __init arch_init_irq(void)
@@ -325,11 +259,13 @@ void __init arch_init_irq(void)
 	/* Set IRQ information in irq_desc */
 	for (irq = PNX833X_PIC_IRQ_BASE; irq < (PNX833X_PIC_IRQ_BASE + PNX833X_PIC_NUM_IRQ); irq++) {
 		pnx833x_hard_disable_pic_irq(irq);
-		set_irq_chip_and_handler(irq, &pnx833x_pic_irq_type, handle_simple_irq);
+		irq_set_chip_and_handler(irq, &pnx833x_pic_irq_type,
+					 handle_simple_irq);
 	}
 
 	for (irq = PNX833X_GPIO_IRQ_BASE; irq < (PNX833X_GPIO_IRQ_BASE + PNX833X_GPIO_NUM_IRQ); irq++)
-		set_irq_chip_and_handler(irq, &pnx833x_gpio_irq_type, handle_simple_irq);
+		irq_set_chip_and_handler(irq, &pnx833x_gpio_irq_type,
+					 handle_simple_irq);
 
 	/* Set PIC priority limiter register to 0 */
 	PNX833X_PIC_INT_PRIORITY = 0;

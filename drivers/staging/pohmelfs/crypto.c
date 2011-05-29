@@ -745,7 +745,7 @@ static int pohmelfs_crypto_init_handshake(struct pohmelfs_sb *psb)
 
 	/*
 	 * At this point NETFS_CAPABILITIES response command
-	 * should setup superblock in a way, which is acceptible
+	 * should setup superblock in a way, which is acceptable
 	 * for both client and server, so if server refuses connection,
 	 * it will send error in transaction response.
 	 */

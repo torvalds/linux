@@ -89,7 +89,7 @@ static int jz4740_clockevent_set_next(unsigned long evt,
 
 static struct clock_event_device jz4740_clockevent = {
 	.name = "jz4740-timer",
-	.features = CLOCK_EVT_FEAT_PERIODIC,
+	.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_next_event = jz4740_clockevent_set_next,
 	.set_mode = jz4740_clockevent_set_mode,
 	.rating = 200,

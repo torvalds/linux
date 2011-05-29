@@ -26,7 +26,6 @@
 #include <linux/fs.h>
 #include <linux/fcntl.h>
 
-#define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"

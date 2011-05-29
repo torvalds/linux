@@ -64,7 +64,14 @@ static s32  igb_reset_init_script_82575(struct e1000_hw *);
 static s32  igb_read_mac_addr_82575(struct e1000_hw *);
 static s32  igb_set_pcie_completion_timeout(struct e1000_hw *hw);
 static s32  igb_reset_mdicnfg_82580(struct e1000_hw *hw);
-
+static s32  igb_validate_nvm_checksum_82580(struct e1000_hw *hw);
+static s32  igb_update_nvm_checksum_82580(struct e1000_hw *hw);
+static s32  igb_update_nvm_checksum_with_offset(struct e1000_hw *hw,
+						u16 offset);
+static s32 igb_validate_nvm_checksum_with_offset(struct e1000_hw *hw,
+						u16 offset);
+static s32 igb_validate_nvm_checksum_i350(struct e1000_hw *hw);
+static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw);
 static const u16 e1000_82580_rxpbs_table[] =
 	{ 36, 72, 144, 1, 2, 4, 8, 16,
 	  35, 70, 140 };
@@ -129,6 +136,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		break;
 	case E1000_DEV_ID_82580_COPPER:
 	case E1000_DEV_ID_82580_FIBER:
+	case E1000_DEV_ID_82580_QUAD_FIBER:
 	case E1000_DEV_ID_82580_SERDES:
 	case E1000_DEV_ID_82580_SGMII:
 	case E1000_DEV_ID_82580_COPPER_DUAL:
@@ -194,7 +202,11 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	mac->arc_subsystem_valid =
 		(rd32(E1000_FWSM) & E1000_FWSM_MODE_MASK)
 			? true : false;
-
+	/* enable EEE on i350 parts */
+	if (mac->type == e1000_i350)
+		dev_spec->eee_disable = false;
+	else
+		dev_spec->eee_disable = true;
 	/* physical interface link setup */
 	mac->ops.setup_physical_interface =
 		(hw->phy.media_type == e1000_media_type_copper)
@@ -232,14 +244,42 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	 */
 	size += NVM_WORD_SIZE_BASE_SHIFT;
 
-	/* EEPROM access above 16k is unsupported */
-	if (size > 14)
-		size = 14;
 	nvm->word_size = 1 << size;
+	if (nvm->word_size == (1 << 15))
+		nvm->page_size = 128;
 
-	/* if 82576 then initialize mailbox parameters */
-	if (mac->type == e1000_82576)
+	/* NVM Function Pointers */
+	nvm->ops.acquire = igb_acquire_nvm_82575;
+	if (nvm->word_size < (1 << 15))
+		nvm->ops.read = igb_read_nvm_eerd;
+	else
+		nvm->ops.read = igb_read_nvm_spi;
+
+	nvm->ops.release = igb_release_nvm_82575;
+	switch (hw->mac.type) {
+	case e1000_82580:
+		nvm->ops.validate = igb_validate_nvm_checksum_82580;
+		nvm->ops.update = igb_update_nvm_checksum_82580;
+		break;
+	case e1000_i350:
+		nvm->ops.validate = igb_validate_nvm_checksum_i350;
+		nvm->ops.update = igb_update_nvm_checksum_i350;
+		break;
+	default:
+		nvm->ops.validate = igb_validate_nvm_checksum;
+		nvm->ops.update = igb_update_nvm_checksum;
+	}
+	nvm->ops.write = igb_write_nvm_spi;
+
+	/* if part supports SR-IOV then initialize mailbox parameters */
+	switch (mac->type) {
+	case e1000_82576:
+	case e1000_i350:
 		igb_init_mbx_params_pf(hw);
+		break;
+	default:
+		break;
+	}
 
 	/* setup PHY parameters */
 	if (phy->media_type != e1000_media_type_copper) {
@@ -1743,6 +1783,248 @@ u16 igb_rxpbs_adjust_82580(u32 data)
 
 	if (data < E1000_82580_RXPBS_TABLE_SIZE)
 		ret_val = e1000_82580_rxpbs_table[data];
+
+	return ret_val;
+}
+
+/**
+ *  igb_validate_nvm_checksum_with_offset - Validate EEPROM
+ *  checksum
+ *  @hw: pointer to the HW structure
+ *  @offset: offset in words of the checksum protected region
+ *
+ *  Calculates the EEPROM checksum by reading/adding each word of the EEPROM
+ *  and then verifies that the sum of the EEPROM is equal to 0xBABA.
+ **/
+s32 igb_validate_nvm_checksum_with_offset(struct e1000_hw *hw, u16 offset)
+{
+	s32 ret_val = 0;
+	u16 checksum = 0;
+	u16 i, nvm_data;
+
+	for (i = offset; i < ((NVM_CHECKSUM_REG + offset) + 1); i++) {
+		ret_val = hw->nvm.ops.read(hw, i, 1, &nvm_data);
+		if (ret_val) {
+			hw_dbg("NVM Read Error\n");
+			goto out;
+		}
+		checksum += nvm_data;
+	}
+
+	if (checksum != (u16) NVM_SUM) {
+		hw_dbg("NVM Checksum Invalid\n");
+		ret_val = -E1000_ERR_NVM;
+		goto out;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_update_nvm_checksum_with_offset - Update EEPROM
+ *  checksum
+ *  @hw: pointer to the HW structure
+ *  @offset: offset in words of the checksum protected region
+ *
+ *  Updates the EEPROM checksum by reading/adding each word of the EEPROM
+ *  up to the checksum.  Then calculates the EEPROM checksum and writes the
+ *  value to the EEPROM.
+ **/
+s32 igb_update_nvm_checksum_with_offset(struct e1000_hw *hw, u16 offset)
+{
+	s32 ret_val;
+	u16 checksum = 0;
+	u16 i, nvm_data;
+
+	for (i = offset; i < (NVM_CHECKSUM_REG + offset); i++) {
+		ret_val = hw->nvm.ops.read(hw, i, 1, &nvm_data);
+		if (ret_val) {
+			hw_dbg("NVM Read Error while updating checksum.\n");
+			goto out;
+		}
+		checksum += nvm_data;
+	}
+	checksum = (u16) NVM_SUM - checksum;
+	ret_val = hw->nvm.ops.write(hw, (NVM_CHECKSUM_REG + offset), 1,
+				&checksum);
+	if (ret_val)
+		hw_dbg("NVM Write Error while updating checksum.\n");
+
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_validate_nvm_checksum_82580 - Validate EEPROM checksum
+ *  @hw: pointer to the HW structure
+ *
+ *  Calculates the EEPROM section checksum by reading/adding each word of
+ *  the EEPROM and then verifies that the sum of the EEPROM is
+ *  equal to 0xBABA.
+ **/
+static s32 igb_validate_nvm_checksum_82580(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	u16 eeprom_regions_count = 1;
+	u16 j, nvm_data;
+	u16 nvm_offset;
+
+	ret_val = hw->nvm.ops.read(hw, NVM_COMPATIBILITY_REG_3, 1, &nvm_data);
+	if (ret_val) {
+		hw_dbg("NVM Read Error\n");
+		goto out;
+	}
+
+	if (nvm_data & NVM_COMPATIBILITY_BIT_MASK) {
+		/* if chekcsums compatibility bit is set validate checksums
+		 * for all 4 ports. */
+		eeprom_regions_count = 4;
+	}
+
+	for (j = 0; j < eeprom_regions_count; j++) {
+		nvm_offset = NVM_82580_LAN_FUNC_OFFSET(j);
+		ret_val = igb_validate_nvm_checksum_with_offset(hw,
+								nvm_offset);
+		if (ret_val != 0)
+			goto out;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_update_nvm_checksum_82580 - Update EEPROM checksum
+ *  @hw: pointer to the HW structure
+ *
+ *  Updates the EEPROM section checksums for all 4 ports by reading/adding
+ *  each word of the EEPROM up to the checksum.  Then calculates the EEPROM
+ *  checksum and writes the value to the EEPROM.
+ **/
+static s32 igb_update_nvm_checksum_82580(struct e1000_hw *hw)
+{
+	s32 ret_val;
+	u16 j, nvm_data;
+	u16 nvm_offset;
+
+	ret_val = hw->nvm.ops.read(hw, NVM_COMPATIBILITY_REG_3, 1, &nvm_data);
+	if (ret_val) {
+		hw_dbg("NVM Read Error while updating checksum"
+			" compatibility bit.\n");
+		goto out;
+	}
+
+	if ((nvm_data & NVM_COMPATIBILITY_BIT_MASK) == 0) {
+		/* set compatibility bit to validate checksums appropriately */
+		nvm_data = nvm_data | NVM_COMPATIBILITY_BIT_MASK;
+		ret_val = hw->nvm.ops.write(hw, NVM_COMPATIBILITY_REG_3, 1,
+					&nvm_data);
+		if (ret_val) {
+			hw_dbg("NVM Write Error while updating checksum"
+				" compatibility bit.\n");
+			goto out;
+		}
+	}
+
+	for (j = 0; j < 4; j++) {
+		nvm_offset = NVM_82580_LAN_FUNC_OFFSET(j);
+		ret_val = igb_update_nvm_checksum_with_offset(hw, nvm_offset);
+		if (ret_val)
+			goto out;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_validate_nvm_checksum_i350 - Validate EEPROM checksum
+ *  @hw: pointer to the HW structure
+ *
+ *  Calculates the EEPROM section checksum by reading/adding each word of
+ *  the EEPROM and then verifies that the sum of the EEPROM is
+ *  equal to 0xBABA.
+ **/
+static s32 igb_validate_nvm_checksum_i350(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	u16 j;
+	u16 nvm_offset;
+
+	for (j = 0; j < 4; j++) {
+		nvm_offset = NVM_82580_LAN_FUNC_OFFSET(j);
+		ret_val = igb_validate_nvm_checksum_with_offset(hw,
+								nvm_offset);
+		if (ret_val != 0)
+			goto out;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_update_nvm_checksum_i350 - Update EEPROM checksum
+ *  @hw: pointer to the HW structure
+ *
+ *  Updates the EEPROM section checksums for all 4 ports by reading/adding
+ *  each word of the EEPROM up to the checksum.  Then calculates the EEPROM
+ *  checksum and writes the value to the EEPROM.
+ **/
+static s32 igb_update_nvm_checksum_i350(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	u16 j;
+	u16 nvm_offset;
+
+	for (j = 0; j < 4; j++) {
+		nvm_offset = NVM_82580_LAN_FUNC_OFFSET(j);
+		ret_val = igb_update_nvm_checksum_with_offset(hw, nvm_offset);
+		if (ret_val != 0)
+			goto out;
+	}
+
+out:
+	return ret_val;
+}
+/**
+ *  igb_set_eee_i350 - Enable/disable EEE support
+ *  @hw: pointer to the HW structure
+ *
+ *  Enable/disable EEE based on setting in dev_spec structure.
+ *
+ **/
+s32 igb_set_eee_i350(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	u32 ipcnfg, eeer, ctrl_ext;
+
+	ctrl_ext = rd32(E1000_CTRL_EXT);
+	if ((hw->mac.type != e1000_i350) ||
+	    (ctrl_ext & E1000_CTRL_EXT_LINK_MODE_MASK))
+		goto out;
+	ipcnfg = rd32(E1000_IPCNFG);
+	eeer = rd32(E1000_EEER);
+
+	/* enable or disable per user setting */
+	if (!(hw->dev_spec._82575.eee_disable)) {
+		ipcnfg |= (E1000_IPCNFG_EEE_1G_AN |
+			E1000_IPCNFG_EEE_100M_AN);
+		eeer |= (E1000_EEER_TX_LPI_EN |
+			E1000_EEER_RX_LPI_EN |
+			E1000_EEER_LPI_FC);
+
+	} else {
+		ipcnfg &= ~(E1000_IPCNFG_EEE_1G_AN |
+			E1000_IPCNFG_EEE_100M_AN);
+		eeer &= ~(E1000_EEER_TX_LPI_EN |
+			E1000_EEER_RX_LPI_EN |
+			E1000_EEER_LPI_FC);
+	}
+	wr32(E1000_IPCNFG, ipcnfg);
+	wr32(E1000_EEER, eeer);
+out:
 
 	return ret_val;
 }

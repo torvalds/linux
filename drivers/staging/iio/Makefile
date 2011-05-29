@@ -8,6 +8,7 @@ industrialio-$(CONFIG_IIO_RING_BUFFER) += industrialio-ring.o
 industrialio-$(CONFIG_IIO_TRIGGER) += industrialio-trigger.o
 
 obj-$(CONFIG_IIO_SW_RING) += ring_sw.o
+obj-$(CONFIG_IIO_KFIFO_BUF) += kfifo_buf.o
 
 obj-y += accel/
 obj-y += adc/

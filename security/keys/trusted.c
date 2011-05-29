@@ -1076,8 +1076,7 @@ static long trusted_read(const struct key *key, char __user *buffer,
 	char *bufp;
 	int i;
 
-	p = rcu_dereference_protected(key->payload.data,
-			rwsem_is_locked(&((struct key *)key)->sem));
+	p = rcu_dereference_key(key);
 	if (!p)
 		return -EINVAL;
 	if (!buffer || buflen <= 0)

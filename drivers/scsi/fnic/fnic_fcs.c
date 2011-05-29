@@ -411,7 +411,7 @@ int fnic_rq_cmpl_handler(struct fnic *fnic, int rq_work_to_do)
 			err = vnic_rq_fill(&fnic->rq[i], fnic_alloc_rq_frame);
 			if (err)
 				shost_printk(KERN_ERR, fnic->lport->host,
-					     "fnic_alloc_rq_frame cant alloc"
+					     "fnic_alloc_rq_frame can't alloc"
 					     " frame\n");
 		}
 		tot_rq_work_done += cur_work_done;

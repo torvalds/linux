@@ -175,7 +175,6 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	struct pptp_opt *opt = &po->proto.pptp;
 	struct pptp_gre_header *hdr;
 	unsigned int header_len = sizeof(*hdr);
-	int err = 0;
 	int islcp;
 	int len;
 	unsigned char *data;
@@ -190,18 +189,14 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	if (sk_pppox(po)->sk_state & PPPOX_DEAD)
 		goto tx_error;
 
-	{
-		struct flowi fl = { .oif = 0,
-			.nl_u = {
-				.ip4_u = {
-					.daddr = opt->dst_addr.sin_addr.s_addr,
-					.saddr = opt->src_addr.sin_addr.s_addr,
-					.tos = RT_TOS(0) } },
-			.proto = IPPROTO_GRE };
-		err = ip_route_output_key(&init_net, &rt, &fl);
-		if (err)
-			goto tx_error;
-	}
+	rt = ip_route_output_ports(&init_net, NULL,
+				   opt->dst_addr.sin_addr.s_addr,
+				   opt->src_addr.sin_addr.s_addr,
+				   0, 0, IPPROTO_GRE,
+				   RT_TOS(0), 0);
+	if (IS_ERR(rt))
+		goto tx_error;
+
 	tdev = rt->dst.dev;
 
 	max_headroom = LL_RESERVED_SPACE(tdev) + sizeof(*iph) + sizeof(*hdr) + 2;
@@ -468,21 +463,17 @@ static int pptp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	po->chan.private = sk;
 	po->chan.ops = &pptp_chan_ops;
 
-	{
-		struct flowi fl = {
-			.nl_u = {
-				.ip4_u = {
-					.daddr = opt->dst_addr.sin_addr.s_addr,
-					.saddr = opt->src_addr.sin_addr.s_addr,
-					.tos = RT_CONN_FLAGS(sk) } },
-			.proto = IPPROTO_GRE };
-		security_sk_classify_flow(sk, &fl);
-		if (ip_route_output_key(&init_net, &rt, &fl)) {
-			error = -EHOSTUNREACH;
-			goto end;
-		}
-		sk_setup_caps(sk, &rt->dst);
+	rt = ip_route_output_ports(&init_net, sk,
+				   opt->dst_addr.sin_addr.s_addr,
+				   opt->src_addr.sin_addr.s_addr,
+				   0, 0,
+				   IPPROTO_GRE, RT_CONN_FLAGS(sk), 0);
+	if (IS_ERR(rt)) {
+		error = -EHOSTUNREACH;
+		goto end;
 	}
+	sk_setup_caps(sk, &rt->dst);
+
 	po->chan.mtu = dst_mtu(&rt->dst);
 	if (!po->chan.mtu)
 		po->chan.mtu = PPP_MTU;

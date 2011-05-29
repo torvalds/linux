@@ -130,7 +130,7 @@ KEYBOARD_STATE kb_state;
  * it's really hard to decide whether they're mouse or keyboard bytes. Since
  * overruns usually occur when moving the Atari mouse rapidly, they're seen as
  * mouse bytes here. If this is wrong, only a make code of the keyboard gets
- * lost, which isn't too bad. Loosing a break code would be disastrous,
+ * lost, which isn't too bad. Losing a break code would be disastrous,
  * because then the keyboard repeat strikes...
  */
 

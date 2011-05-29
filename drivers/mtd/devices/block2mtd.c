@@ -295,7 +295,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 	dev->mtd.owner = THIS_MODULE;
 
 	if (add_mtd_device(&dev->mtd)) {
-		/* Device didnt get added, so free the entry */
+		/* Device didn't get added, so free the entry */
 		goto devinit_err;
 	}
 	list_add(&dev->list, &blkmtd_device_list);

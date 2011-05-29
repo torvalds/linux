@@ -159,7 +159,7 @@ xfs_dir_ino_validate(
 		XFS_AGINO_TO_INO(mp, agno, agino) == ino;
 	if (unlikely(XFS_TEST_ERROR(!ino_ok, mp, XFS_ERRTAG_DIR_INO_VALIDATE,
 			XFS_RANDOM_DIR_INO_VALIDATE))) {
-		xfs_fs_cmn_err(CE_WARN, mp, "Invalid inode number 0x%Lx",
+		xfs_warn(mp, "Invalid inode number 0x%Lx",
 				(unsigned long long) ino);
 		XFS_ERROR_REPORT("xfs_dir_ino_validate", XFS_ERRLEVEL_LOW, mp);
 		return XFS_ERROR(EFSCORRUPTED);

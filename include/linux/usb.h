@@ -623,7 +623,7 @@ extern struct usb_host_interface *usb_find_alt_setting(
  * USB hubs.  That makes it stay the same until systems are physically
  * reconfigured, by re-cabling a tree of USB devices or by moving USB host
  * controllers.  Adding and removing devices, including virtual root hubs
- * in host controller driver modules, does not change these path identifers;
+ * in host controller driver modules, does not change these path identifiers;
  * neither does rebooting or re-enumerating.  These are more useful identifiers
  * than changeable ("unstable") ones like bus numbers or device addresses.
  *
@@ -793,7 +793,7 @@ struct usbdrv_wrap {
  *	usb_set_intfdata() to associate driver-specific data with the
  *	interface.  It may also use usb_set_interface() to specify the
  *	appropriate altsetting.  If unwilling to manage the interface,
- *	return -ENODEV, if genuine IO errors occured, an appropriate
+ *	return -ENODEV, if genuine IO errors occurred, an appropriate
  *	negative errno value.
  * @disconnect: Called when the interface is no longer accessible, usually
  *	because its device has been (or is being) disconnected or the
@@ -976,6 +976,7 @@ extern int usb_disabled(void);
 #define URB_SETUP_MAP_SINGLE	0x00100000	/* Setup packet DMA mapped */
 #define URB_SETUP_MAP_LOCAL	0x00200000	/* HCD-local setup packet */
 #define URB_DMA_SG_COMBINED	0x00400000	/* S-G entries were combined */
+#define URB_ALIGNED_TEMP_BUFFER	0x00800000	/* Temp buffer was alloc'd */
 
 struct usb_iso_packet_descriptor {
 	unsigned int offset;

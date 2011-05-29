@@ -482,7 +482,7 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 	 * If the timer was a heartbeat, we only increment error counts
 	 * when we already have an outstanding HEARTBEAT that has not
 	 * been acknowledged.
-	 * Additionaly, some tranport states inhibit error increments.
+	 * Additionally, some tranport states inhibit error increments.
 	 */
 	if (!is_hb) {
 		asoc->overall_error_count++;

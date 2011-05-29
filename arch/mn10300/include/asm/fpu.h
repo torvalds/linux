@@ -55,7 +55,6 @@ static inline void clear_using_fpu(struct task_struct *tsk)
 
 extern asmlinkage void fpu_kill_state(struct task_struct *);
 extern asmlinkage void fpu_exception(struct pt_regs *, enum exception_code);
-extern asmlinkage void fpu_invalid_op(struct pt_regs *, enum exception_code);
 extern asmlinkage void fpu_init_state(void);
 extern asmlinkage void fpu_save(struct fpu_state_struct *);
 extern int fpu_setup_sigcontext(struct fpucontext *buf);
@@ -113,7 +112,6 @@ static inline void flush_fpu(void)
 
 extern asmlinkage
 void unexpected_fpu_exception(struct pt_regs *, enum exception_code);
-#define fpu_invalid_op unexpected_fpu_exception
 #define fpu_exception unexpected_fpu_exception
 
 struct task_struct;

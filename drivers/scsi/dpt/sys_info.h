@@ -79,9 +79,9 @@
    typedef struct  {
 #endif
 
-   uSHORT       cylinders;      /* Upto 1024 */
-   uCHAR        heads;          /* Upto 255 */
-   uCHAR        sectors;        /* Upto 63 */
+   uSHORT       cylinders;      /* Up to 1024 */
+   uCHAR        heads;          /* Up to 255 */
+   uCHAR        sectors;        /* Up to 63 */
 
 #ifdef  __cplusplus
 

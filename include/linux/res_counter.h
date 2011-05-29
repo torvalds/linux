@@ -129,20 +129,22 @@ int __must_check res_counter_charge(struct res_counter *counter,
 void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val);
 void res_counter_uncharge(struct res_counter *counter, unsigned long val);
 
-static inline bool res_counter_limit_check_locked(struct res_counter *cnt)
+/**
+ * res_counter_margin - calculate chargeable space of a counter
+ * @cnt: the counter
+ *
+ * Returns the difference between the hard limit and the current usage
+ * of resource counter @cnt.
+ */
+static inline unsigned long long res_counter_margin(struct res_counter *cnt)
 {
-	if (cnt->usage < cnt->limit)
-		return true;
+	unsigned long long margin;
+	unsigned long flags;
 
-	return false;
-}
-
-static inline bool res_counter_soft_limit_check_locked(struct res_counter *cnt)
-{
-	if (cnt->usage < cnt->soft_limit)
-		return true;
-
-	return false;
+	spin_lock_irqsave(&cnt->lock, flags);
+	margin = cnt->limit - cnt->usage;
+	spin_unlock_irqrestore(&cnt->lock, flags);
+	return margin;
 }
 
 /**
@@ -165,52 +167,6 @@ res_counter_soft_limit_excess(struct res_counter *cnt)
 		excess = cnt->usage - cnt->soft_limit;
 	spin_unlock_irqrestore(&cnt->lock, flags);
 	return excess;
-}
-
-/*
- * Helper function to detect if the cgroup is within it's limit or
- * not. It's currently called from cgroup_rss_prepare()
- */
-static inline bool res_counter_check_under_limit(struct res_counter *cnt)
-{
-	bool ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cnt->lock, flags);
-	ret = res_counter_limit_check_locked(cnt);
-	spin_unlock_irqrestore(&cnt->lock, flags);
-	return ret;
-}
-
-/**
- * res_counter_check_margin - check if the counter allows charging
- * @cnt: the resource counter to check
- * @bytes: the number of bytes to check the remaining space against
- *
- * Returns a boolean value on whether the counter can be charged
- * @bytes or whether this would exceed the limit.
- */
-static inline bool res_counter_check_margin(struct res_counter *cnt,
-					    unsigned long bytes)
-{
-	bool ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cnt->lock, flags);
-	ret = cnt->limit - cnt->usage >= bytes;
-	spin_unlock_irqrestore(&cnt->lock, flags);
-	return ret;
-}
-
-static inline bool res_counter_check_under_soft_limit(struct res_counter *cnt)
-{
-	bool ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cnt->lock, flags);
-	ret = res_counter_soft_limit_check_locked(cnt);
-	spin_unlock_irqrestore(&cnt->lock, flags);
-	return ret;
 }
 
 static inline void res_counter_reset_max(struct res_counter *cnt)

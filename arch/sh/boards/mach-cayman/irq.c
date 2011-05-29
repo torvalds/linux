@@ -149,8 +149,8 @@ void init_cayman_irq(void)
 	}
 
 	for (i = 0; i < NR_EXT_IRQS; i++) {
-		set_irq_chip_and_handler(START_EXT_IRQS + i, &cayman_irq_type,
-					 handle_level_irq);
+		irq_set_chip_and_handler(START_EXT_IRQS + i,
+					 &cayman_irq_type, handle_level_irq);
 	}
 
 	/* Setup the SMSC interrupt */

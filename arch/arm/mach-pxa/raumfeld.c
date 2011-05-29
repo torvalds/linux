@@ -32,6 +32,7 @@
 #include <linux/sched.h>
 #include <linux/pwm_backlight.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
 #include <linux/lis3lv02d.h>
@@ -53,7 +54,6 @@
 #include <mach/ohci.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
-#include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
 
 #include "generic.h"
@@ -597,7 +597,7 @@ static void __init raumfeld_lcd_init(void)
 {
 	int ret;
 
-	set_pxa_fb_info(&raumfeld_sharp_lcd_info);
+	pxa_set_fb_info(NULL, &raumfeld_sharp_lcd_info);
 
 	/* Earlier devices had the backlight regulator controlled
 	 * via PWM, later versions use another controller for that */

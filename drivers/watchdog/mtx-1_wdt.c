@@ -190,19 +190,19 @@ static ssize_t mtx1_wdt_write(struct file *file, const char *buf,
 }
 
 static const struct file_operations mtx1_wdt_fops = {
-	.owner 		= THIS_MODULE,
+	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.unlocked_ioctl	= mtx1_wdt_ioctl,
-	.open 		= mtx1_wdt_open,
-	.write 		= mtx1_wdt_write,
-	.release 	= mtx1_wdt_release,
+	.open		= mtx1_wdt_open,
+	.write		= mtx1_wdt_write,
+	.release	= mtx1_wdt_release,
 };
 
 
 static struct miscdevice mtx1_wdt_misc = {
-	.minor 	= WATCHDOG_MINOR,
-	.name 	= "watchdog",
-	.fops 	= &mtx1_wdt_fops,
+	.minor	= WATCHDOG_MINOR,
+	.name	= "watchdog",
+	.fops	= &mtx1_wdt_fops,
 };
 
 

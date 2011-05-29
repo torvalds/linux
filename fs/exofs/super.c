@@ -48,6 +48,7 @@
  * struct to hold what we get from mount options
  */
 struct exofs_mountopt {
+	bool is_osdname;
 	const char *dev_name;
 	uint64_t pid;
 	int timeout;
@@ -56,7 +57,7 @@ struct exofs_mountopt {
 /*
  * exofs-specific mount-time options.
  */
-enum { Opt_pid, Opt_to, Opt_mkfs, Opt_format, Opt_err };
+enum { Opt_name, Opt_pid, Opt_to, Opt_err };
 
 /*
  * Our mount-time options.  These should ideally be 64-bit unsigned, but the
@@ -64,6 +65,7 @@ enum { Opt_pid, Opt_to, Opt_mkfs, Opt_format, Opt_err };
  * sufficient for most applications now.
  */
 static match_table_t tokens = {
+	{Opt_name, "osdname=%s"},
 	{Opt_pid, "pid=%u"},
 	{Opt_to, "to=%u"},
 	{Opt_err, NULL}
@@ -94,6 +96,14 @@ static int parse_options(char *options, struct exofs_mountopt *opts)
 
 		token = match_token(p, tokens, args);
 		switch (token) {
+		case Opt_name:
+			opts->dev_name = match_strdup(&args[0]);
+			if (unlikely(!opts->dev_name)) {
+				EXOFS_ERR("Error allocating dev_name");
+				return -ENOMEM;
+			}
+			opts->is_osdname = true;
+			break;
 		case Opt_pid:
 			if (0 == match_strlcpy(str, &args[0], sizeof(str)))
 				return -EINVAL;
@@ -203,6 +213,101 @@ static void destroy_inodecache(void)
 static const struct super_operations exofs_sops;
 static const struct export_operations exofs_export_ops;
 
+static const struct osd_attr g_attr_sb_stats = ATTR_DEF(
+	EXOFS_APAGE_SB_DATA,
+	EXOFS_ATTR_SB_STATS,
+	sizeof(struct exofs_sb_stats));
+
+static int __sbi_read_stats(struct exofs_sb_info *sbi)
+{
+	struct osd_attr attrs[] = {
+		[0] = g_attr_sb_stats,
+	};
+	struct exofs_io_state *ios;
+	int ret;
+
+	ret = exofs_get_io_state(&sbi->layout, &ios);
+	if (unlikely(ret)) {
+		EXOFS_ERR("%s: exofs_get_io_state failed.\n", __func__);
+		return ret;
+	}
+
+	ios->cred = sbi->s_cred;
+
+	ios->in_attr = attrs;
+	ios->in_attr_len = ARRAY_SIZE(attrs);
+
+	ret = exofs_sbi_read(ios);
+	if (unlikely(ret)) {
+		EXOFS_ERR("Error reading super_block stats => %d\n", ret);
+		goto out;
+	}
+
+	ret = extract_attr_from_ios(ios, &attrs[0]);
+	if (ret) {
+		EXOFS_ERR("%s: extract_attr of sb_stats failed\n", __func__);
+		goto out;
+	}
+	if (attrs[0].len) {
+		struct exofs_sb_stats *ess;
+
+		if (unlikely(attrs[0].len != sizeof(*ess))) {
+			EXOFS_ERR("%s: Wrong version of exofs_sb_stats "
+				  "size(%d) != expected(%zd)\n",
+				  __func__, attrs[0].len, sizeof(*ess));
+			goto out;
+		}
+
+		ess = attrs[0].val_ptr;
+		sbi->s_nextid = le64_to_cpu(ess->s_nextid);
+		sbi->s_numfiles = le32_to_cpu(ess->s_numfiles);
+	}
+
+out:
+	exofs_put_io_state(ios);
+	return ret;
+}
+
+static void stats_done(struct exofs_io_state *ios, void *p)
+{
+	exofs_put_io_state(ios);
+	/* Good thanks nothing to do anymore */
+}
+
+/* Asynchronously write the stats attribute */
+int exofs_sbi_write_stats(struct exofs_sb_info *sbi)
+{
+	struct osd_attr attrs[] = {
+		[0] = g_attr_sb_stats,
+	};
+	struct exofs_io_state *ios;
+	int ret;
+
+	ret = exofs_get_io_state(&sbi->layout, &ios);
+	if (unlikely(ret)) {
+		EXOFS_ERR("%s: exofs_get_io_state failed.\n", __func__);
+		return ret;
+	}
+
+	sbi->s_ess.s_nextid   = cpu_to_le64(sbi->s_nextid);
+	sbi->s_ess.s_numfiles = cpu_to_le64(sbi->s_numfiles);
+	attrs[0].val_ptr = &sbi->s_ess;
+
+	ios->cred = sbi->s_cred;
+	ios->done = stats_done;
+	ios->private = sbi;
+	ios->out_attr = attrs;
+	ios->out_attr_len = ARRAY_SIZE(attrs);
+
+	ret = exofs_sbi_write(ios);
+	if (unlikely(ret)) {
+		EXOFS_ERR("%s: exofs_sbi_write failed.\n", __func__);
+		exofs_put_io_state(ios);
+	}
+
+	return ret;
+}
+
 /*
  * Write the superblock to the OSD
  */
@@ -213,18 +318,25 @@ int exofs_sync_fs(struct super_block *sb, int wait)
 	struct exofs_io_state *ios;
 	int ret = -ENOMEM;
 
-	lock_super(sb);
-	sbi = sb->s_fs_info;
-	fscb = &sbi->s_fscb;
+	fscb = kmalloc(sizeof(*fscb), GFP_KERNEL);
+	if (unlikely(!fscb))
+		return -ENOMEM;
 
+	sbi = sb->s_fs_info;
+
+	/* NOTE: We no longer dirty the super_block anywhere in exofs. The
+	 * reason we write the fscb here on unmount is so we can stay backwards
+	 * compatible with fscb->s_version == 1. (What we are not compatible
+	 * with is if a new version FS crashed and then we try to mount an old
+	 * version). Otherwise the exofs_fscb is read-only from mkfs time. All
+	 * the writeable info is set in exofs_sbi_write_stats() above.
+	 */
 	ret = exofs_get_io_state(&sbi->layout, &ios);
-	if (ret)
+	if (unlikely(ret))
 		goto out;
 
-	/* Note: We only write the changing part of the fscb. .i.e upto the
-	 *       the fscb->s_dev_table_oid member. There is no read-modify-write
-	 *       here.
-	 */
+	lock_super(sb);
+
 	ios->length = offsetof(struct exofs_fscb, s_dev_table_oid);
 	memset(fscb, 0, ios->length);
 	fscb->s_nextid = cpu_to_le64(sbi->s_nextid);
@@ -239,16 +351,17 @@ int exofs_sync_fs(struct super_block *sb, int wait)
 	ios->cred = sbi->s_cred;
 
 	ret = exofs_sbi_write(ios);
-	if (unlikely(ret)) {
+	if (unlikely(ret))
 		EXOFS_ERR("%s: exofs_sbi_write failed.\n", __func__);
-		goto out;
-	}
-	sb->s_dirt = 0;
+	else
+		sb->s_dirt = 0;
 
+
+	unlock_super(sb);
 out:
 	EXOFS_DBGMSG("s_nextid=0x%llx ret=%d\n", _LLU(sbi->s_nextid), ret);
 	exofs_put_io_state(ios);
-	unlock_super(sb);
+	kfree(fscb);
 	return ret;
 }
 
@@ -292,13 +405,14 @@ static void exofs_put_super(struct super_block *sb)
 	int num_pend;
 	struct exofs_sb_info *sbi = sb->s_fs_info;
 
-	if (sb->s_dirt)
-		exofs_write_super(sb);
-
 	/* make sure there are no pending commands */
 	for (num_pend = atomic_read(&sbi->s_curr_pending); num_pend > 0;
 	     num_pend = atomic_read(&sbi->s_curr_pending)) {
 		wait_queue_head_t wq;
+
+		printk(KERN_NOTICE "%s: !!Pending operations in flight. "
+		       "This is a BUG. please report to osd-dev@open-osd.org\n",
+		       __func__);
 		init_waitqueue_head(&wq);
 		wait_event_timeout(wq,
 				  (atomic_read(&sbi->s_curr_pending) == 0),
@@ -388,6 +502,23 @@ static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 	}
 
 	return 0;
+}
+
+static unsigned __ra_pages(struct exofs_layout *layout)
+{
+	const unsigned _MIN_RA = 32; /* min 128K read-ahead */
+	unsigned ra_pages = layout->group_width * layout->stripe_unit /
+				PAGE_SIZE;
+	unsigned max_io_pages = exofs_max_io_pages(layout, ~0);
+
+	ra_pages *= 2; /* two stripes */
+	if (ra_pages < _MIN_RA)
+		ra_pages = roundup(_MIN_RA, ra_pages / 2);
+
+	if (ra_pages > max_io_pages)
+		ra_pages = max_io_pages;
+
+	return ra_pages;
 }
 
 /* @odi is valid only as long as @fscb_dev is valid */
@@ -495,7 +626,7 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info **psbi,
 		}
 
 		od = osduld_info_lookup(&odi);
-		if (unlikely(IS_ERR(od))) {
+		if (IS_ERR(od)) {
 			ret = PTR_ERR(od);
 			EXOFS_ERR("ERROR: device requested is not found "
 				  "osd_name-%s =>%d\n", odi.osdname, ret);
@@ -558,9 +689,17 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_bdi;
 
 	/* use mount options to fill superblock */
-	od = osduld_path_lookup(opts->dev_name);
+	if (opts->is_osdname) {
+		struct osd_dev_info odi = {.systemid_len = 0};
+
+		odi.osdname_len = strlen(opts->dev_name);
+		odi.osdname = (u8 *)opts->dev_name;
+		od = osduld_info_lookup(&odi);
+	} else {
+		od = osduld_path_lookup(opts->dev_name);
+	}
 	if (IS_ERR(od)) {
-		ret = PTR_ERR(od);
+		ret = -EINVAL;
 		goto free_sbi;
 	}
 
@@ -594,6 +733,7 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_sbi;
 
 	sb->s_magic = le16_to_cpu(fscb.s_magic);
+	/* NOTE: we read below to be backward compatible with old versions */
 	sbi->s_nextid = le64_to_cpu(fscb.s_nextid);
 	sbi->s_numfiles = le32_to_cpu(fscb.s_numfiles);
 
@@ -604,7 +744,7 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		ret = -EINVAL;
 		goto free_sbi;
 	}
-	if (le32_to_cpu(fscb.s_version) != EXOFS_FSCB_VER) {
+	if (le32_to_cpu(fscb.s_version) > EXOFS_FSCB_VER) {
 		EXOFS_ERR("ERROR: Bad FSCB version expected-%d got-%d\n",
 			  EXOFS_FSCB_VER, le32_to_cpu(fscb.s_version));
 		ret = -EINVAL;
@@ -622,7 +762,10 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 			goto free_sbi;
 	}
 
+	__sbi_read_stats(sbi);
+
 	/* set up operation vectors */
+	sbi->bdi.ra_pages = __ra_pages(&sbi->layout);
 	sb->s_bdi = &sbi->bdi;
 	sb->s_fs_info = sbi;
 	sb->s_op = &exofs_sops;
@@ -652,6 +795,8 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 
 	_exofs_print_device("Mounting", opts->dev_name, sbi->layout.s_ods[0],
 			    sbi->layout.s_pid);
+	if (opts->is_osdname)
+		kfree(opts->dev_name);
 	return 0;
 
 free_sbi:
@@ -660,6 +805,8 @@ free_bdi:
 	EXOFS_ERR("Unable to mount exofs on %s pid=0x%llx err=%d\n",
 		  opts->dev_name, sbi->layout.s_pid, ret);
 	exofs_free_sbi(sbi);
+	if (opts->is_osdname)
+		kfree(opts->dev_name);
 	return ret;
 }
 
@@ -677,7 +824,8 @@ static struct dentry *exofs_mount(struct file_system_type *type,
 	if (ret)
 		return ERR_PTR(ret);
 
-	opts.dev_name = dev_name;
+	if (!opts.dev_name)
+		opts.dev_name = dev_name;
 	return mount_nodev(type, flags, &opts, exofs_fill_super);
 }
 

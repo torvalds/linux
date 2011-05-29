@@ -70,6 +70,9 @@ ENTRY(arm7tdmi_processor_functions)
 		.word	cpu_arm7tdmi_dcache_clean_area
 		.word	cpu_arm7tdmi_switch_mm
 		.word	0		@ cpu_*_set_pte
+		.word	0
+		.word	0
+		.word	0
 		.size	arm7tdmi_processor_functions, . - arm7tdmi_processor_functions
 
 		.section ".rodata"

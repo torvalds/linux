@@ -147,6 +147,17 @@ struct ocfs2_lock_res_ops;
 
 typedef void (*ocfs2_lock_callback)(int status, unsigned long data);
 
+#ifdef CONFIG_OCFS2_FS_STATS
+struct ocfs2_lock_stats {
+	u64		ls_total;	/* Total wait in NSEC */
+	u32		ls_gets;	/* Num acquires */
+	u32		ls_fail;	/* Num failed acquires */
+
+	/* Storing max wait in usecs saves 24 bytes per inode */
+	u32		ls_max;		/* Max wait in USEC */
+};
+#endif
+
 struct ocfs2_lock_res {
 	void                    *l_priv;
 	struct ocfs2_lock_res_ops *l_ops;
@@ -182,15 +193,9 @@ struct ocfs2_lock_res {
 	struct list_head         l_debug_list;
 
 #ifdef CONFIG_OCFS2_FS_STATS
-	unsigned long long	 l_lock_num_prmode; 	   /* PR acquires */
-	unsigned long long 	 l_lock_num_exmode; 	   /* EX acquires */
-	unsigned int		 l_lock_num_prmode_failed; /* Failed PR gets */
-	unsigned int		 l_lock_num_exmode_failed; /* Failed EX gets */
-	unsigned long long	 l_lock_total_prmode; 	   /* Tot wait for PR */
-	unsigned long long	 l_lock_total_exmode; 	   /* Tot wait for EX */
-	unsigned int		 l_lock_max_prmode; 	   /* Max wait for PR */
-	unsigned int		 l_lock_max_exmode; 	   /* Max wait for EX */
-	unsigned int		 l_lock_refresh;	   /* Disk refreshes */
+	struct ocfs2_lock_stats  l_lock_prmode;		/* PR mode stats */
+	u32                      l_lock_refresh;	/* Disk refreshes */
+	struct ocfs2_lock_stats  l_lock_exmode;		/* EX mode stats */
 #endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map	 l_lockdep_map;
@@ -831,18 +836,18 @@ static inline unsigned int ocfs2_clusters_to_megabytes(struct super_block *sb,
 
 static inline void _ocfs2_set_bit(unsigned int bit, unsigned long *bitmap)
 {
-	ext2_set_bit(bit, bitmap);
+	__test_and_set_bit_le(bit, bitmap);
 }
 #define ocfs2_set_bit(bit, addr) _ocfs2_set_bit((bit), (unsigned long *)(addr))
 
 static inline void _ocfs2_clear_bit(unsigned int bit, unsigned long *bitmap)
 {
-	ext2_clear_bit(bit, bitmap);
+	__test_and_clear_bit_le(bit, bitmap);
 }
 #define ocfs2_clear_bit(bit, addr) _ocfs2_clear_bit((bit), (unsigned long *)(addr))
 
-#define ocfs2_test_bit ext2_test_bit
-#define ocfs2_find_next_zero_bit ext2_find_next_zero_bit
-#define ocfs2_find_next_bit ext2_find_next_bit
+#define ocfs2_test_bit test_bit_le
+#define ocfs2_find_next_zero_bit find_next_zero_bit_le
+#define ocfs2_find_next_bit find_next_bit_le
 #endif  /* OCFS2_H */
 

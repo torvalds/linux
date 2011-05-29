@@ -98,7 +98,8 @@ static int __init eukrea_tlv320_init(void)
 	int ret;
 
 	if (!machine_is_eukrea_cpuimx27() && !machine_is_eukrea_cpuimx25sd()
-		&& !machine_is_eukrea_cpuimx35sd())
+		&& !machine_is_eukrea_cpuimx35sd()
+		&& !machine_is_eukrea_cpuimx51sd())
 		/* return happy. We might run on a totally different machine */
 		return 0;
 

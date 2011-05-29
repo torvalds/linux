@@ -856,7 +856,7 @@ typedef union _RXMAC_UNI_PF_ADDR3_t {
  */
 
 /*
- * structure for space availiable reg in rxmac address map.
+ * structure for space available reg in rxmac address map.
  * located at address 0x4094
  *
  * 31-17: reserved
@@ -1031,7 +1031,7 @@ typedef struct _RXMAC_t {				/* Location: */
  * 31: reset MII mgmt
  * 30-6: unused
  * 5: scan auto increment
- * 4: preamble supress
+ * 4: preamble suppress
  * 3: undefined
  * 2-0: mgmt clock reset
  */

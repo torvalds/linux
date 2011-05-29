@@ -102,6 +102,7 @@ struct af9015_state {
 	struct i2c_adapter i2c_adap; /* I2C adapter for 2nd FE */
 	u8 rc_repeat;
 	u32 rc_keycode;
+	u8 rc_last[4];
 };
 
 struct af9015_config {

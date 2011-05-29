@@ -421,7 +421,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 			return -EFAULT;
 	}
 
-	ipcp = ipcctl_pre_down(&msg_ids(ns), msqid, cmd,
+	ipcp = ipcctl_pre_down(ns, &msg_ids(ns), msqid, cmd,
 			       &msqid64.msg_perm, msqid64.msg_qbytes);
 	if (IS_ERR(ipcp))
 		return PTR_ERR(ipcp);
@@ -539,7 +539,7 @@ SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, struct msqid_ds __user *, buf)
 			success_return = 0;
 		}
 		err = -EACCES;
-		if (ipcperms(&msq->q_perm, S_IRUGO))
+		if (ipcperms(ns, &msq->q_perm, S_IRUGO))
 			goto out_unlock;
 
 		err = security_msg_queue_msgctl(msq, cmd);
@@ -664,7 +664,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 		struct msg_sender s;
 
 		err = -EACCES;
-		if (ipcperms(&msq->q_perm, S_IWUGO))
+		if (ipcperms(ns, &msq->q_perm, S_IWUGO))
 			goto out_unlock_free;
 
 		err = security_msg_queue_msgsnd(msq, msg, msgflg);
@@ -704,7 +704,7 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 	msq->q_stime = get_seconds();
 
 	if (!pipelined_send(msq, msg)) {
-		/* noone is waiting for this message, enqueue it */
+		/* no one is waiting for this message, enqueue it */
 		list_add_tail(&msg->m_list, &msq->q_messages);
 		msq->q_cbytes += msgsz;
 		msq->q_qnum++;
@@ -774,7 +774,7 @@ long do_msgrcv(int msqid, long *pmtype, void __user *mtext,
 		struct list_head *tmp;
 
 		msg = ERR_PTR(-EACCES);
-		if (ipcperms(&msq->q_perm, S_IRUGO))
+		if (ipcperms(ns, &msq->q_perm, S_IRUGO))
 			goto out_unlock;
 
 		msg = ERR_PTR(-EAGAIN);
@@ -842,7 +842,7 @@ long do_msgrcv(int msqid, long *pmtype, void __user *mtext,
 		 * Disable preemption.  We don't hold a reference to the queue
 		 * and getting a reference would defeat the idea of a lockless
 		 * operation, thus the code relies on rcu to guarantee the
-		 * existance of msq:
+		 * existence of msq:
 		 * Prior to destruction, expunge_all(-EIRDM) changes r_msg.
 		 * Thus if r_msg is -EAGAIN, then the queue not yet destroyed.
 		 * rcu_read_lock() prevents preemption between reading r_msg

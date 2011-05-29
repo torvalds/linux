@@ -5,8 +5,6 @@ please mail me.
 
 00-INDEX
 	- this file
-booting-without-of.txt
-	- Booting the Linux/ppc kernel without Open Firmware
 cpu_features.txt
 	- info on how we support a variety of CPUs with minimal compile-time
 	options.
@@ -16,8 +14,6 @@ hvcs.txt
 	- IBM "Hypervisor Virtual Console Server" Installation Guide
 mpc52xx.txt
 	- Linux 2.6.x on MPC52xx family
-mpc52xx-device-tree-bindings.txt
-	- MPC5200 Device Tree Bindings
 sound.txt
 	- info on sound support under Linux/PPC
 zImage_layout.txt

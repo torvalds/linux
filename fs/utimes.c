@@ -95,7 +95,7 @@ static int utimes_common(struct path *path, struct timespec *times)
                 if (IS_IMMUTABLE(inode))
 			goto mnt_drop_write_and_out;
 
-		if (!is_owner_or_cap(inode)) {
+		if (!inode_owner_or_capable(inode)) {
 			error = inode_permission(inode, MAY_WRITE);
 			if (error)
 				goto mnt_drop_write_and_out;

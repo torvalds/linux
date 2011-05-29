@@ -39,7 +39,7 @@ struct jz_battery {
 	int irq;
 	int charge_irq;
 
-	struct mfd_cell *cell;
+	const struct mfd_cell *cell;
 
 	int status;
 	long voltage;
@@ -258,7 +258,7 @@ static int __devinit jz_battery_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	jz_battery->cell = pdev->dev.platform_data;
+	jz_battery->cell = mfd_get_cell(pdev);
 
 	jz_battery->irq = platform_get_irq(pdev, 0);
 	if (jz_battery->irq < 0) {

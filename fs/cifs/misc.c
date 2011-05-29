@@ -100,6 +100,7 @@ sesInfoFree(struct cifsSesInfo *buf_to_free)
 		memset(buf_to_free->password, 0, strlen(buf_to_free->password));
 		kfree(buf_to_free->password);
 	}
+	kfree(buf_to_free->user_name);
 	kfree(buf_to_free->domainName);
 	kfree(buf_to_free);
 }
@@ -520,7 +521,7 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 			(struct smb_com_transaction_change_notify_rsp *)buf;
 		struct file_notify_information *pnotify;
 		__u32 data_offset = 0;
-		if (pSMBr->ByteCount > sizeof(struct file_notify_information)) {
+		if (get_bcc_le(buf) > sizeof(struct file_notify_information)) {
 			data_offset = le32_to_cpu(pSMBr->DataOffset);
 
 			pnotify = (struct file_notify_information *)

@@ -123,12 +123,11 @@ static const int multicast_filter_limit = 32;
 #include <linux/in6.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
-#include <generated/utsrelease.h>
 
 #include "typhoon.h"
 
 MODULE_AUTHOR("David Dillow <dave@thedillows.org>");
-MODULE_VERSION(UTS_RELEASE);
+MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(FIRMWARE_NAME);
 MODULE_DESCRIPTION("3Com Typhoon Family (3C990, 3CR990, and variants)");
@@ -847,7 +846,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 	if(typhoon_num_free_tx(txRing) < (numDesc + 2)) {
 		netif_stop_queue(dev);
 
-		/* A Tx complete IRQ could have gotten inbetween, making
+		/* A Tx complete IRQ could have gotten between, making
 		 * the ring free again. Only need to recheck here, since
 		 * Tx is serialized.
 		 */

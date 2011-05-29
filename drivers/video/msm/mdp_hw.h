@@ -449,6 +449,7 @@ int mdp_ppp_blit(const struct mdp_info *mdp, struct mdp_blit_req *req,
 #define PPP_CFG_MDP_XRGB_8888(dir) PPP_CFG_MDP_ARGB_8888(dir)
 #define PPP_CFG_MDP_RGBA_8888(dir) PPP_CFG_MDP_ARGB_8888(dir)
 #define PPP_CFG_MDP_BGRA_8888(dir) PPP_CFG_MDP_ARGB_8888(dir)
+#define PPP_CFG_MDP_RGBX_8888(dir) PPP_CFG_MDP_ARGB_8888(dir)
 
 #define PPP_CFG_MDP_Y_CBCR_H2V2(dir)   (PPP_##dir##_C2R_8BIT | \
 					PPP_##dir##_C0G_8BIT | \
@@ -488,12 +489,14 @@ int mdp_ppp_blit(const struct mdp_info *mdp, struct mdp_blit_req *req,
 	MDP_GET_PACK_PATTERN(0, CLR_R, CLR_G, CLR_B, 8)
 #define PPP_PACK_PATTERN_MDP_RGB_888 PPP_PACK_PATTERN_MDP_RGB_565
 #define PPP_PACK_PATTERN_MDP_XRGB_8888 \
-	MDP_GET_PACK_PATTERN(CLR_ALPHA, CLR_R, CLR_G, CLR_B, 8)
+	MDP_GET_PACK_PATTERN(CLR_B, CLR_G, CLR_R, CLR_ALPHA, 8)
 #define PPP_PACK_PATTERN_MDP_ARGB_8888 PPP_PACK_PATTERN_MDP_XRGB_8888
 #define PPP_PACK_PATTERN_MDP_RGBA_8888 \
 	MDP_GET_PACK_PATTERN(CLR_ALPHA, CLR_B, CLR_G, CLR_R, 8)
 #define PPP_PACK_PATTERN_MDP_BGRA_8888 \
 	MDP_GET_PACK_PATTERN(CLR_ALPHA, CLR_R, CLR_G, CLR_B, 8)
+#define PPP_PACK_PATTERN_MDP_RGBX_8888 \
+	MDP_GET_PACK_PATTERN(CLR_ALPHA, CLR_B, CLR_G, CLR_R, 8)
 #define PPP_PACK_PATTERN_MDP_Y_CBCR_H2V1 \
 	MDP_GET_PACK_PATTERN(0, 0, CLR_CB, CLR_CR, 8)
 #define PPP_PACK_PATTERN_MDP_Y_CBCR_H2V2 PPP_PACK_PATTERN_MDP_Y_CBCR_H2V1
@@ -509,6 +512,7 @@ int mdp_ppp_blit(const struct mdp_info *mdp, struct mdp_blit_req *req,
 #define PPP_CHROMA_SAMP_MDP_ARGB_8888(dir) PPP_OP_##dir##_CHROMA_RGB
 #define PPP_CHROMA_SAMP_MDP_RGBA_8888(dir) PPP_OP_##dir##_CHROMA_RGB
 #define PPP_CHROMA_SAMP_MDP_BGRA_8888(dir) PPP_OP_##dir##_CHROMA_RGB
+#define PPP_CHROMA_SAMP_MDP_RGBX_8888(dir) PPP_OP_##dir##_CHROMA_RGB
 #define PPP_CHROMA_SAMP_MDP_Y_CBCR_H2V1(dir) PPP_OP_##dir##_CHROMA_H2V1
 #define PPP_CHROMA_SAMP_MDP_Y_CBCR_H2V2(dir) PPP_OP_##dir##_CHROMA_420
 #define PPP_CHROMA_SAMP_MDP_Y_CRCB_H2V1(dir) PPP_OP_##dir##_CHROMA_H2V1
@@ -523,6 +527,7 @@ int mdp_ppp_blit(const struct mdp_info *mdp, struct mdp_blit_req *req,
 	[MDP_ARGB_8888] = PPP_##name##_MDP_ARGB_8888,\
 	[MDP_RGBA_8888] = PPP_##name##_MDP_RGBA_8888,\
 	[MDP_BGRA_8888] = PPP_##name##_MDP_BGRA_8888,\
+	[MDP_RGBX_8888] = PPP_##name##_MDP_RGBX_8888,\
 	[MDP_Y_CBCR_H2V1] = PPP_##name##_MDP_Y_CBCR_H2V1,\
 	[MDP_Y_CBCR_H2V2] = PPP_##name##_MDP_Y_CBCR_H2V2,\
 	[MDP_Y_CRCB_H2V1] = PPP_##name##_MDP_Y_CRCB_H2V1,\
@@ -536,6 +541,7 @@ int mdp_ppp_blit(const struct mdp_info *mdp, struct mdp_blit_req *req,
 	[MDP_ARGB_8888] = PPP_##name##_MDP_ARGB_8888(dir),\
 	[MDP_RGBA_8888] = PPP_##name##_MDP_RGBA_8888(dir),\
 	[MDP_BGRA_8888] = PPP_##name##_MDP_BGRA_8888(dir),\
+	[MDP_RGBX_8888] = PPP_##name##_MDP_RGBX_8888(dir),\
 	[MDP_Y_CBCR_H2V1] = PPP_##name##_MDP_Y_CBCR_H2V1(dir),\
 	[MDP_Y_CBCR_H2V2] = PPP_##name##_MDP_Y_CBCR_H2V2(dir),\
 	[MDP_Y_CRCB_H2V1] = PPP_##name##_MDP_Y_CRCB_H2V1(dir),\
@@ -547,7 +553,8 @@ int mdp_ppp_blit(const struct mdp_info *mdp, struct mdp_blit_req *req,
 		       (img == MDP_YCRYCB_H2V1))
 #define IS_RGB(img) ((img == MDP_RGB_565) | (img == MDP_RGB_888) | \
 		     (img == MDP_ARGB_8888) | (img == MDP_RGBA_8888) | \
-		     (img == MDP_XRGB_8888) | (img == MDP_BGRA_8888))
+		     (img == MDP_XRGB_8888) | (img == MDP_BGRA_8888) | \
+		     (img == MDP_RGBX_8888))
 #define HAS_ALPHA(img) ((img == MDP_ARGB_8888) | (img == MDP_RGBA_8888) | \
 			(img == MDP_BGRA_8888))
 

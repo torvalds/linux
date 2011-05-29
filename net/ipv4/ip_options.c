@@ -140,11 +140,11 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 				} else {
 					dopt->ts_needtime = 0;
 
-					if (soffset + 8 <= optlen) {
+					if (soffset + 7 <= optlen) {
 						__be32 addr;
 
-						memcpy(&addr, sptr+soffset-1, 4);
-						if (inet_addr_type(dev_net(skb_dst(skb)->dev), addr) != RTN_LOCAL) {
+						memcpy(&addr, dptr+soffset-1, 4);
+						if (inet_addr_type(dev_net(skb_dst(skb)->dev), addr) != RTN_UNICAST) {
 							dopt->ts_needtime = 1;
 							soffset += 8;
 						}
@@ -329,7 +329,7 @@ int ip_options_compile(struct net *net,
 					pp_ptr = optptr + 2;
 					goto error;
 				}
-				if (skb) {
+				if (rt) {
 					memcpy(&optptr[optptr[2]-1], &rt->rt_spec_dst, 4);
 					opt->is_changed = 1;
 				}
@@ -371,7 +371,7 @@ int ip_options_compile(struct net *net,
 						goto error;
 					}
 					opt->ts = optptr - iph;
-					if (skb) {
+					if (rt)  {
 						memcpy(&optptr[optptr[2]-1], &rt->rt_spec_dst, 4);
 						timeptr = (__be32*)&optptr[optptr[2]+3];
 					}
@@ -603,7 +603,7 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 	unsigned long orefdst;
 	int err;
 
-	if (!opt->srr)
+	if (!opt->srr || !rt)
 		return 0;
 
 	if (skb->pkt_type != PACKET_HOST)

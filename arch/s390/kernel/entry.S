@@ -836,7 +836,7 @@ restart_base:
 	stosm	__SF_EMPTY(%r15),0x04	# now we can turn dat on
 	basr	%r14,0
 	l	%r14,restart_addr-.(%r14)
-	br	%r14			# branch to start_secondary
+	basr	%r14,%r14		# branch to start_secondary
 restart_addr:
 	.long	start_secondary
 	.align	8

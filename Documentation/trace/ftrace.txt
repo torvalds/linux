@@ -80,11 +80,11 @@ of ftrace. Here is a list of some of the key files:
 	tracers listed here can be configured by
 	echoing their name into current_tracer.
 
-  tracing_enabled:
+  tracing_on:
 
-	This sets or displays whether the current_tracer
-	is activated and tracing or not. Echo 0 into this
-	file to disable the tracer or 1 to enable it.
+	This sets or displays whether writing to the trace
+	ring buffer is enabled. Echo 0 into this file to disable
+	the tracer or 1 to enable it.
 
   trace:
 
@@ -202,10 +202,6 @@ Here is the list of current tracers that may be configured.
 	to draw a graph of function calls similar to C code
 	source.
 
-  "sched_switch"
-
-	Traces the context switches and wakeups between tasks.
-
   "irqsoff"
 
 	Traces the areas that disable interrupts and saves
@@ -272,39 +268,6 @@ CPU that it was running on "01", the timestamp in <secs>.<usecs>
 format, the function name that was traced "path_put" and the
 parent function that called this function "path_walk". The
 timestamp is the time at which the function was entered.
-
-The sched_switch tracer also includes tracing of task wakeups
-and context switches.
-
-     ksoftirqd/1-7     [01]  1453.070013:      7:115:R   +  2916:115:S
-     ksoftirqd/1-7     [01]  1453.070013:      7:115:R   +    10:115:S
-     ksoftirqd/1-7     [01]  1453.070013:      7:115:R ==>    10:115:R
-        events/1-10    [01]  1453.070013:     10:115:S ==>  2916:115:R
-     kondemand/1-2916  [01]  1453.070013:   2916:115:S ==>     7:115:R
-     ksoftirqd/1-7     [01]  1453.070013:      7:115:S ==>     0:140:R
-
-Wake ups are represented by a "+" and the context switches are
-shown as "==>".  The format is:
-
- Context switches:
-
-       Previous task              Next Task
-
-  <pid>:<prio>:<state>  ==>  <pid>:<prio>:<state>
-
- Wake ups:
-
-       Current task               Task waking up
-
-  <pid>:<prio>:<state>    +  <pid>:<prio>:<state>
-
-The prio is the internal kernel priority, which is the inverse
-of the priority that is usually displayed by user-space tools.
-Zero represents the highest priority (99). Prio 100 starts the
-"nice" priorities with 100 being equal to nice -20 and 139 being
-nice 19. The prio "140" is reserved for the idle task which is
-the lowest priority thread (pid 0).
-
 
 Latency trace format
 --------------------
@@ -491,78 +454,10 @@ x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
                    latencies, as described in "Latency
                    trace format".
 
-sched_switch
-------------
-
-This tracer simply records schedule switches. Here is an example
-of how to use it.
-
- # echo sched_switch > current_tracer
- # echo 1 > tracing_enabled
- # sleep 1
- # echo 0 > tracing_enabled
- # cat trace
-
-# tracer: sched_switch
-#
-#           TASK-PID   CPU#    TIMESTAMP  FUNCTION
-#              | |      |          |         |
-            bash-3997  [01]   240.132281:   3997:120:R   +  4055:120:R
-            bash-3997  [01]   240.132284:   3997:120:R ==>  4055:120:R
-           sleep-4055  [01]   240.132371:   4055:120:S ==>  3997:120:R
-            bash-3997  [01]   240.132454:   3997:120:R   +  4055:120:S
-            bash-3997  [01]   240.132457:   3997:120:R ==>  4055:120:R
-           sleep-4055  [01]   240.132460:   4055:120:D ==>  3997:120:R
-            bash-3997  [01]   240.132463:   3997:120:R   +  4055:120:D
-            bash-3997  [01]   240.132465:   3997:120:R ==>  4055:120:R
-          <idle>-0     [00]   240.132589:      0:140:R   +     4:115:S
-          <idle>-0     [00]   240.132591:      0:140:R ==>     4:115:R
-     ksoftirqd/0-4     [00]   240.132595:      4:115:S ==>     0:140:R
-          <idle>-0     [00]   240.132598:      0:140:R   +     4:115:S
-          <idle>-0     [00]   240.132599:      0:140:R ==>     4:115:R
-     ksoftirqd/0-4     [00]   240.132603:      4:115:S ==>     0:140:R
-           sleep-4055  [01]   240.133058:   4055:120:S ==>  3997:120:R
- [...]
-
-
-As we have discussed previously about this format, the header
-shows the name of the trace and points to the options. The
-"FUNCTION" is a misnomer since here it represents the wake ups
-and context switches.
-
-The sched_switch file only lists the wake ups (represented with
-'+') and context switches ('==>') with the previous task or
-current task first followed by the next task or task waking up.
-The format for both of these is PID:KERNEL-PRIO:TASK-STATE.
-Remember that the KERNEL-PRIO is the inverse of the actual
-priority with zero (0) being the highest priority and the nice
-values starting at 100 (nice -20). Below is a quick chart to map
-the kernel priority to user land priorities.
-
-   Kernel Space                     User Space
- ===============================================================
-   0(high) to  98(low)     user RT priority 99(high) to 1(low)
-                           with SCHED_RR or SCHED_FIFO
- ---------------------------------------------------------------
-  99                       sched_priority is not used in scheduling
-                           decisions(it must be specified as 0)
- ---------------------------------------------------------------
- 100(high) to 139(low)     user nice -20(high) to 19(low)
- ---------------------------------------------------------------
- 140                       idle task priority
- ---------------------------------------------------------------
-
-The task states are:
-
- R - running : wants to run, may not actually be running
- S - sleep   : process is waiting to be woken up (handles signals)
- D - disk sleep (uninterruptible sleep) : process must be woken up
-					(ignores signals)
- T - stopped : process suspended
- t - traced  : process is being traced (with something like gdb)
- Z - zombie  : process waiting to be cleaned up
- X - unknown
-
+  overwrite - This controls what happens when the trace buffer is
+              full. If "1" (default), the oldest events are
+              discarded and overwritten. If "0", then the newest
+              events are discarded.
 
 ftrace_enabled
 --------------
@@ -607,10 +502,10 @@ an example:
  # echo irqsoff > current_tracer
  # echo latency-format > trace_options
  # echo 0 > tracing_max_latency
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # ls -ltr
  [...]
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: irqsoff
 #
@@ -715,10 +610,10 @@ is much like the irqsoff tracer.
  # echo preemptoff > current_tracer
  # echo latency-format > trace_options
  # echo 0 > tracing_max_latency
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # ls -ltr
  [...]
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: preemptoff
 #
@@ -863,10 +758,10 @@ tracers.
  # echo preemptirqsoff > current_tracer
  # echo latency-format > trace_options
  # echo 0 > tracing_max_latency
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # ls -ltr
  [...]
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: preemptirqsoff
 #
@@ -1026,9 +921,9 @@ Instead of performing an 'ls', we will run 'sleep 1' under
  # echo wakeup > current_tracer
  # echo latency-format > trace_options
  # echo 0 > tracing_max_latency
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # chrt -f 5 sleep 1
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: wakeup
 #
@@ -1140,9 +1035,9 @@ ftrace_enabled is set; otherwise this tracer is a nop.
 
  # sysctl kernel.ftrace_enabled=1
  # echo function > current_tracer
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # usleep 1
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: function
 #
@@ -1180,7 +1075,7 @@ int trace_fd;
 [...]
 int main(int argc, char *argv[]) {
 	[...]
-	trace_fd = open(tracing_file("tracing_enabled"), O_WRONLY);
+	trace_fd = open(tracing_file("tracing_on"), O_WRONLY);
 	[...]
 	if (condition_hit()) {
 		write(trace_fd, "0", 1);
@@ -1631,9 +1526,9 @@ If I am only interested in sys_nanosleep and hrtimer_interrupt:
  # echo sys_nanosleep hrtimer_interrupt \
 		> set_ftrace_filter
  # echo function > current_tracer
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # usleep 1
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: ftrace
 #
@@ -1879,9 +1774,9 @@ different. The trace is live.
  # echo function > current_tracer
  # cat trace_pipe > /tmp/trace.out &
 [1] 4153
- # echo 1 > tracing_enabled
+ # echo 1 > tracing_on
  # usleep 1
- # echo 0 > tracing_enabled
+ # echo 0 > tracing_on
  # cat trace
 # tracer: function
 #

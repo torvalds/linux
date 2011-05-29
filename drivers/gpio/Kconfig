@@ -100,18 +100,21 @@ config GPIO_VR41XX
 	  Say yes here to support the NEC VR4100 series General-purpose I/O Uint
 
 config GPIO_SCH
-	tristate "Intel SCH GPIO"
-	depends on GPIOLIB && PCI
+	tristate "Intel SCH/TunnelCreek GPIO"
+	depends on GPIOLIB && PCI && X86
 	select MFD_CORE
 	select LPC_SCH
 	help
-	  Say yes here to support GPIO interface on Intel Poulsbo SCH.
+	  Say yes here to support GPIO interface on Intel Poulsbo SCH
+	  or Intel Tunnel Creek processor.
 	  The Intel SCH contains a total of 14 GPIO pins. Ten GPIOs are
 	  powered by the core power rail and are turned off during sleep
 	  modes (S3 and higher). The remaining four GPIOs are powered by
 	  the Intel SCH suspend power supply. These GPIOs remain
 	  active during S3. The suspend powered GPIOs can be used to wake the
 	  system from the Suspend-to-RAM state.
+	  The Intel Tunnel Creek processor has 5 GPIOs powered by the
+	  core power rail and 9 from suspend power supply.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called sch-gpio.
@@ -321,13 +324,13 @@ config GPIO_BT8XX
 
 config GPIO_LANGWELL
 	bool "Intel Langwell/Penwell GPIO support"
-	depends on PCI
+	depends on PCI && X86
 	help
 	  Say Y here to support Intel Langwell/Penwell GPIO.
 
 config GPIO_PCH
 	tristate "PCH GPIO of Intel Topcliff"
-	depends on PCI
+	depends on PCI && X86
 	help
 	  This driver is for PCH(Platform controller Hub) GPIO of Intel Topcliff
 	  which is an IOH(Input/Output Hub) for x86 embedded processor.
@@ -368,11 +371,11 @@ config GPIO_MAX7301
 	  GPIO driver for Maxim MAX7301 SPI-based GPIO expander.
 
 config GPIO_MCP23S08
-	tristate "Microchip MCP23S08 I/O expander"
+	tristate "Microchip MCP23Sxx I/O expander"
 	depends on SPI_MASTER
 	help
-	  SPI driver for Microchip MCP23S08 I/O expander.  This provides
-	  a GPIO interface supporting inputs and outputs.
+	  SPI driver for Microchip MCP23S08/MPC23S17 I/O expanders.
+	  This provides a GPIO interface supporting inputs and outputs.
 
 config GPIO_MC33880
 	tristate "Freescale MC33880 high-side/low-side switch"
@@ -411,4 +414,9 @@ config GPIO_JANZ_TTL
 	  This driver provides support for driving the pins in output
 	  mode only. Input mode is not supported.
 
+config AB8500_GPIO
+	bool "ST-Ericsson AB8500 Mixed Signal Circuit gpio functions"
+	depends on AB8500_CORE && BROKEN
+	help
+	  Select this to enable the AB8500 IC GPIO driver
 endif

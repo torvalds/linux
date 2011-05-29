@@ -1406,7 +1406,7 @@ static enum su_type __devinit su_get_type(struct device_node *dp)
 	return SU_PORT_PORT;
 }
 
-static int __devinit su_probe(struct platform_device *op, const struct of_device_id *match)
+static int __devinit su_probe(struct platform_device *op)
 {
 	static int inst;
 	struct device_node *dp = op->dev.of_node;
@@ -1543,7 +1543,7 @@ static const struct of_device_id su_match[] = {
 };
 MODULE_DEVICE_TABLE(of, su_match);
 
-static struct of_platform_driver su_driver = {
+static struct platform_driver su_driver = {
 	.driver = {
 		.name = "su",
 		.owner = THIS_MODULE,
@@ -1586,7 +1586,7 @@ static int __init sunsu_init(void)
 			return err;
 	}
 
-	err = of_register_platform_driver(&su_driver);
+	err = platform_driver_register(&su_driver);
 	if (err && num_uart)
 		sunserial_unregister_minors(&sunsu_reg, num_uart);
 

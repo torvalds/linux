@@ -164,7 +164,7 @@ static int process_access_response(struct fsnotify_group *group,
 		 fd, response);
 	/*
 	 * make sure the response is valid, if invalid we do nothing and either
-	 * userspace can send a valid responce or we will clean it up after the
+	 * userspace can send a valid response or we will clean it up after the
 	 * timeout
 	 */
 	switch (response) {
@@ -876,7 +876,7 @@ SYSCALL_ALIAS(sys_fanotify_mark, SyS_fanotify_mark);
 #endif
 
 /*
- * fanotify_user_setup - Our initialization function.  Note that we cannnot return
+ * fanotify_user_setup - Our initialization function.  Note that we cannot return
  * error because we have compiled-in VFS hooks.  So an (unlikely) failure here
  * must result in panic().
  */

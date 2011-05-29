@@ -306,7 +306,7 @@ static int wm9705_acc_enable(struct wm97xx *wm, int enable)
 	dig2 = wm->dig[2];
 
 	if (enable) {
-		/* continous mode */
+		/* continuous mode */
 		if (wm->mach_ops->acc_startup &&
 		    (ret = wm->mach_ops->acc_startup(wm)) < 0)
 			return ret;

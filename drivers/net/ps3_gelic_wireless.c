@@ -814,7 +814,7 @@ static int gelic_wl_set_auth(struct net_device *netdev,
 			 * you will not decide suitable cipher from
 			 * its beacon.
 			 * You should have knowledge about the AP's
-			 * cipher infomation in other method prior to
+			 * cipher information in other method prior to
 			 * the association.
 			 */
 			if (!precise_ie())

@@ -1342,7 +1342,7 @@ static unsigned int bfin_ata_host_intr(struct ata_port *ap,
 			ap->ops->bmdma_stop(qc);
 
 			if (unlikely(host_stat & ATA_DMA_ERR)) {
-				/* error when transfering data to/from memory */
+				/* error when transferring data to/from memory */
 				qc->err_mask |= AC_ERR_HOST_BUS;
 				ap->hsm_task_state = HSM_ST_ERR;
 			}
@@ -1454,9 +1454,7 @@ static struct ata_port_operations bfin_pata_ops = {
 
 static struct ata_port_info bfin_port_info[] = {
 	{
-		.flags		= ATA_FLAG_SLAVE_POSS
-				| ATA_FLAG_MMIO
-				| ATA_FLAG_NO_LEGACY,
+		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= 0,
 		.udma_mask	= 0,

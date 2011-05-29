@@ -176,7 +176,7 @@ static int __init autcpu12_init(void)
 	 */
 	this->options = NAND_USE_FLASH_BBT;
 
-	/* Scan to find existance of the device */
+	/* Scan to find existence of the device */
 	if (nand_scan(autcpu12_mtd, 1)) {
 		err = -ENXIO;
 		goto out_ior;

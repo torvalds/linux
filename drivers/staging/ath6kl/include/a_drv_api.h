@@ -188,10 +188,10 @@ extern "C" {
     ar6000_dbglog_event((ar), (dropped), (buffer), (length));
 
 #define A_WMI_STREAM_TX_ACTIVE(devt,trafficClass) \
-    ar6000_indicate_tx_activity((devt),(trafficClass), TRUE)
+    ar6000_indicate_tx_activity((devt),(trafficClass), true)
 
 #define A_WMI_STREAM_TX_INACTIVE(devt,trafficClass) \
-    ar6000_indicate_tx_activity((devt),(trafficClass), FALSE)
+    ar6000_indicate_tx_activity((devt),(trafficClass), false)
 #define A_WMI_Ac2EndpointID(devht, ac)\
     ar6000_ac2_endpoint_id((devht), (ac))
 

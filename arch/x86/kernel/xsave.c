@@ -53,7 +53,7 @@ void __sanitize_i387_state(struct task_struct *tsk)
 
 	/*
 	 * None of the feature bits are in init state. So nothing else
-	 * to do for us, as the memory layout is upto date.
+	 * to do for us, as the memory layout is up to date.
 	 */
 	if ((xstate_bv & pcntxt_mask) == pcntxt_mask)
 		return;

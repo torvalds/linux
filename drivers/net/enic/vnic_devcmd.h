@@ -80,8 +80,34 @@
 enum vnic_devcmd_cmd {
 	CMD_NONE                = _CMDC(_CMD_DIR_NONE, _CMD_VTYPE_NONE, 0),
 
-	/* mcpu fw info in mem: (u64)a0=paddr to struct vnic_devcmd_fw_info */
-	CMD_MCPU_FW_INFO        = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 1),
+	/*
+	 * mcpu fw info in mem:
+	 * in:
+	 *   (u64)a0=paddr to struct vnic_devcmd_fw_info
+	 * action:
+	 *   Fills in struct vnic_devcmd_fw_info (128 bytes)
+	 * note:
+	 *   An old definition of CMD_MCPU_FW_INFO
+	 */
+	CMD_MCPU_FW_INFO_OLD    = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 1),
+
+	/*
+	 * mcpu fw info in mem:
+	 * in:
+	 *   (u64)a0=paddr to struct vnic_devcmd_fw_info
+	 *   (u16)a1=size of the structure
+	 * out:
+	 *	 (u16)a1=0                          for in:a1 = 0,
+	 *	         data size actually written for other values.
+	 * action:
+	 *   Fills in first 128 bytes of vnic_devcmd_fw_info for in:a1 = 0,
+	 *            first in:a1 bytes               for 0 < in:a1 <= 132,
+	 *            132 bytes                       for other values of in:a1.
+	 * note:
+	 *   CMD_MCPU_FW_INFO and CMD_MCPU_FW_INFO_OLD have the same enum 1
+	 *   for source compatibility.
+	 */
+	CMD_MCPU_FW_INFO        = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 1),
 
 	/* dev-specific block member:
 	 *    in: (u16)a0=offset,(u8)a1=size
@@ -291,11 +317,19 @@ enum vnic_devcmd_error {
 	ERR_EMAXRES = 10,
 };
 
+/*
+ * note: hw_version and asic_rev refer to the same thing,
+ *       but have different formats. hw_version is
+ *       a 32-byte string (e.g. "A2") and asic_rev is
+ *       a 16-bit integer (e.g. 0xA2).
+ */
 struct vnic_devcmd_fw_info {
 	char fw_version[32];
 	char fw_build[32];
 	char hw_version[32];
 	char hw_serial_number[32];
+	u16 asic_type;
+	u16 asic_rev;
 };
 
 struct vnic_devcmd_notify {

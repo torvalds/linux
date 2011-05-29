@@ -580,7 +580,6 @@ struct ipw2100_priv {
 
 	struct tasklet_struct irq_tasklet;
 
-	struct workqueue_struct *workqueue;
 	struct delayed_work reset_work;
 	struct delayed_work security_work;
 	struct delayed_work wx_event_work;

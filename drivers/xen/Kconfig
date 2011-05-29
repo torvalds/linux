@@ -76,9 +76,19 @@ config XEN_XENBUS_FRONTEND
 config XEN_GNTDEV
 	tristate "userspace grant access device driver"
 	depends on XEN
+	default m
 	select MMU_NOTIFIER
 	help
 	  Allows userspace processes to use grants.
+
+config XEN_GRANT_DEV_ALLOC
+	tristate "User-space grant reference allocator driver"
+	depends on XEN
+	default m
+	help
+	  Allows userspace processes to create pages with access granted
+	  to other domains. This can be used to implement frontend drivers
+	  or as part of an inter-domain shared memory channel.
 
 config XEN_PLATFORM_PCI
 	tristate "xen platform pci device driver"

@@ -292,6 +292,7 @@ Channel manager Data Structure entry = 20 DWORD
 #define RDR_CFG0	0x00050000
 #define RDR_CFG1	0x00050004
 #define RDR_CFG2	0x00050008
+#define RDR_RDRCTL1	0x0005030c
 #define RDR_TLCTL0	0x00050318
 
 /* APB DMAC Current Buffer Pointer */

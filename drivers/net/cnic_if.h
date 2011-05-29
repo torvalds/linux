@@ -12,8 +12,8 @@
 #ifndef CNIC_IF_H
 #define CNIC_IF_H
 
-#define CNIC_MODULE_VERSION	"2.2.12"
-#define CNIC_MODULE_RELDATE	"Jan 03, 2011"
+#define CNIC_MODULE_VERSION	"2.2.13"
+#define CNIC_MODULE_RELDATE	"Jan 31, 2011"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1
@@ -159,6 +159,9 @@ struct cnic_eth_dev {
 	u32		drv_state;
 #define CNIC_DRV_STATE_REGD		0x00000001
 #define CNIC_DRV_STATE_USING_MSIX	0x00000002
+#define CNIC_DRV_STATE_NO_ISCSI_OOO	0x00000004
+#define CNIC_DRV_STATE_NO_ISCSI		0x00000008
+#define CNIC_DRV_STATE_NO_FCOE		0x00000010
 	u32		chip_id;
 	u32		max_kwqe_pending;
 	struct pci_dev	*pdev;
@@ -176,6 +179,7 @@ struct cnic_eth_dev {
 	u32		fcoe_init_cid;
 	u16		iscsi_l2_client_id;
 	u16		iscsi_l2_cid;
+	u8		iscsi_mac[ETH_ALEN];
 
 	int		num_irq;
 	struct cnic_irq	irq_arr[MAX_CNIC_VEC];

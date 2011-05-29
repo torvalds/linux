@@ -261,7 +261,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 
 /* the saa7146 provides some controls (brightness, contrast, saturation)
    which gets registered *after* this function. because of this we have
-   to return with a value != 0 even if the function succeded.. */
+   to return with a value != 0 even if the function succeeded.. */
 static int vidioc_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qc)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;

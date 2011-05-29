@@ -51,7 +51,7 @@
  */
 #define LEVEL(event) (((event) - HW_EVENT_IRQ_BASE) / 32)
 
-/* Return the hardware event's bit positon within the EMR/ESR */
+/* Return the hardware event's bit position within the EMR/ESR */
 #define EVENT_BIT(event) (((event) - HW_EVENT_IRQ_BASE) & 31)
 
 /*
@@ -161,7 +161,6 @@ void systemasic_irq_init(void)
 			return;
 		}
 
-		set_irq_chip_and_handler(i, &systemasic_int,
-					 handle_level_irq);
+		irq_set_chip_and_handler(i, &systemasic_int, handle_level_irq);
 	}
 }

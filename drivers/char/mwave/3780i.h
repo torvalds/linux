@@ -122,7 +122,7 @@ typedef struct {
 typedef struct {
 	unsigned char Dma:3;	/* RW: DMA channel selection */
 	unsigned char NumTransfers:2;	/* RW: Maximum # of transfers once being granted the ISA bus */
-	unsigned char ReRequest:2;	/* RW: Minumum delay between releasing the ISA bus and requesting it again */
+	unsigned char ReRequest:2;	/* RW: Minimum delay between releasing the ISA bus and requesting it again */
 	unsigned char MEMCS16:1;	/* RW: ISA signal MEMCS16: 0=disabled, 1=enabled */
 } DSP_BUSMASTER_CFG_1;
 

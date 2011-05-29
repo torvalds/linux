@@ -575,8 +575,10 @@ reopen_error_exit:
 
 int cifs_close(struct inode *inode, struct file *file)
 {
-	cifsFileInfo_put(file->private_data);
-	file->private_data = NULL;
+	if (file->private_data != NULL) {
+		cifsFileInfo_put(file->private_data);
+		file->private_data = NULL;
+	}
 
 	/* return code from the ->release op is always ignored */
 	return 0;
@@ -970,6 +972,9 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 	     total_written += bytes_written) {
 		rc = -EAGAIN;
 		while (rc == -EAGAIN) {
+			struct kvec iov[2];
+			unsigned int len;
+
 			if (open_file->invalidHandle) {
 				/* we could deadlock if we called
 				   filemap_fdatawait from here so tell
@@ -979,31 +984,14 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 				if (rc != 0)
 					break;
 			}
-			if (experimEnabled || (pTcon->ses->server &&
-				((pTcon->ses->server->secMode &
-				(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
-				== 0))) {
-				struct kvec iov[2];
-				unsigned int len;
 
-				len = min((size_t)cifs_sb->wsize,
-					  write_size - total_written);
-				/* iov[0] is reserved for smb header */
-				iov[1].iov_base = (char *)write_data +
-						  total_written;
-				iov[1].iov_len = len;
-				rc = CIFSSMBWrite2(xid, pTcon,
-						open_file->netfid, len,
-						*poffset, &bytes_written,
-						iov, 1, 0);
-			} else
-				rc = CIFSSMBWrite(xid, pTcon,
-					 open_file->netfid,
-					 min_t(const int, cifs_sb->wsize,
-					       write_size - total_written),
-					 *poffset, &bytes_written,
-					 write_data + total_written,
-					 NULL, 0);
+			len = min((size_t)cifs_sb->wsize,
+				  write_size - total_written);
+			/* iov[0] is reserved for smb header */
+			iov[1].iov_base = (char *)write_data + total_written;
+			iov[1].iov_len = len;
+			rc = CIFSSMBWrite2(xid, pTcon, open_file->netfid, len,
+					   *poffset, &bytes_written, iov, 1, 0);
 		}
 		if (rc || (bytes_written == 0)) {
 			if (total_written)
@@ -1240,12 +1228,6 @@ static int cifs_writepages(struct address_space *mapping,
 	}
 
 	tcon = tlink_tcon(open_file->tlink);
-	if (!experimEnabled && tcon->ses->server->secMode &
-			(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
-		cifsFileInfo_put(open_file);
-		kfree(iov);
-		return generic_writepages(mapping, wbc);
-	}
 	cifsFileInfo_put(open_file);
 
 	xid = GetXid();
@@ -1568,34 +1550,6 @@ int cifs_fsync(struct file *file, int datasync)
 	FreeXid(xid);
 	return rc;
 }
-
-/* static void cifs_sync_page(struct page *page)
-{
-	struct address_space *mapping;
-	struct inode *inode;
-	unsigned long index = page->index;
-	unsigned int rpages = 0;
-	int rc = 0;
-
-	cFYI(1, "sync page %p", page);
-	mapping = page->mapping;
-	if (!mapping)
-		return 0;
-	inode = mapping->host;
-	if (!inode)
-		return; */
-
-/*	fill in rpages then
-	result = cifs_pagein_inode(inode, index, rpages); */ /* BB finish */
-
-/*	cFYI(1, "rpages is %d for sync page of Index %ld", rpages, index);
-
-#if 0
-	if (rc < 0)
-		return rc;
-	return 0;
-#endif
-} */
 
 /*
  * As file closes, flush all cached write data for this inode checking
@@ -2008,6 +1962,24 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	return total_read;
 }
 
+/*
+ * If the page is mmap'ed into a process' page tables, then we need to make
+ * sure that it doesn't change while being written back.
+ */
+static int
+cifs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	struct page *page = vmf->page;
+
+	lock_page(page);
+	return VM_FAULT_LOCKED;
+}
+
+static struct vm_operations_struct cifs_file_vm_ops = {
+	.fault = filemap_fault,
+	.page_mkwrite = cifs_page_mkwrite,
+};
+
 int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int rc, xid;
@@ -2019,6 +1991,8 @@ int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma)
 		cifs_invalidate_mapping(inode);
 
 	rc = generic_file_mmap(file, vma);
+	if (rc == 0)
+		vma->vm_ops = &cifs_file_vm_ops;
 	FreeXid(xid);
 	return rc;
 }
@@ -2035,6 +2009,8 @@ int cifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 		return rc;
 	}
 	rc = generic_file_mmap(file, vma);
+	if (rc == 0)
+		vma->vm_ops = &cifs_file_vm_ops;
 	FreeXid(xid);
 	return rc;
 }
@@ -2510,7 +2486,6 @@ const struct address_space_operations cifs_addr_ops = {
 	.set_page_dirty = __set_page_dirty_nobuffers,
 	.releasepage = cifs_release_page,
 	.invalidatepage = cifs_invalidate_page,
-	/* .sync_page = cifs_sync_page, */
 	/* .direct_IO = */
 };
 
@@ -2528,6 +2503,5 @@ const struct address_space_operations cifs_addr_ops_smallbuf = {
 	.set_page_dirty = __set_page_dirty_nobuffers,
 	.releasepage = cifs_release_page,
 	.invalidatepage = cifs_invalidate_page,
-	/* .sync_page = cifs_sync_page, */
 	/* .direct_IO = */
 };

@@ -1,8 +1,7 @@
 /*
  * Common code for Palm LD, T5, TX, Z72
  *
- * Copyright (C) 2010
- * Marek Vasut <marek.vasut@gmail.com>
+ * Copyright (C) 2010-2011 Marek Vasut <marek.vasut@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -22,6 +21,7 @@
 #include <linux/power_supply.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/regulator/max1586.h>
+#include <linux/i2c/pxa-i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -35,8 +35,6 @@
 #include <mach/udc.h>
 #include <mach/palmasoc.h>
 #include <mach/palm27x.h>
-
-#include <plat/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -159,7 +157,7 @@ void __init palm27x_lcd_init(int power, struct pxafb_mode_info *mode)
 		palm27x_lcd_screen.pxafb_lcd_power = palm27x_lcd_ctl;
 	}
 
-	set_pxa_fb_info(&palm27x_lcd_screen);
+	pxa_set_fb_info(NULL, &palm27x_lcd_screen);
 }
 #endif
 

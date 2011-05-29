@@ -149,6 +149,7 @@ static void platform_device_release(struct device *dev)
 
 	of_device_node_put(&pa->pdev.dev);
 	kfree(pa->pdev.dev.platform_data);
+	kfree(pa->pdev.mfd_cell);
 	kfree(pa->pdev.resource);
 	kfree(pa);
 }
@@ -771,7 +772,7 @@ int __weak platform_pm_resume_noirq(struct device *dev)
 
 #endif /* !CONFIG_SUSPEND */
 
-#ifdef CONFIG_HIBERNATION
+#ifdef CONFIG_HIBERNATE_CALLBACKS
 
 static int platform_pm_freeze(struct device *dev)
 {
@@ -909,7 +910,7 @@ static int platform_pm_restore_noirq(struct device *dev)
 	return ret;
 }
 
-#else /* !CONFIG_HIBERNATION */
+#else /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #define platform_pm_freeze		NULL
 #define platform_pm_thaw		NULL
@@ -920,7 +921,7 @@ static int platform_pm_restore_noirq(struct device *dev)
 #define platform_pm_poweroff_noirq	NULL
 #define platform_pm_restore_noirq	NULL
 
-#endif /* !CONFIG_HIBERNATION */
+#endif /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #ifdef CONFIG_PM_RUNTIME
 

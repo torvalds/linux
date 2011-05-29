@@ -10,7 +10,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/dma.h>
 
@@ -21,7 +21,7 @@
  * in asm/dma.h.
  */
 
-static int i8237A_resume(struct sys_device *dev)
+static void i8237A_resume(void)
 {
 	unsigned long flags;
 	int i;
@@ -41,31 +41,15 @@ static int i8237A_resume(struct sys_device *dev)
 	enable_dma(4);
 
 	release_dma_lock(flags);
-
-	return 0;
 }
 
-static int i8237A_suspend(struct sys_device *dev, pm_message_t state)
-{
-	return 0;
-}
-
-static struct sysdev_class i8237_sysdev_class = {
-	.name		= "i8237",
-	.suspend	= i8237A_suspend,
+static struct syscore_ops i8237_syscore_ops = {
 	.resume		= i8237A_resume,
 };
 
-static struct sys_device device_i8237A = {
-	.id		= 0,
-	.cls		= &i8237_sysdev_class,
-};
-
-static int __init i8237A_init_sysfs(void)
+static int __init i8237A_init_ops(void)
 {
-	int error = sysdev_class_register(&i8237_sysdev_class);
-	if (!error)
-		error = sysdev_register(&device_i8237A);
-	return error;
+	register_syscore_ops(&i8237_syscore_ops);
+	return 0;
 }
-device_initcall(i8237A_init_sysfs);
+device_initcall(i8237A_init_ops);

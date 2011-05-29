@@ -12,7 +12,7 @@
 /*
  * Physical DRAM offset is 0xc0000000 on the SA1100
  */
-#define PHYS_OFFSET	UL(0xc0000000)
+#define PLAT_PHYS_OFFSET	UL(0xc0000000)
 
 #ifndef __ASSEMBLY__
 

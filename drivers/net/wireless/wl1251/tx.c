@@ -213,16 +213,30 @@ static int wl1251_tx_send_packet(struct wl1251 *wl, struct sk_buff *skb,
 		wl1251_debug(DEBUG_TX, "skb offset %d", offset);
 
 		/* check whether the current skb can be used */
-		if (!skb_cloned(skb) && (skb_tailroom(skb) >= offset)) {
-			unsigned char *src = skb->data;
+		if (skb_cloned(skb) || (skb_tailroom(skb) < offset)) {
+			struct sk_buff *newskb = skb_copy_expand(skb, 0, 3,
+								 GFP_KERNEL);
 
-			/* align the buffer on a 4-byte boundary */
+			if (unlikely(newskb == NULL)) {
+				wl1251_error("Can't allocate skb!");
+				return -EINVAL;
+			}
+
+			tx_hdr = (struct tx_double_buffer_desc *) newskb->data;
+
+			dev_kfree_skb_any(skb);
+			wl->tx_frames[tx_hdr->id] = skb = newskb;
+
+			offset = (4 - (long)skb->data) & 0x03;
+			wl1251_debug(DEBUG_TX, "new skb offset %d", offset);
+		}
+
+		/* align the buffer on a 4-byte boundary */
+		if (offset) {
+			unsigned char *src = skb->data;
 			skb_reserve(skb, offset);
 			memmove(skb->data, src, skb->len);
 			tx_hdr = (struct tx_double_buffer_desc *) skb->data;
-		} else {
-			wl1251_info("No handler, fixme!");
-			return -EINVAL;
 		}
 	}
 
@@ -368,7 +382,7 @@ static void wl1251_tx_packet_cb(struct wl1251 *wl,
 {
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
-	int hdrlen, ret;
+	int hdrlen;
 	u8 *frame;
 
 	skb = wl->tx_frames[result->id];
@@ -407,40 +421,12 @@ static void wl1251_tx_packet_cb(struct wl1251 *wl,
 	ieee80211_tx_status(wl->hw, skb);
 
 	wl->tx_frames[result->id] = NULL;
-
-	if (wl->tx_queue_stopped) {
-		wl1251_debug(DEBUG_TX, "cb: queue was stopped");
-
-		skb = skb_dequeue(&wl->tx_queue);
-
-		/* The skb can be NULL because tx_work might have been
-		   scheduled before the queue was stopped making the
-		   queue empty */
-
-		if (skb) {
-			ret = wl1251_tx_frame(wl, skb);
-			if (ret == -EBUSY) {
-				/* firmware buffer is still full */
-				wl1251_debug(DEBUG_TX, "cb: fw buffer "
-					     "still full");
-				skb_queue_head(&wl->tx_queue, skb);
-				return;
-			} else if (ret < 0) {
-				dev_kfree_skb(skb);
-				return;
-			}
-		}
-
-		wl1251_debug(DEBUG_TX, "cb: waking queues");
-		ieee80211_wake_queues(wl->hw);
-		wl->tx_queue_stopped = false;
-	}
 }
 
 /* Called upon reception of a TX complete interrupt */
 void wl1251_tx_complete(struct wl1251 *wl)
 {
-	int i, result_index, num_complete = 0;
+	int i, result_index, num_complete = 0, queue_len;
 	struct tx_result result[FW_TX_CMPLT_BLOCK_SIZE], *result_ptr;
 	unsigned long flags;
 
@@ -471,18 +457,22 @@ void wl1251_tx_complete(struct wl1251 *wl)
 		}
 	}
 
-	if (wl->tx_queue_stopped
-	    &&
-	    skb_queue_len(&wl->tx_queue) <= WL1251_TX_QUEUE_LOW_WATERMARK){
+	queue_len = skb_queue_len(&wl->tx_queue);
 
-		/* firmware buffer has space, restart queues */
+	if ((num_complete > 0) && (queue_len > 0)) {
+		/* firmware buffer has space, reschedule tx_work */
+		wl1251_debug(DEBUG_TX, "tx_complete: reschedule tx_work");
+		ieee80211_queue_work(wl->hw, &wl->tx_work);
+	}
+
+	if (wl->tx_queue_stopped &&
+	    queue_len <= WL1251_TX_QUEUE_LOW_WATERMARK) {
+		/* tx_queue has space, restart queues */
 		wl1251_debug(DEBUG_TX, "tx_complete: waking queues");
 		spin_lock_irqsave(&wl->wl_lock, flags);
 		ieee80211_wake_queues(wl->hw);
 		wl->tx_queue_stopped = false;
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
-		ieee80211_queue_work(wl->hw, &wl->tx_work);
-
 	}
 
 	/* Every completed frame needs to be acknowledged */

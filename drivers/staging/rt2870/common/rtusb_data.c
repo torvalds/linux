@@ -71,7 +71,7 @@ void REPORT_AMSDU_FRAMES_TO_LLC(struct rt_rtmp_adapter *pAd,
 
 	Routine	Description:
 		This subroutine will scan through releative ring descriptor to find
-		out avaliable free ring descriptor and compare with request size.
+		out available free ring descriptor and compare with request size.
 
 	Arguments:
 		pAd	Pointer	to our adapter

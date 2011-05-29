@@ -78,15 +78,15 @@ struct my_handle;
 struct dbg_mirror_root {
 	/* must be same as dbg_mirror_list; __DLModules address on target */
 	u32 dbthis;
-	struct my_handle *hnext;	/* must be same as dbg_mirror_list */
+	struct my_handle *next;	/* must be same as dbg_mirror_list */
 	u16 changes;		/* change counter */
 	u16 refcount;		/* number of modules referencing this root */
 };
 
 struct dbg_mirror_list {
 	u32 dbthis;
-	struct my_handle *hnext, *hprev;
-	struct dbg_mirror_root *hroot;
+	struct my_handle *next, *prev;
+	struct dbg_mirror_root *root;
 	u16 dbsiz;
 	u32 context;	/* Save context for .dllview memory allocation */
 };

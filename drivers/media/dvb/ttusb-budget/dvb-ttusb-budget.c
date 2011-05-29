@@ -334,6 +334,7 @@ static int ttusb_boot_dsp(struct ttusb *ttusb)
 	err = ttusb_cmd(ttusb, b, 4, 0);
 
       done:
+	release_firmware(fw);
 	if (err) {
 		dprintk("%s: usb_bulk_msg() failed, return value %i!\n",
 			__func__, err);

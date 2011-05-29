@@ -401,14 +401,6 @@ static struct omap_dss_board_info cm_t35_dss_data = {
 	.default_device	= &cm_t35_dvi_device,
 };
 
-static struct platform_device cm_t35_dss_device = {
-	.name		= "omapdss",
-	.id		= -1,
-	.dev		= {
-		.platform_data = &cm_t35_dss_data,
-	},
-};
-
 static struct omap2_mcspi_device_config tdo24m_mcspi_config = {
 	.turbo_mode	= 0,
 	.single_channel	= 1,	/* 0: slave, 1: master */
@@ -468,7 +460,7 @@ static void __init cm_t35_init_display(void)
 	msleep(50);
 	gpio_set_value(lcd_en_gpio, 1);
 
-	err = platform_device_register(&cm_t35_dss_device);
+	err = omap_display_init(&cm_t35_dss_data);
 	if (err) {
 		pr_err("CM-T35: failed to register DSS device\n");
 		goto err_dev_reg;
@@ -495,15 +487,11 @@ static struct regulator_consumer_supply cm_t35_vsim_supply = {
 	.supply			= "vmmc_aux",
 };
 
-static struct regulator_consumer_supply cm_t35_vdac_supply = {
-	.supply		= "vdda_dac",
-	.dev		= &cm_t35_dss_device.dev,
-};
+static struct regulator_consumer_supply cm_t35_vdac_supply =
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
 
-static struct regulator_consumer_supply cm_t35_vdvi_supply = {
-	.supply		= "vdvi",
-	.dev		= &cm_t35_dss_device.dev,
-};
+static struct regulator_consumer_supply cm_t35_vdvi_supply =
+	REGULATOR_SUPPLY("vdvi", "omapdss");
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
 static struct regulator_init_data cm_t35_vmmc1 = {
@@ -605,10 +593,10 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
-static struct ehci_hcd_omap_platform_data ehci_pdata __initdata = {
-	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[1] = EHCI_HCD_OMAP_MODE_PHY,
-	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+static struct usbhs_omap_board_data usbhs_bdata __initdata = {
+	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
+	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
+	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
 
 	.phy_reset  = true,
 	.reset_gpio_port[0]  = OMAP_MAX_GPIO_LINES + 6,
@@ -680,20 +668,14 @@ static void __init cm_t35_init_i2c(void)
 			      ARRAY_SIZE(cm_t35_i2c_boardinfo));
 }
 
-static struct omap_board_config_kernel cm_t35_config[] __initdata = {
-};
-
-static void __init cm_t35_init_irq(void)
+static void __init cm_t35_init_early(void)
 {
-	omap_board_config = cm_t35_config;
-	omap_board_config_size = ARRAY_SIZE(cm_t35_config);
-
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
 			     mt46h32m32lf6_sdrc_params);
-	omap_init_irq();
 }
 
+#ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
 	/* nCS and IRQ for CM-T35 ethernet */
 	OMAP3_MUX(GPMC_NCS5, OMAP_MUX_MODE0),
@@ -791,6 +773,7 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
+#endif
 
 static struct omap_musb_board_data musb_board_data = {
 	.interface_type		= MUSB_INTERFACE_ULPI,
@@ -798,8 +781,13 @@ static struct omap_musb_board_data musb_board_data = {
 	.power			= 100,
 };
 
+static struct omap_board_config_kernel cm_t35_config[] __initdata = {
+};
+
 static void __init cm_t35_init(void)
 {
+	omap_board_config = cm_t35_config;
+	omap_board_config_size = ARRAY_SIZE(cm_t35_config);
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CUS);
 	omap_serial_init();
 	cm_t35_init_i2c();
@@ -810,14 +798,15 @@ static void __init cm_t35_init(void)
 	cm_t35_init_display();
 
 	usb_musb_init(&musb_board_data);
-	usb_ehci_init(&ehci_pdata);
+	usbhs_init(&usbhs_bdata);
 }
 
 MACHINE_START(CM_T35, "Compulab CM-T35")
 	.boot_params	= 0x80000100,
-	.map_io		= omap3_map_io,
 	.reserve	= omap_reserve,
-	.init_irq	= cm_t35_init_irq,
+	.map_io		= omap3_map_io,
+	.init_early	= cm_t35_init_early,
+	.init_irq	= omap_init_irq,
 	.init_machine	= cm_t35_init,
 	.timer		= &omap_timer,
 MACHINE_END

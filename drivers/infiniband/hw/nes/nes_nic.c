@@ -902,7 +902,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 		nes_write_indexed(nesdev, NES_IDX_NIC_UNICAST_ALL, nic_active);
 	}
 
-	nes_debug(NES_DBG_NIC_RX, "Number of MC entries = %d, Promiscous = %d, All Multicast = %d.\n",
+	nes_debug(NES_DBG_NIC_RX, "Number of MC entries = %d, Promiscuous = %d, All Multicast = %d.\n",
 		  mc_count, !!(netdev->flags & IFF_PROMISC),
 		  !!(netdev->flags & IFF_ALLMULTI));
 	if (!mc_all_on) {

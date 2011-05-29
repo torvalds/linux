@@ -240,9 +240,6 @@ __u64 nilfs_bmap_data_get_key(const struct nilfs_bmap *,
 __u64 nilfs_bmap_find_target_seq(const struct nilfs_bmap *, __u64);
 __u64 nilfs_bmap_find_target_in_group(const struct nilfs_bmap *);
 
-void nilfs_bmap_add_blocks(const struct nilfs_bmap *, int);
-void nilfs_bmap_sub_blocks(const struct nilfs_bmap *, int);
-
 
 /* Assume that bmap semaphore is locked. */
 static inline int nilfs_bmap_dirty(const struct nilfs_bmap *bmap)

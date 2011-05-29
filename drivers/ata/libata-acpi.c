@@ -660,8 +660,7 @@ static int ata_acpi_filter_tf(struct ata_device *dev,
  * @dev: target ATA device
  * @gtf: raw ATA taskfile register set (0x1f1 - 0x1f7)
  *
- * Outputs ATA taskfile to standard ATA host controller using MMIO
- * or PIO as indicated by the ATA_FLAG_MMIO flag.
+ * Outputs ATA taskfile to standard ATA host controller.
  * Writes the control, feature, nsect, lbal, lbam, and lbah registers.
  * Optionally (ATA_TFLAG_LBA48) writes hob_feature, hob_nsect,
  * hob_lbal, hob_lbam, and hob_lbah.

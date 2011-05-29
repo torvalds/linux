@@ -59,7 +59,7 @@ config EXACT_HWERR
           be reported multiple cycles after the error happens. This delay
 	  can cause the wrong application, or even the kernel to receive a
 	  signal to be killed. If you are getting HW errors in your system,
-	  try turning this on to ensure they are at least comming from the
+	  try turning this on to ensure they are at least coming from the
 	  proper thread.
 
 	  On production systems, it is safe (and a small optimization) to say N.

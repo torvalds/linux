@@ -464,7 +464,7 @@ typedef struct cy_as_usb_end_point_config {
    be selected on a partitioned storage device.
 
    Description
-   West Bridge firmware supports creating upto two
+   West Bridge firmware supports creating up to two
    partitions on mass storage devices connected to
    West Bridge.  When there are two partitions on a device,
    the user can choose which of these partitions should be
@@ -698,7 +698,7 @@ cy_as_usb_start(
    *	been configured
    * CY_AS_ERROR_NO_FIRMWARE - the firmware has not been loaded
    *	into West Bridge
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_TIMEOUT - a timeout occurred communicating with
    *	the West Bridge device
 
@@ -746,13 +746,13 @@ cy_as_usb_register_callback(
    the West Bridge device as a different
    device when necessary.  This function connects the D+ and D-
    signal physically to the USB host
-   if they have been previously disconnnected.
+   if they have been previously disconnected.
 
    * Valid In Asynchronous Callback: YES (if cb supplied)
    * Nestable: YES
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_NOT_CONFIGURED - the West Bridge device has not
    *	been configured
    * CY_AS_ERROR_NO_FIRMWARE - the firmware has not been loaded
@@ -791,7 +791,7 @@ cy_as_usb_connect(
    * Nestable: YES
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_NOT_CONFIGURED - the West Bridge device has not
    *	been configured
    * CY_AS_ERROR_NO_FIRMWARE - the firmware has not been loaded
@@ -825,7 +825,7 @@ cy_as_usb_disconnect(
    * Valid In Asynchronous Callback: Yes (if cb supplied)
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_NOT_CONFIGURED - the West Bridge device has not
    *	been configured
    * CY_AS_ERROR_NO_FIRMWARE - the firmware has not been loaded
@@ -855,13 +855,13 @@ cy_as_usb_set_enum_config(
    the USB stack
 
    Description
-   This function sends a request to West Bridge to retreive
+   This function sends a request to West Bridge to retrieve
    the current configuration
 
    * Valid In Asynchronous Callback: Yes (if cb supplied)
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_NOT_CONFIGURED - the West Bridge device has not
    *	been configured
    * CY_AS_ERROR_NO_FIRMWARE - the firmware has not been loaded
@@ -906,7 +906,7 @@ cy_as_usb_get_enum_config(
    Chapter 9.
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_NOT_CONFIGURED - the West Bridge device has not
    *	been configured
    * CY_AS_ERROR_NO_FIRMWARE - the firmware has not been loaded
@@ -993,7 +993,7 @@ cy_as_usb_clear_descriptors(
    Description
    This data structure the buffer to hold the descriptor
    data, and an in/out parameter ti indicate the
-   lenght of the buffer and descriptor data in bytes.
+   length of the buffer and descriptor data in bytes.
 
    See Also
    * CyAsUsbGetDescriptor
@@ -1027,7 +1027,7 @@ typedef struct cy_as_get_descriptor_data {
    Chapter 9.
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_NOT_CONFIGURED - the West Bridge device has not
    *	been configured
    * CY_AS_ERROR_NO_FIRMWARE - the firmware has not been loaded
@@ -1106,7 +1106,7 @@ cy_as_usb_get_descriptor(
    * Valid In Asynchronous Callback: NO
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_NOT_CONFIGURED - the West Bridge device has not
    *	been configured
    * CY_AS_ERROR_NO_FIRMWARE - the firmware has not been loaded
@@ -1140,7 +1140,7 @@ cy_as_usb_set_physical_configuration(
    Add documentation about endpoint configuration limitations
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_NOT_CONFIGURED - the West Bridge device has not
    *	been configured
    * CY_AS_ERROR_NO_FIRMWARE - the firmware has not been loaded
@@ -1181,7 +1181,7 @@ cy_as_usb_set_end_point_config(
    * Valid In Asynchronous Callback: NO
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_NOT_CONFIGURED - the West Bridge device has not
    *	been configured
    * CY_AS_ERROR_NO_FIRMWARE - the firmware has not been loaded
@@ -1219,7 +1219,7 @@ cy_as_usb_get_end_point_config(
    functions store away the configuration information and this
    CyAsUsbCommitConfig() actually finds the
    best hardware configuration based on the requested endpoint
-   configuration and sends thsi optimal
+   configuration and sends this optimal
    confiuration down to the West Bridge device.
 
    * Valid In Asynchronous Callback: YES (if cb supplied)
@@ -1268,7 +1268,7 @@ cy_as_usb_commit_config(
    * Valid In Asynchronous Callback: NO
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_TIMEOUT - a timeout occurred communicating with
    *	the West Bridge device
    * CY_AS_ERROR_NOT_RUNNING - the USB stack is not running
@@ -1311,7 +1311,7 @@ cy_as_usb_read_data(
    * Valid In Asynchronous Callback: YES
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_TIMEOUT - a timeout occurred communicating with
    *	the West Bridge device
    * CY_AS_ERROR_NOT_RUNNING - the USB stack is not running
@@ -1355,7 +1355,7 @@ cy_as_usb_read_data_async(
    a zero length packet transmitted to the USB host.
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_TIMEOUT - a timeout occurred communicating with
    *	the West Bridge device
    * CY_AS_ERROR_NOT_RUNNING - the USB stack is not running
@@ -1395,7 +1395,7 @@ cy_as_usb_write_data(
    in a zero length packet transmitted to the USB host.
 
    Returns
-   * CY_AS_ERROR_SUCCESS - this module was shut down sucessfully
+   * CY_AS_ERROR_SUCCESS - this module was shut down successfully
    * CY_AS_ERROR_TIMEOUT - a timeout occurred communicating with
    *	the West Bridge device
    * CY_AS_ERROR_NOT_RUNNING - the USB stack is not running
@@ -1435,7 +1435,7 @@ cy_as_usb_write_data_async(
 
    Returns
    * CY_AS_ERROR_SUCCESS - this module was shut down
-   *	sucessfully
+   *	successfully
    * CY_AS_ERROR_NOT_RUNNING - the USB stack is not
    *	running
    * CY_AS_ERROR_ASYNC_NOT_PENDING - no asynchronous USB
@@ -1791,7 +1791,7 @@ cy_as_usb_set_m_s_report_threshold(
    device should be made visible to USB.
 
    Description
-   West Bridge firmware supports the creation of upto two
+   West Bridge firmware supports the creation of up to two
    partitions on mass storage devices connected to the West Bridge
    device.  When there are two partitions on a device, the user can
    choose which of these partitions should be made visible to the

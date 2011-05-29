@@ -60,11 +60,13 @@ application.</para>
 <structfield>type</structfield> field of a struct
 <structname>v4l2_format</structname> to the respective buffer (stream)
 type. For example video capture devices use
-<constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>. When the application
+<constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant> or
+<constant>V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE</constant>. When the application
 calls the <constant>VIDIOC_G_FMT</constant> ioctl with a pointer to
 this structure the driver fills the respective member of the
 <structfield>fmt</structfield> union. In case of video capture devices
-that is the &v4l2-pix-format; <structfield>pix</structfield> member.
+that is either the &v4l2-pix-format; <structfield>pix</structfield> or
+the &v4l2-pix-format-mplane; <structfield>pix_mp</structfield> member.
 When the requested buffer type is not supported drivers return an
 &EINVAL;.</para>
 
@@ -131,6 +133,15 @@ this ioctl.</para>
 	    <entry>Definition of an image format, see <xref
 		linkend="pixfmt" />, used by video capture and output
 devices.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>&v4l2-pix-format-mplane;</entry>
+	    <entry><structfield>pix_mp</structfield></entry>
+	    <entry>Definition of an image format, see <xref
+		linkend="pixfmt" />, used by video capture and output
+devices that support the <link linkend="planar-apis">multi-planar
+version of the API</link>.</entry>
 	  </row>
 	  <row>
 	    <entry></entry>

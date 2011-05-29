@@ -219,7 +219,7 @@ try_again:
 	if (mm->free_area_cache < len)
 		goto fail;
 
-	/* either no address requested or cant fit in requested address hole */
+	/* either no address requested or can't fit in requested address hole */
 	addr = (mm->free_area_cache - len) & huge_page_mask(h);
 	do {
 		/*

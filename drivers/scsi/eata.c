@@ -63,7 +63,7 @@
  *          ep:[y|n]      eisa_probe=[1|0]  CONFIG_EISA defined
  *          pp:[y|n]      pci_probe=[1|0]   CONFIG_PCI  defined
  *
- *          The default action is to perform probing if the corrisponding
+ *          The default action is to perform probing if the corresponding
  *          bus is configured and to skip probing otherwise.
  *
  *        + If pci_probe is in effect and a list of I/O  ports is specified

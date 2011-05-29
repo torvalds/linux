@@ -431,7 +431,7 @@ static void pci_device_shutdown(struct device *dev)
 	pci_msix_shutdown(pci_dev);
 }
 
-#ifdef CONFIG_PM_OPS
+#ifdef CONFIG_PM
 
 /* Auxiliary functions used for system resume and run-time resume. */
 
@@ -781,7 +781,7 @@ static int pci_pm_resume(struct device *dev)
 
 #endif /* !CONFIG_SUSPEND */
 
-#ifdef CONFIG_HIBERNATION
+#ifdef CONFIG_HIBERNATE_CALLBACKS
 
 static int pci_pm_freeze(struct device *dev)
 {
@@ -970,7 +970,7 @@ static int pci_pm_restore(struct device *dev)
 	return error;
 }
 
-#else /* !CONFIG_HIBERNATION */
+#else /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #define pci_pm_freeze		NULL
 #define pci_pm_freeze_noirq	NULL
@@ -981,7 +981,7 @@ static int pci_pm_restore(struct device *dev)
 #define pci_pm_restore		NULL
 #define pci_pm_restore_noirq	NULL
 
-#endif /* !CONFIG_HIBERNATION */
+#endif /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #ifdef CONFIG_PM_RUNTIME
 
@@ -1059,7 +1059,7 @@ static int pci_pm_runtime_idle(struct device *dev)
 
 #endif /* !CONFIG_PM_RUNTIME */
 
-#ifdef CONFIG_PM_OPS
+#ifdef CONFIG_PM
 
 const struct dev_pm_ops pci_dev_pm_ops = {
 	.prepare = pci_pm_prepare,

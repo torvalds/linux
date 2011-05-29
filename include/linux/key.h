@@ -170,6 +170,7 @@ struct key {
 		struct list_head	link;
 		unsigned long		x[2];
 		void			*p[2];
+		int			reject_error;
 	} type_data;
 
 	/* key data
@@ -274,6 +275,10 @@ static inline key_serial_t key_serial(struct key *key)
 {
 	return key ? key->serial : 0;
 }
+
+#define rcu_dereference_key(KEY)					\
+	(rcu_dereference_protected((KEY)->payload.rcudata,		\
+				   rwsem_is_locked(&((struct key *)(KEY))->sem)))
 
 #ifdef CONFIG_SYSCTL
 extern ctl_table key_sysctls[];

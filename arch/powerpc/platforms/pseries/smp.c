@@ -64,8 +64,8 @@ int smp_query_cpu_stopped(unsigned int pcpu)
 	int qcss_tok = rtas_token("query-cpu-stopped-state");
 
 	if (qcss_tok == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_INFO "Firmware doesn't support "
-				"query-cpu-stopped-state\n");
+		printk_once(KERN_INFO
+			"Firmware doesn't support query-cpu-stopped-state\n");
 		return QCSS_HARDWARE_ERROR;
 	}
 
@@ -112,10 +112,10 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 
 	/* Fixup atomic count: it exited inside IRQ handler. */
 	task_thread_info(paca[lcpu].__current)->preempt_count	= 0;
-
+#ifdef CONFIG_HOTPLUG_CPU
 	if (get_cpu_current_state(lcpu) == CPU_STATE_INACTIVE)
 		goto out;
-
+#endif
 	/* 
 	 * If the RTAS start-cpu token does not exist then presume the
 	 * cpu is already spinning.
@@ -130,7 +130,9 @@ static inline int __devinit smp_startup_cpu(unsigned int lcpu)
 		return 0;
 	}
 
+#ifdef CONFIG_HOTPLUG_CPU
 out:
+#endif
 	return 1;
 }
 
@@ -144,16 +146,15 @@ static void __devinit smp_xics_setup_cpu(int cpu)
 		vpa_init(cpu);
 
 	cpumask_clear_cpu(cpu, of_spin_mask);
+#ifdef CONFIG_HOTPLUG_CPU
 	set_cpu_current_state(cpu, CPU_STATE_ONLINE);
 	set_default_offline_state(cpu);
-
+#endif
 }
 #endif /* CONFIG_XICS */
 
 static void __devinit smp_pSeries_kick_cpu(int nr)
 {
-	long rc;
-	unsigned long hcpuid;
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 
 	if (!smp_startup_cpu(nr))
@@ -165,16 +166,20 @@ static void __devinit smp_pSeries_kick_cpu(int nr)
 	 * the processor will continue on to secondary_start
 	 */
 	paca[nr].cpu_start = 1;
-
+#ifdef CONFIG_HOTPLUG_CPU
 	set_preferred_offline_state(nr, CPU_STATE_ONLINE);
 
 	if (get_cpu_current_state(nr) == CPU_STATE_INACTIVE) {
+		long rc;
+		unsigned long hcpuid;
+
 		hcpuid = get_hard_smp_processor_id(nr);
 		rc = plpar_hcall_norets(H_PROD, hcpuid);
 		if (rc != H_SUCCESS)
 			printk(KERN_ERR "Error: Prod to wake up processor %d "
 						"Ret= %ld\n", nr, rc);
 	}
+#endif
 }
 
 static int smp_pSeries_cpu_bootable(unsigned int nr)

@@ -39,6 +39,7 @@
 #include <mach/pinmux.h>
 #include <mach/iomap.h>
 #include <mach/clk.h>
+#include <mach/powergate.h>
 
 /* register definitions */
 #define AFI_OFFSET	0x3800
@@ -682,24 +683,41 @@ static void tegra_pcie_xclk_clamp(bool clamp)
 	pmc_writel(reg, PMC_SCRATCH42);
 }
 
-static int tegra_pcie_power_on(void)
-{
-	tegra_pcie_xclk_clamp(true);
-	tegra_periph_reset_assert(tegra_pcie.pcie_xclk);
-	tegra_pcie_xclk_clamp(false);
-
-	clk_enable(tegra_pcie.afi_clk);
-	clk_enable(tegra_pcie.pex_clk);
-	return clk_enable(tegra_pcie.pll_e);
-}
-
 static void tegra_pcie_power_off(void)
 {
 	tegra_periph_reset_assert(tegra_pcie.pcie_xclk);
 	tegra_periph_reset_assert(tegra_pcie.afi_clk);
 	tegra_periph_reset_assert(tegra_pcie.pex_clk);
 
+	tegra_powergate_power_off(TEGRA_POWERGATE_PCIE);
 	tegra_pcie_xclk_clamp(true);
+}
+
+static int tegra_pcie_power_regate(void)
+{
+	int err;
+
+	tegra_pcie_power_off();
+
+	tegra_pcie_xclk_clamp(true);
+
+	tegra_periph_reset_assert(tegra_pcie.pcie_xclk);
+	tegra_periph_reset_assert(tegra_pcie.afi_clk);
+
+	err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_PCIE,
+						tegra_pcie.pex_clk);
+	if (err) {
+		pr_err("PCIE: powerup sequence failed: %d\n", err);
+		return err;
+	}
+
+	tegra_periph_reset_deassert(tegra_pcie.afi_clk);
+
+	tegra_pcie_xclk_clamp(false);
+
+	clk_enable(tegra_pcie.afi_clk);
+	clk_enable(tegra_pcie.pex_clk);
+	return clk_enable(tegra_pcie.pll_e);
 }
 
 static int tegra_pcie_clocks_get(void)
@@ -759,7 +777,7 @@ static int __init tegra_pcie_get_resources(void)
 		return err;
 	}
 
-	err = tegra_pcie_power_on();
+	err = tegra_pcie_power_regate();
 	if (err) {
 		pr_err("PCIE: failed to power up: %d\n", err);
 		goto err_pwr_on;

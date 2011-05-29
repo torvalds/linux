@@ -73,9 +73,20 @@ static void rose_loopback_timer(unsigned long param)
 	unsigned int lci_i, lci_o;
 
 	while ((skb = skb_dequeue(&loopback_queue)) != NULL) {
+		if (skb->len < ROSE_MIN_LEN) {
+			kfree_skb(skb);
+			continue;
+		}
 		lci_i     = ((skb->data[0] << 8) & 0xF00) + ((skb->data[1] << 0) & 0x0FF);
 		frametype = skb->data[2];
-		dest      = (rose_address *)(skb->data + 4);
+		if (frametype == ROSE_CALL_REQUEST &&
+		    (skb->len <= ROSE_CALL_REQ_FACILITIES_OFF ||
+		     skb->data[ROSE_CALL_REQ_ADDR_LEN_OFF] !=
+		     ROSE_CALL_REQ_ADDR_LEN_VAL)) {
+			kfree_skb(skb);
+			continue;
+		}
+		dest      = (rose_address *)(skb->data + ROSE_CALL_REQ_DEST_ADDR_OFF);
 		lci_o     = ROSE_DEFAULT_MAXVC + 1 - lci_i;
 
 		skb_reset_transport_header(skb);

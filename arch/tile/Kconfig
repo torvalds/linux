@@ -1,5 +1,5 @@
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/config-language.txt.
+# see Documentation/kbuild/kconfig-language.txt.
 
 config TILE
 	def_bool y
@@ -11,17 +11,18 @@ config TILE
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
+	select GENERIC_IRQ_SHOW
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
-#       select HAVE_OPTPROBES
-#       select HAVE_REGS_AND_STACK_ACCESS_API
-#       select HAVE_HW_BREAKPOINT
-#       select PERF_EVENTS
-#       select HAVE_USER_RETURN_NOTIFIER
-#       config NO_BOOTMEM
-#       config ARCH_SUPPORTS_DEBUG_PAGEALLOC
-#       config HUGETLB_PAGE_SIZE_VARIABLE
+#	select HAVE_OPTPROBES
+#	select HAVE_REGS_AND_STACK_ACCESS_API
+#	select HAVE_HW_BREAKPOINT
+#	select PERF_EVENTS
+#	select HAVE_USER_RETURN_NOTIFIER
+#	config NO_BOOTMEM
+#	config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+#	config HUGETLB_PAGE_SIZE_VARIABLE
 
 config MMU
 	def_bool y
@@ -39,7 +40,7 @@ config HAVE_SETUP_PER_CPU_AREA
 	def_bool y
 
 config NEED_PER_CPU_PAGE_FIRST_CHUNK
-        def_bool y
+	def_bool y
 
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y
@@ -50,7 +51,7 @@ config GENERIC_TIME
 config GENERIC_CLOCKEVENTS
 	def_bool y
 
-# FIXME: tilegx can implement a more efficent rwsem.
+# FIXME: tilegx can implement a more efficient rwsem.
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
@@ -201,12 +202,6 @@ config NODES_SHIFT
 	  By default, 2, i.e. 2^2 == 4 DDR2 controllers.
 	  In a system with more controllers, this value should be raised.
 
-# Need 16MB areas to enable hugetlb
-# See build-time check in arch/tile/mm/init.c.
-config FORCE_MAX_ZONEORDER
-	int
-	default 9
-
 choice
 	depends on !TILEGX
 	prompt "Memory split" if EXPERT
@@ -233,8 +228,12 @@ choice
 		bool "3.5G/0.5G user/kernel split"
 	config VMSPLIT_3G
 		bool "3G/1G user/kernel split"
-	config VMSPLIT_3G_OPT
-		bool "3G/1G user/kernel split (for full 1G low memory)"
+	config VMSPLIT_2_75G
+		bool "2.75G/1.25G user/kernel split (for full 1G low memory)"
+	config VMSPLIT_2_5G
+		bool "2.5G/1.5G user/kernel split"
+	config VMSPLIT_2_25G
+		bool "2.25G/1.75G user/kernel split"
 	config VMSPLIT_2G
 		bool "2G/2G user/kernel split"
 	config VMSPLIT_1G
@@ -245,7 +244,9 @@ config PAGE_OFFSET
 	hex
 	default 0xF0000000 if VMSPLIT_3_75G
 	default 0xE0000000 if VMSPLIT_3_5G
-	default 0xB0000000 if VMSPLIT_3G_OPT
+	default 0xB0000000 if VMSPLIT_2_75G
+	default 0xA0000000 if VMSPLIT_2_5G
+	default 0x90000000 if VMSPLIT_2_25G
 	default 0x80000000 if VMSPLIT_2G
 	default 0x40000000 if VMSPLIT_1G
 	default 0xC0000000

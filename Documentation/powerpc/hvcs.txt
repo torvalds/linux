@@ -528,7 +528,7 @@ this driver assignment of hotplug added vty-servers may be in a different
 order than how they would be exposed on module load.  Rebooting or
 reloading the module after dynamic addition may result in the /dev/hvcs*
 and vty-server coupling changing if a vty-server adapter was added in a
-slot inbetween two other vty-server adapters.  Refer to the section above
+slot between two other vty-server adapters.  Refer to the section above
 on how to determine which vty-server goes with which /dev/hvcs* node.
 Hint; look at the sysfs "index" attribute for the vty-server.
 

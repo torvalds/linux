@@ -59,7 +59,7 @@ struct fsl_elbc_mtd {
 	unsigned int fmr;       /* FCM Flash Mode Register value     */
 };
 
-/* Freescale eLBC FCM controller infomation */
+/* Freescale eLBC FCM controller information */
 
 struct fsl_elbc_fcm_ctrl {
 	struct nand_hw_control controller;

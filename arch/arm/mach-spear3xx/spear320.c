@@ -13,9 +13,9 @@
 
 #include <linux/ptrace.h>
 #include <asm/irq.h>
-#include <mach/generic.h>
-#include <mach/spear.h>
 #include <plat/shirq.h>
+#include <mach/generic.h>
+#include <mach/hardware.h>
 
 /* pad multiplexing support */
 /* muxing registers */
@@ -110,7 +110,7 @@ struct pmx_dev pmx_spp = {
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_sdio_modes[] = {
+struct pmx_dev_mode pmx_sdhci_modes[] = {
 	{
 		.ids = AUTO_NET_SMII_MODE | AUTO_NET_MII_MODE |
 			SMALL_PRINTERS_MODE,
@@ -118,10 +118,10 @@ struct pmx_dev_mode pmx_sdio_modes[] = {
 	},
 };
 
-struct pmx_dev pmx_sdio = {
-	.name = "sdio",
-	.modes = pmx_sdio_modes,
-	.mode_count = ARRAY_SIZE(pmx_sdio_modes),
+struct pmx_dev pmx_sdhci = {
+	.name = "sdhci",
+	.modes = pmx_sdhci_modes,
+	.mode_count = ARRAY_SIZE(pmx_sdhci_modes),
 	.enb_on_reset = 1,
 };
 
@@ -215,17 +215,17 @@ struct pmx_dev pmx_can = {
 	.enb_on_reset = 1,
 };
 
-struct pmx_dev_mode pmx_sdio_led_modes[] = {
+struct pmx_dev_mode pmx_sdhci_led_modes[] = {
 	{
 		.ids = AUTO_NET_SMII_MODE | AUTO_NET_MII_MODE,
 		.mask = PMX_SSP_CS_MASK,
 	},
 };
 
-struct pmx_dev pmx_sdio_led = {
-	.name = "sdio_led",
-	.modes = pmx_sdio_led_modes,
-	.mode_count = ARRAY_SIZE(pmx_sdio_led_modes),
+struct pmx_dev pmx_sdhci_led = {
+	.name = "sdhci_led",
+	.modes = pmx_sdhci_led_modes,
+	.mode_count = ARRAY_SIZE(pmx_sdhci_led_modes),
 	.enb_on_reset = 1,
 };
 
@@ -384,8 +384,6 @@ struct pmx_driver pmx_driver = {
 	.mux_reg = {.offset = PAD_MUX_CONFIG_REG, .mask = 0x00007fff},
 };
 
-/* Add spear320 specific devices here */
-
 /* spear3xx shared irq */
 struct shirq_dev_config shirq_ras1_config[] = {
 	{
@@ -510,6 +508,8 @@ struct spear_shirq shirq_intrcomm_ras = {
 	},
 };
 
+/* Add spear320 specific devices here */
+
 /* spear320 routines */
 void __init spear320_init(void)
 {
@@ -520,7 +520,7 @@ void __init spear320_init(void)
 	spear3xx_init();
 
 	/* shared irq registration */
-	base = ioremap(SPEAR320_SOC_CONFIG_BASE, SPEAR320_SOC_CONFIG_SIZE);
+	base = ioremap(SPEAR320_SOC_CONFIG_BASE, SZ_4K);
 	if (base) {
 		/* shirq 1 */
 		shirq_ras1.regs.base = base;
@@ -540,10 +540,11 @@ void __init spear320_init(void)
 		if (ret)
 			printk(KERN_ERR "Error registering Shared IRQ 4\n");
 	}
-}
 
-void spear320_pmx_init(void)
-{
-	spear_pmx_init(&pmx_driver, SPEAR320_SOC_CONFIG_BASE,
-			SPEAR320_SOC_CONFIG_SIZE);
+	/* pmx initialization */
+	pmx_driver.base = base;
+	ret = pmx_register(&pmx_driver);
+	if (ret)
+		printk(KERN_ERR "padmux: registeration failed. err no: %d\n",
+				ret);
 }

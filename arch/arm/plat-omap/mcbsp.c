@@ -27,6 +27,8 @@
 
 #include <plat/dma.h>
 #include <plat/mcbsp.h>
+#include <plat/omap_device.h>
+#include <linux/pm_runtime.h>
 
 /* XXX These "sideways" includes are a sign that something is wrong */
 #include "../mach-omap2/cm2xxx_3xxx.h"
@@ -227,10 +229,83 @@ void omap_mcbsp_config(unsigned int id, const struct omap_mcbsp_reg_cfg *config)
 }
 EXPORT_SYMBOL(omap_mcbsp_config);
 
+/**
+ * omap_mcbsp_dma_params - returns the dma channel number
+ * @id - mcbsp id
+ * @stream - indicates the direction of data flow (rx or tx)
+ *
+ * Returns the dma channel number for the rx channel or tx channel
+ * based on the value of @stream for the requested mcbsp given by @id
+ */
+int omap_mcbsp_dma_ch_params(unsigned int id, unsigned int stream)
+{
+	struct omap_mcbsp *mcbsp;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return -ENODEV;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	if (stream)
+		return mcbsp->dma_rx_sync;
+	else
+		return mcbsp->dma_tx_sync;
+}
+EXPORT_SYMBOL(omap_mcbsp_dma_ch_params);
+
+/**
+ * omap_mcbsp_dma_reg_params - returns the address of mcbsp data register
+ * @id - mcbsp id
+ * @stream - indicates the direction of data flow (rx or tx)
+ *
+ * Returns the address of mcbsp data transmit register or data receive register
+ * to be used by DMA for transferring/receiving data based on the value of
+ * @stream for the requested mcbsp given by @id
+ */
+int omap_mcbsp_dma_reg_params(unsigned int id, unsigned int stream)
+{
+	struct omap_mcbsp *mcbsp;
+	int data_reg;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return -ENODEV;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	data_reg = mcbsp->phys_dma_base;
+
+	if (mcbsp->mcbsp_config_type < MCBSP_CONFIG_TYPE2) {
+		if (stream)
+			data_reg += OMAP_MCBSP_REG_DRR1;
+		else
+			data_reg += OMAP_MCBSP_REG_DXR1;
+	} else {
+		if (stream)
+			data_reg += OMAP_MCBSP_REG_DRR;
+		else
+			data_reg += OMAP_MCBSP_REG_DXR;
+	}
+
+	return data_reg;
+}
+EXPORT_SYMBOL(omap_mcbsp_dma_reg_params);
+
 #ifdef CONFIG_ARCH_OMAP3
+static struct omap_device *find_omap_device_by_dev(struct device *dev)
+{
+	struct platform_device *pdev = container_of(dev,
+					struct platform_device, dev);
+	return container_of(pdev, struct omap_device, pdev);
+}
+
 static void omap_st_on(struct omap_mcbsp *mcbsp)
 {
 	unsigned int w;
+	struct omap_device *od;
+
+	od = find_omap_device_by_dev(mcbsp->dev);
 
 	/*
 	 * Sidetone uses McBSP ICLK - which must not idle when sidetones
@@ -244,9 +319,6 @@ static void omap_st_on(struct omap_mcbsp *mcbsp)
 	w = MCBSP_READ(mcbsp, SSELCR);
 	MCBSP_WRITE(mcbsp, SSELCR, w | SIDETONEEN);
 
-	w = MCBSP_ST_READ(mcbsp, SYSCONFIG);
-	MCBSP_ST_WRITE(mcbsp, SYSCONFIG, w & ~(ST_AUTOIDLE));
-
 	/* Enable Sidetone from Sidetone Core */
 	w = MCBSP_ST_READ(mcbsp, SSELCR);
 	MCBSP_ST_WRITE(mcbsp, SSELCR, w | ST_SIDETONEEN);
@@ -255,12 +327,12 @@ static void omap_st_on(struct omap_mcbsp *mcbsp)
 static void omap_st_off(struct omap_mcbsp *mcbsp)
 {
 	unsigned int w;
+	struct omap_device *od;
+
+	od = find_omap_device_by_dev(mcbsp->dev);
 
 	w = MCBSP_ST_READ(mcbsp, SSELCR);
 	MCBSP_ST_WRITE(mcbsp, SSELCR, w & ~(ST_SIDETONEEN));
-
-	w = MCBSP_ST_READ(mcbsp, SYSCONFIG);
-	MCBSP_ST_WRITE(mcbsp, SYSCONFIG, w | ST_AUTOIDLE);
 
 	w = MCBSP_READ(mcbsp, SSELCR);
 	MCBSP_WRITE(mcbsp, SSELCR, w & ~(SIDETONEEN));
@@ -273,9 +345,9 @@ static void omap_st_off(struct omap_mcbsp *mcbsp)
 static void omap_st_fir_write(struct omap_mcbsp *mcbsp, s16 *fir)
 {
 	u16 val, i;
+	struct omap_device *od;
 
-	val = MCBSP_ST_READ(mcbsp, SYSCONFIG);
-	MCBSP_ST_WRITE(mcbsp, SYSCONFIG, val & ~(ST_AUTOIDLE));
+	od = find_omap_device_by_dev(mcbsp->dev);
 
 	val = MCBSP_ST_READ(mcbsp, SSELCR);
 
@@ -303,9 +375,9 @@ static void omap_st_chgain(struct omap_mcbsp *mcbsp)
 {
 	u16 w;
 	struct omap_mcbsp_st_data *st_data = mcbsp->st_data;
+	struct omap_device *od;
 
-	w = MCBSP_ST_READ(mcbsp, SYSCONFIG);
-	MCBSP_ST_WRITE(mcbsp, SYSCONFIG, w & ~(ST_AUTOIDLE));
+	od = find_omap_device_by_dev(mcbsp->dev);
 
 	w = MCBSP_ST_READ(mcbsp, SSELCR);
 
@@ -648,48 +720,33 @@ EXPORT_SYMBOL(omap_mcbsp_get_dma_op_mode);
 
 static inline void omap34xx_mcbsp_request(struct omap_mcbsp *mcbsp)
 {
+	struct omap_device *od;
+
+	od = find_omap_device_by_dev(mcbsp->dev);
 	/*
 	 * Enable wakup behavior, smart idle and all wakeups
 	 * REVISIT: some wakeups may be unnecessary
 	 */
 	if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
-		u16 syscon;
-
-		syscon = MCBSP_READ(mcbsp, SYSCON);
-		syscon &= ~(ENAWAKEUP | SIDLEMODE(0x03) | CLOCKACTIVITY(0x03));
-
-		if (mcbsp->dma_op_mode == MCBSP_DMA_MODE_THRESHOLD) {
-			syscon |= (ENAWAKEUP | SIDLEMODE(0x02) |
-					CLOCKACTIVITY(0x02));
-			MCBSP_WRITE(mcbsp, WAKEUPEN, XRDYEN | RRDYEN);
-		} else {
-			syscon |= SIDLEMODE(0x01);
-		}
-
-		MCBSP_WRITE(mcbsp, SYSCON, syscon);
+		MCBSP_WRITE(mcbsp, WAKEUPEN, XRDYEN | RRDYEN);
 	}
 }
 
 static inline void omap34xx_mcbsp_free(struct omap_mcbsp *mcbsp)
 {
+	struct omap_device *od;
+
+	od = find_omap_device_by_dev(mcbsp->dev);
+
 	/*
 	 * Disable wakup behavior, smart idle and all wakeups
 	 */
 	if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
-		u16 syscon;
-
-		syscon = MCBSP_READ(mcbsp, SYSCON);
-		syscon &= ~(ENAWAKEUP | SIDLEMODE(0x03) | CLOCKACTIVITY(0x03));
 		/*
 		 * HW bug workaround - If no_idle mode is taken, we need to
 		 * go to smart_idle before going to always_idle, or the
 		 * device will not hit retention anymore.
 		 */
-		syscon |= SIDLEMODE(0x02);
-		MCBSP_WRITE(mcbsp, SYSCON, syscon);
-
-		syscon &= ~(SIDLEMODE(0x03));
-		MCBSP_WRITE(mcbsp, SYSCON, syscon);
 
 		MCBSP_WRITE(mcbsp, WAKEUPEN, 0);
 	}
@@ -764,8 +821,7 @@ int omap_mcbsp_request(unsigned int id)
 	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->request)
 		mcbsp->pdata->ops->request(id);
 
-	clk_enable(mcbsp->iclk);
-	clk_enable(mcbsp->fclk);
+	pm_runtime_get_sync(mcbsp->dev);
 
 	/* Do procedure specific to omap34xx arch, if applicable */
 	omap34xx_mcbsp_request(mcbsp);
@@ -813,8 +869,7 @@ err_clk_disable:
 	/* Do procedure specific to omap34xx arch, if applicable */
 	omap34xx_mcbsp_free(mcbsp);
 
-	clk_disable(mcbsp->fclk);
-	clk_disable(mcbsp->iclk);
+	pm_runtime_put_sync(mcbsp->dev);
 
 	spin_lock(&mcbsp->lock);
 	mcbsp->free = true;
@@ -844,8 +899,7 @@ void omap_mcbsp_free(unsigned int id)
 	/* Do procedure specific to omap34xx arch, if applicable */
 	omap34xx_mcbsp_free(mcbsp);
 
-	clk_disable(mcbsp->fclk);
-	clk_disable(mcbsp->iclk);
+	pm_runtime_put_sync(mcbsp->dev);
 
 	if (mcbsp->io_type == OMAP_MCBSP_IRQ_IO) {
 		/* Free IRQs */
@@ -1049,7 +1103,7 @@ int omap_mcbsp_pollread(unsigned int id, u16 *buf)
 		/* resend */
 		return -1;
 	} else {
-		/* wait for recieve confirmation */
+		/* wait for receive confirmation */
 		int attemps = 0;
 		while (!(MCBSP_READ(mcbsp, SPCR1) & RRDY)) {
 			if (attemps++ > 1000) {
@@ -1649,7 +1703,8 @@ static const struct attribute_group sidetone_attr_group = {
 
 static int __devinit omap_st_add(struct omap_mcbsp *mcbsp)
 {
-	struct omap_mcbsp_platform_data *pdata = mcbsp->pdata;
+	struct platform_device *pdev;
+	struct resource *res;
 	struct omap_mcbsp_st_data *st_data;
 	int err;
 
@@ -1659,7 +1714,10 @@ static int __devinit omap_st_add(struct omap_mcbsp *mcbsp)
 		goto err1;
 	}
 
-	st_data->io_base_st = ioremap(pdata->phys_base_st, SZ_4K);
+	pdev = container_of(mcbsp->dev, struct platform_device, dev);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sidetone");
+	st_data->io_base_st = ioremap(res->start, resource_size(res));
 	if (!st_data->io_base_st) {
 		err = -ENOMEM;
 		goto err2;
@@ -1748,6 +1806,7 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 	struct omap_mcbsp_platform_data *pdata = pdev->dev.platform_data;
 	struct omap_mcbsp *mcbsp;
 	int id = pdev->id - 1;
+	struct resource *res;
 	int ret = 0;
 
 	if (!pdata) {
@@ -1777,47 +1836,78 @@ static int __devinit omap_mcbsp_probe(struct platform_device *pdev)
 	mcbsp->dma_tx_lch = -1;
 	mcbsp->dma_rx_lch = -1;
 
-	mcbsp->phys_base = pdata->phys_base;
-	mcbsp->io_base = ioremap(pdata->phys_base, SZ_4K);
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
+	if (!res) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res) {
+			dev_err(&pdev->dev, "%s:mcbsp%d has invalid memory"
+					"resource\n", __func__, pdev->id);
+			ret = -ENOMEM;
+			goto exit;
+		}
+	}
+	mcbsp->phys_base = res->start;
+	omap_mcbsp_cache_size = resource_size(res);
+	mcbsp->io_base = ioremap(res->start, resource_size(res));
 	if (!mcbsp->io_base) {
 		ret = -ENOMEM;
 		goto err_ioremap;
 	}
 
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dma");
+	if (!res)
+		mcbsp->phys_dma_base = mcbsp->phys_base;
+	else
+		mcbsp->phys_dma_base = res->start;
+
 	/* Default I/O is IRQ based */
 	mcbsp->io_type = OMAP_MCBSP_IRQ_IO;
-	mcbsp->tx_irq = pdata->tx_irq;
-	mcbsp->rx_irq = pdata->rx_irq;
-	mcbsp->dma_rx_sync = pdata->dma_rx_sync;
-	mcbsp->dma_tx_sync = pdata->dma_tx_sync;
 
-	mcbsp->iclk = clk_get(&pdev->dev, "ick");
-	if (IS_ERR(mcbsp->iclk)) {
-		ret = PTR_ERR(mcbsp->iclk);
-		dev_err(&pdev->dev, "unable to get ick: %d\n", ret);
-		goto err_iclk;
+	mcbsp->tx_irq = platform_get_irq_byname(pdev, "tx");
+	mcbsp->rx_irq = platform_get_irq_byname(pdev, "rx");
+
+	/* From OMAP4 there will be a single irq line */
+	if (mcbsp->tx_irq == -ENXIO)
+		mcbsp->tx_irq = platform_get_irq(pdev, 0);
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
+	if (!res) {
+		dev_err(&pdev->dev, "%s:mcbsp%d has invalid rx DMA channel\n",
+					__func__, pdev->id);
+		ret = -ENODEV;
+		goto err_res;
 	}
+	mcbsp->dma_rx_sync = res->start;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
+	if (!res) {
+		dev_err(&pdev->dev, "%s:mcbsp%d has invalid tx DMA channel\n",
+					__func__, pdev->id);
+		ret = -ENODEV;
+		goto err_res;
+	}
+	mcbsp->dma_tx_sync = res->start;
 
 	mcbsp->fclk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(mcbsp->fclk)) {
 		ret = PTR_ERR(mcbsp->fclk);
 		dev_err(&pdev->dev, "unable to get fck: %d\n", ret);
-		goto err_fclk;
+		goto err_res;
 	}
 
 	mcbsp->pdata = pdata;
 	mcbsp->dev = &pdev->dev;
 	mcbsp_ptr[id] = mcbsp;
+	mcbsp->mcbsp_config_type = pdata->mcbsp_config_type;
 	platform_set_drvdata(pdev, mcbsp);
+	pm_runtime_enable(mcbsp->dev);
 
 	/* Initialize mcbsp properties for OMAP34XX if needed / applicable */
 	omap34xx_device_init(mcbsp);
 
 	return 0;
 
-err_fclk:
-	clk_put(mcbsp->iclk);
-err_iclk:
+err_res:
 	iounmap(mcbsp->io_base);
 err_ioremap:
 	kfree(mcbsp);
@@ -1839,7 +1929,6 @@ static int __devexit omap_mcbsp_remove(struct platform_device *pdev)
 		omap34xx_device_exit(mcbsp);
 
 		clk_put(mcbsp->fclk);
-		clk_put(mcbsp->iclk);
 
 		iounmap(mcbsp->io_base);
 		kfree(mcbsp);

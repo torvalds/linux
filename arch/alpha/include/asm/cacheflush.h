@@ -63,7 +63,7 @@ extern void flush_icache_user_range(struct vm_area_struct *vma,
 		struct page *page, unsigned long addr, int len);
 #endif
 
-/* This is used only in do_no_page and do_swap_page.  */
+/* This is used only in __do_fault and do_swap_page.  */
 #define flush_icache_page(vma, page) \
   flush_icache_user_range((vma), (page), 0, 0)
 

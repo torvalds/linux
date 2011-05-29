@@ -1514,7 +1514,7 @@ int isdn_ppp_autodial_filter(struct sk_buff *skb, isdn_net_local *lp)
 #define MP_LONGSEQ_MAXBIT	((MP_LONGSEQ_MASK+1)>>1)
 #define MP_SHORTSEQ_MAXBIT	((MP_SHORTSEQ_MASK+1)>>1)
 
-/* sequence-wrap safe comparisions (for long sequence)*/ 
+/* sequence-wrap safe comparisons (for long sequence)*/
 #define MP_LT(a,b)	((a-b)&MP_LONGSEQ_MAXBIT)
 #define MP_LE(a,b) 	!((b-a)&MP_LONGSEQ_MAXBIT)
 #define MP_GT(a,b) 	((b-a)&MP_LONGSEQ_MAXBIT)
@@ -1746,7 +1746,7 @@ static void isdn_ppp_mp_receive(isdn_net_dev * net_dev, isdn_net_local * lp,
 		 * then next fragment should be the start of new reassembly
 		 * if sequence is contiguous, but we haven't reassembled yet,
 		 * keep going.
-		 * if sequence is not contiguous, either clear everyting
+		 * if sequence is not contiguous, either clear everything
 		 * below low watermark and set start to the next frag or
 		 * clear start ptr.
 		 */ 

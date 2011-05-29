@@ -27,6 +27,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/core.h>
 #include <linux/slab.h>
 
 #include <linux/timb_dma.h>
@@ -629,7 +630,7 @@ static int td_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		desc_node)
 		list_move(&td_desc->desc_node, &td_chan->free_list);
 
-	/* now tear down the runnning */
+	/* now tear down the running */
 	__td_finish(td_chan);
 	spin_unlock_bh(&td_chan->lock);
 
@@ -684,7 +685,7 @@ static irqreturn_t td_irq(int irq, void *devid)
 
 static int __devinit td_probe(struct platform_device *pdev)
 {
-	struct timb_dma_platform_data *pdata = pdev->dev.platform_data;
+	struct timb_dma_platform_data *pdata = mfd_get_data(pdev);
 	struct timb_dma *td;
 	struct resource *iomem;
 	int irq;

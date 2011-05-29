@@ -29,6 +29,7 @@
 
 #include <net/ip_vs.h>
 
+EXPORT_SYMBOL(ip_vs_scheduler_err);
 /*
  *  IPVS scheduler list
  */
@@ -146,6 +147,30 @@ void ip_vs_scheduler_put(struct ip_vs_scheduler *scheduler)
 		module_put(scheduler->module);
 }
 
+/*
+ * Common error output helper for schedulers
+ */
+
+void ip_vs_scheduler_err(struct ip_vs_service *svc, const char *msg)
+{
+	if (svc->fwmark) {
+		IP_VS_ERR_RL("%s: FWM %u 0x%08X - %s\n",
+			     svc->scheduler->name, svc->fwmark,
+			     svc->fwmark, msg);
+#ifdef CONFIG_IP_VS_IPV6
+	} else if (svc->af == AF_INET6) {
+		IP_VS_ERR_RL("%s: %s [%pI6]:%d - %s\n",
+			     svc->scheduler->name,
+			     ip_vs_proto_name(svc->protocol),
+			     &svc->addr.in6, ntohs(svc->port), msg);
+#endif
+	} else {
+		IP_VS_ERR_RL("%s: %s %pI4:%d - %s\n",
+			     svc->scheduler->name,
+			     ip_vs_proto_name(svc->protocol),
+			     &svc->addr.ip, ntohs(svc->port), msg);
+	}
+}
 
 /*
  *  Register a scheduler in the scheduler list

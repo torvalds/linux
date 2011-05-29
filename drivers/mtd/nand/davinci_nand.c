@@ -37,9 +37,6 @@
 #include <mach/nand.h>
 #include <mach/aemif.h>
 
-#include <asm/mach-types.h>
-
-
 /*
  * This is a device driver for the NAND flash controller found on the
  * various DaVinci family chips.  It handles up to four SoC chipselects,

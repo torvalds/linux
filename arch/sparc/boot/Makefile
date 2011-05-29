@@ -5,6 +5,7 @@
 
 ROOT_IMG	:= /usr/src/root.img
 ELFTOAOUT	:= elftoaout
+MKIMAGE 	:= $(srctree)/scripts/mkuboot.sh
 
 hostprogs-y	:= piggyback btfixupprep
 targets		:= tftpboot.img btfix.o btfix.S image zImage vmlinux.aout
@@ -77,6 +78,36 @@ $(obj)/zImage: $(obj)/image
 $(obj)/vmlinux.aout: vmlinux FORCE
 	$(call if_changed,elftoaout)
 	@echo '  kernel: $@ is ready'
+else
+
+# The following lines make a readable image for U-Boot.
+#  uImage   - Binary file read by U-boot
+#  uImage.o - object file of uImage for loading with a
+#             flash programmer understanding ELF.
+
+OBJCOPYFLAGS_image.bin := -S -O binary -R .note -R .comment
+$(obj)/image.bin: $(obj)/image FORCE
+	$(call if_changed,objcopy)
+
+$(obj)/image.gz: $(obj)/image.bin
+	$(call if_changed,gzip)
+
+quiet_cmd_uimage = UIMAGE  $@
+      cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A sparc -O linux -T kernel \
+               -C gzip -a $(CONFIG_UBOOT_LOAD_ADDR) \
+	       -e $(CONFIG_UBOOT_ENTRY_ADDR) -n 'Linux-$(KERNELRELEASE)' \
+               -d $< $@
+
+quiet_cmd_uimage.o = UIMAGE.O $@
+      cmd_uimage.o = $(LD) -Tdata $(CONFIG_UBOOT_FLASH_ADDR) \
+                     -r -b binary $@ -o $@.o
+
+targets += uImage
+$(obj)/uImage: $(obj)/image.gz
+	$(call if_changed,uimage)
+	$(call if_changed,uimage.o)
+	@echo '  Image $@ is ready'
+
 endif
 
 $(obj)/tftpboot.img: $(obj)/image $(obj)/piggyback System.map $(ROOT_IMG) FORCE

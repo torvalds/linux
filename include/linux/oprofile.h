@@ -106,6 +106,13 @@ void oprofile_add_sample(struct pt_regs * const regs, unsigned long event);
 void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
 				unsigned long event, int is_kernel);
 
+/**
+ * Add an hardware sample.
+ */
+void oprofile_add_ext_hw_sample(unsigned long pc, struct pt_regs * const regs,
+	unsigned long event, int is_kernel,
+	struct task_struct *task);
+
 /* Use this instead when the PC value is not from the regs. Doesn't
  * backtrace. */
 void oprofile_add_pc(unsigned long pc, int is_kernel, unsigned long event);

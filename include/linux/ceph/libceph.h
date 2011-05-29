@@ -61,7 +61,7 @@ struct ceph_options {
 					      pointer type of args */
 	int num_mon;
 	char *name;
-	char *secret;
+	struct ceph_crypto_key *key;
 };
 
 /*
@@ -71,7 +71,6 @@ struct ceph_options {
 #define CEPH_OSD_TIMEOUT_DEFAULT    60  /* seconds */
 #define CEPH_OSD_KEEPALIVE_DEFAULT  5
 #define CEPH_OSD_IDLE_TTL_DEFAULT    60
-#define CEPH_MOUNT_RSIZE_DEFAULT    (512*1024) /* readahead */
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)

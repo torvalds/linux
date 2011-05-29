@@ -1028,8 +1028,7 @@ static int kenvctrld(void *__unused)
 	return 0;
 }
 
-static int __devinit envctrl_probe(struct platform_device *op,
-				   const struct of_device_id *match)
+static int __devinit envctrl_probe(struct platform_device *op)
 {
 	struct device_node *dp;
 	int index, err;
@@ -1129,7 +1128,7 @@ static const struct of_device_id envctrl_match[] = {
 };
 MODULE_DEVICE_TABLE(of, envctrl_match);
 
-static struct of_platform_driver envctrl_driver = {
+static struct platform_driver envctrl_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
@@ -1141,12 +1140,12 @@ static struct of_platform_driver envctrl_driver = {
 
 static int __init envctrl_init(void)
 {
-	return of_register_platform_driver(&envctrl_driver);
+	return platform_driver_register(&envctrl_driver);
 }
 
 static void __exit envctrl_exit(void)
 {
-	of_unregister_platform_driver(&envctrl_driver);
+	platform_driver_unregister(&envctrl_driver);
 }
 
 module_init(envctrl_init);

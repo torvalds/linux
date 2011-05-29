@@ -39,7 +39,7 @@ int __ref arch_register_cpu(int num)
 	/*
 	 * CPU0 cannot be offlined due to several
 	 * restrictions and assumptions in kernel. This basically
-	 * doesnt add a control file, one cannot attempt to offline
+	 * doesn't add a control file, one cannot attempt to offline
 	 * BSP.
 	 *
 	 * Also certain PCI quirks require not to enable hotplug control

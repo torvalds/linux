@@ -100,6 +100,8 @@ void ring_buffer_free(struct ring_buffer *buffer);
 
 int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size);
 
+void ring_buffer_change_overwrite(struct ring_buffer *buffer, int val);
+
 struct ring_buffer_event *ring_buffer_lock_reserve(struct ring_buffer *buffer,
 						   unsigned long length);
 int ring_buffer_unlock_commit(struct ring_buffer *buffer,

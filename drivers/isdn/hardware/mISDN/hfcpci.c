@@ -272,7 +272,7 @@ reset_hfcpci(struct hfc_pci *hc)
 	 * D- and monitor/CI channel are not enabled
 	 * STIO1 is used as output for data, B1+B2 from ST->IOM+HFC
 	 * STIO2 is used as data input, B1+B2 from IOM->ST
-	 * ST B-channel send disabled -> continous 1s
+	 * ST B-channel send disabled -> continuous 1s
 	 * The IOM slots are always enabled
 	 */
 	if (test_bit(HFC_CFG_PCM, &hc->cfg)) {

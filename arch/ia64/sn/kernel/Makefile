@@ -7,7 +7,7 @@
 # Copyright (C) 1999,2001-2006,2008 Silicon Graphics, Inc.  All Rights Reserved.
 #
 
-EXTRA_CFLAGS += -Iarch/ia64/sn/include
+ccflags-y := -Iarch/ia64/sn/include
 
 obj-y				+= setup.o bte.o bte_error.o irq.o mca.o idle.o \
 				   huberror.o io_acpi_init.o io_common.o \

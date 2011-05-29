@@ -151,7 +151,7 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 	/* 64 dwords should be enough for fence too */
 	r = radeon_ring_lock(rdev, 64);
 	if (r) {
-		DRM_ERROR("radeon: scheduling IB failled (%d).\n", r);
+		DRM_ERROR("radeon: scheduling IB failed (%d).\n", r);
 		return r;
 	}
 	radeon_ring_ib_execute(rdev, ib);
@@ -175,7 +175,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 		return 0;
 	INIT_LIST_HEAD(&rdev->ib_pool.bogus_ib);
 	/* Allocate 1M object buffer */
-	r = radeon_bo_create(rdev, NULL,  RADEON_IB_POOL_SIZE*64*1024,
+	r = radeon_bo_create(rdev, RADEON_IB_POOL_SIZE*64*1024,
 			     PAGE_SIZE, true, RADEON_GEM_DOMAIN_GTT,
 			     &rdev->ib_pool.robj);
 	if (r) {
@@ -248,7 +248,7 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 void radeon_ring_free_size(struct radeon_device *rdev)
 {
 	if (rdev->wb.enabled)
-		rdev->cp.rptr = rdev->wb.wb[RADEON_WB_CP_RPTR_OFFSET/4];
+		rdev->cp.rptr = le32_to_cpu(rdev->wb.wb[RADEON_WB_CP_RPTR_OFFSET/4]);
 	else {
 		if (rdev->family >= CHIP_R600)
 			rdev->cp.rptr = RREG32(R600_CP_RB_RPTR);
@@ -332,7 +332,7 @@ int radeon_ring_init(struct radeon_device *rdev, unsigned ring_size)
 	rdev->cp.ring_size = ring_size;
 	/* Allocate ring buffer */
 	if (rdev->cp.ring_obj == NULL) {
-		r = radeon_bo_create(rdev, NULL, rdev->cp.ring_size, PAGE_SIZE, true,
+		r = radeon_bo_create(rdev, rdev->cp.ring_size, PAGE_SIZE, true,
 					RADEON_GEM_DOMAIN_GTT,
 					&rdev->cp.ring_obj);
 		if (r) {

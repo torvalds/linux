@@ -51,13 +51,10 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	int err;
 
 	cq->size = entries;
-	if (mode == RX) {
+	if (mode == RX)
 		cq->buf_size = cq->size * sizeof(struct mlx4_cqe);
-		cq->vector   = ring % mdev->dev->caps.num_comp_vectors;
-	} else {
+	else
 		cq->buf_size = sizeof(struct mlx4_cqe);
-		cq->vector   = 0;
-	}
 
 	cq->ring = ring;
 	cq->is_tx = mode;
@@ -80,7 +77,8 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
-	int err;
+	int err = 0;
+	char name[25];
 
 	cq->dev = mdev->pndev[priv->port];
 	cq->mcq.set_ci_db  = cq->wqres.db.db;
@@ -88,6 +86,29 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 	*cq->mcq.set_ci_db = 0;
 	*cq->mcq.arm_db    = 0;
 	memset(cq->buf, 0, cq->buf_size);
+
+	if (cq->is_tx == RX) {
+		if (mdev->dev->caps.comp_pool) {
+			if (!cq->vector) {
+				sprintf(name , "%s-rx-%d", priv->dev->name, cq->ring);
+				if (mlx4_assign_eq(mdev->dev, name, &cq->vector)) {
+					cq->vector = (cq->ring + 1 + priv->port) %
+						mdev->dev->caps.num_comp_vectors;
+					mlx4_warn(mdev, "Failed Assigning an EQ to "
+						  "%s_rx-%d ,Falling back to legacy EQ's\n",
+						  priv->dev->name, cq->ring);
+				}
+			}
+		} else {
+			cq->vector = (cq->ring + 1 + priv->port) %
+				mdev->dev->caps.num_comp_vectors;
+		}
+	} else {
+		if (!cq->vector || !mdev->dev->caps.comp_pool) {
+			/*Fallback to legacy pool in case of error*/
+			cq->vector   = 0;
+		}
+	}
 
 	if (!cq->is_tx)
 		cq->size = priv->rx_ring[cq->ring].actual_size;
@@ -112,12 +133,15 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 	return 0;
 }
 
-void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
+void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
+			bool reserve_vectors)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 
 	mlx4_en_unmap_buffer(&cq->wqres.buf);
 	mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
+	if (priv->mdev->dev->caps.comp_pool && cq->vector && !reserve_vectors)
+		mlx4_release_eq(priv->mdev->dev, cq->vector);
 	cq->buf_size = 0;
 	cq->buf = NULL;
 }

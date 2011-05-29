@@ -89,7 +89,7 @@ static void o2quo_fence_self(void)
 	};
 }
 
-/* Indicate that a timeout occured on a hearbeat region write. The
+/* Indicate that a timeout occurred on a hearbeat region write. The
  * other nodes in the cluster may consider us dead at that time so we
  * want to "fence" ourselves so that we don't scribble on the disk
  * after they think they've recovered us. This can't solve all
@@ -261,7 +261,7 @@ void o2quo_hb_still_up(u8 node)
 	spin_unlock(&qs->qs_lock);
 }
 
-/* This is analagous to hb_up.  as a node's connection comes up we delay the
+/* This is analogous to hb_up.  as a node's connection comes up we delay the
  * quorum decision until we see it heartbeating.  the hold will be droped in
  * hb_up or hb_down.  it might be perpetuated by con_err until hb_down.  if
  * it's already heartbeating we we might be dropping a hold that conn_up got.

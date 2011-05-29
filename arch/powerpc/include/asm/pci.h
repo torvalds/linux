@@ -201,7 +201,7 @@ extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
 extern void pcibios_setup_bus_devices(struct pci_bus *bus);
 extern void pcibios_setup_bus_self(struct pci_bus *bus);
 extern void pcibios_setup_phb_io_space(struct pci_controller *hose);
-extern void pcibios_scan_phb(struct pci_controller *hose, void *sysdata);
+extern void pcibios_scan_phb(struct pci_controller *hose);
 
 #endif	/* __KERNEL__ */
 #endif /* __ASM_POWERPC_PCI_H */

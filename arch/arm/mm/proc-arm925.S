@@ -77,7 +77,7 @@
 /*
  * This is the size at which it becomes more efficient to
  * clean the whole cache, rather than using the individual
- * cache line maintainence instructions.
+ * cache line maintenance instructions.
  */
 #define CACHE_DLIMIT	8192
 
@@ -503,6 +503,9 @@ arm925_processor_functions:
 	.word	cpu_arm925_dcache_clean_area
 	.word	cpu_arm925_switch_mm
 	.word	cpu_arm925_set_pte_ext
+	.word	0
+	.word	0
+	.word	0
 	.size	arm925_processor_functions, . - arm925_processor_functions
 
 	.section ".rodata"

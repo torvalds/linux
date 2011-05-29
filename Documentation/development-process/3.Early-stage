@@ -110,8 +110,8 @@ the kernel community's standards.  Some examples include:
 
  - The AppArmor security module made use of internal virtual filesystem
    data structures in ways which were considered to be unsafe and
-   unreliable.  This code has since been significantly reworked, but
-   remains outside of the mainline.
+   unreliable.  This concern (among others) kept AppArmor out of the
+   mainline for years.
 
 In each of these cases, a great deal of pain and extra work could have been
 avoided with some early discussion with the kernel developers.
@@ -138,6 +138,19 @@ patches, and who, if anybody, is attaching Signed-off-by lines to those
 patches.  Those are the people who will be best placed to help with a new
 development project.
 
+The task of finding the right maintainer is sometimes challenging enough
+that the kernel developers have added a script to ease the process:
+
+	.../scripts/get_maintainer.pl
+
+This script will return the current maintainer(s) for a given file or
+directory when given the "-f" option.  If passed a patch on the
+command line, it will list the maintainers who should probably receive
+copies of the patch.  There are a number of options regulating how hard
+get_maintainer.pl will search for maintainers; please be careful about
+using the more aggressive options as you may end up including developers
+who have no real interest in the code you are modifying.
+
 If all else fails, talking to Andrew Morton can be an effective way to
 track down a maintainer for a specific piece of code.
 
@@ -155,11 +168,15 @@ reaction, but, instead, little or no reaction at all.  The sad truth of the
 matter is (1) kernel developers tend to be busy, (2) there is no shortage
 of people with grand plans and little code (or even prospect of code) to
 back them up, and (3) nobody is obligated to review or comment on ideas
-posted by others.  If a request-for-comments posting yields little in the
-way of comments, do not assume that it means there is no interest in the
-project.  Unfortunately, you also cannot assume that there are no problems
-with your idea.  The best thing to do in this situation is to proceed,
-keeping the community informed as you go.
+posted by others.  Beyond that, high-level designs often hide problems
+which are only reviewed when somebody actually tries to implement those
+designs; for that reason, kernel developers would rather see the code.
+
+If a request-for-comments posting yields little in the way of comments, do
+not assume that it means there is no interest in the project.
+Unfortunately, you also cannot assume that there are no problems with your
+idea.  The best thing to do in this situation is to proceed, keeping the
+community informed as you go.
 
 
 3.5: GETTING OFFICIAL BUY-IN

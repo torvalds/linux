@@ -3,7 +3,7 @@
  * MSM7K, QSD io support
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2011, Code Aurora Forum. All rights reserved.
  * Author: Brian Swetland <swetland@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -28,19 +28,20 @@
 
 #include <mach/board.h>
 
-#define MSM_DEVICE(name) { \
+#define MSM_CHIP_DEVICE(name, chip) {			      \
 		.virtual = (unsigned long) MSM_##name##_BASE, \
-		.pfn = __phys_to_pfn(MSM_##name##_PHYS), \
-		.length = MSM_##name##_SIZE, \
+		.pfn = __phys_to_pfn(chip##_##name##_PHYS), \
+		.length = chip##_##name##_SIZE, \
 		.type = MT_DEVICE_NONSHARED, \
 	 }
+
+#define MSM_DEVICE(name) MSM_CHIP_DEVICE(name, MSM)
 
 #if defined(CONFIG_ARCH_MSM7X00A) || defined(CONFIG_ARCH_MSM7X27) \
 	|| defined(CONFIG_ARCH_MSM7X25)
 static struct map_desc msm_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
-	MSM_DEVICE(CSR),
-	MSM_DEVICE(GPT),
+	MSM_CHIP_DEVICE(CSR, MSM7X00),
 	MSM_DEVICE(DMOV),
 	MSM_DEVICE(GPIO1),
 	MSM_DEVICE(GPIO2),
@@ -73,8 +74,7 @@ void __init msm_map_common_io(void)
 #ifdef CONFIG_ARCH_QSD8X50
 static struct map_desc qsd8x50_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
-	MSM_DEVICE(CSR),
-	MSM_DEVICE(TMR),
+	MSM_CHIP_DEVICE(CSR, QSD8X50),
 	MSM_DEVICE(DMOV),
 	MSM_DEVICE(GPIO1),
 	MSM_DEVICE(GPIO2),
@@ -102,10 +102,10 @@ void __init msm_map_qsd8x50_io(void)
 
 #ifdef CONFIG_ARCH_MSM8X60
 static struct map_desc msm8x60_io_desc[] __initdata = {
-	MSM_DEVICE(QGIC_DIST),
-	MSM_DEVICE(QGIC_CPU),
-	MSM_DEVICE(TMR),
-	MSM_DEVICE(TMR0),
+	MSM_CHIP_DEVICE(QGIC_DIST, MSM8X60),
+	MSM_CHIP_DEVICE(QGIC_CPU, MSM8X60),
+	MSM_CHIP_DEVICE(TMR, MSM8X60),
+	MSM_CHIP_DEVICE(TMR0, MSM8X60),
 	MSM_DEVICE(ACC),
 	MSM_DEVICE(GCC),
 };
@@ -116,11 +116,24 @@ void __init msm_map_msm8x60_io(void)
 }
 #endif /* CONFIG_ARCH_MSM8X60 */
 
+#ifdef CONFIG_ARCH_MSM8960
+static struct map_desc msm8960_io_desc[] __initdata = {
+	MSM_CHIP_DEVICE(QGIC_DIST, MSM8960),
+	MSM_CHIP_DEVICE(QGIC_CPU, MSM8960),
+	MSM_CHIP_DEVICE(TMR, MSM8960),
+	MSM_CHIP_DEVICE(TMR0, MSM8960),
+};
+
+void __init msm_map_msm8960_io(void)
+{
+	iotable_init(msm8960_io_desc, ARRAY_SIZE(msm8960_io_desc));
+}
+#endif /* CONFIG_ARCH_MSM8960 */
+
 #ifdef CONFIG_ARCH_MSM7X30
 static struct map_desc msm7x30_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
-	MSM_DEVICE(CSR),
-	MSM_DEVICE(TMR),
+	MSM_CHIP_DEVICE(CSR, MSM7X30),
 	MSM_DEVICE(DMOV),
 	MSM_DEVICE(GPIO1),
 	MSM_DEVICE(GPIO2),

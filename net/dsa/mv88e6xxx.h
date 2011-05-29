@@ -39,6 +39,8 @@ struct mv88e6xxx_priv_state {
 	 * Hold this mutex over snapshot + dump sequences.
 	 */
 	struct mutex	stats_mutex;
+
+	int		id; /* switch product id */
 };
 
 struct mv88e6xxx_hw_stat {

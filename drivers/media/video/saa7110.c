@@ -36,6 +36,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-ctrls.h>
 
 MODULE_DESCRIPTION("Philips SAA7110 video decoder driver");
 MODULE_AUTHOR("Pauline Middelink");
@@ -53,15 +54,12 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 struct saa7110 {
 	struct v4l2_subdev sd;
+	struct v4l2_ctrl_handler hdl;
 	u8 reg[SAA7110_NR_REG];
 
 	v4l2_std_id norm;
 	int input;
 	int enable;
-	int bright;
-	int contrast;
-	int hue;
-	int sat;
 
 	wait_queue_head_t wq;
 };
@@ -69,6 +67,11 @@ struct saa7110 {
 static inline struct saa7110 *to_saa7110(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct saa7110, sd);
+}
+
+static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
+{
+	return &container_of(ctrl->handler, struct saa7110, hdl)->sd;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -326,73 +329,22 @@ static int saa7110_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int saa7110_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
+static int saa7110_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	switch (qc->id) {
-	case V4L2_CID_BRIGHTNESS:
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
-	case V4L2_CID_CONTRAST:
-	case V4L2_CID_SATURATION:
-		return v4l2_ctrl_query_fill(qc, 0, 127, 1, 64);
-	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int saa7110_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct saa7110 *decoder = to_saa7110(sd);
+	struct v4l2_subdev *sd = to_sd(ctrl);
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		ctrl->value = decoder->bright;
+		saa7110_write(sd, 0x19, ctrl->val);
 		break;
 	case V4L2_CID_CONTRAST:
-		ctrl->value = decoder->contrast;
+		saa7110_write(sd, 0x13, ctrl->val);
 		break;
 	case V4L2_CID_SATURATION:
-		ctrl->value = decoder->sat;
+		saa7110_write(sd, 0x12, ctrl->val);
 		break;
 	case V4L2_CID_HUE:
-		ctrl->value = decoder->hue;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int saa7110_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct saa7110 *decoder = to_saa7110(sd);
-
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		if (decoder->bright != ctrl->value) {
-			decoder->bright = ctrl->value;
-			saa7110_write(sd, 0x19, decoder->bright);
-		}
-		break;
-	case V4L2_CID_CONTRAST:
-		if (decoder->contrast != ctrl->value) {
-			decoder->contrast = ctrl->value;
-			saa7110_write(sd, 0x13, decoder->contrast);
-		}
-		break;
-	case V4L2_CID_SATURATION:
-		if (decoder->sat != ctrl->value) {
-			decoder->sat = ctrl->value;
-			saa7110_write(sd, 0x12, decoder->sat);
-		}
-		break;
-	case V4L2_CID_HUE:
-		if (decoder->hue != ctrl->value) {
-			decoder->hue = ctrl->value;
-			saa7110_write(sd, 0x07, decoder->hue);
-		}
+		saa7110_write(sd, 0x07, ctrl->val);
 		break;
 	default:
 		return -EINVAL;
@@ -409,11 +361,19 @@ static int saa7110_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ide
 
 /* ----------------------------------------------------------------------- */
 
+static const struct v4l2_ctrl_ops saa7110_ctrl_ops = {
+	.s_ctrl = saa7110_s_ctrl,
+};
+
 static const struct v4l2_subdev_core_ops saa7110_core_ops = {
 	.g_chip_ident = saa7110_g_chip_ident,
-	.g_ctrl = saa7110_g_ctrl,
-	.s_ctrl = saa7110_s_ctrl,
-	.queryctrl = saa7110_queryctrl,
+	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
+	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
+	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
+	.g_ctrl = v4l2_subdev_g_ctrl,
+	.s_ctrl = v4l2_subdev_s_ctrl,
+	.queryctrl = v4l2_subdev_queryctrl,
+	.querymenu = v4l2_subdev_querymenu,
 	.s_std = saa7110_s_std,
 };
 
@@ -454,10 +414,25 @@ static int saa7110_probe(struct i2c_client *client,
 	decoder->norm = V4L2_STD_PAL;
 	decoder->input = 0;
 	decoder->enable = 1;
-	decoder->bright = 32768;
-	decoder->contrast = 32768;
-	decoder->hue = 32768;
-	decoder->sat = 32768;
+	v4l2_ctrl_handler_init(&decoder->hdl, 2);
+	v4l2_ctrl_new_std(&decoder->hdl, &saa7110_ctrl_ops,
+		V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(&decoder->hdl, &saa7110_ctrl_ops,
+		V4L2_CID_CONTRAST, 0, 127, 1, 64);
+	v4l2_ctrl_new_std(&decoder->hdl, &saa7110_ctrl_ops,
+		V4L2_CID_SATURATION, 0, 127, 1, 64);
+	v4l2_ctrl_new_std(&decoder->hdl, &saa7110_ctrl_ops,
+		V4L2_CID_HUE, -128, 127, 1, 0);
+	sd->ctrl_handler = &decoder->hdl;
+	if (decoder->hdl.error) {
+		int err = decoder->hdl.error;
+
+		v4l2_ctrl_handler_free(&decoder->hdl);
+		kfree(decoder);
+		return err;
+	}
+	v4l2_ctrl_handler_setup(&decoder->hdl);
+
 	init_waitqueue_head(&decoder->wq);
 
 	rv = saa7110_write_block(sd, initseq, sizeof(initseq));
@@ -490,9 +465,11 @@ static int saa7110_probe(struct i2c_client *client,
 static int saa7110_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct saa7110 *decoder = to_saa7110(sd);
 
 	v4l2_device_unregister_subdev(sd);
-	kfree(to_saa7110(sd));
+	v4l2_ctrl_handler_free(&decoder->hdl);
+	kfree(decoder);
 	return 0;
 }
 

@@ -242,7 +242,7 @@ struct wm8993_priv {
 	int fll_src;
 };
 
-static int wm8993_volatile(unsigned int reg)
+static int wm8993_volatile(struct snd_soc_codec *codec, unsigned int reg)
 {
 	switch (reg) {
 	case WM8993_SOFTWARE_RESET:
@@ -324,7 +324,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 
 	pr_debug("Fvco=%dHz\n", target);
 
-	/* Find an appropraite FLL_FRATIO and factor it out of the target */
+	/* Find an appropriate FLL_FRATIO and factor it out of the target */
 	for (i = 0; i < ARRAY_SIZE(fll_fratios); i++) {
 		if (fll_fratios[i].min <= Fref && Fref <= fll_fratios[i].max) {
 			fll_div->fll_fratio = fll_fratios[i].fll_fratio;

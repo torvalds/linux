@@ -849,7 +849,7 @@ static void carl9170_rx_stream(struct ar9170 *ar, void *buf, unsigned int len)
 				/*
 				 * nested carl9170_rx_stream call!
 				 *
-				 * termination is guranteed, even when the
+				 * termination is guaranteed, even when the
 				 * combined frame also have an element with
 				 * a bad tag.
 				 */

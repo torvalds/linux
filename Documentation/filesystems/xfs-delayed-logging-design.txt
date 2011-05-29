@@ -42,7 +42,7 @@ the aggregation of all the previous changes currently held only in the log.
 This relogging technique also allows objects to be moved forward in the log so
 that an object being relogged does not prevent the tail of the log from ever
 moving forward.  This can be seen in the table above by the changing
-(increasing) LSN of each subsquent transaction - the LSN is effectively a
+(increasing) LSN of each subsequent transaction - the LSN is effectively a
 direct encoding of the location in the log of the transaction.
 
 This relogging is also used to implement long-running, multiple-commit
@@ -338,7 +338,7 @@ the same time another transaction modifies the item and inserts the log item
 into the new CIL, then checkpoint transaction commit code cannot use log items
 to store the list of log vectors that need to be written into the transaction.
 Hence log vectors need to be able to be chained together to allow them to be
-detatched from the log items. That is, when the CIL is flushed the memory
+detached from the log items. That is, when the CIL is flushed the memory
 buffer and log vector attached to each log item needs to be attached to the
 checkpoint context so that the log item can be released. In diagrammatic form,
 the CIL would look like this before the flush:
@@ -577,7 +577,7 @@ only becomes unpinned when all the transactions complete and there are no
 pending transactions. Thus the pinning and unpinning of a log item is symmetric
 as there is a 1:1 relationship with transaction commit and log item completion.
 
-For delayed logging, however, we have an assymetric transaction commit to
+For delayed logging, however, we have an asymmetric transaction commit to
 completion relationship. Every time an object is relogged in the CIL it goes
 through the commit process without a corresponding completion being registered.
 That is, we now have a many-to-one relationship between transaction commit and
@@ -780,7 +780,7 @@ With delayed logging, there are new steps inserted into the life cycle:
 From this, it can be seen that the only life cycle differences between the two
 logging methods are in the middle of the life cycle - they still have the same
 beginning and end and execution constraints. The only differences are in the
-commiting of the log items to the log itself and the completion processing.
+committing of the log items to the log itself and the completion processing.
 Hence delayed logging should not introduce any constraints on log item
 behaviour, allocation or freeing that don't already exist.
 
@@ -791,10 +791,3 @@ mount option. Fundamentally, there is no reason why the log manager would not
 be able to swap methods automatically and transparently depending on load
 characteristics, but this should not be necessary if delayed logging works as
 designed.
-
-Roadmap:
-
-2.6.39 Switch default mount option to use delayed logging
-	=> should be roughly 12 months after initial merge
-	=> enough time to shake out remaining problems before next round of
-	   enterprise distro kernel rebases

@@ -155,7 +155,7 @@ void __init init_IRQ(void)
 	setup_vector();
 
 	for (c = 0; c < NR_IRQS; c++)
-		set_irq_chip_and_handler(c, &h8300irq_chip, handle_simple_irq);
+		irq_set_chip_and_handler(c, &h8300irq_chip, handle_simple_irq);
 }
 
 asmlinkage void do_IRQ(int irq)
@@ -164,34 +164,3 @@ asmlinkage void do_IRQ(int irq)
 	generic_handle_irq(irq);
 	irq_exit();
 }
-
-#if defined(CONFIG_PROC_FS)
-int show_interrupts(struct seq_file *p, void *v)
-{
-	int i = *(loff_t *) v;
-	struct irqaction * action;
-	unsigned long flags;
-
-	if (i == 0)
-		seq_puts(p, "           CPU0");
-
-	if (i < NR_IRQS) {
-		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
-		action = irq_desc[i].action;
-		if (!action)
-			goto unlock;
-		seq_printf(p, "%3d: ",i);
-		seq_printf(p, "%10u ", kstat_irqs(i));
-		seq_printf(p, " %14s", irq_desc[i].irq_data.chip->name);
-		seq_printf(p, "-%-8s", irq_desc[i].name);
-		seq_printf(p, "  %s", action->name);
-
-		for (action=action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-		seq_putc(p, '\n');
-unlock:
-		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	}
-	return 0;
-}
-#endif

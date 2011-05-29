@@ -768,7 +768,7 @@ static int __devinit pontis_init(struct snd_ice1712 *ice)
 	ice->num_total_dacs = 2;
 	ice->num_total_adcs = 2;
 
-	/* to remeber the register values */
+	/* to remember the register values */
 	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ice->akm)
 		return -ENOMEM;

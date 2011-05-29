@@ -12,7 +12,7 @@
  *		    http://www.ite.com.tw/
  *
  *	Support of the watchdog timers, which are available on
- *	IT8702, IT8712, IT8716, IT8718, IT8720 and IT8726.
+ *	IT8702, IT8712, IT8716, IT8718, IT8720, IT8721 and IT8726.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -45,7 +45,7 @@
 
 #include <asm/system.h>
 
-#define WATCHDOG_VERSION	"1.13"
+#define WATCHDOG_VERSION	"1.14"
 #define WATCHDOG_NAME		"IT87 WDT"
 #define PFX			WATCHDOG_NAME ": "
 #define DRIVER_VERSION		WATCHDOG_NAME " driver, v" WATCHDOG_VERSION "\n"
@@ -54,7 +54,7 @@
 /* Defaults for Module Parameter */
 #define DEFAULT_NOGAMEPORT	0
 #define DEFAULT_EXCLUSIVE	1
-#define DEFAULT_TIMEOUT 	60
+#define DEFAULT_TIMEOUT		60
 #define DEFAULT_TESTMODE	0
 #define DEFAULT_NOWAYOUT	WATCHDOG_NOWAYOUT
 
@@ -70,9 +70,9 @@
 /* Configuration Registers and Functions */
 #define LDNREG		0x07
 #define CHIPID		0x20
-#define CHIPREV 	0x22
+#define CHIPREV		0x22
 #define ACTREG		0x30
-#define BASEREG 	0x60
+#define BASEREG		0x60
 
 /* Chip Id numbers */
 #define NO_DEV_ID	0xffff
@@ -82,10 +82,11 @@
 #define IT8716_ID	0x8716
 #define IT8718_ID	0x8718
 #define IT8720_ID	0x8720
+#define IT8721_ID	0x8721
 #define IT8726_ID	0x8726	/* the data sheet suggest wrongly 0x8716 */
 
 /* GPIO Configuration Registers LDN=0x07 */
-#define WDTCTRL 	0x71
+#define WDTCTRL		0x71
 #define WDTCFG		0x72
 #define WDTVALLSB	0x73
 #define WDTVALMSB	0x74
@@ -94,7 +95,7 @@
 #define WDT_CIRINT	0x80
 #define WDT_MOUSEINT	0x40
 #define WDT_KYBINT	0x20
-#define WDT_GAMEPORT	0x10 /* not in it8718, it8720 */
+#define WDT_GAMEPORT	0x10 /* not in it8718, it8720, it8721 */
 #define WDT_FORCE	0x02
 #define WDT_ZERO	0x01
 
@@ -102,11 +103,11 @@
 #define WDT_TOV1	0x80
 #define WDT_KRST	0x40
 #define WDT_TOVE	0x20
-#define WDT_PWROK	0x10
+#define WDT_PWROK	0x10 /* not in it8721 */
 #define WDT_INT_MASK	0x0f
 
 /* CIR Configuration Register LDN=0x0a */
-#define CIR_ILS 	0x70
+#define CIR_ILS		0x70
 
 /* The default Base address is not always available, we use this */
 #define CIR_BASE	0x0208
@@ -134,7 +135,7 @@
 #define WDTS_USE_GP	4
 #define WDTS_EXPECTED	5
 
-static	unsigned int base, gpact, ciract, max_units;
+static	unsigned int base, gpact, ciract, max_units, chip_type;
 static	unsigned long wdt_status;
 static	DEFINE_SPINLOCK(spinlock);
 
@@ -215,7 +216,7 @@ static inline void superio_outw(int val, int reg)
 /* Internal function, should be called after superio_select(GPIO) */
 static void wdt_update_timeout(void)
 {
-	unsigned char cfg = WDT_KRST | WDT_PWROK;
+	unsigned char cfg = WDT_KRST;
 	int tm = timeout;
 
 	if (testmode)
@@ -225,6 +226,9 @@ static void wdt_update_timeout(void)
 		cfg |= WDT_TOV1;
 	else
 		tm /= 60;
+
+	if (chip_type != IT8721_ID)
+		cfg |= WDT_PWROK;
 
 	superio_outb(cfg, WDTCFG);
 	superio_outb(tm, WDTVALLSB);
@@ -555,7 +559,6 @@ static int __init it87_wdt_init(void)
 {
 	int rc = 0;
 	int try_gameport = !nogameport;
-	u16 chip_type;
 	u8  chip_rev;
 	unsigned long flags;
 
@@ -581,6 +584,7 @@ static int __init it87_wdt_init(void)
 		break;
 	case IT8718_ID:
 	case IT8720_ID:
+	case IT8721_ID:
 		max_units = 65535;
 		try_gameport = 0;
 		break;

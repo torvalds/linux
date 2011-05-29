@@ -9,28 +9,6 @@
 #include <linux/io.h>
 #include <asm/uaccess.h>
 
-/* Stores the physical address of elf header of crash image. */
-unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
-
-/*
- * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
- * is_kdump_kernel() to determine if we are booting after a panic. Hence
- * ifdef it under CONFIG_CRASH_DUMP and not CONFIG_PROC_VMCORE.
- *
- * elfcorehdr= specifies the location of elf core header
- * stored by the crashed kernel.
- */
-static int __init parse_elfcorehdr(char *arg)
-{
-	if (!arg)
-		return -EINVAL;
-
-	elfcorehdr_addr = memparse(arg, &arg);
-
-	return 0;
-}
-early_param("elfcorehdr", parse_elfcorehdr);
-
 /**
  * copy_oldmem_page - copy one page from "oldmem"
  * @pfn: page frame number to be copied

@@ -801,7 +801,7 @@ vac_linesize_patch_32:		subcc	%l7, 32, %l7
 	.globl	vac_hwflush_patch1_on, vac_hwflush_patch2_on
 
 /*
- * Ugly, but we cant use hardware flushing on the sun4 and we'd require
+ * Ugly, but we can't use hardware flushing on the sun4 and we'd require
  * two instructions (Anton)
  */
 vac_hwflush_patch1_on:		addcc	%l7, -PAGE_SIZE, %l7
@@ -851,7 +851,7 @@ sun4c_fault:
 	 sethi	%hi(~((1 << SUN4C_REAL_PGDIR_SHIFT) - 1)), %l4
 
 	/* If the kernel references a bum kernel pointer, or a pte which
-	 * points to a non existant page in ram, we will run this code
+	 * points to a non existent page in ram, we will run this code
 	 * _forever_ and lock up the machine!!!!! So we must check for
 	 * this condition, the AC_SYNC_ERR bits are what we must examine.
 	 * Also a parity error would make this happen as well.  So we just
@@ -1283,7 +1283,7 @@ linux_syscall_trace:
 	.globl	ret_from_fork
 ret_from_fork:
 	call	schedule_tail
-	 mov	%g3, %o0
+	 ld	[%g3 + TI_TASK], %o0
 	b	ret_sys_call
 	 ld	[%sp + STACKFRAME_SZ + PT_I0], %o0
 

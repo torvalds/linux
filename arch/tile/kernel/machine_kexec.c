@@ -240,8 +240,11 @@ static void setup_quasi_va_is_pa(void)
 	pte = hv_pte(_PAGE_KERNEL | _PAGE_HUGE_PAGE);
 	pte = hv_pte_set_mode(pte, HV_PTE_MODE_CACHE_NO_L3);
 
-	for (i = 0; i < pgd_index(PAGE_OFFSET); i++)
-		pgtable[i] = pfn_pte(i << (HPAGE_SHIFT - PAGE_SHIFT), pte);
+	for (i = 0; i < pgd_index(PAGE_OFFSET); i++) {
+		unsigned long pfn = i << (HPAGE_SHIFT - PAGE_SHIFT);
+		if (pfn_valid(pfn))
+			__set_pte(&pgtable[i], pfn_pte(pfn, pte));
+	}
 }
 
 

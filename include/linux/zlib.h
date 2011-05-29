@@ -179,11 +179,16 @@ typedef z_stream *z_streamp;
 
                         /* basic functions */
 
-extern int zlib_deflate_workspacesize (void);
+extern int zlib_deflate_workspacesize (int windowBits, int memLevel);
 /*
    Returns the number of bytes that needs to be allocated for a per-
-   stream workspace.  A pointer to this number of bytes should be
-   returned in stream->workspace before calling zlib_deflateInit().
+   stream workspace with the specified parameters.  A pointer to this
+   number of bytes should be returned in stream->workspace before
+   you call zlib_deflateInit() or zlib_deflateInit2().  If you call
+   zlib_deflateInit(), specify windowBits = MAX_WBITS and memLevel =
+   MAX_MEM_LEVEL here.  If you call zlib_deflateInit2(), the windowBits
+   and memLevel parameters passed to zlib_deflateInit2() must not
+   exceed those passed here.
 */
 
 /* 

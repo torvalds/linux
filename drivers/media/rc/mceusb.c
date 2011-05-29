@@ -148,6 +148,7 @@ enum mceusb_model_type {
 	MCE_GEN2_TX_INV,
 	POLARIS_EVK,
 	CX_HYBRID_TV,
+	MULTIFUNCTION,
 };
 
 struct mceusb_model {
@@ -155,8 +156,9 @@ struct mceusb_model {
 	u32 mce_gen2:1;
 	u32 mce_gen3:1;
 	u32 tx_mask_normal:1;
-	u32 is_polaris:1;
 	u32 no_tx:1;
+
+	int ir_intfnum;
 
 	const char *rc_map;	/* Allow specify a per-board map */
 	const char *name;	/* per-board name */
@@ -179,19 +181,21 @@ static const struct mceusb_model mceusb_model[] = {
 		.tx_mask_normal = 1,
 	},
 	[POLARIS_EVK] = {
-		.is_polaris = 1,
 		/*
 		 * In fact, the EVK is shipped without
 		 * remotes, but we should have something handy,
 		 * to allow testing it
 		 */
-		.rc_map = RC_MAP_RC5_HAUPPAUGE_NEW,
+		.rc_map = RC_MAP_HAUPPAUGE,
 		.name = "Conexant Hybrid TV (cx231xx) MCE IR",
 	},
 	[CX_HYBRID_TV] = {
-		.is_polaris = 1,
 		.no_tx = 1, /* tx isn't wired up at all */
 		.name = "Conexant Hybrid TV (cx231xx) MCE IR",
+	},
+	[MULTIFUNCTION] = {
+		.mce_gen2 = 1,
+		.ir_intfnum = 2,
 	},
 };
 
@@ -216,8 +220,11 @@ static struct usb_device_id mceusb_dev_table[] = {
 	{ USB_DEVICE(VENDOR_PHILIPS, 0x206c) },
 	/* Philips/Spinel plus IR transceiver for ASUS */
 	{ USB_DEVICE(VENDOR_PHILIPS, 0x2088) },
-	/* Realtek MCE IR Receiver */
-	{ USB_DEVICE(VENDOR_REALTEK, 0x0161) },
+	/* Philips IR transceiver (Dell branded) */
+	{ USB_DEVICE(VENDOR_PHILIPS, 0x2093) },
+	/* Realtek MCE IR Receiver and card reader */
+	{ USB_DEVICE(VENDOR_REALTEK, 0x0161),
+	  .driver_info = MULTIFUNCTION },
 	/* SMK/Toshiba G83C0004D410 */
 	{ USB_DEVICE(VENDOR_SMK, 0x031d),
 	  .driver_info = MCE_GEN2_TX_INV },
@@ -256,7 +263,7 @@ static struct usb_device_id mceusb_dev_table[] = {
 	  .driver_info = MCE_GEN2_TX_INV },
 	/* Topseed eHome Infrared Transceiver */
 	{ USB_DEVICE(VENDOR_TOPSEED, 0x0011),
-	  .driver_info = MCE_GEN2_TX_INV },
+	  .driver_info = MCE_GEN3 },
 	/* Ricavision internal Infrared Transceiver */
 	{ USB_DEVICE(VENDOR_RICAVISION, 0x0010) },
 	/* Itron ione Libra Q-11 */
@@ -1101,7 +1108,7 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	bool is_gen3;
 	bool is_microsoft_gen1;
 	bool tx_mask_normal;
-	bool is_polaris;
+	int ir_intfnum;
 
 	dev_dbg(&intf->dev, "%s called\n", __func__);
 
@@ -1110,13 +1117,11 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	is_gen3 = mceusb_model[model].mce_gen3;
 	is_microsoft_gen1 = mceusb_model[model].mce_gen1;
 	tx_mask_normal = mceusb_model[model].tx_mask_normal;
-	is_polaris = mceusb_model[model].is_polaris;
+	ir_intfnum = mceusb_model[model].ir_intfnum;
 
-	if (is_polaris) {
-		/* Interface 0 is IR */
-		if (idesc->desc.bInterfaceNumber)
-			return -ENODEV;
-	}
+	/* There are multi-function devices with non-IR interfaces */
+	if (idesc->desc.bInterfaceNumber != ir_intfnum)
+		return -ENODEV;
 
 	/* step through the endpoints to find first bulk in and out endpoint */
 	for (i = 0; i < idesc->desc.bNumEndpoints; ++i) {

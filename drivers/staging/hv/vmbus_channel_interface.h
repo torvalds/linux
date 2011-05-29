@@ -48,19 +48,19 @@
  * struct contains the fundamental information about an offer.
  */
 struct vmbus_channel_offer {
-	struct hv_guid InterfaceType;
-	struct hv_guid InterfaceInstance;
-	u64 InterruptLatencyIn100nsUnits;
-	u32 InterfaceRevision;
-	u32 ServerContextAreaSize;	/* in bytes */
-	u16 ChannelFlags;
-	u16 MmioMegabytes;		/* in bytes * 1024 * 1024 */
+	struct hv_guid if_type;
+	struct hv_guid if_instance;
+	u64 int_latency; /* in 100ns units */
+	u32 if_revision;
+	u32 server_ctx_size;	/* in bytes */
+	u16 chn_flags;
+	u16 mmio_megabytes;		/* in bytes * 1024 * 1024 */
 
 	union {
 		/* Non-pipes: The user has MAX_USER_DEFINED_BYTES bytes. */
 		struct {
-			unsigned char UserDefined[MAX_USER_DEFINED_BYTES];
-		} Standard;
+			unsigned char user_def[MAX_USER_DEFINED_BYTES];
+		} std;
 
 		/*
 		 * Pipes:
@@ -70,12 +70,12 @@ struct vmbus_channel_offer {
 		 * use.
 		 */
 		struct {
-			u32  PipeMode;
-			unsigned char UserDefined[MAX_PIPE_USER_DEFINED_BYTES];
-		} Pipe;
+			u32  pipe_mode;
+			unsigned char user_def[MAX_PIPE_USER_DEFINED_BYTES];
+		} pipe;
 	} u;
-	u32 Padding;
-} __attribute__((packed));
+	u32 padding;
+} __packed;
 
 /* Server Flags */
 #define VMBUS_CHANNEL_ENUMERATE_DEVICE_INTERFACE	1

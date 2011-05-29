@@ -168,6 +168,7 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 	}
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = pdata->pwm_duty_max - pdata->pwm_duty_min;
 	bldev = backlight_device_register("atmel-pwm-bl", &pdev->dev, pwmbl,
 					  &atmel_pwm_bl_ops, &props);

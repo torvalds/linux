@@ -237,7 +237,7 @@ extern int agp_try_unsupported_boot;
 
 long compat_agp_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
-/* Chipset independant registers (from AGP Spec) */
+/* Chipset independent registers (from AGP Spec) */
 #define AGP_APBASE	0x10
 
 #define AGPSTAT		0x4

@@ -740,7 +740,7 @@ static int __init cm_bf537u_init(void)
 #endif
 
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
-	irq_desc[PATA_INT].status |= IRQ_NOAUTOEN;
+	irq_set_status_flags(PATA_INT, IRQ_NOAUTOEN);
 #endif
 	return 0;
 }

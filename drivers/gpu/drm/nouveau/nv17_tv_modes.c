@@ -438,7 +438,7 @@ void nv17_tv_state_load(struct drm_device *dev, struct nv17_tv_state *state)
 
 /* Timings similar to the ones the blob sets */
 
-struct drm_display_mode nv17_tv_modes[] = {
+const struct drm_display_mode nv17_tv_modes[] = {
 	{ DRM_MODE("320x200", DRM_MODE_TYPE_DRIVER, 0,
 		   320, 344, 392, 560, 0, 200, 200, 202, 220, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC

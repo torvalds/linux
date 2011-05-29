@@ -151,9 +151,6 @@ static inline void ia64_native_resend_irq(unsigned int vector)
 /*
  * Default implementations for the irq-descriptor API:
  */
-
-extern struct irq_desc irq_desc[NR_IRQS];
-
 #ifndef CONFIG_IA64_GENERIC
 static inline ia64_vector __ia64_irq_to_vector(int irq)
 {

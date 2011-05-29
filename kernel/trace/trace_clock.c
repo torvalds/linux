@@ -46,7 +46,7 @@ u64 notrace trace_clock_local(void)
 }
 
 /*
- * trace_clock(): 'inbetween' trace clock. Not completely serialized,
+ * trace_clock(): 'between' trace clock. Not completely serialized,
  * but not completely incorrect when crossing CPUs either.
  *
  * This is based on cpu_clock(), which will allow at most ~1 jiffy of

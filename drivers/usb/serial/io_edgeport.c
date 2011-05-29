@@ -216,11 +216,11 @@ static void edge_unthrottle(struct tty_struct *tty);
 static void edge_set_termios(struct tty_struct *tty,
 					struct usb_serial_port *port,
 					struct ktermios *old_termios);
-static int  edge_ioctl(struct tty_struct *tty, struct file *file,
+static int  edge_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg);
 static void edge_break(struct tty_struct *tty, int break_state);
-static int  edge_tiocmget(struct tty_struct *tty, struct file *file);
-static int  edge_tiocmset(struct tty_struct *tty, struct file *file,
+static int  edge_tiocmget(struct tty_struct *tty);
+static int  edge_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear);
 static int  edge_get_icount(struct tty_struct *tty,
 				struct serial_icounter_struct *icount);
@@ -1568,7 +1568,7 @@ static int get_lsr_info(struct edgeport_port *edge_port,
 	return 0;
 }
 
-static int edge_tiocmset(struct tty_struct *tty, struct file *file,
+static int edge_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1599,7 +1599,7 @@ static int edge_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-static int edge_tiocmget(struct tty_struct *tty, struct file *file)
+static int edge_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
@@ -1679,7 +1679,7 @@ static int get_serial_info(struct edgeport_port *edge_port,
  * SerialIoctl
  *	this function handles any ioctl calls to the driver
  *****************************************************************************/
-static int edge_ioctl(struct tty_struct *tty, struct file *file,
+static int edge_ioctl(struct tty_struct *tty,
 					unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1981,7 +1981,7 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 	if (code == IOSP_STATUS_OPEN_RSP) {
 		edge_port->txCredits = GET_TX_BUFFER_SIZE(byte3);
 		edge_port->maxTxCredits = edge_port->txCredits;
-		dbg("%s - Port %u Open Response Inital MSR = %02x TxBufferSize = %d", __func__, edge_serial->rxPort, byte2, edge_port->txCredits);
+		dbg("%s - Port %u Open Response Initial MSR = %02x TxBufferSize = %d", __func__, edge_serial->rxPort, byte2, edge_port->txCredits);
 		handle_new_msr(edge_port, byte2);
 
 		/* send the current line settings to the port so we are
@@ -2343,7 +2343,6 @@ static int write_cmd_usb(struct edgeport_port *edge_port,
 				usb_get_serial_data(edge_port->port->serial);
 	int status = 0;
 	struct urb *urb;
-	int timeout;
 
 	usb_serial_debug_data(debug, &edge_port->port->dev,
 						__func__, length, buffer);
@@ -2376,8 +2375,6 @@ static int write_cmd_usb(struct edgeport_port *edge_port,
 		return status;
 	}
 
-	/* wait for command to finish */
-	timeout = COMMAND_TIMEOUT;
 #if 0
 	wait_event(&edge_port->wait_command, !edge_port->commandPending);
 

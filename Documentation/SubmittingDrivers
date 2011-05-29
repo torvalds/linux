@@ -101,7 +101,7 @@ PM support:	Since Linux is used on many portable and desktop systems, your
 		complete overview of the power management issues related to
 		drivers see Documentation/power/devices.txt .
 
-Control:	In general if there is active maintainance of a driver by
+Control:	In general if there is active maintenance of a driver by
 		the author then patches will be redirected to them unless
 		they are totally obvious and without need of checking.
 		If you want to be the contact and update point for the

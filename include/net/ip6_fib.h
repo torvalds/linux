@@ -108,6 +108,7 @@ struct rt6_info {
 	u32				rt6i_flags;
 	struct rt6key			rt6i_src;
 	u32				rt6i_metric;
+	u32				rt6i_peer_genid;
 
 	struct inet6_dev		*rt6i_idev;
 	struct inet_peer		*rt6i_peer;
@@ -182,7 +183,7 @@ struct fib6_table {
 
 typedef struct rt6_info *(*pol_lookup_t)(struct net *,
 					 struct fib6_table *,
-					 struct flowi *, int);
+					 struct flowi6 *, int);
 
 /*
  *	exported functions
@@ -191,7 +192,7 @@ typedef struct rt6_info *(*pol_lookup_t)(struct net *,
 extern struct fib6_table        *fib6_get_table(struct net *net, u32 id);
 extern struct fib6_table        *fib6_new_table(struct net *net, u32 id);
 extern struct dst_entry         *fib6_rule_lookup(struct net *net,
-						  struct flowi *fl, int flags,
+						  struct flowi6 *fl6, int flags,
 						  pol_lookup_t lookup);
 
 extern struct fib6_node		*fib6_lookup(struct fib6_node *root,

@@ -27,7 +27,7 @@
 #define ATH5K_ANI_RSSI_THR_HIGH		40
 #define ATH5K_ANI_RSSI_THR_LOW		7
 
-/* maximum availabe levels */
+/* maximum available levels */
 #define ATH5K_ANI_MAX_FIRSTEP_LVL	2
 #define ATH5K_ANI_MAX_NOISE_IMM_LVL	1
 

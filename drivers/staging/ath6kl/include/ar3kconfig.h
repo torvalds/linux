@@ -38,25 +38,25 @@ extern "C" {
 #define AR3K_CONFIG_FLAG_SET_AR6K_SCALE_STEP        (1 << 3)
 
 
-typedef struct {
-    A_UINT32                 Flags;           /* config flags */
+struct ar3k_config_info {
+    u32 Flags;           /* config flags */
     void                     *pHCIDev;        /* HCI bridge device     */
-    HCI_TRANSPORT_PROPERTIES *pHCIProps;      /* HCI bridge props      */
-    HIF_DEVICE               *pHIFDevice;     /* HIF layer device      */
+    struct hci_transport_properties *pHCIProps;      /* HCI bridge props      */
+    struct hif_device               *pHIFDevice;     /* HIF layer device      */
     
-    A_UINT32                 AR3KBaudRate;    /* AR3K operational baud rate */
-    A_UINT16                 AR6KScale;       /* AR6K UART scale value */    
-    A_UINT16                 AR6KStep;        /* AR6K UART step value  */
+    u32 AR3KBaudRate;    /* AR3K operational baud rate */
+    u16 AR6KScale;       /* AR6K UART scale value */
+    u16 AR6KStep;        /* AR6K UART step value  */
     struct hci_dev           *pBtStackHCIDev; /* BT Stack HCI dev */
-    A_UINT32                 PwrMgmtEnabled;  /* TLPM enabled? */  
-    A_UINT16                 IdleTimeout;     /* TLPM idle timeout */
-    A_UINT16                 WakeupTimeout;   /* TLPM wakeup timeout */
-    A_UINT8                  bdaddr[6];       /* Bluetooth device address */
-} AR3K_CONFIG_INFO;
+    u32 PwrMgmtEnabled;  /* TLPM enabled? */
+    u16 IdleTimeout;     /* TLPM idle timeout */
+    u16 WakeupTimeout;   /* TLPM wakeup timeout */
+    u8 bdaddr[6];       /* Bluetooth device address */
+};
                                                                                         
-A_STATUS AR3KConfigure(AR3K_CONFIG_INFO *pConfigInfo);
+int AR3KConfigure(struct ar3k_config_info *pConfigInfo);
 
-A_STATUS AR3KConfigureExit(void *config);
+int AR3KConfigureExit(void *config);
 
 #ifdef __cplusplus
 }

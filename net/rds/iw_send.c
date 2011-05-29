@@ -307,7 +307,7 @@ void rds_iw_send_cq_comp_handler(struct ib_cq *cq, void *context)
  *
  * Conceptually, we have two counters:
  *  -	send credits: this tells us how many WRs we're allowed
- *	to submit without overruning the reciever's queue. For
+ *	to submit without overruning the receiver's queue. For
  *	each SEND WR we post, we decrement this by one.
  *
  *  -	posted credits: this tells us how many WRs we recently

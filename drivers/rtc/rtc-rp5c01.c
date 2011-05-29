@@ -249,15 +249,15 @@ static int __init rp5c01_rtc_probe(struct platform_device *dev)
 
 	spin_lock_init(&priv->lock);
 
+	platform_set_drvdata(dev, priv);
+
 	rtc = rtc_device_register("rtc-rp5c01", &dev->dev, &rp5c01_rtc_ops,
 				  THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		error = PTR_ERR(rtc);
 		goto out_unmap;
 	}
-
 	priv->rtc = rtc;
-	platform_set_drvdata(dev, priv);
 
 	error = sysfs_create_bin_file(&dev->dev.kobj, &priv->nvram_attr);
 	if (error)
@@ -268,6 +268,7 @@ static int __init rp5c01_rtc_probe(struct platform_device *dev)
 out_unregister:
 	rtc_device_unregister(rtc);
 out_unmap:
+	platform_set_drvdata(dev, NULL);
 	iounmap(priv->regs);
 out_free_priv:
 	kfree(priv);

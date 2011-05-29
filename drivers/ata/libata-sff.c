@@ -1302,6 +1302,18 @@ fsm_start:
 }
 EXPORT_SYMBOL_GPL(ata_sff_hsm_move);
 
+void ata_sff_queue_work(struct work_struct *work)
+{
+	queue_work(ata_sff_wq, work);
+}
+EXPORT_SYMBOL_GPL(ata_sff_queue_work);
+
+void ata_sff_queue_delayed_work(struct delayed_work *dwork, unsigned long delay)
+{
+	queue_delayed_work(ata_sff_wq, dwork, delay);
+}
+EXPORT_SYMBOL_GPL(ata_sff_queue_delayed_work);
+
 void ata_sff_queue_pio_task(struct ata_link *link, unsigned long delay)
 {
 	struct ata_port *ap = link->ap;
@@ -1311,8 +1323,7 @@ void ata_sff_queue_pio_task(struct ata_link *link, unsigned long delay)
 	ap->sff_pio_task_link = link;
 
 	/* may fail if ata_sff_flush_pio_task() in progress */
-	queue_delayed_work(ata_sff_wq, &ap->sff_pio_task,
-			   msecs_to_jiffies(delay));
+	ata_sff_queue_delayed_work(&ap->sff_pio_task, msecs_to_jiffies(delay));
 }
 EXPORT_SYMBOL_GPL(ata_sff_queue_pio_task);
 
@@ -1336,7 +1347,7 @@ static void ata_sff_pio_task(struct work_struct *work)
 	u8 status;
 	int poll_next;
 
-	BUG_ON(ap->sff_pio_task_link == NULL); 
+	BUG_ON(ap->sff_pio_task_link == NULL);
 	/* qc can be NULL if timeout occurred */
 	qc = ata_qc_from_tag(ap, link->active_tag);
 	if (!qc) {
@@ -2828,7 +2839,7 @@ unsigned int ata_bmdma_port_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		bmdma_stopped = true;
 
 		if (unlikely(host_stat & ATA_DMA_ERR)) {
-			/* error when transfering data to/from memory */
+			/* error when transferring data to/from memory */
 			qc->err_mask |= AC_ERR_HOST_BUS;
 			ap->hsm_task_state = HSM_ST_ERR;
 		}
@@ -3021,7 +3032,7 @@ void ata_bmdma_start(struct ata_queued_cmd *qc)
 	 * Or maybe I'm just being paranoid.
 	 *
 	 * FIXME: The posting of this write means I/O starts are
-	 * unneccessarily delayed for MMIO
+	 * unnecessarily delayed for MMIO
 	 */
 }
 EXPORT_SYMBOL_GPL(ata_bmdma_start);

@@ -658,6 +658,8 @@ lpfc_work_done(struct lpfc_hba *phba)
 				lpfc_ramp_down_queue_handler(phba);
 			if (work_port_events & WORKER_RAMP_UP_QUEUE)
 				lpfc_ramp_up_queue_handler(phba);
+			if (work_port_events & WORKER_DELAYED_DISC_TMO)
+				lpfc_delayed_disc_timeout_handler(vport);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
@@ -737,7 +739,7 @@ lpfc_do_work(void *p)
 
 /*
  * This is only called to handle FC worker events. Since this a rare
- * occurance, we allocate a struct lpfc_work_evt structure here instead of
+ * occurrence, we allocate a struct lpfc_work_evt structure here instead of
  * embedding it in the IOCB.
  */
 int
@@ -838,6 +840,11 @@ lpfc_linkdown_port(struct lpfc_vport *vport)
 
 	lpfc_port_link_failure(vport);
 
+	/* Stop delayed Nport discovery */
+	spin_lock_irq(shost->host_lock);
+	vport->fc_flag &= ~FC_DISC_DELAYED;
+	spin_unlock_irq(shost->host_lock);
+	del_timer_sync(&vport->delayed_disc_tmo);
 }
 
 int
@@ -1341,7 +1348,7 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 	int rc;
 
 	spin_lock_irq(&phba->hbalock);
-	/* If the FCF is not availabe do nothing. */
+	/* If the FCF is not available do nothing. */
 	if (!(phba->fcf.fcf_flag & FCF_AVAILABLE)) {
 		phba->hba_flag &= ~(FCF_TS_INPROG | FCF_RR_INPROG);
 		spin_unlock_irq(&phba->hbalock);
@@ -1531,7 +1538,7 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 
 		/*
 		 * If user did not specify any addressing mode, or if the
-		 * prefered addressing mode specified by user is not supported
+		 * preferred addressing mode specified by user is not supported
 		 * by FCF, allow fabric to pick the addressing mode.
 		 */
 		*addr_mode = bf_get(lpfc_fcf_record_mac_addr_prov,
@@ -1546,7 +1553,7 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 				FCFCNCT_AM_SPMA) ?
 				LPFC_FCF_SPMA : LPFC_FCF_FPMA;
 		/*
-		 * If the user specified a prefered address mode, use the
+		 * If the user specified a preferred address mode, use the
 		 * addr mode only if FCF support the addr_mode.
 		 */
 		else if ((conn_entry->conn_rec.flags & FCFCNCT_AM_VALID) &&
@@ -3110,7 +3117,7 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		 * back at reg login state so this
 		 * mbox needs to be ignored becase
 		 * there is another reg login in
-		 * proccess.
+		 * process.
 		 */
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
@@ -3160,7 +3167,7 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	spin_unlock_irq(shost->host_lock);
 	vport->unreg_vpi_cmpl = VPORT_OK;
 	mempool_free(pmb, phba->mbox_mem_pool);
-	lpfc_cleanup_vports_rrqs(vport);
+	lpfc_cleanup_vports_rrqs(vport, NULL);
 	/*
 	 * This shost reference might have been taken at the beginning of
 	 * lpfc_vport_delete()
@@ -3900,6 +3907,8 @@ lpfc_drop_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 		return;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
+	if (vport->phba->sli_rev == LPFC_SLI_REV4)
+		lpfc_cleanup_vports_rrqs(vport, ndlp);
 	lpfc_nlp_put(ndlp);
 	return;
 }
@@ -4289,7 +4298,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	list_del_init(&ndlp->els_retry_evt.evt_listp);
 	list_del_init(&ndlp->dev_loss_evt.evt_listp);
-
+	lpfc_cleanup_vports_rrqs(vport, ndlp);
 	lpfc_unreg_rpi(vport, ndlp);
 
 	return 0;
@@ -4426,10 +4435,11 @@ lpfc_findnode_did(struct lpfc_vport *vport, uint32_t did)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *ndlp;
+	unsigned long iflags;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(shost->host_lock, iflags);
 	ndlp = __lpfc_findnode_did(vport, did);
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(shost->host_lock, iflags);
 	return ndlp;
 }
 
@@ -4467,7 +4477,7 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 	if ((vport->fc_flag & FC_RSCN_MODE) &&
 	    !(vport->fc_flag & FC_NDISC_ACTIVE)) {
 		if (lpfc_rscn_payload_check(vport, did)) {
-			/* If we've already recieved a PLOGI from this NPort
+			/* If we've already received a PLOGI from this NPort
 			 * we don't need to try to discover it again.
 			 */
 			if (ndlp->nlp_flag & NLP_RCV_PLOGI)
@@ -4483,7 +4493,7 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 		} else
 			ndlp = NULL;
 	} else {
-		/* If we've already recieved a PLOGI from this NPort,
+		/* If we've already received a PLOGI from this NPort,
 		 * or we are already in the process of discovery on it,
 		 * we don't need to try to discover it again.
 		 */
@@ -5746,7 +5756,7 @@ lpfc_read_fcoe_param(struct lpfc_hba *phba,
  * @size: Size of the data buffer.
  * @rec_type: Record type to be searched.
  *
- * This function searches config region data to find the begining
+ * This function searches config region data to find the beginning
  * of the record specified by record_type. If record found, this
  * function return pointer to the record else return NULL.
  */

@@ -2,7 +2,7 @@
  * net/tipc/net.h: Include file for TIPC network routing code
  *
  * Copyright (c) 1995-2006, Ericsson AB
- * Copyright (c) 2005, Wind River Systems
+ * Copyright (c) 2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,23 +37,6 @@
 #ifndef _TIPC_NET_H
 #define _TIPC_NET_H
 
-struct tipc_node;
-
-/**
- * struct network - TIPC network structure
- * @nodes: array of pointers to all nodes within cluster
- * @highest_node: id of highest numbered node within cluster
- * @links: number of (unicast) links to cluster
- */
-
-struct network {
-	struct tipc_node **nodes;
-	u32 highest_node;
-	u32 links;
-};
-
-
-extern struct network tipc_net;
 extern rwlock_t tipc_net_lock;
 
 void tipc_net_route_msg(struct sk_buff *buf);

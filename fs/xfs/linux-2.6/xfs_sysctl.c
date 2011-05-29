@@ -37,7 +37,7 @@ xfs_stats_clear_proc_handler(
 	ret = proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
 
 	if (!ret && write && *valp) {
-		printk("XFS Clearing xfsstats\n");
+		xfs_notice(NULL, "Clearing xfsstats");
 		for_each_possible_cpu(c) {
 			preempt_disable();
 			/* save vn_active, it's a universal truth! */

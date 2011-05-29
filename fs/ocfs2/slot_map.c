@@ -27,7 +27,6 @@
 #include <linux/slab.h>
 #include <linux/highmem.h>
 
-#define MLOG_MASK_PREFIX ML_SUPER
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"
@@ -39,6 +38,7 @@
 #include "slot_map.h"
 #include "super.h"
 #include "sysfile.h"
+#include "ocfs2_trace.h"
 
 #include "buffer_head_io.h"
 
@@ -142,8 +142,7 @@ int ocfs2_refresh_slot_info(struct ocfs2_super *osb)
 	BUG_ON(si->si_blocks == 0);
 	BUG_ON(si->si_bh == NULL);
 
-	mlog(0, "Refreshing slot map, reading %u block(s)\n",
-	     si->si_blocks);
+	trace_ocfs2_refresh_slot_info(si->si_blocks);
 
 	/*
 	 * We pass -1 as blocknr because we expect all of si->si_bh to
@@ -381,8 +380,7 @@ static int ocfs2_map_slot_buffers(struct ocfs2_super *osb,
 	/* The size checks above should ensure this */
 	BUG_ON((osb->max_slots / si->si_slots_per_block) > blocks);
 
-	mlog(0, "Slot map needs %u buffers for %llu bytes\n",
-	     si->si_blocks, bytes);
+	trace_ocfs2_map_slot_buffers(bytes, si->si_blocks);
 
 	si->si_bh = kzalloc(sizeof(struct buffer_head *) * si->si_blocks,
 			    GFP_KERNEL);
@@ -400,8 +398,7 @@ static int ocfs2_map_slot_buffers(struct ocfs2_super *osb,
 			goto bail;
 		}
 
-		mlog(0, "Reading slot map block %u at %llu\n", i,
-		     (unsigned long long)blkno);
+		trace_ocfs2_map_slot_buffers_block((unsigned long long)blkno, i);
 
 		bh = NULL;  /* Acquire a fresh bh */
 		status = ocfs2_read_blocks(INODE_CACHE(si->si_inode), blkno,
@@ -475,8 +472,6 @@ int ocfs2_find_slot(struct ocfs2_super *osb)
 	int slot;
 	struct ocfs2_slot_info *si;
 
-	mlog_entry_void();
-
 	si = osb->slot_info;
 
 	spin_lock(&osb->osb_lock);
@@ -505,14 +500,13 @@ int ocfs2_find_slot(struct ocfs2_super *osb)
 	osb->slot_num = slot;
 	spin_unlock(&osb->osb_lock);
 
-	mlog(0, "taking node slot %d\n", osb->slot_num);
+	trace_ocfs2_find_slot(osb->slot_num);
 
 	status = ocfs2_update_disk_slot(osb, si, osb->slot_num);
 	if (status < 0)
 		mlog_errno(status);
 
 bail:
-	mlog_exit(status);
 	return status;
 }
 

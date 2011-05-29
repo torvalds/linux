@@ -84,8 +84,7 @@ indicate that the page is being managed on the unevictable list.
 
 The PG_unevictable flag is analogous to, and mutually exclusive with, the
 PG_active flag in that it indicates on which LRU list a page resides when
-PG_lru is set.  The unevictable list is compile-time configurable based on the
-UNEVICTABLE_LRU Kconfig option.
+PG_lru is set.
 
 The Unevictable LRU infrastructure maintains unevictable pages on an additional
 LRU list for a few reasons:

@@ -31,7 +31,7 @@ static struct clocksource clocksource_cyclone = {
         .rating         = 300,
         .read           = read_cyclone,
         .mask           = (1LL << 40) - 1,
-        .mult           = 0, /*to be caluclated*/
+        .mult           = 0, /*to be calculated*/
         .shift          = 16,
         .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 };

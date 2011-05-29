@@ -115,19 +115,6 @@ static int stmp3xxx_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static int stmp3xxx_update_irq_enable(struct device *dev, unsigned int enabled)
-{
-	struct stmp3xxx_rtc_data *rtc_data = dev_get_drvdata(dev);
-
-	if (enabled)
-		stmp3xxx_setl(BM_RTC_CTRL_ONEMSEC_IRQ_EN,
-				rtc_data->io + HW_RTC_CTRL);
-	else
-		stmp3xxx_clearl(BM_RTC_CTRL_ONEMSEC_IRQ_EN,
-				rtc_data->io + HW_RTC_CTRL);
-	return 0;
-}
-
 static int stmp3xxx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
 	struct stmp3xxx_rtc_data *rtc_data = dev_get_drvdata(dev);
@@ -149,8 +136,6 @@ static int stmp3xxx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 static struct rtc_class_ops stmp3xxx_rtc_ops = {
 	.alarm_irq_enable =
 			  stmp3xxx_alarm_irq_enable,
-	.update_irq_enable =
-			  stmp3xxx_update_irq_enable,
 	.read_time	= stmp3xxx_rtc_gettime,
 	.set_mmss	= stmp3xxx_rtc_set_mmss,
 	.read_alarm	= stmp3xxx_rtc_read_alarm,

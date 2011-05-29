@@ -353,6 +353,43 @@ static __kprobes void free_deref_fetch_param(struct deref_fetch_param *data)
 	kfree(data);
 }
 
+/* Bitfield fetch function */
+struct bitfield_fetch_param {
+	struct fetch_param orig;
+	unsigned char hi_shift;
+	unsigned char low_shift;
+};
+
+#define DEFINE_FETCH_bitfield(type)					\
+static __kprobes void FETCH_FUNC_NAME(bitfield, type)(struct pt_regs *regs,\
+					    void *data, void *dest)	\
+{									\
+	struct bitfield_fetch_param *bprm = data;			\
+	type buf = 0;							\
+	call_fetch(&bprm->orig, regs, &buf);				\
+	if (buf) {							\
+		buf <<= bprm->hi_shift;					\
+		buf >>= bprm->low_shift;				\
+	}								\
+	*(type *)dest = buf;						\
+}
+DEFINE_BASIC_FETCH_FUNCS(bitfield)
+#define fetch_bitfield_string NULL
+#define fetch_bitfield_string_size NULL
+
+static __kprobes void
+free_bitfield_fetch_param(struct bitfield_fetch_param *data)
+{
+	/*
+	 * Don't check the bitfield itself, because this must be the
+	 * last fetch function.
+	 */
+	if (CHECK_FETCH_FUNCS(deref, data->orig.fn))
+		free_deref_fetch_param(data->orig.data);
+	else if (CHECK_FETCH_FUNCS(symbol, data->orig.fn))
+		free_symbol_cache(data->orig.data);
+	kfree(data);
+}
 /* Default (unsigned long) fetch type */
 #define __DEFAULT_FETCH_TYPE(t) u##t
 #define _DEFAULT_FETCH_TYPE(t) __DEFAULT_FETCH_TYPE(t)
@@ -367,6 +404,7 @@ enum {
 	FETCH_MTD_memory,
 	FETCH_MTD_symbol,
 	FETCH_MTD_deref,
+	FETCH_MTD_bitfield,
 	FETCH_MTD_END,
 };
 
@@ -387,6 +425,7 @@ ASSIGN_FETCH_FUNC(retval, ftype),			\
 ASSIGN_FETCH_FUNC(memory, ftype),			\
 ASSIGN_FETCH_FUNC(symbol, ftype),			\
 ASSIGN_FETCH_FUNC(deref, ftype),			\
+ASSIGN_FETCH_FUNC(bitfield, ftype),			\
 	  }						\
 	}
 
@@ -430,9 +469,33 @@ static const struct fetch_type *find_fetch_type(const char *type)
 	if (!type)
 		type = DEFAULT_FETCH_TYPE_STR;
 
+	/* Special case: bitfield */
+	if (*type == 'b') {
+		unsigned long bs;
+		type = strchr(type, '/');
+		if (!type)
+			goto fail;
+		type++;
+		if (strict_strtoul(type, 0, &bs))
+			goto fail;
+		switch (bs) {
+		case 8:
+			return find_fetch_type("u8");
+		case 16:
+			return find_fetch_type("u16");
+		case 32:
+			return find_fetch_type("u32");
+		case 64:
+			return find_fetch_type("u64");
+		default:
+			goto fail;
+		}
+	}
+
 	for (i = 0; i < ARRAY_SIZE(fetch_type_table); i++)
 		if (strcmp(type, fetch_type_table[i].name) == 0)
 			return &fetch_type_table[i];
+fail:
 	return NULL;
 }
 
@@ -586,7 +649,9 @@ error:
 
 static void free_probe_arg(struct probe_arg *arg)
 {
-	if (CHECK_FETCH_FUNCS(deref, arg->fetch.fn))
+	if (CHECK_FETCH_FUNCS(bitfield, arg->fetch.fn))
+		free_bitfield_fetch_param(arg->fetch.data);
+	else if (CHECK_FETCH_FUNCS(deref, arg->fetch.fn))
 		free_deref_fetch_param(arg->fetch.data);
 	else if (CHECK_FETCH_FUNCS(symbol, arg->fetch.fn))
 		free_symbol_cache(arg->fetch.data);
@@ -767,16 +832,15 @@ static int __parse_probe_arg(char *arg, const struct fetch_type *t,
 		}
 		break;
 	case '+':	/* deref memory */
+		arg++;	/* Skip '+', because strict_strtol() rejects it. */
 	case '-':
 		tmp = strchr(arg, '(');
 		if (!tmp)
 			break;
 		*tmp = '\0';
-		ret = strict_strtol(arg + 1, 0, &offset);
+		ret = strict_strtol(arg, 0, &offset);
 		if (ret)
 			break;
-		if (arg[0] == '-')
-			offset = -offset;
 		arg = tmp + 1;
 		tmp = strrchr(arg, ')');
 		if (tmp) {
@@ -805,6 +869,41 @@ static int __parse_probe_arg(char *arg, const struct fetch_type *t,
 		ret = -EINVAL;
 	}
 	return ret;
+}
+
+#define BYTES_TO_BITS(nb)	((BITS_PER_LONG * (nb)) / sizeof(long))
+
+/* Bitfield type needs to be parsed into a fetch function */
+static int __parse_bitfield_probe_arg(const char *bf,
+				      const struct fetch_type *t,
+				      struct fetch_param *f)
+{
+	struct bitfield_fetch_param *bprm;
+	unsigned long bw, bo;
+	char *tail;
+
+	if (*bf != 'b')
+		return 0;
+
+	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
+	if (!bprm)
+		return -ENOMEM;
+	bprm->orig = *f;
+	f->fn = t->fetch[FETCH_MTD_bitfield];
+	f->data = (void *)bprm;
+
+	bw = simple_strtoul(bf + 1, &tail, 0);	/* Use simple one */
+	if (bw == 0 || *tail != '@')
+		return -EINVAL;
+
+	bf = tail + 1;
+	bo = simple_strtoul(bf, &tail, 0);
+	if (tail == bf || *tail != '/')
+		return -EINVAL;
+
+	bprm->hi_shift = BYTES_TO_BITS(t->size) - (bw + bo);
+	bprm->low_shift = bprm->hi_shift + bo;
+	return (BYTES_TO_BITS(t->size) < (bw + bo)) ? -EINVAL : 0;
 }
 
 /* String length checking wrapper */
@@ -836,6 +935,8 @@ static int parse_probe_arg(char *arg, struct trace_probe *tp,
 	parg->offset = tp->size;
 	tp->size += parg->type->size;
 	ret = __parse_probe_arg(arg, parg->type, &parg->fetch, is_return);
+	if (ret >= 0 && t != NULL)
+		ret = __parse_bitfield_probe_arg(t, parg->type, &parg->fetch);
 	if (ret >= 0) {
 		parg->fetch_size.fn = get_fetch_size_function(parg->type,
 							      parg->fetch.fn);
@@ -1130,7 +1231,7 @@ static int command_trace_probe(const char *buf)
 	return ret;
 }
 
-#define WRITE_BUFSIZE 128
+#define WRITE_BUFSIZE 4096
 
 static ssize_t probes_write(struct file *file, const char __user *buffer,
 			    size_t count, loff_t *ppos)
@@ -1738,7 +1839,7 @@ static void unregister_probe_event(struct trace_probe *tp)
 	kfree(tp->call.print_fmt);
 }
 
-/* Make a debugfs interface for controling probe points */
+/* Make a debugfs interface for controlling probe points */
 static __init int init_kprobe_trace(void)
 {
 	struct dentry *d_tracer;

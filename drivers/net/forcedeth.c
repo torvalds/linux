@@ -440,7 +440,7 @@ union ring_type {
 #define NV_RX3_VLAN_TAG_PRESENT (1<<16)
 #define NV_RX3_VLAN_TAG_MASK	(0x0000FFFF)
 
-/* Miscelaneous hardware related defines: */
+/* Miscellaneous hardware related defines: */
 #define NV_PCI_REGSZ_VER1	0x270
 #define NV_PCI_REGSZ_VER2	0x2d4
 #define NV_PCI_REGSZ_VER3	0x604
@@ -1488,7 +1488,7 @@ static int phy_init(struct net_device *dev)
 		}
 	}
 
-	/* some phys clear out pause advertisment on reset, set it back */
+	/* some phys clear out pause advertisement on reset, set it back */
 	mii_rw(dev, np->phyaddr, MII_ADVERTISE, reg);
 
 	/* restart auto negotiation, power down phy */
@@ -2535,7 +2535,7 @@ static void nv_tx_timeout(struct net_device *dev)
 	else
 		nv_tx_done_optimized(dev, np->tx_ring_size);
 
-	/* save current HW postion */
+	/* save current HW position */
 	if (np->tx_change_owner)
 		put_tx.ex = np->tx_change_owner->first_tx_desc;
 	else
@@ -4053,7 +4053,7 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 	} else if (ecmd->autoneg == AUTONEG_DISABLE) {
 		/* Note: autonegotiation disable, speed 1000 intentionally
-		 * forbidden - noone should need that. */
+		 * forbidden - no one should need that. */
 
 		if (ecmd->speed != SPEED_10 && ecmd->speed != SPEED_100)
 			return -EINVAL;
@@ -4103,7 +4103,7 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			adv |= ADVERTISE_100HALF;
 		if (ecmd->advertising & ADVERTISED_100baseT_Full)
 			adv |= ADVERTISE_100FULL;
-		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ)  /* for rx we set both advertisments but disable tx pause */
+		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ)  /* for rx we set both advertisements but disable tx pause */
 			adv |=  ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
 		if (np->pause_flags & NV_PAUSEFRAME_TX_REQ)
 			adv |=  ADVERTISE_PAUSE_ASYM;
@@ -4148,7 +4148,7 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (ecmd->speed == SPEED_100 && ecmd->duplex == DUPLEX_FULL)
 			adv |= ADVERTISE_100FULL;
 		np->pause_flags &= ~(NV_PAUSEFRAME_AUTONEG|NV_PAUSEFRAME_RX_ENABLE|NV_PAUSEFRAME_TX_ENABLE);
-		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ) {/* for rx we set both advertisments but disable tx pause */
+		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ) {/* for rx we set both advertisements but disable tx pause */
 			adv |=  ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
 			np->pause_flags |= NV_PAUSEFRAME_RX_ENABLE;
 		}
@@ -4449,7 +4449,7 @@ static int nv_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam* 
 
 		adv = mii_rw(dev, np->phyaddr, MII_ADVERTISE, MII_READ);
 		adv &= ~(ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
-		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ) /* for rx we set both advertisments but disable tx pause */
+		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ) /* for rx we set both advertisements but disable tx pause */
 			adv |=  ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
 		if (np->pause_flags & NV_PAUSEFRAME_TX_REQ)
 			adv |=  ADVERTISE_PAUSE_ASYM;
@@ -5744,7 +5744,7 @@ static void __devexit nv_remove(struct pci_dev *pci_dev)
 	pci_set_drvdata(pci_dev, NULL);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int nv_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
@@ -5795,6 +5795,11 @@ static int nv_resume(struct device *device)
 static SIMPLE_DEV_PM_OPS(nv_pm_ops, nv_suspend, nv_resume);
 #define NV_PM_OPS (&nv_pm_ops)
 
+#else
+#define NV_PM_OPS NULL
+#endif /* CONFIG_PM_SLEEP */
+
+#ifdef CONFIG_PM
 static void nv_shutdown(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
@@ -5822,7 +5827,6 @@ static void nv_shutdown(struct pci_dev *pdev)
 	}
 }
 #else
-#define NV_PM_OPS NULL
 #define nv_shutdown NULL
 #endif /* CONFIG_PM */
 

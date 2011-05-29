@@ -1884,7 +1884,7 @@ static int airo_open(struct net_device *dev) {
 	/* Make sure the card is configured.
 	 * Wireless Extensions may postpone config changes until the card
 	 * is open (to pipeline changes and speed-up card setup). If
-	 * those changes are not yet commited, do it now - Jean II */
+	 * those changes are not yet committed, do it now - Jean II */
 	if (test_bit(FLAG_COMMIT, &ai->flags)) {
 		disable_MAC(ai, 1);
 		writeConfigRid(ai, 1);
@@ -1992,7 +1992,7 @@ static int mpi_send_packet (struct net_device *dev)
 /*
  * Magic, the cards firmware needs a length count (2 bytes) in the host buffer
  * right after  TXFID_HDR.The TXFID_HDR contains the status short so payloadlen
- * is immediatly after it. ------------------------------------------------
+ * is immediately after it. ------------------------------------------------
  *                         |TXFIDHDR+STATUS|PAYLOADLEN|802.3HDR|PACKETDATA|
  *                         ------------------------------------------------
  */
@@ -2006,7 +2006,7 @@ static int mpi_send_packet (struct net_device *dev)
 		sizeof(wifictlhdr8023) + 2 ;
 
 	/*
-	 * Firmware automaticly puts 802 header on so
+	 * Firmware automatically puts 802 header on so
 	 * we don't need to account for it in the length
 	 */
 	if (test_bit(FLAG_MIC_CAPABLE, &ai->flags) && ai->micstats.enabled &&
@@ -2531,7 +2531,7 @@ static int mpi_init_descriptors (struct airo_info *ai)
 /*
  * We are setting up three things here:
  * 1) Map AUX memory for descriptors: Rid, TxFid, or RxFid.
- * 2) Map PCI memory for issueing commands.
+ * 2) Map PCI memory for issuing commands.
  * 3) Allocate memory (shared) to send and receive ethernet frames.
  */
 static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci)
@@ -3947,7 +3947,7 @@ static u16 issuecommand(struct airo_info *ai, Cmd *pCmd, Resp *pRsp) {
 
 	if ( max_tries == -1 ) {
 		airo_print_err(ai->dev->name,
-			"Max tries exceeded when issueing command");
+			"Max tries exceeded when issuing command");
 		if (IN4500(ai, COMMAND) & COMMAND_BUSY)
 			OUT4500(ai, EVACK, EV_CLEARCOMMANDBUSY);
 		return ERROR;
@@ -4173,7 +4173,7 @@ done:
 }
 
 /*  Note, that we are using BAP1 which is also used by transmit, so
- *  make sure this isnt called when a transmit is happening */
+ *  make sure this isn't called when a transmit is happening */
 static int PC4500_writerid(struct airo_info *ai, u16 rid,
 			   const void *pBuf, int len, int lock)
 {
@@ -4776,7 +4776,7 @@ static int proc_stats_rid_open( struct inode *inode,
 		if (!statsLabels[i]) continue;
 		if (j+strlen(statsLabels[i])+16>4096) {
 			airo_print_warn(apriv->dev->name,
-			       "Potentially disasterous buffer overflow averted!");
+			       "Potentially disastrous buffer overflow averted!");
 			break;
 		}
 		j+=sprintf(data->rbuffer+j, "%s: %u\n", statsLabels[i],

@@ -294,7 +294,6 @@ static struct spi_driver ak4104_spi_driver = {
 
 static int __init ak4104_init(void)
 {
-	pr_info("Asahi Kasei AK4104 ALSA SoC Codec Driver\n");
 	return spi_register_driver(&ak4104_spi_driver);
 }
 module_init(ak4104_init);

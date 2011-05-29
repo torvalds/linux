@@ -53,6 +53,7 @@ cpumask_t smp_commenced_mask = CPU_MASK_NONE;
 void __cpuinit smp_store_cpu_info(int id)
 {
 	int cpu_node;
+	int mid;
 
 	cpu_data(id).udelay_val = loops_per_jiffy;
 
@@ -60,10 +61,13 @@ void __cpuinit smp_store_cpu_info(int id)
 	cpu_data(id).clock_tick = prom_getintdefault(cpu_node,
 						     "clock-frequency", 0);
 	cpu_data(id).prom_node = cpu_node;
-	cpu_data(id).mid = cpu_get_hwmid(cpu_node);
+	mid = cpu_get_hwmid(cpu_node);
 
-	if (cpu_data(id).mid < 0)
-		panic("No MID found for CPU%d at node 0x%08d", id, cpu_node);
+	if (mid < 0) {
+		printk(KERN_NOTICE "No MID found for CPU%d at node 0x%08d", id, cpu_node);
+		mid = 0;
+	}
+	cpu_data(id).mid = mid;
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)

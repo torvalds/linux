@@ -76,6 +76,7 @@ struct cpdma_desc {
 
 struct cpdma_desc_pool {
 	u32			phys;
+	u32			hw_addr;
 	void __iomem		*iomap;		/* ioremap map */
 	void			*cpumap;	/* dma_alloc map */
 	int			desc_size, mem_size;
@@ -137,7 +138,8 @@ struct cpdma_chan {
  * abstract out these details
  */
 static struct cpdma_desc_pool *
-cpdma_desc_pool_create(struct device *dev, u32 phys, int size, int align)
+cpdma_desc_pool_create(struct device *dev, u32 phys, u32 hw_addr,
+				int size, int align)
 {
 	int bitmap_size;
 	struct cpdma_desc_pool *pool;
@@ -161,10 +163,12 @@ cpdma_desc_pool_create(struct device *dev, u32 phys, int size, int align)
 	if (phys) {
 		pool->phys  = phys;
 		pool->iomap = ioremap(phys, size);
+		pool->hw_addr = hw_addr;
 	} else {
 		pool->cpumap = dma_alloc_coherent(dev, size, &pool->phys,
 						  GFP_KERNEL);
 		pool->iomap = (void __force __iomem *)pool->cpumap;
+		pool->hw_addr = pool->phys;
 	}
 
 	if (pool->iomap)
@@ -201,14 +205,14 @@ static inline dma_addr_t desc_phys(struct cpdma_desc_pool *pool,
 {
 	if (!desc)
 		return 0;
-	return pool->phys + (__force dma_addr_t)desc -
+	return pool->hw_addr + (__force dma_addr_t)desc -
 			    (__force dma_addr_t)pool->iomap;
 }
 
 static inline struct cpdma_desc __iomem *
 desc_from_phys(struct cpdma_desc_pool *pool, dma_addr_t dma)
 {
-	return dma ? pool->iomap + dma - pool->phys : NULL;
+	return dma ? pool->iomap + dma - pool->hw_addr : NULL;
 }
 
 static struct cpdma_desc __iomem *
@@ -260,6 +264,7 @@ struct cpdma_ctlr *cpdma_ctlr_create(struct cpdma_params *params)
 
 	ctlr->pool = cpdma_desc_pool_create(ctlr->dev,
 					    ctlr->params.desc_mem_phys,
+					    ctlr->params.desc_hw_addr,
 					    ctlr->params.desc_mem_size,
 					    ctlr->params.desc_align);
 	if (!ctlr->pool) {

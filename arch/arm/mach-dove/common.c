@@ -532,6 +532,11 @@ void __init dove_i2c_init(void)
 /*****************************************************************************
  * Time handling
  ****************************************************************************/
+void __init dove_init_early(void)
+{
+	orion_time_set_base(TIMER_VIRT_BASE);
+}
+
 static int get_tclk(void)
 {
 	/* use DOVE_RESET_SAMPLE_HI/LO to detect tclk */
@@ -540,7 +545,8 @@ static int get_tclk(void)
 
 static void dove_timer_init(void)
 {
-	orion_time_init(IRQ_DOVE_BRIDGE, get_tclk());
+	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
+			IRQ_DOVE_BRIDGE, get_tclk());
 }
 
 struct sys_timer dove_timer = {

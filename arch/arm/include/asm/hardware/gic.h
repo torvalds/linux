@@ -34,6 +34,7 @@
 
 #ifndef __ASSEMBLY__
 extern void __iomem *gic_cpu_base_addr;
+extern struct irq_chip gic_arch_extn;
 
 void gic_init(unsigned int, unsigned int, void __iomem *, void __iomem *);
 void gic_secondary_init(unsigned int);

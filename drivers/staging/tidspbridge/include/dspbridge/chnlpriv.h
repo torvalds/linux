@@ -39,12 +39,6 @@
  */
 #define CHNL_PCPY       0	/* Proc-copy transport 0 */
 
-#define CHNL_MAXIRQ     0xff	/* Arbitrarily large number. */
-
-/* The following modes are private: */
-#define CHNL_MODEUSEREVENT  0x1000	/* User provided the channel event. */
-#define CHNL_MODEMASK       0x1001
-
 /* Higher level channel states: */
 #define CHNL_STATEREADY		0	/* Channel ready for I/O. */
 #define CHNL_STATECANCEL	1	/* I/O was cancelled. */
@@ -56,23 +50,16 @@
 
 /* Types of channel class libraries: */
 #define CHNL_TYPESM         1	/* Shared memory driver. */
-#define CHNL_TYPEBM         2	/* Bus Mastering driver. */
-
-/* Max string length of channel I/O completion event name - change if needed */
-#define CHNL_MAXEVTNAMELEN  32
-
-/* Max memory pages lockable in CHNL_PrepareBuffer() - change if needed */
-#define CHNL_MAXLOCKPAGES   64
 
 /* Channel info. */
 struct chnl_info {
-	struct chnl_mgr *hchnl_mgr;	/* Owning channel manager. */
+	struct chnl_mgr *chnl_mgr;	/* Owning channel manager. */
 	u32 cnhl_id;		/* Channel ID. */
 	void *event_obj;	/* Channel I/O completion event. */
 	/*Abstraction of I/O completion event. */
 	struct sync_object *sync_event;
-	s8 dw_mode;		/* Channel mode. */
-	u8 dw_state;		/* Current channel state. */
+	s8 mode;		/* Channel mode. */
+	u8 state;		/* Current channel state. */
 	u32 bytes_tx;		/* Total bytes transferred. */
 	u32 cio_cs;		/* Number of IOCs in queue. */
 	u32 cio_reqs;		/* Number of IO Requests in queue. */
@@ -81,7 +68,7 @@ struct chnl_info {
 
 /* Channel manager info: */
 struct chnl_mgrinfo {
-	u8 dw_type;		/* Type of channel class library. */
+	u8 type;		/* Type of channel class library. */
 	/* Channel handle, given the channel id. */
 	struct chnl_object *chnl_obj;
 	u8 open_channels;	/* Number of open channels. */

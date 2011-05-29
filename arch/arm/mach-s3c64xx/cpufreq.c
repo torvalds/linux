@@ -181,7 +181,7 @@ static void __init s3c64xx_cpufreq_config_regulator(void)
 }
 #endif
 
-static int __init s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
+static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 {
 	int ret;
 	struct cpufreq_frequency_table *freq;

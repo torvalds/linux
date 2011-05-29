@@ -1075,7 +1075,6 @@ static int __cpuinit probe_scache(void)
 	unsigned long flags, addr, begin, end, pow2;
 	unsigned int config = read_c0_config();
 	struct cpuinfo_mips *c = &current_cpu_data;
-	int tmp;
 
 	if (config & CONF_SC)
 		return 0;
@@ -1108,7 +1107,6 @@ static int __cpuinit probe_scache(void)
 
 	/* Now search for the wrap around point. */
 	pow2 = (128 * 1024);
-	tmp = 0;
 	for (addr = begin + (128 * 1024); addr < end; addr = begin + pow2) {
 		cache_op(Index_Load_Tag_SD, addr);
 		__asm__ __volatile__("nop; nop; nop; nop;"); /* hazard... */

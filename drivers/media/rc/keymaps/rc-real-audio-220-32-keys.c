@@ -35,7 +35,7 @@ static struct rc_map_table real_audio_220_32_keys[] = {
 	{ 0x15, KEY_CHANNELDOWN},
 	{ 0x16, KEY_ENTER},
 
-	{ 0x11, KEY_LIST},		/* Source */
+	{ 0x11, KEY_VIDEO},		/* Source */
 	{ 0x0d, KEY_AUDIO},		/* stereo */
 
 	{ 0x0f, KEY_PREVIOUS},		/* Prev */

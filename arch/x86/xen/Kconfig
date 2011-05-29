@@ -38,7 +38,8 @@ config XEN_MAX_DOMAIN_MEMORY
 
 config XEN_SAVE_RESTORE
        bool
-       depends on XEN && PM
+       depends on XEN
+       select HIBERNATE_CALLBACKS
        default y
 
 config XEN_DEBUG_FS
@@ -48,3 +49,11 @@ config XEN_DEBUG_FS
 	help
 	  Enable statistics output and various tuning options in debugfs.
 	  Enabling this option may incur a significant performance overhead.
+
+config XEN_DEBUG
+	bool "Enable Xen debug checks"
+	depends on XEN
+	default n
+	help
+	  Enable various WARN_ON checks in the Xen MMU code.
+	  Enabling this option WILL incur a significant performance overhead.

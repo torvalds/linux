@@ -410,8 +410,8 @@ bool efuse_shadow_update(struct ieee80211_hw *hw)
 
 	if (!efuse_shadow_update_chk(hw)) {
 		efuse_read_all_map(hw, &rtlefuse->efuse_map[EFUSE_INIT_MAP][0]);
-		memcpy((void *)&rtlefuse->efuse_map[EFUSE_MODIFY_MAP][0],
-		       (void *)&rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
+		memcpy(&rtlefuse->efuse_map[EFUSE_MODIFY_MAP][0],
+		       &rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
 		       rtlpriv->cfg->maps[EFUSE_HWSET_MAX_SIZE]);
 
 		RT_TRACE(rtlpriv, COMP_EFUSE, DBG_LOUD,
@@ -446,9 +446,9 @@ bool efuse_shadow_update(struct ieee80211_hw *hw)
 
 		if (word_en != 0x0F) {
 			u8 tmpdata[8];
-			memcpy((void *)tmpdata,
-			       (void *)(&rtlefuse->
-					efuse_map[EFUSE_MODIFY_MAP][base]), 8);
+			memcpy(tmpdata,
+			       &rtlefuse->efuse_map[EFUSE_MODIFY_MAP][base],
+			       8);
 			RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_LOUD,
 				      ("U-efuse\n"), tmpdata, 8);
 
@@ -465,8 +465,8 @@ bool efuse_shadow_update(struct ieee80211_hw *hw)
 	efuse_power_switch(hw, true, false);
 	efuse_read_all_map(hw, &rtlefuse->efuse_map[EFUSE_INIT_MAP][0]);
 
-	memcpy((void *)&rtlefuse->efuse_map[EFUSE_MODIFY_MAP][0],
-	       (void *)&rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
+	memcpy(&rtlefuse->efuse_map[EFUSE_MODIFY_MAP][0],
+	       &rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
 	       rtlpriv->cfg->maps[EFUSE_HWSET_MAX_SIZE]);
 
 	RT_TRACE(rtlpriv, COMP_EFUSE, DBG_LOUD, ("<---\n"));
@@ -479,13 +479,12 @@ void rtl_efuse_shadow_map_update(struct ieee80211_hw *hw)
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 
 	if (rtlefuse->autoload_failflag == true) {
-		memset((void *)(&rtlefuse->efuse_map[EFUSE_INIT_MAP][0]), 128,
-		       0xFF);
+		memset(&rtlefuse->efuse_map[EFUSE_INIT_MAP][0], 0xFF, 128);
 	} else
 		efuse_read_all_map(hw, &rtlefuse->efuse_map[EFUSE_INIT_MAP][0]);
 
-	memcpy((void *)&rtlefuse->efuse_map[EFUSE_MODIFY_MAP][0],
-	       (void *)&rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
+	memcpy(&rtlefuse->efuse_map[EFUSE_MODIFY_MAP][0],
+	       &rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
 	       rtlpriv->cfg->maps[EFUSE_HWSET_MAX_SIZE]);
 
 }
@@ -686,7 +685,7 @@ static int efuse_pg_packet_read(struct ieee80211_hw *hw, u8 offset, u8 *data)
 
 	u8 efuse_data, word_cnts = 0;
 	u16 efuse_addr = 0;
-	u8 hworden;
+	u8 hworden = 0;
 	u8 tmpdata[8];
 
 	if (data == NULL)
@@ -694,8 +693,8 @@ static int efuse_pg_packet_read(struct ieee80211_hw *hw, u8 offset, u8 *data)
 	if (offset > 15)
 		return false;
 
-	memset((void *)data, PGPKT_DATA_SIZE * sizeof(u8), 0xff);
-	memset((void *)tmpdata, PGPKT_DATA_SIZE * sizeof(u8), 0xff);
+	memset(data, 0xff, PGPKT_DATA_SIZE * sizeof(u8));
+	memset(tmpdata, 0xff, PGPKT_DATA_SIZE * sizeof(u8));
 
 	while (bcontinual && (efuse_addr < EFUSE_MAX_SIZE)) {
 		if (readstate & PG_STATE_HEADER) {
@@ -862,7 +861,7 @@ static void efuse_write_data_case2(struct ieee80211_hw *hw, u16 *efuse_addr,
 
 		tmp_word_cnts = efuse_calculate_word_cnts(tmp_pkt.word_en);
 
-		memset((void *)originaldata, 8 * sizeof(u8), 0xff);
+		memset(originaldata, 0xff, 8 * sizeof(u8));
 
 		if (efuse_pg_packet_read(hw, tmp_pkt.offset, originaldata)) {
 			badworden = efuse_word_enable_data_write(hw,
@@ -917,7 +916,7 @@ static int efuse_pg_packet_write(struct ieee80211_hw *hw,
 	target_pkt.offset = offset;
 	target_pkt.word_en = word_en;
 
-	memset((void *)target_pkt.data, 8 * sizeof(u8), 0xFF);
+	memset(target_pkt.data, 0xFF, 8 * sizeof(u8));
 
 	efuse_word_enable_data_read(word_en, data, target_pkt.data);
 	target_word_cnts = efuse_calculate_word_cnts(target_pkt.word_en);
@@ -1022,7 +1021,7 @@ static u8 efuse_word_enable_data_write(struct ieee80211_hw *hw,
 	u8 badworden = 0x0F;
 	u8 tmpdata[8];
 
-	memset((void *)tmpdata, PGPKT_DATA_SIZE, 0xff);
+	memset(tmpdata, 0xff, PGPKT_DATA_SIZE);
 	RT_TRACE(rtlpriv, COMP_EFUSE, DBG_LOUD,
 		 ("word_en = %x efuse_addr=%x\n", word_en, efuse_addr));
 
@@ -1169,21 +1168,3 @@ static u8 efuse_calculate_word_cnts(u8 word_en)
 	return word_cnts;
 }
 
-void efuse_reset_loader(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u16 tmp_u2b;
-
-	tmp_u2b = rtl_read_word(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN]);
-	rtl_write_word(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN],
-		       (tmp_u2b & ~(BIT(12))));
-	udelay(10000);
-	rtl_write_word(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN],
-		       (tmp_u2b | BIT(12)));
-	udelay(10000);
-}
-
-bool efuse_program_map(struct ieee80211_hw *hw, char *p_filename, u8 tabletype)
-{
-	return true;
-}

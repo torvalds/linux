@@ -29,6 +29,7 @@
 #include <linux/io.h>
 #include <linux/input.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 
 #include <plat/omap4-keypad.h>
 
@@ -80,20 +81,6 @@ struct omap4_keypad {
 	unsigned short keymap[];
 };
 
-static void __devinit omap4_keypad_config(struct omap4_keypad *keypad_data)
-{
-	__raw_writel(OMAP4_VAL_FUNCTIONALCFG,
-			keypad_data->base + OMAP4_KBD_CTRL);
-	__raw_writel(OMAP4_VAL_DEBOUNCINGTIME,
-			keypad_data->base + OMAP4_KBD_DEBOUNCINGTIME);
-	__raw_writel(OMAP4_VAL_IRQDISABLE,
-			keypad_data->base + OMAP4_KBD_IRQSTATUS);
-	__raw_writel(OMAP4_DEF_IRQENABLE_EVENTEN | OMAP4_DEF_IRQENABLE_LONGKEY,
-			keypad_data->base + OMAP4_KBD_IRQENABLE);
-	__raw_writel(OMAP4_DEF_WUP_EVENT_ENA | OMAP4_DEF_WUP_LONG_KEY_ENA,
-			keypad_data->base + OMAP4_KBD_WAKEUPENABLE);
-}
-
 /* Interrupt handler */
 static irqreturn_t omap4_keypad_interrupt(int irq, void *dev_id)
 {
@@ -142,6 +129,49 @@ static irqreturn_t omap4_keypad_interrupt(int irq, void *dev_id)
 			keypad_data->base + OMAP4_KBD_IRQENABLE);
 
 	return IRQ_HANDLED;
+}
+
+static int omap4_keypad_open(struct input_dev *input)
+{
+	struct omap4_keypad *keypad_data = input_get_drvdata(input);
+
+	pm_runtime_get_sync(input->dev.parent);
+
+	disable_irq(keypad_data->irq);
+
+	__raw_writel(OMAP4_VAL_FUNCTIONALCFG,
+			keypad_data->base + OMAP4_KBD_CTRL);
+	__raw_writel(OMAP4_VAL_DEBOUNCINGTIME,
+			keypad_data->base + OMAP4_KBD_DEBOUNCINGTIME);
+	__raw_writel(OMAP4_VAL_IRQDISABLE,
+			keypad_data->base + OMAP4_KBD_IRQSTATUS);
+	__raw_writel(OMAP4_DEF_IRQENABLE_EVENTEN | OMAP4_DEF_IRQENABLE_LONGKEY,
+			keypad_data->base + OMAP4_KBD_IRQENABLE);
+	__raw_writel(OMAP4_DEF_WUP_EVENT_ENA | OMAP4_DEF_WUP_LONG_KEY_ENA,
+			keypad_data->base + OMAP4_KBD_WAKEUPENABLE);
+
+	enable_irq(keypad_data->irq);
+
+	return 0;
+}
+
+static void omap4_keypad_close(struct input_dev *input)
+{
+	struct omap4_keypad *keypad_data = input_get_drvdata(input);
+
+	disable_irq(keypad_data->irq);
+
+	/* Disable interrupts */
+	__raw_writel(OMAP4_VAL_IRQDISABLE,
+		     keypad_data->base + OMAP4_KBD_IRQENABLE);
+
+	/* clear pending interrupts */
+	__raw_writel(__raw_readl(keypad_data->base + OMAP4_KBD_IRQSTATUS),
+			keypad_data->base + OMAP4_KBD_IRQSTATUS);
+
+	enable_irq(keypad_data->irq);
+
+	pm_runtime_put_sync(input->dev.parent);
 }
 
 static int __devinit omap4_keypad_probe(struct platform_device *pdev)
@@ -225,6 +255,9 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0001;
 
+	input_dev->open = omap4_keypad_open;
+	input_dev->close = omap4_keypad_close;
+
 	input_dev->keycode	= keypad_data->keymap;
 	input_dev->keycodesize	= sizeof(keypad_data->keymap[0]);
 	input_dev->keycodemax	= max_keys;
@@ -239,8 +272,6 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 	matrix_keypad_build_keymap(pdata->keymap_data, row_shift,
 			input_dev->keycode, input_dev->keybit);
 
-	omap4_keypad_config(keypad_data);
-
 	error = request_irq(keypad_data->irq, omap4_keypad_interrupt,
 			     IRQF_TRIGGER_RISING,
 			     "omap4-keypad", keypad_data);
@@ -249,17 +280,19 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 		goto err_free_input;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+
 	error = input_register_device(keypad_data->input);
 	if (error < 0) {
 		dev_err(&pdev->dev, "failed to register input device\n");
-		goto err_free_irq;
+		goto err_pm_disable;
 	}
-
 
 	platform_set_drvdata(pdev, keypad_data);
 	return 0;
 
-err_free_irq:
+err_pm_disable:
+	pm_runtime_disable(&pdev->dev);
 	free_irq(keypad_data->irq, keypad_data);
 err_free_input:
 	input_free_device(input_dev);
@@ -278,6 +311,9 @@ static int __devexit omap4_keypad_remove(struct platform_device *pdev)
 	struct resource *res;
 
 	free_irq(keypad_data->irq, keypad_data);
+
+	pm_runtime_disable(&pdev->dev);
+
 	input_unregister_device(keypad_data->input);
 
 	iounmap(keypad_data->base);

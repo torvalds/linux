@@ -1364,6 +1364,8 @@ EXPORT_SYMBOL(v4l2_queryctrl);
 
 int v4l2_subdev_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 {
+	if (qc->id & V4L2_CTRL_FLAG_NEXT_CTRL)
+		return -EINVAL;
 	return v4l2_queryctrl(sd->ctrl_handler, qc);
 }
 EXPORT_SYMBOL(v4l2_subdev_queryctrl);

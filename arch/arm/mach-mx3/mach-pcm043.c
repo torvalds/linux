@@ -40,6 +40,7 @@
 #include <mach/mx3fb.h>
 #include <mach/ulpi.h>
 #include <mach/audmux.h>
+#include <mach/esdhc.h>
 
 #include "devices-imx35.h"
 #include "devices.h"
@@ -115,7 +116,6 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-#if defined CONFIG_I2C_IMX || defined CONFIG_I2C_IMX_MODULE
 static const struct imxi2c_platform_data pcm043_i2c0_data __initconst = {
 	.bitrate = 50000,
 };
@@ -134,7 +134,6 @@ static struct i2c_board_info pcm043_i2c_devices[] = {
 		I2C_BOARD_INFO("pcf8563", 0x51),
 	}
 };
-#endif
 
 static struct platform_device *devices[] __initdata = {
 	&pcm043_flash,
@@ -219,11 +218,15 @@ static iomux_v3_cfg_t pcm043_pads[] = {
 	MX35_PAD_SD1_DATA1__ESDHC1_DAT1,
 	MX35_PAD_SD1_DATA2__ESDHC1_DAT2,
 	MX35_PAD_SD1_DATA3__ESDHC1_DAT3,
+	MX35_PAD_ATA_DATA10__GPIO2_23, /* WriteProtect */
+	MX35_PAD_ATA_DATA11__GPIO2_24, /* CardDetect */
 };
 
-#define AC97_GPIO_TXFS	(1 * 32 + 31)
-#define AC97_GPIO_TXD	(1 * 32 + 28)
-#define AC97_GPIO_RESET	(1 * 32 + 0)
+#define AC97_GPIO_TXFS	IMX_GPIO_NR(2, 31)
+#define AC97_GPIO_TXD	IMX_GPIO_NR(2, 28)
+#define AC97_GPIO_RESET	IMX_GPIO_NR(2, 0)
+#define SD1_GPIO_WP	IMX_GPIO_NR(2, 23)
+#define SD1_GPIO_CD	IMX_GPIO_NR(2, 24)
 
 static void pcm043_ac97_warm_reset(struct snd_ac97 *ac97)
 {
@@ -307,18 +310,26 @@ pcm037_nand_board_info __initconst = {
 	.hw_ecc = 1,
 };
 
-#if defined(CONFIG_USB_ULPI)
+static int pcm043_otg_init(struct platform_device *pdev)
+{
+	return mx35_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_DIFF_UNI);
+}
+
 static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.init	= pcm043_otg_init,
 	.portsc	= MXC_EHCI_MODE_UTMI,
-	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
+static int pcm043_usbh1_init(struct platform_device *pdev)
+{
+	return mx35_initialize_usb_hw(pdev->id, MXC_EHCI_INTERFACE_SINGLE_UNI |
+			MXC_EHCI_INTERNAL_PHY | MXC_EHCI_IPPUE_DOWN);
+}
+
 static const struct mxc_usbh_platform_data usbh1_pdata __initconst = {
+	.init	= pcm043_usbh1_init,
 	.portsc	= MXC_EHCI_MODE_SERIAL,
-	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
-		  MXC_EHCI_IPPUE_DOWN,
 };
-#endif
 
 static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
@@ -340,10 +351,15 @@ static int __init pcm043_otg_mode(char *options)
 }
 __setup("otg_mode=", pcm043_otg_mode);
 
+static struct esdhc_platform_data sd1_pdata = {
+	.wp_gpio = SD1_GPIO_WP,
+	.cd_gpio = SD1_GPIO_CD,
+};
+
 /*
  * Board specific initialization.
  */
-static void __init mxc_board_init(void)
+static void __init pcm043_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(pcm043_pads, ARRAY_SIZE(pcm043_pads));
 
@@ -369,31 +385,27 @@ static void __init mxc_board_init(void)
 
 	imx35_add_imx_uart1(&uart_pdata);
 
-#if defined CONFIG_I2C_IMX || defined CONFIG_I2C_IMX_MODULE
 	i2c_register_board_info(0, pcm043_i2c_devices,
 			ARRAY_SIZE(pcm043_i2c_devices));
 
 	imx35_add_imx_i2c0(&pcm043_i2c0_data);
-#endif
 
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);
 
-#if defined(CONFIG_USB_ULPI)
 	if (otg_mode_host) {
-		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
-
-		imx35_add_mxc_ehci_otg(&otg_pdata);
+		otg_pdata.otg = imx_otg_ulpi_create(ULPI_OTG_DRVVBUS |
+				ULPI_OTG_DRVVBUS_EXT);
+		if (otg_pdata.otg)
+			imx35_add_mxc_ehci_otg(&otg_pdata);
 	}
-
 	imx35_add_mxc_ehci_hs(&usbh1_pdata);
-#endif
+
 	if (!otg_mode_host)
 		imx35_add_fsl_usb2_udc(&otg_device_pdata);
 
 	imx35_add_flexcan1(NULL);
-	imx35_add_sdhci_esdhc_imx(0, NULL);
+	imx35_add_sdhci_esdhc_imx(0, &sd1_pdata);
 }
 
 static void __init pcm043_timer_init(void)
@@ -407,10 +419,10 @@ struct sys_timer pcm043_timer = {
 
 MACHINE_START(PCM043, "Phytec Phycore pcm043")
 	/* Maintainer: Pengutronix */
-	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
-	.map_io         = mx35_map_io,
-	.init_irq       = mx35_init_irq,
-	.init_machine   = mxc_board_init,
-	.timer          = &pcm043_timer,
+	.boot_params = MX3x_PHYS_OFFSET + 0x100,
+	.map_io = mx35_map_io,
+	.init_early = imx35_init_early,
+	.init_irq = mx35_init_irq,
+	.timer = &pcm043_timer,
+	.init_machine = pcm043_init,
 MACHINE_END
-

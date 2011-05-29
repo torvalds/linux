@@ -21,6 +21,7 @@
 
 #ifndef _TUNER_H
 #define _TUNER_H
+#ifdef __KERNEL__
 
 #include <linux/videodev2.h>
 
@@ -131,6 +132,7 @@
 #define TUNER_NXP_TDA18271		83
 #define TUNER_SONY_BTF_PXN01Z		84
 #define TUNER_PHILIPS_FQ1236_MK5	85	/* NTSC, TDA9885, no FM radio */
+#define TUNER_TENA_TNF_5337		86
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
@@ -156,14 +158,10 @@
 #define TDA9887_GAIN_NORMAL		(1<<20)
 #define TDA9887_RIF_41_3		(1<<21)  /* radio IF1 41.3 vs 33.3 */
 
-#ifdef __KERNEL__
-
 enum tuner_mode {
-	T_UNINITIALIZED = 0,
 	T_RADIO		= 1 << V4L2_TUNER_RADIO,
 	T_ANALOG_TV     = 1 << V4L2_TUNER_ANALOG_TV,
-	T_DIGITAL_TV    = 1 << V4L2_TUNER_DIGITAL_TV,
-	T_STANDBY	= 1 << 31
+	/* Don't need to map V4L2_TUNER_DIGITAL_TV, as tuner-core won't use it */
 };
 
 /* Older boards only had a single tuner device. Nowadays multiple tuner
@@ -193,11 +191,3 @@ struct tuner_setup {
 #endif /* __KERNEL__ */
 
 #endif /* _TUNER_H */
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

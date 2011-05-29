@@ -110,6 +110,7 @@ static int pn_socket_create(struct net *net, struct socket *sock, int protocol,
 	sk->sk_protocol = protocol;
 	pn = pn_sk(sk);
 	pn->sobject = 0;
+	pn->dobject = 0;
 	pn->resource = 0;
 	sk->sk_prot->init(sk);
 	err = 0;
@@ -194,11 +195,7 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 	if (skb->pkt_type == PACKET_LOOPBACK) {
 		skb_reset_mac_header(skb);
 		skb_orphan(skb);
-		if (irq)
-			netif_rx(skb);
-		else
-			netif_rx_ni(skb);
-		err = 0;
+		err = (irq ? netif_rx(skb) : netif_rx_ni(skb)) ? -ENOBUFS : 0;
 	} else {
 		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
 					NULL, NULL, skb->len);
@@ -207,6 +204,8 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 			goto drop;
 		}
 		err = dev_queue_xmit(skb);
+		if (unlikely(err > 0))
+			err = net_xmit_errno(err);
 	}
 
 	return err;
@@ -242,8 +241,18 @@ int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 	struct net_device *dev;
 	struct pn_sock *pn = pn_sk(sk);
 	int err;
-	u16 src;
-	u8 daddr = pn_sockaddr_get_addr(target), saddr = PN_NO_ADDR;
+	u16 src, dst;
+	u8 daddr, saddr, res;
+
+	src = pn->sobject;
+	if (target != NULL) {
+		dst = pn_sockaddr_get_object(target);
+		res = pn_sockaddr_get_resource(target);
+	} else {
+		dst = pn->dobject;
+		res = pn->resource;
+	}
+	daddr = pn_addr(dst);
 
 	err = -EHOSTUNREACH;
 	if (sk->sk_bound_dev_if)
@@ -251,10 +260,9 @@ int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 	else if (phonet_address_lookup(net, daddr) == 0) {
 		dev = phonet_device_get(net);
 		skb->pkt_type = PACKET_LOOPBACK;
-	} else if (pn_sockaddr_get_object(target) == 0) {
+	} else if (dst == 0) {
 		/* Resource routing (small race until phonet_rcv()) */
-		struct sock *sk = pn_find_sock_by_res(net,
-							target->spn_resource);
+		struct sock *sk = pn_find_sock_by_res(net, res);
 		if (sk)	{
 			sock_put(sk);
 			dev = phonet_device_get(net);
@@ -271,12 +279,10 @@ int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 	if (saddr == PN_NO_ADDR)
 		goto drop;
 
-	src = pn->sobject;
 	if (!pn_addr(src))
 		src = pn_object(saddr, pn_obj(src));
 
-	err = pn_send(skb, dev, pn_sockaddr_get_object(target),
-			src, pn_sockaddr_get_resource(target), 0);
+	err = pn_send(skb, dev, dst, src, res, 0);
 	dev_put(dev);
 	return err;
 

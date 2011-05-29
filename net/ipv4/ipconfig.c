@@ -1444,7 +1444,7 @@ static int __init ip_auto_config(void)
 		root_server_addr = addr;
 
 	/*
-	 * Use defaults whereever applicable.
+	 * Use defaults wherever applicable.
 	 */
 	if (ic_defaults() < 0)
 		return -1;

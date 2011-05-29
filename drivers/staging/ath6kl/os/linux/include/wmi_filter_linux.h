@@ -41,7 +41,7 @@
  * (0xFF) - Allow this cmd always irrespective of mode
  */
 
-A_UINT8 sioctl_filter[] = {
+u8 sioctl_filter[] = {
 (AP_NETWORK),                                   /* SIOCSIWCOMMIT   0x8B00   */
 (0xFF),                                         /* SIOCGIWNAME     0x8B01   */
 (0),                                            /* SIOCSIWNWID     0x8B02   */
@@ -96,7 +96,7 @@ A_UINT8 sioctl_filter[] = {
 
 
 
-A_UINT8 pioctl_filter[] = {
+u8 pioctl_filter[] = {
 (INFRA_NETWORK | ADHOC_NETWORK | AP_NETWORK),   /* IEEE80211_IOCTL_SETPARAM             (SIOCIWFIRSTPRIV+0)     */
 (INFRA_NETWORK | ADHOC_NETWORK | AP_NETWORK),   /* IEEE80211_IOCTL_SETKEY               (SIOCIWFIRSTPRIV+1)     */
 (INFRA_NETWORK | ADHOC_NETWORK | AP_NETWORK),   /* IEEE80211_IOCTL_DELKEY               (SIOCIWFIRSTPRIV+2)     */
@@ -132,7 +132,7 @@ A_UINT8 pioctl_filter[] = {
 
 
 
-A_UINT8 xioctl_filter[] = {
+u8 xioctl_filter[] = {
 (0xFF),                                         /* Dummy                                           0    */
 (0xFF),                                         /* AR6000_XIOCTL_BMI_DONE                          1    */
 (0xFF),                                         /* AR6000_XIOCTL_BMI_READ_MEMORY                   2    */
@@ -288,6 +288,13 @@ A_UINT8 xioctl_filter[] = {
 (0xFF),                                         /* AR6000_XIOCTL_ADD_AP_INTERFACE                  152  */
 (0xFF),                                         /* AR6000_XIOCTL_REMOVE_AP_INTERFACE               153  */
 (0xFF),                                         /* AR6000_XIOCTL_WMI_SET_TX_SGI_PARAM              154  */
+(INFRA_NETWORK | ADHOC_NETWORK),                /* AR6000_XIOCTL_WMI_SET_WPA_OFFLOAD_STATE         155  */
+(INFRA_NETWORK | ADHOC_NETWORK),                /* AR6000_XIOCTL_WMI_SET_PASSPHRASE                156  */
+(0xFF),
+(0xFF),
+(0xFF),
+(0xFF),
+(INFRA_NETWORK | ADHOC_NETWORK),                /* AR6000_XIOCTL_WMI_SET_EXCESS_TX_RETRY_THRES     161  */
 };
 
 #endif /*_WMI_FILTER_LINUX_H_*/

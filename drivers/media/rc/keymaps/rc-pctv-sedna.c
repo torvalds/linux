@@ -36,7 +36,7 @@ static struct rc_map_table pctv_sedna[] = {
 	{ 0x0e, KEY_STOP },
 	{ 0x0f, KEY_PREVIOUSSONG },
 	{ 0x10, KEY_ZOOM },
-	{ 0x11, KEY_TUNER },	/* Source */
+	{ 0x11, KEY_VIDEO },	/* Source */
 	{ 0x12, KEY_POWER },
 	{ 0x13, KEY_MUTE },
 	{ 0x15, KEY_CHANNELDOWN },

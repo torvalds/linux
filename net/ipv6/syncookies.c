@@ -232,23 +232,20 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	 */
 	{
 		struct in6_addr *final_p, final;
-		struct flowi fl;
-		memset(&fl, 0, sizeof(fl));
-		fl.proto = IPPROTO_TCP;
-		ipv6_addr_copy(&fl.fl6_dst, &ireq6->rmt_addr);
-		final_p = fl6_update_dst(&fl, np->opt, &final);
-		ipv6_addr_copy(&fl.fl6_src, &ireq6->loc_addr);
-		fl.oif = sk->sk_bound_dev_if;
-		fl.mark = sk->sk_mark;
-		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
-		fl.fl_ip_sport = inet_sk(sk)->inet_sport;
-		security_req_classify_flow(req, &fl);
-		if (ip6_dst_lookup(sk, &dst, &fl))
-			goto out_free;
+		struct flowi6 fl6;
+		memset(&fl6, 0, sizeof(fl6));
+		fl6.flowi6_proto = IPPROTO_TCP;
+		ipv6_addr_copy(&fl6.daddr, &ireq6->rmt_addr);
+		final_p = fl6_update_dst(&fl6, np->opt, &final);
+		ipv6_addr_copy(&fl6.saddr, &ireq6->loc_addr);
+		fl6.flowi6_oif = sk->sk_bound_dev_if;
+		fl6.flowi6_mark = sk->sk_mark;
+		fl6.fl6_dport = inet_rsk(req)->rmt_port;
+		fl6.fl6_sport = inet_sk(sk)->inet_sport;
+		security_req_classify_flow(req, flowi6_to_flowi(&fl6));
 
-		if (final_p)
-			ipv6_addr_copy(&fl.fl6_dst, final_p);
-		if ((xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0)
+		dst = ip6_dst_lookup_flow(sk, &fl6, final_p, false);
+		if (IS_ERR(dst))
 			goto out_free;
 	}
 

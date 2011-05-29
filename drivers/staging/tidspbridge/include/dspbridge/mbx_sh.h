@@ -110,13 +110,7 @@
 #ifndef _MBX_SH_H
 #define _MBX_SH_H
 
-#define MBX_CLASS_MSK      0xFC00	/* Class bits are 10 thru 15 */
-#define MBX_VALUE_MSK      0x03FF	/* Value is 0 thru 9 */
-
-#define MBX_DEH_CLASS      0x0000	/* DEH owns Mbx INTR */
-#define MBX_DDMA_CLASS     0x0400	/* DSP-DMA link drvr chnls owns INTR */
 #define MBX_PCPY_CLASS     0x0800	/* PROC-COPY  " */
-#define MBX_ZCPY_CLASS     0x1000	/* ZERO-COPY  " */
 #define MBX_PM_CLASS       0x2000	/* Power Management */
 #define MBX_DBG_CLASS      0x4000	/* For debugging purpose */
 
@@ -128,55 +122,21 @@
 #define MBX_DEH_USERS_BASE  0x100	/* 256 */
 #define MBX_DEH_LIMIT       0x3FF	/* 1023 */
 #define MBX_DEH_RESET       0x101	/* DSP RESET (DEH) */
-#define MBX_DEH_EMMU        0X103	/*DSP MMU FAULT RECOVERY */
 
 /*
  *  Link driver command/status codes.
  */
-/* DSP-DMA */
-#define MBX_DDMA_NUMCHNLBITS 5	/* # chnl Id: # bits available */
-#define MBX_DDMA_CHNLSHIFT   0	/* # of bits to shift */
-#define MBX_DDMA_CHNLMSK     0x01F	/* bits 0 thru 4 */
-
-#define MBX_DDMA_NUMBUFBITS  5	/* buffer index: # of bits avail */
-#define MBX_DDMA_BUFSHIFT    (MBX_DDMA_NUMCHNLBITS + MBX_DDMA_CHNLSHIFT)
-#define MBX_DDMA_BUFMSK      0x3E0	/* bits 5 thru 9 */
-
-/* Zero-Copy */
-#define MBX_ZCPY_NUMCHNLBITS 5	/* # chnl Id: # bits available */
-#define MBX_ZCPY_CHNLSHIFT   0	/* # of bits to shift */
-#define MBX_ZCPY_CHNLMSK     0x01F	/* bits 0 thru 4 */
 
 /*  Power Management Commands */
 #define MBX_PM_DSPIDLE                  (MBX_PM_CLASS + 0x0)
 #define MBX_PM_DSPWAKEUP                (MBX_PM_CLASS + 0x1)
 #define MBX_PM_EMERGENCYSLEEP           (MBX_PM_CLASS + 0x2)
-#define MBX_PM_SLEEPUNTILRESTART        (MBX_PM_CLASS + 0x3)
-#define MBX_PM_DSPGLOBALIDLE_OFF        (MBX_PM_CLASS + 0x4)
-#define MBX_PM_DSPGLOBALIDLE_ON         (MBX_PM_CLASS + 0x5)
 #define MBX_PM_SETPOINT_PRENOTIFY       (MBX_PM_CLASS + 0x6)
 #define MBX_PM_SETPOINT_POSTNOTIFY      (MBX_PM_CLASS + 0x7)
-#define MBX_PM_DSPRETN                  (MBX_PM_CLASS + 0x8)
 #define MBX_PM_DSPRETENTION        (MBX_PM_CLASS + 0x8)
 #define MBX_PM_DSPHIBERNATE        (MBX_PM_CLASS + 0x9)
 #define MBX_PM_HIBERNATE_EN        (MBX_PM_CLASS + 0xA)
 #define MBX_PM_OPP_REQ                  (MBX_PM_CLASS + 0xB)
-#define MBX_PM_OPP_CHG                  (MBX_PM_CLASS + 0xC)
-
-#define MBX_PM_TYPE_MASK 0x0300
-#define MBX_PM_TYPE_PWR_CHNG 0x0100
-#define MBX_PM_TYPE_OPP_PRECHNG 0x0200
-#define MBX_PM_TYPE_OPP_POSTCHNG 0x0300
-#define MBX_PM_TYPE_OPP_MASK 0x0300
-#define MBX_PM_OPP_PRECHNG (MBX_PM_CLASS | MBX_PM_TYPE_OPP_PRECHNG)
-/* DSP to MPU */
-#define MBX_PM_OPP_CHNG(OPP) (MBX_PM_CLASS | MBX_PM_TYPE_OPP_PRECHNG | (OPP))
-#define MBX_PM_RET (MBX_PM_CLASS | MBX_PM_TYPE_PWR_CHNG | 0x0006)
-#define MBX_PM_HIB (MBX_PM_CLASS | MBX_PM_TYPE_PWR_CHNG | 0x0002)
-#define MBX_PM_OPP1 0
-#define MBX_PM_OPP2 1
-#define MBX_PM_OPP3 2
-#define MBX_PM_OPP4 3
 
 /* Bridge Debug Commands */
 #define MBX_DBG_SYSPRINTF       (MBX_DBG_CLASS + 0x0)

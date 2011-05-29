@@ -174,7 +174,7 @@
  Future Domain sold DOS BIOS source for $250 and the UN*X driver source was
  $750, but these required a non-disclosure agreement, so even if I could
  have afforded them, they would *not* have been useful for writing this
- publically distributable driver.  Future Domain technical support has
+ publicly distributable driver.  Future Domain technical support has
  provided some information on the phone and have sent a few useful FAXs.
  They have been much more helpful since they started to recognize that the
  word "Linux" refers to an operating system :-).

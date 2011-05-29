@@ -1055,28 +1055,23 @@ xfs_difree(
 	 */
 	agno = XFS_INO_TO_AGNO(mp, inode);
 	if (agno >= mp->m_sb.sb_agcount)  {
-		cmn_err(CE_WARN,
-			"xfs_difree: agno >= mp->m_sb.sb_agcount (%d >= %d) on %s.  Returning EINVAL.",
-			agno, mp->m_sb.sb_agcount, mp->m_fsname);
+		xfs_warn(mp, "%s: agno >= mp->m_sb.sb_agcount (%d >= %d).",
+			__func__, agno, mp->m_sb.sb_agcount);
 		ASSERT(0);
 		return XFS_ERROR(EINVAL);
 	}
 	agino = XFS_INO_TO_AGINO(mp, inode);
 	if (inode != XFS_AGINO_TO_INO(mp, agno, agino))  {
-		cmn_err(CE_WARN,
-			"xfs_difree: inode != XFS_AGINO_TO_INO() "
-			"(%llu != %llu) on %s.  Returning EINVAL.",
-			(unsigned long long)inode,
-			(unsigned long long)XFS_AGINO_TO_INO(mp, agno, agino),
-			mp->m_fsname);
+		xfs_warn(mp, "%s: inode != XFS_AGINO_TO_INO() (%llu != %llu).",
+			__func__, (unsigned long long)inode,
+			(unsigned long long)XFS_AGINO_TO_INO(mp, agno, agino));
 		ASSERT(0);
 		return XFS_ERROR(EINVAL);
 	}
 	agbno = XFS_AGINO_TO_AGBNO(mp, agino);
 	if (agbno >= mp->m_sb.sb_agblocks)  {
-		cmn_err(CE_WARN,
-			"xfs_difree: agbno >= mp->m_sb.sb_agblocks (%d >= %d) on %s.  Returning EINVAL.",
-			agbno, mp->m_sb.sb_agblocks, mp->m_fsname);
+		xfs_warn(mp, "%s: agbno >= mp->m_sb.sb_agblocks (%d >= %d).",
+			__func__, agbno, mp->m_sb.sb_agblocks);
 		ASSERT(0);
 		return XFS_ERROR(EINVAL);
 	}
@@ -1085,9 +1080,8 @@ xfs_difree(
 	 */
 	error = xfs_ialloc_read_agi(mp, tp, agno, &agbp);
 	if (error) {
-		cmn_err(CE_WARN,
-			"xfs_difree: xfs_ialloc_read_agi() returned an error %d on %s.  Returning error.",
-			error, mp->m_fsname);
+		xfs_warn(mp, "%s: xfs_ialloc_read_agi() returned error %d.",
+			__func__, error);
 		return error;
 	}
 	agi = XFS_BUF_TO_AGI(agbp);
@@ -1106,17 +1100,15 @@ xfs_difree(
 	 * Look for the entry describing this inode.
 	 */
 	if ((error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE, &i))) {
-		cmn_err(CE_WARN,
-			"xfs_difree: xfs_inobt_lookup returned()  an error %d on %s.  Returning error.",
-			error, mp->m_fsname);
+		xfs_warn(mp, "%s: xfs_inobt_lookup() returned error %d.",
+			__func__, error);
 		goto error0;
 	}
 	XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 	error = xfs_inobt_get_rec(cur, &rec, &i);
 	if (error) {
-		cmn_err(CE_WARN,
-			"xfs_difree: xfs_inobt_get_rec()  returned an error %d on %s.  Returning error.",
-			error, mp->m_fsname);
+		xfs_warn(mp, "%s: xfs_inobt_get_rec() returned error %d.",
+			__func__, error);
 		goto error0;
 	}
 	XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
@@ -1157,8 +1149,8 @@ xfs_difree(
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_IFREE, -(ilen - 1));
 
 		if ((error = xfs_btree_delete(cur, &i))) {
-			cmn_err(CE_WARN, "xfs_difree: xfs_btree_delete returned an error %d on %s.\n",
-				error, mp->m_fsname);
+			xfs_warn(mp, "%s: xfs_btree_delete returned error %d.",
+				__func__, error);
 			goto error0;
 		}
 
@@ -1170,9 +1162,8 @@ xfs_difree(
 
 		error = xfs_inobt_update(cur, &rec);
 		if (error) {
-			cmn_err(CE_WARN,
-	"xfs_difree: xfs_inobt_update returned an error %d on %s.",
-				error, mp->m_fsname);
+			xfs_warn(mp, "%s: xfs_inobt_update returned error %d.",
+				__func__, error);
 			goto error0;
 		}
 
@@ -1218,10 +1209,9 @@ xfs_imap_lookup(
 
 	error = xfs_ialloc_read_agi(mp, tp, agno, &agbp);
 	if (error) {
-		xfs_fs_cmn_err(CE_ALERT, mp, "xfs_imap: "
-				"xfs_ialloc_read_agi() returned "
-				"error %d, agno %d",
-				error, agno);
+		xfs_alert(mp,
+			"%s: xfs_ialloc_read_agi() returned error %d, agno %d",
+			__func__, error, agno);
 		return error;
 	}
 
@@ -1299,24 +1289,21 @@ xfs_imap(
 		if (flags & XFS_IGET_UNTRUSTED)
 			return XFS_ERROR(EINVAL);
 		if (agno >= mp->m_sb.sb_agcount) {
-			xfs_fs_cmn_err(CE_ALERT, mp,
-					"xfs_imap: agno (%d) >= "
-					"mp->m_sb.sb_agcount (%d)",
-					agno,  mp->m_sb.sb_agcount);
+			xfs_alert(mp,
+				"%s: agno (%d) >= mp->m_sb.sb_agcount (%d)",
+				__func__, agno, mp->m_sb.sb_agcount);
 		}
 		if (agbno >= mp->m_sb.sb_agblocks) {
-			xfs_fs_cmn_err(CE_ALERT, mp,
-					"xfs_imap: agbno (0x%llx) >= "
-					"mp->m_sb.sb_agblocks (0x%lx)",
-					(unsigned long long) agbno,
-					(unsigned long) mp->m_sb.sb_agblocks);
+			xfs_alert(mp,
+		"%s: agbno (0x%llx) >= mp->m_sb.sb_agblocks (0x%lx)",
+				__func__, (unsigned long long)agbno,
+				(unsigned long)mp->m_sb.sb_agblocks);
 		}
 		if (ino != XFS_AGINO_TO_INO(mp, agno, agino)) {
-			xfs_fs_cmn_err(CE_ALERT, mp,
-					"xfs_imap: ino (0x%llx) != "
-					"XFS_AGINO_TO_INO(mp, agno, agino) "
-					"(0x%llx)",
-					ino, XFS_AGINO_TO_INO(mp, agno, agino));
+			xfs_alert(mp,
+		"%s: ino (0x%llx) != XFS_AGINO_TO_INO() (0x%llx)",
+				__func__, ino,
+				XFS_AGINO_TO_INO(mp, agno, agino));
 		}
 		xfs_stack_trace();
 #endif /* DEBUG */
@@ -1388,10 +1375,9 @@ out_map:
 	 */
 	if ((imap->im_blkno + imap->im_len) >
 	    XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks)) {
-		xfs_fs_cmn_err(CE_ALERT, mp, "xfs_imap: "
-			"(imap->im_blkno (0x%llx) + imap->im_len (0x%llx)) > "
-			" XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks) (0x%llx)",
-			(unsigned long long) imap->im_blkno,
+		xfs_alert(mp,
+	"%s: (im_blkno (0x%llx) + im_len (0x%llx)) > sb_dblocks (0x%llx)",
+			__func__, (unsigned long long) imap->im_blkno,
 			(unsigned long long) imap->im_len,
 			XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks));
 		return XFS_ERROR(EINVAL);

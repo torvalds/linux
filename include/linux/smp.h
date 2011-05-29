@@ -10,6 +10,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/cpumask.h>
+#include <linux/init.h>
 
 extern void cpu_idle(void);
 
@@ -114,6 +115,8 @@ int on_each_cpu(smp_call_func_t func, void *info, int wait);
 void smp_prepare_boot_cpu(void);
 
 extern unsigned int setup_max_cpus;
+extern void __init setup_nr_cpu_ids(void);
+extern void __init smp_init(void);
 
 #else /* !SMP */
 

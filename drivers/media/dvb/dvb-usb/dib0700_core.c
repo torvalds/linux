@@ -186,7 +186,7 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 						 msg[i].len,
 						 USB_CTRL_GET_TIMEOUT);
 			if (result < 0) {
-				err("i2c read error (status = %d)\n", result);
+				deb_info("i2c read error (status = %d)\n", result);
 				break;
 			}
 
@@ -215,7 +215,7 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 						 0, 0, buf, msg[i].len + 4,
 						 USB_CTRL_GET_TIMEOUT);
 			if (result < 0) {
-				err("i2c write error (status = %d)\n", result);
+				deb_info("i2c write error (status = %d)\n", result);
 				break;
 			}
 		}
@@ -327,6 +327,31 @@ static int dib0700_set_clock(struct dvb_usb_device *d, u8 en_pll,
 
 	return dib0700_ctrl_wr(d, b, 10);
 }
+
+int dib0700_set_i2c_speed(struct dvb_usb_device *d, u16 scl_kHz)
+{
+	u16 divider;
+	u8 b[8];
+
+	if (scl_kHz == 0)
+		return -EINVAL;
+
+	b[0] = REQUEST_SET_I2C_PARAM;
+	divider = (u16) (30000 / scl_kHz);
+	b[2] = (u8) (divider >> 8);
+	b[3] = (u8) (divider & 0xff);
+	divider = (u16) (72000 / scl_kHz);
+	b[4] = (u8) (divider >> 8);
+	b[5] = (u8) (divider & 0xff);
+	divider = (u16) (72000 / scl_kHz); /* clock: 72MHz */
+	b[6] = (u8) (divider >> 8);
+	b[7] = (u8) (divider & 0xff);
+
+	deb_info("setting I2C speed: %04x %04x %04x (%d kHz).",
+		(b[2] << 8) | (b[3]), (b[4] << 8) | b[5], (b[6] << 8) | b[7], scl_kHz);
+	return dib0700_ctrl_wr(d, b, 8);
+}
+
 
 int dib0700_ctrl_clock(struct dvb_usb_device *d, u32 clk_MHz, u8 clock_out_gp3)
 {
@@ -459,10 +484,20 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	deb_info("modifying (%d) streaming state for %d\n", onoff, adap->id);
 
-	if (onoff)
-		st->channel_state |=   1 << adap->id;
-	else
-		st->channel_state &= ~(1 << adap->id);
+	st->channel_state &= ~0x3;
+	if ((adap->stream.props.endpoint != 2)
+			&& (adap->stream.props.endpoint != 3)) {
+		deb_info("the endpoint number (%i) is not correct, use the adapter id instead", adap->stream.props.endpoint);
+		if (onoff)
+			st->channel_state |=	1 << (adap->id);
+		else
+			st->channel_state |=	1 << ~(adap->id);
+	} else {
+		if (onoff)
+			st->channel_state |=	1 << (adap->stream.props.endpoint-2);
+		else
+			st->channel_state |=	1 << (3-adap->stream.props.endpoint);
+	}
 
 	b[2] |= st->channel_state;
 

@@ -1,0 +1,16 @@
+config RTS_PSTOR
+	tristate "RealTek PCI-E Card Reader support"
+	depends on PCI && SCSI
+	help
+	  Say Y here to include driver code to support the Realtek
+	  PCI-E card readers.
+
+	  If this driver is compiled as a module, it will be named rts_pstor.
+
+config RTS_PSTOR_DEBUG
+	bool "Realtek PCI-E Card Reader verbose debug"
+	depends on RTS_PSTOR
+	help
+	  Say Y here in order to have the rts_pstor code generate
+	  verbose debugging messages.
+

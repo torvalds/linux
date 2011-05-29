@@ -596,7 +596,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 /*	server->priv.data = NULL;		*/
 
 	server->m = data;
-	/* Althought anything producing this is buggy, it happens
+	/* Although anything producing this is buggy, it happens
 	   now because of PATH_MAX changes.. */
 	if (server->m.time_out < 1) {
 		server->m.time_out = 10;

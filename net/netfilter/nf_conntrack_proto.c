@@ -166,6 +166,7 @@ static void nf_ct_l3proto_unregister_sysctl(struct nf_conntrack_l3proto *l3proto
 int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto)
 {
 	int ret = 0;
+	struct nf_conntrack_l3proto *old;
 
 	if (proto->l3proto >= AF_MAX)
 		return -EBUSY;
@@ -174,7 +175,9 @@ int nf_conntrack_l3proto_register(struct nf_conntrack_l3proto *proto)
 		return -EINVAL;
 
 	mutex_lock(&nf_ct_proto_mutex);
-	if (nf_ct_l3protos[proto->l3proto] != &nf_conntrack_l3proto_generic) {
+	old = rcu_dereference_protected(nf_ct_l3protos[proto->l3proto],
+					lockdep_is_held(&nf_ct_proto_mutex));
+	if (old != &nf_conntrack_l3proto_generic) {
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -201,7 +204,9 @@ void nf_conntrack_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 	BUG_ON(proto->l3proto >= AF_MAX);
 
 	mutex_lock(&nf_ct_proto_mutex);
-	BUG_ON(nf_ct_l3protos[proto->l3proto] != proto);
+	BUG_ON(rcu_dereference_protected(nf_ct_l3protos[proto->l3proto],
+					 lockdep_is_held(&nf_ct_proto_mutex)
+					 ) != proto);
 	rcu_assign_pointer(nf_ct_l3protos[proto->l3proto],
 			   &nf_conntrack_l3proto_generic);
 	nf_ct_l3proto_unregister_sysctl(proto);
@@ -279,7 +284,7 @@ int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *l4proto)
 	mutex_lock(&nf_ct_proto_mutex);
 	if (!nf_ct_protos[l4proto->l3proto]) {
 		/* l3proto may be loaded latter. */
-		struct nf_conntrack_l4proto **proto_array;
+		struct nf_conntrack_l4proto __rcu **proto_array;
 		int i;
 
 		proto_array = kmalloc(MAX_NF_CT_PROTO *
@@ -291,7 +296,7 @@ int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *l4proto)
 		}
 
 		for (i = 0; i < MAX_NF_CT_PROTO; i++)
-			proto_array[i] = &nf_conntrack_l4proto_generic;
+			RCU_INIT_POINTER(proto_array[i], &nf_conntrack_l4proto_generic);
 
 		/* Before making proto_array visible to lockless readers,
 		 * we must make sure its content is committed to memory.
@@ -299,8 +304,10 @@ int nf_conntrack_l4proto_register(struct nf_conntrack_l4proto *l4proto)
 		smp_wmb();
 
 		nf_ct_protos[l4proto->l3proto] = proto_array;
-	} else if (nf_ct_protos[l4proto->l3proto][l4proto->l4proto] !=
-					&nf_conntrack_l4proto_generic) {
+	} else if (rcu_dereference_protected(
+			nf_ct_protos[l4proto->l3proto][l4proto->l4proto],
+			lockdep_is_held(&nf_ct_proto_mutex)
+			) != &nf_conntrack_l4proto_generic) {
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -331,7 +338,10 @@ void nf_conntrack_l4proto_unregister(struct nf_conntrack_l4proto *l4proto)
 	BUG_ON(l4proto->l3proto >= PF_MAX);
 
 	mutex_lock(&nf_ct_proto_mutex);
-	BUG_ON(nf_ct_protos[l4proto->l3proto][l4proto->l4proto] != l4proto);
+	BUG_ON(rcu_dereference_protected(
+			nf_ct_protos[l4proto->l3proto][l4proto->l4proto],
+			lockdep_is_held(&nf_ct_proto_mutex)
+			) != l4proto);
 	rcu_assign_pointer(nf_ct_protos[l4proto->l3proto][l4proto->l4proto],
 			   &nf_conntrack_l4proto_generic);
 	nf_ct_l4proto_unregister_sysctl(l4proto);

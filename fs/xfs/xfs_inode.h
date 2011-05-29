@@ -111,7 +111,7 @@ struct xfs_imap {
  * Generally, we do not want to hold the i_rlock while holding the
  * i_ilock. Hierarchy is i_iolock followed by i_rlock.
  *
- * xfs_iptr_t contains all the inode fields upto and including the
+ * xfs_iptr_t contains all the inode fields up to and including the
  * i_mnext and i_mprev fields, it is used as a marker in the inode
  * chain off the mount structure by xfs_sync calls.
  */
@@ -336,7 +336,7 @@ xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
 
 /*
  * Project quota id helpers (previously projid was 16bit only
- * and using two 16bit values to hold new 32bit projid was choosen
+ * and using two 16bit values to hold new 32bit projid was chosen
  * to retain compatibility with "old" filesystems).
  */
 static inline prid_t
@@ -409,28 +409,35 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 /*
  * Flags for lockdep annotations.
  *
- * XFS_I[O]LOCK_PARENT - for operations that require locking two inodes
- * (ie directory operations that require locking a directory inode and
- * an entry inode).  The first inode gets locked with this flag so it
- * gets a lockdep subclass of 1 and the second lock will have a lockdep
- * subclass of 0.
+ * XFS_LOCK_PARENT - for directory operations that require locking a
+ * parent directory inode and a child entry inode.  The parent gets locked
+ * with this flag so it gets a lockdep subclass of 1 and the child entry
+ * lock will have a lockdep subclass of 0.
+ *
+ * XFS_LOCK_RTBITMAP/XFS_LOCK_RTSUM - the realtime device bitmap and summary
+ * inodes do not participate in the normal lock order, and thus have their
+ * own subclasses.
  *
  * XFS_LOCK_INUMORDER - for locking several inodes at the some time
  * with xfs_lock_inodes().  This flag is used as the starting subclass
  * and each subsequent lock acquired will increment the subclass by one.
- * So the first lock acquired will have a lockdep subclass of 2, the
- * second lock will have a lockdep subclass of 3, and so on. It is
+ * So the first lock acquired will have a lockdep subclass of 4, the
+ * second lock will have a lockdep subclass of 5, and so on. It is
  * the responsibility of the class builder to shift this to the correct
  * portion of the lock_mode lockdep mask.
  */
 #define XFS_LOCK_PARENT		1
-#define XFS_LOCK_INUMORDER	2
+#define XFS_LOCK_RTBITMAP	2
+#define XFS_LOCK_RTSUM		3
+#define XFS_LOCK_INUMORDER	4
 
 #define XFS_IOLOCK_SHIFT	16
 #define	XFS_IOLOCK_PARENT	(XFS_LOCK_PARENT << XFS_IOLOCK_SHIFT)
 
 #define XFS_ILOCK_SHIFT		24
 #define	XFS_ILOCK_PARENT	(XFS_LOCK_PARENT << XFS_ILOCK_SHIFT)
+#define	XFS_ILOCK_RTBITMAP	(XFS_LOCK_RTBITMAP << XFS_ILOCK_SHIFT)
+#define	XFS_ILOCK_RTSUM		(XFS_LOCK_RTSUM << XFS_ILOCK_SHIFT)
 
 #define XFS_IOLOCK_DEP_MASK	0x00ff0000
 #define XFS_ILOCK_DEP_MASK	0xff000000

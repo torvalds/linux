@@ -66,6 +66,11 @@ be easy to become blinded by your own solution to a problem to the point
 that you don't realize that something is fundamentally wrong or, perhaps,
 you're not even solving the right problem.
 
+Andrew Morton has suggested that every review comment which does not result
+in a code change should result in an additional code comment instead; that
+can help future reviewers avoid the questions which came up the first time
+around.
+
 One fatal mistake is to ignore review comments in the hope that they will
 go away.  They will not go away.  If you repost code without having
 responded to the comments you got the time before, you're likely to find
@@ -100,7 +105,7 @@ entry into a subsystem maintainer's tree.  How that works varies from one
 subsystem to the next; each maintainer has his or her own way of doing
 things.  In particular, there may be more than one tree - one, perhaps,
 dedicated to patches planned for the next merge window, and another for
-longer-term work.  
+longer-term work.
 
 For patches applying to areas for which there is no obvious subsystem tree
 (memory management patches, for example), the default tree often ends up
@@ -109,11 +114,10 @@ through the -mm tree.
 
 Inclusion into a subsystem tree can bring a higher level of visibility to a
 patch.  Now other developers working with that tree will get the patch by
-default.  Subsystem trees typically feed into -mm and linux-next as well,
-making their contents visible to the development community as a whole.  At
-this point, there's a good chance that you will get more comments from a
-new set of reviewers; these comments need to be answered as in the previous
-round.
+default.  Subsystem trees typically feed linux-next as well, making their
+contents visible to the development community as a whole.  At this point,
+there's a good chance that you will get more comments from a new set of
+reviewers; these comments need to be answered as in the previous round.
 
 What may also happen at this point, depending on the nature of your patch,
 is that conflicts with work being done by others turn up.  In the worst

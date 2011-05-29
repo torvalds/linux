@@ -415,7 +415,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 
 	/* Pin framebuffer & get tilling informations */
 	obj = radeon_fb->obj;
-	rbo = obj->driver_private;
+	rbo = gem_to_radeon_bo(obj);
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
 		return r;
@@ -443,7 +443,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 		       (target_fb->bits_per_pixel * 8));
 	crtc_pitch |= crtc_pitch << 16;
 
-
+	crtc_offset_cntl |= RADEON_CRTC_GUI_TRIG_OFFSET_LEFT_EN;
 	if (tiling_flags & RADEON_TILING_MACRO) {
 		if (ASIC_IS_R300(rdev))
 			crtc_offset_cntl |= (R300_CRTC_X_Y_MODE_EN |
@@ -502,6 +502,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	gen_cntl_val = RREG32(gen_cntl_reg);
 	gen_cntl_val &= ~(0xf << 8);
 	gen_cntl_val |= (format << 8);
+	gen_cntl_val &= ~RADEON_CRTC_VSTAT_MODE_MASK;
 	WREG32(gen_cntl_reg, gen_cntl_val);
 
 	crtc_offset = (u32)base;
@@ -520,7 +521,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 
 	if (!atomic && fb && fb != crtc->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
-		rbo = radeon_fb->obj->driver_private;
+		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
 		if (unlikely(r != 0))
 			return r;
@@ -888,7 +889,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		}
 
 		if (rdev->flags & RADEON_IS_MOBILITY) {
-			/* A temporal workaround for the occational blanking on certain laptop panels.
+			/* A temporal workaround for the occasional blanking on certain laptop panels.
 			   This appears to related to the PLL divider registers (fail to lock?).
 			   It occurs even when all dividers are the same with their old settings.
 			   In this case we really don't need to fiddle with PLL registers.

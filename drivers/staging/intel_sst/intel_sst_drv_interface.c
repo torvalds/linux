@@ -315,7 +315,7 @@ int sst_open_pcm_stream(struct snd_sst_params *str_param)
 	pm_runtime_get_sync(&sst_drv_ctx->pci->dev);
 
 	if (sst_drv_ctx->sst_state == SST_SUSPENDED) {
-		/* LPE is suspended, resume it before proceding*/
+		/* LPE is suspended, resume it before proceeding*/
 		pr_debug("Resuming from Suspended state\n");
 		retval = intel_sst_resume(sst_drv_ctx->pci);
 		if (retval) {

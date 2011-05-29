@@ -102,8 +102,8 @@ extern const struct iw_handler_def rt28xx_iw_handler_def;
 /***********************************************************************************
  *	OS Specific definitions and data structures
  ***********************************************************************************/
-typedef int (*HARD_START_XMIT_FUNC) (struct sk_buff * skb,
-				     struct net_device * net_dev);
+typedef int (*HARD_START_XMIT_FUNC) (struct sk_buff *skb,
+				     struct net_device *net_dev);
 
 #ifdef RTMP_MAC_PCI
 #ifndef PCI_DEVICE
@@ -366,7 +366,7 @@ typedef void (*TIMER_FUNCTION) (unsigned long);
 
 #define ONE_TICK 1
 
-static inline void NdisGetSystemUpTime(unsigned long * time)
+static inline void NdisGetSystemUpTime(unsigned long *time)
 {
 	*time = jiffies;
 }
@@ -815,7 +815,7 @@ void linux_pci_unmap_single(struct rt_rtmp_adapter *pAd, dma_addr_t dma_addr,
 /***********************************************************************************
  *	Other function prototypes definitions
  ***********************************************************************************/
-void RTMP_GetCurrentSystemTime(LARGE_INTEGER * time);
+void RTMP_GetCurrentSystemTime(LARGE_INTEGER *time);
 int rt28xx_packet_xmit(struct sk_buff *skb);
 
 #ifdef RTMP_MAC_PCI
@@ -827,8 +827,8 @@ IRQ_HANDLE_TYPE rt2860_interrupt(int irq, void *dev_instance);
 
 int rt28xx_sta_ioctl(struct net_device *net_dev, IN OUT struct ifreq *rq, int cmd);
 
-extern int ra_mtd_write(int num, loff_t to, size_t len, const u_char * buf);
-extern int ra_mtd_read(int num, loff_t from, size_t len, u_char * buf);
+extern int ra_mtd_write(int num, loff_t to, size_t len, const u_char *buf);
+extern int ra_mtd_read(int num, loff_t from, size_t len, u_char *buf);
 
 #define GET_PAD_FROM_NET_DEV(_pAd, _net_dev)	(_pAd) = (struct rt_rtmp_adapter *)(_net_dev)->ml_priv;
 

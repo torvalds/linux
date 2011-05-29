@@ -33,7 +33,7 @@ struct iio_handler {
 /**
  * struct iio_event_data - The actual event being pushed to userspace
  * @id:		event identifier
- * @timestamp:	best estimate of time of event occurance (often from
+ * @timestamp:	best estimate of time of event occurrence (often from
  *		the interrupt handler)
  */
 struct iio_event_data {
@@ -42,7 +42,7 @@ struct iio_event_data {
 };
 
 /**
- * struct iio_detected_event_list - list element for events that have occured
+ * struct iio_detected_event_list - list element for events that have occurred
  * @list:		linked list header
  * @ev:			the event itself
  * @shared_pointer:	used when the event is shared - i.e. can be escallated
@@ -98,7 +98,7 @@ struct iio_event_interface {
  * @list:		list header
  * @refcount:		as the handler may be shared between multiple device
  *			side events, reference counting ensures clean removal
- * @exist_lock:		prevents race conditions related to refcount useage.
+ * @exist_lock:		prevents race conditions related to refcount usage.
  * @handler:		event handler function - called on event if this
  *			event_handler is enabled.
  *

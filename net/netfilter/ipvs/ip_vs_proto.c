@@ -60,6 +60,35 @@ static int __used __init register_ip_vs_protocol(struct ip_vs_protocol *pp)
 	return 0;
 }
 
+#if defined(CONFIG_IP_VS_PROTO_TCP) || defined(CONFIG_IP_VS_PROTO_UDP) || \
+    defined(CONFIG_IP_VS_PROTO_SCTP) || defined(CONFIG_IP_VS_PROTO_AH) || \
+    defined(CONFIG_IP_VS_PROTO_ESP)
+/*
+ *	register an ipvs protocols netns related data
+ */
+static int
+register_ip_vs_proto_netns(struct net *net, struct ip_vs_protocol *pp)
+{
+	struct netns_ipvs *ipvs = net_ipvs(net);
+	unsigned hash = IP_VS_PROTO_HASH(pp->protocol);
+	struct ip_vs_proto_data *pd =
+			kzalloc(sizeof(struct ip_vs_proto_data), GFP_ATOMIC);
+
+	if (!pd) {
+		pr_err("%s(): no memory.\n", __func__);
+		return -ENOMEM;
+	}
+	pd->pp = pp;	/* For speed issues */
+	pd->next = ipvs->proto_data_table[hash];
+	ipvs->proto_data_table[hash] = pd;
+	atomic_set(&pd->appcnt, 0);	/* Init app counter */
+
+	if (pp->init_netns != NULL)
+		pp->init_netns(net, pd);
+
+	return 0;
+}
+#endif
 
 /*
  *	unregister an ipvs protocol
@@ -82,6 +111,29 @@ static int unregister_ip_vs_protocol(struct ip_vs_protocol *pp)
 	return -ESRCH;
 }
 
+/*
+ *	unregister an ipvs protocols netns data
+ */
+static int
+unregister_ip_vs_proto_netns(struct net *net, struct ip_vs_proto_data *pd)
+{
+	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct ip_vs_proto_data **pd_p;
+	unsigned hash = IP_VS_PROTO_HASH(pd->pp->protocol);
+
+	pd_p = &ipvs->proto_data_table[hash];
+	for (; *pd_p; pd_p = &(*pd_p)->next) {
+		if (*pd_p == pd) {
+			*pd_p = pd->next;
+			if (pd->pp->exit_netns != NULL)
+				pd->pp->exit_netns(net, pd);
+			kfree(pd);
+			return 0;
+		}
+	}
+
+	return -ESRCH;
+}
 
 /*
  *	get ip_vs_protocol object by its proto.
@@ -100,19 +152,44 @@ struct ip_vs_protocol * ip_vs_proto_get(unsigned short proto)
 }
 EXPORT_SYMBOL(ip_vs_proto_get);
 
+/*
+ *	get ip_vs_protocol object data by netns and proto
+ */
+struct ip_vs_proto_data *
+__ipvs_proto_data_get(struct netns_ipvs *ipvs, unsigned short proto)
+{
+	struct ip_vs_proto_data *pd;
+	unsigned hash = IP_VS_PROTO_HASH(proto);
+
+	for (pd = ipvs->proto_data_table[hash]; pd; pd = pd->next) {
+		if (pd->pp->protocol == proto)
+			return pd;
+	}
+
+	return NULL;
+}
+
+struct ip_vs_proto_data *
+ip_vs_proto_data_get(struct net *net, unsigned short proto)
+{
+	struct netns_ipvs *ipvs = net_ipvs(net);
+
+	return __ipvs_proto_data_get(ipvs, proto);
+}
+EXPORT_SYMBOL(ip_vs_proto_data_get);
 
 /*
  *	Propagate event for state change to all protocols
  */
-void ip_vs_protocol_timeout_change(int flags)
+void ip_vs_protocol_timeout_change(struct netns_ipvs *ipvs, int flags)
 {
-	struct ip_vs_protocol *pp;
+	struct ip_vs_proto_data *pd;
 	int i;
 
 	for (i = 0; i < IP_VS_PROTO_TAB_SIZE; i++) {
-		for (pp = ip_vs_proto_table[i]; pp; pp = pp->next) {
-			if (pp->timeout_change)
-				pp->timeout_change(pp, flags);
+		for (pd = ipvs->proto_data_table[i]; pd; pd = pd->next) {
+			if (pd->pp->timeout_change)
+				pd->pp->timeout_change(pd, flags);
 		}
 	}
 }
@@ -236,6 +313,41 @@ ip_vs_tcpudp_debug_packet(int af, struct ip_vs_protocol *pp,
 		ip_vs_tcpudp_debug_packet_v4(pp, skb, offset, msg);
 }
 
+/*
+ * per network name-space init
+ */
+int __net_init __ip_vs_protocol_init(struct net *net)
+{
+#ifdef CONFIG_IP_VS_PROTO_TCP
+	register_ip_vs_proto_netns(net, &ip_vs_protocol_tcp);
+#endif
+#ifdef CONFIG_IP_VS_PROTO_UDP
+	register_ip_vs_proto_netns(net, &ip_vs_protocol_udp);
+#endif
+#ifdef CONFIG_IP_VS_PROTO_SCTP
+	register_ip_vs_proto_netns(net, &ip_vs_protocol_sctp);
+#endif
+#ifdef CONFIG_IP_VS_PROTO_AH
+	register_ip_vs_proto_netns(net, &ip_vs_protocol_ah);
+#endif
+#ifdef CONFIG_IP_VS_PROTO_ESP
+	register_ip_vs_proto_netns(net, &ip_vs_protocol_esp);
+#endif
+	return 0;
+}
+
+void __net_exit __ip_vs_protocol_cleanup(struct net *net)
+{
+	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct ip_vs_proto_data *pd;
+	int i;
+
+	/* unregister all the ipvs proto data for this netns */
+	for (i = 0; i < IP_VS_PROTO_TAB_SIZE; i++) {
+		while ((pd = ipvs->proto_data_table[i]) != NULL)
+			unregister_ip_vs_proto_netns(net, pd);
+	}
+}
 
 int __init ip_vs_protocol_init(void)
 {

@@ -1,4 +1,4 @@
-EXTRA_CFLAGS := -I$(src)
+ccflags-y := -I$(src)
 obj-$(CONFIG_GFS2_FS) += gfs2.o
 gfs2-y := acl.o bmap.o dir.o xattr.o glock.o \
 	glops.o inode.o log.o lops.o main.o meta_io.o \

@@ -313,7 +313,7 @@ static DEFINE_PRCMU_CLK_RATE(uartclk,	0x0, 5, UARTCLK, 38400000);
 static DEFINE_PRCMU_CLK(msp02clk,	0x0, 6, MSP02CLK);
 static DEFINE_PRCMU_CLK(msp1clk,	0x0, 7, MSP1CLK); /* v1 */
 static DEFINE_PRCMU_CLK_RATE(i2cclk,	0x0, 8, I2CCLK, 48000000);
-static DEFINE_PRCMU_CLK_RATE(sdmmcclk,	0x0, 9, SDMMCCLK, 50000000);
+static DEFINE_PRCMU_CLK_RATE(sdmmcclk,	0x0, 9, SDMMCCLK, 100000000);
 static DEFINE_PRCMU_CLK(slimclk,	0x0, 10, SLIMCLK);
 static DEFINE_PRCMU_CLK(per1clk,	0x0, 11, PER1CLK);
 static DEFINE_PRCMU_CLK(per2clk,	0x0, 12, PER2CLK);
@@ -520,7 +520,7 @@ static struct clk_lookup u8500_ed_clks[] = {
 	CLK(ssp0_ed,	"ssp0",		NULL),
 
 	/* Peripheral Cluster #5 */
-	CLK(usb_ed,	"musb_hdrc.0",	"usb"),
+	CLK(usb_ed,	"musb-ux500.0",	"usb"),
 
 	/* Peripheral Cluster #6 */
 	CLK(dmc_ed,	"dmc",		NULL),
@@ -561,7 +561,7 @@ static struct clk_lookup u8500_v1_clks[] = {
 	CLK(ssp0_v1,	"ssp0",		NULL),
 
 	/* Peripheral Cluster #5 */
-	CLK(usb_v1,	"musb_hdrc.0",	"usb"),
+	CLK(usb_v1,	"musb-ux500.0",	"usb"),
 
 	/* Peripheral Cluster #6 */
 	CLK(mtu1_v1,	"mtu1",		NULL),

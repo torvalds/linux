@@ -12,8 +12,6 @@
 #define NR_IRQS 32
 #include <asm-generic/irq.h>
 
-#include <linux/interrupt.h>
-
 /* This type is the placeholder for a hardware interrupt number. It has to
  * be big enough to enclose whatever representation is used by a given
  * platform.

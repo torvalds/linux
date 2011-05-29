@@ -51,7 +51,7 @@ DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " Richard Procter <rnp@paradise.net.
  *	circular buffer queues.
  *
  *	The mailboxes can be used for controlling how the card traverses
- *	its buffer rings, but are used only for inital setup in this
+ *	its buffer rings, but are used only for initial setup in this
  *	implementation.  The exec mailbox allows a variety of commands to
  *	be executed. Each command must complete before the next is
  *	executed. Primarily we use the exec mailbox for controlling the
@@ -813,7 +813,7 @@ static void mc32_flush_rx_ring(struct net_device *dev)
  *
  *	This sets up the host transmit data-structures.
  *
- *	First, we obtain from the card it's current postion in the tx
+ *	First, we obtain from the card it's current position in the tx
  *	ring, so that we will know where to begin transmitting
  *	packets.
  *

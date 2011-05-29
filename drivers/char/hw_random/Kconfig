@@ -198,3 +198,15 @@ config HW_RANDOM_NOMADIK
 	  module will be called nomadik-rng.
 
 	  If unsure, say Y.
+
+config HW_RANDOM_PICOXCELL
+	tristate "Picochip picoXcell true random number generator support"
+	depends on HW_RANDOM && ARCH_PICOXCELL && PICOXCELL_PC3X3
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Picochip PC3x3 and later devices.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called picoxcell-rng.
+
+	  If unsure, say Y.

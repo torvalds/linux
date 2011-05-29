@@ -64,7 +64,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
-		return -1;
+		return -ENOMEM;
 
 	minixsb = (struct minix_super_block *) buf;
 	ext2sb = (struct ext2_super_block *) buf;

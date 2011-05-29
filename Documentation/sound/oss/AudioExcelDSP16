@@ -1,10 +1,10 @@
 Driver
 ------
 
-Informations about Audio Excel DSP 16 driver can be found in the source
+Information about Audio Excel DSP 16 driver can be found in the source
 file aedsp16.c
 Please, read the head of the source before using it. It contain useful
-informations.
+information.
 
 Configuration
 -------------
@@ -68,7 +68,7 @@ Sound cards supported
 This driver supports the SC-6000 and SC-6600 based Gallant's sound card.
 It don't support the Audio Excel DSP 16 III (try the SC-6600 code).
 I'm working on the III version of the card: if someone have useful
-informations about it, please let me know.
+information about it, please let me know.
 For all the non-supported audio cards, you have to boot MS-DOS (or WIN95)
 activating the audio card with the MS-DOS device driver, then you have to
 <ctrl>-<alt>-<del> and boot Linux.

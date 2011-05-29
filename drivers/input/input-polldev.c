@@ -192,7 +192,7 @@ static struct attribute_group input_polldev_attribute_group = {
 };
 
 /**
- * input_allocate_polled_device - allocated memory polled device
+ * input_allocate_polled_device - allocate memory for polled device
  *
  * The function allocates memory for a polled device and also
  * for an input device associated with this polled device.
@@ -239,7 +239,7 @@ EXPORT_SYMBOL(input_free_polled_device);
  * with input layer. The device should be allocated with call to
  * input_allocate_polled_device(). Callers should also set up poll()
  * method and set up capabilities (id, name, phys, bits) of the
- * corresponing input_dev structure.
+ * corresponding input_dev structure.
  */
 int input_register_polled_device(struct input_polled_dev *dev)
 {

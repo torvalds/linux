@@ -60,7 +60,7 @@ ipt_mangle_out(struct sk_buff *skb, const struct net_device *out)
 	ret = ipt_do_table(skb, NF_INET_LOCAL_OUT, NULL, out,
 			   dev_net(out)->ipv4.iptable_mangle);
 	/* Reroute for ANY change. */
-	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE) {
+	if (ret != NF_DROP && ret != NF_STOLEN) {
 		iph = ip_hdr(skb);
 
 		if (iph->saddr != saddr ||

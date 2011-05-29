@@ -31,7 +31,8 @@ static void ath5k_ahb_read_cachesize(struct ath_common *common, int *csz)
 	*csz = L1_CACHE_BYTES >> 2;
 }
 
-bool ath5k_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
+static bool
+ath5k_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
 	struct ath5k_softc *sc = common->priv;
 	struct platform_device *pdev = to_platform_device(sc->dev);
@@ -46,10 +47,10 @@ bool ath5k_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 
 	eeprom += off;
 	if (eeprom > eeprom_end)
-		return -EINVAL;
+		return false;
 
 	*data = *eeprom;
-	return 0;
+	return true;
 }
 
 int ath5k_hw_read_srev(struct ath5k_hw *ah)
@@ -92,7 +93,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	mem = ioremap_nocache(res->start, res->end - res->start + 1);
+	mem = ioremap_nocache(res->start, resource_size(res));
 	if (mem == NULL) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;

@@ -151,8 +151,6 @@ static int pwc_video_close(struct file *file);
 static ssize_t pwc_video_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos);
 static unsigned int pwc_video_poll(struct file *file, poll_table *wait);
-static long  pwc_video_ioctl(struct file *file,
-			    unsigned int ioctlnr, unsigned long arg);
 static int  pwc_video_mmap(struct file *file, struct vm_area_struct *vma);
 
 static const struct v4l2_file_operations pwc_fops = {
@@ -162,7 +160,7 @@ static const struct v4l2_file_operations pwc_fops = {
 	.read =		pwc_video_read,
 	.poll =		pwc_video_poll,
 	.mmap =		pwc_video_mmap,
-	.unlocked_ioctl = pwc_video_ioctl,
+	.unlocked_ioctl = video_ioctl2,
 };
 static struct video_device pwc_template = {
 	.name =		"Philips Webcam",	/* Filled in later */
@@ -1098,7 +1096,6 @@ static int pwc_video_open(struct file *file)
 		return -EBUSY;
 	}
 
-	mutex_lock(&pdev->modlock);
 	pwc_construct(pdev); /* set min/max sizes correct */
 	if (!pdev->usb_init) {
 		PWC_DEBUG_OPEN("Doing first time initialization.\n");
@@ -1130,7 +1127,6 @@ static int pwc_video_open(struct file *file)
 	if (i < 0) {
 		PWC_DEBUG_OPEN("Failed to allocate buffers memory.\n");
 		pwc_free_buffers(pdev);
-		mutex_unlock(&pdev->modlock);
 		return i;
 	}
 
@@ -1171,7 +1167,6 @@ static int pwc_video_open(struct file *file)
 	if (i) {
 		PWC_DEBUG_OPEN("Second attempt at set_video_mode failed.\n");
 		pwc_free_buffers(pdev);
-		mutex_unlock(&pdev->modlock);
 		return i;
 	}
 
@@ -1181,7 +1176,6 @@ static int pwc_video_open(struct file *file)
 
 	pdev->vopen++;
 	file->private_data = vdev;
-	mutex_unlock(&pdev->modlock);
 	PWC_DEBUG_OPEN("<< video_open() returns 0.\n");
 	return 0;
 }
@@ -1210,7 +1204,6 @@ static int pwc_video_close(struct file *file)
 	PWC_DEBUG_OPEN(">> video_close called(vdev = 0x%p).\n", vdev);
 
 	pdev = video_get_drvdata(vdev);
-	mutex_lock(&pdev->modlock);
 	if (pdev->vopen == 0)
 		PWC_DEBUG_MODULE("video_close() called on closed device?\n");
 
@@ -1248,7 +1241,6 @@ static int pwc_video_close(struct file *file)
 			if (device_hint[hint].pdev == pdev)
 				device_hint[hint].pdev = NULL;
 	}
-	mutex_unlock(&pdev->modlock);
 
 	return 0;
 }
@@ -1283,7 +1275,6 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 	if (pdev == NULL)
 		return -EFAULT;
 
-	mutex_lock(&pdev->modlock);
 	if (pdev->error_status) {
 		rv = -pdev->error_status; /* Something happened, report what. */
 		goto err_out;
@@ -1318,8 +1309,10 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 				rv = -ERESTARTSYS;
 				goto err_out;
 			}
+			mutex_unlock(&pdev->modlock);
 			schedule();
 			set_current_state(TASK_INTERRUPTIBLE);
+			mutex_lock(&pdev->modlock);
 		}
 		remove_wait_queue(&pdev->frameq, &wait);
 		set_current_state(TASK_RUNNING);
@@ -1352,10 +1345,8 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 		pdev->image_read_pos = 0;
 		pwc_next_image(pdev);
 	}
-	mutex_unlock(&pdev->modlock);
 	return count;
 err_out:
-	mutex_unlock(&pdev->modlock);
 	return rv;
 }
 
@@ -1372,9 +1363,7 @@ static unsigned int pwc_video_poll(struct file *file, poll_table *wait)
 		return -EFAULT;
 
 	/* Start the stream (if not already started) */
-	mutex_lock(&pdev->modlock);
 	ret = pwc_isoc_init(pdev);
-	mutex_unlock(&pdev->modlock);
 	if (ret)
 		return ret;
 
@@ -1385,25 +1374,6 @@ static unsigned int pwc_video_poll(struct file *file, poll_table *wait)
 		return (POLLIN | POLLRDNORM);
 
 	return 0;
-}
-
-static long pwc_video_ioctl(struct file *file,
-			   unsigned int cmd, unsigned long arg)
-{
-	struct video_device *vdev = file->private_data;
-	struct pwc_device *pdev;
-	long r = -ENODEV;
-
-	if (!vdev)
-		goto out;
-	pdev = video_get_drvdata(vdev);
-
-	mutex_lock(&pdev->modlock);
-	if (!pdev->unplugged)
-		r = video_usercopy(file, cmd, arg, pwc_video_do_ioctl);
-	mutex_unlock(&pdev->modlock);
-out:
-	return r;
 }
 
 static int pwc_video_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1754,6 +1724,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	}
 	memcpy(pdev->vdev, &pwc_template, sizeof(pwc_template));
 	pdev->vdev->parent = &intf->dev;
+	pdev->vdev->lock = &pdev->modlock;
+	pdev->vdev->ioctl_ops = &pwc_ioctl_ops;
 	strcpy(pdev->vdev->name, name);
 	video_set_drvdata(pdev->vdev, pdev);
 

@@ -1711,8 +1711,8 @@ ioctl would enumerate the available audio inputs. An ioctl to
 determine the current audio input, if more than one combines with the
 current video input, did not exist. So
 <constant>VIDIOC_G_AUDIO</constant> was renamed to
-<constant>VIDIOC_G_AUDIO_OLD</constant>, this ioctl will be removed in
-the future. The &VIDIOC-ENUMAUDIO; ioctl was added to enumerate
+<constant>VIDIOC_G_AUDIO_OLD</constant>, this ioctl was removed on
+Kernel 2.6.39. The &VIDIOC-ENUMAUDIO; ioctl was added to enumerate
 audio inputs, while &VIDIOC-G-AUDIO; now reports the current audio
 input.</para>
 	  <para>The same changes were made to &VIDIOC-G-AUDOUT; and
@@ -1726,7 +1726,7 @@ must be updated to successfully compile again.</para>
 	  <para>The &VIDIOC-OVERLAY; ioctl was incorrectly defined with
 write-read parameter. It was changed to write-only, while the write-read
 version was renamed to <constant>VIDIOC_OVERLAY_OLD</constant>. The old
-ioctl will be removed in the future. Until further the "videodev"
+ioctl was removed on Kernel 2.6.39. Until further the "videodev"
 kernel module will automatically translate to the new version, so drivers
 must be recompiled, but not applications.</para>
 	</listitem>
@@ -1744,7 +1744,7 @@ surface can be seen.</para>
 defined with write-only parameter, inconsistent with other ioctls
 modifying their argument. They were changed to write-read, while a
 <constant>_OLD</constant> suffix was added to the write-only versions.
-The old ioctls will be removed in the future. Drivers and
+The old ioctls were removed on Kernel 2.6.39. Drivers and
 applications assuming a constant parameter need an update.</para>
 	</listitem>
       </orderedlist>
@@ -1815,8 +1815,8 @@ yet to be addressed, for details see <xref
 	  <para>The &VIDIOC-CROPCAP; ioctl was incorrectly defined
 with read-only parameter. It is now defined as write-read ioctl, while
 the read-only version was renamed to
-<constant>VIDIOC_CROPCAP_OLD</constant>. The old ioctl will be removed
-in the future.</para>
+<constant>VIDIOC_CROPCAP_OLD</constant>. The old ioctl was removed
+on Kernel 2.6.39.</para>
 	</listitem>
       </orderedlist>
     </section>
@@ -2351,6 +2351,20 @@ used and no hardware exists to verify the API. Nor were any userspace applicatio
 that used it. It was originally scheduled for removal in 2.6.35.
 	  </para>
 	</listitem>
+      </orderedlist>
+    </section>
+    <section>
+      <title>V4L2 in Linux 2.6.39</title>
+      <orderedlist>
+        <listitem>
+          <para>The old VIDIOC_*_OLD symbols and V4L1 support were removed.</para>
+        </listitem>
+        <listitem>
+          <para>Multi-planar API added. Does not affect the compatibility of
+          current drivers and applications. See
+          <link linkend="planar-apis">multi-planar API</link>
+          for details.</para>
+        </listitem>
       </orderedlist>
     </section>
 

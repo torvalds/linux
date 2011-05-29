@@ -152,6 +152,7 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 	 * We do it here so the bitmap uptodate bit
 	 * get set with buffer lock held.
 	 */
+	trace_ext4_load_inode_bitmap(sb, block_group);
 	set_bitmap_uptodate(bh);
 	if (bh_submit_read(bh) < 0) {
 		put_bh(bh);
@@ -649,7 +650,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 		*group = parent_group + flex_size;
 		if (*group > ngroups)
 			*group = 0;
-		return find_group_orlov(sb, parent, group, mode, 0);
+		return find_group_orlov(sb, parent, group, mode, NULL);
 	}
 
 	/*
@@ -1042,7 +1043,7 @@ got:
 	if (err)
 		goto fail_free_drop;
 
-	err = ext4_init_security(handle, inode, dir);
+	err = ext4_init_security(handle, inode, dir, qstr);
 	if (err)
 		goto fail_free_drop;
 
@@ -1052,6 +1053,11 @@ got:
 			ext4_set_inode_flag(inode, EXT4_INODE_EXTENTS);
 			ext4_ext_tree_init(handle, inode);
 		}
+	}
+
+	if (ext4_handle_valid(handle)) {
+		ei->i_sync_tid = handle->h_transaction->t_tid;
+		ei->i_datasync_tid = handle->h_transaction->t_tid;
 	}
 
 	err = ext4_mark_inode_dirty(handle, inode);

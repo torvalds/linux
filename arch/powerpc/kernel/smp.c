@@ -57,6 +57,25 @@
 #define DBG(fmt...)
 #endif
 
+
+/* Store all idle threads, this can be reused instead of creating
+* a new thread. Also avoids complicated thread destroy functionality
+* for idle threads.
+*/
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * Needed only for CONFIG_HOTPLUG_CPU because __cpuinitdata is
+ * removed after init for !CONFIG_HOTPLUG_CPU.
+ */
+static DEFINE_PER_CPU(struct task_struct *, idle_thread_array);
+#define get_idle_for_cpu(x)      (per_cpu(idle_thread_array, x))
+#define set_idle_for_cpu(x, p)   (per_cpu(idle_thread_array, x) = (p))
+#else
+static struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
+#define get_idle_for_cpu(x)      (idle_thread_array[(x)])
+#define set_idle_for_cpu(x, p)   (idle_thread_array[(x)] = (p))
+#endif
+
 struct thread_info *secondary_ti;
 
 DEFINE_PER_CPU(cpumask_var_t, cpu_sibling_map);
@@ -238,23 +257,6 @@ static void __devinit smp_store_cpu_info(int id)
 	per_cpu(cpu_pvr, id) = mfspr(SPRN_PVR);
 }
 
-static void __init smp_create_idle(unsigned int cpu)
-{
-	struct task_struct *p;
-
-	/* create a process for the processor */
-	p = fork_idle(cpu);
-	if (IS_ERR(p))
-		panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
-#ifdef CONFIG_PPC64
-	paca[cpu].__current = p;
-	paca[cpu].kstack = (unsigned long) task_thread_info(p)
-		+ THREAD_SIZE - STACK_FRAME_OVERHEAD;
-#endif
-	current_set[cpu] = task_thread_info(p);
-	task_thread_info(p)->cpu = cpu;
-}
-
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int cpu;
@@ -288,10 +290,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 			max_cpus = NR_CPUS;
 	else
 		max_cpus = 1;
-
-	for_each_possible_cpu(cpu)
-		if (cpu != boot_cpuid)
-			smp_create_idle(cpu);
 }
 
 void __devinit smp_prepare_boot_cpu(void)
@@ -305,7 +303,7 @@ void __devinit smp_prepare_boot_cpu(void)
 
 #ifdef CONFIG_HOTPLUG_CPU
 /* State of each CPU during hotplug phases */
-DEFINE_PER_CPU(int, cpu_state) = { 0 };
+static DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
 int generic_cpu_disable(void)
 {
@@ -317,30 +315,8 @@ int generic_cpu_disable(void)
 	set_cpu_online(cpu, false);
 #ifdef CONFIG_PPC64
 	vdso_data->processorCount--;
-	fixup_irqs(cpu_online_mask);
 #endif
-	return 0;
-}
-
-int generic_cpu_enable(unsigned int cpu)
-{
-	/* Do the normal bootup if we haven't
-	 * already bootstrapped. */
-	if (system_state != SYSTEM_RUNNING)
-		return -ENOSYS;
-
-	/* get the target out of it's holding state */
-	per_cpu(cpu_state, cpu) = CPU_UP_PREPARE;
-	smp_wmb();
-
-	while (!cpu_online(cpu))
-		cpu_relax();
-
-#ifdef CONFIG_PPC64
-	fixup_irqs(cpu_online_mask);
-	/* counter the irq disable in fixup_irqs */
-	local_irq_enable();
-#endif
+	migrate_irqs();
 	return 0;
 }
 
@@ -362,36 +338,88 @@ void generic_mach_cpu_die(void)
 	unsigned int cpu;
 
 	local_irq_disable();
+	idle_task_exit();
 	cpu = smp_processor_id();
 	printk(KERN_DEBUG "CPU%d offline\n", cpu);
 	__get_cpu_var(cpu_state) = CPU_DEAD;
 	smp_wmb();
 	while (__get_cpu_var(cpu_state) != CPU_UP_PREPARE)
 		cpu_relax();
-	set_cpu_online(cpu, true);
-	local_irq_enable();
+}
+
+void generic_set_cpu_dead(unsigned int cpu)
+{
+	per_cpu(cpu_state, cpu) = CPU_DEAD;
 }
 #endif
 
-static int __devinit cpu_enable(unsigned int cpu)
-{
-	if (smp_ops && smp_ops->cpu_enable)
-		return smp_ops->cpu_enable(cpu);
+struct create_idle {
+	struct work_struct work;
+	struct task_struct *idle;
+	struct completion done;
+	int cpu;
+};
 
-	return -ENOSYS;
+static void __cpuinit do_fork_idle(struct work_struct *work)
+{
+	struct create_idle *c_idle =
+		container_of(work, struct create_idle, work);
+
+	c_idle->idle = fork_idle(c_idle->cpu);
+	complete(&c_idle->done);
+}
+
+static int __cpuinit create_idle(unsigned int cpu)
+{
+	struct thread_info *ti;
+	struct create_idle c_idle = {
+		.cpu	= cpu,
+		.done	= COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
+	};
+	INIT_WORK_ONSTACK(&c_idle.work, do_fork_idle);
+
+	c_idle.idle = get_idle_for_cpu(cpu);
+
+	/* We can't use kernel_thread since we must avoid to
+	 * reschedule the child. We use a workqueue because
+	 * we want to fork from a kernel thread, not whatever
+	 * userspace process happens to be trying to online us.
+	 */
+	if (!c_idle.idle) {
+		schedule_work(&c_idle.work);
+		wait_for_completion(&c_idle.done);
+	} else
+		init_idle(c_idle.idle, cpu);
+	if (IS_ERR(c_idle.idle)) {		
+		pr_err("Failed fork for CPU %u: %li", cpu, PTR_ERR(c_idle.idle));
+		return PTR_ERR(c_idle.idle);
+	}
+	ti = task_thread_info(c_idle.idle);
+
+#ifdef CONFIG_PPC64
+	paca[cpu].__current = c_idle.idle;
+	paca[cpu].kstack = (unsigned long)ti + THREAD_SIZE - STACK_FRAME_OVERHEAD;
+#endif
+	ti->cpu = cpu;
+	current_set[cpu] = ti;
+
+	return 0;
 }
 
 int __cpuinit __cpu_up(unsigned int cpu)
 {
-	int c;
+	int rc, c;
 
 	secondary_ti = current_set[cpu];
-	if (!cpu_enable(cpu))
-		return 0;
 
 	if (smp_ops == NULL ||
 	    (smp_ops->cpu_bootable && !smp_ops->cpu_bootable(cpu)))
 		return -EINVAL;
+
+	/* Make sure we have an idle thread */
+	rc = create_idle(cpu);
+	if (rc)
+		return rc;
 
 	/* Make sure callin-map entry is 0 (can be leftover a CPU
 	 * hotplug
@@ -502,7 +530,7 @@ static struct device_node *cpu_to_l2cache(int cpu)
 }
 
 /* Activate a secondary processor. */
-int __devinit start_secondary(void *unused)
+void __devinit start_secondary(void *unused)
 {
 	unsigned int cpu = smp_processor_id();
 	struct device_node *l2_cache;
@@ -523,6 +551,10 @@ int __devinit start_secondary(void *unused)
 
 	secondary_cpu_time_init();
 
+#ifdef CONFIG_PPC64
+	if (system_state == SYSTEM_RUNNING)
+		vdso_data->processorCount++;
+#endif
 	ipi_call_lock();
 	notify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
@@ -558,7 +590,8 @@ int __devinit start_secondary(void *unused)
 	local_irq_enable();
 
 	cpu_idle();
-	return 0;
+
+	BUG();
 }
 
 int setup_profiling_timer(unsigned int multiplier)
@@ -585,7 +618,11 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 	free_cpumask_var(old_mask);
 
+	if (smp_ops && smp_ops->bringup_done)
+		smp_ops->bringup_done();
+
 	dump_numa_cpu_topology();
+
 }
 
 int arch_sd_sibling_asym_packing(void)
@@ -660,5 +697,9 @@ void cpu_die(void)
 {
 	if (ppc_md.cpu_die)
 		ppc_md.cpu_die();
+
+	/* If we return, we re-enter start_secondary */
+	start_secondary_resume();
 }
+
 #endif

@@ -1301,7 +1301,7 @@ static void ipr_handle_config_change(struct ipr_ioa_cfg *ioa_cfg,
 			ipr_clear_res_target(res);
 			list_move_tail(&res->queue, &ioa_cfg->free_res_q);
 		}
-	} else if (!res->sdev) {
+	} else if (!res->sdev || res->del_from_ml) {
 		res->add_to_ml = 1;
 		if (ioa_cfg->allow_ml_add_del)
 			schedule_work(&ioa_cfg->work_q);
@@ -3104,7 +3104,10 @@ restart:
 				did_work = 1;
 				sdev = res->sdev;
 				if (!scsi_device_get(sdev)) {
-					list_move_tail(&res->queue, &ioa_cfg->free_res_q);
+					if (!res->add_to_ml)
+						list_move_tail(&res->queue, &ioa_cfg->free_res_q);
+					else
+						res->del_from_ml = 0;
 					spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 					scsi_remove_device(sdev);
 					scsi_device_put(sdev);
@@ -6219,11 +6222,10 @@ static struct ata_port_operations ipr_sata_ops = {
 };
 
 static struct ata_port_info sata_port_info = {
-	.flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY | ATA_FLAG_SATA_RESET |
-	ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA,
-	.pio_mask	= 0x10, /* pio4 */
-	.mwdma_mask = 0x07,
-	.udma_mask	= 0x7f, /* udma0-6 */
+	.flags		= ATA_FLAG_SATA | ATA_FLAG_PIO_DMA,
+	.pio_mask	= ATA_PIO4_ONLY,
+	.mwdma_mask	= ATA_MWDMA2,
+	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &ipr_sata_ops
 };
 
@@ -8865,7 +8867,7 @@ static void __ipr_remove(struct pci_dev *pdev)
 
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, host_lock_flags);
 	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
-	flush_scheduled_work();
+	flush_work_sync(&ioa_cfg->work_q);
 	spin_lock_irqsave(ioa_cfg->host->host_lock, host_lock_flags);
 
 	spin_lock(&ipr_driver_lock);

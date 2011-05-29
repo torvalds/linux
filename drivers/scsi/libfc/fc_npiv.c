@@ -37,9 +37,7 @@ struct fc_lport *libfc_vport_create(struct fc_vport *vport, int privsize)
 
 	vn_port = libfc_host_alloc(shost->hostt, privsize);
 	if (!vn_port)
-		goto err_out;
-	if (fc_exch_mgr_list_clone(n_port, vn_port))
-		goto err_put;
+		return vn_port;
 
 	vn_port->vport = vport;
 	vport->dd_data = vn_port;
@@ -49,11 +47,6 @@ struct fc_lport *libfc_vport_create(struct fc_vport *vport, int privsize)
 	mutex_unlock(&n_port->lp_mutex);
 
 	return vn_port;
-
-err_put:
-	scsi_host_put(vn_port->host);
-err_out:
-	return NULL;
 }
 EXPORT_SYMBOL(libfc_vport_create);
 
@@ -86,6 +79,7 @@ struct fc_lport *fc_vport_id_lookup(struct fc_lport *n_port, u32 port_id)
 
 	return lport;
 }
+EXPORT_SYMBOL(fc_vport_id_lookup);
 
 /*
  * When setting the link state of vports during an lport state change, it's

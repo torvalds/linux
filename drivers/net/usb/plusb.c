@@ -96,7 +96,7 @@ static int pl_reset(struct usbnet *dev)
 
 static const struct driver_info	prolific_info = {
 	.description =	"Prolific PL-2301/PL-2302",
-	.flags =	FLAG_NO_SETINT,
+	.flags =	FLAG_POINTTOPOINT | FLAG_NO_SETINT,
 		/* some PL-2302 versions seem to fail usb_set_interface() */
 	.reset =	pl_reset,
 };

@@ -1864,7 +1864,7 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 		psapi >>= 2;
 		ptei >>= 1;
 		if (psapi != l2->sapi) {
-			/* not our bussiness */
+			/* not our business */
 			if (*debug & DEBUG_L2)
 				printk(KERN_DEBUG "%s: sapi %d/%d mismatch\n",
 					__func__, psapi, l2->sapi);
@@ -1872,7 +1872,7 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 			return 0;
 		}
 		if ((ptei != l2->tei) && (ptei != GROUP_TEI)) {
-			/* not our bussiness */
+			/* not our business */
 			if (*debug & DEBUG_L2)
 				printk(KERN_DEBUG "%s: tei %d/%d mismatch\n",
 					__func__, ptei, l2->tei);

@@ -61,8 +61,7 @@ static int mpc52xx_fec_mdio_write(struct mii_bus *bus, int phy_id, int reg,
 		data | FEC_MII_WRITE_FRAME);
 }
 
-static int mpc52xx_fec_mdio_probe(struct platform_device *of,
-		const struct of_device_id *match)
+static int mpc52xx_fec_mdio_probe(struct platform_device *of)
 {
 	struct device *dev = &of->dev;
 	struct device_node *np = of->dev.of_node;
@@ -145,7 +144,7 @@ static struct of_device_id mpc52xx_fec_mdio_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mpc52xx_fec_mdio_match);
 
-struct of_platform_driver mpc52xx_fec_mdio_driver = {
+struct platform_driver mpc52xx_fec_mdio_driver = {
 	.driver = {
 		.name = "mpc5200b-fec-phy",
 		.owner = THIS_MODULE,

@@ -123,7 +123,7 @@ struct dbll_library_obj {
 	u32 open_ref;		/* Number of times opened */
 	u32 load_ref;		/* Number of times loaded */
 	struct gh_t_hash_tab *sym_tab;	/* Hash table of symbols */
-	u32 ul_pos;
+	u32 pos;
 };
 
 /*
@@ -272,8 +272,7 @@ void dbll_delete(struct dbll_tar_obj *target)
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(zl_target);
 
-	if (zl_target != NULL)
-		kfree(zl_target);
+	kfree(zl_target);
 
 }
 
@@ -398,7 +397,7 @@ int dbll_get_sect(struct dbll_library_obj *lib, char *name, u32 *paddr,
 
 		} else {
 			(*(zl_lib->target_obj->attrs.fseek)) (zl_lib->fp,
-							      zl_lib->ul_pos,
+							      zl_lib->pos,
 							      SEEK_SET);
 		}
 	} else {
@@ -522,7 +521,7 @@ int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
 
 		}
 		if (!status) {
-			zl_lib->ul_pos = (*(zl_lib->target_obj->attrs.ftell))
+			zl_lib->pos = (*(zl_lib->target_obj->attrs.ftell))
 			    (zl_lib->fp);
 			/* Reset file cursor */
 			(*(zl_lib->target_obj->attrs.fseek)) (zl_lib->fp,
@@ -568,18 +567,6 @@ int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
 }
 
 /*
- *  ======== dbll_load_sect ========
- *  Not supported for COFF.
- */
-int dbll_load_sect(struct dbll_library_obj *zl_lib, char *sec_name,
-			  struct dbll_attrs *attrs)
-{
-	DBC_REQUIRE(zl_lib);
-
-	return -ENOSYS;
-}
-
-/*
  *  ======== dbll_open ========
  */
 int dbll_open(struct dbll_tar_obj *target, char *file, dbll_flags flags,
@@ -611,7 +598,7 @@ int dbll_open(struct dbll_tar_obj *target, char *file, dbll_flags flags,
 		if (zl_lib == NULL) {
 			status = -ENOMEM;
 		} else {
-			zl_lib->ul_pos = 0;
+			zl_lib->pos = 0;
 			/* Increment ref count to allow close on failure
 			 * later on */
 			zl_lib->open_ref++;
@@ -661,7 +648,7 @@ int dbll_open(struct dbll_tar_obj *target, char *file, dbll_flags flags,
 	if (!status && zl_lib->fp == NULL)
 		status = dof_open(zl_lib);
 
-	zl_lib->ul_pos = (*(zl_lib->target_obj->attrs.ftell)) (zl_lib->fp);
+	zl_lib->pos = (*(zl_lib->target_obj->attrs.ftell)) (zl_lib->fp);
 	(*(zl_lib->target_obj->attrs.fseek)) (zl_lib->fp, (long)0, SEEK_SET);
 	/* Create a hash table for symbols if flag is set */
 	if (zl_lib->sym_tab != NULL || !(flags & DBLL_SYMB))
@@ -750,7 +737,7 @@ int dbll_read_sect(struct dbll_library_obj *lib, char *name,
 
 		} else {
 			(*(zl_lib->target_obj->attrs.fseek)) (zl_lib->fp,
-							      zl_lib->ul_pos,
+							      zl_lib->pos,
 							      SEEK_SET);
 		}
 	} else {
@@ -794,22 +781,6 @@ func_cont:
 }
 
 /*
- *  ======== dbll_set_attrs ========
- *  Set the attributes of the target.
- */
-void dbll_set_attrs(struct dbll_tar_obj *target, struct dbll_attrs *pattrs)
-{
-	struct dbll_tar_obj *zl_target = (struct dbll_tar_obj *)target;
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(zl_target);
-	DBC_REQUIRE(pattrs != NULL);
-
-	if ((pattrs != NULL) && (zl_target != NULL))
-		zl_target->attrs = *pattrs;
-
-}
-
-/*
  *  ======== dbll_unload ========
  */
 void dbll_unload(struct dbll_library_obj *lib, struct dbll_attrs *attrs)
@@ -845,19 +816,6 @@ void dbll_unload(struct dbll_library_obj *lib, struct dbll_attrs *attrs)
 	dof_close(zl_lib);
 func_end:
 	DBC_ENSURE(zl_lib->load_ref >= 0);
-}
-
-/*
- *  ======== dbll_unload_sect ========
- *  Not supported for COFF.
- */
-int dbll_unload_sect(struct dbll_library_obj *lib, char *sec_name,
-			    struct dbll_attrs *attrs)
-{
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(sec_name != NULL);
-
-	return -ENOSYS;
 }
 
 /*

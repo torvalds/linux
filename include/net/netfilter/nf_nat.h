@@ -56,7 +56,9 @@ struct nf_nat_multi_range_compat {
 /* per conntrack: nat application helper private data */
 union nf_conntrack_nat_help {
 	/* insert nat helper private data here */
+#if defined(CONFIG_NF_NAT_PPTP) || defined(CONFIG_NF_NAT_PPTP_MODULE)
 	struct nf_nat_pptp nat_pptp_info;
+#endif
 };
 
 struct nf_conn;
@@ -84,7 +86,11 @@ extern int nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
 
 static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
 {
+#if defined(CONFIG_NF_NAT) || defined(CONFIG_NF_NAT_MODULE)
 	return nf_ct_ext_find(ct, NF_CT_EXT_NAT);
+#else
+	return NULL;
+#endif
 }
 
 #else  /* !__KERNEL__: iptables wants this to compile. */

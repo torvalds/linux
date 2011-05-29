@@ -1,0 +1,750 @@
+config FPU
+	bool
+	default n
+
+config GENERIC_FIND_NEXT_BIT
+	bool
+	default y
+
+config GENERIC_GPIO
+	bool
+	default n
+
+config GENERIC_CMOS_UPDATE
+	bool
+	default y
+
+config GENERIC_CLOCKEVENTS
+	bool
+	default n
+
+config COLDFIRE_SW_A7
+	bool
+	default n
+
+config HAVE_CACHE_SPLIT
+	bool
+
+config HAVE_CACHE_CB
+	bool
+
+config HAVE_MBAR
+	bool
+
+config HAVE_IPSBAR
+	bool
+
+choice
+	prompt "CPU"
+	default M68EZ328
+
+config M68328
+	bool "MC68328"
+	help
+	  Motorola 68328 processor support.
+
+config M68EZ328
+	bool "MC68EZ328"
+	help
+	  Motorola 68EX328 processor support.
+
+config M68VZ328
+	bool "MC68VZ328"
+	help
+	  Motorola 68VZ328 processor support.
+
+config M68360
+	bool "MC68360"
+	help
+	  Motorola 68360 processor support.
+
+config M5206
+	bool "MCF5206"
+	select COLDFIRE_SW_A7
+	select HAVE_MBAR
+	help
+	  Motorola ColdFire 5206 processor support.
+
+config M5206e
+	bool "MCF5206e"
+	select COLDFIRE_SW_A7
+	select HAVE_MBAR
+	help
+	  Motorola ColdFire 5206e processor support.
+
+config M520x
+	bool "MCF520x"
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CACHE_SPLIT
+	help
+	   Freescale Coldfire 5207/5208 processor support.
+
+config M523x
+	bool "MCF523x"
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CACHE_SPLIT
+	select HAVE_IPSBAR
+	help
+	  Freescale Coldfire 5230/1/2/4/5 processor support
+
+config M5249
+	bool "MCF5249"
+	select COLDFIRE_SW_A7
+	select HAVE_MBAR
+	help
+	  Motorola ColdFire 5249 processor support.
+
+config M5271
+	bool "MCF5271"
+	select HAVE_CACHE_SPLIT
+	select HAVE_IPSBAR
+	help
+	  Freescale (Motorola) ColdFire 5270/5271 processor support.
+
+config M5272
+	bool "MCF5272"
+	select COLDFIRE_SW_A7
+	select HAVE_MBAR
+	help
+	  Motorola ColdFire 5272 processor support.
+
+config M5275
+	bool "MCF5275"
+	select HAVE_CACHE_SPLIT
+	select HAVE_IPSBAR
+	help
+	  Freescale (Motorola) ColdFire 5274/5275 processor support.
+
+config M528x
+	bool "MCF528x"
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CACHE_SPLIT
+	select HAVE_IPSBAR
+	help
+	  Motorola ColdFire 5280/5282 processor support.
+
+config M5307
+	bool "MCF5307"
+	select COLDFIRE_SW_A7
+	select HAVE_CACHE_CB
+	select HAVE_MBAR
+	help
+	  Motorola ColdFire 5307 processor support.
+
+config M532x
+	bool "MCF532x"
+	select HAVE_CACHE_CB
+	help
+	  Freescale (Motorola) ColdFire 532x processor support.
+
+config M5407
+	bool "MCF5407"
+	select COLDFIRE_SW_A7
+	select HAVE_CACHE_CB
+	select HAVE_MBAR
+	help
+	  Motorola ColdFire 5407 processor support.
+
+config M547x
+	bool "MCF547x"
+	select HAVE_CACHE_CB
+	select HAVE_MBAR
+	help
+	  Freescale ColdFire 5470/5471/5472/5473/5474/5475 processor support.
+
+config M548x
+	bool "MCF548x"
+	select HAVE_CACHE_CB
+	select HAVE_MBAR
+	help
+	  Freescale ColdFire 5480/5481/5482/5483/5484/5485 processor support.
+
+endchoice
+
+config M527x
+	bool
+	depends on (M5271 || M5275)
+	select GENERIC_CLOCKEVENTS
+	default y
+
+config M54xx
+	bool
+	depends on (M548x || M547x)
+	default y
+
+config COLDFIRE
+	bool
+	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M532x || M5407 || M54xx)
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	default y
+
+config CLOCK_SET
+	bool "Enable setting the CPU clock frequency"
+	default n
+	help
+	  On some CPU's you do not need to know what the core CPU clock
+	  frequency is. On these you can disable clock setting. On some
+	  traditional 68K parts, and on all ColdFire parts you need to set
+	  the appropriate CPU clock frequency. On these devices many of the
+	  onboard peripherals derive their timing from the master CPU clock
+	  frequency.
+
+config CLOCK_FREQ
+	int "Set the core clock frequency"
+	default "66666666"
+	depends on CLOCK_SET
+	help
+	  Define the CPU clock frequency in use. This is the core clock
+	  frequency, it may or may not be the same as the external clock
+	  crystal fitted to your board. Some processors have an internal
+	  PLL and can have their frequency programmed at run time, others
+	  use internal dividers. In general the kernel won't setup a PLL
+	  if it is fitted (there are some exceptions). This value will be
+	  specific to the exact CPU that you are using.
+
+config OLDMASK
+	bool "Old mask 5307 (1H55J) silicon"
+	depends on M5307
+	help
+	  Build support for the older revision ColdFire 5307 silicon.
+	  Specifically this is the 1H55J mask revision.
+
+if HAVE_CACHE_SPLIT
+choice
+	prompt "Split Cache Configuration"
+	default CACHE_I
+
+config CACHE_I
+	bool "Instruction"
+	help
+	  Use all of the ColdFire CPU cache memory as an instruction cache.
+
+config CACHE_D
+	bool "Data"
+	help
+	  Use all of the ColdFire CPU cache memory as a data cache.
+
+config CACHE_BOTH
+	bool "Both"
+	help
+	  Split the ColdFire CPU cache, and use half as an instruction cache
+	  and half as a data cache.
+endchoice
+endif
+
+if HAVE_CACHE_CB
+choice
+	prompt "Data cache mode"
+	default CACHE_WRITETHRU
+
+config CACHE_WRITETHRU
+	bool "Write-through"
+	help
+	  The ColdFire CPU cache is set into Write-through mode.
+
+config CACHE_COPYBACK
+	bool "Copy-back"
+	help
+	  The ColdFire CPU cache is set into Copy-back mode.
+endchoice
+endif
+
+comment "Platform"
+
+config PILOT3
+	bool "Pilot 1000/5000, PalmPilot Personal/Pro, or PalmIII support"
+	depends on M68328
+	help
+	  Support for the Palm Pilot 1000/5000, Personal/Pro and PalmIII.
+
+config XCOPILOT_BUGS
+	bool "(X)Copilot support"
+	depends on PILOT3
+	help
+	  Support the bugs of Xcopilot.
+
+config UC5272
+	bool 'Arcturus Networks uC5272 dimm board support'
+	depends on M5272
+	help
+	  Support for the Arcturus Networks uC5272 dimm board.
+
+config UC5282
+	bool "Arcturus Networks uC5282 board support"
+	depends on M528x
+	help
+	  Support for the Arcturus Networks uC5282 dimm board.
+
+config UCSIMM
+	bool "uCsimm module support"
+	depends on M68EZ328
+	help
+	  Support for the Arcturus Networks uCsimm module.
+
+config UCDIMM
+	bool "uDsimm module support"
+	depends on M68VZ328
+	help
+	  Support for the Arcturus Networks uDsimm module.
+
+config DRAGEN2
+	bool "DragenEngine II board support"
+	depends on M68VZ328
+	help
+	  Support for the DragenEngine II board.
+
+config DIRECT_IO_ACCESS
+	bool "Allow user to access IO directly"
+	depends on (UCSIMM || UCDIMM || DRAGEN2)
+	help
+	  Disable the CPU internal registers protection in user mode,
+	  to allow a user application to read/write them.
+
+config INIT_LCD
+	bool "Initialize LCD"
+	depends on (UCSIMM || UCDIMM || DRAGEN2)
+	help
+	  Initialize the LCD controller of the 68x328 processor.
+
+config MEMORY_RESERVE
+	int "Memory reservation (MiB)"
+	depends on (UCSIMM || UCDIMM)
+	help
+	  Reserve certain memory regions on 68x328 based boards.
+
+config UCQUICC
+	bool "Lineo uCquicc board support"
+	depends on M68360
+	help
+	  Support for the Lineo uCquicc board.
+
+config ARN5206
+	bool "Arnewsh 5206 board support"
+	depends on M5206
+	help
+	  Support for the Arnewsh 5206 board.
+
+config M5206eC3
+	bool "Motorola M5206eC3 board support"
+	depends on M5206e
+	help
+	  Support for the Motorola M5206eC3 board.
+
+config ELITE
+	bool "Motorola M5206eLITE board support"
+	depends on M5206e
+	help
+	  Support for the Motorola M5206eLITE board.
+
+config M5208EVB
+	bool "Freescale M5208EVB board support"
+	depends on M520x
+	help
+	  Support for the Freescale Coldfire M5208EVB.
+
+config M5235EVB
+	bool "Freescale M5235EVB support"
+	depends on M523x
+	help
+	  Support for the Freescale M5235EVB board.
+
+config M5249C3
+	bool "Motorola M5249C3 board support"
+	depends on M5249
+	help
+	  Support for the Motorola M5249C3 board.
+
+config M5271EVB
+	bool "Freescale (Motorola) M5271EVB board support"
+	depends on M5271
+	help
+	  Support for the Freescale (Motorola) M5271EVB board.
+
+config M5275EVB
+	bool "Freescale (Motorola) M5275EVB board support"
+	depends on M5275
+	help
+	  Support for the Freescale (Motorola) M5275EVB board.
+
+config M5272C3
+	bool "Motorola M5272C3 board support"
+	depends on M5272
+	help
+	  Support for the Motorola M5272C3 board.
+
+config COBRA5272
+	bool "senTec COBRA5272 board support"
+	depends on M5272
+	help
+	  Support for the senTec COBRA5272 board.
+
+config AVNET5282
+	bool "Avnet 5282 board support"
+	depends on M528x
+	help
+	  Support for the Avnet 5282 board.  
+	  
+config M5282EVB
+	bool "Motorola M5282EVB board support"
+	depends on M528x
+	help
+	  Support for the Motorola M5282EVB board.
+
+config COBRA5282
+	bool "senTec COBRA5282 board support"
+	depends on M528x
+	help
+	  Support for the senTec COBRA5282 board.
+	  
+config SOM5282EM
+	bool "EMAC.Inc SOM5282EM board support"
+	depends on M528x
+	help
+	  Support for the EMAC.Inc SOM5282EM module.  
+	  
+config WILDFIRE
+	bool "Intec Automation Inc. WildFire board support"
+	depends on M528x
+	help
+	  Support for the Intec Automation Inc. WildFire.
+	  
+config WILDFIREMOD
+	bool "Intec Automation Inc. WildFire module support"
+	depends on M528x
+	help
+	  Support for the Intec Automation Inc. WildFire module.
+
+config ARN5307
+	bool "Arnewsh 5307 board support"
+	depends on M5307
+	help
+	  Support for the Arnewsh 5307 board.
+
+config M5307C3
+	bool "Motorola M5307C3 board support"
+	depends on M5307
+	help
+	  Support for the Motorola M5307C3 board.
+
+config SECUREEDGEMP3
+	bool "SnapGear SecureEdge/MP3 platform support"
+	depends on M5307
+	help
+	  Support for the SnapGear SecureEdge/MP3 platform.
+
+config M5329EVB
+	bool "Freescale (Motorola) M5329EVB board support"
+	depends on M532x
+	help
+	  Support for the Freescale (Motorola) M5329EVB board.
+
+config COBRA5329
+	bool "senTec COBRA5329 board support"
+	depends on M532x
+	help
+	  Support for the senTec COBRA5329 board.
+
+config M5407C3
+	bool "Motorola M5407C3 board support"
+	depends on M5407
+	help
+	  Support for the Motorola M5407C3 board.
+
+config FIREBEE
+	bool "FireBee board support"
+	depends on M547x
+	help
+	  Support for the FireBee ColdFire 5475 based board.
+
+config CLEOPATRA
+	bool "Feith CLEOPATRA board support"
+	depends on (M5307 || M5407)
+	help
+	  Support for the Feith Cleopatra boards.
+
+config CANCam
+	bool "Feith CANCam board support"
+	depends on M5272
+	help
+	  Support for the Feith CANCam board.
+
+config SCALES
+	bool "Feith SCALES board support"
+	depends on M5272
+	help
+	  Support for the Feith SCALES board.
+
+config NETtel
+	bool "SecureEdge/NETtel board support"
+	depends on (M5206e || M5272 || M5307)
+	help
+	  Support for the SnapGear NETtel/SecureEdge/SnapGear boards.
+
+config SNAPGEAR
+	bool "SnapGear router board support"
+	depends on NETtel
+	help
+	  Special additional support for SnapGear router boards.
+
+config CPU16B
+	bool "Sneha Technologies S.L. Sarasvati board support"
+	depends on M5272
+	help
+	  Support for the SNEHA CPU16B board.
+
+config MOD5272
+	bool "Netburner MOD-5272 board support"
+	depends on M5272
+	help
+	  Support for the Netburner MOD-5272 board.
+
+config SAVANTrosie1
+	bool "Savant Rosie1 board support"
+	depends on M523x
+	help
+	  Support for the Savant Rosie1 board.
+
+config ROMFS_FROM_ROM
+	bool "ROMFS image not RAM resident"
+	depends on (NETtel || SNAPGEAR)
+	help
+	  The ROMfs filesystem will stay resident in the FLASH/ROM, not be
+	  moved into RAM.
+
+config PILOT
+	bool
+	default y
+	depends on (PILOT3 || PILOT5)
+
+config ARNEWSH
+	bool
+	default y
+	depends on (ARN5206 || ARN5307)
+
+config FREESCALE
+	bool
+	default y
+	depends on (M5206eC3 || M5208EVB || M5235EVB || M5249C3 || M5271EVB || M5272C3 || M5275EVB || M5282EVB || M5307C3 || M5329EVB || M5407C3)
+
+config HW_FEITH
+	bool
+	default y
+	depends on (CLEOPATRA || CANCam || SCALES)
+
+config senTec
+	bool
+	default y
+	depends on (COBRA5272 || COBRA5282)
+	
+config EMAC_INC
+	bool
+	default y
+	depends on (SOM5282EM)
+
+config SNEHA
+	bool
+	default y
+	depends on CPU16B
+
+config SAVANT
+	bool
+	default y
+	depends on SAVANTrosie1
+
+config AVNET
+	bool
+	default y
+	depends on (AVNET5282)
+
+config UBOOT
+	bool "Support for U-Boot command line parameters"
+	help
+	  If you say Y here kernel will try to collect command
+	  line parameters from the initial u-boot stack.
+	default n
+
+config 4KSTACKS
+	bool "Use 4Kb for kernel stacks instead of 8Kb"
+	default y
+	help
+	  If you say Y here the kernel will use a 4Kb stacksize for the
+	  kernel stack attached to each process/thread. This facilitates
+	  running more threads on a system and also reduces the pressure
+	  on the VM subsystem for higher order allocations.
+
+comment "RAM configuration"
+
+config RAMBASE
+	hex "Address of the base of RAM"
+	default "0"
+	help
+	  Define the address that RAM starts at. On many platforms this is
+	  0, the base of the address space. And this is the default. Some
+	  platforms choose to setup their RAM at other addresses within the
+	  processor address space.
+
+config RAMSIZE
+	hex "Size of RAM (in bytes), or 0 for automatic"
+	default "0x400000"
+	help
+	  Define the size of the system RAM. If you select 0 then the
+	  kernel will try to probe the RAM size at runtime. This is not
+	  supported on all CPU types.
+
+config VECTORBASE
+	hex "Address of the base of system vectors"
+	default "0"
+	help
+	  Define the address of the system vectors. Commonly this is
+	  put at the start of RAM, but it doesn't have to be. On ColdFire
+	  platforms this address is programmed into the VBR register, thus
+	  actually setting the address to use.
+
+config MBAR
+	hex "Address of the MBAR (internal peripherals)"
+	default "0x10000000"
+	depends on HAVE_MBAR
+	help
+	  Define the address of the internal system peripherals. This value
+	  is set in the processors MBAR register. This is generally setup by
+	  the boot loader, and will not be written by the kernel. By far most
+	  ColdFire boards use the default 0x10000000 value, so if unsure then
+	  use this.
+
+config IPSBAR
+	hex "Address of the IPSBAR (internal peripherals)"
+	default "0x40000000"
+	depends on HAVE_IPSBAR
+	help
+	  Define the address of the internal system peripherals. This value
+	  is set in the processors IPSBAR register. This is generally setup by
+	  the boot loader, and will not be written by the kernel. By far most
+	  ColdFire boards use the default 0x40000000 value, so if unsure then
+	  use this.
+
+config KERNELBASE
+	hex "Address of the base of kernel code"
+	default "0x400"
+	help
+	  Typically on m68k systems the kernel will not start at the base
+	  of RAM, but usually some small offset from it. Define the start
+	  address of the kernel here. The most common setup will have the
+	  processor vectors at the base of RAM and then the start of the
+	  kernel. On some platforms some RAM is reserved for boot loaders
+	  and the kernel starts after that. The 0x400 default was based on
+	  a system with the RAM based at address 0, and leaving enough room
+	  for the theoretical maximum number of 256 vectors.
+
+choice
+	prompt "RAM bus width"
+	default RAMAUTOBIT
+
+config RAMAUTOBIT
+	bool "AUTO"
+	help
+	  Select the physical RAM data bus size. Not needed on most platforms,
+	  so you can generally choose AUTO.
+
+config RAM8BIT
+	bool "8bit"
+	help
+	  Configure RAM bus to be 8 bits wide.
+
+config RAM16BIT
+	bool "16bit"
+	help
+	  Configure RAM bus to be 16 bits wide.
+
+config RAM32BIT
+	bool "32bit"
+	help
+	  Configure RAM bus to be 32 bits wide.
+
+endchoice
+
+comment "ROM configuration"
+
+config ROM
+	bool "Specify ROM linker regions"
+	default n
+	help
+	  Define a ROM region for the linker script. This creates a kernel
+	  that can be stored in flash, with possibly the text, and data
+	  regions being copied out to RAM at startup.
+
+config ROMBASE
+	hex "Address of the base of ROM device"
+	default "0"
+	depends on ROM
+	help
+	  Define the address that the ROM region starts at. Some platforms
+	  use this to set their chip select region accordingly for the boot
+	  device.
+
+config ROMVEC
+	hex "Address of the base of the ROM vectors"
+	default "0"
+	depends on ROM
+	help
+	  This is almost always the same as the base of the ROM. Since on all
+	  68000 type variants the vectors are at the base of the boot device
+	  on system startup.
+
+config ROMVECSIZE
+	hex "Size of ROM vector region (in bytes)"
+	default "0x400"
+	depends on ROM
+	help
+	  Define the size of the vector region in ROM. For most 68000
+	  variants this would be 0x400 bytes in size. Set to 0 if you do
+	  not want a vector region at the start of the ROM.
+
+config ROMSTART
+	hex "Address of the base of system image in ROM"
+	default "0x400"
+	depends on ROM
+	help
+	  Define the start address of the system image in ROM. Commonly this
+	  is strait after the ROM vectors.
+
+config ROMSIZE
+	hex "Size of the ROM device"
+	default "0x100000"
+	depends on ROM
+	help
+	  Size of the ROM device. On some platforms this is used to setup
+	  the chip select that controls the boot ROM device.
+
+choice
+	prompt "Kernel executes from"
+	---help---
+	  Choose the memory type that the kernel will be running in.
+
+config RAMKERNEL
+	bool "RAM"
+	help
+	  The kernel will be resident in RAM when running.
+
+config ROMKERNEL
+	bool "ROM"
+	help
+	  The kernel will be resident in FLASH/ROM when running. This is
+	  often referred to as Execute-in-Place (XIP), since the kernel
+	  code executes from the position it is stored in the FLASH/ROM.
+
+endchoice
+
+if COLDFIRE
+source "kernel/Kconfig.preempt"
+endif
+
+source "kernel/time/Kconfig"
+
+config ISA_DMA_API
+	bool
+	depends on !M5272
+	default y
+
+source "drivers/pcmcia/Kconfig"
+

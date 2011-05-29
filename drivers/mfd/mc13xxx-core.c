@@ -683,14 +683,13 @@ out:
 EXPORT_SYMBOL_GPL(mc13783_adc_do_conversion);
 
 static int mc13xxx_add_subdevice_pdata(struct mc13xxx *mc13xxx,
-		const char *format, void *pdata, size_t pdata_size)
+		const char *format, void *pdata)
 {
 	char buf[30];
 	const char *name = mc13xxx_get_chipname(mc13xxx);
 
 	struct mfd_cell cell = {
-		.platform_data = pdata,
-		.data_size = pdata_size,
+		.mfd_data = pdata,
 	};
 
 	/* there is no asnprintf in the kernel :-( */
@@ -706,7 +705,7 @@ static int mc13xxx_add_subdevice_pdata(struct mc13xxx *mc13xxx,
 
 static int mc13xxx_add_subdevice(struct mc13xxx *mc13xxx, const char *format)
 {
-	return mc13xxx_add_subdevice_pdata(mc13xxx, format, NULL, 0);
+	return mc13xxx_add_subdevice_pdata(mc13xxx, format, NULL);
 }
 
 static int mc13xxx_probe(struct spi_device *spi)
@@ -764,13 +763,8 @@ err_revision:
 		mc13xxx_add_subdevice(mc13xxx, "%s-codec");
 
 	if (pdata->flags & MC13XXX_USE_REGULATOR) {
-		struct mc13xxx_regulator_platform_data regulator_pdata = {
-			.num_regulators = pdata->num_regulators,
-			.regulators = pdata->regulators,
-		};
-
 		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-regulator",
-				&regulator_pdata, sizeof(regulator_pdata));
+				&pdata->regulators);
 	}
 
 	if (pdata->flags & MC13XXX_USE_RTC)
@@ -779,10 +773,8 @@ err_revision:
 	if (pdata->flags & MC13XXX_USE_TOUCHSCREEN)
 		mc13xxx_add_subdevice(mc13xxx, "%s-ts");
 
-	if (pdata->flags & MC13XXX_USE_LED) {
-		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-led",
-					pdata->leds, sizeof(*pdata->leds));
-	}
+	if (pdata->flags & MC13XXX_USE_LED)
+		mc13xxx_add_subdevice_pdata(mc13xxx, "%s-led", pdata->leds);
 
 	return 0;
 }
@@ -811,6 +803,7 @@ static const struct spi_device_id mc13xxx_device_id[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(spi, mc13xxx_device_id);
 
 static struct spi_driver mc13xxx_driver = {
 	.id_table = mc13xxx_device_id,

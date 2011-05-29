@@ -63,23 +63,11 @@ static int iwl_send_led_cmd(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd)
 }
 
 /* Set led register off */
-static int iwl_led_on_reg(struct iwl_priv *priv)
+void iwlagn_led_enable(struct iwl_priv *priv)
 {
-	IWL_DEBUG_LED(priv, "led on\n");
 	iwl_write32(priv, CSR_LED_REG, CSR_LED_REG_TRUN_ON);
-	return 0;
-}
-
-/* Set led register off */
-static int iwl_led_off_reg(struct iwl_priv *priv)
-{
-	IWL_DEBUG_LED(priv, "LED Reg off\n");
-	iwl_write32(priv, CSR_LED_REG, CSR_LED_REG_TRUN_OFF);
-	return 0;
 }
 
 const struct iwl_led_ops iwlagn_led_ops = {
 	.cmd = iwl_send_led_cmd,
-	.on = iwl_led_on_reg,
-	.off = iwl_led_off_reg,
 };

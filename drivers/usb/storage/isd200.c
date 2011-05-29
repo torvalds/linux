@@ -1510,7 +1510,7 @@ static int isd200_Initialization(struct us_data *us)
  * Protocol and Transport for the ISD200 ASIC
  *
  * This protocol and transport are for ATA devices connected to an ISD200
- * ASIC.  An ATAPI device that is conected as a slave device will be
+ * ASIC.  An ATAPI device that is connected as a slave device will be
  * detected in the driver initialization function and the protocol will
  * be changed to an ATAPI protocol (Transparent SCSI).
  *

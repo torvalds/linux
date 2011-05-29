@@ -12,6 +12,7 @@
 #include <linux/lglock.h>
 
 struct super_block;
+struct file_system_type;
 struct linux_binprm;
 struct path;
 
@@ -61,10 +62,9 @@ extern int check_unsafe_exec(struct linux_binprm *);
 extern int copy_mount_options(const void __user *, unsigned long *);
 extern int copy_mount_string(const void __user *, char **);
 
-extern void free_vfsmnt(struct vfsmount *);
-extern struct vfsmount *alloc_vfsmnt(const char *);
 extern unsigned int mnt_get_count(struct vfsmount *mnt);
 extern struct vfsmount *__lookup_mnt(struct vfsmount *, struct dentry *, int);
+extern struct vfsmount *lookup_mnt(struct path *);
 extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
 				struct vfsmount *);
 extern void release_mounts(struct list_head *);
@@ -99,6 +99,8 @@ extern struct file *get_empty_filp(void);
 extern int do_remount_sb(struct super_block *, int, void *, int);
 extern void __put_super(struct super_block *sb);
 extern void put_super(struct super_block *sb);
+extern struct dentry *mount_fs(struct file_system_type *,
+			       int, const char *, void *);
 
 /*
  * open.c
@@ -106,10 +108,30 @@ extern void put_super(struct super_block *sb);
 struct nameidata;
 extern struct file *nameidata_to_filp(struct nameidata *);
 extern void release_open_intent(struct nameidata *);
+struct open_flags {
+	int open_flag;
+	int mode;
+	int acc_mode;
+	int intent;
+};
+extern struct file *do_filp_open(int dfd, const char *pathname,
+		const struct open_flags *op, int lookup_flags);
+extern struct file *do_file_open_root(struct dentry *, struct vfsmount *,
+		const char *, const struct open_flags *, int lookup_flags);
+
+extern long do_handle_open(int mountdirfd,
+			   struct file_handle __user *ufh, int open_flag);
 
 /*
  * inode.c
  */
+extern spinlock_t inode_sb_list_lock;
+
+/*
+ * fs-writeback.c
+ */
+extern void inode_wb_list_del(struct inode *inode);
+
 extern int get_nr_dirty_inodes(void);
 extern void evict_inodes(struct super_block *);
 extern int invalidate_inodes(struct super_block *, bool);

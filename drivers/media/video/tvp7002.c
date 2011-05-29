@@ -32,6 +32,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ctrls.h>
 #include "tvp7002_reg.h"
 
 MODULE_DESCRIPTION("TI TVP7002 Video and Graphics Digitizer driver");
@@ -421,13 +422,13 @@ static const struct tvp7002_preset_definition tvp7002_presets[] = {
 /* Device definition */
 struct tvp7002 {
 	struct v4l2_subdev sd;
+	struct v4l2_ctrl_handler hdl;
 	const struct tvp7002_config *pdata;
 
 	int ver;
 	int streaming;
 
 	const struct tvp7002_preset_definition *current_preset;
-	u8 gain;
 };
 
 /*
@@ -439,6 +440,11 @@ struct tvp7002 {
 static inline struct tvp7002 *to_tvp7002(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct tvp7002, sd);
+}
+
+static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
+{
+	return &container_of(ctrl->handler, struct tvp7002, hdl)->sd;
 }
 
 /*
@@ -606,78 +612,25 @@ static int tvp7002_s_dv_preset(struct v4l2_subdev *sd,
 }
 
 /*
- * tvp7002_g_ctrl() - Get a control
- * @sd: ptr to v4l2_subdev struct
- * @ctrl: ptr to v4l2_control struct
- *
- * Get a control for a TVP7002 decoder device.
- * Returns zero when successful or -EINVAL if register access fails.
- */
-static int tvp7002_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct tvp7002 *device = to_tvp7002(sd);
-
-	switch (ctrl->id) {
-	case V4L2_CID_GAIN:
-		ctrl->value = device->gain;
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
-/*
  * tvp7002_s_ctrl() - Set a control
- * @sd: ptr to v4l2_subdev struct
- * @ctrl: ptr to v4l2_control struct
+ * @ctrl: ptr to v4l2_ctrl struct
  *
  * Set a control in TVP7002 decoder device.
  * Returns zero when successful or -EINVAL if register access fails.
  */
-static int tvp7002_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+static int tvp7002_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct tvp7002 *device = to_tvp7002(sd);
+	struct v4l2_subdev *sd = to_sd(ctrl);
 	int error = 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_GAIN:
-		tvp7002_write_err(sd, TVP7002_R_FINE_GAIN,
-						ctrl->value & 0xff, &error);
-		tvp7002_write_err(sd, TVP7002_G_FINE_GAIN,
-						ctrl->value & 0xff, &error);
-		tvp7002_write_err(sd, TVP7002_B_FINE_GAIN,
-						ctrl->value & 0xff, &error);
-
-		if (error < 0)
-			return error;
-
-		/* Set only after knowing there is no error */
-		device->gain = ctrl->value & 0xff;
-		return 0;
-	default:
-		return -EINVAL;
+		tvp7002_write_err(sd, TVP7002_R_FINE_GAIN, ctrl->val, &error);
+		tvp7002_write_err(sd, TVP7002_G_FINE_GAIN, ctrl->val, &error);
+		tvp7002_write_err(sd, TVP7002_B_FINE_GAIN, ctrl->val, &error);
+		return error;
 	}
-}
-
-/*
- * tvp7002_queryctrl() - Query a control
- * @sd: ptr to v4l2_subdev struct
- * @qc: ptr to v4l2_queryctrl struct
- *
- * Query a control of a TVP7002 decoder device.
- * Returns zero when successful or -EINVAL if register read fails.
- */
-static int tvp7002_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
-{
-	switch (qc->id) {
-	case V4L2_CID_GAIN:
-		/*
-		 * Gain is supported [0-255, default=0, step=1]
-		 */
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 0);
-	default:
-		return -EINVAL;
-	}
+	return -EINVAL;
 }
 
 /*
@@ -924,7 +877,7 @@ static int tvp7002_log_status(struct v4l2_subdev *sd)
 					device->streaming ? "yes" : "no");
 
 	/* Print the current value of the gain control */
-	v4l2_info(sd, "Gain: %u\n", device->gain);
+	v4l2_ctrl_handler_log_status(&device->hdl, sd->name);
 
 	return 0;
 }
@@ -946,13 +899,21 @@ static int tvp7002_enum_dv_presets(struct v4l2_subdev *sd,
 	return v4l_fill_dv_preset_info(tvp7002_presets[preset->index].preset, preset);
 }
 
+static const struct v4l2_ctrl_ops tvp7002_ctrl_ops = {
+	.s_ctrl = tvp7002_s_ctrl,
+};
+
 /* V4L2 core operation handlers */
 static const struct v4l2_subdev_core_ops tvp7002_core_ops = {
 	.g_chip_ident = tvp7002_g_chip_ident,
 	.log_status = tvp7002_log_status,
-	.g_ctrl = tvp7002_g_ctrl,
-	.s_ctrl = tvp7002_s_ctrl,
-	.queryctrl = tvp7002_queryctrl,
+	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
+	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
+	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
+	.g_ctrl = v4l2_subdev_g_ctrl,
+	.s_ctrl = v4l2_subdev_s_ctrl,
+	.queryctrl = v4l2_subdev_queryctrl,
+	.querymenu = v4l2_subdev_querymenu,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = tvp7002_g_register,
 	.s_register = tvp7002_s_register,
@@ -975,12 +936,6 @@ static const struct v4l2_subdev_video_ops tvp7002_video_ops = {
 static const struct v4l2_subdev_ops tvp7002_ops = {
 	.core = &tvp7002_core_ops,
 	.video = &tvp7002_video_ops,
-};
-
-static struct tvp7002 tvp7002_dev = {
-	.streaming = 0,
-	.current_preset = tvp7002_presets,
-	.gain = 0,
 };
 
 /*
@@ -1013,14 +968,14 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 		return -ENODEV;
 	}
 
-	device = kmalloc(sizeof(struct tvp7002), GFP_KERNEL);
+	device = kzalloc(sizeof(struct tvp7002), GFP_KERNEL);
 
 	if (!device)
 		return -ENOMEM;
 
-	*device = tvp7002_dev;
 	sd = &device->sd;
 	device->pdata = c->dev.platform_data;
+	device->current_preset = tvp7002_presets;
 
 	/* Tell v4l2 the device is ready */
 	v4l2_i2c_subdev_init(sd, c, &tvp7002_ops);
@@ -1060,6 +1015,19 @@ static int tvp7002_probe(struct i2c_client *c, const struct i2c_device_id *id)
 	preset.preset = device->current_preset->preset;
 	error = tvp7002_s_dv_preset(sd, &preset);
 
+	v4l2_ctrl_handler_init(&device->hdl, 1);
+	v4l2_ctrl_new_std(&device->hdl, &tvp7002_ctrl_ops,
+			V4L2_CID_GAIN, 0, 255, 1, 0);
+	sd->ctrl_handler = &device->hdl;
+	if (device->hdl.error) {
+		int err = device->hdl.error;
+
+		v4l2_ctrl_handler_free(&device->hdl);
+		kfree(device);
+		return err;
+	}
+	v4l2_ctrl_handler_setup(&device->hdl);
+
 found_error:
 	if (error < 0)
 		kfree(device);
@@ -1083,6 +1051,7 @@ static int tvp7002_remove(struct i2c_client *c)
 				"on address 0x%x\n", c->addr);
 
 	v4l2_device_unregister_subdev(sd);
+	v4l2_ctrl_handler_free(&device->hdl);
 	kfree(device);
 	return 0;
 }

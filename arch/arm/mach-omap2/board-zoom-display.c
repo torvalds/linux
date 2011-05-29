@@ -130,14 +130,6 @@ static struct omap_dss_board_info zoom_dss_data = {
 	.default_device		= &zoom_lcd_device,
 };
 
-static struct platform_device zoom_dss_device = {
-	.name				= "omapdss",
-	.id				= -1,
-	.dev				= {
-		.platform_data		= &zoom_dss_data,
-	},
-};
-
 static struct omap2_mcspi_device_config dss_lcd_mcspi_config = {
 	.turbo_mode		= 1,
 	.single_channel	= 1,  /* 0: slave, 1: master */
@@ -153,14 +145,9 @@ static struct spi_board_info nec_8048_spi_board_info[] __initdata = {
 	},
 };
 
-static struct platform_device *zoom_display_devices[] __initdata = {
-	&zoom_dss_device,
-};
-
 void __init zoom_display_init(void)
 {
-	platform_add_devices(zoom_display_devices,
-				ARRAY_SIZE(zoom_display_devices));
+	omap_display_init(&zoom_dss_data);
 	spi_register_board_info(nec_8048_spi_board_info,
 				ARRAY_SIZE(nec_8048_spi_board_info));
 	zoom_lcd_panel_init();

@@ -227,7 +227,7 @@ static void rtl8187_tx_cb(struct urb *urb)
 	}
 }
 
-static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -241,7 +241,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		kfree_skb(skb);
-		return NETDEV_TX_OK;
+		return;
 	}
 
 	flags = skb->len;
@@ -309,8 +309,6 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		kfree_skb(skb);
 	}
 	usb_free_urb(urb);
-
-	return NETDEV_TX_OK;
 }
 
 static void rtl8187_rx_cb(struct urb *urb)
@@ -373,7 +371,7 @@ static void rtl8187_rx_cb(struct urb *urb)
 	rx_status.rate_idx = rate;
 	rx_status.freq = dev->conf.channel->center_freq;
 	rx_status.band = dev->conf.channel->band;
-	rx_status.flag |= RX_FLAG_TSFT;
+	rx_status.flag |= RX_FLAG_MACTIME_MPDU;
 	if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
@@ -871,23 +869,35 @@ static void rtl8187_work(struct work_struct *work)
 	/* The RTL8187 returns the retry count through register 0xFFFA. In
 	 * addition, it appears to be a cumulative retry count, not the
 	 * value for the current TX packet. When multiple TX entries are
-	 * queued, the retry count will be valid for the last one in the queue.
-	 * The "error" should not matter for purposes of rate setting. */
+	 * waiting in the queue, the retry count will be the total for all.
+	 * The "error" may matter for purposes of rate setting, but there is
+	 * no other choice with this hardware.
+	 */
 	struct rtl8187_priv *priv = container_of(work, struct rtl8187_priv,
 				    work.work);
 	struct ieee80211_tx_info *info;
 	struct ieee80211_hw *dev = priv->dev;
 	static u16 retry;
 	u16 tmp;
+	u16 avg_retry;
+	int length;
 
 	mutex_lock(&priv->conf_mutex);
 	tmp = rtl818x_ioread16(priv, (__le16 *)0xFFFA);
+	length = skb_queue_len(&priv->b_tx_status.queue);
+	if (unlikely(!length))
+		length = 1;
+	if (unlikely(tmp < retry))
+		tmp = retry;
+	avg_retry = (tmp - retry) / length;
 	while (skb_queue_len(&priv->b_tx_status.queue) > 0) {
 		struct sk_buff *old_skb;
 
 		old_skb = skb_dequeue(&priv->b_tx_status.queue);
 		info = IEEE80211_SKB_CB(old_skb);
-		info->status.rates[0].count = tmp - retry + 1;
+		info->status.rates[0].count = avg_retry + 1;
+		if (info->status.rates[0].count > RETRY_COUNT)
+			info->flags &= ~IEEE80211_TX_STAT_ACK;
 		ieee80211_tx_status_irqsafe(dev, old_skb);
 	}
 	retry = tmp;
@@ -933,8 +943,8 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 		rtl818x_iowrite32(priv, &priv->map->TX_CONF,
 				  RTL818X_TX_CONF_HW_SEQNUM |
 				  RTL818X_TX_CONF_DISREQQSIZE |
-				  (7 << 8  /* short retry limit */) |
-				  (7 << 0  /* long retry limit */) |
+				  (RETRY_COUNT << 8  /* short retry limit */) |
+				  (RETRY_COUNT << 0  /* long retry limit */) |
 				  (7 << 21 /* MAX TX DMA */));
 		rtl8187_init_urbs(dev);
 		rtl8187b_init_status_urb(dev);
@@ -1378,6 +1388,9 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		     IEEE80211_HW_SIGNAL_DBM |
 		     IEEE80211_HW_RX_INCLUDES_FCS;
+	/* Initialize rate-control variables */
+	dev->max_rates = 1;
+	dev->max_rate_tries = RETRY_COUNT;
 
 	eeprom.data = dev;
 	eeprom.register_read = rtl8187_eeprom_register_read;

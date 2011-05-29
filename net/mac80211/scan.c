@@ -196,7 +196,8 @@ ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 	ieee802_11_parse_elems(elements, skb->len - baselen, &elems);
 
 	if (elems.ds_params && elems.ds_params_len == 1)
-		freq = ieee80211_channel_to_frequency(elems.ds_params[0]);
+		freq = ieee80211_channel_to_frequency(elems.ds_params[0],
+						      rx_status->band);
 	else
 		freq = rx_status->freq;
 
@@ -210,6 +211,14 @@ ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 					channel, beacon);
 	if (bss)
 		ieee80211_rx_bss_put(sdata->local, bss);
+
+	/* If we are on-operating-channel, and this packet is for the
+	 * current channel, pass the pkt on up the stack so that
+	 * the rest of the stack can make use of it.
+	 */
+	if (ieee80211_cfg_on_oper_channel(sdata->local)
+	    && (channel == sdata->local->oper_channel))
+		return RX_CONTINUE;
 
 	dev_kfree_skb(skb);
 	return RX_QUEUED;
@@ -249,10 +258,12 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 	return true;
 }
 
-static bool __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted,
+static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted,
 				       bool was_hw_scan)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	bool on_oper_chan;
+	bool enable_beacons = false;
 
 	lockdep_assert_held(&local->mtx);
 
@@ -266,12 +277,12 @@ static bool __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted,
 		aborted = true;
 
 	if (WARN_ON(!local->scan_req))
-		return false;
+		return;
 
 	if (was_hw_scan && !aborted && ieee80211_prep_hw_scan(local)) {
 		int rc = drv_hw_scan(local, local->scan_sdata, local->hw_scan_req);
 		if (rc == 0)
-			return false;
+			return;
 	}
 
 	kfree(local->hw_scan_req);
@@ -285,24 +296,28 @@ static bool __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted,
 	local->scanning = 0;
 	local->scan_channel = NULL;
 
-	return true;
-}
+	on_oper_chan = ieee80211_cfg_on_oper_channel(local);
 
-static void __ieee80211_scan_completed_finish(struct ieee80211_hw *hw,
-					      bool was_hw_scan)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
+	if (was_hw_scan || !on_oper_chan)
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	else
+		/* Set power back to normal operating levels. */
+		ieee80211_hw_config(local, 0);
 
-	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 	if (!was_hw_scan) {
+		bool on_oper_chan2;
 		ieee80211_configure_filter(local);
 		drv_sw_scan_complete(local);
-		ieee80211_offchannel_return(local, true);
+		on_oper_chan2 = ieee80211_cfg_on_oper_channel(local);
+		/* We should always be on-channel at this point. */
+		WARN_ON(!on_oper_chan2);
+		if (on_oper_chan2 && (on_oper_chan != on_oper_chan2))
+			enable_beacons = true;
+
+		ieee80211_offchannel_return(local, enable_beacons, true);
 	}
 
-	mutex_lock(&local->mtx);
 	ieee80211_recalc_idle(local);
-	mutex_unlock(&local->mtx);
 
 	ieee80211_mlme_notify_scan_completed(local);
 	ieee80211_ibss_notify_scan_completed(local);
@@ -340,15 +355,20 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 	 */
 	drv_sw_scan_start(local);
 
-	ieee80211_offchannel_stop_beaconing(local);
-
 	local->leave_oper_channel_time = 0;
 	local->next_scan_state = SCAN_DECISION;
 	local->scan_channel_idx = 0;
 
-	drv_flush(local, false);
+	/* We always want to use off-channel PS, even if we
+	 * are not really leaving oper-channel.  Don't
+	 * tell the AP though, as long as we are on-channel.
+	 */
+	ieee80211_offchannel_enable_all_ps(local, false);
 
 	ieee80211_configure_filter(local);
+
+	/* We need to set power level at maximum rate for scanning. */
+	ieee80211_hw_config(local, 0);
 
 	ieee80211_queue_delayed_work(&local->hw,
 				     &local->scan_work,
@@ -486,7 +506,20 @@ static void ieee80211_scan_state_decision(struct ieee80211_local *local,
 	}
 	mutex_unlock(&local->iflist_mtx);
 
-	if (local->scan_channel) {
+	next_chan = local->scan_req->channels[local->scan_channel_idx];
+
+	if (ieee80211_cfg_on_oper_channel(local)) {
+		/* We're currently on operating channel. */
+		if (next_chan == local->oper_channel)
+			/* We don't need to move off of operating channel. */
+			local->next_scan_state = SCAN_SET_CHANNEL;
+		else
+			/*
+			 * We do need to leave operating channel, as next
+			 * scan is somewhere else.
+			 */
+			local->next_scan_state = SCAN_LEAVE_OPER_CHANNEL;
+	} else {
 		/*
 		 * we're currently scanning a different channel, let's
 		 * see if we can scan another channel without interfering
@@ -502,7 +535,6 @@ static void ieee80211_scan_state_decision(struct ieee80211_local *local,
 		 *
 		 * Otherwise switch back to the operating channel.
 		 */
-		next_chan = local->scan_req->channels[local->scan_channel_idx];
 
 		bad_latency = time_after(jiffies +
 				ieee80211_scan_get_channel_time(next_chan),
@@ -520,12 +552,6 @@ static void ieee80211_scan_state_decision(struct ieee80211_local *local,
 			local->next_scan_state = SCAN_ENTER_OPER_CHANNEL;
 		else
 			local->next_scan_state = SCAN_SET_CHANNEL;
-	} else {
-		/*
-		 * we're on the operating channel currently, let's
-		 * leave that channel now to scan another one
-		 */
-		local->next_scan_state = SCAN_LEAVE_OPER_CHANNEL;
 	}
 
 	*next_delay = 0;
@@ -534,9 +560,10 @@ static void ieee80211_scan_state_decision(struct ieee80211_local *local,
 static void ieee80211_scan_state_leave_oper_channel(struct ieee80211_local *local,
 						    unsigned long *next_delay)
 {
-	ieee80211_offchannel_stop_station(local);
-
-	__set_bit(SCAN_OFF_CHANNEL, &local->scanning);
+	/* PS will already be in off-channel mode,
+	 * we do that once at the beginning of scanning.
+	 */
+	ieee80211_offchannel_stop_vifs(local, false);
 
 	/*
 	 * What if the nullfunc frames didn't arrive?
@@ -559,15 +586,15 @@ static void ieee80211_scan_state_enter_oper_channel(struct ieee80211_local *loca
 {
 	/* switch back to the operating channel */
 	local->scan_channel = NULL;
-	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	if (!ieee80211_cfg_on_oper_channel(local))
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 
 	/*
-	 * Only re-enable station mode interface now; beaconing will be
-	 * re-enabled once the full scan has been completed.
+	 * Re-enable vifs and beaconing.  Leave PS
+	 * in off-channel state..will put that back
+	 * on-channel at the end of scanning.
 	 */
-	ieee80211_offchannel_return(local, false);
-
-	__clear_bit(SCAN_OFF_CHANNEL, &local->scanning);
+	ieee80211_offchannel_return(local, true, false);
 
 	*next_delay = HZ / 5;
 	local->next_scan_state = SCAN_DECISION;
@@ -583,8 +610,11 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	chan = local->scan_req->channels[local->scan_channel_idx];
 
 	local->scan_channel = chan;
-	if (ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL))
-		skip = 1;
+
+	/* Only call hw-config if we really need to change channels. */
+	if (chan != local->hw.conf.channel)
+		if (ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL))
+			skip = 1;
 
 	/* advance state machine to next channel/band */
 	local->scan_channel_idx++;
@@ -642,11 +672,13 @@ void ieee80211_scan_work(struct work_struct *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, scan_work.work);
-	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
+	struct ieee80211_sub_if_data *sdata;
 	unsigned long next_delay = 0;
-	bool aborted, hw_scan, finish;
+	bool aborted, hw_scan;
 
 	mutex_lock(&local->mtx);
+
+	sdata = local->scan_sdata;
 
 	if (test_and_clear_bit(SCAN_COMPLETED, &local->scanning)) {
 		aborted = test_and_clear_bit(SCAN_ABORTED, &local->scanning);
@@ -711,17 +743,11 @@ void ieee80211_scan_work(struct work_struct *work)
 	} while (next_delay == 0);
 
 	ieee80211_queue_delayed_work(&local->hw, &local->scan_work, next_delay);
-	mutex_unlock(&local->mtx);
-	return;
+	goto out;
 
 out_complete:
 	hw_scan = test_bit(SCAN_HW_SCANNING, &local->scanning);
-	finish = __ieee80211_scan_completed(&local->hw, aborted, hw_scan);
-	mutex_unlock(&local->mtx);
-	if (finish)
-		__ieee80211_scan_completed_finish(&local->hw, hw_scan);
-	return;
-
+	__ieee80211_scan_completed(&local->hw, aborted, hw_scan);
 out:
 	mutex_unlock(&local->mtx);
 }
@@ -791,7 +817,6 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
 void ieee80211_scan_cancel(struct ieee80211_local *local)
 {
 	bool abortscan;
-	bool finish = false;
 
 	/*
 	 * We are only canceling software scan, or deferred scan that was not
@@ -811,14 +836,17 @@ void ieee80211_scan_cancel(struct ieee80211_local *local)
 
 	mutex_lock(&local->mtx);
 	abortscan = local->scan_req && !test_bit(SCAN_HW_SCANNING, &local->scanning);
-	if (abortscan)
-		finish = __ieee80211_scan_completed(&local->hw, true, false);
-	mutex_unlock(&local->mtx);
-
 	if (abortscan) {
-		/* The scan is canceled, but stop work from being pending */
-		cancel_delayed_work_sync(&local->scan_work);
+		/*
+		 * The scan is canceled, but stop work from being pending.
+		 *
+		 * If the work is currently running, it must be blocked on
+		 * the mutex, but we'll set scan_sdata = NULL and it'll
+		 * simply exit once it acquires the mutex.
+		 */
+		cancel_delayed_work(&local->scan_work);
+		/* and clean up */
+		__ieee80211_scan_completed(&local->hw, true, false);
 	}
-	if (finish)
-		__ieee80211_scan_completed_finish(&local->hw, false);
+	mutex_unlock(&local->mtx);
 }

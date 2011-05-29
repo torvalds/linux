@@ -182,13 +182,17 @@ BYTE *buf;
 BYTE *redundant_ecc;
 BYTE *calculate_ecc;
 {
-    DWORD err;
+	DWORD err;
 
-    err=correct_data(buf,redundant_ecc,*(calculate_ecc+1),*(calculate_ecc),*(calculate_ecc+2));
-    if (err==1) StringCopy(calculate_ecc,redundant_ecc,3);
-        if (err==0 || err==1 || err==2)
-            return(0);
-    return(-1);
+	err = correct_data(buf, redundant_ecc, *(calculate_ecc + 1),
+			   *(calculate_ecc), *(calculate_ecc + 2));
+	if (err == 1)
+		memcpy(calculate_ecc, redundant_ecc, 3);
+
+	if (err == 0 || err == 1 || err == 2)
+		return 0;
+
+	return -1;
 }
 
 void _Calculate_D_SwECC(buf,ecc)

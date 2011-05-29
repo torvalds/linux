@@ -45,12 +45,6 @@
 #define	gadget_is_goku(g)	0
 #endif
 
-#ifdef CONFIG_USB_GADGET_LH7A40X
-#define	gadget_is_lh7a40x(g)	!strcmp("lh7a40x_udc", (g)->name)
-#else
-#define	gadget_is_lh7a40x(g)	0
-#endif
-
 #ifdef CONFIG_USB_GADGET_OMAP
 #define	gadget_is_omap(g)	!strcmp("omap_udc", (g)->name)
 #else
@@ -181,8 +175,6 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 		return 0x06;
 	else if (gadget_is_omap(gadget))
 		return 0x08;
-	else if (gadget_is_lh7a40x(gadget))
-		return 0x09;
 	else if (gadget_is_pxa27x(gadget))
 		return 0x11;
 	else if (gadget_is_s3c2410(gadget))

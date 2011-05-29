@@ -190,7 +190,7 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 		goto error_disable_reg;
 	}
 
-	/* Estabilish that the iio_dev is a child of the i2c device */
+	/* Establish that the iio_dev is a child of the spi device */
 	st->indio_dev->dev.parent = &spi->dev;
 	st->indio_dev->attrs = &ad7476_attribute_group;
 	st->indio_dev->dev_data = (void *)(st);

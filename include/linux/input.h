@@ -167,6 +167,7 @@ struct input_keymap_entry {
 #define SYN_REPORT		0
 #define SYN_CONFIG		1
 #define SYN_MT_REPORT		2
+#define SYN_DROPPED		3
 
 /*
  * Keys and buttons
@@ -553,8 +554,8 @@ struct input_keymap_entry {
 #define KEY_DVD			0x185	/* Media Select DVD */
 #define KEY_AUX			0x186
 #define KEY_MP3			0x187
-#define KEY_AUDIO		0x188
-#define KEY_VIDEO		0x189
+#define KEY_AUDIO		0x188	/* AL Audio Browser */
+#define KEY_VIDEO		0x189	/* AL Movie Browser */
 #define KEY_DIRECTORY		0x18a
 #define KEY_LIST		0x18b
 #define KEY_MEMO		0x18c	/* Media Select Messages */
@@ -603,8 +604,9 @@ struct input_keymap_entry {
 #define KEY_FRAMEFORWARD	0x1b5
 #define KEY_CONTEXT_MENU	0x1b6	/* GenDesc - system context menu */
 #define KEY_MEDIA_REPEAT	0x1b7	/* Consumer - transport control */
-#define KEY_10CHANNELSUP        0x1b8   /* 10 channels up (10+) */
-#define KEY_10CHANNELSDOWN      0x1b9   /* 10 channels down (10-) */
+#define KEY_10CHANNELSUP	0x1b8	/* 10 channels up (10+) */
+#define KEY_10CHANNELSDOWN	0x1b9	/* 10 channels down (10-) */
+#define KEY_IMAGES		0x1ba	/* AL Image Browser */
 
 #define KEY_DEL_EOL		0x1c0
 #define KEY_DEL_EOS		0x1c1
@@ -663,6 +665,13 @@ struct input_keymap_entry {
 #define KEY_TOUCHPAD_TOGGLE	0x212	/* Request switch touchpad on or off */
 #define KEY_TOUCHPAD_ON		0x213
 #define KEY_TOUCHPAD_OFF	0x214
+
+#define KEY_CAMERA_ZOOMIN	0x215
+#define KEY_CAMERA_ZOOMOUT	0x216
+#define KEY_CAMERA_UP		0x217
+#define KEY_CAMERA_DOWN		0x218
+#define KEY_CAMERA_LEFT		0x219
+#define KEY_CAMERA_RIGHT	0x21a
 
 #define BTN_TRIGGER_HAPPY		0x2c0
 #define BTN_TRIGGER_HAPPY1		0x2c0
@@ -1154,8 +1163,6 @@ struct ff_effect {
  *	sparse keymaps. If not supplied default mechanism will be used.
  *	The method is being called while holding event_lock and thus must
  *	not sleep
- * @getkeycode_new: transition method
- * @setkeycode_new: transition method
  * @ff: force feedback structure associated with the device if device
  *	supports force feedback effects
  * @repeat_key: stores key code of the last key pressed; used to implement
@@ -1234,14 +1241,10 @@ struct input_dev {
 	void *keycode;
 
 	int (*setkeycode)(struct input_dev *dev,
-			  unsigned int scancode, unsigned int keycode);
+			  const struct input_keymap_entry *ke,
+			  unsigned int *old_keycode);
 	int (*getkeycode)(struct input_dev *dev,
-			  unsigned int scancode, unsigned int *keycode);
-	int (*setkeycode_new)(struct input_dev *dev,
-			      const struct input_keymap_entry *ke,
-			      unsigned int *old_keycode);
-	int (*getkeycode_new)(struct input_dev *dev,
-			      struct input_keymap_entry *ke);
+			  struct input_keymap_entry *ke);
 
 	struct ff_device *ff;
 

@@ -21,8 +21,8 @@ value and associated ram buffer is outpputed to own line.
 
 Each lines will contain the values of 42 bytes read from the counter and
 memory page along the crc=YES or NO for indicating whether the read operation
-was successfull and CRC matched.
-If the operation was successfull, there is also in the end of each line
+was successful and CRC matched.
+If the operation was successful, there is also in the end of each line
 a counter value expressed as an integer after c=
 
 Meaning of 42 bytes represented is following:
@@ -34,7 +34,7 @@ Meaning of 42 bytes represented is following:
  - crc=YES/NO indicating whether read was ok and crc matched
  - c=<int> current counter value
 
-example from the successfull read:
+example from the successful read:
 00 02 00 00 00 00 00 00 00 6d 38 00 ff ff 00 00 fe ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff crc=YES c=2
 00 02 00 00 00 00 00 00 00 e0 1f 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff crc=YES c=2
 00 29 c6 5d 18 00 00 00 00 04 37 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff 00 00 ff ff crc=YES c=408798761

@@ -68,7 +68,7 @@ struct platform_device *ts72xx_wdt_pdev;
  * to control register):
  *	value	description
  *	-------------------------
- * 	0x00	watchdog disabled
+ *	0x00	watchdog disabled
  *	0x01	250ms
  *	0x02	500ms
  *	0x03	1s

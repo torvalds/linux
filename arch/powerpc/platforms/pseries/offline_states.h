@@ -34,6 +34,4 @@ static inline void set_default_offline_state(int cpu)
 #endif
 
 extern enum cpu_state_vals get_preferred_offline_state(int cpu);
-extern int start_secondary(void);
-extern void start_secondary_resume(void);
 #endif

@@ -110,6 +110,12 @@ struct dp_audio_infoframe {
 	u8 LFEPBL01_LSV36_DM_INH7;
 };
 
+union audio_infoframe {
+	struct hdmi_audio_infoframe hdmi;
+	struct dp_audio_infoframe dp;
+	u8 bytes[0];
+};
+
 /*
  * CEA speaker placement:
  *
@@ -620,8 +626,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 	int channels = substream->runtime->channels;
 	int ca;
 	int i;
-	u8 ai[max(sizeof(struct hdmi_audio_infoframe),
-		  sizeof(struct dp_audio_infoframe))];
+	union audio_infoframe ai;
 
 	ca = hdmi_channel_allocation(codec, nid, channels);
 
@@ -633,11 +638,10 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 
 		pin_nid = spec->pin[i];
 
-		memset(ai, 0, sizeof(ai));
+		memset(&ai, 0, sizeof(ai));
 		if (spec->sink_eld[i].conn_type == 0) { /* HDMI */
-			struct hdmi_audio_infoframe *hdmi_ai;
+			struct hdmi_audio_infoframe *hdmi_ai = &ai.hdmi;
 
-			hdmi_ai = (struct hdmi_audio_infoframe *)ai;
 			hdmi_ai->type		= 0x84;
 			hdmi_ai->ver		= 0x01;
 			hdmi_ai->len		= 0x0a;
@@ -645,9 +649,8 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 			hdmi_ai->CA		= ca;
 			hdmi_checksum_audio_infoframe(hdmi_ai);
 		} else if (spec->sink_eld[i].conn_type == 1) { /* DisplayPort */
-			struct dp_audio_infoframe *dp_ai;
+			struct dp_audio_infoframe *dp_ai = &ai.dp;
 
-			dp_ai = (struct dp_audio_infoframe *)ai;
 			dp_ai->type		= 0x84;
 			dp_ai->len		= 0x1b;
 			dp_ai->ver		= 0x11 << 2;
@@ -664,7 +667,8 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 		 * sizeof(*dp_ai) to avoid partial match/update problems when
 		 * the user switches between HDMI/DP monitors.
 		 */
-		if (!hdmi_infoframe_uptodate(codec, pin_nid, ai, sizeof(ai))) {
+		if (!hdmi_infoframe_uptodate(codec, pin_nid, ai.bytes,
+					     sizeof(ai))) {
 			snd_printdd("hdmi_setup_audio_infoframe: "
 				    "cvt=%d pin=%d channels=%d\n",
 				    nid, pin_nid,
@@ -672,7 +676,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 			hdmi_setup_channel_mapping(codec, pin_nid, ca);
 			hdmi_stop_infoframe_trans(codec, pin_nid);
 			hdmi_fill_audio_infoframe(codec, pin_nid,
-						  ai, sizeof(ai));
+						  ai.bytes, sizeof(ai));
 			hdmi_start_infoframe_trans(codec, pin_nid);
 		}
 	}
@@ -1276,6 +1280,39 @@ static int simple_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					     stream_tag, format, substream);
 }
 
+static void nvhdmi_8ch_7x_set_info_frame_parameters(struct hda_codec *codec,
+						    int channels)
+{
+	unsigned int chanmask;
+	int chan = channels ? (channels - 1) : 1;
+
+	switch (channels) {
+	default:
+	case 0:
+	case 2:
+		chanmask = 0x00;
+		break;
+	case 4:
+		chanmask = 0x08;
+		break;
+	case 6:
+		chanmask = 0x0b;
+		break;
+	case 8:
+		chanmask = 0x13;
+		break;
+	}
+
+	/* Set the audio infoframe channel allocation and checksum fields.  The
+	 * channel count is computed implicitly by the hardware. */
+	snd_hda_codec_write(codec, 0x1, 0,
+			Nv_VERB_SET_Channel_Allocation, chanmask);
+
+	snd_hda_codec_write(codec, 0x1, 0,
+			Nv_VERB_SET_Info_Frame_Checksum,
+			(0x71 - chan - chanmask));
+}
+
 static int nvhdmi_8ch_7x_pcm_close(struct hda_pcm_stream *hinfo,
 				   struct hda_codec *codec,
 				   struct snd_pcm_substream *substream)
@@ -1294,6 +1331,10 @@ static int nvhdmi_8ch_7x_pcm_close(struct hda_pcm_stream *hinfo,
 				AC_VERB_SET_STREAM_FORMAT, 0);
 	}
 
+	/* The audio hardware sends a channel count of 0x7 (8ch) when all the
+	 * streams are disabled. */
+	nvhdmi_8ch_7x_set_info_frame_parameters(codec, 8);
+
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
 }
 
@@ -1304,36 +1345,15 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 				     struct snd_pcm_substream *substream)
 {
 	int chs;
-	unsigned int dataDCC1, dataDCC2, chan, chanmask, channel_id;
+	unsigned int dataDCC1, dataDCC2, channel_id;
 	int i;
 
 	mutex_lock(&codec->spdif_mutex);
 
 	chs = substream->runtime->channels;
-	chan = chs ? (chs - 1) : 1;
 
-	switch (chs) {
-	default:
-	case 0:
-	case 2:
-		chanmask = 0x00;
-		break;
-	case 4:
-		chanmask = 0x08;
-		break;
-	case 6:
-		chanmask = 0x0b;
-		break;
-	case 8:
-		chanmask = 0x13;
-		break;
-	}
 	dataDCC1 = AC_DIG1_ENABLE | AC_DIG1_COPYRIGHT;
 	dataDCC2 = 0x2;
-
-	/* set the Audio InforFrame Channel Allocation */
-	snd_hda_codec_write(codec, 0x1, 0,
-			Nv_VERB_SET_Channel_Allocation, chanmask);
 
 	/* turn off SPDIF once; otherwise the IEC958 bits won't be updated */
 	if (codec->spdif_status_reset && (codec->spdif_ctls & AC_DIG1_ENABLE))
@@ -1409,10 +1429,7 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 		}
 	}
 
-	/* set the Audio Info Frame Checksum */
-	snd_hda_codec_write(codec, 0x1, 0,
-			Nv_VERB_SET_Info_Frame_Checksum,
-			(0x71 - chan - chanmask));
+	nvhdmi_8ch_7x_set_info_frame_parameters(codec, chs);
 
 	mutex_unlock(&codec->spdif_mutex);
 	return 0;
@@ -1508,6 +1525,11 @@ static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
 	spec->multiout.max_channels = 8;
 	spec->pcm_playback = &nvhdmi_pcm_playback_8ch_7x;
 	codec->patch_ops = nvhdmi_patch_ops_8ch_7x;
+
+	/* Initialize the audio infoframe channel mask and checksum to something
+	 * valid */
+	nvhdmi_8ch_7x_set_info_frame_parameters(codec, 8);
+
 	return 0;
 }
 
@@ -1634,6 +1656,9 @@ static struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x10de0012, .name = "GPU 12 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
 { .id = 0x10de0013, .name = "GPU 13 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
 { .id = 0x10de0014, .name = "GPU 14 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
+{ .id = 0x10de0015, .name = "GPU 15 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
+{ .id = 0x10de0016, .name = "GPU 16 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
+/* 17 is known to be absent */
 { .id = 0x10de0018, .name = "GPU 18 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
 { .id = 0x10de0019, .name = "GPU 19 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
 { .id = 0x10de001a, .name = "GPU 1a HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
@@ -1676,6 +1701,8 @@ MODULE_ALIAS("snd-hda-codec-id:10de0011");
 MODULE_ALIAS("snd-hda-codec-id:10de0012");
 MODULE_ALIAS("snd-hda-codec-id:10de0013");
 MODULE_ALIAS("snd-hda-codec-id:10de0014");
+MODULE_ALIAS("snd-hda-codec-id:10de0015");
+MODULE_ALIAS("snd-hda-codec-id:10de0016");
 MODULE_ALIAS("snd-hda-codec-id:10de0018");
 MODULE_ALIAS("snd-hda-codec-id:10de0019");
 MODULE_ALIAS("snd-hda-codec-id:10de001a");

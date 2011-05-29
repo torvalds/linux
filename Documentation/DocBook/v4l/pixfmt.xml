@@ -2,12 +2,16 @@
 
   <para>The V4L2 API was primarily designed for devices exchanging
 image data with applications. The
-<structname>v4l2_pix_format</structname> structure defines the format
-and layout of an image in memory. Image formats are negotiated with
-the &VIDIOC-S-FMT; ioctl. (The explanations here focus on video
+<structname>v4l2_pix_format</structname> and <structname>v4l2_pix_format_mplane
+</structname> structures define the format and layout of an image in memory.
+The former is used with the single-planar API, while the latter is used with the
+multi-planar version (see <xref linkend="planar-apis"/>). Image formats are
+negotiated with the &VIDIOC-S-FMT; ioctl. (The explanations here focus on video
 capturing and output, for overlay frame buffer formats see also
 &VIDIOC-G-FBUF;.)</para>
 
+<section>
+  <title>Single-planar format structure</title>
   <table pgwide="1" frame="none" id="v4l2-pix-format">
     <title>struct <structname>v4l2_pix_format</structname></title>
     <tgroup cols="3">
@@ -106,6 +110,98 @@ set this field to zero.</entry>
       </tbody>
     </tgroup>
   </table>
+</section>
+
+<section>
+  <title>Multi-planar format structures</title>
+  <para>The <structname>v4l2_plane_pix_format</structname> structures define
+    size and layout for each of the planes in a multi-planar format.
+    The <structname>v4l2_pix_format_mplane</structname> structure contains
+    information common to all planes (such as image width and height) and
+    an array of <structname>v4l2_plane_pix_format</structname> structures,
+    describing all planes of that format.</para>
+  <table pgwide="1" frame="none" id="v4l2-plane-pix-format">
+    <title>struct <structname>vl42_plane_pix_format</structname></title>
+    <tgroup cols="3">
+      &cs-str;
+      <tbody valign="top">
+        <row>
+          <entry>__u32</entry>
+          <entry><structfield>sizeimage</structfield></entry>
+          <entry>Maximum size in bytes required for image data in this plane.
+          </entry>
+        </row>
+        <row>
+          <entry>__u16</entry>
+          <entry><structfield>bytesperline</structfield></entry>
+          <entry>Distance in bytes between the leftmost pixels in two adjacent
+            lines.</entry>
+        </row>
+        <row>
+          <entry>__u16</entry>
+          <entry><structfield>reserved[7]</structfield></entry>
+          <entry>Reserved for future extensions. Should be zeroed by the
+           application.</entry>
+        </row>
+      </tbody>
+    </tgroup>
+  </table>
+  <table pgwide="1" frame="none" id="v4l2-pix-format-mplane">
+    <title>struct <structname>v4l2_pix_format_mplane</structname></title>
+    <tgroup cols="3">
+      &cs-str;
+      <tbody valign="top">
+        <row>
+          <entry>__u32</entry>
+          <entry><structfield>width</structfield></entry>
+          <entry>Image width in pixels.</entry>
+        </row>
+        <row>
+          <entry>__u32</entry>
+          <entry><structfield>height</structfield></entry>
+          <entry>Image height in pixels.</entry>
+        </row>
+        <row>
+          <entry>__u32</entry>
+          <entry><structfield>pixelformat</structfield></entry>
+          <entry>The pixel format. Both single- and multi-planar four character
+codes can be used.</entry>
+        </row>
+        <row>
+          <entry>&v4l2-field;</entry>
+          <entry><structfield>field</structfield></entry>
+          <entry>See &v4l2-pix-format;.</entry>
+        </row>
+        <row>
+          <entry>&v4l2-colorspace;</entry>
+          <entry><structfield>colorspace</structfield></entry>
+          <entry>See &v4l2-pix-format;.</entry>
+        </row>
+        <row>
+          <entry>&v4l2-plane-pix-format;</entry>
+          <entry><structfield>plane_fmt[VIDEO_MAX_PLANES]</structfield></entry>
+          <entry>An array of structures describing format of each plane this
+          pixel format consists of. The number of valid entries in this array
+          has to be put in the <structfield>num_planes</structfield>
+          field.</entry>
+        </row>
+        <row>
+          <entry>__u8</entry>
+          <entry><structfield>num_planes</structfield></entry>
+          <entry>Number of planes (i.e. separate memory buffers) for this format
+          and the number of valid entries in the
+          <structfield>plane_fmt</structfield> array.</entry>
+        </row>
+        <row>
+          <entry>__u8</entry>
+          <entry><structfield>reserved[11]</structfield></entry>
+          <entry>Reserved for future extensions. Should be zeroed by the
+           application.</entry>
+        </row>
+      </tbody>
+    </tgroup>
+  </table>
+</section>
 
   <section>
     <title>Standard Image Formats</title>
@@ -142,11 +238,19 @@ leftmost pixel of the second row from the top, and so on. The last row
 has just as many pad bytes after it as the other rows.</para>
 
     <para>In V4L2 each format has an identifier which looks like
-<constant>PIX_FMT_XXX</constant>, defined in the <filename>videodev2.h</filename>
-header file. These identifiers
-represent <link linkend="v4l2-fourcc">four character codes</link>
+<constant>PIX_FMT_XXX</constant>, defined in the <link
+linkend="videodev">videodev.h</link> header file. These identifiers
+represent <link linkend="v4l2-fourcc">four character (FourCC) codes</link>
 which are also listed below, however they are not the same as those
 used in the Windows world.</para>
+
+    <para>For some formats, data is stored in separate, discontiguous
+memory buffers. Those formats are identified by a separate set of FourCC codes
+and are referred to as "multi-planar formats". For example, a YUV422 frame is
+normally stored in one memory buffer, but it can also be placed in two or three
+separate buffers, with Y component in one buffer and CbCr components in another
+in the 2-planar version or with each component in its own buffer in the
+3-planar case. Those sub-buffers are referred to as "planes".</para>
   </section>
 
   <section id="colorspaces">
@@ -592,6 +696,7 @@ information.</para>
     &sub-packed-yuv;
     &sub-grey;
     &sub-y10;
+    &sub-y12;
     &sub-y16;
     &sub-yuyv;
     &sub-uyvy;
@@ -599,10 +704,13 @@ information.</para>
     &sub-vyuy;
     &sub-y41p;
     &sub-yuv420;
+    &sub-yuv420m;
     &sub-yuv410;
     &sub-yuv422p;
     &sub-yuv411p;
     &sub-nv12;
+    &sub-nv12m;
+    &sub-nv12mt;
     &sub-nv16;
   </section>
 

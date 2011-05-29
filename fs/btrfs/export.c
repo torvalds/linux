@@ -21,9 +21,13 @@ static int btrfs_encode_fh(struct dentry *dentry, u32 *fh, int *max_len,
 	int len = *max_len;
 	int type;
 
-	if ((len < BTRFS_FID_SIZE_NON_CONNECTABLE) ||
-	    (connectable && len < BTRFS_FID_SIZE_CONNECTABLE))
+	if (connectable && (len < BTRFS_FID_SIZE_CONNECTABLE)) {
+		*max_len = BTRFS_FID_SIZE_CONNECTABLE;
 		return 255;
+	} else if (len < BTRFS_FID_SIZE_NON_CONNECTABLE) {
+		*max_len = BTRFS_FID_SIZE_NON_CONNECTABLE;
+		return 255;
+	}
 
 	len  = BTRFS_FID_SIZE_NON_CONNECTABLE;
 	type = FILEID_BTRFS_WITHOUT_PARENT;

@@ -115,6 +115,18 @@ static inline __wsum udplite_csum_outgoing(struct sock *sk, struct sk_buff *skb)
 	return csum;
 }
 
+static inline __wsum udplite_csum(struct sk_buff *skb)
+{
+	struct sock *sk = skb->sk;
+	int cscov = udplite_sender_cscov(udp_sk(sk), udp_hdr(skb));
+	const int off = skb_transport_offset(skb);
+	const int len = skb->len - off;
+
+	skb->ip_summed = CHECKSUM_NONE;     /* no HW support for checksumming */
+
+	return skb_checksum(skb, off, min(cscov, len), 0);
+}
+
 extern void	udplite4_register(void);
 extern int 	udplite_get_port(struct sock *sk, unsigned short snum,
 			int (*scmp)(const struct sock *, const struct sock *));

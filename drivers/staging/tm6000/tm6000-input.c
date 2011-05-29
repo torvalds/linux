@@ -313,6 +313,8 @@ int tm6000_ir_int_start(struct tm6000_core *dev)
 		return -ENODEV;
 
 	ir->int_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!ir->int_urb)
+		return -ENOMEM;
 
 	pipe = usb_rcvintpipe(dev->udev,
 		dev->int_in.endp->desc.bEndpointAddress
@@ -374,7 +376,7 @@ int tm6000_ir_init(struct tm6000_core *dev)
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	rc = rc_allocate_device();
-	if (!ir | !rc)
+	if (!ir || !rc)
 		goto out;
 
 	/* record handles to ourself */

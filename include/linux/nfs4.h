@@ -359,7 +359,7 @@ enum nfsstat4 {
 						/* Error 10073 is unused. */
 	NFS4ERR_CLIENTID_BUSY	= 10074,	/* clientid has state */
 	NFS4ERR_PNFS_IO_HOLE	= 10075,	/* IO to _SPARSE file hole */
-	NFS4ERR_SEQ_FALSE_RETRY	= 10076,	/* retry not origional */
+	NFS4ERR_SEQ_FALSE_RETRY	= 10076,	/* retry not original */
 	NFS4ERR_BAD_HIGH_SLOT	= 10077,	/* sequence arg bad */
 	NFS4ERR_DEADSESSION	= 10078,	/* persistent session dead */
 	NFS4ERR_ENCR_ALG_UNSUPP = 10079,	/* SSV alg mismatch */
@@ -550,6 +550,7 @@ enum {
 	NFSPROC4_CLNT_SETACL,
 	NFSPROC4_CLNT_FS_LOCATIONS,
 	NFSPROC4_CLNT_RELEASE_LOCKOWNER,
+	NFSPROC4_CLNT_SECINFO,
 
 	/* nfs41 */
 	NFSPROC4_CLNT_EXCHANGE_ID,
@@ -560,6 +561,7 @@ enum {
 	NFSPROC4_CLNT_RECLAIM_COMPLETE,
 	NFSPROC4_CLNT_LAYOUTGET,
 	NFSPROC4_CLNT_GETDEVICEINFO,
+	NFSPROC4_CLNT_LAYOUTCOMMIT,
 };
 
 /* nfs41 types */

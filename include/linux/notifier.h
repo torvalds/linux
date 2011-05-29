@@ -237,7 +237,7 @@ static inline int notifier_to_errno(int ret)
 					* enabling interrupts. Must not sleep,
 					* must not fail */
 
-/* Used for CPU hotplug events occuring while tasks are frozen due to a suspend
+/* Used for CPU hotplug events occurring while tasks are frozen due to a suspend
  * operation in progress
  */
 #define CPU_TASKS_FROZEN	0x0010

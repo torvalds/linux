@@ -9,7 +9,7 @@ The Linux-ZigBee project goal is to provide complete implementation
 of IEEE 802.15.4 / ZigBee / 6LoWPAN protocols. IEEE 802.15.4 is a stack
 of protocols for organizing Low-Rate Wireless Personal Area Networks.
 
-Currently only IEEE 802.15.4 layer is implemented. We have choosen
+Currently only IEEE 802.15.4 layer is implemented. We have chosen
 to use plain Berkeley socket API, the generic Linux networking stack
 to transfer IEEE 802.15.4 messages and a special protocol over genetlink
 for configuration/management

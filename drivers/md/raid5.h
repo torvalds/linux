@@ -400,8 +400,6 @@ struct raid5_private_data {
 					    * Cleared when a sync completes.
 					    */
 
-	struct plug_handle	plug;
-
 	/* per cpu variables */
 	struct raid5_percpu {
 		struct page	*spare_page; /* Used when checking P/Q in raid6 */
@@ -503,6 +501,6 @@ static inline int algorithm_is_DDF(int layout)
 }
 
 extern int md_raid5_congested(mddev_t *mddev, int bits);
-extern void md_raid5_unplug_device(raid5_conf_t *conf);
+extern void md_raid5_kick_device(raid5_conf_t *conf);
 extern int raid5_set_cache_size(mddev_t *mddev, int size);
 #endif

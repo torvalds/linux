@@ -30,3 +30,15 @@ config MEMSTICK_JMICRON_38X
 
           To compile this driver as a module, choose M here: the
 	  module will be called jmb38x_ms.
+
+config MEMSTICK_R592
+	tristate "Ricoh R5C592 MemoryStick interface support (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && PCI
+
+	help
+	  Say Y here if you want to be able to access MemoryStick cards with
+	  the Ricoh R5C592 MemoryStick card reader (which is part of 5 in one
+		multifunction reader)
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called r592.

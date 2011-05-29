@@ -86,12 +86,15 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	} else
 		sb->s_op = &v9fs_super_ops;
 	sb->s_bdi = &v9ses->bdi;
+	if (v9ses->cache)
+		sb->s_bdi->ra_pages = (VM_MAX_READAHEAD * 1024)/PAGE_CACHE_SIZE;
 
-	sb->s_flags = flags | MS_ACTIVE | MS_SYNCHRONOUS | MS_DIRSYNC |
-	    MS_NOATIME;
+	sb->s_flags = flags | MS_ACTIVE | MS_DIRSYNC | MS_NOATIME;
+	if (!v9ses->cache)
+		sb->s_flags |= MS_SYNCHRONOUS;
 
 #ifdef CONFIG_9P_FS_POSIX_ACL
-	if ((v9ses->flags & V9FS_ACCESS_MASK) == V9FS_ACCESS_CLIENT)
+	if ((v9ses->flags & V9FS_ACL_MASK) == V9FS_POSIX_ACL)
 		sb->s_flags |= MS_POSIXACL;
 #endif
 
@@ -166,7 +169,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 			retval = PTR_ERR(st);
 			goto release_sb;
 		}
-
+		root->d_inode->i_ino = v9fs_qid2ino(&st->qid);
 		v9fs_stat2inode_dotl(st, root->d_inode);
 		kfree(st);
 	} else {
@@ -253,7 +256,7 @@ static int v9fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		goto done;
 	}
 
-	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	v9ses = v9fs_dentry2v9ses(dentry);
 	if (v9fs_proto_dotl(v9ses)) {
 		res = p9_client_statfs(fid, &rs);
 		if (res == 0) {
@@ -276,26 +279,84 @@ done:
 	return res;
 }
 
+static int v9fs_drop_inode(struct inode *inode)
+{
+	struct v9fs_session_info *v9ses;
+	v9ses = v9fs_inode2v9ses(inode);
+	if (v9ses->cache)
+		return generic_drop_inode(inode);
+	/*
+	 * in case of non cached mode always drop the
+	 * the inode because we want the inode attribute
+	 * to always match that on the server.
+	 */
+	return 1;
+}
+
+static int v9fs_write_inode(struct inode *inode,
+			    struct writeback_control *wbc)
+{
+	int ret;
+	struct p9_wstat wstat;
+	struct v9fs_inode *v9inode;
+	/*
+	 * send an fsync request to server irrespective of
+	 * wbc->sync_mode.
+	 */
+	P9_DPRINTK(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
+	v9inode = V9FS_I(inode);
+	if (!v9inode->writeback_fid)
+		return 0;
+	v9fs_blank_wstat(&wstat);
+
+	ret = p9_client_wstat(v9inode->writeback_fid, &wstat);
+	if (ret < 0) {
+		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+		return ret;
+	}
+	return 0;
+}
+
+static int v9fs_write_inode_dotl(struct inode *inode,
+				 struct writeback_control *wbc)
+{
+	int ret;
+	struct v9fs_inode *v9inode;
+	/*
+	 * send an fsync request to server irrespective of
+	 * wbc->sync_mode.
+	 */
+	P9_DPRINTK(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
+	v9inode = V9FS_I(inode);
+	if (!v9inode->writeback_fid)
+		return 0;
+	ret = p9_client_fsync(v9inode->writeback_fid, 0);
+	if (ret < 0) {
+		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+		return ret;
+	}
+	return 0;
+}
+
 static const struct super_operations v9fs_super_ops = {
-#ifdef CONFIG_9P_FSCACHE
 	.alloc_inode = v9fs_alloc_inode,
 	.destroy_inode = v9fs_destroy_inode,
-#endif
 	.statfs = simple_statfs,
 	.evict_inode = v9fs_evict_inode,
 	.show_options = generic_show_options,
 	.umount_begin = v9fs_umount_begin,
+	.write_inode = v9fs_write_inode,
 };
 
 static const struct super_operations v9fs_super_ops_dotl = {
-#ifdef CONFIG_9P_FSCACHE
 	.alloc_inode = v9fs_alloc_inode,
 	.destroy_inode = v9fs_destroy_inode,
-#endif
 	.statfs = v9fs_statfs,
+	.drop_inode = v9fs_drop_inode,
 	.evict_inode = v9fs_evict_inode,
 	.show_options = generic_show_options,
 	.umount_begin = v9fs_umount_begin,
+	.write_inode = v9fs_write_inode_dotl,
 };
 
 struct file_system_type v9fs_fs_type = {
@@ -303,5 +364,5 @@ struct file_system_type v9fs_fs_type = {
 	.mount = v9fs_mount,
 	.kill_sb = v9fs_kill_super,
 	.owner = THIS_MODULE,
-	.fs_flags = FS_RENAME_DOES_D_MOVE,
+	.fs_flags = FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT,
 };

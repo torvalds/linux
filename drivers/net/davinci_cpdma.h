@@ -33,6 +33,7 @@ struct cpdma_params {
 	bool			has_soft_reset;
 	int			min_packet_size;
 	u32			desc_mem_phys;
+	u32			desc_hw_addr;
 	int			desc_mem_size;
 	int			desc_align;
 

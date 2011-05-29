@@ -201,11 +201,14 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->ttl = 0;
 	top_iph->check = 0;
 
-	ah->hdrlen  = (XFRM_ALIGN8(sizeof(*ah) + ahp->icv_trunc_len) >> 2) - 2;
+	if (x->props.flags & XFRM_STATE_ALIGN4)
+		ah->hdrlen  = (XFRM_ALIGN4(sizeof(*ah) + ahp->icv_trunc_len) >> 2) - 2;
+	else
+		ah->hdrlen  = (XFRM_ALIGN8(sizeof(*ah) + ahp->icv_trunc_len) >> 2) - 2;
 
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
-	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output);
+	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.low);
 
 	sg_init_table(sg, nfrags);
 	skb_to_sgvec(skb, sg, 0, skb->len);
@@ -299,9 +302,15 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 	nexthdr = ah->nexthdr;
 	ah_hlen = (ah->hdrlen + 2) << 2;
 
-	if (ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_full_len) &&
-	    ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_trunc_len))
-		goto out;
+	if (x->props.flags & XFRM_STATE_ALIGN4) {
+		if (ah_hlen != XFRM_ALIGN4(sizeof(*ah) + ahp->icv_full_len) &&
+		    ah_hlen != XFRM_ALIGN4(sizeof(*ah) + ahp->icv_trunc_len))
+			goto out;
+	} else {
+		if (ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_full_len) &&
+		    ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_trunc_len))
+			goto out;
+	}
 
 	if (!pskb_may_pull(skb, ah_hlen))
 		goto out;
@@ -450,8 +459,12 @@ static int ah_init_state(struct xfrm_state *x)
 
 	BUG_ON(ahp->icv_trunc_len > MAX_AH_AUTH_LEN);
 
-	x->props.header_len = XFRM_ALIGN8(sizeof(struct ip_auth_hdr) +
-					  ahp->icv_trunc_len);
+	if (x->props.flags & XFRM_STATE_ALIGN4)
+		x->props.header_len = XFRM_ALIGN4(sizeof(struct ip_auth_hdr) +
+						  ahp->icv_trunc_len);
+	else
+		x->props.header_len = XFRM_ALIGN8(sizeof(struct ip_auth_hdr) +
+						  ahp->icv_trunc_len);
 	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct iphdr);
 	x->data = ahp;

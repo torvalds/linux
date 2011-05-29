@@ -884,7 +884,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	if (bypass_pll)
 		return 0;
 
-	/* Use PLL, compute apropriate setup for j, d, r and p, the closest
+	/* Use PLL, compute appropriate setup for j, d, r and p, the closest
 	 * one wins the game. Try with d==0 first, next with d!=0.
 	 * Constraints for j are according to the datasheet.
 	 * The sysclk is divided by 1000 to prevent integer overflows.

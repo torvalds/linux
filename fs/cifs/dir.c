@@ -189,7 +189,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			inode->i_sb, mode, oflags, &oplock, &fileHandle, xid);
 		/* EIO could indicate that (posix open) operation is not
 		   supported, despite what server claimed in capability
-		   negotation.  EREMOTE indicates DFS junction, which is not
+		   negotiation.  EREMOTE indicates DFS junction, which is not
 		   handled in posix open */
 
 		if (rc == 0) {

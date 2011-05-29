@@ -64,16 +64,6 @@ config IP_NF_IPTABLES
 if IP_NF_IPTABLES
 
 # The matches.
-config IP_NF_MATCH_ADDRTYPE
-	tristate '"addrtype" address type match support'
-	depends on NETFILTER_ADVANCED
-	help
-	  This option allows you to match what routing thinks of an address,
-	  eg. UNICAST, LOCAL, BROADCAST, ...
-
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
-
 config IP_NF_MATCH_AH
 	tristate '"ah" match support'
 	depends on NETFILTER_ADVANCED
@@ -206,8 +196,9 @@ config IP_NF_TARGET_REDIRECT
 
 config NF_NAT_SNMP_BASIC
 	tristate "Basic SNMP-ALG support"
-	depends on NF_NAT
+	depends on NF_CONNTRACK_SNMP && NF_NAT
 	depends on NETFILTER_ADVANCED
+	default NF_NAT && NF_CONNTRACK_SNMP
 	---help---
 
 	  This module implements an Application Layer Gateway (ALG) for

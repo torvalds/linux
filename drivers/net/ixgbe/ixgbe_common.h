@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2011 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -29,6 +29,7 @@
 #define _IXGBE_COMMON_H_
 
 #include "ixgbe_type.h"
+#include "ixgbe.h"
 
 u32 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw);
@@ -61,8 +62,6 @@ s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 s32 ixgbe_clear_rar_generic(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw);
 s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw,
-				      struct net_device *netdev);
-s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw,
 				      struct net_device *netdev);
 s32 ixgbe_enable_mc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw);
@@ -110,9 +109,8 @@ void ixgbe_set_vlan_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf);
 
 #define IXGBE_WRITE_FLUSH(a) IXGBE_READ_REG(a, IXGBE_STATUS)
 
-extern struct net_device *ixgbe_get_hw_dev(struct ixgbe_hw *hw);
 #define hw_dbg(hw, format, arg...) \
-	netdev_dbg(ixgbe_get_hw_dev(hw), format, ##arg)
+	netdev_dbg(((struct ixgbe_adapter *)(hw->back))->netdev, format, ##arg)
 #define e_dev_info(format, arg...) \
 	dev_info(&adapter->pdev->dev, format, ## arg)
 #define e_dev_warn(format, arg...) \

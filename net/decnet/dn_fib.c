@@ -201,7 +201,7 @@ static int dn_fib_check_nh(const struct rtmsg *r, struct dn_fib_info *fi, struct
 	int err;
 
 	if (nh->nh_gw) {
-		struct flowi fl;
+		struct flowidn fld;
 		struct dn_fib_res res;
 
 		if (nh->nh_flags&RTNH_F_ONLINK) {
@@ -221,15 +221,15 @@ static int dn_fib_check_nh(const struct rtmsg *r, struct dn_fib_info *fi, struct
 			return 0;
 		}
 
-		memset(&fl, 0, sizeof(fl));
-		fl.fld_dst = nh->nh_gw;
-		fl.oif = nh->nh_oif;
-		fl.fld_scope = r->rtm_scope + 1;
+		memset(&fld, 0, sizeof(fld));
+		fld.daddr = nh->nh_gw;
+		fld.flowidn_oif = nh->nh_oif;
+		fld.flowidn_scope = r->rtm_scope + 1;
 
-		if (fl.fld_scope < RT_SCOPE_LINK)
-			fl.fld_scope = RT_SCOPE_LINK;
+		if (fld.flowidn_scope < RT_SCOPE_LINK)
+			fld.flowidn_scope = RT_SCOPE_LINK;
 
-		if ((err = dn_fib_lookup(&fl, &res)) != 0)
+		if ((err = dn_fib_lookup(&fld, &res)) != 0)
 			return err;
 
 		err = -EINVAL;
@@ -404,7 +404,7 @@ failure:
 	return NULL;
 }
 
-int dn_fib_semantic_match(int type, struct dn_fib_info *fi, const struct flowi *fl, struct dn_fib_res *res)
+int dn_fib_semantic_match(int type, struct dn_fib_info *fi, const struct flowidn *fld, struct dn_fib_res *res)
 {
 	int err = dn_fib_props[type].error;
 
@@ -424,7 +424,8 @@ int dn_fib_semantic_match(int type, struct dn_fib_info *fi, const struct flowi *
 				for_nexthops(fi) {
 					if (nh->nh_flags & RTNH_F_DEAD)
 						continue;
-					if (!fl->oif || fl->oif == nh->nh_oif)
+					if (!fld->flowidn_oif ||
+					    fld->flowidn_oif == nh->nh_oif)
 						break;
 				}
 				if (nhsel < fi->fib_nhs) {
@@ -445,7 +446,7 @@ int dn_fib_semantic_match(int type, struct dn_fib_info *fi, const struct flowi *
 	return err;
 }
 
-void dn_fib_select_multipath(const struct flowi *fl, struct dn_fib_res *res)
+void dn_fib_select_multipath(const struct flowidn *fld, struct dn_fib_res *res)
 {
 	struct dn_fib_info *fi = res->fi;
 	int w;

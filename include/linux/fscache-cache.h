@@ -236,7 +236,7 @@ struct fscache_cache_ops {
 	/* unpin an object in the cache */
 	void (*unpin_object)(struct fscache_object *object);
 
-	/* store the updated auxilliary data on an object */
+	/* store the updated auxiliary data on an object */
 	void (*update_object)(struct fscache_object *object);
 
 	/* discard the resources pinned by an object and effect retirement if

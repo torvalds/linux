@@ -106,24 +106,34 @@ int apei_write_mce(struct mce *m)
 ssize_t apei_read_mce(struct mce *m, u64 *record_id)
 {
 	struct cper_mce_record rcd;
-	ssize_t len;
+	int rc, pos;
 
-	len = erst_read_next(&rcd.hdr, sizeof(rcd));
-	if (len <= 0)
-		return len;
-	/* Can not skip other records in storage via ERST unless clear them */
-	else if (len != sizeof(rcd) ||
-		 uuid_le_cmp(rcd.hdr.creator_id, CPER_CREATOR_MCE)) {
-		if (printk_ratelimit())
-			pr_warning(
-			"MCE-APEI: Can not skip the unknown record in ERST");
-		return -EIO;
-	}
-
+	rc = erst_get_record_id_begin(&pos);
+	if (rc)
+		return rc;
+retry:
+	rc = erst_get_record_id_next(&pos, record_id);
+	if (rc)
+		goto out;
+	/* no more record */
+	if (*record_id == APEI_ERST_INVALID_RECORD_ID)
+		goto out;
+	rc = erst_read(*record_id, &rcd.hdr, sizeof(rcd));
+	/* someone else has cleared the record, try next one */
+	if (rc == -ENOENT)
+		goto retry;
+	else if (rc < 0)
+		goto out;
+	/* try to skip other type records in storage */
+	else if (rc != sizeof(rcd) ||
+		 uuid_le_cmp(rcd.hdr.creator_id, CPER_CREATOR_MCE))
+		goto retry;
 	memcpy(m, &rcd.mce, sizeof(*m));
-	*record_id = rcd.hdr.record_id;
+	rc = sizeof(*m);
+out:
+	erst_get_record_id_end();
 
-	return sizeof(*m);
+	return rc;
 }
 
 /* Check whether there is record in ERST */

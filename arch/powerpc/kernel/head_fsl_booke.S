@@ -326,7 +326,7 @@ interrupt_base:
 	NORMAL_EXCEPTION_PROLOG
 	EXC_XFER_EE_LITE(0x0c00, DoSyscall)
 
-	/* Auxillary Processor Unavailable Interrupt */
+	/* Auxiliary Processor Unavailable Interrupt */
 	EXCEPTION(0x2900, AuxillaryProcessorUnavailable, unknown_exception, EXC_XFER_EE)
 
 	/* Decrementer Interrupt */

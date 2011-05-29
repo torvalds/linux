@@ -999,7 +999,7 @@ static void ata_gen_passthru_sense(struct ata_queued_cmd *qc)
  *	@qc: Command that we are erroring out
  *
  *	Generate sense block for a failed ATA command @qc.  Descriptor
- *	format is used to accomodate LBA48 block address.
+ *	format is used to accommodate LBA48 block address.
  *
  *	LOCKING:
  *	None.
@@ -2056,6 +2056,17 @@ static unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf)
 		      ATA_ID_SERNO_LEN);
 	num += ATA_ID_SERNO_LEN;
 
+	if (ata_id_has_wwn(args->id)) {
+		/* SAT defined lu world wide name */
+		/* piv=0, assoc=lu, code_set=binary, designator=NAA */
+		rbuf[num + 0] = 1;
+		rbuf[num + 1] = 3;
+		rbuf[num + 3] = ATA_ID_WWN_LEN;
+		num += 4;
+		ata_id_string(args->id, (unsigned char *) rbuf + num,
+			      ATA_ID_WWN, ATA_ID_WWN_LEN);
+		num += ATA_ID_WWN_LEN;
+	}
 	rbuf[3] = num - 4;    /* page len (assume less than 256 bytes) */
 	return 0;
 }
@@ -3759,7 +3770,7 @@ struct ata_port *ata_sas_port_alloc(struct ata_host *host,
 		return NULL;
 
 	ap->port_no = 0;
-	ap->lock = shost->host_lock;
+	ap->lock = &host->lock;
 	ap->pio_mask = port_info->pio_mask;
 	ap->mwdma_mask = port_info->mwdma_mask;
 	ap->udma_mask = port_info->udma_mask;
@@ -3821,7 +3832,7 @@ int ata_sas_port_init(struct ata_port *ap)
 
 	if (!rc) {
 		ap->print_id = ata_print_id++;
-		rc = ata_bus_probe(ap);
+		rc = ata_port_probe(ap);
 	}
 
 	return rc;

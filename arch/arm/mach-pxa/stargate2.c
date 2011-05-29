@@ -25,6 +25,7 @@
 #include <linux/mtd/plat-ram.h>
 #include <linux/mtd/partitions.h>
 
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/i2c/pcf857x.h>
 #include <linux/i2c/at24.h>
 #include <linux/smc91x.h>
@@ -43,7 +44,6 @@
 #include <asm/mach/flash.h>
 
 #include <mach/pxa27x.h>
-#include <plat/i2c.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/pxa27x-udc.h>

@@ -23,6 +23,7 @@
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *new_pgd, *init_pgd;
+	pud_t *new_pud, *init_pud;
 	pmd_t *new_pmd, *init_pmd;
 	pte_t *new_pte, *init_pte;
 
@@ -46,7 +47,11 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 		 * On ARM, first page must always be allocated since it
 		 * contains the machine vectors.
 		 */
-		new_pmd = pmd_alloc(mm, new_pgd, 0);
+		new_pud = pud_alloc(mm, new_pgd, 0);
+		if (!new_pud)
+			goto no_pud;
+
+		new_pmd = pmd_alloc(mm, new_pud, 0);
 		if (!new_pmd)
 			goto no_pmd;
 
@@ -54,7 +59,8 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 		if (!new_pte)
 			goto no_pte;
 
-		init_pmd = pmd_offset(init_pgd, 0);
+		init_pud = pud_offset(init_pgd, 0);
+		init_pmd = pmd_offset(init_pud, 0);
 		init_pte = pte_offset_map(init_pmd, 0);
 		set_pte_ext(new_pte, *init_pte, 0);
 		pte_unmap(init_pte);
@@ -66,6 +72,8 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 no_pte:
 	pmd_free(mm, new_pmd);
 no_pmd:
+	pud_free(mm, new_pud);
+no_pud:
 	free_pages((unsigned long)new_pgd, 2);
 no_pgd:
 	return NULL;
@@ -74,6 +82,7 @@ no_pgd:
 void pgd_free(struct mm_struct *mm, pgd_t *pgd_base)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pgtable_t pte;
 
@@ -84,7 +93,11 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd_base)
 	if (pgd_none_or_clear_bad(pgd))
 		goto no_pgd;
 
-	pmd = pmd_offset(pgd, 0);
+	pud = pud_offset(pgd, 0);
+	if (pud_none_or_clear_bad(pud))
+		goto no_pud;
+
+	pmd = pmd_offset(pud, 0);
 	if (pmd_none_or_clear_bad(pmd))
 		goto no_pmd;
 
@@ -92,8 +105,11 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd_base)
 	pmd_clear(pmd);
 	pte_free(mm, pte);
 no_pmd:
-	pgd_clear(pgd);
+	pud_clear(pud);
 	pmd_free(mm, pmd);
+no_pud:
+	pgd_clear(pgd);
+	pud_free(mm, pud);
 no_pgd:
 	free_pages((unsigned long) pgd_base, 2);
 }

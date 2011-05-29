@@ -47,7 +47,8 @@ struct nfgenmsg {
 #define NFNL_SUBSYS_QUEUE		3
 #define NFNL_SUBSYS_ULOG		4
 #define NFNL_SUBSYS_OSF			5
-#define NFNL_SUBSYS_COUNT		6
+#define NFNL_SUBSYS_IPSET		6
+#define NFNL_SUBSYS_COUNT		7
 
 #ifdef __KERNEL__
 

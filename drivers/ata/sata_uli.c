@@ -88,8 +88,7 @@ static struct ata_port_operations uli_ops = {
 };
 
 static const struct ata_port_info uli_port_info = {
-	.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-			  ATA_FLAG_IGN_SIMPLEX,
+	.flags		= ATA_FLAG_SATA | ATA_FLAG_IGN_SIMPLEX,
 	.pio_mask       = ATA_PIO4,
 	.udma_mask      = ATA_UDMA6,
 	.port_ops       = &uli_ops,

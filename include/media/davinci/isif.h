@@ -199,7 +199,7 @@ struct isif_black_clamp {
 };
 
 /*************************************************************************
-** Color Space Convertion (CSC)
+** Color Space Conversion (CSC)
 *************************************************************************/
 #define ISIF_CSC_NUM_COEFF	16
 struct isif_color_space_conv {

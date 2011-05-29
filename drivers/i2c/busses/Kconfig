@@ -98,8 +98,9 @@ config I2C_I801
 	    EP80579 (Tolapai)
 	    ICH10
 	    5/3400 Series (PCH)
-	    Cougar Point (PCH)
+	    6 Series (PCH)
 	    Patsburg (PCH)
+	    DH89xxCC (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -433,7 +434,7 @@ config I2C_IXP2000
 
 config I2C_MPC
 	tristate "MPC107/824x/85xx/512x/52xx/83xx/86xx"
-	depends on PPC32
+	depends on PPC
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the MPC107, Tsi107, MPC512x, MPC52xx,
@@ -451,6 +452,16 @@ config I2C_MV64XXX
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mv64xxx.
+
+config I2C_MXS
+	tristate "Freescale i.MX28 I2C interface"
+	depends on SOC_IMX28
+	help
+	  Say Y here if you want to use the I2C bus controller on
+	  the Freescale i.MX28 processors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-mxs.
 
 config I2C_NOMADIK
 	tristate "ST-Ericsson Nomadik/Ux500 I2C Controller"
@@ -523,17 +534,31 @@ config I2C_PNX
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-pnx.
 
+config I2C_PUV3
+	tristate "PKUnity v3 I2C bus support"
+	depends on UNICORE32 && ARCH_PUV3
+	select I2C_ALGOBIT
+	help
+	  This driver supports the I2C IP inside the PKUnity-v3 SoC.
+	  This I2C bus controller is under AMBA/AXI bus.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-puv3.
+
 config I2C_PXA
 	tristate "Intel PXA2XX I2C adapter"
-	depends on ARCH_PXA || ARCH_MMP
+	depends on ARCH_PXA || ARCH_MMP || (X86_32 && PCI && OF)
 	help
 	  If you have devices in the PXA I2C bus, say yes to this option.
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-pxa.
 
+config I2C_PXA_PCI
+	def_bool I2C_PXA && X86_32 && PCI && OF
+
 config I2C_PXA_SLAVE
 	bool "Intel PXA2XX I2C Slave comms support"
-	depends on I2C_PXA
+	depends on I2C_PXA && !X86_32
 	help
 	  Support I2C slave mode communications on the PXA I2C bus.  This
 	  is necessary for systems where the PXA may be a target on the
@@ -607,6 +632,13 @@ config I2C_STU300
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-stu300.
 
+config I2C_TEGRA
+	tristate "NVIDIA Tegra internal I2C controller"
+	depends on ARCH_TEGRA
+	help
+	  If you say yes to this option, support will be included for the
+	  I2C controller embedded in NVIDIA Tegra SOCs
+
 config I2C_VERSATILE
 	tristate "ARM Versatile/Realview I2C bus support"
 	depends on ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS
@@ -639,14 +671,27 @@ config I2C_XILINX
 	  will be called xilinx_i2c.
 
 config I2C_EG20T
-        tristate "PCH I2C of Intel EG20T"
-        depends on PCI
-        help
-          This driver is for PCH(Platform controller Hub) I2C of EG20T which
-          is an IOH(Input/Output Hub) for x86 embedded processor.
-          This driver can access PCH I2C bus device.
+	tristate "Intel EG20T PCH/OKI SEMICONDUCTOR ML7213 IOH"
+	depends on PCI
+	help
+	  This driver is for PCH(Platform controller Hub) I2C of EG20T which
+	  is an IOH(Input/Output Hub) for x86 embedded processor.
+	  This driver can access PCH I2C bus device.
+
+	  This driver also supports the ML7213, a companion chip for the
+	  Atom E6xx series and compatible with the Intel EG20T PCH.
 
 comment "External I2C/SMBus adapter drivers"
+
+config I2C_DIOLAN_U2C
+	tristate "Diolan U2C-12 USB adapter"
+	depends on USB
+	help
+	  If you say yes to this option, support will be included for Diolan
+	  U2C-12, a USB to I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-diolan-u2c.
 
 config I2C_PARPORT
 	tristate "Parallel port adapter"

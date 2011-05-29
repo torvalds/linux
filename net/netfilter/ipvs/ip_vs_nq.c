@@ -99,7 +99,7 @@ ip_vs_nq_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	}
 
 	if (!least) {
-		IP_VS_ERR_RL("NQ: no destination available\n");
+		ip_vs_scheduler_err(svc, "no destination available");
 		return NULL;
 	}
 

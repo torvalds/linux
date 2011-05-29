@@ -12,15 +12,7 @@
 #error "please don't include linux/rwsem-spinlock.h directly, use linux/rwsem.h instead"
 #endif
 
-#include <linux/spinlock.h>
-#include <linux/list.h>
-
 #ifdef __KERNEL__
-
-#include <linux/types.h>
-
-struct rwsem_waiter;
-
 /*
  * the rw-semaphore definition
  * - if activity is 0 then there are no active readers or writers
@@ -37,28 +29,7 @@ struct rw_semaphore {
 #endif
 };
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-# define __RWSEM_DEP_MAP_INIT(lockname) , .dep_map = { .name = #lockname }
-#else
-# define __RWSEM_DEP_MAP_INIT(lockname)
-#endif
-
-#define __RWSEM_INITIALIZER(name) \
-{ 0, __SPIN_LOCK_UNLOCKED(name.wait_lock), LIST_HEAD_INIT((name).wait_list) \
-  __RWSEM_DEP_MAP_INIT(name) }
-
-#define DECLARE_RWSEM(name) \
-	struct rw_semaphore name = __RWSEM_INITIALIZER(name)
-
-extern void __init_rwsem(struct rw_semaphore *sem, const char *name,
-			 struct lock_class_key *key);
-
-#define init_rwsem(sem)						\
-do {								\
-	static struct lock_class_key __key;			\
-								\
-	__init_rwsem((sem), #sem, &__key);			\
-} while (0)
+#define RWSEM_UNLOCKED_VALUE		0x00000000
 
 extern void __down_read(struct rw_semaphore *sem);
 extern int __down_read_trylock(struct rw_semaphore *sem);

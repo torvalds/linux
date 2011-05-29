@@ -74,7 +74,7 @@ module_param(debug, int, 0600);
 #endif
 
 /*
- * Semi-arbitary buffer size limits. 0710 is normally run with 32-64 byte
+ * Semi-arbitrary buffer size limits. 0710 is normally run with 32-64 byte
  * limits so this is plenty
  */
 #define MAX_MRU 512
@@ -82,7 +82,7 @@ module_param(debug, int, 0600);
 
 /*
  *	Each block of data we have queued to go out is in the form of
- *	a gsm_msg which holds everything we need in a link layer independant
+ *	a gsm_msg which holds everything we need in a link layer independent
  *	format
  */
 
@@ -1193,8 +1193,8 @@ static void gsm_control_message(struct gsm_mux *gsm, unsigned int command,
 		break;
 		/* Optional unsupported commands */
 	case CMD_PN:	/* Parameter negotiation */
-	case CMD_RPN:	/* Remote port negotation */
-	case CMD_SNC:	/* Service negotation command */
+	case CMD_RPN:	/* Remote port negotiation */
+	case CMD_SNC:	/* Service negotiation command */
 	default:
 		/* Reply to bad commands with an NSC */
 		buf[0] = command;
@@ -1250,8 +1250,7 @@ static void gsm_control_response(struct gsm_mux *gsm, unsigned int command,
 
 static void gsm_control_transmit(struct gsm_mux *gsm, struct gsm_control *ctrl)
 {
-	struct gsm_msg *msg = gsm_data_alloc(gsm, 0, ctrl->len + 1,
-							gsm->ftype|PF);
+	struct gsm_msg *msg = gsm_data_alloc(gsm, 0, ctrl->len + 1, gsm->ftype);
 	if (msg == NULL)
 		return;
 	msg->data[0] = (ctrl->cmd << 1) | 2 | EA;	/* command */
@@ -1659,8 +1658,12 @@ static void gsm_queue(struct gsm_mux *gsm)
 
 	if ((gsm->control & ~PF) == UI)
 		gsm->fcs = gsm_fcs_add_block(gsm->fcs, gsm->buf, gsm->len);
-	/* generate final CRC with received FCS */
-	gsm->fcs = gsm_fcs_add(gsm->fcs, gsm->received_fcs);
+	if (gsm->encoding == 0){
+		/* WARNING: gsm->received_fcs is used for gsm->encoding = 0 only.
+		            In this case it contain the last piece of data
+		            required to generate final CRC */
+		gsm->fcs = gsm_fcs_add(gsm->fcs, gsm->received_fcs);
+	}
 	if (gsm->fcs != GOOD_FCS) {
 		gsm->bad_fcs++;
 		if (debug & 4)
@@ -2027,7 +2030,7 @@ EXPORT_SYMBOL_GPL(gsm_activate_mux);
  *	@mux: mux to free
  *
  *	Dispose of allocated resources for a dead mux. No refcounting
- *	at present so the mux must be truely dead.
+ *	at present so the mux must be truly dead.
  */
 void gsm_free_mux(struct gsm_mux *gsm)
 {
@@ -2649,13 +2652,13 @@ static void gsmtty_wait_until_sent(struct tty_struct *tty, int timeout)
 	   to do here */
 }
 
-static int gsmtty_tiocmget(struct tty_struct *tty, struct file *filp)
+static int gsmtty_tiocmget(struct tty_struct *tty)
 {
 	struct gsm_dlci *dlci = tty->driver_data;
 	return dlci->modem_rx;
 }
 
-static int gsmtty_tiocmset(struct tty_struct *tty, struct file *filp,
+static int gsmtty_tiocmset(struct tty_struct *tty,
 	unsigned int set, unsigned int clear)
 {
 	struct gsm_dlci *dlci = tty->driver_data;
@@ -2672,7 +2675,7 @@ static int gsmtty_tiocmset(struct tty_struct *tty, struct file *filp,
 }
 
 
-static int gsmtty_ioctl(struct tty_struct *tty, struct file *filp,
+static int gsmtty_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg)
 {
 	return -ENOIOCTLCMD;

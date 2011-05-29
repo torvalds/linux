@@ -22,6 +22,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/wm8400-audio.h>
 #include <linux/mfd/wm8400-private.h>
+#include <linux/mfd/core.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -1377,7 +1378,7 @@ static void wm8400_probe_deferred(struct work_struct *work)
 
 static int wm8400_codec_probe(struct snd_soc_codec *codec)
 {
-	struct wm8400 *wm8400 = dev_get_platdata(codec->dev);
+	struct wm8400 *wm8400 = mfd_get_data(to_platform_device(codec->dev));
 	struct wm8400_priv *priv;
 	int ret;
 	u16 reg;

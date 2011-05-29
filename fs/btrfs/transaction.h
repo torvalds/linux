@@ -27,11 +27,11 @@ struct btrfs_transaction {
 	 * total writers in this transaction, it must be zero before the
 	 * transaction can end
 	 */
-	unsigned long num_writers;
+	atomic_t num_writers;
 
 	unsigned long num_joined;
 	int in_commit;
-	int use_count;
+	atomic_t use_count;
 	int commit_done;
 	int blocked;
 	struct list_head list;

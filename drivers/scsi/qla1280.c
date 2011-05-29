@@ -78,7 +78,7 @@
 	- Clean up vchan handling
     Rev  3.23.33 July 3, 2003, Jes Sorensen
 	- Don't define register access macros before define determining MMIO.
-	  This just happend to work out on ia64 but not elsewhere.
+	  This just happened to work out on ia64 but not elsewhere.
 	- Don't try and read from the card while it is in reset as
 	  it won't respond and causes an MCA
     Rev  3.23.32 June 23, 2003, Jes Sorensen

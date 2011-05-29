@@ -50,6 +50,9 @@ extern int dib8000_set_tune_state(struct dvb_frontend *fe, enum frontend_tune_st
 extern enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend *fe);
 extern void dib8000_pwm_agc_reset(struct dvb_frontend *fe);
 extern s32 dib8000_get_adc_power(struct dvb_frontend *fe, u8 mode);
+extern int dib8000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_slave);
+extern int dib8000_remove_slave_frontend(struct dvb_frontend *fe);
+extern struct dvb_frontend *dib8000_get_slave_frontend(struct dvb_frontend *fe, int slave_index);
 #else
 static inline struct dvb_frontend *dib8000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg)
 {
@@ -110,6 +113,23 @@ static inline s32 dib8000_get_adc_power(struct dvb_frontend *fe, u8 mode)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return 0;
+}
+static inline int dib8000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_slave)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return -ENODEV;
+}
+
+int dib8000_remove_slave_frontend(struct dvb_frontend *fe)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return -ENODEV;
+}
+
+static inline struct dvb_frontend *dib8000_get_slave_frontend(struct dvb_frontend *fe, int slave_index)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return NULL;
 }
 #endif
 

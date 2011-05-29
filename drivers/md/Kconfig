@@ -327,4 +327,10 @@ config DM_UEVENT
 	---help---
 	Generate udev events for DM events.
 
+config DM_FLAKEY
+       tristate "Flakey target (EXPERIMENTAL)"
+       depends on BLK_DEV_DM && EXPERIMENTAL
+       ---help---
+         A target that intermittently fails I/O for debugging purposes.
+
 endif # MD

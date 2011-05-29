@@ -41,28 +41,30 @@ struct isakmp_hdr {
 #define PORT_ISAKMP	500
 
 static void
-ah_esp_conn_fill_param_proto(int af, const struct ip_vs_iphdr *iph,
-			     int inverse, struct ip_vs_conn_param *p)
+ah_esp_conn_fill_param_proto(struct net *net, int af,
+			     const struct ip_vs_iphdr *iph, int inverse,
+			     struct ip_vs_conn_param *p)
 {
 	if (likely(!inverse))
-		ip_vs_conn_fill_param(af, IPPROTO_UDP,
+		ip_vs_conn_fill_param(net, af, IPPROTO_UDP,
 				      &iph->saddr, htons(PORT_ISAKMP),
 				      &iph->daddr, htons(PORT_ISAKMP), p);
 	else
-		ip_vs_conn_fill_param(af, IPPROTO_UDP,
+		ip_vs_conn_fill_param(net, af, IPPROTO_UDP,
 				      &iph->daddr, htons(PORT_ISAKMP),
 				      &iph->saddr, htons(PORT_ISAKMP), p);
 }
 
 static struct ip_vs_conn *
-ah_esp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
+ah_esp_conn_in_get(int af, const struct sk_buff *skb,
 		   const struct ip_vs_iphdr *iph, unsigned int proto_off,
 		   int inverse)
 {
 	struct ip_vs_conn *cp;
 	struct ip_vs_conn_param p;
+	struct net *net = skb_net(skb);
 
-	ah_esp_conn_fill_param_proto(af, iph, inverse, &p);
+	ah_esp_conn_fill_param_proto(net, af, iph, inverse, &p);
 	cp = ip_vs_conn_in_get(&p);
 	if (!cp) {
 		/*
@@ -72,7 +74,7 @@ ah_esp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		IP_VS_DBG_BUF(12, "Unknown ISAKMP entry for outin packet "
 			      "%s%s %s->%s\n",
 			      inverse ? "ICMP+" : "",
-			      pp->name,
+			      ip_vs_proto_get(iph->protocol)->name,
 			      IP_VS_DBG_ADDR(af, &iph->saddr),
 			      IP_VS_DBG_ADDR(af, &iph->daddr));
 	}
@@ -83,21 +85,21 @@ ah_esp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
 
 static struct ip_vs_conn *
 ah_esp_conn_out_get(int af, const struct sk_buff *skb,
-		    struct ip_vs_protocol *pp,
 		    const struct ip_vs_iphdr *iph,
 		    unsigned int proto_off,
 		    int inverse)
 {
 	struct ip_vs_conn *cp;
 	struct ip_vs_conn_param p;
+	struct net *net = skb_net(skb);
 
-	ah_esp_conn_fill_param_proto(af, iph, inverse, &p);
+	ah_esp_conn_fill_param_proto(net, af, iph, inverse, &p);
 	cp = ip_vs_conn_out_get(&p);
 	if (!cp) {
 		IP_VS_DBG_BUF(12, "Unknown ISAKMP entry for inout packet "
 			      "%s%s %s->%s\n",
 			      inverse ? "ICMP+" : "",
-			      pp->name,
+			      ip_vs_proto_get(iph->protocol)->name,
 			      IP_VS_DBG_ADDR(af, &iph->saddr),
 			      IP_VS_DBG_ADDR(af, &iph->daddr));
 	}
@@ -107,7 +109,7 @@ ah_esp_conn_out_get(int af, const struct sk_buff *skb,
 
 
 static int
-ah_esp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
+ah_esp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		     int *verdict, struct ip_vs_conn **cpp)
 {
 	/*
@@ -117,26 +119,14 @@ ah_esp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 	return 0;
 }
 
-static void ah_esp_init(struct ip_vs_protocol *pp)
-{
-	/* nothing to do now */
-}
-
-
-static void ah_esp_exit(struct ip_vs_protocol *pp)
-{
-	/* nothing to do now */
-}
-
-
 #ifdef CONFIG_IP_VS_PROTO_AH
 struct ip_vs_protocol ip_vs_protocol_ah = {
 	.name =			"AH",
 	.protocol =		IPPROTO_AH,
 	.num_states =		1,
 	.dont_defrag =		1,
-	.init =			ah_esp_init,
-	.exit =			ah_esp_exit,
+	.init =			NULL,
+	.exit =			NULL,
 	.conn_schedule =	ah_esp_conn_schedule,
 	.conn_in_get =		ah_esp_conn_in_get,
 	.conn_out_get =		ah_esp_conn_out_get,
@@ -149,7 +139,6 @@ struct ip_vs_protocol ip_vs_protocol_ah = {
 	.app_conn_bind =	NULL,
 	.debug_packet =		ip_vs_tcpudp_debug_packet,
 	.timeout_change =	NULL,		/* ISAKMP */
-	.set_state_timeout =	NULL,
 };
 #endif
 
@@ -159,8 +148,8 @@ struct ip_vs_protocol ip_vs_protocol_esp = {
 	.protocol =		IPPROTO_ESP,
 	.num_states =		1,
 	.dont_defrag =		1,
-	.init =			ah_esp_init,
-	.exit =			ah_esp_exit,
+	.init =			NULL,
+	.exit =			NULL,
 	.conn_schedule =	ah_esp_conn_schedule,
 	.conn_in_get =		ah_esp_conn_in_get,
 	.conn_out_get =		ah_esp_conn_out_get,

@@ -37,19 +37,14 @@ xen_mm_unpin_all(void)
 	/* nothing */
 }
 
-void xen_pre_device_suspend(void)
+void
+xen_arch_pre_suspend()
 {
 	/* nothing */
 }
 
 void
-xen_pre_suspend()
-{
-	/* nothing */
-}
-
-void
-xen_post_suspend(int suspend_cancelled)
+xen_arch_post_suspend(int suspend_cancelled)
 {
 	if (suspend_cancelled)
 		return;

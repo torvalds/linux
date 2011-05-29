@@ -31,6 +31,26 @@
  * buffer is full or when it is not used for some time (by timer). This is
  * similar to the mechanism is used by JFFS2.
  *
+ * UBIFS distinguishes between minimum write size (@c->min_io_size) and maximum
+ * write size (@c->max_write_size). The latter is the maximum amount of bytes
+ * the underlying flash is able to program at a time, and writing in
+ * @c->max_write_size units should presumably be faster. Obviously,
+ * @c->min_io_size <= @c->max_write_size. Write-buffers are of
+ * @c->max_write_size bytes in size for maximum performance. However, when a
+ * write-buffer is flushed, only the portion of it (aligned to @c->min_io_size
+ * boundary) which contains data is written, not the whole write-buffer,
+ * because this is more space-efficient.
+ *
+ * This optimization adds few complications to the code. Indeed, on the one
+ * hand, we want to write in optimal @c->max_write_size bytes chunks, which
+ * also means aligning writes at the @c->max_write_size bytes offsets. On the
+ * other hand, we do not want to waste space when synchronizing the write
+ * buffer, so during synchronization we writes in smaller chunks. And this makes
+ * the next write offset to be not aligned to @c->max_write_size bytes. So the
+ * have to make sure that the write-buffer offset (@wbuf->offs) becomes aligned
+ * to @c->max_write_size bytes again. We do this by temporarily shrinking
+ * write-buffer size (@wbuf->size).
+ *
  * Write-buffers are defined by 'struct ubifs_wbuf' objects and protected by
  * mutexes defined inside these objects. Since sometimes upper-level code
  * has to lock the write-buffer (e.g. journal space reservation code), many
@@ -46,8 +66,8 @@
  * UBIFS uses padding when it pads to the next min. I/O unit. In this case it
  * uses padding nodes or padding bytes, if the padding node does not fit.
  *
- * All UBIFS nodes are protected by CRC checksums and UBIFS checks all nodes
- * every time they are read from the flash media.
+ * All UBIFS nodes are protected by CRC checksums and UBIFS checks CRC when
+ * they are read from the flash media.
  */
 
 #include <linux/crc32.h>
@@ -88,8 +108,12 @@ void ubifs_ro_mode(struct ubifs_info *c, int err)
  * This function may skip data nodes CRC checking if @c->no_chk_data_crc is
  * true, which is controlled by corresponding UBIFS mount option. However, if
  * @must_chk_crc is true, then @c->no_chk_data_crc is ignored and CRC is
- * checked. Similarly, if @c->always_chk_crc is true, @c->no_chk_data_crc is
- * ignored and CRC is checked.
+ * checked. Similarly, if @c->mounting or @c->remounting_rw is true (we are
+ * mounting or re-mounting to R/W mode), @c->no_chk_data_crc is ignored and CRC
+ * is checked. This is because during mounting or re-mounting from R/O mode to
+ * R/W mode we may read journal nodes (when replying the journal or doing the
+ * recovery) and the journal nodes may potentially be corrupted, so checking is
+ * required.
  *
  * This function returns zero in case of success and %-EUCLEAN in case of bad
  * CRC or magic.
@@ -131,8 +155,8 @@ int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
 		   node_len > c->ranges[type].max_len)
 		goto out_len;
 
-	if (!must_chk_crc && type == UBIFS_DATA_NODE && !c->always_chk_crc &&
-	     c->no_chk_data_crc)
+	if (!must_chk_crc && type == UBIFS_DATA_NODE && !c->mounting &&
+	    !c->remounting_rw && c->no_chk_data_crc)
 		return 0;
 
 	crc = crc32(UBIFS_CRC32_INIT, buf + 8, node_len - 8);
@@ -343,11 +367,17 @@ static void cancel_wbuf_timer_nolock(struct ubifs_wbuf *wbuf)
  *
  * This function synchronizes write-buffer @buf and returns zero in case of
  * success or a negative error code in case of failure.
+ *
+ * Note, although write-buffers are of @c->max_write_size, this function does
+ * not necessarily writes all @c->max_write_size bytes to the flash. Instead,
+ * if the write-buffer is only partially filled with data, only the used part
+ * of the write-buffer (aligned on @c->min_io_size boundary) is synchronized.
+ * This way we waste less space.
  */
 int ubifs_wbuf_sync_nolock(struct ubifs_wbuf *wbuf)
 {
 	struct ubifs_info *c = wbuf->c;
-	int err, dirt;
+	int err, dirt, sync_len;
 
 	cancel_wbuf_timer_nolock(wbuf);
 	if (!wbuf->used || wbuf->lnum == -1)
@@ -357,27 +387,53 @@ int ubifs_wbuf_sync_nolock(struct ubifs_wbuf *wbuf)
 	dbg_io("LEB %d:%d, %d bytes, jhead %s",
 	       wbuf->lnum, wbuf->offs, wbuf->used, dbg_jhead(wbuf->jhead));
 	ubifs_assert(!(wbuf->avail & 7));
-	ubifs_assert(wbuf->offs + c->min_io_size <= c->leb_size);
+	ubifs_assert(wbuf->offs + wbuf->size <= c->leb_size);
+	ubifs_assert(wbuf->size >= c->min_io_size);
+	ubifs_assert(wbuf->size <= c->max_write_size);
+	ubifs_assert(wbuf->size % c->min_io_size == 0);
 	ubifs_assert(!c->ro_media && !c->ro_mount);
+	if (c->leb_size - wbuf->offs >= c->max_write_size)
+		ubifs_assert(!((wbuf->offs + wbuf->size) % c->max_write_size ));
 
 	if (c->ro_error)
 		return -EROFS;
 
-	ubifs_pad(c, wbuf->buf + wbuf->used, wbuf->avail);
+	/*
+	 * Do not write whole write buffer but write only the minimum necessary
+	 * amount of min. I/O units.
+	 */
+	sync_len = ALIGN(wbuf->used, c->min_io_size);
+	dirt = sync_len - wbuf->used;
+	if (dirt)
+		ubifs_pad(c, wbuf->buf + wbuf->used, dirt);
 	err = ubi_leb_write(c->ubi, wbuf->lnum, wbuf->buf, wbuf->offs,
-			    c->min_io_size, wbuf->dtype);
+			    sync_len, wbuf->dtype);
 	if (err) {
 		ubifs_err("cannot write %d bytes to LEB %d:%d",
-			  c->min_io_size, wbuf->lnum, wbuf->offs);
+			  sync_len, wbuf->lnum, wbuf->offs);
 		dbg_dump_stack();
 		return err;
 	}
 
-	dirt = wbuf->avail;
-
 	spin_lock(&wbuf->lock);
-	wbuf->offs += c->min_io_size;
-	wbuf->avail = c->min_io_size;
+	wbuf->offs += sync_len;
+	/*
+	 * Now @wbuf->offs is not necessarily aligned to @c->max_write_size.
+	 * But our goal is to optimize writes and make sure we write in
+	 * @c->max_write_size chunks and to @c->max_write_size-aligned offset.
+	 * Thus, if @wbuf->offs is not aligned to @c->max_write_size now, make
+	 * sure that @wbuf->offs + @wbuf->size is aligned to
+	 * @c->max_write_size. This way we make sure that after next
+	 * write-buffer flush we are again at the optimal offset (aligned to
+	 * @c->max_write_size).
+	 */
+	if (c->leb_size - wbuf->offs < c->max_write_size)
+		wbuf->size = c->leb_size - wbuf->offs;
+	else if (wbuf->offs & (c->max_write_size - 1))
+		wbuf->size = ALIGN(wbuf->offs, c->max_write_size) - wbuf->offs;
+	else
+		wbuf->size = c->max_write_size;
+	wbuf->avail = wbuf->size;
 	wbuf->used = 0;
 	wbuf->next_ino = 0;
 	spin_unlock(&wbuf->lock);
@@ -420,7 +476,13 @@ int ubifs_wbuf_seek_nolock(struct ubifs_wbuf *wbuf, int lnum, int offs,
 	spin_lock(&wbuf->lock);
 	wbuf->lnum = lnum;
 	wbuf->offs = offs;
-	wbuf->avail = c->min_io_size;
+	if (c->leb_size - wbuf->offs < c->max_write_size)
+		wbuf->size = c->leb_size - wbuf->offs;
+	else if (wbuf->offs & (c->max_write_size - 1))
+		wbuf->size = ALIGN(wbuf->offs, c->max_write_size) - wbuf->offs;
+	else
+		wbuf->size = c->max_write_size;
+	wbuf->avail = wbuf->size;
 	wbuf->used = 0;
 	spin_unlock(&wbuf->lock);
 	wbuf->dtype = dtype;
@@ -500,8 +562,9 @@ out_timers:
  *
  * This function writes data to flash via write-buffer @wbuf. This means that
  * the last piece of the node won't reach the flash media immediately if it
- * does not take whole minimal I/O unit. Instead, the node will sit in RAM
- * until the write-buffer is synchronized (e.g., by timer).
+ * does not take whole max. write unit (@c->max_write_size). Instead, the node
+ * will sit in RAM until the write-buffer is synchronized (e.g., by timer, or
+ * because more data are appended to the write-buffer).
  *
  * This function returns zero in case of success and a negative error code in
  * case of failure. If the node cannot be written because there is no more
@@ -518,9 +581,14 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 	ubifs_assert(len > 0 && wbuf->lnum >= 0 && wbuf->lnum < c->leb_cnt);
 	ubifs_assert(wbuf->offs >= 0 && wbuf->offs % c->min_io_size == 0);
 	ubifs_assert(!(wbuf->offs & 7) && wbuf->offs <= c->leb_size);
-	ubifs_assert(wbuf->avail > 0 && wbuf->avail <= c->min_io_size);
+	ubifs_assert(wbuf->avail > 0 && wbuf->avail <= wbuf->size);
+	ubifs_assert(wbuf->size >= c->min_io_size);
+	ubifs_assert(wbuf->size <= c->max_write_size);
+	ubifs_assert(wbuf->size % c->min_io_size == 0);
 	ubifs_assert(mutex_is_locked(&wbuf->io_mutex));
 	ubifs_assert(!c->ro_media && !c->ro_mount);
+	if (c->leb_size - wbuf->offs >= c->max_write_size)
+		ubifs_assert(!((wbuf->offs + wbuf->size) % c->max_write_size ));
 
 	if (c->leb_size - wbuf->offs - wbuf->used < aligned_len) {
 		err = -ENOSPC;
@@ -543,14 +611,18 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 			dbg_io("flush jhead %s wbuf to LEB %d:%d",
 			       dbg_jhead(wbuf->jhead), wbuf->lnum, wbuf->offs);
 			err = ubi_leb_write(c->ubi, wbuf->lnum, wbuf->buf,
-					    wbuf->offs, c->min_io_size,
+					    wbuf->offs, wbuf->size,
 					    wbuf->dtype);
 			if (err)
 				goto out;
 
 			spin_lock(&wbuf->lock);
-			wbuf->offs += c->min_io_size;
-			wbuf->avail = c->min_io_size;
+			wbuf->offs += wbuf->size;
+			if (c->leb_size - wbuf->offs >= c->max_write_size)
+				wbuf->size = c->max_write_size;
+			else
+				wbuf->size = c->leb_size - wbuf->offs;
+			wbuf->avail = wbuf->size;
 			wbuf->used = 0;
 			wbuf->next_ino = 0;
 			spin_unlock(&wbuf->lock);
@@ -564,33 +636,57 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		goto exit;
 	}
 
-	/*
-	 * The node is large enough and does not fit entirely within current
-	 * minimal I/O unit. We have to fill and flush write-buffer and switch
-	 * to the next min. I/O unit.
-	 */
-	dbg_io("flush jhead %s wbuf to LEB %d:%d",
-	       dbg_jhead(wbuf->jhead), wbuf->lnum, wbuf->offs);
-	memcpy(wbuf->buf + wbuf->used, buf, wbuf->avail);
-	err = ubi_leb_write(c->ubi, wbuf->lnum, wbuf->buf, wbuf->offs,
-			    c->min_io_size, wbuf->dtype);
-	if (err)
-		goto out;
+	offs = wbuf->offs;
+	written = 0;
 
-	offs = wbuf->offs + c->min_io_size;
-	len -= wbuf->avail;
-	aligned_len -= wbuf->avail;
-	written = wbuf->avail;
+	if (wbuf->used) {
+		/*
+		 * The node is large enough and does not fit entirely within
+		 * current available space. We have to fill and flush
+		 * write-buffer and switch to the next max. write unit.
+		 */
+		dbg_io("flush jhead %s wbuf to LEB %d:%d",
+		       dbg_jhead(wbuf->jhead), wbuf->lnum, wbuf->offs);
+		memcpy(wbuf->buf + wbuf->used, buf, wbuf->avail);
+		err = ubi_leb_write(c->ubi, wbuf->lnum, wbuf->buf, wbuf->offs,
+				    wbuf->size, wbuf->dtype);
+		if (err)
+			goto out;
+
+		offs += wbuf->size;
+		len -= wbuf->avail;
+		aligned_len -= wbuf->avail;
+		written += wbuf->avail;
+	} else if (wbuf->offs & (c->max_write_size - 1)) {
+		/*
+		 * The write-buffer offset is not aligned to
+		 * @c->max_write_size and @wbuf->size is less than
+		 * @c->max_write_size. Write @wbuf->size bytes to make sure the
+		 * following writes are done in optimal @c->max_write_size
+		 * chunks.
+		 */
+		dbg_io("write %d bytes to LEB %d:%d",
+		       wbuf->size, wbuf->lnum, wbuf->offs);
+		err = ubi_leb_write(c->ubi, wbuf->lnum, buf, wbuf->offs,
+				    wbuf->size, wbuf->dtype);
+		if (err)
+			goto out;
+
+		offs += wbuf->size;
+		len -= wbuf->size;
+		aligned_len -= wbuf->size;
+		written += wbuf->size;
+	}
 
 	/*
-	 * The remaining data may take more whole min. I/O units, so write the
-	 * remains multiple to min. I/O unit size directly to the flash media.
+	 * The remaining data may take more whole max. write units, so write the
+	 * remains multiple to max. write unit size directly to the flash media.
 	 * We align node length to 8-byte boundary because we anyway flash wbuf
 	 * if the remaining space is less than 8 bytes.
 	 */
-	n = aligned_len >> c->min_io_shift;
+	n = aligned_len >> c->max_write_shift;
 	if (n) {
-		n <<= c->min_io_shift;
+		n <<= c->max_write_shift;
 		dbg_io("write %d bytes to LEB %d:%d", n, wbuf->lnum, offs);
 		err = ubi_leb_write(c->ubi, wbuf->lnum, buf + written, offs, n,
 				    wbuf->dtype);
@@ -606,14 +702,18 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 	if (aligned_len)
 		/*
 		 * And now we have what's left and what does not take whole
-		 * min. I/O unit, so write it to the write-buffer and we are
+		 * max. write unit, so write it to the write-buffer and we are
 		 * done.
 		 */
 		memcpy(wbuf->buf, buf + written, len);
 
 	wbuf->offs = offs;
+	if (c->leb_size - wbuf->offs >= c->max_write_size)
+		wbuf->size = c->max_write_size;
+	else
+		wbuf->size = c->leb_size - wbuf->offs;
+	wbuf->avail = wbuf->size - aligned_len;
 	wbuf->used = aligned_len;
-	wbuf->avail = c->min_io_size - aligned_len;
 	wbuf->next_ino = 0;
 	spin_unlock(&wbuf->lock);
 
@@ -837,11 +937,11 @@ int ubifs_wbuf_init(struct ubifs_info *c, struct ubifs_wbuf *wbuf)
 {
 	size_t size;
 
-	wbuf->buf = kmalloc(c->min_io_size, GFP_KERNEL);
+	wbuf->buf = kmalloc(c->max_write_size, GFP_KERNEL);
 	if (!wbuf->buf)
 		return -ENOMEM;
 
-	size = (c->min_io_size / UBIFS_CH_SZ + 1) * sizeof(ino_t);
+	size = (c->max_write_size / UBIFS_CH_SZ + 1) * sizeof(ino_t);
 	wbuf->inodes = kmalloc(size, GFP_KERNEL);
 	if (!wbuf->inodes) {
 		kfree(wbuf->buf);
@@ -851,7 +951,14 @@ int ubifs_wbuf_init(struct ubifs_info *c, struct ubifs_wbuf *wbuf)
 
 	wbuf->used = 0;
 	wbuf->lnum = wbuf->offs = -1;
-	wbuf->avail = c->min_io_size;
+	/*
+	 * If the LEB starts at the max. write size aligned address, then
+	 * write-buffer size has to be set to @c->max_write_size. Otherwise,
+	 * set it to something smaller so that it ends at the closest max.
+	 * write size boundary.
+	 */
+	size = c->max_write_size - (c->leb_start % c->max_write_size);
+	wbuf->avail = wbuf->size = size;
 	wbuf->dtype = UBI_UNKNOWN;
 	wbuf->sync_callback = NULL;
 	mutex_init(&wbuf->io_mutex);

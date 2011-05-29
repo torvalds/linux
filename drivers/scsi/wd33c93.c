@@ -1843,7 +1843,7 @@ check_setup_args(char *key, int *flags, int *val, char *buf)
  *
  * The original driver used to rely on a fixed sx_table, containing periods
  * for (only) the lower limits of the respective input-clock-frequency ranges
- * (8-10/12-15/16-20 MHz). Although it seems, that no problems ocurred with
+ * (8-10/12-15/16-20 MHz). Although it seems, that no problems occurred with
  * this setting so far, it might be desirable to adjust the transfer periods
  * closer to the really attached, possibly 25% higher, input-clock, since
  * - the wd33c93 may really use a significant shorter period, than it has

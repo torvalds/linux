@@ -1,4 +1,5 @@
-ccflags-$(CONFIG_PM_DEBUG)	:=	-DDEBUG
+
+ccflags-$(CONFIG_PM_DEBUG)	:= -DDEBUG
 
 obj-$(CONFIG_PM)		+= main.o
 obj-$(CONFIG_PM_SLEEP)		+= console.o

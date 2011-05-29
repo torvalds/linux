@@ -577,7 +577,7 @@ void xenbus_dev_changed(const char *node, struct xen_bus_type *bus)
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_changed);
 
-int xenbus_dev_suspend(struct device *dev, pm_message_t state)
+int xenbus_dev_suspend(struct device *dev)
 {
 	int err = 0;
 	struct xenbus_driver *drv;
@@ -590,7 +590,7 @@ int xenbus_dev_suspend(struct device *dev, pm_message_t state)
 		return 0;
 	drv = to_xenbus_driver(dev->driver);
 	if (drv->suspend)
-		err = drv->suspend(xdev, state);
+		err = drv->suspend(xdev);
 	if (err)
 		printk(KERN_WARNING
 		       "xenbus: suspend %s failed: %i\n", dev_name(dev), err);
@@ -641,6 +641,14 @@ int xenbus_dev_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_resume);
+
+int xenbus_dev_cancel(struct device *dev)
+{
+	/* Do nothing */
+	DPRINTK("cancel");
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xenbus_dev_cancel);
 
 /* A flag to determine if xenstored is 'ready' (i.e. has started) */
 int xenstored_ready = 0;

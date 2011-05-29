@@ -696,7 +696,7 @@ static int mipsxx_pmu_handle_shared_irq(void)
 	 * interrupt, not NMI.
 	 */
 	if (handled == IRQ_HANDLED)
-		perf_event_do_pending();
+		irq_work_run();
 
 #ifdef CONFIG_MIPS_MT_SMP
 	read_unlock(&pmuint_rwlock);
@@ -721,7 +721,7 @@ static void mipsxx_pmu_start(void)
 
 /*
  * MIPS performance counters can be per-TC. The control registers can
- * not be directly accessed accross CPUs. Hence if we want to do global
+ * not be directly accessed across CPUs. Hence if we want to do global
  * control, we need cross CPU calls. on_each_cpu() can help us, but we
  * can not make sure this function is called with interrupts enabled. So
  * here we pause local counters and then grab a rwlock and leave the
@@ -1044,6 +1044,8 @@ init_hw_perf_events(void)
 		pr_cont("%s PMU enabled, %d counters available to each "
 			"CPU, irq %d%s\n", mipspmu->name, counters, irq,
 			irq < 0 ? " (share with timer interrupt)" : "");
+
+	perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
 
 	return 0;
 }

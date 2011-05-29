@@ -408,34 +408,22 @@ int vnic_dev_fw_info(struct vnic_dev *vdev,
 		if (!vdev->fw_info)
 			return -ENOMEM;
 
+		memset(vdev->fw_info, 0, sizeof(struct vnic_devcmd_fw_info));
+
 		a0 = vdev->fw_info_pa;
+		a1 = sizeof(struct vnic_devcmd_fw_info);
 
 		/* only get fw_info once and cache it */
 		err = vnic_dev_cmd(vdev, CMD_MCPU_FW_INFO, &a0, &a1, wait);
+		if (err == ERR_ECMDUNKNOWN) {
+			err = vnic_dev_cmd(vdev, CMD_MCPU_FW_INFO_OLD,
+				&a0, &a1, wait);
+		}
 	}
 
 	*fw_info = vdev->fw_info;
 
 	return err;
-}
-
-int vnic_dev_hw_version(struct vnic_dev *vdev, enum vnic_dev_hw_version *hw_ver)
-{
-	struct vnic_devcmd_fw_info *fw_info;
-	int err;
-
-	err = vnic_dev_fw_info(vdev, &fw_info);
-	if (err)
-		return err;
-
-	if (strncmp(fw_info->hw_version, "A1", sizeof("A1")) == 0)
-		*hw_ver = VNIC_DEV_HW_VER_A1;
-	else if (strncmp(fw_info->hw_version, "A2", sizeof("A2")) == 0)
-		*hw_ver = VNIC_DEV_HW_VER_A2;
-	else
-		*hw_ver = VNIC_DEV_HW_VER_UNKNOWN;
-
-	return 0;
 }
 
 int vnic_dev_spec(struct vnic_dev *vdev, unsigned int offset, unsigned int size,

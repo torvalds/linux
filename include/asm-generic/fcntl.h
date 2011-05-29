@@ -80,6 +80,10 @@
 #define O_SYNC		(__O_SYNC|O_DSYNC)
 #endif
 
+#ifndef O_PATH
+#define O_PATH		010000000
+#endif
+
 #ifndef O_NDELAY
 #define O_NDELAY	O_NONBLOCK
 #endif

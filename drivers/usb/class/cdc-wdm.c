@@ -281,7 +281,7 @@ static void cleanup(struct wdm_device *desc)
 			  desc->sbuf,
 			  desc->validity->transfer_dma);
 	usb_free_coherent(interface_to_usbdev(desc->intf),
-			  desc->wMaxCommand,
+			  desc->bMaxPacketSize0,
 			  desc->inbuf,
 			  desc->response->transfer_dma);
 	kfree(desc->orq);

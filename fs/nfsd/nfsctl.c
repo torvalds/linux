@@ -12,13 +12,14 @@
 #include <linux/nfsd/syscall.h>
 #include <linux/lockd/lockd.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/gss_api.h>
 
 #include "idmap.h"
 #include "nfsd.h"
 #include "cache.h"
 
 /*
- *	We have a single directory with 9 nodes in it.
+ *	We have a single directory with several nodes in it.
  */
 enum {
 	NFSD_Root = 1,
@@ -42,6 +43,7 @@ enum {
 	NFSD_Versions,
 	NFSD_Ports,
 	NFSD_MaxBlkSize,
+	NFSD_SupportedEnctypes,
 	/*
 	 * The below MUST come last.  Otherwise we leave a hole in nfsd_files[]
 	 * with !CONFIG_NFSD_V4 and simple_fill_super() goes oops
@@ -186,6 +188,34 @@ static struct file_operations export_features_operations = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+
+#ifdef CONFIG_SUNRPC_GSS
+static int supported_enctypes_show(struct seq_file *m, void *v)
+{
+	struct gss_api_mech *k5mech;
+
+	k5mech = gss_mech_get_by_name("krb5");
+	if (k5mech == NULL)
+		goto out;
+	if (k5mech->gm_upcall_enctypes != NULL)
+		seq_printf(m, k5mech->gm_upcall_enctypes);
+	gss_mech_put(k5mech);
+out:
+	return 0;
+}
+
+static int supported_enctypes_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, supported_enctypes_show, NULL);
+}
+
+static struct file_operations supported_enctypes_ops = {
+	.open		= supported_enctypes_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+#endif /* CONFIG_SUNRPC_GSS */
 
 extern int nfsd_pool_stats_open(struct inode *inode, struct file *file);
 extern int nfsd_pool_stats_release(struct inode *inode, struct file *file);
@@ -1397,6 +1427,9 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_Versions] = {"versions", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Ports] = {"portlist", &transaction_ops, S_IWUSR|S_IRUGO},
 		[NFSD_MaxBlkSize] = {"max_block_size", &transaction_ops, S_IWUSR|S_IRUGO},
+#ifdef CONFIG_SUNRPC_GSS
+		[NFSD_SupportedEnctypes] = {"supported_krb5_enctypes", &supported_enctypes_ops, S_IRUGO},
+#endif /* CONFIG_SUNRPC_GSS */
 #ifdef CONFIG_NFSD_V4
 		[NFSD_Leasetime] = {"nfsv4leasetime", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Gracetime] = {"nfsv4gracetime", &transaction_ops, S_IWUSR|S_IRUSR},

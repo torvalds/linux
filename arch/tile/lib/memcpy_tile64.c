@@ -96,7 +96,7 @@ static void memcpy_multicache(void *dest, const void *source,
 	newsrc = __fix_to_virt(idx) + ((unsigned long)source & (PAGE_SIZE-1));
 	pmdp = pmd_offset(pud_offset(pgd_offset_k(newsrc), newsrc), newsrc);
 	ptep = pte_offset_kernel(pmdp, newsrc);
-	*ptep = src_pte;   /* set_pte() would be confused by this */
+	__set_pte(ptep, src_pte);   /* set_pte() would be confused by this */
 	local_flush_tlb_page(NULL, newsrc, PAGE_SIZE);
 
 	/* Actually move the data. */
@@ -109,7 +109,7 @@ static void memcpy_multicache(void *dest, const void *source,
 	 */
 	src_pte = hv_pte_set_mode(src_pte, HV_PTE_MODE_CACHE_NO_L3);
 	src_pte = hv_pte_set_writable(src_pte); /* need write access for inv */
-	*ptep = src_pte;   /* set_pte() would be confused by this */
+	__set_pte(ptep, src_pte);   /* set_pte() would be confused by this */
 	local_flush_tlb_page(NULL, newsrc, PAGE_SIZE);
 
 	/*

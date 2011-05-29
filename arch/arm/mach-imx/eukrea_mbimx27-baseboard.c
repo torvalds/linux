@@ -249,7 +249,7 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 
 #define ADS7846_PENDOWN (GPIO_PORTD | 25)
 
-static void ads7846_dev_init(void)
+static void __maybe_unused ads7846_dev_init(void)
 {
 	if (gpio_request(ADS7846_PENDOWN, "ADS7846 pendown") < 0) {
 		printk(KERN_ERR "can't get ads746 pen down GPIO\n");
@@ -268,7 +268,8 @@ static struct ads7846_platform_data ads7846_config __initdata = {
 	.keep_vref_on		= 1,
 };
 
-static struct spi_board_info eukrea_mbimx27_spi_board_info[] __initdata = {
+static struct spi_board_info __maybe_unused
+		eukrea_mbimx27_spi_board_info[] __initdata = {
 	[0] = {
 		.modalias	= "ads7846",
 		.bus_num	= 0,
@@ -357,13 +358,11 @@ void __init eukrea_mbimx27_baseboard_init(void)
 	ads7846_dev_init();
 #endif
 
-#if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
 	/* SPI_CS0 init */
 	mxc_gpio_mode(GPIO_PORTD | 28 | GPIO_GPIO | GPIO_OUT);
 	imx27_add_spi_imx0(&eukrea_mbimx27_spi0_data);
 	spi_register_board_info(eukrea_mbimx27_spi_board_info,
 			ARRAY_SIZE(eukrea_mbimx27_spi_board_info));
-#endif
 
 	/* Leds configuration */
 	mxc_gpio_mode(GPIO_PORTF | 16 | GPIO_GPIO | GPIO_OUT);

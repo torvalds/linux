@@ -218,15 +218,20 @@ void mpc8xx_restart(char *cmd)
 
 static void cpm_cascade(unsigned int irq, struct irq_desc *desc)
 {
+	struct irq_chip *chip;
 	int cascade_irq;
 
 	if ((cascade_irq = cpm_get_irq()) >= 0) {
 		struct irq_desc *cdesc = irq_to_desc(cascade_irq);
 
 		generic_handle_irq(cascade_irq);
-		cdesc->chip->eoi(cascade_irq);
+
+		chip = irq_desc_get_chip(cdesc);
+		chip->irq_eoi(&cdesc->irq_data);
 	}
-	desc->chip->eoi(irq);
+
+	chip = irq_desc_get_chip(desc);
+	chip->irq_eoi(&desc->irq_data);
 }
 
 /* Initialize the internal interrupt controllers.  The number of
@@ -246,5 +251,5 @@ void __init mpc8xx_pics_init(void)
 
 	irq = cpm_pic_init();
 	if (irq != NO_IRQ)
-		set_irq_chained_handler(irq, cpm_cascade);
+		irq_set_chained_handler(irq, cpm_cascade);
 }

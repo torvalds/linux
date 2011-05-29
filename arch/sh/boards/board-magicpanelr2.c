@@ -388,12 +388,12 @@ static void __init init_mpr2_IRQ(void)
 {
 	plat_irq_setup_pins(IRQ_MODE_IRQ); /* install handlers for IRQ0-5 */
 
-	set_irq_type(32, IRQ_TYPE_LEVEL_LOW);    /* IRQ0 CAN1 */
-	set_irq_type(33, IRQ_TYPE_LEVEL_LOW);    /* IRQ1 CAN2 */
-	set_irq_type(34, IRQ_TYPE_LEVEL_LOW);    /* IRQ2 CAN3 */
-	set_irq_type(35, IRQ_TYPE_LEVEL_LOW);    /* IRQ3 SMSC9115 */
-	set_irq_type(36, IRQ_TYPE_EDGE_RISING);  /* IRQ4 touchscreen */
-	set_irq_type(37, IRQ_TYPE_EDGE_FALLING); /* IRQ5 touchscreen */
+	irq_set_irq_type(32, IRQ_TYPE_LEVEL_LOW);    /* IRQ0 CAN1 */
+	irq_set_irq_type(33, IRQ_TYPE_LEVEL_LOW);    /* IRQ1 CAN2 */
+	irq_set_irq_type(34, IRQ_TYPE_LEVEL_LOW);    /* IRQ2 CAN3 */
+	irq_set_irq_type(35, IRQ_TYPE_LEVEL_LOW);    /* IRQ3 SMSC9115 */
+	irq_set_irq_type(36, IRQ_TYPE_EDGE_RISING);  /* IRQ4 touchscreen */
+	irq_set_irq_type(37, IRQ_TYPE_EDGE_FALLING); /* IRQ5 touchscreen */
 
 	intc_set_priority(32, 13);		/* IRQ0 CAN1 */
 	intc_set_priority(33, 13);		/* IRQ0 CAN2 */

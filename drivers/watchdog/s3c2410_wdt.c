@@ -224,7 +224,7 @@ static int s3c2410wdt_release(struct inode *inode, struct file *file)
 {
 	/*
 	 *	Shut off the timer.
-	 * 	Lock it in if it's a module and we set nowayout
+	 *	Lock it in if it's a module and we set nowayout
 	 */
 
 	if (expect_close == 42)
@@ -402,7 +402,6 @@ static inline void s3c2410wdt_cpufreq_deregister(void)
 
 static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct device *dev;
 	unsigned int wtcon;
 	int started = 0;
@@ -416,20 +415,19 @@ static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 
 	/* get the memory region for the watchdog timer */
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
+	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (wdt_mem == NULL) {
 		dev_err(dev, "no memory resource specified\n");
 		return -ENOENT;
 	}
 
-	size = resource_size(res);
-	wdt_mem = request_mem_region(res->start, size, pdev->name);
-	if (wdt_mem == NULL) {
+	size = resource_size(wdt_mem);
+	if (!request_mem_region(wdt_mem->start, size, pdev->name)) {
 		dev_err(dev, "failed to get memory region\n");
 		return -EBUSY;
 	}
 
-	wdt_base = ioremap(res->start, size);
+	wdt_base = ioremap(wdt_mem->start, size);
 	if (wdt_base == NULL) {
 		dev_err(dev, "failed to ioremap() region\n");
 		ret = -EINVAL;
@@ -524,8 +522,8 @@ static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 	iounmap(wdt_base);
 
  err_req:
-	release_resource(wdt_mem);
-	kfree(wdt_mem);
+	release_mem_region(wdt_mem->start, size);
+	wdt_mem = NULL;
 
 	return ret;
 }
@@ -545,8 +543,7 @@ static int __devexit s3c2410wdt_remove(struct platform_device *dev)
 
 	iounmap(wdt_base);
 
-	release_resource(wdt_mem);
-	kfree(wdt_mem);
+	release_mem_region(wdt_mem->start, resource_size(wdt_mem));
 	wdt_mem = NULL;
 	return 0;
 }

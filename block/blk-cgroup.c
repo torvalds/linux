@@ -114,6 +114,13 @@ struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup)
 }
 EXPORT_SYMBOL_GPL(cgroup_to_blkio_cgroup);
 
+struct blkio_cgroup *task_blkio_cgroup(struct task_struct *tsk)
+{
+	return container_of(task_subsys_state(tsk, blkio_subsys_id),
+			    struct blkio_cgroup, css);
+}
+EXPORT_SYMBOL_GPL(task_blkio_cgroup);
+
 static inline void
 blkio_update_group_weight(struct blkio_group *blkg, unsigned int weight)
 {
@@ -371,12 +378,14 @@ void blkiocg_update_io_remove_stats(struct blkio_group *blkg,
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_io_remove_stats);
 
-void blkiocg_update_timeslice_used(struct blkio_group *blkg, unsigned long time)
+void blkiocg_update_timeslice_used(struct blkio_group *blkg, unsigned long time,
+				unsigned long unaccounted_time)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&blkg->stats_lock, flags);
 	blkg->stats.time += time;
+	blkg->stats.unaccounted_time += unaccounted_time;
 	spin_unlock_irqrestore(&blkg->stats_lock, flags);
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_timeslice_used);
@@ -604,6 +613,9 @@ static uint64_t blkio_get_stat(struct blkio_group *blkg,
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
 					blkg->stats.sectors, cb, dev);
 #ifdef CONFIG_DEBUG_BLK_CGROUP
+	if (type == BLKIO_STAT_UNACCOUNTED_TIME)
+		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
+					blkg->stats.unaccounted_time, cb, dev);
 	if (type == BLKIO_STAT_AVG_QUEUE_SIZE) {
 		uint64_t sum = blkg->stats.avg_queue_size_sum;
 		uint64_t samples = blkg->stats.avg_queue_size_samples;
@@ -863,7 +875,7 @@ static void blkio_update_policy_rule(struct blkio_policy_node *oldpn,
 }
 
 /*
- * Some rules/values in blkg have changed. Propogate those to respective
+ * Some rules/values in blkg have changed. Propagate those to respective
  * policies.
  */
 static void blkio_update_blkg_policy(struct blkio_cgroup *blkcg,
@@ -898,7 +910,7 @@ static void blkio_update_blkg_policy(struct blkio_cgroup *blkcg,
 }
 
 /*
- * A policy node rule has been updated. Propogate this update to all the
+ * A policy node rule has been updated. Propagate this update to all the
  * block groups which might be affected by this update.
  */
 static void blkio_update_policy_node_blkg(struct blkio_cgroup *blkcg,
@@ -1125,6 +1137,9 @@ static int blkiocg_file_read_map(struct cgroup *cgrp, struct cftype *cft,
 			return blkio_read_blkg_stats(blkcg, cft, cb,
 						BLKIO_STAT_QUEUED, 1);
 #ifdef CONFIG_DEBUG_BLK_CGROUP
+		case BLKIO_PROP_unaccounted_time:
+			return blkio_read_blkg_stats(blkcg, cft, cb,
+						BLKIO_STAT_UNACCOUNTED_TIME, 0);
 		case BLKIO_PROP_dequeue:
 			return blkio_read_blkg_stats(blkcg, cft, cb,
 						BLKIO_STAT_DEQUEUE, 0);
@@ -1380,6 +1395,12 @@ struct cftype blkio_files[] = {
 		.name = "dequeue",
 		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
 				BLKIO_PROP_dequeue),
+		.read_map = blkiocg_file_read_map,
+	},
+	{
+		.name = "unaccounted_time",
+		.private = BLKIOFILE_PRIVATE(BLKIO_POLICY_PROP,
+				BLKIO_PROP_unaccounted_time),
 		.read_map = blkiocg_file_read_map,
 	},
 #endif

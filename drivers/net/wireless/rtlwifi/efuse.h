@@ -117,8 +117,5 @@ extern bool efuse_shadow_update_chk(struct ieee80211_hw *hw);
 extern void rtl_efuse_shadow_map_update(struct ieee80211_hw *hw);
 extern void efuse_force_write_vendor_Id(struct ieee80211_hw *hw);
 extern void efuse_re_pg_section(struct ieee80211_hw *hw, u8 section_idx);
-extern bool efuse_program_map(struct ieee80211_hw *hw,
-			      char *p_filename, u8 tabletype);
-extern void efuse_reset_loader(struct ieee80211_hw *hw);
 
 #endif

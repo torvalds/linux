@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -26,18 +26,15 @@
 #include "send.h"
 #include "bat_debugfs.h"
 #include "translation-table.h"
-#include "types.h"
 #include "hash.h"
 #include "gateway_common.h"
 #include "gateway_client.h"
-#include "send.h"
 #include "bat_sysfs.h"
 #include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include "unicast.h"
-#include "routing.h"
 
 
 static int bat_get_settings(struct net_device *dev, struct ethtool_cmd *cmd);
@@ -79,20 +76,18 @@ int my_skb_head_push(struct sk_buff *skb, unsigned int len)
 	return 0;
 }
 
-static void softif_neigh_free_ref(struct kref *refcount)
-{
-	struct softif_neigh *softif_neigh;
-
-	softif_neigh = container_of(refcount, struct softif_neigh, refcount);
-	kfree(softif_neigh);
-}
-
 static void softif_neigh_free_rcu(struct rcu_head *rcu)
 {
 	struct softif_neigh *softif_neigh;
 
 	softif_neigh = container_of(rcu, struct softif_neigh, rcu);
-	kref_put(&softif_neigh->refcount, softif_neigh_free_ref);
+	kfree(softif_neigh);
+}
+
+static void softif_neigh_free_ref(struct softif_neigh *softif_neigh)
+{
+	if (atomic_dec_and_test(&softif_neigh->refcount))
+		call_rcu(&softif_neigh->rcu, softif_neigh_free_rcu);
 }
 
 void softif_neigh_purge(struct bat_priv *bat_priv)
@@ -119,11 +114,10 @@ void softif_neigh_purge(struct bat_priv *bat_priv)
 				 softif_neigh->addr, softif_neigh->vid);
 			softif_neigh_tmp = bat_priv->softif_neigh;
 			bat_priv->softif_neigh = NULL;
-			kref_put(&softif_neigh_tmp->refcount,
-				 softif_neigh_free_ref);
+			softif_neigh_free_ref(softif_neigh_tmp);
 		}
 
-		call_rcu(&softif_neigh->rcu, softif_neigh_free_rcu);
+		softif_neigh_free_ref(softif_neigh);
 	}
 
 	spin_unlock_bh(&bat_priv->softif_neigh_lock);
@@ -138,14 +132,17 @@ static struct softif_neigh *softif_neigh_get(struct bat_priv *bat_priv,
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(softif_neigh, node,
 				 &bat_priv->softif_neigh_list, list) {
-		if (memcmp(softif_neigh->addr, addr, ETH_ALEN) != 0)
+		if (!compare_eth(softif_neigh->addr, addr))
 			continue;
 
 		if (softif_neigh->vid != vid)
 			continue;
 
+		if (!atomic_inc_not_zero(&softif_neigh->refcount))
+			continue;
+
 		softif_neigh->last_seen = jiffies;
-		goto found;
+		goto out;
 	}
 
 	softif_neigh = kzalloc(sizeof(struct softif_neigh), GFP_ATOMIC);
@@ -155,15 +152,14 @@ static struct softif_neigh *softif_neigh_get(struct bat_priv *bat_priv,
 	memcpy(softif_neigh->addr, addr, ETH_ALEN);
 	softif_neigh->vid = vid;
 	softif_neigh->last_seen = jiffies;
-	kref_init(&softif_neigh->refcount);
+	/* initialize with 2 - caller decrements counter by one */
+	atomic_set(&softif_neigh->refcount, 2);
 
 	INIT_HLIST_NODE(&softif_neigh->list);
 	spin_lock_bh(&bat_priv->softif_neigh_lock);
 	hlist_add_head_rcu(&softif_neigh->list, &bat_priv->softif_neigh_list);
 	spin_unlock_bh(&bat_priv->softif_neigh_lock);
 
-found:
-	kref_get(&softif_neigh->refcount);
 out:
 	rcu_read_unlock();
 	return softif_neigh;
@@ -175,8 +171,6 @@ int softif_neigh_seq_print_text(struct seq_file *seq, void *offset)
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	struct softif_neigh *softif_neigh;
 	struct hlist_node *node;
-	size_t buf_size, pos;
-	char *buff;
 
 	if (!bat_priv->primary_if) {
 		return seq_printf(seq, "BATMAN mesh %s disabled - "
@@ -186,33 +180,15 @@ int softif_neigh_seq_print_text(struct seq_file *seq, void *offset)
 
 	seq_printf(seq, "Softif neighbor list (%s)\n", net_dev->name);
 
-	buf_size = 1;
-	/* Estimate length for: "   xx:xx:xx:xx:xx:xx\n" */
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(softif_neigh, node,
 				 &bat_priv->softif_neigh_list, list)
-		buf_size += 30;
-	rcu_read_unlock();
-
-	buff = kmalloc(buf_size, GFP_ATOMIC);
-	if (!buff)
-		return -ENOMEM;
-
-	buff[0] = '\0';
-	pos = 0;
-
-	rcu_read_lock();
-	hlist_for_each_entry_rcu(softif_neigh, node,
-				 &bat_priv->softif_neigh_list, list) {
-		pos += snprintf(buff + pos, 31, "%s %pM (vid: %d)\n",
+		seq_printf(seq, "%s %pM (vid: %d)\n",
 				bat_priv->softif_neigh == softif_neigh
 				? "=>" : "  ", softif_neigh->addr,
 				softif_neigh->vid);
-	}
 	rcu_read_unlock();
 
-	seq_printf(seq, "%s", buff);
-	kfree(buff);
 	return 0;
 }
 
@@ -267,7 +243,7 @@ static void softif_batman_recv(struct sk_buff *skb, struct net_device *dev,
 			 softif_neigh->addr, softif_neigh->vid);
 		softif_neigh_tmp = bat_priv->softif_neigh;
 		bat_priv->softif_neigh = softif_neigh;
-		kref_put(&softif_neigh_tmp->refcount, softif_neigh_free_ref);
+		softif_neigh_free_ref(softif_neigh_tmp);
 		/* we need to hold the additional reference */
 		goto err;
 	}
@@ -285,7 +261,7 @@ static void softif_batman_recv(struct sk_buff *skb, struct net_device *dev,
 	}
 
 out:
-	kref_put(&softif_neigh->refcount, softif_neigh_free_ref);
+	softif_neigh_free_ref(softif_neigh);
 err:
 	kfree_skb(skb);
 	return;
@@ -438,7 +414,7 @@ end:
 }
 
 void interface_rx(struct net_device *soft_iface,
-		  struct sk_buff *skb, struct batman_if *recv_if,
+		  struct sk_buff *skb, struct hard_iface *recv_if,
 		  int hdr_size)
 {
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
@@ -486,7 +462,7 @@ void interface_rx(struct net_device *soft_iface,
 
 		memcpy(unicast_packet->dest,
 		       bat_priv->softif_neigh->addr, ETH_ALEN);
-		ret = route_unicast_packet(skb, recv_if, hdr_size);
+		ret = route_unicast_packet(skb, recv_if);
 		if (ret == NET_RX_DROP)
 			goto dropped;
 
@@ -498,7 +474,7 @@ void interface_rx(struct net_device *soft_iface,
 		goto dropped;
 	skb->protocol = eth_type_trans(skb, soft_iface);
 
-	/* should not be neccesary anymore as we use skb_pull_rcsum()
+	/* should not be necessary anymore as we use skb_pull_rcsum()
 	 * TODO: please verify this and remove this TODO
 	 * -- Dec 21st 2009, Simon Wunderlich */
 
@@ -644,6 +620,19 @@ void softif_destroy(struct net_device *soft_iface)
 	sysfs_del_meshif(soft_iface);
 	mesh_free(soft_iface);
 	unregister_netdevice(soft_iface);
+}
+
+int softif_is_valid(struct net_device *net_dev)
+{
+#ifdef HAVE_NET_DEVICE_OPS
+	if (net_dev->netdev_ops->ndo_start_xmit == interface_tx)
+		return 1;
+#else
+	if (net_dev->hard_start_xmit == interface_tx)
+		return 1;
+#endif
+
+	return 0;
 }
 
 /* ethtool */

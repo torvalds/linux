@@ -239,8 +239,8 @@ static __init void pas_init_IRQ(void)
 	if (nmiprop) {
 		nmi_virq = irq_create_mapping(NULL, *nmiprop);
 		mpic_irq_set_priority(nmi_virq, 15);
-		set_irq_type(nmi_virq, IRQ_TYPE_EDGE_RISING);
-		mpic_unmask_irq(nmi_virq);
+		irq_set_irq_type(nmi_virq, IRQ_TYPE_EDGE_RISING);
+		mpic_unmask_irq(irq_get_irq_data(nmi_virq));
 	}
 
 	of_node_put(mpic_node);
@@ -266,7 +266,7 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 	if (nmi_virq != NO_IRQ && mpic_get_mcirq() == nmi_virq) {
 		printk(KERN_ERR "NMI delivered\n");
 		debugger(regs);
-		mpic_end_irq(nmi_virq);
+		mpic_end_irq(irq_get_irq_data(nmi_virq));
 		goto out;
 	}
 

@@ -467,7 +467,7 @@
 			DBGPRINT_ERR("BBP write R%d=0x%x fail. BusyCnt= %d.bPCIclkOff = %d. \n", _I, BbpCsr.word, BusyCnt, (_A)->bPCIclkOff);	\
 		}																	\
 	} else {							\
-		DBGPRINT_ERR("****** BBP_Write_Latch Buffer exceeds max boundry ****** \n");	\
+		DBGPRINT_ERR("****** BBP_Write_Latch Buffer exceeds max boundary ****** \n");	\
 	}																		\
 }
 #endif /* RTMP_MAC_PCI // */

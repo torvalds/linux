@@ -118,13 +118,13 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 
 	/* Voice codec interface client */
 	cell = &davinci_vc->cells[DAVINCI_VC_VCIF_CELL];
-	cell->name = "davinci_vcif";
-	cell->driver_data = davinci_vc;
+	cell->name = "davinci-vcif";
+	cell->mfd_data = davinci_vc;
 
 	/* Voice codec CQ93VC client */
 	cell = &davinci_vc->cells[DAVINCI_VC_CQ93VC_CELL];
-	cell->name = "cq93vc";
-	cell->driver_data = davinci_vc;
+	cell->name = "cq93vc-codec";
+	cell->mfd_data = davinci_vc;
 
 	ret = mfd_add_devices(&pdev->dev, pdev->id, davinci_vc->cells,
 			      DAVINCI_VC_CELLS, NULL, 0);

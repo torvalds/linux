@@ -1101,7 +1101,7 @@ svcauth_gss_accept(struct svc_rqst *rqstp, __be32 *authp)
 
 	/* credential is:
 	 *   version(==1), proc(0,1,2,3), seq, service (1,2,3), handle
-	 * at least 5 u32s, and is preceeded by length, so that makes 6.
+	 * at least 5 u32s, and is preceded by length, so that makes 6.
 	 */
 
 	if (argv->iov_len < 5 * 4)

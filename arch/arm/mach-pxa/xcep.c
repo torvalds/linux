@@ -16,6 +16,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pxa-i2c.h>
 #include <linux/smc91x.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -25,8 +26,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
-
-#include <plat/i2c.h>
 
 #include <mach/hardware.h>
 #include <mach/pxa2xx-regs.h>

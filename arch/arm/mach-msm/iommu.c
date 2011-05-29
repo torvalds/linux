@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -26,6 +26,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/iommu.h>
+#include <linux/clk.h>
 
 #include <asm/cacheflush.h>
 #include <asm/sizes.h>
@@ -49,6 +50,30 @@ struct msm_priv {
 	unsigned long *pgtable;
 	struct list_head list_attached;
 };
+
+static int __enable_clocks(struct msm_iommu_drvdata *drvdata)
+{
+	int ret;
+
+	ret = clk_enable(drvdata->pclk);
+	if (ret)
+		goto fail;
+
+	if (drvdata->clk) {
+		ret = clk_enable(drvdata->clk);
+		if (ret)
+			clk_disable(drvdata->pclk);
+	}
+fail:
+	return ret;
+}
+
+static void __disable_clocks(struct msm_iommu_drvdata *drvdata)
+{
+	if (drvdata->clk)
+		clk_disable(drvdata->clk);
+	clk_disable(drvdata->pclk);
+}
 
 static int __flush_iotlb(struct iommu_domain *domain)
 {
@@ -77,9 +102,16 @@ static int __flush_iotlb(struct iommu_domain *domain)
 			BUG();
 
 		iommu_drvdata = dev_get_drvdata(ctx_drvdata->pdev->dev.parent);
-		SET_CTX_TLBIALL(iommu_drvdata->base, ctx_drvdata->num, 0);
-	}
+		BUG_ON(!iommu_drvdata);
 
+		ret = __enable_clocks(iommu_drvdata);
+		if (ret)
+			goto fail;
+
+		SET_CTX_TLBIALL(iommu_drvdata->base, ctx_drvdata->num, 0);
+		__disable_clocks(iommu_drvdata);
+	}
+fail:
 	return ret;
 }
 
@@ -105,7 +137,6 @@ static void __reset_context(void __iomem *base, int ctx)
 	SET_TLBLKCR(base, ctx, 0);
 	SET_PRRR(base, ctx, 0);
 	SET_NMRR(base, ctx, 0);
-	SET_CONTEXTIDR(base, ctx, 0);
 }
 
 static void __program_context(void __iomem *base, int ctx, phys_addr_t pgtable)
@@ -265,9 +296,14 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 			goto fail;
 		}
 
+	ret = __enable_clocks(iommu_drvdata);
+	if (ret)
+		goto fail;
+
 	__program_context(iommu_drvdata->base, ctx_dev->num,
 			  __pa(priv->pgtable));
 
+	__disable_clocks(iommu_drvdata);
 	list_add(&(ctx_drvdata->attached_elm), &priv->list_attached);
 	ret = __flush_iotlb(domain);
 
@@ -303,7 +339,12 @@ static void msm_iommu_detach_dev(struct iommu_domain *domain,
 	if (ret)
 		goto fail;
 
+	ret = __enable_clocks(iommu_drvdata);
+	if (ret)
+		goto fail;
+
 	__reset_context(iommu_drvdata->base, ctx_dev->num);
+	__disable_clocks(iommu_drvdata);
 	list_del_init(&ctx_drvdata->attached_elm);
 
 fail:
@@ -376,11 +417,11 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 		for (i = 0; i < 16; i++)
 			*(fl_pte+i) = (pa & 0xFF000000) | FL_SUPERSECTION |
 				  FL_AP_READ | FL_AP_WRITE | FL_TYPE_SECT |
-				  FL_SHARED | pgprot;
+				  FL_SHARED | FL_NG | pgprot;
 	}
 
 	if (len == SZ_1M)
-		*fl_pte = (pa & 0xFFF00000) | FL_AP_READ | FL_AP_WRITE |
+		*fl_pte = (pa & 0xFFF00000) | FL_AP_READ | FL_AP_WRITE | FL_NG |
 					    FL_TYPE_SECT | FL_SHARED | pgprot;
 
 	/* Need a 2nd level table */
@@ -405,7 +446,7 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 
 
 	if (len == SZ_4K)
-		*sl_pte = (pa & SL_BASE_MASK_SMALL) | SL_AP0 | SL_AP1 |
+		*sl_pte = (pa & SL_BASE_MASK_SMALL) | SL_AP0 | SL_AP1 | SL_NG |
 					  SL_SHARED | SL_TYPE_SMALL | pgprot;
 
 	if (len == SZ_64K) {
@@ -413,7 +454,7 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 
 		for (i = 0; i < 16; i++)
 			*(sl_pte+i) = (pa & SL_BASE_MASK_LARGE) | SL_AP0 |
-				SL_AP1 | SL_SHARED | SL_TYPE_LARGE | pgprot;
+			    SL_NG | SL_AP1 | SL_SHARED | SL_TYPE_LARGE | pgprot;
 	}
 
 	ret = __flush_iotlb(domain);
@@ -532,9 +573,13 @@ static phys_addr_t msm_iommu_iova_to_phys(struct iommu_domain *domain,
 	base = iommu_drvdata->base;
 	ctx = ctx_drvdata->num;
 
+	ret = __enable_clocks(iommu_drvdata);
+	if (ret)
+		goto fail;
+
 	/* Invalidate context TLB */
 	SET_CTX_TLBIALL(base, ctx, 0);
-	SET_V2PPR_VA(base, ctx, va >> V2Pxx_VA_SHIFT);
+	SET_V2PPR(base, ctx, va & V2Pxx_VA);
 
 	par = GET_PAR(base, ctx);
 
@@ -547,6 +592,7 @@ static phys_addr_t msm_iommu_iova_to_phys(struct iommu_domain *domain,
 	if (GET_FAULT(base, ctx))
 		ret = 0;
 
+	__disable_clocks(iommu_drvdata);
 fail:
 	spin_unlock_irqrestore(&msm_iommu_lock, flags);
 	return ret;
@@ -590,7 +636,7 @@ irqreturn_t msm_iommu_fault_handler(int irq, void *dev_id)
 	struct msm_iommu_drvdata *drvdata = dev_id;
 	void __iomem *base;
 	unsigned int fsr;
-	int ncb, i;
+	int i, ret;
 
 	spin_lock(&msm_iommu_lock);
 
@@ -604,8 +650,11 @@ irqreturn_t msm_iommu_fault_handler(int irq, void *dev_id)
 	pr_err("Unexpected IOMMU page fault!\n");
 	pr_err("base = %08x\n", (unsigned int) base);
 
-	ncb = GET_NCB(base)+1;
-	for (i = 0; i < ncb; i++) {
+	ret = __enable_clocks(drvdata);
+	if (ret)
+		goto fail;
+
+	for (i = 0; i < drvdata->ncb; i++) {
 		fsr = GET_FSR(base, i);
 		if (fsr) {
 			pr_err("Fault occurred in context %d.\n", i);
@@ -614,6 +663,7 @@ irqreturn_t msm_iommu_fault_handler(int irq, void *dev_id)
 			SET_FSR(base, i, 0x4000000F);
 		}
 	}
+	__disable_clocks(drvdata);
 fail:
 	spin_unlock(&msm_iommu_lock);
 	return 0;

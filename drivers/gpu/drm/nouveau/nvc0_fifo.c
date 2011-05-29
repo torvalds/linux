@@ -116,7 +116,7 @@ nvc0_fifo_create_context(struct nouveau_channel *chan)
 
 	/* allocate vram for control regs, map into polling area */
 	ret = nouveau_bo_new(dev, NULL, 0x1000, 0, TTM_PL_FLAG_VRAM,
-			     0, 0, true, true, &fifoch->user);
+			     0, 0, &fifoch->user);
 	if (ret)
 		goto error;
 
@@ -418,6 +418,12 @@ nvc0_fifo_isr(struct drm_device *dev)
 {
 	u32 stat = nv_rd32(dev, 0x002100);
 
+	if (stat & 0x00000100) {
+		NV_INFO(dev, "PFIFO: unknown status 0x00000100\n");
+		nv_wr32(dev, 0x002100, 0x00000100);
+		stat &= ~0x00000100;
+	}
+
 	if (stat & 0x10000000) {
 		u32 units = nv_rd32(dev, 0x00259c);
 		u32 u = units;
@@ -446,10 +452,15 @@ nvc0_fifo_isr(struct drm_device *dev)
 		stat &= ~0x20000000;
 	}
 
+	if (stat & 0x40000000) {
+		NV_INFO(dev, "PFIFO: unknown status 0x40000000\n");
+		nv_mask(dev, 0x002a00, 0x00000000, 0x00000000);
+		stat &= ~0x40000000;
+	}
+
 	if (stat) {
 		NV_INFO(dev, "PFIFO: unhandled status 0x%08x\n", stat);
 		nv_wr32(dev, 0x002100, stat);
+		nv_wr32(dev, 0x002140, 0);
 	}
-
-	nv_wr32(dev, 0x2140, 0);
 }

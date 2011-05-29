@@ -208,9 +208,11 @@ struct fw_ohci {
 	struct context at_request_ctx;
 	struct context at_response_ctx;
 
+	u32 it_context_support;
 	u32 it_context_mask;     /* unoccupied IT contexts */
 	struct iso_context *it_context_list;
 	u64 ir_context_channels; /* unoccupied channels */
+	u32 ir_context_support;
 	u32 ir_context_mask;     /* unoccupied IR contexts */
 	struct iso_context *ir_context_list;
 	u64 mc_channels; /* channels in use by the multichannel IR context */
@@ -338,7 +340,7 @@ static void log_irqs(u32 evt)
 	    !(evt & OHCI1394_busReset))
 		return;
 
-	fw_notify("IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
+	fw_notify("IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
 	    evt & OHCI1394_selfIDComplete	? " selfID"		: "",
 	    evt & OHCI1394_RQPkt		? " AR_req"		: "",
 	    evt & OHCI1394_RSPkt		? " AR_resp"		: "",
@@ -351,6 +353,7 @@ static void log_irqs(u32 evt)
 	    evt & OHCI1394_cycle64Seconds	? " cycle64Seconds"	: "",
 	    evt & OHCI1394_cycleInconsistent	? " cycleInconsistent"	: "",
 	    evt & OHCI1394_regAccessFail	? " regAccessFail"	: "",
+	    evt & OHCI1394_unrecoverableError	? " unrecoverableError"	: "",
 	    evt & OHCI1394_busReset		? " busReset"		: "",
 	    evt & ~(OHCI1394_selfIDComplete | OHCI1394_RQPkt |
 		    OHCI1394_RSPkt | OHCI1394_reqTxComplete |
@@ -1326,21 +1329,8 @@ static int at_context_queue_packet(struct context *ctx,
 				     DESCRIPTOR_IRQ_ALWAYS |
 				     DESCRIPTOR_BRANCH_ALWAYS);
 
-	/*
-	 * If the controller and packet generations don't match, we need to
-	 * bail out and try again.  If IntEvent.busReset is set, the AT context
-	 * is halted, so appending to the context and trying to run it is
-	 * futile.  Most controllers do the right thing and just flush the AT
-	 * queue (per section 7.2.3.2 of the OHCI 1.1 specification), but
-	 * some controllers (like a JMicron JMB381 PCI-e) misbehave and wind
-	 * up stalling out.  So we just bail out in software and try again
-	 * later, and everyone is happy.
-	 * FIXME: Test of IntEvent.busReset may no longer be necessary since we
-	 *        flush AT queues in bus_reset_tasklet.
-	 * FIXME: Document how the locking works.
-	 */
-	if (ohci->generation != packet->generation ||
-	    reg_read(ohci, OHCI1394_IntEventSet) & OHCI1394_busReset) {
+	/* FIXME: Document how the locking works. */
+	if (ohci->generation != packet->generation) {
 		if (packet->payload_mapped)
 			dma_unmap_single(ohci->card.device, payload_bus,
 					 packet->payload_length, DMA_TO_DEVICE);
@@ -1588,6 +1578,47 @@ static void at_context_transmit(struct context *ctx, struct fw_packet *packet)
 	if (ret < 0)
 		packet->callback(packet, &ctx->ohci->card, packet->ack);
 
+}
+
+static void detect_dead_context(struct fw_ohci *ohci,
+				const char *name, unsigned int regs)
+{
+	u32 ctl;
+
+	ctl = reg_read(ohci, CONTROL_SET(regs));
+	if (ctl & CONTEXT_DEAD) {
+#ifdef CONFIG_FIREWIRE_OHCI_DEBUG
+		fw_error("DMA context %s has stopped, error code: %s\n",
+			 name, evts[ctl & 0x1f]);
+#else
+		fw_error("DMA context %s has stopped, error code: %#x\n",
+			 name, ctl & 0x1f);
+#endif
+	}
+}
+
+static void handle_dead_contexts(struct fw_ohci *ohci)
+{
+	unsigned int i;
+	char name[8];
+
+	detect_dead_context(ohci, "ATReq", OHCI1394_AsReqTrContextBase);
+	detect_dead_context(ohci, "ATRsp", OHCI1394_AsRspTrContextBase);
+	detect_dead_context(ohci, "ARReq", OHCI1394_AsReqRcvContextBase);
+	detect_dead_context(ohci, "ARRsp", OHCI1394_AsRspRcvContextBase);
+	for (i = 0; i < 32; ++i) {
+		if (!(ohci->it_context_support & (1 << i)))
+			continue;
+		sprintf(name, "IT%u", i);
+		detect_dead_context(ohci, name, OHCI1394_IsoXmitContextBase(i));
+	}
+	for (i = 0; i < 32; ++i) {
+		if (!(ohci->ir_context_support & (1 << i)))
+			continue;
+		sprintf(name, "IR%u", i);
+		detect_dead_context(ohci, name, OHCI1394_IsoRcvContextBase(i));
+	}
+	/* TODO: maybe try to flush and restart the dead contexts */
 }
 
 static u32 cycle_timer_ticks(u32 cycle_timer)
@@ -1904,6 +1935,9 @@ static irqreturn_t irq_handler(int irq, void *data)
 			fw_notify("isochronous cycle inconsistent\n");
 	}
 
+	if (unlikely(event & OHCI1394_unrecoverableError))
+		handle_dead_contexts(ohci);
+
 	if (event & OHCI1394_cycle64Seconds) {
 		spin_lock(&ohci->lock);
 		update_bus_time(ohci);
@@ -2141,7 +2175,9 @@ static int ohci_enable(struct fw_card *card,
 		OHCI1394_selfIDComplete |
 		OHCI1394_regAccessFail |
 		OHCI1394_cycle64Seconds |
-		OHCI1394_cycleInconsistent | OHCI1394_cycleTooLong |
+		OHCI1394_cycleInconsistent |
+		OHCI1394_unrecoverableError |
+		OHCI1394_cycleTooLong |
 		OHCI1394_masterIntEnable;
 	if (param_debug & OHCI_PARAM_DEBUG_BUSRESETS)
 		irqs |= OHCI1394_busReset;
@@ -2163,7 +2199,6 @@ static int ohci_set_config_rom(struct fw_card *card,
 {
 	struct fw_ohci *ohci;
 	unsigned long flags;
-	int ret = -EBUSY;
 	__be32 *next_config_rom;
 	dma_addr_t uninitialized_var(next_config_rom_bus);
 
@@ -2204,21 +2239,36 @@ static int ohci_set_config_rom(struct fw_card *card,
 
 	spin_lock_irqsave(&ohci->lock, flags);
 
+	/*
+	 * If there is not an already pending config_rom update,
+	 * push our new allocation into the ohci->next_config_rom
+	 * and then mark the local variable as null so that we
+	 * won't deallocate the new buffer.
+	 *
+	 * OTOH, if there is a pending config_rom update, just
+	 * use that buffer with the new config_rom data, and
+	 * let this routine free the unused DMA allocation.
+	 */
+
 	if (ohci->next_config_rom == NULL) {
 		ohci->next_config_rom = next_config_rom;
 		ohci->next_config_rom_bus = next_config_rom_bus;
-
-		copy_config_rom(ohci->next_config_rom, config_rom, length);
-
-		ohci->next_header = config_rom[0];
-		ohci->next_config_rom[0] = 0;
-
-		reg_write(ohci, OHCI1394_ConfigROMmap,
-			  ohci->next_config_rom_bus);
-		ret = 0;
+		next_config_rom = NULL;
 	}
 
+	copy_config_rom(ohci->next_config_rom, config_rom, length);
+
+	ohci->next_header = config_rom[0];
+	ohci->next_config_rom[0] = 0;
+
+	reg_write(ohci, OHCI1394_ConfigROMmap, ohci->next_config_rom_bus);
+
 	spin_unlock_irqrestore(&ohci->lock, flags);
+
+	/* If we didn't use the DMA allocation, delete it. */
+	if (next_config_rom != NULL)
+		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
+				  next_config_rom, next_config_rom_bus);
 
 	/*
 	 * Now initiate a bus reset to have the changes take
@@ -2227,13 +2277,10 @@ static int ohci_set_config_rom(struct fw_card *card,
 	 * controller could need to access it before the bus reset
 	 * takes effect.
 	 */
-	if (ret == 0)
-		fw_schedule_bus_reset(&ohci->card, true, true);
-	else
-		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-				  next_config_rom, next_config_rom_bus);
 
-	return ret;
+	fw_schedule_bus_reset(&ohci->card, true, true);
+
+	return 0;
 }
 
 static void ohci_send_request(struct fw_card *card, struct fw_packet *packet)
@@ -2657,6 +2704,10 @@ static int ohci_start_iso(struct fw_iso_context *base,
 	u32 control = IR_CONTEXT_ISOCH_HEADER, match;
 	int index;
 
+	/* the controller cannot start without any queued packets */
+	if (ctx->context.last->branch_address == 0)
+		return -ENODATA;
+
 	switch (ctx->base.type) {
 	case FW_ISO_CONTEXT_TRANSMIT:
 		index = ctx - ohci->it_context_list;
@@ -2715,6 +2766,7 @@ static int ohci_stop_iso(struct fw_iso_context *base)
 	}
 	flush_writes(ohci);
 	context_stop(&ctx->context);
+	tasklet_kill(&ctx->context.tasklet);
 
 	return 0;
 }
@@ -3207,15 +3259,17 @@ static int __devinit pci_probe(struct pci_dev *dev,
 
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, ~0);
 	ohci->ir_context_channels = ~0ULL;
-	ohci->ir_context_mask = reg_read(ohci, OHCI1394_IsoRecvIntMaskSet);
+	ohci->ir_context_support = reg_read(ohci, OHCI1394_IsoRecvIntMaskSet);
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, ~0);
+	ohci->ir_context_mask = ohci->ir_context_support;
 	ohci->n_ir = hweight32(ohci->ir_context_mask);
 	size = sizeof(struct iso_context) * ohci->n_ir;
 	ohci->ir_context_list = kzalloc(size, GFP_KERNEL);
 
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, ~0);
-	ohci->it_context_mask = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
+	ohci->it_context_support = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, ~0);
+	ohci->it_context_mask = ohci->it_context_support;
 	ohci->n_it = hweight32(ohci->it_context_mask);
 	size = sizeof(struct iso_context) * ohci->n_it;
 	ohci->it_context_list = kzalloc(size, GFP_KERNEL);
@@ -3266,7 +3320,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
  fail_disable:
 	pci_disable_device(dev);
  fail_free:
-	kfree(&ohci->card);
+	kfree(ohci);
 	pmac_ohci_off(dev);
  fail:
 	if (err == -ENOMEM)
@@ -3310,7 +3364,7 @@ static void pci_remove(struct pci_dev *dev)
 	pci_iounmap(dev, ohci->registers);
 	pci_release_region(dev, 0);
 	pci_disable_device(dev);
-	kfree(&ohci->card);
+	kfree(ohci);
 	pmac_ohci_off(dev);
 
 	fw_notify("Removed fw-ohci device.\n");

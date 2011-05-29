@@ -40,6 +40,7 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <linux/dmi.h>
+#include <linux/suspend.h>
 
 #include "internal.h"
 
@@ -226,7 +227,7 @@ static int __acpi_bus_set_power(struct acpi_device *device, int state)
 	acpi_status status = AE_OK;
 	char object_name[5] = { '_', 'P', 'S', '0' + state, '\0' };
 
-	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3))
+	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3_COLD))
 		return -EINVAL;
 
 	/* Make sure this is a valid target state */
@@ -1006,8 +1007,7 @@ struct kobject *acpi_kobj;
 
 static int __init acpi_init(void)
 {
-	int result = 0;
-
+	int result;
 
 	if (acpi_disabled) {
 		printk(KERN_INFO PREFIX "Interpreter disabled.\n");
@@ -1022,29 +1022,18 @@ static int __init acpi_init(void)
 
 	init_acpi_device_notify();
 	result = acpi_bus_init();
-
-	if (!result) {
-		pci_mmcfg_late_init();
-		if (!(pm_flags & PM_APM))
-			pm_flags |= PM_ACPI;
-		else {
-			printk(KERN_INFO PREFIX
-			       "APM is already active, exiting\n");
-			disable_acpi();
-			result = -ENODEV;
-		}
-	} else
+	if (result) {
 		disable_acpi();
-
-	if (acpi_disabled)
 		return result;
+	}
 
+	pci_mmcfg_late_init();
 	acpi_scan_init();
 	acpi_ec_init();
 	acpi_debugfs_init();
 	acpi_sleep_proc_init();
 	acpi_wakeup_device_init();
-	return result;
+	return 0;
 }
 
 subsys_initcall(acpi_init);

@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/pcieport_if.h>
 #include <linux/aer.h>
-#include <linux/pci-aspm.h>
 
 #include "../pci.h"
 #include "portdrv.h"
@@ -356,10 +355,8 @@ int pcie_port_device_register(struct pci_dev *dev)
 
 	/* Get and check PCI Express port services */
 	capabilities = get_port_device_capability(dev);
-	if (!capabilities) {
-		pcie_no_aspm();
+	if (!capabilities)
 		return 0;
-	}
 
 	pci_set_master(dev);
 	/*

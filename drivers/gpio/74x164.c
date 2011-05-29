@@ -133,7 +133,7 @@ exit_destroy:
 	return ret;
 }
 
-static int gen_74x164_remove(struct spi_device *spi)
+static int __devexit gen_74x164_remove(struct spi_device *spi)
 {
 	struct gen_74x164_chip *chip;
 	int ret;

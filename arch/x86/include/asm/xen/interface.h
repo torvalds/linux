@@ -86,7 +86,7 @@ DEFINE_GUEST_HANDLE(void);
  * The privilege level specifies which modes may enter a trap via a software
  * interrupt. On x86/64, since rings 1 and 2 are unavailable, we allocate
  * privilege levels as follows:
- *  Level == 0: Noone may enter
+ *  Level == 0: No one may enter
  *  Level == 1: Kernel may enter
  *  Level == 2: Kernel may enter
  *  Level == 3: Everyone may enter

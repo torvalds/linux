@@ -31,7 +31,7 @@
  */
 typedef enum {
 #if defined(AR6002_REV4) || defined(AR6003)
-/* Add these definitions for compatability  */
+/* Add these definitions for compatibility  */
 #define WHAL_INI_DATA_ID_BB_RFGAIN_LNA1 WHAL_INI_DATA_ID_BB_RFGAIN
 #define WHAL_INI_DATA_ID_BB_RFGAIN_LNA2 WHAL_INI_DATA_ID_BB_RFGAIN
     WHAL_INI_DATA_ID_NULL               =0,
@@ -74,9 +74,9 @@ typedef enum {
 } WHAL_INI_DATA_ID;
 
 typedef PREPACK struct {
-    A_UINT16 freqIndex; // 1 - A mode 2 - B or G mode 0 - common
-    A_UINT16 offset;
-    A_UINT32 newValue;
+    u16 freqIndex; // 1 - A mode 2 - B or G mode 0 - common
+    u16 offset;
+    u32 newValue;
 } POSTPACK INI_DSET_REG_OVERRIDE;
 
 #endif

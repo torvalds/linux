@@ -752,19 +752,28 @@ static int saa7134_hwfini(struct saa7134_dev *dev)
 	return 0;
 }
 
-static void __devinit must_configure_manually(void)
+static void __devinit must_configure_manually(int has_eeprom)
 {
 	unsigned int i,p;
 
-	printk(KERN_WARNING
-	       "saa7134: <rant>\n"
-	       "saa7134:  Congratulations!  Your TV card vendor saved a few\n"
-	       "saa7134:  cents for a eeprom, thus your pci board has no\n"
-	       "saa7134:  subsystem ID and I can't identify it automatically\n"
-	       "saa7134: </rant>\n"
-	       "saa7134: I feel better now.  Ok, here are the good news:\n"
-	       "saa7134: You can use the card=<nr> insmod option to specify\n"
-	       "saa7134: which board do you have.  The list:\n");
+	if (!has_eeprom)
+		printk(KERN_WARNING
+		       "saa7134: <rant>\n"
+		       "saa7134:  Congratulations!  Your TV card vendor saved a few\n"
+		       "saa7134:  cents for a eeprom, thus your pci board has no\n"
+		       "saa7134:  subsystem ID and I can't identify it automatically\n"
+		       "saa7134: </rant>\n"
+		       "saa7134: I feel better now.  Ok, here are the good news:\n"
+		       "saa7134: You can use the card=<nr> insmod option to specify\n"
+		       "saa7134: which board do you have.  The list:\n");
+	else
+		printk(KERN_WARNING
+		       "saa7134: Board is currently unknown. You might try to use the card=<nr>\n"
+		       "saa7134: insmod option to specify which board do you have, but this is\n"
+		       "saa7134: somewhat risky, as might damage your card. It is better to ask\n"
+		       "saa7134: for support at linux-media@vger.kernel.org.\n"
+		       "saa7134: The supported cards are:\n");
+
 	for (i = 0; i < saa7134_bcount; i++) {
 		printk(KERN_WARNING "saa7134:   card=%d -> %-40.40s",
 		       i,saa7134_boards[i].name);
@@ -936,8 +945,10 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (card[dev->nr] >= 0 &&
 	    card[dev->nr] < saa7134_bcount)
 		dev->board = card[dev->nr];
-	if (SAA7134_BOARD_NOAUTO == dev->board) {
-		must_configure_manually();
+	if (SAA7134_BOARD_UNKNOWN == dev->board)
+		must_configure_manually(0);
+	else if (SAA7134_BOARD_NOAUTO == dev->board) {
+		must_configure_manually(1);
 		dev->board = SAA7134_BOARD_UNKNOWN;
 	}
 	dev->autodetected = card[dev->nr] != dev->board;

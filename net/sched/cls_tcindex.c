@@ -249,7 +249,7 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 		 * of the hashing index is below the threshold.
 		 */
 		if ((cp.mask >> cp.shift) < PERFECT_HASH_THRESHOLD)
-			cp.hash = (cp.mask >> cp.shift)+1;
+			cp.hash = (cp.mask >> cp.shift) + 1;
 		else
 			cp.hash = DEFAULT_HASH_SIZE;
 	}

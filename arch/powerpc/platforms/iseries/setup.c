@@ -680,6 +680,7 @@ void * __init iSeries_early_setup(void)
 	 * on but calling this function multiple times is fine.
 	 */
 	identify_cpu(0, mfspr(SPRN_PVR));
+	initialise_paca(&boot_paca, 0);
 
 	powerpc_firmware_features |= FW_FEATURE_ISERIES;
 	powerpc_firmware_features |= FW_FEATURE_LPAR;

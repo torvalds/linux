@@ -39,7 +39,6 @@
 #include <mrlock.h>
 #include <time.h>
 
-#include <support/debug.h>
 #include <support/uuid.h>
 
 #include <linux/semaphore.h>
@@ -86,6 +85,7 @@
 #include <xfs_aops.h>
 #include <xfs_super.h>
 #include <xfs_buf.h>
+#include <xfs_message.h>
 
 /*
  * Feature macros (disable/enable)
@@ -279,5 +279,26 @@ static inline __uint64_t howmany_64(__uint64_t x, __uint32_t y)
 #else
 #define __arch_pack
 #endif
+
+#define ASSERT_ALWAYS(expr)	\
+	(unlikely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
+
+#ifndef DEBUG
+#define ASSERT(expr)	((void)0)
+
+#ifndef STATIC
+# define STATIC static noinline
+#endif
+
+#else /* DEBUG */
+
+#define ASSERT(expr)	\
+	(unlikely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
+
+#ifndef STATIC
+# define STATIC noinline
+#endif
+
+#endif /* DEBUG */
 
 #endif /* __XFS_LINUX__ */

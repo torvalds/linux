@@ -5,7 +5,8 @@
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
  *
- * Copyright (c) 2000-2007 Adaptec, Inc. (aacraid@adaptec.com)
+ * Copyright (c) 2000-2010 Adaptec, Inc.
+ *               2010 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -746,8 +747,8 @@ char * get_container_type(unsigned tindex)
  * Arguments: [1] pointer to void [1] int
  *
  * Purpose: Sets SCSI inquiry data strings for vendor, product
- * and revision level. Allows strings to be set in platform dependant
- * files instead of in OS dependant driver source.
+ * and revision level. Allows strings to be set in platform dependent
+ * files instead of in OS dependent driver source.
  */
 
 static void setinqstr(struct aac_dev *dev, void *data, int tindex)
@@ -1486,7 +1487,9 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			dev->a_ops.adapter_write = aac_write_block;
 		}
 		dev->scsi_host_ptr->max_sectors = AAC_MAX_32BIT_SGBCOUNT;
-		if(!(dev->adapter_info.options & AAC_OPT_NEW_COMM)) {
+		if (dev->adapter_info.options & AAC_OPT_NEW_COMM_TYPE1)
+			dev->adapter_info.options |= AAC_OPT_NEW_COMM;
+		if (!(dev->adapter_info.options & AAC_OPT_NEW_COMM)) {
 			/*
 			 * Worst case size that could cause sg overflow when
 			 * we break up SG elements that are larger than 64KB.

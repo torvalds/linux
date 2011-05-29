@@ -121,7 +121,7 @@ static u32 flow_get_proto_src(struct sk_buff *skb)
 		if (!pskb_network_may_pull(skb, sizeof(*iph)))
 			break;
 		iph = ip_hdr(skb);
-		if (iph->frag_off & htons(IP_MF|IP_OFFSET))
+		if (iph->frag_off & htons(IP_MF | IP_OFFSET))
 			break;
 		poff = proto_ports_offset(iph->protocol);
 		if (poff >= 0 &&
@@ -163,7 +163,7 @@ static u32 flow_get_proto_dst(struct sk_buff *skb)
 		if (!pskb_network_may_pull(skb, sizeof(*iph)))
 			break;
 		iph = ip_hdr(skb);
-		if (iph->frag_off & htons(IP_MF|IP_OFFSET))
+		if (iph->frag_off & htons(IP_MF | IP_OFFSET))
 			break;
 		poff = proto_ports_offset(iph->protocol);
 		if (poff >= 0 &&
@@ -276,7 +276,7 @@ fallback:
 
 static u32 flow_get_rtclassid(const struct sk_buff *skb)
 {
-#ifdef CONFIG_NET_CLS_ROUTE
+#ifdef CONFIG_IP_ROUTE_CLASSID
 	if (skb_dst(skb))
 		return skb_dst(skb)->tclassid;
 #endif

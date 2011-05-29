@@ -53,7 +53,7 @@
 
 #define DRV_NAME "sis5513"
 
-/* registers layout and init values are chipset family dependant */
+/* registers layout and init values are chipset family dependent */
 
 #define ATA_16		0x01
 #define ATA_33		0x02
@@ -406,7 +406,7 @@ static int __devinit sis_find_family(struct pci_dev *dev)
 					pci_name(dev));
 				chipset_family = ATA_133;
 
-				/* Check for 5513 compability mapping
+				/* Check for 5513 compatibility mapping
 				 * We must use this, else the port enabled code will fail,
 				 * as it expects the enablebits at 0x4a.
 				 */

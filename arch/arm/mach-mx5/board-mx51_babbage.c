@@ -161,22 +161,9 @@ static iomux_v3_cfg_t mx51babbage_pads[] = {
 };
 
 /* Serial ports */
-#if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
-
-static inline void mxc_init_imx_uart(void)
-{
-	imx51_add_imx_uart(0, &uart_pdata);
-	imx51_add_imx_uart(1, &uart_pdata);
-	imx51_add_imx_uart(2, &uart_pdata);
-}
-#else /* !SERIAL_IMX */
-static inline void mxc_init_imx_uart(void)
-{
-}
-#endif /* SERIAL_IMX */
 
 static const struct imxi2c_platform_data babbage_i2c_data __initconst = {
 	.bitrate = 100000,
@@ -241,13 +228,12 @@ static inline void babbage_fec_reset(void)
 	int ret;
 
 	/* reset FEC PHY */
-	ret = gpio_request(BABBAGE_FEC_PHY_RESET, "fec-phy-reset");
+	ret = gpio_request_one(BABBAGE_FEC_PHY_RESET,
+					GPIOF_OUT_INIT_LOW, "fec-phy-reset");
 	if (ret) {
 		printk(KERN_ERR"failed to get GPIO_FEC_PHY_RESET: %d\n", ret);
 		return;
 	}
-	gpio_direction_output(BABBAGE_FEC_PHY_RESET, 0);
-	gpio_set_value(BABBAGE_FEC_PHY_RESET, 0);
 	msleep(1);
 	gpio_set_value(BABBAGE_FEC_PHY_RESET, 1);
 }
@@ -272,7 +258,10 @@ static int initialize_otg_port(struct platform_device *pdev)
 	v |= MX51_USB_PLL_DIV_19_2_MHZ;
 	__raw_writel(v, usbother_base + MXC_USB_PHY_CTR_FUNC2_OFFSET);
 	iounmap(usb_base);
-	return 0;
+
+	mdelay(10);
+
+	return mx51_initialize_usb_hw(0, MXC_EHCI_INTERNAL_PHY);
 }
 
 static int initialize_usbh1_port(struct platform_device *pdev)
@@ -290,13 +279,16 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 	v = __raw_readl(usbother_base + MX51_USB_CTRL_1_OFFSET);
 	__raw_writel(v | MX51_USB_CTRL_UH1_EXT_CLK_EN, usbother_base + MX51_USB_CTRL_1_OFFSET);
 	iounmap(usb_base);
-	return 0;
+
+	mdelay(10);
+
+	return mx51_initialize_usb_hw(1, MXC_EHCI_POWER_PINS_ENABLED |
+			MXC_EHCI_ITC_NO_THRESHOLD);
 }
 
 static struct mxc_usbh_platform_data dr_utmi_config = {
 	.init		= initialize_otg_port,
 	.portsc	= MXC_EHCI_UTMI_16BIT,
-	.flags	= MXC_EHCI_INTERNAL_PHY,
 };
 
 static struct fsl_usb2_platform_data usb_pdata = {
@@ -307,7 +299,6 @@ static struct fsl_usb2_platform_data usb_pdata = {
 static struct mxc_usbh_platform_data usbh1_config = {
 	.init		= initialize_usbh1_port,
 	.portsc	= MXC_EHCI_MODE_ULPI,
-	.flags	= (MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_ITC_NO_THRESHOLD),
 };
 
 static int otg_mode_host;
@@ -349,7 +340,7 @@ static const struct spi_imx_master mx51_babbage_spi_pdata __initconst = {
 /*
  * Board specific initialization.
  */
-static void __init mxc_board_init(void)
+static void __init mx51_babbage_init(void)
 {
 	iomux_v3_cfg_t usbh1stp = MX51_PAD_USBH1_STP__USBH1_STP;
 	iomux_v3_cfg_t power_key = _MX51_PAD_EIM_A27__GPIO2_21 |
@@ -360,7 +351,11 @@ static void __init mxc_board_init(void)
 #endif
 	mxc_iomux_v3_setup_multiple_pads(mx51babbage_pads,
 					ARRAY_SIZE(mx51babbage_pads));
-	mxc_init_imx_uart();
+
+	imx51_add_imx_uart(0, &uart_pdata);
+	imx51_add_imx_uart(1, &uart_pdata);
+	imx51_add_imx_uart(2, &uart_pdata);
+
 	babbage_fec_reset();
 	imx51_add_fec(NULL);
 
@@ -399,15 +394,16 @@ static void __init mx51_babbage_timer_init(void)
 	mx51_clocks_init(32768, 24000000, 22579200, 0);
 }
 
-static struct sys_timer mxc_timer = {
-	.init	= mx51_babbage_timer_init,
+static struct sys_timer mx51_babbage_timer = {
+	.init = mx51_babbage_timer_init,
 };
 
 MACHINE_START(MX51_BABBAGE, "Freescale MX51 Babbage Board")
 	/* Maintainer: Amit Kucheria <amit.kucheria@canonical.com> */
 	.boot_params = MX51_PHYS_OFFSET + 0x100,
 	.map_io = mx51_map_io,
+	.init_early = imx51_init_early,
 	.init_irq = mx51_init_irq,
-	.init_machine = mxc_board_init,
-	.timer = &mxc_timer,
+	.timer = &mx51_babbage_timer,
+	.init_machine = mx51_babbage_init,
 MACHINE_END

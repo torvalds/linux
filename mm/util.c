@@ -227,7 +227,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 /*
  * Like get_user_pages_fast() except its IRQ-safe in that it won't fall
  * back to the regular GUP.
- * If the architecture not support this fucntion, simply return with no
+ * If the architecture not support this function, simply return with no
  * page pinned
  */
 int __attribute__((weak)) __get_user_pages_fast(unsigned long start,

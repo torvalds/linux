@@ -663,11 +663,16 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 	 * scsi_unjam_host does, but we skip scsi_eh_abort_cmds because any
 	 * command we see here has no sas_task and is thus unknown to the HA.
 	 */
-	if (!scsi_eh_get_sense(&eh_work_q, &ha->eh_done_q))
-		scsi_eh_ready_devs(shost, &eh_work_q, &ha->eh_done_q);
+	if (!sas_ata_eh(shost, &eh_work_q, &ha->eh_done_q))
+		if (!scsi_eh_get_sense(&eh_work_q, &ha->eh_done_q))
+			scsi_eh_ready_devs(shost, &eh_work_q, &ha->eh_done_q);
 
 out:
+	/* now link into libata eh --- if we have any ata devices */
+	sas_ata_strategy_handler(shost);
+
 	scsi_eh_flush_done_q(&ha->eh_done_q);
+
 	SAS_DPRINTK("--- Exit %s\n", __func__);
 	return;
 }
@@ -676,6 +681,10 @@ enum blk_eh_timer_return sas_scsi_timed_out(struct scsi_cmnd *cmd)
 {
 	struct sas_task *task = TO_SAS_TASK(cmd);
 	unsigned long flags;
+	enum blk_eh_timer_return rtn;
+
+	if (sas_ata_timed_out(cmd, task, &rtn))
+		return rtn;
 
 	if (!task) {
 		cmd->request->timeout /= 2;

@@ -1,0 +1,14 @@
+config SND_MFLD_MACHINE
+	tristate "SOC Machine Audio driver for Intel Medfield MID platform"
+	depends on INTEL_SCU_IPC
+	depends on SND_INTEL_SST
+	select SND_SOC_SN95031
+	select SND_SST_PLATFORM
+	help
+          This adds support for ASoC machine driver for Intel(R) MID Medfield platform
+          used as alsa device in audio substem in Intel(R) MID devices
+          Say Y if you have such a device
+          If unsure select "N".
+
+config SND_SST_PLATFORM
+	tristate

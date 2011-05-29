@@ -18,6 +18,7 @@ struct mv643xx_eth_platform_data;
  */
 void loki_map_io(void);
 void loki_init(void);
+void loki_init_early(void);
 void loki_init_irq(void);
 
 extern struct mbus_dram_target_info loki_mbus_dram_info;

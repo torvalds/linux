@@ -193,6 +193,22 @@ void __devinit smp_prepare_boot_cpu(void)
  */
 static struct task_struct *cpu_idle_thread[NR_CPUS];
 
+struct create_idle {
+	struct work_struct work;
+	struct task_struct *idle;
+	struct completion done;
+	int cpu;
+};
+
+static void __cpuinit do_fork_idle(struct work_struct *work)
+{
+	struct create_idle *c_idle =
+		container_of(work, struct create_idle, work);
+
+	c_idle->idle = fork_idle(c_idle->cpu);
+	complete(&c_idle->done);
+}
+
 int __cpuinit __cpu_up(unsigned int cpu)
 {
 	struct task_struct *idle;
@@ -203,8 +219,19 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	 * Linux can schedule processes on this slave.
 	 */
 	if (!cpu_idle_thread[cpu]) {
-		idle = fork_idle(cpu);
-		cpu_idle_thread[cpu] = idle;
+		/*
+		 * Schedule work item to avoid forking user task
+		 * Ported from arch/x86/kernel/smpboot.c
+		 */
+		struct create_idle c_idle = {
+			.cpu    = cpu,
+			.done   = COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
+		};
+
+		INIT_WORK_ONSTACK(&c_idle.work, do_fork_idle);
+		schedule_work(&c_idle.work);
+		wait_for_completion(&c_idle.done);
+		idle = cpu_idle_thread[cpu] = c_idle.idle;
 
 		if (IS_ERR(idle))
 			panic(KERN_ERR "Fork failed for CPU %d", cpu);

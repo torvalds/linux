@@ -716,9 +716,8 @@ static int cx18_set_filter_param(struct cx18_stream *s)
 int cx18_api_func(void *priv, u32 cmd, int in, int out,
 		u32 data[CX2341X_MBOX_MAX_DATA])
 {
-	struct cx18_api_func_private *api_priv = priv;
-	struct cx18 *cx = api_priv->cx;
-	struct cx18_stream *s = api_priv->s;
+	struct cx18_stream *s = priv;
+	struct cx18 *cx = s->cx;
 
 	switch (cmd) {
 	case CX2341X_ENC_SET_OUTPUT_PORT:

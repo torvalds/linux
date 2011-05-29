@@ -332,6 +332,7 @@ static void __devinit pcibios_scan_phb(struct pci_controller *hose)
 		       hose->global_number);
 		return;
 	}
+	bus.dev->of_node = of_node_get(node);
 	bus->secondary = hose->first_busno;
 	hose->bus = bus;
 

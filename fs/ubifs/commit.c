@@ -48,6 +48,56 @@
 #include <linux/slab.h>
 #include "ubifs.h"
 
+/*
+ * nothing_to_commit - check if there is nothing to commit.
+ * @c: UBIFS file-system description object
+ *
+ * This is a helper function which checks if there is anything to commit. It is
+ * used as an optimization to avoid starting the commit if it is not really
+ * necessary. Indeed, the commit operation always assumes flash I/O (e.g.,
+ * writing the commit start node to the log), and it is better to avoid doing
+ * this unnecessarily. E.g., 'ubifs_sync_fs()' runs the commit, but if there is
+ * nothing to commit, it is more optimal to avoid any flash I/O.
+ *
+ * This function has to be called with @c->commit_sem locked for writing -
+ * this function does not take LPT/TNC locks because the @c->commit_sem
+ * guarantees that we have exclusive access to the TNC and LPT data structures.
+ *
+ * This function returns %1 if there is nothing to commit and %0 otherwise.
+ */
+static int nothing_to_commit(struct ubifs_info *c)
+{
+	/*
+	 * During mounting or remounting from R/O mode to R/W mode we may
+	 * commit for various recovery-related reasons.
+	 */
+	if (c->mounting || c->remounting_rw)
+		return 0;
+
+	/*
+	 * If the root TNC node is dirty, we definitely have something to
+	 * commit.
+	 */
+	if (c->zroot.znode && test_bit(DIRTY_ZNODE, &c->zroot.znode->flags))
+		return 0;
+
+	/*
+	 * Even though the TNC is clean, the LPT tree may have dirty nodes. For
+	 * example, this may happen if the budgeting subsystem invoked GC to
+	 * make some free space, and the GC found an LEB with only dirty and
+	 * free space. In this case GC would just change the lprops of this
+	 * LEB (by turning all space into free space) and unmap it.
+	 */
+	if (c->nroot && test_bit(DIRTY_CNODE, &c->nroot->flags))
+		return 0;
+
+	ubifs_assert(atomic_long_read(&c->dirty_zn_cnt) == 0);
+	ubifs_assert(c->dirty_pn_cnt == 0);
+	ubifs_assert(c->dirty_nn_cnt == 0);
+
+	return 1;
+}
+
 /**
  * do_commit - commit the journal.
  * @c: UBIFS file-system description object
@@ -68,6 +118,12 @@ static int do_commit(struct ubifs_info *c)
 	if (c->ro_error) {
 		err = -EROFS;
 		goto out_up;
+	}
+
+	if (nothing_to_commit(c)) {
+		up_write(&c->commit_sem);
+		err = 0;
+		goto out_cancel;
 	}
 
 	/* Sync all write buffers (necessary for recovery) */
@@ -162,12 +218,12 @@ static int do_commit(struct ubifs_info *c)
 	if (err)
 		goto out;
 
+out_cancel:
 	spin_lock(&c->cs_lock);
 	c->cmt_state = COMMIT_RESTING;
 	wake_up(&c->cmt_wq);
 	dbg_cmt("commit end");
 	spin_unlock(&c->cs_lock);
-
 	return 0;
 
 out_up:
@@ -521,7 +577,7 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 	size_t sz;
 
 	if (!(ubifs_chk_flags & UBIFS_CHK_OLD_IDX))
-		goto out;
+		return 0;
 
 	INIT_LIST_HEAD(&list);
 

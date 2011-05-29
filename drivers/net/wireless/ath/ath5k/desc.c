@@ -51,7 +51,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	/*
 	 * Validate input
 	 * - Zero retries don't make sense.
-	 * - A zero rate will put the HW into a mode where it continously sends
+	 * - A zero rate will put the HW into a mode where it continuously sends
 	 *   noise on the channel, so it is important to avoid this.
 	 */
 	if (unlikely(tx_tries0 == 0)) {
@@ -190,7 +190,7 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	/*
 	 * Validate input
 	 * - Zero retries don't make sense.
-	 * - A zero rate will put the HW into a mode where it continously sends
+	 * - A zero rate will put the HW into a mode where it continuously sends
 	 *   noise on the channel, so it is important to avoid this.
 	 */
 	if (unlikely(tx_tries0 == 0)) {
@@ -300,7 +300,7 @@ ath5k_hw_setup_mrr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	/*
 	 * Rates can be 0 as long as the retry count is 0 too.
 	 * A zero rate and nonzero retry count will put the HW into a mode where
-	 * it continously sends noise on the channel, so it is important to
+	 * it continuously sends noise on the channel, so it is important to
 	 * avoid this.
 	 */
 	if (unlikely((tx_rate1 == 0 && tx_tries1 != 0) ||
@@ -342,7 +342,7 @@ ath5k_hw_setup_mrr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 \***********************/
 
 /*
- * Proccess the tx status descriptor on 5210/5211
+ * Process the tx status descriptor on 5210/5211
  */
 static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
 		struct ath5k_desc *desc, struct ath5k_tx_status *ts)
@@ -394,7 +394,7 @@ static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
 }
 
 /*
- * Proccess a tx status descriptor on 5212
+ * Process a tx status descriptor on 5212
  */
 static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 		struct ath5k_desc *desc, struct ath5k_tx_status *ts)
@@ -519,7 +519,7 @@ int ath5k_hw_setup_rx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 }
 
 /*
- * Proccess the rx status descriptor on 5210/5211
+ * Process the rx status descriptor on 5210/5211
  */
 static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
 		struct ath5k_desc *desc, struct ath5k_rx_status *rs)
@@ -602,7 +602,7 @@ static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
 }
 
 /*
- * Proccess the rx status descriptor on 5212
+ * Process the rx status descriptor on 5212
  */
 static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 					struct ath5k_desc *desc,

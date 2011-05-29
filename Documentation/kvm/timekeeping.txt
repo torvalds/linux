@@ -81,7 +81,7 @@ Mode 0: Single Timeout.   This is a one-shot software timeout that counts down
  when the gate is high (always true for timers 0 and 1).  When the count
  reaches zero, the output goes high.
 
-Mode 1: Triggered One-shot.  The output is intially set high.  When the gate
+Mode 1: Triggered One-shot.  The output is initially set high.  When the gate
  line is set high, a countdown is initiated (which does not stop if the gate is
  lowered), during which the output is set low.  When the count reaches zero,
  the output goes high.
