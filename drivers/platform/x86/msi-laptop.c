@@ -447,7 +447,7 @@ static struct platform_device *msipf_device;
 
 static int dmi_check_cb(const struct dmi_system_id *id)
 {
-	pr_info("Identified laptop model '%s'.\n", id->ident);
+	pr_info("Identified laptop model '%s'\n", id->ident);
 	return 1;
 }
 
@@ -800,7 +800,7 @@ static void msi_laptop_input_destroy(void)
 	input_unregister_device(msi_laptop_input_dev);
 }
 
-static int load_scm_model_init(struct platform_device *sdev)
+static int __init load_scm_model_init(struct platform_device *sdev)
 {
 	u8 data;
 	int result;
@@ -875,8 +875,7 @@ static int __init msi_init(void)
 	/* Register backlight stuff */
 
 	if (acpi_video_backlight_support()) {
-		pr_info("Brightness ignored, must be controlled "
-		       "by ACPI video driver\n");
+		pr_info("Brightness ignored, must be controlled by ACPI video driver\n");
 	} else {
 		struct backlight_properties props;
 		memset(&props, 0, sizeof(struct backlight_properties));
@@ -930,7 +929,7 @@ static int __init msi_init(void)
 	if (auto_brightness != 2)
 		set_auto_brightness(auto_brightness);
 
-	pr_info("driver "MSI_DRIVER_VERSION" successfully loaded.\n");
+	pr_info("driver " MSI_DRIVER_VERSION " successfully loaded\n");
 
 	return 0;
 
@@ -978,7 +977,7 @@ static void __exit msi_cleanup(void)
 	if (auto_brightness != 2)
 		set_auto_brightness(1);
 
-	pr_info("driver unloaded.\n");
+	pr_info("driver unloaded\n");
 }
 
 module_init(msi_init);
