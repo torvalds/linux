@@ -22,7 +22,6 @@
 #define DM_MSG_PREFIX "raid1"
 
 #define MAX_RECOVERY 1	/* Maximum number of regions recovered in parallel. */
-#define DM_KCOPYD_PAGES 64
 
 #define DM_RAID1_HANDLE_ERRORS 0x01
 #define errors_handled(p)	((p)->features & DM_RAID1_HANDLE_ERRORS)
@@ -1116,7 +1115,7 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_destroy_wq;
 	}
 
-	r = dm_kcopyd_client_create(DM_KCOPYD_PAGES, &ms->kcopyd_client);
+	r = dm_kcopyd_client_create(&ms->kcopyd_client);
 	if (r)
 		goto err_destroy_wq;
 

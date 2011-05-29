@@ -30,6 +30,7 @@
 #define SUB_JOB_SIZE	128
 #define SPLIT_COUNT	8
 #define MIN_JOBS	8
+#define RESERVE_PAGES	(DIV_ROUND_UP(SUB_JOB_SIZE << SECTOR_SHIFT, PAGE_SIZE))
 
 /*-----------------------------------------------------------------
  * Each kcopyd client has its own little pool of preallocated
@@ -636,8 +637,7 @@ int kcopyd_cancel(struct kcopyd_job *job, int block)
 /*-----------------------------------------------------------------
  * Client setup
  *---------------------------------------------------------------*/
-int dm_kcopyd_client_create(unsigned min_pages,
-			    struct dm_kcopyd_client **result)
+int dm_kcopyd_client_create(struct dm_kcopyd_client **result)
 {
 	int r = -ENOMEM;
 	struct dm_kcopyd_client *kc;
@@ -663,7 +663,7 @@ int dm_kcopyd_client_create(unsigned min_pages,
 
 	kc->pages = NULL;
 	kc->nr_reserved_pages = kc->nr_free_pages = 0;
-	r = client_reserve_pages(kc, min_pages);
+	r = client_reserve_pages(kc, RESERVE_PAGES);
 	if (r)
 		goto bad_client_pages;
 
