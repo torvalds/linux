@@ -677,12 +677,7 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 			pagesize, otp_tag);
 	dev_set_drvdata(&spi->dev, priv);
 
-	if (mtd_has_cmdlinepart()) {
-		static const char *part_probes[] = { "cmdlinepart", NULL, };
-
-		nr_parts = parse_mtd_partitions(device, part_probes, &parts,
-						0);
-	}
+	nr_parts = parse_mtd_partitions(device, NULL, &parts, 0);
 
 	if (nr_parts <= 0 && pdata && pdata->parts) {
 		parts = pdata->parts;
