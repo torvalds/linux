@@ -499,7 +499,7 @@ thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 	dev_set_drvdata(hwmon->device, hwmon);
 	result = device_create_file(hwmon->device, &dev_attr_name);
 	if (result)
-		goto unregister_hwmon_device;
+		goto free_mem;
 
  register_sys_interface:
 	tz->hwmon = hwmon;
@@ -513,7 +513,7 @@ thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 	sysfs_attr_init(&tz->temp_input.attr.attr);
 	result = device_create_file(hwmon->device, &tz->temp_input.attr);
 	if (result)
-		goto unregister_hwmon_device;
+		goto unregister_name;
 
 	if (tz->ops->get_crit_temp) {
 		unsigned long temperature;
@@ -527,7 +527,7 @@ thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 			result = device_create_file(hwmon->device,
 						    &tz->temp_crit.attr);
 			if (result)
-				goto unregister_hwmon_device;
+				goto unregister_input;
 		}
 	}
 
@@ -539,9 +539,9 @@ thermal_add_hwmon_sysfs(struct thermal_zone_device *tz)
 
 	return 0;
 
- unregister_hwmon_device:
-	device_remove_file(hwmon->device, &tz->temp_crit.attr);
+ unregister_input:
 	device_remove_file(hwmon->device, &tz->temp_input.attr);
+ unregister_name:
 	if (new_hwmon_device) {
 		device_remove_file(hwmon->device, &dev_attr_name);
 		hwmon_device_unregister(hwmon->device);
