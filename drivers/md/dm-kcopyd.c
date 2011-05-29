@@ -70,15 +70,15 @@ static void wake(struct dm_kcopyd_client *kc)
 	queue_work(kc->kcopyd_wq, &kc->kcopyd_work);
 }
 
-static struct page_list *alloc_pl(void)
+static struct page_list *alloc_pl(gfp_t gfp)
 {
 	struct page_list *pl;
 
-	pl = kmalloc(sizeof(*pl), GFP_KERNEL);
+	pl = kmalloc(sizeof(*pl), gfp);
 	if (!pl)
 		return NULL;
 
-	pl->page = alloc_page(GFP_KERNEL);
+	pl->page = alloc_page(gfp);
 	if (!pl->page) {
 		kfree(pl);
 		return NULL;
@@ -143,7 +143,7 @@ static int client_alloc_pages(struct dm_kcopyd_client *kc, unsigned int nr)
 	struct page_list *pl = NULL, *next;
 
 	for (i = 0; i < nr; i++) {
-		next = alloc_pl();
+		next = alloc_pl(GFP_KERNEL);
 		if (!next) {
 			if (pl)
 				drop_pages(pl);
