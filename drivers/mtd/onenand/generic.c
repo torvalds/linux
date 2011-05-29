@@ -30,8 +30,6 @@
  */
 #define DRIVER_NAME	"onenand-flash"
 
-static const char *part_probes[] = { "cmdlinepart", NULL,  };
-
 struct onenand_info {
 	struct mtd_info		mtd;
 	struct mtd_partition	*parts;
@@ -73,7 +71,7 @@ static int __devinit generic_onenand_probe(struct platform_device *pdev)
 		goto out_iounmap;
 	}
 
-	err = parse_mtd_partitions(&info->mtd, part_probes, &info->parts, 0);
+	err = parse_mtd_partitions(&info->mtd, NULL, &info->parts, 0);
 	if (err > 0)
 		mtd_device_register(&info->mtd, info->parts, err);
 	else if (err <= 0 && pdata && pdata->parts)
