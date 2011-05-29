@@ -352,6 +352,11 @@ void __init anon_vma_init(void)
  * The page might have been remapped to a different anon_vma or the anon_vma
  * returned may already be freed (and even reused).
  *
+ * In case it was remapped to a different anon_vma, the new anon_vma will be a
+ * child of the old anon_vma, and the anon_vma lifetime rules will therefore
+ * ensure that any anon_vma obtained from the page will still be valid for as
+ * long as we observe page_mapped() [ hence all those page_mapped() tests ].
+ *
  * All users of this function must be very careful when walking the anon_vma
  * chain and verify that the page in question is indeed mapped in it
  * [ something equivalent to page_mapped_in_vma() ].
@@ -421,7 +426,7 @@ struct anon_vma *page_lock_anon_vma(struct page *page)
 		/*
 		 * If the page is still mapped, then this anon_vma is still
 		 * its anon_vma, and holding the mutex ensures that it will
-		 * not go away, see __put_anon_vma().
+		 * not go away, see anon_vma_free().
 		 */
 		if (!page_mapped(page)) {
 			mutex_unlock(&root_anon_vma->mutex);
