@@ -667,7 +667,7 @@ int dm_kcopyd_client_create(unsigned min_pages,
 	if (r)
 		goto bad_client_pages;
 
-	kc->io_client = dm_io_client_create(min_pages);
+	kc->io_client = dm_io_client_create();
 	if (IS_ERR(kc->io_client)) {
 		r = PTR_ERR(kc->io_client);
 		goto bad_io_client;
