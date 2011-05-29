@@ -423,13 +423,7 @@ static int __devinit sst25l_probe(struct spi_device *spi)
 	      flash->mtd.numeraseregions);
 
 
-	if (mtd_has_cmdlinepart()) {
-		static const char *part_probes[] = {"cmdlinepart", NULL};
-
-		nr_parts = parse_mtd_partitions(&flash->mtd,
-						part_probes,
-						&parts, 0);
-	}
+	nr_parts = parse_mtd_partitions(&flash->mtd, NULL, &parts, 0);
 
 	if (nr_parts <= 0 && data && data->parts) {
 		parts = data->parts;
