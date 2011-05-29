@@ -1102,9 +1102,9 @@ static int sep_lock_user_pages(struct sep_device *sep,
 			"lli_array[%x].bus_address is "
 			"%08lx, lli_array[%x].block_size is %x\n",
 			num_pages - 1,
-			(unsigned long)lli_array[num_pages -1].bus_address,
+			(unsigned long)lli_array[num_pages - 1].bus_address,
 			num_pages - 1,
-			lli_array[num_pages -1].block_size);
+			lli_array[num_pages - 1].block_size);
 	}
 
 	/* Set output params according to the in_out flag */
