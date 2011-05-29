@@ -729,7 +729,11 @@ EXPORT_SYMBOL_GPL(deregister_mtd_parser);
  * Do not forget to update 'parse_mtd_partitions()' kerneldoc comment if you
  * are changing this array!
  */
-static const char *default_mtd_part_types[] = {"cmdlinepart", NULL};
+static const char *default_mtd_part_types[] = {
+	"cmdlinepart",
+	"ofpart",
+	NULL
+};
 
 /**
  * parse_mtd_partitions - parse MTD partitions
@@ -741,7 +745,7 @@ static const char *default_mtd_part_types[] = {"cmdlinepart", NULL};
  * This function tries to find partition on MTD device @master. It uses MTD
  * partition parsers, specified in @types. However, if @types is %NULL, then
  * the default list of parsers is used. The default list contains only the
- * "cmdlinepart" parser ATM.
+ * "cmdlinepart" and "ofpart" parsers ATM.
  *
  * This function may return:
  * o a negative error code in case of failure

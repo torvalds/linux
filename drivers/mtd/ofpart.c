@@ -20,7 +20,17 @@
 #include <linux/slab.h>
 #include <linux/mtd/partitions.h>
 
-int __devinit of_mtd_parse_partitions(struct device *dev,
+static int parse_ofpart_partitions(struct mtd_info *master,
+				   struct mtd_partition **pparts,
+				   struct mtd_part_parser_data *data)
+{
+	if (!data || !data->of_node)
+		return 0;
+
+	return of_mtd_parse_partitions(NULL, data->of_node, pparts);
+}
+
+int of_mtd_parse_partitions(struct device *dev,
                                       struct device_node *node,
                                       struct mtd_partition **pparts)
 {
@@ -69,7 +79,7 @@ int __devinit of_mtd_parse_partitions(struct device *dev,
 
 	if (!i) {
 		of_node_put(pp);
-		dev_err(dev, "No valid partition found on %s\n", node->full_name);
+		pr_err("No valid partition found on %s\n", node->full_name);
 		kfree(*pparts);
 		*pparts = NULL;
 		return -EINVAL;
@@ -78,5 +88,18 @@ int __devinit of_mtd_parse_partitions(struct device *dev,
 	return nr_parts;
 }
 EXPORT_SYMBOL(of_mtd_parse_partitions);
+
+static struct mtd_part_parser ofpart_parser = {
+	.owner = THIS_MODULE,
+	.parse_fn = parse_ofpart_partitions,
+	.name = "ofpart",
+};
+
+static int __init ofpart_parser_init(void)
+{
+	return register_mtd_parser(&ofpart_parser);
+}
+
+module_init(ofpart_parser_init);
 
 MODULE_LICENSE("GPL");

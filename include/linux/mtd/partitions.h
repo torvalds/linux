@@ -51,13 +51,16 @@ struct mtd_partition {
 
 
 struct mtd_info;
+struct device_node;
 
 /**
  * struct mtd_part_parser_data - used to pass data to MTD partition parsers.
  * @origin: for RedBoot, start address of MTD device
+ * @of_node: for OF parsers, device node containing partitioning information
  */
 struct mtd_part_parser_data {
 	unsigned long origin;
+	struct device_node *of_node;
 };
 
 
@@ -85,7 +88,7 @@ struct device;
 struct device_node;
 
 #ifdef CONFIG_MTD_OF_PARTS
-int __devinit of_mtd_parse_partitions(struct device *dev,
+int of_mtd_parse_partitions(struct device *dev,
                                       struct device_node *node,
                                       struct mtd_partition **pparts);
 #else
