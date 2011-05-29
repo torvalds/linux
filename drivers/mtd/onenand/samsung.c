@@ -157,8 +157,6 @@ struct s3c_onenand {
 
 static struct s3c_onenand *onenand;
 
-static const char *part_probes[] = { "cmdlinepart", NULL, };
-
 static inline int s3c_read_reg(int offset)
 {
 	return readl(onenand->base + offset);
@@ -1017,7 +1015,7 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 	if (s3c_read_reg(MEM_CFG_OFFSET) & ONENAND_SYS_CFG1_SYNC_READ)
 		dev_info(&onenand->pdev->dev, "OneNAND Sync. Burst Read enabled\n");
 
-	err = parse_mtd_partitions(mtd, part_probes, &onenand->parts, 0);
+	err = parse_mtd_partitions(mtd, NULL, &onenand->parts, 0);
 	if (err > 0)
 		mtd_device_register(mtd, onenand->parts, err);
 	else if (err <= 0 && pdata && pdata->parts)
