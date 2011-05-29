@@ -24,19 +24,18 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 				   struct mtd_partition **pparts,
 				   struct mtd_part_parser_data *data)
 {
-	if (!data || !data->of_node)
-		return 0;
-
-	return of_mtd_parse_partitions(NULL, data->of_node, pparts);
-}
-
-int of_mtd_parse_partitions(struct device *dev,
-                                      struct device_node *node,
-                                      struct mtd_partition **pparts)
-{
+	struct device_node *node;
 	const char *partname;
 	struct device_node *pp;
 	int nr_parts, i;
+
+
+	if (!data)
+		return 0;
+
+	node = data->of_node;
+	if (!node)
+		return 0;
 
 	/* First count the subnodes */
 	pp = NULL;
@@ -87,7 +86,6 @@ int of_mtd_parse_partitions(struct device *dev,
 
 	return nr_parts;
 }
-EXPORT_SYMBOL(of_mtd_parse_partitions);
 
 static struct mtd_part_parser ofpart_parser = {
 	.owner = THIS_MODULE,
