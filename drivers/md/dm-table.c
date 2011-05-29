@@ -1346,13 +1346,17 @@ bool dm_table_supports_discards(struct dm_table *t)
 		return 0;
 
 	/*
-	 * Ensure that at least one underlying device supports discards.
+	 * Unless any target used by the table set discards_supported,
+	 * require at least one underlying device to support discards.
 	 * t->devices includes internal dm devices such as mirror logs
 	 * so we need to use iterate_devices here, which targets
 	 * supporting discard must provide.
 	 */
 	while (i < dm_table_get_num_targets(t)) {
 		ti = dm_table_get_target(t, i++);
+
+		if (ti->discards_supported)
+			return 1;
 
 		if (ti->type->iterate_devices &&
 		    ti->type->iterate_devices(ti, device_discard_capable, NULL))
