@@ -827,6 +827,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	unsigned			i;
 	struct mtd_partition		*parts = NULL;
 	int				nr_parts = 0;
+	struct mtd_part_parser_data	ppdata;
 
 	/* Platform data helps sort out which chip type we have, as
 	 * well as how this board partitions it.  If we don't have
@@ -928,6 +929,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	if (info->flags & M25P_NO_ERASE)
 		flash->mtd.flags |= MTD_NO_ERASE;
 
+	ppdata.of_node = spi->dev.of_node;
 	flash->mtd.dev.parent = &spi->dev;
 	flash->page_size = info->page_size;
 
@@ -968,19 +970,12 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	/* partitions should match sector boundaries; and it may be good to
 	 * use readonly partitions for writeprotected sectors (BP2..BP0).
 	 */
-	nr_parts = parse_mtd_partitions(&flash->mtd, NULL, &parts, 0);
+	nr_parts = parse_mtd_partitions(&flash->mtd, NULL, &parts, &ppdata);
 
 	if (nr_parts <= 0 && data && data->parts) {
 		parts = data->parts;
 		nr_parts = data->nr_parts;
 	}
-
-#ifdef CONFIG_MTD_OF_PARTS
-	if (nr_parts <= 0 && spi->dev.of_node) {
-		nr_parts = of_mtd_parse_partitions(&spi->dev,
-						   spi->dev.of_node, &parts);
-	}
-#endif
 
 	if (nr_parts > 0) {
 		for (i = 0; i < nr_parts; i++) {
