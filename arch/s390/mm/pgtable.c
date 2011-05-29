@@ -71,12 +71,15 @@ static void rcu_table_freelist_callback(struct rcu_head *head)
 
 void rcu_table_freelist_finish(void)
 {
-	struct rcu_table_freelist *batch = __get_cpu_var(rcu_table_freelist);
+	struct rcu_table_freelist **batchp = &get_cpu_var(rcu_table_freelist);
+	struct rcu_table_freelist *batch = *batchp;
 
 	if (!batch)
-		return;
+		goto out;
 	call_rcu(&batch->rcu, rcu_table_freelist_callback);
-	__get_cpu_var(rcu_table_freelist) = NULL;
+	*batchp = NULL;
+out:
+	put_cpu_var(rcu_table_freelist);
 }
 
 static void smp_sync(void *arg)
@@ -141,20 +144,23 @@ void crst_table_free_rcu(struct mm_struct *mm, unsigned long *table)
 {
 	struct rcu_table_freelist *batch;
 
+	preempt_disable();
 	if (atomic_read(&mm->mm_users) < 2 &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
 		crst_table_free(mm, table);
-		return;
+		goto out;
 	}
 	batch = rcu_table_freelist_get(mm);
 	if (!batch) {
 		smp_call_function(smp_sync, NULL, 1);
 		crst_table_free(mm, table);
-		return;
+		goto out;
 	}
 	batch->table[--batch->crst_index] = table;
 	if (batch->pgt_index >= batch->crst_index)
 		rcu_table_freelist_finish();
+out:
+	preempt_enable();
 }
 
 #ifdef CONFIG_64BIT
@@ -323,16 +329,17 @@ void page_table_free_rcu(struct mm_struct *mm, unsigned long *table)
 	struct page *page;
 	unsigned long bits;
 
+	preempt_disable();
 	if (atomic_read(&mm->mm_users) < 2 &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
 		page_table_free(mm, table);
-		return;
+		goto out;
 	}
 	batch = rcu_table_freelist_get(mm);
 	if (!batch) {
 		smp_call_function(smp_sync, NULL, 1);
 		page_table_free(mm, table);
-		return;
+		goto out;
 	}
 	bits = (mm->context.has_pgste) ? 3UL : 1UL;
 	bits <<= (__pa(table) & (PAGE_SIZE - 1)) / 256 / sizeof(unsigned long);
@@ -345,6 +352,8 @@ void page_table_free_rcu(struct mm_struct *mm, unsigned long *table)
 	batch->table[batch->pgt_index++] = table;
 	if (batch->pgt_index >= batch->crst_index)
 		rcu_table_freelist_finish();
+out:
+	preempt_enable();
 }
 
 /*
