@@ -23,6 +23,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -141,7 +143,7 @@ static void dell_wmi_notify(u32 value, void *context)
 
 	status = wmi_get_event_data(value, &response);
 	if (status != AE_OK) {
-		printk(KERN_INFO "dell-wmi: bad event status 0x%x\n", status);
+		pr_info("bad event status 0x%x\n", status);
 		return;
 	}
 
@@ -153,8 +155,8 @@ static void dell_wmi_notify(u32 value, void *context)
 		u16 *buffer_entry = (u16 *)obj->buffer.pointer;
 
 		if (dell_new_hk_type && (buffer_entry[1] != 0x10)) {
-			printk(KERN_INFO "dell-wmi: Received unknown WMI event"
-					 " (0x%x)\n", buffer_entry[1]);
+			pr_info("Received unknown WMI event (0x%x)\n",
+				buffer_entry[1]);
 			kfree(obj);
 			return;
 		}
@@ -167,8 +169,7 @@ static void dell_wmi_notify(u32 value, void *context)
 		key = sparse_keymap_entry_from_scancode(dell_wmi_input_dev,
 							reported_key);
 		if (!key) {
-			printk(KERN_INFO "dell-wmi: Unknown key %x pressed\n",
-				reported_key);
+			pr_info("Unknown key %x pressed\n", reported_key);
 		} else if ((key->keycode == KEY_BRIGHTNESSUP ||
 			    key->keycode == KEY_BRIGHTNESSDOWN) && acpi_video) {
 			/* Don't report brightness notifications that will also
@@ -275,7 +276,7 @@ static int __init dell_wmi_init(void)
 	acpi_status status;
 
 	if (!wmi_has_guid(DELL_EVENT_GUID)) {
-		printk(KERN_WARNING "dell-wmi: No known WMI GUID found\n");
+		pr_warn("No known WMI GUID found\n");
 		return -ENODEV;
 	}
 
@@ -290,9 +291,7 @@ static int __init dell_wmi_init(void)
 					 dell_wmi_notify, NULL);
 	if (ACPI_FAILURE(status)) {
 		dell_wmi_input_destroy();
-		printk(KERN_ERR
-			"dell-wmi: Unable to register notify handler - %d\n",
-			status);
+		pr_err("Unable to register notify handler - %d\n", status);
 		return -ENODEV;
 	}
 
