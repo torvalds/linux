@@ -2683,6 +2683,33 @@ static int em_mov(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_mov_rm_sreg(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	if (c->modrm_reg > VCPU_SREG_GS)
+		return emulate_ud(ctxt);
+
+	c->dst.val = get_segment_selector(ctxt, c->modrm_reg);
+	return X86EMUL_CONTINUE;
+}
+
+static int em_mov_sreg_rm(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	u16 sel = c->src.val;
+
+	if (c->modrm_reg == VCPU_SREG_CS || c->modrm_reg > VCPU_SREG_GS)
+		return emulate_ud(ctxt);
+
+	if (c->modrm_reg == VCPU_SREG_SS)
+		ctxt->interruptibility = KVM_X86_SHADOW_INT_MOV_SS;
+
+	/* Disable writeback. */
+	c->dst.type = OP_NONE;
+	return load_segment_descriptor(ctxt, sel, c->modrm_reg);
+}
+
 static int em_movdqu(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
@@ -3172,8 +3199,10 @@ static struct opcode opcode_table[256] = {
 	/* 0x88 - 0x8F */
 	I2bv(DstMem | SrcReg | ModRM | Mov, em_mov),
 	I2bv(DstReg | SrcMem | ModRM | Mov, em_mov),
-	D(DstMem | SrcNone | ModRM | Mov), D(ModRM | SrcMem | NoAccess | DstReg),
-	D(ImplicitOps | SrcMem16 | ModRM), G(0, group1A),
+	I(DstMem | SrcNone | ModRM | Mov, em_mov_rm_sreg),
+	D(ModRM | SrcMem | NoAccess | DstReg),
+	I(ImplicitOps | SrcMem16 | ModRM, em_mov_sreg_rm),
+	G(0, group1A),
 	/* 0x90 - 0x97 */
 	DI(SrcAcc | DstReg, pause), X7(D(SrcAcc | DstReg)),
 	/* 0x98 - 0x9F */
@@ -3906,35 +3935,9 @@ special_insn:
 		if (test_cc(c->b, ctxt->eflags))
 			jmp_rel(c, c->src.val);
 		break;
-	case 0x8c:  /* mov r/m, sreg */
-		if (c->modrm_reg > VCPU_SREG_GS) {
-			rc = emulate_ud(ctxt);
-			goto done;
-		}
-		c->dst.val = get_segment_selector(ctxt, c->modrm_reg);
-		break;
 	case 0x8d: /* lea r16/r32, m */
 		c->dst.val = c->src.addr.mem.ea;
 		break;
-	case 0x8e: { /* mov seg, r/m16 */
-		uint16_t sel;
-
-		sel = c->src.val;
-
-		if (c->modrm_reg == VCPU_SREG_CS ||
-		    c->modrm_reg > VCPU_SREG_GS) {
-			rc = emulate_ud(ctxt);
-			goto done;
-		}
-
-		if (c->modrm_reg == VCPU_SREG_SS)
-			ctxt->interruptibility = KVM_X86_SHADOW_INT_MOV_SS;
-
-		rc = load_segment_descriptor(ctxt, sel, c->modrm_reg);
-
-		c->dst.type = OP_NONE;  /* Disable writeback. */
-		break;
-	}
 	case 0x8f:		/* pop (sole member of Grp1a) */
 		rc = em_grp1a(ctxt);
 		break;
