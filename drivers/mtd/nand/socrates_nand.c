@@ -155,8 +155,6 @@ static int socrates_nand_device_ready(struct mtd_info *mtd)
 	return 1;
 }
 
-static const char *part_probes[] = { "cmdlinepart", NULL };
-
 /*
  * Probe for the NAND device.
  */
@@ -225,14 +223,11 @@ static int __devinit socrates_nand_probe(struct platform_device *ofdev)
 		goto out;
 	}
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-	num_partitions = parse_mtd_partitions(mtd, part_probes,
-					      &partitions, 0);
+	num_partitions = parse_mtd_partitions(mtd, NULL, &partitions, 0);
 	if (num_partitions < 0) {
 		res = num_partitions;
 		goto release;
 	}
-#endif
 
 	if (num_partitions == 0) {
 		num_partitions = of_mtd_parse_partitions(&ofdev->dev,
