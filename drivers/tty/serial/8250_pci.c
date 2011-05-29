@@ -39,6 +39,7 @@ struct pci_serial_quirk {
 	u32	device;
 	u32	subvendor;
 	u32	subdevice;
+	int	(*probe)(struct pci_dev *dev);
 	int	(*init)(struct pci_dev *dev);
 	int	(*setup)(struct serial_private *,
 			 const struct pciserial_board *,
@@ -2662,10 +2663,18 @@ EXPORT_SYMBOL_GPL(pciserial_resume_ports);
 static int __devinit
 pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 {
+	struct pci_serial_quirk *quirk;
 	struct serial_private *priv;
 	const struct pciserial_board *board;
 	struct pciserial_board tmp;
 	int rc;
+
+	quirk = find_quirk(dev);
+	if (quirk->probe) {
+		rc = quirk->probe(dev);
+		if (rc)
+			return rc;
+	}
 
 	if (ent->driver_data >= ARRAY_SIZE(pci_boards)) {
 		printk(KERN_ERR "pci_init_one: invalid driver_data: %ld\n",
