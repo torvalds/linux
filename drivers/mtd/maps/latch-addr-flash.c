@@ -97,8 +97,6 @@ static void lf_copy_from(struct map_info *map, void *to,
 
 static char *rom_probe_types[] = { "cfi_probe", NULL };
 
-static char *part_probe_types[] = { "cmdlinepart", NULL };
-
 static int latch_addr_flash_remove(struct platform_device *dev)
 {
 	struct latch_addr_flash_info *info;
@@ -206,8 +204,7 @@ static int __devinit latch_addr_flash_probe(struct platform_device *dev)
 	}
 	info->mtd->owner = THIS_MODULE;
 
-	err = parse_mtd_partitions(info->mtd, (const char **)part_probe_types,
-				   &info->parts, 0);
+	err = parse_mtd_partitions(info->mtd, NULL, &info->parts, 0);
 	if (err > 0) {
 		mtd_device_register(info->mtd, info->parts, err);
 		return 0;
