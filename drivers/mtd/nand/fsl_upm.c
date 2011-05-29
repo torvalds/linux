@@ -158,7 +158,6 @@ static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
 {
 	int ret;
 	struct device_node *flash_np;
-	static const char *part_types[] = { "cmdlinepart", NULL, };
 
 	fun->chip.IO_ADDR_R = fun->io_base;
 	fun->chip.IO_ADDR_W = fun->io_base;
@@ -192,7 +191,7 @@ static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
 	if (ret)
 		goto err;
 
-	ret = parse_mtd_partitions(&fun->mtd, part_types, &fun->parts, 0);
+	ret = parse_mtd_partitions(&fun->mtd, NULL, &fun->parts, 0);
 
 #ifdef CONFIG_MTD_OF_PARTS
 	if (ret == 0) {
