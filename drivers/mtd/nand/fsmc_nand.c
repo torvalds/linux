@@ -177,9 +177,6 @@ static struct mtd_partition partition_info_128KB_blk[] = {
 	},
 };
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-const char *part_probes[] = { "cmdlinepart", NULL };
-#endif
 
 /**
  * struct fsmc_nand_data - structure for FSMC NAND device state
@@ -716,15 +713,13 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	 * platform data,
 	 * default partition information present in driver.
 	 */
-#ifdef CONFIG_MTD_CMDLINE_PARTS
 	/*
-	 * Check if partition info passed via command line
+	 * Check for partition info passed
 	 */
 	host->mtd.name = "nand";
-	host->nr_partitions = parse_mtd_partitions(&host->mtd, part_probes,
+	host->nr_partitions = parse_mtd_partitions(&host->mtd, NULL,
 			&host->partitions, 0);
 	if (host->nr_partitions <= 0) {
-#endif
 		/*
 		 * Check if partition info passed via command line
 		 */
@@ -769,9 +764,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 				}
 			}
 		}
-#ifdef CONFIG_MTD_CMDLINE_PARTS
 	}
-#endif
 
 	ret = mtd_device_register(&host->mtd, host->partitions,
 				  host->nr_partitions);
