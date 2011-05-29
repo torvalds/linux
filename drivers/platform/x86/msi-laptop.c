@@ -135,7 +135,7 @@ static int set_lcd_level(int level)
 	buf[1] = (u8) (level*31);
 
 	return ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, buf, sizeof(buf),
-			      NULL, 0, 1);
+			      NULL, 0);
 }
 
 static int get_lcd_level(void)
@@ -144,7 +144,7 @@ static int get_lcd_level(void)
 	int result;
 
 	result = ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, &wdata, 1,
-				&rdata, 1, 1);
+				&rdata, 1);
 	if (result < 0)
 		return result;
 
@@ -157,7 +157,7 @@ static int get_auto_brightness(void)
 	int result;
 
 	result = ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, &wdata, 1,
-				&rdata, 1, 1);
+				&rdata, 1);
 	if (result < 0)
 		return result;
 
@@ -172,7 +172,7 @@ static int set_auto_brightness(int enable)
 	wdata[0] = 4;
 
 	result = ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, wdata, 1,
-				&rdata, 1, 1);
+				&rdata, 1);
 	if (result < 0)
 		return result;
 
@@ -180,7 +180,7 @@ static int set_auto_brightness(int enable)
 	wdata[1] = (rdata & 0xF7) | (enable ? 8 : 0);
 
 	return ec_transaction(MSI_EC_COMMAND_LCD_LEVEL, wdata, 2,
-			      NULL, 0, 1);
+			      NULL, 0);
 }
 
 static ssize_t set_device_state(const char *buf, size_t count, u8 mask)
@@ -217,7 +217,7 @@ static int get_wireless_state(int *wlan, int *bluetooth)
 	u8 wdata = 0, rdata;
 	int result;
 
-	result = ec_transaction(MSI_EC_COMMAND_WIRELESS, &wdata, 1, &rdata, 1, 1);
+	result = ec_transaction(MSI_EC_COMMAND_WIRELESS, &wdata, 1, &rdata, 1);
 	if (result < 0)
 		return -1;
 

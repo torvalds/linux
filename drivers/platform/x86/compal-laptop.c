@@ -200,8 +200,8 @@ static bool extra_features;
  * watching the output of address 0x4F (do an ec_transaction writing 0x33
  * into 0x4F and read a few bytes from the output, like so:
  *	u8 writeData = 0x33;
- *	ec_transaction(0x4F, &writeData, 1, buffer, 32, 0);
- * That address is labelled "fan1 table information" in the service manual.
+ *	ec_transaction(0x4F, &writeData, 1, buffer, 32);
+ * That address is labeled "fan1 table information" in the service manual.
  * It should be clear which value in 'buffer' changes). This seems to be
  * related to fan speed. It isn't a proper 'realtime' fan speed value
  * though, because physically stopping or speeding up the fan doesn't
@@ -286,7 +286,7 @@ static int get_backlight_level(void)
 static void set_backlight_state(bool on)
 {
 	u8 data = on ? BACKLIGHT_STATE_ON_DATA : BACKLIGHT_STATE_OFF_DATA;
-	ec_transaction(BACKLIGHT_STATE_ADDR, &data, 1, NULL, 0, 0);
+	ec_transaction(BACKLIGHT_STATE_ADDR, &data, 1, NULL, 0);
 }
 
 
@@ -294,24 +294,24 @@ static void set_backlight_state(bool on)
 static void pwm_enable_control(void)
 {
 	unsigned char writeData = PWM_ENABLE_DATA;
-	ec_transaction(PWM_ENABLE_ADDR, &writeData, 1, NULL, 0, 0);
+	ec_transaction(PWM_ENABLE_ADDR, &writeData, 1, NULL, 0);
 }
 
 static void pwm_disable_control(void)
 {
 	unsigned char writeData = PWM_DISABLE_DATA;
-	ec_transaction(PWM_DISABLE_ADDR, &writeData, 1, NULL, 0, 0);
+	ec_transaction(PWM_DISABLE_ADDR, &writeData, 1, NULL, 0);
 }
 
 static void set_pwm(int pwm)
 {
-	ec_transaction(PWM_ADDRESS, &pwm_lookup_table[pwm], 1, NULL, 0, 0);
+	ec_transaction(PWM_ADDRESS, &pwm_lookup_table[pwm], 1, NULL, 0);
 }
 
 static int get_fan_rpm(void)
 {
 	u8 value, data = FAN_DATA;
-	ec_transaction(FAN_ADDRESS, &data, 1, &value, 1, 0);
+	ec_transaction(FAN_ADDRESS, &data, 1, &value, 1);
 	return 100 * (int)value;
 }
 

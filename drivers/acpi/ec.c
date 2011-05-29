@@ -69,7 +69,6 @@ enum ec_command {
 
 #define ACPI_EC_DELAY		500	/* Wait 500ms max. during EC ops */
 #define ACPI_EC_UDELAY_GLK	1000	/* Wait 1ms max. to get global lock */
-#define ACPI_EC_CDELAY		10	/* Wait 10us before polling EC */
 #define ACPI_EC_MSI_UDELAY	550	/* Wait 550us for MSI EC */
 
 #define ACPI_EC_STORM_THRESHOLD 8	/* number of false interrupts
@@ -433,8 +432,7 @@ EXPORT_SYMBOL(ec_write);
 
 int ec_transaction(u8 command,
 		   const u8 * wdata, unsigned wdata_len,
-		   u8 * rdata, unsigned rdata_len,
-		   int force_poll)
+		   u8 * rdata, unsigned rdata_len)
 {
 	struct transaction t = {.command = command,
 				.wdata = wdata, .rdata = rdata,
@@ -591,8 +589,6 @@ static void acpi_ec_gpe_query(void *ec_cxt)
 	acpi_ec_sync_query(ec);
 	mutex_unlock(&ec->lock);
 }
-
-static void acpi_ec_gpe_query(void *ec_cxt);
 
 static int ec_check_sci(struct acpi_ec *ec, u8 state)
 {
@@ -807,8 +803,6 @@ static int acpi_ec_add(struct acpi_device *device)
 			kfree(ec);
 			return -EINVAL;
 	}
-
-	ec->handle = device->handle;
 
 	/* Find and register all query methods */
 	acpi_walk_namespace(ACPI_TYPE_METHOD, ec->handle, 1,
