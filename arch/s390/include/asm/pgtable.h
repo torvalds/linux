@@ -577,16 +577,16 @@ static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
 static inline pgste_t pgste_update_all(pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
-	unsigned long pfn, bits;
+	unsigned long address, bits;
 	unsigned char skey;
 
-	pfn = pte_val(*ptep) >> PAGE_SHIFT;
-	skey = page_get_storage_key(pfn);
+	address = pte_val(*ptep) & PAGE_MASK;
+	skey = page_get_storage_key(address);
 	bits = skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
 	/* Clear page changed & referenced bit in the storage key */
 	if (bits) {
 		skey ^= bits;
-		page_set_storage_key(pfn, skey, 1);
+		page_set_storage_key(address, skey, 1);
 	}
 	/* Transfer page changed & referenced bit to guest bits in pgste */
 	pgste_val(pgste) |= bits << 48;		/* RCP_GR_BIT & RCP_GC_BIT */
@@ -628,16 +628,16 @@ static inline pgste_t pgste_update_young(pte_t *ptep, pgste_t pgste)
 static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
-	unsigned long pfn;
+	unsigned long address;
 	unsigned long okey, nkey;
 
-	pfn = pte_val(*ptep) >> PAGE_SHIFT;
-	okey = nkey = page_get_storage_key(pfn);
+	address = pte_val(*ptep) & PAGE_MASK;
+	okey = nkey = page_get_storage_key(address);
 	nkey &= ~(_PAGE_ACC_BITS | _PAGE_FP_BIT);
 	/* Set page access key and fetch protection bit from pgste */
 	nkey |= (pgste_val(pgste) & (RCP_ACC_BITS | RCP_FP_BIT)) >> 56;
 	if (okey != nkey)
-		page_set_storage_key(pfn, nkey, 1);
+		page_set_storage_key(address, nkey, 1);
 #endif
 }
 
