@@ -130,8 +130,10 @@ ssize_t ptp_read(struct posix_clock *pc,
 		return -ERESTARTSYS;
 	}
 
-	if (ptp->defunct)
+	if (ptp->defunct) {
+		mutex_unlock(&ptp->tsevq_mux);
 		return -ENODEV;
+	}
 
 	spin_lock_irqsave(&queue->lock, flags);
 
@@ -151,10 +153,8 @@ ssize_t ptp_read(struct posix_clock *pc,
 
 	mutex_unlock(&ptp->tsevq_mux);
 
-	if (copy_to_user(buf, event, cnt)) {
-		mutex_unlock(&ptp->tsevq_mux);
+	if (copy_to_user(buf, event, cnt))
 		return -EFAULT;
-	}
 
 	return cnt;
 }
