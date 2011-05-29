@@ -6,6 +6,8 @@ obj-m			:=
 obj-n			:=
 obj-			:=
 
+obj-$(CONFIG_EP93XX_DMA)	+= dma.o
+
 obj-$(CONFIG_MACH_ADSSPHERE)	+= adssphere.o
 obj-$(CONFIG_MACH_EDB93XX)	+= edb93xx.o
 obj-$(CONFIG_MACH_GESBC9312)	+= gesbc9312.o
