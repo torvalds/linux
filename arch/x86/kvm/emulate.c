@@ -2824,6 +2824,28 @@ static int em_lmsw(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_loop(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
+	if ((address_mask(c, c->regs[VCPU_REGS_RCX]) != 0) &&
+	    (c->b == 0xe2 || test_cc(c->b ^ 0x5, ctxt->eflags)))
+		jmp_rel(c, c->src.val);
+
+	return X86EMUL_CONTINUE;
+}
+
+static int em_jcxz(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	if (address_mask(c, c->regs[VCPU_REGS_RCX]) == 0)
+		jmp_rel(c, c->src.val);
+
+	return X86EMUL_CONTINUE;
+}
+
 static bool valid_cr(int nr)
 {
 	switch (nr) {
@@ -3240,7 +3262,8 @@ static struct opcode opcode_table[256] = {
 	/* 0xD8 - 0xDF */
 	N, N, N, N, N, N, N, N,
 	/* 0xE0 - 0xE7 */
-	X4(D(SrcImmByte)),
+	X3(I(SrcImmByte, em_loop)),
+	I(SrcImmByte, em_jcxz),
 	D2bvIP(SrcImmUByte | DstAcc, in,  check_perm_in),
 	D2bvIP(SrcAcc | DstImmUByte, out, check_perm_out),
 	/* 0xE8 - 0xEF */
@@ -3977,16 +4000,6 @@ special_insn:
 	case 0xd2 ... 0xd3:	/* Grp2 */
 		c->src.val = c->regs[VCPU_REGS_RCX];
 		rc = em_grp2(ctxt);
-		break;
-	case 0xe0 ... 0xe2:	/* loop/loopz/loopnz */
-		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
-		if (address_mask(c, c->regs[VCPU_REGS_RCX]) != 0 &&
-		    (c->b == 0xe2 || test_cc(c->b ^ 0x5, ctxt->eflags)))
-			jmp_rel(c, c->src.val);
-		break;
-	case 0xe3:	/* jcxz/jecxz/jrcxz */
-		if (address_mask(c, c->regs[VCPU_REGS_RCX]) == 0)
-			jmp_rel(c, c->src.val);
 		break;
 	case 0xe4: 	/* inb */
 	case 0xe5: 	/* in */
