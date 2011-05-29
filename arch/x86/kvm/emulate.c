@@ -1816,6 +1816,16 @@ static int em_grp9(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_ret(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	c->dst.type = OP_REG;
+	c->dst.addr.reg = &c->eip;
+	c->dst.bytes = c->op_bytes;
+	return em_pop(ctxt);
+}
+
 static int em_ret_far(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
@@ -3188,7 +3198,7 @@ static struct opcode opcode_table[256] = {
 	/* 0xC0 - 0xC7 */
 	D2bv(DstMem | SrcImmByte | ModRM),
 	I(ImplicitOps | Stack | SrcImmU16, em_ret_near_imm),
-	D(ImplicitOps | Stack),
+	I(ImplicitOps | Stack, em_ret),
 	D(DstReg | SrcMemFAddr | ModRM | No64), D(DstReg | SrcMemFAddr | ModRM | No64),
 	G(ByteOp, group11), G(0, group11),
 	/* 0xC8 - 0xCF */
@@ -3942,12 +3952,6 @@ special_insn:
 		break;
 	case 0xc0 ... 0xc1:
 		rc = em_grp2(ctxt);
-		break;
-	case 0xc3: /* ret */
-		c->dst.type = OP_REG;
-		c->dst.addr.reg = &c->eip;
-		c->dst.bytes = c->op_bytes;
-		rc = em_pop(ctxt);
 		break;
 	case 0xc4:		/* les */
 		rc = emulate_load_segment(ctxt, VCPU_SREG_ES);
