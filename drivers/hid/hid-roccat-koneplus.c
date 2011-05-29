@@ -240,6 +240,14 @@ static ssize_t koneplus_sysfs_write(struct file *fp, struct kobject *kobj,
 	return real_size;
 }
 
+static ssize_t koneplus_sysfs_write_talk(struct file *fp,
+		struct kobject *kobj, struct bin_attribute *attr, char *buf,
+		loff_t off, size_t count)
+{
+	return koneplus_sysfs_write(fp, kobj, buf, off, count,
+			sizeof(struct koneplus_talk), KONEPLUS_USB_COMMAND_TALK);
+}
+
 static ssize_t koneplus_sysfs_write_macro(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
@@ -556,6 +564,11 @@ static struct bin_attribute koneplus_bin_attributes[] = {
 		.attr = { .name = "macro", .mode = 0220 },
 		.size = sizeof(struct koneplus_macro),
 		.write = koneplus_sysfs_write_macro
+	},
+	{
+		.attr = { .name = "talk", .mode = 0220 },
+		.size = sizeof(struct koneplus_talk),
+		.write = koneplus_sysfs_write_talk
 	},
 	__ATTR_NULL
 };
