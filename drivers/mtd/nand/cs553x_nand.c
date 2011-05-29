@@ -278,8 +278,6 @@ static int is_geode(void)
 	return 0;
 }
 
-static const char *part_probes[] = { "cmdlinepart", NULL };
-
 static int __init cs553x_init(void)
 {
 	int err = -ENXIO;
@@ -318,9 +316,7 @@ static int __init cs553x_init(void)
 		if (cs553x_mtd[i]) {
 
 			/* If any devices registered, return success. Else the last error. */
-			mtd_parts_nb = parse_mtd_partitions(cs553x_mtd[i], part_probes, &mtd_parts, 0);
-			if (mtd_parts_nb > 0)
-				printk(KERN_NOTICE "Using command line partition definition\n");
+			mtd_parts_nb = parse_mtd_partitions(cs553x_mtd[i], NULL, &mtd_parts, 0);
 			mtd_device_register(cs553x_mtd[i], mtd_parts,
 					    mtd_parts_nb);
 			err = 0;
