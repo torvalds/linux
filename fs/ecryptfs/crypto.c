@@ -1024,25 +1024,25 @@ out:
 }
 
 /**
- * contains_ecryptfs_marker - check for the ecryptfs marker
+ * ecryptfs_validate_marker - check for the ecryptfs marker
  * @data: The data block in which to check
  *
- * Returns one if marker found; zero if not found
+ * Returns zero if marker found; -EINVAL if not found
  */
-static int contains_ecryptfs_marker(char *data)
+static int ecryptfs_validate_marker(char *data)
 {
 	u32 m_1, m_2;
 
 	m_1 = get_unaligned_be32(data);
 	m_2 = get_unaligned_be32(data + 4);
 	if ((m_1 ^ MAGIC_ECRYPTFS_MARKER) == m_2)
-		return 1;
+		return 0;
 	ecryptfs_printk(KERN_DEBUG, "m_1 = [0x%.8x]; m_2 = [0x%.8x]; "
 			"MAGIC_ECRYPTFS_MARKER = [0x%.8x]\n", m_1, m_2,
 			MAGIC_ECRYPTFS_MARKER);
 	ecryptfs_printk(KERN_DEBUG, "(m_1 ^ MAGIC_ECRYPTFS_MARKER) = "
 			"[0x%.8x]\n", (m_1 ^ MAGIC_ECRYPTFS_MARKER));
-	return 0;
+	return -EINVAL;
 }
 
 struct ecryptfs_flag_map_elem {
@@ -1201,27 +1201,19 @@ int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code)
 	return rc;
 }
 
-int ecryptfs_read_and_validate_header_region(char *data,
-					     struct inode *ecryptfs_inode)
+int ecryptfs_read_and_validate_header_region(struct inode *inode)
 {
-	struct ecryptfs_crypt_stat *crypt_stat =
-		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
+	u8 file_size[ECRYPTFS_SIZE_AND_MARKER_BYTES];
+	u8 *marker = file_size + ECRYPTFS_FILE_SIZE_BYTES;
 	int rc;
 
-	if (crypt_stat->extent_size == 0)
-		crypt_stat->extent_size = ECRYPTFS_DEFAULT_EXTENT_SIZE;
-	rc = ecryptfs_read_lower(data, 0, crypt_stat->extent_size,
-				 ecryptfs_inode);
-	if (rc < 0) {
-		printk(KERN_ERR "%s: Error reading header region; rc = [%d]\n",
-		       __func__, rc);
-		goto out;
-	}
-	if (!contains_ecryptfs_marker(data + ECRYPTFS_FILE_SIZE_BYTES)) {
-		rc = -EINVAL;
-	} else
-		rc = 0;
-out:
+	rc = ecryptfs_read_lower(file_size, 0, ECRYPTFS_SIZE_AND_MARKER_BYTES,
+				 inode);
+	if (rc < ECRYPTFS_SIZE_AND_MARKER_BYTES)
+		return rc >= 0 ? -EINVAL : rc;
+	rc = ecryptfs_validate_marker(marker);
+	if (!rc)
+		ecryptfs_i_size_init(file_size, inode);
 	return rc;
 }
 
@@ -1242,8 +1234,7 @@ ecryptfs_write_header_metadata(char *virt,
 	(*written) = 6;
 }
 
-struct kmem_cache *ecryptfs_header_cache_1;
-struct kmem_cache *ecryptfs_header_cache_2;
+struct kmem_cache *ecryptfs_header_cache;
 
 /**
  * ecryptfs_write_headers_virt
@@ -1496,11 +1487,9 @@ static int ecryptfs_read_headers_virt(char *page_virt,
 	crypt_stat->mount_crypt_stat = &ecryptfs_superblock_to_private(
 		ecryptfs_dentry->d_sb)->mount_crypt_stat;
 	offset = ECRYPTFS_FILE_SIZE_BYTES;
-	rc = contains_ecryptfs_marker(page_virt + offset);
-	if (rc == 0) {
-		rc = -EINVAL;
+	rc = ecryptfs_validate_marker(page_virt + offset);
+	if (rc)
 		goto out;
-	}
 	if (!(crypt_stat->flags & ECRYPTFS_I_SIZE_INITIALIZED))
 		ecryptfs_i_size_init(page_virt, ecryptfs_dentry->d_inode);
 	offset += MAGIC_ECRYPTFS_MARKER_SIZE_BYTES;
@@ -1567,20 +1556,21 @@ out:
 	return rc;
 }
 
-int ecryptfs_read_and_validate_xattr_region(char *page_virt,
-					    struct dentry *ecryptfs_dentry)
+int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
+					    struct inode *inode)
 {
+	u8 file_size[ECRYPTFS_SIZE_AND_MARKER_BYTES];
+	u8 *marker = file_size + ECRYPTFS_FILE_SIZE_BYTES;
 	int rc;
 
-	rc = ecryptfs_read_xattr_region(page_virt, ecryptfs_dentry->d_inode);
-	if (rc)
-		goto out;
-	if (!contains_ecryptfs_marker(page_virt	+ ECRYPTFS_FILE_SIZE_BYTES)) {
-		printk(KERN_WARNING "Valid data found in [%s] xattr, but "
-			"the marker is invalid\n", ECRYPTFS_XATTR_NAME);
-		rc = -EINVAL;
-	}
-out:
+	rc = ecryptfs_getxattr_lower(ecryptfs_dentry_to_lower(dentry),
+				     ECRYPTFS_XATTR_NAME, file_size,
+				     ECRYPTFS_SIZE_AND_MARKER_BYTES);
+	if (rc < ECRYPTFS_SIZE_AND_MARKER_BYTES)
+		return rc >= 0 ? -EINVAL : rc;
+	rc = ecryptfs_validate_marker(marker);
+	if (!rc)
+		ecryptfs_i_size_init(file_size, inode);
 	return rc;
 }
 
@@ -1610,7 +1600,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 	ecryptfs_copy_mount_wide_flags_to_inode_flags(crypt_stat,
 						      mount_crypt_stat);
 	/* Read the first page from the underlying file */
-	page_virt = kmem_cache_alloc(ecryptfs_header_cache_1, GFP_USER);
+	page_virt = kmem_cache_alloc(ecryptfs_header_cache, GFP_USER);
 	if (!page_virt) {
 		rc = -ENOMEM;
 		printk(KERN_ERR "%s: Unable to allocate page_virt\n",
@@ -1655,7 +1645,7 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 out:
 	if (page_virt) {
 		memset(page_virt, 0, PAGE_CACHE_SIZE);
-		kmem_cache_free(ecryptfs_header_cache_1, page_virt);
+		kmem_cache_free(ecryptfs_header_cache, page_virt);
 	}
 	return rc;
 }
