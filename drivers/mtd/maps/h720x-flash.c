@@ -60,8 +60,6 @@ static struct mtd_partition h720x_partitions[] = {
 
 static int                   nr_mtd_parts;
 static struct mtd_partition *mtd_parts;
-static const char *probes[] = { "cmdlinepart", NULL };
-
 /*
  * Initialize FLASH support
  */
@@ -92,7 +90,7 @@ static int __init h720x_mtd_init(void)
 	if (mymtd) {
 		mymtd->owner = THIS_MODULE;
 
-		nr_mtd_parts = parse_mtd_partitions(mymtd, probes, &mtd_parts, 0);
+		nr_mtd_parts = parse_mtd_partitions(mymtd, NULL, &mtd_parts, 0);
 		if (nr_mtd_parts > 0)
 			part_type = "command line";
 		if (nr_mtd_parts <= 0) {
