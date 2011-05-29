@@ -753,14 +753,7 @@ syndrome_done:
 	if (ret < 0)
 		goto err_scan;
 
-	if (mtd_has_cmdlinepart()) {
-		static const char *probes[] __initconst = {
-			"cmdlinepart", NULL
-		};
-
-		mtd_parts_nb = parse_mtd_partitions(&info->mtd, probes,
-						    &mtd_parts, 0);
-	}
+	mtd_parts_nb = parse_mtd_partitions(&info->mtd, NULL, &mtd_parts, 0);
 
 	if (mtd_parts_nb <= 0) {
 		mtd_parts = pdata->parts;
