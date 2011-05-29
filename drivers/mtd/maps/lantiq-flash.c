@@ -107,8 +107,6 @@ ltq_copy_to(struct map_info *map, unsigned long to,
 	spin_unlock_irqrestore(&ebu_lock, flags);
 }
 
-static const char const *part_probe_types[] = { "cmdlinepart", NULL };
-
 static int __init
 ltq_mtd_probe(struct platform_device *pdev)
 {
@@ -172,8 +170,7 @@ ltq_mtd_probe(struct platform_device *pdev)
 	cfi->addr_unlock1 ^= 1;
 	cfi->addr_unlock2 ^= 1;
 
-	nr_parts = parse_mtd_partitions(ltq_mtd->mtd,
-				part_probe_types, &parts, 0);
+	nr_parts = parse_mtd_partitions(ltq_mtd->mtd, NULL, &parts, 0);
 	if (nr_parts > 0) {
 		dev_info(&pdev->dev,
 			"using %d partitions from cmdline", nr_parts);
