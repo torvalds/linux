@@ -290,6 +290,8 @@ static void nfs_free_client(struct nfs_client *clp)
 	if (clp->cl_machine_cred != NULL)
 		put_rpccred(clp->cl_machine_cred);
 
+	nfs4_deviceid_purge_client(clp);
+
 	kfree(clp->cl_hostname);
 	kfree(clp);
 
