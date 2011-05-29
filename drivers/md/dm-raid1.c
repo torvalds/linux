@@ -1115,9 +1115,11 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_destroy_wq;
 	}
 
-	r = dm_kcopyd_client_create(&ms->kcopyd_client);
-	if (r)
+	ms->kcopyd_client = dm_kcopyd_client_create();
+	if (IS_ERR(ms->kcopyd_client)) {
+		r = PTR_ERR(ms->kcopyd_client);
 		goto err_destroy_wq;
+	}
 
 	wakeup_mirrord(ms);
 	return 0;

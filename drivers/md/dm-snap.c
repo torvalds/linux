@@ -1111,8 +1111,9 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_hash_tables;
 	}
 
-	r = dm_kcopyd_client_create(&s->kcopyd_client);
-	if (r) {
+	s->kcopyd_client = dm_kcopyd_client_create();
+	if (IS_ERR(s->kcopyd_client)) {
+		r = PTR_ERR(s->kcopyd_client);
 		ti->error = "Could not create kcopyd client";
 		goto bad_kcopyd;
 	}

@@ -637,14 +637,14 @@ int kcopyd_cancel(struct kcopyd_job *job, int block)
 /*-----------------------------------------------------------------
  * Client setup
  *---------------------------------------------------------------*/
-int dm_kcopyd_client_create(struct dm_kcopyd_client **result)
+struct dm_kcopyd_client *dm_kcopyd_client_create(void)
 {
 	int r = -ENOMEM;
 	struct dm_kcopyd_client *kc;
 
 	kc = kmalloc(sizeof(*kc), GFP_KERNEL);
 	if (!kc)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	spin_lock_init(&kc->job_lock);
 	INIT_LIST_HEAD(&kc->complete_jobs);
@@ -676,8 +676,7 @@ int dm_kcopyd_client_create(struct dm_kcopyd_client **result)
 	init_waitqueue_head(&kc->destroyq);
 	atomic_set(&kc->nr_jobs, 0);
 
-	*result = kc;
-	return 0;
+	return kc;
 
 bad_io_client:
 	client_free_pages(kc);
@@ -688,7 +687,7 @@ bad_workqueue:
 bad_slab:
 	kfree(kc);
 
-	return r;
+	return ERR_PTR(r);
 }
 EXPORT_SYMBOL(dm_kcopyd_client_create);
 
