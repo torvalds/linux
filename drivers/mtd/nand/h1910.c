@@ -136,14 +136,10 @@ static int __init h1910_init(void)
 		iounmap((void *)nandaddr);
 		return -ENXIO;
 	}
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-	mtd_parts_nb = parse_cmdline_partitions(h1910_nand_mtd, &mtd_parts, "h1910-nand");
+	mtd_parts_nb = parse_mtd_partitions(h1910_nand_mtd, NULL, &mtd_parts, 0);
 	if (mtd_parts_nb > 0)
 		part_type = "command line";
-	else
-		mtd_parts_nb = 0;
-#endif
-	if (mtd_parts_nb == 0) {
+	else {
 		mtd_parts = partition_info;
 		mtd_parts_nb = NUM_PARTITIONS;
 		part_type = "static";
