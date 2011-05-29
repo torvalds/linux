@@ -27,6 +27,10 @@
 
 #include "dm.h"
 
+#define SUB_JOB_SIZE	128
+#define SPLIT_COUNT	8
+#define MIN_JOBS	8
+
 /*-----------------------------------------------------------------
  * Each kcopyd client has its own little pool of preallocated
  * pages for kcopyd io.
@@ -216,16 +220,17 @@ struct kcopyd_job {
 	struct mutex lock;
 	atomic_t sub_jobs;
 	sector_t progress;
-};
 
-/* FIXME: this should scale with the number of pages */
-#define MIN_JOBS 512
+	struct kcopyd_job *master_job;
+};
 
 static struct kmem_cache *_job_cache;
 
 int __init dm_kcopyd_init(void)
 {
-	_job_cache = KMEM_CACHE(kcopyd_job, 0);
+	_job_cache = kmem_cache_create("kcopyd_job",
+				sizeof(struct kcopyd_job) * (SPLIT_COUNT + 1),
+				__alignof__(struct kcopyd_job), 0, NULL);
 	if (!_job_cache)
 		return -ENOMEM;
 
@@ -299,7 +304,12 @@ static int run_complete_job(struct kcopyd_job *job)
 
 	if (job->pages)
 		kcopyd_put_pages(kc, job->pages);
-	mempool_free(job, kc->job_pool);
+	/*
+	 * If this is the master job, the sub jobs have already
+	 * completed so we can free everything.
+	 */
+	if (job->master_job == job)
+		mempool_free(job, kc->job_pool);
 	fn(read_err, write_err, context);
 
 	if (atomic_dec_and_test(&kc->nr_jobs))
@@ -460,14 +470,14 @@ static void dispatch_job(struct kcopyd_job *job)
 	wake(kc);
 }
 
-#define SUB_JOB_SIZE 128
 static void segment_complete(int read_err, unsigned long write_err,
 			     void *context)
 {
 	/* FIXME: tidy this function */
 	sector_t progress = 0;
 	sector_t count = 0;
-	struct kcopyd_job *job = (struct kcopyd_job *) context;
+	struct kcopyd_job *sub_job = (struct kcopyd_job *) context;
+	struct kcopyd_job *job = sub_job->master_job;
 	struct dm_kcopyd_client *kc = job->kc;
 
 	mutex_lock(&job->lock);
@@ -498,8 +508,6 @@ static void segment_complete(int read_err, unsigned long write_err,
 
 	if (count) {
 		int i;
-		struct kcopyd_job *sub_job = mempool_alloc(kc->job_pool,
-							   GFP_NOIO);
 
 		*sub_job = *job;
 		sub_job->source.sector += progress;
@@ -511,7 +519,7 @@ static void segment_complete(int read_err, unsigned long write_err,
 		}
 
 		sub_job->fn = segment_complete;
-		sub_job->context = job;
+		sub_job->context = sub_job;
 		dispatch_job(sub_job);
 
 	} else if (atomic_dec_and_test(&job->sub_jobs)) {
@@ -531,19 +539,19 @@ static void segment_complete(int read_err, unsigned long write_err,
 }
 
 /*
- * Create some little jobs that will do the move between
- * them.
+ * Create some sub jobs to share the work between them.
  */
-#define SPLIT_COUNT 8
-static void split_job(struct kcopyd_job *job)
+static void split_job(struct kcopyd_job *master_job)
 {
 	int i;
 
-	atomic_inc(&job->kc->nr_jobs);
+	atomic_inc(&master_job->kc->nr_jobs);
 
-	atomic_set(&job->sub_jobs, SPLIT_COUNT);
-	for (i = 0; i < SPLIT_COUNT; i++)
-		segment_complete(0, 0u, job);
+	atomic_set(&master_job->sub_jobs, SPLIT_COUNT);
+	for (i = 0; i < SPLIT_COUNT; i++) {
+		master_job[i + 1].master_job = master_job;
+		segment_complete(0, 0u, &master_job[i + 1]);
+	}
 }
 
 int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
@@ -553,7 +561,8 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	struct kcopyd_job *job;
 
 	/*
-	 * Allocate a new job.
+	 * Allocate an array of jobs consisting of one master job
+	 * followed by SPLIT_COUNT sub jobs.
 	 */
 	job = mempool_alloc(kc->job_pool, GFP_NOIO);
 
@@ -577,10 +586,10 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 
 	job->fn = fn;
 	job->context = context;
+	job->master_job = job;
 
 	if (job->source.count <= SUB_JOB_SIZE)
 		dispatch_job(job);
-
 	else {
 		mutex_init(&job->lock);
 		job->progress = 0;
