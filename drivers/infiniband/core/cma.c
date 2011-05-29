@@ -81,6 +81,7 @@ static DEFINE_IDR(sdp_ps);
 static DEFINE_IDR(tcp_ps);
 static DEFINE_IDR(udp_ps);
 static DEFINE_IDR(ipoib_ps);
+static DEFINE_IDR(ib_ps);
 
 struct cma_device {
 	struct list_head	list;
@@ -2234,6 +2235,9 @@ static int cma_get_port(struct rdma_id_private *id_priv)
 	case RDMA_PS_IPOIB:
 		ps = &ipoib_ps;
 		break;
+	case RDMA_PS_IB:
+		ps = &ib_ps;
+		break;
 	default:
 		return -EPROTONOSUPPORT;
 	}
@@ -3460,6 +3464,7 @@ static void __exit cma_cleanup(void)
 	idr_destroy(&tcp_ps);
 	idr_destroy(&udp_ps);
 	idr_destroy(&ipoib_ps);
+	idr_destroy(&ib_ps);
 }
 
 module_init(cma_init);
