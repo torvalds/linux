@@ -98,8 +98,6 @@ static int ep7312_device_ready(struct mtd_info *mtd)
 	return 1;
 }
 
-const char *part_probes[] = { "cmdlinepart", NULL };
-
 /*
  * Main initialization routine
  */
@@ -158,7 +156,7 @@ static int __init ep7312_init(void)
 		return -ENXIO;
 	}
 	ep7312_mtd->name = "edb7312-nand";
-	mtd_parts_nb = parse_mtd_partitions(ep7312_mtd, part_probes, &mtd_parts, 0);
+	mtd_parts_nb = parse_mtd_partitions(ep7312_mtd, NULL, &mtd_parts, 0);
 	if (mtd_parts_nb > 0)
 		part_type = "command line";
 	else
