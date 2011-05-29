@@ -578,7 +578,7 @@ int dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	job->fn = fn;
 	job->context = context;
 
-	if (job->source.count < SUB_JOB_SIZE)
+	if (job->source.count <= SUB_JOB_SIZE)
 		dispatch_job(job);
 
 	else {
