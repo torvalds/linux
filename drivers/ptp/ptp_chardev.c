@@ -46,7 +46,8 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		caps.n_ext_ts = ptp->info->n_ext_ts;
 		caps.n_per_out = ptp->info->n_per_out;
 		caps.pps = ptp->info->pps;
-		err = copy_to_user((void __user *)arg, &caps, sizeof(caps));
+		if (copy_to_user((void __user *)arg, &caps, sizeof(caps)))
+			err = -EFAULT;
 		break;
 
 	case PTP_EXTTS_REQUEST:
