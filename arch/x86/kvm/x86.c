@@ -4552,24 +4552,24 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 
 int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip)
 {
-	struct decode_cache *c = &vcpu->arch.emulate_ctxt.decode;
+	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
+	struct decode_cache *c = &ctxt->decode;
 	int ret;
 
 	init_emulate_ctxt(vcpu);
 
-	vcpu->arch.emulate_ctxt.decode.op_bytes = 2;
-	vcpu->arch.emulate_ctxt.decode.ad_bytes = 2;
-	vcpu->arch.emulate_ctxt.decode.eip = vcpu->arch.emulate_ctxt.eip +
-								 inc_eip;
-	ret = emulate_int_real(&vcpu->arch.emulate_ctxt, irq);
+	c->op_bytes = 2;
+	c->ad_bytes = 2;
+	c->eip = ctxt->eip + inc_eip;
+	ret = emulate_int_real(ctxt, irq);
 
 	if (ret != X86EMUL_CONTINUE)
 		return EMULATE_FAIL;
 
-	vcpu->arch.emulate_ctxt.eip = c->eip;
+	ctxt->eip = c->eip;
 	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
-	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
-	kvm_set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
+	kvm_rip_write(vcpu, ctxt->eip);
+	kvm_set_rflags(vcpu, ctxt->eflags);
 
 	if (irq == NMI_VECTOR)
 		vcpu->arch.nmi_pending = false;
@@ -4630,21 +4630,22 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 			    int insn_len)
 {
 	int r;
-	struct decode_cache *c = &vcpu->arch.emulate_ctxt.decode;
+	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
+	struct decode_cache *c = &ctxt->decode;
 	bool writeback = true;
 
 	kvm_clear_exception_queue(vcpu);
 
 	if (!(emulation_type & EMULTYPE_NO_DECODE)) {
 		init_emulate_ctxt(vcpu);
-		vcpu->arch.emulate_ctxt.interruptibility = 0;
-		vcpu->arch.emulate_ctxt.have_exception = false;
-		vcpu->arch.emulate_ctxt.perm_ok = false;
+		ctxt->interruptibility = 0;
+		ctxt->have_exception = false;
+		ctxt->perm_ok = false;
 
-		vcpu->arch.emulate_ctxt.only_vendor_specific_insn
+		ctxt->only_vendor_specific_insn
 			= emulation_type & EMULTYPE_TRAP_UD;
 
-		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, insn, insn_len);
+		r = x86_decode_insn(ctxt, insn, insn_len);
 
 		trace_kvm_emulate_insn_start(vcpu);
 		++vcpu->stat.insn_emulation;
@@ -4660,7 +4661,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 	}
 
 	if (emulation_type & EMULTYPE_SKIP) {
-		kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.decode.eip);
+		kvm_rip_write(vcpu, c->eip);
 		return EMULATE_DONE;
 	}
 
@@ -4672,7 +4673,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 	}
 
 restart:
-	r = x86_emulate_insn(&vcpu->arch.emulate_ctxt);
+	r = x86_emulate_insn(ctxt);
 
 	if (r == EMULATION_INTERCEPTED)
 		return EMULATE_DONE;
@@ -4684,7 +4685,7 @@ restart:
 		return handle_emulation_failure(vcpu);
 	}
 
-	if (vcpu->arch.emulate_ctxt.have_exception) {
+	if (ctxt->have_exception) {
 		inject_emulated_exception(vcpu);
 		r = EMULATE_DONE;
 	} else if (vcpu->arch.pio.count) {
@@ -4703,13 +4704,12 @@ restart:
 		r = EMULATE_DONE;
 
 	if (writeback) {
-		toggle_interruptibility(vcpu,
-				vcpu->arch.emulate_ctxt.interruptibility);
-		kvm_set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
+		toggle_interruptibility(vcpu, ctxt->interruptibility);
+		kvm_set_rflags(vcpu, ctxt->eflags);
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
 		memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
 		vcpu->arch.emulate_regs_need_sync_to_vcpu = false;
-		kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
+		kvm_rip_write(vcpu, ctxt->eip);
 	} else
 		vcpu->arch.emulate_regs_need_sync_to_vcpu = true;
 
@@ -5130,8 +5130,7 @@ int emulator_fix_hypercall(struct x86_emulate_ctxt *ctxt)
 
 	kvm_x86_ops->patch_hypercall(vcpu, instruction);
 
-	return emulator_write_emulated(&vcpu->arch.emulate_ctxt,
-				       rip, instruction, 3, NULL);
+	return emulator_write_emulated(ctxt, rip, instruction, 3, NULL);
 }
 
 static int move_to_next_stateful_cpuid_entry(struct kvm_vcpu *vcpu, int i)
@@ -5849,21 +5848,21 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 		    bool has_error_code, u32 error_code)
 {
-	struct decode_cache *c = &vcpu->arch.emulate_ctxt.decode;
+	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
+	struct decode_cache *c = &ctxt->decode;
 	int ret;
 
 	init_emulate_ctxt(vcpu);
 
-	ret = emulator_task_switch(&vcpu->arch.emulate_ctxt,
-				   tss_selector, reason, has_error_code,
-				   error_code);
+	ret = emulator_task_switch(ctxt, tss_selector, reason,
+				   has_error_code, error_code);
 
 	if (ret)
 		return EMULATE_FAIL;
 
 	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
-	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
-	kvm_set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
+	kvm_rip_write(vcpu, ctxt->eip);
+	kvm_set_rflags(vcpu, ctxt->eflags);
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	return EMULATE_DONE;
 }

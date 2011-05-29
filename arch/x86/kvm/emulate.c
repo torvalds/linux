@@ -3707,7 +3707,7 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	int saved_dst_type = c->dst.type;
 	int irq; /* Used for int 3, int, and into */
 
-	ctxt->decode.mem_read.pos = 0;
+	c->mem_read.pos = 0;
 
 	if (ctxt->mode == X86EMUL_MODE_PROT64 && (c->d & No64)) {
 		rc = emulate_ud(ctxt);
@@ -4092,7 +4092,7 @@ writeback:
 				&c->dst);
 
 	if (c->rep_prefix && (c->d & String)) {
-		struct read_cache *r = &ctxt->decode.io_read;
+		struct read_cache *r = &c->io_read;
 		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
 
 		if (!string_insn_completed(ctxt)) {
@@ -4107,7 +4107,7 @@ writeback:
 				 * decode, but since instruction is restarted
 				 * we have to do it here.
 				 */
-				ctxt->decode.mem_read.end = 0;
+				c->mem_read.end = 0;
 				return EMULATION_RESTART;
 			}
 			goto done; /* skip rip writeback */
