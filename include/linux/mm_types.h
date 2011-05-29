@@ -264,6 +264,8 @@ struct mm_struct {
 
 	struct linux_binfmt *binfmt;
 
+	cpumask_var_t cpu_vm_mask_var;
+
 	/* Architecture-specific MM context */
 	mm_context_t context;
 
@@ -311,9 +313,17 @@ struct mm_struct {
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
 #endif
-
-	cpumask_var_t cpu_vm_mask_var;
+#ifdef CONFIG_CPUMASK_OFFSTACK
+	struct cpumask cpumask_allocation;
+#endif
 };
+
+static inline void mm_init_cpumask(struct mm_struct *mm)
+{
+#ifdef CONFIG_CPUMASK_OFFSTACK
+	mm->cpu_vm_mask_var = &mm->cpumask_allocation;
+#endif
+}
 
 /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
 static inline cpumask_t *mm_cpumask(struct mm_struct *mm)
