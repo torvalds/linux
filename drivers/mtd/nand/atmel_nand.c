@@ -660,9 +660,10 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	num_partitions = parse_mtd_partitions(mtd, part_probes,
 					      &partitions, 0);
 #endif
-	if (num_partitions <= 0 && host->board->partition_info)
-		partitions = host->board->partition_info(mtd->size,
-							 &num_partitions);
+	if (num_partitions <= 0 && host->board->parts) {
+		partitions = host->board->parts;
+		num_partitions = host->board->num_parts;
+	}
 
 	if ((!partitions) || (num_partitions == 0)) {
 		printk(KERN_ERR "atmel_nand: No partitions defined, or unsupported device.\n");
