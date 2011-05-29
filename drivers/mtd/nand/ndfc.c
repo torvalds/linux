@@ -159,11 +159,6 @@ static int ndfc_verify_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 static int ndfc_chip_init(struct ndfc_controller *ndfc,
 			  struct device_node *node)
 {
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-	static const char *part_types[] = { "cmdlinepart", NULL };
-#else
-	static const char *part_types[] = { NULL };
-#endif
 	struct device_node *flash_np;
 	struct nand_chip *chip = &ndfc->chip;
 	int ret;
@@ -204,7 +199,7 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 	if (ret)
 		goto err;
 
-	ret = parse_mtd_partitions(&ndfc->mtd, part_types, &ndfc->parts, 0);
+	ret = parse_mtd_partitions(&ndfc->mtd, NULL, &ndfc->parts, 0);
 	if (ret < 0)
 		goto err;
 
