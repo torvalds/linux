@@ -2846,6 +2846,25 @@ static int em_jcxz(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_cli(struct x86_emulate_ctxt *ctxt)
+{
+	if (emulator_bad_iopl(ctxt))
+		return emulate_gp(ctxt, 0);
+
+	ctxt->eflags &= ~X86_EFLAGS_IF;
+	return X86EMUL_CONTINUE;
+}
+
+static int em_sti(struct x86_emulate_ctxt *ctxt)
+{
+	if (emulator_bad_iopl(ctxt))
+		return emulate_gp(ctxt, 0);
+
+	ctxt->interruptibility = KVM_X86_SHADOW_INT_STI;
+	ctxt->eflags |= X86_EFLAGS_IF;
+	return X86EMUL_CONTINUE;
+}
+
 static bool valid_cr(int nr)
 {
 	switch (nr) {
@@ -3276,7 +3295,8 @@ static struct opcode opcode_table[256] = {
 	DI(ImplicitOps | Priv, hlt), D(ImplicitOps),
 	G(ByteOp, group3), G(0, group3),
 	/* 0xF8 - 0xFF */
-	D(ImplicitOps), D(ImplicitOps), D(ImplicitOps), D(ImplicitOps),
+	D(ImplicitOps), D(ImplicitOps),
+	I(ImplicitOps, em_cli), I(ImplicitOps, em_sti),
 	D(ImplicitOps), D(ImplicitOps), G(0, group4), G(0, group5),
 };
 
@@ -4048,22 +4068,6 @@ special_insn:
 		break;
 	case 0xf9: /* stc */
 		ctxt->eflags |= EFLG_CF;
-		break;
-	case 0xfa: /* cli */
-		if (emulator_bad_iopl(ctxt)) {
-			rc = emulate_gp(ctxt, 0);
-			goto done;
-		} else
-			ctxt->eflags &= ~X86_EFLAGS_IF;
-		break;
-	case 0xfb: /* sti */
-		if (emulator_bad_iopl(ctxt)) {
-			rc = emulate_gp(ctxt, 0);
-			goto done;
-		} else {
-			ctxt->interruptibility = KVM_X86_SHADOW_INT_STI;
-			ctxt->eflags |= X86_EFLAGS_IF;
-		}
 		break;
 	case 0xfc: /* cld */
 		ctxt->eflags &= ~EFLG_DF;
