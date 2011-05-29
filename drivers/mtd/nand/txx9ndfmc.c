@@ -287,7 +287,6 @@ static int txx9ndfmc_nand_scan(struct mtd_info *mtd)
 static int __init txx9ndfmc_probe(struct platform_device *dev)
 {
 	struct txx9ndfmc_platform_data *plat = dev->dev.platform_data;
-	static const char *probes[] = { "cmdlinepart", NULL };
 	int hold, spw;
 	int i;
 	struct txx9ndfmc_drvdata *drvdata;
@@ -393,7 +392,7 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		}
 		mtd->name = txx9_priv->mtdname;
 
-		nr_parts = parse_mtd_partitions(mtd, probes,
+		nr_parts = parse_mtd_partitions(mtd, NULL,
 						&drvdata->parts[i], 0);
 		mtd_device_register(mtd, drvdata->parts[i], nr_parts);
 		drvdata->mtds[i] = mtd;
