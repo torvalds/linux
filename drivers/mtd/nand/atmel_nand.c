@@ -481,10 +481,6 @@ static void atmel_nand_hwctl(struct mtd_info *mtd, int mode)
 	}
 }
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-static const char *part_probes[] = { "cmdlinepart", NULL };
-#endif
-
 /*
  * Probe for the NAND device.
  */
@@ -655,11 +651,8 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		goto err_scan_tail;
 	}
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
 	mtd->name = "atmel_nand";
-	num_partitions = parse_mtd_partitions(mtd, part_probes,
-					      &partitions, 0);
-#endif
+	num_partitions = parse_mtd_partitions(mtd, NULL, &partitions, 0);
 	if (num_partitions <= 0 && host->board->parts) {
 		partitions = host->board->parts;
 		num_partitions = host->board->num_parts;
