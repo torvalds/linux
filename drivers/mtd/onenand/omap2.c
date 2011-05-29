@@ -67,8 +67,6 @@ struct omap2_onenand {
 	struct regulator *regulator;
 };
 
-static const char *part_probes[] = { "cmdlinepart", NULL,  };
-
 static void omap2_onenand_dma_cb(int lch, u16 ch_status, void *data)
 {
 	struct omap2_onenand *c = data;
@@ -754,7 +752,7 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	if ((r = onenand_scan(&c->mtd, 1)) < 0)
 		goto err_release_regulator;
 
-	r = parse_mtd_partitions(&c->mtd, part_probes, &c->parts, 0);
+	r = parse_mtd_partitions(&c->mtd, NULL, &c->parts, 0);
 	if (r > 0)
 		r = mtd_device_register(&c->mtd, c->parts, r);
 	else if (pdata->parts != NULL)
