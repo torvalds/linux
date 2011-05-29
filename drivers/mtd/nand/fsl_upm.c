@@ -158,6 +158,7 @@ static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
 {
 	int ret;
 	struct device_node *flash_np;
+	struct mtd_part_parser_data ppdata;
 
 	fun->chip.IO_ADDR_R = fun->io_base;
 	fun->chip.IO_ADDR_W = fun->io_base;
@@ -191,15 +192,9 @@ static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
 	if (ret)
 		goto err;
 
-	ret = parse_mtd_partitions(&fun->mtd, NULL, &fun->parts, 0);
+	ppdata.of_node = flash_np;
+	ret = parse_mtd_partitions(&fun->mtd, NULL, &fun->parts, &ppdata);
 
-#ifdef CONFIG_MTD_OF_PARTS
-	if (ret == 0) {
-		ret = of_mtd_parse_partitions(fun->dev, flash_np, &fun->parts);
-		if (ret < 0)
-			goto err;
-	}
-#endif
 	ret = mtd_device_register(&fun->mtd, fun->parts, ret);
 err:
 	of_node_put(flash_np);
