@@ -165,7 +165,8 @@ static struct mtd_info * __devinit obsolete_probe(struct platform_device *dev,
    specifies the list of partition probers to use. If none is given then the
    default is use. These take precedence over other device tree
    information. */
-static const char *part_probe_types_def[] = { "cmdlinepart", "RedBoot", NULL };
+static const char *part_probe_types_def[] = { "cmdlinepart", "RedBoot",
+					"ofpart", NULL };
 static const char ** __devinit of_get_probes(struct device_node *dp)
 {
 	const char *cp;
@@ -218,6 +219,7 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 	int reg_tuple_size;
 	struct mtd_info **mtd_list = NULL;
 	resource_size_t res_size;
+	struct mtd_part_parser_data ppdata;
 
 	match = of_match_device(of_flash_match, &dev->dev);
 	if (!match)
@@ -331,20 +333,15 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 	if (err)
 		goto err_out;
 
+	ppdata.of_node = dp;
 	part_probe_types = of_get_probes(dp);
 	err = parse_mtd_partitions(info->cmtd, part_probe_types,
-				   &info->parts, 0);
+				   &info->parts, &ppdata);
 	if (err < 0) {
 		of_free_probes(part_probe_types);
 		goto err_out;
 	}
 	of_free_probes(part_probe_types);
-
-	if (err == 0) {
-		err = of_mtd_parse_partitions(&dev->dev, dp, &info->parts);
-		if (err < 0)
-			goto err_out;
-	}
 
 	if (err == 0) {
 		err = parse_obsolete_partitions(dev, info, dp);
