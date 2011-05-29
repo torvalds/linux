@@ -868,7 +868,9 @@ nouveau_gart_manager_del(struct ttm_mem_type_manager *man,
 		nouveau_vm_unmap(&node->tmp_vma);
 		nouveau_vm_put(&node->tmp_vma);
 	}
+
 	mem->mm_node = NULL;
+	kfree(node);
 }
 
 static int
