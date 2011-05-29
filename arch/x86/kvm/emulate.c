@@ -2613,6 +2613,20 @@ static int em_test(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_xchg(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	/* Write back the register source. */
+	c->src.val = c->dst.val;
+	write_register_operand(&c->src);
+
+	/* Write back the memory destination with implicit LOCK prefix. */
+	c->dst.val = c->src.orig_val;
+	c->lock_prefix = 1;
+	return X86EMUL_CONTINUE;
+}
+
 static int em_imul(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
@@ -3144,7 +3158,7 @@ static struct opcode opcode_table[256] = {
 	G(ByteOp | DstMem | SrcImm | ModRM | No64 | Group, group1),
 	G(DstMem | SrcImmByte | ModRM | Group, group1),
 	I2bv(DstMem | SrcReg | ModRM, em_test),
-	D2bv(DstMem | SrcReg | ModRM | Lock),
+	I2bv(DstMem | SrcReg | ModRM | Lock, em_xchg),
 	/* 0x88 - 0x8F */
 	I2bv(DstMem | SrcReg | ModRM | Mov, em_mov),
 	I2bv(DstReg | SrcMem | ModRM | Mov, em_mov),
@@ -3882,18 +3896,6 @@ special_insn:
 		if (test_cc(c->b, ctxt->eflags))
 			jmp_rel(c, c->src.val);
 		break;
-	case 0x86 ... 0x87:	/* xchg */
-	xchg:
-		/* Write back the register source. */
-		c->src.val = c->dst.val;
-		write_register_operand(&c->src);
-		/*
-		 * Write back the memory destination with implicit LOCK
-		 * prefix.
-		 */
-		c->dst.val = c->src.orig_val;
-		c->lock_prefix = 1;
-		break;
 	case 0x8c:  /* mov r/m, sreg */
 		if (c->modrm_reg > VCPU_SREG_GS) {
 			rc = emulate_ud(ctxt);
@@ -3929,7 +3931,8 @@ special_insn:
 	case 0x90 ... 0x97: /* nop / xchg reg, rax */
 		if (c->dst.addr.reg == &c->regs[VCPU_REGS_RAX])
 			break;
-		goto xchg;
+		rc = em_xchg(ctxt);
+		break;
 	case 0x98: /* cbw/cwde/cdqe */
 		switch (c->op_bytes) {
 		case 2: c->dst.val = (s8)c->dst.val; break;
