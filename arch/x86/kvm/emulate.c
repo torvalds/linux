@@ -3169,9 +3169,9 @@ static struct opcode opcode_table[256] = {
 	D(DstReg | SrcMemFAddr | ModRM | No64), D(DstReg | SrcMemFAddr | ModRM | No64),
 	G(ByteOp, group11), G(0, group11),
 	/* 0xC8 - 0xCF */
-	N, N, N, D(ImplicitOps | Stack),
+	N, N, N, I(ImplicitOps | Stack, em_ret_far),
 	D(ImplicitOps), DI(SrcImmByte, intn),
-	D(ImplicitOps | No64), DI(ImplicitOps, iret),
+	D(ImplicitOps | No64), II(ImplicitOps, em_iret, iret),
 	/* 0xD0 - 0xD7 */
 	D2bv(DstMem | SrcOne | ModRM), D2bv(DstMem | ModRM),
 	N, N, N, N,
@@ -3183,7 +3183,7 @@ static struct opcode opcode_table[256] = {
 	D2bvIP(SrcAcc | DstImmUByte, out, check_perm_out),
 	/* 0xE8 - 0xEF */
 	D(SrcImm | Stack), D(SrcImm | ImplicitOps),
-	D(SrcImmFAddr | No64), D(SrcImmByte | ImplicitOps),
+	I(SrcImmFAddr | No64, em_jmp_far), D(SrcImmByte | ImplicitOps),
 	D2bvIP(SrcDX | DstAcc, in,  check_perm_in),
 	D2bvIP(SrcAcc | DstDX, out, check_perm_out),
 	/* 0xF0 - 0xF7 */
@@ -3198,7 +3198,8 @@ static struct opcode opcode_table[256] = {
 static struct opcode twobyte_table[256] = {
 	/* 0x00 - 0x0F */
 	G(0, group6), GD(0, &group7), N, N,
-	N, D(ImplicitOps | VendorSpecific), DI(ImplicitOps | Priv, clts), N,
+	N, I(ImplicitOps | VendorSpecific, em_syscall),
+	II(ImplicitOps | Priv, em_clts, clts), N,
 	DI(ImplicitOps | Priv, invd), DI(ImplicitOps | Priv, wbinvd), N, N,
 	N, D(ImplicitOps | ModRM), N, N,
 	/* 0x10 - 0x1F */
@@ -3215,7 +3216,8 @@ static struct opcode twobyte_table[256] = {
 	IIP(ImplicitOps, em_rdtsc, rdtsc, check_rdtsc),
 	DI(ImplicitOps | Priv, rdmsr),
 	DIP(ImplicitOps | Priv, rdpmc, check_rdpmc),
-	D(ImplicitOps | VendorSpecific), D(ImplicitOps | Priv | VendorSpecific),
+	I(ImplicitOps | VendorSpecific, em_sysenter),
+	I(ImplicitOps | Priv | VendorSpecific, em_sysexit),
 	N, N,
 	N, N, N, N, N, N, N, N,
 	/* 0x40 - 0x4F */
@@ -3947,9 +3949,6 @@ special_insn:
 	case 0xc5:		/* lds */
 		rc = emulate_load_segment(ctxt, VCPU_SREG_DS);
 		break;
-	case 0xcb:		/* ret far */
-		rc = em_ret_far(ctxt);
-		break;
 	case 0xcc:		/* int3 */
 		irq = 3;
 		goto do_interrupt;
@@ -3963,9 +3962,6 @@ special_insn:
 			irq = 4;
 			goto do_interrupt;
 		}
-		break;
-	case 0xcf:		/* iret */
-		rc = em_iret(ctxt);
 		break;
 	case 0xd0 ... 0xd1:	/* Grp2 */
 		rc = em_grp2(ctxt);
@@ -3998,12 +3994,7 @@ special_insn:
 		break;
 	}
 	case 0xe9: /* jmp rel */
-		goto jmp;
-	case 0xea: /* jmp far */
-		rc = em_jmp_far(ctxt);
-		break;
-	case 0xeb:
-	      jmp:		/* jmp rel short */
+	case 0xeb: /* jmp rel short */
 		jmp_rel(c, c->src.val);
 		c->dst.type = OP_NONE; /* Disable writeback. */
 		break;
@@ -4126,12 +4117,6 @@ done:
 
 twobyte_insn:
 	switch (c->b) {
-	case 0x05: 		/* syscall */
-		rc = em_syscall(ctxt);
-		break;
-	case 0x06:
-		rc = em_clts(ctxt);
-		break;
 	case 0x09:		/* wbinvd */
 		(ctxt->ops->wbinvd)(ctxt);
 		break;
@@ -4187,12 +4172,6 @@ twobyte_insn:
 			c->regs[VCPU_REGS_RDX] = msr_data >> 32;
 		}
 		rc = X86EMUL_CONTINUE;
-		break;
-	case 0x34:		/* sysenter */
-		rc = em_sysenter(ctxt);
-		break;
-	case 0x35:		/* sysexit */
-		rc = em_sysexit(ctxt);
 		break;
 	case 0x40 ... 0x4f:	/* cmov */
 		c->dst.val = c->dst.orig_val = c->src.val;
