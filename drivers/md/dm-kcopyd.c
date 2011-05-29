@@ -37,8 +37,8 @@
  *---------------------------------------------------------------*/
 struct dm_kcopyd_client {
 	struct page_list *pages;
-	unsigned int nr_pages;
-	unsigned int nr_free_pages;
+	unsigned nr_reserved_pages;
+	unsigned nr_free_pages;
 
 	struct dm_io_client *io_client;
 
@@ -70,6 +70,9 @@ static void wake(struct dm_kcopyd_client *kc)
 	queue_work(kc->kcopyd_wq, &kc->kcopyd_work);
 }
 
+/*
+ * Obtain one page for the use of kcopyd.
+ */
 static struct page_list *alloc_pl(gfp_t gfp)
 {
 	struct page_list *pl;
@@ -93,34 +96,56 @@ static void free_pl(struct page_list *pl)
 	kfree(pl);
 }
 
+/*
+ * Add the provided pages to a client's free page list, releasing
+ * back to the system any beyond the reserved_pages limit.
+ */
+static void kcopyd_put_pages(struct dm_kcopyd_client *kc, struct page_list *pl)
+{
+	struct page_list *next;
+
+	do {
+		next = pl->next;
+
+		if (kc->nr_free_pages >= kc->nr_reserved_pages)
+			free_pl(pl);
+		else {
+			pl->next = kc->pages;
+			kc->pages = pl;
+			kc->nr_free_pages++;
+		}
+
+		pl = next;
+	} while (pl);
+}
+
 static int kcopyd_get_pages(struct dm_kcopyd_client *kc,
 			    unsigned int nr, struct page_list **pages)
 {
 	struct page_list *pl;
 
-	if (kc->nr_free_pages < nr)
-		return -ENOMEM;
+	*pages = NULL;
 
-	kc->nr_free_pages -= nr;
-	for (*pages = pl = kc->pages; --nr; pl = pl->next)
-		;
-
-	kc->pages = pl->next;
-	pl->next = NULL;
+	do {
+		pl = alloc_pl(__GFP_NOWARN | __GFP_NORETRY);
+		if (unlikely(!pl)) {
+			/* Use reserved pages */
+			pl = kc->pages;
+			if (unlikely(!pl))
+				goto out_of_memory;
+			kc->pages = pl->next;
+			kc->nr_free_pages--;
+		}
+		pl->next = *pages;
+		*pages = pl;
+	} while (--nr);
 
 	return 0;
-}
 
-static void kcopyd_put_pages(struct dm_kcopyd_client *kc, struct page_list *pl)
-{
-	struct page_list *cursor;
-
-	for (cursor = pl; cursor->next; cursor = cursor->next)
-		kc->nr_free_pages++;
-
-	kc->nr_free_pages++;
-	cursor->next = kc->pages;
-	kc->pages = pl;
+out_of_memory:
+	if (*pages)
+		kcopyd_put_pages(kc, *pages);
+	return -ENOMEM;
 }
 
 /*
@@ -137,12 +162,15 @@ static void drop_pages(struct page_list *pl)
 	}
 }
 
-static int client_alloc_pages(struct dm_kcopyd_client *kc, unsigned int nr)
+/*
+ * Allocate and reserve nr_pages for the use of a specific client.
+ */
+static int client_reserve_pages(struct dm_kcopyd_client *kc, unsigned nr_pages)
 {
-	unsigned int i;
+	unsigned i;
 	struct page_list *pl = NULL, *next;
 
-	for (i = 0; i < nr; i++) {
+	for (i = 0; i < nr_pages; i++) {
 		next = alloc_pl(GFP_KERNEL);
 		if (!next) {
 			if (pl)
@@ -153,17 +181,18 @@ static int client_alloc_pages(struct dm_kcopyd_client *kc, unsigned int nr)
 		pl = next;
 	}
 
+	kc->nr_reserved_pages += nr_pages;
 	kcopyd_put_pages(kc, pl);
-	kc->nr_pages += nr;
+
 	return 0;
 }
 
 static void client_free_pages(struct dm_kcopyd_client *kc)
 {
-	BUG_ON(kc->nr_free_pages != kc->nr_pages);
+	BUG_ON(kc->nr_free_pages != kc->nr_reserved_pages);
 	drop_pages(kc->pages);
 	kc->pages = NULL;
-	kc->nr_free_pages = kc->nr_pages = 0;
+	kc->nr_free_pages = kc->nr_reserved_pages = 0;
 }
 
 /*-----------------------------------------------------------------
@@ -607,7 +636,7 @@ int kcopyd_cancel(struct kcopyd_job *job, int block)
 /*-----------------------------------------------------------------
  * Client setup
  *---------------------------------------------------------------*/
-int dm_kcopyd_client_create(unsigned int nr_pages,
+int dm_kcopyd_client_create(unsigned min_pages,
 			    struct dm_kcopyd_client **result)
 {
 	int r = -ENOMEM;
@@ -633,12 +662,12 @@ int dm_kcopyd_client_create(unsigned int nr_pages,
 		goto bad_workqueue;
 
 	kc->pages = NULL;
-	kc->nr_pages = kc->nr_free_pages = 0;
-	r = client_alloc_pages(kc, nr_pages);
+	kc->nr_reserved_pages = kc->nr_free_pages = 0;
+	r = client_reserve_pages(kc, min_pages);
 	if (r)
 		goto bad_client_pages;
 
-	kc->io_client = dm_io_client_create(nr_pages);
+	kc->io_client = dm_io_client_create(min_pages);
 	if (IS_ERR(kc->io_client)) {
 		r = PTR_ERR(kc->io_client);
 		goto bad_io_client;
