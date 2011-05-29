@@ -2573,7 +2573,7 @@ static int cma_connect_ib(struct rdma_id_private *id_priv,
 	req.service_id = cma_get_service_id(id_priv->id.ps,
 					    (struct sockaddr *) &route->addr.dst_addr);
 	req.qp_num = id_priv->qp_num;
-	req.qp_type = IB_QPT_RC;
+	req.qp_type = id_priv->id.qp_type;
 	req.starting_psn = id_priv->seq_num;
 	req.responder_resources = conn_param->responder_resources;
 	req.initiator_depth = conn_param->initiator_depth;
