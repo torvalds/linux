@@ -99,8 +99,6 @@ static struct mtd_partition partition_info_evb[] = {
 
 #define NUM_PARTITIONS 1
 
-extern int parse_cmdline_partitions(struct mtd_info *master, struct mtd_partition **pparts, const char *mtd_id);
-
 /*
  *	hardware specific access to control-lines
  */
@@ -186,9 +184,6 @@ static int ppchameleonevb_device_ready(struct mtd_info *minfo)
 	return 0;
 }
 #endif
-
-const char *part_probes[] = { "cmdlinepart", NULL };
-const char *part_probes_evb[] = { "cmdlinepart", NULL };
 
 /*
  * Main initialization routine
@@ -281,7 +276,7 @@ static int __init ppchameleonevb_init(void)
 #endif
 
 	ppchameleon_mtd->name = "ppchameleon-nand";
-	mtd_parts_nb = parse_mtd_partitions(ppchameleon_mtd, part_probes, &mtd_parts, 0);
+	mtd_parts_nb = parse_mtd_partitions(ppchameleon_mtd, NULL, &mtd_parts, 0);
 	if (mtd_parts_nb > 0)
 		part_type = "command line";
 	else
@@ -382,7 +377,7 @@ static int __init ppchameleonevb_init(void)
 	}
 
 	ppchameleonevb_mtd->name = NAND_EVB_MTD_NAME;
-	mtd_parts_nb = parse_mtd_partitions(ppchameleonevb_mtd, part_probes_evb, &mtd_parts, 0);
+	mtd_parts_nb = parse_mtd_partitions(ppchameleonevb_mtd, NULL, &mtd_parts, 0);
 	if (mtd_parts_nb > 0)
 		part_type = "command line";
 	else
