@@ -72,11 +72,10 @@ static void __devexit vr_nor_destroy_partitions(struct vr_nor_mtd *p)
 static int __devinit vr_nor_init_partitions(struct vr_nor_mtd *p)
 {
 	struct mtd_partition *parts;
-	static const char *part_probes[] = { "cmdlinepart", NULL };
 
 	/* register the flash bank */
 	/* partition the flash bank */
-	p->nr_parts = parse_mtd_partitions(p->info, part_probes, &parts, 0);
+	p->nr_parts = parse_mtd_partitions(p->info, NULL, &parts, 0);
 	return mtd_device_register(p->info, parts, p->nr_parts);
 }
 
