@@ -744,7 +744,6 @@ static int s3c24xx_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
-const char *part_probes[] = { "cmdlinepart", NULL };
 static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 				      struct s3c2410_nand_mtd *mtd,
 				      struct s3c2410_nand_set *set)
@@ -756,7 +755,7 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 		return mtd_device_register(&mtd->mtd, NULL, 0);
 
 	mtd->mtd.name = set->name;
-	nr_part = parse_mtd_partitions(&mtd->mtd, part_probes, &part_info, 0);
+	nr_part = parse_mtd_partitions(&mtd->mtd, NULL, &part_info, 0);
 
 	if (nr_part <= 0 && set->nr_partitions > 0) {
 		nr_part = set->nr_partitions;
