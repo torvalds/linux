@@ -575,6 +575,28 @@ static const struct timedia_struct {
 	{ 8, timedia_eight_port }
 };
 
+/*
+ * There are nearly 70 different Timedia/SUNIX PCI serial devices.  Instead of
+ * listing them individually, this driver merely grabs them all with
+ * PCI_ANY_ID.  Some of these devices, however, also feature a parallel port,
+ * and should be left free to be claimed by parport_serial instead.
+ */
+static int pci_timedia_probe(struct pci_dev *dev)
+{
+	/*
+	 * Check the third digit of the subdevice ID
+	 * (0,2,3,5,6: serial only -- 7,8,9: serial + parallel)
+	 */
+	if ((dev->subsystem_device & 0x00f0) >= 0x70) {
+		dev_info(&dev->dev,
+			"ignoring Timedia subdevice %04x for parport_serial\n",
+			dev->subsystem_device);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int pci_timedia_init(struct pci_dev *dev)
 {
 	const unsigned short *ids;
@@ -1463,6 +1485,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.device		= PCI_DEVICE_ID_TIMEDIA_1889,
 		.subvendor	= PCI_VENDOR_ID_TIMEDIA,
 		.subdevice	= PCI_ANY_ID,
+		.probe		= pci_timedia_probe,
 		.init		= pci_timedia_init,
 		.setup		= pci_timedia_setup,
 	},
