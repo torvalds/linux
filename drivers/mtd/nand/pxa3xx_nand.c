@@ -1129,6 +1129,8 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 {
 	struct pxa3xx_nand_platform_data *pdata;
 	struct pxa3xx_nand_info *info;
+	struct mtd_partition *parts;
+	int nr_parts;
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
@@ -1146,16 +1148,11 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (mtd_has_cmdlinepart()) {
-		const char *probes[] = { "cmdlinepart", NULL };
-		struct mtd_partition *parts;
-		int nr_parts;
 
-		nr_parts = parse_mtd_partitions(info->mtd, probes, &parts, 0);
+	nr_parts = parse_mtd_partitions(info->mtd, NULL, &parts, 0);
 
-		if (nr_parts)
-			return mtd_device_register(info->mtd, parts, nr_parts);
-	}
+	if (nr_parts)
+		return mtd_device_register(info->mtd, parts, nr_parts);
 
 	return mtd_device_register(info->mtd, pdata->parts, pdata->nr_parts);
 }
