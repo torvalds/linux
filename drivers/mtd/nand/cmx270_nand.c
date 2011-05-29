@@ -50,8 +50,6 @@ static struct mtd_partition partition_info[] = {
 };
 #define NUM_PARTITIONS (ARRAY_SIZE(partition_info))
 
-const char *part_probes[] = { "cmdlinepart", NULL };
-
 static u_char cmx270_read_byte(struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
@@ -222,14 +220,13 @@ static int __init cmx270_init(void)
 		goto err_scan;
 	}
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-	mtd_parts_nb = parse_mtd_partitions(cmx270_nand_mtd, part_probes,
+	mtd_parts_nb = parse_mtd_partitions(cmx270_nand_mtd, NULL,
 					    &mtd_parts, 0);
 	if (mtd_parts_nb > 0)
 		part_type = "command line";
 	else
 		mtd_parts_nb = 0;
-#endif
+
 	if (!mtd_parts_nb) {
 		mtd_parts = partition_info;
 		mtd_parts_nb = NUM_PARTITIONS;
