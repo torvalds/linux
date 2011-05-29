@@ -661,6 +661,7 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op)
 	int resettime = 0;
 	int retval = 0;
 	int rev, len;
+	struct mtd_part_parser_data ppdata;
 
 	/*
 	 * Check SoC revision. This driver supports only NFC
@@ -725,6 +726,7 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op)
 	}
 
 	mtd->name = "MPC5121 NAND";
+	ppdata.of_node = dn;
 	chip->dev_ready = mpc5121_nfc_dev_ready;
 	chip->cmdfunc = mpc5121_nfc_command;
 	chip->read_byte = mpc5121_nfc_read_byte;
@@ -836,11 +838,7 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op)
 	dev_set_drvdata(dev, mtd);
 
 	/* Register device in MTD */
-	retval = parse_mtd_partitions(mtd, NULL, &parts, 0);
-#ifdef CONFIG_MTD_OF_PARTS
-	if (retval == 0)
-		retval = of_mtd_parse_partitions(dev, dn, &parts);
-#endif
+	retval = parse_mtd_partitions(mtd, NULL, &parts, &ppdata);
 	if (retval < 0) {
 		dev_err(dev, "Error parsing MTD partitions!\n");
 		devm_free_irq(dev, prv->irq, mtd);
