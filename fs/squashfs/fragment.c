@@ -90,7 +90,7 @@ __le64 *squashfs_read_fragment_index_table(struct super_block *sb,
 	 * table[0] points to the first fragment table metadata block, this
 	 * should be less than fragment_table_start
 	 */
-	if (!IS_ERR(table) && table[0] >= fragment_table_start) {
+	if (!IS_ERR(table) && le64_to_cpu(table[0]) >= fragment_table_start) {
 		kfree(table);
 		return ERR_PTR(-EINVAL);
 	}
