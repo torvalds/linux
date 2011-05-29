@@ -103,8 +103,6 @@ static int sharpsl_nand_calculate_ecc(struct mtd_info *mtd, const u_char * dat, 
 	return readb(sharpsl->io + ECCCNTR) != 0;
 }
 
-static const char *part_probes[] = { "cmdlinepart", NULL };
-
 /*
  * Main initialization routine
  */
@@ -184,7 +182,7 @@ static int __devinit sharpsl_nand_probe(struct platform_device *pdev)
 
 	/* Register the partitions */
 	sharpsl->mtd.name = "sharpsl-nand";
-	nr_partitions = parse_mtd_partitions(&sharpsl->mtd, part_probes, &sharpsl_partition_info, 0);
+	nr_partitions = parse_mtd_partitions(&sharpsl->mtd, NULL, &sharpsl_partition_info, 0);
 	if (nr_partitions <= 0) {
 		nr_partitions = data->nr_partitions;
 		sharpsl_partition_info = data->partitions;
