@@ -166,6 +166,7 @@ static int __devinit socrates_nand_probe(struct platform_device *ofdev)
 	int res;
 	struct mtd_partition *partitions = NULL;
 	int num_partitions = 0;
+	struct mtd_part_parser_data ppdata;
 
 	/* Allocate memory for the device structure (and zero it) */
 	host = kzalloc(sizeof(struct socrates_nand_host), GFP_KERNEL);
@@ -191,6 +192,7 @@ static int __devinit socrates_nand_probe(struct platform_device *ofdev)
 	mtd->name = "socrates_nand";
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &ofdev->dev;
+	ppdata.of_node = ofdev->dev.of_node;
 
 	/*should never be accessed directly */
 	nand_chip->IO_ADDR_R = (void *)0xdeadbeef;
@@ -223,20 +225,10 @@ static int __devinit socrates_nand_probe(struct platform_device *ofdev)
 		goto out;
 	}
 
-	num_partitions = parse_mtd_partitions(mtd, NULL, &partitions, 0);
+	num_partitions = parse_mtd_partitions(mtd, NULL, &partitions, &ppdata);
 	if (num_partitions < 0) {
 		res = num_partitions;
 		goto release;
-	}
-
-	if (num_partitions == 0) {
-		num_partitions = of_mtd_parse_partitions(&ofdev->dev,
-							 ofdev->dev.of_node,
-							 &partitions);
-		if (num_partitions < 0) {
-			res = num_partitions;
-			goto release;
-		}
 	}
 
 	res = mtd_device_register(mtd, partitions, num_partitions);
