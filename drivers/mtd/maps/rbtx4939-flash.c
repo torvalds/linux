@@ -50,7 +50,6 @@ static int rbtx4939_flash_remove(struct platform_device *dev)
 }
 
 static const char *rom_probe_types[] = { "cfi_probe", "jedec_probe", NULL };
-static const char *part_probe_types[] = { "cmdlinepart", NULL };
 
 static int rbtx4939_flash_probe(struct platform_device *dev)
 {
@@ -107,9 +106,7 @@ static int rbtx4939_flash_probe(struct platform_device *dev)
 	info->mtd->owner = THIS_MODULE;
 	if (err)
 		goto err_out;
-
-	err = parse_mtd_partitions(info->mtd, part_probe_types,
-				&info->parts, 0);
+	err = parse_mtd_partitions(info->mtd, NULL, &info->parts, 0);
 	if (err > 0) {
 		mtd_device_register(info->mtd, info->parts, err);
 		info->nr_parts = err;
