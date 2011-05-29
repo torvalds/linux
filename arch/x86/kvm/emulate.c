@@ -1656,7 +1656,7 @@ static int emulate_iret_real(struct x86_emulate_ctxt *ctxt)
 	return rc;
 }
 
-static int emulate_iret(struct x86_emulate_ctxt *ctxt)
+static int em_iret(struct x86_emulate_ctxt *ctxt)
 {
 	switch(ctxt->mode) {
 	case X86EMUL_MODE_REAL:
@@ -1816,7 +1816,7 @@ static int em_grp9(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int emulate_ret_far(struct x86_emulate_ctxt *ctxt)
+static int em_ret_far(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
@@ -1880,7 +1880,7 @@ setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 	ss->p = 1;
 }
 
-static int emulate_syscall(struct x86_emulate_ctxt *ctxt)
+static int em_syscall(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 	struct x86_emulate_ops *ops = ctxt->ops;
@@ -1933,7 +1933,7 @@ static int emulate_syscall(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int emulate_sysenter(struct x86_emulate_ctxt *ctxt)
+static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 	struct x86_emulate_ops *ops = ctxt->ops;
@@ -1989,7 +1989,7 @@ static int emulate_sysenter(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int emulate_sysexit(struct x86_emulate_ctxt *ctxt)
+static int em_sysexit(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
 	struct x86_emulate_ops *ops = ctxt->ops;
@@ -3948,7 +3948,7 @@ special_insn:
 		rc = emulate_load_segment(ctxt, VCPU_SREG_DS);
 		break;
 	case 0xcb:		/* ret far */
-		rc = emulate_ret_far(ctxt);
+		rc = em_ret_far(ctxt);
 		break;
 	case 0xcc:		/* int3 */
 		irq = 3;
@@ -3965,7 +3965,7 @@ special_insn:
 		}
 		break;
 	case 0xcf:		/* iret */
-		rc = emulate_iret(ctxt);
+		rc = em_iret(ctxt);
 		break;
 	case 0xd0 ... 0xd1:	/* Grp2 */
 		rc = em_grp2(ctxt);
@@ -4127,7 +4127,7 @@ done:
 twobyte_insn:
 	switch (c->b) {
 	case 0x05: 		/* syscall */
-		rc = emulate_syscall(ctxt);
+		rc = em_syscall(ctxt);
 		break;
 	case 0x06:
 		rc = em_clts(ctxt);
@@ -4189,10 +4189,10 @@ twobyte_insn:
 		rc = X86EMUL_CONTINUE;
 		break;
 	case 0x34:		/* sysenter */
-		rc = emulate_sysenter(ctxt);
+		rc = em_sysenter(ctxt);
 		break;
 	case 0x35:		/* sysexit */
-		rc = emulate_sysexit(ctxt);
+		rc = em_sysexit(ctxt);
 		break;
 	case 0x40 ... 0x4f:	/* cmov */
 		c->dst.val = c->dst.orig_val = c->src.val;
