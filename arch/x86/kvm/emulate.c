@@ -2605,6 +2605,14 @@ static int em_cmp(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_test(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	emulate_2op_SrcV("test", c->src, c->dst, ctxt->eflags);
+	return X86EMUL_CONTINUE;
+}
+
 static int em_imul(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
@@ -3135,7 +3143,8 @@ static struct opcode opcode_table[256] = {
 	G(DstMem | SrcImm | ModRM | Group, group1),
 	G(ByteOp | DstMem | SrcImm | ModRM | No64 | Group, group1),
 	G(DstMem | SrcImmByte | ModRM | Group, group1),
-	D2bv(DstMem | SrcReg | ModRM), D2bv(DstMem | SrcReg | ModRM | Lock),
+	I2bv(DstMem | SrcReg | ModRM, em_test),
+	D2bv(DstMem | SrcReg | ModRM | Lock),
 	/* 0x88 - 0x8F */
 	I2bv(DstMem | SrcReg | ModRM | Mov, em_mov),
 	I2bv(DstReg | SrcMem | ModRM | Mov, em_mov),
@@ -3154,7 +3163,7 @@ static struct opcode opcode_table[256] = {
 	I2bv(SrcSI | DstDI | Mov | String, em_mov),
 	I2bv(SrcSI | DstDI | String, em_cmp),
 	/* 0xA8 - 0xAF */
-	D2bv(DstAcc | SrcImm),
+	I2bv(DstAcc | SrcImm, em_test),
 	I2bv(SrcAcc | DstDI | Mov | String, em_mov),
 	I2bv(SrcSI | DstAcc | Mov | String, em_mov),
 	I2bv(SrcAcc | DstDI | String, em_cmp),
@@ -3873,10 +3882,6 @@ special_insn:
 		if (test_cc(c->b, ctxt->eflags))
 			jmp_rel(c, c->src.val);
 		break;
-	case 0x84 ... 0x85:
-	test:
-		emulate_2op_SrcV("test", c->src, c->dst, ctxt->eflags);
-		break;
 	case 0x86 ... 0x87:	/* xchg */
 	xchg:
 		/* Write back the register source. */
@@ -3932,8 +3937,6 @@ special_insn:
 		case 8: c->dst.val = (s32)c->dst.val; break;
 		}
 		break;
-	case 0xa8 ... 0xa9:	/* test ax, imm */
-		goto test;
 	case 0xc0 ... 0xc1:
 		rc = em_grp2(ctxt);
 		break;
