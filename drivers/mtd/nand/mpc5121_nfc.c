@@ -131,8 +131,6 @@ struct mpc5121_nfc_prv {
 
 static void mpc5121_nfc_done(struct mtd_info *mtd);
 
-static const char *mpc5121_nfc_pprobes[] = { "cmdlinepart", NULL };
-
 /* Read NFC register */
 static inline u16 nfc_read(struct mtd_info *mtd, uint reg)
 {
@@ -838,7 +836,7 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op)
 	dev_set_drvdata(dev, mtd);
 
 	/* Register device in MTD */
-	retval = parse_mtd_partitions(mtd, mpc5121_nfc_pprobes, &parts, 0);
+	retval = parse_mtd_partitions(mtd, NULL, &parts, 0);
 #ifdef CONFIG_MTD_OF_PARTS
 	if (retval == 0)
 		retval = of_mtd_parse_partitions(dev, dn, &parts);
