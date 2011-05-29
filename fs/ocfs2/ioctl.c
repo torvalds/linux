@@ -381,7 +381,7 @@ int ocfs2_info_handle_freeinode(struct inode *inode,
 	if (!oifi) {
 		status = -ENOMEM;
 		mlog_errno(status);
-		goto bail;
+		goto out_err;
 	}
 
 	if (o2info_from_user(*oifi, req))
@@ -431,7 +431,7 @@ bail:
 		o2info_set_request_error(&oifi->ifi_req, req);
 
 	kfree(oifi);
-
+out_err:
 	return status;
 }
 
@@ -666,7 +666,7 @@ int ocfs2_info_handle_freefrag(struct inode *inode,
 	if (!oiff) {
 		status = -ENOMEM;
 		mlog_errno(status);
-		goto bail;
+		goto out_err;
 	}
 
 	if (o2info_from_user(*oiff, req))
@@ -716,7 +716,7 @@ bail:
 		o2info_set_request_error(&oiff->iff_req, req);
 
 	kfree(oiff);
-
+out_err:
 	return status;
 }
 
