@@ -167,6 +167,7 @@ enum iwl_tm_attr_t {
 	 */
 	IWL_TM_ATTR_TRACE_ADDR,
 	IWL_TM_ATTR_TRACE_DATA,
+	IWL_TM_ATTR_TRACE_SIZE,
 
 	/* When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_FIXRATE_REQ,
 	 * The mandatory fields are:
@@ -178,8 +179,10 @@ enum iwl_tm_attr_t {
 };
 
 /* uCode trace buffer */
-#define TRACE_BUFF_SIZE		0x20000
+#define TRACE_BUFF_SIZE_MAX	0x200000
+#define TRACE_BUFF_SIZE_MIN	0x20000
+#define TRACE_BUFF_SIZE_DEF	TRACE_BUFF_SIZE_MIN
+
 #define TRACE_BUFF_PADD		0x2000
-#define TRACE_TOTAL_SIZE	(TRACE_BUFF_SIZE + TRACE_BUFF_PADD)
 
 #endif

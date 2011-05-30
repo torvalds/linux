@@ -69,7 +69,6 @@
 #include <net/mac80211.h>
 #include <net/netlink.h>
 
-
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-debug.h"
@@ -102,8 +101,10 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 
 	[IWL_TM_ATTR_TRACE_ADDR] = { .type = NLA_UNSPEC, },
 	[IWL_TM_ATTR_TRACE_DATA] = { .type = NLA_UNSPEC, },
+	[IWL_TM_ATTR_TRACE_SIZE] = { .type = NLA_U32, },
 
 	[IWL_TM_ATTR_FIXRATE] = { .type = NLA_U32, },
+
 };
 
 /*
@@ -185,13 +186,15 @@ static void iwl_trace_cleanup(struct iwl_priv *priv)
 		if (priv->testmode_trace.cpu_addr &&
 		    priv->testmode_trace.dma_addr)
 			dma_free_coherent(dev,
-					TRACE_TOTAL_SIZE,
+					priv->testmode_trace.total_size,
 					priv->testmode_trace.cpu_addr,
 					priv->testmode_trace.dma_addr);
 		priv->testmode_trace.trace_enabled = false;
 		priv->testmode_trace.cpu_addr = NULL;
 		priv->testmode_trace.trace_addr = NULL;
 		priv->testmode_trace.dma_addr = 0;
+		priv->testmode_trace.buff_size = 0;
+		priv->testmode_trace.total_size = 0;
 	}
 }
 
@@ -489,9 +492,22 @@ static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
 		if (priv->testmode_trace.trace_enabled)
 			return -EBUSY;
 
+		if (!tb[IWL_TM_ATTR_TRACE_SIZE])
+			priv->testmode_trace.buff_size = TRACE_BUFF_SIZE_DEF;
+		else
+			priv->testmode_trace.buff_size =
+				nla_get_u32(tb[IWL_TM_ATTR_TRACE_SIZE]);
+		if (!priv->testmode_trace.buff_size)
+			return -EINVAL;
+		if (priv->testmode_trace.buff_size < TRACE_BUFF_SIZE_MIN ||
+		    priv->testmode_trace.buff_size > TRACE_BUFF_SIZE_MAX)
+			return -EINVAL;
+
+		priv->testmode_trace.total_size =
+			priv->testmode_trace.buff_size + TRACE_BUFF_PADD;
 		priv->testmode_trace.cpu_addr =
 			dma_alloc_coherent(dev,
-					   TRACE_TOTAL_SIZE,
+					   priv->testmode_trace.total_size,
 					   &priv->testmode_trace.dma_addr,
 					   GFP_KERNEL);
 		if (!priv->testmode_trace.cpu_addr)
@@ -500,7 +516,7 @@ static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
 		priv->testmode_trace.trace_addr = (u8 *)PTR_ALIGN(
 			priv->testmode_trace.cpu_addr, 0x100);
 		memset(priv->testmode_trace.trace_addr, 0x03B,
-			TRACE_BUFF_SIZE);
+			priv->testmode_trace.buff_size);
 		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
 			sizeof(priv->testmode_trace.dma_addr) + 20);
 		if (!skb) {
@@ -528,14 +544,14 @@ static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
 		if (priv->testmode_trace.trace_enabled &&
 		    priv->testmode_trace.trace_addr) {
 			skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
-				20 + TRACE_BUFF_SIZE);
+				20 + priv->testmode_trace.buff_size);
 			if (skb == NULL) {
 				IWL_DEBUG_INFO(priv,
 					"Error allocating memory\n");
 				return -ENOMEM;
 			}
 			NLA_PUT(skb, IWL_TM_ATTR_TRACE_DATA,
-				TRACE_BUFF_SIZE,
+				priv->testmode_trace.buff_size,
 				priv->testmode_trace.trace_addr);
 			status = cfg80211_testmode_reply(skb);
 			if (status < 0) {
