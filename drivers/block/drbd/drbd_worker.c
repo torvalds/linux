@@ -36,6 +36,7 @@
 #include <linux/scatterlist.h>
 
 #include "drbd_int.h"
+#include "drbd_protocol.h"
 #include "drbd_req.h"
 
 static int w_make_ov_request(struct drbd_work *w, int cancel);

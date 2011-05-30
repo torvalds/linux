@@ -52,6 +52,7 @@
 
 #include <linux/drbd_limits.h>
 #include "drbd_int.h"
+#include "drbd_protocol.h"
 #include "drbd_req.h" /* only for _req_mod in tl_release and tl_clear */
 
 #include "drbd_vli.h"

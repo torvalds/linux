@@ -27,6 +27,7 @@
 
 #include <linux/drbd_limits.h>
 #include "drbd_int.h"
+#include "drbd_protocol.h"
 #include "drbd_req.h"
 
 struct after_state_chg_work {
