@@ -54,8 +54,6 @@
 #include "pm.h"
 #include "common-board-devices.h"
 
-#define NAND_BLOCK_SIZE		SZ_128K
-
 /*
  * OMAP3 Beagle revision
  * Run time detection of Beagle revision is done by reading GPIO.
