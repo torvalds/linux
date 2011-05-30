@@ -644,22 +644,23 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 		.noise = -98,
 		.rate = 0,
 	};
+	int index = rtlpci->rx_ring[rx_queue_idx].idx;
 
 	/*RX NORMAL PKT */
 	while (count--) {
 		/*rx descriptor */
 		struct rtl_rx_desc *pdesc = &rtlpci->rx_ring[rx_queue_idx].desc[
-				rtlpci->rx_ring[rx_queue_idx].idx];
+				index];
 		/*rx pkt */
 		struct sk_buff *skb = rtlpci->rx_ring[rx_queue_idx].rx_buf[
-				rtlpci->rx_ring[rx_queue_idx].idx];
+				index];
 
 		own = (u8) rtlpriv->cfg->ops->get_desc((u8 *) pdesc,
 						       false, HW_DESC_OWN);
 
 		if (own) {
 			/*wait data to be filled by hardware */
-			return;
+			break;
 		} else {
 			struct ieee80211_hdr *hdr;
 			__le16 fc;
@@ -770,10 +771,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 
 			skb = new_skb;
 
-			rtlpci->rx_ring[rx_queue_idx].rx_buf[rtlpci->
-							     rx_ring
-							     [rx_queue_idx].
-							     idx] = skb;
+			rtlpci->rx_ring[rx_queue_idx].rx_buf[index] = skb;
 			*((dma_addr_t *) skb->cb) =
 			    pci_map_single(rtlpci->pdev, skb_tail_pointer(skb),
 					   rtlpci->rxbuffersize,
@@ -792,17 +790,15 @@ done:
 					    HW_DESC_RXPKT_LEN,
 					    (u8 *)&rtlpci->rxbuffersize);
 
-		if (rtlpci->rx_ring[rx_queue_idx].idx ==
-		    rtlpci->rxringcount - 1)
+		if (index == rtlpci->rxringcount - 1)
 			rtlpriv->cfg->ops->set_desc((u8 *)pdesc, false,
 						    HW_DESC_RXERO,
 						    (u8 *)&tmp_one);
 
-		rtlpci->rx_ring[rx_queue_idx].idx =
-		    (rtlpci->rx_ring[rx_queue_idx].idx + 1) %
-		    rtlpci->rxringcount;
+		index = (index + 1) % rtlpci->rxringcount;
 	}
 
+	rtlpci->rx_ring[rx_queue_idx].idx = index;
 }
 
 static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
