@@ -2147,7 +2147,7 @@ static inline int iommu_prepare_rmrr_dev(struct dmar_rmrr_unit *rmrr,
 	if (pdev->dev.archdata.iommu == DUMMY_DEVICE_DOMAIN_INFO)
 		return 0;
 	return iommu_prepare_identity_map(pdev, rmrr->base_address,
-		rmrr->end_address + 1);
+		rmrr->end_address);
 }
 
 #ifdef CONFIG_DMAR_FLOPPY_WA
@@ -2161,7 +2161,7 @@ static inline void iommu_prepare_isa(void)
 		return;
 
 	printk(KERN_INFO "IOMMU: Prepare 0-16MiB unity mapping for LPC\n");
-	ret = iommu_prepare_identity_map(pdev, 0, 16*1024*1024);
+	ret = iommu_prepare_identity_map(pdev, 0, 16*1024*1024 - 1);
 
 	if (ret)
 		printk(KERN_ERR "IOMMU: Failed to create 0-16MiB identity map; "
