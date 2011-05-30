@@ -331,6 +331,9 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 	if (c->no_off)
 		mmc->slots[0].no_off = 1;
 
+	if (c->no_off_init)
+		mmc->slots[0].no_regulator_off_init = c->no_off_init;
+
 	if (c->vcc_aux_disable_is_sleep)
 		mmc->slots[0].vcc_aux_disable_is_sleep = 1;
 
