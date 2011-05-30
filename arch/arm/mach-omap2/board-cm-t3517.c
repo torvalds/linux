@@ -177,7 +177,7 @@ static struct usbhs_omap_board_data cm_t3517_ehci_pdata __initdata = {
 	.reset_gpio_port[2]  = -EINVAL,
 };
 
-static int cm_t3517_init_usbh(void)
+static int __init cm_t3517_init_usbh(void)
 {
 	int err;
 
