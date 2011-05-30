@@ -1535,6 +1535,7 @@ struct rtl_works {
 	/* For SW LPS */
 	struct delayed_work ps_work;
 	struct delayed_work ps_rfon_wq;
+	struct tasklet_struct ips_leave_tasklet;
 };
 
 struct rtl_debug {

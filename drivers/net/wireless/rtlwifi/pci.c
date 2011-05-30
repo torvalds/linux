@@ -622,7 +622,7 @@ tx_status_ok:
 	if (((rtlpriv->link_info.num_rx_inperiod +
 		rtlpriv->link_info.num_tx_inperiod) > 8) ||
 		(rtlpriv->link_info.num_rx_inperiod > 2)) {
-		rtl_lps_leave(hw);
+		tasklet_schedule(&rtlpriv->works.ips_leave_tasklet);
 	}
 }
 
@@ -766,7 +766,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 			if (((rtlpriv->link_info.num_rx_inperiod +
 				rtlpriv->link_info.num_tx_inperiod) > 8) ||
 				(rtlpriv->link_info.num_rx_inperiod > 2)) {
-				rtl_lps_leave(hw);
+				tasklet_schedule(&rtlpriv->works.ips_leave_tasklet);
 			}
 
 			skb = new_skb;
@@ -936,6 +936,11 @@ static void _rtl_pci_irq_tasklet(struct ieee80211_hw *hw)
 	_rtl_pci_tx_chk_waitq(hw);
 }
 
+static void _rtl_pci_ips_leave_tasklet(struct ieee80211_hw *hw)
+{
+	rtl_lps_leave(hw);
+}
+
 static void _rtl_pci_prepare_bcn_tasklet(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1033,6 +1038,9 @@ static void _rtl_pci_init_struct(struct ieee80211_hw *hw,
 		     (unsigned long)hw);
 	tasklet_init(&rtlpriv->works.irq_prepare_bcn_tasklet,
 		     (void (*)(unsigned long))_rtl_pci_prepare_bcn_tasklet,
+		     (unsigned long)hw);
+	tasklet_init(&rtlpriv->works.ips_leave_tasklet,
+		     (void (*)(unsigned long))_rtl_pci_ips_leave_tasklet,
 		     (unsigned long)hw);
 }
 
@@ -1503,6 +1511,7 @@ static void rtl_pci_deinit(struct ieee80211_hw *hw)
 
 	synchronize_irq(rtlpci->pdev->irq);
 	tasklet_kill(&rtlpriv->works.irq_tasklet);
+	tasklet_kill(&rtlpriv->works.ips_leave_tasklet);
 
 	flush_workqueue(rtlpriv->works.rtl_wq);
 	destroy_workqueue(rtlpriv->works.rtl_wq);
@@ -1577,6 +1586,7 @@ static void rtl_pci_stop(struct ieee80211_hw *hw)
 	set_hal_stop(rtlhal);
 
 	rtlpriv->cfg->ops->disable_interrupt(hw);
+	tasklet_kill(&rtlpriv->works.ips_leave_tasklet);
 
 	spin_lock_irqsave(&rtlpriv->locks.rf_ps_lock, flags);
 	while (ppsc->rfchange_inprogress) {
