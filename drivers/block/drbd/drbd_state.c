@@ -48,12 +48,12 @@ enum sanitize_state_warnings {
 };
 
 static int w_after_state_ch(struct drbd_work *w, int unused);
-static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
+static void after_state_ch(struct drbd_device *mdev, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags);
-static enum drbd_state_rv is_valid_state(struct drbd_conf *, union drbd_state);
+static enum drbd_state_rv is_valid_state(struct drbd_device *, union drbd_state);
 static enum drbd_state_rv is_valid_soft_transition(union drbd_state, union drbd_state, struct drbd_tconn *);
 static enum drbd_state_rv is_valid_transition(union drbd_state os, union drbd_state ns);
-static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state ns,
+static union drbd_state sanitize_state(struct drbd_device *mdev, union drbd_state ns,
 				       enum sanitize_state_warnings *warn);
 
 static inline bool is_susp(union drbd_state s)
@@ -63,7 +63,7 @@ static inline bool is_susp(union drbd_state s)
 
 bool conn_all_vols_unconf(struct drbd_tconn *tconn)
 {
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	bool rv = true;
 	int vnr;
 
@@ -103,7 +103,7 @@ static enum drbd_role min_role(enum drbd_role role1, enum drbd_role role2)
 enum drbd_role conn_highest_role(struct drbd_tconn *tconn)
 {
 	enum drbd_role role = R_UNKNOWN;
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	int vnr;
 
 	rcu_read_lock();
@@ -117,7 +117,7 @@ enum drbd_role conn_highest_role(struct drbd_tconn *tconn)
 enum drbd_role conn_highest_peer(struct drbd_tconn *tconn)
 {
 	enum drbd_role peer = R_UNKNOWN;
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	int vnr;
 
 	rcu_read_lock();
@@ -131,7 +131,7 @@ enum drbd_role conn_highest_peer(struct drbd_tconn *tconn)
 enum drbd_disk_state conn_highest_disk(struct drbd_tconn *tconn)
 {
 	enum drbd_disk_state ds = D_DISKLESS;
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	int vnr;
 
 	rcu_read_lock();
@@ -145,7 +145,7 @@ enum drbd_disk_state conn_highest_disk(struct drbd_tconn *tconn)
 enum drbd_disk_state conn_lowest_disk(struct drbd_tconn *tconn)
 {
 	enum drbd_disk_state ds = D_MASK;
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	int vnr;
 
 	rcu_read_lock();
@@ -159,7 +159,7 @@ enum drbd_disk_state conn_lowest_disk(struct drbd_tconn *tconn)
 enum drbd_disk_state conn_highest_pdsk(struct drbd_tconn *tconn)
 {
 	enum drbd_disk_state ds = D_DISKLESS;
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	int vnr;
 
 	rcu_read_lock();
@@ -173,7 +173,7 @@ enum drbd_disk_state conn_highest_pdsk(struct drbd_tconn *tconn)
 enum drbd_conns conn_lowest_conn(struct drbd_tconn *tconn)
 {
 	enum drbd_conns conn = C_MASK;
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	int vnr;
 
 	rcu_read_lock();
@@ -186,7 +186,7 @@ enum drbd_conns conn_lowest_conn(struct drbd_tconn *tconn)
 
 static bool no_peer_wf_report_params(struct drbd_tconn *tconn)
 {
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	int vnr;
 	bool rv = true;
 
@@ -208,7 +208,7 @@ static bool no_peer_wf_report_params(struct drbd_tconn *tconn)
  * @os:		old (current) state.
  * @ns:		new (wanted) state.
  */
-static int cl_wide_st_chg(struct drbd_conf *mdev,
+static int cl_wide_st_chg(struct drbd_device *mdev,
 			  union drbd_state os, union drbd_state ns)
 {
 	return (os.conn >= C_CONNECTED && ns.conn >= C_CONNECTED &&
@@ -230,7 +230,7 @@ apply_mask_val(union drbd_state os, union drbd_state mask, union drbd_state val)
 }
 
 enum drbd_state_rv
-drbd_change_state(struct drbd_conf *mdev, enum chg_state_flags f,
+drbd_change_state(struct drbd_device *mdev, enum chg_state_flags f,
 		  union drbd_state mask, union drbd_state val)
 {
 	unsigned long flags;
@@ -251,14 +251,14 @@ drbd_change_state(struct drbd_conf *mdev, enum chg_state_flags f,
  * @mask:	mask of state bits to change.
  * @val:	value of new state bits.
  */
-void drbd_force_state(struct drbd_conf *mdev,
+void drbd_force_state(struct drbd_device *mdev,
 	union drbd_state mask, union drbd_state val)
 {
 	drbd_change_state(mdev, CS_HARD, mask, val);
 }
 
 static enum drbd_state_rv
-_req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
+_req_st_cond(struct drbd_device *mdev, union drbd_state mask,
 	     union drbd_state val)
 {
 	union drbd_state os, ns;
@@ -304,7 +304,7 @@ _req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
  * _drbd_request_state().
  */
 static enum drbd_state_rv
-drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
+drbd_req_state(struct drbd_device *mdev, union drbd_state mask,
 	       union drbd_state val, enum chg_state_flags f)
 {
 	struct completion done;
@@ -385,7 +385,7 @@ abort:
  * flag, or when logging of failed state change requests is not desired.
  */
 enum drbd_state_rv
-_drbd_request_state(struct drbd_conf *mdev, union drbd_state mask,
+_drbd_request_state(struct drbd_device *mdev, union drbd_state mask,
 		    union drbd_state val, enum chg_state_flags f)
 {
 	enum drbd_state_rv rv;
@@ -396,7 +396,7 @@ _drbd_request_state(struct drbd_conf *mdev, union drbd_state mask,
 	return rv;
 }
 
-static void print_st(struct drbd_conf *mdev, char *name, union drbd_state ns)
+static void print_st(struct drbd_device *mdev, char *name, union drbd_state ns)
 {
 	dev_err(DEV, " %s = { cs:%s ro:%s/%s ds:%s/%s %c%c%c%c%c%c }\n",
 	    name,
@@ -414,7 +414,7 @@ static void print_st(struct drbd_conf *mdev, char *name, union drbd_state ns)
 	    );
 }
 
-void print_st_err(struct drbd_conf *mdev, union drbd_state os,
+void print_st_err(struct drbd_device *mdev, union drbd_state os,
 	          union drbd_state ns, enum drbd_state_rv err)
 {
 	if (err == SS_IN_TRANSIENT_STATE)
@@ -455,7 +455,7 @@ static long print_state_change(char *pb, union drbd_state os, union drbd_state n
 	return pbp - pb;
 }
 
-static void drbd_pr_state_change(struct drbd_conf *mdev, union drbd_state os, union drbd_state ns,
+static void drbd_pr_state_change(struct drbd_device *mdev, union drbd_state os, union drbd_state ns,
 				 enum chg_state_flags flags)
 {
 	char pb[300];
@@ -504,7 +504,7 @@ static void conn_pr_state_change(struct drbd_tconn *tconn, union drbd_state os, 
  * @ns:		State to consider.
  */
 static enum drbd_state_rv
-is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
+is_valid_state(struct drbd_device *mdev, union drbd_state ns)
 {
 	/* See drbd_state_sw_errors in drbd_strings.c */
 
@@ -701,7 +701,7 @@ is_valid_transition(union drbd_state os, union drbd_state ns)
 	return rv;
 }
 
-static void print_sanitize_warnings(struct drbd_conf *mdev, enum sanitize_state_warnings warn)
+static void print_sanitize_warnings(struct drbd_device *mdev, enum sanitize_state_warnings warn)
 {
 	static const char *msg_table[] = {
 		[NO_WARNING] = "",
@@ -726,7 +726,7 @@ static void print_sanitize_warnings(struct drbd_conf *mdev, enum sanitize_state_
  * When we loose connection, we have to set the state of the peers disk (pdsk)
  * to D_UNKNOWN. This rule and many more along those lines are in this function.
  */
-static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state ns,
+static union drbd_state sanitize_state(struct drbd_device *mdev, union drbd_state ns,
 				       enum sanitize_state_warnings *warn)
 {
 	enum drbd_fencing_p fp;
@@ -890,14 +890,14 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 	return ns;
 }
 
-void drbd_resume_al(struct drbd_conf *mdev)
+void drbd_resume_al(struct drbd_device *mdev)
 {
 	if (test_and_clear_bit(AL_SUSPENDED, &mdev->flags))
 		dev_info(DEV, "Resumed AL updates\n");
 }
 
 /* helper for __drbd_set_state */
-static void set_ov_position(struct drbd_conf *mdev, enum drbd_conns cs)
+static void set_ov_position(struct drbd_device *mdev, enum drbd_conns cs)
 {
 	if (mdev->tconn->agreed_pro_version < 90)
 		mdev->ov_start_sector = 0;
@@ -933,7 +933,7 @@ static void set_ov_position(struct drbd_conf *mdev, enum drbd_conns cs)
  * Caller needs to hold req_lock, and global_state_lock. Do not call directly.
  */
 enum drbd_state_rv
-__drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
+__drbd_set_state(struct drbd_device *mdev, union drbd_state ns,
 	         enum chg_state_flags flags, struct completion *done)
 {
 	union drbd_state os;
@@ -1145,7 +1145,7 @@ static int w_after_state_ch(struct drbd_work *w, int unused)
 {
 	struct after_state_chg_work *ascw =
 		container_of(w, struct after_state_chg_work, w);
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 
 	after_state_ch(mdev, ascw->os, ascw->ns, ascw->flags);
 	if (ascw->flags & CS_WAIT_COMPLETE) {
@@ -1157,7 +1157,7 @@ static int w_after_state_ch(struct drbd_work *w, int unused)
 	return 0;
 }
 
-static void abw_start_sync(struct drbd_conf *mdev, int rv)
+static void abw_start_sync(struct drbd_device *mdev, int rv)
 {
 	if (rv) {
 		dev_err(DEV, "Writing the bitmap failed not starting resync.\n");
@@ -1175,8 +1175,8 @@ static void abw_start_sync(struct drbd_conf *mdev, int rv)
 	}
 }
 
-int drbd_bitmap_io_from_worker(struct drbd_conf *mdev,
-		int (*io_fn)(struct drbd_conf *),
+int drbd_bitmap_io_from_worker(struct drbd_device *mdev,
+		int (*io_fn)(struct drbd_device *),
 		char *why, enum bm_flag flags)
 {
 	int rv;
@@ -1202,7 +1202,7 @@ int drbd_bitmap_io_from_worker(struct drbd_conf *mdev,
  * @ns:		new state.
  * @flags:	Flags
  */
-static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
+static void after_state_ch(struct drbd_device *mdev, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags)
 {
 	struct sib_info sib;
@@ -1255,7 +1255,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		spin_lock_irq(&tconn->req_lock);
 		if (tconn->susp_fen && conn_lowest_conn(tconn) >= C_CONNECTED) {
 			/* case2: The connection was established again: */
-			struct drbd_conf *odev;
+			struct drbd_device *odev;
 			int vnr;
 
 			rcu_read_lock();
@@ -1529,7 +1529,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 	struct drbd_tconn *tconn = w->tconn;
 	enum drbd_conns oc = acscw->oc;
 	union drbd_state ns_max = acscw->ns_max;
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	int vnr;
 
 	kfree(acscw);
@@ -1583,7 +1583,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 void conn_old_common_state(struct drbd_tconn *tconn, union drbd_state *pcs, enum chg_state_flags *pf)
 {
 	enum chg_state_flags flags = ~0;
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	int vnr, first_vol = 1;
 	union drbd_dev_state os, cs = {
 		{ .role = R_SECONDARY,
@@ -1631,7 +1631,7 @@ conn_is_valid_transition(struct drbd_tconn *tconn, union drbd_state mask, union 
 {
 	enum drbd_state_rv rv = SS_SUCCESS;
 	union drbd_state ns, os;
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	int vnr;
 
 	rcu_read_lock();
@@ -1680,7 +1680,7 @@ conn_set_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state
 		  .disk = D_MASK,
 		  .pdsk = D_MASK
 		} };
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	enum drbd_state_rv rv;
 	int vnr, number_of_volumes = 0;
 

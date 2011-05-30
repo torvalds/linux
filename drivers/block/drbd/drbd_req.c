@@ -31,10 +31,10 @@
 #include "drbd_req.h"
 
 
-static bool drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int size);
+static bool drbd_may_do_local_read(struct drbd_device *mdev, sector_t sector, int size);
 
 /* Update disk stats at start of I/O request */
-static void _drbd_start_io_acct(struct drbd_conf *mdev, struct drbd_request *req)
+static void _drbd_start_io_acct(struct drbd_device *mdev, struct drbd_request *req)
 {
 	const int rw = bio_data_dir(req->master_bio);
 	int cpu;
@@ -49,7 +49,7 @@ static void _drbd_start_io_acct(struct drbd_conf *mdev, struct drbd_request *req
 }
 
 /* Update disk stats when completing request upwards */
-static void _drbd_end_io_acct(struct drbd_conf *mdev, struct drbd_request *req)
+static void _drbd_end_io_acct(struct drbd_device *mdev, struct drbd_request *req)
 {
 	int rw = bio_data_dir(req->master_bio);
 	unsigned long duration = jiffies - req->start_time;
@@ -61,7 +61,7 @@ static void _drbd_end_io_acct(struct drbd_conf *mdev, struct drbd_request *req)
 	part_stat_unlock();
 }
 
-static struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
+static struct drbd_request *drbd_req_new(struct drbd_device *mdev,
 					       struct bio *bio_src)
 {
 	struct drbd_request *req;
@@ -95,7 +95,7 @@ static struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 void drbd_req_destroy(struct kref *kref)
 {
 	struct drbd_request *req = container_of(kref, struct drbd_request, kref);
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *mdev = req->w.mdev;
 	const unsigned s = req->rq_state;
 
 	if ((req->master_bio && !(s & RQ_POSTPONED)) ||
@@ -179,7 +179,7 @@ void start_new_tl_epoch(struct drbd_tconn *tconn)
 	wake_all_senders(tconn);
 }
 
-void complete_master_bio(struct drbd_conf *mdev,
+void complete_master_bio(struct drbd_device *mdev,
 		struct bio_and_error *m)
 {
 	bio_endio(m->bio, m->error);
@@ -190,7 +190,7 @@ void complete_master_bio(struct drbd_conf *mdev,
 static void drbd_remove_request_interval(struct rb_root *root,
 					 struct drbd_request *req)
 {
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *mdev = req->w.mdev;
 	struct drbd_interval *i = &req->i;
 
 	drbd_remove_interval(root, i);
@@ -210,7 +210,7 @@ static
 void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 {
 	const unsigned s = req->rq_state;
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *mdev = req->w.mdev;
 	int rw;
 	int error, ok;
 
@@ -305,7 +305,7 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 
 static int drbd_req_put_completion_ref(struct drbd_request *req, struct bio_and_error *m, int put)
 {
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *mdev = req->w.mdev;
 	D_ASSERT(m || (req->rq_state & RQ_POSTPONED));
 
 	if (!atomic_sub_and_test(put, &req->completion_ref))
@@ -328,7 +328,7 @@ static int drbd_req_put_completion_ref(struct drbd_request *req, struct bio_and_
 static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 		int clear, int set)
 {
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *mdev = req->w.mdev;
 	unsigned s = req->rq_state;
 	int c_put = 0;
 	int k_put = 0;
@@ -424,7 +424,7 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 		kref_sub(&req->kref, k_put, drbd_req_destroy);
 }
 
-static void drbd_report_io_error(struct drbd_conf *mdev, struct drbd_request *req)
+static void drbd_report_io_error(struct drbd_device *mdev, struct drbd_request *req)
 {
         char b[BDEVNAME_SIZE];
 
@@ -453,7 +453,7 @@ static void drbd_report_io_error(struct drbd_conf *mdev, struct drbd_request *re
 int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		struct bio_and_error *m)
 {
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *mdev = req->w.mdev;
 	struct net_conf *nc;
 	int p, rv = 0;
 
@@ -771,7 +771,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
  *   since size may be bigger than BM_BLOCK_SIZE,
  *   we may need to check several bits.
  */
-static bool drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int size)
+static bool drbd_may_do_local_read(struct drbd_device *mdev, sector_t sector, int size)
 {
 	unsigned long sbnr, ebnr;
 	sector_t esector, nr_sectors;
@@ -791,7 +791,7 @@ static bool drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int 
 	return drbd_bm_count_bits(mdev, sbnr, ebnr) == 0;
 }
 
-static bool remote_due_to_read_balancing(struct drbd_conf *mdev, sector_t sector,
+static bool remote_due_to_read_balancing(struct drbd_device *mdev, sector_t sector,
 		enum drbd_read_balancing rbm)
 {
 	struct backing_dev_info *bdi;
@@ -834,7 +834,7 @@ static bool remote_due_to_read_balancing(struct drbd_conf *mdev, sector_t sector
 static void complete_conflicting_writes(struct drbd_request *req)
 {
 	DEFINE_WAIT(wait);
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *mdev = req->w.mdev;
 	struct drbd_interval *i;
 	sector_t sector = req->i.sector;
 	int size = req->i.size;
@@ -858,7 +858,7 @@ static void complete_conflicting_writes(struct drbd_request *req)
 }
 
 /* called within req_lock and rcu_read_lock() */
-static void maybe_pull_ahead(struct drbd_conf *mdev)
+static void maybe_pull_ahead(struct drbd_device *mdev)
 {
 	struct drbd_tconn *tconn = mdev->tconn;
 	struct net_conf *nc;
@@ -914,7 +914,7 @@ static void maybe_pull_ahead(struct drbd_conf *mdev)
  */
 static bool do_remote_read(struct drbd_request *req)
 {
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *mdev = req->w.mdev;
 	enum drbd_read_balancing rbm;
 
 	if (req->private_bio) {
@@ -959,7 +959,7 @@ static bool do_remote_read(struct drbd_request *req)
  * which does NOT include those that we are L_AHEAD for. */
 static int drbd_process_write_request(struct drbd_request *req)
 {
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *mdev = req->w.mdev;
 	int remote, send_oos;
 
 	remote = drbd_should_do_remote(mdev->state);
@@ -996,7 +996,7 @@ static int drbd_process_write_request(struct drbd_request *req)
 static void
 drbd_submit_req_private_bio(struct drbd_request *req)
 {
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *mdev = req->w.mdev;
 	struct bio *bio = req->private_bio;
 	const int rw = bio_rw(bio);
 
@@ -1020,7 +1020,7 @@ drbd_submit_req_private_bio(struct drbd_request *req)
 		bio_endio(bio, -EIO);
 }
 
-static void drbd_queue_write(struct drbd_conf *mdev, struct drbd_request *req)
+static void drbd_queue_write(struct drbd_device *mdev, struct drbd_request *req)
 {
 	spin_lock(&mdev->submit.lock);
 	list_add_tail(&req->tl_requests, &mdev->submit.writes);
@@ -1034,7 +1034,7 @@ static void drbd_queue_write(struct drbd_conf *mdev, struct drbd_request *req)
  * Returns ERR_PTR(-ENOMEM) if we cannot allocate a drbd_request.
  */
 static struct drbd_request *
-drbd_request_prepare(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
+drbd_request_prepare(struct drbd_device *mdev, struct bio *bio, unsigned long start_time)
 {
 	const int rw = bio_data_dir(bio);
 	struct drbd_request *req;
@@ -1071,7 +1071,7 @@ drbd_request_prepare(struct drbd_conf *mdev, struct bio *bio, unsigned long star
 	return req;
 }
 
-static void drbd_send_and_submit(struct drbd_conf *mdev, struct drbd_request *req)
+static void drbd_send_and_submit(struct drbd_device *mdev, struct drbd_request *req)
 {
 	const int rw = bio_rw(req->master_bio);
 	struct bio_and_error m = { NULL, };
@@ -1160,7 +1160,7 @@ out:
 		complete_master_bio(mdev, &m);
 }
 
-void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
+void __drbd_make_request(struct drbd_device *mdev, struct bio *bio, unsigned long start_time)
 {
 	struct drbd_request *req = drbd_request_prepare(mdev, bio, start_time);
 	if (IS_ERR_OR_NULL(req))
@@ -1168,7 +1168,7 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long 
 	drbd_send_and_submit(mdev, req);
 }
 
-static void submit_fast_path(struct drbd_conf *mdev, struct list_head *incoming)
+static void submit_fast_path(struct drbd_device *mdev, struct list_head *incoming)
 {
 	struct drbd_request *req, *tmp;
 	list_for_each_entry_safe(req, tmp, incoming, tl_requests) {
@@ -1188,7 +1188,7 @@ static void submit_fast_path(struct drbd_conf *mdev, struct list_head *incoming)
 	}
 }
 
-static bool prepare_al_transaction_nonblock(struct drbd_conf *mdev,
+static bool prepare_al_transaction_nonblock(struct drbd_device *mdev,
 					    struct list_head *incoming,
 					    struct list_head *pending)
 {
@@ -1215,7 +1215,7 @@ static bool prepare_al_transaction_nonblock(struct drbd_conf *mdev,
 
 void do_submit(struct work_struct *ws)
 {
-	struct drbd_conf *mdev = container_of(ws, struct drbd_conf, submit.worker);
+	struct drbd_device *mdev = container_of(ws, struct drbd_device, submit.worker);
 	LIST_HEAD(incoming);
 	LIST_HEAD(pending);
 	struct drbd_request *req, *tmp;
@@ -1272,7 +1272,7 @@ void do_submit(struct work_struct *ws)
 
 void drbd_make_request(struct request_queue *q, struct bio *bio)
 {
-	struct drbd_conf *mdev = (struct drbd_conf *) q->queuedata;
+	struct drbd_device *mdev = (struct drbd_device *) q->queuedata;
 	unsigned long start_time;
 
 	start_time = jiffies;
@@ -1300,7 +1300,7 @@ void drbd_make_request(struct request_queue *q, struct bio *bio)
  */
 int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct bio_vec *bvec)
 {
-	struct drbd_conf *mdev = (struct drbd_conf *) q->queuedata;
+	struct drbd_device *mdev = (struct drbd_device *) q->queuedata;
 	unsigned int bio_size = bvm->bi_size;
 	int limit = DRBD_MAX_BIO_SIZE;
 	int backing_limit;
@@ -1334,7 +1334,7 @@ static struct drbd_request *find_oldest_request(struct drbd_tconn *tconn)
 
 void request_timer_fn(unsigned long data)
 {
-	struct drbd_conf *mdev = (struct drbd_conf *) data;
+	struct drbd_device *mdev = (struct drbd_device *) data;
 	struct drbd_tconn *tconn = mdev->tconn;
 	struct drbd_request *req; /* oldest request */
 	struct net_conf *nc;

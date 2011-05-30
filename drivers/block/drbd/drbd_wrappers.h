@@ -9,7 +9,7 @@
 extern char *drbd_sec_holder;
 
 /* sets the number of 512 byte sectors of our virtual device */
-static inline void drbd_set_my_capacity(struct drbd_conf *mdev,
+static inline void drbd_set_my_capacity(struct drbd_device *mdev,
 					sector_t size)
 {
 	/* set_capacity(mdev->this_bdev->bd_disk, size); */
@@ -27,7 +27,7 @@ extern void drbd_request_endio(struct bio *bio, int error);
 /*
  * used to submit our private bio
  */
-static inline void drbd_generic_make_request(struct drbd_conf *mdev,
+static inline void drbd_generic_make_request(struct drbd_device *mdev,
 					     int fault_type, struct bio *bio)
 {
 	__release(local);

@@ -68,10 +68,10 @@ rwlock_t global_state_lock;
 void drbd_md_io_complete(struct bio *bio, int error)
 {
 	struct drbd_md_io *md_io;
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 
 	md_io = (struct drbd_md_io *)bio->bi_private;
-	mdev = container_of(md_io, struct drbd_conf, md_io);
+	mdev = container_of(md_io, struct drbd_device, md_io);
 
 	md_io->error = error;
 
@@ -100,7 +100,7 @@ void drbd_md_io_complete(struct bio *bio, int error)
 static void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __releases(local)
 {
 	unsigned long flags = 0;
-	struct drbd_conf *mdev = peer_req->w.mdev;
+	struct drbd_device *mdev = peer_req->w.mdev;
 
 	spin_lock_irqsave(&mdev->tconn->req_lock, flags);
 	mdev->read_cnt += peer_req->i.size >> 9;
@@ -120,7 +120,7 @@ static void drbd_endio_read_sec_final(struct drbd_peer_request *peer_req) __rele
 static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __releases(local)
 {
 	unsigned long flags = 0;
-	struct drbd_conf *mdev = peer_req->w.mdev;
+	struct drbd_device *mdev = peer_req->w.mdev;
 	struct drbd_interval i;
 	int do_wake;
 	u64 block_id;
@@ -171,7 +171,7 @@ static void drbd_endio_write_sec_final(struct drbd_peer_request *peer_req) __rel
 void drbd_peer_request_endio(struct bio *bio, int error)
 {
 	struct drbd_peer_request *peer_req = bio->bi_private;
-	struct drbd_conf *mdev = peer_req->w.mdev;
+	struct drbd_device *mdev = peer_req->w.mdev;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 	int is_write = bio_data_dir(bio) == WRITE;
 
@@ -208,7 +208,7 @@ void drbd_request_endio(struct bio *bio, int error)
 {
 	unsigned long flags;
 	struct drbd_request *req = bio->bi_private;
-	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_device *mdev = req->w.mdev;
 	struct bio_and_error m;
 	enum drbd_req_event what;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
@@ -282,7 +282,7 @@ void drbd_request_endio(struct bio *bio, int error)
 		complete_master_bio(mdev, &m);
 }
 
-void drbd_csum_ee(struct drbd_conf *mdev, struct crypto_hash *tfm,
+void drbd_csum_ee(struct drbd_device *mdev, struct crypto_hash *tfm,
 		  struct drbd_peer_request *peer_req, void *digest)
 {
 	struct hash_desc desc;
@@ -310,7 +310,7 @@ void drbd_csum_ee(struct drbd_conf *mdev, struct crypto_hash *tfm,
 	crypto_hash_final(&desc, digest);
 }
 
-void drbd_csum_bio(struct drbd_conf *mdev, struct crypto_hash *tfm, struct bio *bio, void *digest)
+void drbd_csum_bio(struct drbd_device *mdev, struct crypto_hash *tfm, struct bio *bio, void *digest)
 {
 	struct hash_desc desc;
 	struct scatterlist sg;
@@ -334,7 +334,7 @@ void drbd_csum_bio(struct drbd_conf *mdev, struct crypto_hash *tfm, struct bio *
 static int w_e_send_csum(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	int digest_size;
 	void *digest;
 	int err = 0;
@@ -379,7 +379,7 @@ out:
 
 #define GFP_TRY	(__GFP_HIGHMEM | __GFP_NOWARN)
 
-static int read_for_csum(struct drbd_conf *mdev, sector_t sector, int size)
+static int read_for_csum(struct drbd_device *mdev, sector_t sector, int size)
 {
 	struct drbd_peer_request *peer_req;
 
@@ -421,7 +421,7 @@ defer:
 
 int w_resync_timer(struct drbd_work *w, int cancel)
 {
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	switch (mdev->state.conn) {
 	case C_VERIFY_S:
 		w_make_ov_request(w, cancel);
@@ -436,7 +436,7 @@ int w_resync_timer(struct drbd_work *w, int cancel)
 
 void resync_timer_fn(unsigned long data)
 {
-	struct drbd_conf *mdev = (struct drbd_conf *) data;
+	struct drbd_device *mdev = (struct drbd_device *) data;
 
 	if (list_empty(&mdev->resync_work.list))
 		drbd_queue_work(&mdev->tconn->sender_work, &mdev->resync_work);
@@ -486,7 +486,7 @@ struct fifo_buffer *fifo_alloc(int fifo_size)
 	return fb;
 }
 
-static int drbd_rs_controller(struct drbd_conf *mdev)
+static int drbd_rs_controller(struct drbd_device *mdev)
 {
 	struct disk_conf *dc;
 	unsigned int sect_in;  /* Number of sectors that came in since the last turn */
@@ -542,7 +542,7 @@ static int drbd_rs_controller(struct drbd_conf *mdev)
 	return req_sect;
 }
 
-static int drbd_rs_number_requests(struct drbd_conf *mdev)
+static int drbd_rs_number_requests(struct drbd_device *mdev)
 {
 	int number;
 
@@ -563,7 +563,7 @@ static int drbd_rs_number_requests(struct drbd_conf *mdev)
 
 int w_make_resync_request(struct drbd_work *w, int cancel)
 {
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	unsigned long bit;
 	sector_t sector;
 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
@@ -726,7 +726,7 @@ next_sector:
 
 static int w_make_ov_request(struct drbd_work *w, int cancel)
 {
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	int number, i, size;
 	sector_t sector;
 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
@@ -780,7 +780,7 @@ static int w_make_ov_request(struct drbd_work *w, int cancel)
 
 int w_ov_finished(struct drbd_work *w, int cancel)
 {
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	kfree(w);
 	ov_out_of_sync_print(mdev);
 	drbd_resync_finished(mdev);
@@ -790,7 +790,7 @@ int w_ov_finished(struct drbd_work *w, int cancel)
 
 static int w_resync_finished(struct drbd_work *w, int cancel)
 {
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	kfree(w);
 
 	drbd_resync_finished(mdev);
@@ -798,7 +798,7 @@ static int w_resync_finished(struct drbd_work *w, int cancel)
 	return 0;
 }
 
-static void ping_peer(struct drbd_conf *mdev)
+static void ping_peer(struct drbd_device *mdev)
 {
 	struct drbd_tconn *tconn = mdev->tconn;
 
@@ -808,7 +808,7 @@ static void ping_peer(struct drbd_conf *mdev)
 		   test_bit(GOT_PING_ACK, &tconn->flags) || mdev->state.conn < C_CONNECTED);
 }
 
-int drbd_resync_finished(struct drbd_conf *mdev)
+int drbd_resync_finished(struct drbd_device *mdev)
 {
 	unsigned long db, dt, dbdt;
 	unsigned long n_oos;
@@ -963,7 +963,7 @@ out:
 }
 
 /* helper */
-static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_peer_request *peer_req)
+static void move_to_net_ee_or_free(struct drbd_device *mdev, struct drbd_peer_request *peer_req)
 {
 	if (drbd_peer_req_has_active_page(peer_req)) {
 		/* This might happen if sendpage() has not finished */
@@ -987,7 +987,7 @@ static void move_to_net_ee_or_free(struct drbd_conf *mdev, struct drbd_peer_requ
 int w_e_end_data_req(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	int err;
 
 	if (unlikely(cancel)) {
@@ -1024,7 +1024,7 @@ int w_e_end_data_req(struct drbd_work *w, int cancel)
 int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	int err;
 
 	if (unlikely(cancel)) {
@@ -1073,7 +1073,7 @@ int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
 int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	struct digest_info *di;
 	int digest_size;
 	void *digest = NULL;
@@ -1136,7 +1136,7 @@ int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 int w_e_end_ov_req(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	sector_t sector = peer_req->i.sector;
 	unsigned int size = peer_req->i.size;
 	int digest_size;
@@ -1178,7 +1178,7 @@ out:
 	return err;
 }
 
-void drbd_ov_out_of_sync_found(struct drbd_conf *mdev, sector_t sector, int size)
+void drbd_ov_out_of_sync_found(struct drbd_device *mdev, sector_t sector, int size)
 {
 	if (mdev->ov_last_oos_start + mdev->ov_last_oos_size == sector) {
 		mdev->ov_last_oos_size += size>>9;
@@ -1192,7 +1192,7 @@ void drbd_ov_out_of_sync_found(struct drbd_conf *mdev, sector_t sector, int size
 int w_e_end_ov_reply(struct drbd_work *w, int cancel)
 {
 	struct drbd_peer_request *peer_req = container_of(w, struct drbd_peer_request, w);
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	struct digest_info *di;
 	void *digest;
 	sector_t sector = peer_req->i.sector;
@@ -1292,7 +1292,7 @@ static int drbd_send_barrier(struct drbd_tconn *tconn)
 
 int w_send_write_hint(struct drbd_work *w, int cancel)
 {
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	struct drbd_socket *sock;
 
 	if (cancel)
@@ -1327,7 +1327,7 @@ static void maybe_send_barrier(struct drbd_tconn *tconn, unsigned int epoch)
 int w_send_out_of_sync(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	struct drbd_tconn *tconn = mdev->tconn;
 	int err;
 
@@ -1357,7 +1357,7 @@ int w_send_out_of_sync(struct drbd_work *w, int cancel)
 int w_send_dblock(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	struct drbd_tconn *tconn = mdev->tconn;
 	int err;
 
@@ -1385,7 +1385,7 @@ int w_send_dblock(struct drbd_work *w, int cancel)
 int w_send_read_req(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 	struct drbd_tconn *tconn = mdev->tconn;
 	int err;
 
@@ -1409,7 +1409,7 @@ int w_send_read_req(struct drbd_work *w, int cancel)
 int w_restart_disk_io(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 
 	if (bio_data_dir(req->master_bio) == WRITE && req->rq_state & RQ_IN_ACT_LOG)
 		drbd_al_begin_io(mdev, &req->i, false);
@@ -1421,9 +1421,9 @@ int w_restart_disk_io(struct drbd_work *w, int cancel)
 	return 0;
 }
 
-static int _drbd_may_sync_now(struct drbd_conf *mdev)
+static int _drbd_may_sync_now(struct drbd_device *mdev)
 {
-	struct drbd_conf *odev = mdev;
+	struct drbd_device *odev = mdev;
 	int resync_after;
 
 	while (1) {
@@ -1451,9 +1451,9 @@ static int _drbd_may_sync_now(struct drbd_conf *mdev)
  *
  * Called from process context only (admin command and after_state_ch).
  */
-static int _drbd_pause_after(struct drbd_conf *mdev)
+static int _drbd_pause_after(struct drbd_device *mdev)
 {
-	struct drbd_conf *odev;
+	struct drbd_device *odev;
 	int i, rv = 0;
 
 	rcu_read_lock();
@@ -1475,9 +1475,9 @@ static int _drbd_pause_after(struct drbd_conf *mdev)
  *
  * Called from process context only (admin command and worker).
  */
-static int _drbd_resume_next(struct drbd_conf *mdev)
+static int _drbd_resume_next(struct drbd_device *mdev)
 {
-	struct drbd_conf *odev;
+	struct drbd_device *odev;
 	int i, rv = 0;
 
 	rcu_read_lock();
@@ -1495,14 +1495,14 @@ static int _drbd_resume_next(struct drbd_conf *mdev)
 	return rv;
 }
 
-void resume_next_sg(struct drbd_conf *mdev)
+void resume_next_sg(struct drbd_device *mdev)
 {
 	write_lock_irq(&global_state_lock);
 	_drbd_resume_next(mdev);
 	write_unlock_irq(&global_state_lock);
 }
 
-void suspend_other_sg(struct drbd_conf *mdev)
+void suspend_other_sg(struct drbd_device *mdev)
 {
 	write_lock_irq(&global_state_lock);
 	_drbd_pause_after(mdev);
@@ -1510,9 +1510,9 @@ void suspend_other_sg(struct drbd_conf *mdev)
 }
 
 /* caller must hold global_state_lock */
-enum drbd_ret_code drbd_resync_after_valid(struct drbd_conf *mdev, int o_minor)
+enum drbd_ret_code drbd_resync_after_valid(struct drbd_device *mdev, int o_minor)
 {
-	struct drbd_conf *odev;
+	struct drbd_device *odev;
 	int resync_after;
 
 	if (o_minor == -1)
@@ -1548,7 +1548,7 @@ enum drbd_ret_code drbd_resync_after_valid(struct drbd_conf *mdev, int o_minor)
 }
 
 /* caller must hold global_state_lock */
-void drbd_resync_after_changed(struct drbd_conf *mdev)
+void drbd_resync_after_changed(struct drbd_device *mdev)
 {
 	int changes;
 
@@ -1558,7 +1558,7 @@ void drbd_resync_after_changed(struct drbd_conf *mdev)
 	} while (changes);
 }
 
-void drbd_rs_controller_reset(struct drbd_conf *mdev)
+void drbd_rs_controller_reset(struct drbd_device *mdev)
 {
 	struct fifo_buffer *plan;
 
@@ -1579,14 +1579,14 @@ void drbd_rs_controller_reset(struct drbd_conf *mdev)
 
 void start_resync_timer_fn(unsigned long data)
 {
-	struct drbd_conf *mdev = (struct drbd_conf *) data;
+	struct drbd_device *mdev = (struct drbd_device *) data;
 
 	drbd_queue_work(&mdev->tconn->sender_work, &mdev->start_resync_work);
 }
 
 int w_start_resync(struct drbd_work *w, int cancel)
 {
-	struct drbd_conf *mdev = w->mdev;
+	struct drbd_device *mdev = w->mdev;
 
 	if (atomic_read(&mdev->unacked_cnt) || atomic_read(&mdev->rs_pending_cnt)) {
 		dev_warn(DEV, "w_start_resync later...\n");
@@ -1608,7 +1608,7 @@ int w_start_resync(struct drbd_work *w, int cancel)
  * This function might bring you directly into one of the
  * C_PAUSED_SYNC_* states.
  */
-void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
+void drbd_start_resync(struct drbd_device *mdev, enum drbd_conns side)
 {
 	union drbd_state ns;
 	int r;
@@ -1886,7 +1886,7 @@ int drbd_worker(struct drbd_thread *thi)
 {
 	struct drbd_tconn *tconn = thi->tconn;
 	struct drbd_work *w = NULL;
-	struct drbd_conf *mdev;
+	struct drbd_device *mdev;
 	LIST_HEAD(work_list);
 	int vnr;
 

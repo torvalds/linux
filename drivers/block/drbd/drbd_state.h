@@ -1,7 +1,7 @@
 #ifndef DRBD_STATE_H
 #define DRBD_STATE_H
 
-struct drbd_conf;
+struct drbd_device;
 struct drbd_tconn;
 
 /**
@@ -107,20 +107,20 @@ union drbd_dev_state {
 	unsigned int i;
 };
 
-extern enum drbd_state_rv drbd_change_state(struct drbd_conf *mdev,
+extern enum drbd_state_rv drbd_change_state(struct drbd_device *mdev,
 					    enum chg_state_flags f,
 					    union drbd_state mask,
 					    union drbd_state val);
-extern void drbd_force_state(struct drbd_conf *, union drbd_state,
+extern void drbd_force_state(struct drbd_device *, union drbd_state,
 			union drbd_state);
-extern enum drbd_state_rv _drbd_request_state(struct drbd_conf *,
+extern enum drbd_state_rv _drbd_request_state(struct drbd_device *,
 					      union drbd_state,
 					      union drbd_state,
 					      enum chg_state_flags);
-extern enum drbd_state_rv __drbd_set_state(struct drbd_conf *, union drbd_state,
+extern enum drbd_state_rv __drbd_set_state(struct drbd_device *, union drbd_state,
 					   enum chg_state_flags,
 					   struct completion *done);
-extern void print_st_err(struct drbd_conf *, union drbd_state,
+extern void print_st_err(struct drbd_device *, union drbd_state,
 			union drbd_state, int);
 
 enum drbd_state_rv
@@ -131,7 +131,7 @@ enum drbd_state_rv
 conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
 		   enum chg_state_flags flags);
 
-extern void drbd_resume_al(struct drbd_conf *mdev);
+extern void drbd_resume_al(struct drbd_device *mdev);
 extern bool conn_all_vols_unconf(struct drbd_tconn *tconn);
 
 /**
@@ -144,7 +144,7 @@ extern bool conn_all_vols_unconf(struct drbd_tconn *tconn);
  * quite verbose in case the state change is not possible, and all those
  * state changes are globally serialized.
  */
-static inline int drbd_request_state(struct drbd_conf *mdev,
+static inline int drbd_request_state(struct drbd_device *mdev,
 				     union drbd_state mask,
 				     union drbd_state val)
 {
