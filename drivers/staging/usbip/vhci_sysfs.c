@@ -239,6 +239,6 @@ static struct attribute *dev_attrs[] = {
 	NULL,
 };
 
-struct attribute_group dev_attr_group = {
+const struct attribute_group dev_attr_group = {
 	.attrs = dev_attrs,
 };
