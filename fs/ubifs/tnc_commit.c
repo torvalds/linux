@@ -87,7 +87,7 @@ static int make_idx_node(struct ubifs_info *c, struct ubifs_idx_node *idx,
 	atomic_long_dec(&c->dirty_zn_cnt);
 
 	ubifs_assert(ubifs_zn_dirty(znode));
-	ubifs_assert(test_bit(COW_ZNODE, &znode->flags));
+	ubifs_assert(ubifs_zn_cow(znode));
 
 	__clear_bit(DIRTY_ZNODE, &znode->flags);
 	__clear_bit(COW_ZNODE, &znode->flags);
@@ -639,7 +639,7 @@ static int get_znodes_to_commit(struct ubifs_info *c)
 	}
 	cnt += 1;
 	while (1) {
-		ubifs_assert(!test_bit(COW_ZNODE, &znode->flags));
+		ubifs_assert(!ubifs_zn_cow(znode));
 		__set_bit(COW_ZNODE, &znode->flags);
 		znode->alt = 0;
 		cnext = find_next_dirty(znode);
@@ -888,7 +888,7 @@ static int write_index(struct ubifs_info *c)
 		cnext = znode->cnext;
 
 		ubifs_assert(ubifs_zn_dirty(znode));
-		ubifs_assert(test_bit(COW_ZNODE, &znode->flags));
+		ubifs_assert(ubifs_zn_cow(znode));
 
 		/*
 		 * It is important that other threads should see %DIRTY_ZNODE
@@ -983,7 +983,7 @@ static void free_obsolete_znodes(struct ubifs_info *c)
 	do {
 		znode = cnext;
 		cnext = znode->cnext;
-		if (test_bit(OBSOLETE_ZNODE, &znode->flags))
+		if (ubifs_zn_obsolete(znode))
 			kfree(znode);
 		else {
 			znode->cnext = NULL;

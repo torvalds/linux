@@ -39,6 +39,29 @@ static inline int ubifs_zn_dirty(const struct ubifs_znode *znode)
 }
 
 /**
+ * ubifs_zn_obsolete - check if znode is obsolete.
+ * @znode: znode to check
+ *
+ * This helper function returns %1 if @znode is obsolete and %0 otherwise.
+ */
+static inline int ubifs_zn_obsolete(const struct ubifs_znode *znode)
+{
+	return !!test_bit(OBSOLETE_ZNODE, &znode->flags);
+}
+
+/**
+ * ubifs_zn_cow - check if znode has to be copied on write.
+ * @znode: znode to check
+ *
+ * This helper function returns %1 if @znode is has COW flag set and %0
+ * otherwise.
+ */
+static inline int ubifs_zn_cow(const struct ubifs_znode *znode)
+{
+	return !!test_bit(COW_ZNODE, &znode->flags);
+}
+
+/**
  * ubifs_wake_up_bgt - wake up background thread.
  * @c: UBIFS file-system description object
  */

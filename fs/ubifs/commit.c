@@ -78,7 +78,7 @@ static int nothing_to_commit(struct ubifs_info *c)
 	 * If the root TNC node is dirty, we definitely have something to
 	 * commit.
 	 */
-	if (c->zroot.znode && test_bit(DIRTY_ZNODE, &c->zroot.znode->flags))
+	if (c->zroot.znode && ubifs_zn_dirty(c->zroot.znode))
 		return 0;
 
 	/*

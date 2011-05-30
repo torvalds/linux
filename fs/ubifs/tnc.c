@@ -223,7 +223,7 @@ static struct ubifs_znode *copy_znode(struct ubifs_info *c,
 	__set_bit(DIRTY_ZNODE, &zn->flags);
 	__clear_bit(COW_ZNODE, &zn->flags);
 
-	ubifs_assert(!test_bit(OBSOLETE_ZNODE, &znode->flags));
+	ubifs_assert(!ubifs_zn_obsolete(znode));
 	__set_bit(OBSOLETE_ZNODE, &znode->flags);
 
 	if (znode->level != 0) {
@@ -271,7 +271,7 @@ static struct ubifs_znode *dirty_cow_znode(struct ubifs_info *c,
 	struct ubifs_znode *zn;
 	int err;
 
-	if (!test_bit(COW_ZNODE, &znode->flags)) {
+	if (!ubifs_zn_cow(znode)) {
 		/* znode is not being committed */
 		if (!test_and_set_bit(DIRTY_ZNODE, &znode->flags)) {
 			atomic_long_inc(&c->dirty_zn_cnt);
@@ -2423,7 +2423,7 @@ static int tnc_delete(struct ubifs_info *c, struct ubifs_znode *znode, int n)
 	 */
 
 	do {
-		ubifs_assert(!test_bit(OBSOLETE_ZNODE, &znode->flags));
+		ubifs_assert(!ubifs_zn_obsolete(znode));
 		ubifs_assert(ubifs_zn_dirty(znode));
 
 		zp = znode->parent;
@@ -2479,9 +2479,8 @@ static int tnc_delete(struct ubifs_info *c, struct ubifs_znode *znode, int n)
 			c->zroot.offs = zbr->offs;
 			c->zroot.len = zbr->len;
 			c->zroot.znode = znode;
-			ubifs_assert(!test_bit(OBSOLETE_ZNODE,
-				     &zp->flags));
-			ubifs_assert(test_bit(DIRTY_ZNODE, &zp->flags));
+			ubifs_assert(!ubifs_zn_obsolete(zp));
+			ubifs_assert(ubifs_zn_dirty(zp));
 			atomic_long_dec(&c->dirty_zn_cnt);
 
 			if (zp->cnext) {
@@ -2865,7 +2864,7 @@ static void tnc_destroy_cnext(struct ubifs_info *c)
 		struct ubifs_znode *znode = cnext;
 
 		cnext = cnext->cnext;
-		if (test_bit(OBSOLETE_ZNODE, &znode->flags))
+		if (ubifs_zn_obsolete(znode))
 			kfree(znode);
 	} while (cnext && cnext != c->cnext);
 }
