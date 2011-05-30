@@ -230,14 +230,14 @@ enum {
  * LPT cnode flag bits.
  *
  * DIRTY_CNODE: cnode is dirty
- * COW_CNODE: cnode is being committed and must be copied before writing
  * OBSOLETE_CNODE: cnode is being committed and has been copied (or deleted),
- * so it can (and must) be freed when the commit is finished
+ *                 so it can (and must) be freed when the commit is finished
+ * COW_CNODE: cnode is being committed and must be copied before writing
  */
 enum {
 	DIRTY_CNODE    = 0,
-	COW_CNODE      = 1,
-	OBSOLETE_CNODE = 2,
+	OBSOLETE_CNODE = 1,
+	COW_CNODE      = 2,
 };
 
 /*

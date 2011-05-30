@@ -504,7 +504,7 @@ static int is_lprops_dirty(struct ubifs_info *c, struct ubifs_lprops *lprops)
 	pnode = (struct ubifs_pnode *)container_of(lprops - pos,
 						   struct ubifs_pnode,
 						   lprops[0]);
-	return !test_bit(COW_ZNODE, &pnode->flags) &&
+	return !test_bit(COW_CNODE, &pnode->flags) &&
 	       test_bit(DIRTY_CNODE, &pnode->flags);
 }
 

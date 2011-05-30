@@ -116,8 +116,8 @@ static int get_cnodes_to_commit(struct ubifs_info *c)
 		return 0;
 	cnt += 1;
 	while (1) {
-		ubifs_assert(!test_bit(COW_ZNODE, &cnode->flags));
-		__set_bit(COW_ZNODE, &cnode->flags);
+		ubifs_assert(!test_bit(COW_CNODE, &cnode->flags));
+		__set_bit(COW_CNODE, &cnode->flags);
 		cnext = next_dirty_cnode(cnode);
 		if (!cnext) {
 			cnode->cnext = c->lpt_cnext;
@@ -465,7 +465,7 @@ static int write_cnodes(struct ubifs_info *c)
 		 */
 		clear_bit(DIRTY_CNODE, &cnode->flags);
 		smp_mb__before_clear_bit();
-		clear_bit(COW_ZNODE, &cnode->flags);
+		clear_bit(COW_CNODE, &cnode->flags);
 		smp_mb__after_clear_bit();
 		offs += len;
 		dbg_chk_lpt_sz(c, 1, len);
