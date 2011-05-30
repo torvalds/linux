@@ -546,8 +546,6 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 	if (rfpwr_state == ppsc->rfpwr_state)
 		return false;
 
-	ppsc->set_rfpowerstate_inprogress = true;
-
 	switch (rfpwr_state) {
 	case ERFON:{
 			if ((ppsc->rfpwr_state == ERFOFF) &&
@@ -658,8 +656,6 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 
 	if (bresult)
 		ppsc->rfpwr_state = rfpwr_state;
-
-	ppsc->set_rfpowerstate_inprogress = false;
 
 	return bresult;
 }
