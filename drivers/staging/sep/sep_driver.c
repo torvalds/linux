@@ -201,7 +201,7 @@ static int sep_singleton_release(struct inode *inode, struct file *filp)
 }
 
 /**
- *	sep_request_daemonopen - request daemon open method
+ *	sep_request_daemon_open - request daemon open method
  *	@inode: inode of SEP device
  *	@filp: file handle to SEP device
  *
