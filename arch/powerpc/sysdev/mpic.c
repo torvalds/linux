@@ -848,7 +848,7 @@ static void mpic_unmask_tm(struct irq_data *d)
 	struct mpic *mpic = mpic_from_irq_data(d);
 	unsigned int src = virq_to_hw(d->irq) - mpic->timer_vecs[0];
 
-	DBG("%s: enable_tm: %d (tm %d)\n", mpic->name, irq, src);
+	DBG("%s: enable_tm: %d (tm %d)\n", mpic->name, d->irq, src);
 	mpic_tm_write(src, mpic_tm_read(src) & ~MPIC_VECPRI_MASK);
 	mpic_tm_read(src);
 }
