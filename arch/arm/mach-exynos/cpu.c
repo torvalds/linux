@@ -15,6 +15,7 @@
 #include <asm/mach/irq.h>
 
 #include <asm/proc-fns.h>
+#include <asm/exception.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
 
@@ -32,8 +33,6 @@
 
 #include <mach/regs-irq.h>
 #include <mach/regs-pmu.h>
-
-unsigned int gic_bank_offset __read_mostly;
 
 extern int combiner_init(unsigned int combiner_nr, void __iomem *base,
 			 unsigned int irq_start);
@@ -210,6 +209,7 @@ void __init exynos4_init_clocks(int xtal)
 void __init exynos4_init_irq(void)
 {
 	int irq;
+	unsigned int bank_offset;
 
 	gic_bank_offset = soc_is_exynos4412() ? 0x4000 : 0x8000;
 
