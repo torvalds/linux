@@ -98,7 +98,7 @@ extern char usermode_helper[];
 #define UUID_NEW_BM_OFFSET ((u64)0x0001000000000000ULL)
 
 struct drbd_device;
-struct drbd_tconn;
+struct drbd_connection;
 
 
 /* to shorten dev_warn(DEV, "msg"); and relatives statements */
@@ -167,7 +167,7 @@ drbd_insert_fault(struct drbd_device *device, unsigned int type) {
 
 extern struct ratelimit_state drbd_ratelimit_state;
 extern struct idr minors; /* RCU, updates: genl_lock() */
-extern struct list_head drbd_tconns; /* RCU, updates: genl_lock() */
+extern struct list_head drbd_connections; /* RCU, updates: genl_lock() */
 
 extern const char *cmdname(enum drbd_packet cmd);
 
@@ -211,7 +211,7 @@ static inline void bm_xfer_ctx_bit_to_word_offset(struct bm_xfer_ctx *c)
 #endif
 }
 
-extern unsigned int drbd_header_size(struct drbd_tconn *tconn);
+extern unsigned int drbd_header_size(struct drbd_connection *connection);
 
 /**********************************************************************/
 enum drbd_thread_state {
@@ -227,7 +227,7 @@ struct drbd_thread {
 	struct completion stop;
 	enum drbd_thread_state t_state;
 	int (*function) (struct drbd_thread *);
-	struct drbd_tconn *tconn;
+	struct drbd_connection *connection;
 	int reset_cpu_mask;
 	char name[9];
 };
@@ -247,7 +247,7 @@ struct drbd_work {
 	int (*cb)(struct drbd_work *, int cancel);
 	union {
 		struct drbd_device *device;
-		struct drbd_tconn *tconn;
+		struct drbd_connection *connection;
 	};
 };
 
@@ -289,7 +289,7 @@ struct drbd_request {
 };
 
 struct drbd_epoch {
-	struct drbd_tconn *tconn;
+	struct drbd_connection *connection;
 	struct list_head list;
 	unsigned int barrier_nr;
 	atomic_t epoch_size; /* increased on every request added. */
@@ -483,7 +483,7 @@ struct drbd_backing_dev {
 	struct block_device *backing_bdev;
 	struct block_device *md_bdev;
 	struct drbd_md md;
-	struct disk_conf *disk_conf; /* RCU, for updates: device->tconn->conf_update */
+	struct disk_conf *disk_conf; /* RCU, for updates: device->connection->conf_update */
 	sector_t known_size; /* last known size of that backing device */
 };
 
@@ -514,7 +514,7 @@ struct fifo_buffer {
 };
 extern struct fifo_buffer *fifo_alloc(int fifo_size);
 
-/* flag bits per tconn */
+/* flag bits per connection */
 enum {
 	NET_CONGESTED,		/* The data socket is congested */
 	RESOLVE_CONFLICTS,	/* Set on one node, cleared on the peer! */
@@ -536,11 +536,11 @@ enum {
 	DISCONNECT_SENT,
 };
 
-struct drbd_tconn {			/* is a resource from the config file */
+struct drbd_connection {			/* is a resource from the config file */
 	char *name;			/* Resource name */
-	struct list_head all_tconn;	/* linked on global drbd_tconns */
+	struct list_head connections;	/* linked on global drbd_connections */
 	struct kref kref;
-	struct idr volumes;		/* <tconn, vnr> to device mapping */
+	struct idr volumes;		/* <connection, vnr> to device mapping */
 	enum drbd_conns cstate;		/* Only C_STANDALONE to C_WF_REPORT_PARAMS */
 	unsigned susp:1;		/* IO suspended by user */
 	unsigned susp_nod:1;		/* IO suspended because no data */
@@ -570,7 +570,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 	struct list_head transfer_log;	/* all requests not yet fully processed */
 
 	struct crypto_hash *cram_hmac_tfm;
-	struct crypto_hash *integrity_tfm;  /* checksums we compute, updates protected by tconn->data->mutex */
+	struct crypto_hash *integrity_tfm;  /* checksums we compute, updates protected by connection->data->mutex */
 	struct crypto_hash *peer_integrity_tfm;  /* checksums we verify, only accessed from receiver thread  */
 	struct crypto_hash *csums_tfm;
 	struct crypto_hash *verify_tfm;
@@ -618,7 +618,7 @@ struct submit_worker {
 };
 
 struct drbd_device {
-	struct drbd_tconn *tconn;
+	struct drbd_connection *connection;
 	int vnr;			/* volume number within the connection */
 	struct kref kref;
 
@@ -744,7 +744,7 @@ struct drbd_device {
 	struct bm_io_work bm_io_work;
 	u64 ed_uuid; /* UUID of the exposed data */
 	struct mutex own_state_mutex;
-	struct mutex *state_mutex; /* either own_state_mutex or device->tconn->cstate_mutex */
+	struct mutex *state_mutex; /* either own_state_mutex or device->connection->cstate_mutex */
 	char congestion_reason;  /* Why we where congested... */
 	atomic_t rs_sect_in; /* for incoming resync data rate, SyncTarget */
 	atomic_t rs_sect_ev; /* for submitted resync data rate, both */
@@ -752,7 +752,7 @@ struct drbd_device {
 	int rs_last_events;  /* counter of read or write "events" (unit sectors)
 			      * on the lower level device when we last looked. */
 	int c_sync_rate; /* current resync rate after syncer throttle magic */
-	struct fifo_buffer *rs_plan_s; /* correction values of resync planer (RCU, tconn->conn_update) */
+	struct fifo_buffer *rs_plan_s; /* correction values of resync planer (RCU, connection->conn_update) */
 	int rs_in_flight; /* resync sectors in flight (to proxy, in proxy and from proxy) */
 	atomic_t ap_in_flight; /* App sectors in flight (waiting for ack) */
 	unsigned int peer_max_bio_size;
@@ -773,9 +773,9 @@ static inline unsigned int device_to_minor(struct drbd_device *device)
 	return device->minor;
 }
 
-static inline struct drbd_device *vnr_to_device(struct drbd_tconn *tconn, int vnr)
+static inline struct drbd_device *vnr_to_device(struct drbd_connection *connection, int vnr)
 {
-	return (struct drbd_device *)idr_find(&tconn->volumes, vnr);
+	return (struct drbd_device *)idr_find(&connection->volumes, vnr);
 }
 
 /*
@@ -792,25 +792,25 @@ enum dds_flags {
 extern void drbd_init_set_defaults(struct drbd_device *device);
 extern int  drbd_thread_start(struct drbd_thread *thi);
 extern void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait);
-extern char *drbd_task_to_thread_name(struct drbd_tconn *tconn, struct task_struct *task);
+extern char *drbd_task_to_thread_name(struct drbd_connection *connection, struct task_struct *task);
 #ifdef CONFIG_SMP
 extern void drbd_thread_current_set_cpu(struct drbd_thread *thi);
-extern void drbd_calc_cpu_mask(struct drbd_tconn *tconn);
+extern void drbd_calc_cpu_mask(struct drbd_connection *connection);
 #else
 #define drbd_thread_current_set_cpu(A) ({})
 #define drbd_calc_cpu_mask(A) ({})
 #endif
-extern void tl_release(struct drbd_tconn *, unsigned int barrier_nr,
+extern void tl_release(struct drbd_connection *, unsigned int barrier_nr,
 		       unsigned int set_size);
-extern void tl_clear(struct drbd_tconn *);
-extern void drbd_free_sock(struct drbd_tconn *tconn);
-extern int drbd_send(struct drbd_tconn *tconn, struct socket *sock,
+extern void tl_clear(struct drbd_connection *);
+extern void drbd_free_sock(struct drbd_connection *connection);
+extern int drbd_send(struct drbd_connection *connection, struct socket *sock,
 		     void *buf, size_t size, unsigned msg_flags);
-extern int drbd_send_all(struct drbd_tconn *, struct socket *, void *, size_t,
+extern int drbd_send_all(struct drbd_connection *, struct socket *, void *, size_t,
 			 unsigned);
 
-extern int __drbd_send_protocol(struct drbd_tconn *tconn, enum drbd_packet cmd);
-extern int drbd_send_protocol(struct drbd_tconn *tconn);
+extern int __drbd_send_protocol(struct drbd_connection *connection, enum drbd_packet cmd);
+extern int drbd_send_protocol(struct drbd_connection *connection);
 extern int drbd_send_uuids(struct drbd_device *device);
 extern int drbd_send_uuids_skip_initial_sync(struct drbd_device *device);
 extern void drbd_gen_and_send_sync_uuid(struct drbd_device *device);
@@ -818,7 +818,7 @@ extern int drbd_send_sizes(struct drbd_device *device, int trigger_reply, enum d
 extern int drbd_send_state(struct drbd_device *device, union drbd_state s);
 extern int drbd_send_current_state(struct drbd_device *device);
 extern int drbd_send_sync_param(struct drbd_device *device);
-extern void drbd_send_b_ack(struct drbd_tconn *tconn, u32 barrier_nr,
+extern void drbd_send_b_ack(struct drbd_connection *connection, u32 barrier_nr,
 			    u32 set_size);
 extern int drbd_send_ack(struct drbd_device *, enum drbd_packet,
 			 struct drbd_peer_request *);
@@ -841,12 +841,12 @@ extern int drbd_send_ov_request(struct drbd_device *device, sector_t sector, int
 
 extern int drbd_send_bitmap(struct drbd_device *device);
 extern void drbd_send_sr_reply(struct drbd_device *device, enum drbd_state_rv retcode);
-extern void conn_send_sr_reply(struct drbd_tconn *tconn, enum drbd_state_rv retcode);
+extern void conn_send_sr_reply(struct drbd_connection *connection, enum drbd_state_rv retcode);
 extern void drbd_free_bc(struct drbd_backing_dev *ldev);
 extern void drbd_device_cleanup(struct drbd_device *device);
 void drbd_print_uuids(struct drbd_device *device, const char *text);
 
-extern void conn_md_sync(struct drbd_tconn *tconn);
+extern void conn_md_sync(struct drbd_connection *connection);
 extern void drbd_md_write(struct drbd_device *device, void *buffer);
 extern void drbd_md_sync(struct drbd_device *device);
 extern int  drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev);
@@ -1153,17 +1153,17 @@ extern struct bio *bio_alloc_drbd(gfp_t gfp_mask);
 
 extern rwlock_t global_state_lock;
 
-extern int conn_lowest_minor(struct drbd_tconn *tconn);
-enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, int vnr);
+extern int conn_lowest_minor(struct drbd_connection *connection);
+enum drbd_ret_code conn_new_minor(struct drbd_connection *connection, unsigned int minor, int vnr);
 extern void drbd_minor_destroy(struct kref *kref);
 
-extern int set_resource_options(struct drbd_tconn *tconn, struct res_opts *res_opts);
-extern struct drbd_tconn *conn_create(const char *name, struct res_opts *res_opts);
+extern int set_resource_options(struct drbd_connection *connection, struct res_opts *res_opts);
+extern struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts);
 extern void conn_destroy(struct kref *kref);
-struct drbd_tconn *conn_get_by_name(const char *name);
-extern struct drbd_tconn *conn_get_by_addrs(void *my_addr, int my_addr_len,
+struct drbd_connection *conn_get_by_name(const char *name);
+extern struct drbd_connection *conn_get_by_addrs(void *my_addr, int my_addr_len,
 					    void *peer_addr, int peer_addr_len);
-extern void conn_free_crypto(struct drbd_tconn *tconn);
+extern void conn_free_crypto(struct drbd_connection *connection);
 
 extern int proc_details;
 
@@ -1198,8 +1198,8 @@ extern void drbd_reconsider_max_bio_size(struct drbd_device *device);
 extern enum drbd_state_rv drbd_set_role(struct drbd_device *device,
 					enum drbd_role new_role,
 					int force);
-extern bool conn_try_outdate_peer(struct drbd_tconn *tconn);
-extern void conn_try_outdate_peer_async(struct drbd_tconn *tconn);
+extern bool conn_try_outdate_peer(struct drbd_connection *connection);
+extern void conn_try_outdate_peer_async(struct drbd_connection *connection);
 extern int drbd_khelper(struct drbd_device *device, char *cmd);
 
 /* drbd_worker.c */
@@ -1271,11 +1271,11 @@ extern void __drbd_free_peer_req(struct drbd_device *, struct drbd_peer_request 
 extern struct page *drbd_alloc_pages(struct drbd_device *, unsigned int, bool);
 extern void drbd_set_recv_tcq(struct drbd_device *device, int tcq_enabled);
 extern void _drbd_clear_done_ee(struct drbd_device *device, struct list_head *to_be_freed);
-extern void conn_flush_workqueue(struct drbd_tconn *tconn);
+extern void conn_flush_workqueue(struct drbd_connection *connection);
 extern int drbd_connected(struct drbd_device *device);
 static inline void drbd_flush_workqueue(struct drbd_device *device)
 {
-	conn_flush_workqueue(device->tconn);
+	conn_flush_workqueue(device->connection);
 }
 
 /* Yes, there is kernel_setsockopt, but only since 2.6.18.
@@ -1327,7 +1327,7 @@ static inline void drbd_tcp_quickack(struct socket *sock)
 			(char*)&val, sizeof(val));
 }
 
-void drbd_bump_write_ordering(struct drbd_tconn *tconn, enum write_ordering_e wo);
+void drbd_bump_write_ordering(struct drbd_connection *connection, enum write_ordering_e wo);
 
 /* drbd_proc.c */
 extern struct proc_dir_entry *drbd_proc;
@@ -1421,9 +1421,9 @@ static inline union drbd_state drbd_read_state(struct drbd_device *device)
 	union drbd_state rv;
 
 	rv.i = device->state.i;
-	rv.susp = device->tconn->susp;
-	rv.susp_nod = device->tconn->susp_nod;
-	rv.susp_fen = device->tconn->susp_fen;
+	rv.susp = device->connection->susp;
+	rv.susp_nod = device->connection->susp_nod;
+	rv.susp_fen = device->connection->susp_fen;
 
 	return rv;
 }
@@ -1505,9 +1505,9 @@ static inline void drbd_chk_io_error_(struct drbd_device *device,
 {
 	if (error) {
 		unsigned long flags;
-		spin_lock_irqsave(&device->tconn->req_lock, flags);
+		spin_lock_irqsave(&device->connection->req_lock, flags);
 		__drbd_chk_io_error_(device, forcedetach, where);
-		spin_unlock_irqrestore(&device->tconn->req_lock, flags);
+		spin_unlock_irqrestore(&device->connection->req_lock, flags);
 	}
 }
 
@@ -1630,31 +1630,31 @@ drbd_queue_work(struct drbd_work_queue *q, struct drbd_work *w)
 	wake_up(&q->q_wait);
 }
 
-static inline void wake_asender(struct drbd_tconn *tconn)
+static inline void wake_asender(struct drbd_connection *connection)
 {
-	if (test_bit(SIGNAL_ASENDER, &tconn->flags))
-		force_sig(DRBD_SIG, tconn->asender.task);
+	if (test_bit(SIGNAL_ASENDER, &connection->flags))
+		force_sig(DRBD_SIG, connection->asender.task);
 }
 
-static inline void request_ping(struct drbd_tconn *tconn)
+static inline void request_ping(struct drbd_connection *connection)
 {
-	set_bit(SEND_PING, &tconn->flags);
-	wake_asender(tconn);
+	set_bit(SEND_PING, &connection->flags);
+	wake_asender(connection);
 }
 
-extern void *conn_prepare_command(struct drbd_tconn *, struct drbd_socket *);
+extern void *conn_prepare_command(struct drbd_connection *, struct drbd_socket *);
 extern void *drbd_prepare_command(struct drbd_device *, struct drbd_socket *);
-extern int conn_send_command(struct drbd_tconn *, struct drbd_socket *,
+extern int conn_send_command(struct drbd_connection *, struct drbd_socket *,
 			     enum drbd_packet, unsigned int, void *,
 			     unsigned int);
 extern int drbd_send_command(struct drbd_device *, struct drbd_socket *,
 			     enum drbd_packet, unsigned int, void *,
 			     unsigned int);
 
-extern int drbd_send_ping(struct drbd_tconn *tconn);
-extern int drbd_send_ping_ack(struct drbd_tconn *tconn);
+extern int drbd_send_ping(struct drbd_connection *connection);
+extern int drbd_send_ping_ack(struct drbd_connection *connection);
 extern int drbd_send_state_req(struct drbd_device *, union drbd_state, union drbd_state);
-extern int conn_send_state_req(struct drbd_tconn *, union drbd_state, union drbd_state);
+extern int conn_send_state_req(struct drbd_connection *, union drbd_state, union drbd_state);
 
 static inline void drbd_thread_stop(struct drbd_thread *thi)
 {
@@ -1783,7 +1783,7 @@ static inline void put_ldev(struct drbd_device *device)
 		if (device->state.disk == D_FAILED) {
 			/* all application IO references gone. */
 			if (!test_and_set_bit(GO_DISKLESS, &device->flags))
-				drbd_queue_work(&device->tconn->sender_work, &device->go_diskless);
+				drbd_queue_work(&device->connection->sender_work, &device->go_diskless);
 		}
 		wake_up(&device->misc_wait);
 	}
@@ -1865,7 +1865,7 @@ static inline int drbd_get_max_buffers(struct drbd_device *device)
 	int mxb;
 
 	rcu_read_lock();
-	nc = rcu_dereference(device->tconn->net_conf);
+	nc = rcu_dereference(device->connection->net_conf);
 	mxb = nc ? nc->max_buffers : 1000000;  /* arbitrary limit on open requests */
 	rcu_read_unlock();
 
@@ -1908,7 +1908,7 @@ static inline int drbd_state_is_stable(struct drbd_device *device)
 
 		/* Allow IO in BM exchange states with new protocols */
 	case C_WF_BITMAP_S:
-		if (device->tconn->agreed_pro_version < 96)
+		if (device->connection->agreed_pro_version < 96)
 			return 0;
 		break;
 
@@ -1944,9 +1944,9 @@ static inline int drbd_state_is_stable(struct drbd_device *device)
 
 static inline int drbd_suspended(struct drbd_device *device)
 {
-	struct drbd_tconn *tconn = device->tconn;
+	struct drbd_connection *connection = device->connection;
 
-	return tconn->susp || tconn->susp_fen || tconn->susp_nod;
+	return connection->susp || connection->susp_fen || connection->susp_nod;
 }
 
 static inline bool may_inc_ap_bio(struct drbd_device *device)
@@ -1979,11 +1979,11 @@ static inline bool inc_ap_bio_cond(struct drbd_device *device)
 {
 	bool rv = false;
 
-	spin_lock_irq(&device->tconn->req_lock);
+	spin_lock_irq(&device->connection->req_lock);
 	rv = may_inc_ap_bio(device);
 	if (rv)
 		atomic_inc(&device->ap_bio_cnt);
-	spin_unlock_irq(&device->tconn->req_lock);
+	spin_unlock_irq(&device->connection->req_lock);
 
 	return rv;
 }
@@ -2010,7 +2010,7 @@ static inline void dec_ap_bio(struct drbd_device *device)
 
 	if (ap_bio == 0 && test_bit(BITMAP_IO, &device->flags)) {
 		if (!test_and_set_bit(BITMAP_IO_QUEUED, &device->flags))
-			drbd_queue_work(&device->tconn->sender_work, &device->bm_io_work.w);
+			drbd_queue_work(&device->connection->sender_work, &device->bm_io_work.w);
 	}
 
 	/* this currently does wake_up for every dec_ap_bio!
@@ -2022,8 +2022,8 @@ static inline void dec_ap_bio(struct drbd_device *device)
 
 static inline bool verify_can_do_stop_sector(struct drbd_device *device)
 {
-	return device->tconn->agreed_pro_version >= 97 &&
-		device->tconn->agreed_pro_version != 100;
+	return device->connection->agreed_pro_version >= 97 &&
+		device->connection->agreed_pro_version != 100;
 }
 
 static inline int drbd_set_ed_uuid(struct drbd_device *device, u64 val)

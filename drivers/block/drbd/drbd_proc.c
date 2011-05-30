@@ -251,7 +251,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			/* reset device->congestion_reason */
 			bdi_rw_congested(&device->rq_queue->backing_dev_info);
 
-			nc = rcu_dereference(device->tconn->net_conf);
+			nc = rcu_dereference(device->connection->net_conf);
 			wp = nc ? nc->wire_protocol - DRBD_PROT_A + 'A' : ' ';
 			seq_printf(seq,
 			   "%2d: cs:%s ro:%s/%s ds:%s/%s %c %c%c%c%c%c%c\n"
@@ -280,8 +280,8 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			   atomic_read(&device->rs_pending_cnt),
 			   atomic_read(&device->unacked_cnt),
 			   atomic_read(&device->ap_bio_cnt),
-			   device->tconn->epochs,
-			   write_ordering_chars[device->tconn->write_ordering]
+			   device->connection->epochs,
+			   write_ordering_chars[device->connection->write_ordering]
 			);
 			seq_printf(seq, " oos:%llu\n",
 				   Bit2KB((unsigned long long)

@@ -275,7 +275,7 @@ struct bio_and_error {
 	int error;
 };
 
-extern void start_new_tl_epoch(struct drbd_tconn *tconn);
+extern void start_new_tl_epoch(struct drbd_connection *connection);
 extern void drbd_req_destroy(struct kref *kref);
 extern void _req_may_be_done(struct drbd_request *req,
 		struct bio_and_error *m);
@@ -284,8 +284,8 @@ extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 extern void complete_master_bio(struct drbd_device *device,
 		struct bio_and_error *m);
 extern void request_timer_fn(unsigned long data);
-extern void tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what);
-extern void _tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what);
+extern void tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
+extern void _tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
 
 /* this is in drbd_main.c */
 extern void drbd_restart_request(struct drbd_request *req);
@@ -318,9 +318,9 @@ static inline int req_mod(struct drbd_request *req,
 	struct bio_and_error m;
 	int rv;
 
-	spin_lock_irqsave(&device->tconn->req_lock, flags);
+	spin_lock_irqsave(&device->connection->req_lock, flags);
 	rv = __req_mod(req, what, &m);
-	spin_unlock_irqrestore(&device->tconn->req_lock, flags);
+	spin_unlock_irqrestore(&device->connection->req_lock, flags);
 
 	if (m.bio)
 		complete_master_bio(device, &m);

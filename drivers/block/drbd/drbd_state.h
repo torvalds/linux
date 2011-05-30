@@ -2,7 +2,7 @@
 #define DRBD_STATE_H
 
 struct drbd_device;
-struct drbd_tconn;
+struct drbd_connection;
 
 /**
  * DOC: DRBD State macros
@@ -124,15 +124,15 @@ extern void print_st_err(struct drbd_device *, union drbd_state,
 			union drbd_state, int);
 
 enum drbd_state_rv
-_conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
+_conn_request_state(struct drbd_connection *connection, union drbd_state mask, union drbd_state val,
 		    enum chg_state_flags flags);
 
 enum drbd_state_rv
-conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
+conn_request_state(struct drbd_connection *connection, union drbd_state mask, union drbd_state val,
 		   enum chg_state_flags flags);
 
 extern void drbd_resume_al(struct drbd_device *device);
-extern bool conn_all_vols_unconf(struct drbd_tconn *tconn);
+extern bool conn_all_vols_unconf(struct drbd_connection *connection);
 
 /**
  * drbd_request_state() - Reqest a state change
@@ -151,11 +151,11 @@ static inline int drbd_request_state(struct drbd_device *device,
 	return _drbd_request_state(device, mask, val, CS_VERBOSE + CS_ORDERED);
 }
 
-enum drbd_role conn_highest_role(struct drbd_tconn *tconn);
-enum drbd_role conn_highest_peer(struct drbd_tconn *tconn);
-enum drbd_disk_state conn_highest_disk(struct drbd_tconn *tconn);
-enum drbd_disk_state conn_lowest_disk(struct drbd_tconn *tconn);
-enum drbd_disk_state conn_highest_pdsk(struct drbd_tconn *tconn);
-enum drbd_conns conn_lowest_conn(struct drbd_tconn *tconn);
+enum drbd_role conn_highest_role(struct drbd_connection *connection);
+enum drbd_role conn_highest_peer(struct drbd_connection *connection);
+enum drbd_disk_state conn_highest_disk(struct drbd_connection *connection);
+enum drbd_disk_state conn_lowest_disk(struct drbd_connection *connection);
+enum drbd_disk_state conn_highest_pdsk(struct drbd_connection *connection);
+enum drbd_conns conn_lowest_conn(struct drbd_connection *connection);
 
 #endif
