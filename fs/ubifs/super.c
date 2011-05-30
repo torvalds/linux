@@ -1282,12 +1282,12 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_master;
 
+	init_constants_master(c);
+
 	if ((c->mst_node->flags & cpu_to_le32(UBIFS_MST_DIRTY)) != 0) {
 		ubifs_msg("recovery needed");
 		c->need_recovery = 1;
 	}
-
-	init_constants_master(c);
 
 	if (c->need_recovery && !c->ro_mount) {
 		err = ubifs_recover_inl_heads(c, c->sbuf);
@@ -1298,6 +1298,12 @@ static int mount_ubifs(struct ubifs_info *c)
 	err = ubifs_lpt_init(c, 1, !c->ro_mount);
 	if (err)
 		goto out_master;
+
+	if (!c->ro_mount && c->space_fixup) {
+		err = ubifs_fixup_free_space(c);
+		if (err)
+			goto out_master;
+	}
 
 	if (!c->ro_mount) {
 		/*
@@ -1401,12 +1407,6 @@ static int mount_ubifs(struct ubifs_info *c)
 		}
 	} else
 		ubifs_assert(c->lst.taken_empty_lebs > 0);
-
-	if (!c->ro_mount && c->space_fixup) {
-		err = ubifs_fixup_free_space(c);
-		if (err)
-			goto out_infos;
-	}
 
 	err = dbg_check_filesystem(c);
 	if (err)
