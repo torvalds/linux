@@ -2882,7 +2882,7 @@ static int tipc_link_stats(const char *name, char *buf, const u32 buf_size)
 		profile_total = 1;
 	tipc_printf(&pb, "  TX profile sample:%u packets  average:%u octets\n"
 			 "  0-64:%u%% -256:%u%% -1024:%u%% -4096:%u%% "
-			 "-16354:%u%% -32768:%u%% -66000:%u%%\n",
+			 "-16384:%u%% -32768:%u%% -66000:%u%%\n",
 		    l_ptr->stats.msg_length_counts,
 		    l_ptr->stats.msg_lengths_total / profile_total,
 		    percent(l_ptr->stats.msg_length_profile[0], profile_total),
