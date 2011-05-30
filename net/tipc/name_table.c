@@ -574,14 +574,13 @@ u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *destnode)
 						cluster_list);
 			list_move_tail(&publ->cluster_list,
 				       &info->cluster_list);
-		} else if (!list_empty(&info->zone_list)) {
+		} else {
 			publ = list_first_entry(&info->zone_list,
 						struct publication,
 						zone_list);
 			list_move_tail(&publ->zone_list,
 				       &info->zone_list);
-		} else
-			goto no_match;
+		}
 	}
 
 	/* Round-Robin Algorithm: */
@@ -598,8 +597,6 @@ u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *destnode)
 					cluster_list);
 		list_move_tail(&publ->cluster_list, &info->cluster_list);
 	} else {
-		if (list_empty(&info->zone_list))
-			goto no_match;
 		publ = list_first_entry(&info->zone_list, struct publication,
 					zone_list);
 		list_move_tail(&publ->zone_list, &info->zone_list);
