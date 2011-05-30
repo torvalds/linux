@@ -242,7 +242,7 @@ static ssize_t codec_reg_write_file(struct file *file,
 		const char __user *user_buf, size_t count, loff_t *ppos)
 {
 	char buf[32];
-	int buf_size;
+	size_t buf_size;
 	char *start = buf;
 	unsigned long reg, value;
 	int step = 1;
@@ -1307,10 +1307,6 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 	/* no, then find CPU DAI from registered DAIs*/
 	list_for_each_entry(cpu_dai, &dai_list, list) {
 		if (!strcmp(cpu_dai->name, dai_link->cpu_dai_name)) {
-
-			if (!try_module_get(cpu_dai->dev->driver->owner))
-				return -ENODEV;
-
 			rtd->cpu_dai = cpu_dai;
 			goto find_codec;
 		}
@@ -1623,11 +1619,15 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 
 	/* probe the cpu_dai */
 	if (!cpu_dai->probed) {
+		if (!try_module_get(cpu_dai->dev->driver->owner))
+			return -ENODEV;
+
 		if (cpu_dai->driver->probe) {
 			ret = cpu_dai->driver->probe(cpu_dai);
 			if (ret < 0) {
 				printk(KERN_ERR "asoc: failed to probe CPU DAI %s\n",
 						cpu_dai->name);
+				module_put(cpu_dai->dev->driver->owner);
 				return ret;
 			}
 		}
@@ -1927,9 +1927,11 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 					card->num_dapm_routes);
 
 	snprintf(card->snd_card->shortname, sizeof(card->snd_card->shortname),
-		 "%s",  card->name);
-	snprintf(card->snd_card->longname, sizeof(card->snd_card->longname),
 		 "%s", card->name);
+	snprintf(card->snd_card->longname, sizeof(card->snd_card->longname),
+		 "%s", card->long_name ? card->long_name : card->name);
+	snprintf(card->snd_card->driver, sizeof(card->snd_card->driver),
+		 "%s", card->driver_name ? card->driver_name : card->name);
 
 	if (card->late_probe) {
 		ret = card->late_probe(card);

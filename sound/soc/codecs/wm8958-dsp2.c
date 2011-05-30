@@ -99,7 +99,7 @@ static int wm8958_dsp2_fw(struct snd_soc_codec *codec, const char *name,
 	len = fw->size - len;
 	while (len) {
 		if (len < 12) {
-			dev_err(codec->dev, "%s short data block of %d\n",
+			dev_err(codec->dev, "%s short data block of %zd\n",
 				name, len);
 			goto err;
 		}
@@ -107,7 +107,7 @@ static int wm8958_dsp2_fw(struct snd_soc_codec *codec, const char *name,
 		memcpy(&data32, data + 4, sizeof(data32));
 		block_len = be32_to_cpu(data32);
 		if (block_len + 8 > len) {
-			dev_err(codec->dev, "%d byte block longer than file\n",
+			dev_err(codec->dev, "%zd byte block longer than file\n",
 				block_len);
 			goto err;
 		}
@@ -141,7 +141,7 @@ static int wm8958_dsp2_fw(struct snd_soc_codec *codec, const char *name,
 		case WM_FW_BLOCK_I:
 		case WM_FW_BLOCK_A:
 		case WM_FW_BLOCK_C:
-			dev_dbg(codec->dev, "%s: %d bytes of %x@%x\n", name,
+			dev_dbg(codec->dev, "%s: %zd bytes of %x@%x\n", name,
 				block_len, (data32 >> 24) & 0xff,
 				data32 & 0xffffff);
 
@@ -362,6 +362,10 @@ static void wm8958_dsp_apply(struct snd_soc_codec *codec, int path, int start)
 		path, wm8994->dsp_active, start, pwr_reg, reg);
 
 	if (start && ena) {
+		/* If the DSP is already running then noop */
+		if (reg & WM8958_DSP2_ENA)
+			return;
+
 		/* If either AIFnCLK is not yet enabled postpone */
 		if (!(snd_soc_read(codec, WM8994_AIF1_CLOCKING_1)
 		      & WM8994_AIF1CLK_ENA_MASK) &&
@@ -508,6 +512,9 @@ static int wm8958_mbc_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
+	if (wm8994->mbc_ena[mbc] == ucontrol->value.integer.value[0])
+		return 0;
+
 	if (ucontrol->value.integer.value[0] > 1)
 		return -EINVAL;
 
@@ -628,6 +635,9 @@ static int wm8958_vss_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
+	if (wm8994->vss_ena[vss] == ucontrol->value.integer.value[0])
+		return 0;
+
 	if (ucontrol->value.integer.value[0] > 1)
 		return -EINVAL;
 
@@ -688,6 +698,16 @@ static int wm8958_hpf_put(struct snd_kcontrol *kcontrol,
 	int hpf = kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+
+	if (hpf < 3) {
+		if (wm8994->hpf1_ena[hpf % 3] ==
+		    ucontrol->value.integer.value[0])
+			return 0;
+	} else {
+		if (wm8994->hpf2_ena[hpf % 3] ==
+		    ucontrol->value.integer.value[0])
+			return 0;
+	}
 
 	if (ucontrol->value.integer.value[0] > 1)
 		return -EINVAL;
@@ -781,6 +801,9 @@ static int wm8958_enh_eq_put(struct snd_kcontrol *kcontrol,
 	int eq = kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+
+	if (wm8994->enh_eq_ena[eq] == ucontrol->value.integer.value[0])
+		return 0;
 
 	if (ucontrol->value.integer.value[0] > 1)
 		return -EINVAL;

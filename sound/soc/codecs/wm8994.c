@@ -877,7 +877,8 @@ static const char *hp_mux_text[] = {
 static int wm8994_put_hp_enum(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *w = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget *w = wlist->widgets[0];
 	struct snd_soc_codec *codec = w->codec;
 	int ret;
 
@@ -1004,7 +1005,8 @@ SOC_DAPM_SINGLE("AIF1.1 Switch", WM8994_DAC2_RIGHT_MIXER_ROUTING,
 static int wm8994_put_class_w(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dapm_widget *w = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget *w = wlist->widgets[0];
 	struct snd_soc_codec *codec = w->codec;
 	int ret;
 
@@ -2416,7 +2418,18 @@ static struct snd_soc_dai_driver wm8994_dai[] = {
 static int wm8994_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994 *control = codec->control_data;
 	int i, ret;
+
+	switch (control->type) {
+	case WM8994:
+		snd_soc_update_bits(codec, WM8994_MICBIAS, WM8994_MICD_ENA, 0);
+		break;
+	case WM8958:
+		snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
+				    WM8958_MICD_ENA, 0);
+		break;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll); i++) {
 		memcpy(&wm8994->fll_suspend[i], &wm8994->fll[i],
@@ -2435,6 +2448,7 @@ static int wm8994_suspend(struct snd_soc_codec *codec, pm_message_t state)
 static int wm8994_resume(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994 *control = codec->control_data;
 	int i, ret;
 	unsigned int val, mask;
 
@@ -2471,6 +2485,19 @@ static int wm8994_resume(struct snd_soc_codec *codec)
 		if (ret < 0)
 			dev_warn(codec->dev, "Failed to restore FLL%d: %d\n",
 				 i + 1, ret);
+	}
+
+	switch (control->type) {
+	case WM8994:
+		if (wm8994->micdet[0].jack || wm8994->micdet[1].jack)
+			snd_soc_update_bits(codec, WM8994_MICBIAS,
+					    WM8994_MICD_ENA, WM8994_MICD_ENA);
+		break;
+	case WM8958:
+		if (wm8994->jack_cb)
+			snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
+					    WM8958_MICD_ENA, WM8958_MICD_ENA);
+		break;
 	}
 
 	return 0;
