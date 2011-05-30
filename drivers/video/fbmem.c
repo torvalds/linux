@@ -329,7 +329,7 @@ static struct logo_data {
 	const struct linux_logo *logo;
 } fb_logo __read_mostly;
 
-void show_charge_logo(struct linux_logo *logo)
+void fb_show_charge_logo(struct linux_logo *logo)
 {
 	fb_logo.logo = logo;
 	return;

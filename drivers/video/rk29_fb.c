@@ -2393,7 +2393,7 @@ static struct suspend_info suspend_info = {
 	.early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
 };
 #endif
-struct fb_info *g_inf = NULL;  //add cym@rk 20101027 for charger logo
+struct fb_info *g_fb0_inf = NULL;  //add cym@rk 20101027 for charger logo
 static int __init rk29fb_probe (struct platform_device *pdev)
 {
     struct rk29fb_inf *inf = NULL;
@@ -2525,7 +2525,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
 	if (ret < 0)
 		goto release_cmap;
 
-	g_inf = inf->fb0; //add cym@rk 20101027
+	g_fb0_inf = inf->fb0; //add cym@rk 20101027
 
     /* alloc win1 buf */
     res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "win1 buf");
