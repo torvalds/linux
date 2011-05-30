@@ -205,7 +205,7 @@ struct omap_i2c_dev {
 	u16			errata;
 };
 
-static const u8 reg_map[] = {
+static const u8 reg_map_ip_v1[] = {
 	[OMAP_I2C_REV_REG] = 0x00,
 	[OMAP_I2C_IE_REG] = 0x01,
 	[OMAP_I2C_STAT_REG] = 0x02,
@@ -226,7 +226,7 @@ static const u8 reg_map[] = {
 	[OMAP_I2C_BUFSTAT_REG] = 0x10,
 };
 
-static const u8 omap4_reg_map[] = {
+static const u8 reg_map_ip_v2[] = {
 	[OMAP_I2C_REV_REG] = 0x04,
 	[OMAP_I2C_IE_REG] = 0x2c,
 	[OMAP_I2C_STAT_REG] = 0x28,
@@ -1035,10 +1035,10 @@ omap_i2c_probe(struct platform_device *pdev)
 	else
 		dev->reg_shift = 2;
 
-	if (cpu_is_omap44xx())
-		dev->regs = (u8 *) omap4_reg_map;
+	if (pdata->rev == OMAP_I2C_IP_VERSION_2)
+		dev->regs = (u8 *)reg_map_ip_v2;
 	else
-		dev->regs = (u8 *) reg_map;
+		dev->regs = (u8 *)reg_map_ip_v1;
 
 	pm_runtime_enable(&pdev->dev);
 	omap_i2c_unidle(dev);
