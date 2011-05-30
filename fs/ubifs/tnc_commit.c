@@ -89,6 +89,10 @@ static int make_idx_node(struct ubifs_info *c, struct ubifs_idx_node *idx,
 	ubifs_assert(ubifs_zn_dirty(znode));
 	ubifs_assert(ubifs_zn_cow(znode));
 
+	/*
+	 * Note, unlike 'write_index()' we do not add memory barriers here
+	 * because this function is called with @c->tnc_mutex locked.
+	 */
 	__clear_bit(DIRTY_ZNODE, &znode->flags);
 	__clear_bit(COW_ZNODE, &znode->flags);
 
@@ -902,6 +906,28 @@ static int write_index(struct ubifs_info *c)
 		smp_mb__before_clear_bit();
 		clear_bit(COW_ZNODE, &znode->flags);
 		smp_mb__after_clear_bit();
+
+		/*
+		 * We have marked the znode as clean but have not updated the
+		 * @c->clean_zn_cnt counter. If this znode becomes dirty again
+		 * before 'free_obsolete_znodes()' is called, then
+		 * @c->clean_zn_cnt will be decremented before it gets
+		 * incremented (resulting in 2 decrements for the same znode).
+		 * This means that @c->clean_zn_cnt may become negative for a
+		 * while.
+		 *
+		 * Q: why we cannot increment @c->clean_zn_cnt?
+		 * A: because we do not have the @c->tnc_mutex locked, and the
+		 *    following code would be racy and buggy:
+		 *
+		 *    if (!ubifs_zn_obsolete(znode)) {
+		 *            atomic_long_inc(&c->clean_zn_cnt);
+		 *            atomic_long_inc(&ubifs_clean_zn_cnt);
+		 *    }
+		 *
+		 *    Thus, we just delay the @c->clean_zn_cnt update until we
+		 *    have the mutex locked.
+		 */
 
 		/* Do not access znode from this point on */
 
