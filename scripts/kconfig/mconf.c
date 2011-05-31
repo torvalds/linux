@@ -845,6 +845,7 @@ int main(int ac, char **av)
 				"\n\n"));
 			return 1;
 		}
+		/* fall through */
 	case -1:
 		printf(_("\n\n"
 			"*** End of the configuration.\n"
