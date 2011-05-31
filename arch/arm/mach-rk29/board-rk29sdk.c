@@ -209,6 +209,7 @@ int rk29_fb_io_enable(void)
         gpio_direction_output(FB_LCD_STANDBY_PIN, 0);
         gpio_set_value(FB_LCD_STANDBY_PIN, FB_LCD_STANDBY_VALUE);             
     }
+    return 0;
 }
 
 int rk29_fb_io_disable(void)
@@ -223,6 +224,7 @@ int rk29_fb_io_disable(void)
         gpio_direction_output(FB_LCD_STANDBY_PIN, 0);
         gpio_set_value(FB_LCD_STANDBY_PIN, !FB_LCD_STANDBY_VALUE);             
     }
+    return 0;
 }
 
 static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
@@ -393,11 +395,11 @@ static struct platform_device rk29_vpu_mem_device = {
 	.platform_data = &vpu_mem_pdata,
 	},
 };
-
+#ifdef CONFIG_VIDEO_RK29XX_VOUT
 static struct platform_device rk29_v4l2_output_devce = {
 	.name		= "rk29_vout",
 };
-
+#endif
 /*HANNSTAR_P1003 touch*/
 #if defined (CONFIG_HANNSTAR_P1003)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
@@ -848,7 +850,7 @@ static int rk29_backlight_pwm_suspend(void)
 {
 	int ret = 0;
 	rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
-	if (ret = gpio_request(PWM_GPIO, NULL)) {
+	if (gpio_request(PWM_GPIO, NULL)) {
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
 		return -1;
 	}

@@ -147,6 +147,10 @@ struct rk29_nand_platform_data rk29_nand_data = {
     .io_init   = rk29_nand_io_init,
 };
 
+#define TOUCH_SCREEN_STANDBY_PIN          RK29_PIN6_PD1
+#define TOUCH_SCREEN_STANDBY_VALUE        GPIO_HIGH
+#define TOUCH_SCREEN_DISPLAY_PIN          INVALID_GPIO
+#define TOUCH_SCREEN_DISPLAY_VALUE        GPIO_HIGH
 #ifdef CONFIG_FB_RK29
 /*****************************************************************************************
  * lcd  devices
@@ -161,23 +165,13 @@ struct rk29_nand_platform_data rk29_nand_data = {
 * author: zyw@rock-chips.com
 *****************************************************************************************/
 #define FB_ID                       0
-#define FB_DISPLAY_ON_PIN           RK29_PIN6_PD0
+#define FB_DISPLAY_ON_PIN           INVALID_GPIO// RK29_PIN6_PD0
 #define FB_LCD_STANDBY_PIN          INVALID_GPIO
 #define FB_LCD_CABC_EN_PIN          RK29_PIN6_PD2
 #define FB_MCU_FMK_PIN              INVALID_GPIO
 
 #define FB_DISPLAY_ON_VALUE         GPIO_HIGH
 #define FB_LCD_STANDBY_VALUE        GPIO_HIGH
-
-//#endif
-/*****************************************************************************************
-* touch screen devices
-* author: cf@rock-chips.com
-*****************************************************************************************/
-#define TOUCH_SCREEN_STANDBY_PIN          RK29_PIN6_PD1
-#define TOUCH_SCREEN_STANDBY_VALUE        GPIO_HIGH
-#define TOUCH_SCREEN_DISPLAY_PIN          INVALID_GPIO
-#define TOUCH_SCREEN_DISPLAY_VALUE        GPIO_HIGH
 
 static int rk29_lcd_io_init(void)
 {
@@ -199,6 +193,35 @@ static struct rk29lcd_info rk29_lcd_info = {
     .io_deinit = rk29_lcd_io_deinit,
 };
 
+int rk29_fb_io_enable(void)
+{
+    if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
+    {
+        gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
+        gpio_set_value(FB_DISPLAY_ON_PIN, FB_DISPLAY_ON_VALUE);              
+    }
+    if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
+    {
+        gpio_direction_output(FB_LCD_STANDBY_PIN, 0);
+        gpio_set_value(FB_LCD_STANDBY_PIN, FB_LCD_STANDBY_VALUE);             
+    }
+    return 0;
+}
+
+int rk29_fb_io_disable(void)
+{
+    if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
+    {
+        gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
+        gpio_set_value(FB_DISPLAY_ON_PIN, !FB_DISPLAY_ON_VALUE);              
+    }
+    if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
+    {
+        gpio_direction_output(FB_LCD_STANDBY_PIN, 0);
+        gpio_set_value(FB_LCD_STANDBY_PIN, !FB_LCD_STANDBY_VALUE);             
+    }
+    return 0;
+}
 
 static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
@@ -272,19 +295,19 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
         gpio_direction_output(FB_LCD_CABC_EN_PIN, 0);
         gpio_set_value(FB_LCD_CABC_EN_PIN, GPIO_LOW);
     }
+    
+    rk29_fb_io_enable();   //enable it
 
     return ret;
 }
 
 static struct rk29fb_info rk29_fb_info = {
     .fb_id   = FB_ID,
-    .disp_on_pin = FB_DISPLAY_ON_PIN,
-    .disp_on_value = FB_DISPLAY_ON_VALUE,
-    .standby_pin = FB_LCD_STANDBY_PIN,
-    .standby_value = FB_LCD_STANDBY_VALUE,
     .mcu_fmk_pin = FB_MCU_FMK_PIN,
     .lcd_info = &rk29_lcd_info,
     .io_init   = rk29_fb_io_init,
+    .io_enable = rk29_fb_io_enable,
+    .io_disable = rk29_fb_io_disable,
 };
 
 /* rk29 fb resource */
@@ -367,11 +390,11 @@ static struct platform_device rk29_vpu_mem_device = {
 	.platform_data = &vpu_mem_pdata,
 	},
 };
-
+#ifdef CONFIG_VIDEO_RK29XX_VOUT
 static struct platform_device rk29_v4l2_output_devce = {
 	.name		= "rk29_vout",
 };
-
+#endif
 /*HANNSTAR_P1003 touch*/
 #if defined (CONFIG_HANNSTAR_P1003)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
@@ -779,13 +802,13 @@ static struct rk29camera_platform_ioctl_cb  sensor_ioctl_cb = {
 #define PWM_GPIO RK29_PIN1_PB5
 #define PWM_EFFECT_VALUE  1
 
-//#define LCD_DISP_ON_PIN
+#define LCD_DISP_ON_PIN
 
 #ifdef  LCD_DISP_ON_PIN
-#define BL_EN_MUX_NAME    GPIOF34_UART3_SEL_NAME
-#define BL_EN_MUX_MODE    IOMUXB_GPIO1_B34
+//#define BL_EN_MUX_NAME    GPIOF34_UART3_SEL_NAME
+//#define BL_EN_MUX_MODE    IOMUXB_GPIO1_B34
 
-#define BL_EN_PIN         GPIO0L_GPIO0A5
+#define BL_EN_PIN         RK29_PIN6_PD0
 #define BL_EN_VALUE       GPIO_HIGH
 #endif
 static int rk29_backlight_io_init(void)
@@ -794,7 +817,7 @@ static int rk29_backlight_io_init(void)
 
     rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
 	#ifdef  LCD_DISP_ON_PIN
-    rk29_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE);
+   // rk29_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE);
 
     ret = gpio_request(BL_EN_PIN, NULL);
     if(ret != 0)
@@ -822,11 +845,15 @@ static int rk29_backlight_pwm_suspend(void)
 {
 	int ret = 0;
 	rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
-	if (ret = gpio_request(PWM_GPIO, NULL)) {
+	if (gpio_request(PWM_GPIO, NULL)) {
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
 		return -1;
 	}
 	gpio_direction_output(PWM_GPIO, GPIO_LOW);
+   #ifdef  LCD_DISP_ON_PIN
+    gpio_direction_output(BL_EN_PIN, 0);
+    gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
+   #endif
 	return ret;
 }
 
@@ -834,6 +861,12 @@ static int rk29_backlight_pwm_resume(void)
 {
 	gpio_free(PWM_GPIO);
 	rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
+
+    #ifdef  LCD_DISP_ON_PIN
+    msleep(30);
+    gpio_direction_output(BL_EN_PIN, 1);
+    gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
+    #endif
 	return 0;
 }
 
