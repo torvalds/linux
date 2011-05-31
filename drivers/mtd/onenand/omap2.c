@@ -741,6 +741,7 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 		c->regulator = regulator_get(&pdev->dev, "vonenand");
 		if (IS_ERR(c->regulator)) {
 			dev_err(&pdev->dev,  "Failed to get regulator\n");
+			r = PTR_ERR(c->regulator);
 			goto err_release_dma;
 		}
 		c->onenand.enable = omap2_onenand_enable;
