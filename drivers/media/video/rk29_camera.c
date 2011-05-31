@@ -362,13 +362,17 @@ static int rk29_sensor_io_deinit(int sensor)
 }
 static int rk29_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd, int on)
 {
-    struct rk29camera_gpio_res *res;    
+    struct rk29camera_gpio_res *res = NULL;    
 	int ret = RK29_CAM_IO_SUCCESS;
 
     if(rk29_camera_platform_data.gpio_res[0].dev_name &&  (strcmp(rk29_camera_platform_data.gpio_res[0].dev_name, dev_name(dev)) == 0)) {
 		res = (struct rk29camera_gpio_res *)&rk29_camera_platform_data.gpio_res[0];
     } else if (rk29_camera_platform_data.gpio_res[1].dev_name && (strcmp(rk29_camera_platform_data.gpio_res[1].dev_name, dev_name(dev)) == 0)) {
     	res = (struct rk29camera_gpio_res *)&rk29_camera_platform_data.gpio_res[1];
+    } else {
+        printk(KERN_ERR "%s is not regisiterd in rk29_camera_platform_data!!\n",dev_name(dev));
+        ret = RK29_CAM_EIO_INVALID;
+        goto rk29_sensor_ioctrl_end;
     }
 
  	switch (cmd)
@@ -422,6 +426,7 @@ static int rk29_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd,
 			break;
 		}
  	}
+rk29_sensor_ioctrl_end:
     return ret;
 }
 static int rk29_sensor_power(struct device *dev, int on)
@@ -429,6 +434,7 @@ static int rk29_sensor_power(struct device *dev, int on)
 	rk29_sensor_ioctrl(dev,Cam_Power,on);
     return 0;
 }
+#if 0
 static int rk29_sensor_reset(struct device *dev)
 {
 	rk29_sensor_ioctrl(dev,Cam_Reset,1);
@@ -436,6 +442,7 @@ static int rk29_sensor_reset(struct device *dev)
 	rk29_sensor_ioctrl(dev,Cam_Reset,0);
 	return 0;
 }
+#endif
 static int rk29_sensor_powerdown(struct device *dev, int on)
 {
 	return rk29_sensor_ioctrl(dev,Cam_PowerDown,on);
