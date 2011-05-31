@@ -56,6 +56,7 @@
 #include <linux/kprobes.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/oom.h>
+#include <linux/kmod.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
@@ -614,6 +615,11 @@ static struct ctl_table kern_table[] = {
 		.procname	= "random",
 		.mode		= 0555,
 		.child		= random_table,
+	},
+	{
+		.procname	= "usermodehelper",
+		.mode		= 0555,
+		.child		= usermodehelper_table,
 	},
 	{
 		.procname	= "overflowuid",
@@ -1500,7 +1506,7 @@ static struct ctl_table fs_table[] = {
 
 static struct ctl_table debug_table[] = {
 #if defined(CONFIG_X86) || defined(CONFIG_PPC) || defined(CONFIG_SPARC) || \
-    defined(CONFIG_S390)
+    defined(CONFIG_S390) || defined(CONFIG_TILE)
 	{
 		.procname	= "exception-trace",
 		.data		= &show_unhandled_signals,

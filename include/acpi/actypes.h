@@ -501,8 +501,9 @@ typedef u64 acpi_integer;
 #define ACPI_STATE_D1                   (u8) 1
 #define ACPI_STATE_D2                   (u8) 2
 #define ACPI_STATE_D3                   (u8) 3
-#define ACPI_D_STATES_MAX               ACPI_STATE_D3
-#define ACPI_D_STATE_COUNT              4
+#define ACPI_STATE_D3_COLD              (u8) 4
+#define ACPI_D_STATES_MAX               ACPI_STATE_D3_COLD
+#define ACPI_D_STATE_COUNT              5
 
 #define ACPI_STATE_C0                   (u8) 0
 #define ACPI_STATE_C1                   (u8) 1
@@ -712,8 +713,24 @@ typedef u8 acpi_adr_space_type;
 #define ACPI_ADR_SPACE_CMOS             (acpi_adr_space_type) 5
 #define ACPI_ADR_SPACE_PCI_BAR_TARGET   (acpi_adr_space_type) 6
 #define ACPI_ADR_SPACE_IPMI             (acpi_adr_space_type) 7
-#define ACPI_ADR_SPACE_DATA_TABLE       (acpi_adr_space_type) 8
-#define ACPI_ADR_SPACE_FIXED_HARDWARE   (acpi_adr_space_type) 127
+
+#define ACPI_NUM_PREDEFINED_REGIONS     8
+
+/*
+ * Special Address Spaces
+ *
+ * Note: A Data Table region is a special type of operation region
+ * that has its own AML opcode. However, internally, the AML
+ * interpreter simply creates an operation region with an an address
+ * space type of ACPI_ADR_SPACE_DATA_TABLE.
+ */
+#define ACPI_ADR_SPACE_DATA_TABLE       (acpi_adr_space_type) 0x7E	/* Internal to ACPICA only */
+#define ACPI_ADR_SPACE_FIXED_HARDWARE   (acpi_adr_space_type) 0x7F
+
+/* Values for _REG connection code */
+
+#define ACPI_REG_DISCONNECT             0
+#define ACPI_REG_CONNECT                1
 
 /*
  * bit_register IDs

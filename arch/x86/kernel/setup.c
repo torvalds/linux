@@ -910,6 +910,13 @@ void __init setup_arch(char **cmdline_p)
 	memblock.current_limit = get_max_mapped();
 	memblock_x86_fill();
 
+	/*
+	 * The EFI specification says that boot service code won't be called
+	 * after ExitBootServices(). This is, in fact, a lie.
+	 */
+	if (efi_enabled)
+		efi_reserve_boot_services();
+
 	/* preallocate 4k for mptable mpc */
 	early_reserve_e820_mpc_new();
 
@@ -946,6 +953,8 @@ void __init setup_arch(char **cmdline_p)
 	if (init_ohci1394_dma_early)
 		init_ohci1394_dma_on_all_controllers();
 #endif
+	/* Allocate bigger log buffer */
+	setup_log_buf(1);
 
 	reserve_initrd();
 

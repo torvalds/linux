@@ -62,7 +62,6 @@ int
 lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 {
 	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
-	int longs;
 	int i;
 
 	if (phba->sli_rev == LPFC_SLI_REV4)
@@ -138,17 +137,8 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 		phba->lpfc_hrb_pool = NULL;
 		phba->lpfc_drb_pool = NULL;
 	}
-	/* vpi zero is reserved for the physical port so add 1 to max */
-	longs = ((phba->max_vpi + 1) + BITS_PER_LONG - 1) / BITS_PER_LONG;
-	phba->vpi_bmask = kzalloc(longs * sizeof(unsigned long), GFP_KERNEL);
-	if (!phba->vpi_bmask)
-		goto fail_free_dbq_pool;
 
 	return 0;
-
- fail_free_dbq_pool:
-	pci_pool_destroy(phba->lpfc_drb_pool);
-	phba->lpfc_drb_pool = NULL;
  fail_free_hrb_pool:
 	pci_pool_destroy(phba->lpfc_hrb_pool);
 	phba->lpfc_hrb_pool = NULL;
@@ -190,9 +180,6 @@ lpfc_mem_free(struct lpfc_hba *phba)
 {
 	int i;
 	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
-
-	/* Free VPI bitmask memory */
-	kfree(phba->vpi_bmask);
 
 	/* Free HBQ pools */
 	lpfc_sli_hbqbuf_free_all(phba);

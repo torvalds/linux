@@ -296,4 +296,5 @@ sys_call_table:
 	.long	sys_ni_syscall		/* 280, was sys_timerfd */
 	.long	sys_eventfd
 	.long	sys_recvmmsg
+	.long	sys_setns
 	.long	sys_ni_syscall		/* r8 is saturated at nr_syscalls */

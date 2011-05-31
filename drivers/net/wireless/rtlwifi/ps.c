@@ -190,7 +190,7 @@ static void _rtl_ps_inactive_ps(struct ieee80211_hw *hw)
 
 	ppsc->swrf_processing = true;
 
-	if (ppsc->inactive_pwrstate == ERFOFF &&
+	if (ppsc->inactive_pwrstate == ERFON &&
 	    rtlhal->interface == INTF_PCI) {
 		if ((ppsc->reg_rfps_level & RT_RF_OFF_LEVL_ASPM) &&
 		    RT_IN_PS_LEVEL(ppsc, RT_PS_LEVEL_ASPM) &&

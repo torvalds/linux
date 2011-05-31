@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <asm/opcode-tile.h>
 #include <asm/pgtable.h>
+#include <asm/homecache.h>
 
 #ifdef __tilegx__
 # define Elf_Rela Elf64_Rela
@@ -86,8 +87,13 @@ error:
 void module_free(struct module *mod, void *module_region)
 {
 	vfree(module_region);
+
+	/* Globally flush the L1 icache. */
+	flush_remote(0, HV_FLUSH_EVICT_L1I, cpu_online_mask,
+		     0, 0, 0, NULL, NULL, 0);
+
 	/*
-	 * FIXME: If module_region == mod->init_region, trim exception
+	 * FIXME: If module_region == mod->module_init, trim exception
 	 * table entries.
 	 */
 }

@@ -384,10 +384,10 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	int i;
 	enum nl80211_channel_type orig_ct;
 
+	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
+
 	if (local->scan_sdata == sdata)
 		ieee80211_scan_cancel(local);
-
-	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	/*
 	 * Stop TX on this interface first.

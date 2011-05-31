@@ -779,18 +779,6 @@ void omap3_pm_off_mode_enable(int enable)
 	else
 		state = PWRDM_POWER_RET;
 
-#ifdef CONFIG_CPU_IDLE
-	/*
-	 * Erratum i583: implementation for ES rev < Es1.2 on 3630. We cannot
-	 * enable OFF mode in a stable form for previous revisions, restrict
-	 * instead to RET
-	 */
-	if (IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583))
-		omap3_cpuidle_update_states(state, PWRDM_POWER_RET);
-	else
-		omap3_cpuidle_update_states(state, state);
-#endif
-
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		if (IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583) &&
 				pwrst->pwrdm == core_pwrdm &&
@@ -894,8 +882,6 @@ static int __init omap3_pm_init(void)
 		return -ENODEV;
 
 	pm_errata_configure();
-
-	printk(KERN_ERR "Power Management for TI OMAP3.\n");
 
 	/* XXX prcm_setup_regs needs to be before enabling hw
 	 * supervised mode for powerdomains */

@@ -589,14 +589,6 @@ config CGROUP_DEBUG
 
 	  Say N if unsure.
 
-config CGROUP_NS
-	bool "Namespace cgroup subsystem"
-	help
-	  Provides a simple namespace cgroup subsystem to
-	  provide hierarchical naming of sets of namespaces,
-	  for instance virtual servers and checkpoint/restart
-	  jobs.
-
 config CGROUP_FREEZER
 	bool "Freezer cgroup subsystem"
 	help
@@ -959,24 +951,18 @@ config KALLSYMS_ALL
 	bool "Include all symbols in kallsyms"
 	depends on DEBUG_KERNEL && KALLSYMS
 	help
-	   Normally kallsyms only contains the symbols of functions, for nicer
-	   OOPS messages.  Some debuggers can use kallsyms for other
-	   symbols too: say Y here to include all symbols, if you need them 
-	   and you don't care about adding 300k to the size of your kernel.
+	   Normally kallsyms only contains the symbols of functions for nicer
+	   OOPS messages and backtraces (i.e., symbols from the text and inittext
+	   sections). This is sufficient for most cases. And only in very rare
+	   cases (e.g., when a debugger is used) all symbols are required (e.g.,
+	   names of variables from the data sections, etc).
 
-	   Say N.
+	   This option makes sure that all symbols are loaded into the kernel
+	   image (i.e., symbols from all sections) in cost of increased kernel
+	   size (depending on the kernel configuration, it may be 300KiB or
+	   something like this).
 
-config KALLSYMS_EXTRA_PASS
-	bool "Do an extra kallsyms pass"
-	depends on KALLSYMS
-	help
-	   If kallsyms is not working correctly, the build will fail with
-	   inconsistent kallsyms data.  If that occurs, log a bug report and
-	   turn on KALLSYMS_EXTRA_PASS which should result in a stable build.
-	   Always say N here unless you find a bug in kallsyms, which must be
-	   reported.  KALLSYMS_EXTRA_PASS is only a temporary workaround while
-	   you wait for kallsyms to be fixed.
-
+	   Say N unless you really need all symbols.
 
 config HOTPLUG
 	bool "Support for hot-pluggable devices" if EXPERT

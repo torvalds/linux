@@ -180,7 +180,6 @@ static void joydev_attach_client(struct joydev *joydev,
 	spin_lock(&joydev->client_lock);
 	list_add_tail_rcu(&client->node, &joydev->client_list);
 	spin_unlock(&joydev->client_lock);
-	synchronize_rcu();
 }
 
 static void joydev_detach_client(struct joydev *joydev,

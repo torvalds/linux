@@ -161,12 +161,27 @@ static int __devexit gpio_charger_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int gpio_charger_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct gpio_charger *gpio_charger = platform_get_drvdata(pdev);
+
+	power_supply_changed(&gpio_charger->charger);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(gpio_charger_pm_ops, NULL, gpio_charger_resume);
+
 static struct platform_driver gpio_charger_driver = {
 	.probe = gpio_charger_probe,
 	.remove = __devexit_p(gpio_charger_remove),
 	.driver = {
 		.name = "gpio-charger",
 		.owner = THIS_MODULE,
+		.pm = &gpio_charger_pm_ops,
 	},
 };
 

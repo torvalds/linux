@@ -28,6 +28,7 @@
 #include <linux/percpu.h>
 #include <linux/audit.h>
 #include <linux/uaccess.h>
+#include <linux/kobject.h>
 
 /* selinuxfs pseudo filesystem for exporting the security policy API.
    Based on the proc code and the fs/nfsd/nfsctl.c code. */
@@ -753,11 +754,13 @@ out:
 static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 {
 	char *scon = NULL, *tcon = NULL;
+	char *namebuf = NULL, *objname = NULL;
 	u32 ssid, tsid, newsid;
 	u16 tclass;
 	ssize_t length;
 	char *newcon = NULL;
 	u32 len;
+	int nargs;
 
 	length = task_has_security(current, SECURITY__COMPUTE_CREATE);
 	if (length)
@@ -773,9 +776,17 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	if (!tcon)
 		goto out;
 
-	length = -EINVAL;
-	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
+	length = -ENOMEM;
+	namebuf = kzalloc(size + 1, GFP_KERNEL);
+	if (!namebuf)
 		goto out;
+
+	length = -EINVAL;
+	nargs = sscanf(buf, "%s %s %hu %s", scon, tcon, &tclass, namebuf);
+	if (nargs < 3 || nargs > 4)
+		goto out;
+	if (nargs == 4)
+		objname = namebuf;
 
 	length = security_context_to_sid(scon, strlen(scon) + 1, &ssid);
 	if (length)
@@ -785,7 +796,8 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	if (length)
 		goto out;
 
-	length = security_transition_sid_user(ssid, tsid, tclass, &newsid);
+	length = security_transition_sid_user(ssid, tsid, tclass,
+					      objname, &newsid);
 	if (length)
 		goto out;
 
@@ -804,6 +816,7 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 	length = len;
 out:
 	kfree(newcon);
+	kfree(namebuf);
 	kfree(tcon);
 	kfree(scon);
 	return length;
@@ -1901,6 +1914,7 @@ static struct file_system_type sel_fs_type = {
 };
 
 struct vfsmount *selinuxfs_mount;
+static struct kobject *selinuxfs_kobj;
 
 static int __init init_sel_fs(void)
 {
@@ -1908,9 +1922,16 @@ static int __init init_sel_fs(void)
 
 	if (!selinux_enabled)
 		return 0;
+
+	selinuxfs_kobj = kobject_create_and_add("selinux", fs_kobj);
+	if (!selinuxfs_kobj)
+		return -ENOMEM;
+
 	err = register_filesystem(&sel_fs_type);
-	if (err)
+	if (err) {
+		kobject_put(selinuxfs_kobj);
 		return err;
+	}
 
 	selinuxfs_mount = kern_mount(&sel_fs_type);
 	if (IS_ERR(selinuxfs_mount)) {
@@ -1927,6 +1948,7 @@ __initcall(init_sel_fs);
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 void exit_sel_fs(void)
 {
+	kobject_put(selinuxfs_kobj);
 	unregister_filesystem(&sel_fs_type);
 }
 #endif

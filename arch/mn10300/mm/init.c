@@ -37,8 +37,6 @@
 #include <asm/tlb.h>
 #include <asm/sections.h>
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
 unsigned long highstart_pfn, highend_pfn;
 
 #ifdef CONFIG_MN10300_HAS_ATOMIC_OPS_UNIT

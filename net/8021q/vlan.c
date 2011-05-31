@@ -46,8 +46,6 @@ int vlan_net_id __read_mostly;
 
 const char vlan_fullname[] = "802.1Q VLAN Support";
 const char vlan_version[] = DRV_VERSION;
-static const char vlan_copyright[] = "Ben Greear <greearb@candelatech.com>";
-static const char vlan_buggyright[] = "David S. Miller <davem@redhat.com>";
 
 /* End of global variables definitions. */
 
@@ -673,8 +671,7 @@ static int __init vlan_proto_init(void)
 {
 	int err;
 
-	pr_info("%s v%s %s\n", vlan_fullname, vlan_version, vlan_copyright);
-	pr_info("All bugs added by %s\n", vlan_buggyright);
+	pr_info("%s v%s\n", vlan_fullname, vlan_version);
 
 	err = register_pernet_subsys(&vlan_net_ops);
 	if (err < 0)

@@ -42,7 +42,6 @@
 #include <linux/pid_namespace.h>
 #include <linux/module.h>
 #include <linux/namei.h>
-#include <linux/proc_fs.h>
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
@@ -200,7 +199,7 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
 
 #ifdef CONFIG_STACK_GROWSUP
 	if (write) {
-		ret = expand_stack_downwards(bprm->vma, pos);
+		ret = expand_downwards(bprm->vma, pos);
 		if (ret < 0)
 			return NULL;
 	}
@@ -600,7 +599,7 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 	unsigned long length = old_end - old_start;
 	unsigned long new_start = old_start - shift;
 	unsigned long new_end = old_end - shift;
-	struct mmu_gather *tlb;
+	struct mmu_gather tlb;
 
 	BUG_ON(new_start > new_end);
 
@@ -626,12 +625,12 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 		return -ENOMEM;
 
 	lru_add_drain();
-	tlb = tlb_gather_mmu(mm, 0);
+	tlb_gather_mmu(&tlb, mm, 0);
 	if (new_end > old_start) {
 		/*
 		 * when the old and new regions overlap clear from new_end.
 		 */
-		free_pgd_range(tlb, new_end, old_end, new_end,
+		free_pgd_range(&tlb, new_end, old_end, new_end,
 			vma->vm_next ? vma->vm_next->vm_start : 0);
 	} else {
 		/*
@@ -640,10 +639,10 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 		 * have constraints on va-space that make this illegal (IA64) -
 		 * for the others its just a little faster.
 		 */
-		free_pgd_range(tlb, old_start, old_end, new_end,
+		free_pgd_range(&tlb, old_start, old_end, new_end,
 			vma->vm_next ? vma->vm_next->vm_start : 0);
 	}
-	tlb_finish_mmu(tlb, new_end, old_end);
+	tlb_finish_mmu(&tlb, new_end, old_end);
 
 	/*
 	 * Shrink the vma to just the new range.  Always succeeds.
@@ -1624,6 +1623,41 @@ expand_fail:
 	return ret;
 }
 
+static int cn_print_exe_file(struct core_name *cn)
+{
+	struct file *exe_file;
+	char *pathbuf, *path, *p;
+	int ret;
+
+	exe_file = get_mm_exe_file(current->mm);
+	if (!exe_file)
+		return cn_printf(cn, "(unknown)");
+
+	pathbuf = kmalloc(PATH_MAX, GFP_TEMPORARY);
+	if (!pathbuf) {
+		ret = -ENOMEM;
+		goto put_exe_file;
+	}
+
+	path = d_path(&exe_file->f_path, pathbuf, PATH_MAX);
+	if (IS_ERR(path)) {
+		ret = PTR_ERR(path);
+		goto free_buf;
+	}
+
+	for (p = path; *p; p++)
+		if (*p == '/')
+			*p = '!';
+
+	ret = cn_printf(cn, "%s", path);
+
+free_buf:
+	kfree(pathbuf);
+put_exe_file:
+	fput(exe_file);
+	return ret;
+}
+
 /* format_corename will inspect the pattern parameter, and output a
  * name into corename, which must have space for at least
  * CORENAME_MAX_SIZE bytes plus one byte for the zero terminator.
@@ -1694,6 +1728,9 @@ static int format_corename(struct core_name *cn, long signr)
 			/* executable */
 			case 'e':
 				err = cn_printf(cn, "%s", current->comm);
+				break;
+			case 'E':
+				err = cn_print_exe_file(cn);
 				break;
 			/* core limit size */
 			case 'c':

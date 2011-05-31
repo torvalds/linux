@@ -1140,8 +1140,7 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_CMD,
-		.len = sizeof(struct iwl_scan_cmd),
-		.flags = CMD_SIZE_HUGE,
+		.len = { sizeof(struct iwl_scan_cmd), },
 	};
 	struct iwl_scan_cmd *scan;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
@@ -1425,10 +1424,11 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		return -EIO;
 	}
 
-	cmd.len += le16_to_cpu(scan->tx_cmd.len) +
+	cmd.len[0] += le16_to_cpu(scan->tx_cmd.len) +
 	    scan->channel_count * sizeof(struct iwl_scan_channel);
-	cmd.data = scan;
-	scan->len = cpu_to_le16(cmd.len);
+	cmd.data[0] = scan;
+	cmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
+	scan->len = cpu_to_le16(cmd.len[0]);
 
 	/* set scan bit here for PAN params */
 	set_bit(STATUS_SCAN_HW, &priv->status);
@@ -1520,9 +1520,9 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 	struct iwl_txfifo_flush_cmd flush_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_TXFIFO_FLUSH,
-		.len = sizeof(struct iwl_txfifo_flush_cmd),
+		.len = { sizeof(struct iwl_txfifo_flush_cmd), },
 		.flags = CMD_SYNC,
-		.data = &flush_cmd,
+		.data = { &flush_cmd, },
 	};
 
 	might_sleep();

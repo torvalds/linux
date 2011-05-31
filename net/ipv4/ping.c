@@ -137,9 +137,6 @@ static void ping_v4_unhash(struct sock *sk)
 	struct inet_sock *isk = inet_sk(sk);
 	pr_debug("ping_v4_unhash(isk=%p,isk->num=%u)\n", isk, isk->inet_num);
 	if (sk_hashed(sk)) {
-		struct hlist_nulls_head *hslot;
-
-		hslot = ping_hashslot(&ping_table, sock_net(sk), isk->inet_num);
 		write_lock_bh(&ping_table.lock);
 		hlist_nulls_del(&sk->sk_nulls_node);
 		sock_put(sk);

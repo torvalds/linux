@@ -562,7 +562,7 @@ static int ptrace_resume(struct task_struct *child, long request,
 	}
 
 	child->exit_code = data;
-	wake_up_process(child);
+	wake_up_state(child, __TASK_TRACED);
 
 	return 0;
 }

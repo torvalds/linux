@@ -340,7 +340,7 @@ static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase)
     outb(0x40, dev->base_addr);
 }
 
-static struct pcmcia_device_id ibmtr_ids[] = {
+static const struct pcmcia_device_id ibmtr_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("3Com", "TokenLink Velocity PC Card", 0x41240e5b, 0x82c3734e),
 	PCMCIA_DEVICE_PROD_ID12("IBM", "TOKEN RING", 0xb569a6e5, 0xbf8eed47),
 	PCMCIA_DEVICE_NULL,

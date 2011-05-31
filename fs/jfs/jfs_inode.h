@@ -28,7 +28,7 @@ extern struct inode *jfs_iget(struct super_block *, unsigned long);
 extern int jfs_commit_inode(struct inode *, int);
 extern int jfs_write_inode(struct inode *, struct writeback_control *);
 extern void jfs_evict_inode(struct inode *);
-extern void jfs_dirty_inode(struct inode *);
+extern void jfs_dirty_inode(struct inode *, int);
 extern void jfs_truncate(struct inode *);
 extern void jfs_truncate_nolock(struct inode *, loff_t);
 extern void jfs_free_zero_link(struct inode *);

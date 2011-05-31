@@ -318,7 +318,7 @@ static int acpi_check_handle(acpi_handle handle, const char *method,
 
 	if (status != AE_OK) {
 		if (ret)
-			pr_warning("Error finding %s\n", method);
+			pr_warn("Error finding %s\n", method);
 		return -ENODEV;
 	}
 	return 0;
@@ -383,7 +383,7 @@ static int asus_kled_lvl(struct asus_laptop *asus)
 	rv = acpi_evaluate_integer(asus->handle, METHOD_KBD_LIGHT_GET,
 				   &params, &kblv);
 	if (ACPI_FAILURE(rv)) {
-		pr_warning("Error reading kled level\n");
+		pr_warn("Error reading kled level\n");
 		return -ENODEV;
 	}
 	return kblv;
@@ -397,7 +397,7 @@ static int asus_kled_set(struct asus_laptop *asus, int kblv)
 		kblv = 0;
 
 	if (write_acpi_int(asus->handle, METHOD_KBD_LIGHT_SET, kblv)) {
-		pr_warning("Keyboard LED display write failed\n");
+		pr_warn("Keyboard LED display write failed\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -531,7 +531,7 @@ static int asus_read_brightness(struct backlight_device *bd)
 	rv = acpi_evaluate_integer(asus->handle, METHOD_BRIGHTNESS_GET,
 				   NULL, &value);
 	if (ACPI_FAILURE(rv))
-		pr_warning("Error reading brightness\n");
+		pr_warn("Error reading brightness\n");
 
 	return value;
 }
@@ -541,7 +541,7 @@ static int asus_set_brightness(struct backlight_device *bd, int value)
 	struct asus_laptop *asus = bl_get_data(bd);
 
 	if (write_acpi_int(asus->handle, METHOD_BRIGHTNESS_SET, value)) {
-		pr_warning("Error changing brightness\n");
+		pr_warn("Error changing brightness\n");
 		return -EIO;
 	}
 	return 0;
@@ -730,7 +730,7 @@ static ssize_t store_ledd(struct device *dev, struct device_attribute *attr,
 	rv = parse_arg(buf, count, &value);
 	if (rv > 0) {
 		if (write_acpi_int(asus->handle, METHOD_LEDD, value)) {
-			pr_warning("LED display write failed\n");
+			pr_warn("LED display write failed\n");
 			return -ENODEV;
 		}
 		asus->ledd_status = (u32) value;
@@ -752,7 +752,7 @@ static int asus_wireless_status(struct asus_laptop *asus, int mask)
 	rv = acpi_evaluate_integer(asus->handle, METHOD_WL_STATUS,
 				   NULL, &status);
 	if (ACPI_FAILURE(rv)) {
-		pr_warning("Error reading Wireless status\n");
+		pr_warn("Error reading Wireless status\n");
 		return -EINVAL;
 	}
 	return !!(status & mask);
@@ -764,7 +764,7 @@ static int asus_wireless_status(struct asus_laptop *asus, int mask)
 static int asus_wlan_set(struct asus_laptop *asus, int status)
 {
 	if (write_acpi_int(asus->handle, METHOD_WLAN, !!status)) {
-		pr_warning("Error setting wlan status to %d", status);
+		pr_warn("Error setting wlan status to %d\n", status);
 		return -EIO;
 	}
 	return 0;
@@ -792,7 +792,7 @@ static ssize_t store_wlan(struct device *dev, struct device_attribute *attr,
 static int asus_bluetooth_set(struct asus_laptop *asus, int status)
 {
 	if (write_acpi_int(asus->handle, METHOD_BLUETOOTH, !!status)) {
-		pr_warning("Error setting bluetooth status to %d", status);
+		pr_warn("Error setting bluetooth status to %d\n", status);
 		return -EIO;
 	}
 	return 0;
@@ -821,7 +821,7 @@ static ssize_t store_bluetooth(struct device *dev,
 static int asus_wimax_set(struct asus_laptop *asus, int status)
 {
 	if (write_acpi_int(asus->handle, METHOD_WIMAX, !!status)) {
-		pr_warning("Error setting wimax status to %d", status);
+		pr_warn("Error setting wimax status to %d\n", status);
 		return -EIO;
 	}
 	return 0;
@@ -850,7 +850,7 @@ static ssize_t store_wimax(struct device *dev,
 static int asus_wwan_set(struct asus_laptop *asus, int status)
 {
 	if (write_acpi_int(asus->handle, METHOD_WWAN, !!status)) {
-		pr_warning("Error setting wwan status to %d", status);
+		pr_warn("Error setting wwan status to %d\n", status);
 		return -EIO;
 	}
 	return 0;
@@ -880,7 +880,7 @@ static void asus_set_display(struct asus_laptop *asus, int value)
 {
 	/* no sanity check needed for now */
 	if (write_acpi_int(asus->handle, METHOD_SWITCH_DISPLAY, value))
-		pr_warning("Error setting display\n");
+		pr_warn("Error setting display\n");
 	return;
 }
 
@@ -909,7 +909,7 @@ static ssize_t store_disp(struct device *dev, struct device_attribute *attr,
 static void asus_als_switch(struct asus_laptop *asus, int value)
 {
 	if (write_acpi_int(asus->handle, METHOD_ALS_CONTROL, value))
-		pr_warning("Error setting light sensor switch\n");
+		pr_warn("Error setting light sensor switch\n");
 	asus->light_switch = value;
 }
 
@@ -937,7 +937,7 @@ static ssize_t store_lssw(struct device *dev, struct device_attribute *attr,
 static void asus_als_level(struct asus_laptop *asus, int value)
 {
 	if (write_acpi_int(asus->handle, METHOD_ALS_LEVEL, value))
-		pr_warning("Error setting light sensor level\n");
+		pr_warn("Error setting light sensor level\n");
 	asus->light_level = value;
 }
 
@@ -976,7 +976,7 @@ static int asus_gps_status(struct asus_laptop *asus)
 	rv = acpi_evaluate_integer(asus->handle, METHOD_GPS_STATUS,
 				   NULL, &status);
 	if (ACPI_FAILURE(rv)) {
-		pr_warning("Error reading GPS status\n");
+		pr_warn("Error reading GPS status\n");
 		return -ENODEV;
 	}
 	return !!status;
@@ -1284,7 +1284,7 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 	 */
 	status = acpi_get_table(ACPI_SIG_DSDT, 1, &asus->dsdt_info);
 	if (ACPI_FAILURE(status))
-		pr_warning("Couldn't get the DSDT table header\n");
+		pr_warn("Couldn't get the DSDT table header\n");
 
 	/* We have to write 0 on init this far for all ASUS models */
 	if (write_acpi_int_ret(asus->handle, "INIT", 0, &buffer)) {
@@ -1296,7 +1296,7 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 	status =
 	    acpi_evaluate_integer(asus->handle, "BSTS", NULL, &bsts_result);
 	if (ACPI_FAILURE(status))
-		pr_warning("Error calling BSTS\n");
+		pr_warn("Error calling BSTS\n");
 	else if (bsts_result)
 		pr_notice("BSTS called, 0x%02x returned\n",
 		       (uint) bsts_result);

@@ -3639,8 +3639,16 @@ static struct kobj_type cm_port_obj_type = {
 	.release = cm_release_port_obj
 };
 
+static char *cm_devnode(struct device *dev, mode_t *mode)
+{
+	*mode = 0666;
+	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
+}
+
 struct class cm_class = {
+	.owner   = THIS_MODULE,
 	.name    = "infiniband_cm",
+	.devnode = cm_devnode,
 };
 EXPORT_SYMBOL(cm_class);
 

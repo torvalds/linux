@@ -129,7 +129,7 @@ static irqreturn_t call_function_single_action(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-irqreturn_t debug_ipi_action(int irq, void *data)
+static irqreturn_t debug_ipi_action(int irq, void *data)
 {
 	if (crash_ipi_function_ptr) {
 		crash_ipi_function_ptr(get_irq_regs());

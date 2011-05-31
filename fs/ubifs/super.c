@@ -375,14 +375,14 @@ out:
 		ubifs_release_dirty_inode_budget(c, ui);
 	else {
 		/* We've deleted something - clean the "no space" flags */
-		c->nospace = c->nospace_rp = 0;
+		c->bi.nospace = c->bi.nospace_rp = 0;
 		smp_wmb();
 	}
 done:
 	end_writeback(inode);
 }
 
-static void ubifs_dirty_inode(struct inode *inode)
+static void ubifs_dirty_inode(struct inode *inode, int flags)
 {
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
@@ -694,11 +694,11 @@ static int init_constants_sb(struct ubifs_info *c)
 	 * be compressed and direntries are of the maximum size.
 	 *
 	 * Note, data, which may be stored in inodes is budgeted separately, so
-	 * it is not included into 'c->inode_budget'.
+	 * it is not included into 'c->bi.inode_budget'.
 	 */
-	c->page_budget = UBIFS_MAX_DATA_NODE_SZ * UBIFS_BLOCKS_PER_PAGE;
-	c->inode_budget = UBIFS_INO_NODE_SZ;
-	c->dent_budget = UBIFS_MAX_DENT_NODE_SZ;
+	c->bi.page_budget = UBIFS_MAX_DATA_NODE_SZ * UBIFS_BLOCKS_PER_PAGE;
+	c->bi.inode_budget = UBIFS_INO_NODE_SZ;
+	c->bi.dent_budget = UBIFS_MAX_DENT_NODE_SZ;
 
 	/*
 	 * When the amount of flash space used by buds becomes
@@ -742,7 +742,7 @@ static void init_constants_master(struct ubifs_info *c)
 {
 	long long tmp64;
 
-	c->min_idx_lebs = ubifs_calc_min_idx_lebs(c);
+	c->bi.min_idx_lebs = ubifs_calc_min_idx_lebs(c);
 	c->report_rp_size = ubifs_reported_space(c, c->rp_size);
 
 	/*
@@ -1144,8 +1144,8 @@ static int check_free_space(struct ubifs_info *c)
 {
 	ubifs_assert(c->dark_wm > 0);
 	if (c->lst.total_free + c->lst.total_dirty < c->dark_wm) {
-		ubifs_err("insufficient free space to mount in read/write mode");
-		dbg_dump_budg(c);
+		ubifs_err("insufficient free space to mount in R/W mode");
+		dbg_dump_budg(c, &c->bi);
 		dbg_dump_lprops(c);
 		return -ENOSPC;
 	}
@@ -1304,7 +1304,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_lpt;
 
-	err = dbg_check_idx_size(c, c->old_idx_sz);
+	err = dbg_check_idx_size(c, c->bi.old_idx_sz);
 	if (err)
 		goto out_lpt;
 
@@ -1313,7 +1313,7 @@ static int mount_ubifs(struct ubifs_info *c)
 		goto out_journal;
 
 	/* Calculate 'min_idx_lebs' after journal replay */
-	c->min_idx_lebs = ubifs_calc_min_idx_lebs(c);
+	c->bi.min_idx_lebs = ubifs_calc_min_idx_lebs(c);
 
 	err = ubifs_mount_orphans(c, c->need_recovery, c->ro_mount);
 	if (err)
@@ -1396,6 +1396,12 @@ static int mount_ubifs(struct ubifs_info *c)
 	} else
 		ubifs_assert(c->lst.taken_empty_lebs > 0);
 
+	if (!c->ro_mount && c->space_fixup) {
+		err = ubifs_fixup_free_space(c);
+		if (err)
+			goto out_infos;
+	}
+
 	err = dbg_check_filesystem(c);
 	if (err)
 		goto out_infos;
@@ -1442,7 +1448,8 @@ static int mount_ubifs(struct ubifs_info *c)
 		c->main_lebs, c->main_first, c->leb_cnt - 1);
 	dbg_msg("index LEBs:          %d", c->lst.idx_lebs);
 	dbg_msg("total index bytes:   %lld (%lld KiB, %lld MiB)",
-		c->old_idx_sz, c->old_idx_sz >> 10, c->old_idx_sz >> 20);
+		c->bi.old_idx_sz, c->bi.old_idx_sz >> 10,
+		c->bi.old_idx_sz >> 20);
 	dbg_msg("key hash type:       %d", c->key_hash_type);
 	dbg_msg("tree fanout:         %d", c->fanout);
 	dbg_msg("reserved GC LEB:     %d", c->gc_lnum);
@@ -1456,7 +1463,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	dbg_msg("node sizes:          ref %zu, cmt. start %zu, orph %zu",
 		UBIFS_REF_NODE_SZ, UBIFS_CS_NODE_SZ, UBIFS_ORPH_NODE_SZ);
 	dbg_msg("max. node sizes:     data %zu, inode %zu dentry %zu, idx %d",
-	        UBIFS_MAX_DATA_NODE_SZ, UBIFS_MAX_INO_NODE_SZ,
+		UBIFS_MAX_DATA_NODE_SZ, UBIFS_MAX_INO_NODE_SZ,
 		UBIFS_MAX_DENT_NODE_SZ, ubifs_idx_node_sz(c, c->fanout));
 	dbg_msg("dead watermark:      %d", c->dead_wm);
 	dbg_msg("dark watermark:      %d", c->dark_wm);
@@ -1584,6 +1591,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		}
 		sup->leb_cnt = cpu_to_le32(c->leb_cnt);
 		err = ubifs_write_sb_node(c, sup);
+		kfree(sup);
 		if (err)
 			goto out;
 	}
@@ -1684,6 +1692,13 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		 */
 		err = dbg_check_space_info(c);
 	}
+
+	if (c->space_fixup) {
+		err = ubifs_fixup_free_space(c);
+		if (err)
+			goto out;
+	}
+
 	mutex_unlock(&c->umount_mutex);
 	return err;
 
@@ -1766,10 +1781,9 @@ static void ubifs_put_super(struct super_block *sb)
 	 * to write them back because of I/O errors.
 	 */
 	if (!c->ro_error) {
-		ubifs_assert(atomic_long_read(&c->dirty_pg_cnt) == 0);
-		ubifs_assert(c->budg_idx_growth == 0);
-		ubifs_assert(c->budg_dd_growth == 0);
-		ubifs_assert(c->budg_data_growth == 0);
+		ubifs_assert(c->bi.idx_growth == 0);
+		ubifs_assert(c->bi.dd_growth == 0);
+		ubifs_assert(c->bi.data_growth == 0);
 	}
 
 	/*

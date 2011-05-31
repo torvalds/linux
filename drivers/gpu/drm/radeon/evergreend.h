@@ -64,6 +64,8 @@
 #define GB_BACKEND_MAP  				0x98FC
 #define DMIF_ADDR_CONFIG  				0xBD4
 #define HDP_ADDR_CONFIG  				0x2F48
+#define HDP_MISC_CNTL  					0x2F4C
+#define		HDP_FLUSH_INVALIDATE_CACHE      	(1 << 0)
 
 #define	CC_SYS_RB_BACKEND_DISABLE			0x3F88
 #define	GC_USER_RB_BACKEND_DISABLE			0x9B7C

@@ -125,6 +125,16 @@ comment "I2C RTC drivers"
 
 if I2C
 
+config RTC_DRV_88PM860X
+	tristate "Marvell 88PM860x"
+	depends on RTC_CLASS && I2C && MFD_88PM860X
+	help
+	  If you say yes here you get support for RTC function in Marvell
+	  88PM860x chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-88pm860x.
+
 config RTC_DRV_DS1307
 	tristate "Dallas/Maxim DS1307/37/38/39/40, ST M41T00, EPSON RX-8025"
 	help
@@ -351,11 +361,38 @@ config RTC_DRV_RX8025
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rx8025.
 
+config RTC_DRV_EM3027
+	tristate "EM Microelectronic EM3027"
+	help
+	  If you say yes here you get support for the EM
+	  Microelectronic EM3027 RTC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-em3027.
+
+config RTC_DRV_RV3029C2
+	tristate "Micro Crystal RTC"
+	help
+	  If you say yes here you get support for the Micro Crystal
+	  RV3029-C2 RTC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rv3029c2.
+
 endif # I2C
 
 comment "SPI RTC drivers"
 
 if SPI_MASTER
+
+config RTC_DRV_M41T93
+        tristate "ST M41T93"
+        help
+          If you say yes here you will get support for the
+          ST M41T93 SPI RTC chip.
+
+          This driver can also be built as a module. If so, the module
+          will be called rtc-m41t93.
 
 config RTC_DRV_M41T94
 	tristate "ST M41T94"
@@ -645,6 +682,14 @@ config RTC_DRV_WM8350
 	  This driver can also be built as a module. If so, the module
 	  will be called "rtc-wm8350".
 
+config RTC_DRV_SPEAR
+	tristate "SPEAR ST RTC"
+	depends on PLAT_SPEAR
+	default y
+	help
+	 If you say Y here you will get support for the RTC found on
+	 spear
+
 config RTC_DRV_PCF50633
 	depends on MFD_PCF50633
 	tristate "NXP PCF50633 RTC"
@@ -874,6 +919,13 @@ config RTC_DRV_PXA
          This RTC driver uses PXA RTC registers available since pxa27x
          series (RDxR, RYxR) instead of legacy RCNR, RTAR.
 
+config RTC_DRV_VT8500
+	tristate "VIA/WonderMedia 85xx SoC RTC"
+	depends on ARCH_VT8500
+	help
+	  If you say Y here you will get access to the real time clock
+	  built into your VIA VT8500 SoC or its relatives.
+
 
 config RTC_DRV_SUN4V
 	bool "SUN4V Hypervisor RTC"
@@ -991,5 +1043,12 @@ config RTC_DRV_TEGRA
 
 	  This drive can also be built as a module. If so, the module
 	  will be called rtc-tegra.
+
+config RTC_DRV_TILE
+	tristate "Tilera hypervisor RTC support"
+	depends on TILE
+	help
+	  Enable support for the Linux driver side of the Tilera
+	  hypervisor's real-time clock interface.
 
 endif # RTC_CLASS

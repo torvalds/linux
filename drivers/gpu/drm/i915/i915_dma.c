@@ -571,7 +571,7 @@ static int i915_quiescent(struct drm_device *dev)
 	struct intel_ring_buffer *ring = LP_RING(dev->dev_private);
 
 	i915_kernel_lost_context(dev);
-	return intel_wait_ring_buffer(ring, ring->size - 8);
+	return intel_wait_ring_idle(ring);
 }
 
 static int i915_flush_ioctl(struct drm_device *dev, void *data,
@@ -1176,11 +1176,11 @@ static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 	return can_switch;
 }
 
-static int i915_load_modeset_init(struct drm_device *dev)
+static int i915_load_gem_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long prealloc_size, gtt_size, mappable_size;
-	int ret = 0;
+	int ret;
 
 	prealloc_size = dev_priv->mm.gtt->stolen_size;
 	gtt_size = dev_priv->mm.gtt->gtt_total_entries << PAGE_SHIFT;
@@ -1204,7 +1204,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	ret = i915_gem_init_ringbuffer(dev);
 	mutex_unlock(&dev->struct_mutex);
 	if (ret)
-		goto out;
+		return ret;
 
 	/* Try to set up FBC with a reasonable compressed buffer size */
 	if (I915_HAS_FBC(dev) && i915_powersave) {
@@ -1222,6 +1222,13 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	/* Allow hardware batchbuffers unless told otherwise. */
 	dev_priv->allow_batchbuffer = 1;
+	return 0;
+}
+
+static int i915_load_modeset_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
 
 	ret = intel_parse_bios(dev);
 	if (ret)
@@ -1236,7 +1243,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 */
 	ret = vga_client_register(dev->pdev, dev, NULL, i915_vga_set_decode);
 	if (ret && ret != -ENODEV)
-		goto cleanup_ringbuffer;
+		goto out;
 
 	intel_register_dsm_handler();
 
@@ -1253,9 +1260,39 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_modeset_init(dev);
 
-	ret = drm_irq_install(dev);
+	ret = i915_load_gem_init(dev);
 	if (ret)
 		goto cleanup_vga_switcheroo;
+
+	intel_modeset_gem_init(dev);
+
+	if (IS_IVYBRIDGE(dev)) {
+		/* Share pre & uninstall handlers with ILK/SNB */
+		dev->driver->irq_handler = ivybridge_irq_handler;
+		dev->driver->irq_preinstall = ironlake_irq_preinstall;
+		dev->driver->irq_postinstall = ivybridge_irq_postinstall;
+		dev->driver->irq_uninstall = ironlake_irq_uninstall;
+		dev->driver->enable_vblank = ivybridge_enable_vblank;
+		dev->driver->disable_vblank = ivybridge_disable_vblank;
+	} else if (HAS_PCH_SPLIT(dev)) {
+		dev->driver->irq_handler = ironlake_irq_handler;
+		dev->driver->irq_preinstall = ironlake_irq_preinstall;
+		dev->driver->irq_postinstall = ironlake_irq_postinstall;
+		dev->driver->irq_uninstall = ironlake_irq_uninstall;
+		dev->driver->enable_vblank = ironlake_enable_vblank;
+		dev->driver->disable_vblank = ironlake_disable_vblank;
+	} else {
+		dev->driver->irq_preinstall = i915_driver_irq_preinstall;
+		dev->driver->irq_postinstall = i915_driver_irq_postinstall;
+		dev->driver->irq_uninstall = i915_driver_irq_uninstall;
+		dev->driver->irq_handler = i915_driver_irq_handler;
+		dev->driver->enable_vblank = i915_enable_vblank;
+		dev->driver->disable_vblank = i915_disable_vblank;
+	}
+
+	ret = drm_irq_install(dev);
+	if (ret)
+		goto cleanup_gem;
 
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
@@ -1274,14 +1311,14 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 cleanup_irq:
 	drm_irq_uninstall(dev);
+cleanup_gem:
+	mutex_lock(&dev->struct_mutex);
+	i915_gem_cleanup_ringbuffer(dev);
+	mutex_unlock(&dev->struct_mutex);
 cleanup_vga_switcheroo:
 	vga_switcheroo_unregister_client(dev->pdev);
 cleanup_vga_client:
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
-cleanup_ringbuffer:
-	mutex_lock(&dev->struct_mutex);
-	i915_gem_cleanup_ringbuffer(dev);
-	mutex_unlock(&dev->struct_mutex);
 out:
 	return ret;
 }
@@ -1982,7 +2019,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-	if (IS_G4X(dev) || IS_GEN5(dev) || IS_GEN6(dev)) {
+	if (IS_G4X(dev) || IS_GEN5(dev) || IS_GEN6(dev) || IS_IVYBRIDGE(dev)) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
 	}
@@ -2025,6 +2062,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->error_lock);
+	spin_lock_init(&dev_priv->rps_lock);
 
 	if (IS_MOBILE(dev) || !IS_GEN2(dev))
 		dev_priv->num_pipe = 2;

@@ -215,7 +215,6 @@ static int vga_switchoff(struct vga_switcheroo_client *client)
 /* stage one happens before delay */
 static int vga_switchto_stage1(struct vga_switcheroo_client *new_client)
 {
-	int ret;
 	int i;
 	struct vga_switcheroo_client *active = NULL;
 
@@ -227,11 +226,6 @@ static int vga_switchto_stage1(struct vga_switcheroo_client *new_client)
 	}
 	if (!active)
 		return 0;
-
-	/* power up the first device */
-	ret = pci_enable_device(new_client->pdev);
-	if (ret)
-		return ret;
 
 	if (new_client->pwr_state == VGA_SWITCHEROO_OFF)
 		vga_switchon(new_client);

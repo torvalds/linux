@@ -40,11 +40,6 @@ static const char dm_snapshot_merge_target_name[] = "snapshot-merge";
 #define SNAPSHOT_COPY_PRIORITY 2
 
 /*
- * Reserve 1MB for each snapshot initially (with minimum of 1 page).
- */
-#define SNAPSHOT_PAGES (((1UL << 20) >> PAGE_SHIFT) ? : 1)
-
-/*
  * The size of the mempool used to track chunks in use.
  */
 #define MIN_IOS 256
@@ -1116,8 +1111,9 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_hash_tables;
 	}
 
-	r = dm_kcopyd_client_create(SNAPSHOT_PAGES, &s->kcopyd_client);
-	if (r) {
+	s->kcopyd_client = dm_kcopyd_client_create();
+	if (IS_ERR(s->kcopyd_client)) {
+		r = PTR_ERR(s->kcopyd_client);
 		ti->error = "Could not create kcopyd client";
 		goto bad_kcopyd;
 	}

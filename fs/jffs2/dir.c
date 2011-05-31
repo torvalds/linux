@@ -75,7 +75,6 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 				   struct nameidata *nd)
 {
 	struct jffs2_inode_info *dir_f;
-	struct jffs2_sb_info *c;
 	struct jffs2_full_dirent *fd = NULL, *fd_list;
 	uint32_t ino = 0;
 	struct inode *inode = NULL;
@@ -86,7 +85,6 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 		return ERR_PTR(-ENAMETOOLONG);
 
 	dir_f = JFFS2_INODE_INFO(dir_i);
-	c = JFFS2_SB_INFO(dir_i->i_sb);
 
 	mutex_lock(&dir_f->sem);
 
@@ -119,7 +117,6 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 static int jffs2_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct jffs2_inode_info *f;
-	struct jffs2_sb_info *c;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct jffs2_full_dirent *fd;
 	unsigned long offset, curofs;
@@ -127,7 +124,6 @@ static int jffs2_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	D1(printk(KERN_DEBUG "jffs2_readdir() for dir_i #%lu\n", filp->f_path.dentry->d_inode->i_ino));
 
 	f = JFFS2_INODE_INFO(inode);
-	c = JFFS2_SB_INFO(inode->i_sb);
 
 	offset = filp->f_pos;
 

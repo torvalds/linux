@@ -64,6 +64,7 @@
 /* Forward declarations for internal functions. */
 static void sctp_assoc_bh_rcv(struct work_struct *work);
 static void sctp_assoc_free_asconf_acks(struct sctp_association *asoc);
+static void sctp_assoc_free_asconf_queue(struct sctp_association *asoc);
 
 /* Keep track of the new idr low so that we don't re-use association id
  * numbers too fast.  It is protected by they idr spin lock is in the
@@ -445,6 +446,9 @@ void sctp_association_free(struct sctp_association *asoc)
 
 	/* Free any cached ASCONF_ACK chunk. */
 	sctp_assoc_free_asconf_acks(asoc);
+
+	/* Free the ASCONF queue. */
+	sctp_assoc_free_asconf_queue(asoc);
 
 	/* Free any cached ASCONF chunk. */
 	if (asoc->addip_last_asconf)
@@ -1576,6 +1580,18 @@ retry:
 
 	asoc->assoc_id = (sctp_assoc_t) assoc_id;
 	return error;
+}
+
+/* Free the ASCONF queue */
+static void sctp_assoc_free_asconf_queue(struct sctp_association *asoc)
+{
+	struct sctp_chunk *asconf;
+	struct sctp_chunk *tmp;
+
+	list_for_each_entry_safe(asconf, tmp, &asoc->addip_chunk_list, list) {
+		list_del_init(&asconf->list);
+		sctp_chunk_free(asconf);
+	}
 }
 
 /* Free asconf_ack cache */

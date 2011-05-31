@@ -4096,8 +4096,7 @@ static int __init cy_init(void)
 	if (!cy_serial_driver)
 		goto err;
 
-	printk(KERN_INFO "Cyclades driver " CY_VERSION " (built %s %s)\n",
-			__DATE__, __TIME__);
+	printk(KERN_INFO "Cyclades driver " CY_VERSION "\n");
 
 	/* Initialize the tty_driver structure */
 

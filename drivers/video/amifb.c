@@ -2224,22 +2224,23 @@ static int amifb_ioctl(struct fb_info *info,
 	 * Allocate, Clear and Align a Block of Chip Memory
 	 */
 
-static u_long unaligned_chipptr = 0;
+static void *aligned_chipptr;
 
 static inline u_long __init chipalloc(u_long size)
 {
-	size += PAGE_SIZE-1;
-	if (!(unaligned_chipptr = (u_long)amiga_chip_alloc(size,
-							   "amifb [RAM]")))
-		panic("No Chip RAM for frame buffer");
-	memset((void *)unaligned_chipptr, 0, size);
-	return PAGE_ALIGN(unaligned_chipptr);
+	aligned_chipptr = amiga_chip_alloc(size, "amifb [RAM]");
+	if (!aligned_chipptr) {
+		pr_err("amifb: No Chip RAM for frame buffer");
+		return 0;
+	}
+	memset(aligned_chipptr, 0, size);
+	return (u_long)aligned_chipptr;
 }
 
 static inline void chipfree(void)
 {
-	if (unaligned_chipptr)
-		amiga_chip_free((void *)unaligned_chipptr);
+	if (aligned_chipptr)
+		amiga_chip_free(aligned_chipptr);
 }
 
 
@@ -2295,7 +2296,7 @@ default_chipset:
 			    defmode = amiga_vblank == 50 ? DEFMODE_PAL
 							 : DEFMODE_NTSC;
 			if (amiga_chip_avail()-CHIPRAM_SAFETY_LIMIT >
-			    VIDEOMEMSIZE_ECS_1M)
+			    VIDEOMEMSIZE_ECS_2M)
 				fb_info.fix.smem_len = VIDEOMEMSIZE_ECS_2M;
 			else
 				fb_info.fix.smem_len = VIDEOMEMSIZE_ECS_1M;
@@ -2312,7 +2313,7 @@ default_chipset:
 			maxfmode = TAG_FMODE_4;
 			defmode = DEFMODE_AGA;
 			if (amiga_chip_avail()-CHIPRAM_SAFETY_LIMIT >
-			    VIDEOMEMSIZE_AGA_1M)
+			    VIDEOMEMSIZE_AGA_2M)
 				fb_info.fix.smem_len = VIDEOMEMSIZE_AGA_2M;
 			else
 				fb_info.fix.smem_len = VIDEOMEMSIZE_AGA_1M;
@@ -2385,6 +2386,10 @@ default_chipset:
 	                    DUMMYSPRITEMEMSIZE+
 	                    COPINITSIZE+
 	                    4*COPLISTSIZE);
+	if (!chipptr) {
+		err = -ENOMEM;
+		goto amifb_error;
+	}
 
 	assignchunk(videomemory, u_long, chipptr, fb_info.fix.smem_len);
 	assignchunk(spritememory, u_long, chipptr, SPRITEMEMSIZE);

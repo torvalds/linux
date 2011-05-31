@@ -438,7 +438,7 @@ static int cpia2_querycap(struct file *file, void *fh, struct v4l2_capability *v
 		strcat(vc->card, " (676/");
 		break;
 	default:
-		strcat(vc->card, " (???/");
+		strcat(vc->card, " (XXX/");
 		break;
 	}
 	switch (cam->params.version.sensor_flags) {
@@ -458,7 +458,7 @@ static int cpia2_querycap(struct file *file, void *fh, struct v4l2_capability *v
 		strcat(vc->card, "500)");
 		break;
 	default:
-		strcat(vc->card, "???)");
+		strcat(vc->card, "XXX)");
 		break;
 	}
 

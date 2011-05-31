@@ -253,6 +253,7 @@ void init_new_thread_signals(void)
 		    SA_ONSTACK | SA_RESTART, SIGUSR1, SIGIO, SIGWINCH, SIGALRM,
 		    SIGVTALRM, -1);
 	signal(SIGWINCH, SIG_IGN);
+	signal(SIGTERM, SIG_DFL);
 }
 
 int run_kernel_thread(int (*fn)(void *), void *arg, jmp_buf **jmp_ptr)

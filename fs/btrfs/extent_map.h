@@ -49,14 +49,14 @@ static inline u64 extent_map_block_end(struct extent_map *em)
 	return em->block_start + em->block_len;
 }
 
-void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask);
+void extent_map_tree_init(struct extent_map_tree *tree);
 struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 					 u64 start, u64 len);
 int add_extent_mapping(struct extent_map_tree *tree,
 		       struct extent_map *em);
 int remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em);
 
-struct extent_map *alloc_extent_map(gfp_t mask);
+struct extent_map *alloc_extent_map(void);
 void free_extent_map(struct extent_map *em);
 int __init extent_map_init(void);
 void extent_map_exit(void);

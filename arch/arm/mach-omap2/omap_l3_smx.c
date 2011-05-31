@@ -155,7 +155,7 @@ static irqreturn_t omap3_l3_block_irq(struct omap3_l3 *l3,
 	u8                      multi = error & L3_ERROR_LOG_MULTI;
 	u32			address = omap3_l3_decode_addr(error_addr);
 
-	WARN(true, "%s Error seen by %s %s at address %x\n",
+	WARN(true, "%s seen by %s %s at address %x\n",
 				 omap3_l3_code_string(code),
 			  omap3_l3_initiator_string(initid),
 			     multi ? "Multiple Errors" : "",
@@ -167,21 +167,15 @@ static irqreturn_t omap3_l3_block_irq(struct omap3_l3 *l3,
 static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 {
 	struct omap3_l3         *l3 = _l3;
-
 	u64                     status, clear;
 	u64                     error;
 	u64			error_addr;
 	u64			err_source = 0;
 	void			__iomem *base;
 	int			int_type;
-
 	irqreturn_t             ret = IRQ_NONE;
 
-	if (irq == l3->app_irq)
-		int_type = L3_APPLICATION_ERROR;
-	else
-		int_type = L3_DEBUG_ERROR;
-
+	int_type = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
 	if (!int_type) {
 		status = omap3_l3_readll(l3->rt, L3_SI_FLAG_STATUS_0);
 		/*
@@ -202,7 +196,6 @@ static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 
 	base = l3->rt + *(omap3_l3_bases[int_type] + err_source);
 	error = omap3_l3_readll(base, L3_ERROR_LOG);
-
 	if (error) {
 		error_addr = omap3_l3_readll(base, L3_ERROR_LOG_ADDR);
 
@@ -210,9 +203,8 @@ static irqreturn_t omap3_l3_app_irq(int irq, void *_l3)
 	}
 
 	/* Clear the status register */
-	clear = ((L3_AGENT_STATUS_CLEAR_IA << int_type) |
-		 (L3_AGENT_STATUS_CLEAR_TA));
-
+	clear = (L3_AGENT_STATUS_CLEAR_IA << int_type) |
+		L3_AGENT_STATUS_CLEAR_TA;
 	omap3_l3_writell(base, L3_AGENT_STATUS, clear);
 
 	/* clear the error log register */
@@ -228,10 +220,8 @@ static int __init omap3_l3_probe(struct platform_device *pdev)
 	int                     ret;
 
 	l3 = kzalloc(sizeof(*l3), GFP_KERNEL);
-	if (!l3) {
-		ret = -ENOMEM;
-		goto err0;
-	}
+	if (!l3)
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, l3);
 
@@ -239,13 +229,13 @@ static int __init omap3_l3_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_err(&pdev->dev, "couldn't find resource\n");
 		ret = -ENODEV;
-		goto err1;
+		goto err0;
 	}
 	l3->rt = ioremap(res->start, resource_size(res));
-	if (!(l3->rt)) {
+	if (!l3->rt) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
-		goto err2;
+		goto err0;
 	}
 
 	l3->debug_irq = platform_get_irq(pdev, 0);
@@ -254,28 +244,26 @@ static int __init omap3_l3_probe(struct platform_device *pdev)
 		"l3-debug-irq", l3);
 	if (ret) {
 		dev_err(&pdev->dev, "couldn't request debug irq\n");
-		goto err3;
+		goto err1;
 	}
 
 	l3->app_irq = platform_get_irq(pdev, 1);
 	ret = request_irq(l3->app_irq, omap3_l3_app_irq,
 		IRQF_DISABLED | IRQF_TRIGGER_RISING,
 		"l3-app-irq", l3);
-
 	if (ret) {
 		dev_err(&pdev->dev, "couldn't request app irq\n");
-		goto err4;
+		goto err2;
 	}
 
-	goto err0;
+	return 0;
 
-err4:
-err3:
-	iounmap(l3->rt);
 err2:
+	free_irq(l3->debug_irq, l3);
 err1:
-	kfree(l3);
+	iounmap(l3->rt);
 err0:
+	kfree(l3);
 	return ret;
 }
 

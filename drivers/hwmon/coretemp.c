@@ -350,6 +350,7 @@ static int get_pkg_tjmax(unsigned int cpu, struct device *dev)
 
 static int create_name_attr(struct platform_data *pdata, struct device *dev)
 {
+	sysfs_attr_init(&pdata->name_attr.attr);
 	pdata->name_attr.attr.name = "name";
 	pdata->name_attr.attr.mode = S_IRUGO;
 	pdata->name_attr.show = show_name;
@@ -372,6 +373,7 @@ static int create_core_attrs(struct temp_data *tdata, struct device *dev,
 	for (i = 0; i < MAX_ATTRS; i++) {
 		snprintf(tdata->attr_name[i], CORETEMP_NAME_LENGTH, names[i],
 			attr_no);
+		sysfs_attr_init(&tdata->sd_attrs[i].dev_attr.attr);
 		tdata->sd_attrs[i].dev_attr.attr.name = tdata->attr_name[i];
 		tdata->sd_attrs[i].dev_attr.attr.mode = S_IRUGO;
 		tdata->sd_attrs[i].dev_attr.show = rd_ptr[i];
@@ -422,7 +424,7 @@ static void update_ttarget(__u8 cpu_model, struct temp_data *tdata,
 	}
 }
 
-static int chk_ucode_version(struct platform_device *pdev)
+static int __devinit chk_ucode_version(struct platform_device *pdev)
 {
 	struct cpuinfo_x86 *c = &cpu_data(pdev->id);
 	int err;
@@ -509,8 +511,8 @@ static int create_core_data(struct platform_data *pdata,
 	/*
 	 * Provide a single set of attributes for all HT siblings of a core
 	 * to avoid duplicate sensors (the processor ID and core ID of all
-	 * HT siblings of a core is the same).
-	 * Skip if a HT sibling of this core is already online.
+	 * HT siblings of a core are the same).
+	 * Skip if a HT sibling of this core is already registered.
 	 * This is not an error.
 	 */
 	if (pdata->core_data[attr_no] != NULL)
@@ -770,10 +772,10 @@ static void __cpuinit put_core_offline(unsigned int cpu)
 		coretemp_remove_core(pdata, &pdev->dev, indx);
 
 	/*
-	 * If a core is taken offline, but a HT sibling of the same core is
-	 * still online, register the alternate sibling. This ensures that
-	 * exactly one set of attributes is provided as long as at least one
-	 * HT sibling of a core is online.
+	 * If a HT sibling of a core is taken offline, but another HT sibling
+	 * of the same core is still online, register the alternate sibling.
+	 * This ensures that exactly one set of attributes is provided as long
+	 * as at least one HT sibling of a core is online.
 	 */
 	for_each_sibling(i, cpu) {
 		if (i != cpu) {

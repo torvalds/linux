@@ -108,17 +108,15 @@ ENTRY(cpu_v7_switch_mm)
 #ifdef CONFIG_ARM_ERRATA_430973
 	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
 #endif
-#ifdef CONFIG_ARM_ERRATA_754322
-	dsb
-#endif
-	mcr	p15, 0, r2, c13, c0, 1		@ set reserved context ID
-	isb
-1:	mcr	p15, 0, r0, c2, c0, 0		@ set TTB 0
+	mrc	p15, 0, r2, c2, c0, 1		@ load TTB 1
+	mcr	p15, 0, r2, c2, c0, 0		@ into TTB 0
 	isb
 #ifdef CONFIG_ARM_ERRATA_754322
 	dsb
 #endif
 	mcr	p15, 0, r1, c13, c0, 1		@ set context ID
+	isb
+	mcr	p15, 0, r0, c2, c0, 0		@ set TTB 0
 	isb
 #endif
 	mov	pc, lr
@@ -368,7 +366,9 @@ __v7_setup:
 	mcr	p15, 0, r10, c2, c0, 2		@ TTB control register
 	ALT_SMP(orr	r4, r4, #TTB_FLAGS_SMP)
 	ALT_UP(orr	r4, r4, #TTB_FLAGS_UP)
-	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
+	ALT_SMP(orr	r8, r8, #TTB_FLAGS_SMP)
+	ALT_UP(orr	r8, r8, #TTB_FLAGS_UP)
+	mcr	p15, 0, r8, c2, c0, 1		@ load TTB1
 	ldr	r5, =PRRR			@ PRRR
 	ldr	r6, =NMRR			@ NMRR
 	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR

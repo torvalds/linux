@@ -113,9 +113,11 @@ MODULE_PARM_DESC(max_bonds, "Max number of bonded devices");
 module_param(tx_queues, int, 0);
 MODULE_PARM_DESC(tx_queues, "Max number of transmit queues (default = 16)");
 module_param_named(num_grat_arp, num_peer_notif, int, 0644);
-MODULE_PARM_DESC(num_grat_arp, "Number of peer notifications to send on failover event (alias of num_unsol_na)");
+MODULE_PARM_DESC(num_grat_arp, "Number of peer notifications to send on "
+			       "failover event (alias of num_unsol_na)");
 module_param_named(num_unsol_na, num_peer_notif, int, 0644);
-MODULE_PARM_DESC(num_unsol_na, "Number of peer notifications to send on failover event (alias of num_grat_arp)");
+MODULE_PARM_DESC(num_unsol_na, "Number of peer notifications to send on "
+			       "failover event (alias of num_grat_arp)");
 module_param(miimon, int, 0);
 MODULE_PARM_DESC(miimon, "Link check interval in milliseconds");
 module_param(updelay, int, 0);
@@ -127,7 +129,7 @@ module_param(use_carrier, int, 0);
 MODULE_PARM_DESC(use_carrier, "Use netif_carrier_ok (vs MII ioctls) in miimon; "
 			      "0 for off, 1 for on (default)");
 module_param(mode, charp, 0);
-MODULE_PARM_DESC(mode, "Mode of operation : 0 for balance-rr, "
+MODULE_PARM_DESC(mode, "Mode of operation; 0 for balance-rr, "
 		       "1 for active-backup, 2 for balance-xor, "
 		       "3 for broadcast, 4 for 802.3ad, 5 for balance-tlb, "
 		       "6 for balance-alb");
@@ -142,27 +144,35 @@ MODULE_PARM_DESC(primary_reselect, "Reselect primary slave "
 				   "2 for only on active slave "
 				   "failure");
 module_param(lacp_rate, charp, 0);
-MODULE_PARM_DESC(lacp_rate, "LACPDU tx rate to request from 802.3ad partner "
-			    "(slow/fast)");
+MODULE_PARM_DESC(lacp_rate, "LACPDU tx rate to request from 802.3ad partner; "
+			    "0 for slow, 1 for fast");
 module_param(ad_select, charp, 0);
-MODULE_PARM_DESC(ad_select, "803.ad aggregation selection logic: stable (0, default), bandwidth (1), count (2)");
+MODULE_PARM_DESC(ad_select, "803.ad aggregation selection logic; "
+			    "0 for stable (default), 1 for bandwidth, "
+			    "2 for count");
 module_param(xmit_hash_policy, charp, 0);
-MODULE_PARM_DESC(xmit_hash_policy, "XOR hashing method: 0 for layer 2 (default)"
-				   ", 1 for layer 3+4");
+MODULE_PARM_DESC(xmit_hash_policy, "balance-xor and 802.3ad hashing method; "
+				   "0 for layer 2 (default), 1 for layer 3+4, "
+				   "2 for layer 2+3");
 module_param(arp_interval, int, 0);
 MODULE_PARM_DESC(arp_interval, "arp interval in milliseconds");
 module_param_array(arp_ip_target, charp, NULL, 0);
 MODULE_PARM_DESC(arp_ip_target, "arp targets in n.n.n.n form");
 module_param(arp_validate, charp, 0);
-MODULE_PARM_DESC(arp_validate, "validate src/dst of ARP probes: none (default), active, backup or all");
+MODULE_PARM_DESC(arp_validate, "validate src/dst of ARP probes; "
+			       "0 for none (default), 1 for active, "
+			       "2 for backup, 3 for all");
 module_param(fail_over_mac, charp, 0);
-MODULE_PARM_DESC(fail_over_mac, "For active-backup, do not set all slaves to the same MAC.  none (default), active or follow");
+MODULE_PARM_DESC(fail_over_mac, "For active-backup, do not set all slaves to "
+				"the same MAC; 0 for none (default), "
+				"1 for active, 2 for follow");
 module_param(all_slaves_active, int, 0);
 MODULE_PARM_DESC(all_slaves_active, "Keep all frames received on an interface"
-				     "by setting active flag for all slaves.  "
+				     "by setting active flag for all slaves; "
 				     "0 for never (default), 1 for always.");
 module_param(resend_igmp, int, 0);
-MODULE_PARM_DESC(resend_igmp, "Number of IGMP membership reports to send on link failure");
+MODULE_PARM_DESC(resend_igmp, "Number of IGMP membership reports to send on "
+			      "link failure");
 
 /*----------------------------- Global variables ----------------------------*/
 
@@ -852,7 +862,7 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 static void bond_resend_igmp_join_requests_delayed(struct work_struct *work)
 {
 	struct bonding *bond = container_of(work, struct bonding,
-							mcast_work.work);
+					    mcast_work.work);
 	bond_resend_igmp_join_requests(bond);
 }
 
@@ -1172,10 +1182,12 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 	}
 
 	/* resend IGMP joins since active slave has changed or
-	 * all were sent on curr_active_slave */
-	if (((USES_PRIMARY(bond->params.mode) && new_active) ||
-	     bond->params.mode == BOND_MODE_ROUNDROBIN) &&
-	    netif_running(bond->dev)) {
+	 * all were sent on curr_active_slave.
+	 * resend only if bond is brought up with the affected
+	 * bonding modes and the retransmission is enabled */
+	if (netif_running(bond->dev) && (bond->params.resend_igmp > 0) &&
+	    ((USES_PRIMARY(bond->params.mode) && new_active) ||
+	     bond->params.mode == BOND_MODE_ROUNDROBIN)) {
 		bond->igmp_retrans = bond->params.resend_igmp;
 		queue_delayed_work(bond->wq, &bond->mcast_work, 0);
 	}
@@ -1540,12 +1552,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		slave_ops->ndo_do_ioctl == NULL) {
 		pr_warning("%s: Warning: no link monitoring support for %s\n",
 			   bond_dev->name, slave_dev->name);
-	}
-
-	/* bond must be initialized by bond_open() before enslaving */
-	if (!(bond_dev->flags & IFF_UP)) {
-		pr_warning("%s: master_dev is not up in bond_enslave\n",
-			   bond_dev->name);
 	}
 
 	/* already enslaved */
@@ -4834,8 +4840,18 @@ static int bond_init(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct bond_net *bn = net_generic(dev_net(bond_dev), bond_net_id);
+	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
 
 	pr_debug("Begin bond_init for %s\n", bond_dev->name);
+
+	/*
+	 * Initialize locks that may be required during
+	 * en/deslave operations.  All of the bond_open work
+	 * (of which this is part) should really be moved to
+	 * a phase prior to dev_open
+	 */
+	spin_lock_init(&(bond_info->tx_hashtbl_lock));
+	spin_lock_init(&(bond_info->rx_hashtbl_lock));
 
 	bond->wq = create_singlethread_workqueue(bond_dev->name);
 	if (!bond->wq)

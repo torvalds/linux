@@ -40,6 +40,8 @@
 #include "mixer_quirks.h"
 #include "helper.h"
 
+extern struct snd_kcontrol_new *snd_usb_feature_unit_ctl;
+
 /*
  * Sound Blaster remote control configuration
  *
@@ -492,6 +494,69 @@ static int snd_nativeinstruments_create_mixer(struct usb_mixer_interface *mixer,
 	return err;
 }
 
+/* M-Audio FastTrack Ultra quirks */
+
+/* private_free callback */
+static void usb_mixer_elem_free(struct snd_kcontrol *kctl)
+{
+	kfree(kctl->private_data);
+	kctl->private_data = NULL;
+}
+
+static int snd_maudio_ftu_create_ctl(struct usb_mixer_interface *mixer,
+				     int in, int out, const char *name)
+{
+	struct usb_mixer_elem_info *cval;
+	struct snd_kcontrol *kctl;
+
+	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
+	if (!cval)
+		return -ENOMEM;
+
+	cval->id = 5;
+	cval->mixer = mixer;
+	cval->val_type = USB_MIXER_S16;
+	cval->channels = 1;
+	cval->control = out + 1;
+	cval->cmask = 1 << in;
+
+	kctl = snd_ctl_new1(snd_usb_feature_unit_ctl, cval);
+	if (!kctl) {
+		kfree(cval);
+		return -ENOMEM;
+	}
+
+	snprintf(kctl->id.name, sizeof(kctl->id.name), name);
+	kctl->private_free = usb_mixer_elem_free;
+	return snd_usb_mixer_add_control(mixer, kctl);
+}
+
+static int snd_maudio_ftu_create_mixer(struct usb_mixer_interface *mixer)
+{
+	char name[64];
+	int in, out, err;
+
+	for (out = 0; out < 8; out++) {
+		for (in = 0; in < 8; in++) {
+			snprintf(name, sizeof(name),
+				 "AIn%d - Out%d Capture Volume", in  + 1, out + 1);
+			err = snd_maudio_ftu_create_ctl(mixer, in, out, name);
+			if (err < 0)
+				return err;
+		}
+
+		for (in = 8; in < 16; in++) {
+			snprintf(name, sizeof(name),
+				 "DIn%d - Out%d Playback Volume", in - 7, out + 1);
+			err = snd_maudio_ftu_create_ctl(mixer, in, out, name);
+			if (err < 0)
+				return err;
+		}
+	}
+
+	return 0;
+}
+
 void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
 			       unsigned char samplerate_id)
 {
@@ -531,6 +596,11 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		if (!snd_card_proc_new(mixer->chip->card, "audigy2nx", &entry))
 			snd_info_set_text_ops(entry, mixer,
 					      snd_audigy2nx_proc_read);
+		break;
+
+	case USB_ID(0x0763, 0x2080): /* M-Audio Fast Track Ultra */
+	case USB_ID(0x0763, 0x2081): /* M-Audio Fast Track Ultra 8R */
+		err = snd_maudio_ftu_create_mixer(mixer);
 		break;
 
 	case USB_ID(0x0b05, 0x1739):

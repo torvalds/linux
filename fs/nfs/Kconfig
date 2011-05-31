@@ -87,6 +87,16 @@ config NFS_V4_1
 config PNFS_FILE_LAYOUT
 	tristate
 
+config PNFS_OBJLAYOUT
+	tristate "Provide support for the pNFS Objects Layout Driver for NFSv4.1 pNFS (EXPERIMENTAL)"
+	depends on NFS_FS && NFS_V4_1 && SCSI_OSD_ULD
+	help
+	  Say M here if you want your pNFS client to support the Objects Layout Driver.
+	  Requires the SCSI osd initiator library (SCSI_OSD_INITIATOR) and
+	  upper level driver (SCSI_OSD_ULD).
+
+	  If unsure, say N.
+
 config ROOT_NFS
 	bool "Root file system on NFS"
 	depends on NFS_FS=y && IP_PNP

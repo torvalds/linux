@@ -23,7 +23,8 @@
 
 /* Fixed constants first: */
 #undef NR_OPEN
-#define INR_OPEN 1024		/* Initial setting for nfile rlimits */
+#define INR_OPEN_CUR 1024	/* Initial setting for nfile rlimits */
+#define INR_OPEN_MAX 4096	/* Hard limit for nfile rlimits */
 
 #define BLOCK_SIZE_BITS 10
 #define BLOCK_SIZE (1<<BLOCK_SIZE_BITS)
@@ -236,6 +237,7 @@ struct inodes_stat_t {
 #define S_PRIVATE	512	/* Inode is fs-internal */
 #define S_IMA		1024	/* Inode has an associated IMA struct */
 #define S_AUTOMOUNT	2048	/* Automount/referral quasi-directory */
+#define S_NOSEC		4096	/* no suid or xattr security attributes */
 
 /*
  * Note that nosuid etc flags are inode-specific: setting some file-system
@@ -272,6 +274,7 @@ struct inodes_stat_t {
 #define IS_PRIVATE(inode)	((inode)->i_flags & S_PRIVATE)
 #define IS_IMA(inode)		((inode)->i_flags & S_IMA)
 #define IS_AUTOMOUNT(inode)	((inode)->i_flags & S_AUTOMOUNT)
+#define IS_NOSEC(inode)		((inode)->i_flags & S_NOSEC)
 
 /* the read-only stuff doesn't really belong here, but any other place is
    probably as bad and I don't want to create yet another include file. */
@@ -634,8 +637,7 @@ struct address_space {
 	unsigned int		i_mmap_writable;/* count VM_SHARED mappings */
 	struct prio_tree_root	i_mmap;		/* tree of private and shared mappings */
 	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
-	spinlock_t		i_mmap_lock;	/* protect tree, count, list */
-	unsigned int		truncate_count;	/* Cover race condition with truncate */
+	struct mutex		i_mmap_mutex;	/* protect tree, count, list */
 	unsigned long		nrpages;	/* number of total pages */
 	pgoff_t			writeback_index;/* writeback starts here */
 	const struct address_space_operations *a_ops;	/* methods */
@@ -644,7 +646,6 @@ struct address_space {
 	spinlock_t		private_lock;	/* for use by the address_space */
 	struct list_head	private_list;	/* ditto */
 	struct address_space	*assoc_mapping;	/* ditto */
-	struct mutex		unmap_mutex;    /* to protect unmapping */
 } __attribute__((aligned(sizeof(long))));
 	/*
 	 * On most architectures that alignment is already the case; but
@@ -1429,6 +1430,11 @@ struct super_block {
 	 */
 	char __rcu *s_options;
 	const struct dentry_operations *s_d_op; /* default d_op for dentries */
+
+	/*
+	 * Saved pool identifier for cleancache (-1 means none)
+	 */
+	int cleancache_poolid;
 };
 
 extern struct timespec current_fs_time(struct super_block *sb);
@@ -1614,7 +1620,7 @@ struct super_operations {
    	struct inode *(*alloc_inode)(struct super_block *sb);
 	void (*destroy_inode)(struct inode *);
 
-   	void (*dirty_inode) (struct inode *);
+   	void (*dirty_inode) (struct inode *, int flags);
 	int (*write_inode) (struct inode *, struct writeback_control *wbc);
 	int (*drop_inode) (struct inode *);
 	void (*evict_inode) (struct inode *);
@@ -2577,6 +2583,17 @@ int __init get_filesystem_list(char *buf);
 #define ACC_MODE(x) ("\004\002\006\006"[(x)&O_ACCMODE])
 #define OPEN_FMODE(flag) ((__force fmode_t)(((flag + 1) & O_ACCMODE) | \
 					    (flag & __FMODE_NONOTIFY)))
+
+static inline int is_sxid(mode_t mode)
+{
+	return (mode & S_ISUID) || ((mode & S_ISGID) && (mode & S_IXGRP));
+}
+
+static inline void inode_has_no_xattr(struct inode *inode)
+{
+	if (!is_sxid(inode->i_mode))
+		inode->i_flags |= S_NOSEC;
+}
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_FS_H */

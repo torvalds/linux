@@ -418,11 +418,8 @@ int ccw_device_resume(struct ccw_device *cdev)
 int
 ccw_device_call_handler(struct ccw_device *cdev)
 {
-	struct subchannel *sch;
 	unsigned int stctl;
 	int ending_status;
-
-	sch = to_subchannel(cdev->dev.parent);
 
 	/*
 	 * we allow for the device action handler if .

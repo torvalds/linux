@@ -19,6 +19,7 @@
 #include <linux/usb.h>
 #include <linux/usb/audio.h>
 
+#include <sound/control.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/pcm.h>
@@ -263,6 +264,20 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 }
 
 /*
+ * Create a standard mixer for the specified interface.
+ */
+static int create_standard_mixer_quirk(struct snd_usb_audio *chip,
+				       struct usb_interface *iface,
+				       struct usb_driver *driver,
+				       const struct snd_usb_audio_quirk *quirk)
+{
+	if (quirk->ifnum < 0)
+		return 0;
+
+	return snd_usb_create_mixer(chip, quirk->ifnum, 0);
+}
+
+/*
  * audio-interface quirks
  *
  * returns zero if no standard audio/MIDI parsing is needed.
@@ -294,7 +309,8 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_audio_quirk,
 		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
 		[QUIRK_AUDIO_EDIROL_UAXX] = create_uaxx_quirk,
-		[QUIRK_AUDIO_ALIGN_TRANSFER] = create_align_transfer_quirk
+		[QUIRK_AUDIO_ALIGN_TRANSFER] = create_align_transfer_quirk,
+		[QUIRK_AUDIO_STANDARD_MIXER] = create_standard_mixer_quirk,
 	};
 
 	if (quirk->type < QUIRK_TYPE_COUNT) {

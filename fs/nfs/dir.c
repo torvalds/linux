@@ -512,12 +512,7 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 				struct page **xdr_pages, struct page *page, unsigned int buflen)
 {
 	struct xdr_stream stream;
-	struct xdr_buf buf = {
-		.pages = xdr_pages,
-		.page_len = buflen,
-		.buflen = buflen,
-		.len = buflen,
-	};
+	struct xdr_buf buf;
 	struct page *scratch;
 	struct nfs_cache_array *array;
 	unsigned int count = 0;
@@ -527,7 +522,7 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 	if (scratch == NULL)
 		return -ENOMEM;
 
-	xdr_init_decode(&stream, &buf, NULL);
+	xdr_init_decode_pages(&stream, &buf, xdr_pages, buflen);
 	xdr_set_scratch_buffer(&stream, page_address(scratch), PAGE_SIZE);
 
 	do {
@@ -2042,11 +2037,14 @@ static void nfs_access_free_list(struct list_head *head)
 	}
 }
 
-int nfs_access_cache_shrinker(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+int nfs_access_cache_shrinker(struct shrinker *shrink,
+			      struct shrink_control *sc)
 {
 	LIST_HEAD(head);
 	struct nfs_inode *nfsi, *next;
 	struct nfs_access_entry *cache;
+	int nr_to_scan = sc->nr_to_scan;
+	gfp_t gfp_mask = sc->gfp_mask;
 
 	if ((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
 		return (nr_to_scan == 0) ? 0 : -1;

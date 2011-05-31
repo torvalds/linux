@@ -295,17 +295,20 @@ static inline void handle_one_irq(unsigned int irq)
 	unsigned long saved_sp_limit;
 	struct irq_desc *desc;
 
+	desc = irq_to_desc(irq);
+	if (!desc)
+		return;
+
 	/* Switch to the irq stack to handle this */
 	curtp = current_thread_info();
 	irqtp = hardirq_ctx[smp_processor_id()];
 
 	if (curtp == irqtp) {
 		/* We're already on the irq stack, just handle it */
-		generic_handle_irq(irq);
+		desc->handle_irq(irq, desc);
 		return;
 	}
 
-	desc = irq_to_desc(irq);
 	saved_sp_limit = current->thread.ksp_limit;
 
 	irqtp->task = curtp->task;
@@ -557,15 +560,8 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 	if (revmap_type == IRQ_HOST_MAP_LEGACY) {
 		if (irq_map[0].host != NULL) {
 			raw_spin_unlock_irqrestore(&irq_big_lock, flags);
-			/* If we are early boot, we can't free the structure,
-			 * too bad...
-			 * this will be fixed once slab is made available early
-			 * instead of the current cruft
-			 */
-			if (mem_init_done) {
-				of_node_put(host->of_node);
-				kfree(host);
-			}
+			of_node_put(host->of_node);
+			kfree(host);
 			return NULL;
 		}
 		irq_map[0].host = host;
@@ -727,9 +723,7 @@ unsigned int irq_create_mapping(struct irq_host *host,
 	}
 	pr_debug("irq: -> using host @%p\n", host);
 
-	/* Check if mapping already exist, if it does, call
-	 * host->ops->map() to update the flags
-	 */
+	/* Check if mapping already exists */
 	virq = irq_find_mapping(host, hwirq);
 	if (virq != NO_IRQ) {
 		pr_debug("irq: -> existing mapping on virq %d\n", virq);
@@ -899,10 +893,13 @@ unsigned int irq_radix_revmap_lookup(struct irq_host *host,
 		return irq_find_mapping(host, hwirq);
 
 	/*
-	 * No rcu_read_lock(ing) needed, the ptr returned can't go under us
-	 * as it's referencing an entry in the static irq_map table.
+	 * The ptr returned references the static global irq_map.
+	 * but freeing an irq can delete nodes along the path to
+	 * do the lookup via call_rcu.
 	 */
+	rcu_read_lock();
 	ptr = radix_tree_lookup(&host->revmap_data.tree, hwirq);
+	rcu_read_unlock();
 
 	/*
 	 * If found in radix tree, then fine.
@@ -1010,13 +1007,22 @@ void irq_free_virt(unsigned int virq, unsigned int count)
 	WARN_ON (virq < NUM_ISA_INTERRUPTS);
 	WARN_ON (count == 0 || (virq + count) > irq_virq_count);
 
+	if (virq < NUM_ISA_INTERRUPTS) {
+		if (virq + count < NUM_ISA_INTERRUPTS)
+			return;
+		count  =- NUM_ISA_INTERRUPTS - virq;
+		virq = NUM_ISA_INTERRUPTS;
+	}
+
+	if (count > irq_virq_count || virq > irq_virq_count - count) {
+		if (virq > irq_virq_count)
+			return;
+		count = irq_virq_count - virq;
+	}
+
 	raw_spin_lock_irqsave(&irq_big_lock, flags);
 	for (i = virq; i < (virq + count); i++) {
 		struct irq_host *host;
-
-		if (i < NUM_ISA_INTERRUPTS ||
-		    (virq + count) > irq_virq_count)
-			continue;
 
 		host = irq_map[i].host;
 		irq_map[i].hwirq = host->inval_irq;

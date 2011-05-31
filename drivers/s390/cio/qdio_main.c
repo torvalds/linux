@@ -1446,7 +1446,7 @@ set:
 static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 			   int bufnr, int count)
 {
-	unsigned char state;
+	unsigned char state = 0;
 	int used, rc = 0;
 
 	qperf_inc(q, outbound_call);

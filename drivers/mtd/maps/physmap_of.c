@@ -34,16 +34,12 @@ struct of_flash_list {
 
 struct of_flash {
 	struct mtd_info		*cmtd;
-#ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition	*parts;
-#endif
 	int list_size; /* number of elements in of_flash_list */
 	struct of_flash_list	list[0];
 };
 
-#ifdef CONFIG_MTD_PARTITIONS
 #define OF_FLASH_PARTS(info)	((info)->parts)
-
 static int parse_obsolete_partitions(struct platform_device *dev,
 				     struct of_flash *info,
 				     struct device_node *dp)
@@ -89,10 +85,6 @@ static int parse_obsolete_partitions(struct platform_device *dev,
 
 	return nr_parts;
 }
-#else /* MTD_PARTITIONS */
-#define	OF_FLASH_PARTS(info)		(0)
-#define parse_partitions(info, dev)	(0)
-#endif /* MTD_PARTITIONS */
 
 static int of_flash_remove(struct platform_device *dev)
 {
@@ -105,17 +97,14 @@ static int of_flash_remove(struct platform_device *dev)
 	dev_set_drvdata(&dev->dev, NULL);
 
 	if (info->cmtd != info->list[0].mtd) {
-		del_mtd_device(info->cmtd);
+		mtd_device_unregister(info->cmtd);
 		mtd_concat_destroy(info->cmtd);
 	}
 
 	if (info->cmtd) {
-		if (OF_FLASH_PARTS(info)) {
-			del_mtd_partitions(info->cmtd);
+		if (OF_FLASH_PARTS(info))
 			kfree(OF_FLASH_PARTS(info));
-		} else {
-			del_mtd_device(info->cmtd);
-		}
+		mtd_device_unregister(info->cmtd);
 	}
 
 	for (i = 0; i < info->list_size; i++) {
@@ -172,7 +161,6 @@ static struct mtd_info * __devinit obsolete_probe(struct platform_device *dev,
 	}
 }
 
-#ifdef CONFIG_MTD_PARTITIONS
 /* When partitions are set we look for a linux,part-probe property which
    specifies the list of partition probers to use. If none is given then the
    default is use. These take precedence over other device tree
@@ -212,14 +200,11 @@ static void __devinit of_free_probes(const char **probes)
 	if (probes != part_probe_types_def)
 		kfree(probes);
 }
-#endif
 
 static struct of_device_id of_flash_match[];
 static int __devinit of_flash_probe(struct platform_device *dev)
 {
-#ifdef CONFIG_MTD_PARTITIONS
 	const char **part_probe_types;
-#endif
 	const struct of_device_id *match;
 	struct device_node *dp = dev->dev.of_node;
 	struct resource res;
@@ -346,7 +331,6 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 	if (err)
 		goto err_out;
 
-#ifdef CONFIG_MTD_PARTITIONS
 	part_probe_types = of_get_probes(dp);
 	err = parse_mtd_partitions(info->cmtd, part_probe_types,
 				   &info->parts, 0);
@@ -356,13 +340,11 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 	}
 	of_free_probes(part_probe_types);
 
-#ifdef CONFIG_MTD_OF_PARTS
 	if (err == 0) {
 		err = of_mtd_parse_partitions(&dev->dev, dp, &info->parts);
 		if (err < 0)
 			goto err_out;
 	}
-#endif
 
 	if (err == 0) {
 		err = parse_obsolete_partitions(dev, info, dp);
@@ -370,11 +352,7 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 			goto err_out;
 	}
 
-	if (err > 0)
-		add_mtd_partitions(info->cmtd, info->parts, err);
-	else
-#endif
-		add_mtd_device(info->cmtd);
+	mtd_device_register(info->cmtd, info->parts, err);
 
 	kfree(mtd_list);
 
