@@ -106,6 +106,9 @@ static void __init omap3_beagle_init_rev(void)
 	beagle_rev = gpio_get_value(171) | (gpio_get_value(172) << 1)
 			| (gpio_get_value(173) << 2);
 
+	gpio_free_array(omap3_beagle_rev_gpios,
+			ARRAY_SIZE(omap3_beagle_rev_gpios));
+
 	switch (beagle_rev) {
 	case 7:
 		printk(KERN_INFO "OMAP3 Beagle Rev: Ax/Bx\n");
