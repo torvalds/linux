@@ -218,7 +218,7 @@ config TWL4030_POWER
 	  and load scripts controlling which resources are switched off/on
 	  or reset when a sleep, wakeup or warm reset event occurs.
 
-config TWL4030_CODEC
+config MFD_TWL4030_AUDIO
 	bool
 	depends on TWL4030_CORE
 	select MFD_CORE

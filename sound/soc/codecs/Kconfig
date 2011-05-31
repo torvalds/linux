@@ -236,7 +236,7 @@ config SND_SOC_TLV320DAC33
 	tristate
 
 config SND_SOC_TWL4030
-	select TWL4030_CODEC
+	select MFD_TWL4030_AUDIO
 	tristate
 
 config SND_SOC_TWL6040

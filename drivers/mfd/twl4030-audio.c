@@ -30,7 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c/twl.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/twl4030-codec.h>
+#include <linux/mfd/twl4030-audio.h>
 
 #define TWL4030_AUDIO_CELLS	2
 
@@ -45,7 +45,7 @@ struct twl4030_audio_resource {
 struct twl4030_audio {
 	unsigned int audio_mclk;
 	struct mutex mutex;
-	struct twl4030_audio_resource resource[TWL4030_CODEC_RES_MAX];
+	struct twl4030_audio_resource resource[TWL4030_AUDIO_RES_MAX];
 	struct mfd_cell cells[TWL4030_AUDIO_CELLS];
 };
 
@@ -53,7 +53,7 @@ struct twl4030_audio {
  * Modify the resource, the function returns the content of the register
  * after the modification.
  */
-static int twl4030_audio_set_resource(enum twl4030_codec_res id, int enable)
+static int twl4030_audio_set_resource(enum twl4030_audio_res id, int enable)
 {
 	struct twl4030_audio *audio = platform_get_drvdata(twl4030_audio_dev);
 	u8 val;
@@ -72,7 +72,7 @@ static int twl4030_audio_set_resource(enum twl4030_codec_res id, int enable)
 	return val;
 }
 
-static inline int twl4030_audio_get_resource(enum twl4030_codec_res id)
+static inline int twl4030_audio_get_resource(enum twl4030_audio_res id)
 {
 	struct twl4030_audio *audio = platform_get_drvdata(twl4030_audio_dev);
 	u8 val;
@@ -87,12 +87,12 @@ static inline int twl4030_audio_get_resource(enum twl4030_codec_res id)
  * Enable the resource.
  * The function returns with error or the content of the register
  */
-int twl4030_codec_enable_resource(enum twl4030_codec_res id)
+int twl4030_audio_enable_resource(enum twl4030_audio_res id)
 {
 	struct twl4030_audio *audio = platform_get_drvdata(twl4030_audio_dev);
 	int val;
 
-	if (id >= TWL4030_CODEC_RES_MAX) {
+	if (id >= TWL4030_AUDIO_RES_MAX) {
 		dev_err(&twl4030_audio_dev->dev,
 				"Invalid resource ID (%u)\n", id);
 		return -EINVAL;
@@ -110,18 +110,18 @@ int twl4030_codec_enable_resource(enum twl4030_codec_res id)
 
 	return val;
 }
-EXPORT_SYMBOL_GPL(twl4030_codec_enable_resource);
+EXPORT_SYMBOL_GPL(twl4030_audio_enable_resource);
 
 /*
  * Disable the resource.
  * The function returns with error or the content of the register
  */
-int twl4030_codec_disable_resource(unsigned id)
+int twl4030_audio_disable_resource(unsigned id)
 {
 	struct twl4030_audio *audio = platform_get_drvdata(twl4030_audio_dev);
 	int val;
 
-	if (id >= TWL4030_CODEC_RES_MAX) {
+	if (id >= TWL4030_AUDIO_RES_MAX) {
 		dev_err(&twl4030_audio_dev->dev,
 				"Invalid resource ID (%u)\n", id);
 		return -EINVAL;
@@ -146,15 +146,15 @@ int twl4030_codec_disable_resource(unsigned id)
 
 	return val;
 }
-EXPORT_SYMBOL_GPL(twl4030_codec_disable_resource);
+EXPORT_SYMBOL_GPL(twl4030_audio_disable_resource);
 
-unsigned int twl4030_codec_get_mclk(void)
+unsigned int twl4030_audio_get_mclk(void)
 {
 	struct twl4030_audio *audio = platform_get_drvdata(twl4030_audio_dev);
 
 	return audio->audio_mclk;
 }
-EXPORT_SYMBOL_GPL(twl4030_codec_get_mclk);
+EXPORT_SYMBOL_GPL(twl4030_audio_get_mclk);
 
 static int __devinit twl4030_audio_probe(struct platform_device *pdev)
 {
@@ -199,12 +199,12 @@ static int __devinit twl4030_audio_probe(struct platform_device *pdev)
 	audio->audio_mclk = pdata->audio_mclk;
 
 	/* Codec power */
-	audio->resource[TWL4030_CODEC_RES_POWER].reg = TWL4030_REG_CODEC_MODE;
-	audio->resource[TWL4030_CODEC_RES_POWER].mask = TWL4030_CODECPDZ;
+	audio->resource[TWL4030_AUDIO_RES_POWER].reg = TWL4030_REG_CODEC_MODE;
+	audio->resource[TWL4030_AUDIO_RES_POWER].mask = TWL4030_CODECPDZ;
 
 	/* PLL */
-	audio->resource[TWL4030_CODEC_RES_APLL].reg = TWL4030_REG_APLL_CTL;
-	audio->resource[TWL4030_CODEC_RES_APLL].mask = TWL4030_APLL_EN;
+	audio->resource[TWL4030_AUDIO_RES_APLL].reg = TWL4030_REG_APLL_CTL;
+	audio->resource[TWL4030_AUDIO_RES_APLL].mask = TWL4030_APLL_EN;
 
 	if (pdata->audio) {
 		cell = &audio->cells[childs];
@@ -275,4 +275,3 @@ module_exit(twl4030_audio_exit);
 
 MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@ti.com>");
 MODULE_LICENSE("GPL");
-

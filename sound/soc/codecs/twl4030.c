@@ -36,7 +36,7 @@
 #include <sound/tlv.h>
 
 /* Register descriptions are here */
-#include <linux/mfd/twl4030-codec.h>
+#include <linux/mfd/twl4030-audio.h>
 
 /* Shadow register used by the audio driver */
 #define TWL4030_REG_SW_SHADOW		0x4A
@@ -251,9 +251,9 @@ static void twl4030_codec_enable(struct snd_soc_codec *codec, int enable)
 		return;
 
 	if (enable)
-		mode = twl4030_codec_enable_resource(TWL4030_CODEC_RES_POWER);
+		mode = twl4030_audio_enable_resource(TWL4030_AUDIO_RES_POWER);
 	else
-		mode = twl4030_codec_disable_resource(TWL4030_CODEC_RES_POWER);
+		mode = twl4030_audio_disable_resource(TWL4030_AUDIO_RES_POWER);
 
 	if (mode >= 0) {
 		twl4030_write_reg_cache(codec, TWL4030_REG_CODEC_MODE, mode);
@@ -375,13 +375,13 @@ static void twl4030_apll_enable(struct snd_soc_codec *codec, int enable)
 	if (enable) {
 		twl4030->apll_enabled++;
 		if (twl4030->apll_enabled == 1)
-			status = twl4030_codec_enable_resource(
-							TWL4030_CODEC_RES_APLL);
+			status = twl4030_audio_enable_resource(
+							TWL4030_AUDIO_RES_APLL);
 	} else {
 		twl4030->apll_enabled--;
 		if (!twl4030->apll_enabled)
-			status = twl4030_codec_disable_resource(
-							TWL4030_CODEC_RES_APLL);
+			status = twl4030_audio_disable_resource(
+							TWL4030_AUDIO_RES_APLL);
 	}
 
 	if (status >= 0)
@@ -2260,7 +2260,7 @@ static int twl4030_soc_probe(struct snd_soc_codec *codec)
 	}
 	snd_soc_codec_set_drvdata(codec, twl4030);
 	/* Set the defaults, and power up the codec */
-	twl4030->sysclk = twl4030_codec_get_mclk() / 1000;
+	twl4030->sysclk = twl4030_audio_get_mclk() / 1000;
 	codec->dapm.idle_bias_off = 1;
 
 	twl4030_init_chip(codec);
