@@ -581,3 +581,14 @@ Why:	This driver has been superseded by g_mass_storage.
 Who:	Alan Stern <stern@rowland.harvard.edu>
 
 ----------------------------
+
+What:   threeg and interface sysfs files in /sys/devices/platform/acer-wmi
+When:   2012
+Why:    In 3.0, we can now autodetect internal 3G device and already have
+	the threeg rfkill device. So, we plan to remove threeg sysfs support
+	for it's no longer necessary.
+
+	We also plan to remove interface sysfs file that exposed which ACPI-WMI
+	interface that was used by acer-wmi driver. It will replaced by
+	information log when acer-wmi initial.
+Who:    Lee, Chun-Yi <jlee@novell.com>

@@ -1400,6 +1400,9 @@ static ssize_t show_bool_threeg(struct device *dev,
 {
 	u32 result; \
 	acpi_status status;
+
+	pr_info("This threeg sysfs will be removed in 2012"
+		" - used by: %s\n", current->comm);
 	if (wmi_has_guid(WMID_GUID3))
 		status = wmid3_get_device_status(&result,
 				ACER_WMID3_GDS_THREEG);
@@ -1415,8 +1418,10 @@ static ssize_t set_bool_threeg(struct device *dev,
 {
 	u32 tmp = simple_strtoul(buf, NULL, 10);
 	acpi_status status = set_u32(tmp, ACER_CAP_THREEG);
-		if (ACPI_FAILURE(status))
-			return -EINVAL;
+	pr_info("This threeg sysfs will be removed in 2012"
+		" - used by: %s\n", current->comm);
+	if (ACPI_FAILURE(status))
+		return -EINVAL;
 	return count;
 }
 static DEVICE_ATTR(threeg, S_IRUGO | S_IWUSR, show_bool_threeg,
@@ -1425,6 +1430,8 @@ static DEVICE_ATTR(threeg, S_IRUGO | S_IWUSR, show_bool_threeg,
 static ssize_t show_interface(struct device *dev, struct device_attribute *attr,
 	char *buf)
 {
+	pr_info("This interface sysfs will be removed in 2012"
+		" - used by: %s\n", current->comm);
 	switch (interface->type) {
 	case ACER_AMW0:
 		return sprintf(buf, "AMW0\n");
