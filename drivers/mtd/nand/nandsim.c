@@ -2275,7 +2275,7 @@ static int __init ns_init_module(void)
 	case 2:
 		 chip->bbt_options |= NAND_BBT_NO_OOB;
 	case 1:
-		 chip->bbt_options |= NAND_USE_FLASH_BBT;
+		 chip->bbt_options |= NAND_BBT_USE_FLASH;
 	case 0:
 		break;
 	default:

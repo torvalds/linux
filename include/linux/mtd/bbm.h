@@ -104,7 +104,7 @@ struct nand_bbt_descr {
  * Use a flash based bad block table. By default, OOB identifier is saved in
  * OOB area. This option is passed to the default bad block table function.
  */
-#define NAND_USE_FLASH_BBT	0x00040000
+#define NAND_BBT_USE_FLASH	0x00040000
 /* Do not store flash based bad block table in OOB area; store it in-band */
 #define NAND_BBT_NO_OOB		0x00080000
 

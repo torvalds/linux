@@ -572,7 +572,7 @@ static void board_select_chip (struct mtd_info *mtd, int chip)
 			</para>
 			<para>
 				The simplest way to activate the FLASH based bad block table support 
-				is to set the option NAND_USE_FLASH_BBT in the bbt_option field of
+				is to set the option NAND_BBT_USE_FLASH in the bbt_option field of
 				the nand chip structure before calling nand_scan(). For AG-AND
 				chips is this done by default.
 				This activates the default FLASH based bad block table functionality 

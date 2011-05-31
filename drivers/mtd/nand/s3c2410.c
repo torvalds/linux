@@ -881,7 +881,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 	 * let the kernel fish out the BBT from the NAND, and also skip the
 	 * full NAND scan that can take 1/2s or so. Little things... */
 	if (set->flash_bbt) {
-		chip->bbt_options |= NAND_USE_FLASH_BBT;
+		chip->bbt_options |= NAND_BBT_USE_FLASH;
 		chip->options |= NAND_SKIP_BBTSCAN;
 	}
 }

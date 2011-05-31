@@ -14,7 +14,7 @@
  *
  * When nand_scan_bbt is called, then it tries to find the bad block table
  * depending on the options in the BBT descriptor(s). If no flash based BBT
- * (NAND_USE_FLASH_BBT) is specified then the device is scanned for factory
+ * (NAND_BBT_USE_FLASH) is specified then the device is scanned for factory
  * marked good / bad blocks. This information is used to create a memory BBT.
  * Once a new bad block is discovered then the "factory" information is updated
  * on the device.
@@ -36,7 +36,7 @@
  * The table is marked in the OOB area with an ident pattern and a version
  * number which indicates which of both tables is more up to date. If the NAND
  * controller needs the complete OOB area for the ECC information then the
- * option NAND_BBT_NO_OOB should be used (along with NAND_USE_FLASH_BBT, of
+ * option NAND_BBT_NO_OOB should be used (along with NAND_BBT_USE_FLASH, of
  * course): it moves the ident pattern and the version byte into the data area
  * and the OOB area will remain untouched.
  *
@@ -1083,14 +1083,14 @@ static void verify_bbt_descr(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	bits = bd->options & NAND_BBT_NRBITS_MSK;
 
 	BUG_ON((this->bbt_options & NAND_BBT_NO_OOB) &&
-			!(this->bbt_options & NAND_USE_FLASH_BBT));
+			!(this->bbt_options & NAND_BBT_USE_FLASH));
 	BUG_ON(!bits);
 
 	if (bd->options & NAND_BBT_VERSION)
 		pattern_len++;
 
 	if (bd->options & NAND_BBT_NO_OOB) {
-		BUG_ON(!(this->bbt_options & NAND_USE_FLASH_BBT));
+		BUG_ON(!(this->bbt_options & NAND_BBT_USE_FLASH));
 		BUG_ON(!(this->bbt_options & NAND_BBT_NO_OOB));
 		BUG_ON(bd->offs);
 		if (bd->options & NAND_BBT_VERSION)
@@ -1357,12 +1357,12 @@ int nand_default_bbt(struct mtd_info *mtd)
 			this->bbt_td = &bbt_main_descr;
 			this->bbt_md = &bbt_mirror_descr;
 		}
-		this->bbt_options |= NAND_USE_FLASH_BBT;
+		this->bbt_options |= NAND_BBT_USE_FLASH;
 		return nand_scan_bbt(mtd, &agand_flashbased);
 	}
 
 	/* Is a flash based bad block table requested ? */
-	if (this->bbt_options & NAND_USE_FLASH_BBT) {
+	if (this->bbt_options & NAND_BBT_USE_FLASH) {
 		/* Use the default pattern descriptors */
 		if (!this->bbt_td) {
 			if (this->bbt_options & NAND_BBT_NO_OOB) {

@@ -736,7 +736,7 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op)
 	chip->verify_buf = mpc5121_nfc_verify_buf;
 	chip->select_chip = mpc5121_nfc_select_chip;
 	chip->options = NAND_NO_AUTOINCR;
-	chip->bbt_options = NAND_USE_FLASH_BBT;
+	chip->bbt_options = NAND_BBT_USE_FLASH;
 	chip->ecc.mode = NAND_ECC_SOFT;
 
 	/* Support external chip-select logic on ADS5121 board */

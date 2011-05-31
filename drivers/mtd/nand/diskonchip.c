@@ -1652,7 +1652,7 @@ static int __init doc_probe(unsigned long physadr)
 	nand->ecc.mode		= NAND_ECC_HW_SYNDROME;
 	nand->ecc.size		= 512;
 	nand->ecc.bytes		= 6;
-	nand->bbt_options	= NAND_USE_FLASH_BBT;
+	nand->bbt_options	= NAND_BBT_USE_FLASH;
 
 	doc->physadr		= physadr;
 	doc->virtadr		= virtadr;

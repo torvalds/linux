@@ -686,7 +686,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	cafe->nand.chip_delay = 0;
 
 	/* Enable the following for a flash based bad block table */
-	cafe->nand.bbt_options = NAND_USE_FLASH_BBT;
+	cafe->nand.bbt_options = NAND_BBT_USE_FLASH;
 	cafe->nand.options = NAND_NO_AUTOINCR | NAND_OWN_BUFFERS;
 
 	if (skipbbt) {

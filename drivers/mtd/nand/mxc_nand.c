@@ -1179,7 +1179,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		this->bbt_td = &bbt_main_descr;
 		this->bbt_md = &bbt_mirror_descr;
 		/* update flash based bbt */
-		this->bbt_options |= NAND_USE_FLASH_BBT;
+		this->bbt_options |= NAND_BBT_USE_FLASH;
 	}
 
 	init_completion(&host->op_completion);
