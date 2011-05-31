@@ -137,9 +137,9 @@ static struct tegra_sdhci_platform_data sdhci_pdata4 = {
 static struct platform_device *seaboard_devices[] __initdata = {
 	&debug_uart,
 	&tegra_pmu_device,
-	&tegra_sdhci_device1,
-	&tegra_sdhci_device3,
 	&tegra_sdhci_device4,
+	&tegra_sdhci_device3,
+	&tegra_sdhci_device1,
 	&seaboard_gpio_keys_device,
 };
 
