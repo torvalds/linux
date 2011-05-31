@@ -2669,7 +2669,7 @@ int __init drbd_init(void)
 #ifdef MODULE
 		return -EINVAL;
 #else
-		minor_count = 8;
+		minor_count = DRBD_MINOR_COUNT_DEF;
 #endif
 	}
 
