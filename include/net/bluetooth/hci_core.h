@@ -322,6 +322,7 @@ void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data);
 /* ----- HCI Connections ----- */
 enum {
 	HCI_CONN_AUTH_PEND,
+	HCI_CONN_REAUTH_PEND,
 	HCI_CONN_ENCRYPT_PEND,
 	HCI_CONN_RSWITCH_PEND,
 	HCI_CONN_MODE_CHANGE_PEND,
