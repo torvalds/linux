@@ -489,39 +489,38 @@ static void port_handle_node_down(unsigned long ref)
 
 static struct sk_buff *port_build_self_abort_msg(struct tipc_port *p_ptr, u32 err)
 {
-	u32 imp = msg_importance(&p_ptr->phdr);
+	struct sk_buff *buf = port_build_peer_abort_msg(p_ptr, err);
 
-	if (!p_ptr->connected)
-		return NULL;
-	if (imp < TIPC_CRITICAL_IMPORTANCE)
-		imp++;
-	return port_build_proto_msg(p_ptr->ref,
-				    tipc_own_addr,
-				    port_peerport(p_ptr),
-				    port_peernode(p_ptr),
-				    imp,
-				    TIPC_CONN_MSG,
-				    err,
-				    0);
+	if (buf) {
+		struct tipc_msg *msg = buf_msg(buf);
+		msg_swap_words(msg, 4, 5);
+		msg_swap_words(msg, 6, 7);
+	}
+	return buf;
 }
 
 
 static struct sk_buff *port_build_peer_abort_msg(struct tipc_port *p_ptr, u32 err)
 {
-	u32 imp = msg_importance(&p_ptr->phdr);
+	struct sk_buff *buf;
+	struct tipc_msg *msg;
+	u32 imp;
 
 	if (!p_ptr->connected)
 		return NULL;
-	if (imp < TIPC_CRITICAL_IMPORTANCE)
-		imp++;
-	return port_build_proto_msg(port_peerport(p_ptr),
-				    port_peernode(p_ptr),
-				    p_ptr->ref,
-				    tipc_own_addr,
-				    imp,
-				    TIPC_CONN_MSG,
-				    err,
-				    0);
+
+	buf = tipc_buf_acquire(BASIC_H_SIZE);
+	if (buf) {
+		msg = buf_msg(buf);
+		memcpy(msg, &p_ptr->phdr, BASIC_H_SIZE);
+		msg_set_hdr_sz(msg, BASIC_H_SIZE);
+		msg_set_size(msg, BASIC_H_SIZE);
+		imp = msg_importance(msg);
+		if (imp < TIPC_CRITICAL_IMPORTANCE)
+			msg_set_importance(msg, ++imp);
+		msg_set_errcode(msg, err);
+	}
+	return buf;
 }
 
 void tipc_port_recv_proto_msg(struct sk_buff *buf)
@@ -1149,19 +1148,7 @@ int tipc_shutdown(u32 ref)
 	if (!p_ptr)
 		return -EINVAL;
 
-	if (p_ptr->connected) {
-		u32 imp = msg_importance(&p_ptr->phdr);
-		if (imp < TIPC_CRITICAL_IMPORTANCE)
-			imp++;
-		buf = port_build_proto_msg(port_peerport(p_ptr),
-					   port_peernode(p_ptr),
-					   ref,
-					   tipc_own_addr,
-					   imp,
-					   TIPC_CONN_MSG,
-					   TIPC_CONN_SHUTDOWN,
-					   0);
-	}
+	buf = port_build_peer_abort_msg(p_ptr, TIPC_CONN_SHUTDOWN);
 	tipc_port_unlock(p_ptr);
 	tipc_net_route_msg(buf);
 	return tipc_disconnect(ref);
