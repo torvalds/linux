@@ -572,7 +572,7 @@ static void board_select_chip (struct mtd_info *mtd, int chip)
 			</para>
 			<para>
 				The simplest way to activate the FLASH based bad block table support 
-				is to set the option NAND_USE_FLASH_BBT in the option field of
+				is to set the option NAND_USE_FLASH_BBT in the bbt_option field of
 				the nand chip structure before calling nand_scan(). For AG-AND
 				chips is this done by default.
 				This activates the default FLASH based bad block table functionality 
@@ -1158,9 +1158,6 @@ in this page</entry>
 		These constants are defined in nand.h. They are ored together to describe
 		the functionality.
      		<programlisting>
-/* Use a flash based bad block table. This option is parsed by the
- * default bad block table function (nand_default_bbt). */
-#define NAND_USE_FLASH_BBT	0x00010000
 /* The hw ecc generator provides a syndrome instead a ecc value on read 
  * This can only work if we have the ecc bytes directly behind the 
  * data bytes. Applies for DOC and AG-AND Renesas HW Reed Solomon generators */

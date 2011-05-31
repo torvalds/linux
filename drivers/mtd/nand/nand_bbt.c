@@ -36,9 +36,9 @@
  * The table is marked in the OOB area with an ident pattern and a version
  * number which indicates which of both tables is more up to date. If the NAND
  * controller needs the complete OOB area for the ECC information then the
- * option NAND_USE_FLASH_BBT_NO_OOB should be used: it moves the ident pattern
- * and the version byte into the data area and the OOB area will remain
- * untouched.
+ * option NAND_BBT_NO_OOB should be used (along with NAND_USE_FLASH_BBT, of
+ * course): it moves the ident pattern and the version byte into the data area
+ * and the OOB area will remain untouched.
  *
  * The table uses 2 bits per block
  * 11b:		block is good
@@ -1082,16 +1082,16 @@ static void verify_bbt_descr(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	pattern_len = bd->len;
 	bits = bd->options & NAND_BBT_NRBITS_MSK;
 
-	BUG_ON((this->options & NAND_USE_FLASH_BBT_NO_OOB) &&
-			!(this->options & NAND_USE_FLASH_BBT));
+	BUG_ON((this->bbt_options & NAND_BBT_NO_OOB) &&
+			!(this->bbt_options & NAND_USE_FLASH_BBT));
 	BUG_ON(!bits);
 
 	if (bd->options & NAND_BBT_VERSION)
 		pattern_len++;
 
 	if (bd->options & NAND_BBT_NO_OOB) {
-		BUG_ON(!(this->options & NAND_USE_FLASH_BBT));
-		BUG_ON(!(this->options & NAND_USE_FLASH_BBT_NO_OOB));
+		BUG_ON(!(this->bbt_options & NAND_USE_FLASH_BBT));
+		BUG_ON(!(this->bbt_options & NAND_BBT_NO_OOB));
 		BUG_ON(bd->offs);
 		if (bd->options & NAND_BBT_VERSION)
 			BUG_ON(bd->veroffs != bd->len);
@@ -1357,15 +1357,15 @@ int nand_default_bbt(struct mtd_info *mtd)
 			this->bbt_td = &bbt_main_descr;
 			this->bbt_md = &bbt_mirror_descr;
 		}
-		this->options |= NAND_USE_FLASH_BBT;
+		this->bbt_options |= NAND_USE_FLASH_BBT;
 		return nand_scan_bbt(mtd, &agand_flashbased);
 	}
 
 	/* Is a flash based bad block table requested ? */
-	if (this->options & NAND_USE_FLASH_BBT) {
+	if (this->bbt_options & NAND_USE_FLASH_BBT) {
 		/* Use the default pattern descriptors */
 		if (!this->bbt_td) {
-			if (this->options & NAND_USE_FLASH_BBT_NO_OOB) {
+			if (this->bbt_options & NAND_BBT_NO_OOB) {
 				this->bbt_td = &bbt_main_no_bbt_descr;
 				this->bbt_md = &bbt_mirror_no_bbt_descr;
 			} else {

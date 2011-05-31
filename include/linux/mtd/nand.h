@@ -219,11 +219,6 @@ typedef enum {
 #define NAND_CHIPOPTIONS_MSK	(0x0000ffff & ~NAND_NO_AUTOINCR)
 
 /* Non chip related options */
-/*
- * Use a flash based bad block table. OOB identifier is saved in OOB area.
- * This option is passed to the default bad block table function.
- */
-#define NAND_USE_FLASH_BBT	0x00010000
 /* This option skips the bbt scan during initialization. */
 #define NAND_SKIP_BBTSCAN	0x00020000
 /*
@@ -233,11 +228,6 @@ typedef enum {
 #define NAND_OWN_BUFFERS	0x00040000
 /* Chip may not exist, so silence any errors in scan */
 #define NAND_SCAN_SILENT_NODEV	0x00080000
-/*
- * If passed additionally to NAND_USE_FLASH_BBT then BBT code will not touch
- * the OOB area.
- */
-#define NAND_USE_FLASH_BBT_NO_OOB	0x00800000
 /* Create an empty BBT with no vendor information if the BBT is available */
 #define NAND_CREATE_EMPTY_BBT		0x01000000
 
@@ -615,6 +605,7 @@ extern int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
  * @partitions:		mtd partition list
  * @chip_delay:		R/B delay value in us
  * @options:		Option flags, e.g. 16bit buswidth
+ * @bbt_options:	BBT option flags, e.g. NAND_BBT_USE_FLASH
  * @ecclayout:		ecc layout info structure
  * @part_probe_types:	NULL-terminated array of probe types
  * @set_parts:		platform specific function to set partitions
@@ -628,6 +619,7 @@ struct platform_nand_chip {
 	struct nand_ecclayout *ecclayout;
 	int chip_delay;
 	unsigned int options;
+	unsigned int bbt_options;
 	const char **part_probe_types;
 	void (*set_parts)(uint64_t size, struct platform_nand_chip *chip);
 	void *priv;

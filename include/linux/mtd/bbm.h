@@ -100,8 +100,13 @@ struct nand_bbt_descr {
 #define NAND_BBT_SCANLASTPAGE	0x00008000
 /* The nand_bbt_descr was created dynamicaly and must be freed */
 #define NAND_BBT_DYNAMICSTRUCT 0x00200000
-/* The bad block table does not OOB for marker */
-#define NAND_BBT_NO_OOB		0x00400000
+/*
+ * Use a flash based bad block table. By default, OOB identifier is saved in
+ * OOB area. This option is passed to the default bad block table function.
+ */
+#define NAND_USE_FLASH_BBT	0x00040000
+/* Do not store flash based bad block table in OOB area; store it in-band */
+#define NAND_BBT_NO_OOB		0x00080000
 
 /* The maximum number of blocks to scan for a bbt */
 #define NAND_BBT_SCAN_MAXBLOCKS	4

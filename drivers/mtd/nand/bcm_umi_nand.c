@@ -474,7 +474,7 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 
 #if NAND_ECC_BCH
 	if (board_mtd->writesize > 512) {
-		if (this->options & NAND_USE_FLASH_BBT)
+		if (this->bbt_options & NAND_USE_FLASH_BBT)
 			largepage_bbt.options = NAND_BBT_SCAN2NDPAGE;
 		this->badblock_pattern = &largepage_bbt;
 	}
