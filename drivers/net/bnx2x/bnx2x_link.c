@@ -1530,8 +1530,8 @@ int bnx2x_phy_write(struct link_params *params, u8 phy_addr,
 	return -EINVAL;
 }
 
-static void bnx2x_set_aer_mmd_xgxs(struct link_params *params,
-				   struct bnx2x_phy *phy)
+static void bnx2x_set_aer_mmd(struct link_params *params,
+			      struct bnx2x_phy *phy)
 {
 	u32 ser_lane;
 	u16 offset, aer_val;
@@ -1540,20 +1540,17 @@ static void bnx2x_set_aer_mmd_xgxs(struct link_params *params,
 		     PORT_HW_CFG_LANE_SWAP_CFG_MASTER_MASK) >>
 		     PORT_HW_CFG_LANE_SWAP_CFG_MASTER_SHIFT);
 
-	offset = phy->addr + ser_lane;
+	offset = (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT) ?
+		(phy->addr + ser_lane) : 0;
+
 	if (CHIP_IS_E2(bp))
 		aer_val = 0x3800 + offset - 1;
 	else
 		aer_val = 0x3800 + offset;
+	DP(NETIF_MSG_LINK, "Set AER to 0x%x\n", aer_val);
 	CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
 			  MDIO_AER_BLOCK_AER_REG, aer_val);
-}
-static void bnx2x_set_aer_mmd_serdes(struct bnx2x *bp,
-				     struct bnx2x_phy *phy)
-{
-	CL22_WR_OVER_CL45(bp, phy,
-			  MDIO_REG_BANK_AER_BLOCK,
-			  MDIO_AER_BLOCK_AER_REG, 0x3800);
+
 }
 
 /******************************************************************/
@@ -2845,9 +2842,9 @@ static void bnx2x_set_preemphasis(struct bnx2x_phy *phy,
 	}
 }
 
-static void bnx2x_init_internal_phy(struct bnx2x_phy *phy,
-				    struct link_params *params,
-				    struct link_vars *vars)
+static void bnx2x_xgxs_config_init(struct bnx2x_phy *phy,
+				   struct link_params *params,
+				   struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	u8 enable_cl73 = (SINGLE_MEDIA_DIRECT(params) ||
@@ -2894,29 +2891,12 @@ static void bnx2x_init_internal_phy(struct bnx2x_phy *phy,
 	}
 }
 
-static int bnx2x_init_serdes(struct bnx2x_phy *phy,
-			     struct link_params *params,
-			     struct link_vars *vars)
+static int bnx2x_prepare_xgxs(struct bnx2x_phy *phy,
+			  struct link_params *params,
+			  struct link_vars *vars)
 {
 	int rc;
-	vars->phy_flags |= PHY_SGMII_FLAG;
-	bnx2x_calc_ieee_aneg_adv(phy, params, &vars->ieee_fc);
-	bnx2x_set_aer_mmd_serdes(params->bp, phy);
-	rc = bnx2x_reset_unicore(params, phy, 1);
-	/* reset the SerDes and wait for reset bit return low */
-	if (rc != 0)
-		return rc;
-	bnx2x_set_aer_mmd_serdes(params->bp, phy);
-
-	return rc;
-}
-
-static int bnx2x_init_xgxs(struct bnx2x_phy *phy,
-			   struct link_params *params,
-			   struct link_vars *vars)
-{
-	int rc;
-	vars->phy_flags = PHY_XGXS_FLAG;
+	vars->phy_flags |= PHY_XGXS_FLAG;
 	if ((phy->req_line_speed &&
 	     ((phy->req_line_speed == SPEED_100) ||
 	      (phy->req_line_speed == SPEED_10))) ||
@@ -2924,26 +2904,28 @@ static int bnx2x_init_xgxs(struct bnx2x_phy *phy,
 	     (phy->speed_cap_mask >=
 	      PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL) &&
 	     (phy->speed_cap_mask <
-	      PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)
-	     ))
+	      PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)) ||
+	    (phy->type == PORT_HW_CFG_SERDES_EXT_PHY_TYPE_DIRECT_SD))
 		vars->phy_flags |= PHY_SGMII_FLAG;
 	else
 		vars->phy_flags &= ~PHY_SGMII_FLAG;
 
 	bnx2x_calc_ieee_aneg_adv(phy, params, &vars->ieee_fc);
-	bnx2x_set_aer_mmd_xgxs(params, phy);
-	bnx2x_set_master_ln(params, phy);
+	bnx2x_set_aer_mmd(params, phy);
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT)
+		bnx2x_set_master_ln(params, phy);
 
 	rc = bnx2x_reset_unicore(params, phy, 0);
 	/* reset the SerDes and wait for reset bit return low */
 	if (rc != 0)
 		return rc;
 
-	bnx2x_set_aer_mmd_xgxs(params, phy);
-
+	bnx2x_set_aer_mmd(params, phy);
 	/* setting the masterLn_def again after the reset */
-	bnx2x_set_master_ln(params, phy);
-	bnx2x_set_swap_lanes(params, phy);
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT) {
+		bnx2x_set_master_ln(params, phy);
+		bnx2x_set_swap_lanes(params, phy);
+	}
 
 	return rc;
 }
@@ -3220,7 +3202,7 @@ static void bnx2x_set_xgxs_loopback(struct bnx2x_phy *phy,
 				 0x6041);
 		msleep(200);
 		/* set aer mmd back */
-		bnx2x_set_aer_mmd_xgxs(params, phy);
+		bnx2x_set_aer_mmd(params, phy);
 
 		/* and md_devad */
 		REG_WR(bp, NIG_REG_XGXS0_CTRL_MD_DEVAD + port*0x18, md_devad);
@@ -3420,11 +3402,7 @@ static int bnx2x_link_initialize(struct link_params *params,
 	 * to first.
 	 */
 
-	if (params->phy[INT_PHY].config_init)
-		params->phy[INT_PHY].config_init(
-			&params->phy[INT_PHY],
-			params, vars);
-
+	bnx2x_prepare_xgxs(&params->phy[INT_PHY], params, vars);
 	/* init ext phy and enable link state int */
 	non_ext_phy = (SINGLE_MEDIA_DIRECT(params) ||
 		       (params->loopback_mode == LOOPBACK_XGXS));
@@ -3435,7 +3413,10 @@ static int bnx2x_link_initialize(struct link_params *params,
 		struct bnx2x_phy *phy = &params->phy[INT_PHY];
 		if (vars->line_speed == SPEED_AUTO_NEG)
 			bnx2x_set_parallel_detection(phy, params);
-		bnx2x_init_internal_phy(phy, params, vars);
+			if (params->phy[INT_PHY].config_init)
+				params->phy[INT_PHY].config_init(phy,
+								 params,
+								 vars);
 	}
 
 	/* Init external phy*/
@@ -3827,8 +3808,10 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 				vars->phy_flags |= PHY_SGMII_FLAG;
 			else
 				vars->phy_flags &= ~PHY_SGMII_FLAG;
-			bnx2x_init_internal_phy(&params->phy[INT_PHY],
-						params,
+
+			if (params->phy[INT_PHY].config_init)
+				params->phy[INT_PHY].config_init(
+					&params->phy[INT_PHY], params,
 						vars);
 		}
 	}
@@ -7119,7 +7102,7 @@ static struct bnx2x_phy phy_serdes = {
 	.speed_cap_mask	= 0,
 	.req_duplex	= 0,
 	.rsrv		= 0,
-	.config_init	= (config_init_t)bnx2x_init_serdes,
+	.config_init	= (config_init_t)bnx2x_xgxs_config_init,
 	.read_status	= (read_status_t)bnx2x_link_settings_status,
 	.link_reset	= (link_reset_t)bnx2x_int_link_reset,
 	.config_loopback = (config_loopback_t)NULL,
@@ -7155,7 +7138,7 @@ static struct bnx2x_phy phy_xgxs = {
 	.speed_cap_mask	= 0,
 	.req_duplex	= 0,
 	.rsrv		= 0,
-	.config_init	= (config_init_t)bnx2x_init_xgxs,
+	.config_init	= (config_init_t)bnx2x_xgxs_config_init,
 	.read_status	= (read_status_t)bnx2x_link_settings_status,
 	.link_reset	= (link_reset_t)bnx2x_int_link_reset,
 	.config_loopback = (config_loopback_t)bnx2x_set_xgxs_loopback,
