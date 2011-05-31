@@ -27,13 +27,13 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/smc91x.h>
+#include <linux/gpio.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
-#include <mach/gpio.h>
 #include <plat/led.h>
 #include <plat/usb.h>
 #include <plat/board.h>

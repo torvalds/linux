@@ -30,6 +30,7 @@
 #include <linux/leds.h>
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
@@ -41,7 +42,6 @@
 
 #include <plat/board.h>
 #include <plat/common.h>
-#include <mach/gpio.h>
 #include <mach/hardware.h>
 #include <plat/mcspi.h>
 #include <plat/usb.h>
