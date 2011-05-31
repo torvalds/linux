@@ -56,11 +56,14 @@
  * camera  devices
  * author: ddl@rock-chips.com
  *****************************************************************************************/
-#if 1
-#define dprintk(format, ...)   printk(KERN_WARNING format, ## __VA_ARGS__)
-#else
-#define dprintk(format, ...)
-#endif
+static int camera_debug;
+module_param(camera_debug, int, S_IRUGO|S_IWUSR);
+
+#define ddprintk(level, fmt, arg...) do {			\
+	if (camera_debug >= level) 					\
+	    printk(KERN_WARNING"rk29_cam_io: " fmt , ## arg); } while (0)
+
+#define dprintk(format, ...) ddprintk(1, format, ## __VA_ARGS__)    
 
 #define SENSOR_NAME_0 STR(CONFIG_SENSOR_0)			/* back camera sensor */
 #define SENSOR_NAME_1 STR(CONFIG_SENSOR_1)			/* front camera sensor */
