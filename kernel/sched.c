@@ -2600,6 +2600,7 @@ static void ttwu_queue(struct task_struct *p, int cpu)
 
 #if defined(CONFIG_SMP)
 	if (sched_feat(TTWU_QUEUE) && cpu != smp_processor_id()) {
+		sched_clock_cpu(cpu); /* sync clocks x-cpu */
 		ttwu_queue_remote(p, cpu);
 		return;
 	}
