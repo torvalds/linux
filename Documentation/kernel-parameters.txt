@@ -2524,6 +2524,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			<port#>,<js1>,<js2>,<js3>,<js4>,<js5>,<js6>,<js7>
 			See also Documentation/input/joystick-parport.txt
 
+	udbg-immortal	[PPC] When debugging early kernel crashes that
+			happen after console_init() and before a proper 
+			console driver takes over, this boot options might
+			help "seeing" what's going on.
+
 	uhash_entries=	[KNL,NET]
 			Set number of hash buckets for UDP/UDP-Lite connections
 
