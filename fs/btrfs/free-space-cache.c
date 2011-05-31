@@ -98,7 +98,7 @@ struct inode *lookup_free_space_inode(struct btrfs_root *root,
 		return inode;
 
 	spin_lock(&block_group->lock);
-	if (!root->fs_info->closing) {
+	if (!btrfs_fs_closing(root->fs_info)) {
 		block_group->inode = igrab(inode);
 		block_group->iref = 1;
 	}
@@ -493,8 +493,7 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 	 * If we're unmounting then just return, since this does a search on the
 	 * normal root and not the commit root and we could deadlock.
 	 */
-	smp_mb();
-	if (fs_info->closing)
+	if (btrfs_fs_closing(fs_info))
 		return 0;
 
 	/*
@@ -2513,7 +2512,7 @@ struct inode *lookup_free_ino_inode(struct btrfs_root *root,
 		return inode;
 
 	spin_lock(&root->cache_lock);
-	if (!root->fs_info->closing)
+	if (!btrfs_fs_closing(root->fs_info))
 		root->cache_inode = igrab(inode);
 	spin_unlock(&root->cache_lock);
 
@@ -2543,8 +2542,7 @@ int load_free_ino_cache(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 	 * If we're unmounting then just return, since this does a search on the
 	 * normal root and not the commit root and we could deadlock.
 	 */
-	smp_mb();
-	if (fs_info->closing)
+	if (btrfs_fs_closing(fs_info))
 		return 0;
 
 	path = btrfs_alloc_path();

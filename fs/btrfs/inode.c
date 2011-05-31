@@ -4266,8 +4266,7 @@ int btrfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	if (BTRFS_I(inode)->dummy_inode)
 		return 0;
 
-	smp_mb();
-	if (root->fs_info->closing && is_free_space_inode(root, inode))
+	if (btrfs_fs_closing(root->fs_info) && is_free_space_inode(root, inode))
 		nolock = true;
 
 	if (wbc->sync_mode == WB_SYNC_ALL) {

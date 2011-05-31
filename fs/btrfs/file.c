@@ -129,7 +129,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	if (!btrfs_test_opt(root, AUTO_DEFRAG))
 		return 0;
 
-	if (root->fs_info->closing)
+	if (btrfs_fs_closing(root->fs_info))
 		return 0;
 
 	if (BTRFS_I(inode)->in_defrag)
@@ -229,7 +229,7 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 		first_ino = defrag->ino + 1;
 		rb_erase(&defrag->rb_node, &fs_info->defrag_inodes);
 
-		if (fs_info->closing)
+		if (btrfs_fs_closing(fs_info))
 			goto next_free;
 
 		spin_unlock(&fs_info->defrag_inodes_lock);

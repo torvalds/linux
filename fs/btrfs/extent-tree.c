@@ -366,8 +366,7 @@ again:
 	nritems = btrfs_header_nritems(leaf);
 
 	while (1) {
-		smp_mb();
-		if (fs_info->closing > 1) {
+		if (btrfs_fs_closing(fs_info) > 1) {
 			last = (u64)-1;
 			break;
 		}

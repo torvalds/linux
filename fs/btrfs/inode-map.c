@@ -62,8 +62,7 @@ again:
 		goto out;
 
 	while (1) {
-		smp_mb();
-		if (fs_info->closing)
+		if (btrfs_fs_closing(fs_info))
 			goto out;
 
 		leaf = path->nodes[0];

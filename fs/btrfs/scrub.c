@@ -1183,7 +1183,7 @@ int btrfs_scrub_dev(struct btrfs_root *root, u64 devid, u64 start, u64 end,
 	int ret;
 	struct btrfs_device *dev;
 
-	if (root->fs_info->closing)
+	if (btrfs_fs_closing(root->fs_info))
 		return -EINVAL;
 
 	/*

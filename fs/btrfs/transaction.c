@@ -817,7 +817,7 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 		btrfs_btree_balance_dirty(info->tree_root, nr);
 		cond_resched();
 
-		if (root->fs_info->closing || ret != -EAGAIN)
+		if (btrfs_fs_closing(root->fs_info) || ret != -EAGAIN)
 			break;
 	}
 	root->defrag_running = 0;
