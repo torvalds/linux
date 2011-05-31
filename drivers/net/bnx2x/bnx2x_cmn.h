@@ -1063,6 +1063,8 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 }
 #endif
 
+int bnx2x_get_link_cfg_idx(struct bnx2x *bp);
+
 static inline void __storm_memset_struct(struct bnx2x *bp,
 					 u32 addr, size_t size, u32 *data)
 {

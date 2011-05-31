@@ -153,6 +153,8 @@ struct bnx2x_phy {
 #define	ETH_PHY_XFP_FIBER   0x2
 #define	ETH_PHY_DA_TWINAX   0x3
 #define	ETH_PHY_BASE_T      0x4
+#define	ETH_PHY_KR	    0xf0
+#define	ETH_PHY_CX4	    0xf1
 #define	ETH_PHY_NOT_PRESENT 0xff
 
 	/* The address in which version is located*/

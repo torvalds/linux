@@ -263,7 +263,17 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 #define PORT_HW_CFG_FAULT_MODULE_LED_GPIO2		      0x00000200
 #define PORT_HW_CFG_FAULT_MODULE_LED_GPIO3		      0x00000300
 #define PORT_HW_CFG_FAULT_MODULE_LED_DISABLED		      0x00000400
-	u32 Reserved01[12];				    /* 0x158 */
+	u32 Reserved01[11];				    /* 0x158 */
+
+	u32 media_type;					/* 0x194 */
+#define PORT_HW_CFG_MEDIA_TYPE_PHY0_MASK		      0x000000FF
+#define PORT_HW_CFG_MEDIA_TYPE_PHY0_SHIFT		      0
+
+#define PORT_HW_CFG_MEDIA_TYPE_PHY1_MASK		      0x0000FF00
+#define PORT_HW_CFG_MEDIA_TYPE_PHY1_SHIFT		      8
+
+#define PORT_HW_CFG_MEDIA_TYPE_PHY2_MASK		      0x00FF0000
+#define PORT_HW_CFG_MEDIA_TYPE_PHY2_SHIFT		      16
 	/*  for external PHY, or forced mode or during AN */
 	u16 xgxs_config_rx[4];				    /* 0x198 */
 

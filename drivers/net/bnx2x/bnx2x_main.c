@@ -1732,45 +1732,6 @@ static int bnx2x_set_spio(struct bnx2x *bp, int spio_num, u32 mode)
 	return 0;
 }
 
-int bnx2x_get_link_cfg_idx(struct bnx2x *bp)
-{
-	u32 sel_phy_idx = 0;
-	if (bp->link_vars.link_up) {
-		sel_phy_idx = EXT_PHY1;
-		/* In case link is SERDES, check if the EXT_PHY2 is the one */
-		if ((bp->link_vars.link_status & LINK_STATUS_SERDES_LINK) &&
-		    (bp->link_params.phy[EXT_PHY2].supported & SUPPORTED_FIBRE))
-			sel_phy_idx = EXT_PHY2;
-	} else {
-
-		switch (bnx2x_phy_selection(&bp->link_params)) {
-		case PORT_HW_CFG_PHY_SELECTION_HARDWARE_DEFAULT:
-		case PORT_HW_CFG_PHY_SELECTION_FIRST_PHY:
-		case PORT_HW_CFG_PHY_SELECTION_FIRST_PHY_PRIORITY:
-		       sel_phy_idx = EXT_PHY1;
-		       break;
-		case PORT_HW_CFG_PHY_SELECTION_SECOND_PHY:
-		case PORT_HW_CFG_PHY_SELECTION_SECOND_PHY_PRIORITY:
-		       sel_phy_idx = EXT_PHY2;
-		       break;
-		}
-	}
-	/*
-	* The selected actived PHY is always after swapping (in case PHY
-	* swapping is enabled). So when swapping is enabled, we need to reverse
-	* the configuration
-	*/
-
-	if (bp->link_params.multi_phy_config &
-	    PORT_HW_CFG_PHY_SWAPPED_ENABLED) {
-		if (sel_phy_idx == EXT_PHY1)
-			sel_phy_idx = EXT_PHY2;
-		else if (sel_phy_idx == EXT_PHY2)
-			sel_phy_idx = EXT_PHY1;
-	}
-	return LINK_CONFIG_IDX(sel_phy_idx);
-}
-
 void bnx2x_calc_fc_adv(struct bnx2x *bp)
 {
 	u8 cfg_idx = bnx2x_get_link_cfg_idx(bp);

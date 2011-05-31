@@ -1618,7 +1618,7 @@ void bnx2x_link_status_update(struct link_params *params,
 	struct bnx2x *bp = params->bp;
 	u8 link_10g;
 	u8 port = params->port;
-
+	u32 sync_offset, media_types;
 	vars->link_status = REG_RD(bp, params->shmem_base +
 				   offsetof(struct shmem_region,
 					    port_mb[port].link_status));
@@ -1730,6 +1730,23 @@ void bnx2x_link_status_update(struct link_params *params,
 		/* indicate no mac active */
 		vars->mac_type = MAC_TYPE_NONE;
 	}
+
+	/* Sync media type */
+	sync_offset = params->shmem_base +
+			offsetof(struct shmem_region,
+				 dev_info.port_hw_config[port].media_type);
+	media_types = REG_RD(bp, sync_offset);
+
+	params->phy[INT_PHY].media_type =
+		(media_types & PORT_HW_CFG_MEDIA_TYPE_PHY0_MASK) >>
+		PORT_HW_CFG_MEDIA_TYPE_PHY0_SHIFT;
+	params->phy[EXT_PHY1].media_type =
+		(media_types & PORT_HW_CFG_MEDIA_TYPE_PHY1_MASK) >>
+		PORT_HW_CFG_MEDIA_TYPE_PHY1_SHIFT;
+	params->phy[EXT_PHY2].media_type =
+		(media_types & PORT_HW_CFG_MEDIA_TYPE_PHY2_MASK) >>
+		PORT_HW_CFG_MEDIA_TYPE_PHY2_SHIFT;
+	DP(NETIF_MSG_LINK, "media_types = 0x%x\n", media_types);
 
 	DP(NETIF_MSG_LINK, "link_status 0x%x  phy_link_up %x\n",
 		 vars->link_status, vars->phy_link_up);
@@ -3247,7 +3264,9 @@ u8 bnx2x_test_link(struct link_params *params, struct link_vars *vars,
 			serdes_phy_type = ((params->phy[phy_index].media_type ==
 					    ETH_PHY_SFP_FIBER) ||
 					   (params->phy[phy_index].media_type ==
-					    ETH_PHY_XFP_FIBER));
+					    ETH_PHY_XFP_FIBER) ||
+					   (params->phy[phy_index].media_type ==
+					    ETH_PHY_DA_TWINAX));
 
 			if (is_serdes != serdes_phy_type)
 				continue;
@@ -4679,9 +4698,11 @@ static u8 bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 			     u16 *edc_mode)
 {
 	struct bnx2x *bp = params->bp;
+	u32 sync_offset = 0, phy_idx, media_types;
 	u8 val, check_limiting_mode = 0;
 	*edc_mode = EDC_MODE_LIMITING;
 
+	phy->media_type = ETH_PHY_UNSPECIFIED;
 	/* First check for copper cable */
 	if (bnx2x_read_sfp_module_eeprom(phy,
 					 params,
@@ -4696,7 +4717,7 @@ static u8 bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 	case SFP_EEPROM_CON_TYPE_VAL_COPPER:
 	{
 		u8 copper_module_type;
-
+		phy->media_type = ETH_PHY_DA_TWINAX;
 		/*
 		 * Check if its active cable (includes SFP+ module)
 		 * of passive cable
@@ -4731,6 +4752,7 @@ static u8 bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 		break;
 	}
 	case SFP_EEPROM_CON_TYPE_VAL_LC:
+		phy->media_type = ETH_PHY_SFP_FIBER;
 		DP(NETIF_MSG_LINK, "Optic module detected\n");
 		check_limiting_mode = 1;
 		break;
@@ -4739,7 +4761,22 @@ static u8 bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 			 val);
 		return -EINVAL;
 	}
-
+	sync_offset = params->shmem_base +
+		offsetof(struct shmem_region,
+			 dev_info.port_hw_config[params->port].media_type);
+	media_types = REG_RD(bp, sync_offset);
+	/* Update media type for non-PMF sync */
+	for (phy_idx = INT_PHY; phy_idx < MAX_PHYS; phy_idx++) {
+		if (&(params->phy[phy_idx]) == phy) {
+			media_types &= ~(PORT_HW_CFG_MEDIA_TYPE_PHY0_MASK <<
+				(PORT_HW_CFG_MEDIA_TYPE_PHY1_SHIFT * phy_idx));
+			media_types |= ((phy->media_type &
+					PORT_HW_CFG_MEDIA_TYPE_PHY0_MASK) <<
+				(PORT_HW_CFG_MEDIA_TYPE_PHY1_SHIFT * phy_idx));
+			break;
+		}
+	}
+	REG_WR(bp, sync_offset, media_types);
 	if (check_limiting_mode) {
 		u8 options[SFP_EEPROM_OPTIONS_SIZE];
 		if (bnx2x_read_sfp_module_eeprom(phy,
@@ -5156,6 +5193,7 @@ void bnx2x_handle_module_detect_int(struct link_params *params)
 		 * Module was plugged out.
 		 * Disable transmit for this module
 		 */
+		phy->media_type = ETH_PHY_NOT_PRESENT;
 		if ((val & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_MASK) ==
 		    PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_DISABLE_TX_LASER)
 			bnx2x_sfp_set_transmitter(params, phy, 0);
@@ -5764,7 +5802,7 @@ static void bnx2x_8727_handle_mod_abs(struct bnx2x_phy *phy,
 		/* Module is absent */
 		DP(NETIF_MSG_LINK, "MOD_ABS indication "
 			    "show module is absent\n");
-
+		phy->media_type = ETH_PHY_NOT_PRESENT;
 		/*
 		 * 1. Set mod_abs to detect next module
 		 *    presence event
@@ -6877,7 +6915,7 @@ static struct bnx2x_phy phy_serdes = {
 			   SUPPORTED_Autoneg |
 			   SUPPORTED_Pause |
 			   SUPPORTED_Asym_Pause),
-	.media_type	= ETH_PHY_UNSPECIFIED,
+	.media_type	= ETH_PHY_BASE_T,
 	.ver_addr	= 0,
 	.req_flow_ctrl	= 0,
 	.req_line_speed	= 0,
@@ -6914,7 +6952,7 @@ static struct bnx2x_phy phy_xgxs = {
 			   SUPPORTED_Autoneg |
 			   SUPPORTED_Pause |
 			   SUPPORTED_Asym_Pause),
-	.media_type	= ETH_PHY_UNSPECIFIED,
+	.media_type	= ETH_PHY_CX4,
 	.ver_addr	= 0,
 	.req_flow_ctrl	= 0,
 	.req_line_speed	= 0,
@@ -6977,7 +7015,7 @@ static struct bnx2x_phy phy_8073 = {
 			   SUPPORTED_Autoneg |
 			   SUPPORTED_Pause |
 			   SUPPORTED_Asym_Pause),
-	.media_type	= ETH_PHY_UNSPECIFIED,
+	.media_type	= ETH_PHY_KR,
 	.ver_addr	= 0,
 	.req_flow_ctrl	= 0,
 	.req_line_speed	= 0,
@@ -7069,7 +7107,7 @@ static struct bnx2x_phy phy_8726 = {
 			   SUPPORTED_FIBRE |
 			   SUPPORTED_Pause |
 			   SUPPORTED_Asym_Pause),
-	.media_type	= ETH_PHY_SFP_FIBER,
+	.media_type	= ETH_PHY_NOT_PRESENT,
 	.ver_addr	= 0,
 	.req_flow_ctrl	= 0,
 	.req_line_speed	= 0,
@@ -7100,7 +7138,7 @@ static struct bnx2x_phy phy_8727 = {
 			   SUPPORTED_FIBRE |
 			   SUPPORTED_Pause |
 			   SUPPORTED_Asym_Pause),
-	.media_type	= ETH_PHY_SFP_FIBER,
+	.media_type	= ETH_PHY_NOT_PRESENT,
 	.ver_addr	= 0,
 	.req_flow_ctrl	= 0,
 	.req_line_speed	= 0,
@@ -7565,7 +7603,7 @@ u32 bnx2x_phy_selection(struct link_params *params)
 u8 bnx2x_phy_probe(struct link_params *params)
 {
 	u8 phy_index, actual_phy_idx, link_cfg_idx;
-	u32 phy_config_swapped;
+	u32 phy_config_swapped, sync_offset, media_types;
 	struct bnx2x *bp = params->bp;
 	struct bnx2x_phy *phy;
 	params->num_phys = 0;
@@ -7601,6 +7639,26 @@ u8 bnx2x_phy_probe(struct link_params *params)
 		}
 		if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN)
 			break;
+
+		sync_offset = params->shmem_base +
+			offsetof(struct shmem_region,
+			dev_info.port_hw_config[params->port].media_type);
+		media_types = REG_RD(bp, sync_offset);
+
+		/*
+		 * Update media type for non-PMF sync only for the first time
+		 * In case the media type changes afterwards, it will be updated
+		 * using the update_status function
+		 */
+		if ((media_types & (PORT_HW_CFG_MEDIA_TYPE_PHY0_MASK <<
+				    (PORT_HW_CFG_MEDIA_TYPE_PHY1_SHIFT *
+				     actual_phy_idx))) == 0) {
+			media_types |= ((phy->media_type &
+					PORT_HW_CFG_MEDIA_TYPE_PHY0_MASK) <<
+				(PORT_HW_CFG_MEDIA_TYPE_PHY1_SHIFT *
+				 actual_phy_idx));
+		}
+		REG_WR(bp, sync_offset, media_types);
 
 		bnx2x_phy_def_cfg(params, phy, phy_index);
 		params->num_phys++;

@@ -1492,7 +1492,7 @@ void bnx2x_invalidate_e1h_mc_list(struct bnx2x *bp);
 void bnx2x_invalidate_uc_list(struct bnx2x *bp);
 
 void bnx2x_update_coalesce(struct bnx2x *bp);
-int bnx2x_get_link_cfg_idx(struct bnx2x *bp);
+int bnx2x_get_cur_phy_idx(struct bnx2x *bp);
 
 static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 			   int wait)

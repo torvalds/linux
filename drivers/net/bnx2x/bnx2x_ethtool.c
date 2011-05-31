@@ -162,6 +162,33 @@ static const struct {
 };
 
 #define BNX2X_NUM_STATS		ARRAY_SIZE(bnx2x_stats_arr)
+static int bnx2x_get_port_type(struct bnx2x *bp)
+{
+	int port_type;
+	u32 phy_idx = bnx2x_get_cur_phy_idx(bp);
+	switch (bp->link_params.phy[phy_idx].media_type) {
+	case ETH_PHY_SFP_FIBER:
+	case ETH_PHY_XFP_FIBER:
+	case ETH_PHY_KR:
+	case ETH_PHY_CX4:
+		port_type = PORT_FIBRE;
+		break;
+	case ETH_PHY_DA_TWINAX:
+		port_type = PORT_DA;
+		break;
+	case ETH_PHY_BASE_T:
+		port_type = PORT_TP;
+		break;
+	case ETH_PHY_NOT_PRESENT:
+		port_type = PORT_NONE;
+		break;
+	case ETH_PHY_UNSPECIFIED:
+	default:
+		port_type = PORT_OTHER;
+		break;
+	}
+	return port_type;
+}
 
 static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
@@ -188,12 +215,7 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (IS_MF(bp))
 		ethtool_cmd_speed_set(cmd, bnx2x_get_mf_speed(bp));
 
-	if (bp->port.supported[cfg_idx] & SUPPORTED_TP)
-		cmd->port = PORT_TP;
-	else if (bp->port.supported[cfg_idx] & SUPPORTED_FIBRE)
-		cmd->port = PORT_FIBRE;
-	else
-		BNX2X_ERR("XGXS PHY Failure detected\n");
+	cmd->port = bnx2x_get_port_type(bp);
 
 	cmd->phy_address = bp->mdio.prtad;
 	cmd->transceiver = XCVR_INTERNAL;
