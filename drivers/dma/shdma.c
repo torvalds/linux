@@ -1144,6 +1144,8 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	/* platform data */
 	shdev->pdata = pdata;
 
+	platform_set_drvdata(pdev, shdev);
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
@@ -1256,7 +1258,6 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 
-	platform_set_drvdata(pdev, shdev);
 	dma_async_device_register(&shdev->common);
 
 	return err;
@@ -1278,6 +1279,8 @@ rst_err:
 
 	if (dmars)
 		iounmap(shdev->dmars);
+
+	platform_set_drvdata(pdev, NULL);
 emapdmars:
 	iounmap(shdev->chan_reg);
 	synchronize_rcu();
@@ -1315,6 +1318,8 @@ static int __exit sh_dmae_remove(struct platform_device *pdev)
 	if (shdev->dmars)
 		iounmap(shdev->dmars);
 	iounmap(shdev->chan_reg);
+
+	platform_set_drvdata(pdev, NULL);
 
 	synchronize_rcu();
 	kfree(shdev);
