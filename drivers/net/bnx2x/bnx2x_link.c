@@ -6099,111 +6099,106 @@ static void bnx2x_8727_link_reset(struct bnx2x_phy *phy,
 static void bnx2x_save_848xx_spirom_version(struct bnx2x_phy *phy,
 					   struct link_params *params)
 {
-	u16 val, fw_ver1, fw_ver2, cnt, adj;
+	u16 val, fw_ver1, fw_ver2, cnt;
+	u8 port;
 	struct bnx2x *bp = params->bp;
 
-	adj = 0;
-	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
-		adj = -1;
+	port = params->port;
 
 	/* For the 32 bits registers in 848xx, access via MDIO2ARM interface.*/
 	/* (1) set register 0xc200_0014(SPI_BRIDGE_CTRL_2) to 0x03000000 */
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA819 + adj, 0x0014);
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81A + adj, 0xc200);
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81B + adj, 0x0000);
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81C + adj, 0x0300);
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA817 + adj, 0x0009);
+	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA819, 0x0014);
+	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81A, 0xc200);
+	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81B, 0x0000);
+	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81C, 0x0300);
+	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA817, 0x0009);
 
 	for (cnt = 0; cnt < 100; cnt++) {
-		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA818 + adj, &val);
+		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA818, &val);
 		if (val & 1)
 			break;
 		udelay(5);
 	}
 	if (cnt == 100) {
 		DP(NETIF_MSG_LINK, "Unable to read 848xx phy fw version(1)\n");
-		bnx2x_save_spirom_version(bp, params->port, 0,
+		bnx2x_save_spirom_version(bp, port, 0,
 					  phy->ver_addr);
 		return;
 	}
 
 
 	/* 2) read register 0xc200_0000 (SPI_FW_STATUS) */
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA819 + adj, 0x0000);
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81A + adj, 0xc200);
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA817 + adj, 0x000A);
+	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA819, 0x0000);
+	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA81A, 0xc200);
+	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, 0xA817, 0x000A);
 	for (cnt = 0; cnt < 100; cnt++) {
-		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA818 + adj, &val);
+		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA818, &val);
 		if (val & 1)
 			break;
 		udelay(5);
 	}
 	if (cnt == 100) {
 		DP(NETIF_MSG_LINK, "Unable to read 848xx phy fw version(2)\n");
-		bnx2x_save_spirom_version(bp, params->port, 0,
+		bnx2x_save_spirom_version(bp, port, 0,
 					  phy->ver_addr);
 		return;
 	}
 
 	/* lower 16 bits of the register SPI_FW_STATUS */
-	bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA81B + adj, &fw_ver1);
+	bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA81B, &fw_ver1);
 	/* upper 16 bits of register SPI_FW_STATUS */
-	bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA81C + adj, &fw_ver2);
+	bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, 0xA81C, &fw_ver2);
 
-	bnx2x_save_spirom_version(bp, params->port, (fw_ver2<<16) | fw_ver1,
+	bnx2x_save_spirom_version(bp, port, (fw_ver2<<16) | fw_ver1,
 				  phy->ver_addr);
 }
 
 static void bnx2x_848xx_set_led(struct bnx2x *bp,
 				struct bnx2x_phy *phy)
 {
-	u16 val, adj;
-
-	adj = 0;
-	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
-		adj = -1;
+	u16 val;
 
 	/* PHYC_CTL_LED_CTL */
 	bnx2x_cl45_read(bp, phy,
 			MDIO_PMA_DEVAD,
-			MDIO_PMA_REG_8481_LINK_SIGNAL + adj, &val);
+			MDIO_PMA_REG_8481_LINK_SIGNAL, &val);
 	val &= 0xFE00;
 	val |= 0x0092;
 
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD,
-			 MDIO_PMA_REG_8481_LINK_SIGNAL + adj, val);
+			 MDIO_PMA_REG_8481_LINK_SIGNAL, val);
 
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD,
-			 MDIO_PMA_REG_8481_LED1_MASK + adj,
+			 MDIO_PMA_REG_8481_LED1_MASK,
 			 0x80);
 
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD,
-			 MDIO_PMA_REG_8481_LED2_MASK + adj,
+			 MDIO_PMA_REG_8481_LED2_MASK,
 			 0x18);
 
 	/* Select activity source by Tx and Rx, as suggested by PHY AE */
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD,
-			 MDIO_PMA_REG_8481_LED3_MASK + adj,
+			 MDIO_PMA_REG_8481_LED3_MASK,
 			 0x0006);
 
 	/* Select the closest activity blink rate to that in 10/100/1000 */
 	bnx2x_cl45_write(bp, phy,
 			MDIO_PMA_DEVAD,
-			MDIO_PMA_REG_8481_LED3_BLINK + adj,
+			MDIO_PMA_REG_8481_LED3_BLINK,
 			0);
 
 	bnx2x_cl45_read(bp, phy,
 			MDIO_PMA_DEVAD,
-			MDIO_PMA_REG_84823_CTL_LED_CTL_1 + adj, &val);
+			MDIO_PMA_REG_84823_CTL_LED_CTL_1, &val);
 	val |= MDIO_PMA_REG_84823_LED3_STRETCH_EN; /* stretch_en for LED3*/
 
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD,
-			 MDIO_PMA_REG_84823_CTL_LED_CTL_1 + adj, val);
+			 MDIO_PMA_REG_84823_CTL_LED_CTL_1, val);
 
 	/* 'Interrupt Mask' */
 	bnx2x_cl45_write(bp, phy,
@@ -6217,6 +6212,13 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u16 autoneg_val, an_1000_val, an_10_100_val;
+	u16 tmp_req_line_speed;
+
+	tmp_req_line_speed = phy->req_line_speed;
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
+		if (phy->req_line_speed == SPEED_10000)
+			phy->req_line_speed = SPEED_AUTO_NEG;
+
 	/*
 	 * This phy uses the NIG latch mechanism since link indication
 	 * arrives through its LED4 and not via its LASI signal, so we
@@ -6336,6 +6338,8 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 	/* Save spirom version */
 	bnx2x_save_848xx_spirom_version(phy, params);
 
+	phy->req_line_speed = tmp_req_line_speed;
+
 	return 0;
 }
 
@@ -6356,33 +6360,109 @@ static int bnx2x_8481_config_init(struct bnx2x_phy *phy,
 	return bnx2x_848xx_cmn_config_init(phy, params, vars);
 }
 
+
+#define PHY84833_HDSHK_WAIT 300
+static int bnx2x_84833_pair_swap_cfg(struct bnx2x_phy *phy,
+				   struct link_params *params,
+				   struct link_vars *vars)
+{
+	u32 idx;
+	u16 val;
+	u16 data = 0x01b1;
+	struct bnx2x *bp = params->bp;
+	/* Do pair swap */
+
+
+	/* Write CMD_OPEN_OVERRIDE to STATUS reg */
+	bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+			MDIO_84833_TOP_CFG_SCRATCH_REG2,
+			PHY84833_CMD_OPEN_OVERRIDE);
+	for (idx = 0; idx < PHY84833_HDSHK_WAIT; idx++) {
+		bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
+				MDIO_84833_TOP_CFG_SCRATCH_REG2, &val);
+		if (val == PHY84833_CMD_OPEN_FOR_CMDS)
+			break;
+		msleep(1);
+	}
+	if (idx >= PHY84833_HDSHK_WAIT) {
+		DP(NETIF_MSG_LINK, "Pairswap: FW not ready.\n");
+		return -EINVAL;
+	}
+
+	bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+			MDIO_84833_TOP_CFG_SCRATCH_REG4,
+			data);
+	/* Issue pair swap command */
+	bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+			MDIO_84833_TOP_CFG_SCRATCH_REG0,
+			PHY84833_DIAG_CMD_PAIR_SWAP_CHANGE);
+	for (idx = 0; idx < PHY84833_HDSHK_WAIT; idx++) {
+		bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
+				MDIO_84833_TOP_CFG_SCRATCH_REG2, &val);
+		if ((val == PHY84833_CMD_COMPLETE_PASS) ||
+			(val == PHY84833_CMD_COMPLETE_ERROR))
+			break;
+		msleep(1);
+	}
+	if ((idx >= PHY84833_HDSHK_WAIT) ||
+		(val == PHY84833_CMD_COMPLETE_ERROR)) {
+		DP(NETIF_MSG_LINK, "Pairswap: override failed.\n");
+		return -EINVAL;
+	}
+	bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+			MDIO_84833_TOP_CFG_SCRATCH_REG2,
+			PHY84833_CMD_CLEAR_COMPLETE);
+	DP(NETIF_MSG_LINK, "Pairswap OK, val=0x%x\n", data);
+	return 0;
+}
+
 static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 				   struct link_params *params,
 				   struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	u8 port, initialize = 1;
-	u16 val, adj;
+	u16 val;
 	u16 temp;
 	u32 actual_phy_selection, cms_enable;
 	int rc = 0;
 
-	/* This is just for MDIO_CTL_REG_84823_MEDIA register. */
-	adj = 0;
-	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
-		adj = 3;
-
 	msleep(1);
-	if (CHIP_IS_E2(bp))
+
+	if (!(CHIP_IS_E1(bp)))
 		port = BP_PATH(bp);
 	else
 		port = params->port;
-	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
-		       MISC_REGISTERS_GPIO_OUTPUT_HIGH,
-		       port);
+
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823) {
+		bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
+			       MISC_REGISTERS_GPIO_OUTPUT_HIGH,
+			       port);
+	} else {
+		bnx2x_cl45_write(bp, phy,
+				MDIO_PMA_DEVAD,
+				MDIO_PMA_REG_CTRL, 0x8000);
+	}
+
 	bnx2x_wait_reset_complete(bp, phy, params);
 	/* Wait for GPHY to come out of reset */
 	msleep(50);
+
+	/* Bring PHY out of super isolate mode */
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
+		bnx2x_cl45_read(bp, phy,
+				MDIO_CTL_DEVAD,
+				MDIO_84833_TOP_CFG_XGPHY_STRAP1, &val);
+		val &= ~MDIO_84833_SUPER_ISOLATE;
+		bnx2x_cl45_write(bp, phy,
+				MDIO_CTL_DEVAD,
+				MDIO_84833_TOP_CFG_XGPHY_STRAP1, val);
+		bnx2x_wait_reset_complete(bp, phy, params);
+	}
+
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
+		bnx2x_84833_pair_swap_cfg(phy, params, vars);
+
 	/*
 	 * BCM84823 requires that XGXS links up first @ 10G for normal behavior
 	 */
@@ -6395,7 +6475,7 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	/* Set dual-media configuration according to configuration */
 
 	bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
-			MDIO_CTL_REG_84823_MEDIA + adj, &val);
+			MDIO_CTL_REG_84823_MEDIA, &val);
 	val &= ~(MDIO_CTL_REG_84823_MEDIA_MAC_MASK |
 		 MDIO_CTL_REG_84823_MEDIA_LINE_MASK |
 		 MDIO_CTL_REG_84823_MEDIA_COPPER_CORE_DOWN |
@@ -6428,7 +6508,7 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 		val |= MDIO_CTL_REG_84823_MEDIA_FIBER_1G;
 
 	bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
-			 MDIO_CTL_REG_84823_MEDIA + adj, val);
+			 MDIO_CTL_REG_84823_MEDIA, val);
 	DP(NETIF_MSG_LINK, "Multi_phy config = 0x%x, Media control = 0x%x\n",
 		   params->multi_phy_config, val);
 
@@ -6459,20 +6539,16 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 				  struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
-	u16 val, val1, val2, adj;
+	u16 val, val1, val2;
 	u8 link_up = 0;
 
-	/* Reg offset adjustment for 84833 */
-	adj = 0;
-	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
-		adj = -1;
 
 	/* Check 10G-BaseT link status */
 	/* Check PMD signal ok */
 	bnx2x_cl45_read(bp, phy,
 			MDIO_AN_DEVAD, 0xFFFA, &val1);
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_8481_PMD_SIGNAL + adj,
+			MDIO_PMA_DEVAD, MDIO_PMA_REG_8481_PMD_SIGNAL,
 			&val2);
 	DP(NETIF_MSG_LINK, "BCM848xx: PMD_SIGNAL 1.a811 = 0x%x\n", val2);
 
@@ -6577,13 +6653,21 @@ static void bnx2x_848x3_link_reset(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u8 port;
-	if (CHIP_IS_E2(bp))
+
+	if (!(CHIP_IS_E1(bp)))
 		port = BP_PATH(bp);
 	else
 		port = params->port;
-	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
-		       MISC_REGISTERS_GPIO_OUTPUT_LOW,
-		       port);
+
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823) {
+		bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
+			       MISC_REGISTERS_GPIO_OUTPUT_LOW,
+			       port);
+	} else {
+		bnx2x_cl45_write(bp, phy,
+				MDIO_PMA_DEVAD,
+				MDIO_PMA_REG_CTRL, 0x800);
+	}
 }
 
 static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
@@ -6591,11 +6675,17 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u16 val;
+	u8 port;
+
+	if (!(CHIP_IS_E1(bp)))
+		port = BP_PATH(bp);
+	else
+		port = params->port;
 
 	switch (mode) {
 	case LED_MODE_OFF:
 
-		DP(NETIF_MSG_LINK, "Port 0x%x: LED MODE OFF\n", params->port);
+		DP(NETIF_MSG_LINK, "Port 0x%x: LED MODE OFF\n", port);
 
 		if ((params->hw_led_mode << SHARED_HW_CFG_LED_MODE_SHIFT) ==
 		    SHARED_HW_CFG_LED_EXTPHY1) {
@@ -6631,7 +6721,7 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 	case LED_MODE_FRONT_PANEL_OFF:
 
 		DP(NETIF_MSG_LINK, "Port 0x%x: LED MODE FRONT PANEL OFF\n",
-		   params->port);
+		   port);
 
 		if ((params->hw_led_mode << SHARED_HW_CFG_LED_MODE_SHIFT) ==
 		    SHARED_HW_CFG_LED_EXTPHY1) {
@@ -6666,7 +6756,7 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 		break;
 	case LED_MODE_ON:
 
-		DP(NETIF_MSG_LINK, "Port 0x%x: LED MODE ON\n", params->port);
+		DP(NETIF_MSG_LINK, "Port 0x%x: LED MODE ON\n", port);
 
 		if ((params->hw_led_mode << SHARED_HW_CFG_LED_MODE_SHIFT) ==
 		    SHARED_HW_CFG_LED_EXTPHY1) {
@@ -6713,7 +6803,7 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 
 	case LED_MODE_OPER:
 
-		DP(NETIF_MSG_LINK, "Port 0x%x: LED MODE OPER\n", params->port);
+		DP(NETIF_MSG_LINK, "Port 0x%x: LED MODE OPER\n", port);
 
 		if ((params->hw_led_mode << SHARED_HW_CFG_LED_MODE_SHIFT) ==
 		    SHARED_HW_CFG_LED_EXTPHY1) {
