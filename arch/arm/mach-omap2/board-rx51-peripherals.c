@@ -741,11 +741,11 @@ static struct twl4030_power_data rx51_t2scripts_data __initdata = {
 	.resource_config = twl4030_rconfig,
 };
 
-struct twl4030_codec_vibra_data rx51_vibra_data __initdata = {
+struct twl4030_vibra_data rx51_vibra_data __initdata = {
 	.coexist	= 0,
 };
 
-struct twl4030_codec_data rx51_codec_data __initdata = {
+struct twl4030_audio_data rx51_audio_data __initdata = {
 	.audio_mclk	= 26000000,
 	.vibra		= &rx51_vibra_data,
 };
@@ -755,7 +755,7 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 	.gpio			= &rx51_gpio_data,
 	.keypad			= &rx51_kp_data,
 	.power			= &rx51_t2scripts_data,
-	.codec			= &rx51_codec_data,
+	.audio			= &rx51_audio_data,
 
 	.vaux1			= &rx51_vaux1,
 	.vaux2			= &rx51_vaux2,

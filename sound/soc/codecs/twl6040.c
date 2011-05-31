@@ -1600,7 +1600,7 @@ static int twl6040_resume(struct snd_soc_codec *codec)
 
 static int twl6040_probe(struct snd_soc_codec *codec)
 {
-	struct twl4030_codec_data *twl_codec = codec->dev->platform_data;
+	struct twl4030_audio_data *twl_codec = codec->dev->platform_data;
 	struct twl6040_data *priv;
 	int audpwron, naudint;
 	int ret = 0;
