@@ -224,6 +224,7 @@ struct hci_conn {
 	spinlock_t	lock;
 
 	bdaddr_t	dst;
+	__u8            dst_type;
 	__u16		handle;
 	__u16		state;
 	__u8		mode;
