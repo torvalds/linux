@@ -343,7 +343,7 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 
 		dmae_set_dmars(sh_chan, cfg->mid_rid);
 		dmae_set_chcr(sh_chan, cfg->chcr);
-	} else if ((sh_dmae_readl(sh_chan, CHCR) & 0xf00) != 0x400) {
+	} else {
 		dmae_init(sh_chan);
 	}
 
