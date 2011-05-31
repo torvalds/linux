@@ -125,6 +125,15 @@ struct rk29_nand_platform_data rk29_nand_data = {
     .io_init   = rk29_nand_io_init,
 };
 
+/*****************************************************************************************
+* touch screen devices
+* author: cf@rock-chips.com
+*****************************************************************************************/
+#define TOUCH_SCREEN_STANDBY_PIN          INVALID_GPIO
+#define TOUCH_SCREEN_STANDBY_VALUE        GPIO_HIGH
+#define TOUCH_SCREEN_DISPLAY_PIN          INVALID_GPIO
+#define TOUCH_SCREEN_DISPLAY_VALUE        GPIO_HIGH
+
 #ifdef CONFIG_FB_RK29
 /*****************************************************************************************
  * lcd  devices
@@ -139,7 +148,7 @@ struct rk29_nand_platform_data rk29_nand_data = {
 * author: zyw@rock-chips.com
 *****************************************************************************************/
 #define FB_ID                       0
-#define FB_DISPLAY_ON_PIN           RK29_PIN6_PD0
+#define FB_DISPLAY_ON_PIN           INVALID_GPIO// RK29_PIN6_PD0
 #define FB_LCD_STANDBY_PIN          RK29_PIN6_PD1
 #define FB_LCD_CABC_EN_PIN          RK29_PIN6_PD2
 #define FB_MCU_FMK_PIN              INVALID_GPIO
@@ -168,6 +177,33 @@ static struct rk29lcd_info rk29_lcd_info = {
     .io_deinit = rk29_lcd_io_deinit,
 };
 
+int rk29_fb_io_enable(void)
+{
+    if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
+    {
+        gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
+        gpio_set_value(FB_DISPLAY_ON_PIN, FB_DISPLAY_ON_VALUE);              
+    }
+    if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
+    {
+        gpio_direction_output(FB_LCD_STANDBY_PIN, 0);
+        gpio_set_value(FB_LCD_STANDBY_PIN, FB_LCD_STANDBY_VALUE);             
+    }
+}
+
+int rk29_fb_io_disable(void)
+{
+    if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
+    {
+        gpio_direction_output(FB_DISPLAY_ON_PIN, 0);
+        gpio_set_value(FB_DISPLAY_ON_PIN, !FB_DISPLAY_ON_VALUE);              
+    }
+    if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
+    {
+        gpio_direction_output(FB_LCD_STANDBY_PIN, 0);
+        gpio_set_value(FB_LCD_STANDBY_PIN, !FB_LCD_STANDBY_VALUE);             
+    }
+}
 
 static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
@@ -182,24 +218,52 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
         }
         gpio_direction_input(FB_MCU_FMK_PIN);
     }
-    if(fb_setting->disp_on_en && (FB_DISPLAY_ON_PIN != INVALID_GPIO))
+    if(fb_setting->disp_on_en)
     {
-        ret = gpio_request(FB_DISPLAY_ON_PIN, NULL);
-        if(ret != 0)
+        if(FB_DISPLAY_ON_PIN != INVALID_GPIO)
         {
-            gpio_free(FB_DISPLAY_ON_PIN);
-            printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
+            ret = gpio_request(FB_DISPLAY_ON_PIN, NULL);
+            if(ret != 0)
+            {
+                gpio_free(FB_DISPLAY_ON_PIN);
+                printk(">>>>>> FB_DISPLAY_ON_PIN gpio_request err \n ");
+            }
+        }
+        else
+        {
+             ret = gpio_request(TOUCH_SCREEN_DISPLAY_PIN, NULL);
+             if(ret != 0)
+             {
+                 gpio_free(TOUCH_SCREEN_DISPLAY_PIN);
+                 printk(">>>>>> TOUCH_SCREEN_DISPLAY_PIN gpio_request err \n ");
+             }
+             gpio_direction_output(TOUCH_SCREEN_DISPLAY_PIN, 0);
+             gpio_set_value(TOUCH_SCREEN_DISPLAY_PIN, TOUCH_SCREEN_DISPLAY_VALUE);
         }
     }
 
-    if(fb_setting->disp_on_en && (FB_LCD_STANDBY_PIN != INVALID_GPIO))
+    if(fb_setting->disp_on_en)
     {
-        ret = gpio_request(FB_LCD_STANDBY_PIN, NULL);
-        if(ret != 0)
+        if(FB_LCD_STANDBY_PIN != INVALID_GPIO)
         {
-            gpio_free(FB_LCD_STANDBY_PIN);
-            printk(">>>>>> FB_LCD_STANDBY_PIN gpio_request err \n ");
+             ret = gpio_request(FB_LCD_STANDBY_PIN, NULL);
+             if(ret != 0)
+             {
+                 gpio_free(FB_LCD_STANDBY_PIN);
+                 printk(">>>>>> FB_LCD_STANDBY_PIN gpio_request err \n ");
+             }
         }
+        else
+        {
+             ret = gpio_request(TOUCH_SCREEN_STANDBY_PIN, NULL);
+             if(ret != 0)
+             {
+                 gpio_free(TOUCH_SCREEN_STANDBY_PIN);
+                 printk(">>>>>> TOUCH_SCREEN_STANDBY_PIN gpio_request err \n ");
+             }
+             gpio_direction_output(TOUCH_SCREEN_STANDBY_PIN, 0);
+             gpio_set_value(TOUCH_SCREEN_STANDBY_PIN, TOUCH_SCREEN_STANDBY_VALUE);
+         }
     }
 
     if(FB_LCD_CABC_EN_PIN != INVALID_GPIO)
@@ -213,19 +277,20 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
         gpio_direction_output(FB_LCD_CABC_EN_PIN, 0);
         gpio_set_value(FB_LCD_CABC_EN_PIN, GPIO_LOW);
     }
+    
+    rk29_fb_io_enable();   //enable it
 
     return ret;
 }
 
+
 static struct rk29fb_info rk29_fb_info = {
     .fb_id   = FB_ID,
-    .disp_on_pin = FB_DISPLAY_ON_PIN,
-    .disp_on_value = FB_DISPLAY_ON_VALUE,
-    .standby_pin = FB_LCD_STANDBY_PIN,
-    .standby_value = FB_LCD_STANDBY_VALUE,
     .mcu_fmk_pin = FB_MCU_FMK_PIN,
     .lcd_info = &rk29_lcd_info,
     .io_init   = rk29_fb_io_init,
+    .io_enable = rk29_fb_io_enable,
+    .io_disable = rk29_fb_io_disable,
 };
 
 /* rk29 fb resource */
