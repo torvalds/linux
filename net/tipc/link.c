@@ -1572,7 +1572,7 @@ static struct sk_buff *link_insert_deferred_queue(struct link *l_ptr,
 static int link_recv_buf_validate(struct sk_buff *buf)
 {
 	static u32 min_data_hdr_size[8] = {
-		SHORT_H_SIZE, MCAST_H_SIZE, LONG_H_SIZE, DIR_MSG_H_SIZE,
+		SHORT_H_SIZE, MCAST_H_SIZE, NAMED_H_SIZE, BASIC_H_SIZE,
 		MAX_H_SIZE, MAX_H_SIZE, MAX_H_SIZE, MAX_H_SIZE
 		};
 
@@ -2553,7 +2553,7 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 		u32 msg_sz = msg_size(imsg);
 		u32 fragm_sz = msg_data_sz(fragm);
 		u32 exp_fragm_cnt = msg_sz/fragm_sz + !!(msg_sz % fragm_sz);
-		u32 max =  TIPC_MAX_USER_MSG_SIZE + LONG_H_SIZE;
+		u32 max =  TIPC_MAX_USER_MSG_SIZE + NAMED_H_SIZE;
 		if (msg_type(imsg) == TIPC_MCAST_MSG)
 			max = TIPC_MAX_USER_MSG_SIZE + MCAST_H_SIZE;
 		if (msg_size(imsg) > max) {

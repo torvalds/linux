@@ -222,7 +222,7 @@ struct tipc_port *tipc_createport_raw(void *usr_handle,
 	p_ptr->max_pkt = MAX_PKT_DEFAULT;
 	p_ptr->ref = ref;
 	msg = &p_ptr->phdr;
-	tipc_msg_init(msg, importance, TIPC_NAMED_MSG, LONG_H_SIZE, 0);
+	tipc_msg_init(msg, importance, TIPC_NAMED_MSG, NAMED_H_SIZE, 0);
 	msg_set_origport(msg, ref);
 	INIT_LIST_HEAD(&p_ptr->wait_list);
 	INIT_LIST_HEAD(&p_ptr->subscription.nodesub_list);
@@ -339,10 +339,10 @@ static struct sk_buff *port_build_proto_msg(u32 destport, u32 destnode,
 	struct sk_buff *buf;
 	struct tipc_msg *msg;
 
-	buf = tipc_buf_acquire(LONG_H_SIZE);
+	buf = tipc_buf_acquire(INT_H_SIZE);
 	if (buf) {
 		msg = buf_msg(buf);
-		tipc_msg_init(msg, usr, type, LONG_H_SIZE, destnode);
+		tipc_msg_init(msg, usr, type, INT_H_SIZE, destnode);
 		msg_set_errcode(msg, err);
 		msg_set_destport(msg, destport);
 		msg_set_origport(msg, origport);
@@ -1247,7 +1247,7 @@ int tipc_send2name(u32 ref, struct tipc_name const *name, unsigned int domain,
 	msg_set_type(msg, TIPC_NAMED_MSG);
 	msg_set_orignode(msg, tipc_own_addr);
 	msg_set_origport(msg, ref);
-	msg_set_hdr_sz(msg, LONG_H_SIZE);
+	msg_set_hdr_sz(msg, NAMED_H_SIZE);
 	msg_set_nametype(msg, name->type);
 	msg_set_nameinst(msg, name->instance);
 	msg_set_lookup_scope(msg, tipc_addr_scope(domain));
@@ -1300,7 +1300,7 @@ int tipc_send2port(u32 ref, struct tipc_portid const *dest,
 	msg_set_origport(msg, ref);
 	msg_set_destnode(msg, dest->node);
 	msg_set_destport(msg, dest->ref);
-	msg_set_hdr_sz(msg, DIR_MSG_H_SIZE);
+	msg_set_hdr_sz(msg, BASIC_H_SIZE);
 
 	if (dest->node == tipc_own_addr)
 		res =  tipc_port_recv_sections(p_ptr, num_sect, msg_sect,
@@ -1340,13 +1340,13 @@ int tipc_send_buf2port(u32 ref, struct tipc_portid const *dest,
 	msg_set_origport(msg, ref);
 	msg_set_destnode(msg, dest->node);
 	msg_set_destport(msg, dest->ref);
-	msg_set_hdr_sz(msg, DIR_MSG_H_SIZE);
-	msg_set_size(msg, DIR_MSG_H_SIZE + dsz);
-	if (skb_cow(buf, DIR_MSG_H_SIZE))
+	msg_set_hdr_sz(msg, BASIC_H_SIZE);
+	msg_set_size(msg, BASIC_H_SIZE + dsz);
+	if (skb_cow(buf, BASIC_H_SIZE))
 		return -ENOMEM;
 
-	skb_push(buf, DIR_MSG_H_SIZE);
-	skb_copy_to_linear_data(buf, msg, DIR_MSG_H_SIZE);
+	skb_push(buf, BASIC_H_SIZE);
+	skb_copy_to_linear_data(buf, msg, BASIC_H_SIZE);
 
 	if (dest->node == tipc_own_addr)
 		res = tipc_port_recv_msg(buf);
