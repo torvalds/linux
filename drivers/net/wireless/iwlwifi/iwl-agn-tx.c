@@ -834,8 +834,8 @@ drop_unlock_priv:
 static inline int iwlagn_alloc_dma_ptr(struct iwl_priv *priv,
 				    struct iwl_dma_ptr *ptr, size_t size)
 {
-	ptr->addr = dma_alloc_coherent(&priv->pci_dev->dev, size, &ptr->dma,
-				       GFP_KERNEL);
+	ptr->addr = dma_alloc_coherent(priv->bus.dev, size,
+				       &ptr->dma, GFP_KERNEL);
 	if (!ptr->addr)
 		return -ENOMEM;
 	ptr->size = size;
@@ -848,7 +848,8 @@ static inline void iwlagn_free_dma_ptr(struct iwl_priv *priv,
 	if (unlikely(!ptr->addr))
 		return;
 
-	dma_free_coherent(&priv->pci_dev->dev, ptr->size, ptr->addr, ptr->dma);
+	dma_free_coherent(priv->bus.dev,
+			  ptr->size, ptr->addr, ptr->dma);
 	memset(ptr, 0, sizeof(*ptr));
 }
 

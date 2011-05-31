@@ -86,8 +86,14 @@ static void iwl_pci_set_drv_data(struct iwl_bus *bus, void *drv_priv)
 	pci_set_drvdata(IWL_BUS_GET_PCI_DEV(bus), drv_priv);
 }
 
+static struct device *iwl_pci_get_dev(const struct iwl_bus *bus)
+{
+	return &(IWL_BUS_GET_PCI_DEV(bus)->dev);
+}
+
 static struct iwl_bus_ops pci_ops = {
 	.set_drv_data = iwl_pci_set_drv_data,
+	.get_dev = iwl_pci_get_dev,
 };
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \

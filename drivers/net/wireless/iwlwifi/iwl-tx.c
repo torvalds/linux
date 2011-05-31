@@ -266,7 +266,7 @@ void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id)
 void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 {
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct device *dev = &priv->pci_dev->dev;
+	struct device *dev = priv->bus.dev;
 	int i;
 
 	iwl_tx_queue_unmap(priv, txq_id);
@@ -332,7 +332,7 @@ void iwl_cmd_queue_unmap(struct iwl_priv *priv)
 void iwl_cmd_queue_free(struct iwl_priv *priv)
 {
 	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
-	struct device *dev = &priv->pci_dev->dev;
+	struct device *dev = priv->bus.dev;
 	int i;
 
 	iwl_cmd_queue_unmap(priv);
@@ -434,7 +434,7 @@ static int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 			      struct iwl_tx_queue *txq, u32 id)
 {
-	struct device *dev = &priv->pci_dev->dev;
+	struct device *dev = priv->bus.dev;
 	size_t tfd_sz = priv->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX;
 
 	/* Driver private data, only for Tx (not command) queues,

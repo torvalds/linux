@@ -937,22 +937,28 @@ static struct attribute_group iwl_attribute_group = {
  *
  ******************************************************************************/
 
-static void iwl_free_fw_desc(struct pci_dev *pci_dev, struct fw_desc *desc)
+static void iwl_free_fw_desc(struct iwl_priv *priv, struct fw_desc *desc)
 {
 	if (desc->v_addr)
-		dma_free_coherent(&pci_dev->dev, desc->len,
+		dma_free_coherent(priv->bus.dev, desc->len,
 				  desc->v_addr, desc->p_addr);
 	desc->v_addr = NULL;
 	desc->len = 0;
 }
 
-static void iwl_free_fw_img(struct pci_dev *pci_dev, struct fw_img *img)
+static void iwl_free_fw_img(struct iwl_priv *priv, struct fw_img *img)
 {
-	iwl_free_fw_desc(pci_dev, &img->code);
-	iwl_free_fw_desc(pci_dev, &img->data);
+	iwl_free_fw_desc(priv, &img->code);
+	iwl_free_fw_desc(priv, &img->data);
 }
 
-static int iwl_alloc_fw_desc(struct pci_dev *pci_dev, struct fw_desc *desc,
+static void iwl_dealloc_ucode(struct iwl_priv *priv)
+{
+	iwl_free_fw_img(priv, &priv->ucode_rt);
+	iwl_free_fw_img(priv, &priv->ucode_init);
+}
+
+static int iwl_alloc_fw_desc(struct iwl_priv *priv, struct fw_desc *desc,
 			     const void *data, size_t len)
 {
 	if (!len) {
@@ -960,19 +966,14 @@ static int iwl_alloc_fw_desc(struct pci_dev *pci_dev, struct fw_desc *desc,
 		return -EINVAL;
 	}
 
-	desc->v_addr = dma_alloc_coherent(&pci_dev->dev, len,
+	desc->v_addr = dma_alloc_coherent(priv->bus.dev, len,
 					  &desc->p_addr, GFP_KERNEL);
 	if (!desc->v_addr)
 		return -ENOMEM;
+
 	desc->len = len;
 	memcpy(desc->v_addr, data, len);
 	return 0;
-}
-
-static void iwl_dealloc_ucode_pci(struct iwl_priv *priv)
-{
-	iwl_free_fw_img(priv->pci_dev, &priv->ucode_rt);
-	iwl_free_fw_img(priv->pci_dev, &priv->ucode_init);
 }
 
 struct iwlagn_ucode_capabilities {
@@ -1019,8 +1020,8 @@ static int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 		       priv->firmware_name);
 
 	return request_firmware_nowait(THIS_MODULE, 1, priv->firmware_name,
-				       &priv->pci_dev->dev, GFP_KERNEL, priv,
-				       iwl_ucode_callback);
+				       priv->bus.dev,
+				       GFP_KERNEL, priv, iwl_ucode_callback);
 }
 
 struct iwlagn_firmware_pieces {
@@ -1441,19 +1442,19 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	/* Runtime instructions and 2 copies of data:
 	 * 1) unmodified from disk
 	 * 2) backup cache for save/restore during power-downs */
-	if (iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_rt.code,
+	if (iwl_alloc_fw_desc(priv, &priv->ucode_rt.code,
 			      pieces.inst, pieces.inst_size))
 		goto err_pci_alloc;
-	if (iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_rt.data,
+	if (iwl_alloc_fw_desc(priv, &priv->ucode_rt.data,
 			      pieces.data, pieces.data_size))
 		goto err_pci_alloc;
 
 	/* Initialization instructions and data */
 	if (pieces.init_size && pieces.init_data_size) {
-		if (iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_init.code,
+		if (iwl_alloc_fw_desc(priv, &priv->ucode_init.code,
 				      pieces.init, pieces.init_size))
 			goto err_pci_alloc;
-		if (iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_init.data,
+		if (iwl_alloc_fw_desc(priv, &priv->ucode_init.data,
 				      pieces.init_data, pieces.init_data_size))
 			goto err_pci_alloc;
 	}
@@ -1522,7 +1523,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	if (err)
 		IWL_ERR(priv, "failed to create debugfs files. Ignoring error: %d\n", err);
 
-	err = sysfs_create_group(&priv->pci_dev->dev.kobj,
+	err = sysfs_create_group(&(priv->bus.dev->kobj),
 					&iwl_attribute_group);
 	if (err) {
 		IWL_ERR(priv, "failed to create sysfs device attributes\n");
@@ -1543,10 +1544,10 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 
  err_pci_alloc:
 	IWL_ERR(priv, "failed to allocate pci memory\n");
-	iwl_dealloc_ucode_pci(priv);
+	iwl_dealloc_ucode(priv);
  out_unbind:
 	complete(&priv->_agn.firmware_loading_complete);
-	device_release_driver(&priv->pci_dev->dev);
+	device_release_driver(priv->bus.dev);
 	release_firmware(ucode_raw);
 }
 
@@ -3507,10 +3508,11 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	priv->bus.bus_specific = bus_specific;
 	priv->bus.ops = bus_ops;
 	priv->bus.ops->set_drv_data(&priv->bus, priv);
+	priv->bus.dev = priv->bus.ops->get_dev(&priv->bus);
 
 	/* At this point both hw and priv are allocated. */
 
-	SET_IEEE80211_DEV(hw, &pdev->dev);
+	SET_IEEE80211_DEV(hw, priv->bus.dev);
 
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 	priv->cfg = cfg;
@@ -3735,7 +3737,8 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	IWL_DEBUG_INFO(priv, "*** UNLOAD DRIVER ***\n");
 
 	iwl_dbgfs_unregister(priv);
-	sysfs_remove_group(&pdev->dev.kobj, &iwl_attribute_group);
+	sysfs_remove_group(&priv->bus.dev->kobj,
+			   &iwl_attribute_group);
 
 	/* ieee80211_unregister_hw call wil cause iwl_mac_stop to
 	 * to be called and iwl_down since we are removing the device
@@ -3765,7 +3768,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 
 	iwl_synchronize_irq(priv);
 
-	iwl_dealloc_ucode_pci(priv);
+	iwl_dealloc_ucode(priv);
 
 	if (priv->rxq.bd)
 		iwlagn_rx_queue_free(priv, &priv->rxq);

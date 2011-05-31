@@ -1194,9 +1194,11 @@ struct iwl_bus;
 /**
  * struct iwl_bus_ops - bus specific operations
  * @set_drv_data: set the priv pointer to the bus layer
+ * @get_dev: returns the device struct
  */
 struct iwl_bus_ops {
 	void (*set_drv_data)(struct iwl_bus *bus, void *priv);
+	struct device *(*get_dev)(const struct iwl_bus *bus);
 };
 
 struct iwl_bus {
@@ -1205,6 +1207,7 @@ struct iwl_bus {
 
 	/* Common data to all buses */
 	struct iwl_priv *priv; /* driver's context */
+	struct device *dev;
 	struct iwl_bus_ops *ops;
 };
 

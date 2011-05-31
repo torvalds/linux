@@ -32,10 +32,10 @@
 struct iwl_priv;
 extern u32 iwl_debug_level;
 
-#define IWL_ERR(p, f, a...) dev_err(&((p)->pci_dev->dev), f, ## a)
-#define IWL_WARN(p, f, a...) dev_warn(&((p)->pci_dev->dev), f, ## a)
-#define IWL_INFO(p, f, a...) dev_info(&((p)->pci_dev->dev), f, ## a)
-#define IWL_CRIT(p, f, a...) dev_crit(&((p)->pci_dev->dev), f, ## a)
+#define IWL_ERR(p, f, a...) dev_err(p->bus.ops->get_dev(&p->bus), f, ## a)
+#define IWL_WARN(p, f, a...) dev_warn(p->bus.ops->get_dev(&p->bus), f, ## a)
+#define IWL_INFO(p, f, a...) dev_info(p->bus.ops->get_dev(&p->bus), f, ## a)
+#define IWL_CRIT(p, f, a...) dev_crit(p->bus.ops->get_dev(&p->bus), f, ## a)
 
 #define iwl_print_hex_error(priv, p, len) 				\
 do {									\

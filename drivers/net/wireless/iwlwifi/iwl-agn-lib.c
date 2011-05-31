@@ -966,9 +966,10 @@ void iwlagn_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 		}
 	}
 
-	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			  rxq->bd_dma);
-	dma_free_coherent(&priv->pci_dev->dev, sizeof(struct iwl_rb_status),
+	dma_free_coherent(priv->bus.dev, 4 * RX_QUEUE_SIZE,
+			  rxq->bd, rxq->bd_dma);
+	dma_free_coherent(priv->bus.dev,
+			  sizeof(struct iwl_rb_status),
 			  rxq->rb_stts, rxq->rb_stts_dma);
 	rxq->bd = NULL;
 	rxq->rb_stts  = NULL;
