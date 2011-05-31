@@ -153,6 +153,8 @@ set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 
 	if ((rdev->family == CHIP_CEDAR) ||
 	    (rdev->family == CHIP_PALM) ||
+	    (rdev->family == CHIP_SUMO) ||
+	    (rdev->family == CHIP_SUMO2) ||
 	    (rdev->family == CHIP_CAICOS))
 		cp_set_surface_sync(rdev,
 				    PACKET3_TC_ACTION_ENA, 48, gpu_addr);
@@ -379,6 +381,48 @@ set_default_state(struct radeon_device *rdev)
 			num_hs_stack_entries = 42;
 			num_ls_stack_entries = 42;
 			break;
+		case CHIP_SUMO:
+			num_ps_gprs = 93;
+			num_vs_gprs = 46;
+			num_temp_gprs = 4;
+			num_gs_gprs = 31;
+			num_es_gprs = 31;
+			num_hs_gprs = 23;
+			num_ls_gprs = 23;
+			num_ps_threads = 96;
+			num_vs_threads = 25;
+			num_gs_threads = 25;
+			num_es_threads = 25;
+			num_hs_threads = 25;
+			num_ls_threads = 25;
+			num_ps_stack_entries = 42;
+			num_vs_stack_entries = 42;
+			num_gs_stack_entries = 42;
+			num_es_stack_entries = 42;
+			num_hs_stack_entries = 42;
+			num_ls_stack_entries = 42;
+			break;
+		case CHIP_SUMO2:
+			num_ps_gprs = 93;
+			num_vs_gprs = 46;
+			num_temp_gprs = 4;
+			num_gs_gprs = 31;
+			num_es_gprs = 31;
+			num_hs_gprs = 23;
+			num_ls_gprs = 23;
+			num_ps_threads = 96;
+			num_vs_threads = 25;
+			num_gs_threads = 25;
+			num_es_threads = 25;
+			num_hs_threads = 25;
+			num_ls_threads = 25;
+			num_ps_stack_entries = 85;
+			num_vs_stack_entries = 85;
+			num_gs_stack_entries = 85;
+			num_es_stack_entries = 85;
+			num_hs_stack_entries = 85;
+			num_ls_stack_entries = 85;
+			break;
 		case CHIP_BARTS:
 			num_ps_gprs = 93;
 			num_vs_gprs = 46;
@@ -446,6 +490,8 @@ set_default_state(struct radeon_device *rdev)
 
 		if ((rdev->family == CHIP_CEDAR) ||
 		    (rdev->family == CHIP_PALM) ||
+		    (rdev->family == CHIP_SUMO) ||
+		    (rdev->family == CHIP_SUMO2) ||
 		    (rdev->family == CHIP_CAICOS))
 			sq_config = 0;
 		else
