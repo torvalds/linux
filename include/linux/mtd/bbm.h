@@ -113,7 +113,11 @@ struct nand_bbt_descr {
 /* Do not store flash based bad block table in OOB area; store it in-band */
 #define NAND_BBT_NO_OOB		0x00040000
 
-/* The nand_bbt_descr was created dynamicaly and must be freed */
+/*
+ * Flag set by nand_create_default_bbt_descr(), marking that the nand_bbt_descr
+ * was allocated dynamicaly and must be freed in nand_release(). Has no meaning
+ * in nand_chip.bbt_options.
+ */
 #define NAND_BBT_DYNAMICSTRUCT	0x80000000
 
 /* The maximum number of blocks to scan for a bbt */
