@@ -181,7 +181,7 @@ static unsigned long omap_vout_alloc_buffer(u32 buf_size, u32 *phys_addr)
 
 	size = PAGE_ALIGN(buf_size);
 	order = get_order(size);
-	virt_addr = __get_free_pages(GFP_KERNEL | GFP_DMA, order);
+	virt_addr = __get_free_pages(GFP_KERNEL, order);
 	addr = virt_addr;
 
 	if (virt_addr) {
