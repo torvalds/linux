@@ -1172,6 +1172,7 @@ enum iwl_scan_type {
 struct iwl_testmode_trace {
 	u32 buff_size;
 	u32 total_size;
+	u32 num_chunks;
 	u8 *cpu_addr;
 	u8 *trace_addr;
 	dma_addr_t dma_addr;

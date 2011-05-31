@@ -343,11 +343,21 @@ extern int iwl_alive_start(struct iwl_priv *priv);
 /* svtool */
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 extern int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len);
+extern int iwl_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
+			     struct netlink_callback *cb,
+			     void *data, int len);
 extern void iwl_testmode_init(struct iwl_priv *priv);
 extern void iwl_testmode_cleanup(struct iwl_priv *priv);
 #else
 static inline
 int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
+{
+	return -ENOSYS;
+}
+static inline
+int iwl_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
+		      struct netlink_callback *cb,
+		      void *data, int len)
 {
 	return -ENOSYS;
 }

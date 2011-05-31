@@ -3352,6 +3352,7 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.offchannel_tx = iwl_mac_offchannel_tx,
 	.offchannel_tx_cancel_wait = iwl_mac_offchannel_tx_cancel_wait,
 	CFG80211_TESTMODE_CMD(iwl_testmode_cmd)
+	CFG80211_TESTMODE_DUMP(iwl_testmode_dump)
 };
 
 static u32 iwl_hw_detect(struct iwl_priv *priv)

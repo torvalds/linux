@@ -166,8 +166,8 @@ enum iwl_tm_attr_t {
 	 * IWL_TM_ATTR_MEM_TRACE_ADDR for the trace address
 	 */
 	IWL_TM_ATTR_TRACE_ADDR,
-	IWL_TM_ATTR_TRACE_DATA,
 	IWL_TM_ATTR_TRACE_SIZE,
+	IWL_TM_ATTR_TRACE_DUMP,
 
 	/* When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_FIXRATE_REQ,
 	 * The mandatory fields are:
@@ -182,7 +182,7 @@ enum iwl_tm_attr_t {
 #define TRACE_BUFF_SIZE_MAX	0x200000
 #define TRACE_BUFF_SIZE_MIN	0x20000
 #define TRACE_BUFF_SIZE_DEF	TRACE_BUFF_SIZE_MIN
-
 #define TRACE_BUFF_PADD		0x2000
+#define TRACE_CHUNK_SIZE	(PAGE_SIZE - 1024)
 
 #endif
