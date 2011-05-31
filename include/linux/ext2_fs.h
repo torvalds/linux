@@ -18,6 +18,7 @@
 
 #include <linux/types.h>
 #include <linux/magic.h>
+#include <linux/fs.h>
 
 /*
  * The second extended filesystem constants/structures
