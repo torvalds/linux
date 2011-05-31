@@ -699,7 +699,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	radio->videodev = video_device_alloc();
 	if (!radio->videodev) {
 		retval = -ENOMEM;
-		goto err_intbuffer;
+		goto err_urb;
 	}
 	memcpy(radio->videodev, &si470x_viddev_template,
 			sizeof(si470x_viddev_template));
@@ -790,6 +790,8 @@ err_all:
 	kfree(radio->buffer);
 err_video:
 	video_device_release(radio->videodev);
+err_urb:
+	usb_free_urb(radio->int_in_urb);
 err_intbuffer:
 	kfree(radio->int_in_buffer);
 err_radio:
