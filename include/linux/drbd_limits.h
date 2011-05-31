@@ -126,7 +126,7 @@
  * is 1 PiB, currently. */
 /* DRBD_MAX_SECTORS */
 #define DRBD_DISK_SIZE_MIN  0
-#define DRBD_DISK_SIZE_MAX  (16 * (2LLU << 30))
+#define DRBD_DISK_SIZE_MAX  (1 * (2LLU << 40))
 #define DRBD_DISK_SIZE_DEF  0 /* = disabled = no user size... */
 #define DRBD_DISK_SIZE_SCALE 's'  /* sectors */
 

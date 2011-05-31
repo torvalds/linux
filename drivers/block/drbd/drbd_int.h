@@ -372,11 +372,11 @@ struct p_connection_features {
 	u32 protocol_max;
 
 	/* should be more than enough for future enhancements
-	 * for now, feature_flags and the reserverd array shall be zero.
+	 * for now, feature_flags and the reserved array shall be zero.
 	 */
 
 	u32 _pad;
-	u64 reserverd[7];
+	u64 reserved[7];
 } __packed;
 
 struct p_barrier {
@@ -914,7 +914,7 @@ struct drbd_conf {
 	atomic_t ap_bio_cnt;	 /* Requests we need to complete */
 	atomic_t ap_pending_cnt; /* AP data packets on the wire, ack expected */
 	atomic_t rs_pending_cnt; /* RS request/data packets on the wire */
-	atomic_t unacked_cnt;	 /* Need to send replys for */
+	atomic_t unacked_cnt;	 /* Need to send replies for */
 	atomic_t local_cnt;	 /* Waiting for local completion */
 
 	/* Interval tree of pending local requests */
@@ -2153,7 +2153,7 @@ static inline int drbd_state_is_stable(struct drbd_conf *mdev)
 		/* disk state is stable as well. */
 		break;
 
-	/* no new io accepted during tansitional states */
+	/* no new io accepted during transitional states */
 	case D_ATTACHING:
 	case D_FAILED:
 	case D_NEGOTIATING:
@@ -2217,7 +2217,7 @@ static inline void inc_ap_bio(struct drbd_conf *mdev)
 	/* we wait here
 	 *    as long as the device is suspended
 	 *    until the bitmap is no longer on the fly during connection
-	 *    handshake as long as we would exeed the max_buffer limit.
+	 *    handshake as long as we would exceed the max_buffer limit.
 	 *
 	 * to avoid races with the reconnect code,
 	 * we need to atomic_inc within the spinlock. */
