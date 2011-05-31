@@ -144,7 +144,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	if (!defrag)
 		return -ENOMEM;
 
-	defrag->ino = inode->i_ino;
+	defrag->ino = btrfs_ino(inode);
 	defrag->transid = transid;
 	defrag->root = root->root_key.objectid;
 

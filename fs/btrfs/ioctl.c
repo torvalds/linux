@@ -706,16 +706,17 @@ static int find_new_extents(struct btrfs_root *root,
 	struct btrfs_file_extent_item *extent;
 	int type;
 	int ret;
+	u64 ino = btrfs_ino(inode);
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
-	min_key.objectid = inode->i_ino;
+	min_key.objectid = ino;
 	min_key.type = BTRFS_EXTENT_DATA_KEY;
 	min_key.offset = *off;
 
-	max_key.objectid = inode->i_ino;
+	max_key.objectid = ino;
 	max_key.type = (u8)-1;
 	max_key.offset = (u64)-1;
 
@@ -726,7 +727,7 @@ static int find_new_extents(struct btrfs_root *root,
 					   path, 0, newer_than);
 		if (ret != 0)
 			goto none;
-		if (min_key.objectid != inode->i_ino)
+		if (min_key.objectid != ino)
 			goto none;
 		if (min_key.type != BTRFS_EXTENT_DATA_KEY)
 			goto none;
