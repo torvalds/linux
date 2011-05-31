@@ -1020,6 +1020,8 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->asic = &evergreen_asic;
 		break;
 	case CHIP_PALM:
+	case CHIP_SUMO:
+	case CHIP_SUMO2:
 		rdev->asic = &sumo_asic;
 		break;
 	case CHIP_BARTS:
