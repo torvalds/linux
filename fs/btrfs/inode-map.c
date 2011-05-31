@@ -394,6 +394,11 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 	     root->root_key.objectid > BTRFS_LAST_FREE_OBJECTID))
 		return 0;
 
+	/* Don't save inode cache if we are deleting this root */
+	if (btrfs_root_refs(&root->root_item) == 0 &&
+	    root != root->fs_info->tree_root)
+		return 0;
+
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
