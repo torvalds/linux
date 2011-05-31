@@ -45,6 +45,7 @@ MODULE_LICENSE("GPL");
 //#define AP_BP_WAKEUP  RK2818_PIN_PF5   //output AP wake up BP used rising edge
 //#define BP_AP_WAKEUP  RK2818_PIN_PE0	//input BP wake up AP
 
+static bool bpstatus_irq_enable = false;
 static bool wakelock_inited;
 static struct wake_lock mtk23d_wakelock;
 
@@ -226,8 +227,12 @@ static irqreturn_t BBwakeup_isr(int irq, void *dev_id)
 	
 //	disable_irq_wake(irq);
 	
-	if(wakelock_inited == true)
+	if(bpstatus_irq_enable == true)
+	{
+		MODEMDBG("mtk23d_wakelock 3s \n");
 		wake_lock_timeout(&mtk23d_wakelock, 3 * HZ);
+	}
+		
 
 	return IRQ_HANDLED;
 }
@@ -393,6 +398,7 @@ int mtk23d_suspend(struct platform_device *pdev)
 	else
 	{
 		printk("enable pdata->bp_statue irq_wake!! \n");
+		bpstatus_irq_enable = true;
 		enable_irq_wake(irq);
 	}
 	
@@ -405,16 +411,17 @@ int mtk23d_resume(struct platform_device *pdev)
 	int irq = 0;
 	
 	MODEMDBG("%s \n", __FUNCTION__);
-	//disable_irq_wake(irq);
-	ap_wakeup(pdev);
-	ap_wakeup_bp(pdev, 1);
 	
 	irq = gpio_to_irq(pdata->bp_statue);
 	if(irq)
 	{
 		printk("disable pdata->bp_statue irq_wake!! \n");
+		bpstatus_irq_enable = false;
 		disable_irq_wake(irq);
 	}
+	
+	ap_wakeup(pdev);
+	ap_wakeup_bp(pdev, 1);
 	
 	return 0;
 }
