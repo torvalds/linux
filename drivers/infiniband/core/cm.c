@@ -889,6 +889,8 @@ retest:
 		break;
 	case IB_CM_ESTABLISHED:
 		spin_unlock_irq(&cm_id_priv->lock);
+		if (cm_id_priv->qp_type == IB_QPT_XRC_TGT)
+			break;
 		ib_send_cm_dreq(cm_id, NULL, 0);
 		goto retest;
 	case IB_CM_DREQ_SENT:
