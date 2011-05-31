@@ -21,9 +21,10 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <mach/gpio.h>
+#include <mach/irqs.h>
 #include <linux/dma-mapping.h>
 #include <asm/dma.h>
-
+#include <linux/preempt.h>
 #include "rk29_spim.h"
 #include <linux/spi/spi.h>
 #include <mach/board.h>
@@ -87,6 +88,34 @@ struct chip_data {
 #define SPIBUSY   (1<<1)
 #define RXBUSY    (1<<2)
 #define TXBUSY    (1<<3)
+
+//
+#ifdef CONFIG_LCD_USE_SPIM_CONTROL
+void rk29_lcd_spim_spin_lock(void)
+{
+	disable_irq(IRQ_SPI0);
+	disable_irq(IRQ_SPI1);
+	preempt_disable();
+}
+
+void rk29_lcd_spim_spin_unlock(void)
+{
+	enable_irq(IRQ_SPI0);
+	enable_irq(IRQ_SPI1);
+	preempt_enable();
+}
+#else
+void rk29_lcd_spim_spin_lock(void)
+{
+     return;
+}
+
+void rk29_lcd_spim_spin_unlock(void)
+{
+     return;
+}
+#endif
+
 
 static void spi_dump_regs(struct rk29xx_spi *dws) {
 	DBG("MRST SPI0 registers:\n");

@@ -308,9 +308,12 @@ int lcd_init(void)
     return 0;
 }
 
+extern void rk29_lcd_spim_spin_lock(void);
+extern void rk29_lcd_spim_spin_unlock(void);
 int lcd_standby(u8 enable)
 {
-    if(gLcd_info)
+	rk29_lcd_spim_spin_lock();
+	if(gLcd_info)
         gLcd_info->io_init();
 
 	if(enable) {
@@ -325,6 +328,7 @@ int lcd_standby(u8 enable)
 
     if(gLcd_info)
         gLcd_info->io_deinit();
+	rk29_lcd_spim_spin_unlock();
 
     return 0;
 }

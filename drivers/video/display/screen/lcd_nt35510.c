@@ -31,6 +31,7 @@
 #define SWAP_RB			0
 
 static struct rk29lcd_info *gLcd_info = NULL;
+
 int init(void);
 int standby(u8 enable);
 
@@ -1571,10 +1572,12 @@ int init(void)
 
     return 0;
 }
-
+extern void rk29_lcd_spim_spin_lock(void);
+extern void rk29_lcd_spim_spin_unlock(void);
 int standby(u8 enable)	//***enable =1 means suspend, 0 means resume 
 {
-    if(gLcd_info)
+	rk29_lcd_spim_spin_lock();
+	if(gLcd_info)
         gLcd_info->io_init();
 
 	if(enable) {
@@ -1593,6 +1596,8 @@ int standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 
     if(gLcd_info)
         gLcd_info->io_deinit();
+
+	rk29_lcd_spim_spin_unlock();
 
     return 0;
 }
