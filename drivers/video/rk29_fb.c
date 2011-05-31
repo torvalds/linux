@@ -265,34 +265,6 @@ static int new_frame_seted = 1;
 #endif
 static struct wake_lock idlelock; /* only for fb */
 
-void set_lcd_pin(struct platform_device *pdev, int enable)
-{
-	struct rk29fb_info *mach_info = pdev->dev.platform_data;
-
-	unsigned display_on = mach_info->disp_on_pin;
-	unsigned lcd_standby = mach_info->standby_pin;
-
-	int display_on_pol = mach_info->disp_on_value;
-	int lcd_standby_pol = mach_info->standby_value;
-
-	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
-	fbprintk(">>>>>> display_on(%d) = %d \n", display_on, enable ? display_on_pol : !display_on_pol);
-	fbprintk(">>>>>> lcd_standby(%d) = %d \n", lcd_standby, enable ? lcd_standby_pol : !lcd_standby_pol);
-
-    // set display_on
-
-    if(display_on != INVALID_GPIO)
-    {
-        gpio_direction_output(display_on, 0);
-        gpio_set_value(display_on, enable ? display_on_pol : !display_on_pol);				
-    }
-    if(lcd_standby != INVALID_GPIO)
-    {
-        gpio_direction_output(lcd_standby, 0);
-				gpio_set_value(lcd_standby, enable ? lcd_standby_pol : !lcd_standby_pol);			  
-    }
-}
-
 int mcu_do_refresh(struct rk29fb_inf *inf)
 {
     if(inf->mcu_stopflush)  return 0;
@@ -2141,6 +2113,7 @@ int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable )
 {
     struct rk29fb_inf *inf = platform_get_drvdata(g_pdev);
    // struct rk29fb_info *mach_info = g_pdev->dev.platform_data;
+    struct rk29fb_info *mach_info = g_pdev->dev.platform_data;
 
     memcpy(&inf->panel2_info, screen, sizeof( struct rk29fb_screen ));
 
@@ -2159,8 +2132,10 @@ int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable )
 
     if(inf->cur_screen->standby)    inf->cur_screen->standby(1);
     // operate the display_on pin to power down the lcd
-    set_lcd_pin(g_pdev, (enable==0));
-
+   
+    if(enable && mach_info->io_disable)mach_info->io_disable();  //close lcd out
+    else if (mach_info->io_enable)mach_info->io_enable();       //open lcd out
+    
     load_screen(inf->fb0, 0);
 	mcu_refresh(inf);
 
@@ -2291,6 +2266,7 @@ static void rk29fb_early_suspend(struct early_suspend *h)
 						early_suspend);
 
     struct rk29fb_inf *inf = info->inf;
+    struct rk29fb_info *mach_info = g_pdev->dev.platform_data;
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
@@ -2299,8 +2275,8 @@ static void rk29fb_early_suspend(struct early_suspend *h)
         return;
     }
 
-    if(inf->cur_screen != &inf->panel2_info)  // close lcd pwr when output screen is lcd
-        set_lcd_pin(g_pdev, 0);
+    if((inf->cur_screen != &inf->panel2_info) && mach_info->io_disable)  // close lcd pwr when output screen is lcd
+       mach_info->io_disable();  //close lcd out 
 
 	if(inf->cur_screen->standby)
 	{
@@ -2344,6 +2320,7 @@ static void rk29fb_early_resume(struct early_suspend *h)
 
     struct rk29fb_inf *inf = info->inf;
     struct rk29fb_screen *screen = inf->cur_screen;
+    struct rk29fb_info *mach_info = g_pdev->dev.platform_data;
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
     if(!inf) {
@@ -2381,10 +2358,13 @@ static void rk29fb_early_resume(struct early_suspend *h)
 		fbprintk(">>>>>> power on the screen! \n");
 		inf->cur_screen->standby(0);
 	}
-    msleep(100);
-    if(inf->cur_screen != &inf->panel2_info)  // open lcd pwr when output screen is lcd
-        set_lcd_pin(g_pdev, 1);
-	memcpy((u8*)inf->preg, (u8*)&inf->regbak, 0xa4);  //resume reg
+    msleep(10);
+    memcpy((u8*)inf->preg, (u8*)&inf->regbak, 0xa4);  //resume reg
+    msleep(40);
+    
+    if((inf->cur_screen != &inf->panel2_info) && mach_info->io_enable)  // open lcd pwr when output screen is lcd
+       mach_info->io_enable();  //close lcd out 
+       	
 }
 
 static struct suspend_info suspend_info = {
@@ -2647,7 +2627,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
         mach_info->io_init(&fb_setting);
     }
 
-	set_lcd_pin(pdev, 1);
+	//set_lcd_pin(pdev, 1);
 	mdelay(10);
 	g_pdev = pdev;
 	inf->mcu_usetimer = 1;
@@ -2778,7 +2758,8 @@ static int rk29fb_remove(struct platform_device *pdev)
         free_irq(gpio_to_irq(mach_info->mcu_fmk_pin), pdev);
     }
 
-	set_lcd_pin(pdev, 0);
+    if(mach_info->io_disable)  
+       mach_info->io_disable();  //close lcd out 
 
     // blank the lcdc
     if(inf->fb1)
@@ -2842,10 +2823,13 @@ static int rk29fb_remove(struct platform_device *pdev)
 static void rk29fb_shutdown(struct platform_device *pdev)
 {
     struct rk29fb_inf *inf = platform_get_drvdata(pdev);
+    struct rk29fb_info *mach_info = pdev->dev.platform_data;;
 
 	fbprintk("----------------------------rk29fb_shutdown----------------------------\n");
 
-    set_lcd_pin(pdev, 0);
+    if(mach_info->io_disable)  
+       mach_info->io_disable();  //close lcd out 
+       
     if(!inf->in_suspend)
     {
         LcdMskReg(inf, DSP_CTRL1, m_BLANK_MODE , v_BLANK_MODE(1));
