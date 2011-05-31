@@ -764,11 +764,32 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 }
 
+int
+nouveau_open(struct drm_device *dev, struct drm_file *file_priv)
+{
+	struct nouveau_fpriv *fpriv;
+
+	fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
+	if (unlikely(!fpriv))
+		return -ENOMEM;
+
+	spin_lock_init(&fpriv->lock);
+	file_priv->driver_priv = fpriv;
+	return 0;
+}
+
 /* here a client dies, release the stuff that was allocated for its
  * file_priv */
 void nouveau_preclose(struct drm_device *dev, struct drm_file *file_priv)
 {
 	nouveau_channel_cleanup(dev, file_priv);
+}
+
+void
+nouveau_postclose(struct drm_device *dev, struct drm_file *file_priv)
+{
+	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
+	kfree(fpriv);
 }
 
 /* first module load, setup the mmio/fb mapping */

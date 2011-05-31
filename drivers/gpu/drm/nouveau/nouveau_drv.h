@@ -46,8 +46,14 @@
 #include "ttm/ttm_module.h"
 
 struct nouveau_fpriv {
-	struct ttm_object_file *tfile;
+	spinlock_t lock;
 };
+
+static inline struct nouveau_fpriv *
+nouveau_fpriv(struct drm_file *file_priv)
+{
+	return file_priv ? file_priv->driver_priv : NULL;
+}
 
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
@@ -792,7 +798,9 @@ extern int nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state);
 extern int nouveau_pci_resume(struct pci_dev *pdev);
 
 /* nouveau_state.c */
+extern int  nouveau_open(struct drm_device *, struct drm_file *);
 extern void nouveau_preclose(struct drm_device *dev, struct drm_file *);
+extern void nouveau_postclose(struct drm_device *, struct drm_file *);
 extern int  nouveau_load(struct drm_device *, unsigned long flags);
 extern int  nouveau_firstopen(struct drm_device *);
 extern void nouveau_lastclose(struct drm_device *);
