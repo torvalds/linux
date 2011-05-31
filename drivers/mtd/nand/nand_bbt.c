@@ -970,7 +970,7 @@ static int check_create(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_desc
 			continue;
 
 		/* Create the table in memory by scanning the chip(s) */
-		if (!(this->bbt_options & NAND_CREATE_EMPTY_BBT))
+		if (!(this->bbt_options & NAND_BBT_CREATE_EMPTY))
 			create_bbt(mtd, buf, bd, chipsel);
 
 		td->version[i] = 1;

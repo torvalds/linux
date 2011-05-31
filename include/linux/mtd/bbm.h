@@ -92,7 +92,7 @@ struct nand_bbt_descr {
  * layout or if this information is already purged. Must be used in conjunction
  * with NAND_BBT_CREATE.
  */
-#define NAND_CREATE_EMPTY_BBT	0x01000000
+#define NAND_BBT_CREATE_EMPTY	0x01000000
 /* Search good / bad pattern through all pages of a block */
 #define NAND_BBT_SCANALLPAGES	0x00000400
 /* Scan block empty during good / bad block scan */
