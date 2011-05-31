@@ -32,9 +32,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-/* TODO: remove include to PCI*.h when no PCI will be needed here */
-#include <linux/pci.h>
-#include <linux/pci-aspm.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -3488,12 +3485,6 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	/************************
 	 * 1. Allocating HW data
 	 ************************/
-	/* TODO: remove this nasty hack when PCI encapsulation is done
-	 * assumes that struct pci_dev * is at the very beginning of whatever
-	 * is pointed by bus_specific */
-	unsigned long *ppdev = bus_specific;
-	struct pci_dev *pdev = (struct pci_dev *) *ppdev;
-
 	hw = iwl_alloc_all(cfg);
 	if (!hw) {
 		err = -ENOMEM;
@@ -3512,7 +3503,6 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 	priv->cfg = cfg;
-	priv->pci_dev = pdev;
 	priv->inta_mask = CSR_INI_SET_MASK;
 
 	/* is antenna coupling more than 35dB ? */

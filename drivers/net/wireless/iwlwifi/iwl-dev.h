@@ -1293,10 +1293,6 @@ struct iwl_priv {
 	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
 
-	/* TODO: remove this after PCI abstraction is done */
-	/* basic pci-network driver stuff */
-	struct pci_dev *pci_dev;
-
 	struct iwl_bus bus;	/* bus specific data */
 
 	/* microcode/device supports multiple contexts */
