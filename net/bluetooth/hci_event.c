@@ -1489,13 +1489,21 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
 	if (conn) {
 		if (!ev->status) {
-			conn->link_mode |= HCI_LM_AUTH;
-			conn->sec_level = conn->pending_sec_level;
+			if (!(conn->ssp_mode > 0 && hdev->ssp_mode > 0) &&
+						test_bit(HCI_CONN_REAUTH_PEND,
+						&conn->pend)) {
+				BT_INFO("re-auth of legacy device is not"
+								"possible.");
+			} else {
+				conn->link_mode |= HCI_LM_AUTH;
+				conn->sec_level = conn->pending_sec_level;
+			}
 		} else {
 			mgmt_auth_failed(hdev->id, &conn->dst, ev->status);
 		}
 
 		clear_bit(HCI_CONN_AUTH_PEND, &conn->pend);
+		clear_bit(HCI_CONN_REAUTH_PEND, &conn->pend);
 
 		if (conn->state == BT_CONFIG) {
 			if (!ev->status && hdev->ssp_mode > 0 &&
