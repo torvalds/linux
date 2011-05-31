@@ -308,11 +308,11 @@ static int omap24xxcam_vbq_alloc_mmap_buffer(struct videobuf_buffer *vb)
 			order--;
 
 		/* try to allocate as many contiguous pages as possible */
-		page = alloc_pages(GFP_KERNEL | GFP_DMA, order);
+		page = alloc_pages(GFP_KERNEL, order);
 		/* if allocation fails, try to allocate smaller amount */
 		while (page == NULL) {
 			order--;
-			page = alloc_pages(GFP_KERNEL | GFP_DMA, order);
+			page = alloc_pages(GFP_KERNEL, order);
 			if (page == NULL && !order) {
 				err = -ENOMEM;
 				goto out;
