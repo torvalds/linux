@@ -6,8 +6,6 @@
 # To add a new book the only step required is to add the book to the
 # list of DOCBOOKS.
 
-TMPMEDIA=.tmpmedia
-
 DOCBOOKS := z8530book.xml mcabook.xml device-drivers.xml \
 	    kernel-hacking.xml kernel-locking.xml deviceiobook.xml \
 	    writing_usb_driver.xml networking.xml \
@@ -16,7 +14,9 @@ DOCBOOKS := z8530book.xml mcabook.xml device-drivers.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
 	    80211.xml debugobjects.xml sh.xml regulator.xml \
 	    alsa-driver-api.xml writing-an-alsa-driver.xml \
-	    tracepoint.xml $(TMPMEDIA)/media.xml drm.xml
+	    tracepoint.xml drm.xml media_api.xml
+
+include $(srctree)/Documentation/DocBook/media/Makefile
 
 ###
 # The build process is as follows (targets):
@@ -34,7 +34,7 @@ PS_METHOD	= $(prefer-db2x)
 
 ###
 # The targets that may be used.
-PHONY += xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs cleandocs mediaprep
+PHONY += xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs cleandocs
 
 BOOKS := $(addprefix $(obj)/,$(DOCBOOKS))
 xmldocs: $(BOOKS)
@@ -228,9 +228,9 @@ clean-files := $(DOCBOOKS) \
 	$(patsubst %.xml, %.9,    $(DOCBOOKS)) \
 	$(index)
 
-clean-dirs := $(patsubst %.xml,%,$(DOCBOOKS)) man $(MEDIA_DIR)
+clean-dirs := $(patsubst %.xml,%,$(DOCBOOKS)) man
 
-cleandocs:
+cleandocs: cleanmediadocs
 	$(Q)rm -f $(call objectify, $(clean-files))
 	$(Q)rm -rf $(call objectify, $(clean-dirs))
 
@@ -238,252 +238,3 @@ cleandocs:
 # information in a variable se we can use it in if_changed and friends.
 
 .PHONY: $(PHONY)
-
-
-#
-# Media build rules - Auto-generates media contents/indexes and *.h xml's
-#
-
-SHELL=/bin/bash
-
-MEDIA_DIR=$(objtree)/Documentation/DocBook/$(TMPMEDIA)
-
-V4L_SGMLS = \
-	$(shell ls $(srctree)/Documentation/DocBook/v4l/*.xml|perl -ne 'print "$$1 " if (m,.*/(.*)\n,)') \
-	capture.c.xml \
-	keytable.c.xml \
-	v4l2grab.c.xml
-
-DVB_SGMLS = \
-	$(shell ls $(srctree)/Documentation/DocBook/dvb/*.xml|perl -ne 'print "$$1 " if (m,.*/(.*)\n,)')
-
-MEDIA_TEMP =  media-entities.tmpl \
-	      media-indices.tmpl \
-	      videodev2.h.xml \
-	      frontend.h.xml
-
-MEDIA_SGMLS =  $(addprefix ./,$(V4L_SGMLS)) $(addprefix ./,$(DVB_SGMLS)) $(addprefix ./,$(MEDIA_TEMP))
-
-MEDIA_TEMP_OBJ := $(addprefix $(MEDIA_DIR)/,$(MEDIA_TEMP))
-
-FUNCS = \
-	close \
-	ioctl \
-	mmap \
-	munmap \
-	open \
-	poll \
-	read \
-	select \
-	write \
-
-IOCTLS = \
-	$(shell perl -ne 'print "$$1 " if /\#define\s+([^\s]+)\s+_IO/' $(srctree)/include/linux/videodev2.h) \
-	$(shell perl -ne 'print "$$1 " if /\#define\s+([^\s]+)\s+_IO/' $(srctree)/include/linux/media.h) \
-	$(shell perl -ne 'print "$$1 " if /\#define\s+([^\s]+)\s+_IO/' $(srctree)/include/linux/v4l2-subdev.h) \
-	VIDIOC_SUBDEV_G_FRAME_INTERVAL \
-	VIDIOC_SUBDEV_S_FRAME_INTERVAL \
-	VIDIOC_SUBDEV_ENUM_MBUS_CODE \
-	VIDIOC_SUBDEV_ENUM_FRAME_SIZE \
-	VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL \
-
-TYPES = \
-	$(shell perl -ne 'print "$$1 " if /^typedef\s+[^\s]+\s+([^\s]+)\;/' $(srctree)/include/linux/videodev2.h)
-
-ENUMS = \
-	$(shell perl -ne 'print "$$1 " if /^enum\s+([^\s]+)\s+/' $(srctree)/include/linux/videodev2.h) \
-	$(shell perl -ne 'print "$$1 " if /^enum\s+([^\s]+)\s+/' $(srctree)/include/linux/media.h) \
-	$(shell perl -ne 'print "$$1 " if /^enum\s+([^\s]+)\s+/' $(srctree)/include/linux/v4l2-mediabus.h) \
-	$(shell perl -ne 'print "$$1 " if /^enum\s+([^\s]+)\s+/' $(srctree)/include/linux/v4l2-subdev.h)
-
-STRUCTS = \
-	$(shell perl -ne 'print "$$1 " if /^struct\s+([^\s]+)\s+/' $(srctree)/include/linux/videodev2.h) \
-	$(shell perl -ne 'print "$$1 " if /^struct\s+([^\s]+)\s+/' $(srctree)/include/linux/media.h) \
-	$(shell perl -ne 'print "$$1 " if /^struct\s+([^\s]+)\s+/' $(srctree)/include/linux/v4l2-subdev.h) \
-	$(shell perl -ne 'print "$$1 " if /^struct\s+([^\s]+)\s+/' $(srctree)/include/linux/v4l2-mediabus.h)
-
-ERRORS = \
-	EACCES \
-	EAGAIN \
-	EBADF \
-	EBUSY \
-	EFAULT \
-	EIO \
-	EINTR \
-	EINVAL \
-	ENFILE \
-	ENOMEM \
-	ENOSPC \
-	ENOTTY \
-	ENXIO \
-	EMFILE \
-	EPERM \
-	ERANGE \
-	EPIPE \
-
-ESCAPE = \
-	-e "s/&/\\&amp;/g" \
-	-e "s/</\\&lt;/g" \
-	-e "s/>/\\&gt;/g"
-
-FILENAME = \
-	-e s,"^[^\/]*/",, \
-	-e s/"\\.xml"// \
-	-e s/"\\.tmpl"// \
-	-e s/\\\./-/g \
-	-e s/"^func-"// \
-	-e s/"^pixfmt-"// \
-	-e s/"^vidioc-"//
-
-# Generate references to these structs in videodev2.h.xml.
-DOCUMENTED = \
-	-e "s/\(enum *\)v4l2_mpeg_cx2341x_video_\([a-z]*_spatial_filter_type\)/\1<link linkend=\"\2\">v4l2_mpeg_cx2341x_video_\2<\/link>/g" \
-	-e "s/\(\(enum\|struct\) *\)\(v4l2_[a-zA-Z0-9_]*\)/\1<link linkend=\"\3\">\3<\/link>/g" \
-	-e "s/\(V4L2_PIX_FMT_[A-Z0-9_]\+\) /<link linkend=\"\1\">\1<\/link> /g" \
-	-e ":a;s/\(linkend=\".*\)_\(.*\">\)/\1-\2/;ta" \
-	-e "s/v4l2\-mpeg\-vbi\-ITV0/v4l2-mpeg-vbi-itv0-1/g"
-
-DVB_DOCUMENTED = \
-	-e "s,\(define \)\([A-Z0-9_]\+\)\(\s\+_IO\),\1\<link linkend=\"\2\">\2\<\/link\>\3,g" \
-	-e "s/\(linkend\=\"\)FE_SET_PROPERTY/\1FE_GET_PROPERTY/g"
-
-
-#
-# Media targets and dependencies
-#
-
-$(obj)/$(TMPMEDIA)/media.xml: $(obj)/media.tmpl $(MEDIA_TEMP_OBJ) FORCE
-	$(call if_changed_rule,docproc)
-
-$(MEDIA_DIR)/v4l2.xml:
-	@$($(quiet)gen_xml)
-	@(mkdir -p $(MEDIA_DIR))
-	@(cp $(srctree)/Documentation/DocBook/dvb/*.png $(srctree)/Documentation/DocBook/v4l/*.gif $(MEDIA_DIR)/)
-	@(ln -sf $(srctree)/Documentation/DocBook/v4l/*xml $(MEDIA_DIR)/)
-	@(ln -sf $(srctree)/Documentation/DocBook/dvb/*xml $(MEDIA_DIR)/)
-
-$(MEDIA_DIR)/videodev2.h.xml: $(srctree)/include/linux/videodev2.h $(MEDIA_DIR)/v4l2.xml
-	@$($(quiet)gen_xml)
-	@(					\
-	echo "<programlisting>") > $@
-	@(					\
-	expand --tabs=8 < $< |			\
-	  sed $(ESCAPE) $(DOCUMENTED) |		\
-	  sed 's/i\.e\./&ie;/') >> $@
-	@(					\
-	echo "</programlisting>") >> $@
-
-$(MEDIA_DIR)/frontend.h.xml: $(srctree)/include/linux/dvb/frontend.h $(MEDIA_DIR)/v4l2.xml
-	@$($(quiet)gen_xml)
-	@(					\
-	echo "<programlisting>") > $@
-	@(					\
-	expand --tabs=8 < $< |			\
-	  sed $(ESCAPE) $(DVB_DOCUMENTED) |	\
-	  sed 's/i\.e\./&ie;/') >> $@
-	@(					\
-	echo "</programlisting>") >> $@
-
-$(MEDIA_DIR)/media-entities.tmpl: $(MEDIA_DIR)/v4l2.xml
-	@$($(quiet)gen_xml)
-	@(								\
-	echo "<!-- Generated file! Do not edit. -->") >$@
-	@(								\
-	echo -e "\n<!-- Functions -->") >>$@
-	@(								\
-	for ident in $(FUNCS) ; do					\
-	  entity=`echo $$ident | tr _ -` ;				\
-	  echo "<!ENTITY func-$$entity \"<link"				\
-	    "linkend='func-$$entity'><function>$$ident()</function></link>\">" \
-	  >>$@ ;							\
-	done)
-	@(								\
-	echo -e "\n<!-- Ioctls -->") >>$@
-	@(								\
-	for ident in $(IOCTLS) ; do					\
-	  entity=`echo $$ident | tr _ -` ;				\
-	  id=`grep "<refname>$$ident" $(MEDIA_DIR)/vidioc-*.xml | sed -r s,"^.*/(.*).xml.*","\1",` ; \
-	  echo "<!ENTITY $$entity \"<link"				\
-	    "linkend='$$id'><constant>$$ident</constant></link>\">"	\
-	  >>$@ ;							\
-	done)
-	@(								\
-	echo -e "\n<!-- Types -->") >>$@
-	@(								\
-	for ident in $(TYPES) ; do					\
-	  entity=`echo $$ident | tr _ -` ;				\
-	  echo "<!ENTITY $$entity \"<link"				\
-	    "linkend='$$entity'>$$ident</link>\">" >>$@ ;		\
-	done)
-	@(								\
-	echo -e "\n<!-- Enums -->") >>$@
-	@(								\
-	for ident in $(ENUMS) ; do					\
-	  entity=`echo $$ident | sed -e "s/v4l2_mpeg_cx2341x_video_\([a-z]*_spatial_filter_type\)/\1/" | tr _ -` ; \
-	  echo "<!ENTITY $$entity \"enum&nbsp;<link"			\
-	    "linkend='$$entity'>$$ident</link>\">" >>$@ ;		\
-	done)
-	@(								\
-	echo -e "\n<!-- Structures -->") >>$@
-	@(								\
-	for ident in $(STRUCTS) ; do					\
-	  entity=`echo $$ident | tr _ - | sed s/v4l2-mpeg-vbi-ITV0/v4l2-mpeg-vbi-itv0-1/g` ; \
-	  echo "<!ENTITY $$entity \"struct&nbsp;<link"			\
-	    "linkend='$$entity'>$$ident</link>\">" >>$@ ;		\
-	done)
-	@(								\
-	echo -e "\n<!-- Error Codes -->") >>$@
-	@(								\
-	for ident in $(ERRORS) ; do					\
-	  echo "<!ENTITY $$ident \"<errorcode>$$ident</errorcode>"	\
-	    "error code\">" >>$@ ;					\
-	done)
-	@(								\
-	echo -e "\n<!-- Subsections -->") >>$@
-	@(								\
-	for file in $(MEDIA_SGMLS) ; do					\
-	  entity=`echo "$$file" | sed $(FILENAME) -e s/"^([^-]*)"/sub\1/` ; \
-	  if ! echo "$$file" |						\
-	    grep -q -E -e '^(func|vidioc|pixfmt)-' ; then		\
-	    echo "<!ENTITY sub-$$entity SYSTEM \"$$file\">" >>$@ ;	\
-	  fi ;								\
-	done)
-	@(								\
-	echo -e "\n<!-- Function Reference -->") >>$@
-	@(								\
-	for file in $(MEDIA_SGMLS) ; do					\
-	  if echo "$$file" |						\
-	    grep -q -E -e '(func|vidioc|pixfmt)-' ; then		\
-	    entity=`echo "$$file" |sed $(FILENAME)` ;			\
-	    echo "<!ENTITY $$entity SYSTEM \"$$file\">" >>$@ ;	\
-	  fi ;								\
-	done)
-
-# Jade can auto-generate a list-of-tables, which includes all structs,
-# but we only want data types, all types, and sorted please.
-$(MEDIA_DIR)/media-indices.tmpl: $(MEDIA_DIR)/v4l2.xml
-	@$($(quiet)gen_xml)
-	@(								\
-	echo "<!-- Generated file! Do not edit. -->") >$@
-	@(								\
-	echo -e "\n<index><title>List of Types</title>") >>$@
-	@(								\
-	for ident in $(TYPES) ; do					\
-	  id=`echo $$ident | tr _ -` ;					\
-	  echo "<indexentry><primaryie><link"				\
-	    "linkend='$$id'>$$ident</link></primaryie></indexentry>" >>$@ ; \
-	done)
-	@(								\
-	for ident in $(ENUMS) ; do					\
-	  id=`echo $$ident | sed -e "s/v4l2_mpeg_cx2341x_video_\([a-z]*_spatial_filter_type\)/\1/" | tr _ -`; \
-	  echo "<indexentry><primaryie>enum&nbsp;<link"			\
-	    "linkend='$$id'>$$ident</link></primaryie></indexentry>" >>$@ ; \
-	done)
-	@(								\
-	for ident in $(STRUCTS) ; do					\
-	  id=`echo $$ident | tr _ - | sed s/v4l2-mpeg-vbi-ITV0/v4l2-mpeg-vbi-itv0-1/g` ; \
-	  echo "<indexentry><primaryie>struct&nbsp;<link"		\
-	    "linkend='$$id'>$$ident</link></primaryie></indexentry>" >>$@ ; \
-	done)
-	@(								\
-	echo "</index>") >>$@
