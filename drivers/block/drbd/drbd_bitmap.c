@@ -119,9 +119,9 @@ static void __bm_print_lock_info(struct drbd_device *device, const char *func)
 	if (!__ratelimit(&drbd_ratelimit_state))
 		return;
 	dev_err(DEV, "FIXME %s in %s, bitmap locked for '%s' by %s\n",
-		drbd_task_to_thread_name(device->connection, current),
+		drbd_task_to_thread_name(first_peer_device(device)->connection, current),
 		func, b->bm_why ?: "?",
-		drbd_task_to_thread_name(device->connection, b->bm_task));
+		drbd_task_to_thread_name(first_peer_device(device)->connection, b->bm_task));
 }
 
 void drbd_bm_lock(struct drbd_device *device, char *why, enum bm_flag flags)
@@ -138,9 +138,9 @@ void drbd_bm_lock(struct drbd_device *device, char *why, enum bm_flag flags)
 
 	if (trylock_failed) {
 		dev_warn(DEV, "%s going to '%s' but bitmap already locked for '%s' by %s\n",
-			 drbd_task_to_thread_name(device->connection, current),
+			 drbd_task_to_thread_name(first_peer_device(device)->connection, current),
 			 why, b->bm_why ?: "?",
-			 drbd_task_to_thread_name(device->connection, b->bm_task));
+			 drbd_task_to_thread_name(first_peer_device(device)->connection, b->bm_task));
 		mutex_lock(&b->bm_change);
 	}
 	if (BM_LOCKED_MASK & b->bm_flags)
