@@ -196,22 +196,21 @@ int32_t dwc_otg_hcd_handle_sof_intr (dwc_otg_hcd_t *_hcd)
 			 * fix bug for alcro hub
 			 * do not send csplit after start_split_frame+4
 			 */
+			qtd = list_entry(qh->qtd_list.next, dwc_otg_qtd_t, qtd_list_entry);
 			if((qh->do_split)&&dwc_frame_num_gt(_hcd->frame_number, 
-				dwc_frame_num_inc(qh->start_split_frame, 4)))
+				dwc_frame_num_inc(qh->start_split_frame, 4))&&(qtd->complete_split))
 			{
-				qtd = list_entry(qh->qtd_list.next, dwc_otg_qtd_t, qtd_list_entry);
-				if ((qh->do_split) &&(qtd->complete_split))
-				{
-					qtd->complete_split = 0;
-					
-					qh->sched_frame = dwc_frame_num_inc(qh->start_split_frame,
-									     qh->interval);
-					if (dwc_frame_num_le(qh->sched_frame, _hcd->frame_number)) {
-						qh->sched_frame = _hcd->frame_number;
-					}
-					qh->sched_frame |= 0x7;
-					qh->start_split_frame = qh->sched_frame;
+			    DWC_PRINT("frame_number 0x%x, start 0x%x, complete: %x", 
+			        _hcd->frame_number, qh->start_split_frame, qtd->complete_split);
+				qtd->complete_split = 0;
+				
+				qh->sched_frame = dwc_frame_num_inc(qh->start_split_frame,
+								     qh->interval);
+				if (dwc_frame_num_le(qh->sched_frame, _hcd->frame_number)) {
+					qh->sched_frame = _hcd->frame_number;
 				}
+				qh->sched_frame |= 0x7;
+				qh->start_split_frame = qh->sched_frame;
 			}
 			else
 			{
