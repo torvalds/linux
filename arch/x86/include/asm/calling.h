@@ -109,32 +109,27 @@ For 32-bit we have the following conventions - kernel is built with
 
 #define ARG_SKIP	(9*8)
 
-	.macro RESTORE_ARGS skiprax=0, addskip=0, skiprcx=0, skipr11=0, \
-			    skipr8910=0, skiprdx=0
-	.if \skipr11
-	.else
+	.macro RESTORE_ARGS rstor_rax=1, addskip=0, rstor_rcx=1, rstor_r11=1, \
+			    rstor_r8910=1, rstor_rdx=1
+	.if \rstor_r11
 	movq_cfi_restore 0*8, r11
 	.endif
 
-	.if \skipr8910
-	.else
+	.if \rstor_r8910
 	movq_cfi_restore 1*8, r10
 	movq_cfi_restore 2*8, r9
 	movq_cfi_restore 3*8, r8
 	.endif
 
-	.if \skiprax
-	.else
+	.if \rstor_rax
 	movq_cfi_restore 4*8, rax
 	.endif
 
-	.if \skiprcx
-	.else
+	.if \rstor_rcx
 	movq_cfi_restore 5*8, rcx
 	.endif
 
-	.if \skiprdx
-	.else
+	.if \rstor_rdx
 	movq_cfi_restore 6*8, rdx
 	.endif
 
@@ -193,7 +188,7 @@ For 32-bit we have the following conventions - kernel is built with
 
 	.macro RESTORE_ALL addskip=0
 	RESTORE_REST
-	RESTORE_ARGS 0, \addskip
+	RESTORE_ARGS 1, \addskip
 	.endm
 
 	.macro icebp
