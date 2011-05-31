@@ -175,16 +175,32 @@ void tipc_named_withdraw(struct publication *publ)
 
 void tipc_named_node_up(unsigned long node)
 {
+	struct tipc_node *n_ptr;
+	struct link *l_ptr;
 	struct publication *publ;
 	struct distr_item *item = NULL;
 	struct sk_buff *buf = NULL;
 	u32 left = 0;
 	u32 rest;
-	u32 max_item_buf;
+	u32 max_item_buf = 0;
+
+	/* compute maximum amount of publication data to send per message */
+
+	read_lock_bh(&tipc_net_lock);
+	n_ptr = tipc_node_find((u32)node);
+	if (n_ptr) {
+		tipc_node_lock(n_ptr);
+		l_ptr = n_ptr->active_links[0];
+		if (l_ptr)
+			max_item_buf = ((l_ptr->max_pkt - INT_H_SIZE) /
+				ITEM_SIZE) * ITEM_SIZE;
+		tipc_node_unlock(n_ptr);
+	}
+	read_unlock_bh(&tipc_net_lock);
+	if (!max_item_buf)
+		return;
 
 	read_lock_bh(&tipc_nametbl_lock);
-	max_item_buf = TIPC_MAX_USER_MSG_SIZE / ITEM_SIZE;
-	max_item_buf *= ITEM_SIZE;
 	rest = publ_cnt * ITEM_SIZE;
 
 	list_for_each_entry(publ, &publ_root, local_list) {
