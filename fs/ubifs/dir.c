@@ -172,7 +172,9 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
-static int dbg_check_name(struct ubifs_dent_node *dent, struct qstr *nm)
+static int dbg_check_name(const struct ubifs_info *c,
+			  const struct ubifs_dent_node *dent,
+			  const struct qstr *nm)
 {
 	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
 		return 0;
@@ -185,7 +187,7 @@ static int dbg_check_name(struct ubifs_dent_node *dent, struct qstr *nm)
 
 #else
 
-#define dbg_check_name(dent, nm) 0
+#define dbg_check_name(c, dent, nm) 0
 
 #endif
 
@@ -219,7 +221,7 @@ static struct dentry *ubifs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 
-	if (dbg_check_name(dent, &dentry->d_name)) {
+	if (dbg_check_name(c, dent, &dentry->d_name)) {
 		err = -EINVAL;
 		goto out;
 	}
