@@ -600,6 +600,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 
 	PR("MPDUs Queued:    ", queued);
 	PR("MPDUs Completed: ", completed);
+	PR("MPDUs XRetried:  ", xretries);
 	PR("Aggregates:      ", a_aggr);
 	PR("AMPDUs Queued HW:", a_queued_hw);
 	PR("AMPDUs Queued SW:", a_queued_sw);
@@ -856,7 +857,10 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		else
 			TX_STAT_INC(qnum, a_completed);
 	} else {
-		TX_STAT_INC(qnum, completed);
+		if (bf_isxretried(bf))
+			TX_STAT_INC(qnum, xretries);
+		else
+			TX_STAT_INC(qnum, completed);
 	}
 
 	if (ts->ts_status & ATH9K_TXERR_FIFO)
