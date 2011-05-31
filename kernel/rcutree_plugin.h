@@ -1299,13 +1299,8 @@ static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	sp.sched_priority = RCU_KTHREAD_PRIO;
 	sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
+	wake_up_process(t); /* get to TASK_INTERRUPTIBLE quickly. */
 	return 0;
-}
-
-static void __cpuinit rcu_wake_one_boost_kthread(struct rcu_node *rnp)
-{
-	if (rnp->boost_kthread_task)
-		wake_up_process(rnp->boost_kthread_task);
 }
 
 #else /* #ifdef CONFIG_RCU_BOOST */
@@ -1329,10 +1324,6 @@ static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 						 int rnp_index)
 {
 	return 0;
-}
-
-static void __cpuinit rcu_wake_one_boost_kthread(struct rcu_node *rnp)
-{
 }
 
 #endif /* #else #ifdef CONFIG_RCU_BOOST */
