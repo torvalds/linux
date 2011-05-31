@@ -2431,14 +2431,12 @@ static int transport_execute_tasks(struct se_cmd *cmd)
 {
 	int add_tasks;
 
-	if (!(cmd->se_cmd_flags & SCF_SE_DISABLE_ONLINE_CHECK)) {
-		if (se_dev_check_online(cmd->se_orig_obj_ptr) != 0) {
-			cmd->transport_error_status =
-				PYX_TRANSPORT_LU_COMM_FAILURE;
-			transport_generic_request_failure(cmd, NULL, 0, 1);
-			return 0;
-		}
+	if (se_dev_check_online(cmd->se_orig_obj_ptr) != 0) {
+		cmd->transport_error_status = PYX_TRANSPORT_LU_COMM_FAILURE;
+		transport_generic_request_failure(cmd, NULL, 0, 1);
+		return 0;
 	}
+
 	/*
 	 * Call transport_cmd_check_stop() to see if a fabric exception
 	 * has occurred that prevents execution.
@@ -3398,18 +3396,6 @@ static int transport_generic_cmd_sequencer(
 		break;
 	case UNMAP:
 		size = get_unaligned_be16(&cdb[7]);
-		passthrough = (dev->transport->transport_type ==
-				TRANSPORT_PLUGIN_PHBA_PDEV);
-		/*
-		 * Determine if the received UNMAP used to for direct passthrough
-		 * into Linux/SCSI with struct request via TCM/pSCSI or we are
-		 * signaling the use of internal transport_generic_unmap() emulation
-		 * for UNMAP -> Linux/BLOCK disbard with TCM/IBLOCK and TCM/FILEIO
-		 * subsystem plugin backstores.
-		 */
-		if (!(passthrough))
-			cmd->se_cmd_flags |= SCF_EMULATE_SYNC_UNMAP;
-
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_NONSG_IO_CDB;
 		break;
 	case WRITE_SAME_16:
@@ -3759,12 +3745,6 @@ static inline void transport_free_pages(struct se_cmd *cmd)
 		cmd->t_task_buf = NULL;
 		return;
 	}
-
-	/*
-	 * Caller will handle releasing of struct se_mem.
-	 */
-	if (cmd->se_cmd_flags & SCF_CMD_PASSTHROUGH_NOALLOC)
-		return;
 
 	list_for_each_entry_safe(se_mem, se_mem_tmp,
 			&cmd->t_mem_list, se_list) {
