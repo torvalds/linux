@@ -85,22 +85,20 @@ For 32-bit we have the following conventions - kernel is built with
 #define ARGOFFSET	R11
 #define SWFRAME		ORIG_RAX
 
-	.macro SAVE_ARGS addskip=0, norcx=0, nor891011=0
+	.macro SAVE_ARGS addskip=0, save_rcx=1, save_r891011=1
 	subq  $9*8+\addskip, %rsp
 	CFI_ADJUST_CFA_OFFSET	9*8+\addskip
 	movq_cfi rdi, 8*8
 	movq_cfi rsi, 7*8
 	movq_cfi rdx, 6*8
 
-	.if \norcx
-	.else
+	.if \save_rcx
 	movq_cfi rcx, 5*8
 	.endif
 
 	movq_cfi rax, 4*8
 
-	.if \nor891011
-	.else
+	.if \save_r891011
 	movq_cfi r8,  3*8
 	movq_cfi r9,  2*8
 	movq_cfi r10, 1*8
