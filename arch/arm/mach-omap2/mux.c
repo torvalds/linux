@@ -83,6 +83,9 @@ void omap_mux_write(struct omap_mux_partition *partition, u16 val,
 void omap_mux_write_array(struct omap_mux_partition *partition,
 				 struct omap_board_mux *board_mux)
 {
+	if (!board_mux)
+		return;
+
 	while (board_mux->reg_offset != OMAP_MUX_TERMINATOR) {
 		omap_mux_write(partition, board_mux->value,
 			       board_mux->reg_offset);
