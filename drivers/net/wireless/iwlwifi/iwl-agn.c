@@ -3479,7 +3479,8 @@ static void iwl_init_context(struct iwl_priv *priv)
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 }
 
-int iwl_probe(struct pci_dev *pdev, struct iwl_cfg *cfg)
+int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
+		struct iwl_cfg *cfg)
 {
 	int err = 0;
 	struct iwl_priv *priv;
@@ -3490,12 +3491,23 @@ int iwl_probe(struct pci_dev *pdev, struct iwl_cfg *cfg)
 	/************************
 	 * 1. Allocating HW data
 	 ************************/
+	/* TODO: remove this nasty hack when PCI encapsulation is done
+	 * assumes that struct pci_dev * is at the very beginning of whatever
+	 * is pointed by bus_specific */
+	unsigned long *ppdev = bus_specific;
+	struct pci_dev *pdev = (struct pci_dev *) *ppdev;
 
 	hw = iwl_alloc_all(cfg);
 	if (!hw) {
 		err = -ENOMEM;
 		goto out;	}
 	priv = hw->priv;
+
+	priv->bus.priv = priv;
+	priv->bus.bus_specific = bus_specific;
+	priv->bus.ops = bus_ops;
+	priv->bus.ops->set_drv_data(&priv->bus, priv);
+
 	/* At this point both hw and priv are allocated. */
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
@@ -3548,9 +3560,6 @@ int iwl_probe(struct pci_dev *pdev, struct iwl_cfg *cfg)
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err)
 		goto out_pci_disable_device;
-
-	pci_set_drvdata(pdev, priv);
-
 
 	/***********************
 	 * 3. Read REV register
@@ -3705,7 +3714,7 @@ int iwl_probe(struct pci_dev *pdev, struct iwl_cfg *cfg)
  out_iounmap:
 	pci_iounmap(pdev, priv->hw_base);
  out_pci_release_regions:
-	pci_set_drvdata(pdev, NULL);
+	priv->bus.ops->set_drv_data(&priv->bus, NULL);
 	pci_release_regions(pdev);
  out_pci_disable_device:
 	pci_disable_device(pdev);
@@ -3716,13 +3725,10 @@ int iwl_probe(struct pci_dev *pdev, struct iwl_cfg *cfg)
 	return err;
 }
 
-void __devexit iwl_remove(struct pci_dev *pdev)
+void __devexit iwl_remove(struct iwl_priv * priv)
 {
-	struct iwl_priv *priv = pci_get_drvdata(pdev);
+	struct pci_dev *pdev = priv->pci_dev;
 	unsigned long flags;
-
-	if (!priv)
-		return;
 
 	wait_for_completion(&priv->_agn.firmware_loading_complete);
 
@@ -3783,7 +3789,7 @@ void __devexit iwl_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, priv->hw_base);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
-	pci_set_drvdata(pdev, NULL);
+	priv->bus.ops->set_drv_data(&priv->bus, NULL);
 
 	iwl_uninit_drv(priv);
 

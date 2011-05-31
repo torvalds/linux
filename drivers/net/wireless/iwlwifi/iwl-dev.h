@@ -1188,6 +1188,26 @@ struct iwl_testmode_trace {
 	bool trace_enabled;
 };
 #endif
+
+struct iwl_bus;
+
+/**
+ * struct iwl_bus_ops - bus specific operations
+ * @set_drv_data: set the priv pointer to the bus layer
+ */
+struct iwl_bus_ops {
+	void (*set_drv_data)(struct iwl_bus *bus, void *priv);
+};
+
+struct iwl_bus {
+	/* pointer to bus specific struct */
+	void *bus_specific;
+
+	/* Common data to all buses */
+	struct iwl_priv *priv; /* driver's context */
+	struct iwl_bus_ops *ops;
+};
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1255,11 +1275,14 @@ struct iwl_priv {
 	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
 
+	/* TODO: remove this after PCI abstraction is done */
 	/* basic pci-network driver stuff */
 	struct pci_dev *pci_dev;
 
 	/* pci hardware address support */
 	void __iomem *hw_base;
+
+	struct iwl_bus bus;	/* bus specific data */
 
 	/* microcode/device supports multiple contexts */
 	u8 valid_contexts;

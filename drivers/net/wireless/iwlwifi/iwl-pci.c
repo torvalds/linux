@@ -67,6 +67,29 @@
 #include "iwl-agn.h"
 #include "iwl-core.h"
 
+struct iwl_pci_bus {
+	/* basic pci-network driver stuff */
+	struct pci_dev *pci_dev;
+
+	/* pci hardware address support */
+	void __iomem *hw_base;
+};
+
+#define IWL_BUS_GET_PCI_BUS(_iwl_bus) \
+			((struct iwl_pci_bus *) ((_iwl_bus)->bus_specific))
+
+#define IWL_BUS_GET_PCI_DEV(_iwl_bus) \
+			((IWL_BUS_GET_PCI_BUS(_iwl_bus))->pci_dev)
+
+static void iwl_pci_set_drv_data(struct iwl_bus *bus, void *drv_priv)
+{
+	pci_set_drvdata(IWL_BUS_GET_PCI_DEV(bus), drv_priv);
+}
+
+static struct iwl_bus_ops pci_ops = {
+	.set_drv_data = iwl_pci_set_drv_data,
+};
+
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
 	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
 	.subvendor = PCI_ANY_ID, .subdevice = (subdev), \
@@ -266,13 +289,38 @@ MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
+	struct iwl_pci_bus *bus;
+	int err;
 
-	return iwl_probe(pdev, cfg);
+	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
+	if (!bus) {
+		pr_err("Couldn't allocate iwl_pci_bus");
+		err = -ENOMEM;
+		goto out_no_pci;
+	}
+
+	bus->pci_dev = pdev;
+
+	err = iwl_probe((void *) bus, &pci_ops, cfg);
+	if (err)
+		goto out_no_pci;
+	return 0;
+
+out_no_pci:
+	kfree(bus);
+	return err;
 }
 
 static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 {
-	iwl_remove(pdev);
+	struct iwl_priv *priv = pci_get_drvdata(pdev);
+
+	/* This can happen if probe failed */
+	if (unlikely(!priv))
+		return;
+
+	iwl_remove(priv);
+	kfree(IWL_BUS_GET_PCI_BUS(&priv->bus));
 }
 
 #ifdef CONFIG_PM

@@ -379,7 +379,8 @@ void iwl_testmode_cleanup(struct iwl_priv *priv)
 }
 #endif
 
-int iwl_probe(struct pci_dev *pdev, struct iwl_cfg *cfg);
-void iwl_remove(struct pci_dev *pdev);
+int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
+		struct iwl_cfg *cfg);
+void __devexit iwl_remove(struct iwl_priv * priv);
 
 #endif /* __iwl_agn_h__ */
