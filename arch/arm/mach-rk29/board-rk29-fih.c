@@ -1649,13 +1649,13 @@ static struct platform_device rk29_device_camera = {
 #define PWM_GPIO RK29_PIN1_PB5
 #define PWM_EFFECT_VALUE  0
 
-//#define LCD_DISP_ON_PIN
+#define LCD_DISP_ON_PIN
 
 #ifdef  LCD_DISP_ON_PIN
-#define BL_EN_MUX_NAME    GPIOF34_UART3_SEL_NAME
-#define BL_EN_MUX_MODE    IOMUXB_GPIO1_B34
+//#define BL_EN_MUX_NAME    GPIOF34_UART3_SEL_NAME
+//#define BL_EN_MUX_MODE    IOMUXB_GPIO1_B34
 
-#define BL_EN_PIN         GPIO0L_GPIO0A5
+#define BL_EN_PIN         RK29_PIN6_PD0
 #define BL_EN_VALUE       GPIO_HIGH
 #endif
 static int rk29_backlight_io_init(void)
@@ -1664,7 +1664,7 @@ static int rk29_backlight_io_init(void)
 
     rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
 	#ifdef  LCD_DISP_ON_PIN
-    rk29_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE);
+   // rk29_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE);
 
     ret = gpio_request(BL_EN_PIN, NULL);
     if(ret != 0)
@@ -1697,6 +1697,10 @@ static int rk29_backlight_pwm_suspend(void)
 		return -1;
 	}
 	gpio_direction_output(PWM_GPIO, GPIO_HIGH);
+   #ifdef  LCD_DISP_ON_PIN
+    gpio_direction_output(BL_EN_PIN, 0);
+    gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
+   #endif
 	return ret;
 }
 
@@ -1704,6 +1708,11 @@ static int rk29_backlight_pwm_resume(void)
 {
 	gpio_free(PWM_GPIO);
 	rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
+    #ifdef  LCD_DISP_ON_PIN
+    msleep(30);
+    gpio_direction_output(BL_EN_PIN, 1);
+    gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
+    #endif
 	return 0;
 }
 
