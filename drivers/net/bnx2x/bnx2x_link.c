@@ -1915,8 +1915,15 @@ void bnx2x_link_status_update(struct link_params *params,
 		PORT_HW_CFG_MEDIA_TYPE_PHY2_SHIFT;
 	DP(NETIF_MSG_LINK, "media_types = 0x%x\n", media_types);
 
-	DP(NETIF_MSG_LINK, "link_status 0x%x  phy_link_up %x\n",
-		 vars->link_status, vars->phy_link_up);
+	/* Sync AEU offset */
+	sync_offset = params->shmem_base +
+			offsetof(struct shmem_region,
+				 dev_info.port_hw_config[port].aeu_int_mask);
+
+	vars->aeu_int_mask = REG_RD(bp, sync_offset);
+
+	DP(NETIF_MSG_LINK, "link_status 0x%x  phy_link_up %x int_mask 0x%x\n",
+		 vars->link_status, vars->phy_link_up, vars->aeu_int_mask);
 	DP(NETIF_MSG_LINK, "line_speed %x  duplex %x  flow_ctrl 0x%x\n",
 		 vars->line_speed, vars->duplex, vars->flow_ctrl);
 }
@@ -5522,8 +5529,6 @@ static int bnx2x_8726_config_init(struct bnx2x_phy *phy,
 				  struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
-	u32 val;
-	u32 swap_val, swap_override, aeu_gpio_mask, offset;
 	DP(NETIF_MSG_LINK, "Initializing BCM8726\n");
 
 	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, MDIO_PMA_REG_CTRL, 1<<15);
@@ -5602,30 +5607,6 @@ static int bnx2x_8726_config_init(struct bnx2x_phy *phy,
 				 phy->tx_preemphasis[1]);
 	}
 
-	/* Set GPIO3 to trigger SFP+ module insertion/removal */
-	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
-		       MISC_REGISTERS_GPIO_INPUT_HI_Z, params->port);
-
-	/* The GPIO should be swapped if the swap register is set and active */
-	swap_val = REG_RD(bp, NIG_REG_PORT_SWAP);
-	swap_override = REG_RD(bp, NIG_REG_STRAP_OVERRIDE);
-
-	/* Select function upon port-swap configuration */
-	if (params->port == 0) {
-		offset = MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0;
-		aeu_gpio_mask = (swap_val && swap_override) ?
-			AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1 :
-			AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0;
-	} else {
-		offset = MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0;
-		aeu_gpio_mask = (swap_val && swap_override) ?
-			AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0 :
-			AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1;
-	}
-	val = REG_RD(bp, offset);
-	/* add GPIO3 to group */
-	val |= aeu_gpio_mask;
-	REG_WR(bp, offset, val);
 	return 0;
 
 }
@@ -8520,4 +8501,67 @@ void bnx2x_hw_reset_phy(struct link_params *params)
 			params->phy[phy_index] = phy_null;
 		}
 	}
+}
+
+void bnx2x_init_mod_abs_int(struct bnx2x *bp, struct link_vars *vars,
+			    u32 chip_id, u32 shmem_base, u32 shmem2_base,
+			    u8 port)
+{
+	u8 gpio_num = 0xff, gpio_port = 0xff, phy_index;
+	u32 val;
+	u32 offset, aeu_mask, swap_val, swap_override, sync_offset;
+
+	{
+		struct bnx2x_phy phy;
+		for (phy_index = EXT_PHY1; phy_index < MAX_PHYS;
+		      phy_index++) {
+			if (bnx2x_populate_phy(bp, phy_index, shmem_base,
+					       shmem2_base, port, &phy)
+			    != 0) {
+				DP(NETIF_MSG_LINK, "populate phy failed\n");
+				return;
+			}
+			if (phy.type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726) {
+				gpio_num = MISC_REGISTERS_GPIO_3;
+				gpio_port = port;
+				break;
+			}
+		}
+	}
+
+	if (gpio_num == 0xff)
+		return;
+
+	/* Set GPIO3 to trigger SFP+ module insertion/removal */
+	bnx2x_set_gpio(bp, gpio_num, MISC_REGISTERS_GPIO_INPUT_HI_Z, gpio_port);
+
+	swap_val = REG_RD(bp, NIG_REG_PORT_SWAP);
+	swap_override = REG_RD(bp, NIG_REG_STRAP_OVERRIDE);
+	gpio_port ^= (swap_val && swap_override);
+
+	vars->aeu_int_mask = AEU_INPUTS_ATTN_BITS_GPIO0_FUNCTION_0 <<
+		(gpio_num + (gpio_port << 2));
+
+	sync_offset = shmem_base +
+		offsetof(struct shmem_region,
+			 dev_info.port_hw_config[port].aeu_int_mask);
+	REG_WR(bp, sync_offset, vars->aeu_int_mask);
+
+	DP(NETIF_MSG_LINK, "Setting MOD_ABS (GPIO%d_P%d) AEU to 0x%x\n",
+		       gpio_num, gpio_port, vars->aeu_int_mask);
+
+	if (port == 0)
+		offset = MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0;
+	else
+		offset = MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0;
+
+	/* Open appropriate AEU for interrupts */
+	aeu_mask = REG_RD(bp, offset);
+	aeu_mask |= vars->aeu_int_mask;
+	REG_WR(bp, offset, aeu_mask);
+
+	/* Enable the GPIO to trigger interrupt */
+	val = REG_RD(bp, MISC_REG_GPIO_EVENT_EN);
+	val |= 1 << (gpio_num + (gpio_port << 2));
+	REG_WR(bp, MISC_REG_GPIO_EVENT_EN, val);
 }

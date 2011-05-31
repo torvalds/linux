@@ -277,6 +277,7 @@ struct link_vars {
 	u8 fault_detected;
 	u8 rsrv1;
 	u16 rsrv2;
+	u32 aeu_int_mask;
 };
 
 /***********************************************************/
@@ -401,4 +402,7 @@ int bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos);
 void bnx2x_pfc_statistic(struct link_params *params, struct link_vars *vars,
 						 u32 pfc_frames_sent[2],
 						 u32 pfc_frames_received[2]);
+void bnx2x_init_mod_abs_int(struct bnx2x *bp, struct link_vars *vars,
+			    u32 chip_id, u32 shmem_base, u32 shmem2_base,
+			    u8 port);
 #endif /* BNX2X_LINK_H */

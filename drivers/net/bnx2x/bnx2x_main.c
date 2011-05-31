@@ -4452,6 +4452,10 @@ void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 
 #endif
 
+	/* Initialize MOD_ABS interrupts */
+	bnx2x_init_mod_abs_int(bp, &bp->link_vars, bp->common.chip_id,
+			       bp->common.shmem_base, bp->common.shmem2_base,
+			       BP_PORT(bp));
 	/* ensure status block indices were read */
 	rmb();
 
