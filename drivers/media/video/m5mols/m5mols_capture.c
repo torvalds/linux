@@ -58,9 +58,9 @@ static int m5mols_read_rational(struct v4l2_subdev *sd, u32 addr_num,
 {
 	u32 num, den;
 
-	int ret = m5mols_read(sd, addr_num, &num);
+	int ret = m5mols_read_u32(sd, addr_num, &num);
 	if (!ret)
-		ret = m5mols_read(sd, addr_den, &den);
+		ret = m5mols_read_u32(sd, addr_den, &den);
 	if (ret)
 		return ret;
 	*val = den == 0 ? 0 : num / den;
@@ -99,20 +99,20 @@ static int m5mols_capture_info(struct m5mols_info *info)
 	if (ret)
 		return ret;
 
-	ret = m5mols_read(sd, EXIF_INFO_ISO, (u32 *)&exif->iso_speed);
+	ret = m5mols_read_u16(sd, EXIF_INFO_ISO, &exif->iso_speed);
 	if (!ret)
-		ret = m5mols_read(sd, EXIF_INFO_FLASH, (u32 *)&exif->flash);
+		ret = m5mols_read_u16(sd, EXIF_INFO_FLASH, &exif->flash);
 	if (!ret)
-		ret = m5mols_read(sd, EXIF_INFO_SDR, (u32 *)&exif->sdr);
+		ret = m5mols_read_u16(sd, EXIF_INFO_SDR, &exif->sdr);
 	if (!ret)
-		ret = m5mols_read(sd, EXIF_INFO_QVAL, (u32 *)&exif->qval);
+		ret = m5mols_read_u16(sd, EXIF_INFO_QVAL, &exif->qval);
 	if (ret)
 		return ret;
 
 	if (!ret)
-		ret = m5mols_read(sd, CAPC_IMAGE_SIZE, &info->cap.main);
+		ret = m5mols_read_u32(sd, CAPC_IMAGE_SIZE, &info->cap.main);
 	if (!ret)
-		ret = m5mols_read(sd, CAPC_THUMB_SIZE, &info->cap.thumb);
+		ret = m5mols_read_u32(sd, CAPC_THUMB_SIZE, &info->cap.thumb);
 	if (!ret)
 		info->cap.total = info->cap.main + info->cap.thumb;
 
@@ -122,7 +122,7 @@ static int m5mols_capture_info(struct m5mols_info *info)
 int m5mols_start_capture(struct m5mols_info *info)
 {
 	struct v4l2_subdev *sd = &info->sd;
-	u32 resolution = info->resolution;
+	u8 resolution = info->resolution;
 	int timeout;
 	int ret;
 

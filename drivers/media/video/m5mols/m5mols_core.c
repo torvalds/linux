@@ -133,13 +133,13 @@ static u32 m5mols_swap_byte(u8 *data, u8 length)
 /**
  * m5mols_read -  I2C read function
  * @reg: combination of size, category and command for the I2C packet
+ * @size: desired size of I2C packet
  * @val: read value
  */
-int m5mols_read(struct v4l2_subdev *sd, u32 reg, u32 *val)
+static int m5mols_read(struct v4l2_subdev *sd, u32 size, u32 reg, u32 *val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u8 rbuf[M5MOLS_I2C_MAX_SIZE + 1];
-	u8 size = I2C_SIZE(reg);
 	u8 category = I2C_CATEGORY(reg);
 	u8 cmd = I2C_COMMAND(reg);
 	struct i2c_msg msg[2];
@@ -148,11 +148,6 @@ int m5mols_read(struct v4l2_subdev *sd, u32 reg, u32 *val)
 
 	if (!client->adapter)
 		return -ENODEV;
-
-	if (size != 1 && size != 2 && size != 4) {
-		v4l2_err(sd, "Wrong data size\n");
-		return -EINVAL;
-	}
 
 	msg[0].addr = client->addr;
 	msg[0].flags = 0;
@@ -182,6 +177,52 @@ int m5mols_read(struct v4l2_subdev *sd, u32 reg, u32 *val)
 	*val = m5mols_swap_byte(&rbuf[1], size);
 
 	return 0;
+}
+
+int m5mols_read_u8(struct v4l2_subdev *sd, u32 reg, u8 *val)
+{
+	u32 val_32;
+	int ret;
+
+	if (I2C_SIZE(reg) != 1) {
+		v4l2_err(sd, "Wrong data size\n");
+		return -EINVAL;
+	}
+
+	ret = m5mols_read(sd, I2C_SIZE(reg), reg, &val_32);
+	if (ret)
+		return ret;
+
+	*val = (u8)val_32;
+	return ret;
+}
+
+int m5mols_read_u16(struct v4l2_subdev *sd, u32 reg, u16 *val)
+{
+	u32 val_32;
+	int ret;
+
+	if (I2C_SIZE(reg) != 2) {
+		v4l2_err(sd, "Wrong data size\n");
+		return -EINVAL;
+	}
+
+	ret = m5mols_read(sd, I2C_SIZE(reg), reg, &val_32);
+	if (ret)
+		return ret;
+
+	*val = (u16)val_32;
+	return ret;
+}
+
+int m5mols_read_u32(struct v4l2_subdev *sd, u32 reg, u32 *val)
+{
+	if (I2C_SIZE(reg) != 4) {
+		v4l2_err(sd, "Wrong data size\n");
+		return -EINVAL;
+	}
+
+	return m5mols_read(sd, I2C_SIZE(reg), reg, val);
 }
 
 /**
@@ -231,13 +272,14 @@ int m5mols_write(struct v4l2_subdev *sd, u32 reg, u32 val)
 	return 0;
 }
 
-int m5mols_busy(struct v4l2_subdev *sd, u8 category, u8 cmd, u32 mask)
+int m5mols_busy(struct v4l2_subdev *sd, u8 category, u8 cmd, u8 mask)
 {
-	u32 busy, i;
+	u8 busy;
+	int i;
 	int ret;
 
 	for (i = 0; i < M5MOLS_I2C_CHECK_RETRY; i++) {
-		ret = m5mols_read(sd, I2C_REG(category, cmd, 1), &busy);
+		ret = m5mols_read_u8(sd, I2C_REG(category, cmd, 1), &busy);
 		if (ret < 0)
 			return ret;
 		if ((busy & mask) == mask)
@@ -252,14 +294,14 @@ int m5mols_busy(struct v4l2_subdev *sd, u8 category, u8 cmd, u32 mask)
  * Before writing desired interrupt value the INT_FACTOR register should
  * be read to clear pending interrupts.
  */
-int m5mols_enable_interrupt(struct v4l2_subdev *sd, u32 reg)
+int m5mols_enable_interrupt(struct v4l2_subdev *sd, u8 reg)
 {
 	struct m5mols_info *info = to_m5mols(sd);
-	u32 mask = is_available_af(info) ? REG_INT_AF : 0;
-	u32 dummy;
+	u8 mask = is_available_af(info) ? REG_INT_AF : 0;
+	u8 dummy;
 	int ret;
 
-	ret = m5mols_read(sd, SYSTEM_INT_FACTOR, &dummy);
+	ret = m5mols_read_u8(sd, SYSTEM_INT_FACTOR, &dummy);
 	if (!ret)
 		ret = m5mols_write(sd, SYSTEM_INT_ENABLE, reg & ~mask);
 	return ret;
@@ -271,7 +313,7 @@ int m5mols_enable_interrupt(struct v4l2_subdev *sd, u32 reg)
  * It always accompanies a little delay changing the M-5MOLS mode, so it is
  * needed checking current busy status to guarantee right mode.
  */
-static int m5mols_reg_mode(struct v4l2_subdev *sd, u32 mode)
+static int m5mols_reg_mode(struct v4l2_subdev *sd, u8 mode)
 {
 	int ret = m5mols_write(sd, SYSTEM_SYSMODE, mode);
 
@@ -286,16 +328,16 @@ static int m5mols_reg_mode(struct v4l2_subdev *sd, u32 mode)
  * can be guaranteed only when the sensor is operating in mode which which
  * a command belongs to.
  */
-int m5mols_mode(struct m5mols_info *info, u32 mode)
+int m5mols_mode(struct m5mols_info *info, u8 mode)
 {
 	struct v4l2_subdev *sd = &info->sd;
 	int ret = -EINVAL;
-	u32 reg;
+	u8 reg;
 
 	if (mode < REG_PARAMETER && mode > REG_CAPTURE)
 		return ret;
 
-	ret = m5mols_read(sd, SYSTEM_SYSMODE, &reg);
+	ret = m5mols_read_u8(sd, SYSTEM_SYSMODE, &reg);
 	if ((!ret && reg == mode) || ret)
 		return ret;
 
@@ -348,28 +390,24 @@ static int m5mols_get_version(struct v4l2_subdev *sd)
 		struct m5mols_version ver;
 		u8 bytes[VERSION_SIZE];
 	} version;
-	u32 *value;
 	u8 cmd = CAT0_VER_CUSTOMER;
 	int ret;
 
 	do {
-		value = (u32 *)&version.bytes[cmd];
-		ret = m5mols_read(sd, SYSTEM_CMD(cmd), value);
+		ret = m5mols_read_u8(sd, SYSTEM_CMD(cmd), &version.bytes[cmd]);
 		if (ret)
 			return ret;
 	} while (cmd++ != CAT0_VER_AWB);
 
 	do {
-		value = (u32 *)&version.bytes[cmd];
-		ret = m5mols_read(sd, SYSTEM_VER_STRING, value);
+		ret = m5mols_read_u8(sd, SYSTEM_VER_STRING, &version.bytes[cmd]);
 		if (ret)
 			return ret;
 		if (cmd >= VERSION_SIZE - 1)
 			return -EINVAL;
 	} while (version.bytes[cmd++]);
 
-	value = (u32 *)&version.bytes[cmd];
-	ret = m5mols_read(sd, AF_VERSION, value);
+	ret = m5mols_read_u8(sd, AF_VERSION, &version.bytes[cmd]);
 	if (ret)
 		return ret;
 
@@ -722,7 +760,7 @@ static int m5mols_init_controls(struct m5mols_info *info)
 	int ret;
 
 	/* Determine value's range & step of controls for various FW version */
-	ret = m5mols_read(sd, AE_MAX_GAIN_MON, (u32 *)&max_exposure);
+	ret = m5mols_read_u16(sd, AE_MAX_GAIN_MON, &max_exposure);
 	if (!ret)
 		step_zoom = is_manufacturer(info, REG_SAMSUNG_OPTICS) ? 31 : 1;
 	if (ret)
@@ -842,18 +880,18 @@ static void m5mols_irq_work(struct work_struct *work)
 	struct m5mols_info *info =
 		container_of(work, struct m5mols_info, work_irq);
 	struct v4l2_subdev *sd = &info->sd;
-	u32 reg;
+	u8 reg;
 	int ret;
 
 	if (!is_powered(info) ||
-			m5mols_read(sd, SYSTEM_INT_FACTOR, &info->interrupt))
+			m5mols_read_u8(sd, SYSTEM_INT_FACTOR, &info->interrupt))
 		return;
 
 	switch (info->interrupt & REG_INT_MASK) {
 	case REG_INT_AF:
 		if (!is_available_af(info))
 			break;
-		ret = m5mols_read(sd, AF_STATUS, &reg);
+		ret = m5mols_read_u8(sd, AF_STATUS, &reg);
 		v4l2_dbg(2, m5mols_debug, sd, "AF %s\n",
 			 reg == REG_AF_FAIL ? "Failed" :
 			 reg == REG_AF_SUCCESS ? "Success" :

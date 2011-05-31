@@ -130,7 +130,7 @@ static struct m5mols_scenemode m5mols_default_scenemode[] = {
  *
  * WARNING: The execution order is important. Do not change the order.
  */
-int m5mols_do_scenemode(struct m5mols_info *info, u32 mode)
+int m5mols_do_scenemode(struct m5mols_info *info, u8 mode)
 {
 	struct v4l2_subdev *sd = &info->sd;
 	struct m5mols_scenemode scenemode = m5mols_default_scenemode[mode];
