@@ -276,6 +276,9 @@ struct link_vars {
 
 	/* The same definitions as the shmem parameter */
 	u32 link_status;
+	u8 fault_detected;
+	u8 rsrv1;
+	u16 rsrv2;
 };
 
 /***********************************************************/

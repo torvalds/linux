@@ -3495,6 +3495,7 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 		phy_vars[phy_index].duplex = DUPLEX_FULL;
 		phy_vars[phy_index].phy_link_up = 0;
 		phy_vars[phy_index].link_up = 0;
+		phy_vars[phy_index].fault_detected = 0;
 	}
 
 	DP(NETIF_MSG_LINK, "port %x, XGXS?%x, int_status 0x%x\n",
@@ -3707,7 +3708,8 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 	 */
 	vars->link_up = (vars->phy_link_up &&
 			 (ext_phy_link_up ||
-			  SINGLE_MEDIA_DIRECT(params)));
+			  SINGLE_MEDIA_DIRECT(params)) &&
+			 (phy_vars[active_external_phy].fault_detected == 0));
 
 	if (vars->link_up)
 		rc = bnx2x_update_link_up(params, vars, link_10g);
@@ -5205,6 +5207,29 @@ void bnx2x_handle_module_detect_int(struct link_params *params)
 }
 
 /******************************************************************/
+/*		Used by 8706 and 8727                             */
+/******************************************************************/
+static void bnx2x_sfp_mask_fault(struct bnx2x *bp,
+				 struct bnx2x_phy *phy,
+				 u16 alarm_status_offset,
+				 u16 alarm_ctrl_offset)
+{
+	u16 alarm_status, val;
+	bnx2x_cl45_read(bp, phy,
+			MDIO_PMA_DEVAD, alarm_status_offset,
+			&alarm_status);
+	bnx2x_cl45_read(bp, phy,
+			MDIO_PMA_DEVAD, alarm_status_offset,
+			&alarm_status);
+	/* Mask or enable the fault event. */
+	bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, alarm_ctrl_offset, &val);
+	if (alarm_status & (1<<0))
+		val &= ~(1<<0);
+	else
+		val |= (1<<0);
+	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, alarm_ctrl_offset, val);
+}
+/******************************************************************/
 /*		common BCM8706/BCM8726 PHY SECTION		  */
 /******************************************************************/
 static u8 bnx2x_8706_8726_read_status(struct bnx2x_phy *phy,
@@ -5218,6 +5243,10 @@ static u8 bnx2x_8706_8726_read_status(struct bnx2x_phy *phy,
 	/* Clear RX Alarm*/
 	bnx2x_cl45_read(bp, phy,
 			MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM, &val2);
+
+	bnx2x_sfp_mask_fault(bp, phy, MDIO_PMA_REG_TX_ALARM,
+			     MDIO_PMA_REG_TX_ALARM_CTRL);
+
 	/* clear LASI indication*/
 	bnx2x_cl45_read(bp, phy,
 			MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_STATUS, &val1);
@@ -5249,6 +5278,17 @@ static u8 bnx2x_8706_8726_read_status(struct bnx2x_phy *phy,
 		bnx2x_ext_phy_resolve_fc(phy, params, vars);
 		vars->duplex = DUPLEX_FULL;
 	}
+
+	/* Capture 10G link fault. Read twice to clear stale value. */
+	if (vars->line_speed == SPEED_10000) {
+		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD,
+			    MDIO_PMA_REG_TX_ALARM, &val1);
+		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD,
+			    MDIO_PMA_REG_TX_ALARM, &val1);
+		if (val1 & (1<<0))
+			vars->fault_detected = 1;
+	}
+
 	return link_up;
 }
 
@@ -5304,7 +5344,11 @@ static u8 bnx2x_8706_config_init(struct bnx2x_phy *phy,
 				 MDIO_PMA_DEVAD,
 				 MDIO_PMA_REG_DIGITAL_CTRL, 0x400);
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL, 1);
+				 MDIO_PMA_DEVAD, MDIO_PMA_REG_TX_ALARM_CTRL,
+				 0);
+		/* Arm LASI for link and Tx fault. */
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL, 3);
 	} else {
 		/* Force 1Gbps using autoneg with 1G advertisement */
 
@@ -5637,14 +5681,17 @@ static int bnx2x_8727_config_init(struct bnx2x_phy *phy,
 
 	bnx2x_wait_reset_complete(bp, phy, params);
 	rx_alarm_ctrl_val = (1<<2) | (1<<5) ;
-	lasi_ctrl_val = 0x0004;
+	/* Should be 0x6 to enable XS on Tx side. */
+	lasi_ctrl_val = 0x0006;
 
 	DP(NETIF_MSG_LINK, "Initializing BCM8727\n");
 	/* enable LASI */
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM_CTRL,
 			 rx_alarm_ctrl_val);
-
+	bnx2x_cl45_write(bp, phy,
+			 MDIO_PMA_DEVAD, MDIO_PMA_REG_TX_ALARM_CTRL,
+			 0);
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL, lasi_ctrl_val);
 
@@ -5899,6 +5946,9 @@ static u8 bnx2x_8727_read_status(struct bnx2x_phy *phy,
 	vars->line_speed = 0;
 	DP(NETIF_MSG_LINK, "8727 RX_ALARM_STATUS  0x%x\n", rx_alarm_status);
 
+	bnx2x_sfp_mask_fault(bp, phy, MDIO_PMA_REG_TX_ALARM,
+			     MDIO_PMA_REG_TX_ALARM_CTRL);
+
 	bnx2x_cl45_read(bp, phy,
 			MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_STATUS, &val1);
 
@@ -5991,6 +6041,20 @@ static u8 bnx2x_8727_read_status(struct bnx2x_phy *phy,
 		DP(NETIF_MSG_LINK, "port %x: External link is down\n",
 			   params->port);
 	}
+
+	/* Capture 10G link fault. */
+	if (vars->line_speed == SPEED_10000) {
+		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD,
+			    MDIO_PMA_REG_TX_ALARM, &val1);
+
+		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD,
+			    MDIO_PMA_REG_TX_ALARM, &val1);
+
+		if (val1 & (1<<0)) {
+			vars->fault_detected = 1;
+		}
+	}
+
 	if (link_up) {
 		bnx2x_ext_phy_resolve_fc(phy, params, vars);
 		vars->duplex = DUPLEX_FULL;

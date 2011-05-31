@@ -6037,6 +6037,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_BCM_CTRL		0x0096
 #define MDIO_PMA_REG_FEC_CTRL		0x00ab
 #define MDIO_PMA_REG_RX_ALARM_CTRL	0x9000
+#define MDIO_PMA_REG_TX_ALARM_CTRL	0x9001
 #define MDIO_PMA_REG_LASI_CTRL		0x9002
 #define MDIO_PMA_REG_RX_ALARM		0x9003
 #define MDIO_PMA_REG_TX_ALARM		0x9004
