@@ -121,8 +121,8 @@ struct bnx2x_phy {
 
 	/* Loaded during init */
 	u8 addr;
-
-	u8 flags;
+	u8 def_md_devad;
+	u16 flags;
 	/* Require HW lock */
 #define FLAGS_HW_LOCK_REQUIRED		(1<<0)
 	/* No Over-Current detection */
@@ -134,8 +134,6 @@ struct bnx2x_phy {
 #define FLAGS_REARM_LATCH_SIGNAL	(1<<6)
 #define FLAGS_SFP_NOT_APPROVED		(1<<7)
 
-	u8 def_md_devad;
-	u8 reserved;
 	/* preemphasis values for the rx side */
 	u16 rx_preemphasis[4];
 
