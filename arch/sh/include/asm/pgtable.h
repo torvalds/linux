@@ -18,6 +18,7 @@
 #include <asm/pgtable-2level.h>
 #endif
 #include <asm/page.h>
+#include <asm/mmu.h>
 
 #ifndef __ASSEMBLY__
 #include <asm/addrspace.h>
