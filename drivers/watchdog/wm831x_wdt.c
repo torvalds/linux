@@ -320,6 +320,11 @@ static int __devinit wm831x_wdt_probe(struct platform_device *pdev)
 	struct wm831x_watchdog_pdata *pdata;
 	int reg, ret;
 
+	if (wm831x) {
+		dev_err(&pdev->dev, "wm831x watchdog already registered\n");
+		return -EBUSY;
+	}
+
 	wm831x = dev_get_drvdata(pdev->dev.parent);
 
 	ret = wm831x_reg_read(wm831x, WM831X_WATCHDOG);
