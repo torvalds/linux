@@ -43,11 +43,13 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
  * @old_zroot: old index root - used by 'dbg_check_old_index()'
  * @old_zroot_level: old index root level - used by 'dbg_check_old_index()'
  * @old_zroot_sqnum: old index root sqnum - used by 'dbg_check_old_index()'
+ *
  * @failure_mode: failure mode for recovery testing
  * @fail_delay: 0=>don't delay, 1=>delay a time, 2=>delay a number of calls
  * @fail_timeout: time in jiffies when delay of failure mode expires
  * @fail_cnt: current number of calls to failure mode I/O functions
  * @fail_cnt_max: number of calls by which to delay failure mode
+ *
  * @chk_lpt_sz: used by LPT tree size checker
  * @chk_lpt_sz2: used by LPT tree size checker
  * @chk_lpt_wastage: used by LPT tree size checker
@@ -61,21 +63,36 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
  * @saved_free: saved amount of free space
  * @saved_idx_gc_cnt: saved value of @c->idx_gc_cnt
  *
+ * @chk_gen: if general extra checks are enabled
+ * @chk_index: if index xtra checks are enabled
+ * @chk_orph: if orphans extra checks are enabled
+ * @chk_lprops: if lprops extra checks are enabled
+ * @chk_fs: if UBIFS contents extra checks are enabled
+ * @tst_rcvry: if UBIFS recovery testing mode enabled
+ *
  * @dfs_dir_name: name of debugfs directory containing this file-system's files
  * @dfs_dir: direntry object of the file-system debugfs directory
  * @dfs_dump_lprops: "dump lprops" debugfs knob
  * @dfs_dump_budg: "dump budgeting information" debugfs knob
  * @dfs_dump_tnc: "dump TNC" debugfs knob
+ * @dfs_chk_gen: debugfs knob to enable UBIFS general extra checks
+ * @dfs_chk_index: debugfs knob to enable UBIFS index extra checks
+ * @dfs_chk_orph: debugfs knob to enable UBIFS orphans extra checks
+ * @dfs_chk_lprops: debugfs knob to enable UBIFS LEP properties extra checks
+ * @dfs_chk_fs: debugfs knob to enable UBIFS contents extra checks
+ * @dfs_tst_rcvry: debugfs knob to enable UBIFS recovery testing
  */
 struct ubifs_debug_info {
 	struct ubifs_zbranch old_zroot;
 	int old_zroot_level;
 	unsigned long long old_zroot_sqnum;
+
 	int failure_mode;
 	int fail_delay;
 	unsigned long fail_timeout;
 	unsigned int fail_cnt;
 	unsigned int fail_cnt_max;
+
 	long long chk_lpt_sz;
 	long long chk_lpt_sz2;
 	long long chk_lpt_wastage;
@@ -89,11 +106,24 @@ struct ubifs_debug_info {
 	long long saved_free;
 	int saved_idx_gc_cnt;
 
+	unsigned int chk_gen:1;
+	unsigned int chk_index:1;
+	unsigned int chk_orph:1;
+	unsigned int chk_lprops:1;
+	unsigned int chk_fs:1;
+	unsigned int tst_rcvry:1;
+
 	char dfs_dir_name[UBIFS_DFS_DIR_LEN + 1];
 	struct dentry *dfs_dir;
 	struct dentry *dfs_dump_lprops;
 	struct dentry *dfs_dump_budg;
 	struct dentry *dfs_dump_tnc;
+	struct dentry *dfs_chk_gen;
+	struct dentry *dfs_chk_index;
+	struct dentry *dfs_chk_orph;
+	struct dentry *dfs_chk_lprops;
+	struct dentry *dfs_chk_fs;
+	struct dentry *dfs_tst_rcvry;
 };
 
 #define ubifs_assert(expr) do {                                                \
@@ -169,59 +199,29 @@ const char *dbg_key_str1(const struct ubifs_info *c,
 
 extern spinlock_t dbg_lock;
 
-/*
- * Debugging check flags.
- *
- * UBIFS_CHK_GEN: general checks
- * UBIFS_CHK_INDEX: check the index
- * UBIFS_CHK_ORPH: check orphans
- * UBIFS_CHK_LPROPS: check lprops
- * UBIFS_CHK_FS: check the file-system
- */
-enum {
-	UBIFS_CHK_GEN     = 0x1,
-	UBIFS_CHK_INDEX   = 0x2,
-	UBIFS_CHK_ORPH    = 0x8,
-	UBIFS_CHK_LPROPS  = 0x20,
-	UBIFS_CHK_FS      = 0x40,
-};
-
-/*
- * Special testing flags.
- *
- * UBIFS_TST_RCVRY: failure mode for recovery testing
- */
-enum {
-	UBIFS_TST_RCVRY             = 0x4,
-};
-
-extern unsigned int ubifs_msg_flags;
-extern unsigned int ubifs_chk_flags;
-extern unsigned int ubifs_tst_flags;
-
 static inline int dbg_is_chk_gen(const struct ubifs_info *c)
 {
-	return !!(ubifs_chk_flags & UBIFS_CHK_GEN);
+	return c->dbg->chk_gen;
 }
 static inline int dbg_is_chk_index(const struct ubifs_info *c)
 {
-	return !!(ubifs_chk_flags & UBIFS_CHK_INDEX);
+	return c->dbg->chk_index;
 }
 static inline int dbg_is_chk_orph(const struct ubifs_info *c)
 {
-	return !!(ubifs_chk_flags & UBIFS_CHK_ORPH);
+	return c->dbg->chk_orph;
 }
 static inline int dbg_is_chk_lprops(const struct ubifs_info *c)
 {
-	return !!(ubifs_chk_flags & UBIFS_CHK_LPROPS);
+	return c->dbg->chk_lprops;
 }
 static inline int dbg_is_chk_fs(const struct ubifs_info *c)
 {
-	return !!(ubifs_chk_flags & UBIFS_CHK_FS);
+	return c->dbg->chk_fs;
 }
 static inline int dbg_is_tst_rcvry(const struct ubifs_info *c)
 {
-	return !!(ubifs_tst_flags & UBIFS_TST_RCVRY);
+	return c->dbg->tst_rcvry;
 }
 
 int ubifs_debugging_init(struct ubifs_info *c);

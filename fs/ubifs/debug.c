@@ -31,9 +31,9 @@
 
 #include "ubifs.h"
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/debugfs.h>
 #include <linux/math64.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
@@ -41,15 +41,6 @@ DEFINE_SPINLOCK(dbg_lock);
 
 static char dbg_key_buf0[128];
 static char dbg_key_buf1[128];
-
-unsigned int ubifs_chk_flags;
-unsigned int ubifs_tst_flags;
-
-module_param_named(debug_chks, ubifs_chk_flags, uint, S_IRUGO | S_IWUSR);
-module_param_named(debug_tsts, ubifs_tst_flags, uint, S_IRUGO | S_IWUSR);
-
-MODULE_PARM_DESC(debug_chks, "Debug check flags");
-MODULE_PARM_DESC(debug_tsts, "Debug special test flags");
 
 static const char *get_key_fmt(int fmt)
 {
@@ -2886,21 +2877,93 @@ static int open_debugfs_file(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static ssize_t write_debugfs_file(struct file *file, const char __user *buf,
-				  size_t count, loff_t *ppos)
+static ssize_t dfs_file_read(struct file *file, char __user *u, size_t count,
+			     loff_t *ppos)
+{
+	struct dentry *dent = file->f_path.dentry;
+	struct ubifs_info *c = file->private_data;
+	struct ubifs_debug_info *d = c->dbg;
+	char buf[3];
+	int val;
+
+	if (dent == d->dfs_chk_gen)
+		val = d->chk_gen;
+	else if (dent == d->dfs_chk_index)
+		val = d->chk_index;
+	else if (dent == d->dfs_chk_orph)
+		val = d->chk_orph;
+	else if (dent == d->dfs_chk_lprops)
+		val = d->chk_lprops;
+	else if (dent == d->dfs_chk_fs)
+		val = d->chk_fs;
+	else if (dent == d->dfs_tst_rcvry)
+		val = d->tst_rcvry;
+	else
+		return -EINVAL;
+
+	if (val)
+		buf[0] = '1';
+	else
+		buf[0] = '0';
+	buf[1] = '\n';
+	buf[2] = 0x00;
+
+	return simple_read_from_buffer(u, count, ppos, buf, 2);
+}
+
+static ssize_t dfs_file_write(struct file *file, const char __user *u,
+			      size_t count, loff_t *ppos)
 {
 	struct ubifs_info *c = file->private_data;
 	struct ubifs_debug_info *d = c->dbg;
+	struct dentry *dent = file->f_path.dentry;
+	size_t buf_size;
+	char buf[8];
+	int val;
 
-	if (file->f_path.dentry == d->dfs_dump_lprops)
+	/*
+	 * FIXME: this is racy - the file-system might have already been
+	 * unmounted and we'd oops in this case.
+	 */
+	if (file->f_path.dentry == d->dfs_dump_lprops) {
 		dbg_dump_lprops(c);
-	else if (file->f_path.dentry == d->dfs_dump_budg)
+		return count;
+	}
+	if (file->f_path.dentry == d->dfs_dump_budg) {
 		dbg_dump_budg(c, &c->bi);
-	else if (file->f_path.dentry == d->dfs_dump_tnc) {
+		return count;
+	}
+	if (file->f_path.dentry == d->dfs_dump_tnc) {
 		mutex_lock(&c->tnc_mutex);
 		dbg_dump_tnc(c);
 		mutex_unlock(&c->tnc_mutex);
-	} else
+		return count;
+	}
+
+	buf_size = min_t(size_t, count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, u, buf_size))
+		return -EFAULT;
+
+	if (buf[0] == '1')
+		val = 1;
+	else if (buf[0] == '0')
+		val = 0;
+	else
+		return -EINVAL;
+
+	if (dent == d->dfs_chk_gen)
+		d->chk_gen = val;
+	else if (dent == d->dfs_chk_index)
+		d->chk_index = val;
+	else if (dent == d->dfs_chk_orph)
+		d->chk_orph = val;
+	else if (dent == d->dfs_chk_lprops)
+		d->chk_lprops = val;
+	else if (dent == d->dfs_chk_fs)
+		d->chk_fs = val;
+	else if (dent == d->dfs_tst_rcvry)
+		d->tst_rcvry = val;
+	else
 		return -EINVAL;
 
 	return count;
@@ -2908,7 +2971,8 @@ static ssize_t write_debugfs_file(struct file *file, const char __user *buf,
 
 static const struct file_operations dfs_fops = {
 	.open = open_debugfs_file,
-	.write = write_debugfs_file,
+	.read = dfs_file_read,
+	.write = dfs_file_write,
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 };
@@ -2964,6 +3028,48 @@ int dbg_debugfs_init_fs(struct ubifs_info *c)
 	if (IS_ERR_OR_NULL(dent))
 		goto out_remove;
 	d->dfs_dump_tnc = dent;
+
+	fname = "chk_general";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_chk_gen = dent;
+
+	fname = "chk_index";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_chk_index = dent;
+
+	fname = "chk_orphans";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_chk_orph = dent;
+
+	fname = "chk_lprops";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_chk_lprops = dent;
+
+	fname = "chk_fs";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_chk_fs = dent;
+
+	fname = "tst_recovery";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, d->dfs_dir, c,
+				   &dfs_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	d->dfs_tst_rcvry = dent;
 
 	return 0;
 
