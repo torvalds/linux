@@ -1156,9 +1156,9 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 	struct wmid3_gds_input_param params = {
 		.function_num = 0x1,
 		.hotkey_number = 0x01,
-		.devices = ACER_WMID3_GDS_WIRELESS &
-				ACER_WMID3_GDS_THREEG &
-				ACER_WMID3_GDS_WIMAX &
+		.devices = ACER_WMID3_GDS_WIRELESS |
+				ACER_WMID3_GDS_THREEG |
+				ACER_WMID3_GDS_WIMAX |
 				ACER_WMID3_GDS_BLUETOOTH,
 	};
 	struct acpi_buffer input = {
