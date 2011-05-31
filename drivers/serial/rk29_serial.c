@@ -334,11 +334,7 @@ static int rk29_serial_startup(struct uart_port *port)
 	else if(3 == port->line)
 	{
 		rk29_mux_api_set(GPIO2B3_UART3SOUT_NAME, GPIO2L_UART3_SOUT);
-		rk29_mux_api_set(GPIO2B2_UART3SIN_NAME, GPIO2L_UART3_SIN);	
-	#ifdef CONFIG_MACH_RK29FIH
-		gpio_pull_updown(RK29_PIN2_PB3, PullDisable);
-   	   	gpio_pull_updown(RK29_PIN2_PB2, PullDisable);
-	#endif
+		rk29_mux_api_set(GPIO2B2_UART3SIN_NAME, GPIO2L_UART3_SIN);
 	}
 
 	retval = request_irq(port->irq,rk29_uart_interrupt,IRQF_SHARED,

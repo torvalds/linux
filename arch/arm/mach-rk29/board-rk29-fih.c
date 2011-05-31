@@ -2053,30 +2053,6 @@ static struct platform_device rk29sdk_wifi_device = {
 };
 #endif
 
-#ifdef CONFIG_RK29_GPS
-static int rk29_gps_bcm4751_gpio_init(void)
-{
-	rk29_mux_api_set(GPIO2B3_UART3SOUT_NAME, GPIO2L_GPIO2B3);  
-	rk29_mux_api_set(GPIO2B2_UART3SIN_NAME, GPIO2L_GPIO2B2);
-	
-    if (gpio_request(RK29_PIN2_PB3, "uart3_sout")) {
-           pr_info("%s: request uart3_sout gpio failed\n", __func__);
-           return -1;
-    }
-
-    if (gpio_request(RK29_PIN2_PB2, "uart3_sin")) {
-           pr_info("%s: request uart3_sin gpio failed\n", __func__);
-           gpio_free(RK29_PIN2_PB3);
-           return -1;
-    }
-
-	gpio_pull_updown(RK29_PIN2_PB3, PullDisable);
-    gpio_pull_updown(RK29_PIN2_PB2, PullDisable);
-
-    return 0;
-}
-#endif
-
 /* bluetooth rfkill device */
 static struct platform_device rk29sdk_rfkill = {
         .name = "rk29sdk_rfkill",
@@ -2569,10 +2545,6 @@ static void __init machine_rk29_board_init(void)
 #ifdef CONFIG_WIFI_CONTROL_FUNC
     rk29sdk_wifi_bt_gpio_control_init();
 	rk29sdk_init_wifi_mem();
-#endif
-
-#if CONFIG_RK29_GPS
-	rk29_gps_bcm4751_gpio_init();
 #endif
 
 	board_usb_detect_init(RK29_PIN0_PA0);
