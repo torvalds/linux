@@ -342,7 +342,7 @@ void bnx2x_ets_bw_limit(const struct link_params *params, const u32 cos0_bw,
 	REG_WR(bp, PBF_REG_COS1_WEIGHT, cos1_credit_weight);
 }
 
-u8 bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos)
+int bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos)
 {
 	/* ETS disabled configuration*/
 	struct bnx2x *bp = params->bp;
@@ -508,8 +508,8 @@ static void bnx2x_emac_init(struct link_params *params,
 	EMAC_WR(bp, EMAC_REG_EMAC_MAC_MATCH + 4, val);
 }
 
-static u8 bnx2x_emac_enable(struct link_params *params,
-			    struct link_vars *vars, u8 lb)
+static int bnx2x_emac_enable(struct link_params *params,
+			      struct link_vars *vars, u8 lb)
 {
 	struct bnx2x *bp = params->bp;
 	u8 port = params->port;
@@ -1002,9 +1002,9 @@ void bnx2x_update_pfc(struct link_params *params,
 	REG_WR(bp, NIG_REG_BMAC0_PAUSE_OUT_EN + params->port*4, val);
 }
 
-static u8 bnx2x_bmac1_enable(struct link_params *params,
-			     struct link_vars *vars,
-			     u8 is_lb)
+static int bnx2x_bmac1_enable(struct link_params *params,
+			      struct link_vars *vars,
+			      u8 is_lb)
 {
 	struct bnx2x *bp = params->bp;
 	u8 port = params->port;
@@ -1066,9 +1066,9 @@ static u8 bnx2x_bmac1_enable(struct link_params *params,
 	return 0;
 }
 
-static u8 bnx2x_bmac2_enable(struct link_params *params,
-			     struct link_vars *vars,
-			     u8 is_lb)
+static int bnx2x_bmac2_enable(struct link_params *params,
+			      struct link_vars *vars,
+			      u8 is_lb)
 {
 	struct bnx2x *bp = params->bp;
 	u8 port = params->port;
@@ -1131,11 +1131,12 @@ static u8 bnx2x_bmac2_enable(struct link_params *params,
 	return 0;
 }
 
-static u8 bnx2x_bmac_enable(struct link_params *params,
-			    struct link_vars *vars,
-			    u8 is_lb)
+static int bnx2x_bmac_enable(struct link_params *params,
+			     struct link_vars *vars,
+			     u8 is_lb)
 {
-	u8 rc, port = params->port;
+	int rc = 0;
+	u8 port = params->port;
 	struct bnx2x *bp = params->bp;
 	u32 val;
 	/* reset and unreset the BigMac */
@@ -1218,8 +1219,8 @@ static void bnx2x_bmac_rx_disable(struct bnx2x *bp, u8 port)
 	}
 }
 
-static u8 bnx2x_pbf_update(struct link_params *params, u32 flow_ctrl,
-			   u32 line_speed)
+static int bnx2x_pbf_update(struct link_params *params, u32 flow_ctrl,
+			    u32 line_speed)
 {
 	struct bnx2x *bp = params->bp;
 	u8 port = params->port;
@@ -1351,11 +1352,12 @@ static u32 bnx2x_get_emac_base(struct bnx2x *bp,
 /******************************************************************/
 /*			CL45 access functions			  */
 /******************************************************************/
-static u8 bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
-			   u8 devad, u16 reg, u16 val)
+static int bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
+			    u8 devad, u16 reg, u16 val)
 {
 	u32 tmp, saved_mode;
-	u8 i, rc = 0;
+	u8 i;
+	int rc = 0;
 	/*
 	 * Set clause 45 mode, slow down the MDIO clock to 2.5MHz
 	 * (a value of 49==0x31) and make sure that the AUTO poll is off
@@ -1420,12 +1422,12 @@ static u8 bnx2x_cl45_write(struct bnx2x *bp, struct bnx2x_phy *phy,
 	return rc;
 }
 
-static u8 bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
-			  u8 devad, u16 reg, u16 *ret_val)
+static int bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
+			   u8 devad, u16 reg, u16 *ret_val)
 {
 	u32 val, saved_mode;
 	u16 i;
-	u8 rc = 0;
+	int rc = 0;
 	/*
 	 * Set clause 45 mode, slow down the MDIO clock to 2.5MHz
 	 * (a value of 49==0x31) and make sure that the AUTO poll is off
@@ -1492,8 +1494,8 @@ static u8 bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
 	return rc;
 }
 
-u8 bnx2x_phy_read(struct link_params *params, u8 phy_addr,
-		  u8 devad, u16 reg, u16 *ret_val)
+int bnx2x_phy_read(struct link_params *params, u8 phy_addr,
+		   u8 devad, u16 reg, u16 *ret_val)
 {
 	u8 phy_index;
 	/*
@@ -1510,8 +1512,8 @@ u8 bnx2x_phy_read(struct link_params *params, u8 phy_addr,
 	return -EINVAL;
 }
 
-u8 bnx2x_phy_write(struct link_params *params, u8 phy_addr,
-		   u8 devad, u16 reg, u16 val)
+int bnx2x_phy_write(struct link_params *params, u8 phy_addr,
+		    u8 devad, u16 reg, u16 val)
 {
 	u8 phy_index;
 	/*
@@ -1776,9 +1778,9 @@ static void bnx2x_set_master_ln(struct link_params *params,
 			  (new_master_ln | ser_lane));
 }
 
-static u8 bnx2x_reset_unicore(struct link_params *params,
-			      struct bnx2x_phy *phy,
-			      u8 set_serdes)
+static int bnx2x_reset_unicore(struct link_params *params,
+			       struct bnx2x_phy *phy,
+			       u8 set_serdes)
 {
 	struct bnx2x *bp = params->bp;
 	u16 mii_control;
@@ -2296,8 +2298,8 @@ static void bnx2x_pause_resolve(struct link_vars *vars, u32 pause_result)
 		vars->link_status |= LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE;
 }
 
-static u8 bnx2x_direct_parallel_detect_used(struct bnx2x_phy *phy,
-					    struct link_params *params)
+static int bnx2x_direct_parallel_detect_used(struct bnx2x_phy *phy,
+					     struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
 	u16 pd_10g, status2_1000x;
@@ -2480,13 +2482,13 @@ static void bnx2x_xgxs_an_resolve(struct bnx2x_phy *phy,
 			LINK_STATUS_PARALLEL_DETECTION_USED;
 }
 
-static u8 bnx2x_link_settings_status(struct bnx2x_phy *phy,
-				     struct link_params *params,
-				     struct link_vars *vars)
+static int bnx2x_link_settings_status(struct bnx2x_phy *phy,
+				      struct link_params *params,
+				      struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	u16 new_line_speed, gp_status;
-	u8 rc = 0;
+	int rc = 0;
 
 	/* Read gp_status */
 	CL22_RD_OVER_CL45(bp, phy,
@@ -2659,8 +2661,8 @@ static void bnx2x_set_gmii_tx_driver(struct link_params *params)
 	}
 }
 
-static u8 bnx2x_emac_program(struct link_params *params,
-			     struct link_vars *vars)
+static int bnx2x_emac_program(struct link_params *params,
+			      struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	u8 port = params->port;
@@ -2779,11 +2781,11 @@ static void bnx2x_init_internal_phy(struct bnx2x_phy *phy,
 	}
 }
 
-static u8 bnx2x_init_serdes(struct bnx2x_phy *phy,
-			    struct link_params *params,
-			    struct link_vars *vars)
+static int bnx2x_init_serdes(struct bnx2x_phy *phy,
+			     struct link_params *params,
+			     struct link_vars *vars)
 {
-	u8 rc;
+	int rc;
 	vars->phy_flags |= PHY_SGMII_FLAG;
 	bnx2x_calc_ieee_aneg_adv(phy, params, &vars->ieee_fc);
 	bnx2x_set_aer_mmd_serdes(params->bp, phy);
@@ -2796,11 +2798,11 @@ static u8 bnx2x_init_serdes(struct bnx2x_phy *phy,
 	return rc;
 }
 
-static u8 bnx2x_init_xgxs(struct bnx2x_phy *phy,
-			  struct link_params *params,
-			  struct link_vars *vars)
+static int bnx2x_init_xgxs(struct bnx2x_phy *phy,
+			   struct link_params *params,
+			   struct link_vars *vars)
 {
-	u8 rc;
+	int rc;
 	vars->phy_flags = PHY_XGXS_FLAG;
 	if ((phy->req_line_speed &&
 	     ((phy->req_line_speed == SPEED_100) ||
@@ -2989,7 +2991,7 @@ static void bnx2x_link_int_ack(struct link_params *params,
 	}
 }
 
-static u8 bnx2x_format_ver(u32 num, u8 *str, u16 *len)
+static int bnx2x_format_ver(u32 num, u8 *str, u16 *len)
 {
 	u8 *str_ptr = str;
 	u32 mask = 0xf0000000;
@@ -3028,19 +3030,19 @@ static u8 bnx2x_format_ver(u32 num, u8 *str, u16 *len)
 }
 
 
-static u8 bnx2x_null_format_ver(u32 spirom_ver, u8 *str, u16 *len)
+static int bnx2x_null_format_ver(u32 spirom_ver, u8 *str, u16 *len)
 {
 	str[0] = '\0';
 	(*len)--;
 	return 0;
 }
 
-u8 bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
-			      u8 *version, u16 len)
+int bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
+				 u8 *version, u16 len)
 {
 	struct bnx2x *bp;
 	u32 spirom_ver = 0;
-	u8 status = 0;
+	int status = 0;
 	u8 *ver_p = version;
 	u16 remain_len = len;
 	if (version == NULL || params == NULL)
@@ -3124,12 +3126,13 @@ static void bnx2x_set_xgxs_loopback(struct bnx2x_phy *phy,
 	}
 }
 
-u8 bnx2x_set_led(struct link_params *params,
-		 struct link_vars *vars, u8 mode, u32 speed)
+int bnx2x_set_led(struct link_params *params,
+		  struct link_vars *vars, u8 mode, u32 speed)
 {
 	u8 port = params->port;
 	u16 hw_led_mode = params->hw_led_mode;
-	u8 rc = 0, phy_idx;
+	int rc = 0;
+	u8 phy_idx;
 	u32 tmp;
 	u32 emac_base = port ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
 	struct bnx2x *bp = params->bp;
@@ -3233,8 +3236,8 @@ u8 bnx2x_set_led(struct link_params *params,
  * This function comes to reflect the actual link state read DIRECTLY from the
  * HW
  */
-u8 bnx2x_test_link(struct link_params *params, struct link_vars *vars,
-		   u8 is_serdes)
+int bnx2x_test_link(struct link_params *params, struct link_vars *vars,
+		    u8 is_serdes)
 {
 	struct bnx2x *bp = params->bp;
 	u16 gp_status = 0, phy_index = 0;
@@ -3284,10 +3287,10 @@ u8 bnx2x_test_link(struct link_params *params, struct link_vars *vars,
 	return -ESRCH;
 }
 
-static u8 bnx2x_link_initialize(struct link_params *params,
-				struct link_vars *vars)
+static int bnx2x_link_initialize(struct link_params *params,
+				 struct link_vars *vars)
 {
-	u8 rc = 0;
+	int rc = 0;
 	u8 phy_index, non_ext_phy;
 	struct bnx2x *bp = params->bp;
 	/*
@@ -3380,8 +3383,8 @@ static void bnx2x_common_ext_link_reset(struct bnx2x_phy *phy,
 	DP(NETIF_MSG_LINK, "reset external PHY\n");
 }
 
-static u8 bnx2x_update_link_down(struct link_params *params,
-			       struct link_vars *vars)
+static int bnx2x_update_link_down(struct link_params *params,
+				  struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	u8 port = params->port;
@@ -3412,13 +3415,13 @@ static u8 bnx2x_update_link_down(struct link_params *params,
 	return 0;
 }
 
-static u8 bnx2x_update_link_up(struct link_params *params,
-			     struct link_vars *vars,
-			     u8 link_10g)
+static int bnx2x_update_link_up(struct link_params *params,
+				struct link_vars *vars,
+				u8 link_10g)
 {
 	struct bnx2x *bp = params->bp;
 	u8 port = params->port;
-	u8 rc = 0;
+	int rc = 0;
 
 	vars->link_status |= LINK_STATUS_LINK_UP;
 
@@ -3472,13 +3475,14 @@ static u8 bnx2x_update_link_up(struct link_params *params,
  *   external phy needs to be up, and at least one of the 2
  *   external phy link must be up.
  */
-u8 bnx2x_link_update(struct link_params *params, struct link_vars *vars)
+int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	struct link_vars phy_vars[MAX_PHYS];
 	u8 port = params->port;
 	u8 link_10g, phy_index;
-	u8 ext_phy_link_up = 0, cur_link_up, rc = 0;
+	u8 ext_phy_link_up = 0, cur_link_up;
+	int rc = 0;
 	u8 is_mi_int = 0;
 	u16 ext_phy_line_speed = 0, prev_line_speed = vars->line_speed;
 	u8 active_external_phy = INT_PHY;
@@ -3866,13 +3870,13 @@ static void bnx2x_8073_resolve_fc(struct bnx2x_phy *phy,
 			   pause_result);
 	}
 }
-static u8 bnx2x_8073_8727_external_rom_boot(struct bnx2x *bp,
-					      struct bnx2x_phy *phy,
-					      u8 port)
+static int bnx2x_8073_8727_external_rom_boot(struct bnx2x *bp,
+					     struct bnx2x_phy *phy,
+					     u8 port)
 {
 	u32 count = 0;
 	u16 fw_ver1, fw_msgout;
-	u8 rc = 0;
+	int rc = 0;
 
 	/* Boot port from external ROM  */
 	/* EDC grst */
@@ -3947,7 +3951,7 @@ static u8 bnx2x_8073_8727_external_rom_boot(struct bnx2x *bp,
 /******************************************************************/
 /*			BCM8073 PHY SECTION			  */
 /******************************************************************/
-static u8 bnx2x_8073_is_snr_needed(struct bnx2x *bp, struct bnx2x_phy *phy)
+static int bnx2x_8073_is_snr_needed(struct bnx2x *bp, struct bnx2x_phy *phy)
 {
 	/* This is only required for 8073A1, version 102 only */
 	u16 val;
@@ -3973,7 +3977,7 @@ static u8 bnx2x_8073_is_snr_needed(struct bnx2x *bp, struct bnx2x_phy *phy)
 	return 1;
 }
 
-static u8 bnx2x_8073_xaui_wa(struct bnx2x *bp, struct bnx2x_phy *phy)
+static int bnx2x_8073_xaui_wa(struct bnx2x *bp, struct bnx2x_phy *phy)
 {
 	u16 val, cnt, cnt1 ;
 
@@ -4080,9 +4084,9 @@ static void bnx2x_8073_set_pause_cl37(struct link_params *params,
 	msleep(500);
 }
 
-static u8 bnx2x_8073_config_init(struct bnx2x_phy *phy,
-				 struct link_params *params,
-				 struct link_vars *vars)
+static int bnx2x_8073_config_init(struct bnx2x_phy *phy,
+				  struct link_params *params,
+				  struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	u16 val = 0, tmp1;
@@ -4388,9 +4392,9 @@ static void bnx2x_8073_link_reset(struct bnx2x_phy *phy,
 /******************************************************************/
 /*			BCM8705 PHY SECTION			  */
 /******************************************************************/
-static u8 bnx2x_8705_config_init(struct bnx2x_phy *phy,
-				 struct link_params *params,
-				 struct link_vars *vars)
+static int bnx2x_8705_config_init(struct bnx2x_phy *phy,
+				  struct link_params *params,
+				  struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	DP(NETIF_MSG_LINK, "init 8705\n");
@@ -4521,9 +4525,9 @@ static void bnx2x_sfp_set_transmitter(struct link_params *params,
 	}
 }
 
-static u8 bnx2x_8726_read_sfp_module_eeprom(struct bnx2x_phy *phy,
-					    struct link_params *params,
-					    u16 addr, u8 byte_cnt, u8 *o_buf)
+static int bnx2x_8726_read_sfp_module_eeprom(struct bnx2x_phy *phy,
+					     struct link_params *params,
+					     u16 addr, u8 byte_cnt, u8 *o_buf)
 {
 	struct bnx2x *bp = params->bp;
 	u16 val = 0;
@@ -4587,9 +4591,9 @@ static u8 bnx2x_8726_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 	return -EINVAL;
 }
 
-static u8 bnx2x_8727_read_sfp_module_eeprom(struct bnx2x_phy *phy,
-					    struct link_params *params,
-					    u16 addr, u8 byte_cnt, u8 *o_buf)
+static int bnx2x_8727_read_sfp_module_eeprom(struct bnx2x_phy *phy,
+					     struct link_params *params,
+					     u16 addr, u8 byte_cnt, u8 *o_buf)
 {
 	struct bnx2x *bp = params->bp;
 	u16 val, i;
@@ -4674,11 +4678,11 @@ static u8 bnx2x_8727_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 	return -EINVAL;
 }
 
-u8 bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
-				struct link_params *params, u16 addr,
-				u8 byte_cnt, u8 *o_buf)
+int bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
+				 struct link_params *params, u16 addr,
+				 u8 byte_cnt, u8 *o_buf)
 {
-	u8 rc = -EINVAL;
+	int rc = -EINVAL;
 	switch (phy->type) {
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
 		rc = bnx2x_8726_read_sfp_module_eeprom(phy, params, addr,
@@ -4693,9 +4697,9 @@ u8 bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 	return rc;
 }
 
-static u8 bnx2x_get_edc_mode(struct bnx2x_phy *phy,
-			     struct link_params *params,
-			     u16 *edc_mode)
+static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
+			      struct link_params *params,
+			      u16 *edc_mode)
 {
 	struct bnx2x *bp = params->bp;
 	u32 sync_offset = 0, phy_idx, media_types;
@@ -4800,8 +4804,8 @@ static u8 bnx2x_get_edc_mode(struct bnx2x_phy *phy,
  * This function read the relevant field from the module (SFP+), and verify it
  * is compliant with this board
  */
-static u8 bnx2x_verify_sfp_module(struct bnx2x_phy *phy,
-				  struct link_params *params)
+static int bnx2x_verify_sfp_module(struct bnx2x_phy *phy,
+				   struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
 	u32 val, cmd;
@@ -4870,8 +4874,8 @@ static u8 bnx2x_verify_sfp_module(struct bnx2x_phy *phy,
 	return -EINVAL;
 }
 
-static u8 bnx2x_wait_for_sfp_module_initialized(struct bnx2x_phy *phy,
-						struct link_params *params)
+static int bnx2x_wait_for_sfp_module_initialized(struct bnx2x_phy *phy,
+						 struct link_params *params)
 
 {
 	u8 val;
@@ -4929,9 +4933,9 @@ static void bnx2x_8727_power_module(struct bnx2x *bp,
 			 val);
 }
 
-static u8 bnx2x_8726_set_limiting_mode(struct bnx2x *bp,
-				       struct bnx2x_phy *phy,
-				       u16 edc_mode)
+static int bnx2x_8726_set_limiting_mode(struct bnx2x *bp,
+					struct bnx2x_phy *phy,
+					u16 edc_mode)
 {
 	u16 cur_limiting_mode;
 
@@ -4979,9 +4983,9 @@ static u8 bnx2x_8726_set_limiting_mode(struct bnx2x *bp,
 	return 0;
 }
 
-static u8 bnx2x_8727_set_limiting_mode(struct bnx2x *bp,
-				       struct bnx2x_phy *phy,
-				       u16 edc_mode)
+static int bnx2x_8727_set_limiting_mode(struct bnx2x *bp,
+					struct bnx2x_phy *phy,
+					u16 edc_mode)
 {
 	u16 phy_identifier;
 	u16 rom_ver2_val;
@@ -5098,12 +5102,12 @@ static void bnx2x_set_limiting_mode(struct link_params *params,
 	}
 }
 
-static u8 bnx2x_sfp_module_detection(struct bnx2x_phy *phy,
-				     struct link_params *params)
+int bnx2x_sfp_module_detection(struct bnx2x_phy *phy,
+			       struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
 	u16 edc_mode;
-	u8 rc = 0;
+	int rc = 0;
 
 	u32 val = REG_RD(bp, params->shmem_base +
 			     offsetof(struct shmem_region, dev_info.
@@ -5353,9 +5357,9 @@ static u8 bnx2x_8706_config_init(struct bnx2x_phy *phy,
 	return 0;
 }
 
-static u8 bnx2x_8706_read_status(struct bnx2x_phy *phy,
-				 struct link_params *params,
-				 struct link_vars *vars)
+static int bnx2x_8706_read_status(struct bnx2x_phy *phy,
+				  struct link_params *params,
+				  struct link_vars *vars)
 {
 	return bnx2x_8706_8726_read_status(phy, params, vars);
 }
@@ -5430,9 +5434,9 @@ static u8 bnx2x_8726_read_status(struct bnx2x_phy *phy,
 }
 
 
-static u8 bnx2x_8726_config_init(struct bnx2x_phy *phy,
-				 struct link_params *params,
-				 struct link_vars *vars)
+static int bnx2x_8726_config_init(struct bnx2x_phy *phy,
+				  struct link_params *params,
+				  struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	u32 val;
@@ -5620,9 +5624,9 @@ static void bnx2x_8727_hw_reset(struct bnx2x_phy *phy,
 		       MISC_REGISTERS_GPIO_OUTPUT_LOW, port);
 }
 
-static u8 bnx2x_8727_config_init(struct bnx2x_phy *phy,
-				 struct link_params *params,
-				 struct link_vars *vars)
+static int bnx2x_8727_config_init(struct bnx2x_phy *phy,
+				  struct link_params *params,
+				  struct link_vars *vars)
 {
 	u32 tx_en_mode;
 	u16 tmp1, val, mod_abs, tmp2;
@@ -6142,9 +6146,9 @@ static void bnx2x_848xx_set_led(struct bnx2x *bp,
 			 0xFFFB, 0xFFFD);
 }
 
-static u8 bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
-				      struct link_params *params,
-				      struct link_vars *vars)
+static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
+				       struct link_params *params,
+				       struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	u16 autoneg_val, an_1000_val, an_10_100_val;
@@ -6270,9 +6274,9 @@ static u8 bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 	return 0;
 }
 
-static u8 bnx2x_8481_config_init(struct bnx2x_phy *phy,
-				 struct link_params *params,
-				 struct link_vars *vars)
+static int bnx2x_8481_config_init(struct bnx2x_phy *phy,
+				  struct link_params *params,
+				  struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	/* Restore normal power mode*/
@@ -6287,16 +6291,16 @@ static u8 bnx2x_8481_config_init(struct bnx2x_phy *phy,
 	return bnx2x_848xx_cmn_config_init(phy, params, vars);
 }
 
-static u8 bnx2x_848x3_config_init(struct bnx2x_phy *phy,
-				  struct link_params *params,
-				  struct link_vars *vars)
+static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
+				   struct link_params *params,
+				   struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	u8 port, initialize = 1;
 	u16 val, adj;
 	u16 temp;
 	u32 actual_phy_selection, cms_enable;
-	u8 rc = 0;
+	int rc = 0;
 
 	/* This is just for MDIO_CTL_REG_84823_MEDIA register. */
 	adj = 0;
@@ -6475,9 +6479,10 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 	return link_up;
 }
 
-static u8 bnx2x_848xx_format_ver(u32 raw_ver, u8 *str, u16 *len)
+
+static int bnx2x_848xx_format_ver(u32 raw_ver, u8 *str, u16 *len)
 {
-	u8 status = 0;
+	int status = 0;
 	u32 spirom_ver;
 	spirom_ver = ((raw_ver & 0xF80) >> 7) << 16 | (raw_ver & 0x7F);
 	status = bnx2x_format_ver(spirom_ver, str, len);
@@ -6718,9 +6723,9 @@ static void bnx2x_7101_config_loopback(struct bnx2x_phy *phy,
 			 MDIO_XS_DEVAD, MDIO_XS_SFX7101_XGXS_TEST1, 0x100);
 }
 
-static u8 bnx2x_7101_config_init(struct bnx2x_phy *phy,
-				 struct link_params *params,
-				 struct link_vars *vars)
+static int bnx2x_7101_config_init(struct bnx2x_phy *phy,
+				  struct link_params *params,
+				  struct link_vars *vars)
 {
 	u16 fw_ver1, fw_ver2, val;
 	struct bnx2x *bp = params->bp;
@@ -6793,8 +6798,7 @@ static u8 bnx2x_7101_read_status(struct bnx2x_phy *phy,
 	return link_up;
 }
 
-
-static u8 bnx2x_7101_format_ver(u32 spirom_ver, u8 *str, u16 *len)
+static int bnx2x_7101_format_ver(u32 spirom_ver, u8 *str, u16 *len)
 {
 	if (*len < 5)
 		return -EINVAL;
@@ -7331,8 +7335,8 @@ static u32 bnx2x_get_ext_phy_config(struct bnx2x *bp, u32 shmem_base,
 
 	return ext_phy_config;
 }
-static u8 bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
-				 struct bnx2x_phy *phy)
+static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
+				  struct bnx2x_phy *phy)
 {
 	u32 phy_addr;
 	u32 chip_id;
@@ -7374,12 +7378,12 @@ static u8 bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 	return 0;
 }
 
-static u8 bnx2x_populate_ext_phy(struct bnx2x *bp,
-				 u8 phy_index,
-				 u32 shmem_base,
-				 u32 shmem2_base,
-				 u8 port,
-				 struct bnx2x_phy *phy)
+static int bnx2x_populate_ext_phy(struct bnx2x *bp,
+				  u8 phy_index,
+				  u32 shmem_base,
+				  u32 shmem2_base,
+				  u8 port,
+				  struct bnx2x_phy *phy)
 {
 	u32 ext_phy_config, phy_type, config2;
 	u32 mdc_mdio_access = SHARED_HW_CFG_MDC_MDIO_ACCESS1_BOTH;
@@ -7483,10 +7487,10 @@ static u8 bnx2x_populate_ext_phy(struct bnx2x *bp,
 	return 0;
 }
 
-static u8 bnx2x_populate_phy(struct bnx2x *bp, u8 phy_index, u32 shmem_base,
-			     u32 shmem2_base, u8 port, struct bnx2x_phy *phy)
+static int bnx2x_populate_phy(struct bnx2x *bp, u8 phy_index, u32 shmem_base,
+			      u32 shmem2_base, u8 port, struct bnx2x_phy *phy)
 {
-	u8 status = 0;
+	int status = 0;
 	phy->type = PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN;
 	if (phy_index == INT_PHY)
 		return bnx2x_populate_int_phy(bp, shmem_base, port, phy);
@@ -7600,7 +7604,7 @@ u32 bnx2x_phy_selection(struct link_params *params)
 }
 
 
-u8 bnx2x_phy_probe(struct link_params *params)
+int bnx2x_phy_probe(struct link_params *params)
 {
 	u8 phy_index, actual_phy_idx, link_cfg_idx;
 	u32 phy_config_swapped, sync_offset, media_types;
@@ -7704,7 +7708,7 @@ static void set_phy_vars(struct link_params *params)
 	}
 }
 
-u8 bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
+int bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	DP(NETIF_MSG_LINK, "Phy Initialization started\n");
@@ -7827,8 +7831,9 @@ u8 bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 	}
 	return 0;
 }
-u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
-		    u8 reset_ext_phy)
+
+int bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
+		     u8 reset_ext_phy)
 {
 	struct bnx2x *bp = params->bp;
 	u8 phy_index, port = params->port, clear_latch_ind = 0;
@@ -7900,10 +7905,10 @@ u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 /****************************************************************************/
 /*				Common function				    */
 /****************************************************************************/
-static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp,
-				     u32 shmem_base_path[],
-				     u32 shmem2_base_path[], u8 phy_index,
-				     u32 chip_id)
+static int bnx2x_8073_common_init_phy(struct bnx2x *bp,
+				      u32 shmem_base_path[],
+				      u32 shmem2_base_path[], u8 phy_index,
+				      u32 chip_id)
 {
 	struct bnx2x_phy phy[PORT_MAX];
 	struct bnx2x_phy *phy_blk[PORT_MAX];
@@ -8026,10 +8031,10 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp,
 	}
 	return 0;
 }
-static u8 bnx2x_8726_common_init_phy(struct bnx2x *bp,
-				     u32 shmem_base_path[],
-				     u32 shmem2_base_path[], u8 phy_index,
-				     u32 chip_id)
+static int bnx2x_8726_common_init_phy(struct bnx2x *bp,
+				      u32 shmem_base_path[],
+				      u32 shmem2_base_path[], u8 phy_index,
+				      u32 chip_id)
 {
 	u32 val;
 	s8 port;
@@ -8120,10 +8125,11 @@ static void bnx2x_get_ext_phy_reset_gpio(struct bnx2x *bp, u32 shmem_base,
 		break;
 	}
 }
-static u8 bnx2x_8727_common_init_phy(struct bnx2x *bp,
-				     u32 shmem_base_path[],
-				     u32 shmem2_base_path[], u8 phy_index,
-				     u32 chip_id)
+
+static int bnx2x_8727_common_init_phy(struct bnx2x *bp,
+				      u32 shmem_base_path[],
+				      u32 shmem2_base_path[], u8 phy_index,
+				      u32 chip_id)
 {
 	s8 port, reset_gpio;
 	u32 swap_val, swap_override;
@@ -8216,11 +8222,11 @@ static u8 bnx2x_8727_common_init_phy(struct bnx2x *bp,
 	return 0;
 }
 
-static u8 bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base_path[],
-				    u32 shmem2_base_path[], u8 phy_index,
-				    u32 ext_phy_type, u32 chip_id)
+static int bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base_path[],
+				     u32 shmem2_base_path[], u8 phy_index,
+				     u32 ext_phy_type, u32 chip_id)
 {
-	u8 rc = 0;
+	int rc = 0;
 
 	switch (ext_phy_type) {
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
@@ -8262,10 +8268,10 @@ static u8 bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base_path[],
 	return rc;
 }
 
-u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base_path[],
-			 u32 shmem2_base_path[], u32 chip_id)
+int bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base_path[],
+			  u32 shmem2_base_path[], u32 chip_id)
 {
-	u8 rc = 0;
+	int rc = 0;
 	u32 phy_ver;
 	u8 phy_index;
 	u32 ext_phy_type, ext_phy_config;

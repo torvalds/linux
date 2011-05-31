@@ -281,40 +281,41 @@ struct link_vars {
 /***********************************************************/
 /*                         Functions                       */
 /***********************************************************/
-u8 bnx2x_phy_init(struct link_params *input, struct link_vars *output);
+int bnx2x_phy_init(struct link_params *params, struct link_vars *vars);
 
 /* Reset the link. Should be called when driver or interface goes down
    Before calling phy firmware upgrade, the reset_ext_phy should be set
    to 0 */
-u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
-		  u8 reset_ext_phy);
+int bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
+		     u8 reset_ext_phy);
 
 /* bnx2x_link_update should be called upon link interrupt */
-u8 bnx2x_link_update(struct link_params *input, struct link_vars *output);
+int bnx2x_link_update(struct link_params *params, struct link_vars *vars);
 
 /* use the following phy functions to read/write from external_phy
   In order to use it to read/write internal phy registers, use
   DEFAULT_PHY_DEV_ADDR as devad, and (_bank + (_addr & 0xf)) as
   the register */
-u8 bnx2x_phy_read(struct link_params *params, u8 phy_addr,
-		  u8 devad, u16 reg, u16 *ret_val);
+int bnx2x_phy_read(struct link_params *params, u8 phy_addr,
+		   u8 devad, u16 reg, u16 *ret_val);
 
-u8 bnx2x_phy_write(struct link_params *params, u8 phy_addr,
-		   u8 devad, u16 reg, u16 val);
+int bnx2x_phy_write(struct link_params *params, u8 phy_addr,
+		    u8 devad, u16 reg, u16 val);
+
 /* Reads the link_status from the shmem,
    and update the link vars accordingly */
 void bnx2x_link_status_update(struct link_params *input,
 			    struct link_vars *output);
 /* returns string representing the fw_version of the external phy */
-u8 bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
-			      u8 *version, u16 len);
+int bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
+				 u8 *version, u16 len);
 
 /* Set/Unset the led
    Basically, the CLC takes care of the led for the link, but in case one needs
    to set/unset the led unnaturally, set the "mode" to LED_MODE_OPER to
    blink the led, and LED_MODE_OFF to set the led off.*/
-u8 bnx2x_set_led(struct link_params *params, struct link_vars *vars,
-		 u8 mode, u32 speed);
+int bnx2x_set_led(struct link_params *params,
+		  struct link_vars *vars, u8 mode, u32 speed);
 #define LED_MODE_OFF			0
 #define LED_MODE_ON			1
 #define LED_MODE_OPER			2
@@ -326,12 +327,12 @@ void bnx2x_handle_module_detect_int(struct link_params *params);
 
 /* Get the actual link status. In case it returns 0, link is up,
 	otherwise link is down*/
-u8 bnx2x_test_link(struct link_params *input, struct link_vars *vars,
-		   u8 is_serdes);
+int bnx2x_test_link(struct link_params *params, struct link_vars *vars,
+		    u8 is_serdes);
 
 /* One-time initialization for external phy after power up */
-u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base_path[],
-			 u32 shmem2_base_path[], u32 chip_id);
+int bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base_path[],
+			  u32 shmem2_base_path[], u32 chip_id);
 
 /* Reset the external PHY using GPIO */
 void bnx2x_ext_phy_hw_reset(struct bnx2x *bp, u8 port);
@@ -340,9 +341,9 @@ void bnx2x_ext_phy_hw_reset(struct bnx2x *bp, u8 port);
 void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, struct bnx2x_phy *phy);
 
 /* Read "byte_cnt" bytes from address "addr" from the SFP+ EEPROM */
-u8 bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
-				struct link_params *params, u16 addr,
-				u8 byte_cnt, u8 *o_buf);
+int bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
+				 struct link_params *params, u16 addr,
+				 u8 byte_cnt, u8 *o_buf);
 
 void bnx2x_hw_reset_phy(struct link_params *params);
 
@@ -354,7 +355,8 @@ u8 bnx2x_hw_lock_required(struct bnx2x *bp, u32 shmem_base,
 u32 bnx2x_phy_selection(struct link_params *params);
 
 /* Probe the phys on board, and populate them in "params" */
-u8 bnx2x_phy_probe(struct link_params *params);
+int bnx2x_phy_probe(struct link_params *params);
+
 /* Checks if fan failure detection is required on one of the phys on board */
 u8 bnx2x_fan_failure_det_req(struct bnx2x *bp, u32 shmem_base,
 			     u32 shmem2_base, u8 port);
@@ -392,7 +394,7 @@ void bnx2x_ets_bw_limit(const struct link_params *params, const u32 cos0_bw,
 			const u32 cos1_bw);
 
 /* Used to configure the ETS to strict */
-u8 bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos);
+int bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos);
 
 /* Read pfc statistic*/
 void bnx2x_pfc_statistic(struct link_params *params, struct link_vars *vars,
