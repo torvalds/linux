@@ -169,7 +169,7 @@ _data_server_match_all_addrs_locked(struct list_head *dsaddrs1,
 static int
 nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
 {
-	struct nfs_client *clp;
+	struct nfs_client *clp = ERR_PTR(-EIO);
 	struct nfs4_pnfs_ds_addr *da;
 	int status = 0;
 
@@ -178,13 +178,17 @@ nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
 
 	BUG_ON(list_empty(&ds->ds_addrs));
 
-	da = list_first_entry(&ds->ds_addrs, struct nfs4_pnfs_ds_addr, da_node);
-	dprintk("%s: using the first address for DS %s: %s\n",
-		__func__, ds->ds_remotestr, da->da_remotestr);
+	list_for_each_entry(da, &ds->ds_addrs, da_node) {
+		dprintk("%s: DS %s: trying address %s\n",
+			__func__, ds->ds_remotestr, da->da_remotestr);
 
-	clp = nfs4_set_ds_client(mds_srv->nfs_client,
+		clp = nfs4_set_ds_client(mds_srv->nfs_client,
 				 (struct sockaddr *)&da->da_addr,
 				 da->da_addrlen, IPPROTO_TCP);
+		if (!IS_ERR(clp))
+			break;
+	}
+
 	if (IS_ERR(clp)) {
 		status = PTR_ERR(clp);
 		goto out;
