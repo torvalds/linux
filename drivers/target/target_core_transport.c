@@ -2586,8 +2586,6 @@ void transport_new_cmd_failure(struct se_cmd *se_cmd)
 	se_cmd->se_cmd_flags |= SCF_SE_CMD_FAILED;
 	se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 	spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
-
-	se_cmd->se_tfo->new_cmd_failure(se_cmd);
 }
 
 static void transport_nop_wait_for_tasks(struct se_cmd *, int, int);

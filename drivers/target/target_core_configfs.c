@@ -479,10 +479,6 @@ static int target_fabric_tf_ops_check(
 		printk(KERN_ERR "Missing tfo->get_cmd_state()\n");
 		return -EINVAL;
 	}
-	if (!(tfo->new_cmd_failure)) {
-		printk(KERN_ERR "Missing tfo->new_cmd_failure()\n");
-		return -EINVAL;
-	}
 	if (!(tfo->queue_data_in)) {
 		printk(KERN_ERR "Missing tfo->queue_data_in()\n");
 		return -EINVAL;

@@ -550,7 +550,6 @@ static struct target_core_fabric_ops ft_fabric_ops = {
 	.set_default_node_attributes =	ft_set_default_node_attr,
 	.get_task_tag =			ft_get_task_tag,
 	.get_cmd_state =		ft_get_cmd_state,
-	.new_cmd_failure =		ft_new_cmd_failure,
 	.queue_data_in =		ft_queue_data_in,
 	.queue_status =			ft_queue_status,
 	.queue_tm_rsp =			ft_queue_tm_resp,

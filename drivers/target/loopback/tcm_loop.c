@@ -772,16 +772,6 @@ static u32 tcm_loop_get_inst_index(struct se_portal_group *se_tpg)
 	return 1;
 }
 
-static void tcm_loop_new_cmd_failure(struct se_cmd *se_cmd)
-{
-	/*
-	 * Since TCM_loop is already passing struct scatterlist data from
-	 * struct scsi_cmnd, no more Linux/SCSI failure dependent state need
-	 * to be handled here.
-	 */
-	return;
-}
-
 static int tcm_loop_is_state_remove(struct se_cmd *se_cmd)
 {
 	/*
@@ -1446,7 +1436,6 @@ static int tcm_loop_register_configfs(void)
 					&tcm_loop_set_default_node_attributes;
 	fabric->tf_ops.get_task_tag = &tcm_loop_get_task_tag;
 	fabric->tf_ops.get_cmd_state = &tcm_loop_get_cmd_state;
-	fabric->tf_ops.new_cmd_failure = &tcm_loop_new_cmd_failure;
 	fabric->tf_ops.queue_data_in = &tcm_loop_queue_data_in;
 	fabric->tf_ops.queue_status = &tcm_loop_queue_status;
 	fabric->tf_ops.queue_tm_rsp = &tcm_loop_queue_tm_rsp;

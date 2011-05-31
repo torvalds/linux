@@ -292,12 +292,6 @@ int ft_is_state_remove(struct se_cmd *se_cmd)
 	return 0;	/* XXX TBD */
 }
 
-void ft_new_cmd_failure(struct se_cmd *se_cmd)
-{
-	/* XXX TBD */
-	printk(KERN_INFO "%s: se_cmd %p\n", __func__, se_cmd);
-}
-
 /*
  * FC sequence response handler for follow-on sequences (data) and aborts.
  */

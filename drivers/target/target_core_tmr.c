@@ -356,11 +356,6 @@ int core_tmr_lun_reset(
 			atomic_read(&cmd->t_fe_count));
 		/*
 		 * Signal that the command has failed via cmd->se_cmd_flags,
-		 * and call TFO->new_cmd_failure() to wakeup any fabric
-		 * dependent code used to wait for unsolicited data out
-		 * allocation to complete.  The fabric module is expected
-		 * to dump any remaining unsolicited data out for the aborted
-		 * command at this point.
 		 */
 		transport_new_cmd_failure(cmd);
 
