@@ -16,6 +16,7 @@ struct nfs4_sequence_args;
 struct nfs4_sequence_res;
 struct nfs_server;
 struct nfs4_minor_version_ops;
+struct server_scope;
 
 /*
  * The nfs_client identifies our client state to the server.
@@ -83,6 +84,8 @@ struct nfs_client {
 #ifdef CONFIG_NFS_FSCACHE
 	struct fscache_cookie	*fscache;	/* client index cache cookie */
 #endif
+
+	struct server_scope	*server_scope;	/* from exchange_id */
 };
 
 /*
