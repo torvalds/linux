@@ -344,8 +344,7 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
 		return PNFS_NOT_ATTEMPTED;
 	}
-	dprintk("%s USE DS:ip %x %hu\n", __func__,
-		ntohl(ds->ds_ip_addr), ntohs(ds->ds_port));
+	dprintk("%s USE DS: %s\n", __func__, ds->ds_remotestr);
 
 	/* No multipath support. Use first DS */
 	data->ds_clp = ds->ds_clp;
@@ -384,9 +383,9 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 		set_bit(lo_fail_bit(IOMODE_READ), &lseg->pls_layout->plh_flags);
 		return PNFS_NOT_ATTEMPTED;
 	}
-	dprintk("%s ino %lu sync %d req %Zu@%llu DS:%x:%hu\n", __func__,
+	dprintk("%s ino %lu sync %d req %Zu@%llu DS: %s\n", __func__,
 		data->inode->i_ino, sync, (size_t) data->args.count, offset,
-		ntohl(ds->ds_ip_addr), ntohs(ds->ds_port));
+		ds->ds_remotestr);
 
 	data->write_done_cb = filelayout_write_done_cb;
 	data->ds_clp = ds->ds_clp;

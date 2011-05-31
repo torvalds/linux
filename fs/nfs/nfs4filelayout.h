@@ -49,8 +49,9 @@ enum stripetype4 {
 /* Individual ip address */
 struct nfs4_pnfs_ds {
 	struct list_head	ds_node;  /* nfs4_pnfs_dev_hlist dev_dslist */
-	u32			ds_ip_addr;
-	u32			ds_port;
+	struct sockaddr_storage	ds_addr;
+	size_t			ds_addrlen;
+	char			*ds_remotestr;	/* human readable addr+port */
 	struct nfs_client	*ds_clp;
 	atomic_t		ds_count;
 };
