@@ -449,8 +449,8 @@ nouveau_card_init_channel(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ret = nouveau_channel_alloc(dev, &dev_priv->channel,
-				    (struct drm_file *)-2, NvDmaFB, NvDmaTT);
+	ret = nouveau_channel_alloc(dev, &dev_priv->channel, NULL,
+				    NvDmaFB, NvDmaTT);
 	if (ret)
 		return ret;
 
