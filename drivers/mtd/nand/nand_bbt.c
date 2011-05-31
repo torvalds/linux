@@ -114,28 +114,6 @@ static int check_pattern(uint8_t *buf, int len, int paglen, struct nand_bbt_desc
 			return -1;
 	}
 
-	/* Check both positions 1 and 6 for pattern? */
-	if (td->options & NAND_BBT_SCANBYTE1AND6) {
-		if (td->options & NAND_BBT_SCANEMPTY) {
-			p += td->len;
-			end += NAND_SMALL_BADBLOCK_POS - td->offs;
-			/* Check region between positions 1 and 6 */
-			for (i = 0; i < NAND_SMALL_BADBLOCK_POS - td->offs - td->len;
-					i++) {
-				if (*p++ != 0xff)
-					return -1;
-			}
-		}
-		else {
-			p += NAND_SMALL_BADBLOCK_POS - td->offs;
-		}
-		/* Compare the pattern */
-		for (i = 0; i < td->len; i++) {
-			if (p[i] != td->pattern[i])
-				return -1;
-		}
-	}
-
 	if (td->options & NAND_BBT_SCANEMPTY) {
 		p += td->len;
 		end += td->len;
@@ -166,13 +144,6 @@ static int check_short_pattern(uint8_t *buf, struct nand_bbt_descr *td)
 	for (i = 0; i < td->len; i++) {
 		if (p[td->offs + i] != td->pattern[i])
 			return -1;
-	}
-	/* Need to check location 1 AND 6? */
-	if (td->options & NAND_BBT_SCANBYTE1AND6) {
-		for (i = 0; i < td->len; i++) {
-			if (p[NAND_SMALL_BADBLOCK_POS + i] != td->pattern[i])
-				return -1;
-		}
 	}
 	return 0;
 }
@@ -1330,8 +1301,7 @@ static struct nand_bbt_descr bbt_mirror_no_bbt_descr = {
 	.pattern = mirror_pattern
 };
 
-#define BBT_SCAN_OPTIONS (NAND_BBT_SCANLASTPAGE | NAND_BBT_SCAN2NDPAGE | \
-		NAND_BBT_SCANBYTE1AND6)
+#define BBT_SCAN_OPTIONS (NAND_BBT_SCANLASTPAGE | NAND_BBT_SCAN2NDPAGE)
 /**
  * nand_create_default_bbt_descr - [Internal] Creates a BBT descriptor structure
  * @this:	NAND chip to create descriptor for

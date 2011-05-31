@@ -410,10 +410,11 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	else {
 		nand_get_device(chip, mtd, FL_WRITING);
 
-		/* Write to first two pages and to byte 1 and 6 if necessary.
-		 * If we write to more than one location, the first error
-		 * encountered quits the procedure. We write two bytes per
-		 * location, so we dont have to mess with 16 bit access.
+		/*
+		 * Write to first two pages if necessary. If we write to more
+		 * than one location, the first error encountered quits the
+		 * procedure. We write two bytes per location, so we dont have
+		 * to mess with 16 bit access.
 		 */
 		do {
 			chip->ops.len = chip->ops.ooblen = 2;
@@ -423,11 +424,6 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
 			ret = nand_do_write_oob(mtd, ofs, &chip->ops);
 
-			if (!ret && (chip->options & NAND_BBT_SCANBYTE1AND6)) {
-				chip->ops.ooboffs = NAND_SMALL_BADBLOCK_POS
-					& ~0x01;
-				ret = nand_do_write_oob(mtd, ofs, &chip->ops);
-			}
 			i++;
 			ofs += mtd->writesize;
 		} while (!ret && (chip->options & NAND_BBT_SCAN2NDPAGE) &&
@@ -3130,16 +3126,6 @@ ident_done:
 			(mtd->writesize == 2048 &&
 			 *maf_id == NAND_MFR_MICRON))
 		chip->options |= NAND_BBT_SCAN2NDPAGE;
-
-	/*
-	 * Numonyx/ST 2K pages, x8 bus use BOTH byte 1 and 6
-	 */
-	if (!(busw & NAND_BUSWIDTH_16) &&
-			*maf_id == NAND_MFR_STMICRO &&
-			mtd->writesize == 2048) {
-		chip->options |= NAND_BBT_SCANBYTE1AND6;
-		chip->badblockpos = 0;
-	}
 
 	/* Check for AND chips with 4 page planes */
 	if (chip->options & NAND_4PAGE_ARRAY)
