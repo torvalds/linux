@@ -9,6 +9,9 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
+#ifdef CONFIG_GENERIC_HARDIRQS
+#include <linux/irq.h>
+#endif
 
 #include <asm/irq.h>
 #include <asm/traps.h>
