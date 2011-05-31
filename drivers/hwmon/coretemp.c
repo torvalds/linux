@@ -296,7 +296,7 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 		 * If the TjMax is not plausible, an assumption
 		 * will be used
 		 */
-		if (val > 80 && val < 120) {
+		if (val >= 70 && val <= 125) {
 			dev_info(dev, "TjMax is %d C.\n", val);
 			return val * 1000;
 		}
