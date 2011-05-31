@@ -2708,6 +2708,7 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	board = &pci_boards[ent->driver_data];
 
 	rc = pci_enable_device(dev);
+	pci_save_state(dev);
 	if (rc)
 		return rc;
 
@@ -4002,6 +4003,51 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{ 0, }
 };
 
+static pci_ers_result_t serial8250_io_error_detected(struct pci_dev *dev,
+						pci_channel_state_t state)
+{
+	struct serial_private *priv = pci_get_drvdata(dev);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	if (priv)
+		pciserial_suspend_ports(priv);
+
+	pci_disable_device(dev);
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t serial8250_io_slot_reset(struct pci_dev *dev)
+{
+	int rc;
+
+	rc = pci_enable_device(dev);
+
+	if (rc)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	pci_restore_state(dev);
+	pci_save_state(dev);
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static void serial8250_io_resume(struct pci_dev *dev)
+{
+	struct serial_private *priv = pci_get_drvdata(dev);
+
+	if (priv)
+		pciserial_resume_ports(priv);
+}
+
+static struct pci_error_handlers serial8250_err_handler = {
+	.error_detected = serial8250_io_error_detected,
+	.slot_reset = serial8250_io_slot_reset,
+	.resume = serial8250_io_resume,
+};
+
 static struct pci_driver serial_pci_driver = {
 	.name		= "serial",
 	.probe		= pciserial_init_one,
@@ -4011,6 +4057,7 @@ static struct pci_driver serial_pci_driver = {
 	.resume		= pciserial_resume_one,
 #endif
 	.id_table	= serial_pci_tbl,
+	.err_handler	= &serial8250_err_handler,
 };
 
 static int __init serial8250_pci_init(void)
