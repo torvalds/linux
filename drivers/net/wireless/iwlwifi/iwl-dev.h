@@ -1195,10 +1195,16 @@ struct iwl_bus;
  * struct iwl_bus_ops - bus specific operations
  * @set_drv_data: set the priv pointer to the bus layer
  * @get_dev: returns the device struct
+ * @write8: write a byte to register at offset ofs
+ * @write32: write a dword to register at offset ofs
+ * @wread32: read a dword at register at offset ofs
  */
 struct iwl_bus_ops {
 	void (*set_drv_data)(struct iwl_bus *bus, void *priv);
 	struct device *(*get_dev)(const struct iwl_bus *bus);
+	void (*write8)(struct iwl_bus *bus, u32 ofs, u8 val);
+	void (*write32)(struct iwl_bus *bus, u32 ofs, u32 val);
+	u32 (*read32)(struct iwl_bus *bus, u32 ofs);
 };
 
 struct iwl_bus {
@@ -1281,9 +1287,6 @@ struct iwl_priv {
 	/* TODO: remove this after PCI abstraction is done */
 	/* basic pci-network driver stuff */
 	struct pci_dev *pci_dev;
-
-	/* pci hardware address support */
-	void __iomem *hw_base;
 
 	struct iwl_bus bus;	/* bus specific data */
 

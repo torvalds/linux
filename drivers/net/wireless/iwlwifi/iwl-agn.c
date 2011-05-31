@@ -3486,7 +3486,7 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	int err = 0;
 	struct iwl_priv *priv;
 	struct ieee80211_hw *hw;
-	u16 pci_cmd, num_mac;
+	u16 num_mac;
 	u32 hw_rev;
 
 	/************************
@@ -3532,49 +3532,6 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	if (iwl_alloc_traffic_mem(priv))
 		IWL_ERR(priv, "Not enough memory to generate traffic log\n");
 
-	/**************************
-	 * 2. Initializing PCI bus
-	 **************************/
-	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1 |
-				PCIE_LINK_STATE_CLKPM);
-
-	if (pci_enable_device(pdev)) {
-		err = -ENODEV;
-		goto out_ieee80211_free_hw;
-	}
-
-	pci_set_master(pdev);
-
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(36));
-	if (!err)
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(36));
-	if (err) {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (!err)
-			err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-		/* both attempts failed: */
-		if (err) {
-			IWL_WARN(priv, "No suitable DMA available.\n");
-			goto out_pci_disable_device;
-		}
-	}
-
-	err = pci_request_regions(pdev, DRV_NAME);
-	if (err)
-		goto out_pci_disable_device;
-
-	/***********************
-	 * 3. Read REV register
-	 ***********************/
-	priv->hw_base = pci_iomap(pdev, 0, 0);
-	if (!priv->hw_base) {
-		err = -ENODEV;
-		goto out_pci_release_regions;
-	}
-
-	IWL_DEBUG_INFO(priv, "pci_resource_len = 0x%08llx\n",
-		(unsigned long long) pci_resource_len(pdev, 0));
-	IWL_DEBUG_INFO(priv, "pci_resource_base = %p\n", priv->hw_base);
 
 	/* these spin locks will be used in apm_ops.init and EEPROM access
 	 * we should init now
@@ -3589,17 +3546,16 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	 */
 	iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
+	/***********************
+	 * 3. Read REV register
+	 ***********************/
 	hw_rev = iwl_hw_detect(priv);
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
 		priv->cfg->name, hw_rev);
 
-	/* We disable the RETRY_TIMEOUT register (0x41) to keep
-	 * PCI Tx retries from interfering with C3 CPU state */
-	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
-
 	if (iwl_prepare_card_hw(priv)) {
 		IWL_WARN(priv, "Failed, HW not ready\n");
-		goto out_iounmap;
+		goto out_free_traffic_mem;
 	}
 
 	/*****************
@@ -3609,7 +3565,7 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	err = iwl_eeprom_init(priv, hw_rev);
 	if (err) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
-		goto out_iounmap;
+		goto out_free_traffic_mem;
 	}
 	err = iwl_eeprom_check_version(priv);
 	if (err)
@@ -3639,6 +3595,7 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	 * 5. Setup HW constants
 	 ************************/
 	if (iwl_set_hw_params(priv)) {
+		err = -ENOENT;
 		IWL_ERR(priv, "failed to set hw parameters\n");
 		goto out_free_eeprom;
 	}
@@ -3655,15 +3612,13 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	/********************
 	 * 7. Setup services
 	 ********************/
-	pci_enable_msi(priv->pci_dev);
-
 	iwl_alloc_isr_ict(priv);
 
 	err = request_irq(priv->pci_dev->irq, iwl_isr_ict,
 			  IRQF_SHARED, DRV_NAME, priv);
 	if (err) {
 		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->pci_dev->irq);
-		goto out_disable_msi;
+		goto out_uninit_drv;
 	}
 
 	iwl_setup_deferred_work(priv);
@@ -3671,15 +3626,8 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	iwl_testmode_init(priv);
 
 	/*********************************************
-	 * 8. Enable interrupts and read RFKILL state
+	 * 8. Enable interrupts
 	 *********************************************/
-
-	/* enable rfkill interrupt: hw bug w/a */
-	pci_read_config_word(priv->pci_dev, PCI_COMMAND, &pci_cmd);
-	if (pci_cmd & PCI_COMMAND_INTX_DISABLE) {
-		pci_cmd &= ~PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(priv->pci_dev, PCI_COMMAND, pci_cmd);
-	}
 
 	iwl_enable_rfkill_int(priv);
 
@@ -3707,20 +3655,12 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
 	free_irq(priv->pci_dev->irq, priv);
- out_disable_msi:
 	iwl_free_isr_ict(priv);
-	pci_disable_msi(priv->pci_dev);
+ out_uninit_drv:
 	iwl_uninit_drv(priv);
  out_free_eeprom:
 	iwl_eeprom_free(priv);
- out_iounmap:
-	pci_iounmap(pdev, priv->hw_base);
- out_pci_release_regions:
-	priv->bus.ops->set_drv_data(&priv->bus, NULL);
-	pci_release_regions(pdev);
- out_pci_disable_device:
-	pci_disable_device(pdev);
- out_ieee80211_free_hw:
+ out_free_traffic_mem:
 	iwl_free_traffic_mem(priv);
 	ieee80211_free_hw(priv->hw);
  out:
@@ -3729,7 +3669,6 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 
 void __devexit iwl_remove(struct iwl_priv * priv)
 {
-	struct pci_dev *pdev = priv->pci_dev;
 	unsigned long flags;
 
 	wait_for_completion(&priv->_agn.firmware_loading_complete);
@@ -3788,10 +3727,6 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	iwl_free_traffic_mem(priv);
 
 	free_irq(priv->pci_dev->irq, priv);
-	pci_disable_msi(priv->pci_dev);
-	pci_iounmap(pdev, priv->hw_base);
-	pci_release_regions(pdev);
-	pci_disable_device(pdev);
 	priv->bus.ops->set_drv_data(&priv->bus, NULL);
 
 	iwl_uninit_drv(priv);
