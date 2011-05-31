@@ -71,7 +71,7 @@ struct fuse_mount_data {
 	unsigned blksize;
 };
 
-struct fuse_forget_link *fuse_alloc_forget()
+struct fuse_forget_link *fuse_alloc_forget(void)
 {
 	return kzalloc(sizeof(struct fuse_forget_link), GFP_KERNEL);
 }
