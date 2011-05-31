@@ -180,6 +180,7 @@ void tipc_named_node_up(unsigned long nodearg)
 	struct publication *publ;
 	struct distr_item *item = NULL;
 	struct sk_buff *buf = NULL;
+	struct list_head message_list;
 	u32 node = (u32)nodearg;
 	u32 left = 0;
 	u32 rest;
@@ -201,6 +202,10 @@ void tipc_named_node_up(unsigned long nodearg)
 	if (!max_item_buf)
 		return;
 
+	/* create list of publication messages, then send them as a unit */
+
+	INIT_LIST_HEAD(&message_list);
+
 	read_lock_bh(&tipc_nametbl_lock);
 	rest = publ_cnt * ITEM_SIZE;
 
@@ -219,13 +224,14 @@ void tipc_named_node_up(unsigned long nodearg)
 		item++;
 		left -= ITEM_SIZE;
 		if (!left) {
-			msg_set_link_selector(buf_msg(buf), node);
-			tipc_link_send(buf, node, node);
+			list_add_tail((struct list_head *)buf, &message_list);
 			buf = NULL;
 		}
 	}
 exit:
 	read_unlock_bh(&tipc_nametbl_lock);
+
+	tipc_link_send_names(&message_list, (u32)node);
 }
 
 /**
