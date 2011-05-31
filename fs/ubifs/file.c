@@ -1263,7 +1263,7 @@ int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (err)
 		return err;
 
-	err = dbg_check_synced_i_size(inode);
+	err = dbg_check_synced_i_size(c, inode);
 	if (err)
 		return err;
 

@@ -1132,6 +1132,7 @@ out:
 
 /**
  * dbg_check_synced_i_size - check synchronized inode size.
+ * @c: UBIFS file-system description object
  * @inode: inode to check
  *
  * If inode is clean, synchronized inode size has to be equivalent to current
@@ -1139,7 +1140,7 @@ out:
  * has to be locked). Returns %0 if synchronized inode size if correct, and
  * %-EINVAL if not.
  */
-int dbg_check_synced_i_size(struct inode *inode)
+int dbg_check_synced_i_size(const struct ubifs_info *c, struct inode *inode)
 {
 	int err = 0;
 	struct ubifs_inode *ui = ubifs_inode(inode);

@@ -247,7 +247,7 @@ int dbg_check_cats(struct ubifs_info *c);
 int dbg_check_ltab(struct ubifs_info *c);
 int dbg_chk_lpt_free_spc(struct ubifs_info *c);
 int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len);
-int dbg_check_synced_i_size(struct inode *inode);
+int dbg_check_synced_i_size(const struct ubifs_info *c, struct inode *inode);
 int dbg_check_dir(struct ubifs_info *c, const struct inode *dir);
 int dbg_check_tnc(struct ubifs_info *c, int extra);
 int dbg_check_idx_size(struct ubifs_info *c, long long idx_size);
@@ -416,7 +416,9 @@ static inline int dbg_check_ltab(struct ubifs_info *c)            { return 0; }
 static inline int dbg_chk_lpt_free_spc(struct ubifs_info *c)      { return 0; }
 static inline int dbg_chk_lpt_sz(struct ubifs_info *c,
 				 int action, int len)             { return 0; }
-static inline int dbg_check_synced_i_size(struct inode *inode)    { return 0; }
+static inline int
+dbg_check_synced_i_size(const struct ubifs_info *c,
+			struct inode *inode)                      { return 0; }
 static inline int dbg_check_dir(struct ubifs_info *c,
 				const struct inode *dir)          { return 0; }
 static inline int dbg_check_tnc(struct ubifs_info *c, int extra)  { return 0; }
