@@ -504,14 +504,18 @@ static int taal_exit_ulps(struct omap_dss_device *dssdev)
 		return 0;
 
 	r = omapdss_dsi_display_enable(dssdev);
-	if (r)
-		goto err;
+	if (r) {
+		dev_err(&dssdev->dev, "failed to enable DSI\n");
+		goto err1;
+	}
 
 	omapdss_dsi_vc_enable_hs(dssdev, td->channel, true);
 
 	r = _taal_enable_te(dssdev, true);
-	if (r)
-		goto err;
+	if (r) {
+		dev_err(&dssdev->dev, "failed to re-enable TE");
+		goto err2;
+	}
 
 	enable_irq(gpio_to_irq(panel_data->ext_te_gpio));
 
@@ -521,13 +525,15 @@ static int taal_exit_ulps(struct omap_dss_device *dssdev)
 
 	return 0;
 
-err:
-	dev_err(&dssdev->dev, "exit ULPS failed");
+err2:
+	dev_err(&dssdev->dev, "failed to exit ULPS");
+
 	r = taal_panel_reset(dssdev);
-
-	enable_irq(gpio_to_irq(panel_data->ext_te_gpio));
-	td->ulps_enabled = false;
-
+	if (!r) {
+		enable_irq(gpio_to_irq(panel_data->ext_te_gpio));
+		td->ulps_enabled = false;
+	}
+err1:
 	taal_queue_ulps_work(dssdev);
 
 	return r;
@@ -1317,8 +1323,11 @@ static void taal_disable(struct omap_dss_device *dssdev)
 	dsi_bus_lock(dssdev);
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
-		taal_wake_up(dssdev);
-		taal_power_off(dssdev);
+		int r;
+
+		r = taal_wake_up(dssdev);
+		if (!r)
+			taal_power_off(dssdev);
 	}
 
 	dsi_bus_unlock(dssdev);
