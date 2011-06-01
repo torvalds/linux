@@ -115,6 +115,8 @@ extern void m68k_setup_auto_interrupt(void (*handler)(unsigned int, struct pt_re
 extern void m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
 				      void (*handler)(unsigned int, struct pt_regs *));
 extern void m68k_setup_irq_chip(struct irq_chip *, unsigned int, unsigned int);
+#define m68k_setup_irq_controller(chip, dummy, irq, cnt) \
+	m68k_setup_irq_chip((chip), (irq), (cnt))
 
 asmlinkage void m68k_handle_int(unsigned int);
 asmlinkage void __m68k_handle_int(unsigned int, struct pt_regs *);

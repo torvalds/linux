@@ -168,14 +168,16 @@ static struct irq_chip auto_irq_chip = {
 
 void __init cia_init_IRQ(struct ciabase *base)
 {
-	m68k_setup_irq_chip(&cia_irq_chip, base->cia_irq, CIA_IRQS);
+	m68k_setup_irq_controller(&cia_irq_chip, handle_simple_irq,
+				  base->cia_irq, CIA_IRQS);
 
 	/* clear any pending interrupt and turn off all interrupts */
 	cia_set_irq(base, CIA_ICR_ALL);
 	cia_able_irq(base, CIA_ICR_ALL);
 
 	/* override auto int and install CIA handler */
-	m68k_setup_irq_chip(&auto_irq_chip, base->handler_irq, 1);
+	m68k_setup_irq_controller(&auto_irq_chip, handle_simple_irq,
+				  base->handler_irq, 1);
 	m68k_irq_startup_irq(base->handler_irq);
 	if (request_irq(base->handler_irq, cia_handler, IRQF_SHARED,
 			base->name, base))

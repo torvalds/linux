@@ -82,7 +82,8 @@ static int disabled;
 
 void __init q40_init_IRQ(void)
 {
-	m68k_setup_irq_chip(&q40_irq_chip, 1, Q40_IRQ_MAX);
+	m68k_setup_irq_controller(&q40_irq_chip, handle_simple_irq, 1,
+				  Q40_IRQ_MAX);
 
 	/* setup handler for ISA ints */
 	m68k_setup_auto_interrupt(q40_irq_handler);

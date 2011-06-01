@@ -80,7 +80,8 @@ void __init amiga_init_IRQ(void)
 	if (request_irq(IRQ_AUTO_5, ami_int5, 0, "int5", NULL))
 		pr_err("Couldn't register int%d\n", 5);
 
-	m68k_setup_irq_chip(&amiga_irq_chip, IRQ_USER, AMI_STD_IRQS);
+	m68k_setup_irq_controller(&amiga_irq_chip, handle_simple_irq, IRQ_USER,
+				  AMI_STD_IRQS);
 
 	/* turn off PCMCIA interrupts */
 	if (AMIGAHW_PRESENT(PCMCIA))
