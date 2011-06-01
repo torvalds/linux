@@ -1849,8 +1849,8 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 
 	/* Free any rings that were dropped, but not changed. */
 	for (i = 1; i < 31; ++i) {
-		if ((ctrl_ctx->drop_flags & (1 << (i + 1))) &&
-				!(ctrl_ctx->add_flags & (1 << (i + 1))))
+		if ((le32_to_cpu(ctrl_ctx->drop_flags) & (1 << (i + 1))) &&
+		    !(le32_to_cpu(ctrl_ctx->add_flags) & (1 << (i + 1))))
 			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
 	}
 	xhci_zero_in_ctx(xhci, virt_dev);
