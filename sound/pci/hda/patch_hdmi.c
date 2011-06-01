@@ -1164,6 +1164,63 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 }
 
 /*
+ * Shared non-generic implementations
+ */
+
+static int simple_playback_build_pcms(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+	struct hda_pcm *info = spec->pcm_rec;
+	int i;
+
+	codec->num_pcms = spec->num_cvts;
+	codec->pcm_info = info;
+
+	for (i = 0; i < codec->num_pcms; i++, info++) {
+		unsigned int chans;
+		struct hda_pcm_stream *pstr;
+
+		chans = get_wcaps(codec, spec->cvt[i]);
+		chans = get_wcaps_channels(chans);
+
+		info->name = generic_hdmi_pcm_names[i];
+		info->pcm_type = HDA_PCM_TYPE_HDMI;
+		pstr = &info->stream[SNDRV_PCM_STREAM_PLAYBACK];
+		snd_BUG_ON(!spec->pcm_playback);
+		*pstr = *spec->pcm_playback;
+		pstr->nid = spec->cvt[i];
+		if (pstr->channels_max <= 2 && chans && chans <= 16)
+			pstr->channels_max = chans;
+	}
+
+	return 0;
+}
+
+static int simple_playback_build_controls(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+	int err;
+	int i;
+
+	for (i = 0; i < codec->num_pcms; i++) {
+		err = snd_hda_create_spdif_out_ctls(codec,
+						    spec->cvt[i],
+						    spec->cvt[i]);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+static void simple_playback_free(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+
+	kfree(spec);
+}
+
+/*
  * Nvidia specific implementations
  */
 
@@ -1475,17 +1532,17 @@ static const struct hda_pcm_stream nvhdmi_pcm_playback_2ch = {
 };
 
 static const struct hda_codec_ops nvhdmi_patch_ops_8ch_7x = {
-	.build_controls = generic_hdmi_build_controls,
-	.build_pcms = generic_hdmi_build_pcms,
+	.build_controls = simple_playback_build_controls,
+	.build_pcms = simple_playback_build_pcms,
 	.init = nvhdmi_7x_init,
-	.free = generic_hdmi_free,
+	.free = simple_playback_free,
 };
 
 static const struct hda_codec_ops nvhdmi_patch_ops_2ch = {
-	.build_controls = generic_hdmi_build_controls,
-	.build_pcms = generic_hdmi_build_pcms,
+	.build_controls = simple_playback_build_controls,
+	.build_pcms = simple_playback_build_pcms,
 	.init = nvhdmi_7x_init,
-	.free = generic_hdmi_free,
+	.free = simple_playback_free,
 };
 
 static int patch_nvhdmi_2ch(struct hda_codec *codec)
@@ -1596,10 +1653,10 @@ static int atihdmi_init(struct hda_codec *codec)
 }
 
 static const struct hda_codec_ops atihdmi_patch_ops = {
-	.build_controls = generic_hdmi_build_controls,
-	.build_pcms = generic_hdmi_build_pcms,
+	.build_controls = simple_playback_build_controls,
+	.build_pcms = simple_playback_build_pcms,
 	.init = atihdmi_init,
-	.free = generic_hdmi_free,
+	.free = simple_playback_free,
 };
 
 
