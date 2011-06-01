@@ -766,7 +766,7 @@ static void dhdsdio_pktfree2(dhd_bus_t *bus, struct sk_buff *pkt)
 {
 	dhd_os_sdlock_rxq(bus->dhd);
 	if ((bus->bus != SPI_BUS) || bus->usebufpool)
-		bcm_pkt_buf_free_skb(pkt);
+		brcmu_pkt_buf_free_skb(pkt);
 	dhd_os_sdunlock_rxq(bus->dhd);
 }
 
@@ -1166,7 +1166,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 			DHD_INFO(("%s: insufficient headroom %d for %d pad\n",
 				  __func__, skb_headroom(pkt), pad));
 			bus->dhd->tx_realloc++;
-			new = bcm_pkt_buf_get_skb(pkt->len + DHD_SDALIGN);
+			new = brcmu_pkt_buf_get_skb(pkt->len + DHD_SDALIGN);
 			if (!new) {
 				DHD_ERROR(("%s: couldn't allocate new %d-byte "
 					"packet\n",
@@ -1178,7 +1178,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 			PKTALIGN(new, pkt->len, DHD_SDALIGN);
 			memcpy(new->data, pkt->data, pkt->len);
 			if (free_pkt)
-				bcm_pkt_buf_free_skb(pkt);
+				brcmu_pkt_buf_free_skb(pkt);
 			/* free the pkt if canned one is not used */
 			free_pkt = true;
 			pkt = new;
@@ -1295,7 +1295,7 @@ done:
 	dhd_os_sdlock(bus->dhd);
 
 	if (free_pkt)
-		bcm_pkt_buf_free_skb(pkt);
+		brcmu_pkt_buf_free_skb(pkt);
 
 	return ret;
 }
@@ -1344,7 +1344,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 		if (dhd_prec_enq(bus->dhd, &bus->txq, pkt, prec) == false) {
 			skb_pull(pkt, SDPCM_HDRLEN);
 			dhd_txcomplete(bus->dhd, pkt, false);
-			bcm_pkt_buf_free_skb(pkt);
+			brcmu_pkt_buf_free_skb(pkt);
 			DHD_ERROR(("%s: out of bus->txq !!!\n", __func__));
 			ret = -ENOSR;
 		} else {
@@ -1417,7 +1417,7 @@ static uint dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 	/* Send frames until the limit or some other event */
 	for (cnt = 0; (cnt < maxframes) && DATAOK(bus); cnt++) {
 		dhd_os_sdlock_txq(bus->dhd);
-		pkt = bcm_pktq_mdeq(&bus->txq, tx_prec_map, &prec_out);
+		pkt = brcmu_pktq_mdeq(&bus->txq, tx_prec_map, &prec_out);
 		if (pkt == NULL) {
 			dhd_os_sdunlock_txq(bus->dhd);
 			break;
@@ -1703,7 +1703,7 @@ enum {
 	IOV_VARS
 };
 
-const bcm_iovar_t dhdsdio_iovars[] = {
+const struct brcmu_iovar dhdsdio_iovars[] = {
 	{"intr", IOV_INTR, 0, IOVT_BOOL, 0},
 	{"sleep", IOV_SLEEP, 0, IOVT_BOOL, 0},
 	{"pollrate", IOV_POLLRATE, 0, IOVT_UINT32, 0},
@@ -1753,50 +1753,51 @@ const bcm_iovar_t dhdsdio_iovars[] = {
 };
 
 static void
-dhd_dump_pct(struct bcmstrbuf *strbuf, char *desc, uint num, uint div)
+dhd_dump_pct(struct brcmu_strbuf *strbuf, char *desc, uint num, uint div)
 {
 	uint q1, q2;
 
 	if (!div) {
-		bcm_bprintf(strbuf, "%s N/A", desc);
+		brcmu_bprintf(strbuf, "%s N/A", desc);
 	} else {
 		q1 = num / div;
 		q2 = (100 * (num - (q1 * div))) / div;
-		bcm_bprintf(strbuf, "%s %d.%02d", desc, q1, q2);
+		brcmu_bprintf(strbuf, "%s %d.%02d", desc, q1, q2);
 	}
 }
 
-void dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
+void dhd_bus_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf)
 {
 	dhd_bus_t *bus = dhdp->bus;
 
-	bcm_bprintf(strbuf, "Bus SDIO structure:\n");
-	bcm_bprintf(strbuf,
+	brcmu_bprintf(strbuf, "Bus SDIO structure:\n");
+	brcmu_bprintf(strbuf,
 		    "hostintmask 0x%08x intstatus 0x%08x sdpcm_ver %d\n",
 		    bus->hostintmask, bus->intstatus, bus->sdpcm_ver);
-	bcm_bprintf(strbuf,
+	brcmu_bprintf(strbuf,
 		    "fcstate %d qlen %d tx_seq %d, max %d, rxskip %d rxlen %d rx_seq %d\n",
 		    bus->fcstate, pktq_len(&bus->txq), bus->tx_seq, bus->tx_max,
 		    bus->rxskip, bus->rxlen, bus->rx_seq);
-	bcm_bprintf(strbuf, "intr %d intrcount %d lastintrs %d spurious %d\n",
+	brcmu_bprintf(strbuf, "intr %d intrcount %d lastintrs %d spurious %d\n",
 		    bus->intr, bus->intrcount, bus->lastintrs, bus->spurious);
-	bcm_bprintf(strbuf, "pollrate %d pollcnt %d regfails %d\n",
+	brcmu_bprintf(strbuf, "pollrate %d pollcnt %d regfails %d\n",
 		    bus->pollrate, bus->pollcnt, bus->regfails);
 
-	bcm_bprintf(strbuf, "\nAdditional counters:\n");
-	bcm_bprintf(strbuf,
+	brcmu_bprintf(strbuf, "\nAdditional counters:\n");
+	brcmu_bprintf(strbuf,
 		    "tx_sderrs %d fcqueued %d rxrtx %d rx_toolong %d rxc_errors %d\n",
 		    bus->tx_sderrs, bus->fcqueued, bus->rxrtx, bus->rx_toolong,
 		    bus->rxc_errors);
-	bcm_bprintf(strbuf, "rx_hdrfail %d badhdr %d badseq %d\n",
+	brcmu_bprintf(strbuf, "rx_hdrfail %d badhdr %d badseq %d\n",
 		    bus->rx_hdrfail, bus->rx_badhdr, bus->rx_badseq);
-	bcm_bprintf(strbuf, "fc_rcvd %d, fc_xoff %d, fc_xon %d\n", bus->fc_rcvd,
-		    bus->fc_xoff, bus->fc_xon);
-	bcm_bprintf(strbuf, "rxglomfail %d, rxglomframes %d, rxglompkts %d\n",
+	brcmu_bprintf(strbuf, "fc_rcvd %d, fc_xoff %d, fc_xon %d\n",
+		      bus->fc_rcvd, bus->fc_xoff, bus->fc_xon);
+	brcmu_bprintf(strbuf, "rxglomfail %d, rxglomframes %d, rxglompkts %d\n",
 		    bus->rxglomfail, bus->rxglomframes, bus->rxglompkts);
-	bcm_bprintf(strbuf, "f2rx (hdrs/data) %d (%d/%d), f2tx %d f1regs %d\n",
-		    (bus->f2rxhdrs + bus->f2rxdata), bus->f2rxhdrs,
-		    bus->f2rxdata, bus->f2txdata, bus->f1regdata);
+	brcmu_bprintf(strbuf, "f2rx (hdrs/data) %d (%d/%d), f2tx %d f1regs"
+		      " %d\n",
+		      (bus->f2rxhdrs + bus->f2rxdata), bus->f2rxhdrs,
+		      bus->f2rxdata, bus->f2txdata, bus->f1regdata);
 	{
 		dhd_dump_pct(strbuf, "\nRx: pkts/f2rd", bus->dhd->rx_packets,
 			     (bus->f2rxhdrs + bus->f2rxdata));
@@ -1806,13 +1807,13 @@ void dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 			     (bus->f2rxhdrs + bus->f2rxdata + bus->f1regdata));
 		dhd_dump_pct(strbuf, ", pkts/int", bus->dhd->rx_packets,
 			     bus->intrcount);
-		bcm_bprintf(strbuf, "\n");
+		brcmu_bprintf(strbuf, "\n");
 
 		dhd_dump_pct(strbuf, "Rx: glom pct", (100 * bus->rxglompkts),
 			     bus->dhd->rx_packets);
 		dhd_dump_pct(strbuf, ", pkts/glom", bus->rxglompkts,
 			     bus->rxglomframes);
-		bcm_bprintf(strbuf, "\n");
+		brcmu_bprintf(strbuf, "\n");
 
 		dhd_dump_pct(strbuf, "Tx: pkts/f2wr", bus->dhd->tx_packets,
 			     bus->f2txdata);
@@ -1822,7 +1823,7 @@ void dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 			     (bus->f2txdata + bus->f1regdata));
 		dhd_dump_pct(strbuf, ", pkts/int", bus->dhd->tx_packets,
 			     bus->intrcount);
-		bcm_bprintf(strbuf, "\n");
+		brcmu_bprintf(strbuf, "\n");
 
 		dhd_dump_pct(strbuf, "Total: pkts/f2rw",
 			     (bus->dhd->tx_packets + bus->dhd->rx_packets),
@@ -1837,30 +1838,30 @@ void dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 		dhd_dump_pct(strbuf, ", pkts/int",
 			     (bus->dhd->tx_packets + bus->dhd->rx_packets),
 			     bus->intrcount);
-		bcm_bprintf(strbuf, "\n\n");
+		brcmu_bprintf(strbuf, "\n\n");
 	}
 
 #ifdef SDTEST
 	if (bus->pktgen_count) {
-		bcm_bprintf(strbuf, "pktgen config and count:\n");
-		bcm_bprintf(strbuf,
+		brcmu_bprintf(strbuf, "pktgen config and count:\n");
+		brcmu_bprintf(strbuf,
 			    "freq %d count %d print %d total %d min %d len %d\n",
 			    bus->pktgen_freq, bus->pktgen_count,
 			    bus->pktgen_print, bus->pktgen_total,
 			    bus->pktgen_minlen, bus->pktgen_maxlen);
-		bcm_bprintf(strbuf, "send attempts %d rcvd %d fail %d\n",
+		brcmu_bprintf(strbuf, "send attempts %d rcvd %d fail %d\n",
 			    bus->pktgen_sent, bus->pktgen_rcvd,
 			    bus->pktgen_fail);
 	}
 #endif				/* SDTEST */
 #ifdef DHD_DEBUG
-	bcm_bprintf(strbuf, "dpc_sched %d host interrupt%spending\n",
+	brcmu_bprintf(strbuf, "dpc_sched %d host interrupt%spending\n",
 		    bus->dpc_sched,
 		    (bcmsdh_intr_pending(bus->sdh) ? " " : " not "));
-	bcm_bprintf(strbuf, "blocksize %d roundup %d\n", bus->blocksize,
+	brcmu_bprintf(strbuf, "blocksize %d roundup %d\n", bus->blocksize,
 		    bus->roundup);
 #endif				/* DHD_DEBUG */
-	bcm_bprintf(strbuf,
+	brcmu_bprintf(strbuf,
 		    "clkstate %d activity %d idletime %d idlecount %d sleeping %d\n",
 		    bus->clkstate, bus->activity, bus->idletime, bus->idlecount,
 		    bus->sleeping);
@@ -2055,7 +2056,7 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 	char *str = NULL;
 	trap_t tr;
 	struct sdpcm_shared sdpcm_shared;
-	struct bcmstrbuf strbuf;
+	struct brcmu_strbuf strbuf;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -2085,9 +2086,9 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 	if (bcmerror < 0)
 		goto done;
 
-	bcm_binit(&strbuf, data, size);
+	brcmu_binit(&strbuf, data, size);
 
-	bcm_bprintf(&strbuf,
+	brcmu_bprintf(&strbuf,
 		    "msgtrace address : 0x%08X\nconsole address  : 0x%08X\n",
 		    sdpcm_shared.msgtrace_addr, sdpcm_shared.console_addr);
 
@@ -2096,7 +2097,7 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 		 * (Avoids conflict with real asserts for programmatic
 		 * parsing of output.)
 		 */
-		bcm_bprintf(&strbuf, "Assrt not built in dongle\n");
+		brcmu_bprintf(&strbuf, "Assrt not built in dongle\n");
 	}
 
 	if ((sdpcm_shared.flags & (SDPCM_SHARED_ASSERT | SDPCM_SHARED_TRAP)) ==
@@ -2105,13 +2106,13 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 		 * (Avoids conflict with real asserts for programmatic
 		 * parsing of output.)
 		 */
-		bcm_bprintf(&strbuf, "No trap%s in dongle",
+		brcmu_bprintf(&strbuf, "No trap%s in dongle",
 			    (sdpcm_shared.flags & SDPCM_SHARED_ASSERT_BUILT)
 			    ? "/assrt" : "");
 	} else {
 		if (sdpcm_shared.flags & SDPCM_SHARED_ASSERT) {
 			/* Download assert */
-			bcm_bprintf(&strbuf, "Dongle assert");
+			brcmu_bprintf(&strbuf, "Dongle assert");
 			if (sdpcm_shared.assert_exp_addr != 0) {
 				str[0] = '\0';
 				bcmerror = dhdsdio_membytes(bus, false,
@@ -2121,7 +2122,7 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 					goto done;
 
 				str[maxstrlen - 1] = '\0';
-				bcm_bprintf(&strbuf, " expr \"%s\"", str);
+				brcmu_bprintf(&strbuf, " expr \"%s\"", str);
 			}
 
 			if (sdpcm_shared.assert_file_addr != 0) {
@@ -2133,10 +2134,10 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 					goto done;
 
 				str[maxstrlen - 1] = '\0';
-				bcm_bprintf(&strbuf, " file \"%s\"", str);
+				brcmu_bprintf(&strbuf, " file \"%s\"", str);
 			}
 
-			bcm_bprintf(&strbuf, " line %d ",
+			brcmu_bprintf(&strbuf, " line %d ",
 				    sdpcm_shared.assert_line);
 		}
 
@@ -2147,7 +2148,7 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 			if (bcmerror < 0)
 				goto done;
 
-			bcm_bprintf(&strbuf,
+			brcmu_bprintf(&strbuf,
 				    "Dongle trap type 0x%x @ epc 0x%x, cpsr 0x%x, spsr 0x%x, sp 0x%x,"
 				    "lp 0x%x, rpc 0x%x Trap offset 0x%x, "
 				    "r0 0x%x, r1 0x%x, r2 0x%x, r3 0x%x, r4 0x%x, r5 0x%x, r6 0x%x, r7 0x%x\n",
@@ -2334,7 +2335,7 @@ err:
 }
 
 static int
-dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
+dhdsdio_doiovar(dhd_bus_t *bus, const struct brcmu_iovar *vi, u32 actionid,
 		const char *name, void *params, int plen, void *arg, int len,
 		int val_size)
 {
@@ -2346,7 +2347,7 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, u32 actionid,
 		"len %d val_size %d\n",
 		__func__, actionid, name, params, plen, arg, len, val_size));
 
-	bcmerror = bcm_iovar_lencheck(vi, arg, len, IOV_ISSET(actionid));
+	bcmerror = brcmu_iovar_lencheck(vi, arg, len, IOV_ISSET(actionid));
 	if (bcmerror != 0)
 		goto exit;
 
@@ -2890,7 +2891,7 @@ dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 		 void *params, int plen, void *arg, int len, bool set)
 {
 	dhd_bus_t *bus = dhdp->bus;
-	const bcm_iovar_t *vi = NULL;
+	const struct brcmu_iovar *vi = NULL;
 	int bcmerror = 0;
 	int val_size;
 	u32 actionid;
@@ -2907,7 +2908,7 @@ dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 	ASSERT(!set || (!params && !plen));
 
 	/* Look up var locally; if not found pass to host driver */
-	vi = bcm_iovar_lookup(dhdsdio_iovars, name);
+	vi = brcmu_iovar_lookup(dhdsdio_iovars, name);
 	if (vi == NULL) {
 		dhd_os_sdlock(bus->dhd);
 
@@ -3026,14 +3027,14 @@ void dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 	dhdsdio_clkctl(bus, CLK_SDONLY, false);
 
 	/* Clear the data packet queues */
-	bcm_pktq_flush(&bus->txq, true, NULL, NULL);
+	brcmu_pktq_flush(&bus->txq, true, NULL, NULL);
 
 	/* Clear any held glomming stuff */
 	if (bus->glomd)
-		bcm_pkt_buf_free_skb(bus->glomd);
+		brcmu_pkt_buf_free_skb(bus->glomd);
 
 	if (bus->glom)
-		bcm_pkt_buf_free_skb(bus->glom);
+		brcmu_pkt_buf_free_skb(bus->glom);
 
 	bus->glom = bus->glomd = NULL;
 
@@ -3385,7 +3386,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			}
 
 			/* Allocate/chain packet for next subframe */
-			pnext = bcm_pkt_buf_get_skb(sublen + DHD_SDALIGN);
+			pnext = brcmu_pkt_buf_get_skb(sublen + DHD_SDALIGN);
 			if (pnext == NULL) {
 				DHD_ERROR(("%s: bcm_pkt_buf_get_skb failed, "
 					"num %d len %d\n", __func__,
@@ -3422,13 +3423,13 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			pfirst = pnext = NULL;
 		} else {
 			if (pfirst)
-				bcm_pkt_buf_free_skb(pfirst);
+				brcmu_pkt_buf_free_skb(pfirst);
 			bus->glom = NULL;
 			num = 0;
 		}
 
 		/* Done with descriptor packet */
-		bcm_pkt_buf_free_skb(bus->glomd);
+		brcmu_pkt_buf_free_skb(bus->glomd);
 		bus->glomd = NULL;
 		bus->nextlen = 0;
 
@@ -3449,7 +3450,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		}
 
 		pfirst = bus->glom;
-		dlen = (u16) bcm_pkttotlen(pfirst);
+		dlen = (u16) brcmu_pkttotlen(pfirst);
 
 		/* Do an SDIO read for the superframe.  Configurable iovar to
 		 * read directly into the chained packet, or allocate a large
@@ -3465,7 +3466,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 					bcmsdh_cur_sbwad(bus->sdh), SDIO_FUNC_2,
 					F2SYNC, bus->dataptr, dlen,
 					NULL, NULL, NULL);
-			sublen = (u16) bcm_pktfrombuf(pfirst, 0, dlen,
+			sublen = (u16) brcmu_pktfrombuf(pfirst, 0, dlen,
 						bus->dataptr);
 			if (sublen != dlen) {
 				DHD_ERROR(("%s: FAILED TO COPY, dlen %d sublen %d\n",
@@ -3493,7 +3494,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				bus->glomerr = 0;
 				dhdsdio_rxfail(bus, true, false);
 				dhd_os_sdlock_rxq(bus->dhd);
-				bcm_pkt_buf_free_skb(bus->glom);
+				brcmu_pkt_buf_free_skb(bus->glom);
 				dhd_os_sdunlock_rxq(bus->dhd);
 				bus->rxglomfail++;
 				bus->glom = NULL;
@@ -3626,7 +3627,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				bus->glomerr = 0;
 				dhdsdio_rxfail(bus, true, false);
 				dhd_os_sdlock_rxq(bus->dhd);
-				bcm_pkt_buf_free_skb(bus->glom);
+				brcmu_pkt_buf_free_skb(bus->glom);
 				dhd_os_sdunlock_rxq(bus->dhd);
 				bus->rxglomfail++;
 				bus->glom = NULL;
@@ -3677,7 +3678,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			skb_pull(pfirst, doff);
 
 			if (pfirst->len == 0) {
-				bcm_pkt_buf_free_skb(pfirst);
+				brcmu_pkt_buf_free_skb(pfirst);
 				if (plast) {
 					plast->next = pnext;
 				} else {
@@ -3690,7 +3691,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				DHD_ERROR(("%s: rx protocol error\n",
 					   __func__));
 				bus->dhd->rx_errors++;
-				bcm_pkt_buf_free_skb(pfirst);
+				brcmu_pkt_buf_free_skb(pfirst);
 				if (plast) {
 					plast->next = pnext;
 				} else {
@@ -3828,7 +3829,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			 */
 			/* Allocate a packet buffer */
 			dhd_os_sdlock_rxq(bus->dhd);
-			pkt = bcm_pkt_buf_get_skb(rdlen + DHD_SDALIGN);
+			pkt = brcmu_pkt_buf_get_skb(rdlen + DHD_SDALIGN);
 			if (!pkt) {
 				if (bus->bus == SPI_BUS) {
 					bus->usebufpool = false;
@@ -3872,7 +3873,8 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 					/* Give up on data,
 					request rtx of events */
 					DHD_ERROR(("%s (nextlen): "
-						   "bcm_pkt_buf_get_skb failed:"
+						   "brcmu_pkt_buf_get_skb "
+						   "failed:"
 						   " len %d rdlen %d expected"
 						   " rxseq %d\n", __func__,
 						   len, rdlen, rxseq));
@@ -3900,7 +3902,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 				if (sdret < 0) {
 					DHD_ERROR(("%s (nextlen): read %d bytes failed: %d\n",
 						__func__, rdlen, sdret));
-					bcm_pkt_buf_free_skb(pkt);
+					brcmu_pkt_buf_free_skb(pkt);
 					bus->dhd->rx_errors++;
 					dhd_os_sdunlock_rxq(bus->dhd);
 					/* Force retry w/normal header read.
@@ -4213,11 +4215,11 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		}
 
 		dhd_os_sdlock_rxq(bus->dhd);
-		pkt = bcm_pkt_buf_get_skb(rdlen + firstread + DHD_SDALIGN);
+		pkt = brcmu_pkt_buf_get_skb(rdlen + firstread + DHD_SDALIGN);
 		if (!pkt) {
 			/* Give up on data, request rtx of events */
-			DHD_ERROR(("%s: bcm_pkt_buf_get_skb failed: rdlen %d "
-				"chan %d\n", __func__, rdlen, chan));
+			DHD_ERROR(("%s: brcmu_pkt_buf_get_skb failed: rdlen %d"
+				   " chan %d\n", __func__, rdlen, chan));
 			bus->dhd->rx_dropped++;
 			dhd_os_sdunlock_rxq(bus->dhd);
 			dhdsdio_rxfail(bus, false, RETRYCHAN(chan));
@@ -4248,7 +4250,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 				       ? "data" : "test")),
 				   sdret));
 			dhd_os_sdlock_rxq(bus->dhd);
-			bcm_pkt_buf_free_skb(pkt);
+			brcmu_pkt_buf_free_skb(pkt);
 			dhd_os_sdunlock_rxq(bus->dhd);
 			bus->dhd->rx_errors++;
 			dhdsdio_rxfail(bus, true, RETRYCHAN(chan));
@@ -4307,13 +4309,13 @@ deliver:
 
 		if (pkt->len == 0) {
 			dhd_os_sdlock_rxq(bus->dhd);
-			bcm_pkt_buf_free_skb(pkt);
+			brcmu_pkt_buf_free_skb(pkt);
 			dhd_os_sdunlock_rxq(bus->dhd);
 			continue;
 		} else if (dhd_prot_hdrpull(bus->dhd, &ifidx, pkt) != 0) {
 			DHD_ERROR(("%s: rx protocol error\n", __func__));
 			dhd_os_sdlock_rxq(bus->dhd);
-			bcm_pkt_buf_free_skb(pkt);
+			brcmu_pkt_buf_free_skb(pkt);
 			dhd_os_sdunlock_rxq(bus->dhd);
 			bus->dhd->rx_errors++;
 			continue;
@@ -4634,7 +4636,7 @@ clkwait:
 	}
 	/* Send queued frames (limit 1 if rx may still be pending) */
 	else if ((bus->clkstate == CLK_AVAIL) && !bus->fcstate &&
-		 bcm_pktq_mlen(&bus->txq, ~bus->flowcontrol) && txlimit
+		 brcmu_pktq_mlen(&bus->txq, ~bus->flowcontrol) && txlimit
 		 && DATAOK(bus)) {
 		framecnt = rxdone ? txlimit : min(txlimit, dhd_txminmax);
 		framecnt = dhdsdio_sendfromq(bus, framecnt);
@@ -4655,8 +4657,8 @@ clkwait:
 			"I_CHIPACTIVE interrupt\n", __func__));
 		resched = true;
 	} else if (bus->intstatus || bus->ipend ||
-		(!bus->fcstate && bcm_pktq_mlen(&bus->txq, ~bus->flowcontrol) &&
-			DATAOK(bus)) || PKT_AVAILABLE()) {
+		(!bus->fcstate && brcmu_pktq_mlen(&bus->txq, ~bus->flowcontrol)
+		 && DATAOK(bus)) || PKT_AVAILABLE()) {
 		resched = true;
 	}
 
@@ -4789,12 +4791,12 @@ static void dhdsdio_pktgen(dhd_bus_t *bus)
 
 		/* Allocate an appropriate-sized packet */
 		len = bus->pktgen_len;
-		pkt = bcm_pkt_buf_get_skb(
+		pkt = brcmu_pkt_buf_get_skb(
 			(len + SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + DHD_SDALIGN),
 			true);
 		if (!pkt) {
-			DHD_ERROR(("%s: bcm_pkt_buf_get_skb failed!\n",
-				__func__));
+			DHD_ERROR(("%s: brcmu_pkt_buf_get_skb failed!\n",
+				   __func__));
 			break;
 		}
 		PKTALIGN(pkt, (len + SDPCM_HDRLEN + SDPCM_TEST_HDRLEN),
@@ -4821,7 +4823,7 @@ static void dhdsdio_pktgen(dhd_bus_t *bus)
 		default:
 			DHD_ERROR(("Unrecognized pktgen mode %d\n",
 				   bus->pktgen_mode));
-			bcm_pkt_buf_free_skb(pkt, true);
+			brcmu_pkt_buf_free_skb(pkt, true);
 			bus->pktgen_count = 0;
 			return;
 		}
@@ -4870,10 +4872,10 @@ static void dhdsdio_sdtest_set(dhd_bus_t *bus, bool start)
 	u8 *data;
 
 	/* Allocate the packet */
-	pkt = bcm_pkt_buf_get_skb(SDPCM_HDRLEN + SDPCM_TEST_HDRLEN +
+	pkt = brcmu_pkt_buf_get_skb(SDPCM_HDRLEN + SDPCM_TEST_HDRLEN +
 		DHD_SDALIGN, true);
 	if (!pkt) {
-		DHD_ERROR(("%s: bcm_pkt_buf_get_skb failed!\n", __func__));
+		DHD_ERROR(("%s: brcmu_pkt_buf_get_skb failed!\n", __func__));
 		return;
 	}
 	PKTALIGN(pkt, (SDPCM_HDRLEN + SDPCM_TEST_HDRLEN), DHD_SDALIGN);
@@ -4905,7 +4907,7 @@ static void dhdsdio_testrcv(dhd_bus_t *bus, struct sk_buff *pkt, uint seq)
 	if (pktlen < SDPCM_TEST_HDRLEN) {
 		DHD_ERROR(("dhdsdio_restrcv: toss runt frame, pktlen %d\n",
 			   pktlen));
-		bcm_pkt_buf_free_skb(pkt, false);
+		brcmu_pkt_buf_free_skb(pkt, false);
 		return;
 	}
 
@@ -4923,7 +4925,7 @@ static void dhdsdio_testrcv(dhd_bus_t *bus, struct sk_buff *pkt, uint seq)
 			DHD_ERROR(("dhdsdio_testrcv: frame length mismatch, "
 				"pktlen %d seq %d" " cmd %d extra %d len %d\n",
 				pktlen, seq, cmd, extra, len));
-			bcm_pkt_buf_free_skb(pkt, false);
+			brcmu_pkt_buf_free_skb(pkt, false);
 			return;
 		}
 	}
@@ -4938,14 +4940,14 @@ static void dhdsdio_testrcv(dhd_bus_t *bus, struct sk_buff *pkt, uint seq)
 			bus->pktgen_sent++;
 		} else {
 			bus->pktgen_fail++;
-			bcm_pkt_buf_free_skb(pkt, false);
+			brcmu_pkt_buf_free_skb(pkt, false);
 		}
 		bus->pktgen_rcvd++;
 		break;
 
 	case SDPCM_TEST_ECHORSP:
 		if (bus->ext_loop) {
-			bcm_pkt_buf_free_skb(pkt, false);
+			brcmu_pkt_buf_free_skb(pkt, false);
 			bus->pktgen_rcvd++;
 			break;
 		}
@@ -4958,12 +4960,12 @@ static void dhdsdio_testrcv(dhd_bus_t *bus, struct sk_buff *pkt, uint seq)
 				break;
 			}
 		}
-		bcm_pkt_buf_free_skb(pkt, false);
+		brcmu_pkt_buf_free_skb(pkt, false);
 		bus->pktgen_rcvd++;
 		break;
 
 	case SDPCM_TEST_DISCARD:
-		bcm_pkt_buf_free_skb(pkt, false);
+		brcmu_pkt_buf_free_skb(pkt, false);
 		bus->pktgen_rcvd++;
 		break;
 
@@ -4973,7 +4975,7 @@ static void dhdsdio_testrcv(dhd_bus_t *bus, struct sk_buff *pkt, uint seq)
 		DHD_INFO(("dhdsdio_testrcv: unsupported or unknown command, "
 			"pktlen %d seq %d" " cmd %d extra %d len %d\n",
 			pktlen, seq, cmd, extra, len));
-		bcm_pkt_buf_free_skb(pkt, false);
+		brcmu_pkt_buf_free_skb(pkt, false);
 		break;
 	}
 
@@ -5134,7 +5136,7 @@ extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 	/* Bump dongle by sending an empty event pkt.
 	 * sdpcm_sendup (RX) checks for virtual console input.
 	 */
-	pkt = bcm_pkt_buf_get_skb(4 + SDPCM_RESERVE);
+	pkt = brcmu_pkt_buf_get_skb(4 + SDPCM_RESERVE);
 	if ((pkt != NULL) && bus->clkstate == CLK_AVAIL)
 		dhdsdio_txpkt(bus, pkt, SDPCM_EVENT_CHANNEL, true);
 
@@ -5386,7 +5388,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, void *sdh, void *regsva, u16 devid)
 	/* Set core control so an SDIO reset does a backplane reset */
 	OR_REG(&bus->regs->corecontrol, CC_BPRESEN);
 
-	bcm_pktq_init(&bus->txq, (PRIOMASK + 1), TXQLEN);
+	brcmu_pktq_init(&bus->txq, (PRIOMASK + 1), TXQLEN);
 
 	/* Locate an appropriately-aligned portion of hdrbuf */
 	bus->rxhdr = (u8 *) roundup((unsigned long)&bus->hdrbuf[0], DHD_SDALIGN);
@@ -6316,7 +6318,7 @@ dhdsdio_sdiod_drive_strength_init(struct dhd_bus *bus, u32 drivestrength) {
 	default:
 		DHD_ERROR(("No SDIO Drive strength init"
 			"done for chip %s rev %d pmurev %d\n",
-			bcm_chipname(bus->ci->chip, chn, 8),
+			brcmu_chipname(bus->ci->chip, chn, 8),
 			bus->ci->chiprev, bus->ci->pmurev));
 		break;
 	}

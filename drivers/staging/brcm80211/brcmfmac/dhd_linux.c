@@ -485,7 +485,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				bcn_li_dtim = 3;
 			else
 				bcn_li_dtim = dhd->dtim_skip;
-			bcm_mkiovar("bcn_li_dtim", (char *)&bcn_li_dtim,
+			brcmu_mkiovar("bcn_li_dtim", (char *)&bcn_li_dtim,
 				    4, iovbuf, sizeof(iovbuf));
 			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
 					 sizeof(iovbuf));
@@ -493,7 +493,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			/* Disable build-in roaming to allowed \
 			 * supplicant to take of romaing
 			 */
-			bcm_mkiovar("roam_off", (char *)&roamvar, 4,
+			brcmu_mkiovar("roam_off", (char *)&roamvar, 4,
 				    iovbuf, sizeof(iovbuf));
 			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
 					 sizeof(iovbuf));
@@ -513,14 +513,14 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			dhd_set_packet_filter(0, dhd);
 
 			/* restore pre-suspend setting for dtim_skip */
-			bcm_mkiovar("bcn_li_dtim", (char *)&dhd->dtim_skip,
+			brcmu_mkiovar("bcn_li_dtim", (char *)&dhd->dtim_skip,
 				    4, iovbuf, sizeof(iovbuf));
 
 			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
 					 sizeof(iovbuf));
 #ifdef CUSTOMER_HW2
 			roamvar = 0;
-			bcm_mkiovar("roam_off", (char *)&roamvar, 4, iovbuf,
+			brcmu_mkiovar("roam_off", (char *)&roamvar, 4, iovbuf,
 				    sizeof(iovbuf));
 			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
 					 sizeof(iovbuf));
@@ -750,7 +750,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	}
 	allmulti = cpu_to_le32(allmulti);
 
-	if (!bcm_mkiovar
+	if (!brcmu_mkiovar
 	    ("allmulti", (void *)&allmulti, sizeof(allmulti), buf, buflen)) {
 		DHD_ERROR(("%s: mkiovar failed for allmulti, datalen %d "
 			"buflen %u\n", dhd_ifname(&dhd->pub, ifidx),
@@ -802,7 +802,7 @@ _dhd_set_mac_address(dhd_info_t *dhd, int ifidx, u8 *addr)
 	int ret;
 
 	DHD_TRACE(("%s enter\n", __func__));
-	if (!bcm_mkiovar
+	if (!brcmu_mkiovar
 	    ("cur_etheraddr", (char *)addr, ETH_ALEN, buf, 32)) {
 		DHD_ERROR(("%s: mkiovar failed for cur_etheraddr\n",
 			   dhd_ifname(&dhd->pub, ifidx)));
@@ -2091,8 +2091,8 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 		return -ENODEV;
 	}
 #ifdef EMBEDDED_PLATFORM
-	bcm_mkiovar("event_msgs", dhdp->eventmask, WL_EVENTING_MASK_LEN, iovbuf,
-		    sizeof(iovbuf));
+	brcmu_mkiovar("event_msgs", dhdp->eventmask, WL_EVENTING_MASK_LEN,
+		      iovbuf, sizeof(iovbuf));
 	dhdcdc_query_ioctl(dhdp, 0, WLC_GET_VAR, iovbuf, sizeof(iovbuf));
 	memcpy(dhdp->eventmask, iovbuf, WL_EVENTING_MASK_LEN);
 
@@ -2142,7 +2142,7 @@ dhd_iovar(dhd_pub_t *pub, int ifidx, char *name, char *cmd_buf, uint cmd_len,
 	wl_ioctl_t ioc;
 	int ret;
 
-	len = bcm_mkiovar(name, cmd_buf, cmd_len, buf, len);
+	len = brcmu_mkiovar(name, cmd_buf, cmd_len, buf, len);
 
 	memset(&ioc, 0, sizeof(ioc));
 

@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_bcmwifi_h_
-#define	_bcmwifi_h_
+#ifndef	_brcmu_wifi_h_
+#define	_brcmu_wifi_h_
 
 #include <linux/if_ether.h>		/* for ETH_ALEN */
 #include <linux/ieee80211.h>		/* for WLAN_PMKID_LEN */
@@ -141,14 +141,14 @@ typedef u16 chanspec_t;
  * combination could be legal given any set of circumstances.
  * RETURNS: true is the chanspec is malformed, false if it looks good.
  */
-extern bool bcm_chspec_malformed(chanspec_t chanspec);
+extern bool brcmu_chspec_malformed(chanspec_t chanspec);
 
 /*
  * This function returns the channel number that control traffic is being sent on, for legacy
  * channels this is just the channel number, for 40MHZ channels it is the upper or lowre 20MHZ
  * sideband depending on the chanspec selected
  */
-extern u8 bcm_chspec_ctlchan(chanspec_t chspec);
+extern u8 brcmu_chspec_ctlchan(chanspec_t chspec);
 
 /*
  * Return the channel number for a given frequency and base frequency.
@@ -169,7 +169,7 @@ extern u8 bcm_chspec_ctlchan(chanspec_t chspec);
  *
  * Reference 802.11 REVma, section 17.3.8.3, and 802.11B section 18.4.6.2
  */
-extern int bcm_mhz2channel(uint freq, uint start_factor);
+extern int brcmu_mhz2channel(uint freq, uint start_factor);
 
 /* Enumerate crypto algorithms */
 #define	CRYPTO_ALGO_OFF			0
@@ -239,4 +239,4 @@ typedef struct _pmkid_cand_list {
 
 typedef u8 ac_bitmap_t;
 
-#endif				/* _bcmwifi_h_ */
+#endif				/* _brcmu_wifi_h_ */

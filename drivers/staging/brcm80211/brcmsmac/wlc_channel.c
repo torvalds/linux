@@ -1494,7 +1494,7 @@ wlc_valid_chanspec_ext(wlc_cm_info_t *wlc_cm, chanspec_t chspec, bool dualband)
 	u8 channel = CHSPEC_CHANNEL(chspec);
 
 	/* check the chanspec */
-	if (bcm_chspec_malformed(chspec)) {
+	if (brcmu_chspec_malformed(chspec)) {
 		wiphy_err(wlc->wiphy, "wl%d: malformed chanspec 0x%x\n",
 			wlc->pub->unit, chspec);
 		return false;

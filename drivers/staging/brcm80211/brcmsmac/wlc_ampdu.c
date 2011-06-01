@@ -591,7 +591,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 		len = roundup(len, 4);
 		ampdu_len += (len + (ndelim + 1) * AMPDU_DELIMITER_LEN);
 
-		dma_len += (u16) bcm_pkttotlen(p);
+		dma_len += (u16) brcmu_pkttotlen(p);
 
 		BCMMSG(wlc->wiphy, "wl%d: ampdu_len %d"
 			" seg_cnt %d null delim %d\n",
@@ -686,8 +686,8 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 			if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) &&
 			    ((u8) (p->priority) == tid)) {
 
-				plen =
-				    bcm_pkttotlen(p) + AMPDU_MAX_MPDU_OVERHEAD;
+				plen = brcmu_pkttotlen(p) +
+				       AMPDU_MAX_MPDU_OVERHEAD;
 				plen = max(scb_ampdu->min_len, plen);
 
 				if ((plen + ampdu_len) > maxlen) {
@@ -704,7 +704,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 					p = NULL;
 					continue;
 				}
-				p = bcm_pktq_pdeq(&qi->q, prec);
+				p = brcmu_pktq_pdeq(&qi->q, prec);
 			} else {
 				p = NULL;
 			}
@@ -864,7 +864,7 @@ wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 			tx_info = IEEE80211_SKB_CB(p);
 			txh = (d11txh_t *) p->data;
 			mcl = le16_to_cpu(txh->MacTxControlLow);
-			bcm_pkt_buf_free_skb(p);
+			brcmu_pkt_buf_free_skb(p);
 			/* break out if last packet of ampdu */
 			if (((mcl & TXC_AMPDU_MASK) >> TXC_AMPDU_SHIFT) ==
 			    TXC_AMPDU_LAST)
@@ -993,7 +993,7 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				  txs->phyerr);
 
 			if (WL_ERROR_ON()) {
-				bcm_prpkt("txpkt (AMPDU)", p);
+				brcmu_prpkt("txpkt (AMPDU)", p);
 				wlc_print_txdesc((d11txh_t *) p->data);
 			}
 			wlc_print_txstatus(txs);
@@ -1239,7 +1239,7 @@ void wlc_ampdu_flush(struct wlc_info *wlc,
 	ampdu_pars.sta = sta;
 	ampdu_pars.tid = tid;
 	for (prec = 0; prec < pq->num_prec; prec++) {
-		bcm_pktq_pflush(pq, prec, true, cb_del_ampdu_pkt,
+		brcmu_pktq_pflush(pq, prec, true, cb_del_ampdu_pkt,
 			    (void *)&ampdu_pars);
 	}
 	wlc_inval_dma_pkts(wlc->hw, sta, dma_cb_fn_ampdu);

@@ -89,7 +89,7 @@ enum {
 	IOV_LAST
 };
 
-const bcm_iovar_t dhd_iovars[] = {
+const struct brcmu_iovar dhd_iovars[] = {
 	{"version", IOV_VERSION, 0, IOVT_BUFFER, sizeof(dhd_version)}
 	,
 #ifdef DHD_DEBUG
@@ -160,54 +160,54 @@ void dhd_common_init(void)
 
 static int dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 {
-	struct bcmstrbuf b;
-	struct bcmstrbuf *strbuf = &b;
+	struct brcmu_strbuf b;
+	struct brcmu_strbuf *strbuf = &b;
 
-	bcm_binit(strbuf, buf, buflen);
+	brcmu_binit(strbuf, buf, buflen);
 
 	/* Base DHD info */
-	bcm_bprintf(strbuf, "%s\n", dhd_version);
-	bcm_bprintf(strbuf, "\n");
-	bcm_bprintf(strbuf, "pub.up %d pub.txoff %d pub.busstate %d\n",
+	brcmu_bprintf(strbuf, "%s\n", dhd_version);
+	brcmu_bprintf(strbuf, "\n");
+	brcmu_bprintf(strbuf, "pub.up %d pub.txoff %d pub.busstate %d\n",
 		    dhdp->up, dhdp->txoff, dhdp->busstate);
-	bcm_bprintf(strbuf, "pub.hdrlen %d pub.maxctl %d pub.rxsz %d\n",
+	brcmu_bprintf(strbuf, "pub.hdrlen %d pub.maxctl %d pub.rxsz %d\n",
 		    dhdp->hdrlen, dhdp->maxctl, dhdp->rxsz);
-	bcm_bprintf(strbuf, "pub.iswl %d pub.drv_version %ld pub.mac %pM\n",
+	brcmu_bprintf(strbuf, "pub.iswl %d pub.drv_version %ld pub.mac %pM\n",
 		    dhdp->iswl, dhdp->drv_version, &dhdp->mac);
-	bcm_bprintf(strbuf, "pub.bcmerror %d tickcnt %d\n", dhdp->bcmerror,
+	brcmu_bprintf(strbuf, "pub.bcmerror %d tickcnt %d\n", dhdp->bcmerror,
 		    dhdp->tickcnt);
 
-	bcm_bprintf(strbuf, "dongle stats:\n");
-	bcm_bprintf(strbuf,
+	brcmu_bprintf(strbuf, "dongle stats:\n");
+	brcmu_bprintf(strbuf,
 		    "tx_packets %ld tx_bytes %ld tx_errors %ld tx_dropped %ld\n",
 		    dhdp->dstats.tx_packets, dhdp->dstats.tx_bytes,
 		    dhdp->dstats.tx_errors, dhdp->dstats.tx_dropped);
-	bcm_bprintf(strbuf,
+	brcmu_bprintf(strbuf,
 		    "rx_packets %ld rx_bytes %ld rx_errors %ld rx_dropped %ld\n",
 		    dhdp->dstats.rx_packets, dhdp->dstats.rx_bytes,
 		    dhdp->dstats.rx_errors, dhdp->dstats.rx_dropped);
-	bcm_bprintf(strbuf, "multicast %ld\n", dhdp->dstats.multicast);
+	brcmu_bprintf(strbuf, "multicast %ld\n", dhdp->dstats.multicast);
 
-	bcm_bprintf(strbuf, "bus stats:\n");
-	bcm_bprintf(strbuf, "tx_packets %ld tx_multicast %ld tx_errors %ld\n",
+	brcmu_bprintf(strbuf, "bus stats:\n");
+	brcmu_bprintf(strbuf, "tx_packets %ld tx_multicast %ld tx_errors %ld\n",
 		    dhdp->tx_packets, dhdp->tx_multicast, dhdp->tx_errors);
-	bcm_bprintf(strbuf, "tx_ctlpkts %ld tx_ctlerrs %ld\n",
+	brcmu_bprintf(strbuf, "tx_ctlpkts %ld tx_ctlerrs %ld\n",
 		    dhdp->tx_ctlpkts, dhdp->tx_ctlerrs);
-	bcm_bprintf(strbuf, "rx_packets %ld rx_multicast %ld rx_errors %ld\n",
+	brcmu_bprintf(strbuf, "rx_packets %ld rx_multicast %ld rx_errors %ld\n",
 		    dhdp->rx_packets, dhdp->rx_multicast, dhdp->rx_errors);
-	bcm_bprintf(strbuf,
+	brcmu_bprintf(strbuf,
 		    "rx_ctlpkts %ld rx_ctlerrs %ld rx_dropped %ld rx_flushed %ld\n",
 		    dhdp->rx_ctlpkts, dhdp->rx_ctlerrs, dhdp->rx_dropped,
 		    dhdp->rx_flushed);
-	bcm_bprintf(strbuf,
+	brcmu_bprintf(strbuf,
 		    "rx_readahead_cnt %ld tx_realloc %ld fc_packets %ld\n",
 		    dhdp->rx_readahead_cnt, dhdp->tx_realloc, dhdp->fc_packets);
-	bcm_bprintf(strbuf, "wd_dpc_sched %ld\n", dhdp->wd_dpc_sched);
-	bcm_bprintf(strbuf, "\n");
+	brcmu_bprintf(strbuf, "wd_dpc_sched %ld\n", dhdp->wd_dpc_sched);
+	brcmu_bprintf(strbuf, "\n");
 
 	/* Add any prot info */
 	dhd_prot_dump(dhdp, strbuf);
-	bcm_bprintf(strbuf, "\n");
+	brcmu_bprintf(strbuf, "\n");
 
 	/* Add any bus info */
 	dhd_bus_dump(dhdp, strbuf);
@@ -216,7 +216,7 @@ static int dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 }
 
 static int
-dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
+dhd_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 	    const char *name, void *params, int plen, void *arg, int len,
 	    int val_size)
 {
@@ -225,7 +225,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, u32 actionid,
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
-	bcmerror = bcm_iovar_lencheck(vi, arg, len, IOV_ISSET(actionid));
+	bcmerror = brcmu_iovar_lencheck(vi, arg, len, IOV_ISSET(actionid));
 	if (bcmerror != 0)
 		goto exit;
 
@@ -339,7 +339,7 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
 	 * exceeding total queue length
 	 */
 	if (!pktq_pfull(q, prec) && !pktq_full(q)) {
-		bcm_pktq_penq(q, prec, pkt);
+		brcmu_pktq_penq(q, prec, pkt);
 		return true;
 	}
 
@@ -347,7 +347,7 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
 	if (pktq_pfull(q, prec))
 		eprec = prec;
 	else if (pktq_full(q)) {
-		p = bcm_pktq_peek_tail(q, &eprec);
+		p = brcmu_pktq_peek_tail(q, &eprec);
 		ASSERT(p);
 		if (eprec > prec)
 			return false;
@@ -361,21 +361,21 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
 		if (eprec == prec && !discard_oldest)
 			return false;	/* refuse newer (incoming) packet */
 		/* Evict packet according to discard policy */
-		p = discard_oldest ? bcm_pktq_pdeq(q, eprec) :
-			bcm_pktq_pdeq_tail(q, eprec);
+		p = discard_oldest ? brcmu_pktq_pdeq(q, eprec) :
+			brcmu_pktq_pdeq_tail(q, eprec);
 		if (p == NULL) {
-			DHD_ERROR(("%s: bcm_pktq_penq() failed, oldest %d.",
+			DHD_ERROR(("%s: brcmu_pktq_penq() failed, oldest %d.",
 				   __func__, discard_oldest));
 			ASSERT(p);
 		}
 
-		bcm_pkt_buf_free_skb(p);
+		brcmu_pkt_buf_free_skb(p);
 	}
 
 	/* Enqueue */
-	p = bcm_pktq_penq(q, prec, pkt);
+	p = brcmu_pktq_penq(q, prec, pkt);
 	if (p == NULL) {
-		DHD_ERROR(("%s: bcm_pktq_penq() failed.", __func__));
+		DHD_ERROR(("%s: brcmu_pktq_penq() failed.", __func__));
 		ASSERT(p);
 	}
 
@@ -388,7 +388,7 @@ dhd_iovar_op(dhd_pub_t *dhd_pub, const char *name,
 {
 	int bcmerror = 0;
 	int val_size;
-	const bcm_iovar_t *vi = NULL;
+	const struct brcmu_iovar *vi = NULL;
 	u32 actionid;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
@@ -402,7 +402,7 @@ dhd_iovar_op(dhd_pub_t *dhd_pub, const char *name,
 	/* Set does NOT take qualifiers */
 	ASSERT(!set || (!params && !plen));
 
-	vi = bcm_iovar_lookup(dhd_iovars, name);
+	vi = brcmu_iovar_lookup(dhd_iovars, name);
 	if (vi == NULL) {
 		bcmerror = -ENOTSUPP;
 		goto exit;
@@ -1013,7 +1013,7 @@ dhd_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 			   __func__, arg));
 
 	/* Contorl the master mode */
-	bcm_mkiovar("pkt_filter_mode", (char *)&master_mode, 4, buf,
+	brcmu_mkiovar("pkt_filter_mode", (char *)&master_mode, 4, buf,
 		    sizeof(buf));
 	rc = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
 	rc = rc >= 0 ? 0 : rc;
@@ -1167,7 +1167,7 @@ void dhd_arp_offload_set(dhd_pub_t *dhd, int arp_mode)
 	char iovbuf[32];
 	int retcode;
 
-	bcm_mkiovar("arp_ol", (char *)&arp_mode, 4, iovbuf, sizeof(iovbuf));
+	brcmu_mkiovar("arp_ol", (char *)&arp_mode, 4, iovbuf, sizeof(iovbuf));
 	retcode = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
@@ -1183,7 +1183,7 @@ void dhd_arp_offload_enable(dhd_pub_t *dhd, int arp_enable)
 	char iovbuf[32];
 	int retcode;
 
-	bcm_mkiovar("arpoe", (char *)&arp_enable, 4, iovbuf, sizeof(iovbuf));
+	brcmu_mkiovar("arpoe", (char *)&arp_enable, 4, iovbuf, sizeof(iovbuf));
 	retcode = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
@@ -1222,7 +1222,7 @@ int dhd_preinit_ioctls(dhd_pub_t *dhd)
 	 */
 	ret = dhd_custom_get_mac_address(ea_addr);
 	if (!ret) {
-		bcm_mkiovar("cur_etheraddr", (void *)ea_addr, ETH_ALEN,
+		brcmu_mkiovar("cur_etheraddr", (void *)ea_addr, ETH_ALEN,
 			    buf, sizeof(buf));
 		ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
 		if (ret < 0) {
@@ -1247,7 +1247,7 @@ int dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* query for 'ver' to get version info from firmware */
 	memset(buf, 0, sizeof(buf));
 	ptr = buf;
-	bcm_mkiovar("ver", 0, 0, buf, sizeof(buf));
+	brcmu_mkiovar("ver", 0, 0, buf, sizeof(buf));
 	dhdcdc_query_ioctl(dhd, 0, WLC_GET_VAR, buf, sizeof(buf));
 	strsep(&ptr, "\n");
 	/* Print fw version info */
@@ -1258,23 +1258,23 @@ int dhd_preinit_ioctls(dhd_pub_t *dhd)
 			 sizeof(power_mode));
 
 	/* Match Host and Dongle rx alignment */
-	bcm_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf,
+	brcmu_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf,
 		    sizeof(iovbuf));
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
 	/* disable glom option per default */
-	bcm_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
+	brcmu_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
 	/* Setup timeout if Beacons are lost and roam is off to report
 		 link down */
-	bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf,
+	brcmu_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf,
 		    sizeof(iovbuf));
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
 	/* Enable/Disable build-in roaming to allowed ext supplicant to take
 		 of romaing */
-	bcm_mkiovar("roam_off", (char *)&dhd_roam, 4, iovbuf, sizeof(iovbuf));
+	brcmu_mkiovar("roam_off", (char *)&dhd_roam, 4, iovbuf, sizeof(iovbuf));
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
 	/* Force STA UP */
@@ -1282,8 +1282,8 @@ int dhd_preinit_ioctls(dhd_pub_t *dhd)
 		dhdcdc_set_ioctl(dhd, 0, WLC_UP, (char *)&up, sizeof(up));
 
 	/* Setup event_msgs */
-	bcm_mkiovar("event_msgs", dhd->eventmask, WL_EVENTING_MASK_LEN, iovbuf,
-		    sizeof(iovbuf));
+	brcmu_mkiovar("event_msgs", dhd->eventmask, WL_EVENTING_MASK_LEN,
+		      iovbuf, sizeof(iovbuf));
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_SCAN_CHANNEL_TIME,
@@ -1647,7 +1647,7 @@ int dhd_iscan_request(void *dhdp, u16 action)
 	params.action = action;
 	params.scan_duration = 0;
 
-	bcm_mkiovar("iscan", (char *)&params, sizeof(wl_iscan_params_t), buf,
+	brcmu_mkiovar("iscan", (char *)&params, sizeof(wl_iscan_params_t), buf,
 		    WLC_IOCTL_SMLEN);
 	rc = dhd_wl_ioctl(dhdp, WLC_SET_VAR, buf, WLC_IOCTL_SMLEN);
 
@@ -1683,8 +1683,9 @@ static int dhd_iscan_get_partial_result(void *dhdp, uint *scan_count)
 
 	memset(&list, 0, sizeof(list));
 	list.results.buflen = WLC_IW_ISCAN_MAXLEN;
-	bcm_mkiovar("iscanresults", (char *)&list, WL_ISCAN_RESULTS_FIXED_SIZE,
-		    iscan_cur->iscan_buf, WLC_IW_ISCAN_MAXLEN);
+	brcmu_mkiovar("iscanresults", (char *)&list,
+		      WL_ISCAN_RESULTS_FIXED_SIZE,
+		      iscan_cur->iscan_buf, WLC_IW_ISCAN_MAXLEN);
 	rc = dhd_wl_ioctl(dhdp, WLC_GET_VAR, iscan_cur->iscan_buf,
 			  WLC_IW_ISCAN_MAXLEN);
 
@@ -1714,12 +1715,13 @@ int dhd_pno_clean(dhd_pub_t *dhd)
 	int ret;
 
 	/* Disable pfn */
-	iov_len =
-	    bcm_mkiovar("pfn", (char *)&pfn_enabled, 4, iovbuf, sizeof(iovbuf));
+	iov_len = brcmu_mkiovar("pfn", (char *)&pfn_enabled, 4, iovbuf,
+				sizeof(iovbuf));
 	ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (ret >= 0) {
 		/* clear pfn */
-		iov_len = bcm_mkiovar("pfnclear", 0, 0, iovbuf, sizeof(iovbuf));
+		iov_len = brcmu_mkiovar("pfnclear", 0, 0, iovbuf,
+					sizeof(iovbuf));
 		if (iov_len) {
 			ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
 					iov_len);
@@ -1748,7 +1750,7 @@ int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 	}
 
 	/* Enable/disable PNO */
-	ret = bcm_mkiovar("pfn", (char *)&pfn_enabled, 4, iovbuf,
+	ret = brcmu_mkiovar("pfn", (char *)&pfn_enabled, 4, iovbuf,
 			sizeof(iovbuf));
 	if (ret > 0) {
 		ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
@@ -1821,7 +1823,7 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t *ssids_local, int nssid, unsigned char sc
 	if (scan_fr != 0)
 		pfn_param.scan_freq = scan_fr;
 
-	bcm_mkiovar("pfn_set", (char *)&pfn_param, sizeof(pfn_param), iovbuf,
+	brcmu_mkiovar("pfn_set", (char *)&pfn_param, sizeof(pfn_param), iovbuf,
 		    sizeof(iovbuf));
 	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 
@@ -1838,7 +1840,7 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t *ssids_local, int nssid, unsigned char sc
 		       ssids_local[i].SSID_len);
 		pfn_element.ssid.SSID_len = ssids_local[i].SSID_len;
 
-		err = bcm_mkiovar("pfn_add", (char *)&pfn_element,
+		err = brcmu_mkiovar("pfn_add", (char *)&pfn_element,
 				sizeof(pfn_element), iovbuf, sizeof(iovbuf));
 		if (err > 0) {
 			err = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,

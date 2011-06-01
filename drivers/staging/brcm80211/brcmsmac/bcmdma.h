@@ -103,11 +103,11 @@ typedef uint(*di_txactive_t) (struct dma_pub *dmah);
 typedef void (*di_txrotate_t) (struct dma_pub *dmah);
 typedef void (*di_counterreset_t) (struct dma_pub *dmah);
 typedef uint(*di_ctrlflags_t) (struct dma_pub *dmah, uint mask, uint flags);
-typedef char *(*di_dump_t) (struct dma_pub *dmah, struct bcmstrbuf *b,
+typedef char *(*di_dump_t) (struct dma_pub *dmah, struct brcmu_strbuf *b,
 			    bool dumpring);
-typedef char *(*di_dumptx_t) (struct dma_pub *dmah, struct bcmstrbuf *b,
+typedef char *(*di_dumptx_t) (struct dma_pub *dmah, struct brcmu_strbuf *b,
 			      bool dumpring);
-typedef char *(*di_dumprx_t) (struct dma_pub *dmah, struct bcmstrbuf *b,
+typedef char *(*di_dumprx_t) (struct dma_pub *dmah, struct brcmu_strbuf *b,
 			      bool dumpring);
 typedef uint(*di_rxactive_t) (struct dma_pub *dmah);
 typedef uint(*di_txpending_t) (struct dma_pub *dmah);

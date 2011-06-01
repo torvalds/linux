@@ -352,7 +352,7 @@ enum {
 	IOV_RXCHAIN
 };
 
-const bcm_iovar_t sdioh_iovars[] = {
+const struct brcmu_iovar sdioh_iovars[] = {
 	{"sd_msglevel", IOV_MSGLEVEL, 0, IOVT_UINT32, 0},
 	{"sd_blocksize", IOV_BLOCKSIZE, 0, IOVT_UINT32, 0},/* ((fn << 16) |
 								 size) */
@@ -369,7 +369,7 @@ int
 sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	       void *params, int plen, void *arg, int len, bool set)
 {
-	const bcm_iovar_t *vi = NULL;
+	const struct brcmu_iovar *vi = NULL;
 	int bcmerror = 0;
 	int val_size;
 	s32 int_val = 0;
@@ -386,13 +386,13 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	sd_trace(("%s: Enter (%s %s)\n", __func__, (set ? "set" : "get"),
 		  name));
 
-	vi = bcm_iovar_lookup(sdioh_iovars, name);
+	vi = brcmu_iovar_lookup(sdioh_iovars, name);
 	if (vi == NULL) {
 		bcmerror = -ENOTSUPP;
 		goto exit;
 	}
 
-	bcmerror = bcm_iovar_lencheck(vi, arg, len, set);
+	bcmerror = brcmu_iovar_lencheck(vi, arg, len, set);
 	if (bcmerror != 0)
 		goto exit;
 
@@ -888,9 +888,9 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 	if (pkt == NULL) {
 		sd_data(("%s: Creating new %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", buflen_u));
-		mypkt = bcm_pkt_buf_get_skb(buflen_u);
+		mypkt = brcmu_pkt_buf_get_skb(buflen_u);
 		if (!mypkt) {
-			sd_err(("%s: bcm_pkt_buf_get_skb failed: len %d\n",
+			sd_err(("%s: brcmu_pkt_buf_get_skb failed: len %d\n",
 				__func__, buflen_u));
 			return SDIOH_API_RC_FAIL;
 		}
@@ -906,7 +906,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		if (!write)
 			memcpy(buffer, mypkt->data, buflen_u);
 
-		bcm_pkt_buf_free_skb(mypkt);
+		brcmu_pkt_buf_free_skb(mypkt);
 	} else if (((u32) (pkt->data) & DMA_ALIGN_MASK) != 0) {
 		/* Case 2: We have a packet, but it is unaligned. */
 
@@ -915,9 +915,9 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 
 		sd_data(("%s: Creating aligned %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", pkt->len));
-		mypkt = bcm_pkt_buf_get_skb(pkt->len);
+		mypkt = brcmu_pkt_buf_get_skb(pkt->len);
 		if (!mypkt) {
-			sd_err(("%s: bcm_pkt_buf_get_skb failed: len %d\n",
+			sd_err(("%s: brcmu_pkt_buf_get_skb failed: len %d\n",
 				__func__, pkt->len));
 			return SDIOH_API_RC_FAIL;
 		}
@@ -933,7 +933,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		if (!write)
 			memcpy(pkt->data, mypkt->data, mypkt->len);
 
-		bcm_pkt_buf_free_skb(mypkt);
+		brcmu_pkt_buf_free_skb(mypkt);
 	} else {		/* case 3: We have a packet and
 				 it is aligned. */
 		sd_data(("%s: Aligned %s Packet, direct DMA\n",

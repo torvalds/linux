@@ -14,15 +14,15 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_bcmutils_h_
-#define	_bcmutils_h_
+#ifndef	_brcmutils_h_
+#define	_brcmutils_h_
 
 /* Buffer structure for collecting string-formatted data
-* using bcm_bprintf() API.
-* Use bcm_binit() to initialize before use
+* using brcmu_bprintf() API.
+* Use brcmu_binit() to initialize before use
 */
 
-	struct bcmstrbuf {
+	struct brcmu_strbuf {
 		char *buf;	/* pointer to current position in origbuf */
 		unsigned int size;	/* current (residual) size in bytes */
 		char *origbuf;	/* unmodified pointer to orignal buffer */
@@ -87,25 +87,25 @@ typedef bool(*ifpkt_cb_t) (struct sk_buff *, void *);
 #define pktq_ppeek(pq, prec)            ((pq)->q[prec].head)
 #define pktq_ppeek_tail(pq, prec)       ((pq)->q[prec].tail)
 
-extern struct sk_buff *bcm_pktq_penq(struct pktq *pq, int prec,
+extern struct sk_buff *brcmu_pktq_penq(struct pktq *pq, int prec,
 				 struct sk_buff *p);
-extern struct sk_buff *bcm_pktq_penq_head(struct pktq *pq, int prec,
+extern struct sk_buff *brcmu_pktq_penq_head(struct pktq *pq, int prec,
 				      struct sk_buff *p);
-extern struct sk_buff *bcm_pktq_pdeq(struct pktq *pq, int prec);
-extern struct sk_buff *bcm_pktq_pdeq_tail(struct pktq *pq, int prec);
+extern struct sk_buff *brcmu_pktq_pdeq(struct pktq *pq, int prec);
+extern struct sk_buff *brcmu_pktq_pdeq_tail(struct pktq *pq, int prec);
 
 /* packet primitives */
-extern struct sk_buff *bcm_pkt_buf_get_skb(uint len);
-extern void bcm_pkt_buf_free_skb(struct sk_buff *skb);
+extern struct sk_buff *brcmu_pkt_buf_get_skb(uint len);
+extern void brcmu_pkt_buf_free_skb(struct sk_buff *skb);
 
 /* Empty the queue at particular precedence level */
-extern void bcm_pktq_pflush(struct pktq *pq, int prec,
+extern void brcmu_pktq_pflush(struct pktq *pq, int prec,
 	bool dir, ifpkt_cb_t fn, void *arg);
 
 /* operations on a set of precedences in packet queue */
 
-extern int bcm_pktq_mlen(struct pktq *pq, uint prec_bmp);
-extern struct sk_buff *bcm_pktq_mdeq(struct pktq *pq, uint prec_bmp,
+extern int brcmu_pktq_mlen(struct pktq *pq, uint prec_bmp);
+extern struct sk_buff *brcmu_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 	int *prec_out);
 
 /* operations on packet queue as a whole */
@@ -117,45 +117,36 @@ extern struct sk_buff *bcm_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 #define pktq_empty(pq)                  ((pq)->len == 0)
 
 /* operations for single precedence queues */
-#define pktenq(pq, p)		bcm_pktq_penq(((struct pktq *)pq), 0, (p))
-#define pktenq_head(pq, p)	bcm_pktq_penq_head(((struct pktq *)pq), 0, (p))
-#define pktdeq(pq)		bcm_pktq_pdeq(((struct pktq *)pq), 0)
-#define pktdeq_tail(pq)		bcm_pktq_pdeq_tail(((struct pktq *)pq), 0)
-#define pktqinit(pq, len)	bcm_pktq_init(((struct pktq *)pq), 1, len)
+#define pktenq(pq, p)		brcmu_pktq_penq(((struct pktq *)pq), 0, (p))
+#define pktenq_head(pq, p)\
+	brcmu_pktq_penq_head(((struct pktq *)pq), 0, (p))
+#define pktdeq(pq)		brcmu_pktq_pdeq(((struct pktq *)pq), 0)
+#define pktdeq_tail(pq)		brcmu_pktq_pdeq_tail(((struct pktq *)pq), 0)
+#define pktqinit(pq, len)	brcmu_pktq_init(((struct pktq *)pq), 1, len)
 
-extern void bcm_pktq_init(struct pktq *pq, int num_prec, int max_len);
+extern void brcmu_pktq_init(struct pktq *pq, int num_prec, int max_len);
 /* prec_out may be NULL if caller is not interested in return value */
-extern struct sk_buff *bcm_pktq_peek_tail(struct pktq *pq, int *prec_out);
-extern void bcm_pktq_flush(struct pktq *pq, bool dir,
+extern struct sk_buff *brcmu_pktq_peek_tail(struct pktq *pq, int *prec_out);
+extern void brcmu_pktq_flush(struct pktq *pq, bool dir,
 	ifpkt_cb_t fn, void *arg);
 
 /* externs */
 /* packet */
-extern uint bcm_pktfrombuf(struct sk_buff *p,
+extern uint brcmu_pktfrombuf(struct sk_buff *p,
 	uint offset, int len, unsigned char *buf);
-extern uint bcm_pkttotlen(struct sk_buff *p);
+extern uint brcmu_pkttotlen(struct sk_buff *p);
 
 /* ethernet address */
-extern int bcm_ether_atoe(char *p, u8 *ea);
+extern int brcmu_ether_atoe(char *p, u8 *ea);
 
 /* ip address */
 	struct ipv4_addr;
-	extern char *bcm_ip_ntoa(struct ipv4_addr *ia, char *buf);
 
 #ifdef BCMDBG
-extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
+extern void brcmu_prpkt(const char *msg, struct sk_buff *p0);
 #else
-#define bcm_prpkt(a, b)
+#define brcmu_prpkt(a, b)
 #endif				/* BCMDBG */
-
-#define bcm_perf_enable()
-#define	bcmlog(fmt, a1, a2)
-#define	bcmdumplog(buf, size)	(*buf = '\0')
-#define	bcmdumplogent(buf, idx)	-1
-
-#define bcmtslog(tstamp, fmt, a1, a2)
-#define bcmprinttslogs()
-#define bcmprinttstamp(us)
 
 /* Support for sharing code across in-driver iovar implementations.
  * The intent is that a driver use this structure to map iovar names
@@ -165,13 +156,13 @@ extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
  */
 
 /* iovar structure */
-	typedef struct bcm_iovar {
-		const char *name;	/* name for lookup and display */
-		u16 varid;	/* id for switch */
-		u16 flags;	/* driver-specific flag bits */
-		u16 type;	/* base type of argument */
-		u16 minlen;	/* min length for buffer vars */
-	} bcm_iovar_t;
+struct brcmu_iovar {
+	const char *name;	/* name for lookup and display */
+	u16 varid;	/* id for switch */
+	u16 flags;	/* driver-specific flag bits */
+	u16 type;	/* base type of argument */
+	u16 minlen;	/* min length for buffer vars */
+};
 
 /* varid definitions are per-driver, may use these get/set bits */
 
@@ -185,12 +176,11 @@ extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
 #define IOV_ISSET(actionid)	((actionid & IOV_SET) == IOV_SET)
 #define IOV_ID(actionid)	(actionid >> 1)
 
-/* flags are per-driver based on driver attributes */
-
-	extern const bcm_iovar_t *bcm_iovar_lookup(const bcm_iovar_t *table,
-						   const char *name);
-	extern int bcm_iovar_lencheck(const bcm_iovar_t *table, void *arg,
-				      int len, bool set);
+extern const struct
+brcmu_iovar *brcmu_iovar_lookup(const struct brcmu_iovar *table,
+				const char *name);
+extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
+				int len, bool set);
 
 /* Base type definitions */
 #define IOVT_VOID	0	/* no value (implictly set only) */
@@ -424,21 +414,18 @@ extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
 #define CRC16_INIT_VALUE 0xffff	/* Initial CRC16 checksum value */
 #define CRC16_GOOD_VALUE 0xf0b8	/* Good final CRC16 checksum value */
 
-/* bcm_format_flags() bit description structure */
-	typedef struct bcm_bit_desc {
-		u32 bit;
-		const char *name;
-	} bcm_bit_desc_t;
+/* brcmu_format_flags() bit description structure */
+struct brcmu_bit_desc {
+	u32 bit;
+	const char *name;
+};
 
 /* tag_ID/length/value_buffer tuple */
-	typedef struct bcm_tlv {
-		u8 id;
-		u8 len;
-		u8 data[1];
-	} bcm_tlv_t;
-
-/* Check that bcm_tlv_t fits into the given buflen */
-#define bcm_valid_tlv(elt, buflen) ((buflen) >= 2 && (int)(buflen) >= (int)(2 + (elt)->len))
+struct brcmu_tlv {
+	u8 id;
+	u8 len;
+	u8 data[1];
+};
 
 #define ETHER_ADDR_STR_LEN	18	/* 18-bytes of Ethernet address buffer length */
 
@@ -476,17 +463,19 @@ extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
 
 /* externs */
 /* crc */
-extern u8 bcm_crc8(u8 *p, uint nbytes, u8 crc);
+extern u8 brcmu_crc8(u8 *p, uint nbytes, u8 crc);
+
 /* format/print */
 #if defined(BCMDBG)
-	extern int bcm_format_flags(const bcm_bit_desc_t *bd, u32 flags,
-				    char *buf, int len);
-	extern int bcm_format_hex(char *str, const void *bytes, int len);
+extern int brcmu_format_flags(const struct brcmu_bit_desc *bd, u32 flags,
+			      char *buf, int len);
+extern int brcmu_format_hex(char *str, const void *bytes, int len);
 #endif
-	extern char *bcm_chipname(uint chipid, char *buf, uint len);
 
-	extern bcm_tlv_t *bcm_parse_tlvs(void *buf, int buflen,
-						    uint key);
+extern char *brcmu_chipname(uint chipid, char *buf, uint len);
+
+extern struct brcmu_tlv *brcmu_parse_tlvs(void *buf, int buflen,
+					  uint key);
 
 /* multi-bool data type: set of bools, mbool is true if any is set */
 	typedef u32 mbool;
@@ -496,14 +485,14 @@ extern u8 bcm_crc8(u8 *p, uint nbytes, u8 crc);
 #define	mboolmaskset(mb, mask, val)	((mb) = (((mb) & ~(mask)) | (val)))
 
 /* power conversion */
-	extern u16 bcm_qdbm_to_mw(u8 qdbm);
-	extern u8 bcm_mw_to_qdbm(u16 mw);
+extern u16 brcmu_qdbm_to_mw(u8 qdbm);
+extern u8 brcmu_mw_to_qdbm(u16 mw);
 
-	extern void bcm_binit(struct bcmstrbuf *b, char *buf, uint size);
-	extern int bcm_bprintf(struct bcmstrbuf *b, const char *fmt, ...);
+extern void brcmu_binit(struct brcmu_strbuf *b, char *buf, uint size);
+extern int brcmu_bprintf(struct brcmu_strbuf *b, const char *fmt, ...);
 
-	extern uint bcm_mkiovar(char *name, char *data, uint datalen, char *buf,
-				uint len);
-	extern uint bcm_bitcount(u8 *bitmap, uint bytelength);
+extern uint brcmu_mkiovar(char *name, char *data, uint datalen,
+			  char *buf, uint len);
+extern uint brcmu_bitcount(u8 *bitmap, uint bytelength);
 
-#endif				/* _bcmutils_h_ */
+#endif				/* _brcmutils_h_ */

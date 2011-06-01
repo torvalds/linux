@@ -257,7 +257,7 @@ typedef enum {
 #define PHY_CHAIN_TX_DISABLE_TEMP	115
 #define PHY_HYSTERESIS_DELTATEMP	5
 
-#define PHY_BITSCNT(x)	bcm_bitcount((u8 *)&(x), sizeof(u8))
+#define PHY_BITSCNT(x)	brcmu_bitcount((u8 *)&(x), sizeof(u8))
 
 #define MOD_PHY_REG(pi, phy_type, reg_name, field, value) \
 	mod_phy_reg(pi, phy_type##_##reg_name, phy_type##_##reg_name##_##field##_MASK, \

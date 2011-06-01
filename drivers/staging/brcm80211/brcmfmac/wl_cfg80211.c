@@ -644,7 +644,7 @@ wl_dev_iovar_setbuf(struct net_device *dev, s8 * iovar, void *param,
 {
 	s32 iolen;
 
-	iolen = bcm_mkiovar(iovar, param, paramlen, bufptr, buflen);
+	iolen = brcmu_mkiovar(iovar, param, paramlen, bufptr, buflen);
 	BUG_ON(!iolen);
 
 	return wl_dev_ioctl(dev, WLC_SET_VAR, bufptr, iolen);
@@ -656,7 +656,7 @@ wl_dev_iovar_getbuf(struct net_device *dev, s8 * iovar, void *param,
 {
 	s32 iolen;
 
-	iolen = bcm_mkiovar(iovar, param, paramlen, bufptr, buflen);
+	iolen = brcmu_mkiovar(iovar, param, paramlen, bufptr, buflen);
 	BUG_ON(!iolen);
 
 	return wl_dev_ioctl(dev, WLC_GET_VAR, bufptr, buflen);
@@ -844,7 +844,8 @@ static s32 wl_dev_intvar_set(struct net_device *dev, s8 *name, s32 val)
 	s32 err = 0;
 
 	val = cpu_to_le32(val);
-	len = bcm_mkiovar(name, (char *)(&val), sizeof(val), buf, sizeof(buf));
+	len = brcmu_mkiovar(name, (char *)(&val), sizeof(val), buf,
+			    sizeof(buf));
 	BUG_ON(!len);
 
 	err = wl_dev_ioctl(dev, WLC_SET_VAR, buf, len);
@@ -866,7 +867,7 @@ wl_dev_intvar_get(struct net_device *dev, s8 *name, s32 *retval)
 	s32 err = 0;
 
 	len =
-	    bcm_mkiovar(name, (char *)(&data_null), 0, (char *)(&var),
+	    brcmu_mkiovar(name, (char *)(&data_null), 0, (char *)(&var),
 			sizeof(var.buf));
 	BUG_ON(!len);
 	err = wl_dev_ioctl(dev, WLC_GET_VAR, &var, len);
@@ -1519,7 +1520,7 @@ wl_cfg80211_set_tx_power(struct wiphy *wiphy,
 	else
 		txpwrmw = (u16) dbm;
 	err = wl_dev_intvar_set(ndev, "qtxpower",
-			(s32) (bcm_mw_to_qdbm(txpwrmw)));
+			(s32) (brcmu_mw_to_qdbm(txpwrmw)));
 	if (unlikely(err))
 		WL_ERR("qtxpower error (%d)\n", err);
 	wl->conf->tx_power = dbm;
@@ -1547,7 +1548,7 @@ static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, s32 *dbm)
 	}
 
 	result = (u8) (txpwrdbm & ~WL_TXPWR_OVERRIDE);
-	*dbm = (s32) bcm_qdbm_to_mw(result);
+	*dbm = (s32) brcmu_qdbm_to_mw(result);
 
 done:
 	WL_TRACE("Exit\n");
@@ -2669,7 +2670,7 @@ wl_dev_bufvar_set(struct net_device *dev, s8 *name, s8 *buf, s32 len)
 	struct wl_priv *wl = ndev_to_wl(dev);
 	u32 buflen;
 
-	buflen = bcm_mkiovar(name, buf, len, wl->ioctl_buf, WL_IOCTL_LEN_MAX);
+	buflen = brcmu_mkiovar(name, buf, len, wl->ioctl_buf, WL_IOCTL_LEN_MAX);
 	BUG_ON(!buflen);
 
 	return wl_dev_ioctl(dev, WLC_SET_VAR, wl->ioctl_buf, buflen);
@@ -2683,7 +2684,7 @@ wl_dev_bufvar_get(struct net_device *dev, s8 *name, s8 *buf,
 	u32 len;
 	s32 err = 0;
 
-	len = bcm_mkiovar(name, NULL, 0, wl->ioctl_buf, WL_IOCTL_LEN_MAX);
+	len = brcmu_mkiovar(name, NULL, 0, wl->ioctl_buf, WL_IOCTL_LEN_MAX);
 	BUG_ON(!len);
 	err = wl_dev_ioctl(dev, WLC_GET_VAR, (void *)wl->ioctl_buf,
 			WL_IOCTL_LEN_MAX);
@@ -2801,7 +2802,7 @@ static s32 wl_update_bss_info(struct wl_priv *wl)
 {
 	struct wl_bss_info *bi;
 	struct wlc_ssid *ssid;
-	struct bcm_tlv *tim;
+	struct brcmu_tlv *tim;
 	u16 beacon_interval;
 	u8 dtim_period;
 	size_t ie_len;
@@ -2831,7 +2832,7 @@ static s32 wl_update_bss_info(struct wl_priv *wl)
 	ie_len = bi->ie_length;
 	beacon_interval = cpu_to_le16(bi->beacon_period);
 
-	tim = bcm_parse_tlvs(ie, ie_len, WLAN_EID_TIM);
+	tim = brcmu_parse_tlvs(ie, ie_len, WLAN_EID_TIM);
 	if (tim)
 		dtim_period = tim->data[1];
 	else {
@@ -3682,7 +3683,7 @@ wl_dongle_glom(struct net_device *ndev, u32 glom, u32 dongle_align)
 	s32 err = 0;
 
 	/* Match Host and Dongle rx alignment */
-	bcm_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf,
+	brcmu_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf,
 		    sizeof(iovbuf));
 	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (unlikely(err)) {
@@ -3690,7 +3691,7 @@ wl_dongle_glom(struct net_device *ndev, u32 glom, u32 dongle_align)
 		goto dongle_glom_out;
 	}
 	/* disable glom option per default */
-	bcm_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
+	brcmu_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
 	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (unlikely(err)) {
 		WL_ERR("txglom error (%d)\n", err);
@@ -3708,7 +3709,7 @@ wl_dongle_offload(struct net_device *ndev, s32 arpoe, s32 arp_ol)
 	s32 err = 0;
 
 	/* Set ARP offload */
-	bcm_mkiovar("arpoe", (char *)&arpoe, 4, iovbuf, sizeof(iovbuf));
+	brcmu_mkiovar("arpoe", (char *)&arpoe, 4, iovbuf, sizeof(iovbuf));
 	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (err) {
 		if (err == -EOPNOTSUPP)
@@ -3718,7 +3719,7 @@ wl_dongle_offload(struct net_device *ndev, s32 arpoe, s32 arp_ol)
 
 		goto dongle_offload_out;
 	}
-	bcm_mkiovar("arp_ol", (char *)&arp_ol, 4, iovbuf, sizeof(iovbuf));
+	brcmu_mkiovar("arp_ol", (char *)&arp_ol, 4, iovbuf, sizeof(iovbuf));
 	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (err) {
 		if (err == -EOPNOTSUPP)
@@ -3831,7 +3832,7 @@ static s32 wl_dongle_filter(struct net_device *ndev, u32 filter_mode)
 	}
 
 	/* set mode to allow pattern */
-	bcm_mkiovar("pkt_filter_mode", (char *)&filter_mode, 4, iovbuf,
+	brcmu_mkiovar("pkt_filter_mode", (char *)&filter_mode, 4, iovbuf,
 		    sizeof(iovbuf));
 	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (err) {
@@ -3858,7 +3859,7 @@ static s32 wl_dongle_eventmsg(struct net_device *ndev)
 	WL_TRACE("Enter\n");
 
 	/* Setup event_msgs */
-	bcm_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf,
+	brcmu_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf,
 		    sizeof(iovbuf));
 	err = wl_dev_ioctl(ndev, WLC_GET_VAR, iovbuf, sizeof(iovbuf));
 	if (unlikely(err)) {
@@ -3887,7 +3888,7 @@ static s32 wl_dongle_eventmsg(struct net_device *ndev)
 	setbit(eventmask, WLC_E_JOIN_START);
 	setbit(eventmask, WLC_E_SCAN_COMPLETE);
 
-	bcm_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf,
+	brcmu_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf,
 		    sizeof(iovbuf));
 	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (unlikely(err)) {
@@ -3913,7 +3914,7 @@ wl_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
 	 * off to report link down
 	 */
 	if (roamvar) {
-		bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout,
+		brcmu_mkiovar("bcn_timeout", (char *)&bcn_timeout,
 			sizeof(bcn_timeout), iovbuf, sizeof(iovbuf));
 		err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 		if (unlikely(err)) {
@@ -3927,7 +3928,7 @@ wl_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
 	 * to take care of roaming
 	 */
 	WL_INFO("Internal Roaming = %s\n", roamvar ? "Off" : "On");
-	bcm_mkiovar("roam_off", (char *)&roamvar,
+	brcmu_mkiovar("roam_off", (char *)&roamvar,
 				sizeof(roamvar), iovbuf, sizeof(iovbuf));
 	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (unlikely(err)) {

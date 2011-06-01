@@ -230,7 +230,8 @@ static int dev_wlc_intvar_set(struct net_device *dev, char *name, int val)
 	uint len;
 
 	val = cpu_to_le32(val);
-	len = bcm_mkiovar(name, (char *)(&val), sizeof(val), buf, sizeof(buf));
+	len = brcmu_mkiovar(name, (char *)(&val), sizeof(val), buf,
+			    sizeof(buf));
 	ASSERT(len);
 
 	return dev_wlc_ioctl(dev, WLC_SET_VAR, buf, len);
@@ -244,7 +245,7 @@ dev_iw_iovar_setbuf(struct net_device *dev,
 {
 	int iolen;
 
-	iolen = bcm_mkiovar(iovar, param, paramlen, bufptr, buflen);
+	iolen = brcmu_mkiovar(iovar, param, paramlen, bufptr, buflen);
 	ASSERT(iolen);
 
 	if (iolen == 0)
@@ -260,7 +261,7 @@ dev_iw_iovar_getbuf(struct net_device *dev,
 {
 	int iolen;
 
-	iolen = bcm_mkiovar(iovar, param, paramlen, bufptr, buflen);
+	iolen = brcmu_mkiovar(iovar, param, paramlen, bufptr, buflen);
 	ASSERT(iolen);
 
 	return dev_wlc_ioctl(dev, WLC_GET_VAR, bufptr, buflen);
@@ -274,7 +275,7 @@ dev_wlc_bufvar_set(struct net_device *dev, char *name, char *buf, int len)
 	static char ioctlbuf[MAX_WLIW_IOCTL_LEN];
 	uint buflen;
 
-	buflen = bcm_mkiovar(name, buf, len, ioctlbuf, sizeof(ioctlbuf));
+	buflen = brcmu_mkiovar(name, buf, len, ioctlbuf, sizeof(ioctlbuf));
 	ASSERT(buflen);
 
 	return dev_wlc_ioctl(dev, WLC_SET_VAR, ioctlbuf, buflen);
@@ -288,7 +289,7 @@ dev_wlc_bufvar_get(struct net_device *dev, char *name, char *buf, int buflen)
 	int error;
 	uint len;
 
-	len = bcm_mkiovar(name, NULL, 0, ioctlbuf, sizeof(ioctlbuf));
+	len = brcmu_mkiovar(name, NULL, 0, ioctlbuf, sizeof(ioctlbuf));
 	ASSERT(len);
 	error =
 	    dev_wlc_ioctl(dev, WLC_GET_VAR, (void *)ioctlbuf,
@@ -311,7 +312,7 @@ static int dev_wlc_intvar_get(struct net_device *dev, char *name, int *retval)
 	uint data_null;
 
 	len =
-	    bcm_mkiovar(name, (char *)(&data_null), 0, (char *)(&var),
+	    brcmu_mkiovar(name, (char *)(&data_null), 0, (char *)(&var),
 			sizeof(var.buf));
 	ASSERT(len);
 	error = dev_wlc_ioctl(dev, WLC_GET_VAR, (void *)&var, len);
@@ -396,7 +397,7 @@ wl_iw_set_freq(struct net_device *dev,
 		if (fwrq->m > 4000 && fwrq->m < 5000)
 			sf = WF_CHAN_FACTOR_4_G;
 
-		chan = bcm_mhz2channel(fwrq->m, sf);
+		chan = brcmu_mhz2channel(fwrq->m, sf);
 	}
 	chan = cpu_to_le32(chan);
 
@@ -1447,11 +1448,11 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 
 	event = *event_p;
 	if (bi->ie_length) {
-		bcm_tlv_t *ie;
+		struct brcmu_tlv *ie;
 		u8 *ptr = ((u8 *) bi) + sizeof(wl_bss_info_t);
 		int ptr_len = bi->ie_length;
 
-		ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_RSN_ID);
+		ie = brcmu_parse_tlvs(ptr, ptr_len, DOT11_MNG_RSN_ID);
 		if (ie) {
 			iwe.cmd = IWEVGENIE;
 			iwe.u.data.length = ie->len + 2;
@@ -1461,7 +1462,8 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 		}
 		ptr = ((u8 *) bi) + sizeof(wl_bss_info_t);
 
-		while ((ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_WPA_ID))) {
+		while ((ie = brcmu_parse_tlvs(
+				ptr, ptr_len, DOT11_MNG_WPA_ID))) {
 			if (ie_is_wps_ie(((u8 **)&ie), &ptr, &ptr_len)) {
 				iwe.cmd = IWEVGENIE;
 				iwe.u.data.length = ie->len + 2;
@@ -1474,7 +1476,8 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 
 		ptr = ((u8 *) bi) + sizeof(wl_bss_info_t);
 		ptr_len = bi->ie_length;
-		while ((ie = bcm_parse_tlvs(ptr, ptr_len, DOT11_MNG_WPA_ID))) {
+		while ((ie = brcmu_parse_tlvs(
+				ptr, ptr_len, DOT11_MNG_WPA_ID))) {
 			if (ie_is_wpa_ie(((u8 **)&ie), &ptr, &ptr_len)) {
 				iwe.cmd = IWEVGENIE;
 				iwe.u.data.length = ie->len + 2;
@@ -2199,8 +2202,8 @@ wl_iw_set_txpow(struct net_device *dev,
 	else
 		txpwrmw = (u16) vwrq->value;
 
-	error =
-	    dev_wlc_intvar_set(dev, "qtxpower", (int)(bcm_mw_to_qdbm(txpwrmw)));
+	error = dev_wlc_intvar_set(dev, "qtxpower",
+				   (int)(brcmu_mw_to_qdbm(txpwrmw)));
 	return error;
 }
 
@@ -2224,7 +2227,7 @@ wl_iw_get_txpow(struct net_device *dev,
 
 	disable = le32_to_cpu(disable);
 	result = (u8) (txpwrdbm & ~WL_TXPWR_OVERRIDE);
-	vwrq->value = (s32) bcm_qdbm_to_mw(result);
+	vwrq->value = (s32) brcmu_qdbm_to_mw(result);
 	vwrq->fixed = 0;
 	vwrq->disabled =
 	    (disable & (WL_RADIO_SW_DISABLE | WL_RADIO_HW_DISABLE)) ? 1 : 0;

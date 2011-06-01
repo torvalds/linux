@@ -366,9 +366,9 @@ dhd_prot_iovar_op(dhd_pub_t *dhdp, const char *name,
 	return -ENOTSUPP;
 }
 
-void dhd_prot_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
+void dhd_prot_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf)
 {
-	bcm_bprintf(strbuf, "Protocol CDC: reqid %d\n", dhdp->prot->reqid);
+	brcmu_bprintf(strbuf, "Protocol CDC: reqid %d\n", dhdp->prot->reqid);
 }
 
 void dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, struct sk_buff *pktbuf)

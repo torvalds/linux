@@ -33,7 +33,7 @@
 #define EDCF_AIFSN_MIN               1
 #define FRAGNUM_MASK		0xF
 
-#define WLC_BITSCNT(x)	bcm_bitcount((u8 *)&(x), sizeof(u8))
+#define WLC_BITSCNT(x)	brcmu_bitcount((u8 *)&(x), sizeof(u8))
 
 /* Maximum wait time for a MAC suspend */
 #define	WLC_MAX_MAC_SUSPEND	83000	/* uS: 83mS is max packet time (64KB ampdu @ 6Mbps) */
@@ -355,7 +355,7 @@ struct pkt_cb {
 /* module control blocks */
 struct modulecb {
 	char name[32];		/* module name : NULL indicates empty array member */
-	const bcm_iovar_t *iovars;	/* iovar table */
+	const struct brcmu_iovar *iovars;	/* iovar table */
 	void *hdl;		/* handle passed when handler 'doiovar' is called */
 	watchdog_fn_t watchdog_fn;	/* watchdog handler */
 	iovar_fn_t iovar_fn;	/* iovar handler */
@@ -812,8 +812,8 @@ extern void wlc_inval_dma_pkts(struct wlc_hw_info *hw,
 			       void (*dma_callback_fn));
 
 #if defined(BCMDBG)
-extern void wlc_dump_ie(struct wlc_info *wlc, bcm_tlv_t *ie,
-			struct bcmstrbuf *b);
+extern void wlc_dump_ie(struct wlc_info *wlc, struct brcmu_tlv *ie,
+			struct brcmu_strbuf *b);
 #endif
 
 extern void wlc_reprate_init(struct wlc_info *wlc);

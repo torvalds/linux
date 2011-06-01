@@ -54,7 +54,7 @@ struct bmac_pmq;
 struct d11init;
 struct dma_pub;
 struct wlc_bsscfg;
-struct bcmstrbuf;
+struct brcmu_strbuf;
 struct si_pub;
 
 /* brcm_msg_level is a bit vector with defs in bcmdefs.h */

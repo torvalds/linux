@@ -61,7 +61,7 @@ extern int dhd_prot_iovar_op(dhd_pub_t *dhdp, const char *name,
 			     bool set);
 
 /* Add prot dump output to a buffer */
-extern void dhd_prot_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf);
+extern void dhd_prot_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf);
 
 /* Update local copy of dongle statistics */
 extern void dhd_prot_dstats(dhd_pub_t *dhdp);

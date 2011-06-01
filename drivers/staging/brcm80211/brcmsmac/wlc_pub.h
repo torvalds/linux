@@ -219,7 +219,7 @@ struct wlc_if;
 /* watchdog down and dump callback function proto's */
 typedef int (*watchdog_fn_t) (void *handle);
 typedef int (*down_fn_t) (void *handle);
-typedef int (*dump_fn_t) (void *handle, struct bcmstrbuf *b);
+typedef int (*dump_fn_t) (void *handle, struct brcmu_strbuf *b);
 
 /* IOVar handler
  *
@@ -234,7 +234,7 @@ typedef int (*dump_fn_t) (void *handle, struct bcmstrbuf *b);
  *
  * All pointers may point into the same buffer.
  */
-typedef int (*iovar_fn_t) (void *handle, const bcm_iovar_t *vi,
+typedef int (*iovar_fn_t) (void *handle, const struct brcmu_iovar *vi,
 			   u32 actionid, const char *name, void *params,
 			   uint plen, void *arg, int alen, int vsize,
 			   struct wlc_if *wlcif);

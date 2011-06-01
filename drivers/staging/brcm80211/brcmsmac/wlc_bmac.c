@@ -922,7 +922,7 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 		err = 21;
 		goto fail;
 	}
-	bcm_ether_atoe(macaddr, wlc_hw->etheraddr);
+	brcmu_ether_atoe(macaddr, wlc_hw->etheraddr);
 	if (is_broadcast_ether_addr(wlc_hw->etheraddr) ||
 	    is_zero_ether_addr(wlc_hw->etheraddr)) {
 		wiphy_err(wiphy, "wl%d: wlc_bmac_attach: bad macaddr %s\n",
