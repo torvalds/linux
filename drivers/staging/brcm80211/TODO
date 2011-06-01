@@ -6,13 +6,13 @@ Bugs
 
 brcmfmac and brcmsmac
 =====================
-
-- Remove unnecessary includes, move #includes from .h files into .c files.
-- Absorb and delete header files that are included in only one .c file
+- replace company specific acronym wlc_
+- Resolve all XXX, TODO, FIXME in code
 
 brcmfmac
 =====================
-
+- Remove unnecessary includes, move #includes from .h files into .c files.
+- Absorb and delete header files that are included in only one .c file
 - ASSERTS not allowed in mainline, replace by warning + error handling
 - Replace printk and WL_ERROR() with proper routines
 - Replace driver's proprietary ssb interface with generic kernel ssb module
