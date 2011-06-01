@@ -2482,6 +2482,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	/* Initialize the spinlocks */
 	spin_lock_init(&dhd->sdlock);
 	spin_lock_init(&dhd->txqlock);
+	spin_lock_init(&dhd->dhd_lock);
 
 	/* Initialize Wakelock stuff */
 	spin_lock_init(&dhd->wakelock_spinlock);
