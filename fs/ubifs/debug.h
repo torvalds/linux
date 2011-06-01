@@ -126,6 +126,25 @@ struct ubifs_debug_info {
 	struct dentry *dfs_tst_rcvry;
 };
 
+/**
+ * ubifs_global_debug_info - global (not per-FS) UBIFS debugging information.
+ *
+ * @chk_gen: if general extra checks are enabled
+ * @chk_index: if index xtra checks are enabled
+ * @chk_orph: if orphans extra checks are enabled
+ * @chk_lprops: if lprops extra checks are enabled
+ * @chk_fs: if UBIFS contents extra checks are enabled
+ * @tst_rcvry: if UBIFS recovery testing mode enabled
+ */
+struct ubifs_global_debug_info {
+	unsigned int chk_gen:1;
+	unsigned int chk_index:1;
+	unsigned int chk_orph:1;
+	unsigned int chk_lprops:1;
+	unsigned int chk_fs:1;
+	unsigned int tst_rcvry:1;
+};
+
 #define ubifs_assert(expr) do {                                                \
 	if (unlikely(!(expr))) {                                               \
 		printk(KERN_CRIT "UBIFS assert failed in %s at %u (pid %d)\n", \
@@ -162,6 +181,8 @@ const char *dbg_key_str1(const struct ubifs_info *c,
 #define DBGKEY(key) dbg_key_str0(c, (key))
 #define DBGKEY1(key) dbg_key_str1(c, (key))
 
+extern spinlock_t dbg_lock;
+
 #define ubifs_dbg_msg(type, fmt, ...) do {                        \
 	spin_lock(&dbg_lock);                                     \
 	pr_debug("UBIFS DBG " type ": " fmt "\n", ##__VA_ARGS__); \
@@ -197,31 +218,31 @@ const char *dbg_key_str1(const struct ubifs_info *c,
 /* Additional recovery messages */
 #define dbg_rcvry(fmt, ...) ubifs_dbg_msg("rcvry", fmt, ##__VA_ARGS__)
 
-extern spinlock_t dbg_lock;
+extern struct ubifs_global_debug_info ubifs_dbg;
 
 static inline int dbg_is_chk_gen(const struct ubifs_info *c)
 {
-	return c->dbg->chk_gen;
+	return !!(ubifs_dbg.chk_gen || c->dbg->chk_gen);
 }
 static inline int dbg_is_chk_index(const struct ubifs_info *c)
 {
-	return c->dbg->chk_index;
+	return !!(ubifs_dbg.chk_index || c->dbg->chk_index);
 }
 static inline int dbg_is_chk_orph(const struct ubifs_info *c)
 {
-	return c->dbg->chk_orph;
+	return !!(ubifs_dbg.chk_orph || c->dbg->chk_orph);
 }
 static inline int dbg_is_chk_lprops(const struct ubifs_info *c)
 {
-	return c->dbg->chk_lprops;
+	return !!(ubifs_dbg.chk_lprops || c->dbg->chk_lprops);
 }
 static inline int dbg_is_chk_fs(const struct ubifs_info *c)
 {
-	return c->dbg->chk_fs;
+	return !!(ubifs_dbg.chk_fs || c->dbg->chk_fs);
 }
 static inline int dbg_is_tst_rcvry(const struct ubifs_info *c)
 {
-	return c->dbg->tst_rcvry;
+	return !!(ubifs_dbg.tst_rcvry || c->dbg->tst_rcvry);
 }
 
 int ubifs_debugging_init(struct ubifs_info *c);

@@ -3064,7 +3064,7 @@ out_remove:
 	debugfs_remove_recursive(d->dfs_dir);
 out:
 	err = dent ? PTR_ERR(dent) : -ENODEV;
-	ubifs_err("cannot create \"%s\" debugfs filr or directory, error %d\n",
+	ubifs_err("cannot create \"%s\" debugfs file or directory, error %d\n",
 		  fname, err);
 	return err;
 }
@@ -3078,6 +3078,74 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c)
 	debugfs_remove_recursive(c->dbg->dfs_dir);
 }
 
+struct ubifs_global_debug_info ubifs_dbg;
+
+static struct dentry *dfs_chk_gen;
+static struct dentry *dfs_chk_index;
+static struct dentry *dfs_chk_orph;
+static struct dentry *dfs_chk_lprops;
+static struct dentry *dfs_chk_fs;
+static struct dentry *dfs_tst_rcvry;
+
+static ssize_t dfs_global_file_read(struct file *file, char __user *u,
+				    size_t count, loff_t *ppos)
+{
+	struct dentry *dent = file->f_path.dentry;
+	int val;
+
+	if (dent == dfs_chk_gen)
+		val = ubifs_dbg.chk_gen;
+	else if (dent == dfs_chk_index)
+		val = ubifs_dbg.chk_index;
+	else if (dent == dfs_chk_orph)
+		val = ubifs_dbg.chk_orph;
+	else if (dent == dfs_chk_lprops)
+		val = ubifs_dbg.chk_lprops;
+	else if (dent == dfs_chk_fs)
+		val = ubifs_dbg.chk_fs;
+	else if (dent == dfs_tst_rcvry)
+		val = ubifs_dbg.tst_rcvry;
+	else
+		return -EINVAL;
+
+	return provide_user_output(val, u, count, ppos);
+}
+
+static ssize_t dfs_global_file_write(struct file *file, const char __user *u,
+				     size_t count, loff_t *ppos)
+{
+	struct dentry *dent = file->f_path.dentry;
+	int val;
+
+	val = interpret_user_input(u, count);
+	if (val < 0)
+		return val;
+
+	if (dent == dfs_chk_gen)
+		ubifs_dbg.chk_gen = val;
+	else if (dent == dfs_chk_index)
+		ubifs_dbg.chk_index = val;
+	else if (dent == dfs_chk_orph)
+		ubifs_dbg.chk_orph = val;
+	else if (dent == dfs_chk_lprops)
+		ubifs_dbg.chk_lprops = val;
+	else if (dent == dfs_chk_fs)
+		ubifs_dbg.chk_fs = val;
+	else if (dent == dfs_tst_rcvry)
+		ubifs_dbg.tst_rcvry = val;
+	else
+		return -EINVAL;
+
+	return count;
+}
+
+static const struct file_operations dfs_global_fops = {
+	.read = dfs_global_file_read,
+	.write = dfs_global_file_write,
+	.owner = THIS_MODULE,
+	.llseek = no_llseek,
+};
+
 /**
  * dbg_debugfs_init - initialize debugfs file-system.
  *
@@ -3088,15 +3156,67 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c)
  */
 int dbg_debugfs_init(void)
 {
-	dfs_rootdir = debugfs_create_dir("ubifs", NULL);
-	if (IS_ERR_OR_NULL(dfs_rootdir)) {
-		int err = dfs_rootdir ? PTR_ERR(dfs_rootdir) : -ENODEV;
-		ubifs_err("cannot create \"ubifs\" debugfs directory, "
-			  "error %d\n", err);
-		return err;
-	}
+	int err;
+	const char *fname;
+	struct dentry *dent;
+
+	fname = "ubifs";
+	dent = debugfs_create_dir(fname, NULL);
+	if (IS_ERR_OR_NULL(dent))
+		goto out;
+	dfs_rootdir = dent;
+
+	fname = "chk_general";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
+				   &dfs_global_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	dfs_chk_gen = dent;
+
+	fname = "chk_index";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
+				   &dfs_global_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	dfs_chk_index = dent;
+
+	fname = "chk_orphans";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
+				   &dfs_global_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	dfs_chk_orph = dent;
+
+	fname = "chk_lprops";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
+				   &dfs_global_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	dfs_chk_lprops = dent;
+
+	fname = "chk_fs";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
+				   &dfs_global_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	dfs_chk_fs = dent;
+
+	fname = "tst_recovery";
+	dent = debugfs_create_file(fname, S_IRUSR | S_IWUSR, dfs_rootdir, NULL,
+				   &dfs_global_fops);
+	if (IS_ERR_OR_NULL(dent))
+		goto out_remove;
+	dfs_tst_rcvry = dent;
 
 	return 0;
+
+out_remove:
+	debugfs_remove_recursive(dfs_rootdir);
+out:
+	err = dent ? PTR_ERR(dent) : -ENODEV;
+	ubifs_err("cannot create \"%s\" debugfs file or directory, error %d\n",
+		  fname, err);
+	return err;
 }
 
 /**
@@ -3104,7 +3224,7 @@ int dbg_debugfs_init(void)
  */
 void dbg_debugfs_exit(void)
 {
-	debugfs_remove(dfs_rootdir);
+	debugfs_remove_recursive(dfs_rootdir);
 }
 
 /**
