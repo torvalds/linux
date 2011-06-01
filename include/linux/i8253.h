@@ -9,13 +9,17 @@
 #ifndef __LINUX_I8253_H
 #define __LINUX_I8253_H
 
+#include <linux/param.h>
 #include <linux/spinlock.h>
+#include <linux/timex.h>
 #include <asm/i8253.h>
 
 /* i8253A PIT registers */
 #define PIT_MODE	0x43
 #define PIT_CH0		0x40
 #define PIT_CH2		0x42
+
+#define PIT_LATCH	((PIT_TICK_RATE + HZ/2) / HZ)
 
 #define inb_pit         inb_p
 #define outb_pit        outb_p

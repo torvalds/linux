@@ -5,8 +5,6 @@
 #ifndef __ASM_I8253_H
 #define __ASM_I8253_H
 
-#define PIT_LATCH		LATCH
-
 extern void setup_pit_timer(void);
 
 #endif /* __ASM_I8253_H */
