@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <proto/802.11.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>

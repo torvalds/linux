@@ -25,8 +25,6 @@
 #include <linux/sched.h>
 #include <linux/firmware.h>
 #include <net/mac80211.h>
-
-#include <proto/802.11.h>
 #include <bcmdefs.h>
 #include <bcmwifi.h>
 #include <bcmutils.h>

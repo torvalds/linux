@@ -1771,4 +1771,21 @@ typedef struct macstat {
 #define SHM_BYT_CNT	0x2	/* IHR location */
 #define MAX_BYT_CNT	0x600	/* Maximum frame len */
 
+typedef struct d11cnt {
+	u32 txfrag;
+	u32 txmulti;
+	u32 txfail;
+	u32 txretry;
+	u32 txretrie;
+	u32 rxdup;
+	u32 txrts;
+	u32 txnocts;
+	u32 txnoack;
+	u32 rxfrag;
+	u32 rxmulti;
+	u32 rxcrc;
+	u32 txfrmsnt;
+	u32 rxundec;
+} d11cnt_t;
+
 #endif				/* _D11_H */

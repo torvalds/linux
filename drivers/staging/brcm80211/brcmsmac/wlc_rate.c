@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include <proto/802.11.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <aiutils.h>

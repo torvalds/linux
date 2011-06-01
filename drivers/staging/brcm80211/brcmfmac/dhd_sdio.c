@@ -139,8 +139,6 @@ typedef struct {
 #include <sbsdpcmdev.h>
 #include <bcmsdpcm.h>
 
-#include <proto/802.11.h>
-
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_bus.h>

@@ -27,7 +27,6 @@
 #include <bcmutils.h>
 #include <bcmnvram.h>
 #include <bcmdevs.h>
-#include <proto/802.11.h>
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver utilities.");
