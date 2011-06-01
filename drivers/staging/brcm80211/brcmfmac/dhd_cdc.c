@@ -16,9 +16,11 @@
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
+#include <linux/sched.h>
 #include <bcmdefs.h>
 
 #include <bcmutils.h>
+#include <bcmwifi.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>

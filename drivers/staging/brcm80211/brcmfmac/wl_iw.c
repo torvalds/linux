@@ -18,8 +18,10 @@
 #include <linux/semaphore.h>
 #include <bcmdefs.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 
 #include <bcmutils.h>
+#include <bcmwifi.h>
 
 #include <linux/if_arp.h>
 #include <asm/uaccess.h>

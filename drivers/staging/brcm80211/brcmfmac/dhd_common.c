@@ -15,8 +15,11 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/sched.h>
 #include <bcmdefs.h>
+#include <bcmwifi.h>
 #include <linux/netdevice.h>
+#include <asm/unaligned.h>
 #include <bcmutils.h>
 #include <dngl_stats.h>
 #include <dhd.h>

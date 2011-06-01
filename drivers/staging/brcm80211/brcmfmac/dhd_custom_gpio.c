@@ -15,7 +15,10 @@
  */
 
 #include <linux/netdevice.h>
+#include <linux/sched.h>
 #include <bcmutils.h>
+#include <bcmdefs.h>
+#include <bcmwifi.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>

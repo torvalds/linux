@@ -23,16 +23,16 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/completion.h>
+#include <linux/sched.h>
 
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmutils.h>
+#include <bcmwifi.h>
 
 #if defined(OOB_INTR_ONLY)
 #include <linux/irq.h>
 extern void dhdsdio_isr(void *args);
-#include <dngl_stats.h>
-#include <dhd.h>
 #endif				/* defined(OOB_INTR_ONLY) */
 #if defined(CONFIG_MACH_SANDGATE2G) || defined(CONFIG_MACH_LOGICPD_PXA270)
 #if !defined(BCMPLATFORM_BUS)

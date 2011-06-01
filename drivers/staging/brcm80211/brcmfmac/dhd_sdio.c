@@ -19,10 +19,13 @@
 #include <linux/printk.h>
 #include <linux/pci_ids.h>
 #include <linux/netdevice.h>
+#include <linux/sched.h>
+#include <asm/unaligned.h>
 #include <bcmdefs.h>
 #include <bcmsdh.h>
 
 #include <bcmdefs.h>
+#include <bcmwifi.h>
 #include <bcmutils.h>
 #include <bcmdevs.h>
 

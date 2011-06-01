@@ -16,8 +16,11 @@
 
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
+#include <linux/sched.h>
 
 #include <bcmutils.h>
+#include <bcmdefs.h>
+#include <bcmwifi.h>
 
 #include <asm/uaccess.h>
 

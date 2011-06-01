@@ -18,6 +18,7 @@
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmutils.h>
+#include <bcmwifi.h>
 #include <sdio.h>		/* SDIO Device and Protocol Specs */
 #include <sdioh.h>		/* SDIO Host Controller Specification */
 #include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */

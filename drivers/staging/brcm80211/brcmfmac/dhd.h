@@ -21,23 +21,6 @@
 #ifndef _dhd_h_
 #define _dhd_h_
 
-#include <linux/sched.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/random.h>
-#include <linux/spinlock.h>
-#include <linux/ethtool.h>
-#include <linux/suspend.h>
-#include <asm/uaccess.h>
-#include <asm/unaligned.h>
-#include "bcmdefs.h"
-/* The kernel threading is sdio-specific */
-#include "bcmwifi.h"
-
 /* Forward decls */
 struct dhd_bus;
 struct dhd_prot;

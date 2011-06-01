@@ -33,6 +33,7 @@
 #include <linux/uaccess.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
+#include <bcmwifi.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>

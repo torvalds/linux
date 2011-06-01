@@ -18,9 +18,11 @@
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/pci_ids.h>
+#include <linux/sched.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmutils.h>
+#include <bcmwifi.h>
 #include <bcmsoc.h>
 
 #include <bcmsdh.h>		/* BRCM API for SDIO
