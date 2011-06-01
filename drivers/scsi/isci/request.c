@@ -211,11 +211,9 @@ static void scu_ssp_reqeust_construct_task_context(
 	struct scu_task_context *task_context)
 {
 	dma_addr_t dma_addr;
-	struct scic_sds_controller *controller;
 	struct scic_sds_remote_device *target_device;
 	struct scic_sds_port *target_port;
 
-	controller = scic_sds_request_get_controller(sds_request);
 	target_device = scic_sds_request_get_device(sds_request);
 	target_port = scic_sds_request_get_port(sds_request);
 
@@ -384,11 +382,9 @@ static void scu_sata_reqeust_construct_task_context(
 	struct scu_task_context *task_context)
 {
 	dma_addr_t dma_addr;
-	struct scic_sds_controller *controller;
 	struct scic_sds_remote_device *target_device;
 	struct scic_sds_port *target_port;
 
-	controller = scic_sds_request_get_controller(sci_req);
 	target_device = scic_sds_request_get_device(sci_req);
 	target_port = scic_sds_request_get_port(sci_req);
 
@@ -677,12 +673,10 @@ enum sci_status scic_task_request_construct_ssp(
 static enum sci_status scic_io_request_construct_basic_sata(struct scic_sds_request *sci_req)
 {
 	enum sci_status status;
-	struct scic_sds_stp_request *stp_req;
 	bool copy = false;
 	struct isci_request *isci_request = sci_req_to_ireq(sci_req);
 	struct sas_task *task = isci_request_access_task(isci_request);
 
-	stp_req = &sci_req->stp.req;
 	sci_req->protocol = SCIC_STP_PROTOCOL;
 
 	copy = (task->data_dir == DMA_NONE) ? false : true;
@@ -3190,7 +3184,6 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 				       ssize_t req_len)
 {
 	dma_addr_t dma_addr;
-	struct scic_sds_controller *scic;
 	struct scic_sds_remote_device *sci_dev;
 	struct scic_sds_port *sci_port;
 	struct scu_task_context *task_context;
@@ -3202,7 +3195,6 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 
 	task_context = scic_sds_request_get_task_context(sci_req);
 
-	scic = scic_sds_request_get_controller(sci_req);
 	sci_dev = scic_sds_request_get_device(sci_req);
 	sci_port = scic_sds_request_get_port(sci_req);
 

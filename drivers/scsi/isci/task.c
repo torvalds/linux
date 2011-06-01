@@ -1358,7 +1358,6 @@ isci_task_request_complete(struct isci_host *ihost,
 			   enum sci_task_status completion_status)
 {
 	struct isci_remote_device *idev = ireq->isci_device;
-	enum isci_request_status old_state;
 	struct isci_tmf *tmf = isci_request_access_tmf(ireq);
 	struct completion *tmf_complete;
 	struct scic_sds_request *sci_req = &ireq->sci;
@@ -1367,7 +1366,7 @@ isci_task_request_complete(struct isci_host *ihost,
 		"%s: request = %p, status=%d\n",
 		__func__, ireq, completion_status);
 
-	old_state = isci_request_change_state(ireq, completed);
+	isci_request_change_state(ireq, completed);
 
 	tmf->status = completion_status;
 	ireq->complete_in_target = true;
