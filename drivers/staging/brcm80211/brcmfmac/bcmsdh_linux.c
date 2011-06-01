@@ -365,8 +365,5 @@ void bcmsdh_unregister_oob_intr(void)
 extern uint sd_msglevel;	/* Debug message level */
 module_param(sd_msglevel, uint, 0);
 
-extern uint sd_hiok;		/* Ok to use hi-speed mode */
-module_param(sd_hiok, uint, 0);
-
 extern uint sd_f2_blocksize;
 module_param(sd_f2_blocksize, int, 0);

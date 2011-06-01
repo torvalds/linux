@@ -47,7 +47,6 @@ extern PBCMSDH_SDMMC_INSTANCE gInstance;
 
 uint sd_f2_blocksize = 512;	/* Default blocksize */
 
-uint sd_hiok = false;		/* Don't use hi-speed mode by default */
 uint sd_msglevel = 0x01;
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_byte_wait);
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_word_wait);
@@ -349,7 +348,6 @@ enum {
 	IOV_USEINTS,
 	IOV_NUMINTS,
 	IOV_DEVREG,
-	IOV_HISPEED,
 	IOV_HCIREGS,
 	IOV_RXCHAIN
 };
@@ -361,8 +359,6 @@ const bcm_iovar_t sdioh_iovars[] = {
 	{"sd_ints", IOV_USEINTS, 0, IOVT_BOOL, 0},
 	{"sd_numints", IOV_NUMINTS, 0, IOVT_UINT32, 0},
 	{"sd_devreg", IOV_DEVREG, 0, IOVT_BUFFER, sizeof(sdreg_t)}
-	,
-	{"sd_highspeed", IOV_HISPEED, 0, IOVT_UINT32, 0}
 	,
 	{"sd_rxchain", IOV_RXCHAIN, 0, IOVT_BOOL, 0}
 	,
@@ -492,15 +488,6 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		else
 			si->intmask &= ~CLIENT_INTR;
 
-		break;
-
-	case IOV_GVAL(IOV_HISPEED):
-		int_val = (u32) sd_hiok;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_HISPEED):
-		sd_hiok = int_val;
 		break;
 
 	case IOV_GVAL(IOV_NUMINTS):
