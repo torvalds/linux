@@ -526,62 +526,63 @@ static struct sk_buff *port_build_peer_abort_msg(struct tipc_port *p_ptr, u32 er
 void tipc_port_recv_proto_msg(struct sk_buff *buf)
 {
 	struct tipc_msg *msg = buf_msg(buf);
-	struct tipc_port *p_ptr = tipc_port_lock(msg_destport(msg));
-	u32 err = TIPC_OK;
+	struct tipc_port *p_ptr;
 	struct sk_buff *r_buf = NULL;
-	struct sk_buff *abort_buf = NULL;
+	u32 orignode = msg_orignode(msg);
+	u32 origport = msg_origport(msg);
+	u32 destport = msg_destport(msg);
+	int wakeable;
 
-	if (!p_ptr) {
-		err = TIPC_ERR_NO_PORT;
-	} else if (p_ptr->connected) {
-		if ((port_peernode(p_ptr) != msg_orignode(msg)) ||
-		    (port_peerport(p_ptr) != msg_origport(msg))) {
-			err = TIPC_ERR_NO_PORT;
-		} else if (msg_type(msg) == CONN_ACK) {
-			int wakeup = tipc_port_congested(p_ptr) &&
-				     p_ptr->congested &&
-				     p_ptr->wakeup;
-			p_ptr->acked += msg_msgcnt(msg);
-			if (tipc_port_congested(p_ptr))
-				goto exit;
-			p_ptr->congested = 0;
-			if (!wakeup)
-				goto exit;
-			p_ptr->wakeup(p_ptr);
-			goto exit;
-		}
-	} else if (p_ptr->published) {
-		err = TIPC_ERR_NO_PORT;
-	}
-	if (err) {
-		r_buf = port_build_proto_msg(msg_origport(msg),
-					     msg_orignode(msg),
-					     msg_destport(msg),
+	/* Validate connection */
+
+	p_ptr = tipc_port_lock(destport);
+	if (!p_ptr || !p_ptr->connected ||
+	    (port_peernode(p_ptr) != orignode) ||
+	    (port_peerport(p_ptr) != origport)) {
+		r_buf = port_build_proto_msg(origport,
+					     orignode,
+					     destport,
 					     tipc_own_addr,
 					     TIPC_HIGH_IMPORTANCE,
 					     TIPC_CONN_MSG,
-					     err,
+					     TIPC_ERR_NO_PORT,
 					     0);
+		if (p_ptr)
+			tipc_port_unlock(p_ptr);
 		goto exit;
 	}
 
-	/* All is fine */
-	if (msg_type(msg) == CONN_PROBE) {
-		r_buf = port_build_proto_msg(msg_origport(msg),
-					     msg_orignode(msg),
-					     msg_destport(msg),
+	/* Process protocol message sent by peer */
+
+	switch (msg_type(msg)) {
+	case CONN_ACK:
+		wakeable = tipc_port_congested(p_ptr) && p_ptr->congested &&
+			p_ptr->wakeup;
+		p_ptr->acked += msg_msgcnt(msg);
+		if (!tipc_port_congested(p_ptr)) {
+			p_ptr->congested = 0;
+			if (wakeable)
+				p_ptr->wakeup(p_ptr);
+		}
+		break;
+	case CONN_PROBE:
+		r_buf = port_build_proto_msg(origport,
+					     orignode,
+					     destport,
 					     tipc_own_addr,
 					     CONN_MANAGER,
 					     CONN_PROBE_REPLY,
 					     TIPC_OK,
 					     0);
+		break;
+	default:
+		/* CONN_PROBE_REPLY or unrecognized - no action required */
+		break;
 	}
 	p_ptr->probing_state = CONFIRMED;
+	tipc_port_unlock(p_ptr);
 exit:
-	if (p_ptr)
-		tipc_port_unlock(p_ptr);
 	tipc_net_route_msg(r_buf);
-	tipc_net_route_msg(abort_buf);
 	buf_discard(buf);
 }
 
