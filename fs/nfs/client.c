@@ -188,9 +188,6 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	cred = rpc_lookup_machine_cred();
 	if (!IS_ERR(cred))
 		clp->cl_machine_cred = cred;
-#if defined(CONFIG_NFS_V4_1)
-	INIT_LIST_HEAD(&clp->cl_layouts);
-#endif
 	nfs_fscache_get_client_cookie(clp);
 
 	return clp;
@@ -1063,6 +1060,7 @@ static struct nfs_server *nfs_alloc_server(void)
 	INIT_LIST_HEAD(&server->client_link);
 	INIT_LIST_HEAD(&server->master_link);
 	INIT_LIST_HEAD(&server->delegations);
+	INIT_LIST_HEAD(&server->layouts);
 
 	atomic_set(&server->active, 0);
 

@@ -78,7 +78,6 @@ struct nfs_client {
 	/* The flags used for obtaining the clientid during EXCHANGE_ID */
 	u32			cl_exchange_flags;
 	struct nfs4_session	*cl_session; 	/* sharred session */
-	struct list_head	cl_layouts;
 #endif /* CONFIG_NFS_V4 */
 
 #ifdef CONFIG_NFS_FSCACHE
@@ -152,6 +151,7 @@ struct nfs_server {
 	struct rb_root		openowner_id;
 	struct rb_root		lockowner_id;
 #endif
+	struct list_head	layouts;
 	struct list_head	delegations;
 	void (*destroy)(struct nfs_server *);
 
