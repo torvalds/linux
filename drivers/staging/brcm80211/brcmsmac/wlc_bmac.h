@@ -13,8 +13,8 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef _wlc_bmac_h_
-#define _wlc_bmac_h_
+#ifndef _BRCM_BOTTOM_MAC_H_
+#define _BRCM_BOTTOM_MAC_H_
 
 /* XXXXX this interface is under wlc.c by design
  * http://hwnbu-twiki.broadcom.com/bin/view/Mwgroup/WlBmacDesign
@@ -175,4 +175,4 @@ extern void wlc_bmac_hw_up(struct wlc_hw_info *wlc_hw);
 extern u16 wlc_bmac_rate_shm_offset(struct wlc_hw_info *wlc_hw, u8 rate);
 extern void wlc_bmac_antsel_set(struct wlc_hw_info *wlc_hw, u32 antsel_avail);
 
-#endif /* _wlc_bmac_h_ */
+#endif /* _BRCM_BOTTOM_MAC_H_ */

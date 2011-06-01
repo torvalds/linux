@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_NICPCI_H
-#define	_NICPCI_H
+#ifndef	_BRCM_NICPCI_H_
+#define	_BRCM_NICPCI_H_
 
 /* PCI configuration address space size */
 #define PCI_SZPCR		256
@@ -82,4 +82,4 @@ extern u8 pcicore_find_pci_capability(void *dev, u8 req_cap_id,
 extern void pcicore_fixcfg(void *pch, void *regs);
 extern void pcicore_pci_setup(void *pch, void *regs);
 
-#endif /* _NICPCI_H */
+#endif /* _BRCM_NICPCI_H_ */

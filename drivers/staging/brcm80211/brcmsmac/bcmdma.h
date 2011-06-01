@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_bcmdma_h_
-#define	_bcmdma_h_
+#ifndef	_BRCM_DMA_H_
+#define	_BRCM_DMA_H_
 
 #include "wlc_types.h"		/* forward structure declarations */
 
@@ -252,4 +252,4 @@ static inline void dma_spin_for_len(uint len, struct sk_buff *head)
 #endif				/* defined(__mips__) */
 }
 
-#endif				/* _bcmdma_h_ */
+#endif				/* _BRCM_DMA_H_ */

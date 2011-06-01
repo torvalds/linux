@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_bcmotp_h_
-#define	_bcmotp_h_
+#ifndef	_BRCM_OTP_H_
+#define	_BRCM_OTP_H_
 
 /* OTP regions */
 #define OTP_HW_RGN	1
@@ -42,4 +42,4 @@ extern int otp_read_region(struct si_pub *sih, int region, u16 *data,
 			   uint *wlen);
 extern int otp_nvread(void *oh, char *data, uint *len);
 
-#endif				/* _bcmotp_h_ */
+#endif				/* _BRCM_OTP_H_ */

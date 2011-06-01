@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_bcmdefs_h_
-#define	_bcmdefs_h_
+#ifndef	_BRCM_DEFS_H_
+#define	_BRCM_DEFS_H_
 
 #define	SI_BUS			0
 #define	PCI_BUS			1
@@ -107,4 +107,4 @@ typedef struct wl_rateset {
 #define	PAD		_XSTR(__LINE__)
 #endif
 
-#endif				/* _bcmdefs_h_ */
+#endif				/* _BRCM_DEFS_H_ */

@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _wlc_phy_int_h_
-#define _wlc_phy_int_h_
+#ifndef _BRCM_PHY_INT_H_
+#define _BRCM_PHY_INT_H_
 
 #include <linux/kernel.h>
 #include <bcmdefs.h>
@@ -1232,4 +1232,4 @@ extern s8 wlc_phy_upd_rssi_offset(phy_info_t *pi, s8 rssi,
 				    chanspec_t chanspec);
 
 extern bool wlc_phy_n_txpower_ipa_ison(phy_info_t *pih);
-#endif				/* _wlc_phy_int_h_ */
+#endif				/* _BRCM_PHY_INT_H_ */

@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __QMATH_H__
-#define __QMATH_H__
+#ifndef _BRCM_QMATH_H_
+#define _BRCM_QMATH_H_
 
 u16 qm_mulu16(u16 op1, u16 op2);
 
@@ -37,4 +37,4 @@ s16 qm_norm32(s32 op);
 
 void qm_log10(s32 N, s16 qN, s16 *log10N, s16 *qLog10N);
 
-#endif				/* #ifndef __QMATH_H__ */
+#endif				/* #ifndef _BRCM_QMATH_H_ */

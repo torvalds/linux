@@ -15,11 +15,11 @@
  */
 
 /*
- * wlc_phy_shim.h: stuff defined in wlc_phy_shim.c and included only by the phy
+ * phy_shim.h: stuff defined in phy_shim.c and included only by the phy
  */
 
-#ifndef _wlc_phy_shim_h_
-#define _wlc_phy_shim_h_
+#ifndef _BRCM_PHY_SHIM_H_
+#define _BRCM_PHY_SHIM_H_
 
 #define RADAR_TYPE_NONE		0	/* Radar type None */
 #define RADAR_TYPE_ETSI_1	1	/* ETSI 1 Radar type */
@@ -164,4 +164,4 @@ extern void wlapi_copyto_objmem(wlc_phy_shim_info_t *physhim, uint,
 extern void wlapi_high_update_phy_mode(wlc_phy_shim_info_t *physhim,
 				       u32 phy_mode);
 extern u16 wlapi_bmac_get_txant(wlc_phy_shim_info_t *physhim);
-#endif				/* _wlc_phy_shim_h_ */
+#endif				/* _BRCM_PHY_SHIM_H_ */

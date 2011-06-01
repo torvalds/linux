@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _WLC_BSSCFG_H_
-#define _WLC_BSSCFG_H_
+#ifndef _BRCM_BSSCFG_H_
+#define _BRCM_BSSCFG_H_
 
 /* Check if a particular BSS config is AP or STA */
 #define BSSCFG_AP(cfg)		(0)
@@ -132,4 +132,4 @@ struct wlc_bsscfg {
 #define SOFTPRB_ENAB(pub)    (0)
 #define wlc_bsscfg_tx_check(a) do { } while (0);
 
-#endif				/* _WLC_BSSCFG_H_ */
+#endif				/* _BRCM_BSSCFG_H_ */

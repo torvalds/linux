@@ -15,8 +15,8 @@
  */
 
 
-#ifndef WLC_PMU_H_
-#define WLC_PMU_H_
+#ifndef _BRCM_PMU_H_
+#define _BRCM_PMU_H_
 
 #include <linux/types.h>
 
@@ -55,4 +55,4 @@ extern u32 si_pmu_measure_alpclk(struct si_pub *sih);
 extern bool si_pmu_is_otp_powered(struct si_pub *sih);
 extern void si_pmu_otp_power(struct si_pub *sih, bool on);
 
-#endif /* WLC_PMU_H_ */
+#endif /* _BRCM_PMU_H_ */

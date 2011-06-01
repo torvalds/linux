@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _wlc_key_h_
-#define _wlc_key_h_
+#ifndef _BRCM_KEY_H_
+#define _BRCM_KEY_H_
 
 #include <linux/if_ether.h>	/* for ETH_ALEN */
 
@@ -139,4 +139,4 @@ typedef struct wsec_key {
 #define wlc_rcmta_del_bssid(a, b) do {} while (0)
 #define wlc_key_scb_delete(a, b) do {} while (0)
 
-#endif				/* _wlc_key_h_ */
+#endif				/* _BRCM_KEY_H_ */

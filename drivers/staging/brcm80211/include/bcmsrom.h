@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_bcmsrom_h_
-#define	_bcmsrom_h_
+#ifndef	_BRCM_SROM_H_
+#define	_BRCM_SROM_H_
 
 /* Prototypes */
 extern int srom_var_init(struct si_pub *sih, uint bus, void *curmap,
@@ -29,4 +29,4 @@ extern int srom_read(struct si_pub *sih, uint bus, void *curmap,
  */
 extern int srom_parsecis(u8 **pcis, uint ciscnt,
 			 char **vars, uint *count);
-#endif				/* _bcmsrom_h_ */
+#endif				/* _BRCM_SROM_H_ */

@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _wlc_scb_h_
-#define _wlc_scb_h_
+#ifndef _BRCM_SCB_H_
+#define _BRCM_SCB_H_
 
 #include <linux/if_ether.h>	/* for ETH_ALEN */
 
@@ -79,4 +79,4 @@ struct scb {
 #define SCB_PS(a)		NULL
 #define SCB_STBC_CAP(a)		((a)->flags & SCB_STBCCAP)
 #define SCB_AMPDU(a)		true
-#endif				/* _wlc_scb_h_ */
+#endif				/* _BRCM_SCB_H_ */

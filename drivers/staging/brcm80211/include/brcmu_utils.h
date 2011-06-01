@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_brcmutils_h_
-#define	_brcmutils_h_
+#ifndef	_BRCMU_UTILS_H_
+#define	_BRCMU_UTILS_H_
 
 /* Buffer structure for collecting string-formatted data
 * using brcmu_bprintf() API.
@@ -364,4 +364,4 @@ extern uint brcmu_mkiovar(char *name, char *data, uint datalen,
 			  char *buf, uint len);
 extern uint brcmu_bitcount(u8 *bitmap, uint bytelength);
 
-#endif				/* _brcmutils_h_ */
+#endif				/* _BRCMU_UTILS_H_ */

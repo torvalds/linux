@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _wlc_types_h_
-#define _wlc_types_h_
+#ifndef _BRCM_TYPES_H_
+#define _BRCM_TYPES_H_
 
 /* Bus types */
 #define	SI_BUS			0	/* SOC Interconnect */
@@ -154,4 +154,4 @@ struct si_pub;
 /* brcm_msg_level is a bit vector with defs in bcmdefs.h */
 extern u32 brcm_msg_level;
 
-#endif				/* _wlc_types_h_ */
+#endif				/* _BRCM_TYPES_H_ */

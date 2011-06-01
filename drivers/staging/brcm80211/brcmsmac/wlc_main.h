@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _wlc_h_
-#define _wlc_h_
+#ifndef _BRCM_MAIN_H_
+#define _BRCM_MAIN_H_
 
 #define MA_WINDOW_SZ		8	/* moving average window size */
 #define	WL_HWRXOFF		38	/* chip rx buffer offset */
@@ -877,4 +877,4 @@ extern bool wlc_ps_allowed(struct wlc_info *wlc);
 extern bool wlc_stay_awake(struct wlc_info *wlc);
 extern void wlc_wme_initparams_sta(struct wlc_info *wlc, wme_param_ie_t *pe);
 
-#endif				/* _wlc_h_ */
+#endif				/* _BRCM_MAIN_H_ */

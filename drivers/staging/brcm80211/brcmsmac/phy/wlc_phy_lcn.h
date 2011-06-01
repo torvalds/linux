@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _wlc_phy_lcn_h_
-#define _wlc_phy_lcn_h_
+#ifndef _BRCM_PHY_LCN_H_
+#define _BRCM_PHY_LCN_H_
 
 struct phy_info_lcnphy {
 	int lcnphy_txrf_sp_9_override;
@@ -116,4 +116,4 @@ struct phy_info_lcnphy {
 	uint lcnphy_aci_start_time;
 	s8 lcnphy_tx_power_offset[TXP_NUM_RATES];
 };
-#endif				/* _wlc_phy_lcn_h_ */
+#endif				/* _BRCM_PHY_LCN_H_ */

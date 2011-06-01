@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_BCM20XX_H
-#define	_BCM20XX_H
+#ifndef	_BRCM_PHY_RADIO_H_
+#define	_BRCM_PHY_RADIO_H_
 
 #define	RADIO_IDCODE			0x01
 
@@ -1530,4 +1530,4 @@
 
 #define RADIO_2057_VCM_MASK			 0x7
 
-#endif				/* _BCM20XX_H */
+#endif				/* _BRCM_PHY_RADIO_H_ */

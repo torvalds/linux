@@ -15,11 +15,11 @@
  */
 
 /*
- * wlc_phy_hal.h:  functionality exported from the phy to higher layers
+ * phy_hal.h:  functionality exported from the phy to higher layers
  */
 
-#ifndef _wlc_phy_h_
-#define _wlc_phy_h_
+#ifndef _BRCM_PHY_HAL_H_
+#define _BRCM_PHY_HAL_H_
 
 #include <aiutils.h>
 #include <d11.h>
@@ -290,4 +290,4 @@ extern const u8 *wlc_phy_get_ofdm_rate_lookup(void);
 extern s8 wlc_phy_get_tx_power_offset_by_mcs(wlc_phy_t *ppi,
 					       u8 mcs_offset);
 extern s8 wlc_phy_get_tx_power_offset(wlc_phy_t *ppi, u8 tbl_offset);
-#endif				/* _wlc_phy_h_ */
+#endif				/* _BRCM_PHY_HAL_H_ */

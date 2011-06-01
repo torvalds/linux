@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_BCMDEVS_H
-#define	_BCMDEVS_H
+#ifndef	_BRCM_HW_IDS_H_
+#define	_BRCM_HW_IDS_H_
 
 #define	BCM4325_D11DUAL_ID	0x431b
 #define	BCM4325_D11G_ID		0x431c
@@ -122,4 +122,4 @@
 /* Reference board types */
 #define	SPI_BOARD		0x0402
 
-#endif				/* _BCMDEVS_H */
+#endif				/* _BRCM_HW_IDS_H_ */

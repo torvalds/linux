@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_bcmsdh_h_
-#define	_bcmsdh_h_
+#ifndef	_BRCM_SDH_H_
+#define	_BRCM_SDH_H_
 
 #include <linux/skbuff.h>
 #define BCMSDH_ERROR_VAL	0x0001	/* Error */
@@ -223,4 +223,4 @@ extern u32 bcmsdh_cur_sbwad(void *sdh);
 /* Function to pass chipid and rev to lower layers for controlling pr's */
 extern void bcmsdh_chipinfo(void *sdh, u32 chip, u32 chiprev);
 
-#endif				/* _bcmsdh_h_ */
+#endif				/* _BRCM_SDH_H_ */

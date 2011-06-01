@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_BCMSOC_H
-#define	_BCMSOC_H
+#ifndef	_BRCM_SOC_H
+#define	_BRCM_SOC_H
 
 /* Include the soci specific files */
 #include <aidmp.h>
@@ -195,4 +195,4 @@
 #define	BISZ_BSSEND_IDX		6	/*      6: bss end */
 #define BISZ_SIZE		7	/* descriptor size in 32-bit integers */
 
-#endif				/* _BCMSOC_H */
+#endif				/* _BRCM_SOC_H */

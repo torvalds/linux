@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _wlc_pub_h_
-#define _wlc_pub_h_
+#ifndef _BRCM_PUB_H_
+#define _BRCM_PUB_H_
 
 #include "wlc_types.h"		/* forward structure declarations */
 #include "brcmu_wifi.h"		/* for chanspec_t */
@@ -671,4 +671,4 @@ extern bool wlc_radio_monitor_stop(struct wlc_info *wlc);
 /* BMAC RPC: 7 u32 params: pkttotlen, fifo, commit, fid, txpktpend, pktflag, rpc_id */
 #define WLC_RPCTX_PARAMS		32
 
-#endif				/* _wlc_pub_h_ */
+#endif				/* _BRCM_PUB_H_ */

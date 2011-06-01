@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _wlc_cfg_h_
-#define _wlc_cfg_h_
+#ifndef _BRCM_CFG_H_
+#define _BRCM_CFG_H_
 
 #define NBANDS(wlc) ((wlc)->pub->_nbands)
 #define NBANDS_PUB(pub) ((pub)->_nbands)
@@ -277,4 +277,4 @@
 #define WLBANDINITDATA(_data)	_data
 #define WLBANDINITFN(_fn)	_fn
 
-#endif				/* _wlc_cfg_h_ */
+#endif				/* _BRCM_CFG_H_ */

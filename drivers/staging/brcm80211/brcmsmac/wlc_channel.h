@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _WLC_CHANNEL_H_
-#define _WLC_CHANNEL_H_
+#ifndef _BRCM_CHANNEL_H_
+#define _BRCM_CHANNEL_H_
 
 #define WLC_TXPWR_DB_FACTOR 4	/* conversion for phy txpwr cacluations that use .25 dB units */
 

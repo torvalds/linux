@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_brcmu_wifi_h_
-#define	_brcmu_wifi_h_
+#ifndef	_BRCMU_WIFI_H_
+#define	_BRCMU_WIFI_H_
 
 #include <linux/if_ether.h>		/* for ETH_ALEN */
 #include <linux/ieee80211.h>		/* for WLAN_PMKID_LEN */
@@ -239,4 +239,4 @@ typedef struct _pmkid_cand_list {
 
 typedef u8 ac_bitmap_t;
 
-#endif				/* _brcmu_wifi_h_ */
+#endif				/* _BRCMU_WIFI_H_ */

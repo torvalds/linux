@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_aiutils_h_
-#define	_aiutils_h_
+#ifndef	_BRCM_AIUTILS_H_
+#define	_BRCM_AIUTILS_H_
 
 /* Include the soci specific files */
 #include <aidmp.h>
@@ -573,4 +573,4 @@ extern void ai_epa_4313war(struct si_pub *sih);
 
 char *ai_getnvramflvar(struct si_pub *sih, const char *name);
 
-#endif				/* _aiutils_h_ */
+#endif				/* _BRCM_AIUTILS_H_ */

@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _wlc_stf_h_
-#define _wlc_stf_h_
+#ifndef _BRCM_STF_H_
+#define _BRCM_STF_H_
 
 extern int wlc_stf_attach(struct wlc_info *wlc);
 extern void wlc_stf_detach(struct wlc_info *wlc);
@@ -33,4 +33,4 @@ extern void wlc_stf_phy_chain_calc(struct wlc_info *wlc);
 extern u16 wlc_stf_phytxchain_sel(struct wlc_info *wlc, ratespec_t rspec);
 extern u16 wlc_stf_d11hdrs_phyctl_txant(struct wlc_info *wlc, ratespec_t rspec);
 
-#endif				/* _wlc_stf_h_ */
+#endif				/* _BRCM_STF_H_ */

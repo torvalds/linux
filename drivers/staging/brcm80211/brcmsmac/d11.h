@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_D11_H
-#define	_D11_H
+#ifndef	_BRCM_D11_H_
+#define	_BRCM_D11_H_
 
 #include <linux/ieee80211.h>
 
@@ -1775,4 +1775,4 @@ typedef struct d11cnt {
 	u32 rxundec;
 } d11cnt_t;
 
-#endif				/* _D11_H */
+#endif				/* _BRCM_D11_H_ */

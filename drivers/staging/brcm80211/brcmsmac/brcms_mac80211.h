@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _wl_mac80211_h_
-#define _wl_mac80211_h_
+#ifndef _BRCM_MAC80211_IF_H_
+#define _BRCM_MAC80211_IF_H_
 
 /* softmac ioctl definitions */
 #define WLC_SET_SHORTSLOT_OVERRIDE		146
@@ -106,4 +106,4 @@ extern void brcms_add_timer(struct brcms_info *wl, struct brcms_timer *timer,
 extern bool brcms_del_timer(struct brcms_info *wl, struct brcms_timer *timer);
 extern void brcms_msleep(struct brcms_info *wl, uint ms);
 
-#endif				/* _wl_mac80211_h_ */
+#endif				/* _BRCM_MAC80211_IF_H_ */

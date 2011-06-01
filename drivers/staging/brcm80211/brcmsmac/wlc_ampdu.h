@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _wlc_ampdu_h_
-#define _wlc_ampdu_h_
+#ifndef _BRCM_AMPDU_H_
+#define _BRCM_AMPDU_H_
 
 extern struct ampdu_info *wlc_ampdu_attach(struct wlc_info *wlc);
 extern void wlc_ampdu_detach(struct ampdu_info *ampdu);
@@ -26,4 +26,4 @@ extern void wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 extern void wlc_ampdu_macaddr_upd(struct wlc_info *wlc);
 extern void wlc_ampdu_shm_upd(struct ampdu_info *ampdu);
 
-#endif				/* _wlc_ampdu_h_ */
+#endif				/* _BRCM_AMPDU_H_ */
