@@ -42,32 +42,25 @@ struct dvb_net {
 	struct dmx_demux *demux;
 };
 
-
 void dvb_net_release(struct dvb_net *);
 int  dvb_net_init(struct dvb_adapter *, struct dvb_net *, struct dmx_demux *);
 
-#endif
-
-#ifndef CONFIG_DVB_NET
-
-struct dvb_dev_stub;
+#else
 
 struct dvb_net {
-	struct dvb_dev_stub *dvbdev;
+	struct dvb_device *dvbdev;
 };
 
 static inline void dvb_net_release(struct dvb_net *dvbnet)
 {
-	dvbnet->dvbdev = 0;
 }
 
 static inline int dvb_net_init(struct dvb_adapter *adap,
 			       struct dvb_net *dvbnet, struct dmx_demux *dmx)
 {
-	dvbnet->dvbdev = (void *)1;
 	return 0;
 }
 
-#endif
+#endif /* ifdef CONFIG_DVB_NET */
 
 #endif
