@@ -12,7 +12,6 @@
 #include <linux/param.h>
 #include <linux/spinlock.h>
 #include <linux/timex.h>
-#include <asm/i8253.h>
 
 /* i8253A PIT registers */
 #define PIT_MODE	0x43
@@ -25,5 +24,7 @@
 #define outb_pit        outb_p
 
 extern raw_spinlock_t i8253_lock;
+
+extern void setup_pit_timer(void);
 
 #endif /* __LINUX_I8253_H */
