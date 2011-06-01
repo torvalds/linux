@@ -64,8 +64,6 @@ typedef struct varbuf {
 	char *buf;		/* pointer to current position */
 	unsigned int size;	/* current (residual) size in bytes */
 } varbuf_t;
-extern char *_vars;
-extern uint _varsz;
 
 /* Assumptions:
  * - Ethernet address spans across 3 consective words
