@@ -1352,6 +1352,9 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 	int chs;
 	unsigned int dataDCC1, dataDCC2, channel_id;
 	int i;
+	struct hdmi_spec *spec = codec->spec;
+	struct hda_spdif_out *spdif =
+		snd_hda_spdif_out_of_nid(codec, spec->cvt[0]);
 
 	mutex_lock(&codec->spdif_mutex);
 
@@ -1361,12 +1364,12 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 	dataDCC2 = 0x2;
 
 	/* turn off SPDIF once; otherwise the IEC958 bits won't be updated */
-	if (codec->spdif_status_reset && (codec->spdif_ctls & AC_DIG1_ENABLE))
+	if (codec->spdif_status_reset && (spdif->ctls & AC_DIG1_ENABLE))
 		snd_hda_codec_write(codec,
 				nvhdmi_master_con_nid_7x,
 				0,
 				AC_VERB_SET_DIGI_CONVERT_1,
-				codec->spdif_ctls & ~AC_DIG1_ENABLE & 0xff);
+				spdif->ctls & ~AC_DIG1_ENABLE & 0xff);
 
 	/* set the stream id */
 	snd_hda_codec_write(codec, nvhdmi_master_con_nid_7x, 0,
@@ -1378,12 +1381,12 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 	/* turn on again (if needed) */
 	/* enable and set the channel status audio/data flag */
-	if (codec->spdif_status_reset && (codec->spdif_ctls & AC_DIG1_ENABLE)) {
+	if (codec->spdif_status_reset && (spdif->ctls & AC_DIG1_ENABLE)) {
 		snd_hda_codec_write(codec,
 				nvhdmi_master_con_nid_7x,
 				0,
 				AC_VERB_SET_DIGI_CONVERT_1,
-				codec->spdif_ctls & 0xff);
+				spdif->ctls & 0xff);
 		snd_hda_codec_write(codec,
 				nvhdmi_master_con_nid_7x,
 				0,
@@ -1400,12 +1403,12 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 		 *otherwise the IEC958 bits won't be updated
 		 */
 		if (codec->spdif_status_reset &&
-		(codec->spdif_ctls & AC_DIG1_ENABLE))
+		(spdif->ctls & AC_DIG1_ENABLE))
 			snd_hda_codec_write(codec,
 				nvhdmi_con_nids_7x[i],
 				0,
 				AC_VERB_SET_DIGI_CONVERT_1,
-				codec->spdif_ctls & ~AC_DIG1_ENABLE & 0xff);
+				spdif->ctls & ~AC_DIG1_ENABLE & 0xff);
 		/* set the stream id */
 		snd_hda_codec_write(codec,
 				nvhdmi_con_nids_7x[i],
@@ -1421,12 +1424,12 @@ static int nvhdmi_8ch_7x_pcm_prepare(struct hda_pcm_stream *hinfo,
 		/* turn on again (if needed) */
 		/* enable and set the channel status audio/data flag */
 		if (codec->spdif_status_reset &&
-		(codec->spdif_ctls & AC_DIG1_ENABLE)) {
+		(spdif->ctls & AC_DIG1_ENABLE)) {
 			snd_hda_codec_write(codec,
 					nvhdmi_con_nids_7x[i],
 					0,
 					AC_VERB_SET_DIGI_CONVERT_1,
-					codec->spdif_ctls & 0xff);
+					spdif->ctls & 0xff);
 			snd_hda_codec_write(codec,
 					nvhdmi_con_nids_7x[i],
 					0,

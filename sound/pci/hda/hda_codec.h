@@ -829,8 +829,7 @@ struct hda_codec {
 
 	struct mutex spdif_mutex;
 	struct mutex control_mutex;
-	unsigned int spdif_status;	/* IEC958 status bits */
-	unsigned short spdif_ctls;	/* SPDIF control bits */
+	struct snd_array spdif_out;
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */
 	const hda_nid_t *slave_dig_outs; /* optional digital out slave widgets */
 	struct snd_array init_pins;	/* initial (BIOS) pin configurations */
@@ -946,6 +945,15 @@ int snd_hda_codec_set_pincfg(struct hda_codec *codec, hda_nid_t nid,
 int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 		       hda_nid_t nid, unsigned int cfg); /* for hwdep */
 void snd_hda_shutup_pins(struct hda_codec *codec);
+
+/* SPDIF controls */
+struct hda_spdif_out {
+	hda_nid_t nid;		/* Converter nid values relate to */
+	unsigned int status;	/* IEC958 status bits */
+	unsigned short ctls;	/* SPDIF control bits */
+};
+struct hda_spdif_out *snd_hda_spdif_out_of_nid(struct hda_codec *codec,
+					       hda_nid_t nid);
 
 /*
  * Mixer

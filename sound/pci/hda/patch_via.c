@@ -1236,28 +1236,30 @@ static void playback_multi_pcm_prep_0(struct hda_codec *codec,
 	const hda_nid_t *nids = mout->dac_nids;
 	int chs = substream->runtime->channels;
 	int i;
+	struct hda_spdif_out *spdif =
+		snd_hda_spdif_out_of_nid(codec, spec->multiout.dig_out_nid);
 
 	mutex_lock(&codec->spdif_mutex);
 	if (mout->dig_out_nid && mout->dig_out_used != HDA_DIG_EXCLUSIVE) {
 		if (chs == 2 &&
 		    snd_hda_is_supported_format(codec, mout->dig_out_nid,
 						format) &&
-		    !(codec->spdif_status & IEC958_AES0_NONAUDIO)) {
+		    !(spdif->status & IEC958_AES0_NONAUDIO)) {
 			mout->dig_out_used = HDA_DIG_ANALOG_DUP;
 			/* turn off SPDIF once; otherwise the IEC958 bits won't
 			 * be updated */
-			if (codec->spdif_ctls & AC_DIG1_ENABLE)
+			if (spdif->ctls & AC_DIG1_ENABLE)
 				snd_hda_codec_write(codec, mout->dig_out_nid, 0,
 						    AC_VERB_SET_DIGI_CONVERT_1,
-						    codec->spdif_ctls &
+						    spdif->ctls &
 							~AC_DIG1_ENABLE & 0xff);
 			snd_hda_codec_setup_stream(codec, mout->dig_out_nid,
 						   stream_tag, 0, format);
 			/* turn on again (if needed) */
-			if (codec->spdif_ctls & AC_DIG1_ENABLE)
+			if (spdif->ctls & AC_DIG1_ENABLE)
 				snd_hda_codec_write(codec, mout->dig_out_nid, 0,
 						    AC_VERB_SET_DIGI_CONVERT_1,
-						    codec->spdif_ctls & 0xff);
+						    spdif->ctls & 0xff);
 		} else {
 			mout->dig_out_used = 0;
 			snd_hda_codec_setup_stream(codec, mout->dig_out_nid,
