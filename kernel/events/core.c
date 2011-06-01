@@ -3569,8 +3569,10 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_flags & VM_WRITE)
 		flags |= RING_BUFFER_WRITABLE;
 
-	rb = rb_alloc(nr_pages, event->attr.wakeup_watermark,
-				   event->cpu, flags);
+	rb = rb_alloc(nr_pages, 
+		event->attr.watermark ? event->attr.wakeup_watermark : 0,
+		event->cpu, flags);
+
 	if (!rb) {
 		ret = -ENOMEM;
 		goto unlock;
