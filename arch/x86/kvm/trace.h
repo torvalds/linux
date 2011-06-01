@@ -675,12 +675,12 @@ TRACE_EVENT(kvm_emulate_insn,
 		),
 
 	TP_fast_assign(
-		__entry->rip = vcpu->arch.emulate_ctxt.decode.fetch.start;
+		__entry->rip = vcpu->arch.emulate_ctxt.fetch.start;
 		__entry->csbase = kvm_x86_ops->get_segment_base(vcpu, VCPU_SREG_CS);
-		__entry->len = vcpu->arch.emulate_ctxt.decode._eip
-			       - vcpu->arch.emulate_ctxt.decode.fetch.start;
+		__entry->len = vcpu->arch.emulate_ctxt._eip
+			       - vcpu->arch.emulate_ctxt.fetch.start;
 		memcpy(__entry->insn,
-		       vcpu->arch.emulate_ctxt.decode.fetch.data,
+		       vcpu->arch.emulate_ctxt.fetch.data,
 		       15);
 		__entry->flags = kei_decode_mode(vcpu->arch.emulate_ctxt.mode);
 		__entry->failed = failed;

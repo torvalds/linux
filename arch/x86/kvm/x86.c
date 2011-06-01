@@ -4507,24 +4507,24 @@ static void inject_emulated_exception(struct kvm_vcpu *vcpu)
 		kvm_queue_exception(vcpu, ctxt->exception.vector);
 }
 
-static void init_decode_cache(struct decode_cache *c,
+static void init_decode_cache(struct x86_emulate_ctxt *ctxt,
 			      const unsigned long *regs)
 {
-	memset(c, 0, offsetof(struct decode_cache, regs));
-	memcpy(c->regs, regs, sizeof(c->regs));
+	memset(&ctxt->twobyte, 0,
+	       (void *)&ctxt->regs - (void *)&ctxt->twobyte);
+	memcpy(ctxt->regs, regs, sizeof(ctxt->regs));
 
-	c->fetch.start = 0;
-	c->fetch.end = 0;
-	c->io_read.pos = 0;
-	c->io_read.end = 0;
-	c->mem_read.pos = 0;
-	c->mem_read.end = 0;
+	ctxt->fetch.start = 0;
+	ctxt->fetch.end = 0;
+	ctxt->io_read.pos = 0;
+	ctxt->io_read.end = 0;
+	ctxt->mem_read.pos = 0;
+	ctxt->mem_read.end = 0;
 }
 
 static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
-	struct decode_cache *c = &ctxt->decode;
 	int cs_db, cs_l;
 
 	/*
@@ -4546,28 +4546,27 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 							  X86EMUL_MODE_PROT16;
 	ctxt->guest_mode = is_guest_mode(vcpu);
 
-	init_decode_cache(c, vcpu->arch.regs);
+	init_decode_cache(ctxt, vcpu->arch.regs);
 	vcpu->arch.emulate_regs_need_sync_from_vcpu = false;
 }
 
 int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip)
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
-	struct decode_cache *c = &ctxt->decode;
 	int ret;
 
 	init_emulate_ctxt(vcpu);
 
-	c->op_bytes = 2;
-	c->ad_bytes = 2;
-	c->_eip = ctxt->eip + inc_eip;
+	ctxt->op_bytes = 2;
+	ctxt->ad_bytes = 2;
+	ctxt->_eip = ctxt->eip + inc_eip;
 	ret = emulate_int_real(ctxt, irq);
 
 	if (ret != X86EMUL_CONTINUE)
 		return EMULATE_FAIL;
 
-	ctxt->eip = c->_eip;
-	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
+	ctxt->eip = ctxt->_eip;
+	memcpy(vcpu->arch.regs, ctxt->regs, sizeof ctxt->regs);
 	kvm_rip_write(vcpu, ctxt->eip);
 	kvm_set_rflags(vcpu, ctxt->eflags);
 
@@ -4631,7 +4630,6 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 {
 	int r;
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
-	struct decode_cache *c = &ctxt->decode;
 	bool writeback = true;
 
 	kvm_clear_exception_queue(vcpu);
@@ -4661,7 +4659,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 	}
 
 	if (emulation_type & EMULTYPE_SKIP) {
-		kvm_rip_write(vcpu, c->_eip);
+		kvm_rip_write(vcpu, ctxt->_eip);
 		return EMULATE_DONE;
 	}
 
@@ -4669,7 +4667,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 	   changes registers values  during IO operation */
 	if (vcpu->arch.emulate_regs_need_sync_from_vcpu) {
 		vcpu->arch.emulate_regs_need_sync_from_vcpu = false;
-		memcpy(c->regs, vcpu->arch.regs, sizeof c->regs);
+		memcpy(ctxt->regs, vcpu->arch.regs, sizeof ctxt->regs);
 	}
 
 restart:
@@ -4707,7 +4705,7 @@ restart:
 		toggle_interruptibility(vcpu, ctxt->interruptibility);
 		kvm_set_rflags(vcpu, ctxt->eflags);
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
-		memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
+		memcpy(vcpu->arch.regs, ctxt->regs, sizeof ctxt->regs);
 		vcpu->arch.emulate_regs_need_sync_to_vcpu = false;
 		kvm_rip_write(vcpu, ctxt->eip);
 	} else
@@ -5718,8 +5716,8 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 		 * that usually, but some bad designed PV devices (vmware
 		 * backdoor interface) need this to work
 		 */
-		struct decode_cache *c = &vcpu->arch.emulate_ctxt.decode;
-		memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
+		struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
+		memcpy(vcpu->arch.regs, ctxt->regs, sizeof ctxt->regs);
 		vcpu->arch.emulate_regs_need_sync_to_vcpu = false;
 	}
 	regs->rax = kvm_register_read(vcpu, VCPU_REGS_RAX);
@@ -5849,7 +5847,6 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 		    bool has_error_code, u32 error_code)
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
-	struct decode_cache *c = &ctxt->decode;
 	int ret;
 
 	init_emulate_ctxt(vcpu);
@@ -5860,7 +5857,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 	if (ret)
 		return EMULATE_FAIL;
 
-	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
+	memcpy(vcpu->arch.regs, ctxt->regs, sizeof ctxt->regs);
 	kvm_rip_write(vcpu, ctxt->eip);
 	kvm_set_rflags(vcpu, ctxt->eflags);
 	kvm_make_request(KVM_REQ_EVENT, vcpu);

@@ -229,7 +229,26 @@ struct read_cache {
 	unsigned long end;
 };
 
-struct decode_cache {
+struct x86_emulate_ctxt {
+	struct x86_emulate_ops *ops;
+
+	/* Register state before/after emulation. */
+	unsigned long eflags;
+	unsigned long eip; /* eip before instruction emulation */
+	/* Emulated execution mode, represented by an X86EMUL_MODE value. */
+	int mode;
+
+	/* interruptibility state, as a result of execution of STI or MOV SS */
+	int interruptibility;
+
+	bool guest_mode; /* guest running a nested guest */
+	bool perm_ok; /* do not check permissions if true */
+	bool only_vendor_specific_insn;
+
+	bool have_exception;
+	struct x86_exception exception;
+
+	/* decode cache */
 	u8 twobyte;
 	u8 b;
 	u8 intercept;
@@ -259,29 +278,6 @@ struct decode_cache {
 	struct fetch_cache fetch;
 	struct read_cache io_read;
 	struct read_cache mem_read;
-};
-
-struct x86_emulate_ctxt {
-	struct x86_emulate_ops *ops;
-
-	/* Register state before/after emulation. */
-	unsigned long eflags;
-	unsigned long eip; /* eip before instruction emulation */
-	/* Emulated execution mode, represented by an X86EMUL_MODE value. */
-	int mode;
-
-	/* interruptibility state, as a result of execution of STI or MOV SS */
-	int interruptibility;
-
-	bool guest_mode; /* guest running a nested guest */
-	bool perm_ok; /* do not check permissions if true */
-	bool only_vendor_specific_insn;
-
-	bool have_exception;
-	struct x86_exception exception;
-
-	/* decode cache */
-	struct decode_cache decode;
 };
 
 /* Repeat String Operation Prefix */
