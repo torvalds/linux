@@ -23,8 +23,6 @@
 #include <dngl_stats.h>
 #include <dhd.h>
 
-#include <wl_iw.h>
-
 #define WL_ERROR(fmt, args...) printk(fmt, ##args)
 #define WL_TRACE(fmt, args...) no_printk(fmt, ##args)
 

@@ -17,8 +17,6 @@
 #ifndef _wl_iw_h_
 #define _wl_iw_h_
 
-#include <linux/wireless.h>
-
 #define WL_SCAN_PARAMS_SSID_MAX	10
 #define GET_SSID	"SSID="
 #define GET_CHANNEL	"CH="

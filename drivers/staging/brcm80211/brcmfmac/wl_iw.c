@@ -19,6 +19,7 @@
 #include <bcmdefs.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/wireless.h>
 
 #include <bcmutils.h>
 #include <bcmwifi.h>
