@@ -17,28 +17,4 @@
 #ifndef _BCMETH_H_
 #define _BCMETH_H_
 
-#define	BCMILCP_SUBTYPE_RATE		1
-#define	BCMILCP_SUBTYPE_LINK		2
-#define	BCMILCP_SUBTYPE_CSA		3
-#define	BCMILCP_SUBTYPE_LARQ		4
-#define BCMILCP_SUBTYPE_VENDOR		5
-#define	BCMILCP_SUBTYPE_FLH		17
-#define BCMILCP_SUBTYPE_VENDOR_LONG	32769
-#define BCMILCP_SUBTYPE_CERT		32770
-#define BCMILCP_SUBTYPE_SES		32771
-#define BCMILCP_BCM_SUBTYPE_RESERVED		0
-#define BCMILCP_BCM_SUBTYPE_EVENT		1
-#define BCMILCP_BCM_SUBTYPE_SES			2
-#define BCMILCP_BCM_SUBTYPE_DPT			4
-#define BCMILCP_BCM_SUBTYPEHDR_MINLENGTH	8
-#define BCMILCP_BCM_SUBTYPEHDR_VERSION		0
-
-typedef  struct bcmeth_hdr {
-	u16 subtype;
-	u16 length;
-	u8 version;
-	u8 oui[3];
-	u16 usr_subtype;
-} __attribute__((packed)) bcmeth_hdr_t;
-
 #endif				/* _BCMETH_H_ */

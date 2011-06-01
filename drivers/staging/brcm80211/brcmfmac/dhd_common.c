@@ -27,6 +27,7 @@
 
 #define BRCM_OUI		"\x00\x10\x18"
 #define DOT11_OUI_LEN			3
+#define BCMILCP_BCM_SUBTYPE_EVENT		1
 
 int dhd_msg_level;
 char fw_path[MOD_PARAM_PATHLEN];
