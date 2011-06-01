@@ -457,7 +457,7 @@ static struct snd_soc_dai_ops ak4641_pcm_dai_ops = {
 	.set_sysclk   = ak4641_set_dai_sysclk,
 };
 
-struct snd_soc_dai_driver ak4641_dai[] = {
+static struct snd_soc_dai_driver ak4641_dai[] = {
 {
 	.name = "ak4641-hifi",
 	.id = 1,
