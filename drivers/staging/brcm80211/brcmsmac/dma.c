@@ -25,7 +25,7 @@
 #include <aiutils.h>
 
 #include "wlc_types.h"
-#include <sbdma.h>
+#include "bcmdma.h"
 #include <bcmdma.h>
 
 #if defined(__mips__)

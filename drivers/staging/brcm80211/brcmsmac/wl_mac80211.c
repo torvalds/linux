@@ -30,7 +30,7 @@
 #include <bcmutils.h>
 #include <bcmnvram.h>
 #include <nicpci.h>
-#include <sbdma.h>
+#include "bcmdma.h"
 
 #include "phy/wlc_phy_int.h"
 #include "d11.h"

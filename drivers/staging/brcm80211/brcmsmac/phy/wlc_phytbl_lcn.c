@@ -15,7 +15,7 @@
  */
 
 #include <linux/types.h>
-#include <sbdma.h>
+#include "bcmdma.h"
 #include <wlc_phy_int.h>
 #include <wlc_phytbl_lcn.h>
 

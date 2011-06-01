@@ -24,55 +24,6 @@
 #define	PAD		_XSTR(__LINE__)
 #endif				/* PAD */
 
-/* dma registers per channel(xmt or rcv) */
-typedef volatile struct {
-	u32 control;		/* enable, et al */
-	u32 addr;		/* descriptor ring base address (4K aligned) */
-	u32 ptr;		/* last descriptor posted to chip */
-	u32 status;		/* current active descriptor, et al */
-} dma32regs_t;
-
-typedef volatile struct {
-	dma32regs_t xmt;	/* dma tx channel */
-	dma32regs_t rcv;	/* dma rx channel */
-} dma32regp_t;
-
-typedef volatile struct {
-	dma64regs_t xmt;	/* dma tx */
-	u32 PAD[2];
-	dma64regs_t rcv;	/* dma rx */
-	u32 PAD[2];
-} dma64p_t;
-
-
-typedef volatile struct {	/* diag access */
-	u32 fifoaddr;	/* diag address */
-	u32 fifodatalow;	/* low 32bits of data */
-	u32 fifodatahigh;	/* high 32bits of data */
-	u32 pad;		/* reserved */
-} dma64diag_t;
-
-/* dma64 sdiod corerev >= 1 */
-typedef volatile struct {
-	dma64p_t dma64regs[2];
-	dma64diag_t dmafifo;	/* DMA Diagnostic Regs, 0x280-0x28c */
-	u32 PAD[92];
-} sdiodma64_t;
-
-/* dma32 sdiod corerev == 0 */
-typedef volatile struct {
-	dma32regp_t dma32regs[2];	/* dma tx & rx, 0x200-0x23c */
-	dma32diag_t dmafifo;	/* DMA Diagnostic Regs, 0x240-0x24c */
-	u32 PAD[108];
-} sdiodma32_t;
-
-/* dma32 regs for pcmcia core */
-typedef volatile struct {
-	dma32regp_t dmaregs;	/* DMA Regs, 0x200-0x21c, rev8 */
-	dma32diag_t dmafifo;	/* DMA Diagnostic Regs, 0x220-0x22c */
-	u32 PAD[116];
-} pcmdma32_t;
-
 /* core registers */
 typedef volatile struct {
 	u32 corecontrol;	/* CoreControl, 0x000, rev8 */
@@ -133,13 +84,7 @@ typedef volatile struct {
 	u32 PAD[40];
 	u32 clockctlstatus;	/* ClockCtlStatus, 0x1e0, rev8 */
 	u32 PAD[7];
-
-	/* DMA engines */
-	volatile union {
-		pcmdma32_t pcm32;
-		sdiodma32_t sdiod32;
-		sdiodma64_t sdiod64;
-	} dma;
+	u32 PAD[128];		/* DMA engines */
 
 	/* SDIO/PCMCIA CIS region */
 	char cis[512];		/* 512 byte CIS, 0x400-0x5ff, rev6 */

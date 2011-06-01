@@ -132,7 +132,6 @@ typedef struct {
 
 #endif				/* DHD_DEBUG */
 #include <chipcommon.h>
-#include <sbdma.h>
 
 #include <sdio.h>
 #include <sbsdio.h>

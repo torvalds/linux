@@ -22,7 +22,7 @@
 #include <aiutils.h>
 #include <bcmwifi.h>
 #include <bcmnvram.h>
-#include <sbdma.h>
+#include "bcmdma.h"
 
 #include "wlc_types.h"
 #include "d11.h"

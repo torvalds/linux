@@ -25,7 +25,7 @@
 #include <bcmnvram.h>
 
 #include <bcmdevs.h>
-#include <sbdma.h>
+#include "bcmdma.h"
 
 #include "wlc_phy_radio.h"
 #include "wlc_phy_int.h"

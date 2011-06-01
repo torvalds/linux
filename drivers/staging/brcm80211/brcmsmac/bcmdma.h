@@ -17,10 +17,39 @@
 #ifndef	_bcmdma_h_
 #define	_bcmdma_h_
 
+#include "wlc_types.h"		/* forward structure declarations */
+
 #ifndef _dma_pub_
 #define _dma_pub_
 struct dma_pub;
 #endif				/* _dma_pub_ */
+
+/* DMA structure:
+ *  support two DMA engines: 32 bits address or 64 bit addressing
+ *  basic DMA register set is per channel(transmit or receive)
+ *  a pair of channels is defined for convenience
+ */
+
+/* 32 bits addressing */
+
+typedef volatile struct {	/* diag access */
+	u32 fifoaddr;	/* diag address */
+	u32 fifodatalow;	/* low 32bits of data */
+	u32 fifodatahigh;	/* high 32bits of data */
+	u32 pad;		/* reserved */
+} dma32diag_t;
+
+/* 64 bits addressing */
+
+/* dma registers per channel(xmt or rcv) */
+typedef volatile struct {
+	u32 control;		/* enable, et al */
+	u32 ptr;		/* last descriptor posted to chip */
+	u32 addrlow;		/* descriptor ring base address low 32-bits (8K aligned) */
+	u32 addrhigh;	/* descriptor ring base address bits 63:32 (8K aligned) */
+	u32 status0;		/* current descriptor, xmt state */
+	u32 status1;		/* active descriptor, xmt error */
+} dma64regs_t;
 
 /* map/unmap direction */
 #define	DMA_TX	1		/* TX direction for DMA */

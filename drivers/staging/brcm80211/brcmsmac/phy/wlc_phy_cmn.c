@@ -27,7 +27,7 @@
 #include <bcmnvram.h>
 #include <chipcommon.h>
 #include <bcmdevs.h>
-#include <sbdma.h>
+#include "bcmdma.h"
 
 #include <wlc_types.h>
 #include <wlc_phy_int.h>

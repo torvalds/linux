@@ -25,7 +25,7 @@
 #include <bcmnvram.h>
 #include <aiutils.h>
 #include <bcmdevs.h>
-#include <sbdma.h>
+#include "bcmdma.h"
 
 #include "d11.h"
 #include "wlc_rate.h"

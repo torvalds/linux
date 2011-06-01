@@ -34,6 +34,7 @@
 #define MAX_DMA_SEGS 4
 
 /* forward declarations */
+struct sk_buff;
 struct wl_info;
 struct wlc_info;
 struct wlc_hw_info;
@@ -45,5 +46,7 @@ struct bmac_pmq;
 struct d11init;
 struct dma_pub;
 struct wlc_bsscfg;
+struct bcmstrbuf;
+struct si_pub;
 
 #endif				/* _wlc_types_h_ */

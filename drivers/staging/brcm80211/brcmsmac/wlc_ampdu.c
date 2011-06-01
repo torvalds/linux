@@ -19,7 +19,7 @@
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <aiutils.h>
-#include <sbdma.h>
+#include "bcmdma.h"
 #include <bcmdma.h>
 #include <d11.h>
 

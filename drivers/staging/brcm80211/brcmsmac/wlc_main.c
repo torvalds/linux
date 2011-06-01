@@ -26,7 +26,7 @@
 #include <bcmnvram.h>
 #include <aiutils.h>
 #include <bcmsrom.h>
-#include <sbdma.h>
+#include "bcmdma.h"
 #include <bcmdma.h>
 
 #include "wlc_pmu.h"
