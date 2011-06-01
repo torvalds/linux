@@ -85,7 +85,6 @@ struct sdioh_info {
 
 	uint irq;		/* Client irq */
 	int intrcount;		/* Client interrupts */
-	bool sd_use_dma;	/* DMA on CMD53 */
 	bool sd_blockmode;	/* sd_blockmode == false => 64 Byte Cmd 53s. */
 	/*  Must be on for sd_multiblock to be effective */
 	bool use_client_ints;	/* If this is false, make sure to restore */

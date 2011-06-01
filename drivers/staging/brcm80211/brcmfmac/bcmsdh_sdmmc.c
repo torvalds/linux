@@ -54,7 +54,6 @@ uint sd_power = 1;		/* Default to SD Slot powered ON */
 uint sd_clock = 1;		/* Default to SD Clock turned ON */
 uint sd_hiok = false;		/* Don't use hi-speed mode by default */
 uint sd_msglevel = 0x01;
-uint sd_use_dma = true;
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_byte_wait);
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_word_wait);
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_packet_wait);
@@ -352,7 +351,6 @@ uint sdioh_query_iofnum(sdioh_info_t *sd)
 enum {
 	IOV_MSGLEVEL = 1,
 	IOV_BLOCKSIZE,
-	IOV_DMA,
 	IOV_USEINTS,
 	IOV_NUMINTS,
 	IOV_NUMLOCALINTS,
@@ -371,7 +369,6 @@ const bcm_iovar_t sdioh_iovars[] = {
 	{"sd_msglevel", IOV_MSGLEVEL, 0, IOVT_UINT32, 0},
 	{"sd_blocksize", IOV_BLOCKSIZE, 0, IOVT_UINT32, 0},/* ((fn << 16) |
 								 size) */
-	{"sd_dma", IOV_DMA, 0, IOVT_BOOL, 0},
 	{"sd_ints", IOV_USEINTS, 0, IOVT_BOOL, 0},
 	{"sd_numints", IOV_NUMINTS, 0, IOVT_UINT32, 0},
 	{"sd_numlocalints", IOV_NUMLOCALINTS, 0, IOVT_UINT32, 0},
@@ -503,15 +500,6 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	case IOV_GVAL(IOV_RXCHAIN):
 		int_val = false;
 		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_GVAL(IOV_DMA):
-		int_val = (s32) si->sd_use_dma;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_DMA):
-		si->sd_use_dma = (bool) int_val;
 		break;
 
 	case IOV_GVAL(IOV_USEINTS):
