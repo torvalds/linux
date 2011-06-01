@@ -565,8 +565,8 @@ config SND_FM801_TEA575X_BOOL
 
 config SND_TEA575X
 	tristate
-	depends on SND_FM801_TEA575X_BOOL || SND_ES1968_RADIO
-	default SND_FM801 || SND_ES1968
+	depends on SND_FM801_TEA575X_BOOL || SND_ES1968_RADIO || RADIO_SF16FMR2
+	default SND_FM801 || SND_ES1968 || RADIO_SF16FMR2
 
 source "sound/pci/hda/Kconfig"
 
