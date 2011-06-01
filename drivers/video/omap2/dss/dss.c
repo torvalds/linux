@@ -74,6 +74,7 @@ static struct {
 	enum omap_dss_clk_source dispc_clk_source;
 	enum omap_dss_clk_source lcd_clk_source[MAX_DSS_LCD_MANAGERS];
 
+	bool		ctx_valid;
 	u32		ctx[DSS_SZ_REGS / sizeof(u32)];
 } dss;
 
@@ -109,11 +110,18 @@ static void dss_save_context(void)
 		SR(SDI_CONTROL);
 		SR(PLL_CONTROL);
 	}
+
+	dss.ctx_valid = true;
+
+	DSSDBG("context saved\n");
 }
 
 static void dss_restore_context(void)
 {
 	DSSDBG("dss_restore_context\n");
+
+	if (!dss.ctx_valid)
+		return;
 
 	RR(CONTROL);
 
@@ -122,6 +130,8 @@ static void dss_restore_context(void)
 		RR(SDI_CONTROL);
 		RR(PLL_CONTROL);
 	}
+
+	DSSDBG("context restored\n");
 }
 
 #undef SR
