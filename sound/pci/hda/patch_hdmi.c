@@ -1095,7 +1095,8 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 	int i;
 
 	for (i = 0; i < codec->num_pcms; i++) {
-		err = snd_hda_create_spdif_out_ctls(codec, spec->cvt[i]);
+		err = snd_hda_create_spdif_out_ctls(codec, spec->cvt[i],
+						    spec->cvt[i]);
 		if (err < 0)
 			return err;
 	}
