@@ -906,7 +906,7 @@ static struct omap_mux *omap_mux_get_by_gpio(
 u16 omap_mux_get_gpio(int gpio)
 {
 	struct omap_mux_partition *partition;
-	struct omap_mux *m;
+	struct omap_mux *m = NULL;
 
 	list_for_each_entry(partition, &mux_partitions, node) {
 		m = omap_mux_get_by_gpio(partition, gpio);
