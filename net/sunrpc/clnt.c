@@ -1551,8 +1551,7 @@ call_decode(struct rpc_task *task)
 	kxdrdproc_t	decode = task->tk_msg.rpc_proc->p_decode;
 	__be32		*p;
 
-	dprintk("RPC: %5u call_decode (status %d)\n",
-			task->tk_pid, task->tk_status);
+	dprint_status(task);
 
 	if (task->tk_flags & RPC_CALL_MAJORSEEN) {
 		if (clnt->cl_chatty)
