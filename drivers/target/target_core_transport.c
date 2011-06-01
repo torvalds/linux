@@ -212,7 +212,7 @@ static u32 transport_allocate_tasks(struct se_cmd *cmd,
 		struct list_head *mem_list, int set_counts);
 static int transport_generic_get_mem(struct se_cmd *cmd, u32 length);
 static int transport_generic_remove(struct se_cmd *cmd,
-		int release_to_pool, int session_reinstatement);
+		int session_reinstatement);
 static int transport_cmd_get_valid_sectors(struct se_cmd *cmd);
 static int transport_map_sg_to_mem(struct se_cmd *cmd,
 		struct list_head *se_mem_list, struct scatterlist *sgl);
@@ -737,7 +737,7 @@ void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 	if (transport_cmd_check_stop_to_fabric(cmd))
 		return;
 	if (remove)
-		transport_generic_remove(cmd, 0, 0);
+		transport_generic_remove(cmd, 0);
 }
 
 void transport_cmd_finish_abort_tmr(struct se_cmd *cmd)
@@ -747,7 +747,7 @@ void transport_cmd_finish_abort_tmr(struct se_cmd *cmd)
 	if (transport_cmd_check_stop_to_fabric(cmd))
 		return;
 
-	transport_generic_remove(cmd, 0, 0);
+	transport_generic_remove(cmd, 0);
 }
 
 static void transport_add_cmd_to_queue(
@@ -2146,7 +2146,7 @@ static void transport_generic_request_timeout(struct se_cmd *cmd)
 	}
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-	transport_generic_remove(cmd, 0, 0);
+	transport_generic_remove(cmd, 0);
 }
 
 static int
@@ -3825,13 +3825,11 @@ static void transport_release_fe_cmd(struct se_cmd *cmd)
 free_pages:
 	transport_free_pages(cmd);
 	transport_free_se_cmd(cmd);
-	cmd->se_tfo->release_cmd_direct(cmd);
+	cmd->se_tfo->release_cmd(cmd);
 }
 
-static int transport_generic_remove(
-	struct se_cmd *cmd,
-	int release_to_pool,
-	int session_reinstatement)
+static int
+transport_generic_remove(struct se_cmd *cmd, int session_reinstatement)
 {
 	unsigned long flags;
 
@@ -3858,14 +3856,7 @@ static int transport_generic_remove(
 
 free_pages:
 	transport_free_pages(cmd);
-
-	if (release_to_pool) {
-		transport_release_cmd_to_pool(cmd);
-	} else {
-		transport_free_se_cmd(cmd);
-		cmd->se_tfo->release_cmd_direct(cmd);
-	}
-
+	transport_release_cmd(cmd);
 	return 0;
 }
 
@@ -4894,18 +4885,14 @@ static int transport_generic_write_pending(struct se_cmd *cmd)
 	return PYX_TRANSPORT_WRITE_PENDING;
 }
 
-/*	transport_release_cmd_to_pool():
- *
- *
- */
-void transport_release_cmd_to_pool(struct se_cmd *cmd)
+void transport_release_cmd(struct se_cmd *cmd)
 {
 	BUG_ON(!cmd->se_tfo);
 
 	transport_free_se_cmd(cmd);
-	cmd->se_tfo->release_cmd_to_pool(cmd);
+	cmd->se_tfo->release_cmd(cmd);
 }
-EXPORT_SYMBOL(transport_release_cmd_to_pool);
+EXPORT_SYMBOL(transport_release_cmd);
 
 /*	transport_generic_free_cmd():
  *
@@ -4914,11 +4901,10 @@ EXPORT_SYMBOL(transport_release_cmd_to_pool);
 void transport_generic_free_cmd(
 	struct se_cmd *cmd,
 	int wait_for_tasks,
-	int release_to_pool,
 	int session_reinstatement)
 {
 	if (!(cmd->se_cmd_flags & SCF_SE_LUN_CMD))
-		transport_release_cmd_to_pool(cmd);
+		transport_release_cmd(cmd);
 	else {
 		core_dec_lacl_count(cmd->se_sess->se_node_acl, cmd);
 
@@ -4936,8 +4922,7 @@ void transport_generic_free_cmd(
 
 		transport_free_dev_tasks(cmd);
 
-		transport_generic_remove(cmd, release_to_pool,
-				session_reinstatement);
+		transport_generic_remove(cmd, session_reinstatement);
 	}
 }
 EXPORT_SYMBOL(transport_generic_free_cmd);
@@ -5210,7 +5195,7 @@ remove:
 	if (!remove_cmd)
 		return;
 
-	transport_generic_free_cmd(cmd, 0, 0, session_reinstatement);
+	transport_generic_free_cmd(cmd, 0, session_reinstatement);
 }
 
 static int transport_get_sense_codes(
@@ -5616,7 +5601,7 @@ static void transport_processing_shutdown(struct se_device *dev)
 				transport_lun_remove_cmd(cmd);
 
 				if (transport_cmd_check_stop(cmd, 1, 0))
-					transport_generic_remove(cmd, 0, 0);
+					transport_generic_remove(cmd, 0);
 			}
 
 			spin_lock_irqsave(&dev->execute_task_lock, flags);
@@ -5644,7 +5629,7 @@ static void transport_processing_shutdown(struct se_device *dev)
 			transport_lun_remove_cmd(cmd);
 
 			if (transport_cmd_check_stop(cmd, 1, 0))
-				transport_generic_remove(cmd, 0, 0);
+				transport_generic_remove(cmd, 0);
 		}
 
 		spin_lock_irqsave(&dev->execute_task_lock, flags);
@@ -5667,7 +5652,7 @@ static void transport_processing_shutdown(struct se_device *dev)
 		} else {
 			transport_lun_remove_cmd(cmd);
 			if (transport_cmd_check_stop(cmd, 1, 0))
-				transport_generic_remove(cmd, 0, 0);
+				transport_generic_remove(cmd, 0);
 		}
 	}
 }
@@ -5739,10 +5724,10 @@ get_cmd:
 			transport_generic_complete_ok(cmd);
 			break;
 		case TRANSPORT_REMOVE:
-			transport_generic_remove(cmd, 1, 0);
+			transport_generic_remove(cmd, 0);
 			break;
 		case TRANSPORT_FREE_CMD_INTR:
-			transport_generic_free_cmd(cmd, 0, 1, 0);
+			transport_generic_free_cmd(cmd, 0, 0);
 			break;
 		case TRANSPORT_PROCESS_TMR:
 			transport_generic_do_tmr(cmd);

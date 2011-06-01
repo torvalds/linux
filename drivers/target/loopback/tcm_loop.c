@@ -204,13 +204,10 @@ static void tcm_loop_check_stop_free(struct se_cmd *se_cmd)
 	 * Release the struct se_cmd, which will make a callback to release
 	 * struct tcm_loop_cmd * in tcm_loop_deallocate_core_cmd()
 	 */
-	transport_generic_free_cmd(se_cmd, 0, 1, 0);
+	transport_generic_free_cmd(se_cmd, 0, 0);
 }
 
-/*
- * Called from struct target_core_fabric_ops->release_cmd_to_pool()
- */
-static void tcm_loop_deallocate_core_cmd(struct se_cmd *se_cmd)
+static void tcm_loop_release_cmd(struct se_cmd *se_cmd)
 {
 	struct tcm_loop_cmd *tl_cmd = container_of(se_cmd,
 				struct tcm_loop_cmd, tl_se_cmd);
@@ -395,7 +392,7 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 		SUCCESS : FAILED;
 release:
 	if (se_cmd)
-		transport_generic_free_cmd(se_cmd, 1, 1, 0);
+		transport_generic_free_cmd(se_cmd, 1, 0);
 	else
 		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
 	kfree(tl_tmr);
@@ -1418,8 +1415,7 @@ static int tcm_loop_register_configfs(void)
 	 */
 	fabric->tf_ops.new_cmd_map = &tcm_loop_new_cmd_map;
 	fabric->tf_ops.check_stop_free = &tcm_loop_check_stop_free;
-	fabric->tf_ops.release_cmd_to_pool = &tcm_loop_deallocate_core_cmd;
-	fabric->tf_ops.release_cmd_direct = &tcm_loop_deallocate_core_cmd;
+	fabric->tf_ops.release_cmd = &tcm_loop_release_cmd;
 	fabric->tf_ops.shutdown_session = &tcm_loop_shutdown_session;
 	fabric->tf_ops.close_session = &tcm_loop_close_session;
 	fabric->tf_ops.stop_session = &tcm_loop_stop_session;

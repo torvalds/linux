@@ -427,12 +427,8 @@ static int target_fabric_tf_ops_check(
 		printk(KERN_ERR "Missing tfo->tpg_get_inst_index()\n");
 		return -EINVAL;
 	}
-	if (!(tfo->release_cmd_to_pool)) {
-		printk(KERN_ERR "Missing tfo->release_cmd_to_pool()\n");
-		return -EINVAL;
-	}
-	if (!(tfo->release_cmd_direct)) {
-		printk(KERN_ERR "Missing tfo->release_cmd_direct()\n");
+	if (!tfo->release_cmd) {
+		printk(KERN_ERR "Missing tfo->release_cmd()\n");
 		return -EINVAL;
 	}
 	if (!(tfo->shutdown_session)) {

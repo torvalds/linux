@@ -43,8 +43,7 @@ struct target_core_fabric_ops {
 	 * I/O descriptor in transport_cmd_check_stop()
 	 */
 	void (*check_stop_free)(struct se_cmd *);
-	void (*release_cmd_to_pool)(struct se_cmd *);
-	void (*release_cmd_direct)(struct se_cmd *);
+	void (*release_cmd)(struct se_cmd *);
 	/*
 	 * Called with spin_lock_bh(struct se_portal_group->session_lock held.
 	 */

@@ -179,8 +179,8 @@ extern int transport_clear_lun_from_sessions(struct se_lun *);
 extern int transport_check_aborted_status(struct se_cmd *, int);
 extern int transport_send_check_condition_and_sense(struct se_cmd *, u8, int);
 extern void transport_send_task_abort(struct se_cmd *);
-extern void transport_release_cmd_to_pool(struct se_cmd *);
-extern void transport_generic_free_cmd(struct se_cmd *, int, int, int);
+extern void transport_release_cmd(struct se_cmd *);
+extern void transport_generic_free_cmd(struct se_cmd *, int, int);
 extern void transport_generic_wait_for_cmds(struct se_cmd *, int);
 extern int transport_init_task_sg(struct se_task *, struct se_mem *, u32);
 extern int transport_map_mem_to_sg(struct se_task *, struct list_head *,
