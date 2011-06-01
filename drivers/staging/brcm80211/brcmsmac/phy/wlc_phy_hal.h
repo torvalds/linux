@@ -226,7 +226,6 @@ extern void wlc_phy_edcrs_lock(wlc_phy_t *pih, bool lock);
 extern void wlc_phy_cal_papd_recal(wlc_phy_t *ppi);
 
 extern void wlc_phy_ant_rxdiv_set(wlc_phy_t *ppi, u8 val);
-extern bool wlc_phy_ant_rxdiv_get(wlc_phy_t *ppi, u8 *pval);
 extern void wlc_phy_clear_tssi(wlc_phy_t *ppi);
 extern void wlc_phy_hold_upd(wlc_phy_t *ppi, mbool id, bool val);
 extern void wlc_phy_mute_upd(wlc_phy_t *ppi, bool val, mbool flags);

@@ -364,39 +364,6 @@ void wlc_stf_detach(struct wlc_info *wlc)
 {
 }
 
-int wlc_stf_ant_txant_validate(struct wlc_info *wlc, s8 val)
-{
-	int bcmerror = 0;
-
-	/* when there is only 1 tx_streams, don't allow to change the txant */
-	if (WLCISNPHY(wlc->band) && (wlc->stf->txstreams == 1))
-		return ((val == wlc->stf->txant) ? bcmerror : -EINVAL);
-
-	switch (val) {
-	case -1:
-		val = ANT_TX_DEF;
-		break;
-	case 0:
-		val = ANT_TX_FORCE_0;
-		break;
-	case 1:
-		val = ANT_TX_FORCE_1;
-		break;
-	case 3:
-		val = ANT_TX_LAST_RX;
-		break;
-	default:
-		bcmerror = -EINVAL;
-		break;
-	}
-
-	if (bcmerror == 0)
-		wlc->stf->txant = (s8) val;
-
-	return bcmerror;
-
-}
-
 /*
  * Centralized txant update function. call it whenever wlc->stf->txant and/or wlc->stf->txchain
  *  change

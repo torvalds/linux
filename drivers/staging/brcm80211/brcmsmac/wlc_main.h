@@ -805,8 +805,6 @@ extern void wlc_write_template_ram(struct wlc_info *wlc, int offset, int len,
 				   void *buf);
 extern void wlc_write_hw_bcntemplates(struct wlc_info *wlc, void *bcn, int len,
 				      bool both);
-extern void wlc_set_cwmin(struct wlc_info *wlc, u16 newmin);
-extern void wlc_set_cwmax(struct wlc_info *wlc, u16 newmax);
 extern void wlc_pllreq(struct wlc_info *wlc, bool set, mbool req_bit);
 extern void wlc_reset_bmac_done(struct wlc_info *wlc);
 
@@ -928,10 +926,7 @@ extern ratespec_t wlc_lowest_basic_rspec(struct wlc_info *wlc,
 					 wlc_rateset_t *rs);
 extern void wlc_radio_disable(struct wlc_info *wlc);
 extern void wlc_bcn_li_upd(struct wlc_info *wlc);
-
-extern int wlc_get_revision_info(struct wlc_info *wlc, void *buf, uint len);
 extern void wlc_set_home_chanspec(struct wlc_info *wlc, chanspec_t chanspec);
-extern void wlc_watchdog_upd(struct wlc_info *wlc, bool tbtt);
 extern bool wlc_ps_allowed(struct wlc_info *wlc);
 extern bool wlc_stay_awake(struct wlc_info *wlc);
 extern void wlc_wme_initparams_sta(struct wlc_info *wlc, wme_param_ie_t *pe);

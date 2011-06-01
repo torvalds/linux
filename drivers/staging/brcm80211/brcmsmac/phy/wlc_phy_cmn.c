@@ -2350,27 +2350,6 @@ bool wlc_phy_test_ison(wlc_phy_t *ppi)
 	return pi->phytest_on;
 }
 
-bool wlc_phy_ant_rxdiv_get(wlc_phy_t *ppi, u8 *pval)
-{
-	phy_info_t *pi = (phy_info_t *) ppi;
-	bool ret = true;
-
-	wlc_phyreg_enter(ppi);
-
-	if (ISNPHY(pi)) {
-
-		ret = false;
-	} else if (ISLCNPHY(pi)) {
-		u16 crsctrl = read_phy_reg(pi, 0x410);
-		u16 div = crsctrl & (0x1 << 1);
-		*pval = (div | ((crsctrl & (0x1 << 0)) ^ (div >> 1)));
-	}
-
-	wlc_phyreg_exit(ppi);
-
-	return ret;
-}
-
 void wlc_phy_ant_rxdiv_set(wlc_phy_t *ppi, u8 val)
 {
 	phy_info_t *pi = (phy_info_t *) ppi;

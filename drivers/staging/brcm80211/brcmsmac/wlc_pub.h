@@ -134,7 +134,6 @@ struct rsn_parms {
 };
 
 /*
- * buffer length needed for wlc_format_ssid
  * 32 SSID chars, max of 4 chars for each SSID char "\xFF", plus NULL.
  */
 #define SSID_FMT_BUF_LEN	((4 * IEEE80211_MAX_SSID_LEN) + 1)
@@ -558,17 +557,9 @@ extern void wlc_scan_stop(struct wlc_info *wlc);
 extern int wlc_get_curband(struct wlc_info *wlc);
 extern void wlc_wait_for_tx_completion(struct wlc_info *wlc, bool drop);
 
-#if defined(BCMDBG)
-extern int wlc_iocregchk(struct wlc_info *wlc, uint band);
-#endif
-
 /* helper functions */
 extern bool wlc_check_radio_disabled(struct wlc_info *wlc);
 extern bool wlc_radio_monitor_stop(struct wlc_info *wlc);
-
-#if defined(BCMDBG)
-extern int wlc_format_ssid(char *buf, const unsigned char ssid[], uint ssid_len);
-#endif
 
 #define	MAXBANDS		2	/* Maximum #of bands */
 /* bandstate array indices */
