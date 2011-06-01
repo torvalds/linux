@@ -7,7 +7,7 @@
 #include <linux/spinlock.h>
 #include <linux/timex.h>
 
-#include <asm/i8253.h>
+#include <linux/i8253.h>
 
 /*
  * Since the PIT overflows every tick, its not very useful

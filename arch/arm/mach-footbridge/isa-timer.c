@@ -6,6 +6,7 @@
  */
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
+#include <linux/i8253.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -14,7 +15,6 @@
 #include <linux/timex.h>
 
 #include <asm/irq.h>
-#include <asm/i8253.h>
 #include <asm/mach/time.h>
 
 #include "common.h"

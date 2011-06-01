@@ -9,10 +9,10 @@
 #include <linux/module.h>
 #include <linux/timex.h>
 #include <linux/delay.h>
+#include <linux/i8253.h>
 #include <linux/init.h>
 #include <linux/io.h>
 
-#include <asm/i8253.h>
 #include <asm/hpet.h>
 #include <asm/smp.h>
 

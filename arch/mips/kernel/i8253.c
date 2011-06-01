@@ -3,6 +3,7 @@
  *
  */
 #include <linux/clockchips.h>
+#include <linux/i8253.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
@@ -12,7 +13,6 @@
 #include <linux/irq.h>
 
 #include <asm/delay.h>
-#include <asm/i8253.h>
 #include <asm/io.h>
 #include <asm/time.h>
 
