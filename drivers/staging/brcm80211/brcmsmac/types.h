@@ -71,6 +71,176 @@
 #define BOARD_GPIO_12		0x1000	/* gpio 12 */
 #define BOARD_GPIO_13		0x2000	/* gpio 13 */
 
+/* **** Core type/rev defaults **** */
+#define D11CONF		0x0fffffb0	/* Supported  D11 revs: 4, 5, 7-27
+					 * also need to update wlc.h MAXCOREREV
+					 */
+
+#define NCONF		0x000001ff	/* Supported nphy revs:
+					 *      0       4321a0
+					 *      1       4321a1
+					 *      2       4321b0/b1/c0/c1
+					 *      3       4322a0
+					 *      4       4322a1
+					 *      5       4716a0
+					 *      6       43222a0, 43224a0
+					 *      7       43226a0
+					 *      8       5357a0, 43236a0
+					 */
+
+#define LCNCONF		0x00000007	/* Supported lcnphy revs:
+					 *      0       4313a0, 4336a0, 4330a0
+					 *      1
+					 *      2       4330a0
+					 */
+
+#define SSLPNCONF 	0x0000000f	/* Supported sslpnphy revs:
+					 *      0       4329a0/k0
+					 *      1       4329b0/4329C0
+					 *      2       4319a0
+					 *      3       5356a0
+					 */
+
+/********************************************************************
+ * Phy/Core Configuration.  Defines macros to to check core phy/rev *
+ * compile-time configuration.  Defines default core support.       *
+ * ******************************************************************
+ */
+
+/* Basic macros to check a configuration bitmask */
+
+#define CONF_HAS(config, val)	((config) & (1 << (val)))
+#define CONF_MSK(config, mask)	((config) & (mask))
+#define MSK_RANGE(low, hi)	((1 << ((hi)+1)) - (1 << (low)))
+#define CONF_RANGE(config, low, hi) (CONF_MSK(config, MSK_RANGE(low, high)))
+
+#define CONF_IS(config, val)	((config) == (1 << (val)))
+#define CONF_GE(config, val)	((config) & (0-(1 << (val))))
+#define CONF_GT(config, val)	((config) & (0-2*(1 << (val))))
+#define CONF_LT(config, val)	((config) & ((1 << (val))-1))
+#define CONF_LE(config, val)	((config) & (2*(1 << (val))-1))
+
+/* Wrappers for some of the above, specific to config constants */
+
+#define NCONF_HAS(val)	CONF_HAS(NCONF, val)
+#define NCONF_MSK(mask)	CONF_MSK(NCONF, mask)
+#define NCONF_IS(val)	CONF_IS(NCONF, val)
+#define NCONF_GE(val)	CONF_GE(NCONF, val)
+#define NCONF_GT(val)	CONF_GT(NCONF, val)
+#define NCONF_LT(val)	CONF_LT(NCONF, val)
+#define NCONF_LE(val)	CONF_LE(NCONF, val)
+
+#define LCNCONF_HAS(val)	CONF_HAS(LCNCONF, val)
+#define LCNCONF_MSK(mask)	CONF_MSK(LCNCONF, mask)
+#define LCNCONF_IS(val)		CONF_IS(LCNCONF, val)
+#define LCNCONF_GE(val)		CONF_GE(LCNCONF, val)
+#define LCNCONF_GT(val)		CONF_GT(LCNCONF, val)
+#define LCNCONF_LT(val)		CONF_LT(LCNCONF, val)
+#define LCNCONF_LE(val)		CONF_LE(LCNCONF, val)
+
+#define D11CONF_HAS(val) CONF_HAS(D11CONF, val)
+#define D11CONF_MSK(mask) CONF_MSK(D11CONF, mask)
+#define D11CONF_IS(val)	CONF_IS(D11CONF, val)
+#define D11CONF_GE(val)	CONF_GE(D11CONF, val)
+#define D11CONF_GT(val)	CONF_GT(D11CONF, val)
+#define D11CONF_LT(val)	CONF_LT(D11CONF, val)
+#define D11CONF_LE(val)	CONF_LE(D11CONF, val)
+
+#define PHYCONF_HAS(val) CONF_HAS(PHYTYPE, val)
+#define PHYCONF_IS(val)	CONF_IS(PHYTYPE, val)
+
+#define NREV_IS(var, val)	(NCONF_HAS(val) && (NCONF_IS(val) || ((var) == (val))))
+#define NREV_GE(var, val)	(NCONF_GE(val) && (!NCONF_LT(val) || ((var) >= (val))))
+#define NREV_GT(var, val)	(NCONF_GT(val) && (!NCONF_LE(val) || ((var) > (val))))
+#define NREV_LT(var, val)	(NCONF_LT(val) && (!NCONF_GE(val) || ((var) < (val))))
+#define NREV_LE(var, val)	(NCONF_LE(val) && (!NCONF_GT(val) || ((var) <= (val))))
+
+#define LCNREV_IS(var, val)	(LCNCONF_HAS(val) && (LCNCONF_IS(val) || ((var) == (val))))
+#define LCNREV_GE(var, val)	(LCNCONF_GE(val) && (!LCNCONF_LT(val) || ((var) >= (val))))
+#define LCNREV_GT(var, val)	(LCNCONF_GT(val) && (!LCNCONF_LE(val) || ((var) > (val))))
+#define LCNREV_LT(var, val)	(LCNCONF_LT(val) && (!LCNCONF_GE(val) || ((var) < (val))))
+#define LCNREV_LE(var, val)	(LCNCONF_LE(val) && (!LCNCONF_GT(val) || ((var) <= (val))))
+
+#define D11REV_IS(var, val)	(D11CONF_HAS(val) && (D11CONF_IS(val) || ((var) == (val))))
+#define D11REV_GE(var, val)	(D11CONF_GE(val) && (!D11CONF_LT(val) || ((var) >= (val))))
+#define D11REV_GT(var, val)	(D11CONF_GT(val) && (!D11CONF_LE(val) || ((var) > (val))))
+#define D11REV_LT(var, val)	(D11CONF_LT(val) && (!D11CONF_GE(val) || ((var) < (val))))
+#define D11REV_LE(var, val)	(D11CONF_LE(val) && (!D11CONF_GT(val) || ((var) <= (val))))
+
+#define PHYTYPE_IS(var, val)	(PHYCONF_HAS(val) && (PHYCONF_IS(val) || ((var) == (val))))
+
+/* Finally, early-exit from switch case if anyone wants it... */
+
+#define CASECHECK(config, val)	if (!(CONF_HAS(config, val))) break
+#define CASEMSK(config, mask)	if (!(CONF_MSK(config, mask))) break
+
+/* Set up PHYTYPE automatically: (depends on PHY_TYPE_X, from d11.h) */
+
+#define _PHYCONF_N (1 << PHY_TYPE_N)
+#define _PHYCONF_LCN (1 << PHY_TYPE_LCN)
+#define _PHYCONF_SSLPN (1 << PHY_TYPE_SSN)
+
+#define PHYTYPE (_PHYCONF_N | _PHYCONF_LCN | _PHYCONF_SSLPN)
+
+/* Utility macro to identify 802.11n (HT) capable PHYs */
+#define PHYTYPE_11N_CAP(phytype) \
+	(PHYTYPE_IS(phytype, PHY_TYPE_N) ||	\
+	 PHYTYPE_IS(phytype, PHY_TYPE_LCN) || \
+	 PHYTYPE_IS(phytype, PHY_TYPE_SSN))
+
+/* Last but not least: shorter wlc-specific var checks */
+#define WLCISNPHY(band)		PHYTYPE_IS((band)->phytype, PHY_TYPE_N)
+#define WLCISLCNPHY(band)	PHYTYPE_IS((band)->phytype, PHY_TYPE_LCN)
+#define WLCISSSLPNPHY(band)	PHYTYPE_IS((band)->phytype, PHY_TYPE_SSN)
+
+#define WLC_PHY_11N_CAP(band)	PHYTYPE_11N_CAP((band)->phytype)
+
+/**********************************************************************
+ * ------------- End of Core phy/rev configuration. ----------------- *
+ * ********************************************************************
+ */
+
+/*************************************************
+ * Defaults for tunables (e.g. sizing constants)
+ *
+ * For each new tunable, add a member to the end
+ * of wlc_tunables_t in wlc_pub.h to enable
+ * runtime checks of tunable values. (Directly
+ * using the macros in code invalidates ROM code)
+ *
+ * ***********************************************
+ */
+#define NTXD		256	/* Max # of entries in Tx FIFO based on 4kb page size */
+#define NRXD		256	/* Max # of entries in Rx FIFO based on 4kb page size */
+#define	NRXBUFPOST	32	/* try to keep this # rbufs posted to the chip */
+#define MAXSCB		32	/* Maximum SCBs in cache for STA */
+#define AMPDU_NUM_MPDU		16	/* max allowed number of mpdus in an ampdu (2 streams) */
+
+/* Count of packet callback structures. either of following
+ * 1. Set to the number of SCBs since a STA
+ * can queue up a rate callback for each IBSS STA it knows about, and an AP can
+ * queue up an "are you there?" Null Data callback for each associated STA
+ * 2. controlled by tunable config file
+ */
+#define MAXPKTCB	MAXSCB	/* Max number of packet callbacks */
+
+/* NetBSD also needs to keep track of this */
+#define WLC_MAX_UCODE_BSS	(16)	/* Number of BSS handled in ucode bcn/prb */
+#define WLC_MAX_UCODE_BSS4	(4)	/* Number of BSS handled in sw bcn/prb */
+#define WLC_MAXBSSCFG		(1)	/* max # BSS configs */
+#define MAXBSS		64	/* max # available networks */
+#define WLC_DATAHIWAT		50	/* data msg txq hiwat mark */
+#define WLC_AMPDUDATAHIWAT 255
+
+/* bounded rx loops */
+#define RXBND		8	/* max # frames to process in wlc_recv() */
+#define TXSBND		8	/* max # tx status to process in wlc_txstatus() */
+
+#define WLBANDINITFN(_fn)	_fn
+
+#define BAND_5G(bt)	((bt) == WLC_BAND_5G)
+#define BAND_2G(bt)	((bt) == WLC_BAND_2G)
+
 #define BCMMSG(dev, fmt, args...)		\
 do {						\
 	if (brcm_msg_level & LOG_TRACE_VAL)	\
@@ -172,6 +342,7 @@ do {						\
 
 #define SET_REG(r, mask, val) \
 		W_REG((r), ((R_REG(r) & ~(mask)) | (val)))
+
 
 /* forward declarations */
 struct sk_buff;

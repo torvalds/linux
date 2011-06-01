@@ -34,7 +34,6 @@
 #include "phy/phy_int.h"
 #include "d11.h"
 #include "types.h"
-#include "cfg.h"
 #include "key.h"
 #include "channel.h"
 #include "scb.h"

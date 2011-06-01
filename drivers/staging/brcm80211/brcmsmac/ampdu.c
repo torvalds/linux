@@ -23,7 +23,6 @@
 #include <d11.h>
 
 #include "types.h"
-#include "cfg.h"
 #include "rate.h"
 #include "scb.h"
 #include "pub.h"

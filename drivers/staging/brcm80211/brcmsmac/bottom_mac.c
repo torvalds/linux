@@ -35,7 +35,6 @@
 #include "types.h"
 #include "pmu.h"
 #include "d11.h"
-#include "cfg.h"
 #include "rate.h"
 #include "scb.h"
 #include "pub.h"

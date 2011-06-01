@@ -19,6 +19,7 @@
 
 #define WLC_TXPWR_DB_FACTOR 4	/* conversion for phy txpwr cacluations that use .25 dB units */
 
+
 struct wlc_info;
 
 /* maxpwr mapping to 5GHz band channels:
@@ -49,6 +50,12 @@ struct wlc_info;
 
 #define WLC_MAXPWR_TBL_SIZE		6	/* max of BAND_5G_PWR_LVLS and 6 for 2.4 GHz */
 #define WLC_MAXPWR_MIMO_TBL_SIZE	14	/* max of BAND_5G_PWR_LVLS and 14 for 2.4 GHz */
+
+#define NBANDS(wlc) ((wlc)->pub->_nbands)
+#define NBANDS_PUB(pub) ((pub)->_nbands)
+#define NBANDS_HW(hw) ((hw)->_nbands)
+
+#define IS_SINGLEBAND_5G(device)	0
 
 /* locale channel and power info. */
 typedef struct {

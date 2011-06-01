@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <defs.h>
-#include <cfg.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <aiutils.h>

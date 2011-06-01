@@ -30,12 +30,10 @@
 #include "pmu.h"
 #include "d11.h"
 #include "types.h"
-#include "cfg.h"
 #include "rate.h"
 #include "scb.h"
 #include "pub.h"
 #include "key.h"
-#include "bsscfg.h"
 #include "phy/phy_hal.h"
 #include "channel.h"
 #include "main.h"
@@ -239,6 +237,18 @@ const u8 prio2fifo[NUMPRIO] = {
 #define	_WLC_PREC_VO		12	/* Vo - Voice */
 #define	_WLC_PREC_NC		14	/* NC - Network Control */
 
+#define MAXMACLIST		64	/* max # source MAC matches */
+#define BCN_TEMPLATE_COUNT 	2
+
+#define WLC_BSSCFG_HW_BCN	0x20	/* The BSS is generating beacons in HW */
+
+#define HWBCN_ENAB(cfg)		(((cfg)->flags & WLC_BSSCFG_HW_BCN) != 0)
+#define HWPRB_ENAB(cfg)		(((cfg)->flags & WLC_BSSCFG_HW_PRB) != 0)
+
+#define MBSS_BCN_ENAB(cfg)       0
+#define MBSS_PRB_ENAB(cfg)       0
+#define SOFTBCN_ENAB(pub)    (0)
+
 /* 802.1D Priority to precedence queue mapping */
 const u8 wlc_prio2prec_map[] = {
 	_WLC_PREC_BE,		/* 0 BE - Best-effort */
@@ -250,6 +260,22 @@ const u8 wlc_prio2prec_map[] = {
 	_WLC_PREC_VO,		/* 6 Vo - Voice */
 	_WLC_PREC_NC,		/* 7 NC - Network Control */
 };
+
+/* Check if a particular BSS config is AP or STA */
+#define BSSCFG_AP(cfg)		(0)
+#define BSSCFG_STA(cfg)		(1)
+#define BSSCFG_IBSS(cfg)	(!(cfg)->BSS)
+
+/* Iterator for "associated" STA bss configs:
+   (struct wlc_info *wlc, int idx, struct wlc_bsscfg *cfg) */
+#define FOREACH_AS_STA(wlc, idx, cfg) \
+	for (idx = 0; (int) idx < WLC_MAXBSSCFG; idx++) \
+		if ((cfg = (wlc)->bsscfg[idx]) && BSSCFG_STA(cfg) && cfg->associated)
+
+/* As above for all non-NULL BSS configs */
+#define FOREACH_BSS(wlc, idx, cfg) \
+	for (idx = 0; (int) idx < WLC_MAXBSSCFG; idx++) \
+		if ((cfg = (wlc)->bsscfg[idx]))
 
 /* Sanity check for tx_prec_map and fifo synchup
  * Either there are some packets pending for the fifo, else if fifo is empty then

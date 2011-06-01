@@ -18,7 +18,6 @@
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
-#include <cfg.h>
 #include <linux/pci.h>
 #include <brcmu_utils.h>
 #include <aiutils.h>

@@ -33,6 +33,8 @@
 #define EDCF_AIFSN_MIN               1
 #define FRAGNUM_MASK		0xF
 
+#define NTXRATE			64	/* # tx MPDUs rate is reported for */
+
 #define WLC_BITSCNT(x)	brcmu_bitcount((u8 *)&(x), sizeof(u8))
 
 /* Maximum wait time for a MAC suspend */
@@ -717,6 +719,84 @@ struct antsel_info {
 	bool antsel_avail;	/* Ant selection availability (SROM based) */
 	wlc_antselcfg_t antcfg_11n;	/* antenna configuration */
 	wlc_antselcfg_t antcfg_cur;	/* current antenna config (auto) */
+};
+
+/* BSS configuration state */
+struct wlc_bsscfg {
+	struct wlc_info *wlc;	/* wlc to which this bsscfg belongs to. */
+	bool up;		/* is this configuration up operational */
+	bool enable;		/* is this configuration enabled */
+	bool associated;	/* is BSS in ASSOCIATED state */
+	bool BSS;		/* infraustructure or adhac */
+	bool dtim_programmed;
+
+	u8 SSID_len;		/* the length of SSID */
+	u8 SSID[IEEE80211_MAX_SSID_LEN]; /* SSID string */
+	struct scb *bcmc_scb[MAXBANDS];	/* one bcmc_scb per band */
+	s8 _idx;		/* the index of this bsscfg,
+				 * assigned at wlc_bsscfg_alloc()
+				 */
+	/* MAC filter */
+	uint nmac;		/* # of entries on maclist array */
+	int macmode;		/* allow/deny stations on maclist array */
+	struct ether_addr *maclist;	/* list of source MAC addrs to match */
+
+	/* security */
+	u32 wsec;		/* wireless security bitvec */
+	s16 auth;		/* 802.11 authentication: Open, Shared Key, WPA */
+	s16 openshared;	/* try Open auth first, then Shared Key */
+	bool wsec_restrict;	/* drop unencrypted packets if wsec is enabled */
+	bool eap_restrict;	/* restrict data until 802.1X auth succeeds */
+	u16 WPA_auth;	/* WPA: authenticated key management */
+	bool wpa2_preauth;	/* default is true, wpa_cap sets value */
+	bool wsec_portopen;	/* indicates keys are plumbed */
+	wsec_iv_t wpa_none_txiv;	/* global txiv for WPA_NONE, tkip and aes */
+	int wsec_index;		/* 0-3: default tx key, -1: not set */
+	wsec_key_t *bss_def_keys[WLC_DEFAULT_KEYS];	/* default key storage */
+
+	/* TKIP countermeasures */
+	bool tkip_countermeasures;	/* flags TKIP no-assoc period */
+	u32 tk_cm_dt;	/* detect timer */
+	u32 tk_cm_bt;	/* blocking timer */
+	u32 tk_cm_bt_tmstmp;	/* Timestamp when TKIP BT is activated */
+	bool tk_cm_activate;	/* activate countermeasures after EAPOL-Key sent */
+
+	u8 BSSID[ETH_ALEN];	/* BSSID (associated) */
+	u8 cur_etheraddr[ETH_ALEN];	/* h/w address */
+	u16 bcmc_fid;	/* the last BCMC FID queued to TX_BCMC_FIFO */
+	u16 bcmc_fid_shm;	/* the last BCMC FID written to shared mem */
+
+	u32 flags;		/* WLC_BSSCFG flags; see below */
+
+	u8 *bcn;		/* AP beacon */
+	uint bcn_len;		/* AP beacon length */
+	bool ar_disassoc;	/* disassociated in associated recreation */
+
+	int auth_atmptd;	/* auth type (open/shared) attempted */
+
+	pmkid_cand_t pmkid_cand[MAXPMKID];	/* PMKID candidate list */
+	uint npmkid_cand;	/* num PMKID candidates */
+	pmkid_t pmkid[MAXPMKID];	/* PMKID cache */
+	uint npmkid;		/* num cached PMKIDs */
+
+	wlc_bss_info_t *current_bss;	/* BSS parms in ASSOCIATED state */
+
+	/* PM states */
+	bool PMawakebcn;	/* bcn recvd during current waking state */
+	bool PMpending;		/* waiting for tx status with PM indicated set */
+	bool priorPMstate;	/* Detecting PM state transitions */
+	bool PSpoll;		/* whether there is an outstanding PS-Poll frame */
+
+	/* BSSID entry in RCMTA, use the wsec key management infrastructure to
+	 * manage the RCMTA entries.
+	 */
+	wsec_key_t *rcmta;
+
+	/* 'unique' ID of this bsscfg, assigned at bsscfg allocation */
+	u16 ID;
+
+	uint txrspecidx;	/* index into tx rate circular buffer */
+	ratespec_t txrspec[NTXRATE][2];	/* circular buffer of prev MPDUs tx rates */
 };
 
 #define	CHANNEL_BANDUNIT(wlc, ch) (((ch) <= CH_MAX_2G_CHANNEL) ? BAND_2G_INDEX : BAND_5G_INDEX)

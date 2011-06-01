@@ -14,8 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <cfg.h>
-
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/bitops.h>

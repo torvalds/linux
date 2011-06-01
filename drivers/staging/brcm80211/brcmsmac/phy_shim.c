@@ -33,7 +33,6 @@
 #include <pmu.h>
 
 #include "types.h"
-#include "cfg.h"
 #include "d11.h"
 #include "rate.h"
 #include "scb.h"
