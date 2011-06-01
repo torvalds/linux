@@ -296,7 +296,7 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 		 * If the TjMax is not plausible, an assumption
 		 * will be used
 		 */
-		if (val >= 70 && val <= 125) {
+		if (val) {
 			dev_info(dev, "TjMax is %d C.\n", val);
 			return val * 1000;
 		}
@@ -326,7 +326,7 @@ static int get_pkg_tjmax(unsigned int cpu, struct device *dev)
 	err = rdmsr_safe_on_cpu(cpu, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
 	if (!err) {
 		val = (eax >> 16) & 0xff;
-		if (val > 80 && val < 120)
+		if (val)
 			return val * 1000;
 	}
 	dev_warn(dev, "Unable to read Pkg-TjMax from CPU:%u\n", cpu);
