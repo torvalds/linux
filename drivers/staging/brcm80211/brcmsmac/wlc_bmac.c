@@ -48,7 +48,6 @@
 #include "wl_export.h"
 #include "wl_ucode.h"
 #include "wlc_antsel.h"
-#include "pcie_core.h"
 #include "wlc_alloc.h"
 #include "wl_dbg.h"
 #include "wlc_bmac.h"
