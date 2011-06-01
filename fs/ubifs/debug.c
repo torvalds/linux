@@ -2631,11 +2631,11 @@ static int do_fail(struct ubi_volume_desc *desc, int lnum, int write)
 				d->fail_delay = 1;
 				d->fail_timeout = jiffies +
 						  msecs_to_jiffies(delay);
-				dbg_rcvry("failing after %ums", delay);
+				ubifs_warn("failing after %ums", delay);
 			} else {
 				d->fail_delay = 2;
 				d->fail_cnt_max = delay;
-				dbg_rcvry("failing after %u calls", delay);
+				ubifs_warn("failing after %u calls", delay);
 			}
 		}
 		d->fail_cnt += 1;
@@ -2653,56 +2653,56 @@ static int do_fail(struct ubi_volume_desc *desc, int lnum, int write)
 				return 0;
 		} else if (chance(19, 20))
 			return 0;
-		dbg_rcvry("failing in super block LEB %d", lnum);
+		ubifs_warn("failing in super block LEB %d", lnum);
 	} else if (lnum == UBIFS_MST_LNUM || lnum == UBIFS_MST_LNUM + 1) {
 		if (chance(19, 20))
 			return 0;
-		dbg_rcvry("failing in master LEB %d", lnum);
+		ubifs_warn("failing in master LEB %d", lnum);
 	} else if (lnum >= UBIFS_LOG_LNUM && lnum <= c->log_last) {
 		if (write) {
 			if (chance(99, 100))
 				return 0;
 		} else if (chance(399, 400))
 			return 0;
-		dbg_rcvry("failing in log LEB %d", lnum);
+		ubifs_warn("failing in log LEB %d", lnum);
 	} else if (lnum >= c->lpt_first && lnum <= c->lpt_last) {
 		if (write) {
 			if (chance(7, 8))
 				return 0;
 		} else if (chance(19, 20))
 			return 0;
-		dbg_rcvry("failing in LPT LEB %d", lnum);
+		ubifs_warn("failing in LPT LEB %d", lnum);
 	} else if (lnum >= c->orph_first && lnum <= c->orph_last) {
 		if (write) {
 			if (chance(1, 2))
 				return 0;
 		} else if (chance(9, 10))
 			return 0;
-		dbg_rcvry("failing in orphan LEB %d", lnum);
+		ubifs_warn("failing in orphan LEB %d", lnum);
 	} else if (lnum == c->ihead_lnum) {
 		if (chance(99, 100))
 			return 0;
-		dbg_rcvry("failing in index head LEB %d", lnum);
+		ubifs_warn("failing in index head LEB %d", lnum);
 	} else if (c->jheads && lnum == c->jheads[GCHD].wbuf.lnum) {
 		if (chance(9, 10))
 			return 0;
-		dbg_rcvry("failing in GC head LEB %d", lnum);
+		ubifs_warn("failing in GC head LEB %d", lnum);
 	} else if (write && !RB_EMPTY_ROOT(&c->buds) &&
 		   !ubifs_search_bud(c, lnum)) {
 		if (chance(19, 20))
 			return 0;
-		dbg_rcvry("failing in non-bud LEB %d", lnum);
+		ubifs_warn("failing in non-bud LEB %d", lnum);
 	} else if (c->cmt_state == COMMIT_RUNNING_BACKGROUND ||
 		   c->cmt_state == COMMIT_RUNNING_REQUIRED) {
 		if (chance(999, 1000))
 			return 0;
-		dbg_rcvry("failing in bud LEB %d commit running", lnum);
+		ubifs_warn("failing in bud LEB %d commit running", lnum);
 	} else {
 		if (chance(9999, 10000))
 			return 0;
-		dbg_rcvry("failing in bud LEB %d commit not running", lnum);
+		ubifs_warn("failing in bud LEB %d commit not running", lnum);
 	}
-	ubifs_err("*** SETTING FAILURE MODE ON (LEB %d) ***", lnum);
+
 	d->failure_mode = 1;
 	dump_stack();
 	return 1;
@@ -2922,8 +2922,16 @@ static ssize_t dfs_file_write(struct file *file, const char __user *u,
 	int val;
 
 	/*
-	 * FIXME: this is racy - the file-system might have already been
-	 * unmounted and we'd oops in this case.
+	 * TODO: this is racy - the file-system might have already been
+	 * unmounted and we'd oops in this case. The plan is to fix it with
+	 * help of 'iterate_supers_type()' which we should have in v3.0: when
+	 * a debugfs opened, we rember FS's UUID in file->private_data. Then
+	 * whenever we access the FS via a debugfs file, we iterate all UBIFS
+	 * superblocks and fine the one with the same UUID, and take the
+	 * locking right.
+	 *
+	 * The other way to go suggested by Al Viro is to create a separate
+	 * 'ubifs-debug' file-system instead.
 	 */
 	if (file->f_path.dentry == d->dfs_dump_lprops) {
 		dbg_dump_lprops(c);
