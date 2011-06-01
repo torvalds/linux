@@ -815,20 +815,22 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	if (!codec_pars->rates)
 		*codec_pars = *hinfo;
 
+	/* Initially set the converter's capabilities */
+	hinfo->channels_min = codec_pars->channels_min;
+	hinfo->channels_max = codec_pars->channels_max;
+	hinfo->rates = codec_pars->rates;
+	hinfo->formats = codec_pars->formats;
+	hinfo->maxbps = codec_pars->maxbps;
+
 	eld = &spec->sink_eld[idx];
 	if (!static_hdmi_pcm && eld->eld_valid) {
-		hdmi_eld_update_pcm_info(eld, hinfo, codec_pars);
+		snd_hdmi_eld_update_pcm_info(eld, hinfo);
 		if (hinfo->channels_min > hinfo->channels_max ||
 		    !hinfo->rates || !hinfo->formats)
 			return -ENODEV;
-	} else {
-		/* fallback to the codec default */
-		hinfo->channels_max = codec_pars->channels_max;
-		hinfo->rates = codec_pars->rates;
-		hinfo->formats = codec_pars->formats;
-		hinfo->maxbps = codec_pars->maxbps;
 	}
-	/* store the updated parameters */
+
+	/* Store the updated parameters */
 	runtime->hw.channels_min = hinfo->channels_min;
 	runtime->hw.channels_max = hinfo->channels_max;
 	runtime->hw.formats = hinfo->formats;
