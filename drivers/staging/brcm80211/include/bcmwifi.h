@@ -17,6 +17,9 @@
 #ifndef	_bcmwifi_h_
 #define	_bcmwifi_h_
 
+#include <linux/if_ether.h>		/* for ETH_ALEN */
+#include <linux/ieee80211.h>		/* for WLAN_PMKID_LEN */
+
 /* A chanspec holds the channel number, band, bandwidth and control sideband */
 typedef u16 chanspec_t;
 
@@ -163,5 +166,60 @@ extern u8 bcm_chspec_ctlchan(chanspec_t chspec);
  * Reference 802.11 REVma, section 17.3.8.3, and 802.11B section 18.4.6.2
  */
 extern int bcm_mhz2channel(uint freq, uint start_factor);
+
+/* Enumerate crypto algorithms */
+#define	CRYPTO_ALGO_OFF			0
+#define	CRYPTO_ALGO_WEP1		1
+#define	CRYPTO_ALGO_TKIP		2
+#define	CRYPTO_ALGO_WEP128		3
+#define CRYPTO_ALGO_AES_CCM		4
+#define CRYPTO_ALGO_AES_RESERVED1	5
+#define CRYPTO_ALGO_AES_RESERVED2	6
+#define CRYPTO_ALGO_NALG		7
+
+/* wireless security bitvec */
+#define WEP_ENABLED		0x0001
+#define TKIP_ENABLED		0x0002
+#define AES_ENABLED		0x0004
+#define WSEC_SWFLAG		0x0008
+#define SES_OW_ENABLED		0x0040	/* to go into transition mode without setting wep */
+
+/* WPA authentication mode bitvec */
+#define WPA_AUTH_DISABLED	0x0000	/* Legacy (i.e., non-WPA) */
+#define WPA_AUTH_NONE		0x0001	/* none (IBSS) */
+#define WPA_AUTH_UNSPECIFIED	0x0002	/* over 802.1x */
+#define WPA_AUTH_PSK		0x0004	/* Pre-shared key */
+#define WPA_AUTH_RESERVED1	0x0008
+#define WPA_AUTH_RESERVED2	0x0010
+					/* #define WPA_AUTH_8021X 0x0020 *//* 802.1x, reserved */
+#define WPA2_AUTH_RESERVED1	0x0020
+#define WPA2_AUTH_UNSPECIFIED	0x0040	/* over 802.1x */
+#define WPA2_AUTH_PSK		0x0080	/* Pre-shared key */
+#define WPA2_AUTH_RESERVED3	0x0200
+#define WPA2_AUTH_RESERVED4	0x0400
+#define WPA2_AUTH_RESERVED5	0x0800
+
+/* pmkid */
+#define	MAXPMKID		16
+
+typedef struct _pmkid {
+	u8 BSSID[ETH_ALEN];
+	u8 PMKID[WLAN_PMKID_LEN];
+} pmkid_t;
+
+typedef struct _pmkid_list {
+	u32 npmkid;
+	pmkid_t pmkid[1];
+} pmkid_list_t;
+
+typedef struct _pmkid_cand {
+	u8 BSSID[ETH_ALEN];
+	u8 preauth;
+} pmkid_cand_t;
+
+typedef struct _pmkid_cand_list {
+	u32 npmkid_cand;
+	pmkid_cand_t pmkid_cand[1];
+} pmkid_cand_list_t;
 
 #endif				/* _bcmwifi_h_ */

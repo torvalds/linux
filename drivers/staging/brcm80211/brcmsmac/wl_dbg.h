@@ -19,7 +19,7 @@
 
 #include <linux/device.h>			/* dev_err() */
 
-/* wl_msg_level is a bit vector with defs in wlioctl.h */
+/* wl_msg_level is a bit vector with defs in bcmdefs.h */
 extern u32 wl_msg_level;
 
 #define BCMMSG(dev, fmt, args...)		\

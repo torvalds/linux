@@ -17,6 +17,8 @@
 #ifndef _wlc_key_h_
 #define _wlc_key_h_
 
+#include <linux/if_ether.h>	/* for ETH_ALEN */
+
 struct scb;
 struct wlc_info;
 struct wlc_bsscfg;

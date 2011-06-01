@@ -20,7 +20,6 @@
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <aiutils.h>
-#include <wlioctl.h>
 #include <sbhnddma.h>
 
 #include "wlc_types.h"

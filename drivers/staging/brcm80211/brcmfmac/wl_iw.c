@@ -18,7 +18,6 @@
 #include <linux/semaphore.h>
 #include <bcmdefs.h>
 #include <linux/netdevice.h>
-#include <wlioctl.h>
 
 #include <bcmutils.h>
 
@@ -30,7 +29,6 @@
 #include <dhdioctl.h>
 #include <linux/ieee80211.h>
 typedef const struct si_pub si_t;
-#include <wlioctl.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>
@@ -114,6 +112,24 @@ typedef struct iscan_info {
 	int iscan_ex_param_size;
 } iscan_info_t;
 iscan_info_t *g_iscan;
+
+typedef enum sup_auth_status {
+	WLC_SUP_DISCONNECTED = 0,
+	WLC_SUP_CONNECTING,
+	WLC_SUP_IDREQUIRED,
+	WLC_SUP_AUTHENTICATING,
+	WLC_SUP_AUTHENTICATED,
+	WLC_SUP_KEYXCHANGE,
+	WLC_SUP_KEYED,
+	WLC_SUP_TIMEOUT,
+	WLC_SUP_LAST_BASIC_STATE,
+	WLC_SUP_KEYXCHANGE_WAIT_M1 = WLC_SUP_AUTHENTICATED,
+	WLC_SUP_KEYXCHANGE_PREP_M2 = WLC_SUP_KEYXCHANGE,
+	WLC_SUP_KEYXCHANGE_WAIT_M3 = WLC_SUP_LAST_BASIC_STATE,
+	WLC_SUP_KEYXCHANGE_PREP_M4,
+	WLC_SUP_KEYXCHANGE_WAIT_G1,
+	WLC_SUP_KEYXCHANGE_PREP_G2
+} sup_auth_status_t;
 
 static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
 

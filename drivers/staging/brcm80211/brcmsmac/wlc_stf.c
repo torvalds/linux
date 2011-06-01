@@ -22,7 +22,6 @@
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <aiutils.h>
-#include <wlioctl.h>
 #include <bcmwifi.h>
 #include <bcmnvram.h>
 #include <sbhnddma.h>

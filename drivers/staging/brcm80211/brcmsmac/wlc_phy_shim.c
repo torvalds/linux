@@ -30,7 +30,6 @@
 #include <bcmutils.h>
 #include <bcmwifi.h>
 #include <aiutils.h>
-#include <wlioctl.h>
 #include <sbconfig.h>
 #include <sbchipc.h>
 #include <pcicfg.h>

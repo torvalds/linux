@@ -20,7 +20,6 @@
 #include <dngl_stats.h>
 #include <dhd.h>
 
-#include <wlioctl.h>
 #include <wl_iw.h>
 
 #define WL_ERROR(fmt, args...) printk(fmt, ##args)

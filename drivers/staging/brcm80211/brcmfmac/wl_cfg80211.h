@@ -20,7 +20,6 @@
 #include <linux/wireless.h>
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
-#include <wlioctl.h>
 
 struct wl_conf;
 struct wl_iface;

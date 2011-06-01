@@ -147,4 +147,56 @@ typedef struct {
 struct wl_info;
 struct wlc_bsscfg;
 
+#define WL_NUMRATES		16	/* max # of rates in a rateset */
+typedef struct wl_rateset {
+	u32 count;		/* # rates in this set */
+	u8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
+} wl_rateset_t;
+
+#define WLC_CNTRY_BUF_SZ	4	/* Country string is 3 bytes + NUL */
+
+#define WLC_SET_CHANNEL				30
+#define WLC_SET_SRL				32
+#define WLC_SET_LRL				34
+
+#define WLC_SET_RATESET				72
+#define WLC_SET_BCNPRD				76
+#define WLC_GET_CURR_RATESET			114	/* current rateset */
+#define WLC_GET_PHYLIST				180
+
+/* Bit masks for radio disabled status - returned by WL_GET_RADIO */
+#define WL_RADIO_SW_DISABLE		(1<<0)
+#define WL_RADIO_HW_DISABLE		(1<<1)
+#define WL_RADIO_MPC_DISABLE		(1<<2)
+#define WL_RADIO_COUNTRY_DISABLE	(1<<3)	/* some countries don't support any channel */
+
+/* Override bit for WLC_SET_TXPWR.  if set, ignore other level limits */
+#define WL_TXPWR_OVERRIDE	(1U<<31)
+
+/* band types */
+#define	WLC_BAND_AUTO		0	/* auto-select */
+#define	WLC_BAND_5G		1	/* 5 Ghz */
+#define	WLC_BAND_2G		2	/* 2.4 Ghz */
+#define	WLC_BAND_ALL		3	/* all bands */
+
+/* Values for PM */
+#define PM_OFF	0
+#define PM_MAX	1
+
+/* Message levels */
+#define WL_ERROR_VAL		0x00000001
+#define WL_TRACE_VAL		0x00000002
+
+#define	NFIFO			6	/* # tx/rx fifopairs */
+
+#define PM_OFF	0
+#define PM_MAX	1
+#define PM_FAST 2
+
+/* band range returned by band_range iovar */
+#define WL_CHAN_FREQ_RANGE_2G      0
+#define WL_CHAN_FREQ_RANGE_5GL     1
+#define WL_CHAN_FREQ_RANGE_5GM     2
+#define WL_CHAN_FREQ_RANGE_5GH     3
+
 #endif				/* _bcmdefs_h_ */

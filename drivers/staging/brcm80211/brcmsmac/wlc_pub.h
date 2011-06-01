@@ -17,6 +17,9 @@
 #ifndef _wlc_pub_h_
 #define _wlc_pub_h_
 
+#include "proto/802.11.h"	/* for MCSSET_LEN */
+#include "bcmwifi.h"		/* for chanspec_t */
+
 #define	WLC_NUMRATES	16	/* max # of rates in a rateset */
 #define	MAXMULTILIST	32	/* max # multicast addresses */
 #define	D11_PHY_HDR_LEN	6	/* Phy header length - 6 bytes */
@@ -96,6 +99,12 @@
 #define AIDMAPSZ	(roundup(MAXSCB, NBBY)/NBBY)	/* aid bitmap size in bytes */
 #endif				/* AIDMAPSZ */
 
+#define MAX_STREAMS_SUPPORTED	4	/* max number of streams supported */
+
+#define	WL_SPURAVOID_OFF	0
+#define	WL_SPURAVOID_ON1	1
+#define	WL_SPURAVOID_ON2	2
+
 struct ieee80211_tx_queue_params;
 
 typedef struct wlc_tunables {
@@ -151,7 +160,7 @@ struct rsn_parms {
 	IEEE80211_HT_CAP_SUP_WIDTH_20_40 | IEEE80211_HT_CAP_GRN_FLD |\
 	IEEE80211_HT_CAP_MAX_AMSDU | IEEE80211_HT_CAP_DSSSCCK40)
 
-/* wlc internal bss_info, wl external one is in wlioctl.h */
+/* wlc internal bss_info */
 typedef struct wlc_bss_info {
 	u8 BSSID[ETH_ALEN];	/* network BSSID */
 	u16 flags;		/* flags for internal attributes */
@@ -488,6 +497,98 @@ extern const u8 wme_fifo2ac[];
 #define	WLC_PROT_N_NONGF_OVR	14	/* non-GF protection override */
 #define	WLC_PROT_N_PAM_OVR	15	/* n preamble override */
 #define	WLC_PROT_N_OBSS		16	/* non-HT OBSS present */
+
+/*
+ * 54g modes (basic bits may still be overridden)
+ *
+ * GMODE_LEGACY_B			Rateset: 1b, 2b, 5.5, 11
+ *					Preamble: Long
+ *					Shortslot: Off
+ * GMODE_AUTO				Rateset: 1b, 2b, 5.5b, 11b, 18, 24, 36, 54
+ *					Extended Rateset: 6, 9, 12, 48
+ *					Preamble: Long
+ *					Shortslot: Auto
+ * GMODE_ONLY				Rateset: 1b, 2b, 5.5b, 11b, 18, 24b, 36, 54
+ *					Extended Rateset: 6b, 9, 12b, 48
+ *					Preamble: Short required
+ *					Shortslot: Auto
+ * GMODE_B_DEFERRED			Rateset: 1b, 2b, 5.5b, 11b, 18, 24, 36, 54
+ *					Extended Rateset: 6, 9, 12, 48
+ *					Preamble: Long
+ *					Shortslot: On
+ * GMODE_PERFORMANCE			Rateset: 1b, 2b, 5.5b, 6b, 9, 11b, 12b, 18, 24b, 36, 48, 54
+ *					Preamble: Short required
+ *					Shortslot: On and required
+ * GMODE_LRS				Rateset: 1b, 2b, 5.5b, 11b
+ *					Extended Rateset: 6, 9, 12, 18, 24, 36, 48, 54
+ *					Preamble: Long
+ *					Shortslot: Auto
+ */
+#define GMODE_LEGACY_B		0
+#define GMODE_AUTO		1
+#define GMODE_ONLY		2
+#define GMODE_B_DEFERRED	3
+#define GMODE_PERFORMANCE	4
+#define GMODE_LRS		5
+#define GMODE_MAX		6
+
+/* values for PLCPHdr_override */
+#define WLC_PLCP_AUTO	-1
+#define WLC_PLCP_SHORT	0
+#define WLC_PLCP_LONG	1
+
+/* values for g_protection_override and n_protection_override */
+#define WLC_PROTECTION_AUTO		-1
+#define WLC_PROTECTION_OFF		0
+#define WLC_PROTECTION_ON		1
+#define WLC_PROTECTION_MMHDR_ONLY	2
+#define WLC_PROTECTION_CTS_ONLY		3
+
+/* values for g_protection_control and n_protection_control */
+#define WLC_PROTECTION_CTL_OFF		0
+#define WLC_PROTECTION_CTL_LOCAL	1
+#define WLC_PROTECTION_CTL_OVERLAP	2
+
+/* values for n_protection */
+#define WLC_N_PROTECTION_OFF		0
+#define WLC_N_PROTECTION_OPTIONAL	1
+#define WLC_N_PROTECTION_20IN40		2
+#define WLC_N_PROTECTION_MIXEDMODE	3
+
+/* values for band specific 40MHz capabilities */
+#define WLC_N_BW_20ALL			0
+#define WLC_N_BW_40ALL			1
+#define WLC_N_BW_20IN2G_40IN5G		2
+
+/* bitflags for SGI support (sgi_rx iovar) */
+#define WLC_N_SGI_20			0x01
+#define WLC_N_SGI_40			0x02
+
+/* defines used by the nrate iovar */
+#define NRATE_MCS_INUSE	0x00000080	/* MSC in use,indicates b0-6 holds an mcs */
+#define NRATE_RATE_MASK 0x0000007f	/* rate/mcs value */
+#define NRATE_STF_MASK	0x0000ff00	/* stf mode mask: siso, cdd, stbc, sdm */
+#define NRATE_STF_SHIFT	8	/* stf mode shift */
+#define NRATE_OVERRIDE	0x80000000	/* bit indicates override both rate & mode */
+#define NRATE_OVERRIDE_MCS_ONLY 0x40000000	/* bit indicate to override mcs only */
+#define NRATE_SGI_MASK  0x00800000	/* sgi mode */
+#define NRATE_SGI_SHIFT 23	/* sgi mode */
+#define NRATE_LDPC_CODING 0x00400000	/* bit indicates adv coding in use */
+#define NRATE_LDPC_SHIFT 22	/* ldpc shift */
+
+#define NRATE_STF_SISO	0	/* stf mode SISO */
+#define NRATE_STF_CDD	1	/* stf mode CDD */
+#define NRATE_STF_STBC	2	/* stf mode STBC */
+#define NRATE_STF_SDM	3	/* stf mode SDM */
+
+#define ANT_SELCFG_MAX		4	/* max number of antenna configurations */
+
+#define HIGHEST_SINGLE_STREAM_MCS	7	/* MCS values greater than this enable multiple streams */
+
+typedef struct {
+	u8 ant_config[ANT_SELCFG_MAX];	/* antenna configuration */
+	u8 num_antcfg;	/* number of available antenna configurations */
+} wlc_antselcfg_t;
 
 /* common functions for every port */
 extern void *wlc_attach(struct wl_info *wl, u16 vendor, u16 device, uint unit,

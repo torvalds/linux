@@ -26,7 +26,6 @@
 #include <aiutils.h>
 #include <bcmdevs.h>
 #include <sbhnddma.h>
-#include <wlioctl.h>
 
 #include "d11.h"
 #include "wlc_rate.h"
@@ -39,8 +38,14 @@
 #include "wlc_channel.h"
 #include "wlc_main.h"
 #include "wl_export.h"
-#include "wlc_phy_shim.h"
 #include "wlc_antsel.h"
+
+#define ANT_SELCFG_AUTO		0x80	/* bit indicates antenna sel AUTO */
+#define ANT_SELCFG_MASK		0x33	/* antenna configuration mask */
+#define ANT_SELCFG_TX_UNICAST	0	/* unicast tx antenna configuration */
+#define ANT_SELCFG_RX_UNICAST	1	/* unicast rx antenna configuration */
+#define ANT_SELCFG_TX_DEF	2	/* default tx antenna configuration */
+#define ANT_SELCFG_RX_DEF	3	/* default rx antenna configuration */
 
 /* useful macros */
 #define WLC_ANTSEL_11N_0(ant)	((((ant) & ANT_SELCFG_MASK) >> 4) & 0xf)

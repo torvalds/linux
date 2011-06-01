@@ -24,7 +24,6 @@
 #include <bcmnvram.h>
 #include <aiutils.h>
 #include <sbhnddma.h>
-#include <wlioctl.h>
 
 #include "wlc_types.h"
 #include "d11.h"

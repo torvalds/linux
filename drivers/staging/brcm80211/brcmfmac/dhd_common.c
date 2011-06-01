@@ -24,7 +24,6 @@
 #include <dhd_proto.h>
 #include <dhd_dbg.h>
 #include <msgtrace.h>
-#include <wlioctl.h>
 
 int dhd_msg_level;
 char fw_path[MOD_PARAM_PATHLEN];

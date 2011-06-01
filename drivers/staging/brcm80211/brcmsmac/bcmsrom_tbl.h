@@ -17,8 +17,6 @@
 #ifndef	_bcmsrom_tbl_h_
 #define	_bcmsrom_tbl_h_
 
-#include "wlioctl.h"
-
 typedef struct {
 	const char *name;
 	u32 revmask;

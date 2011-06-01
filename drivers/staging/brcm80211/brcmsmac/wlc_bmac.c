@@ -30,7 +30,6 @@
 #include <bcmotp.h>
 #include <bcmutils.h>
 #include <bcmnvram.h>
-#include <wlioctl.h>
 #include <sbconfig.h>
 #include <sbchipc.h>
 #include <pcicfg.h>
@@ -45,7 +44,6 @@
 #include "wlc_scb.h"
 #include "wlc_pub.h"
 #include "wlc_key.h"
-#include "wlc_phy_shim.h"
 #include "phy/wlc_phy_hal.h"
 #include "wlc_channel.h"
 #include "wlc_main.h"

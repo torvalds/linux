@@ -14,6 +14,10 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * wlc_phy_shim.h: stuff defined in wlc_phy_shim.c and included only by the phy
+ */
+
 #ifndef _wlc_phy_shim_h_
 #define _wlc_phy_shim_h_
 
@@ -50,6 +54,57 @@
 #define	ANT_RX_DIV_START_0		3	/* Choose starting with 0 */
 #define	ANT_RX_DIV_ENABLE		3	/* APHY bbConfig Enable RX Diversity */
 #define ANT_RX_DIV_DEF		ANT_RX_DIV_START_0	/* default antdiv setting */
+
+#define WL_ANT_RX_MAX		2	/* max 2 receive antennas */
+#define WL_ANT_HT_RX_MAX	3	/* max 3 receive antennas/cores */
+#define WL_ANT_IDX_1		0	/* antenna index 1 */
+#define WL_ANT_IDX_2		1	/* antenna index 2 */
+
+/* values for n_preamble_type */
+#define WLC_N_PREAMBLE_MIXEDMODE	0
+#define WLC_N_PREAMBLE_GF		1
+#define WLC_N_PREAMBLE_GF_BRCM          2
+
+#define WL_TX_POWER_RATES_LEGACY	45
+#define WL_TX_POWER_MCS20_FIRST	        12
+#define WL_TX_POWER_MCS20_NUM	        16
+#define WL_TX_POWER_MCS40_FIRST	        28
+#define WL_TX_POWER_MCS40_NUM	        17
+
+
+#define WL_TX_POWER_RATES	       101
+#define WL_TX_POWER_CCK_FIRST	       0
+#define WL_TX_POWER_CCK_NUM	       4
+#define WL_TX_POWER_OFDM_FIRST	       4	/* Index for first 20MHz OFDM SISO rate */
+#define WL_TX_POWER_OFDM20_CDD_FIRST   12	/* Index for first 20MHz OFDM CDD rate */
+#define WL_TX_POWER_OFDM40_SISO_FIRST  52	/* Index for first 40MHz OFDM SISO rate */
+#define WL_TX_POWER_OFDM40_CDD_FIRST   60	/* Index for first 40MHz OFDM CDD rate */
+#define WL_TX_POWER_OFDM_NUM	       8
+#define WL_TX_POWER_MCS20_SISO_FIRST   20	/* Index for first 20MHz MCS SISO rate */
+#define WL_TX_POWER_MCS20_CDD_FIRST    28	/* Index for first 20MHz MCS CDD rate */
+#define WL_TX_POWER_MCS20_STBC_FIRST   36	/* Index for first 20MHz MCS STBC rate */
+#define WL_TX_POWER_MCS20_SDM_FIRST    44	/* Index for first 20MHz MCS SDM rate */
+#define WL_TX_POWER_MCS40_SISO_FIRST   68	/* Index for first 40MHz MCS SISO rate */
+#define WL_TX_POWER_MCS40_CDD_FIRST    76	/* Index for first 40MHz MCS CDD rate */
+#define WL_TX_POWER_MCS40_STBC_FIRST   84	/* Index for first 40MHz MCS STBC rate */
+#define WL_TX_POWER_MCS40_SDM_FIRST    92	/* Index for first 40MHz MCS SDM rate */
+#define WL_TX_POWER_MCS_1_STREAM_NUM   8
+#define WL_TX_POWER_MCS_2_STREAM_NUM   8
+#define WL_TX_POWER_MCS_32	       100	/* Index for 40MHz rate MCS 32 */
+#define WL_TX_POWER_MCS_32_NUM	       1
+
+/* sslpnphy specifics */
+#define WL_TX_POWER_MCS20_SISO_FIRST_SSN   12	/* Index for first 20MHz MCS SISO rate */
+
+/* tx_power_t.flags bits */
+#define WL_TX_POWER_F_ENABLED	1
+#define WL_TX_POWER_F_HW	2
+#define WL_TX_POWER_F_MIMO	4
+#define WL_TX_POWER_F_SISO	8
+
+/* values to force tx/rx chain */
+#define WLC_N_TXRX_CHAIN0		0
+#define WLC_N_TXRX_CHAIN1		1
 
 /* Forward declarations */
 struct wlc_hw_info;

@@ -27,7 +27,6 @@
 #include <aiutils.h>
 #include <pcicfg.h>
 #include <bcmsrom.h>
-#include <wlioctl.h>
 #include <sbhnddma.h>
 #include <hnddma.h>
 
@@ -45,14 +44,12 @@
 #include "wlc_main.h"
 #include "wlc_bmac.h"
 #include "wlc_phy_hal.h"
-#include "wlc_phy_shim.h"
 #include "wlc_antsel.h"
 #include "wlc_stf.h"
 #include "wlc_ampdu.h"
 #include "wl_export.h"
 #include "wlc_alloc.h"
 #include "wl_dbg.h"
-
 #include "wl_mac80211.h"
 
 /*
@@ -92,6 +89,30 @@
 #define	DTIM_INTERVAL_DEF_QT	1	/* DTIM interval, in unit of beacon interval */
 
 #define	TBTT_ALIGN_LEEWAY_US	100	/* min leeway before first TBTT in us */
+
+/* Software feature flag defines used by wlfeatureflag */
+#define WL_SWFL_NOHWRADIO	0x0004
+#define WL_SWFL_FLOWCONTROL     0x0008	/* Enable backpressure to OS stack */
+#define WL_SWFL_WLBSSSORT	0x0010	/* Per-port supports sorting of BSS */
+
+/* n-mode support capability */
+/* 2x2 includes both 1x1 & 2x2 devices
+ * reserved #define 2 for future when we want to separate 1x1 & 2x2 and
+ * control it independently
+ */
+#define WL_11N_2x2			1
+#define WL_11N_3x3			3
+#define WL_11N_4x4			4
+
+/* define 11n feature disable flags */
+#define WLFEATURE_DISABLE_11N		0x00000001
+#define WLFEATURE_DISABLE_11N_STBC_TX	0x00000002
+#define WLFEATURE_DISABLE_11N_STBC_RX	0x00000004
+#define WLFEATURE_DISABLE_11N_SGI_TX	0x00000008
+#define WLFEATURE_DISABLE_11N_SGI_RX	0x00000010
+#define WLFEATURE_DISABLE_11N_AMPDU_TX	0x00000020
+#define WLFEATURE_DISABLE_11N_AMPDU_RX	0x00000040
+#define WLFEATURE_DISABLE_11N_GF	0x00000080
 
 /*
  * driver maintains internal 'tick'(wlc->pub->now) which increments in 1s OS timer(soft
@@ -2428,7 +2449,6 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	struct scb *nextscb;
 	bool ta_ok;
 	uint band;
-	rw_reg_t *r;
 	struct wlc_bsscfg *bsscfg;
 	wlc_bss_info_t *current_bss;
 
@@ -2440,7 +2460,6 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	nextscb = NULL;
 	ta_ok = false;
 	band = 0;
-	r = NULL;
 
 	/* If the device is turned off, then it's not "removed" */
 	if (!wlc->pub->hw_off && DEVICEREMOVED(wlc)) {

@@ -18,7 +18,6 @@
 #define _dhd_proto_h_
 
 #include <dhdioctl.h>
-#include <wlioctl.h>
 
 #ifndef IOCTL_RESP_TIMEOUT
 #define IOCTL_RESP_TIMEOUT  2000	/* In milli second */

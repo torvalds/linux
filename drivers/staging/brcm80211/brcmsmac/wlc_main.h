@@ -290,7 +290,7 @@ struct wlcband {
 	wlc_phy_t *pi;		/* pointer to phy specific information */
 	bool abgphy_encore;
 
-	u8 gmode;		/* currently active gmode (see wlioctl.h) */
+	u8 gmode;		/* currently active gmode */
 
 	struct scb *hwrs_scb;	/* permanent scb for hw rateset */
 

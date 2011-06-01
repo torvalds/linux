@@ -14,14 +14,18 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * wlc_phy_hal.h:  functionality exported from the phy to higher layers
+ */
+
 #ifndef _wlc_phy_h_
 #define _wlc_phy_h_
 
-#include <wlioctl.h>
 #include <aiutils.h>
 #include <d11.h>
 #include <wlc_phy_shim.h>
 #include <net/mac80211.h>	/* struct wiphy */
+#include "bcmwifi.h"		/* chanspec_t */
 
 #define	IDCODE_VER_MASK		0x0000000f
 #define	IDCODE_VER_SHIFT	0
@@ -87,12 +91,20 @@
 
 #define WLC_TXPWR_DB_FACTOR	4
 
+/* a large TX Power as an init value to factor out of min() calculations,
+ * keep low enough to fit in an s8, units are .25 dBm
+ */
+#define WLC_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */
+
 #define WLC_NUM_RATES_CCK           4
 #define WLC_NUM_RATES_OFDM          8
 #define WLC_NUM_RATES_MCS_1_STREAM  8
 #define WLC_NUM_RATES_MCS_2_STREAM  8
 #define WLC_NUM_RATES_MCS_3_STREAM  8
 #define WLC_NUM_RATES_MCS_4_STREAM  8
+
+#define	WLC_RSSI_INVALID	 0	/* invalid RSSI value */
+
 typedef struct txpwr_limits {
 	u8 cck[WLC_NUM_RATES_CCK];
 	u8 ofdm[WLC_NUM_RATES_OFDM];
@@ -113,6 +125,32 @@ typedef struct txpwr_limits {
 	u8 mcs_40_mimo[WLC_NUM_RATES_MCS_2_STREAM];
 	u8 mcs32;
 } txpwr_limits_t;
+
+typedef struct {
+	u32 flags;
+	chanspec_t chanspec;	/* txpwr report for this channel */
+	chanspec_t local_chanspec;	/* channel on which we are associated */
+	u8 local_max;	/* local max according to the AP */
+	u8 local_constraint;	/* local constraint according to the AP */
+	s8 antgain[2];	/* Ant gain for each band - from SROM */
+	u8 rf_cores;		/* count of RF Cores being reported */
+	u8 est_Pout[4];	/* Latest tx power out estimate per RF chain */
+	u8 est_Pout_act[4];	/* Latest tx power out estimate per RF chain
+				 * without adjustment
+				 */
+	u8 est_Pout_cck;	/* Latest CCK tx power out estimate */
+	u8 tx_power_max[4];	/* Maximum target power among all rates */
+	u8 tx_power_max_rate_ind[4];	/* Index of the rate with the max target power */
+	u8 user_limit[WL_TX_POWER_RATES];	/* User limit */
+	u8 reg_limit[WL_TX_POWER_RATES];	/* Regulatory power limit */
+	u8 board_limit[WL_TX_POWER_RATES];	/* Max power board can support (SROM) */
+	u8 target[WL_TX_POWER_RATES];	/* Latest target power */
+} tx_power_t;
+
+typedef struct tx_inst_power {
+	u8 txpwr_est_Pout[2];	/* Latest estimate for 2.4 and 5 Ghz */
+	u8 txpwr_est_Pout_gofdm;	/* Pwr estimate for 2.4 OFDM */
+} tx_inst_power_t;
 
 typedef struct {
 	u8 vec[MAXCHANNEL / NBBY];
