@@ -25,7 +25,6 @@
 #include <bcmdefs.h>
 #include <stdarg.h>
 #include <bcmutils.h>
-#include <bcmnvram.h>
 #include <bcmdevs.h>
 
 MODULE_AUTHOR("Broadcom Corporation");

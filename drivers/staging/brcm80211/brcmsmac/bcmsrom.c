@@ -362,6 +362,9 @@
 #define SRFL_LEDDC	0x40	/* value is an LED duty cycle */
 #define SRFL_NOVAR	0x80	/* do not generate a nvram param, entry is for mfgc */
 
+/* Max. nvram variable table size */
+#define	MAXSZ_NVRAM_VARS	4096
+
 typedef struct {
 	const char *name;
 	u32 revmask;
