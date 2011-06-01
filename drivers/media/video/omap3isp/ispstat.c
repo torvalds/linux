@@ -366,7 +366,7 @@ static void isp_stat_bufs_free(struct ispstat *stat)
 				dma_unmap_sg(isp->dev, buf->iovm->sgt->sgl,
 					     buf->iovm->sgt->nents,
 					     DMA_FROM_DEVICE);
-			iommu_vfree(isp->iommu, buf->iommu_addr);
+			iommu_vfree(isp->domain, isp->iommu, buf->iommu_addr);
 		} else {
 			if (!buf->virt_addr)
 				continue;
@@ -399,8 +399,8 @@ static int isp_stat_bufs_alloc_iommu(struct ispstat *stat, unsigned int size)
 		struct iovm_struct *iovm;
 
 		WARN_ON(buf->dma_addr);
-		buf->iommu_addr = iommu_vmalloc(isp->iommu, 0, size,
-						IOMMU_FLAG);
+		buf->iommu_addr = iommu_vmalloc(isp->domain, isp->iommu, 0,
+							size, IOMMU_FLAG);
 		if (IS_ERR((void *)buf->iommu_addr)) {
 			dev_err(stat->isp->dev,
 				 "%s: Can't acquire memory for "

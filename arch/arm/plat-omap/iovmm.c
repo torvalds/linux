@@ -15,6 +15,7 @@
 #include <linux/vmalloc.h>
 #include <linux/device.h>
 #include <linux/scatterlist.h>
+#include <linux/iommu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/mach/map.h>
@@ -453,39 +454,38 @@ static inline void sgtable_drain_kmalloc(struct sg_table *sgt)
 }
 
 /* create 'da' <-> 'pa' mapping from 'sgt' */
-static int map_iovm_area(struct iommu *obj, struct iovm_struct *new,
-			 const struct sg_table *sgt, u32 flags)
+static int map_iovm_area(struct iommu_domain *domain, struct iovm_struct *new,
+			const struct sg_table *sgt, u32 flags)
 {
 	int err;
 	unsigned int i, j;
 	struct scatterlist *sg;
 	u32 da = new->da_start;
+	int order;
 
-	if (!obj || !sgt)
+	if (!domain || !sgt)
 		return -EINVAL;
 
 	BUG_ON(!sgtable_ok(sgt));
 
 	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
 		u32 pa;
-		int pgsz;
 		size_t bytes;
-		struct iotlb_entry e;
 
 		pa = sg_phys(sg);
 		bytes = sg->length;
 
 		flags &= ~IOVMF_PGSZ_MASK;
-		pgsz = bytes_to_iopgsz(bytes);
-		if (pgsz < 0)
+
+		if (bytes_to_iopgsz(bytes) < 0)
 			goto err_out;
-		flags |= pgsz;
+
+		order = get_order(bytes);
 
 		pr_debug("%s: [%d] %08x %08x(%x)\n", __func__,
 			 i, da, pa, bytes);
 
-		iotlb_init_entry(&e, da, pa, flags);
-		err = iopgtable_store_entry(obj, &e);
+		err = iommu_map(domain, da, pa, order, flags);
 		if (err)
 			goto err_out;
 
@@ -499,9 +499,11 @@ err_out:
 	for_each_sg(sgt->sgl, sg, i, j) {
 		size_t bytes;
 
-		bytes = iopgtable_clear_entry(obj, da);
+		bytes = sg->length;
+		order = get_order(bytes);
 
-		BUG_ON(!iopgsz_ok(bytes));
+		/* ignore failures.. we're already handling one */
+		iommu_unmap(domain, da, order);
 
 		da += bytes;
 	}
@@ -509,22 +511,31 @@ err_out:
 }
 
 /* release 'da' <-> 'pa' mapping */
-static void unmap_iovm_area(struct iommu *obj, struct iovm_struct *area)
+static void unmap_iovm_area(struct iommu_domain *domain, struct iommu *obj,
+						struct iovm_struct *area)
 {
 	u32 start;
 	size_t total = area->da_end - area->da_start;
+	const struct sg_table *sgt = area->sgt;
+	struct scatterlist *sg;
+	int i, err;
 
+	BUG_ON(!sgtable_ok(sgt));
 	BUG_ON((!total) || !IS_ALIGNED(total, PAGE_SIZE));
 
 	start = area->da_start;
-	while (total > 0) {
+	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
 		size_t bytes;
+		int order;
 
-		bytes = iopgtable_clear_entry(obj, start);
-		if (bytes == 0)
-			bytes = PAGE_SIZE;
-		else
-			dev_dbg(obj->dev, "%s: unmap %08x(%x) %08x\n",
+		bytes = sg->length;
+		order = get_order(bytes);
+
+		err = iommu_unmap(domain, start, order);
+		if (err)
+			break;
+
+		dev_dbg(obj->dev, "%s: unmap %08x(%x) %08x\n",
 				__func__, start, bytes, area->flags);
 
 		BUG_ON(!IS_ALIGNED(bytes, PAGE_SIZE));
@@ -536,7 +547,8 @@ static void unmap_iovm_area(struct iommu *obj, struct iovm_struct *area)
 }
 
 /* template function for all unmapping */
-static struct sg_table *unmap_vm_area(struct iommu *obj, const u32 da,
+static struct sg_table *unmap_vm_area(struct iommu_domain *domain,
+				      struct iommu *obj, const u32 da,
 				      void (*fn)(const void *), u32 flags)
 {
 	struct sg_table *sgt = NULL;
@@ -562,7 +574,7 @@ static struct sg_table *unmap_vm_area(struct iommu *obj, const u32 da,
 	}
 	sgt = (struct sg_table *)area->sgt;
 
-	unmap_iovm_area(obj, area);
+	unmap_iovm_area(domain, obj, area);
 
 	fn(area->va);
 
@@ -577,8 +589,9 @@ out:
 	return sgt;
 }
 
-static u32 map_iommu_region(struct iommu *obj, u32 da,
-	      const struct sg_table *sgt, void *va, size_t bytes, u32 flags)
+static u32 map_iommu_region(struct iommu_domain *domain, struct iommu *obj,
+				u32 da, const struct sg_table *sgt, void *va,
+				size_t bytes, u32 flags)
 {
 	int err = -ENOMEM;
 	struct iovm_struct *new;
@@ -593,7 +606,7 @@ static u32 map_iommu_region(struct iommu *obj, u32 da,
 	new->va = va;
 	new->sgt = sgt;
 
-	if (map_iovm_area(obj, new, sgt, new->flags))
+	if (map_iovm_area(domain, new, sgt, new->flags))
 		goto err_map;
 
 	mutex_unlock(&obj->mmap_lock);
@@ -610,10 +623,11 @@ err_alloc_iovma:
 	return err;
 }
 
-static inline u32 __iommu_vmap(struct iommu *obj, u32 da,
-		 const struct sg_table *sgt, void *va, size_t bytes, u32 flags)
+static inline u32 __iommu_vmap(struct iommu_domain *domain, struct iommu *obj,
+				u32 da, const struct sg_table *sgt,
+				void *va, size_t bytes, u32 flags)
 {
-	return map_iommu_region(obj, da, sgt, va, bytes, flags);
+	return map_iommu_region(domain, obj, da, sgt, va, bytes, flags);
 }
 
 /**
@@ -625,8 +639,8 @@ static inline u32 __iommu_vmap(struct iommu *obj, u32 da,
  * Creates 1-n-1 mapping with given @sgt and returns @da.
  * All @sgt element must be io page size aligned.
  */
-u32 iommu_vmap(struct iommu *obj, u32 da, const struct sg_table *sgt,
-		 u32 flags)
+u32 iommu_vmap(struct iommu_domain *domain, struct iommu *obj, u32 da,
+		const struct sg_table *sgt, u32 flags)
 {
 	size_t bytes;
 	void *va = NULL;
@@ -648,7 +662,7 @@ u32 iommu_vmap(struct iommu *obj, u32 da, const struct sg_table *sgt,
 	flags |= IOVMF_DISCONT;
 	flags |= IOVMF_MMIO;
 
-	da = __iommu_vmap(obj, da, sgt, va, bytes, flags);
+	da = __iommu_vmap(domain, obj, da, sgt, va, bytes, flags);
 	if (IS_ERR_VALUE(da))
 		vunmap_sg(va);
 
@@ -664,14 +678,16 @@ EXPORT_SYMBOL_GPL(iommu_vmap);
  * Free the iommu virtually contiguous memory area starting at
  * @da, which was returned by 'iommu_vmap()'.
  */
-struct sg_table *iommu_vunmap(struct iommu *obj, u32 da)
+struct sg_table *
+iommu_vunmap(struct iommu_domain *domain, struct iommu *obj, u32 da)
 {
 	struct sg_table *sgt;
 	/*
 	 * 'sgt' is allocated before 'iommu_vmalloc()' is called.
 	 * Just returns 'sgt' to the caller to free
 	 */
-	sgt = unmap_vm_area(obj, da, vunmap_sg, IOVMF_DISCONT | IOVMF_MMIO);
+	sgt = unmap_vm_area(domain, obj, da, vunmap_sg,
+					IOVMF_DISCONT | IOVMF_MMIO);
 	if (!sgt)
 		dev_dbg(obj->dev, "%s: No sgt\n", __func__);
 	return sgt;
@@ -688,7 +704,8 @@ EXPORT_SYMBOL_GPL(iommu_vunmap);
  * Allocate @bytes linearly and creates 1-n-1 mapping and returns
  * @da again, which might be adjusted if 'IOVMF_DA_FIXED' is not set.
  */
-u32 iommu_vmalloc(struct iommu *obj, u32 da, size_t bytes, u32 flags)
+u32 iommu_vmalloc(struct iommu_domain *domain, struct iommu *obj, u32 da,
+						size_t bytes, u32 flags)
 {
 	void *va;
 	struct sg_table *sgt;
@@ -712,7 +729,7 @@ u32 iommu_vmalloc(struct iommu *obj, u32 da, size_t bytes, u32 flags)
 	}
 	sgtable_fill_vmalloc(sgt, va);
 
-	da = __iommu_vmap(obj, da, sgt, va, bytes, flags);
+	da = __iommu_vmap(domain, obj, da, sgt, va, bytes, flags);
 	if (IS_ERR_VALUE(da))
 		goto err_iommu_vmap;
 
@@ -735,19 +752,20 @@ EXPORT_SYMBOL_GPL(iommu_vmalloc);
  * Frees the iommu virtually continuous memory area starting at
  * @da, as obtained from 'iommu_vmalloc()'.
  */
-void iommu_vfree(struct iommu *obj, const u32 da)
+void iommu_vfree(struct iommu_domain *domain, struct iommu *obj, const u32 da)
 {
 	struct sg_table *sgt;
 
-	sgt = unmap_vm_area(obj, da, vfree, IOVMF_DISCONT | IOVMF_ALLOC);
+	sgt = unmap_vm_area(domain, obj, da, vfree,
+						IOVMF_DISCONT | IOVMF_ALLOC);
 	if (!sgt)
 		dev_dbg(obj->dev, "%s: No sgt\n", __func__);
 	sgtable_free(sgt);
 }
 EXPORT_SYMBOL_GPL(iommu_vfree);
 
-static u32 __iommu_kmap(struct iommu *obj, u32 da, u32 pa, void *va,
-			  size_t bytes, u32 flags)
+static u32 __iommu_kmap(struct iommu_domain *domain, struct iommu *obj,
+			u32 da, u32 pa, void *va, size_t bytes, u32 flags)
 {
 	struct sg_table *sgt;
 
@@ -757,7 +775,7 @@ static u32 __iommu_kmap(struct iommu *obj, u32 da, u32 pa, void *va,
 
 	sgtable_fill_kmalloc(sgt, pa, da, bytes);
 
-	da = map_iommu_region(obj, da, sgt, va, bytes, flags);
+	da = map_iommu_region(domain, obj, da, sgt, va, bytes, flags);
 	if (IS_ERR_VALUE(da)) {
 		sgtable_drain_kmalloc(sgt);
 		sgtable_free(sgt);
@@ -776,8 +794,8 @@ static u32 __iommu_kmap(struct iommu *obj, u32 da, u32 pa, void *va,
  * Creates 1-1-1 mapping and returns @da again, which can be
  * adjusted if 'IOVMF_DA_FIXED' is not set.
  */
-u32 iommu_kmap(struct iommu *obj, u32 da, u32 pa, size_t bytes,
-		 u32 flags)
+u32 iommu_kmap(struct iommu_domain *domain, struct iommu *obj, u32 da, u32 pa,
+						size_t bytes, u32 flags)
 {
 	void *va;
 
@@ -793,7 +811,7 @@ u32 iommu_kmap(struct iommu *obj, u32 da, u32 pa, size_t bytes,
 	flags |= IOVMF_LINEAR;
 	flags |= IOVMF_MMIO;
 
-	da = __iommu_kmap(obj, da, pa, va, bytes, flags);
+	da = __iommu_kmap(domain, obj, da, pa, va, bytes, flags);
 	if (IS_ERR_VALUE(da))
 		iounmap(va);
 
@@ -809,12 +827,12 @@ EXPORT_SYMBOL_GPL(iommu_kmap);
  * Frees the iommu virtually contiguous memory area starting at
  * @da, which was passed to and was returned by'iommu_kmap()'.
  */
-void iommu_kunmap(struct iommu *obj, u32 da)
+void iommu_kunmap(struct iommu_domain *domain, struct iommu *obj, u32 da)
 {
 	struct sg_table *sgt;
 	typedef void (*func_t)(const void *);
 
-	sgt = unmap_vm_area(obj, da, (func_t)iounmap,
+	sgt = unmap_vm_area(domain, obj, da, (func_t)iounmap,
 			    IOVMF_LINEAR | IOVMF_MMIO);
 	if (!sgt)
 		dev_dbg(obj->dev, "%s: No sgt\n", __func__);
@@ -832,7 +850,8 @@ EXPORT_SYMBOL_GPL(iommu_kunmap);
  * Allocate @bytes linearly and creates 1-1-1 mapping and returns
  * @da again, which might be adjusted if 'IOVMF_DA_FIXED' is not set.
  */
-u32 iommu_kmalloc(struct iommu *obj, u32 da, size_t bytes, u32 flags)
+u32 iommu_kmalloc(struct iommu_domain *domain, struct iommu *obj, u32 da,
+						size_t bytes, u32 flags)
 {
 	void *va;
 	u32 pa;
@@ -850,7 +869,7 @@ u32 iommu_kmalloc(struct iommu *obj, u32 da, size_t bytes, u32 flags)
 	flags |= IOVMF_LINEAR;
 	flags |= IOVMF_ALLOC;
 
-	da = __iommu_kmap(obj, da, pa, va, bytes, flags);
+	da = __iommu_kmap(domain, obj, da, pa, va, bytes, flags);
 	if (IS_ERR_VALUE(da))
 		kfree(va);
 
@@ -866,11 +885,11 @@ EXPORT_SYMBOL_GPL(iommu_kmalloc);
  * Frees the iommu virtually contiguous memory area starting at
  * @da, which was passed to and was returned by'iommu_kmalloc()'.
  */
-void iommu_kfree(struct iommu *obj, u32 da)
+void iommu_kfree(struct iommu_domain *domain, struct iommu *obj, u32 da)
 {
 	struct sg_table *sgt;
 
-	sgt = unmap_vm_area(obj, da, kfree, IOVMF_LINEAR | IOVMF_ALLOC);
+	sgt = unmap_vm_area(domain, obj, da, kfree, IOVMF_LINEAR | IOVMF_ALLOC);
 	if (!sgt)
 		dev_dbg(obj->dev, "%s: No sgt\n", __func__);
 	sgtable_free(sgt);

@@ -13,6 +13,8 @@
 #ifndef __IOMMU_MMAP_H
 #define __IOMMU_MMAP_H
 
+#include <linux/iommu.h>
+
 struct iovm_struct {
 	struct iommu		*iommu;	/* iommu object which this belongs to */
 	u32			da_start; /* area definition */
@@ -71,18 +73,21 @@ struct iovm_struct {
 
 
 extern struct iovm_struct *find_iovm_area(struct iommu *obj, u32 da);
-extern u32 iommu_vmap(struct iommu *obj, u32 da,
+extern u32 iommu_vmap(struct iommu_domain *domain, struct iommu *obj, u32 da,
 			const struct sg_table *sgt, u32 flags);
-extern struct sg_table *iommu_vunmap(struct iommu *obj, u32 da);
-extern u32 iommu_vmalloc(struct iommu *obj, u32 da, size_t bytes,
-			   u32 flags);
-extern void iommu_vfree(struct iommu *obj, const u32 da);
-extern u32 iommu_kmap(struct iommu *obj, u32 da, u32 pa, size_t bytes,
-			u32 flags);
-extern void iommu_kunmap(struct iommu *obj, u32 da);
-extern u32 iommu_kmalloc(struct iommu *obj, u32 da, size_t bytes,
-			   u32 flags);
-extern void iommu_kfree(struct iommu *obj, u32 da);
+extern struct sg_table *iommu_vunmap(struct iommu_domain *domain,
+				struct iommu *obj, u32 da);
+extern u32 iommu_vmalloc(struct iommu_domain *domain, struct iommu *obj,
+				u32 da, size_t bytes, u32 flags);
+extern void iommu_vfree(struct iommu_domain *domain, struct iommu *obj,
+				const u32 da);
+extern u32 iommu_kmap(struct iommu_domain *domain, struct iommu *obj, u32 da,
+				u32 pa, size_t bytes, u32 flags);
+extern void iommu_kunmap(struct iommu_domain *domain, struct iommu *obj,
+				u32 da);
+extern u32 iommu_kmalloc(struct iommu_domain *domain, struct iommu *obj,
+				u32 da, size_t bytes, u32 flags);
+extern void iommu_kfree(struct iommu_domain *domain, struct iommu *obj, u32 da);
 
 extern void *da_to_va(struct iommu *obj, u32 da);
 

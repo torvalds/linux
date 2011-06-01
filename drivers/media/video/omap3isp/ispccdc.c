@@ -365,7 +365,7 @@ static void ccdc_lsc_free_request(struct isp_ccdc_device *ccdc,
 		dma_unmap_sg(isp->dev, req->iovm->sgt->sgl,
 			     req->iovm->sgt->nents, DMA_TO_DEVICE);
 	if (req->table)
-		iommu_vfree(isp->iommu, req->table);
+		iommu_vfree(isp->domain, isp->iommu, req->table);
 	kfree(req);
 }
 
@@ -437,8 +437,8 @@ static int ccdc_lsc_config(struct isp_ccdc_device *ccdc,
 
 		req->enable = 1;
 
-		req->table = iommu_vmalloc(isp->iommu, 0, req->config.size,
-					   IOMMU_FLAG);
+		req->table = iommu_vmalloc(isp->domain, isp->iommu, 0,
+					req->config.size, IOMMU_FLAG);
 		if (IS_ERR_VALUE(req->table)) {
 			req->table = 0;
 			ret = -ENOMEM;
@@ -733,15 +733,15 @@ static int ccdc_config(struct isp_ccdc_device *ccdc,
 			 * already done by iommu_vmalloc().
 			 */
 			size = ccdc->fpc.fpnum * 4;
-			table_new = iommu_vmalloc(isp->iommu, 0, size,
-						  IOMMU_FLAG);
+			table_new = iommu_vmalloc(isp->domain, isp->iommu, 0,
+							size, IOMMU_FLAG);
 			if (IS_ERR_VALUE(table_new))
 				return -ENOMEM;
 
 			if (copy_from_user(da_to_va(isp->iommu, table_new),
 					   (__force void __user *)
 					   ccdc->fpc.fpcaddr, size)) {
-				iommu_vfree(isp->iommu, table_new);
+				iommu_vfree(isp->domain, isp->iommu, table_new);
 				return -EFAULT;
 			}
 
@@ -751,7 +751,7 @@ static int ccdc_config(struct isp_ccdc_device *ccdc,
 
 		ccdc_configure_fpc(ccdc);
 		if (table_old != 0)
-			iommu_vfree(isp->iommu, table_old);
+			iommu_vfree(isp->domain, isp->iommu, table_old);
 	}
 
 	return ccdc_lsc_config(ccdc, ccdc_struct);
@@ -2286,5 +2286,5 @@ void omap3isp_ccdc_cleanup(struct isp_device *isp)
 	ccdc_lsc_free_queue(ccdc, &ccdc->lsc.free_queue);
 
 	if (ccdc->fpc.fpcaddr != 0)
-		iommu_vfree(isp->iommu, ccdc->fpc.fpcaddr);
+		iommu_vfree(isp->domain, isp->iommu, ccdc->fpc.fpcaddr);
 }

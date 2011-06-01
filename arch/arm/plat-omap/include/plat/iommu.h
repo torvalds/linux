@@ -34,7 +34,7 @@ struct iommu {
 	void		*isr_priv;
 
 	unsigned int	refcount;
-	struct mutex	iommu_lock;	/* global for this whole object */
+	spinlock_t	iommu_lock;	/* global for this whole object */
 
 	/*
 	 * We don't change iopgd for a situation like pgd for a task,
@@ -167,8 +167,6 @@ extern void iopgtable_lookup_entry(struct iommu *obj, u32 da, u32 **ppgd,
 extern size_t iopgtable_clear_entry(struct iommu *obj, u32 iova);
 
 extern int iommu_set_da_range(struct iommu *obj, u32 start, u32 end);
-extern struct iommu *iommu_get(const char *name);
-extern void iommu_put(struct iommu *obj);
 extern int iommu_set_isr(const char *name,
 			 int (*isr)(struct iommu *obj, u32 da, u32 iommu_errs,
 				    void *priv),
@@ -185,5 +183,6 @@ extern int foreach_iommu_device(void *data,
 
 extern ssize_t iommu_dump_ctx(struct iommu *obj, char *buf, ssize_t len);
 extern size_t dump_tlb_entries(struct iommu *obj, char *buf, ssize_t len);
+struct device *omap_find_iommu_device(const char *name);
 
 #endif /* __MACH_IOMMU_H */

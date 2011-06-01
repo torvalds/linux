@@ -132,8 +132,10 @@ config OMAP_MBOX_KFIFO_SIZE
 	  This can also be changed at runtime (via the mbox_kfifo_size
 	  module parameter).
 
+#can't be tristate; iommu api doesn't support un-registration
 config OMAP_IOMMU
-	tristate
+	bool
+	select IOMMU_API
 
 config OMAP_IOMMU_DEBUG
        tristate "Export OMAP IOMMU internals in DebugFS"

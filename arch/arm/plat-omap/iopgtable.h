@@ -56,6 +56,19 @@
 
 #define IOPAGE_MASK		IOPTE_MASK
 
+/**
+ * omap_iommu_translate() - va to pa translation
+ * @d:		omap iommu descriptor
+ * @va:		virtual address
+ * @mask:	omap iommu descriptor mask
+ *
+ * va to pa translation
+ */
+static inline phys_addr_t omap_iommu_translate(u32 d, u32 va, u32 mask)
+{
+	return (d & mask) | (va & (~mask));
+}
+
 /*
  * some descriptor attributes.
  */
@@ -64,9 +77,14 @@
 #define IOPGD_SUPER		(1 << 18 | 2 << 0)
 
 #define iopgd_is_table(x)	(((x) & 3) == IOPGD_TABLE)
+#define iopgd_is_section(x)	(((x) & (1 << 18 | 3)) == IOPGD_SECTION)
+#define iopgd_is_super(x)	(((x) & (1 << 18 | 3)) == IOPGD_SUPER)
 
 #define IOPTE_SMALL		(2 << 0)
 #define IOPTE_LARGE		(1 << 0)
+
+#define iopte_is_small(x)	(((x) & 2) == IOPTE_SMALL)
+#define iopte_is_large(x)	(((x) & 3) == IOPTE_LARGE)
 
 /* to find an entry in a page-table-directory */
 #define iopgd_index(da)		(((da) >> IOPGD_SHIFT) & (PTRS_PER_IOPGD - 1))
