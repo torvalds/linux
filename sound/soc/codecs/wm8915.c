@@ -41,14 +41,12 @@
 #define HPOUT2L 4
 #define HPOUT2R 8
 
-#define WM8915_NUM_SUPPLIES 6
+#define WM8915_NUM_SUPPLIES 4
 static const char *wm8915_supply_names[WM8915_NUM_SUPPLIES] = {
-	"DCVDD",
 	"DBVDD",
 	"AVDD1",
 	"AVDD2",
 	"CPVDD",
-	"MICVDD",
 };
 
 struct wm8915_priv {
@@ -113,8 +111,6 @@ WM8915_REGULATOR_EVENT(0)
 WM8915_REGULATOR_EVENT(1)
 WM8915_REGULATOR_EVENT(2)
 WM8915_REGULATOR_EVENT(3)
-WM8915_REGULATOR_EVENT(4)
-WM8915_REGULATOR_EVENT(5)
 
 static const u16 wm8915_reg[WM8915_MAX_REGISTER] = {
 	[WM8915_SOFTWARE_RESET] = 0x8915,
@@ -2495,8 +2491,6 @@ static int wm8915_probe(struct snd_soc_codec *codec)
 	wm8915->disable_nb[1].notifier_call = wm8915_regulator_event_1;
 	wm8915->disable_nb[2].notifier_call = wm8915_regulator_event_2;
 	wm8915->disable_nb[3].notifier_call = wm8915_regulator_event_3;
-	wm8915->disable_nb[4].notifier_call = wm8915_regulator_event_4;
-	wm8915->disable_nb[5].notifier_call = wm8915_regulator_event_5;
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8915->supplies); i++) {
