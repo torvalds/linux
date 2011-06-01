@@ -31,6 +31,132 @@
 #include <bcmdevs.h>
 
 #include <bcmsoc.h>
+
+/* register access macros */
+#if defined(BCMSDIO)
+#ifdef BRCM_FULLMAC
+#include <bcmsdh.h>
+#endif
+#endif
+
+#if defined(BCMSDIO)
+#define SELECT_BUS_WRITE(mmap_op, bus_op) bus_op
+#define SELECT_BUS_READ(mmap_op, bus_op) bus_op
+#else
+#define SELECT_BUS_WRITE(mmap_op, bus_op) mmap_op
+#define SELECT_BUS_READ(mmap_op, bus_op) mmap_op
+#endif
+
+/* register access macros */
+#ifndef __BIG_ENDIAN
+#ifndef __mips__
+#define R_REG(r) (\
+	SELECT_BUS_READ(sizeof(*(r)) == sizeof(u8) ? \
+	readb((volatile u8*)(r)) : \
+	sizeof(*(r)) == sizeof(u16) ? readw((volatile u16*)(r)) : \
+	readl((volatile u32*)(r)), bcmsdh_reg_read(NULL, (unsigned long)r, sizeof(*r))) \
+)
+#else				/* __mips__ */
+#define R_REG(r) (\
+	SELECT_BUS_READ( \
+		({ \
+			__typeof(*(r)) __osl_v; \
+			__asm__ __volatile__("sync"); \
+			switch (sizeof(*(r))) { \
+			case sizeof(u8): \
+				__osl_v = readb((volatile u8*)(r)); \
+				break; \
+			case sizeof(u16): \
+				__osl_v = readw((volatile u16*)(r)); \
+				break; \
+			case sizeof(u32): \
+				__osl_v = \
+				readl((volatile u32*)(r)); \
+				break; \
+			} \
+			__asm__ __volatile__("sync"); \
+			__osl_v; \
+		}), \
+		({ \
+			__typeof(*(r)) __osl_v; \
+			__asm__ __volatile__("sync"); \
+			__osl_v = bcmsdh_reg_read(NULL, (unsigned long)r, sizeof(*r)); \
+			__asm__ __volatile__("sync"); \
+			__osl_v; \
+		})) \
+)
+#endif				/* __mips__ */
+
+#define W_REG(r, v) do { \
+	SELECT_BUS_WRITE( \
+		switch (sizeof(*(r))) { \
+		case sizeof(u8): \
+			writeb((u8)(v), (volatile u8*)(r)); break; \
+		case sizeof(u16): \
+			writew((u16)(v), (volatile u16*)(r)); break; \
+		case sizeof(u32): \
+			writel((u32)(v), (volatile u32*)(r)); break; \
+		}, \
+		bcmsdh_reg_write(NULL, (unsigned long)r, sizeof(*r), (v))); \
+	} while (0)
+#else				/* __BIG_ENDIAN */
+#define R_REG(r) (\
+	SELECT_BUS_READ( \
+		({ \
+			__typeof(*(r)) __osl_v; \
+			switch (sizeof(*(r))) { \
+			case sizeof(u8): \
+				__osl_v = \
+				readb((volatile u8*)((r)^3)); \
+				break; \
+			case sizeof(u16): \
+				__osl_v = \
+				readw((volatile u16*)((r)^2)); \
+				break; \
+			case sizeof(u32): \
+				__osl_v = readl((volatile u32*)(r)); \
+				break; \
+			} \
+			__osl_v; \
+		}), \
+		bcmsdh_reg_read(NULL, (unsigned long)r, sizeof(*r))) \
+)
+#define W_REG(r, v) do { \
+	SELECT_BUS_WRITE( \
+		switch (sizeof(*(r))) { \
+		case sizeof(u8):	\
+			writeb((u8)(v), \
+			(volatile u8*)((r)^3)); break; \
+		case sizeof(u16):	\
+			writew((u16)(v), \
+			(volatile u16*)((r)^2)); break; \
+		case sizeof(u32):	\
+			writel((u32)(v), \
+			(volatile u32*)(r)); break; \
+		}, \
+		bcmsdh_reg_write(NULL, (unsigned long)r, sizeof(*r), v)); \
+	} while (0)
+#endif				/* __BIG_ENDIAN */
+
+#ifdef __mips__
+/*
+ * bcm4716 (which includes 4717 & 4718), plus 4706 on PCIe can reorder
+ * transactions. As a fix, a read after write is performed on certain places
+ * in the code. Older chips and the newer 5357 family don't require this fix.
+ */
+#define W_REG_FLUSH(r, v)	({ W_REG((r), (v)); (void)R_REG(r); })
+#else
+#define W_REG_FLUSH(r, v)	W_REG((r), (v))
+#endif				/* __mips__ */
+
+#define AND_REG(r, v)	W_REG((r), R_REG(r) & (v))
+#define OR_REG(r, v)	W_REG((r), R_REG(r) | (v))
+
+#define SET_REG(r, mask, val) \
+		W_REG((r), ((R_REG(r) & ~(mask)) | (val)))
+
+
+
 #ifdef DHD_DEBUG
 
 /* ARM trap handling */

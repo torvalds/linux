@@ -23,6 +23,7 @@
 
 #include <bcmdefs.h>
 #include <bcmdevs.h>
+#include "wlc_types.h"
 #include <brcmu_utils.h>
 #include <aiutils.h>
 #include <bcmsoc.h>

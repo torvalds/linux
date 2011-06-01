@@ -20,6 +20,7 @@
 #include <bcmdefs.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
+#include <bcmsdh.h>
 #include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */
 #include <sdiovar.h>		/* to get msglevel bit values */
 

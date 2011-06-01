@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <bcmdefs.h>
+#include "wlc_types.h"
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <brcmu_utils.h>

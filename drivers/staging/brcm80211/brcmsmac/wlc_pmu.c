@@ -19,6 +19,7 @@
 #include <linux/io.h>
 
 #include <bcmdevs.h>
+#include "wlc_types.h"
 #include <chipcommon.h>
 #include <brcmu_utils.h>
 #include "wlc_scb.h"

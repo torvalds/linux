@@ -28,6 +28,7 @@
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <brcmu_utils.h>
+#include <bcmsdh.h>
 #include <brcmu_wifi.h>
 
 #if defined(OOB_INTR_ONLY)
