@@ -297,6 +297,49 @@ struct wlc_stf {
 #define WLC_HT_WEP_RESTRICT	0x01	/* restrict HT with WEP */
 #define WLC_HT_TKIP_RESTRICT	0x02	/* restrict HT with TKIP */
 
+/* Maximum # of keys that wl driver supports in S/W.
+ * Keys supported in H/W is less than or equal to WSEC_MAX_KEYS.
+ */
+#define WSEC_MAX_KEYS		54	/* Max # of keys (50 + 4 default keys) */
+#define WLC_DEFAULT_KEYS	4	/* Default # of keys */
+
+/*
+* Max # of keys currently supported:
+*
+*     s/w keys if WSEC_SW(wlc->wsec).
+*     h/w keys otherwise.
+*/
+#define WLC_MAX_WSEC_KEYS(wlc) WSEC_MAX_KEYS
+
+/* number of 802.11 default (non-paired, group keys) */
+#define WSEC_MAX_DEFAULT_KEYS	4	/* # of default keys */
+
+typedef struct wsec_iv {
+	u32 hi;		/* upper 32 bits of IV */
+	u16 lo;		/* lower 16 bits of IV */
+} wsec_iv_t;
+
+#define WLC_NUMRXIVS	16	/* # rx IVs (one per 802.11e TID) */
+
+typedef struct wsec_key {
+	u8 ea[ETH_ALEN];	/* per station */
+	u8 idx;		/* key index in wsec_keys array */
+	u8 id;		/* key ID [0-3] */
+	u8 algo;		/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */
+	u8 rcmta;		/* rcmta entry index, same as idx by default */
+	u16 flags;		/* misc flags */
+	u8 algo_hw;		/* cache for hw register */
+	u8 aes_mode;		/* cache for hw register */
+	s8 iv_len;		/* IV length */
+	s8 icv_len;		/* ICV length */
+	u32 len;		/* key length..don't move this var */
+	/* data is 4byte aligned */
+	u8 data[WLAN_MAX_KEY_LEN];	/* key data */
+	wsec_iv_t rxiv[WLC_NUMRXIVS];	/* Rx IV (one per TID) */
+	wsec_iv_t txiv;		/* Tx IV */
+
+} wsec_key_t;
+
 /*
  * core state (mac)
  */

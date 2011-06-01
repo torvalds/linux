@@ -26,7 +26,6 @@
 
 #include "d11.h"
 #include "rate.h"
-#include "key.h"
 #include "scb.h"
 #include "pub.h"
 #include "phy/phy_hal.h"

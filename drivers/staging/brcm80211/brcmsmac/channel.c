@@ -28,7 +28,6 @@
 #include "d11.h"
 #include "scb.h"
 #include "pub.h"
-#include "key.h"
 #include "phy/phy_hal.h"
 #include "bottom_mac.h"
 #include "rate.h"

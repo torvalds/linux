@@ -33,7 +33,6 @@
 #include "rate.h"
 #include "scb.h"
 #include "pub.h"
-#include "key.h"
 #include "phy/phy_hal.h"
 #include "channel.h"
 #include "main.h"
@@ -520,8 +519,6 @@ void wlc_init(struct wlc_info *wlc)
 			}
 		}
 	}
-
-	wlc_key_hw_init_all(wlc);
 
 	wlc_bandinit_ordered(wlc, chanspec);
 

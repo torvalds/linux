@@ -26,7 +26,6 @@
 #include "rate.h"
 #include "scb.h"
 #include "pub.h"
-#include "key.h"
 #include "phy/phy_hal.h"
 #include "antsel.h"
 #include "channel.h"
