@@ -3043,6 +3043,7 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 	codec->bias_level = level;
 	return 0;
 }
+
 #endif
 #define WM8994_RATES SNDRV_PCM_RATE_8000_48000
 #define WM8994_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -3454,6 +3455,21 @@ static int wm8994_i2c_resume(struct i2c_client *client)
 #define wm8994_i2c_resume NULL
 #endif
 
+static void wm8994_i2c_shutdown(struct i2c_client *client)
+{
+	DBG("%s----%d\n",__FUNCTION__,__LINE__);
+
+	//disable PA
+	PA_ctrl(GPIO_LOW);
+
+	wm8994_write(0x00, 0x00);
+	
+	gpio_request(WM_EN_PIN, NULL);
+	gpio_direction_output(WM_EN_PIN,GPIO_LOW);
+	gpio_free(WM_EN_PIN);	
+	msleep(50);	
+}
+
 static const struct i2c_device_id wm8994_i2c_id[] = {
 	{ "wm8994", 0 },
 	{ }
@@ -3470,6 +3486,7 @@ static struct i2c_driver wm8994_i2c_driver = {
 	.suspend = wm8994_i2c_suspend,
 	.resume = wm8994_i2c_resume,
 	.id_table = wm8994_i2c_id,
+	.shutdown = wm8994_i2c_shutdown,
 };
 
 int reg_send_data(struct i2c_client *client, unsigned short *reg, unsigned short *data, u32 scl_rate)
