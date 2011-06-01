@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-s5pv210/cpufreq.c
- *
+/*
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
