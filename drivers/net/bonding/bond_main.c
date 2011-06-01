@@ -629,15 +629,8 @@ static int bond_update_speed_duplex(struct slave *slave)
 		return -1;
 
 	slave_speed = ethtool_cmd_speed(&etool);
-	switch (slave_speed) {
-	case SPEED_10:
-	case SPEED_100:
-	case SPEED_1000:
-	case SPEED_10000:
-		break;
-	default:
+	if (slave_speed == 0 || slave_speed == ((__u32) -1))
 		return -1;
-	}
 
 	switch (etool.duplex) {
 	case DUPLEX_FULL:
