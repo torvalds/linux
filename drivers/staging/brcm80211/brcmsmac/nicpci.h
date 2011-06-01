@@ -58,11 +58,6 @@
 
 struct si_pub;
 
-extern u8 pcicore_find_pci_capability(void *dev, u8 req_cap_id,
-					 unsigned char *buf, u32 *buflen);
-
-extern u32 pcie_lcreg(void *pch, u32 mask, u32 val);
-
 extern void *pcicore_init(struct si_pub *sih, void *pdev, void *regs);
 extern void pcicore_deinit(void *pch);
 extern void pcicore_attach(void *pch, char *pvars, int state);
@@ -70,17 +65,7 @@ extern void pcicore_hwup(void *pch);
 extern void pcicore_up(void *pch, int state);
 extern void pcicore_sleep(void *pch);
 extern void pcicore_down(void *pch, int state);
-
-extern void pcie_war_ovr_aspm_update(void *pch, u8 aspm);
-extern u32 pcicore_pcieserdesreg(void *pch, u32 mdioslave, u32 offset,
-				    u32 mask, u32 val);
-
-extern u32 pcicore_pciereg(void *pch, u32 offset, u32 mask,
-			      u32 val, uint type);
-
-extern bool pcicore_pmecap_fast(void *pch);
-extern void pcicore_pmeen(void *pch);
-extern void pcicore_pmeclr(void *pch);
-extern bool pcicore_pmestat(void *pch);
+extern u8 pcicore_find_pci_capability(void *dev, u8 req_cap_id,
+					 unsigned char *buf, u32 *buflen);
 
 #endif /* _NICPCI_H */
