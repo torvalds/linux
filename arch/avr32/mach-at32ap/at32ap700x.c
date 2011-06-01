@@ -1044,7 +1044,7 @@ void __init at32_map_usart(unsigned int hw_id, unsigned int line, int flags)
 	}
 
 	pdata = pdev->dev.platform_data;
-	pdata->num = portnr;
+	pdata->num = line;
 	at32_usarts[line] = pdev;
 }
 
