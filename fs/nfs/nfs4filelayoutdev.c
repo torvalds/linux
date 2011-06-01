@@ -164,7 +164,7 @@ _data_server_match_all_addrs_locked(struct list_head *dsaddrs1,
 
 /*
  * Create an rpc connection to the nfs4_pnfs_ds data server
- * Currently only support IPv4
+ * Currently only supports IPv4 and IPv6 addresses
  */
 static int
 nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
