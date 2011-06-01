@@ -353,7 +353,6 @@ enum {
 	IOV_BLOCKSIZE,
 	IOV_USEINTS,
 	IOV_NUMINTS,
-	IOV_HOSTREG,
 	IOV_DEVREG,
 	IOV_DIVISOR,
 	IOV_SDMODE,
@@ -370,8 +369,6 @@ const bcm_iovar_t sdioh_iovars[] = {
 								 size) */
 	{"sd_ints", IOV_USEINTS, 0, IOVT_BOOL, 0},
 	{"sd_numints", IOV_NUMINTS, 0, IOVT_UINT32, 0},
-	{"sd_hostreg", IOV_HOSTREG, 0, IOVT_BUFFER, sizeof(sdreg_t)}
-	,
 	{"sd_devreg", IOV_DEVREG, 0, IOVT_BUFFER, sizeof(sdreg_t)}
 	,
 	{"sd_divisor", IOV_DIVISOR, 0, IOVT_UINT32, 0}
@@ -563,56 +560,6 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		int_val = (s32) si->intrcount;
 		memcpy(arg, &int_val, val_size);
 		break;
-
-	case IOV_GVAL(IOV_HOSTREG):
-		{
-			sdreg_t *sd_ptr = (sdreg_t *) params;
-
-			if (sd_ptr->offset < SD_SysAddr
-			    || sd_ptr->offset > SD_MaxCurCap) {
-				sd_err(("%s: bad offset 0x%x\n", __func__,
-					sd_ptr->offset));
-				bcmerror = -EINVAL;
-				break;
-			}
-
-			sd_trace(("%s: rreg%d at offset %d\n", __func__,
-				  (sd_ptr->offset & 1) ? 8
-				  : ((sd_ptr->offset & 2) ? 16 : 32),
-				  sd_ptr->offset));
-			if (sd_ptr->offset & 1)
-				int_val = 8;	/* sdioh_sdmmc_rreg8(si,
-						 sd_ptr->offset); */
-			else if (sd_ptr->offset & 2)
-				int_val = 16;	/* sdioh_sdmmc_rreg16(si,
-						 sd_ptr->offset); */
-			else
-				int_val = 32;	/* sdioh_sdmmc_rreg(si,
-						 sd_ptr->offset); */
-
-			memcpy(arg, &int_val, sizeof(int_val));
-			break;
-		}
-
-	case IOV_SVAL(IOV_HOSTREG):
-		{
-			sdreg_t *sd_ptr = (sdreg_t *) params;
-
-			if (sd_ptr->offset < SD_SysAddr
-			    || sd_ptr->offset > SD_MaxCurCap) {
-				sd_err(("%s: bad offset 0x%x\n", __func__,
-					sd_ptr->offset));
-				bcmerror = -EINVAL;
-				break;
-			}
-
-			sd_trace(("%s: wreg%d value 0x%08x at offset %d\n",
-				  __func__, sd_ptr->value,
-				  (sd_ptr->offset & 1) ? 8
-				  : ((sd_ptr->offset & 2) ? 16 : 32),
-				  sd_ptr->offset));
-			break;
-		}
 
 	case IOV_GVAL(IOV_DEVREG):
 		{
