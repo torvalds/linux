@@ -732,22 +732,6 @@ void wlc_set_chanspec(struct wlc_info *wlc, chanspec_t chanspec)
 	wlc_ucode_mac_upd(wlc);
 }
 
-static u32 wlc_watchdog_backup_bi(struct wlc_info *wlc)
-{
-	u32 bi;
-	bi = 2 * wlc->cfg->current_bss->dtim_period *
-	    wlc->cfg->current_bss->beacon_period;
-	if (wlc->bcn_li_dtim)
-		bi *= wlc->bcn_li_dtim;
-	else if (wlc->bcn_li_bcn)
-		/* recalculate bi based on bcn_li_bcn */
-		bi = 2 * wlc->bcn_li_bcn * wlc->cfg->current_bss->beacon_period;
-
-	if (bi < 2 * TIMER_INTERVAL_WATCHDOG)
-		bi = 2 * TIMER_INTERVAL_WATCHDOG;
-	return bi;
-}
-
 ratespec_t wlc_lowest_basic_rspec(struct wlc_info *wlc, wlc_rateset_t *rs)
 {
 	ratespec_t lowest_basic_rspec;
