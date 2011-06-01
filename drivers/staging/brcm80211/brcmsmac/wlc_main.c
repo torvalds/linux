@@ -294,14 +294,12 @@ bool wlc_ps_allowed(struct wlc_info *wlc)
 	struct wlc_bsscfg *cfg;
 
 	/* disallow PS when one of the following global conditions meets */
-	if (!wlc->pub->associated || !wlc->PMenabled || wlc->PM_override)
+	if (!wlc->pub->associated)
 		return false;
 
 	/* disallow PS when one of these meets when not scanning */
-	if (!wlc->PMblocked) {
-		if (AP_ACTIVE(wlc) || wlc->monitor)
-			return false;
-	}
+	if (AP_ACTIVE(wlc) || wlc->monitor)
+		return false;
 
 	FOREACH_AS_STA(wlc, idx, cfg) {
 		/* disallow PS when one of the following bsscfg specific conditions meets */
@@ -319,8 +317,6 @@ void wlc_reset(struct wlc_info *wlc)
 {
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
-	wlc->check_for_unaligned_tbtt = false;
-
 	/* slurp up hw mac counters before core reset */
 	wlc_statsupd(wlc);
 
@@ -329,8 +325,6 @@ void wlc_reset(struct wlc_info *wlc)
 		sizeof(macstat_t));
 
 	wlc_bmac_reset(wlc->hw);
-	wlc->txretried = 0;
-
 }
 
 void wlc_fatal_error(struct wlc_info *wlc)
@@ -386,15 +380,8 @@ void wlc_init(struct wlc_info *wlc)
 
 	wlc_bmac_init(wlc->hw, chanspec, mute);
 
-	wlc->seckeys = wlc_bmac_read_shm(wlc->hw, M_SECRXKEYS_PTR) * 2;
-	if (wlc->machwcap & MCAP_TKIPMIC)
-		wlc->tkmickeys =
-		    wlc_bmac_read_shm(wlc->hw, M_TKMICKEYS_PTR) * 2;
-
 	/* update beacon listen interval */
 	wlc_bcn_li_upd(wlc);
-	wlc->bcn_wait_prd =
-	    (u8) (wlc_bmac_read_shm(wlc->hw, M_NOSLPZNATDTIM) >> 10);
 
 	/* the world is new again, so is our reported rate */
 	wlc_reprate_init(wlc);
@@ -521,7 +508,7 @@ void wlc_mac_promisc(struct wlc_info *wlc)
 	 * Note: APs get all BSS traffic without the need to set the MCTL_PROMISC bit
 	 * since all BSS data traffic is directed at the AP
 	 */
-	if (PROMISC_ENAB(wlc->pub) && !AP_ENAB(wlc->pub) && !wlc->wet)
+	if (PROMISC_ENAB(wlc->pub) && !AP_ENAB(wlc->pub))
 		promisc_bits |= MCTL_PROMISC;
 
 	/* monitor mode needs both MCTL_PROMISC and MCTL_KEEPCONTROL
@@ -987,7 +974,6 @@ static void WLBANDINITFN(wlc_setband) (struct wlc_info *wlc, uint bandunit)
 		return;
 
 	/* wait for at least one beacon before entering sleeping state */
-	wlc->PMawakebcn = true;
 	FOREACH_AS_STA(wlc, idx, cfg)
 	    cfg->PMawakebcn = true;
 	wlc_set_ps_ctrl(wlc);
@@ -1034,8 +1020,6 @@ void wlc_wme_setparams(struct wlc_info *wlc, u16 aci,
 			  __func__);
 		return;
 	}
-
-	wlc->wme_admctl = 0;
 
 	do {
 		memset((char *)&acp_shm, 0, sizeof(shm_acparams_t));
@@ -1108,10 +1092,6 @@ void wlc_edcf_setparams(struct wlc_info *wlc, bool suspend)
 	for (i_ac = 0; i_ac < AC_COUNT; i_ac++, edcf_acp++) {
 		/* find out which ac this set of params applies to */
 		aci = (edcf_acp->ACI & EDCF_ACI_MASK) >> EDCF_ACI_SHIFT;
-		/* set the admission control policy for this AC */
-		if (edcf_acp->ACI & EDCF_ACM_MASK) {
-			wlc->wme_admctl |= 1 << aci;
-		}
 
 		/* fill in shm ac params struct */
 		params->txop = edcf_acp->TXOP;
@@ -1172,24 +1152,12 @@ void wlc_info_init(struct wlc_info *wlc, int unit)
 	/* Assume the device is there until proven otherwise */
 	wlc->device_present = true;
 
-	/* set default power output percentage to 100 percent */
-	wlc->txpwr_percent = 100;
-
 	/* Save our copy of the chanspec */
 	wlc->chanspec = CH20MHZ_CHSPEC(1);
-
-	/* initialize CCK preamble mode to unassociated state */
-	wlc->shortpreamble = false;
-
-	wlc->legacy_probe = true;
 
 	/* various 802.11g modes */
 	wlc->shortslot = false;
 	wlc->shortslot_override = WLC_SHORTSLOT_AUTO;
-
-	wlc->barker_overlap_control = true;
-	wlc->barker_preamble = WLC_BARKER_SHORT_ALLOWED;
-	wlc->txburst_limit_override = AUTO;
 
 	wlc_protection_upd(wlc, WLC_PROT_G_OVR, WLC_PROTECTION_AUTO);
 	wlc_protection_upd(wlc, WLC_PROT_G_SPEC, false);
@@ -1223,30 +1191,6 @@ void wlc_info_init(struct wlc_info *wlc, int unit)
 	wlc->SRL = RETRY_SHORT_DEF;
 	wlc->LRL = RETRY_LONG_DEF;
 
-	/* init PM state */
-	wlc->PM = PM_OFF;	/* User's setting of PM mode through IOCTL */
-	wlc->PM_override = false;	/* Prevents from going to PM if our AP is 'ill' */
-	wlc->PMenabled = false;	/* Current PM state */
-	wlc->PMpending = false;	/* Tracks whether STA indicated PM in the last attempt */
-	wlc->PMblocked = false;	/* To allow blocking going into PM during RM and scans */
-
-	/* In WMM Auto mode, PM is allowed if association is a UAPSD association */
-	wlc->WME_PM_blocked = false;
-
-	/* Init wme queuing method */
-	wlc->wme_prec_queuing = false;
-
-	/* Overrides for the core to stay awake under zillion conditions Look for STAY_AWAKE */
-	wlc->wake = false;
-	/* Are we waiting for a response to PS-Poll that we sent */
-	wlc->PSpoll = false;
-
-	/* APSD defaults */
-	wlc->wme_apsd = true;
-	wlc->apsd_sta_usp = false;
-	wlc->apsd_trigger_timeout = 0;	/* disable the trigger timer */
-	wlc->apsd_trigger_ac = AC_BITMAP_ALL;
-
 	/* Set flag to indicate that hw keys should be used when available. */
 	wlc->wsec_swkeys = false;
 
@@ -1255,8 +1199,6 @@ void wlc_info_init(struct wlc_info *wlc, int unit)
 		wlc->wsec_keys[i] = wlc->wsec_def_keys[i];
 		wlc->wsec_keys[i]->idx = (u8) i;
 	}
-
-	wlc->_regulatory_domain = false;	/* 802.11d */
 
 	/* WME QoS mode is Auto by default */
 	wlc->pub->_wme = AUTO;
@@ -1267,14 +1209,10 @@ void wlc_info_init(struct wlc_info *wlc, int unit)
 
 	wlc->pub->_ampdu = AMPDU_AGG_HOST;
 	wlc->pub->bcmerror = 0;
-	wlc->ibss_allowed = true;
-	wlc->ibss_coalesce_allowed = true;
 	wlc->pub->_coex = ON;
 
 	/* initialize mpc delay */
 	wlc->mpc_delay_off = wlc->mpc_dlycnt = WLC_MPC_MIN_DELAYCNT;
-
-	wlc->pr80838_war = true;
 }
 
 static bool wlc_state_bmac_sync(struct wlc_info *wlc)
@@ -1358,11 +1296,8 @@ void *wlc_attach(struct wl_info *wl, u16 vendor, u16 device, uint unit,
 	wlc->core = wlc->corestate;
 	wlc->wl = wl;
 	pub->unit = unit;
-	wlc->btparam = btparam;
 	pub->_piomode = piomode;
 	wlc->bandinit_pending = false;
-	/* By default restrict TKIP associations from 11n STA's */
-	wlc->ht_wsec_restriction = WLC_HT_TKIP_RESTRICT;
 
 	/* populate struct wlc_info with default values  */
 	wlc_info_init(wlc, unit);
@@ -1526,9 +1461,6 @@ void *wlc_attach(struct wl_info *wl, u16 vendor, u16 device, uint unit,
 	wlc->ofdm_40txbw = AUTO;
 	wlc->cck_40txbw = AUTO;
 	wlc_update_mimo_band_bwcap(wlc, WLC_N_BW_20IN2G_40IN5G);
-
-	/* Enable setting the RIFS Mode bit by default in HT Info IE */
-	wlc->rifs_advert = AUTO;
 
 	/* Set default values of SGI */
 	if (WLC_SGI_CAP_PHY(wlc)) {
@@ -1722,25 +1654,6 @@ uint wlc_detach(struct wlc_info *wlc)
 
 	wlc_detach_module(wlc);
 
-	/* free other state */
-
-
-#ifdef BCMDBG
-	kfree(wlc->country_ie_override);
-	wlc->country_ie_override = NULL;
-#endif				/* BCMDBG */
-
-	{
-		/* free dumpcb list */
-		struct dumpcb_s *prev, *ptr;
-		prev = ptr = wlc->dumpcb_head;
-		while (ptr) {
-			ptr = prev->next;
-			kfree(prev);
-			prev = ptr;
-		}
-		wlc->dumpcb_head = NULL;
-	}
 
 	while (wlc->tx_queues != NULL)
 		wlc_txq_free(wlc, wlc->tx_queues);
@@ -1756,9 +1669,6 @@ void wlc_ap_upd(struct wlc_info *wlc)
 		wlc->PLCPHdr_override = WLC_PLCP_AUTO;	/* AP: short not allowed, but not enforced */
 	else
 		wlc->PLCPHdr_override = WLC_PLCP_SHORT;	/* STA-BSS; short capable */
-
-	/* disable vlan_mode on AP since some legacy STAs cannot rx tagged pkts */
-	wlc->vlan_mode = AP_ENAB(wlc->pub) ? OFF : AUTO;
 
 	/* fixup mpc */
 	wlc->mpc = true;
@@ -1892,9 +1802,7 @@ static void wlc_radio_enable(struct wlc_info *wlc)
 	if (DEVICEREMOVED(wlc))
 		return;
 
-	if (!wlc->down_override) {	/* imposed by wl down/out ioctl */
-		wl_up(wlc->wl);
-	}
+	wl_up(wlc->wl);
 }
 
 /* periodical query hw radio button while driver is "down" */
@@ -2230,7 +2138,6 @@ int wlc_set_gmode(struct wlc_info *wlc, u8 gmode, bool config)
 	s8 shortslot = WLC_SHORTSLOT_AUTO;	/* Advertise and use shortslot (-1/0/1 Auto/Off/On) */
 	bool shortslot_restrict = false;	/* Restrict association to stations that support shortslot
 						 */
-	bool ignore_bcns = true;	/* Ignore legacy beacons on the same channel */
 	bool ofdm_basic = false;	/* Make 6, 12, and 24 basic rates */
 	int preamble = WLC_PLCP_LONG;	/* Advertise and use short preambles (-1/0/1 Auto/Off/On) */
 	bool preamble_restrict = false;	/* Restrict association to stations that support short
@@ -2325,8 +2232,6 @@ int wlc_set_gmode(struct wlc_info *wlc, u8 gmode, bool config)
 	}
 
 	band->gmode = gmode;
-
-	wlc->ignore_bcns = ignore_bcns;
 
 	wlc->shortslot_override = shortslot;
 
@@ -4418,7 +4323,6 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	if (lastframe) {
 		p->next = NULL;
 		p->prev = NULL;
-		wlc->txretried = 0;
 		/* remove PLCP & Broadcom tx descriptor header */
 		skb_pull(p, D11_PHY_HDR_LEN);
 		skb_pull(p, D11_TXH_LEN);
@@ -4448,15 +4352,9 @@ wlc_txfifo_complete(struct wlc_info *wlc, uint fifo, s8 txpktpend)
 	/* There is more room; mark precedences related to this FIFO sendable */
 	WLC_TX_FIFO_ENAB(wlc, fifo);
 
-	if (!TXPKTPENDTOT(wlc)) {
-		if (wlc->block_datafifo & DATA_BLOCK_TX_SUPR)
-			wlc_bsscfg_tx_check(wlc);
-	}
-
 	/* Clear MHF2_TXBCMC_NOW flag if BCMC fifo has drained */
 	if (AP_ENAB(wlc->pub) &&
-	    wlc->bcmcfifo_drain && !TXPKTPENDGET(wlc, TX_BCMC_FIFO)) {
-		wlc->bcmcfifo_drain = false;
+	    !TXPKTPENDGET(wlc, TX_BCMC_FIFO)) {
 		wlc_mhf(wlc, MHF2, MHF2_TXBCMC_NOW, 0, WLC_BAND_AUTO);
 	}
 
@@ -4662,7 +4560,7 @@ void wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	rxh = (d11rxhdr_t *) (p->data);
 
 	/* strip off rxhdr */
-	skb_pull(p, wlc->hwrxoff);
+	skb_pull(p, WL_HWRXOFF);
 
 	/* fixup rx header endianness */
 	rxh->RxFrameSize = le16_to_cpu(rxh->RxFrameSize);
@@ -5174,8 +5072,6 @@ static void wlc_update_mimo_band_bwcap(struct wlc_info *wlc, u8 bwcap)
 				band->mimo_cap_40 = false;
 		}
 	}
-
-	wlc->mimo_band_bwcap = bwcap;
 }
 
 void wlc_mod_prb_rsp_rate_table(struct wlc_info *wlc, uint frame_len)
@@ -5848,12 +5744,15 @@ static void
 wlc_txflowcontrol_signal(struct wlc_info *wlc, struct wlc_txq_info *qi, bool on,
 			 int prio)
 {
+#ifdef NON_FUNCTIONAL
+	/* wlcif_list is never filled so this function is not functional */
 	struct wlc_if *wlcif;
 
 	for (wlcif = wlc->wlcif_list; wlcif != NULL; wlcif = wlcif->next) {
 		if (wlcif->qi == qi && wlcif->flags & WLC_IF_LINKED)
 			wl_txflowcontrol(wlc->wl, wlcif->wlif, on, prio);
 	}
+#endif
 }
 
 static struct wlc_txq_info *wlc_txq_alloc(struct wlc_info *wlc)

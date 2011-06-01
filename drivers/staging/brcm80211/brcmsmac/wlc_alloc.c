@@ -152,8 +152,6 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 		goto fail;
 	}
 
-	wlc->hwrxoff = WL_HWRXOFF;
-
 	/* allocate struct wlc_pub state structure */
 	wlc->pub = wlc_pub_malloc(unit, err, devid);
 	if (wlc->pub == NULL) {
@@ -205,14 +203,6 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 		goto fail;
 	}
 	wlc_bsscfg_ID_assign(wlc, wlc->cfg);
-
-	wlc->pkt_callback = kzalloc(sizeof(struct pkt_cb) *
-				    (wlc->pub->tunables->maxpktcb + 1),
-				    GFP_ATOMIC);
-	if (wlc->pkt_callback == NULL) {
-		*err = 1013;
-		goto fail;
-	}
 
 	wlc->wsec_def_keys[0] =
 		kzalloc(sizeof(wsec_key_t) * WLC_DEFAULT_KEYS, GFP_ATOMIC);
@@ -284,7 +274,6 @@ void wlc_detach_mfree(struct wlc_info *wlc)
 	wlc_pub_mfree(wlc->pub);
 	kfree(wlc->modulecb);
 	kfree(wlc->default_bss);
-	kfree(wlc->pkt_callback);
 	kfree(wlc->wsec_def_keys[0]);
 	kfree(wlc->protection);
 	kfree(wlc->stf);

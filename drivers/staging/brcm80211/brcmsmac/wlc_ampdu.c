@@ -499,10 +499,6 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct wlc_txq_info *qi,
 
 	wlc_ampdu_agg(ampdu, scb, p, tid);
 
-	if (wlc->block_datafifo) {
-		wiphy_err(wiphy, "%s: Fifo blocked\n", __func__);
-		return -EBUSY;
-	}
 	rr_retry_limit = ampdu->rr_retry_limit_tid[tid];
 	ampdu_len = 0;
 	dma_len = 0;

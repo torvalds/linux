@@ -515,8 +515,6 @@ struct wlc_info {
 	struct antsel_info *asi;	/* antsel module handler */
 	wlc_cm_info_t *cmi;	/* channel manager module handler */
 
-	void *btparam;		/* bus type specific cookie */
-
 	uint vars_size;		/* size of vars, free vars on detach */
 
 	u16 vendorid;	/* PCI vendor id */
@@ -531,7 +529,6 @@ struct wlc_info {
 	bool bandinit_pending;	/* track band init in auto band */
 
 	bool radio_monitor;	/* radio timer is running */
-	bool down_override;	/* true=down */
 	bool going_down;	/* down path intermediate variable */
 
 	bool mpc;		/* enable minimum power consumption */
@@ -542,14 +539,7 @@ struct wlc_info {
 
 	/* timer */
 	struct wl_timer *wdtimer;	/* timer for watchdog routine */
-	uint fast_timer;	/* Periodic timeout for 'fast' timer */
-	uint slow_timer;	/* Periodic timeout for 'slow' timer */
-	uint glacial_timer;	/* Periodic timeout for 'glacial' timer */
-	uint phycal_mlo;	/* last time measurelow calibration was done */
-	uint phycal_txpower;	/* last time txpower calibration was done */
-
 	struct wl_timer *radio_timer;	/* timer for hw radio button monitor routine */
-	struct wl_timer *pspoll_timer;	/* periodic pspoll timer */
 
 	/* promiscuous */
 	bool monitor;		/* monitor (MPDU sniffing) mode */
@@ -557,30 +547,11 @@ struct wlc_info {
 	bool bcnmisc_scan;	/* bcns promisc mode override for scan */
 	bool bcnmisc_monitor;	/* bcns promisc mode override for monitor */
 
-	u8 bcn_wait_prd;	/* max waiting period (for beacon) in 1024TU */
-
 	/* driver feature */
 	bool _rifs;		/* enable per-packet rifs */
-	s32 rifs_advert;	/* RIFS mode advertisement */
 	s8 sgi_tx;		/* sgi tx */
-	bool wet;		/* true if wireless ethernet bridging mode */
 
 	/* AP-STA synchronization, power save */
-	bool check_for_unaligned_tbtt;	/* check unaligned tbtt flag */
-	bool PM_override;	/* no power-save flag, override PM(user input) */
-	bool PMenabled;		/* current power-management state (CAM or PS) */
-	bool PMpending;		/* waiting for tx status with PM indicated set */
-	bool PMblocked;		/* block any PSPolling in PS mode, used to buffer
-				 * AP traffic, also used to indicate in progress
-				 * of scan, rm, etc. off home channel activity.
-				 */
-	bool PSpoll;		/* whether there is an outstanding PS-Poll frame */
-	u8 PM;		/* power-management mode (CAM, PS or FASTPS) */
-	bool PMawakebcn;	/* bcn recvd during current waking state */
-
-	bool WME_PM_blocked;	/* Can STA go to PM when in WME Auto mode */
-	bool wake;		/* host-specified PS-mode sleep state */
-	u8 pspoll_prd;	/* pspoll interval in milliseconds */
 	u8 bcn_li_bcn;	/* beacon listen interval in # beacons */
 	u8 bcn_li_dtim;	/* beacon listen interval in # dtims */
 
@@ -589,18 +560,14 @@ struct wlc_info {
 
 	/* WME */
 	ac_bitmap_t wme_dp;	/* Discard (oldest first) policy per AC */
-	bool wme_apsd;		/* enable Advanced Power Save Delivery */
-	ac_bitmap_t wme_admctl;	/* bit i set if AC i under admission control */
 	u16 edcf_txop[AC_COUNT];	/* current txop for each ac */
 	wme_param_ie_t wme_param_ie;	/* WME parameter info element, which on STA
 					 * contains parameters in use locally, and on
 					 * AP contains parameters advertised to STA
 					 * in beacons and assoc responses.
 					 */
-	bool wme_prec_queuing;	/* enable/disable non-wme STA prec queuing */
 	u16 wme_retries[AC_COUNT];	/* per-AC retry limits */
 
-	int vlan_mode;		/* OK to use 802.1Q Tags (ON, OFF, AUTO) */
 	u16 tx_prec_map;	/* Precedence map based on HW FIFO space */
 	u16 fifo2prec_map[NFIFO];	/* pointer to fifo2_prec map based on WME */
 
@@ -610,10 +577,6 @@ struct wlc_info {
 	 */
 	struct wlc_bsscfg *bsscfg[WLC_MAXBSSCFG];
 	struct wlc_bsscfg *cfg;	/* the primary bsscfg (can be AP or STA) */
-	u8 stas_associated;	/* count of ASSOCIATED STA bsscfgs */
-	u8 aps_associated;	/* count of UP AP bsscfgs */
-	u8 block_datafifo;	/* prohibit posting frames to data fifos */
-	bool bcmcfifo_drain;	/* TX_BCMC_FIFO is set to drain */
 
 	/* tx queue */
 	struct wlc_txq_info *tx_queues;	/* common TX Queue list */
@@ -625,32 +588,17 @@ struct wlc_info {
 				 * treated as sw keys (used for debugging)
 				 */
 	struct modulecb *modulecb;
-	struct dumpcb_s *dumpcb_head;
 
 	u8 mimoft;		/* SIGN or 11N */
-	u8 mimo_band_bwcap;	/* bw cap per band type */
-	s8 txburst_limit_override;	/* tx burst limit override */
-	u16 txburst_limit;	/* tx burst limit value */
 	s8 cck_40txbw;	/* 11N, cck tx b/w override when in 40MHZ mode */
 	s8 ofdm_40txbw;	/* 11N, ofdm tx b/w override when in 40MHZ mode */
 	s8 mimo_40txbw;	/* 11N, mimo tx b/w override when in 40MHZ mode */
 	/* HT CAP IE being advertised by this node: */
 	struct ieee80211_ht_cap ht_cap;
 
-	uint seckeys;		/* 54 key table shm address */
-	uint tkmickeys;		/* 12 TKIP MIC key table shm address */
-
 	wlc_bss_info_t *default_bss;	/* configured BSS parameters */
 
-	u16 AID;		/* association ID */
-	u16 counter;		/* per-sdu monotonically increasing counter */
 	u16 mc_fid_counter;	/* BC/MC FIFO frame ID counter */
-
-	bool ibss_allowed;	/* false, all IBSS will be ignored during a scan
-				 * and the driver will not allow the creation of
-				 * an IBSS network
-				 */
-	bool ibss_coalesce_allowed;
 
 	char country_default[WLC_CNTRY_BUF_SZ];	/* saved country for leaving 802.11d
 						 * auto-country mode
@@ -658,10 +606,6 @@ struct wlc_info {
 	char autocountry_default[WLC_CNTRY_BUF_SZ];	/* initial country for 802.11d
 							 * auto-country mode
 							 */
-#ifdef BCMDBG
-	bcm_tlv_t *country_ie_override;	/* debug override of announced Country IE */
-#endif
-
 	u16 prb_resp_timeout;	/* do not send prb resp if request older than this,
 					 * 0 = disable
 					 */
@@ -683,43 +627,16 @@ struct wlc_info {
 	u16 LFBL;		/* Long Frame Rate Fallback Limit */
 
 	/* network config */
-	bool shortpreamble;	/* currently operating with CCK ShortPreambles */
 	bool shortslot;		/* currently using 11g ShortSlot timing */
-	s8 barker_preamble;	/* current Barker Preamble Mode */
 	s8 shortslot_override;	/* 11g ShortSlot override */
 	bool include_legacy_erp;	/* include Legacy ERP info elt ID 47 as well as g ID 42 */
-	bool barker_overlap_control;	/* true: be aware of overlapping BSSs for barker */
-	bool ignore_bcns;	/* override: ignore non shortslot bcns in a 11g network */
-	bool legacy_probe;	/* restricts probe requests to CCK rates */
 
 	struct wlc_protection *protection;
 	s8 PLCPHdr_override;	/* 802.11b Preamble Type override */
 
 	struct wlc_stf *stf;
 
-	struct pkt_cb *pkt_callback;	/* tx completion callback handlers */
-
-	u32 txretried;	/* tx retried number in one msdu */
-
 	ratespec_t bcn_rspec;	/* save bcn ratespec purpose */
-
-	bool apsd_sta_usp;	/* Unscheduled Service Period in progress on STA */
-	struct wl_timer *apsd_trigger_timer;	/* timer for wme apsd trigger frames */
-	u32 apsd_trigger_timeout;	/* timeout value for apsd_trigger_timer (in ms)
-					 * 0 == disable
-					 */
-	ac_bitmap_t apsd_trigger_ac;	/* Permissible Access Category in which APSD Null
-					 * Trigger frames can be send
-					 */
-	u8 htphy_membership;	/* HT PHY membership */
-
-	bool _regulatory_domain;	/* 802.11d enabled? */
-
-	u8 mimops_PM;
-
-	u8 txpwr_percent;	/* power output percentage */
-
-	u8 ht_wsec_restriction;	/* the restriction of HT with TKIP or WEP */
 
 	uint tempsense_lasttime;
 
@@ -728,7 +645,6 @@ struct wlc_info {
 
 	u16 next_bsscfg_ID;
 
-	struct wlc_if *wlcif_list;	/* linked list of wlc_if structs */
 	struct wlc_txq_info *pkt_queue; /* txq for transmit packets */
 	u32 mpc_dur;		/* total time (ms) in mpc mode except for the
 				 * portion since radio is turned off last time
@@ -736,8 +652,6 @@ struct wlc_info {
 	u32 mpc_laston_ts;	/* timestamp (ms) when radio is turned off last
 				 * time
 				 */
-	bool pr80838_war;
-	uint hwrxoff;
 	struct wiphy *wiphy;
 };
 

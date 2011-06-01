@@ -333,7 +333,7 @@ bool wlc_dpc(struct wlc_info *wlc, bool bounded)
 
 	/* BCN template is available */
 	/* ZZZ: Use AP_ACTIVE ? */
-	if (AP_ENAB(wlc->pub) && (!APSTA_ENAB(wlc->pub) || wlc->aps_associated)
+	if (AP_ENAB(wlc->pub) && (!APSTA_ENAB(wlc->pub))
 	    && (macintstatus & MI_BCNTPL)) {
 		wlc_update_beacon(wlc);
 	}
