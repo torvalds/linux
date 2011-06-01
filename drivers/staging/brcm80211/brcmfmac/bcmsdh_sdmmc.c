@@ -353,7 +353,6 @@ enum {
 	IOV_BLOCKSIZE,
 	IOV_USEINTS,
 	IOV_NUMINTS,
-	IOV_NUMLOCALINTS,
 	IOV_HOSTREG,
 	IOV_DEVREG,
 	IOV_DIVISOR,
@@ -371,7 +370,6 @@ const bcm_iovar_t sdioh_iovars[] = {
 								 size) */
 	{"sd_ints", IOV_USEINTS, 0, IOVT_BOOL, 0},
 	{"sd_numints", IOV_NUMINTS, 0, IOVT_UINT32, 0},
-	{"sd_numlocalints", IOV_NUMLOCALINTS, 0, IOVT_UINT32, 0},
 	{"sd_hostreg", IOV_HOSTREG, 0, IOVT_BUFFER, sizeof(sdreg_t)}
 	,
 	{"sd_devreg", IOV_DEVREG, 0, IOVT_BUFFER, sizeof(sdreg_t)}
@@ -563,11 +561,6 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_GVAL(IOV_NUMINTS):
 		int_val = (s32) si->intrcount;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_GVAL(IOV_NUMLOCALINTS):
-		int_val = (s32) 0;
 		memcpy(arg, &int_val, val_size);
 		break;
 
