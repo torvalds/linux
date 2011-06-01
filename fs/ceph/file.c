@@ -283,7 +283,7 @@ int ceph_release(struct inode *inode, struct file *file)
 static int striped_read(struct inode *inode,
 			u64 off, u64 len,
 			struct page **pages, int num_pages,
-			int *checkeof, bool align_to_pages,
+			int *checkeof, bool o_direct,
 			unsigned long buf_align)
 {
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
@@ -308,7 +308,7 @@ static int striped_read(struct inode *inode,
 	io_align = off & ~PAGE_MASK;
 
 more:
-	if (align_to_pages)
+	if (o_direct)
 		page_align = (pos - io_align + buf_align) & ~PAGE_MASK;
 	else
 		page_align = pos & ~PAGE_MASK;
@@ -346,20 +346,22 @@ more:
 	}
 
 	if (was_short) {
-		/* was original extent fully inside i_size? */
-		if (pos + left <= inode->i_size) {
-			dout("zero tail\n");
-			ceph_zero_page_vector_range(page_off + read, len - read,
-						    pages);
-			read = len;
-			goto out;
-		}
+		/* did we bounce off eof? */
+		if (pos + left > inode->i_size)
+			*checkeof = 1;
 
-		/* check i_size */
-		*checkeof = 1;
+		/* zero trailing bytes (inside i_size) */
+		if (left > 0 && pos < inode->i_size) {
+			if (pos + left > inode->i_size)
+				left = inode->i_size - pos;
+
+			dout("zero tail %d\n", left);
+			ceph_zero_page_vector_range(page_off + read, left,
+						    pages);
+			read += left;
+		}
 	}
 
-out:
 	if (ret >= 0)
 		ret = read;
 	dout("striped_read returns %d\n", ret);
@@ -659,7 +661,7 @@ out:
 
 		/* hit EOF or hole? */
 		if (statret == 0 && *ppos < inode->i_size) {
-			dout("aio_read sync_read hit hole, reading more\n");
+			dout("aio_read sync_read hit hole, ppos %lld < size %lld, reading more\n", *ppos, inode->i_size);
 			read += ret;
 			base += ret;
 			len -= ret;
