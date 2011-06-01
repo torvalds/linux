@@ -17,7 +17,6 @@
 #ifndef _wlc_pub_h_
 #define _wlc_pub_h_
 
-#include "proto/802.11.h"	/* for MCSSET_LEN */
 #include "bcmwifi.h"		/* for chanspec_t */
 
 #define	WLC_NUMRATES	16	/* max # of rates in a rateset */

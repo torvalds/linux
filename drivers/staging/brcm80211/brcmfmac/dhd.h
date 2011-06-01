@@ -37,7 +37,6 @@
 #include "bcmdefs.h"
 /* The kernel threading is sdio-specific */
 #include "bcmwifi.h"
-#include "proto/802.11.h"
 #include "proto/bcmeth.h"
 #include "proto/bcmevent.h"
 
