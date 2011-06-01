@@ -1144,11 +1144,14 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags)
 	}
 }
 
-static void b43_ssb_wireless_core_reset(struct b43_wldev *dev, u32 flags)
+static void b43_ssb_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 {
 	struct ssb_device *sdev = dev->dev->sdev;
 	u32 tmslow;
+	u32 flags = 0;
 
+	if (gmode)
+		flags |= B43_TMSLOW_GMODE;
 	flags |= B43_TMSLOW_PHYCLKEN;
 	flags |= B43_TMSLOW_PHYRESET;
 	if (dev->phy.type == B43_PHYTYPE_N)
@@ -1169,11 +1172,11 @@ static void b43_ssb_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 	msleep(1);
 }
 
-void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
+void b43_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 {
 	u32 macctl;
 
-	b43_ssb_wireless_core_reset(dev, flags);
+	b43_ssb_wireless_core_reset(dev, gmode);
 
 	/* Turn Analog ON, but only if we already know the PHY-type.
 	 * This protects against very early setup where we don't know the
@@ -1184,7 +1187,7 @@ void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 
 	macctl = b43_read32(dev, B43_MMIO_MACCTL);
 	macctl &= ~B43_MACCTL_GMODE;
-	if (flags & B43_TMSLOW_GMODE)
+	if (gmode)
 		macctl |= B43_MACCTL_GMODE;
 	macctl |= B43_MACCTL_IHR_ENABLED;
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
@@ -4328,17 +4331,14 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	struct b43_phy *phy = &dev->phy;
 	int err;
 	u64 hf;
-	u32 tmp;
 
 	B43_WARN_ON(b43_status(dev) != B43_STAT_UNINIT);
 
 	err = b43_bus_powerup(dev, 0);
 	if (err)
 		goto out;
-	if (!b43_device_is_enabled(dev)) {
-		tmp = phy->gmode ? B43_TMSLOW_GMODE : 0;
-		b43_wireless_core_reset(dev, tmp);
-	}
+	if (!b43_device_is_enabled(dev))
+		b43_wireless_core_reset(dev, phy->gmode);
 
 	/* Reset all data structures. */
 	setup_struct_wldev_for_init(dev);
@@ -4747,7 +4747,6 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	struct pci_dev *pdev = (bus->bustype == SSB_BUSTYPE_PCI) ? bus->host_pci : NULL;
 	int err;
 	bool have_2ghz_phy = 0, have_5ghz_phy = 0;
-	u32 tmp;
 
 	/* Do NOT do any device initialization here.
 	 * Do it in wireless_core_init() instead.
@@ -4773,8 +4772,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 
 	dev->phy.gmode = have_2ghz_phy;
 	dev->phy.radio_on = 1;
-	tmp = dev->phy.gmode ? B43_TMSLOW_GMODE : 0;
-	b43_wireless_core_reset(dev, tmp);
+	b43_wireless_core_reset(dev, dev->phy.gmode);
 
 	err = b43_phy_versioning(dev);
 	if (err)
@@ -4822,8 +4820,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 		goto err_powerdown;
 
 	dev->phy.gmode = have_2ghz_phy;
-	tmp = dev->phy.gmode ? B43_TMSLOW_GMODE : 0;
-	b43_wireless_core_reset(dev, tmp);
+	b43_wireless_core_reset(dev, dev->phy.gmode);
 
 	err = b43_validate_chipaccess(dev);
 	if (err)

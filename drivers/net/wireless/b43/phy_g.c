@@ -2535,7 +2535,7 @@ static int b43_gphy_op_prepare_hardware(struct b43_wldev *dev)
 		b43_wireless_core_reset(dev, 0);
 		b43_phy_initg(dev);
 		phy->gmode = 1;
-		b43_wireless_core_reset(dev, B43_TMSLOW_GMODE);
+		b43_wireless_core_reset(dev, 1);
 	}
 
 	return 0;
