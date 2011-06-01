@@ -141,6 +141,10 @@
 
 #define NPHY_ADJUSTED_MINCRSPOWER 0x1e
 
+/* 5357 Chip specific ChipControl register bits */
+#define CCTRL5357_EXTPA                 (1<<14)	/* extPA in ChipControl 1, bit 14 */
+#define CCTRL5357_ANT_MUX_2o3		(1<<15)	/* 2o3 in ChipControl 1, bit 15 */
+
 typedef struct _nphy_iqcal_params {
 	u16 txlpf;
 	u16 txgm;

@@ -29,7 +29,6 @@
 #include <bcmotp.h>
 #include <bcmutils.h>
 #include <bcmnvram.h>
-#include <sbconfig.h>
 #include <sbchipc.h>
 #include <pcicfg.h>
 #include <sbdma.h>

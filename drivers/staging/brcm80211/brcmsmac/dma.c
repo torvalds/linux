@@ -31,6 +31,123 @@
 #include <asm/addrspace.h>
 #endif
 
+/*
+ * Each descriptor ring must be 8kB aligned, and fit within a contiguous 8kB physical address.
+ */
+#define D64RINGALIGN_BITS	13
+#define	D64MAXRINGSZ		(1 << D64RINGALIGN_BITS)
+#define	D64RINGALIGN		(1 << D64RINGALIGN_BITS)
+
+#define	D64MAXDD	(D64MAXRINGSZ / sizeof (dma64dd_t))
+
+/* transmit channel control */
+#define	D64_XC_XE		0x00000001	/* transmit enable */
+#define	D64_XC_SE		0x00000002	/* transmit suspend request */
+#define	D64_XC_LE		0x00000004	/* loopback enable */
+#define	D64_XC_FL		0x00000010	/* flush request */
+#define	D64_XC_PD		0x00000800	/* parity check disable */
+#define	D64_XC_AE		0x00030000	/* address extension bits */
+#define	D64_XC_AE_SHIFT		16
+
+/* transmit descriptor table pointer */
+#define	D64_XP_LD_MASK		0x00000fff	/* last valid descriptor */
+
+/* transmit channel status */
+#define	D64_XS0_CD_MASK		0x00001fff	/* current descriptor pointer */
+#define	D64_XS0_XS_MASK		0xf0000000	/* transmit state */
+#define	D64_XS0_XS_SHIFT		28
+#define	D64_XS0_XS_DISABLED	0x00000000	/* disabled */
+#define	D64_XS0_XS_ACTIVE	0x10000000	/* active */
+#define	D64_XS0_XS_IDLE		0x20000000	/* idle wait */
+#define	D64_XS0_XS_STOPPED	0x30000000	/* stopped */
+#define	D64_XS0_XS_SUSP		0x40000000	/* suspend pending */
+
+#define	D64_XS1_AD_MASK		0x00001fff	/* active descriptor */
+#define	D64_XS1_XE_MASK		0xf0000000	/* transmit errors */
+#define	D64_XS1_XE_SHIFT		28
+#define	D64_XS1_XE_NOERR	0x00000000	/* no error */
+#define	D64_XS1_XE_DPE		0x10000000	/* descriptor protocol error */
+#define	D64_XS1_XE_DFU		0x20000000	/* data fifo underrun */
+#define	D64_XS1_XE_DTE		0x30000000	/* data transfer error */
+#define	D64_XS1_XE_DESRE	0x40000000	/* descriptor read error */
+#define	D64_XS1_XE_COREE	0x50000000	/* core error */
+
+/* receive channel control */
+#define	D64_RC_RE		0x00000001	/* receive enable */
+#define	D64_RC_RO_MASK		0x000000fe	/* receive frame offset */
+#define	D64_RC_RO_SHIFT		1
+#define	D64_RC_FM		0x00000100	/* direct fifo receive (pio) mode */
+#define	D64_RC_SH		0x00000200	/* separate rx header descriptor enable */
+#define	D64_RC_OC		0x00000400	/* overflow continue */
+#define	D64_RC_PD		0x00000800	/* parity check disable */
+#define	D64_RC_AE		0x00030000	/* address extension bits */
+#define	D64_RC_AE_SHIFT		16
+
+/* flags for dma controller */
+#define DMA_CTRL_PEN		(1 << 0)	/* partity enable */
+#define DMA_CTRL_ROC		(1 << 1)	/* rx overflow continue */
+#define DMA_CTRL_RXMULTI	(1 << 2)	/* allow rx scatter to multiple descriptors */
+#define DMA_CTRL_UNFRAMED	(1 << 3)	/* Unframed Rx/Tx data */
+
+/* receive descriptor table pointer */
+#define	D64_RP_LD_MASK		0x00000fff	/* last valid descriptor */
+
+/* receive channel status */
+#define	D64_RS0_CD_MASK		0x00001fff	/* current descriptor pointer */
+#define	D64_RS0_RS_MASK		0xf0000000	/* receive state */
+#define	D64_RS0_RS_SHIFT		28
+#define	D64_RS0_RS_DISABLED	0x00000000	/* disabled */
+#define	D64_RS0_RS_ACTIVE	0x10000000	/* active */
+#define	D64_RS0_RS_IDLE		0x20000000	/* idle wait */
+#define	D64_RS0_RS_STOPPED	0x30000000	/* stopped */
+#define	D64_RS0_RS_SUSP		0x40000000	/* suspend pending */
+
+#define	D64_RS1_AD_MASK		0x0001ffff	/* active descriptor */
+#define	D64_RS1_RE_MASK		0xf0000000	/* receive errors */
+#define	D64_RS1_RE_SHIFT		28
+#define	D64_RS1_RE_NOERR	0x00000000	/* no error */
+#define	D64_RS1_RE_DPO		0x10000000	/* descriptor protocol error */
+#define	D64_RS1_RE_DFU		0x20000000	/* data fifo overflow */
+#define	D64_RS1_RE_DTE		0x30000000	/* data transfer error */
+#define	D64_RS1_RE_DESRE	0x40000000	/* descriptor read error */
+#define	D64_RS1_RE_COREE	0x50000000	/* core error */
+
+/* fifoaddr */
+#define	D64_FA_OFF_MASK		0xffff	/* offset */
+#define	D64_FA_SEL_MASK		0xf0000	/* select */
+#define	D64_FA_SEL_SHIFT	16
+#define	D64_FA_SEL_XDD		0x00000	/* transmit dma data */
+#define	D64_FA_SEL_XDP		0x10000	/* transmit dma pointers */
+#define	D64_FA_SEL_RDD		0x40000	/* receive dma data */
+#define	D64_FA_SEL_RDP		0x50000	/* receive dma pointers */
+#define	D64_FA_SEL_XFD		0x80000	/* transmit fifo data */
+#define	D64_FA_SEL_XFP		0x90000	/* transmit fifo pointers */
+#define	D64_FA_SEL_RFD		0xc0000	/* receive fifo data */
+#define	D64_FA_SEL_RFP		0xd0000	/* receive fifo pointers */
+#define	D64_FA_SEL_RSD		0xe0000	/* receive frame status data */
+#define	D64_FA_SEL_RSP		0xf0000	/* receive frame status pointers */
+
+/* descriptor control flags 1 */
+#define D64_CTRL_COREFLAGS	0x0ff00000	/* core specific flags */
+#define	D64_CTRL1_EOT		((u32)1 << 28)	/* end of descriptor table */
+#define	D64_CTRL1_IOC		((u32)1 << 29)	/* interrupt on completion */
+#define	D64_CTRL1_EOF		((u32)1 << 30)	/* end of frame */
+#define	D64_CTRL1_SOF		((u32)1 << 31)	/* start of frame */
+
+/* descriptor control flags 2 */
+#define	D64_CTRL2_BC_MASK	0x00007fff	/* buffer byte count. real data len must <= 16KB */
+#define	D64_CTRL2_AE		0x00030000	/* address extension bits */
+#define	D64_CTRL2_AE_SHIFT	16
+#define D64_CTRL2_PARITY	0x00040000	/* parity bit */
+
+/* control flags in the range [27:20] are core-specific and not defined here */
+#define	D64_CTRL_CORE_MASK	0x0ff00000
+
+#define D64_RX_FRM_STS_LEN	0x0000ffff	/* frame length mask */
+#define D64_RX_FRM_STS_OVFL	0x00800000	/* RxOverFlow */
+#define D64_RX_FRM_STS_DSCRCNT	0x0f000000  /* no. of descriptors used - 1 */
+#define D64_RX_FRM_STS_DATATYPE	0xf0000000	/* core-dependent data type */
+
 /* debug/trace */
 #ifdef BCMDBG
 #define	DMA_ERROR(args) \
@@ -68,6 +185,17 @@ static uint dma_msg_level;
 
 #define R_SM(r)		(*(r))
 #define W_SM(r, v)	(*(r) = (v))
+
+/*
+ * DMA Descriptor
+ * Descriptors are only read by the hardware, never written back.
+ */
+typedef volatile struct {
+	u32 ctrl1;		/* misc control bits & bufcount */
+	u32 ctrl2;		/* buffer count and address extension */
+	u32 addrlow;		/* memory address of the date buffer, bits 31:0 */
+	u32 addrhigh;	/* memory address of the date buffer, bits 63:32 */
+} dma64dd_t;
 
 /* dma engine software state */
 typedef struct dma_info {

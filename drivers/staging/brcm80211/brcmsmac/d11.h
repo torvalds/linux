@@ -18,7 +18,6 @@
 #define	_D11_H
 
 #include <linux/ieee80211.h>
-#include <sbconfig.h>
 
 /* cpp contortions to concatenate w/arg prescan */
 #ifndef	PAD
@@ -440,9 +439,6 @@ typedef volatile struct _d11regs {
 
 	/* SHM *//* 0x800 - 0xEFE */
 	u16 PAD[0x380];	/* 0x800 - 0xEFE */
-
-	/* SB configuration registers: 0xF00 */
-	sbconfig_t sbconfig;	/* sb config regs occupy top 256 bytes */
 } d11regs_t;
 
 #define	PIHR_BASE	0x0400	/* byte address of packed IHR region */

@@ -24,12 +24,33 @@
 #define	PAD		_XSTR(__LINE__)
 #endif				/* PAD */
 
+/* dma registers per channel(xmt or rcv) */
+typedef volatile struct {
+	u32 control;		/* enable, et al */
+	u32 addr;		/* descriptor ring base address (4K aligned) */
+	u32 ptr;		/* last descriptor posted to chip */
+	u32 status;		/* current active descriptor, et al */
+} dma32regs_t;
+
+typedef volatile struct {
+	dma32regs_t xmt;	/* dma tx channel */
+	dma32regs_t rcv;	/* dma rx channel */
+} dma32regp_t;
+
 typedef volatile struct {
 	dma64regs_t xmt;	/* dma tx */
 	u32 PAD[2];
 	dma64regs_t rcv;	/* dma rx */
 	u32 PAD[2];
 } dma64p_t;
+
+
+typedef volatile struct {	/* diag access */
+	u32 fifoaddr;	/* diag address */
+	u32 fifodatalow;	/* low 32bits of data */
+	u32 fifodatahigh;	/* high 32bits of data */
+	u32 pad;		/* reserved */
+} dma64diag_t;
 
 /* dma64 sdiod corerev >= 1 */
 typedef volatile struct {
@@ -144,7 +165,7 @@ typedef volatile struct {
 	u32 PAD[464];
 
 	/* Sonics SiliconBackplane registers */
-	sbconfig_t sbconfig;	/* SbConfig Regs, 0xf00-0xfff, rev8 */
+	u16 PAD[0x80];		/* SbConfig Regs, 0xf00-0xfff, rev8 */
 } sdpcmd_regs_t;
 
 /* corecontrol */

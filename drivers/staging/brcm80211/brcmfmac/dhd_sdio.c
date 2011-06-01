@@ -230,6 +230,42 @@ typedef struct {
 /* Flags for SDH calls */
 #define F2SYNC	(SDIO_REQ_4BYTE | SDIO_REQ_FIXED)
 
+/* sbimstate */
+#define	SBIM_IBE		0x20000	/* inbanderror */
+#define	SBIM_TO			0x40000	/* timeout */
+#define	SBIM_BY			0x01800000	/* busy (sonics >= 2.3) */
+#define	SBIM_RJ			0x02000000	/* reject (sonics >= 2.3) */
+
+/* sbtmstatelow */
+#define	SBTML_RESET		0x0001	/* reset */
+#define	SBTML_REJ_MASK		0x0006	/* reject field */
+#define	SBTML_REJ		0x0002	/* reject */
+#define	SBTML_TMPREJ		0x0004	/* temporary reject, for error recovery */
+
+#define	SBTML_SICF_SHIFT	16	/* Shift to locate the SI control flags in sbtml */
+
+/* sbtmstatehigh */
+#define	SBTMH_SERR		0x0001	/* serror */
+#define	SBTMH_INT		0x0002	/* interrupt */
+#define	SBTMH_BUSY		0x0004	/* busy */
+#define	SBTMH_TO		0x0020	/* timeout (sonics >= 2.3) */
+
+#define	SBTMH_SISF_SHIFT	16	/* Shift to locate the SI status flags in sbtmh */
+
+/* sbidlow */
+#define	SBIDL_INIT		0x80	/* initiator */
+
+/* sbidhigh */
+#define	SBIDH_RC_MASK		0x000f	/* revision code */
+#define	SBIDH_RCE_MASK		0x7000	/* revision code extension field */
+#define	SBIDH_RCE_SHIFT		8
+#define	SBCOREREV(sbidh) \
+	((((sbidh) & SBIDH_RCE_MASK) >> SBIDH_RCE_SHIFT) | ((sbidh) & SBIDH_RC_MASK))
+#define	SBIDH_CC_MASK		0x8ff0	/* core code */
+#define	SBIDH_CC_SHIFT		4
+#define	SBIDH_VC_MASK		0xffff0000	/* vendor code */
+#define	SBIDH_VC_SHIFT		16
+
 /*
  * Conversion of 802.1D priority to precedence level
  */
@@ -240,6 +276,12 @@ typedef struct {
 DHD_SPINWAIT_SLEEP_INIT(sdioh_spinwait_sleep);
 extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
 			    uint len);
+
+/* Core reg address translation */
+#define CORE_CC_REG(base, field)	(base + offsetof(chipcregs_t, field))
+#define CORE_BUS_REG(base, field)	(base + offsetof(sdpcmd_regs_t, field))
+#define CORE_SB(base, field) \
+		(base + SBCONFIGOFF + offsetof(sbconfig_t, field))
 
 #ifdef DHD_DEBUG
 /* Device console log buffer state */
@@ -406,6 +448,50 @@ typedef struct dhd_bus {
 	u32 ctrl_frame_len;
 	bool ctrl_frame_stat;
 } dhd_bus_t;
+
+#ifndef _LANGUAGE_ASSEMBLY
+
+typedef volatile struct _sbconfig {
+	u32 PAD[2];
+	u32 sbipsflag;	/* initiator port ocp slave flag */
+	u32 PAD[3];
+	u32 sbtpsflag;	/* target port ocp slave flag */
+	u32 PAD[11];
+	u32 sbtmerrloga;	/* (sonics >= 2.3) */
+	u32 PAD;
+	u32 sbtmerrlog;	/* (sonics >= 2.3) */
+	u32 PAD[3];
+	u32 sbadmatch3;	/* address match3 */
+	u32 PAD;
+	u32 sbadmatch2;	/* address match2 */
+	u32 PAD;
+	u32 sbadmatch1;	/* address match1 */
+	u32 PAD[7];
+	u32 sbimstate;	/* initiator agent state */
+	u32 sbintvec;	/* interrupt mask */
+	u32 sbtmstatelow;	/* target state */
+	u32 sbtmstatehigh;	/* target state */
+	u32 sbbwa0;		/* bandwidth allocation table0 */
+	u32 PAD;
+	u32 sbimconfiglow;	/* initiator configuration */
+	u32 sbimconfighigh;	/* initiator configuration */
+	u32 sbadmatch0;	/* address match0 */
+	u32 PAD;
+	u32 sbtmconfiglow;	/* target configuration */
+	u32 sbtmconfighigh;	/* target configuration */
+	u32 sbbconfig;	/* broadcast configuration */
+	u32 PAD;
+	u32 sbbstate;	/* broadcast state */
+	u32 PAD[3];
+	u32 sbactcnfg;	/* activate configuration */
+	u32 PAD[3];
+	u32 sbflagst;	/* current sbflags */
+	u32 PAD[3];
+	u32 sbidlow;		/* identification */
+	u32 sbidhigh;	/* identification */
+} sbconfig_t;
+
+#endif				/* _LANGUAGE_ASSEMBLY */
 
 /* clkstate */
 #define CLK_NONE	0

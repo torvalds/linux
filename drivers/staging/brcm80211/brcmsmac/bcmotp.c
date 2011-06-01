@@ -29,6 +29,37 @@
 #include <sbchipc.h>
 #include <bcmotp.h>
 
+#define OTPS_GUP_MASK		0x00000f00
+#define OTPS_GUP_SHIFT		8
+#define OTPS_GUP_HW		0x00000100	/* h/w subregion is programmed */
+#define OTPS_GUP_SW		0x00000200	/* s/w subregion is programmed */
+#define OTPS_GUP_CI		0x00000400	/* chipid/pkgopt subregion is programmed */
+#define OTPS_GUP_FUSE		0x00000800	/* fuse subregion is programmed */
+
+/* Fields in otpprog in rev >= 21 and HND OTP */
+#define OTPP_COL_MASK		0x000000ff
+#define OTPP_COL_SHIFT		0
+#define OTPP_ROW_MASK		0x0000ff00
+#define OTPP_ROW_SHIFT		8
+#define OTPP_OC_MASK		0x0f000000
+#define OTPP_OC_SHIFT		24
+#define OTPP_READERR		0x10000000
+#define OTPP_VALUE_MASK		0x20000000
+#define OTPP_VALUE_SHIFT	29
+#define OTPP_START_BUSY		0x80000000
+#define	OTPP_READ		0x40000000	/* HND OTP */
+
+/* Opcodes for OTPP_OC field */
+#define OTPPOC_READ		0
+#define OTPPOC_BIT_PROG		1
+#define OTPPOC_VERIFY		3
+#define OTPPOC_INIT		4
+#define OTPPOC_SET		5
+#define OTPPOC_RESET		6
+#define OTPPOC_OCST		7
+#define OTPPOC_ROW_LOCK		8
+#define OTPPOC_PRESCN_TEST	9
+
 /*
  * There are two different OTP controllers so far:
  * 	1. new IPX OTP controller:	chipc 21, >=23

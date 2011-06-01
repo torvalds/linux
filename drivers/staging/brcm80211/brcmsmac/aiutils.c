@@ -35,6 +35,134 @@
 #include <bcmsrom.h>
 #include <wlc_pmu.h>
 
+/* slow_clk_ctl */
+#define SCC_SS_MASK		0x00000007	/* slow clock source mask */
+#define	SCC_SS_LPO		0x00000000	/* source of slow clock is LPO */
+#define	SCC_SS_XTAL		0x00000001	/* source of slow clock is crystal */
+#define	SCC_SS_PCI		0x00000002	/* source of slow clock is PCI */
+#define SCC_LF			0x00000200	/* LPOFreqSel, 1: 160Khz, 0: 32KHz */
+#define SCC_LP			0x00000400	/* LPOPowerDown, 1: LPO is disabled,
+						 * 0: LPO is enabled
+						 */
+#define SCC_FS			0x00000800	/* ForceSlowClk, 1: sb/cores running on slow clock,
+						 * 0: power logic control
+						 */
+#define SCC_IP			0x00001000	/* IgnorePllOffReq, 1/0: power logic ignores/honors
+						 * PLL clock disable requests from core
+						 */
+#define SCC_XC			0x00002000	/* XtalControlEn, 1/0: power logic does/doesn't
+						 * disable crystal when appropriate
+						 */
+#define SCC_XP			0x00004000	/* XtalPU (RO), 1/0: crystal running/disabled */
+#define SCC_CD_MASK		0xffff0000	/* ClockDivider (SlowClk = 1/(4+divisor)) */
+#define SCC_CD_SHIFT		16
+
+/* system_clk_ctl */
+#define	SYCC_IE			0x00000001	/* ILPen: Enable Idle Low Power */
+#define	SYCC_AE			0x00000002	/* ALPen: Enable Active Low Power */
+#define	SYCC_FP			0x00000004	/* ForcePLLOn */
+#define	SYCC_AR			0x00000008	/* Force ALP (or HT if ALPen is not set */
+#define	SYCC_HR			0x00000010	/* Force HT */
+#define SYCC_CD_MASK		0xffff0000	/* ClkDiv  (ILP = 1/(4 * (divisor + 1)) */
+#define SYCC_CD_SHIFT		16
+
+#define CST4329_SPROM_OTP_SEL_MASK	0x00000003
+#define CST4329_DEFCIS_SEL		0	/* OTP is powered up, use def. CIS, no SPROM */
+#define CST4329_SPROM_SEL		1	/* OTP is powered up, SPROM is present */
+#define CST4329_OTP_SEL			2	/* OTP is powered up, no SPROM */
+#define CST4329_OTP_PWRDN		3	/* OTP is powered down, SPROM is present */
+#define CST4329_SPI_SDIO_MODE_MASK	0x00000004
+#define CST4329_SPI_SDIO_MODE_SHIFT	2
+
+/* 43224 chip-specific ChipControl register bits */
+#define CCTRL43224_GPIO_TOGGLE          0x8000
+#define CCTRL_43224A0_12MA_LED_DRIVE    0x00F000F0	/* 12 mA drive strength */
+#define CCTRL_43224B0_12MA_LED_DRIVE    0xF0	/* 12 mA drive strength for later 43224s */
+
+/* 43236 Chip specific ChipStatus register bits */
+#define CST43236_SFLASH_MASK		0x00000040
+#define CST43236_OTP_MASK		0x00000080
+#define CST43236_HSIC_MASK		0x00000100	/* USB/HSIC */
+#define CST43236_BP_CLK			0x00000200	/* 120/96Mbps */
+#define CST43236_BOOT_MASK		0x00001800
+#define CST43236_BOOT_SHIFT		11
+#define CST43236_BOOT_FROM_SRAM		0	/* boot from SRAM, ARM in reset */
+#define CST43236_BOOT_FROM_ROM		1	/* boot from ROM */
+#define CST43236_BOOT_FROM_FLASH	2	/* boot from FLASH */
+#define CST43236_BOOT_FROM_INVALID	3
+
+/* 4331 chip-specific ChipControl register bits */
+#define CCTRL4331_BT_COEXIST		(1<<0)	/* 0 disable */
+#define CCTRL4331_SECI			(1<<1)	/* 0 SECI is disabled (JATG functional) */
+#define CCTRL4331_EXT_LNA		(1<<2)	/* 0 disable */
+#define CCTRL4331_SPROM_GPIO13_15       (1<<3)	/* sprom/gpio13-15 mux */
+#define CCTRL4331_EXTPA_EN		(1<<4)	/* 0 ext pa disable, 1 ext pa enabled */
+#define CCTRL4331_GPIOCLK_ON_SPROMCS	(1<<5)	/* set drive out GPIO_CLK on sprom_cs pin */
+#define CCTRL4331_PCIE_MDIO_ON_SPROMCS	(1<<6)	/* use sprom_cs pin as PCIE mdio interface */
+#define CCTRL4331_EXTPA_ON_GPIO2_5	(1<<7)	/* aband extpa will be at gpio2/5 and sprom_dout */
+#define CCTRL4331_OVR_PIPEAUXCLKEN	(1<<8)	/* override core control on pipe_AuxClkEnable */
+#define CCTRL4331_OVR_PIPEAUXPWRDOWN	(1<<9)	/* override core control on pipe_AuxPowerDown */
+#define CCTRL4331_PCIE_AUXCLKEN		(1<<10)	/* pcie_auxclkenable */
+#define CCTRL4331_PCIE_PIPE_PLLDOWN	(1<<11)	/* pcie_pipe_pllpowerdown */
+#define CCTRL4331_BT_SHD0_ON_GPIO4	(1<<16)	/* enable bt_shd0 at gpio4 */
+#define CCTRL4331_BT_SHD1_ON_GPIO5	(1<<17)	/* enable bt_shd1 at gpio5 */
+
+/* 4331 Chip specific ChipStatus register bits */
+#define	CST4331_XTAL_FREQ		0x00000001	/* crystal frequency 20/40Mhz */
+#define	CST4331_SPROM_PRESENT		0x00000002
+#define	CST4331_OTP_PRESENT		0x00000004
+#define	CST4331_LDO_RF			0x00000008
+#define	CST4331_LDO_PAR			0x00000010
+
+/* 4319 chip-specific ChipStatus register bits */
+#define	CST4319_SPI_CPULESSUSB		0x00000001
+#define	CST4319_SPI_CLK_POL		0x00000002
+#define	CST4319_SPI_CLK_PH		0x00000008
+#define	CST4319_SPROM_OTP_SEL_MASK	0x000000c0	/* gpio [7:6], SDIO CIS selection */
+#define	CST4319_SPROM_OTP_SEL_SHIFT	6
+#define	CST4319_DEFCIS_SEL		0x00000000	/* use default CIS, OTP is powered up */
+#define	CST4319_SPROM_SEL		0x00000040	/* use SPROM, OTP is powered up */
+#define	CST4319_OTP_SEL			0x00000080	/* use OTP, OTP is powered up */
+#define	CST4319_OTP_PWRDN		0x000000c0	/* use SPROM, OTP is powered down */
+#define	CST4319_SDIO_USB_MODE		0x00000100	/* gpio [8], sdio/usb mode */
+#define	CST4319_REMAP_SEL_MASK		0x00000600
+#define	CST4319_ILPDIV_EN		0x00000800
+#define	CST4319_XTAL_PD_POL		0x00001000
+#define	CST4319_LPO_SEL			0x00002000
+#define	CST4319_RES_INIT_MODE		0x0000c000
+#define	CST4319_PALDO_EXTPNP		0x00010000	/* PALDO is configured with external PNP */
+#define	CST4319_CBUCK_MODE_MASK		0x00060000
+#define CST4319_CBUCK_MODE_BURST	0x00020000
+#define CST4319_CBUCK_MODE_LPBURST	0x00060000
+#define	CST4319_RCAL_VALID		0x01000000
+#define	CST4319_RCAL_VALUE_MASK		0x3e000000
+#define	CST4319_RCAL_VALUE_SHIFT	25
+
+/* 4336 chip-specific ChipStatus register bits */
+#define	CST4336_SPI_MODE_MASK		0x00000001
+#define	CST4336_SPROM_PRESENT		0x00000002
+#define	CST4336_OTP_PRESENT		0x00000004
+#define	CST4336_ARMREMAP_0		0x00000008
+#define	CST4336_ILPDIV_EN_MASK		0x00000010
+#define	CST4336_ILPDIV_EN_SHIFT		4
+#define	CST4336_XTAL_PD_POL_MASK	0x00000020
+#define	CST4336_XTAL_PD_POL_SHIFT	5
+#define	CST4336_LPO_SEL_MASK		0x00000040
+#define	CST4336_LPO_SEL_SHIFT		6
+#define	CST4336_RES_INIT_MODE_MASK	0x00000180
+#define	CST4336_RES_INIT_MODE_SHIFT	7
+#define	CST4336_CBUCK_MODE_MASK		0x00000600
+#define	CST4336_CBUCK_MODE_SHIFT	9
+
+/* 4313 chip-specific ChipStatus register bits */
+#define	CST4313_SPROM_PRESENT			1
+#define	CST4313_OTP_PRESENT			2
+#define	CST4313_SPROM_OTP_SEL_MASK		0x00000002
+#define	CST4313_SPROM_OTP_SEL_SHIFT		0
+
+/* 4313 Chip specific ChipControl register bits */
+#define CCTRL_4313_12MA_LED_DRIVE    0x00000007	/* 12 mA drive strengh for later 4313 */
+
 #define BCM47162_DMP() ((sih->chip == BCM47162_CHIP_ID) && \
 		(sih->chiprev == 0) && \
 		(sii->coreid[sii->curidx] == MIPS74K_CORE_ID))

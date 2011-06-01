@@ -225,6 +225,52 @@
 #define	BISZ_BSSEND_IDX		6	/*      6: bss end */
 #define BISZ_SIZE		7	/* descriptor size in 32-bit integers */
 
+#define	CC_SROM_OTP		0x800	/* SROM/OTP address space */
+
+/* gpiotimerval */
+#define GPIO_ONTIME_SHIFT	16
+
+/* Fields in clkdiv */
+#define	CLKD_OTP		0x000f0000
+#define	CLKD_OTP_SHIFT		16
+
+/* When Srom support present, fields in sromcontrol */
+#define	SRC_START		0x80000000
+#define	SRC_BUSY		0x80000000
+#define	SRC_OPCODE		0x60000000
+#define	SRC_OP_READ		0x00000000
+#define	SRC_OP_WRITE		0x20000000
+#define	SRC_OP_WRDIS		0x40000000
+#define	SRC_OP_WREN		0x60000000
+#define	SRC_OTPSEL		0x00000010
+#define	SRC_LOCK		0x00000008
+#define	SRC_SIZE_MASK		0x00000006
+#define	SRC_SIZE_1K		0x00000000
+#define	SRC_SIZE_4K		0x00000002
+#define	SRC_SIZE_16K		0x00000004
+#define	SRC_SIZE_SHIFT		1
+#define	SRC_PRESENT		0x00000001
+
+/* 4330 chip-specific ChipStatus register bits */
+#define CST4330_CHIPMODE_SDIOD(cs)	(((cs) & 0x7) < 6)	/* SDIO || gSPI */
+#define CST4330_CHIPMODE_USB20D(cs)	(((cs) & 0x7) >= 6)	/* USB || USBDA */
+#define CST4330_CHIPMODE_SDIO(cs)	(((cs) & 0x4) == 0)	/* SDIO */
+#define CST4330_CHIPMODE_GSPI(cs)	(((cs) & 0x6) == 4)	/* gSPI */
+#define CST4330_CHIPMODE_USB(cs)	(((cs) & 0x7) == 6)	/* USB packet-oriented */
+#define CST4330_CHIPMODE_USBDA(cs)	(((cs) & 0x7) == 7)	/* USB Direct Access */
+#define	CST4330_OTP_PRESENT		0x00000010
+#define	CST4330_LPO_AUTODET_EN		0x00000020
+#define	CST4330_ARMREMAP_0		0x00000040
+#define	CST4330_SPROM_PRESENT		0x00000080	/* takes priority over OTP if both set */
+#define	CST4330_ILPDIV_EN		0x00000100
+#define	CST4330_LPO_SEL			0x00000200
+#define	CST4330_RES_INIT_MODE_SHIFT	10
+#define	CST4330_RES_INIT_MODE_MASK	0x00000c00
+#define CST4330_CBUCK_MODE_SHIFT	12
+#define CST4330_CBUCK_MODE_MASK		0x00003000
+#define	CST4330_CBUCK_POWER_OK		0x00004000
+#define	CST4330_BB_PLL_LOCKED		0x00008000
+
 #define	SI_INFO(sih)	(si_info_t *)sih
 
 #define	GOODCOREADDR(x, b) \

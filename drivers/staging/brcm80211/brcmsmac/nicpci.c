@@ -29,6 +29,9 @@
 #include <nicpci.h>
 #include <pcicfg.h>
 
+/* chipcontrol */
+#define CHIPCTRL_4321_PLL_DOWN	0x800000	/* serdes PLL down override */
+
 typedef struct {
 	union {
 		sbpcieregs_t *pcieregs;

@@ -29,7 +29,6 @@
 #include <bcmutils.h>
 #include <bcmwifi.h>
 #include <aiutils.h>
-#include <sbconfig.h>
 #include <sbchipc.h>
 #include <pcicfg.h>
 #include <sbdma.h>
