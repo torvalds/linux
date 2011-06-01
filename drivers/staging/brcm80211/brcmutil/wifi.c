@@ -16,7 +16,7 @@
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <bcmdefs.h>
+#include <defs.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 

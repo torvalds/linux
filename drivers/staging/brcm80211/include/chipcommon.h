@@ -17,7 +17,7 @@
 #ifndef	_SBCHIPC_H
 #define	_SBCHIPC_H
 
-#include "bcmdefs.h"		/* for PAD macro */
+#include "defs.h"		/* for PAD macro */
 
 typedef volatile struct {
 	u32 chipid;		/* 0x0 */

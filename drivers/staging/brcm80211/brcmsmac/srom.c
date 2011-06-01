@@ -16,19 +16,19 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/etherdevice.h>
-#include <bcmdefs.h>
+#include <defs.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <stdarg.h>
-#include "wlc_types.h"
+#include "types.h"
 #include <brcmu_utils.h>
-#include <bcmsoc.h>
+#include <soc.h>
 #include <chipcommon.h>
-#include <bcmdevs.h>
+#include <brcm_hw_ids.h>
 #include <nicpci.h>
 #include <aiutils.h>
-#include <bcmsrom.h>
-#include <bcmotp.h>
+#include <srom.h>
+#include "otp.h"
 
 #define SROM_OFFSET(sih) ((sih->ccrev > 31) ? \
 	(((sih->cccaps & CC_CAP_SROM) == 0) ? NULL : \

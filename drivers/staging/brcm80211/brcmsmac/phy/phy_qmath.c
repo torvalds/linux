@@ -16,7 +16,7 @@
 
 #include <linux/types.h>
 
-#include "wlc_phy_qmath.h"
+#include "phy_qmath.h"
 
 /*
 Description: This function make 16 bit unsigned multiplication. To fit the output into

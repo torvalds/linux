@@ -21,14 +21,14 @@
 #include <linux/pci.h>
 #include <linux/crc-ccitt.h>
 
-#include <bcmdefs.h>
-#include <bcmdevs.h>
-#include "wlc_types.h"
+#include <defs.h>
+#include <brcm_hw_ids.h>
+#include "types.h"
 #include <brcmu_utils.h>
 #include <aiutils.h>
-#include <bcmsoc.h>
+#include <soc.h>
 #include <chipcommon.h>
-#include <bcmotp.h>
+#include "otp.h"
 
 #define OTPS_GUP_MASK		0x00000f00
 #define OTPS_GUP_SHIFT		8

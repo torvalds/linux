@@ -16,17 +16,6 @@
 #ifndef _BRCM_BOTTOM_MAC_H_
 #define _BRCM_BOTTOM_MAC_H_
 
-/* XXXXX this interface is under wlc.c by design
- * http://hwnbu-twiki.broadcom.com/bin/view/Mwgroup/WlBmacDesign
- *
- *        high driver files(e.g. wlc_ampdu.c etc)
- *             wlc.h/wlc.c
- *         wlc_bmac.h/wlc_bmac.c
- *
- *  So don't include this in files other than wlc.c, wlc_bmac* wl_rte.c(dongle port) and wl_phy.c
- *  create wrappers in wlc.c if needed
- */
-
 /* dup state between BMAC(struct wlc_hw_info) and HIGH(struct wlc_info)
    driver */
 typedef struct wlc_bmac_state {

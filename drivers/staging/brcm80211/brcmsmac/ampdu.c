@@ -16,24 +16,23 @@
 #include <linux/kernel.h>
 #include <net/mac80211.h>
 
-#include <bcmdefs.h>
+#include <defs.h>
 #include <brcmu_utils.h>
 #include <aiutils.h>
-#include "bcmdma.h"
-#include <bcmdma.h>
+#include "dma.h"
 #include <d11.h>
 
-#include "wlc_types.h"
-#include "wlc_cfg.h"
-#include "wlc_rate.h"
-#include "wlc_scb.h"
-#include "wlc_pub.h"
-#include "wlc_key.h"
-#include "phy/wlc_phy_hal.h"
-#include "wlc_antsel.h"
-#include "wlc_channel.h"
-#include "wlc_main.h"
-#include "wlc_ampdu.h"
+#include "types.h"
+#include "cfg.h"
+#include "rate.h"
+#include "scb.h"
+#include "pub.h"
+#include "key.h"
+#include "phy/phy_hal.h"
+#include "antsel.h"
+#include "channel.h"
+#include "main.h"
+#include "ampdu.h"
 
 #define AMPDU_MAX_MPDU		32	/* max number of mpdus in an ampdu */
 #define AMPDU_NUM_MPDU_LEGACY	16	/* max number of mpdus in an ampdu to a legacy */

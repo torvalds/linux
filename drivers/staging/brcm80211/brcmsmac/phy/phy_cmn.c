@@ -14,7 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <wlc_cfg.h>
+#include <cfg.h>
 
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -23,16 +23,16 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <bcmdefs.h>
+#include <defs.h>
 #include <chipcommon.h>
-#include <bcmdevs.h>
-#include "bcmdma.h"
+#include <brcm_hw_ids.h>
+#include <dma.h>
 
-#include <wlc_types.h>
-#include <wlc_phy_int.h>
-#include <wlc_phyreg_n.h>
-#include <wlc_phy_radio.h>
-#include <wlc_phy_lcn.h>
+#include <types.h>
+#include <phy_int.h>
+#include <phyreg_n.h>
+#include <phy_radio.h>
+#include <phy_lcn.h>
 
 u32 phyhal_msg_level = PHYHAL_ERROR;
 

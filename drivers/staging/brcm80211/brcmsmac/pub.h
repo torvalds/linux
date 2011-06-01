@@ -17,7 +17,7 @@
 #ifndef _BRCM_PUB_H_
 #define _BRCM_PUB_H_
 
-#include "wlc_types.h"		/* forward structure declarations */
+#include "types.h"		/* forward structure declarations */
 #include "brcmu_wifi.h"		/* for chanspec_t */
 
 #define	WLC_NUMRATES	16	/* max # of rates in a rateset */

@@ -25,10 +25,10 @@
 #include <linux/completion.h>
 #include <linux/sched.h>
 
-#include <bcmdefs.h>
-#include <bcmdevs.h>
+#include <defs.h>
+#include <brcm_hw_ids.h>
 #include <brcmu_utils.h>
-#include <bcmsdh.h>
+#include <sdio_host.h>
 #include <brcmu_wifi.h>
 
 #if defined(OOB_INTR_ONLY)

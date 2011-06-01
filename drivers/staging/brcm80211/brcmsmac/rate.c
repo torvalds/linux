@@ -16,17 +16,17 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include <bcmdefs.h>
+#include <defs.h>
 #include <brcmu_utils.h>
 #include <aiutils.h>
-#include "bcmdma.h"
+#include "dma.h"
 
-#include "wlc_types.h"
+#include "types.h"
 #include "d11.h"
-#include "wlc_cfg.h"
-#include "wlc_scb.h"
-#include "wlc_pub.h"
-#include "wlc_rate.h"
+#include "cfg.h"
+#include "scb.h"
+#include "pub.h"
+#include "rate.h"
 
 /* Rate info per rate: It tells whether a rate is ofdm or not and its phy_rate value */
 const u8 rate_info[WLC_MAXRATE + 1] = {

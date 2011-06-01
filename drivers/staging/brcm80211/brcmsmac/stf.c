@@ -17,24 +17,24 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include <bcmdefs.h>
+#include <defs.h>
 #include <brcmu_utils.h>
 #include <aiutils.h>
 #include <brcmu_wifi.h>
-#include "bcmdma.h"
+#include "dma.h"
 
-#include "wlc_types.h"
+#include "types.h"
 #include "d11.h"
-#include "wlc_cfg.h"
-#include "wlc_rate.h"
-#include "wlc_scb.h"
-#include "wlc_pub.h"
-#include "wlc_key.h"
-#include "phy/wlc_phy_hal.h"
-#include "wlc_channel.h"
-#include "wlc_main.h"
-#include "wlc_bmac.h"
-#include "wlc_stf.h"
+#include "cfg.h"
+#include "rate.h"
+#include "scb.h"
+#include "pub.h"
+#include "key.h"
+#include "phy/phy_hal.h"
+#include "channel.h"
+#include "main.h"
+#include "bottom_mac.h"
+#include "stf.h"
 
 #define MIN_SPATIAL_EXPANSION	0
 #define MAX_SPATIAL_EXPANSION	1

@@ -18,13 +18,13 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 
-#include <bcmdevs.h>
-#include "wlc_types.h"
+#include <brcm_hw_ids.h>
+#include "types.h"
 #include <chipcommon.h>
 #include <brcmu_utils.h>
-#include "wlc_scb.h"
-#include "wlc_pub.h"
-#include "wlc_pmu.h"
+#include "scb.h"
+#include "pub.h"
+#include "pmu.h"
 
 /*
  * d11 slow to fast clock transition time in slow clock cycles

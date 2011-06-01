@@ -17,7 +17,7 @@
 #ifndef	_BRCM_DMA_H_
 #define	_BRCM_DMA_H_
 
-#include "wlc_types.h"		/* forward structure declarations */
+#include "types.h"		/* forward structure declarations */
 
 #ifndef _dma_pub_
 #define _dma_pub_

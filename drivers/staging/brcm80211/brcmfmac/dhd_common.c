@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/sched.h>
-#include <bcmdefs.h>
+#include <defs.h>
 #include <brcmu_wifi.h>
 #include <linux/netdevice.h>
 #include <asm/unaligned.h>

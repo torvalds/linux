@@ -15,7 +15,7 @@
  */
 
 #include <linux/types.h>
-#include <bcmdefs.h>
+#include <defs.h>
 #include <ucode_loader.h>
 
 enum {

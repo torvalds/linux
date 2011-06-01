@@ -166,7 +166,7 @@ extern const u8 prio2fifo[];
 #define	MAXTXFRAMEBURST		8	/* vanilla xpress mode: max frames/burst */
 #define	MAXFRAMEBURST_TXOP	10000	/* Frameburst TXOP in usec */
 
-/* Per-AC retry limit register definitions; uses bcmdefs.h bitfield macros */
+/* Per-AC retry limit register definitions; uses defs.h bitfield macros */
 #define EDCF_SHORT_S            0
 #define EDCF_SFB_S              4
 #define EDCF_LONG_S             8

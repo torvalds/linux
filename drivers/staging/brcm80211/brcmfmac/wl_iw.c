@@ -16,7 +16,7 @@
 
 #include <linux/kthread.h>
 #include <linux/semaphore.h>
-#include <bcmdefs.h>
+#include <defs.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>

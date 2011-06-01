@@ -16,11 +16,11 @@
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/mmc/sdio.h>
-#include <bcmdefs.h>
-#include <bcmdevs.h>
+#include <defs.h>
+#include <brcm_hw_ids.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
-#include <bcmsdh.h>
+#include <sdio_host.h>
 #include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */
 #include <sdiovar.h>		/* ioctl/iovars */
 

@@ -25,22 +25,22 @@
 #include <linux/sched.h>
 #include <linux/firmware.h>
 #include <net/mac80211.h>
-#include <bcmdefs.h>
+#include <defs.h>
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
 #include <nicpci.h>
-#include "bcmdma.h"
+#include "dma.h"
 
-#include "phy/wlc_phy_int.h"
+#include "phy/phy_int.h"
 #include "d11.h"
-#include "wlc_types.h"
-#include "wlc_cfg.h"
-#include "wlc_key.h"
-#include "wlc_channel.h"
-#include "wlc_scb.h"
-#include "wlc_pub.h"
+#include "types.h"
+#include "cfg.h"
+#include "key.h"
+#include "channel.h"
+#include "scb.h"
+#include "pub.h"
 #include "ucode_loader.h"
-#include "brcms_mac80211.h"
+#include "mac80211_if.h"
 
 #define N_TX_QUEUES	4 /* #tx queues on mac80211<->driver interface */
 

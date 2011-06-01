@@ -14,28 +14,28 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <wlc_cfg.h>
+#include <cfg.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <bcmdefs.h>
+#include <defs.h>
 #include <brcmu_utils.h>
 #include <aiutils.h>
-#include <bcmdevs.h>
-#include "bcmdma.h"
+#include <brcm_hw_ids.h>
+#include "dma.h"
 
 #include "d11.h"
-#include "wlc_rate.h"
-#include "wlc_key.h"
-#include "wlc_scb.h"
-#include "wlc_pub.h"
-#include "phy/wlc_phy_hal.h"
-#include "wlc_bmac.h"
-#include "wlc_channel.h"
-#include "wlc_main.h"
-#include "wlc_antsel.h"
+#include "rate.h"
+#include "key.h"
+#include "scb.h"
+#include "pub.h"
+#include "phy/phy_hal.h"
+#include "bottom_mac.h"
+#include "channel.h"
+#include "main.h"
+#include "antsel.h"
 
 #define ANT_SELCFG_AUTO		0x80	/* bit indicates antenna sel AUTO */
 #define ANT_SELCFG_MASK		0x33	/* antenna configuration mask */

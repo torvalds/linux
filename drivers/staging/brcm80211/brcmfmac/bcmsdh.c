@@ -19,13 +19,13 @@
 #include <linux/netdevice.h>
 #include <linux/pci_ids.h>
 #include <linux/sched.h>
-#include <bcmdefs.h>
-#include <bcmdevs.h>
+#include <defs.h>
+#include <brcm_hw_ids.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
-#include <bcmsoc.h>
+#include <soc.h>
 
-#include <bcmsdh.h>		/* BRCM API for SDIO
+#include <sdio_host.h>		/* BRCM API for SDIO
 			 clients (such as wl, dhd) */
 #include <bcmsdbus.h>		/* common SDIO/controller interface */
 #include <sbsdio.h>		/* BRCM sdio device core */

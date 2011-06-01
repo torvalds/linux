@@ -18,10 +18,10 @@
 #define _BRCM_PHY_INT_H_
 
 #include <linux/kernel.h>
-#include <bcmdefs.h>
+#include <defs.h>
 #include <brcmu_utils.h>
 
-#include <wlc_phy_hal.h>
+#include <phy_hal.h>
 
 #define	PHY_VERSION			{ 1, 82, 8, 0 }
 

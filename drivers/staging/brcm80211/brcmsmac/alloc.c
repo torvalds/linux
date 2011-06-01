@@ -16,23 +16,23 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-#include <bcmdefs.h>
+#include <defs.h>
 #include <brcmu_utils.h>
 #include <aiutils.h>
-#include "bcmdma.h"
+#include "dma.h"
 
 #include "d11.h"
-#include "wlc_types.h"
-#include "wlc_cfg.h"
-#include "wlc_scb.h"
-#include "wlc_pub.h"
-#include "wlc_key.h"
-#include "wlc_alloc.h"
-#include "wlc_rate.h"
-#include "wlc_bsscfg.h"
-#include "phy/wlc_phy_hal.h"
-#include "wlc_channel.h"
-#include "wlc_main.h"
+#include "types.h"
+#include "cfg.h"
+#include "scb.h"
+#include "pub.h"
+#include "key.h"
+#include "alloc.h"
+#include "rate.h"
+#include "bsscfg.h"
+#include "phy/phy_hal.h"
+#include "channel.h"
+#include "main.h"
 
 static struct wlc_bsscfg *wlc_bsscfg_malloc(uint unit);
 static void wlc_bsscfg_mfree(struct wlc_bsscfg *cfg);

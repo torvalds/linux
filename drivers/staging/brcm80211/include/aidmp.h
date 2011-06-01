@@ -17,7 +17,7 @@
 #ifndef	_AIDMP_H
 #define	_AIDMP_H
 
-#include "bcmdefs.h"		/* for PAD macro */
+#include "defs.h"		/* for PAD macro */
 
 /* Manufacturer Ids */
 #define	MFGID_ARM		0x43b

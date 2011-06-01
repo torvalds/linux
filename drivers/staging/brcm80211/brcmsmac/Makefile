@@ -28,27 +28,27 @@ ccflags-y :=				\
 	-Idrivers/staging/brcm80211/include
 
 BRCMSMAC_OFILES := \
-	brcms_mac80211.o \
+	mac80211_if.o \
 	ucode_loader.o \
-	wlc_alloc.o \
-	wlc_ampdu.o \
-	wlc_antsel.o \
-	wlc_bmac.o \
-	wlc_channel.o \
-	wlc_main.o \
-	wlc_phy_shim.o \
-	wlc_pmu.o \
-	wlc_rate.o \
-	wlc_stf.o \
+	alloc.o \
+	ampdu.o \
+	antsel.o \
+	bottom_mac.o \
+	channel.o \
+	main.o \
+	phy_shim.o \
+	pmu.o \
+	rate.o \
+	stf.o \
 	aiutils.o \
-	phy/wlc_phy_cmn.o \
-	phy/wlc_phy_lcn.o \
-	phy/wlc_phy_n.o \
-	phy/wlc_phytbl_lcn.o \
-	phy/wlc_phytbl_n.o \
-	phy/wlc_phy_qmath.o \
-	bcmotp.o \
-	bcmsrom.o \
+	phy/phy_cmn.o \
+	phy/phy_lcn.o \
+	phy/phy_n.o \
+	phy/phytbl_lcn.o \
+	phy/phytbl_n.o \
+	phy/phy_qmath.o \
+	otp.o \
+	srom.o \
 	dma.o \
 	nicpci.o
 

@@ -18,15 +18,14 @@
 #include <linux/string.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
-#include <bcmdefs.h>
-#include <bcmdevs.h>
-#include <bcmsoc.h>
+#include <defs.h>
+#include <brcm_hw_ids.h>
+#include <soc.h>
 #include <brcmu_utils.h>
 #include <aiutils.h>
 
-#include "wlc_types.h"
-#include "bcmdma.h"
-#include <bcmdma.h>
+#include "types.h"
+#include "dma.h"
 
 #if defined(__mips__)
 #include <asm/addrspace.h>

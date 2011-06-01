@@ -16,22 +16,22 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <bcmdefs.h>
-#include <wlc_cfg.h>
+#include <defs.h>
+#include <cfg.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <aiutils.h>
 #include <chipcommon.h>
-#include <wlc_pmu.h>
+#include <pmu.h>
 
-#include <bcmdevs.h>
-#include "bcmdma.h"
+#include <brcm_hw_ids.h>
+#include <dma.h>
 
-#include <wlc_types.h>
-#include <wlc_phy_radio.h>
-#include <wlc_phy_int.h>
-#include <wlc_phyreg_n.h>
-#include <wlc_phytbl_n.h>
+#include <types.h>
+#include <phy_radio.h>
+#include <phy_int.h>
+#include <phyreg_n.h>
+#include <phytbl_n.h>
 
 #define	READ_RADIO_REG2(pi, radio_type, jspace, core, reg_name) \
 	read_radio_reg(pi, radio_type##_##jspace##_##reg_name | \

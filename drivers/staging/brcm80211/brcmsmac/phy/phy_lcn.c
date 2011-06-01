@@ -18,22 +18,22 @@
 #include <linux/string.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
-#include <wlc_cfg.h>
+#include <cfg.h>
 #include <linux/pci.h>
 #include <brcmu_utils.h>
 #include <aiutils.h>
-#include <wlc_pmu.h>
-#include <wlc_scb.h>
-#include <wlc_pub.h>
+#include <pmu.h>
+#include <scb.h>
+#include <pub.h>
 
-#include <bcmdevs.h>
-#include "bcmdma.h"
+#include <brcm_hw_ids.h>
+#include <dma.h>
 
-#include "wlc_phy_radio.h"
-#include "wlc_phy_int.h"
-#include "wlc_phy_qmath.h"
-#include "wlc_phy_lcn.h"
-#include "wlc_phytbl_lcn.h"
+#include "phy_radio.h"
+#include "phy_int.h"
+#include "phy_qmath.h"
+#include "phy_lcn.h"
+#include "phytbl_lcn.h"
 
 #define PLL_2064_NDIV		90
 #define PLL_2064_LOW_END_VCO 	3000

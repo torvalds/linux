@@ -17,22 +17,22 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <bcmdefs.h>
-#include "wlc_types.h"
+#include <defs.h>
+#include "types.h"
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <brcmu_utils.h>
 #include <aiutils.h>
-#include <bcmsoc.h>
+#include <soc.h>
 #include <chipcommon.h>
-#include <bcmdevs.h>
+#include <brcm_hw_ids.h>
 
 /* ********** from siutils.c *********** */
 #include <nicpci.h>
-#include <bcmsrom.h>
-#include <wlc_pmu.h>
-#include <wlc_scb.h>
-#include <wlc_pub.h>
+#include <srom.h>
+#include <pmu.h>
+#include <scb.h>
+#include <pub.h>
 
 /* slow_clk_ctl */
 #define SCC_SS_MASK		0x00000007	/* slow clock source mask */

@@ -17,7 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/sched.h>
 #include <brcmu_utils.h>
-#include <bcmdefs.h>
+#include <defs.h>
 #include <brcmu_wifi.h>
 
 #include <dngl_stats.h>

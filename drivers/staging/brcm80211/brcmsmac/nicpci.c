@@ -17,15 +17,15 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/pci.h>
-#include <bcmdefs.h>
-#include "wlc_types.h"
+#include <defs.h>
+#include "types.h"
 #include <brcmu_utils.h>
 #include <aiutils.h>
-#include <bcmsoc.h>
-#include <bcmdevs.h>
+#include <soc.h>
+#include <brcm_hw_ids.h>
 #include <chipcommon.h>
-#include <wlc_scb.h>
-#include <wlc_pub.h>
+#include <scb.h>
+#include <pub.h>
 #include <nicpci.h>
 
 /* SPROM offsets */

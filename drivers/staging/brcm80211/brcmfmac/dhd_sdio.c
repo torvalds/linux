@@ -22,15 +22,15 @@
 #include <linux/sched.h>
 #include <linux/mmc/sdio.h>
 #include <asm/unaligned.h>
-#include <bcmdefs.h>
-#include <bcmsdh.h>
+#include <defs.h>
+#include <sdio_host.h>
 
-#include <bcmdefs.h>
+#include <defs.h>
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
-#include <bcmdevs.h>
+#include <brcm_hw_ids.h>
 
-#include <bcmsoc.h>
+#include <soc.h>
 
 /* register access macros */
 #ifndef __BIG_ENDIAN

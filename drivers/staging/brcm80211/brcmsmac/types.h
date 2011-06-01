@@ -151,7 +151,7 @@ struct wlc_bsscfg;
 struct brcmu_strbuf;
 struct si_pub;
 
-/* brcm_msg_level is a bit vector with defs in bcmdefs.h */
+/* brcm_msg_level is a bit vector with defs in defs.h */
 extern u32 brcm_msg_level;
 
 #endif				/* _BRCM_TYPES_H_ */

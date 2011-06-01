@@ -32,7 +32,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <net/cfg80211.h>
-#include <bcmdefs.h>
+#include <defs.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 
