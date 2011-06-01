@@ -2197,11 +2197,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 	struct kmem_cache_node *n = NULL;
 	unsigned long uninitialized_var(flags);
 
-	local_irq_save(flags);
 	stat(s, FREE_SLOWPATH);
 
 	if (kmem_cache_debug(s) && !free_debug_processing(s, page, x, addr))
-		goto out_unlock;
+		return;
 
 	do {
 		prior = page->freelist;
@@ -2220,7 +2219,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 			 * Otherwise the list_lock will synchronize with
 			 * other processors updating the list of slabs.
 			 */
-                        spin_lock(&n->list_lock);
+                        spin_lock_irqsave(&n->list_lock, flags);
 		}
 		inuse = new.inuse;
 
@@ -2236,7 +2235,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 		 */
                 if (was_frozen)
                         stat(s, FREE_FROZEN);
-                goto out_unlock;
+                return;
         }
 
 	/*
@@ -2259,11 +2258,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 			stat(s, FREE_ADD_PARTIAL);
 		}
 	}
-
-	spin_unlock(&n->list_lock);
-
-out_unlock:
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&n->list_lock, flags);
 	return;
 
 slab_empty:
@@ -2275,8 +2270,7 @@ slab_empty:
 		stat(s, FREE_REMOVE_PARTIAL);
 	}
 
-	spin_unlock(&n->list_lock);
-	local_irq_restore(flags);
+	spin_unlock_irqrestore(&n->list_lock, flags);
 	stat(s, FREE_SLAB);
 	discard_slab(s, page);
 }
