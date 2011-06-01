@@ -5186,7 +5186,7 @@ static int parse_bit_A_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	load_table_ptr = ROM16(bios->data[bitentry->offset]);
 
 	if (load_table_ptr == 0x0) {
-		NV_ERROR(dev, "Pointer to BIT loadval table invalid\n");
+		NV_DEBUG(dev, "Pointer to BIT loadval table invalid\n");
 		return -EINVAL;
 	}
 
