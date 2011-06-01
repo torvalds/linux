@@ -23,6 +23,16 @@
 #define	MAXCOREREV		28	/* max # supported core revisions (0 .. MAXCOREREV - 1) */
 #define WLC_MAXMODULES		22	/* max #  wlc_module_register() calls */
 
+#define SEQNUM_SHIFT		4
+#define AMPDU_DELIMITER_LEN	4
+#define SEQNUM_MAX		0x1000
+
+#define	APHY_CWMIN		15
+#define PHY_CWMAX		1023
+
+#define EDCF_AIFSN_MIN               1
+#define FRAGNUM_MASK		0xF
+
 #define WLC_BITSCNT(x)	bcm_bitcount((u8 *)&(x), sizeof(u8))
 
 /* Maximum wait time for a MAC suspend */
@@ -34,6 +44,8 @@
 
 /* transmit buffer max headroom for protocol headers */
 #define TXOFF (D11_TXH_LEN + D11_PHY_HDR_LEN)
+
+#define AC_COUNT		4
 
 /* For managing scan result lists */
 struct wlc_bss_list {
@@ -341,6 +353,24 @@ struct dumpcb_s {
 	void *dump_fn_arg;
 	struct dumpcb_s *next;
 };
+
+struct edcf_acparam {
+	u8 ACI;
+	u8 ECW;
+	u16 TXOP;
+} __attribute__((packed));
+typedef struct edcf_acparam edcf_acparam_t;
+
+struct wme_param_ie {
+	u8 oui[3];
+	u8 type;
+	u8 subtype;
+	u8 version;
+	u8 qosinfo;
+	u8 rsvd;
+	edcf_acparam_t acparam[AC_COUNT];
+} __attribute__((packed));
+typedef struct wme_param_ie wme_param_ie_t;
 
 /* virtual interface */
 struct wlc_if {

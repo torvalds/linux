@@ -188,6 +188,9 @@ struct dhd_info;
 #define DHD_DEL_IF	-0xe
 #define DHD_BAD_IF	-0xf
 
+#define DOT11_BSSTYPE_ANY			2
+#define DOT11_MAX_DEFAULT_KEYS	4
+
 enum cust_gpio_modes {
 	WLAN_RESET_ON,
 	WLAN_RESET_OFF,

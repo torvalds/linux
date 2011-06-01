@@ -131,6 +131,10 @@ typedef u16 chanspec_t;
 
 #define WLC_2G_25MHZ_OFFSET		5	/* 2.4GHz band channel offset */
 
+#define MCSSET_LEN	16
+
+#define AC_BITMAP_TST(ab, ac)	(((ab) & (1 << (ac))) != 0)
+
 /*
  * Verify the chanspec is using a legal set of parameters, i.e. that the
  * chanspec specified a band, bw, ctl_sb and channel and that the
@@ -202,6 +206,17 @@ extern int bcm_mhz2channel(uint freq, uint start_factor);
 /* pmkid */
 #define	MAXPMKID		16
 
+#define DOT11_DEFAULT_RTS_LEN		2347
+#define DOT11_DEFAULT_FRAG_LEN		2346
+
+#define DOT11_ICV_AES_LEN		8
+#define DOT11_QOS_LEN			2
+#define DOT11_IV_MAX_LEN		8
+#define DOT11_A4_HDR_LEN		30
+
+#define HT_CAP_RX_STBC_NO		0x0
+#define HT_CAP_RX_STBC_ONE_STREAM	0x1
+
 typedef struct _pmkid {
 	u8 BSSID[ETH_ALEN];
 	u8 PMKID[WLAN_PMKID_LEN];
@@ -221,5 +236,7 @@ typedef struct _pmkid_cand_list {
 	u32 npmkid_cand;
 	pmkid_cand_t pmkid_cand[1];
 } pmkid_cand_list_t;
+
+typedef u8 ac_bitmap_t;
 
 #endif				/* _bcmwifi_h_ */

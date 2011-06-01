@@ -25,6 +25,9 @@
 #include <dhd_dbg.h>
 #include <msgtrace.h>
 
+#define BRCM_OUI		"\x00\x10\x18"
+#define DOT11_OUI_LEN			3
+
 int dhd_msg_level;
 char fw_path[MOD_PARAM_PATHLEN];
 char nv_path[MOD_PARAM_PATHLEN];

@@ -75,6 +75,9 @@
 		(void *)&(wlc_hw->regs->fifo64regs[fifonum].dmaxmt) : \
 		(void *)&(wlc_hw->regs->fifo64regs[fifonum].dmarcv))
 
+#define APHY_SLOT_TIME		9
+#define BPHY_SLOT_TIME		20
+
 /*
  * The following table lists the buffer memory allocated to xmt fifos in HW.
  * the size is in units of 256bytes(one block), total size is HW dependent
