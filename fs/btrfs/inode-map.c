@@ -388,6 +388,12 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 	int prealloc;
 	bool retry = false;
 
+	/* only fs tree and subvol/snap needs ino cache */
+	if (root->root_key.objectid != BTRFS_FS_TREE_OBJECTID &&
+	    (root->root_key.objectid < BTRFS_FIRST_FREE_OBJECTID ||
+	     root->root_key.objectid > BTRFS_LAST_FREE_OBJECTID))
+		return 0;
+
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
