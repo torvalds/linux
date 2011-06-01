@@ -434,6 +434,7 @@ config HID_QUANTA
 config HID_ROCCAT
 	tristate "Roccat special event support"
 	depends on USB_HID
+	select HID_ROCCAT_COMMON
 	---help---
 	Support for Roccat special events.
 	Say Y here if you have a Roccat mouse or keyboard and want OSD or
@@ -441,44 +442,40 @@ config HID_ROCCAT
 
 config HID_ROCCAT_COMMON
 	tristate
+	depends on HID_ROCCAT
 
 config HID_ROCCAT_ARVO
 	tristate "Roccat Arvo keyboard support"
 	depends on USB_HID
-	select HID_ROCCAT
-	select HID_ROCCAT_COMMON
+	depends on HID_ROCCAT
 	---help---
 	Support for Roccat Arvo keyboard.
 
 config HID_ROCCAT_KONE
 	tristate "Roccat Kone Mouse support"
 	depends on USB_HID
-	select HID_ROCCAT
-	select HID_ROCCAT_COMMON
+	depends on HID_ROCCAT
 	---help---
 	Support for Roccat Kone mouse.
 
 config HID_ROCCAT_KONEPLUS
 	tristate "Roccat Kone[+] mouse support"
 	depends on USB_HID
-	select HID_ROCCAT
-	select HID_ROCCAT_COMMON
+	depends on HID_ROCCAT
 	---help---
 	Support for Roccat Kone[+] mouse.
 
 config HID_ROCCAT_KOVAPLUS
 	tristate "Roccat Kova[+] mouse support"
 	depends on USB_HID
-	select HID_ROCCAT
-	select HID_ROCCAT_COMMON
+	depends on HID_ROCCAT
 	---help---
 	Support for Roccat Kova[+] mouse.
 
 config HID_ROCCAT_PYRA
 	tristate "Roccat Pyra mouse support"
 	depends on USB_HID
-	select HID_ROCCAT
-	select HID_ROCCAT_COMMON
+	depends on HID_ROCCAT
 	---help---
 	Support for Roccat Pyra mouse.
 
