@@ -20,6 +20,7 @@
 #include <linux/pci_ids.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>
+#include <linux/mmc/sdio.h>
 #include <asm/unaligned.h>
 #include <bcmdefs.h>
 #include <bcmsdh.h>
@@ -128,7 +129,6 @@ typedef struct {
 #endif				/* DHD_DEBUG */
 #include <chipcommon.h>
 
-#include <sdio.h>
 #include <sbsdio.h>
 
 #include <dngl_stats.h>
@@ -3016,7 +3016,7 @@ void dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 	/* Turn off the bus (F2), free any pending packets */
 	DHD_INTR(("%s: disable SDIO interrupts\n", __func__));
 	bcmsdh_intr_disable(bus->sdh);
-	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_IOEN,
+	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIO_CCCR_IOEx,
 			 SDIO_FUNC_ENABLE_1, NULL);
 
 	/* Clear any pending interrupts now that F2 is disabled */
@@ -3091,7 +3091,7 @@ int dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 		&bus->regs->tosbmailboxdata, retries);
 	enable = (SDIO_FUNC_ENABLE_1 | SDIO_FUNC_ENABLE_2);
 
-	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_IOEN, enable, NULL);
+	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIO_CCCR_IOEx, enable, NULL);
 
 	/* Give the dongle some time to do its thing and set IOR2 */
 	dhd_timeout_start(&tmo, DHD_WAIT_F2RDY * 1000);
@@ -3099,7 +3099,7 @@ int dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	ready = 0;
 	while (ready != enable && !dhd_timeout_expired(&tmo))
 		ready =
-		    bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_IORDY,
+		    bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_0, SDIO_CCCR_IORx,
 				    NULL);
 
 	DHD_INFO(("%s: enable 0x%02x, ready 0x%02x (waited %uus)\n",
@@ -3136,7 +3136,7 @@ int dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	else {
 		/* Disable F2 again */
 		enable = SDIO_FUNC_ENABLE_1;
-		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_IOEN, enable,
+		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIO_CCCR_IOEx, enable,
 				 NULL);
 	}
 
@@ -5018,7 +5018,7 @@ extern bool dhd_bus_watchdog(dhd_pub_t *dhdp)
 			if (!bus->dpc_sched) {
 				u8 devpend;
 				devpend = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_0,
-							  SDIOD_CCCR_INTPEND,
+							  SDIO_CCCR_INTx,
 							  NULL);
 				intstatus =
 				    devpend & (INTR_STATUS_FUNC1 |
@@ -5147,35 +5147,6 @@ done:
 	dhd_os_sdunlock(bus->dhd);
 
 	return rv;
-}
-#endif				/* DHD_DEBUG */
-
-#ifdef DHD_DEBUG
-static void dhd_dump_cis(uint fn, u8 *cis)
-{
-	uint byte, tag, tdata;
-	DHD_INFO(("Function %d CIS:\n", fn));
-
-	for (tdata = byte = 0; byte < SBSDIO_CIS_SIZE_LIMIT; byte++) {
-		if ((byte % 16) == 0)
-			DHD_INFO(("    "));
-		DHD_INFO(("%02x ", cis[byte]));
-		if ((byte % 16) == 15)
-			DHD_INFO(("\n"));
-		if (!tdata--) {
-			tag = cis[byte];
-			if (tag == 0xff)
-				break;
-			else if (!tag)
-				tdata = 0;
-			else if ((byte + 1) < SBSDIO_CIS_SIZE_LIMIT)
-				tdata = cis[byte + 1] + 1;
-			else
-				DHD_INFO(("]"));
-		}
-	}
-	if ((byte % 16) != 15)
-		DHD_INFO(("\n"));
 }
 #endif				/* DHD_DEBUG */
 
@@ -5376,56 +5347,6 @@ dhdsdio_probe_attach(struct dhd_bus *bus, void *sdh, void *regsva, u16 devid)
 			err, DHD_INIT_CLKCTL1, clkctl));
 		goto fail;
 	}
-#ifdef DHD_DEBUG
-	if (DHD_INFO_ON()) {
-		uint fn, numfn;
-		u8 *cis[SDIOD_MAX_IOFUNCS];
-		int err = 0;
-
-		numfn = bcmsdh_query_iofnum(sdh);
-		ASSERT(numfn <= SDIOD_MAX_IOFUNCS);
-
-		/* Make sure ALP is available before trying to read CIS */
-		SPINWAIT(((clkctl = bcmsdh_cfg_read(sdh, SDIO_FUNC_1,
-						    SBSDIO_FUNC1_CHIPCLKCSR,
-						    NULL)),
-			  !SBSDIO_ALPAV(clkctl)), PMU_MAX_TRANSITION_DLY);
-
-		/* Now request ALP be put on the bus */
-		bcmsdh_cfg_write(sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR,
-				 DHD_INIT_CLKCTL2, &err);
-		udelay(65);
-
-		for (fn = 0; fn <= numfn; fn++) {
-			cis[fn] = kzalloc(SBSDIO_CIS_SIZE_LIMIT, GFP_ATOMIC);
-			if (!cis[fn]) {
-				DHD_INFO(("dhdsdio_probe: fn %d cis malloc "
-					"failed\n", fn));
-				break;
-			}
-
-			err = bcmsdh_cis_read(sdh, fn, cis[fn],
-						SBSDIO_CIS_SIZE_LIMIT);
-			if (err) {
-				DHD_INFO(("dhdsdio_probe: fn %d cis read "
-					"err %d\n", fn, err));
-				kfree(cis[fn]);
-				break;
-			}
-			dhd_dump_cis(fn, cis[fn]);
-		}
-
-		while (fn-- > 0) {
-			ASSERT(cis[fn]);
-			kfree(cis[fn]);
-		}
-
-		if (err) {
-			DHD_ERROR(("dhdsdio_probe: error read/parsing CIS\n"));
-			goto fail;
-		}
-	}
-#endif				/* DHD_DEBUG */
 
 	if (dhdsdio_chip_attach(bus, regsva)) {
 		DHD_ERROR(("%s: dhdsdio_chip_attach failed!\n", __func__));
@@ -5534,7 +5455,7 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, void *sdh)
 #endif				/* SDTEST */
 
 	/* Disable F2 to clear any intermediate frame state on the dongle */
-	bcmsdh_cfg_write(sdh, SDIO_FUNC_0, SDIOD_CCCR_IOEN, SDIO_FUNC_ENABLE_1,
+	bcmsdh_cfg_write(sdh, SDIO_FUNC_0, SDIO_CCCR_IOEx, SDIO_FUNC_ENABLE_1,
 			 NULL);
 
 	bus->dhd->busstate = DHD_BUS_DOWN;
@@ -6262,7 +6183,7 @@ dhdsdio_chip_attach(struct dhd_bus *bus, void *regs)
 		CORE_CC_REG(ci->cccorebase, gpiopulldown), 4, 0);
 
 	/* Disable F2 to clear any intermediate frame state on the dongle */
-	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_IOEN,
+	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIO_CCCR_IOEx,
 		SDIO_FUNC_ENABLE_1, NULL);
 
 	/* WAR: cmd52 backplane read so core HW will drop ALPReq */

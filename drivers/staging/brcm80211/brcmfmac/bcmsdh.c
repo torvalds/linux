@@ -30,7 +30,6 @@
 #include <bcmsdbus.h>		/* common SDIO/controller interface */
 #include <sbsdio.h>		/* BRCM sdio device core */
 
-#include <sdio.h>		/* sdio spec */
 #include "dngl_stats.h"
 #include "dhd.h"
 

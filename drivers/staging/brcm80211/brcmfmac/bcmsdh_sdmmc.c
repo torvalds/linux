@@ -15,11 +15,11 @@
  */
 #include <linux/types.h>
 #include <linux/netdevice.h>
+#include <linux/mmc/sdio.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>
-#include <sdio.h>		/* SDIO Device and Protocol Specs */
 #include <sdioh.h>		/* SDIO Host Controller Specification */
 #include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */
 #include <sdiovar.h>		/* ioctl/iovars */
@@ -75,16 +75,16 @@ static int sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
 	sd_trace(("%s\n", __func__));
 
 	/* Get the Card's common CIS address */
-	sd->com_cis_ptr = sdioh_sdmmc_get_cisaddr(sd, SDIOD_CCCR_CISPTR_0);
+	sd->com_cis_ptr = sdioh_sdmmc_get_cisaddr(sd, SDIO_CCCR_CIS);
 	sd->func_cis_ptr[0] = sd->com_cis_ptr;
 	sd_info(("%s: Card's Common CIS Ptr = 0x%x\n", __func__,
 		 sd->com_cis_ptr));
 
 	/* Get the Card's function CIS (for each function) */
-	for (fbraddr = SDIOD_FBR_STARTADDR, func = 1;
+	for (fbraddr = SDIO_FBR_BASE(1), func = 1;
 	     func <= sd->num_funcs; func++, fbraddr += SDIOD_FBR_SIZE) {
 		sd->func_cis_ptr[func] =
-		    sdioh_sdmmc_get_cisaddr(sd, SDIOD_FBR_CISPTR_0 + fbraddr);
+		    sdioh_sdmmc_get_cisaddr(sd, SDIO_FBR_CIS + fbraddr);
 		sd_info(("%s: Function %d CIS Ptr = 0x%x\n", __func__, func,
 			 sd->func_cis_ptr[func]));
 	}
@@ -642,7 +642,7 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr,
 			 * Handle F2 enable
 			 * as a special case.
 			 */
-			if (regaddr == SDIOD_CCCR_IOEN) {
+			if (regaddr == SDIO_CCCR_IOEx) {
 				if (gInstance->func[2]) {
 					sdio_claim_host(gInstance->func[2]);
 					if (*byte & SDIO_FUNC_ENABLE_2) {
@@ -667,7 +667,7 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr,
 			}
 #if defined(MMC_SDIO_ABORT)
 			/* to allow abort command through F1 */
-			else if (regaddr == SDIOD_CCCR_IOABORT) {
+			else if (regaddr == SDIO_CCCR_ABORT) {
 				sdio_claim_host(gInstance->func[func]);
 				/*
 				 * this sdio_f0_writeb() can be replaced
@@ -955,8 +955,8 @@ extern int sdioh_abort(sdioh_info_t *sd, uint func)
 	sd_trace(("%s: Enter\n", __func__));
 
 #if defined(MMC_SDIO_ABORT)
-	/* issue abort cmd52 command through F1 */
-	sdioh_request_byte(sd, SD_IO_OP_WRITE, SDIO_FUNC_0, SDIOD_CCCR_IOABORT,
+	/* issue abort cmd52 command through F0 */
+	sdioh_request_byte(sd, SDIOH_WRITE, SDIO_FUNC_0, SDIO_CCCR_ABORT,
 			   &t_func);
 #endif				/* defined(MMC_SDIO_ABORT) */
 

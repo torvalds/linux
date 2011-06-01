@@ -38,6 +38,27 @@ extern const uint bcmsdh_msglevel;
 #define BCMSDH_INFO(x)
 #endif				/* BCMDBG */
 
+#define SDIO_FUNC_0		0
+#define SDIO_FUNC_1		1
+#define SDIO_FUNC_2		2
+
+#define SDIOD_FBR_SIZE  	0x100
+
+/* io_en */
+#define SDIO_FUNC_ENABLE_1	0x02
+#define SDIO_FUNC_ENABLE_2	0x04
+
+/* io_rdys */
+#define SDIO_FUNC_READY_1	0x02
+#define SDIO_FUNC_READY_2	0x04
+
+/* intr_status */
+#define INTR_STATUS_FUNC1	0x2
+#define INTR_STATUS_FUNC2	0x4
+
+/* Maximum number of I/O funcs */
+#define SDIOD_MAX_IOFUNCS	7
+
 /* forward declarations */
 typedef struct bcmsdh_info bcmsdh_info_t;
 typedef void (*bcmsdh_cb_fn_t) (void *);
