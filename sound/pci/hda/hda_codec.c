@@ -3412,7 +3412,7 @@ static unsigned int query_stream_param(struct hda_codec *codec, hda_nid_t nid)
  *
  * Returns 0 if successful, otherwise a negative error code.
  */
-static int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
+int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 				u32 *ratesp, u64 *formatsp, unsigned int *bpsp)
 {
 	unsigned int i, val, wcaps;
@@ -3504,6 +3504,7 @@ static int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 
 	return 0;
 }
+EXPORT_SYMBOL_HDA(snd_hda_query_supported_pcm);
 
 /**
  * snd_hda_is_supported_format - Check the validity of the format
