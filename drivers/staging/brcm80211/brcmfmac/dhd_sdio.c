@@ -22,10 +22,6 @@
 #include <bcmdefs.h>
 #include <bcmsdh.h>
 
-#ifdef BCMEMBEDIMAGE
-#include BCMEMBEDIMAGE
-#endif				/* BCMEMBEDIMAGE */
-
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <bcmdevs.h>
@@ -634,9 +630,6 @@ static int _dhdsdio_download_firmware(struct dhd_bus *bus);
 
 static int dhdsdio_download_code_file(struct dhd_bus *bus, char *image_path);
 static int dhdsdio_download_nvram(struct dhd_bus *bus);
-#ifdef BCMEMBEDIMAGE
-static int dhdsdio_download_code_array(struct dhd_bus *bus);
-#endif
 static void dhdsdio_chip_disablecore(bcmsdh_info_t *sdh, u32 corebase);
 static int dhdsdio_chip_attach(struct dhd_bus *bus, void *regs);
 static void dhdsdio_chip_resetcore(bcmsdh_info_t *sdh, u32 corebase);
@@ -5588,97 +5581,6 @@ void dhd_bus_unregister(void)
 	bcmsdh_unregister();
 }
 
-#ifdef BCMEMBEDIMAGE
-static int dhdsdio_download_code_array(struct dhd_bus *bus)
-{
-	int bcmerror = -1;
-	int offset = 0;
-
-	DHD_INFO(("%s: download embedded firmware...\n", __func__));
-
-	/* Download image */
-	while ((offset + MEMBLOCK) < sizeof(dlarray)) {
-		bcmerror =
-		    dhdsdio_membytes(bus, true, offset, dlarray + offset,
-				     MEMBLOCK);
-		if (bcmerror) {
-			DHD_ERROR(("%s: error %d on writing %d membytes at "
-				"0x%08x\n",
-				__func__, bcmerror, MEMBLOCK, offset));
-			goto err;
-		}
-
-		offset += MEMBLOCK;
-	}
-
-	if (offset < sizeof(dlarray)) {
-		bcmerror = dhdsdio_membytes(bus, true, offset,
-					    dlarray + offset,
-					    sizeof(dlarray) - offset);
-		if (bcmerror) {
-			DHD_ERROR(("%s: error %d on writing %d membytes at "
-				"0x%08x\n", __func__, bcmerror,
-				sizeof(dlarray) - offset, offset));
-			goto err;
-		}
-	}
-#ifdef DHD_DEBUG
-	/* Upload and compare the downloaded code */
-	{
-		unsigned char *ularray;
-
-		ularray = kmalloc(bus->ramsize, GFP_ATOMIC);
-		if (!ularray) {
-			bcmerror = -ENOMEM;
-			goto err;
-		}
-		/* Upload image to verify downloaded contents. */
-		offset = 0;
-		memset(ularray, 0xaa, bus->ramsize);
-		while ((offset + MEMBLOCK) < sizeof(dlarray)) {
-			bcmerror =
-			    dhdsdio_membytes(bus, false, offset,
-					     ularray + offset, MEMBLOCK);
-			if (bcmerror) {
-				DHD_ERROR(("%s: error %d on reading %d membytes"
-					" at 0x%08x\n",
-					__func__, bcmerror, MEMBLOCK, offset));
-				goto free;
-			}
-
-			offset += MEMBLOCK;
-		}
-
-		if (offset < sizeof(dlarray)) {
-			bcmerror = dhdsdio_membytes(bus, false, offset,
-						    ularray + offset,
-						    sizeof(dlarray) - offset);
-			if (bcmerror) {
-				DHD_ERROR(("%s: error %d on reading %d membytes at 0x%08x\n",
-				__func__, bcmerror,
-				sizeof(dlarray) - offset, offset));
-				goto free;
-			}
-		}
-
-		if (memcmp(dlarray, ularray, sizeof(dlarray))) {
-			DHD_ERROR(("%s: Downloaded image is corrupted.\n",
-				   __func__));
-			ASSERT(0);
-			goto free;
-		} else
-			DHD_ERROR(("%s: Download/Upload/Compare succeeded.\n",
-				__func__));
-free:
-		kfree(ularray);
-	}
-#endif				/* DHD_DEBUG */
-
-err:
-	return bcmerror;
-}
-#endif				/* BCMEMBEDIMAGE */
-
 static int dhdsdio_download_code_file(struct dhd_bus *bus, char *fw_path)
 {
 	int bcmerror = -1;
@@ -5872,13 +5774,8 @@ static int _dhdsdio_download_firmware(struct dhd_bus *bus)
 	bool dlok = false;	/* download firmware succeeded */
 
 	/* Out immediately if no image to download */
-	if ((bus->fw_path == NULL) || (bus->fw_path[0] == '\0')) {
-#ifdef BCMEMBEDIMAGE
-		embed = true;
-#else
+	if ((bus->fw_path == NULL) || (bus->fw_path[0] == '\0'))
 		return bcmerror;
-#endif
-	}
 
 	/* Keep arm in reset */
 	if (dhdsdio_download_state(bus, true)) {
@@ -5891,27 +5788,12 @@ static int _dhdsdio_download_firmware(struct dhd_bus *bus)
 		if (dhdsdio_download_code_file(bus, bus->fw_path)) {
 			DHD_ERROR(("%s: dongle image file download failed\n",
 				   __func__));
-#ifdef BCMEMBEDIMAGE
-			embed = true;
-#else
 			goto err;
-#endif
 		} else {
 			embed = false;
 			dlok = true;
 		}
 	}
-#ifdef BCMEMBEDIMAGE
-	if (embed) {
-		if (dhdsdio_download_code_array(bus)) {
-			DHD_ERROR(("%s: dongle image array download failed\n",
-				   __func__));
-			goto err;
-		} else {
-			dlok = true;
-		}
-	}
-#endif
 	if (!dlok) {
 		DHD_ERROR(("%s: dongle image download failed\n", __func__));
 		goto err;
