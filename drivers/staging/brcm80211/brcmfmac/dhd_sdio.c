@@ -130,7 +130,6 @@ typedef struct {
 
 #include <sdio.h>
 #include <sbsdio.h>
-#include <sbsdpcmdev.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>
@@ -380,7 +379,8 @@ extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
 
 /* Core reg address translation */
 #define CORE_CC_REG(base, field)	(base + offsetof(chipcregs_t, field))
-#define CORE_BUS_REG(base, field)	(base + offsetof(sdpcmd_regs_t, field))
+#define CORE_BUS_REG(base, field) \
+		(base + offsetof(struct sdpcmd_regs, field))
 #define CORE_SB(base, field) \
 		(base + SBCONFIGOFF + offsetof(sbconfig_t, field))
 
@@ -434,7 +434,7 @@ typedef struct dhd_bus {
 	uint varsz;		/* Size of variables buffer */
 	u32 sbaddr;		/* Current SB window pointer (-1, invalid) */
 
-	sdpcmd_regs_t *regs;	/* Registers for SDIO core */
+	struct sdpcmd_regs *regs;	/* SDIO core */
 	uint sdpcmrev;		/* SDIO core revision */
 	uint armrev;		/* CPU core revision */
 	uint ramrev;		/* SOCRAM core revision */
@@ -1014,7 +1014,7 @@ static int dhdsdio_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 int dhdsdio_bussleep(dhd_bus_t *bus, bool sleep)
 {
 	bcmsdh_info_t *sdh = bus->sdh;
-	sdpcmd_regs_t *regs = bus->regs;
+	struct sdpcmd_regs *regs = bus->regs;
 	uint retries = 0;
 
 	DHD_INFO(("dhdsdio_bussleep: request %s (currently %s)\n",
@@ -1408,7 +1408,7 @@ static uint dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 	u8 tx_prec_map;
 
 	dhd_pub_t *dhd = bus->dhd;
-	sdpcmd_regs_t *regs = bus->regs;
+	struct sdpcmd_regs *regs = bus->regs;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -3158,7 +3158,7 @@ exit:
 static void dhdsdio_rxfail(dhd_bus_t *bus, bool abort, bool rtx)
 {
 	bcmsdh_info_t *sdh = bus->sdh;
-	sdpcmd_regs_t *regs = bus->regs;
+	struct sdpcmd_regs *regs = bus->regs;
 	uint retries = 0;
 	u16 lastrbc;
 	u8 hi, lo;
@@ -4343,7 +4343,7 @@ deliver:
 
 static u32 dhdsdio_hostmail(dhd_bus_t *bus)
 {
-	sdpcmd_regs_t *regs = bus->regs;
+	struct sdpcmd_regs *regs = bus->regs;
 	u32 intstatus = 0;
 	u32 hmb_data;
 	u8 fcbits;
@@ -4418,7 +4418,7 @@ static u32 dhdsdio_hostmail(dhd_bus_t *bus)
 bool dhdsdio_dpc(dhd_bus_t *bus)
 {
 	bcmsdh_info_t *sdh = bus->sdh;
-	sdpcmd_regs_t *regs = bus->regs;
+	struct sdpcmd_regs *regs = bus->regs;
 	u32 intstatus, newstatus = 0;
 	uint retries = 0;
 	uint rxlimit = dhd_rxbound;	/* Rx frames to read before resched */
