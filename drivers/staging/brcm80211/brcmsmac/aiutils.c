@@ -166,6 +166,195 @@
 		(sih->chiprev == 0) && \
 		(sii->coreid[sii->curidx] == MIPS74K_CORE_ID))
 
+/* Manufacturer Ids */
+#define	MFGID_ARM		0x43b
+#define	MFGID_BRCM		0x4bf
+#define	MFGID_MIPS		0x4a7
+
+/* Enumeration ROM registers */
+#define	ER_EROMENTRY		0x000
+#define	ER_REMAPCONTROL		0xe00
+#define	ER_REMAPSELECT		0xe04
+#define	ER_MASTERSELECT		0xe10
+#define	ER_ITCR			0xf00
+#define	ER_ITIP			0xf04
+
+/* Erom entries */
+#define	ER_TAG			0xe
+#define	ER_TAG1			0x6
+#define	ER_VALID		1
+#define	ER_CI			0
+#define	ER_MP			2
+#define	ER_ADD			4
+#define	ER_END			0xe
+#define	ER_BAD			0xffffffff
+
+/* EROM CompIdentA */
+#define	CIA_MFG_MASK		0xfff00000
+#define	CIA_MFG_SHIFT		20
+#define	CIA_CID_MASK		0x000fff00
+#define	CIA_CID_SHIFT		8
+#define	CIA_CCL_MASK		0x000000f0
+#define	CIA_CCL_SHIFT		4
+
+/* EROM CompIdentB */
+#define	CIB_REV_MASK		0xff000000
+#define	CIB_REV_SHIFT		24
+#define	CIB_NSW_MASK		0x00f80000
+#define	CIB_NSW_SHIFT		19
+#define	CIB_NMW_MASK		0x0007c000
+#define	CIB_NMW_SHIFT		14
+#define	CIB_NSP_MASK		0x00003e00
+#define	CIB_NSP_SHIFT		9
+#define	CIB_NMP_MASK		0x000001f0
+#define	CIB_NMP_SHIFT		4
+
+/* EROM AddrDesc */
+#define	AD_ADDR_MASK		0xfffff000
+#define	AD_SP_MASK		0x00000f00
+#define	AD_SP_SHIFT		8
+#define	AD_ST_MASK		0x000000c0
+#define	AD_ST_SHIFT		6
+#define	AD_ST_SLAVE		0x00000000
+#define	AD_ST_BRIDGE		0x00000040
+#define	AD_ST_SWRAP		0x00000080
+#define	AD_ST_MWRAP		0x000000c0
+#define	AD_SZ_MASK		0x00000030
+#define	AD_SZ_SHIFT		4
+#define	AD_SZ_4K		0x00000000
+#define	AD_SZ_8K		0x00000010
+#define	AD_SZ_16K		0x00000020
+#define	AD_SZ_SZD		0x00000030
+#define	AD_AG32			0x00000008
+#define	AD_ADDR_ALIGN		0x00000fff
+#define	AD_SZ_BASE		0x00001000	/* 4KB */
+
+/* EROM SizeDesc */
+#define	SD_SZ_MASK		0xfffff000
+#define	SD_SG32			0x00000008
+#define	SD_SZ_ALIGN		0x00000fff
+
+/* resetctrl */
+#define	AIRC_RESET		1
+
+typedef volatile struct _aidmp {
+	u32 oobselina30;	/* 0x000 */
+	u32 oobselina74;	/* 0x004 */
+	u32 PAD[6];
+	u32 oobselinb30;	/* 0x020 */
+	u32 oobselinb74;	/* 0x024 */
+	u32 PAD[6];
+	u32 oobselinc30;	/* 0x040 */
+	u32 oobselinc74;	/* 0x044 */
+	u32 PAD[6];
+	u32 oobselind30;	/* 0x060 */
+	u32 oobselind74;	/* 0x064 */
+	u32 PAD[38];
+	u32 oobselouta30;	/* 0x100 */
+	u32 oobselouta74;	/* 0x104 */
+	u32 PAD[6];
+	u32 oobseloutb30;	/* 0x120 */
+	u32 oobseloutb74;	/* 0x124 */
+	u32 PAD[6];
+	u32 oobseloutc30;	/* 0x140 */
+	u32 oobseloutc74;	/* 0x144 */
+	u32 PAD[6];
+	u32 oobseloutd30;	/* 0x160 */
+	u32 oobseloutd74;	/* 0x164 */
+	u32 PAD[38];
+	u32 oobsynca;	/* 0x200 */
+	u32 oobseloutaen;	/* 0x204 */
+	u32 PAD[6];
+	u32 oobsyncb;	/* 0x220 */
+	u32 oobseloutben;	/* 0x224 */
+	u32 PAD[6];
+	u32 oobsyncc;	/* 0x240 */
+	u32 oobseloutcen;	/* 0x244 */
+	u32 PAD[6];
+	u32 oobsyncd;	/* 0x260 */
+	u32 oobseloutden;	/* 0x264 */
+	u32 PAD[38];
+	u32 oobaextwidth;	/* 0x300 */
+	u32 oobainwidth;	/* 0x304 */
+	u32 oobaoutwidth;	/* 0x308 */
+	u32 PAD[5];
+	u32 oobbextwidth;	/* 0x320 */
+	u32 oobbinwidth;	/* 0x324 */
+	u32 oobboutwidth;	/* 0x328 */
+	u32 PAD[5];
+	u32 oobcextwidth;	/* 0x340 */
+	u32 oobcinwidth;	/* 0x344 */
+	u32 oobcoutwidth;	/* 0x348 */
+	u32 PAD[5];
+	u32 oobdextwidth;	/* 0x360 */
+	u32 oobdinwidth;	/* 0x364 */
+	u32 oobdoutwidth;	/* 0x368 */
+	u32 PAD[37];
+	u32 ioctrlset;	/* 0x400 */
+	u32 ioctrlclear;	/* 0x404 */
+	u32 ioctrl;		/* 0x408 */
+	u32 PAD[61];
+	u32 iostatus;	/* 0x500 */
+	u32 PAD[127];
+	u32 ioctrlwidth;	/* 0x700 */
+	u32 iostatuswidth;	/* 0x704 */
+	u32 PAD[62];
+	u32 resetctrl;	/* 0x800 */
+	u32 resetstatus;	/* 0x804 */
+	u32 resetreadid;	/* 0x808 */
+	u32 resetwriteid;	/* 0x80c */
+	u32 PAD[60];
+	u32 errlogctrl;	/* 0x900 */
+	u32 errlogdone;	/* 0x904 */
+	u32 errlogstatus;	/* 0x908 */
+	u32 errlogaddrlo;	/* 0x90c */
+	u32 errlogaddrhi;	/* 0x910 */
+	u32 errlogid;	/* 0x914 */
+	u32 errloguser;	/* 0x918 */
+	u32 errlogflags;	/* 0x91c */
+	u32 PAD[56];
+	u32 intstatus;	/* 0xa00 */
+	u32 PAD[127];
+	u32 config;		/* 0xe00 */
+	u32 PAD[63];
+	u32 itcr;		/* 0xf00 */
+	u32 PAD[3];
+	u32 itipooba;	/* 0xf10 */
+	u32 itipoobb;	/* 0xf14 */
+	u32 itipoobc;	/* 0xf18 */
+	u32 itipoobd;	/* 0xf1c */
+	u32 PAD[4];
+	u32 itipoobaout;	/* 0xf30 */
+	u32 itipoobbout;	/* 0xf34 */
+	u32 itipoobcout;	/* 0xf38 */
+	u32 itipoobdout;	/* 0xf3c */
+	u32 PAD[4];
+	u32 itopooba;	/* 0xf50 */
+	u32 itopoobb;	/* 0xf54 */
+	u32 itopoobc;	/* 0xf58 */
+	u32 itopoobd;	/* 0xf5c */
+	u32 PAD[4];
+	u32 itopoobain;	/* 0xf70 */
+	u32 itopoobbin;	/* 0xf74 */
+	u32 itopoobcin;	/* 0xf78 */
+	u32 itopoobdin;	/* 0xf7c */
+	u32 PAD[4];
+	u32 itopreset;	/* 0xf90 */
+	u32 PAD[15];
+	u32 peripherialid4;	/* 0xfd0 */
+	u32 peripherialid5;	/* 0xfd4 */
+	u32 peripherialid6;	/* 0xfd8 */
+	u32 peripherialid7;	/* 0xfdc */
+	u32 peripherialid0;	/* 0xfe0 */
+	u32 peripherialid1;	/* 0xfe4 */
+	u32 peripherialid2;	/* 0xfe8 */
+	u32 peripherialid3;	/* 0xfec */
+	u32 componentid0;	/* 0xff0 */
+	u32 componentid1;	/* 0xff4 */
+	u32 componentid2;	/* 0xff8 */
+	u32 componentid3;	/* 0xffc */
+} aidmp_t;
+
 /* EROM parsing */
 
 static u32

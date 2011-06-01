@@ -17,9 +17,6 @@
 #ifndef	_BRCM_AIUTILS_H_
 #define	_BRCM_AIUTILS_H_
 
-/* Include the soci specific files */
-#include <aidmp.h>
-
 /*
  * SOC Interconnect Address Map.
  * All regions may not exist on all chips.
