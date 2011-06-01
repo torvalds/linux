@@ -240,10 +240,6 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 #ifdef BRCM_FULLMAC
 #include <bcmsdh.h>
 #endif
-#define OSL_WRITE_REG(r, v) \
-		(bcmsdh_reg_write(NULL, (unsigned long)(r), sizeof(*(r)), (v)))
-#define OSL_READ_REG(r) \
-		(bcmsdh_reg_read(NULL, (unsigned long)(r), sizeof(*(r))))
 #endif
 
 #if defined(BCMSDIO)
@@ -270,7 +266,7 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 	SELECT_BUS_READ(sizeof(*(r)) == sizeof(u8) ? \
 	readb((volatile u8*)(r)) : \
 	sizeof(*(r)) == sizeof(u16) ? readw((volatile u16*)(r)) : \
-	readl((volatile u32*)(r)), OSL_READ_REG(r)) \
+	readl((volatile u32*)(r)), bcmsdh_reg_read(NULL, (unsigned long)r, sizeof(*r))) \
 )
 #else				/* __mips__ */
 #define R_REG(r) (\
@@ -296,7 +292,7 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 		({ \
 			__typeof(*(r)) __osl_v; \
 			__asm__ __volatile__("sync"); \
-			__osl_v = OSL_READ_REG(r); \
+			__osl_v = bcmsdh_reg_read(NULL, (unsigned long)r, sizeof(*r)); \
 			__asm__ __volatile__("sync"); \
 			__osl_v; \
 		})) \
@@ -313,7 +309,7 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 		case sizeof(u32): \
 			writel((u32)(v), (volatile u32*)(r)); break; \
 		}, \
-		(OSL_WRITE_REG(r, v))); \
+		bcmsdh_reg_write(NULL, (unsigned long)r, sizeof(*r), (v))); \
 	} while (0)
 #else				/* __BIG_ENDIAN */
 #define R_REG(r) (\
@@ -335,7 +331,7 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 			} \
 			__osl_v; \
 		}), \
-		OSL_READ_REG(r)) \
+		bcmsdh_reg_read(NULL, (unsigned long)r, sizeof(*r))) \
 )
 #define W_REG(r, v) do { \
 	SELECT_BUS_WRITE( \
@@ -350,7 +346,7 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 			writel((u32)(v), \
 			(volatile u32*)(r)); break; \
 		}, \
-		(OSL_WRITE_REG(r, v))); \
+		bcmsdh_reg_write(NULL, (unsigned long)r, sizeof(*r), v)); \
 	} while (0)
 #endif				/* __BIG_ENDIAN */
 
