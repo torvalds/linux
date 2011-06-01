@@ -17,6 +17,8 @@
 #ifndef	_sdio_api_h_
 #define	_sdio_api_h_
 
+#include "sdio_host.h"
+
 #define SDIOH_API_RC_SUCCESS                          (0x00)
 #define SDIOH_API_RC_FAIL	                      (0x01)
 #define SDIOH_API_SUCCESS(status) (status == 0)

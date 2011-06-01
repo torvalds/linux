@@ -28,8 +28,8 @@
 #include <defs.h>
 #include <brcm_hw_ids.h>
 #include <brcmu_utils.h>
-#include <sdio_host.h>
 #include <brcmu_wifi.h>
+#include "sdio_host.h"
 
 #if defined(OOB_INTR_ONLY)
 #include <linux/irq.h>

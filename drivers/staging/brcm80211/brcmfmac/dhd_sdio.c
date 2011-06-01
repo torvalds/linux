@@ -23,9 +23,7 @@
 #include <linux/mmc/sdio.h>
 #include <asm/unaligned.h>
 #include <defs.h>
-#include <sdio_host.h>
-
-#include <defs.h>
+#include "sdio_host.h"
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
 #include <brcm_hw_ids.h>

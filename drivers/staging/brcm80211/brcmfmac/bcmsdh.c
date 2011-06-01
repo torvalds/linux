@@ -25,8 +25,6 @@
 #include <brcmu_wifi.h>
 #include <soc.h>
 
-#include <sdio_host.h>		/* BRCM API for SDIO
-			 clients (such as wl, dhd) */
 #include <bcmsdbus.h>		/* common SDIO/controller interface */
 #include <sbsdio.h>		/* BRCM sdio device core */
 
