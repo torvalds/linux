@@ -183,7 +183,7 @@ nouveau_ioctl_notifier_alloc(struct drm_device *dev, void *data,
 	if (unlikely(dev_priv->card_type >= NV_C0))
 		return -EINVAL;
 
-	chan = nouveau_channel_get(dev, file_priv, na->channel);
+	chan = nouveau_channel_get(file_priv, na->channel);
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 

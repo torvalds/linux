@@ -774,6 +774,8 @@ nouveau_open(struct drm_device *dev, struct drm_file *file_priv)
 		return -ENOMEM;
 
 	spin_lock_init(&fpriv->lock);
+	INIT_LIST_HEAD(&fpriv->channels);
+
 	file_priv->driver_priv = fpriv;
 	return 0;
 }

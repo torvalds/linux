@@ -121,6 +121,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
+	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
 	struct nouveau_channel *chan;
 	unsigned long flags;
 	int ret;
@@ -220,6 +221,11 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	nouveau_debugfs_channel_init(chan);
 
 	NV_DEBUG(dev, "channel %d initialised\n", chan->id);
+	if (fpriv) {
+		spin_lock(&fpriv->lock);
+		list_add(&chan->list, &fpriv->channels);
+		spin_unlock(&fpriv->lock);
+	}
 	*chan_ret = chan;
 	return 0;
 }
@@ -236,29 +242,23 @@ nouveau_channel_get_unlocked(struct nouveau_channel *ref)
 }
 
 struct nouveau_channel *
-nouveau_channel_get(struct drm_device *dev, struct drm_file *file_priv, int id)
+nouveau_channel_get(struct drm_file *file_priv, int id)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
 	struct nouveau_channel *chan;
-	unsigned long flags;
 
-	if (unlikely(id < 0 || id >= NOUVEAU_MAX_CHANNEL_NR))
-		return ERR_PTR(-EINVAL);
-
-	spin_lock_irqsave(&dev_priv->channels.lock, flags);
-	chan = nouveau_channel_get_unlocked(dev_priv->channels.ptr[id]);
-	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
-
-	if (unlikely(!chan))
-		return ERR_PTR(-EINVAL);
-
-	if (unlikely(file_priv && chan->file_priv != file_priv)) {
-		nouveau_channel_put_unlocked(&chan);
-		return ERR_PTR(-EINVAL);
+	spin_lock(&fpriv->lock);
+	list_for_each_entry(chan, &fpriv->channels, list) {
+		if (chan->id == id) {
+			chan = nouveau_channel_get_unlocked(chan);
+			spin_unlock(&fpriv->lock);
+			mutex_lock(&chan->mutex);
+			return chan;
+		}
 	}
+	spin_unlock(&fpriv->lock);
 
-	mutex_lock(&chan->mutex);
-	return chan;
+	return ERR_PTR(-EINVAL);
 }
 
 void
@@ -383,10 +383,11 @@ nouveau_channel_cleanup(struct drm_device *dev, struct drm_file *file_priv)
 
 	NV_DEBUG(dev, "clearing FIFO enables from file_priv\n");
 	for (i = 0; i < engine->fifo.channels; i++) {
-		chan = nouveau_channel_get(dev, file_priv, i);
+		chan = nouveau_channel_get(file_priv, i);
 		if (IS_ERR(chan))
 			continue;
 
+		list_del(&chan->list);
 		atomic_dec(&chan->users);
 		nouveau_channel_put(&chan);
 	}
@@ -459,10 +460,11 @@ nouveau_ioctl_fifo_free(struct drm_device *dev, void *data,
 	struct drm_nouveau_channel_free *req = data;
 	struct nouveau_channel *chan;
 
-	chan = nouveau_channel_get(dev, file_priv, req->channel);
+	chan = nouveau_channel_get(file_priv, req->channel);
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 
+	list_del(&chan->list);
 	atomic_dec(&chan->users);
 	nouveau_channel_put(&chan);
 	return 0;

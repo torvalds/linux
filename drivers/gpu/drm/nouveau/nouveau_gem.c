@@ -139,7 +139,7 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	}
 
 	if (req->channel_hint) {
-		chan = nouveau_channel_get(dev, file_priv, req->channel_hint);
+		chan = nouveau_channel_get(file_priv, req->channel_hint);
 		if (IS_ERR(chan))
 			return PTR_ERR(chan);
 	}
@@ -548,7 +548,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	struct nouveau_fence *fence = NULL;
 	int i, j, ret = 0, do_reloc = 0;
 
-	chan = nouveau_channel_get(dev, file_priv, req->channel);
+	chan = nouveau_channel_get(file_priv, req->channel);
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 

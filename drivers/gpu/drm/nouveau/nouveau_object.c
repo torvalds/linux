@@ -909,7 +909,7 @@ int nouveau_ioctl_grobj_alloc(struct drm_device *dev, void *data,
 	if (init->handle == ~0)
 		return -EINVAL;
 
-	chan = nouveau_channel_get(dev, file_priv, init->channel);
+	chan = nouveau_channel_get(file_priv, init->channel);
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 
@@ -936,7 +936,7 @@ int nouveau_ioctl_gpuobj_free(struct drm_device *dev, void *data,
 	struct nouveau_channel *chan;
 	int ret;
 
-	chan = nouveau_channel_get(dev, file_priv, objfree->channel);
+	chan = nouveau_channel_get(file_priv, objfree->channel);
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 

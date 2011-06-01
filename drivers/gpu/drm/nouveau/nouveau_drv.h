@@ -47,6 +47,7 @@
 
 struct nouveau_fpriv {
 	spinlock_t lock;
+	struct list_head channels;
 };
 
 static inline struct nouveau_fpriv *
@@ -208,6 +209,7 @@ enum nouveau_channel_mutex_class {
 
 struct nouveau_channel {
 	struct drm_device *dev;
+	struct list_head list;
 	int id;
 
 	/* references to the channel data structure */
@@ -858,7 +860,7 @@ extern int  nouveau_channel_alloc(struct drm_device *dev,
 extern struct nouveau_channel *
 nouveau_channel_get_unlocked(struct nouveau_channel *);
 extern struct nouveau_channel *
-nouveau_channel_get(struct drm_device *, struct drm_file *, int id);
+nouveau_channel_get(struct drm_file *, int id);
 extern void nouveau_channel_put_unlocked(struct nouveau_channel **);
 extern void nouveau_channel_put(struct nouveau_channel **);
 extern void nouveau_channel_ref(struct nouveau_channel *chan,
