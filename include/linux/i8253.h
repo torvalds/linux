@@ -2,10 +2,24 @@
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
+ *
+ *  Machine specific IO port address definition for generic.
+ *  Written by Osamu Tomita <tomita@cinet.co.jp>
  */
 #ifndef __LINUX_I8253_H
 #define __LINUX_I8253_H
 
+#include <linux/spinlock.h>
 #include <asm/i8253.h>
+
+/* i8253A PIT registers */
+#define PIT_MODE	0x43
+#define PIT_CH0		0x40
+#define PIT_CH2		0x42
+
+#define inb_pit         inb_p
+#define outb_pit        outb_p
+
+extern raw_spinlock_t i8253_lock;
 
 #endif /* __LINUX_I8253_H */
