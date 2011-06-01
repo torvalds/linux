@@ -27,12 +27,12 @@ static int speyside_set_bias_level(struct snd_soc_card *card,
 
 	switch (level) {
 	case SND_SOC_BIAS_STANDBY:
-		ret = snd_soc_dai_set_sysclk(codec_dai, WM8915_SYSCLK_MCLK1,
+		ret = snd_soc_dai_set_sysclk(codec_dai, WM8915_SYSCLK_MCLK2,
 					     32768, SND_SOC_CLOCK_IN);
 		if (ret < 0)
 			return ret;
 
-		ret = snd_soc_dai_set_pll(codec_dai, WM8915_FLL_MCLK1,
+		ret = snd_soc_dai_set_pll(codec_dai, WM8915_FLL_MCLK2,
 					  0, 0, 0);
 		if (ret < 0) {
 			pr_err("Failed to stop FLL\n");
@@ -66,7 +66,7 @@ static int speyside_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_pll(codec_dai, 0, WM8915_FLL_MCLK1,
+	ret = snd_soc_dai_set_pll(codec_dai, 0, WM8915_FLL_MCLK2,
 				  32768, 256 * 48000);
 	if (ret < 0)
 		return ret;
@@ -127,7 +127,7 @@ static int speyside_wm8915_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_codec *codec = rtd->codec;
 	int ret;
 
-	ret = snd_soc_dai_set_sysclk(dai, WM8915_SYSCLK_MCLK1, 32768, 0);
+	ret = snd_soc_dai_set_sysclk(dai, WM8915_SYSCLK_MCLK2, 32768, 0);
 	if (ret < 0)
 		return ret;
 
