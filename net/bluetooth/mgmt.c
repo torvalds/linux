@@ -1108,11 +1108,32 @@ unlock:
 	return err;
 }
 
+static int send_pin_code_neg_reply(struct sock *sk, u16 index,
+		struct hci_dev *hdev, struct mgmt_cp_pin_code_neg_reply *cp)
+{
+	struct pending_cmd *cmd;
+	int err;
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_PIN_CODE_NEG_REPLY, index, cp,
+								sizeof(*cp));
+	if (!cmd)
+		return -ENOMEM;
+
+	err = hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY, sizeof(cp->bdaddr),
+								&cp->bdaddr);
+	if (err < 0)
+		mgmt_pending_remove(cmd);
+
+	return err;
+}
+
 static int pin_code_reply(struct sock *sk, u16 index, unsigned char *data,
 									u16 len)
 {
 	struct hci_dev *hdev;
+	struct hci_conn *conn;
 	struct mgmt_cp_pin_code_reply *cp;
+	struct mgmt_cp_pin_code_neg_reply ncp;
 	struct hci_cp_pin_code_reply reply;
 	struct pending_cmd *cmd;
 	int err;
@@ -1132,6 +1153,25 @@ static int pin_code_reply(struct sock *sk, u16 index, unsigned char *data,
 
 	if (!test_bit(HCI_UP, &hdev->flags)) {
 		err = cmd_status(sk, index, MGMT_OP_PIN_CODE_REPLY, ENETDOWN);
+		goto failed;
+	}
+
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
+	if (!conn) {
+		err = cmd_status(sk, index, MGMT_OP_PIN_CODE_REPLY, ENOTCONN);
+		goto failed;
+	}
+
+	if (conn->pending_sec_level == BT_SECURITY_HIGH && cp->pin_len != 16) {
+		bacpy(&ncp.bdaddr, &cp->bdaddr);
+
+		BT_ERR("PIN code is not 16 bytes long");
+
+		err = send_pin_code_neg_reply(sk, index, hdev, &ncp);
+		if (err >= 0)
+			err = cmd_status(sk, index, MGMT_OP_PIN_CODE_REPLY,
+								EINVAL);
+
 		goto failed;
 	}
 
@@ -1161,7 +1201,6 @@ static int pin_code_neg_reply(struct sock *sk, u16 index, unsigned char *data,
 {
 	struct hci_dev *hdev;
 	struct mgmt_cp_pin_code_neg_reply *cp;
-	struct pending_cmd *cmd;
 	int err;
 
 	BT_DBG("");
@@ -1185,17 +1224,7 @@ static int pin_code_neg_reply(struct sock *sk, u16 index, unsigned char *data,
 		goto failed;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_PIN_CODE_NEG_REPLY, index,
-								data, len);
-	if (!cmd) {
-		err = -ENOMEM;
-		goto failed;
-	}
-
-	err = hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY, sizeof(cp->bdaddr),
-								&cp->bdaddr);
-	if (err < 0)
-		mgmt_pending_remove(cmd);
+	err = send_pin_code_neg_reply(sk, index, hdev, cp);
 
 failed:
 	hci_dev_unlock(hdev);
