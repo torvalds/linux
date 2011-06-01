@@ -21,7 +21,6 @@
 #include <bcmdefs.h>
 #include <bcmutils.h>
 
-#include <bcmsrom_fmt.h>
 #include <wlc_phy_hal.h>
 
 #define PHYHAL_ERROR	0x0001
@@ -41,6 +40,14 @@ extern u32 phyhal_msg_level;
 #endif
 
 #define LCNXN_BASEREV		16
+
+typedef struct {
+	u8 tssipos;		/* TSSI positive slope, 1: positive, 0: negative */
+	u8 extpagain;	/* Ext PA gain-type: full-gain: 0, pa-lite: 1, no_pa: 2 */
+	u8 pdetrange;	/* support 32 combinations of different Pdet dynamic ranges */
+	u8 triso;		/* TR switch isolation */
+	u8 antswctrllut;	/* antswctrl lookup table configuration: 32 possible choices */
+} wlc_phy_srom_fem_t;
 
 struct wlc_hw_info;
 typedef struct phy_info phy_info_t;
@@ -653,8 +660,8 @@ struct phy_info {
 	s8 tx_power_offset[TXP_NUM_RATES];
 	u8 tx_power_target[TXP_NUM_RATES];
 
-	srom_fem_t srom_fem2g;
-	srom_fem_t srom_fem5g;
+	wlc_phy_srom_fem_t srom_fem2g;
+	wlc_phy_srom_fem_t srom_fem5g;
 
 	u8 tx_power_max;
 	u8 tx_power_max_rate_ind;
