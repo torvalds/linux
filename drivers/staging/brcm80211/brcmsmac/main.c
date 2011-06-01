@@ -24,7 +24,7 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include <aiutils.h>
-#include <srom.h>
+#include "srom.h"
 #include "dma.h"
 
 #include "pmu.h"

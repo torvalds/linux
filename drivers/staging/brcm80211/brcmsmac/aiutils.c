@@ -29,7 +29,7 @@
 
 /* ********** from siutils.c *********** */
 #include <nicpci.h>
-#include <srom.h>
+#include "srom.h"
 #include <pmu.h>
 #include <scb.h>
 #include <pub.h>

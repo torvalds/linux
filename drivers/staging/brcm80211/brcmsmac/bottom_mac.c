@@ -25,7 +25,7 @@
 #include <brcm_hw_ids.h>
 #include <brcmu_wifi.h>
 #include <aiutils.h>
-#include <srom.h>
+#include "srom.h"
 #include "otp.h"
 #include <brcmu_utils.h>
 #include <chipcommon.h>

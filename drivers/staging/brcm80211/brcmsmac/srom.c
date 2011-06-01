@@ -27,7 +27,7 @@
 #include <brcm_hw_ids.h>
 #include <nicpci.h>
 #include <aiutils.h>
-#include <srom.h>
+#include "srom.h"
 #include "otp.h"
 
 #define SROM_OFFSET(sih) ((sih->ccrev > 31) ? \
