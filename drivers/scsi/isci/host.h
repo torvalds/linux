@@ -240,18 +240,6 @@ struct scic_sds_controller {
 	u32 logical_port_entries;
 
 	/**
-	 * This field is the minimum number of hardware supported completion queue
-	 * entries and the software requested completion queue entries.
-	 */
-	u32 completion_queue_entries;
-
-	/**
-	 * This field is the minimum number of hardware supported event entries and
-	 * the software requested event entries.
-	 */
-	u32 completion_event_entries;
-
-	/**
 	 * This field is the minimum number of devices supported by the hardware and
 	 * the number of devices requested by the software.
 	 */
@@ -325,7 +313,6 @@ struct isci_host {
 	union scic_oem_parameters oem_parameters;
 
 	int id; /* unique within a given pci device */
-	void *core_ctrl_memory;
 	struct dma_pool *dma_pool;
 	struct isci_phy phys[SCI_MAX_PHYS];
 	struct isci_port ports[SCI_MAX_PORTS + 1]; /* includes dummy port */

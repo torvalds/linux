@@ -213,7 +213,7 @@ struct scic_sds_request {
 	struct scu_task_context tc ____cacheline_aligned;
 
 	/* could be larger with sg chaining */
-	#define SCU_SGL_SIZE ((SCU_IO_REQUEST_SGE_COUNT + 1) / 2)
+	#define SCU_SGL_SIZE ((SCI_MAX_SCATTER_GATHER_ELEMENTS + 1) / 2)
 	struct scu_sgl_element_pair sg_table[SCU_SGL_SIZE] __attribute__ ((aligned(32)));
 
 	/*

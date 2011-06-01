@@ -70,45 +70,23 @@
 
 #define SCU_CONTEXT_RAM_INIT_STALL_TIME      200
 
-/**
- * smu_dcc_get_max_ports() -
- *
- * This macro returns the maximum number of logical ports supported by the
- * hardware. The caller passes in the value read from the device context
- * capacity register and this macro will mash and shift the value appropriately.
- */
-#define smu_dcc_get_max_ports(dcc_value) \
+#define smu_max_ports(dcc_value) \
 	(\
 		(((dcc_value) & SMU_DEVICE_CONTEXT_CAPACITY_MAX_LP_MASK) \
 		 >> SMU_DEVICE_CONTEXT_CAPACITY_MAX_LP_SHIFT) + 1 \
 	)
 
-/**
- * smu_dcc_get_max_task_context() -
- *
- * This macro returns the maximum number of task contexts supported by the
- * hardware. The caller passes in the value read from the device context
- * capacity register and this macro will mash and shift the value appropriately.
- */
-#define smu_dcc_get_max_task_context(dcc_value)	\
+#define smu_max_task_contexts(dcc_value)	\
 	(\
 		(((dcc_value) & SMU_DEVICE_CONTEXT_CAPACITY_MAX_TC_MASK) \
 		 >> SMU_DEVICE_CONTEXT_CAPACITY_MAX_TC_SHIFT) + 1 \
 	)
 
-/**
- * smu_dcc_get_max_remote_node_context() -
- *
- * This macro returns the maximum number of remote node contexts supported by
- * the hardware. The caller passes in the value read from the device context
- * capacity register and this macro will mash and shift the value appropriately.
- */
-#define smu_dcc_get_max_remote_node_context(dcc_value) \
+#define smu_max_rncs(dcc_value) \
 	(\
 		(((dcc_value) & SMU_DEVICE_CONTEXT_CAPACITY_MAX_RNC_MASK) \
 		 >> SMU_DEVICE_CONTEXT_CAPACITY_MAX_RNC_SHIFT) + 1 \
 	)
-
 
 #define SCIC_SDS_CONTROLLER_PHY_START_TIMEOUT      100
 
@@ -153,9 +131,8 @@
 	INCREMENT_QUEUE_GET(\
 		(index), \
 		(cycle), \
-		(controller)->completion_queue_entries,	\
-		SMU_CQGR_CYCLE_BIT \
-		)
+		SCU_MAX_COMPLETION_QUEUE_ENTRIES, \
+		SMU_CQGR_CYCLE_BIT)
 
 /**
  * INCREMENT_EVENT_QUEUE_GET() -
@@ -167,7 +144,7 @@
 	INCREMENT_QUEUE_GET(\
 		(index), \
 		(cycle), \
-		(controller)->completion_event_entries,	\
+		SCU_MAX_EVENTS, \
 		SMU_CQGR_EVENT_CYCLE_BIT \
 		)
 
@@ -843,10 +820,9 @@ static void scic_sds_controller_initialize_completion_queue(struct scic_sds_cont
 
 	scic->completion_queue_get = 0;
 
-	completion_queue_control_value = (
-		SMU_CQC_QUEUE_LIMIT_SET(scic->completion_queue_entries - 1)
-		| SMU_CQC_EVENT_LIMIT_SET(scic->completion_event_entries - 1)
-		);
+	completion_queue_control_value =
+		(SMU_CQC_QUEUE_LIMIT_SET(SCU_MAX_COMPLETION_QUEUE_ENTRIES - 1) |
+		 SMU_CQC_EVENT_LIMIT_SET(SCU_MAX_EVENTS - 1));
 
 	writel(completion_queue_control_value,
 	       &scic->smu_registers->completion_queue_control);
@@ -873,7 +849,7 @@ static void scic_sds_controller_initialize_completion_queue(struct scic_sds_cont
 	       &scic->smu_registers->completion_queue_put);
 
 	/* Initialize the cycle bit of the completion queue entries */
-	for (index = 0; index < scic->completion_queue_entries; index++) {
+	for (index = 0; index < SCU_MAX_COMPLETION_QUEUE_ENTRIES; index++) {
 		/*
 		 * If get.cycle_bit != completion_queue.cycle_bit
 		 * its not a valid completion queue entry
@@ -890,8 +866,7 @@ static void scic_sds_controller_initialize_unsolicited_frame_queue(struct scic_s
 
 	/* Write the queue size */
 	frame_queue_control_value =
-		SCU_UFQC_GEN_VAL(QUEUE_SIZE,
-				 scic->uf_control.address_table.count);
+		SCU_UFQC_GEN_VAL(QUEUE_SIZE, SCU_MAX_UNSOLICITED_FRAMES);
 
 	writel(frame_queue_control_value,
 	       &scic->scu_registers->sdma.unsolicited_frame_queue_control);
@@ -1863,15 +1838,6 @@ static enum sci_status scic_controller_construct(struct scic_sds_controller *sci
 
 	sci_init_timer(&scic->timer, controller_timeout);
 
-	/* Set the default maximum values */
-	scic->completion_event_entries      = SCU_EVENT_COUNT;
-	scic->completion_queue_entries      = SCU_COMPLETION_QUEUE_COUNT;
-	scic->remote_node_entries           = SCI_MAX_REMOTE_DEVICES;
-	scic->logical_port_entries          = SCI_MAX_PORTS;
-	scic->task_context_entries          = SCU_IO_REQUEST_COUNT;
-	scic->uf_control.buffers.count      = SCU_UNSOLICITED_FRAME_COUNT;
-	scic->uf_control.address_table.count = SCU_UNSOLICITED_FRAME_COUNT;
-
 	/* Initialize the User and OEM parameters to default values. */
 	scic_sds_controller_set_default_config_parameters(scic);
 
@@ -2207,44 +2173,6 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
 	udelay(AFE_REGISTER_WRITE_DELAY);
 }
 
-static enum sci_status scic_controller_set_mode(struct scic_sds_controller *scic,
-						enum sci_controller_mode operating_mode)
-{
-	enum sci_status status          = SCI_SUCCESS;
-
-	if ((scic->sm.current_state_id == SCIC_INITIALIZING) ||
-	    (scic->sm.current_state_id == SCIC_INITIALIZED)) {
-		switch (operating_mode) {
-		case SCI_MODE_SPEED:
-			scic->remote_node_entries      = SCI_MAX_REMOTE_DEVICES;
-			scic->task_context_entries     = SCU_IO_REQUEST_COUNT;
-			scic->uf_control.buffers.count =
-				SCU_UNSOLICITED_FRAME_COUNT;
-			scic->completion_event_entries = SCU_EVENT_COUNT;
-			scic->completion_queue_entries =
-				SCU_COMPLETION_QUEUE_COUNT;
-			break;
-
-		case SCI_MODE_SIZE:
-			scic->remote_node_entries      = SCI_MIN_REMOTE_DEVICES;
-			scic->task_context_entries     = SCI_MIN_IO_REQUESTS;
-			scic->uf_control.buffers.count =
-				SCU_MIN_UNSOLICITED_FRAMES;
-			scic->completion_event_entries = SCU_MIN_EVENTS;
-			scic->completion_queue_entries =
-				SCU_MIN_COMPLETION_QUEUE_ENTRIES;
-			break;
-
-		default:
-			status = SCI_FAILURE_INVALID_PARAMETER_VALUE;
-			break;
-		}
-	} else
-		status = SCI_FAILURE_INVALID_STATE;
-
-	return status;
-}
-
 static void scic_sds_controller_initialize_power_control(struct scic_sds_controller *scic)
 {
 	sci_init_timer(&scic->power_control.timer, power_control_timeout);
@@ -2259,9 +2187,9 @@ static void scic_sds_controller_initialize_power_control(struct scic_sds_control
 static enum sci_status scic_controller_initialize(struct scic_sds_controller *scic)
 {
 	struct sci_base_state_machine *sm = &scic->sm;
-	enum sci_status result = SCI_SUCCESS;
 	struct isci_host *ihost = scic_to_ihost(scic);
-	u32 index, state;
+	enum sci_status result = SCI_FAILURE;
+	unsigned long i, state, val;
 
 	if (scic->sm.current_state_id != SCIC_RESET) {
 		dev_warn(scic_to_dev(scic),
@@ -2286,133 +2214,81 @@ static enum sci_status scic_controller_initialize(struct scic_sds_controller *sc
 	 * /       presently they seem to be wrong. */
 	scic_sds_controller_afe_initialization(scic);
 
-	if (result == SCI_SUCCESS) {
+
+	/* Take the hardware out of reset */
+	writel(0, &scic->smu_registers->soft_reset_control);
+
+	/*
+	 * / @todo Provide meaningfull error code for hardware failure
+	 * result = SCI_FAILURE_CONTROLLER_HARDWARE; */
+	for (i = 100; i >= 1; i--) {
 		u32 status;
-		u32 terminate_loop;
 
-		/* Take the hardware out of reset */
-		writel(0, &scic->smu_registers->soft_reset_control);
+		/* Loop until the hardware reports success */
+		udelay(SCU_CONTEXT_RAM_INIT_STALL_TIME);
+		status = readl(&scic->smu_registers->control_status);
 
-		/*
-		 * / @todo Provide meaningfull error code for hardware failure
-		 * result = SCI_FAILURE_CONTROLLER_HARDWARE; */
-		result = SCI_FAILURE;
-		terminate_loop = 100;
-
-		while (terminate_loop-- && (result != SCI_SUCCESS)) {
-			/* Loop until the hardware reports success */
-			udelay(SCU_CONTEXT_RAM_INIT_STALL_TIME);
-			status = readl(&scic->smu_registers->control_status);
-
-			if ((status & SCU_RAM_INIT_COMPLETED) ==
-					SCU_RAM_INIT_COMPLETED)
-				result = SCI_SUCCESS;
-		}
+		if ((status & SCU_RAM_INIT_COMPLETED) == SCU_RAM_INIT_COMPLETED)
+			break;
 	}
+	if (i == 0)
+		goto out;
 
-	if (result == SCI_SUCCESS) {
-		u32 max_supported_ports;
-		u32 max_supported_devices;
-		u32 max_supported_io_requests;
-		u32 device_context_capacity;
+	/*
+	 * Determine what are the actaul device capacities that the
+	 * hardware will support */
+	val = readl(&scic->smu_registers->device_context_capacity);
 
-		/*
-		 * Determine what are the actaul device capacities that the
-		 * hardware will support */
-		device_context_capacity =
-			readl(&scic->smu_registers->device_context_capacity);
+	/* Record the smaller of the two capacity values */
+	scic->logical_port_entries = min(smu_max_ports(val), SCI_MAX_PORTS);
+	scic->task_context_entries = min(smu_max_task_contexts(val), SCI_MAX_IO_REQUESTS);
+	scic->remote_node_entries = min(smu_max_rncs(val), SCI_MAX_REMOTE_DEVICES);
 
+	/*
+	 * Make all PEs that are unassigned match up with the
+	 * logical ports
+	 */
+	for (i = 0; i < scic->logical_port_entries; i++) {
+		struct scu_port_task_scheduler_group_registers __iomem
+			*ptsg = &scic->scu_registers->peg0.ptsg;
 
-		max_supported_ports = smu_dcc_get_max_ports(device_context_capacity);
-		max_supported_devices = smu_dcc_get_max_remote_node_context(device_context_capacity);
-		max_supported_io_requests = smu_dcc_get_max_task_context(device_context_capacity);
-
-		/*
-		 * Make all PEs that are unassigned match up with the
-		 * logical ports
-		 */
-		for (index = 0; index < max_supported_ports; index++) {
-			struct scu_port_task_scheduler_group_registers __iomem
-				*ptsg = &scic->scu_registers->peg0.ptsg;
-
-			writel(index, &ptsg->protocol_engine[index]);
-		}
-
-		/* Record the smaller of the two capacity values */
-		scic->logical_port_entries =
-			min(max_supported_ports, scic->logical_port_entries);
-
-		scic->task_context_entries =
-			min(max_supported_io_requests,
-			    scic->task_context_entries);
-
-		scic->remote_node_entries =
-			min(max_supported_devices, scic->remote_node_entries);
-
-		/*
-		 * Now that we have the correct hardware reported minimum values
-		 * build the MDL for the controller.  Default to a performance
-		 * configuration.
-		 */
-		scic_controller_set_mode(scic, SCI_MODE_SPEED);
+		writel(i, &ptsg->protocol_engine[i]);
 	}
 
 	/* Initialize hardware PCI Relaxed ordering in DMA engines */
-	if (result == SCI_SUCCESS) {
-		u32 dma_configuration;
+	val = readl(&scic->scu_registers->sdma.pdma_configuration);
+	val |= SCU_PDMACR_GEN_BIT(PCI_RELAXED_ORDERING_ENABLE);
+	writel(val, &scic->scu_registers->sdma.pdma_configuration);
 
-		/* Configure the payload DMA */
-		dma_configuration =
-			readl(&scic->scu_registers->sdma.pdma_configuration);
-		dma_configuration |=
-			SCU_PDMACR_GEN_BIT(PCI_RELAXED_ORDERING_ENABLE);
-		writel(dma_configuration,
-			&scic->scu_registers->sdma.pdma_configuration);
-
-		/* Configure the control DMA */
-		dma_configuration =
-			readl(&scic->scu_registers->sdma.cdma_configuration);
-		dma_configuration |=
-			SCU_CDMACR_GEN_BIT(PCI_RELAXED_ORDERING_ENABLE);
-		writel(dma_configuration,
-			&scic->scu_registers->sdma.cdma_configuration);
-	}
+	val = readl(&scic->scu_registers->sdma.cdma_configuration);
+	val |= SCU_CDMACR_GEN_BIT(PCI_RELAXED_ORDERING_ENABLE);
+	writel(val, &scic->scu_registers->sdma.cdma_configuration);
 
 	/*
 	 * Initialize the PHYs before the PORTs because the PHY registers
 	 * are accessed during the port initialization.
 	 */
-	if (result == SCI_SUCCESS) {
-		/* Initialize the phys */
-		for (index = 0;
-		     (result == SCI_SUCCESS) && (index < SCI_MAX_PHYS);
-		     index++) {
-			result = scic_sds_phy_initialize(
-				&ihost->phys[index].sci,
-				&scic->scu_registers->peg0.pe[index].tl,
-				&scic->scu_registers->peg0.pe[index].ll);
-		}
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		result = scic_sds_phy_initialize(&ihost->phys[i].sci,
+						 &scic->scu_registers->peg0.pe[i].tl,
+						 &scic->scu_registers->peg0.pe[i].ll);
+		if (result != SCI_SUCCESS)
+			goto out;
 	}
 
-	if (result == SCI_SUCCESS) {
-		/* Initialize the logical ports */
-		for (index = 0;
-		     (index < scic->logical_port_entries) &&
-		     (result == SCI_SUCCESS);
-		     index++) {
-			result = scic_sds_port_initialize(
-				&ihost->ports[index].sci,
-				&scic->scu_registers->peg0.ptsg.port[index],
-				&scic->scu_registers->peg0.ptsg.protocol_engine,
-				&scic->scu_registers->peg0.viit[index]);
-		}
+	for (i = 0; i < scic->logical_port_entries; i++) {
+		result = scic_sds_port_initialize(&ihost->ports[i].sci,
+						  &scic->scu_registers->peg0.ptsg.port[i],
+						  &scic->scu_registers->peg0.ptsg.protocol_engine,
+						  &scic->scu_registers->peg0.viit[i]);
+
+		if (result != SCI_SUCCESS)
+			goto out;
 	}
 
-	if (result == SCI_SUCCESS)
-		result = scic_sds_port_configuration_agent_initialize(
-				scic,
-				&scic->port_agent);
+	result = scic_sds_port_configuration_agent_initialize(scic, &scic->port_agent);
 
+ out:
 	/* Advance the controller state machine */
 	if (result == SCI_SUCCESS)
 		state = SCIC_INITIALIZED;
@@ -2480,47 +2356,38 @@ static enum sci_status scic_user_parameters_set(
 static int scic_controller_mem_init(struct scic_sds_controller *scic)
 {
 	struct device *dev = scic_to_dev(scic);
-	dma_addr_t dma_handle;
-	enum sci_status result;
+	dma_addr_t dma;
+	size_t size;
+	int err;
 
-	scic->completion_queue = dmam_alloc_coherent(dev,
-			scic->completion_queue_entries * sizeof(u32),
-			&dma_handle, GFP_KERNEL);
+	size = SCU_MAX_COMPLETION_QUEUE_ENTRIES * sizeof(u32);
+	scic->completion_queue = dmam_alloc_coherent(dev, size, &dma, GFP_KERNEL);
 	if (!scic->completion_queue)
 		return -ENOMEM;
 
-	writel(lower_32_bits(dma_handle),
-		&scic->smu_registers->completion_queue_lower);
-	writel(upper_32_bits(dma_handle),
-		&scic->smu_registers->completion_queue_upper);
+	writel(lower_32_bits(dma), &scic->smu_registers->completion_queue_lower);
+	writel(upper_32_bits(dma), &scic->smu_registers->completion_queue_upper);
 
-	scic->remote_node_context_table = dmam_alloc_coherent(dev,
-			scic->remote_node_entries *
-				sizeof(union scu_remote_node_context),
-			&dma_handle, GFP_KERNEL);
+	size = scic->remote_node_entries * sizeof(union scu_remote_node_context);
+	scic->remote_node_context_table = dmam_alloc_coherent(dev, size, &dma,
+							      GFP_KERNEL);
 	if (!scic->remote_node_context_table)
 		return -ENOMEM;
 
-	writel(lower_32_bits(dma_handle),
-		&scic->smu_registers->remote_node_context_lower);
-	writel(upper_32_bits(dma_handle),
-		&scic->smu_registers->remote_node_context_upper);
+	writel(lower_32_bits(dma), &scic->smu_registers->remote_node_context_lower);
+	writel(upper_32_bits(dma), &scic->smu_registers->remote_node_context_upper);
 
-	scic->task_context_table = dmam_alloc_coherent(dev,
-			scic->task_context_entries *
-				sizeof(struct scu_task_context),
-			&dma_handle, GFP_KERNEL);
+	size = scic->task_context_entries * sizeof(struct scu_task_context),
+	scic->task_context_table = dmam_alloc_coherent(dev, size, &dma, GFP_KERNEL);
 	if (!scic->task_context_table)
 		return -ENOMEM;
 
-	writel(lower_32_bits(dma_handle),
-		&scic->smu_registers->host_task_table_lower);
-	writel(upper_32_bits(dma_handle),
-		&scic->smu_registers->host_task_table_upper);
+	writel(lower_32_bits(dma), &scic->smu_registers->host_task_table_lower);
+	writel(upper_32_bits(dma), &scic->smu_registers->host_task_table_upper);
 
-	result = scic_sds_unsolicited_frame_control_construct(scic);
-	if (result)
-		return result;
+	err = scic_sds_unsolicited_frame_control_construct(scic);
+	if (err)
+		return err;
 
 	/*
 	 * Inform the silicon as to the location of the UF headers and

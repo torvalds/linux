@@ -57,120 +57,30 @@
 #include "unsolicited_frame_control.h"
 #include "registers.h"
 
-/**
- * This method will program the unsolicited frames (UFs) into the UF address
- *    table and construct the UF frame structure being modeled in the core.  It
- *    will handle the case where some of the UFs are not being used and thus
- *    should have entries programmed to zero in the address table.
- * @uf_control: This parameter specifies the unsolicted frame control object
- *    for which to construct the unsolicited frames objects.
- * @uf_buffer_phys_address: This parameter specifies the physical address for
- *    the first unsolicited frame buffer.
- * @uf_buffer_virt_address: This parameter specifies the virtual address for
- *    the first unsolicited frame buffer.
- * @unused_uf_header_entries: This parameter specifies the number of unused UF
- *    headers.  This value can be non-zero when there are a non-power of 2
- *    number of unsolicited frames being supported.
- * @used_uf_header_entries: This parameter specifies the number of actually
- *    utilized UF headers.
- *
- */
-static void scic_sds_unsolicited_frame_control_construct_frames(
-	struct scic_sds_unsolicited_frame_control *uf_control,
-	dma_addr_t uf_buffer_phys_address,
-	void *uf_buffer_virt_address,
-	u32 unused_uf_header_entries,
-	u32 used_uf_header_entries)
-{
-	u32 index;
-	struct scic_sds_unsolicited_frame *uf;
-
-	/*
-	 * Program the unused buffers into the UF address table and the
-	 * controller's array of UFs.
-	 */
-	for (index = 0; index < unused_uf_header_entries; index++) {
-		uf = &uf_control->buffers.array[index];
-
-		uf->buffer = NULL;
-		uf_control->address_table.array[index] = 0;
-		uf->header = &uf_control->headers.array[index];
-		uf->state  = UNSOLICITED_FRAME_EMPTY;
-	}
-
-	/*
-	 * Program the actual used UF buffers into the UF address table and
-	 * the controller's array of UFs.
-	 */
-	for (index = unused_uf_header_entries;
-	     index < unused_uf_header_entries + used_uf_header_entries;
-	     index++) {
-		uf = &uf_control->buffers.array[index];
-
-		uf_control->address_table.array[index] = uf_buffer_phys_address;
-
-		uf->buffer = uf_buffer_virt_address;
-		uf->header = &uf_control->headers.array[index];
-		uf->state  = UNSOLICITED_FRAME_EMPTY;
-
-		/*
-		 * Increment the address of the physical and virtual memory
-		 * pointers. Everything is aligned on 1k boundary with an
-		 * increment of 1k.
-		 */
-		uf_buffer_virt_address += SCU_UNSOLICITED_FRAME_BUFFER_SIZE;
-		uf_buffer_phys_address += SCU_UNSOLICITED_FRAME_BUFFER_SIZE;
-	}
-}
-
 int scic_sds_unsolicited_frame_control_construct(struct scic_sds_controller *scic)
 {
 	struct scic_sds_unsolicited_frame_control *uf_control = &scic->uf_control;
-	u32 unused_uf_header_entries;
-	u32 used_uf_header_entries;
-	u32 used_uf_buffer_bytes;
-	u32 unused_uf_header_bytes;
-	u32 used_uf_header_bytes;
-	dma_addr_t uf_buffer_phys_address;
-	void *uf_buffer_virt_address;
+	struct scic_sds_unsolicited_frame *uf;
+	u32 buf_len, header_len, i;
+	dma_addr_t dma;
 	size_t size;
-
-	/*
-	 * The UF buffer address table size must be programmed to a power
-	 * of 2.  Find the first power of 2 that is equal to or greater then
-	 * the number of unsolicited frame buffers to be utilized.
-	 */
-	uf_control->address_table.count = SCU_MIN_UF_TABLE_ENTRIES;
-	while (uf_control->address_table.count < uf_control->buffers.count &&
-	       uf_control->address_table.count < SCU_ABSOLUTE_MAX_UNSOLICITED_FRAMES)
-		uf_control->address_table.count <<= 1;
+	void *virt;
 
 	/*
 	 * Prepare all of the memory sizes for the UF headers, UF address
 	 * table, and UF buffers themselves.
 	 */
-	used_uf_buffer_bytes     = uf_control->buffers.count
-				   * SCU_UNSOLICITED_FRAME_BUFFER_SIZE;
-	unused_uf_header_entries = uf_control->address_table.count
-				   - uf_control->buffers.count;
-	used_uf_header_entries   = uf_control->buffers.count;
-	unused_uf_header_bytes   = unused_uf_header_entries
-				   * sizeof(struct scu_unsolicited_frame_header);
-	used_uf_header_bytes     = used_uf_header_entries
-				   * sizeof(struct scu_unsolicited_frame_header);
-
-	size = used_uf_buffer_bytes + used_uf_header_bytes +
-			uf_control->address_table.count * sizeof(dma_addr_t);
-
+	buf_len = SCU_MAX_UNSOLICITED_FRAMES * SCU_UNSOLICITED_FRAME_BUFFER_SIZE;
+	header_len = SCU_MAX_UNSOLICITED_FRAMES * sizeof(struct scu_unsolicited_frame_header);
+	size = buf_len + header_len + SCU_MAX_UNSOLICITED_FRAMES * sizeof(dma_addr_t);
 
 	/*
 	 * The Unsolicited Frame buffers are set at the start of the UF
 	 * memory descriptor entry. The headers and address table will be
 	 * placed after the buffers.
 	 */
-	uf_buffer_virt_address = dmam_alloc_coherent(scic_to_dev(scic), size,
-							&uf_buffer_phys_address, GFP_KERNEL);
-	if (!uf_buffer_virt_address)
+	virt = dmam_alloc_coherent(scic_to_dev(scic), size, &dma, GFP_KERNEL);
+	if (!virt)
 		return -ENOMEM;
 
 	/*
@@ -183,15 +93,8 @@ int scic_sds_unsolicited_frame_control_construct(struct scic_sds_controller *sci
 	 *   headers, since we program the UF address table pointers to
 	 *   NULL.
 	 */
-	uf_control->headers.physical_address =
-				uf_buffer_phys_address +
-				used_uf_buffer_bytes -
-				unused_uf_header_bytes;
-
-	uf_control->headers.array =
-				uf_buffer_virt_address +
-				used_uf_buffer_bytes -
-				unused_uf_header_bytes;
+	uf_control->headers.physical_address = dma + buf_len;
+	uf_control->headers.array = virt + buf_len;
 
 	/*
 	 * Program the location of the UF address table into the SCU.
@@ -200,16 +103,8 @@ int scic_sds_unsolicited_frame_control_construct(struct scic_sds_controller *sci
 	 *   byte boundary already due to above programming headers being on a
 	 *   64-bit boundary and headers are on a 64-bytes in size.
 	 */
-	uf_control->address_table.physical_address =
-				uf_buffer_phys_address +
-				used_uf_buffer_bytes +
-				used_uf_header_bytes;
-
-	uf_control->address_table.array =
-				uf_buffer_virt_address +
-				used_uf_buffer_bytes +
-				used_uf_header_bytes;
-
+	uf_control->address_table.physical_address = dma + buf_len + header_len;
+	uf_control->address_table.array = virt + buf_len + header_len;
 	uf_control->get = 0;
 
 	/*
@@ -220,16 +115,26 @@ int scic_sds_unsolicited_frame_control_construct(struct scic_sds_controller *sci
 	 * - Aligned on a 1KB boundary. */
 
 	/*
-	 * If the user provided less then the maximum amount of memory,
-	 * then be sure that we programm the first entries in the UF
-	 * address table to NULL. */
-	scic_sds_unsolicited_frame_control_construct_frames(
-		uf_control,
-		uf_buffer_phys_address,
-		uf_buffer_virt_address,
-		unused_uf_header_entries,
-		used_uf_header_entries
-		);
+	 * Program the actual used UF buffers into the UF address table and
+	 * the controller's array of UFs.
+	 */
+	for (i = 0; i < SCU_MAX_UNSOLICITED_FRAMES; i++) {
+		uf = &uf_control->buffers.array[i];
+
+		uf_control->address_table.array[i] = dma;
+
+		uf->buffer = virt;
+		uf->header = &uf_control->headers.array[i];
+		uf->state  = UNSOLICITED_FRAME_EMPTY;
+
+		/*
+		 * Increment the address of the physical and virtual memory
+		 * pointers. Everything is aligned on 1k boundary with an
+		 * increment of 1k.
+		 */
+		virt += SCU_UNSOLICITED_FRAME_BUFFER_SIZE;
+		dma += SCU_UNSOLICITED_FRAME_BUFFER_SIZE;
+	}
 
 	return 0;
 }
@@ -247,7 +152,7 @@ enum sci_status scic_sds_unsolicited_frame_control_get_header(
 	u32 frame_index,
 	void **frame_header)
 {
-	if (frame_index < uf_control->address_table.count) {
+	if (frame_index < SCU_MAX_UNSOLICITED_FRAMES) {
 		/*
 		 * Skip the first word in the frame since this is a controll word used
 		 * by the hardware. */
@@ -272,7 +177,7 @@ enum sci_status scic_sds_unsolicited_frame_control_get_buffer(
 	u32 frame_index,
 	void **frame_buffer)
 {
-	if (frame_index < uf_control->address_table.count) {
+	if (frame_index < SCU_MAX_UNSOLICITED_FRAMES) {
 		*frame_buffer = uf_control->buffers.array[frame_index].buffer;
 
 		return SCI_SUCCESS;
@@ -298,26 +203,24 @@ bool scic_sds_unsolicited_frame_control_release_frame(
 	u32 frame_get;
 	u32 frame_cycle;
 
-	frame_get   = uf_control->get & (uf_control->address_table.count - 1);
-	frame_cycle = uf_control->get & uf_control->address_table.count;
+	frame_get   = uf_control->get & (SCU_MAX_UNSOLICITED_FRAMES - 1);
+	frame_cycle = uf_control->get & SCU_MAX_UNSOLICITED_FRAMES;
 
 	/*
 	 * In the event there are NULL entries in the UF table, we need to
 	 * advance the get pointer in order to find out if this frame should
 	 * be released (i.e. update the get pointer). */
-	while (((lower_32_bits(uf_control->address_table.array[frame_get])
-					== 0) &&
-		(upper_32_bits(uf_control->address_table.array[frame_get])
-					== 0)) &&
-	       (frame_get < uf_control->address_table.count))
+	while (lower_32_bits(uf_control->address_table.array[frame_get]) == 0 &&
+	       upper_32_bits(uf_control->address_table.array[frame_get]) == 0 &&
+	       frame_get < SCU_MAX_UNSOLICITED_FRAMES)
 		frame_get++;
 
 	/*
 	 * The table has a NULL entry as it's last element.  This is
 	 * illegal. */
-	BUG_ON(frame_get >= uf_control->address_table.count);
+	BUG_ON(frame_get >= SCU_MAX_UNSOLICITED_FRAMES);
 
-	if (frame_index < uf_control->address_table.count) {
+	if (frame_index < SCU_MAX_UNSOLICITED_FRAMES) {
 		uf_control->buffers.array[frame_index].state = UNSOLICITED_FRAME_RELEASED;
 
 		/*
@@ -333,9 +236,8 @@ bool scic_sds_unsolicited_frame_control_release_frame(
 				INCREMENT_QUEUE_GET(
 					frame_get,
 					frame_cycle,
-					uf_control->address_table.count - 1,
-					uf_control->address_table.count
-					);
+					SCU_MAX_UNSOLICITED_FRAMES - 1,
+					SCU_MAX_UNSOLICITED_FRAMES);
 			}
 
 			uf_control->get =

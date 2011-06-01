@@ -144,25 +144,18 @@ struct scic_sds_uf_header_array {
  */
 struct scic_sds_uf_buffer_array {
 	/**
-	 * This field is the minimum number of unsolicited frames supported by the
-	 * hardware and the number of unsolicited frames requested by the software.
-	 */
-	u32 count;
-
-	/**
-	 * This field is the SCIC_UNSOLICITED_FRAME data its used to manage
+	 * This field is the unsolicited frame data its used to manage
 	 * the data for the unsolicited frame requests.  It also represents
 	 * the virtual address location that corresponds to the
 	 * physical_address field.
 	 */
-	struct scic_sds_unsolicited_frame array[SCU_UNSOLICITED_FRAME_CONTROL_ARRAY_SIZE];
+	struct scic_sds_unsolicited_frame array[SCU_MAX_UNSOLICITED_FRAMES];
 
 	/**
 	 * This field specifies the physical address location for the UF
 	 * buffer array.
 	 */
 	dma_addr_t physical_address;
-
 };
 
 /**
@@ -173,15 +166,6 @@ struct scic_sds_uf_buffer_array {
  * 1KB buffers into which the silicon will DMA unsolicited frames.
  */
 struct scic_sds_uf_address_table_array {
-	/**
-	 * This field specifies the actual programmed size of the
-	 * unsolicited frame buffer address table.  The size of the table
-	 * can be larger than the actual number of UF buffers, but it must
-	 * be a power of 2 and the last entry in the table is not allowed
-	 * to be NULL.
-	 */
-	u32 count;
-
 	/**
 	 * This field represents a virtual pointer that refers to the
 	 * starting address of the UF address table.
