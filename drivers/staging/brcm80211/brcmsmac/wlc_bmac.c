@@ -33,8 +33,8 @@
 #include <sbconfig.h>
 #include <sbchipc.h>
 #include <pcicfg.h>
-#include <sbhnddma.h>
-#include <hnddma.h>
+#include <sbdma.h>
+#include <bcmdma.h>
 
 #include "wlc_types.h"
 #include "wlc_pmu.h"

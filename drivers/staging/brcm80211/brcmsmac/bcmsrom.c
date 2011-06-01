@@ -21,7 +21,7 @@
 #include <linux/pci.h>
 #include <stdarg.h>
 #include <bcmutils.h>
-#include <hndsoc.h>
+#include <bcmsoc.h>
 #include <sbchipc.h>
 #include <bcmdevs.h>
 #include <pcicfg.h>

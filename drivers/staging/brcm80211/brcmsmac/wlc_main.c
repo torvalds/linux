@@ -27,8 +27,8 @@
 #include <aiutils.h>
 #include <pcicfg.h>
 #include <bcmsrom.h>
-#include <sbhnddma.h>
-#include <hnddma.h>
+#include <sbdma.h>
+#include <bcmdma.h>
 
 #include "wlc_pmu.h"
 #include "d11.h"

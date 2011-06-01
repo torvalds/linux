@@ -32,7 +32,7 @@
 #include <bcmutils.h>
 #include <bcmnvram.h>
 #include <pcicfg.h>
-#include <sbhnddma.h>
+#include <sbdma.h>
 
 #include "phy/wlc_phy_int.h"
 #include "d11.h"

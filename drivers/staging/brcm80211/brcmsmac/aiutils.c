@@ -22,7 +22,7 @@
 #include <linux/pci.h>
 #include <bcmutils.h>
 #include <aiutils.h>
-#include <hndsoc.h>
+#include <bcmsoc.h>
 #include <sbchipc.h>
 #include <pcicfg.h>
 #include <bcmdevs.h>

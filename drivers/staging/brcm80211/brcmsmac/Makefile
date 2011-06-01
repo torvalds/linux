@@ -49,7 +49,7 @@ BRCMSMAC_OFILES := \
 	phy/wlc_phy_qmath.o \
 	bcmotp.o \
 	bcmsrom.o \
-	hnddma.o \
+	dma.o \
 	nicpci.o \
 	nvram.o
 

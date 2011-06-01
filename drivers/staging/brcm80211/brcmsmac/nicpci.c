@@ -21,7 +21,7 @@
 #include <bcmutils.h>
 #include <bcmnvram.h>
 #include <aiutils.h>
-#include <hndsoc.h>
+#include <bcmsoc.h>
 #include <bcmdevs.h>
 #include <sbchipc.h>
 #include <pci_core.h>

@@ -23,7 +23,7 @@
 #include <bcmutils.h>
 #include <bcmnvram.h>
 #include <aiutils.h>
-#include <sbhnddma.h>
+#include <sbdma.h>
 
 #include "wlc_types.h"
 #include "d11.h"

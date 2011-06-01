@@ -25,7 +25,7 @@
 #include <bcmdevs.h>
 #include <bcmutils.h>
 #include <aiutils.h>
-#include <hndsoc.h>
+#include <bcmsoc.h>
 #include <sbchipc.h>
 #include <bcmotp.h>
 

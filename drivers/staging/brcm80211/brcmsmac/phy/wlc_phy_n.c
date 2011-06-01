@@ -25,7 +25,7 @@
 #include <wlc_pmu.h>
 
 #include <bcmdevs.h>
-#include <sbhnddma.h>
+#include <sbdma.h>
 
 #include <wlc_phy_radio.h>
 #include <wlc_phy_int.h>

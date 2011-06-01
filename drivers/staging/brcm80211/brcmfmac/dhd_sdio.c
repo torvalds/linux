@@ -30,13 +30,13 @@
 #include <bcmutils.h>
 #include <bcmdevs.h>
 
-#include <hndsoc.h>
+#include <bcmsoc.h>
 #ifdef DHD_DEBUG
-#include <hndrte_armtrap.h>
-#include <hndrte_cons.h>
+#include <rte_armtrap.h>
+#include <rte_cons.h>
 #endif				/* DHD_DEBUG */
 #include <sbchipc.h>
-#include <sbhnddma.h>
+#include <sbdma.h>
 
 #include <sdio.h>
 #include <sbsdio.h>

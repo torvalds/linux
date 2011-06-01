@@ -20,12 +20,12 @@
 #include <linux/pci.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
-#include <hndsoc.h>
+#include <bcmsoc.h>
 #include <bcmutils.h>
 #include <aiutils.h>
 
-#include <sbhnddma.h>
-#include <hnddma.h>
+#include <sbdma.h>
+#include <bcmdma.h>
 
 #if defined(__mips__)
 #include <asm/addrspace.h>

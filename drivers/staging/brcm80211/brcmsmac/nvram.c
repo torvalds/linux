@@ -21,7 +21,7 @@
 #include <bcmnvram.h>
 #include <sbchipc.h>
 #include <bcmdevs.h>
-#include <hndsoc.h>
+#include <bcmsoc.h>
 
 #define NVR_MSG(x)
 
