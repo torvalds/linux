@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <stdarg.h>
+#include "wlc_types.h"
 #include <bcmutils.h>
 #include <bcmsoc.h>
 #include <sbchipc.h>

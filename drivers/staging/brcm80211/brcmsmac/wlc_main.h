@@ -47,6 +47,24 @@
 
 #define AC_COUNT		4
 
+/* Macros for doing definition and get/set of bitfields
+ * Usage example, e.g. a three-bit field (bits 4-6):
+ *    #define <NAME>_M	BITFIELD_MASK(3)
+ *    #define <NAME>_S	4
+ * ...
+ *    regval = R_REG(osh, &regs->regfoo);
+ *    field = GFIELD(regval, <NAME>);
+ *    regval = SFIELD(regval, <NAME>, 1);
+ *    W_REG(osh, &regs->regfoo, regval);
+ */
+#define BITFIELD_MASK(width) \
+		(((unsigned)1 << (width)) - 1)
+#define GFIELD(val, field) \
+		(((val) >> field ## _S) & field ## _M)
+#define SFIELD(val, field, bits) \
+		(((val) & (~(field ## _M << field ## _S))) | \
+		 ((unsigned)(bits) << field ## _S))
+
 /* For managing scan result lists */
 struct wlc_bss_list {
 	uint count;
@@ -157,6 +175,8 @@ extern const u8 prio2fifo[];
 #define EDCF_SFB_M              BITFIELD_MASK(4)
 #define EDCF_LONG_M             BITFIELD_MASK(4)
 #define EDCF_LFB_M              BITFIELD_MASK(4)
+
+#define	NFIFO			6	/* # tx/rx fifopairs */
 
 #define WLC_WME_RETRY_SHORT_GET(wlc, ac)    GFIELD(wlc->wme_retries[ac], EDCF_SHORT)
 #define WLC_WME_RETRY_SFB_GET(wlc, ac)      GFIELD(wlc->wme_retries[ac], EDCF_SFB)

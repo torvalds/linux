@@ -27,6 +27,7 @@
 #include <bcmdevs.h>
 #include <sbdma.h>
 
+#include <wlc_types.h>
 #include <wlc_phy_radio.h>
 #include <wlc_phy_int.h>
 #include <wlc_phyreg_n.h>

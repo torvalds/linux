@@ -24,6 +24,7 @@
 #include <bcmutils.h>
 #include <aiutils.h>
 
+#include "wlc_types.h"
 #include <sbdma.h>
 #include <bcmdma.h>
 
@@ -148,6 +149,19 @@
 #define D64_RX_FRM_STS_DSCRCNT	0x0f000000  /* no. of descriptors used - 1 */
 #define D64_RX_FRM_STS_DATATYPE	0xf0000000	/* core-dependent data type */
 
+#define	DMADDRWIDTH_30  30	/* 30-bit addressing capability */
+#define	DMADDRWIDTH_32  32	/* 32-bit addressing capability */
+#define	DMADDRWIDTH_63  63	/* 64-bit addressing capability */
+#define	DMADDRWIDTH_64  64	/* 64-bit addressing capability */
+
+/* packet headroom necessary to accommodate the largest header in the system, (i.e TXOFF).
+ * By doing, we avoid the need  to allocate an extra buffer for the header when bridging to WL.
+ * There is a compile time check in wlc.c which ensure that this value is at least as big
+ * as TXOFF. This value is used in dma_rxfill (dma.c).
+ */
+
+#define BCMEXTRAHDROOM 172
+
 /* debug/trace */
 #ifdef BCMDBG
 #define	DMA_ERROR(args) \
@@ -171,6 +185,15 @@
 
 #define	DMA_NONE(args)
 
+typedef unsigned long dmaaddr_t;
+#define PHYSADDRHI(_pa) (0)
+#define PHYSADDRHISET(_pa, _val)
+#define PHYSADDRLO(_pa) ((_pa))
+#define PHYSADDRLOSET(_pa, _val) \
+	do { \
+		(_pa) = (_val);			\
+	} while (0)
+
 #define d64txregs	dregs.d64_u.txregs_64
 #define d64rxregs	dregs.d64_u.rxregs_64
 #define txd64		dregs.d64_u.txd_64
@@ -185,6 +208,19 @@ static uint dma_msg_level;
 
 #define R_SM(r)		(*(r))
 #define W_SM(r, v)	(*(r) = (v))
+
+/* One physical DMA segment */
+typedef struct {
+	dmaaddr_t addr;
+	u32 length;
+} dma_seg_t;
+
+typedef struct {
+	void *oshdmah;		/* Opaque handle for OSL to store its information */
+	uint origsize;		/* Size of the virtual packet */
+	uint nsegs;
+	dma_seg_t segs[MAX_DMA_SEGS];
+} dma_seg_map_t;
 
 /*
  * DMA Descriptor
