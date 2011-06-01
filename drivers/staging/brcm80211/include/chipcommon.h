@@ -17,12 +17,7 @@
 #ifndef	_SBCHIPC_H
 #define	_SBCHIPC_H
 
-/* cpp contortions to concatenate w/arg prescan */
-#ifndef PAD
-#define	_PADLINE(line)	pad ## line
-#define	_XSTR(line)	_PADLINE(line)
-#define	PAD		_XSTR(__LINE__)
-#endif				/* PAD */
+#include "bcmdefs.h"		/* for PAD macro */
 
 typedef volatile struct {
 	u32 chipid;		/* 0x0 */

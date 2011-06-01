@@ -1082,7 +1082,7 @@ void ai_detach(struct si_pub *sih)
 	uint idx;
 
 	struct si_pub *si_local = NULL;
-	bcopy(&sih, &si_local, sizeof(struct si_pub **));
+	memcpy(&si_local, &sih, sizeof(struct si_pub **));
 
 	sii = SI_INFO(sih);
 

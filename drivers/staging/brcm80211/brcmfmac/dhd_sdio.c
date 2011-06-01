@@ -61,8 +61,6 @@
 
 #define	TRAP_T_SIZE	80
 
-#ifndef	_LANGUAGE_ASSEMBLY
-
 typedef struct _trap_struct {
 	u32 type;
 	u32 epc;
@@ -85,8 +83,6 @@ typedef struct _trap_struct {
 	u32 r14;
 	u32 pc;
 } trap_t;
-
-#endif				/* !_LANGUAGE_ASSEMBLY */
 
 #define CBUF_LEN	(128)
 
@@ -448,8 +444,6 @@ typedef struct dhd_bus {
 	bool ctrl_frame_stat;
 } dhd_bus_t;
 
-#ifndef _LANGUAGE_ASSEMBLY
-
 typedef volatile struct _sbconfig {
 	u32 PAD[2];
 	u32 sbipsflag;	/* initiator port ocp slave flag */
@@ -489,8 +483,6 @@ typedef volatile struct _sbconfig {
 	u32 sbidlow;		/* identification */
 	u32 sbidhigh;	/* identification */
 } sbconfig_t;
-
-#endif				/* _LANGUAGE_ASSEMBLY */
 
 /* clkstate */
 #define CLK_NONE	0

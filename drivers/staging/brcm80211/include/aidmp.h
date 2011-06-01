@@ -17,6 +17,8 @@
 #ifndef	_AIDMP_H
 #define	_AIDMP_H
 
+#include "bcmdefs.h"		/* for PAD macro */
+
 /* Manufacturer Ids */
 #define	MFGID_ARM		0x43b
 #define	MFGID_BRCM		0x4bf
@@ -99,8 +101,6 @@
 #define	SD_SZ_MASK		0xfffff000
 #define	SD_SG32			0x00000008
 #define	SD_SZ_ALIGN		0x00000fff
-
-#ifndef _LANGUAGE_ASSEMBLY
 
 typedef volatile struct _aidmp {
 	u32 oobselina30;	/* 0x000 */
@@ -219,8 +219,6 @@ typedef volatile struct _aidmp {
 	u32 componentid2;	/* 0xff8 */
 	u32 componentid3;	/* 0xffc */
 } aidmp_t;
-
-#endif				/* _LANGUAGE_ASSEMBLY */
 
 /* Out-of-band Router registers */
 #define	OOB_BUSCONFIG		0x020

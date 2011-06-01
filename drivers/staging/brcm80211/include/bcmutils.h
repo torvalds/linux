@@ -272,8 +272,6 @@ extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
 #include <linux/kernel.h>	/* for vsn/printf's */
 #include <linux/string.h>	/* for mem*, str* */
 #endif
-/* bcopy's: Linux kernel doesn't provide these (anymore) */
-#define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
 
 /* register access macros */
 #ifndef __BIG_ENDIAN

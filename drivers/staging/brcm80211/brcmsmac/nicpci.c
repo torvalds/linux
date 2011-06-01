@@ -117,13 +117,6 @@
 /* PCIE protocol TLP diagnostic registers */
 #define PCIE_TLP_WORKAROUNDSREG		0x004	/* TLP Workarounds */
 
-/* cpp contortions to concatenate w/arg prescan */
-#ifndef PAD
-#define	_PADLINE(line)	pad ## line
-#define	_XSTR(line)	_PADLINE(line)
-#define	PAD		_XSTR(__LINE__)
-#endif
-
 /* Sonics side: PCI core and host control registers */
 struct sbpciregs {
 	u32 control;		/* PCI control */

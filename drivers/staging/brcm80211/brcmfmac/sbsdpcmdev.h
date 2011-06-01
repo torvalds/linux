@@ -17,13 +17,6 @@
 #ifndef	_sbsdpcmdev_h_
 #define	_sbsdpcmdev_h_
 
-/* cpp contortions to concatenate w/arg prescan */
-#ifndef PAD
-#define	_PADLINE(line)	pad ## line
-#define	_XSTR(line)	_PADLINE(line)
-#define	PAD		_XSTR(__LINE__)
-#endif				/* PAD */
-
 /* core registers */
 typedef volatile struct {
 	u32 corecontrol;	/* CoreControl, 0x000, rev8 */

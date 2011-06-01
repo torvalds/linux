@@ -19,13 +19,6 @@
 
 #include <linux/ieee80211.h>
 
-/* cpp contortions to concatenate w/arg prescan */
-#ifndef	PAD
-#define	_PADLINE(line)	pad ## line
-#define	_XSTR(line)	_PADLINE(line)
-#define	PAD		_XSTR(__LINE__)
-#endif
-
 #define	BCN_TMPL_LEN		512	/* length of the BCN template area */
 
 /* RX FIFO numbers */

@@ -17,8 +17,6 @@
 #ifndef _bcmnvram_h_
 #define _bcmnvram_h_
 
-#ifndef _LANGUAGE_ASSEMBLY
-
 #include <bcmdefs.h>
 
 struct nvram_header {
@@ -127,8 +125,6 @@ extern int nvram_commit(void);
  * @return	0 on success and errno on failure
  */
 extern int nvram_getall(char *nvram_buf, int count);
-
-#endif				/* _LANGUAGE_ASSEMBLY */
 
 /* variable access */
 extern char *getvar(char *vars, const char *name);

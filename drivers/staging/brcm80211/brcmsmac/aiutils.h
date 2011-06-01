@@ -17,13 +17,6 @@
 #ifndef	_aiutils_h_
 #define	_aiutils_h_
 
-/* cpp contortions to concatenate w/arg prescan */
-#ifndef PAD
-#define	_PADLINE(line)	pad ## line
-#define	_XSTR(line)	_PADLINE(line)
-#define	PAD		_XSTR(__LINE__)
-#endif
-
 /* Include the soci specific files */
 #include <aidmp.h>
 
