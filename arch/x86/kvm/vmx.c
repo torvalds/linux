@@ -3602,7 +3602,9 @@ static u32 vmx_secondary_exec_control(struct vcpu_vmx *vmx)
  */
 static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 {
+#ifdef CONFIG_X86_64
 	unsigned long a;
+#endif
 	int i;
 
 	/* I/O */
