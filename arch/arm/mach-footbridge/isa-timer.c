@@ -19,8 +19,6 @@
 
 #include "common.h"
 
-DEFINE_RAW_SPINLOCK(i8253_lock);
-
 static void pit_set_mode(enum clock_event_mode mode,
 	struct clock_event_device *evt)
 {

@@ -1002,6 +1002,7 @@ config ELF_CORE
 config PCSPKR_PLATFORM
 	bool "Enable PC-Speaker support" if EXPERT
 	depends on ALPHA || X86 || MIPS || PPC_PREP || PPC_CHRP || PPC_PSERIES
+	select I8253_LOCK
 	default y
 	help
           This option allows to disable the internal PC-Speaker

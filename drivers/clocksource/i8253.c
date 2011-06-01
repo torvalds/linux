@@ -6,9 +6,19 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 #include <linux/timex.h>
-
+#include <linux/module.h>
 #include <linux/i8253.h>
 
+/*
+ * Protects access to I/O ports
+ *
+ * 0040-0043 : timer0, i8253 / i8254
+ * 0061-0061 : NMI Control Register which contains two speaker control bits.
+ */
+DEFINE_RAW_SPINLOCK(i8253_lock);
+EXPORT_SYMBOL(i8253_lock);
+
+#ifdef CONFIG_CLKSRC_I8253
 /*
  * Since the PIT overflows every tick, its not very useful
  * to just read by itself. So use jiffies to emulate a free
@@ -86,3 +96,4 @@ int __init clocksource_i8253_init(void)
 {
 	return clocksource_register_hz(&i8253_cs, PIT_TICK_RATE);
 }
+#endif

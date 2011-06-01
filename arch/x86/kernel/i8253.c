@@ -16,9 +16,6 @@
 #include <asm/hpet.h>
 #include <asm/smp.h>
 
-DEFINE_RAW_SPINLOCK(i8253_lock);
-EXPORT_SYMBOL(i8253_lock);
-
 /*
  * HPET replaces the PIT, when enabled. So we need to know, which of
  * the two timers is used
