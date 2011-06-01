@@ -37,7 +37,6 @@
 #include "wlc_channel.h"
 #include "wlc_main.h"
 #include "wlc_stf.h"
-#include "wl_dbg.h"
 
 #define	VALID_CHANNEL20_DB(wlc, val) wlc_valid_channel20_db((wlc)->cmi, val)
 #define	VALID_CHANNEL20_IN_BAND(wlc, bandunit, val) \

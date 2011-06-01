@@ -33,6 +33,14 @@
 
 #define MAX_DMA_SEGS 4
 
+#define BCMMSG(dev, fmt, args...)		\
+do {						\
+	if (brcm_msg_level & LOG_TRACE_VAL)	\
+		wiphy_err(dev, "%s: " fmt, __func__, ##args);	\
+} while (0)
+
+#define WL_ERROR_ON()		(brcm_msg_level & LOG_ERROR_VAL)
+
 /* forward declarations */
 struct sk_buff;
 struct brcms_info;
@@ -48,5 +56,8 @@ struct dma_pub;
 struct wlc_bsscfg;
 struct bcmstrbuf;
 struct si_pub;
+
+/* brcm_msg_level is a bit vector with defs in bcmdefs.h */
+extern u32 brcm_msg_level;
 
 #endif				/* _wlc_types_h_ */

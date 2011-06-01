@@ -28,7 +28,6 @@
 #include "wlc_pub.h"
 #include "wlc_key.h"
 #include "wlc_alloc.h"
-#include "wl_dbg.h"
 #include "wlc_rate.h"
 #include "wlc_bsscfg.h"
 #include "phy/wlc_phy_hal.h"

@@ -48,7 +48,6 @@
 #include "ucode_loader.h"
 #include "wlc_antsel.h"
 #include "wlc_alloc.h"
-#include "wl_dbg.h"
 #include "wlc_bmac.h"
 
 #define	TIMER_INTERVAL_WATCHDOG_BMAC	1000	/* watchdog timer, in unit of ms */

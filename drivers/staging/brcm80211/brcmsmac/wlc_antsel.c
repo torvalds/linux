@@ -32,7 +32,6 @@
 #include "wlc_key.h"
 #include "wlc_scb.h"
 #include "wlc_pub.h"
-#include "wl_dbg.h"
 #include "phy/wlc_phy_hal.h"
 #include "wlc_bmac.h"
 #include "wlc_channel.h"

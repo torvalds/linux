@@ -40,7 +40,6 @@
 #include "wlc_channel.h"
 #include "wlc_scb.h"
 #include "wlc_pub.h"
-#include "wl_dbg.h"
 #include "wl_export.h"
 #include "ucode_loader.h"
 #include "brcms_mac80211.h"
