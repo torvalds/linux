@@ -14,6 +14,7 @@
 
 #include <asm/fixmap.h>
 #include <asm/hpet.h>
+#include <asm/time.h>
 
 #define HPET_MASK			CLOCKSOURCE_MASK(32)
 

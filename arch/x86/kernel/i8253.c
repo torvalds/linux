@@ -14,6 +14,7 @@
 #include <linux/io.h>
 
 #include <asm/hpet.h>
+#include <asm/time.h>
 #include <asm/smp.h>
 
 /*
