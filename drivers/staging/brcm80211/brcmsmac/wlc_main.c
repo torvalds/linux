@@ -49,7 +49,7 @@
 #include "wl_export.h"
 #include "wlc_alloc.h"
 #include "wl_dbg.h"
-#include "wl_mac80211.h"
+#include "brcms_mac80211.h"
 
 /*
  * WPA(2) definitions

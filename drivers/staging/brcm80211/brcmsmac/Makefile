@@ -28,8 +28,8 @@ ccflags-y :=				\
 	-Idrivers/staging/brcm80211/include
 
 BRCMSMAC_OFILES := \
-	wl_mac80211.o \
-	wl_ucode_loader.o \
+	brcms_mac80211.o \
+	ucode_loader.o \
 	wlc_alloc.o \
 	wlc_ampdu.o \
 	wlc_antsel.o \

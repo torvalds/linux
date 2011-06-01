@@ -16,7 +16,7 @@
 
 #include <linux/types.h>
 #include <bcmdefs.h>
-#include <wl_ucode.h>
+#include <ucode_loader.h>
 
 enum {
 	D11UCODE_NAMETAG_START = 0,

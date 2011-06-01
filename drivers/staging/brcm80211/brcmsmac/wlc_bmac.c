@@ -45,7 +45,7 @@
 #include "wlc_channel.h"
 #include "wlc_main.h"
 #include "wl_export.h"
-#include "wl_ucode.h"
+#include "ucode_loader.h"
 #include "wlc_antsel.h"
 #include "wlc_alloc.h"
 #include "wl_dbg.h"

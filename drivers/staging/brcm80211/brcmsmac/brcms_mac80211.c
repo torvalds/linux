@@ -42,8 +42,8 @@
 #include "wlc_pub.h"
 #include "wl_dbg.h"
 #include "wl_export.h"
-#include "wl_ucode.h"
-#include "wl_mac80211.h"
+#include "ucode_loader.h"
+#include "brcms_mac80211.h"
 
 #define N_TX_QUEUES	4 /* #tx queues on mac80211<->driver interface */
 
