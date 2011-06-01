@@ -253,7 +253,6 @@ typedef struct dhd_bus {
 	s32 idletime;		/* Control for activity timeout */
 	s32 idlecount;	/* Activity timeout counter */
 	s32 idleclock;	/* How to set bus driver when idle */
-	s32 sd_divisor;	/* Speed control to bus driver */
 	s32 sd_mode;		/* Mode control to bus driver */
 	s32 sd_rxchain;	/* If bcmsdh api accepts PKT chains */
 	bool use_rxchain;	/* If dhd should use PKT chains */
@@ -685,23 +684,13 @@ static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 					   __func__, err));
 				return -EBADE;
 			}
-		} else if (bus->idleclock != DHD_IDLE_ACTIVE) {
-			/* Restore clock speed */
-			iovalue = bus->sd_divisor;
-			err = bcmsdh_iovar_op(bus->sdh, "sd_divisor", NULL, 0,
-					      &iovalue, sizeof(iovalue), true);
-			if (err) {
-				DHD_ERROR(("%s: error restoring sd_divisor: %d\n",
-					__func__, err));
-				return -EBADE;
-			}
 		}
 		bus->clkstate = CLK_SDONLY;
 	} else {
 		/* Stop or slow the SD clock itself */
-		if ((bus->sd_divisor == -1) || (bus->sd_mode == -1)) {
-			DHD_TRACE(("%s: can't idle clock, divisor %d mode %d\n",
-				   __func__, bus->sd_divisor, bus->sd_mode));
+		if (bus->sd_mode == -1) {
+			DHD_TRACE(("%s: can't idle clock, mode %d\n",
+				   __func__, bus->sd_mode));
 			return -EBADE;
 		}
 		if (bus->idleclock == DHD_IDLE_STOP) {
@@ -725,16 +714,6 @@ static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 			if (err) {
 				DHD_ERROR(("%s: error disabling sd_clock: %d\n",
 					   __func__, err));
-				return -EBADE;
-			}
-		} else if (bus->idleclock != DHD_IDLE_ACTIVE) {
-			/* Set divisor to idle value */
-			iovalue = bus->idleclock;
-			err = bcmsdh_iovar_op(bus->sdh, "sd_divisor", NULL, 0,
-					      &iovalue, sizeof(iovalue), true);
-			if (err) {
-				DHD_ERROR(("%s: error changing sd_divisor: %d\n",
-					__func__, err));
 				return -EBADE;
 			}
 		}
@@ -2712,19 +2691,6 @@ dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 
 		/* Check for bus configuration changes of interest */
 
-		/* If it was divisor change, read the new one */
-		if (set && strcmp(name, "sd_divisor") == 0) {
-			if (bcmsdh_iovar_op(bus->sdh, "sd_divisor", NULL, 0,
-					    &bus->sd_divisor, sizeof(s32),
-					    false) != 0) {
-				bus->sd_divisor = -1;
-				DHD_ERROR(("%s: fail on %s get\n", __func__,
-					   name));
-			} else {
-				DHD_INFO(("%s: noted %s update, value now %d\n",
-					  __func__, name, bus->sd_divisor));
-			}
-		}
 		/* If it was a mode change, read the new one */
 		if (set && strcmp(name, "sd_mode") == 0) {
 			if (bcmsdh_iovar_op(bus->sdh, "sd_mode", NULL, 0,
@@ -5367,17 +5333,6 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, void *sdh)
 	bus->clkstate = CLK_SDONLY;
 	bus->idletime = (s32) dhd_idletime;
 	bus->idleclock = DHD_IDLE_ACTIVE;
-
-	/* Query the SD clock speed */
-	if (bcmsdh_iovar_op(sdh, "sd_divisor", NULL, 0,
-			    &bus->sd_divisor, sizeof(s32),
-			    false) != 0) {
-		DHD_ERROR(("%s: fail on %s get\n", __func__, "sd_divisor"));
-		bus->sd_divisor = -1;
-	} else {
-		DHD_INFO(("%s: Initial value for %s is %d\n",
-			  __func__, "sd_divisor", bus->sd_divisor));
-	}
 
 	/* Query the SD bus mode */
 	if (bcmsdh_iovar_op(sdh, "sd_mode", NULL, 0,

@@ -48,8 +48,6 @@ extern PBCMSDH_SDMMC_INSTANCE gInstance;
 uint sd_sdmode = SDIOH_MODE_SD4;	/* Use SD4 mode by default */
 uint sd_f2_blocksize = 512;	/* Default blocksize */
 
-uint sd_divisor = 2;		/* Default 48MHz/2 = 24MHz */
-
 uint sd_power = 1;		/* Default to SD Slot powered ON */
 uint sd_clock = 1;		/* Default to SD Clock turned ON */
 uint sd_hiok = false;		/* Don't use hi-speed mode by default */
@@ -354,7 +352,6 @@ enum {
 	IOV_USEINTS,
 	IOV_NUMINTS,
 	IOV_DEVREG,
-	IOV_DIVISOR,
 	IOV_SDMODE,
 	IOV_HISPEED,
 	IOV_HCIREGS,
@@ -370,8 +367,6 @@ const bcm_iovar_t sdioh_iovars[] = {
 	{"sd_ints", IOV_USEINTS, 0, IOVT_BOOL, 0},
 	{"sd_numints", IOV_NUMINTS, 0, IOVT_UINT32, 0},
 	{"sd_devreg", IOV_DEVREG, 0, IOVT_BUFFER, sizeof(sdreg_t)}
-	,
-	{"sd_divisor", IOV_DIVISOR, 0, IOVT_UINT32, 0}
 	,
 	{"sd_power", IOV_POWER, 0, IOVT_UINT32, 0}
 	,
@@ -509,15 +504,6 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		else
 			si->intmask &= ~CLIENT_INTR;
 
-		break;
-
-	case IOV_GVAL(IOV_DIVISOR):
-		int_val = (u32) sd_divisor;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_DIVISOR):
-		sd_divisor = int_val;
 		break;
 
 	case IOV_GVAL(IOV_POWER):
