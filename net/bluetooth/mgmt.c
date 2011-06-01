@@ -1143,7 +1143,7 @@ static int pin_code_reply(struct sock *sk, u16 index, unsigned char *data,
 
 	bacpy(&reply.bdaddr, &cp->bdaddr);
 	reply.pin_len = cp->pin_len;
-	memcpy(reply.pin_code, cp->pin_code, 16);
+	memcpy(reply.pin_code, cp->pin_code, sizeof(reply.pin_code));
 
 	err = hci_send_cmd(hdev, HCI_OP_PIN_CODE_REPLY, sizeof(reply), &reply);
 	if (err < 0)
