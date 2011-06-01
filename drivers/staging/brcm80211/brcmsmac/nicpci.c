@@ -654,3 +654,53 @@ void pcicore_down(void *pch, int state)
 	/* Reduce L1 timer for better power savings */
 	pcie_extendL1timer(pi, false);
 }
+
+/*
+ * precondition: current core is sii->buscoretype
+ */
+void pcicore_fixcfg(void *pch, void *regs)
+{
+	pcicore_info_t *pi = (pcicore_info_t *) pch;
+	struct si_info *sii = SI_INFO(pi->sih);
+	struct sbpciregs *pciregs = regs;
+	sbpcieregs_t *pcieregs = regs;
+	u16 val16, *reg16 = NULL;
+	uint pciidx;
+
+	/* check 'pi' is correct and fix it if not */
+	if (sii->pub.buscoretype == PCIE_CORE_ID) {
+		reg16 = &pcieregs->sprom[SRSH_PI_OFFSET];
+	} else if (sii->pub.buscoretype == PCI_CORE_ID) {
+		reg16 = &pciregs->sprom[SRSH_PI_OFFSET];
+	}
+	pciidx = ai_coreidx(&sii->pub);
+	val16 = R_REG(reg16);
+	if (((val16 & SRSH_PI_MASK) >> SRSH_PI_SHIFT) != (u16) pciidx) {
+		val16 =
+		    (u16) (pciidx << SRSH_PI_SHIFT) | (val16 &
+							  ~SRSH_PI_MASK);
+		W_REG(reg16, val16);
+	}
+}
+
+/*
+ * precondition: current core is pci core
+ */
+void pcicore_pci_setup(void *pch, void *regs)
+{
+	pcicore_info_t *pi = (pcicore_info_t *) pch;
+	struct sbpciregs *pciregs = regs;
+	u32 w;
+
+	OR_REG(&pciregs->sbtopci2,
+	       (SBTOPCI_PREF | SBTOPCI_BURST));
+
+	if (SI_INFO(pi->sih)->pub.buscorerev >= 11) {
+		OR_REG(&pciregs->sbtopci2,
+		       SBTOPCI_RC_READMULTI);
+		w = R_REG(&pciregs->clkrun);
+		W_REG(&pciregs->clkrun,
+		      (w | PCI_CLKRUN_DSBL));
+		w = R_REG(&pciregs->clkrun);
+	}
+}

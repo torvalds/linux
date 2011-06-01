@@ -27,8 +27,6 @@
 #include <bcmdevs.h>
 
 /* ********** from siutils.c *********** */
-#include <pci_core.h>
-#include <pcie_core.h>
 #include <nicpci.h>
 #include <bcmnvram.h>
 #include <bcmsrom.h>
@@ -1915,7 +1913,7 @@ void ai_pci_down(si_t *sih)
 void ai_pci_setup(si_t *sih, uint coremask)
 {
 	si_info_t *sii;
-	struct sbpciregs *pciregs = NULL;
+	void *regs = NULL;
 	u32 siflag = 0, w;
 	uint idx = 0;
 
@@ -1932,7 +1930,7 @@ void ai_pci_setup(si_t *sih, uint coremask)
 		siflag = ai_flag(sih);
 
 		/* switch over to pci core */
-		pciregs = ai_setcoreidx(sih, sii->pub.buscoreidx);
+		regs = ai_setcoreidx(sih, sii->pub.buscoreidx);
 	}
 
 	/*
@@ -1950,16 +1948,7 @@ void ai_pci_setup(si_t *sih, uint coremask)
 	}
 
 	if (PCI(sii)) {
-		OR_REG(&pciregs->sbtopci2,
-		       (SBTOPCI_PREF | SBTOPCI_BURST));
-		if (sii->pub.buscorerev >= 11) {
-			OR_REG(&pciregs->sbtopci2,
-			       SBTOPCI_RC_READMULTI);
-			w = R_REG(&pciregs->clkrun);
-			W_REG(&pciregs->clkrun,
-			      (w | PCI_CLKRUN_DSBL));
-			w = R_REG(&pciregs->clkrun);
-		}
+		pcicore_pci_setup(sii->pch, regs);
 
 		/* switch back to previous core */
 		ai_setcoreidx(sih, idx);
@@ -1972,11 +1961,8 @@ void ai_pci_setup(si_t *sih, uint coremask)
  */
 int ai_pci_fixcfg(si_t *sih)
 {
-	uint origidx, pciidx;
-	struct sbpciregs *pciregs = NULL;
-	sbpcieregs_t *pcieregs = NULL;
+	uint origidx;
 	void *regs = NULL;
-	u16 val16, *reg16 = NULL;
 
 	si_info_t *sii = SI_INFO(sih);
 
@@ -1985,23 +1971,8 @@ int ai_pci_fixcfg(si_t *sih)
 	origidx = ai_coreidx(&sii->pub);
 
 	/* check 'pi' is correct and fix it if not */
-	if (sii->pub.buscoretype == PCIE_CORE_ID) {
-		pcieregs = ai_setcore(&sii->pub, PCIE_CORE_ID, 0);
-		regs = pcieregs;
-		reg16 = &pcieregs->sprom[SRSH_PI_OFFSET];
-	} else if (sii->pub.buscoretype == PCI_CORE_ID) {
-		pciregs = ai_setcore(&sii->pub, PCI_CORE_ID, 0);
-		regs = pciregs;
-		reg16 = &pciregs->sprom[SRSH_PI_OFFSET];
-	}
-	pciidx = ai_coreidx(&sii->pub);
-	val16 = R_REG(reg16);
-	if (((val16 & SRSH_PI_MASK) >> SRSH_PI_SHIFT) != (u16) pciidx) {
-		val16 =
-		    (u16) (pciidx << SRSH_PI_SHIFT) | (val16 &
-							  ~SRSH_PI_MASK);
-		W_REG(reg16, val16);
-	}
+	regs = ai_setcore(&sii->pub, sii->pub.buscoretype, 0);
+	pcicore_fixcfg(sii->pch, regs);
 
 	/* restore the original index */
 	ai_setcoreidx(&sii->pub, origidx);

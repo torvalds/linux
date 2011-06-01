@@ -67,5 +67,7 @@ extern void pcicore_sleep(void *pch);
 extern void pcicore_down(void *pch, int state);
 extern u8 pcicore_find_pci_capability(void *dev, u8 req_cap_id,
 					 unsigned char *buf, u32 *buflen);
+extern void pcicore_fixcfg(void *pch, void *regs);
+extern void pcicore_pci_setup(void *pch, void *regs);
 
 #endif /* _NICPCI_H */
