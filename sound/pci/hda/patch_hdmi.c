@@ -816,7 +816,7 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 		*codec_pars = *hinfo;
 
 	eld = &spec->sink_eld[idx];
-	if (!static_hdmi_pcm && eld->eld_valid && eld->sad_count > 0) {
+	if (!static_hdmi_pcm && eld->eld_valid) {
 		hdmi_eld_update_pcm_info(eld, hinfo, codec_pars);
 		if (hinfo->channels_min > hinfo->channels_max ||
 		    !hinfo->rates || !hinfo->formats)
