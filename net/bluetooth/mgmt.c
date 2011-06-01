@@ -41,7 +41,7 @@ struct pending_cmd {
 	void *user_data;
 };
 
-LIST_HEAD(cmd_list);
+static LIST_HEAD(cmd_list);
 
 static int cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 {

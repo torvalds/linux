@@ -62,8 +62,8 @@ static u8 l2cap_fixed_chan[8] = { 0x02, };
 
 static struct workqueue_struct *_busy_wq;
 
-LIST_HEAD(chan_list);
-DEFINE_RWLOCK(chan_list_lock);
+static LIST_HEAD(chan_list);
+static DEFINE_RWLOCK(chan_list_lock);
 
 static void l2cap_busy_work(struct work_struct *work);
 
@@ -500,7 +500,7 @@ static inline int l2cap_check_security(struct l2cap_chan *chan)
 	return hci_conn_security(conn->hcon, chan->sec_level, auth_type);
 }
 
-u8 l2cap_get_ident(struct l2cap_conn *conn)
+static u8 l2cap_get_ident(struct l2cap_conn *conn)
 {
 	u8 id;
 
