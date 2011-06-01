@@ -208,19 +208,6 @@ struct wlc_protection {
 	s8 nongf_override;	/* override for use of GF protection */
 	s8 n_pam_override;	/* override for preamble: MM or GF */
 	bool n_obss;		/* indicated OBSS Non-HT STA present */
-
-	uint longpre_detect_timeout;	/* #sec until long preamble bcns gone */
-	uint barker_detect_timeout;	/* #sec until bcns signaling Barker long preamble */
-	/* only is gone */
-	uint ofdm_ibss_timeout;	/* #sec until ofdm IBSS beacons gone */
-	uint ofdm_ovlp_timeout;	/* #sec until ofdm overlapping BSS bcns gone */
-	uint nonerp_ibss_timeout;	/* #sec until nonerp IBSS beacons gone */
-	uint nonerp_ovlp_timeout;	/* #sec until nonerp overlapping BSS bcns gone */
-	uint g_ibss_timeout;	/* #sec until bcns signaling Use_Protection gone */
-	uint n_ibss_timeout;	/* #sec until bcns signaling Use_OFDM_Protection gone */
-	uint ht20in40_ovlp_timeout;	/* #sec until 20MHz overlapping OPMODE gone */
-	uint ht20in40_ibss_timeout;	/* #sec until 20MHz-only HT station bcns gone */
-	uint non_gf_ibss_timeout;	/* #sec until non-GF bcns gone */
 };
 
 /* anything affects the single/dual streams/antenna operation */
