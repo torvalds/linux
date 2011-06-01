@@ -17,10 +17,6 @@
 #ifndef _wl_cfg80211_h_
 #define _wl_cfg80211_h_
 
-#include <linux/wireless.h>
-#include <linux/wireless.h>
-#include <net/cfg80211.h>
-
 struct wl_conf;
 struct wl_iface;
 struct wl_priv;

@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>	/* request_irq() */
 #include <linux/netdevice.h>
+#include <net/cfg80211.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>
