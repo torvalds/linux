@@ -131,7 +131,6 @@ typedef struct {
 #include <sdio.h>
 #include <sbsdio.h>
 #include <sbsdpcmdev.h>
-#include <bcmsdpcm.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>
@@ -192,6 +191,114 @@ typedef struct {
 #else
 #define SDPCM_RESERVE	(SDPCM_HDRLEN + DHD_SDALIGN)
 #endif
+
+/*
+ * Software allocation of To SB Mailbox resources
+ */
+
+/* tosbmailbox bits corresponding to intstatus bits */
+#define SMB_NAK		(1 << 0)	/* Frame NAK */
+#define SMB_INT_ACK	(1 << 1)	/* Host Interrupt ACK */
+#define SMB_USE_OOB	(1 << 2)	/* Use OOB Wakeup */
+#define SMB_DEV_INT	(1 << 3)	/* Miscellaneous Interrupt */
+
+/* tosbmailboxdata */
+#define SMB_DATA_VERSION_SHIFT	16	/* host protocol version */
+
+/*
+ * Software allocation of To Host Mailbox resources
+ */
+
+/* intstatus bits */
+#define I_HMB_FC_STATE	I_HMB_SW0	/* Flow Control State */
+#define I_HMB_FC_CHANGE	I_HMB_SW1	/* Flow Control State Changed */
+#define I_HMB_FRAME_IND	I_HMB_SW2	/* Frame Indication */
+#define I_HMB_HOST_INT	I_HMB_SW3	/* Miscellaneous Interrupt */
+
+/* tohostmailboxdata */
+#define HMB_DATA_NAKHANDLED	1	/* retransmit NAK'd frame */
+#define HMB_DATA_DEVREADY	2	/* talk to host after enable */
+#define HMB_DATA_FC		4	/* per prio flowcontrol update flag */
+#define HMB_DATA_FWREADY	8	/* fw ready for protocol activity */
+
+#define HMB_DATA_FCDATA_MASK	0xff000000
+#define HMB_DATA_FCDATA_SHIFT	24
+
+#define HMB_DATA_VERSION_MASK	0x00ff0000
+#define HMB_DATA_VERSION_SHIFT	16
+
+/*
+ * Software-defined protocol header
+ */
+
+/* Current protocol version */
+#define SDPCM_PROT_VERSION	4
+
+/* SW frame header */
+#define SDPCM_PACKET_SEQUENCE(p)	(((u8 *)p)[0] & 0xff)
+
+#define SDPCM_CHANNEL_MASK		0x00000f00
+#define SDPCM_CHANNEL_SHIFT		8
+#define SDPCM_PACKET_CHANNEL(p)		(((u8 *)p)[1] & 0x0f)
+
+#define SDPCM_NEXTLEN_OFFSET		2
+
+/* Data Offset from SOF (HW Tag, SW Tag, Pad) */
+#define SDPCM_DOFFSET_OFFSET		3	/* Data Offset */
+#define SDPCM_DOFFSET_VALUE(p)		(((u8 *)p)[SDPCM_DOFFSET_OFFSET] & 0xff)
+#define SDPCM_DOFFSET_MASK		0xff000000
+#define SDPCM_DOFFSET_SHIFT		24
+#define SDPCM_FCMASK_OFFSET		4	/* Flow control */
+#define SDPCM_FCMASK_VALUE(p)		(((u8 *)p)[SDPCM_FCMASK_OFFSET] & 0xff)
+#define SDPCM_WINDOW_OFFSET		5	/* Credit based fc */
+#define SDPCM_WINDOW_VALUE(p)		(((u8 *)p)[SDPCM_WINDOW_OFFSET] & 0xff)
+
+#define SDPCM_SWHEADER_LEN	8	/* SW header is 64 bits */
+
+/* logical channel numbers */
+#define SDPCM_CONTROL_CHANNEL	0	/* Control channel Id */
+#define SDPCM_EVENT_CHANNEL	1	/* Asyc Event Indication Channel Id */
+#define SDPCM_DATA_CHANNEL	2	/* Data Xmit/Recv Channel Id */
+#define SDPCM_GLOM_CHANNEL	3	/* For coalesced packets */
+#define SDPCM_TEST_CHANNEL	15	/* Reserved for test/debug packets */
+
+#define SDPCM_SEQUENCE_WRAP	256	/* wrap-around val for 8bit frame seq */
+
+#define SDPCM_GLOMDESC(p)	(((u8 *)p)[1] & 0x80)
+
+/* For TEST_CHANNEL packets, define another 4-byte header */
+#define SDPCM_TEST_HDRLEN	4	/*
+					 * Generally: Cmd(1), Ext(1), Len(2);
+					 * Semantics of Ext byte depend on
+					 * command. Len is current or requested
+					 * frame length, not including test
+					 * header; sent little-endian.
+					 */
+#define SDPCM_TEST_DISCARD	0x01	/* Receiver discards. Ext:pattern id. */
+#define SDPCM_TEST_ECHOREQ	0x02	/* Echo request. Ext:pattern id. */
+#define SDPCM_TEST_ECHORSP	0x03	/* Echo response. Ext:pattern id. */
+#define SDPCM_TEST_BURST	0x04	/*
+					 * Receiver to send a burst.
+					 * Ext is a frame count
+					 */
+#define SDPCM_TEST_SEND		0x05	/*
+					 * Receiver sets send mode.
+					 * Ext is boolean on/off
+					 */
+
+/* Handy macro for filling in datagen packets with a pattern */
+#define SDPCM_TEST_FILL(byteno, id)	((u8)(id + byteno))
+
+/*
+ * Shared structure between dongle and the host.
+ * The structure contains pointers to trap or assert information.
+ */
+#define SDPCM_SHARED_VERSION       0x0002
+#define SDPCM_SHARED_VERSION_MASK  0x00FF
+#define SDPCM_SHARED_ASSERT_BUILT  0x0100
+#define SDPCM_SHARED_ASSERT        0x0200
+#define SDPCM_SHARED_TRAP          0x0400
+
 
 /* Space for header read, limit for data packets */
 #ifndef MAX_HDR_READ
@@ -288,6 +395,18 @@ typedef struct dhd_console {
 	uint last;		/* Last buffer read index */
 } dhd_console_t;
 #endif				/* DHD_DEBUG */
+
+struct sdpcm_shared {
+	u32 flags;
+	u32 trap_addr;
+	u32 assert_exp_addr;
+	u32 assert_file_addr;
+	u32 assert_line;
+	u32 console_addr;	/* Address of rte_cons_t */
+	u32 msgtrace_addr;
+	u8 tag[32];
+};
+
 
 /* misc chip info needed by some of the routines */
 struct chip_info {
@@ -1876,7 +1995,7 @@ xfer_done:
 }
 
 #ifdef DHD_DEBUG
-static int dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
+static int dhdsdio_readshared(dhd_bus_t *bus, struct sdpcm_shared *sh)
 {
 	u32 addr;
 	int rv;
@@ -1903,7 +2022,7 @@ static int dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 
 	/* Read rte_shared structure */
 	rv = dhdsdio_membytes(bus, false, addr, (u8 *) sh,
-			      sizeof(sdpcm_shared_t));
+			      sizeof(struct sdpcm_shared));
 	if (rv < 0)
 		return rv;
 
@@ -1935,7 +2054,7 @@ static int dhdsdio_checkdied(dhd_bus_t *bus, u8 *data, uint size)
 	uint maxstrlen = 256;
 	char *str = NULL;
 	trap_t tr;
-	sdpcm_shared_t sdpcm_shared;
+	struct sdpcm_shared sdpcm_shared;
 	struct bcmstrbuf strbuf;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
