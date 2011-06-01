@@ -2,14 +2,22 @@ To Do List for Broadcom Mac80211 driver before getting in mainline
 
 Bugs
 ====
-- Oops on AMPDU traffic, to be solved by new ucode (currently under test)
+- none known at this moment
 
 brcmfmac and brcmsmac
 =====================
-- ASSERTS not allowed in mainline, replace by warning + error handling
-- Replace printk and WL_ERROR() with proper routines
+
+- Remove unnecessary includes, move #includes from .h files into .c files.
+- Absorb and delete header files that are included in only one .c file
 
 brcmfmac
 =====================
+
+- ASSERTS not allowed in mainline, replace by warning + error handling
+- Replace printk and WL_ERROR() with proper routines
 - Replace driver's proprietary ssb interface with generic kernel ssb module
 - Build and test on 64 bit linux kernel
+
+brcm80211 info page
+=====================
+http://linuxwireless.org/en/users/Drivers/brcm80211
