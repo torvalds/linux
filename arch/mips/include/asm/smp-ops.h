@@ -11,6 +11,8 @@
 #ifndef __ASM_SMP_OPS_H
 #define __ASM_SMP_OPS_H
 
+#include <linux/errno.h>
+
 #ifdef CONFIG_SMP
 
 #include <linux/cpumask.h>
