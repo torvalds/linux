@@ -46,7 +46,6 @@
 #include "wlc_antsel.h"
 #include "wlc_stf.h"
 #include "wlc_ampdu.h"
-#include "wl_export.h"
 #include "wlc_alloc.h"
 #include "brcms_mac80211.h"
 

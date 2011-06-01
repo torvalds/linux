@@ -44,11 +44,11 @@
 #include "phy/wlc_phy_hal.h"
 #include "wlc_channel.h"
 #include "wlc_main.h"
-#include "wl_export.h"
 #include "ucode_loader.h"
 #include "wlc_antsel.h"
 #include "wlc_alloc.h"
 #include "wlc_bmac.h"
+#include "brcms_mac80211.h"
 
 #define	TIMER_INTERVAL_WATCHDOG_BMAC	1000	/* watchdog timer, in unit of ms */
 

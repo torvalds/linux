@@ -36,7 +36,6 @@
 #include "wlc_bmac.h"
 #include "wlc_channel.h"
 #include "wlc_main.h"
-#include "wl_export.h"
 #include "wlc_antsel.h"
 
 #define ANT_SELCFG_AUTO		0x80	/* bit indicates antenna sel AUTO */
