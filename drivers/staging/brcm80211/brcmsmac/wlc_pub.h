@@ -370,6 +370,13 @@ typedef struct wl_rxsts {
 #define WL_RXS_NFRM_AMSDU_FIRST		0x00000004	/* first MSDU in A-MSDU */
 #define WL_RXS_NFRM_AMSDU_SUB		0x00000008	/* subsequent MSDU(s) in A-MSDU */
 
+enum wlc_par_id {
+	IOV_MPC = 1,
+	IOV_RTSTHRESH,
+	IOV_QTXPOWER,
+	IOV_BCN_LI_BCN		/* Beacon listen interval in # of beacons */
+};
+
 /* forward declare and use the struct notation so we don't have to
  * have it defined if not necessary.
  */
@@ -492,8 +499,6 @@ extern uint wlc_down(struct wlc_info *wlc);
 
 extern int wlc_set(struct wlc_info *wlc, int cmd, int arg);
 extern int wlc_get(struct wlc_info *wlc, int cmd, int *arg);
-extern int wlc_iovar_getint(struct wlc_info *wlc, const char *name, int *arg);
-extern int wlc_iovar_setint(struct wlc_info *wlc, const char *name, int arg);
 extern bool wlc_chipmatch(u16 vendor, u16 device);
 extern void wlc_init(struct wlc_info *wlc);
 extern void wlc_reset(struct wlc_info *wlc);
@@ -506,9 +511,6 @@ extern bool wlc_isr(struct wlc_info *wlc, bool *wantdpc);
 extern bool wlc_dpc(struct wlc_info *wlc, bool bounded);
 extern bool wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 				 struct ieee80211_hw *hw);
-extern int wlc_iovar_op(struct wlc_info *wlc, const char *name, void *params,
-			int p_len, void *arg, int len, bool set,
-			struct wlc_if *wlcif);
 extern int wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 		     struct wlc_if *wlcif);
 extern bool wlc_aggregatable(struct wlc_info *wlc, u8 tid);
@@ -534,18 +536,15 @@ extern void wlc_default_rateset(struct wlc_info *wlc, wlc_rateset_t *rs);
 struct ieee80211_sta;
 extern void wlc_ampdu_flush(struct wlc_info *wlc, struct ieee80211_sta *sta,
 			    u16 tid);
+int wlc_set_par(struct wlc_info *wlc, enum wlc_par_id par_id, int val);
+int wlc_get_par(struct wlc_info *wlc, enum wlc_par_id par_id, int *ret_int_ptr);
 
 /* wlc_phy.c helper functions */
 extern void wlc_set_ps_ctrl(struct wlc_info *wlc);
 extern void wlc_mctrl(struct wlc_info *wlc, u32 mask, u32 val);
 
-/* ioctl */
-extern int wlc_iovar_check(struct wlc_pub *pub, const bcm_iovar_t *vi,
-			   void *arg,
-			   int len, bool set);
-
-extern int wlc_module_register(struct wlc_pub *pub, const bcm_iovar_t *iovars,
-			       const char *name, void *hdl, iovar_fn_t iovar_fn,
+extern int wlc_module_register(struct wlc_pub *pub,
+			       const char *name, void *hdl,
 			       watchdog_fn_t watchdog_fn, down_fn_t down_fn);
 extern int wlc_module_unregister(struct wlc_pub *pub, const char *name,
 				 void *hdl);

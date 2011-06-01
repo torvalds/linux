@@ -898,12 +898,6 @@ extern void wlc_set_chanspec(struct wlc_info *wlc, chanspec_t chanspec);
 
 extern bool wlc_timers_init(struct wlc_info *wlc, int unit);
 
-extern const bcm_iovar_t wlc_iovars[];
-
-extern int wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
-		       const char *name, void *params, uint p_len, void *arg,
-		       int len, int val_size, struct wlc_if *wlcif);
-
 #if defined(BCMDBG)
 extern void wlc_print_ies(struct wlc_info *wlc, u8 *ies, uint ies_len);
 #endif

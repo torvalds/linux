@@ -270,14 +270,14 @@ static int wl_ops_config(struct ieee80211_hw *hw, u32 changed)
 
 	WL_LOCK(wl);
 	if (changed & IEEE80211_CONF_CHANGE_LISTEN_INTERVAL) {
-		if (wlc_iovar_setint
-		    (wl->wlc, "bcn_li_bcn", conf->listen_interval)) {
+		if (wlc_set_par(wl->wlc, IOV_BCN_LI_BCN, conf->listen_interval)
+		    < 0) {
 			wiphy_err(wiphy, "%s: Error setting listen_interval\n",
 				  __func__);
 			err = -EIO;
 			goto config_out;
 		}
-		wlc_iovar_getint(wl->wlc, "bcn_li_bcn", &new_int);
+		wlc_get_par(wl->wlc, IOV_BCN_LI_BCN, &new_int);
 	}
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR)
 		wiphy_err(wiphy, "%s: change monitor mode: %s (implement)\n",
@@ -289,14 +289,14 @@ static int wl_ops_config(struct ieee80211_hw *hw, u32 changed)
 			  "true" : "false");
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		if (wlc_iovar_setint
-		    (wl->wlc, "qtxpower", conf->power_level * 4)) {
+		if (wlc_set_par(wl->wlc, IOV_QTXPOWER, conf->power_level * 4)
+				< 0) {
 			wiphy_err(wiphy, "%s: Error setting power_level\n",
 				  __func__);
 			err = -EIO;
 			goto config_out;
 		}
-		wlc_iovar_getint(wl->wlc, "qtxpower", &new_int);
+		wlc_get_par(wl->wlc, IOV_QTXPOWER, &new_int);
 		if (new_int != (conf->power_level * 4))
 			wiphy_err(wiphy, "%s: Power level req != actual, %d %d"
 				  "\n", __func__, conf->power_level * 4,
@@ -808,7 +808,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 
 	wl->pub->ieee_hw = hw;
 
-	if (wlc_iovar_setint(wl->wlc, "mpc", 0)) {
+	if (wlc_set_par(wl->wlc, IOV_MPC, 0) < 0) {
 		wiphy_err(wl->wiphy, "wl%d: Error setting MPC variable to 0\n",
 			  unit);
 	}
@@ -821,8 +821,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	wl->irq = irq;
 
 	/* register module */
-	wlc_module_register(wl->pub, NULL, "linux", wl, NULL, wl_linux_watchdog,
-			    NULL);
+	wlc_module_register(wl->pub, "linux", wl, wl_linux_watchdog, NULL);
 
 	if (ieee_hw_init(hw)) {
 		wiphy_err(wl->wiphy, "wl%d: %s: ieee_hw_init failed!\n", unit,
