@@ -666,16 +666,6 @@ static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 
 	if (on) {
 		if (bus->idleclock == DHD_IDLE_STOP) {
-			/* Turn on clock and restore mode */
-			iovalue = 1;
-			err = bcmsdh_iovar_op(bus->sdh, "sd_clock", NULL, 0,
-					      &iovalue, sizeof(iovalue), true);
-			if (err) {
-				DHD_ERROR(("%s: error enabling sd_clock: %d\n",
-					   __func__, err));
-				return -EBADE;
-			}
-
 			iovalue = bus->sd_mode;
 			err = bcmsdh_iovar_op(bus->sdh, "sd_mode", NULL, 0,
 					      &iovalue, sizeof(iovalue), true);
@@ -706,15 +696,6 @@ static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 						__func__, err));
 					return -EBADE;
 				}
-			}
-
-			iovalue = 0;
-			err = bcmsdh_iovar_op(bus->sdh, "sd_clock", NULL, 0,
-					      &iovalue, sizeof(iovalue), true);
-			if (err) {
-				DHD_ERROR(("%s: error disabling sd_clock: %d\n",
-					   __func__, err));
-				return -EBADE;
 			}
 		}
 		bus->clkstate = CLK_NONE;

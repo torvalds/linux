@@ -48,7 +48,6 @@ extern PBCMSDH_SDMMC_INSTANCE gInstance;
 uint sd_sdmode = SDIOH_MODE_SD4;	/* Use SD4 mode by default */
 uint sd_f2_blocksize = 512;	/* Default blocksize */
 
-uint sd_clock = 1;		/* Default to SD Clock turned ON */
 uint sd_hiok = false;		/* Don't use hi-speed mode by default */
 uint sd_msglevel = 0x01;
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_byte_wait);
@@ -354,7 +353,6 @@ enum {
 	IOV_SDMODE,
 	IOV_HISPEED,
 	IOV_HCIREGS,
-	IOV_CLOCK,
 	IOV_RXCHAIN
 };
 
@@ -365,8 +363,6 @@ const bcm_iovar_t sdioh_iovars[] = {
 	{"sd_ints", IOV_USEINTS, 0, IOVT_BOOL, 0},
 	{"sd_numints", IOV_NUMINTS, 0, IOVT_UINT32, 0},
 	{"sd_devreg", IOV_DEVREG, 0, IOVT_BUFFER, sizeof(sdreg_t)}
-	,
-	{"sd_clock", IOV_CLOCK, 0, IOVT_UINT32, 0}
 	,
 	{"sd_mode", IOV_SDMODE, 0, IOVT_UINT32, 100}
 	,
@@ -500,15 +496,6 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		else
 			si->intmask &= ~CLIENT_INTR;
 
-		break;
-
-	case IOV_GVAL(IOV_CLOCK):
-		int_val = (u32) sd_clock;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_CLOCK):
-		sd_clock = int_val;
 		break;
 
 	case IOV_GVAL(IOV_SDMODE):
