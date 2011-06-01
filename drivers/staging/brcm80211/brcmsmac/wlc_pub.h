@@ -343,7 +343,7 @@ typedef struct wl_rxsts {
 	uint preamble;		/* Unknown, short, long */
 	uint encoding;		/* Unknown, CCK, PBCC, OFDM */
 	uint nfrmtype;		/* special 802.11n frames(AMPDU, AMSDU) */
-	struct wl_if *wlif;	/* wl interface */
+	struct brcms_if *wlif;	/* wl interface */
 } wl_rxsts_t;
 
 /* status per error RX pkt */
@@ -591,9 +591,9 @@ typedef struct {
 } wlc_antselcfg_t;
 
 /* common functions for every port */
-extern void *wlc_attach(struct wl_info *wl, u16 vendor, u16 device, uint unit,
-			bool piomode, void *regsva, uint bustype, void *btparam,
-			uint *perr);
+extern void *wlc_attach(struct brcms_info *wl, u16 vendor, u16 device,
+			uint unit, bool piomode, void *regsva, uint bustype,
+			void *btparam, uint *perr);
 extern uint wlc_detach(struct wlc_info *wlc);
 extern int wlc_up(struct wlc_info *wlc);
 extern uint wlc_down(struct wlc_info *wlc);

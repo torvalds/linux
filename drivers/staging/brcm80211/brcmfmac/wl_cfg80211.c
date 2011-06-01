@@ -46,7 +46,7 @@ static struct sdio_func *cfg80211_sdio_func;
 static struct wl_dev *wl_cfg80211_dev;
 static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
 
-u32 wl_dbg_level = WL_DBG_ERR;
+u32 brcmf_dbg_level = WL_DBG_ERR;
 
 #define WL_4329_FW_FILE "brcm/bcm4329-fullmac-4.bin"
 #define WL_4329_NVRAM_FILE "brcm/bcm4329-fullmac-4.txt"

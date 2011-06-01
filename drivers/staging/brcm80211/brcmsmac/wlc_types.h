@@ -35,11 +35,11 @@
 
 /* forward declarations */
 struct sk_buff;
-struct wl_info;
+struct brcms_info;
 struct wlc_info;
 struct wlc_hw_info;
 struct wlc_if;
-struct wl_if;
+struct brcms_if;
 struct ampdu_info;
 struct antsel_info;
 struct bmac_pmq;

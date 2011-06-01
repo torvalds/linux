@@ -401,7 +401,7 @@ struct wlc_if {
 				 * AID2PVBMAP(scb).
 				 */
 	u8 flags;		/* flags for the interface */
-	struct wl_if *wlif;		/* pointer to wlif */
+	struct brcms_if *wlif;		/* pointer to wlif */
 	struct wlc_txq_info *qi;	/* pointer to associated tx queue */
 	union {
 		struct scb *scb;	/* pointer to scb if WLC_IFTYPE_WDS */
@@ -409,8 +409,8 @@ struct wlc_if {
 	} u;
 };
 
-/* flags for the interface */
-#define WLC_IF_LINKED		0x02	/* this interface is linked to a wl_if */
+/* flags for the interface, this interface is linked to a brcms_if */
+#define WLC_IF_LINKED		0x02
 
 struct wlc_hwband {
 	int bandtype;		/* WLC_BAND_2G, WLC_BAND_5G */
@@ -521,7 +521,7 @@ struct wlc_txq_info {
  */
 struct wlc_info {
 	struct wlc_pub *pub;		/* pointer to wlc public state */
-	struct wl_info *wl;	/* pointer to os-specific private state */
+	struct brcms_info *wl;	/* pointer to os-specific private state */
 	d11regs_t *regs;	/* pointer to device registers */
 
 	struct wlc_hw_info *hw;	/* HW related state used primarily by BMAC */
@@ -587,9 +587,10 @@ struct wlc_info {
 	u8 mpc_delay_off;	/* delay radio disable by # of watchdog cnt */
 	u8 prev_non_delay_mpc;	/* prev state wlc_is_non_delay_mpc */
 
-	/* timer */
-	struct wl_timer *wdtimer;	/* timer for watchdog routine */
-	struct wl_timer *radio_timer;	/* timer for hw radio button monitor routine */
+	/* timer for watchdog routine */
+	struct brcms_timer *wdtimer;
+	/* timer for hw radio button monitor routine */
+	struct brcms_timer *radio_timer;
 
 	/* promiscuous */
 	bool monitor;		/* monitor (MPDU sniffing) mode */

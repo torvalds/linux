@@ -25,34 +25,34 @@
  * sleep so perimeter lock has to be a semaphore instead of spinlock. This requires timers to be
  * submitted to workqueue instead of being on kernel timer
  */
-struct wl_timer {
+struct brcms_timer {
 	struct timer_list timer;
-	struct wl_info *wl;
+	struct brcms_info *wl;
 	void (*fn) (void *);
 	void *arg;		/* argument to fn */
 	uint ms;
 	bool periodic;
 	bool set;
-	struct wl_timer *next;
+	struct brcms_timer *next;
 #ifdef BCMDBG
 	char *name;		/* Description of the timer */
 #endif
 };
 
-struct wl_if {
+struct brcms_if {
 	uint subunit;		/* WDS/BSS unit */
 	struct pci_dev *pci_dev;
 };
 
-#define WL_MAX_FW		4
-struct wl_firmware {
+#define MAX_FW_IMAGES		4
+struct brcms_firmware {
 	u32 fw_cnt;
-	const struct firmware *fw_bin[WL_MAX_FW];
-	const struct firmware *fw_hdr[WL_MAX_FW];
-	u32 hdr_num_entries[WL_MAX_FW];
+	const struct firmware *fw_bin[MAX_FW_IMAGES];
+	const struct firmware *fw_hdr[MAX_FW_IMAGES];
+	u32 hdr_num_entries[MAX_FW_IMAGES];
 };
 
-struct wl_info {
+struct brcms_info {
 	struct wlc_pub *pub;		/* pointer to public wlc state */
 	void *wlc;		/* pointer to private common os-independent data */
 	u32 magic;
@@ -62,32 +62,20 @@ struct wl_info {
 	spinlock_t lock;	/* per-device perimeter lock */
 	spinlock_t isr_lock;	/* per-device ISR synchronization lock */
 
-	/* bus type and regsva for unmap in wl_free() */
+	/* bus type and regsva for unmap in brcms_free() */
 	uint bcm_bustype;	/* bus type */
 	void *regsva;		/* opaque chip registers virtual address */
 
 	/* timer related fields */
 	atomic_t callbacks;	/* # outstanding callback functions */
-	struct wl_timer *timers;	/* timer cleanup queue */
+	struct brcms_timer *timers;	/* timer cleanup queue */
 
 	struct tasklet_struct tasklet;	/* dpc tasklet */
 	bool resched;		/* dpc needs to be and is rescheduled */
 #ifdef LINUXSTA_PS
 	u32 pci_psstate[16];	/* pci ps-state save/restore */
 #endif
-	struct wl_firmware fw;
+	struct brcms_firmware fw;
 	struct wiphy *wiphy;
 };
-
-#define WL_LOCK(wl)	spin_lock_bh(&(wl)->lock)
-#define WL_UNLOCK(wl)	spin_unlock_bh(&(wl)->lock)
-
-/* locking from inside wl_isr */
-#define WL_ISRLOCK(wl, flags) do {spin_lock(&(wl)->isr_lock); (void)(flags); } while (0)
-#define WL_ISRUNLOCK(wl, flags) do {spin_unlock(&(wl)->isr_lock); (void)(flags); } while (0)
-
-/* locking under WL_LOCK() to synchronize with wl_isr */
-#define INT_LOCK(wl, flags)	spin_lock_irqsave(&(wl)->isr_lock, flags)
-#define INT_UNLOCK(wl, flags)	spin_unlock_irqrestore(&(wl)->isr_lock, flags)
-
 #endif				/* _wl_mac80211_h_ */

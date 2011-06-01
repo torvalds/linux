@@ -191,11 +191,11 @@
 				(!AP_ENAB(wlc->pub)) && (wlc->war16165))
 
 /* debug/trace */
-uint wl_msg_level =
+uint brcm_msg_level =
 #if defined(BCMDBG)
-    WL_ERROR_VAL;
+	LOG_ERROR_VAL;
 #else
-    0;
+	0;
 #endif				/* BCMDBG */
 
 /* Find basic rate for a given rate */
@@ -415,7 +415,7 @@ void wlc_fatal_error(struct wlc_info *wlc)
 {
 	wiphy_err(wlc->wiphy, "wl%d: fatal error, reinitializing\n",
 		  wlc->pub->unit);
-	wl_init(wlc->wl);
+	brcms_init(wlc->wl);
 }
 
 /* Return the channel the driver should initialize during wlc_init.
@@ -1188,7 +1188,7 @@ void wlc_edcf_setparams(struct wlc_info *wlc, bool suspend)
 
 bool wlc_timers_init(struct wlc_info *wlc, int unit)
 {
-	wlc->wdtimer = wl_init_timer(wlc->wl, wlc_watchdog_by_timer,
+	wlc->wdtimer = brcms_init_timer(wlc->wl, wlc_watchdog_by_timer,
 		wlc, "watchdog");
 	if (!wlc->wdtimer) {
 		wiphy_err(wlc->wiphy, "wl%d:  wl_init_timer for wdtimer "
@@ -1196,7 +1196,7 @@ bool wlc_timers_init(struct wlc_info *wlc, int unit)
 		goto fail;
 	}
 
-	wlc->radio_timer = wl_init_timer(wlc->wl, wlc_radio_timer,
+	wlc->radio_timer = brcms_init_timer(wlc->wl, wlc_radio_timer,
 		wlc, "radio");
 	if (!wlc->radio_timer) {
 		wiphy_err(wlc->wiphy, "wl%d:  wl_init_timer for radio_timer "
@@ -1339,7 +1339,7 @@ struct wlc_pub *wlc_pub(void *wlc)
 /*
  * The common driver entry routine. Error codes should be unique
  */
-void *wlc_attach(struct wl_info *wl, u16 vendor, u16 device, uint unit,
+void *wlc_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 		 bool piomode, void *regsva, uint bustype, void *btparam,
 		 uint *perr)
 {
@@ -1669,11 +1669,11 @@ static void wlc_timers_deinit(struct wlc_info *wlc)
 {
 	/* free timer state */
 	if (wlc->wdtimer) {
-		wl_free_timer(wlc->wl, wlc->wdtimer);
+		brcms_free_timer(wlc->wl, wlc->wdtimer);
 		wlc->wdtimer = NULL;
 	}
 	if (wlc->radio_timer) {
-		wl_free_timer(wlc->wl, wlc->radio_timer);
+		brcms_free_timer(wlc->wl, wlc->radio_timer);
 		wlc->radio_timer = NULL;
 	}
 }
@@ -1859,7 +1859,7 @@ void wlc_radio_disable(struct wlc_info *wlc)
 	}
 
 	wlc_radio_monitor_start(wlc);
-	wl_down(wlc->wl);
+	brcms_down(wlc->wl);
 }
 
 static void wlc_radio_enable(struct wlc_info *wlc)
@@ -1870,7 +1870,7 @@ static void wlc_radio_enable(struct wlc_info *wlc)
 	if (DEVICEREMOVED(wlc))
 		return;
 
-	wl_up(wlc->wl);
+	brcms_up(wlc->wl);
 }
 
 /* periodical query hw radio button while driver is "down" */
@@ -1881,7 +1881,7 @@ static void wlc_radio_timer(void *arg)
 	if (DEVICEREMOVED(wlc)) {
 		wiphy_err(wlc->wiphy, "wl%d: %s: dead chip\n", wlc->pub->unit,
 			__func__);
-		wl_down(wlc->wl);
+		brcms_down(wlc->wl);
 		return;
 	}
 
@@ -1901,7 +1901,8 @@ static bool wlc_radio_monitor_start(struct wlc_info *wlc)
 
 	wlc->radio_monitor = true;
 	wlc_pllreq(wlc, true, WLC_PLLREQ_RADIO_MON);
-	wl_add_timer(wlc->wl, wlc->radio_timer, TIMER_INTERVAL_RADIOCHK, true);
+	brcms_add_timer(wlc->wl, wlc->radio_timer, TIMER_INTERVAL_RADIOCHK,
+			true);
 	return true;
 }
 
@@ -1912,7 +1913,7 @@ bool wlc_radio_monitor_stop(struct wlc_info *wlc)
 
 	wlc->radio_monitor = false;
 	wlc_pllreq(wlc, false, WLC_PLLREQ_RADIO_MON);
-	return wl_del_timer(wlc->wl, wlc->radio_timer);
+	return brcms_del_timer(wlc->wl, wlc->radio_timer);
 }
 
 static void wlc_watchdog_by_timer(void *arg)
@@ -1935,7 +1936,7 @@ static void wlc_watchdog(void *arg)
 	if (DEVICEREMOVED(wlc)) {
 		wiphy_err(wlc->wiphy, "wl%d: %s: dead chip\n", wlc->pub->unit,
 			  __func__);
-		wl_down(wlc->wl);
+		brcms_down(wlc->wl);
 		return;
 	}
 
@@ -2070,7 +2071,7 @@ int wlc_up(struct wlc_info *wlc)
 		wlc_mhf(wlc, MHF2, MHF2_PCISLOWCLKWAR, MHF2_PCISLOWCLKWAR,
 			WLC_BAND_ALL);
 
-	wl_init(wlc->wl);
+	brcms_init(wlc->wl);
 	wlc->pub->up = true;
 
 	if (wlc->bandinit_pending) {
@@ -2090,7 +2091,7 @@ int wlc_up(struct wlc_info *wlc)
 	wlc_wme_retries_write(wlc);
 
 	/* start one second watchdog timer */
-	wl_add_timer(wlc->wl, wlc->wdtimer, TIMER_INTERVAL_WATCHDOG, true);
+	brcms_add_timer(wlc->wl, wlc->wdtimer, TIMER_INTERVAL_WATCHDOG, true);
 	wlc->WDarmed = true;
 
 	/* ensure antenna config is up to date */
@@ -2168,7 +2169,7 @@ uint wlc_down(struct wlc_info *wlc)
 
 	/* cancel the watchdog timer */
 	if (wlc->WDarmed) {
-		if (!wl_del_timer(wlc->wl, wlc->wdtimer))
+		if (!brcms_del_timer(wlc->wl, wlc->wdtimer))
 			callbacks++;
 		wlc->WDarmed = false;
 	}
@@ -2528,7 +2529,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	if (!wlc->pub->hw_off && DEVICEREMOVED(wlc)) {
 		wiphy_err(wlc->wiphy, "wl%d: %s: dead chip\n", wlc->pub->unit,
 			  __func__);
-		wl_down(wlc->wl);
+		brcms_down(wlc->wl);
 		return -EBADE;
 	}
 
@@ -5817,7 +5818,7 @@ wlc_txflowcontrol_signal(struct wlc_info *wlc, struct wlc_txq_info *qi, bool on,
 
 	for (wlcif = wlc->wlcif_list; wlcif != NULL; wlcif = wlcif->next) {
 		if (wlcif->qi == qi && wlcif->flags & WLC_IF_LINKED)
-			wl_txflowcontrol(wlc->wl, wlcif->wlif, on, prio);
+			brcms_txflowcontrol(wlc->wl, wlcif->wlif, on, prio);
 	}
 #endif
 }
@@ -5923,7 +5924,7 @@ void wlc_wait_for_tx_completion(struct wlc_info *wlc, bool drop)
 	/* wait for queue and DMA fifos to run dry */
 	while (!pktq_empty(&wlc->pkt_queue->q) ||
 	       TXPKTPENDTOT(wlc) > 0) {
-		wl_msleep(wlc->wl, 1);
+		brcms_msleep(wlc->wl, 1);
 	}
 }
 

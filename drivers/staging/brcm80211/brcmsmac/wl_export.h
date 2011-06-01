@@ -18,30 +18,30 @@
 #define _wl_export_h_
 
 /* misc callbacks */
-struct wl_info;
-struct wl_if;
+struct brcms_info;
+struct brcms_if;
 struct wlc_if;
-extern void wl_init(struct wl_info *wl);
-extern uint wl_reset(struct wl_info *wl);
-extern void wl_intrson(struct wl_info *wl);
-extern u32 wl_intrsoff(struct wl_info *wl);
-extern void wl_intrsrestore(struct wl_info *wl, u32 macintmask);
-extern int wl_up(struct wl_info *wl);
-extern void wl_down(struct wl_info *wl);
-extern void wl_txflowcontrol(struct wl_info *wl, struct wl_if *wlif, bool state,
-			     int prio);
-extern bool wl_alloc_dma_resources(struct wl_info *wl, uint dmaddrwidth);
-extern bool wl_rfkill_set_hw_state(struct wl_info *wl);
+extern void brcms_init(struct brcms_info *wl);
+extern uint brcms_reset(struct brcms_info *wl);
+extern void brcms_intrson(struct brcms_info *wl);
+extern u32 brcms_intrsoff(struct brcms_info *wl);
+extern void brcms_intrsrestore(struct brcms_info *wl, u32 macintmask);
+extern int brcms_up(struct brcms_info *wl);
+extern void brcms_down(struct brcms_info *wl);
+extern void brcms_txflowcontrol(struct brcms_info *wl, struct brcms_if *wlif,
+				bool state, int prio);
+extern bool wl_alloc_dma_resources(struct brcms_info *wl, uint dmaddrwidth);
+extern bool brcms_rfkill_set_hw_state(struct brcms_info *wl);
 
 /* timer functions */
-struct wl_timer;
-extern struct wl_timer *wl_init_timer(struct wl_info *wl,
+struct brcms_timer;
+extern struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 				      void (*fn) (void *arg), void *arg,
 				      const char *name);
-extern void wl_free_timer(struct wl_info *wl, struct wl_timer *timer);
-extern void wl_add_timer(struct wl_info *wl, struct wl_timer *timer, uint ms,
-			 int periodic);
-extern bool wl_del_timer(struct wl_info *wl, struct wl_timer *timer);
-extern void wl_msleep(struct wl_info *wl, uint ms);
+extern void brcms_free_timer(struct brcms_info *wl, struct brcms_timer *timer);
+extern void brcms_add_timer(struct brcms_info *wl, struct brcms_timer *timer,
+			    uint ms, int periodic);
+extern bool brcms_del_timer(struct brcms_info *wl, struct brcms_timer *timer);
+extern void brcms_msleep(struct brcms_info *wl, uint ms);
 
 #endif				/* _wl_export_h_ */

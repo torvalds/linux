@@ -83,39 +83,40 @@ struct wlapi_timer *wlapi_init_timer(wlc_phy_shim_info_t *physhim,
 				     void (*fn) (void *arg), void *arg,
 				     const char *name)
 {
-	return (struct wlapi_timer *)wl_init_timer(physhim->wl, fn, arg, name);
+	return (struct wlapi_timer *)
+			brcms_init_timer(physhim->wl, fn, arg, name);
 }
 
 void wlapi_free_timer(wlc_phy_shim_info_t *physhim, struct wlapi_timer *t)
 {
-	wl_free_timer(physhim->wl, (struct wl_timer *)t);
+	brcms_free_timer(physhim->wl, (struct brcms_timer *)t);
 }
 
 void
 wlapi_add_timer(wlc_phy_shim_info_t *physhim, struct wlapi_timer *t, uint ms,
 		int periodic)
 {
-	wl_add_timer(physhim->wl, (struct wl_timer *)t, ms, periodic);
+	brcms_add_timer(physhim->wl, (struct brcms_timer *)t, ms, periodic);
 }
 
 bool wlapi_del_timer(wlc_phy_shim_info_t *physhim, struct wlapi_timer *t)
 {
-	return wl_del_timer(physhim->wl, (struct wl_timer *)t);
+	return brcms_del_timer(physhim->wl, (struct brcms_timer *)t);
 }
 
 void wlapi_intrson(wlc_phy_shim_info_t *physhim)
 {
-	wl_intrson(physhim->wl);
+	brcms_intrson(physhim->wl);
 }
 
 u32 wlapi_intrsoff(wlc_phy_shim_info_t *physhim)
 {
-	return wl_intrsoff(physhim->wl);
+	return brcms_intrsoff(physhim->wl);
 }
 
 void wlapi_intrsrestore(wlc_phy_shim_info_t *physhim, u32 macintmask)
 {
-	wl_intrsrestore(physhim->wl, macintmask);
+	brcms_intrsrestore(physhim->wl, macintmask);
 }
 
 void wlapi_bmac_write_shm(wlc_phy_shim_info_t *physhim, uint offset, u16 v)
