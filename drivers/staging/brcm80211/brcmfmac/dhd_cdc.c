@@ -19,13 +19,65 @@
 #include <bcmdefs.h>
 
 #include <bcmutils.h>
-#include <bcmcdc.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_proto.h>
 #include <dhd_bus.h>
 #include <dhd_dbg.h>
+
+struct cdc_ioctl {
+	u32 cmd;	/* ioctl command value */
+	u32 len;	/* lower 16: output buflen;
+			 * upper 16: input buflen (excludes header) */
+	u32 flags;	/* flag defns given below */
+	u32 status;	/* status code returned from the device */
+};
+
+/* Max valid buffer size that can be sent to the dongle */
+#define CDC_MAX_MSG_SIZE	(ETH_FRAME_LEN+ETH_FCS_LEN)
+
+/* CDC flag definitions */
+#define CDCF_IOC_ERROR		0x01		/* 1=ioctl cmd failed */
+#define CDCF_IOC_SET		0x02		/* 0=get, 1=set cmd */
+#define CDCF_IOC_IF_MASK	0xF000		/* I/F index */
+#define CDCF_IOC_IF_SHIFT	12
+#define CDCF_IOC_ID_MASK	0xFFFF0000	/* id an ioctl pairing */
+#define CDCF_IOC_ID_SHIFT	16		/* ID Mask shift bits */
+#define CDC_IOC_ID(flags)	\
+	(((flags) & CDCF_IOC_ID_MASK) >> CDCF_IOC_ID_SHIFT)
+#define CDC_SET_IF_IDX(hdr, idx) \
+	((hdr)->flags = (((hdr)->flags & ~CDCF_IOC_IF_MASK) | \
+	((idx) << CDCF_IOC_IF_SHIFT)))
+
+/*
+ * BDC header
+ * Used on data packets to convey priority across USB.
+ */
+#define	BDC_HEADER_LEN		4
+#define BDC_PROTO_VER		1	/* Protocol version */
+#define BDC_FLAG_VER_MASK	0xf0	/* Protocol version mask */
+#define BDC_FLAG_VER_SHIFT	4	/* Protocol version shift */
+#define BDC_FLAG_SUM_GOOD	0x04	/* Good RX checksums */
+#define BDC_FLAG_SUM_NEEDED	0x08	/* Dongle needs to do TX checksums */
+#define BDC_PRIORITY_MASK	0x7
+#define BDC_FLAG2_IF_MASK	0x0f	/* packet rx interface in APSTA */
+#define BDC_FLAG2_IF_SHIFT	0
+
+#define BDC_GET_IF_IDX(hdr) \
+	((int)((((hdr)->flags2) & BDC_FLAG2_IF_MASK) >> BDC_FLAG2_IF_SHIFT))
+#define BDC_SET_IF_IDX(hdr, idx) \
+	((hdr)->flags2 = (((hdr)->flags2 & ~BDC_FLAG2_IF_MASK) | \
+	((idx) << BDC_FLAG2_IF_SHIFT)))
+
+struct bdc_header {
+	u8 flags;
+	u8 priority;	/* 802.1d Priority, 4:7 flow control info for usb */
+	u8 flags2;
+	u8 rssi;
+};
+
+
 #ifdef CUSTOMER_HW2
 int wifi_get_mac_addr(unsigned char *buf);
 #endif
@@ -56,14 +108,14 @@ typedef struct dhd_prot {
 	u8 pending;
 	u32 lastcmd;
 	u8 bus_header[BUS_HEADER_LEN];
-	cdc_ioctl_t msg;
+	struct cdc_ioctl msg;
 	unsigned char buf[WLC_IOCTL_MAXLEN + ROUND_UP_MARGIN];
 } dhd_prot_t;
 
 static int dhdcdc_msg(dhd_pub_t *dhd)
 {
 	dhd_prot_t *prot = dhd->prot;
-	int len = le32_to_cpu(prot->msg.len) + sizeof(cdc_ioctl_t);
+	int len = le32_to_cpu(prot->msg.len) + sizeof(struct cdc_ioctl);
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -88,7 +140,7 @@ static int dhdcdc_cmplt(dhd_pub_t *dhd, u32 id, u32 len)
 	do {
 		ret =
 		    dhd_bus_rxctl(dhd->bus, (unsigned char *)&prot->msg,
-				  len + sizeof(cdc_ioctl_t));
+				  len + sizeof(struct cdc_ioctl));
 		if (ret < 0)
 			break;
 	} while (CDC_IOC_ID(le32_to_cpu(prot->msg.flags)) != id);
@@ -100,7 +152,7 @@ int
 dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 {
 	dhd_prot_t *prot = dhd->prot;
-	cdc_ioctl_t *msg = &prot->msg;
+	struct cdc_ioctl *msg = &prot->msg;
 	void *info;
 	int ret = 0, retries = 0;
 	u32 id, flags = 0;
@@ -120,7 +172,7 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 		}
 	}
 
-	memset(msg, 0, sizeof(cdc_ioctl_t));
+	memset(msg, 0, sizeof(struct cdc_ioctl));
 
 	msg->cmd = cpu_to_le32(cmd);
 	msg->len = cpu_to_le32(len);
@@ -180,14 +232,14 @@ done:
 int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 {
 	dhd_prot_t *prot = dhd->prot;
-	cdc_ioctl_t *msg = &prot->msg;
+	struct cdc_ioctl *msg = &prot->msg;
 	int ret = 0;
 	u32 flags, id;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 	DHD_CTL(("%s: cmd %d len %d\n", __func__, cmd, len));
 
-	memset(msg, 0, sizeof(cdc_ioctl_t));
+	memset(msg, 0, sizeof(struct cdc_ioctl));
 
 	msg->cmd = cpu_to_le32(cmd);
 	msg->len = cpu_to_le32(len);
@@ -266,14 +318,14 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 	else {
 		ret = dhdcdc_query_ioctl(dhd, ifidx, ioc->cmd, buf, len);
 		if (ret > 0)
-			ioc->used = ret - sizeof(cdc_ioctl_t);
+			ioc->used = ret - sizeof(struct cdc_ioctl);
 	}
 
 	/* Too many programs assume ioctl() returns 0 on success */
 	if (ret >= 0)
 		ret = 0;
 	else {
-		cdc_ioctl_t *msg = &prot->msg;
+		struct cdc_ioctl *msg = &prot->msg;
 		/* len == needed when set/query fails from dongle */
 		ioc->needed = le32_to_cpu(msg->len);
 	}
@@ -411,7 +463,8 @@ int dhd_prot_attach(dhd_pub_t *dhd)
 #ifdef BDC
 	dhd->hdrlen += BDC_HEADER_LEN;
 #endif
-	dhd->maxctl = WLC_IOCTL_MAXLEN + sizeof(cdc_ioctl_t) + ROUND_UP_MARGIN;
+	dhd->maxctl =
+		WLC_IOCTL_MAXLEN + sizeof(struct cdc_ioctl) + ROUND_UP_MARGIN;
 	return 0;
 
 fail:
