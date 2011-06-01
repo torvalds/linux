@@ -239,10 +239,6 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 #define	PKTBUFSZ	2048
 
 #define OSL_SYSUPTIME()		((u32)jiffies * (1000 / HZ))
-#ifdef BRCM_FULLMAC
-#include <linux/kernel.h>	/* for vsn/printf's */
-#include <linux/string.h>	/* for mem*, str* */
-#endif
 
 #ifndef setbit
 #ifndef NBBY			/* the BSD family defines NBBY */

@@ -42,13 +42,6 @@ do {						\
 #define WL_ERROR_ON()		(brcm_msg_level & LOG_ERROR_VAL)
 
 /* register access macros */
-#if defined(BCMSDIO)
-#ifdef BRCM_FULLMAC
-#include <bcmsdh.h>
-#endif
-#endif
-
-/* register access macros */
 #ifndef __BIG_ENDIAN
 #ifndef __mips__
 #define R_REG(r) \

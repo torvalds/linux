@@ -33,49 +33,32 @@
 #include <bcmsoc.h>
 
 /* register access macros */
-#if defined(BCMSDIO)
-#ifdef BRCM_FULLMAC
-#include <bcmsdh.h>
-#endif
-#endif
-
-/* register access macros */
 #ifndef __BIG_ENDIAN
 #ifndef __mips__
 #define R_REG(r) \
-	bcmsdh_reg_read(NULL, (unsigned long)r, sizeof(*r))
+	bcmsdh_reg_read(NULL, (unsigned long)(r), sizeof(*(r)))
 #else				/* __mips__ */
 #define R_REG(r) \
 	({ \
 		__typeof(*(r)) __osl_v; \
 		__asm__ __volatile__("sync"); \
-		__osl_v = bcmsdh_reg_read(NULL, (unsigned long)r, sizeof(*r)); \
+		__osl_v = bcmsdh_reg_read(NULL, (unsigned long)(r),\
+					  sizeof(*(r))); \
 		__asm__ __volatile__("sync"); \
 		__osl_v; \
 	})
 #endif				/* __mips__ */
 
 #define W_REG(r, v) do { \
-		bcmsdh_reg_write(NULL, (unsigned long)r, sizeof(*r), (v)); \
+		bcmsdh_reg_write(NULL, (unsigned long)(r), sizeof(*(r)), (v)); \
 	} while (0)
 #else				/* __BIG_ENDIAN */
 #define R_REG(r) \
-	bcmsdh_reg_read(NULL, (unsigned long)r, sizeof(*r))
+	bcmsdh_reg_read(NULL, (unsigned long)(r), sizeof(*(r)))
 #define W_REG(r, v) do { \
-		bcmsdh_reg_write(NULL, (unsigned long)r, sizeof(*r), v); \
+		bcmsdh_reg_write(NULL, (unsigned long)(r), sizeof(*(r)), (v)); \
 	} while (0)
 #endif				/* __BIG_ENDIAN */
-
-#ifdef __mips__
-/*
- * bcm4716 (which includes 4717 & 4718), plus 4706 on PCIe can reorder
- * transactions. As a fix, a read after write is performed on certain places
- * in the code. Older chips and the newer 5357 family don't require this fix.
- */
-#define W_REG_FLUSH(r, v)	({ W_REG((r), (v)); (void)R_REG(r); })
-#else
-#define W_REG_FLUSH(r, v)	W_REG((r), (v))
-#endif				/* __mips__ */
 
 #define AND_REG(r, v)	W_REG((r), R_REG(r) & (v))
 #define OR_REG(r, v)	W_REG((r), R_REG(r) | (v))
