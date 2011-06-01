@@ -138,7 +138,6 @@ sdioh_info_t *sdioh_attach(void *bar0, uint irq)
 	}
 
 	sd->num_funcs = 2;
-	sd->sd_blockmode = true;
 	sd->use_client_ints = true;
 	sd->client_block_size[0] = 64;
 
@@ -352,7 +351,6 @@ uint sdioh_query_iofnum(sdioh_info_t *sd)
 /* IOVar table */
 enum {
 	IOV_MSGLEVEL = 1,
-	IOV_BLOCKMODE,
 	IOV_BLOCKSIZE,
 	IOV_DMA,
 	IOV_USEINTS,
@@ -371,7 +369,6 @@ enum {
 
 const bcm_iovar_t sdioh_iovars[] = {
 	{"sd_msglevel", IOV_MSGLEVEL, 0, IOVT_UINT32, 0},
-	{"sd_blockmode", IOV_BLOCKMODE, 0, IOVT_BOOL, 0},
 	{"sd_blocksize", IOV_BLOCKSIZE, 0, IOVT_UINT32, 0},/* ((fn << 16) |
 								 size) */
 	{"sd_dma", IOV_DMA, 0, IOVT_BOOL, 0},
@@ -455,16 +452,6 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_SVAL(IOV_MSGLEVEL):
 		sd_msglevel = int_val;
-		break;
-
-	case IOV_GVAL(IOV_BLOCKMODE):
-		int_val = (s32) si->sd_blockmode;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_BLOCKMODE):
-		si->sd_blockmode = (bool) int_val;
-		/* Haven't figured out how to make non-block mode with DMA */
 		break;
 
 	case IOV_GVAL(IOV_BLOCKSIZE):
