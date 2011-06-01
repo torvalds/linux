@@ -56,17 +56,11 @@
 /* bar0 + 12K accesses chipc core registers */
 #define PCI_16KB0_CCREGS_OFFSET	(12 * 1024)
 
-struct sbpcieregs;
 struct si_pub;
 
 extern u8 pcicore_find_pci_capability(void *dev, u8 req_cap_id,
 					 unsigned char *buf, u32 *buflen);
-extern uint pcie_readreg(struct sbpcieregs *pcieregs,
-			 uint addrtype, uint offset);
-extern uint pcie_writereg(struct sbpcieregs *pcieregs,
-			  uint addrtype, uint offset, uint val);
 
-extern u8 pcie_clkreq(void *pch, u32 mask, u32 val);
 extern u32 pcie_lcreg(void *pch, u32 mask, u32 val);
 
 extern void *pcicore_init(struct si_pub *sih, void *pdev, void *regs);

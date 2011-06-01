@@ -180,7 +180,7 @@ pcicore_find_pci_capability(void *dev, u8 req_cap_id,
 }
 
 /* ***** Register Access API */
-uint
+static uint
 pcie_readreg(sbpcieregs_t *pcieregs, uint addrtype,
 	     uint offset)
 {
@@ -204,7 +204,7 @@ pcie_readreg(sbpcieregs_t *pcieregs, uint addrtype,
 	return retval;
 }
 
-uint
+static uint
 pcie_writereg(sbpcieregs_t *pcieregs, uint addrtype,
 	      uint offset, uint val)
 {
@@ -329,7 +329,7 @@ pcie_mdiowrite(pcicore_info_t *pi, uint physmedia, uint regaddr, uint val)
 }
 
 /* ***** Support functions ***** */
-u8 pcie_clkreq(void *pch, u32 mask, u32 val)
+static u8 pcie_clkreq(void *pch, u32 mask, u32 val)
 {
 	pcicore_info_t *pi = (pcicore_info_t *) pch;
 	u32 reg_val;
