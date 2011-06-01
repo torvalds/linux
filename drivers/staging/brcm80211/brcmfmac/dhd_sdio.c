@@ -253,7 +253,6 @@ typedef struct dhd_bus {
 	s32 idletime;		/* Control for activity timeout */
 	s32 idlecount;	/* Activity timeout counter */
 	s32 idleclock;	/* How to set bus driver when idle */
-	s32 sd_mode;		/* Mode control to bus driver */
 	s32 sd_rxchain;	/* If bcmsdh api accepts PKT chains */
 	bool use_rxchain;	/* If dhd should use PKT chains */
 	bool sleeping;		/* Is SDIO bus sleeping? */
@@ -659,47 +658,12 @@ static int dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 /* Change idle/active SD state */
 static int dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 {
-	int err;
-	s32 iovalue;
-
 	DHD_TRACE(("%s: Enter\n", __func__));
 
-	if (on) {
-		if (bus->idleclock == DHD_IDLE_STOP) {
-			iovalue = bus->sd_mode;
-			err = bcmsdh_iovar_op(bus->sdh, "sd_mode", NULL, 0,
-					      &iovalue, sizeof(iovalue), true);
-			if (err) {
-				DHD_ERROR(("%s: error changing sd_mode: %d\n",
-					   __func__, err));
-				return -EBADE;
-			}
-		}
+	if (on)
 		bus->clkstate = CLK_SDONLY;
-	} else {
-		/* Stop or slow the SD clock itself */
-		if (bus->sd_mode == -1) {
-			DHD_TRACE(("%s: can't idle clock, mode %d\n",
-				   __func__, bus->sd_mode));
-			return -EBADE;
-		}
-		if (bus->idleclock == DHD_IDLE_STOP) {
-			if (sd1idle) {
-				/* Change to SD1 mode and turn off clock */
-				iovalue = 1;
-				err =
-				    bcmsdh_iovar_op(bus->sdh, "sd_mode", NULL,
-						    0, &iovalue,
-						    sizeof(iovalue), true);
-				if (err) {
-					DHD_ERROR(("%s: error changing sd_clock: %d\n",
-						__func__, err));
-					return -EBADE;
-				}
-			}
-		}
+	else
 		bus->clkstate = CLK_NONE;
-	}
 
 	return 0;
 }
@@ -2670,21 +2634,6 @@ dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 		    bcmsdh_iovar_op(bus->sdh, name, params, plen, arg, len,
 				    set);
 
-		/* Check for bus configuration changes of interest */
-
-		/* If it was a mode change, read the new one */
-		if (set && strcmp(name, "sd_mode") == 0) {
-			if (bcmsdh_iovar_op(bus->sdh, "sd_mode", NULL, 0,
-					    &bus->sd_mode, sizeof(s32),
-					    false) != 0) {
-				bus->sd_mode = -1;
-				DHD_ERROR(("%s: fail on %s get\n", __func__,
-					   name));
-			} else {
-				DHD_INFO(("%s: noted %s update, value now %d\n",
-					  __func__, name, bus->sd_mode));
-			}
-		}
 		/* Similar check for blocksize change */
 		if (set && strcmp(name, "sd_blocksize") == 0) {
 			s32 fnum = 2;
@@ -5314,16 +5263,6 @@ static bool dhdsdio_probe_init(dhd_bus_t *bus, void *sdh)
 	bus->clkstate = CLK_SDONLY;
 	bus->idletime = (s32) dhd_idletime;
 	bus->idleclock = DHD_IDLE_ACTIVE;
-
-	/* Query the SD bus mode */
-	if (bcmsdh_iovar_op(sdh, "sd_mode", NULL, 0,
-			    &bus->sd_mode, sizeof(s32), false) != 0) {
-		DHD_ERROR(("%s: fail on %s get\n", __func__, "sd_mode"));
-		bus->sd_mode = -1;
-	} else {
-		DHD_INFO(("%s: Initial value for %s is %d\n",
-			  __func__, "sd_mode", bus->sd_mode));
-	}
 
 	/* Query the F2 block size, set roundup accordingly */
 	fnum = 2;
