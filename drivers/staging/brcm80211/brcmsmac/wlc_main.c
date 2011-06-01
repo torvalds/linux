@@ -25,7 +25,6 @@
 #include <bcmwifi.h>
 #include <bcmnvram.h>
 #include <aiutils.h>
-#include <pcicfg.h>
 #include <bcmsrom.h>
 #include <sbdma.h>
 #include <bcmdma.h>

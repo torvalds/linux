@@ -23,14 +23,12 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <bcmwifi.h>
 #include <aiutils.h>
 #include <sbchipc.h>
-#include <pcicfg.h>
 #include <sbdma.h>
 #include <bcmdma.h>
 #include <wlc_pmu.h>

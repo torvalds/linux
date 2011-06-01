@@ -25,7 +25,7 @@
 #include <bcmsoc.h>
 #include <sbchipc.h>
 #include <bcmdevs.h>
-#include <pcicfg.h>
+#include <nicpci.h>
 #include <aiutils.h>
 #include <bcmsrom.h>
 

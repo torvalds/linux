@@ -29,7 +29,7 @@
 #include <bcmwifi.h>
 #include <bcmutils.h>
 #include <bcmnvram.h>
-#include <pcicfg.h>
+#include <nicpci.h>
 #include <sbdma.h>
 
 #include "phy/wlc_phy_int.h"

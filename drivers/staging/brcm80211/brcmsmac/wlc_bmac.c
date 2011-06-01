@@ -30,7 +30,7 @@
 #include <bcmutils.h>
 #include <bcmnvram.h>
 #include <sbchipc.h>
-#include <pcicfg.h>
+#include <nicpci.h>
 #include <sbdma.h>
 #include <bcmdma.h>
 

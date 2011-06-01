@@ -27,7 +27,6 @@
 #include <pci_core.h>
 #include <pcie_core.h>
 #include <nicpci.h>
-#include <pcicfg.h>
 
 /* chipcontrol */
 #define CHIPCTRL_4321_PLL_DOWN	0x800000	/* serdes PLL down override */
@@ -83,7 +82,7 @@ static bool pcicore_pmecap(pcicore_info_t *pi);
 /* Initialize the PCI core. It's caller's responsibility to make sure that this is done
  * only once
  */
-void *pcicore_init(si_t *sih, void *pdev, void *regs)
+void *pcicore_init(struct si_pub *sih, void *pdev, void *regs)
 {
 	pcicore_info_t *pi;
 
