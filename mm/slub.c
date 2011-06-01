@@ -1977,8 +1977,20 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
 		object = page->freelist;
 		counters = page->counters;
 		new.counters = counters;
-		new.inuse = page->objects;
 		VM_BUG_ON(!new.frozen);
+
+		/*
+		 * If there is no object left then we use this loop to
+		 * deactivate the slab which is simple since no objects
+		 * are left in the slab and therefore we do not need to
+		 * put the page back onto the partial list.
+		 *
+		 * If there are objects left then we retrieve them
+		 * and use them to refill the per cpu queue.
+		*/
+
+		new.inuse = page->objects;
+		new.frozen = object != NULL;
 
 	} while (!cmpxchg_double_slab(s, page,
 			object, counters,
@@ -1988,8 +2000,11 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
 load_freelist:
 	VM_BUG_ON(!page->frozen);
 
-	if (unlikely(!object))
+	if (unlikely(!object)) {
+		c->page = NULL;
+		stat(s, DEACTIVATE_BYPASS);
 		goto new_slab;
+	}
 
 	stat(s, ALLOC_REFILL);
 
@@ -4680,6 +4695,7 @@ STAT_ATTR(DEACTIVATE_EMPTY, deactivate_empty);
 STAT_ATTR(DEACTIVATE_TO_HEAD, deactivate_to_head);
 STAT_ATTR(DEACTIVATE_TO_TAIL, deactivate_to_tail);
 STAT_ATTR(DEACTIVATE_REMOTE_FREES, deactivate_remote_frees);
+STAT_ATTR(DEACTIVATE_BYPASS, deactivate_bypass);
 STAT_ATTR(ORDER_FALLBACK, order_fallback);
 STAT_ATTR(CMPXCHG_DOUBLE_CPU_FAIL, cmpxchg_double_cpu_fail);
 STAT_ATTR(CMPXCHG_DOUBLE_FAIL, cmpxchg_double_fail);
@@ -4740,6 +4756,7 @@ static struct attribute *slab_attrs[] = {
 	&deactivate_to_head_attr.attr,
 	&deactivate_to_tail_attr.attr,
 	&deactivate_remote_frees_attr.attr,
+	&deactivate_bypass_attr.attr,
 	&order_fallback_attr.attr,
 	&cmpxchg_double_fail_attr.attr,
 	&cmpxchg_double_cpu_fail_attr.attr,
