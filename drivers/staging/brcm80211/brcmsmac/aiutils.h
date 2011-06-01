@@ -271,7 +271,7 @@
 #define	CST4330_CBUCK_POWER_OK		0x00004000
 #define	CST4330_BB_PLL_LOCKED		0x00008000
 
-#define	SI_INFO(sih)	(si_info_t *)sih
+#define	SI_INFO(sih)	((si_info_t *)sih)
 
 #define	GOODCOREADDR(x, b) \
 	(((x) >= (b)) && ((x) < ((b) + SI_MAXCORES * SI_CORE_SIZE)) && \
