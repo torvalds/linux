@@ -799,12 +799,12 @@ static u32 be_encoded_q_len(int q_len)
 	return len_encoded;
 }
 
-int be_cmd_mccq_create(struct be_adapter *adapter,
+int be_cmd_mccq_ext_create(struct be_adapter *adapter,
 			struct be_queue_info *mccq,
 			struct be_queue_info *cq)
 {
 	struct be_mcc_wrb *wrb;
-	struct be_cmd_req_mcc_create *req;
+	struct be_cmd_req_mcc_ext_create *req;
 	struct be_dma_mem *q_mem = &mccq->dma_mem;
 	void *ctxt;
 	int status;
@@ -856,6 +856,67 @@ int be_cmd_mccq_create(struct be_adapter *adapter,
 	}
 	mutex_unlock(&adapter->mbox_lock);
 
+	return status;
+}
+
+int be_cmd_mccq_org_create(struct be_adapter *adapter,
+			struct be_queue_info *mccq,
+			struct be_queue_info *cq)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_mcc_create *req;
+	struct be_dma_mem *q_mem = &mccq->dma_mem;
+	void *ctxt;
+	int status;
+
+	if (mutex_lock_interruptible(&adapter->mbox_lock))
+		return -1;
+
+	wrb = wrb_from_mbox(adapter);
+	req = embedded_payload(wrb);
+	ctxt = &req->context;
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
+			OPCODE_COMMON_MCC_CREATE);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			OPCODE_COMMON_MCC_CREATE, sizeof(*req));
+
+	req->num_pages = cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
+
+	AMAP_SET_BITS(struct amap_mcc_context_be, valid, ctxt, 1);
+	AMAP_SET_BITS(struct amap_mcc_context_be, ring_size, ctxt,
+			be_encoded_q_len(mccq->len));
+	AMAP_SET_BITS(struct amap_mcc_context_be, cq_id, ctxt, cq->id);
+
+	be_dws_cpu_to_le(ctxt, sizeof(req->context));
+
+	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
+
+	status = be_mbox_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_mcc_create *resp = embedded_payload(wrb);
+		mccq->id = le16_to_cpu(resp->id);
+		mccq->created = true;
+	}
+
+	mutex_unlock(&adapter->mbox_lock);
+	return status;
+}
+
+int be_cmd_mccq_create(struct be_adapter *adapter,
+			struct be_queue_info *mccq,
+			struct be_queue_info *cq)
+{
+	int status;
+
+	status = be_cmd_mccq_ext_create(adapter, mccq, cq);
+	if (status && !lancer_chip(adapter)) {
+		dev_warn(&adapter->pdev->dev, "Upgrade to F/W ver 2.102.235.0 "
+			"or newer to avoid conflicting priorities between NIC "
+			"and FCoE traffic");
+		status = be_cmd_mccq_org_create(adapter, mccq, cq);
+	}
 	return status;
 }
 

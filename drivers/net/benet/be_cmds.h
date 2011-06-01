@@ -434,6 +434,14 @@ struct be_cmd_req_mcc_create {
 	struct be_cmd_req_hdr hdr;
 	u16 num_pages;
 	u16 cq_id;
+	u8 context[sizeof(struct amap_mcc_context_be) / 8];
+	struct phys_addr pages[8];
+} __packed;
+
+struct be_cmd_req_mcc_ext_create {
+	struct be_cmd_req_hdr hdr;
+	u16 num_pages;
+	u16 cq_id;
 	u32 async_event_bitmap[1];
 	u8 context[sizeof(struct amap_mcc_context_be) / 8];
 	struct phys_addr pages[8];
