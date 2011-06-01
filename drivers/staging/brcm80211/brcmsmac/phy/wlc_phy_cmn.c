@@ -24,7 +24,6 @@
 #include <linux/pci.h>
 
 #include <bcmdefs.h>
-#include <bcmnvram.h>
 #include <chipcommon.h>
 #include <bcmdevs.h>
 #include "bcmdma.h"
@@ -173,7 +172,7 @@ char *phy_getvar(phy_info_t *pi, const char *name)
 			;
 	}
 
-	return nvram_get(name);
+	return NULL;
 }
 
 int phy_getintvar(phy_info_t *pi, const char *name)

@@ -21,7 +21,6 @@
 #include <brcmu_utils.h>
 #include <aiutils.h>
 #include <brcmu_wifi.h>
-#include <bcmnvram.h>
 #include "bcmdma.h"
 
 #include "wlc_types.h"

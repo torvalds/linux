@@ -19,11 +19,12 @@
 #include <linux/pci.h>
 #include <bcmdefs.h>
 #include <brcmu_utils.h>
-#include <bcmnvram.h>
 #include <aiutils.h>
 #include <bcmsoc.h>
 #include <bcmdevs.h>
 #include <chipcommon.h>
+#include <wlc_scb.h>
+#include <wlc_pub.h>
 #include <nicpci.h>
 
 /* SPROM offsets */

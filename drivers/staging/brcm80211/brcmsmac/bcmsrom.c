@@ -28,8 +28,6 @@
 #include <nicpci.h>
 #include <aiutils.h>
 #include <bcmsrom.h>
-
-#include <bcmnvram.h>
 #include <bcmotp.h>
 
 #define SROM_OFFSET(sih) ((sih->ccrev > 31) ? \
@@ -780,12 +778,9 @@ static const sromvar_t perpath_pci_sromvars[] = {
 	{NULL, 0, 0, 0, 0}
 };
 
-static int initvars_srom_si(struct si_pub *sih, void *curmap, char **vars,
-			    uint *count);
 static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, varbuf_t *b);
 static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 			     uint *count);
-static int initvars_flash_si(struct si_pub *sih, char **vars, uint *count);
 static int sprom_read_pci(struct si_pub *sih, u16 *sprom,
 			  uint wordoff, u16 *buf, uint nwords, bool check_crc);
 #if defined(BCMNVRAMR)
@@ -796,8 +791,6 @@ static u16 srom_cc_cmd(struct si_pub *sih, void *ccregs, u32 cmd,
 
 static int initvars_table(char *start, char *end,
 			  char **vars, uint *count);
-static int initvars_flash(struct si_pub *sih, char **vp,
-			  uint len);
 
 /* Initialization of varbuf structure */
 static void varbuf_init(varbuf_t *b, char *buf, uint size)
@@ -877,20 +870,9 @@ int srom_var_init(struct si_pub *sih, uint bustype, void *curmap,
 	*vars = NULL;
 	*count = 0;
 
-	switch (bustype) {
-	case SI_BUS:
-	case JTAG_BUS:
-		return initvars_srom_si(sih, curmap, vars, count);
-
-	case PCI_BUS:
-		if (curmap == NULL)
-			return -1;
-
+	if (curmap != NULL && bustype == PCI_BUS)
 		return initvars_srom_pci(sih, curmap, vars, count);
 
-	default:
-		break;
-	}
 	return -1;
 }
 
@@ -1061,87 +1043,6 @@ static int initvars_table(char *start, char *end,
 	}
 
 	return 0;
-}
-
-/*
- * Find variables with <devpath> from flash. 'base' points to the beginning
- * of the table upon enter and to the end of the table upon exit when success.
- * Return 0 on success, nonzero on error.
- */
-static int initvars_flash(struct si_pub *sih, char **base, uint len)
-{
-	char *vp = *base;
-	char *flash;
-	int err;
-	char *s;
-	uint l, dl, copy_len;
-	char devpath[SI_DEVPATH_BUFSZ];
-
-	/* allocate memory and read in flash */
-	flash = kmalloc(NVRAM_SPACE, GFP_ATOMIC);
-	if (!flash)
-		return -ENOMEM;
-	err = nvram_getall(flash, NVRAM_SPACE);
-	if (err)
-		goto exit;
-
-	ai_devpath(sih, devpath, sizeof(devpath));
-
-	/* grab vars with the <devpath> prefix in name */
-	dl = strlen(devpath);
-	for (s = flash; s && *s; s += l + 1) {
-		l = strlen(s);
-
-		/* skip non-matching variable */
-		if (strncmp(s, devpath, dl))
-			continue;
-
-		/* is there enough room to copy? */
-		copy_len = l - dl + 1;
-		if (len < copy_len) {
-			err = -EOVERFLOW;
-			goto exit;
-		}
-
-		/* no prefix, just the name=value */
-		strncpy(vp, &s[dl], copy_len);
-		vp += copy_len;
-		len -= copy_len;
-	}
-
-	/* add null string as terminator */
-	if (len < 1) {
-		err = -EOVERFLOW;
-		goto exit;
-	}
-	*vp++ = '\0';
-
-	*base = vp;
-
- exit:	kfree(flash);
-	return err;
-}
-
-/*
- * Initialize nonvolatile variable table from flash.
- * Return 0 on success, nonzero on error.
- */
-static int initvars_flash_si(struct si_pub *sih, char **vars, uint *count)
-{
-	char *vp, *base;
-	int err;
-
-	base = vp = kmalloc(MAXSZ_NVRAM_VARS, GFP_ATOMIC);
-	if (!vp)
-		return -ENOMEM;
-
-	err = initvars_flash(sih, &vp, MAXSZ_NVRAM_VARS);
-	if (err == 0)
-		err = initvars_table(base, vp, vars, count);
-
-	kfree(base);
-
-	return err;
 }
 
 /* Parse SROM and create name=value pairs. 'srom' points to
@@ -1405,18 +1306,10 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 		goto errout;
 	}
 
-	base = vp = kmalloc(MAXSZ_NVRAM_VARS, GFP_ATOMIC);
-	if (!vp) {
+	base = kmalloc(MAXSZ_NVRAM_VARS, GFP_ATOMIC);
+	if (!base) {
 		err = -2;
 		goto errout;
-	}
-
-	/* read variables from flash */
-	if (flash) {
-		err = initvars_flash(sih, &vp, MAXSZ_NVRAM_VARS);
-		if (err)
-			goto errout;
-		goto varsdone;
 	}
 
 	varbuf_init(&b, base, MAXSZ_NVRAM_VARS);
@@ -1428,8 +1321,7 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 	vp = b.buf;
 	*vp++ = '\0';
 
- varsdone:
-	err = initvars_table(base, vp, vars, count);
+ 	err = initvars_table(base, vp, vars, count);
 
  errout:
 	if (base)
@@ -1437,12 +1329,4 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 
 	kfree(srom);
 	return err;
-}
-
-
-static int initvars_srom_si(struct si_pub *sih, void *curmap, char **vars,
-			    uint *varsz)
-{
-	/* Search flash nvram section for srom variables */
-	return initvars_flash_si(sih, vars, varsz);
 }

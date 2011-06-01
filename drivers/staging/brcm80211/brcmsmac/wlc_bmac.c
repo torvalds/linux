@@ -28,7 +28,6 @@
 #include <bcmsrom.h>
 #include <bcmotp.h>
 #include <brcmu_utils.h>
-#include <bcmnvram.h>
 #include <chipcommon.h>
 #include <nicpci.h>
 #include <bcmdma.h>

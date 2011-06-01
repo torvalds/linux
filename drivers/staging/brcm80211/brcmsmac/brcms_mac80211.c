@@ -28,7 +28,6 @@
 #include <bcmdefs.h>
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
-#include <bcmnvram.h>
 #include <nicpci.h>
 #include "bcmdma.h"
 
@@ -1297,26 +1296,8 @@ static int __init brcms_module_init(void)
 #ifdef BCMDBG
 	if (msglevel != 0xdeadbeef)
 		brcm_msg_level = msglevel;
-	else {
-		char *var = getvar(NULL, "wl_msglevel");
-		if (var) {
-			unsigned long value;
-
-			(void)strict_strtoul(var, 0, &value);
-			brcm_msg_level = value;
-		}
-	}
 	if (phymsglevel != 0xdeadbeef)
 		phyhal_msg_level = phymsglevel;
-	else {
-		char *var = getvar(NULL, "phy_msglevel");
-		if (var) {
-			unsigned long value;
-
-			(void)strict_strtoul(var, 0, &value);
-			phyhal_msg_level = value;
-		}
-	}
 #endif				/* BCMDBG */
 
 	error = pci_register_driver(&brcms_pci_driver);

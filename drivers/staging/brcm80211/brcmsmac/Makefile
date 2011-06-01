@@ -50,8 +50,7 @@ BRCMSMAC_OFILES := \
 	bcmotp.o \
 	bcmsrom.o \
 	dma.o \
-	nicpci.o \
-	nvram.o
+	nicpci.o
 
 MODULEPFX := brcmsmac
 

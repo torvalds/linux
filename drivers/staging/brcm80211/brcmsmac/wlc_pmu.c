@@ -21,7 +21,8 @@
 #include <bcmdevs.h>
 #include <chipcommon.h>
 #include <brcmu_utils.h>
-#include <bcmnvram.h>
+#include "wlc_scb.h"
+#include "wlc_pub.h"
 #include "wlc_pmu.h"
 
 /*

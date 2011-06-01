@@ -21,7 +21,6 @@
 
 #include <bcmdefs.h>
 #include <brcmu_utils.h>
-#include <bcmnvram.h>
 #include <aiutils.h>
 #include "bcmdma.h"
 

@@ -20,9 +20,11 @@
 #include <linux/delay.h>
 #include <wlc_cfg.h>
 #include <linux/pci.h>
+#include <brcmu_utils.h>
 #include <aiutils.h>
 #include <wlc_pmu.h>
-#include <bcmnvram.h>
+#include <wlc_scb.h>
+#include <wlc_pub.h>
 
 #include <bcmdevs.h>
 #include "bcmdma.h"

@@ -634,8 +634,10 @@ extern void wlc_default_rateset(struct wlc_info *wlc, wlc_rateset_t *rs);
 struct ieee80211_sta;
 extern void wlc_ampdu_flush(struct wlc_info *wlc, struct ieee80211_sta *sta,
 			    u16 tid);
-int wlc_set_par(struct wlc_info *wlc, enum wlc_par_id par_id, int val);
-int wlc_get_par(struct wlc_info *wlc, enum wlc_par_id par_id, int *ret_int_ptr);
+extern int wlc_set_par(struct wlc_info *wlc, enum wlc_par_id par_id, int val);
+extern int wlc_get_par(struct wlc_info *wlc, enum wlc_par_id par_id, int *ret_int_ptr);
+extern char *getvar(char *vars, const char *name);
+extern int getintvar(char *vars, const char *name);
 
 /* wlc_phy.c helper functions */
 extern void wlc_set_ps_ctrl(struct wlc_info *wlc);

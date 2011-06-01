@@ -28,9 +28,10 @@
 
 /* ********** from siutils.c *********** */
 #include <nicpci.h>
-#include <bcmnvram.h>
 #include <bcmsrom.h>
 #include <wlc_pmu.h>
+#include <wlc_scb.h>
+#include <wlc_pub.h>
 
 /* slow_clk_ctl */
 #define SCC_SS_MASK		0x00000007	/* slow clock source mask */
@@ -985,9 +986,6 @@ static si_info_t *ai_doattach(si_info_t *sii, uint devid,
 		udelay(10);
 	}
 
-	/* Init nvram from flash if it exists */
-	nvram_init();
-
 	/* Init nvram from sprom/otp if they exist */
 	if (srom_var_init
 	    (&sii->pub, bustype, regs, vars, varsz)) {
@@ -1095,8 +1093,6 @@ void ai_detach(struct si_pub *sih)
 				iounmap(sii->regs[idx]);
 				sii->regs[idx] = NULL;
 			}
-
-	nvram_exit();	/* free up nvram buffers */
 
 	if (sih->bustype == PCI_BUS) {
 		if (sii->pch)
