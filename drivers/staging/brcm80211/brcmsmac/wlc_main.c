@@ -100,10 +100,6 @@
  * calibration and scb update
  */
 
-/* watchdog trigger mode: OSL timer or TBTT */
-#define WLC_WATCHDOG_TBTT(wlc) \
-	(wlc->stas_associated > 0 && wlc->PM != PM_OFF && wlc->pub->align_wd_tbtt)
-
 /* To inform the ucode of the last mcast frame posted so that it can clear moredata bit */
 #define BCMCFID(wlc, fid) wlc_bmac_write_shm((wlc)->hw, M_BCMC_FID, (fid))
 
@@ -1945,14 +1941,7 @@ bool wlc_radio_monitor_stop(struct wlc_info *wlc)
 
 static void wlc_watchdog_by_timer(void *arg)
 {
-	struct wlc_info *wlc = (struct wlc_info *) arg;
 	wlc_watchdog(arg);
-	if (WLC_WATCHDOG_TBTT(wlc)) {
-		/* set to normal osl watchdog period */
-		wl_del_timer(wlc->wl, wlc->wdtimer);
-		wl_add_timer(wlc->wl, wlc->wdtimer, TIMER_INTERVAL_WATCHDOG,
-			     true);
-	}
 }
 
 /* common watchdog code */
@@ -4280,29 +4269,6 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 void wlc_tbtt(struct wlc_info *wlc, d11regs_t *regs)
 {
 	struct wlc_bsscfg *cfg = wlc->cfg;
-
-	if (BSSCFG_STA(cfg)) {
-		/* run watchdog here if the watchdog timer is not armed */
-		if (WLC_WATCHDOG_TBTT(wlc)) {
-			u32 cur, delta;
-			if (wlc->WDarmed) {
-				wl_del_timer(wlc->wl, wlc->wdtimer);
-				wlc->WDarmed = false;
-			}
-
-			cur = OSL_SYSUPTIME();
-			delta = cur > wlc->WDlast ? cur - wlc->WDlast :
-			    (u32) ~0 - wlc->WDlast + cur + 1;
-			if (delta >= TIMER_INTERVAL_WATCHDOG) {
-				wlc_watchdog((void *)wlc);
-				wlc->WDlast = cur;
-			}
-
-			wl_add_timer(wlc->wl, wlc->wdtimer,
-				     wlc_watchdog_backup_bi(wlc), true);
-			wlc->WDarmed = true;
-		}
-	}
 
 	if (!cfg->BSS) {
 		/* DirFrmQ is now valid...defer setting until end of ATIM window */
