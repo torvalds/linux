@@ -1187,6 +1187,11 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 	struct kmem_cache_order_objects oo = s->oo;
 	gfp_t alloc_gfp;
 
+	flags &= gfp_allowed_mask;
+
+	if (flags & __GFP_WAIT)
+		local_irq_enable();
+
 	flags |= s->allocflags;
 
 	/*
@@ -1203,11 +1208,16 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 		 * Try a lower order alloc if possible
 		 */
 		page = alloc_slab_page(flags, node, oo);
-		if (!page)
-			return NULL;
 
-		stat(s, ORDER_FALLBACK);
+		if (page)
+			stat(s, ORDER_FALLBACK);
 	}
+
+	if (flags & __GFP_WAIT)
+		local_irq_disable();
+
+	if (!page)
+		return NULL;
 
 	if (kmemcheck_enabled
 		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
@@ -1849,14 +1859,7 @@ new_slab:
 		goto load_freelist;
 	}
 
-	gfpflags &= gfp_allowed_mask;
-	if (gfpflags & __GFP_WAIT)
-		local_irq_enable();
-
 	page = new_slab(s, gfpflags, node);
-
-	if (gfpflags & __GFP_WAIT)
-		local_irq_disable();
 
 	if (page) {
 		c = __this_cpu_ptr(s->cpu_slab);
