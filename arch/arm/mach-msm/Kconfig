@@ -205,9 +205,6 @@ config MSM_GPIOMUX
 config MSM_V2_TLMM
 	bool
 
-config IOMMU_API
-	bool
-
 config MSM_SCM
 	bool
 endif

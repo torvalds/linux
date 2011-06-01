@@ -685,6 +685,7 @@ config AMD_IOMMU
 	select SWIOTLB
 	select PCI_MSI
 	select PCI_IOV
+	select IOMMU_API
 	depends on X86_64 && PCI && ACPI
 	---help---
 	  With this option you can enable support for AMD IOMMU hardware in
@@ -719,9 +720,6 @@ config SWIOTLB
 
 config IOMMU_HELPER
 	def_bool (CALGARY_IOMMU || GART_IOMMU || SWIOTLB || AMD_IOMMU)
-
-config IOMMU_API
-	def_bool (AMD_IOMMU || DMAR)
 
 config MAXSMP
 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
@@ -1945,6 +1943,7 @@ config PCI_CNB20LE_QUIRK
 config DMAR
 	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
 	depends on PCI_MSI && ACPI && EXPERIMENTAL
+	select IOMMU_API
 	help
 	  DMA remapping (DMAR) devices support enables independent address
 	  translations for Direct Memory Access (DMA) from devices.

@@ -1,0 +1,3 @@
+# IOMMU_API always gets selected by whoever wants it.
+config IOMMU_API
+	bool
