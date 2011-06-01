@@ -539,14 +539,15 @@ void tipc_port_recv_proto_msg(struct sk_buff *buf)
 	if (!p_ptr || !p_ptr->connected ||
 	    (port_peernode(p_ptr) != orignode) ||
 	    (port_peerport(p_ptr) != origport)) {
-		r_buf = port_build_proto_msg(origport,
-					     orignode,
-					     destport,
-					     tipc_own_addr,
-					     TIPC_HIGH_IMPORTANCE,
-					     TIPC_CONN_MSG,
-					     TIPC_ERR_NO_PORT,
-					     0);
+		r_buf = tipc_buf_acquire(BASIC_H_SIZE);
+		if (r_buf) {
+			msg = buf_msg(r_buf);
+			tipc_msg_init(msg, TIPC_HIGH_IMPORTANCE, TIPC_CONN_MSG,
+				      BASIC_H_SIZE, orignode);
+			msg_set_errcode(msg, TIPC_ERR_NO_PORT);
+			msg_set_origport(msg, destport);
+			msg_set_destport(msg, origport);
+		}
 		if (p_ptr)
 			tipc_port_unlock(p_ptr);
 		goto exit;
