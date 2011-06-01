@@ -1,0 +1,16 @@
+#
+# Input misc drivers configuration
+#
+menuconfig TEST_CODE
+	bool "some test code for kernel"
+	help
+	  Say Y here, and a list of test code will be displayed.
+	  
+	  If unsure, say N.
+
+if TEST_CODE
+	
+config USE_GPIO_GENERATE_WAVE
+	tristate "use gpio to generate square wave"
+	
+endif

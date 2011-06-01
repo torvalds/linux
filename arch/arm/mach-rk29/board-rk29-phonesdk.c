@@ -62,6 +62,10 @@
 #include <linux/mtk23d.h>
 #endif
 
+#ifdef CONFIG_USE_GPIO_GENERATE_WAVE
+#include "../../../drivers/testcode/gpio_wave.h"
+#endif
+
 #include "../../../drivers/headset_observe/rk_headset.h"
 /*set touchscreen different type header*/
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI)
@@ -71,7 +75,6 @@
 #elif defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
 #include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
 #endif
-
 #include "../../../drivers/misc/gps/rk29_gps.h"
 #include "../../../drivers/serial/sc8800.h"
 #ifdef CONFIG_VIDEO_RK29
@@ -2286,6 +2289,22 @@ static struct platform_device rk29_device_keys = {
 };
 #endif
 
+#ifdef CONFIG_USE_GPIO_GENERATE_WAVE
+static struct gpio_wave_platform_data gpio_wave_pdata = {
+	.gpio = RK29_PIN0_PA0,
+	.Htime = 2000,
+	.Ltime = 300,
+	.Dvalue = GPIO_HIGH,
+};
+static struct platform_device gpio_wave_device = {
+	.name		= "gpio_wave",
+	.id 	= -1,
+	.dev		= {
+		.platform_data	= &gpio_wave_pdata,
+	},
+};
+#endif
+
 static void __init rk29_board_iomux_init(void)
 {
 	#ifdef CONFIG_RK29_PWM_REGULATOR
@@ -2341,6 +2360,9 @@ static struct platform_device *devices[] __initdata = {
 
 #ifdef CONFIG_KEYS_RK29
 	&rk29_device_keys,
+#endif
+#ifdef CONFIG_USE_GPIO_GENERATE_WAVE
+	&gpio_wave_device,
 #endif
 #ifdef CONFIG_SDMMC0_RK29
 	&rk29_device_sdmmc0,
