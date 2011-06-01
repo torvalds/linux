@@ -546,7 +546,7 @@ static int dvb_init(struct em28xx *dev)
 	em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	/* init frontend */
 	switch (dev->model) {
-	case EM2874_LEADERSHIP_ISDBT:
+	case EM2874_BOARD_LEADERSHIP_ISDBT:
 		dvb->fe[0] = dvb_attach(s921_attach,
 				&sharp_isdbt, &dev->i2c_adap);
 
