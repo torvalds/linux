@@ -17,32 +17,6 @@
 #ifndef	_NICPCI_H
 #define	_NICPCI_H
 
-#if defined(BCMSDIO) || (defined(BCMBUSTYPE) && (BCMBUSTYPE == SI_BUS))
-#define pcicore_find_pci_capability(a, b, c, d) (0)
-#define pcie_readreg(a, b, c, d) (0)
-#define pcie_writereg(a, b, c, d, e) (0)
-
-#define pcie_clkreq(a, b, c)	(0)
-#define pcie_lcreg(a, b, c)	(0)
-
-#define pcicore_init(a, b, c) (0x0dadbeef)
-#define pcicore_deinit(a)	do { } while (0)
-#define pcicore_attach(a, b, c)	do { } while (0)
-#define pcicore_hwup(a)		do { } while (0)
-#define pcicore_up(a, b)	do { } while (0)
-#define pcicore_sleep(a)	do { } while (0)
-#define pcicore_down(a, b)	do { } while (0)
-
-#define pcie_war_ovr_aspm_update(a, b)	do { } while (0)
-
-#define pcicore_pcieserdesreg(a, b, c, d, e) (0)
-#define pcicore_pciereg(a, b, c, d, e) (0)
-
-#define pcicore_pmecap_fast(a)	(false)
-#define pcicore_pmeen(a)	do { } while (0)
-#define pcicore_pmeclr(a)	do { } while (0)
-#define pcicore_pmestat(a)	(false)
-#else
 struct sbpcieregs;
 
 extern u8 pcicore_find_pci_capability(void *dev, u8 req_cap_id,
@@ -74,6 +48,5 @@ extern bool pcicore_pmecap_fast(void *pch);
 extern void pcicore_pmeen(void *pch);
 extern void pcicore_pmeclr(void *pch);
 extern bool pcicore_pmestat(void *pch);
-#endif /* defined(BCMSDIO)||(defined(BCMBUSTYPE) && (BCMBUSTYPE==SI_BUS)) */
 
-#endif				/* _NICPCI_H */
+#endif /* _NICPCI_H */
