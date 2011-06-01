@@ -31,8 +31,10 @@
 
 extern struct notifier_block hard_if_notifier;
 
-struct hard_iface *hardif_get_by_netdev(struct net_device *net_dev);
-int hardif_enable_interface(struct hard_iface *hard_iface, char *iface_name);
+struct hard_iface*
+hardif_get_by_netdev(const struct net_device *net_dev);
+int hardif_enable_interface(struct hard_iface *hard_iface,
+			    const char *iface_name);
 void hardif_disable_interface(struct hard_iface *hard_iface);
 void hardif_remove_interfaces(void);
 int hardif_min_mtu(struct net_device *soft_iface);

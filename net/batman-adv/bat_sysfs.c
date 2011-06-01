@@ -96,7 +96,7 @@ ssize_t show_##_name(struct kobject *kobj, struct attribute *attr,	\
 
 static int store_bool_attr(char *buff, size_t count,
 			   struct net_device *net_dev,
-			   char *attr_name, atomic_t *attr)
+			   const char *attr_name, atomic_t *attr)
 {
 	int enabled = -1;
 
@@ -138,16 +138,15 @@ static inline ssize_t __store_bool_attr(char *buff, size_t count,
 {
 	int ret;
 
-	ret = store_bool_attr(buff, count, net_dev, (char *)attr->name,
-			      attr_store);
+	ret = store_bool_attr(buff, count, net_dev, attr->name, attr_store);
 	if (post_func && ret)
 		post_func(net_dev);
 
 	return ret;
 }
 
-static int store_uint_attr(char *buff, size_t count,
-			   struct net_device *net_dev, char *attr_name,
+static int store_uint_attr(const char *buff, size_t count,
+			   struct net_device *net_dev, const char *attr_name,
 			   unsigned int min, unsigned int max, atomic_t *attr)
 {
 	unsigned long uint_val;
@@ -183,15 +182,15 @@ static int store_uint_attr(char *buff, size_t count,
 	return count;
 }
 
-static inline ssize_t __store_uint_attr(char *buff, size_t count,
+static inline ssize_t __store_uint_attr(const char *buff, size_t count,
 			int min, int max,
 			void (*post_func)(struct net_device *),
-			struct attribute *attr,
+			const struct attribute *attr,
 			atomic_t *attr_store, struct net_device *net_dev)
 {
 	int ret;
 
-	ret = store_uint_attr(buff, count, net_dev, (char *)attr->name,
+	ret = store_uint_attr(buff, count, net_dev, attr->name,
 			      min, max, attr_store);
 	if (post_func && ret)
 		post_func(net_dev);

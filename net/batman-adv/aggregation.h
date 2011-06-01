@@ -37,7 +37,8 @@ void add_bat_packet_to_list(struct bat_priv *bat_priv,
 			    unsigned char *packet_buff, int packet_len,
 			    struct hard_iface *if_incoming, char own_packet,
 			    unsigned long send_time);
-void receive_aggr_bat_packet(struct ethhdr *ethhdr, unsigned char *packet_buff,
-			     int packet_len, struct hard_iface *if_incoming);
+void receive_aggr_bat_packet(const struct ethhdr *ethhdr,
+			     unsigned char *packet_buff, int packet_len,
+			     struct hard_iface *if_incoming);
 
 #endif /* _NET_BATMAN_ADV_AGGREGATION_H_ */

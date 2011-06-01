@@ -246,10 +246,10 @@ struct frag_packet_list_entry {
 };
 
 struct vis_info {
-	unsigned long       first_seen;
-	struct list_head    recv_list;
-			    /* list of server-neighbors we received a vis-packet
-			     * from.  we should not reply to them. */
+	unsigned long first_seen;
+	/* list of server-neighbors we received a vis-packet
+	 * from.  we should not reply to them. */
+	struct list_head recv_list;
 	struct list_head send_list;
 	struct kref refcount;
 	struct hlist_node hash_entry;

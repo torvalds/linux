@@ -28,10 +28,10 @@ int originator_init(struct bat_priv *bat_priv);
 void originator_free(struct bat_priv *bat_priv);
 void purge_orig_ref(struct bat_priv *bat_priv);
 void orig_node_free_ref(struct orig_node *orig_node);
-struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr);
+struct orig_node *get_orig_node(struct bat_priv *bat_priv, const uint8_t *addr);
 struct neigh_node *create_neighbor(struct orig_node *orig_node,
 				   struct orig_node *orig_neigh_node,
-				   uint8_t *neigh,
+				   const uint8_t *neigh,
 				   struct hard_iface *if_incoming);
 void neigh_node_free_ref(struct neigh_node *neigh_node);
 struct neigh_node *orig_node_get_router(struct orig_node *orig_node);
@@ -41,18 +41,18 @@ int orig_hash_del_if(struct hard_iface *hard_iface, int max_if_num);
 
 
 /* returns 1 if they are the same originator */
-static inline int compare_orig(struct hlist_node *node, void *data2)
+static inline int compare_orig(const struct hlist_node *node, const void *data2)
 {
-	void *data1 = container_of(node, struct orig_node, hash_entry);
+	const void *data1 = container_of(node, struct orig_node, hash_entry);
 
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
 
 /* hashfunction to choose an entry in a hash table of given size */
 /* hash algorithm from http://en.wikipedia.org/wiki/Hash_table */
-static inline int choose_orig(void *data, int32_t size)
+static inline int choose_orig(const void *data, int32_t size)
 {
-	unsigned char *key = data;
+	const unsigned char *key = data;
 	uint32_t hash = 0;
 	size_t i;
 
@@ -70,7 +70,7 @@ static inline int choose_orig(void *data, int32_t size)
 }
 
 static inline struct orig_node *orig_hash_find(struct bat_priv *bat_priv,
-					       void *data)
+					       const void *data)
 {
 	struct hashtable_t *hash = bat_priv->orig_hash;
 	struct hlist_head *head;

@@ -155,9 +155,9 @@ void dec_module_count(void)
 	module_put(THIS_MODULE);
 }
 
-int is_my_mac(uint8_t *addr)
+int is_my_mac(const uint8_t *addr)
 {
-	struct hard_iface *hard_iface;
+	const struct hard_iface *hard_iface;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {

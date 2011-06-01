@@ -123,8 +123,7 @@ static struct softif_neigh_vid *softif_neigh_vid_get(struct bat_priv *bat_priv,
 		goto out;
 	}
 
-	softif_neigh_vid = kzalloc(sizeof(struct softif_neigh_vid),
-				   GFP_ATOMIC);
+	softif_neigh_vid = kzalloc(sizeof(*softif_neigh_vid), GFP_ATOMIC);
 	if (!softif_neigh_vid)
 		goto out;
 
@@ -146,7 +145,7 @@ out:
 }
 
 static struct softif_neigh *softif_neigh_get(struct bat_priv *bat_priv,
-					     uint8_t *addr, short vid)
+					     const uint8_t *addr, short vid)
 {
 	struct softif_neigh_vid *softif_neigh_vid;
 	struct softif_neigh *softif_neigh = NULL;
@@ -170,7 +169,7 @@ static struct softif_neigh *softif_neigh_get(struct bat_priv *bat_priv,
 		goto unlock;
 	}
 
-	softif_neigh = kzalloc(sizeof(struct softif_neigh), GFP_ATOMIC);
+	softif_neigh = kzalloc(sizeof(*softif_neigh), GFP_ATOMIC);
 	if (!softif_neigh)
 		goto unlock;
 
@@ -242,7 +241,8 @@ static void softif_neigh_vid_select(struct bat_priv *bat_priv,
 	if (new_neigh && !atomic_inc_not_zero(&new_neigh->refcount))
 		new_neigh = NULL;
 
-	curr_neigh = softif_neigh_vid->softif_neigh;
+	curr_neigh = rcu_dereference_protected(softif_neigh_vid->softif_neigh,
+					       1);
 	rcu_assign_pointer(softif_neigh_vid->softif_neigh, new_neigh);
 
 	if ((curr_neigh) && (!new_neigh))
@@ -611,7 +611,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		if (!primary_if)
 			goto dropped;
 
-		if (my_skb_head_push(skb, sizeof(struct bcast_packet)) < 0)
+		if (my_skb_head_push(skb, sizeof(*bcast_packet)) < 0)
 			goto dropped;
 
 		bcast_packet = (struct bcast_packet *)skb->data;
@@ -790,17 +790,16 @@ static void interface_setup(struct net_device *dev)
 
 	SET_ETHTOOL_OPS(dev, &bat_ethtool_ops);
 
-	memset(priv, 0, sizeof(struct bat_priv));
+	memset(priv, 0, sizeof(*priv));
 }
 
-struct net_device *softif_create(char *name)
+struct net_device *softif_create(const char *name)
 {
 	struct net_device *soft_iface;
 	struct bat_priv *bat_priv;
 	int ret;
 
-	soft_iface = alloc_netdev(sizeof(struct bat_priv) , name,
-				   interface_setup);
+	soft_iface = alloc_netdev(sizeof(*bat_priv), name, interface_setup);
 
 	if (!soft_iface) {
 		pr_err("Unable to allocate the batman interface: %s\n", name);
@@ -872,7 +871,7 @@ void softif_destroy(struct net_device *soft_iface)
 	unregister_netdevice(soft_iface);
 }
 
-int softif_is_valid(struct net_device *net_dev)
+int softif_is_valid(const struct net_device *net_dev)
 {
 #ifdef HAVE_NET_DEVICE_OPS
 	if (net_dev->netdev_ops->ndo_start_xmit == interface_tx)
@@ -924,4 +923,3 @@ static u32 bat_get_link(struct net_device *dev)
 {
 	return 1;
 }
-
