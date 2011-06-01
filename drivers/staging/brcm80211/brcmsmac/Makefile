@@ -33,7 +33,7 @@ BRCMSMAC_OFILES := \
 	alloc.o \
 	ampdu.o \
 	antsel.o \
-	bottom_mac.o \
+	bmac.o \
 	channel.o \
 	main.o \
 	phy_shim.o \

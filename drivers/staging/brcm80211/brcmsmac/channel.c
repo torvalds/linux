@@ -29,7 +29,7 @@
 #include "scb.h"
 #include "pub.h"
 #include "phy/phy_hal.h"
-#include "bottom_mac.h"
+#include "bmac.h"
 #include "rate.h"
 #include "channel.h"
 #include "main.h"

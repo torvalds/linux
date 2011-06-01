@@ -44,7 +44,7 @@
 #include "ucode_loader.h"
 #include "antsel.h"
 #include "alloc.h"
-#include "bottom_mac.h"
+#include "bmac.h"
 #include "mac80211_if.h"
 
 #define	TIMER_INTERVAL_WATCHDOG_BMAC	1000	/* watchdog timer, in unit of ms */

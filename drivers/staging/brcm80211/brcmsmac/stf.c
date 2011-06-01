@@ -31,7 +31,7 @@
 #include "phy/phy_hal.h"
 #include "channel.h"
 #include "main.h"
-#include "bottom_mac.h"
+#include "bmac.h"
 #include "stf.h"
 
 #define MIN_SPATIAL_EXPANSION	0

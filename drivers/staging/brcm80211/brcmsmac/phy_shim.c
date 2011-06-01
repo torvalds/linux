@@ -40,7 +40,7 @@
 #include "phy/phy_hal.h"
 #include "channel.h"
 #include "srom.h"
-#include "bottom_mac.h"
+#include "bmac.h"
 #include "phy_hal.h"
 #include "main.h"
 #include "phy_shim.h"
