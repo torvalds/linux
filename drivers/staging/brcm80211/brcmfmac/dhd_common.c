@@ -26,7 +26,6 @@
 #include <dhd_bus.h>
 #include <dhd_proto.h>
 #include <dhd_dbg.h>
-#include <msgtrace.h>
 
 #define BRCM_OUI		"\x00\x10\x18"
 #define DOT11_OUI_LEN			3
@@ -57,6 +56,8 @@ void dhd_iscan_unlock(void);
 #endif
 
 #define EPI_VERSION_STR         "4.218.248.5"
+#define MSGTRACE_VERSION	1
+
 #ifdef DHD_DEBUG
 const char dhd_version[] =
 "Dongle Host Driver, version " EPI_VERSION_STR "\nCompiled on " __DATE__
@@ -117,6 +118,22 @@ const bcm_iovar_t dhd_iovars[] = {
 	,
 	{NULL, 0, 0, 0, 0}
 };
+
+/* Message trace header */
+struct msgtrace_hdr {
+	u8 version;
+	u8 spare;
+	u16 len;		/* Len of the trace */
+	u32 seqnum;		/* Sequence number of message. Useful
+				 * if the messsage has been lost
+				 * because of DMA error or a bus reset
+				 * (ex: SDIO Func2)
+				 */
+	u32 discarded_bytes;	/* Number of discarded bytes because of
+				 trace overflow  */
+	u32 discarded_printf;	/* Number of discarded printf
+				 because of trace overflow */
+} __packed;
 
 void dhd_common_init(void)
 {
@@ -732,12 +749,12 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 	case WLC_E_TRACE:
 		{
 			static u32 seqnum_prev;
-			msgtrace_hdr_t hdr;
+			struct msgtrace_hdr hdr;
 			u32 nblost;
 			char *s, *p;
 
 			buf = (unsigned char *) event_data;
-			memcpy(&hdr, buf, MSGTRACE_HDRLEN);
+			memcpy(&hdr, buf, sizeof(struct msgtrace_hdr));
 
 			if (hdr.version != MSGTRACE_VERSION) {
 				DHD_ERROR(
@@ -751,7 +768,8 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 			}
 
 			/* There are 2 bytes available at the end of data */
-			buf[MSGTRACE_HDRLEN + be16_to_cpu(hdr.len)] = '\0';
+			*(buf + sizeof(struct msgtrace_hdr)
+				 + be16_to_cpu(hdr.len)) = '\0';
 
 			if (be32_to_cpu(hdr.discarded_bytes)
 			    || be32_to_cpu(hdr.discarded_printf)) {
@@ -774,7 +792,7 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 			 * avoid display big
 			 * printf (issue with Linux printk )
 			 */
-			p = (char *)&buf[MSGTRACE_HDRLEN];
+			p = (char *)&buf[sizeof(struct msgtrace_hdr)];
 			while ((s = strstr(p, "\n")) != NULL) {
 				*s = '\0';
 				printk(KERN_DEBUG"%s\n", p);
