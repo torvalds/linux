@@ -36,7 +36,6 @@
 #include "d11.h"
 #include "wlc_types.h"
 #include "wlc_cfg.h"
-#include "phy/phy_version.h"
 #include "wlc_key.h"
 #include "wlc_channel.h"
 #include "wlc_scb.h"

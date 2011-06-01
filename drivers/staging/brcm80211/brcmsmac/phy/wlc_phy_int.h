@@ -23,6 +23,8 @@
 
 #include <wlc_phy_hal.h>
 
+#define	PHY_VERSION			{ 1, 82, 8, 0 }
+
 #define PHYHAL_ERROR	0x0001
 #define PHYHAL_TRACE	0x0002
 #define PHYHAL_INFORM	0x0004
