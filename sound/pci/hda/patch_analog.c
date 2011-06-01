@@ -506,9 +506,11 @@ static void ad198x_power_eapd_write(struct hda_codec *codec, hda_nid_t front,
 				hda_nid_t hp)
 {
 	struct ad198x_spec *spec = codec->spec;
-	snd_hda_codec_write(codec, front, 0, AC_VERB_SET_EAPD_BTLENABLE,
+	if (snd_hda_query_pin_caps(codec, front) & AC_PINCAP_EAPD)
+		snd_hda_codec_write(codec, front, 0, AC_VERB_SET_EAPD_BTLENABLE,
 			    !spec->inv_eapd ? 0x00 : 0x02);
-	snd_hda_codec_write(codec, hp, 0, AC_VERB_SET_EAPD_BTLENABLE,
+	if (snd_hda_query_pin_caps(codec, hp) & AC_PINCAP_EAPD)
+		snd_hda_codec_write(codec, hp, 0, AC_VERB_SET_EAPD_BTLENABLE,
 			    !spec->inv_eapd ? 0x00 : 0x02);
 }
 
