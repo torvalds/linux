@@ -26,7 +26,6 @@
 
 #include <dngl_stats.h>
 #include <dhd.h>
-#include <dhdioctl.h>
 #include <linux/ieee80211.h>
 typedef const struct si_pub si_t;
 

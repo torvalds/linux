@@ -23,7 +23,6 @@
 
 #include <dngl_stats.h>
 #include <dhd.h>
-#include <dhdioctl.h>
 
 #include <linux/kthread.h>
 #include <linux/netdevice.h>

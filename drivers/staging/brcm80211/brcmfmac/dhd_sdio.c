@@ -50,7 +50,6 @@
 #include <dhd_bus.h>
 #include <dhd_proto.h>
 #include <dhd_dbg.h>
-#include <dhdioctl.h>
 #include <sdiovar.h>
 #include <bcmchip.h>
 

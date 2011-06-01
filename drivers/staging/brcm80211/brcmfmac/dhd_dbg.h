@@ -97,7 +97,4 @@
 #define DHD_NONE(args)
 extern int dhd_msg_level;
 
-/* Defines msg bits */
-#include <dhdioctl.h>
-
 #endif				/* _dhd_dbg_ */
