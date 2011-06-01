@@ -156,6 +156,9 @@ struct wm8994_priv {
 	struct snd_kcontrol *kcontrol;//The current working path
 	char RW_status;				//ERROR = -1, TRUE = 0;
 	struct wm8994_pdata *pdata;
+	
+	struct delayed_work wm8994_delayed_work;
+	int work_type;	
 };
 
 static int wm8994_read(unsigned short reg,unsigned short *value)
@@ -311,7 +314,7 @@ static void PA_ctrl(unsigned char ctrl)
 		}
 		else
 		{
-			DBG("enable PA_control\n");
+			DBG("disable PA_control\n");
 			gpio_request(WM_PA_PIN, NULL);		//AUDIO_PA_ON	 
 			gpio_direction_output(WM_PA_PIN,GPIO_LOW); 		
 			gpio_free(WM_PA_PIN);			
@@ -3044,6 +3047,76 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+static int wm8994_trigger(struct snd_pcm_substream *substream,
+			  int status,
+			  struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai_link *machine = rtd->dai;
+	struct snd_soc_dai *codec_dai = machine->codec_dai;
+	struct snd_soc_codec *codec = dai->codec;
+	struct wm8994_priv *wm8994 = codec->private_data;
+	
+	unsigned int playback_active = codec_dai->playback.active, capture_active = codec_dai->capture.active;
+	int i, ret; 
+
+
+	DBG("%s::%d status = %d substream->stream '%s'\n",__FUNCTION__,__LINE__,
+	    status, substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
+
+	if (status == SNDRV_PCM_TRIGGER_STOP || status == SNDRV_PCM_TRIGGER_START) 
+	{
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) 
+			codec_dai->playback.active = status;
+		else 
+			codec_dai->capture.active = status;
+	}
+
+	if (!codec_dai->playback.active && 
+		!codec_dai->capture.active	&& 
+		(playback_active || capture_active)) 
+	{//suspend
+		DBG("It's going to power down wm8994\n");
+		wm8994->work_type = SNDRV_PCM_TRIGGER_STOP;
+		schedule_delayed_work(&wm8994->wm8994_delayed_work, msecs_to_jiffies(1000));
+	} 
+	else if (codec_dai->playback.active || codec_dai->capture.active) 
+	{//resume
+		DBG("Power up wm8994\n");		
+		wm8994->work_type = SNDRV_PCM_TRIGGER_START;
+		schedule_delayed_work(&wm8994->wm8994_delayed_work, msecs_to_jiffies(0));		
+	}
+
+	return 0;
+}
+
+static void wm8994_work_fun(struct work_struct *work)
+{	
+	struct snd_soc_codec *codec = wm8994_codec;
+	struct wm8994_priv *wm8994 = codec->private_data;
+	u16 *reg_cache = codec->reg_cache;
+	int i, ret;
+
+	DBG("Enter %s---%d\n",__FUNCTION__,__LINE__);
+	
+
+	if(wm8994->work_type == SNDRV_PCM_TRIGGER_STOP)
+	{
+		DBG("wm8994 shutdown\n");
+		PA_ctrl(GPIO_LOW);
+		wm8994_write(0,0);
+	//	wm8994_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	}
+	else if(wm8994->work_type == SNDRV_PCM_TRIGGER_START)
+	{
+		DBG("wm8994 shutup\n");
+		PA_ctrl(GPIO_LOW);
+		wm8994_current_mode = null;
+		snd_soc_put_route(wm8994->kcontrol,NULL);
+	}
+	
+}
+
 #endif
 #define WM8994_RATES SNDRV_PCM_RATE_8000_48000
 #define WM8994_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -3055,6 +3128,7 @@ static struct snd_soc_dai_ops wm8994_ops = {
 	.set_fmt = wm8994_set_dai_fmt,
 	.set_sysclk = wm8994_set_dai_sysclk,
 	.digital_mute = wm8994_mute,
+	.trigger	= wm8994_trigger,
 	/*add by qiuen for volume*/
 	.set_volume = wm8994_codec_set_volume,
 };
@@ -3269,6 +3343,7 @@ static int wm8994_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec;
+	struct wm8994_priv *wm8994;
 	int ret = 0;
 #ifdef WM8994_PROC
 	wm8994_proc_init();
@@ -3281,6 +3356,7 @@ static int wm8994_probe(struct platform_device *pdev)
 
 	socdev->card->codec = wm8994_codec;
 	codec = wm8994_codec;
+	wm8994 = codec->private_data;
 	
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
@@ -3305,7 +3381,8 @@ static int wm8994_probe(struct platform_device *pdev)
 	gpio_request(WM_EN_PIN, NULL);			 
 	gpio_direction_output(WM_EN_PIN,GPIO_HIGH); 		
 	gpio_free(WM_EN_PIN);
-	
+
+	INIT_DELAYED_WORK(&wm8994->wm8994_delayed_work, wm8994_work_fun);
 	return ret;
 
 card_err:
