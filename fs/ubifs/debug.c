@@ -2808,70 +2808,13 @@ int dbg_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype)
 	return 0;
 }
 
-/**
- * ubifs_debugging_init - initialize UBIFS debugging.
- * @c: UBIFS file-system description object
- *
- * This function initializes debugging-related data for the file system.
- * Returns zero in case of success and a negative error code in case of
- * failure.
- */
-int ubifs_debugging_init(struct ubifs_info *c)
-{
-	c->dbg = kzalloc(sizeof(struct ubifs_debug_info), GFP_KERNEL);
-	if (!c->dbg)
-		return -ENOMEM;
-
-	failure_mode_init(c);
-	return 0;
-}
-
-/**
- * ubifs_debugging_exit - free debugging data.
- * @c: UBIFS file-system description object
- */
-void ubifs_debugging_exit(struct ubifs_info *c)
-{
-	failure_mode_exit(c);
-	kfree(c->dbg);
-}
-
 /*
  * Root directory for UBIFS stuff in debugfs. Contains sub-directories which
  * contain the stuff specific to particular file-system mounts.
  */
 static struct dentry *dfs_rootdir;
 
-/**
- * dbg_debugfs_init - initialize debugfs file-system.
- *
- * UBIFS uses debugfs file-system to expose various debugging knobs to
- * user-space. This function creates "ubifs" directory in the debugfs
- * file-system. Returns zero in case of success and a negative error code in
- * case of failure.
- */
-int dbg_debugfs_init(void)
-{
-	dfs_rootdir = debugfs_create_dir("ubifs", NULL);
-	if (IS_ERR_OR_NULL(dfs_rootdir)) {
-		int err = dfs_rootdir ? PTR_ERR(dfs_rootdir) : -ENODEV;
-		ubifs_err("cannot create \"ubifs\" debugfs directory, "
-			  "error %d\n", err);
-		return err;
-	}
-
-	return 0;
-}
-
-/**
- * dbg_debugfs_exit - remove the "ubifs" directory from debugfs file-system.
- */
-void dbg_debugfs_exit(void)
-{
-	debugfs_remove(dfs_rootdir);
-}
-
-static int open_debugfs_file(struct inode *inode, struct file *file)
+static int dfs_file_open(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
 	return nonseekable_open(inode, file);
@@ -2978,7 +2921,7 @@ static ssize_t dfs_file_write(struct file *file, const char __user *u,
 }
 
 static const struct file_operations dfs_fops = {
-	.open = open_debugfs_file,
+	.open = dfs_file_open,
 	.read = dfs_file_read,
 	.write = dfs_file_write,
 	.owner = THIS_MODULE,
@@ -3097,6 +3040,63 @@ out:
 void dbg_debugfs_exit_fs(struct ubifs_info *c)
 {
 	debugfs_remove_recursive(c->dbg->dfs_dir);
+}
+
+/**
+ * dbg_debugfs_init - initialize debugfs file-system.
+ *
+ * UBIFS uses debugfs file-system to expose various debugging knobs to
+ * user-space. This function creates "ubifs" directory in the debugfs
+ * file-system. Returns zero in case of success and a negative error code in
+ * case of failure.
+ */
+int dbg_debugfs_init(void)
+{
+	dfs_rootdir = debugfs_create_dir("ubifs", NULL);
+	if (IS_ERR_OR_NULL(dfs_rootdir)) {
+		int err = dfs_rootdir ? PTR_ERR(dfs_rootdir) : -ENODEV;
+		ubifs_err("cannot create \"ubifs\" debugfs directory, "
+			  "error %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+/**
+ * dbg_debugfs_exit - remove the "ubifs" directory from debugfs file-system.
+ */
+void dbg_debugfs_exit(void)
+{
+	debugfs_remove(dfs_rootdir);
+}
+
+/**
+ * ubifs_debugging_init - initialize UBIFS debugging.
+ * @c: UBIFS file-system description object
+ *
+ * This function initializes debugging-related data for the file system.
+ * Returns zero in case of success and a negative error code in case of
+ * failure.
+ */
+int ubifs_debugging_init(struct ubifs_info *c)
+{
+	c->dbg = kzalloc(sizeof(struct ubifs_debug_info), GFP_KERNEL);
+	if (!c->dbg)
+		return -ENOMEM;
+
+	failure_mode_init(c);
+	return 0;
+}
+
+/**
+ * ubifs_debugging_exit - free debugging data.
+ * @c: UBIFS file-system description object
+ */
+void ubifs_debugging_exit(struct ubifs_info *c)
+{
+	failure_mode_exit(c);
+	kfree(c->dbg);
 }
 
 #endif /* CONFIG_UBIFS_FS_DEBUG */
