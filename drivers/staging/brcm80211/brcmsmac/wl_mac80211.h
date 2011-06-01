@@ -57,11 +57,15 @@ struct wl_info {
 
 	spinlock_t lock;	/* per-device perimeter lock */
 	spinlock_t isr_lock;	/* per-device ISR synchronization lock */
+
+	/* bus type and regsva for unmap in wl_free() */
 	uint bcm_bustype;	/* bus type */
-	bool piomode;		/* set from insmod argument */
 	void *regsva;		/* opaque chip registers virtual address */
+
+	/* timer related fields */
 	atomic_t callbacks;	/* # outstanding callback functions */
 	struct wl_timer *timers;	/* timer cleanup queue */
+
 	struct tasklet_struct tasklet;	/* dpc tasklet */
 	bool resched;		/* dpc needs to be and is rescheduled */
 #ifdef LINUXSTA_PS

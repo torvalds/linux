@@ -739,7 +739,6 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 {
 	struct wl_info *wl = NULL;
 	int unit, err;
-
 	unsigned long base_addr;
 	struct ieee80211_hw *hw;
 	u8 perm[ETH_ALEN];
@@ -768,9 +767,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 
 	base_addr = regs;
 
-	if (bustype == PCI_BUS) {
-		wl->piomode = false;
-	} else if (bustype == RPC_BUS) {
+	if (bustype == PCI_BUS || bustype == RPC_BUS) {
 		/* Do nothing */
 	} else {
 		bustype = PCI_BUS;
@@ -796,7 +793,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	}
 
 	/* common load-time initialization */
-	wl->wlc = wlc_attach((void *)wl, vendor, device, unit, wl->piomode,
+	wl->wlc = wlc_attach((void *)wl, vendor, device, unit, false,
 			     wl->regsva, wl->bcm_bustype, btparam, &err);
 	wl_release_fw(wl);
 	if (!wl->wlc) {
