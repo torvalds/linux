@@ -2467,6 +2467,7 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	struct xhci_command *reset_device_cmd;
 	int timeleft;
 	int last_freed_endpoint;
+	struct xhci_slot_ctx *slot_ctx;
 
 	ret = xhci_check_args(hcd, udev, NULL, 0, false, __func__);
 	if (ret <= 0)
@@ -2498,6 +2499,12 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 		else
 			return -EINVAL;
 	}
+
+	/* If device is not setup, there is no point in resetting it */
+	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
+	if (GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state)) ==
+						SLOT_STATE_DISABLED)
+		return 0;
 
 	xhci_dbg(xhci, "Resetting device with slot ID %u\n", slot_id);
 	/* Allocate the command structure that holds the struct completion.
