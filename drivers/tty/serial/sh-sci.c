@@ -54,10 +54,6 @@
 #include <asm/sh_bios.h>
 #endif
 
-#ifdef CONFIG_H8300
-#include <asm/gpio.h>
-#endif
-
 #include "sh-sci.h"
 
 struct sci_port {
@@ -164,23 +160,7 @@ static void sci_poll_put_char(struct uart_port *port, unsigned char c)
 }
 #endif /* CONFIG_CONSOLE_POLL || CONFIG_SERIAL_SH_SCI_CONSOLE */
 
-#if defined(__H8300H__) || defined(__H8300S__)
-static void sci_init_pins(struct uart_port *port, unsigned int cflag)
-{
-	int ch = (port->mapbase - SMR0) >> 3;
-
-	/* set DDR regs */
-	H8300_GPIO_DDR(h8300_sci_pins[ch].port,
-		       h8300_sci_pins[ch].rx,
-		       H8300_GPIO_INPUT);
-	H8300_GPIO_DDR(h8300_sci_pins[ch].port,
-		       h8300_sci_pins[ch].tx,
-		       H8300_GPIO_OUTPUT);
-
-	/* tx mark output*/
-	H8300_SCI_DR(ch) |= h8300_sci_pins[ch].tx;
-}
-#elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
+#if defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
 static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 {
 	if (port->mapbase == 0xA4400000) {
@@ -1863,14 +1843,8 @@ static int __devinit serial_console_setup(struct console *co, char *options)
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 
-	ret = uart_set_options(port, co, baud, parity, bits, flow);
-#if defined(__H8300H__) || defined(__H8300S__)
-	/* disable rx interrupt */
-	if (ret == 0)
-		sci_stop_rx(port);
-#endif
 	/* TODO: disable clock */
-	return ret;
+	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
 static struct console serial_console = {
