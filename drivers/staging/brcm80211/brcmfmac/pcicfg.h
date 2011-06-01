@@ -22,7 +22,7 @@
 /* PCI configuration address space size */
 #define PCI_SZPCR		256
 
-/* Everything below is BRCM HND proprietary */
+/* Everything below is Broadcom specific */
 
 /* Brcm PCI configuration registers */
 #define PCI_BAR0_WIN		0x80	/* backplane address space accessed by BAR0 */

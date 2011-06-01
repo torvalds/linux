@@ -58,9 +58,9 @@ typedef volatile struct {
 
 /* range param for dma_getnexttxp() and dma_txreclaim */
 typedef enum txd_range {
-	HNDDMA_RANGE_ALL = 1,
-	HNDDMA_RANGE_TRANSMITTED,
-	HNDDMA_RANGE_TRANSFERED
+	DMA_RANGE_ALL = 1,
+	DMA_RANGE_TRANSMITTED,
+	DMA_RANGE_TRANSFERED
 } txd_range_t;
 
 /* dma function type */

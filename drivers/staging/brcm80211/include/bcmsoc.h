@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_HNDSOC_H
-#define	_HNDSOC_H
+#ifndef	_BCMSOC_H
+#define	_BCMSOC_H
 
 /* Include the soci specific files */
 #include <aidmp.h>
@@ -130,7 +130,7 @@
 					 * unused address ranges
 					 */
 
-/* There are TWO constants on all HND chips: SI_ENUM_BASE above,
+/* There are TWO constants on all Broadcom chips: SI_ENUM_BASE above,
  * and chipcommon being the first core:
  */
 #define	SI_CC_IDX		0
@@ -195,4 +195,4 @@
 #define	BISZ_BSSEND_IDX		6	/*      6: bss end */
 #define BISZ_SIZE		7	/* descriptor size in 32-bit integers */
 
-#endif				/* _HNDSOC_H */
+#endif				/* _BCMSOC_H */

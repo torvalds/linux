@@ -736,7 +736,7 @@ struct antsel_info {
 #define TXPKTPENDCLR(wlc, fifo)		((wlc)->core->txpktpend[(fifo)] = 0)
 #define TXAVAIL(wlc, fifo)		(*(wlc)->core->txavail[(fifo)])
 #define GETNEXTTXP(wlc, _queue)								\
-		dma_getnexttxp((wlc)->hw->di[(_queue)], HNDDMA_RANGE_TRANSMITTED)
+		dma_getnexttxp((wlc)->hw->di[(_queue)], DMA_RANGE_TRANSMITTED)
 
 #define WLC_IS_MATCH_SSID(wlc, ssid1, ssid2, len1, len2) \
 	((len1 == len2) && !memcmp(ssid1, ssid2, len1))

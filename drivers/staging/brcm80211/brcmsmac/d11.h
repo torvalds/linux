@@ -105,8 +105,6 @@ typedef volatile struct {
 
 /*
  * Host Interface Registers
- * - primed from hnd_cores/dot11mac/systemC/registers/ihr.h
- * - but definitely not complete
  */
 typedef volatile struct _d11regs {
 	/* Device Control ("semi-standard host registers") */

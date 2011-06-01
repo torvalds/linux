@@ -151,9 +151,7 @@
 					 * maps all unused address ranges
 					 */
 
-/* There are TWO constants on all HND chips: SI_ENUM_BASE above,
- * and chipcommon being the first core:
- */
+/* chipcommon being the first core: */
 #define	SI_CC_IDX		0
 
 /* SOC Interconnect types (aka chip types) */

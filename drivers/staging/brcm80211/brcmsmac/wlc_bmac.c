@@ -3415,7 +3415,7 @@ static void wlc_flushqueues(struct wlc_info *wlc)
 	/* free any posted tx packets */
 	for (i = 0; i < NFIFO; i++)
 		if (wlc_hw->di[i]) {
-			dma_txreclaim(wlc_hw->di[i], HNDDMA_RANGE_ALL);
+			dma_txreclaim(wlc_hw->di[i], DMA_RANGE_ALL);
 			TXPKTPENDCLR(wlc, i);
 			BCMMSG(wlc->wiphy, "pktpend fifo %d clrd\n", i);
 		}

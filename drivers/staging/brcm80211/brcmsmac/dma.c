@@ -1292,9 +1292,9 @@ static void dma64_txreclaim(dma_info_t *di, txd_range_t range)
 	void *p;
 
 	DMA_TRACE(("%s: dma_txreclaim %s\n", di->name,
-		   (range == HNDDMA_RANGE_ALL) ? "all" :
+		   (range == DMA_RANGE_ALL) ? "all" :
 		   ((range ==
-		     HNDDMA_RANGE_TRANSMITTED) ? "transmitted" :
+		     DMA_RANGE_TRANSMITTED) ? "transmitted" :
 		    "transferred")));
 
 	if (di->txin == di->txout)
@@ -1649,11 +1649,11 @@ static int dma64_txfast(dma_info_t *di, struct sk_buff *p0,
 /*
  * Reclaim next completed txd (txds if using chained buffers) in the range
  * specified and return associated packet.
- * If range is HNDDMA_RANGE_TRANSMITTED, reclaim descriptors that have be
+ * If range is DMA_RANGE_TRANSMITTED, reclaim descriptors that have be
  * transmitted as noted by the hardware "CurrDescr" pointer.
- * If range is HNDDMA_RANGE_TRANSFERED, reclaim descriptors that have be
+ * If range is DMA_RANGE_TRANSFERED, reclaim descriptors that have be
  * transferred by the DMA as noted by the hardware "ActiveDescr" pointer.
- * If range is HNDDMA_RANGE_ALL, reclaim all txd(s) posted to the ring and
+ * If range is DMA_RANGE_ALL, reclaim all txd(s) posted to the ring and
  * return associated packet regardless of the value of hardware pointers.
  */
 static void *dma64_getnexttxp(dma_info_t *di, txd_range_t range)
@@ -1663,9 +1663,9 @@ static void *dma64_getnexttxp(dma_info_t *di, txd_range_t range)
 	void *txp;
 
 	DMA_TRACE(("%s: dma_getnexttxp %s\n", di->name,
-		   (range == HNDDMA_RANGE_ALL) ? "all" :
+		   (range == DMA_RANGE_ALL) ? "all" :
 		   ((range ==
-		     HNDDMA_RANGE_TRANSMITTED) ? "transmitted" :
+		     DMA_RANGE_TRANSMITTED) ? "transmitted" :
 		    "transferred")));
 
 	if (di->ntxd == 0)
@@ -1674,7 +1674,7 @@ static void *dma64_getnexttxp(dma_info_t *di, txd_range_t range)
 	txp = NULL;
 
 	start = di->txin;
-	if (range == HNDDMA_RANGE_ALL)
+	if (range == DMA_RANGE_ALL)
 		end = di->txout;
 	else {
 		dma64regs_t *dregs = di->d64txregs;
@@ -1685,7 +1685,7 @@ static void *dma64_getnexttxp(dma_info_t *di, txd_range_t range)
 				 D64_XS0_CD_MASK) -
 				di->xmtptrbase) & D64_XS0_CD_MASK, dma64dd_t));
 
-		if (range == HNDDMA_RANGE_TRANSFERED) {
+		if (range == DMA_RANGE_TRANSFERED) {
 			active_desc =
 			    (u16) (R_REG(&dregs->status1) &
 				      D64_XS1_AD_MASK);
