@@ -33,6 +33,44 @@
 
 #define MAX_DMA_SEGS 4
 
+/* boardflags */
+#define	BFL_PACTRL		0x00000002	/* Board has gpio 9 controlling the PA */
+#define	BFL_NOPLLDOWN		0x00000020	/* Not ok to power down the chip pll and oscillator */
+#define BFL_FEM			0x00000800	/* Board supports the Front End Module */
+#define BFL_EXTLNA		0x00001000	/* Board has an external LNA in 2.4GHz band */
+#define BFL_NOPA		0x00010000	/* Board has no PA */
+#define BFL_BUCKBOOST		0x00200000	/* Power topology uses BUCKBOOST */
+#define BFL_FEM_BT		0x00400000	/* Board has FEM and switch to share antenna w/ BT */
+#define BFL_NOCBUCK		0x00800000	/* Power topology doesn't use CBUCK */
+#define BFL_PALDO		0x02000000	/* Power topology uses PALDO */
+#define BFL_EXTLNA_5GHz		0x10000000	/* Board has an external LNA in 5GHz band */
+
+/* boardflags2 */
+#define BFL2_RXBB_INT_REG_DIS	0x00000001	/* Board has an external rxbb regulator */
+#define BFL2_APLL_WAR		0x00000002	/* Flag to implement alternative A-band PLL settings */
+#define BFL2_TXPWRCTRL_EN	0x00000004	/* Board permits enabling TX Power Control */
+#define BFL2_2X4_DIV		0x00000008	/* Board supports the 2X4 diversity switch */
+#define BFL2_5G_PWRGAIN		0x00000010	/* Board supports 5G band power gain */
+#define BFL2_PCIEWAR_OVR	0x00000020	/* Board overrides ASPM and Clkreq settings */
+#define BFL2_LEGACY		0x00000080
+#define BFL2_SKWRKFEM_BRD	0x00000100	/* 4321mcm93 board uses Skyworks FEM */
+#define BFL2_SPUR_WAR		0x00000200	/* Board has a WAR for clock-harmonic spurs */
+#define BFL2_GPLL_WAR		0x00000400	/* Flag to narrow G-band PLL loop b/w */
+#define BFL2_SINGLEANT_CCK	0x00001000	/* Tx CCK pkts on Ant 0 only */
+#define BFL2_2G_SPUR_WAR	0x00002000	/* WAR to reduce and avoid clock-harmonic spurs in 2G */
+#define BFL2_GPLL_WAR2	        0x00010000	/* Flag to widen G-band PLL loop b/w */
+#define BFL2_IPALVLSHIFT_3P3    0x00020000
+#define BFL2_INTERNDET_TXIQCAL  0x00040000	/* Use internal envelope detector for TX IQCAL */
+#define BFL2_XTALBUFOUTEN       0x00080000	/* Keep the buffered Xtal output from radio "ON"
+						 * Most drivers will turn it off without this flag
+						 * to save power.
+						 */
+
+/* board specific GPIO assignment, gpio 0-3 are also customer-configurable led */
+#define	BOARD_GPIO_PACTRL	0x200	/* bit 9 controls the PA on new 4306 boards */
+#define BOARD_GPIO_12		0x1000	/* gpio 12 */
+#define BOARD_GPIO_13		0x2000	/* gpio 13 */
+
 #define BCMMSG(dev, fmt, args...)		\
 do {						\
 	if (brcm_msg_level & LOG_TRACE_VAL)	\

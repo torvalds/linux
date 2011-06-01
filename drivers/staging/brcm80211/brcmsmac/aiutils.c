@@ -234,6 +234,15 @@
 #define	SD_SG32			0x00000008
 #define	SD_SZ_ALIGN		0x00000fff
 
+#define	PCI_CFG_GPIO_SCS	0x10	/* PCI config space bit 4 for 4306c0 slow clock source */
+#define PCI_CFG_GPIO_XTAL	0x40	/* PCI config space GPIO 14 for Xtal power-up */
+#define PCI_CFG_GPIO_PLL	0x80	/* PCI config space GPIO 15 for PLL power-down */
+
+/* power control defines */
+#define PLL_DELAY		150	/* us pll on delay */
+#define FREF_DELAY		200	/* us fref change delay */
+#define	XTAL_ON_DELAY		1000	/* us crystal power-on delay */
+
 /* resetctrl */
 #define	AIRC_RESET		1
 

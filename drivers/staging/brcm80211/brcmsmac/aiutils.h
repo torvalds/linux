@@ -259,6 +259,23 @@
 #define	CST4330_CBUCK_POWER_OK		0x00004000
 #define	CST4330_BB_PLL_LOCKED		0x00008000
 
+/* Package IDs */
+#define BCM4329_289PIN_PKG_ID	0	/* 4329 289-pin package id */
+#define BCM4329_182PIN_PKG_ID	1	/* 4329N 182-pin package id */
+#define	BCM4717_PKG_ID		9	/* 4717 package id */
+#define	BCM4718_PKG_ID		10	/* 4718 package id */
+#define HDLSIM_PKG_ID		14	/* HDL simulator package id */
+#define HWSIM_PKG_ID		15	/* Hardware simulator package id */
+#define BCM43224_FAB_SMIC	0xa	/* the chip is manufactured by SMIC */
+
+/* these are router chips */
+#define	BCM4716_CHIP_ID		0x4716	/* 4716 chipcommon chipid */
+#define	BCM47162_CHIP_ID	47162	/* 47162 chipcommon chipid */
+#define	BCM4748_CHIP_ID		0x4748	/* 4716 chipcommon chipid (OTP, RBBU) */
+#define	BCM5356_CHIP_ID		0x5356	/* 5356 chipcommon chipid */
+#define	BCM5357_CHIP_ID		0x5357	/* 5357 chipcommon chipid */
+
+
 #define	SI_INFO(sih)	((si_info_t *)sih)
 
 #define	GOODCOREADDR(x, b) \
