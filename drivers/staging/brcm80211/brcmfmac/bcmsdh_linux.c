@@ -365,10 +365,6 @@ void bcmsdh_unregister_oob_intr(void)
 extern uint sd_msglevel;	/* Debug message level */
 module_param(sd_msglevel, uint, 0);
 
-extern uint sd_power;		/* 0 = SD Power OFF,
-					 1 = SD Power ON. */
-module_param(sd_power, uint, 0);
-
 extern uint sd_clock;		/* SD Clock Control, 0 = SD Clock OFF,
 				 1 = SD Clock ON */
 module_param(sd_clock, uint, 0);
