@@ -18,7 +18,6 @@
 #include <unistd.h>
 #include <locale.h>
 
-#define LKC_DIRECT_LINK
 #include "lkc.h"
 #include "lxdialog/dialog.h"
 

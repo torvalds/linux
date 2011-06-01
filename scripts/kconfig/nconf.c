@@ -7,7 +7,7 @@
  */
 #define _GNU_SOURCE
 #include <string.h>
-#define LKC_DIRECT_LINK
+
 #include "lkc.h"
 #include "nconf.h"
 #include <ctype.h>

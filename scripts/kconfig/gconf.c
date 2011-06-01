@@ -1507,10 +1507,6 @@ int main(int ac, char *av[])
 	char *env;
 	gchar *glade_file;
 
-#ifndef LKC_DIRECT_LINK
-	kconfig_load();
-#endif
-
 	bindtextdomain(PACKAGE, LOCALEDIR);
 	bind_textdomain_codeset(PACKAGE, "UTF-8");
 	textdomain(PACKAGE);
