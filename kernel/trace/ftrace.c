@@ -2740,7 +2740,7 @@ static int ftrace_process_regex(struct ftrace_hash *hash,
 {
 	char *func, *command, *next = buff;
 	struct ftrace_func_command *p;
-	int ret;
+	int ret = -EINVAL;
 
 	func = strsep(&next, ":");
 
