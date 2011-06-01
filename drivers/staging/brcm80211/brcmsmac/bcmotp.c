@@ -26,7 +26,7 @@
 #include <bcmutils.h>
 #include <aiutils.h>
 #include <bcmsoc.h>
-#include <sbchipc.h>
+#include <chipcommon.h>
 #include <bcmotp.h>
 
 #define OTPS_GUP_MASK		0x00000f00

@@ -23,7 +23,7 @@
 #include "wlc_types.h"
 #include <bcmutils.h>
 #include <bcmsoc.h>
-#include <sbchipc.h>
+#include <chipcommon.h>
 #include <bcmdevs.h>
 #include <nicpci.h>
 #include <aiutils.h>

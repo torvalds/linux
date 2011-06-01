@@ -95,4 +95,16 @@ typedef struct wl_rateset {
 #define PM_MAX	1
 #define PM_FAST 2
 
+/*
+ * Sonics Configuration Space Registers.
+ */
+#define	SBCONFIGOFF		0xf00	/* core sbconfig regs are top 256bytes of regs */
+
+/* cpp contortions to concatenate w/arg prescan */
+#ifndef	PAD
+#define	_PADLINE(line)	pad ## line
+#define	_XSTR(line)	_PADLINE(line)
+#define	PAD		_XSTR(__LINE__)
+#endif
+
 #endif				/* _bcmdefs_h_ */

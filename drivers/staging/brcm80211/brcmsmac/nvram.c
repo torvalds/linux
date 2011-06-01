@@ -19,7 +19,7 @@
 #include <bcmdefs.h>
 #include <bcmutils.h>
 #include <bcmnvram.h>
-#include <sbchipc.h>
+#include <chipcommon.h>
 #include <bcmdevs.h>
 #include <bcmsoc.h>
 

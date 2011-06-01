@@ -25,7 +25,7 @@
 
 #include <bcmdefs.h>
 #include <bcmnvram.h>
-#include <sbchipc.h>
+#include <chipcommon.h>
 #include <bcmdevs.h>
 #include <sbdma.h>
 

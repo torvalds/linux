@@ -131,7 +131,7 @@ typedef struct {
 } rte_cons_t;
 
 #endif				/* DHD_DEBUG */
-#include <sbchipc.h>
+#include <chipcommon.h>
 #include <sbdma.h>
 
 #include <sdio.h>

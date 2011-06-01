@@ -18,7 +18,6 @@
 #define	_HNDSOC_H
 
 /* Include the soci specific files */
-#include <sbconfig.h>
 #include <aidmp.h>
 
 /*

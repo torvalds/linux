@@ -23,7 +23,7 @@
 #include <bcmutils.h>
 #include <aiutils.h>
 #include <bcmsoc.h>
-#include <sbchipc.h>
+#include <chipcommon.h>
 #include <bcmdevs.h>
 
 /* ********** from siutils.c *********** */

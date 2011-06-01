@@ -21,7 +21,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <aiutils.h>
-#include <sbchipc.h>
+#include <chipcommon.h>
 #include <wlc_pmu.h>
 
 #include <bcmdevs.h>

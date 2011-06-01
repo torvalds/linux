@@ -28,7 +28,7 @@
 #include <bcmutils.h>
 #include <bcmwifi.h>
 #include <aiutils.h>
-#include <sbchipc.h>
+#include <chipcommon.h>
 #include <sbdma.h>
 #include <bcmdma.h>
 #include <wlc_pmu.h>

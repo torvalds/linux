@@ -23,7 +23,7 @@
 #include <aiutils.h>
 #include <bcmsoc.h>
 #include <bcmdevs.h>
-#include <sbchipc.h>
+#include <chipcommon.h>
 #include <nicpci.h>
 
 /* SPROM offsets */
