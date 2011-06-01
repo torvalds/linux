@@ -68,7 +68,7 @@ static unsigned bitbang_txrx_8(
 	unsigned		ns,
 	struct spi_transfer	*t
 ) {
-	unsigned		bits = spi->bits_per_word;
+	unsigned		bits = t->bits_per_word ? : spi->bits_per_word;
 	unsigned		count = t->len;
 	const u8		*tx = t->tx_buf;
 	u8			*rx = t->rx_buf;
@@ -94,7 +94,7 @@ static unsigned bitbang_txrx_16(
 	unsigned		ns,
 	struct spi_transfer	*t
 ) {
-	unsigned		bits = spi->bits_per_word;
+	unsigned		bits = t->bits_per_word ? : spi->bits_per_word;
 	unsigned		count = t->len;
 	const u16		*tx = t->tx_buf;
 	u16			*rx = t->rx_buf;
@@ -120,7 +120,7 @@ static unsigned bitbang_txrx_32(
 	unsigned		ns,
 	struct spi_transfer	*t
 ) {
-	unsigned		bits = spi->bits_per_word;
+	unsigned		bits = t->bits_per_word ? : spi->bits_per_word;
 	unsigned		count = t->len;
 	const u32		*tx = t->tx_buf;
 	u32			*rx = t->rx_buf;
