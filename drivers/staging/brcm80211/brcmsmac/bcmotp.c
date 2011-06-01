@@ -23,7 +23,7 @@
 
 #include <bcmdefs.h>
 #include <bcmdevs.h>
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <aiutils.h>
 #include <bcmsoc.h>
 #include <chipcommon.h>

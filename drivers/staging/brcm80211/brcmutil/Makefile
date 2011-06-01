@@ -16,12 +16,12 @@
 # CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ccflags-y :=				\
-	-Idrivers/staging/brcm80211/util \
+	-Idrivers/staging/brcm80211/brcmutil \
 	-Idrivers/staging/brcm80211/include
 
 BRCMUTIL_OFILES := \
-	bcmutils.o \
-	bcmwifi.o
+	utils.o \
+	wifi.o
 
 MODULEPFX := brcmutil
 

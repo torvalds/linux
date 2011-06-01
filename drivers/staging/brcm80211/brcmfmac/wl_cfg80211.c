@@ -18,9 +18,9 @@
 #include <linux/if_arp.h>
 #include <linux/sched.h>
 
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <bcmdefs.h>
-#include <bcmwifi.h>
+#include <brcmu_wifi.h>
 
 #include <asm/uaccess.h>
 

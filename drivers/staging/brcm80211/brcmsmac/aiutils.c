@@ -20,7 +20,7 @@
 #include <bcmdefs.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <aiutils.h>
 #include <bcmsoc.h>
 #include <chipcommon.h>

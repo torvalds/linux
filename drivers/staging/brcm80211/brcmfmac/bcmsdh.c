@@ -21,8 +21,8 @@
 #include <linux/sched.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
-#include <bcmutils.h>
-#include <bcmwifi.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
 #include <bcmsoc.h>
 
 #include <bcmsdh.h>		/* BRCM API for SDIO

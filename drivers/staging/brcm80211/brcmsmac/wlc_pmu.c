@@ -20,7 +20,7 @@
 
 #include <bcmdevs.h>
 #include <chipcommon.h>
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <bcmnvram.h>
 #include "wlc_pmu.h"
 

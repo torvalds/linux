@@ -17,7 +17,7 @@
 #include <linux/types.h>
 
 #include <bcmdefs.h>
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <aiutils.h>
 #include "bcmdma.h"
 

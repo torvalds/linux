@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <bcmdefs.h>
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <bcmnvram.h>
 #include <chipcommon.h>
 #include <bcmdevs.h>

@@ -25,8 +25,8 @@
 #include <linux/module.h>
 
 #include <bcmdefs.h>
-#include <bcmutils.h>
-#include <bcmwifi.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
 #include <aiutils.h>
 #include <chipcommon.h>
 #include "bcmdma.h"

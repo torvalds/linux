@@ -21,7 +21,7 @@
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <bcmsoc.h>
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <aiutils.h>
 
 #include "wlc_types.h"

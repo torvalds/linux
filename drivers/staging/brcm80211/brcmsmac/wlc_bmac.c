@@ -23,11 +23,11 @@
 
 #include <bcmdefs.h>
 #include <bcmdevs.h>
-#include <bcmwifi.h>
+#include <brcmu_wifi.h>
 #include <aiutils.h>
 #include <bcmsrom.h>
 #include <bcmotp.h>
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <bcmnvram.h>
 #include <chipcommon.h>
 #include <nicpci.h>

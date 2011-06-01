@@ -18,7 +18,7 @@
 #include <linux/string.h>
 #include <linux/pci.h>
 #include <bcmdefs.h>
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <bcmnvram.h>
 #include <aiutils.h>
 #include <bcmsoc.h>

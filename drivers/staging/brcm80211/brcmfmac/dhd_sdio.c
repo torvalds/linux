@@ -26,8 +26,8 @@
 #include <bcmsdh.h>
 
 #include <bcmdefs.h>
-#include <bcmwifi.h>
-#include <bcmutils.h>
+#include <brcmu_wifi.h>
+#include <brcmu_utils.h>
 #include <bcmdevs.h>
 
 #include <bcmsoc.h>

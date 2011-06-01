@@ -19,7 +19,7 @@
 
 #include <linux/kernel.h>
 #include <bcmdefs.h>
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 
 #include <wlc_phy_hal.h>
 

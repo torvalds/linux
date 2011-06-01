@@ -17,7 +17,7 @@
 #include <net/mac80211.h>
 
 #include <bcmdefs.h>
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <aiutils.h>
 #include "bcmdma.h"
 #include <bcmdma.h>

@@ -33,8 +33,8 @@
 #include <linux/uaccess.h>
 #include <net/cfg80211.h>
 #include <bcmdefs.h>
-#include <bcmutils.h>
-#include <bcmwifi.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>

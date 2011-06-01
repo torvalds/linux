@@ -21,7 +21,7 @@
 #include <linux/pci.h>
 #include <stdarg.h>
 #include "wlc_types.h"
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <bcmsoc.h>
 #include <chipcommon.h>
 #include <bcmdevs.h>

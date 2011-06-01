@@ -24,7 +24,7 @@
 #include <linux/printk.h>
 #include <bcmdefs.h>
 #include <stdarg.h>
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <bcmdevs.h>
 
 MODULE_AUTHOR("Broadcom Corporation");

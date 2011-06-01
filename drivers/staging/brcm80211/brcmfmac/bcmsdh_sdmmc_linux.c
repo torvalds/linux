@@ -18,8 +18,8 @@
 #include <linux/netdevice.h>
 #include <net/cfg80211.h>
 #include <bcmdefs.h>
-#include <bcmutils.h>
-#include <bcmwifi.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
 #include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */
 #include <sdiovar.h>		/* to get msglevel bit values */
 

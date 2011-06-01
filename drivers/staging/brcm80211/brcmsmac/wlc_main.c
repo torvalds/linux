@@ -21,8 +21,8 @@
 
 #include <bcmdefs.h>
 #include <bcmdevs.h>
-#include <bcmutils.h>
-#include <bcmwifi.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
 #include <bcmnvram.h>
 #include <aiutils.h>
 #include <bcmsrom.h>

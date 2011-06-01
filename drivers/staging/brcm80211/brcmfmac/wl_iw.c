@@ -21,8 +21,8 @@
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
 
-#include <bcmutils.h>
-#include <bcmwifi.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
 
 #include <linux/if_arp.h>
 #include <asm/uaccess.h>

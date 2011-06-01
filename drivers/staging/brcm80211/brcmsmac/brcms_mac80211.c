@@ -26,8 +26,8 @@
 #include <linux/firmware.h>
 #include <net/mac80211.h>
 #include <bcmdefs.h>
-#include <bcmwifi.h>
-#include <bcmutils.h>
+#include <brcmu_wifi.h>
+#include <brcmu_utils.h>
 #include <bcmnvram.h>
 #include <nicpci.h>
 #include "bcmdma.h"

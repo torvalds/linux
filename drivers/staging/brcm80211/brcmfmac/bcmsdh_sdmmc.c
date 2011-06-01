@@ -18,8 +18,8 @@
 #include <linux/mmc/sdio.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
-#include <bcmutils.h>
-#include <bcmwifi.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
 #include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */
 #include <sdiovar.h>		/* ioctl/iovars */
 

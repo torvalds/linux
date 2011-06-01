@@ -17,8 +17,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <bcmdefs.h>
-#include <bcmutils.h>
-#include <bcmwifi.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
 
 /*
  * Verify the chanspec is using a legal set of parameters, i.e. that the

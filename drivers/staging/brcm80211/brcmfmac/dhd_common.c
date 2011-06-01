@@ -17,10 +17,10 @@
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <bcmdefs.h>
-#include <bcmwifi.h>
+#include <brcmu_wifi.h>
 #include <linux/netdevice.h>
 #include <asm/unaligned.h>
-#include <bcmutils.h>
+#include <brcmu_utils.h>
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_bus.h>
