@@ -819,7 +819,7 @@ static int hndotp_nvread(void *oh, char *data, uint *len)
 	return rc;
 }
 
-static otp_fn_t hndotp_fn = {
+static otp_fn_t otp_fn = {
 	(otp_size_t) hndotp_size,
 	(otp_read_bit_t) hndotp_read_bit,
 
@@ -883,7 +883,7 @@ void *otp_init(si_t *sih)
 
 #ifdef BCMHNDOTP
 	if (OTPTYPE_HND(oi->ccrev))
-		oi->fn = &hndotp_fn;
+		oi->fn = &otp_fn;
 #endif
 
 	if (oi->fn == NULL) {

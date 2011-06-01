@@ -18,7 +18,6 @@
 #define _wlc_types_h_
 
 /* forward declarations */
-
 struct wlc_info;
 struct wlc_hw_info;
 struct wlc_if;
@@ -26,12 +25,7 @@ struct wl_if;
 struct ampdu_info;
 struct antsel_info;
 struct bmac_pmq;
-
 struct d11init;
-
-#ifndef _hnddma_pub_
-#define _hnddma_pub_
-struct hnddma_pub;
-#endif				/* _hnddma_pub_ */
+struct dma_pub;
 
 #endif				/* _wlc_types_h_ */

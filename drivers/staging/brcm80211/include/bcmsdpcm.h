@@ -198,7 +198,7 @@ typedef struct {
 	u32 assert_exp_addr;
 	u32 assert_file_addr;
 	u32 assert_line;
-	u32 console_addr;	/* Address of hndrte_cons_t */
+	u32 console_addr;	/* Address of rte_cons_t */
 	u32 msgtrace_addr;
 	u8 tag[32];
 } sdpcm_shared_t;

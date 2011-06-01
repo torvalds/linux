@@ -2064,7 +2064,7 @@ void wlc_bmac_hw_up(struct wlc_hw_info *wlc_hw)
 
 static bool wlc_dma_rxreset(struct wlc_hw_info *wlc_hw, uint fifo)
 {
-	struct hnddma_pub *di = wlc_hw->di[fifo];
+	struct dma_pub *di = wlc_hw->di[fifo];
 	return dma_rxreset(di);
 }
 

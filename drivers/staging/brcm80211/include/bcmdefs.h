@@ -89,7 +89,7 @@ typedef unsigned long dmaaddr_t;
 typedef struct {
 	dmaaddr_t addr;
 	u32 length;
-} hnddma_seg_t;
+} dma_seg_t;
 
 #define MAX_DMA_SEGS 4
 
@@ -97,13 +97,13 @@ typedef struct {
 	void *oshdmah;		/* Opaque handle for OSL to store its information */
 	uint origsize;		/* Size of the virtual packet */
 	uint nsegs;
-	hnddma_seg_t segs[MAX_DMA_SEGS];
-} hnddma_seg_map_t;
+	dma_seg_t segs[MAX_DMA_SEGS];
+} dma_seg_map_t;
 
 /* packet headroom necessary to accommodate the largest header in the system, (i.e TXOFF).
  * By doing, we avoid the need  to allocate an extra buffer for the header when bridging to WL.
  * There is a compile time check in wlc.c which ensure that this value is at least as big
- * as TXOFF. This value is used in dma_rxfill (hnddma.c).
+ * as TXOFF. This value is used in dma_rxfill (dma.c).
  */
 
 #define BCMEXTRAHDROOM 172

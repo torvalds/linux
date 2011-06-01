@@ -5837,7 +5837,7 @@ void wlc_inval_dma_pkts(struct wlc_hw_info *hw,
 			       struct ieee80211_sta *sta,
 			       void (*dma_callback_fn))
 {
-	struct hnddma_pub *dmah;
+	struct dma_pub *dmah;
 	int i;
 	for (i = 0; i < NFIFO; i++) {
 		dmah = hw->di[i];

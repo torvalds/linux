@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_sbhnddma_h_
-#define	_sbhnddma_h_
+#ifndef	_sbdma_h_
+#define	_sbdma_h_
 
 /* DMA structure:
  *  support two DMA engines: 32 bits address or 64 bit addressing
@@ -312,4 +312,4 @@ typedef volatile struct {
 	u16 flags;
 } dma_rxh_t;
 
-#endif				/* _sbhnddma_h_ */
+#endif				/* _sbdma_h_ */

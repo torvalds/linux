@@ -152,7 +152,7 @@ extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
 typedef struct dhd_console {
 	uint count;		/* Poll interval msec counter */
 	uint log_addr;		/* Log struct address (fixed) */
-	hndrte_log_t log;	/* Log struct (host copy) */
+	rte_log_t log;	/* Log struct (host copy) */
 	uint bufsize;		/* Size of log buffer */
 	u8 *buf;		/* Log buffer (host copy) */
 	uint last;		/* Last buffer read index */
@@ -1734,7 +1734,7 @@ static int dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 		return -EBADE;
 	}
 
-	/* Read hndrte_shared structure */
+	/* Read rte_shared structure */
 	rv = dhdsdio_membytes(bus, false, addr, (u8 *) sh,
 			      sizeof(sdpcm_shared_t));
 	if (rv < 0)
@@ -1949,7 +1949,7 @@ static int dhdsdio_readconsole(dhd_bus_t *bus)
 		return 0;
 
 	/* Read console log struct */
-	addr = bus->console_addr + offsetof(hndrte_cons_t, log);
+	addr = bus->console_addr + offsetof(rte_cons_t, log);
 	rv = dhdsdio_membytes(bus, false, addr, (u8 *)&c->log,
 				sizeof(c->log));
 	if (rv < 0)
@@ -4826,20 +4826,20 @@ extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 	dhdsdio_clkctl(bus, CLK_AVAIL, false);
 
 	/* Zero cbuf_index */
-	addr = bus->console_addr + offsetof(hndrte_cons_t, cbuf_idx);
+	addr = bus->console_addr + offsetof(rte_cons_t, cbuf_idx);
 	val = cpu_to_le32(0);
 	rv = dhdsdio_membytes(bus, true, addr, (u8 *)&val, sizeof(val));
 	if (rv < 0)
 		goto done;
 
 	/* Write message into cbuf */
-	addr = bus->console_addr + offsetof(hndrte_cons_t, cbuf);
+	addr = bus->console_addr + offsetof(rte_cons_t, cbuf);
 	rv = dhdsdio_membytes(bus, true, addr, (u8 *)msg, msglen);
 	if (rv < 0)
 		goto done;
 
 	/* Write length into vcons_in */
-	addr = bus->console_addr + offsetof(hndrte_cons_t, vcons_in);
+	addr = bus->console_addr + offsetof(rte_cons_t, vcons_in);
 	val = cpu_to_le32(msglen);
 	rv = dhdsdio_membytes(bus, true, addr, (u8 *)&val, sizeof(val));
 	if (rv < 0)

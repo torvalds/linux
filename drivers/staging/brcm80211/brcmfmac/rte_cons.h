@@ -13,8 +13,8 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef _hndrte_cons_h
-#define _hndrte_cons_h
+#ifndef _rte_cons_h
+#define _rte_cons_h
 
 #define CBUF_LEN	(128)
 
@@ -25,7 +25,7 @@ typedef struct {
 	uint buf_size;
 	uint idx;
 	char *_buf_compat;	/* Redundant pointer for backward compat. */
-} hndrte_log_t;
+} rte_log_t;
 
 typedef struct {
 	/* Virtual UART
@@ -46,7 +46,7 @@ typedef struct {
 	 * Output will be lost if the output wraps around faster than the host
 	 * polls.
 	 */
-	hndrte_log_t log;
+	rte_log_t log;
 
 	/* Console input line buffer
 	 * Characters are read one at a time into cbuf
@@ -56,7 +56,6 @@ typedef struct {
 	 */
 	uint cbuf_idx;
 	char cbuf[CBUF_LEN];
-} hndrte_cons_t;
+} rte_cons_t;
 
-#endif /* _hndrte_cons_h */
-
+#endif /* _rte_cons_h */

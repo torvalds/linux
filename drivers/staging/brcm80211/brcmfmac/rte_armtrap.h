@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_hndrte_armtrap_h
-#define	_hndrte_armtrap_h
+#ifndef	_rte_armtrap_h
+#define	_rte_armtrap_h
 
 /* ARM trap handling */
 
@@ -72,4 +72,4 @@ typedef struct _trap_struct {
 
 #endif				/* !_LANGUAGE_ASSEMBLY */
 
-#endif				/* _hndrte_armtrap_h */
+#endif				/* _rte_armtrap_h */
