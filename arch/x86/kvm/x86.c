@@ -4560,13 +4560,13 @@ int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip)
 
 	c->op_bytes = 2;
 	c->ad_bytes = 2;
-	c->eip = ctxt->eip + inc_eip;
+	c->_eip = ctxt->eip + inc_eip;
 	ret = emulate_int_real(ctxt, irq);
 
 	if (ret != X86EMUL_CONTINUE)
 		return EMULATE_FAIL;
 
-	ctxt->eip = c->eip;
+	ctxt->eip = c->_eip;
 	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(vcpu, ctxt->eip);
 	kvm_set_rflags(vcpu, ctxt->eflags);
@@ -4661,7 +4661,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 	}
 
 	if (emulation_type & EMULTYPE_SKIP) {
-		kvm_rip_write(vcpu, c->eip);
+		kvm_rip_write(vcpu, c->_eip);
 		return EMULATE_DONE;
 	}
 

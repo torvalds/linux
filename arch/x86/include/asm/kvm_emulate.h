@@ -253,7 +253,7 @@ struct decode_cache {
 	u8 modrm_rm;
 	u8 modrm_seg;
 	bool rip_relative;
-	unsigned long eip;
+	unsigned long _eip;
 	/* Fields above regs are cleared together. */
 	unsigned long regs[NR_VCPU_REGS];
 	struct fetch_cache fetch;
