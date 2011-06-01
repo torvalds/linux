@@ -366,6 +366,17 @@ extern void bcm_prpkt(const char *msg, struct sk_buff *p0);
 	} while (0)
 #endif				/* __BIG_ENDIAN */
 
+#ifdef __mips__
+/*
+ * bcm4716 (which includes 4717 & 4718), plus 4706 on PCIe can reorder
+ * transactions. As a fix, a read after write is performed on certain places
+ * in the code. Older chips and the newer 5357 family don't require this fix.
+ */
+#define W_REG_FLUSH(r, v)	({ W_REG((r), (v)); (void)R_REG(r); })
+#else
+#define W_REG_FLUSH(r, v)	W_REG((r), (v))
+#endif				/* __mips__ */
+
 #define AND_REG(r, v)	W_REG((r), R_REG(r) & (v))
 #define OR_REG(r, v)	W_REG((r), R_REG(r) | (v))
 

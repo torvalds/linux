@@ -247,16 +247,10 @@ u16 read_radio_reg(phy_info_t *pi, u16 addr)
 	if ((D11REV_GE(pi->sh->corerev, 24)) ||
 	    (D11REV_IS(pi->sh->corerev, 22)
 	     && (pi->pubpi.phy_type != PHY_TYPE_SSN))) {
-		W_REG(&pi->regs->radioregaddr, addr);
-#ifdef __mips__
-		(void)R_REG(&pi->regs->radioregaddr);
-#endif
+		W_REG_FLUSH(&pi->regs->radioregaddr, addr);
 		data = R_REG(&pi->regs->radioregdata);
 	} else {
-		W_REG(&pi->regs->phy4waddr, addr);
-#ifdef __mips__
-		(void)R_REG(&pi->regs->phy4waddr);
-#endif
+		W_REG_FLUSH(&pi->regs->phy4waddr, addr);
 
 #ifdef __ARM_ARCH_4T__
 		__asm__(" .align 4 ");
@@ -281,16 +275,10 @@ void write_radio_reg(phy_info_t *pi, u16 addr, u16 val)
 	    (D11REV_IS(pi->sh->corerev, 22)
 	     && (pi->pubpi.phy_type != PHY_TYPE_SSN))) {
 
-		W_REG(&pi->regs->radioregaddr, addr);
-#ifdef __mips__
-		(void)R_REG(&pi->regs->radioregaddr);
-#endif
+		W_REG_FLUSH(&pi->regs->radioregaddr, addr);
 		W_REG(&pi->regs->radioregdata, val);
 	} else {
-		W_REG(&pi->regs->phy4waddr, addr);
-#ifdef __mips__
-		(void)R_REG(&pi->regs->phy4waddr);
-#endif
+		W_REG_FLUSH(&pi->regs->phy4waddr, addr);
 		W_REG(&pi->regs->phy4wdatalo, val);
 	}
 
@@ -312,29 +300,17 @@ static u32 read_radio_id(phy_info_t *pi)
 	if (D11REV_GE(pi->sh->corerev, 24)) {
 		u32 b0, b1, b2;
 
-		W_REG(&pi->regs->radioregaddr, 0);
-#ifdef __mips__
-		(void)R_REG(&pi->regs->radioregaddr);
-#endif
+		W_REG_FLUSH(&pi->regs->radioregaddr, 0);
 		b0 = (u32) R_REG(&pi->regs->radioregdata);
-		W_REG(&pi->regs->radioregaddr, 1);
-#ifdef __mips__
-		(void)R_REG(&pi->regs->radioregaddr);
-#endif
+		W_REG_FLUSH(&pi->regs->radioregaddr, 1);
 		b1 = (u32) R_REG(&pi->regs->radioregdata);
-		W_REG(&pi->regs->radioregaddr, 2);
-#ifdef __mips__
-		(void)R_REG(&pi->regs->radioregaddr);
-#endif
+		W_REG_FLUSH(&pi->regs->radioregaddr, 2);
 		b2 = (u32) R_REG(&pi->regs->radioregdata);
 
 		id = ((b0 & 0xf) << 28) | (((b2 << 8) | b1) << 12) | ((b0 >> 4)
 								      & 0xf);
 	} else {
-		W_REG(&pi->regs->phy4waddr, RADIO_IDCODE);
-#ifdef __mips__
-		(void)R_REG(&pi->regs->phy4waddr);
-#endif
+		W_REG_FLUSH(&pi->regs->phy4waddr, RADIO_IDCODE);
 		id = (u32) R_REG(&pi->regs->phy4wdatalo);
 		id |= (u32) R_REG(&pi->regs->phy4wdatahi) << 16;
 	}
@@ -397,10 +373,7 @@ u16 read_phy_reg(phy_info_t *pi, u16 addr)
 
 	regs = pi->regs;
 
-	W_REG(&regs->phyregaddr, addr);
-#ifdef __mips__
-	(void)R_REG(&regs->phyregaddr);
-#endif
+	W_REG_FLUSH(&regs->phyregaddr, addr);
 
 	pi->phy_wreg = 0;
 	return R_REG(&regs->phyregdata);
@@ -413,8 +386,7 @@ void write_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 	regs = pi->regs;
 
 #ifdef __mips__
-	W_REG(&regs->phyregaddr, addr);
-	(void)R_REG(&regs->phyregaddr);
+	W_REG_FLUSH(&regs->phyregaddr, addr);
 	W_REG(&regs->phyregdata, val);
 	if (addr == 0x72)
 		(void)R_REG(&regs->phyregdata);
@@ -436,10 +408,7 @@ void and_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 
 	regs = pi->regs;
 
-	W_REG(&regs->phyregaddr, addr);
-#ifdef __mips__
-	(void)R_REG(&regs->phyregaddr);
-#endif
+	W_REG_FLUSH(&regs->phyregaddr, addr);
 
 	W_REG(&regs->phyregdata, (R_REG(&regs->phyregdata) & val));
 	pi->phy_wreg = 0;
@@ -451,10 +420,7 @@ void or_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 
 	regs = pi->regs;
 
-	W_REG(&regs->phyregaddr, addr);
-#ifdef __mips__
-	(void)R_REG(&regs->phyregaddr);
-#endif
+	W_REG_FLUSH(&regs->phyregaddr, addr);
 
 	W_REG(&regs->phyregdata, (R_REG(&regs->phyregdata) | val));
 	pi->phy_wreg = 0;
@@ -466,10 +432,7 @@ void mod_phy_reg(phy_info_t *pi, u16 addr, u16 mask, u16 val)
 
 	regs = pi->regs;
 
-	W_REG(&regs->phyregaddr, addr);
-#ifdef __mips__
-	(void)R_REG(&regs->phyregaddr);
-#endif
+	W_REG_FLUSH(&regs->phyregaddr, addr);
 
 	W_REG(&regs->phyregdata,
 	      ((R_REG(&regs->phyregdata) & ~mask) | (val & mask)));
