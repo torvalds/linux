@@ -95,6 +95,8 @@ static struct pci_device_id wl_id_table[] = {
 	{PCI_VENDOR_ID_BROADCOM, 0x4357, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},	/* 43225 2G */
 	{PCI_VENDOR_ID_BROADCOM, 0x4353, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},	/* 43224 DUAL */
 	{PCI_VENDOR_ID_BROADCOM, 0x4727, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},	/* 4313 DUAL */
+	/* 43224 Ven */
+	{PCI_VENDOR_ID_BROADCOM, 0x0576, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{0}
 };
 
@@ -1112,7 +1114,8 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	       PCI_FUNC(pdev->devfn), pdev->irq);
 
 	if ((pdev->vendor != PCI_VENDOR_ID_BROADCOM) ||
-	    (((pdev->device & 0xff00) != 0x4300) &&
+	    ((pdev->device != 0x0576) &&
+	     ((pdev->device & 0xff00) != 0x4300) &&
 	     ((pdev->device & 0xff00) != 0x4700) &&
 	     ((pdev->device < 43000) || (pdev->device > 43999))))
 		return -ENODEV;

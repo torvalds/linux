@@ -2857,9 +2857,10 @@ bool wlc_chipmatch(u16 vendor, u16 device)
 		return false;
 	}
 
+	if (device == BCM43224_D11N_ID_VEN1)
+		return true;
 	if ((device == BCM43224_D11N_ID) || (device == BCM43225_D11N2G_ID))
 		return true;
-
 	if (device == BCM4313_D11N2G_ID)
 		return true;
 	if ((device == BCM43236_D11N_ID) || (device == BCM43236_D11N2G_ID))

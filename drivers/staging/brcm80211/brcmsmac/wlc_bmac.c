@@ -741,7 +741,8 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 		wlc->war16165 = true;
 
 	/* check device id(srom, nvram etc.) to set bands */
-	if (wlc_hw->deviceid == BCM43224_D11N_ID) {
+	if (wlc_hw->deviceid == BCM43224_D11N_ID ||
+	    wlc_hw->deviceid == BCM43224_D11N_ID_VEN1) {
 		/* Dualband boards */
 		wlc_hw->_nbands = 2;
 	} else

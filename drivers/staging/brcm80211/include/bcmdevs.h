@@ -30,6 +30,7 @@
 #define BCM4319_D11N5G_ID	0x4339	/* 4319 802.11n 5G device */
 
 #define BCM43224_D11N_ID	0x4353	/* 43224 802.11n dualband device */
+#define BCM43224_D11N_ID_VEN1	0x0576	/* Vendor specific 43224 802.11n db */
 
 #define BCM43225_D11N2G_ID	0x4357	/* 43225 802.11n 2.4GHz device */
 
