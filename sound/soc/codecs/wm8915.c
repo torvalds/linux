@@ -2288,6 +2288,12 @@ static void wm8915_micd(struct snd_soc_codec *codec)
 				    SND_JACK_HEADSET | SND_JACK_BTN_0);
 		wm8915->jack_mic = true;
 		wm8915->detecting = false;
+
+		/* Increase poll rate to give better responsiveness
+		 * for buttons */
+		snd_soc_update_bits(codec, WM8915_MIC_DETECT_1,
+				    WM8915_MICD_RATE_MASK,
+				    5 << WM8915_MICD_RATE_SHIFT);
 	}
 
 	/* If we detected a lower impedence during initial startup
@@ -2328,15 +2334,17 @@ static void wm8915_micd(struct snd_soc_codec *codec)
 					    SND_JACK_HEADPHONE,
 					    SND_JACK_HEADSET |
 					    SND_JACK_BTN_0);
+
+			/* Increase the detection rate a bit for
+			 * responsiveness.
+			 */
+			snd_soc_update_bits(codec, WM8915_MIC_DETECT_1,
+					    WM8915_MICD_RATE_MASK,
+					    7 << WM8915_MICD_RATE_SHIFT);
+
 			wm8915->detecting = false;
 		}
 	}
-
-	/* Increase poll rate to give better responsiveness for buttons */
-	if (!wm8915->detecting)
-		snd_soc_update_bits(codec, WM8915_MIC_DETECT_1,
-				    WM8915_MICD_RATE_MASK,
-				    5 << WM8915_MICD_RATE_SHIFT);
 }
 
 static irqreturn_t wm8915_irq(int irq, void *data)
