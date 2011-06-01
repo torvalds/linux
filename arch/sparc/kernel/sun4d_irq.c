@@ -103,10 +103,9 @@ static void sun4d_sbus_handler_irq(int sbusl)
 
 	sbil = (sbusl << 2);
 	/* Loop for each pending SBI */
-	for (sbino = 0; bus_mask; sbino++) {
+	for (sbino = 0; bus_mask; sbino++, bus_mask >>= 1) {
 		unsigned int idx, mask;
 
-		bus_mask >>= 1;
 		if (!(bus_mask & 1))
 			continue;
 		/* XXX This seems to ACK the irq twice.  acquire_sbi()
@@ -118,19 +117,16 @@ static void sun4d_sbus_handler_irq(int sbusl)
 		mask &= (0xf << sbil);
 
 		/* Loop for each pending SBI slot */
-		idx = 0;
 		slot = (1 << sbil);
-		while (mask != 0) {
+		for (idx = 0; mask != 0; idx++, slot <<= 1) {
 			unsigned int pil;
 			struct irq_bucket *p;
 
-			idx++;
-			slot <<= 1;
 			if (!(mask & slot))
 				continue;
 
 			mask &= ~slot;
-			pil = sun4d_encode_irq(sbino, sbil, idx);
+			pil = sun4d_encode_irq(sbino, sbusl, idx);
 
 			p = irq_map[pil];
 			while (p) {
@@ -218,10 +214,10 @@ static void sun4d_unmask_irq(struct irq_data *data)
 
 #ifdef CONFIG_SMP
 	spin_lock_irqsave(&sun4d_imsk_lock, flags);
-	cc_set_imsk_other(cpuid, cc_get_imsk_other(cpuid) | ~(1 << real_irq));
+	cc_set_imsk_other(cpuid, cc_get_imsk_other(cpuid) & ~(1 << real_irq));
 	spin_unlock_irqrestore(&sun4d_imsk_lock, flags);
 #else
-	cc_set_imsk(cc_get_imsk() | ~(1 << real_irq));
+	cc_set_imsk(cc_get_imsk() & ~(1 << real_irq));
 #endif
 }
 
