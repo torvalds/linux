@@ -193,7 +193,7 @@ typedef struct {
 		struct sbpciregs *pciregs;
 	} regs;			/* Memory mapped register to the core */
 
-	si_t *sih;		/* System interconnect handle */
+	struct si_pub *sih;		/* System interconnect handle */
 	struct pci_dev *dev;
 	u8 pciecap_lcreg_offset;	/* PCIE capability LCreg offset in the config space */
 	bool pcie_pr42767;
@@ -512,7 +512,7 @@ static u8 pcie_clkreq(void *pch, u32 mask, u32 val)
 static void pcie_extendL1timer(pcicore_info_t *pi, bool extend)
 {
 	u32 w;
-	si_t *sih = pi->sih;
+	struct si_pub *sih = pi->sih;
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
 
 	if (!PCIE_PUB(sih) || sih->buscorerev < 7)
@@ -530,7 +530,7 @@ static void pcie_extendL1timer(pcicore_info_t *pi, bool extend)
 /* centralized clkreq control policy */
 static void pcie_clkreq_upd(pcicore_info_t *pi, uint state)
 {
-	si_t *sih = pi->sih;
+	struct si_pub *sih = pi->sih;
 
 	switch (state) {
 	case SI_DOATTACH:
@@ -596,7 +596,7 @@ static void pcie_war_polarity(pcicore_info_t *pi)
 static void pcie_war_aspm_clkreq(pcicore_info_t *pi)
 {
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
-	si_t *sih = pi->sih;
+	struct si_pub *sih = pi->sih;
 	u16 val16, *reg16;
 	u32 w;
 
@@ -691,7 +691,7 @@ static void pcie_war_noplldown(pcicore_info_t *pi)
 /* Needs to happen when coming out of 'standby'/'hibernate' */
 static void pcie_war_pci_setup(pcicore_info_t *pi)
 {
-	si_t *sih = pi->sih;
+	struct si_pub *sih = pi->sih;
 	sbpcieregs_t *pcieregs = pi->regs.pcieregs;
 	u32 w;
 
@@ -737,7 +737,7 @@ static void pcie_war_pci_setup(pcicore_info_t *pi)
 void pcicore_attach(void *pch, char *pvars, int state)
 {
 	pcicore_info_t *pi = (pcicore_info_t *) pch;
-	si_t *sih = pi->sih;
+	struct si_pub *sih = pi->sih;
 
 	/* Determine if this board needs override */
 	if (PCIE_ASPM(sih)) {

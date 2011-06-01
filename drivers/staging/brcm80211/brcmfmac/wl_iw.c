@@ -27,7 +27,8 @@
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <linux/ieee80211.h>
-typedef const struct si_pub si_t;
+
+struct si_pub;
 
 #include <dngl_stats.h>
 #include <dhd.h>

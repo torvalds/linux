@@ -37,8 +37,9 @@
 extern int otp_status(void *oh);
 extern int otp_size(void *oh);
 extern u16 otp_read_bit(void *oh, uint offset);
-extern void *otp_init(si_t *sih);
-extern int otp_read_region(si_t *sih, int region, u16 *data, uint *wlen);
+extern void *otp_init(struct si_pub *sih);
+extern int otp_read_region(struct si_pub *sih, int region, u16 *data,
+			   uint *wlen);
 extern int otp_nvread(void *oh, char *data, uint *len);
 
 #endif				/* _bcmotp_h_ */

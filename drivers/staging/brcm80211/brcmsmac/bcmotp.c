@@ -89,9 +89,9 @@
 /* OTP common function type */
 typedef int (*otp_status_t) (void *oh);
 typedef int (*otp_size_t) (void *oh);
-typedef void *(*otp_init_t) (si_t *sih);
+typedef void *(*otp_init_t) (struct si_pub *sih);
 typedef u16(*otp_read_bit_t) (void *oh, chipcregs_t *cc, uint off);
-typedef int (*otp_read_region_t) (si_t *sih, int region, u16 *data,
+typedef int (*otp_read_region_t) (struct si_pub *sih, int region, u16 *data,
 				  uint *wlen);
 typedef int (*otp_nvread_t) (void *oh, char *data, uint *len);
 
@@ -108,7 +108,7 @@ typedef struct otp_fn_s {
 typedef struct {
 	uint ccrev;		/* chipc revision */
 	otp_fn_t *fn;		/* OTP functions */
-	si_t *sih;		/* Saved sb handle */
+	struct si_pub *sih;		/* Saved sb handle */
 
 #ifdef BCMIPXOTP
 	/* IPX OTP section */
@@ -245,7 +245,7 @@ static u16 ipxotp_read_bit(void *oh, chipcregs_t *cc, uint off)
 /* Calculate max HW/SW region byte size by subtracting fuse region and checksum size,
  * osizew is oi->wsize (OTP size - GU size) in words
  */
-static int ipxotp_max_rgnsz(si_t *sih, int osizew)
+static int ipxotp_max_rgnsz(struct si_pub *sih, int osizew)
 {
 	int ret = 0;
 
@@ -335,7 +335,7 @@ static void _ipxotp_init(otpinfo_t *oi, chipcregs_t *cc)
 	oi->flim = oi->wsize;
 }
 
-static void *ipxotp_init(si_t *sih)
+static void *ipxotp_init(struct si_pub *sih)
 {
 	uint idx;
 	chipcregs_t *cc;
@@ -635,7 +635,7 @@ static u16 hndotp_read_bit(void *oh, chipcregs_t *cc, uint idx)
 	return (u16) st;
 }
 
-static void *hndotp_init(si_t *sih)
+static void *hndotp_init(struct si_pub *sih)
 {
 	uint idx;
 	chipcregs_t *cc;
@@ -897,7 +897,7 @@ u16 otp_read_bit(void *oh, uint offset)
 	return readBit;
 }
 
-void *otp_init(si_t *sih)
+void *otp_init(struct si_pub *sih)
 {
 	otpinfo_t *oi;
 	void *ret = NULL;
@@ -929,7 +929,7 @@ void *otp_init(si_t *sih)
 }
 
 int
-otp_read_region(si_t *sih, int region, u16 *data,
+otp_read_region(struct si_pub *sih, int region, u16 *data,
 				 uint *wlen) {
 	bool wasup = false;
 	void *oh;

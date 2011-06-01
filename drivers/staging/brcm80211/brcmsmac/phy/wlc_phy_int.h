@@ -534,7 +534,7 @@ typedef struct {
 struct shared_phy {
 	struct phy_info *phy_head;
 	uint unit;
-	si_t *sih;
+	struct si_pub *sih;
 	void *physhim;
 	uint corerev;
 	u32 machwcap;

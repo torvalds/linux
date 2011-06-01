@@ -164,7 +164,7 @@ struct phy_pub;
 typedef struct phy_pub wlc_phy_t;
 
 typedef struct shared_phy_params {
-	si_t *sih;
+	struct si_pub *sih;
 	void *physhim;
 	uint unit;
 	uint corerev;

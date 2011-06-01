@@ -434,7 +434,7 @@ const di_fcn_t dma64proc = {
 	39
 };
 
-struct dma_pub *dma_attach(char *name, si_t *sih,
+struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 		     void *dmaregstx, void *dmaregsrx, uint ntxd,
 		     uint nrxd, uint rxbufsize, int rxextheadroom,
 		     uint nrxpost, uint rxoffset, uint *msg_level)
@@ -1873,7 +1873,7 @@ static void dma64_txrotate(dma_info_t *di)
 	      di->xmtptrbase + I2B(di->txout, dma64dd_t));
 }
 
-uint dma_addrwidth(si_t *sih, void *dmaregs)
+uint dma_addrwidth(struct si_pub *sih, void *dmaregs)
 {
 	/* Perform 64-bit checks only if we want to advertise 64-bit (> 32bit) capability) */
 	/* DMA engine is 64-bit capable */

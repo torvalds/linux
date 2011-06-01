@@ -36,23 +36,23 @@
 #define SET_LDO_VOLTAGE_LNLDO1	9
 #define SET_LDO_VOLTAGE_LNLDO2_SEL	10
 
-extern void si_pmu_set_ldo_voltage(si_t *sih, u8 ldo, u8 voltage);
-extern u16 si_pmu_fast_pwrup_delay(si_t *sih);
-extern void si_pmu_sprom_enable(si_t *sih, bool enable);
-extern u32 si_pmu_chipcontrol(si_t *sih, uint reg, u32 mask, u32 val);
-extern u32 si_pmu_regcontrol(si_t *sih, uint reg, u32 mask, u32 val);
-extern u32 si_pmu_ilp_clock(si_t *sih);
-extern u32 si_pmu_alp_clock(si_t *sih);
-extern void si_pmu_pllupd(si_t *sih);
-extern void si_pmu_spuravoid(si_t *sih, u8 spuravoid);
-extern u32 si_pmu_pllcontrol(si_t *sih, uint reg, u32 mask, u32 val);
-extern void si_pmu_init(si_t *sih);
-extern void si_pmu_chip_init(si_t *sih);
-extern void si_pmu_pll_init(si_t *sih, u32 xtalfreq);
-extern void si_pmu_res_init(si_t *sih);
-extern void si_pmu_swreg_init(si_t *sih);
-extern u32 si_pmu_measure_alpclk(si_t *sih);
-extern bool si_pmu_is_otp_powered(si_t *sih);
-extern void si_pmu_otp_power(si_t *sih, bool on);
+extern void si_pmu_set_ldo_voltage(struct si_pub *sih, u8 ldo, u8 voltage);
+extern u16 si_pmu_fast_pwrup_delay(struct si_pub *sih);
+extern void si_pmu_sprom_enable(struct si_pub *sih, bool enable);
+extern u32 si_pmu_chipcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val);
+extern u32 si_pmu_regcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val);
+extern u32 si_pmu_ilp_clock(struct si_pub *sih);
+extern u32 si_pmu_alp_clock(struct si_pub *sih);
+extern void si_pmu_pllupd(struct si_pub *sih);
+extern void si_pmu_spuravoid(struct si_pub *sih, u8 spuravoid);
+extern u32 si_pmu_pllcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val);
+extern void si_pmu_init(struct si_pub *sih);
+extern void si_pmu_chip_init(struct si_pub *sih);
+extern void si_pmu_pll_init(struct si_pub *sih, u32 xtalfreq);
+extern void si_pmu_res_init(struct si_pub *sih);
+extern void si_pmu_swreg_init(struct si_pub *sih);
+extern u32 si_pmu_measure_alpclk(struct si_pub *sih);
+extern bool si_pmu_is_otp_powered(struct si_pub *sih);
+extern void si_pmu_otp_power(struct si_pub *sih, bool on);
 
 #endif /* WLC_PMU_H_ */

@@ -607,7 +607,8 @@ typedef struct {
 	u32 res_mask;	/* resources (chip specific) */
 	s8 action;		/* action */
 	u32 depend_mask;	/* changes to the dependancies mask */
-	 bool(*filter) (si_t *sih);	/* action is taken when filter is NULL or return true */
+	/* action is taken when filter is NULL or return true: */
+	 bool(*filter) (struct si_pub *sih);
 } pmu_res_depend_t;
 
 /* setup pll and query clock speed */
@@ -623,10 +624,10 @@ typedef struct {
 /*
  * prototypes used in resource tables
  */
-static bool si_pmu_res_depfltr_bb(si_t *sih);
-static bool si_pmu_res_depfltr_ncb(si_t *sih);
-static bool si_pmu_res_depfltr_paldo(si_t *sih);
-static bool si_pmu_res_depfltr_npaldo(si_t *sih);
+static bool si_pmu_res_depfltr_bb(struct si_pub *sih);
+static bool si_pmu_res_depfltr_ncb(struct si_pub *sih);
+static bool si_pmu_res_depfltr_paldo(struct si_pub *sih);
+static bool si_pmu_res_depfltr_npaldo(struct si_pub *sih);
 
 static const pmu_res_updown_t bcm4328a0_res_updown[] = {
 	{
@@ -970,33 +971,33 @@ static const pmu1_xtaltab0_t pmu1_xtaltab0_880[] = {
 };
 
 /* true if the power topology uses the buck boost to provide 3.3V to VDDIO_RF and WLAN PA */
-static bool si_pmu_res_depfltr_bb(si_t *sih)
+static bool si_pmu_res_depfltr_bb(struct si_pub *sih)
 {
 	return (sih->boardflags & BFL_BUCKBOOST) != 0;
 }
 
 /* true if the power topology doesn't use the cbuck. Key on chiprev also if the chip is BCM4325. */
-static bool si_pmu_res_depfltr_ncb(si_t *sih)
+static bool si_pmu_res_depfltr_ncb(struct si_pub *sih)
 {
 
 	return (sih->boardflags & BFL_NOCBUCK) != 0;
 }
 
 /* true if the power topology uses the PALDO */
-static bool si_pmu_res_depfltr_paldo(si_t *sih)
+static bool si_pmu_res_depfltr_paldo(struct si_pub *sih)
 {
 	return (sih->boardflags & BFL_PALDO) != 0;
 }
 
 /* true if the power topology doesn't use the PALDO */
-static bool si_pmu_res_depfltr_npaldo(si_t *sih)
+static bool si_pmu_res_depfltr_npaldo(struct si_pub *sih)
 {
 	return (sih->boardflags & BFL_PALDO) == 0;
 }
 
 /* Return dependancies (direct or all/indirect) for the given resources */
 static u32
-si_pmu_res_deps(si_t *sih, chipcregs_t *cc, u32 rsrcs,
+si_pmu_res_deps(struct si_pub *sih, chipcregs_t *cc, u32 rsrcs,
 		bool all)
 {
 	u32 deps = 0;
@@ -1016,7 +1017,7 @@ si_pmu_res_deps(si_t *sih, chipcregs_t *cc, u32 rsrcs,
 }
 
 /* Determine min/max rsrc masks. Value 0 leaves hardware at default. */
-static void si_pmu_res_masks(si_t *sih, u32 * pmin, u32 * pmax)
+static void si_pmu_res_masks(struct si_pub *sih, u32 * pmin, u32 * pmax)
 {
 	u32 min_mask = 0, max_mask = 0;
 	uint rsrcs;
@@ -1103,7 +1104,7 @@ static void si_pmu_res_masks(si_t *sih, u32 * pmin, u32 * pmax)
 
 /* Return up time in ILP cycles for the given resource. */
 static uint
-si_pmu_res_uptime(si_t *sih, chipcregs_t *cc, u8 rsrc) {
+si_pmu_res_uptime(struct si_pub *sih, chipcregs_t *cc, u8 rsrc) {
 	u32 deps;
 	uint up, i, dup, dmax;
 	u32 min_mask = 0, max_mask = 0;
@@ -1136,7 +1137,7 @@ si_pmu_res_uptime(si_t *sih, chipcregs_t *cc, u8 rsrc) {
 }
 
 static void
-si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc, u8 spuravoid)
+si_pmu_spuravoid_pllupdate(struct si_pub *sih, chipcregs_t *cc, u8 spuravoid)
 {
 	u32 tmp = 0;
 	u8 phypll_offset = 0;
@@ -1336,7 +1337,7 @@ si_pmu_spuravoid_pllupdate(si_t *sih, chipcregs_t *cc, u8 spuravoid)
 }
 
 /* select default xtal frequency for each chip */
-static const pmu1_xtaltab0_t *si_pmu1_xtaldef0(si_t *sih)
+static const pmu1_xtaltab0_t *si_pmu1_xtaldef0(struct si_pub *sih)
 {
 	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
@@ -1361,7 +1362,7 @@ static const pmu1_xtaltab0_t *si_pmu1_xtaldef0(si_t *sih)
 }
 
 /* select xtal table for each chip */
-static const pmu1_xtaltab0_t *si_pmu1_xtaltab0(si_t *sih)
+static const pmu1_xtaltab0_t *si_pmu1_xtaltab0(struct si_pub *sih)
 {
 	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
@@ -1383,7 +1384,7 @@ static const pmu1_xtaltab0_t *si_pmu1_xtaltab0(si_t *sih)
 
 /* query alp/xtal clock frequency */
 static u32
-si_pmu1_alpclk0(si_t *sih, chipcregs_t *cc)
+si_pmu1_alpclk0(struct si_pub *sih, chipcregs_t *cc)
 {
 	const pmu1_xtaltab0_t *xt;
 	u32 xf;
@@ -1401,7 +1402,7 @@ si_pmu1_alpclk0(si_t *sih, chipcregs_t *cc)
 }
 
 /* select default pll fvco for each chip */
-static u32 si_pmu1_pllfvco0(si_t *sih)
+static u32 si_pmu1_pllfvco0(struct si_pub *sih)
 {
 	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
@@ -1421,7 +1422,7 @@ static u32 si_pmu1_pllfvco0(si_t *sih)
 	return 0;
 }
 
-static void si_pmu_set_4330_plldivs(si_t *sih)
+static void si_pmu_set_4330_plldivs(struct si_pub *sih)
 {
 	u32 FVCO = si_pmu1_pllfvco0(sih) / 1000;
 	u32 m1div, m2div, m3div, m4div, m5div, m6div;
@@ -1455,7 +1456,7 @@ static void si_pmu_set_4330_plldivs(si_t *sih)
  * case the xtal frequency is unknown to the s/w so we need to call
  * si_pmu1_xtaldef0() wherever it is needed to return a default value.
  */
-static void si_pmu1_pllinit0(si_t *sih, chipcregs_t *cc, u32 xtal)
+static void si_pmu1_pllinit0(struct si_pub *sih, chipcregs_t *cc, u32 xtal)
 {
 	const pmu1_xtaltab0_t *xt;
 	u32 tmp;
@@ -1675,7 +1676,7 @@ static void si_pmu1_pllinit0(si_t *sih, chipcregs_t *cc, u32 xtal)
 	W_REG(&cc->pmucontrol, tmp);
 }
 
-u32 si_pmu_ilp_clock(si_t *sih)
+u32 si_pmu_ilp_clock(struct si_pub *sih)
 {
 	static u32 ilpcycles_per_sec;
 
@@ -1697,7 +1698,7 @@ u32 si_pmu_ilp_clock(si_t *sih)
 	return ilpcycles_per_sec;
 }
 
-void si_pmu_set_ldo_voltage(si_t *sih, u8 ldo, u8 voltage)
+void si_pmu_set_ldo_voltage(struct si_pub *sih, u8 ldo, u8 voltage)
 {
 	u8 sr_cntl_shift = 0, rc_shift = 0, shift = 0, mask = 0;
 	u8 addr = 0;
@@ -1747,7 +1748,7 @@ void si_pmu_set_ldo_voltage(si_t *sih, u8 ldo, u8 voltage)
 		   mask << shift, (voltage & mask) << shift);
 }
 
-u16 si_pmu_fast_pwrup_delay(si_t *sih)
+u16 si_pmu_fast_pwrup_delay(struct si_pub *sih)
 {
 	uint delay = PMU_MAX_TRANSITION_DLY;
 	chipcregs_t *cc;
@@ -1821,7 +1822,7 @@ u16 si_pmu_fast_pwrup_delay(si_t *sih)
 	return (u16) delay;
 }
 
-void si_pmu_sprom_enable(si_t *sih, bool enable)
+void si_pmu_sprom_enable(struct si_pub *sih, bool enable)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1835,7 +1836,7 @@ void si_pmu_sprom_enable(si_t *sih, bool enable)
 }
 
 /* Read/write a chipcontrol reg */
-u32 si_pmu_chipcontrol(si_t *sih, uint reg, u32 mask, u32 val)
+u32 si_pmu_chipcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
 {
 	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, chipcontrol_addr), ~0,
 		   reg);
@@ -1844,7 +1845,7 @@ u32 si_pmu_chipcontrol(si_t *sih, uint reg, u32 mask, u32 val)
 }
 
 /* Read/write a regcontrol reg */
-u32 si_pmu_regcontrol(si_t *sih, uint reg, u32 mask, u32 val)
+u32 si_pmu_regcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
 {
 	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, regcontrol_addr), ~0,
 		   reg);
@@ -1853,7 +1854,7 @@ u32 si_pmu_regcontrol(si_t *sih, uint reg, u32 mask, u32 val)
 }
 
 /* Read/write a pllcontrol reg */
-u32 si_pmu_pllcontrol(si_t *sih, uint reg, u32 mask, u32 val)
+u32 si_pmu_pllcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val)
 {
 	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, pllcontrol_addr), ~0,
 		   reg);
@@ -1862,14 +1863,14 @@ u32 si_pmu_pllcontrol(si_t *sih, uint reg, u32 mask, u32 val)
 }
 
 /* PMU PLL update */
-void si_pmu_pllupd(si_t *sih)
+void si_pmu_pllupd(struct si_pub *sih)
 {
 	ai_corereg(sih, SI_CC_IDX, offsetof(chipcregs_t, pmucontrol),
 		   PCTL_PLL_PLLCTL_UPD, PCTL_PLL_PLLCTL_UPD);
 }
 
 /* query alp/xtal clock frequency */
-u32 si_pmu_alp_clock(si_t *sih)
+u32 si_pmu_alp_clock(struct si_pub *sih)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1920,7 +1921,7 @@ u32 si_pmu_alp_clock(si_t *sih)
 	return clock;
 }
 
-void si_pmu_spuravoid(si_t *sih, u8 spuravoid)
+void si_pmu_spuravoid(struct si_pub *sih, u8 spuravoid)
 {
 	chipcregs_t *cc;
 	uint origidx, intr_val;
@@ -1955,7 +1956,7 @@ void si_pmu_spuravoid(si_t *sih, u8 spuravoid)
 }
 
 /* initialize PMU */
-void si_pmu_init(si_t *sih)
+void si_pmu_init(struct si_pub *sih)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -1983,7 +1984,7 @@ void si_pmu_init(si_t *sih)
 }
 
 /* initialize PMU chip controls and other chip level stuff */
-void si_pmu_chip_init(si_t *sih)
+void si_pmu_chip_init(struct si_pub *sih)
 {
 	uint origidx;
 
@@ -1998,7 +1999,7 @@ void si_pmu_chip_init(si_t *sih)
 }
 
 /* initialize PMU switch/regulators */
-void si_pmu_swreg_init(si_t *sih)
+void si_pmu_swreg_init(struct si_pub *sih)
 {
 	switch (sih->chip) {
 	case BCM4336_CHIP_ID:
@@ -2023,7 +2024,7 @@ void si_pmu_swreg_init(si_t *sih)
 }
 
 /* initialize PLL */
-void si_pmu_pll_init(si_t *sih, uint xtalfreq)
+void si_pmu_pll_init(struct si_pub *sih, uint xtalfreq)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2063,7 +2064,7 @@ void si_pmu_pll_init(si_t *sih, uint xtalfreq)
 }
 
 /* initialize PMU resources */
-void si_pmu_res_init(si_t *sih)
+void si_pmu_res_init(struct si_pub *sih)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2234,7 +2235,7 @@ void si_pmu_res_init(si_t *sih)
 	ai_setcoreidx(sih, origidx);
 }
 
-u32 si_pmu_measure_alpclk(si_t *sih)
+u32 si_pmu_measure_alpclk(struct si_pub *sih)
 {
 	chipcregs_t *cc;
 	uint origidx;
@@ -2287,7 +2288,7 @@ u32 si_pmu_measure_alpclk(si_t *sih)
 	return alp_khz;
 }
 
-bool si_pmu_is_otp_powered(si_t *sih)
+bool si_pmu_is_otp_powered(struct si_pub *sih)
 {
 	uint idx;
 	chipcregs_t *cc;
@@ -2337,7 +2338,7 @@ bool si_pmu_is_otp_powered(si_t *sih)
 }
 
 /* power up/down OTP through PMU resources */
-void si_pmu_otp_power(si_t *sih, bool on)
+void si_pmu_otp_power(struct si_pub *sih, bool on)
 {
 	chipcregs_t *cc;
 	uint origidx;

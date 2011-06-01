@@ -18,10 +18,10 @@
 #define	_bcmsrom_h_
 
 /* Prototypes */
-extern int srom_var_init(si_t *sih, uint bus, void *curmap,
+extern int srom_var_init(struct si_pub *sih, uint bus, void *curmap,
 			 char **vars, uint *count);
 
-extern int srom_read(si_t *sih, uint bus, void *curmap,
+extern int srom_read(struct si_pub *sih, uint bus, void *curmap,
 		     uint byteoff, uint nbytes, u16 *buf, bool check_crc);
 
 /* parse standard PCMCIA cis, normally used by SB/PCMCIA/SDIO/SPI/OTP

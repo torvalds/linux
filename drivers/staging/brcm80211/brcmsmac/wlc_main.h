@@ -450,7 +450,7 @@ struct wlc_hw_info {
 	u32 machwcap_backup;	/* backup of machwcap */
 	u16 ucode_dbgsel;	/* dbgsel for ucode debug(config gpio) */
 
-	si_t *sih;		/* SB handle (cookie for siutils calls) */
+	struct si_pub *sih;	/* SI handle (cookie for siutils calls) */
 	char *vars;		/* "environment" name=value */
 	uint vars_size;		/* size of vars, free vars on detach */
 	d11regs_t *regs;	/* pointer to device registers */

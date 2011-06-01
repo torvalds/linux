@@ -148,7 +148,7 @@ struct dma_pub {
 	uint txnobuf;		/* tx out of dma descriptors */
 };
 
-extern struct dma_pub *dma_attach(char *name, si_t *sih,
+extern struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 			    void *dmaregstx, void *dmaregsrx, uint ntxd,
 			    uint nrxd, uint rxbufsize, int rxextheadroom,
 			    uint nrxpost, uint rxoffset, uint *msg_level);
@@ -201,7 +201,7 @@ extern const di_fcn_t dma64proc;
  * SB attach provides ability to probe backplane and dma core capabilities
  * This info is needed by DMA_ALLOC_CONSISTENT in dma attach
  */
-extern uint dma_addrwidth(si_t *sih, void *dmaregs);
+extern uint dma_addrwidth(struct si_pub *sih, void *dmaregs);
 void dma_walk_packets(struct dma_pub *dmah, void (*callback_fnc)
 		      (void *pkt, void *arg_a), void *arg_a);
 
