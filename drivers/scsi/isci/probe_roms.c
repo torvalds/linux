@@ -136,6 +136,7 @@ enum sci_status isci_parse_oem_parameters(union scic_oem_parameters *oem_params,
 struct isci_orom *isci_request_firmware(struct pci_dev *pdev, const struct firmware *fw)
 {
 	struct isci_orom *orom = NULL, *data;
+	int i, j;
 
 	if (request_firmware(&fw, ISCI_FW_NAME, &pdev->dev) != 0)
 		return NULL;
@@ -155,6 +156,20 @@ struct isci_orom *isci_request_firmware(struct pci_dev *pdev, const struct firmw
 
 	memcpy(orom, fw->data, fw->size);
 
+	/*
+	 * deprecated: override default amp_control for pre-preproduction
+	 * silicon revisions
+	 */
+	if (isci_si_rev <= ISCI_SI_REVB0)
+		goto out;
+
+	for (i = 0; i < ARRAY_SIZE(orom->ctrl); i++)
+		for (j = 0; j < ARRAY_SIZE(orom->ctrl[i].phys); j++) {
+			orom->ctrl[i].phys[j].afe_tx_amp_control0 = 0xe7c03;
+			orom->ctrl[i].phys[j].afe_tx_amp_control1 = 0xe7c03;
+			orom->ctrl[i].phys[j].afe_tx_amp_control2 = 0xe7c03;
+			orom->ctrl[i].phys[j].afe_tx_amp_control3 = 0xe7c03;
+		}
  out:
 	release_firmware(fw);
 

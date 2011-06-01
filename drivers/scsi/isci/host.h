@@ -675,6 +675,7 @@ enum {
 	ISCI_SI_REVA0,
 	ISCI_SI_REVA2,
 	ISCI_SI_REVB0,
+	ISCI_SI_REVC0
 };
 
 extern int isci_si_rev;
@@ -691,7 +692,12 @@ static inline bool is_a2(void)
 
 static inline bool is_b0(void)
 {
-	return isci_si_rev > ISCI_SI_REVA2;
+	return isci_si_rev == ISCI_SI_REVB0;
+}
+
+static inline bool is_c0(void)
+{
+	return isci_si_rev > ISCI_SI_REVB0;
 }
 
 void scic_sds_controller_post_request(struct scic_sds_controller *scic,

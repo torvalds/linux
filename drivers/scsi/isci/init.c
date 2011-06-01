@@ -437,27 +437,27 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 
 static void check_si_rev(struct pci_dev *pdev)
 {
-	if (num_controllers(pdev) > 1)
+	switch (pdev->revision) {
+	case 0:
+	case 1:
+		/* if the id is ambiguous don't update isci_si_rev */
+		break;
+	case 3:
+		isci_si_rev = ISCI_SI_REVA2;
+		break;
+	case 4:
 		isci_si_rev = ISCI_SI_REVB0;
-	else {
-		switch (pdev->revision) {
-		case 0:
-		case 1:
-			/* if the id is ambiguous don't update isci_si_rev */
-			break;
-		case 3:
-			isci_si_rev = ISCI_SI_REVA2;
-			break;
-		default:
-		case 4:
-			isci_si_rev = ISCI_SI_REVB0;
-			break;
-		}
+		break;
+	default:
+	case 5:
+		isci_si_rev = ISCI_SI_REVC0;
+		break;
 	}
 
 	dev_info(&pdev->dev, "driver configured for %s silicon (rev: %d)\n",
 		 isci_si_rev == ISCI_SI_REVA0 ? "A0" :
-		 isci_si_rev == ISCI_SI_REVA2 ? "A2" : "B0", pdev->revision);
+		 isci_si_rev == ISCI_SI_REVA2 ? "A2" :
+		 isci_si_rev == ISCI_SI_REVB0 ? "B0" : "C0", pdev->revision);
 
 }
 

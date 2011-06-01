@@ -2070,13 +2070,13 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
 		writel(0x00005500, &scic->scu_registers->afe.afe_bias_control);
 	else if (is_a2())
 		writel(0x00005A00, &scic->scu_registers->afe.afe_bias_control);
-	else if (is_b0())
+	else if (is_b0() || is_c0())
 		writel(0x00005F00, &scic->scu_registers->afe.afe_bias_control);
 
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Enable PLL */
-	if (is_b0())
+	if (is_b0() || is_c0())
 		writel(0x80040A08, &scic->scu_registers->afe.afe_pll_control0);
 	else
 		writel(0x80040908, &scic->scu_registers->afe.afe_pll_control0);
@@ -2102,6 +2102,16 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
 			 /* Configure transmitter SSC parameters */
 			writel(0x00030000, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_ssc_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
+		} else if (is_c0()) {
+			 /* Configure transmitter SSC parameters */
+			writel(0x0003000, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_ssc_control);
+			udelay(AFE_REGISTER_WRITE_DELAY);
+
+			/*
+			 * All defaults, except the Receive Word Alignament/Comma Detect
+			 * Enable....(0xe800) */
+			writel(0x00004500, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control0);
+			udelay(AFE_REGISTER_WRITE_DELAY);
 		} else {
 			/*
 			 * All defaults, except the Receive Word Alignament/Comma Detect
@@ -2120,15 +2130,23 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
 			writel(0x000003D4, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 		else if (is_a2())
 			writel(0x000003F0, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
-		else {
+		else if (is_b0()) {
 			 /* Power down TX and RX (PWRDNTX and PWRDNRX) */
-			writel(0x000003d7, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000003D7, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
 			/*
 			 * Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
 			 * & increase TX int & ext bias 20%....(0xe85c) */
-			writel(0x000003d4, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000003D4, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+		} else {
+			writel(0x000001E7, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			udelay(AFE_REGISTER_WRITE_DELAY);
+
+			/*
+			 * Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
+			 * & increase TX int & ext bias 20%....(0xe85c) */
+			writel(0x000001E4, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 		}
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
@@ -2149,12 +2167,22 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
 			writel(0x3F09983F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
 		else if (is_a2())
 			writel(0x3F11103F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
-		else {
+		else if (is_b0()) {
 			writel(0x3F11103F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 			/* Enable TX equalization (0xe824) */
 			writel(0x00040000, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
+		} else {
+			writel(0x0140DF0F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control1);
+			udelay(AFE_REGISTER_WRITE_DELAY);
+
+			writel(0x3F6F103F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
+			udelay(AFE_REGISTER_WRITE_DELAY);
+
+			/* Enable TX equalization (0xe824) */
+			writel(0x00040000, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
 		}
+
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		writel(oem_phy->afe_tx_amp_control0,

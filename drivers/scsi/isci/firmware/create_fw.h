@@ -65,10 +65,10 @@ static const int max_num_concurrent_dev_spin_up = 1;
 static const int enable_ssc;
 
 /* AFE_TX_AMP_CONTROL */
-static const unsigned int afe_tx_amp_control0 = 0x000e7c03;
-static const unsigned int afe_tx_amp_control1 = 0x000e7c03;
-static const unsigned int afe_tx_amp_control2 = 0x000e7c03;
-static const unsigned int afe_tx_amp_control3 = 0x000e7c03;
+static const unsigned int afe_tx_amp_control0 = 0x000bdd08;
+static const unsigned int afe_tx_amp_control1 = 0x000ffc00;
+static const unsigned int afe_tx_amp_control2 = 0x000b7c09;
+static const unsigned int afe_tx_amp_control3 = 0x000afc6e;
 
 static const char blob_name[] = "isci_firmware.bin";
 static const char sig[] = "ISCUOEMB";
