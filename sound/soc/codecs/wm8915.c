@@ -2382,6 +2382,20 @@ static irqreturn_t wm8915_irq(int irq, void *data)
 	}
 }
 
+static irqreturn_t wm8915_edge_irq(int irq, void *data)
+{
+	irqreturn_t ret = IRQ_NONE;
+	irqreturn_t val;
+
+	do {
+		val = wm8915_irq(irq, data);
+		if (val != IRQ_NONE)
+			ret = val;
+	} while (val != IRQ_NONE);
+
+	return ret;
+}
+
 static void wm8915_retune_mobile_pdata(struct snd_soc_codec *codec)
 {
 	struct wm8915_priv *wm8915 = snd_soc_codec_get_drvdata(codec);
@@ -2708,8 +2722,14 @@ static int wm8915_probe(struct snd_soc_codec *codec)
 
 		irq_flags |= IRQF_ONESHOT;
 
-		ret = request_threaded_irq(i2c->irq, NULL, wm8915_irq,
-					   irq_flags, "wm8915", codec);
+		if (irq_flags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING))
+			ret = request_threaded_irq(i2c->irq, NULL,
+						   wm8915_edge_irq,
+						   irq_flags, "wm8915", codec);
+		else
+			ret = request_threaded_irq(i2c->irq, NULL, wm8915_irq,
+						   irq_flags, "wm8915", codec);
+
 		if (ret == 0) {
 			/* Unmask the interrupt */
 			snd_soc_update_bits(codec, WM8915_INTERRUPT_CONTROL,
