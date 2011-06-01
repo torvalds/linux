@@ -1286,6 +1286,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 
 	page->freelist = start;
 	page->inuse = 0;
+	page->frozen = 1;
 out:
 	return page;
 }
@@ -1424,7 +1425,6 @@ static inline int lock_and_freeze_slab(struct kmem_cache_node *n,
 {
 	if (slab_trylock(page)) {
 		__remove_partial(n, page);
-		page->frozen = 1;
 		return 1;
 	}
 	return 0;
@@ -1538,7 +1538,6 @@ static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
 {
 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
 
-	page->frozen = 0;
 	if (page->inuse) {
 
 		if (page->freelist) {
@@ -1671,6 +1670,7 @@ static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 	}
 	c->page = NULL;
 	c->tid = next_tid(c->tid);
+	page->frozen = 0;
 	unfreeze_slab(s, page, tail);
 }
 
@@ -1831,6 +1831,8 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
 	stat(s, ALLOC_REFILL);
 
 load_freelist:
+	VM_BUG_ON(!page->frozen);
+
 	object = page->freelist;
 	if (unlikely(!object))
 		goto another_slab;
@@ -1854,6 +1856,7 @@ new_slab:
 	page = get_partial(s, gfpflags, node);
 	if (page) {
 		stat(s, ALLOC_FROM_PARTIAL);
+		page->frozen = 1;
 		c->node = page_to_nid(page);
 		c->page = page;
 		goto load_freelist;
@@ -2371,6 +2374,7 @@ static void early_kmem_cache_node_alloc(int node)
 	BUG_ON(!n);
 	page->freelist = get_freepointer(kmem_cache_node, n);
 	page->inuse++;
+	page->frozen = 0;
 	kmem_cache_node->node[node] = n;
 #ifdef CONFIG_SLUB_DEBUG
 	init_object(kmem_cache_node, n, SLUB_RED_ACTIVE);
