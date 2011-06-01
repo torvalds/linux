@@ -319,9 +319,6 @@ struct wlc_pub {
 	u32 boardflags;	/* Board specific flags from srom */
 	u32 boardflags2;	/* More board flags if sromrev >= 4 */
 	bool tempsense_disable;	/* disable periodic tempsense check */
-
-	bool _lmac;		/* lmac module included and enabled */
-	bool _lmacproto;	/* lmac protocol module included and enabled */
 	bool phy_11ncapable;	/* the PHY/HW is capable of 802.11N */
 	bool _ampdumac;		/* mac assist ampdu enabled or not */
 
