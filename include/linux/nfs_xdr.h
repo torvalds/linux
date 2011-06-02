@@ -1092,6 +1092,16 @@ struct nfs41_secinfo_no_name_args {
 	struct nfs4_sequence_args	seq_args;
 };
 
+struct nfs41_test_stateid_args {
+	nfs4_stateid			*stateid;
+	struct nfs4_sequence_args	seq_args;
+};
+
+struct nfs41_test_stateid_res {
+	unsigned int			status;
+	struct nfs4_sequence_res	seq_res;
+};
+
 #endif /* CONFIG_NFS_V4_1 */
 
 struct nfs_page;
