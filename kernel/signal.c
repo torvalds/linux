@@ -224,6 +224,39 @@ static inline void print_dropped_signal(int sig)
 }
 
 /**
+ * task_set_jobctl_pending - set jobctl pending bits
+ * @task: target task
+ * @mask: pending bits to set
+ *
+ * Clear @mask from @task->jobctl.  @mask must be subset of
+ * %JOBCTL_PENDING_MASK | %JOBCTL_STOP_CONSUME | %JOBCTL_STOP_SIGMASK |
+ * %JOBCTL_TRAPPING.  If stop signo is being set, the existing signo is
+ * cleared.  If @task is already being killed or exiting, this function
+ * becomes noop.
+ *
+ * CONTEXT:
+ * Must be called with @task->sighand->siglock held.
+ *
+ * RETURNS:
+ * %true if @mask is set, %false if made noop because @task was dying.
+ */
+bool task_set_jobctl_pending(struct task_struct *task, unsigned int mask)
+{
+	BUG_ON(mask & ~(JOBCTL_PENDING_MASK | JOBCTL_STOP_CONSUME |
+			JOBCTL_STOP_SIGMASK | JOBCTL_TRAPPING));
+	BUG_ON((mask & JOBCTL_TRAPPING) && !(mask & JOBCTL_PENDING_MASK));
+
+	if (unlikely(fatal_signal_pending(task) || (task->flags & PF_EXITING)))
+		return false;
+
+	if (mask & JOBCTL_STOP_SIGMASK)
+		task->jobctl &= ~JOBCTL_STOP_SIGMASK;
+
+	task->jobctl |= mask;
+	return true;
+}
+
+/**
  * task_clear_jobctl_trapping - clear jobctl trapping bit
  * @task: target task
  *
@@ -1902,19 +1935,20 @@ static int do_signal_stop(int signr)
 		else
 			WARN_ON_ONCE(!task_ptrace(current));
 
-		current->jobctl &= ~JOBCTL_STOP_SIGMASK;
-		current->jobctl |= signr | gstop;
-		sig->group_stop_count = 1;
+		sig->group_stop_count = 0;
+
+		if (task_set_jobctl_pending(current, signr | gstop))
+			sig->group_stop_count++;
+
 		for (t = next_thread(current); t != current;
 		     t = next_thread(t)) {
-			t->jobctl &= ~JOBCTL_STOP_SIGMASK;
 			/*
 			 * Setting state to TASK_STOPPED for a group
 			 * stop is always done with the siglock held,
 			 * so this check has no races.
 			 */
-			if (!(t->flags & PF_EXITING) && !task_is_stopped(t)) {
-				t->jobctl |= signr | gstop;
+			if (!task_is_stopped(t) &&
+			    task_set_jobctl_pending(t, signr | gstop)) {
 				sig->group_stop_count++;
 				signal_wake_up(t, 0);
 			}

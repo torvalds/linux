@@ -256,10 +256,10 @@ static int ptrace_attach(struct task_struct *task)
 	 * The following task_is_stopped() test is safe as both transitions
 	 * in and out of STOPPED are protected by siglock.
 	 */
-	if (task_is_stopped(task)) {
-		task->jobctl |= JOBCTL_STOP_PENDING | JOBCTL_TRAPPING;
+	if (task_is_stopped(task) &&
+	    task_set_jobctl_pending(task,
+				    JOBCTL_STOP_PENDING | JOBCTL_TRAPPING))
 		signal_wake_up(task, 1);
-	}
 
 	spin_unlock(&task->sighand->siglock);
 

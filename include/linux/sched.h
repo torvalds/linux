@@ -1819,6 +1819,8 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
 
 #define JOBCTL_PENDING_MASK	JOBCTL_STOP_PENDING
 
+extern bool task_set_jobctl_pending(struct task_struct *task,
+				    unsigned int mask);
 extern void task_clear_jobctl_pending(struct task_struct *task,
 				      unsigned int mask);
 
