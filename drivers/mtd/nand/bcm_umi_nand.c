@@ -489,23 +489,8 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 	}
 
 	/* Register the partitions */
-	{
-		int nr_partitions;
-		struct mtd_partition *partition_info;
-
-		board_mtd->name = "bcm_umi-nand";
-		nr_partitions = parse_mtd_partitions(board_mtd, NULL,
-						     &partition_info, 0);
-
-		if (nr_partitions <= 0) {
-			printk(KERN_ERR "BCM UMI NAND: Too few partitions - %d\n",
-			       nr_partitions);
-			iounmap(bcm_umi_io_base);
-			kfree(board_mtd);
-			return -EIO;
-		}
-		mtd_device_register(board_mtd, partition_info, nr_partitions);
-	}
+	board_mtd->name = "bcm_umi-nand";
+	mtd_device_parse_register(board_mtd, NULL, 0, NULL, 0);
 
 	/* Return happy */
 	return 0;
