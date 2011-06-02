@@ -922,6 +922,9 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			ret = -ret;
 			goto out;
 		}
+		/* ICMP[v6] protocol trackers may assign one conntrack. */
+		if (skb->nfct)
+			goto out;
 	}
 
 	ct = resolve_normal_ct(net, tmpl, skb, dataoff, pf, protonum,
