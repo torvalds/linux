@@ -81,18 +81,18 @@ static int aw9364_backlight_set(struct backlight_device *bl, int brightness)
 		gpio_direction_output(data->pin_en, GPIO_LOW);
 		mdelay(3);
 	}
-	
-	for(i=0; i<num_clk; i++)
-	{
-		gpio_direction_output(data->pin_en, GPIO_LOW);
-		udelay(5);	
-		gpio_direction_output(data->pin_en, GPIO_HIGH);
-		if(i==0)
-		udelay(50);
-		else 
-		udelay(2);		
+	else {
+		for(i=0; i<num_clk; i++)
+		{
+			gpio_direction_output(data->pin_en, GPIO_LOW);
+			udelay(5);	
+			gpio_direction_output(data->pin_en, GPIO_HIGH);
+			if(i==0)
+			udelay(50);
+			else 
+			udelay(2);		
+		}
 	}
-			
 	DBG("%s:current_bl=%d,bl=%d,num_clk_to=%d,num_clk_from=%d,num_clk=%d\n",__FUNCTION__,
 		data->current_brightness,brightness,num_clk_to,num_clk_from,num_clk);
 
