@@ -803,9 +803,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	/* We register the whole device first, separate from the partitions */
 	mtd_device_register(mtd, NULL, 0);
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
 	mtd->name = "cafe_nand";
-#endif
 	nr_parts = parse_mtd_partitions(mtd, part_probes, &parts, 0);
 	if (nr_parts > 0) {
 		cafe->parts = parts;
