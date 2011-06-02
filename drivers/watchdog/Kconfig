@@ -888,6 +888,20 @@ config M54xx_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called m54xx_wdt.
 
+# MicroBlaze Architecture
+
+config XILINX_WATCHDOG
+	tristate "Xilinx Watchdog timer"
+	depends on MICROBLAZE
+	---help---
+	  Watchdog driver for the xps_timebase_wdt ip core.
+
+	  IMPORTANT: The xps_timebase_wdt parent must have the property
+	  "clock-frequency" at device tree.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called of_xilinx_wdt.
+
 # MIPS Architecture
 
 config ATH79_WDT
