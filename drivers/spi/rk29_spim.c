@@ -100,9 +100,9 @@ void rk29_lcd_spim_spin_lock(void)
 
 void rk29_lcd_spim_spin_unlock(void)
 {
-	enable_irq(IRQ_SPI0);
-	enable_irq(IRQ_SPI1);
 	preempt_enable();
+	enable_irq(IRQ_SPI1);
+	enable_irq(IRQ_SPI0);
 }
 #else
 void rk29_lcd_spim_spin_lock(void)
