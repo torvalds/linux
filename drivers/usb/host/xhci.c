@@ -430,12 +430,19 @@ int xhci_run(struct usb_hcd *hcd)
 		free_irq(hcd->irq, hcd);
 	hcd->irq = -1;
 
+	/* Some Fresco Logic host controllers advertise MSI, but fail to
+	 * generate interrupts.  Don't even try to enable MSI.
+	 */
+	if (xhci->quirks & XHCI_BROKEN_MSI)
+		goto legacy_irq;
+
 	ret = xhci_setup_msix(xhci);
 	if (ret)
 		/* fall back to msi*/
 		ret = xhci_setup_msi(xhci);
 
 	if (ret) {
+legacy_irq:
 		/* fall back to legacy interrupt*/
 		ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
 					hcd->irq_descr, hcd);
