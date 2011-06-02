@@ -639,7 +639,7 @@ static void omap_sham_finish_req(struct ahash_request *req, int err)
 	struct omap_sham_dev *dd = ctx->dd;
 
 	if (!err) {
-		omap_sham_copy_hash(ctx->dd->req, 1);
+		omap_sham_copy_hash(req, 1);
 		if (ctx->flags & FLAGS_FINAL)
 			err = omap_sham_finish(req);
 	} else {
