@@ -27,8 +27,3 @@
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
-
-struct syscore_ops s3c24xx_irq_syscore_ops = {
-	.suspend	= s3c24xx_irq_suspend,
-	.resume		= s3c24xx_irq_resume,
-};
