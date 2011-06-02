@@ -64,7 +64,7 @@
  *
  */
 
-#include "state_machine.h"
+#include "isci.h"
 
 /**
  *

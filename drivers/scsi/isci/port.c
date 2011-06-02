@@ -1807,11 +1807,7 @@ static const struct sci_base_state scic_sds_port_state_table[] = {
 void scic_sds_port_construct(struct scic_sds_port *sci_port, u8 index,
 			     struct scic_sds_controller *scic)
 {
-	sci_base_state_machine_construct(&sci_port->sm,
-					 scic_sds_port_state_table,
-					 SCI_PORT_STOPPED);
-
-	sci_base_state_machine_start(&sci_port->sm);
+	sci_init_sm(&sci_port->sm, scic_sds_port_state_table, SCI_PORT_STOPPED);
 
 	sci_port->logical_port_index  = SCIC_SDS_DUMMY_PORT;
 	sci_port->physical_port_index = index;

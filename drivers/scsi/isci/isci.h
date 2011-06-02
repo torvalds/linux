@@ -57,6 +57,7 @@
 #define __ISCI_H__
 
 #include <linux/interrupt.h>
+#include <linux/types.h>
 
 #define DRV_NAME "isci"
 #define SCI_PCI_BAR_COUNT 2
@@ -584,4 +585,22 @@ static inline void sci_del_timer(struct sci_timer *tmr)
 	del_timer(&tmr->timer);
 }
 
+struct sci_base_state_machine {
+	const struct sci_base_state *state_table;
+	u32 initial_state_id;
+	u32 current_state_id;
+	u32 previous_state_id;
+};
+
+typedef void (*sci_state_transition_t)(struct sci_base_state_machine *sm);
+
+struct sci_base_state {
+	sci_state_transition_t enter_state;	/* Called on state entry */
+	sci_state_transition_t exit_state;	/* Called on state exit */
+};
+
+extern void sci_init_sm(struct sci_base_state_machine *sm,
+			const struct sci_base_state *state_table,
+			u32 initial_state);
+extern void sci_change_state(struct sci_base_state_machine *sm, u32 next_state);
 #endif  /* __ISCI_H__ */

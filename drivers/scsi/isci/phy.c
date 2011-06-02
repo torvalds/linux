@@ -1294,11 +1294,7 @@ static const struct sci_base_state scic_sds_phy_state_table[] = {
 void scic_sds_phy_construct(struct scic_sds_phy *sci_phy,
 			    struct scic_sds_port *owning_port, u8 phy_index)
 {
-	sci_base_state_machine_construct(&sci_phy->sm,
-					 scic_sds_phy_state_table,
-					 SCI_PHY_INITIAL);
-
-	sci_base_state_machine_start(&sci_phy->sm);
+	sci_init_sm(&sci_phy->sm, scic_sds_phy_state_table, SCI_PHY_INITIAL);
 
 	/* Copy the rest of the input data to our locals */
 	sci_phy->owning_port = owning_port;

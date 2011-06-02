@@ -1095,11 +1095,7 @@ static void scic_remote_device_construct(struct scic_sds_port *sci_port,
 	sci_dev->owning_port = sci_port;
 	sci_dev->started_request_count = 0;
 
-	sci_base_state_machine_construct(&sci_dev->sm,
-					 scic_sds_remote_device_state_table,
-					 SCI_DEV_INITIAL);
-
-	sci_base_state_machine_start(&sci_dev->sm);
+	sci_init_sm(&sci_dev->sm, scic_sds_remote_device_state_table, SCI_DEV_INITIAL);
 
 	scic_sds_remote_node_context_construct(&sci_dev->rnc,
 					       SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX);

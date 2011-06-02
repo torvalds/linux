@@ -54,7 +54,7 @@
  */
 
 #include "host.h"
-#include "state_machine.h"
+#include "isci.h"
 #include "remote_device.h"
 #include "remote_node_context.h"
 #include "scu_event_codes.h"
@@ -373,11 +373,7 @@ void scic_sds_remote_node_context_construct(struct scic_sds_remote_node_context 
 	rnc->remote_node_index = remote_node_index;
 	rnc->destination_state = SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_UNSPECIFIED;
 
-	sci_base_state_machine_construct(&rnc->sm,
-					 scic_sds_remote_node_context_state_table,
-					 SCI_RNC_INITIAL);
-
-	sci_base_state_machine_start(&rnc->sm);
+	sci_init_sm(&rnc->sm, scic_sds_remote_node_context_state_table, SCI_RNC_INITIAL);
 }
 
 enum sci_status scic_sds_remote_node_context_event_handler(struct scic_sds_remote_node_context *sci_rnc,

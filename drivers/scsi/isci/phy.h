@@ -57,7 +57,7 @@
 
 #include <scsi/sas.h>
 #include <scsi/libsas.h>
-#include "state_machine.h"
+#include "isci.h"
 #include "sas.h"
 
 /* This is the timeout value for the SATA phy to wait for a SIGNATURE FIS

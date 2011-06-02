@@ -197,6 +197,39 @@
  */
 #define COMPLETION_QUEUE_CYCLE_BIT(x) ((x) & 0x80000000)
 
+/* Init the state machine and call the state entry function (if any) */
+void sci_init_sm(struct sci_base_state_machine *sm,
+		 const struct sci_base_state *state_table, u32 initial_state)
+{
+	sci_state_transition_t handler;
+
+	sm->initial_state_id    = initial_state;
+	sm->previous_state_id   = initial_state;
+	sm->current_state_id    = initial_state;
+	sm->state_table         = state_table;
+
+	handler = sm->state_table[initial_state].enter_state;
+	if (handler)
+		handler(sm);
+}
+
+/* Call the state exit fn, update the current state, call the state entry fn */
+void sci_change_state(struct sci_base_state_machine *sm, u32 next_state)
+{
+	sci_state_transition_t handler;
+
+	handler = sm->state_table[sm->current_state_id].exit_state;
+	if (handler)
+		handler(sm);
+
+	sm->previous_state_id = sm->current_state_id;
+	sm->current_state_id = next_state;
+
+	handler = sm->state_table[sm->current_state_id].enter_state;
+	if (handler)
+		handler(sm);
+}
+
 static bool scic_sds_controller_completion_queue_has_entries(
 	struct scic_sds_controller *scic)
 {
@@ -1807,11 +1840,7 @@ static enum sci_status scic_controller_construct(struct scic_sds_controller *sci
 	struct isci_host *ihost = scic_to_ihost(scic);
 	u8 i;
 
-	sci_base_state_machine_construct(&scic->sm,
-					 scic_sds_controller_state_table,
-					 SCIC_INITIAL);
-
-	sci_base_state_machine_start(&scic->sm);
+	sci_init_sm(&scic->sm, scic_sds_controller_state_table, SCIC_INITIAL);
 
 	scic->scu_registers = scu_base;
 	scic->smu_registers = smu_base;

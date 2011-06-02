@@ -3077,10 +3077,7 @@ scic_sds_general_request_construct(struct scic_sds_controller *scic,
 				   u16 io_tag,
 				   struct scic_sds_request *sci_req)
 {
-	sci_base_state_machine_construct(&sci_req->sm,
-					 scic_sds_request_state_table,
-					 SCI_REQ_INIT);
-	sci_base_state_machine_start(&sci_req->sm);
+	sci_init_sm(&sci_req->sm, scic_sds_request_state_table, SCI_REQ_INIT);
 
 	sci_req->io_tag = io_tag;
 	sci_req->owning_controller = scic;
