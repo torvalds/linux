@@ -303,7 +303,7 @@ static int omap_sham_xmit_cpu(struct omap_sham_dev *dd, const u8 *buf,
 		return -ETIMEDOUT;
 
 	if (final)
-		set_bit(FLAGS_FINAL, &ctx->flags); /* catch last interrupt */
+		set_bit(FLAGS_FINAL, &dd->flags); /* catch last interrupt */
 
 	len32 = DIV_ROUND_UP(length, sizeof(u32));
 
@@ -336,7 +336,7 @@ static int omap_sham_xmit_dma(struct omap_sham_dev *dd, dma_addr_t dma_addr,
 	ctx->digcnt += length;
 
 	if (final)
-		set_bit(FLAGS_FINAL, &ctx->flags); /* catch last interrupt */
+		set_bit(FLAGS_FINAL, &dd->flags); /* catch last interrupt */
 
 	set_bit(FLAGS_DMA_ACTIVE, &dd->flags);
 
@@ -642,7 +642,7 @@ static void omap_sham_finish_req(struct ahash_request *req, int err)
 
 	if (!err) {
 		omap_sham_copy_hash(req, 1);
-		if (test_bit(FLAGS_FINAL, &ctx->flags))
+		if (test_bit(FLAGS_FINAL, &dd->flags))
 			err = omap_sham_finish(req);
 	} else {
 		ctx->flags |= BIT(FLAGS_ERROR);
@@ -1034,10 +1034,9 @@ static void omap_sham_done_task(unsigned long data)
 {
 	struct omap_sham_dev *dd = (struct omap_sham_dev *)data;
 	struct ahash_request *req = dd->req;
-	struct omap_sham_reqctx *ctx = ahash_request_ctx(req);
 	int ready = 0, err = 0;
 
-	if (test_and_clear_bit(FLAGS_OUTPUT_READY, &ctx->flags))
+	if (test_and_clear_bit(FLAGS_OUTPUT_READY, &dd->flags))
 		ready = 1;
 
 	if (test_and_clear_bit(FLAGS_DMA_ACTIVE, &dd->flags)) {
@@ -1067,14 +1066,8 @@ static void omap_sham_queue_task(unsigned long data)
 static irqreturn_t omap_sham_irq(int irq, void *dev_id)
 {
 	struct omap_sham_dev *dd = dev_id;
-	struct omap_sham_reqctx *ctx = ahash_request_ctx(dd->req);
 
-	if (!ctx) {
-		dev_err(dd->dev, "unknown interrupt.\n");
-		return IRQ_HANDLED;
-	}
-
-	if (unlikely(test_bit(FLAGS_FINAL, &ctx->flags)))
+	if (unlikely(test_bit(FLAGS_FINAL, &dd->flags)))
 		/* final -> allow device to go to power-saving mode */
 		omap_sham_write_mask(dd, SHA_REG_CTRL, 0, SHA_REG_CTRL_LENGTH);
 
@@ -1082,7 +1075,7 @@ static irqreturn_t omap_sham_irq(int irq, void *dev_id)
 				 SHA_REG_CTRL_OUTPUT_READY);
 	omap_sham_read(dd, SHA_REG_CTRL);
 
-	set_bit(FLAGS_OUTPUT_READY, &ctx->flags);
+	set_bit(FLAGS_OUTPUT_READY, &dd->flags);
 	dd->err = 0;
 	tasklet_schedule(&dd->done_task);
 
