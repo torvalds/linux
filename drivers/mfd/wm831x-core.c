@@ -1125,11 +1125,6 @@ static struct mfd_cell wm8311_devs[] = {
 		.resources = wm831x_status2_resources,
 	},
 	{
-		.name = "wm831x-touch",
-		.num_resources = ARRAY_SIZE(wm831x_touch_resources),
-		.resources = wm831x_touch_resources,
-	},
-	{
 		.name = "wm831x-watchdog",
 		.num_resources = ARRAY_SIZE(wm831x_wdt_resources),
 		.resources = wm831x_wdt_resources,
@@ -1286,11 +1281,6 @@ static struct mfd_cell wm8312_devs[] = {
 		.resources = wm831x_status2_resources,
 	},
 	{
-		.name = "wm831x-touch",
-		.num_resources = ARRAY_SIZE(wm831x_touch_resources),
-		.resources = wm831x_touch_resources,
-	},
-	{
 		.name = "wm831x-watchdog",
 		.num_resources = ARRAY_SIZE(wm831x_wdt_resources),
 		.resources = wm831x_wdt_resources,
@@ -1427,6 +1417,15 @@ static struct mfd_cell wm8320_devs[] = {
 		.resources = wm831x_wdt_resources,
 	},
 };
+
+static struct mfd_cell touch_devs[] = {
+	{
+		.name = "wm831x-touch",
+		.num_resources = ARRAY_SIZE(wm831x_touch_resources),
+		.resources = wm831x_touch_resources,
+	},
+};
+
 
 static struct mfd_cell backlight_devs[] = {
 	{
@@ -1624,12 +1623,20 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8311_devs, ARRAY_SIZE(wm8311_devs),
 				      NULL, wm831x->irq_base);
+		if (!pdata || !pdata->disable_touch)
+			mfd_add_devices(wm831x->dev, wm831x_num,
+					touch_devs, ARRAY_SIZE(touch_devs),
+					NULL, wm831x->irq_base);
 		break;
 
 	case WM8312:
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8312_devs, ARRAY_SIZE(wm8312_devs),
 				      NULL, wm831x->irq_base);
+		if (!pdata || !pdata->disable_touch)
+			mfd_add_devices(wm831x->dev, wm831x_num,
+					touch_devs, ARRAY_SIZE(touch_devs),
+					NULL, wm831x->irq_base);
 		break;
 
 	case WM8320:
