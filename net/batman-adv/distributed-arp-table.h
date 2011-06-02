@@ -23,6 +23,8 @@
 #include "types.h"
 #include "originator.h"
 
+#include <linux/if_arp.h>
+
 #define BATADV_DAT_ADDR_MAX ((batadv_dat_addr_t)~(batadv_dat_addr_t)0)
 
 /**

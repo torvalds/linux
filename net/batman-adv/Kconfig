@@ -4,7 +4,7 @@
 
 config BATMAN_ADV
 	tristate "B.A.T.M.A.N. Advanced Meshing Protocol"
-	depends on NET
+	depends on NET && INET
 	select CRC16
         default n
 	help
@@ -16,7 +16,7 @@ config BATMAN_ADV
 
 config BATMAN_ADV_BLA
 	bool "Bridge Loop Avoidance"
-	depends on BATMAN_ADV && INET
+	depends on BATMAN_ADV
 	default y
 	help
 	  This option enables BLA (Bridge Loop Avoidance), a mechanism
