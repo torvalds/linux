@@ -73,7 +73,7 @@ struct firmware_properties {
 	v4l2_std_id	std_req;
 	__u16		int_freq;
 	unsigned int	scode_table;
-	int 		scode_nr;
+	int		scode_nr;
 };
 
 struct xc4000_priv {
@@ -111,7 +111,7 @@ struct xc4000_priv {
 
 /* Product id */
 #define XC_PRODUCT_ID_FW_NOT_LOADED	0x2000
-#define XC_PRODUCT_ID_FW_LOADED 	0x0FA0
+#define XC_PRODUCT_ID_FW_LOADED	0x0FA0
 
 /* Registers (Write-only) */
 #define XREG_INIT         0x00
@@ -189,16 +189,16 @@ struct XC_TV_STANDARD {
 #define XC4000_DK_PAL_NICAM		10
 #define XC4000_DK_PAL_MONO		11
 #define XC4000_DK_SECAM_A2DK1		12
-#define XC4000_DK_SECAM_A2LDK3 		13
-#define XC4000_DK_SECAM_A2MONO 		14
+#define XC4000_DK_SECAM_A2LDK3		13
+#define XC4000_DK_SECAM_A2MONO		14
 #define XC4000_L_SECAM_NICAM		15
 #define XC4000_LC_SECAM_NICAM		16
 #define XC4000_DTV6			17
 #define XC4000_DTV8			18
 #define XC4000_DTV7_8			19
 #define XC4000_DTV7			20
-#define XC4000_FM_Radio_INPUT2 		21
-#define XC4000_FM_Radio_INPUT1  	22
+#define XC4000_FM_Radio_INPUT2		21
+#define XC4000_FM_Radio_INPUT1	22
 
 /* WAS :
 static struct XC_TV_STANDARD XC4000_Standard[MAX_TV_STANDARD] = {
@@ -565,7 +565,7 @@ static int xc4000_readreg(struct xc4000_priv *priv, u16 reg, u16 *val)
 	return XC_RESULT_SUCCESS;
 }
 
-#define dump_firm_type(t) 	dump_firm_type_and_int_freq(t, 0)
+#define dump_firm_type(t)	dump_firm_type_and_int_freq(t, 0)
 static void dump_firm_type_and_int_freq(unsigned int type, u16 int_freq)
 {
 	 if (type & BASE)
@@ -967,7 +967,7 @@ static int check_firmware(struct dvb_frontend *fe, unsigned int type,
 	int			   rc = 0, is_retry = 0;
 	u16			   version, hwmodel;
 	v4l2_std_id		   std0;
-	u8 			   hw_major, hw_minor, fw_major, fw_minor;
+	u8			   hw_major, hw_minor, fw_major, fw_minor;
 
 	dprintk(1, "%s called\n", __func__);
 
