@@ -335,6 +335,7 @@ struct mlx4_priv {
 	struct mlx4_cmd		cmd;
 
 	struct mlx4_bitmap	pd_bitmap;
+	struct mlx4_bitmap	xrcd_bitmap;
 	struct mlx4_uar_table	uar_table;
 	struct mlx4_mr_table	mr_table;
 	struct mlx4_cq_table	cq_table;
@@ -384,6 +385,7 @@ int mlx4_alloc_eq_table(struct mlx4_dev *dev);
 void mlx4_free_eq_table(struct mlx4_dev *dev);
 
 int mlx4_init_pd_table(struct mlx4_dev *dev);
+int mlx4_init_xrcd_table(struct mlx4_dev *dev);
 int mlx4_init_uar_table(struct mlx4_dev *dev);
 int mlx4_init_mr_table(struct mlx4_dev *dev);
 int mlx4_init_eq_table(struct mlx4_dev *dev);
@@ -393,6 +395,7 @@ int mlx4_init_srq_table(struct mlx4_dev *dev);
 int mlx4_init_mcg_table(struct mlx4_dev *dev);
 
 void mlx4_cleanup_pd_table(struct mlx4_dev *dev);
+void mlx4_cleanup_xrcd_table(struct mlx4_dev *dev);
 void mlx4_cleanup_uar_table(struct mlx4_dev *dev);
 void mlx4_cleanup_mr_table(struct mlx4_dev *dev);
 void mlx4_cleanup_eq_table(struct mlx4_dev *dev);
