@@ -654,7 +654,6 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op)
 	struct mpc5121_nfc_prv *prv;
 	struct resource res;
 	struct mtd_info *mtd;
-	struct mtd_partition *parts;
 	struct nand_chip *chip;
 	unsigned long regs_paddr, regs_size;
 	const __be32 *chips_no;
@@ -838,15 +837,7 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op)
 	dev_set_drvdata(dev, mtd);
 
 	/* Register device in MTD */
-	retval = parse_mtd_partitions(mtd, NULL, &parts, &ppdata);
-	if (retval < 0) {
-		dev_err(dev, "Error parsing MTD partitions!\n");
-		devm_free_irq(dev, prv->irq, mtd);
-		retval = -EINVAL;
-		goto error;
-	}
-
-	retval = mtd_device_register(mtd, parts, retval);
+	retval = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
 	if (retval) {
 		dev_err(dev, "Error adding MTD device!\n");
 		devm_free_irq(dev, prv->irq, mtd);
