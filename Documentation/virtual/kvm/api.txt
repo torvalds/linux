@@ -1323,7 +1323,7 @@ struct kvm_lapic_state {
 Copies the input argument into the the Local APIC registers.  The data format
 and layout are the same as documented in the architecture manual.
 
-4.56 KVM_IOEVENTFD
+4.58 KVM_IOEVENTFD
 
 Capability: KVM_CAP_IOEVENTFD
 Architectures: all
