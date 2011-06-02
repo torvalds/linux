@@ -191,9 +191,6 @@ static int ppchameleonevb_device_ready(struct mtd_info *minfo)
 static int __init ppchameleonevb_init(void)
 {
 	struct nand_chip *this;
-	const char *part_type = 0;
-	int mtd_parts_nb = 0;
-	struct mtd_partition *mtd_parts = 0;
 	void __iomem *ppchameleon_fio_base;
 	void __iomem *ppchameleonevb_fio_base;
 
@@ -276,24 +273,13 @@ static int __init ppchameleonevb_init(void)
 #endif
 
 	ppchameleon_mtd->name = "ppchameleon-nand";
-	mtd_parts_nb = parse_mtd_partitions(ppchameleon_mtd, NULL, &mtd_parts, 0);
-	if (mtd_parts_nb > 0)
-		part_type = "command line";
-	else
-		mtd_parts_nb = 0;
-
-	if (mtd_parts_nb == 0) {
-		if (ppchameleon_mtd->size == NAND_SMALL_SIZE)
-			mtd_parts = partition_info_me;
-		else
-			mtd_parts = partition_info_hi;
-		mtd_parts_nb = NUM_PARTITIONS;
-		part_type = "static";
-	}
 
 	/* Register the partitions */
-	printk(KERN_NOTICE "Using %s partition definition\n", part_type);
-	mtd_device_register(ppchameleon_mtd, mtd_parts, mtd_parts_nb);
+	mtd_device_parse_register(ppchameleon_mtd, NULL, 0,
+			ppchameleon_mtd->size == NAND_SMALL_SIZE ?
+				partition_info_me :
+				partition_info_hi,
+			NUM_PARTITIONS);
 
  nand_evb_init:
 	/****************************
@@ -377,21 +363,13 @@ static int __init ppchameleonevb_init(void)
 	}
 
 	ppchameleonevb_mtd->name = NAND_EVB_MTD_NAME;
-	mtd_parts_nb = parse_mtd_partitions(ppchameleonevb_mtd, NULL, &mtd_parts, 0);
-	if (mtd_parts_nb > 0)
-		part_type = "command line";
-	else
-		mtd_parts_nb = 0;
-
-	if (mtd_parts_nb == 0) {
-		mtd_parts = partition_info_evb;
-		mtd_parts_nb = NUM_PARTITIONS;
-		part_type = "static";
-	}
 
 	/* Register the partitions */
-	printk(KERN_NOTICE "Using %s partition definition\n", part_type);
-	mtd_device_register(ppchameleonevb_mtd, mtd_parts, mtd_parts_nb);
+	mtd_device_parse_register(ppchameleonevb_mtd, NULL, 0,
+			ppchameleon_mtd->size == NAND_SMALL_SIZE ?
+				partition_info_me :
+				partition_info_hi,
+			NUM_PARTITIONS);
 
 	/* Return happy */
 	return 0;
