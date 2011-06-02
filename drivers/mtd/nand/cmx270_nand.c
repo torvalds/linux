@@ -149,9 +149,6 @@ static int cmx270_device_ready(struct mtd_info *mtd)
 static int __init cmx270_init(void)
 {
 	struct nand_chip *this;
-	const char *part_type;
-	struct mtd_partition *mtd_parts;
-	int mtd_parts_nb = 0;
 	int ret;
 
 	if (!(machine_is_armcore() && cpu_is_pxa27x()))
@@ -220,22 +217,9 @@ static int __init cmx270_init(void)
 		goto err_scan;
 	}
 
-	mtd_parts_nb = parse_mtd_partitions(cmx270_nand_mtd, NULL,
-					    &mtd_parts, 0);
-	if (mtd_parts_nb > 0)
-		part_type = "command line";
-	else
-		mtd_parts_nb = 0;
-
-	if (!mtd_parts_nb) {
-		mtd_parts = partition_info;
-		mtd_parts_nb = NUM_PARTITIONS;
-		part_type = "static";
-	}
-
 	/* Register the partitions */
-	pr_notice("Using %s partition definition\n", part_type);
-	ret = mtd_device_register(cmx270_nand_mtd, mtd_parts, mtd_parts_nb);
+	ret = mtd_device_parse_register(cmx270_nand_mtd, NULL, 0,
+					partition_info, NUM_PARTITIONS);
 	if (ret)
 		goto err_scan;
 
