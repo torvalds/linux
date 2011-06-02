@@ -5694,8 +5694,8 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	if (vmx->nested.nested_run_pending)
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
 
-	if (exit_reason == EXIT_REASON_VMLAUNCH ||
-	    exit_reason == EXIT_REASON_VMRESUME)
+	if (!is_guest_mode(vcpu) && (exit_reason == EXIT_REASON_VMLAUNCH ||
+	    exit_reason == EXIT_REASON_VMRESUME))
 		vmx->nested.nested_run_pending = 1;
 	else
 		vmx->nested.nested_run_pending = 0;
