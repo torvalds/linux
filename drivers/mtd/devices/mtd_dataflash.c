@@ -637,8 +637,6 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 	struct flash_platform_data	*pdata = spi->dev.platform_data;
 	char				*otp_tag = "";
 	int				err = 0;
-	struct mtd_partition		*parts;
-	int				nr_parts = 0;
 
 	priv = kzalloc(sizeof *priv, GFP_KERNEL);
 	if (!priv)
@@ -677,23 +675,10 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 			pagesize, otp_tag);
 	dev_set_drvdata(&spi->dev, priv);
 
-	nr_parts = parse_mtd_partitions(device, NULL, &parts, 0);
+	err = mtd_device_parse_register(device, NULL, 0,
+			pdata ? pdata->parts : NULL,
+			pdata ? pdata->nr_parts : 0);
 
-	if (nr_parts <= 0 && pdata && pdata->parts) {
-		parts = pdata->parts;
-		nr_parts = pdata->nr_parts;
-	}
-
-	if (nr_parts > 0) {
-		priv->partitioned = 1;
-		err = mtd_device_register(device, parts, nr_parts);
-		goto out;
-	}
-
-	if (mtd_device_register(device, NULL, 0) == 1)
-		err = -ENODEV;
-
-out:
 	if (!err)
 		return 0;
 
