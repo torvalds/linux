@@ -1735,7 +1735,6 @@ static struct viafb_pm_hooks viafb_fb_pm_hooks = {
 int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 {
 	u32 default_xres, default_yres;
-	struct VideoModeTable *vmode_entry;
 	struct fb_var_screeninfo default_var;
 	int rc;
 	u32 viafb_par_length;
@@ -1808,7 +1807,6 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 	}
 
 	parse_mode(viafb_mode, &default_xres, &default_yres);
-	vmode_entry = viafb_get_mode(default_xres, default_yres);
 	if (viafb_SAMM_ON == 1)
 		parse_mode(viafb_mode1, &viafb_second_xres,
 			&viafb_second_yres);
