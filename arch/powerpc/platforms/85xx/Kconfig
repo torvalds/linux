@@ -67,6 +67,16 @@ config MPC85xx_RDB
 	help
 	  This option enables support for the MPC85xx RDB (P2020 RDB) board
 
+config P1010_RDB
+	bool "Freescale P1010RDB"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the MPC85xx RDB (P1010 RDB) board
+
+	  P1010RDB contains P1010Si, which provides CPU performance up to 800
+	  MHz and 1600 DMIPS, additional functionality and faster interfaces
+	  (DDR3/3L, SATA II, and PCI  Express).
+
 config P1022_DS
 	bool "Freescale P1022 DS"
 	select DEFAULT_UIMAGE
