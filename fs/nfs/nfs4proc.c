@@ -80,7 +80,10 @@ static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 static int nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 			    struct nfs_fattr *fattr, struct iattr *sattr,
 			    struct nfs4_state *state);
-
+#ifdef CONFIG_NFS_V4_1
+static int nfs41_test_stateid(struct nfs_server *, struct nfs4_state *);
+static int nfs41_free_stateid(struct nfs_server *, struct nfs4_state *);
+#endif
 /* Prevent leaks of NFSv4 errors into userland */
 static int nfs4_map_errors(int err)
 {
@@ -1686,6 +1689,20 @@ static int nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *sta
 	put_nfs_open_context(ctx);
 	return ret;
 }
+
+#if defined(CONFIG_NFS_V4_1)
+static int nfs41_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *state)
+{
+	int status;
+	struct nfs_server *server = NFS_SERVER(state->inode);
+
+	status = nfs41_test_stateid(server, state);
+	if (status == NFS_OK)
+		return 0;
+	nfs41_free_stateid(server, state);
+	return nfs4_open_expired(sp, state);
+}
+#endif
 
 /*
  * on an EXCLUSIVE create, the server should send back a bitmask with FATTR4-*
@@ -4444,6 +4461,20 @@ out:
 	return err;
 }
 
+#if defined(CONFIG_NFS_V4_1)
+static int nfs41_lock_expired(struct nfs4_state *state, struct file_lock *request)
+{
+	int status;
+	struct nfs_server *server = NFS_SERVER(state->inode);
+
+	status = nfs41_test_stateid(server, state);
+	if (status == NFS_OK)
+		return 0;
+	nfs41_free_stateid(server, state);
+	return nfs4_lock_expired(state, request);
+}
+#endif
+
 static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
 	struct nfs_inode *nfsi = NFS_I(state->inode);
@@ -6109,8 +6140,8 @@ struct nfs4_state_recovery_ops nfs40_nograce_recovery_ops = {
 struct nfs4_state_recovery_ops nfs41_nograce_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_NOGRACE,
 	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,
-	.recover_open	= nfs4_open_expired,
-	.recover_lock	= nfs4_lock_expired,
+	.recover_open	= nfs41_open_expired,
+	.recover_lock	= nfs41_lock_expired,
 	.establish_clid = nfs41_init_clientid,
 	.get_clid_cred	= nfs4_get_exchange_id_cred,
 };
