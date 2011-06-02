@@ -245,21 +245,6 @@ static struct platform_device physmap_flash = {
 	.num_resources	= 1,
 	.resource	= &physmap_flash_resource,
 };
-
-void physmap_configure(unsigned long addr, unsigned long size,
-		int bankwidth, void (*set_vpp)(struct map_info *, int))
-{
-	physmap_flash_resource.start = addr;
-	physmap_flash_resource.end = addr + size - 1;
-	physmap_flash_data.width = bankwidth;
-	physmap_flash_data.set_vpp = set_vpp;
-}
-
-void physmap_set_partitions(struct mtd_partition *parts, int num_parts)
-{
-	physmap_flash_data.nr_parts = num_parts;
-	physmap_flash_data.parts = parts;
-}
 #endif
 
 static int __init physmap_init(void)
