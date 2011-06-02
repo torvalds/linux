@@ -976,11 +976,6 @@ static struct mfd_cell wm8310_devs[] = {
 		.resources = wm831x_power_resources,
 	},
 	{
-		.name = "wm831x-rtc",
-		.num_resources = ARRAY_SIZE(wm831x_rtc_resources),
-		.resources = wm831x_rtc_resources,
-	},
-	{
 		.name = "wm831x-status",
 		.id = 1,
 		.num_resources = ARRAY_SIZE(wm831x_status1_resources),
@@ -1106,11 +1101,6 @@ static struct mfd_cell wm8311_devs[] = {
 		.name = "wm831x-power",
 		.num_resources = ARRAY_SIZE(wm831x_power_resources),
 		.resources = wm831x_power_resources,
-	},
-	{
-		.name = "wm831x-rtc",
-		.num_resources = ARRAY_SIZE(wm831x_rtc_resources),
-		.resources = wm831x_rtc_resources,
 	},
 	{
 		.name = "wm831x-status",
@@ -1264,11 +1254,6 @@ static struct mfd_cell wm8312_devs[] = {
 		.resources = wm831x_power_resources,
 	},
 	{
-		.name = "wm831x-rtc",
-		.num_resources = ARRAY_SIZE(wm831x_rtc_resources),
-		.resources = wm831x_rtc_resources,
-	},
-	{
 		.name = "wm831x-status",
 		.id = 1,
 		.num_resources = ARRAY_SIZE(wm831x_status1_resources),
@@ -1395,11 +1380,6 @@ static struct mfd_cell wm8320_devs[] = {
 		.resources = wm831x_on_resources,
 	},
 	{
-		.name = "wm831x-rtc",
-		.num_resources = ARRAY_SIZE(wm831x_rtc_resources),
-		.resources = wm831x_rtc_resources,
-	},
-	{
 		.name = "wm831x-status",
 		.id = 1,
 		.num_resources = ARRAY_SIZE(wm831x_status1_resources),
@@ -1426,6 +1406,13 @@ static struct mfd_cell touch_devs[] = {
 	},
 };
 
+static struct mfd_cell rtc_devs[] = {
+	{
+		.name = "wm831x-rtc",
+		.num_resources = ARRAY_SIZE(wm831x_rtc_resources),
+		.resources = wm831x_rtc_resources,
+	},
+};
 
 static struct mfd_cell backlight_devs[] = {
 	{
@@ -1656,6 +1643,27 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	if (ret != 0) {
 		dev_err(wm831x->dev, "Failed to add children\n");
 		goto err_irq;
+	}
+
+	/* The RTC can only be used if the 32.768kHz crystal is
+	 * enabled; this can't be controlled by software at runtime.
+	 */
+	ret = wm831x_reg_read(wm831x, WM831X_CLOCK_CONTROL_2);
+	if (ret < 0) {
+		dev_err(wm831x->dev, "Failed to read clock status: %d\n", ret);
+		goto err_irq;
+	}
+
+	if (ret & WM831X_XTAL_ENA) {
+		ret = mfd_add_devices(wm831x->dev, wm831x_num,
+				      rtc_devs, ARRAY_SIZE(rtc_devs),
+				      NULL, wm831x->irq_base);
+		if (ret != 0) {
+			dev_err(wm831x->dev, "Failed to add RTC: %d\n", ret);
+			goto err_irq;
+		}
+	} else {
+		dev_info(wm831x->dev, "32.768kHz clock disabled, no RTC\n");
 	}
 
 	if (pdata && pdata->backlight) {
