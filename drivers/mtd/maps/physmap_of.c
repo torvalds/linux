@@ -34,12 +34,9 @@ struct of_flash_list {
 
 struct of_flash {
 	struct mtd_info		*cmtd;
-	struct mtd_partition	*parts;
 	int list_size; /* number of elements in of_flash_list */
 	struct of_flash_list	list[0];
 };
-
-#define OF_FLASH_PARTS(info)	((info)->parts)
 
 static int of_flash_remove(struct platform_device *dev)
 {
@@ -56,11 +53,8 @@ static int of_flash_remove(struct platform_device *dev)
 		mtd_concat_destroy(info->cmtd);
 	}
 
-	if (info->cmtd) {
-		if (OF_FLASH_PARTS(info))
-			kfree(OF_FLASH_PARTS(info));
+	if (info->cmtd)
 		mtd_device_unregister(info->cmtd);
-	}
 
 	for (i = 0; i < info->list_size; i++) {
 		if (info->list[i].mtd)
@@ -290,15 +284,9 @@ static int __devinit of_flash_probe(struct platform_device *dev)
 
 	ppdata.of_node = dp;
 	part_probe_types = of_get_probes(dp);
-	err = parse_mtd_partitions(info->cmtd, part_probe_types,
-				   &info->parts, &ppdata);
-	if (err < 0) {
-		of_free_probes(part_probe_types);
-		goto err_out;
-	}
+	mtd_device_parse_register(info->cmtd, part_probe_types, &ppdata,
+			NULL, 0);
 	of_free_probes(part_probe_types);
-
-	mtd_device_register(info->cmtd, info->parts, err);
 
 	kfree(mtd_list);
 
