@@ -492,8 +492,6 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	struct resource *regs;
 	struct resource *mem;
 	int res;
-	struct mtd_partition *partitions = NULL;
-	int num_partitions = 0;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
@@ -652,24 +650,11 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	}
 
 	mtd->name = "atmel_nand";
-	num_partitions = parse_mtd_partitions(mtd, NULL, &partitions, 0);
-	if (num_partitions <= 0 && host->board->parts) {
-		partitions = host->board->parts;
-		num_partitions = host->board->num_parts;
-	}
-
-	if ((!partitions) || (num_partitions == 0)) {
-		printk(KERN_ERR "atmel_nand: No partitions defined, or unsupported device.\n");
-		res = -ENXIO;
-		goto err_no_partitions;
-	}
-
-	res = mtd_device_register(mtd, partitions, num_partitions);
+	res = mtd_device_parse_register(mtd, NULL, 0,
+			host->board->parts, host->board->num_parts);
 	if (!res)
 		return res;
 
-err_no_partitions:
-	nand_release(mtd);
 err_scan_tail:
 err_scan_ident:
 err_no_card:
