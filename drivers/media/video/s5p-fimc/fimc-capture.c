@@ -903,6 +903,7 @@ err_vd_reg:
 err_v4l2_reg:
 	v4l2_device_unregister(v4l2_dev);
 err_info:
+	kfree(ctx);
 	dev_err(&fimc->pdev->dev, "failed to install\n");
 	return ret;
 }
