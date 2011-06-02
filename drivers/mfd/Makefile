@@ -23,6 +23,7 @@ obj-$(CONFIG_MFD_TC6393XB)	+= tc6393xb.o tmio_core.o
 
 obj-$(CONFIG_MFD_WM8400)	+= wm8400-core.o
 wm831x-objs			:= wm831x-core.o wm831x-irq.o wm831x-otp.o
+wm831x-objs			+= wm831x-auxadc.o
 obj-$(CONFIG_MFD_WM831X)	+= wm831x.o
 obj-$(CONFIG_MFD_WM831X_I2C)	+= wm831x-i2c.o
 obj-$(CONFIG_MFD_WM831X_SPI)	+= wm831x-spi.o
