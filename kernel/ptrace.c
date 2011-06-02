@@ -25,6 +25,12 @@
 #include <linux/hw_breakpoint.h>
 
 
+static int ptrace_trapping_sleep_fn(void *flags)
+{
+	schedule();
+	return 0;
+}
+
 /*
  * ptrace a task: make the debugger its new parent and
  * move it to the ptrace list.
@@ -270,8 +276,8 @@ unlock_creds:
 	mutex_unlock(&task->signal->cred_guard_mutex);
 out:
 	if (!retval)
-		wait_event(current->signal->wait_chldexit,
-			   !(task->jobctl & JOBCTL_TRAPPING));
+		wait_on_bit(&task->jobctl, JOBCTL_TRAPPING_BIT,
+			    ptrace_trapping_sleep_fn, TASK_UNINTERRUPTIBLE);
 	return retval;
 }
 
