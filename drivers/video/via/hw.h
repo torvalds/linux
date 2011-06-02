@@ -637,8 +637,8 @@ extern int viafb_LCD_ON;
 extern int viafb_DVI_ON;
 extern int viafb_hotplug;
 
-void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
-	struct VideoModeTable *video_mode, int bpp_byte, int set_iga);
+void viafb_fill_crtc_timing(struct VideoModeTable *video_mode, int bpp_byte,
+	int set_iga);
 
 void viafb_set_vclock(u32 CLK, int set_iga);
 void viafb_load_reg(int timing_value, int viafb_load_reg_num,

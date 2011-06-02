@@ -190,12 +190,10 @@ void viafb_dvi_set_mode(struct VideoModeTable *mode, int mode_bpp,
 	if ((maxPixelClock != 0) && (desirePixelClock > maxPixelClock)) {
 		rb_mode = viafb_get_rb_mode(mode->crtc[0].crtc.hor_addr,
 			mode->crtc[0].crtc.ver_addr);
-		if (rb_mode) {
+		if (rb_mode)
 			mode = rb_mode;
-			pDviTiming = rb_mode->crtc;
-		}
 	}
-	viafb_fill_crtc_timing(pDviTiming, mode, mode_bpp / 8, set_iga);
+	viafb_fill_crtc_timing(mode, mode_bpp / 8, set_iga);
 }
 
 /* Sense DVI Connector */

@@ -1467,9 +1467,10 @@ void viafb_set_vclock(u32 clk, int set_iga)
 	via_write_misc_reg_mask(0x0C, 0x0C); /* select external clock */
 }
 
-void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
-	struct VideoModeTable *video_mode, int bpp_byte, int set_iga)
+void viafb_fill_crtc_timing(struct VideoModeTable *video_mode, int bpp_byte,
+	int set_iga)
 {
+	struct crt_mode_table *crt_table = video_mode->crtc;
 	struct display_timing crt_reg;
 	int i;
 	int index = 0;
@@ -1911,11 +1912,10 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	if (viafb_CRT_ON) {
 		if (viafb_SAMM_ON &&
 			viaparinfo->shared->iga2_devices & VIA_CRT) {
-			viafb_fill_crtc_timing(crt_timing1, vmode_tbl1,
-				video_bpp1 / 8, IGA2);
+			viafb_fill_crtc_timing(vmode_tbl1, video_bpp1 / 8,
+				IGA2);
 		} else {
-			viafb_fill_crtc_timing(crt_timing, vmode_tbl,
-				video_bpp / 8,
+			viafb_fill_crtc_timing(vmode_tbl, video_bpp / 8,
 				(viaparinfo->shared->iga1_devices & VIA_CRT)
 				? IGA1 : IGA2);
 		}
