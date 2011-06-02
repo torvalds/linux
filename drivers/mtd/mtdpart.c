@@ -712,11 +712,16 @@ int deregister_mtd_parser(struct mtd_part_parser *p)
 }
 EXPORT_SYMBOL_GPL(deregister_mtd_parser);
 
+static const char *default_mtd_part_types[] = {"cmdlinepart", NULL};
+
 int parse_mtd_partitions(struct mtd_info *master, const char **types,
 			 struct mtd_partition **pparts, unsigned long origin)
 {
 	struct mtd_part_parser *parser;
 	int ret = 0;
+
+	if (!types)
+		types = default_mtd_part_types;
 
 	for ( ; ret <= 0 && *types; types++) {
 		parser = get_partition_parser(*types);
