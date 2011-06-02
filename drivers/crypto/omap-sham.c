@@ -1084,7 +1084,6 @@ static irqreturn_t omap_sham_irq(int irq, void *dev_id)
 	omap_sham_read(dd, SHA_REG_CTRL);
 
 	set_bit(FLAGS_OUTPUT_READY, &dd->flags);
-	dd->err = 0;
 	tasklet_schedule(&dd->done_task);
 
 	return IRQ_HANDLED;
