@@ -1033,7 +1033,6 @@ static struct ahash_alg algs[] = {
 static void omap_sham_done_task(unsigned long data)
 {
 	struct omap_sham_dev *dd = (struct omap_sham_dev *)data;
-	struct ahash_request *req = dd->req;
 	int ready = 0, err = 0;
 
 	if (test_and_clear_bit(FLAGS_OUTPUT_READY, &dd->flags))
@@ -1050,7 +1049,7 @@ static void omap_sham_done_task(unsigned long data)
 	if (err != -EINPROGRESS && (ready || err)) {
 		dev_dbg(dd->dev, "update done: err: %d\n", err);
 		/* finish curent request */
-		omap_sham_finish_req(req, err);
+		omap_sham_finish_req(dd->req, err);
 		/* start new request */
 		omap_sham_handle_queue(dd, NULL);
 	}
