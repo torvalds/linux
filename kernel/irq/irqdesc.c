@@ -344,6 +344,12 @@ irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node)
 	if (!cnt)
 		return -EINVAL;
 
+	if (irq >= 0) {
+		if (from > irq)
+			return -EINVAL;
+		from = irq;
+	}
+
 	mutex_lock(&sparse_irq_lock);
 
 	start = bitmap_find_next_zero_area(allocated_irqs, IRQ_BITMAP_BITS,
