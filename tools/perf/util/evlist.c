@@ -455,33 +455,46 @@ int perf_evlist__set_filters(struct perf_evlist *evlist)
 	return 0;
 }
 
-u64 perf_evlist__sample_type(struct perf_evlist *evlist)
+bool perf_evlist__valid_sample_type(const struct perf_evlist *evlist)
 {
-	struct perf_evsel *pos;
-	u64 type = 0;
+	struct perf_evsel *pos, *first;
 
-	list_for_each_entry(pos, &evlist->entries, node) {
-		if (!type)
-			type = pos->attr.sample_type;
-		else if (type != pos->attr.sample_type)
-			die("non matching sample_type");
+	pos = first = list_entry(evlist->entries.next, struct perf_evsel, node);
+
+	list_for_each_entry_continue(pos, &evlist->entries, node) {
+		if (first->attr.sample_type != pos->attr.sample_type)
+			return false;
 	}
 
-	return type;
+	return true;
+}
+
+u64 perf_evlist__sample_type(const struct perf_evlist *evlist)
+{
+	struct perf_evsel *first;
+
+	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+	return first->attr.sample_type;
+}
+
+bool perf_evlist__valid_sample_id_all(const struct perf_evlist *evlist)
+{
+	struct perf_evsel *pos, *first;
+
+	pos = first = list_entry(evlist->entries.next, struct perf_evsel, node);
+
+	list_for_each_entry_continue(pos, &evlist->entries, node) {
+		if (first->attr.sample_id_all != pos->attr.sample_id_all)
+			return false;
+	}
+
+	return true;
 }
 
 bool perf_evlist__sample_id_all(const struct perf_evlist *evlist)
 {
-	bool value = false, first = true;
-	struct perf_evsel *pos;
+	struct perf_evsel *first;
 
-	list_for_each_entry(pos, &evlist->entries, node) {
-		if (first) {
-			value = pos->attr.sample_id_all;
-			first = false;
-		} else if (value != pos->attr.sample_id_all)
-			die("non matching sample_id_all");
-	}
-
-	return value;
+	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+	return first->attr.sample_id_all;
 }
