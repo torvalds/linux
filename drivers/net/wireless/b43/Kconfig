@@ -26,6 +26,11 @@ config B43
 	  This driver can be built as a module (recommended) that will be called "b43".
 	  If unsure, say M.
 
+config B43_BCMA
+	bool "Support for BCMA bus"
+	depends on B43 && BCMA && BROKEN
+	default y
+
 # Auto-select SSB PCI-HOST support, if possible
 config B43_PCI_AUTOSELECT
 	bool

@@ -5,6 +5,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/hw_random.h>
+#include <linux/bcma/bcma.h>
 #include <linux/ssb/ssb.h>
 #include <net/mac80211.h>
 
