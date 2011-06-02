@@ -650,8 +650,10 @@ static void omap_sham_finish_req(struct ahash_request *req, int err)
 		ctx->flags |= BIT(FLAGS_ERROR);
 	}
 
+	/* atomic operation is not needed here */
+	dd->flags &= ~(BIT(FLAGS_BUSY) | BIT(FLAGS_FINAL) | BIT(FLAGS_CPU) |
+			BIT(FLAGS_DMA_READY) | BIT(FLAGS_OUTPUT_READY));
 	clk_disable(dd->iclk);
-	dd->flags &= ~BIT(FLAGS_BUSY);
 
 	if (req->base.complete)
 		req->base.complete(&req->base, err);
