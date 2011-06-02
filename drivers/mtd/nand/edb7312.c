@@ -104,9 +104,6 @@ static int ep7312_device_ready(struct mtd_info *mtd)
 static int __init ep7312_init(void)
 {
 	struct nand_chip *this;
-	const char *part_type = 0;
-	int mtd_parts_nb = 0;
-	struct mtd_partition *mtd_parts = 0;
 	void __iomem *ep7312_fio_base;
 
 	/* Allocate memory for MTD device structure and private data */
@@ -156,20 +153,10 @@ static int __init ep7312_init(void)
 		return -ENXIO;
 	}
 	ep7312_mtd->name = "edb7312-nand";
-	mtd_parts_nb = parse_mtd_partitions(ep7312_mtd, NULL, &mtd_parts, 0);
-	if (mtd_parts_nb > 0)
-		part_type = "command line";
-	else
-		mtd_parts_nb = 0;
-	if (mtd_parts_nb == 0) {
-		mtd_parts = partition_info;
-		mtd_parts_nb = NUM_PARTITIONS;
-		part_type = "static";
-	}
 
 	/* Register the partitions */
-	printk(KERN_NOTICE "Using %s partition definition\n", part_type);
-	mtd_device_register(ep7312_mtd, mtd_parts, mtd_parts_nb);
+	mtd_device_register(ep7312_mtd, NULL, 0,
+			partition_info, NUM_PARTITIONS);
 
 	/* Return happy */
 	return 0;
