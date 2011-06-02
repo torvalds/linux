@@ -42,7 +42,6 @@ struct ndfc_controller {
 	struct nand_chip chip;
 	int chip_select;
 	struct nand_hw_control ndfc_control;
-	struct mtd_partition *parts;
 };
 
 static struct ndfc_controller ndfc_ctrl[NDFC_MAX_CS];
@@ -201,11 +200,7 @@ static int ndfc_chip_init(struct ndfc_controller *ndfc,
 	if (ret)
 		goto err;
 
-	ret = parse_mtd_partitions(&ndfc->mtd, NULL, &ndfc->parts, &ppdata);
-	if (ret < 0)
-		goto err;
-
-	ret = mtd_device_register(&ndfc->mtd, ndfc->parts, ret);
+	ret = mtd_device_parse_register(&ndfc->mtd, NULL, &ppdata, NULL, 0);
 
 err:
 	of_node_put(flash_np);
