@@ -193,9 +193,7 @@ static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
 		goto err;
 
 	ppdata.of_node = flash_np;
-	ret = parse_mtd_partitions(&fun->mtd, NULL, &fun->parts, &ppdata);
-
-	ret = mtd_device_register(&fun->mtd, fun->parts, ret);
+	ret = mtd_device_parse_register(&fun->mtd, NULL, &ppdata, NULL, 0);
 err:
 	of_node_put(flash_np);
 	return ret;
