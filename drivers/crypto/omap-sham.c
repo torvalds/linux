@@ -1085,6 +1085,11 @@ static irqreturn_t omap_sham_irq(int irq, void *dev_id)
 				 SHA_REG_CTRL_OUTPUT_READY);
 	omap_sham_read(dd, SHA_REG_CTRL);
 
+	if (!test_bit(FLAGS_BUSY, &dd->flags)) {
+		dev_warn(dd->dev, "Interrupt when no active requests.\n");
+		return IRQ_HANDLED;
+	}
+
 	set_bit(FLAGS_OUTPUT_READY, &dd->flags);
 	tasklet_schedule(&dd->done_task);
 
