@@ -184,7 +184,6 @@ bool ptrace_may_access(struct task_struct *task, unsigned int mode)
 
 static int ptrace_attach(struct task_struct *task)
 {
-	bool wait_trap = false;
 	int retval;
 
 	audit_ptrace(task);
@@ -246,7 +245,6 @@ static int ptrace_attach(struct task_struct *task)
 	if (task_is_stopped(task)) {
 		task->group_stop |= GROUP_STOP_PENDING | GROUP_STOP_TRAPPING;
 		signal_wake_up(task, 1);
-		wait_trap = true;
 	}
 
 	spin_unlock(&task->sighand->siglock);
@@ -257,7 +255,7 @@ unlock_tasklist:
 unlock_creds:
 	mutex_unlock(&task->signal->cred_guard_mutex);
 out:
-	if (wait_trap)
+	if (!retval)
 		wait_event(current->signal->wait_chldexit,
 			   !(task->group_stop & GROUP_STOP_TRAPPING));
 	return retval;
