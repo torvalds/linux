@@ -237,6 +237,7 @@
 struct regulator_dev;
 
 #define WM831X_NUM_IRQ_REGS 5
+#define WM831X_NUM_GPIO_REGS 16
 
 enum wm831x_parent {
 	WM8310 = 0x8310,
@@ -271,6 +272,9 @@ struct wm831x {
 	unsigned charger_irq_wake:1;     /* Are charger IRQs a wake source? */
 
 	int num_gpio;
+
+	/* Used by the interrupt controller code to post writes */
+	int gpio_update[WM831X_NUM_GPIO_REGS];
 
 	struct mutex auxadc_lock;
 	struct completion auxadc_done;

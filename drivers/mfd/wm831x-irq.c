@@ -348,6 +348,15 @@ static void wm831x_irq_sync_unlock(struct irq_data *data)
 	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 	int i;
 
+	for (i = 0; i < ARRAY_SIZE(wm831x->gpio_update); i++) {
+		if (wm831x->gpio_update[i]) {
+			wm831x_set_bits(wm831x, WM831X_GPIO1_CONTROL + i,
+					WM831X_GPN_INT_MODE | WM831X_GPN_POL,
+					wm831x->gpio_update[i]);
+			wm831x->gpio_update[i] = 0;
+		}
+	}
+
 	for (i = 0; i < ARRAY_SIZE(wm831x->irq_masks_cur); i++) {
 		/* If there's been a change in the mask write it back
 		 * to the hardware. */
@@ -387,7 +396,7 @@ static void wm831x_irq_disable(struct irq_data *data)
 static int wm831x_irq_set_type(struct irq_data *data, unsigned int type)
 {
 	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
-	int val, irq;
+	int irq;
 
 	irq = data->irq - wm831x->irq_base;
 
@@ -399,22 +408,25 @@ static int wm831x_irq_set_type(struct irq_data *data, unsigned int type)
 			return -EINVAL;
 	}
 
+	/* We set the high bit to flag that we need an update; don't
+	 * do the update here as we can be called with the bus lock
+	 * held.
+	 */
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:
-		val = WM831X_GPN_INT_MODE;
+		wm831x->gpio_update[irq] = 0x10000 | WM831X_GPN_INT_MODE;
 		break;
 	case IRQ_TYPE_EDGE_RISING:
-		val = WM831X_GPN_POL;
+		wm831x->gpio_update[irq] = 0x10000 | WM831X_GPN_POL;
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
-		val = 0;
+		wm831x->gpio_update[irq] = 0x10000;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return wm831x_set_bits(wm831x, WM831X_GPIO1_CONTROL + irq,
-			       WM831X_GPN_INT_MODE | WM831X_GPN_POL, val);
+	return 0;
 }
 
 static struct irq_chip wm831x_irq_chip = {
