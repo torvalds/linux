@@ -1480,7 +1480,7 @@ sub process_config_ignore {
 	or dodie "Failed to read $config";
 
     while (<IN>) {
-	if (/^(.*?(CONFIG\S*)(=.*| is not set))/) {
+	if (/^((CONFIG\S*)=.*)/) {
 	    $config_ignore{$2} = $1;
 	}
     }
