@@ -77,13 +77,13 @@ void __ptrace_unlink(struct task_struct *child)
 	spin_lock(&child->sighand->siglock);
 
 	/*
-	 * Reinstate GROUP_STOP_PENDING if group stop is in effect and
+	 * Reinstate JOBCTL_STOP_PENDING if group stop is in effect and
 	 * @child isn't dead.
 	 */
 	if (!(child->flags & PF_EXITING) &&
 	    (child->signal->flags & SIGNAL_STOP_STOPPED ||
 	     child->signal->group_stop_count))
-		child->group_stop |= GROUP_STOP_PENDING;
+		child->jobctl |= JOBCTL_STOP_PENDING;
 
 	/*
 	 * If transition to TASK_STOPPED is pending or in TASK_TRACED, kick
@@ -91,7 +91,7 @@ void __ptrace_unlink(struct task_struct *child)
 	 * is in TASK_TRACED; otherwise, we might unduly disrupt
 	 * TASK_KILLABLE sleeps.
 	 */
-	if (child->group_stop & GROUP_STOP_PENDING || task_is_traced(child))
+	if (child->jobctl & JOBCTL_STOP_PENDING || task_is_traced(child))
 		signal_wake_up(child, task_is_traced(child));
 
 	spin_unlock(&child->sighand->siglock);
@@ -226,7 +226,7 @@ static int ptrace_attach(struct task_struct *task)
 	spin_lock(&task->sighand->siglock);
 
 	/*
-	 * If the task is already STOPPED, set GROUP_STOP_PENDING and
+	 * If the task is already STOPPED, set JOBCTL_STOP_PENDING and
 	 * TRAPPING, and kick it so that it transits to TRACED.  TRAPPING
 	 * will be cleared if the child completes the transition or any
 	 * event which clears the group stop states happens.  We'll wait
@@ -243,7 +243,7 @@ static int ptrace_attach(struct task_struct *task)
 	 * in and out of STOPPED are protected by siglock.
 	 */
 	if (task_is_stopped(task)) {
-		task->group_stop |= GROUP_STOP_PENDING | GROUP_STOP_TRAPPING;
+		task->jobctl |= JOBCTL_STOP_PENDING | JOBCTL_TRAPPING;
 		signal_wake_up(task, 1);
 	}
 
@@ -257,7 +257,7 @@ unlock_creds:
 out:
 	if (!retval)
 		wait_event(current->signal->wait_chldexit,
-			   !(task->group_stop & GROUP_STOP_TRAPPING));
+			   !(task->jobctl & JOBCTL_TRAPPING));
 	return retval;
 }
 

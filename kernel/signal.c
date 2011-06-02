@@ -124,7 +124,7 @@ static inline int has_pending_signals(sigset_t *signal, sigset_t *blocked)
 
 static int recalc_sigpending_tsk(struct task_struct *t)
 {
-	if ((t->group_stop & GROUP_STOP_PENDING) ||
+	if ((t->jobctl & JOBCTL_STOP_PENDING) ||
 	    PENDING(&t->pending, &t->blocked) ||
 	    PENDING(&t->signal->shared_pending, &t->blocked)) {
 		set_tsk_thread_flag(t, TIF_SIGPENDING);
@@ -224,27 +224,28 @@ static inline void print_dropped_signal(int sig)
 }
 
 /**
- * task_clear_group_stop_trapping - clear group stop trapping bit
+ * task_clear_jobctl_trapping - clear jobctl trapping bit
  * @task: target task
  *
- * If GROUP_STOP_TRAPPING is set, a ptracer is waiting for us.  Clear it
- * and wake up the ptracer.  Note that we don't need any further locking.
- * @task->siglock guarantees that @task->parent points to the ptracer.
+ * If JOBCTL_TRAPPING is set, a ptracer is waiting for us to enter TRACED.
+ * Clear it and wake up the ptracer.  Note that we don't need any further
+ * locking.  @task->siglock guarantees that @task->parent points to the
+ * ptracer.
  *
  * CONTEXT:
  * Must be called with @task->sighand->siglock held.
  */
-static void task_clear_group_stop_trapping(struct task_struct *task)
+static void task_clear_jobctl_trapping(struct task_struct *task)
 {
-	if (unlikely(task->group_stop & GROUP_STOP_TRAPPING)) {
-		task->group_stop &= ~GROUP_STOP_TRAPPING;
+	if (unlikely(task->jobctl & JOBCTL_TRAPPING)) {
+		task->jobctl &= ~JOBCTL_TRAPPING;
 		__wake_up_sync_key(&task->parent->signal->wait_chldexit,
 				   TASK_UNINTERRUPTIBLE, 1, task);
 	}
 }
 
 /**
- * task_clear_group_stop_pending - clear pending group stop
+ * task_clear_jobctl_stop_pending - clear pending group stop
  * @task: target task
  *
  * Clear group stop states for @task.
@@ -252,19 +253,19 @@ static void task_clear_group_stop_trapping(struct task_struct *task)
  * CONTEXT:
  * Must be called with @task->sighand->siglock held.
  */
-void task_clear_group_stop_pending(struct task_struct *task)
+void task_clear_jobctl_stop_pending(struct task_struct *task)
 {
-	task->group_stop &= ~(GROUP_STOP_PENDING | GROUP_STOP_CONSUME |
-			      GROUP_STOP_DEQUEUED);
+	task->jobctl &= ~(JOBCTL_STOP_PENDING | JOBCTL_STOP_CONSUME |
+			  JOBCTL_STOP_DEQUEUED);
 }
 
 /**
  * task_participate_group_stop - participate in a group stop
  * @task: task participating in a group stop
  *
- * @task has GROUP_STOP_PENDING set and is participating in a group stop.
+ * @task has %JOBCTL_STOP_PENDING set and is participating in a group stop.
  * Group stop states are cleared and the group stop count is consumed if
- * %GROUP_STOP_CONSUME was set.  If the consumption completes the group
+ * %JOBCTL_STOP_CONSUME was set.  If the consumption completes the group
  * stop, the appropriate %SIGNAL_* flags are set.
  *
  * CONTEXT:
@@ -277,11 +278,11 @@ void task_clear_group_stop_pending(struct task_struct *task)
 static bool task_participate_group_stop(struct task_struct *task)
 {
 	struct signal_struct *sig = task->signal;
-	bool consume = task->group_stop & GROUP_STOP_CONSUME;
+	bool consume = task->jobctl & JOBCTL_STOP_CONSUME;
 
-	WARN_ON_ONCE(!(task->group_stop & GROUP_STOP_PENDING));
+	WARN_ON_ONCE(!(task->jobctl & JOBCTL_STOP_PENDING));
 
-	task_clear_group_stop_pending(task);
+	task_clear_jobctl_stop_pending(task);
 
 	if (!consume)
 		return false;
@@ -604,7 +605,7 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 		 * is to alert stop-signal processing code when another
 		 * processor has come along and cleared the flag.
 		 */
-		current->group_stop |= GROUP_STOP_DEQUEUED;
+		current->jobctl |= JOBCTL_STOP_DEQUEUED;
 	}
 	if ((info->si_code & __SI_MASK) == __SI_TIMER && info->si_sys_private) {
 		/*
@@ -809,7 +810,7 @@ static int prepare_signal(int sig, struct task_struct *p, int from_ancestor_ns)
 		rm_from_queue(SIG_KERNEL_STOP_MASK, &signal->shared_pending);
 		t = p;
 		do {
-			task_clear_group_stop_pending(t);
+			task_clear_jobctl_stop_pending(t);
 			rm_from_queue(SIG_KERNEL_STOP_MASK, &t->pending);
 			wake_up_state(t, __TASK_STOPPED);
 		} while_each_thread(p, t);
@@ -925,7 +926,7 @@ static void complete_signal(int sig, struct task_struct *p, int group)
 			signal->group_stop_count = 0;
 			t = p;
 			do {
-				task_clear_group_stop_pending(t);
+				task_clear_jobctl_stop_pending(t);
 				sigaddset(&t->pending.signal, SIGKILL);
 				signal_wake_up(t, 1);
 			} while_each_thread(p, t);
@@ -1160,7 +1161,7 @@ int zap_other_threads(struct task_struct *p)
 	p->signal->group_stop_count = 0;
 
 	while_each_thread(p, t) {
-		task_clear_group_stop_pending(t);
+		task_clear_jobctl_stop_pending(t);
 		count++;
 
 		/* Don't bother with already dead threads */
@@ -1738,7 +1739,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	 * clear now.  We act as if SIGCONT is received after TASK_TRACED
 	 * is entered - ignore it.
 	 */
-	if (why == CLD_STOPPED && (current->group_stop & GROUP_STOP_PENDING))
+	if (why == CLD_STOPPED && (current->jobctl & JOBCTL_STOP_PENDING))
 		gstop_done = task_participate_group_stop(current);
 
 	current->last_siginfo = info;
@@ -1751,12 +1752,12 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	set_current_state(TASK_TRACED);
 
 	/*
-	 * We're committing to trapping.  Clearing GROUP_STOP_TRAPPING and
+	 * We're committing to trapping.  Clearing JOBCTL_TRAPPING and
 	 * transition to TASK_TRACED should be atomic with respect to
-	 * siglock.  This hsould be done after the arch hook as siglock is
+	 * siglock.  This should be done after the arch hook as siglock is
 	 * released and regrabbed across it.
 	 */
-	task_clear_group_stop_trapping(current);
+	task_clear_jobctl_trapping(current);
 
 	spin_unlock_irq(&current->sighand->siglock);
 	read_lock(&tasklist_lock);
@@ -1792,9 +1793,9 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 		 *
 		 * If @gstop_done, the ptracer went away between group stop
 		 * completion and here.  During detach, it would have set
-		 * GROUP_STOP_PENDING on us and we'll re-enter TASK_STOPPED
-		 * in do_signal_stop() on return, so notifying the real
-		 * parent of the group stop completion is enough.
+		 * JOBCTL_STOP_PENDING on us and we'll re-enter
+		 * TASK_STOPPED in do_signal_stop() on return, so notifying
+		 * the real parent of the group stop completion is enough.
 		 */
 		if (gstop_done)
 			do_notify_parent_cldstop(current, false, why);
@@ -1856,14 +1857,14 @@ static int do_signal_stop(int signr)
 {
 	struct signal_struct *sig = current->signal;
 
-	if (!(current->group_stop & GROUP_STOP_PENDING)) {
-		unsigned int gstop = GROUP_STOP_PENDING | GROUP_STOP_CONSUME;
+	if (!(current->jobctl & JOBCTL_STOP_PENDING)) {
+		unsigned int gstop = JOBCTL_STOP_PENDING | JOBCTL_STOP_CONSUME;
 		struct task_struct *t;
 
-		/* signr will be recorded in task->group_stop for retries */
-		WARN_ON_ONCE(signr & ~GROUP_STOP_SIGMASK);
+		/* signr will be recorded in task->jobctl for retries */
+		WARN_ON_ONCE(signr & ~JOBCTL_STOP_SIGMASK);
 
-		if (!likely(current->group_stop & GROUP_STOP_DEQUEUED) ||
+		if (!likely(current->jobctl & JOBCTL_STOP_DEQUEUED) ||
 		    unlikely(signal_group_exit(sig)))
 			return 0;
 		/*
@@ -1890,19 +1891,19 @@ static int do_signal_stop(int signr)
 		else
 			WARN_ON_ONCE(!task_ptrace(current));
 
-		current->group_stop &= ~GROUP_STOP_SIGMASK;
-		current->group_stop |= signr | gstop;
+		current->jobctl &= ~JOBCTL_STOP_SIGMASK;
+		current->jobctl |= signr | gstop;
 		sig->group_stop_count = 1;
 		for (t = next_thread(current); t != current;
 		     t = next_thread(t)) {
-			t->group_stop &= ~GROUP_STOP_SIGMASK;
+			t->jobctl &= ~JOBCTL_STOP_SIGMASK;
 			/*
 			 * Setting state to TASK_STOPPED for a group
 			 * stop is always done with the siglock held,
 			 * so this check has no races.
 			 */
 			if (!(t->flags & PF_EXITING) && !task_is_stopped(t)) {
-				t->group_stop |= signr | gstop;
+				t->jobctl |= signr | gstop;
 				sig->group_stop_count++;
 				signal_wake_up(t, 0);
 			}
@@ -1943,23 +1944,23 @@ retry:
 
 		spin_lock_irq(&current->sighand->siglock);
 	} else {
-		ptrace_stop(current->group_stop & GROUP_STOP_SIGMASK,
+		ptrace_stop(current->jobctl & JOBCTL_STOP_SIGMASK,
 			    CLD_STOPPED, 0, NULL);
 		current->exit_code = 0;
 	}
 
 	/*
-	 * GROUP_STOP_PENDING could be set if another group stop has
+	 * JOBCTL_STOP_PENDING could be set if another group stop has
 	 * started since being woken up or ptrace wants us to transit
 	 * between TASK_STOPPED and TRACED.  Retry group stop.
 	 */
-	if (current->group_stop & GROUP_STOP_PENDING) {
-		WARN_ON_ONCE(!(current->group_stop & GROUP_STOP_SIGMASK));
+	if (current->jobctl & JOBCTL_STOP_PENDING) {
+		WARN_ON_ONCE(!(current->jobctl & JOBCTL_STOP_SIGMASK));
 		goto retry;
 	}
 
 	/* PTRACE_ATTACH might have raced with task killing, clear trapping */
-	task_clear_group_stop_trapping(current);
+	task_clear_jobctl_trapping(current);
 
 	spin_unlock_irq(&current->sighand->siglock);
 
@@ -2078,8 +2079,8 @@ relock:
 		if (unlikely(signr != 0))
 			ka = return_ka;
 		else {
-			if (unlikely(current->group_stop &
-				     GROUP_STOP_PENDING) && do_signal_stop(0))
+			if (unlikely(current->jobctl & JOBCTL_STOP_PENDING) &&
+			    do_signal_stop(0))
 				goto relock;
 
 			signr = dequeue_signal(current, &current->blocked,
@@ -2253,7 +2254,7 @@ void exit_signals(struct task_struct *tsk)
 	signotset(&unblocked);
 	retarget_shared_pending(tsk, &unblocked);
 
-	if (unlikely(tsk->group_stop & GROUP_STOP_PENDING) &&
+	if (unlikely(tsk->jobctl & JOBCTL_STOP_PENDING) &&
 	    task_participate_group_stop(tsk))
 		group_stop = CLD_STOPPED;
 out:
