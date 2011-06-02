@@ -283,8 +283,6 @@ static int __init cs553x_init(void)
 	int err = -ENXIO;
 	int i;
 	uint64_t val;
-	int mtd_parts_nb = 0;
-	struct mtd_partition *mtd_parts = NULL;
 
 	/* If the CPU isn't a Geode GX or LX, abort */
 	if (!is_geode())
@@ -314,11 +312,9 @@ static int __init cs553x_init(void)
 	   do mtdconcat etc. if we want to. */
 	for (i = 0; i < NR_CS553X_CONTROLLERS; i++) {
 		if (cs553x_mtd[i]) {
-
 			/* If any devices registered, return success. Else the last error. */
-			mtd_parts_nb = parse_mtd_partitions(cs553x_mtd[i], NULL, &mtd_parts, 0);
-			mtd_device_register(cs553x_mtd[i], mtd_parts,
-					    mtd_parts_nb);
+			mtd_device_parse_register(cs553x_mtd[i], NULL, 0,
+						  NULL, 0);
 			err = 0;
 		}
 	}
