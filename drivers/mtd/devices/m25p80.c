@@ -968,13 +968,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	/* partitions should match sector boundaries; and it may be good to
 	 * use readonly partitions for writeprotected sectors (BP2..BP0).
 	 */
-	if (mtd_has_cmdlinepart()) {
-		static const char *part_probes[]
-			= { "cmdlinepart", NULL, };
-
-		nr_parts = parse_mtd_partitions(&flash->mtd,
-						part_probes, &parts, 0);
-	}
+	nr_parts = parse_mtd_partitions(&flash->mtd, NULL, &parts, 0);
 
 	if (nr_parts <= 0 && data && data->parts) {
 		parts = data->parts;
