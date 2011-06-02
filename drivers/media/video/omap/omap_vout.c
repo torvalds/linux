@@ -546,10 +546,20 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 
 	spin_lock(&vout->vbq_lock);
 	do_gettimeofday(&timevalue);
-	if (cur_display->type == OMAP_DISPLAY_TYPE_DPI) {
-		if (!(irqstatus & DISPC_IRQ_VSYNC))
-			goto vout_isr_err;
 
+	if (cur_display->type != OMAP_DISPLAY_TYPE_VENC) {
+		switch (cur_display->type) {
+		case OMAP_DISPLAY_TYPE_DPI:
+			if (!(irqstatus & (DISPC_IRQ_VSYNC | DISPC_IRQ_VSYNC2)))
+				goto vout_isr_err;
+			break;
+		case OMAP_DISPLAY_TYPE_HDMI:
+			if (!(irqstatus & DISPC_IRQ_EVSYNC_EVEN))
+				goto vout_isr_err;
+			break;
+		default:
+			goto vout_isr_err;
+		}
 		if (!vout->first_int && (vout->cur_frm != vout->next_frm)) {
 			vout->cur_frm->ts = timevalue;
 			vout->cur_frm->state = VIDEOBUF_DONE;
@@ -573,7 +583,7 @@ static void omap_vout_isr(void *arg, unsigned int irqstatus)
 		ret = omapvid_init(vout, addr);
 		if (ret)
 			printk(KERN_ERR VOUT_NAME
-					"failed to set overlay info\n");
+				"failed to set overlay info\n");
 		/* Enable the pipeline and set the Go bit */
 		ret = omapvid_apply_changes(vout);
 		if (ret)
@@ -943,7 +953,7 @@ static int omap_vout_release(struct file *file)
 		u32 mask = 0;
 
 		mask = DISPC_IRQ_VSYNC | DISPC_IRQ_EVSYNC_EVEN |
-			DISPC_IRQ_EVSYNC_ODD;
+			DISPC_IRQ_EVSYNC_ODD | DISPC_IRQ_VSYNC2;
 		omap_dispc_unregister_isr(omap_vout_isr, vout, mask);
 		vout->streaming = 0;
 
@@ -1614,7 +1624,8 @@ static int vidioc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 	addr = (unsigned long) vout->queued_buf_addr[vout->cur_frm->i]
 		+ vout->cropped_offset;
 
-	mask = DISPC_IRQ_VSYNC | DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD;
+	mask = DISPC_IRQ_VSYNC | DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD
+		| DISPC_IRQ_VSYNC2;
 
 	omap_dispc_register_isr(omap_vout_isr, vout, mask);
 
@@ -1664,7 +1675,8 @@ static int vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 		return -EINVAL;
 
 	vout->streaming = 0;
-	mask = DISPC_IRQ_VSYNC | DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD;
+	mask = DISPC_IRQ_VSYNC | DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD
+		| DISPC_IRQ_VSYNC2;
 
 	omap_dispc_unregister_isr(omap_vout_isr, vout, mask);
 
