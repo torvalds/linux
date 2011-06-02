@@ -425,58 +425,6 @@ static inline int tracehook_consider_fatal_signal(struct task_struct *task,
 	return (task_ptrace(task) & PT_PTRACED) != 0;
 }
 
-/**
- * tracehook_force_sigpending - let tracing force signal_pending(current) on
- *
- * Called when recomputing our signal_pending() flag.  Return nonzero
- * to force the signal_pending() flag on, so that tracehook_get_signal()
- * will be called before the next return to user mode.
- *
- * Called with @current->sighand->siglock held.
- */
-static inline int tracehook_force_sigpending(void)
-{
-	return 0;
-}
-
-/**
- * tracehook_get_signal - deliver synthetic signal to traced task
- * @task:		@current
- * @regs:		task_pt_regs(@current)
- * @info:		details of synthetic signal
- * @return_ka:		sigaction for synthetic signal
- *
- * Return zero to check for a real pending signal normally.
- * Return -1 after releasing the siglock to repeat the check.
- * Return a signal number to induce an artificial signal delivery,
- * setting *@info and *@return_ka to specify its details and behavior.
- *
- * The @return_ka->sa_handler value controls the disposition of the
- * signal, no matter the signal number.  For %SIG_DFL, the return value
- * is a representative signal to indicate the behavior (e.g. %SIGTERM
- * for death, %SIGQUIT for core dump, %SIGSTOP for job control stop,
- * %SIGTSTP for stop unless in an orphaned pgrp), but the signal number
- * reported will be @info->si_signo instead.
- *
- * Called with @task->sighand->siglock held, before dequeuing pending signals.
- */
-static inline int tracehook_get_signal(struct task_struct *task,
-				       struct pt_regs *regs,
-				       siginfo_t *info,
-				       struct k_sigaction *return_ka)
-{
-	return 0;
-}
-
-/**
- * tracehook_finish_jctl - report about return from job control stop
- *
- * This is called by do_signal_stop() after wakeup.
- */
-static inline void tracehook_finish_jctl(void)
-{
-}
-
 #define DEATH_REAP			-1
 #define DEATH_DELAYED_GROUP_LEADER	-2
 

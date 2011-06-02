@@ -150,9 +150,7 @@ void recalc_sigpending_and_wake(struct task_struct *t)
 
 void recalc_sigpending(void)
 {
-	if (unlikely(tracehook_force_sigpending()))
-		set_thread_flag(TIF_SIGPENDING);
-	else if (!recalc_sigpending_tsk(current) && !freezing(current))
+	if (!recalc_sigpending_tsk(current) && !freezing(current))
 		clear_thread_flag(TIF_SIGPENDING);
 
 }
@@ -2005,8 +2003,6 @@ retry:
 
 	spin_unlock_irq(&current->sighand->siglock);
 
-	tracehook_finish_jctl();
-
 	return 1;
 }
 
@@ -2109,36 +2105,24 @@ relock:
 
 	for (;;) {
 		struct k_sigaction *ka;
-		/*
-		 * Tracing can induce an artificial signal and choose sigaction.
-		 * The return value in @signr determines the default action,
-		 * but @info->si_signo is the signal number we will report.
-		 */
-		signr = tracehook_get_signal(current, regs, info, return_ka);
-		if (unlikely(signr < 0))
+
+		if (unlikely(current->jobctl & JOBCTL_STOP_PENDING) &&
+		    do_signal_stop(0))
 			goto relock;
-		if (unlikely(signr != 0))
-			ka = return_ka;
-		else {
-			if (unlikely(current->jobctl & JOBCTL_STOP_PENDING) &&
-			    do_signal_stop(0))
-				goto relock;
 
-			signr = dequeue_signal(current, &current->blocked,
-					       info);
+		signr = dequeue_signal(current, &current->blocked, info);
 
+		if (!signr)
+			break; /* will return 0 */
+
+		if (signr != SIGKILL) {
+			signr = ptrace_signal(signr, info,
+					      regs, cookie);
 			if (!signr)
-				break; /* will return 0 */
-
-			if (signr != SIGKILL) {
-				signr = ptrace_signal(signr, info,
-						      regs, cookie);
-				if (!signr)
-					continue;
-			}
-
-			ka = &sighand->action[signr-1];
+				continue;
 		}
+
+		ka = &sighand->action[signr-1];
 
 		/* Trace actually delivered signals. */
 		trace_signal_deliver(signr, info, ka);
