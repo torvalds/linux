@@ -476,13 +476,18 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		goto err_enable;
 	}
 
-	switch (ret) {
-	case 0:
-	case 1:
-		if (wm8994->type == WM8994)
+	switch (wm8994->type) {
+	case WM8994:
+		switch (ret) {
+		case 0:
+		case 1:
 			dev_warn(wm8994->dev,
 				 "revision %c not fully supported\n",
 				 'A' + ret);
+			break;
+		default:
+			break;
+		}
 		break;
 	default:
 		break;
