@@ -126,8 +126,7 @@ static void rnc_destruct_done(void *_dev)
 	struct scic_sds_remote_device *sci_dev = _dev;
 
 	BUG_ON(sci_dev->started_request_count != 0);
-	sci_base_state_machine_change_state(&sci_dev->state_machine,
-					    SCI_BASE_REMOTE_DEVICE_STATE_STOPPED);
+	sci_change_state(&sci_dev->sm, SCI_DEV_STOPPED);
 }
 
 static enum sci_status scic_sds_remote_device_terminate_requests(struct scic_sds_remote_device *sci_dev)
@@ -154,20 +153,20 @@ static enum sci_status scic_sds_remote_device_terminate_requests(struct scic_sds
 enum sci_status scic_remote_device_stop(struct scic_sds_remote_device *sci_dev,
 					u32 timeout)
 {
-	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 
 	switch (state) {
-	case SCI_BASE_REMOTE_DEVICE_STATE_INITIAL:
-	case SCI_BASE_REMOTE_DEVICE_STATE_FAILED:
-	case SCI_BASE_REMOTE_DEVICE_STATE_FINAL:
+	case SCI_DEV_INITIAL:
+	case SCI_DEV_FAILED:
+	case SCI_DEV_FINAL:
 	default:
 		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
 			 __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
-	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPED:
+	case SCI_DEV_STOPPED:
 		return SCI_SUCCESS;
-	case SCI_BASE_REMOTE_DEVICE_STATE_STARTING:
+	case SCI_DEV_STARTING:
 		/* device not started so there had better be no requests */
 		BUG_ON(sci_dev->started_request_count != 0);
 		scic_sds_remote_node_context_destruct(&sci_dev->rnc,
@@ -175,17 +174,17 @@ enum sci_status scic_remote_device_stop(struct scic_sds_remote_device *sci_dev,
 		/* Transition to the stopping state and wait for the
 		 * remote node to complete being posted and invalidated.
 		 */
-		sci_base_state_machine_change_state(sm, SCI_BASE_REMOTE_DEVICE_STATE_STOPPING);
+		sci_change_state(sm, SCI_DEV_STOPPING);
 		return SCI_SUCCESS;
-	case SCI_BASE_REMOTE_DEVICE_STATE_READY:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
-		sci_base_state_machine_change_state(sm, SCI_BASE_REMOTE_DEVICE_STATE_STOPPING);
+	case SCI_DEV_READY:
+	case SCI_STP_DEV_IDLE:
+	case SCI_STP_DEV_CMD:
+	case SCI_STP_DEV_NCQ:
+	case SCI_STP_DEV_NCQ_ERROR:
+	case SCI_STP_DEV_AWAIT_RESET:
+	case SCI_SMP_DEV_IDLE:
+	case SCI_SMP_DEV_CMD:
+		sci_change_state(sm, SCI_DEV_STOPPING);
 		if (sci_dev->started_request_count == 0) {
 			scic_sds_remote_node_context_destruct(&sci_dev->rnc,
 							      rnc_destruct_done, sci_dev);
@@ -193,70 +192,70 @@ enum sci_status scic_remote_device_stop(struct scic_sds_remote_device *sci_dev,
 		} else
 			return scic_sds_remote_device_terminate_requests(sci_dev);
 		break;
-	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPING:
+	case SCI_DEV_STOPPING:
 		/* All requests should have been terminated, but if there is an
 		 * attempt to stop a device already in the stopping state, then
 		 * try again to terminate.
 		 */
 		return scic_sds_remote_device_terminate_requests(sci_dev);
-	case SCI_BASE_REMOTE_DEVICE_STATE_RESETTING:
-		sci_base_state_machine_change_state(sm, SCI_BASE_REMOTE_DEVICE_STATE_STOPPING);
+	case SCI_DEV_RESETTING:
+		sci_change_state(sm, SCI_DEV_STOPPING);
 		return SCI_SUCCESS;
 	}
 }
 
 enum sci_status scic_remote_device_reset(struct scic_sds_remote_device *sci_dev)
 {
-	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 
 	switch (state) {
-	case SCI_BASE_REMOTE_DEVICE_STATE_INITIAL:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPED:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STARTING:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPING:
-	case SCI_BASE_REMOTE_DEVICE_STATE_FAILED:
-	case SCI_BASE_REMOTE_DEVICE_STATE_RESETTING:
-	case SCI_BASE_REMOTE_DEVICE_STATE_FINAL:
+	case SCI_DEV_INITIAL:
+	case SCI_DEV_STOPPED:
+	case SCI_DEV_STARTING:
+	case SCI_SMP_DEV_IDLE:
+	case SCI_SMP_DEV_CMD:
+	case SCI_DEV_STOPPING:
+	case SCI_DEV_FAILED:
+	case SCI_DEV_RESETTING:
+	case SCI_DEV_FINAL:
 	default:
 		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
 			 __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
-	case SCI_BASE_REMOTE_DEVICE_STATE_READY:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET:
-		sci_base_state_machine_change_state(sm, SCI_BASE_REMOTE_DEVICE_STATE_RESETTING);
+	case SCI_DEV_READY:
+	case SCI_STP_DEV_IDLE:
+	case SCI_STP_DEV_CMD:
+	case SCI_STP_DEV_NCQ:
+	case SCI_STP_DEV_NCQ_ERROR:
+	case SCI_STP_DEV_AWAIT_RESET:
+		sci_change_state(sm, SCI_DEV_RESETTING);
 		return SCI_SUCCESS;
 	}
 }
 
 enum sci_status scic_remote_device_reset_complete(struct scic_sds_remote_device *sci_dev)
 {
-	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 
-	if (state != SCI_BASE_REMOTE_DEVICE_STATE_RESETTING) {
+	if (state != SCI_DEV_RESETTING) {
 		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
 			 __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	sci_base_state_machine_change_state(sm, SCI_BASE_REMOTE_DEVICE_STATE_READY);
+	sci_change_state(sm, SCI_DEV_READY);
 	return SCI_SUCCESS;
 }
 
 enum sci_status scic_sds_remote_device_suspend(struct scic_sds_remote_device *sci_dev,
 					       u32 suspend_type)
 {
-	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 
-	if (state != SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD) {
+	if (state != SCI_STP_DEV_CMD) {
 		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
 			 __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
@@ -269,30 +268,30 @@ enum sci_status scic_sds_remote_device_suspend(struct scic_sds_remote_device *sc
 enum sci_status scic_sds_remote_device_frame_handler(struct scic_sds_remote_device *sci_dev,
 						     u32 frame_index)
 {
-	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 	struct scic_sds_controller *scic = sci_dev->owning_port->owning_controller;
 	enum sci_status status;
 
 	switch (state) {
-	case SCI_BASE_REMOTE_DEVICE_STATE_INITIAL:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPED:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STARTING:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCI_BASE_REMOTE_DEVICE_STATE_FINAL:
+	case SCI_DEV_INITIAL:
+	case SCI_DEV_STOPPED:
+	case SCI_DEV_STARTING:
+	case SCI_STP_DEV_IDLE:
+	case SCI_SMP_DEV_IDLE:
+	case SCI_DEV_FINAL:
 	default:
 		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
 			 __func__, state);
 		/* Return the frame back to the controller */
 		scic_sds_controller_release_frame(scic, frame_index);
 		return SCI_FAILURE_INVALID_STATE;
-	case SCI_BASE_REMOTE_DEVICE_STATE_READY:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPING:
-	case SCI_BASE_REMOTE_DEVICE_STATE_FAILED:
-	case SCI_BASE_REMOTE_DEVICE_STATE_RESETTING: {
+	case SCI_DEV_READY:
+	case SCI_STP_DEV_NCQ_ERROR:
+	case SCI_STP_DEV_AWAIT_RESET:
+	case SCI_DEV_STOPPING:
+	case SCI_DEV_FAILED:
+	case SCI_DEV_RESETTING: {
 		struct scic_sds_request *sci_req;
 		struct ssp_frame_hdr hdr;
 		void *frame_header;
@@ -319,7 +318,7 @@ enum sci_status scic_sds_remote_device_frame_handler(struct scic_sds_remote_devi
 		}
 		break;
 	}
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ: {
+	case SCI_STP_DEV_NCQ: {
 		struct dev_to_host_fis *hdr;
 
 		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
@@ -333,7 +332,7 @@ enum sci_status scic_sds_remote_device_frame_handler(struct scic_sds_remote_devi
 			sci_dev->not_ready_reason = SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED;
 
 			/* TODO Check sactive and complete associated IO if any. */
-			sci_base_state_machine_change_state(sm, SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR);
+			sci_change_state(sm, SCI_STP_DEV_NCQ_ERROR);
 		} else if (hdr->fis_type == FIS_REGD2H &&
 			   (hdr->status & ATA_ERR)) {
 			/*
@@ -341,16 +340,15 @@ enum sci_status scic_sds_remote_device_frame_handler(struct scic_sds_remote_devi
 			 * Treat this like an SDB error FIS ready reason.
 			 */
 			sci_dev->not_ready_reason = SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED;
-			sci_base_state_machine_change_state(&sci_dev->state_machine,
-							    SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR);
+			sci_change_state(&sci_dev->sm, SCI_STP_DEV_NCQ_ERROR);
 		} else
 			status = SCI_FAILURE;
 
 		scic_sds_controller_release_frame(scic, frame_index);
 		break;
 	}
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
+	case SCI_STP_DEV_CMD:
+	case SCI_SMP_DEV_CMD:
 		/* The device does not process any UF received from the hardware while
 		 * in this state.  All unsolicited frames are forwarded to the io request
 		 * object.
@@ -365,18 +363,18 @@ enum sci_status scic_sds_remote_device_frame_handler(struct scic_sds_remote_devi
 static bool is_remote_device_ready(struct scic_sds_remote_device *sci_dev)
 {
 
-	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 
 	switch (state) {
-	case SCI_BASE_REMOTE_DEVICE_STATE_READY:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
+	case SCI_DEV_READY:
+	case SCI_STP_DEV_IDLE:
+	case SCI_STP_DEV_CMD:
+	case SCI_STP_DEV_NCQ:
+	case SCI_STP_DEV_NCQ_ERROR:
+	case SCI_STP_DEV_AWAIT_RESET:
+	case SCI_SMP_DEV_IDLE:
+	case SCI_SMP_DEV_CMD:
 		return true;
 	default:
 		return false;
@@ -386,7 +384,7 @@ static bool is_remote_device_ready(struct scic_sds_remote_device *sci_dev)
 enum sci_status scic_sds_remote_device_event_handler(struct scic_sds_remote_device *sci_dev,
 						     u32 event_code)
 {
-	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 	enum sci_status status;
 
@@ -429,7 +427,7 @@ enum sci_status scic_sds_remote_device_event_handler(struct scic_sds_remote_devi
 	if (status != SCI_SUCCESS)
 		return status;
 
-	if (state == SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE) {
+	if (state == SCI_STP_DEV_IDLE) {
 
 		/* We pick up suspension events to handle specifically to this
 		 * state. We resume the RNC right away.
@@ -459,26 +457,26 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 						struct scic_sds_remote_device *sci_dev,
 						struct scic_sds_request *sci_req)
 {
-	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 	struct scic_sds_port *sci_port = sci_dev->owning_port;
 	struct isci_request *ireq = sci_req_to_ireq(sci_req);
 	enum sci_status status;
 
 	switch (state) {
-	case SCI_BASE_REMOTE_DEVICE_STATE_INITIAL:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPED:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STARTING:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPING:
-	case SCI_BASE_REMOTE_DEVICE_STATE_FAILED:
-	case SCI_BASE_REMOTE_DEVICE_STATE_RESETTING:
-	case SCI_BASE_REMOTE_DEVICE_STATE_FINAL:
+	case SCI_DEV_INITIAL:
+	case SCI_DEV_STOPPED:
+	case SCI_DEV_STARTING:
+	case SCI_STP_DEV_NCQ_ERROR:
+	case SCI_DEV_STOPPING:
+	case SCI_DEV_FAILED:
+	case SCI_DEV_RESETTING:
+	case SCI_DEV_FINAL:
 	default:
 		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
 			 __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
-	case SCI_BASE_REMOTE_DEVICE_STATE_READY:
+	case SCI_DEV_READY:
 		/* attempt to start an io request for this device object. The remote
 		 * device object will issue the start request for the io and if
 		 * successful it will start the request for the port object then
@@ -494,7 +492,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 
 		status = scic_sds_request_start(sci_req);
 		break;
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE: {
+	case SCI_STP_DEV_IDLE: {
 		/* handle the start io operation for a sata device that is in
 		 * the command idle state. - Evalute the type of IO request to
 		 * be started - If its an NCQ request change to NCQ substate -
@@ -519,15 +517,15 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 			break;
 
 		if (task->ata_task.use_ncq)
-			new_state = SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ;
+			new_state = SCI_STP_DEV_NCQ;
 		else {
 			sci_dev->working_request = sci_req;
-			new_state = SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD;
+			new_state = SCI_STP_DEV_CMD;
 		}
-		sci_base_state_machine_change_state(sm, new_state);
+		sci_change_state(sm, new_state);
 		break;
 	}
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ: {
+	case SCI_STP_DEV_NCQ: {
 		struct sas_task *task = isci_request_access_task(ireq);
 
 		if (task->ata_task.use_ncq) {
@@ -544,9 +542,9 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 			return SCI_FAILURE_INVALID_STATE;
 		break;
 	}
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET:
+	case SCI_STP_DEV_AWAIT_RESET:
 		return SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED;
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
+	case SCI_SMP_DEV_IDLE:
 		status = scic_sds_port_start_io(sci_port, sci_dev, sci_req);
 		if (status != SCI_SUCCESS)
 			return status;
@@ -560,11 +558,10 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 			break;
 
 		sci_dev->working_request = sci_req;
-		sci_base_state_machine_change_state(&sci_dev->state_machine,
-						    SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
+		sci_change_state(&sci_dev->sm, SCI_SMP_DEV_CMD);
 		break;
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
+	case SCI_STP_DEV_CMD:
+	case SCI_SMP_DEV_CMD:
 		/* device is already handling a command it can not accept new commands
 		 * until this one is complete.
 		 */
@@ -597,31 +594,31 @@ enum sci_status scic_sds_remote_device_complete_io(struct scic_sds_controller *s
 						   struct scic_sds_remote_device *sci_dev,
 						   struct scic_sds_request *sci_req)
 {
-	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 	struct scic_sds_port *sci_port = sci_dev->owning_port;
 	enum sci_status status;
 
 	switch (state) {
-	case SCI_BASE_REMOTE_DEVICE_STATE_INITIAL:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPED:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STARTING:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCI_BASE_REMOTE_DEVICE_STATE_FAILED:
-	case SCI_BASE_REMOTE_DEVICE_STATE_FINAL:
+	case SCI_DEV_INITIAL:
+	case SCI_DEV_STOPPED:
+	case SCI_DEV_STARTING:
+	case SCI_STP_DEV_IDLE:
+	case SCI_SMP_DEV_IDLE:
+	case SCI_DEV_FAILED:
+	case SCI_DEV_FINAL:
 	default:
 		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
 			 __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
-	case SCI_BASE_REMOTE_DEVICE_STATE_READY:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET:
-	case SCI_BASE_REMOTE_DEVICE_STATE_RESETTING:
+	case SCI_DEV_READY:
+	case SCI_STP_DEV_AWAIT_RESET:
+	case SCI_DEV_RESETTING:
 		status = common_complete_io(sci_port, sci_dev, sci_req);
 		break;
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR:
+	case SCI_STP_DEV_CMD:
+	case SCI_STP_DEV_NCQ:
+	case SCI_STP_DEV_NCQ_ERROR:
 		status = common_complete_io(sci_port, sci_dev, sci_req);
 		if (status != SCI_SUCCESS)
 			break;
@@ -632,17 +629,17 @@ enum sci_status scic_sds_remote_device_complete_io(struct scic_sds_controller *s
 			 * can reach RNC state handler, these IOs will be completed by RNC with
 			 * status of "DEVICE_RESET_REQUIRED", instead of "INVALID STATE".
 			 */
-			sci_base_state_machine_change_state(sm, SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET);
+			sci_change_state(sm, SCI_STP_DEV_AWAIT_RESET);
 		} else if (scic_sds_remote_device_get_request_count(sci_dev) == 0)
-			sci_base_state_machine_change_state(sm, SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
+			sci_change_state(sm, SCI_STP_DEV_IDLE);
 		break;
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
+	case SCI_SMP_DEV_CMD:
 		status = common_complete_io(sci_port, sci_dev, sci_req);
 		if (status != SCI_SUCCESS)
 			break;
-		sci_base_state_machine_change_state(sm, SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
+		sci_change_state(sm, SCI_SMP_DEV_IDLE);
 		break;
-	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPING:
+	case SCI_DEV_STOPPING:
 		status = common_complete_io(sci_port, sci_dev, sci_req);
 		if (status != SCI_SUCCESS)
 			break;
@@ -676,30 +673,30 @@ enum sci_status scic_sds_remote_device_start_task(struct scic_sds_controller *sc
 						  struct scic_sds_remote_device *sci_dev,
 						  struct scic_sds_request *sci_req)
 {
-	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 	struct scic_sds_port *sci_port = sci_dev->owning_port;
 	enum sci_status status;
 
 	switch (state) {
-	case SCI_BASE_REMOTE_DEVICE_STATE_INITIAL:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPED:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STARTING:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
-	case SCI_BASE_REMOTE_DEVICE_STATE_STOPPING:
-	case SCI_BASE_REMOTE_DEVICE_STATE_FAILED:
-	case SCI_BASE_REMOTE_DEVICE_STATE_RESETTING:
-	case SCI_BASE_REMOTE_DEVICE_STATE_FINAL:
+	case SCI_DEV_INITIAL:
+	case SCI_DEV_STOPPED:
+	case SCI_DEV_STARTING:
+	case SCI_SMP_DEV_IDLE:
+	case SCI_SMP_DEV_CMD:
+	case SCI_DEV_STOPPING:
+	case SCI_DEV_FAILED:
+	case SCI_DEV_RESETTING:
+	case SCI_DEV_FINAL:
 	default:
 		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
 			 __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR:
-	case SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET:
+	case SCI_STP_DEV_IDLE:
+	case SCI_STP_DEV_CMD:
+	case SCI_STP_DEV_NCQ:
+	case SCI_STP_DEV_NCQ_ERROR:
+	case SCI_STP_DEV_AWAIT_RESET:
 		status = scic_sds_port_start_io(sci_port, sci_dev, sci_req);
 		if (status != SCI_SUCCESS)
 			return status;
@@ -717,7 +714,7 @@ enum sci_status scic_sds_remote_device_start_task(struct scic_sds_controller *sc
 		 * management request.
 		 */
 		sci_dev->working_request = sci_req;
-		sci_base_state_machine_change_state(sm, SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD);
+		sci_change_state(sm, SCI_STP_DEV_CMD);
 
 		/* The remote node context must cleanup the TCi to NCQ mapping
 		 * table.  The only way to do this correctly is to either write
@@ -739,7 +736,7 @@ enum sci_status scic_sds_remote_device_start_task(struct scic_sds_controller *sc
 		 * post TC when RNC gets resumed.
 		 */
 		return SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS;
-	case SCI_BASE_REMOTE_DEVICE_STATE_READY:
+	case SCI_DEV_READY:
 		status = scic_sds_port_start_io(sci_port, sci_dev, sci_req);
 		if (status != SCI_SUCCESS)
 			return status;
@@ -790,8 +787,7 @@ static void remote_device_resume_done(void *_dev)
 		return;
 
 	/* go 'ready' if we are not already in a ready state */
-	sci_base_state_machine_change_state(&sci_dev->state_machine,
-					    SCI_BASE_REMOTE_DEVICE_STATE_READY);
+	sci_change_state(&sci_dev->sm, SCI_DEV_READY);
 }
 
 static void scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handler(void *_dev)
@@ -803,17 +799,16 @@ static void scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handl
 	/* For NCQ operation we do not issue a isci_remote_device_not_ready().
 	 * As a result, avoid sending the ready notification.
 	 */
-	if (sci_dev->state_machine.previous_state_id != SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ)
+	if (sci_dev->sm.previous_state_id != SCI_STP_DEV_NCQ)
 		isci_remote_device_ready(scic_to_ihost(scic), idev);
 }
 
 static void scic_sds_remote_device_initial_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 
 	/* Initial state is a transitional state to the stopped state */
-	sci_base_state_machine_change_state(&sci_dev->state_machine,
-					    SCI_BASE_REMOTE_DEVICE_STATE_STOPPED);
+	sci_change_state(&sci_dev->sm, SCI_DEV_STOPPED);
 }
 
 /**
@@ -831,11 +826,11 @@ static void scic_sds_remote_device_initial_state_enter(struct sci_base_state_mac
  */
 static enum sci_status scic_remote_device_destruct(struct scic_sds_remote_device *sci_dev)
 {
-	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 	struct scic_sds_controller *scic;
 
-	if (state != SCI_BASE_REMOTE_DEVICE_STATE_STOPPED) {
+	if (state != SCI_DEV_STOPPED) {
 		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
 			 __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
@@ -845,7 +840,7 @@ static enum sci_status scic_remote_device_destruct(struct scic_sds_remote_device
 	scic_sds_controller_free_remote_node_context(scic, sci_dev,
 						     sci_dev->rnc.remote_node_index);
 	sci_dev->rnc.remote_node_index = SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX;
-	sci_base_state_machine_change_state(sm, SCI_BASE_REMOTE_DEVICE_STATE_FINAL);
+	sci_change_state(sm, SCI_DEV_FINAL);
 
 	return SCI_SUCCESS;
 }
@@ -906,7 +901,7 @@ static void isci_remote_device_stop_complete(struct isci_host *ihost,
 
 static void scic_sds_remote_device_stopped_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 	struct scic_sds_controller *scic = sci_dev->owning_port->owning_controller;
 	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
 	u32 prev_state;
@@ -914,8 +909,8 @@ static void scic_sds_remote_device_stopped_state_enter(struct sci_base_state_mac
 	/* If we are entering from the stopping state let the SCI User know that
 	 * the stop operation has completed.
 	 */
-	prev_state = sci_dev->state_machine.previous_state_id;
-	if (prev_state == SCI_BASE_REMOTE_DEVICE_STATE_STOPPING)
+	prev_state = sci_dev->sm.previous_state_id;
+	if (prev_state == SCI_DEV_STOPPING)
 		isci_remote_device_stop_complete(scic_to_ihost(scic), idev);
 
 	scic_sds_controller_remote_device_stopped(scic, sci_dev);
@@ -923,7 +918,7 @@ static void scic_sds_remote_device_stopped_state_enter(struct sci_base_state_mac
 
 static void scic_sds_remote_device_starting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
 	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
@@ -934,7 +929,7 @@ static void scic_sds_remote_device_starting_state_enter(struct sci_base_state_ma
 
 static void scic_sds_remote_device_ready_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 	struct scic_sds_controller *scic = sci_dev->owning_port->owning_controller;
 	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
 	struct domain_device *dev = idev->domain_dev;
@@ -942,18 +937,16 @@ static void scic_sds_remote_device_ready_state_enter(struct sci_base_state_machi
 	scic->remote_device_sequence[sci_dev->rnc.remote_node_index]++;
 
 	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_SATA)) {
-		sci_base_state_machine_change_state(&sci_dev->state_machine,
-						    SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
+		sci_change_state(&sci_dev->sm, SCI_STP_DEV_IDLE);
 	} else if (dev_is_expander(dev)) {
-		sci_base_state_machine_change_state(&sci_dev->state_machine,
-						    SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE);
+		sci_change_state(&sci_dev->sm, SCI_SMP_DEV_IDLE);
 	} else
 		isci_remote_device_ready(scic_to_ihost(scic), idev);
 }
 
 static void scic_sds_remote_device_ready_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 	struct domain_device *dev = sci_dev_to_domain(sci_dev);
 
 	if (dev->dev_type == SAS_END_DEV) {
@@ -967,7 +960,7 @@ static void scic_sds_remote_device_ready_state_exit(struct sci_base_state_machin
 
 static void scic_sds_remote_device_resetting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 
 	scic_sds_remote_node_context_suspend(
 		&sci_dev->rnc, SCI_SOFTWARE_SUSPENSION, NULL, NULL);
@@ -975,14 +968,14 @@ static void scic_sds_remote_device_resetting_state_enter(struct sci_base_state_m
 
 static void scic_sds_remote_device_resetting_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 
 	scic_sds_remote_node_context_resume(&sci_dev->rnc, NULL, NULL);
 }
 
 static void scic_sds_stp_remote_device_ready_idle_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 
 	sci_dev->working_request = NULL;
 	if (scic_sds_remote_node_context_is_ready(&sci_dev->rnc)) {
@@ -999,7 +992,7 @@ static void scic_sds_stp_remote_device_ready_idle_substate_enter(struct sci_base
 
 static void scic_sds_stp_remote_device_ready_cmd_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
 
 	BUG_ON(sci_dev->working_request == NULL);
@@ -1010,7 +1003,7 @@ static void scic_sds_stp_remote_device_ready_cmd_substate_enter(struct sci_base_
 
 static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
 	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
 
@@ -1021,7 +1014,7 @@ static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(struct sci
 
 static void scic_sds_smp_remote_device_ready_idle_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
 
 	isci_remote_device_ready(scic_to_ihost(scic), sci_dev_to_idev(sci_dev));
@@ -1029,7 +1022,7 @@ static void scic_sds_smp_remote_device_ready_idle_substate_enter(struct sci_base
 
 static void scic_sds_smp_remote_device_ready_cmd_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(sci_dev);
 
 	BUG_ON(sci_dev->working_request == NULL);
@@ -1040,50 +1033,50 @@ static void scic_sds_smp_remote_device_ready_cmd_substate_enter(struct sci_base_
 
 static void scic_sds_smp_remote_device_ready_cmd_substate_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), state_machine);
+	struct scic_sds_remote_device *sci_dev = container_of(sm, typeof(*sci_dev), sm);
 
 	sci_dev->working_request = NULL;
 }
 
 static const struct sci_base_state scic_sds_remote_device_state_table[] = {
-	[SCI_BASE_REMOTE_DEVICE_STATE_INITIAL] = {
+	[SCI_DEV_INITIAL] = {
 		.enter_state = scic_sds_remote_device_initial_state_enter,
 	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPED] = {
+	[SCI_DEV_STOPPED] = {
 		.enter_state = scic_sds_remote_device_stopped_state_enter,
 	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_STARTING] = {
+	[SCI_DEV_STARTING] = {
 		.enter_state = scic_sds_remote_device_starting_state_enter,
 	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_READY] = {
+	[SCI_DEV_READY] = {
 		.enter_state = scic_sds_remote_device_ready_state_enter,
 		.exit_state  = scic_sds_remote_device_ready_state_exit
 	},
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
+	[SCI_STP_DEV_IDLE] = {
 		.enter_state = scic_sds_stp_remote_device_ready_idle_substate_enter,
 	},
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
+	[SCI_STP_DEV_CMD] = {
 		.enter_state = scic_sds_stp_remote_device_ready_cmd_substate_enter,
 	},
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ] = { },
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR] = {
+	[SCI_STP_DEV_NCQ] = { },
+	[SCI_STP_DEV_NCQ_ERROR] = {
 		.enter_state = scic_sds_stp_remote_device_ready_ncq_error_substate_enter,
 	},
-	[SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET] = { },
-	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE] = {
+	[SCI_STP_DEV_AWAIT_RESET] = { },
+	[SCI_SMP_DEV_IDLE] = {
 		.enter_state = scic_sds_smp_remote_device_ready_idle_substate_enter,
 	},
-	[SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD] = {
+	[SCI_SMP_DEV_CMD] = {
 		.enter_state = scic_sds_smp_remote_device_ready_cmd_substate_enter,
 		.exit_state  = scic_sds_smp_remote_device_ready_cmd_substate_exit,
 	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_STOPPING] = { },
-	[SCI_BASE_REMOTE_DEVICE_STATE_FAILED] = { },
-	[SCI_BASE_REMOTE_DEVICE_STATE_RESETTING] = {
+	[SCI_DEV_STOPPING] = { },
+	[SCI_DEV_FAILED] = { },
+	[SCI_DEV_RESETTING] = {
 		.enter_state = scic_sds_remote_device_resetting_state_enter,
 		.exit_state  = scic_sds_remote_device_resetting_state_exit
 	},
-	[SCI_BASE_REMOTE_DEVICE_STATE_FINAL] = { },
+	[SCI_DEV_FINAL] = { },
 };
 
 /**
@@ -1102,11 +1095,11 @@ static void scic_remote_device_construct(struct scic_sds_port *sci_port,
 	sci_dev->owning_port = sci_port;
 	sci_dev->started_request_count = 0;
 
-	sci_base_state_machine_construct(&sci_dev->state_machine,
+	sci_base_state_machine_construct(&sci_dev->sm,
 					 scic_sds_remote_device_state_table,
-					 SCI_BASE_REMOTE_DEVICE_STATE_INITIAL);
+					 SCI_DEV_INITIAL);
 
-	sci_base_state_machine_start(&sci_dev->state_machine);
+	sci_base_state_machine_start(&sci_dev->sm);
 
 	scic_sds_remote_node_context_construct(&sci_dev->rnc,
 					       SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX);
@@ -1224,11 +1217,11 @@ static enum sci_status scic_remote_device_ea_construct(struct scic_sds_port *sci
 static enum sci_status scic_remote_device_start(struct scic_sds_remote_device *sci_dev,
 						u32 timeout)
 {
-	struct sci_base_state_machine *sm = &sci_dev->state_machine;
+	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
 	enum sci_status status;
 
-	if (state != SCI_BASE_REMOTE_DEVICE_STATE_STOPPED) {
+	if (state != SCI_DEV_STOPPED) {
 		dev_warn(scirdev_to_dev(sci_dev), "%s: in wrong state: %d\n",
 			 __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
@@ -1240,7 +1233,7 @@ static enum sci_status scic_remote_device_start(struct scic_sds_remote_device *s
 	if (status != SCI_SUCCESS)
 		return status;
 
-	sci_base_state_machine_change_state(sm, SCI_BASE_REMOTE_DEVICE_STATE_STARTING);
+	sci_change_state(sm, SCI_DEV_STARTING);
 
 	return SCI_SUCCESS;
 }

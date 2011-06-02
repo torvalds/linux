@@ -134,7 +134,7 @@ struct scic_sds_controller {
 	 * This field contains the information for the base controller state
 	 * machine.
 	 */
-	struct sci_base_state_machine state_machine;
+	struct sci_base_state_machine sm;
 
 	/**
 	 * Timer for controller start/stop operations.
@@ -359,7 +359,7 @@ enum scic_sds_controller_states {
 	/**
 	 * Simply the initial state for the base controller state machine.
 	 */
-	SCI_BASE_CONTROLLER_STATE_INITIAL = 0,
+	SCIC_INITIAL = 0,
 
 	/**
 	 * This state indicates that the controller is reset.  The memory for
@@ -368,7 +368,7 @@ enum scic_sds_controller_states {
 	 * This state is entered from the INITIAL state.
 	 * This state is entered from the RESETTING state.
 	 */
-	SCI_BASE_CONTROLLER_STATE_RESET,
+	SCIC_RESET,
 
 	/**
 	 * This state is typically an action state that indicates the controller
@@ -376,28 +376,28 @@ enum scic_sds_controller_states {
 	 * are permitted.
 	 * This state is entered from the RESET state.
 	 */
-	SCI_BASE_CONTROLLER_STATE_INITIALIZING,
+	SCIC_INITIALIZING,
 
 	/**
 	 * This state indicates that the controller has been successfully
 	 * initialized.  In this state no new IO operations are permitted.
 	 * This state is entered from the INITIALIZING state.
 	 */
-	SCI_BASE_CONTROLLER_STATE_INITIALIZED,
+	SCIC_INITIALIZED,
 
 	/**
 	 * This state indicates the the controller is in the process of becoming
 	 * ready (i.e. starting).  In this state no new IO operations are permitted.
 	 * This state is entered from the INITIALIZED state.
 	 */
-	SCI_BASE_CONTROLLER_STATE_STARTING,
+	SCIC_STARTING,
 
 	/**
 	 * This state indicates the controller is now ready.  Thus, the user
 	 * is able to perform IO operations on the controller.
 	 * This state is entered from the STARTING state.
 	 */
-	SCI_BASE_CONTROLLER_STATE_READY,
+	SCIC_READY,
 
 	/**
 	 * This state is typically an action state that indicates the controller
@@ -408,7 +408,7 @@ enum scic_sds_controller_states {
 	 * This state is entered from the FAILED state.
 	 * This state is entered from the STOPPED state.
 	 */
-	SCI_BASE_CONTROLLER_STATE_RESETTING,
+	SCIC_RESETTING,
 
 	/**
 	 * This state indicates that the controller is in the process of stopping.
@@ -416,14 +416,14 @@ enum scic_sds_controller_states {
 	 * operations are allowed to complete.
 	 * This state is entered from the READY state.
 	 */
-	SCI_BASE_CONTROLLER_STATE_STOPPING,
+	SCIC_STOPPING,
 
 	/**
 	 * This state indicates that the controller has successfully been stopped.
 	 * In this state no new IO operations are permitted.
 	 * This state is entered from the STOPPING state.
 	 */
-	SCI_BASE_CONTROLLER_STATE_STOPPED,
+	SCIC_STOPPED,
 
 	/**
 	 * This state indicates that the controller could not successfully be
@@ -433,10 +433,7 @@ enum scic_sds_controller_states {
 	 * This state is entered from the STOPPING state.
 	 * This state is entered from the RESETTING state.
 	 */
-	SCI_BASE_CONTROLLER_STATE_FAILED,
-
-	SCI_BASE_CONTROLLER_MAX_STATES
-
+	SCIC_FAILED,
 };
 
 

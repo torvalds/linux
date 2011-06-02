@@ -661,13 +661,13 @@ static void scic_sds_apc_agent_link_up(struct scic_sds_controller *scic,
 		scic_sds_apc_agent_configure_ports(scic, port_agent, sci_phy, true);
 	} else {
 		/* the phy is already the part of the port */
-		u32 port_state = sci_port->state_machine.current_state_id;
+		u32 port_state = sci_port->sm.current_state_id;
 
 		/* if the PORT'S state is resetting then the link up is from
 		 * port hard reset in this case, we need to tell the port
 		 * that link up is recieved
 		 */
-		BUG_ON(port_state != SCI_BASE_PORT_STATE_RESETTING);
+		BUG_ON(port_state != SCI_PORT_RESETTING);
 		port_agent->phy_ready_mask |= 1 << phy_index;
 		scic_sds_port_link_up(sci_port, sci_phy);
 	}

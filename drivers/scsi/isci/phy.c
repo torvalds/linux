@@ -249,8 +249,7 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 	writel(0x1F4, &sci_phy->link_layer_registers->link_layer_hang_detection_timeout);
 
 	/* We can exit the initial state to the stopped state */
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCI_BASE_PHY_STATE_STOPPED);
+	sci_change_state(&sci_phy->sm, SCI_PHY_STOPPED);
 
 	return SCI_SUCCESS;
 }
@@ -273,8 +272,7 @@ static void phy_sata_timeout(unsigned long data)
 		 __func__,
 		 sci_phy);
 
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCI_BASE_PHY_STATE_STARTING);
+	sci_change_state(&sci_phy->sm, SCI_PHY_STARTING);
 done:
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 }
@@ -342,8 +340,7 @@ enum sci_status scic_sds_phy_initialize(
 	/*
 	 * There is nothing that needs to be done in this state just
 	 * transition to the stopped state. */
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCI_BASE_PHY_STATE_STOPPED);
+	sci_change_state(&sci_phy->sm, SCI_PHY_STOPPED);
 
 	return SCI_SUCCESS;
 }
@@ -436,34 +433,33 @@ void scic_sds_phy_get_protocols(struct scic_sds_phy *sci_phy,
 
 enum sci_status scic_sds_phy_start(struct scic_sds_phy *sci_phy)
 {
-	enum scic_sds_phy_states state = sci_phy->state_machine.current_state_id;
+	enum scic_sds_phy_states state = sci_phy->sm.current_state_id;
 
-	if (state != SCI_BASE_PHY_STATE_STOPPED) {
+	if (state != SCI_PHY_STOPPED) {
 		dev_dbg(sciphy_to_dev(sci_phy),
 			 "%s: in wrong state: %d\n", __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCI_BASE_PHY_STATE_STARTING);
+	sci_change_state(&sci_phy->sm, SCI_PHY_STARTING);
 	return SCI_SUCCESS;
 }
 
 enum sci_status scic_sds_phy_stop(struct scic_sds_phy *sci_phy)
 {
-	enum scic_sds_phy_states state = sci_phy->state_machine.current_state_id;
+	enum scic_sds_phy_states state = sci_phy->sm.current_state_id;
 
 	switch (state) {
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL:
-	case SCI_BASE_PHY_STATE_READY:
+	case SCI_PHY_SUB_INITIAL:
+	case SCI_PHY_SUB_AWAIT_OSSP_EN:
+	case SCI_PHY_SUB_AWAIT_SAS_SPEED_EN:
+	case SCI_PHY_SUB_AWAIT_SAS_POWER:
+	case SCI_PHY_SUB_AWAIT_SATA_POWER:
+	case SCI_PHY_SUB_AWAIT_SATA_PHY_EN:
+	case SCI_PHY_SUB_AWAIT_SATA_SPEED_EN:
+	case SCI_PHY_SUB_AWAIT_SIG_FIS_UF:
+	case SCI_PHY_SUB_FINAL:
+	case SCI_PHY_READY:
 		break;
 	default:
 		dev_dbg(sciphy_to_dev(sci_phy),
@@ -471,32 +467,30 @@ enum sci_status scic_sds_phy_stop(struct scic_sds_phy *sci_phy)
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCI_BASE_PHY_STATE_STOPPED);
+	sci_change_state(&sci_phy->sm, SCI_PHY_STOPPED);
 	return SCI_SUCCESS;
 }
 
 enum sci_status scic_sds_phy_reset(struct scic_sds_phy *sci_phy)
 {
-	enum scic_sds_phy_states state = sci_phy->state_machine.current_state_id;
+	enum scic_sds_phy_states state = sci_phy->sm.current_state_id;
 
-	if (state != SCI_BASE_PHY_STATE_READY) {
+	if (state != SCI_PHY_READY) {
 		dev_dbg(sciphy_to_dev(sci_phy),
 			"%s: in wrong state: %d\n", __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCI_BASE_PHY_STATE_RESETTING);
+	sci_change_state(&sci_phy->sm, SCI_PHY_RESETTING);
 	return SCI_SUCCESS;
 }
 
 enum sci_status scic_sds_phy_consume_power_handler(struct scic_sds_phy *sci_phy)
 {
-	enum scic_sds_phy_states state = sci_phy->state_machine.current_state_id;
+	enum scic_sds_phy_states state = sci_phy->sm.current_state_id;
 
 	switch (state) {
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER: {
+	case SCI_PHY_SUB_AWAIT_SAS_POWER: {
 		u32 enable_spinup;
 
 		enable_spinup = readl(&sci_phy->link_layer_registers->notify_enable_spinup_control);
@@ -504,12 +498,11 @@ enum sci_status scic_sds_phy_consume_power_handler(struct scic_sds_phy *sci_phy)
 		writel(enable_spinup, &sci_phy->link_layer_registers->notify_enable_spinup_control);
 
 		/* Change state to the final state this substate machine has run to completion */
-		sci_base_state_machine_change_state(&sci_phy->state_machine,
-						    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
+		sci_change_state(&sci_phy->sm, SCI_PHY_SUB_FINAL);
 
 		return SCI_SUCCESS;
 	}
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER: {
+	case SCI_PHY_SUB_AWAIT_SATA_POWER: {
 		u32 scu_sas_pcfg_value;
 
 		/* Release the spinup hold state and reset the OOB state machine */
@@ -528,8 +521,7 @@ enum sci_status scic_sds_phy_consume_power_handler(struct scic_sds_phy *sci_phy)
 			&sci_phy->link_layer_registers->phy_configuration);
 
 		/* Change state to the final state this substate machine has run to completion */
-		sci_base_state_machine_change_state(&sci_phy->state_machine,
-						    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN);
+		sci_change_state(&sci_phy->sm, SCI_PHY_SUB_AWAIT_SATA_PHY_EN);
 
 		return SCI_SUCCESS;
 	}
@@ -566,10 +558,7 @@ static void scic_sds_phy_start_sas_link_training(
 	writel(phy_control,
 		&sci_phy->link_layer_registers->phy_configuration);
 
-	sci_base_state_machine_change_state(
-		&sci_phy->state_machine,
-		SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN
-		);
+	sci_change_state(&sci_phy->sm, SCI_PHY_SUB_AWAIT_SAS_SPEED_EN);
 
 	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SAS;
 }
@@ -585,10 +574,7 @@ static void scic_sds_phy_start_sas_link_training(
 static void scic_sds_phy_start_sata_link_training(
 	struct scic_sds_phy *sci_phy)
 {
-	sci_base_state_machine_change_state(
-		&sci_phy->state_machine,
-		SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER
-		);
+	sci_change_state(&sci_phy->sm, SCI_PHY_SUB_AWAIT_SATA_POWER);
 
 	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SATA;
 }
@@ -611,17 +597,16 @@ static void scic_sds_phy_complete_link_training(
 {
 	sci_phy->max_negotiated_speed = max_link_rate;
 
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    next_state);
+	sci_change_state(&sci_phy->sm, next_state);
 }
 
 enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 					   u32 event_code)
 {
-	enum scic_sds_phy_states state = sci_phy->state_machine.current_state_id;
+	enum scic_sds_phy_states state = sci_phy->sm.current_state_id;
 
 	switch (state) {
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN:
+	case SCI_PHY_SUB_AWAIT_OSSP_EN:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_SAS_PHY_DETECTED:
 			scic_sds_phy_start_sas_link_training(sci_phy);
@@ -640,7 +625,7 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN:
+	case SCI_PHY_SUB_AWAIT_SAS_SPEED_EN:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_SAS_PHY_DETECTED:
 			/*
@@ -652,21 +637,21 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			scic_sds_phy_complete_link_training(
 				sci_phy,
 				SAS_LINK_RATE_1_5_GBPS,
-				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF);
+				SCI_PHY_SUB_AWAIT_IAF_UF);
 			break;
 		case SCU_EVENT_SAS_30:
 		case SCU_EVENT_SAS_30_SSC:
 			scic_sds_phy_complete_link_training(
 				sci_phy,
 				SAS_LINK_RATE_3_0_GBPS,
-				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF);
+				SCI_PHY_SUB_AWAIT_IAF_UF);
 			break;
 		case SCU_EVENT_SAS_60:
 		case SCU_EVENT_SAS_60_SSC:
 			scic_sds_phy_complete_link_training(
 				sci_phy,
 				SAS_LINK_RATE_6_0_GBPS,
-				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF);
+				SCI_PHY_SUB_AWAIT_IAF_UF);
 			break;
 		case SCU_EVENT_SATA_SPINUP_HOLD:
 			/*
@@ -676,8 +661,7 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			break;
 		case SCU_EVENT_LINK_FAILURE:
 			/* Link failure change state back to the starting state */
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    SCI_BASE_PHY_STATE_STARTING);
+			sci_change_state(&sci_phy->sm, SCI_PHY_STARTING);
 			break;
 		default:
 			dev_warn(sciphy_to_dev(sci_phy),
@@ -689,7 +673,7 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			break;
 		}
 		return SCI_SUCCESS;
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF:
+	case SCI_PHY_SUB_AWAIT_IAF_UF:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_SAS_PHY_DETECTED:
 			/* Backup the state machine */
@@ -706,8 +690,7 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 		case SCU_EVENT_LINK_FAILURE:
 		case SCU_EVENT_HARD_RESET_RECEIVED:
 			/* Start the oob/sn state machine over again */
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    SCI_BASE_PHY_STATE_STARTING);
+			sci_change_state(&sci_phy->sm, SCI_PHY_STARTING);
 			break;
 		default:
 			dev_warn(sciphy_to_dev(sci_phy),
@@ -717,12 +700,11 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER:
+	case SCI_PHY_SUB_AWAIT_SAS_POWER:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_LINK_FAILURE:
 			/* Link failure change state back to the starting state */
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    SCI_BASE_PHY_STATE_STARTING);
+			sci_change_state(&sci_phy->sm, SCI_PHY_STARTING);
 			break;
 		default:
 			dev_warn(sciphy_to_dev(sci_phy),
@@ -733,12 +715,11 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER:
+	case SCI_PHY_SUB_AWAIT_SATA_POWER:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_LINK_FAILURE:
 			/* Link failure change state back to the starting state */
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    SCI_BASE_PHY_STATE_STARTING);
+			sci_change_state(&sci_phy->sm, SCI_PHY_STARTING);
 			break;
 		case SCU_EVENT_SATA_SPINUP_HOLD:
 			/* These events are received every 10ms and are
@@ -762,12 +743,11 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN:
+	case SCI_PHY_SUB_AWAIT_SATA_PHY_EN:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_LINK_FAILURE:
 			/* Link failure change state back to the starting state */
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    SCI_BASE_PHY_STATE_STARTING);
+			sci_change_state(&sci_phy->sm, SCI_PHY_STARTING);
 			break;
 		case SCU_EVENT_SATA_SPINUP_HOLD:
 			/* These events might be received since we dont know how many may be in
@@ -778,8 +758,7 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_SATA;
 
 			/* We have received the SATA PHY notification change state */
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN);
+			sci_change_state(&sci_phy->sm, SCI_PHY_SUB_AWAIT_SATA_SPEED_EN);
 			break;
 		case SCU_EVENT_SAS_PHY_DETECTED:
 			/* There has been a change in the phy type before OOB/SN for the
@@ -797,7 +776,7 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			return SCI_FAILURE;;
 		}
 		return SCI_SUCCESS;
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN:
+	case SCI_PHY_SUB_AWAIT_SATA_SPEED_EN:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_SATA_PHY_DETECTED:
 			/*
@@ -809,26 +788,25 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			scic_sds_phy_complete_link_training(
 				sci_phy,
 				SAS_LINK_RATE_1_5_GBPS,
-				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
+				SCI_PHY_SUB_AWAIT_SIG_FIS_UF);
 			break;
 		case SCU_EVENT_SATA_30:
 		case SCU_EVENT_SATA_30_SSC:
 			scic_sds_phy_complete_link_training(
 				sci_phy,
 				SAS_LINK_RATE_3_0_GBPS,
-				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
+				SCI_PHY_SUB_AWAIT_SIG_FIS_UF);
 			break;
 		case SCU_EVENT_SATA_60:
 		case SCU_EVENT_SATA_60_SSC:
 			scic_sds_phy_complete_link_training(
 				sci_phy,
 				SAS_LINK_RATE_6_0_GBPS,
-				SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF);
+				SCI_PHY_SUB_AWAIT_SIG_FIS_UF);
 			break;
 		case SCU_EVENT_LINK_FAILURE:
 			/* Link failure change state back to the starting state */
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    SCI_BASE_PHY_STATE_STARTING);
+			sci_change_state(&sci_phy->sm, SCI_PHY_STARTING);
 			break;
 		case SCU_EVENT_SAS_PHY_DETECTED:
 			/*
@@ -846,18 +824,16 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 		}
 
 		return SCI_SUCCESS;
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF:
+	case SCI_PHY_SUB_AWAIT_SIG_FIS_UF:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_SATA_PHY_DETECTED:
 			/* Backup the state machine */
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN);
+			sci_change_state(&sci_phy->sm, SCI_PHY_SUB_AWAIT_SATA_SPEED_EN);
 			break;
 
 		case SCU_EVENT_LINK_FAILURE:
 			/* Link failure change state back to the starting state */
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    SCI_BASE_PHY_STATE_STARTING);
+			sci_change_state(&sci_phy->sm, SCI_PHY_STARTING);
 			break;
 
 		default:
@@ -870,12 +846,11 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			return SCI_FAILURE;
 		}
 		return SCI_SUCCESS;
-	case SCI_BASE_PHY_STATE_READY:
+	case SCI_PHY_READY:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_LINK_FAILURE:
 			/* Link failure change state back to the starting state */
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    SCI_BASE_PHY_STATE_STARTING);
+			sci_change_state(&sci_phy->sm, SCI_PHY_STARTING);
 			break;
 		case SCU_EVENT_BROADCAST_CHANGE:
 			/* Broadcast change received. Notify the port. */
@@ -892,12 +867,11 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 			return SCI_FAILURE_INVALID_STATE;
 		}
 		return SCI_SUCCESS;
-	case SCI_BASE_PHY_STATE_RESETTING:
+	case SCI_PHY_RESETTING:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_HARD_RESET_TRANSMITTED:
 			/* Link failure change state back to the starting state */
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    SCI_BASE_PHY_STATE_STARTING);
+			sci_change_state(&sci_phy->sm, SCI_PHY_STARTING);
 			break;
 		default:
 			dev_warn(sciphy_to_dev(sci_phy),
@@ -919,12 +893,12 @@ enum sci_status scic_sds_phy_event_handler(struct scic_sds_phy *sci_phy,
 enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
 					   u32 frame_index)
 {
-	enum scic_sds_phy_states state = sci_phy->state_machine.current_state_id;
+	enum scic_sds_phy_states state = sci_phy->sm.current_state_id;
 	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 	enum sci_status result;
 
 	switch (state) {
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF: {
+	case SCI_PHY_SUB_AWAIT_IAF_UF: {
 		u32 *frame_words;
 		struct sas_identify_frame iaf;
 		struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
@@ -946,15 +920,14 @@ enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
 				 * state since there are no power requirements for
 				 * expander phys.
 				 */
-				state = SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL;
+				state = SCI_PHY_SUB_FINAL;
 			} else {
 				/* We got the IAF we can now go to the await spinup
 				 * semaphore state
 				 */
-				state = SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER;
+				state = SCI_PHY_SUB_AWAIT_SAS_POWER;
 			}
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    state);
+			sci_change_state(&sci_phy->sm, state);
 			result = SCI_SUCCESS;
 		} else
 			dev_warn(sciphy_to_dev(sci_phy),
@@ -965,7 +938,7 @@ enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
 		scic_sds_controller_release_frame(scic, frame_index);
 		return result;
 	}
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF: {
+	case SCI_PHY_SUB_AWAIT_SIG_FIS_UF: {
 		struct dev_to_host_fis *frame_header;
 		u32 *fis_frame_data;
 		struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
@@ -989,8 +962,7 @@ enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
 							       fis_frame_data);
 
 			/* got IAF we can now go to the await spinup semaphore state */
-			sci_base_state_machine_change_state(&sci_phy->state_machine,
-							    SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL);
+			sci_change_state(&sci_phy->sm, SCI_PHY_SUB_FINAL);
 
 			result = SCI_SUCCESS;
 		} else
@@ -1014,16 +986,15 @@ enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
 
 static void scic_sds_phy_starting_initial_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	/* This is just an temporary state go off to the starting state */
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN);
+	sci_change_state(&sci_phy->sm, SCI_PHY_SUB_AWAIT_OSSP_EN);
 }
 
 static void scic_sds_phy_starting_await_sas_power_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 
 	scic_sds_controller_power_control_queue_insert(scic, sci_phy);
@@ -1031,7 +1002,7 @@ static void scic_sds_phy_starting_await_sas_power_substate_enter(struct sci_base
 
 static void scic_sds_phy_starting_await_sas_power_substate_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 
 	scic_sds_controller_power_control_queue_remove(scic, sci_phy);
@@ -1039,7 +1010,7 @@ static void scic_sds_phy_starting_await_sas_power_substate_exit(struct sci_base_
 
 static void scic_sds_phy_starting_await_sata_power_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 
 	scic_sds_controller_power_control_queue_insert(scic, sci_phy);
@@ -1047,7 +1018,7 @@ static void scic_sds_phy_starting_await_sata_power_substate_enter(struct sci_bas
 
 static void scic_sds_phy_starting_await_sata_power_substate_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 
 	scic_sds_controller_power_control_queue_remove(scic, sci_phy);
@@ -1055,35 +1026,35 @@ static void scic_sds_phy_starting_await_sata_power_substate_exit(struct sci_base
 
 static void scic_sds_phy_starting_await_sata_phy_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	sci_mod_timer(&sci_phy->sata_timer, SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT);
 }
 
 static void scic_sds_phy_starting_await_sata_phy_substate_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	sci_del_timer(&sci_phy->sata_timer);
 }
 
 static void scic_sds_phy_starting_await_sata_speed_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	sci_mod_timer(&sci_phy->sata_timer, SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT);
 }
 
 static void scic_sds_phy_starting_await_sata_speed_substate_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	sci_del_timer(&sci_phy->sata_timer);
 }
 
 static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	if (scic_sds_port_link_detected(sci_phy->owning_port, sci_phy)) {
 
@@ -1103,20 +1074,19 @@ static void scic_sds_phy_starting_await_sig_fis_uf_substate_enter(struct sci_bas
 
 static void scic_sds_phy_starting_await_sig_fis_uf_substate_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	sci_del_timer(&sci_phy->sata_timer);
 }
 
 static void scic_sds_phy_starting_final_substate_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	/* State machine has run to completion so exit out and change
 	 * the base state machine to the ready state
 	 */
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCI_BASE_PHY_STATE_READY);
+	sci_change_state(&sci_phy->sm, SCI_PHY_READY);
 }
 
 /**
@@ -1202,7 +1172,7 @@ static void scu_link_layer_tx_hard_reset(
 
 static void scic_sds_phy_stopped_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	/*
 	 * @todo We need to get to the controller to place this PE in a
@@ -1212,7 +1182,7 @@ static void scic_sds_phy_stopped_state_enter(struct sci_base_state_machine *sm)
 
 	scu_link_layer_stop_protocol_engine(sci_phy);
 
-	if (sci_phy->state_machine.previous_state_id != SCI_BASE_PHY_STATE_INITIAL)
+	if (sci_phy->sm.previous_state_id != SCI_PHY_INITIAL)
 		scic_sds_controller_link_down(scic_sds_phy_get_controller(sci_phy),
 					      phy_get_non_dummy_port(sci_phy),
 					      sci_phy);
@@ -1220,7 +1190,7 @@ static void scic_sds_phy_stopped_state_enter(struct sci_base_state_machine *sm)
 
 static void scic_sds_phy_starting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	scu_link_layer_stop_protocol_engine(sci_phy);
 	scu_link_layer_start_oob(sci_phy);
@@ -1229,18 +1199,17 @@ static void scic_sds_phy_starting_state_enter(struct sci_base_state_machine *sm)
 	sci_phy->protocol = SCIC_SDS_PHY_PROTOCOL_UNKNOWN;
 	sci_phy->bcn_received_while_port_unassigned = false;
 
-	if (sci_phy->state_machine.previous_state_id == SCI_BASE_PHY_STATE_READY)
+	if (sci_phy->sm.previous_state_id == SCI_PHY_READY)
 		scic_sds_controller_link_down(scic_sds_phy_get_controller(sci_phy),
 					      phy_get_non_dummy_port(sci_phy),
 					      sci_phy);
 
-	sci_base_state_machine_change_state(&sci_phy->state_machine,
-					    SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL);
+	sci_change_state(&sci_phy->sm, SCI_PHY_SUB_INITIAL);
 }
 
 static void scic_sds_phy_ready_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	scic_sds_controller_link_up(scic_sds_phy_get_controller(sci_phy),
 				    phy_get_non_dummy_port(sci_phy),
@@ -1250,14 +1219,14 @@ static void scic_sds_phy_ready_state_enter(struct sci_base_state_machine *sm)
 
 static void scic_sds_phy_ready_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	scic_sds_phy_suspend(sci_phy);
 }
 
 static void scic_sds_phy_resetting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), state_machine);
+	struct scic_sds_phy *sci_phy = container_of(sm, typeof(*sci_phy), sm);
 
 	/* The phy is being reset, therefore deactivate it from the port.  In
 	 * the resetting state we don't notify the user regarding link up and
@@ -1271,66 +1240,65 @@ static void scic_sds_phy_resetting_state_enter(struct sci_base_state_machine *sm
 		/* The SCU does not need to have a discrete reset state so
 		 * just go back to the starting state.
 		 */
-		sci_base_state_machine_change_state(&sci_phy->state_machine,
-						    SCI_BASE_PHY_STATE_STARTING);
+		sci_change_state(&sci_phy->sm, SCI_PHY_STARTING);
 	}
 }
 
 static const struct sci_base_state scic_sds_phy_state_table[] = {
-	[SCI_BASE_PHY_STATE_INITIAL] = { },
-	[SCI_BASE_PHY_STATE_STOPPED] = {
+	[SCI_PHY_INITIAL] = { },
+	[SCI_PHY_STOPPED] = {
 		.enter_state = scic_sds_phy_stopped_state_enter,
 	},
-	[SCI_BASE_PHY_STATE_STARTING] = {
+	[SCI_PHY_STARTING] = {
 		.enter_state = scic_sds_phy_starting_state_enter,
 	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL] = {
+	[SCI_PHY_SUB_INITIAL] = {
 		.enter_state = scic_sds_phy_starting_initial_substate_enter,
 	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN] = { },
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN] = { },
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF] = { },
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER] = {
+	[SCI_PHY_SUB_AWAIT_OSSP_EN] = { },
+	[SCI_PHY_SUB_AWAIT_SAS_SPEED_EN] = { },
+	[SCI_PHY_SUB_AWAIT_IAF_UF] = { },
+	[SCI_PHY_SUB_AWAIT_SAS_POWER] = {
 		.enter_state = scic_sds_phy_starting_await_sas_power_substate_enter,
 		.exit_state  = scic_sds_phy_starting_await_sas_power_substate_exit,
 	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER] = {
+	[SCI_PHY_SUB_AWAIT_SATA_POWER] = {
 		.enter_state = scic_sds_phy_starting_await_sata_power_substate_enter,
 		.exit_state  = scic_sds_phy_starting_await_sata_power_substate_exit
 	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN] = {
+	[SCI_PHY_SUB_AWAIT_SATA_PHY_EN] = {
 		.enter_state = scic_sds_phy_starting_await_sata_phy_substate_enter,
 		.exit_state  = scic_sds_phy_starting_await_sata_phy_substate_exit
 	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN] = {
+	[SCI_PHY_SUB_AWAIT_SATA_SPEED_EN] = {
 		.enter_state = scic_sds_phy_starting_await_sata_speed_substate_enter,
 		.exit_state  = scic_sds_phy_starting_await_sata_speed_substate_exit
 	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF] = {
+	[SCI_PHY_SUB_AWAIT_SIG_FIS_UF] = {
 		.enter_state = scic_sds_phy_starting_await_sig_fis_uf_substate_enter,
 		.exit_state  = scic_sds_phy_starting_await_sig_fis_uf_substate_exit
 	},
-	[SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL] = {
+	[SCI_PHY_SUB_FINAL] = {
 		.enter_state = scic_sds_phy_starting_final_substate_enter,
 	},
-	[SCI_BASE_PHY_STATE_READY] = {
+	[SCI_PHY_READY] = {
 		.enter_state = scic_sds_phy_ready_state_enter,
 		.exit_state = scic_sds_phy_ready_state_exit,
 	},
-	[SCI_BASE_PHY_STATE_RESETTING] = {
+	[SCI_PHY_RESETTING] = {
 		.enter_state = scic_sds_phy_resetting_state_enter,
 	},
-	[SCI_BASE_PHY_STATE_FINAL] = { },
+	[SCI_PHY_FINAL] = { },
 };
 
 void scic_sds_phy_construct(struct scic_sds_phy *sci_phy,
 			    struct scic_sds_port *owning_port, u8 phy_index)
 {
-	sci_base_state_machine_construct(&sci_phy->state_machine,
+	sci_base_state_machine_construct(&sci_phy->sm,
 					 scic_sds_phy_state_table,
-					 SCI_BASE_PHY_STATE_INITIAL);
+					 SCI_PHY_INITIAL);
 
-	sci_base_state_machine_start(&sci_phy->state_machine);
+	sci_base_state_machine_start(&sci_phy->sm);
 
 	/* Copy the rest of the input data to our locals */
 	sci_phy->owning_port = owning_port;

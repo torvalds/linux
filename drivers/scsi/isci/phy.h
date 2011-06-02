@@ -94,7 +94,7 @@ struct scic_sds_phy {
 	/**
 	 * This field contains the information for the base phy state machine.
 	 */
-	struct sci_base_state_machine state_machine;
+	struct sci_base_state_machine sm;
 
 	/**
 	 * This field specifies the port object that owns/contains this phy.
@@ -410,7 +410,7 @@ enum scic_sds_phy_states {
 	/**
 	 * Simply the initial state for the base domain state machine.
 	 */
-	SCI_BASE_PHY_STATE_INITIAL,
+	SCI_PHY_INITIAL,
 
 	/**
 	 * This state indicates that the phy has successfully been stopped.
@@ -420,7 +420,7 @@ enum scic_sds_phy_states {
 	 * This state is entered from the READY state.
 	 * This state is entered from the RESETTING state.
 	 */
-	SCI_BASE_PHY_STATE_STOPPED,
+	SCI_PHY_STOPPED,
 
 	/**
 	 * This state indicates that the phy is in the process of becomming
@@ -429,57 +429,57 @@ enum scic_sds_phy_states {
 	 * This state is entered from the READY state.
 	 * This state is entered from the RESETTING state.
 	 */
-	SCI_BASE_PHY_STATE_STARTING,
+	SCI_PHY_STARTING,
 
 	/**
 	 * Initial state
 	 */
-	SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL,
+	SCI_PHY_SUB_INITIAL,
 
 	/**
 	 * Wait state for the hardware OSSP event type notification
 	 */
-	SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_OSSP_EN,
+	SCI_PHY_SUB_AWAIT_OSSP_EN,
 
 	/**
 	 * Wait state for the PHY speed notification
 	 */
-	SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN,
+	SCI_PHY_SUB_AWAIT_SAS_SPEED_EN,
 
 	/**
 	 * Wait state for the IAF Unsolicited frame notification
 	 */
-	SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF,
+	SCI_PHY_SUB_AWAIT_IAF_UF,
 
 	/**
 	 * Wait state for the request to consume power
 	 */
-	SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER,
+	SCI_PHY_SUB_AWAIT_SAS_POWER,
 
 	/**
 	 * Wait state for request to consume power
 	 */
-	SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER,
+	SCI_PHY_SUB_AWAIT_SATA_POWER,
 
 	/**
 	 * Wait state for the SATA PHY notification
 	 */
-	SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN,
+	SCI_PHY_SUB_AWAIT_SATA_PHY_EN,
 
 	/**
 	 * Wait for the SATA PHY speed notification
 	 */
-	SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN,
+	SCI_PHY_SUB_AWAIT_SATA_SPEED_EN,
 
 	/**
 	 * Wait state for the SIGNATURE FIS unsolicited frame notification
 	 */
-	SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF,
+	SCI_PHY_SUB_AWAIT_SIG_FIS_UF,
 
 	/**
 	 * Exit state for this state machine
 	 */
-	SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL,
+	SCI_PHY_SUB_FINAL,
 
 	/**
 	 * This state indicates the the phy is now ready.  Thus, the user
@@ -487,19 +487,19 @@ enum scic_sds_phy_states {
 	 * is currently part of a valid port.
 	 * This state is entered from the STARTING state.
 	 */
-	SCI_BASE_PHY_STATE_READY,
+	SCI_PHY_READY,
 
 	/**
 	 * This state indicates that the phy is in the process of being reset.
 	 * In this state no new IO operations are permitted on this phy.
 	 * This state is entered from the READY state.
 	 */
-	SCI_BASE_PHY_STATE_RESETTING,
+	SCI_PHY_RESETTING,
 
 	/**
 	 * Simply the final state for the base phy state machine.
 	 */
-	SCI_BASE_PHY_STATE_FINAL,
+	SCI_PHY_FINAL,
 };
 
 /**

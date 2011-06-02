@@ -96,37 +96,42 @@ struct scic_sds_stp_request {
 		u32 udma;
 
 		struct scic_sds_stp_pio_request {
-			/**
-			 * Total transfer for the entire PIO request recorded at request constuction
-			 * time.
+			/*
+			 * Total transfer for the entire PIO request recorded
+			 * at request constuction time.
 			 *
-			 * @todo Should we just decrement this value for each byte of data transitted
-			 *       or received to elemenate the current_transfer_bytes field?
+			 * @todo Should we just decrement this value for each
+			 * byte of data transitted or received to elemenate
+			 * the current_transfer_bytes field?
 			 */
 			u32 total_transfer_bytes;
 
-			/**
-			 * Total number of bytes received/transmitted in data frames since the start
-			 * of the IO request.  At the end of the IO request this should equal the
+			/*
+			 * Total number of bytes received/transmitted in data
+			 * frames since the start of the IO request.  At the
+			 * end of the IO request this should equal the
 			 * total_transfer_bytes.
 			 */
 			u32 current_transfer_bytes;
 
-			/**
-			 * The number of bytes requested in the in the PIO setup.
+			/*
+			 * The number of bytes requested in the in the PIO
+			 * setup.
 			 */
 			u32 pio_transfer_bytes;
 
-			/**
-			 * PIO Setup ending status value to tell us if we need to wait for another FIS
-			 * or if the transfer is complete. On the receipt of a D2H FIS this will be
+			/*
+			 * PIO Setup ending status value to tell us if we need
+			 * to wait for another FIS or if the transfer is
+			 * complete. On the receipt of a D2H FIS this will be
 			 * the status field of that FIS.
 			 */
 			u8 ending_status;
 
-			/**
-			 * On receipt of a D2H FIS this will be the ending error field if the
-			 * ending_status has the SATA_STATUS_ERR bit set.
+			/*
+			 * On receipt of a D2H FIS this will be the ending
+			 * error field if the ending_status has the
+			 * SATA_STATUS_ERR bit set.
 			 */
 			u8 ending_error;
 
@@ -138,8 +143,9 @@ struct scic_sds_stp_request {
 		} pio;
 
 		struct {
-			/**
-			 * The number of bytes requested in the PIO setup before CDB data frame.
+			/*
+			 * The number of bytes requested in the PIO setup
+			 * before CDB data frame.
 			 */
 			u32 device_preferred_cdb_length;
 		} packet;
@@ -147,57 +153,59 @@ struct scic_sds_stp_request {
 };
 
 struct scic_sds_request {
-	/**
-	 * This field contains the information for the base request state machine.
+	/*
+	 * This field contains the information for the base request state
+	 * machine.
 	 */
-	struct sci_base_state_machine state_machine;
+	struct sci_base_state_machine sm;
 
-	/**
+	/*
 	 * This field simply points to the controller to which this IO request
 	 * is associated.
 	 */
 	struct scic_sds_controller *owning_controller;
 
-	/**
-	 * This field simply points to the remote device to which this IO request
-	 * is associated.
+	/*
+	 * This field simply points to the remote device to which this IO
+	 * request is associated.
 	 */
 	struct scic_sds_remote_device *target_device;
 
-	/**
+	/*
 	 * This field is utilized to determine if the SCI user is managing
 	 * the IO tag for this request or if the core is managing it.
 	 */
 	bool was_tag_assigned_by_user;
 
-	/**
+	/*
 	 * This field indicates the IO tag for this request.  The IO tag is
 	 * comprised of the task_index and a sequence count. The sequence count
 	 * is utilized to help identify tasks from one life to another.
 	 */
 	u16 io_tag;
 
-	/**
+	/*
 	 * This field specifies the protocol being utilized for this
 	 * IO request.
 	 */
 	enum sci_request_protocol protocol;
 
-	/**
+	/*
 	 * This field indicates the completion status taken from the SCUs
-	 * completion code.  It indicates the completion result for the SCU hardware.
+	 * completion code.  It indicates the completion result for the SCU
+	 * hardware.
 	 */
 	u32 scu_status;
 
-	/**
-	 * This field indicates the completion status returned to the SCI user.  It
-	 * indicates the users view of the io request completion.
+	/*
+	 * This field indicates the completion status returned to the SCI user.
+	 * It indicates the users view of the io request completion.
 	 */
 	u32 sci_status;
 
-	/**
-	 * This field contains the value to be utilized when posting (e.g. Post_TC,
-	 * Post_TC_Abort) this request to the silicon.
+	/*
+	 * This field contains the value to be utilized when posting
+	 * (e.g. Post_TC, * Post_TC_Abort) this request to the silicon.
 	 */
 	u32 post_context;
 
@@ -208,26 +216,26 @@ struct scic_sds_request {
 	#define SCU_SGL_SIZE ((SCU_IO_REQUEST_SGE_COUNT + 1) / 2)
 	struct scu_sgl_element_pair sg_table[SCU_SGL_SIZE] __attribute__ ((aligned(32)));
 
-	/**
+	/*
 	 * This field indicates if this request is a task management request or
 	 * normal IO request.
 	 */
 	bool is_task_management_request;
 
-	/**
-	 * This field is a pointer to the stored rx frame data.  It is used in STP
-	 * internal requests and SMP response frames.  If this field is non-NULL the
-	 * saved frame must be released on IO request completion.
+	/*
+	 * This field is a pointer to the stored rx frame data.  It is used in
+	 * STP internal requests and SMP response frames.  If this field is
+	 * non-NULL the saved frame must be released on IO request completion.
 	 *
 	 * @todo In the future do we want to keep a list of RX frame buffers?
 	 */
 	u32 saved_rx_frame_index;
 
-	/**
-	 * This field in the recorded device sequence for the io request.  This is
-	 * recorded during the build operation and is compared in the start
-	 * operation.  If the sequence is different then there was a change of
-	 * devices from the build to start operations.
+	/*
+	 * This field in the recorded device sequence for the io request.
+	 * This is recorded during the build operation and is compared in the
+	 * start operation.  If the sequence is different then there was a
+	 * change of devices from the build to start operations.
 	 */
 	u8 device_sequence;
 
@@ -286,7 +294,7 @@ struct isci_request {
 	dma_addr_t request_daddr;
 	dma_addr_t zero_scatter_daddr;
 
-	unsigned int num_sg_entries;                    /* returned by pci_alloc_sg */
+	unsigned int num_sg_entries;			/* returned by pci_alloc_sg */
 
 	/** Note: "io_request_completion" is completed in two different ways
 	 * depending on whether this is a TMF or regular request.
@@ -315,104 +323,105 @@ static inline struct isci_request *sci_req_to_ireq(struct scic_sds_request *sci_
  *
  */
 enum sci_base_request_states {
-	/**
+	/*
 	 * Simply the initial state for the base request state machine.
 	 */
-	SCI_BASE_REQUEST_STATE_INITIAL,
+	SCI_REQ_INIT,
 
-	/**
-	 * This state indicates that the request has been constructed. This state
-	 * is entered from the INITIAL state.
+	/*
+	 * This state indicates that the request has been constructed.
+	 * This state is entered from the INITIAL state.
 	 */
-	SCI_BASE_REQUEST_STATE_CONSTRUCTED,
+	SCI_REQ_CONSTRUCTED,
 
-	/**
-	 * This state indicates that the request has been started. This state is
-	 * entered from the CONSTRUCTED state.
+	/*
+	 * This state indicates that the request has been started. This state
+	 * is entered from the CONSTRUCTED state.
 	 */
-	SCI_BASE_REQUEST_STATE_STARTED,
+	SCI_REQ_STARTED,
 
-	SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE,
-	SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE,
+	SCI_REQ_STP_UDMA_WAIT_TC_COMP,
+	SCI_REQ_STP_UDMA_WAIT_D2H,
 
-	SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE,
-	SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE,
+	SCI_REQ_STP_NON_DATA_WAIT_H2D,
+	SCI_REQ_STP_NON_DATA_WAIT_D2H,
 
-	SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE,
-	SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE,
-	SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_D2H_RESPONSE_FRAME_SUBSTATE,
+	SCI_REQ_STP_SOFT_RESET_WAIT_H2D_ASSERTED,
+	SCI_REQ_STP_SOFT_RESET_WAIT_H2D_DIAG,
+	SCI_REQ_STP_SOFT_RESET_WAIT_D2H,
 
-	/**
-	 * While in this state the IO request object is waiting for the TC completion
-	 * notification for the H2D Register FIS
+	/*
+	 * While in this state the IO request object is waiting for the TC
+	 * completion notification for the H2D Register FIS
 	 */
-	SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE,
+	SCI_REQ_STP_PIO_WAIT_H2D,
 
-	/**
-	 * While in this state the IO request object is waiting for either a PIO Setup
-	 * FIS or a D2H register FIS.  The type of frame received is based on the
-	 * result of the prior frame and line conditions.
+	/*
+	 * While in this state the IO request object is waiting for either a
+	 * PIO Setup FIS or a D2H register FIS.  The type of frame received is
+	 * based on the result of the prior frame and line conditions.
 	 */
-	SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE,
+	SCI_REQ_STP_PIO_WAIT_FRAME,
 
-	/**
-	 * While in this state the IO request object is waiting for a DATA frame from
-	 * the device.
+	/*
+	 * While in this state the IO request object is waiting for a DATA
+	 * frame from the device.
 	 */
-	SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE,
+	SCI_REQ_STP_PIO_DATA_IN,
 
-	/**
-	 * While in this state the IO request object is waiting to transmit the next data
-	 * frame to the device.
+	/*
+	 * While in this state the IO request object is waiting to transmit
+	 * the next data frame to the device.
 	 */
-	SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE,
+	SCI_REQ_STP_PIO_DATA_OUT,
 
-	/**
+	/*
 	 * The AWAIT_TC_COMPLETION sub-state indicates that the started raw
 	 * task management request is waiting for the transmission of the
 	 * initial frame (i.e. command, task, etc.).
 	 */
-	SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION,
+	SCI_REQ_TASK_WAIT_TC_COMP,
 
-	/**
+	/*
 	 * This sub-state indicates that the started task management request
 	 * is waiting for the reception of an unsolicited frame
 	 * (i.e. response IU).
 	 */
-	SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE,
+	SCI_REQ_TASK_WAIT_TC_RESP,
 
-	/**
+	/*
 	 * This sub-state indicates that the started task management request
 	 * is waiting for the reception of an unsolicited frame
 	 * (i.e. response IU).
 	 */
-	SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE,
+	SCI_REQ_SMP_WAIT_RESP,
 
-	/**
-	 * The AWAIT_TC_COMPLETION sub-state indicates that the started SMP request is
-	 * waiting for the transmission of the initial frame (i.e. command, task, etc.).
+	/*
+	 * The AWAIT_TC_COMPLETION sub-state indicates that the started SMP
+	 * request is waiting for the transmission of the initial frame
+	 * (i.e. command, task, etc.).
 	 */
-	SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION,
+	SCI_REQ_SMP_WAIT_TC_COMP,
 
-	/**
+	/*
 	 * This state indicates that the request has completed.
-	 * This state is entered from the STARTED state. This state is entered from
-	 * the ABORTING state.
+	 * This state is entered from the STARTED state. This state is entered
+	 * from the ABORTING state.
 	 */
-	SCI_BASE_REQUEST_STATE_COMPLETED,
+	SCI_REQ_COMPLETED,
 
-	/**
+	/*
 	 * This state indicates that the request is in the process of being
 	 * terminated/aborted.
 	 * This state is entered from the CONSTRUCTED state.
 	 * This state is entered from the STARTED state.
 	 */
-	SCI_BASE_REQUEST_STATE_ABORTING,
+	SCI_REQ_ABORTING,
 
-	/**
+	/*
 	 * Simply the final state for the base request state machine.
 	 */
-	SCI_BASE_REQUEST_STATE_FINAL,
+	SCI_REQ_FINAL,
 };
 
 /**
@@ -498,13 +507,18 @@ enum sci_base_request_states {
 
 enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req);
 enum sci_status scic_sds_io_request_terminate(struct scic_sds_request *sci_req);
-enum sci_status scic_sds_io_request_event_handler(struct scic_sds_request *sci_req,
-						  u32 event_code);
-enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
-						  u32 frame_index);
-enum sci_status scic_sds_task_request_terminate(struct scic_sds_request *sci_req);
-extern enum sci_status scic_sds_request_complete(struct scic_sds_request *sci_req);
-extern enum sci_status scic_sds_io_request_tc_completion(struct scic_sds_request *sci_req, u32 code);
+enum sci_status
+scic_sds_io_request_event_handler(struct scic_sds_request *sci_req,
+				  u32 event_code);
+enum sci_status
+scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
+				  u32 frame_index);
+enum sci_status
+scic_sds_task_request_terminate(struct scic_sds_request *sci_req);
+extern enum sci_status
+scic_sds_request_complete(struct scic_sds_request *sci_req);
+extern enum sci_status
+scic_sds_io_request_tc_completion(struct scic_sds_request *sci_req, u32 code);
 
 /* XXX open code in caller */
 static inline void *scic_request_get_virt_addr(struct scic_sds_request *sci_req,
@@ -523,8 +537,8 @@ static inline void *scic_request_get_virt_addr(struct scic_sds_request *sci_req,
 }
 
 /* XXX open code in caller */
-static inline dma_addr_t scic_io_request_get_dma_addr(struct scic_sds_request *sci_req,
-						      void *virt_addr)
+static inline dma_addr_t
+scic_io_request_get_dma_addr(struct scic_sds_request *sci_req, void *virt_addr)
 {
 	struct isci_request *ireq = sci_req_to_ireq(sci_req);
 
@@ -543,9 +557,8 @@ static inline dma_addr_t scic_io_request_get_dma_addr(struct scic_sds_request *s
  *
  * status of the object as a isci_request_status enum.
  */
-static inline
-enum isci_request_status isci_request_get_state(
-	struct isci_request *isci_request)
+static inline enum isci_request_status
+isci_request_get_state(struct isci_request *isci_request)
 {
 	BUG_ON(isci_request == NULL);
 
@@ -566,9 +579,9 @@ enum isci_request_status isci_request_get_state(
  * @status: This Parameter is the new status of the object
  *
  */
-static inline enum isci_request_status isci_request_change_state(
-	struct isci_request *isci_request,
-	enum isci_request_status status)
+static inline enum isci_request_status
+isci_request_change_state(struct isci_request *isci_request,
+			  enum isci_request_status status)
 {
 	enum isci_request_status old_state;
 	unsigned long flags;
@@ -597,10 +610,10 @@ static inline enum isci_request_status isci_request_change_state(
  *
  * state previous to any change.
  */
-static inline enum isci_request_status isci_request_change_started_to_newstate(
-	struct isci_request *isci_request,
-	struct completion *completion_ptr,
-	enum isci_request_status newstate)
+static inline enum isci_request_status
+isci_request_change_started_to_newstate(struct isci_request *isci_request,
+					struct completion *completion_ptr,
+					enum isci_request_status newstate)
 {
 	enum isci_request_status old_state;
 	unsigned long flags;
@@ -615,6 +628,7 @@ static inline enum isci_request_status isci_request_change_started_to_newstate(
 		isci_request->io_request_completion = completion_ptr;
 		isci_request->status = newstate;
 	}
+
 	spin_unlock_irqrestore(&isci_request->state_lock, flags);
 
 	dev_dbg(&isci_request->isci_host->pdev->dev,
@@ -635,13 +649,13 @@ static inline enum isci_request_status isci_request_change_started_to_newstate(
  *
  * state previous to any change.
  */
-static inline enum isci_request_status isci_request_change_started_to_aborted(
-	struct isci_request *isci_request,
-	struct completion *completion_ptr)
+static inline enum isci_request_status
+isci_request_change_started_to_aborted(struct isci_request *isci_request,
+				       struct completion *completion_ptr)
 {
-	return isci_request_change_started_to_newstate(
-		       isci_request, completion_ptr, aborted
-		       );
+	return isci_request_change_started_to_newstate(isci_request,
+						       completion_ptr,
+						       aborted);
 }
 /**
  * isci_request_free() - This function frees the request object.
@@ -649,62 +663,33 @@ static inline enum isci_request_status isci_request_change_started_to_aborted(
  * @isci_request: This parameter points to the isci_request object
  *
  */
-static inline void isci_request_free(
-	struct isci_host *isci_host,
-	struct isci_request *isci_request)
+static inline void isci_request_free(struct isci_host *isci_host,
+				     struct isci_request *isci_request)
 {
 	if (!isci_request)
 		return;
 
 	/* release the dma memory if we fail. */
-	dma_pool_free(isci_host->dma_pool, isci_request,
+	dma_pool_free(isci_host->dma_pool,
+		      isci_request,
 		      isci_request->request_daddr);
 }
 
+#define isci_request_access_task(req) ((req)->ttype_ptr.io_task_ptr)
 
-/* #define ISCI_REQUEST_VALIDATE_ACCESS
- */
+#define isci_request_access_tmf(req) ((req)->ttype_ptr.tmf_task_ptr)
 
-#ifdef ISCI_REQUEST_VALIDATE_ACCESS
-
-static inline
-struct sas_task *isci_request_access_task(struct isci_request *isci_request)
-{
-	BUG_ON(isci_request->ttype != io_task);
-	return isci_request->ttype_ptr.io_task_ptr;
-}
-
-static inline
-struct isci_tmf *isci_request_access_tmf(struct isci_request *isci_request)
-{
-	BUG_ON(isci_request->ttype != tmf_task);
-	return isci_request->ttype_ptr.tmf_task_ptr;
-}
-
-#else  /* not ISCI_REQUEST_VALIDATE_ACCESS */
-
-#define isci_request_access_task(RequestPtr) \
-	((RequestPtr)->ttype_ptr.io_task_ptr)
-
-#define isci_request_access_tmf(RequestPtr)  \
-	((RequestPtr)->ttype_ptr.tmf_task_ptr)
-
-#endif /* not ISCI_REQUEST_VALIDATE_ACCESS */
+int isci_request_alloc_tmf(struct isci_host *isci_host,
+			   struct isci_tmf *isci_tmf,
+			   struct isci_request **isci_request,
+			   struct isci_remote_device *isci_device,
+			   gfp_t gfp_flags);
 
 
-int isci_request_alloc_tmf(
-	struct isci_host *isci_host,
-	struct isci_tmf *isci_tmf,
-	struct isci_request **isci_request,
-	struct isci_remote_device *isci_device,
-	gfp_t gfp_flags);
-
-
-int isci_request_execute(
-	struct isci_host *isci_host,
-	struct sas_task *task,
-	struct isci_request **request,
-	gfp_t gfp_flags);
+int isci_request_execute(struct isci_host *isci_host,
+			 struct sas_task *task,
+			 struct isci_request **request,
+			 gfp_t gfp_flags);
 
 /**
  * isci_request_unmap_sgl() - This function unmaps the DMA address of a given
@@ -713,9 +698,8 @@ int isci_request_execute(
  * @*pdev: This Parameter is the pci_device struct for the controller
  *
  */
-static inline void isci_request_unmap_sgl(
-	struct isci_request *request,
-	struct pci_dev *pdev)
+static inline void
+isci_request_unmap_sgl(struct isci_request *request, struct pci_dev *pdev)
 {
 	struct sas_task *task = isci_request_access_task(request);
 
@@ -758,9 +742,9 @@ static inline void isci_request_unmap_sgl(
  *
  * pointer to the next sge for specified request.
  */
-static inline void *isci_request_io_request_get_next_sge(
-	struct isci_request *request,
-	void *current_sge_address)
+static inline void *
+isci_request_io_request_get_next_sge(struct isci_request *request,
+				     void *current_sge_address)
 {
 	struct sas_task *task = isci_request_access_task(request);
 	void *ret = NULL;
@@ -791,15 +775,20 @@ static inline void *isci_request_io_request_get_next_sge(
 	return ret;
 }
 
-void isci_terminate_pending_requests(struct isci_host *isci_host,
-				     struct isci_remote_device *isci_device,
-				     enum isci_request_status new_request_state);
-enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
-					    struct scic_sds_remote_device *sci_dev,
-					    u16 io_tag,
-					    struct scic_sds_request *sci_req);
-enum sci_status scic_task_request_construct_ssp(struct scic_sds_request *sci_req);
-enum sci_status scic_task_request_construct_sata(struct scic_sds_request *sci_req);
-void scic_stp_io_request_set_ncq_tag(struct scic_sds_request *sci_req, u16 ncq_tag);
+void
+isci_terminate_pending_requests(struct isci_host *isci_host,
+				struct isci_remote_device *isci_device,
+				enum isci_request_status new_request_state);
+enum sci_status
+scic_task_request_construct(struct scic_sds_controller *scic,
+			    struct scic_sds_remote_device *sci_dev,
+			    u16 io_tag,
+			    struct scic_sds_request *sci_req);
+enum sci_status
+scic_task_request_construct_ssp(struct scic_sds_request *sci_req);
+enum sci_status
+scic_task_request_construct_sata(struct scic_sds_request *sci_req);
+void
+scic_stp_io_request_set_ncq_tag(struct scic_sds_request *sci_req, u16 ncq_tag);
 void scic_sds_smp_request_copy_response(struct scic_sds_request *sci_req);
 #endif /* !defined(_ISCI_REQUEST_H_) */

@@ -807,10 +807,10 @@ static void scic_sds_port_invalid_link_up(struct scic_sds_port *sci_port,
 static bool is_port_ready_state(enum scic_sds_port_states state)
 {
 	switch (state) {
-	case SCI_BASE_PORT_STATE_READY:
-	case SCIC_SDS_PORT_READY_SUBSTATE_WAITING:
-	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
-	case SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING:
+	case SCI_PORT_READY:
+	case SCI_PORT_SUB_WAITING:
+	case SCI_PORT_SUB_OPERATIONAL:
+	case SCI_PORT_SUB_CONFIGURING:
 		return true;
 	default:
 		return false;
@@ -821,13 +821,13 @@ static bool is_port_ready_state(enum scic_sds_port_states state)
 static void port_state_machine_change(struct scic_sds_port *sci_port,
 				      enum scic_sds_port_states state)
 {
-	struct sci_base_state_machine *sm = &sci_port->state_machine;
+	struct sci_base_state_machine *sm = &sci_port->sm;
 	enum scic_sds_port_states old_state = sm->current_state_id;
 
 	if (is_port_ready_state(old_state) && !is_port_ready_state(state))
 		sci_port->ready_exit = true;
 
-	sci_base_state_machine_change_state(sm, state);
+	sci_change_state(sm, state);
 	sci_port->ready_exit = false;
 }
 
@@ -862,11 +862,11 @@ static void scic_sds_port_general_link_up_handler(struct scic_sds_port *sci_port
 	if ((phy_sas_address.high == port_sas_address.high &&
 	     phy_sas_address.low  == port_sas_address.low) ||
 	    sci_port->active_phy_mask == 0) {
-		struct sci_base_state_machine *sm = &sci_port->state_machine;
+		struct sci_base_state_machine *sm = &sci_port->sm;
 
 		scic_sds_port_activate_phy(sci_port, sci_phy, do_notify_user);
-		if (sm->current_state_id == SCI_BASE_PORT_STATE_RESETTING)
-			port_state_machine_change(sci_port, SCI_BASE_PORT_STATE_READY);
+		if (sm->current_state_id == SCI_PORT_RESETTING)
+			port_state_machine_change(sci_port, SCI_PORT_READY);
 	} else
 		scic_sds_port_invalid_link_up(sci_port, sci_phy);
 }
@@ -938,14 +938,14 @@ static void port_timeout(unsigned long data)
 	if (tmr->cancel)
 		goto done;
 
-	current_state = sci_base_state_machine_get_state(&sci_port->state_machine);
+	current_state = sci_port->sm.current_state_id;
 
-	if (current_state == SCI_BASE_PORT_STATE_RESETTING) {
+	if (current_state == SCI_PORT_RESETTING) {
 		/* if the port is still in the resetting state then the timeout
 		 * fired before the reset completed.
 		 */
-		port_state_machine_change(sci_port, SCI_BASE_PORT_STATE_FAILED);
-	} else if (current_state == SCI_BASE_PORT_STATE_STOPPED) {
+		port_state_machine_change(sci_port, SCI_PORT_FAILED);
+	} else if (current_state == SCI_PORT_STOPPED) {
 		/* if the port is stopped then the start request failed In this
 		 * case stay in the stopped state.
 		 */
@@ -953,7 +953,7 @@ static void port_timeout(unsigned long data)
 			"%s: SCIC Port 0x%p failed to stop before tiemout.\n",
 			__func__,
 			sci_port);
-	} else if (current_state == SCI_BASE_PORT_STATE_STOPPING) {
+	} else if (current_state == SCI_PORT_STOPPING) {
 		/* if the port is still stopping then the stop has not completed */
 		isci_port_stop_complete(sci_port->owning_controller,
 					sci_port,
@@ -1139,7 +1139,7 @@ scic_sds_port_resume_port_task_scheduler(struct scic_sds_port *port)
 
 static void scic_sds_port_ready_substate_waiting_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
+	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), sm);
 
 	scic_sds_port_suspend_port_task_scheduler(sci_port);
 
@@ -1148,14 +1148,14 @@ static void scic_sds_port_ready_substate_waiting_enter(struct sci_base_state_mac
 	if (sci_port->active_phy_mask != 0) {
 		/* At least one of the phys on the port is ready */
 		port_state_machine_change(sci_port,
-					  SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL);
+					  SCI_PORT_SUB_OPERATIONAL);
 	}
 }
 
 static void scic_sds_port_ready_substate_operational_enter(struct sci_base_state_machine *sm)
 {
 	u32 index;
-	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
+	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), sm);
 	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_port *iport = sci_port_to_iport(sci_port);
@@ -1211,12 +1211,12 @@ static void scic_sds_port_invalidate_dummy_remote_node(struct scic_sds_port *sci
  * @object: This is the object which is cast to a struct scic_sds_port object.
  *
  * This method will perform the actions required by the struct scic_sds_port on
- * exiting the SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL. This function reports
+ * exiting the SCI_PORT_SUB_OPERATIONAL. This function reports
  * the port not ready and suspends the port task scheduler. none
  */
 static void scic_sds_port_ready_substate_operational_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
+	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), sm);
 	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_port *iport = sci_port_to_iport(sci_port);
@@ -1236,7 +1236,7 @@ static void scic_sds_port_ready_substate_operational_exit(struct sci_base_state_
 
 static void scic_sds_port_ready_substate_configuring_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
+	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), sm);
 	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_port *iport = sci_port_to_iport(sci_port);
@@ -1245,15 +1245,15 @@ static void scic_sds_port_ready_substate_configuring_enter(struct sci_base_state
 		isci_port_not_ready(ihost, iport);
 
 		port_state_machine_change(sci_port,
-					  SCIC_SDS_PORT_READY_SUBSTATE_WAITING);
+					  SCI_PORT_SUB_WAITING);
 	} else if (sci_port->started_request_count == 0)
 		port_state_machine_change(sci_port,
-					  SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL);
+					  SCI_PORT_SUB_OPERATIONAL);
 }
 
 static void scic_sds_port_ready_substate_configuring_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
+	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), sm);
 
 	scic_sds_port_suspend_port_task_scheduler(sci_port);
 	if (sci_port->ready_exit)
@@ -1267,8 +1267,8 @@ enum sci_status scic_sds_port_start(struct scic_sds_port *sci_port)
 	enum scic_sds_port_states state;
 	u32 phy_mask;
 
-	state = sci_port->state_machine.current_state_id;
-	if (state != SCI_BASE_PORT_STATE_STOPPED) {
+	state = sci_port->sm.current_state_id;
+	if (state != SCI_PORT_STOPPED) {
 		dev_warn(sciport_to_dev(sci_port),
 			 "%s: in wrong state: %d\n", __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
@@ -1315,7 +1315,7 @@ enum sci_status scic_sds_port_start(struct scic_sds_port *sci_port)
 		 */
 		if (scic_sds_port_is_phy_mask_valid(sci_port, phy_mask) == true) {
 			port_state_machine_change(sci_port,
-						  SCI_BASE_PORT_STATE_READY);
+						  SCI_PORT_READY);
 
 			return SCI_SUCCESS;
 		}
@@ -1332,16 +1332,16 @@ enum sci_status scic_sds_port_stop(struct scic_sds_port *sci_port)
 {
 	enum scic_sds_port_states state;
 
-	state = sci_port->state_machine.current_state_id;
+	state = sci_port->sm.current_state_id;
 	switch (state) {
-	case SCI_BASE_PORT_STATE_STOPPED:
+	case SCI_PORT_STOPPED:
 		return SCI_SUCCESS;
-	case SCIC_SDS_PORT_READY_SUBSTATE_WAITING:
-	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
-	case SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING:
-	case SCI_BASE_PORT_STATE_RESETTING:
+	case SCI_PORT_SUB_WAITING:
+	case SCI_PORT_SUB_OPERATIONAL:
+	case SCI_PORT_SUB_CONFIGURING:
+	case SCI_PORT_RESETTING:
 		port_state_machine_change(sci_port,
-					  SCI_BASE_PORT_STATE_STOPPING);
+					  SCI_PORT_STOPPING);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(sciport_to_dev(sci_port),
@@ -1357,8 +1357,8 @@ static enum sci_status scic_port_hard_reset(struct scic_sds_port *sci_port, u32 
 	enum scic_sds_port_states state;
 	u32 phy_index;
 
-	state = sci_port->state_machine.current_state_id;
-	if (state != SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL) {
+	state = sci_port->sm.current_state_id;
+	if (state != SCI_PORT_SUB_OPERATIONAL) {
 		dev_warn(sciport_to_dev(sci_port),
 			 "%s: in wrong state: %d\n", __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
@@ -1389,7 +1389,7 @@ static enum sci_status scic_port_hard_reset(struct scic_sds_port *sci_port, u32 
 	sci_port->not_ready_reason = SCIC_PORT_NOT_READY_HARD_RESET_REQUESTED;
 
 	port_state_machine_change(sci_port,
-				  SCI_BASE_PORT_STATE_RESETTING);
+				  SCI_PORT_RESETTING);
 	return SCI_SUCCESS;
 }
 
@@ -1408,9 +1408,9 @@ enum sci_status scic_sds_port_add_phy(struct scic_sds_port *sci_port,
 	enum sci_status status;
 	enum scic_sds_port_states state;
 
-	state = sci_port->state_machine.current_state_id;
+	state = sci_port->sm.current_state_id;
 	switch (state) {
-	case SCI_BASE_PORT_STATE_STOPPED: {
+	case SCI_PORT_STOPPED: {
 		struct sci_sas_address port_sas_address;
 
 		/* Read the port assigned SAS Address if there is one */
@@ -1430,8 +1430,8 @@ enum sci_status scic_sds_port_add_phy(struct scic_sds_port *sci_port,
 		}
 		return scic_sds_port_set_phy(sci_port, sci_phy);
 	}
-	case SCIC_SDS_PORT_READY_SUBSTATE_WAITING:
-	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
+	case SCI_PORT_SUB_WAITING:
+	case SCI_PORT_SUB_OPERATIONAL:
 		status = scic_sds_port_set_phy(sci_port, sci_phy);
 
 		if (status != SCI_SUCCESS)
@@ -1439,10 +1439,10 @@ enum sci_status scic_sds_port_add_phy(struct scic_sds_port *sci_port,
 
 		scic_sds_port_general_link_up_handler(sci_port, sci_phy, true);
 		sci_port->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
-		port_state_machine_change(sci_port, SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
+		port_state_machine_change(sci_port, SCI_PORT_SUB_CONFIGURING);
 
 		return status;
-	case SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING:
+	case SCI_PORT_SUB_CONFIGURING:
 		status = scic_sds_port_set_phy(sci_port, sci_phy);
 
 		if (status != SCI_SUCCESS)
@@ -1453,7 +1453,7 @@ enum sci_status scic_sds_port_add_phy(struct scic_sds_port *sci_port,
 		 * the port.
 		 */
 		port_state_machine_change(sci_port,
-					  SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
+					  SCI_PORT_SUB_CONFIGURING);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(sciport_to_dev(sci_port),
@@ -1477,12 +1477,12 @@ enum sci_status scic_sds_port_remove_phy(struct scic_sds_port *sci_port,
 	enum sci_status status;
 	enum scic_sds_port_states state;
 
-	state = sci_port->state_machine.current_state_id;
+	state = sci_port->sm.current_state_id;
 
 	switch (state) {
-	case SCI_BASE_PORT_STATE_STOPPED:
+	case SCI_PORT_STOPPED:
 		return scic_sds_port_clear_phy(sci_port, sci_phy);
-	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
+	case SCI_PORT_SUB_OPERATIONAL:
 		status = scic_sds_port_clear_phy(sci_port, sci_phy);
 		if (status != SCI_SUCCESS)
 			return status;
@@ -1490,9 +1490,9 @@ enum sci_status scic_sds_port_remove_phy(struct scic_sds_port *sci_port,
 		scic_sds_port_deactivate_phy(sci_port, sci_phy, true);
 		sci_port->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
 		port_state_machine_change(sci_port,
-					  SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
+					  SCI_PORT_SUB_CONFIGURING);
 		return SCI_SUCCESS;
-	case SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING:
+	case SCI_PORT_SUB_CONFIGURING:
 		status = scic_sds_port_clear_phy(sci_port, sci_phy);
 
 		if (status != SCI_SUCCESS)
@@ -1503,7 +1503,7 @@ enum sci_status scic_sds_port_remove_phy(struct scic_sds_port *sci_port,
 		 * the port
 		 */
 		port_state_machine_change(sci_port,
-					  SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING);
+					  SCI_PORT_SUB_CONFIGURING);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(sciport_to_dev(sci_port),
@@ -1517,21 +1517,21 @@ enum sci_status scic_sds_port_link_up(struct scic_sds_port *sci_port,
 {
 	enum scic_sds_port_states state;
 
-	state = sci_port->state_machine.current_state_id;
+	state = sci_port->sm.current_state_id;
 	switch (state) {
-	case SCIC_SDS_PORT_READY_SUBSTATE_WAITING:
+	case SCI_PORT_SUB_WAITING:
 		/* Since this is the first phy going link up for the port we
 		 * can just enable it and continue
 		 */
 		scic_sds_port_activate_phy(sci_port, sci_phy, true);
 
 		port_state_machine_change(sci_port,
-					  SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL);
+					  SCI_PORT_SUB_OPERATIONAL);
 		return SCI_SUCCESS;
-	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
+	case SCI_PORT_SUB_OPERATIONAL:
 		scic_sds_port_general_link_up_handler(sci_port, sci_phy, true);
 		return SCI_SUCCESS;
-	case SCI_BASE_PORT_STATE_RESETTING:
+	case SCI_PORT_RESETTING:
 		/* TODO We should  make  sure  that  the phy  that  has gone
 		 * link up is the same one on which we sent the reset.  It is
 		 * possible that the phy on which we sent  the reset is not the
@@ -1560,9 +1560,9 @@ enum sci_status scic_sds_port_link_down(struct scic_sds_port *sci_port,
 {
 	enum scic_sds_port_states state;
 
-	state = sci_port->state_machine.current_state_id;
+	state = sci_port->sm.current_state_id;
 	switch (state) {
-	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
+	case SCI_PORT_SUB_OPERATIONAL:
 		scic_sds_port_deactivate_phy(sci_port, sci_phy, true);
 
 		/* If there are no active phys left in the port, then
@@ -1571,9 +1571,9 @@ enum sci_status scic_sds_port_link_down(struct scic_sds_port *sci_port,
 		 */
 		if (sci_port->active_phy_mask == 0)
 			port_state_machine_change(sci_port,
-						  SCIC_SDS_PORT_READY_SUBSTATE_WAITING);
+						  SCI_PORT_SUB_WAITING);
 		return SCI_SUCCESS;
-	case SCI_BASE_PORT_STATE_RESETTING:
+	case SCI_PORT_RESETTING:
 		/* In the resetting state we don't notify the user regarding
 		 * link up and link down notifications. */
 		scic_sds_port_deactivate_phy(sci_port, sci_phy, false);
@@ -1591,11 +1591,11 @@ enum sci_status scic_sds_port_start_io(struct scic_sds_port *sci_port,
 {
 	enum scic_sds_port_states state;
 
-	state = sci_port->state_machine.current_state_id;
+	state = sci_port->sm.current_state_id;
 	switch (state) {
-	case SCIC_SDS_PORT_READY_SUBSTATE_WAITING:
+	case SCI_PORT_SUB_WAITING:
 		return SCI_FAILURE_INVALID_STATE;
-	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
+	case SCI_PORT_SUB_OPERATIONAL:
 		sci_port->started_request_count++;
 		return SCI_SUCCESS;
 	default:
@@ -1611,31 +1611,31 @@ enum sci_status scic_sds_port_complete_io(struct scic_sds_port *sci_port,
 {
 	enum scic_sds_port_states state;
 
-	state = sci_port->state_machine.current_state_id;
+	state = sci_port->sm.current_state_id;
 	switch (state) {
-	case SCI_BASE_PORT_STATE_STOPPED:
+	case SCI_PORT_STOPPED:
 		dev_warn(sciport_to_dev(sci_port),
 			 "%s: in wrong state: %d\n", __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
-	case SCI_BASE_PORT_STATE_STOPPING:
+	case SCI_PORT_STOPPING:
 		scic_sds_port_decrement_request_count(sci_port);
 
 		if (sci_port->started_request_count == 0)
 			port_state_machine_change(sci_port,
-						  SCI_BASE_PORT_STATE_STOPPED);
+						  SCI_PORT_STOPPED);
 		break;
-	case SCI_BASE_PORT_STATE_READY:
-	case SCI_BASE_PORT_STATE_RESETTING:
-	case SCI_BASE_PORT_STATE_FAILED:
-	case SCIC_SDS_PORT_READY_SUBSTATE_WAITING:
-	case SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL:
+	case SCI_PORT_READY:
+	case SCI_PORT_RESETTING:
+	case SCI_PORT_FAILED:
+	case SCI_PORT_SUB_WAITING:
+	case SCI_PORT_SUB_OPERATIONAL:
 		scic_sds_port_decrement_request_count(sci_port);
 		break;
-	case SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING:
+	case SCI_PORT_SUB_CONFIGURING:
 		scic_sds_port_decrement_request_count(sci_port);
 		if (sci_port->started_request_count == 0) {
 			port_state_machine_change(sci_port,
-						  SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL);
+						  SCI_PORT_SUB_OPERATIONAL);
 		}
 		break;
 	}
@@ -1707,9 +1707,9 @@ static void scic_sds_port_post_dummy_remote_node(struct scic_sds_port *sci_port)
 
 static void scic_sds_port_stopped_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
+	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), sm);
 
-	if (sci_port->state_machine.previous_state_id == SCI_BASE_PORT_STATE_STOPPING) {
+	if (sci_port->sm.previous_state_id == SCI_PORT_STOPPING) {
 		/*
 		 * If we enter this state becasuse of a request to stop
 		 * the port then we want to disable the hardwares port
@@ -1720,7 +1720,7 @@ static void scic_sds_port_stopped_state_enter(struct sci_base_state_machine *sm)
 
 static void scic_sds_port_stopped_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
+	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), sm);
 
 	/* Enable and suspend the port task scheduler */
 	scic_sds_port_enable_port_task_scheduler(sci_port);
@@ -1728,14 +1728,14 @@ static void scic_sds_port_stopped_state_exit(struct sci_base_state_machine *sm)
 
 static void scic_sds_port_ready_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
+	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), sm);
 	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_port *iport = sci_port_to_iport(sci_port);
 	u32 prev_state;
 
-	prev_state = sci_port->state_machine.previous_state_id;
-	if (prev_state  == SCI_BASE_PORT_STATE_RESETTING)
+	prev_state = sci_port->sm.previous_state_id;
+	if (prev_state  == SCI_PORT_RESETTING)
 		isci_port_hard_reset_complete(iport, SCI_SUCCESS);
 	else
 		isci_port_not_ready(ihost, iport);
@@ -1745,19 +1745,19 @@ static void scic_sds_port_ready_state_enter(struct sci_base_state_machine *sm)
 
 	/* Start the ready substate machine */
 	port_state_machine_change(sci_port,
-				  SCIC_SDS_PORT_READY_SUBSTATE_WAITING);
+				  SCI_PORT_SUB_WAITING);
 }
 
 static void scic_sds_port_resetting_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
+	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), sm);
 
 	sci_del_timer(&sci_port->timer);
 }
 
 static void scic_sds_port_stopping_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
+	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), sm);
 
 	sci_del_timer(&sci_port->timer);
 
@@ -1766,7 +1766,7 @@ static void scic_sds_port_stopping_state_exit(struct sci_base_state_machine *sm)
 
 static void scic_sds_port_failed_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), state_machine);
+	struct scic_sds_port *sci_port = container_of(sm, typeof(*sci_port), sm);
 	struct isci_port *iport = sci_port_to_iport(sci_port);
 
 	isci_port_hard_reset_complete(iport, SCI_FAILURE_TIMEOUT);
@@ -1775,31 +1775,31 @@ static void scic_sds_port_failed_state_enter(struct sci_base_state_machine *sm)
 /* --------------------------------------------------------------------------- */
 
 static const struct sci_base_state scic_sds_port_state_table[] = {
-	[SCI_BASE_PORT_STATE_STOPPED] = {
+	[SCI_PORT_STOPPED] = {
 		.enter_state = scic_sds_port_stopped_state_enter,
 		.exit_state  = scic_sds_port_stopped_state_exit
 	},
-	[SCI_BASE_PORT_STATE_STOPPING] = {
+	[SCI_PORT_STOPPING] = {
 		.exit_state  = scic_sds_port_stopping_state_exit
 	},
-	[SCI_BASE_PORT_STATE_READY] = {
+	[SCI_PORT_READY] = {
 		.enter_state = scic_sds_port_ready_state_enter,
 	},
-	[SCIC_SDS_PORT_READY_SUBSTATE_WAITING] = {
+	[SCI_PORT_SUB_WAITING] = {
 		.enter_state = scic_sds_port_ready_substate_waiting_enter,
 	},
-	[SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL] = {
+	[SCI_PORT_SUB_OPERATIONAL] = {
 		.enter_state = scic_sds_port_ready_substate_operational_enter,
 		.exit_state  = scic_sds_port_ready_substate_operational_exit
 	},
-	[SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING] = {
+	[SCI_PORT_SUB_CONFIGURING] = {
 		.enter_state = scic_sds_port_ready_substate_configuring_enter,
 		.exit_state  = scic_sds_port_ready_substate_configuring_exit
 	},
-	[SCI_BASE_PORT_STATE_RESETTING] = {
+	[SCI_PORT_RESETTING] = {
 		.exit_state  = scic_sds_port_resetting_state_exit
 	},
-	[SCI_BASE_PORT_STATE_FAILED] = {
+	[SCI_PORT_FAILED] = {
 		.enter_state = scic_sds_port_failed_state_enter,
 	}
 };
@@ -1807,11 +1807,11 @@ static const struct sci_base_state scic_sds_port_state_table[] = {
 void scic_sds_port_construct(struct scic_sds_port *sci_port, u8 index,
 			     struct scic_sds_controller *scic)
 {
-	sci_base_state_machine_construct(&sci_port->state_machine,
+	sci_base_state_machine_construct(&sci_port->sm,
 					 scic_sds_port_state_table,
-					 SCI_BASE_PORT_STATE_STOPPED);
+					 SCI_PORT_STOPPED);
 
-	sci_base_state_machine_start(&sci_port->state_machine);
+	sci_base_state_machine_start(&sci_port->sm);
 
 	sci_port->logical_port_index  = SCIC_SDS_DUMMY_PORT;
 	sci_port->physical_port_index = index;

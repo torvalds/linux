@@ -127,16 +127,7 @@ void sci_base_state_machine_stop(
 	sci_state_machine_exit_state(sm);
 }
 
-/**
- * This method performs an update to the current state of the state machine.
- * @sm: This parameter specifies the state machine for which
- *    the caller wishes to perform a state change.
- * @next_state: This parameter specifies the new state for the state machine.
- *
- */
-void sci_base_state_machine_change_state(
-	struct sci_base_state_machine *sm,
-	u32 next_state)
+void sci_change_state(struct sci_base_state_machine *sm, u32 next_state)
 {
 	sci_state_machine_exit_state(sm);
 
@@ -145,18 +136,3 @@ void sci_base_state_machine_change_state(
 
 	sci_state_machine_enter_state(sm);
 }
-
-/**
- * This method simply returns the current state of the state machine to the
- *    caller.
- * @sm: This parameter specifies the state machine for which to
- *    retrieve the current state.
- *
- * This method returns a u32 value indicating the current state for the
- * supplied state machine.
- */
-u32 sci_base_state_machine_get_state(struct sci_base_state_machine *sm)
-{
-	return sm->current_state_id;
-}
-

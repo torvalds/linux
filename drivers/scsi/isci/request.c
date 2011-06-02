@@ -649,8 +649,7 @@ static enum sci_status scic_io_request_construct_basic_ssp(struct scic_sds_reque
 
 	scic_sds_io_request_build_ssp_command_iu(sci_req);
 
-	sci_base_state_machine_change_state(&sci_req->state_machine,
-					    SCI_BASE_REQUEST_STATE_CONSTRUCTED);
+	sci_change_state(&sci_req->sm, SCI_REQ_CONSTRUCTED);
 
 	return SCI_SUCCESS;
 }
@@ -664,8 +663,7 @@ enum sci_status scic_task_request_construct_ssp(
 	/* Fill in the SSP Task IU */
 	scic_sds_task_request_build_ssp_task_iu(sci_req);
 
-	sci_base_state_machine_change_state(&sci_req->state_machine,
-					    SCI_BASE_REQUEST_STATE_CONSTRUCTED);
+	sci_change_state(&sci_req->sm, SCI_REQ_CONSTRUCTED);
 
 	return SCI_SUCCESS;
 }
@@ -687,8 +685,7 @@ static enum sci_status scic_io_request_construct_basic_sata(struct scic_sds_requ
 						copy);
 
 	if (status == SCI_SUCCESS)
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_CONSTRUCTED);
+		sci_change_state(&sci_req->sm, SCI_REQ_CONSTRUCTED);
 
 	return status;
 }
@@ -718,8 +715,7 @@ enum sci_status scic_task_request_construct_sata(struct scic_sds_request *sci_re
 
 	if (status != SCI_SUCCESS)
 		return status;
-	sci_base_state_machine_change_state(&sci_req->state_machine,
-					    SCI_BASE_REQUEST_STATE_CONSTRUCTED);
+	sci_change_state(&sci_req->sm, SCI_REQ_CONSTRUCTED);
 
 	return status;
 }
@@ -761,8 +757,8 @@ enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req)
 	    scic_sds_remote_device_get_sequence(sci_req->target_device))
 		return SCI_FAILURE;
 
-	state = sci_req->state_machine.current_state_id;
-	if (state != SCI_BASE_REQUEST_STATE_CONSTRUCTED) {
+	state = sci_req->sm.current_state_id;
+	if (state != SCI_REQ_CONSTRUCTED) {
 		dev_warn(scic_to_dev(scic),
 			"%s: SCIC IO Request requested to start while in wrong "
 			 "state %d\n", __func__, state);
@@ -818,8 +814,7 @@ enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req)
 		sci_req->post_context |= scic_sds_io_tag_get_index(sci_req->io_tag);
 
 		/* Everything is good go ahead and change state */
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_STARTED);
+		sci_change_state(&sci_req->sm, SCI_REQ_STARTED);
 
 		return SCI_SUCCESS;
 	}
@@ -832,52 +827,47 @@ scic_sds_io_request_terminate(struct scic_sds_request *sci_req)
 {
 	enum sci_base_request_states state;
 
-	state = sci_req->state_machine.current_state_id;
+	state = sci_req->sm.current_state_id;
 
 	switch (state) {
-	case SCI_BASE_REQUEST_STATE_CONSTRUCTED:
+	case SCI_REQ_CONSTRUCTED:
 		scic_sds_request_set_status(sci_req,
 			SCU_TASK_DONE_TASK_ABORT,
 			SCI_FAILURE_IO_TERMINATED);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		return SCI_SUCCESS;
-	case SCI_BASE_REQUEST_STATE_STARTED:
-	case SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION:
-	case SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE:
-	case SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION:
-	case SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE:
-	case SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE:
-	case SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE:
-	case SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE:
-	case SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE:
-	case SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE:
-	case SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE:
-	case SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE:
-	case SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE:
-	case SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE:
-	case SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_D2H_RESPONSE_FRAME_SUBSTATE:
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_ABORTING);
+	case SCI_REQ_STARTED:
+	case SCI_REQ_TASK_WAIT_TC_COMP:
+	case SCI_REQ_SMP_WAIT_RESP:
+	case SCI_REQ_SMP_WAIT_TC_COMP:
+	case SCI_REQ_STP_UDMA_WAIT_TC_COMP:
+	case SCI_REQ_STP_UDMA_WAIT_D2H:
+	case SCI_REQ_STP_NON_DATA_WAIT_H2D:
+	case SCI_REQ_STP_NON_DATA_WAIT_D2H:
+	case SCI_REQ_STP_PIO_WAIT_H2D:
+	case SCI_REQ_STP_PIO_WAIT_FRAME:
+	case SCI_REQ_STP_PIO_DATA_IN:
+	case SCI_REQ_STP_PIO_DATA_OUT:
+	case SCI_REQ_STP_SOFT_RESET_WAIT_H2D_ASSERTED:
+	case SCI_REQ_STP_SOFT_RESET_WAIT_H2D_DIAG:
+	case SCI_REQ_STP_SOFT_RESET_WAIT_D2H:
+		sci_change_state(&sci_req->sm, SCI_REQ_ABORTING);
 		return SCI_SUCCESS;
-	case SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE:
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_ABORTING);
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+	case SCI_REQ_TASK_WAIT_TC_RESP:
+		sci_change_state(&sci_req->sm, SCI_REQ_ABORTING);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		return SCI_SUCCESS;
-	case SCI_BASE_REQUEST_STATE_ABORTING:
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+	case SCI_REQ_ABORTING:
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		return SCI_SUCCESS;
-	case SCI_BASE_REQUEST_STATE_COMPLETED:
+	case SCI_REQ_COMPLETED:
 	default:
 		dev_warn(scic_to_dev(sci_req->owning_controller),
 			 "%s: SCIC IO Request requested to abort while in wrong "
 			 "state %d\n",
 			 __func__,
-			 sci_base_state_machine_get_state(&sci_req->state_machine));
+			 sci_req->sm.current_state_id);
 		break;
 	}
 
@@ -889,8 +879,8 @@ enum sci_status scic_sds_request_complete(struct scic_sds_request *sci_req)
 	enum sci_base_request_states state;
 	struct scic_sds_controller *scic = sci_req->owning_controller;
 
-	state = sci_req->state_machine.current_state_id;
-	if (WARN_ONCE(state != SCI_BASE_REQUEST_STATE_COMPLETED,
+	state = sci_req->sm.current_state_id;
+	if (WARN_ONCE(state != SCI_REQ_COMPLETED,
 		      "isci: request completion from wrong state (%d)\n", state))
 		return SCI_FAILURE_INVALID_STATE;
 
@@ -902,8 +892,7 @@ enum sci_status scic_sds_request_complete(struct scic_sds_request *sci_req)
 						  sci_req->saved_rx_frame_index);
 
 	/* XXX can we just stop the machine and remove the 'final' state? */
-	sci_base_state_machine_change_state(&sci_req->state_machine,
-					    SCI_BASE_REQUEST_STATE_FINAL);
+	sci_change_state(&sci_req->sm, SCI_REQ_FINAL);
 	return SCI_SUCCESS;
 }
 
@@ -913,9 +902,9 @@ enum sci_status scic_sds_io_request_event_handler(struct scic_sds_request *sci_r
 	enum sci_base_request_states state;
 	struct scic_sds_controller *scic = sci_req->owning_controller;
 
-	state = sci_req->state_machine.current_state_id;
+	state = sci_req->sm.current_state_id;
 
-	if (state != SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE) {
+	if (state != SCI_REQ_STP_PIO_DATA_IN) {
 		dev_warn(scic_to_dev(scic), "%s: (%x) in wrong state %d\n",
 			 __func__, event_code, state);
 
@@ -927,8 +916,7 @@ enum sci_status scic_sds_io_request_event_handler(struct scic_sds_request *sci_r
 		/* We are waiting for data and the SCU has R_ERR the data frame.
 		 * Go back to waiting for the D2H Register FIS
 		 */
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
+		sci_change_state(&sci_req->sm, SCI_REQ_STP_PIO_WAIT_FRAME);
 		return SCI_SUCCESS;
 	default:
 		dev_err(scic_to_dev(scic),
@@ -967,8 +955,9 @@ static void scic_sds_io_request_copy_response(struct scic_sds_request *sci_req)
 	memcpy(resp_buf, ssp_response->resp_data, len);
 }
 
-static enum sci_status request_started_state_tc_event(struct scic_sds_request *sci_req,
-						      u32 completion_code)
+static enum sci_status
+request_started_state_tc_event(struct scic_sds_request *sci_req,
+			       u32 completion_code)
 {
 	struct ssp_response_iu *resp_iu;
 	u8 datapres;
@@ -1110,13 +1099,13 @@ static enum sci_status request_started_state_tc_event(struct scic_sds_request *s
 	 */
 
 	/* In all cases we will treat this as the completion of the IO req. */
-	sci_base_state_machine_change_state(&sci_req->state_machine,
-					    SCI_BASE_REQUEST_STATE_COMPLETED);
+	sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 	return SCI_SUCCESS;
 }
 
-static enum sci_status request_aborting_state_tc_event(struct scic_sds_request *sci_req,
-						       u32 completion_code)
+static enum sci_status
+request_aborting_state_tc_event(struct scic_sds_request *sci_req,
+				u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case (SCU_TASK_DONE_GOOD << SCU_COMPLETION_TL_STATUS_SHIFT):
@@ -1124,8 +1113,7 @@ static enum sci_status request_aborting_state_tc_event(struct scic_sds_request *
 		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_TASK_ABORT,
 					    SCI_FAILURE_IO_TERMINATED);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		break;
 
 	default:
@@ -1146,8 +1134,7 @@ static enum sci_status ssp_task_request_await_tc_event(struct scic_sds_request *
 		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD,
 					    SCI_SUCCESS);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE);
+		sci_change_state(&sci_req->sm, SCI_REQ_TASK_WAIT_TC_RESP);
 		break;
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_ACK_NAK_TO):
 		/* Currently, the decision is to simply allow the task request
@@ -1160,27 +1147,28 @@ static enum sci_status ssp_task_request_await_tc_event(struct scic_sds_request *
 			 "ACK/NAK timeout\n", __func__, sci_req,
 			 completion_code);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE);
+		sci_change_state(&sci_req->sm, SCI_REQ_TASK_WAIT_TC_RESP);
 		break;
 	default:
-		/* All other completion status cause the IO to be complete.  If a NAK
-		 * was received, then it is up to the user to retry the request.
+		/*
+		 * All other completion status cause the IO to be complete.
+		 * If a NAK was received, then it is up to the user to retry
+		 * the request.
 		 */
 		scic_sds_request_set_status(sci_req,
 			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
 			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		break;
 	}
 
 	return SCI_SUCCESS;
 }
 
-static enum sci_status smp_request_await_response_tc_event(struct scic_sds_request *sci_req,
-							   u32 completion_code)
+static enum sci_status
+smp_request_await_response_tc_event(struct scic_sds_request *sci_req,
+				    u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
@@ -1191,8 +1179,7 @@ static enum sci_status smp_request_await_response_tc_event(struct scic_sds_reque
 		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD,
 					    SCI_SUCCESS);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		break;
 
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SMP_RESP_TO_ERR):
@@ -1209,8 +1196,7 @@ static enum sci_status smp_request_await_response_tc_event(struct scic_sds_reque
 		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_SMP_RESP_TO_ERR,
 					    SCI_FAILURE_RETRY_REQUIRED);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		break;
 
 	default:
@@ -1221,24 +1207,23 @@ static enum sci_status smp_request_await_response_tc_event(struct scic_sds_reque
 					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
 					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		break;
 	}
 
 	return SCI_SUCCESS;
 }
 
-static enum sci_status smp_request_await_tc_event(struct scic_sds_request *sci_req,
-						  u32 completion_code)
+static enum sci_status
+smp_request_await_tc_event(struct scic_sds_request *sci_req,
+			   u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
 		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD,
 					    SCI_SUCCESS);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		break;
 	default:
 		/* All other completion status cause the IO to be
@@ -1249,8 +1234,7 @@ static enum sci_status smp_request_await_tc_event(struct scic_sds_request *sci_r
 					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
 					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		break;
 	}
 
@@ -1311,16 +1295,16 @@ static struct scu_sgl_element *scic_sds_stp_request_pio_get_next_sgl(struct scic
 	return current_sgl;
 }
 
-static enum sci_status stp_request_non_data_await_h2d_tc_event(struct scic_sds_request *sci_req,
-							       u32 completion_code)
+static enum sci_status
+stp_request_non_data_await_h2d_tc_event(struct scic_sds_request *sci_req,
+					u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
 		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD,
 					    SCI_SUCCESS);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE);
+		sci_change_state(&sci_req->sm, SCI_REQ_STP_NON_DATA_WAIT_D2H);
 		break;
 
 	default:
@@ -1332,8 +1316,7 @@ static enum sci_status stp_request_non_data_await_h2d_tc_event(struct scic_sds_r
 					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
 					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		break;
 	}
 
@@ -1509,17 +1492,19 @@ static enum sci_status scic_sds_stp_request_pio_data_in_copy_data(
 	return status;
 }
 
-static enum sci_status stp_request_pio_await_h2d_completion_tc_event(struct scic_sds_request *sci_req,
-								     u32 completion_code)
+static enum sci_status
+stp_request_pio_await_h2d_completion_tc_event(struct scic_sds_request *sci_req,
+					      u32 completion_code)
 {
 	enum sci_status status = SCI_SUCCESS;
 
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD, SCI_SUCCESS);
+		scic_sds_request_set_status(sci_req,
+					    SCU_TASK_DONE_GOOD,
+					    SCI_SUCCESS);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
+		sci_change_state(&sci_req->sm, SCI_REQ_STP_PIO_WAIT_FRAME);
 		break;
 
 	default:
@@ -1531,16 +1516,16 @@ static enum sci_status stp_request_pio_await_h2d_completion_tc_event(struct scic
 					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
 					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		break;
 	}
 
 	return status;
 }
 
-static enum sci_status pio_data_out_tx_done_tc_event(struct scic_sds_request *sci_req,
-						     u32 completion_code)
+static enum sci_status
+pio_data_out_tx_done_tc_event(struct scic_sds_request *sci_req,
+			      u32 completion_code)
 {
 	enum sci_status status = SCI_SUCCESS;
 	bool all_frames_transferred = false;
@@ -1566,28 +1551,24 @@ static enum sci_status pio_data_out_tx_done_tc_event(struct scic_sds_request *sc
 		/* all data transferred. */
 		if (all_frames_transferred) {
 			/*
-			 * Change the state to SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_FRAME_SUBSTATE
+			 * Change the state to SCI_REQ_STP_PIO_DATA_IN
 			 * and wait for PIO_SETUP fis / or D2H REg fis. */
-			sci_base_state_machine_change_state(
-				&sci_req->state_machine,
-				SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE
-				);
+			sci_change_state(&sci_req->sm, SCI_REQ_STP_PIO_WAIT_FRAME);
 		}
 		break;
+
 	default:
 		/*
-		 * All other completion status cause the IO to be complete.  If a NAK
-		 * was received, then it is up to the user to retry the request. */
+		 * All other completion status cause the IO to be complete.
+		 * If a NAK was received, then it is up to the user to retry
+		 * the request.
+		 */
 		scic_sds_request_set_status(
 			sci_req,
 			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR
-			);
+			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-		sci_base_state_machine_change_state(
-			&sci_req->state_machine,
-			SCI_BASE_REQUEST_STATE_COMPLETED
-			);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		break;
 	}
 
@@ -1600,8 +1581,7 @@ static void scic_sds_stp_request_udma_complete_request(
 	enum sci_status sci_status)
 {
 	scic_sds_request_set_status(request, scu_status, sci_status);
-	sci_base_state_machine_change_state(&request->state_machine,
-		SCI_BASE_REQUEST_STATE_COMPLETED);
+	sci_change_state(&request->sm, SCI_REQ_COMPLETED);
 }
 
 static enum sci_status scic_sds_stp_request_udma_general_frame_handler(struct scic_sds_request *sci_req,
@@ -1632,8 +1612,9 @@ static enum sci_status scic_sds_stp_request_udma_general_frame_handler(struct sc
 	return status;
 }
 
-enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
-						  u32 frame_index)
+enum sci_status
+scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
+				  u32 frame_index)
 {
 	struct scic_sds_controller *scic = sci_req->owning_controller;
 	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
@@ -1641,9 +1622,9 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 	enum sci_status status;
 	ssize_t word_cnt;
 
-	state = sci_req->state_machine.current_state_id;
+	state = sci_req->sm.current_state_id;
 	switch (state)  {
-	case SCI_BASE_REQUEST_STATE_STARTED: {
+	case SCI_REQ_STARTED: {
 		struct ssp_frame_hdr ssp_hdr;
 		void *frame_header;
 
@@ -1684,20 +1665,21 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 		}
 
 		/*
-		 * In any case we are done with this frame buffer return it to the
-		 * controller
+		 * In any case we are done with this frame buffer return it to
+		 * the controller
 		 */
 		scic_sds_controller_release_frame(scic, frame_index);
 
 		return SCI_SUCCESS;
 	}
-	case SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE:
+
+	case SCI_REQ_TASK_WAIT_TC_RESP:
 		scic_sds_io_request_copy_response(sci_req);
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		scic_sds_controller_release_frame(scic,frame_index);
 		return SCI_SUCCESS;
-	case SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE: {
+
+	case SCI_REQ_SMP_WAIT_RESP: {
 		struct smp_resp *rsp_hdr = &sci_req->smp.rsp;
 		void *frame_header;
 
@@ -1725,32 +1707,40 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 			scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD,
 						    SCI_SUCCESS);
 
-			sci_base_state_machine_change_state(&sci_req->state_machine,
-							    SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION);
+			sci_change_state(&sci_req->sm, SCI_REQ_SMP_WAIT_TC_COMP);
 		} else {
-			/* This was not a response frame why did it get forwarded? */
+			/*
+			 * This was not a response frame why did it get
+			 * forwarded?
+			 */
 			dev_err(scic_to_dev(scic),
-				"%s: SCIC SMP Request 0x%p received unexpected frame "
-				"%d type 0x%02x\n", __func__, sci_req,
-				frame_index, rsp_hdr->frame_type);
+				"%s: SCIC SMP Request 0x%p received unexpected "
+				"frame %d type 0x%02x\n",
+				__func__,
+				sci_req,
+				frame_index,
+				rsp_hdr->frame_type);
 
 			scic_sds_request_set_status(sci_req,
 						    SCU_TASK_DONE_SMP_FRM_TYPE_ERR,
 						    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-			sci_base_state_machine_change_state(&sci_req->state_machine,
-							    SCI_BASE_REQUEST_STATE_COMPLETED);
+			sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		}
 
 		scic_sds_controller_release_frame(scic, frame_index);
 
 		return SCI_SUCCESS;
 	}
-	case SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE:
-		return scic_sds_stp_request_udma_general_frame_handler(sci_req, frame_index);
-	case SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE:
+
+	case SCI_REQ_STP_UDMA_WAIT_TC_COMP:
+		return scic_sds_stp_request_udma_general_frame_handler(sci_req,
+								       frame_index);
+
+	case SCI_REQ_STP_UDMA_WAIT_D2H:
 		/* Use the general frame handler to copy the resposne data */
-		status = scic_sds_stp_request_udma_general_frame_handler(sci_req, frame_index);
+		status = scic_sds_stp_request_udma_general_frame_handler(sci_req,
+									 frame_index);
 
 		if (status != SCI_SUCCESS)
 			return status;
@@ -1758,8 +1748,10 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 		scic_sds_stp_request_udma_complete_request(sci_req,
 							   SCU_TASK_DONE_CHECK_RESPONSE,
 							   SCI_FAILURE_IO_RESPONSE_VALID);
+
 		return SCI_SUCCESS;
-	case SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE: {
+
+	case SCI_REQ_STP_NON_DATA_WAIT_D2H: {
 		struct dev_to_host_fis *frame_header;
 		u32 *frame_buffer;
 
@@ -1769,9 +1761,12 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 
 		if (status != SCI_SUCCESS) {
 			dev_err(scic_to_dev(scic),
-				"%s: SCIC IO Request 0x%p could not get frame header "
-				"for frame index %d, status %x\n",
-				__func__, stp_req, frame_index, status);
+				"%s: SCIC IO Request 0x%p could not get frame "
+				"header for frame index %d, status %x\n",
+				__func__,
+				stp_req,
+				frame_index,
+				status);
 
 			return status;
 		}
@@ -1802,15 +1797,15 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 			break;
 		}
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 
 		/* Frame has been decoded return it to the controller */
 		scic_sds_controller_release_frame(scic, frame_index);
 
 		return status;
 	}
-	case SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE: {
+
+	case SCI_REQ_STP_PIO_WAIT_FRAME: {
 		struct isci_request *ireq = sci_req_to_ireq(sci_req);
 		struct sas_task *task = isci_request_access_task(ireq);
 		struct dev_to_host_fis *frame_header;
@@ -1822,8 +1817,8 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 
 		if (status != SCI_SUCCESS) {
 			dev_err(scic_to_dev(scic),
-				"%s: SCIC IO Request 0x%p could not get frame header "
-				"for frame index %d, status %x\n",
+				"%s: SCIC IO Request 0x%p could not get frame "
+				"header for frame index %d, status %x\n",
 				__func__, stp_req, frame_index, status);
 			return status;
 		}
@@ -1835,9 +1830,10 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 								      frame_index,
 								      (void **)&frame_buffer);
 
-			/* Get the data from the PIO Setup The SCU Hardware returns
-			 * first word in the frame_header and the rest of the data is in
-			 * the frame buffer so we need to back up one dword
+			/* Get the data from the PIO Setup The SCU Hardware
+			 * returns first word in the frame_header and the rest
+			 * of the data is in the frame buffer so we need to
+			 * back up one dword
 			 */
 
 			/* transfer_count: first 16bits in the 4th dword */
@@ -1856,31 +1852,33 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 			 * request was PIO Data-in or Data out
 			 */
 			if (task->data_dir == DMA_FROM_DEVICE) {
-				sci_base_state_machine_change_state(&sci_req->state_machine,
-								    SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE);
+				sci_change_state(&sci_req->sm, SCI_REQ_STP_PIO_DATA_IN);
 			} else if (task->data_dir == DMA_TO_DEVICE) {
 				/* Transmit data */
 				status = scic_sds_stp_request_pio_data_out_transmit_data(sci_req);
 				if (status != SCI_SUCCESS)
 					break;
-				sci_base_state_machine_change_state(&sci_req->state_machine,
-								    SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE);
+				sci_change_state(&sci_req->sm, SCI_REQ_STP_PIO_DATA_OUT);
 			}
 			break;
+
 		case FIS_SETDEVBITS:
-			sci_base_state_machine_change_state(&sci_req->state_machine,
-							    SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
+			sci_change_state(&sci_req->sm, SCI_REQ_STP_PIO_WAIT_FRAME);
 			break;
+
 		case FIS_REGD2H:
 			if (frame_header->status & ATA_BUSY) {
-				/* Now why is the drive sending a D2H Register FIS when
-				 * it is still busy?  Do nothing since we are still in
-				 * the right state.
+				/*
+				 * Now why is the drive sending a D2H Register
+				 * FIS when it is still busy?  Do nothing since
+				 * we are still in the right state.
 				 */
 				dev_dbg(scic_to_dev(scic),
 					"%s: SCIC PIO Request 0x%p received "
 					"D2H Register FIS with BSY status "
-					"0x%x\n", __func__, stp_req,
+					"0x%x\n",
+					__func__,
+					stp_req,
 					frame_header->status);
 				break;
 			}
@@ -1897,9 +1895,9 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 						    SCU_TASK_DONE_CHECK_RESPONSE,
 						    SCI_FAILURE_IO_RESPONSE_VALID);
 
-			sci_base_state_machine_change_state(&sci_req->state_machine,
-							    SCI_BASE_REQUEST_STATE_COMPLETED);
+			sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 			break;
+
 		default:
 			/* FIXME: what do we do here? */
 			break;
@@ -1910,7 +1908,8 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 
 		return status;
 	}
-	case SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE: {
+
+	case SCI_REQ_STP_PIO_DATA_IN: {
 		struct dev_to_host_fis *frame_header;
 		struct sata_fis_data *frame_buffer;
 
@@ -1920,9 +1919,12 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 
 		if (status != SCI_SUCCESS) {
 			dev_err(scic_to_dev(scic),
-				"%s: SCIC IO Request 0x%p could not get frame header "
-				"for frame index %d, status %x\n",
-				__func__, stp_req, frame_index, status);
+				"%s: SCIC IO Request 0x%p could not get frame "
+				"header for frame index %d, status %x\n",
+				__func__,
+				stp_req,
+				frame_index,
+				status);
 			return status;
 		}
 
@@ -1930,15 +1932,17 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 			dev_err(scic_to_dev(scic),
 				"%s: SCIC PIO Request 0x%p received frame %d "
 				"with fis type 0x%02x when expecting a data "
-				"fis.\n", __func__, stp_req, frame_index,
+				"fis.\n",
+				__func__,
+				stp_req,
+				frame_index,
 				frame_header->fis_type);
 
 			scic_sds_request_set_status(sci_req,
 						    SCU_TASK_DONE_GOOD,
 						    SCI_FAILURE_IO_REQUIRES_SCSI_ABORT);
 
-			sci_base_state_machine_change_state(&sci_req->state_machine,
-							    SCI_BASE_REQUEST_STATE_COMPLETED);
+			sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 
 			/* Frame is decoded return it to the controller */
 			scic_sds_controller_release_frame(scic, frame_index);
@@ -1972,15 +1976,14 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 						    SCU_TASK_DONE_CHECK_RESPONSE,
 						    SCI_FAILURE_IO_RESPONSE_VALID);
 
-			sci_base_state_machine_change_state(&sci_req->state_machine,
-							    SCI_BASE_REQUEST_STATE_COMPLETED);
+			sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		} else {
-			sci_base_state_machine_change_state(&sci_req->state_machine,
-							    SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE);
+			sci_change_state(&sci_req->sm, SCI_REQ_STP_PIO_WAIT_FRAME);
 		}
 		return status;
 	}
-	case SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_D2H_RESPONSE_FRAME_SUBSTATE: {
+
+	case SCI_REQ_STP_SOFT_RESET_WAIT_D2H: {
 		struct dev_to_host_fis *frame_header;
 		u32 *frame_buffer;
 
@@ -1989,9 +1992,12 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 								       (void **)&frame_header);
 		if (status != SCI_SUCCESS) {
 			dev_err(scic_to_dev(scic),
-				"%s: SCIC IO Request 0x%p could not get frame header "
-				"for frame index %d, status %x\n",
-				__func__, stp_req, frame_index, status);
+				"%s: SCIC IO Request 0x%p could not get frame "
+				"header for frame index %d, status %x\n",
+				__func__,
+				stp_req,
+				frame_index,
+				status);
 			return status;
 		}
 
@@ -2010,35 +2016,43 @@ enum sci_status scic_sds_io_request_frame_handler(struct scic_sds_request *sci_r
 						    SCU_TASK_DONE_CHECK_RESPONSE,
 						    SCI_FAILURE_IO_RESPONSE_VALID);
 			break;
+
 		default:
 			dev_warn(scic_to_dev(scic),
 				 "%s: IO Request:0x%p Frame Id:%d protocol "
-				 "violation occurred\n", __func__, stp_req,
+				 "violation occurred\n",
+				 __func__,
+				 stp_req,
 				 frame_index);
 
-			scic_sds_request_set_status(sci_req, SCU_TASK_DONE_UNEXP_FIS,
+			scic_sds_request_set_status(sci_req,
+						    SCU_TASK_DONE_UNEXP_FIS,
 						    SCI_FAILURE_PROTOCOL_VIOLATION);
 			break;
 		}
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 
 		/* Frame has been decoded return it to the controller */
 		scic_sds_controller_release_frame(scic, frame_index);
 
 		return status;
 	}
-	case SCI_BASE_REQUEST_STATE_ABORTING:
-		/* TODO: Is it even possible to get an unsolicited frame in the
+	case SCI_REQ_ABORTING:
+		/*
+		 * TODO: Is it even possible to get an unsolicited frame in the
 		 * aborting state?
 		 */
 		scic_sds_controller_release_frame(scic, frame_index);
 		return SCI_SUCCESS;
+
 	default:
 		dev_warn(scic_to_dev(scic),
-			 "%s: SCIC IO Request given unexpected frame %x while in "
-			 "state %d\n", __func__, frame_index, state);
+			 "%s: SCIC IO Request given unexpected frame %x while "
+			 "in state %d\n",
+			 __func__,
+			 frame_index,
+			 state);
 
 		scic_sds_controller_release_frame(scic, frame_index);
 		return SCI_FAILURE_INVALID_STATE;
@@ -2075,8 +2089,7 @@ static enum sci_status stp_request_udma_await_tc_event(struct scic_sds_request *
 			 * the device so we must change state to wait
 			 * for it
 			 */
-			sci_base_state_machine_change_state(&sci_req->state_machine,
-				SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE);
+			sci_change_state(&sci_req->sm, SCI_REQ_STP_UDMA_WAIT_D2H);
 		}
 		break;
 
@@ -2105,45 +2118,45 @@ static enum sci_status stp_request_udma_await_tc_event(struct scic_sds_request *
 	return status;
 }
 
-static enum sci_status stp_request_soft_reset_await_h2d_asserted_tc_event(struct scic_sds_request *sci_req,
-									  u32 completion_code)
+static enum sci_status
+stp_request_soft_reset_await_h2d_asserted_tc_event(struct scic_sds_request *sci_req,
+						   u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
 		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD,
 					    SCI_SUCCESS);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-			SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE);
+		sci_change_state(&sci_req->sm, SCI_REQ_STP_SOFT_RESET_WAIT_H2D_DIAG);
 		break;
 
 	default:
 		/*
-		 * All other completion status cause the IO to be complete.  If a NAK
-		 * was received, then it is up to the user to retry the request. */
+		 * All other completion status cause the IO to be complete.
+		 * If a NAK was received, then it is up to the user to retry
+		 * the request.
+		 */
 		scic_sds_request_set_status(sci_req,
-			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
+					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
+					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		break;
 	}
 
 	return SCI_SUCCESS;
 }
 
-static enum sci_status stp_request_soft_reset_await_h2d_diagnostic_tc_event(
-	struct scic_sds_request *sci_req,
-	u32 completion_code)
+static enum sci_status
+stp_request_soft_reset_await_h2d_diagnostic_tc_event(struct scic_sds_request *sci_req,
+						     u32 completion_code)
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
 		scic_sds_request_set_status(sci_req, SCU_TASK_DONE_GOOD,
 					    SCI_SUCCESS);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-			SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_D2H_RESPONSE_FRAME_SUBSTATE);
+		sci_change_state(&sci_req->sm, SCI_REQ_STP_SOFT_RESET_WAIT_D2H);
 		break;
 
 	default:
@@ -2155,8 +2168,7 @@ static enum sci_status stp_request_soft_reset_await_h2d_diagnostic_tc_event(
 			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
 			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
 
-		sci_base_state_machine_change_state(&sci_req->state_machine,
-						    SCI_BASE_REQUEST_STATE_COMPLETED);
+		sci_change_state(&sci_req->sm, SCI_REQ_COMPLETED);
 		break;
 	}
 
@@ -2164,42 +2176,64 @@ static enum sci_status stp_request_soft_reset_await_h2d_diagnostic_tc_event(
 }
 
 enum sci_status
-scic_sds_io_request_tc_completion(struct scic_sds_request *sci_req, u32 completion_code)
+scic_sds_io_request_tc_completion(struct scic_sds_request *sci_req,
+				  u32 completion_code)
 {
 	enum sci_base_request_states state;
 	struct scic_sds_controller *scic = sci_req->owning_controller;
 
-	state = sci_req->state_machine.current_state_id;
+	state = sci_req->sm.current_state_id;
 
 	switch (state) {
-		case SCI_BASE_REQUEST_STATE_STARTED:
-			return request_started_state_tc_event(sci_req, completion_code);
-		case SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION:
-			return ssp_task_request_await_tc_event(sci_req, completion_code);
-		case SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE:
-			return smp_request_await_response_tc_event(sci_req, completion_code);
-		case SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION:
-			return smp_request_await_tc_event(sci_req, completion_code);
-		case SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE:
-			return stp_request_udma_await_tc_event(sci_req, completion_code);
-		case SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE:
-			return stp_request_non_data_await_h2d_tc_event(sci_req, completion_code);
-		case SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE:
-			return stp_request_pio_await_h2d_completion_tc_event(sci_req, completion_code);
-		case SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE:
-			return pio_data_out_tx_done_tc_event(sci_req, completion_code);
-		case SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE:
-			return stp_request_soft_reset_await_h2d_asserted_tc_event(sci_req, completion_code);
-		case SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE:
-			return stp_request_soft_reset_await_h2d_diagnostic_tc_event(sci_req, completion_code);
-		case SCI_BASE_REQUEST_STATE_ABORTING:
-			return request_aborting_state_tc_event(sci_req, completion_code);
-		default:
-			dev_warn(scic_to_dev(scic),
-				"%s: SCIC IO Request given task completion notification %x "
-				"while in wrong state %d\n", __func__, completion_code,
-				state);
-			return SCI_FAILURE_INVALID_STATE;
+	case SCI_REQ_STARTED:
+		return request_started_state_tc_event(sci_req, completion_code);
+
+	case SCI_REQ_TASK_WAIT_TC_COMP:
+		return ssp_task_request_await_tc_event(sci_req,
+						       completion_code);
+
+	case SCI_REQ_SMP_WAIT_RESP:
+		return smp_request_await_response_tc_event(sci_req,
+							   completion_code);
+
+	case SCI_REQ_SMP_WAIT_TC_COMP:
+		return smp_request_await_tc_event(sci_req, completion_code);
+
+	case SCI_REQ_STP_UDMA_WAIT_TC_COMP:
+		return stp_request_udma_await_tc_event(sci_req,
+						       completion_code);
+
+	case SCI_REQ_STP_NON_DATA_WAIT_H2D:
+		return stp_request_non_data_await_h2d_tc_event(sci_req,
+							       completion_code);
+
+	case SCI_REQ_STP_PIO_WAIT_H2D:
+		return stp_request_pio_await_h2d_completion_tc_event(sci_req,
+								     completion_code);
+
+	case SCI_REQ_STP_PIO_DATA_OUT:
+		return pio_data_out_tx_done_tc_event(sci_req, completion_code);
+
+	case SCI_REQ_STP_SOFT_RESET_WAIT_H2D_ASSERTED:
+		return stp_request_soft_reset_await_h2d_asserted_tc_event(sci_req,
+									  completion_code);
+
+	case SCI_REQ_STP_SOFT_RESET_WAIT_H2D_DIAG:
+		return stp_request_soft_reset_await_h2d_diagnostic_tc_event(sci_req,
+									    completion_code);
+
+	case SCI_REQ_ABORTING:
+		return request_aborting_state_tc_event(sci_req,
+						       completion_code);
+
+	default:
+		dev_warn(scic_to_dev(scic),
+			 "%s: SCIC IO Request given task completion "
+			 "notification %x while in wrong state %d\n",
+			 __func__,
+			 completion_code,
+			 state);
+		return SCI_FAILURE_INVALID_STATE;
 	}
 }
 
@@ -2896,7 +2930,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 
 static void scic_sds_request_started_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), sm);
 	struct isci_request *ireq = sci_req_to_ireq(sci_req);
 	struct domain_device *dev = sci_dev_to_domain(sci_req->target_device);
 	struct sas_task *task;
@@ -2910,34 +2944,31 @@ static void scic_sds_request_started_state_enter(struct sci_base_state_machine *
 	 * substates
 	 */
 	if (!task && dev->dev_type == SAS_END_DEV) {
-		sci_base_state_machine_change_state(sm,
-			SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION);
+		sci_change_state(sm, SCI_REQ_TASK_WAIT_TC_COMP);
 	} else if (!task &&
 		   (isci_request_access_tmf(ireq)->tmf_code == isci_tmf_sata_srst_high ||
 		    isci_request_access_tmf(ireq)->tmf_code == isci_tmf_sata_srst_low)) {
-		sci_base_state_machine_change_state(sm,
-			SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE);
+		sci_change_state(sm, SCI_REQ_STP_SOFT_RESET_WAIT_H2D_ASSERTED);
 	} else if (task && task->task_proto == SAS_PROTOCOL_SMP) {
-		sci_base_state_machine_change_state(sm,
-			SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE);
+		sci_change_state(sm, SCI_REQ_SMP_WAIT_RESP);
 	} else if (task && sas_protocol_ata(task->task_proto) &&
 		   !task->ata_task.use_ncq) {
 		u32 state;
 
 		if (task->data_dir == DMA_NONE)
-			 state = SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE;
+			state = SCI_REQ_STP_NON_DATA_WAIT_H2D;
 		else if (task->ata_task.dma_xfer)
-			state = SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE;
+			state = SCI_REQ_STP_UDMA_WAIT_TC_COMP;
 		else /* PIO */
-			state = SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE;
+			state = SCI_REQ_STP_PIO_WAIT_H2D;
 
-		sci_base_state_machine_change_state(sm, state);
+		sci_change_state(sm, state);
 	}
 }
 
 static void scic_sds_request_completed_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), sm);
 	struct scic_sds_controller *scic = sci_req->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_request *ireq = sci_req_to_ireq(sci_req);
@@ -2952,7 +2983,7 @@ static void scic_sds_request_completed_state_enter(struct sci_base_state_machine
 
 static void scic_sds_request_aborting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), sm);
 
 	/* Setting the abort bit in the Task Context is required by the silicon. */
 	sci_req->task_context_buffer->abort = 1;
@@ -2960,7 +2991,7 @@ static void scic_sds_request_aborting_state_enter(struct sci_base_state_machine 
 
 static void scic_sds_stp_request_started_non_data_await_h2d_completion_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), sm);
 
 	scic_sds_remote_device_set_working_request(sci_req->target_device,
 						   sci_req);
@@ -2968,7 +2999,7 @@ static void scic_sds_stp_request_started_non_data_await_h2d_completion_enter(str
 
 static void scic_sds_stp_request_started_pio_await_h2d_completion_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), sm);
 
 	scic_sds_remote_device_set_working_request(sci_req->target_device,
 						   sci_req);
@@ -2976,7 +3007,7 @@ static void scic_sds_stp_request_started_pio_await_h2d_completion_enter(struct s
 
 static void scic_sds_stp_request_started_soft_reset_await_h2d_asserted_completion_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), sm);
 
 	scic_sds_remote_device_set_working_request(sci_req->target_device,
 						   sci_req);
@@ -2984,7 +3015,7 @@ static void scic_sds_stp_request_started_soft_reset_await_h2d_asserted_completio
 
 static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_completion_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), state_machine);
+	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), sm);
 	struct scu_task_context *task_context;
 	struct host_to_dev_fis *h2d_fis;
 	enum sci_status status;
@@ -3003,51 +3034,53 @@ static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_complet
 }
 
 static const struct sci_base_state scic_sds_request_state_table[] = {
-	[SCI_BASE_REQUEST_STATE_INITIAL] = { },
-	[SCI_BASE_REQUEST_STATE_CONSTRUCTED] = { },
-	[SCI_BASE_REQUEST_STATE_STARTED] = {
+	[SCI_REQ_INIT] = { },
+	[SCI_REQ_CONSTRUCTED] = { },
+	[SCI_REQ_STARTED] = {
 		.enter_state = scic_sds_request_started_state_enter,
 	},
-	[SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_H2D_COMPLETION_SUBSTATE] = {
+	[SCI_REQ_STP_NON_DATA_WAIT_H2D] = {
 		.enter_state = scic_sds_stp_request_started_non_data_await_h2d_completion_enter,
 	},
-	[SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_AWAIT_D2H_SUBSTATE] = { },
-	[SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_H2D_COMPLETION_SUBSTATE] = {
+	[SCI_REQ_STP_NON_DATA_WAIT_D2H] = { },
+	[SCI_REQ_STP_PIO_WAIT_H2D] = {
 		.enter_state = scic_sds_stp_request_started_pio_await_h2d_completion_enter,
 	},
-	[SCIC_SDS_STP_REQUEST_STARTED_PIO_AWAIT_FRAME_SUBSTATE] = { },
-	[SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_IN_AWAIT_DATA_SUBSTATE] = { },
-	[SCIC_SDS_STP_REQUEST_STARTED_PIO_DATA_OUT_TRANSMIT_DATA_SUBSTATE] = { },
-	[SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_TC_COMPLETION_SUBSTATE] = { },
-	[SCIC_SDS_STP_REQUEST_STARTED_UDMA_AWAIT_D2H_REG_FIS_SUBSTATE] = { },
-	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_ASSERTED_COMPLETION_SUBSTATE] = {
+	[SCI_REQ_STP_PIO_WAIT_FRAME] = { },
+	[SCI_REQ_STP_PIO_DATA_IN] = { },
+	[SCI_REQ_STP_PIO_DATA_OUT] = { },
+	[SCI_REQ_STP_UDMA_WAIT_TC_COMP] = { },
+	[SCI_REQ_STP_UDMA_WAIT_D2H] = { },
+	[SCI_REQ_STP_SOFT_RESET_WAIT_H2D_ASSERTED] = {
 		.enter_state = scic_sds_stp_request_started_soft_reset_await_h2d_asserted_completion_enter,
 	},
-	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_H2D_DIAGNOSTIC_COMPLETION_SUBSTATE] = {
+	[SCI_REQ_STP_SOFT_RESET_WAIT_H2D_DIAG] = {
 		.enter_state = scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_completion_enter,
 	},
-	[SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_AWAIT_D2H_RESPONSE_FRAME_SUBSTATE] = { },
-	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_COMPLETION] = { },
-	[SCIC_SDS_IO_REQUEST_STARTED_TASK_MGMT_SUBSTATE_AWAIT_TC_RESPONSE] = { },
-	[SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_RESPONSE] = { },
-	[SCIC_SDS_SMP_REQUEST_STARTED_SUBSTATE_AWAIT_TC_COMPLETION] = { },
-	[SCI_BASE_REQUEST_STATE_COMPLETED] = {
+	[SCI_REQ_STP_SOFT_RESET_WAIT_D2H] = { },
+	[SCI_REQ_TASK_WAIT_TC_COMP] = { },
+	[SCI_REQ_TASK_WAIT_TC_RESP] = { },
+	[SCI_REQ_SMP_WAIT_RESP] = { },
+	[SCI_REQ_SMP_WAIT_TC_COMP] = { },
+	[SCI_REQ_COMPLETED] = {
 		.enter_state = scic_sds_request_completed_state_enter,
 	},
-	[SCI_BASE_REQUEST_STATE_ABORTING] = {
+	[SCI_REQ_ABORTING] = {
 		.enter_state = scic_sds_request_aborting_state_enter,
 	},
-	[SCI_BASE_REQUEST_STATE_FINAL] = { },
+	[SCI_REQ_FINAL] = { },
 };
 
-static void scic_sds_general_request_construct(struct scic_sds_controller *scic,
-					       struct scic_sds_remote_device *sci_dev,
-					       u16 io_tag, struct scic_sds_request *sci_req)
+static void
+scic_sds_general_request_construct(struct scic_sds_controller *scic,
+				   struct scic_sds_remote_device *sci_dev,
+				   u16 io_tag,
+				   struct scic_sds_request *sci_req)
 {
-	sci_base_state_machine_construct(&sci_req->state_machine,
+	sci_base_state_machine_construct(&sci_req->sm,
 					 scic_sds_request_state_table,
-					 SCI_BASE_REQUEST_STATE_INITIAL);
-	sci_base_state_machine_start(&sci_req->state_machine);
+					 SCI_REQ_INIT);
+	sci_base_state_machine_start(&sci_req->sm);
 
 	sci_req->io_tag = io_tag;
 	sci_req->owning_controller = scic;
@@ -3322,8 +3355,7 @@ scic_io_request_construct_smp(struct scic_sds_request *sci_req)
 
 	scu_smp_request_construct_task_context(sci_req, smp_req->req_len);
 
-	sci_base_state_machine_change_state(&sci_req->state_machine,
-					    SCI_BASE_REQUEST_STATE_CONSTRUCTED);
+	sci_change_state(&sci_req->sm, SCI_REQ_CONSTRUCTED);
 
 	return SCI_SUCCESS;
 }

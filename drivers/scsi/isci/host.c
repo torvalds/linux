@@ -635,8 +635,7 @@ static void scic_sds_controller_error_handler(struct scic_sds_controller *scic)
 		dev_err(scic_to_dev(scic), "%s: status: %#x\n", __func__,
 			interrupt_status);
 
-		sci_base_state_machine_change_state(&scic->state_machine,
-						    SCI_BASE_CONTROLLER_STATE_FAILED);
+		sci_change_state(&scic->sm, SCIC_FAILED);
 
 		return;
 	}
@@ -895,14 +894,12 @@ static void scic_sds_controller_transition_to_ready(
 {
 	struct isci_host *ihost = scic_to_ihost(scic);
 
-	if (scic->state_machine.current_state_id ==
-	    SCI_BASE_CONTROLLER_STATE_STARTING) {
+	if (scic->sm.current_state_id == SCIC_STARTING) {
 		/*
 		 * We move into the ready state, because some of the phys/ports
 		 * may be up and operational.
 		 */
-		sci_base_state_machine_change_state(&scic->state_machine,
-						    SCI_BASE_CONTROLLER_STATE_READY);
+		sci_change_state(&scic->sm, SCIC_READY);
 
 		isci_host_start_complete(ihost, status);
 	}
@@ -912,18 +909,18 @@ static bool is_phy_starting(struct scic_sds_phy *sci_phy)
 {
 	enum scic_sds_phy_states state;
 
-	state = sci_phy->state_machine.current_state_id;
+	state = sci_phy->sm.current_state_id;
 	switch (state) {
-	case SCI_BASE_PHY_STATE_STARTING:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_INITIAL:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_SPEED_EN:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_IAF_UF:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SAS_POWER:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_POWER:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_PHY_EN:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SATA_SPEED_EN:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_AWAIT_SIG_FIS_UF:
-	case SCIC_SDS_PHY_STARTING_SUBSTATE_FINAL:
+	case SCI_PHY_STARTING:
+	case SCI_PHY_SUB_INITIAL:
+	case SCI_PHY_SUB_AWAIT_SAS_SPEED_EN:
+	case SCI_PHY_SUB_AWAIT_IAF_UF:
+	case SCI_PHY_SUB_AWAIT_SAS_POWER:
+	case SCI_PHY_SUB_AWAIT_SATA_POWER:
+	case SCI_PHY_SUB_AWAIT_SATA_PHY_EN:
+	case SCI_PHY_SUB_AWAIT_SATA_SPEED_EN:
+	case SCI_PHY_SUB_AWAIT_SIG_FIS_UF:
+	case SCI_PHY_SUB_FINAL:
 		return true;
 	default:
 		return false;
@@ -957,7 +954,7 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 
 		for (index = 0; index < SCI_MAX_PHYS; index++) {
 			sci_phy = &ihost->phys[index].sci;
-			state = sci_phy->state_machine.current_state_id;
+			state = sci_phy->sm.current_state_id;
 
 			if (!phy_get_non_dummy_port(sci_phy))
 				continue;
@@ -968,12 +965,9 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 			 * - have an indication of a connected device and it has
 			 *   finished the link training process.
 			 */
-			if ((sci_phy->is_in_link_training == false &&
-			     state == SCI_BASE_PHY_STATE_INITIAL) ||
-			    (sci_phy->is_in_link_training == false &&
-			     state == SCI_BASE_PHY_STATE_STOPPED) ||
-			    (sci_phy->is_in_link_training == true &&
-			     is_phy_starting(sci_phy))) {
+			if ((sci_phy->is_in_link_training == false && state == SCI_PHY_INITIAL) ||
+			    (sci_phy->is_in_link_training == false && state == SCI_PHY_STOPPED) ||
+			    (sci_phy->is_in_link_training == true && is_phy_starting(sci_phy))) {
 				is_controller_start_complete = false;
 				break;
 			}
@@ -1059,8 +1053,7 @@ static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 	enum sci_status result;
 	u16 index;
 
-	if (scic->state_machine.current_state_id !=
-	    SCI_BASE_CONTROLLER_STATE_INITIALIZED) {
+	if (scic->sm.current_state_id != SCIC_INITIALIZED) {
 		dev_warn(scic_to_dev(scic),
 			 "SCIC Controller start operation requested in "
 			 "invalid state\n");
@@ -1108,8 +1101,7 @@ static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 
 	sci_mod_timer(&scic->timer, timeout);
 
-	sci_base_state_machine_change_state(&scic->state_machine,
-					    SCI_BASE_CONTROLLER_STATE_STARTING);
+	sci_change_state(&scic->sm, SCIC_STARTING);
 
 	return SCI_SUCCESS;
 }
@@ -1279,8 +1271,7 @@ static void isci_host_completion_routine(unsigned long data)
 static enum sci_status scic_controller_stop(struct scic_sds_controller *scic,
 					    u32 timeout)
 {
-	if (scic->state_machine.current_state_id !=
-	    SCI_BASE_CONTROLLER_STATE_READY) {
+	if (scic->sm.current_state_id != SCIC_READY) {
 		dev_warn(scic_to_dev(scic),
 			 "SCIC Controller stop operation requested in "
 			 "invalid state\n");
@@ -1288,8 +1279,7 @@ static enum sci_status scic_controller_stop(struct scic_sds_controller *scic,
 	}
 
 	sci_mod_timer(&scic->timer, timeout);
-	sci_base_state_machine_change_state(&scic->state_machine,
-					    SCI_BASE_CONTROLLER_STATE_STOPPING);
+	sci_change_state(&scic->sm, SCIC_STOPPING);
 	return SCI_SUCCESS;
 }
 
@@ -1307,17 +1297,16 @@ static enum sci_status scic_controller_stop(struct scic_sds_controller *scic,
  */
 static enum sci_status scic_controller_reset(struct scic_sds_controller *scic)
 {
-	switch (scic->state_machine.current_state_id) {
-	case SCI_BASE_CONTROLLER_STATE_RESET:
-	case SCI_BASE_CONTROLLER_STATE_READY:
-	case SCI_BASE_CONTROLLER_STATE_STOPPED:
-	case SCI_BASE_CONTROLLER_STATE_FAILED:
+	switch (scic->sm.current_state_id) {
+	case SCIC_RESET:
+	case SCIC_READY:
+	case SCIC_STOPPED:
+	case SCIC_FAILED:
 		/*
 		 * The reset operation is not a graceful cleanup, just
 		 * perform the state transition.
 		 */
-		sci_base_state_machine_change_state(&scic->state_machine,
-				SCI_BASE_CONTROLLER_STATE_RESETTING);
+		sci_change_state(&scic->sm, SCIC_RESETTING);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(scic_to_dev(scic),
@@ -1416,15 +1405,14 @@ static void isci_user_parameters_get(
 
 static void scic_sds_controller_initial_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
 
-	sci_base_state_machine_change_state(&scic->state_machine,
-			SCI_BASE_CONTROLLER_STATE_RESET);
+	sci_change_state(&scic->sm, SCIC_RESET);
 }
 
 static inline void scic_sds_controller_starting_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
 
 	sci_del_timer(&scic->timer);
 }
@@ -1551,7 +1539,7 @@ static enum sci_status scic_controller_set_interrupt_coalescence(
 
 static void scic_sds_controller_ready_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
 
 	/* set the default interrupt coalescence number and timeout value. */
 	scic_controller_set_interrupt_coalescence(scic, 0x10, 250);
@@ -1559,7 +1547,7 @@ static void scic_sds_controller_ready_state_enter(struct sci_base_state_machine 
 
 static void scic_sds_controller_ready_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
 
 	/* disable interrupt coalescence. */
 	scic_controller_set_interrupt_coalescence(scic, 0, 0);
@@ -1650,7 +1638,7 @@ static enum sci_status scic_sds_controller_stop_devices(struct scic_sds_controll
 
 static void scic_sds_controller_stopping_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
 
 	/* Stop all of the components for this controller */
 	scic_sds_controller_stop_phys(scic);
@@ -1660,7 +1648,7 @@ static void scic_sds_controller_stopping_state_enter(struct sci_base_state_machi
 
 static void scic_sds_controller_stopping_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
 
 	sci_del_timer(&scic->timer);
 }
@@ -1691,36 +1679,35 @@ static void scic_sds_controller_reset_hardware(struct scic_sds_controller *scic)
 
 static void scic_sds_controller_resetting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), state_machine);
+	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
 
 	scic_sds_controller_reset_hardware(scic);
-	sci_base_state_machine_change_state(&scic->state_machine,
-					    SCI_BASE_CONTROLLER_STATE_RESET);
+	sci_change_state(&scic->sm, SCIC_RESET);
 }
 
 static const struct sci_base_state scic_sds_controller_state_table[] = {
-	[SCI_BASE_CONTROLLER_STATE_INITIAL] = {
+	[SCIC_INITIAL] = {
 		.enter_state = scic_sds_controller_initial_state_enter,
 	},
-	[SCI_BASE_CONTROLLER_STATE_RESET] = {},
-	[SCI_BASE_CONTROLLER_STATE_INITIALIZING] = {},
-	[SCI_BASE_CONTROLLER_STATE_INITIALIZED] = {},
-	[SCI_BASE_CONTROLLER_STATE_STARTING] = {
+	[SCIC_RESET] = {},
+	[SCIC_INITIALIZING] = {},
+	[SCIC_INITIALIZED] = {},
+	[SCIC_STARTING] = {
 		.exit_state  = scic_sds_controller_starting_state_exit,
 	},
-	[SCI_BASE_CONTROLLER_STATE_READY] = {
+	[SCIC_READY] = {
 		.enter_state = scic_sds_controller_ready_state_enter,
 		.exit_state  = scic_sds_controller_ready_state_exit,
 	},
-	[SCI_BASE_CONTROLLER_STATE_RESETTING] = {
+	[SCIC_RESETTING] = {
 		.enter_state = scic_sds_controller_resetting_state_enter,
 	},
-	[SCI_BASE_CONTROLLER_STATE_STOPPING] = {
+	[SCIC_STOPPING] = {
 		.enter_state = scic_sds_controller_stopping_state_enter,
 		.exit_state = scic_sds_controller_stopping_state_exit,
 	},
-	[SCI_BASE_CONTROLLER_STATE_STOPPED] = {},
-	[SCI_BASE_CONTROLLER_STATE_FAILED] = {}
+	[SCIC_STOPPED] = {},
+	[SCIC_FAILED] = {}
 };
 
 static void scic_sds_controller_set_default_config_parameters(struct scic_sds_controller *scic)
@@ -1774,7 +1761,7 @@ static void controller_timeout(unsigned long data)
 	struct sci_timer *tmr = (struct sci_timer *)data;
 	struct scic_sds_controller *scic = container_of(tmr, typeof(*scic), timer);
 	struct isci_host *ihost = scic_to_ihost(scic);
-	struct sci_base_state_machine *sm = &scic->state_machine;
+	struct sci_base_state_machine *sm = &scic->sm;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
@@ -1782,10 +1769,10 @@ static void controller_timeout(unsigned long data)
 	if (tmr->cancel)
 		goto done;
 
-	if (sm->current_state_id == SCI_BASE_CONTROLLER_STATE_STARTING)
+	if (sm->current_state_id == SCIC_STARTING)
 		scic_sds_controller_transition_to_ready(scic, SCI_FAILURE_TIMEOUT);
-	else if (sm->current_state_id == SCI_BASE_CONTROLLER_STATE_STOPPING) {
-		sci_base_state_machine_change_state(sm, SCI_BASE_CONTROLLER_STATE_FAILED);
+	else if (sm->current_state_id == SCIC_STOPPING) {
+		sci_change_state(sm, SCIC_FAILED);
 		isci_host_stop_complete(ihost, SCI_FAILURE_TIMEOUT);
 	} else	/* / @todo Now what do we want to do in this case? */
 		dev_err(scic_to_dev(scic),
@@ -1820,11 +1807,11 @@ static enum sci_status scic_controller_construct(struct scic_sds_controller *sci
 	struct isci_host *ihost = scic_to_ihost(scic);
 	u8 i;
 
-	sci_base_state_machine_construct(&scic->state_machine,
+	sci_base_state_machine_construct(&scic->sm,
 					 scic_sds_controller_state_table,
-					 SCI_BASE_CONTROLLER_STATE_INITIAL);
+					 SCIC_INITIAL);
 
-	sci_base_state_machine_start(&scic->state_machine);
+	sci_base_state_machine_start(&scic->sm);
 
 	scic->scu_registers = scu_base;
 	scic->smu_registers = smu_base;
@@ -1899,11 +1886,11 @@ int scic_oem_parameters_validate(struct scic_sds_oem_params *oem)
 static enum sci_status scic_oem_parameters_set(struct scic_sds_controller *scic,
 					union scic_oem_parameters *scic_parms)
 {
-	u32 state = scic->state_machine.current_state_id;
+	u32 state = scic->sm.current_state_id;
 
-	if (state == SCI_BASE_CONTROLLER_STATE_RESET ||
-	    state == SCI_BASE_CONTROLLER_STATE_INITIALIZING ||
-	    state == SCI_BASE_CONTROLLER_STATE_INITIALIZED) {
+	if (state == SCIC_RESET ||
+	    state == SCIC_INITIALIZING ||
+	    state == SCIC_INITIALIZED) {
 
 		if (scic_oem_parameters_validate(&scic_parms->sds1))
 			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
@@ -2168,10 +2155,8 @@ static enum sci_status scic_controller_set_mode(struct scic_sds_controller *scic
 {
 	enum sci_status status          = SCI_SUCCESS;
 
-	if ((scic->state_machine.current_state_id ==
-				SCI_BASE_CONTROLLER_STATE_INITIALIZING) ||
-	    (scic->state_machine.current_state_id ==
-				SCI_BASE_CONTROLLER_STATE_INITIALIZED)) {
+	if ((scic->sm.current_state_id == SCIC_INITIALIZING) ||
+	    (scic->sm.current_state_id == SCIC_INITIALIZED)) {
 		switch (operating_mode) {
 		case SCI_MODE_SPEED:
 			scic->remote_node_entries      = SCI_MAX_REMOTE_DEVICES;
@@ -2216,20 +2201,19 @@ static void scic_sds_controller_initialize_power_control(struct scic_sds_control
 
 static enum sci_status scic_controller_initialize(struct scic_sds_controller *scic)
 {
-	struct sci_base_state_machine *sm = &scic->state_machine;
+	struct sci_base_state_machine *sm = &scic->sm;
 	enum sci_status result = SCI_SUCCESS;
 	struct isci_host *ihost = scic_to_ihost(scic);
 	u32 index, state;
 
-	if (scic->state_machine.current_state_id !=
-	    SCI_BASE_CONTROLLER_STATE_RESET) {
+	if (scic->sm.current_state_id != SCIC_RESET) {
 		dev_warn(scic_to_dev(scic),
 			 "SCIC Controller initialize operation requested "
 			 "in invalid state\n");
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	sci_base_state_machine_change_state(sm, SCI_BASE_CONTROLLER_STATE_INITIALIZING);
+	sci_change_state(sm, SCIC_INITIALIZING);
 
 	sci_init_timer(&scic->phy_timer, phy_startup_timeout);
 
@@ -2374,10 +2358,10 @@ static enum sci_status scic_controller_initialize(struct scic_sds_controller *sc
 
 	/* Advance the controller state machine */
 	if (result == SCI_SUCCESS)
-		state = SCI_BASE_CONTROLLER_STATE_INITIALIZED;
+		state = SCIC_INITIALIZED;
 	else
-		state = SCI_BASE_CONTROLLER_STATE_FAILED;
-	sci_base_state_machine_change_state(sm, state);
+		state = SCIC_FAILED;
+	sci_change_state(sm, state);
 
 	return result;
 }
@@ -2386,11 +2370,11 @@ static enum sci_status scic_user_parameters_set(
 	struct scic_sds_controller *scic,
 	union scic_user_parameters *scic_parms)
 {
-	u32 state = scic->state_machine.current_state_id;
+	u32 state = scic->sm.current_state_id;
 
-	if (state == SCI_BASE_CONTROLLER_STATE_RESET ||
-	    state == SCI_BASE_CONTROLLER_STATE_INITIALIZING ||
-	    state == SCI_BASE_CONTROLLER_STATE_INITIALIZED) {
+	if (state == SCIC_RESET ||
+	    state == SCIC_INITIALIZING ||
+	    state == SCIC_INITIALIZED) {
 		u16 index;
 
 		/*
@@ -2612,15 +2596,15 @@ int isci_host_init(struct isci_host *isci_host)
 void scic_sds_controller_link_up(struct scic_sds_controller *scic,
 		struct scic_sds_port *port, struct scic_sds_phy *phy)
 {
-	switch (scic->state_machine.current_state_id) {
-	case SCI_BASE_CONTROLLER_STATE_STARTING:
+	switch (scic->sm.current_state_id) {
+	case SCIC_STARTING:
 		sci_del_timer(&scic->phy_timer);
 		scic->phy_startup_timer_pending = false;
 		scic->port_agent.link_up_handler(scic, &scic->port_agent,
 						 port, phy);
 		scic_sds_controller_start_next_phy(scic);
 		break;
-	case SCI_BASE_CONTROLLER_STATE_READY:
+	case SCIC_READY:
 		scic->port_agent.link_up_handler(scic, &scic->port_agent,
 						 port, phy);
 		break;
@@ -2628,16 +2612,16 @@ void scic_sds_controller_link_up(struct scic_sds_controller *scic,
 		dev_dbg(scic_to_dev(scic),
 			"%s: SCIC Controller linkup event from phy %d in "
 			"unexpected state %d\n", __func__, phy->phy_index,
-			scic->state_machine.current_state_id);
+			scic->sm.current_state_id);
 	}
 }
 
 void scic_sds_controller_link_down(struct scic_sds_controller *scic,
 		struct scic_sds_port *port, struct scic_sds_phy *phy)
 {
-	switch (scic->state_machine.current_state_id) {
-	case SCI_BASE_CONTROLLER_STATE_STARTING:
-	case SCI_BASE_CONTROLLER_STATE_READY:
+	switch (scic->sm.current_state_id) {
+	case SCIC_STARTING:
+	case SCIC_READY:
 		scic->port_agent.link_down_handler(scic, &scic->port_agent,
 						   port, phy);
 		break;
@@ -2647,7 +2631,7 @@ void scic_sds_controller_link_down(struct scic_sds_controller *scic,
 			"unexpected state %d\n",
 			__func__,
 			phy->phy_index,
-			scic->state_machine.current_state_id);
+			scic->sm.current_state_id);
 	}
 }
 
@@ -2663,8 +2647,7 @@ static bool scic_sds_controller_has_remote_devices_stopping(
 
 	for (index = 0; index < controller->remote_node_entries; index++) {
 		if ((controller->device_table[index] != NULL) &&
-		   (controller->device_table[index]->state_machine.current_state_id
-		    == SCI_BASE_REMOTE_DEVICE_STATE_STOPPING))
+		   (controller->device_table[index]->sm.current_state_id == SCI_DEV_STOPPING))
 			return true;
 	}
 
@@ -2678,19 +2661,17 @@ static bool scic_sds_controller_has_remote_devices_stopping(
 void scic_sds_controller_remote_device_stopped(struct scic_sds_controller *scic,
 					       struct scic_sds_remote_device *sci_dev)
 {
-	if (scic->state_machine.current_state_id !=
-	    SCI_BASE_CONTROLLER_STATE_STOPPING) {
+	if (scic->sm.current_state_id != SCIC_STOPPING) {
 		dev_dbg(scic_to_dev(scic),
 			"SCIC Controller 0x%p remote device stopped event "
 			"from device 0x%p in unexpected state %d\n",
 			scic, sci_dev,
-			scic->state_machine.current_state_id);
+			scic->sm.current_state_id);
 		return;
 	}
 
 	if (!scic_sds_controller_has_remote_devices_stopping(scic)) {
-		sci_base_state_machine_change_state(&scic->state_machine,
-				SCI_BASE_CONTROLLER_STATE_STOPPED);
+		sci_change_state(&scic->sm, SCIC_STOPPED);
 	}
 }
 
@@ -2948,8 +2929,7 @@ enum sci_status scic_controller_start_io(
 {
 	enum sci_status status;
 
-	if (scic->state_machine.current_state_id !=
-	    SCI_BASE_CONTROLLER_STATE_READY) {
+	if (scic->sm.current_state_id != SCIC_READY) {
 		dev_warn(scic_to_dev(scic), "invalid state to start I/O");
 		return SCI_FAILURE_INVALID_STATE;
 	}
@@ -2986,8 +2966,7 @@ enum sci_status scic_controller_terminate_request(
 {
 	enum sci_status status;
 
-	if (scic->state_machine.current_state_id !=
-	    SCI_BASE_CONTROLLER_STATE_READY) {
+	if (scic->sm.current_state_id != SCIC_READY) {
 		dev_warn(scic_to_dev(scic),
 			 "invalid state to terminate request\n");
 		return SCI_FAILURE_INVALID_STATE;
@@ -3037,11 +3016,11 @@ enum sci_status scic_controller_complete_io(
 	enum sci_status status;
 	u16 index;
 
-	switch (scic->state_machine.current_state_id) {
-	case SCI_BASE_CONTROLLER_STATE_STOPPING:
+	switch (scic->sm.current_state_id) {
+	case SCIC_STOPPING:
 		/* XXX: Implement this function */
 		return SCI_FAILURE;
-	case SCI_BASE_CONTROLLER_STATE_READY:
+	case SCIC_READY:
 		status = scic_sds_remote_device_complete_io(scic, rdev, request);
 		if (status != SCI_SUCCESS)
 			return status;
@@ -3060,8 +3039,7 @@ enum sci_status scic_controller_continue_io(struct scic_sds_request *sci_req)
 {
 	struct scic_sds_controller *scic = sci_req->owning_controller;
 
-	if (scic->state_machine.current_state_id !=
-	    SCI_BASE_CONTROLLER_STATE_READY) {
+	if (scic->sm.current_state_id != SCIC_READY) {
 		dev_warn(scic_to_dev(scic), "invalid state to continue I/O");
 		return SCI_FAILURE_INVALID_STATE;
 	}
@@ -3107,8 +3085,7 @@ enum sci_task_status scic_controller_start_task(
 {
 	enum sci_status status;
 
-	if (scic->state_machine.current_state_id !=
-	    SCI_BASE_CONTROLLER_STATE_READY) {
+	if (scic->sm.current_state_id != SCIC_READY) {
 		dev_warn(scic_to_dev(scic),
 			 "%s: SCIC Controller starting task from invalid "
 			 "state\n",

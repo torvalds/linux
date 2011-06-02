@@ -74,7 +74,7 @@ struct scic_sds_remote_device {
 	 * This field contains the information for the base remote device state
 	 * machine.
 	 */
-	struct sci_base_state_machine state_machine;
+	struct sci_base_state_machine sm;
 
 	/**
 	 * This field is the programmed device port width.  This value is
@@ -109,7 +109,7 @@ struct scic_sds_remote_device {
 
 	/**
 	 * This field contains the stated request count for the remote device.  The
-	 * device can not reach the SCI_BASE_REMOTE_DEVICE_STATE_STOPPED until all
+	 * device can not reach the SCI_DEV_STOPPED until all
 	 * requests are complete and the rnc_posted value is false.
 	 */
 	u32 started_request_count;
@@ -213,7 +213,7 @@ enum scic_sds_remote_device_states {
 	/**
 	 * Simply the initial state for the base remote device state machine.
 	 */
-	SCI_BASE_REMOTE_DEVICE_STATE_INITIAL,
+	SCI_DEV_INITIAL,
 
 	/**
 	 * This state indicates that the remote device has successfully been
@@ -221,7 +221,7 @@ enum scic_sds_remote_device_states {
 	 * This state is entered from the INITIAL state.
 	 * This state is entered from the STOPPING state.
 	 */
-	SCI_BASE_REMOTE_DEVICE_STATE_STOPPED,
+	SCI_DEV_STOPPED,
 
 	/**
 	 * This state indicates the the remote device is in the process of
@@ -229,34 +229,34 @@ enum scic_sds_remote_device_states {
 	 * are permitted.
 	 * This state is entered from the STOPPED state.
 	 */
-	SCI_BASE_REMOTE_DEVICE_STATE_STARTING,
+	SCI_DEV_STARTING,
 
 	/**
 	 * This state indicates the remote device is now ready.  Thus, the user
 	 * is able to perform IO operations on the remote device.
 	 * This state is entered from the STARTING state.
 	 */
-	SCI_BASE_REMOTE_DEVICE_STATE_READY,
+	SCI_DEV_READY,
 
 	/**
 	 * This is the idle substate for the stp remote device.  When there are no
 	 * active IO for the device it is is in this state.
 	 */
-	SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_IDLE,
+	SCI_STP_DEV_IDLE,
 
 	/**
 	 * This is the command state for for the STP remote device.  This state is
 	 * entered when the device is processing a non-NCQ command.  The device object
 	 * will fail any new start IO requests until this command is complete.
 	 */
-	SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_CMD,
+	SCI_STP_DEV_CMD,
 
 	/**
 	 * This is the NCQ state for the STP remote device.  This state is entered
 	 * when the device is processing an NCQ reuqest.  It will remain in this state
 	 * so long as there is one or more NCQ requests being processed.
 	 */
-	SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ,
+	SCI_STP_DEV_NCQ,
 
 	/**
 	 * This is the NCQ error state for the STP remote device.  This state is
@@ -264,25 +264,25 @@ enum scic_sds_remote_device_states {
 	 * NCQ state.  The device object will only accept a READ LOG command while in
 	 * this state.
 	 */
-	SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_NCQ_ERROR,
+	SCI_STP_DEV_NCQ_ERROR,
 
 	/**
 	 * This is the READY substate indicates the device is waiting for the RESET task
 	 * coming to be recovered from certain hardware specific error.
 	 */
-	SCIC_SDS_STP_REMOTE_DEVICE_READY_SUBSTATE_AWAIT_RESET,
+	SCI_STP_DEV_AWAIT_RESET,
 
 	/**
 	 * This is the ready operational substate for the remote device.  This is the
 	 * normal operational state for a remote device.
 	 */
-	SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_IDLE,
+	SCI_SMP_DEV_IDLE,
 
 	/**
 	 * This is the suspended state for the remote device.  This is the state that
 	 * the device is placed in when a RNC suspend is received by the SCU hardware.
 	 */
-	SCIC_SDS_SMP_REMOTE_DEVICE_READY_SUBSTATE_CMD,
+	SCI_SMP_DEV_CMD,
 
 	/**
 	 * This state indicates that the remote device is in the process of
@@ -291,7 +291,7 @@ enum scic_sds_remote_device_states {
 	 * This state is entered from the READY state.
 	 * This state is entered from the FAILED state.
 	 */
-	SCI_BASE_REMOTE_DEVICE_STATE_STOPPING,
+	SCI_DEV_STOPPING,
 
 	/**
 	 * This state indicates that the remote device has failed.
@@ -299,19 +299,19 @@ enum scic_sds_remote_device_states {
 	 * This state is entered from the INITIALIZING state.
 	 * This state is entered from the READY state.
 	 */
-	SCI_BASE_REMOTE_DEVICE_STATE_FAILED,
+	SCI_DEV_FAILED,
 
 	/**
 	 * This state indicates the device is being reset.
 	 * In this state no new IO operations are permitted.
 	 * This state is entered from the READY state.
 	 */
-	SCI_BASE_REMOTE_DEVICE_STATE_RESETTING,
+	SCI_DEV_RESETTING,
 
 	/**
 	 * Simply the final state for the base remote device state machine.
 	 */
-	SCI_BASE_REMOTE_DEVICE_STATE_FINAL,
+	SCI_DEV_FINAL,
 };
 
 static inline struct scic_sds_remote_device *rnc_to_dev(struct scic_sds_remote_node_context *rnc)

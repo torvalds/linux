@@ -84,7 +84,7 @@ struct scic_sds_port {
 	/**
 	 * This field contains the information for the base port state machine.
 	 */
-	struct sci_base_state_machine state_machine;
+	struct sci_base_state_machine sm;
 
 	bool ready_exit;
 
@@ -224,7 +224,7 @@ enum scic_sds_port_states {
 	 * In this state no new IO operations are permitted.
 	 * This state is entered from the STOPPING state.
 	 */
-	SCI_BASE_PORT_STATE_STOPPED,
+	SCI_PORT_STOPPED,
 
 	/**
 	 * This state indicates that the port is in the process of stopping.
@@ -232,33 +232,33 @@ enum scic_sds_port_states {
 	 * operations are allowed to complete.
 	 * This state is entered from the READY state.
 	 */
-	SCI_BASE_PORT_STATE_STOPPING,
+	SCI_PORT_STOPPING,
 
 	/**
 	 * This state indicates the port is now ready.  Thus, the user is
 	 * able to perform IO operations on this port.
 	 * This state is entered from the STARTING state.
 	 */
-	SCI_BASE_PORT_STATE_READY,
+	SCI_PORT_READY,
 
 	/**
 	 * The substate where the port is started and ready but has no
 	 * active phys.
 	 */
-	SCIC_SDS_PORT_READY_SUBSTATE_WAITING,
+	SCI_PORT_SUB_WAITING,
 
 	/**
 	 * The substate where the port is started and ready and there is
 	 * at least one phy operational.
 	 */
-	SCIC_SDS_PORT_READY_SUBSTATE_OPERATIONAL,
+	SCI_PORT_SUB_OPERATIONAL,
 
 	/**
 	 * The substate where the port is started and there was an
 	 * add/remove phy event.  This state is only used in Automatic
 	 * Port Configuration Mode (APC)
 	 */
-	SCIC_SDS_PORT_READY_SUBSTATE_CONFIGURING,
+	SCI_PORT_SUB_CONFIGURING,
 
 	/**
 	 * This state indicates the port is in the process of performing a hard
@@ -266,14 +266,14 @@ enum scic_sds_port_states {
 	 * port.
 	 * This state is entered from the READY state.
 	 */
-	SCI_BASE_PORT_STATE_RESETTING,
+	SCI_PORT_RESETTING,
 
 	/**
 	 * This state indicates the port has failed a reset request.  This state
 	 * is entered when a port reset request times out.
 	 * This state is entered from the RESETTING state.
 	 */
-	SCI_BASE_PORT_STATE_FAILED,
+	SCI_PORT_FAILED,
 
 
 };

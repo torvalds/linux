@@ -117,8 +117,6 @@ void sci_base_state_machine_construct(struct sci_base_state_machine *sm,
 				      u32 initial_state);
 void sci_base_state_machine_start(struct sci_base_state_machine *sm);
 void sci_base_state_machine_stop(struct sci_base_state_machine *sm);
-void sci_base_state_machine_change_state(struct sci_base_state_machine *sm,
-					 u32 next_state);
-u32 sci_base_state_machine_get_state(struct sci_base_state_machine *sm);
+void sci_change_state(struct sci_base_state_machine *sm, u32 next_state);
 
 #endif /* _SCI_BASE_STATE_MACHINE_H_ */
