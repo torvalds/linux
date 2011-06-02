@@ -376,6 +376,16 @@ int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input)
 				goto disable;
 			}
 		}
+
+		ret = wm831x_reg_read(wm831x, WM831X_AUXADC_DATA);
+		if (ret < 0) {
+			dev_err(wm831x->dev,
+				"Failed to read AUXADC data: %d\n", ret);
+			goto disable;
+		}
+
+		wm831x->auxadc_data = ret;
+
 	} else {
 		/* If we are using interrupts then wait for the
 		 * interrupt to complete.  Use an extremely long
@@ -390,23 +400,18 @@ int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input)
 		}
 	}
 
-	ret = wm831x_reg_read(wm831x, WM831X_AUXADC_DATA);
-	if (ret < 0) {
-		dev_err(wm831x->dev, "Failed to read AUXADC data: %d\n", ret);
+	src = ((wm831x->auxadc_data & WM831X_AUX_DATA_SRC_MASK)
+	       >> WM831X_AUX_DATA_SRC_SHIFT) - 1;
+
+	if (src == 14)
+		src = WM831X_AUX_CAL;
+
+	if (src != input) {
+		dev_err(wm831x->dev, "Data from source %d not %d\n",
+			src, input);
+		ret = -EINVAL;
 	} else {
-		src = ((ret & WM831X_AUX_DATA_SRC_MASK)
-		       >> WM831X_AUX_DATA_SRC_SHIFT) - 1;
-
-		if (src == 14)
-			src = WM831X_AUX_CAL;
-
-		if (src != input) {
-			dev_err(wm831x->dev, "Data from source %d not %d\n",
-				src, input);
-			ret = -EINVAL;
-		} else {
-			ret &= WM831X_AUX_DATA_MASK;
-		}
+		ret = wm831x->auxadc_data & WM831X_AUX_DATA_MASK;
 	}
 
 disable:
@@ -420,6 +425,16 @@ EXPORT_SYMBOL_GPL(wm831x_auxadc_read);
 static irqreturn_t wm831x_auxadc_irq(int irq, void *irq_data)
 {
 	struct wm831x *wm831x = irq_data;
+	int ret;
+
+	ret = wm831x_reg_read(wm831x, WM831X_AUXADC_DATA);
+	if (ret < 0) {
+		dev_err(wm831x->dev,
+			"Failed to read AUXADC data: %d\n", ret);
+		wm831x->auxadc_data = 0xffff;
+	} else {
+		wm831x->auxadc_data = ret;
+	}
 
 	complete(&wm831x->auxadc_done);
 

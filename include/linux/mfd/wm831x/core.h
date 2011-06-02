@@ -278,6 +278,7 @@ struct wm831x {
 
 	struct mutex auxadc_lock;
 	struct completion auxadc_done;
+	u16 auxadc_data;
 
 	/* The WM831x has a security key blocking access to certain
 	 * registers.  The mutex is taken by the accessors for locking
