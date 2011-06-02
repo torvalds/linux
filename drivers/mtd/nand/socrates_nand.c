@@ -164,8 +164,6 @@ static int __devinit socrates_nand_probe(struct platform_device *ofdev)
 	struct mtd_info *mtd;
 	struct nand_chip *nand_chip;
 	int res;
-	struct mtd_partition *partitions = NULL;
-	int num_partitions = 0;
 	struct mtd_part_parser_data ppdata;
 
 	/* Allocate memory for the device structure (and zero it) */
@@ -225,17 +223,10 @@ static int __devinit socrates_nand_probe(struct platform_device *ofdev)
 		goto out;
 	}
 
-	num_partitions = parse_mtd_partitions(mtd, NULL, &partitions, &ppdata);
-	if (num_partitions < 0) {
-		res = num_partitions;
-		goto release;
-	}
-
-	res = mtd_device_register(mtd, partitions, num_partitions);
+	res = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
 	if (!res)
 		return res;
 
-release:
 	nand_release(mtd);
 
 out:
