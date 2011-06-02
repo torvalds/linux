@@ -80,10 +80,10 @@
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
 #define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_1 RK29_CAM_POWERDNACTIVE_H
 #define CONFIG_SENSOR_FLASHACTIVE_LEVEL_1 RK29_CAM_FLASHACTIVE_L
+#endif  //#ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Configuration Macro End------------------------*/
 #include "../../../drivers/media/video/rk29_camera.c"
 /*---------------- Camera Sensor Macro Define End  ------------------------*/
-#endif  //#ifdef CONFIG_VIDEO_RK29
 
 /* Set memory size of pmem */
 #ifdef CONFIG_RK29_MEM_SIZE_M
@@ -722,6 +722,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  * camera  devices
  * author: ddl@rock-chips.com
  *****************************************************************************************/
+#ifdef CONFIG_VIDEO_RK29 
 #define CONFIG_SENSOR_POWER_IOCTL_USR      0
 #define CONFIG_SENSOR_RESET_IOCTL_USR      0
 #define CONFIG_SENSOR_POWERDOWN_IOCTL_USR      0
@@ -782,7 +783,7 @@ static struct rk29camera_platform_ioctl_cb  sensor_ioctl_cb = {
 };
 
 #include "../../../drivers/media/video/rk29_camera.c"
-
+#endif
 /*****************************************************************************************
  * backlight  devices
  * author: nzy@rock-chips.com

@@ -1,9 +1,7 @@
 #include <mach/rk29_camera.h> 
 
-#ifdef CONFIG_VIDEO_RK29
-
 #ifndef PMEM_CAM_SIZE
-
+#ifdef CONFIG_VIDEO_RK29 
 /*---------------- Camera Sensor Fixed Macro Begin  ------------------------*/
 // Below Macro is fixed, programer don't change it!!!!!!
 #define _CONS(a,b) a##b
@@ -49,13 +47,16 @@
 #define PMEM_CAM_NECESSARY   0x800000        /* 800*600*1.5*4(preview) + 2M(capture raw) + 2M(jpeg encode output) */
 #endif
 /*---------------- Camera Sensor Fixed Macro End  ------------------------*/
-
+#else   //#ifdef CONFIG_VIDEO_RK29 
+#define PMEM_CAM_NECESSARY   0x00000000
+#endif
 #else   // #ifdef PMEM_CAM_SIZE
 
 /*****************************************************************************************
  * camera  devices
  * author: ddl@rock-chips.com
  *****************************************************************************************/
+#ifdef CONFIG_VIDEO_RK29 
 static int camera_debug;
 module_param(camera_debug, int, S_IRUGO|S_IWUSR);
 
