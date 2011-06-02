@@ -54,7 +54,7 @@ static struct v4l2_queryctrl mt9v011_qctrl[] = {
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Gain",
 		.minimum = 0,
-		.maximum = (1 << 10) - 1,
+		.maximum = (1 << 12) - 1 - 0x0020,
 		.step = 1,
 		.default_value = 0x0020,
 		.flags = 0,
@@ -114,7 +114,8 @@ struct mt9v011 {
 	unsigned hflip:1;
 	unsigned vflip:1;
 
-	u16 global_gain, exposure, red_bal, blue_bal;
+	u16 global_gain, exposure;
+	s16 red_bal, blue_bal;
 };
 
 static inline struct mt9v011 *to_mt9v011(struct v4l2_subdev *sd)
@@ -189,25 +190,65 @@ static const struct i2c_reg_value mt9v011_init_default[] = {
 		{ R07_MT9V011_OUT_CTRL, 0x0002 },	/* chip enable */
 };
 
+
+static u16 calc_mt9v011_gain(s16 lineargain)
+{
+
+	u16 digitalgain = 0;
+	u16 analogmult = 0;
+	u16 analoginit = 0;
+
+	if (lineargain < 0)
+		lineargain = 0;
+
+	/* recommended minimum */
+	lineargain += 0x0020;
+
+	if (lineargain > 2047)
+		lineargain = 2047;
+
+	if (lineargain > 1023) {
+		digitalgain = 3;
+		analogmult = 3;
+		analoginit = lineargain / 16;
+	} else if (lineargain > 511) {
+		digitalgain = 1;
+		analogmult = 3;
+		analoginit = lineargain / 8;
+	} else if (lineargain > 255) {
+		analogmult = 3;
+		analoginit = lineargain / 4;
+	} else if (lineargain > 127) {
+		analogmult = 1;
+		analoginit = lineargain / 2;
+	} else
+		analoginit = lineargain;
+
+	return analoginit + (analogmult << 7) + (digitalgain << 9);
+
+}
+
 static void set_balance(struct v4l2_subdev *sd)
 {
 	struct mt9v011 *core = to_mt9v011(sd);
-	u16 green1_gain, green2_gain, blue_gain, red_gain;
+	u16 green_gain, blue_gain, red_gain;
 	u16 exposure;
+	s16 bal;
 
 	exposure = core->exposure;
 
-	green1_gain = core->global_gain;
-	green2_gain = core->global_gain;
+	green_gain = calc_mt9v011_gain(core->global_gain);
 
-	blue_gain = core->global_gain +
-		    core->global_gain * core->blue_bal / (1 << 9);
+	bal = core->global_gain;
+	bal += (core->blue_bal * core->global_gain / (1 << 7));
+	blue_gain = calc_mt9v011_gain(bal);
 
-	red_gain = core->global_gain +
-		   core->global_gain * core->blue_bal / (1 << 9);
+	bal = core->global_gain;
+	bal += (core->red_bal * core->global_gain / (1 << 7));
+	red_gain = calc_mt9v011_gain(bal);
 
-	mt9v011_write(sd, R2B_MT9V011_GREEN_1_GAIN, green1_gain);
-	mt9v011_write(sd, R2E_MT9V011_GREEN_2_GAIN,  green1_gain);
+	mt9v011_write(sd, R2B_MT9V011_GREEN_1_GAIN, green_gain);
+	mt9v011_write(sd, R2E_MT9V011_GREEN_2_GAIN, green_gain);
 	mt9v011_write(sd, R2C_MT9V011_BLUE_GAIN, blue_gain);
 	mt9v011_write(sd, R2D_MT9V011_RED_GAIN, red_gain);
 	mt9v011_write(sd, R09_MT9V011_SHUTTER_WIDTH, exposure);
