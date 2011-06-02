@@ -124,7 +124,7 @@ static inline int has_pending_signals(sigset_t *signal, sigset_t *blocked)
 
 static int recalc_sigpending_tsk(struct task_struct *t)
 {
-	if ((t->jobctl & JOBCTL_STOP_PENDING) ||
+	if ((t->jobctl & JOBCTL_PENDING_MASK) ||
 	    PENDING(&t->pending, &t->blocked) ||
 	    PENDING(&t->signal->shared_pending, &t->blocked)) {
 		set_tsk_thread_flag(t, TIF_SIGPENDING);
@@ -245,18 +245,25 @@ static void task_clear_jobctl_trapping(struct task_struct *task)
 }
 
 /**
- * task_clear_jobctl_stop_pending - clear pending group stop
+ * task_clear_jobctl_pending - clear jobctl pending bits
  * @task: target task
+ * @mask: pending bits to clear
  *
- * Clear group stop states for @task.
+ * Clear @mask from @task->jobctl.  @mask must be subset of
+ * %JOBCTL_PENDING_MASK.  If %JOBCTL_STOP_PENDING is being cleared, other
+ * STOP bits are cleared together.
  *
  * CONTEXT:
  * Must be called with @task->sighand->siglock held.
  */
-void task_clear_jobctl_stop_pending(struct task_struct *task)
+void task_clear_jobctl_pending(struct task_struct *task, unsigned int mask)
 {
-	task->jobctl &= ~(JOBCTL_STOP_PENDING | JOBCTL_STOP_CONSUME |
-			  JOBCTL_STOP_DEQUEUED);
+	BUG_ON(mask & ~JOBCTL_PENDING_MASK);
+
+	if (mask & JOBCTL_STOP_PENDING)
+		mask |= JOBCTL_STOP_CONSUME | JOBCTL_STOP_DEQUEUED;
+
+	task->jobctl &= ~mask;
 }
 
 /**
@@ -282,7 +289,7 @@ static bool task_participate_group_stop(struct task_struct *task)
 
 	WARN_ON_ONCE(!(task->jobctl & JOBCTL_STOP_PENDING));
 
-	task_clear_jobctl_stop_pending(task);
+	task_clear_jobctl_pending(task, JOBCTL_STOP_PENDING);
 
 	if (!consume)
 		return false;
@@ -810,7 +817,7 @@ static int prepare_signal(int sig, struct task_struct *p, int from_ancestor_ns)
 		rm_from_queue(SIG_KERNEL_STOP_MASK, &signal->shared_pending);
 		t = p;
 		do {
-			task_clear_jobctl_stop_pending(t);
+			task_clear_jobctl_pending(t, JOBCTL_STOP_PENDING);
 			rm_from_queue(SIG_KERNEL_STOP_MASK, &t->pending);
 			wake_up_state(t, __TASK_STOPPED);
 		} while_each_thread(p, t);
@@ -926,7 +933,7 @@ static void complete_signal(int sig, struct task_struct *p, int group)
 			signal->group_stop_count = 0;
 			t = p;
 			do {
-				task_clear_jobctl_stop_pending(t);
+				task_clear_jobctl_pending(t, JOBCTL_STOP_PENDING);
 				sigaddset(&t->pending.signal, SIGKILL);
 				signal_wake_up(t, 1);
 			} while_each_thread(p, t);
@@ -1161,7 +1168,7 @@ int zap_other_threads(struct task_struct *p)
 	p->signal->group_stop_count = 0;
 
 	while_each_thread(p, t) {
-		task_clear_jobctl_stop_pending(t);
+		task_clear_jobctl_pending(t, JOBCTL_STOP_PENDING);
 		count++;
 
 		/* Don't bother with already dead threads */

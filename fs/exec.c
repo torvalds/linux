@@ -1772,7 +1772,7 @@ static int zap_process(struct task_struct *start, int exit_code)
 
 	t = start;
 	do {
-		task_clear_jobctl_stop_pending(t);
+		task_clear_jobctl_pending(t, JOBCTL_STOP_PENDING);
 		if (t != current && t->mm) {
 			sigaddset(&t->pending.signal, SIGKILL);
 			signal_wake_up(t, 1);
