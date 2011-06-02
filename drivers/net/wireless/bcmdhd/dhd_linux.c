@@ -2901,9 +2901,6 @@ dhd_bus_detach(dhd_pub_t *dhdp)
 			/* Stop the bus module */
 			dhd_bus_stop(dhd->pub.bus, TRUE);
 
-			/* Clear the watchdog timer */
-			dhd->wd_timer_valid = FALSE;
-			del_timer_sync(&dhd->timer);
 #if defined(OOB_INTR_ONLY)
 			bcmsdh_unregister_oob_intr();
 #endif /* defined(OOB_INTR_ONLY) */
@@ -2984,6 +2981,10 @@ void dhd_detach(dhd_pub_t *dhdp)
 
 	}
 	}
+
+	/* Clear the watchdog timer */
+	dhd->wd_timer_valid = FALSE;
+	del_timer_sync(&dhd->timer);
 
 	if (dhd->dhd_state & DHD_ATTACH_STATE_THREADS_CREATED) {
 #ifdef DHDTHREAD
