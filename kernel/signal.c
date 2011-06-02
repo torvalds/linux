@@ -1733,6 +1733,18 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	}
 
 	/*
+	 * We're committing to trapping.  TRACED should be visible before
+	 * TRAPPING is cleared; otherwise, the tracer might fail do_wait().
+	 * Also, transition to TRACED and updates to ->jobctl should be
+	 * atomic with respect to siglock and should be done after the arch
+	 * hook as siglock is released and regrabbed across it.
+	 */
+	set_current_state(TASK_TRACED);
+
+	current->last_siginfo = info;
+	current->exit_code = exit_code;
+
+	/*
 	 * If @why is CLD_STOPPED, we're trapping to participate in a group
 	 * stop.  Do the bookkeeping.  Note that if SIGCONT was delievered
 	 * while siglock was released for the arch hook, PENDING could be
@@ -1742,21 +1754,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	if (why == CLD_STOPPED && (current->jobctl & JOBCTL_STOP_PENDING))
 		gstop_done = task_participate_group_stop(current);
 
-	current->last_siginfo = info;
-	current->exit_code = exit_code;
-
-	/*
-	 * TRACED should be visible before TRAPPING is cleared; otherwise,
-	 * the tracer might fail do_wait().
-	 */
-	set_current_state(TASK_TRACED);
-
-	/*
-	 * We're committing to trapping.  Clearing JOBCTL_TRAPPING and
-	 * transition to TASK_TRACED should be atomic with respect to
-	 * siglock.  This should be done after the arch hook as siglock is
-	 * released and regrabbed across it.
-	 */
+	/* entering a trap, clear TRAPPING */
 	task_clear_jobctl_trapping(current);
 
 	spin_unlock_irq(&current->sighand->siglock);
