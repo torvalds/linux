@@ -146,6 +146,13 @@ int bcma_bus_register(struct bcma_bus *bus)
 		bcma_core_pci_init(&bus->drv_pci);
 	}
 
+	/* Try to get SPROM */
+	err = bcma_sprom_get(bus);
+	if (err) {
+		pr_err("Failed to get SPROM: %d\n", err);
+		return -ENOENT;
+	}
+
 	/* Register found cores */
 	bcma_register_cores(bus);
 

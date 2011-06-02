@@ -19,6 +19,9 @@ extern void bcma_bus_unregister(struct bcma_bus *bus);
 /* scan.c */
 int bcma_bus_scan(struct bcma_bus *bus);
 
+/* sprom.c */
+int bcma_sprom_get(struct bcma_bus *bus);
+
 #ifdef CONFIG_BCMA_HOST_PCI
 /* host_pci.c */
 extern int __init bcma_host_pci_init(void);
