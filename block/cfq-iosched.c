@@ -3786,9 +3786,6 @@ new_queue:
 	return 0;
 
 queue_fail:
-	if (cic)
-		put_io_context(cic->ioc);
-
 	cfq_schedule_dispatch(cfqd);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 	cfq_log(cfqd, "set_request fail");
