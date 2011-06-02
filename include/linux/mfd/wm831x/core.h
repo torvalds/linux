@@ -262,7 +262,7 @@ struct wm831x {
 
 	int irq;  /* Our chip IRQ */
 	struct mutex irq_lock;
-	unsigned int irq_base;
+	int irq_base;
 	int irq_masks_cur[WM831X_NUM_IRQ_REGS];   /* Currently active value */
 	int irq_masks_cache[WM831X_NUM_IRQ_REGS]; /* Cached hardware value */
 

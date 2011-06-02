@@ -527,13 +527,22 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 				 0xffff);
 	}
 
-	if (!pdata || !pdata->irq_base) {
-		dev_err(wm831x->dev,
-			"No interrupt base specified, no interrupts\n");
+	/* Try to dynamically allocate IRQs if no base is specified */
+	if (!pdata || !pdata->irq_base)
+		wm831x->irq_base = -1;
+	else
+		wm831x->irq_base = pdata->irq_base;
+
+	wm831x->irq_base = irq_alloc_descs(wm831x->irq_base, 0,
+					   WM831X_NUM_IRQS, 0);
+	if (wm831x->irq_base < 0) {
+		dev_warn(wm831x->dev, "Failed to allocate IRQs: %d\n",
+			 wm831x->irq_base);
+		wm831x->irq_base = 0;
 		return 0;
 	}
 
-	if (pdata->irq_cmos)
+	if (pdata && pdata->irq_cmos)
 		i = 0;
 	else
 		i = WM831X_IRQ_OD;
@@ -553,7 +562,6 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 	}
 
 	wm831x->irq = irq;
-	wm831x->irq_base = pdata->irq_base;
 
 	/* Register them with genirq */
 	for (cur_irq = wm831x->irq_base;
