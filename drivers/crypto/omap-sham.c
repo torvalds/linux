@@ -658,7 +658,6 @@ static int omap_sham_handle_queue(struct omap_sham_dev *dd,
 {
 	struct crypto_async_request *async_req, *backlog;
 	struct omap_sham_reqctx *ctx;
-	struct ahash_request *prev_req;
 	unsigned long flags;
 	int err = 0, ret = 0;
 
@@ -682,15 +681,11 @@ static int omap_sham_handle_queue(struct omap_sham_dev *dd,
 		backlog->complete(backlog, -EINPROGRESS);
 
 	req = ahash_request_cast(async_req);
-
-	prev_req = dd->req;
 	dd->req = req;
-
 	ctx = ahash_request_ctx(req);
 
 	dev_dbg(dd->dev, "handling new req, op: %lu, nbytes: %d\n",
 						ctx->op, req->nbytes);
-
 
 	err = omap_sham_hw_init(dd);
 	if (err)
