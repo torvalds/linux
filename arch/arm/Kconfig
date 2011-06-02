@@ -37,6 +37,9 @@ config ARM
 	  Europe.  There is an ARM Linux project with a web page at
 	  <http://www.arm.linux.org.uk/>.
 
+config ARM_HAS_SG_CHAIN
+	bool
+
 config HAVE_PWM
 	bool
 
