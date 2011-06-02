@@ -128,6 +128,8 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	    (dev->dev->caps.bmme_flags & MLX4_BMME_FLAG_REMOTE_INV) &&
 	    (dev->dev->caps.bmme_flags & MLX4_BMME_FLAG_FAST_REG_WR))
 		props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
+	if (dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC)
+		props->device_cap_flags |= IB_DEVICE_XRC;
 
 	props->vendor_id	   = be32_to_cpup((__be32 *) (out_mad->data + 36)) &
 		0xffffff;

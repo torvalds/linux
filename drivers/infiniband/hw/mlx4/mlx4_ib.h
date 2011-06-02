@@ -145,6 +145,7 @@ struct mlx4_ib_qp {
 	struct mlx4_mtt		mtt;
 	int			buf_size;
 	struct mutex		mutex;
+	u16			xrcdn;
 	u32			flags;
 	u8			port;
 	u8			alt_port;
