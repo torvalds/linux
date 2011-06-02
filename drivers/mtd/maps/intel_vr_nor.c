@@ -44,7 +44,6 @@ struct vr_nor_mtd {
 	void __iomem *csr_base;
 	struct map_info map;
 	struct mtd_info *info;
-	int nr_parts;
 	struct pci_dev *dev;
 };
 
@@ -71,12 +70,9 @@ static void __devexit vr_nor_destroy_partitions(struct vr_nor_mtd *p)
 
 static int __devinit vr_nor_init_partitions(struct vr_nor_mtd *p)
 {
-	struct mtd_partition *parts;
-
 	/* register the flash bank */
 	/* partition the flash bank */
-	p->nr_parts = parse_mtd_partitions(p->info, NULL, &parts, 0);
-	return mtd_device_register(p->info, parts, p->nr_parts);
+	return mtd_device_parse_register(p->info, NULL, 0, NULL, 0);
 }
 
 static void __devexit vr_nor_destroy_mtd_setup(struct vr_nor_mtd *p)
