@@ -416,6 +416,17 @@ enum {
 #define B43_MACCMD_CCA			0x00000008	/* Clear channel assessment */
 #define B43_MACCMD_BGNOISE		0x00000010	/* Background noise */
 
+/* BCMA 802.11 core specific IO Control (BCMA_IOCTL) flags */
+#define B43_BCMA_IOCTL_PHY_CLKEN	0x00000004	/* PHY Clock Enable */
+#define B43_BCMA_IOCTL_PHY_RESET	0x00000008	/* PHY Reset */
+#define B43_BCMA_IOCTL_MACPHYCLKEN	0x00000010	/* MAC PHY Clock Control Enable */
+#define B43_BCMA_IOCTL_PLLREFSEL	0x00000020	/* PLL Frequency Reference Select */
+#define B43_BCMA_IOCTL_PHY_BW		0x000000C0	/* PHY band width and clock speed mask (N-PHY+ only?) */
+#define  B43_BCMA_IOCTL_PHY_BW_10MHZ	0x00000000	/* 10 MHz bandwidth, 40 MHz PHY */
+#define  B43_BCMA_IOCTL_PHY_BW_20MHZ	0x00000040	/* 20 MHz bandwidth, 80 MHz PHY */
+#define  B43_BCMA_IOCTL_PHY_BW_40MHZ	0x00000080	/* 40 MHz bandwidth, 160 MHz PHY */
+#define B43_BCMA_IOCTL_GMODE		0x00002000	/* G Mode Enable */
+
 /* 802.11 core specific TM State Low (SSB_TMSLOW) flags */
 #define B43_TMSLOW_GMODE		0x20000000	/* G Mode Enable */
 #define B43_TMSLOW_PHY_BANDWIDTH	0x00C00000	/* PHY band width and clock speed mask (N-PHY only) */
