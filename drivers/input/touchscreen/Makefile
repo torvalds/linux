@@ -55,4 +55,6 @@ obj-$(CONFIG_EETI_EGALAX)		+= eeti_egalax_i2c.o
 obj-$(CONFIG_ATMEL_MXT224)               += atmel_maxtouch.o
 obj-$(CONFIG_TOUCHSCREEN_GT801_IIC)      += gt801_ts.o
 obj-$(CONFIG_TOUCHSCREEN_ILI2102_IIC)      += ili2102_ts.o
+obj-$(CONFIG_D70_L3188A)      += goodix_touch.o
+
 

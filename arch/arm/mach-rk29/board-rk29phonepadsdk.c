@@ -57,6 +57,8 @@
 #endif
 #include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
 
+#include <linux/goodix_touch.h>
+
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
@@ -447,6 +449,14 @@ static struct eeti_egalax_platform_data eeti_egalax_info = {
   .disp_on_value = TOUCH_SCREEN_DISPLAY_VALUE,
 };
 #endif
+
+#if defined (CONFIG_D70_L3188A)
+struct goodix_i2c_rmi_platform_data d70_l3188a_info = {
+	.shutdown_pin = RK29_PIN4_PD5,
+	.irq_pin = RK29_PIN0_PA2,
+};
+#endif
+
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK29_PIN0_PA3
@@ -697,6 +707,15 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
       .flags          = 0,
       .irq            = RK29_PIN0_PA2,
       .platform_data  = &eeti_egalax_info,
+    },
+#endif
+#if defined (CONFIG_D70_L3188A)
+    {
+      .type           = "goodix-ts",
+      .addr           = 0x55,
+      .flags          = 0,
+      .irq            = RK29_PIN0_PA2,
+	  .platform_data = &d70_l3188a_info,
     },
 #endif
 };
