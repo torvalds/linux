@@ -2533,11 +2533,11 @@ static int iwl_mac_setup_register(struct iwl_priv *priv,
 
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 
-	if (hw->wiphy->interface_modes & NL80211_IFTYPE_P2P_CLIENT) {
+	if (hw->wiphy->interface_modes & BIT(NL80211_IFTYPE_P2P_CLIENT)) {
 		hw->wiphy->iface_combinations = iwlagn_iface_combinations_p2p;
 		hw->wiphy->n_iface_combinations =
 			ARRAY_SIZE(iwlagn_iface_combinations_p2p);
-	} else if (hw->wiphy->interface_modes & NL80211_IFTYPE_AP) {
+	} else if (hw->wiphy->interface_modes & BIT(NL80211_IFTYPE_AP)) {
 		hw->wiphy->iface_combinations = iwlagn_iface_combinations_dualmode;
 		hw->wiphy->n_iface_combinations =
 			ARRAY_SIZE(iwlagn_iface_combinations_dualmode);
