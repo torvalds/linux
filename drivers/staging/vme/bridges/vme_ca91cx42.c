@@ -190,7 +190,7 @@ static irqreturn_t ca91cx42_irqhandler(int irq, void *ptr)
 		serviced |= ca91cx42_VIRQ_irqhandler(ca91cx42_bridge, stat);
 
 	/* Clear serviced interrupts */
-	iowrite32(stat, bridge->base + LINT_STAT);
+	iowrite32(serviced, bridge->base + LINT_STAT);
 
 	return IRQ_HANDLED;
 }
