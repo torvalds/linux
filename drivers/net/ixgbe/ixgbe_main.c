@@ -1459,8 +1459,10 @@ static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		if (ixgbe_rx_is_fcoe(adapter, rx_desc)) {
 			ddp_bytes = ixgbe_fcoe_ddp(adapter, rx_desc, skb,
 						   staterr);
-			if (!ddp_bytes)
+			if (!ddp_bytes) {
+				dev_kfree_skb_any(skb);
 				goto next_desc;
+			}
 		}
 #endif /* IXGBE_FCOE */
 		ixgbe_receive_skb(q_vector, skb, staterr, rx_ring, rx_desc);
