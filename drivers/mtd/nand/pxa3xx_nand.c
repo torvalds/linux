@@ -1133,8 +1133,6 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 {
 	struct pxa3xx_nand_platform_data *pdata;
 	struct pxa3xx_nand_info *info;
-	struct mtd_partition *parts;
-	int nr_parts;
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
@@ -1152,13 +1150,8 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-
-	nr_parts = parse_mtd_partitions(info->mtd, NULL, &parts, 0);
-
-	if (nr_parts)
-		return mtd_device_register(info->mtd, parts, nr_parts);
-
-	return mtd_device_register(info->mtd, pdata->parts, pdata->nr_parts);
+	return mtd_device_parse_register(info->mtd, NULL, 0,
+			pdata->parts, pdata->nr_parts);
 }
 
 #ifdef CONFIG_PM
