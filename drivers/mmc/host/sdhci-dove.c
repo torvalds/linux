@@ -22,7 +22,6 @@
 #include <linux/io.h>
 #include <linux/mmc/host.h>
 
-#include "sdhci.h"
 #include "sdhci-pltfm.h"
 
 static u16 sdhci_dove_readw(struct sdhci_host *host, int reg)

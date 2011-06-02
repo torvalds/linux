@@ -33,68 +33,10 @@
 #ifdef CONFIG_PPC
 #include <asm/machdep.h>
 #endif
-#include "sdhci.h"
 #include "sdhci-pltfm.h"
 
 static struct sdhci_ops sdhci_pltfm_ops = {
 };
-
-#ifdef CONFIG_MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
-/*
- * These accessors are designed for big endian hosts doing I/O to
- * little endian controllers incorporating a 32-bit hardware byte swapper.
- */
-u32 sdhci_be32bs_readl(struct sdhci_host *host, int reg)
-{
-	return in_be32(host->ioaddr + reg);
-}
-
-u16 sdhci_be32bs_readw(struct sdhci_host *host, int reg)
-{
-	return in_be16(host->ioaddr + (reg ^ 0x2));
-}
-
-u8 sdhci_be32bs_readb(struct sdhci_host *host, int reg)
-{
-	return in_8(host->ioaddr + (reg ^ 0x3));
-}
-
-void sdhci_be32bs_writel(struct sdhci_host *host, u32 val, int reg)
-{
-	out_be32(host->ioaddr + reg, val);
-}
-
-void sdhci_be32bs_writew(struct sdhci_host *host, u16 val, int reg)
-{
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	int base = reg & ~0x3;
-	int shift = (reg & 0x2) * 8;
-
-	switch (reg) {
-	case SDHCI_TRANSFER_MODE:
-		/*
-		 * Postpone this write, we must do it together with a
-		 * command write that is down below.
-		 */
-		pltfm_host->xfer_mode_shadow = val;
-		return;
-	case SDHCI_COMMAND:
-		sdhci_be32bs_writel(host,
-				    val << 16 | pltfm_host->xfer_mode_shadow,
-				    SDHCI_TRANSFER_MODE);
-		return;
-	}
-	clrsetbits_be32(host->ioaddr + base, 0xffff << shift, val << shift);
-}
-
-void sdhci_be32bs_writeb(struct sdhci_host *host, u8 val, int reg)
-{
-	int base = reg & ~0x3;
-	int shift = (reg & 0x3) * 8;
-
-	clrsetbits_be32(host->ioaddr + base , 0xff << shift, val << shift);
-}
-#endif /* CONFIG_MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER */
 
 #ifdef CONFIG_OF
 static bool sdhci_of_wp_inverted(struct device_node *np)
@@ -136,6 +78,7 @@ void sdhci_get_of_property(struct platform_device *pdev)
 #else
 void sdhci_get_of_property(struct platform_device *pdev) {}
 #endif /* CONFIG_OF */
+EXPORT_SYMBOL_GPL(sdhci_get_of_property);
 
 struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 				    struct sdhci_pltfm_data *pdata)
@@ -202,6 +145,7 @@ err:
 	dev_err(&pdev->dev, "%s failed %d\n", __func__, ret);
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_GPL(sdhci_pltfm_init);
 
 void sdhci_pltfm_free(struct platform_device *pdev)
 {
@@ -213,6 +157,7 @@ void sdhci_pltfm_free(struct platform_device *pdev)
 	sdhci_free_host(host);
 	platform_set_drvdata(pdev, NULL);
 }
+EXPORT_SYMBOL_GPL(sdhci_pltfm_free);
 
 int sdhci_pltfm_register(struct platform_device *pdev,
 			 struct sdhci_pltfm_data *pdata)
@@ -232,6 +177,7 @@ int sdhci_pltfm_register(struct platform_device *pdev,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(sdhci_pltfm_register);
 
 int sdhci_pltfm_unregister(struct platform_device *pdev)
 {
@@ -243,6 +189,7 @@ int sdhci_pltfm_unregister(struct platform_device *pdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sdhci_pltfm_unregister);
 
 #ifdef CONFIG_PM
 int sdhci_pltfm_suspend(struct platform_device *dev, pm_message_t state)
@@ -251,6 +198,7 @@ int sdhci_pltfm_suspend(struct platform_device *dev, pm_message_t state)
 
 	return sdhci_suspend_host(host, state);
 }
+EXPORT_SYMBOL_GPL(sdhci_pltfm_suspend);
 
 int sdhci_pltfm_resume(struct platform_device *dev)
 {
@@ -258,4 +206,22 @@ int sdhci_pltfm_resume(struct platform_device *dev)
 
 	return sdhci_resume_host(host);
 }
+EXPORT_SYMBOL_GPL(sdhci_pltfm_resume);
 #endif	/* CONFIG_PM */
+
+static int __init sdhci_pltfm_drv_init(void)
+{
+	pr_info("sdhci-pltfm: SDHCI platform and OF driver helper\n");
+
+	return 0;
+}
+module_init(sdhci_pltfm_drv_init);
+
+static void __exit sdhci_pltfm_drv_exit(void)
+{
+}
+module_exit(sdhci_pltfm_drv_exit);
+
+MODULE_DESCRIPTION("SDHCI platform and OF driver helper");
+MODULE_AUTHOR("Intel Corporation");
+MODULE_LICENSE("GPL v2");
