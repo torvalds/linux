@@ -253,6 +253,9 @@ static void task_clear_jobctl_trapping(struct task_struct *task)
  * %JOBCTL_PENDING_MASK.  If %JOBCTL_STOP_PENDING is being cleared, other
  * STOP bits are cleared together.
  *
+ * If clearing of @mask leaves no stop or trap pending, this function calls
+ * task_clear_jobctl_trapping().
+ *
  * CONTEXT:
  * Must be called with @task->sighand->siglock held.
  */
@@ -264,6 +267,9 @@ void task_clear_jobctl_pending(struct task_struct *task, unsigned int mask)
 		mask |= JOBCTL_STOP_CONSUME | JOBCTL_STOP_DEQUEUED;
 
 	task->jobctl &= ~mask;
+
+	if (!(task->jobctl & JOBCTL_PENDING_MASK))
+		task_clear_jobctl_trapping(task);
 }
 
 /**
@@ -933,7 +939,7 @@ static void complete_signal(int sig, struct task_struct *p, int group)
 			signal->group_stop_count = 0;
 			t = p;
 			do {
-				task_clear_jobctl_pending(t, JOBCTL_STOP_PENDING);
+				task_clear_jobctl_pending(t, JOBCTL_PENDING_MASK);
 				sigaddset(&t->pending.signal, SIGKILL);
 				signal_wake_up(t, 1);
 			} while_each_thread(p, t);
@@ -1168,7 +1174,7 @@ int zap_other_threads(struct task_struct *p)
 	p->signal->group_stop_count = 0;
 
 	while_each_thread(p, t) {
-		task_clear_jobctl_pending(t, JOBCTL_STOP_PENDING);
+		task_clear_jobctl_pending(t, JOBCTL_PENDING_MASK);
 		count++;
 
 		/* Don't bother with already dead threads */
@@ -1963,9 +1969,6 @@ retry:
 		WARN_ON_ONCE(!(current->jobctl & JOBCTL_STOP_SIGMASK));
 		goto retry;
 	}
-
-	/* PTRACE_ATTACH might have raced with task killing, clear trapping */
-	task_clear_jobctl_trapping(current);
 
 	spin_unlock_irq(&current->sighand->siglock);
 
