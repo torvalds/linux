@@ -74,9 +74,6 @@ struct mtp_dev {
 	struct usb_composite_dev *cdev;
 	spinlock_t lock;
 
-	/* appear as MTP or PTP when enumerating */
-	int interface_mode;
-
 	struct usb_ep *ep_in;
 	struct usb_ep *ep_out;
 	struct usb_ep *ep_intr;
@@ -888,20 +885,6 @@ static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 		ret = dev->xfer_result;
 		break;
 	}
-	case MTP_SET_INTERFACE_MODE:
-		if (value == MTP_INTERFACE_MODE_MTP ||
-			value == MTP_INTERFACE_MODE_PTP) {
-			dev->interface_mode = value;
-			if (value == MTP_INTERFACE_MODE_PTP) {
-				dev->function.descriptors = fs_ptp_descs;
-				dev->function.hs_descriptors = hs_ptp_descs;
-			} else {
-				dev->function.descriptors = fs_mtp_descs;
-				dev->function.hs_descriptors = hs_mtp_descs;
-			}
-			ret = 0;
-		}
-		break;
 	case MTP_SEND_EVENT:
 	{
 		struct mtp_event	event;
@@ -970,7 +953,6 @@ static struct miscdevice mtp_device = {
 static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 				const struct usb_ctrlrequest *ctrl)
 {
-	struct mtp_dev *dev = _mtp_dev;
 	int	value = -EOPNOTSUPP;
 	u16	w_index = le16_to_cpu(ctrl->wIndex);
 	u16	w_value = le16_to_cpu(ctrl->wValue);
@@ -982,8 +964,7 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 			w_value, w_index, w_length);
 
 	/* Handle MTP OS string */
-	if (dev->interface_mode == MTP_INTERFACE_MODE_MTP
-			&& ctrl->bRequestType ==
+	if (ctrl->bRequestType ==
 			(USB_DIR_IN | USB_TYPE_STANDARD | USB_RECIP_DEVICE)
 			&& ctrl->bRequest == USB_REQ_GET_DESCRIPTOR
 			&& (w_value >> 8) == USB_DT_STRING
@@ -1078,8 +1059,7 @@ static int mtp_function_setup(struct usb_function *f,
 		DBG(cdev, "vendor request: %d index: %d value: %d length: %d\n",
 			ctrl->bRequest, w_index, w_value, w_length);
 
-		if (dev->interface_mode == MTP_INTERFACE_MODE_MTP
-				&& ctrl->bRequest == 1
+		if (ctrl->bRequest == 1
 				&& (ctrl->bRequestType & USB_DIR_IN)
 				&& (w_index == 4 || w_index == 5)) {
 			value = (w_length < sizeof(mtp_ext_config_desc) ?
@@ -1201,7 +1181,7 @@ static void mtp_function_disable(struct usb_function *f)
 	VDBG(cdev, "%s disabled\n", dev->function.name);
 }
 
-static int mtp_bind_config(struct usb_configuration *c)
+static int mtp_bind_config(struct usb_configuration *c, bool ptp_config)
 {
 	struct mtp_dev *dev = _mtp_dev;
 	int ret = 0;
@@ -1219,17 +1199,19 @@ static int mtp_bind_config(struct usb_configuration *c)
 
 	dev->cdev = c->cdev;
 	dev->function.name = "mtp";
-	dev->function.strings = mtp_strings,
-	dev->function.descriptors = fs_mtp_descs;
-	dev->function.hs_descriptors = hs_mtp_descs;
+	dev->function.strings = mtp_strings;
+	if (ptp_config) {
+		dev->function.descriptors = fs_ptp_descs;
+		dev->function.hs_descriptors = hs_ptp_descs;
+	} else {
+		dev->function.descriptors = fs_mtp_descs;
+		dev->function.hs_descriptors = hs_mtp_descs;
+	}
 	dev->function.bind = mtp_function_bind;
 	dev->function.unbind = mtp_function_unbind;
 	dev->function.setup = mtp_function_setup;
 	dev->function.set_alt = mtp_function_set_alt;
 	dev->function.disable = mtp_function_disable;
-
-	/* MTP mode by default */
-	dev->interface_mode = MTP_INTERFACE_MODE_MTP;
 
 	return usb_add_function(c, &dev->function);
 }

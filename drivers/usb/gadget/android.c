@@ -294,7 +294,23 @@ static void mtp_function_cleanup(struct android_usb_function *f)
 
 static int mtp_function_bind_config(struct android_usb_function *f, struct usb_configuration *c)
 {
-	return mtp_bind_config(c);
+	return mtp_bind_config(c, false);
+}
+
+static int ptp_function_init(struct android_usb_function *f, struct usb_composite_dev *cdev)
+{
+	/* nothing to do - initialization is handled by mtp_function_init */
+	return 0;
+}
+
+static void ptp_function_cleanup(struct android_usb_function *f)
+{
+	/* nothing to do - cleanup is handled by mtp_function_cleanup */
+}
+
+static int ptp_function_bind_config(struct android_usb_function *f, struct usb_configuration *c)
+{
+	return mtp_bind_config(c, true);
 }
 
 static int mtp_function_ctrlrequest(struct android_usb_function *f,
@@ -310,6 +326,14 @@ static struct android_usb_function mtp_function = {
 	.cleanup	= mtp_function_cleanup,
 	.bind_config	= mtp_function_bind_config,
 	.ctrlrequest	= mtp_function_ctrlrequest,
+};
+
+/* PTP function is same as MTP with slightly different interface descriptor */
+static struct android_usb_function ptp_function = {
+	.name		= "ptp",
+	.init		= ptp_function_init,
+	.cleanup	= ptp_function_cleanup,
+	.bind_config	= ptp_function_bind_config,
 };
 
 
@@ -623,6 +647,7 @@ static struct android_usb_function *supported_functions[] = {
 	&adb_function,
 	&acm_function,
 	&mtp_function,
+	&ptp_function,
 	&rndis_function,
 	&mass_storage_function,
 	&accessory_function,
