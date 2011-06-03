@@ -1677,7 +1677,6 @@ static void denali_pci_remove(struct pci_dev *dev)
 	struct denali_nand_info *denali = pci_get_drvdata(dev);
 
 	nand_release(&denali->mtd);
-	mtd_device_unregister(&denali->mtd);
 
 	denali_irq_cleanup(dev->irq, denali);
 
