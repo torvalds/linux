@@ -236,7 +236,6 @@ static struct mtd_partition cm_t3517_nand_partitions[] = {
 static struct omap_nand_platform_data cm_t3517_nand_data = {
 	.parts			= cm_t3517_nand_partitions,
 	.nr_parts		= ARRAY_SIZE(cm_t3517_nand_partitions),
-	.dma_channel		= -1,	/* disable DMA in OMAP NAND driver */
 	.cs			= 0,
 };
 
