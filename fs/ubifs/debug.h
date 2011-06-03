@@ -44,11 +44,11 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
  * @old_zroot_level: old index root level - used by 'dbg_check_old_index()'
  * @old_zroot_sqnum: old index root sqnum - used by 'dbg_check_old_index()'
  *
- * @failure_mode: failure mode for recovery testing
- * @fail_delay: 0=>don't delay, 1=>delay a time, 2=>delay a number of calls
- * @fail_timeout: time in jiffies when delay of failure mode expires
- * @fail_cnt: current number of calls to failure mode I/O functions
- * @fail_cnt_max: number of calls by which to delay failure mode
+ * @pc_happened: non-zero if an emulated power cut happened
+ * @pc_delay: 0=>don't delay, 1=>delay a time, 2=>delay a number of calls
+ * @pc_timeout: time in jiffies when delay of failure mode expires
+ * @pc_cnt: current number of calls to failure mode I/O functions
+ * @pc_cnt_max: number of calls by which to delay failure mode
  *
  * @chk_lpt_sz: used by LPT tree size checker
  * @chk_lpt_sz2: used by LPT tree size checker
@@ -87,11 +87,11 @@ struct ubifs_debug_info {
 	int old_zroot_level;
 	unsigned long long old_zroot_sqnum;
 
-	int failure_mode;
-	int fail_delay;
-	unsigned long fail_timeout;
-	unsigned int fail_cnt;
-	unsigned int fail_cnt_max;
+	int pc_happened;
+	int pc_delay;
+	unsigned long pc_timeout;
+	unsigned int pc_cnt;
+	unsigned int pc_cnt_max;
 
 	long long chk_lpt_sz;
 	long long chk_lpt_sz2;
@@ -246,7 +246,7 @@ static inline int dbg_is_tst_rcvry(const struct ubifs_info *c)
 }
 static inline int dbg_is_power_cut(const struct ubifs_info *c)
 {
-	return !!c->dbg->failure_mode;
+	return !!c->dbg->pc_happened;
 }
 
 int ubifs_debugging_init(struct ubifs_info *c);

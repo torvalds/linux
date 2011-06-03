@@ -2548,39 +2548,36 @@ static int simple_rand(void)
 	return (next >> 16) & 32767;
 }
 
-static int do_fail(struct ubifs_info *c, int lnum, int write)
+static int power_cut_emulated(struct ubifs_info *c, int lnum, int write)
 {
 	struct ubifs_debug_info *d = c->dbg;
 
 	ubifs_assert(dbg_is_tst_rcvry(c));
 
-	if (d->failure_mode)
-		return 1;
-
-	if (!d->fail_cnt) {
-		/* First call - decide delay to failure */
+	if (!d->pc_cnt) {
+		/* First call - decide delay to the power cut */
 		if (chance(1, 2)) {
 			unsigned int delay = 1 << (simple_rand() >> 11);
 
 			if (chance(1, 2)) {
-				d->fail_delay = 1;
-				d->fail_timeout = jiffies +
+				d->pc_delay = 1;
+				d->pc_timeout = jiffies +
 						  msecs_to_jiffies(delay);
 				ubifs_warn("failing after %ums", delay);
 			} else {
-				d->fail_delay = 2;
-				d->fail_cnt_max = delay;
+				d->pc_delay = 2;
+				d->pc_cnt_max = delay;
 				ubifs_warn("failing after %u calls", delay);
 			}
 		}
-		d->fail_cnt += 1;
+		d->pc_cnt += 1;
 	}
 	/* Determine if failure delay has expired */
-	if (d->fail_delay == 1) {
-		if (time_before(jiffies, d->fail_timeout))
+	if (d->pc_delay == 1) {
+		if (time_before(jiffies, d->pc_timeout))
 			return 0;
-	} else if (d->fail_delay == 2)
-		if (d->fail_cnt++ < d->fail_cnt_max)
+	} else if (d->pc_delay == 2)
+		if (d->pc_cnt++ < d->pc_cnt_max)
 			return 0;
 	if (lnum == UBIFS_SB_LNUM) {
 		if (write) {
@@ -2638,7 +2635,7 @@ static int do_fail(struct ubifs_info *c, int lnum, int write)
 		ubifs_warn("failing in bud LEB %d commit not running", lnum);
 	}
 
-	d->failure_mode = 1;
+	d->pc_happened = 1;
 	dump_stack();
 	return 1;
 }
@@ -2658,9 +2655,10 @@ int dbg_leb_write(struct ubifs_info *c, int lnum, const void *buf,
 {
 	int err, failing;
 
-	if (c->dbg->failure_mode)
+	if (c->dbg->pc_happened)
 		return -EROFS;
-	failing = do_fail(c, lnum, 1);
+
+	failing = power_cut_emulated(c, lnum, 1);
 	if (failing)
 		cut_data(buf, len);
 	err = ubi_leb_write(c->ubi, lnum, buf, offs, len, dtype);
@@ -2676,12 +2674,14 @@ int dbg_leb_change(struct ubifs_info *c, int lnum, const void *buf,
 {
 	int err;
 
-	if (do_fail(c, lnum, 1))
+	if (c->dbg->pc_happened)
+		return -EROFS;
+	if (power_cut_emulated(c, lnum, 1))
 		return -EROFS;
 	err = ubi_leb_change(c->ubi, lnum, buf, len, dtype);
 	if (err)
 		return err;
-	if (do_fail(c, lnum, 1))
+	if (power_cut_emulated(c, lnum, 1))
 		return -EROFS;
 	return 0;
 }
@@ -2690,12 +2690,14 @@ int dbg_leb_unmap(struct ubifs_info *c, int lnum)
 {
 	int err;
 
-	if (do_fail(c, lnum, 0))
+	if (c->dbg->pc_happened)
+		return -EROFS;
+	if (power_cut_emulated(c, lnum, 0))
 		return -EROFS;
 	err = ubi_leb_unmap(c->ubi, lnum);
 	if (err)
 		return err;
-	if (do_fail(c, lnum, 0))
+	if (power_cut_emulated(c, lnum, 0))
 		return -EROFS;
 	return 0;
 }
@@ -2704,12 +2706,14 @@ int dbg_leb_map(struct ubifs_info *c, int lnum, int dtype)
 {
 	int err;
 
-	if (do_fail(c, lnum, 0))
+	if (c->dbg->pc_happened)
+		return -EROFS;
+	if (power_cut_emulated(c, lnum, 0))
 		return -EROFS;
 	err = ubi_leb_map(c->ubi, lnum, dtype);
 	if (err)
 		return err;
-	if (do_fail(c, lnum, 0))
+	if (power_cut_emulated(c, lnum, 0))
 		return -EROFS;
 	return 0;
 }
