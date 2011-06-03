@@ -928,7 +928,7 @@ struct drbd_md {
 #define NL_INT64(pn,pr,member) __u64 member;
 #define NL_BIT(pn,pr,member)   unsigned member:1;
 #define NL_STRING(pn,pr,member,len) unsigned char member[len]; int member ## _len;
-#include "linux/drbd_nl.h"
+#include <linux/drbd_nl.h>
 
 struct drbd_backing_dev {
 	struct block_device *backing_bdev;
