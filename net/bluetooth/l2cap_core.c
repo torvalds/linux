@@ -3540,7 +3540,7 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 		goto drop;
 	}
 
-	if (chan->conn_state == L2CAP_CONN_LOCAL_BUSY)
+	if (chan->conn_state & L2CAP_CONN_LOCAL_BUSY)
 		goto drop;
 
 	if (chan->conn_state & L2CAP_CONN_SREJ_SENT) {
