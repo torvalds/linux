@@ -44,7 +44,7 @@ struct mtdblk_dev {
 	enum { STATE_EMPTY, STATE_CLEAN, STATE_DIRTY } cache_state;
 };
 
-static struct mutex mtdblks_lock;
+static DEFINE_MUTEX(mtdblks_lock);
 
 /*
  * Cache stuff...
@@ -389,8 +389,6 @@ static struct mtd_blktrans_ops mtdblock_tr = {
 
 static int __init init_mtdblock(void)
 {
-	mutex_init(&mtdblks_lock);
-
 	return register_mtd_blktrans(&mtdblock_tr);
 }
 
