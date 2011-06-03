@@ -90,7 +90,6 @@ struct iwl_cmd;
 #define IWL_CMD(x) case x: return #x
 
 struct iwl_hcmd_ops {
-	int (*commit_rxon)(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 	void (*set_rxon_chain)(struct iwl_priv *priv,
 			       struct iwl_rxon_context *ctx);
 	int (*set_tx_ant)(struct iwl_priv *priv, u8 valid_tx_ant);
@@ -611,11 +610,7 @@ void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 
 int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
-static inline int iwlcore_commit_rxon(struct iwl_priv *priv,
-				      struct iwl_rxon_context *ctx)
-{
-	return priv->cfg->ops->hcmd->commit_rxon(priv, ctx);
-}
+
 static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 			struct iwl_priv *priv, enum ieee80211_band band)
 {

@@ -310,7 +310,6 @@ static int iwlagn_set_pan_params(struct iwl_priv *priv)
 }
 
 struct iwl_hcmd_ops iwlagn_hcmd = {
-	.commit_rxon = iwlagn_commit_rxon,
 	.set_rxon_chain = iwlagn_set_rxon_chain,
 	.set_tx_ant = iwlagn_send_tx_ant_config,
 	.send_bt_config = iwl_send_bt_config,
@@ -318,7 +317,6 @@ struct iwl_hcmd_ops iwlagn_hcmd = {
 };
 
 struct iwl_hcmd_ops iwlagn_bt_hcmd = {
-	.commit_rxon = iwlagn_commit_rxon,
 	.set_rxon_chain = iwlagn_set_rxon_chain,
 	.set_tx_ant = iwlagn_send_tx_ant_config,
 	.send_bt_config = iwlagn_send_advance_bt_config,

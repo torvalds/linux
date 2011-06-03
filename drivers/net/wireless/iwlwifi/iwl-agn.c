@@ -97,7 +97,7 @@ void iwl_update_chain_flags(struct iwl_priv *priv)
 		for_each_context(priv, ctx) {
 			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
 			if (ctx->active.rx_chain != ctx->staging.rx_chain)
-				iwlcore_commit_rxon(priv, ctx);
+				iwlagn_commit_rxon(priv, ctx);
 		}
 	}
 }
@@ -274,7 +274,7 @@ static void iwl_bg_bt_full_concurrency(struct work_struct *work)
 	for_each_context(priv, ctx) {
 		if (priv->cfg->ops->hcmd->set_rxon_chain)
 			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
-		iwlcore_commit_rxon(priv, ctx);
+		iwlagn_commit_rxon(priv, ctx);
 	}
 
 	priv->cfg->ops->hcmd->send_bt_config(priv);
@@ -2056,7 +2056,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 	set_bit(STATUS_READY, &priv->status);
 
 	/* Configure the adapter for unassociated operation */
-	ret = iwlcore_commit_rxon(priv, ctx);
+	ret = iwlagn_commit_rxon(priv, ctx);
 	if (ret)
 		return ret;
 
@@ -3101,7 +3101,7 @@ static void iwlagn_disable_roc(struct iwl_priv *priv)
 
 	priv->_agn.hw_roc_channel = NULL;
 
-	iwlcore_commit_rxon(priv, ctx);
+	iwlagn_commit_rxon(priv, ctx);
 
 	ctx->is_active = false;
 }
@@ -3144,7 +3144,7 @@ static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 	priv->_agn.hw_roc_channel = channel;
 	priv->_agn.hw_roc_chantype = channel_type;
 	priv->_agn.hw_roc_duration = DIV_ROUND_UP(duration * 1000, 1024);
-	iwlcore_commit_rxon(priv, &priv->contexts[IWL_RXON_CTX_PAN]);
+	iwlagn_commit_rxon(priv, &priv->contexts[IWL_RXON_CTX_PAN]);
 	queue_delayed_work(priv->workqueue, &priv->_agn.hw_roc_work,
 			   msecs_to_jiffies(duration + 20));
 

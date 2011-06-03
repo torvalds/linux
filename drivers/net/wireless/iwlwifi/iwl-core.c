@@ -1279,7 +1279,7 @@ static int iwl_set_mode(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
 		priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
 
-	return iwlcore_commit_rxon(priv, ctx);
+	return iwlagn_commit_rxon(priv, ctx);
 }
 
 static int iwl_setup_interface(struct iwl_priv *priv,
