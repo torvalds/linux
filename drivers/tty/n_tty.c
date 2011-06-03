@@ -81,6 +81,38 @@ static inline int tty_put_user(struct tty_struct *tty, unsigned char x,
 	return put_user(x, ptr);
 }
 
+/**
+ *	n_tty_set__room	-	receive space
+ *	@tty: terminal
+ *
+ *	Called by the driver to find out how much data it is
+ *	permitted to feed to the line discipline without any being lost
+ *	and thus to manage flow control. Not serialized. Answers for the
+ *	"instant".
+ */
+
+static void n_tty_set_room(struct tty_struct *tty)
+{
+	/* tty->read_cnt is not read locked ? */
+	int	left = N_TTY_BUF_SIZE - tty->read_cnt - 1;
+	int old_left;
+
+	/*
+	 * If we are doing input canonicalization, and there are no
+	 * pending newlines, let characters through without limit, so
+	 * that erase characters will be handled.  Other excess
+	 * characters will be beeped.
+	 */
+	if (left <= 0)
+		left = tty->icanon && !tty->canon_data;
+	old_left = tty->receive_room;
+	tty->receive_room = left;
+
+	/* Did this open up the receive buffer? We may need to flip */
+	if (left && !old_left)
+		schedule_work(&tty->buf.work);
+}
+
 static void put_tty_queue_nolock(unsigned char c, struct tty_struct *tty)
 {
 	if (tty->read_cnt < N_TTY_BUF_SIZE) {
@@ -152,6 +184,7 @@ static void reset_buffer_flags(struct tty_struct *tty)
 
 	tty->canon_head = tty->canon_data = tty->erasing = 0;
 	memset(&tty->read_flags, 0, sizeof tty->read_flags);
+	n_tty_set_room(tty);
 	check_unthrottle(tty);
 }
 
@@ -1327,19 +1360,17 @@ static void n_tty_write_wakeup(struct tty_struct *tty)
  *	calls one at a time and in order (or using flush_to_ldisc)
  */
 
-static unsigned int n_tty_receive_buf(struct tty_struct *tty,
-		const unsigned char *cp, char *fp, int count)
+static void n_tty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
+			      char *fp, int count)
 {
 	const unsigned char *p;
 	char *f, flags = TTY_NORMAL;
 	int	i;
 	char	buf[64];
 	unsigned long cpuflags;
-	int left;
-	int ret = 0;
 
 	if (!tty->read_buf)
-		return 0;
+		return;
 
 	if (tty->real_raw) {
 		spin_lock_irqsave(&tty->read_lock, cpuflags);
@@ -1349,7 +1380,6 @@ static unsigned int n_tty_receive_buf(struct tty_struct *tty,
 		memcpy(tty->read_buf + tty->read_head, cp, i);
 		tty->read_head = (tty->read_head + i) & (N_TTY_BUF_SIZE-1);
 		tty->read_cnt += i;
-		ret += i;
 		cp += i;
 		count -= i;
 
@@ -1359,10 +1389,8 @@ static unsigned int n_tty_receive_buf(struct tty_struct *tty,
 		memcpy(tty->read_buf + tty->read_head, cp, i);
 		tty->read_head = (tty->read_head + i) & (N_TTY_BUF_SIZE-1);
 		tty->read_cnt += i;
-		ret += i;
 		spin_unlock_irqrestore(&tty->read_lock, cpuflags);
 	} else {
-		ret = count;
 		for (i = count, p = cp, f = fp; i; i--, p++) {
 			if (f)
 				flags = *f++;
@@ -1390,6 +1418,8 @@ static unsigned int n_tty_receive_buf(struct tty_struct *tty,
 			tty->ops->flush_chars(tty);
 	}
 
+	n_tty_set_room(tty);
+
 	if ((!tty->icanon && (tty->read_cnt >= tty->minimum_to_wake)) ||
 		L_EXTPROC(tty)) {
 		kill_fasync(&tty->fasync, SIGIO, POLL_IN);
@@ -1402,12 +1432,8 @@ static unsigned int n_tty_receive_buf(struct tty_struct *tty,
 	 * mode.  We don't want to throttle the driver if we're in
 	 * canonical mode and don't have a newline yet!
 	 */
-	left = N_TTY_BUF_SIZE - tty->read_cnt - 1;
-
-	if (left < TTY_THRESHOLD_THROTTLE)
+	if (tty->receive_room < TTY_THRESHOLD_THROTTLE)
 		tty_throttle(tty);
-
-	return ret;
 }
 
 int is_ignored(int sig)
@@ -1451,6 +1477,7 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	if (test_bit(TTY_HW_COOK_IN, &tty->flags)) {
 		tty->raw = 1;
 		tty->real_raw = 1;
+		n_tty_set_room(tty);
 		return;
 	}
 	if (I_ISTRIP(tty) || I_IUCLC(tty) || I_IGNCR(tty) ||
@@ -1503,6 +1530,7 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		else
 			tty->real_raw = 0;
 	}
+	n_tty_set_room(tty);
 	/* The termios change make the tty ready for I/O */
 	wake_up_interruptible(&tty->write_wait);
 	wake_up_interruptible(&tty->read_wait);
@@ -1784,6 +1812,8 @@ do_it_again:
 				retval = -ERESTARTSYS;
 				break;
 			}
+			/* FIXME: does n_tty_set_room need locking ? */
+			n_tty_set_room(tty);
 			timeout = schedule_timeout(timeout);
 			continue;
 		}
@@ -1855,8 +1885,10 @@ do_it_again:
 		 * longer than TTY_THRESHOLD_UNTHROTTLE in canonical mode,
 		 * we won't get any more characters.
 		 */
-		if (n_tty_chars_in_buffer(tty) <= TTY_THRESHOLD_UNTHROTTLE)
+		if (n_tty_chars_in_buffer(tty) <= TTY_THRESHOLD_UNTHROTTLE) {
+			n_tty_set_room(tty);
 			check_unthrottle(tty);
+		}
 
 		if (b - buf >= minimum)
 			break;
@@ -1878,6 +1910,7 @@ do_it_again:
 	} else if (test_and_clear_bit(TTY_PUSH, &tty->flags))
 		 goto do_it_again;
 
+	n_tty_set_room(tty);
 	return retval;
 }
 
