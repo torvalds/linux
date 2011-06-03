@@ -43,27 +43,6 @@
 #include "iwl-helpers.h"
 #include "iwl-agn.h"
 
-
-/*
- * set bt_coex_active to true, uCode will do kill/defer
- * every time the priority line is asserted (BT is sending signals on the
- * priority line in the PCIx).
- * set bt_coex_active to false, uCode will ignore the BT activity and
- * perform the normal operation
- *
- * User might experience transmit issue on some platform due to WiFi/BT
- * co-exist problem. The possible behaviors are:
- *   Able to scan and finding all the available AP
- *   Not able to associate with any AP
- * On those platforms, WiFi communication can be restored by set
- * "bt_coex_active" module parameter to "false"
- *
- * default: bt_coex_active = true (BT_COEX_ENABLE)
- */
-bool bt_coex_active = true;
-module_param(bt_coex_active, bool, S_IRUGO);
-MODULE_PARM_DESC(bt_coex_active, "enable wifi/bluetooth co-exist");
-
 u32 iwl_debug_level;
 
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
@@ -1179,7 +1158,7 @@ void iwl_send_bt_config(struct iwl_priv *priv)
 		.kill_cts_mask = 0,
 	};
 
-	if (!bt_coex_active)
+	if (!iwlagn_mod_params.bt_coex_active)
 		bt_cmd.flags = BT_COEX_DISABLE;
 	else
 		bt_cmd.flags = BT_COEX_ENABLE;

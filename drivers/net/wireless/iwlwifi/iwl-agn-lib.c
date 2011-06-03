@@ -622,6 +622,7 @@ struct iwl_mod_params iwlagn_mod_params = {
 	.amsdu_size_8K = 1,
 	.restart_fw = 1,
 	.plcp_check = true,
+	.bt_coex_active = true,
 	/* the rest are 0 by default */
 };
 
@@ -1699,7 +1700,8 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	 * (might be in monitor mode), or the interface is in
 	 * IBSS mode (no proper uCode support for coex then).
 	 */
-	if (!bt_coex_active || priv->iw_mode == NL80211_IFTYPE_ADHOC) {
+	if (!iwlagn_mod_params.bt_coex_active ||
+	    priv->iw_mode == NL80211_IFTYPE_ADHOC) {
 		basic.flags = IWLAGN_BT_FLAG_COEX_MODE_DISABLED;
 	} else {
 		basic.flags = IWLAGN_BT_FLAG_COEX_MODE_3W <<
