@@ -702,8 +702,8 @@ int wm831x_post_init(struct wm831x *parm)
 	printk("%s set ldo6=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 
-	ldo = regulator_get(NULL, "ldo8");		//cmmb
-	regulator_set_voltage(ldo,1200000,1200000);
+	ldo = regulator_get(NULL, "ldo8");		//tp
+	regulator_set_voltage(ldo,3000000,3000000);
 	regulator_enable(ldo);			
 	printk("%s set ldo8=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
