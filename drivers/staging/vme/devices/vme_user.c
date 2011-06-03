@@ -41,7 +41,7 @@
 #include "vme_user.h"
 
 static DEFINE_MUTEX(vme_user_mutex);
-static char driver_name[] = "vme_user";
+static const char driver_name[] = "vme_user";
 
 static int bus[USER_BUS_MAX];
 static unsigned int bus_num;
@@ -91,7 +91,7 @@ static unsigned int bus_num;
 /*
  * Structure to handle image related parameters.
  */
-typedef struct {
+struct image_desc {
 	void *kern_buf;	/* Buffer address in kernel space */
 	dma_addr_t pci_buf;	/* Buffer address in PCI address space */
 	unsigned long long size_buf;	/* Buffer size */
@@ -99,10 +99,10 @@ typedef struct {
 	struct device *device;	/* Sysfs device */
 	struct vme_resource *resource;	/* VME resource */
 	int users;		/* Number of current users */
-} image_desc_t;
-static image_desc_t image[VME_DEVS];
+};
+static struct image_desc image[VME_DEVS];
 
-typedef struct {
+struct driver_stats {
 	unsigned long reads;
 	unsigned long writes;
 	unsigned long ioctls;
@@ -111,8 +111,8 @@ typedef struct {
 	unsigned long dmaErrors;
 	unsigned long timeouts;
 	unsigned long external;
-} driver_stats_t;
-static driver_stats_t statistics;
+};
+static struct driver_stats statistics;
 
 static struct cdev *vme_user_cdev;		/* Character device */
 static struct class *vme_user_sysfs_class;	/* Sysfs class */
@@ -138,7 +138,7 @@ static long vme_user_unlocked_ioctl(struct file *, unsigned int, unsigned long);
 static int __devinit vme_user_probe(struct device *, int, int);
 static int __devexit vme_user_remove(struct device *, int, int);
 
-static struct file_operations vme_user_fops = {
+static const struct file_operations vme_user_fops = {
 	.open = vme_user_open,
 	.release = vme_user_release,
 	.read = vme_user_read,
@@ -773,6 +773,7 @@ static int __devinit vme_user_probe(struct device *dev, int cur_bus,
 
 	/* Add sysfs Entries */
 	for (i = 0; i < VME_DEVS; i++) {
+		int num;
 		switch (type[i]) {
 		case MASTER_MINOR:
 			sprintf(name, "bus/vme/m%%d");
@@ -789,10 +790,9 @@ static int __devinit vme_user_probe(struct device *dev, int cur_bus,
 			break;
 		}
 
-		image[i].device =
-			device_create(vme_user_sysfs_class, NULL,
-				MKDEV(VME_MAJOR, i), NULL, name,
-				(type[i] == SLAVE_MINOR) ? i - (MASTER_MAX + 1) : i);
+		num = (type[i] == SLAVE_MINOR) ? i - (MASTER_MAX + 1) : i;
+		image[i].device = device_create(vme_user_sysfs_class, NULL,
+					MKDEV(VME_MAJOR, i), NULL, name, num);
 		if (IS_ERR(image[i].device)) {
 			printk(KERN_INFO "%s: Error creating sysfs device\n",
 				driver_name);
