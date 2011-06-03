@@ -54,6 +54,8 @@
 
 #define WM8994_SYSCLK	0
 
+#define wm8994_SYSCLK_3072M 0
+#define wm8994_SYSCLK_12288M 1
 extern struct snd_soc_dai wm8994_dai;
 extern struct snd_soc_codec_device soc_codec_dev_wm8994;
 void wm8994_codec_set_volume(unsigned char mode,unsigned char volume);

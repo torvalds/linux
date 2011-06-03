@@ -128,6 +128,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
 		snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,div_bclk);
 		snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
+		snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, 0);
 		DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));		
 	#endif
 
