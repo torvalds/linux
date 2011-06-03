@@ -16,7 +16,9 @@
  * 0061-0061 : NMI Control Register which contains two speaker control bits.
  */
 DEFINE_RAW_SPINLOCK(i8253_lock);
+#ifdef CONFIG_PCSPKR_PLATFORM
 EXPORT_SYMBOL(i8253_lock);
+#endif
 
 #ifdef CONFIG_CLKSRC_I8253
 /*
