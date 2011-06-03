@@ -610,7 +610,7 @@ static int snd_soc_rbtree_cache_sync(struct snd_soc_codec *codec)
 	struct rb_node *node;
 	struct snd_soc_rbtree_node *rbnode;
 	unsigned int regtmp;
-	unsigned int val;
+	unsigned int val, def;
 	int ret;
 	int i;
 
@@ -622,6 +622,11 @@ static int snd_soc_rbtree_cache_sync(struct snd_soc_codec *codec)
 			WARN_ON(codec->writable_register &&
 				codec->writable_register(codec, regtmp));
 			val = snd_soc_rbtree_get_register(rbnode, i);
+			def = snd_soc_get_cache_val(codec->reg_def_copy, i,
+						    rbnode->word_size);
+			if (val == def)
+				continue;
+
 			codec->cache_bypass = 1;
 			ret = snd_soc_write(codec, regtmp, val);
 			codec->cache_bypass = 0;
