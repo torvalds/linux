@@ -601,7 +601,7 @@ static inline int ipver2af(__u8 ipver)
 		return AF_INET6;
 	default:
 		return 0;
-	};
+	}
 }
 
 /* Convert from an address parameter type to an address family.  */
@@ -614,7 +614,7 @@ static inline int param_type2af(__be16 type)
 		return AF_INET6;
 	default:
 		return 0;
-	};
+	}
 }
 
 /* Perform some sanity checks. */
