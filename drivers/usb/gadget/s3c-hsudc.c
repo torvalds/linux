@@ -1302,7 +1302,8 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	hsudc->uclk = clk_get(&pdev->dev, "usb-device");
 	if (IS_ERR(hsudc->uclk)) {
 		dev_err(dev, "failed to find usb-device clock source\n");
-		return PTR_ERR(hsudc->uclk);
+		ret = PTR_ERR(hsudc->uclk);
+		goto err_clk;
 	}
 	clk_enable(hsudc->uclk);
 
@@ -1311,7 +1312,8 @@ static int s3c_hsudc_probe(struct platform_device *pdev)
 	disable_irq(hsudc->irq);
 	local_irq_enable();
 	return 0;
-
+err_clk:
+	free_irq(hsudc->irq, hsudc);
 err_irq:
 	iounmap(hsudc->regs);
 
