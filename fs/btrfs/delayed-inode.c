@@ -678,6 +678,7 @@ static int btrfs_batch_insert_items(struct btrfs_trans_handle *trans,
 	INIT_LIST_HEAD(&head);
 
 	next = item;
+	nitems = 0;
 
 	/*
 	 * count the number of the continuous items that we can insert in batch
