@@ -1037,6 +1037,7 @@ static void complete_scsi_command(struct CommandList *cp)
 	unsigned char sense_key;
 	unsigned char asc;      /* additional sense code */
 	unsigned char ascq;     /* additional sense code qualifier */
+	unsigned long sense_data_size;
 
 	ei = cp->err_info;
 	cmd = (struct scsi_cmnd *) cp->scsi_cmd;
@@ -1051,10 +1052,14 @@ static void complete_scsi_command(struct CommandList *cp)
 	cmd->result |= ei->ScsiStatus;
 
 	/* copy the sense data whether we need to or not. */
-	memcpy(cmd->sense_buffer, ei->SenseInfo,
-		ei->SenseLen > SCSI_SENSE_BUFFERSIZE ?
-			SCSI_SENSE_BUFFERSIZE :
-			ei->SenseLen);
+	if (SCSI_SENSE_BUFFERSIZE < sizeof(ei->SenseInfo))
+		sense_data_size = SCSI_SENSE_BUFFERSIZE;
+	else
+		sense_data_size = sizeof(ei->SenseInfo);
+	if (ei->SenseLen < sense_data_size)
+		sense_data_size = ei->SenseLen;
+
+	memcpy(cmd->sense_buffer, ei->SenseInfo, sense_data_size);
 	scsi_set_resid(cmd, ei->ResidualCnt);
 
 	if (ei->CommandStatus == 0) {
