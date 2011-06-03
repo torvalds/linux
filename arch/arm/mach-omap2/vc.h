@@ -66,6 +66,7 @@ struct omap_vc_common {
 
 /* omap_vc_channel.flags values */
 #define OMAP_VC_CHANNEL_DEFAULT BIT(0)
+#define OMAP_VC_CHANNEL_CFG_MUTANT BIT(1)
 
 /**
  * struct omap_vc_channel - VC per-instance data

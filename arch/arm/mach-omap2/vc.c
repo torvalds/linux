@@ -19,17 +19,51 @@
 #include "prm-regbits-44xx.h"
 #include "prm44xx.h"
 
-/*
- * Channel configuration bits, common for OMAP3 & 4
+/**
+ * struct omap_vc_channel_cfg - describe the cfg_channel bitfield
+ * @sa: bit for slave address
+ * @rav: bit for voltage configuration register
+ * @rac: bit for command configuration register
+ * @racen: enable bit for RAC
+ * @cmd: bit for command value set selection
+ *
+ * Channel configuration bits, common for OMAP3+
  * OMAP3 register: PRM_VC_CH_CONF
  * OMAP4 register: PRM_VC_CFG_CHANNEL
+ * OMAP5 register: PRM_VC_SMPS_<voltdm>_CONFIG
  */
-#define CFG_CHANNEL_SA    BIT(0)
-#define CFG_CHANNEL_RAV   BIT(1)
-#define CFG_CHANNEL_RAC   BIT(2)
-#define CFG_CHANNEL_RACEN BIT(3)
-#define CFG_CHANNEL_CMD   BIT(4)
-#define CFG_CHANNEL_MASK 0x3f
+struct omap_vc_channel_cfg {
+	u8 sa;
+	u8 rav;
+	u8 rac;
+	u8 racen;
+	u8 cmd;
+};
+
+static struct omap_vc_channel_cfg vc_default_channel_cfg = {
+	.sa    = BIT(0),
+	.rav   = BIT(1),
+	.rac   = BIT(2),
+	.racen = BIT(3),
+	.cmd   = BIT(4),
+};
+
+/*
+ * On OMAP3+, all VC channels have the above default bitfield
+ * configuration, except the OMAP4 MPU channel.  This appears
+ * to be a freak accident as every other VC channel has the
+ * default configuration, thus creating a mutant channel config.
+ */
+static struct omap_vc_channel_cfg vc_mutant_channel_cfg = {
+	.sa    = BIT(0),
+	.rav   = BIT(2),
+	.rac   = BIT(3),
+	.racen = BIT(4),
+	.cmd   = BIT(1),
+};
+
+static struct omap_vc_channel_cfg *vc_cfg_bits;
+#define CFG_CHANNEL_MASK 0x1f
 
 /**
  * omap_vc_config_channel - configure VC channel to PMIC mappings
@@ -56,7 +90,7 @@ static int omap_vc_config_channel(struct voltagedomain *voltdm)
 	 * All others must stay at zero (see function comment above.)
 	 */
 	if (vc->flags & OMAP_VC_CHANNEL_DEFAULT)
-		vc->cfg_channel &= CFG_CHANNEL_RACEN;
+		vc->cfg_channel &= vc_cfg_bits->racen;
 
 	voltdm->rmw(CFG_CHANNEL_MASK << vc->cfg_channel_sa_shift,
 		    vc->cfg_channel << vc->cfg_channel_sa_shift,
@@ -292,6 +326,10 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	}
 
 	vc->cfg_channel = 0;
+	if (vc->flags & OMAP_VC_CHANNEL_CFG_MUTANT)
+		vc_cfg_bits = &vc_mutant_channel_cfg;
+	else
+		vc_cfg_bits = &vc_default_channel_cfg;
 
 	/* get PMIC/board specific settings */
 	vc->i2c_slave_addr = voltdm->pmic->i2c_slave_addr;
@@ -303,7 +341,7 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	voltdm->rmw(vc->smps_sa_mask,
 		    vc->i2c_slave_addr << __ffs(vc->smps_sa_mask),
 		    vc->common->smps_sa_reg);
-	vc->cfg_channel |= CFG_CHANNEL_SA;
+	vc->cfg_channel |= vc_cfg_bits->sa;
 
 	/*
 	 * Configure the PMIC register addresses.
@@ -311,13 +349,13 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	voltdm->rmw(vc->smps_volra_mask,
 		    vc->volt_reg_addr << __ffs(vc->smps_volra_mask),
 		    vc->common->smps_volra_reg);
-	vc->cfg_channel |= CFG_CHANNEL_RAV;
+	vc->cfg_channel |= vc_cfg_bits->rav;
 
 	if (vc->cmd_reg_addr) {
 		voltdm->rmw(vc->smps_cmdra_mask,
 			    vc->cmd_reg_addr << __ffs(vc->smps_cmdra_mask),
 			    vc->common->smps_cmdra_reg);
-		vc->cfg_channel |= CFG_CHANNEL_RAC | CFG_CHANNEL_RACEN;
+		vc->cfg_channel |= vc_cfg_bits->rac | vc_cfg_bits->racen;
 	}
 
 	/* Set up the on, inactive, retention and off voltage */
@@ -330,7 +368,7 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	       (ret_vsel << vc->common->cmd_ret_shift) |
 	       (off_vsel << vc->common->cmd_off_shift));
 	voltdm->write(val, vc->cmdval_reg);
-	vc->cfg_channel |= CFG_CHANNEL_CMD;
+	vc->cfg_channel |= vc_cfg_bits->cmd;
 
 	/* Channel configuration */
 	omap_vc_config_channel(voltdm);

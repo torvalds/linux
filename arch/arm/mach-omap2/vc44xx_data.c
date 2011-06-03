@@ -52,7 +52,7 @@ static const struct omap_vc_common omap4_vc_common = {
 
 /* VC instance data for each controllable voltage line */
 struct omap_vc_channel omap4_vc_mpu = {
-	.flags = OMAP_VC_CHANNEL_DEFAULT,
+	.flags = OMAP_VC_CHANNEL_DEFAULT | OMAP_VC_CHANNEL_CFG_MUTANT,
 	.common = &omap4_vc_common,
 	.cmdval_reg = OMAP4_PRM_VC_VAL_CMD_VDD_MPU_L_OFFSET,
 	.smps_sa_mask = OMAP4430_SA_VDD_MPU_L_PRM_VC_SMPS_SA_MASK,
