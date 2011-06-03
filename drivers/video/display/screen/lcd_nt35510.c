@@ -1586,12 +1586,13 @@ int standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 		mdelay(100);
 		WriteCommand(0X1000); 
 	} else { 
- 		//WriteCommand(0X1100); 
-		//mdelay(120);
-		//WriteCommand(0X2900); 
-		//mdelay(100);
+ 		WriteCommand(0X1100); 
+		mdelay(120);
+		WriteCommand(0X2900); 
+		mdelay(100);
 		//set_backlight(255);
-		resume_nt35510();//may be fail to wake up LCD some time,so change to init lcd again
+		//resume_nt35510();//may be fail to wake up LCD some time,so change to init lcd again
+		printk("%s\n",__FUNCTION__);
 	}
 
     if(gLcd_info)

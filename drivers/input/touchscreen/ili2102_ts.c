@@ -771,9 +771,9 @@ static int ili2102_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	else
 	hrtimer_cancel(&ts->timer);
 
-	//ret = cancel_delayed_work_sync(&ts->work);
-	//if (ret && ts->use_irq) /* if work was pending disable-count is now 2 */
-	//enable_irq(client->irq);
+	ret = cancel_delayed_work_sync(&ts->work);
+	if (ret && ts->use_irq) /* if work was pending disable-count is now 2 */
+	enable_irq(client->irq);
 
 	//to do suspend
 	msg[0].addr =client->addr;
@@ -785,30 +785,46 @@ static int ili2102_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	if (ret < 0) {
 	printk("%s:err\n",__FUNCTION__);
 	}
+
+	gpio_set_value(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_LOW:GPIO_HIGH);
 	
 	DBG("%s\n",__FUNCTION__);
 	
 	return 0;
 }
 
+
+static void ili2102_ts_resume_work_func(struct work_struct *work)
+{
+	struct ili2102_ts_data *ts = container_of(work, struct ili2102_ts_data, work);
+	msleep(200);    
+	enable_irq(ts->client->irq);
+	PREPARE_DELAYED_WORK(&ts->work, ili2102_ts_work_func);
+	printk("%s,irq=%d\n",__FUNCTION__,ts->client->irq);
+}
+
+
 static int ili2102_ts_resume(struct i2c_client *client)
 {
-	struct ili2102_ts_data *ts = i2c_get_clientdata(client);
-	
-	//to do resume
-	ili2102_init_panel(ts);
-	
-	if (ts->use_irq) {
-		printk("enabling IRQ %d\n", client->irq);
-		enable_irq(client->irq);
-	}
-	else
-	hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
+    struct ili2102_ts_data *ts = i2c_get_clientdata(client);
 
-	DBG("%s\n",__FUNCTION__);
+    ili2102_init_panel(ts);
+	
+    if (ts->use_irq) {
+        if(!delayed_work_pending(&ts->work)){
+        	PREPARE_DELAYED_WORK(&ts->work, ili2102_ts_resume_work_func);
+        	queue_delayed_work(ts->ts_wq, &ts->work, 0);
+        }
+    }
+    else {
+        hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
+    }
+
+	printk("%s\n",__FUNCTION__);
 
     return 0;
 }
+
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void ili2102_ts_early_suspend(struct early_suspend *h)
