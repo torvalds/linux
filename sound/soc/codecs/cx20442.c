@@ -262,14 +262,14 @@ static int v253_hangup(struct tty_struct *tty)
 }
 
 /* Line discipline .receive_buf() */
-static unsigned int v253_receive(struct tty_struct *tty,
-				 const unsigned char *cp, char *fp, int count)
+static void v253_receive(struct tty_struct *tty,
+				const unsigned char *cp, char *fp, int count)
 {
 	struct snd_soc_codec *codec = tty->disc_data;
 	struct cx20442_priv *cx20442;
 
 	if (!codec)
-		return count;
+		return;
 
 	cx20442 = snd_soc_codec_get_drvdata(codec);
 
@@ -281,8 +281,6 @@ static unsigned int v253_receive(struct tty_struct *tty,
 		codec->hw_write = (hw_write_t)tty->ops->write;
 		codec->card->pop_time = 1;
 	}
-
-	return count;
 }
 
 /* Line discipline .write_wakeup() */
