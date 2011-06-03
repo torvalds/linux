@@ -662,8 +662,9 @@ config MFD_JANZ_CMODIO
 	  CAN and GPIO controllers.
 
 config MFD_JZ4740_ADC
-	tristate "Support for the JZ4740 SoC ADC core"
+	bool "Support for the JZ4740 SoC ADC core"
 	select MFD_CORE
+	select GENERIC_IRQ_CHIP
 	depends on MACH_JZ4740
 	help
 	  Say yes here if you want support for the ADC unit in the JZ4740 SoC.
