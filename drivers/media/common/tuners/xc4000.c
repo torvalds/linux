@@ -93,7 +93,7 @@ struct xc4000_priv {
 };
 
 /* Misc Defines */
-#define MAX_TV_STANDARD			23
+#define MAX_TV_STANDARD			24
 #define XC_MAX_I2C_WRITE_LENGTH		64
 
 /* Signal Types */
@@ -171,6 +171,7 @@ struct XC_TV_STANDARD {
 	const char  *Name;
 	u16	    AudioMode;
 	u16	    VideoMode;
+	u16	    int_freq;
 };
 
 /* Tuner standards */
@@ -189,39 +190,41 @@ struct XC_TV_STANDARD {
 #define XC4000_DK_SECAM_A2DK1		12
 #define XC4000_DK_SECAM_A2LDK3		13
 #define XC4000_DK_SECAM_A2MONO		14
-#define XC4000_L_SECAM_NICAM		15
-#define XC4000_LC_SECAM_NICAM		16
-#define XC4000_DTV6			17
-#define XC4000_DTV8			18
-#define XC4000_DTV7_8			19
-#define XC4000_DTV7			20
-#define XC4000_FM_Radio_INPUT2		21
-#define XC4000_FM_Radio_INPUT1	22
+#define XC4000_DK_SECAM_NICAM		15
+#define XC4000_L_SECAM_NICAM		16
+#define XC4000_LC_SECAM_NICAM		17
+#define XC4000_DTV6			18
+#define XC4000_DTV8			19
+#define XC4000_DTV7_8			20
+#define XC4000_DTV7			21
+#define XC4000_FM_Radio_INPUT2		22
+#define XC4000_FM_Radio_INPUT1		23
 
 static struct XC_TV_STANDARD XC4000_Standard[MAX_TV_STANDARD] = {
-	{"M/N-NTSC/PAL-BTSC", 0x0000, 0x8020},
-	{"M/N-NTSC/PAL-A2",   0x0000, 0x8020},
-	{"M/N-NTSC/PAL-EIAJ", 0x0040, 0x8020},
-	{"M/N-NTSC/PAL-Mono", 0x0078, 0x8020},
-	{"B/G-PAL-A2",        0x0000, 0x8059},
-	{"B/G-PAL-NICAM",     0x0004, 0x8059},
-	{"B/G-PAL-MONO",      0x0078, 0x8059},
-	{"I-PAL-NICAM",       0x0080, 0x8049},
-	{"I-PAL-NICAM-MONO",  0x0078, 0x8049},
-	{"D/K-PAL-A2",        0x0000, 0x8049},
-	{"D/K-PAL-NICAM",     0x0080, 0x8049},
-	{"D/K-PAL-MONO",      0x0078, 0x8049},
-	{"D/K-SECAM-A2 DK1",  0x0000, 0x8049},
-	{"D/K-SECAM-A2 L/DK3", 0x0000, 0x8049},
-	{"D/K-SECAM-A2 MONO", 0x0078, 0x8049},
-	{"L-SECAM-NICAM",     0x8080, 0x0009},
-	{"L'-SECAM-NICAM",    0x8080, 0x4009},
-	{"DTV6",              0x00C0, 0x8002},
-	{"DTV8",              0x00C0, 0x800B},
-	{"DTV7/8",            0x00C0, 0x801B},
-	{"DTV7",              0x00C0, 0x8007},
-	{"FM Radio-INPUT2",   0x0008, 0x9800},
-	{"FM Radio-INPUT1",   0x0008, 0x9000}
+	{"M/N-NTSC/PAL-BTSC",	0x0000, 0x80A0, 4500},
+	{"M/N-NTSC/PAL-A2",	0x0000, 0x80A0, 4600},
+	{"M/N-NTSC/PAL-EIAJ",	0x0040, 0x80A0, 4500},
+	{"M/N-NTSC/PAL-Mono",	0x0078, 0x80A0, 4500},
+	{"B/G-PAL-A2",		0x0000, 0x8159, 5640},
+	{"B/G-PAL-NICAM",	0x0004, 0x8159, 5740},
+	{"B/G-PAL-MONO",	0x0078, 0x8159, 5500},
+	{"I-PAL-NICAM",		0x0080, 0x8049, 6240},
+	{"I-PAL-NICAM-MONO",	0x0078, 0x8049, 6000},
+	{"D/K-PAL-A2",		0x0000, 0x8049, 6380},
+	{"D/K-PAL-NICAM",	0x0080, 0x8049, 6200},
+	{"D/K-PAL-MONO",	0x0078, 0x8049, 6500},
+	{"D/K-SECAM-A2 DK1",	0x0000, 0x8049, 6340},
+	{"D/K-SECAM-A2 L/DK3",	0x0000, 0x8049, 6000},
+	{"D/K-SECAM-A2 MONO",	0x0078, 0x8049, 6500},
+	{"D/K-SECAM-NICAM",	0x0080, 0x8049, 6200},
+	{"L-SECAM-NICAM",	0x8080, 0x0009, 6200},
+	{"L'-SECAM-NICAM",	0x8080, 0x4009, 6200},
+	{"DTV6",		0x00C0, 0x8002,    0},
+	{"DTV8",		0x00C0, 0x800B,    0},
+	{"DTV7/8",		0x00C0, 0x801B,    0},
+	{"DTV7",		0x00C0, 0x8007,    0},
+	{"FM Radio-INPUT2",	0x0008, 0x9800,10700},
+	{"FM Radio-INPUT1",	0x0008, 0x9000,10700}
 };
 
 static int xc4000_readreg(struct xc4000_priv *priv, u16 reg, u16 *val);
