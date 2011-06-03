@@ -2820,13 +2820,39 @@ static int dfs_file_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
+/**
+ * provide_user_output - provide output to the user reading a debugfs file.
+ * @val: boolean value for the answer
+ * @u: the buffer to store the answer at
+ * @count: size of the buffer
+ * @ppos: position in the @u output buffer
+ *
+ * This is a simple helper function which stores @val boolean value in the user
+ * buffer when the user reads one of UBIFS debugfs files. Returns amount of
+ * bytes written to @u in case of success and a negative error code in case of
+ * failure.
+ */
+static int provide_user_output(int val, char __user *u, size_t count,
+			       loff_t *ppos)
+{
+	char buf[3];
+
+	if (val)
+		buf[0] = '1';
+	else
+		buf[0] = '0';
+	buf[1] = '\n';
+	buf[2] = 0x00;
+
+	return simple_read_from_buffer(u, count, ppos, buf, 2);
+}
+
 static ssize_t dfs_file_read(struct file *file, char __user *u, size_t count,
 			     loff_t *ppos)
 {
 	struct dentry *dent = file->f_path.dentry;
 	struct ubifs_info *c = file->private_data;
 	struct ubifs_debug_info *d = c->dbg;
-	char buf[3];
 	int val;
 
 	if (dent == d->dfs_chk_gen)
@@ -2844,14 +2870,33 @@ static ssize_t dfs_file_read(struct file *file, char __user *u, size_t count,
 	else
 		return -EINVAL;
 
-	if (val)
-		buf[0] = '1';
-	else
-		buf[0] = '0';
-	buf[1] = '\n';
-	buf[2] = 0x00;
+	return provide_user_output(val, u, count, ppos);
+}
 
-	return simple_read_from_buffer(u, count, ppos, buf, 2);
+/**
+ * interpret_user_input - interpret user debugfs file input.
+ * @u: user-provided buffer with the input
+ * @count: buffer size
+ *
+ * This is a helper function which interpret user input to a boolean UBIFS
+ * debugfs file. Returns %0 or %1 in case of success and a negative error code
+ * in case of failure.
+ */
+static int interpret_user_input(const char __user *u, size_t count)
+{
+	size_t buf_size;
+	char buf[8];
+
+	buf_size = min_t(size_t, count, (sizeof(buf) - 1));
+	if (copy_from_user(buf, u, buf_size))
+		return -EFAULT;
+
+	if (buf[0] == '1')
+		return 1;
+	else if (buf[0] == '0')
+		return 0;
+
+	return -EINVAL;
 }
 
 static ssize_t dfs_file_write(struct file *file, const char __user *u,
@@ -2860,8 +2905,6 @@ static ssize_t dfs_file_write(struct file *file, const char __user *u,
 	struct ubifs_info *c = file->private_data;
 	struct ubifs_debug_info *d = c->dbg;
 	struct dentry *dent = file->f_path.dentry;
-	size_t buf_size;
-	char buf[8];
 	int val;
 
 	/*
@@ -2891,16 +2934,9 @@ static ssize_t dfs_file_write(struct file *file, const char __user *u,
 		return count;
 	}
 
-	buf_size = min_t(size_t, count, (sizeof(buf) - 1));
-	if (copy_from_user(buf, u, buf_size))
-		return -EFAULT;
-
-	if (buf[0] == '1')
-		val = 1;
-	else if (buf[0] == '0')
-		val = 0;
-	else
-		return -EINVAL;
+	val = interpret_user_input(u, count);
+	if (val < 0)
+		return val;
 
 	if (dent == d->dfs_chk_gen)
 		d->chk_gen = val;
