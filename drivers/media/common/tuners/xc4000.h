@@ -27,8 +27,13 @@
 struct dvb_frontend;
 struct i2c_adapter;
 
+#define XC4000_CARD_GENERIC		0
+#define XC4000_CARD_PCTV_340E		1
+#define XC4000_CARD_WINFAST_CX88	2
+
 struct xc4000_config {
-	u8	i2c_address;
+	u8	card_type;	/* if card type is not generic, all other */
+	u8	i2c_address;	/* parameters are automatically set */
 	u32	if_khz;
 };
 

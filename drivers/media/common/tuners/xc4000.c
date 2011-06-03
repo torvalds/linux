@@ -90,6 +90,7 @@ struct xc4000_priv {
 	u32	bandwidth;
 	u8	video_standard;
 	u8	rf_mode;
+	u8	card_type;
 	u8	ignore_i2c_write_errors;
  /*	struct xc2028_ctrl	ctrl; */
 	struct firmware_properties cur_fw;
@@ -1433,6 +1434,16 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	int	instance;
 	u16	id = 0;
 
+	if (cfg->card_type != XC4000_CARD_GENERIC) {
+		if (cfg->card_type == XC4000_CARD_WINFAST_CX88) {
+			cfg->i2c_address = 0x61;
+			cfg->if_khz = 4560;
+		} else {			/* default to PCTV 340E */
+			cfg->i2c_address = 0x61;
+			cfg->if_khz = 5400;
+		}
+	}
+
 	dprintk(1, "%s(%d-%04x)\n", __func__,
 		i2c ? i2c_adapter_id(i2c) : -1,
 		cfg ? cfg->i2c_address : -1);
@@ -1442,6 +1453,8 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	instance = hybrid_tuner_request_state(struct xc4000_priv, priv,
 					      hybrid_tuner_instance_list,
 					      i2c, cfg->i2c_address, "xc4000");
+	if (cfg->card_type != XC4000_CARD_GENERIC)
+		priv->card_type = cfg->card_type;
 	switch (instance) {
 	case 0:
 		goto fail;
@@ -1458,7 +1471,7 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 		break;
 	}
 
-	if (priv->if_khz == 0) {
+	if (cfg->if_khz != 0) {
 		/* If the IF hasn't been set yet, use the value provided by
 		   the caller (occurs in hybrid devices where the analog
 		   call to xc4000_attach occurs before the digital side) */
