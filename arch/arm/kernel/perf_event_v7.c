@@ -207,11 +207,6 @@ static const unsigned armv7_a8_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 		},
 	},
 	[C(DTLB)] = {
-		/*
-		 * Only ITLB misses and DTLB refills are supported.
-		 * If users want the DTLB refills misses a raw counter
-		 * must be used.
-		 */
 		[C(OP_READ)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
 			[C(RESULT_MISS)]	= ARMV7_PERFCTR_DTLB_REFILL,
@@ -323,11 +318,6 @@ static const unsigned armv7_a9_perf_cache_map[PERF_COUNT_HW_CACHE_MAX]
 		},
 	},
 	[C(DTLB)] = {
-		/*
-		 * Only ITLB misses and DTLB refills are supported.
-		 * If users want the DTLB refills misses a raw counter
-		 * must be used.
-		 */
 		[C(OP_READ)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
 			[C(RESULT_MISS)]	= ARMV7_PERFCTR_DTLB_REFILL,
