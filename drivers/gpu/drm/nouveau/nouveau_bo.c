@@ -842,13 +842,11 @@ out:
 static void
 nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 {
-	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
 	struct nouveau_mem *node = new_mem->mm_node;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_vma *vma = &nvbo->vma;
-	struct nouveau_vm *vm = vma->vm;
 
-	if (dev_priv->card_type < NV_50)
+	if (!vma->vm)
 		return;
 
 	switch (new_mem->mem_type) {
@@ -856,7 +854,7 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 		nouveau_vm_map(vma, node);
 		break;
 	case TTM_PL_TT:
-		if (vma->node->type != vm->spg_shift) {
+		if (vma->node->type != vma->vm->spg_shift) {
 			nouveau_vm_unmap(vma);
 			vma = &node->tmp_vma;
 		}
