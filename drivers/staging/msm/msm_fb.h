@@ -19,7 +19,7 @@
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include "linux/proc_fs.h"
+#include <linux/proc_fs.h>
 
 #include <mach/hardware.h>
 #include <linux/io.h>

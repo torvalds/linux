@@ -24,7 +24,7 @@
 #include <linux/file.h>
 #include <linux/major.h>
 
-#include "linux/proc_fs.h"
+#include <linux/proc_fs.h>
 
 #include <mach/hardware.h>
 #include <linux/io.h>
