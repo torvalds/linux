@@ -2038,6 +2038,7 @@ static int wm8915_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 		break;
 	case WM8915_FLL_MCLK2:
 		reg = 1;
+		break;
 	case WM8915_FLL_DACLRCLK1:
 		reg = 2;
 		break;
