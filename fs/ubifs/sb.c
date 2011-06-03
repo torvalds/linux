@@ -678,7 +678,7 @@ static int fixup_leb(struct ubifs_info *c, int lnum, int len)
 	}
 
 	dbg_mnt("fixup LEB %d, data len %d", lnum, len);
-	err = ubi_read(c->ubi, lnum, c->sbuf, 0, len);
+	err = ubifs_leb_read(c, lnum, c->sbuf, 0, len, 1);
 	if (err)
 		return err;
 

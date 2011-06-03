@@ -941,13 +941,9 @@ int ubifs_read_node_wbuf(struct ubifs_wbuf *wbuf, void *buf, int type, int len,
 
 	if (rlen > 0) {
 		/* Read everything that goes before write-buffer */
-		err = ubi_read(c->ubi, lnum, buf, offs, rlen);
-		if (err && err != -EBADMSG) {
-			ubifs_err("failed to read node %d from LEB %d:%d, "
-				  "error %d", type, lnum, offs, err);
-			dbg_dump_stack();
+		err = ubifs_leb_read(c, lnum, buf, offs, rlen, 0);
+		if (err && err != -EBADMSG)
 			return err;
-		}
 	}
 
 	if (type != ch->node_type) {
@@ -1002,12 +998,9 @@ int ubifs_read_node(const struct ubifs_info *c, void *buf, int type, int len,
 	ubifs_assert(!(offs & 7) && offs < c->leb_size);
 	ubifs_assert(type >= 0 && type < UBIFS_NODE_TYPES_CNT);
 
-	err = ubi_read(c->ubi, lnum, buf, offs, len);
-	if (err && err != -EBADMSG) {
-		ubifs_err("cannot read node %d from LEB %d:%d, error %d",
-			  type, lnum, offs, err);
+	err = ubifs_leb_read(c, lnum, buf, offs, len, 0);
+	if (err && err != -EBADMSG)
 		return err;
-	}
 
 	if (type != ch->node_type) {
 		ubifs_err("bad node type (%d but expected %d)",

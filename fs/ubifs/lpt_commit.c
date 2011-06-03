@@ -1161,11 +1161,11 @@ static int lpt_gc_lnum(struct ubifs_info *c, int lnum)
 	void *buf = c->lpt_buf;
 
 	dbg_lp("LEB %d", lnum);
-	err = ubi_read(c->ubi, lnum, buf, 0, c->leb_size);
-	if (err) {
-		ubifs_err("cannot read LEB %d, error %d", lnum, err);
+
+	err = ubifs_leb_read(c, lnum, buf, 0, c->leb_size, 1);
+	if (err)
 		return err;
-	}
+
 	while (1) {
 		if (!is_a_node(c, buf, len)) {
 			int pad_len;
@@ -1651,11 +1651,11 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 	}
 
 	dbg_lp("LEB %d", lnum);
-	err = ubi_read(c->ubi, lnum, buf, 0, c->leb_size);
-	if (err) {
-		dbg_msg("ubi_read failed, LEB %d, error %d", lnum, err);
+
+	err = ubifs_leb_read(c, lnum, buf, 0, c->leb_size, 1);
+	if (err)
 		goto out;
-	}
+
 	while (1) {
 		if (!is_a_node(c, p, len)) {
 			int i, pad_len;
@@ -1902,11 +1902,10 @@ static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
 		return;
 	}
 
-	err = ubi_read(c->ubi, lnum, buf, 0, c->leb_size);
-	if (err) {
-		ubifs_err("cannot read LEB %d, error %d", lnum, err);
+	err = ubifs_leb_read(c, lnum, buf, 0, c->leb_size, 1);
+	if (err)
 		goto out;
-	}
+
 	while (1) {
 		offs = c->leb_size - len;
 		if (!is_a_node(c, p, len)) {

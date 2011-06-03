@@ -117,7 +117,7 @@ static int get_master_node(const struct ubifs_info *c, int lnum, void **pbuf,
 	if (!sbuf)
 		return -ENOMEM;
 
-	err = ubi_read(c->ubi, lnum, sbuf, 0, c->leb_size);
+	err = ubifs_leb_read(c, lnum, sbuf, 0, c->leb_size, 0);
 	if (err && err != -EBADMSG)
 		goto out_free;
 
@@ -539,8 +539,8 @@ static int fix_unclean_leb(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 			int len = ALIGN(endpt, c->min_io_size);
 
 			if (start) {
-				err = ubi_read(c->ubi, lnum, sleb->buf, 0,
-					       start);
+				err = ubifs_leb_read(c, lnum, sleb->buf, 0,
+						     start, 1);
 				if (err)
 					return err;
 			}
@@ -819,7 +819,8 @@ static int get_cs_sqnum(struct ubifs_info *c, int lnum, int offs,
 		return -ENOMEM;
 	if (c->leb_size - offs < UBIFS_CS_NODE_SZ)
 		goto out_err;
-	err = ubi_read(c->ubi, lnum, (void *)cs_node, offs, UBIFS_CS_NODE_SZ);
+	err = ubifs_leb_read(c, lnum, (void *)cs_node, offs,
+			     UBIFS_CS_NODE_SZ, 0);
 	if (err && err != -EBADMSG)
 		goto out_free;
 	ret = ubifs_scan_a_node(c, cs_node, UBIFS_CS_NODE_SZ, lnum, offs, 0);
@@ -930,12 +931,12 @@ static int recover_head(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 		return 0;
 
 	/* Read at the head location and check it is empty flash */
-	err = ubi_read(c->ubi, lnum, sbuf, offs, len);
+	err = ubifs_leb_read(c, lnum, sbuf, offs, len, 1);
 	if (err || !is_empty(sbuf, len)) {
 		dbg_rcvry("cleaning head at %d:%d", lnum, offs);
 		if (offs == 0)
 			return ubifs_leb_unmap(c, lnum);
-		err = ubi_read(c->ubi, lnum, sbuf, 0, offs);
+		err = ubifs_leb_read(c, lnum, sbuf, 0, offs, 1);
 		if (err)
 			return err;
 		return ubi_leb_change(c->ubi, lnum, sbuf, offs, UBI_UNKNOWN);
@@ -1008,7 +1009,7 @@ static int clean_an_unclean_leb(struct ubifs_info *c,
 		return 0;
 	}
 
-	err = ubi_read(c->ubi, lnum, buf, offs, len);
+	err = ubifs_leb_read(c, lnum, buf, offs, len, 0);
 	if (err && err != -EBADMSG)
 		return err;
 
@@ -1453,7 +1454,7 @@ static int fix_size_in_place(struct ubifs_info *c, struct size_entry *e)
 	if (i_size >= e->d_size)
 		return 0;
 	/* Read the LEB */
-	err = ubi_read(c->ubi, lnum, c->sbuf, 0, c->leb_size);
+	err = ubifs_leb_read(c, lnum, c->sbuf, 0, c->leb_size, 1);
 	if (err)
 		goto out;
 	/* Change the size field and recalculate the CRC */

@@ -462,7 +462,7 @@ static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 
 	dbg_io("LEB %d:%d, %s, length %d", lnum, offs, dbg_ntype(type), len);
 
-	err = ubi_read(c->ubi, lnum, buf, offs, len);
+	err = ubifs_leb_read(c, lnum, buf, offs, len, 1);
 	if (err) {
 		ubifs_err("cannot read node type %d from LEB %d:%d, error %d",
 			  type, lnum, offs, err);
@@ -1666,7 +1666,7 @@ static int read_wbuf(struct ubifs_wbuf *wbuf, void *buf, int len, int lnum,
 	if (!overlap) {
 		/* We may safely unlock the write-buffer and read the data */
 		spin_unlock(&wbuf->lock);
-		return ubi_read(c->ubi, lnum, buf, offs, len);
+		return ubifs_leb_read(c, lnum, buf, offs, len, 0);
 	}
 
 	/* Don't read under wbuf */
@@ -1680,7 +1680,7 @@ static int read_wbuf(struct ubifs_wbuf *wbuf, void *buf, int len, int lnum,
 
 	if (rlen > 0)
 		/* Read everything that goes before write-buffer */
-		return ubi_read(c->ubi, lnum, buf, offs, rlen);
+		return ubifs_leb_read(c, lnum, buf, offs, rlen, 0);
 
 	return 0;
 }
@@ -1767,7 +1767,7 @@ int ubifs_tnc_bulk_read(struct ubifs_info *c, struct bu_info *bu)
 	if (wbuf)
 		err = read_wbuf(wbuf, bu->buf, len, lnum, offs);
 	else
-		err = ubi_read(c->ubi, lnum, bu->buf, offs, len);
+		err = ubifs_leb_read(c, lnum, bu->buf, offs, len, 0);
 
 	/* Check for a race with GC */
 	if (maybe_leb_gced(c, lnum, bu->gc_seq))

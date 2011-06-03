@@ -1222,7 +1222,7 @@ int ubifs_read_nnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip)
 		if (c->big_lpt)
 			nnode->num = calc_nnode_num_from_parent(c, parent, iip);
 	} else {
-		err = ubi_read(c->ubi, lnum, buf, offs, c->nnode_sz);
+		err = ubifs_leb_read(c, lnum, buf, offs, c->nnode_sz, 1);
 		if (err)
 			goto out;
 		err = ubifs_unpack_nnode(c, buf, nnode);
@@ -1291,7 +1291,7 @@ static int read_pnode(struct ubifs_info *c, struct ubifs_nnode *parent, int iip)
 			lprops->flags = ubifs_categorize_lprops(c, lprops);
 		}
 	} else {
-		err = ubi_read(c->ubi, lnum, buf, offs, c->pnode_sz);
+		err = ubifs_leb_read(c, lnum, buf, offs, c->pnode_sz, 1);
 		if (err)
 			goto out;
 		err = unpack_pnode(c, buf, pnode);
@@ -1333,7 +1333,7 @@ static int read_ltab(struct ubifs_info *c)
 	buf = vmalloc(c->ltab_sz);
 	if (!buf)
 		return -ENOMEM;
-	err = ubi_read(c->ubi, c->ltab_lnum, buf, c->ltab_offs, c->ltab_sz);
+	err = ubifs_leb_read(c, c->ltab_lnum, buf, c->ltab_offs, c->ltab_sz, 1);
 	if (err)
 		goto out;
 	err = unpack_ltab(c, buf);
@@ -1356,7 +1356,8 @@ static int read_lsave(struct ubifs_info *c)
 	buf = vmalloc(c->lsave_sz);
 	if (!buf)
 		return -ENOMEM;
-	err = ubi_read(c->ubi, c->lsave_lnum, buf, c->lsave_offs, c->lsave_sz);
+	err = ubifs_leb_read(c, c->lsave_lnum, buf, c->lsave_offs,
+			     c->lsave_sz, 1);
 	if (err)
 		goto out;
 	err = unpack_lsave(c, buf);
@@ -1816,8 +1817,8 @@ static struct ubifs_nnode *scan_get_nnode(struct ubifs_info *c,
 		if (c->big_lpt)
 			nnode->num = calc_nnode_num_from_parent(c, parent, iip);
 	} else {
-		err = ubi_read(c->ubi, branch->lnum, buf, branch->offs,
-			       c->nnode_sz);
+		err = ubifs_leb_read(c, branch->lnum, buf, branch->offs,
+				     c->nnode_sz, 1);
 		if (err)
 			return ERR_PTR(err);
 		err = ubifs_unpack_nnode(c, buf, nnode);
@@ -1885,8 +1886,8 @@ static struct ubifs_pnode *scan_get_pnode(struct ubifs_info *c,
 		ubifs_assert(branch->lnum >= c->lpt_first &&
 			     branch->lnum <= c->lpt_last);
 		ubifs_assert(branch->offs >= 0 && branch->offs < c->leb_size);
-		err = ubi_read(c->ubi, branch->lnum, buf, branch->offs,
-			       c->pnode_sz);
+		err = ubifs_leb_read(c, branch->lnum, buf, branch->offs,
+				     c->pnode_sz, 1);
 		if (err)
 			return ERR_PTR(err);
 		err = unpack_pnode(c, buf, pnode);
