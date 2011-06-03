@@ -305,13 +305,6 @@ int dbg_check_inode_size(struct ubifs_info *c, const struct inode *inode,
 int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head);
 int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head);
 
-#ifndef UBIFS_DBG_PRESERVE_UBI
-#define ubi_leb_write  dbg_leb_write
-#define ubi_leb_change dbg_leb_change
-#define ubi_leb_unmap  dbg_leb_unmap
-#define ubi_leb_map    dbg_leb_map
-#endif
-
 int dbg_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 		  int offs, int len, int dtype);
 int dbg_leb_change(struct ubi_volume_desc *desc, int lnum, const void *buf,

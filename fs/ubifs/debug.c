@@ -27,8 +27,6 @@
  * various local functions of those subsystems.
  */
 
-#define UBIFS_DBG_PRESERVE_UBI
-
 #include "ubifs.h"
 #include <linux/module.h>
 #include <linux/debugfs.h>
