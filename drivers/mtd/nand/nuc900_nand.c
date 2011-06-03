@@ -339,6 +339,7 @@ static int __devexit nuc900_nand_remove(struct platform_device *pdev)
 	struct nuc900_nand *nuc900_nand = platform_get_drvdata(pdev);
 	struct resource *res;
 
+	nand_release(&nuc900_nand->mtd);
 	iounmap(nuc900_nand->reg);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
