@@ -496,7 +496,7 @@ static s32 iwl4965_get_tx_atten_grp(u16 channel)
 	    channel <= CALIB_IWL_TX_ATTEN_GR4_LCH)
 		return CALIB_CH_GROUP_4;
 
-	return -1;
+	return -EINVAL;
 }
 
 static u32 iwl4965_get_sub_band(const struct iwl_priv *priv, u32 channel)
