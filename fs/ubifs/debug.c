@@ -27,11 +27,12 @@
  * various local functions of those subsystems.
  */
 
-#include "ubifs.h"
 #include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/math64.h>
 #include <linux/uaccess.h>
+#include <linux/random.h>
+#include "ubifs.h"
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
@@ -2535,17 +2536,10 @@ error_dump:
 	return 0;
 }
 
-/* Failure mode for recovery testing */
-
-#define chance(n, d) (simple_rand() <= (n) * 32768LL / (d))
-
-static unsigned int next;
-static int simple_rand(void)
+static inline int chance(unsigned int n, unsigned int out_of)
 {
-	if (next == 0)
-		next = current->pid;
-	next = next * 1103515245 + 12345;
-	return (next >> 16) & 32767;
+	return !!((random32() % out_of) + 1 <= n);
+
 }
 
 static int power_cut_emulated(struct ubifs_info *c, int lnum, int write)
@@ -2557,33 +2551,37 @@ static int power_cut_emulated(struct ubifs_info *c, int lnum, int write)
 	if (!d->pc_cnt) {
 		/* First call - decide delay to the power cut */
 		if (chance(1, 2)) {
-			unsigned int delay = 1 << (simple_rand() >> 11);
+			unsigned long delay;
 
 			if (chance(1, 2)) {
 				d->pc_delay = 1;
-				d->pc_timeout = jiffies +
-						  msecs_to_jiffies(delay);
-				ubifs_warn("failing after %ums", delay);
+				/* Fail withing 1 minute */
+				delay = random32() % 60000;
+				d->pc_timeout = jiffies;
+				d->pc_timeout += msecs_to_jiffies(delay);
+				ubifs_warn("failing after %lums", delay);
 			} else {
 				d->pc_delay = 2;
+				delay = random32() % 10000;
+				/* Fail within 10000 operations */
 				d->pc_cnt_max = delay;
-				ubifs_warn("failing after %u calls", delay);
+				ubifs_warn("failing after %lu calls", delay);
 			}
 		}
+
 		d->pc_cnt += 1;
 	}
+
 	/* Determine if failure delay has expired */
-	if (d->pc_delay == 1) {
-		if (time_before(jiffies, d->pc_timeout))
+	if (d->pc_delay == 1 && time_before(jiffies, d->pc_timeout))
 			return 0;
-	} else if (d->pc_delay == 2)
-		if (d->pc_cnt++ < d->pc_cnt_max)
+	if (d->pc_delay == 2 && d->pc_cnt++ < d->pc_cnt_max)
 			return 0;
+
 	if (lnum == UBIFS_SB_LNUM) {
-		if (write) {
-			if (chance(1, 2))
-				return 0;
-		} else if (chance(19, 20))
+		if (write && chance(1, 2))
+			return 0;
+		if (chance(19, 20))
 			return 0;
 		ubifs_warn("failing in super block LEB %d", lnum);
 	} else if (lnum == UBIFS_MST_LNUM || lnum == UBIFS_MST_LNUM + 1) {
@@ -2591,24 +2589,21 @@ static int power_cut_emulated(struct ubifs_info *c, int lnum, int write)
 			return 0;
 		ubifs_warn("failing in master LEB %d", lnum);
 	} else if (lnum >= UBIFS_LOG_LNUM && lnum <= c->log_last) {
-		if (write) {
-			if (chance(99, 100))
-				return 0;
-		} else if (chance(399, 400))
+		if (write && chance(99, 100))
+			return 0;
+		if (chance(399, 400))
 			return 0;
 		ubifs_warn("failing in log LEB %d", lnum);
 	} else if (lnum >= c->lpt_first && lnum <= c->lpt_last) {
-		if (write) {
-			if (chance(7, 8))
-				return 0;
-		} else if (chance(19, 20))
+		if (write && chance(7, 8))
+			return 0;
+		if (chance(19, 20))
 			return 0;
 		ubifs_warn("failing in LPT LEB %d", lnum);
 	} else if (lnum >= c->orph_first && lnum <= c->orph_last) {
-		if (write) {
-			if (chance(1, 2))
-				return 0;
-		} else if (chance(9, 10))
+		if (write && chance(1, 2))
+			return 0;
+		if (chance(9, 10))
 			return 0;
 		ubifs_warn("failing in orphan LEB %d", lnum);
 	} else if (lnum == c->ihead_lnum) {
@@ -2636,18 +2631,32 @@ static int power_cut_emulated(struct ubifs_info *c, int lnum, int write)
 	}
 
 	d->pc_happened = 1;
+	ubifs_warn("========== Power cut emulated ==========");
 	dump_stack();
 	return 1;
 }
 
-static void cut_data(const void *buf, int len)
+static void cut_data(const void *buf, unsigned int len)
 {
-	int flen, i;
+	unsigned int from, to, i, ffs = chance(1, 2);
 	unsigned char *p = (void *)buf;
 
-	flen = (len * (long long)simple_rand()) >> 15;
-	for (i = flen; i < len; i++)
-		p[i] = 0xff;
+	from = random32() % (len + 1);
+	if (chance(1, 2))
+		to = random32() % (len - from + 1);
+	else
+		to = len;
+
+	if (from < to)
+		ubifs_warn("filled bytes %u-%u with %s", from, to - 1,
+			   ffs ? "0xFFs" : "random data");
+
+	if (ffs)
+		for (i = from; i < to; i++)
+			p[i] = 0xFF;
+	else
+		for (i = from; i < to; i++)
+			p[i] = random32() % 0x100;
 }
 
 int dbg_leb_write(struct ubifs_info *c, int lnum, const void *buf,
