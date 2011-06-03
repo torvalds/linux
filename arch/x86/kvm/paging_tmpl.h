@@ -246,6 +246,12 @@ walk:
 			gfn_t gfn;
 			u32 ac;
 
+			/* check if the kernel is fetching from user page */
+			if (unlikely(pte_access & PT_USER_MASK) &&
+			    kvm_read_cr4_bits(vcpu, X86_CR4_SMEP))
+				if (fetch_fault && !user_fault)
+					eperm = true;
+
 			gfn = gpte_to_gfn_lvl(pte, lvl);
 			gfn += (addr & PT_LVL_OFFSET_MASK(lvl)) >> PAGE_SHIFT;
 
@@ -305,7 +311,8 @@ error:
 
 	walker->fault.error_code |= write_fault | user_fault;
 
-	if (fetch_fault && mmu->nx)
+	if (fetch_fault && (mmu->nx ||
+			    kvm_read_cr4_bits(vcpu, X86_CR4_SMEP)))
 		walker->fault.error_code |= PFERR_FETCH_MASK;
 	if (rsvd_fault)
 		walker->fault.error_code |= PFERR_RSVD_MASK;
