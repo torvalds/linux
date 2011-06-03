@@ -86,7 +86,7 @@ void ubifs_ro_mode(struct ubifs_info *c, int err)
 		c->no_chk_data_crc = 0;
 		c->vfs_sb->s_flags |= MS_RDONLY;
 		ubifs_warn("switched to read-only mode, error %d", err);
-		dbg_dump_stack();
+		dump_stack();
 	}
 }
 
