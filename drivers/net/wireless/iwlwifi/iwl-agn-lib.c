@@ -1797,6 +1797,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 		priv->cfg->ops->lib->update_chain_flags(priv);
 
 	if (smps_request != -1) {
+		priv->current_ht_config.smps = smps_request;
 		for_each_context(priv, ctx) {
 			if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION)
 				ieee80211_request_smps(ctx->vif, smps_request);
