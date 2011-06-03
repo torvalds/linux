@@ -48,6 +48,7 @@
 struct nouveau_fpriv {
 	spinlock_t lock;
 	struct list_head channels;
+	struct nouveau_vm *vm;
 };
 
 static inline struct nouveau_fpriv *

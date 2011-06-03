@@ -767,6 +767,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 int
 nouveau_open(struct drm_device *dev, struct drm_file *file_priv)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fpriv *fpriv;
 
 	fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
@@ -775,6 +776,9 @@ nouveau_open(struct drm_device *dev, struct drm_file *file_priv)
 
 	spin_lock_init(&fpriv->lock);
 	INIT_LIST_HEAD(&fpriv->channels);
+
+	if (dev_priv->card_type >= NV_50)
+		nouveau_vm_ref(dev_priv->chan_vm, &fpriv->vm, NULL);
 
 	file_priv->driver_priv = fpriv;
 	return 0;
@@ -791,6 +795,7 @@ void
 nouveau_postclose(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
+	nouveau_vm_ref(NULL, &fpriv->vm, NULL);
 	kfree(fpriv);
 }
 
