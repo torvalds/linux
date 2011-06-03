@@ -87,32 +87,20 @@ config GPIO_IT8761E
 	  Say yes here to support GPIO functionality of IT8761E super I/O chip.
 
 config GPIO_EXYNOS4
-	bool "Samsung Exynos4 GPIO library support"
-	default y if CPU_EXYNOS4210
-	depends on ARM
-	help
-	  Say yes here to support Samsung Exynos4 series SoCs GPIO library
+	def_bool y
+	depends on CPU_EXYNOS4210
 
 config GPIO_PLAT_SAMSUNG
-	bool "Samsung SoCs GPIO library support"
-	default y if SAMSUNG_GPIOLIB_4BIT
-	depends on ARM
-	help
-	  Say yes here to support Samsung SoCs GPIO library
+	def_bool y
+	depends on SAMSUNG_GPIOLIB_4BIT
 
 config GPIO_S5PC100
-	bool "Samsung S5PC100 GPIO library support"
-	default y if CPU_S5PC100
-	depends on ARM
-	help
-	  Say yes here to support Samsung S5PC100 SoCs GPIO library
+	def_bool y
+	depends on CPU_S5PC100
 
 config GPIO_S5PV210
-	bool "Samsung S5PV210/S5PC110 GPIO library support"
-	default y if CPU_S5PV210
-	depends on ARM
-	help
-	  Say yes here to support Samsung S5PV210/S5PC110 SoCs GPIO library
+	def_bool y
+	depends on CPU_S5PV210
 
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
