@@ -1184,14 +1184,27 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 			type = DTV6;
 			break;
 		case BANDWIDTH_7_MHZ:
-			printk(KERN_ERR "xc4000 bandwidth 7MHz not supported\n");
+			priv->bandwidth = BANDWIDTH_7_MHZ;
+			priv->video_standard = XC4000_DTV7;
+			priv->freq_hz = params->frequency - 2250000;
 			type = DTV7;
-			return -EINVAL;
+			break;
 		case BANDWIDTH_8_MHZ:
 			priv->bandwidth = BANDWIDTH_8_MHZ;
 			priv->video_standard = XC4000_DTV8;
 			priv->freq_hz = params->frequency - 2750000;
 			type = DTV8;
+			break;
+		case BANDWIDTH_AUTO:
+			if (params->frequency < 400000000) {
+				priv->bandwidth = BANDWIDTH_7_MHZ;
+				priv->freq_hz = params->frequency - 2250000;
+			} else {
+				priv->bandwidth = BANDWIDTH_8_MHZ;
+				priv->freq_hz = params->frequency - 2750000;
+			}
+			priv->video_standard = XC4000_DTV7_8;
+			type = DTV78;
 			break;
 		default:
 			printk(KERN_ERR "xc4000 bandwidth not set!\n");
