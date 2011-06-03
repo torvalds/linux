@@ -2536,6 +2536,9 @@ int load_free_ino_cache(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 	int ret = 0;
 	u64 root_gen = btrfs_root_generation(&root->root_item);
 
+	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+		return 0;
+
 	/*
 	 * If we're unmounting then just return, since this does a search on the
 	 * normal root and not the commit root and we could deadlock.
@@ -2574,6 +2577,9 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
 	struct inode *inode;
 	int ret;
+
+	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+		return 0;
 
 	inode = lookup_free_ino_inode(root, path);
 	if (IS_ERR(inode))

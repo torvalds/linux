@@ -38,6 +38,9 @@ static int caching_kthread(void *data)
 	int slot;
 	int ret;
 
+	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+		return 0;
+
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
@@ -141,6 +144,9 @@ static void start_caching(struct btrfs_root *root)
 	int ret;
 	u64 objectid;
 
+	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+		return;
+
 	spin_lock(&root->cache_lock);
 	if (root->cached != BTRFS_CACHE_NO) {
 		spin_unlock(&root->cache_lock);
@@ -178,6 +184,9 @@ static void start_caching(struct btrfs_root *root)
 
 int btrfs_find_free_ino(struct btrfs_root *root, u64 *objectid)
 {
+	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+		return btrfs_find_free_objectid(root, objectid);
+
 again:
 	*objectid = btrfs_find_ino_for_alloc(root);
 
@@ -201,6 +210,10 @@ void btrfs_return_ino(struct btrfs_root *root, u64 objectid)
 {
 	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
 	struct btrfs_free_space_ctl *pinned = root->free_ino_pinned;
+
+	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+		return;
+
 again:
 	if (root->cached == BTRFS_CACHE_FINISHED) {
 		__btrfs_add_free_space(ctl, objectid, 1);
@@ -249,6 +262,9 @@ void btrfs_unpin_free_ino(struct btrfs_root *root)
 	struct btrfs_free_space *info;
 	struct rb_node *n;
 	u64 count;
+
+	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+		return;
 
 	while (1) {
 		n = rb_first(rbroot);
@@ -399,9 +415,13 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 	    root != root->fs_info->tree_root)
 		return 0;
 
+	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+		return 0;
+
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+
 again:
 	inode = lookup_free_ino_inode(root, path);
 	if (IS_ERR(inode) && PTR_ERR(inode) != -ENOENT) {
