@@ -4095,3 +4095,7 @@ MODULE_PARM_DESC(ack_check, "Check ack health (default: 0 [disabled])");
 module_param_named(bt_coex_active, iwlagn_mod_params.bt_coex_active,
 		bool, S_IRUGO);
 MODULE_PARM_DESC(bt_coex_active, "enable wifi/bt co-exist (default: enable)");
+
+module_param_named(led_mode, iwlagn_mod_params.led_mode, int, S_IRUGO);
+MODULE_PARM_DESC(led_mode, "0=system default, "
+		"1=On(RF On)/Off(RF Off), 2=blinking (default: 0)");
