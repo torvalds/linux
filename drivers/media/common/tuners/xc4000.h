@@ -28,8 +28,8 @@ struct dvb_frontend;
 struct i2c_adapter;
 
 struct xc4000_config {
-	u8   i2c_address;
-	u32  if_khz;
+	u8	i2c_address;
+	u32	if_khz;
 };
 
 /* xc4000 callback command */
