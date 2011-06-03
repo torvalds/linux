@@ -125,7 +125,7 @@ int ubifs_leb_write(struct ubifs_info *c, int lnum, const void *buf, int offs,
 	if (!dbg_is_tst_rcvry(c))
 		err = ubi_leb_write(c->ubi, lnum, buf, offs, len, dtype);
 	else
-		err = dbg_leb_write(c->ubi, lnum, buf, offs, len, dtype);
+		err = dbg_leb_write(c, lnum, buf, offs, len, dtype);
 	if (err) {
 		ubifs_err("writing %d bytes to LEB %d:%d failed, error %d",
 			  len, lnum, offs, err);
@@ -146,7 +146,7 @@ int ubifs_leb_change(struct ubifs_info *c, int lnum, const void *buf, int len,
 	if (!dbg_is_tst_rcvry(c))
 		err = ubi_leb_change(c->ubi, lnum, buf, len, dtype);
 	else
-		err = dbg_leb_change(c->ubi, lnum, buf, len, dtype);
+		err = dbg_leb_change(c, lnum, buf, len, dtype);
 	if (err) {
 		ubifs_err("changing %d bytes in LEB %d failed, error %d",
 			  len, lnum, err);
@@ -166,7 +166,7 @@ int ubifs_leb_unmap(struct ubifs_info *c, int lnum)
 	if (!dbg_is_tst_rcvry(c))
 		err = ubi_leb_unmap(c->ubi, lnum);
 	else
-		err = dbg_leb_unmap(c->ubi, lnum);
+		err = dbg_leb_unmap(c, lnum);
 	if (err) {
 		ubifs_err("unmap LEB %d failed, error %d", lnum, err);
 		ubifs_ro_mode(c, err);
@@ -185,7 +185,7 @@ int ubifs_leb_map(struct ubifs_info *c, int lnum, int dtype)
 	if (!dbg_is_tst_rcvry(c))
 		err = ubi_leb_map(c->ubi, lnum, dtype);
 	else
-		err = dbg_leb_map(c->ubi, lnum, dtype);
+		err = dbg_leb_map(c, lnum, dtype);
 	if (err) {
 		ubifs_err("mapping LEB %d failed, error %d", lnum, err);
 		ubifs_ro_mode(c, err);
