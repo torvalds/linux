@@ -822,7 +822,7 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	if (host) {
-		mtd_device_unregister(&host->mtd);
+		nand_release(&host->mtd);
 		clk_disable(host->clk);
 		clk_put(host->clk);
 
