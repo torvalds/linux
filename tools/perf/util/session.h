@@ -167,8 +167,9 @@ static inline int perf_session__parse_sample(struct perf_session *session,
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 
-void perf_session__print_symbols(union perf_event *event,
+void perf_session__print_ip(union perf_event *event,
 				 struct perf_sample *sample,
-				 struct perf_session *session);
+				 struct perf_session *session,
+				 int print_sym, int print_dso);
 
 #endif /* __PERF_SESSION_H */

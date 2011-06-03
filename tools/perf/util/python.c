@@ -247,7 +247,7 @@ struct pyrf_cpu_map {
 static int pyrf_cpu_map__init(struct pyrf_cpu_map *pcpus,
 			      PyObject *args, PyObject *kwargs)
 {
-	static char *kwlist[] = { "cpustr", NULL, NULL, };
+	static char *kwlist[] = { "cpustr", NULL };
 	char *cpustr = NULL;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|s",
@@ -316,7 +316,7 @@ struct pyrf_thread_map {
 static int pyrf_thread_map__init(struct pyrf_thread_map *pthreads,
 				 PyObject *args, PyObject *kwargs)
 {
-	static char *kwlist[] = { "pid", "tid", NULL, NULL, };
+	static char *kwlist[] = { "pid", "tid", NULL };
 	int pid = -1, tid = -1;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|ii",
@@ -418,7 +418,9 @@ static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
 		"wakeup_events",
 		"bp_type",
 		"bp_addr",
-		"bp_len", NULL, NULL, };
+		"bp_len",
+		 NULL
+	};
 	u64 sample_period = 0;
 	u32 disabled = 0,
 	    inherit = 0,
@@ -499,7 +501,7 @@ static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 	struct thread_map *threads = NULL;
 	PyObject *pcpus = NULL, *pthreads = NULL;
 	int group = 0, inherit = 0;
-	static char *kwlist[] = {"cpus", "threads", "group", "inherit", NULL, NULL};
+	static char *kwlist[] = { "cpus", "threads", "group", "inherit", NULL };
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOii", kwlist,
 					 &pcpus, &pthreads, &group, &inherit))
@@ -582,8 +584,7 @@ static PyObject *pyrf_evlist__mmap(struct pyrf_evlist *pevlist,
 				   PyObject *args, PyObject *kwargs)
 {
 	struct perf_evlist *evlist = &pevlist->evlist;
-	static char *kwlist[] = {"pages", "overwrite",
-				  NULL, NULL};
+	static char *kwlist[] = { "pages", "overwrite", NULL };
 	int pages = 128, overwrite = false;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|ii", kwlist,
@@ -603,7 +604,7 @@ static PyObject *pyrf_evlist__poll(struct pyrf_evlist *pevlist,
 				   PyObject *args, PyObject *kwargs)
 {
 	struct perf_evlist *evlist = &pevlist->evlist;
-	static char *kwlist[] = {"timeout", NULL, NULL};
+	static char *kwlist[] = { "timeout", NULL };
 	int timeout = -1, n;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|i", kwlist, &timeout))
@@ -674,7 +675,7 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 	struct perf_evlist *evlist = &pevlist->evlist;
 	union perf_event *event;
 	int sample_id_all = 1, cpu;
-	static char *kwlist[] = {"sample_id_all", NULL, NULL};
+	static char *kwlist[] = { "cpu", "sample_id_all", NULL };
 	int err;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i|i", kwlist,
@@ -692,16 +693,14 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 
 		first = list_entry(evlist->entries.next, struct perf_evsel, node);
 		err = perf_event__parse_sample(event, first->attr.sample_type,
-					       perf_sample_size(first->attr.sample_type),
+					       perf_evsel__sample_size(first),
 					       sample_id_all, &pevent->sample);
-		if (err) {
-			pr_err("Can't parse sample, err = %d\n", err);
-			goto end;
-		}
-
+		if (err)
+			return PyErr_Format(PyExc_OSError,
+					    "perf: can't parse sample, err=%d", err);
 		return pyevent;
 	}
-end:
+
 	Py_INCREF(Py_None);
 	return Py_None;
 }
