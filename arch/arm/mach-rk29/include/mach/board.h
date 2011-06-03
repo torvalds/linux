@@ -22,6 +22,13 @@
 #include <linux/timer.h>
 #include <linux/notifier.h>
 
+struct rk29_button_light_info{
+	u32 led_on_pin;
+	u32 led_on_level;
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
+
 /*spi*/
 struct spi_cs_gpio {
 	const char *name;

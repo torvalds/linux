@@ -1984,6 +1984,20 @@ struct platform_device aw9364_device_backlight = {
 
 #endif
 
+#ifdef CONFIG_BUTTON_LIGHT	 
+struct rk29_button_light_info rk29_button_light_info = {
+	.led_on_pin   = RK29_PIN6_PB4,
+	.led_on_level = GPIO_HIGH,
+};
+
+struct platform_device rk29_device_button_light = {
+		.name	= "rk29_button_light",
+		.id 	= -1,
+		.dev	= {
+		   .platform_data  = &rk29_button_light_info,
+		}
+};
+#endif
 
 /*****************************************************************************************
 * pwm voltage regulator devices
@@ -2492,6 +2506,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_BACKLIGHT_AW9364
 	&aw9364_device_backlight,
+#endif
+#ifdef CONFIG_BUTTON_LIGHT	  
+	&rk29_device_button_light,
 #endif
 #ifdef CONFIG_RK29_VMAC
 	&rk29_device_vmac,
