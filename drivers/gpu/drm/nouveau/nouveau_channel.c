@@ -30,14 +30,31 @@
 #include "nouveau_ramht.h"
 
 static int
-nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
+nouveau_channel_pushbuf_init(struct nouveau_channel *chan)
 {
+	u32 mem = nouveau_vram_pushbuf ? TTM_PL_FLAG_VRAM : TTM_PL_FLAG_TT;
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_bo *pb = chan->pushbuf_bo;
-	struct nouveau_gpuobj *pushbuf = NULL;
-	int ret = 0;
+	int ret;
 
+	/* allocate buffer object */
+	ret = nouveau_bo_new(dev, NULL, 65536, 0, mem, 0, 0, &chan->pushbuf_bo);
+	if (ret)
+		goto out;
+
+	ret = nouveau_bo_pin(chan->pushbuf_bo, mem);
+	if (ret)
+		goto out;
+
+	ret = nouveau_bo_map(chan->pushbuf_bo);
+	if (ret)
+		goto out;
+
+	/* create DMA object covering the entire memtype where the push
+	 * buffer resides, userspace can submit its own push buffers from
+	 * anywhere within the same memtype.
+	 */
+	chan->pushbuf_base = chan->pushbuf_bo->bo.mem.start << PAGE_SHIFT;
 	if (dev_priv->card_type >= NV_50) {
 		if (dev_priv->card_type < NV_C0) {
 			ret = nouveau_gpuobj_dma_new(chan,
@@ -45,23 +62,23 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 						     (1ULL << 40),
 						     NV_MEM_ACCESS_RO,
 						     NV_MEM_TARGET_VM,
-						     &pushbuf);
+						     &chan->pushbuf);
 		}
-		chan->pushbuf_base = pb->bo.offset;
+		chan->pushbuf_base = chan->pushbuf_bo->bo.offset;
 	} else
-	if (pb->bo.mem.mem_type == TTM_PL_TT) {
+	if (chan->pushbuf_bo->bo.mem.mem_type == TTM_PL_TT) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
 					     dev_priv->gart_info.aper_size,
 					     NV_MEM_ACCESS_RO,
-					     NV_MEM_TARGET_GART, &pushbuf);
-		chan->pushbuf_base = pb->bo.mem.start << PAGE_SHIFT;
+					     NV_MEM_TARGET_GART,
+					     &chan->pushbuf);
 	} else
 	if (dev_priv->card_type != NV_04) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
 					     dev_priv->fb_available_size,
 					     NV_MEM_ACCESS_RO,
-					     NV_MEM_TARGET_VRAM, &pushbuf);
-		chan->pushbuf_base = pb->bo.mem.start << PAGE_SHIFT;
+					     NV_MEM_TARGET_VRAM,
+					     &chan->pushbuf);
 	} else {
 		/* NV04 cmdbuf hack, from original ddx.. not sure of it's
 		 * exact reason for existing :)  PCI access to cmdbuf in
@@ -71,47 +88,21 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 					     pci_resource_start(dev->pdev, 1),
 					     dev_priv->fb_available_size,
 					     NV_MEM_ACCESS_RO,
-					     NV_MEM_TARGET_PCI, &pushbuf);
-		chan->pushbuf_base = pb->bo.mem.start << PAGE_SHIFT;
+					     NV_MEM_TARGET_PCI,
+					     &chan->pushbuf);
 	}
 
-	nouveau_gpuobj_ref(pushbuf, &chan->pushbuf);
-	nouveau_gpuobj_ref(NULL, &pushbuf);
-	return ret;
-}
-
-static struct nouveau_bo *
-nouveau_channel_user_pushbuf_alloc(struct drm_device *dev)
-{
-	struct nouveau_bo *pushbuf = NULL;
-	int location, ret;
-
-	if (nouveau_vram_pushbuf)
-		location = TTM_PL_FLAG_VRAM;
-	else
-		location = TTM_PL_FLAG_TT;
-
-	ret = nouveau_bo_new(dev, NULL, 65536, 0, location, 0, 0x0000, &pushbuf);
+out:
 	if (ret) {
-		NV_ERROR(dev, "error allocating DMA push buffer: %d\n", ret);
-		return NULL;
+		NV_ERROR(dev, "error initialising pushbuf: %d\n", ret);
+		nouveau_gpuobj_ref(NULL, &chan->pushbuf);
+		if (chan->pushbuf_bo) {
+			nouveau_bo_unmap(chan->pushbuf_bo);
+			nouveau_bo_ref(NULL, &chan->pushbuf_bo);
+		}
 	}
 
-	ret = nouveau_bo_pin(pushbuf, location);
-	if (ret) {
-		NV_ERROR(dev, "error pinning DMA push buffer: %d\n", ret);
-		nouveau_bo_ref(NULL, &pushbuf);
-		return NULL;
-	}
-
-	ret = nouveau_bo_map(pushbuf);
-	if (ret) {
-		nouveau_bo_unpin(pushbuf);
-		nouveau_bo_ref(NULL, &pushbuf);
-		return NULL;
-	}
-
-	return pushbuf;
+	return 0;
 }
 
 /* allocates and initializes a fifo for user space consumption */
@@ -162,18 +153,13 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	INIT_LIST_HEAD(&chan->nvsw.flip);
 	INIT_LIST_HEAD(&chan->fence.pending);
 
-	/* Allocate DMA push buffer */
-	chan->pushbuf_bo = nouveau_channel_user_pushbuf_alloc(dev);
-	if (!chan->pushbuf_bo) {
-		ret = -ENOMEM;
-		NV_ERROR(dev, "pushbuf %d\n", ret);
+	/* setup channel's memory and vm */
+	ret = nouveau_gpuobj_channel_init(chan, vram_handle, gart_handle);
+	if (ret) {
+		NV_ERROR(dev, "gpuobj %d\n", ret);
 		nouveau_channel_put(&chan);
 		return ret;
 	}
-
-	nouveau_dma_pre_init(chan);
-	chan->user_put = 0x40;
-	chan->user_get = 0x44;
 
 	/* Allocate space for per-channel fixed notifier memory */
 	ret = nouveau_notifier_init_channel(chan);
@@ -183,21 +169,17 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		return ret;
 	}
 
-	/* Setup channel's default objects */
-	ret = nouveau_gpuobj_channel_init(chan, vram_handle, gart_handle);
+	/* Allocate DMA push buffer */
+	ret = nouveau_channel_pushbuf_init(chan);
 	if (ret) {
-		NV_ERROR(dev, "gpuobj %d\n", ret);
+		NV_ERROR(dev, "pushbuf %d\n", ret);
 		nouveau_channel_put(&chan);
 		return ret;
 	}
 
-	/* Create a dma object for the push buffer */
-	ret = nouveau_channel_pushbuf_ctxdma_init(chan);
-	if (ret) {
-		NV_ERROR(dev, "pbctxdma %d\n", ret);
-		nouveau_channel_put(&chan);
-		return ret;
-	}
+	nouveau_dma_pre_init(chan);
+	chan->user_put = 0x40;
+	chan->user_get = 0x44;
 
 	/* disable the fifo caches */
 	pfifo->reassign(dev, false);
