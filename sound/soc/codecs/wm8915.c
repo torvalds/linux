@@ -1839,7 +1839,7 @@ static int wm8915_set_sysclk(struct snd_soc_dai *dai,
 	int old;
 
 	/* Disable SYSCLK while we reconfigure */
-	old = snd_soc_read(codec, WM8915_AIF_CLOCKING_1);
+	old = snd_soc_read(codec, WM8915_AIF_CLOCKING_1) & WM8915_SYSCLK_ENA;
 	snd_soc_update_bits(codec, WM8915_AIF_CLOCKING_1,
 			    WM8915_SYSCLK_ENA, 0);
 
