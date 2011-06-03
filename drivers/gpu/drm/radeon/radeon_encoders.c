@@ -954,10 +954,15 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	int dp_lane_count = 0;
 	int connector_object_id = 0;
 	int igp_lane_info = 0;
+	int dig_encoder = dig->dig_encoder;
 
-	if (action == ATOM_TRANSMITTER_ACTION_INIT)
+	if (action == ATOM_TRANSMITTER_ACTION_INIT) {
 		connector = radeon_get_connector_for_encoder_init(encoder);
-	else
+		/* just needed to avoid bailing in the encoder check.  the encoder
+		 * isn't used for init
+		 */
+		dig_encoder = 0;
+	} else
 		connector = radeon_get_connector_for_encoder(encoder);
 
 	if (connector) {
@@ -973,7 +978,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	}
 
 	/* no dig encoder assigned */
-	if (dig->dig_encoder == -1)
+	if (dig_encoder == -1)
 		return;
 
 	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_DP)
@@ -1023,7 +1028,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 
 		if (dig->linkb)
 			args.v3.acConfig.ucLinkSel = 1;
-		if (dig->dig_encoder & 1)
+		if (dig_encoder & 1)
 			args.v3.acConfig.ucEncoderSel = 1;
 
 		/* Select the PLL for the PHY
@@ -1073,7 +1078,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 				args.v3.acConfig.fDualLinkConnector = 1;
 		}
 	} else if (ASIC_IS_DCE32(rdev)) {
-		args.v2.acConfig.ucEncoderSel = dig->dig_encoder;
+		args.v2.acConfig.ucEncoderSel = dig_encoder;
 		if (dig->linkb)
 			args.v2.acConfig.ucLinkSel = 1;
 
@@ -1100,7 +1105,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	} else {
 		args.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
 
-		if (dig->dig_encoder)
+		if (dig_encoder)
 			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
 		else
 			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
