@@ -860,7 +860,7 @@ int dbg_check_cats(struct ubifs_info *c)
 	struct list_head *pos;
 	int i, cat;
 
-	if (!(ubifs_chk_flags & (UBIFS_CHK_GEN | UBIFS_CHK_LPROPS)))
+	if (!dbg_is_chk_gen(c) && !dbg_is_chk_lprops(c))
 		return 0;
 
 	list_for_each_entry(lprops, &c->empty_list, list) {
@@ -958,7 +958,7 @@ void dbg_check_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat,
 {
 	int i = 0, j, err = 0;
 
-	if (!(ubifs_chk_flags & (UBIFS_CHK_GEN | UBIFS_CHK_LPROPS)))
+	if (!dbg_is_chk_gen(c) && !dbg_is_chk_lprops(c))
 		return;
 
 	for (i = 0; i < heap->cnt; i++) {
@@ -1262,7 +1262,7 @@ int dbg_check_lprops(struct ubifs_info *c)
 	int i, err;
 	struct ubifs_lp_stats lst;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+	if (!dbg_is_chk_lprops(c))
 		return 0;
 
 	/*

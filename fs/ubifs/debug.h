@@ -31,8 +31,6 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
-#include <linux/random.h>
-
 /*
  * The UBIFS debugfs directory name pattern and maximum name length (3 for "ubi"
  * + 1 for "_" and plus 2x2 for 2 UBI numbers and 1 for the trailing zero byte.
@@ -169,6 +167,8 @@ const char *dbg_key_str1(const struct ubifs_info *c,
 /* Additional recovery messages */
 #define dbg_rcvry(fmt, ...) ubifs_dbg_msg("rcvry", fmt, ##__VA_ARGS__)
 
+extern spinlock_t dbg_lock;
+
 /*
  * Debugging check flags.
  *
@@ -199,11 +199,42 @@ enum {
 	UBIFS_TST_RCVRY             = 0x4,
 };
 
-extern spinlock_t dbg_lock;
-
 extern unsigned int ubifs_msg_flags;
 extern unsigned int ubifs_chk_flags;
 extern unsigned int ubifs_tst_flags;
+
+static inline int dbg_is_chk_gen(const struct ubifs_info *c)
+{
+	return !!(ubifs_chk_flags & UBIFS_CHK_GEN);
+}
+static inline int dbg_is_chk_tnc(const struct ubifs_info *c)
+{
+	return !!(ubifs_chk_flags & UBIFS_CHK_TNC);
+}
+static inline int dbg_is_chk_idx_sz(const struct ubifs_info *c)
+{
+	return !!(ubifs_chk_flags & UBIFS_CHK_IDX_SZ);
+}
+static inline int dbg_is_chk_orph(const struct ubifs_info *c)
+{
+	return !!(ubifs_chk_flags & UBIFS_CHK_ORPH);
+}
+static inline int dbg_is_chk_old_idx(const struct ubifs_info *c)
+{
+	return !!(ubifs_chk_flags & UBIFS_CHK_OLD_IDX);
+}
+static inline int dbg_is_chk_lprops(const struct ubifs_info *c)
+{
+	return !!(ubifs_chk_flags & UBIFS_CHK_LPROPS);
+}
+static inline int dbg_is_chk_fs(const struct ubifs_info *c)
+{
+	return !!(ubifs_chk_flags & UBIFS_CHK_FS);
+}
+static inline int dbg_is_tst_rcvry(const struct ubifs_info *c)
+{
+	return !!(ubifs_tst_flags & UBIFS_TST_RCVRY);
+}
 
 int ubifs_debugging_init(struct ubifs_info *c);
 void ubifs_debugging_exit(struct ubifs_info *c);
@@ -260,16 +291,6 @@ int dbg_check_inode_size(struct ubifs_info *c, const struct inode *inode,
 			 loff_t size);
 int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head);
 int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head);
-
-/* Force the use of in-the-gaps method for testing */
-static inline int dbg_force_in_the_gaps_enabled(void)
-{
-	return ubifs_chk_flags & UBIFS_CHK_GEN;
-}
-int dbg_force_in_the_gaps(void);
-
-/* Failure mode for recovery testing */
-#define dbg_failure_mode (ubifs_tst_flags & UBIFS_TST_RCVRY)
 
 #ifndef UBIFS_DBG_PRESERVE_UBI
 #define ubi_leb_read   dbg_leb_read
@@ -330,6 +351,9 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c);
 		ubifs_err(fmt, ##__VA_ARGS__);     \
 } while (0)
 
+#define DBGKEY(key)  ((char *)(key))
+#define DBGKEY1(key) ((char *)(key))
+
 #define ubifs_dbg_msg(fmt, ...) do {               \
 	if (0)                                     \
 		pr_debug(fmt "\n", ##__VA_ARGS__); \
@@ -352,9 +376,6 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c);
 #define dbg_gc(fmt, ...)    ubifs_dbg_msg(fmt, ##__VA_ARGS__)
 #define dbg_scan(fmt, ...)  ubifs_dbg_msg(fmt, ##__VA_ARGS__)
 #define dbg_rcvry(fmt, ...) ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-
-#define DBGKEY(key)  ((char *)(key))
-#define DBGKEY1(key) ((char *)(key))
 
 static inline int ubifs_debugging_init(struct ubifs_info *c)      { return 0; }
 static inline void ubifs_debugging_exit(struct ubifs_info *c)     { return; }
@@ -440,9 +461,14 @@ static inline int
 dbg_check_nondata_nodes_order(struct ubifs_info *c,
 			      struct list_head *head)             { return 0; }
 
-static inline int dbg_force_in_the_gaps(void)                     { return 0; }
-#define dbg_force_in_the_gaps_enabled() 0
-#define dbg_failure_mode                0
+static inline int dbg_is_chk_gen(const struct ubifs_info *c)      { return 0; }
+static inline int dbg_is_chk_tnc(const struct ubifs_info *c)      { return 0; }
+static inline int dbg_is_chk_idx_sz(const struct ubifs_info *c)   { return 0; }
+static inline int dbg_is_chk_orph(const struct ubifs_info *c)     { return 0; }
+static inline int dbg_is_chk_old_idx(const struct ubifs_info *c)  { return 0; }
+static inline int dbg_is_chk_lprops(const struct ubifs_info *c)   { return 0; }
+static inline int dbg_is_chk_fs(const struct ubifs_info *c)       { return 0; }
+static inline int dbg_is_tst_rcvry(const struct ubifs_info *c)    { return 0; }
 
 static inline int dbg_debugfs_init(void)                          { return 0; }
 static inline void dbg_debugfs_exit(void)                         { return; }

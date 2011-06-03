@@ -330,7 +330,7 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 	union ubifs_key key;
 	const struct ubifs_ch *ch = node;
 
-	if (dbg_failure_mode)
+	if (dbg_is_tst_rcvry(c))
 		return;
 
 	/* If the magic is incorrect, just hexdump the first bytes */
@@ -886,7 +886,7 @@ void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 	struct ubifs_scan_node *snod;
 	void *buf;
 
-	if (dbg_failure_mode)
+	if (dbg_is_tst_rcvry(c))
 		return;
 
 	printk(KERN_DEBUG "(pid %d) start dumping LEB %d\n",
@@ -1145,7 +1145,7 @@ int dbg_check_synced_i_size(const struct ubifs_info *c, struct inode *inode)
 	int err = 0;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+	if (!dbg_is_chk_gen(c))
 		return 0;
 	if (!S_ISREG(inode->i_mode))
 		return 0;
@@ -1186,7 +1186,7 @@ int dbg_check_dir(struct ubifs_info *c, const struct inode *dir)
 	struct qstr nm = { .name = NULL };
 	loff_t size = UBIFS_INO_NODE_SZ;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+	if (!dbg_is_chk_gen(c))
 		return 0;
 
 	if (!S_ISDIR(dir->i_mode))
@@ -1544,7 +1544,7 @@ int dbg_check_tnc(struct ubifs_info *c, int extra)
 	long clean_cnt = 0, dirty_cnt = 0;
 	int err, last;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_TNC))
+	if (!dbg_is_chk_tnc(c))
 		return 0;
 
 	ubifs_assert(mutex_is_locked(&c->tnc_mutex));
@@ -1791,7 +1791,7 @@ int dbg_check_idx_size(struct ubifs_info *c, long long idx_size)
 	int err;
 	long long calc = 0;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_IDX_SZ))
+	if (!dbg_is_chk_idx_sz(c))
 		return 0;
 
 	err = dbg_walk_index(c, NULL, add_size, &calc);
@@ -2367,7 +2367,7 @@ int dbg_check_filesystem(struct ubifs_info *c)
 	int err;
 	struct fsck_data fsckd;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_FS))
+	if (!dbg_is_chk_fs(c))
 		return 0;
 
 	fsckd.inodes = RB_ROOT;
@@ -2402,7 +2402,7 @@ int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head)
 	struct list_head *cur;
 	struct ubifs_scan_node *sa, *sb;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+	if (!dbg_is_chk_gen(c))
 		return 0;
 
 	for (cur = head->next; cur->next != head; cur = cur->next) {
@@ -2469,7 +2469,7 @@ int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head)
 	struct list_head *cur;
 	struct ubifs_scan_node *sa, *sb;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+	if (!dbg_is_chk_gen(c))
 		return 0;
 
 	for (cur = head->next; cur->next != head; cur = cur->next) {
@@ -2546,14 +2546,6 @@ error_dump:
 	return 0;
 }
 
-int dbg_force_in_the_gaps(void)
-{
-	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
-		return 0;
-
-	return !(random32() & 7);
-}
-
 /* Failure mode for recovery testing */
 
 #define chance(n, d) (simple_rand() <= (n) * 32768LL / (d))
@@ -2624,7 +2616,7 @@ static int in_failure_mode(struct ubi_volume_desc *desc)
 {
 	struct ubifs_info *c = dbg_find_info(desc);
 
-	if (c && dbg_failure_mode)
+	if (c && dbg_is_tst_rcvry(c))
 		return c->dbg->failure_mode;
 	return 0;
 }
@@ -2634,7 +2626,7 @@ static int do_fail(struct ubi_volume_desc *desc, int lnum, int write)
 	struct ubifs_info *c = dbg_find_info(desc);
 	struct ubifs_debug_info *d;
 
-	if (!c || !dbg_failure_mode)
+	if (!c || !dbg_is_tst_rcvry(c))
 		return 0;
 	d = c->dbg;
 	if (d->failure_mode)

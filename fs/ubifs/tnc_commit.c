@@ -23,6 +23,7 @@
 /* This file implements TNC functions for committing */
 
 #include "ubifs.h"
+#include <linux/random.h>
 
 /**
  * make_idx_node - make an index node for fill-the-gaps method of TNC commit.
@@ -381,7 +382,7 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 				c->gap_lebs = NULL;
 				return err;
 			}
-			if (dbg_force_in_the_gaps_enabled()) {
+			if (!dbg_is_chk_gen(c)) {
 				/*
 				 * Do not print scary warnings if the debugging
 				 * option which forces in-the-gaps is enabled.
@@ -689,7 +690,7 @@ static int alloc_idx_lebs(struct ubifs_info *c, int cnt)
 		c->ilebs[c->ileb_cnt++] = lnum;
 		dbg_cmt("LEB %d", lnum);
 	}
-	if (dbg_force_in_the_gaps())
+	if (dbg_is_chk_gen(c) && !(random32() & 7))
 		return -ENOSPC;
 	return 0;
 }

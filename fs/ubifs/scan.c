@@ -240,7 +240,7 @@ void ubifs_scanned_corruption(const struct ubifs_info *c, int lnum, int offs,
 	int len;
 
 	ubifs_err("corruption at LEB %d:%d", lnum, offs);
-	if (dbg_failure_mode)
+	if (dbg_is_tst_rcvry(c))
 		return;
 	len = c->leb_size - offs;
 	if (len > 8192)

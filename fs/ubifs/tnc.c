@@ -3300,7 +3300,7 @@ int dbg_check_inode_size(struct ubifs_info *c, const struct inode *inode,
 
 	if (!S_ISREG(inode->i_mode))
 		return 0;
-	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+	if (!dbg_is_chk_gen(c))
 		return 0;
 
 	block = (size + UBIFS_BLOCK_SIZE - 1) >> UBIFS_BLOCK_SHIFT;

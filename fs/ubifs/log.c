@@ -752,7 +752,7 @@ static int dbg_check_bud_bytes(struct ubifs_info *c)
 	struct ubifs_bud *bud;
 	long long bud_bytes = 0;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+	if (!dbg_is_chk_gen(c))
 		return 0;
 
 	spin_lock(&c->buds_lock);

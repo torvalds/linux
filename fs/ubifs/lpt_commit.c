@@ -1640,7 +1640,7 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 	int ret;
 	void *buf, *p;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+	if (!dbg_is_chk_lprops(c))
 		return 0;
 
 	buf = p = __vmalloc(c->leb_size, GFP_NOFS, PAGE_KERNEL);
@@ -1711,7 +1711,7 @@ int dbg_check_ltab(struct ubifs_info *c)
 {
 	int lnum, err, i, cnt;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+	if (!dbg_is_chk_lprops(c))
 		return 0;
 
 	/* Bring the entire tree into memory */
@@ -1754,7 +1754,7 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
 	long long free = 0;
 	int i;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+	if (!dbg_is_chk_lprops(c))
 		return 0;
 
 	for (i = 0; i < c->lpt_lebs; i++) {
@@ -1796,7 +1796,7 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 	long long chk_lpt_sz, lpt_sz;
 	int err = 0;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+	if (!dbg_is_chk_lprops(c))
 		return 0;
 
 	switch (action) {
@@ -2019,7 +2019,7 @@ static int dbg_populate_lsave(struct ubifs_info *c)
 	struct ubifs_lpt_heap *heap;
 	int i;
 
-	if (!(ubifs_chk_flags & UBIFS_CHK_GEN))
+	if (!dbg_is_chk_gen(c))
 		return 0;
 	if (random32() & 3)
 		return 0;
