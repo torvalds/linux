@@ -89,6 +89,8 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 		chan->sec_level = BT_SECURITY_SDP;
 
 	bacpy(&bt_sk(sk)->src, &la.l2_bdaddr);
+
+	chan->state = BT_BOUND;
 	sk->sk_state = BT_BOUND;
 
 done:
@@ -214,6 +216,8 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 
 	sk->sk_max_ack_backlog = backlog;
 	sk->sk_ack_backlog = 0;
+
+	chan->state = BT_LISTEN;
 	sk->sk_state = BT_LISTEN;
 
 done:
@@ -803,11 +807,19 @@ static void l2cap_sock_close_cb(void *data)
 	l2cap_sock_kill(sk);
 }
 
+static void l2cap_sock_state_change_cb(void *data, int state)
+{
+	struct sock *sk = data;
+
+	sk->sk_state = state;
+}
+
 static struct l2cap_ops l2cap_chan_ops = {
 	.name		= "L2CAP Socket Interface",
 	.new_connection	= l2cap_sock_new_connection_cb,
 	.recv		= l2cap_sock_recv_cb,
 	.close		= l2cap_sock_close_cb,
+	.state_change	= l2cap_sock_state_change_cb,
 };
 
 static void l2cap_sock_destruct(struct sock *sk)
