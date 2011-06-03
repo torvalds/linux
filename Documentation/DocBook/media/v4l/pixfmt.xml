@@ -804,6 +804,12 @@ kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm
 	    <entry>'CPIA'</entry>
 	    <entry>YUV format used by the gspca cpia1 driver.</entry>
 	  </row>
+	  <row id="V4L2-PIX-FMT-JPGL">
+	    <entry><constant>V4L2_PIX_FMT_JPGL</constant></entry>
+	    <entry>'JPGL'</entry>
+	    <entry>JPEG-Light format (Pegasus Lossless JPEG)
+			used in Divio webcams NW 80x.</entry>
+	  </row>
 	  <row id="V4L2-PIX-FMT-SPCA501">
 	    <entry><constant>V4L2_PIX_FMT_SPCA501</constant></entry>
 	    <entry>'S501'</entry>
