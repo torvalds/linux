@@ -426,6 +426,8 @@ static struct drm_driver driver = {
 
 	.gem_init_object = nouveau_gem_object_new,
 	.gem_free_object = nouveau_gem_object_del,
+	.gem_open_object = nouveau_gem_object_open,
+	.gem_close_object = nouveau_gem_object_close,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

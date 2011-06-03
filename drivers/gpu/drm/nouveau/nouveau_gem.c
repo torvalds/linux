@@ -60,6 +60,26 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 }
 
 int
+nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
+{
+	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
+
+	if (!fpriv->vm)
+		return 0;
+
+	return 0;
+}
+
+void
+nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
+{
+	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
+
+	if (!fpriv->vm)
+		return;
+}
+
+int
 nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 		uint32_t tile_mode, uint32_t tile_flags,
 		struct nouveau_bo **pnvbo)
