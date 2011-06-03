@@ -203,6 +203,9 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_adapter *adapter,
 	       (count < tx_ring->work_limit)) {
 		bool cleaned = false;
 		rmb(); /* read buffer_info after eop_desc */
+		/* eop could change between read and DD-check */
+		if (unlikely(eop != tx_ring->tx_buffer_info[i].next_to_watch))
+			goto cont_loop;
 		for ( ; !cleaned; count++) {
 			struct sk_buff *skb;
 			tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, i);
@@ -232,6 +235,7 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_adapter *adapter,
 				i = 0;
 		}
 
+cont_loop:
 		eop = tx_ring->tx_buffer_info[i].next_to_watch;
 		eop_desc = IXGBE_TX_DESC_ADV(*tx_ring, eop);
 	}
