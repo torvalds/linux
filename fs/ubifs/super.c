@@ -914,7 +914,7 @@ static int check_volume_empty(struct ubifs_info *c)
 
 	c->empty = 1;
 	for (lnum = 0; lnum < c->leb_cnt; lnum++) {
-		err = ubi_is_mapped(c->ubi, lnum);
+		err = ubifs_is_mapped(c, lnum);
 		if (unlikely(err < 0))
 			return err;
 		if (err == 1) {

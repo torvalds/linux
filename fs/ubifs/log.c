@@ -262,7 +262,7 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 		 * an unclean reboot, because the target LEB might have been
 		 * unmapped, but not yet physically erased.
 		 */
-		err = ubi_leb_map(c->ubi, bud->lnum, UBI_SHORTTERM);
+		err = ubifs_leb_map(c, bud->lnum, UBI_SHORTTERM);
 		if (err)
 			goto out_unlock;
 	}
@@ -283,8 +283,6 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	return 0;
 
 out_unlock:
-	if (err != -EAGAIN)
-		ubifs_ro_mode(c, err);
 	mutex_unlock(&c->log_mutex);
 	kfree(ref);
 	kfree(bud);
