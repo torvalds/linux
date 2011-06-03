@@ -55,6 +55,7 @@ struct wm8915_priv {
 	int ldo1ena;
 
 	int sysclk;
+	int sysclk_src;
 
 	int fll_src;
 	int fll_fref;
@@ -1834,6 +1835,9 @@ static int wm8915_set_sysclk(struct snd_soc_dai *dai,
 	int src;
 	int old;
 
+	if (freq == wm8915->sysclk && clk_id == wm8915->sysclk_src)
+		return 0;
+
 	/* Disable SYSCLK while we reconfigure */
 	old = snd_soc_read(codec, WM8915_AIF_CLOCKING_1) & WM8915_SYSCLK_ENA;
 	snd_soc_update_bits(codec, WM8915_AIF_CLOCKING_1,
@@ -1884,6 +1888,8 @@ static int wm8915_set_sysclk(struct snd_soc_dai *dai,
 	snd_soc_update_bits(codec, WM8915_CLOCKING_1, WM8915_LFCLK_ENA, lfclk);
 	snd_soc_update_bits(codec, WM8915_AIF_CLOCKING_1,
 			    WM8915_SYSCLK_ENA, old);
+
+	wm8915->sysclk_src = clk_id;
 
 	return 0;
 }
