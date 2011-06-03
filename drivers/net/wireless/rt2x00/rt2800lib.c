@@ -1355,7 +1355,7 @@ static void rt2800_config_ht_opmode(struct rt2x00_dev *rt2x00dev,
 			gf20_rate = gf40_rate = 0x0003;
 		}
 		break;
-	};
+	}
 
 	/* check for STAs not supporting greenfield mode */
 	if (any_sta_nongf)

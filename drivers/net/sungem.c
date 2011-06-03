@@ -2716,7 +2716,7 @@ static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			    data->val_in);
 		rc = 0;
 		break;
-	};
+	}
 	return rc;
 }
 

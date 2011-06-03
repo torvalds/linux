@@ -219,7 +219,7 @@ static void rt2800pci_start_queue(struct data_queue *queue)
 		break;
 	default:
 		break;
-	};
+	}
 }
 
 static void rt2800pci_kick_queue(struct data_queue *queue)

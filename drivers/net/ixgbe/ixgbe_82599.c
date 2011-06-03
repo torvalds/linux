@@ -1157,7 +1157,7 @@ s32 ixgbe_init_fdir_signature_82599(struct ixgbe_hw *hw, u32 pballoc)
 	default:
 		/* bad value */
 		return IXGBE_ERR_CONFIG;
-	};
+	}
 
 	/* Move the flexible bytes to use the ethertype - shift 6 words */
 	fdirctrl |= (0x6 << IXGBE_FDIRCTRL_FLEX_SHIFT);
@@ -1245,7 +1245,7 @@ s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc)
 	default:
 		/* bad value */
 		return IXGBE_ERR_CONFIG;
-	};
+	}
 
 	/* Turn perfect match filtering on */
 	fdirctrl |= IXGBE_FDIRCTRL_PERFECT_MATCH;

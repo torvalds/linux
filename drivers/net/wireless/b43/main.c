@@ -4085,7 +4085,7 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 #endif
 	default:
 		unsupported = 1;
-	};
+	}
 	if (unsupported) {
 		b43err(dev->wl, "FOUND UNSUPPORTED PHY "
 		       "(Analog %u, Type %u, Revision %u)\n",

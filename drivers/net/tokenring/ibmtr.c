@@ -177,7 +177,7 @@ static char __devinit *adapter_def(char type)
 	case 0xD: return "16/4 Adapter/A (short) | 16/4 ISA-16 Adapter";
 	case 0xC: return "Auto 16/4 Adapter";
 	default: return "adapter (unknown type)";
-	};
+	}
 };
 
 #define TRC_INIT 0x01		/*  Trace initialization & PROBEs */

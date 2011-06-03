@@ -1958,7 +1958,7 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 						 IPG_CONVERGE_JIFFIES;
 		lp->ipg_data.ipg = DEFAULT_IPG;
 		lp->ipg_data.ipg_state = CSTATE;
-	};
+	}
 
 	/*  display driver and device information */
 
