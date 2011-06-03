@@ -244,6 +244,10 @@ static inline int dbg_is_tst_rcvry(const struct ubifs_info *c)
 {
 	return !!(ubifs_dbg.tst_rcvry || c->dbg->tst_rcvry);
 }
+static inline int dbg_is_power_cut(const struct ubifs_info *c)
+{
+	return !!c->dbg->failure_mode;
+}
 
 int ubifs_debugging_init(struct ubifs_info *c);
 void ubifs_debugging_exit(struct ubifs_info *c);
@@ -445,12 +449,24 @@ static inline int
 dbg_check_nondata_nodes_order(struct ubifs_info *c,
 			      struct list_head *head)             { return 0; }
 
+static inline int dbg_leb_write(struct ubi_volume_desc *desc,
+				int lnum, const void *buf,
+				int offset, int len, int dtype)   { return 0; }
+static inline int dbg_leb_change(struct ubi_volume_desc *desc,
+				 int lnum, const void *buf,
+				 int len, int dtype)              { return 0; }
+static inline int dbg_leb_unmap(struct ubi_volume_desc *desc,
+				int lnum)                         { return 0; }
+static inline int dbg_leb_map(struct ubi_volume_desc *desc,
+			      int lnum, int dtype)                { return 0; }
+
 static inline int dbg_is_chk_gen(const struct ubifs_info *c)      { return 0; }
 static inline int dbg_is_chk_index(const struct ubifs_info *c)    { return 0; }
 static inline int dbg_is_chk_orph(const struct ubifs_info *c)     { return 0; }
 static inline int dbg_is_chk_lprops(const struct ubifs_info *c)   { return 0; }
 static inline int dbg_is_chk_fs(const struct ubifs_info *c)       { return 0; }
 static inline int dbg_is_tst_rcvry(const struct ubifs_info *c)    { return 0; }
+static inline int dbg_is_power_cut(const struct ubifs_info *c)    { return 0; }
 
 static inline int dbg_debugfs_init(void)                          { return 0; }
 static inline void dbg_debugfs_exit(void)                         { return; }

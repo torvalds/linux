@@ -1468,6 +1468,15 @@ extern struct ubifs_compressor *ubifs_compressors[UBIFS_COMPR_TYPES_CNT];
 
 /* io.c */
 void ubifs_ro_mode(struct ubifs_info *c, int err);
+int ubifs_leb_read(const struct ubifs_info *c, int lnum, void *buf, int offs,
+		   int len, int even_ebadmsg);
+int ubifs_leb_write(struct ubifs_info *c, int lnum, const void *buf, int offs,
+		    int len, int dtype);
+int ubifs_leb_change(struct ubifs_info *c, int lnum, const void *buf, int len,
+		     int dtype);
+int ubifs_leb_unmap(struct ubifs_info *c, int lnum);
+int ubifs_leb_map(struct ubifs_info *c, int lnum, int dtype);
+int ubifs_is_mapped(const struct ubifs_info *c, int lnum);
 int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len);
 int ubifs_wbuf_seek_nolock(struct ubifs_wbuf *wbuf, int lnum, int offs,
 			   int dtype);
@@ -1747,8 +1756,8 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 					 int offs, void *sbuf, int jhead);
 struct ubifs_scan_leb *ubifs_recover_log_leb(struct ubifs_info *c, int lnum,
 					     int offs, void *sbuf);
-int ubifs_recover_inl_heads(const struct ubifs_info *c, void *sbuf);
-int ubifs_clean_lebs(const struct ubifs_info *c, void *sbuf);
+int ubifs_recover_inl_heads(struct ubifs_info *c, void *sbuf);
+int ubifs_clean_lebs(struct ubifs_info *c, void *sbuf);
 int ubifs_rcvry_gc_commit(struct ubifs_info *c);
 int ubifs_recover_size_accum(struct ubifs_info *c, union ubifs_key *key,
 			     int deletion, loff_t new_size);

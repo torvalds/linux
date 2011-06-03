@@ -919,8 +919,7 @@ struct ubifs_scan_leb *ubifs_recover_log_leb(struct ubifs_info *c, int lnum,
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int recover_head(const struct ubifs_info *c, int lnum, int offs,
-			void *sbuf)
+static int recover_head(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 {
 	int len = c->max_write_size, err;
 
@@ -962,7 +961,7 @@ static int recover_head(const struct ubifs_info *c, int lnum, int offs,
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-int ubifs_recover_inl_heads(const struct ubifs_info *c, void *sbuf)
+int ubifs_recover_inl_heads(struct ubifs_info *c, void *sbuf)
 {
 	int err;
 
@@ -993,7 +992,7 @@ int ubifs_recover_inl_heads(const struct ubifs_info *c, void *sbuf)
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int clean_an_unclean_leb(const struct ubifs_info *c,
+static int clean_an_unclean_leb(struct ubifs_info *c,
 				struct ubifs_unclean_leb *ucleb, void *sbuf)
 {
 	int err, lnum = ucleb->lnum, offs = 0, len = ucleb->endpt, quiet = 1;
@@ -1089,7 +1088,7 @@ static int clean_an_unclean_leb(const struct ubifs_info *c,
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-int ubifs_clean_lebs(const struct ubifs_info *c, void *sbuf)
+int ubifs_clean_lebs(struct ubifs_info *c, void *sbuf)
 {
 	dbg_rcvry("recovery");
 	while (!list_empty(&c->unclean_leb_list)) {
