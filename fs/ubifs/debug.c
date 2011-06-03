@@ -2718,16 +2718,8 @@ static void cut_data(const void *buf, int len)
 		p[i] = 0xff;
 }
 
-int dbg_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
-		 int len, int check)
-{
-	if (in_failure_mode(desc))
-		return -EROFS;
-	return ubi_leb_read(desc, lnum, buf, offset, len, check);
-}
-
 int dbg_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
-		  int offset, int len, int dtype)
+		  int offs, int len, int dtype)
 {
 	int err, failing;
 
@@ -2736,7 +2728,7 @@ int dbg_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	failing = do_fail(desc, lnum, 1);
 	if (failing)
 		cut_data(buf, len);
-	err = ubi_leb_write(desc, lnum, buf, offset, len, dtype);
+	err = ubi_leb_write(desc, lnum, buf, offs, len, dtype);
 	if (err)
 		return err;
 	if (failing)
@@ -2759,20 +2751,6 @@ int dbg_leb_change(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	return 0;
 }
 
-int dbg_leb_erase(struct ubi_volume_desc *desc, int lnum)
-{
-	int err;
-
-	if (do_fail(desc, lnum, 0))
-		return -EROFS;
-	err = ubi_leb_erase(desc, lnum);
-	if (err)
-		return err;
-	if (do_fail(desc, lnum, 0))
-		return -EROFS;
-	return 0;
-}
-
 int dbg_leb_unmap(struct ubi_volume_desc *desc, int lnum)
 {
 	int err;
@@ -2785,13 +2763,6 @@ int dbg_leb_unmap(struct ubi_volume_desc *desc, int lnum)
 	if (do_fail(desc, lnum, 0))
 		return -EROFS;
 	return 0;
-}
-
-int dbg_is_mapped(struct ubi_volume_desc *desc, int lnum)
-{
-	if (in_failure_mode(desc))
-		return -EROFS;
-	return ubi_is_mapped(desc, lnum);
 }
 
 int dbg_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype)

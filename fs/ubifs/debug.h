@@ -302,43 +302,18 @@ int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head);
 int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head);
 
 #ifndef UBIFS_DBG_PRESERVE_UBI
-#define ubi_leb_read   dbg_leb_read
 #define ubi_leb_write  dbg_leb_write
 #define ubi_leb_change dbg_leb_change
-#define ubi_leb_erase  dbg_leb_erase
 #define ubi_leb_unmap  dbg_leb_unmap
-#define ubi_is_mapped  dbg_is_mapped
 #define ubi_leb_map    dbg_leb_map
 #endif
 
-int dbg_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
-		 int len, int check);
 int dbg_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
-		  int offset, int len, int dtype);
+		  int offs, int len, int dtype);
 int dbg_leb_change(struct ubi_volume_desc *desc, int lnum, const void *buf,
 		   int len, int dtype);
-int dbg_leb_erase(struct ubi_volume_desc *desc, int lnum);
 int dbg_leb_unmap(struct ubi_volume_desc *desc, int lnum);
-int dbg_is_mapped(struct ubi_volume_desc *desc, int lnum);
 int dbg_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype);
-
-static inline int dbg_read(struct ubi_volume_desc *desc, int lnum, char *buf,
-			   int offset, int len)
-{
-	return dbg_leb_read(desc, lnum, buf, offset, len, 0);
-}
-
-static inline int dbg_write(struct ubi_volume_desc *desc, int lnum,
-			    const void *buf, int offset, int len)
-{
-	return dbg_leb_write(desc, lnum, buf, offset, len, UBI_UNKNOWN);
-}
-
-static inline int dbg_change(struct ubi_volume_desc *desc, int lnum,
-				    const void *buf, int len)
-{
-	return dbg_leb_change(desc, lnum, buf, len, UBI_UNKNOWN);
-}
 
 /* Debugfs-related stuff */
 int dbg_debugfs_init(void);
