@@ -773,19 +773,13 @@ struct kvm_assigned_pci_dev {
 
 struct kvm_assigned_irq {
 	__u32 assigned_dev_id;
-	__u32 host_irq;
+	__u32 host_irq; /* ignored (legacy field) */
 	__u32 guest_irq;
 	__u32 flags;
 	union {
-		struct {
-			__u32 addr_lo;
-			__u32 addr_hi;
-			__u32 data;
-		} guest_msi;
 		__u32 reserved[12];
 	};
 };
-
 
 struct kvm_assigned_msix_nr {
 	__u32 assigned_dev_id;
