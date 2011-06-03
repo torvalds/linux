@@ -417,8 +417,9 @@ static int xc_get_frequency_error(struct xc4000_priv *priv, u32 *freq_error_hz)
 	if (result != XC_RESULT_SUCCESS)
 		return result;
 
-	tmp = (u32)regData;
-	(*freq_error_hz) = (tmp * 15625) / 1000;
+	tmp = (u32)regData & 0xFFFFU;
+	tmp = (tmp < 0x8000U ? tmp : 0x10000U - tmp);
+	(*freq_error_hz) = tmp * 15625;
 	return result;
 }
 
