@@ -696,13 +696,13 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fpriv *fpriv = nouveau_fpriv(chan->file_priv);
+	struct nouveau_vm *vm = fpriv ? fpriv->vm : dev_priv->chan_vm;
 	struct nouveau_gpuobj *vram = NULL, *tt = NULL;
 	int ret, i;
 
 	NV_DEBUG(dev, "ch%d vram=0x%08x tt=0x%08x\n", chan->id, vram_h, tt_h);
-
 	if (dev_priv->card_type == NV_C0) {
-		struct nouveau_vm *vm = dev_priv->chan_vm;
 		struct nouveau_vm_pgd *vpgd;
 
 		ret = nouveau_gpuobj_new(dev, NULL, 4096, 0x1000, 0,
@@ -731,7 +731,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	 *  - Allocate per-channel page-directory
 	 *  - Link with shared channel VM
 	 */
-	if (dev_priv->chan_vm) {
+	if (vm) {
 		u32 pgd_offs = (dev_priv->chipset == 0x50) ? 0x1400 : 0x0200;
 		u64 vm_vinst = chan->ramin->vinst + pgd_offs;
 		u32 vm_pinst = chan->ramin->pinst;
@@ -744,7 +744,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 		if (ret)
 			return ret;
 
-		nouveau_vm_ref(dev_priv->chan_vm, &chan->vm, chan->vm_pd);
+		nouveau_vm_ref(vm, &chan->vm, chan->vm_pd);
 	}
 
 	/* RAMHT */
