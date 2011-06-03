@@ -157,23 +157,23 @@ nvc0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 	int i = 0, gpc, tp, ret;
 	u32 magic;
 
-	ret = nouveau_gpuobj_new(dev, NULL, 0x2000, 256, NVOBJ_FLAG_VM,
+	ret = nouveau_gpuobj_new(dev, chan, 0x2000, 256, NVOBJ_FLAG_VM,
 				 &grch->unk408004);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(dev, NULL, 0x8000, 256, NVOBJ_FLAG_VM,
+	ret = nouveau_gpuobj_new(dev, chan, 0x8000, 256, NVOBJ_FLAG_VM,
 				 &grch->unk40800c);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(dev, NULL, 384 * 1024, 4096,
+	ret = nouveau_gpuobj_new(dev, chan, 384 * 1024, 4096,
 				 NVOBJ_FLAG_VM | NVOBJ_FLAG_VM_USER,
 				 &grch->unk418810);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(dev, NULL, 0x1000, 0, NVOBJ_FLAG_VM,
+	ret = nouveau_gpuobj_new(dev, chan, 0x1000, 0, NVOBJ_FLAG_VM,
 				 &grch->mmio);
 	if (ret)
 		return ret;
@@ -235,7 +235,7 @@ nvc0_graph_context_new(struct nouveau_channel *chan, int engine)
 		return -ENOMEM;
 	chan->engctx[NVOBJ_ENGINE_GR] = grch;
 
-	ret = nouveau_gpuobj_new(dev, NULL, priv->grctx_size, 256,
+	ret = nouveau_gpuobj_new(dev, chan, priv->grctx_size, 256,
 				 NVOBJ_FLAG_VM | NVOBJ_FLAG_ZERO_ALLOC,
 				 &grch->grctx);
 	if (ret)

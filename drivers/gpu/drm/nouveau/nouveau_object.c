@@ -191,7 +191,7 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
 	spin_unlock(&dev_priv->ramin_lock);
 
-	if (chan) {
+	if (!(flags & NVOBJ_FLAG_VM) && chan) {
 		ramin = drm_mm_search_free(&chan->ramin_heap, size, align, 0);
 		if (ramin)
 			ramin = drm_mm_get_block(ramin, size, align);
@@ -208,7 +208,7 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 		gpuobj->vinst = ramin->start + chan->ramin->vinst;
 		gpuobj->node  = ramin;
 	} else {
-		ret = instmem->get(gpuobj, size, align);
+		ret = instmem->get(gpuobj, chan, size, align);
 		if (ret) {
 			nouveau_gpuobj_ref(NULL, &gpuobj);
 			return ret;
