@@ -590,9 +590,24 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 
 	num_pages = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
 		PAGE_CACHE_SHIFT;
+
+	/* Since the first page has all of our checksums and our generation we
+	 * need to calculate the offset into the page that we can start writing
+	 * our entries.
+	 */
+	first_page_offset = (sizeof(u32) * num_pages) + sizeof(u64);
+
 	filemap_write_and_wait(inode->i_mapping);
 	btrfs_wait_ordered_range(inode, inode->i_size &
 				 ~(root->sectorsize - 1), (u64)-1);
+
+	/* make sure we don't overflow that first page */
+	if (first_page_offset + sizeof(struct btrfs_free_space_entry) >= PAGE_CACHE_SIZE) {
+		/* this is really the same as running out of space, where we also return 0 */
+		printk(KERN_CRIT "Btrfs: free space cache was too big for the crc page\n");
+		ret = 0;
+		goto out_update;
+	}
 
 	/* We need a checksum per page. */
 	crc = checksums = kzalloc(sizeof(u32) * num_pages, GFP_NOFS);
@@ -604,12 +619,6 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 		kfree(crc);
 		return -1;
 	}
-
-	/* Since the first page has all of our checksums and our generation we
-	 * need to calculate the offset into the page that we can start writing
-	 * our entries.
-	 */
-	first_page_offset = (sizeof(u32) * num_pages) + sizeof(u64);
 
 	/* Get the cluster for this block_group if it exists */
 	if (block_group && !list_empty(&block_group->cluster_list))
@@ -872,12 +881,14 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	ret = 1;
 
 out_free:
+	kfree(checksums);
+	kfree(pages);
+
+out_update:
 	if (ret != 1) {
 		invalidate_inode_pages2_range(inode->i_mapping, 0, index);
 		BTRFS_I(inode)->generation = 0;
 	}
-	kfree(checksums);
-	kfree(pages);
 	btrfs_update_inode(trans, root, inode);
 	return ret;
 }
