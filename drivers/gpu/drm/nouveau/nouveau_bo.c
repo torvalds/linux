@@ -312,8 +312,6 @@ nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 	if (ret)
 		return ret;
 
-	if (nvbo->vma.node)
-		nvbo->bo.offset = nvbo->vma.offset;
 	return 0;
 }
 
