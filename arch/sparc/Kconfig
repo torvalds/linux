@@ -529,7 +529,7 @@ config PCI_SYSCALL
 
 config PCIC_PCI
 	bool
-	depends on PCI && !SPARC_LEON
+	depends on PCI && SPARC32 && !SPARC_LEON
 	default y
 
 config LEON_PCI
