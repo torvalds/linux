@@ -224,7 +224,7 @@ struct iwl_base_params {
  * @ampdu_factor: Maximum A-MPDU length factor
  * @ampdu_density: Minimum A-MPDU spacing
  * @bt_sco_disable: uCode should not response to BT in SCO/ESCO mode
-*/
+ */
 struct iwl_bt_params {
 	bool advanced_bt_coexist;
 	u8 bt_init_traffic_load;
@@ -237,10 +237,11 @@ struct iwl_bt_params {
 };
 /*
  * @use_rts_for_aggregation: use rts/cts protection for HT traffic
-*/
+ */
 struct iwl_ht_params {
 	const bool ht_greenfield_support; /* if used set to true */
 	bool use_rts_for_aggregation;
+	enum ieee80211_smps_mode smps_mode;
 };
 
 /**
