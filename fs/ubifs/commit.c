@@ -576,7 +576,7 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 	struct idx_node *i;
 	size_t sz;
 
-	if (!dbg_is_chk_old_idx(c))
+	if (!dbg_is_chk_index(c))
 		return 0;
 
 	INIT_LIST_HEAD(&list);

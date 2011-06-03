@@ -1544,7 +1544,7 @@ int dbg_check_tnc(struct ubifs_info *c, int extra)
 	long clean_cnt = 0, dirty_cnt = 0;
 	int err, last;
 
-	if (!dbg_is_chk_tnc(c))
+	if (!dbg_is_chk_index(c))
 		return 0;
 
 	ubifs_assert(mutex_is_locked(&c->tnc_mutex));
@@ -1791,7 +1791,7 @@ int dbg_check_idx_size(struct ubifs_info *c, long long idx_size)
 	int err;
 	long long calc = 0;
 
-	if (!dbg_is_chk_idx_sz(c))
+	if (!dbg_is_chk_index(c))
 		return 0;
 
 	err = dbg_walk_index(c, NULL, add_size, &calc);

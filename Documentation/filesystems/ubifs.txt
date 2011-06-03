@@ -123,10 +123,8 @@ debug_chks	Selects extra checks that UBIFS can do while running:
 		Check					Flag value
 
 		General checks				1
-		Check Tree Node Cache (TNC)		2
-		Check indexing tree size		4
+		Check the index				2
 		Check orphan area			8
-		Check old indexing tree			16
 		Check LEB properties (lprops)		32
 		Check leaf nodes and inodes		64
 

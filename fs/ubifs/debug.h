@@ -173,19 +173,15 @@ extern spinlock_t dbg_lock;
  * Debugging check flags.
  *
  * UBIFS_CHK_GEN: general checks
- * UBIFS_CHK_TNC: check TNC
- * UBIFS_CHK_IDX_SZ: check index size
+ * UBIFS_CHK_INDEX: check the index
  * UBIFS_CHK_ORPH: check orphans
- * UBIFS_CHK_OLD_IDX: check the old index
  * UBIFS_CHK_LPROPS: check lprops
  * UBIFS_CHK_FS: check the file-system
  */
 enum {
 	UBIFS_CHK_GEN     = 0x1,
-	UBIFS_CHK_TNC     = 0x2,
-	UBIFS_CHK_IDX_SZ  = 0x4,
+	UBIFS_CHK_INDEX   = 0x2,
 	UBIFS_CHK_ORPH    = 0x8,
-	UBIFS_CHK_OLD_IDX = 0x10,
 	UBIFS_CHK_LPROPS  = 0x20,
 	UBIFS_CHK_FS      = 0x40,
 };
@@ -207,21 +203,13 @@ static inline int dbg_is_chk_gen(const struct ubifs_info *c)
 {
 	return !!(ubifs_chk_flags & UBIFS_CHK_GEN);
 }
-static inline int dbg_is_chk_tnc(const struct ubifs_info *c)
+static inline int dbg_is_chk_index(const struct ubifs_info *c)
 {
-	return !!(ubifs_chk_flags & UBIFS_CHK_TNC);
-}
-static inline int dbg_is_chk_idx_sz(const struct ubifs_info *c)
-{
-	return !!(ubifs_chk_flags & UBIFS_CHK_IDX_SZ);
+	return !!(ubifs_chk_flags & UBIFS_CHK_INDEX);
 }
 static inline int dbg_is_chk_orph(const struct ubifs_info *c)
 {
 	return !!(ubifs_chk_flags & UBIFS_CHK_ORPH);
-}
-static inline int dbg_is_chk_old_idx(const struct ubifs_info *c)
-{
-	return !!(ubifs_chk_flags & UBIFS_CHK_OLD_IDX);
 }
 static inline int dbg_is_chk_lprops(const struct ubifs_info *c)
 {
@@ -462,10 +450,8 @@ dbg_check_nondata_nodes_order(struct ubifs_info *c,
 			      struct list_head *head)             { return 0; }
 
 static inline int dbg_is_chk_gen(const struct ubifs_info *c)      { return 0; }
-static inline int dbg_is_chk_tnc(const struct ubifs_info *c)      { return 0; }
-static inline int dbg_is_chk_idx_sz(const struct ubifs_info *c)   { return 0; }
+static inline int dbg_is_chk_index(const struct ubifs_info *c)    { return 0; }
 static inline int dbg_is_chk_orph(const struct ubifs_info *c)     { return 0; }
-static inline int dbg_is_chk_old_idx(const struct ubifs_info *c)  { return 0; }
 static inline int dbg_is_chk_lprops(const struct ubifs_info *c)   { return 0; }
 static inline int dbg_is_chk_fs(const struct ubifs_info *c)       { return 0; }
 static inline int dbg_is_tst_rcvry(const struct ubifs_info *c)    { return 0; }
