@@ -1660,8 +1660,10 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	if (!dold->d_inode)
 		goto out_drop_write;
 	host_err = nfsd_break_lease(dold->d_inode);
-	if (host_err)
+	if (host_err) {
+		err = nfserrno(host_err);
 		goto out_drop_write;
+	}
 	host_err = vfs_link(dold, dirp, dnew);
 	if (!host_err) {
 		err = nfserrno(commit_metadata(ffhp));
