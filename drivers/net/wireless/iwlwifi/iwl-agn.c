@@ -4099,3 +4099,13 @@ MODULE_PARM_DESC(bt_coex_active, "enable wifi/bt co-exist (default: enable)");
 module_param_named(led_mode, iwlagn_mod_params.led_mode, int, S_IRUGO);
 MODULE_PARM_DESC(led_mode, "0=system default, "
 		"1=On(RF On)/Off(RF Off), 2=blinking (default: 0)");
+
+/*
+ * For now, keep using power level 1 instead of automatically
+ * adjusting ...
+ */
+module_param_named(no_sleep_autoadjust, iwlagn_mod_params.no_sleep_autoadjust,
+		bool, S_IRUGO);
+MODULE_PARM_DESC(no_sleep_autoadjust,
+		 "don't automatically adjust sleep level "
+		 "according to maximum network latency (default: true)");

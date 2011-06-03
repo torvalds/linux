@@ -623,6 +623,7 @@ struct iwl_mod_params iwlagn_mod_params = {
 	.restart_fw = 1,
 	.plcp_check = true,
 	.bt_coex_active = true,
+	.no_sleep_autoadjust = true,
 	/* the rest are 0 by default */
 };
 

@@ -175,6 +175,7 @@ struct iwl_mod_params {
 	bool ack_check;		/* def: false = disable ack health check */
 	bool bt_coex_active;	/* def: true = enable bt coex */
 	int led_mode;		/* def: 0 = system default */
+	bool no_sleep_autoadjust; /* def: true = disable autoadjust */
 };
 
 /*

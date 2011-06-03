@@ -36,6 +36,7 @@
 
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
+#include "iwl-agn.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-commands.h"
@@ -49,16 +50,6 @@
  * we get from mac80211. In order to handle thermal throttling, we can
  * also use pre-defined power levels.
  */
-
-/*
- * For now, keep using power level 1 instead of automatically
- * adjusting ...
- */
-bool no_sleep_autoadjust = true;
-module_param(no_sleep_autoadjust, bool, S_IRUGO);
-MODULE_PARM_DESC(no_sleep_autoadjust,
-		 "don't automatically adjust sleep level "
-		 "according to maximum network latency");
 
 /*
  * This defines the old power levels. They are still used by default
@@ -367,7 +358,7 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 		iwl_static_sleep_cmd(priv, cmd,
 				     priv->power_data.debug_sleep_level_override,
 				     dtimper);
-	else if (no_sleep_autoadjust)
+	else if (iwlagn_mod_params.no_sleep_autoadjust)
 		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_1, dtimper);
 	else
 		iwl_power_fill_sleep_cmd(priv, cmd,
