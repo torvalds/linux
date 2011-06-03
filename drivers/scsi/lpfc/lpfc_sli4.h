@@ -310,7 +310,6 @@ struct lpfc_max_cfg_param {
 	uint16_t vfi_base;
 	uint16_t vfi_used;
 	uint16_t max_fcfi;
-	uint16_t fcfi_base;
 	uint16_t fcfi_used;
 	uint16_t max_eq;
 	uint16_t max_rq;
@@ -363,6 +362,11 @@ struct lpfc_pc_sli4_params {
 	uint8_t mqv;
 	uint8_t wqv;
 	uint8_t rqv;
+};
+
+struct lpfc_iov {
+	uint32_t pf_number;
+	uint32_t vf_number;
 };
 
 /* SLI4 HBA data structure entries */
@@ -444,10 +448,13 @@ struct lpfc_sli4_hba {
 	uint32_t intr_enable;
 	struct lpfc_bmbx bmbx;
 	struct lpfc_max_cfg_param max_cfg_param;
+	uint16_t extents_in_use; /* must allocate resource extents. */
+	uint16_t rpi_hdrs_in_use; /* must post rpi hdrs if set. */
 	uint16_t next_xri; /* last_xri - max_cfg_param.xri_base = used */
 	uint16_t next_rpi;
 	uint16_t scsi_xri_max;
 	uint16_t scsi_xri_cnt;
+	uint16_t scsi_xri_start;
 	struct list_head lpfc_free_sgl_list;
 	struct list_head lpfc_sgl_list;
 	struct lpfc_sglq **lpfc_els_sgl_array;
@@ -458,7 +465,17 @@ struct lpfc_sli4_hba {
 	struct lpfc_sglq **lpfc_sglq_active_list;
 	struct list_head lpfc_rpi_hdr_list;
 	unsigned long *rpi_bmask;
+	uint16_t *rpi_ids;
 	uint16_t rpi_count;
+	struct list_head lpfc_rpi_blk_list;
+	unsigned long *xri_bmask;
+	uint16_t *xri_ids;
+	uint16_t xri_count;
+	struct list_head lpfc_xri_blk_list;
+	unsigned long *vfi_bmask;
+	uint16_t *vfi_ids;
+	uint16_t vfi_count;
+	struct list_head lpfc_vfi_blk_list;
 	struct lpfc_sli4_flags sli4_flags;
 	struct list_head sp_queue_event;
 	struct list_head sp_cqe_event_pool;
@@ -467,6 +484,7 @@ struct lpfc_sli4_hba {
 	struct list_head sp_els_xri_aborted_work_queue;
 	struct list_head sp_unsol_work_queue;
 	struct lpfc_sli4_link link_state;
+	struct lpfc_iov iov;
 	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t abts_sgl_list_lock; /* list of aborted els IOs */
 };
@@ -490,6 +508,7 @@ struct lpfc_sglq {
 	enum lpfc_sgl_state state;
 	struct lpfc_nodelist *ndlp; /* ndlp associated with IO */
 	uint16_t iotag;         /* pre-assigned IO tag */
+	uint16_t sli4_lxritag;  /* logical pre-assigned xri. */
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
 	struct sli4_sge *sgl;	/* pre-assigned SGL */
 	void *virt;		/* virtual address. */
@@ -502,6 +521,13 @@ struct lpfc_rpi_hdr {
 	struct lpfc_dmabuf *dmabuf;
 	uint32_t page_count;
 	uint32_t start_rpi;
+};
+
+struct lpfc_rsrc_blks {
+	struct list_head list;
+	uint16_t rsrc_start;
+	uint16_t rsrc_size;
+	uint16_t rsrc_used;
 };
 
 /*
@@ -543,8 +569,11 @@ int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
 int lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);
-int lpfc_sli4_post_sgl_list(struct lpfc_hba *phba);
+int lpfc_sli4_post_els_sgl_list(struct lpfc_hba *phba);
+int lpfc_sli4_post_els_sgl_list_ext(struct lpfc_hba *phba);
 int lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *, struct list_head *, int);
+int lpfc_sli4_post_scsi_sgl_blk_ext(struct lpfc_hba *, struct list_head *,
+				    int);
 struct lpfc_cq_event *__lpfc_sli4_cq_event_alloc(struct lpfc_hba *);
 struct lpfc_cq_event *lpfc_sli4_cq_event_alloc(struct lpfc_hba *);
 void __lpfc_sli4_cq_event_release(struct lpfc_hba *, struct lpfc_cq_event *);

@@ -256,10 +256,12 @@ ssize_t part_discard_alignment_show(struct device *dev,
 {
 	struct hd_struct *p = dev_to_part(dev);
 	struct gendisk *disk = dev_to_disk(dev);
+	unsigned int alignment = 0;
 
-	return sprintf(buf, "%u\n",
-			queue_limit_discard_alignment(&disk->queue->limits,
-							p->start_sect));
+	if (disk->queue)
+		alignment = queue_limit_discard_alignment(&disk->queue->limits,
+								p->start_sect);
+	return sprintf(buf, "%u\n", alignment);
 }
 
 ssize_t part_stat_show(struct device *dev,

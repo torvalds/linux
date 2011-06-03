@@ -44,7 +44,6 @@
 #include <asm/sigp.h>
 #include <asm/pgalloc.h>
 #include <asm/irq.h>
-#include <asm/s390_ext.h>
 #include <asm/cpcmd.h>
 #include <asm/tlbflush.h>
 #include <asm/timer.h>

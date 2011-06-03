@@ -321,8 +321,8 @@ static int __devinit nuc900_nand_probe(struct platform_device *pdev)
 		goto fail3;
 	}
 
-	add_mtd_partitions(&(nuc900_nand->mtd), partitions,
-						ARRAY_SIZE(partitions));
+	mtd_device_register(&(nuc900_nand->mtd), partitions,
+			    ARRAY_SIZE(partitions));
 
 	platform_set_drvdata(pdev, nuc900_nand);
 

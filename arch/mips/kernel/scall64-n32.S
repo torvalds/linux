@@ -428,4 +428,5 @@ EXPORT(sysn32_call_table)
 	PTR	sys_open_by_handle_at
 	PTR	compat_sys_clock_adjtime	/* 6305 */
 	PTR	sys_syncfs
+	PTR	sys_setns
 	.size	sysn32_call_table,.-sysn32_call_table

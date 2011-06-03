@@ -33,6 +33,7 @@
 #include <linux/usb/ulpi.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/power/isp1704_charger.h>
 
 /* Vendor specific Power Control register */
 #define ISP1704_PWR_CTRL		0x3d
@@ -69,6 +70,18 @@ struct isp1704_charger {
 	unsigned long		event;
 	unsigned		max_power;
 };
+
+/*
+ * Disable/enable the power from the isp1704 if a function for it
+ * has been provided with platform data.
+ */
+static void isp1704_charger_set_power(struct isp1704_charger *isp, bool on)
+{
+	struct isp1704_charger_data	*board = isp->dev->platform_data;
+
+	if (board->set_power)
+		board->set_power(on);
+}
 
 /*
  * Determine is the charging port DCP (dedicated charger) or CDP (Host/HUB
@@ -222,6 +235,9 @@ static void isp1704_charger_work(struct work_struct *data)
 
 	mutex_lock(&lock);
 
+	if (event != USB_EVENT_NONE)
+		isp1704_charger_set_power(isp, 1);
+
 	switch (event) {
 	case USB_EVENT_VBUS:
 		isp->online = true;
@@ -269,6 +285,8 @@ static void isp1704_charger_work(struct work_struct *data)
 		 */
 		if (isp->otg->gadget)
 			usb_gadget_disconnect(isp->otg->gadget);
+
+		isp1704_charger_set_power(isp, 0);
 		break;
 	case USB_EVENT_ENUMERATED:
 		if (isp->present)
@@ -394,6 +412,8 @@ static int __devinit isp1704_charger_probe(struct platform_device *pdev)
 	isp->dev = &pdev->dev;
 	platform_set_drvdata(pdev, isp);
 
+	isp1704_charger_set_power(isp, 1);
+
 	ret = isp1704_test_ulpi(isp);
 	if (ret < 0)
 		goto fail1;
@@ -434,6 +454,7 @@ static int __devinit isp1704_charger_probe(struct platform_device *pdev)
 
 	/* Detect charger if VBUS is valid (the cable was already plugged). */
 	ret = otg_io_read(isp->otg, ULPI_USB_INT_STS);
+	isp1704_charger_set_power(isp, 0);
 	if ((ret & ULPI_INT_VBUS_VALID) && !isp->otg->default_a) {
 		isp->event = USB_EVENT_VBUS;
 		schedule_work(&isp->work);
@@ -459,6 +480,7 @@ static int __devexit isp1704_charger_remove(struct platform_device *pdev)
 	otg_unregister_notifier(isp->otg, &isp->nb);
 	power_supply_unregister(&isp->psy);
 	otg_put_transceiver(isp->otg);
+	isp1704_charger_set_power(isp, 0);
 	kfree(isp);
 
 	return 0;

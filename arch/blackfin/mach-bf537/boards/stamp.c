@@ -382,7 +382,6 @@ static struct platform_device net2272_bfin_device = {
 #endif
 
 #if defined(CONFIG_MTD_NAND_PLATFORM) || defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
-#ifdef CONFIG_MTD_PARTITIONS
 const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 
 static struct mtd_partition bfin_plat_nand_partitions[] = {
@@ -396,7 +395,6 @@ static struct mtd_partition bfin_plat_nand_partitions[] = {
 		.offset = MTDPART_OFS_APPEND,
 	},
 };
-#endif
 
 #define BFIN_NAND_PLAT_CLE 2
 #define BFIN_NAND_PLAT_ALE 1
@@ -423,11 +421,9 @@ static struct platform_nand_data bfin_plat_nand_data = {
 	.chip = {
 		.nr_chips = 1,
 		.chip_delay = 30,
-#ifdef CONFIG_MTD_PARTITIONS
 		.part_probe_types = part_probes,
 		.partitions = bfin_plat_nand_partitions,
 		.nr_partitions = ARRAY_SIZE(bfin_plat_nand_partitions),
-#endif
 	},
 	.ctrl = {
 		.cmd_ctrl  = bfin_plat_nand_cmd_ctrl,

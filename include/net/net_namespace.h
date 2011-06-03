@@ -7,6 +7,7 @@
 #include <asm/atomic.h>
 #include <linux/workqueue.h>
 #include <linux/list.h>
+#include <linux/sysctl.h>
 
 #include <net/netns/core.h>
 #include <net/netns/mib.h>

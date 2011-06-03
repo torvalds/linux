@@ -319,6 +319,10 @@ found_first:
 found_middle:
 	return result + ffz(__swab32(tmp));
 }
+#define find_next_zero_bit_le find_next_zero_bit_le
+
+extern unsigned long find_next_bit_le(const void *addr,
+		unsigned long size, unsigned long offset);
 
 #endif /* __KERNEL__ */
 

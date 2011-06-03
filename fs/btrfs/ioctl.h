@@ -32,6 +32,8 @@ struct btrfs_ioctl_vol_args {
 
 #define BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
 #define BTRFS_SUBVOL_RDONLY		(1ULL << 1)
+#define BTRFS_FSID_SIZE 16
+#define BTRFS_UUID_SIZE 16
 
 #define BTRFS_SUBVOL_NAME_MAX 4039
 struct btrfs_ioctl_vol_args_v2 {
@@ -40,6 +42,71 @@ struct btrfs_ioctl_vol_args_v2 {
 	__u64 flags;
 	__u64 unused[4];
 	char name[BTRFS_SUBVOL_NAME_MAX + 1];
+};
+
+/*
+ * structure to report errors and progress to userspace, either as a
+ * result of a finished scrub, a canceled scrub or a progress inquiry
+ */
+struct btrfs_scrub_progress {
+	__u64 data_extents_scrubbed;	/* # of data extents scrubbed */
+	__u64 tree_extents_scrubbed;	/* # of tree extents scrubbed */
+	__u64 data_bytes_scrubbed;	/* # of data bytes scrubbed */
+	__u64 tree_bytes_scrubbed;	/* # of tree bytes scrubbed */
+	__u64 read_errors;		/* # of read errors encountered (EIO) */
+	__u64 csum_errors;		/* # of failed csum checks */
+	__u64 verify_errors;		/* # of occurences, where the metadata
+					 * of a tree block did not match the
+					 * expected values, like generation or
+					 * logical */
+	__u64 no_csum;			/* # of 4k data block for which no csum
+					 * is present, probably the result of
+					 * data written with nodatasum */
+	__u64 csum_discards;		/* # of csum for which no data was found
+					 * in the extent tree. */
+	__u64 super_errors;		/* # of bad super blocks encountered */
+	__u64 malloc_errors;		/* # of internal kmalloc errors. These
+					 * will likely cause an incomplete
+					 * scrub */
+	__u64 uncorrectable_errors;	/* # of errors where either no intact
+					 * copy was found or the writeback
+					 * failed */
+	__u64 corrected_errors;		/* # of errors corrected */
+	__u64 last_physical;		/* last physical address scrubbed. In
+					 * case a scrub was aborted, this can
+					 * be used to restart the scrub */
+	__u64 unverified_errors;	/* # of occurences where a read for a
+					 * full (64k) bio failed, but the re-
+					 * check succeeded for each 4k piece.
+					 * Intermittent error. */
+};
+
+#define BTRFS_SCRUB_READONLY	1
+struct btrfs_ioctl_scrub_args {
+	__u64 devid;				/* in */
+	__u64 start;				/* in */
+	__u64 end;				/* in */
+	__u64 flags;				/* in */
+	struct btrfs_scrub_progress progress;	/* out */
+	/* pad to 1k */
+	__u64 unused[(1024-32-sizeof(struct btrfs_scrub_progress))/8];
+};
+
+#define BTRFS_DEVICE_PATH_NAME_MAX 1024
+struct btrfs_ioctl_dev_info_args {
+	__u64 devid;				/* in/out */
+	__u8 uuid[BTRFS_UUID_SIZE];		/* in/out */
+	__u64 bytes_used;			/* out */
+	__u64 total_bytes;			/* out */
+	__u64 unused[379];			/* pad to 4k */
+	__u8 path[BTRFS_DEVICE_PATH_NAME_MAX];	/* out */
+};
+
+struct btrfs_ioctl_fs_info_args {
+	__u64 max_id;				/* out */
+	__u64 num_devices;			/* out */
+	__u8 fsid[BTRFS_FSID_SIZE];		/* out */
+	__u64 reserved[124];			/* pad to 1k */
 };
 
 #define BTRFS_INO_LOOKUP_PATH_MAX 4080
@@ -114,37 +181,6 @@ struct btrfs_ioctl_clone_range_args {
 #define BTRFS_DEFRAG_RANGE_COMPRESS 1
 #define BTRFS_DEFRAG_RANGE_START_IO 2
 
-struct btrfs_ioctl_defrag_range_args {
-	/* start of the defrag operation */
-	__u64 start;
-
-	/* number of bytes to defrag, use (u64)-1 to say all */
-	__u64 len;
-
-	/*
-	 * flags for the operation, which can include turning
-	 * on compression for this one defrag
-	 */
-	__u64 flags;
-
-	/*
-	 * any extent bigger than this will be considered
-	 * already defragged.  Use 0 to take the kernel default
-	 * Use 1 to say every single extent must be rewritten
-	 */
-	__u32 extent_thresh;
-
-	/*
-	 * which compression method to use if turning on compression
-	 * for this defrag operation.  If unspecified, zlib will
-	 * be used
-	 */
-	__u32 compress_type;
-
-	/* spare for later */
-	__u32 unused[4];
-};
-
 struct btrfs_ioctl_space_info {
 	__u64 flags;
 	__u64 total_bytes;
@@ -203,4 +239,13 @@ struct btrfs_ioctl_space_args {
 				   struct btrfs_ioctl_vol_args_v2)
 #define BTRFS_IOC_SUBVOL_GETFLAGS _IOW(BTRFS_IOCTL_MAGIC, 25, __u64)
 #define BTRFS_IOC_SUBVOL_SETFLAGS _IOW(BTRFS_IOCTL_MAGIC, 26, __u64)
+#define BTRFS_IOC_SCRUB _IOWR(BTRFS_IOCTL_MAGIC, 27, \
+			      struct btrfs_ioctl_scrub_args)
+#define BTRFS_IOC_SCRUB_CANCEL _IO(BTRFS_IOCTL_MAGIC, 28)
+#define BTRFS_IOC_SCRUB_PROGRESS _IOWR(BTRFS_IOCTL_MAGIC, 29, \
+				       struct btrfs_ioctl_scrub_args)
+#define BTRFS_IOC_DEV_INFO _IOWR(BTRFS_IOCTL_MAGIC, 30, \
+				 struct btrfs_ioctl_dev_info_args)
+#define BTRFS_IOC_FS_INFO _IOR(BTRFS_IOCTL_MAGIC, 31, \
+			       struct btrfs_ioctl_fs_info_args)
 #endif

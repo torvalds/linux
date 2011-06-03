@@ -47,9 +47,6 @@ config GENERIC_BUG
 config ZONE_DMA
 	def_bool y
 
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
 config GENERIC_GPIO
 	def_bool y
 

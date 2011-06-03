@@ -2217,10 +2217,11 @@ out_unlock:
 		goto out;
 	}
 	for (i = 0, j = 0; i < mynel; i++) {
+		struct av_decision dummy_avd;
 		rc = avc_has_perm_noaudit(fromsid, mysids[i],
 					  SECCLASS_PROCESS, /* kernel value */
 					  PROCESS__TRANSITION, AVC_STRICT,
-					  NULL);
+					  &dummy_avd);
 		if (!rc)
 			mysids2[j++] = mysids[i];
 		cond_resched();

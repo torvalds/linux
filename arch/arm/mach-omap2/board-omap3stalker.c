@@ -45,7 +45,6 @@
 #include <plat/mcspi.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
 #include <linux/interrupt.h>
 #include <linux/smsc911x.h>
 #include <linux/i2c/at24.h>
@@ -54,51 +53,27 @@
 #include "mux.h"
 #include "hsmmc.h"
 #include "timer-gp.h"
+#include "common-board-devices.h"
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
+#include <plat/gpmc-smsc911x.h>
+
 #define OMAP3STALKER_ETHR_START	0x2c000000
 #define OMAP3STALKER_ETHR_SIZE	1024
 #define OMAP3STALKER_ETHR_GPIO_IRQ	19
 #define OMAP3STALKER_SMC911X_CS	5
 
-static struct resource omap3stalker_smsc911x_resources[] = {
-	[0] = {
-	       .start	= OMAP3STALKER_ETHR_START,
-	       .end	=
-	       (OMAP3STALKER_ETHR_START + OMAP3STALKER_ETHR_SIZE - 1),
-	       .flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-	       .start	= OMAP_GPIO_IRQ(OMAP3STALKER_ETHR_GPIO_IRQ),
-	       .end	= OMAP_GPIO_IRQ(OMAP3STALKER_ETHR_GPIO_IRQ),
-	       .flags	= (IORESOURCE_IRQ | IRQF_TRIGGER_LOW),
-	},
-};
-
-static struct smsc911x_platform_config smsc911x_config = {
-	.phy_interface	= PHY_INTERFACE_MODE_MII,
-	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+static struct omap_smsc911x_platform_data smsc911x_cfg = {
+	.cs             = OMAP3STALKER_SMC911X_CS,
+	.gpio_irq       = OMAP3STALKER_ETHR_GPIO_IRQ,
+	.gpio_reset     = -EINVAL,
 	.flags		= (SMSC911X_USE_32BIT | SMSC911X_SAVE_MAC_ADDRESS),
-};
-
-static struct platform_device omap3stalker_smsc911x_device = {
-	.name		= "smsc911x",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(omap3stalker_smsc911x_resources),
-	.resource	= &omap3stalker_smsc911x_resources[0],
-	.dev		= {
-		.platform_data	= &smsc911x_config,
-	},
 };
 
 static inline void __init omap3stalker_init_eth(void)
 {
-	int eth_cs;
 	struct clk *l3ck;
 	unsigned int rate;
-
-	eth_cs = OMAP3STALKER_SMC911X_CS;
 
 	l3ck = clk_get(NULL, "l3_ck");
 	if (IS_ERR(l3ck))
@@ -107,16 +82,7 @@ static inline void __init omap3stalker_init_eth(void)
 		rate = clk_get_rate(l3ck);
 
 	omap_mux_init_gpio(19, OMAP_PIN_INPUT_PULLUP);
-	if (gpio_request(OMAP3STALKER_ETHR_GPIO_IRQ, "SMC911x irq") < 0) {
-		printk(KERN_ERR
-		       "Failed to request GPIO%d for smc911x IRQ\n",
-		       OMAP3STALKER_ETHR_GPIO_IRQ);
-		return;
-	}
-
-	gpio_direction_input(OMAP3STALKER_ETHR_GPIO_IRQ);
-
-	platform_device_register(&omap3stalker_smsc911x_device);
+	gpmc_smsc911x_init(&smsc911x_cfg);
 }
 
 #else
@@ -365,12 +331,11 @@ omap3stalker_twl_gpio_setup(struct device *dev,
 	 */
 
 	/* TWL4030_GPIO_MAX + 0 == ledA, LCD Backlight control */
-	gpio_request(gpio + TWL4030_GPIO_MAX, "EN_LCD_BKL");
-	gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+	gpio_request_one(gpio + TWL4030_GPIO_MAX, GPIOF_OUT_INIT_LOW,
+			 "EN_LCD_BKL");
 
 	/* gpio + 7 == DVI Enable */
-	gpio_request(gpio + 7, "EN_DVI");
-	gpio_direction_output(gpio + 7, 0);
+	gpio_request_one(gpio + 7, GPIOF_OUT_INIT_LOW, "EN_DVI");
 
 	/* TWL4030_GPIO_MAX + 1 == ledB (out, mmc0) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
@@ -489,15 +454,8 @@ static struct twl4030_platform_data omap3stalker_twldata = {
 	.codec		= &omap3stalker_codec_data,
 	.vdac		= &omap3_stalker_vdac,
 	.vpll2		= &omap3_stalker_vpll2,
-};
-
-static struct i2c_board_info __initdata omap3stalker_i2c_boardinfo[] = {
-	{
-	 I2C_BOARD_INFO("twl4030", 0x48),
-	 .flags		= I2C_CLIENT_WAKE,
-	 .irq		= INT_34XX_SYS_NIRQ,
-	 .platform_data	= &omap3stalker_twldata,
-	 },
+	.vmmc1		= &omap3stalker_vmmc1,
+	.vsim		= &omap3stalker_vsim,
 };
 
 static struct at24_platform_data fram_info = {
@@ -516,15 +474,7 @@ static struct i2c_board_info __initdata omap3stalker_i2c_boardinfo3[] = {
 
 static int __init omap3_stalker_i2c_init(void)
 {
-	/*
-	 * REVISIT: These entries can be set in omap3evm_twl_data
-	 * after a merge with MFD tree
-	 */
-	omap3stalker_twldata.vmmc1 = &omap3stalker_vmmc1;
-	omap3stalker_twldata.vsim = &omap3stalker_vsim;
-
-	omap_register_i2c_bus(1, 2600, omap3stalker_i2c_boardinfo,
-			      ARRAY_SIZE(omap3stalker_i2c_boardinfo));
+	omap3_pmic_init("twl4030", &omap3stalker_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, omap3stalker_i2c_boardinfo3,
 			      ARRAY_SIZE(omap3stalker_i2c_boardinfo3));
@@ -532,49 +482,6 @@ static int __init omap3_stalker_i2c_init(void)
 }
 
 #define OMAP3_STALKER_TS_GPIO	175
-static void ads7846_dev_init(void)
-{
-	if (gpio_request(OMAP3_STALKER_TS_GPIO, "ADS7846 pendown") < 0)
-		printk(KERN_ERR "can't get ads7846 pen down GPIO\n");
-
-	gpio_direction_input(OMAP3_STALKER_TS_GPIO);
-	gpio_set_debounce(OMAP3_STALKER_TS_GPIO, 310);
-}
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(OMAP3_STALKER_TS_GPIO);
-}
-
-static struct ads7846_platform_data ads7846_config = {
-	.x_max			= 0x0fff,
-	.y_max			= 0x0fff,
-	.x_plate_ohms		= 180,
-	.pressure_max		= 255,
-	.debounce_max		= 10,
-	.debounce_tol		= 3,
-	.debounce_rep		= 1,
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-	.settle_delay_usecs	= 150,
-};
-
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
-	.turbo_mode		= 0,
-	.single_channel		= 1,	/* 0: slave, 1: master */
-};
-
-static struct spi_board_info omap3stalker_spi_board_info[] = {
-	[0] = {
-	       .modalias	= "ads7846",
-	       .bus_num		= 1,
-	       .chip_select	= 0,
-	       .max_speed_hz	= 1500000,
-	       .controller_data	= &ads7846_mcspi_config,
-	       .irq		= OMAP_GPIO_IRQ(OMAP3_STALKER_TS_GPIO),
-	       .platform_data	= &ads7846_config,
-	},
-};
 
 static struct omap_board_config_kernel omap3_stalker_config[] __initdata = {
 };
@@ -618,12 +525,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static struct omap_musb_board_data musb_board_data = {
-	.interface_type	= MUSB_INTERFACE_ULPI,
-	.mode		= MUSB_OTG,
-	.power		= 100,
-};
-
 static void __init omap3_stalker_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CUS);
@@ -636,13 +537,11 @@ static void __init omap3_stalker_init(void)
 			     ARRAY_SIZE(omap3_stalker_devices));
 
 	omap_display_init(&omap3_stalker_dss_data);
-	spi_register_board_info(omap3stalker_spi_board_info,
-				ARRAY_SIZE(omap3stalker_spi_board_info));
 
 	omap_serial_init();
-	usb_musb_init(&musb_board_data);
+	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
-	ads7846_dev_init();
+	omap_ads7846_init(1, OMAP3_STALKER_TS_GPIO, 310, NULL);
 
 	omap_mux_init_gpio(21, OMAP_PIN_OUTPUT);
 	omap_mux_init_gpio(18, OMAP_PIN_INPUT_PULLUP);

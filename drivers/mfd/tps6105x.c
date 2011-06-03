@@ -183,7 +183,8 @@ static int __devinit tps6105x_probe(struct i2c_client *client,
 	/* Set up and register the platform devices. */
 	for (i = 0; i < ARRAY_SIZE(tps6105x_cells); i++) {
 		/* One state holder for all drivers, this is simple */
-		tps6105x_cells[i].mfd_data = tps6105x;
+		tps6105x_cells[i].platform_data = tps6105x;
+		tps6105x_cells[i].pdata_size = sizeof(*tps6105x);
 	}
 
 	ret = mfd_add_devices(&client->dev, 0, tps6105x_cells,

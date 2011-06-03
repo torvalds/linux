@@ -81,11 +81,11 @@ static __inline__ int cpu_number_map(int cpu)
 
 static __inline__ unsigned int num_booting_cpus(void)
 {
-	return cpus_weight(cpu_callout_map);
+	return cpumask_weight(&cpu_callout_map);
 }
 
 extern void smp_send_timer(void);
-extern unsigned long send_IPI_mask_phys(cpumask_t, int, int);
+extern unsigned long send_IPI_mask_phys(const cpumask_t*, int, int);
 
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);

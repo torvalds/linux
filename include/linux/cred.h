@@ -1,4 +1,4 @@
-/* Credentials management - see Documentation/credentials.txt
+/* Credentials management - see Documentation/security/credentials.txt
  *
  * Copyright (C) 2008 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)

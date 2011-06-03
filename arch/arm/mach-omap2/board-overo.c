@@ -56,6 +56,7 @@
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
+#include "common-board-devices.h"
 
 #define OVERO_GPIO_BT_XGATE	15
 #define OVERO_GPIO_W2W_NRESET	16
@@ -73,30 +74,6 @@
 
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
 	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
-
-#include <linux/spi/ads7846.h>
-
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
-	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
-};
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(OVERO_GPIO_PENDOWN);
-}
-
-static struct ads7846_platform_data ads7846_config = {
-	.x_max			= 0x0fff,
-	.y_max			= 0x0fff,
-	.x_plate_ohms		= 180,
-	.pressure_max		= 255,
-	.debounce_max		= 10,
-	.debounce_tol		= 3,
-	.debounce_rep		= 1,
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-};
 
 /* fixed regulator for ads7846 */
 static struct regulator_consumer_supply ads7846_supply =
@@ -128,14 +105,7 @@ static struct platform_device vads7846_device = {
 
 static void __init overo_ads7846_init(void)
 {
-	if ((gpio_request(OVERO_GPIO_PENDOWN, "ADS7846_PENDOWN") == 0) &&
-	    (gpio_direction_input(OVERO_GPIO_PENDOWN) == 0)) {
-		gpio_export(OVERO_GPIO_PENDOWN, 0);
-	} else {
-		printk(KERN_ERR "could not obtain gpio for ADS7846_PENDOWN\n");
-		return;
-	}
-
+	omap_ads7846_init(1, OVERO_GPIO_PENDOWN, 0, NULL);
 	platform_device_register(&vads7846_device);
 }
 
@@ -146,106 +116,28 @@ static inline void __init overo_ads7846_init(void) { return; }
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 
 #include <linux/smsc911x.h>
+#include <plat/gpmc-smsc911x.h>
 
-static struct resource overo_smsc911x_resources[] = {
-	{
-		.name	= "smsc911x-memory",
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},
-};
-
-static struct resource overo_smsc911x2_resources[] = {
-	{
-		.name	= "smsc911x2-memory",
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},
-};
-
-static struct smsc911x_platform_config overo_smsc911x_config = {
-	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
-	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
-	.flags		= SMSC911X_USE_32BIT ,
-	.phy_interface	= PHY_INTERFACE_MODE_MII,
-};
-
-static struct platform_device overo_smsc911x_device = {
-	.name		= "smsc911x",
+static struct omap_smsc911x_platform_data smsc911x_cfg = {
 	.id		= 0,
-	.num_resources	= ARRAY_SIZE(overo_smsc911x_resources),
-	.resource	= overo_smsc911x_resources,
-	.dev		= {
-		.platform_data = &overo_smsc911x_config,
-	},
+	.cs             = OVERO_SMSC911X_CS,
+	.gpio_irq       = OVERO_SMSC911X_GPIO,
+	.gpio_reset     = -EINVAL,
+	.flags		= SMSC911X_USE_32BIT,
 };
 
-static struct platform_device overo_smsc911x2_device = {
-	.name		= "smsc911x",
+static struct omap_smsc911x_platform_data smsc911x2_cfg = {
 	.id		= 1,
-	.num_resources	= ARRAY_SIZE(overo_smsc911x2_resources),
-	.resource	= overo_smsc911x2_resources,
-	.dev		= {
-		.platform_data = &overo_smsc911x_config,
-	},
+	.cs             = OVERO_SMSC911X2_CS,
+	.gpio_irq       = OVERO_SMSC911X2_GPIO,
+	.gpio_reset     = -EINVAL,
+	.flags		= SMSC911X_USE_32BIT,
 };
 
-static struct platform_device *smsc911x_devices[] = {
-	&overo_smsc911x_device,
-	&overo_smsc911x2_device,
-};
-
-static inline void __init overo_init_smsc911x(void)
+static void __init overo_init_smsc911x(void)
 {
-	unsigned long cs_mem_base, cs_mem_base2;
-
-	/* set up first smsc911x chip */
-
-	if (gpmc_cs_request(OVERO_SMSC911X_CS, SZ_16M, &cs_mem_base) < 0) {
-		printk(KERN_ERR "Failed request for GPMC mem for smsc911x\n");
-		return;
-	}
-
-	overo_smsc911x_resources[0].start = cs_mem_base + 0x0;
-	overo_smsc911x_resources[0].end   = cs_mem_base + 0xff;
-
-	if ((gpio_request(OVERO_SMSC911X_GPIO, "SMSC911X IRQ") == 0) &&
-	    (gpio_direction_input(OVERO_SMSC911X_GPIO) == 0)) {
-		gpio_export(OVERO_SMSC911X_GPIO, 0);
-	} else {
-		printk(KERN_ERR "could not obtain gpio for SMSC911X IRQ\n");
-		return;
-	}
-
-	overo_smsc911x_resources[1].start = OMAP_GPIO_IRQ(OVERO_SMSC911X_GPIO);
-	overo_smsc911x_resources[1].end	  = 0;
-
-	/* set up second smsc911x chip */
-
-	if (gpmc_cs_request(OVERO_SMSC911X2_CS, SZ_16M, &cs_mem_base2) < 0) {
-		printk(KERN_ERR "Failed request for GPMC mem for smsc911x2\n");
-		return;
-	}
-
-	overo_smsc911x2_resources[0].start = cs_mem_base2 + 0x0;
-	overo_smsc911x2_resources[0].end   = cs_mem_base2 + 0xff;
-
-	if ((gpio_request(OVERO_SMSC911X2_GPIO, "SMSC911X2 IRQ") == 0) &&
-	    (gpio_direction_input(OVERO_SMSC911X2_GPIO) == 0)) {
-		gpio_export(OVERO_SMSC911X2_GPIO, 0);
-	} else {
-		printk(KERN_ERR "could not obtain gpio for SMSC911X2 IRQ\n");
-		return;
-	}
-
-	overo_smsc911x2_resources[1].start = OMAP_GPIO_IRQ(OVERO_SMSC911X2_GPIO);
-	overo_smsc911x2_resources[1].end   = 0;
-
-	platform_add_devices(smsc911x_devices, ARRAY_SIZE(smsc911x_devices));
+	gpmc_smsc911x_init(&smsc911x_cfg);
+	gpmc_smsc911x_init(&smsc911x2_cfg);
 }
 
 #else
@@ -259,21 +151,20 @@ static int dvi_enabled;
 #define OVERO_GPIO_LCD_EN 144
 #define OVERO_GPIO_LCD_BL 145
 
+static struct gpio overo_dss_gpios[] __initdata = {
+	{ OVERO_GPIO_LCD_EN, GPIOF_OUT_INIT_HIGH, "OVERO_GPIO_LCD_EN" },
+	{ OVERO_GPIO_LCD_BL, GPIOF_OUT_INIT_HIGH, "OVERO_GPIO_LCD_BL" },
+};
+
 static void __init overo_display_init(void)
 {
-	if ((gpio_request(OVERO_GPIO_LCD_EN, "OVERO_GPIO_LCD_EN") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_LCD_EN, 1) == 0))
-		gpio_export(OVERO_GPIO_LCD_EN, 0);
-	else
-		printk(KERN_ERR "could not obtain gpio for "
-					"OVERO_GPIO_LCD_EN\n");
+	if (gpio_request_array(overo_dss_gpios, ARRAY_SIZE(overo_dss_gpios))) {
+		printk(KERN_ERR "could not obtain DSS control GPIOs\n");
+		return;
+	}
 
-	if ((gpio_request(OVERO_GPIO_LCD_BL, "OVERO_GPIO_LCD_BL") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_LCD_BL, 1) == 0))
-		gpio_export(OVERO_GPIO_LCD_BL, 0);
-	else
-		printk(KERN_ERR "could not obtain gpio for "
-					"OVERO_GPIO_LCD_BL\n");
+	gpio_export(OVERO_GPIO_LCD_EN, 0);
+	gpio_export(OVERO_GPIO_LCD_BL, 0);
 }
 
 static int overo_panel_enable_dvi(struct omap_dss_device *dssdev)
@@ -411,45 +302,6 @@ static struct mtd_partition overo_nand_partitions[] = {
 		.size           = MTDPART_SIZ_FULL,
 	},
 };
-
-static struct omap_nand_platform_data overo_nand_data = {
-	.parts = overo_nand_partitions,
-	.nr_parts = ARRAY_SIZE(overo_nand_partitions),
-	.dma_channel = -1,	/* disable DMA in OMAP NAND driver */
-};
-
-static void __init overo_flash_init(void)
-{
-	u8 cs = 0;
-	u8 nandcs = GPMC_CS_NUM + 1;
-
-	/* find out the chip-select on which NAND exists */
-	while (cs < GPMC_CS_NUM) {
-		u32 ret = 0;
-		ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
-
-		if ((ret & 0xC00) == 0x800) {
-			printk(KERN_INFO "Found NAND on CS%d\n", cs);
-			if (nandcs > GPMC_CS_NUM)
-				nandcs = cs;
-		}
-		cs++;
-	}
-
-	if (nandcs > GPMC_CS_NUM) {
-		printk(KERN_INFO "NAND: Unable to find configuration "
-				 "in GPMC\n ");
-		return;
-	}
-
-	if (nandcs < GPMC_CS_NUM) {
-		overo_nand_data.cs = nandcs;
-
-		printk(KERN_INFO "Registering NAND on CS%d\n", nandcs);
-		if (gpmc_nand_init(&overo_nand_data) < 0)
-			printk(KERN_ERR "Unable to register NAND device\n");
-	}
-}
 
 static struct omap2_hsmmc_info mmc[] = {
 	{
@@ -648,37 +500,15 @@ static struct twl4030_platform_data overo_twldata = {
 	.vpll2		= &overo_vpll2,
 };
 
-static struct i2c_board_info __initdata overo_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("tps65950", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &overo_twldata,
-	},
-};
-
 static int __init overo_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 2600, overo_i2c_boardinfo,
-			ARRAY_SIZE(overo_i2c_boardinfo));
+	omap3_pmic_init("tps65950", &overo_twldata);
 	/* i2c2 pins are used for gpio */
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;
 }
 
 static struct spi_board_info overo_spi_board_info[] __initdata = {
-#if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
-	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
-	{
-		.modalias		= "ads7846",
-		.bus_num		= 1,
-		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &ads7846_mcspi_config,
-		.irq			= OMAP_GPIO_IRQ(OVERO_GPIO_PENDOWN),
-		.platform_data		= &ads7846_config,
-	},
-#endif
 #if defined(CONFIG_PANEL_LGPHILIPS_LB035Q02) || \
 	defined(CONFIG_PANEL_LGPHILIPS_LB035Q02_MODULE)
 	{
@@ -722,20 +552,22 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static struct omap_musb_board_data musb_board_data = {
-	.interface_type		= MUSB_INTERFACE_ULPI,
-	.mode			= MUSB_OTG,
-	.power			= 100,
+static struct gpio overo_bt_gpios[] __initdata = {
+	{ OVERO_GPIO_BT_XGATE,	GPIOF_OUT_INIT_LOW,	"lcd enable"    },
+	{ OVERO_GPIO_BT_NRESET, GPIOF_OUT_INIT_HIGH,	"lcd bl enable" },
 };
 
 static void __init overo_init(void)
 {
+	int ret;
+
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	overo_i2c_init();
 	omap_display_init(&overo_dss_data);
 	omap_serial_init();
-	overo_flash_init();
-	usb_musb_init(&musb_board_data);
+	omap_nand_flash_init(0, overo_nand_partitions,
+			     ARRAY_SIZE(overo_nand_partitions));
+	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
 	overo_spi_init();
 	overo_ads7846_init();
@@ -748,9 +580,9 @@ static void __init overo_init(void)
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
 
-	if ((gpio_request(OVERO_GPIO_W2W_NRESET,
-			  "OVERO_GPIO_W2W_NRESET") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_W2W_NRESET, 1) == 0)) {
+	ret = gpio_request_one(OVERO_GPIO_W2W_NRESET, GPIOF_OUT_INIT_HIGH,
+			       "OVERO_GPIO_W2W_NRESET");
+	if (ret == 0) {
 		gpio_export(OVERO_GPIO_W2W_NRESET, 0);
 		gpio_set_value(OVERO_GPIO_W2W_NRESET, 0);
 		udelay(10);
@@ -760,25 +592,20 @@ static void __init overo_init(void)
 					"OVERO_GPIO_W2W_NRESET\n");
 	}
 
-	if ((gpio_request(OVERO_GPIO_BT_XGATE, "OVERO_GPIO_BT_XGATE") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_BT_XGATE, 0) == 0))
+	ret = gpio_request_array(overo_bt_gpios, ARRAY_SIZE(overo_bt_gpios));
+	if (ret) {
+		pr_err("%s: could not obtain BT gpios\n", __func__);
+	} else {
 		gpio_export(OVERO_GPIO_BT_XGATE, 0);
-	else
-		printk(KERN_ERR "could not obtain gpio for OVERO_GPIO_BT_XGATE\n");
-
-	if ((gpio_request(OVERO_GPIO_BT_NRESET, "OVERO_GPIO_BT_NRESET") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_BT_NRESET, 1) == 0)) {
 		gpio_export(OVERO_GPIO_BT_NRESET, 0);
 		gpio_set_value(OVERO_GPIO_BT_NRESET, 0);
 		mdelay(6);
 		gpio_set_value(OVERO_GPIO_BT_NRESET, 1);
-	} else {
-		printk(KERN_ERR "could not obtain gpio for "
-					"OVERO_GPIO_BT_NRESET\n");
 	}
 
-	if ((gpio_request(OVERO_GPIO_USBH_CPEN, "OVERO_GPIO_USBH_CPEN") == 0) &&
-	    (gpio_direction_output(OVERO_GPIO_USBH_CPEN, 1) == 0))
+	ret = gpio_request_one(OVERO_GPIO_USBH_CPEN, GPIOF_OUT_INIT_HIGH,
+			       "OVERO_GPIO_USBH_CPEN");
+	if (ret == 0)
 		gpio_export(OVERO_GPIO_USBH_CPEN, 0);
 	else
 		printk(KERN_ERR "could not obtain gpio for "

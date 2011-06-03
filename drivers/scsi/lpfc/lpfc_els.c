@@ -250,7 +250,7 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 		icmd->un.elsreq64.myID = vport->fc_myDID;
 
 		/* For ELS_REQUEST64_CR, use the VPI by default */
-		icmd->ulpContext = vport->vpi + phba->vpi_base;
+		icmd->ulpContext = phba->vpi_ids[vport->vpi];
 		icmd->ulpCt_h = 0;
 		/* The CT field must be 0=INVALID_RPI for the ECHO cmd */
 		if (elscmd == ELS_CMD_ECHO)
@@ -454,6 +454,7 @@ lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 		rc = -ENOMEM;
 		goto fail_free_dmabuf;
 	}
+
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq) {
 		rc = -ENOMEM;
@@ -6585,6 +6586,26 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 {
 	struct lpfc_vport *vport;
 	unsigned long flags;
+	int i;
+
+	/* The physical ports are always vpi 0 - translate is unnecessary. */
+	if (vpi > 0) {
+		/*
+		 * Translate the physical vpi to the logical vpi.  The
+		 * vport stores the logical vpi.
+		 */
+		for (i = 0; i < phba->max_vpi; i++) {
+			if (vpi == phba->vpi_ids[i])
+				break;
+		}
+
+		if (i >= phba->max_vpi) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
+					 "2936 Could not find Vport mapped "
+					 "to vpi %d\n", vpi);
+			return NULL;
+		}
+	}
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	list_for_each_entry(vport, &phba->port_list, listentry) {
@@ -6641,8 +6662,9 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			vport = phba->pport;
 		else
 			vport = lpfc_find_vport_by_vpid(phba,
-				icmd->unsli3.rcvsli3.vpi - phba->vpi_base);
+						icmd->unsli3.rcvsli3.vpi);
 	}
+
 	/* If there are no BDEs associated
 	 * with this IOCB, there is nothing to do.
 	 */
@@ -7222,7 +7244,7 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		elsiocb->iocb.ulpCt_h = (SLI4_CT_VPI >> 1) & 1;
 		elsiocb->iocb.ulpCt_l = SLI4_CT_VPI & 1 ;
 		/* Set the ulpContext to the vpi */
-		elsiocb->iocb.ulpContext = vport->vpi + phba->vpi_base;
+		elsiocb->iocb.ulpContext = phba->vpi_ids[vport->vpi];
 	} else {
 		/* For FDISC, Let FDISC rsp set the NPortID for this VPI */
 		icmd->ulpCt_h = 1;

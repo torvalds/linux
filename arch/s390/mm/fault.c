@@ -34,7 +34,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
-#include <asm/s390_ext.h>
+#include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/compat.h>
 #include "../kernel/entry.h"
@@ -245,9 +245,12 @@ static noinline void do_fault_error(struct pt_regs *regs, long int_code,
 		do_no_context(regs, int_code, trans_exc_code);
 		break;
 	default: /* fault & VM_FAULT_ERROR */
-		if (fault & VM_FAULT_OOM)
-			pagefault_out_of_memory();
-		else if (fault & VM_FAULT_SIGBUS) {
+		if (fault & VM_FAULT_OOM) {
+			if (!(regs->psw.mask & PSW_MASK_PSTATE))
+				do_no_context(regs, int_code, trans_exc_code);
+			else
+				pagefault_out_of_memory();
+		} else if (fault & VM_FAULT_SIGBUS) {
 			/* Kernel mode? Handle exceptions or die */
 			if (!(regs->psw.mask & PSW_MASK_PSTATE))
 				do_no_context(regs, int_code, trans_exc_code);
@@ -277,7 +280,8 @@ static inline int do_exception(struct pt_regs *regs, int access,
 	struct mm_struct *mm;
 	struct vm_area_struct *vma;
 	unsigned long address;
-	int fault, write;
+	unsigned int flags;
+	int fault;
 
 	if (notify_page_fault(regs))
 		return 0;
@@ -296,6 +300,10 @@ static inline int do_exception(struct pt_regs *regs, int access,
 
 	address = trans_exc_code & __FAIL_ADDR_MASK;
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, 0, regs, address);
+	flags = FAULT_FLAG_ALLOW_RETRY;
+	if (access == VM_WRITE || (trans_exc_code & store_indication) == 0x400)
+		flags |= FAULT_FLAG_WRITE;
+retry:
 	down_read(&mm->mmap_sem);
 
 	fault = VM_FAULT_BADMAP;
@@ -325,21 +333,31 @@ static inline int do_exception(struct pt_regs *regs, int access,
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	write = (access == VM_WRITE ||
-		 (trans_exc_code & store_indication) == 0x400) ?
-		FAULT_FLAG_WRITE : 0;
-	fault = handle_mm_fault(mm, vma, address, write);
+	fault = handle_mm_fault(mm, vma, address, flags);
 	if (unlikely(fault & VM_FAULT_ERROR))
 		goto out_up;
 
-	if (fault & VM_FAULT_MAJOR) {
-		tsk->maj_flt++;
-		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
-				     regs, address);
-	} else {
-		tsk->min_flt++;
-		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
-				     regs, address);
+	/*
+	 * Major/minor page fault accounting is only done on the
+	 * initial attempt. If we go through a retry, it is extremely
+	 * likely that the page will be found in page cache at that point.
+	 */
+	if (flags & FAULT_FLAG_ALLOW_RETRY) {
+		if (fault & VM_FAULT_MAJOR) {
+			tsk->maj_flt++;
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, 0,
+				      regs, address);
+		} else {
+			tsk->min_flt++;
+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, 0,
+				      regs, address);
+		}
+		if (fault & VM_FAULT_RETRY) {
+			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
+			 * of starvation. */
+			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			goto retry;
+		}
 	}
 	/*
 	 * The instruction that caused the program check will
@@ -429,10 +447,9 @@ int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
 	access = write ? VM_WRITE : VM_READ;
 	fault = do_exception(&regs, access, uaddr | 2);
 	if (unlikely(fault)) {
-		if (fault & VM_FAULT_OOM) {
-			pagefault_out_of_memory();
-			fault = 0;
-		} else if (fault & VM_FAULT_SIGBUS)
+		if (fault & VM_FAULT_OOM)
+			return -EFAULT;
+		else if (fault & VM_FAULT_SIGBUS)
 			do_sigbus(&regs, pgm_int_code, uaddr);
 	}
 	return fault ? -EFAULT : 0;
@@ -485,7 +502,6 @@ int pfault_init(void)
 		"2:\n"
 		EX_TABLE(0b,1b)
 		: "=d" (rc) : "a" (&refbk), "m" (refbk) : "cc");
-        __ctl_set_bit(0, 9);
         return rc;
 }
 
@@ -500,7 +516,6 @@ void pfault_fini(void)
 
 	if (!MACHINE_IS_VM || pfault_disable)
 		return;
-	__ctl_clear_bit(0,9);
 	asm volatile(
 		"	diag	%0,0,0x258\n"
 		"0:\n"
@@ -615,6 +630,7 @@ static int __init pfault_irq_init(void)
 	rc = pfault_init() == 0 ? 0 : -EOPNOTSUPP;
 	if (rc)
 		goto out_pfault;
+	service_subclass_irq_register();
 	hotcpu_notifier(pfault_cpu_notify, 0);
 	return 0;
 

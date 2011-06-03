@@ -47,7 +47,7 @@ config FS_POSIX_ACL
 	def_bool n
 
 config EXPORTFS
-	bool
+	tristate
 
 config FILE_LOCKING
 	bool "Enable POSIX file locking API" if EXPERT

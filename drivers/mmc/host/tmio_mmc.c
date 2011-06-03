@@ -69,7 +69,7 @@ static int __devinit tmio_mmc_probe(struct platform_device *pdev)
 	if (pdev->num_resources != 2)
 		goto out;
 
-	pdata = mfd_get_data(pdev);
+	pdata = pdev->dev.platform_data;
 	if (!pdata || !pdata->hclk)
 		goto out;
 

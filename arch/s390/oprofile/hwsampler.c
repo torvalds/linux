@@ -19,7 +19,7 @@
 #include <linux/oprofile.h>
 
 #include <asm/lowcore.h>
-#include <asm/s390_ext.h>
+#include <asm/irq.h>
 
 #include "hwsampler.h"
 
@@ -580,7 +580,7 @@ static int hws_cpu_callback(struct notifier_block *nfb,
 {
 	/* We do not have sampler space available for all possible CPUs.
 	   All CPUs should be online when hw sampling is activated. */
-	return NOTIFY_BAD;
+	return (hws_state <= HWS_DEALLOCATED) ? NOTIFY_OK : NOTIFY_BAD;
 }
 
 static struct notifier_block hws_cpu_notifier = {

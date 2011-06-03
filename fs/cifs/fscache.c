@@ -40,7 +40,7 @@ void cifs_fscache_release_client_cookie(struct TCP_Server_Info *server)
 	server->fscache = NULL;
 }
 
-void cifs_fscache_get_super_cookie(struct cifsTconInfo *tcon)
+void cifs_fscache_get_super_cookie(struct cifs_tcon *tcon)
 {
 	struct TCP_Server_Info *server = tcon->ses->server;
 
@@ -51,7 +51,7 @@ void cifs_fscache_get_super_cookie(struct cifsTconInfo *tcon)
 				server->fscache, tcon->fscache);
 }
 
-void cifs_fscache_release_super_cookie(struct cifsTconInfo *tcon)
+void cifs_fscache_release_super_cookie(struct cifs_tcon *tcon)
 {
 	cFYI(1, "CIFS: releasing superblock cookie (0x%p)", tcon->fscache);
 	fscache_relinquish_cookie(tcon->fscache, 0);
@@ -62,7 +62,7 @@ static void cifs_fscache_enable_inode_cookie(struct inode *inode)
 {
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct cifsTconInfo *tcon = cifs_sb_master_tcon(cifs_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 
 	if (cifsi->fscache)
 		return;

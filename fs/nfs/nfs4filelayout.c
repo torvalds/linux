@@ -421,6 +421,7 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 			struct nfs4_deviceid *id,
 			gfp_t gfp_flags)
 {
+	struct nfs4_deviceid_node *d;
 	struct nfs4_file_layout_dsaddr *dsaddr;
 	int status = -EINVAL;
 	struct nfs_server *nfss = NFS_SERVER(lo->plh_inode);
@@ -428,7 +429,7 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	dprintk("--> %s\n", __func__);
 
 	if (fl->pattern_offset > lgr->range.offset) {
-		dprintk("%s pattern_offset %lld to large\n",
+		dprintk("%s pattern_offset %lld too large\n",
 				__func__, fl->pattern_offset);
 		goto out;
 	}
@@ -440,12 +441,14 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	}
 
 	/* find and reference the deviceid */
-	dsaddr = nfs4_fl_find_get_deviceid(id);
-	if (dsaddr == NULL) {
+	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode)->pnfs_curr_ld,
+				   NFS_SERVER(lo->plh_inode)->nfs_client, id);
+	if (d == NULL) {
 		dsaddr = get_device_info(lo->plh_inode, id, gfp_flags);
 		if (dsaddr == NULL)
 			goto out;
-	}
+	} else
+		dsaddr = container_of(d, struct nfs4_file_layout_dsaddr, id_node);
 	fl->dsaddr = dsaddr;
 
 	if (fl->first_stripe_index < 0 ||
@@ -507,12 +510,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 			 gfp_t gfp_flags)
 {
 	struct xdr_stream stream;
-	struct xdr_buf buf = {
-		.pages =  lgr->layoutp->pages,
-		.page_len =  lgr->layoutp->len,
-		.buflen =  lgr->layoutp->len,
-		.len = lgr->layoutp->len,
-	};
+	struct xdr_buf buf;
 	struct page *scratch;
 	__be32 *p;
 	uint32_t nfl_util;
@@ -524,7 +522,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 	if (!scratch)
 		return -ENOMEM;
 
-	xdr_init_decode(&stream, &buf, NULL);
+	xdr_init_decode_pages(&stream, &buf, lgr->layoutp->pages, lgr->layoutp->len);
 	xdr_set_scratch_buffer(&stream, page_address(scratch), PAGE_SIZE);
 
 	/* 20 = ufl_util (4), first_stripe_index (4), pattern_offset (8),
@@ -535,7 +533,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 
 	memcpy(id, p, sizeof(*id));
 	p += XDR_QUADLEN(NFS4_DEVICEID4_SIZE);
-	print_deviceid(id);
+	nfs4_print_deviceid(id);
 
 	nfl_util = be32_to_cpup(p++);
 	if (nfl_util & NFL4_UFLG_COMMIT_THRU_MDS)
@@ -653,15 +651,18 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
 /*
  * filelayout_pg_test(). Called by nfs_can_coalesce_requests()
  *
- * return 1 :  coalesce page
- * return 0 :  don't coalesce page
+ * return true  : coalesce page
+ * return false : don't coalesce page
  */
-int
+bool
 filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		   struct nfs_page *req)
 {
 	u64 p_stripe, r_stripe;
 	u32 stripe_unit;
+
+	if (!pnfs_generic_pg_test(pgio, prev, req))
+		return 0;
 
 	if (!pgio->pg_lseg)
 		return 1;
@@ -860,6 +861,12 @@ filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 	return -ENOMEM;
 }
 
+static void
+filelayout_free_deveiceid_node(struct nfs4_deviceid_node *d)
+{
+	nfs4_fl_free_deviceid(container_of(d, struct nfs4_file_layout_dsaddr, id_node));
+}
+
 static struct pnfs_layoutdriver_type filelayout_type = {
 	.id			= LAYOUT_NFSV4_1_FILES,
 	.name			= "LAYOUT_NFSV4_1_FILES",
@@ -872,6 +879,7 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.commit_pagelist	= filelayout_commit_pagelist,
 	.read_pagelist		= filelayout_read_pagelist,
 	.write_pagelist		= filelayout_write_pagelist,
+	.free_deviceid_node	= filelayout_free_deveiceid_node,
 };
 
 static int __init nfs4filelayout_init(void)

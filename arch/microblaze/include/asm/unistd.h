@@ -390,8 +390,9 @@
 #define __NR_open_by_handle_at	372
 #define __NR_clock_adjtime	373
 #define __NR_syncfs		374
+#define __NR_setns		375
 
-#define __NR_syscalls		375
+#define __NR_syscalls		376
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__

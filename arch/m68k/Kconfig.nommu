@@ -2,10 +2,6 @@ config FPU
 	bool
 	default n
 
-config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
-
 config GENERIC_GPIO
 	bool
 	default n

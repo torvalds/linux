@@ -102,9 +102,6 @@ struct pt_regs {
 /* user_mode returns true if only one bit is set in IPEND, other than the
    master interrupt enable.  */
 #define user_mode(regs) (!(((regs)->ipend & ~0x10) & (((regs)->ipend & ~0x10) - 1)))
-#define instruction_pointer(regs) ((regs)->pc)
-#define user_stack_pointer(regs)  ((regs)->usp)
-#define profile_pc(regs) instruction_pointer(regs)
 extern void show_regs(struct pt_regs *);
 
 #define arch_has_single_step()	(1)
@@ -127,6 +124,8 @@ extern int is_user_addr_valid(struct task_struct *child,
 	(struct pt_regs *) \
 	    ((unsigned long)task_stack_page(task) + \
 	     (THREAD_SIZE - sizeof(struct pt_regs)))
+
+#include <asm-generic/ptrace.h>
 
 #endif  /*  __KERNEL__  */
 

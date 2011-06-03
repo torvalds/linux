@@ -508,6 +508,7 @@ int ioat2_alloc_chan_resources(struct dma_chan *c)
 	struct ioat_ring_ent **ring;
 	u64 status;
 	int order;
+	int i = 0;
 
 	/* have we already been set up? */
 	if (ioat->ring)
@@ -548,8 +549,11 @@ int ioat2_alloc_chan_resources(struct dma_chan *c)
 	ioat2_start_null_desc(ioat);
 
 	/* check that we got off the ground */
-	udelay(5);
-	status = ioat_chansts(chan);
+	do {
+		udelay(1);
+		status = ioat_chansts(chan);
+	} while (i++ < 20 && !is_ioat_active(status) && !is_ioat_idle(status));
+
 	if (is_ioat_active(status) || is_ioat_idle(status)) {
 		set_bit(IOAT_RUN, &chan->state);
 		return 1 << ioat->alloc_order;
