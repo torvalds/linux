@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/dvb/frontend.h>
 #include <linux/i2c.h>
+#include <linux/mutex.h>
 #include <asm/unaligned.h>
 
 #include "dvb_frontend.h"
@@ -90,6 +91,7 @@ struct xc4000_priv {
 	struct firmware_properties cur_fw;
 	__u16	hwmodel;
 	__u16	hwvers;
+	struct mutex	lock;
 };
 
 /* Misc Defines */
@@ -1145,9 +1147,11 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
 	unsigned int type;
-	int	ret;
+	int	ret = -EREMOTEIO;
 
 	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, params->frequency);
+
+	mutex_lock(&priv->lock);
 
 	if (fe->ops.info.type == FE_ATSC) {
 		dprintk(1, "%s() ATSC\n", __func__);
@@ -1172,7 +1176,8 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 			type = DTV6;
 			break;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
+			goto fail;
 		}
 	} else if (fe->ops.info.type == FE_OFDM) {
 		dprintk(1, "%s() OFDM\n", __func__);
@@ -1208,28 +1213,29 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 			break;
 		default:
 			printk(KERN_ERR "xc4000 bandwidth not set!\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto fail;
 		}
 		priv->rf_mode = XC_RF_MODE_AIR;
 	} else {
 		printk(KERN_ERR "xc4000 modulation type not supported!\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	dprintk(1, "%s() frequency=%d (compensated)\n",
 		__func__, priv->freq_hz);
 
 	/* Make sure the correct firmware type is loaded */
-	if (check_firmware(fe, type, 0, priv->if_khz) != XC_RESULT_SUCCESS) {
-		return -EREMOTEIO;
-	}
+	if (check_firmware(fe, type, 0, priv->if_khz) != XC_RESULT_SUCCESS)
+		goto fail;
 
 	ret = xc_SetSignalSource(priv, priv->rf_mode);
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR
-			"xc4000: xc_SetSignalSource(%d) failed\n",
-			priv->rf_mode);
-		return -EREMOTEIO;
+		       "xc4000: xc_SetSignalSource(%d) failed\n",
+		       priv->rf_mode);
+		goto fail;
 	}
 
 	ret = xc_SetTVStandard(priv,
@@ -1237,32 +1243,31 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 		XC4000_Standard[priv->video_standard].AudioMode);
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc4000: xc_SetTVStandard failed\n");
-		return -EREMOTEIO;
+		goto fail;
 	}
-#ifdef DJH_DEBUG
-	ret = xc_set_IF_frequency(priv, priv->if_khz);
-	if (ret != XC_RESULT_SUCCESS) {
-		printk(KERN_ERR "xc4000: xc_Set_IF_frequency(%d) failed\n",
-		       priv->if_khz);
-		return -EIO;
-	}
-#endif
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_DIGITAL);
 
 	if (debug)
 		xc_debug_dump(priv);
 
-	return 0;
+	ret = 0;
+
+fail:
+	mutex_unlock(&priv->lock);
+
+	return ret;
 }
 
 static int xc4000_set_analog_params(struct dvb_frontend *fe,
 	struct analog_parameters *params)
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
-	int	ret;
+	int	ret = -EREMOTEIO;
 
 	dprintk(1, "%s() frequency=%d (in units of 62.5khz)\n",
 		__func__, params->frequency);
+
+	mutex_lock(&priv->lock);
 
 	/* Fix me: it could be air. */
 	priv->rf_mode = params->mode;
@@ -1318,16 +1323,15 @@ static int xc4000_set_analog_params(struct dvb_frontend *fe,
 tune_channel:
 
 	/* FIXME - firmware type not being set properly */
-	if (check_firmware(fe, DTV8, 0, priv->if_khz) != XC_RESULT_SUCCESS) {
-		return -EREMOTEIO;
-	}
+	if (check_firmware(fe, DTV8, 0, priv->if_khz) != XC_RESULT_SUCCESS)
+		goto fail;
 
 	ret = xc_SetSignalSource(priv, priv->rf_mode);
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR
-			"xc4000: xc_SetSignalSource(%d) failed\n",
-			priv->rf_mode);
-		return -EREMOTEIO;
+		       "xc4000: xc_SetSignalSource(%d) failed\n",
+		       priv->rf_mode);
+		goto fail;
 	}
 
 	ret = xc_SetTVStandard(priv,
@@ -1335,7 +1339,7 @@ tune_channel:
 		XC4000_Standard[priv->video_standard].AudioMode);
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc4000: xc_SetTVStandard failed\n");
-		return -EREMOTEIO;
+		goto fail;
 	}
 
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_ANALOG);
@@ -1343,7 +1347,12 @@ tune_channel:
 	if (debug)
 		xc_debug_dump(priv);
 
-	return 0;
+	ret = 0;
+
+fail:
+	mutex_unlock(&priv->lock);
+
+	return ret;
 }
 
 static int xc4000_get_frequency(struct dvb_frontend *fe, u32 *freq)
@@ -1368,7 +1377,11 @@ static int xc4000_get_status(struct dvb_frontend *fe, u32 *status)
 	struct xc4000_priv *priv = fe->tuner_priv;
 	u16	lock_status = 0;
 
+	mutex_lock(&priv->lock);
+
 	xc_get_lock_status(priv, &lock_status);
+
+	mutex_unlock(&priv->lock);
 
 	dprintk(1, "%s() lock_status = 0x%08x\n", __func__, lock_status);
 
@@ -1386,9 +1399,13 @@ static int xc4000_sleep(struct dvb_frontend *fe)
 static int xc4000_init(struct dvb_frontend *fe)
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
+	int	ret;
 	dprintk(1, "%s()\n", __func__);
 
-	if (check_firmware(fe, DTV8, 0, priv->if_khz) != XC_RESULT_SUCCESS) {
+	mutex_lock(&priv->lock);
+	ret = check_firmware(fe, DTV8, 0, priv->if_khz);
+	mutex_unlock(&priv->lock);
+	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc4000: Unable to initialise tuner\n");
 		return -EREMOTEIO;
 	}
@@ -1460,6 +1477,7 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	case 1:
 		/* new tuner instance */
 		priv->bandwidth = BANDWIDTH_6_MHZ;
+		mutex_init(&priv->lock);
 		fe->tuner_priv = priv;
 		break;
 	default:
@@ -1511,7 +1529,9 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 
 	/* FIXME: For now, load the firmware at startup.  We will remove this
 	   before the code goes to production... */
+	mutex_lock(&priv->lock);
 	check_firmware(fe, DTV8, 0, priv->if_khz);
+	mutex_unlock(&priv->lock);
 
 	return fe;
 fail:
