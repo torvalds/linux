@@ -287,6 +287,8 @@ struct l2cap_chan {
 
 	struct l2cap_conn	*conn;
 
+	__u8		state;
+
 	__le16		psm;
 	__u16		dcid;
 	__u16		scid;
@@ -365,6 +367,7 @@ struct l2cap_ops {
 	struct l2cap_chan	*(*new_connection) (void *data);
 	int			(*recv) (void *data, struct sk_buff *skb);
 	void			(*close) (void *data);
+	void			(*state_change) (void *data, int state);
 };
 
 struct l2cap_conn {
