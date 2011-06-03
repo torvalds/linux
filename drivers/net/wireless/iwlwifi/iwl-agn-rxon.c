@@ -800,6 +800,13 @@ void iwlagn_post_scan(struct iwl_priv *priv)
 	struct iwl_rxon_context *ctx;
 
 	/*
+	 * We do not commit power settings while scan is pending,
+	 * do it now if the settings changed.
+	 */
+	iwl_power_set_mode(priv, &priv->power_data.sleep_cmd_next, false);
+	iwl_set_tx_power(priv, priv->tx_power_next, false);
+
+	/*
 	 * Since setting the RXON may have been deferred while
 	 * performing the scan, fire one off if needed
 	 */
