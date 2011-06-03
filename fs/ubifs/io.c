@@ -523,14 +523,10 @@ int ubifs_wbuf_sync_nolock(struct ubifs_wbuf *wbuf)
 	dirt = sync_len - wbuf->used;
 	if (dirt)
 		ubifs_pad(c, wbuf->buf + wbuf->used, dirt);
-	err = ubi_leb_write(c->ubi, wbuf->lnum, wbuf->buf, wbuf->offs,
-			    sync_len, wbuf->dtype);
-	if (err) {
-		ubifs_err("cannot write %d bytes to LEB %d:%d",
-			  sync_len, wbuf->lnum, wbuf->offs);
-		dbg_dump_stack();
+	err = ubifs_leb_write(c, wbuf->lnum, wbuf->buf, wbuf->offs, sync_len,
+			      wbuf->dtype);
+	if (err)
 		return err;
-	}
 
 	spin_lock(&wbuf->lock);
 	wbuf->offs += sync_len;
@@ -722,9 +718,9 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		if (aligned_len == wbuf->avail) {
 			dbg_io("flush jhead %s wbuf to LEB %d:%d",
 			       dbg_jhead(wbuf->jhead), wbuf->lnum, wbuf->offs);
-			err = ubi_leb_write(c->ubi, wbuf->lnum, wbuf->buf,
-					    wbuf->offs, wbuf->size,
-					    wbuf->dtype);
+			err = ubifs_leb_write(c, wbuf->lnum, wbuf->buf,
+					      wbuf->offs, wbuf->size,
+					      wbuf->dtype);
 			if (err)
 				goto out;
 
@@ -759,8 +755,8 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		dbg_io("flush jhead %s wbuf to LEB %d:%d",
 		       dbg_jhead(wbuf->jhead), wbuf->lnum, wbuf->offs);
 		memcpy(wbuf->buf + wbuf->used, buf, wbuf->avail);
-		err = ubi_leb_write(c->ubi, wbuf->lnum, wbuf->buf, wbuf->offs,
-				    wbuf->size, wbuf->dtype);
+		err = ubifs_leb_write(c, wbuf->lnum, wbuf->buf, wbuf->offs,
+				      wbuf->size, wbuf->dtype);
 		if (err)
 			goto out;
 
@@ -778,8 +774,8 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		 */
 		dbg_io("write %d bytes to LEB %d:%d",
 		       wbuf->size, wbuf->lnum, wbuf->offs);
-		err = ubi_leb_write(c->ubi, wbuf->lnum, buf, wbuf->offs,
-				    wbuf->size, wbuf->dtype);
+		err = ubifs_leb_write(c, wbuf->lnum, buf, wbuf->offs,
+				      wbuf->size, wbuf->dtype);
 		if (err)
 			goto out;
 
@@ -800,8 +796,8 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		n <<= c->max_write_shift;
 		dbg_io("write %d bytes to LEB %d:%d", n, wbuf->lnum,
 		       wbuf->offs);
-		err = ubi_leb_write(c->ubi, wbuf->lnum, buf + written,
-				    wbuf->offs, n, wbuf->dtype);
+		err = ubifs_leb_write(c, wbuf->lnum, buf + written,
+				      wbuf->offs, n, wbuf->dtype);
 		if (err)
 			goto out;
 		wbuf->offs += n;
@@ -883,13 +879,9 @@ int ubifs_write_node(struct ubifs_info *c, void *buf, int len, int lnum,
 		return -EROFS;
 
 	ubifs_prepare_node(c, buf, len, 1);
-	err = ubi_leb_write(c->ubi, lnum, buf, offs, buf_len, dtype);
-	if (err) {
-		ubifs_err("cannot write %d bytes to LEB %d:%d, error %d",
-			  buf_len, lnum, offs, err);
+	err = ubifs_leb_write(c, lnum, buf, offs, buf_len, dtype);
+	if (err)
 		dbg_dump_node(c, buf);
-		dbg_dump_stack();
-	}
 
 	return err;
 }
