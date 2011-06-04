@@ -1543,7 +1543,7 @@ static void iwl4965_temperature_calib(struct iwl_priv *priv)
 	s32 temp;
 
 	temp = iwl4965_hw_get_temperature(priv);
-	if (temp < 0)
+	if (IWL_TX_POWER_TEMPERATURE_OUT_OF_RANGE(temp))
 		return;
 
 	if (priv->temperature != temp) {
