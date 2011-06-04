@@ -1,21 +1,21 @@
 /****************************************************************************
-*
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
-*
+*  
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
+*  
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*
+*  
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public License for more details.
-*
+*  
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*
+*  
 *****************************************************************************/
 
 
@@ -75,9 +75,9 @@ _Link(
 
 static gceSTATUS
 _AddFree(
-	IN gckMMU Mmu,
-	IN gctUINT32 Index,
-	IN gctUINT32 Node,
+	IN gckMMU Mmu, 
+	IN gctUINT32 Index, 
+	IN gctUINT32 Node, 
 	IN gctUINT32 Count
 	)
 {
@@ -201,7 +201,7 @@ OnError:
 **		gckMMU * Mmu
 **			Pointer to a variable that receives the gckMMU object pointer.
 */
-gceSTATUS
+gceSTATUS 
 gckMMU_Construct(
 	IN gckKERNEL Kernel,
 	IN gctSIZE_T MmuSize,
@@ -213,7 +213,7 @@ gckMMU_Construct(
 	gceSTATUS status;
 	gckMMU mmu = gcvNULL;
 	gctUINT32_PTR pageTable;
-
+	
 	gcmkHEADER_ARG("Kernel=0x%x MmuSize=%lu", Kernel, MmuSize);
 
 	/* Verify the arguments. */
@@ -290,7 +290,7 @@ OnError:
 		{
 			/* Free the page table. */
 			gcmkVERIFY_OK(
-				gckOS_FreeContiguous(os,
+				gckOS_FreeContiguous(os, 
 									 mmu->pageTablePhysical,
 									 (gctPOINTER) mmu->pageTableLogical,
 									 mmu->pageTableSize));
@@ -303,7 +303,7 @@ OnError:
 				gckOS_DeleteMutex(os, mmu->pageTableMutex));
 		}
 
-#ifdef __QNXNTO__
+#ifdef __QNXNTO__		
 		if (mmu->nodeMutex != gcvNULL)
 		{
 			/* Delete the mutex. */
@@ -339,7 +339,7 @@ OnError:
 **
 **		Nothing.
 */
-gceSTATUS
+gceSTATUS 
 gckMMU_Destroy(
 	IN gckMMU Mmu
 	)
@@ -349,7 +349,7 @@ gckMMU_Destroy(
 #endif
 
 	gcmkHEADER_ARG("Mmu=0x%x", Mmu);
-
+	
 	/* Verify the arguments. */
 	gcmkVERIFY_OBJECT(Mmu, gcvOBJ_MMU);
 
@@ -425,7 +425,7 @@ gckMMU_AllocatePages(
 	gctUINT32_PTR pageTable;
 	gctBOOL gotIt;
 	gctUINT32 address;
-
+	
 	gcmkHEADER_ARG("Mmu=0x%x PageCount=%lu", Mmu, PageCount);
 
 	/* Verify the arguments. */
@@ -594,7 +594,7 @@ OnError:
 **
 **		Nothing.
 */
-gceSTATUS
+gceSTATUS 
 gckMMU_FreePages(
 	IN gckMMU Mmu,
 	IN gctPOINTER PageTable,
@@ -602,7 +602,7 @@ gckMMU_FreePages(
 	)
 {
 	gctUINT32_PTR pageTable;
-
+	
 	gcmkHEADER_ARG("Mmu=0x%x PageTable=0x%x PageCount=%lu",
 				   Mmu, PageTable, PageCount);
 
@@ -628,7 +628,7 @@ gckMMU_FreePages(
 
 	/* We have free nodes. */
 	Mmu->freeNodes = gcvTRUE;
-
+	
 	/* Success. */
 	gcmkFOOTER_NO();
 	return gcvSTATUS_OK;
@@ -759,170 +759,4 @@ OnError:
 /******************************************************************************
 ****************************** T E S T   C O D E ******************************
 ******************************************************************************/
-
-#if defined gcdHAL_TEST
-
-#include <stdlib.h>
-#define gcmRANDOM(n) (rand() % n)
-
-typedef struct
-{
-	gctSIZE_T pageCount;
-	gctUINT32_PTR pageTable;
-}
-gcsMMU_TEST;
-
-gceSTATUS
-gckMMU_Test(
-	IN gckMMU Mmu,
-	IN gctSIZE_T Vectors,
-	IN gctINT MaxSize
-	)
-{
-	const gctINT nodeCount = MaxSize / 4;
-	gcsMMU_TEST * nodes = gcvNULL;
-	gceSTATUS status, failure = gcvSTATUS_OK;
-	gctSIZE_T i, count;
-	gctUINT32_PTR pageTable;
-	gctINT index;
-
-	/* Allocate the node array. */
-	gcmkONERROR(
-		gckOS_Allocate(Mmu->os,
-					   nodeCount * gcmSIZEOF(gcsMMU_TEST),
-					   (gctPOINTER *) &nodes));
-
-	/* Mark all nodes as free. */
-	gcmkONERROR(
-		gckOS_ZeroMemory(nodes, nodeCount * gcmSIZEOF(gcsMMU_TEST)));
-
-	/* Loop through all vectors. */
-	while (Vectors-- > 0)
-	{
-		/* Get a random index. */
-		index = gcmRANDOM(nodeCount);
-
-		/* Test if we need to allocate pages. */
-		if (nodes[index].pageCount == 0)
-		{
-			/* Generate a random page count. */
-			do
-			{
-				count = gcmRANDOM(MaxSize);
-			}
-			while (count == 0);
-
-			/* Allocate pages. */
-			status = gckMMU_AllocatePages(Mmu,
-										  count,
-										  (gctPOINTER *) &pageTable,
-										  gcvNULL);
-
-			if (gcmIS_SUCCESS(status))
-			{
-				/* Mark node as allocated. */
-				nodes[index].pageCount = count;
-				nodes[index].pageTable = pageTable;
-
-				/* Put signature in the page table. */
-				for (i = 0; i < count; ++i)
-				{
-					pageTable[i] = (index << 8) | gcvMMU_USED;
-				}
-			}
-			else
-			{
-				gcmkTRACE(gcvLEVEL_WARNING,
-						 "gckMMU_Test: Failed to allocate %u pages",
-						 count);
-			}
-		}
-		else
-		{
-			/* Verify the page table. */
-			pageTable = nodes[index].pageTable;
-			for (i = 0; i < nodes[index].pageCount; ++i)
-			{
-				if (pageTable[i] != ((index << 8) | gcvMMU_USED))
-				{
-					gcmkFATAL("gckMMU_Test: Corruption detected at page %u",
-							 index);
-
-					failure = gcvSTATUS_HEAP_CORRUPTED;
-				}
-			}
-
-			/* Free the pages. */
-			status = gckMMU_FreePages(Mmu, pageTable, nodes[index].pageCount);
-
-			if (gcmIS_ERROR(status))
-			{
-				gcmkFATAL("gckMMU_Test: Cannot free %u pages at 0x%x (index=%u)",
-						 nodes[index].pageCount, pageTable, index);
-
-				failure = status;
-			}
-
-			/* Mark the node as free. */
-			nodes[index].pageCount = 0;
-		}
-	}
-
-	/* Walk the entire array of nodes. */
-	for (index = 0; index < nodeCount; ++index)
-	{
-		/* Test if we need to free pages. */
-		if (nodes[index].pageCount != 0)
-		{
-			/* Verify the page table. */
-			pageTable = nodes[index].pageTable;
-			for (i = 0; i < nodes[index].pageCount; ++i)
-			{
-				if (pageTable[i] != ((index << 8) | gcvMMU_USED))
-				{
-					gcmkFATAL("gckMMU_Test: Corruption detected at page %u",
-							 index);
-
-					failure = gcvSTATUS_HEAP_CORRUPTED;
-				}
-			}
-
-			/* Free the pages. */
-			status = gckMMU_FreePages(Mmu, pageTable, nodes[index].pageCount);
-
-			if (gcmIS_ERROR(status))
-			{
-				gcmkFATAL("gckMMU_Test: Cannot free %u pages at 0x%x (index=%u)",
-						 nodes[index].pageCount, pageTable, index);
-
-				failure = status;
-			}
-		}
-	}
-
-	/* Perform garbage collection. */
-	gcmkONERROR(_Collect(Mmu));
-
-	/* Verify we did not loose any nodes. */
-	if ((Mmu->heapList != 0)
-	||  ((Mmu->pageTableLogical[0] & 0xFF) != gcvMMU_FREE)
-	||  (Mmu->pageTableEntries != (Mmu->pageTableLogical[0] >> 8))
-	)
-	{
-		gcmkFATAL("gckMMU_Test: Detected leaking in the page table.");
-
-		failure = gcvSTATUS_HEAP_CORRUPTED;
-	}
-
-OnError:
-	/* Free the array of nodes. */
-	if (nodes != gcvNULL)
-	{
-		gcmkVERIFY_OK(gckOS_Free(Mmu->os, nodes));
-	}
-
-	/* Return test status. */
-	return failure;
-}
-#endif
 

@@ -1,21 +1,21 @@
 /****************************************************************************
-*
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
-*
+*  
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
+*  
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*
+*  
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public License for more details.
-*
+*  
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*
+*  
 *****************************************************************************/
 
 
@@ -822,6 +822,15 @@ gckVIDMEM_AllocateLinear(
 
     acquired = gcvTRUE;
 
+    // dkm: 对于花屏死机的问题，感觉VV这么做只是规避，还是没有找到问题的原因
+	if (Type == gcvSURF_TILE_STATUS
+    && (Bytes + (1 << 20) > Memory->freeBytes)
+	)
+    {
+        /* Not enough memory. */
+        gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
+	}
+
     if (Bytes > Memory->freeBytes)
     {
         /* Not enough memory. */
@@ -987,8 +996,8 @@ gckVIDMEM_Free(
                            "Node 0x%x is locked (%d)",
                            Node, Node->VidMem.locked);
 
-            /* Node is locked. */
-            gcmkONERROR(gcvSTATUS_MEMORY_LOCKED);
+            /* Force unlock. */
+            Node->VidMem.locked = 0;
         }
 
         /* Extract pointer to gckVIDMEM object owning the node. */
@@ -1072,8 +1081,8 @@ gckVIDMEM_Free(
                        "gckVIDMEM_Free: Virtual node 0x%x is locked (%d)",
                        Node, Node->Virtual.locked);
 
-        /* Node is locked. */
-        gcmkONERROR(gcvSTATUS_MEMORY_LOCKED);
+        /* Force unlock. */
+        Node->Virtual.locked = 0;
     }
 
 #ifdef __QNXNTO__
@@ -1751,4 +1760,3 @@ gckVIDMEM_SetPID(
     return gcvSTATUS_OK;
 }
 #endif
-

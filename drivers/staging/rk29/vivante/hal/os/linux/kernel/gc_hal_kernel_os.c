@@ -1,21 +1,21 @@
 /****************************************************************************
-*
+*  
 *    Copyright (C) 2005 - 2011 by Vivante Corp.
-*
+*  
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*
+*  
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public License for more details.
-*
+*  
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*
+*  
 *****************************************************************************/
 
 
@@ -34,7 +34,7 @@
 #include <linux/dma-mapping.h>
 #endif /* NO_DMA_COHERENT */
 
-
+// dkm: add
 #include <linux/delay.h>
 #include <mach/pmu.h>
 #include <mach/cru.h>
@@ -45,9 +45,11 @@
 
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
+// dkm: add
 #define PAGE_ALLOC_LIMIT                    1   // 限制Page申请
 #define PAGE_ALLOC_LIMIT_SIZE               0   // 限制Page申请的大小,单位为M
 
+// dkm: PAGE_ALLOC_LIMIT
 #if PAGE_ALLOC_LIMIT
 int g_pages_alloced = 0;
 #endif
@@ -70,9 +72,11 @@ int g_pages_alloced = 0;
 #define MEMORY_MAP_UNLOCK(os) \
     gcmkVERIFY_OK(gckOS_ReleaseMutex((os), (os)->memoryMapLock))
 
+// add by vv
 // 512M内存的情况下,测试几个游戏把内存耗光，其值就到40，因此100应该是够用的
 #define gcdkUSE_NON_PAGED_MEMORY_CACHE		100 
 
+// add by vv
 #if gcdkUSE_NON_PAGED_MEMORY_CACHE
 typedef struct _gcsNonPagedMemoryCache
 {
@@ -144,6 +148,8 @@ struct _gckOS
         gctPOINTER              lock;
     } signal;
 #endif
+
+// add by vv
 #if gcdkUSE_NON_PAGED_MEMORY_CACHE
     gctUINT                      cacheSize;
     gcsNonPagedMemoryCache *     cacheHead;
@@ -427,7 +433,7 @@ OnProcessExit(
 #endif
 }
 
-
+// dkm: add
 #if gcdkUSE_NON_PAGED_MEMORY_CACHE
 gceSTATUS
 gckOS_AllocateNonPagedMemoryFromSystem(
@@ -447,7 +453,8 @@ gckOS_AllocateNonPagedMemoryFromSystem(
 #ifdef NO_DMA_COHERENT
     struct page *   page;
     long            size, order;
-    gctPOINTER      vaddr;
+    gctPOINTER      vaddr, reserved_vaddr;
+    gctUINT32       reserved_size;
 #endif
 
     /* Verify the arguments. */
@@ -496,7 +503,26 @@ gckOS_AllocateNonPagedMemoryFromSystem(
         return gcvSTATUS_OUT_OF_MEMORY;
     }
 
-    vaddr           = (gctPOINTER)page_address(page);
+    /* 
+     * On some system ioremap_nocache fails when 
+     * given a size of more than 1 page if all
+     * of the pages haven't been marked as reserved 
+     * first. Allocating a single page works without
+     * any changes though.
+     */
+    vaddr = (gctPOINTER)page_address(page);
+
+    reserved_vaddr = vaddr;
+    reserved_size  = size;
+
+    while (reserved_size > 0)
+    {
+        SetPageReserved(virt_to_page(reserved_vaddr));
+
+        reserved_vaddr += PAGE_SIZE;
+        reserved_size  -= PAGE_SIZE;
+    }
+
 // dkm: gcdENABLE_MEM_CACHE
 #if (1==gcdENABLE_MEM_CACHE)
     addr            = ioremap_cached(virt_to_phys(vaddr), size);
@@ -510,13 +536,6 @@ gckOS_AllocateNonPagedMemoryFromSystem(
     dma_cache_maint(vaddr, size, DMA_FROM_DEVICE);
 #endif
 
-    while (size > 0)
-    {
-        SetPageReserved(virt_to_page(vaddr));
-
-        vaddr   += PAGE_SIZE;
-        size    -= PAGE_SIZE;
-    }
 #endif
 
     if (addr == gcvNULL)
@@ -634,8 +653,7 @@ gckOS_AllocateNonPagedMemoryFromSystem(
 
 // dkm: gcdENABLE_MEM_CACHE
 #if (2==gcdENABLE_MEM_CACHE)
-        //mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
-        mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
+        mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
 #elif (1==gcdENABLE_MEM_CACHE)
         // NULL
 #else
@@ -716,7 +734,6 @@ gckOS_AllocateNonPagedMemoryFromSystem(
     /* Success. */
     return gcvSTATUS_OK;
 }
-
 #endif
 
 /*******************************************************************************
@@ -823,10 +840,12 @@ gckOS_Construct(
     os->signal.currentID = 0;
 #endif
 
+// add by vv
 #if gcdkUSE_NON_PAGED_MEMORY_CACHE
     os->cacheSize = 0;
     os->cacheHead = gcvNULL;
     os->cacheTail = gcvNULL;
+    // dkm: add
     {
         int i = 0;
         gctPHYS_ADDR Physical;
@@ -911,6 +930,7 @@ gckOS_Destroy(
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
 
+// add by vv
 #if gcdkUSE_NON_PAGED_MEMORY_CACHE
     _FreeAllNonPagedMemoryCache(Os);
 #endif
@@ -949,6 +969,14 @@ gckOS_Destroy(
         /* Destroy the gckHEAP object. */
         gcmkVERIFY_OK(
             gckHEAP_Destroy(heap));
+    }
+    else
+    {
+        gcmkTRACE_ZONE(gcvLEVEL_ERROR,
+            gcvZONE_OS,
+            "Failed to destroy signal, it was not unmampped \n"
+            );
+        return gcvSTATUS_INVALID_ARGUMENT;
     }
 
     /* Destroy the memory lock. */
@@ -1022,7 +1050,7 @@ gckOS_Allocate(
 
 OnError:
     /* Return the status. */
-    /* gcmkFOOTER(); */
+    /*gcmkFOOTER();*/
     return status;
 }
 
@@ -1075,7 +1103,7 @@ gckOS_Free(
 
 OnError:
     /* Return the status. */
-    /* gcmkFOOTER(); */
+   /* gcmkFOOTER();*/
     return status;
 }
 
@@ -1379,6 +1407,7 @@ gckOS_MapMemory(
         }
 #else
 
+// dkm: gcdENABLE_MEM_CACHE
 #if (2==gcdENABLE_MEM_CACHE)
         mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
 #elif (1==gcdENABLE_MEM_CACHE)
@@ -1460,6 +1489,7 @@ gckOS_UnmapMemory(
     PLINUX_MDL_MAP          mdlMap;
     PLINUX_MDL              mdl = (PLINUX_MDL)Physical;
     struct task_struct *    task;
+    // dkm: add
     struct mm_struct *      mm;
 
     /* Verify the arguments. */
@@ -1499,6 +1529,7 @@ gckOS_UnmapMemory(
 
         /* Get the current pointer for the task with stored pid. */
         task = FIND_TASK_BY_PID(mdlMap->pid);
+        // dkm: add
         if(task) {
             mm = get_task_mm(task);
             put_task_struct(task);
@@ -1506,6 +1537,7 @@ gckOS_UnmapMemory(
             mm = gcvNULL;
         }
 
+        // dkm: modify
         if (mm)
         {
             down_write(&mm->mmap_sem);
@@ -1530,6 +1562,7 @@ gckOS_UnmapMemory(
     return gcvSTATUS_OK;
 }
 
+// add by vv
 #if gcdkUSE_NON_PAGED_MEMORY_CACHE
 
 static gctBOOL
@@ -1788,7 +1821,8 @@ gckOS_AllocateNonPagedMemory(
 #ifdef NO_DMA_COHERENT
     struct page *   page;
     long            size, order;
-    gctPOINTER      vaddr;
+    gctPOINTER      vaddr, reserved_vaddr;
+    gctUINT32       reserved_size;
 #endif
 
     /* Verify the arguments. */
@@ -1821,6 +1855,7 @@ gckOS_AllocateNonPagedMemory(
     MEMORY_LOCK(Os);
 
 #ifndef NO_DMA_COHERENT
+// add by vv
 #if gcdkUSE_NON_PAGED_MEMORY_CACHE
     addr = _GetNonPagedMemoryCache(Os,
                 mdl->numPages * PAGE_SIZE,
@@ -1842,6 +1877,7 @@ gckOS_AllocateNonPagedMemory(
 #else
     size    = mdl->numPages * PAGE_SIZE;
     order   = get_order(size);
+// add by vv
 #if gcdkUSE_NON_PAGED_MEMORY_CACHE
     page = _GetNonPagedMemoryCache(Os, order);
 
@@ -1860,7 +1896,26 @@ gckOS_AllocateNonPagedMemory(
         return gcvSTATUS_OUT_OF_MEMORY;
     }
 
-    vaddr           = (gctPOINTER)page_address(page);
+    /* 
+     * On some system ioremap_nocache fails when 
+     * given a size of more than 1 page if all
+     * of the pages haven't been marked as reserved 
+     * first. Allocating a single page works without
+     * any changes though.
+     */
+    vaddr = (gctPOINTER)page_address(page);
+
+    reserved_vaddr = vaddr;
+    reserved_size  = size;
+
+    while (reserved_size > 0)
+    {
+        SetPageReserved(virt_to_page(reserved_vaddr));
+
+        reserved_vaddr += PAGE_SIZE;
+        reserved_size  -= PAGE_SIZE;
+    }
+
 // dkm: gcdENABLE_MEM_CACHE
 #if (1==gcdENABLE_MEM_CACHE)
     addr            = ioremap_cached(virt_to_phys(vaddr), size);
@@ -1874,13 +1929,6 @@ gckOS_AllocateNonPagedMemory(
     dma_cache_maint(vaddr, size, DMA_FROM_DEVICE);
 #endif
 
-    while (size > 0)
-    {
-        SetPageReserved(virt_to_page(vaddr));
-
-        vaddr   += PAGE_SIZE;
-        size    -= PAGE_SIZE;
-    }
 #endif
 
     if (addr == gcvNULL)
@@ -1998,8 +2046,7 @@ gckOS_AllocateNonPagedMemory(
 
 // dkm: gcdENABLE_MEM_CACHE
 #if (2==gcdENABLE_MEM_CACHE)
-        //mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
-        mdlMap->vma->vm_page_prot = pgprot_noncached(mdlMap->vma->vm_page_prot);
+        mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
 #elif (1==gcdENABLE_MEM_CACHE)
         // NULL
 #else
@@ -2115,6 +2162,7 @@ gceSTATUS gckOS_FreeNonPagedMemory(
     PLINUX_MDL              mdl;
     PLINUX_MDL_MAP          mdlMap;
     struct task_struct *    task;
+    // dkm: add
     struct mm_struct *      mm;
 
 #ifdef NO_DMA_COHERENT
@@ -2138,6 +2186,7 @@ gceSTATUS gckOS_FreeNonPagedMemory(
     MEMORY_LOCK(Os);
 
 #ifndef NO_DMA_COHERENT
+// add by vv
 #if gcdkUSE_NON_PAGED_MEMORY_CACHE
     if (!_AddNonPagedMemoryCache(Os,
                                  mdl->numPages * PAGE_SIZE,
@@ -2167,6 +2216,7 @@ gceSTATUS gckOS_FreeNonPagedMemory(
         size    -= PAGE_SIZE;
     }
 
+// add by vv
 #if gcdkUSE_NON_PAGED_MEMORY_CACHE
     if (!_AddNonPagedMemoryCache(Os,
                                  get_order(mdl->numPages * PAGE_SIZE),
@@ -2189,6 +2239,7 @@ gceSTATUS gckOS_FreeNonPagedMemory(
         {
             /* Get the current pointer for the task with stored pid. */
             task = FIND_TASK_BY_PID(mdlMap->pid);
+            // dkm: add
             if(task) {
                 mm = get_task_mm(task);
                 put_task_struct(task);
@@ -2196,6 +2247,7 @@ gceSTATUS gckOS_FreeNonPagedMemory(
                 mm = gcvNULL;
             }
 
+            // dkm: modify
             if (mm)
             {
                 down_write(&mm->mmap_sem);
@@ -2822,7 +2874,7 @@ gckOS_AcquireMutex(
             return gcvSTATUS_OK;
         }
 
-		if (Timeout-- == 0) break;
+        if (Timeout-- == 0) break;
 
         /* Wait for 1 millisecond. */
         gcmkVERIFY_OK(gckOS_Delay(Os, 1));
@@ -3197,7 +3249,7 @@ gckOS_Delay(
         /* Convert timeval to jiffies. */
         jiffies = timeval_to_jiffies(&now);
 
-    	/* Schedule timeout. */
+        /* Schedule timeout. */
         schedule_timeout_interruptible(jiffies);
     }
 
@@ -3232,7 +3284,7 @@ gceSTATUS gckOS_MemoryBarrier(
     /* Verify thearguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
 
-    //mb();
+    // dkm: change to dsb from mb
     dsb();
 
     /* Success. */
@@ -3320,6 +3372,7 @@ gceSTATUS gckOS_AllocatePagedMemoryEx(
 
     if (Contiguous)
     {
+// dkm: PAGE_ALLOC_LIMIT
 #if PAGE_ALLOC_LIMIT
         if( (g_pages_alloced + numPages) > (256*PAGE_ALLOC_LIMIT_SIZE) ) {
             //printk("full %d! \n", g_pages_alloced);
@@ -3488,6 +3541,7 @@ gceSTATUS gckOS_FreePagedMemory(
     if (mdl->contiguous)
     {
         free_pages((unsigned long)mdl->addr, GetOrder(mdl->numPages));
+// dkm: PAGE_ALLOC_LIMIT
 #if PAGE_ALLOC_LIMIT
         g_pages_alloced -= mdl->numPages;
         //printk("free %d / %d \n", mdl->numPages, g_pages_alloced);
@@ -3654,6 +3708,8 @@ gceSTATUS gckOS_LockPages(
 
         mdlMap->vma->vm_flags |= VM_RESERVED;
         /* Make this mapping non-cached. */
+
+// dkm: gcdENABLE_MEM_CACHE
 #if (2==gcdENABLE_MEM_CACHE)
         mdlMap->vma->vm_page_prot = pgprot_writecombine(mdlMap->vma->vm_page_prot);
 #elif (1==gcdENABLE_MEM_CACHE)
@@ -3890,6 +3946,7 @@ gceSTATUS gckOS_UnlockPages(
     PLINUX_MDL_MAP          mdlMap;
     PLINUX_MDL              mdl = (PLINUX_MDL)Physical;
     struct task_struct *    task;
+    // dkm: add
     struct mm_struct *      mm;
 
     /* Verify the arguments. */
@@ -3914,6 +3971,7 @@ gceSTATUS gckOS_UnlockPages(
         {
             /* Get the current pointer for the task with stored pid. */
             task = FIND_TASK_BY_PID(mdlMap->pid);
+            // dkm: add
             if(task) {
                 mm = get_task_mm(task);
                 put_task_struct(task);
@@ -3921,6 +3979,7 @@ gceSTATUS gckOS_UnlockPages(
                 mm = gcvNULL;
             }
 
+            // dkm: modify
             if (mm)
             {
                 down_write(&mm->mmap_sem);
@@ -4521,6 +4580,7 @@ gckOS_UserSignal(
             /* Success. */
             status = gcvSTATUS_OK;
         }
+        // dkm: add
         put_task_struct(task);
     }
     else
@@ -4735,6 +4795,63 @@ gckOS_WaitSignal(
     if (!signal->manualReset && timeout == 0) timeout = 1;
 
     rc = wait_for_completion_interruptible_timeout(&signal->event, timeout);
+    status = ((rc == 0) && !signal->event.done) ? gcvSTATUS_TIMEOUT
+                                                : gcvSTATUS_OK;
+
+    /* Return status. */
+    gcmkFOOTER();
+    return status;
+}
+
+/*******************************************************************************
+**
+**  gckOS_WaitSignalUninterruptible
+**
+**  Wait for a signal to become signaled uninterruptibly.
+**
+**  INPUT:
+**
+**      gckOS Os
+**          Pointer to an gckOS object.
+**
+**      gctSIGNAL Signal
+**          Pointer to the gctSIGNAL.
+**
+**      gctUINT32 Wait
+**          Number of milliseconds to wait.
+**          Pass the value of gcvINFINITE for an infinite wait.
+**
+**  OUTPUT:
+**
+**      Nothing.
+*/
+gceSTATUS
+gckOS_WaitSignalUninterruptible(
+    IN gckOS Os,
+    IN gctSIGNAL Signal,
+    IN gctUINT32 Wait
+    )
+{
+    gceSTATUS status;
+    gcsSIGNAL_PTR signal;
+    gctUINT timeout;
+    gctUINT rc;
+
+    gcmkHEADER_ARG("Os=0x%x Signal=0x%x Wait=%u", Os, Signal, Wait);
+
+    /* Verify the arguments. */
+    gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
+    gcmkVERIFY_ARGUMENT(Signal != gcvNULL);
+
+    signal = (gcsSIGNAL_PTR) Signal;
+
+    /* Convert wait to milliseconds. */
+    timeout = (Wait == gcvINFINITE) ? MAX_SCHEDULE_TIMEOUT : Wait*HZ/1000;
+
+    /* Linux bug ? */
+    if (!signal->manualReset && timeout == 0) timeout = 1;
+
+    rc = wait_for_completion_timeout(&signal->event, timeout);
     status = ((rc == 0) && !signal->event.done) ? gcvSTATUS_TIMEOUT
                                                 : gcvSTATUS_OK;
 
@@ -5370,7 +5487,7 @@ gckOS_DestroyAllUserSignals(
         if (Os->signal.table[signal] != gcvNULL &&
             ((gcsSIGNAL_PTR)Os->signal.table[signal])->process == (gctHANDLE) current->tgid)
         {
-			gckOS_Signal(Os, Os->signal.table[signal], gcvTRUE);
+            gckOS_Signal(Os, Os->signal.table[signal], gcvTRUE);
 
             gckOS_DestroySignal(Os, Os->signal.table[signal]);
 
@@ -5987,7 +6104,7 @@ gckOS_ZeroMemory(
 MEMORY_RECORD_PTR
 CreateMemoryRecord(
     gckOS Os,
-	gcsHAL_PRIVATE_DATA_PTR private,
+    gcsHAL_PRIVATE_DATA_PTR private,
     MEMORY_RECORD_PTR List,
     gceMEMORY_TYPE Type,
 	gctSIZE_T Bytes,
@@ -6124,11 +6241,12 @@ CreateVideoMemoryRecord(
 void
 DestroyVideoMemoryRecord(
     gckOS Os,
-	gcsHAL_PRIVATE_DATA_PTR private,
+    gcsHAL_PRIVATE_DATA_PTR private,
     MEMORY_RECORD_PTR Mr
     )
 {
-	gcmkASSERT(Mr->type == gcvVIDEO_MEMORY);
+    gcmkASSERT(Mr->type == gcvVIDEO_MEMORY);
+
     MEMORY_LOCK(Os);
 
 #if gcdkREPORT_VIDMEM_USAGE
@@ -6178,15 +6296,33 @@ FindVideoMemoryRecord(
 void
 FreeAllMemoryRecord(
     gckOS Os,
-	gcsHAL_PRIVATE_DATA_PTR private,
+    gcsHAL_PRIVATE_DATA_PTR private,
     MEMORY_RECORD_PTR List
     )
 {
     MEMORY_RECORD_PTR mr;
     gctUINT i = 0;
 
-    MEMORY_LOCK(Os);
+#if gcdkREPORT_VIDMEM_USAGE
+    gctUINT type;
 
+    printk("------------------------------------\n");
+    printk("   Type         Current          Max\n");
+
+    for (type = 0; type < gcvSURF_NUM_TYPES; type++)
+    {
+        printk("[%8s]  %8llu KB  %8llu KB\n", 
+               _MemTypes[type],
+               private->allocatedMem[type] / 1024,
+               private->maxAllocatedMem[type] / 1024);
+    }
+
+    printk("[   TOTAL]  %8llu KB  %8llu KB\n",
+           private->totalAllocatedMem / 1024,
+           private->maxTotalAllocatedMem / 1024);
+#endif
+
+    MEMORY_LOCK(Os);
 
     while (List->next != List)
     {
@@ -6256,7 +6392,6 @@ FreeAllMemoryRecord(
             break;
         }
 
-
         kfree(mr);
 
         MEMORY_LOCK(Os);
@@ -6303,6 +6438,7 @@ gckOS_CacheFlush(
     IN gctSIZE_T Bytes
     )
 {
+// dkm: gcdENABLE_MEM_CACHE
 #if (1==gcdENABLE_MEM_CACHE)
     dmac_clean_range(Logical, Logical+Bytes);
 #elif (2==gcdENABLE_MEM_CACHE)
@@ -6341,6 +6477,7 @@ gckOS_CacheInvalidate(
     IN gctSIZE_T Bytes
     )
 {
+// dkm: gcdENABLE_MEM_CACHE
 #if (1==gcdENABLE_MEM_CACHE)
     dmac_flush_range(Logical, Logical+Bytes);
 #elif (2==gcdENABLE_MEM_CACHE)
@@ -6445,9 +6582,9 @@ gckOS_Broadcast(
         break;
 
     case gcvBROADCAST_GPU_STUCK:
-		gcmkONERROR(gckHARDWARE_GetIdle(Hardware, gcvFALSE, &idle));
+        gcmkONERROR(gckHARDWARE_GetIdle(Hardware, gcvFALSE, &idle));
         gcmkONERROR(gckOS_ReadRegister(Os, 0x00C, &axi));
-		gcmkONERROR(gckOS_ReadRegister(Os, 0x664, &dma));
+        gcmkONERROR(gckOS_ReadRegister(Os, 0x664, &dma));
         gcmkPRINT("!!FATAL!! GPU Stuck");
         gcmkPRINT("  idle=0x%08X axi=0x%08X cmd=0x%08X", idle, axi, dma);
 
@@ -6474,7 +6611,7 @@ gckOS_Broadcast(
         {
             gcmkONERROR(gckOS_WriteRegister(Os, 0x470, i << 16));
             gcmkPRINT("%d: Write 0x%08X to DebugControl0(0x470)", i, i << 16);
-
+            
             gcmkONERROR(gckOS_ReadRegister(Os, 0x454, &debugSignalsPe));
             gcmkPRINT("%d: debugSignalsPe(0x454)=0x%08X", i, debugSignalsPe);
 
@@ -6485,7 +6622,7 @@ gckOS_Broadcast(
         {
             gcmkONERROR(gckOS_WriteRegister(Os, 0x478, i));
             gcmkPRINT("%d: Write 0x%08X to DebugControl2(0x478)", i, i);
-
+            
             gcmkONERROR(gckOS_ReadRegister(Os, 0x468, &debugSignalsMc));
             gcmkPRINT("%d: debugSignalsMc(0x468)=0x%08X", i, debugSignalsMc);
 
@@ -6807,6 +6944,7 @@ gckOS_GetThreadID(
 **
 **      Nothing.
 */
+// dkm: modify
 gceSTATUS
 gckOS_SetGPUPower(
     IN gckOS Os,

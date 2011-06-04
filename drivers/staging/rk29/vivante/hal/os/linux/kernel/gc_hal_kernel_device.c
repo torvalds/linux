@@ -1,21 +1,21 @@
 /****************************************************************************
-*
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
-*
+*  
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
+*  
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*
+*  
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public License for more details.
-*
+*  
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*
+*  
 *****************************************************************************/
 
 
@@ -488,7 +488,7 @@ gckGALDEVICE_Construct(
         device->registerBase = (gctPOINTER) ioremap_nocache(RegisterMemBase,
                                                         RegisterMemSize);
         if (!device->registerBase)
-        {
+    {
             gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_DRIVER,
                       "[galcore] gckGALDEVICE_Construct: Unable to map location->0x%lX for size->%ld",
               RegisterMemBase,
@@ -496,6 +496,7 @@ gckGALDEVICE_Construct(
 
             return gcvSTATUS_OUT_OF_RESOURCES;
         }
+        // dkm: print te regbase
         printk("---- gpu regbase: 0x%08x ---- \n", (unsigned int)device->registerBase);
 
         physical += RegisterMemSize;
@@ -514,6 +515,12 @@ gckGALDEVICE_Construct(
 
     /* construct the gckKERNEL object. */
     gcmkVERIFY_OK(gckKERNEL_Construct(device->os, device, &device->kernel));
+
+    /* Setup the Isr manager. */
+    gcmkVERIFY_OK(gckHARDWARE_SetIsrManager(device->kernel->hardware,
+                                            (gctISRMANAGERFUNC)gckGALDEVICE_Setup_ISR,
+                                            (gctISRMANAGERFUNC)gckGALDEVICE_Release_ISR,
+                                            device));
 
     gcmkVERIFY_OK(gckHARDWARE_SetFastClear(device->kernel->hardware,
                                           FastClear,
@@ -851,4 +858,3 @@ gckGALDEVICE_Destroy(
 
     return gcvSTATUS_OK;
 }
-

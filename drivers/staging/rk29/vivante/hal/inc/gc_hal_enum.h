@@ -94,8 +94,21 @@ typedef enum _gceFEATURE
     gcvFEATURE_VG_DOUBLE_BUFFER,
     gcvFEATURE_MC20,
     gcvFEATURE_SUPER_TILED,
+
+    gcvFEATURE_2D_FILTERBLIT_PLUS_ALPHABLEND,
     gcvFEATURE_2D_DITHER,
+    gcvFEATURE_2D_A8_TARGET,
+    gcvFEATURE_2D_FILTERBLIT_FULLROTATION,
+    gcvFEATURE_2D_BITBLIT_FULLROTATION,
+
     gcvFEATURE_WIDE_LINE,
+    gcvFEATURE_FC_FLUSH_STALL,
+
+    gcvFEATURE_FULL_DIRECTFB,
+    gcvFEATURE_HALF_FLOAT_PIPE,
+    gcvFEATURE_LINE_LOOP,
+    gcvFEATURE_2D_YUV_BLIT,
+    gcvFEATURE_2D_TILING,
 }
 gceFEATURE;
 
@@ -155,7 +168,9 @@ typedef enum _gceSURF_ROTATION
     gcvSURF_0_DEGREE,
     gcvSURF_90_DEGREE,
     gcvSURF_180_DEGREE,
-    gcvSURF_270_DEGREE
+    gcvSURF_270_DEGREE,
+    gcvSURF_FLIP_X,
+    gcvSURF_FLIP_Y,
 }
 gceSURF_ROTATION;
 
@@ -284,14 +299,6 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_G32R32F,
     gcvSURF_A32B32G32R32F,
 
-#if 0
-    /* FIXME: remove HDR support for now. */
-    /* HDR formats. */
-    gcvSURF_HDR7E3              = 1200,
-    gcvSURF_HDR6E4,
-    gcvSURF_HDR5E5,
-    gcvSURF_HDR6E5,
-#endif
 }
 gceSURF_FORMAT;
 
@@ -412,7 +419,12 @@ typedef enum _gceSURF_BLEND_FACTOR_MODE
     gcvSURF_BLEND_INVERSED,
     gcvSURF_BLEND_COLOR,
     gcvSURF_BLEND_COLOR_INVERSED,
-    gcvSURF_BLEND_SRC_ALPHA_SATURATED
+    gcvSURF_BLEND_SRC_ALPHA_SATURATED,
+    gcvSURF_BLEND_STRAIGHT_NO_CROSS,
+    gcvSURF_BLEND_INVERSED_NO_CROSS,
+    gcvSURF_BLEND_COLOR_NO_CROSS,
+    gcvSURF_BLEND_COLOR_INVERSED_NO_CROSS,
+    gcvSURF_BLEND_SRC_ALPHA_SATURATED_CROSS
 }
 gceSURF_BLEND_FACTOR_MODE;
 
@@ -463,9 +475,11 @@ typedef enum _gce2D_COMMAND
     gcv2D_STRETCH,
     gcv2D_HOR_FILTER,
     gcv2D_VER_FILTER,
+    gcv2D_MULTI_SOURCE_BLEND,
 }
 gce2D_COMMAND;
 
+#ifndef VIVANTE_NO_3D
 /* Texture functions. */
 typedef enum _gceTEXTURE_FUNCTION
 {
@@ -499,6 +513,7 @@ typedef enum _gceTEXTURE_CHANNEL
     gcvFROM_ONE_MINUS_ALPHA
 }
 gceTEXTURE_CHANNEL;
+#endif /* VIVANTE_NO_3D */
 
 /* Filter types. */
 typedef enum _gceFILTER_TYPE
@@ -526,14 +541,45 @@ typedef enum _gceENDIAN_HINT
 }
 gceENDIAN_HINT;
 
-/* Endian hints. */
+/* Tiling modes. */
 typedef enum _gceTILING
 {
     gcvLINEAR,
     gcvTILED,
-    gcvSUPERTILED
+    gcvSUPERTILED,
+    gcvMULTI_TILED,
+    gcvMULTI_SUPERTILED,
 }
 gceTILING;
+
+/* 2D pattern type. */
+typedef enum _gce2D_PATTERN
+{
+    gcv2D_PATTERN_SOLID = 0,
+    gcv2D_PATTERN_MONO,
+    gcv2D_PATTERN_COLOR,
+    gcv2D_PATTERN_INVALID
+}
+gce2D_PATTERN;
+
+/* 2D source type. */
+typedef enum _gce2D_SOURCE
+{
+    gcv2D_SOURCE_MASKED = 0,
+    gcv2D_SOURCE_MONO,
+    gcv2D_SOURCE_COLOR,
+    gcv2D_SOURCE_INVALID
+}
+gce2D_SOURCE;
+
+/* Pipes. */
+typedef enum _gcePIPE_SELECT
+{
+    gcvPIPE_INVALID = ~0,
+    gcvPIPE_3D      =  0,
+    gcvPIPE_2D
+}
+gcePIPE_SELECT;
 
 /******************************************************************************\
 ****************************** Object Declarations *****************************
@@ -550,4 +596,5 @@ typedef struct gcs2D_PROFILE *      gcs2D_PROFILE_PTR;
 #endif
 
 #endif /* __gc_hal_enum_h_ */
+
 

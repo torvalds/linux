@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -193,6 +193,9 @@ typedef struct _gcsHAL_INTERFACE
 
             /* Supported minor feature 1 fields. */
             OUT gctUINT32               chipMinorFeatures1;
+
+            /* Supported minor feature 2 fields. */
+            OUT gctUINT32               chipMinorFeatures2;
 
             /* Number of streams supported. */
             OUT gctUINT32               streamCount;

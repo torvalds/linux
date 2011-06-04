@@ -597,6 +597,32 @@ gco2D_FilterBlitEx(
 	IN gcsRECT_PTR DestSubRect
 	);
 
+gceSTATUS
+gco2D_FilterBlitEx2(
+    IN gco2D                Engine,
+    IN gctUINT32_PTR        SrcAddresses,
+    IN gctUINT32            SrcAddressNum,
+    IN gctUINT32_PTR        SrcStrides,
+    IN gctUINT32            SrcStrideNum,
+    IN gceTILING            SrcTiling,
+    IN gceSURF_FORMAT       SrcFormat,
+    IN gceSURF_ROTATION     SrcRotation,
+    IN gctUINT32            SrcSurfaceWidth,
+    IN gctUINT32            SrcSurfaceHeight,
+    IN gcsRECT_PTR          SrcRect,
+    IN gctUINT32_PTR        DestAddresses,
+    IN gctUINT32            DestAddressNum,
+    IN gctUINT32_PTR        DestStrides,
+    IN gctUINT32            DestStrideNum,
+    IN gceTILING            DestTiling,
+    IN gceSURF_FORMAT       DestFormat,
+    IN gceSURF_ROTATION     DestRotation,
+    IN gctUINT32            DestSurfaceWidth,
+    IN gctUINT32            DestSurfaceHeight,
+    IN gcsRECT_PTR          DestRect,
+    IN gcsRECT_PTR          DestSubRect
+    );
+
 /* Enable alpha blending engine in the hardware and disengage the ROP engine. */
 gceSTATUS
 gco2D_EnableAlphaBlend(
@@ -779,6 +805,34 @@ gco2D_EnableDither(
 	IN gco2D Engine,
 	IN gctBOOL Enable
 	);
+
+gceSTATUS
+gco2D_SetGenericSource(
+    IN gco2D               Engine,
+    IN gctUINT32_PTR       Addresses,
+    IN gctUINT32           AddressNum,
+    IN gctUINT32_PTR       Strides,
+    IN gctUINT32           StrideNum,
+    IN gceTILING           Tiling,
+    IN gceSURF_FORMAT      Format,
+    IN gceSURF_ROTATION    Rotation,
+    IN gctUINT32           SurfaceWidth,
+    IN gctUINT32           SurfaceHeight
+);
+
+gceSTATUS
+gco2D_SetGenericTarget(
+    IN gco2D               Engine,
+    IN gctUINT32_PTR       Addresses,
+    IN gctUINT32           AddressNum,
+    IN gctUINT32_PTR       Strides,
+    IN gctUINT32           StrideNum,
+    IN gceTILING           Tiling,
+    IN gceSURF_FORMAT      Format,
+    IN gceSURF_ROTATION    Rotation,
+    IN gctUINT32           SurfaceWidth,
+    IN gctUINT32           SurfaceHeight
+);
 
 #ifdef __cplusplus
 }

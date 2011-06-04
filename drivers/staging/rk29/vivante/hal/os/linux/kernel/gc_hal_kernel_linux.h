@@ -1,21 +1,21 @@
 /****************************************************************************
-*
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
-*
+*  
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
+*  
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*
+*  
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public License for more details.
-*
+*  
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*
+*  
 *****************************************************************************/
 
 
@@ -47,7 +47,7 @@
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 #include <linux/clk.h>
-#endif
+#endif 
 
 #define NTSTRSAFE_NO_CCH_FUNCTIONS
 #include "gc_hal.h"
@@ -57,6 +57,7 @@
 #include "gc_hal_kernel_os.h"
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
+// dkm: pid_task不行，得改为get_pid_task
 #define FIND_TASK_BY_PID(x) get_pid_task(find_vpid(x), PIDTYPE_PID)
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 #define FIND_TASK_BY_PID(x) find_task_by_vpid(x)
@@ -79,11 +80,10 @@ GetOrder(
 	)
 {
     gctINT order = 0;
-
+    
 	while ((1 << order) <  numPages) order++;
-
+    
 	return order;
 }
 
 #endif /* __gc_hal_kernel_linux_h_ */
-
