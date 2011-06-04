@@ -605,8 +605,8 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 			 v4l2_std_id *id)
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
-	int                 i, best_i = -1, best_nr_matches = 0;
-	unsigned int        type_mask = 0;
+	int		i, best_i = -1;
+	unsigned int	best_nr_diffs = 255U;
 
 	if (!priv->firm) {
 		printk("Error! firmware not loaded\n");
@@ -616,62 +616,41 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 	if (((type & ~SCODE) == 0) && (*id == 0))
 		*id = V4L2_STD_PAL;
 
-	if (type & BASE)
-		type_mask = BASE_TYPES;
-	else if (type & SCODE) {
-		type &= SCODE_TYPES;
-		type_mask = SCODE_TYPES & ~HAS_IF;
-	} else if (type & DTV_TYPES)
-		type_mask = DTV_TYPES;
-	else if (type & STD_SPECIFIC_TYPES)
-		type_mask = STD_SPECIFIC_TYPES;
-
-	type &= type_mask;
-
-	if (!(type & SCODE))
-		type_mask = ~0;
-
-	/* Seek for exact match */
-	for (i = 0; i < priv->firm_size; i++) {
-		if ((type == (priv->firm[i].type & type_mask)) &&
-		    (*id == priv->firm[i].id))
-			goto found;
-	}
-
 	/* Seek for generic video standard match */
 	for (i = 0; i < priv->firm_size; i++) {
-		v4l2_std_id match_mask;
-		int nr_matches;
+		v4l2_std_id	id_diff_mask =
+			(priv->firm[i].id ^ (*id)) & (*id);
+		unsigned int	type_diff_mask =
+			(priv->firm[i].type ^ type)
+			& (BASE_TYPES | DTV_TYPES | LCD | NOGD | MONO | SCODE);
+		unsigned int	nr_diffs;
 
-		if (type != (priv->firm[i].type & type_mask))
+		if (type_diff_mask
+		    & (BASE | INIT1 | FM | DTV6 | DTV7 | DTV78 | DTV8 | SCODE))
 			continue;
 
-		match_mask = *id & priv->firm[i].id;
-		if (!match_mask)
-			continue;
+		nr_diffs = hweight64(id_diff_mask) + hweight32(type_diff_mask);
+		if (!nr_diffs)	/* Supports all the requested standards */
+			goto found;
 
-		if ((*id & match_mask) == *id)
-			goto found; /* Supports all the requested standards */
-
-		nr_matches = hweight64(match_mask);
-		if (nr_matches > best_nr_matches) {
-			best_nr_matches = nr_matches;
+		if (nr_diffs < best_nr_diffs) {
+			best_nr_diffs = nr_diffs;
 			best_i = i;
 		}
 	}
 
-	if (best_nr_matches > 0) {
-		printk("Selecting best matching firmware (%d bits) for "
-			  "type=", best_nr_matches);
-		printk("(%x), id %016llx:\n", type, (unsigned long long)*id);
-		i = best_i;
-		goto found;
+	/* FIXME: Would make sense to seek for type "hint" match ? */
+	if (best_i < 0) {
+		i = -ENOENT;
+		goto ret;
 	}
 
-	/*FIXME: Would make sense to seek for type "hint" match ? */
-
-	i = -ENOENT;
-	goto ret;
+	if (best_nr_diffs > 0U) {
+		printk("Selecting best matching firmware (%u bits differ) for "
+		       "type=", best_nr_diffs);
+		printk("(%x), id %016llx:\n", type, (unsigned long long)*id);
+		i = best_i;
+	}
 
 found:
 	*id = priv->firm[i].id;
