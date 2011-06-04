@@ -780,8 +780,7 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 		p += sizeof(size);
 
 		if (!size || size > endp - p) {
-			printk("Firmware type ");
-			printk("(%x), id %llx is corrupted "
+			printk("Firmware type (%x), id %llx is corrupted "
 			       "(size=%d, expected %d)\n",
 			       type, (unsigned long long)id,
 			       (unsigned)(endp - p), size);
@@ -839,10 +838,10 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 			 v4l2_std_id *id, __u16 int_freq, int scode)
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
-	int                pos, rc;
-	unsigned char	   *p;
-	u8 scode_buf[13];
-	u8 indirect_mode[5];
+	int		pos, rc;
+	unsigned char	*p;
+	u8		scode_buf[13];
+	u8		indirect_mode[5];
 
 	dprintk(1, "%s called int_freq=%d\n", __func__, int_freq);
 
@@ -862,18 +861,9 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 
 	p = priv->firm[pos].ptr;
 
-	if (priv->firm[pos].type & HAS_IF) {
-		if (priv->firm[pos].size != 12 * 16 || scode >= 16)
-			return -EINVAL;
-		p += 12 * scode;
-	} else {
-		/* 16 SCODE entries per file; each SCODE entry is 12 bytes and
-		 * has a 2-byte size header in the firmware format. */
-		if (priv->firm[pos].size != 14 * 16 || scode >= 16 ||
-		    le16_to_cpu(*(__u16 *)(p + 14 * scode)) != 12)
-			return -EINVAL;
-		p += 14 * scode + 2;
-	}
+	if (priv->firm[pos].size != 12 * 16 || scode >= 16)
+		return -EINVAL;
+	p += 12 * scode;
 
 	tuner_info("Loading SCODE for type=");
 	dump_firm_type_and_int_freq(priv->firm[pos].type,
