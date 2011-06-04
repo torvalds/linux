@@ -1590,16 +1590,16 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	/* Only panel type events left to process now */
 	spin_lock_irqsave(&ictx->kc_lock, flags);
 
+	do_gettimeofday(&t);
 	/* KEY_MUTE repeats from knob need to be suppressed */
 	if (ictx->kc == KEY_MUTE && ictx->kc == ictx->last_keycode) {
-		do_gettimeofday(&t);
 		msec = tv2int(&t, &prev_time);
-		prev_time = t;
 		if (msec < ictx->idev->rep[REP_DELAY]) {
 			spin_unlock_irqrestore(&ictx->kc_lock, flags);
 			return;
 		}
 	}
+	prev_time = t;
 	kc = ictx->kc;
 
 	spin_unlock_irqrestore(&ictx->kc_lock, flags);
@@ -1611,7 +1611,9 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	input_report_key(ictx->idev, kc, 0);
 	input_sync(ictx->idev);
 
+	spin_lock_irqsave(&ictx->kc_lock, flags);
 	ictx->last_keycode = kc;
+	spin_unlock_irqrestore(&ictx->kc_lock, flags);
 
 	return;
 
