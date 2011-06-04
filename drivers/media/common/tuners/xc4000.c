@@ -39,7 +39,7 @@
 
 static int debug;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
+MODULE_PARM_DESC(debug, "\n\t\tDebugging level (0 to 2, default: 0 (off)).");
 
 static int no_poweroff;
 module_param(no_poweroff, int, 0644);
@@ -239,6 +239,7 @@ static struct XC_TV_STANDARD XC4000_Standard[MAX_TV_STANDARD] = {
 
 static int xc4000_readreg(struct xc4000_priv *priv, u16 reg, u16 *val);
 static int xc4000_TunerReset(struct dvb_frontend *fe);
+static void xc_debug_dump(struct xc4000_priv *priv);
 
 static int xc_send_i2c_data(struct xc4000_priv *priv, u8 *buf, int len)
 {
@@ -514,6 +515,15 @@ static int xc_tune_channel(struct xc4000_priv *priv, u32 freq_hz, int mode)
 		if (WaitForLock(priv) == 1)
 			found = 1;
 	}
+
+	/* Wait for stats to stabilize.
+	 * Frame Lines needs two frame times after initial lock
+	 * before it is valid.
+	 */
+	xc_wait(debug ? 100 : 10);
+
+	if (debug)
+		xc_debug_dump(priv);
 
 	return found;
 }
@@ -1085,12 +1095,6 @@ static void xc_debug_dump(struct xc4000_priv *priv)
 	u8	hw_majorversion = 0, hw_minorversion = 0;
 	u8	fw_majorversion = 0, fw_minorversion = 0;
 
-	/* Wait for stats to stabilize.
-	 * Frame Lines needs two frame times after initial lock
-	 * before it is valid.
-	 */
-	xc_wait(100);
-
 	xc_get_ADC_Envelope(priv, &adc_envelope);
 	dprintk(1, "*** ADC envelope (0-1023) = %d\n", adc_envelope);
 
@@ -1103,16 +1107,18 @@ static void xc_debug_dump(struct xc4000_priv *priv)
 
 	xc_get_version(priv, &hw_majorversion, &hw_minorversion,
 		       &fw_majorversion, &fw_minorversion);
-
 	dprintk(1, "*** HW: V%02x.%02x, FW: V%02x.%02x\n",
 		hw_majorversion, hw_minorversion,
 		fw_majorversion, fw_minorversion);
 
-	xc_get_hsync_freq(priv, &hsync_freq_hz);
-	dprintk(1, "*** Horizontal sync frequency = %d Hz\n", hsync_freq_hz);
+	if (priv->video_standard < XC4000_DTV6) {
+		xc_get_hsync_freq(priv, &hsync_freq_hz);
+		dprintk(1, "*** Horizontal sync frequency = %d Hz\n",
+			hsync_freq_hz);
 
-	xc_get_frame_lines(priv, &frame_lines);
-	dprintk(1, "*** Frame lines = %d\n", frame_lines);
+		xc_get_frame_lines(priv, &frame_lines);
+		dprintk(1, "*** Frame lines = %d\n", frame_lines);
+	}
 
 	xc_get_quality(priv, &quality);
 	dprintk(1, "*** Quality (0:<8dB, 7:>56dB) = %d\n", quality);
@@ -1223,9 +1229,6 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 	}
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_DIGITAL);
 
-	if (debug)
-		xc_debug_dump(priv);
-
 	ret = 0;
 
 fail:
@@ -1320,9 +1323,6 @@ tune_channel:
 
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_ANALOG);
 
-	if (debug)
-		xc_debug_dump(priv);
-
 	ret = 0;
 
 fail:
@@ -1334,8 +1334,26 @@ fail:
 static int xc4000_get_frequency(struct dvb_frontend *fe, u32 *freq)
 {
 	struct xc4000_priv *priv = fe->tuner_priv;
-	dprintk(1, "%s()\n", __func__);
+
 	*freq = priv->freq_hz;
+
+	if (debug) {
+		mutex_lock(&priv->lock);
+		if ((priv->cur_fw.type
+		     & (BASE | FM | DTV6 | DTV7 | DTV78 | DTV8)) == BASE) {
+			u16	snr = 0;
+			if (xc4000_readreg(priv, XREG_SNR, &snr) == 0) {
+				mutex_unlock(&priv->lock);
+				dprintk(1, "%s() freq = %u, SNR = %d\n",
+					__func__, *freq, snr);
+				return 0;
+			}
+		}
+		mutex_unlock(&priv->lock);
+	}
+
+	dprintk(1, "%s()\n", __func__);
+
 	return 0;
 }
 
@@ -1355,13 +1373,17 @@ static int xc4000_get_status(struct dvb_frontend *fe, u32 *status)
 
 	mutex_lock(&priv->lock);
 
-	xc_get_lock_status(priv, &lock_status);
+	if (priv->cur_fw.type & BASE)
+		xc_get_lock_status(priv, &lock_status);
+
+	*status = (lock_status == 1 ?
+		   TUNER_STATUS_LOCKED | TUNER_STATUS_STEREO : 0);
+	if (priv->cur_fw.type & (DTV6 | DTV7 | DTV78 | DTV8))
+		*status &= (~TUNER_STATUS_STEREO);
 
 	mutex_unlock(&priv->lock);
 
-	dprintk(1, "%s() lock_status = 0x%08x\n", __func__, lock_status);
-
-	*status = lock_status;
+	dprintk(2, "%s() lock_status = %d\n", __func__, lock_status);
 
 	return 0;
 }
