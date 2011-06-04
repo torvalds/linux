@@ -552,16 +552,6 @@ static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	return ret;
 }
 
-static int tw9910_enum_input(struct soc_camera_device *icd,
-			     struct v4l2_input *inp)
-{
-	inp->type = V4L2_INPUT_TYPE_TUNER;
-	inp->std  = V4L2_STD_UNKNOWN;
-	strcpy(inp->name, "Video");
-
-	return 0;
-}
-
 static int tw9910_g_chip_ident(struct v4l2_subdev *sd,
 			       struct v4l2_dbg_chip_ident *id)
 {
@@ -891,7 +881,6 @@ static int tw9910_video_probe(struct soc_camera_device *icd,
 static struct soc_camera_ops tw9910_ops = {
 	.set_bus_param		= tw9910_set_bus_param,
 	.query_bus_param	= tw9910_query_bus_param,
-	.enum_input		= tw9910_enum_input,
 };
 
 static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
