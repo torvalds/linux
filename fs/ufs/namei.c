@@ -258,8 +258,6 @@ static int ufs_rmdir (struct inode * dir, struct dentry *dentry)
 	struct inode * inode = dentry->d_inode;
 	int err= -ENOTEMPTY;
 
-	dentry_unhash(dentry);
-
 	lock_ufs(dir->i_sb);
 	if (ufs_empty_dir (inode)) {
 		err = ufs_unlink(dir, dentry);
@@ -283,9 +281,6 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct page *old_page;
 	struct ufs_dir_entry *old_de;
 	int err = -ENOENT;
-
-	if (new_inode && S_ISDIR(new_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	old_de = ufs_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (!old_de)

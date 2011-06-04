@@ -210,7 +210,7 @@ static int register_device(char *name, unsigned long start, unsigned long length
 	(*curmtd)->mtdinfo->erasesize = SLRAM_BLK_SZ;
 	(*curmtd)->mtdinfo->writesize = 1;
 
-	if (add_mtd_device((*curmtd)->mtdinfo))	{
+	if (mtd_device_register((*curmtd)->mtdinfo, NULL, 0))	{
 		E("slram: Failed to register new device\n");
 		iounmap(((slram_priv_t *)(*curmtd)->mtdinfo->priv)->start);
 		kfree((*curmtd)->mtdinfo->priv);
@@ -231,7 +231,7 @@ static void unregister_devices(void)
 
 	while (slram_mtdlist) {
 		nextitem = slram_mtdlist->next;
-		del_mtd_device(slram_mtdlist->mtdinfo);
+		mtd_device_unregister(slram_mtdlist->mtdinfo);
 		iounmap(((slram_priv_t *)slram_mtdlist->mtdinfo->priv)->start);
 		kfree(slram_mtdlist->mtdinfo->priv);
 		kfree(slram_mtdlist->mtdinfo);

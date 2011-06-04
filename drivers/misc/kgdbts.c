@@ -304,7 +304,10 @@ static int check_and_rewind_pc(char *put_str, char *arg)
 		return 1;
 	}
 	/* Readjust the instruction pointer if needed */
-	instruction_pointer_set(&kgdbts_regs, ip + offset);
+	ip += offset;
+#ifdef GDB_ADJUSTS_BREAK_OFFSET
+	instruction_pointer_set(&kgdbts_regs, ip);
+#endif
 	return 0;
 }
 

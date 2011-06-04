@@ -5028,6 +5028,14 @@ static int __perf_event_overflow(struct perf_event *event, int nmi,
 	else
 		perf_event_output(event, nmi, data, regs);
 
+	if (event->fasync && event->pending_kill) {
+		if (nmi) {
+			event->pending_wakeup = 1;
+			irq_work_queue(&event->pending);
+		} else
+			perf_event_wakeup(event);
+	}
+
 	return ret;
 }
 

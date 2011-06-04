@@ -1359,8 +1359,6 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct module *subsys_owner = NULL, *dead_item_owner = NULL;
 	int ret;
 
-	dentry_unhash(dentry);
-
 	if (dentry->d_parent == configfs_sb->s_root)
 		return -EPERM;
 

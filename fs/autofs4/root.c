@@ -583,8 +583,6 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 	if (!autofs4_oz_mode(sbi) && !capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	dentry_unhash(dentry);
-
 	if (atomic_dec_and_test(&ino->count)) {
 		p_ino = autofs4_dentry_ino(dentry->d_parent);
 		if (p_ino && dentry->d_parent != dentry)

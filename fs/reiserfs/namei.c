@@ -831,8 +831,6 @@ static int reiserfs_rmdir(struct inode *dir, struct dentry *dentry)
 	INITIALIZE_PATH(path);
 	struct reiserfs_dir_entry de;
 
-	dentry_unhash(dentry);
-
 	/* we will be doing 2 balancings and update 2 stat data, we change quotas
 	 * of the owner of the directory and of the owner of the parent directory.
 	 * The quota structure is possibly deleted only on last iput => outside
@@ -1226,9 +1224,6 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	umode_t old_inode_mode;
 	unsigned long savelink = 1;
 	struct timespec ctime;
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	/* three balancings: (1) old name removal, (2) new name insertion
 	   and (3) maybe "save" link insertion

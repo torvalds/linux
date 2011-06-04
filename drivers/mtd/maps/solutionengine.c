@@ -89,7 +89,7 @@ static int __init init_soleng_maps(void)
 	eprom_mtd = do_map_probe("map_rom", &soleng_eprom_map);
 	if (eprom_mtd) {
 		eprom_mtd->owner = THIS_MODULE;
-		add_mtd_device(eprom_mtd);
+		mtd_device_register(eprom_mtd, NULL, 0);
 	}
 
 	nr_parts = parse_mtd_partitions(flash_mtd, probes, &parsed_parts, 0);
@@ -104,9 +104,9 @@ static int __init init_soleng_maps(void)
 #endif /* CONFIG_MTD_SUPERH_RESERVE */
 
 	if (nr_parts > 0)
-		add_mtd_partitions(flash_mtd, parsed_parts, nr_parts);
+		mtd_device_register(flash_mtd, parsed_parts, nr_parts);
 	else
-		add_mtd_device(flash_mtd);
+		mtd_device_register(flash_mtd, NULL, 0);
 
 	return 0;
 }
@@ -114,14 +114,14 @@ static int __init init_soleng_maps(void)
 static void __exit cleanup_soleng_maps(void)
 {
 	if (eprom_mtd) {
-		del_mtd_device(eprom_mtd);
+		mtd_device_unregister(eprom_mtd);
 		map_destroy(eprom_mtd);
 	}
 
 	if (parsed_parts)
-		del_mtd_partitions(flash_mtd);
+		mtd_device_unregister(flash_mtd);
 	else
-		del_mtd_device(flash_mtd);
+		mtd_device_unregister(flash_mtd);
 	map_destroy(flash_mtd);
 }
 

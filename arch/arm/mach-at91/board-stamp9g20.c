@@ -32,7 +32,7 @@
 #include "generic.h"
 
 
-void __init stamp9g20_map_io(void)
+void __init stamp9g20_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91sam9260_initialize(18432000);
@@ -44,9 +44,9 @@ void __init stamp9g20_map_io(void)
 	at91_set_serial_console(0);
 }
 
-static void __init stamp9g20evb_map_io(void)
+static void __init stamp9g20evb_init_early(void)
 {
-	stamp9g20_map_io();
+	stamp9g20_init_early();
 
 	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
 	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
@@ -54,9 +54,9 @@ static void __init stamp9g20evb_map_io(void)
 						| ATMEL_UART_DCD | ATMEL_UART_RI);
 }
 
-static void __init portuxg20_map_io(void)
+static void __init portuxg20_init_early(void)
 {
-	stamp9g20_map_io();
+	stamp9g20_init_early();
 
 	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
 	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
@@ -298,18 +298,18 @@ static void __init stamp9g20evb_board_init(void)
 
 MACHINE_START(PORTUXG20, "taskit PortuxG20")
 	/* Maintainer: taskit GmbH */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= portuxg20_map_io,
+	.map_io		= at91sam9260_map_io,
+	.init_early	= portuxg20_init_early,
 	.init_irq	= init_irq,
 	.init_machine	= portuxg20_board_init,
 MACHINE_END
 
 MACHINE_START(STAMP9G20, "taskit Stamp9G20")
 	/* Maintainer: taskit GmbH */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= stamp9g20evb_map_io,
+	.map_io		= at91sam9260_map_io,
+	.init_early	= stamp9g20evb_init_early,
 	.init_irq	= init_irq,
 	.init_machine	= stamp9g20evb_board_init,
 MACHINE_END

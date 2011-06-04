@@ -656,8 +656,6 @@ static int ubifs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct ubifs_inode *dir_ui = ubifs_inode(dir);
 	struct ubifs_budget_req req = { .mod_dent = 1, .dirtied_ino = 2 };
 
-	dentry_unhash(dentry);
-
 	/*
 	 * Budget request settings: deletion direntry, deletion inode and
 	 * changing the parent inode. If budgeting fails, go ahead anyway
@@ -977,9 +975,6 @@ static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ubifs_budget_req ino_req = { .dirtied_ino = 1,
 			.dirtied_ino_d = ALIGN(old_inode_ui->data_len, 8) };
 	struct timespec time;
-
-	if (new_inode && S_ISDIR(new_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	/*
 	 * Budget request settings: deletion direntry, new direntry, removing

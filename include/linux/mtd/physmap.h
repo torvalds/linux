@@ -19,6 +19,7 @@
 #include <linux/mtd/partitions.h>
 
 struct map_info;
+struct platform_device;
 
 struct physmap_flash_data {
 	unsigned int		width;
@@ -37,8 +38,6 @@ struct physmap_flash_data {
 void physmap_configure(unsigned long addr, unsigned long size,
 		int bankwidth, void (*set_vpp)(struct map_info *, int) );
 
-#ifdef CONFIG_MTD_PARTITIONS
-
 /*
  * Machines that wish to do flash partition may want to call this function in
  * their setup routine.
@@ -49,7 +48,5 @@ void physmap_configure(unsigned long addr, unsigned long size,
  * command line partition (you need to enable CONFIG_MTD_CMDLINE_PARTS).
  */
 void physmap_set_partitions(struct mtd_partition *parts, int num_parts);
-
-#endif /* defined(CONFIG_MTD_PARTITIONS) */
 
 #endif /* __LINUX_MTD_PHYSMAP__ */

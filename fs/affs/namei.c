@@ -320,8 +320,6 @@ affs_rmdir(struct inode *dir, struct dentry *dentry)
 		 dentry->d_inode->i_ino,
 		 (int)dentry->d_name.len, dentry->d_name.name);
 
-	dentry_unhash(dentry);
-
 	return affs_remove_header(dentry);
 }
 
@@ -418,9 +416,6 @@ affs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct super_block *sb = old_dir->i_sb;
 	struct buffer_head *bh = NULL;
 	int retval;
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	pr_debug("AFFS: rename(old=%u,\"%*s\" to new=%u,\"%*s\")\n",
 		 (u32)old_dir->i_ino, (int)old_dentry->d_name.len, old_dentry->d_name.name,
