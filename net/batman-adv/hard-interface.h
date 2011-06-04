@@ -22,12 +22,14 @@
 #ifndef _NET_BATMAN_ADV_HARD_INTERFACE_H_
 #define _NET_BATMAN_ADV_HARD_INTERFACE_H_
 
-#define IF_NOT_IN_USE 0
-#define IF_TO_BE_REMOVED 1
-#define IF_INACTIVE 2
-#define IF_ACTIVE 3
-#define IF_TO_BE_ACTIVATED 4
-#define IF_I_WANT_YOU 5
+enum hard_if_state {
+	IF_NOT_IN_USE,
+	IF_TO_BE_REMOVED,
+	IF_INACTIVE,
+	IF_ACTIVE,
+	IF_TO_BE_ACTIVATED,
+	IF_I_WANT_YOU
+};
 
 extern struct notifier_block hard_if_notifier;
 
