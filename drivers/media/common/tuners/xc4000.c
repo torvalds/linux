@@ -516,12 +516,10 @@ static u16 WaitForLock(struct xc4000_priv *priv)
 	return lockState;
 }
 
-#define XC_TUNE_ANALOG  0
-#define XC_TUNE_DIGITAL 1
-static int xc_tune_channel(struct xc4000_priv *priv, u32 freq_hz, int mode)
+static int xc_tune_channel(struct xc4000_priv *priv, u32 freq_hz)
 {
-	int	found = 0;
-	int	result = 0;
+	int	found = 1;
+	int	result;
 
 	dprintk(1, "%s(%u)\n", __func__, freq_hz);
 
@@ -533,9 +531,10 @@ static int xc_tune_channel(struct xc4000_priv *priv, u32 freq_hz, int mode)
 	if (result != XC_RESULT_SUCCESS)
 		return 0;
 
-	if (mode == XC_TUNE_ANALOG) {
-		if (WaitForLock(priv) == 1)
-			found = 1;
+	/* wait for lock only in analog TV mode */
+	if ((priv->cur_fw.type & (FM | DTV6 | DTV7 | DTV78 | DTV8)) == 0) {
+		if (WaitForLock(priv) != 1)
+			found = 0;
 	}
 
 	/* Wait for stats to stabilize.
@@ -1269,7 +1268,7 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 		}
 	}
 
-	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_DIGITAL);
+	xc_tune_channel(priv, priv->freq_hz);
 
 	ret = 0;
 
@@ -1468,7 +1467,7 @@ tune_channel:
 		}
 	}
 
-	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_ANALOG);
+	xc_tune_channel(priv, priv->freq_hz);
 
 	ret = 0;
 
