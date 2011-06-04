@@ -973,11 +973,16 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 		if (pix->bytesperline < 0)
 			return pix->bytesperline;
 		pix->sizeimage = pix->height * pix->bytesperline;
-		if (pix->sizeimage > (4 * 0x3ffff)) { /* CSIRXCNT limit */
-			dev_warn(icd->dev.parent,
-					"Image size (%u) above limit\n",
-					pix->sizeimage);
-			return -EINVAL;
+		/* Check against the CSIRXCNT limit */
+		if (pix->sizeimage > 4 * 0x3ffff) {
+			/* Adjust geometry, preserve aspect ratio */
+			unsigned int new_height = int_sqrt(4 * 0x3ffff *
+					pix->height / pix->bytesperline);
+			pix->width = new_height * pix->width / pix->height;
+			pix->height = new_height;
+			pix->bytesperline = soc_mbus_bytes_per_line(pix->width,
+							xlate->host_fmt);
+			BUG_ON(pix->bytesperline < 0);
 		}
 	}
 
