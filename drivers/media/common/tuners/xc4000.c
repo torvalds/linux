@@ -47,15 +47,19 @@ MODULE_PARM_DESC(no_poweroff, "0 (default) powers device off when not used.\n"
 	"\t\t1 keep device energized and with tuner ready all the times.\n"
 	"\t\tFaster, but consumes more power and keeps the device hotter");
 
+#define XC4000_DEFAULT_FIRMWARE "xc4000.fw"
+
+static char firmware_name[30];
+module_param_string(firmware_name, firmware_name, sizeof(firmware_name), 0);
+MODULE_PARM_DESC(firmware_name, "\n\t\tFirmware file name. Allows overriding "
+	"the default firmware\n"
+	"\t\tname.");
+
 static DEFINE_MUTEX(xc4000_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
 
 #define dprintk(level, fmt, arg...) if (debug >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc4000", ## arg)
-
-/* Note that the last version digit is my internal build number (so I can
-   rev the firmware even if the core Xceive firmware was unchanged) */
-#define XC4000_DEFAULT_FIRMWARE "dvb-fe-xc4000-1.4.1.fw"
 
 /* struct for storing firmware table */
 struct firmware_description {
@@ -715,7 +719,10 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 	char		      name[33];
 	const char	      *fname;
 
-	fname = XC4000_DEFAULT_FIRMWARE;
+	if (firmware_name[0] != '\0')
+		fname = firmware_name;
+	else
+		fname = XC4000_DEFAULT_FIRMWARE;
 
 	printk("Reading firmware %s\n",  fname);
 	rc = request_firmware(&fw, fname, priv->i2c_props.adap->dev.parent);
