@@ -1147,8 +1147,27 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 				power = w->power_check(w);
 			else
 				power = 1;
-			if (power)
-				w->dapm->target_bias_level = SND_SOC_BIAS_ON;
+
+			if (power) {
+				d = w->dapm;
+
+				/* Supplies and micbiases only bring
+				 * the context up to STANDBY as unless
+				 * something else is active and
+				 * passing audio they generally don't
+				 * require full power.
+				 */
+				switch (w->id) {
+				case snd_soc_dapm_supply:
+				case snd_soc_dapm_micbias:
+					if (d->target_bias_level < SND_SOC_BIAS_STANDBY)
+						d->target_bias_level = SND_SOC_BIAS_STANDBY;
+					break;
+				default:
+					d->target_bias_level = SND_SOC_BIAS_ON;
+					break;
+				}
+			}
 
 			if (w->power == power)
 				continue;
