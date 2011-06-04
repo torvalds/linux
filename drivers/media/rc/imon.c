@@ -307,6 +307,14 @@ static const struct {
 	/* 0xffdc iMON MCE VFD */
 	{ 0x00010000ffffffeell, KEY_VOLUMEUP },
 	{ 0x01000000ffffffeell, KEY_VOLUMEDOWN },
+	{ 0x00000001ffffffeell, KEY_MUTE },
+	{ 0x0000000fffffffeell, KEY_MEDIA },
+	{ 0x00000012ffffffeell, KEY_UP },
+	{ 0x00000013ffffffeell, KEY_DOWN },
+	{ 0x00000014ffffffeell, KEY_LEFT },
+	{ 0x00000015ffffffeell, KEY_RIGHT },
+	{ 0x00000016ffffffeell, KEY_ENTER },
+	{ 0x00000017ffffffeell, KEY_ESC },
 	/* iMON Knob values */
 	{ 0x000100ffffffffeell, KEY_VOLUMEUP },
 	{ 0x010000ffffffffeell, KEY_VOLUMEDOWN },
@@ -1740,6 +1748,7 @@ static void imon_get_ffdc_type(struct imon_context *ictx)
 		detected_display_type = IMON_DISPLAY_TYPE_VFD;
 		break;
 	/* iMON VFD, MCE IR */
+	case 0x46:
 	case 0x9e:
 		dev_info(ictx->dev, "0xffdc iMON VFD, MCE IR");
 		detected_display_type = IMON_DISPLAY_TYPE_VFD;
