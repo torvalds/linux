@@ -338,10 +338,12 @@ static int xc_load_i2c_sequence(struct dvb_frontend *fe, const u8 *i2c_sequence)
 		len = i2c_sequence[index] * 256 + i2c_sequence[index+1];
 		if (len == 0x0000) {
 			/* RESET command */
-			result = xc4000_TunerReset(fe);
 			index += 2;
+#if 0			/* not needed, as already called by check_firmware() */
+			result = xc4000_TunerReset(fe);
 			if (result != XC_RESULT_SUCCESS)
 				return result;
+#endif
 		} else if (len & 0x8000) {
 			/* WAIT command */
 			xc_wait(len & 0x7FFF);
