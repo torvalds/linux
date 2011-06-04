@@ -43,9 +43,11 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
 static int no_poweroff;
 module_param(no_poweroff, int, 0644);
-MODULE_PARM_DESC(no_poweroff, "0 (default) powers device off when not used.\n"
-	"\t\t1 keep device energized and with tuner ready all the times.\n"
-	"\t\tFaster, but consumes more power and keeps the device hotter");
+MODULE_PARM_DESC(no_poweroff, "\n\t\t1: keep device energized and with tuner "
+	"ready all the times.\n"
+	"\t\tFaster, but consumes more power and keeps the device hotter.\n"
+	"\t\t2: powers device off when not used.\n"
+	"\t\t0 (default): use device-specific default mode.");
 
 #define XC4000_DEFAULT_FIRMWARE "xc4000.fw"
 
@@ -102,6 +104,7 @@ struct xc4000_priv {
 /* Misc Defines */
 #define MAX_TV_STANDARD			24
 #define XC_MAX_I2C_WRITE_LENGTH		64
+#define XC_POWERED_DOWN			0x80000000U
 
 /* Signal Types */
 #define XC_RF_MODE_AIR			0
@@ -1365,8 +1368,34 @@ static int xc4000_get_status(struct dvb_frontend *fe, u32 *status)
 
 static int xc4000_sleep(struct dvb_frontend *fe)
 {
-	/* FIXME: djh disable this for now... */
-	return XC_RESULT_SUCCESS;
+	struct xc4000_priv *priv = fe->tuner_priv;
+	int	ret = XC_RESULT_SUCCESS;
+
+	dprintk(1, "%s()\n", __func__);
+
+	mutex_lock(&priv->lock);
+
+	/* Avoid firmware reload on slow devices */
+	if ((no_poweroff == 2 ||
+	     (no_poweroff == 0 &&
+	      priv->card_type != XC4000_CARD_WINFAST_CX88)) &&
+	    (priv->cur_fw.type & BASE) != 0) {
+		/* force reset and firmware reload */
+		priv->cur_fw.type = XC_POWERED_DOWN;
+
+		if (xc_write_reg(priv, XREG_POWER_DOWN, 0)
+		    != XC_RESULT_SUCCESS) {
+			printk(KERN_ERR
+			       "xc4000: %s() unable to shutdown tuner\n",
+			       __func__);
+			ret = -EREMOTEIO;
+		}
+		xc_wait(20);
+	}
+
+	mutex_unlock(&priv->lock);
+
+	return ret;
 }
 
 static int xc4000_init(struct dvb_frontend *fe)
