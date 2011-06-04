@@ -1842,10 +1842,34 @@ int transport_generic_handle_cdb(
 		printk(KERN_ERR "cmd->se_lun is NULL\n");
 		return -EINVAL;
 	}
+
 	transport_add_cmd_to_queue(cmd, TRANSPORT_NEW_CMD);
 	return 0;
 }
 EXPORT_SYMBOL(transport_generic_handle_cdb);
+
+/*
+ * Used by fabric module frontends to queue tasks directly.
+ * Many only be used from process context only
+ */
+int transport_handle_cdb_direct(
+	struct se_cmd *cmd)
+{
+	if (!cmd->se_lun) {
+		dump_stack();
+		printk(KERN_ERR "cmd->se_lun is NULL\n");
+		return -EINVAL;
+	}
+	if (in_interrupt()) {
+		dump_stack();
+		printk(KERN_ERR "transport_generic_handle_cdb cannot be called"
+				" from interrupt context\n");
+		return -EINVAL;
+	}
+
+	return transport_generic_new_cmd(cmd);
+}
+EXPORT_SYMBOL(transport_handle_cdb_direct);
 
 /*
  * Used by fabric module frontends defining a TFO->new_cmd_map() caller
