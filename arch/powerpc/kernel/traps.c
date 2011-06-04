@@ -34,6 +34,7 @@
 #include <linux/bug.h>
 #include <linux/kdebug.h>
 #include <linux/debugfs.h>
+#include <linux/ratelimit.h>
 
 #include <asm/emulated_ops.h>
 #include <asm/pgtable.h>
@@ -197,12 +198,11 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 		if (die("Exception in kernel mode", regs, signr))
 			return;
 	} else if (show_unhandled_signals &&
-		    unhandled_signal(current, signr) &&
-		    printk_ratelimit()) {
-			printk(regs->msr & MSR_64BIT ? fmt64 : fmt32,
-				current->comm, current->pid, signr,
-				addr, regs->nip, regs->link, code);
-		}
+		   unhandled_signal(current, signr)) {
+		printk_ratelimited(regs->msr & MSR_64BIT ? fmt64 : fmt32,
+				   current->comm, current->pid, signr,
+				   addr, regs->nip, regs->link, code);
+	}
 
 	memset(&info, 0, sizeof(info));
 	info.si_signo = signr;
@@ -1342,9 +1342,8 @@ void altivec_assist_exception(struct pt_regs *regs)
 	} else {
 		/* didn't recognize the instruction */
 		/* XXX quick hack for now: set the non-Java bit in the VSCR */
-		if (printk_ratelimit())
-			printk(KERN_ERR "Unrecognized altivec instruction "
-			       "in %s at %lx\n", current->comm, regs->nip);
+		printk_ratelimited(KERN_ERR "Unrecognized altivec instruction "
+				   "in %s at %lx\n", current->comm, regs->nip);
 		current->thread.vscr.u[3] |= 0x10000;
 	}
 }
@@ -1548,9 +1547,8 @@ u32 ppc_warn_emulated;
 
 void ppc_warn_emulated_print(const char *type)
 {
-	if (printk_ratelimit())
-		pr_warning("%s used emulated %s instruction\n", current->comm,
-			   type);
+	pr_warn_ratelimited("%s used emulated %s instruction\n", current->comm,
+			    type);
 }
 
 static int __init ppc_warn_emulated_init(void)
