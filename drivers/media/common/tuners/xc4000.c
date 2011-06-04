@@ -49,6 +49,27 @@ MODULE_PARM_DESC(no_poweroff, "\n\t\t1: keep device energized and with tuner "
 	"\t\t2: powers device off when not used.\n"
 	"\t\t0 (default): use device-specific default mode.");
 
+#define XC4000_AUDIO_STD_B		 1
+#define XC4000_AUDIO_STD_A2		 2
+#define XC4000_AUDIO_STD_K3		 4
+#define XC4000_AUDIO_STD_L		 8
+#define XC4000_AUDIO_STD_INPUT1		16
+#define XC4000_AUDIO_STD_MONO		32
+
+static int audio_std;
+module_param(audio_std, int, 0644);
+MODULE_PARM_DESC(audio_std, "\n\t\tAudio standard. XC4000 audio decoder "
+	"explicitly needs to know\n"
+	"\t\twhat audio standard is needed for some video standards with\n"
+	"\t\taudio A2 or NICAM.\n"
+	"\t\tThe valid settings are a sum of:\n"
+	"\t\t 1: use NICAM/B or A2/B instead of NICAM/A or A2/A\n"
+	"\t\t 2: use A2 instead of NICAM or BTSC\n"
+	"\t\t 4: use SECAM/K3 instead of K1\n"
+	"\t\t 8: use PAL-D/K audio for SECAM-D/K\n"
+	"\t\t16: use FM radio input 1 instead of input 2\n"
+	"\t\t32: use mono audio (the lower three bits are ignored)");
+
 #define XC4000_DEFAULT_FIRMWARE "xc4000.fw"
 
 static char firmware_name[30];
@@ -1343,6 +1364,8 @@ tune_channel:
 			if (priv->card_type == XC4000_CARD_WINFAST_CX88 &&
 			    priv->firm_version == 0x0102)
 				video_mode &= 0xFEFF;
+			if (audio_std & XC4000_AUDIO_STD_B)
+				video_mode |= 0x0080;
 		}
 		ret = xc_SetTVStandard(priv, video_mode, audio_mode);
 		if (ret != XC_RESULT_SUCCESS) {
