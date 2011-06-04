@@ -792,7 +792,7 @@ static int pc_open(struct tty_struct *tty, struct file *filp)
 	}
 	if (boardnum >= num_cards || boards[boardnum].status == DISABLED)  {
 		tty->driver_data = NULL;   /* Mark this device as 'down' */
-		return(-ENODEV);
+		return -ENODEV;
 	}
 
 	bc = ch->brdchan;
