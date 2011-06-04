@@ -452,6 +452,42 @@ void iterate_supers(void (*f)(struct super_block *, void *), void *arg)
 }
 
 /**
+ *	iterate_supers_type - call function for superblocks of given type
+ *	@type: fs type
+ *	@f: function to call
+ *	@arg: argument to pass to it
+ *
+ *	Scans the superblock list and calls given function, passing it
+ *	locked superblock and given argument.
+ */
+void iterate_supers_type(struct file_system_type *type,
+	void (*f)(struct super_block *, void *), void *arg)
+{
+	struct super_block *sb, *p = NULL;
+
+	spin_lock(&sb_lock);
+	list_for_each_entry(sb, &type->fs_supers, s_instances) {
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+
+		down_read(&sb->s_umount);
+		if (sb->s_root)
+			f(sb, arg);
+		up_read(&sb->s_umount);
+
+		spin_lock(&sb_lock);
+		if (p)
+			__put_super(p);
+		p = sb;
+	}
+	if (p)
+		__put_super(p);
+	spin_unlock(&sb_lock);
+}
+
+EXPORT_SYMBOL(iterate_supers_type);
+
+/**
  *	get_super - get the superblock of a device
  *	@bdev: device to get the superblock for
  *	
