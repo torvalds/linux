@@ -903,7 +903,7 @@ static int check_firmware(struct dvb_frontend *fe, unsigned int type,
 	struct xc4000_priv         *priv = fe->tuner_priv;
 	struct firmware_properties new_fw;
 	int			   rc = 0, is_retry = 0;
-	u16			   version, hwmodel;
+	u16			   version = 0, hwmodel;
 	v4l2_std_id		   std0;
 	u8			   hw_major, hw_minor, fw_major, fw_minor;
 
@@ -945,8 +945,7 @@ retry:
 	}
 
 	/* No need to reload base firmware if it matches */
-	if (((BASE | new_fw.type) & BASE_TYPES) ==
-	    (priv->cur_fw.type & BASE_TYPES)) {
+	if (priv->cur_fw.type & BASE) {
 		dprintk(1, "BASE firmware not changed.\n");
 		goto skip_base;
 	}
@@ -961,7 +960,7 @@ retry:
 
 	/* BASE firmwares are all std0 */
 	std0 = 0;
-	rc = load_firmware(fe, BASE | new_fw.type, &std0);
+	rc = load_firmware(fe, BASE, &std0);
 	if (rc < 0) {
 		printk("Error %d while loading base firmware\n", rc);
 		goto fail;
@@ -970,10 +969,9 @@ retry:
 	/* Load INIT1, if needed */
 	dprintk(1, "Load init1 firmware, if exists\n");
 
-	rc = load_firmware(fe, BASE | INIT1 | new_fw.type, &std0);
+	rc = load_firmware(fe, BASE | INIT1, &std0);
 	if (rc == -ENOENT)
-		rc = load_firmware(fe, (BASE | INIT1 | new_fw.type) & ~F8MHZ,
-				   &std0);
+		rc = load_firmware(fe, BASE | INIT1, &std0);
 	if (rc < 0 && rc != -ENOENT) {
 		tuner_err("Error %d while loading init1 firmware\n",
 			  rc);
@@ -1006,9 +1004,6 @@ skip_std_specific:
 		dprintk(1, "SCODE firmware already loaded.\n");
 		goto check_device;
 	}
-
-	if (new_fw.type & FM)
-		goto check_device;
 
 	/* Load SCODE firmware, if exists */
 	rc = load_scode(fe, new_fw.type | new_fw.scode_table, &new_fw.id,
