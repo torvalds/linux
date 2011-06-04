@@ -131,6 +131,7 @@ struct xc4000_priv {
 #define XREG_SEEK_MODE    0x06
 #define XREG_POWER_DOWN   0x08
 #define XREG_SIGNALSOURCE 0x0A
+#define XREG_SMOOTHEDCVBS 0x0E
 #define XREG_AMPLITUDE    0x10
 
 /* Registers (Read-only) */
@@ -1218,15 +1219,35 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 		       "xc4000: xc_SetSignalSource(%d) failed\n",
 		       priv->rf_mode);
 		goto fail;
+	} else {
+		u16	video_mode, audio_mode;
+		video_mode = XC4000_Standard[priv->video_standard].VideoMode;
+		audio_mode = XC4000_Standard[priv->video_standard].AudioMode;
+		if (type == DTV6 && priv->firm_version != 0x0102)
+			video_mode |= 0x0001;
+		ret = xc_SetTVStandard(priv, video_mode, audio_mode);
+		if (ret != XC_RESULT_SUCCESS) {
+			printk(KERN_ERR "xc4000: xc_SetTVStandard failed\n");
+			/* DJH - do not return when it fails... */
+			/* goto fail; */
+		}
 	}
 
-	ret = xc_SetTVStandard(priv,
-		XC4000_Standard[priv->video_standard].VideoMode,
-		XC4000_Standard[priv->video_standard].AudioMode);
-	if (ret != XC_RESULT_SUCCESS) {
-		printk(KERN_ERR "xc4000: xc_SetTVStandard failed\n");
-		goto fail;
+	if (priv->card_type == XC4000_CARD_WINFAST_CX88) {
+		if (xc_write_reg(priv, XREG_D_CODE, 0) == 0)
+			ret = 0;
+		if (xc_write_reg(priv, XREG_AMPLITUDE,
+				 (priv->firm_version == 0x0102 ? 132 : 134))
+		    != 0)
+			ret = -EREMOTEIO;
+		if (xc_write_reg(priv, XREG_SMOOTHEDCVBS, 1) != 0)
+			ret = -EREMOTEIO;
+		if (ret != 0) {
+			printk(KERN_ERR "xc4000: setting registers failed\n");
+			/* goto fail; */
+		}
 	}
+
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_DIGITAL);
 
 	ret = 0;
@@ -1311,14 +1332,36 @@ tune_channel:
 		       "xc4000: xc_SetSignalSource(%d) failed\n",
 		       priv->rf_mode);
 		goto fail;
+	} else {
+		u16	video_mode, audio_mode;
+		video_mode = XC4000_Standard[priv->video_standard].VideoMode;
+		audio_mode = XC4000_Standard[priv->video_standard].AudioMode;
+		if (priv->video_standard < XC4000_BG_PAL_A2) {
+			if (0 /*type & NOGD*/)
+				video_mode &= 0xFF7F;
+		} else if (priv->video_standard < XC4000_I_PAL_NICAM) {
+			if (priv->card_type == XC4000_CARD_WINFAST_CX88 &&
+			    priv->firm_version == 0x0102)
+				video_mode &= 0xFEFF;
+		}
+		ret = xc_SetTVStandard(priv, video_mode, audio_mode);
+		if (ret != XC_RESULT_SUCCESS) {
+			printk(KERN_ERR "xc4000: xc_SetTVStandard failed\n");
+			goto fail;
+		}
 	}
 
-	ret = xc_SetTVStandard(priv,
-		XC4000_Standard[priv->video_standard].VideoMode,
-		XC4000_Standard[priv->video_standard].AudioMode);
-	if (ret != XC_RESULT_SUCCESS) {
-		printk(KERN_ERR "xc4000: xc_SetTVStandard failed\n");
-		goto fail;
+	if (priv->card_type == XC4000_CARD_WINFAST_CX88) {
+		if (xc_write_reg(priv, XREG_D_CODE, 0) == 0)
+			ret = 0;
+		if (xc_write_reg(priv, XREG_AMPLITUDE, 1) != 0)
+			ret = -EREMOTEIO;
+		if (xc_write_reg(priv, XREG_SMOOTHEDCVBS, 1) != 0)
+			ret = -EREMOTEIO;
+		if (ret != 0) {
+			printk(KERN_ERR "xc4000: setting registers failed\n");
+			goto fail;
+		}
 	}
 
 	xc_tune_channel(priv, priv->freq_hz, XC_TUNE_ANALOG);
