@@ -1400,20 +1400,7 @@ static int xc4000_sleep(struct dvb_frontend *fe)
 
 static int xc4000_init(struct dvb_frontend *fe)
 {
-	struct xc4000_priv *priv = fe->tuner_priv;
-	int	ret;
 	dprintk(1, "%s()\n", __func__);
-
-	mutex_lock(&priv->lock);
-	ret = check_firmware(fe, DTV8, 0, priv->if_khz);
-	mutex_unlock(&priv->lock);
-	if (ret != XC_RESULT_SUCCESS) {
-		printk(KERN_ERR "xc4000: Unable to initialise tuner\n");
-		return -EREMOTEIO;
-	}
-
-	if (debug)
-		xc_debug_dump(priv);
 
 	return 0;
 }
@@ -1511,8 +1498,14 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	   instance of the driver has loaded the firmware.
 	 */
 
-	if (xc4000_readreg(priv, XREG_PRODUCT_ID, &id) != XC_RESULT_SUCCESS)
+	if (instance == 1) {
+		if (xc4000_readreg(priv, XREG_PRODUCT_ID, &id)
+		    != XC_RESULT_SUCCESS)
 			goto fail;
+	} else {
+		id = ((priv->cur_fw.type & BASE) != 0 ?
+		      priv->hwmodel : XC_PRODUCT_ID_FW_NOT_LOADED);
+	}
 
 	switch (id) {
 	case XC_PRODUCT_ID_FW_LOADED:
@@ -1541,16 +1534,19 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	memcpy(&fe->ops.tuner_ops, &xc4000_tuner_ops,
 		sizeof(struct dvb_tuner_ops));
 
-	/* FIXME: For now, load the firmware at startup.  We will remove this
-	   before the code goes to production... */
-	mutex_lock(&priv->lock);
-	check_firmware(fe, DTV8, 0, priv->if_khz);
-	mutex_unlock(&priv->lock);
+	if (instance == 1) {
+		int	ret;
+		mutex_lock(&priv->lock);
+		ret = xc4000_fwupload(fe);
+		mutex_unlock(&priv->lock);
+		if (ret != XC_RESULT_SUCCESS)
+			goto fail2;
+	}
 
 	return fe;
 fail:
 	mutex_unlock(&xc4000_list_mutex);
-
+fail2:
 	xc4000_release(fe);
 	return NULL;
 }
