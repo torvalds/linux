@@ -117,6 +117,7 @@
 
 /* TX Rate Limit Registers */
 #define E1000_RTTDQSEL	0x3604	/* Tx Desc Plane Queue Select - WO */
+#define E1000_RTTBCNRM	0x3690	/* Tx BCN Rate-scheduler MMW */
 #define E1000_RTTBCNRC	0x36B0	/* Tx BCN Rate-Scheduler Config - WO */
 
 /* Split and Replication RX Control - RW */

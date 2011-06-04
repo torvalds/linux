@@ -6997,6 +6997,11 @@ static void igb_set_vf_rate_limit(struct e1000_hw *hw, int vf, int tx_rate,
 	}
 
 	wr32(E1000_RTTDQSEL, vf); /* vf X uses queue X */
+	/*
+	 * Set global transmit compensation time to the MMW_SIZE in RTTBCNRM
+	 * register. MMW_SIZE=0x014 if 9728-byte jumbo is supported.
+	 */
+	wr32(E1000_RTTBCNRM, 0x14);
 	wr32(E1000_RTTBCNRC, bcnrc_val);
 }
 
