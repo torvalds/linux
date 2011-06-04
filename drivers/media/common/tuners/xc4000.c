@@ -140,7 +140,8 @@ struct xc4000_priv {
 
 /* Product id */
 #define XC_PRODUCT_ID_FW_NOT_LOADED	0x2000
-#define XC_PRODUCT_ID_FW_LOADED	0x0FA0
+#define XC_PRODUCT_ID_XC4000		0x0FA0
+#define XC_PRODUCT_ID_XC4100		0x1004
 
 /* Registers (Write-only) */
 #define XREG_INIT         0x00
@@ -1071,7 +1072,9 @@ check_device:
 #endif
 
 	/* Check that the tuner hardware model remains consistent over time. */
-	if (priv->hwmodel == 0 && hwmodel == 4000) {
+	if (priv->hwmodel == 0 &&
+	    (hwmodel == XC_PRODUCT_ID_XC4000 ||
+	     hwmodel == XC_PRODUCT_ID_XC4100)) {
 		priv->hwmodel = hwmodel;
 		priv->hwvers  = version & 0xff00;
 	} else if (priv->hwmodel == 0 || priv->hwmodel != hwmodel ||
@@ -1678,7 +1681,8 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	}
 
 	switch (id) {
-	case XC_PRODUCT_ID_FW_LOADED:
+	case XC_PRODUCT_ID_XC4000:
+	case XC_PRODUCT_ID_XC4100:
 		printk(KERN_INFO
 			"xc4000: Successfully identified at address 0x%02x\n",
 			cfg->i2c_address);
