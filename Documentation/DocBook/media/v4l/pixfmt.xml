@@ -860,6 +860,11 @@ kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm
 	    <entry>'PJPG'</entry>
 	    <entry>Pixart 73xx JPEG format used by the gspca driver.</entry>
 	  </row>
+	  <row id="V4L2-PIX-FMT-SE401">
+	    <entry><constant>V4L2_PIX_FMT_SE401</constant></entry>
+	    <entry>'S401'</entry>
+	    <entry>Compressed RGB format used by the gspca se401 driver</entry>
+	  </row>
 	  <row id="V4L2-PIX-FMT-SQ905C">
 	    <entry><constant>V4L2_PIX_FMT_SQ905C</constant></entry>
 	    <entry>'905C'</entry>
