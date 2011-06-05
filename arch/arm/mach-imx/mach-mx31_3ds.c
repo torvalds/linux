@@ -689,6 +689,8 @@ static void __init mx31_3ds_init(void)
 {
 	int ret;
 
+	imx31_soc_init();
+
 	mxc_iomux_setup_multiple_pins(mx31_3ds_pins, ARRAY_SIZE(mx31_3ds_pins),
 				      "mx31_3ds");
 

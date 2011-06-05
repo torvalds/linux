@@ -576,6 +576,8 @@ static void __init pcm037_init(void)
 {
 	int ret;
 
+	imx31_soc_init();
+
 	mxc_iomux_set_gpr(MUX_PGP_UH2, 1);
 
 	mxc_iomux_setup_multiple_pins(pcm037_pins, ARRAY_SIZE(pcm037_pins),
