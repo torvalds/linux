@@ -19,11 +19,11 @@ typedef enum _DOT11D_STATE {
 /**
  * struct _RT_DOT11D_INFO
  * @CountryIeLen: value greater than 0 if @CountryIeBuf contains
- * 	          valid country information element.
+ *		  valid country information element.
  * @chanell_map: holds channel values
  *		0 - invalid,
  *		1 - valid (active scan),
- *	 	2 - valid (passive scan)
+ *		2 - valid (passive scan)
  * @CountryIeSrcAddr - Source AP of the country IE
  */
 
@@ -49,7 +49,7 @@ static inline void cpMacAddr(unsigned char *des, unsigned char *src)
 #define GET_DOT11D_INFO(__pIeeeDev) ((PRT_DOT11D_INFO) \
 			((__pIeeeDev)->pDot11dInfo))
 
-#define IS_DOT11D_ENABLE(__pIeeeDev) GET_DOT11D_INFO(__pIeeeDev)->bEnabled
+#define IS_DOT11D_ENABLE(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)->bEnabled)
 #define IS_COUNTRY_IE_VALID(__pIeeeDev) \
 			(GET_DOT11D_INFO(__pIeeeDev)->CountryIeLen > 0)
 
@@ -66,9 +66,10 @@ static inline void cpMacAddr(unsigned char *des, unsigned char *src)
 	(__Ie).Octet, (__Ie).Length)))
 
 #define CIE_WATCHDOG_TH 1
-#define GET_CIE_WATCHDOG(__pIeeeDev) GET_DOT11D_INFO(__pIeeeDev)->CountryIeWatchdog
+#define GET_CIE_WATCHDOG(__pIeeeDev) (GET_DOT11D_INFO(__pIeeeDev)-> \
+							CountryIeWatchdog)
 #define RESET_CIE_WATCHDOG(__pIeeeDev) GET_CIE_WATCHDOG(__pIeeeDev) = 0
-#define UPDATE_CIE_WATCHDOG(__pIeeeDev) ++GET_CIE_WATCHDOG(__pIeeeDev)
+#define UPDATE_CIE_WATCHDOG(__pIeeeDev) (++GET_CIE_WATCHDOG(__pIeeeDev))
 
 #define IS_DOT11D_STATE_DONE(__pIeeeDev) \
 		(GET_DOT11D_INFO(__pIeeeDev)->State == DOT11D_STATE_DONE)
