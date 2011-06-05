@@ -169,6 +169,8 @@ struct mt9m111 {
 			 * from v4l2-chip-ident.h */
 	enum mt9m111_context context;
 	struct v4l2_rect rect;
+	struct mutex power_lock; /* lock to protect power_count */
+	int power_count;
 	const struct mt9m111_datafmt *fmt;
 	unsigned int gain;
 	unsigned char autoexposure;
@@ -726,12 +728,7 @@ static const struct v4l2_queryctrl mt9m111_controls[] = {
 	}
 };
 
-static int mt9m111_resume(struct soc_camera_device *icd);
-static int mt9m111_suspend(struct soc_camera_device *icd, pm_message_t state);
-
 static struct soc_camera_ops mt9m111_ops = {
-	.suspend		= mt9m111_suspend,
-	.resume			= mt9m111_resume,
 	.query_bus_param	= mt9m111_query_bus_param,
 	.set_bus_param		= mt9m111_set_bus_param,
 	.controls		= mt9m111_controls,
@@ -901,11 +898,8 @@ static int mt9m111_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return ret;
 }
 
-static int mt9m111_suspend(struct soc_camera_device *icd, pm_message_t state)
+static int mt9m111_suspend(struct mt9m111 *mt9m111)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct mt9m111 *mt9m111 = to_mt9m111(client);
-
 	mt9m111->gain = mt9m111_get_global_gain(mt9m111);
 
 	return 0;
@@ -923,10 +917,8 @@ static void mt9m111_restore_state(struct mt9m111 *mt9m111)
 	mt9m111_set_autowhitebalance(mt9m111, mt9m111->autowhitebalance);
 }
 
-static int mt9m111_resume(struct soc_camera_device *icd)
+static int mt9m111_resume(struct mt9m111 *mt9m111)
 {
-	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-	struct mt9m111 *mt9m111 = to_mt9m111(client);
 	int ret = 0;
 
 	if (mt9m111->powered) {
@@ -1008,10 +1000,45 @@ ei2c:
 	return ret;
 }
 
+static int mt9m111_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret = 0;
+
+	mutex_lock(&mt9m111->power_lock);
+
+	/*
+	 * If the power count is modified from 0 to != 0 or from != 0 to 0,
+	 * update the power state.
+	 */
+	if (mt9m111->power_count == !on) {
+		if (on) {
+			ret = mt9m111_resume(mt9m111);
+			if (ret) {
+				dev_err(&client->dev,
+					"Failed to resume the sensor: %d\n", ret);
+				goto out;
+			}
+		} else {
+			mt9m111_suspend(mt9m111);
+		}
+	}
+
+	/* Update the power count. */
+	mt9m111->power_count += on ? 1 : -1;
+	WARN_ON(mt9m111->power_count < 0);
+
+out:
+	mutex_unlock(&mt9m111->power_lock);
+	return ret;
+}
+
 static struct v4l2_subdev_core_ops mt9m111_subdev_core_ops = {
 	.g_ctrl		= mt9m111_g_ctrl,
 	.s_ctrl		= mt9m111_s_ctrl,
 	.g_chip_ident	= mt9m111_g_chip_ident,
+	.s_power	= mt9m111_s_power,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= mt9m111_g_register,
 	.s_register	= mt9m111_s_register,
