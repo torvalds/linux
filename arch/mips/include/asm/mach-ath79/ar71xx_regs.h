@@ -130,6 +130,10 @@
 
 #define AR724X_RESET_REG_RESET_MODULE		0x1c
 
+#define MISC_INT_ETHSW			BIT(12)
+#define MISC_INT_TIMER4			BIT(10)
+#define MISC_INT_TIMER3			BIT(9)
+#define MISC_INT_TIMER2			BIT(8)
 #define MISC_INT_DMA			BIT(7)
 #define MISC_INT_OHCI			BIT(6)
 #define MISC_INT_PERFC			BIT(5)

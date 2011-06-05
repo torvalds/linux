@@ -46,6 +46,15 @@ static void ath79_misc_irq_handler(unsigned int irq, struct irq_desc *desc)
 	else if (pending & MISC_INT_TIMER)
 		generic_handle_irq(ATH79_MISC_IRQ_TIMER);
 
+	else if (pending & MISC_INT_TIMER2)
+		generic_handle_irq(ATH79_MISC_IRQ_TIMER2);
+
+	else if (pending & MISC_INT_TIMER3)
+		generic_handle_irq(ATH79_MISC_IRQ_TIMER3);
+
+	else if (pending & MISC_INT_TIMER4)
+		generic_handle_irq(ATH79_MISC_IRQ_TIMER4);
+
 	else if (pending & MISC_INT_OHCI)
 		generic_handle_irq(ATH79_MISC_IRQ_OHCI);
 
@@ -57,6 +66,9 @@ static void ath79_misc_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 	else if (pending & MISC_INT_WDOG)
 		generic_handle_irq(ATH79_MISC_IRQ_WDOG);
+
+	else if (pending & MISC_INT_ETHSW)
+		generic_handle_irq(ATH79_MISC_IRQ_ETHSW);
 
 	else
 		spurious_interrupt();
