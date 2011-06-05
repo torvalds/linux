@@ -17,3 +17,32 @@ config MSM_IOMMU
 config IOMMU_PGTABLES_L2
 	def_bool y
 	depends on MSM_IOMMU && MMU && SMP && CPU_DCACHE_DISABLE=n
+
+# AMD IOMMU support
+config AMD_IOMMU
+	bool "AMD IOMMU support"
+	select SWIOTLB
+	select PCI_MSI
+	select PCI_IOV
+	select IOMMU_API
+	depends on X86_64 && PCI && ACPI
+	---help---
+	  With this option you can enable support for AMD IOMMU hardware in
+	  your system. An IOMMU is a hardware component which provides
+	  remapping of DMA memory accesses from devices. With an AMD IOMMU you
+	  can isolate the the DMA memory of different devices and protect the
+	  system from misbehaving device drivers or hardware.
+
+	  You can find out if your system has an AMD IOMMU if you look into
+	  your BIOS for an option to enable it or if you have an IVRS ACPI
+	  table.
+
+config AMD_IOMMU_STATS
+	bool "Export AMD IOMMU statistics to debugfs"
+	depends on AMD_IOMMU
+	select DEBUG_FS
+	---help---
+	  This option enables code in the AMD IOMMU driver to collect various
+	  statistics about whats happening in the driver and exports that
+	  information to userspace via debugfs.
+	  If unsure, say N.
