@@ -4,17 +4,17 @@
 #ifdef ENABLE_DOT11D
 #include "ieee80211.h"
 
-typedef struct _CHNL_TXPOWER_TRIPLE {
+struct _CHNL_TXPOWER_TRIPLE {
 	u8 FirstChnl;
 	u8  NumChnls;
 	u8  MaxTxPowerInDbm;
-} CHNL_TXPOWER_TRIPLE, *PCHNL_TXPOWER_TRIPLE;
+};
 
-typedef enum _DOT11D_STATE {
+enum _DOT11D_STATE {
 	DOT11D_STATE_NONE = 0,
 	DOT11D_STATE_LEARNED,
 	DOT11D_STATE_DONE,
-} DOT11D_STATE;
+};
 
 /**
  * struct _RT_DOT11D_INFO
@@ -27,7 +27,7 @@ typedef enum _DOT11D_STATE {
  * @CountryIeSrcAddr - Source AP of the country IE
  */
 
-typedef struct _RT_DOT11D_INFO {
+struct _RT_DOT11D_INFO {
 	bool bEnabled;
 
 	u16 CountryIeLen;
@@ -39,7 +39,7 @@ typedef struct _RT_DOT11D_INFO {
 	u8 MaxTxPwrDbmList[MAX_CHANNEL_NUMBER+1];
 
 	DOT11D_STATE State;
-} RT_DOT11D_INFO, *PRT_DOT11D_INFO;
+};
 
 static inline void cpMacAddr(unsigned char *des, unsigned char *src)
 {
