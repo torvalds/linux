@@ -194,12 +194,20 @@ enum tpacpi_hkey_event_t {
 	TP_HKEY_EV_PEN_REMOVED		= 0x500c, /* tablet pen removed */
 	TP_HKEY_EV_BRGHT_CHANGED	= 0x5010, /* backlight control event */
 
+	/* Key-related user-interface events */
+	TP_HKEY_EV_KEY_NUMLOCK		= 0x6000, /* NumLock key pressed */
+	TP_HKEY_EV_KEY_FN		= 0x6005, /* Fn key pressed? E420 */
+
 	/* Thermal events */
 	TP_HKEY_EV_ALARM_BAT_HOT	= 0x6011, /* battery too hot */
 	TP_HKEY_EV_ALARM_BAT_XHOT	= 0x6012, /* battery critically hot */
 	TP_HKEY_EV_ALARM_SENSOR_HOT	= 0x6021, /* sensor too hot */
 	TP_HKEY_EV_ALARM_SENSOR_XHOT	= 0x6022, /* sensor critically hot */
 	TP_HKEY_EV_THM_TABLE_CHANGED	= 0x6030, /* thermal table changed */
+
+	TP_HKEY_EV_UNK_6040		= 0x6040, /* Related to AC change?
+						     some sort of APM hint,
+						     W520 */
 
 	/* Misc */
 	TP_HKEY_EV_RFKILL_CHANGED	= 0x7000, /* rfkill switch changed */
@@ -3547,13 +3555,13 @@ static bool hotkey_notify_usrevent(const u32 hkey,
 
 static void thermal_dump_all_sensors(void);
 
-static bool hotkey_notify_thermal(const u32 hkey,
+static bool hotkey_notify_6xxx(const u32 hkey,
 				 bool *send_acpi_ev,
 				 bool *ignore_acpi_ev)
 {
 	bool known = true;
 
-	/* 0x6000-0x6FFF: thermal alarms */
+	/* 0x6000-0x6FFF: thermal alarms/notices and keyboard events */
 	*send_acpi_ev = true;
 	*ignore_acpi_ev = false;
 
@@ -3582,8 +3590,17 @@ static bool hotkey_notify_thermal(const u32 hkey,
 			 "a sensor reports something is extremely hot!\n");
 		/* recommended action: immediate sleep/hibernate */
 		break;
+
+	case TP_HKEY_EV_KEY_NUMLOCK:
+	case TP_HKEY_EV_KEY_FN:
+		/* key press events, we just ignore them as long as the EC
+		 * is still reporting them in the normal keyboard stream */
+		*send_acpi_ev = false;
+		*ignore_acpi_ev = true;
+		return true;
+
 	default:
-		pr_alert("THERMAL ALERT: unknown thermal alarm received\n");
+		pr_warn("unknown possible thermal alarm or keyboard event received\n");
 		known = false;
 	}
 
@@ -3668,8 +3685,9 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 						 &ignore_acpi_ev);
 			break;
 		case 6:
-			/* 0x6000-0x6FFF: thermal alarms */
-			known_ev = hotkey_notify_thermal(hkey, &send_acpi_ev,
+			/* 0x6000-0x6FFF: thermal alarms/notices and
+			 *                keyboard events */
+			known_ev = hotkey_notify_6xxx(hkey, &send_acpi_ev,
 						 &ignore_acpi_ev);
 			break;
 		case 7:
