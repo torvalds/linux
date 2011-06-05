@@ -650,8 +650,6 @@ static int ql_set_pauseparam(struct net_device *netdev,
 		return -EINVAL;
 
 	status = ql_mb_set_port_cfg(qdev);
-	if (status)
-		return status;
 	return status;
 }
 
