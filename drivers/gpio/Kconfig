@@ -97,6 +97,10 @@ config GPIO_MXS
 	def_bool y
 	depends on ARCH_MXS
 
+config GPIO_MXC
+	def_bool y
+	depends on ARCH_MXC
+
 config GPIO_PLAT_SAMSUNG
 	bool "Samsung SoCs GPIO library support"
 	default y if SAMSUNG_GPIOLIB_4BIT
