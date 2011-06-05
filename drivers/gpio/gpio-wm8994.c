@@ -1,5 +1,5 @@
 /*
- * wm8994-gpio.c  --  gpiolib support for Wolfson WM8994
+ * gpiolib support for Wolfson WM8994
  *
  * Copyright 2009 Wolfson Microelectronics PLC.
  *

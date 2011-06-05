@@ -1,5 +1,5 @@
 /*
- * mcp23s08.c - SPI gpio expander driver
+ * MCP23S08 SPI gpio expander driver
  */
 
 #include <linux/kernel.h>

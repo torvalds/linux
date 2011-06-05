@@ -1,6 +1,4 @@
 /*
- * linux/arch/arm/mach-ep93xx/gpio.c
- *
  * Generic EP93xx GPIO handling
  *
  * Copyright (c) 2008 Ryan Mallon <ryan@bluewatersys.com>

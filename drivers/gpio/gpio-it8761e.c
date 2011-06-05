@@ -1,5 +1,5 @@
 /*
- *  it8761_gpio.c - GPIO interface for IT8761E Super I/O chip
+ *  GPIO interface for IT8761E Super I/O chip
  *
  *  Author: Denis Turischev <denis@compulab.co.il>
  *

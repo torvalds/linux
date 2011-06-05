@@ -1,5 +1,5 @@
 /*
- * wm831x-gpio.c  --  gpiolib support for Wolfson WM831x PMICs
+ * gpiolib support for Wolfson WM831x PMICs
  *
  * Copyright 2009 Wolfson Microelectronics PLC.
  *
