@@ -29,6 +29,15 @@
 
 #include <mach/iomux.h>
 
+#if defined(CONFIG_RK29_SRAM_SPI)
+void sram_spi_pread(void);
+void __sramfunc rk29_spi_ctr_vol_sleep(void);
+void __sramfunc rk29_spi_ctr_vol_resume(void);
+#else
+#define sram_spi_pread()
+#define rk29_spi_ctr_vol_sleep()
+#define rk29_spi_ctr_vol_resume()
+#endif
 
 #define grf_readl(offset) readl(RK29_GRF_BASE + offset)
 #define grf_writel(v, offset) do { writel(v, RK29_GRF_BASE + offset); readl(RK29_GRF_BASE + offset); } while (0)
@@ -279,6 +288,10 @@ static void __sramfunc rk29_sram_suspend(void)
 #ifdef CONFIG_RK29_PWM_REGULATOR
 	rk29_set_core_voltage(1000000);
 #endif
+#if defined(CONFIG_RK29_SRAM_SPI)
+	rk29_spi_ctr_vol_sleep();
+#endif
+
 	printch('7');
 	clksel0 = cru_readl(CRU_CLKSEL0_CON);
 	/* set arm clk 24MHz/32 = 750KHz */
@@ -296,6 +309,10 @@ static void __sramfunc rk29_sram_suspend(void)
 #ifdef CONFIG_RK29_PWM_REGULATOR
 	rk29_set_core_voltage(0);
 #endif
+#if defined(CONFIG_RK29_SRAM_SPI)
+	rk29_spi_ctr_vol_resume();
+#endif
+
 	printch('6');
 
 	ddr_resume();
@@ -469,7 +486,9 @@ static int rk29_pm_enter(suspend_state_t state)
 	delay_500ns();
 	/* set aclk_periph = hclk_periph = pclk_periph = 24MHz */
 	cru_writel(clksel0 & ~0x7FC000, CRU_CLKSEL0_CON);
-
+#if defined(CONFIG_RK29_SRAM_SPI)
+	sram_spi_pread();
+#endif
 	printch('4');
 	
 	rk29_suspend();

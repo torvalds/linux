@@ -179,5 +179,8 @@ config RK29_LAST_LOG
 	default y
 	help
 	  It is only intended for debugging.
+config RK29_SRAM_SPI
+	tristate "Support spi driver codec run in sram"
+	default n
 
 endif
