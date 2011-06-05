@@ -52,9 +52,11 @@ static int caam_probe(struct platform_device *pdev)
 	struct caam_ctrl __iomem *ctrl;
 	struct caam_full __iomem *topregs;
 	struct caam_drv_private *ctrlpriv;
-	struct caam_perfmon *perfmon;
 	struct caam_deco **deco;
 	u32 deconum;
+#ifdef CONFIG_DEBUG_FS
+	struct caam_perfmon *perfmon;
+#endif
 
 	ctrlpriv = kzalloc(sizeof(struct caam_drv_private), GFP_KERNEL);
 	if (!ctrlpriv)
