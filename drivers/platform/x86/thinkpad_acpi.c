@@ -184,6 +184,10 @@ enum tpacpi_hkey_event_t {
 
 	/* Misc bay events */
 	TP_HKEY_EV_OPTDRV_EJ		= 0x3006, /* opt. drive tray ejected */
+	TP_HKEY_EV_HOTPLUG_DOCK		= 0x4010, /* docked into hotplug dock
+						     or port replicator */
+	TP_HKEY_EV_HOTPLUG_UNDOCK	= 0x4011, /* undocked from hotplug
+						     dock or port replicator */
 
 	/* User-interface events */
 	TP_HKEY_EV_LID_CLOSE		= 0x5001, /* laptop lid closed */
@@ -3521,6 +3525,34 @@ static bool hotkey_notify_wakeup(const u32 hkey,
 	return true;
 }
 
+static bool hotkey_notify_dockevent(const u32 hkey,
+				 bool *send_acpi_ev,
+				 bool *ignore_acpi_ev)
+{
+	/* 0x4000-0x4FFF: dock-related events */
+	*send_acpi_ev = true;
+	*ignore_acpi_ev = false;
+
+	switch (hkey) {
+	case TP_HKEY_EV_UNDOCK_ACK:
+		/* ACPI undock operation completed after wakeup */
+		hotkey_autosleep_ack = 1;
+		pr_info("undocked\n");
+		hotkey_wakeup_hotunplug_complete_notify_change();
+		return true;
+
+	case TP_HKEY_EV_HOTPLUG_DOCK: /* docked to port replicator */
+		pr_info("docked into hotplug port replicator\n");
+		return true;
+	case TP_HKEY_EV_HOTPLUG_UNDOCK: /* undocked from port replicator */
+		pr_info("undocked from hotplug port replicator\n");
+		return true;
+
+	default:
+		return false;
+	}
+}
+
 static bool hotkey_notify_usrevent(const u32 hkey,
 				 bool *send_acpi_ev,
 				 bool *ignore_acpi_ev)
@@ -3669,15 +3701,9 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			}
 			break;
 		case 4:
-			/* 0x4000-0x4FFF: dock-related wakeups */
-			if (hkey == TP_HKEY_EV_UNDOCK_ACK) {
-				hotkey_autosleep_ack = 1;
-				pr_info("undocked\n");
-				hotkey_wakeup_hotunplug_complete_notify_change();
-				known_ev = true;
-			} else {
-				known_ev = false;
-			}
+			/* 0x4000-0x4FFF: dock-related events */
+			known_ev = hotkey_notify_dockevent(hkey, &send_acpi_ev,
+						&ignore_acpi_ev);
 			break;
 		case 5:
 			/* 0x5000-0x5FFF: human interface helpers */

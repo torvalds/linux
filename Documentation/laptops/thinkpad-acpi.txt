@@ -547,6 +547,8 @@ Events that are propagated by the driver to userspace:
 0x3006		Bay hotplug request (hint to power up SATA link when
 		the optical drive tray is ejected)
 0x4003		Undocked (see 0x2x04), can sleep again
+0x4010		Docked into hotplug port replicator (non-ACPI dock)
+0x4011		Undocked from hotplug port replicator (non-ACPI dock)
 0x500B		Tablet pen inserted into its storage bay
 0x500C		Tablet pen removed from its storage bay
 0x6011		ALARM: battery is too hot
