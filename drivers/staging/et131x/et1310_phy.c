@@ -178,7 +178,7 @@ int MiWrite(struct et131x_adapter *etdev, u8 xcvrReg, u16 value)
 {
 	struct mac_regs __iomem *mac = &etdev->regs->mac;
 	int status = 0;
-	u8 xcvrAddr = etdev->Stats.xcvr_addr;
+	u8 xcvrAddr = etdev->stats.xcvr_addr;
 	u32 delay;
 	u32 miiAddr;
 	u32 miiCmd;
@@ -259,8 +259,8 @@ int et131x_xcvr_find(struct et131x_adapter *etdev)
 		xcvr_id = (u32) ((idr1 << 16) | idr2);
 
 		if (idr1 != 0 && idr1 != 0xffff) {
-			etdev->Stats.xcvr_id = xcvr_id;
-			etdev->Stats.xcvr_addr = xcvr_addr;
+			etdev->stats.xcvr_id = xcvr_id;
+			etdev->stats.xcvr_addr = xcvr_addr;
 			return 0;
 		}
 	}

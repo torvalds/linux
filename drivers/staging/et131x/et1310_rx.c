@@ -971,7 +971,7 @@ struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 	 * also counted here.
 	 */
 	if (len < (NIC_MIN_PACKET_SIZE + 4)) {
-		etdev->Stats.other_errors++;
+		etdev->stats.other_errors++;
 		len = 0;
 	}
 
@@ -1039,16 +1039,16 @@ struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 			}
 
 			if (len > 0)
-				etdev->Stats.multircv++;
+				etdev->stats.multircv++;
 		} else if (word0 & ALCATEL_BROADCAST_PKT)
-			etdev->Stats.brdcstrcv++;
+			etdev->stats.brdcstrcv++;
 		else
 			/* Not sure what this counter measures in
 			 * promiscuous mode. Perhaps we should check
 			 * the MAC address to see if it is directed
 			 * to us in promiscuous mode.
 			 */
-			etdev->Stats.unircv++;
+			etdev->stats.unircv++;
 	}
 
 	if (len > 0) {
@@ -1132,7 +1132,7 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 		}
 
 		/* Increment the number of packets we received */
-		etdev->Stats.ipackets++;
+		etdev->stats.ipackets++;
 
 		/* Set the status on the packet, either resources or success */
 		if (etdev->rx_ring.nReadyRecv < RFD_LOW_WATER_MARK) {

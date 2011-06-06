@@ -98,7 +98,7 @@ struct rfd {
 #define FLOW_NONE	3
 
 /* Struct to define some device statistics */
-struct ce_stats_t {
+struct ce_stats {
 	/* Link Input/Output stats */
 	uint64_t ipackets;	/* # of in packets */
 	uint64_t opackets;	/* # of out packets */
@@ -239,7 +239,7 @@ struct et131x_adapter {
 	u8 ReplicaPhyLoopbkPF;	/* Replica Enable Pass/Fail */
 
 	/* Stats */
-	struct ce_stats_t Stats;
+	struct ce_stats stats;
 
 	struct net_device_stats net_stats;
 	struct net_device_stats net_stats_prev;

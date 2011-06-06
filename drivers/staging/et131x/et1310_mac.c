@@ -452,7 +452,7 @@ void ConfigFlowControl(struct et131x_adapter *etdev)
  */
 void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
 {
-	struct ce_stats_t *stats = &etdev->Stats;
+	struct ce_stats *stats = &etdev->stats;
 	struct macstat_regs __iomem *macstat =
 		&etdev->regs->macstat;
 
@@ -503,33 +503,33 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 	 * block indicates that one of the counters has wrapped.
 	 */
 	if (Carry1 & (1 << 14))
-		etdev->Stats.code_violations += COUNTER_WRAP_16_BIT;
+		etdev->stats.code_violations += COUNTER_WRAP_16_BIT;
 	if (Carry1 & (1 << 8))
-		etdev->Stats.alignment_err += COUNTER_WRAP_12_BIT;
+		etdev->stats.alignment_err += COUNTER_WRAP_12_BIT;
 	if (Carry1 & (1 << 7))
-		etdev->Stats.length_err += COUNTER_WRAP_16_BIT;
+		etdev->stats.length_err += COUNTER_WRAP_16_BIT;
 	if (Carry1 & (1 << 2))
-		etdev->Stats.other_errors += COUNTER_WRAP_16_BIT;
+		etdev->stats.other_errors += COUNTER_WRAP_16_BIT;
 	if (Carry1 & (1 << 6))
-		etdev->Stats.crc_err += COUNTER_WRAP_16_BIT;
+		etdev->stats.crc_err += COUNTER_WRAP_16_BIT;
 	if (Carry1 & (1 << 3))
-		etdev->Stats.rx_ov_flow += COUNTER_WRAP_16_BIT;
+		etdev->stats.rx_ov_flow += COUNTER_WRAP_16_BIT;
 	if (Carry1 & (1 << 0))
-		etdev->Stats.norcvbuf += COUNTER_WRAP_16_BIT;
+		etdev->stats.norcvbuf += COUNTER_WRAP_16_BIT;
 	if (Carry2 & (1 << 16))
-		etdev->Stats.max_pkt_error += COUNTER_WRAP_12_BIT;
+		etdev->stats.max_pkt_error += COUNTER_WRAP_12_BIT;
 	if (Carry2 & (1 << 15))
-		etdev->Stats.tx_uflo += COUNTER_WRAP_12_BIT;
+		etdev->stats.tx_uflo += COUNTER_WRAP_12_BIT;
 	if (Carry2 & (1 << 6))
-		etdev->Stats.first_collision += COUNTER_WRAP_12_BIT;
+		etdev->stats.first_collision += COUNTER_WRAP_12_BIT;
 	if (Carry2 & (1 << 8))
-		etdev->Stats.tx_deferred += COUNTER_WRAP_12_BIT;
+		etdev->stats.tx_deferred += COUNTER_WRAP_12_BIT;
 	if (Carry2 & (1 << 5))
-		etdev->Stats.excessive_collisions += COUNTER_WRAP_12_BIT;
+		etdev->stats.excessive_collisions += COUNTER_WRAP_12_BIT;
 	if (Carry2 & (1 << 4))
-		etdev->Stats.late_collisions += COUNTER_WRAP_12_BIT;
+		etdev->stats.late_collisions += COUNTER_WRAP_12_BIT;
 	if (Carry2 & (1 << 2))
-		etdev->Stats.collisions += COUNTER_WRAP_12_BIT;
+		etdev->stats.collisions += COUNTER_WRAP_12_BIT;
 }
 
 void SetupDeviceForMulticast(struct et131x_adapter *etdev)

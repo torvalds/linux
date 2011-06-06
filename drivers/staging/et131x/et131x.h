@@ -108,7 +108,7 @@ void et131x_setphy_normal(struct et131x_adapter *adapter);
 int PhyMiRead(struct et131x_adapter *adapter, u8 xcvrAddr,
 	      u8 xcvrReg, u16 *value);
 #define MiRead(adapter, xcvrReg, value) \
-	PhyMiRead((adapter), (adapter)->Stats.xcvr_addr, (xcvrReg), (value))
+	PhyMiRead((adapter), (adapter)->stats.xcvr_addr, (xcvrReg), (value))
 
 int32_t MiWrite(struct et131x_adapter *adapter,
 		u8 xcvReg, u16 value);

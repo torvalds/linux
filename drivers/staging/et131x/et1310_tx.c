@@ -635,11 +635,11 @@ inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 	struct net_device_stats *stats = &etdev->net_stats;
 
 	if (tcb->flags & fMP_DEST_BROAD)
-		atomic_inc(&etdev->Stats.brdcstxmt);
+		atomic_inc(&etdev->stats.brdcstxmt);
 	else if (tcb->flags & fMP_DEST_MULTI)
-		atomic_inc(&etdev->Stats.multixmt);
+		atomic_inc(&etdev->stats.multixmt);
 	else
-		atomic_inc(&etdev->Stats.unixmt);
+		atomic_inc(&etdev->stats.unixmt);
 
 	if (tcb->skb) {
 		stats->tx_bytes += tcb->skb->len;
@@ -673,7 +673,7 @@ inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 	/* Add the TCB to the Ready Q */
 	spin_lock_irqsave(&etdev->TCBReadyQLock, flags);
 
-	etdev->Stats.opackets++;
+	etdev->stats.opackets++;
 
 	if (etdev->tx_ring.tcb_qtail)
 		etdev->tx_ring.tcb_qtail->next = tcb;

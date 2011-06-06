@@ -100,7 +100,7 @@ struct net_device_stats *et131x_stats(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct net_device_stats *stats = &adapter->net_stats;
-	struct ce_stats_t *devstat = &adapter->Stats;
+	struct ce_stats *devstat = &adapter->stats;
 
 	stats->rx_packets = devstat->ipackets;
 	stats->tx_packets = devstat->opackets;
@@ -218,7 +218,7 @@ int et131x_ioctl_mii(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
-		data->phy_id = etdev->Stats.xcvr_addr;
+		data->phy_id = etdev->stats.xcvr_addr;
 		break;
 
 	case SIOCGMIIREG:

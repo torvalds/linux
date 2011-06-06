@@ -222,7 +222,7 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 	 * DPC. We will clear the software copy of that in that
 	 * routine.
 	 */
-	adapter->Stats.InterruptStatus = status;
+	adapter->stats.InterruptStatus = status;
 
 	/* Schedule the ISR handler as a bottom-half task in the
 	 * kernel's tq_immediate queue, and mark the queue for
@@ -244,7 +244,7 @@ void et131x_isr_handler(struct work_struct *work)
 {
 	struct et131x_adapter *etdev =
 		container_of(work, struct et131x_adapter, task);
-	u32 status = etdev->Stats.InterruptStatus;
+	u32 status = etdev->stats.InterruptStatus;
 	struct address_map __iomem *iomem = etdev->regs;
 
 	/*
