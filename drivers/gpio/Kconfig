@@ -101,6 +101,7 @@ config GPIO_MXC
 config GPIO_MXS
 	def_bool y
 	depends on ARCH_MXS
+	select GPIO_GENERIC
 
 config GPIO_PLAT_SAMSUNG
 	def_bool y
