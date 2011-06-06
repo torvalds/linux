@@ -25,7 +25,7 @@
 #include <linux/of_spi.h>
 #include <sysdev/fsl_soc.h>
 
-#include "spi_fsl_lib.h"
+#include "spi-fsl-lib.h"
 
 #define MPC8XXX_SPI_RX_BUF(type) 					  \
 void mpc8xxx_spi_rx_buf_##type(u32 data, struct mpc8xxx_spi *mpc8xxx_spi) \

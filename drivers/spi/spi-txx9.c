@@ -1,5 +1,5 @@
 /*
- * spi_txx9.c - TXx9 SPI controller driver.
+ * TXx9 SPI controller driver.
  *
  * Based on linux/arch/mips/tx4938/toshiba_rbtx4938/spi_txx9.c
  * Copyright (C) 2000-2001 Toshiba Corporation

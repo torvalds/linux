@@ -1,5 +1,5 @@
 /*
- * dw_spi_pci.c - PCI interface driver for DW SPI Core
+ * PCI interface driver for DW SPI Core
  *
  * Copyright (c) 2009, Intel Corporation.
  *
@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 
-#include "dw_spi.h"
+#include "spi-dw.h"
 
 #define DRIVER_NAME "dw_spi_pci"
 

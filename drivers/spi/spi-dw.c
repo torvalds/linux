@@ -1,5 +1,5 @@
 /*
- * dw_spi.c - Designware SPI core controller driver (refer pxa2xx_spi.c)
+ * Designware SPI core controller driver (refer pxa2xx_spi.c)
  *
  * Copyright (c) 2009, Intel Corporation.
  *
@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 
-#include "dw_spi.h"
+#include "spi-dw.h"
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>

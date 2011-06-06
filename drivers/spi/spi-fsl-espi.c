@@ -22,7 +22,7 @@
 #include <linux/err.h>
 #include <sysdev/fsl_soc.h>
 
-#include "spi_fsl_lib.h"
+#include "spi-fsl-lib.h"
 
 /* eSPI Controller registers */
 struct fsl_espi_reg {

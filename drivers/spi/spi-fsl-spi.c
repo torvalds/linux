@@ -37,7 +37,7 @@
 #include <asm/cpm.h>
 #include <asm/qe.h>
 
-#include "spi_fsl_lib.h"
+#include "spi-fsl-lib.h"
 
 /* CPM1 and CPM2 are mutually exclusive. */
 #ifdef CONFIG_CPM1

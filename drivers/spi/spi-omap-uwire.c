@@ -1,5 +1,5 @@
 /*
- * omap_uwire.c -- MicroWire interface driver for OMAP
+ * MicroWire interface driver for OMAP
  *
  * Copyright 2003 MontaVista Software Inc. <source@mvista.com>
  *

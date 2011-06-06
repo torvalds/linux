@@ -1,5 +1,5 @@
 /*
- * dw_spi_mmio.c - Memory-mapped interface driver for DW SPI Core
+ * Memory-mapped interface driver for DW SPI Core
  *
  * Copyright (c) 2010, Octasic semiconductor.
  *
@@ -16,7 +16,7 @@
 #include <linux/spi/spi.h>
 #include <linux/scatterlist.h>
 
-#include "dw_spi.h"
+#include "spi-dw.h"
 
 #define DRIVER_NAME "dw_spi_mmio"
 

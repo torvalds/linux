@@ -1,5 +1,5 @@
 /*
- * orion_spi.c -- Marvell Orion SPI controller driver
+ * Marvell Orion SPI controller driver
  *
  * Author: Shadi Ammouri <shadi@marvell.com>
  * Copyright (C) 2007-2008 Marvell Ltd.

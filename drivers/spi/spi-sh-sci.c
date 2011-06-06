@@ -78,7 +78,7 @@ static inline u32 getmiso(struct spi_device *dev)
 
 #define spidelay(x) ndelay(x)
 
-#include "spi_bitbang_txrx.h"
+#include "spi-bitbang-txrx.h"
 
 static u32 sh_sci_spi_txrx_mode0(struct spi_device *spi,
 				      unsigned nsecs, u32 word, u8 bits)

@@ -1,6 +1,4 @@
 /*
- * drivers/spi/amba-pl022.c
- *
  * A driver for the ARM PL022 PrimeCell SSP/SPI bus master.
  *
  * Copyright (C) 2008-2009 ST-Ericsson AB

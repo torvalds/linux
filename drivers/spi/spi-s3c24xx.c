@@ -1,5 +1,4 @@
-/* linux/drivers/spi/spi_s3c24xx.c
- *
+/*
  * Copyright (c) 2006 Ben Dooks
  * Copyright 2006-2009 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
@@ -32,7 +31,7 @@
 #include <plat/fiq.h>
 #include <asm/fiq.h>
 
-#include "spi_s3c24xx_fiq.h"
+#include "spi-s3c24xx-fiq.h"
 
 /**
  * s3c24xx_spi_devstate - per device data

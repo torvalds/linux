@@ -1,5 +1,5 @@
 /*
- * dw_spi_mid.c - special handling for DW core on Intel MID platform
+ * Special handling for DW core on Intel MID platform
  *
  * Copyright (c) 2009, Intel Corporation.
  *
@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 
-#include "dw_spi.h"
+#include "spi-dw.h"
 
 #ifdef CONFIG_SPI_DW_MID_DMA
 #include <linux/intel_mid_dma.h>

@@ -1,5 +1,4 @@
-/* linux/drivers/spi/spi_nuc900.c
- *
+/*
  * Copyright (c) 2009 Nuvoton technology.
  * Wan ZongShun <mcuos.com@gmail.com>
  *
@@ -7,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
-*/
+ */
 
 #include <linux/init.h>
 #include <linux/spinlock.h>

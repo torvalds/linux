@@ -1,5 +1,5 @@
 /*
- * tle62x0.c -- support Infineon TLE62x0 driver chips
+ * Support Infineon TLE62x0 driver chips
  *
  * Copyright (c) 2007 Simtec Electronics
  *	Ben Dooks, <ben@simtec.co.uk>

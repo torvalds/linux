@@ -1,5 +1,4 @@
-/* linux/drivers/spi/spi_s3c64xx.c
- *
+/*
  * Copyright (C) 2009 Samsung Electronics Ltd.
  *	Jaswinder Singh <jassi.brar@samsung.com>
  *

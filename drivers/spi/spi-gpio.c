@@ -1,5 +1,5 @@
 /*
- * spi_gpio.c - SPI master driver using generic bitbanged GPIO
+ * SPI master driver using generic bitbanged GPIO
  *
  * Copyright (C) 2006,2008 David Brownell
  *
@@ -69,7 +69,7 @@ struct spi_gpio {
  *		#define	SPI_MOSI_GPIO	120
  *		#define	SPI_SCK_GPIO	121
  *		#define	SPI_N_CHIPSEL	4
- *		#include "spi_gpio.c"
+ *		#include "spi-gpio.c"
  */
 
 #ifndef DRIVER_NAME
@@ -127,7 +127,7 @@ static inline int getmiso(const struct spi_device *spi)
  */
 #define spidelay(nsecs)	do {} while (0)
 
-#include "spi_bitbang_txrx.h"
+#include "spi-bitbang-txrx.h"
 
 /*
  * These functions can leverage inline expansion of GPIO calls to shrink

@@ -1,5 +1,5 @@
 /*
- * spi_butterfly.c - parport-to-butterfly adapter
+ * parport-to-butterfly adapter
  *
  * Copyright (C) 2005 David Brownell
  *
@@ -149,7 +149,7 @@ static void butterfly_chipselect(struct spi_device *spi, int value)
 #define	spidelay(X)	do{}while(0)
 //#define	spidelay	ndelay
 
-#include "spi_bitbang_txrx.h"
+#include "spi-bitbang-txrx.h"
 
 static u32
 butterfly_txrx_word_mode0(struct spi_device *spi,

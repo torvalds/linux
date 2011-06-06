@@ -1,5 +1,5 @@
 /*
- * au1550_spi.c - au1550 psc spi controller driver
+ * au1550 psc spi controller driver
  * may work also with au1200, au1210, au1250
  * will not work on au1000, au1100 and au1500 (no full spi controller there)
  *

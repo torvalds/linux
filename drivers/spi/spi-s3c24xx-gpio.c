@@ -1,5 +1,4 @@
-/* linux/drivers/spi/spi_s3c24xx_gpio.c
- *
+/*
  * Copyright (c) 2006 Ben Dooks
  * Copyright (c) 2006 Simtec Electronics
  *
@@ -58,7 +57,7 @@ static inline u32 getmiso(struct spi_device *dev)
 
 #define spidelay(x) ndelay(x)
 
-#include "spi_bitbang_txrx.h"
+#include "spi-bitbang-txrx.h"
 
 
 static u32 s3c2410_spigpio_txrx_mode0(struct spi_device *spi,

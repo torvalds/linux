@@ -1,5 +1,5 @@
 /*
- * spi_lm70llp.c - driver for LM70EVAL-LLP board for the LM70 sensor
+ * Driver for LM70EVAL-LLP board for the LM70 sensor
  *
  * Copyright (C) 2006 Kaiwan N Billimoria <kaiwan@designergraphix.com>
  *
@@ -174,7 +174,7 @@ static inline int getmiso(struct spi_device *s)
 }
 /*--------------------------------------------------------------------*/
 
-#include "spi_bitbang_txrx.h"
+#include "spi-bitbang-txrx.h"
 
 static void lm70_chipselect(struct spi_device *spi, int value)
 {
