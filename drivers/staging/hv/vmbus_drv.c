@@ -486,7 +486,6 @@ static int vmbus_on_isr(void)
 	if (msg->header.message_type != HVMSG_NONE)
 		ret |= 0x1;
 
-	/* TODO: Check if there are events to be process */
 	page_addr = hv_context.synic_event_page[cpu];
 	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
 
