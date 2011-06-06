@@ -1488,20 +1488,6 @@ void viafb_fill_crtc_timing(struct VideoModeTable *video_mode, int bpp_byte,
 	}
 
 	crt_reg = crt_table[index].crtc;
-
-	/* Mode 640x480 has border, but LCD/DFP didn't have border. */
-	/* So we would delete border. */
-	if ((viafb_LCD_ON | viafb_DVI_ON)
-	    && video_mode->crtc[0].crtc.hor_addr == 640
-	    && video_mode->crtc[0].crtc.ver_addr == 480
-	    && refresh == 60) {
-		/* The border is 8 pixels. */
-		crt_reg.hor_blank_start = crt_reg.hor_blank_start - 8;
-
-		/* Blanking time should add left and right borders. */
-		crt_reg.hor_blank_end = crt_reg.hor_blank_end + 16;
-	}
-
 	crt_reg.hor_blank_end += crt_reg.hor_blank_start;
 	crt_reg.hor_sync_end += crt_reg.hor_sync_start;
 	crt_reg.ver_blank_end += crt_reg.ver_blank_start;
