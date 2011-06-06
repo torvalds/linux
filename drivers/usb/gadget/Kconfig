@@ -480,6 +480,35 @@ config USB_CI13XXX_PCI
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_NET2272
+	boolean "PLX NET2272"
+	select USB_GADGET_DUALSPEED
+	help
+	  PLX NET2272 is a USB peripheral controller which supports
+	  both full and high speed USB 2.0 data transfers.
+
+	  It has three configurable endpoints, as well as endpoint zero
+	  (for control transfer).
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "net2272" and force all
+	  gadget drivers to also be dynamically linked.
+
+config USB_GADGET_NET2272_DMA
+	boolean "Support external DMA controller"
+	depends on USB_GADGET_NET2272
+	help
+	  The NET2272 part can optionally support an external DMA
+	  controller, but your board has to have support in the
+	  driver itself.
+
+	  If unsure, say "N" here.  The driver works fine in PIO mode.
+
+config USB_NET2272
+	tristate
+	depends on USB_GADGET_NET2272
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_NET2280
 	boolean "NetChip 228x"
 	depends on PCI

@@ -15,6 +15,12 @@
 #ifndef __GADGET_CHIPS_H
 #define __GADGET_CHIPS_H
 
+#ifdef CONFIG_USB_GADGET_NET2272
+#define gadget_is_net2272(g)	!strcmp("net2272", (g)->name)
+#else
+#define gadget_is_net2272(g)	0
+#endif
+
 #ifdef CONFIG_USB_GADGET_NET2280
 #define	gadget_is_net2280(g)	!strcmp("net2280", (g)->name)
 #else
@@ -223,6 +229,8 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 		return 0x29;
 	else if (gadget_is_s3c_hsudc(gadget))
 		return 0x30;
+	else if (gadget_is_net2272(gadget))
+		return 0x31;
 
 	return -ENOENT;
 }
