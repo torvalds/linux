@@ -262,7 +262,7 @@ static void process_chn_event(u32 relid)
 	channel = relid2channel(relid);
 
 	if (channel) {
-		vmbus_onchannel_event(channel);
+		channel->onchannel_callback(channel->channel_callback_context);
 	} else {
 		pr_err("channel not found for relid - %u\n", relid);
 	}
