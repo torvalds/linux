@@ -25,6 +25,7 @@
 #define AD1836_DAC_SERFMT_PCK256       (0x4 << 5)
 #define AD1836_DAC_SERFMT_PCK128       (0x5 << 5)
 #define AD1836_DAC_WORD_LEN_MASK       0x18
+#define AD1836_DAC_WORD_LEN_OFFSET     3
 
 #define AD1836_DAC_CTRL2               1
 
@@ -42,6 +43,7 @@
 
 #define AD1836_ADC_CTRL2               13
 #define AD1836_ADC_WORD_LEN_MASK       0x30
+#define AD1836_ADC_WORD_OFFSET         5
 #define AD1836_ADC_SERFMT_MASK	       (7 << 6)
 #define AD1836_ADC_SERFMT_PCK256       (0x4 << 6)
 #define AD1836_ADC_SERFMT_PCK128       (0x5 << 6)
@@ -50,5 +52,9 @@
 #define AD1836_ADC_CTRL3               14
 
 #define AD1836_NUM_REGS                16
+
+#define AD1836_WORD_LEN_24 0x0
+#define AD1836_WORD_LEN_20 0x1
+#define AD1836_WORD_LEN_16 0x2
 
 #endif
