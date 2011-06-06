@@ -824,7 +824,6 @@ static int blkvsc_drv_init(void)
 	BUILD_BUG_ON(sizeof(sector_t) != 8);
 
 	memcpy(&drv->dev_type, &dev_type, sizeof(struct hv_guid));
-	drv->name = drv_name;
 	drv->driver.name = drv_name;
 
 	/* The driver belongs to vmbus */
