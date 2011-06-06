@@ -1027,14 +1027,18 @@ __intel_shared_reg_get_constraints(struct cpu_hw_events *cpuc,
 {
 	struct event_constraint *c = &emptyconstraint;
 	struct er_account *era;
+	unsigned long flags;
 
 	/* already allocated shared msr */
-	if (reg->alloc || !cpuc->shared_regs)
+	if (reg->alloc)
 		return &unconstrained;
 
 	era = &cpuc->shared_regs->regs[reg->idx];
-
-	raw_spin_lock(&era->lock);
+	/*
+	 * we use spin_lock_irqsave() to avoid lockdep issues when
+	 * passing a fake cpuc
+	 */
+	raw_spin_lock_irqsave(&era->lock, flags);
 
 	if (!atomic_read(&era->ref) || era->config == reg->config) {
 
@@ -1058,7 +1062,7 @@ __intel_shared_reg_get_constraints(struct cpu_hw_events *cpuc,
 		 */
 		c = &unconstrained;
 	}
-	raw_spin_unlock(&era->lock);
+	raw_spin_unlock_irqrestore(&era->lock, flags);
 
 	return c;
 }
@@ -1524,4 +1528,8 @@ static int intel_pmu_init(void)
 	return 0;
 }
 
+static struct intel_shared_regs *allocate_shared_regs(int cpu)
+{
+	return NULL;
+}
 #endif /* CONFIG_CPU_SUP_INTEL */
