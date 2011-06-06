@@ -259,10 +259,6 @@ struct pwc_device
 #endif
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Global variables */
 #ifdef CONFIG_USB_PWC_DEBUG
 extern int pwc_trace;
@@ -340,10 +336,4 @@ extern const struct v4l2_ioctl_ops pwc_ioctl_ops;
 /* Expand frame to image, possibly including decompression. Uses read_frame and fill_image */
 extern int pwc_decompress(struct pwc_device *pdev);
 
-#ifdef __cplusplus
-}
 #endif
-
-
-#endif
-/* vim: set cino= formatoptions=croql cindent shiftwidth=8 tabstop=8: */
