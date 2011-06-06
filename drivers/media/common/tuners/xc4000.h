@@ -27,13 +27,15 @@
 struct dvb_frontend;
 struct i2c_adapter;
 
-#define XC4000_CARD_GENERIC		0
-#define XC4000_CARD_PCTV_340E		1
-#define XC4000_CARD_WINFAST_CX88	2
-
 struct xc4000_config {
-	u8	card_type;	/* if card type is not generic, all other */
-	u8	i2c_address;	/* parameters are automatically set */
+	u8	i2c_address;
+	/* if non-zero, power management is enabled by default */
+	u8	default_pm;
+	/* value to be written to XREG_AMPLITUDE in DVB-T mode (0: no write) */
+	u8	dvb_amplitude;
+	/* if non-zero, register 0x0E is set to filter analog TV video output */
+	u8	set_smoothedcvbs;
+	/* IF for DVB-T */
 	u32	if_khz;
 };
 

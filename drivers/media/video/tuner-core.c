@@ -396,8 +396,12 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	{
 		struct xc4000_config xc4000_cfg = {
 			.i2c_address	  = t->i2c->addr,
-			/* if_khz will be set when the digital dvb_attach() occurs */
-			.if_khz	  = 0,
+			/* FIXME: the correct parameters will be set */
+			/* only when the digital dvb_attach() occurs */
+			.default_pm	  = 0,
+			.dvb_amplitude	  = 0,
+			.set_smoothedcvbs = 0,
+			.if_khz		  = 0
 		};
 		if (!dvb_attach(xc4000_attach,
 				&t->fe, t->i2c->adapter, &xc4000_cfg))

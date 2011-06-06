@@ -92,14 +92,16 @@ struct xc4000_priv {
 	struct list_head hybrid_tuner_instance_list;
 	struct firmware_description *firm;
 	int	firm_size;
-	__u16	firm_version;
 	u32	if_khz;
 	u32	freq_hz;
 	u32	bandwidth;
 	u8	video_standard;
 	u8	rf_mode;
-	u8	card_type;
+	u8	default_pm;
+	u8	dvb_amplitude;
+	u8	set_smoothedcvbs;
 	u8	ignore_i2c_write_errors;
+	__u16	firm_version;
 	struct firmware_properties cur_fw;
 	__u16	hwmodel;
 	__u16	hwvers;
@@ -1226,19 +1228,22 @@ static int xc4000_set_params(struct dvb_frontend *fe,
 		}
 	}
 
-	if (priv->card_type == XC4000_CARD_WINFAST_CX88) {
-		if (xc_write_reg(priv, XREG_D_CODE, 0) == 0)
-			ret = 0;
+	if (xc_write_reg(priv, XREG_D_CODE, 0) == 0)
+		ret = 0;
+	if (priv->dvb_amplitude != 0) {
 		if (xc_write_reg(priv, XREG_AMPLITUDE,
-				 (priv->firm_version == 0x0102 ? 132 : 134))
-		    != 0)
+				 (priv->firm_version != 0x0102 ||
+				  priv->dvb_amplitude != 134 ?
+				  priv->dvb_amplitude : 132)) != 0)
 			ret = -EREMOTEIO;
+	}
+	if (priv->set_smoothedcvbs != 0) {
 		if (xc_write_reg(priv, XREG_SMOOTHEDCVBS, 1) != 0)
 			ret = -EREMOTEIO;
-		if (ret != 0) {
-			printk(KERN_ERR "xc4000: setting registers failed\n");
-			/* goto fail; */
-		}
+	}
+	if (ret != 0) {
+		printk(KERN_ERR "xc4000: setting registers failed\n");
+		/* goto fail; */
 	}
 
 	xc_tune_channel(priv, priv->freq_hz);
@@ -1412,8 +1417,7 @@ tune_channel:
 			if (type & NOGD)
 				video_mode &= 0xFF7F;
 		} else if (priv->video_standard < XC4000_I_PAL_NICAM) {
-			if (priv->card_type == XC4000_CARD_WINFAST_CX88 &&
-			    priv->firm_version == 0x0102)
+			if (priv->firm_version == 0x0102)
 				video_mode &= 0xFEFF;
 			if (audio_std & XC4000_AUDIO_STD_B)
 				video_mode |= 0x0080;
@@ -1425,17 +1429,17 @@ tune_channel:
 		}
 	}
 
-	if (priv->card_type == XC4000_CARD_WINFAST_CX88) {
-		if (xc_write_reg(priv, XREG_D_CODE, 0) == 0)
-			ret = 0;
-		if (xc_write_reg(priv, XREG_AMPLITUDE, 1) != 0)
-			ret = -EREMOTEIO;
+	if (xc_write_reg(priv, XREG_D_CODE, 0) == 0)
+		ret = 0;
+	if (xc_write_reg(priv, XREG_AMPLITUDE, 1) != 0)
+		ret = -EREMOTEIO;
+	if (priv->set_smoothedcvbs != 0) {
 		if (xc_write_reg(priv, XREG_SMOOTHEDCVBS, 1) != 0)
 			ret = -EREMOTEIO;
-		if (ret != 0) {
-			printk(KERN_ERR "xc4000: setting registers failed\n");
-			goto fail;
-		}
+	}
+	if (ret != 0) {
+		printk(KERN_ERR "xc4000: setting registers failed\n");
+		goto fail;
 	}
 
 	xc_tune_channel(priv, priv->freq_hz);
@@ -1516,8 +1520,7 @@ static int xc4000_sleep(struct dvb_frontend *fe)
 
 	/* Avoid firmware reload on slow devices */
 	if ((no_poweroff == 2 ||
-	     (no_poweroff == 0 &&
-	      priv->card_type != XC4000_CARD_WINFAST_CX88)) &&
+	     (no_poweroff == 0 && priv->default_pm != 0)) &&
 	    (priv->cur_fw.type & BASE) != 0) {
 		/* force reset and firmware reload */
 		priv->cur_fw.type = XC_POWERED_DOWN;
@@ -1588,16 +1591,6 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	int	instance;
 	u16	id = 0;
 
-	if (cfg->card_type != XC4000_CARD_GENERIC) {
-		if (cfg->card_type == XC4000_CARD_WINFAST_CX88) {
-			cfg->i2c_address = 0x61;
-			cfg->if_khz = 4560;
-		} else {			/* default to PCTV 340E */
-			cfg->i2c_address = 0x61;
-			cfg->if_khz = 5400;
-		}
-	}
-
 	dprintk(1, "%s(%d-%04x)\n", __func__,
 		i2c ? i2c_adapter_id(i2c) : -1,
 		cfg ? cfg->i2c_address : -1);
@@ -1607,8 +1600,6 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	instance = hybrid_tuner_request_state(struct xc4000_priv, priv,
 					      hybrid_tuner_instance_list,
 					      i2c, cfg->i2c_address, "xc4000");
-	if (cfg->card_type != XC4000_CARD_GENERIC)
-		priv->card_type = cfg->card_type;
 	switch (instance) {
 	case 0:
 		goto fail;
@@ -1616,6 +1607,11 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	case 1:
 		/* new tuner instance */
 		priv->bandwidth = BANDWIDTH_6_MHZ;
+		/* set default configuration */
+		priv->if_khz = 4560;
+		priv->default_pm = 0;
+		priv->dvb_amplitude = 134;
+		priv->set_smoothedcvbs = 1;
 		mutex_init(&priv->lock);
 		fe->tuner_priv = priv;
 		break;
@@ -1626,10 +1622,11 @@ struct dvb_frontend *xc4000_attach(struct dvb_frontend *fe,
 	}
 
 	if (cfg->if_khz != 0) {
-		/* If the IF hasn't been set yet, use the value provided by
-		   the caller (occurs in hybrid devices where the analog
-		   call to xc4000_attach occurs before the digital side) */
+		/* copy configuration if provided by the caller */
 		priv->if_khz = cfg->if_khz;
+		priv->default_pm = cfg->default_pm;
+		priv->dvb_amplitude = cfg->dvb_amplitude;
+		priv->set_smoothedcvbs = cfg->set_smoothedcvbs;
 	}
 
 	/* Check if firmware has been loaded. It is possible that another

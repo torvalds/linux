@@ -2778,10 +2778,12 @@ static int pctv340e_frontend_attach(struct dvb_usb_adapter *adap)
 	return adap->fe == NULL ? -ENODEV : 0;
 }
 
-
 static struct xc4000_config dib7000p_xc4000_tunerconfig = {
-	.i2c_address      = 0x61,
-	.if_khz           = 5400,
+	.i2c_address	  = 0x61,
+	.default_pm	  = 1,
+	.dvb_amplitude	  = 0,
+	.set_smoothedcvbs = 0,
+	.if_khz		  = 5400
 };
 
 static int xc4000_tuner_attach(struct dvb_usb_adapter *adap)
