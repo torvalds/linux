@@ -110,12 +110,13 @@ enum {
 };
 
 /* SKU Capabilities */
-/* 5000 and up */
 #define EEPROM_SKU_CAP_BAND_POS				(4)
 #define EEPROM_SKU_CAP_BAND_SELECTION	                \
 		(3 << EEPROM_SKU_CAP_BAND_POS)
+#define EEPROM_SKU_CAP_BAND_24GHZ			(1 << 4)
+#define EEPROM_SKU_CAP_BAND_52GHZ			(1 << 5)
 #define EEPROM_SKU_CAP_11N_ENABLE	                (1 << 6)
-#define EEPROM_SKU_CAP_AMT_ENABLE	                (1 << 7)
+#define EEPROM_SKU_CAP_AMT_ENABLE			(1 << 7)
 #define EEPROM_SKU_CAP_IPAN_ENABLE	                (1 << 8)
 
 /* *regulatory* channel data format in eeprom, one for each channel.
