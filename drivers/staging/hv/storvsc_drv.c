@@ -792,7 +792,7 @@ static int storvsc_drv_init(void)
 	return ret;
 }
 
-static void storvsc_drv_exit(void)
+static void __exit storvsc_drv_exit(void)
 {
 	vmbus_child_driver_unregister(&storvsc_drv.driver);
 }
@@ -806,13 +806,8 @@ static int __init storvsc_init(void)
 	return ret;
 }
 
-static void __exit storvsc_exit(void)
-{
-	storvsc_drv_exit();
-}
-
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
 MODULE_DESCRIPTION("Microsoft Hyper-V virtual storage driver");
 module_init(storvsc_init);
-module_exit(storvsc_exit);
+module_exit(storvsc_drv_exit);
