@@ -535,7 +535,7 @@ static int vmbus_bus_init(int irq)
 	ret = hv_init();
 	if (ret != 0) {
 		pr_err("Unable to initialize the hypervisor - 0x%x\n", ret);
-		goto cleanup;
+		return ret;
 	}
 
 	/* Initialize the bus context */
@@ -544,10 +544,8 @@ static int vmbus_bus_init(int irq)
 
 	/* Now, register the bus  with LDM */
 	ret = bus_register(&hv_bus);
-	if (ret) {
-		ret = -1;
-		goto cleanup;
-	}
+	if (ret)
+		return ret;
 
 	/* Get the interrupt resource */
 	ret = request_irq(irq, vmbus_isr, IRQF_SAMPLE_RANDOM,
@@ -559,8 +557,7 @@ static int vmbus_bus_init(int irq)
 
 		bus_unregister(&hv_bus);
 
-		ret = -1;
-		goto cleanup;
+		return ret;
 	}
 
 	vector = IRQ0_VECTOR + irq;
@@ -574,14 +571,13 @@ static int vmbus_bus_init(int irq)
 	if (ret) {
 		free_irq(irq, hv_acpi_dev);
 		bus_unregister(&hv_bus);
-		goto cleanup;
+		return ret;
 	}
 
 
 	vmbus_request_offers();
 
-cleanup:
-	return ret;
+	return 0;
 }
 
 /**
