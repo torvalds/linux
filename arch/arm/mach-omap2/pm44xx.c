@@ -27,6 +27,7 @@ struct power_state {
 	u32 next_state;
 #ifdef CONFIG_SUSPEND
 	u32 saved_state;
+	u32 saved_logic_state;
 #endif
 	struct list_head node;
 };
@@ -43,11 +44,13 @@ static int omap4_pm_suspend(void)
 	/* Save current powerdomain state */
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		pwrst->saved_state = pwrdm_read_next_pwrst(pwrst->pwrdm);
+		pwrst->saved_logic_state = pwrdm_read_logic_retst(pwrst->pwrdm);
 	}
 
 	/* Set targeted power domain states by suspend */
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->next_state);
+		pwrdm_set_logic_retst(pwrst->pwrdm, PWRDM_POWER_OFF);
 	}
 
 	/*
@@ -71,6 +74,7 @@ static int omap4_pm_suspend(void)
 			ret = -1;
 		}
 		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
+		pwrdm_set_logic_retst(pwrst->pwrdm, pwrst->saved_logic_state);
 	}
 	if (ret)
 		pr_crit("Could not enter target state in pm_suspend\n");

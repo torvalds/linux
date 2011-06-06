@@ -24,8 +24,8 @@
  *	ON		ON		ON
  *	ON(Inactive)	OFF		ON(Inactive)
  *	OFF		OFF		CSWR
- *	OFF		OFF		OSWR (*TBD)
- *	OFF		OFF		OFF* (*TBD)
+ *	OFF		OFF		OSWR
+ *	OFF		OFF		OFF(Device OFF *TBD)
  *	----------------------------------------------
  *
  * Note: CPU0 is the master core and it is the last CPU to go down
@@ -56,7 +56,11 @@
 #include "common.h"
 #include "omap4-sar-layout.h"
 #include "pm.h"
-#include "powerdomain.h"
+#include "prcm_mpu44xx.h"
+#include "prminst44xx.h"
+#include "prcm44xx.h"
+#include "prm44xx.h"
+#include "prm-regbits-44xx.h"
 
 #ifdef CONFIG_SMP
 
@@ -138,6 +142,48 @@ static void scu_pwrst_prepare(unsigned int cpu_id, unsigned int cpu_state)
 	__raw_writel(scu_pwr_st, pm_info->scu_sar_addr);
 }
 
+/* Helper functions for MPUSS OSWR */
+static inline void mpuss_clear_prev_logic_pwrst(void)
+{
+	u32 reg;
+
+	reg = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION,
+		OMAP4430_PRM_MPU_INST, OMAP4_RM_MPU_MPU_CONTEXT_OFFSET);
+	omap4_prminst_write_inst_reg(reg, OMAP4430_PRM_PARTITION,
+		OMAP4430_PRM_MPU_INST, OMAP4_RM_MPU_MPU_CONTEXT_OFFSET);
+}
+
+static inline void cpu_clear_prev_logic_pwrst(unsigned int cpu_id)
+{
+	u32 reg;
+
+	if (cpu_id) {
+		reg = omap4_prcm_mpu_read_inst_reg(OMAP4430_PRCM_MPU_CPU1_INST,
+					OMAP4_RM_CPU1_CPU1_CONTEXT_OFFSET);
+		omap4_prcm_mpu_write_inst_reg(reg, OMAP4430_PRCM_MPU_CPU1_INST,
+					OMAP4_RM_CPU1_CPU1_CONTEXT_OFFSET);
+	} else {
+		reg = omap4_prcm_mpu_read_inst_reg(OMAP4430_PRCM_MPU_CPU0_INST,
+					OMAP4_RM_CPU0_CPU0_CONTEXT_OFFSET);
+		omap4_prcm_mpu_write_inst_reg(reg, OMAP4430_PRCM_MPU_CPU0_INST,
+					OMAP4_RM_CPU0_CPU0_CONTEXT_OFFSET);
+	}
+}
+
+/**
+ * omap4_mpuss_read_prev_context_state:
+ * Function returns the MPUSS previous context state
+ */
+u32 omap4_mpuss_read_prev_context_state(void)
+{
+	u32 reg;
+
+	reg = omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION,
+		OMAP4430_PRM_MPU_INST, OMAP4_RM_MPU_MPU_CONTEXT_OFFSET);
+	reg &= OMAP4430_LOSTCONTEXT_DFF_MASK;
+	return reg;
+}
+
 /*
  * Store the CPU cluster state for L2X0 low power operations.
  */
@@ -210,8 +256,18 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 		return -ENXIO;
 	}
 
+	/*
+	 * Check MPUSS next state and save interrupt controller if needed.
+	 * In MPUSS OSWR or device OFF, interrupt controller  contest is lost.
+	 */
+	mpuss_clear_prev_logic_pwrst();
 	pwrdm_clear_all_prev_pwrst(mpuss_pd);
+	if ((pwrdm_read_next_pwrst(mpuss_pd) == PWRDM_POWER_RET) &&
+		(pwrdm_read_logic_retst(mpuss_pd) == PWRDM_POWER_OFF))
+		save_state = 2;
+
 	clear_cpu_prev_pwrst(cpu);
+	cpu_clear_prev_logic_pwrst(cpu);
 	set_cpu_next_pwrst(cpu, power_state);
 	set_cpu_wakeup_addr(cpu, virt_to_phys(omap4_cpu_resume));
 	scu_pwrst_prepare(cpu, power_state);
@@ -294,6 +350,7 @@ int __init omap4_mpuss_init(void)
 
 	/* Clear CPU previous power domain state */
 	pwrdm_clear_all_prev_pwrst(pm_info->pwrdm);
+	cpu_clear_prev_logic_pwrst(0);
 
 	/* Initialise CPU0 power domain state to ON */
 	pwrdm_set_next_pwrst(pm_info->pwrdm, PWRDM_POWER_ON);
@@ -310,6 +367,7 @@ int __init omap4_mpuss_init(void)
 
 	/* Clear CPU previous power domain state */
 	pwrdm_clear_all_prev_pwrst(pm_info->pwrdm);
+	cpu_clear_prev_logic_pwrst(1);
 
 	/* Initialise CPU1 power domain state to ON */
 	pwrdm_set_next_pwrst(pm_info->pwrdm, PWRDM_POWER_ON);
@@ -320,6 +378,7 @@ int __init omap4_mpuss_init(void)
 		return -ENODEV;
 	}
 	pwrdm_clear_all_prev_pwrst(mpuss_pd);
+	mpuss_clear_prev_logic_pwrst();
 
 	/* Save device type on scratchpad for low level code to use */
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP)
