@@ -116,6 +116,7 @@ struct nouveau_bo {
 	struct nouveau_channel *channel;
 
 	struct nouveau_vma vma;
+	struct list_head vma_list;
 	unsigned page_shift;
 
 	uint32_t tile_mode;
@@ -1282,6 +1283,12 @@ extern void nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val);
 extern void nouveau_bo_fence(struct nouveau_bo *, struct nouveau_fence *);
 extern int nouveau_bo_validate(struct nouveau_bo *, bool interruptible,
 			       bool no_wait_reserve, bool no_wait_gpu);
+
+extern struct nouveau_vma *
+nouveau_bo_vma_find(struct nouveau_bo *, struct nouveau_vm *);
+extern int  nouveau_bo_vma_add(struct nouveau_bo *, struct nouveau_vm *,
+			       struct nouveau_vma *);
+extern void nouveau_bo_vma_del(struct nouveau_bo *, struct nouveau_vma *);
 
 /* nouveau_fence.c */
 struct nouveau_fence;
