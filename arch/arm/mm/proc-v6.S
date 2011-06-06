@@ -56,6 +56,11 @@ ENTRY(cpu_v6_proc_fin)
  */
 	.align	5
 ENTRY(cpu_v6_reset)
+	mrc	p15, 0, r1, c1, c0, 0		@ ctrl register
+	bic	r1, r1, #0x1			@ ...............m
+	mcr	p15, 0, r1, c1, c0, 0		@ disable MMU
+	mov	r1, #0
+	mcr	p15, 0, r1, c7, c5, 4		@ ISB
 	mov	pc, r0
 
 /*
