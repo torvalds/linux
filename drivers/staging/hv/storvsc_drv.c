@@ -308,9 +308,6 @@ static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl,
 }
 
 
-/*
- * storvsc_remove - Callback when our device is removed
- */
 static int storvsc_remove(struct hv_device *dev)
 {
 	struct Scsi_Host *host = dev_get_drvdata(&dev->device);
@@ -322,10 +319,7 @@ static int storvsc_remove(struct hv_device *dev)
 
 	DPRINT_INFO(STORVSC, "releasing host adapter (%p)...", host);
 	scsi_host_put(host);
-	/*
-	 * Call to the vsc driver to let it know that the device is being
-	 * removed
-	 */
+
 	storvsc_dev_remove(dev);
 	if (host_dev->request_pool) {
 		kmem_cache_destroy(host_dev->request_pool);
@@ -423,7 +417,6 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host resetting...",
 		    scmnd->device, dev);
 
-	/* Invokes the vsc to reset the host/bus */
 	ret = storvsc_host_reset(dev);
 	if (ret != 0)
 		return ret;
@@ -477,7 +470,6 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 	scmnd->host_scribble = NULL;
 	scmnd->scsi_done = NULL;
 
-	/* !!DO NOT MODIFY the scmnd after this call */
 	scsi_done_fn(scmnd);
 
 	kmem_cache_free(host_dev->request_pool, cmd_request);
@@ -750,10 +742,6 @@ static struct hv_driver storvsc_drv = {
 	.remove = storvsc_remove,
 };
 
-
-/*
- * storvsc_drv_init - StorVsc driver initialization.
- */
 static int __init storvsc_drv_init(void)
 {
 	int ret;
