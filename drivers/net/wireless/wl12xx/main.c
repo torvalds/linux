@@ -1251,24 +1251,6 @@ out:
 	return ret;
 }
 
-static unsigned int wl1271_get_fw_ver_quirks(struct wl1271 *wl)
-{
-	unsigned int quirks = 0;
-	unsigned int *fw_ver = wl->chip.fw_ver;
-
-	/* Only for wl127x */
-	if ((fw_ver[FW_VER_CHIP] == FW_VER_CHIP_WL127X) &&
-	    /* Check STA version */
-	    (((fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_STA) &&
-	      (fw_ver[FW_VER_MINOR] < FW_VER_MINOR_1_SPARE_STA_MIN)) ||
-	     /* Check AP version */
-	     ((fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_AP) &&
-	      (fw_ver[FW_VER_MINOR] < FW_VER_MINOR_1_SPARE_AP_MIN))))
-		quirks |= WL12XX_QUIRK_USE_2_SPARE_BLOCKS;
-
-	return quirks;
-}
-
 int wl1271_plt_start(struct wl1271 *wl)
 {
 	int retries = WL1271_BOOT_RETRIES;
@@ -1305,8 +1287,6 @@ int wl1271_plt_start(struct wl1271 *wl)
 		wl1271_notice("firmware booted in PLT mode (%s)",
 			      wl->chip.fw_ver_str);
 
-		/* Check if any quirks are needed with older fw versions */
-		wl->quirks |= wl1271_get_fw_ver_quirks(wl);
 		goto out;
 
 irq_disable:
@@ -1793,9 +1773,6 @@ power_off:
 	wiphy->hw_version = wl->chip.id;
 	strncpy(wiphy->fw_version, wl->chip.fw_ver_str,
 		sizeof(wiphy->fw_version));
-
-	/* Check if any quirks are needed with older fw versions */
-	wl->quirks |= wl1271_get_fw_ver_quirks(wl);
 
 	/*
 	 * Now we know if 11a is supported (info from the NVS), so disable

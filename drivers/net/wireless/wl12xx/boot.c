@@ -102,6 +102,24 @@ static void wl1271_boot_set_ecpu_ctrl(struct wl1271 *wl, u32 flag)
 	wl1271_write32(wl, ACX_REG_ECPU_CONTROL, cpu_ctrl);
 }
 
+static unsigned int wl12xx_get_fw_ver_quirks(struct wl1271 *wl)
+{
+	unsigned int quirks = 0;
+	unsigned int *fw_ver = wl->chip.fw_ver;
+
+	/* Only for wl127x */
+	if ((fw_ver[FW_VER_CHIP] == FW_VER_CHIP_WL127X) &&
+	    /* Check STA version */
+	    (((fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_STA) &&
+	      (fw_ver[FW_VER_MINOR] < FW_VER_MINOR_1_SPARE_STA_MIN)) ||
+	     /* Check AP version */
+	     ((fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_AP) &&
+	      (fw_ver[FW_VER_MINOR] < FW_VER_MINOR_1_SPARE_AP_MIN))))
+		quirks |= WL12XX_QUIRK_USE_2_SPARE_BLOCKS;
+
+	return quirks;
+}
+
 static void wl1271_parse_fw_ver(struct wl1271 *wl)
 {
 	int ret;
@@ -116,6 +134,9 @@ static void wl1271_parse_fw_ver(struct wl1271 *wl)
 		memset(wl->chip.fw_ver, 0, sizeof(wl->chip.fw_ver));
 		return;
 	}
+
+	/* Check if any quirks are needed with older fw versions */
+	wl->quirks |= wl12xx_get_fw_ver_quirks(wl);
 }
 
 static void wl1271_boot_fw_version(struct wl1271 *wl)
