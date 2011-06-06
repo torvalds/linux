@@ -1032,7 +1032,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		dev_err(DEV, "max capacity %llu smaller than disk size %llu\n",
 			(unsigned long long) drbd_get_max_capacity(nbc),
 			(unsigned long long) nbc->dc.disk_size);
-		retcode = ERR_DISK_TO_SMALL;
+		retcode = ERR_DISK_TOO_SMALL;
 		goto fail;
 	}
 
@@ -1046,7 +1046,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	}
 
 	if (drbd_get_capacity(nbc->md_bdev) < min_md_device_sectors) {
-		retcode = ERR_MD_DISK_TO_SMALL;
+		retcode = ERR_MD_DISK_TOO_SMALL;
 		dev_warn(DEV, "refusing attach: md-device too small, "
 		     "at least %llu sectors needed for this meta-disk type\n",
 		     (unsigned long long) min_md_device_sectors);
@@ -1057,7 +1057,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	 * (we may currently be R_PRIMARY with no local disk...) */
 	if (drbd_get_max_capacity(nbc) <
 	    drbd_get_capacity(mdev->this_bdev)) {
-		retcode = ERR_DISK_TO_SMALL;
+		retcode = ERR_DISK_TOO_SMALL;
 		goto fail;
 	}
 
@@ -1138,7 +1138,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	if (drbd_md_test_flag(nbc, MDF_CONSISTENT) &&
 	    drbd_new_dev_size(mdev, nbc, 0) < nbc->md.la_size_sect) {
 		dev_warn(DEV, "refusing to truncate a consistent device\n");
-		retcode = ERR_DISK_TO_SMALL;
+		retcode = ERR_DISK_TOO_SMALL;
 		goto force_diskless_dec;
 	}
 
