@@ -13,10 +13,13 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/memblock.h>
 
 #include <asm/cacheflush.h>
 
 #include <mach/omap-secure.h>
+
+static phys_addr_t omap_secure_memblock_base;
 
 /**
  * omap_sec_dispatcher: Routine to dispatch low power secure
@@ -49,4 +52,30 @@ u32 omap_secure_dispatcher(u32 idx, u32 flag, u32 nargs, u32 arg1, u32 arg2,
 	ret = omap_smc2(idx, flag, __pa(param));
 
 	return ret;
+}
+
+/* Allocate the memory to save secure ram */
+int __init omap_secure_ram_reserve_memblock(void)
+{
+	phys_addr_t paddr;
+	u32 size = OMAP_SECURE_RAM_STORAGE;
+
+	size = ALIGN(size, SZ_1M);
+	paddr = memblock_alloc(size, SZ_1M);
+	if (!paddr) {
+		pr_err("%s: failed to reserve %x bytes\n",
+				__func__, size);
+		return -ENOMEM;
+	}
+	memblock_free(paddr, size);
+	memblock_remove(paddr, size);
+
+	omap_secure_memblock_base = paddr;
+
+	return 0;
+}
+
+phys_addr_t omap_secure_ram_mempool_base(void)
+{
+	return omap_secure_memblock_base;
 }

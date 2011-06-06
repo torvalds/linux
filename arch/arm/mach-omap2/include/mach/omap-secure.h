@@ -26,6 +26,8 @@
 #define FLAG_FIQ_ENABLE			0x1
 #define NO_FLAG				0x0
 
+/* Maximum Secure memory storage size */
+#define OMAP_SECURE_RAM_STORAGE	(88 * SZ_1K)
 
 /* Secure low power HAL API index */
 #define OMAP4_HAL_SAVESECURERAM_INDEX	0x1a
@@ -36,5 +38,6 @@
 extern u32 omap_secure_dispatcher(u32 idx, u32 flag, u32 nargs,
 				u32 arg1, u32 arg2, u32 arg3, u32 arg4);
 extern u32 omap_smc2(u32 id, u32 falg, u32 pargs);
+extern phys_addr_t omap_secure_ram_mempool_base(void);
 
 #endif /* OMAP_ARCH_OMAP_SECURE_H */
