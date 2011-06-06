@@ -197,7 +197,7 @@ static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
 {
 	struct iwl_calib_temperature_offset_cmd cmd;
 	__le16 *offset_calib =
-		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_TEMPERATURE);
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_TEMPERATURE);
 	cmd.hdr.op_code = IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD;
 	cmd.hdr.first_group = 0;
 	cmd.hdr.groups_num = 1;

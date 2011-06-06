@@ -166,12 +166,12 @@ struct iwl_eeprom_enhanced_txpwr {
 #define EEPROM_5000_TX_POWER_VERSION    (4)
 #define EEPROM_5000_EEPROM_VERSION	(0x11A)
 
-/* 5000 and up calibration */
+/* calibration */
 #define EEPROM_CALIB_ALL	(INDIRECT_ADDRESS | INDIRECT_CALIBRATION)
 #define EEPROM_XTAL		((2*0x128) | EEPROM_CALIB_ALL)
 
-/* 5000 temperature */
-#define EEPROM_5000_TEMPERATURE ((2*0x12A) | EEPROM_CALIB_ALL)
+/* temperature */
+#define EEPROM_TEMPERATURE ((2*0x12A) | EEPROM_CALIB_ALL)
 
 /* agn links */
 #define EEPROM_LINK_HOST             (2*0x64)
