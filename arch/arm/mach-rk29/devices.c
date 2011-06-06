@@ -79,6 +79,7 @@ struct platform_device rk29_device_vmac = {
 #endif
 
 #ifdef CONFIG_I2C_RK29
+#ifdef CONFIG_RK29_I2C0_CONTROLLER
 static struct resource resources_i2c0[] = {
 	{
 		.start	= IRQ_I2C0,
@@ -91,6 +92,8 @@ static struct resource resources_i2c0[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 };
+#endif
+#ifdef CONFIG_RK29_I2C1_CONTROLLER
 static struct resource resources_i2c1[] = {
 	{
 		.start	= IRQ_I2C1,
@@ -103,6 +106,8 @@ static struct resource resources_i2c1[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 };
+#endif
+#ifdef CONFIG_RK29_I2C2_CONTROLLER
 static struct resource resources_i2c2[] = {
 	{
 		.start	= IRQ_I2C2,
@@ -115,6 +120,8 @@ static struct resource resources_i2c2[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 };
+#endif
+#ifdef CONFIG_RK29_I2C3_CONTROLLER
 static struct resource resources_i2c3[] = {
 	{
 		.start	= IRQ_I2C3,
@@ -127,8 +134,9 @@ static struct resource resources_i2c3[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 };
-
+#endif
 struct platform_device rk29_device_i2c0 = {
+#ifdef CONFIG_RK29_I2C0_CONTROLLER
 	.name	= "rk29_i2c",
 	.id	= 0,
 	.num_resources	= ARRAY_SIZE(resources_i2c0),
@@ -136,8 +144,16 @@ struct platform_device rk29_device_i2c0 = {
 	.dev 			= {
 		.platform_data = &default_i2c0_data,
 	},
+#else
+	.name	= "i2c-gpio",
+	.id = 0,
+	.dev 			= {
+		.platform_data = &default_i2c0_data,
+	},
+#endif
 };
 struct platform_device rk29_device_i2c1 = {
+#ifdef CONFIG_RK29_I2C1_CONTROLLER
 	.name	= "rk29_i2c",
 	.id	= 1,
 	.num_resources	= ARRAY_SIZE(resources_i2c1),
@@ -145,8 +161,16 @@ struct platform_device rk29_device_i2c1 = {
 	.dev 			= {
 		.platform_data = &default_i2c1_data,
 	},
+#else
+	.name	= "i2c-gpio",
+	.id = 1,
+	.dev 			= {
+		.platform_data = &default_i2c1_data,
+	},
+#endif
 };
 struct platform_device rk29_device_i2c2 = {
+#ifdef CONFIG_RK29_I2C2_CONTROLLER
 	.name	= "rk29_i2c",
 	.id	= 2,
 	.num_resources	= ARRAY_SIZE(resources_i2c2),
@@ -154,8 +178,16 @@ struct platform_device rk29_device_i2c2 = {
 	.dev 			= {
 		.platform_data = &default_i2c2_data,
 	},
+#else
+	.name	= "i2c-gpio",
+	.id = 2,
+	.dev 			= {
+		.platform_data = &default_i2c2_data,
+	},
+#endif
 };
 struct platform_device rk29_device_i2c3 = {
+#ifdef CONFIG_RK29_I2C3_CONTROLLER
 	.name	= "rk29_i2c",
 	.id	= 3,
 	.num_resources	= ARRAY_SIZE(resources_i2c3),
@@ -163,6 +195,13 @@ struct platform_device rk29_device_i2c3 = {
 	.dev 			= {
 		.platform_data = &default_i2c3_data,
 	},
+#else
+	.name	= "i2c-gpio",
+	.id = 3,
+	.dev 			= {
+		.platform_data = &default_i2c3_data,
+	},
+#endif
 };
 #endif
 

@@ -50,6 +50,7 @@
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/i2c-gpio.h>
 
 #include "devices.h"
 #if defined(CONFIG_MU509)
@@ -537,31 +538,51 @@ struct bq27510_platform_data bq27510_info = {
 *****************************************************************************************/
 static int rk29_i2c0_io_init(void)
 {
+#ifdef CONFIG_RK29_I2C0_CONTROLLER
 	rk29_mux_api_set(GPIO2B7_I2C0SCL_NAME, GPIO2L_I2C0_SCL);
 	rk29_mux_api_set(GPIO2B6_I2C0SDA_NAME, GPIO2L_I2C0_SDA);
+#else
+	rk29_mux_api_set(GPIO2B7_I2C0SCL_NAME, GPIO2L_GPIO2B7);
+	rk29_mux_api_set(GPIO2B6_I2C0SDA_NAME, GPIO2L_GPIO2B6);
+#endif
 	return 0;
 }
 
 static int rk29_i2c1_io_init(void)
 {
+#ifdef CONFIG_RK29_I2C1_CONTROLLER
 	rk29_mux_api_set(GPIO1A7_I2C1SCL_NAME, GPIO1L_I2C1_SCL);
 	rk29_mux_api_set(GPIO1A6_I2C1SDA_NAME, GPIO1L_I2C1_SDA);
+#else
+	rk29_mux_api_set(GPIO1A7_I2C1SCL_NAME, GPIO1L_GPIO1A7);
+	rk29_mux_api_set(GPIO1A6_I2C1SDA_NAME, GPIO1L_GPIO1A6);
+#endif
 	return 0;
 }
 static int rk29_i2c2_io_init(void)
 {
+#ifdef CONFIG_RK29_I2C2_CONTROLLER
 	rk29_mux_api_set(GPIO5D4_I2C2SCL_NAME, GPIO5H_I2C2_SCL);
 	rk29_mux_api_set(GPIO5D3_I2C2SDA_NAME, GPIO5H_I2C2_SDA);
+#else
+	rk29_mux_api_set(GPIO5D4_I2C2SCL_NAME, GPIO5H_GPIO5D4);
+	rk29_mux_api_set(GPIO5D3_I2C2SDA_NAME, GPIO5H_GPIO5D3);
+#endif
 	return 0;
 }
 
 static int rk29_i2c3_io_init(void)
 {
+#ifdef CONFIG_RK29_I2C3_CONTROLLER
 	rk29_mux_api_set(GPIO2B5_UART3RTSN_I2C3SCL_NAME, GPIO2L_I2C3_SCL);
 	rk29_mux_api_set(GPIO2B4_UART3CTSN_I2C3SDA_NAME, GPIO2L_I2C3_SDA);
+#else
+	rk29_mux_api_set(GPIO2B5_UART3RTSN_I2C3SCL_NAME, GPIO2L_GPIO2B5);
+	rk29_mux_api_set(GPIO2B4_UART3CTSN_I2C3SDA_NAME, GPIO2L_GPIO2B4);
+#endif
 	return 0;
 }
-
+#ifdef CONFIG_RK29_I2C0_CONTROLLER
 struct rk29_i2c_platform_data default_i2c0_data = {
 	.bus_num    = 0,
 	.flags      = 0,
@@ -570,7 +591,17 @@ struct rk29_i2c_platform_data default_i2c0_data = {
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c0_io_init,
 };
-
+#else
+struct i2c_gpio_platform_data default_i2c0_data = {
+       .sda_pin = RK29_PIN2_PB6,
+       .scl_pin = RK29_PIN2_PB7,
+       .udelay = 5, // clk = 500/udelay = 100Khz
+       .timeout = 100,//msecs_to_jiffies(200),
+       .bus_num    = 0,
+       .io_init = rk29_i2c0_io_init,
+};
+#endif
+#ifdef CONFIG_RK29_I2C1_CONTROLLER
 struct rk29_i2c_platform_data default_i2c1_data = {
 	.bus_num    = 1,
 	.flags      = 0,
@@ -579,7 +610,17 @@ struct rk29_i2c_platform_data default_i2c1_data = {
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c1_io_init,
 };
-
+#else
+struct i2c_gpio_platform_data default_i2c1_data = {
+       .sda_pin = RK29_PIN1_PA6,
+       .scl_pin = RK29_PIN1_PA7,
+       .udelay = 5, // clk = 500/udelay = 100Khz
+       .timeout = 100,//msecs_to_jiffies(200),
+       .bus_num    = 1,
+       .io_init = rk29_i2c1_io_init,
+};
+#endif
+#ifdef CONFIG_RK29_I2C2_CONTROLLER
 struct rk29_i2c_platform_data default_i2c2_data = {
 	.bus_num    = 2,
 	.flags      = 0,
@@ -588,7 +629,17 @@ struct rk29_i2c_platform_data default_i2c2_data = {
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c2_io_init,
 };
-
+#else
+struct i2c_gpio_platform_data default_i2c2_data = {
+       .sda_pin = RK29_PIN5_PD3,
+       .scl_pin = RK29_PIN5_PD4,
+       .udelay = 5, // clk = 500/udelay = 100Khz
+       .timeout = 100,//msecs_to_jiffies(200),
+       .bus_num    = 2,
+       .io_init = rk29_i2c2_io_init,
+};
+#endif
+#ifdef CONFIG_RK29_I2C3_CONTROLLER
 struct rk29_i2c_platform_data default_i2c3_data = {
 	.bus_num    = 3,
 	.flags      = 0,
@@ -597,7 +648,16 @@ struct rk29_i2c_platform_data default_i2c3_data = {
 	.mode 		= I2C_MODE_IRQ,
 	.io_init = rk29_i2c3_io_init,
 };
-
+#else
+struct i2c_gpio_platform_data default_i2c3_data = {
+       .sda_pin = RK29_PIN5_PB5,
+       .scl_pin = RK29_PIN5_PB4,
+       .udelay = 5, // clk = 500/udelay = 100Khz
+       .timeout = 100,//msecs_to_jiffies(200),
+       .bus_num    = 3,
+       .io_init = rk29_i2c3_io_init,
+};
+#endif
 #ifdef CONFIG_I2C0_RK29
 static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #if defined (CONFIG_RK1000_CONTROL)

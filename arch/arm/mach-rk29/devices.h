@@ -17,11 +17,26 @@
 #define __ARCH_ARM_MACH_RK29_DEVICES_H
 
 extern struct rk29_nand_platform_data rk29_nand_data;
-
+#ifdef CONFIG_RK29_I2C0_CONTROLLER
 extern struct rk29_i2c_platform_data default_i2c0_data;
+#else
+extern struct i2c_gpio_platform_data default_i2c0_data;
+#endif
+#ifdef CONFIG_RK29_I2C1_CONTROLLER
 extern struct rk29_i2c_platform_data default_i2c1_data;
+#else
+extern struct i2c_gpio_platform_data default_i2c1_data;
+#endif
+#ifdef CONFIG_RK29_I2C2_CONTROLLER
 extern struct rk29_i2c_platform_data default_i2c2_data;
+#else
+extern struct i2c_gpio_platform_data default_i2c2_data;
+#endif
+#ifdef CONFIG_RK29_I2C3_CONTROLLER
 extern struct rk29_i2c_platform_data default_i2c3_data;
+#else
+extern struct i2c_gpio_platform_data default_i2c3_data;
+#endif
 
 extern struct platform_device rk29_device_i2c0;
 extern struct platform_device rk29_device_i2c1;
