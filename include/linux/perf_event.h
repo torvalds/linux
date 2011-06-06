@@ -536,6 +536,16 @@ struct perf_branch_stack {
 
 struct task_struct;
 
+/*
+ * extra PMU register associated with an event
+ */
+struct hw_perf_event_extra {
+	u64		config;	/* register value */
+	unsigned int	reg;	/* register address or index */
+	int		alloc;	/* extra register already allocated */
+	int		idx;	/* index in shared_regs->regs[] */
+};
+
 /**
  * struct hw_perf_event - performance event hardware details:
  */
@@ -549,9 +559,7 @@ struct hw_perf_event {
 			unsigned long	event_base;
 			int		idx;
 			int		last_cpu;
-			unsigned int	extra_reg;
-			u64		extra_config;
-			int		extra_alloc;
+			struct hw_perf_event_extra extra_reg;
 		};
 		struct { /* software */
 			struct hrtimer	hrtimer;
