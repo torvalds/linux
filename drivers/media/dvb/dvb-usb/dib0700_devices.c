@@ -2706,13 +2706,14 @@ static struct dibx000_agc_config stk7700p_7000p_xc4000_agc_config = {
 };
 
 static struct dibx000_bandwidth_config stk7700p_xc4000_pll_config = {
-	60000, 30000, // internal, sampling
-	1, 8, 3, 1, 0, // pll_cfg: prediv, ratio, range, reset, bypass
-	0, 0, 1, 1, 0, // misc: refdiv, bypclk_div, IO_CLK_en_core, ADClkSrc, modulo
-	(3 << 14) | (1 << 12) | (524 << 0), // sad_cfg: refsel, sel, freq_15k
-	39370534, // ifreq
-	20452225, // timf
-	30000000, // xtal
+	60000, 30000,	/* internal, sampling */
+	1, 8, 3, 1, 0,	/* pll_cfg: prediv, ratio, range, reset, bypass */
+	0, 0, 1, 1, 0,	/* misc: refdiv, bypclk_div, IO_CLK_en_core, */
+			/* ADClkSrc, modulo */
+	(3 << 14) | (1 << 12) | 524,	/* sad_cfg: refsel, sel, freq_15k */
+	39370534,	/* ifreq */
+	20452225,	/* timf */
+	30000000	/* xtal */
 };
 
 /* FIXME: none of these inputs are validated yet */
