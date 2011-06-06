@@ -552,9 +552,8 @@ static int vmbus_bus_init(int irq)
 	}
 
 	/* Get the interrupt resource */
-	ret = request_irq(irq, vmbus_isr,
-			  IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-			  driver_name, hv_pci_dev);
+	ret = request_irq(irq, vmbus_isr, IRQF_SAMPLE_RANDOM,
+			driver_name, hv_pci_dev);
 
 	if (ret != 0) {
 		pr_err("Unable to request IRQ %d\n",
@@ -787,15 +786,7 @@ static int __devinit hv_pci_probe(struct pci_dev *pdev,
 	if (pci_probe_error)
 		goto probe_cleanup;
 
-	/*
-	 * If the PCI sub-sytem did not assign us an
-	 * irq, use the bios provided one.
-	 */
-
-	if (pdev->irq == 0)
-		pdev->irq = irq;
-
-	pci_probe_error = vmbus_bus_init(pdev->irq);
+	pci_probe_error = vmbus_bus_init(irq);
 
 	if (pci_probe_error)
 		pci_disable_device(pdev);
