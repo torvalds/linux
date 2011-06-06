@@ -39,7 +39,6 @@ static int create_gpadl_header(
 	u32 size,	/* page-size multiple */
 	struct vmbus_channel_msginfo **msginfo,
 	u32 *messagecount);
-static void dump_vmbus_channel(struct vmbus_channel *channel);
 static void vmbus_setevent(struct vmbus_channel *channel);
 
 /*
@@ -618,7 +617,6 @@ int vmbus_sendpacket(struct vmbus_channel *channel, const void *buffer,
 	u64 aligned_data = 0;
 	int ret;
 
-	dump_vmbus_channel(channel);
 
 	/* Setup the descriptor */
 	desc.type = type; /* VmbusPacketTypeDataInBand; */
@@ -665,7 +663,6 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 	if (pagecount > MAX_PAGE_BUFFER_COUNT)
 		return -EINVAL;
 
-	dump_vmbus_channel(channel);
 
 	/*
 	 * Adjust the size down since vmbus_channel_packet_page_buffer is the
@@ -725,7 +722,6 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 	u32 pfncount = NUM_PAGES_SPANNED(multi_pagebuffer->offset,
 					 multi_pagebuffer->len);
 
-	dump_vmbus_channel(channel);
 
 	if ((pfncount < 0) || (pfncount > MAX_MULTIPAGE_BUFFER_COUNT))
 		return -EINVAL;
@@ -891,12 +887,3 @@ void vmbus_ontimer(unsigned long data)
 		channel->onchannel_callback(channel->channel_callback_context);
 }
 
-/*
- * dump_vmbus_channel- Dump vmbus channel info to the console
- */
-static void dump_vmbus_channel(struct vmbus_channel *channel)
-{
-	DPRINT_DBG(VMBUS, "Channel (%d)", channel->offermsg.child_relid);
-	hv_dump_ring_info(&channel->outbound, "Outbound ");
-	hv_dump_ring_info(&channel->inbound, "Inbound ");
-}
