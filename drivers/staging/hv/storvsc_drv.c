@@ -749,7 +749,6 @@ static int __init storvsc_drv_init(void)
 	    STORVSC_MAX_IO_REQUESTS)
 		return -1;
 
-	drv->name = driver_name;
 	drv->driver.name = driver_name;
 
 
