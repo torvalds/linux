@@ -317,22 +317,20 @@ static int storvsc_remove(struct hv_device *dev)
 	struct hv_host_device *host_dev =
 			(struct hv_host_device *)host->hostdata;
 
-	/*
-	 * Call to the vsc driver to let it know that the device is being
-	 * removed
-	 */
-	storvsc_dev_remove(dev);
-
-	if (host_dev->request_pool) {
-		kmem_cache_destroy(host_dev->request_pool);
-		host_dev->request_pool = NULL;
-	}
-
 	DPRINT_INFO(STORVSC, "removing host adapter (%p)...", host);
 	scsi_remove_host(host);
 
 	DPRINT_INFO(STORVSC, "releasing host adapter (%p)...", host);
 	scsi_host_put(host);
+	/*
+	 * Call to the vsc driver to let it know that the device is being
+	 * removed
+	 */
+	storvsc_dev_remove(dev);
+	if (host_dev->request_pool) {
+		kmem_cache_destroy(host_dev->request_pool);
+		host_dev->request_pool = NULL;
+	}
 	return 0;
 }
 
