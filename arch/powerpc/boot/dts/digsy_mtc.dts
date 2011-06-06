@@ -23,7 +23,14 @@
 
 	soc5200@f0000000 {
 		timer@600 {	// General Purpose Timer
+			#gpio-cells = <2>;
 			fsl,has-wdt;
+			gpio-controller;
+		};
+
+		timer@610 {
+			#gpio-cells = <2>;
+			gpio-controller;
 		};
 
 		rtc@800 {
