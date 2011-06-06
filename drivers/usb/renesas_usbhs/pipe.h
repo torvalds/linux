@@ -27,6 +27,7 @@ struct usbhs_pipe {
 	u32 pipe_type;	/* USB_ENDPOINT_XFER_xxx */
 
 	struct usbhs_priv *priv;
+	struct usbhs_fifo *fifo;
 	struct list_head list;
 
 	u32 flags;
@@ -88,10 +89,13 @@ int usbhs_pipe_is_accessible(struct usbhs_pipe *pipe);
 void usbhs_pipe_enable(struct usbhs_pipe *pipe);
 void usbhs_pipe_disable(struct usbhs_pipe *pipe);
 void usbhs_pipe_stall(struct usbhs_pipe *pipe);
+void usbhs_pipe_select_fifo(struct usbhs_pipe *pipe, struct usbhs_fifo *fifo);
 
 #define usbhs_pipe_to_priv(p)	((p)->priv)
 #define usbhs_pipe_number(p)	(int)((p) - (p)->priv->pipe_info.pipe)
 #define usbhs_pipe_is_dcp(p)	((p)->priv->pipe_info.pipe == (p))
+#define usbhs_pipe_to_fifo(p)	((p)->fifo)
+#define usbhs_pipe_is_busy(p)	usbhs_pipe_to_fifo(p)
 
 /*
  * dcp control

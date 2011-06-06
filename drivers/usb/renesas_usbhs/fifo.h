@@ -23,6 +23,8 @@ struct usbhs_fifo {
 	u32 port;	/* xFIFO */
 	u32 sel;	/* xFIFOSEL */
 	u32 ctr;	/* xFIFOCTR */
+
+	struct usbhs_pipe	*pipe;
 };
 
 struct usbhs_fifo_info {

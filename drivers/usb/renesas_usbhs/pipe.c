@@ -562,6 +562,7 @@ void usbhs_pipe_init(struct usbhs_priv *priv,
 			info->bufnmb_last++;
 
 		usbhsp_flags_init(pipe);
+		pipe->fifo = NULL;
 		pipe->mod_private = NULL;
 		INIT_LIST_HEAD(&pipe->list);
 
@@ -619,6 +620,18 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 
 	return pipe;
 }
+
+void usbhs_pipe_select_fifo(struct usbhs_pipe *pipe, struct usbhs_fifo *fifo)
+{
+	if (pipe->fifo)
+		pipe->fifo->pipe = NULL;
+
+	pipe->fifo = fifo;
+
+	if (fifo)
+		fifo->pipe = pipe;
+}
+
 
 /*
  *		dcp control

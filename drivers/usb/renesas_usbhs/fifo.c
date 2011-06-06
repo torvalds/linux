@@ -21,6 +21,8 @@
 
 #define usbhsf_get_cfifo(p)	(&((p)->fifo_info.cfifo))
 
+#define usbhsf_fifo_is_busy(f)	((f)->pipe) /* see usbhs_pipe_select_fifo */
+
 /*
  *		packet info function
  */
@@ -237,6 +239,15 @@ static int usbhsf_fifo_rcv_len(struct usbhs_priv *priv,
 	return usbhs_read(priv, fifo->ctr) & DTLN_MASK;
 }
 
+static void usbhsf_fifo_unselect(struct usbhs_pipe *pipe,
+				 struct usbhs_fifo *fifo)
+{
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+
+	usbhs_pipe_select_fifo(pipe, NULL);
+	usbhs_write(priv, fifo->sel, 0);
+}
+
 static int usbhsf_fifo_select(struct usbhs_pipe *pipe,
 			      struct usbhs_fifo *fifo,
 			      int write)
@@ -247,6 +258,10 @@ static int usbhsf_fifo_select(struct usbhs_pipe *pipe,
 	u16 mask = ((1 << 5) | 0xF);		/* mask of ISEL | CURPIPE */
 	u16 base = usbhs_pipe_number(pipe);	/* CURPIPE */
 
+	if (usbhs_pipe_is_busy(pipe) ||
+	    usbhsf_fifo_is_busy(fifo))
+		return -EBUSY;
+
 	if (usbhs_pipe_is_dcp(pipe))
 		base |= (1 == write) << 5;	/* ISEL */
 
@@ -255,8 +270,10 @@ static int usbhsf_fifo_select(struct usbhs_pipe *pipe,
 
 	/* check ISEL and CURPIPE value */
 	while (timeout--) {
-		if (base == (mask & usbhs_read(priv, fifo->sel)))
+		if (base == (mask & usbhs_read(priv, fifo->sel))) {
+			usbhs_pipe_select_fifo(pipe, fifo);
 			return 0;
+		}
 		udelay(10);
 	}
 
@@ -283,7 +300,7 @@ static int usbhsf_try_push(struct usbhs_pkt *pkt, int *is_done)
 
 	ret = usbhsf_fifo_select(pipe, fifo, 1);
 	if (ret < 0)
-		goto usbhs_fifo_write_busy;
+		return 0;
 
 	ret = usbhs_pipe_is_accessible(pipe);
 	if (ret < 0)
@@ -347,9 +364,13 @@ static int usbhsf_try_push(struct usbhs_pkt *pkt, int *is_done)
 			usbhs_dcp_control_transfer_done(pipe);
 	}
 
+	usbhsf_fifo_unselect(pipe, fifo);
+
 	return 0;
 
 usbhs_fifo_write_busy:
+	usbhsf_fifo_unselect(pipe, fifo);
+
 	/*
 	 * pipe is busy.
 	 * retry in interrupt
@@ -367,16 +388,13 @@ struct usbhs_pkt_handle usbhs_fifo_push_handler = {
 static int usbhsf_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
-	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
-	struct usbhs_fifo *fifo = usbhsf_get_cfifo(priv); /* CFIFO */
-	int ret;
+
+	if (usbhs_pipe_is_busy(pipe))
+		return 0;
 
 	/*
-	 * select pipe and enable it to prepare packet receive
+	 * pipe enable to prepare packet receive
 	 */
-	ret = usbhsf_fifo_select(pipe, fifo, 0);
-	if (ret < 0)
-		return ret;
 
 	usbhs_pipe_enable(pipe);
 	usbhsf_rx_irq_ctrl(pipe, 1);
@@ -400,11 +418,11 @@ static int usbhsf_try_pop(struct usbhs_pkt *pkt, int *is_done)
 
 	ret = usbhsf_fifo_select(pipe, fifo, 0);
 	if (ret < 0)
-		return ret;
+		return 0;
 
 	ret = usbhsf_fifo_barrier(priv, fifo);
 	if (ret < 0)
-		return ret;
+		goto usbhs_fifo_read_busy;
 
 	rcv_len = usbhsf_fifo_rcv_len(priv, fifo);
 
@@ -457,7 +475,10 @@ usbhs_fifo_read_end:
 		usbhs_pipe_number(pipe),
 		pkt->length, pkt->actual, *is_done, pkt->zero);
 
-	return 0;
+usbhs_fifo_read_busy:
+	usbhsf_fifo_unselect(pipe, fifo);
+
+	return ret;
 }
 
 struct usbhs_pkt_handle usbhs_fifo_pop_handler = {
@@ -551,11 +572,14 @@ static int usbhsf_irq_ready(struct usbhs_priv *priv,
 void usbhs_fifo_init(struct usbhs_priv *priv)
 {
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
+	struct usbhs_fifo *cfifo = usbhsf_get_cfifo(priv);
 
 	mod->irq_empty		= usbhsf_irq_empty;
 	mod->irq_ready		= usbhsf_irq_ready;
 	mod->irq_bempsts	= 0;
 	mod->irq_brdysts	= 0;
+
+	cfifo->pipe	= NULL;
 }
 
 void usbhs_fifo_quit(struct usbhs_priv *priv)
