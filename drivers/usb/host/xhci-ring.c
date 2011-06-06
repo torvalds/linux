@@ -1782,7 +1782,7 @@ static int skip_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	struct usb_iso_packet_descriptor *frame;
 	int idx;
 
-	ep_ring = xhci_dma_to_transfer_ring(ep, event->buffer);
+	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
 	urb_priv = td->urb->hcpriv;
 	idx = urb_priv->td_cnt;
 	frame = &td->urb->iso_frame_desc[idx];
