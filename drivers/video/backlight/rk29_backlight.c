@@ -127,13 +127,6 @@ static void rk29_bl_suspend(struct early_suspend *h)
 	suspend_flag = 1;
 }
 
-void rk29_backlight_set(bool on)
-{
-	printk("%s: set %d\n", __func__, on);
-	return;
-}
-EXPORT_SYMBOL(rk29_backlight_set);
-
 static void rk29_bl_resume(struct early_suspend *h)
 {
 	struct rk29_bl_info *rk29_bl_info = bl_get_data(rk29_bl);
@@ -153,6 +146,16 @@ static struct early_suspend bl_early_suspend = {
 	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1,
 };
 #endif
+void rk29_backlight_set(bool on)
+{
+	printk("%s: set %d\n", __func__, on);
+	if(on)
+		rk29_bl_resume(NULL);
+	else
+		rk29_bl_suspend(NULL);
+	return;
+}
+EXPORT_SYMBOL(rk29_backlight_set);
 
 static int rk29_backlight_probe(struct platform_device *pdev)
 {		

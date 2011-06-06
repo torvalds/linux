@@ -39,7 +39,7 @@ static int anx7150_param_chg(struct anx7150_pdata *anx)
 	int resolution_real;
 
 	hdmi_set_spk(anx->hdmi->display_on);
-	hdmi_set_backlight(anx->hdmi->display_on);
+	hdmi_set_backlight(!anx->hdmi->display_on);
 	hdmi_switch_fb(anx->hdmi, anx->hdmi->display_on);
 	resolution_real = ANX7150_Get_Optimal_resolution(anx->hdmi->resolution);
 	HDMI_Set_Video_Format(resolution_real);
@@ -87,7 +87,7 @@ static int anx7150_remove(struct hdmi *hdmi)
 
 	anx7150_unplug(anx->client);
 	hdmi_set_spk(HDMI_DISABLE);
-	hdmi_set_backlight(HDMI_DISABLE);
+	hdmi_set_backlight(HDMI_ENABLE);
 	hdmi_switch_fb(hdmi, HDMI_DISABLE);
 
 	return 0;
