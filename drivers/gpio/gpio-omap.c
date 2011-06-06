@@ -432,7 +432,6 @@ static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio,
 {
 	void __iomem *base = bank->base;
 	u32 gpio_bit = 1 << gpio;
-	u32 val;
 
 	if (cpu_is_omap44xx()) {
 		MOD_REG_BIT(OMAP4_GPIO_LEVELDETECT0, gpio_bit,
@@ -455,15 +454,8 @@ static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio,
 	}
 	if (likely(!(bank->non_wakeup_gpios & gpio_bit))) {
 		if (cpu_is_omap44xx()) {
-			if (trigger != 0)
-				__raw_writel(1 << gpio, bank->base+
-						OMAP4_GPIO_IRQWAKEN0);
-			else {
-				val = __raw_readl(bank->base +
-							OMAP4_GPIO_IRQWAKEN0);
-				__raw_writel(val & (~(1 << gpio)), bank->base +
-							 OMAP4_GPIO_IRQWAKEN0);
-			}
+			MOD_REG_BIT(OMAP4_GPIO_IRQWAKEN0, gpio_bit,
+				trigger != 0);
 		} else {
 			/*
 			 * GPIO wakeup request can only be generated on edge
