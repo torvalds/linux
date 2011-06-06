@@ -427,7 +427,8 @@ static struct snd_soc_ops ams_delta_ops = {
 
 /* Board specific codec bias level control */
 static int ams_delta_set_bias_level(struct snd_soc_card *card,
-					enum snd_soc_bias_level level)
+				    struct snd_soc_dapm_context *dapm,
+				    enum snd_soc_bias_level level)
 {
 	struct snd_soc_codec *codec = card->rtd->codec;
 
