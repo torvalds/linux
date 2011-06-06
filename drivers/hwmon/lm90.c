@@ -54,6 +54,9 @@
  * and extended mode. They are mostly compatible with LM90 except for a data
  * format difference for the temperature value registers.
  *
+ * This driver also supports the SA56004 from Philips. This device is
+ * pin-compatible with the LM86, the ED/EDP parts are also address-compatible.
+ *
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
  * concern all supported chipsets, unless mentioned otherwise.
@@ -96,13 +99,15 @@
  * MAX6659 can have address 0x4c, 0x4d or 0x4e.
  * MAX6680 and MAX6681 can have address 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b,
  * 0x4c, 0x4d or 0x4e.
+ * SA56004 can have address 0x48 through 0x4F.
  */
 
 static const unsigned short normal_i2c[] = {
-	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
+	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
+	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
-	max6646, w83l771, max6696 };
+	max6646, w83l771, max6696, sa56004 };
 
 /*
  * The LM90 registers
@@ -152,6 +157,10 @@ enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
 #define MAX6659_REG_R_LOCAL_EMERG	0x17
 #define MAX6659_REG_W_LOCAL_EMERG	0x17
 
+/*  SA56004 registers */
+
+#define SA56004_REG_R_LOCAL_TEMPL 0x22
+
 #define LM90_DEF_CONVRATE_RVAL	6	/* Def conversion rate register value */
 #define LM90_MAX_CONVRATE_MS	16000	/* Maximum conversion rate in ms */
 
@@ -192,6 +201,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "max6696", max6696 },
 	{ "nct1008", adt7461 },
 	{ "w83l771", w83l771 },
+	{ "sa56004", sa56004 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm90_id);
@@ -204,6 +214,8 @@ struct lm90_params {
 	u16 alert_alarms;	/* Which alarm bits trigger ALERT# */
 				/* Upper 8 bits for max6695/96 */
 	u8 max_convrate;	/* Maximum conversion rate register value */
+	u8 reg_local_ext;	/* Local extension register if
+				   LM90_HAVE_LOCAL_EXT is set*/
 };
 
 static const struct lm90_params lm90_params[] = {
@@ -238,16 +250,19 @@ static const struct lm90_params lm90_params[] = {
 		.flags = LM90_HAVE_LOCAL_EXT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 6,
+		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[max6657] = {
 		.flags = LM90_HAVE_LOCAL_EXT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
+		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[max6659] = {
 		.flags = LM90_HAVE_LOCAL_EXT | LM90_HAVE_EMERGENCY,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
+		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[max6680] = {
 		.flags = LM90_HAVE_OFFSET,
@@ -259,11 +274,19 @@ static const struct lm90_params lm90_params[] = {
 		  | LM90_HAVE_EMERGENCY_ALARM | LM90_HAVE_TEMP3,
 		.alert_alarms = 0x187c,
 		.max_convrate = 6,
+		.reg_local_ext = MAX6657_REG_R_LOCAL_TEMPL,
 	},
 	[w83l771] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 8,
+	},
+	[sa56004] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_LOCAL_EXT,
+		.alert_alarms = 0x7b,
+		.max_convrate = 9,
+		.reg_local_ext = SA56004_REG_R_LOCAL_TEMPL,
 	},
 };
 
@@ -286,6 +309,7 @@ struct lm90_data {
 	u16 alert_alarms;	/* Which alarm bits trigger ALERT# */
 				/* Upper 8 bits for max6695/96 */
 	u8 max_convrate;	/* Maximum conversion rate */
+	u8 reg_local_ext;	/* local extension register offset */
 
 	/* registers values */
 	s8 temp8[8];	/* 0: local low limit
@@ -454,7 +478,7 @@ static struct lm90_data *lm90_update_device(struct device *dev)
 
 		if (data->flags & LM90_HAVE_LOCAL_EXT) {
 			lm90_read16(client, LM90_REG_R_LOCAL_TEMP,
-				    MAX6657_REG_R_LOCAL_TEMPL,
+				    data->reg_local_ext,
 				    &data->temp11[4]);
 		} else {
 			if (lm90_read_reg(client, LM90_REG_R_LOCAL_TEMP,
@@ -1263,6 +1287,11 @@ static int lm90_detect(struct i2c_client *new_client,
 				name = "w83l771";
 			}
 		}
+	} else
+	if (man_id == 0xA1) { /*  NXP Semiconductor/Philips */
+		if (chip_id == 0x00 && address >= 0x48 && address <= 0x4F) {
+			name = "sa56004";
+		}
 	}
 
 	if (!name) { /* identification failed */
@@ -1371,6 +1400,11 @@ static int lm90_probe(struct i2c_client *new_client,
 
 	/* Set maximum conversion rate */
 	data->max_convrate = lm90_params[data->kind].max_convrate;
+
+	if (data->flags & LM90_HAVE_LOCAL_EXT) {
+		data->reg_local_ext = lm90_params[data->kind].reg_local_ext;
+		WARN_ON(data->reg_local_ext == 0);
+	}
 
 	/* Initialize the LM90 chip */
 	lm90_init_client(new_client);
