@@ -889,11 +889,6 @@ clunk_newdir:
 				clear_nlink(new_inode);
 			else
 				drop_nlink(new_inode);
-			/*
-			 * Work around vfs rename rehash bug with
-			 * FS_RENAME_DOES_D_MOVE
-			 */
-			v9fs_invalidate_inode_attr(new_inode);
 		}
 		if (S_ISDIR(old_inode->i_mode)) {
 			if (!new_inode)
