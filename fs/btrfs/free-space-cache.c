@@ -250,7 +250,7 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 	pgoff_t index = 0;
 	unsigned long first_page_offset;
 	int num_checksums;
-	int ret = 0, ret2;
+	int ret = 0;
 
 	INIT_LIST_HEAD(&bitmaps);
 
@@ -421,11 +421,10 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 					goto free_cache;
 				}
 				spin_lock(&ctl->tree_lock);
-				ret2 = link_free_space(ctl, e);
+				ret = link_free_space(ctl, e);
 				ctl->total_bitmaps++;
 				ctl->op->recalc_thresholds(ctl);
 				spin_unlock(&ctl->tree_lock);
-				list_add_tail(&e->list, &bitmaps);
 				if (ret) {
 					printk(KERN_ERR "Duplicate entries in "
 					       "free space cache, dumping\n");
@@ -434,6 +433,7 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 					page_cache_release(page);
 					goto free_cache;
 				}
+				list_add_tail(&e->list, &bitmaps);
 			}
 
 			num_entries--;
