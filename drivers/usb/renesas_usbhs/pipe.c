@@ -558,6 +558,7 @@ void usbhs_pipe_init(struct usbhs_priv *priv,
 
 		usbhsp_flags_init(pipe);
 		pipe->mod_private = NULL;
+		INIT_LIST_HEAD(&pipe->list);
 
 		/* pipe force init */
 		usbhsp_pipectrl_set(pipe, ACLRM, ACLRM);
@@ -584,6 +585,8 @@ struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
 			usbhsp_pipe_name[usb_endpoint_type(desc)]);
 		return NULL;
 	}
+
+	INIT_LIST_HEAD(&pipe->list);
 
 	usbhs_pipe_disable(pipe);
 
@@ -632,6 +635,7 @@ struct usbhs_pipe *usbhs_dcp_malloc(struct usbhs_priv *priv)
 
 	usbhsp_pipe_select(pipe);
 	usbhs_pipe_clear_sequence(pipe);
+	INIT_LIST_HEAD(&pipe->list);
 
 	return pipe;
 }

@@ -26,7 +26,6 @@
  */
 struct usbhsg_request {
 	struct usb_request	req;
-	struct list_head	node;
 	struct usbhs_pkt	pkt;
 };
 
@@ -36,7 +35,6 @@ struct usbhsg_pipe_handle;
 struct usbhsg_uep {
 	struct usb_ep		 ep;
 	struct usbhs_pipe	*pipe;
-	struct list_head	 list;
 
 	char ep_name[EP_NAME_SIZE];
 
@@ -161,12 +159,12 @@ static void usbhsg_queue_push(struct usbhsg_uep *uep,
 	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
 	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
+	struct usbhs_pkt *pkt = usbhsg_ureq_to_pkt(ureq);
 
 	/*
 	 *********  assume under spin lock  *********
 	 */
-	list_del_init(&ureq->node);
-	list_add_tail(&ureq->node, &uep->list);
+	usbhs_pkt_push(pipe, pkt);
 	ureq->req.actual = 0;
 	ureq->req.status = -EINPROGRESS;
 
@@ -177,13 +175,16 @@ static void usbhsg_queue_push(struct usbhsg_uep *uep,
 
 static struct usbhsg_request *usbhsg_queue_get(struct usbhsg_uep *uep)
 {
+	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
+	struct usbhs_pkt *pkt = usbhs_pkt_get(pipe);
+
 	/*
 	 *********  assume under spin lock  *********
 	 */
-	if (list_empty(&uep->list))
-		return NULL;
+	if (!pkt)
+		return 0;
 
-	return list_entry(uep->list.next, struct usbhsg_request, node);
+	return usbhsg_pkt_to_ureq(pkt);
 }
 
 #define usbhsg_queue_prepare(uep) __usbhsg_queue_handler(uep, 1);
@@ -243,6 +244,7 @@ static void usbhsg_queue_pop(struct usbhsg_uep *uep,
 	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
 	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
+	struct usbhs_pkt *pkt = usbhsg_ureq_to_pkt(ureq);
 
 	/*
 	 *********  assume under spin lock  *********
@@ -268,7 +270,7 @@ static void usbhsg_queue_pop(struct usbhsg_uep *uep,
 
 	dev_dbg(dev, "pipe %d : queue pop\n", usbhs_pipe_number(pipe));
 
-	list_del_init(&ureq->node);
+	usbhs_pkt_pop(pkt);
 
 	ureq->req.status = status;
 	ureq->req.complete(&uep->ep, &ureq->req);
@@ -386,7 +388,6 @@ static void usbhsg_try_run_send_packet_bh(struct usbhs_pkt *pkt)
 static int usbhsg_try_run_send_packet(struct usbhsg_uep *uep,
 				      struct usbhsg_request *ureq)
 {
-	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
 	struct usb_request *req = &ureq->req;
 	struct usbhs_pkt *pkt = usbhsg_ureq_to_pkt(ureq);
 	int ret;
@@ -395,7 +396,7 @@ static int usbhsg_try_run_send_packet(struct usbhsg_uep *uep,
 	 *********  assume under spin lock  *********
 	 */
 
-	usbhs_pkt_update(pkt, pipe,
+	usbhs_pkt_update(pkt,
 			 req->buf    + req->actual,
 			 req->length - req->actual);
 
@@ -473,7 +474,6 @@ static void usbhsg_try_run_receive_packet_bh(struct usbhs_pkt *pkt)
 static int usbhsg_try_run_receive_packet(struct usbhsg_uep *uep,
 					 struct usbhsg_request *ureq)
 {
-	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
 	struct usb_request *req = &ureq->req;
 	struct usbhs_pkt *pkt = usbhsg_ureq_to_pkt(ureq);
 
@@ -481,7 +481,7 @@ static int usbhsg_try_run_receive_packet(struct usbhsg_uep *uep,
 	 *********  assume under spin lock  *********
 	 */
 
-	usbhs_pkt_update(pkt, pipe,
+	usbhs_pkt_update(pkt,
 			 req->buf    + req->actual,
 			 req->length - req->actual);
 
@@ -814,7 +814,6 @@ static int usbhsg_dcp_enable(struct usbhsg_uep *uep)
 
 	uep->pipe		= pipe;
 	uep->pipe->mod_private	= uep;
-	INIT_LIST_HEAD(&uep->list);
 
 	return 0;
 }
@@ -888,7 +887,6 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 	if (pipe) {
 		uep->pipe		= pipe;
 		pipe->mod_private	= uep;
-		INIT_LIST_HEAD(&uep->list);
 
 		if (usb_endpoint_dir_in(desc))
 			uep->handler = &usbhsg_handler_send_packet;
@@ -932,7 +930,8 @@ static struct usb_request *usbhsg_ep_alloc_request(struct usb_ep *ep,
 	if (!ureq)
 		return NULL;
 
-	INIT_LIST_HEAD(&ureq->node);
+	usbhs_pkt_init(usbhsg_ureq_to_pkt(ureq));
+
 	return &ureq->req;
 }
 
@@ -941,7 +940,7 @@ static void usbhsg_ep_free_request(struct usb_ep *ep,
 {
 	struct usbhsg_request *ureq = usbhsg_req_to_ureq(req);
 
-	WARN_ON(!list_empty(&ureq->node));
+	WARN_ON(!list_empty(&ureq->pkt.node));
 	kfree(ureq);
 }
 
@@ -1379,7 +1378,6 @@ int __devinit usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 		uep->ep.name		= uep->ep_name;
 		uep->ep.ops		= &usbhsg_ep_ops;
 		INIT_LIST_HEAD(&uep->ep.ep_list);
-		INIT_LIST_HEAD(&uep->list);
 
 		/* init DCP */
 		if (usbhsg_is_dcp(uep)) {

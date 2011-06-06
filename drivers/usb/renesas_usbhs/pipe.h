@@ -27,6 +27,7 @@ struct usbhs_pipe {
 	u32 pipe_type;	/* USB_ENDPOINT_XFER_xxx */
 
 	struct usbhs_priv *priv;
+	struct list_head list;
 
 	u32 flags;
 #define USBHS_PIPE_FLAGS_IS_USED		(1 << 0)

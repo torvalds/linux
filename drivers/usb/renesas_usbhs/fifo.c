@@ -22,15 +22,38 @@
 /*
  *		packet info function
  */
-void usbhs_pkt_update(struct usbhs_pkt *pkt,
-		      struct usbhs_pipe *pipe,
-		      void *buf, int len)
+void usbhs_pkt_init(struct usbhs_pkt *pkt)
 {
-	pkt->pipe	= pipe;
+	INIT_LIST_HEAD(&pkt->node);
+}
+
+void usbhs_pkt_update(struct usbhs_pkt *pkt, void *buf, int len)
+{
 	pkt->buf	= buf;
 	pkt->length	= len;
 	pkt->actual	= 0;
 	pkt->maxp	= 0;
+}
+
+void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt)
+{
+	list_del_init(&pkt->node);
+	list_add_tail(&pkt->node, &pipe->list);
+
+	pkt->pipe = pipe;
+}
+
+void usbhs_pkt_pop(struct usbhs_pkt *pkt)
+{
+	list_del_init(&pkt->node);
+}
+
+struct usbhs_pkt *usbhs_pkt_get(struct usbhs_pipe *pipe)
+{
+	if (list_empty(&pipe->list))
+		return NULL;
+
+	return list_entry(pipe->list.next, struct usbhs_pkt, node);
 }
 
 /*
