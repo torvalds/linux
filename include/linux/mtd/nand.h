@@ -619,8 +619,6 @@ struct platform_nand_chip {
 	unsigned int options;
 	unsigned int bbt_options;
 	const char **part_probe_types;
-	void (*set_parts)(uint64_t size, struct platform_nand_chip *chip);
-	void *priv;
 };
 
 /* Keep gcc happy */

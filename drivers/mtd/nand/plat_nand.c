@@ -109,8 +109,6 @@ static int __devinit plat_nand_probe(struct platform_device *pdev)
 			return 0;
 		}
 	}
-	if (pdata->chip.set_parts)
-		pdata->chip.set_parts(data->mtd.size, &pdata->chip);
 	if (pdata->chip.partitions) {
 		data->parts = pdata->chip.partitions;
 		err = mtd_device_register(&data->mtd, data->parts,
