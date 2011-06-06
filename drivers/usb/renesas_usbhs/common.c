@@ -304,6 +304,8 @@ static int __devinit usbhs_probe(struct platform_device *pdev)
 		priv->dparam->pipe_type = usbhsc_default_pipe_type;
 		priv->dparam->pipe_size = ARRAY_SIZE(usbhsc_default_pipe_type);
 	}
+	if (!priv->dparam->pio_dma_border)
+		priv->dparam->pio_dma_border = 64; /* 64byte */
 
 	/* FIXME */
 	/* runtime power control ? */

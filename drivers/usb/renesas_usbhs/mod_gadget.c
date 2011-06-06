@@ -160,6 +160,71 @@ static void usbhsg_queue_done(struct usbhs_pkt *pkt)
 	usbhsg_queue_pop(uep, ureq, 0);
 }
 
+static int usbhsg_dma_map(struct device *dev,
+			  struct usbhs_pkt *pkt,
+			  enum dma_data_direction dir)
+{
+	struct usbhsg_request *ureq = usbhsg_pkt_to_ureq(pkt);
+	struct usb_request *req = &ureq->req;
+
+	if (pkt->dma != DMA_ADDR_INVALID) {
+		dev_err(dev, "dma is already mapped\n");
+		return -EIO;
+	}
+
+	if (req->dma == DMA_ADDR_INVALID) {
+		pkt->dma = dma_map_single(dev, pkt->buf, pkt->length, dir);
+	} else {
+		dma_sync_single_for_device(dev, req->dma, req->length, dir);
+		pkt->dma = req->dma;
+	}
+
+	if (dma_mapping_error(dev, pkt->dma)) {
+		dev_err(dev, "dma mapping error %x\n", pkt->dma);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int usbhsg_dma_unmap(struct device *dev,
+			    struct usbhs_pkt *pkt,
+			    enum dma_data_direction dir)
+{
+	struct usbhsg_request *ureq = usbhsg_pkt_to_ureq(pkt);
+	struct usb_request *req = &ureq->req;
+
+	if (pkt->dma == DMA_ADDR_INVALID) {
+		dev_err(dev, "dma is not mapped\n");
+		return -EIO;
+	}
+
+	if (req->dma == DMA_ADDR_INVALID)
+		dma_unmap_single(dev, pkt->dma, pkt->length, dir);
+	else
+		dma_sync_single_for_cpu(dev, req->dma, req->length, dir);
+
+	pkt->dma = DMA_ADDR_INVALID;
+
+	return 0;
+}
+
+static int usbhsg_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
+{
+	struct usbhs_pipe *pipe = pkt->pipe;
+	struct usbhsg_uep *uep = usbhsg_pipe_to_uep(pipe);
+	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
+	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
+	enum dma_data_direction dir;
+
+	dir = usbhs_pipe_is_dir_in(pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+
+	if (map)
+		return usbhsg_dma_map(dev, pkt, dir);
+	else
+		return usbhsg_dma_unmap(dev, pkt, dir);
+}
+
 /*
  *		USB_TYPE_STANDARD / clear feature functions
  */
@@ -434,6 +499,8 @@ static struct usb_request *usbhsg_ep_alloc_request(struct usb_ep *ep,
 
 	usbhs_pkt_init(usbhsg_ureq_to_pkt(ureq));
 
+	ureq->req.dma = DMA_ADDR_INVALID;
+
 	return &ureq->req;
 }
 
@@ -569,7 +636,8 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	 * pipe initialize and enable DCP
 	 */
 	usbhs_pipe_init(priv,
-			usbhsg_queue_done);
+			usbhsg_queue_done,
+			usbhsg_dma_map_ctrl);
 	usbhs_fifo_init(priv);
 	usbhsg_uep_init(gpriv);
 

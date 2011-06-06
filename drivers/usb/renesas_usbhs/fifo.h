@@ -17,18 +17,33 @@
 #ifndef RENESAS_USB_FIFO_H
 #define RENESAS_USB_FIFO_H
 
+#include <linux/interrupt.h>
+#include <linux/sh_dma.h>
+#include <asm/dma.h>
 #include "pipe.h"
 
+#define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
+
 struct usbhs_fifo {
+	char *name;
 	u32 port;	/* xFIFO */
 	u32 sel;	/* xFIFOSEL */
 	u32 ctr;	/* xFIFOCTR */
 
 	struct usbhs_pipe	*pipe;
+	struct tasklet_struct	tasklet;
+
+	struct dma_chan		*tx_chan;
+	struct dma_chan		*rx_chan;
+
+	struct sh_dmae_slave	tx_slave;
+	struct sh_dmae_slave	rx_slave;
 };
 
 struct usbhs_fifo_info {
 	struct usbhs_fifo cfifo;
+	struct usbhs_fifo d0fifo;
+	struct usbhs_fifo d1fifo;
 };
 
 struct usbhs_pkt_handle;
@@ -36,8 +51,10 @@ struct usbhs_pkt {
 	struct list_head node;
 	struct usbhs_pipe *pipe;
 	struct usbhs_pkt_handle *handler;
+	dma_addr_t dma;
 	void *buf;
 	int length;
+	int trans;
 	int actual;
 	int zero;
 };
@@ -45,6 +62,7 @@ struct usbhs_pkt {
 struct usbhs_pkt_handle {
 	int (*prepare)(struct usbhs_pkt *pkt, int *is_done);
 	int (*try_run)(struct usbhs_pkt *pkt, int *is_done);
+	int (*dma_done)(struct usbhs_pkt *pkt, int *is_done);
 };
 
 /*
@@ -61,11 +79,16 @@ void usbhs_fifo_quit(struct usbhs_priv *priv);
 enum {
 	USBHSF_PKT_PREPARE,
 	USBHSF_PKT_TRY_RUN,
+	USBHSF_PKT_DMA_DONE,
 };
 
 extern struct usbhs_pkt_handle usbhs_fifo_pio_push_handler;
 extern struct usbhs_pkt_handle usbhs_fifo_pio_pop_handler;
 extern struct usbhs_pkt_handle usbhs_ctrl_stage_end_handler;
+
+extern struct usbhs_pkt_handle usbhs_fifo_dma_push_handler;
+extern struct usbhs_pkt_handle usbhs_fifo_dma_pop_handler;
+
 
 void usbhs_pkt_init(struct usbhs_pkt *pkt);
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
@@ -76,5 +99,6 @@ int __usbhs_pkt_handler(struct usbhs_pipe *pipe, int type);
 
 #define usbhs_pkt_start(p)	__usbhs_pkt_handler(p, USBHSF_PKT_PREPARE)
 #define usbhs_pkt_run(p)	__usbhs_pkt_handler(p, USBHSF_PKT_TRY_RUN)
+#define usbhs_pkt_dmadone(p)	__usbhs_pkt_handler(p, USBHSF_PKT_DMA_DONE)
 
 #endif /* RENESAS_USB_FIFO_H */

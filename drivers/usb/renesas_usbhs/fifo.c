@@ -20,6 +20,8 @@
 #include "./pipe.h"
 
 #define usbhsf_get_cfifo(p)	(&((p)->fifo_info.cfifo))
+#define usbhsf_get_d0fifo(p)	(&((p)->fifo_info.d0fifo))
+#define usbhsf_get_d1fifo(p)	(&((p)->fifo_info.d1fifo))
 
 #define usbhsf_fifo_is_busy(f)	((f)->pipe) /* see usbhs_pipe_select_fifo */
 
@@ -43,6 +45,7 @@ static struct usbhs_pkt_handle usbhsf_null_handler = {
 
 void usbhs_pkt_init(struct usbhs_pkt *pkt)
 {
+	pkt->dma = DMA_ADDR_INVALID;
 	INIT_LIST_HEAD(&pkt->node);
 }
 
@@ -135,6 +138,9 @@ int __usbhs_pkt_handler(struct usbhs_pipe *pipe, int type)
 		break;
 	case USBHSF_PKT_TRY_RUN:
 		func = pkt->handler->try_run;
+		break;
+	case USBHSF_PKT_DMA_DONE:
+		func = pkt->handler->dma_done;
 		break;
 	default:
 		dev_err(dev, "unknown pkt hander\n");
@@ -508,6 +514,330 @@ struct usbhs_pkt_handle usbhs_ctrl_stage_end_handler = {
 };
 
 /*
+ *		DMA fifo functions
+ */
+static struct dma_chan *usbhsf_dma_chan_get(struct usbhs_fifo *fifo,
+					    struct usbhs_pkt *pkt)
+{
+	if (&usbhs_fifo_dma_push_handler == pkt->handler)
+		return fifo->tx_chan;
+
+	if (&usbhs_fifo_dma_pop_handler == pkt->handler)
+		return fifo->rx_chan;
+
+	return NULL;
+}
+
+static struct usbhs_fifo *usbhsf_get_dma_fifo(struct usbhs_priv *priv,
+					      struct usbhs_pkt *pkt)
+{
+	struct usbhs_fifo *fifo;
+
+	/* DMA :: D0FIFO */
+	fifo = usbhsf_get_d0fifo(priv);
+	if (usbhsf_dma_chan_get(fifo, pkt) &&
+	    !usbhsf_fifo_is_busy(fifo))
+		return fifo;
+
+	/* DMA :: D1FIFO */
+	fifo = usbhsf_get_d1fifo(priv);
+	if (usbhsf_dma_chan_get(fifo, pkt) &&
+	    !usbhsf_fifo_is_busy(fifo))
+		return fifo;
+
+	return NULL;
+}
+
+#define usbhsf_dma_start(p, f)	__usbhsf_dma_ctrl(p, f, DREQE)
+#define usbhsf_dma_stop(p, f)	__usbhsf_dma_ctrl(p, f, 0)
+static void __usbhsf_dma_ctrl(struct usbhs_pipe *pipe,
+			      struct usbhs_fifo *fifo,
+			      u16 dreqe)
+{
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+
+	usbhs_bset(priv, fifo->sel, DREQE, dreqe);
+}
+
+#define usbhsf_dma_map(p)	__usbhsf_dma_map_ctrl(p, 1)
+#define usbhsf_dma_unmap(p)	__usbhsf_dma_map_ctrl(p, 0)
+static int __usbhsf_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
+{
+	struct usbhs_pipe *pipe = pkt->pipe;
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
+
+	return info->dma_map_ctrl(pkt, map);
+}
+
+static void usbhsf_dma_complete(void *arg);
+static void usbhsf_dma_prepare_tasklet(unsigned long data)
+{
+	struct usbhs_pkt *pkt = (struct usbhs_pkt *)data;
+	struct usbhs_pipe *pipe = pkt->pipe;
+	struct usbhs_fifo *fifo = usbhs_pipe_to_fifo(pipe);
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct scatterlist sg;
+	struct dma_async_tx_descriptor *desc;
+	struct dma_chan *chan = usbhsf_dma_chan_get(fifo, pkt);
+	struct device *dev = usbhs_priv_to_dev(priv);
+	enum dma_data_direction dir;
+	dma_cookie_t cookie;
+
+	dir = usbhs_pipe_is_dir_in(pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+
+	sg_init_table(&sg, 1);
+	sg_set_page(&sg, virt_to_page(pkt->dma),
+		    pkt->length, offset_in_page(pkt->dma));
+	sg_dma_address(&sg) = pkt->dma + pkt->actual;
+	sg_dma_len(&sg) = pkt->trans;
+
+	desc = chan->device->device_prep_slave_sg(chan, &sg, 1, dir,
+						  DMA_PREP_INTERRUPT |
+						  DMA_CTRL_ACK);
+	if (!desc)
+		return;
+
+	desc->callback		= usbhsf_dma_complete;
+	desc->callback_param	= pipe;
+
+	cookie = desc->tx_submit(desc);
+	if (cookie < 0) {
+		dev_err(dev, "Failed to submit dma descriptor\n");
+		return;
+	}
+
+	dev_dbg(dev, "  %s %d (%d/ %d)\n",
+		fifo->name, usbhs_pipe_number(pipe), pkt->length, pkt->zero);
+
+	usbhsf_dma_start(pipe, fifo);
+	dma_async_issue_pending(chan);
+}
+
+static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
+{
+	struct usbhs_pipe *pipe = pkt->pipe;
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct usbhs_fifo *fifo;
+	int len = pkt->length - pkt->actual;
+	int ret;
+
+	if (usbhs_pipe_is_busy(pipe))
+		return 0;
+
+	/* use PIO if packet is less than pio_dma_border or pipe is DCP */
+	if ((len < usbhs_get_dparam(priv, pio_dma_border)) ||
+	    usbhs_pipe_is_dcp(pipe))
+		goto usbhsf_pio_prepare_push;
+
+	if (len % 4) /* 32bit alignment */
+		goto usbhsf_pio_prepare_push;
+
+	/* get enable DMA fifo */
+	fifo = usbhsf_get_dma_fifo(priv, pkt);
+	if (!fifo)
+		goto usbhsf_pio_prepare_push;
+
+	if (usbhsf_dma_map(pkt) < 0)
+		goto usbhsf_pio_prepare_push;
+
+	ret = usbhsf_fifo_select(pipe, fifo, 0);
+	if (ret < 0)
+		goto usbhsf_pio_prepare_push_unmap;
+
+	pkt->trans = len;
+
+	tasklet_init(&fifo->tasklet,
+		     usbhsf_dma_prepare_tasklet,
+		     (unsigned long)pkt);
+
+	tasklet_schedule(&fifo->tasklet);
+
+	return 0;
+
+usbhsf_pio_prepare_push_unmap:
+	usbhsf_dma_unmap(pkt);
+usbhsf_pio_prepare_push:
+	/*
+	 * change handler to PIO
+	 */
+	pkt->handler = &usbhs_fifo_pio_push_handler;
+
+	return pkt->handler->prepare(pkt, is_done);
+}
+
+static int usbhsf_dma_push_done(struct usbhs_pkt *pkt, int *is_done)
+{
+	struct usbhs_pipe *pipe = pkt->pipe;
+
+	pkt->actual = pkt->trans;
+
+	*is_done = !pkt->zero;	/* send zero packet ? */
+
+	usbhsf_dma_stop(pipe, pipe->fifo);
+	usbhsf_dma_unmap(pkt);
+	usbhsf_fifo_unselect(pipe, pipe->fifo);
+
+	return 0;
+}
+
+struct usbhs_pkt_handle usbhs_fifo_dma_push_handler = {
+	.prepare	= usbhsf_dma_prepare_push,
+	.dma_done	= usbhsf_dma_push_done,
+};
+
+static int usbhsf_dma_try_pop(struct usbhs_pkt *pkt, int *is_done)
+{
+	struct usbhs_pipe *pipe = pkt->pipe;
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct usbhs_fifo *fifo;
+	int len, ret;
+
+	if (usbhs_pipe_is_busy(pipe))
+		return 0;
+
+	if (usbhs_pipe_is_dcp(pipe))
+		goto usbhsf_pio_prepare_pop;
+
+	/* get enable DMA fifo */
+	fifo = usbhsf_get_dma_fifo(priv, pkt);
+	if (!fifo)
+		goto usbhsf_pio_prepare_pop;
+
+	ret = usbhsf_fifo_select(pipe, fifo, 0);
+	if (ret < 0)
+		goto usbhsf_pio_prepare_pop;
+
+	/* use PIO if packet is less than pio_dma_border */
+	len = usbhsf_fifo_rcv_len(priv, fifo);
+	len = min(pkt->length - pkt->actual, len);
+	if (len % 4) /* 32bit alignment */
+		goto usbhsf_pio_prepare_pop_unselect;
+
+	if (len < usbhs_get_dparam(priv, pio_dma_border))
+		goto usbhsf_pio_prepare_pop_unselect;
+
+	ret = usbhsf_fifo_barrier(priv, fifo);
+	if (ret < 0)
+		goto usbhsf_pio_prepare_pop_unselect;
+
+	if (usbhsf_dma_map(pkt) < 0)
+		goto usbhsf_pio_prepare_pop_unselect;
+
+	/* DMA */
+
+	/*
+	 * usbhs_fifo_dma_pop_handler :: prepare
+	 * enabled irq to come here.
+	 * but it is no longer needed for DMA. disable it.
+	 */
+	usbhsf_rx_irq_ctrl(pipe, 0);
+
+	pkt->trans = len;
+
+	tasklet_init(&fifo->tasklet,
+		     usbhsf_dma_prepare_tasklet,
+		     (unsigned long)pkt);
+
+	tasklet_schedule(&fifo->tasklet);
+
+	return 0;
+
+usbhsf_pio_prepare_pop_unselect:
+	usbhsf_fifo_unselect(pipe, fifo);
+usbhsf_pio_prepare_pop:
+
+	/*
+	 * change handler to PIO
+	 */
+	pkt->handler = &usbhs_fifo_pio_pop_handler;
+
+	return pkt->handler->try_run(pkt, is_done);
+}
+
+static int usbhsf_dma_pop_done(struct usbhs_pkt *pkt, int *is_done)
+{
+	struct usbhs_pipe *pipe = pkt->pipe;
+	int maxp = usbhs_pipe_get_maxpacket(pipe);
+
+	usbhsf_dma_stop(pipe, pipe->fifo);
+	usbhsf_dma_unmap(pkt);
+	usbhsf_fifo_unselect(pipe, pipe->fifo);
+
+	pkt->actual += pkt->trans;
+
+	if ((pkt->actual == pkt->length) ||	/* receive all data */
+	    (pkt->trans < maxp)) {		/* short packet */
+		*is_done = 1;
+	} else {
+		/* re-enable */
+		usbhsf_prepare_pop(pkt, is_done);
+	}
+
+	return 0;
+}
+
+struct usbhs_pkt_handle usbhs_fifo_dma_pop_handler = {
+	.prepare	= usbhsf_prepare_pop,
+	.try_run	= usbhsf_dma_try_pop,
+	.dma_done	= usbhsf_dma_pop_done
+};
+
+/*
+ *		DMA setting
+ */
+static bool usbhsf_dma_filter(struct dma_chan *chan, void *param)
+{
+	struct sh_dmae_slave *slave = param;
+
+	/*
+	 * FIXME
+	 *
+	 * usbhs doesn't recognize id = 0 as valid DMA
+	 */
+	if (0 == slave->slave_id)
+		return false;
+
+	chan->private = slave;
+
+	return true;
+}
+
+static void usbhsf_dma_quit(struct usbhs_priv *priv, struct usbhs_fifo *fifo)
+{
+	if (fifo->tx_chan)
+		dma_release_channel(fifo->tx_chan);
+	if (fifo->rx_chan)
+		dma_release_channel(fifo->rx_chan);
+
+	fifo->tx_chan = NULL;
+	fifo->rx_chan = NULL;
+}
+
+static void usbhsf_dma_init(struct usbhs_priv *priv,
+			    struct usbhs_fifo *fifo)
+{
+	struct device *dev = usbhs_priv_to_dev(priv);
+	dma_cap_mask_t mask;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+	fifo->tx_chan = dma_request_channel(mask, usbhsf_dma_filter,
+					    &fifo->tx_slave);
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+	fifo->rx_chan = dma_request_channel(mask, usbhsf_dma_filter,
+					    &fifo->rx_slave);
+
+	if (fifo->tx_chan || fifo->rx_chan)
+		dev_info(dev, "enable DMAEngine (%s%s%s)\n",
+			 fifo->name,
+			 fifo->tx_chan ? "[TX]" : "    ",
+			 fifo->rx_chan ? "[RX]" : "    ");
+}
+
+/*
  *		irq functions
  */
 static int usbhsf_irq_empty(struct usbhs_priv *priv,
@@ -570,6 +900,19 @@ static int usbhsf_irq_ready(struct usbhs_priv *priv,
 	return 0;
 }
 
+static void usbhsf_dma_complete(void *arg)
+{
+	struct usbhs_pipe *pipe = arg;
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct device *dev = usbhs_priv_to_dev(priv);
+	int ret;
+
+	ret = usbhs_pkt_dmadone(pipe);
+	if (ret < 0)
+		dev_err(dev, "dma_complete run_error %d : %d\n",
+			usbhs_pipe_number(pipe), ret);
+}
+
 /*
  *		fifo init
  */
@@ -577,6 +920,8 @@ void usbhs_fifo_init(struct usbhs_priv *priv)
 {
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
 	struct usbhs_fifo *cfifo = usbhsf_get_cfifo(priv);
+	struct usbhs_fifo *d0fifo = usbhsf_get_d0fifo(priv);
+	struct usbhs_fifo *d1fifo = usbhsf_get_d1fifo(priv);
 
 	mod->irq_empty		= usbhsf_irq_empty;
 	mod->irq_ready		= usbhsf_irq_ready;
@@ -584,6 +929,19 @@ void usbhs_fifo_init(struct usbhs_priv *priv)
 	mod->irq_brdysts	= 0;
 
 	cfifo->pipe	= NULL;
+	cfifo->tx_chan	= NULL;
+	cfifo->rx_chan	= NULL;
+
+	d0fifo->pipe	= NULL;
+	d0fifo->tx_chan	= NULL;
+	d0fifo->rx_chan	= NULL;
+
+	d1fifo->pipe	= NULL;
+	d1fifo->tx_chan	= NULL;
+	d1fifo->rx_chan	= NULL;
+
+	usbhsf_dma_init(priv, usbhsf_get_d0fifo(priv));
+	usbhsf_dma_init(priv, usbhsf_get_d1fifo(priv));
 }
 
 void usbhs_fifo_quit(struct usbhs_priv *priv)
@@ -594,6 +952,9 @@ void usbhs_fifo_quit(struct usbhs_priv *priv)
 	mod->irq_ready		= NULL;
 	mod->irq_bempsts	= 0;
 	mod->irq_brdysts	= 0;
+
+	usbhsf_dma_quit(priv, usbhsf_get_d0fifo(priv));
+	usbhsf_dma_quit(priv, usbhsf_get_d1fifo(priv));
 }
 
 int usbhs_fifo_probe(struct usbhs_priv *priv)
@@ -602,9 +963,28 @@ int usbhs_fifo_probe(struct usbhs_priv *priv)
 
 	/* CFIFO */
 	fifo = usbhsf_get_cfifo(priv);
+	fifo->name	= "CFIFO";
 	fifo->port	= CFIFO;
 	fifo->sel	= CFIFOSEL;
 	fifo->ctr	= CFIFOCTR;
+
+	/* D0FIFO */
+	fifo = usbhsf_get_d0fifo(priv);
+	fifo->name	= "D0FIFO";
+	fifo->port	= D0FIFO;
+	fifo->sel	= D0FIFOSEL;
+	fifo->ctr	= D0FIFOCTR;
+	fifo->tx_slave.slave_id	= usbhs_get_dparam(priv, d0_tx_id);
+	fifo->rx_slave.slave_id	= usbhs_get_dparam(priv, d0_rx_id);
+
+	/* D1FIFO */
+	fifo = usbhsf_get_d1fifo(priv);
+	fifo->name	= "D1FIFO";
+	fifo->port	= D1FIFO;
+	fifo->sel	= D1FIFOSEL;
+	fifo->ctr	= D1FIFOCTR;
+	fifo->tx_slave.slave_id	= usbhs_get_dparam(priv, d1_tx_id);
+	fifo->rx_slave.slave_id	= usbhs_get_dparam(priv, d1_rx_id);
 
 	return 0;
 }
