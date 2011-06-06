@@ -63,8 +63,8 @@ enum {
 	USBHSF_PKT_TRY_RUN,
 };
 
-extern struct usbhs_pkt_handle usbhs_fifo_push_handler;
-extern struct usbhs_pkt_handle usbhs_fifo_pop_handler;
+extern struct usbhs_pkt_handle usbhs_fifo_pio_push_handler;
+extern struct usbhs_pkt_handle usbhs_fifo_pio_pop_handler;
 extern struct usbhs_pkt_handle usbhs_ctrl_stage_end_handler;
 
 void usbhs_pkt_init(struct usbhs_pkt *pkt);

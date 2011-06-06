@@ -289,7 +289,7 @@ static int usbhsf_fifo_select(struct usbhs_pipe *pipe,
 /*
  *		PIO fifo functions
  */
-static int usbhsf_try_push(struct usbhs_pkt *pkt, int *is_done)
+static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
@@ -384,9 +384,9 @@ usbhs_fifo_write_busy:
 	return ret;
 }
 
-struct usbhs_pkt_handle usbhs_fifo_push_handler = {
-	.prepare = usbhsf_try_push,
-	.try_run = usbhsf_try_push,
+struct usbhs_pkt_handle usbhs_fifo_pio_push_handler = {
+	.prepare = usbhsf_pio_try_push,
+	.try_run = usbhsf_pio_try_push,
 };
 
 static int usbhsf_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
@@ -406,7 +406,7 @@ static int usbhsf_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
 	return 0;
 }
 
-static int usbhsf_try_pop(struct usbhs_pkt *pkt, int *is_done)
+static int usbhsf_pio_try_pop(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
@@ -485,9 +485,9 @@ usbhs_fifo_read_busy:
 	return ret;
 }
 
-struct usbhs_pkt_handle usbhs_fifo_pop_handler = {
+struct usbhs_pkt_handle usbhs_fifo_pio_pop_handler = {
 	.prepare = usbhsf_prepare_pop,
-	.try_run = usbhsf_try_pop,
+	.try_run = usbhsf_pio_try_pop,
 };
 
 /*

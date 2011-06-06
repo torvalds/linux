@@ -309,10 +309,10 @@ static int usbhsg_irq_ctrl_stage(struct usbhs_priv *priv,
 
 	switch (stage) {
 	case READ_DATA_STAGE:
-		dcp->handler = &usbhs_fifo_push_handler;
+		dcp->handler = &usbhs_fifo_pio_push_handler;
 		break;
 	case WRITE_DATA_STAGE:
-		dcp->handler = &usbhs_fifo_pop_handler;
+		dcp->handler = &usbhs_fifo_pio_pop_handler;
 		break;
 	case NODATA_STATUS_STAGE:
 		dcp->handler = &usbhs_ctrl_stage_end_handler;
@@ -406,9 +406,9 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 		pipe->mod_private	= uep;
 
 		if (usb_endpoint_dir_in(desc))
-			uep->handler = &usbhs_fifo_push_handler;
+			uep->handler = &usbhs_fifo_pio_push_handler;
 		else
-			uep->handler = &usbhs_fifo_pop_handler;
+			uep->handler = &usbhs_fifo_pio_pop_handler;
 
 		ret = 0;
 	}
