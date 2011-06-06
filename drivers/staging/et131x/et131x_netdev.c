@@ -161,7 +161,7 @@ struct net_device_stats *et131x_stats(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct net_device_stats *stats = &adapter->net_stats;
-	CE_STATS_t *devstat = &adapter->Stats;
+	struct ce_stats_t *devstat = &adapter->Stats;
 
 	stats->rx_packets = devstat->ipackets;
 	stats->tx_packets = devstat->opackets;

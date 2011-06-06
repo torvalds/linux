@@ -67,7 +67,7 @@
  * Do not change these values: if changed, then change also in respective
  * TXdma and Rxdma engines
  */
-#define NUM_DESC_PER_RING_TX         512	/* TX Do not change these values */
+#define NUM_DESC_PER_RING_TX         512    /* TX Do not change these values */
 #define NUM_TCB                      64
 
 /*
@@ -98,7 +98,7 @@ struct rfd {
 #define FLOW_NONE	3
 
 /* Struct to define some device statistics */
-typedef struct _ce_stats_t {
+struct ce_stats_t {
 	/* Link Input/Output stats */
 	uint64_t ipackets;	/* # of in packets */
 	uint64_t opackets;	/* # of out packets */
@@ -143,7 +143,7 @@ typedef struct _ce_stats_t {
 
 	u32 SynchrounousIterations;
 	u32 InterruptStatus;
-} CE_STATS_t, *PCE_STATS_t;
+};
 
 
 /* The private adapter structure */
@@ -239,7 +239,7 @@ struct et131x_adapter {
 	u8 ReplicaPhyLoopbkPF;	/* Replica Enable Pass/Fail */
 
 	/* Stats */
-	CE_STATS_t Stats;
+	struct ce_stats_t Stats;
 
 	struct net_device_stats net_stats;
 	struct net_device_stats net_stats_prev;

@@ -452,7 +452,7 @@ void ConfigFlowControl(struct et131x_adapter *etdev)
  */
 void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
 {
-	struct _ce_stats_t *stats = &etdev->Stats;
+	struct ce_stats_t *stats = &etdev->Stats;
 	struct macstat_regs __iomem *macstat =
 		&etdev->regs->macstat;
 
