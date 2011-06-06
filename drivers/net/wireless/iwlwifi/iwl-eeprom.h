@@ -162,10 +162,6 @@ struct iwl_eeprom_enhanced_txpwr {
 	s8 mimo3_max;
 } __packed;
 
-/* 5000 Specific */
-#define EEPROM_5000_TX_POWER_VERSION    (4)
-#define EEPROM_5000_EEPROM_VERSION	(0x11A)
-
 /* calibration */
 #define EEPROM_CALIB_ALL	(INDIRECT_ADDRESS | INDIRECT_CALIBRATION)
 #define EEPROM_XTAL		((2*0x128) | EEPROM_CALIB_ALL)
@@ -202,6 +198,10 @@ struct iwl_eeprom_enhanced_txpwr {
 /* 6000 regulatory - indirect access */
 #define EEPROM_6000_REG_BAND_24_HT40_CHANNELS  ((0x80)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
+
+/* 5000 Specific */
+#define EEPROM_5000_TX_POWER_VERSION    (4)
+#define EEPROM_5000_EEPROM_VERSION	(0x11A)
 
 /* 5050 Specific */
 #define EEPROM_5050_TX_POWER_VERSION    (4)
