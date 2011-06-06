@@ -47,8 +47,8 @@
 int drbd_adm_add_minor(struct sk_buff *skb, struct genl_info *info);
 int drbd_adm_delete_minor(struct sk_buff *skb, struct genl_info *info);
 
-int drbd_adm_create_connection(struct sk_buff *skb, struct genl_info *info);
-int drbd_adm_delete_connection(struct sk_buff *skb, struct genl_info *info);
+int drbd_adm_new_resource(struct sk_buff *skb, struct genl_info *info);
+int drbd_adm_del_resource(struct sk_buff *skb, struct genl_info *info);
 int drbd_adm_down(struct sk_buff *skb, struct genl_info *info);
 
 int drbd_adm_set_role(struct sk_buff *skb, struct genl_info *info);
@@ -2972,7 +2972,7 @@ drbd_check_conn_name(const char *name)
 	return NO_ERROR;
 }
 
-int drbd_adm_create_connection(struct sk_buff *skb, struct genl_info *info)
+int drbd_adm_new_resource(struct sk_buff *skb, struct genl_info *info)
 {
 	enum drbd_ret_code retcode;
 
@@ -2989,7 +2989,7 @@ int drbd_adm_create_connection(struct sk_buff *skb, struct genl_info *info)
 	if (adm_ctx.tconn) {
 		if (info->nlhdr->nlmsg_flags & NLM_F_EXCL) {
 			retcode = ERR_INVALID_REQUEST;
-			drbd_msg_put_info("connection exists");
+			drbd_msg_put_info("resource exists");
 		}
 		/* else: still NO_ERROR */
 		goto out;
@@ -3086,7 +3086,7 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 
 	if (!adm_ctx.tconn) {
-		retcode = ERR_CONN_NOT_KNOWN;
+		retcode = ERR_RES_NOT_KNOWN;
 		goto out;
 	}
 
@@ -3140,7 +3140,7 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 		retcode = NO_ERROR;
 	} else {
 		/* "can not happen" */
-		retcode = ERR_CONN_IN_USE;
+		retcode = ERR_RES_IN_USE;
 		drbd_msg_put_info("failed to delete connection");
 	}
 	goto out;
@@ -3149,7 +3149,7 @@ out:
 	return 0;
 }
 
-int drbd_adm_delete_connection(struct sk_buff *skb, struct genl_info *info)
+int drbd_adm_del_resource(struct sk_buff *skb, struct genl_info *info)
 {
 	enum drbd_ret_code retcode;
 
@@ -3166,7 +3166,7 @@ int drbd_adm_delete_connection(struct sk_buff *skb, struct genl_info *info)
 
 		retcode = NO_ERROR;
 	} else {
-		retcode = ERR_CONN_IN_USE;
+		retcode = ERR_RES_IN_USE;
 	}
 
 	if (retcode == NO_ERROR)
