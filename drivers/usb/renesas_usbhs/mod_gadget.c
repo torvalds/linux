@@ -168,20 +168,6 @@ static void usbhsg_queue_push(struct usbhsg_uep *uep,
 		req->length);
 }
 
-static struct usbhsg_request *usbhsg_queue_get(struct usbhsg_uep *uep)
-{
-	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
-	struct usbhs_pkt *pkt = usbhs_pkt_get(pipe);
-
-	/*
-	 *********  assume under spin lock  *********
-	 */
-	if (!pkt)
-		return 0;
-
-	return usbhsg_pkt_to_ureq(pkt);
-}
-
 static int usbhsg_queue_start(struct usbhsg_uep *uep)
 {
 	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
@@ -483,7 +469,7 @@ static int usbhsg_dcp_enable(struct usbhsg_uep *uep)
 static int usbhsg_pipe_disable(struct usbhsg_uep *uep)
 {
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
-	struct usbhsg_request *ureq;
+	struct usbhs_pkt *pkt;
 
 	/*
 	 *********  assume under spin lock  *********
@@ -492,11 +478,11 @@ static int usbhsg_pipe_disable(struct usbhsg_uep *uep)
 	usbhs_pipe_disable(pipe);
 
 	while (1) {
-		ureq = usbhsg_queue_get(uep);
-		if (!ureq)
+		pkt = usbhs_pkt_get(pipe);
+		if (!pkt)
 			break;
 
-		usbhsg_queue_pop(uep, ureq, -ECONNRESET);
+		usbhs_pkt_pop(pkt);
 	}
 
 	return 0;
@@ -690,7 +676,7 @@ static int __usbhsg_ep_set_halt_wedge(struct usb_ep *ep, int halt, int wedge)
 
 	/********************  spin lock ********************/
 	lock = usbhsg_trylock(gpriv, &flags);
-	if (!usbhsg_queue_get(uep)) {
+	if (!usbhs_pkt_get(pipe)) {
 
 		dev_dbg(dev, "set halt %d (pipe %d)\n",
 			halt, usbhs_pipe_number(pipe));
