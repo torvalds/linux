@@ -164,12 +164,13 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	struct mwifiex_tx_param tx_param;
 	struct txpd *ptx_pd = NULL;
 
-	if (skb_queue_empty(&pra_list->skb_head)) {
+	skb_src = skb_peek(&pra_list->skb_head);
+	if (!skb_src) {
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
 		return 0;
 	}
-	skb_src = skb_peek(&pra_list->skb_head);
+
 	tx_info_src = MWIFIEX_SKB_TXCB(skb_src);
 	skb_aggr = dev_alloc_skb(adapter->tx_buf_size);
 	if (!skb_aggr) {
@@ -188,10 +189,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 					+ LLC_SNAP_LEN)
 				<= adapter->tx_buf_size)) {
 
-		if (!skb_queue_empty(&pra_list->skb_head))
-			skb_src = skb_dequeue(&pra_list->skb_head);
-		else
-			skb_src = NULL;
+		skb_src = skb_dequeue(&pra_list->skb_head);
 
 		if (skb_src) {
 			pra_list->total_pkts_size -= skb_src->len;
@@ -214,10 +212,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 			return -1;
 		}
 
-		if (!skb_queue_empty(&pra_list->skb_head))
-			skb_src = skb_peek(&pra_list->skb_head);
-		else
-			skb_src = NULL;
+		skb_src = skb_peek(&pra_list->skb_head);
 	}
 
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, ra_list_flags);
