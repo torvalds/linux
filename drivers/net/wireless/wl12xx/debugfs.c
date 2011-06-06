@@ -306,7 +306,7 @@ static ssize_t start_recovery_write(struct file *file,
 	struct wl1271 *wl = file->private_data;
 
 	mutex_lock(&wl->mutex);
-	ieee80211_queue_work(wl->hw, &wl->recovery_work);
+	wl12xx_queue_recovery_work(wl);
 	mutex_unlock(&wl->mutex);
 
 	return count;

@@ -118,7 +118,7 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl)
 			&compl, msecs_to_jiffies(WL1271_WAKEUP_TIMEOUT));
 		if (ret == 0) {
 			wl1271_error("ELP wakeup timeout!");
-			ieee80211_queue_work(wl->hw, &wl->recovery_work);
+			wl12xx_queue_recovery_work(wl);
 			ret = -ETIMEDOUT;
 			goto err;
 		} else if (ret < 0) {

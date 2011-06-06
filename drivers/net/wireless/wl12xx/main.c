@@ -937,7 +937,7 @@ irqreturn_t wl1271_irq(int irq, void *cookie)
 		if (unlikely(intr & WL1271_ACX_INTR_WATCHDOG)) {
 			wl1271_error("watchdog interrupt received! "
 				     "starting recovery.");
-			ieee80211_queue_work(wl->hw, &wl->recovery_work);
+			wl12xx_queue_recovery_work(wl);
 
 			/* restarting the chip. ignore any other interrupt. */
 			goto out;
@@ -1099,6 +1099,12 @@ out:
 	return ret;
 }
 
+void wl12xx_queue_recovery_work(struct wl1271 *wl)
+{
+	if (!test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags))
+		ieee80211_queue_work(wl->hw, &wl->recovery_work);
+}
+
 static void wl1271_recovery_work(struct work_struct *work)
 {
 	struct wl1271 *wl =
@@ -1108,6 +1114,9 @@ static void wl1271_recovery_work(struct work_struct *work)
 
 	if (wl->state != WL1271_STATE_ON)
 		goto out;
+
+	/* Avoid a recursive recovery */
+	set_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags);
 
 	wl1271_info("Hardware recovery in progress. FW ver: %s pc: 0x%x",
 		    wl->chip.fw_ver_str, wl1271_read32(wl, SCR_PAD4));
@@ -1125,6 +1134,9 @@ static void wl1271_recovery_work(struct work_struct *work)
 
 	/* reboot the chipset */
 	__wl1271_op_remove_interface(wl, false);
+
+	clear_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags);
+
 	ieee80211_restart_hw(wl->hw);
 
 	/*
