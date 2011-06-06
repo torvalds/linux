@@ -758,18 +758,6 @@ static struct acpi_driver vmbus_acpi_driver = {
 	},
 };
 
-static int vmbus_acpi_init(void)
-{
-	int result;
-
-
-	result = acpi_bus_register_driver(&vmbus_acpi_driver);
-	if (result < 0)
-		return result;
-
-	return 0;
-}
-
 static void vmbus_acpi_exit(void)
 {
 	acpi_bus_unregister_driver(&vmbus_acpi_driver);
@@ -800,7 +788,8 @@ static int __init hv_acpi_init(void)
 	 * Get irq resources first.
 	 */
 
-	ret = vmbus_acpi_init();
+	ret = acpi_bus_register_driver(&vmbus_acpi_driver);
+
 	if (ret)
 		return ret;
 
