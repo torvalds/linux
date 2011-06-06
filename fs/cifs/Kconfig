@@ -149,7 +149,7 @@ config CIFS_FSCACHE
 
 config CIFS_ACL
 	  bool "Provide CIFS ACL support (EXPERIMENTAL)"
-	  depends on EXPERIMENTAL && CIFS_XATTR
+	  depends on EXPERIMENTAL && CIFS_XATTR && KEYS
 	  help
 	    Allows to fetch CIFS/NTFS ACL from the server.  The DACL blob
 	    is handed over to the application/caller.
