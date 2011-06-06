@@ -266,8 +266,9 @@ static struct scsi_host_template *the_template = NULL;
 	(struct NCR5380_hostdata *)(in)->hostdata
 #define	HOSTDATA(in) ((struct NCR5380_hostdata *)(in)->hostdata)
 
-#define	NEXT(cmd)	(*(struct scsi_cmnd **)&((cmd)->host_scribble))
-#define	NEXTADDR(cmd)	((struct scsi_cmnd **)&((cmd)->host_scribble))
+#define	NEXT(cmd)		((struct scsi_cmnd *)(cmd)->host_scribble)
+#define	SET_NEXT(cmd, next)	((cmd)->host_scribble = (void *)(next))
+#define	NEXTADDR(cmd)		((struct scsi_cmnd **)&((cmd)->host_scribble))
 
 #define	HOSTNO		instance->host_no
 #define	H_NO(cmd)	(cmd)->device->host->host_no
@@ -962,7 +963,7 @@ static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd,
      * in a queue 
      */
 
-    NEXT(cmd) = NULL;
+    SET_NEXT(cmd, NULL);
     cmd->scsi_done = done;
 
     cmd->result = 0;
@@ -990,14 +991,14 @@ static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd,
      */
     if (!(hostdata->issue_queue) || (cmd->cmnd[0] == REQUEST_SENSE)) {
 	LIST(cmd, hostdata->issue_queue);
-	NEXT(cmd) = hostdata->issue_queue;
+	SET_NEXT(cmd, hostdata->issue_queue);
 	hostdata->issue_queue = cmd;
     } else {
 	for (tmp = (struct scsi_cmnd *)hostdata->issue_queue;
 	     NEXT(tmp); tmp = NEXT(tmp))
 	    ;
 	LIST(cmd, tmp);
-	NEXT(tmp) = cmd;
+	SET_NEXT(tmp, cmd);
     }
 
     local_irq_restore(flags);
@@ -1105,12 +1106,12 @@ static void NCR5380_main (struct work_struct *bl)
 		    local_irq_disable();
 		    if (prev) {
 		        REMOVE(prev, NEXT(prev), tmp, NEXT(tmp));
-			NEXT(prev) = NEXT(tmp);
+			SET_NEXT(prev, NEXT(tmp));
 		    } else {
 		        REMOVE(-1, hostdata->issue_queue, tmp, NEXT(tmp));
 			hostdata->issue_queue = NEXT(tmp);
 		    }
-		    NEXT(tmp) = NULL;
+		    SET_NEXT(tmp, NULL);
 		    
 		    /* reenable interrupts after finding one */
 		    local_irq_restore(flags);
@@ -1144,7 +1145,7 @@ static void NCR5380_main (struct work_struct *bl)
 		    } else {
 			local_irq_disable();
 			LIST(tmp, hostdata->issue_queue);
-			NEXT(tmp) = hostdata->issue_queue;
+			SET_NEXT(tmp, hostdata->issue_queue);
 			hostdata->issue_queue = tmp;
 #ifdef SUPPORT_TAGS
 			cmd_free_tag( tmp );
@@ -2274,7 +2275,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 
 			local_irq_save(flags);
 			LIST(cmd,hostdata->issue_queue);
-			NEXT(cmd) = hostdata->issue_queue;
+			SET_NEXT(cmd, hostdata->issue_queue);
 		        hostdata->issue_queue = (struct scsi_cmnd *) cmd;
 		        local_irq_restore(flags);
 			QU_PRINTK("scsi%d: REQUEST SENSE added to head of "
@@ -2330,7 +2331,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		    local_irq_save(flags);
 		    cmd->device->disconnect = 1;
 		    LIST(cmd,hostdata->disconnected_queue);
-		    NEXT(cmd) = hostdata->disconnected_queue;
+		    SET_NEXT(cmd, hostdata->disconnected_queue);
 		    hostdata->connected = NULL;
 		    hostdata->disconnected_queue = cmd;
 		    local_irq_restore(flags);
@@ -2589,12 +2590,12 @@ static void NCR5380_reselect (struct Scsi_Host *instance)
 	    ) {
 	    if (prev) {
 		REMOVE(prev, NEXT(prev), tmp, NEXT(tmp));
-		NEXT(prev) = NEXT(tmp);
+		SET_NEXT(prev, NEXT(tmp));
 	    } else {
 		REMOVE(-1, hostdata->disconnected_queue, tmp, NEXT(tmp));
 		hostdata->disconnected_queue = NEXT(tmp);
 	    }
-	    NEXT(tmp) = NULL;
+	    SET_NEXT(tmp, NULL);
 	    break;
 	}
     }
@@ -2762,7 +2763,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 	if (cmd == tmp) {
 	    REMOVE(5, *prev, tmp, NEXT(tmp));
 	    (*prev) = NEXT(tmp);
-	    NEXT(tmp) = NULL;
+	    SET_NEXT(tmp, NULL);
 	    tmp->result = DID_ABORT << 16;
 	    local_irq_restore(flags);
 	    ABRT_PRINTK("scsi%d: abort removed command from issue queue.\n",
@@ -2835,7 +2836,7 @@ static int NCR5380_abort(struct scsi_cmnd *cmd)
 		    if (cmd == tmp) {
 		    REMOVE(5, *prev, tmp, NEXT(tmp));
 		    *prev = NEXT(tmp);
-		    NEXT(tmp) = NULL;
+		    SET_NEXT(tmp, NULL);
 		    tmp->result = DID_ABORT << 16;
 		    /* We must unlock the tag/LUN immediately here, since the
 		     * target goes to BUS FREE and doesn't send us another
@@ -2943,7 +2944,7 @@ static int NCR5380_bus_reset(struct scsi_cmnd *cmd)
 
     for (i = 0; (cmd = disconnected_queue); ++i) {
 	disconnected_queue = NEXT(cmd);
-	NEXT(cmd) = NULL;
+	SET_NEXT(cmd, NULL);
 	cmd->result = (cmd->result & 0xffff) | (DID_RESET << 16);
 	cmd->scsi_done( cmd );
     }
