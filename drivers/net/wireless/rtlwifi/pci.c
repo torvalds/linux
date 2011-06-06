@@ -727,11 +727,9 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 		    (rtlpriv->rtlhal.current_bandtype == BAND_ON_2_4G) &&
 		     (ieee80211_is_beacon(fc) ||
 		     ieee80211_is_probe_resp(fc))) {
-			dev_kfree_skb_any(skb);
+			;
 		} else {
-			if (unlikely(!rtl_action_proc(hw, skb, false))) {
-				dev_kfree_skb_any(skb);
-			} else {
+			if (likely(rtl_action_proc(hw, skb, false))) {
 				struct sk_buff *uskb = NULL;
 				u8 *pdata;
 				uskb = dev_alloc_skb(skb->len + 128);
@@ -739,7 +737,6 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 				       &rx_status, sizeof(rx_status));
 				pdata = (u8 *)skb_put(uskb, skb->len);
 				memcpy(pdata, skb->data, skb->len);
-				dev_kfree_skb_any(skb);
 
 				ieee80211_rx_irqsafe(hw, uskb);
 			}
@@ -751,6 +748,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 			tasklet_schedule(&rtlpriv->works.ips_leave_tasklet);
 		}
 
+		dev_kfree_skb_any(skb);
 		skb = new_skb;
 
 		rtlpci->rx_ring[rx_queue_idx].rx_buf[index] = skb;
