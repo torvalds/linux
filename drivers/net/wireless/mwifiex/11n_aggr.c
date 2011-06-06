@@ -185,16 +185,15 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	tx_info_aggr->bss_index = tx_info_src->bss_index;
 	skb_aggr->priority = skb_src->priority;
 
-	while (skb_src && ((skb_headroom(skb_aggr) + skb_src->len
-					+ LLC_SNAP_LEN)
-				<= adapter->tx_buf_size)) {
+	do {
+		/* Check if AMSDU can accommodate this MSDU */
+		if (skb_tailroom(skb_aggr) < (skb_src->len + LLC_SNAP_LEN))
+			break;
 
 		skb_src = skb_dequeue(&pra_list->skb_head);
 
-		if (skb_src) {
-			pra_list->total_pkts_size -= skb_src->len;
-			pra_list->total_pkts--;
-		}
+		pra_list->total_pkts_size -= skb_src->len;
+		pra_list->total_pkts--;
 
 		atomic_dec(&priv->wmm.tx_pkts_queued);
 
@@ -212,8 +211,15 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 			return -1;
 		}
 
+		if (skb_tailroom(skb_aggr) < pad) {
+			pad = 0;
+			break;
+		}
+		skb_put(skb_aggr, pad);
+
 		skb_src = skb_peek(&pra_list->skb_head);
-	}
+
+	} while (skb_src);
 
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, ra_list_flags);
 
