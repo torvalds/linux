@@ -22,10 +22,10 @@
 struct usbhs_pkt {
 	struct list_head node;
 	struct usbhs_pipe *pipe;
-	int maxp;
 	void *buf;
 	int length;
 	int actual;
+	int zero;
 };
 
 /*
@@ -40,8 +40,8 @@ int usbhs_fifo_prepare_read(struct usbhs_pipe *pipe);
  * packet info
  */
 void usbhs_pkt_init(struct usbhs_pkt *pkt);
-void usbhs_pkt_update(struct usbhs_pkt *pkt, void *buf, int len);
-void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt);
+void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
+		    void *buf, int len, int zero);
 void usbhs_pkt_pop(struct usbhs_pkt *pkt);
 struct usbhs_pkt *usbhs_pkt_get(struct usbhs_pipe *pipe);
 

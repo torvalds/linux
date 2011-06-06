@@ -60,7 +60,6 @@ struct usbhsg_gpriv {
 struct usbhsg_pipe_handle {
 	int (*prepare)(struct usbhsg_uep *uep, struct usbhsg_request *ureq);
 	int (*try_run)(struct usbhsg_uep *uep, struct usbhsg_request *ureq);
-	void (*irq_mask)(struct usbhsg_uep *uep, int enable);
 };
 
 struct usbhsg_recip_handle {
@@ -160,17 +159,18 @@ static void usbhsg_queue_push(struct usbhsg_uep *uep,
 	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
 	struct usbhs_pkt *pkt = usbhsg_ureq_to_pkt(ureq);
+	struct usb_request *req = &ureq->req;
 
 	/*
 	 *********  assume under spin lock  *********
 	 */
-	usbhs_pkt_push(pipe, pkt);
-	ureq->req.actual = 0;
-	ureq->req.status = -EINPROGRESS;
+	usbhs_pkt_push(pipe, pkt, req->buf, req->length, req->zero);
+	req->actual = 0;
+	req->status = -EINPROGRESS;
 
 	dev_dbg(dev, "pipe %d : queue push (%d)\n",
 		usbhs_pipe_number(pipe),
-		ureq->req.length);
+		req->length);
 }
 
 static struct usbhsg_request *usbhsg_queue_get(struct usbhsg_uep *uep)
@@ -329,83 +329,27 @@ static int usbhsg_try_run_ctrl_stage_end(struct usbhsg_uep *uep,
 /*
  *		packet send hander
  */
-static void usbhsg_try_run_send_packet_bh(struct usbhs_pkt *pkt)
+static void usbhsg_send_packet_done(struct usbhs_pkt *pkt)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhsg_uep *uep = usbhsg_pipe_to_uep(pipe);
 	struct usbhsg_request *ureq = usbhsg_pkt_to_ureq(pkt);
-	struct usb_request *req = &ureq->req;
-	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
-	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
-	int remainder, send, maxp;
-	int is_done = 0;
-	int enable;
 
-	maxp		= pkt->maxp;
-	send		= pkt->actual;
-	remainder	= pkt->length;
+	ureq->req.actual = pkt->actual;
 
-	/*
-	 * send = 0 : send zero packet
-	 * send > 0 : send data
-	 *
-	 * send <= max_packet
-	 */
-	req->actual += send;
-
-	/* send all packet ? */
-	if (send < remainder)
-		is_done = 0;		/* there are remainder data */
-	else if (send < maxp)
-		is_done = 1;		/* short packet */
-	else
-		is_done = !req->zero;	/* send zero packet ? */
-
-	dev_dbg(dev, "  send %d (%d/ %d/ %d/ %d)\n",
-		usbhs_pipe_number(pipe),
-		remainder, send, is_done, req->zero);
-
-	/*
-	 * enable interrupt and send again in irq handler
-	 * if it still have remainder data which should be sent.
-	 */
-	enable = !is_done;
-	uep->handler->irq_mask(uep, enable);
-
-	/*
-	 * all data were sent ?
-	 */
-	if (is_done) {
-		/* it care below call in
-		   "function mode" */
-		if (usbhsg_is_dcp(uep))
-			usbhs_dcp_control_transfer_done(pipe);
-
-		usbhsg_queue_pop(uep, ureq, 0);
-	}
+	usbhsg_queue_pop(uep, ureq, 0);
 }
 
 static int usbhsg_try_run_send_packet(struct usbhsg_uep *uep,
 				      struct usbhsg_request *ureq)
 {
-	struct usb_request *req = &ureq->req;
 	struct usbhs_pkt *pkt = usbhsg_ureq_to_pkt(ureq);
-	int ret;
 
 	/*
 	 *********  assume under spin lock  *********
 	 */
 
-	usbhs_pkt_update(pkt,
-			 req->buf    + req->actual,
-			 req->length - req->actual);
-
-	ret = usbhs_fifo_write(pkt);
-	if (ret < 0) {
-		/* pipe is busy.
-		 * retry in interrupt */
-		uep->handler->irq_mask(uep, 1);
-	}
+	usbhs_fifo_write(pkt);
 
 	return 0;
 }
@@ -428,62 +372,25 @@ static int usbhsg_prepare_send_packet(struct usbhsg_uep *uep,
 /*
  *		packet recv hander
  */
-static void usbhsg_try_run_receive_packet_bh(struct usbhs_pkt *pkt)
+static void usbhsg_receive_packet_done(struct usbhs_pkt *pkt)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhsg_uep *uep = usbhsg_pipe_to_uep(pipe);
 	struct usbhsg_request *ureq = usbhsg_pkt_to_ureq(pkt);
-	struct usb_request *req = &ureq->req;
-	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
-	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
-	int remainder, recv, maxp;
-	int is_done = 0;
 
-	maxp		= pkt->maxp;
-	remainder	= pkt->length;
-	recv		= pkt->actual;
+	ureq->req.actual = pkt->actual;
 
-	/*
-	 * recv < 0  : pipe busy
-	 * recv >= 0 : receive data
-	 *
-	 * recv <= max_packet
-	 */
-
-	/* update parameters */
-	req->actual += recv;
-
-	if ((recv == remainder) ||	/* receive all data */
-	    (recv < maxp))		/* short packet */
-		is_done = 1;
-
-	dev_dbg(dev, "  recv %d (%d/ %d/ %d/ %d)\n",
-		usbhs_pipe_number(pipe),
-		remainder, recv, is_done, req->zero);
-
-	/* read all data ? */
-	if (is_done) {
-		int disable = 0;
-
-		uep->handler->irq_mask(uep, disable);
-		usbhs_pipe_disable(pipe);
-		usbhsg_queue_pop(uep, ureq, 0);
-	}
+	usbhsg_queue_pop(uep, ureq, 0);
 }
 
 static int usbhsg_try_run_receive_packet(struct usbhsg_uep *uep,
 					 struct usbhsg_request *ureq)
 {
-	struct usb_request *req = &ureq->req;
 	struct usbhs_pkt *pkt = usbhsg_ureq_to_pkt(ureq);
 
 	/*
 	 *********  assume under spin lock  *********
 	 */
-
-	usbhs_pkt_update(pkt,
-			 req->buf    + req->actual,
-			 req->length - req->actual);
 
 	return usbhs_fifo_read(pkt);
 }
@@ -492,41 +399,27 @@ static int usbhsg_prepare_receive_packet(struct usbhsg_uep *uep,
 					 struct usbhsg_request *ureq)
 {
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
-	int enable = 1;
-	int ret;
 
 	/*
 	 *********  assume under spin lock  *********
 	 */
 
-	ret = usbhs_fifo_prepare_read(pipe);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * data will be read in interrupt handler
-	 */
-	uep->handler->irq_mask(uep, enable);
-
-	return ret;
+	return usbhs_fifo_prepare_read(pipe);
 }
 
 static struct usbhsg_pipe_handle usbhsg_handler_send_by_empty = {
 	.prepare	= usbhsg_prepare_send_packet,
 	.try_run	= usbhsg_try_run_send_packet,
-	.irq_mask	= usbhsg_irq_empty_ctrl,
 };
 
 static struct usbhsg_pipe_handle usbhsg_handler_send_by_ready = {
 	.prepare	= usbhsg_prepare_send_packet,
 	.try_run	= usbhsg_try_run_send_packet,
-	.irq_mask	= usbhsg_irq_ready_ctrl,
 };
 
 static struct usbhsg_pipe_handle usbhsg_handler_recv_by_ready = {
 	.prepare	= usbhsg_prepare_receive_packet,
 	.try_run	= usbhsg_try_run_receive_packet,
-	.irq_mask	= usbhsg_irq_ready_ctrl,
 };
 
 static struct usbhsg_pipe_handle usbhsg_handler_ctrl_stage_end = {
@@ -1113,8 +1006,8 @@ static int usbhsg_try_start(struct usbhs_priv *priv, u32 status)
 	 * pipe initialize and enable DCP
 	 */
 	usbhs_pipe_init(priv,
-			usbhsg_try_run_send_packet_bh,
-			usbhsg_try_run_receive_packet_bh);
+			usbhsg_send_packet_done,
+			usbhsg_receive_packet_done);
 	usbhsg_uep_init(gpriv);
 	usbhsg_dcp_enable(dcp);
 
