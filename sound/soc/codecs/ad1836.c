@@ -124,6 +124,13 @@ static const struct snd_soc_dapm_route ad183x_dapm_routes[] = {
 	{ "ADC", NULL, "ADC_PWR" },
 };
 
+static const DECLARE_TLV_DB_SCALE(ad1836_in_tlv, 0, 300, 0);
+
+static const struct snd_kcontrol_new ad1836_controls[] = {
+	SOC_DOUBLE_TLV("ADC2 Capture Volume", AD183X_ADC_CTRL1, 3, 0, 4, 0,
+	    ad1836_in_tlv),
+};
+
 /*
  * DAI ops entries
  */
@@ -280,6 +287,10 @@ static int ad1836_probe(struct snd_soc_codec *codec)
 	if (ad1836->type == AD1836) {
 		/* left/right diff:PGA/MUX */
 		snd_soc_write(codec, AD1836_ADC_CTRL3, 0x3A);
+		ret = snd_soc_add_controls(codec, ad1836_controls,
+				ARRAY_SIZE(ad1836_controls));
+		if (ret)
+			return ret;
 	} else {
 		snd_soc_write(codec, AD1836_ADC_CTRL3, 0x00);
 	}
