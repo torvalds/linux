@@ -327,6 +327,7 @@ struct x86_pmu {
 	 * Extra registers for events
 	 */
 	struct extra_reg *extra_regs;
+	bool regs_no_ht_sharing;
 };
 
 static struct x86_pmu x86_pmu __read_mostly;
