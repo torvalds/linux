@@ -42,12 +42,7 @@ int pwc_decompress(struct pwc_device *pdev)
 	u16 *src;
 	u16 *dsty, *dstu, *dstv;
 
-	if (pdev == NULL)
-		return -EFAULT;
-
 	fbuf = pdev->read_frame;
-	if (fbuf == NULL)
-		return -EFAULT;
 	image  = pdev->image_data;
 	image += pdev->images[pdev->fill_image].offset;
 

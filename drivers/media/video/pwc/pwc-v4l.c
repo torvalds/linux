@@ -778,7 +778,7 @@ static int pwc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	/* Decompress data in pdev->images[pdev->fill_image] */
 	ret = pwc_handle_frame(pdev);
 	if (ret)
-		return -EFAULT;
+		return ret;
 	PWC_DEBUG_IOCTL("VIDIOC_DQBUF: after pwc_handle_frame\n");
 
 	buf->index = pdev->fill_image;

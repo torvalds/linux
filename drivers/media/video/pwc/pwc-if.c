@@ -226,9 +226,6 @@ static int pwc_allocate_buffers(struct pwc_device *pdev)
 
 	PWC_DEBUG_MEMORY(">> pwc_allocate_buffers(pdev = 0x%p)\n", pdev);
 
-	if (pdev == NULL)
-		return -ENXIO;
-
 	/* Allocate Isochronuous pipe buffers */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		if (pdev->sbuf[i].data == NULL) {
@@ -306,8 +303,6 @@ static void pwc_free_buffers(struct pwc_device *pdev)
 
 	PWC_DEBUG_MEMORY("Entering free_buffers(%p).\n", pdev);
 
-	if (pdev == NULL)
-		return;
 	/* Release Iso-pipe buffers */
 	for (i = 0; i < MAX_ISO_BUFS; i++)
 		if (pdev->sbuf[i].data != NULL) {
@@ -783,26 +778,20 @@ int pwc_isoc_init(struct pwc_device *pdev)
 	struct usb_device *udev;
 	struct urb *urb;
 	int i, j, ret;
-
 	struct usb_interface *intf;
 	struct usb_host_interface *idesc = NULL;
 
-	if (pdev == NULL)
-		return -EFAULT;
 	if (pdev->iso_init)
 		return 0;
 	pdev->vsync = 0;
 	udev = pdev->udev;
 
 	/* Get the current alternate interface, adjust packet size */
-	if (!udev->actconfig)
-		return -EFAULT;
 	intf = usb_ifnum_to_if(udev, 0);
 	if (intf)
 		idesc = usb_altnum_to_altsetting(intf, pdev->valternate);
-
 	if (!idesc)
-		return -EFAULT;
+		return -EIO;
 
 	/* Search video endpoint */
 	pdev->vmax_packet_size = -1;
@@ -918,8 +907,7 @@ static void pwc_iso_free(struct pwc_device *pdev)
 void pwc_isoc_cleanup(struct pwc_device *pdev)
 {
 	PWC_DEBUG_OPEN(">> pwc_isoc_cleanup()\n");
-	if (pdev == NULL)
-		return;
+
 	if (pdev->iso_init == 0)
 		return;
 
@@ -1058,7 +1046,6 @@ static int pwc_video_open(struct file *file)
 	PWC_DEBUG_OPEN(">> video_open called(vdev = 0x%p).\n", vdev);
 
 	pdev = video_get_drvdata(vdev);
-	BUG_ON(!pdev);
 	if (pdev->vopen) {
 		PWC_DEBUG_OPEN("I'm busy, someone is using the device.\n");
 		return -EBUSY;
@@ -1230,11 +1217,7 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 
 	PWC_DEBUG_READ("pwc_video_read(vdev=0x%p, buf=%p, count=%zd) called.\n",
 			vdev, buf, count);
-	if (vdev == NULL)
-		return -EFAULT;
 	pdev = video_get_drvdata(vdev);
-	if (pdev == NULL)
-		return -EFAULT;
 
 	if (pdev->error_status) {
 		rv = -pdev->error_status; /* Something happened, report what. */
@@ -1279,10 +1262,9 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 		set_current_state(TASK_RUNNING);
 
 		/* Decompress and release frame */
-		if (pwc_handle_frame(pdev)) {
-			rv = -EFAULT;
+		rv = pwc_handle_frame(pdev);
+		if (rv)
 			goto err_out;
-		}
 	}
 
 	PWC_DEBUG_READ("Copying data to user space.\n");
@@ -1317,11 +1299,7 @@ static unsigned int pwc_video_poll(struct file *file, poll_table *wait)
 	struct pwc_device *pdev;
 	int ret;
 
-	if (vdev == NULL)
-		return -EFAULT;
 	pdev = video_get_drvdata(vdev);
-	if (pdev == NULL)
-		return -EFAULT;
 
 	/* Start the stream (if not already started) */
 	ret = pwc_isoc_init(pdev);
@@ -1769,18 +1747,6 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 
 	mutex_lock(&pdev->modlock);
 	usb_set_intfdata (intf, NULL);
-	if (pdev == NULL) {
-		PWC_ERROR("pwc_disconnect() Called without private pointer.\n");
-		goto disconnect_out;
-	}
-	if (pdev->udev == NULL) {
-		PWC_ERROR("pwc_disconnect() already called for %p\n", pdev);
-		goto disconnect_out;
-	}
-	if (pdev->udev != interface_to_usbdev(intf)) {
-		PWC_ERROR("pwc_disconnect() Woops: pointer mismatch udev/pdev.\n");
-		goto disconnect_out;
-	}
 
 	/* We got unplugged; this is signalled by an EPIPE error code */
 	pdev->error_status = EPIPE;
@@ -1792,7 +1758,6 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 	/* No need to keep the urbs around after disconnection */
 	pwc_isoc_cleanup(pdev);
 
-disconnect_out:
 	mutex_unlock(&pdev->modlock);
 
 	pwc_remove_sysfs_files(pdev);
