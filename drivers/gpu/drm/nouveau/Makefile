@@ -20,6 +20,8 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nv40_graph.o nv50_graph.o nvc0_graph.o \
              nv40_grctx.o nv50_grctx.o nvc0_grctx.o \
              nv84_crypt.o \
+             nva3_copy.o nvc0_copy.o \
+             nv40_mpeg.o nv50_mpeg.o \
              nv04_instmem.o nv50_instmem.o nvc0_instmem.o \
              nv50_evo.o nv50_crtc.o nv50_dac.o nv50_sor.o \
              nv50_cursor.o nv50_display.o \

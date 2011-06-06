@@ -109,7 +109,7 @@ static void subscr_send_event(struct subscription *sub,
 	sub->evt.found_upper = htohl(found_upper, sub->swap);
 	sub->evt.port.ref = htohl(port_ref, sub->swap);
 	sub->evt.port.node = htohl(node, sub->swap);
-	tipc_send(sub->server_ref, 1, &msg_sect);
+	tipc_send(sub->server_ref, 1, &msg_sect, msg_sect.iov_len);
 }
 
 /**
@@ -521,7 +521,7 @@ static void subscr_named_msg_event(void *usr_handle,
 
 	/* Send an ACK- to complete connection handshaking */
 
-	tipc_send(server_port_ref, 0, NULL);
+	tipc_send(server_port_ref, 0, NULL, 0);
 
 	/* Handle optional subscription request */
 

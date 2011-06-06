@@ -197,8 +197,13 @@ static void kvm_free_assigned_device(struct kvm *kvm,
 {
 	kvm_free_assigned_irq(kvm, assigned_dev);
 
-	__pci_reset_function(assigned_dev->dev);
-	pci_restore_state(assigned_dev->dev);
+	pci_reset_function(assigned_dev->dev);
+	if (pci_load_and_free_saved_state(assigned_dev->dev,
+					  &assigned_dev->pci_saved_state))
+		printk(KERN_INFO "%s: Couldn't reload %s saved state\n",
+		       __func__, dev_name(&assigned_dev->dev->dev));
+	else
+		pci_restore_state(assigned_dev->dev);
 
 	pci_release_regions(assigned_dev->dev);
 	pci_disable_device(assigned_dev->dev);
@@ -516,7 +521,10 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 
 	pci_reset_function(dev);
 	pci_save_state(dev);
-
+	match->pci_saved_state = pci_store_saved_state(dev);
+	if (!match->pci_saved_state)
+		printk(KERN_DEBUG "%s: Couldn't store %s saved state\n",
+		       __func__, dev_name(&dev->dev));
 	match->assigned_dev_id = assigned_dev->assigned_dev_id;
 	match->host_segnr = assigned_dev->segnr;
 	match->host_busnr = assigned_dev->busnr;
@@ -546,7 +554,9 @@ out:
 	mutex_unlock(&kvm->lock);
 	return r;
 out_list_del:
-	pci_restore_state(dev);
+	if (pci_load_and_free_saved_state(dev, &match->pci_saved_state))
+		printk(KERN_INFO "%s: Couldn't reload %s saved state\n",
+		       __func__, dev_name(&dev->dev));
 	list_del(&match->list);
 	pci_release_regions(dev);
 out_disable:

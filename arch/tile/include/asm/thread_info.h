@@ -125,6 +125,7 @@ extern void cpu_idle_on_new_stack(struct thread_info *old_ti,
 #define TIF_SYSCALL_AUDIT	5	/* syscall auditing active */
 #define TIF_SECCOMP		6	/* secure computing */
 #define TIF_MEMDIE		7	/* OOM killer at work */
+#define TIF_NOTIFY_RESUME	8	/* callback before returning to user */
 
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
@@ -134,10 +135,12 @@ extern void cpu_idle_on_new_stack(struct thread_info *old_ti,
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_MEMDIE		(1<<TIF_MEMDIE)
+#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 
 /* Work to do on any return to user space. */
 #define _TIF_ALLWORK_MASK \
-  (_TIF_SIGPENDING|_TIF_NEED_RESCHED|_TIF_SINGLESTEP|_TIF_ASYNC_TLB)
+  (_TIF_SIGPENDING|_TIF_NEED_RESCHED|_TIF_SINGLESTEP|\
+   _TIF_ASYNC_TLB|_TIF_NOTIFY_RESUME)
 
 /*
  * Thread-synchronous status.

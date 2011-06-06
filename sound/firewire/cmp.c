@@ -49,10 +49,9 @@ static int pcr_modify(struct cmp_connection *c,
 		      enum bus_reset_handling bus_reset_handling)
 {
 	struct fw_device *device = fw_parent_device(c->resources.unit);
-	__be32 *buffer = c->resources.buffer;
 	int generation = c->resources.generation;
 	int rcode, errors = 0;
-	__be32 old_arg;
+	__be32 old_arg, buffer[2];
 	int err;
 
 	buffer[0] = c->last_pcr_value;

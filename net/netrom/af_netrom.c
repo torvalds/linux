@@ -591,7 +591,6 @@ static int nr_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		return -EINVAL;
 	}
 	if ((dev = nr_dev_get(&addr->fsa_ax25.sax25_call)) == NULL) {
-		SOCK_DEBUG(sk, "NET/ROM: bind failed: invalid node callsign\n");
 		release_sock(sk);
 		return -EADDRNOTAVAIL;
 	}
@@ -632,7 +631,7 @@ static int nr_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	sock_reset_flag(sk, SOCK_ZAPPED);
 	dev_put(dev);
 	release_sock(sk);
-	SOCK_DEBUG(sk, "NET/ROM: socket is bound\n");
+
 	return 0;
 }
 
@@ -1082,8 +1081,6 @@ static int nr_sendmsg(struct kiocb *iocb, struct socket *sock,
 		sax.sax25_call   = nr->dest_addr;
 	}
 
-	SOCK_DEBUG(sk, "NET/ROM: sendto: Addresses built.\n");
-
 	/* Build a packet - the conventional user limit is 236 bytes. We can
 	   do ludicrously large NetROM frames but must not overflow */
 	if (len > 65536) {
@@ -1091,7 +1088,6 @@ static int nr_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto out;
 	}
 
-	SOCK_DEBUG(sk, "NET/ROM: sendto: building packet.\n");
 	size = len + NR_NETWORK_LEN + NR_TRANSPORT_LEN;
 
 	if ((skb = sock_alloc_send_skb(sk, size, msg->msg_flags & MSG_DONTWAIT, &err)) == NULL)
@@ -1105,7 +1101,6 @@ static int nr_sendmsg(struct kiocb *iocb, struct socket *sock,
 	 */
 
 	asmptr = skb_push(skb, NR_TRANSPORT_LEN);
-	SOCK_DEBUG(sk, "Building NET/ROM Header.\n");
 
 	/* Build a NET/ROM Transport header */
 
@@ -1114,14 +1109,11 @@ static int nr_sendmsg(struct kiocb *iocb, struct socket *sock,
 	*asmptr++ = 0;		/* To be filled in later */
 	*asmptr++ = 0;		/*      Ditto            */
 	*asmptr++ = NR_INFO;
-	SOCK_DEBUG(sk, "Built header.\n");
 
 	/*
 	 *	Put the data on the end
 	 */
 	skb_put(skb, len);
-
-	SOCK_DEBUG(sk, "NET/ROM: Appending user data\n");
 
 	/* User data follows immediately after the NET/ROM transport header */
 	if (memcpy_fromiovec(skb_transport_header(skb), msg->msg_iov, len)) {
@@ -1129,8 +1121,6 @@ static int nr_sendmsg(struct kiocb *iocb, struct socket *sock,
 		err = -EFAULT;
 		goto out;
 	}
-
-	SOCK_DEBUG(sk, "NET/ROM: Transmitting buffer\n");
 
 	if (sk->sk_state != TCP_ESTABLISHED) {
 		kfree_skb(skb);

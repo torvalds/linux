@@ -650,7 +650,7 @@ static int cb_pcidda_ao_winsn(struct comedi_device *dev,
 	case 5:
 		command |= UNIP | RANGE2V5;
 		break;
-	};
+	}
 
 	/* output channel specification */
 	command |= channel << 2;

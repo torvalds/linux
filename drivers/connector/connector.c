@@ -142,6 +142,7 @@ static int cn_call_callback(struct sk_buff *skb)
 		cbq->callback(msg, nsp);
 		kfree_skb(skb);
 		cn_queue_release_callback(cbq);
+		err = 0;
 	}
 
 	return err;

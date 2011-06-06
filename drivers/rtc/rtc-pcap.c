@@ -151,6 +151,8 @@ static int __devinit pcap_rtc_probe(struct platform_device *pdev)
 
 	pcap_rtc->pcap = dev_get_drvdata(pdev->dev.parent);
 
+	platform_set_drvdata(pdev, pcap_rtc);
+
 	pcap_rtc->rtc = rtc_device_register("pcap", &pdev->dev,
 				  &pcap_rtc_ops, THIS_MODULE);
 	if (IS_ERR(pcap_rtc->rtc)) {
@@ -158,7 +160,6 @@ static int __devinit pcap_rtc_probe(struct platform_device *pdev)
 		goto fail_rtc;
 	}
 
-	platform_set_drvdata(pdev, pcap_rtc);
 
 	timer_irq = pcap_to_irq(pcap_rtc->pcap, PCAP_IRQ_1HZ);
 	alarm_irq = pcap_to_irq(pcap_rtc->pcap, PCAP_IRQ_TODA);
@@ -177,6 +178,7 @@ fail_alarm:
 fail_timer:
 	rtc_device_unregister(pcap_rtc->rtc);
 fail_rtc:
+	platform_set_drvdata(pdev, NULL);
 	kfree(pcap_rtc);
 	return err;
 }

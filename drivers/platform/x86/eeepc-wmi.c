@@ -67,9 +67,11 @@ static const struct key_entry eeepc_wmi_keymap[] = {
 	{ KE_KEY, 0x82, { KEY_CAMERA } },
 	{ KE_KEY, 0x83, { KEY_CAMERA_ZOOMIN } },
 	{ KE_KEY, 0x88, { KEY_WLAN } },
+	{ KE_KEY, 0xbd, { KEY_CAMERA } },
 	{ KE_KEY, 0xcc, { KEY_SWITCHVIDEOMODE } },
 	{ KE_KEY, 0xe0, { KEY_PROG1 } }, /* Task Manager */
 	{ KE_KEY, 0xe1, { KEY_F14 } }, /* Change Resolution */
+	{ KE_KEY, 0xe8, { KEY_SCREENLOCK } },
 	{ KE_KEY, 0xe9, { KEY_BRIGHTNESS_ZERO } },
 	{ KE_KEY, 0xeb, { KEY_CAMERA_ZOOMOUT } },
 	{ KE_KEY, 0xec, { KEY_CAMERA_UP } },
@@ -82,7 +84,7 @@ static const struct key_entry eeepc_wmi_keymap[] = {
 static acpi_status eeepc_wmi_parse_device(acpi_handle handle, u32 level,
 						 void *context, void **retval)
 {
-	pr_warning("Found legacy ATKD device (%s)", EEEPC_ACPI_HID);
+	pr_warn("Found legacy ATKD device (%s)\n", EEEPC_ACPI_HID);
 	*(bool *)context = true;
 	return AE_CTRL_TERMINATE;
 }
@@ -103,12 +105,12 @@ static int eeepc_wmi_check_atkd(void)
 static int eeepc_wmi_probe(struct platform_device *pdev)
 {
 	if (eeepc_wmi_check_atkd()) {
-		pr_warning("WMI device present, but legacy ATKD device is also "
-			   "present and enabled.");
-		pr_warning("You probably booted with acpi_osi=\"Linux\" or "
-			   "acpi_osi=\"!Windows 2009\"");
-		pr_warning("Can't load eeepc-wmi, use default acpi_osi "
-			   "(preferred) or eeepc-laptop");
+		pr_warn("WMI device present, but legacy ATKD device is also "
+			"present and enabled\n");
+		pr_warn("You probably booted with acpi_osi=\"Linux\" or "
+			"acpi_osi=\"!Windows 2009\"\n");
+		pr_warn("Can't load eeepc-wmi, use default acpi_osi "
+			"(preferred) or eeepc-laptop\n");
 		return -EBUSY;
 	}
 	return 0;

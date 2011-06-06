@@ -160,6 +160,7 @@ int iwl_legacy_init_geos(struct iwl_priv *priv)
 	struct ieee80211_channel *geo_ch;
 	struct ieee80211_rate *rates;
 	int i = 0;
+	s8 max_tx_power = 0;
 
 	if (priv->bands[IEEE80211_BAND_2GHZ].n_bitrates ||
 	    priv->bands[IEEE80211_BAND_5GHZ].n_bitrates) {
@@ -210,10 +211,7 @@ int iwl_legacy_init_geos(struct iwl_priv *priv)
 		if (!iwl_legacy_is_channel_valid(ch))
 			continue;
 
-		if (iwl_legacy_is_channel_a_band(ch))
-			sband =  &priv->bands[IEEE80211_BAND_5GHZ];
-		else
-			sband =  &priv->bands[IEEE80211_BAND_2GHZ];
+		sband = &priv->bands[ch->band];
 
 		geo_ch = &sband->channels[sband->n_channels++];
 
@@ -235,8 +233,8 @@ int iwl_legacy_init_geos(struct iwl_priv *priv)
 
 			geo_ch->flags |= ch->ht40_extension_channel;
 
-			if (ch->max_power_avg > priv->tx_power_device_lmt)
-				priv->tx_power_device_lmt = ch->max_power_avg;
+			if (ch->max_power_avg > max_tx_power)
+				max_tx_power = ch->max_power_avg;
 		} else {
 			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
 		}
@@ -248,6 +246,10 @@ int iwl_legacy_init_geos(struct iwl_priv *priv)
 				"restricted" : "valid",
 				 geo_ch->flags);
 	}
+
+	priv->tx_power_device_lmt = max_tx_power;
+	priv->tx_power_user_lmt = max_tx_power;
+	priv->tx_power_next = max_tx_power;
 
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     priv->cfg->sku & IWL_SKU_A) {
@@ -1124,11 +1126,11 @@ int iwl_legacy_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	if (!priv->cfg->ops->lib->send_tx_power)
 		return -EOPNOTSUPP;
 
-	if (tx_power < IWL4965_TX_POWER_TARGET_POWER_MIN) {
+	/* 0 dBm mean 1 milliwatt */
+	if (tx_power < 0) {
 		IWL_WARN(priv,
-			 "Requested user TXPOWER %d below lower limit %d.\n",
-			 tx_power,
-			 IWL4965_TX_POWER_TARGET_POWER_MIN);
+			 "Requested user TXPOWER %d below 1 mW.\n",
+			 tx_power);
 		return -EINVAL;
 	}
 
@@ -2112,10 +2114,9 @@ int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed)
 	IWL_DEBUG_MAC80211(priv, "enter to channel %d changed 0x%X\n",
 					channel->hw_value, changed);
 
-	if (unlikely(!priv->cfg->mod_params->disable_hw_scan &&
-			test_bit(STATUS_SCANNING, &priv->status))) {
+	if (unlikely(test_bit(STATUS_SCANNING, &priv->status))) {
 		scan_active = 1;
-		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
+		IWL_DEBUG_MAC80211(priv, "scan active\n");
 	}
 
 	if (changed & (IEEE80211_CONF_CHANGE_SMPS |
@@ -2146,6 +2147,13 @@ int iwl_legacy_mac_config(struct ieee80211_hw *hw, u32 changed)
 		ch_info = iwl_legacy_get_channel_info(priv, channel->band, ch);
 		if (!iwl_legacy_is_channel_valid(ch_info)) {
 			IWL_DEBUG_MAC80211(priv, "leave - invalid channel\n");
+			ret = -EINVAL;
+			goto set_ch_out;
+		}
+
+		if (priv->iw_mode == NL80211_IFTYPE_ADHOC &&
+		    !iwl_legacy_is_channel_ibss(ch_info)) {
+			IWL_DEBUG_MAC80211(priv, "leave - not IBSS channel\n");
 			ret = -EINVAL;
 			goto set_ch_out;
 		}
@@ -2428,10 +2436,12 @@ void iwl_legacy_mac_bss_info_changed(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_MAC80211(priv, "changes = 0x%X\n", changes);
 
-	if (!iwl_legacy_is_alive(priv))
-		return;
-
 	mutex_lock(&priv->mutex);
+
+	if (!iwl_legacy_is_alive(priv)) {
+		mutex_unlock(&priv->mutex);
+		return;
+	}
 
 	if (changes & BSS_CHANGED_QOS) {
 		unsigned long flags;
@@ -2641,7 +2651,7 @@ unplugged:
 
 none:
 	/* re-enable interrupts here since we don't have anything to service. */
-	/* only Re-enable if diabled by irq */
+	/* only Re-enable if disabled by irq */
 	if (test_bit(STATUS_INT_ENABLED, &priv->status))
 		iwl_legacy_enable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);

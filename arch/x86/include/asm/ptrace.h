@@ -136,6 +136,7 @@ struct cpuinfo_x86;
 struct task_struct;
 
 extern unsigned long profile_pc(struct pt_regs *regs);
+#define profile_pc profile_pc
 
 extern unsigned long
 convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs);
@@ -202,20 +203,11 @@ static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
 #endif
 }
 
-static inline unsigned long instruction_pointer(struct pt_regs *regs)
-{
-	return regs->ip;
-}
+#define GET_IP(regs) ((regs)->ip)
+#define GET_FP(regs) ((regs)->bp)
+#define GET_USP(regs) ((regs)->sp)
 
-static inline unsigned long frame_pointer(struct pt_regs *regs)
-{
-	return regs->bp;
-}
-
-static inline unsigned long user_stack_pointer(struct pt_regs *regs)
-{
-	return regs->sp;
-}
+#include <asm-generic/ptrace.h>
 
 /* Query offset/name of register from its name/offset */
 extern int regs_query_register_offset(const char *name);

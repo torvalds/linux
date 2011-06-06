@@ -27,6 +27,7 @@
 
 #include "wl12xx.h"
 #include "acx.h"
+#include "reg.h"
 
 #define WL1271_TM_MAX_DATA_LENGTH 1024
 
@@ -204,7 +205,10 @@ static int wl1271_tm_cmd_nvs_push(struct wl1271 *wl, struct nlattr *tb[])
 
 	kfree(wl->nvs);
 
-	if (len != sizeof(struct wl1271_nvs_file))
+	if ((wl->chip.id == CHIP_ID_1283_PG20) &&
+	    (len != sizeof(struct wl128x_nvs_file)))
+		return -EINVAL;
+	else if (len != sizeof(struct wl1271_nvs_file))
 		return -EINVAL;
 
 	wl->nvs = kzalloc(len, GFP_KERNEL);

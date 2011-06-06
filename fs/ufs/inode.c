@@ -409,7 +409,7 @@ out:
 }
 
 /**
- * ufs_getfrag_bloc() - `get_block_t' function, interface between UFS and
+ * ufs_getfrag_block() - `get_block_t' function, interface between UFS and
  * readpage, writepage and so on
  */
 

@@ -337,7 +337,7 @@ static int tegra2_super_clk_set_parent(struct clk *c, struct clk *p)
 	const struct clk_mux_sel *sel;
 	int shift;
 
-	val = clk_readl(c->reg + SUPER_CLK_MUX);;
+	val = clk_readl(c->reg + SUPER_CLK_MUX);
 	BUG_ON(((val & SUPER_STATE_MASK) != SUPER_STATE_RUN) &&
 		((val & SUPER_STATE_MASK) != SUPER_STATE_IDLE));
 	shift = ((val & SUPER_STATE_MASK) == SUPER_STATE_IDLE) ?
@@ -1362,14 +1362,15 @@ static int tegra_clk_shared_bus_set_rate(struct clk *c, unsigned long rate)
 {
 	unsigned long flags;
 	int ret;
+	long new_rate = rate;
 
-	rate = clk_round_rate(c->parent, rate);
-	if (rate < 0)
-		return rate;
+	new_rate = clk_round_rate(c->parent, new_rate);
+	if (new_rate < 0)
+		return new_rate;
 
 	spin_lock_irqsave(&c->parent->spinlock, flags);
 
-	c->u.shared_bus_user.rate = rate;
+	c->u.shared_bus_user.rate = new_rate;
 	ret = tegra_clk_shared_bus_update(c->parent);
 
 	spin_unlock_irqrestore(&c->parent->spinlock, flags);

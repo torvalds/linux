@@ -17,13 +17,12 @@
 #define AD7298_TAVG	(1 << 1) /* temperature sensor averaging enable */
 #define AD7298_PDD	(1 << 0) /* partial power down enable */
 
-#define AD7298_CH_MASK	(AD7298_CH0 | AD7298_CH1 | AD7298_CH2 | AD7298_CH3 | \
-			AD7298_CH4 | AD7298_CH5 | AD7298_CH6 | AD7298_CH7)
-
 #define AD7298_MAX_CHAN		8
 #define AD7298_BITS		12
 #define AD7298_STORAGE_BITS	16
 #define AD7298_INTREF_mV	2500
+
+#define AD7298_CH_TEMP		9
 
 #define RES_MASK(bits)	((1 << (bits)) - 1)
 
@@ -37,11 +36,8 @@ struct ad7298_platform_data {
 };
 
 struct ad7298_state {
-	struct iio_dev			*indio_dev;
 	struct spi_device		*spi;
 	struct regulator		*reg;
-	struct work_struct		poll_work;
-	atomic_t			protect_ring;
 	size_t				d_size;
 	u16				int_vref_mv;
 	unsigned			ext_ref;
@@ -58,11 +54,11 @@ struct ad7298_state {
 };
 
 #ifdef CONFIG_IIO_RING_BUFFER
-int ad7298_scan_from_ring(struct ad7298_state *st, long ch);
+int ad7298_scan_from_ring(struct iio_dev *indio_dev, long ch);
 int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void ad7298_ring_cleanup(struct iio_dev *indio_dev);
 #else /* CONFIG_IIO_RING_BUFFER */
-static inline int ad7298_scan_from_ring(struct ad7298_state *st, long ch)
+static inline int ad7298_scan_from_ring(struct iio_dev *indio_dev, long ch)
 {
 	return 0;
 }

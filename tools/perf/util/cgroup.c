@@ -13,7 +13,7 @@ cgroupfs_find_mountpoint(char *buf, size_t maxlen)
 {
 	FILE *fp;
 	char mountpoint[MAX_PATH+1], tokens[MAX_PATH+1], type[MAX_PATH+1];
-	char *token, *saved_ptr;
+	char *token, *saved_ptr = NULL;
 	int found = 0;
 
 	fp = fopen("/proc/mounts", "r");

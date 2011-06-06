@@ -273,7 +273,7 @@ exit:
 }
 
 int prism2_set_default_key(struct wiphy *wiphy, struct net_device *dev,
-			   u8 key_index)
+			   u8 key_index, bool unicast, bool multicast)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
 
@@ -695,7 +695,7 @@ void prism2_disconnected(wlandevice_t *wlandev)
 
 void prism2_roamed(wlandevice_t *wlandev)
 {
-	cfg80211_roamed(wlandev->netdev, wlandev->bssid,
+	cfg80211_roamed(wlandev->netdev, NULL, wlandev->bssid,
 		NULL, 0, NULL, 0, GFP_KERNEL);
 }
 

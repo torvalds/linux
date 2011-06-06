@@ -73,7 +73,8 @@ static int intel_sst_reset_dsp_medfield(void)
 	union config_status_reg csr;
 
 	pr_debug("Resetting the DSP in medfield\n");
-	csr.full = 0x048303E2;
+	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
+	csr.full |= 0x382;
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
 
 	return 0;
@@ -109,11 +110,16 @@ static int sst_start_medfield(void)
 {
 	union config_status_reg csr;
 
-	csr.full = 0x04830062;
+	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
+	csr.part.bypass = 0;
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
-	csr.full = 0x04830063;
+	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
+	csr.part.mfld_strb = 1;
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
-	csr.full = 0x04830061;
+	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
+	csr.part.run_stall = 0;
+	csr.part.sst_reset = 0;
+	pr_debug("Starting the DSP_medfld %x\n", csr.full);
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
 	pr_debug("Starting the DSP_medfld\n");
 

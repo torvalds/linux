@@ -193,9 +193,8 @@ static void set_transforms(volatile struct jr3_channel *channel,
 		set_s16(&channel->transforms[num].link[i].link_amount,
 			transf.link[i].link_amount);
 		udelay(1);
-		if (transf.link[i].link_type == end_x_form) {
+		if (transf.link[i].link_type == end_x_form)
 			break;
-		}
 	}
 }
 
@@ -460,9 +459,8 @@ static int jr3_download_firmware(struct comedi_device *dev, const u8 * data,
 				unsigned int count, addr;
 				more = more
 				    && read_idm_word(data, size, &pos, &count);
-				if (more && count == 0xffff) {
+				if (more && count == 0xffff)
 					break;
-				}
 				more = more
 				    && read_idm_word(data, size, &pos, &addr);
 				printk("Loading#%d %4.4x bytes at %4.4x\n", i,
@@ -793,9 +791,8 @@ static int jr3_pci_attach(struct comedi_device *dev,
 	}
 
 	result = alloc_private(dev, sizeof(struct jr3_pci_dev_private));
-	if (result < 0) {
+	if (result < 0)
 		return -ENOMEM;
-	}
 	card = NULL;
 	devpriv = dev->private;
 	init_timer(&devpriv->timer);
@@ -851,9 +848,8 @@ static int jr3_pci_attach(struct comedi_device *dev,
 	}
 
 	result = comedi_pci_enable(card, "jr3_pci");
-	if (result < 0) {
+	if (result < 0)
 		return -EIO;
-	}
 
 	devpriv->pci_enabled = 1;
 	devpriv->iobase = ioremap(pci_resource_start(card, 0),
@@ -922,9 +918,8 @@ static int jr3_pci_attach(struct comedi_device *dev,
 	result = comedi_load_firmware(dev, "jr3pci.idm", jr3_download_firmware);
 	printk("Firmare load %d\n", result);
 
-	if (result < 0) {
+	if (result < 0)
 		goto out;
-	}
 /*
  * TODO: use firmware to load preferred offset tables. Suggested
  * format:
@@ -973,21 +968,17 @@ static int jr3_pci_detach(struct comedi_device *dev)
 		del_timer_sync(&devpriv->timer);
 
 		if (dev->subdevices) {
-			for (i = 0; i < devpriv->n_channels; i++) {
+			for (i = 0; i < devpriv->n_channels; i++)
 				kfree(dev->subdevices[i].private);
-			}
 		}
 
-		if (devpriv->iobase) {
+		if (devpriv->iobase)
 			iounmap((void *)devpriv->iobase);
-		}
-		if (devpriv->pci_enabled) {
+		if (devpriv->pci_enabled)
 			comedi_pci_disable(devpriv->pci_dev);
-		}
 
-		if (devpriv->pci_dev) {
+		if (devpriv->pci_dev)
 			pci_dev_put(devpriv->pci_dev);
-		}
 	}
 	return 0;
 }

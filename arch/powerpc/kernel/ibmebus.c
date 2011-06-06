@@ -527,7 +527,7 @@ static int ibmebus_bus_pm_resume_noirq(struct device *dev)
 
 #endif /* !CONFIG_SUSPEND */
 
-#ifdef CONFIG_HIBERNATION
+#ifdef CONFIG_HIBERNATE_CALLBACKS
 
 static int ibmebus_bus_pm_freeze(struct device *dev)
 {
@@ -665,7 +665,7 @@ static int ibmebus_bus_pm_restore_noirq(struct device *dev)
 	return ret;
 }
 
-#else /* !CONFIG_HIBERNATION */
+#else /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #define ibmebus_bus_pm_freeze		NULL
 #define ibmebus_bus_pm_thaw		NULL
@@ -676,7 +676,7 @@ static int ibmebus_bus_pm_restore_noirq(struct device *dev)
 #define ibmebus_bus_pm_poweroff_noirq	NULL
 #define ibmebus_bus_pm_restore_noirq	NULL
 
-#endif /* !CONFIG_HIBERNATION */
+#endif /* !CONFIG_HIBERNATE_CALLBACKS */
 
 static struct dev_pm_ops ibmebus_bus_dev_pm_ops = {
 	.prepare = ibmebus_bus_pm_prepare,

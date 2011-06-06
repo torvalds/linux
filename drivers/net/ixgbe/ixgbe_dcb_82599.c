@@ -39,36 +39,52 @@
  */
 static s32 ixgbe_dcb_config_packet_buffers_82599(struct ixgbe_hw *hw, u8 rx_pba)
 {
-	s32 ret_val = 0;
-	u32 value = IXGBE_RXPBSIZE_64KB;
+	int num_tcs = IXGBE_MAX_PACKET_BUFFERS;
+	u32 rx_pb_size = hw->mac.rx_pb_size << IXGBE_RXPBSIZE_SHIFT;
+	u32 rxpktsize;
+	u32 txpktsize;
+	u32 txpbthresh;
 	u8  i = 0;
 
-	/* Setup Rx packet buffer sizes */
-	switch (rx_pba) {
-	case pba_80_48:
-		/* Setup the first four at 80KB */
-		value = IXGBE_RXPBSIZE_80KB;
-		for (; i < 4; i++)
-			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), value);
-		/* Setup the last four at 48KB...don't re-init i */
-		value = IXGBE_RXPBSIZE_48KB;
-		/* Fall Through */
-	case pba_equal:
-	default:
-		for (; i < IXGBE_MAX_PACKET_BUFFERS; i++)
-			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), value);
-
-		/* Setup Tx packet buffer sizes */
-		for (i = 0; i < IXGBE_MAX_PACKET_BUFFERS; i++) {
-			IXGBE_WRITE_REG(hw, IXGBE_TXPBSIZE(i),
-			                IXGBE_TXPBSIZE_20KB);
-			IXGBE_WRITE_REG(hw, IXGBE_TXPBTHRESH(i),
-			                IXGBE_TXPBTHRESH_DCB);
-		}
-		break;
+	/*
+	 * This really means configure the first half of the TCs
+	 * (Traffic Classes) to use 5/8 of the Rx packet buffer
+	 * space.  To determine the size of the buffer for each TC,
+	 * we are multiplying the average size by 5/4 and applying
+	 * it to half of the traffic classes.
+	 */
+	if (rx_pba == pba_80_48) {
+		rxpktsize = (rx_pb_size * 5) / (num_tcs * 4);
+		rx_pb_size -= rxpktsize * (num_tcs / 2);
+		for (; i < (num_tcs / 2); i++)
+			IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), rxpktsize);
 	}
 
-	return ret_val;
+	/* Divide the remaining Rx packet buffer evenly among the TCs */
+	rxpktsize = rx_pb_size / (num_tcs - i);
+	for (; i < num_tcs; i++)
+		IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), rxpktsize);
+
+	/*
+	 * Setup Tx packet buffer and threshold equally for all TCs
+	 * TXPBTHRESH register is set in K so divide by 1024 and subtract
+	 * 10 since the largest packet we support is just over 9K.
+	 */
+	txpktsize = IXGBE_TXPBSIZE_MAX / num_tcs;
+	txpbthresh = (txpktsize / 1024) - IXGBE_TXPKT_SIZE_MAX;
+	for (i = 0; i < num_tcs; i++) {
+		IXGBE_WRITE_REG(hw, IXGBE_TXPBSIZE(i), txpktsize);
+		IXGBE_WRITE_REG(hw, IXGBE_TXPBTHRESH(i), txpbthresh);
+	}
+
+	/* Clear unused TCs, if any, to zero buffer size*/
+	for (; i < MAX_TRAFFIC_CLASS; i++) {
+		IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_TXPBSIZE(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_TXPBTHRESH(i), 0);
+	}
+
+	return 0;
 }
 
 /**
@@ -285,12 +301,17 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en)
 		IXGBE_WRITE_REG(hw, IXGBE_FCCFG, reg);
 		/*
 		 * Enable Receive PFC
-		 * We will always honor XOFF frames we receive when
-		 * we are in PFC mode.
+		 * 82599 will always honor XOFF frames we receive when
+		 * we are in PFC mode however X540 only honors enabled
+		 * traffic classes.
 		 */
 		reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
 		reg &= ~IXGBE_MFLCN_RFCE;
 		reg |= IXGBE_MFLCN_RPFCE | IXGBE_MFLCN_DPF;
+
+		if (hw->mac.type == ixgbe_mac_X540)
+			reg |= pfc_en << IXGBE_MFLCN_RPFCE_SHIFT;
+
 		IXGBE_WRITE_REG(hw, IXGBE_MFLCN, reg);
 
 	} else {

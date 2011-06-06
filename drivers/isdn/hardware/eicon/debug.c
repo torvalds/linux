@@ -861,7 +861,7 @@ static int diva_get_idi_adapter_info (IDI_CALL request, dword* serial, dword* lo
 void diva_mnt_add_xdi_adapter (const DESCRIPTOR* d) {
   diva_os_spin_lock_magic_t old_irql, old_irql1;
   dword sec, usec, logical, serial, org_mask;
-  int id, best_id = 0, free_id = -1;
+  int id, free_id = -1;
   char tmp[128];
   diva_dbg_entry_head_t* pmsg = NULL;
   int len;
@@ -906,7 +906,6 @@ void diva_mnt_add_xdi_adapter (const DESCRIPTOR* d) {
         and slot is still free - reuse it
         */
       free_id = id;
-      best_id = 1;
       break;
     }
   }

@@ -30,26 +30,18 @@
 #include <mach/regs-gpio-memport.h>
 
 #ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
-#include <mach/gpio-bank-n.h>
-
 void s3c_pm_debug_smdkled(u32 set, u32 clear)
 {
 	unsigned long flags;
-	u32 reg;
+	int i;
 
 	local_irq_save(flags);
-	reg = __raw_readl(S3C64XX_GPNCON);
-	reg &= ~(S3C64XX_GPN_CONMASK(12) | S3C64XX_GPN_CONMASK(13) |
-		 S3C64XX_GPN_CONMASK(14) | S3C64XX_GPN_CONMASK(15));
-	reg |= S3C64XX_GPN_OUTPUT(12) | S3C64XX_GPN_OUTPUT(13) |
-	       S3C64XX_GPN_OUTPUT(14) | S3C64XX_GPN_OUTPUT(15);
-	__raw_writel(reg, S3C64XX_GPNCON);
-
-	reg = __raw_readl(S3C64XX_GPNDAT);
-	reg &= ~(clear << 12);
-	reg |= set << 12;
-	__raw_writel(reg, S3C64XX_GPNDAT);
-
+	for (i = 0; i < 4; i++) {
+		if (clear & (1 << i))
+			gpio_set_value(S3C64XX_GPN(12 + i), 0);
+		if (set & (1 << i))
+			gpio_set_value(S3C64XX_GPN(12 + i), 1);
+	}
 	local_irq_restore(flags);
 }
 #endif
@@ -187,6 +179,18 @@ static int s3c64xx_pm_init(void)
 	pm_cpu_prep = s3c64xx_pm_prepare;
 	pm_cpu_sleep = s3c64xx_cpu_suspend;
 	pm_uart_udivslot = 1;
+
+#ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
+	gpio_request(S3C64XX_GPN(12), "DEBUG_LED0");
+	gpio_request(S3C64XX_GPN(13), "DEBUG_LED1");
+	gpio_request(S3C64XX_GPN(14), "DEBUG_LED2");
+	gpio_request(S3C64XX_GPN(15), "DEBUG_LED3");
+	gpio_direction_output(S3C64XX_GPN(12), 0);
+	gpio_direction_output(S3C64XX_GPN(13), 0);
+	gpio_direction_output(S3C64XX_GPN(14), 0);
+	gpio_direction_output(S3C64XX_GPN(15), 0);
+#endif
+
 	return 0;
 }
 

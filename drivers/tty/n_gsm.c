@@ -526,19 +526,6 @@ static int gsm_stuff_frame(const u8 *input, u8 *output, int len)
 	return olen;
 }
 
-static void hex_packet(const unsigned char *p, int len)
-{
-	int i;
-	for (i = 0; i < len; i++) {
-		if (i && (i % 16) == 0) {
-			pr_cont("\n");
-			pr_debug("");
-		}
-		pr_cont("%02X ", *p++);
-	}
-	pr_cont("\n");
-}
-
 /**
  *	gsm_send	-	send a control frame
  *	@gsm: our GSM mux
@@ -685,10 +672,10 @@ static void gsm_data_kick(struct gsm_mux *gsm)
 			len = msg->len + 2;
 		}
 
-		if (debug & 4) {
-			pr_debug("gsm_data_kick:\n");
-			hex_packet(gsm->txframe, len);
-		}
+		if (debug & 4)
+			print_hex_dump_bytes("gsm_data_kick: ",
+					     DUMP_PREFIX_OFFSET,
+					     gsm->txframe, len);
 
 		if (gsm->output(gsm, gsm->txframe + skip_sof,
 						len - skip_sof) < 0)
@@ -1658,8 +1645,12 @@ static void gsm_queue(struct gsm_mux *gsm)
 
 	if ((gsm->control & ~PF) == UI)
 		gsm->fcs = gsm_fcs_add_block(gsm->fcs, gsm->buf, gsm->len);
-	/* generate final CRC with received FCS */
-	gsm->fcs = gsm_fcs_add(gsm->fcs, gsm->received_fcs);
+	if (gsm->encoding == 0){
+		/* WARNING: gsm->received_fcs is used for gsm->encoding = 0 only.
+		            In this case it contain the last piece of data
+		            required to generate final CRC */
+		gsm->fcs = gsm_fcs_add(gsm->fcs, gsm->received_fcs);
+	}
 	if (gsm->fcs != GOOD_FCS) {
 		gsm->bad_fcs++;
 		if (debug & 4)
@@ -2091,10 +2082,9 @@ static int gsmld_output(struct gsm_mux *gsm, u8 *data, int len)
 		set_bit(TTY_DO_WRITE_WAKEUP, &gsm->tty->flags);
 		return -ENOSPC;
 	}
-	if (debug & 4) {
-		pr_debug("-->%d bytes out\n", len);
-		hex_packet(data, len);
-	}
+	if (debug & 4)
+		print_hex_dump_bytes("gsmld_output: ", DUMP_PREFIX_OFFSET,
+				     data, len);
 	gsm->tty->ops->write(gsm->tty, data, len);
 	return len;
 }
@@ -2124,7 +2114,7 @@ static int gsmld_attach_gsm(struct tty_struct *tty, struct gsm_mux *gsm)
 
 /**
  *	gsmld_detach_gsm	-	stop doing 0710 mux
- *	@tty: tty atttached to the mux
+ *	@tty: tty attached to the mux
  *	@gsm: mux
  *
  *	Shutdown and then clean up the resources used by the line discipline
@@ -2138,8 +2128,8 @@ static void gsmld_detach_gsm(struct tty_struct *tty, struct gsm_mux *gsm)
 	gsm->tty = NULL;
 }
 
-static void gsmld_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-			      char *fp, int count)
+static unsigned int gsmld_receive_buf(struct tty_struct *tty,
+		const unsigned char *cp, char *fp, int count)
 {
 	struct gsm_mux *gsm = tty->disc_data;
 	const unsigned char *dp;
@@ -2148,10 +2138,9 @@ static void gsmld_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	char buf[64];
 	char flags;
 
-	if (debug & 4) {
-		pr_debug("Inbytes %dd\n", count);
-		hex_packet(cp, count);
-	}
+	if (debug & 4)
+		print_hex_dump_bytes("gsmld_receive: ", DUMP_PREFIX_OFFSET,
+				     cp, count);
 
 	for (i = count, dp = cp, f = fp; i; i--, dp++) {
 		flags = *f++;
@@ -2173,6 +2162,8 @@ static void gsmld_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	}
 	/* FASYNC if needed ? */
 	/* If clogged call tty_throttle(tty); */
+
+	return count;
 }
 
 /**

@@ -24,12 +24,6 @@ extern void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode);
 
 static inline void arch_idle(void)
 {
-#ifdef CONFIG_ARCH_MXC91231
-	if (cpu_is_mxc91231()) {
-		/* Need this to set DSM low-power mode */
-		mxc91231_prepare_idle();
-	}
-#endif
 	/* fix i.MX31 errata TLSbo65953 and i.MX35 errata ENGcm09472 */
 	if (cpu_is_mx31() || cpu_is_mx35()) {
 		unsigned long reg = 0;

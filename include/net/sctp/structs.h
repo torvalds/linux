@@ -564,19 +564,15 @@ struct sctp_af {
 					 int optname,
 					 char __user *optval,
 					 int __user *optlen);
-	struct dst_entry *(*get_dst)	(struct sctp_association *asoc,
-					 union sctp_addr *daddr,
-					 union sctp_addr *saddr);
+	void		(*get_dst)	(struct sctp_transport *t,
+					 union sctp_addr *saddr,
+					 struct flowi *fl,
+					 struct sock *sk);
 	void		(*get_saddr)	(struct sctp_sock *sk,
-					 struct sctp_association *asoc,
-					 struct dst_entry *dst,
-					 union sctp_addr *daddr,
-					 union sctp_addr *saddr);
+					 struct sctp_transport *t,
+					 struct flowi *fl);
 	void		(*copy_addrlist) (struct list_head *,
 					  struct net_device *);
-	void		(*dst_saddr)	(union sctp_addr *saddr,
-					 struct dst_entry *dst,
-					 __be16 port);
 	int		(*cmp_addr)	(const union sctp_addr *addr1,
 					 const union sctp_addr *addr2);
 	void		(*addr_copy)	(union sctp_addr *dst,
@@ -898,6 +894,7 @@ struct sctp_transport {
 		/* Is this structure kfree()able? */
 		malloced:1;
 
+	struct flowi fl;
 
 	/* This is the peer's IP address and port. */
 	union sctp_addr ipaddr;
@@ -1061,7 +1058,7 @@ void sctp_transport_set_owner(struct sctp_transport *,
 			      struct sctp_association *);
 void sctp_transport_route(struct sctp_transport *, union sctp_addr *,
 			  struct sctp_sock *);
-void sctp_transport_pmtu(struct sctp_transport *);
+void sctp_transport_pmtu(struct sctp_transport *, struct sock *sk);
 void sctp_transport_free(struct sctp_transport *);
 void sctp_transport_reset_timers(struct sctp_transport *);
 void sctp_transport_hold(struct sctp_transport *);
@@ -1400,7 +1397,7 @@ int sctp_has_association(const union sctp_addr *laddr,
 int sctp_verify_init(const struct sctp_association *asoc, sctp_cid_t,
 		     sctp_init_chunk_t *peer_init, struct sctp_chunk *chunk,
 		     struct sctp_chunk **err_chunk);
-int sctp_process_init(struct sctp_association *, sctp_cid_t cid,
+int sctp_process_init(struct sctp_association *, struct sctp_chunk *chunk,
 		      const union sctp_addr *peer,
 		      sctp_init_chunk_t *init, gfp_t gfp);
 __u32 sctp_generate_tag(const struct sctp_endpoint *);

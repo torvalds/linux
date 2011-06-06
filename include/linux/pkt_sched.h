@@ -588,4 +588,19 @@ struct tc_sfb_xstats {
 
 #define SFB_MAX_PROB 0xFFFF
 
+/* QFQ */
+enum {
+	TCA_QFQ_UNSPEC,
+	TCA_QFQ_WEIGHT,
+	TCA_QFQ_LMAX,
+	__TCA_QFQ_MAX
+};
+
+#define TCA_QFQ_MAX	(__TCA_QFQ_MAX - 1)
+
+struct tc_qfq_stats {
+	__u32 weight;
+	__u32 lmax;
+};
+
 #endif

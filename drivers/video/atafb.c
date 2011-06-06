@@ -3117,7 +3117,7 @@ int __init atafb_init(void)
 			atafb_ops.fb_setcolreg = &falcon_setcolreg;
 			error = request_irq(IRQ_AUTO_4, falcon_vbl_switcher,
 					    IRQ_TYPE_PRIO,
-					    "framebuffer/modeswitch",
+					    "framebuffer:modeswitch",
 					    falcon_vbl_switcher);
 			if (error)
 				return error;

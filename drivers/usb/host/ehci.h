@@ -118,6 +118,7 @@ struct ehci_hcd {			/* one per controller */
 	struct timer_list	watchdog;
 	unsigned long		actions;
 	unsigned		stamp;
+	unsigned		periodic_stamp;
 	unsigned		random_frame;
 	unsigned long		next_statechange;
 	ktime_t			last_periodic_enable;
@@ -128,12 +129,14 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		has_fsl_port_bug:1; /* FreeScale */
 	unsigned		big_endian_mmio:1;
 	unsigned		big_endian_desc:1;
+	unsigned		big_endian_capbase:1;
 	unsigned		has_amcc_usb23:1;
 	unsigned		need_io_watchdog:1;
 	unsigned		broken_periodic:1;
 	unsigned		amd_pll_fix:1;
 	unsigned		fs_i_thresh:1;	/* Intel iso scheduling */
 	unsigned		use_dummy_qh:1;	/* AMD Frame List table quirk*/
+	unsigned		has_synopsys_hc_bug:1; /* Synopsys HC */
 
 	/* required for usb32 quirk */
 	#define OHCI_CTRL_HCFS          (3 << 6)
@@ -160,6 +163,10 @@ struct ehci_hcd {			/* one per controller */
 #ifdef DEBUG
 	struct dentry		*debug_dir;
 #endif
+	/*
+	 * OTG controllers and transceivers need software interaction
+	 */
+	struct otg_transceiver	*transceiver;
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
@@ -600,12 +607,18 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
  * This attempts to support either format at compile time without a
  * runtime penalty, or both formats with the additional overhead
  * of checking a flag bit.
+ *
+ * ehci_big_endian_capbase is a special quirk for controllers that
+ * implement the HC capability registers as separate registers and not
+ * as fields of a 32-bit register.
  */
 
 #ifdef CONFIG_USB_EHCI_BIG_ENDIAN_MMIO
 #define ehci_big_endian_mmio(e)		((e)->big_endian_mmio)
+#define ehci_big_endian_capbase(e)	((e)->big_endian_capbase)
 #else
 #define ehci_big_endian_mmio(e)		0
+#define ehci_big_endian_capbase(e)	0
 #endif
 
 /*

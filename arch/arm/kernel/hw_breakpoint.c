@@ -868,6 +868,13 @@ static void reset_ctrl_regs(void *info)
 		 */
 		asm volatile("mcr p14, 0, %0, c1, c0, 4" : : "r" (0));
 		isb();
+
+		/*
+		 * Clear any configured vector-catch events before
+		 * enabling monitor mode.
+		 */
+		asm volatile("mcr p14, 0, %0, c0, c7, 0" : : "r" (0));
+		isb();
 	}
 
 	if (enable_monitor_mode())

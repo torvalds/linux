@@ -106,7 +106,7 @@ void rv770_pm_misc(struct radeon_device *rdev)
 
 	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
 		if (voltage->voltage != rdev->pm.current_vddc) {
-			radeon_atom_set_voltage(rdev, voltage->voltage);
+			radeon_atom_set_voltage(rdev, voltage->voltage, SET_VOLTAGE_TYPE_ASIC_VDDC);
 			rdev->pm.current_vddc = voltage->voltage;
 			DRM_DEBUG("Setting: v: %d\n", voltage->voltage);
 		}
@@ -1255,9 +1255,6 @@ int rv770_init(struct radeon_device *rdev)
 {
 	int r;
 
-	r = radeon_dummy_page_init(rdev);
-	if (r)
-		return r;
 	/* This don't do much */
 	r = radeon_gem_init(rdev);
 	if (r)
@@ -1372,7 +1369,6 @@ void rv770_fini(struct radeon_device *rdev)
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
 	rdev->bios = NULL;
-	radeon_dummy_page_fini(rdev);
 }
 
 static void rv770_pcie_gen2_enable(struct radeon_device *rdev)

@@ -18,8 +18,8 @@ typedef unsigned int upf_t;	/* cannot include linux/serial_core.h */
 
 /* uart setup */
 
-static unsigned int fifo_mask;
-static unsigned int fifo_max;
+unsigned int fifo_mask;
+unsigned int fifo_max;
 
 /* forward declerations */
 

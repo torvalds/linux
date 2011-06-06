@@ -279,19 +279,19 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 	}
 	INIT_WORK(&gpio_vbus->work, gpio_vbus_work);
 
+	gpio_vbus->vbus_draw = regulator_get(&pdev->dev, "vbus_draw");
+	if (IS_ERR(gpio_vbus->vbus_draw)) {
+		dev_dbg(&pdev->dev, "can't get vbus_draw regulator, err: %ld\n",
+			PTR_ERR(gpio_vbus->vbus_draw));
+		gpio_vbus->vbus_draw = NULL;
+	}
+
 	/* only active when a gadget is registered */
 	err = otg_set_transceiver(&gpio_vbus->otg);
 	if (err) {
 		dev_err(&pdev->dev, "can't register transceiver, err: %d\n",
 			err);
 		goto err_otg;
-	}
-
-	gpio_vbus->vbus_draw = regulator_get(&pdev->dev, "vbus_draw");
-	if (IS_ERR(gpio_vbus->vbus_draw)) {
-		dev_dbg(&pdev->dev, "can't get vbus_draw regulator, err: %ld\n",
-			PTR_ERR(gpio_vbus->vbus_draw));
-		gpio_vbus->vbus_draw = NULL;
 	}
 
 	return 0;

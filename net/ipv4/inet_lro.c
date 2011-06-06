@@ -51,8 +51,8 @@ MODULE_DESCRIPTION("Large Receive Offload (ipv4 / tcp)");
  * Basic tcp checks whether packet is suitable for LRO
  */
 
-static int lro_tcp_ip_check(struct iphdr *iph, struct tcphdr *tcph,
-			    int len, struct net_lro_desc *lro_desc)
+static int lro_tcp_ip_check(const struct iphdr *iph, const struct tcphdr *tcph,
+			    int len, const struct net_lro_desc *lro_desc)
 {
         /* check ip header: don't aggregate padded frames */
 	if (ntohs(iph->tot_len) != len)

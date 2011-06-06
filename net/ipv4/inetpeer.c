@@ -154,11 +154,9 @@ void __init inet_initpeers(void)
 /* Called with or without local BH being disabled. */
 static void unlink_from_unused(struct inet_peer *p)
 {
-	if (!list_empty(&p->unused)) {
-		spin_lock_bh(&unused_peers.lock);
-		list_del_init(&p->unused);
-		spin_unlock_bh(&unused_peers.lock);
-	}
+	spin_lock_bh(&unused_peers.lock);
+	list_del_init(&p->unused);
+	spin_unlock_bh(&unused_peers.lock);
 }
 
 static int addr_compare(const struct inetpeer_addr *a,
@@ -205,6 +203,20 @@ static int addr_compare(const struct inetpeer_addr *a,
 	u;							\
 })
 
+static bool atomic_add_unless_return(atomic_t *ptr, int a, int u, int *newv)
+{
+	int cur, old = atomic_read(ptr);
+
+	while (old != u) {
+		*newv = old + a;
+		cur = atomic_cmpxchg(ptr, old, *newv);
+		if (cur == old)
+			return true;
+		old = cur;
+	}
+	return false;
+}
+
 /*
  * Called with rcu_read_lock()
  * Because we hold no lock against a writer, its quite possible we fall
@@ -213,7 +225,8 @@ static int addr_compare(const struct inetpeer_addr *a,
  * We exit from this function if number of links exceeds PEER_MAXDEPTH
  */
 static struct inet_peer *lookup_rcu(const struct inetpeer_addr *daddr,
-				    struct inet_peer_base *base)
+				    struct inet_peer_base *base,
+				    int *newrefcnt)
 {
 	struct inet_peer *u = rcu_dereference(base->root);
 	int count = 0;
@@ -226,7 +239,7 @@ static struct inet_peer *lookup_rcu(const struct inetpeer_addr *daddr,
 			 * distinction between an unused entry (refcnt=0) and
 			 * a freed one.
 			 */
-			if (unlikely(!atomic_add_unless(&u->refcnt, 1, -1)))
+			if (!atomic_add_unless_return(&u->refcnt, 1, -1, newrefcnt))
 				u = NULL;
 			return u;
 		}
@@ -354,7 +367,8 @@ static void inetpeer_free_rcu(struct rcu_head *head)
 }
 
 /* May be called with local BH enabled. */
-static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base)
+static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base,
+			     struct inet_peer __rcu **stack[PEER_MAXDEPTH])
 {
 	int do_free;
 
@@ -368,7 +382,6 @@ static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base)
 	 * We use refcnt=-1 to alert lockless readers this entry is deleted.
 	 */
 	if (atomic_cmpxchg(&p->refcnt, 1, -1) == 1) {
-		struct inet_peer __rcu **stack[PEER_MAXDEPTH];
 		struct inet_peer __rcu ***stackptr, ***delp;
 		if (lookup(&p->daddr, stack, base) != p)
 			BUG();
@@ -422,7 +435,7 @@ static struct inet_peer_base *peer_to_base(struct inet_peer *p)
 }
 
 /* May be called with local BH enabled. */
-static int cleanup_once(unsigned long ttl)
+static int cleanup_once(unsigned long ttl, struct inet_peer __rcu **stack[PEER_MAXDEPTH])
 {
 	struct inet_peer *p = NULL;
 
@@ -454,7 +467,7 @@ static int cleanup_once(unsigned long ttl)
 		 * happen because of entry limits in route cache. */
 		return -1;
 
-	unlink_from_pool(p, peer_to_base(p));
+	unlink_from_pool(p, peer_to_base(p), stack);
 	return 0;
 }
 
@@ -465,22 +478,23 @@ struct inet_peer *inet_getpeer(struct inetpeer_addr *daddr, int create)
 	struct inet_peer_base *base = family_to_base(daddr->family);
 	struct inet_peer *p;
 	unsigned int sequence;
-	int invalidated;
+	int invalidated, newrefcnt = 0;
 
 	/* Look up for the address quickly, lockless.
 	 * Because of a concurrent writer, we might not find an existing entry.
 	 */
 	rcu_read_lock();
 	sequence = read_seqbegin(&base->lock);
-	p = lookup_rcu(daddr, base);
+	p = lookup_rcu(daddr, base, &newrefcnt);
 	invalidated = read_seqretry(&base->lock, sequence);
 	rcu_read_unlock();
 
 	if (p) {
-		/* The existing node has been found.
+found:		/* The existing node has been found.
 		 * Remove the entry from unused list if it was there.
 		 */
-		unlink_from_unused(p);
+		if (newrefcnt == 1)
+			unlink_from_unused(p);
 		return p;
 	}
 
@@ -494,11 +508,9 @@ struct inet_peer *inet_getpeer(struct inetpeer_addr *daddr, int create)
 	write_seqlock_bh(&base->lock);
 	p = lookup(daddr, stack, base);
 	if (p != peer_avl_empty) {
-		atomic_inc(&p->refcnt);
+		newrefcnt = atomic_inc_return(&p->refcnt);
 		write_sequnlock_bh(&base->lock);
-		/* Remove the entry from unused list if it was there. */
-		unlink_from_unused(p);
-		return p;
+		goto found;
 	}
 	p = create ? kmem_cache_alloc(peer_cachep, GFP_ATOMIC) : NULL;
 	if (p) {
@@ -524,7 +536,7 @@ struct inet_peer *inet_getpeer(struct inetpeer_addr *daddr, int create)
 
 	if (base->total >= inet_peer_threshold)
 		/* Remove one less-recently-used entry. */
-		cleanup_once(0);
+		cleanup_once(0, stack);
 
 	return p;
 }
@@ -540,6 +552,7 @@ static void peer_check_expire(unsigned long dummy)
 {
 	unsigned long now = jiffies;
 	int ttl, total;
+	struct inet_peer __rcu **stack[PEER_MAXDEPTH];
 
 	total = compute_total();
 	if (total >= inet_peer_threshold)
@@ -548,7 +561,7 @@ static void peer_check_expire(unsigned long dummy)
 		ttl = inet_peer_maxttl
 				- (inet_peer_maxttl - inet_peer_minttl) / HZ *
 					total / inet_peer_threshold * HZ;
-	while (!cleanup_once(ttl)) {
+	while (!cleanup_once(ttl, stack)) {
 		if (jiffies != now)
 			break;
 	}

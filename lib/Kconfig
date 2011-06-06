@@ -19,16 +19,6 @@ config RATIONAL
 config GENERIC_FIND_FIRST_BIT
 	bool
 
-config GENERIC_FIND_NEXT_BIT
-	bool
-
-config GENERIC_FIND_BIT_LE
-	bool
-
-config GENERIC_FIND_LAST_BIT
-	bool
-	default y
-
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help

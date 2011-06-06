@@ -61,7 +61,6 @@ static inline struct kvmppc_vcpu_44x *to_44x(struct kvm_vcpu *vcpu)
 	return container_of(vcpu, struct kvmppc_vcpu_44x, vcpu);
 }
 
-void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 new_pid);
 void kvmppc_44x_tlb_put(struct kvm_vcpu *vcpu);
 void kvmppc_44x_tlb_load(struct kvm_vcpu *vcpu);
 

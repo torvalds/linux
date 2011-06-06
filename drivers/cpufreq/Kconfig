@@ -1,3 +1,5 @@
+menu "CPU Frequency scaling"
+
 config CPU_FREQ
 	bool "CPU Frequency scaling"
 	help
@@ -17,19 +19,6 @@ if CPU_FREQ
 
 config CPU_FREQ_TABLE
 	tristate
-
-config CPU_FREQ_DEBUG
-	bool "Enable CPUfreq debugging"
-	help
-	  Say Y here to enable CPUfreq subsystem (including drivers)
-	  debugging. You will need to activate it via the kernel
-	  command line by passing
-	     cpufreq.debug=<value>
-
-	  To get <value>, add 
-	       1 to activate CPUfreq core debugging,
-	       2 to activate CPUfreq drivers debugging, and
-	       4 to activate CPUfreq governor debugging
 
 config CPU_FREQ_STAT
 	tristate "CPU frequency translation statistics"
@@ -190,4 +179,10 @@ config CPU_FREQ_GOV_CONSERVATIVE
 
 	  If in doubt, say N.
 
-endif	# CPU_FREQ
+menu "x86 CPU frequency scaling drivers"
+depends on X86
+source "drivers/cpufreq/Kconfig.x86"
+endmenu
+
+endif
+endmenu

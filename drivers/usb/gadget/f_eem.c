@@ -314,6 +314,9 @@ eem_unbind(struct usb_configuration *c, struct usb_function *f)
 
 static void eem_cmd_complete(struct usb_ep *ep, struct usb_request *req)
 {
+	struct sk_buff *skb = (struct sk_buff *)req->context;
+
+	dev_kfree_skb_any(skb);
 }
 
 /*
@@ -428,10 +431,11 @@ static int eem_unwrap(struct gether *port,
 				skb_trim(skb2, len);
 				put_unaligned_le16(BIT(15) | BIT(11) | len,
 							skb_push(skb2, 2));
-				skb_copy_bits(skb, 0, req->buf, skb->len);
-				req->length = skb->len;
+				skb_copy_bits(skb2, 0, req->buf, skb2->len);
+				req->length = skb2->len;
 				req->complete = eem_cmd_complete;
 				req->zero = 1;
+				req->context = skb2;
 				if (usb_ep_queue(port->in_ep, req, GFP_ATOMIC))
 					DBG(cdev, "echo response queue fail\n");
 				break;

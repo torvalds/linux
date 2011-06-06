@@ -104,22 +104,6 @@ static int sel_netif_insert(struct sel_netif *netif)
 }
 
 /**
- * sel_netif_free - Frees an interface entry
- * @p: the entry's RCU field
- *
- * Description:
- * This function is designed to be used as a callback to the call_rcu()
- * function so that memory allocated to a hash table interface entry can be
- * released safely.
- *
- */
-static void sel_netif_free(struct rcu_head *p)
-{
-	struct sel_netif *netif = container_of(p, struct sel_netif, rcu_head);
-	kfree(netif);
-}
-
-/**
  * sel_netif_destroy - Remove an interface record from the table
  * @netif: the existing interface record
  *
@@ -131,7 +115,7 @@ static void sel_netif_destroy(struct sel_netif *netif)
 {
 	list_del_rcu(&netif->list);
 	sel_netif_total--;
-	call_rcu(&netif->rcu_head, sel_netif_free);
+	kfree_rcu(netif, rcu_head);
 }
 
 /**

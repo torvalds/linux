@@ -346,20 +346,23 @@ xfs_ail_delete(
  */
 STATIC void
 xfs_ail_worker(
-	struct work_struct *work)
+	struct work_struct	*work)
 {
-	struct xfs_ail	*ailp = container_of(to_delayed_work(work),
+	struct xfs_ail		*ailp = container_of(to_delayed_work(work),
 					struct xfs_ail, xa_work);
-	long		tout;
-	xfs_lsn_t	target =  ailp->xa_target;
-	xfs_lsn_t	lsn;
-	xfs_log_item_t	*lip;
-	int		flush_log, count, stuck;
-	xfs_mount_t	*mp = ailp->xa_mount;
+	xfs_mount_t		*mp = ailp->xa_mount;
 	struct xfs_ail_cursor	*cur = &ailp->xa_cursors;
-	int		push_xfsbufd = 0;
+	xfs_log_item_t		*lip;
+	xfs_lsn_t		lsn;
+	xfs_lsn_t		target;
+	long			tout = 10;
+	int			flush_log = 0;
+	int			stuck = 0;
+	int			count = 0;
+	int			push_xfsbufd = 0;
 
 	spin_lock(&ailp->xa_lock);
+	target = ailp->xa_target;
 	xfs_trans_ail_cursor_init(ailp, cur);
 	lip = xfs_trans_ail_cursor_first(ailp, cur, ailp->xa_last_pushed_lsn);
 	if (!lip || XFS_FORCED_SHUTDOWN(mp)) {
@@ -368,8 +371,7 @@ xfs_ail_worker(
 		 */
 		xfs_trans_ail_cursor_done(ailp, cur);
 		spin_unlock(&ailp->xa_lock);
-		ailp->xa_last_pushed_lsn = 0;
-		return;
+		goto out_done;
 	}
 
 	XFS_STATS_INC(xs_push_ail);
@@ -386,8 +388,7 @@ xfs_ail_worker(
 	 * lots of contention on the AIL lists.
 	 */
 	lsn = lip->li_lsn;
-	flush_log = stuck = count = 0;
-	while ((XFS_LSN_CMP(lip->li_lsn, target) < 0)) {
+	while ((XFS_LSN_CMP(lip->li_lsn, target) <= 0)) {
 		int	lock_result;
 		/*
 		 * If we can lock the item without sleeping, unlock the AIL
@@ -480,21 +481,25 @@ xfs_ail_worker(
 	}
 
 	/* assume we have more work to do in a short while */
-	tout = 10;
+out_done:
 	if (!count) {
 		/* We're past our target or empty, so idle */
 		ailp->xa_last_pushed_lsn = 0;
 
 		/*
-		 * Check for an updated push target before clearing the
-		 * XFS_AIL_PUSHING_BIT. If the target changed, we've got more
-		 * work to do. Wait a bit longer before starting that work.
+		 * We clear the XFS_AIL_PUSHING_BIT first before checking
+		 * whether the target has changed. If the target has changed,
+		 * this pushes the requeue race directly onto the result of the
+		 * atomic test/set bit, so we are guaranteed that either the
+		 * the pusher that changed the target or ourselves will requeue
+		 * the work (but not both).
 		 */
+		clear_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags);
 		smp_rmb();
-		if (ailp->xa_target == target) {
-			clear_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags);
+		if (XFS_LSN_CMP(ailp->xa_target, target) == 0 ||
+		    test_and_set_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags))
 			return;
-		}
+
 		tout = 50;
 	} else if (XFS_LSN_CMP(lsn, target) >= 0) {
 		/*
@@ -553,7 +558,7 @@ xfs_ail_push(
 	 * the XFS_AIL_PUSHING_BIT.
 	 */
 	smp_wmb();
-	ailp->xa_target = threshold_lsn;
+	xfs_trans_ail_copy_lsn(ailp, &ailp->xa_target, &threshold_lsn);
 	if (!test_and_set_bit(XFS_AIL_PUSHING_BIT, &ailp->xa_flags))
 		queue_delayed_work(xfs_syncd_wq, &ailp->xa_work, 0);
 }

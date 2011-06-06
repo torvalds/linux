@@ -15,6 +15,9 @@
 #include "irq.h"
 #include "kernel.h"
 
+#define IRQ_IPI_SINGLE		12
+#define IRQ_IPI_MASK		13
+#define IRQ_IPI_RESCHED		14
 #define IRQ_CROSS_CALL		15
 
 static inline unsigned long
@@ -26,6 +29,7 @@ swap_ulong(volatile unsigned long *ptr, unsigned long val)
 	return val;
 }
 
+static void smp4m_ipi_init(void);
 static void smp_setup_percpu_timer(void);
 
 void __cpuinit smp4m_callin(void)
@@ -59,8 +63,6 @@ void __cpuinit smp4m_callin(void)
 	local_flush_cache_all();
 	local_flush_tlb_all();
 
-	cpu_probe();
-
 	/* Fix idle thread fields. */
 	__asm__ __volatile__("ld [%0], %%g6\n\t"
 			     : : "r" (&current_set[cpuid])
@@ -70,7 +72,7 @@ void __cpuinit smp4m_callin(void)
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
 
-	while (!cpu_isset(cpuid, smp_commenced_mask))
+	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))
 		mb();
 
 	local_irq_enable();
@@ -83,6 +85,7 @@ void __cpuinit smp4m_callin(void)
  */
 void __init smp4m_boot_cpus(void)
 {
+	smp4m_ipi_init();
 	smp_setup_percpu_timer();
 	local_flush_cache_all();
 }
@@ -150,18 +153,25 @@ void __init smp4m_smp_done(void)
 	/* Ok, they are spinning and ready to go. */
 }
 
-/* At each hardware IRQ, we get this called to forward IRQ reception
- * to the next processor.  The caller must disable the IRQ level being
- * serviced globally so that there are no double interrupts received.
- *
- * XXX See sparc64 irq.c.
- */
-void smp4m_irq_rotate(int cpu)
-{
-	int next = cpu_data(cpu).next;
 
-	if (next != cpu)
-		set_irq_udt(next);
+/* Initialize IPIs on the SUN4M SMP machine */
+static void __init smp4m_ipi_init(void)
+{
+}
+
+static void smp4m_ipi_resched(int cpu)
+{
+	set_cpu_int(cpu, IRQ_IPI_RESCHED);
+}
+
+static void smp4m_ipi_single(int cpu)
+{
+	set_cpu_int(cpu, IRQ_IPI_SINGLE);
+}
+
+static void smp4m_ipi_mask_one(int cpu)
+{
+	set_cpu_int(cpu, IRQ_IPI_MASK);
 }
 
 static struct smp_funcall {
@@ -199,10 +209,10 @@ static void smp4m_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 		{
 			register int i;
 
-			cpu_clear(smp_processor_id(), mask);
-			cpus_and(mask, cpu_online_map, mask);
+			cpumask_clear_cpu(smp_processor_id(), &mask);
+			cpumask_and(&mask, cpu_online_mask, &mask);
 			for (i = 0; i < ncpus; i++) {
-				if (cpu_isset(i, mask)) {
+				if (cpumask_test_cpu(i, &mask)) {
 					ccall_info.processors_in[i] = 0;
 					ccall_info.processors_out[i] = 0;
 					set_cpu_int(i, IRQ_CROSS_CALL);
@@ -218,7 +228,7 @@ static void smp4m_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 
 			i = 0;
 			do {
-				if (!cpu_isset(i, mask))
+				if (!cpumask_test_cpu(i, &mask))
 					continue;
 				while (!ccall_info.processors_in[i])
 					barrier();
@@ -226,7 +236,7 @@ static void smp4m_cross_call(smpfunc_t func, cpumask_t mask, unsigned long arg1,
 
 			i = 0;
 			do {
-				if (!cpu_isset(i, mask))
+				if (!cpumask_test_cpu(i, &mask))
 					continue;
 				while (!ccall_info.processors_out[i])
 					barrier();
@@ -277,7 +287,7 @@ static void __cpuinit smp_setup_percpu_timer(void)
 	load_profile_irq(cpu, lvl14_resolution);
 
 	if (cpu == boot_cpu_id)
-		enable_pil_irq(14);
+		sun4m_unmask_profile_irq();
 }
 
 static void __init smp4m_blackbox_id(unsigned *addr)
@@ -306,4 +316,7 @@ void __init sun4m_init_smp(void)
 	BTFIXUPSET_BLACKBOX(load_current, smp4m_blackbox_current);
 	BTFIXUPSET_CALL(smp_cross_call, smp4m_cross_call, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(__hard_smp_processor_id, __smp4m_processor_id, BTFIXUPCALL_NORM);
+	BTFIXUPSET_CALL(smp_ipi_resched, smp4m_ipi_resched, BTFIXUPCALL_NORM);
+	BTFIXUPSET_CALL(smp_ipi_single, smp4m_ipi_single, BTFIXUPCALL_NORM);
+	BTFIXUPSET_CALL(smp_ipi_mask_one, smp4m_ipi_mask_one, BTFIXUPCALL_NORM);
 }

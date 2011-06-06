@@ -1769,9 +1769,6 @@ static int dw_mci_suspend(struct platform_device *pdev, pm_message_t mesg)
 	int i, ret;
 	struct dw_mci *host = platform_get_drvdata(pdev);
 
-	if (host->vmmc)
-		regulator_enable(host->vmmc);
-
 	for (i = 0; i < host->num_slots; i++) {
 		struct dw_mci_slot *slot = host->slot[i];
 		if (!slot)
@@ -1797,6 +1794,9 @@ static int dw_mci_resume(struct platform_device *pdev)
 {
 	int i, ret;
 	struct dw_mci *host = platform_get_drvdata(pdev);
+
+	if (host->vmmc)
+		regulator_enable(host->vmmc);
 
 	if (host->dma_ops->init)
 		host->dma_ops->init(host);

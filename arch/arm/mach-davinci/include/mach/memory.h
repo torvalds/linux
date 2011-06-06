@@ -41,27 +41,11 @@
  */
 #define CONSISTENT_DMA_SIZE (14<<20)
 
-#ifndef __ASSEMBLY__
 /*
  * Restrict DMA-able region to workaround silicon bug.  The bug
  * restricts buffers available for DMA to video hardware to be
  * below 128M
  */
-static inline void
-__arch_adjust_zones(unsigned long *size, unsigned long *holes)
-{
-	unsigned int sz = (128<<20) >> PAGE_SHIFT;
-
-	size[1] = size[0] - sz;
-	size[0] = sz;
-}
-
-#define arch_adjust_zones(zone_size, holes) \
-        if ((meminfo.bank[0].size >> 20) > 128) __arch_adjust_zones(zone_size, holes)
-
-#define ISA_DMA_THRESHOLD	(PHYS_OFFSET + (128<<20) - 1)
-#define MAX_DMA_ADDRESS		(PAGE_OFFSET + (128<<20))
-
-#endif
+#define ARM_DMA_ZONE_SIZE	SZ_128M
 
 #endif /* __ASM_ARCH_MEMORY_H */

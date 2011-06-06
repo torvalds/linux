@@ -923,13 +923,14 @@ static long mkiss_compat_ioctl(struct tty_struct *tty, struct file *file,
  * a block of data has been received, which can now be decapsulated
  * and sent on to the AX.25 layer for further processing.
  */
-static void mkiss_receive_buf(struct tty_struct *tty, const unsigned char *cp,
-	char *fp, int count)
+static unsigned int mkiss_receive_buf(struct tty_struct *tty,
+		const unsigned char *cp, char *fp, int count)
 {
 	struct mkiss *ax = mkiss_get(tty);
+	int bytes = count;
 
 	if (!ax)
-		return;
+		return -ENODEV;
 
 	/*
 	 * Argh! mtu change time! - costs us the packet part received
@@ -939,7 +940,7 @@ static void mkiss_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 		ax_changedmtu(ax);
 
 	/* Read the characters out of the buffer */
-	while (count--) {
+	while (bytes--) {
 		if (fp != NULL && *fp++) {
 			if (!test_and_set_bit(AXF_ERROR, &ax->flags))
 				ax->dev->stats.rx_errors++;
@@ -952,6 +953,8 @@ static void mkiss_receive_buf(struct tty_struct *tty, const unsigned char *cp,
 
 	mkiss_put(ax);
 	tty_unthrottle(tty);
+
+	return count;
 }
 
 /*

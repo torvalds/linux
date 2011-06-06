@@ -170,7 +170,7 @@ static void tas_set_volume(struct tas *tas)
 	/* analysing the volume and mixer tables shows
 	 * that they are similar enough when we shift
 	 * the mixer table down by 4 bits. The error
-	 * is minuscule, in just one item the error
+	 * is miniscule, in just one item the error
 	 * is 1, at a value of 0x07f17b (mixer table
 	 * value is 0x07f17a) */
 	tmp = tas_gaintable[left];

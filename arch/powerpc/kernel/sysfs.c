@@ -182,6 +182,41 @@ static SYSDEV_ATTR(mmcra, 0600, show_mmcra, store_mmcra);
 static SYSDEV_ATTR(spurr, 0600, show_spurr, NULL);
 static SYSDEV_ATTR(dscr, 0600, show_dscr, store_dscr);
 static SYSDEV_ATTR(purr, 0600, show_purr, store_purr);
+
+unsigned long dscr_default = 0;
+EXPORT_SYMBOL(dscr_default);
+
+static ssize_t show_dscr_default(struct sysdev_class *class,
+		struct sysdev_class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lx\n", dscr_default);
+}
+
+static ssize_t __used store_dscr_default(struct sysdev_class *class,
+		struct sysdev_class_attribute *attr, const char *buf,
+		size_t count)
+{
+	unsigned long val;
+	int ret = 0;
+	
+	ret = sscanf(buf, "%lx", &val);
+	if (ret != 1)
+		return -EINVAL;
+	dscr_default = val;
+
+	return count;
+}
+
+static SYSDEV_CLASS_ATTR(dscr_default, 0600,
+		show_dscr_default, store_dscr_default);
+
+static void sysfs_create_dscr_default(void)
+{
+	int err = 0;
+	if (cpu_has_feature(CPU_FTR_DSCR))
+		err = sysfs_create_file(&cpu_sysdev_class.kset.kobj,
+			&attr_dscr_default.attr);
+}
 #endif /* CONFIG_PPC64 */
 
 #ifdef HAS_PPC_PMC_PA6T
@@ -617,6 +652,9 @@ static int __init topology_init(void)
 		if (cpu_online(cpu))
 			register_cpu_online(cpu);
 	}
+#ifdef CONFIG_PPC64
+	sysfs_create_dscr_default();
+#endif /* CONFIG_PPC64 */
 
 	return 0;
 }

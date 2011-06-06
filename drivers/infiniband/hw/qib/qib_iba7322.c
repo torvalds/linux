@@ -3299,7 +3299,7 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 	/*
 	 * Keep chip from being accessed until we are ready.  Use
 	 * writeq() directly, to allow the write even though QIB_PRESENT
-	 * isn't' set.
+	 * isn't set.
 	 */
 	dd->flags &= ~(QIB_INITTED | QIB_PRESENT | QIB_BADINTR);
 	dd->flags |= QIB_DOING_RESET;
@@ -7534,7 +7534,8 @@ static int serdes_7322_init_new(struct qib_pportdata *ppd)
 	ibsd_wr_allchans(ppd, 4, (1 << 10), BMASK(10, 10));
 	tstart = get_jiffies_64();
 	while (chan_done &&
-	       !time_after64(tstart, tstart + msecs_to_jiffies(500))) {
+	       !time_after64(get_jiffies_64(),
+			tstart + msecs_to_jiffies(500))) {
 		msleep(20);
 		for (chan = 0; chan < SERDES_CHANS; ++chan) {
 			rxcaldone = ahb_mod(ppd->dd, IBSD(ppd->hw_pidx),

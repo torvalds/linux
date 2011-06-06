@@ -554,8 +554,7 @@ static void garp_release_port(struct net_device *dev)
 			return;
 	}
 	rcu_assign_pointer(dev->garp_port, NULL);
-	synchronize_rcu();
-	kfree(port);
+	kfree_rcu(port, rcu);
 }
 
 int garp_init_applicant(struct net_device *dev, struct garp_application *appl)
@@ -607,7 +606,6 @@ void garp_uninit_applicant(struct net_device *dev, struct garp_application *appl
 	ASSERT_RTNL();
 
 	rcu_assign_pointer(port->applicants[appl->type], NULL);
-	synchronize_rcu();
 
 	/* Delete timer and generate a final TRANSMIT_PDU event to flush out
 	 * all pending messages before the applicant is gone. */
@@ -617,7 +615,7 @@ void garp_uninit_applicant(struct net_device *dev, struct garp_application *appl
 	garp_queue_xmit(app);
 
 	dev_mc_del(dev, appl->proto.group_address);
-	kfree(app);
+	kfree_rcu(app, rcu);
 	garp_release_port(dev);
 }
 EXPORT_SYMBOL_GPL(garp_uninit_applicant);

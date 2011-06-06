@@ -1020,9 +1020,6 @@ struct net_device {
 	 *	part of the usual set specified in Space.c.
 	 */
 
-	unsigned char		if_port;	/* Selectable AUI, TP,..*/
-	unsigned char		dma;		/* DMA channel		*/
-
 	unsigned long		state;
 
 	struct list_head	dev_list;
@@ -1035,7 +1032,7 @@ struct net_device {
 	u32			hw_features;
 	/* user-requested features */
 	u32			wanted_features;
-	/* VLAN feature mask */
+	/* mask of features inheritable by VLAN devices */
 	u32			vlan_features;
 
 	/* Net device feature bits; if you change something,
@@ -1066,6 +1063,8 @@ struct net_device {
 #define NETIF_F_NTUPLE		(1 << 27) /* N-tuple filters supported */
 #define NETIF_F_RXHASH		(1 << 28) /* Receive hashing offload */
 #define NETIF_F_RXCSUM		(1 << 29) /* Receive checksumming offload */
+#define NETIF_F_NOCACHE_COPY	(1 << 30) /* Use no-cache copyfromuser */
+#define NETIF_F_LOOPBACK	(1 << 31) /* Enable loopback */
 
 	/* Segmentation offload features */
 #define NETIF_F_GSO_SHIFT	16
@@ -1079,9 +1078,9 @@ struct net_device {
 
 	/* Features valid for ethtool to change */
 	/* = all defined minus driver/device-class-related */
-#define NETIF_F_NEVER_CHANGE	(NETIF_F_HIGHDMA | NETIF_F_VLAN_CHALLENGED | \
+#define NETIF_F_NEVER_CHANGE	(NETIF_F_VLAN_CHALLENGED | \
 				  NETIF_F_LLTX | NETIF_F_NETNS_LOCAL)
-#define NETIF_F_ETHTOOL_BITS	(0x3f3fffff & ~NETIF_F_NEVER_CHANGE)
+#define NETIF_F_ETHTOOL_BITS	(0xff3fffff & ~NETIF_F_NEVER_CHANGE)
 
 	/* List of features with software fallbacks. */
 #define NETIF_F_GSO_SOFTWARE	(NETIF_F_TSO | NETIF_F_TSO_ECN | \
@@ -1095,9 +1094,14 @@ struct net_device {
 
 #define NETIF_F_ALL_TSO 	(NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 
+#define NETIF_F_ALL_FCOE	(NETIF_F_FCOE_CRC | NETIF_F_FCOE_MTU | \
+				 NETIF_F_FSO)
+
 #define NETIF_F_ALL_TX_OFFLOADS	(NETIF_F_ALL_CSUM | NETIF_F_SG | \
 				 NETIF_F_FRAGLIST | NETIF_F_ALL_TSO | \
-				 NETIF_F_SCTP_CSUM | NETIF_F_FCOE_CRC)
+				 NETIF_F_HIGHDMA | \
+				 NETIF_F_SCTP_CSUM | \
+				 NETIF_F_ALL_FCOE)
 
 	/*
 	 * If one device supports one of these features, then enable them
@@ -1105,7 +1109,12 @@ struct net_device {
 	 */
 #define NETIF_F_ONE_FOR_ALL	(NETIF_F_GSO_SOFTWARE | NETIF_F_GSO_ROBUST | \
 				 NETIF_F_SG | NETIF_F_HIGHDMA |		\
-				 NETIF_F_FRAGLIST)
+				 NETIF_F_FRAGLIST | NETIF_F_VLAN_CHALLENGED)
+	/*
+	 * If one device doesn't support one of these features, then disable it
+	 * for all in netdev_increment_features.
+	 */
+#define NETIF_F_ALL_FOR_ALL	(NETIF_F_NOCACHE_COPY | NETIF_F_FSO)
 
 	/* changeable features with no special hardware requirements */
 #define NETIF_F_SOFT_FEATURES	(NETIF_F_GSO | NETIF_F_GRO)
@@ -1134,12 +1143,15 @@ struct net_device {
 	const struct header_ops *header_ops;
 
 	unsigned int		flags;	/* interface flags (a la BSD)	*/
+	unsigned int		priv_flags; /* Like 'flags' but invisible to userspace. */
 	unsigned short		gflags;
-        unsigned int            priv_flags; /* Like 'flags' but invisible to userspace. */
 	unsigned short		padded;	/* How much padding added by alloc_netdev() */
 
 	unsigned char		operstate; /* RFC2863 operstate */
 	unsigned char		link_mode; /* mapping policy to operstate */
+
+	unsigned char		if_port;	/* Selectable AUI, TP,..*/
+	unsigned char		dma;		/* DMA channel		*/
 
 	unsigned int		mtu;	/* interface MTU value		*/
 	unsigned short		type;	/* interface hardware type	*/
@@ -1281,7 +1293,9 @@ struct net_device {
 	       NETREG_UNREGISTERED,	/* completed unregister todo */
 	       NETREG_RELEASED,		/* called free_netdev */
 	       NETREG_DUMMY,		/* dummy device for NAPI poll */
-	} reg_state:16;
+	} reg_state:8;
+
+	bool dismantle; /* device is going do be freed */
 
 	enum {
 		RTNL_LINK_INITIALIZED,
@@ -2513,6 +2527,7 @@ extern struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
 extern int		netdev_max_backlog;
 extern int		netdev_tstamp_prequeue;
 extern int		weight_p;
+extern int		bpf_jit_enable;
 extern int		netdev_set_master(struct net_device *dev, struct net_device *master);
 extern int netdev_set_bond_master(struct net_device *dev,
 				  struct net_device *master);
@@ -2550,7 +2565,9 @@ static inline u32 netdev_get_wanted_features(struct net_device *dev)
 }
 u32 netdev_increment_features(u32 all, u32 one, u32 mask);
 u32 netdev_fix_features(struct net_device *dev, u32 features);
+int __netdev_update_features(struct net_device *dev);
 void netdev_update_features(struct net_device *dev);
+void netdev_change_features(struct net_device *dev);
 
 void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 					struct net_device *dev);
@@ -2588,13 +2605,8 @@ static inline int netif_is_bond_slave(struct net_device *dev)
 
 extern struct pernet_operations __net_initdata loopback_net_ops;
 
-static inline int dev_ethtool_get_settings(struct net_device *dev,
-					   struct ethtool_cmd *cmd)
-{
-	if (!dev->ethtool_ops || !dev->ethtool_ops->get_settings)
-		return -EOPNOTSUPP;
-	return dev->ethtool_ops->get_settings(dev, cmd);
-}
+int dev_ethtool_get_settings(struct net_device *dev,
+			     struct ethtool_cmd *cmd);
 
 static inline u32 dev_ethtool_get_rx_csum(struct net_device *dev)
 {

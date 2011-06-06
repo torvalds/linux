@@ -221,6 +221,22 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			return -EINVAL;
 		}
 		break;
+	case RADEON_INFO_NUM_TILE_PIPES:
+		if (rdev->family >= CHIP_CAYMAN)
+			value = rdev->config.cayman.max_tile_pipes;
+		else if (rdev->family >= CHIP_CEDAR)
+			value = rdev->config.evergreen.max_tile_pipes;
+		else if (rdev->family >= CHIP_RV770)
+			value = rdev->config.rv770.max_tile_pipes;
+		else if (rdev->family >= CHIP_R600)
+			value = rdev->config.r600.max_tile_pipes;
+		else {
+			return -EINVAL;
+		}
+		break;
+	case RADEON_INFO_FUSION_GART_WORKING:
+		value = 1;
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;

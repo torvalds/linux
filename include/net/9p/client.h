@@ -60,7 +60,7 @@ enum p9_trans_status {
 };
 
 /**
- * enum p9_req_status_t - virtio request status
+ * enum p9_req_status_t - status of a request
  * @REQ_STATUS_IDLE: request slot unused
  * @REQ_STATUS_ALLOC: request has been allocated but not sent
  * @REQ_STATUS_UNSENT: request waiting to be sent
@@ -218,8 +218,8 @@ void p9_client_disconnect(struct p9_client *clnt);
 void p9_client_begin_disconnect(struct p9_client *clnt);
 struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 					char *uname, u32 n_uname, char *aname);
-struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
-								int clone);
+struct p9_fid *p9_client_walk(struct p9_fid *oldfid, uint16_t nwname,
+		char **wnames, int clone);
 int p9_client_open(struct p9_fid *fid, int mode);
 int p9_client_fcreate(struct p9_fid *fid, char *name, u32 perm, int mode,
 							char *extension);
@@ -230,7 +230,6 @@ int p9_client_create_dotl(struct p9_fid *ofid, char *name, u32 flags, u32 mode,
 		gid_t gid, struct p9_qid *qid);
 int p9_client_clunk(struct p9_fid *fid);
 int p9_client_fsync(struct p9_fid *fid, int datasync);
-int p9_client_sync_fs(struct p9_fid *fid);
 int p9_client_remove(struct p9_fid *fid);
 int p9_client_read(struct p9_fid *fid, char *data, char __user *udata,
 							u64 offset, u32 count);

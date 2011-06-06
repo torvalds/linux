@@ -22,7 +22,6 @@
 #include <linux/leds.h>
 #include <linux/workqueue.h>
 #include <linux/mfd/mc13783.h>
-#include <linux/mfd/core.h>
 #include <linux/slab.h>
 
 struct mc13783_led {
@@ -184,7 +183,7 @@ static int __devinit mc13783_led_setup(struct mc13783_led *led, int max_current)
 
 static int __devinit mc13783_leds_prepare(struct platform_device *pdev)
 {
-	struct mc13783_leds_platform_data *pdata = mfd_get_data(pdev);
+	struct mc13783_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct mc13783 *dev = dev_get_drvdata(pdev->dev.parent);
 	int ret = 0;
 	int reg = 0;
@@ -235,7 +234,7 @@ static int __devinit mc13783_leds_prepare(struct platform_device *pdev)
 							MC13783_LED_Cx_PERIOD;
 
 	if (pdata->flags & MC13783_LED_TRIODE_TC3)
-		reg |= MC13783_LED_Cx_TRIODE_TC_BIT;;
+		reg |= MC13783_LED_Cx_TRIODE_TC_BIT;
 
 	ret = mc13783_reg_write(dev, MC13783_REG_LED_CONTROL_5, reg);
 	if (ret)
@@ -265,7 +264,7 @@ out:
 
 static int __devinit mc13783_led_probe(struct platform_device *pdev)
 {
-	struct mc13783_leds_platform_data *pdata = mfd_get_data(pdev);
+	struct mc13783_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct mc13783_led_platform_data *led_cur;
 	struct mc13783_led *led, *led_dat;
 	int ret, i;
@@ -352,7 +351,7 @@ err_free:
 
 static int __devexit mc13783_led_remove(struct platform_device *pdev)
 {
-	struct mc13783_leds_platform_data *pdata = mfd_get_data(pdev);
+	struct mc13783_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct mc13783_led *led = platform_get_drvdata(pdev);
 	struct mc13783 *dev = dev_get_drvdata(pdev->dev.parent);
 	int i;

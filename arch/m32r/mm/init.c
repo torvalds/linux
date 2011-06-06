@@ -35,8 +35,6 @@ extern char __init_begin, __init_end;
 
 pgd_t swapper_pg_dir[1024];
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
 /*
  * Cache of MMU context last used.
  */

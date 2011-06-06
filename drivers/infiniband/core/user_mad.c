@@ -1176,6 +1176,11 @@ static void ib_umad_remove_one(struct ib_device *device)
 	kref_put(&umad_dev->ref, ib_umad_release_dev);
 }
 
+static char *umad_devnode(struct device *dev, mode_t *mode)
+{
+	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
+}
+
 static int __init ib_umad_init(void)
 {
 	int ret;
@@ -1193,6 +1198,8 @@ static int __init ib_umad_init(void)
 		printk(KERN_ERR "user_mad: couldn't create class infiniband_mad\n");
 		goto out_chrdev;
 	}
+
+	umad_class->devnode = umad_devnode;
 
 	ret = class_create_file(umad_class, &class_attr_abi_version.attr);
 	if (ret) {

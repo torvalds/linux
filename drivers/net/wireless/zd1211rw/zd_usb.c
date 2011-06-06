@@ -1893,10 +1893,10 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 
 	dev_dbg_f(zd_usb_dev(usb), "value %#09x bits %d\n", value, bits);
 
-	r = zd_usb_ioread16(usb, &bit_value_template, CR203);
+	r = zd_usb_ioread16(usb, &bit_value_template, ZD_CR203);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error %d: Couldn't read CR203\n", r);
+			"error %d: Couldn't read ZD_CR203\n", r);
 		return r;
 	}
 	bit_value_template &= ~(RF_IF_LE|RF_CLK|RF_DATA);

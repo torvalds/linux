@@ -974,3 +974,159 @@ void drm_mode_connector_list_update(struct drm_connector *connector)
 	}
 }
 EXPORT_SYMBOL(drm_mode_connector_list_update);
+
+/**
+ * drm_mode_parse_command_line_for_connector - parse command line for connector
+ * @mode_option - per connector mode option
+ * @connector - connector to parse line for
+ *
+ * This parses the connector specific then generic command lines for
+ * modes and options to configure the connector.
+ *
+ * This uses the same parameters as the fb modedb.c, except for extra
+ *	<xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
+ *
+ * enable/enable Digital/disable bit at the end
+ */
+bool drm_mode_parse_command_line_for_connector(const char *mode_option,
+					       struct drm_connector *connector,
+					       struct drm_cmdline_mode *mode)
+{
+	const char *name;
+	unsigned int namelen;
+	int res_specified = 0, bpp_specified = 0, refresh_specified = 0;
+	unsigned int xres = 0, yres = 0, bpp = 32, refresh = 0;
+	int yres_specified = 0, cvt = 0, rb = 0, interlace = 0, margins = 0;
+	int i;
+	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
+
+#ifdef CONFIG_FB
+	if (!mode_option)
+		mode_option = fb_mode_option;
+#endif
+
+	if (!mode_option) {
+		mode->specified = false;
+		return false;
+	}
+
+	name = mode_option;
+	namelen = strlen(name);
+	for (i = namelen-1; i >= 0; i--) {
+		switch (name[i]) {
+		case '@':
+			namelen = i;
+			if (!refresh_specified && !bpp_specified &&
+			    !yres_specified) {
+				refresh = simple_strtol(&name[i+1], NULL, 10);
+				refresh_specified = 1;
+				if (cvt || rb)
+					cvt = 0;
+			} else
+				goto done;
+			break;
+		case '-':
+			namelen = i;
+			if (!bpp_specified && !yres_specified) {
+				bpp = simple_strtol(&name[i+1], NULL, 10);
+				bpp_specified = 1;
+				if (cvt || rb)
+					cvt = 0;
+			} else
+				goto done;
+			break;
+		case 'x':
+			if (!yres_specified) {
+				yres = simple_strtol(&name[i+1], NULL, 10);
+				yres_specified = 1;
+			} else
+				goto done;
+		case '0' ... '9':
+			break;
+		case 'M':
+			if (!yres_specified)
+				cvt = 1;
+			break;
+		case 'R':
+			if (cvt)
+				rb = 1;
+			break;
+		case 'm':
+			if (!cvt)
+				margins = 1;
+			break;
+		case 'i':
+			if (!cvt)
+				interlace = 1;
+			break;
+		case 'e':
+			force = DRM_FORCE_ON;
+			break;
+		case 'D':
+			if ((connector->connector_type != DRM_MODE_CONNECTOR_DVII) &&
+			    (connector->connector_type != DRM_MODE_CONNECTOR_HDMIB))
+				force = DRM_FORCE_ON;
+			else
+				force = DRM_FORCE_ON_DIGITAL;
+			break;
+		case 'd':
+			force = DRM_FORCE_OFF;
+			break;
+		default:
+			goto done;
+		}
+	}
+	if (i < 0 && yres_specified) {
+		xres = simple_strtol(name, NULL, 10);
+		res_specified = 1;
+	}
+done:
+	if (res_specified) {
+		mode->specified = true;
+		mode->xres = xres;
+		mode->yres = yres;
+	}
+
+	if (refresh_specified) {
+		mode->refresh_specified = true;
+		mode->refresh = refresh;
+	}
+
+	if (bpp_specified) {
+		mode->bpp_specified = true;
+		mode->bpp = bpp;
+	}
+	mode->rb = rb ? true : false;
+	mode->cvt = cvt  ? true : false;
+	mode->interlace = interlace ? true : false;
+	mode->force = force;
+
+	return true;
+}
+EXPORT_SYMBOL(drm_mode_parse_command_line_for_connector);
+
+struct drm_display_mode *
+drm_mode_create_from_cmdline_mode(struct drm_device *dev,
+				  struct drm_cmdline_mode *cmd)
+{
+	struct drm_display_mode *mode;
+
+	if (cmd->cvt)
+		mode = drm_cvt_mode(dev,
+				    cmd->xres, cmd->yres,
+				    cmd->refresh_specified ? cmd->refresh : 60,
+				    cmd->rb, cmd->interlace,
+				    cmd->margins);
+	else
+		mode = drm_gtf_mode(dev,
+				    cmd->xres, cmd->yres,
+				    cmd->refresh_specified ? cmd->refresh : 60,
+				    cmd->interlace,
+				    cmd->margins);
+	if (!mode)
+		return NULL;
+
+	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
+	return mode;
+}
+EXPORT_SYMBOL(drm_mode_create_from_cmdline_mode);

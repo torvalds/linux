@@ -6,24 +6,28 @@
  *
  * Sample output:
 
-   $ perf stat ~/hackbench 10
-   Time: 0.104
+   $ perf stat ./hackbench 10
 
-    Performance counter stats for '/home/mingo/hackbench':
+  Time: 0.118
 
-       1255.538611  task clock ticks     #      10.143 CPU utilization factor
-             54011  context switches     #       0.043 M/sec
-               385  CPU migrations       #       0.000 M/sec
-             17755  pagefaults           #       0.014 M/sec
-        3808323185  CPU cycles           #    3033.219 M/sec
-        1575111190  instructions         #    1254.530 M/sec
-          17367895  cache references     #      13.833 M/sec
-           7674421  cache misses         #       6.112 M/sec
+  Performance counter stats for './hackbench 10':
 
-    Wall-clock time elapsed:   123.786620 msecs
+       1708.761321 task-clock                #   11.037 CPUs utilized
+            41,190 context-switches          #    0.024 M/sec
+             6,735 CPU-migrations            #    0.004 M/sec
+            17,318 page-faults               #    0.010 M/sec
+     5,205,202,243 cycles                    #    3.046 GHz
+     3,856,436,920 stalled-cycles-frontend   #   74.09% frontend cycles idle
+     1,600,790,871 stalled-cycles-backend    #   30.75% backend  cycles idle
+     2,603,501,247 instructions              #    0.50  insns per cycle
+                                             #    1.48  stalled cycles per insn
+       484,357,498 branches                  #  283.455 M/sec
+         6,388,934 branch-misses             #    1.32% of all branches
+
+        0.154822978  seconds time elapsed
 
  *
- * Copyright (C) 2008, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
+ * Copyright (C) 2008-2011, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
  *
  * Improvements and fixes by:
  *
@@ -46,6 +50,7 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/debug.h"
+#include "util/color.h"
 #include "util/header.h"
 #include "util/cpumap.h"
 #include "util/thread.h"
@@ -65,13 +70,106 @@ static struct perf_event_attr default_attrs[] = {
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_PAGE_FAULTS		},
 
   { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_CPU_CYCLES		},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_STALLED_CYCLES_FRONTEND	},
+  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_STALLED_CYCLES_BACKEND	},
   { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_INSTRUCTIONS		},
   { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_BRANCH_INSTRUCTIONS	},
   { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_BRANCH_MISSES		},
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_CACHE_REFERENCES	},
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_CACHE_MISSES		},
 
 };
+
+/*
+ * Detailed stats (-d), covering the L1 and last level data caches:
+ */
+static struct perf_event_attr detailed_attrs[] = {
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_L1D		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_L1D		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_LL			<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_LL			<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
+};
+
+/*
+ * Very detailed stats (-d -d), covering the instruction cache and the TLB caches:
+ */
+static struct perf_event_attr very_detailed_attrs[] = {
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_L1I		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_L1I		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_DTLB		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_DTLB		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_ITLB		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_ITLB		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
+
+};
+
+/*
+ * Very, very detailed stats (-d -d -d), adding prefetch events:
+ */
+static struct perf_event_attr very_very_detailed_attrs[] = {
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_L1D		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_PREFETCH	<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
+
+  { .type = PERF_TYPE_HW_CACHE,
+    .config =
+	 PERF_COUNT_HW_CACHE_L1D		<<  0  |
+	(PERF_COUNT_HW_CACHE_OP_PREFETCH	<<  8) |
+	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
+};
+
+
 
 struct perf_evlist		*evsel_list;
 
@@ -86,6 +184,8 @@ static pid_t			target_pid			= -1;
 static pid_t			target_tid			= -1;
 static pid_t			child_pid			= -1;
 static bool			null_run			=  false;
+static int			detailed_run			=  0;
+static bool			sync_run			=  false;
 static bool			big_num				=  true;
 static int			big_num_opt			=  -1;
 static const char		*cpu_list;
@@ -156,7 +256,15 @@ static double stddev_stats(struct stats *stats)
 
 struct stats			runtime_nsecs_stats[MAX_NR_CPUS];
 struct stats			runtime_cycles_stats[MAX_NR_CPUS];
+struct stats			runtime_stalled_cycles_front_stats[MAX_NR_CPUS];
+struct stats			runtime_stalled_cycles_back_stats[MAX_NR_CPUS];
 struct stats			runtime_branches_stats[MAX_NR_CPUS];
+struct stats			runtime_cacherefs_stats[MAX_NR_CPUS];
+struct stats			runtime_l1_dcache_stats[MAX_NR_CPUS];
+struct stats			runtime_l1_icache_stats[MAX_NR_CPUS];
+struct stats			runtime_ll_cache_stats[MAX_NR_CPUS];
+struct stats			runtime_itlb_cache_stats[MAX_NR_CPUS];
+struct stats			runtime_dtlb_cache_stats[MAX_NR_CPUS];
 struct stats			walltime_nsecs_stats;
 
 static int create_perf_stat_counter(struct perf_evsel *evsel)
@@ -167,16 +275,17 @@ static int create_perf_stat_counter(struct perf_evsel *evsel)
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
 				    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
-	if (system_wide)
-		return perf_evsel__open_per_cpu(evsel, evsel_list->cpus, false, false);
-
 	attr->inherit = !no_inherit;
+
+	if (system_wide)
+		return perf_evsel__open_per_cpu(evsel, evsel_list->cpus, false);
+
 	if (target_pid == -1 && target_tid == -1) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
 
-	return perf_evsel__open_per_thread(evsel, evsel_list->threads, false, false);
+	return perf_evsel__open_per_thread(evsel, evsel_list->threads, false);
 }
 
 /*
@@ -189,6 +298,37 @@ static inline int nsec_counter(struct perf_evsel *evsel)
 		return 1;
 
 	return 0;
+}
+
+/*
+ * Update various tracking values we maintain to print
+ * more semantic information such as miss/hit ratios,
+ * instruction rates, etc:
+ */
+static void update_shadow_stats(struct perf_evsel *counter, u64 *count)
+{
+	if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
+		update_stats(&runtime_nsecs_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
+		update_stats(&runtime_cycles_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_FRONTEND))
+		update_stats(&runtime_stalled_cycles_front_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_BACKEND))
+		update_stats(&runtime_stalled_cycles_back_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
+		update_stats(&runtime_branches_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
+		update_stats(&runtime_cacherefs_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_L1D))
+		update_stats(&runtime_l1_dcache_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_L1I))
+		update_stats(&runtime_l1_icache_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_LL))
+		update_stats(&runtime_ll_cache_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_DTLB))
+		update_stats(&runtime_dtlb_cache_stats[0], count[0]);
+	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_ITLB))
+		update_stats(&runtime_itlb_cache_stats[0], count[0]);
 }
 
 /*
@@ -216,12 +356,7 @@ static int read_counter_aggr(struct perf_evsel *counter)
 	/*
 	 * Save the full runtime - to allow normalization during printout:
 	 */
-	if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
-		update_stats(&runtime_nsecs_stats[0], count[0]);
-	if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
-		update_stats(&runtime_cycles_stats[0], count[0]);
-	if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
-		update_stats(&runtime_branches_stats[0], count[0]);
+	update_shadow_stats(counter, count);
 
 	return 0;
 }
@@ -241,12 +376,7 @@ static int read_counter(struct perf_evsel *counter)
 
 		count = counter->counts->cpu[cpu].values;
 
-		if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
-			update_stats(&runtime_nsecs_stats[cpu], count[0]);
-		if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
-			update_stats(&runtime_cycles_stats[cpu], count[0]);
-		if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
-			update_stats(&runtime_branches_stats[cpu], count[0]);
+		update_shadow_stats(counter, count);
 	}
 
 	return 0;
@@ -314,13 +444,18 @@ static int run_perf_stat(int argc __used, const char **argv)
 
 	list_for_each_entry(counter, &evsel_list->entries, node) {
 		if (create_perf_stat_counter(counter) < 0) {
-			if (errno == -EPERM || errno == -EACCES) {
+			if (errno == EINVAL || errno == ENOSYS || errno == ENOENT) {
+				if (verbose)
+					ui__warning("%s event is not supported by the kernel.\n",
+						    event_name(counter));
+				continue;
+			}
+
+			if (errno == EPERM || errno == EACCES) {
 				error("You may not have permission to collect %sstats.\n"
 				      "\t Consider tweaking"
 				      " /proc/sys/kernel/perf_event_paranoid or running as root.",
 				      system_wide ? "system-wide " : "");
-			} else if (errno == ENOENT) {
-				error("%s event is not supported. ", event_name(counter));
 			} else {
 				error("open_counter returned with %d (%s). "
 				      "/bin/dmesg may provide additional information.\n",
@@ -371,6 +506,16 @@ static int run_perf_stat(int argc __used, const char **argv)
 	return WEXITSTATUS(status);
 }
 
+static void print_noise_pct(double total, double avg)
+{
+	double pct = 0.0;
+
+	if (avg)
+		pct = 100.0*total/avg;
+
+	fprintf(stderr, "  ( +-%6.2f%% )", pct);
+}
+
 static void print_noise(struct perf_evsel *evsel, double avg)
 {
 	struct perf_stat *ps;
@@ -379,15 +524,14 @@ static void print_noise(struct perf_evsel *evsel, double avg)
 		return;
 
 	ps = evsel->priv;
-	fprintf(stderr, "   ( +- %7.3f%% )",
-			100 * stddev_stats(&ps->res_stats[0]) / avg);
+	print_noise_pct(stddev_stats(&ps->res_stats[0]), avg);
 }
 
 static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 {
 	double msecs = avg / 1e6;
 	char cpustr[16] = { '\0', };
-	const char *fmt = csv_output ? "%s%.6f%s%s" : "%s%18.6f%s%-24s";
+	const char *fmt = csv_output ? "%s%.6f%s%s" : "%s%18.6f%s%-25s";
 
 	if (no_aggr)
 		sprintf(cpustr, "CPU%*d%s",
@@ -403,8 +547,191 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 		return;
 
 	if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK))
-		fprintf(stderr, " # %10.3f CPUs ",
-				avg / avg_stats(&walltime_nsecs_stats));
+		fprintf(stderr, " # %8.3f CPUs utilized          ", avg / avg_stats(&walltime_nsecs_stats));
+}
+
+static void print_stalled_cycles_frontend(int cpu, struct perf_evsel *evsel __used, double avg)
+{
+	double total, ratio = 0.0;
+	const char *color;
+
+	total = avg_stats(&runtime_cycles_stats[cpu]);
+
+	if (total)
+		ratio = avg / total * 100.0;
+
+	color = PERF_COLOR_NORMAL;
+	if (ratio > 50.0)
+		color = PERF_COLOR_RED;
+	else if (ratio > 30.0)
+		color = PERF_COLOR_MAGENTA;
+	else if (ratio > 10.0)
+		color = PERF_COLOR_YELLOW;
+
+	fprintf(stderr, " #  ");
+	color_fprintf(stderr, color, "%6.2f%%", ratio);
+	fprintf(stderr, " frontend cycles idle   ");
+}
+
+static void print_stalled_cycles_backend(int cpu, struct perf_evsel *evsel __used, double avg)
+{
+	double total, ratio = 0.0;
+	const char *color;
+
+	total = avg_stats(&runtime_cycles_stats[cpu]);
+
+	if (total)
+		ratio = avg / total * 100.0;
+
+	color = PERF_COLOR_NORMAL;
+	if (ratio > 75.0)
+		color = PERF_COLOR_RED;
+	else if (ratio > 50.0)
+		color = PERF_COLOR_MAGENTA;
+	else if (ratio > 20.0)
+		color = PERF_COLOR_YELLOW;
+
+	fprintf(stderr, " #  ");
+	color_fprintf(stderr, color, "%6.2f%%", ratio);
+	fprintf(stderr, " backend  cycles idle   ");
+}
+
+static void print_branch_misses(int cpu, struct perf_evsel *evsel __used, double avg)
+{
+	double total, ratio = 0.0;
+	const char *color;
+
+	total = avg_stats(&runtime_branches_stats[cpu]);
+
+	if (total)
+		ratio = avg / total * 100.0;
+
+	color = PERF_COLOR_NORMAL;
+	if (ratio > 20.0)
+		color = PERF_COLOR_RED;
+	else if (ratio > 10.0)
+		color = PERF_COLOR_MAGENTA;
+	else if (ratio > 5.0)
+		color = PERF_COLOR_YELLOW;
+
+	fprintf(stderr, " #  ");
+	color_fprintf(stderr, color, "%6.2f%%", ratio);
+	fprintf(stderr, " of all branches        ");
+}
+
+static void print_l1_dcache_misses(int cpu, struct perf_evsel *evsel __used, double avg)
+{
+	double total, ratio = 0.0;
+	const char *color;
+
+	total = avg_stats(&runtime_l1_dcache_stats[cpu]);
+
+	if (total)
+		ratio = avg / total * 100.0;
+
+	color = PERF_COLOR_NORMAL;
+	if (ratio > 20.0)
+		color = PERF_COLOR_RED;
+	else if (ratio > 10.0)
+		color = PERF_COLOR_MAGENTA;
+	else if (ratio > 5.0)
+		color = PERF_COLOR_YELLOW;
+
+	fprintf(stderr, " #  ");
+	color_fprintf(stderr, color, "%6.2f%%", ratio);
+	fprintf(stderr, " of all L1-dcache hits  ");
+}
+
+static void print_l1_icache_misses(int cpu, struct perf_evsel *evsel __used, double avg)
+{
+	double total, ratio = 0.0;
+	const char *color;
+
+	total = avg_stats(&runtime_l1_icache_stats[cpu]);
+
+	if (total)
+		ratio = avg / total * 100.0;
+
+	color = PERF_COLOR_NORMAL;
+	if (ratio > 20.0)
+		color = PERF_COLOR_RED;
+	else if (ratio > 10.0)
+		color = PERF_COLOR_MAGENTA;
+	else if (ratio > 5.0)
+		color = PERF_COLOR_YELLOW;
+
+	fprintf(stderr, " #  ");
+	color_fprintf(stderr, color, "%6.2f%%", ratio);
+	fprintf(stderr, " of all L1-icache hits  ");
+}
+
+static void print_dtlb_cache_misses(int cpu, struct perf_evsel *evsel __used, double avg)
+{
+	double total, ratio = 0.0;
+	const char *color;
+
+	total = avg_stats(&runtime_dtlb_cache_stats[cpu]);
+
+	if (total)
+		ratio = avg / total * 100.0;
+
+	color = PERF_COLOR_NORMAL;
+	if (ratio > 20.0)
+		color = PERF_COLOR_RED;
+	else if (ratio > 10.0)
+		color = PERF_COLOR_MAGENTA;
+	else if (ratio > 5.0)
+		color = PERF_COLOR_YELLOW;
+
+	fprintf(stderr, " #  ");
+	color_fprintf(stderr, color, "%6.2f%%", ratio);
+	fprintf(stderr, " of all dTLB cache hits ");
+}
+
+static void print_itlb_cache_misses(int cpu, struct perf_evsel *evsel __used, double avg)
+{
+	double total, ratio = 0.0;
+	const char *color;
+
+	total = avg_stats(&runtime_itlb_cache_stats[cpu]);
+
+	if (total)
+		ratio = avg / total * 100.0;
+
+	color = PERF_COLOR_NORMAL;
+	if (ratio > 20.0)
+		color = PERF_COLOR_RED;
+	else if (ratio > 10.0)
+		color = PERF_COLOR_MAGENTA;
+	else if (ratio > 5.0)
+		color = PERF_COLOR_YELLOW;
+
+	fprintf(stderr, " #  ");
+	color_fprintf(stderr, color, "%6.2f%%", ratio);
+	fprintf(stderr, " of all iTLB cache hits ");
+}
+
+static void print_ll_cache_misses(int cpu, struct perf_evsel *evsel __used, double avg)
+{
+	double total, ratio = 0.0;
+	const char *color;
+
+	total = avg_stats(&runtime_ll_cache_stats[cpu]);
+
+	if (total)
+		ratio = avg / total * 100.0;
+
+	color = PERF_COLOR_NORMAL;
+	if (ratio > 20.0)
+		color = PERF_COLOR_RED;
+	else if (ratio > 10.0)
+		color = PERF_COLOR_MAGENTA;
+	else if (ratio > 5.0)
+		color = PERF_COLOR_YELLOW;
+
+	fprintf(stderr, " #  ");
+	color_fprintf(stderr, color, "%6.2f%%", ratio);
+	fprintf(stderr, " of all LL-cache hits   ");
 }
 
 static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
@@ -416,9 +743,9 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 	if (csv_output)
 		fmt = "%s%.0f%s%s";
 	else if (big_num)
-		fmt = "%s%'18.0f%s%-24s";
+		fmt = "%s%'18.0f%s%-25s";
 	else
-		fmt = "%s%18.0f%s%-24s";
+		fmt = "%s%18.0f%s%-25s";
 
 	if (no_aggr)
 		sprintf(cpustr, "CPU%*d%s",
@@ -441,23 +768,83 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 		if (total)
 			ratio = avg / total;
 
-		fprintf(stderr, " # %10.3f IPC  ", ratio);
+		fprintf(stderr, " #   %5.2f  insns per cycle        ", ratio);
+
+		total = avg_stats(&runtime_stalled_cycles_front_stats[cpu]);
+		total = max(total, avg_stats(&runtime_stalled_cycles_back_stats[cpu]));
+
+		if (total && avg) {
+			ratio = total / avg;
+			fprintf(stderr, "\n                                             #   %5.2f  stalled cycles per insn", ratio);
+		}
+
 	} else if (perf_evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES) &&
 			runtime_branches_stats[cpu].n != 0) {
-		total = avg_stats(&runtime_branches_stats[cpu]);
+		print_branch_misses(cpu, evsel, avg);
+	} else if (
+		evsel->attr.type == PERF_TYPE_HW_CACHE &&
+		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_L1D |
+					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
+					((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16)) &&
+			runtime_l1_dcache_stats[cpu].n != 0) {
+		print_l1_dcache_misses(cpu, evsel, avg);
+	} else if (
+		evsel->attr.type == PERF_TYPE_HW_CACHE &&
+		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_L1I |
+					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
+					((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16)) &&
+			runtime_l1_icache_stats[cpu].n != 0) {
+		print_l1_icache_misses(cpu, evsel, avg);
+	} else if (
+		evsel->attr.type == PERF_TYPE_HW_CACHE &&
+		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_DTLB |
+					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
+					((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16)) &&
+			runtime_dtlb_cache_stats[cpu].n != 0) {
+		print_dtlb_cache_misses(cpu, evsel, avg);
+	} else if (
+		evsel->attr.type == PERF_TYPE_HW_CACHE &&
+		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_ITLB |
+					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
+					((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16)) &&
+			runtime_itlb_cache_stats[cpu].n != 0) {
+		print_itlb_cache_misses(cpu, evsel, avg);
+	} else if (
+		evsel->attr.type == PERF_TYPE_HW_CACHE &&
+		evsel->attr.config ==  ( PERF_COUNT_HW_CACHE_LL |
+					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
+					((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16)) &&
+			runtime_ll_cache_stats[cpu].n != 0) {
+		print_ll_cache_misses(cpu, evsel, avg);
+	} else if (perf_evsel__match(evsel, HARDWARE, HW_CACHE_MISSES) &&
+			runtime_cacherefs_stats[cpu].n != 0) {
+		total = avg_stats(&runtime_cacherefs_stats[cpu]);
 
 		if (total)
 			ratio = avg * 100 / total;
 
-		fprintf(stderr, " # %10.3f %%    ", ratio);
+		fprintf(stderr, " # %8.3f %% of all cache refs    ", ratio);
 
+	} else if (perf_evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES_FRONTEND)) {
+		print_stalled_cycles_frontend(cpu, evsel, avg);
+	} else if (perf_evsel__match(evsel, HARDWARE, HW_STALLED_CYCLES_BACKEND)) {
+		print_stalled_cycles_backend(cpu, evsel, avg);
+	} else if (perf_evsel__match(evsel, HARDWARE, HW_CPU_CYCLES)) {
+		total = avg_stats(&runtime_nsecs_stats[cpu]);
+
+		if (total)
+			ratio = 1.0 * avg / total;
+
+		fprintf(stderr, " # %8.3f GHz                    ", ratio);
 	} else if (runtime_nsecs_stats[cpu].n != 0) {
 		total = avg_stats(&runtime_nsecs_stats[cpu]);
 
 		if (total)
 			ratio = 1000.0 * avg / total;
 
-		fprintf(stderr, " # %10.3f M/sec", ratio);
+		fprintf(stderr, " # %8.3f M/sec                  ", ratio);
+	} else {
+		fprintf(stderr, "                                   ");
 	}
 }
 
@@ -504,8 +891,7 @@ static void print_counter_aggr(struct perf_evsel *counter)
 		avg_enabled = avg_stats(&ps->res_stats[1]);
 		avg_running = avg_stats(&ps->res_stats[2]);
 
-		fprintf(stderr, "  (scaled from %.2f%%)",
-				100 * avg_running / avg_enabled);
+		fprintf(stderr, " [%5.2f%%]", 100 * avg_running / avg_enabled);
 	}
 	fprintf(stderr, "\n");
 }
@@ -547,10 +933,8 @@ static void print_counter(struct perf_evsel *counter)
 		if (!csv_output) {
 			print_noise(counter, 1.0);
 
-			if (run != ena) {
-				fprintf(stderr, "  (scaled from %.2f%%)",
-					100.0 * run / ena);
-			}
+			if (run != ena)
+				fprintf(stderr, "  (%.2f%%)", 100.0 * run / ena);
 		}
 		fputc('\n', stderr);
 	}
@@ -590,13 +974,14 @@ static void print_stat(int argc, const char **argv)
 	}
 
 	if (!csv_output) {
-		fprintf(stderr, "\n");
-		fprintf(stderr, " %18.9f  seconds time elapsed",
+		if (!null_run)
+			fprintf(stderr, "\n");
+		fprintf(stderr, " %17.9f seconds time elapsed",
 				avg_stats(&walltime_nsecs_stats)/1e9);
 		if (run_count > 1) {
-			fprintf(stderr, "   ( +- %7.3f%% )",
-				100*stddev_stats(&walltime_nsecs_stats) /
-				avg_stats(&walltime_nsecs_stats));
+			fprintf(stderr, "                                        ");
+			print_noise_pct(stddev_stats(&walltime_nsecs_stats),
+					avg_stats(&walltime_nsecs_stats));
 		}
 		fprintf(stderr, "\n\n");
 	}
@@ -658,6 +1043,10 @@ static const struct option options[] = {
 		    "repeat command and print average + stddev (max: 100)"),
 	OPT_BOOLEAN('n', "null", &null_run,
 		    "null run - dont start any counters"),
+	OPT_INCR('d', "detailed", &detailed_run,
+		    "detailed run - start a lot of events"),
+	OPT_BOOLEAN('S', "sync", &sync_run,
+		    "call sync() before starting a run"),
 	OPT_CALLBACK_NOOPT('B', "big-num", NULL, NULL, 
 			   "print large numbers with thousands\' separators",
 			   stat__set_big_num),
@@ -672,6 +1061,70 @@ static const struct option options[] = {
 		     parse_cgroups),
 	OPT_END()
 };
+
+/*
+ * Add default attributes, if there were no attributes specified or
+ * if -d/--detailed, -d -d or -d -d -d is used:
+ */
+static int add_default_attributes(void)
+{
+	struct perf_evsel *pos;
+	size_t attr_nr = 0;
+	size_t c;
+
+	/* Set attrs if no event is selected and !null_run: */
+	if (null_run)
+		return 0;
+
+	if (!evsel_list->nr_entries) {
+		for (c = 0; c < ARRAY_SIZE(default_attrs); c++) {
+			pos = perf_evsel__new(default_attrs + c, c + attr_nr);
+			if (pos == NULL)
+				return -1;
+			perf_evlist__add(evsel_list, pos);
+		}
+		attr_nr += c;
+	}
+
+	/* Detailed events get appended to the event list: */
+
+	if (detailed_run <  1)
+		return 0;
+
+	/* Append detailed run extra attributes: */
+	for (c = 0; c < ARRAY_SIZE(detailed_attrs); c++) {
+		pos = perf_evsel__new(detailed_attrs + c, c + attr_nr);
+		if (pos == NULL)
+			return -1;
+		perf_evlist__add(evsel_list, pos);
+	}
+	attr_nr += c;
+
+	if (detailed_run < 2)
+		return 0;
+
+	/* Append very detailed run extra attributes: */
+	for (c = 0; c < ARRAY_SIZE(very_detailed_attrs); c++) {
+		pos = perf_evsel__new(very_detailed_attrs + c, c + attr_nr);
+		if (pos == NULL)
+			return -1;
+		perf_evlist__add(evsel_list, pos);
+	}
+
+	if (detailed_run < 3)
+		return 0;
+
+	/* Append very, very detailed run extra attributes: */
+	for (c = 0; c < ARRAY_SIZE(very_very_detailed_attrs); c++) {
+		pos = perf_evsel__new(very_very_detailed_attrs + c, c + attr_nr);
+		if (pos == NULL)
+			return -1;
+		perf_evlist__add(evsel_list, pos);
+	}
+
+
+	return 0;
+}
 
 int cmd_stat(int argc, const char **argv, const char *prefix __used)
 {
@@ -718,17 +1171,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(stat_usage, options);
 	}
 
-	/* Set attrs and nr_counters if no event is selected and !null_run */
-	if (!null_run && !evsel_list->nr_entries) {
-		size_t c;
-
-		for (c = 0; c < ARRAY_SIZE(default_attrs); ++c) {
-			pos = perf_evsel__new(&default_attrs[c], c);
-			if (pos == NULL)
-				goto out;
-			perf_evlist__add(evsel_list, pos);
-		}
-	}
+	if (add_default_attributes())
+		goto out;
 
 	if (target_pid != -1)
 		target_tid = target_pid;
@@ -772,6 +1216,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	for (run_idx = 0; run_idx < run_count; run_idx++) {
 		if (run_count != 1 && verbose)
 			fprintf(stderr, "[ perf stat: executing run #%d ... ]\n", run_idx + 1);
+
+		if (sync_run)
+			sync();
+
 		status = run_perf_stat(argc, argv);
 	}
 

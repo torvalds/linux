@@ -1418,7 +1418,7 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 	default:
 		return -EINVAL;
 		break;
-	};
+	}
 	return 0;
 }
 

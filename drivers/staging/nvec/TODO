@@ -1,0 +1,8 @@
+ToDo list (incomplete, unordered)
+	- convert mouse, keyboard, and power to platform devices
+	- add copyright / driver author / license
+	- add compile as module support
+	- move nvec devices to mfd cells?
+	- adjust to kernel style
+
+

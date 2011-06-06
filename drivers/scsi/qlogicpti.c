@@ -1292,8 +1292,10 @@ static struct scsi_host_template qpti_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 };
 
+static const struct of_device_id qpti_match[];
 static int __devinit qpti_sbus_probe(struct platform_device *op)
 {
+	const struct of_device_id *match;
 	struct scsi_host_template *tpnt;
 	struct device_node *dp = op->dev.of_node;
 	struct Scsi_Host *host;
@@ -1301,9 +1303,10 @@ static int __devinit qpti_sbus_probe(struct platform_device *op)
 	static int nqptis;
 	const char *fcode;
 
-	if (!op->dev.of_match)
+	match = of_match_device(qpti_match, &op->dev);
+	if (!match)
 		return -EINVAL;
-	tpnt = op->dev.of_match->data;
+	tpnt = match->data;
 
 	/* Sometimes Antares cards come up not completely
 	 * setup, and we get a report of a zero IRQ.

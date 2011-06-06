@@ -33,25 +33,21 @@
  * can be successfully looped back */
 #define USE_PHY_WORK_AROUND
 
-#define DPRINTK(nlevel, klevel, fmt, args...) \
-	((void)((NETIF_MSG_##nlevel & pdata->msg_enable) && \
-	printk(KERN_##klevel "%s: %s: " fmt "\n", \
-	pdata->dev->name, __func__, ## args)))
-
 #if USE_DEBUG >= 1
-#define SMSC_WARNING(nlevel, fmt, args...) \
-	DPRINTK(nlevel, WARNING, fmt, ## args)
+#define SMSC_WARN(pdata, nlevel, fmt, args...)			\
+	netif_warn(pdata, nlevel, (pdata)->dev,			\
+		   "%s: " fmt "\n", __func__, ##args)
 #else
-#define SMSC_WARNING(nlevel, fmt, args...) \
-	({ do {} while (0); 0; })
+#define SMSC_WARN(pdata, nlevel, fmt, args...)			\
+	no_printk(fmt "\n", ##args)
 #endif
 
 #if USE_DEBUG >= 2
-#define SMSC_TRACE(nlevel, fmt, args...) \
-	DPRINTK(nlevel, INFO, fmt, ## args)
+#define SMSC_TRACE(pdata, nlevel, fmt, args...)			\
+	netif_info(pdata, nlevel, pdata->dev, fmt "\n", ##args)
 #else
-#define SMSC_TRACE(nlevel, fmt, args...) \
-	({ do {} while (0); 0; })
+#define SMSC_TRACE(pdata, nlevel, fmt, args...)			\
+	no_printk(fmt "\n", ##args)
 #endif
 
 #ifdef CONFIG_DEBUG_SPINLOCK

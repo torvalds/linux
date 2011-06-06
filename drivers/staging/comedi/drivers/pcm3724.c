@@ -301,7 +301,7 @@ static int pcm3724_attach(struct comedi_device *dev,
 		subdev_8255_init(dev, dev->subdevices + i, subdev_8255_cb,
 				 (unsigned long)(dev->iobase + SIZE_8255 * i));
 		((dev->subdevices) + i)->insn_config = subdev_3724_insn_config;
-	};
+	}
 	return 0;
 }
 

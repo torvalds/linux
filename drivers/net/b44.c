@@ -1807,8 +1807,8 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (bp->flags & B44_FLAG_ADV_100FULL)
 		cmd->advertising |= ADVERTISED_100baseT_Full;
 	cmd->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
-	cmd->speed = (bp->flags & B44_FLAG_100_BASE_T) ?
-		SPEED_100 : SPEED_10;
+	ethtool_cmd_speed_set(cmd, ((bp->flags & B44_FLAG_100_BASE_T) ?
+				    SPEED_100 : SPEED_10));
 	cmd->duplex = (bp->flags & B44_FLAG_FULL_DUPLEX) ?
 		DUPLEX_FULL : DUPLEX_HALF;
 	cmd->port = 0;
@@ -1820,7 +1820,7 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (cmd->autoneg == AUTONEG_ENABLE)
 		cmd->advertising |= ADVERTISED_Autoneg;
 	if (!netif_running(dev)){
-		cmd->speed = 0;
+		ethtool_cmd_speed_set(cmd, 0);
 		cmd->duplex = 0xff;
 	}
 	cmd->maxtxpkt = 0;
@@ -1831,6 +1831,7 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int b44_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct b44 *bp = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(cmd);
 
 	/* We do not support gigabit. */
 	if (cmd->autoneg == AUTONEG_ENABLE) {
@@ -1838,8 +1839,8 @@ static int b44_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		    (ADVERTISED_1000baseT_Half |
 		     ADVERTISED_1000baseT_Full))
 			return -EINVAL;
-	} else if ((cmd->speed != SPEED_100 &&
-		    cmd->speed != SPEED_10) ||
+	} else if ((speed != SPEED_100 &&
+		    speed != SPEED_10) ||
 		   (cmd->duplex != DUPLEX_HALF &&
 		    cmd->duplex != DUPLEX_FULL)) {
 			return -EINVAL;
@@ -1873,7 +1874,7 @@ static int b44_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	} else {
 		bp->flags |= B44_FLAG_FORCE_LINK;
 		bp->flags &= ~(B44_FLAG_100_BASE_T | B44_FLAG_FULL_DUPLEX);
-		if (cmd->speed == SPEED_100)
+		if (speed == SPEED_100)
 			bp->flags |= B44_FLAG_100_BASE_T;
 		if (cmd->duplex == DUPLEX_FULL)
 			bp->flags |= B44_FLAG_FULL_DUPLEX;

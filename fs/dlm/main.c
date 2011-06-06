@@ -50,7 +50,7 @@ static int __init init_dlm(void)
 	if (error)
 		goto out_netlink;
 
-	printk("DLM (built %s %s) installed\n", __DATE__, __TIME__);
+	printk("DLM installed\n");
 
 	return 0;
 

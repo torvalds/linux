@@ -513,7 +513,7 @@ static void efx_mcdi_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *e
 	ecmd->supported =
 		mcdi_to_ethtool_cap(phy_cfg->media, phy_cfg->supported_cap);
 	ecmd->advertising = efx->link_advertising;
-	ecmd->speed = efx->link_state.speed;
+	ethtool_cmd_speed_set(ecmd, efx->link_state.speed);
 	ecmd->duplex = efx->link_state.fd;
 	ecmd->port = mcdi_to_ethtool_media(phy_cfg->media);
 	ecmd->phy_address = phy_cfg->port;
@@ -545,7 +545,7 @@ static int efx_mcdi_phy_set_settings(struct efx_nic *efx, struct ethtool_cmd *ec
 		caps = (ethtool_to_mcdi_cap(ecmd->advertising) |
 			 1 << MC_CMD_PHY_CAP_AN_LBN);
 	} else if (ecmd->duplex) {
-		switch (ecmd->speed) {
+		switch (ethtool_cmd_speed(ecmd)) {
 		case 10:    caps = 1 << MC_CMD_PHY_CAP_10FDX_LBN;    break;
 		case 100:   caps = 1 << MC_CMD_PHY_CAP_100FDX_LBN;   break;
 		case 1000:  caps = 1 << MC_CMD_PHY_CAP_1000FDX_LBN;  break;
@@ -553,7 +553,7 @@ static int efx_mcdi_phy_set_settings(struct efx_nic *efx, struct ethtool_cmd *ec
 		default:    return -EINVAL;
 		}
 	} else {
-		switch (ecmd->speed) {
+		switch (ethtool_cmd_speed(ecmd)) {
 		case 10:    caps = 1 << MC_CMD_PHY_CAP_10HDX_LBN;    break;
 		case 100:   caps = 1 << MC_CMD_PHY_CAP_100HDX_LBN;   break;
 		case 1000:  caps = 1 << MC_CMD_PHY_CAP_1000HDX_LBN;  break;
@@ -739,7 +739,7 @@ static const char *efx_mcdi_phy_test_name(struct efx_nic *efx,
 	return NULL;
 }
 
-struct efx_phy_operations efx_mcdi_phy_ops = {
+const struct efx_phy_operations efx_mcdi_phy_ops = {
 	.probe		= efx_mcdi_phy_probe,
 	.init 	 	= efx_port_dummy_op_int,
 	.reconfigure	= efx_mcdi_phy_reconfigure,

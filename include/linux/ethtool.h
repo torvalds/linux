@@ -24,7 +24,10 @@ struct ethtool_cmd {
 	__u32	cmd;
 	__u32	supported;	/* Features this interface supports */
 	__u32	advertising;	/* Features this interface advertises */
-	__u16	speed;		/* The forced speed, 10Mb, 100Mb, gigabit */
+	__u16	speed;	        /* The forced speed (lower bits) in
+				 * Mbps. Please use
+				 * ethtool_cmd_speed()/_set() to
+				 * access it */
 	__u8	duplex;		/* Duplex, half or full */
 	__u8	port;		/* Which connector port */
 	__u8	phy_address;
@@ -33,7 +36,10 @@ struct ethtool_cmd {
 	__u8	mdio_support;
 	__u32	maxtxpkt;	/* Tx pkts before generating tx int */
 	__u32	maxrxpkt;	/* Rx pkts before generating rx int */
-	__u16	speed_hi;
+	__u16	speed_hi;       /* The forced speed (upper
+				 * bits) in Mbps. Please use
+				 * ethtool_cmd_speed()/_set() to
+				 * access it */
 	__u8	eth_tp_mdix;
 	__u8	reserved2;
 	__u32	lp_advertising;	/* Features the link partner advertises */
@@ -41,14 +47,14 @@ struct ethtool_cmd {
 };
 
 static inline void ethtool_cmd_speed_set(struct ethtool_cmd *ep,
-						__u32 speed)
+					 __u32 speed)
 {
 
 	ep->speed = (__u16)speed;
 	ep->speed_hi = (__u16)(speed >> 16);
 }
 
-static inline __u32 ethtool_cmd_speed(struct ethtool_cmd *ep)
+static inline __u32 ethtool_cmd_speed(const struct ethtool_cmd *ep)
 {
 	return (ep->speed_hi << 16) | ep->speed;
 }
@@ -229,6 +235,34 @@ struct ethtool_ringparam {
 	__u32	tx_pending;
 };
 
+/**
+ * struct ethtool_channels - configuring number of network channel
+ * @cmd: ETHTOOL_{G,S}CHANNELS
+ * @max_rx: Read only. Maximum number of receive channel the driver support.
+ * @max_tx: Read only. Maximum number of transmit channel the driver support.
+ * @max_other: Read only. Maximum number of other channel the driver support.
+ * @max_combined: Read only. Maximum number of combined channel the driver
+ *	support. Set of queues RX, TX or other.
+ * @rx_count: Valid values are in the range 1 to the max_rx.
+ * @tx_count: Valid values are in the range 1 to the max_tx.
+ * @other_count: Valid values are in the range 1 to the max_other.
+ * @combined_count: Valid values are in the range 1 to the max_combined.
+ *
+ * This can be used to configure RX, TX and other channels.
+ */
+
+struct ethtool_channels {
+	__u32	cmd;
+	__u32	max_rx;
+	__u32	max_tx;
+	__u32	max_other;
+	__u32	max_combined;
+	__u32	rx_count;
+	__u32	tx_count;
+	__u32	other_count;
+	__u32	combined_count;
+};
+
 /* for configuring link flow control parameters */
 struct ethtool_pauseparam {
 	__u32	cmd;	/* ETHTOOL_{G,S}PAUSEPARAM */
@@ -380,27 +414,42 @@ struct ethtool_usrip4_spec {
 	__u8    proto;
 };
 
+union ethtool_flow_union {
+	struct ethtool_tcpip4_spec		tcp_ip4_spec;
+	struct ethtool_tcpip4_spec		udp_ip4_spec;
+	struct ethtool_tcpip4_spec		sctp_ip4_spec;
+	struct ethtool_ah_espip4_spec		ah_ip4_spec;
+	struct ethtool_ah_espip4_spec		esp_ip4_spec;
+	struct ethtool_usrip4_spec		usr_ip4_spec;
+	struct ethhdr				ether_spec;
+	__u8					hdata[60];
+};
+
+struct ethtool_flow_ext {
+	__be16	vlan_etype;
+	__be16	vlan_tci;
+	__be32	data[2];
+};
+
 /**
  * struct ethtool_rx_flow_spec - specification for RX flow filter
  * @flow_type: Type of match to perform, e.g. %TCP_V4_FLOW
  * @h_u: Flow fields to match (dependent on @flow_type)
- * @m_u: Masks for flow field bits to be ignored
+ * @h_ext: Additional fields to match
+ * @m_u: Masks for flow field bits to be matched
+ * @m_ext: Masks for additional field bits to be matched
+ *	Note, all additional fields must be ignored unless @flow_type
+ *	includes the %FLOW_EXT flag.
  * @ring_cookie: RX ring/queue index to deliver to, or %RX_CLS_FLOW_DISC
  *	if packets should be discarded
  * @location: Index of filter in hardware table
  */
 struct ethtool_rx_flow_spec {
 	__u32		flow_type;
-	union {
-		struct ethtool_tcpip4_spec		tcp_ip4_spec;
-		struct ethtool_tcpip4_spec		udp_ip4_spec;
-		struct ethtool_tcpip4_spec		sctp_ip4_spec;
-		struct ethtool_ah_espip4_spec		ah_ip4_spec;
-		struct ethtool_ah_espip4_spec		esp_ip4_spec;
-		struct ethtool_usrip4_spec		usr_ip4_spec;
-		struct ethhdr				ether_spec;
-		__u8					hdata[72];
-	} h_u, m_u;
+	union ethtool_flow_union h_u;
+	struct ethtool_flow_ext h_ext;
+	union ethtool_flow_union m_u;
+	struct ethtool_flow_ext m_ext;
 	__u64		ring_cookie;
 	__u32		location;
 };
@@ -458,16 +507,10 @@ struct ethtool_rxnfc {
 
 struct compat_ethtool_rx_flow_spec {
 	u32		flow_type;
-	union {
-		struct ethtool_tcpip4_spec		tcp_ip4_spec;
-		struct ethtool_tcpip4_spec		udp_ip4_spec;
-		struct ethtool_tcpip4_spec		sctp_ip4_spec;
-		struct ethtool_ah_espip4_spec		ah_ip4_spec;
-		struct ethtool_ah_espip4_spec		esp_ip4_spec;
-		struct ethtool_usrip4_spec		usr_ip4_spec;
-		struct ethhdr				ether_spec;
-		u8					hdata[72];
-	} h_u, m_u;
+	union ethtool_flow_union h_u;
+	struct ethtool_flow_ext h_ext;
+	union ethtool_flow_union m_u;
+	struct ethtool_flow_ext m_ext;
 	compat_u64	ring_cookie;
 	u32		location;
 };
@@ -556,6 +599,26 @@ struct ethtool_flash {
 	__u32	cmd;
 	__u32	region;
 	char	data[ETHTOOL_FLASH_MAX_FILENAME];
+};
+
+/**
+ * struct ethtool_dump - used for retrieving, setting device dump
+ * @cmd: Command number - %ETHTOOL_GET_DUMP_FLAG, %ETHTOOL_GET_DUMP_DATA, or
+ * 	%ETHTOOL_SET_DUMP
+ * @version: FW version of the dump, filled in by driver
+ * @flag: driver dependent flag for dump setting, filled in by driver during
+ * 	  get and filled in by ethtool for set operation
+ * @len: length of dump data, used as the length of the user buffer on entry to
+ * 	 %ETHTOOL_GET_DUMP_DATA and this is returned as dump length by driver
+ * 	 for %ETHTOOL_GET_DUMP_FLAG command
+ * @data: data collected for get dump data operation
+ */
+struct ethtool_dump {
+	__u32	cmd;
+	__u32	version;
+	__u32	flag;
+	__u32	len;
+	__u8	data[0];
 };
 
 /* for returning and changing feature sets */
@@ -663,6 +726,22 @@ struct ethtool_rx_ntuple_list {
 	unsigned int		count;
 };
 
+/**
+ * enum ethtool_phys_id_state - indicator state for physical identification
+ * @ETHTOOL_ID_INACTIVE: Physical ID indicator should be deactivated
+ * @ETHTOOL_ID_ACTIVE: Physical ID indicator should be activated
+ * @ETHTOOL_ID_ON: LED should be turned on (used iff %ETHTOOL_ID_ACTIVE
+ *	is not supported)
+ * @ETHTOOL_ID_OFF: LED should be turned off (used iff %ETHTOOL_ID_ACTIVE
+ *	is not supported)
+ */
+enum ethtool_phys_id_state {
+	ETHTOOL_ID_INACTIVE,
+	ETHTOOL_ID_ACTIVE,
+	ETHTOOL_ID_ON,
+	ETHTOOL_ID_OFF
+};
+
 struct net_device;
 
 /* Some generic methods drivers may use in their ethtool_ops */
@@ -683,63 +762,131 @@ void ethtool_ntuple_flush(struct net_device *dev);
 bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported);
 
 /**
- * &ethtool_ops - Alter and report network device settings
- * get_settings: Get device-specific settings
- * set_settings: Set device-specific settings
- * get_drvinfo: Report driver information
- * get_regs: Get device registers
- * get_wol: Report whether Wake-on-Lan is enabled
- * set_wol: Turn Wake-on-Lan on or off
- * get_msglevel: Report driver message level
- * set_msglevel: Set driver message level
- * nway_reset: Restart autonegotiation
- * get_link: Get link status
- * get_eeprom: Read data from the device EEPROM
- * set_eeprom: Write data to the device EEPROM
- * get_coalesce: Get interrupt coalescing parameters
- * set_coalesce: Set interrupt coalescing parameters
- * get_ringparam: Report ring sizes
- * set_ringparam: Set ring sizes
- * get_pauseparam: Report pause parameters
- * set_pauseparam: Set pause parameters
- * get_rx_csum: Report whether receive checksums are turned on or off
- * set_rx_csum: Turn receive checksum on or off
- * get_tx_csum: Report whether transmit checksums are turned on or off
- * set_tx_csum: Turn transmit checksums on or off
- * get_sg: Report whether scatter-gather is enabled
- * set_sg: Turn scatter-gather on or off
- * get_tso: Report whether TCP segmentation offload is enabled
- * set_tso: Turn TCP segmentation offload on or off
- * get_ufo: Report whether UDP fragmentation offload is enabled
- * set_ufo: Turn UDP fragmentation offload on or off
- * self_test: Run specified self-tests
- * get_strings: Return a set of strings that describe the requested objects
- * phys_id: Identify the device
- * get_stats: Return statistics about the device
- * get_flags: get 32-bit flags bitmap
- * set_flags: set 32-bit flags bitmap
- *
- * Description:
- *
- * get_settings:
- *	@get_settings is passed an &ethtool_cmd to fill in.  It returns
- *	an negative errno or zero.
- *
- * set_settings:
- *	@set_settings is passed an &ethtool_cmd and should attempt to set
- *	all the settings this device supports.  It may return an error value
- *	if something goes wrong (otherwise 0).
- *
- * get_eeprom:
+ * struct ethtool_ops - optional netdev operations
+ * @get_settings: Get various device settings including Ethernet link
+ *	settings. The @cmd parameter is expected to have been cleared
+ *	before get_settings is called. Returns a negative error code or
+ *	zero.
+ * @set_settings: Set various device settings including Ethernet link
+ *	settings.  Returns a negative error code or zero.
+ * @get_drvinfo: Report driver/device information.  Should only set the
+ *	@driver, @version, @fw_version and @bus_info fields.  If not
+ *	implemented, the @driver and @bus_info fields will be filled in
+ *	according to the netdev's parent device.
+ * @get_regs_len: Get buffer length required for @get_regs
+ * @get_regs: Get device registers
+ * @get_wol: Report whether Wake-on-Lan is enabled
+ * @set_wol: Turn Wake-on-Lan on or off.  Returns a negative error code
+ *	or zero.
+ * @get_msglevel: Report driver message level.  This should be the value
+ *	of the @msg_enable field used by netif logging functions.
+ * @set_msglevel: Set driver message level
+ * @nway_reset: Restart autonegotiation.  Returns a negative error code
+ *	or zero.
+ * @get_link: Report whether physical link is up.  Will only be called if
+ *	the netdev is up.  Should usually be set to ethtool_op_get_link(),
+ *	which uses netif_carrier_ok().
+ * @get_eeprom: Read data from the device EEPROM.
  *	Should fill in the magic field.  Don't need to check len for zero
  *	or wraparound.  Fill in the data argument with the eeprom values
  *	from offset to offset + len.  Update len to the amount read.
  *	Returns an error or zero.
- *
- * set_eeprom:
+ * @set_eeprom: Write data to the device EEPROM.
  *	Should validate the magic field.  Don't need to check len for zero
  *	or wraparound.  Update len to the amount written.  Returns an error
  *	or zero.
+ * @get_coalesce: Get interrupt coalescing parameters.  Returns a negative
+ *	error code or zero.
+ * @set_coalesce: Set interrupt coalescing parameters.  Returns a negative
+ *	error code or zero.
+ * @get_ringparam: Report ring sizes
+ * @set_ringparam: Set ring sizes.  Returns a negative error code or zero.
+ * @get_pauseparam: Report pause parameters
+ * @set_pauseparam: Set pause parameters.  Returns a negative error code
+ *	or zero.
+ * @get_rx_csum: Deprecated in favour of the netdev feature %NETIF_F_RXCSUM.
+ *	Report whether receive checksums are turned on or off.
+ * @set_rx_csum: Deprecated in favour of generic netdev features.  Turn
+ *	receive checksum on or off.  Returns a negative error code or zero.
+ * @get_tx_csum: Deprecated as redundant. Report whether transmit checksums
+ *	are turned on or off.
+ * @set_tx_csum: Deprecated in favour of generic netdev features.  Turn
+ *	transmit checksums on or off.  Returns a egative error code or zero.
+ * @get_sg: Deprecated as redundant.  Report whether scatter-gather is
+ *	enabled.  
+ * @set_sg: Deprecated in favour of generic netdev features.  Turn
+ *	scatter-gather on or off. Returns a negative error code or zero.
+ * @get_tso: Deprecated as redundant.  Report whether TCP segmentation
+ *	offload is enabled.
+ * @set_tso: Deprecated in favour of generic netdev features.  Turn TCP
+ *	segmentation offload on or off.  Returns a negative error code or zero.
+ * @self_test: Run specified self-tests
+ * @get_strings: Return a set of strings that describe the requested objects
+ * @set_phys_id: Identify the physical devices, e.g. by flashing an LED
+ *	attached to it.  The implementation may update the indicator
+ *	asynchronously or synchronously, but in either case it must return
+ *	quickly.  It is initially called with the argument %ETHTOOL_ID_ACTIVE,
+ *	and must either activate asynchronous updates and return zero, return
+ *	a negative error or return a positive frequency for synchronous
+ *	indication (e.g. 1 for one on/off cycle per second).  If it returns
+ *	a frequency then it will be called again at intervals with the
+ *	argument %ETHTOOL_ID_ON or %ETHTOOL_ID_OFF and should set the state of
+ *	the indicator accordingly.  Finally, it is called with the argument
+ *	%ETHTOOL_ID_INACTIVE and must deactivate the indicator.  Returns a
+ *	negative error code or zero.
+ * @get_ethtool_stats: Return extended statistics about the device.
+ *	This is only useful if the device maintains statistics not
+ *	included in &struct rtnl_link_stats64.
+ * @begin: Function to be called before any other operation.  Returns a
+ *	negative error code or zero.
+ * @complete: Function to be called after any other operation except
+ *	@begin.  Will be called even if the other operation failed.
+ * @get_ufo: Deprecated as redundant.  Report whether UDP fragmentation
+ *	offload is enabled.
+ * @set_ufo: Deprecated in favour of generic netdev features.  Turn UDP
+ *	fragmentation offload on or off.  Returns a negative error code or zero.
+ * @get_flags: Deprecated as redundant.  Report features included in
+ *	&enum ethtool_flags that are enabled.  
+ * @set_flags: Deprecated in favour of generic netdev features.  Turn
+ *	features included in &enum ethtool_flags on or off.  Returns a
+ *	negative error code or zero.
+ * @get_priv_flags: Report driver-specific feature flags.
+ * @set_priv_flags: Set driver-specific feature flags.  Returns a negative
+ *	error code or zero.
+ * @get_sset_count: Get number of strings that @get_strings will write.
+ * @get_rxnfc: Get RX flow classification rules.  Returns a negative
+ *	error code or zero.
+ * @set_rxnfc: Set RX flow classification rules.  Returns a negative
+ *	error code or zero.
+ * @flash_device: Write a firmware image to device's flash memory.
+ *	Returns a negative error code or zero.
+ * @reset: Reset (part of) the device, as specified by a bitmask of
+ *	flags from &enum ethtool_reset_flags.  Returns a negative
+ *	error code or zero.
+ * @set_rx_ntuple: Set an RX n-tuple rule.  Returns a negative error code
+ *	or zero.
+ * @get_rx_ntuple: Deprecated.
+ * @get_rxfh_indir: Get the contents of the RX flow hash indirection table.
+ *	Returns a negative error code or zero.
+ * @set_rxfh_indir: Set the contents of the RX flow hash indirection table.
+ *	Returns a negative error code or zero.
+ * @get_channels: Get number of channels.
+ * @set_channels: Set number of channels.  Returns a negative error code or
+ *	zero.
+ * @get_dump_flag: Get dump flag indicating current dump length, version,
+ * 		   and flag of the device.
+ * @get_dump_data: Get dump data.
+ * @set_dump: Set dump specific flags to the device.
+ *
+ * All operations are optional (i.e. the function pointer may be set
+ * to %NULL) and callers must take this into account.  Callers must
+ * hold the RTNL, except that for @get_drvinfo the caller may or may
+ * not hold the RTNL.
+ *
+ * See the structures used by these operations for further documentation.
+ *
+ * See &struct net_device and &struct net_device_ops for documentation
+ * of the generic netdev features interface.
  */
 struct ethtool_ops {
 	int	(*get_settings)(struct net_device *, struct ethtool_cmd *);
@@ -778,7 +925,7 @@ struct ethtool_ops {
 	int	(*set_tso)(struct net_device *, u32);
 	void	(*self_test)(struct net_device *, struct ethtool_test *, u64 *);
 	void	(*get_strings)(struct net_device *, u32 stringset, u8 *);
-	int	(*phys_id)(struct net_device *, u32);
+	int	(*set_phys_id)(struct net_device *, enum ethtool_phys_id_state);
 	void	(*get_ethtool_stats)(struct net_device *,
 				     struct ethtool_stats *, u64 *);
 	int	(*begin)(struct net_device *);
@@ -802,6 +949,13 @@ struct ethtool_ops {
 				  struct ethtool_rxfh_indir *);
 	int	(*set_rxfh_indir)(struct net_device *,
 				  const struct ethtool_rxfh_indir *);
+	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
+	int	(*set_channels)(struct net_device *, struct ethtool_channels *);
+	int	(*get_dump_flag)(struct net_device *, struct ethtool_dump *);
+	int	(*get_dump_data)(struct net_device *,
+				 struct ethtool_dump *, void *);
+	int	(*set_dump)(struct net_device *, struct ethtool_dump *);
+
 };
 #endif /* __KERNEL__ */
 
@@ -870,6 +1024,11 @@ struct ethtool_ops {
 
 #define ETHTOOL_GFEATURES	0x0000003a /* Get device offload settings */
 #define ETHTOOL_SFEATURES	0x0000003b /* Change device offload settings */
+#define ETHTOOL_GCHANNELS	0x0000003c /* Get no of channels */
+#define ETHTOOL_SCHANNELS	0x0000003d /* Set no of channels */
+#define ETHTOOL_SET_DUMP	0x0000003e /* Set dump settings */
+#define ETHTOOL_GET_DUMP_FLAG	0x0000003f /* Get dump settings */
+#define ETHTOOL_GET_DUMP_DATA	0x00000040 /* Get dump data */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET
@@ -897,6 +1056,8 @@ struct ethtool_ops {
 #define SUPPORTED_10000baseKX4_Full	(1 << 18)
 #define SUPPORTED_10000baseKR_Full	(1 << 19)
 #define SUPPORTED_10000baseR_FEC	(1 << 20)
+#define SUPPORTED_20000baseMLD2_Full	(1 << 21)
+#define SUPPORTED_20000baseKR2_Full	(1 << 22)
 
 /* Indicates what features are advertised by the interface. */
 #define ADVERTISED_10baseT_Half		(1 << 0)
@@ -920,6 +1081,8 @@ struct ethtool_ops {
 #define ADVERTISED_10000baseKX4_Full	(1 << 18)
 #define ADVERTISED_10000baseKR_Full	(1 << 19)
 #define ADVERTISED_10000baseR_FEC	(1 << 20)
+#define ADVERTISED_20000baseMLD2_Full	(1 << 21)
+#define ADVERTISED_20000baseKR2_Full	(1 << 22)
 
 /* The following are all involved in forcing a particular link
  * mode for the device for setting things.  When getting the
@@ -992,6 +1155,8 @@ struct ethtool_ops {
 #define	IPV4_FLOW	0x10	/* hash only */
 #define	IPV6_FLOW	0x11	/* hash only */
 #define	ETHER_FLOW	0x12	/* spec only (ether_spec) */
+/* Flag to enable additional fields in struct ethtool_rx_flow_spec */
+#define	FLOW_EXT	0x80000000
 
 /* L3-L4 network traffic flow hash options */
 #define	RXH_L2DA	(1 << 1)

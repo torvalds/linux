@@ -1,5 +1,9 @@
-ifdef CONFIG_MMU
-include arch/m68k/mm/Makefile_mm
-else
-include arch/m68k/mm/Makefile_no
-endif
+#
+# Makefile for the linux m68k-specific parts of the memory manager.
+#
+
+obj-y	:= init.o
+
+obj-$(CONFIG_MMU)		+= cache.o fault.o hwtest.o
+obj-$(CONFIG_MMU_MOTOROLA)	+= kmap.o memory.o motorola.o
+obj-$(CONFIG_MMU_SUN3)		+= sun3kmap.o sun3mmu.o

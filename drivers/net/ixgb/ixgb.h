@@ -157,9 +157,6 @@ struct ixgb_adapter {
 	u16 link_duplex;
 	struct work_struct tx_timeout_task;
 
-	struct timer_list blink_timer;
-	unsigned long led_status;
-
 	/* TX */
 	struct ixgb_desc_ring tx_ring ____cacheline_aligned_in_smp;
 	unsigned int restart_queue;

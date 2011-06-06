@@ -324,6 +324,11 @@ int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 	struct resource rsrc;
 	const int *bus_range;
 
+	if (!of_device_is_available(dev)) {
+		pr_warning("%s: disabled\n", dev->full_name);
+		return -ENODEV;
+	}
+
 	pr_debug("Adding PCI host bridge %s\n", dev->full_name);
 
 	/* Fetch host bridge registers address */

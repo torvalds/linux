@@ -32,8 +32,6 @@ unsigned int __page_offset;
 EXPORT_SYMBOL(__page_offset);
 
 #else
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
 static int init_bootmem_done;
 #endif /* CONFIG_MMU */
 

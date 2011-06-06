@@ -11,6 +11,7 @@
 #include <linux/kallsyms.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <asm/irq_handler.h>
 #include <asm/trace.h>
 #include <asm/pda.h>
 

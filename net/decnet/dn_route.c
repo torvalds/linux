@@ -1125,13 +1125,11 @@ make_route:
 	if (dev_out->flags & IFF_LOOPBACK)
 		flags |= RTCF_LOCAL;
 
-	rt = dst_alloc(&dn_dst_ops, 0);
+	rt = dst_alloc(&dn_dst_ops, dev_out, 1, 0, DST_HOST);
 	if (rt == NULL)
 		goto e_nobufs;
 
-	atomic_set(&rt->dst.__refcnt, 1);
-	rt->dst.flags   = DST_HOST;
-
+	memset(&rt->fld, 0, sizeof(rt->fld));
 	rt->fld.saddr        = oldflp->saddr;
 	rt->fld.daddr        = oldflp->daddr;
 	rt->fld.flowidn_oif  = oldflp->flowidn_oif;
@@ -1146,8 +1144,6 @@ make_route:
 	rt->rt_dst_map    = fld.daddr;
 	rt->rt_src_map    = fld.saddr;
 
-	rt->dst.dev = dev_out;
-	dev_hold(dev_out);
 	rt->dst.neighbour = neigh;
 	neigh = NULL;
 
@@ -1399,10 +1395,11 @@ static int dn_route_input_slow(struct sk_buff *skb)
 	}
 
 make_route:
-	rt = dst_alloc(&dn_dst_ops, 0);
+	rt = dst_alloc(&dn_dst_ops, out_dev, 0, 0, DST_HOST);
 	if (rt == NULL)
 		goto e_nobufs;
 
+	memset(&rt->fld, 0, sizeof(rt->fld));
 	rt->rt_saddr      = fld.saddr;
 	rt->rt_daddr      = fld.daddr;
 	rt->rt_gateway    = fld.daddr;
@@ -1419,9 +1416,7 @@ make_route:
 	rt->fld.flowidn_iif  = in_dev->ifindex;
 	rt->fld.flowidn_mark = fld.flowidn_mark;
 
-	rt->dst.flags = DST_HOST;
 	rt->dst.neighbour = neigh;
-	rt->dst.dev = out_dev;
 	rt->dst.lastuse = jiffies;
 	rt->dst.output = dn_rt_bug;
 	switch(res.type) {
@@ -1440,8 +1435,6 @@ make_route:
 			rt->dst.input = dst_discard;
 	}
 	rt->rt_flags = flags;
-	if (rt->dst.dev)
-		dev_hold(rt->dst.dev);
 
 	err = dn_rt_set_next_hop(rt, &res);
 	if (err)

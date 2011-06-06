@@ -246,7 +246,6 @@ static void
 bna_mbox_flush_q(struct bna *bna, struct list_head *q)
 {
 	struct bna_mbox_qe *mb_qe = NULL;
-	struct bfi_mhdr *cmd_h;
 	struct list_head			*mb_q;
 	void 			(*cbfn)(void *arg, int status);
 	void 			*cbarg;
@@ -260,7 +259,6 @@ bna_mbox_flush_q(struct bna *bna, struct list_head *q)
 		bfa_q_qe_init(mb_qe);
 		bna->mbox_mod.msg_pending--;
 
-		cmd_h = (struct bfi_mhdr *)(&mb_qe->cmd.msg[0]);
 		if (cbfn)
 			cbfn(cbarg, BNA_CB_NOT_EXEC);
 	}
@@ -2774,23 +2772,6 @@ bna_rit_mod_init(struct bna_rit_mod *rit_mod,
 	}
 }
 
-static void
-bna_rit_mod_uninit(struct bna_rit_mod *rit_mod)
-{
-	struct bna_rit_segment *rit_segment;
-	struct list_head *qe;
-	int i;
-	int j;
-
-	for (i = 0; i < BFI_RIT_SEG_TOTAL_POOLS; i++) {
-		j = 0;
-		list_for_each(qe, &rit_mod->rit_seg_pool[i]) {
-			rit_segment = (struct bna_rit_segment *)qe;
-			j++;
-		}
-	}
-}
-
 /*
  * Public functions
  */
@@ -2976,8 +2957,6 @@ bna_uninit(struct bna *bna)
 	bna_mcam_mod_uninit(&bna->mcam_mod);
 
 	bna_ucam_mod_uninit(&bna->ucam_mod);
-
-	bna_rit_mod_uninit(&bna->rit_mod);
 
 	bna_ib_mod_uninit(&bna->ib_mod);
 

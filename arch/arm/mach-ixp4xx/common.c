@@ -419,26 +419,14 @@ static void notrace ixp4xx_update_sched_clock(void)
 /*
  * clocksource
  */
-static cycle_t ixp4xx_get_cycles(struct clocksource *cs)
-{
-	return *IXP4XX_OSTS;
-}
-
-static struct clocksource clocksource_ixp4xx = {
-	.name 		= "OSTS",
-	.rating		= 200,
-	.read		= ixp4xx_get_cycles,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 unsigned long ixp4xx_timer_freq = IXP4XX_TIMER_FREQ;
 EXPORT_SYMBOL(ixp4xx_timer_freq);
 static void __init ixp4xx_clocksource_init(void)
 {
 	init_sched_clock(&cd, ixp4xx_update_sched_clock, 32, ixp4xx_timer_freq);
 
-	clocksource_register_hz(&clocksource_ixp4xx, ixp4xx_timer_freq);
+	clocksource_mmio_init(&IXP4XX_OSTS, "OSTS", ixp4xx_timer_freq, 200, 32,
+			clocksource_mmio_readl_up);
 }
 
 /*

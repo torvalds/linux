@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/char/amba.c
- *
  *  Driver for AMBA serial ports
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.

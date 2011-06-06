@@ -42,7 +42,6 @@
 #include "irq.h"
 #include "pci.h"
 #include "call_pci.h"
-#include "smp.h"
 
 #ifdef CONFIG_PCI
 
@@ -171,7 +170,7 @@ static void iseries_enable_IRQ(struct irq_data *d)
 {
 	u32 bus, dev_id, function, mask;
 	const u32 sub_bus = 0;
-	unsigned int rirq = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int rirq = (unsigned int)irqd_to_hwirq(d);
 
 	/* The IRQ has already been locked by the caller */
 	bus = REAL_IRQ_TO_BUS(rirq);
@@ -188,7 +187,7 @@ static unsigned int iseries_startup_IRQ(struct irq_data *d)
 {
 	u32 bus, dev_id, function, mask;
 	const u32 sub_bus = 0;
-	unsigned int rirq = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int rirq = (unsigned int)irqd_to_hwirq(d);
 
 	bus = REAL_IRQ_TO_BUS(rirq);
 	function = REAL_IRQ_TO_FUNC(rirq);
@@ -234,7 +233,7 @@ static void iseries_shutdown_IRQ(struct irq_data *d)
 {
 	u32 bus, dev_id, function, mask;
 	const u32 sub_bus = 0;
-	unsigned int rirq = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int rirq = (unsigned int)irqd_to_hwirq(d);
 
 	/* irq should be locked by the caller */
 	bus = REAL_IRQ_TO_BUS(rirq);
@@ -257,7 +256,7 @@ static void iseries_disable_IRQ(struct irq_data *d)
 {
 	u32 bus, dev_id, function, mask;
 	const u32 sub_bus = 0;
-	unsigned int rirq = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int rirq = (unsigned int)irqd_to_hwirq(d);
 
 	/* The IRQ has already been locked by the caller */
 	bus = REAL_IRQ_TO_BUS(rirq);
@@ -271,7 +270,7 @@ static void iseries_disable_IRQ(struct irq_data *d)
 
 static void iseries_end_IRQ(struct irq_data *d)
 {
-	unsigned int rirq = (unsigned int)irq_map[d->irq].hwirq;
+	unsigned int rirq = (unsigned int)irqd_to_hwirq(d);
 
 	HvCallPci_eoi(REAL_IRQ_TO_BUS(rirq), REAL_IRQ_TO_SUBBUS(rirq),
 		(REAL_IRQ_TO_IDSEL(rirq) << 4) + REAL_IRQ_TO_FUNC(rirq));
@@ -316,7 +315,7 @@ unsigned int iSeries_get_irq(void)
 #ifdef CONFIG_SMP
 	if (get_lppaca()->int_dword.fields.ipi_cnt) {
 		get_lppaca()->int_dword.fields.ipi_cnt = 0;
-		iSeries_smp_message_recv();
+		smp_ipi_demux();
 	}
 #endif /* CONFIG_SMP */
 	if (hvlpevent_is_pending())

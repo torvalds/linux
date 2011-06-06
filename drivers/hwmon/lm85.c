@@ -1094,6 +1094,7 @@ static struct attribute *lm85_attributes_minctl[] = {
 	&sensor_dev_attr_pwm1_auto_pwm_minctl.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_pwm_minctl.dev_attr.attr,
 	&sensor_dev_attr_pwm3_auto_pwm_minctl.dev_attr.attr,
+	NULL
 };
 
 static const struct attribute_group lm85_group_minctl = {
@@ -1104,6 +1105,7 @@ static struct attribute *lm85_attributes_temp_off[] = {
 	&sensor_dev_attr_temp1_auto_temp_off.dev_attr.attr,
 	&sensor_dev_attr_temp2_auto_temp_off.dev_attr.attr,
 	&sensor_dev_attr_temp3_auto_temp_off.dev_attr.attr,
+	NULL
 };
 
 static const struct attribute_group lm85_group_temp_off = {
@@ -1329,11 +1331,11 @@ static int lm85_probe(struct i2c_client *client,
 	if (data->type != emc6d103s) {
 		err = sysfs_create_group(&client->dev.kobj, &lm85_group_minctl);
 		if (err)
-			goto err_kfree;
+			goto err_remove_files;
 		err = sysfs_create_group(&client->dev.kobj,
 					 &lm85_group_temp_off);
 		if (err)
-			goto err_kfree;
+			goto err_remove_files;
 	}
 
 	/* The ADT7463/68 have an optional VRM 10 mode where pin 21 is used

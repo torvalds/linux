@@ -3,6 +3,7 @@
  *
  * Copyright 2007 Red Hat, Inc.
  * Copyright 2008 Marvell. <kewei@marvell.com>
+ * Copyright 2009-2011 Marvell. <yuxiangl@marvell.com>
  *
  * This file is licensed under GPLv2.
  *
@@ -67,6 +68,7 @@ extern struct mvs_tgt_initiator mvs_tgt;
 extern struct mvs_info *tgt_mvi;
 extern const struct mvs_dispatch mvs_64xx_dispatch;
 extern const struct mvs_dispatch mvs_94xx_dispatch;
+extern struct kmem_cache *mvs_task_list_cache;
 
 #define DEV_IS_EXPANDER(type)	\
 	((type == EDGE_DEV) || (type == FANOUT_DEV))
@@ -341,6 +343,7 @@ struct mvs_info {
 	dma_addr_t bulk_buffer_dma;
 #define TRASH_BUCKET_SIZE    	0x20000
 #endif
+	void *dma_pool;
 	struct mvs_slot_info slot_info[0];
 };
 
@@ -365,6 +368,11 @@ struct mvs_task_exec_info {
 	struct mvs_port *port;
 	u32 tag;
 	int n_elem;
+};
+
+struct mvs_task_list {
+	struct sas_task *task;
+	struct list_head list;
 };
 
 

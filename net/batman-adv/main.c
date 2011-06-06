@@ -33,6 +33,9 @@
 #include "vis.h"
 #include "hash.h"
 
+
+/* List manipulations on hardif_list have to be rtnl_lock()'ed,
+ * list traversals just rcu-locked */
 struct list_head hardif_list;
 
 unsigned char broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -81,28 +84,29 @@ int mesh_init(struct net_device *soft_iface)
 
 	spin_lock_init(&bat_priv->forw_bat_list_lock);
 	spin_lock_init(&bat_priv->forw_bcast_list_lock);
-	spin_lock_init(&bat_priv->hna_lhash_lock);
-	spin_lock_init(&bat_priv->hna_ghash_lock);
+	spin_lock_init(&bat_priv->tt_lhash_lock);
+	spin_lock_init(&bat_priv->tt_ghash_lock);
 	spin_lock_init(&bat_priv->gw_list_lock);
 	spin_lock_init(&bat_priv->vis_hash_lock);
 	spin_lock_init(&bat_priv->vis_list_lock);
 	spin_lock_init(&bat_priv->softif_neigh_lock);
+	spin_lock_init(&bat_priv->softif_neigh_vid_lock);
 
 	INIT_HLIST_HEAD(&bat_priv->forw_bat_list);
 	INIT_HLIST_HEAD(&bat_priv->forw_bcast_list);
 	INIT_HLIST_HEAD(&bat_priv->gw_list);
-	INIT_HLIST_HEAD(&bat_priv->softif_neigh_list);
+	INIT_HLIST_HEAD(&bat_priv->softif_neigh_vids);
 
 	if (originator_init(bat_priv) < 1)
 		goto err;
 
-	if (hna_local_init(bat_priv) < 1)
+	if (tt_local_init(bat_priv) < 1)
 		goto err;
 
-	if (hna_global_init(bat_priv) < 1)
+	if (tt_global_init(bat_priv) < 1)
 		goto err;
 
-	hna_local_add(soft_iface, soft_iface->dev_addr);
+	tt_local_add(soft_iface, soft_iface->dev_addr);
 
 	if (vis_init(bat_priv) < 1)
 		goto err;
@@ -133,8 +137,8 @@ void mesh_free(struct net_device *soft_iface)
 	gw_node_purge(bat_priv);
 	originator_free(bat_priv);
 
-	hna_local_free(bat_priv);
-	hna_global_free(bat_priv);
+	tt_local_free(bat_priv);
+	tt_global_free(bat_priv);
 
 	softif_neigh_purge(bat_priv);
 

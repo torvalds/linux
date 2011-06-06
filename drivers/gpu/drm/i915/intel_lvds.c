@@ -539,6 +539,9 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_connector *connector = dev_priv->int_lvds_connector;
 
+	if (dev->switch_power_state != DRM_SWITCH_POWER_ON)
+		return NOTIFY_OK;
+
 	/*
 	 * check and update the status of LVDS connector after receiving
 	 * the LID nofication event.

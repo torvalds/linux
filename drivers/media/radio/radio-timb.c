@@ -21,7 +21,6 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/core.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -149,7 +148,7 @@ static const struct v4l2_file_operations timbradio_fops = {
 
 static int __devinit timbradio_probe(struct platform_device *pdev)
 {
-	struct timb_radio_platform_data *pdata = mfd_get_data(pdev);
+	struct timb_radio_platform_data *pdata = pdev->dev.platform_data;
 	struct timbradio *tr;
 	int err;
 

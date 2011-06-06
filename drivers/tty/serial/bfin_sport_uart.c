@@ -296,8 +296,7 @@ static int sport_startup(struct uart_port *port)
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
 			IRQF_DISABLED, "BFIN_SPORT_UART_CTS", up)) {
 			up->cts_pin = -1;
-			dev_info(port->dev, "Unable to attach BlackFin UART \
-				over SPORT CTS interrupt. So, disable it.\n");
+			dev_info(port->dev, "Unable to attach BlackFin UART over SPORT CTS interrupt. So, disable it.\n");
 		}
 	}
 	if (up->rts_pin >= 0)

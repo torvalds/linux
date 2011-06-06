@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2010 QLogic Corporation
+ * Copyright (c)  2003-2011 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -82,4 +82,23 @@ qla2x00_clean_dsd_pool(struct qla_hw_data *ha, srb_t *sp)
 		kfree(dsd_ptr);
 	}
 	INIT_LIST_HEAD(&((struct crc_context *)sp->ctx)->dsd_list);
+}
+
+static inline void
+qla2x00_set_fcport_state(fc_port_t *fcport, int state)
+{
+	int old_state;
+
+	old_state = atomic_read(&fcport->state);
+	atomic_set(&fcport->state, state);
+
+	/* Don't print state transitions during initial allocation of fcport */
+	if (old_state && old_state != state) {
+		DEBUG(qla_printk(KERN_WARNING, fcport->vha->hw,
+		    "scsi(%ld): FCPort state transitioned from %s to %s - "
+		    "portid=%02x%02x%02x.\n", fcport->vha->host_no,
+		    port_state_str[old_state], port_state_str[state],
+		    fcport->d_id.b.domain, fcport->d_id.b.area,
+		    fcport->d_id.b.al_pa));
+	}
 }

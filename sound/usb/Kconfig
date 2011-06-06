@@ -100,19 +100,17 @@ config SND_USB_US122L
 
 config SND_USB_6FIRE
         tristate "TerraTec DMX 6Fire USB"
-        depends on EXPERIMENTAL
         select FW_LOADER
+        select BITREVERSE
         select SND_RAWMIDI
         select SND_PCM
         help
           Say Y here to include support for TerraTec 6fire DMX USB interface.
 
           You will need firmware files in order to be able to use the device
-          after it has been coldstarted. This driver currently does not support
-          firmware loading for all devices. If you own such a device,
-          you could start windows and let the windows driver upload
-          the firmware. As long as you do not unplug your device from power,
-          it should be usable.
+          after it has been coldstarted. An install script for the firmware
+          and further help can be found at
+          http://sixfireusb.sourceforge.net
 
 endif	# SND_USB
 

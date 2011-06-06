@@ -1083,7 +1083,9 @@ static void irq_device_state(struct r8a66597 *r8a66597)
 
 	if (dvsq == DS_DFLT) {
 		/* bus reset */
+		spin_unlock(&r8a66597->lock);
 		r8a66597->driver->disconnect(&r8a66597->gadget);
+		spin_lock(&r8a66597->lock);
 		r8a66597_update_usb_speed(r8a66597);
 	}
 	if (r8a66597->old_dvsq == DS_CNFG && dvsq != DS_CNFG)

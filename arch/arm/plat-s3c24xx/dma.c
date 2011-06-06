@@ -22,7 +22,7 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/io.h>
@@ -1195,19 +1195,12 @@ int s3c2410_dma_getposition(unsigned int channel, dma_addr_t *src, dma_addr_t *d
 
 EXPORT_SYMBOL(s3c2410_dma_getposition);
 
-static inline struct s3c2410_dma_chan *to_dma_chan(struct sys_device *dev)
-{
-	return container_of(dev, struct s3c2410_dma_chan, dev);
-}
-
-/* system device class */
+/* system core operations */
 
 #ifdef CONFIG_PM
 
-static int s3c2410_dma_suspend(struct sys_device *dev, pm_message_t state)
+static void s3c2410_dma_suspend_chan(s3c2410_dma_chan *cp)
 {
-	struct s3c2410_dma_chan *cp = to_dma_chan(dev);
-
 	printk(KERN_DEBUG "suspending dma channel %d\n", cp->number);
 
 	if (dma_rdreg(cp, S3C2410_DMA_DMASKTRIG) & S3C2410_DMASKTRIG_ON) {
@@ -1222,13 +1215,21 @@ static int s3c2410_dma_suspend(struct sys_device *dev, pm_message_t state)
 
 		s3c2410_dma_dostop(cp);
 	}
+}
+
+static int s3c2410_dma_suspend(void)
+{
+	struct s3c2410_dma_chan *cp = s3c2410_chans;
+	int channel;
+
+	for (channel = 0; channel < dma_channels; cp++, channel++)
+		s3c2410_dma_suspend_chan(cp);
 
 	return 0;
 }
 
-static int s3c2410_dma_resume(struct sys_device *dev)
+static void s3c2410_dma_resume_chan(struct s3c2410_dma_chan *cp)
 {
-	struct s3c2410_dma_chan *cp = to_dma_chan(dev);
 	unsigned int no = cp->number | DMACH_LOW_LEVEL;
 
 	/* restore channel's hardware configuration */
@@ -1249,13 +1250,21 @@ static int s3c2410_dma_resume(struct sys_device *dev)
 	return 0;
 }
 
+static void s3c2410_dma_resume(void)
+{
+	struct s3c2410_dma_chan *cp = s3c2410_chans + dma_channels - 1;
+	int channel;
+
+	for (channel = dma_channels - 1; channel >= 0; cp++, channel--)
+		s3c2410_dma_resume_chan(cp);
+}
+
 #else
 #define s3c2410_dma_suspend NULL
 #define s3c2410_dma_resume  NULL
 #endif /* CONFIG_PM */
 
-struct sysdev_class dma_sysclass = {
-	.name		= "s3c24xx-dma",
+struct syscore_ops dma_syscore_ops = {
 	.suspend	= s3c2410_dma_suspend,
 	.resume		= s3c2410_dma_resume,
 };
@@ -1269,39 +1278,14 @@ static void s3c2410_dma_cache_ctor(void *p)
 
 /* initialisation code */
 
-static int __init s3c24xx_dma_sysclass_init(void)
+static int __init s3c24xx_dma_syscore_init(void)
 {
-	int ret = sysdev_class_register(&dma_sysclass);
-
-	if (ret != 0)
-		printk(KERN_ERR "dma sysclass registration failed\n");
-
-	return ret;
-}
-
-core_initcall(s3c24xx_dma_sysclass_init);
-
-static int __init s3c24xx_dma_sysdev_register(void)
-{
-	struct s3c2410_dma_chan *cp = s3c2410_chans;
-	int channel, ret;
-
-	for (channel = 0; channel < dma_channels; cp++, channel++) {
-		cp->dev.cls = &dma_sysclass;
-		cp->dev.id  = channel;
-		ret = sysdev_register(&cp->dev);
-
-		if (ret) {
-			printk(KERN_ERR "error registering dev for dma %d\n",
-			       channel);
- 			return ret;
-		}
-	}
+	register_syscore_ops(&dma_syscore_ops);
 
 	return 0;
 }
 
-late_initcall(s3c24xx_dma_sysdev_register);
+late_initcall(s3c24xx_dma_syscore_init);
 
 int __init s3c24xx_dma_init(unsigned int channels, unsigned int irq,
 			    unsigned int stride)

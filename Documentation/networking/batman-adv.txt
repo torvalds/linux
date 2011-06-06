@@ -1,4 +1,4 @@
-[state: 27-01-2011]
+[state: 17-04-2011]
 
 BATMAN-ADV
 ----------
@@ -18,6 +18,7 @@ Batman advanced was implemented as a Linux kernel driver  to  re-
 duce the overhead to a minimum. It does not depend on any (other)
 network driver, and can be used on wifi as well as ethernet  lan,
 vpn,  etc ... (anything with ethernet-style layer 2).
+
 
 CONFIGURATION
 -------------
@@ -160,13 +161,13 @@ face.  Each  entry can/has to have the following values:
 -> "TQ mac  value"  -  src mac's link quality towards mac address
                        of a neighbor originator's interface which
                        is being used for routing
--> "HNA mac" - HNA announced by source mac
+-> "TT mac" - TT announced by source mac
 -> "PRIMARY" - this  is a primary interface
 -> "SEC mac" - secondary mac address of source
                (requires preceding PRIMARY)
 
 The TQ value has a range from 4 to 255 with 255 being  the  best.
-The HNA entries are showing which hosts are connected to the mesh
+The TT entries are showing which hosts are connected to the mesh
 via bat0 or being bridged into the mesh network.  The PRIMARY/SEC
 values are only applied on primary interfaces
 
@@ -199,7 +200,7 @@ abled  during run time. Following log_levels are defined:
 
 0 - All  debug  output  disabled
 1 - Enable messages related to routing / flooding / broadcasting
-2 - Enable route or hna added / changed / deleted
+2 - Enable route or tt entry added / changed / deleted
 3 - Enable all messages
 
 The debug output can be changed at runtime  using  the  file
@@ -207,7 +208,7 @@ The debug output can be changed at runtime  using  the  file
 
 # echo 2 > /sys/class/net/bat0/mesh/log_level
 
-will enable debug messages for when routes or HNAs change.
+will enable debug messages for when routes or TTs change.
 
 
 BATCTL

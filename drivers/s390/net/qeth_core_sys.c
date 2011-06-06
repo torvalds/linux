@@ -530,6 +530,66 @@ out:
 static DEVICE_ATTR(isolation, 0644, qeth_dev_isolation_show,
 		   qeth_dev_isolation_store);
 
+static ssize_t qeth_hw_trap_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+
+	if (!card)
+		return -EINVAL;
+	if (card->info.hwtrap)
+		return snprintf(buf, 5, "arm\n");
+	else
+		return snprintf(buf, 8, "disarm\n");
+}
+
+static ssize_t qeth_hw_trap_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+	int rc = 0;
+	char *tmp, *curtoken;
+	int state = 0;
+	curtoken = (char *)buf;
+
+	if (!card)
+		return -EINVAL;
+
+	mutex_lock(&card->conf_mutex);
+	if (card->state == CARD_STATE_SOFTSETUP || card->state == CARD_STATE_UP)
+		state = 1;
+	tmp = strsep(&curtoken, "\n");
+
+	if (!strcmp(tmp, "arm") && !card->info.hwtrap) {
+		if (state) {
+			if (qeth_is_diagass_supported(card,
+			    QETH_DIAGS_CMD_TRAP)) {
+				rc = qeth_hw_trap(card, QETH_DIAGS_TRAP_ARM);
+				if (!rc)
+					card->info.hwtrap = 1;
+			} else
+				rc = -EINVAL;
+		} else
+			card->info.hwtrap = 1;
+	} else if (!strcmp(tmp, "disarm") && card->info.hwtrap) {
+		if (state) {
+			rc = qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
+			if (!rc)
+				card->info.hwtrap = 0;
+		} else
+			card->info.hwtrap = 0;
+	} else if (!strcmp(tmp, "trap") && state && card->info.hwtrap)
+		rc = qeth_hw_trap(card, QETH_DIAGS_TRAP_CAPTURE);
+	else
+		rc = -EINVAL;
+
+	mutex_unlock(&card->conf_mutex);
+	return rc ? rc : count;
+}
+
+static DEVICE_ATTR(hw_trap, 0644, qeth_hw_trap_show,
+		   qeth_hw_trap_store);
+
 static ssize_t qeth_dev_blkt_show(char *buf, struct qeth_card *card, int value)
 {
 
@@ -653,6 +713,7 @@ static struct attribute *qeth_device_attrs[] = {
 	&dev_attr_performance_stats.attr,
 	&dev_attr_layer2.attr,
 	&dev_attr_isolation.attr,
+	&dev_attr_hw_trap.attr,
 	NULL,
 };
 

@@ -2460,7 +2460,6 @@ struct skge_port {
 	struct timer_list    link_timer;
 	enum pause_control   flow_control;
 	enum pause_status    flow_status;
-	u8		     rx_csum;
 	u8		     blink_on;
 	u8		     wol;
 	u8		     autoneg;	/* AUTONEG_ENABLE, AUTONEG_DISABLE */

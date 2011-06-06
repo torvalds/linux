@@ -457,6 +457,9 @@ static int data_sock_getsockopt(struct socket *sock, int level, int optname,
 	if (get_user(len, optlen))
 		return -EFAULT;
 
+	if (len != sizeof(char))
+		return -EINVAL;
+
 	switch (optname) {
 	case MISDN_TIME_STAMP:
 		if (_pms(sk)->cmask & MISDN_TIME_STAMP)

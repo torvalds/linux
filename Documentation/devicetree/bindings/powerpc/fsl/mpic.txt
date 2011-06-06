@@ -190,7 +190,7 @@ EXAMPLE 4
 	 */
 	timer0: timer@41100 {
 		compatible = "fsl,mpic-global-timer";
-		reg = <0x41100 0x100>;
+		reg = <0x41100 0x100 0x41300 4>;
 		interrupts = <0 0 3 0
 		              1 0 3 0
 		              2 0 3 0

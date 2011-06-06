@@ -241,16 +241,12 @@ void ieee80211_debugfs_key_add(struct ieee80211_key *key)
 	if (!key->debugfs.dir)
 		return;
 
-	rcu_read_lock();
-	sta = rcu_dereference(key->sta);
-	if (sta)
+	sta = key->sta;
+	if (sta) {
 		sprintf(buf, "../../stations/%pM", sta->sta.addr);
-	rcu_read_unlock();
-
-	/* using sta as a boolean is fine outside RCU lock */
-	if (sta)
 		key->debugfs.stalink =
 			debugfs_create_symlink("station", key->debugfs.dir, buf);
+	}
 
 	DEBUGFS_ADD(keylen);
 	DEBUGFS_ADD(flags);
@@ -286,7 +282,8 @@ void ieee80211_debugfs_key_update_default(struct ieee80211_sub_if_data *sdata)
 	lockdep_assert_held(&sdata->local->key_mtx);
 
 	if (sdata->default_unicast_key) {
-		key = sdata->default_unicast_key;
+		key = key_mtx_dereference(sdata->local,
+					  sdata->default_unicast_key);
 		sprintf(buf, "../keys/%d", key->debugfs.cnt);
 		sdata->debugfs.default_unicast_key =
 			debugfs_create_symlink("default_unicast_key",
@@ -297,7 +294,8 @@ void ieee80211_debugfs_key_update_default(struct ieee80211_sub_if_data *sdata)
 	}
 
 	if (sdata->default_multicast_key) {
-		key = sdata->default_multicast_key;
+		key = key_mtx_dereference(sdata->local,
+					  sdata->default_multicast_key);
 		sprintf(buf, "../keys/%d", key->debugfs.cnt);
 		sdata->debugfs.default_multicast_key =
 			debugfs_create_symlink("default_multicast_key",
@@ -316,9 +314,8 @@ void ieee80211_debugfs_key_add_mgmt_default(struct ieee80211_sub_if_data *sdata)
 	if (!sdata->debugfs.dir)
 		return;
 
-	/* this is running under the key lock */
-
-	key = sdata->default_mgmt_key;
+	key = key_mtx_dereference(sdata->local,
+				  sdata->default_mgmt_key);
 	if (key) {
 		sprintf(buf, "../keys/%d", key->debugfs.cnt);
 		sdata->debugfs.default_mgmt_key =
