@@ -362,8 +362,8 @@ static void populate_lancer_stats(struct be_adapter *adapter)
 	drvs->rx_priority_pause_frames = 0;
 	drvs->pmem_fifo_overflow_drop = 0;
 	drvs->rx_pause_frames =
-		make_64bit_val(pport_stats->rx_pause_frames_lo,
-				 pport_stats->rx_pause_frames_hi);
+		make_64bit_val(pport_stats->rx_pause_frames_hi,
+				 pport_stats->rx_pause_frames_lo);
 	drvs->rx_crc_errors = make_64bit_val(pport_stats->rx_crc_errors_hi,
 						pport_stats->rx_crc_errors_lo);
 	drvs->rx_control_frames =
