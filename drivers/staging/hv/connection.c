@@ -185,44 +185,6 @@ cleanup:
 	return ret;
 }
 
-/*
- * vmbus_disconnect -
- * Sends a disconnect request on the partition service connection
- */
-int vmbus_disconnect(void)
-{
-	int ret = 0;
-	struct vmbus_channel_message_header *msg;
-
-	/* Make sure we are connected */
-	if (vmbus_connection.conn_state != CONNECTED)
-		return -1;
-
-	msg = kzalloc(sizeof(struct vmbus_channel_message_header), GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-
-	msg->msgtype = CHANNELMSG_UNLOAD;
-
-	ret = vmbus_post_msg(msg,
-			       sizeof(struct vmbus_channel_message_header));
-	if (ret != 0)
-		goto cleanup;
-
-	free_pages((unsigned long)vmbus_connection.int_page, 0);
-	free_pages((unsigned long)vmbus_connection.monitor_pages, 1);
-
-	/* TODO: iterate thru the msg list and free up */
-	destroy_workqueue(vmbus_connection.work_queue);
-
-	vmbus_connection.conn_state = DISCONNECTED;
-
-	pr_info("hv_vmbus disconnected\n");
-
-cleanup:
-	kfree(msg);
-	return ret;
-}
 
 /*
  * relid2channel - Get the channel object given its
