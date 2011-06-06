@@ -116,6 +116,7 @@ struct nouveau_bo {
 	struct nouveau_channel *channel;
 
 	struct nouveau_vma vma;
+	unsigned page_shift;
 
 	uint32_t tile_mode;
 	uint32_t tile_flags;

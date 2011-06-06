@@ -58,7 +58,7 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 
 static void
 nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
-		       int *align, int *size, int *page_shift)
+		       int *align, int *size)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(nvbo->bo.bdev);
 
@@ -82,17 +82,8 @@ nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
 			}
 		}
 	} else {
-		if (likely(dev_priv->chan_vm)) {
-			if (!(flags & TTM_PL_FLAG_TT) &&  *size > 256 * 1024)
-				*page_shift = dev_priv->chan_vm->lpg_shift;
-			else
-				*page_shift = dev_priv->chan_vm->spg_shift;
-		} else {
-			*page_shift = 12;
-		}
-
-		*size = roundup(*size, (1 << *page_shift));
-		*align = max((1 << *page_shift), *align);
+		*size = roundup(*size, (1 << nvbo->page_shift));
+		*align = max((1 <<  nvbo->page_shift), *align);
 	}
 
 	*size = roundup(*size, PAGE_SIZE);
@@ -105,7 +96,7 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *nvbo;
-	int ret = 0, page_shift = 0;
+	int ret;
 
 	nvbo = kzalloc(sizeof(struct nouveau_bo), GFP_KERNEL);
 	if (!nvbo)
@@ -116,11 +107,17 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &dev_priv->ttm.bdev;
 
-	nouveau_bo_fixup_align(nvbo, flags, &align, &size, &page_shift);
+	nvbo->page_shift = 12;
+	if (dev_priv->bar1_vm) {
+		if (!(flags & TTM_PL_FLAG_TT) && size > 256 * 1024)
+			nvbo->page_shift = dev_priv->bar1_vm->lpg_shift;
+	}
+
+	nouveau_bo_fixup_align(nvbo, flags, &align, &size);
 	align >>= PAGE_SHIFT;
 
 	if (dev_priv->chan_vm) {
-		ret = nouveau_vm_get(dev_priv->chan_vm, size, page_shift,
+		ret = nouveau_vm_get(dev_priv->chan_vm, size, nvbo->page_shift,
 				     NV_MEM_ACCESS_RW, &nvbo->vma);
 		if (ret) {
 			kfree(nvbo);

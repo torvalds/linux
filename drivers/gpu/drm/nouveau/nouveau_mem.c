@@ -794,7 +794,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	int ret;
 
 	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG)
-		size_nc = 1 << nvbo->vma.node->type;
+		size_nc = 1 << nvbo->page_shift;
 
 	ret = vram->get(dev, mem->num_pages << PAGE_SHIFT,
 			mem->page_alignment << PAGE_SHIFT, size_nc,
@@ -804,9 +804,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 		return (ret == -ENOSPC) ? 0 : ret;
 	}
 
-	node->page_shift = 12;
-	if (nvbo->vma.node)
-		node->page_shift = nvbo->vma.node->type;
+	node->page_shift = nvbo->page_shift;
 
 	mem->mm_node = node;
 	mem->start   = node->offset >> PAGE_SHIFT;
