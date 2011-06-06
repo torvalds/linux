@@ -362,7 +362,6 @@ static struct mei_cl_cb *find_read_list_entry(
 {
 	struct mei_cl_cb *cb_pos = NULL;
 	struct mei_cl_cb *cb_next = NULL;
-	struct mei_cl *cl_list_temp;
 
 	if (!dev->read_list.status &&
 	    !list_empty(&dev->read_list.mei_cb.cb_list)) {
@@ -370,14 +369,11 @@ static struct mei_cl_cb *find_read_list_entry(
 		dev_dbg(&dev->pdev->dev, "remove read_list CB\n");
 		list_for_each_entry_safe(cb_pos, cb_next,
 				&dev->read_list.mei_cb.cb_list, cb_list) {
+			struct mei_cl *cl_temp;
+			cl_temp = (struct mei_cl *)cb_pos->file_private;
 
-			cl_list_temp = (struct mei_cl *)
-				cb_pos->file_private;
-
-			if (cl_list_temp &&
-			    mei_fe_same_id(cl, cl_list_temp))
+			if (mei_cl_cmp_id(cl, cl_temp))
 				return cb_pos;
-
 		}
 	}
 	return NULL;
@@ -478,7 +474,7 @@ static int mei_release(struct inode *inode, struct file *file)
 			    cl->me_client_id);
 			rets = mei_disconnect_host_client(dev, cl);
 		}
-		mei_flush_queues(dev, cl);
+		mei_cl_flush_queues(cl);
 		dev_dbg(&dev->pdev->dev, "remove client host client = %d, ME client = %d\n",
 		    cl->host_client_id,
 		    cl->me_client_id);

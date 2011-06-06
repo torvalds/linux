@@ -1538,7 +1538,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 	dev_dbg(&dev->pdev->dev, "function called after ISR to handle the interrupt processing.\n");
 	/* initialize our complete list */
 	mutex_lock(&dev->device_lock);
-	mei_initialize_list(&complete_list, dev);
+	mei_io_list_init(&complete_list);
 	dev->host_hw_state = mei_hcsr_read(dev);
 	dev->me_hw_state = mei_mecsr_read(dev);
 

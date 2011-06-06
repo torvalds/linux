@@ -62,11 +62,6 @@ extern const u8 mei_wd_state_independence_msg[3][4];
 #define  MEI_MAX_OPEN_HANDLE_COUNT	253
 
 /*
- * Number of queue lists used by this driver
- */
-#define MEI_IO_LISTS_NUMBER        7
-
-/*
  * Number of Maximum MEI Clients
  */
 #define MEI_CLIENTS_MAX 255
@@ -178,7 +173,6 @@ struct mei_device {
 	 * lists of queues
 	 */
 	 /* array of pointers to aio lists */
-	struct mei_io_list *io_list_array[MEI_IO_LISTS_NUMBER];
 	struct mei_io_list read_list;		/* driver read queue */
 	struct mei_io_list write_list;		/* driver write queue */
 	struct mei_io_list write_waiting_list;	/* write waiting queue */
@@ -276,9 +270,6 @@ int mei_hw_init(struct mei_device *dev);
 int mei_task_initialize_clients(void *data);
 int mei_initialize_clients(struct mei_device *dev);
 int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl);
-void mei_initialize_list(struct mei_io_list *list, struct mei_device *dev);
-void mei_flush_list(struct mei_io_list *list, struct mei_cl *cl);
-void mei_flush_queues(struct mei_device *dev, struct mei_cl *cl);
 void mei_remove_client_from_file_list(struct mei_device *dev, u8 host_client_id);
 void mei_host_init_iamthif(struct mei_device *dev);
 void mei_allocate_me_clients_storage(struct mei_device *dev);
@@ -289,11 +280,34 @@ u8 mei_find_me_client_update_filext(struct mei_device *dev,
 				const uuid_le *cguid, u8 client_id);
 
 /*
+ * MEI IO List Functions
+ */
+void mei_io_list_init(struct mei_io_list *list);
+void mei_io_list_flush(struct mei_io_list *list, struct mei_cl *cl);
+
+/*
  * MEI ME Client Functions
  */
 
 struct mei_cl *mei_cl_allocate(struct mei_device *dev);
-void mei_cl_init(struct mei_cl *priv, struct mei_device *dev);
+void mei_cl_init(struct mei_cl *cl, struct mei_device *dev);
+int mei_cl_flush_queues(struct mei_cl *cl);
+/**
+ * mei_cl_cmp_id - tells if file private data have same id
+ *
+ * @fe1: private data of 1. file object
+ * @fe2: private data of 2. file object
+ *
+ * returns true  - if ids are the same and not NULL
+ */
+static inline bool mei_cl_cmp_id(const struct mei_cl *cl1,
+				const struct mei_cl *cl2)
+{
+	return cl1 && cl2 &&
+		(cl1->host_client_id == cl2->host_client_id) &&
+		(cl1->me_client_id == cl2->me_client_id);
+}
+
 
 
 /*
@@ -407,20 +421,5 @@ void mei_csr_clear_his(struct mei_device *dev);
 
 void mei_enable_interrupts(struct mei_device *dev);
 void mei_disable_interrupts(struct mei_device *dev);
-
-/**
- * mei_fe_same_id - tells if file private data have same id
- *
- * @fe1: private data of 1. file object
- * @fe2: private data of 2. file object
- *
- * returns !=0 - if ids are the same, 0 - if differ.
- */
-static inline int mei_fe_same_id(const struct mei_cl *fe1,
-				  const struct mei_cl *fe2)
-{
-	return ((fe1->host_client_id == fe2->host_client_id) &&
-		(fe1->me_client_id == fe2->me_client_id));
-}
 
 #endif

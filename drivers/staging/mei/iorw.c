@@ -121,7 +121,7 @@ int mei_ioctl_connect_client(struct file *file,
 		clear_bit(cl->host_client_id, dev->host_clients_map);
 		list_for_each_entry_safe(cl_pos, cl_next,
 					 &dev->file_list, link) {
-			if (mei_fe_same_id(cl, cl_pos)) {
+			if (mei_cl_cmp_id(cl, cl_pos)) {
 				dev_dbg(&dev->pdev->dev,
 					"remove file private data node host"
 				    " client = %d, ME client = %d.\n",
@@ -204,8 +204,8 @@ int mei_ioctl_connect_client(struct file *file,
 		}
 		rets = -EFAULT;
 
-		mei_flush_list(&dev->ctrl_rd_list, cl);
-		mei_flush_list(&dev->ctrl_wr_list, cl);
+		mei_io_list_flush(&dev->ctrl_rd_list, cl);
+		mei_io_list_flush(&dev->ctrl_wr_list, cl);
 		goto end;
 	}
 	rets = 0;

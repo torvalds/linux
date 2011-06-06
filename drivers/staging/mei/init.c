@@ -29,12 +29,12 @@ const uuid_le mei_amthi_guid  = UUID_LE(0x12f80028, 0xb4b7, 0x4b2d, 0xac,
 						0x81, 0x4c);
 
 /**
- * mei_initialize_list - Sets up a queue list.
+ * mei_io_list_init - Sets up a queue list.
  *
- * @list: An instance of our list structure
+ * @list: An instance io list structure
  * @dev: the device structure
  */
-void mei_initialize_list(struct mei_io_list *list, struct mei_device *dev)
+void mei_io_list_init(struct mei_io_list *list)
 {
 	/* initialize our queue list */
 	INIT_LIST_HEAD(&list->mei_cb.cb_list);
@@ -42,39 +42,15 @@ void mei_initialize_list(struct mei_io_list *list, struct mei_device *dev)
 }
 
 /**
- * mei_flush_queues - flushes queue lists belonging to cl.
- *
- * @dev: the device structure
- * @cl: private data of the file object
- */
-void mei_flush_queues(struct mei_device *dev, struct mei_cl *cl)
-{
-	int i;
-
-	if (!dev || !cl)
-		return;
-
-	for (i = 0; i < MEI_IO_LISTS_NUMBER; i++) {
-		dev_dbg(&dev->pdev->dev, "remove list entry belonging to cl\n");
-		mei_flush_list(dev->io_list_array[i], cl);
-	}
-}
-
-
-/**
- * mei_flush_list - removes list entry belonging to cl.
+ * mei_io_list_flush - removes list entry belonging to cl.
  *
  * @list:  An instance of our list structure
  * @cl: private data of the file object
  */
-void mei_flush_list(struct mei_io_list *list, struct mei_cl *cl)
+void mei_io_list_flush(struct mei_io_list *list, struct mei_cl *cl)
 {
-	struct mei_cl *cl_tmp;
 	struct mei_cl_cb *cb_pos = NULL;
 	struct mei_cl_cb *cb_next = NULL;
-
-	if (!list || !cl)
-		return;
 
 	if (list->status != 0)
 		return;
@@ -85,14 +61,36 @@ void mei_flush_list(struct mei_io_list *list, struct mei_cl *cl)
 	list_for_each_entry_safe(cb_pos, cb_next,
 				 &list->mei_cb.cb_list, cb_list) {
 		if (cb_pos) {
-			cl_tmp = (struct mei_cl *)
-				cb_pos->file_private;
-			if (cl_tmp &&
-			    mei_fe_same_id(cl, cl_tmp))
+			struct mei_cl *cl_tmp;
+			cl_tmp = (struct mei_cl *)cb_pos->file_private;
+			if (mei_cl_cmp_id(cl, cl_tmp))
 				list_del(&cb_pos->cb_list);
 		}
 	}
 }
+/**
+ * mei_cl_flush_queues - flushes queue lists belonging to cl.
+ *
+ * @dev: the device structure
+ * @cl: private data of the file object
+ */
+int mei_cl_flush_queues(struct mei_cl *cl)
+{
+	if (!cl || !cl->dev)
+		return -EINVAL;
+
+	dev_dbg(&cl->dev->pdev->dev, "remove list entry belonging to cl\n");
+	mei_io_list_flush(&cl->dev->read_list, cl);
+	mei_io_list_flush(&cl->dev->write_list, cl);
+	mei_io_list_flush(&cl->dev->write_waiting_list, cl);
+	mei_io_list_flush(&cl->dev->ctrl_wr_list, cl);
+	mei_io_list_flush(&cl->dev->ctrl_rd_list, cl);
+	mei_io_list_flush(&cl->dev->amthi_cmd_list, cl);
+	mei_io_list_flush(&cl->dev->amthi_read_complete_list, cl);
+	return 0;
+}
+
+
 
 /**
  * mei_reset_iamthif_params - initializes mei device iamthif
@@ -120,7 +118,6 @@ static void mei_reset_iamthif_params(struct mei_device *dev)
  */
 struct mei_device *mei_device_init(struct pci_dev *pdev)
 {
-	int i;
 	struct mei_device *dev;
 
 	dev = kzalloc(sizeof(struct mei_device), GFP_KERNEL);
@@ -128,13 +125,6 @@ struct mei_device *mei_device_init(struct pci_dev *pdev)
 		return NULL;
 
 	/* setup our list array */
-	dev->io_list_array[0] = &dev->read_list;
-	dev->io_list_array[1] = &dev->write_list;
-	dev->io_list_array[2] = &dev->write_waiting_list;
-	dev->io_list_array[3] = &dev->ctrl_wr_list;
-	dev->io_list_array[4] = &dev->ctrl_rd_list;
-	dev->io_list_array[5] = &dev->amthi_cmd_list;
-	dev->io_list_array[6] = &dev->amthi_read_complete_list;
 	INIT_LIST_HEAD(&dev->file_list);
 	INIT_LIST_HEAD(&dev->wd_cl.link);
 	INIT_LIST_HEAD(&dev->iamthif_cl.link);
@@ -143,8 +133,15 @@ struct mei_device *mei_device_init(struct pci_dev *pdev)
 	init_waitqueue_head(&dev->wait_stop_wd);
 	dev->mei_state = MEI_INITIALIZING;
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
-	for (i = 0; i < MEI_IO_LISTS_NUMBER; i++)
-		mei_initialize_list(dev->io_list_array[i], dev);
+
+
+	mei_io_list_init(&dev->read_list);
+	mei_io_list_init(&dev->write_list);
+	mei_io_list_init(&dev->write_waiting_list);
+	mei_io_list_init(&dev->ctrl_wr_list);
+	mei_io_list_init(&dev->ctrl_rd_list);
+	mei_io_list_init(&dev->amthi_cmd_list);
+	mei_io_list_init(&dev->amthi_read_complete_list);
 	dev->pdev = pdev;
 	return dev;
 }
@@ -737,8 +734,8 @@ int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 		dev_dbg(&dev->pdev->dev, "failed to disconnect from FW client.\n");
 	}
 
-	mei_flush_list(&dev->ctrl_rd_list, cl);
-	mei_flush_list(&dev->ctrl_wr_list, cl);
+	mei_io_list_flush(&dev->ctrl_rd_list, cl);
+	mei_io_list_flush(&dev->ctrl_wr_list, cl);
 free:
 	mei_free_cb_private(cb);
 	return rets;
