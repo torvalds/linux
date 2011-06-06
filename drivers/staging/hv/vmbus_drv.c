@@ -528,7 +528,7 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
  *	- get the irq resource
  *	- retrieve the channel offers
  */
-static int vmbus_bus_init(struct pci_dev *pdev)
+static int vmbus_bus_init(int irq)
 {
 	int ret;
 	unsigned int vector;
@@ -552,13 +552,13 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 	}
 
 	/* Get the interrupt resource */
-	ret = request_irq(pdev->irq, vmbus_isr,
+	ret = request_irq(irq, vmbus_isr,
 			  IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-			  driver_name, pdev);
+			  driver_name, hv_pci_dev);
 
 	if (ret != 0) {
 		pr_err("Unable to request IRQ %d\n",
-			   pdev->irq);
+			   irq);
 
 		bus_unregister(&hv_bus);
 
@@ -566,7 +566,7 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 		goto cleanup;
 	}
 
-	vector = IRQ0_VECTOR + pdev->irq;
+	vector = IRQ0_VECTOR + irq;
 
 	/*
 	 * Notify the hypervisor of our irq and
@@ -575,7 +575,7 @@ static int vmbus_bus_init(struct pci_dev *pdev)
 	on_each_cpu(hv_synic_init, (void *)&vector, 1);
 	ret = vmbus_connect();
 	if (ret) {
-		free_irq(pdev->irq, pdev);
+		free_irq(irq, hv_pci_dev);
 		bus_unregister(&hv_bus);
 		goto cleanup;
 	}
@@ -795,7 +795,7 @@ static int __devinit hv_pci_probe(struct pci_dev *pdev,
 	if (pdev->irq == 0)
 		pdev->irq = irq;
 
-	pci_probe_error = vmbus_bus_init(pdev);
+	pci_probe_error = vmbus_bus_init(pdev->irq);
 
 	if (pci_probe_error)
 		pci_disable_device(pdev);
