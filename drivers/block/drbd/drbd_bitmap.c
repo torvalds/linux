@@ -1400,8 +1400,10 @@ void _drbd_bm_set_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
 	/* first and full pages, unless first page == last page */
 	for (page_nr = first_page; page_nr < last_page; page_nr++) {
 		bm_set_full_words_within_one_page(mdev->bitmap, page_nr, first_word, last_word);
-		cond_resched_lock(&b->bm_lock);
+		spin_unlock_irq(&b->bm_lock);
+		cond_resched();
 		first_word = 0;
+		spin_lock_irq(&b->bm_lock);
 	}
 
 	/* last page (respectively only page, for first page == last page) */
