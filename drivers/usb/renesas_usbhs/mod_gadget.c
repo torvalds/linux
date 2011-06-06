@@ -125,21 +125,14 @@ static void usbhsg_queue_push(struct usbhsg_uep *uep,
 	struct usbhs_pkt *pkt = usbhsg_ureq_to_pkt(ureq);
 	struct usb_request *req = &ureq->req;
 
-	usbhs_pkt_push(pipe, pkt, uep->handler,
-		       req->buf, req->length, req->zero);
 	req->actual = 0;
 	req->status = -EINPROGRESS;
+	usbhs_pkt_push(pipe, pkt, uep->handler,
+		       req->buf, req->length, req->zero);
 
 	dev_dbg(dev, "pipe %d : queue push (%d)\n",
 		usbhs_pipe_number(pipe),
 		req->length);
-}
-
-static void usbhsg_queue_start(struct usbhsg_uep *uep)
-{
-	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
-
-	usbhs_pkt_start(pipe);
 }
 
 static void usbhsg_queue_pop(struct usbhsg_uep *uep,
@@ -154,10 +147,6 @@ static void usbhsg_queue_pop(struct usbhsg_uep *uep,
 
 	ureq->req.status = status;
 	ureq->req.complete(&uep->ep, &ureq->req);
-
-	/* more request ? */
-	if (0 == status)
-		usbhsg_queue_start(uep);
 }
 
 static void usbhsg_queue_done(struct usbhs_pkt *pkt)
@@ -222,6 +211,7 @@ static int usbhsg_recip_run_handle(struct usbhs_priv *priv,
 	struct usbhsg_gpriv *gpriv = usbhsg_priv_to_gpriv(priv);
 	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
 	struct usbhsg_uep *uep;
+	struct usbhs_pipe *pipe;
 	int recip = ctrl->bRequestType & USB_RECIP_MASK;
 	int nth = le16_to_cpu(ctrl->wIndex) & USB_ENDPOINT_NUMBER_MASK;
 	int ret;
@@ -230,7 +220,8 @@ static int usbhsg_recip_run_handle(struct usbhs_priv *priv,
 	char *msg;
 
 	uep = usbhsg_gpriv_to_nth_uep(gpriv, nth);
-	if (!usbhsg_uep_to_pipe(uep)) {
+	pipe = usbhsg_uep_to_pipe(uep);
+	if (!pipe) {
 		dev_err(dev, "wrong recip request\n");
 		ret = -EINVAL;
 		goto usbhsg_recip_run_handle_end;
@@ -268,7 +259,7 @@ static int usbhsg_recip_run_handle(struct usbhs_priv *priv,
 	}
 
 usbhsg_recip_run_handle_end:
-	usbhsg_queue_start(uep);
+	usbhs_pkt_start(pipe);
 
 	return ret;
 }
@@ -470,7 +461,6 @@ static int usbhsg_ep_queue(struct usb_ep *ep, struct usb_request *req,
 		return -ESHUTDOWN;
 
 	usbhsg_queue_push(uep, ureq);
-	usbhsg_queue_start(uep);
 
 	return 0;
 }
