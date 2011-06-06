@@ -185,12 +185,12 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 
 	openMsg = (struct vmbus_channel_open_channel *)openInfo->msg;
 	openMsg->header.msgtype = CHANNELMSG_OPENCHANNEL;
-	openMsg->openid = newchannel->offermsg.child_relid; /* FIXME */
+	openMsg->openid = newchannel->offermsg.child_relid;
 	openMsg->child_relid = newchannel->offermsg.child_relid;
 	openMsg->ringbuffer_gpadlhandle = newchannel->ringbuffer_gpadlhandle;
 	openMsg->downstream_ringbuffer_pageoffset = send_ringbuffer_size >>
 						  PAGE_SHIFT;
-	openMsg->server_contextarea_gpadlhandle = 0; /* TODO */
+	openMsg->server_contextarea_gpadlhandle = 0;
 
 	if (userdatalen > MAX_USER_DEFINED_BYTES) {
 		err = -EINVAL;
@@ -364,11 +364,11 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 				(struct vmbus_channel_gpadl_body *)msgbody->msg;
 
 			/*
-			 * FIXME:
 			 * Gpadl is u32 and we are using a pointer which could
 			 * be 64-bit
+			 * This is governed by the guest/host protocol and
+			 * so the hypervisor gurantees that this is ok.
 			 */
-			/* gpadl_body->Gpadl = kbuffer; */
 			for (i = 0; i < pfncurr; i++)
 				gpadl_body->pfn[i] = pfn + pfnsum + i;
 
@@ -462,7 +462,6 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	if (msgcount > 1) {
 		list_for_each(curr, &msginfo->submsglist) {
 
-			/* FIXME: should this use list_entry() instead ? */
 			submsginfo = (struct vmbus_channel_msginfo *)curr;
 			gpadl_body =
 			     (struct vmbus_channel_gpadl_body *)submsginfo->msg;
@@ -576,8 +575,6 @@ void vmbus_close(struct vmbus_channel *channel)
 	if (channel->ringbuffer_gpadlhandle)
 		vmbus_teardown_gpadl(channel,
 					  channel->ringbuffer_gpadlhandle);
-
-	/* TODO: Send a msg to release the childRelId */
 
 	/* Cleanup the ring buffers for this channel */
 	hv_ringbuffer_cleanup(&channel->outbound);
