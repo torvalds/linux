@@ -1,8 +1,13 @@
 /*
- * Xen PCI Frontend Stub - puts some "dummy" functions in to the Linux
- *			   x86 PCI core to support the Xen PCI Frontend
+ * Xen PCI - handle PCI (INTx) and MSI infrastructure calls for PV, HVM and
+ * initial domain support. We also handle the DSDT _PRT callbacks for GSI's
+ * used in HVM and initial domain mode (PV does not parse ACPI, so it has no
+ * concept of GSIs). Under PV we hook under the pnbbios API for IRQs and
+ * 0xcf8 PCI configuration read/write.
  *
  *   Author: Ryan Wilson <hap9@epoch.ncsc.mil>
+ *           Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+ *           Stefano Stabellini <stefano.stabellini@eu.citrix.com>
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -183,9 +188,6 @@ static int acpi_register_gsi_xen(struct device *dev, u32 gsi,
 struct xen_pci_frontend_ops *xen_pci_frontend;
 EXPORT_SYMBOL_GPL(xen_pci_frontend);
 
-/*
- * For MSI interrupts we have to use drivers/xen/event.s functions to
- * allocate an irq_desc and setup the right */
 static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	int irq, ret, i;
@@ -361,7 +363,6 @@ static void xen_teardown_msi_irq(unsigned int irq)
 
 #endif
 
-
 int __init pci_xen_init(void)
 {
 	if (!xen_pv_domain() || xen_initial_domain())
@@ -427,7 +428,7 @@ static __init void xen_setup_acpi_sci(void)
 	}
 	trigger = trigger ? ACPI_LEVEL_SENSITIVE : ACPI_EDGE_SENSITIVE;
 	polarity = polarity ? ACPI_ACTIVE_LOW : ACPI_ACTIVE_HIGH;
-	
+
 	printk(KERN_INFO "xen: sci override: global_irq=%d trigger=%d "
 			"polarity=%d\n", gsi, trigger, polarity);
 
