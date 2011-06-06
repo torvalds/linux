@@ -204,7 +204,7 @@ static void usbip_dump_usb_ctrlrequest(struct usb_ctrlrequest *cmd)
 			pr_debug("CLEAR_FEAT\n");
 			break;
 		case USB_REQ_SET_FEATURE:
-			pr_debug("SET_FEAT  \n");
+			pr_debug("SET_FEAT\n");
 			break;
 		case USB_REQ_SET_ADDRESS:
 			pr_debug("SET_ADDRRS\n");
@@ -231,14 +231,14 @@ static void usbip_dump_usb_ctrlrequest(struct usb_ctrlrequest *cmd)
 			pr_debug("SYNC_FRAME\n");
 			break;
 		default:
-			pr_debug("REQ(%02X) \n", cmd->bRequest);
+			pr_debug("REQ(%02X)\n", cmd->bRequest);
 			break;
 		}
 		usbip_dump_request_type(cmd->bRequestType);
 	} else if ((cmd->bRequestType & USB_TYPE_MASK) == USB_TYPE_CLASS) {
-		pr_debug("CLASS   \n");
+		pr_debug("CLASS\n");
 	} else if ((cmd->bRequestType & USB_TYPE_MASK) == USB_TYPE_VENDOR) {
-		pr_debug("VENDOR  \n");
+		pr_debug("VENDOR\n");
 	} else if ((cmd->bRequestType & USB_TYPE_MASK) == USB_TYPE_RESERVED) {
 		pr_debug("RESERVED\n");
 	}
