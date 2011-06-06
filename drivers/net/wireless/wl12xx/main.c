@@ -394,6 +394,22 @@ static struct platform_device wl1271_device = {
 static DEFINE_MUTEX(wl_list_mutex);
 static LIST_HEAD(wl_list);
 
+static int wl1271_check_operstate(struct wl1271 *wl, unsigned char operstate)
+{
+	int ret;
+	if (operstate != IF_OPER_UP)
+		return 0;
+
+	if (test_and_set_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags))
+		return 0;
+
+	ret = wl1271_cmd_set_sta_state(wl);
+	if (ret < 0)
+		return ret;
+
+	wl1271_info("Association completed.");
+	return 0;
+}
 static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 			     void *arg)
 {
@@ -443,11 +459,7 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 	if (ret < 0)
 		goto out;
 
-	if ((dev->operstate == IF_OPER_UP) &&
-	    !test_and_set_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags)) {
-		wl1271_cmd_set_sta_state(wl);
-		wl1271_info("Association completed.");
-	}
+	wl1271_check_operstate(wl, dev->operstate);
 
 	wl1271_ps_elp_sleep(wl);
 
@@ -3217,6 +3229,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			wl1271_warning("cmd join failed %d", ret);
 			goto out;
 		}
+		wl1271_check_operstate(wl, ieee80211_get_operstate(vif));
 	}
 
 out:
