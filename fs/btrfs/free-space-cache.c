@@ -98,7 +98,7 @@ struct inode *lookup_free_space_inode(struct btrfs_root *root,
 		return inode;
 
 	spin_lock(&block_group->lock);
-	if (!root->fs_info->closing) {
+	if (!btrfs_fs_closing(root->fs_info)) {
 		block_group->inode = igrab(inode);
 		block_group->iref = 1;
 	}
@@ -402,7 +402,14 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 				spin_lock(&ctl->tree_lock);
 				ret = link_free_space(ctl, e);
 				spin_unlock(&ctl->tree_lock);
-				BUG_ON(ret);
+				if (ret) {
+					printk(KERN_ERR "Duplicate entries in "
+					       "free space cache, dumping\n");
+					kunmap(page);
+					unlock_page(page);
+					page_cache_release(page);
+					goto free_cache;
+				}
 			} else {
 				e->bitmap = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
 				if (!e->bitmap) {
@@ -419,6 +426,14 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 				ctl->op->recalc_thresholds(ctl);
 				spin_unlock(&ctl->tree_lock);
 				list_add_tail(&e->list, &bitmaps);
+				if (ret) {
+					printk(KERN_ERR "Duplicate entries in "
+					       "free space cache, dumping\n");
+					kunmap(page);
+					unlock_page(page);
+					page_cache_release(page);
+					goto free_cache;
+				}
 			}
 
 			num_entries--;
@@ -478,8 +493,7 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 	 * If we're unmounting then just return, since this does a search on the
 	 * normal root and not the commit root and we could deadlock.
 	 */
-	smp_mb();
-	if (fs_info->closing)
+	if (btrfs_fs_closing(fs_info))
 		return 0;
 
 	/*
@@ -575,9 +589,24 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 
 	num_pages = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
 		PAGE_CACHE_SHIFT;
+
+	/* Since the first page has all of our checksums and our generation we
+	 * need to calculate the offset into the page that we can start writing
+	 * our entries.
+	 */
+	first_page_offset = (sizeof(u32) * num_pages) + sizeof(u64);
+
 	filemap_write_and_wait(inode->i_mapping);
 	btrfs_wait_ordered_range(inode, inode->i_size &
 				 ~(root->sectorsize - 1), (u64)-1);
+
+	/* make sure we don't overflow that first page */
+	if (first_page_offset + sizeof(struct btrfs_free_space_entry) >= PAGE_CACHE_SIZE) {
+		/* this is really the same as running out of space, where we also return 0 */
+		printk(KERN_CRIT "Btrfs: free space cache was too big for the crc page\n");
+		ret = 0;
+		goto out_update;
+	}
 
 	/* We need a checksum per page. */
 	crc = checksums = kzalloc(sizeof(u32) * num_pages, GFP_NOFS);
@@ -589,12 +618,6 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 		kfree(crc);
 		return -1;
 	}
-
-	/* Since the first page has all of our checksums and our generation we
-	 * need to calculate the offset into the page that we can start writing
-	 * our entries.
-	 */
-	first_page_offset = (sizeof(u32) * num_pages) + sizeof(u64);
 
 	/* Get the cluster for this block_group if it exists */
 	if (block_group && !list_empty(&block_group->cluster_list))
@@ -857,12 +880,14 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	ret = 1;
 
 out_free:
+	kfree(checksums);
+	kfree(pages);
+
+out_update:
 	if (ret != 1) {
 		invalidate_inode_pages2_range(inode->i_mapping, 0, index);
 		BTRFS_I(inode)->generation = 0;
 	}
-	kfree(checksums);
-	kfree(pages);
 	btrfs_update_inode(trans, root, inode);
 	return ret;
 }
@@ -963,10 +988,16 @@ static int tree_insert_offset(struct rb_root *root, u64 offset,
 			 * logically.
 			 */
 			if (bitmap) {
-				WARN_ON(info->bitmap);
+				if (info->bitmap) {
+					WARN_ON_ONCE(1);
+					return -EEXIST;
+				}
 				p = &(*p)->rb_right;
 			} else {
-				WARN_ON(!info->bitmap);
+				if (!info->bitmap) {
+					WARN_ON_ONCE(1);
+					return -EEXIST;
+				}
 				p = &(*p)->rb_left;
 			}
 		}
@@ -2481,7 +2512,7 @@ struct inode *lookup_free_ino_inode(struct btrfs_root *root,
 		return inode;
 
 	spin_lock(&root->cache_lock);
-	if (!root->fs_info->closing)
+	if (!btrfs_fs_closing(root->fs_info))
 		root->cache_inode = igrab(inode);
 	spin_unlock(&root->cache_lock);
 
@@ -2504,12 +2535,14 @@ int load_free_ino_cache(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 	int ret = 0;
 	u64 root_gen = btrfs_root_generation(&root->root_item);
 
+	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+		return 0;
+
 	/*
 	 * If we're unmounting then just return, since this does a search on the
 	 * normal root and not the commit root and we could deadlock.
 	 */
-	smp_mb();
-	if (fs_info->closing)
+	if (btrfs_fs_closing(fs_info))
 		return 0;
 
 	path = btrfs_alloc_path();
@@ -2542,6 +2575,9 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
 	struct inode *inode;
 	int ret;
+
+	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+		return 0;
 
 	inode = lookup_free_ino_inode(root, path);
 	if (IS_ERR(inode))

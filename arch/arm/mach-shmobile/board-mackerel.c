@@ -39,6 +39,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/pm_runtime.h>
 #include <linux/smsc911x.h>
 #include <linux/sh_intc.h>
 #include <linux/tca6416_keypad.h>
@@ -314,6 +315,30 @@ static struct platform_device smc911x_device = {
 	},
 };
 
+/* MERAM */
+static struct sh_mobile_meram_info mackerel_meram_info = {
+	.addr_mode	= SH_MOBILE_MERAM_MODE1,
+};
+
+static struct resource meram_resources[] = {
+	[0] = {
+		.name	= "MERAM",
+		.start	= 0xe8000000,
+		.end	= 0xe81fffff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device meram_device = {
+	.name		= "sh_mobile_meram",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(meram_resources),
+	.resource	= meram_resources,
+	.dev		= {
+		.platform_data = &mackerel_meram_info,
+	},
+};
+
 /* LCDC */
 static struct fb_videomode mackerel_lcdc_modes[] = {
 	{
@@ -342,7 +367,23 @@ static int mackerel_get_brightness(void *board_data)
 	return gpio_get_value(GPIO_PORT31);
 }
 
+static struct sh_mobile_meram_cfg lcd_meram_cfg = {
+	.icb[0] = {
+		.marker_icb     = 28,
+		.cache_icb      = 24,
+		.meram_offset   = 0x0,
+		.meram_size     = 0x40,
+	},
+	.icb[1] = {
+		.marker_icb     = 29,
+		.cache_icb      = 25,
+		.meram_offset   = 0x40,
+		.meram_size     = 0x40,
+	},
+};
+
 static struct sh_mobile_lcdc_info lcdc_info = {
+	.meram_dev = &mackerel_meram_info,
 	.clock_source = LCDC_CLK_BUS,
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
@@ -362,6 +403,7 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.name = "sh_mobile_lcdc_bl",
 			.max_brightness = 1,
 		},
+		.meram_cfg = &lcd_meram_cfg,
 	}
 };
 
@@ -388,8 +430,23 @@ static struct platform_device lcdc_device = {
 	},
 };
 
+static struct sh_mobile_meram_cfg hdmi_meram_cfg = {
+	.icb[0] = {
+		.marker_icb     = 30,
+		.cache_icb      = 26,
+		.meram_offset   = 0x80,
+		.meram_size     = 0x100,
+	},
+	.icb[1] = {
+		.marker_icb     = 31,
+		.cache_icb      = 27,
+		.meram_offset   = 0x180,
+		.meram_size     = 0x100,
+	},
+};
 /* HDMI */
 static struct sh_mobile_lcdc_info hdmi_lcdc_info = {
+	.meram_dev = &mackerel_meram_info,
 	.clock_source = LCDC_CLK_EXTERNAL,
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
@@ -397,6 +454,7 @@ static struct sh_mobile_lcdc_info hdmi_lcdc_info = {
 		.interface_type = RGB24,
 		.clock_divider = 1,
 		.flags = LCDC_FLAGS_DWPOL,
+		.meram_cfg = &hdmi_meram_cfg,
 	}
 };
 
@@ -856,6 +914,17 @@ static int slot_cn7_get_cd(struct platform_device *pdev)
 }
 
 /* SDHI0 */
+static irqreturn_t mackerel_sdhi0_gpio_cd(int irq, void *arg)
+{
+	struct device *dev = arg;
+	struct sh_mobile_sdhi_info *info = dev->platform_data;
+	struct tmio_mmc_data *pdata = info->pdata;
+
+	tmio_mmc_cd_wakeup(pdata);
+
+	return IRQ_HANDLED;
+}
+
 static struct sh_mobile_sdhi_info sdhi0_info = {
 	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
@@ -1150,6 +1219,7 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&mackerel_camera,
 	&hdmi_lcdc_device,
 	&hdmi_device,
+	&meram_device,
 };
 
 /* Keypad Initialization */
@@ -1238,6 +1308,7 @@ static void __init mackerel_init(void)
 {
 	u32 srcr4;
 	struct clk *clk;
+	int ret;
 
 	sh7372_pinmux_init();
 
@@ -1342,6 +1413,13 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_SDHID0_2, NULL);
 	gpio_request(GPIO_FN_SDHID0_1, NULL);
 	gpio_request(GPIO_FN_SDHID0_0, NULL);
+
+	ret = request_irq(evt2irq(0x3340), mackerel_sdhi0_gpio_cd,
+			  IRQF_TRIGGER_FALLING, "sdhi0 cd", &sdhi0_device.dev);
+	if (!ret)
+		sdhi0_info.tmio_flags |= TMIO_MMC_HAS_COLD_CD;
+	else
+		pr_err("Cannot get IRQ #%d: %d\n", evt2irq(0x3340), ret);
 
 #if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
 	/* enable SDHI1 */

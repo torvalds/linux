@@ -295,6 +295,8 @@ static const struct mxc_usbh_platform_data usbh2_pdata __initconst = {
 
 static void __init pcm038_init(void)
 {
+	imx27_soc_init();
+
 	mxc_gpio_setup_multiple_pins(pcm038_pins, ARRAY_SIZE(pcm038_pins),
 			"PCM038");
 
