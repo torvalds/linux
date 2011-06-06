@@ -113,6 +113,11 @@ int iwl_eeprom_check_sku(struct iwl_priv *priv)
 	if (!priv->cfg->sku) {
 		/* not using sku overwrite */
 		priv->cfg->sku = iwl_eeprom_query16(priv, EEPROM_SKU_CAP);
+		if (priv->cfg->sku & EEPROM_SKU_CAP_11N_ENABLE &&
+		    !priv->cfg->ht_params) {
+			IWL_ERR(priv, "Invalid 11n configuration\n");
+			return -EINVAL;
+		}
 	}
 	if (!priv->cfg->sku) {
 		IWL_ERR(priv, "Invalid device sku\n");
