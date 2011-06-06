@@ -552,7 +552,6 @@ void vmbus_close(struct vmbus_channel *channel)
 {
 	struct vmbus_channel_close_channel *msg;
 	struct vmbus_channel_msginfo *info;
-	unsigned long flags;
 	int ret;
 
 	/* Stop callback and cancel the timer asap */
@@ -591,19 +590,6 @@ void vmbus_close(struct vmbus_channel *channel)
 
 	kfree(info);
 
-	/*
-	 * If we are closing the channel during an error path in
-	 * opening the channel, don't free the channel since the
-	 * caller will free the channel
-	 */
-
-	if (channel->state == CHANNEL_OPEN_STATE) {
-		spin_lock_irqsave(&vmbus_connection.channel_lock, flags);
-		list_del(&channel->listentry);
-		spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
-
-		free_channel(channel);
-	}
 }
 EXPORT_SYMBOL_GPL(vmbus_close);
 
