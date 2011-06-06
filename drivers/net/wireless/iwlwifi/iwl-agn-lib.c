@@ -1532,7 +1532,7 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 	memset(&flush_cmd, 0, sizeof(flush_cmd));
 	flush_cmd.fifo_control = IWL_TX_FIFO_VO_MSK | IWL_TX_FIFO_VI_MSK |
 				 IWL_TX_FIFO_BE_MSK | IWL_TX_FIFO_BK_MSK;
-	if (priv->cfg->sku & IWL_SKU_N)
+	if (priv->cfg->sku & EEPROM_SKU_CAP_11N_ENABLE)
 		flush_cmd.fifo_control |= IWL_AGG_TX_QUEUE_MSK;
 
 	IWL_DEBUG_INFO(priv, "fifo queue control: 0X%x\n",
@@ -2318,7 +2318,8 @@ int iwlagn_start_device(struct iwl_priv *priv)
 {
 	int ret;
 
-	if (iwl_prepare_card_hw(priv)) {
+	if ((priv->cfg->sku & EEPROM_SKU_CAP_AMT_ENABLE) &&
+	     iwl_prepare_card_hw(priv)) {
 		IWL_WARN(priv, "Exit HW not ready\n");
 		return -EIO;
 	}

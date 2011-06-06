@@ -110,9 +110,6 @@ enum {
 };
 
 /* SKU Capabilities */
-#define EEPROM_SKU_CAP_BAND_POS				(4)
-#define EEPROM_SKU_CAP_BAND_SELECTION	                \
-		(3 << EEPROM_SKU_CAP_BAND_POS)
 #define EEPROM_SKU_CAP_BAND_24GHZ			(1 << 4)
 #define EEPROM_SKU_CAP_BAND_52GHZ			(1 << 5)
 #define EEPROM_SKU_CAP_11N_ENABLE	                (1 << 6)
