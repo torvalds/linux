@@ -93,6 +93,10 @@ config GPIO_EXYNOS4
 	help
 	  Say yes here to support Samsung Exynos4 series SoCs GPIO library
 
+config GPIO_MXS
+	def_bool y
+	depends on ARCH_MXS
+
 config GPIO_PLAT_SAMSUNG
 	bool "Samsung SoCs GPIO library support"
 	default y if SAMSUNG_GPIOLIB_4BIT

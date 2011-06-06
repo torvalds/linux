@@ -29,8 +29,6 @@
 #include <mach/mx28.h>
 #include <asm-generic/bug.h>
 
-#include "gpio.h"
-
 static struct mxs_gpio_port *mxs_gpio_ports;
 static int gpio_table_size;
 
@@ -49,6 +47,15 @@ static int gpio_table_size;
 #define GPIO_INT_HIGH_LEV	0x3
 #define GPIO_INT_LEV_MASK	(1 << 0)
 #define GPIO_INT_POL_MASK	(1 << 1)
+
+struct mxs_gpio_port {
+	void __iomem *base;
+	int id;
+	int irq;
+	int irq_high;
+	int virtual_irq_start;
+	struct gpio_chip chip;
+};
 
 /* Note: This driver assumes 32 GPIOs are handled in one register */
 
