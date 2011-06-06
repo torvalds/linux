@@ -31,8 +31,8 @@ struct usbhs_pkt {
 };
 
 struct usbhs_pkt_handle {
-	int (*prepare)(struct usbhs_pkt *pkt);
-	int (*try_run)(struct usbhs_pkt *pkt);
+	int (*prepare)(struct usbhs_pkt *pkt, int *is_done);
+	int (*try_run)(struct usbhs_pkt *pkt, int *is_done);
 };
 
 /*
@@ -44,6 +44,11 @@ void usbhs_fifo_quit(struct usbhs_priv *priv);
 /*
  * packet info
  */
+enum {
+	USBHSF_PKT_PREPARE,
+	USBHSF_PKT_TRY_RUN,
+};
+
 extern struct usbhs_pkt_handle usbhs_fifo_push_handler;
 extern struct usbhs_pkt_handle usbhs_fifo_pop_handler;
 extern struct usbhs_pkt_handle usbhs_ctrl_stage_end_handler;
@@ -52,10 +57,10 @@ void usbhs_pkt_init(struct usbhs_pkt *pkt);
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 		    struct usbhs_pkt_handle *handler,
 		    void *buf, int len, int zero);
-void usbhs_pkt_pop(struct usbhs_pkt *pkt);
-struct usbhs_pkt *usbhs_pkt_get(struct usbhs_pipe *pipe);
+struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt);
+int __usbhs_pkt_handler(struct usbhs_pipe *pipe, int type);
 
-#define usbhs_pkt_start(p)	((p)->handler->prepare(p))
-#define usbhs_pkt_run(p)	((p)->handler->try_run(p))
+#define usbhs_pkt_start(p)	__usbhs_pkt_handler(p, USBHSF_PKT_PREPARE)
+#define usbhs_pkt_run(p)	__usbhs_pkt_handler(p, USBHSF_PKT_TRY_RUN)
 
 #endif /* RENESAS_USB_FIFO_H */

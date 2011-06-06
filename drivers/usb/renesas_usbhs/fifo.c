@@ -22,7 +22,7 @@
 /*
  *		packet info function
  */
-static int usbhsf_null_handle(struct usbhs_pkt *pkt)
+static int usbhsf_null_handle(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pkt->pipe);
 	struct device *dev = usbhs_priv_to_dev(priv);
@@ -48,6 +48,10 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct device *dev = usbhs_priv_to_dev(priv);
+	unsigned long flags;
+
+	/********************  spin lock ********************/
+	usbhs_lock(priv, flags);
 
 	if (!handler) {
 		dev_err(dev, "no handler function\n");
@@ -63,19 +67,87 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 	pkt->length	= len;
 	pkt->zero	= zero;
 	pkt->actual	= 0;
+
+	usbhs_unlock(priv, flags);
+	/********************  spin unlock ******************/
 }
 
-void usbhs_pkt_pop(struct usbhs_pkt *pkt)
+static void __usbhsf_pkt_del(struct usbhs_pkt *pkt)
 {
 	list_del_init(&pkt->node);
 }
 
-struct usbhs_pkt *usbhs_pkt_get(struct usbhs_pipe *pipe)
+static struct usbhs_pkt *__usbhsf_pkt_get(struct usbhs_pipe *pipe)
 {
 	if (list_empty(&pipe->list))
 		return NULL;
 
 	return list_entry(pipe->list.next, struct usbhs_pkt, node);
+}
+
+struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt)
+{
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	unsigned long flags;
+
+	/********************  spin lock ********************/
+	usbhs_lock(priv, flags);
+
+	if (!pkt)
+		pkt = __usbhsf_pkt_get(pipe);
+
+	if (pkt)
+		__usbhsf_pkt_del(pkt);
+
+	usbhs_unlock(priv, flags);
+	/********************  spin unlock ******************/
+
+	return pkt;
+}
+
+int __usbhs_pkt_handler(struct usbhs_pipe *pipe, int type)
+{
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
+	struct usbhs_pkt *pkt;
+	struct device *dev = usbhs_priv_to_dev(priv);
+	int (*func)(struct usbhs_pkt *pkt, int *is_done);
+	unsigned long flags;
+	int ret = 0;
+	int is_done = 0;
+
+	/********************  spin lock ********************/
+	usbhs_lock(priv, flags);
+
+	pkt = __usbhsf_pkt_get(pipe);
+	if (!pkt)
+		goto __usbhs_pkt_handler_end;
+
+	switch (type) {
+	case USBHSF_PKT_PREPARE:
+		func = pkt->handler->prepare;
+		break;
+	case USBHSF_PKT_TRY_RUN:
+		func = pkt->handler->try_run;
+		break;
+	default:
+		dev_err(dev, "unknown pkt hander\n");
+		goto __usbhs_pkt_handler_end;
+	}
+
+	ret = func(pkt, &is_done);
+
+	if (is_done)
+		__usbhsf_pkt_del(pkt);
+
+__usbhs_pkt_handler_end:
+	usbhs_unlock(priv, flags);
+	/********************  spin unlock ******************/
+
+	if (is_done)
+		info->done(pkt);
+
+	return ret;
 }
 
 /*
@@ -188,18 +260,17 @@ static int usbhsf_fifo_select(struct usbhs_pipe *pipe, int write)
 /*
  *		PIO fifo functions
  */
-static int usbhsf_try_push(struct usbhs_pkt *pkt)
+static int usbhsf_try_push(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
-	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
 	struct device *dev = usbhs_priv_to_dev(priv);
 	void __iomem *addr = priv->base + CFIFO;
 	u8 *buf;
 	int maxp = usbhs_pipe_get_maxpacket(pipe);
 	int total_len;
 	int i, ret, len;
-	int is_short, is_done;
+	int is_short;
 
 	ret = usbhsf_fifo_select(pipe, 1);
 	if (ret < 0)
@@ -240,11 +311,11 @@ static int usbhsf_try_push(struct usbhs_pkt *pkt)
 	pkt->actual += total_len;
 
 	if (pkt->actual < pkt->length)
-		is_done = 0;		/* there are remainder data */
+		*is_done = 0;		/* there are remainder data */
 	else if (is_short)
-		is_done = 1;		/* short packet */
+		*is_done = 1;		/* short packet */
 	else
-		is_done = !pkt->zero;	/* send zero packet ? */
+		*is_done = !pkt->zero;	/* send zero packet ? */
 
 	/*
 	 * pipe/irq handling
@@ -252,21 +323,19 @@ static int usbhsf_try_push(struct usbhs_pkt *pkt)
 	if (is_short)
 		usbhsf_send_terminator(pipe);
 
-	usbhsf_tx_irq_ctrl(pipe, !is_done);
+	usbhsf_tx_irq_ctrl(pipe, !*is_done);
 	usbhs_pipe_enable(pipe);
 
 	dev_dbg(dev, "  send %d (%d/ %d/ %d/ %d)\n",
 		usbhs_pipe_number(pipe),
-		pkt->length, pkt->actual, is_done, pkt->zero);
+		pkt->length, pkt->actual, *is_done, pkt->zero);
 
 	/*
 	 * Transmission end
 	 */
-	if (is_done) {
+	if (*is_done) {
 		if (usbhs_pipe_is_dcp(pipe))
 			usbhs_dcp_control_transfer_done(pipe);
-
-		info->done(pkt);
 	}
 
 	return 0;
@@ -286,7 +355,7 @@ struct usbhs_pkt_handle usbhs_fifo_push_handler = {
 	.try_run = usbhsf_try_push,
 };
 
-static int usbhsf_prepare_pop(struct usbhs_pkt *pkt)
+static int usbhsf_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	int ret;
@@ -304,7 +373,7 @@ static int usbhsf_prepare_pop(struct usbhs_pkt *pkt)
 	return ret;
 }
 
-static int usbhsf_try_pop(struct usbhs_pkt *pkt)
+static int usbhsf_try_pop(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
@@ -316,7 +385,6 @@ static int usbhsf_try_pop(struct usbhs_pkt *pkt)
 	int rcv_len, len;
 	int i, ret;
 	int total_len = 0;
-	int is_done = 0;
 
 	ret = usbhsf_fifo_select(pipe, 0);
 	if (ret < 0)
@@ -367,21 +435,15 @@ static int usbhsf_try_pop(struct usbhs_pkt *pkt)
 
 usbhs_fifo_read_end:
 	if ((pkt->actual == pkt->length) ||	/* receive all data */
-	    (total_len < maxp))			/* short packet */
-		is_done = 1;
+	    (total_len < maxp)) {		/* short packet */
+		*is_done = 1;
+		usbhsf_rx_irq_ctrl(pipe, 0);
+		usbhs_pipe_disable(pipe);
+	}
 
 	dev_dbg(dev, "  recv %d (%d/ %d/ %d/ %d)\n",
 		usbhs_pipe_number(pipe),
-		pkt->length, pkt->actual, is_done, pkt->zero);
-
-	if (is_done) {
-		struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
-
-		usbhsf_rx_irq_ctrl(pipe, 0);
-		usbhs_pipe_disable(pipe);
-
-		info->done(pkt);
-	}
+		pkt->length, pkt->actual, *is_done, pkt->zero);
 
 	return 0;
 }
@@ -394,15 +456,11 @@ struct usbhs_pkt_handle usbhs_fifo_pop_handler = {
 /*
  *		handler function
  */
-static int usbhsf_ctrl_stage_end(struct usbhs_pkt *pkt)
+static int usbhsf_ctrl_stage_end(struct usbhs_pkt *pkt, int *is_done)
 {
-	struct usbhs_pipe *pipe = pkt->pipe;
-	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
-	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
+	usbhs_dcp_control_transfer_done(pkt->pipe);
 
-	usbhs_dcp_control_transfer_done(pipe);
-
-	info->done(pkt);
+	*is_done = 1;
 
 	return 0;
 }
@@ -419,7 +477,6 @@ static int usbhsf_irq_empty(struct usbhs_priv *priv,
 			    struct usbhs_irq_state *irq_state)
 {
 	struct usbhs_pipe *pipe;
-	struct usbhs_pkt *pkt;
 	struct device *dev = usbhs_priv_to_dev(priv);
 	int i, ret;
 
@@ -438,8 +495,7 @@ static int usbhsf_irq_empty(struct usbhs_priv *priv,
 		if (!(irq_state->bempsts & (1 << i)))
 			continue;
 
-		pkt = usbhs_pkt_get(pipe);
-		ret = usbhs_pkt_run(pkt);
+		ret = usbhs_pkt_run(pipe);
 		if (ret < 0)
 			dev_err(dev, "irq_empty run_error %d : %d\n", i, ret);
 	}
@@ -451,7 +507,6 @@ static int usbhsf_irq_ready(struct usbhs_priv *priv,
 			    struct usbhs_irq_state *irq_state)
 {
 	struct usbhs_pipe *pipe;
-	struct usbhs_pkt *pkt;
 	struct device *dev = usbhs_priv_to_dev(priv);
 	int i, ret;
 
@@ -470,8 +525,7 @@ static int usbhsf_irq_ready(struct usbhs_priv *priv,
 		if (!(irq_state->brdysts & (1 << i)))
 			continue;
 
-		pkt = usbhs_pkt_get(pipe);
-		ret = usbhs_pkt_run(pkt);
+		ret = usbhs_pkt_run(pipe);
 		if (ret < 0)
 			dev_err(dev, "irq_ready run_error %d : %d\n", i, ret);
 	}
