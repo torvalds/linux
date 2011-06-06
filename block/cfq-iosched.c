@@ -1004,8 +1004,8 @@ static inline struct cfq_group *cfqg_of_blkg(struct blkio_group *blkg)
 	return NULL;
 }
 
-void cfq_update_blkio_group_weight(void *key, struct blkio_group *blkg,
-					unsigned int weight)
+static void cfq_update_blkio_group_weight(void *key, struct blkio_group *blkg,
+					  unsigned int weight)
 {
 	struct cfq_group *cfqg = cfqg_of_blkg(blkg);
 	cfqg->new_weight = weight;
@@ -1234,7 +1234,7 @@ static void cfq_release_cfq_groups(struct cfq_data *cfqd)
  * it should not be NULL as even if elevator was exiting, cgroup deltion
  * path got to it first.
  */
-void cfq_unlink_blkio_group(void *key, struct blkio_group *blkg)
+static void cfq_unlink_blkio_group(void *key, struct blkio_group *blkg)
 {
 	unsigned long  flags;
 	struct cfq_data *cfqd = key;
