@@ -206,12 +206,12 @@ static struct omap_dss_board_info omap3_stalker_dss_data = {
 	.default_device	= &omap3_stalker_dvi_device,
 };
 
-static struct regulator_consumer_supply omap3stalker_vmmc1_supply = {
-	.supply		= "vmmc",
+static struct regulator_consumer_supply omap3stalker_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply omap3stalker_vsim_supply = {
-	.supply		= "vmmc_aux",
+static struct regulator_consumer_supply omap3stalker_vsim_supply[] = {
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.0"),
 };
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
@@ -224,8 +224,8 @@ static struct regulator_init_data omap3stalker_vmmc1 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE
 		| REGULATOR_CHANGE_MODE | REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &omap3stalker_vmmc1_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(omap3stalker_vmmc1_supply),
+	.consumer_supplies	= omap3stalker_vmmc1_supply,
 };
 
 /* VSIM for MMC1 pins DAT4..DAT7 (2 mA, plus card == max 50 mA) */
@@ -238,8 +238,8 @@ static struct regulator_init_data omap3stalker_vsim = {
 		.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE
 		| REGULATOR_CHANGE_MODE | REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &omap3stalker_vsim_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(omap3stalker_vsim_supply),
+	.consumer_supplies	= omap3stalker_vsim_supply,
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -403,8 +403,9 @@ static struct twl4030_codec_data omap3stalker_codec_data = {
 	.audio		= &omap3stalker_audio_data,
 };
 
-static struct regulator_consumer_supply omap3_stalker_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
+static struct regulator_consumer_supply omap3_stalker_vdda_dac_supply[] = {
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
+};
 
 /* VDAC for DSS driving S-Video */
 static struct regulator_init_data omap3_stalker_vdac = {
@@ -417,8 +418,8 @@ static struct regulator_init_data omap3_stalker_vdac = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 		| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &omap3_stalker_vdda_dac_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(omap3_stalker_vdda_dac_supply),
+	.consumer_supplies	= omap3_stalker_vdda_dac_supply,
 };
 
 /* VPLL2 for digital video outputs */

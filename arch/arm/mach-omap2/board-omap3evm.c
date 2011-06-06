@@ -273,12 +273,12 @@ static struct omap_dss_board_info omap3_evm_dss_data = {
 	.default_device	= &omap3_evm_lcd_device,
 };
 
-static struct regulator_consumer_supply omap3evm_vmmc1_supply = {
-	.supply			= "vmmc",
+static struct regulator_consumer_supply omap3evm_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply omap3evm_vsim_supply = {
-	.supply			= "vmmc_aux",
+static struct regulator_consumer_supply omap3evm_vsim_supply[] = {
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.0"),
 };
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
@@ -292,8 +292,8 @@ static struct regulator_init_data omap3evm_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &omap3evm_vmmc1_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(omap3evm_vmmc1_supply),
+	.consumer_supplies	= omap3evm_vmmc1_supply,
 };
 
 /* VSIM for MMC1 pins DAT4..DAT7 (2 mA, plus card == max 50 mA) */
@@ -307,8 +307,8 @@ static struct regulator_init_data omap3evm_vsim = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &omap3evm_vsim_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(omap3evm_vsim_supply),
+	.consumer_supplies	= omap3evm_vsim_supply,
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -449,8 +449,9 @@ static struct twl4030_codec_data omap3evm_codec_data = {
 	.audio = &omap3evm_audio_data,
 };
 
-static struct regulator_consumer_supply omap3_evm_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
+static struct regulator_consumer_supply omap3_evm_vdda_dac_supply[] = {
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
+};
 
 /* VDAC for DSS driving S-Video */
 static struct regulator_init_data omap3_evm_vdac = {
@@ -463,8 +464,8 @@ static struct regulator_init_data omap3_evm_vdac = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &omap3_evm_vdda_dac_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(omap3_evm_vdda_dac_supply),
+	.consumer_supplies	= omap3_evm_vdda_dac_supply,
 };
 
 /* VPLL2 for digital video outputs */
@@ -488,8 +489,9 @@ static struct regulator_init_data omap3_evm_vpll2 = {
 };
 
 /* ads7846 on SPI */
-static struct regulator_consumer_supply omap3evm_vio_supply =
-	REGULATOR_SUPPLY("vcc", "spi1.0");
+static struct regulator_consumer_supply omap3evm_vio_supply[] = {
+	REGULATOR_SUPPLY("vcc", "spi1.0"),
+};
 
 /* VIO for ads7846 */
 static struct regulator_init_data omap3evm_vio = {
@@ -502,8 +504,8 @@ static struct regulator_init_data omap3evm_vio = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &omap3evm_vio_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(omap3evm_vio_supply),
+	.consumer_supplies	= omap3evm_vio_supply,
 };
 
 #ifdef CONFIG_WL12XX_PLATFORM_DATA
@@ -511,16 +513,17 @@ static struct regulator_init_data omap3evm_vio = {
 #define OMAP3EVM_WLAN_PMENA_GPIO	(150)
 #define OMAP3EVM_WLAN_IRQ_GPIO		(149)
 
-static struct regulator_consumer_supply omap3evm_vmmc2_supply =
+static struct regulator_consumer_supply omap3evm_vmmc2_supply[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
+};
 
 /* VMMC2 for driving the WL12xx module */
 static struct regulator_init_data omap3evm_vmmc2 = {
 	.constraints = {
 		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies = &omap3evm_vmmc2_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(omap3evm_vmmc2_supply);,
+	.consumer_supplies	= omap3evm_vmmc2_supply,
 };
 
 static struct fixed_voltage_config omap3evm_vwlan = {

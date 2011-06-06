@@ -333,16 +333,11 @@ static struct omap2_hsmmc_info mmc[] = {
 };
 
 static struct regulator_consumer_supply sdp4430_vaux_supply[] = {
-	{
-		.supply = "vmmc",
-		.dev_name = "omap_hsmmc.1",
-	},
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
+
 static struct regulator_consumer_supply sdp4430_vmmc_supply[] = {
-	{
-		.supply = "vmmc",
-		.dev_name = "omap_hsmmc.0",
-	},
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
 static int omap4_twl6030_hsmmc_late_init(struct device *dev)
@@ -399,7 +394,7 @@ static struct regulator_init_data sdp4430_vaux1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
+	.num_consumer_supplies  = ARRAY_SIZE(sdp4430_vaux_supply),
 	.consumer_supplies      = sdp4430_vaux_supply,
 };
 

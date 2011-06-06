@@ -222,8 +222,9 @@ static inline void __init igep2_init_smsc911x(void)
 static inline void __init igep2_init_smsc911x(void) { }
 #endif
 
-static struct regulator_consumer_supply igep_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
+static struct regulator_consumer_supply igep_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
+};
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
 static struct regulator_init_data igep_vmmc1 = {
@@ -236,12 +237,13 @@ static struct regulator_init_data igep_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = &igep_vmmc1_supply,
+	.num_consumer_supplies  = ARRAY_SIZE(igep_vmmc1_supply),
+	.consumer_supplies      = igep_vmmc1_supply,
 };
 
-static struct regulator_consumer_supply igep_vio_supply =
-	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1");
+static struct regulator_consumer_supply igep_vio_supply[] = {
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1"),
+};
 
 static struct regulator_init_data igep_vio = {
 	.constraints = {
@@ -254,20 +256,21 @@ static struct regulator_init_data igep_vio = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = &igep_vio_supply,
+	.num_consumer_supplies  = ARRAY_SIZE(igep_vio_supply),
+	.consumer_supplies      = igep_vio_supply,
 };
 
-static struct regulator_consumer_supply igep_vmmc2_supply =
-	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
+static struct regulator_consumer_supply igep_vmmc2_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
+};
 
 static struct regulator_init_data igep_vmmc2 = {
 	.constraints		= {
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL,
 		.always_on		= 1,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &igep_vmmc2_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(igep_vmmc2_supply),
+	.consumer_supplies	= igep_vmmc2_supply,
 };
 
 static struct fixed_voltage_config igep_vwlan = {

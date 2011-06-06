@@ -55,8 +55,8 @@
 #define OMAP3_TORPEDO_MMC_GPIO_CD		127
 #define OMAP3_TORPEDO_SMSC911X_GPIO_IRQ		129
 
-static struct regulator_consumer_supply omap3logic_vmmc1_supply = {
-	.supply			= "vmmc",
+static struct regulator_consumer_supply omap3logic_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
@@ -71,8 +71,8 @@ static struct regulator_init_data omap3logic_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = &omap3logic_vmmc1_supply,
+	.num_consumer_supplies  = ARRAY_SIZE(omap3logic_vmmc1_supply),
+	.consumer_supplies      = omap3logic_vmmc1_supply,
 };
 
 static struct twl4030_gpio_platform_data omap3logic_gpio_data = {

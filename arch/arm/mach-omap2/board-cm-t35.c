@@ -337,19 +337,21 @@ static void __init cm_t35_init_display(void)
 	}
 }
 
-static struct regulator_consumer_supply cm_t35_vmmc1_supply = {
-	.supply			= "vmmc",
+static struct regulator_consumer_supply cm_t35_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply cm_t35_vsim_supply = {
-	.supply			= "vmmc_aux",
+static struct regulator_consumer_supply cm_t35_vsim_supply[] = {
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply cm_t35_vdac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
+static struct regulator_consumer_supply cm_t35_vdac_supply[] = {
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
+};
 
-static struct regulator_consumer_supply cm_t35_vdvi_supply =
-	REGULATOR_SUPPLY("vdvi", "omapdss");
+static struct regulator_consumer_supply cm_t35_vdvi_supply[] = {
+	REGULATOR_SUPPLY("vdvi", "omapdss"),
+};
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
 static struct regulator_init_data cm_t35_vmmc1 = {
@@ -362,8 +364,8 @@ static struct regulator_init_data cm_t35_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &cm_t35_vmmc1_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(cm_t35_vmmc1_supply),
+	.consumer_supplies	= cm_t35_vmmc1_supply,
 };
 
 /* VSIM for MMC1 pins DAT4..DAT7 (2 mA, plus card == max 50 mA) */
@@ -377,8 +379,8 @@ static struct regulator_init_data cm_t35_vsim = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &cm_t35_vsim_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(cm_t35_vsim_supply),
+	.consumer_supplies	= cm_t35_vsim_supply,
 };
 
 /* VDAC for DSS driving S-Video (8 mA unloaded, max 65 mA) */
@@ -391,8 +393,8 @@ static struct regulator_init_data cm_t35_vdac = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &cm_t35_vdac_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(cm_t35_vdac_supply),
+	.consumer_supplies	= cm_t35_vdac_supply,
 };
 
 /* VPLL2 for digital video outputs */
@@ -406,8 +408,8 @@ static struct regulator_init_data cm_t35_vpll2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &cm_t35_vdvi_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(cm_t35_vdvi_supply),
+	.consumer_supplies	= cm_t35_vdvi_supply,
 };
 
 static struct twl4030_usb_data cm_t35_usb_data = {

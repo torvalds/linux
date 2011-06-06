@@ -74,15 +74,16 @@
 	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
 
 /* fixed regulator for ads7846 */
-static struct regulator_consumer_supply ads7846_supply =
-	REGULATOR_SUPPLY("vcc", "spi1.0");
+static struct regulator_consumer_supply ads7846_supply[] = {
+	REGULATOR_SUPPLY("vcc", "spi1.0"),
+};
 
 static struct regulator_init_data vads7846_regulator = {
 	.constraints = {
 		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &ads7846_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(ads7846_supply),
+	.consumer_supplies	= ads7846_supply,
 };
 
 static struct fixed_voltage_config vads7846 = {
@@ -264,8 +265,9 @@ static struct omap_dss_board_info overo_dss_data = {
 	.default_device	= &overo_dvi_device,
 };
 
-static struct regulator_consumer_supply overo_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
+static struct regulator_consumer_supply overo_vdda_dac_supply[] = {
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
+};
 
 static struct regulator_consumer_supply overo_vdds_dsi_supply[] = {
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
@@ -319,8 +321,8 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
-static struct regulator_consumer_supply overo_vmmc1_supply = {
-	.supply			= "vmmc",
+static struct regulator_consumer_supply overo_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
@@ -447,8 +449,8 @@ static struct regulator_init_data overo_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &overo_vmmc1_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(overo_vmmc1_supply),
+	.consumer_supplies	= overo_vmmc1_supply,
 };
 
 /* VDAC for DSS driving S-Video (8 mA unloaded, max 65 mA) */
@@ -461,8 +463,8 @@ static struct regulator_init_data overo_vdac = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &overo_vdda_dac_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(overo_vdda_dac_supply),
+	.consumer_supplies	= overo_vdda_dac_supply,
 };
 
 /* VPLL2 for digital video outputs */

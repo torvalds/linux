@@ -105,21 +105,20 @@ static struct twl4030_keypad_data zoom_kp_twl4030_data = {
 	.rep		= 1,
 };
 
-static struct regulator_consumer_supply zoom_vmmc1_supply = {
-	.supply		= "vmmc",
+static struct regulator_consumer_supply zoom_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply zoom_vsim_supply = {
-	.supply		= "vmmc_aux",
+static struct regulator_consumer_supply zoom_vsim_supply[] = {
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply zoom_vmmc2_supply = {
-	.supply		= "vmmc",
+static struct regulator_consumer_supply zoom_vmmc2_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
 
-static struct regulator_consumer_supply zoom_vmmc3_supply = {
-	.supply		= "vmmc",
-	.dev_name	= "omap_hsmmc.2",
+static struct regulator_consumer_supply zoom_vmmc3_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.2"),
 };
 
 /* VMMC1 for OMAP VDD_MMC1 (i/o) and MMC1 card */
@@ -133,8 +132,8 @@ static struct regulator_init_data zoom_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = &zoom_vmmc1_supply,
+	.num_consumer_supplies  = ARRAY_SIZE(zoom_vmmc1_supply),
+	.consumer_supplies      = zoom_vmmc1_supply,
 };
 
 /* VMMC2 for MMC2 card */
@@ -148,8 +147,8 @@ static struct regulator_init_data zoom_vmmc2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = &zoom_vmmc2_supply,
+	.num_consumer_supplies  = ARRAY_SIZE(zoom_vmmc2_supply),
+	.consumer_supplies      = zoom_vmmc2_supply,
 };
 
 /* VSIM for OMAP VDD_MMC1A (i/o for DAT4..DAT7) */
@@ -163,16 +162,16 @@ static struct regulator_init_data zoom_vsim = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
-	.consumer_supplies      = &zoom_vsim_supply,
+	.num_consumer_supplies  = ARRAY_SIZE(zoom_vsim_supply),
+	.consumer_supplies      = zoom_vsim_supply,
 };
 
 static struct regulator_init_data zoom_vmmc3 = {
 	.constraints = {
 		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies = &zoom_vmmc3_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(zoom_vmmc3_supply),
+	.consumer_supplies	= zoom_vmmc3_supply,
 };
 
 static struct fixed_voltage_config zoom_vwlan = {
@@ -232,8 +231,9 @@ static struct regulator_consumer_supply zoom_vpll2_supplies[] = {
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
 };
 
-static struct regulator_consumer_supply zoom_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
+static struct regulator_consumer_supply zoom_vdda_dac_supply[] = {
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
+};
 
 static struct regulator_init_data zoom_vpll2 = {
 	.constraints = {
@@ -257,8 +257,8 @@ static struct regulator_init_data zoom_vdac = {
 		.valid_ops_mask         = REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies		= 1,
-	.consumer_supplies		= &zoom_vdda_dac_supply,
+	.num_consumer_supplies		= ARRAY_SIZE(zoom_vdda_dac_supply),
+	.consumer_supplies		= zoom_vdda_dac_supply,
 };
 
 static int zoom_twl_gpio_setup(struct device *dev,

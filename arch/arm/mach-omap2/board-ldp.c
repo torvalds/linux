@@ -213,8 +213,8 @@ static struct twl4030_madc_platform_data ldp_madc_data = {
 	.irq_line	= 1,
 };
 
-static struct regulator_consumer_supply ldp_vmmc1_supply = {
-	.supply			= "vmmc",
+static struct regulator_consumer_supply ldp_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
@@ -228,8 +228,8 @@ static struct regulator_init_data ldp_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &ldp_vmmc1_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(ldp_vmmc1_supply),
+	.consumer_supplies	= ldp_vmmc1_supply,
 };
 
 /* ads7846 on SPI */

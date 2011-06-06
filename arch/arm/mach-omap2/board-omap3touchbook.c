@@ -114,12 +114,12 @@ static struct omap_lcd_config omap3_touchbook_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct regulator_consumer_supply touchbook_vmmc1_supply = {
-	.supply			= "vmmc",
+static struct regulator_consumer_supply touchbook_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply touchbook_vsim_supply = {
-	.supply			= "vmmc_aux",
+static struct regulator_consumer_supply touchbook_vsim_supply[] = {
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.0"),
 };
 
 static struct gpio_led gpio_leds[];
@@ -167,14 +167,18 @@ static struct twl4030_gpio_platform_data touchbook_gpio_data = {
 	.setup		= touchbook_twl_gpio_setup,
 };
 
-static struct regulator_consumer_supply touchbook_vdac_supply = {
+static struct regulator_consumer_supply touchbook_vdac_supply[] = {
+{
 	.supply		= "vdac",
 	.dev		= &omap3_touchbook_lcd_device.dev,
+},
 };
 
-static struct regulator_consumer_supply touchbook_vdvi_supply = {
+static struct regulator_consumer_supply touchbook_vdvi_supply[] = {
+{
 	.supply		= "vdvi",
 	.dev		= &omap3_touchbook_lcd_device.dev,
+},
 };
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
@@ -188,8 +192,8 @@ static struct regulator_init_data touchbook_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &touchbook_vmmc1_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(touchbook_vmmc1_supply),
+	.consumer_supplies	= touchbook_vmmc1_supply,
 };
 
 /* VSIM for MMC1 pins DAT4..DAT7 (2 mA, plus card == max 50 mA) */
@@ -203,8 +207,8 @@ static struct regulator_init_data touchbook_vsim = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &touchbook_vsim_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(touchbook_vsim_supply),
+	.consumer_supplies	= touchbook_vsim_supply,
 };
 
 /* VDAC for DSS driving S-Video (8 mA unloaded, max 65 mA) */
@@ -217,8 +221,8 @@ static struct regulator_init_data touchbook_vdac = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &touchbook_vdac_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(touchbook_vdac_supply),
+	.consumer_supplies	= touchbook_vdac_supply,
 };
 
 /* VPLL2 for digital video outputs */
@@ -232,8 +236,8 @@ static struct regulator_init_data touchbook_vpll2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &touchbook_vdvi_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(touchbook_vdvi_supply),
+	.consumer_supplies	= touchbook_vdvi_supply,
 };
 
 static struct twl4030_usb_data touchbook_usb_data = {
