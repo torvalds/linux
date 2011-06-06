@@ -6264,29 +6264,23 @@ err_name:
 /**
  *	netdev_drivername - network driver for the device
  *	@dev: network device
- *	@buffer: buffer for resulting name
- *	@len: size of buffer
  *
  *	Determine network driver for device.
  */
-char *netdev_drivername(const struct net_device *dev, char *buffer, int len)
+const char *netdev_drivername(const struct net_device *dev)
 {
 	const struct device_driver *driver;
 	const struct device *parent;
-
-	if (len <= 0 || !buffer)
-		return buffer;
-	buffer[0] = 0;
+	const char *empty = "";
 
 	parent = dev->dev.parent;
-
 	if (!parent)
-		return buffer;
+		return empty;
 
 	driver = parent->driver;
 	if (driver && driver->name)
-		strlcpy(buffer, driver->name, len);
-	return buffer;
+		return driver->name;
+	return empty;
 }
 
 static int __netdev_printk(const char *level, const struct net_device *dev,
