@@ -272,17 +272,19 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 		goto out_free;
 	}
 
-	enable_irq_wake(wl->irq);
-	device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 1);
+	ret = enable_irq_wake(wl->irq);
+	if (!ret) {
+		wl->irq_wake_enabled = true;
+		device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 1);
 
+		/* if sdio can keep power while host is suspended, enable wow */
+		mmcflags = sdio_get_host_pm_caps(func);
+		wl1271_debug(DEBUG_SDIO, "sdio PM caps = 0x%x", mmcflags);
+
+		if (mmcflags & MMC_PM_KEEP_POWER)
+			hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY;
+	}
 	disable_irq(wl->irq);
-
-	/* if sdio can keep power while host is suspended, enable wow */
-	mmcflags = sdio_get_host_pm_caps(func);
-	wl1271_debug(DEBUG_SDIO, "sdio PM caps = 0x%x", mmcflags);
-
-	if (mmcflags & MMC_PM_KEEP_POWER)
-		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY;
 
 	ret = wl1271_init_ieee80211(wl);
 	if (ret)
@@ -316,8 +318,10 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 	pm_runtime_get_noresume(&func->dev);
 
 	wl1271_unregister_hw(wl);
-	device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 0);
-	disable_irq_wake(wl->irq);
+	if (wl->irq_wake_enabled) {
+		device_init_wakeup(wl1271_sdio_wl_to_dev(wl), 0);
+		disable_irq_wake(wl->irq);
+	}
 	free_irq(wl->irq, wl);
 	wl1271_free_hw(wl);
 }

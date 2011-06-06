@@ -580,6 +580,7 @@ struct wl1271 {
 	 * (currently, only "ANY" trigger is supported)
 	 */
 	bool wow_enabled;
+	bool irq_wake_enabled;
 
 	/*
 	 * AP-mode - links indexed by HLID. The global and broadcast links
