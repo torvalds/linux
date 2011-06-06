@@ -344,7 +344,7 @@ static void option_instat_callback(struct urb *urb);
 
 /* ALCATEL PRODUCTS */
 #define ALCATEL_VENDOR_ID			0x1bbb
-#define ALCATEL_PRODUCT_X060S			0x0000
+#define ALCATEL_PRODUCT_X060S_X200		0x0000
 
 #define PIRELLI_VENDOR_ID			0x1266
 #define PIRELLI_PRODUCT_C100_1			0x1002
@@ -432,6 +432,13 @@ static const u8 four_g_w14_no_sendsetup[] = { 0, 1 };
 static const struct option_blacklist_info four_g_w14_blacklist = {
 	.infolen = ARRAY_SIZE(four_g_w14_no_sendsetup),
 	.ifaceinfo = four_g_w14_no_sendsetup,
+	.reason = OPTION_BLACKLIST_SENDSETUP
+};
+
+static const u8 alcatel_x200_no_sendsetup[] = { 0, 1 };
+static const struct option_blacklist_info alcatel_x200_blacklist = {
+	.infolen = ARRAY_SIZE(alcatel_x200_no_sendsetup),
+	.ifaceinfo = alcatel_x200_no_sendsetup,
 	.reason = OPTION_BLACKLIST_SENDSETUP
 };
 
@@ -939,7 +946,9 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(TOSHIBA_VENDOR_ID, TOSHIBA_PRODUCT_HSDPA_MINICARD ) }, /* Toshiba 3G HSDPA == Novatel Expedite EU870D MiniCard */
 	{ USB_DEVICE(ALINK_VENDOR_ID, 0x9000) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(ALINK_VENDOR_ID, ALINK_PRODUCT_3GU, 0xff, 0xff, 0xff) },
-	{ USB_DEVICE(ALCATEL_VENDOR_ID, ALCATEL_PRODUCT_X060S) },
+	{ USB_DEVICE(ALCATEL_VENDOR_ID, ALCATEL_PRODUCT_X060S_X200),
+	  .driver_info = (kernel_ulong_t)&alcatel_x200_blacklist
+	},
 	{ USB_DEVICE(AIRPLUS_VENDOR_ID, AIRPLUS_PRODUCT_MCD650) },
 	{ USB_DEVICE(TLAYTECH_VENDOR_ID, TLAYTECH_PRODUCT_TEU800) },
 	{ USB_DEVICE(LONGCHEER_VENDOR_ID, FOUR_G_SYSTEMS_PRODUCT_W14),
