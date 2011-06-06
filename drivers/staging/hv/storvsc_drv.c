@@ -92,12 +92,8 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 	scsi_adjust_queue_depth(sdevice, MSG_SIMPLE_TAG,
 				STORVSC_MAX_IO_REQUESTS);
 
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - setting max segment size to %ld",
-		    sdevice, PAGE_SIZE);
 	blk_queue_max_segment_size(sdevice->request_queue, PAGE_SIZE);
 
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) - adding merge bio vec routine",
-		    sdevice);
 	blk_queue_merge_bvec(sdevice->request_queue, storvsc_merge_bvec);
 
 	blk_queue_bounce_limit(sdevice->request_queue, BLK_BOUNCE_ANY);
@@ -314,10 +310,8 @@ static int storvsc_remove(struct hv_device *dev)
 	struct hv_host_device *host_dev =
 			(struct hv_host_device *)host->hostdata;
 
-	DPRINT_INFO(STORVSC, "removing host adapter (%p)...", host);
 	scsi_remove_host(host);
 
-	DPRINT_INFO(STORVSC, "releasing host adapter (%p)...", host);
 	scsi_host_put(host);
 
 	storvsc_dev_remove(dev);
@@ -349,9 +343,6 @@ static int storvsc_get_chs(struct scsi_device *sdev, struct block_device * bdev,
 	info[1] = sectors_pt;
 	info[2] = (int)cylinders;
 
-	DPRINT_INFO(STORVSC_DRV, "CHS (%d, %d, %d)", (int)cylinders, heads,
-			sectors_pt);
-
 	return 0;
 }
 
@@ -362,7 +353,6 @@ static int storvsc_host_reset(struct hv_device *device)
 	struct vstor_packet *vstor_packet;
 	int ret, t;
 
-	DPRINT_INFO(STORVSC, "resetting host adapter...");
 
 	stor_device = get_stor_device(device);
 	if (!stor_device)
@@ -391,7 +381,6 @@ static int storvsc_host_reset(struct hv_device *device)
 		goto cleanup;
 	}
 
-	DPRINT_INFO(STORVSC, "host adapter reset completed");
 
 	/*
 	 * At this point, all outstanding requests in the adapter
@@ -414,15 +403,9 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 		(struct hv_host_device *)scmnd->device->host->hostdata;
 	struct hv_device *dev = host_dev->dev;
 
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host resetting...",
-		    scmnd->device, dev);
-
 	ret = storvsc_host_reset(dev);
 	if (ret != 0)
 		return ret;
-
-	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host reseted",
-		    scmnd->device, dev);
 
 	return ret;
 }
@@ -500,8 +483,6 @@ static int storvsc_queuecommand_lck(struct scsi_cmnd *scmnd,
 
 		cmd_request =
 			(struct storvsc_cmd_request *)scmnd->host_scribble;
-		DPRINT_INFO(STORVSC_DRV, "retrying scmnd %p cmd_request %p",
-			    scmnd, cmd_request);
 
 		goto retry_request;
 	}
