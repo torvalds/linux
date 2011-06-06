@@ -477,7 +477,6 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 	newchannel->monitor_grp = (u8)offer->monitorid / 32;
 	newchannel->monitor_bit = (u8)offer->monitorid % 32;
 
-	/* TODO: Make sure the offer comes from our parent partition */
 	INIT_WORK(&newchannel->work, vmbus_process_offer);
 	queue_work(newchannel->controlwq, &newchannel->work);
 }
