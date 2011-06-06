@@ -549,22 +549,15 @@ EXPORT_SYMBOL_GPL(vmbus_teardown_gpadl);
 void vmbus_close(struct vmbus_channel *channel)
 {
 	struct vmbus_channel_close_channel *msg;
-	struct vmbus_channel_msginfo *info;
 	int ret;
 
 	/* Stop callback and cancel the timer asap */
 	channel->onchannel_callback = NULL;
 
 	/* Send a closing message */
-	info = kmalloc(sizeof(*info) +
-		       sizeof(struct vmbus_channel_close_channel), GFP_KERNEL);
-        /* FIXME: can't do anything other than return here because the
-	 *        function is void */
-	if (!info)
-		return;
 
+	msg = &channel->close_msg.msg;
 
-	msg = (struct vmbus_channel_close_channel *)info->msg;
 	msg->header.msgtype = CHANNELMSG_CLOSECHANNEL;
 	msg->child_relid = channel->offermsg.child_relid;
 
@@ -583,7 +576,6 @@ void vmbus_close(struct vmbus_channel *channel)
 	free_pages((unsigned long)channel->ringbuffer_pages,
 		get_order(channel->ringbuffer_pagecount * PAGE_SIZE));
 
-	kfree(info);
 
 }
 EXPORT_SYMBOL_GPL(vmbus_close);
