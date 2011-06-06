@@ -24,7 +24,9 @@
  * 	will extend to the end of the master MTD device.
  * offset: absolute starting position within the master MTD device; if
  * 	defined as MTDPART_OFS_APPEND, the partition will start where the
- * 	previous one ended; if MTDPART_OFS_NXTBLK, at the next erase block.
+ *	previous one ended; if MTDPART_OFS_NXTBLK, at the next erase block;
+ *	if MTDPART_OFS_RETAIN, consume as much as possible, leaving size
+ *	after the end of partition.
  * mask_flags: contains flags that have to be masked (removed) from the
  * 	master MTD flag set for the corresponding MTD partition.
  * 	For example, to force a read-only partition, simply adding
@@ -42,6 +44,7 @@ struct mtd_partition {
 	struct nand_ecclayout *ecclayout;	/* out of band layout for this partition (NAND only) */
 };
 
+#define MTDPART_OFS_RETAIN	(-3)
 #define MTDPART_OFS_NXTBLK	(-2)
 #define MTDPART_OFS_APPEND	(-1)
 #define MTDPART_SIZ_FULL	(0)

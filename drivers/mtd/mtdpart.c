@@ -479,6 +479,19 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 			       (unsigned long long)cur_offset, (unsigned long long)slave->offset);
 		}
 	}
+	if (slave->offset == MTDPART_OFS_RETAIN) {
+		slave->offset = cur_offset;
+		if (master->size - slave->offset >= slave->mtd.size) {
+			slave->mtd.size = master->size - slave->offset
+							- slave->mtd.size;
+		} else {
+			printk(KERN_ERR "mtd partition \"%s\" doesn't have enough space: %#llx < %#llx, disabled\n",
+				part->name, master->size - slave->offset,
+				slave->mtd.size);
+			/* register to preserve ordering */
+			goto out_register;
+		}
+	}
 	if (slave->mtd.size == MTDPART_SIZ_FULL)
 		slave->mtd.size = master->size - slave->offset;
 
