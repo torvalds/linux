@@ -198,6 +198,14 @@ const struct option longopts[] = {
 		.val = 'h',
 	},
 	{
+		.name = "event-idx",
+		.val = 'E',
+	},
+	{
+		.name = "no-event-idx",
+		.val = 'e',
+	},
+	{
 		.name = "indirect",
 		.val = 'I',
 	},
@@ -211,13 +219,17 @@ const struct option longopts[] = {
 
 static void help()
 {
-	fprintf(stderr, "Usage: virtio_test [--help] [--no-indirect]\n");
+	fprintf(stderr, "Usage: virtio_test [--help]"
+		" [--no-indirect]"
+		" [--no-event-idx]"
+		"\n");
 }
 
 int main(int argc, char **argv)
 {
 	struct vdev_info dev;
-	unsigned long long features = 1ULL << VIRTIO_RING_F_INDIRECT_DESC;
+	unsigned long long features = (1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
+		(1ULL << VIRTIO_RING_F_EVENT_IDX);
 	int o;
 
 	for (;;) {
@@ -228,6 +240,9 @@ int main(int argc, char **argv)
 		case '?':
 			help();
 			exit(2);
+		case 'e':
+			features &= ~(1ULL << VIRTIO_RING_F_EVENT_IDX);
+			break;
 		case 'h':
 			help();
 			goto done;
