@@ -38,6 +38,7 @@ nv50_evo_channel_del(struct nouveau_channel **pevo)
 		return;
 	*pevo = NULL;
 
+	nouveau_ramht_ref(NULL, &evo->ramht, evo);
 	nouveau_gpuobj_channel_takedown(evo);
 	nouveau_bo_unmap(evo->pushbuf_bo);
 	nouveau_bo_ref(NULL, &evo->pushbuf_bo);

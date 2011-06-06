@@ -27,6 +27,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
+#include "nouveau_ramht.h"
 
 static int
 nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
@@ -316,8 +317,9 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 		nouveau_bo_unpin(chan->pushbuf_bo);
 		nouveau_bo_ref(NULL, &chan->pushbuf_bo);
 	}
-	nouveau_gpuobj_channel_takedown(chan);
+	nouveau_ramht_ref(NULL, &chan->ramht, chan);
 	nouveau_notifier_takedown_channel(chan);
+	nouveau_gpuobj_channel_takedown(chan);
 
 	nouveau_channel_ref(NULL, pchan);
 }

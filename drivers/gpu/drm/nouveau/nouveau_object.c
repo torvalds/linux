@@ -844,8 +844,6 @@ nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
-	nouveau_ramht_ref(NULL, &chan->ramht, chan);
-
 	nouveau_vm_ref(NULL, &chan->vm, chan->vm_pd);
 	nouveau_gpuobj_ref(NULL, &chan->vm_pd);
 
