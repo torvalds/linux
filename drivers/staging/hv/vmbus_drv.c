@@ -455,7 +455,7 @@ static void vmbus_on_msg_dpc(unsigned long data)
 		 * will not deliver any more messages since there is
 		 * no empty slot
 		 */
-		mb();
+		smp_mb();
 
 		if (msg->header.message_flags.msg_pending) {
 			/*
