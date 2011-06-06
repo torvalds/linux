@@ -19,6 +19,16 @@
 
 #include "pipe.h"
 
+struct usbhs_fifo {
+	u32 port;	/* xFIFO */
+	u32 sel;	/* xFIFOSEL */
+	u32 ctr;	/* xFIFOCTR */
+};
+
+struct usbhs_fifo_info {
+	struct usbhs_fifo cfifo;
+};
+
 struct usbhs_pkt_handle;
 struct usbhs_pkt {
 	struct list_head node;
@@ -38,6 +48,8 @@ struct usbhs_pkt_handle {
 /*
  * fifo
  */
+int usbhs_fifo_probe(struct usbhs_priv *priv);
+void usbhs_fifo_remove(struct usbhs_priv *priv);
 void usbhs_fifo_init(struct usbhs_priv *priv);
 void usbhs_fifo_quit(struct usbhs_priv *priv);
 

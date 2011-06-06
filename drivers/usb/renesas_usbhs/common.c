@@ -323,9 +323,13 @@ static int __devinit usbhs_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto probe_end_iounmap;
 
-	ret = usbhs_mod_probe(priv);
+	ret = usbhs_fifo_probe(priv);
 	if (ret < 0)
 		goto probe_end_pipe_exit;
+
+	ret = usbhs_mod_probe(priv);
+	if (ret < 0)
+		goto probe_end_fifo_exit;
 
 	/* dev_set_drvdata should be called after usbhs_mod_init */
 	dev_set_drvdata(&pdev->dev, priv);
@@ -374,6 +378,8 @@ probe_end_call_remove:
 	usbhs_platform_call(priv, hardware_exit, pdev);
 probe_end_mod_exit:
 	usbhs_mod_remove(priv);
+probe_end_fifo_exit:
+	usbhs_fifo_remove(priv);
 probe_end_pipe_exit:
 	usbhs_pipe_remove(priv);
 probe_end_iounmap:
@@ -404,6 +410,7 @@ static int __devexit usbhs_remove(struct platform_device *pdev)
 
 	usbhs_platform_call(priv, hardware_exit, pdev);
 	usbhs_mod_remove(priv);
+	usbhs_fifo_remove(priv);
 	usbhs_pipe_remove(priv);
 	iounmap(priv->base);
 	kfree(priv);

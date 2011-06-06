@@ -19,6 +19,8 @@
 #include "./common.h"
 #include "./pipe.h"
 
+#define usbhsf_get_cfifo(p)	(&((p)->fifo_info.cfifo))
+
 /*
  *		packet info function
  */
@@ -194,20 +196,22 @@ static void usbhsf_rx_irq_ctrl(struct usbhs_pipe *pipe, int enable)
 /*
  *		FIFO ctrl
  */
-static void usbhsf_send_terminator(struct usbhs_pipe *pipe)
+static void usbhsf_send_terminator(struct usbhs_pipe *pipe,
+				   struct usbhs_fifo *fifo)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 
-	usbhs_bset(priv, CFIFOCTR, BVAL, BVAL);
+	usbhs_bset(priv, fifo->ctr, BVAL, BVAL);
 }
 
-static int usbhsf_fifo_barrier(struct usbhs_priv *priv)
+static int usbhsf_fifo_barrier(struct usbhs_priv *priv,
+			       struct usbhs_fifo *fifo)
 {
 	int timeout = 1024;
 
 	do {
 		/* The FIFO port is accessible */
-		if (usbhs_read(priv, CFIFOCTR) & FRDY)
+		if (usbhs_read(priv, fifo->ctr) & FRDY)
 			return 0;
 
 		udelay(10);
@@ -216,22 +220,26 @@ static int usbhsf_fifo_barrier(struct usbhs_priv *priv)
 	return -EBUSY;
 }
 
-static void usbhsf_fifo_clear(struct usbhs_pipe *pipe)
+static void usbhsf_fifo_clear(struct usbhs_pipe *pipe,
+			      struct usbhs_fifo *fifo)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 
 	if (!usbhs_pipe_is_dcp(pipe))
-		usbhsf_fifo_barrier(priv);
+		usbhsf_fifo_barrier(priv, fifo);
 
-	usbhs_write(priv, CFIFOCTR, BCLR);
+	usbhs_write(priv, fifo->ctr, BCLR);
 }
 
-static int usbhsf_fifo_rcv_len(struct usbhs_priv *priv)
+static int usbhsf_fifo_rcv_len(struct usbhs_priv *priv,
+			       struct usbhs_fifo *fifo)
 {
-	return usbhs_read(priv, CFIFOCTR) & DTLN_MASK;
+	return usbhs_read(priv, fifo->ctr) & DTLN_MASK;
 }
 
-static int usbhsf_fifo_select(struct usbhs_pipe *pipe, int write)
+static int usbhsf_fifo_select(struct usbhs_pipe *pipe,
+			      struct usbhs_fifo *fifo,
+			      int write)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct device *dev = usbhs_priv_to_dev(priv);
@@ -243,11 +251,11 @@ static int usbhsf_fifo_select(struct usbhs_pipe *pipe, int write)
 		base |= (1 == write) << 5;	/* ISEL */
 
 	/* "base" will be used below  */
-	usbhs_write(priv, CFIFOSEL, base | MBW_32);
+	usbhs_write(priv, fifo->sel, base | MBW_32);
 
 	/* check ISEL and CURPIPE value */
 	while (timeout--) {
-		if (base == (mask & usbhs_read(priv, CFIFOSEL)))
+		if (base == (mask & usbhs_read(priv, fifo->sel)))
 			return 0;
 		udelay(10);
 	}
@@ -265,14 +273,15 @@ static int usbhsf_try_push(struct usbhs_pkt *pkt, int *is_done)
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct device *dev = usbhs_priv_to_dev(priv);
-	void __iomem *addr = priv->base + CFIFO;
+	struct usbhs_fifo *fifo = usbhsf_get_cfifo(priv); /* CFIFO */
+	void __iomem *addr = priv->base + fifo->port;
 	u8 *buf;
 	int maxp = usbhs_pipe_get_maxpacket(pipe);
 	int total_len;
 	int i, ret, len;
 	int is_short;
 
-	ret = usbhsf_fifo_select(pipe, 1);
+	ret = usbhsf_fifo_select(pipe, fifo, 1);
 	if (ret < 0)
 		goto usbhs_fifo_write_busy;
 
@@ -280,7 +289,7 @@ static int usbhsf_try_push(struct usbhs_pkt *pkt, int *is_done)
 	if (ret < 0)
 		goto usbhs_fifo_write_busy;
 
-	ret = usbhsf_fifo_barrier(priv);
+	ret = usbhsf_fifo_barrier(priv, fifo);
 	if (ret < 0)
 		goto usbhs_fifo_write_busy;
 
@@ -321,7 +330,7 @@ static int usbhsf_try_push(struct usbhs_pkt *pkt, int *is_done)
 	 * pipe/irq handling
 	 */
 	if (is_short)
-		usbhsf_send_terminator(pipe);
+		usbhsf_send_terminator(pipe, fifo);
 
 	usbhsf_tx_irq_ctrl(pipe, !*is_done);
 	usbhs_pipe_enable(pipe);
@@ -358,19 +367,21 @@ struct usbhs_pkt_handle usbhs_fifo_push_handler = {
 static int usbhsf_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct usbhs_fifo *fifo = usbhsf_get_cfifo(priv); /* CFIFO */
 	int ret;
 
 	/*
 	 * select pipe and enable it to prepare packet receive
 	 */
-	ret = usbhsf_fifo_select(pipe, 0);
+	ret = usbhsf_fifo_select(pipe, fifo, 0);
 	if (ret < 0)
 		return ret;
 
 	usbhs_pipe_enable(pipe);
 	usbhsf_rx_irq_ctrl(pipe, 1);
 
-	return ret;
+	return 0;
 }
 
 static int usbhsf_try_pop(struct usbhs_pkt *pkt, int *is_done)
@@ -378,7 +389,8 @@ static int usbhsf_try_pop(struct usbhs_pkt *pkt, int *is_done)
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct device *dev = usbhs_priv_to_dev(priv);
-	void __iomem *addr = priv->base + CFIFO;
+	struct usbhs_fifo *fifo = usbhsf_get_cfifo(priv); /* CFIFO */
+	void __iomem *addr = priv->base + fifo->port;
 	u8 *buf;
 	u32 data = 0;
 	int maxp = usbhs_pipe_get_maxpacket(pipe);
@@ -386,15 +398,15 @@ static int usbhsf_try_pop(struct usbhs_pkt *pkt, int *is_done)
 	int i, ret;
 	int total_len = 0;
 
-	ret = usbhsf_fifo_select(pipe, 0);
+	ret = usbhsf_fifo_select(pipe, fifo, 0);
 	if (ret < 0)
 		return ret;
 
-	ret = usbhsf_fifo_barrier(priv);
+	ret = usbhsf_fifo_barrier(priv, fifo);
 	if (ret < 0)
 		return ret;
 
-	rcv_len = usbhsf_fifo_rcv_len(priv);
+	rcv_len = usbhsf_fifo_rcv_len(priv, fifo);
 
 	buf		= pkt->buf    + pkt->actual;
 	len		= pkt->length - pkt->actual;
@@ -408,7 +420,7 @@ static int usbhsf_try_pop(struct usbhs_pkt *pkt, int *is_done)
 	 * "Operation" - "FIFO Buffer Memory" - "FIFO Port Function"
 	 */
 	if (0 == rcv_len) {
-		usbhsf_fifo_clear(pipe);
+		usbhsf_fifo_clear(pipe, fifo);
 		goto usbhs_fifo_read_end;
 	}
 
@@ -554,4 +566,21 @@ void usbhs_fifo_quit(struct usbhs_priv *priv)
 	mod->irq_ready		= NULL;
 	mod->irq_bempsts	= 0;
 	mod->irq_brdysts	= 0;
+}
+
+int usbhs_fifo_probe(struct usbhs_priv *priv)
+{
+	struct usbhs_fifo *fifo;
+
+	/* CFIFO */
+	fifo = usbhsf_get_cfifo(priv);
+	fifo->port	= CFIFO;
+	fifo->sel	= CFIFOSEL;
+	fifo->ctr	= CFIFOCTR;
+
+	return 0;
+}
+
+void usbhs_fifo_remove(struct usbhs_priv *priv)
+{
 }

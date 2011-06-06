@@ -194,6 +194,11 @@ struct usbhs_priv {
 	 * pipe control
 	 */
 	struct usbhs_pipe_info pipe_info;
+
+	/*
+	 * fifo control
+	 */
+	struct usbhs_fifo_info fifo_info;
 };
 
 /*
