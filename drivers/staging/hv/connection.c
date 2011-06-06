@@ -51,13 +51,13 @@ int vmbus_connect(void)
 
 	/* Make sure we are not connecting or connected */
 	if (vmbus_connection.conn_state != DISCONNECTED)
-		return -1;
+		return -EISCONN;
 
 	/* Initialize the vmbus connection */
 	vmbus_connection.conn_state = CONNECTING;
 	vmbus_connection.work_queue = create_workqueue("hv_vmbus_con");
 	if (!vmbus_connection.work_queue) {
-		ret = -1;
+		ret = -ENOMEM;
 		goto cleanup;
 	}
 
@@ -74,7 +74,7 @@ int vmbus_connect(void)
 	vmbus_connection.int_page =
 	(void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO, 0);
 	if (vmbus_connection.int_page == NULL) {
-		ret = -1;
+		ret = -ENOMEM;
 		goto cleanup;
 	}
 
@@ -90,7 +90,7 @@ int vmbus_connect(void)
 	vmbus_connection.monitor_pages =
 	(void *)__get_free_pages((GFP_KERNEL|__GFP_ZERO), 1);
 	if (vmbus_connection.monitor_pages == NULL) {
-		ret = -1;
+		ret = -ENOMEM;
 		goto cleanup;
 	}
 
@@ -157,7 +157,7 @@ int vmbus_connect(void)
 		pr_err("Unable to connect, "
 			"Version %d not supported by Hyper-V\n",
 			VMBUS_REVISION_NUMBER);
-		ret = -1;
+		ret = -ECONNREFUSED;
 		goto cleanup;
 	}
 
