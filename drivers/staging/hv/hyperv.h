@@ -569,6 +569,11 @@ struct vmbus_channel_msginfo {
 	unsigned char msg[0];
 };
 
+struct vmbus_close_msg {
+	struct vmbus_channel_msginfo info;
+	struct vmbus_channel_close_channel msg;
+};
+
 struct vmbus_channel {
 	struct list_head listentry;
 
@@ -600,6 +605,8 @@ struct vmbus_channel {
 	struct hv_ring_buffer_info inbound;	/* receive from parent */
 	spinlock_t inbound_lock;
 	struct workqueue_struct *controlwq;
+
+	struct vmbus_close_msg close_msg;
 
 	/* Channel callback are invoked in this workqueue context */
 	/* HANDLE dataWorkQueue; */
