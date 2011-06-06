@@ -441,18 +441,6 @@ int __init pci_xen_initial_domain(void)
 #ifdef CONFIG_ACPI
 	xen_setup_acpi_sci();
 	__acpi_register_gsi = acpi_register_gsi_xen;
-#endif
-	if (0 == nr_ioapics) {
-		for (irq = 0; irq < NR_IRQS_LEGACY; irq++) {
-			pirq = xen_allocate_pirq_gsi(irq);
-			if (WARN(pirq < 0,
-				 "Could not allocate PIRQ for legacy interrupt\n"))
-				break;
-			irq = xen_bind_pirq_gsi_to_irq(irq, pirq, 0, "xt-pic");
-		}
-		return 0;
-	}
-#ifdef CONFIG_ACPI
 	/* Pre-allocate legacy irqs */
 	for (irq = 0; irq < NR_IRQS_LEGACY; irq++) {
 		int trigger, polarity;
@@ -465,6 +453,15 @@ int __init pci_xen_initial_domain(void)
 			true /* allocate IRQ */);
 	}
 #endif
+	if (0 == nr_ioapics) {
+		for (irq = 0; irq < NR_IRQS_LEGACY; irq++) {
+			pirq = xen_allocate_pirq_gsi(irq);
+			if (WARN(pirq < 0,
+				 "Could not allocate PIRQ for legacy interrupt\n"))
+				break;
+			irq = xen_bind_pirq_gsi_to_irq(irq, pirq, 0, "xt-pic");
+		}
+	}
 	return 0;
 }
 
