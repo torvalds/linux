@@ -131,6 +131,18 @@ static efi_status_t virt_efi_set_variable(efi_char16_t *name,
 			      data_size, data);
 }
 
+static efi_status_t virt_efi_query_variable_info(u32 attr,
+						 u64 *storage_space,
+						 u64 *remaining_space,
+						 u64 *max_variable_size)
+{
+	if (efi.runtime_version < EFI_2_00_SYSTEM_TABLE_REVISION)
+		return EFI_UNSUPPORTED;
+
+	return efi_call_virt4(query_variable_info, attr, storage_space,
+			      remaining_space, max_variable_size);
+}
+
 static efi_status_t virt_efi_get_next_high_mono_count(u32 *count)
 {
 	return efi_call_virt1(get_next_high_mono_count, count);
@@ -143,6 +155,28 @@ static void virt_efi_reset_system(int reset_type,
 {
 	efi_call_virt4(reset_system, reset_type, status,
 		       data_size, data);
+}
+
+static efi_status_t virt_efi_update_capsule(efi_capsule_header_t **capsules,
+					    unsigned long count,
+					    unsigned long sg_list)
+{
+	if (efi.runtime_version < EFI_2_00_SYSTEM_TABLE_REVISION)
+		return EFI_UNSUPPORTED;
+
+	return efi_call_virt3(update_capsule, capsules, count, sg_list);
+}
+
+static efi_status_t virt_efi_query_capsule_caps(efi_capsule_header_t **capsules,
+						unsigned long count,
+						u64 *max_size,
+						int *reset_type)
+{
+	if (efi.runtime_version < EFI_2_00_SYSTEM_TABLE_REVISION)
+		return EFI_UNSUPPORTED;
+
+	return efi_call_virt4(query_capsule_caps, capsules, count, max_size,
+			      reset_type);
 }
 
 static efi_status_t __init phys_efi_set_virtual_address_map(
@@ -651,6 +685,9 @@ void __init efi_enter_virtual_mode(void)
 	efi.get_next_high_mono_count = virt_efi_get_next_high_mono_count;
 	efi.reset_system = virt_efi_reset_system;
 	efi.set_virtual_address_map = NULL;
+	efi.query_variable_info = virt_efi_query_variable_info;
+	efi.update_capsule = virt_efi_update_capsule;
+	efi.query_capsule_caps = virt_efi_query_capsule_caps;
 	if (__supported_pte_mask & _PAGE_NX)
 		runtime_code_page_mkexec();
 	early_iounmap(memmap.map, memmap.nr_map * memmap.desc_size);
