@@ -151,7 +151,8 @@ static void viafb_update_fix(struct fb_info *info)
 
 	info->fix.visual =
 		bpp == 8 ? FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_TRUECOLOR;
-	info->fix.line_length = (info->var.xres_virtual * bpp / 8 + 7) & ~7;
+	info->fix.line_length = ALIGN(info->var.xres_virtual * bpp / 8,
+		VIA_PITCH_SIZE);
 }
 
 static void viafb_setup_fixinfo(struct fb_fix_screeninfo *fix,
@@ -238,8 +239,12 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 		depth = 24;
 
 	viafb_fill_var_color_info(var, depth);
-	line = (var->xres_virtual * var->bits_per_pixel / 8 + 7) & ~7;
-	if (line * var->yres_virtual > ppar->memsize)
+	if (var->xres_virtual < var->xres)
+		var->xres_virtual = var->xres;
+
+	line = ALIGN(var->xres_virtual * var->bits_per_pixel / 8,
+		VIA_PITCH_SIZE);
+	if (line > VIA_PITCH_MAX || line * var->yres_virtual > ppar->memsize)
 		return -EINVAL;
 
 	/* Based on var passed in to calculate the refresh,
