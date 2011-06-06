@@ -60,6 +60,7 @@ static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 
 struct arm_pmu {
 	enum arm_perf_pmu_ids id;
+	enum arm_pmu_type type;
 	cpumask_t	active_irqs;
 	const char	*name;
 	irqreturn_t	(*handle_irq)(int irq_num, void *dev);
@@ -396,7 +397,7 @@ armpmu_release_hardware(void)
 			free_irq(irq, NULL);
 	}
 
-	release_pmu(ARM_PMU_DEVICE_CPU);
+	release_pmu(armpmu->type);
 }
 
 static int
@@ -407,7 +408,7 @@ armpmu_reserve_hardware(void)
 	int i, err, irq, irqs;
 	struct platform_device *pmu_device = armpmu->plat_device;
 
-	err = reserve_pmu(ARM_PMU_DEVICE_CPU);
+	err = reserve_pmu(armpmu->type);
 	if (err) {
 		pr_warning("unable to reserve pmu\n");
 		return err;
@@ -691,6 +692,7 @@ static void __init cpu_pmu_init(struct arm_pmu *armpmu)
 		raw_spin_lock_init(&events->pmu_lock);
 	}
 	armpmu->get_hw_events = armpmu_get_cpu_events;
+	armpmu->type = ARM_PMU_DEVICE_CPU;
 }
 
 /*
