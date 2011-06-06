@@ -38,8 +38,6 @@ enum ad1836_type {
 
 /* codec private data */
 struct ad1836_priv {
-	enum snd_soc_control_type control_type;
-	void *control_data;
 	enum ad1836_type type;
 };
 
@@ -257,7 +255,6 @@ static int ad1836_probe(struct snd_soc_codec *codec)
 	num_dacs = ad183x_dais[ad1836->type].playback.channels_max / 2;
 	num_adcs = ad183x_dais[ad1836->type].capture.channels_max / 2;
 
-	codec->control_data = ad1836->control_data;
 	ret = snd_soc_codec_set_cache_io(codec, 4, 12, SND_SOC_SPI);
 	if (ret < 0) {
 		dev_err(codec->dev, "failed to set cache I/O: %d\n",
@@ -350,8 +347,6 @@ static int __devinit ad1836_spi_probe(struct spi_device *spi)
 	ad1836->type = spi_get_device_id(spi)->driver_data;
 
 	spi_set_drvdata(spi, ad1836);
-	ad1836->control_data = spi;
-	ad1836->control_type = SND_SOC_SPI;
 
 	ret = snd_soc_register_codec(&spi->dev,
 			&soc_codec_dev_ad1836, &ad183x_dais[ad1836->type], 1);
