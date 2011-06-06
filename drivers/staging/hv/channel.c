@@ -885,7 +885,6 @@ EXPORT_SYMBOL_GPL(vmbus_recvpacket_raw);
  */
 void vmbus_onchannel_event(struct vmbus_channel *channel)
 {
-	dump_vmbus_channel(channel);
 
 	channel->onchannel_callback(channel->channel_callback_context);
 
