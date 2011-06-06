@@ -155,6 +155,10 @@ static int iommu_init_device(struct device *dev)
 	pdev = pci_get_bus_and_slot(PCI_BUS(alias), alias & 0xff);
 	if (pdev)
 		dev_data->alias = &pdev->dev;
+	else {
+		kfree(dev_data);
+		return -ENOTSUPP;
+	}
 
 	atomic_set(&dev_data->bind, 0);
 
@@ -162,6 +166,20 @@ static int iommu_init_device(struct device *dev)
 
 
 	return 0;
+}
+
+static void iommu_ignore_device(struct device *dev)
+{
+	u16 devid, alias;
+
+	devid = get_device_id(dev);
+	alias = amd_iommu_alias_table[devid];
+
+	memset(&amd_iommu_dev_table[devid], 0, sizeof(struct dev_table_entry));
+	memset(&amd_iommu_dev_table[alias], 0, sizeof(struct dev_table_entry));
+
+	amd_iommu_rlookup_table[devid] = NULL;
+	amd_iommu_rlookup_table[alias] = NULL;
 }
 
 static void iommu_uninit_device(struct device *dev)
@@ -193,7 +211,9 @@ int __init amd_iommu_init_devices(void)
 			continue;
 
 		ret = iommu_init_device(&pdev->dev);
-		if (ret)
+		if (ret == -ENOTSUPP)
+			iommu_ignore_device(&pdev->dev);
+		else if (ret)
 			goto out_free;
 	}
 
