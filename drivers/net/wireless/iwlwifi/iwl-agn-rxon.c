@@ -178,9 +178,6 @@ static int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
 
 	ret = iwl_send_cmd_pdu_async(priv, ctx->rxon_assoc_cmd,
 				     sizeof(rxon_assoc), &rxon_assoc, NULL);
-	if (ret)
-		return ret;
-
 	return ret;
 }
 
