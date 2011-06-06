@@ -209,7 +209,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 			       sizeof(struct vmbus_channel_open_channel));
 
 	if (ret != 0)
-		goto Cleanup;
+		goto cleanup;
 
 	t = wait_for_completion_timeout(&openInfo->waitevent, HZ);
 	if (t == 0) {
@@ -221,7 +221,7 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 	if (openInfo->response.open_result.status)
 		err = openInfo->response.open_result.status;
 
-Cleanup:
+cleanup:
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&openInfo->msglistentry);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
@@ -472,7 +472,7 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	ret = vmbus_post_msg(gpadlmsg, msginfo->msgsize -
 			       sizeof(*msginfo));
 	if (ret != 0)
-		goto Cleanup;
+		goto cleanup;
 
 	if (msgcount > 1) {
 		list_for_each(curr, &msginfo->submsglist) {
@@ -491,7 +491,7 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 					       submsginfo->msgsize -
 					       sizeof(*submsginfo));
 			if (ret != 0)
-				goto Cleanup;
+				goto cleanup;
 
 		}
 	}
@@ -502,7 +502,7 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	/* At this point, we received the gpadl created msg */
 	*gpadl_handle = gpadlmsg->gpadl;
 
-Cleanup:
+cleanup:
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&msginfo->msglistentry);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
