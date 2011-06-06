@@ -174,19 +174,15 @@ static int ad1836_soc_suspend(struct snd_soc_codec *codec,
 		pm_message_t state)
 {
 	/* reset clock control mode */
-	u16 adc_ctrl2 = snd_soc_read(codec, AD1836_ADC_CTRL2);
-	adc_ctrl2 &= ~AD1836_ADC_SERFMT_MASK;
-
-	return snd_soc_write(codec, AD1836_ADC_CTRL2, adc_ctrl2);
+	return snd_soc_update_bits(codec, AD1836_ADC_CTRL2,
+		AD1836_ADC_SERFMT_MASK, 0);
 }
 
 static int ad1836_soc_resume(struct snd_soc_codec *codec)
 {
 	/* restore clock control mode */
-	u16 adc_ctrl2 = snd_soc_read(codec, AD1836_ADC_CTRL2);
-	adc_ctrl2 |= AD1836_ADC_AUX;
-
-	return snd_soc_write(codec, AD1836_ADC_CTRL2, adc_ctrl2);
+	return snd_soc_update_bits(codec, AD1836_ADC_CTRL2,
+		AD1836_ADC_SERFMT_MASK, AD1836_ADC_AUX);
 }
 #else
 #define ad1836_soc_suspend NULL
@@ -266,10 +262,8 @@ static int ad1836_probe(struct snd_soc_codec *codec)
 static int ad1836_remove(struct snd_soc_codec *codec)
 {
 	/* reset clock control mode */
-	u16 adc_ctrl2 = snd_soc_read(codec, AD1836_ADC_CTRL2);
-	adc_ctrl2 &= ~AD1836_ADC_SERFMT_MASK;
-
-	return snd_soc_write(codec, AD1836_ADC_CTRL2, adc_ctrl2);
+	return snd_soc_update_bits(codec, AD1836_ADC_CTRL2,
+		AD1836_ADC_SERFMT_MASK, 0);
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_ad1836 = {
