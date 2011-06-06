@@ -701,7 +701,7 @@ struct txmac_regs {			/* Location: */
  * structure for Wake On Lan Source Address Lo reg in rxmac address map
  * located at address 0x4010
  */
-typedef union _RXMAC_WOL_SA_LO_t {
+union RXMAC_WOL_SA_LO_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
@@ -716,13 +716,13 @@ typedef union _RXMAC_WOL_SA_LO_t {
 		u32 sa3:8;	/* bits 24-31 */
 #endif
 	} bits;
-} RXMAC_WOL_SA_LO_t, *PRXMAC_WOL_SA_LO_t;
+};
 
 /*
  * structure for Wake On Lan Source Address Hi reg in rxmac address map
  * located at address 0x4014
  */
-typedef union _RXMAC_WOL_SA_HI_t {
+union RXMAC_WOL_SA_HI_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
@@ -735,7 +735,7 @@ typedef union _RXMAC_WOL_SA_HI_t {
 		u32 reserved:16;	/* bits 16-31 */
 #endif
 	} bits;
-} RXMAC_WOL_SA_HI_t, *PRXMAC_WOL_SA_HI_t;
+};
 
 /*
  * structure for Wake On Lan mask reg in rxmac address map
@@ -747,7 +747,7 @@ typedef union _RXMAC_WOL_SA_HI_t {
  * structure for Unicast Paket Filter Address 1 reg in rxmac address map
  * located at address 0x4068
  */
-typedef union _RXMAC_UNI_PF_ADDR1_t {
+union RXMAC_UNI_PF_ADDR1_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
@@ -762,13 +762,13 @@ typedef union _RXMAC_UNI_PF_ADDR1_t {
 		u32 addr1_3:8;	/* bits 24-31 */
 #endif
 	} bits;
-} RXMAC_UNI_PF_ADDR1_t, *PRXMAC_UNI_PF_ADDR1_t;
+};
 
 /*
  * structure for Unicast Paket Filter Address 2 reg in rxmac address map
  * located at address 0x406C
  */
-typedef union _RXMAC_UNI_PF_ADDR2_t {
+union RXMAC_UNI_PF_ADDR2_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
@@ -783,13 +783,13 @@ typedef union _RXMAC_UNI_PF_ADDR2_t {
 		u32 addr2_3:8;	/* bits 24-31 */
 #endif
 	} bits;
-} RXMAC_UNI_PF_ADDR2_t, *PRXMAC_UNI_PF_ADDR2_t;
+};
 
 /*
  * structure for Unicast Paket Filter Address 1 & 2 reg in rxmac address map
  * located at address 0x4070
  */
-typedef union _RXMAC_UNI_PF_ADDR3_t {
+union RXMAC_UNI_PF_ADDR3_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
@@ -804,7 +804,7 @@ typedef union _RXMAC_UNI_PF_ADDR3_t {
 		u32 addr2_1:8;	/* bits 24-31 */
 #endif
 	} bits;
-} RXMAC_UNI_PF_ADDR3_t, *PRXMAC_UNI_PF_ADDR3_t;
+};
 
 /*
  * structure for Multicast Hash reg in rxmac address map
@@ -888,13 +888,13 @@ typedef union _RXMAC_UNI_PF_ADDR3_t {
 /*
  * Rx MAC Module of JAGCore Address Mapping
  */
-typedef struct _RXMAC_t {				/* Location: */
+struct RXMAC_t {					/* Location: */
 	u32 ctrl;					/*  0x4000 */
 	u32 crc0;					/*  0x4004 */
 	u32 crc12;					/*  0x4008 */
 	u32 crc34;					/*  0x400C */
-	RXMAC_WOL_SA_LO_t sa_lo;			/*  0x4010 */
-	RXMAC_WOL_SA_HI_t sa_hi;			/*  0x4014 */
+	union RXMAC_WOL_SA_LO_t sa_lo;			/*  0x4010 */
+	union RXMAC_WOL_SA_HI_t sa_hi;			/*  0x4014 */
 	u32 mask0_word0;				/*  0x4018 */
 	u32 mask0_word1;				/*  0x401C */
 	u32 mask0_word2;				/*  0x4020 */
@@ -915,9 +915,9 @@ typedef struct _RXMAC_t {				/* Location: */
 	u32 mask4_word1;				/*  0x405C */
 	u32 mask4_word2;				/*  0x4060 */
 	u32 mask4_word3;				/*  0x4064 */
-	RXMAC_UNI_PF_ADDR1_t uni_pf_addr1;		/*  0x4068 */
-	RXMAC_UNI_PF_ADDR2_t uni_pf_addr2;		/*  0x406C */
-	RXMAC_UNI_PF_ADDR3_t uni_pf_addr3;		/*  0x4070 */
+	union RXMAC_UNI_PF_ADDR1_t uni_pf_addr1;	/*  0x4068 */
+	union RXMAC_UNI_PF_ADDR2_t uni_pf_addr2;	/*  0x406C */
+	union RXMAC_UNI_PF_ADDR3_t uni_pf_addr3;	/*  0x4070 */
 	u32 multi_hash1;				/*  0x4074 */
 	u32 multi_hash2;				/*  0x4078 */
 	u32 multi_hash3;				/*  0x407C */
@@ -930,7 +930,7 @@ typedef struct _RXMAC_t {				/* Location: */
 
 	u32 mif_ctrl;					/*  0x4098 */
 	u32 err_reg;					/*  0x409C */
-} RXMAC_t, *PRXMAC_t;
+};
 
 /* END OF RXMAC REGISTER ADDRESS MAP */
 
@@ -1124,7 +1124,7 @@ typedef struct _RXMAC_t {				/* Location: */
  * structure for Mac Station Address, Part 1 reg in mac address map.
  * located at address 0x5040
  */
-typedef union _MAC_STATION_ADDR1_t {
+union MAC_STATION_ADDR1_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
@@ -1139,13 +1139,13 @@ typedef union _MAC_STATION_ADDR1_t {
 		u32 Octet6:8;	/* bits 24-31 */
 #endif
 	} bits;
-} MAC_STATION_ADDR1_t, *PMAC_STATION_ADDR1_t;
+};
 
 /*
  * structure for Mac Station Address, Part 2 reg in mac address map.
  * located at address 0x5044
  */
-typedef union _MAC_STATION_ADDR2_t {
+union MAC_STATION_ADDR2_t {
 	u32 value;
 	struct {
 #ifdef _BIT_FIELDS_HTOL
@@ -1158,12 +1158,12 @@ typedef union _MAC_STATION_ADDR2_t {
 		u32 Octet2:8;	/* bits 24-31 */
 #endif
 	} bits;
-} MAC_STATION_ADDR2_t, *PMAC_STATION_ADDR2_t;
+};
 
 /*
  * MAC Module of JAGCore Address Mapping
  */
-typedef struct _MAC_t {					/* Location: */
+struct MAC_t {						/* Location: */
 	u32 cfg1;					/*  0x5000 */
 	u32 cfg2;					/*  0x5004 */
 	u32 ipg;					/*  0x5008 */
@@ -1180,9 +1180,9 @@ typedef struct _MAC_t {					/* Location: */
 	u32 mii_mgmt_indicator;				/*  0x5034 */
 	u32 if_ctrl;					/*  0x5038 */
 	u32 if_stat;					/*  0x503C */
-	MAC_STATION_ADDR1_t station_addr_1;		/*  0x5040 */
-	MAC_STATION_ADDR2_t station_addr_2;		/*  0x5044 */
-} MAC_t, *PMAC_t;
+	union MAC_STATION_ADDR1_t station_addr_1;	/*  0x5040 */
+	union MAC_STATION_ADDR2_t station_addr_2;	/*  0x5044 */
+};
 
 /* END OF MAC REGISTER ADDRESS MAP */
 
@@ -1448,7 +1448,7 @@ struct mmc_regs {		/* Location: */
 /*
  * JAGCore Address Mapping
  */
-typedef struct _ADDRESS_MAP_t {
+struct ADDRESS_MAP_t {
 	struct global_regs global;
 	/* unused section of global address map */
 	u8 unused_global[4096 - sizeof(struct global_regs)];
@@ -1461,12 +1461,12 @@ typedef struct _ADDRESS_MAP_t {
 	struct txmac_regs txmac;
 	/* unused section of txmac address map */
 	u8 unused_txmac[4096 - sizeof(struct txmac_regs)];
-	RXMAC_t rxmac;
+	struct RXMAC_t rxmac;
 	/* unused section of rxmac address map */
-	u8 unused_rxmac[4096 - sizeof(RXMAC_t)];
-	MAC_t mac;
+	u8 unused_rxmac[4096 - sizeof(struct RXMAC_t)];
+	struct MAC_t mac;
 	/* unused section of mac address map */
-	u8 unused_mac[4096 - sizeof(MAC_t)];
+	u8 unused_mac[4096 - sizeof(struct MAC_t)];
 	struct macstat_regs macstat;
 	/* unused section of mac stat address map */
 	u8 unused_mac_stat[4096 - sizeof(struct macstat_regs)];
@@ -1478,6 +1478,6 @@ typedef struct _ADDRESS_MAP_t {
 
 	u8 unused_exp_rom[4096];	/* MGS-size TBD */
 	u8 unused__[524288];	/* unused section of address map */
-} ADDRESS_MAP_t, *PADDRESS_MAP_t;
+};
 
 #endif /* _ET1310_ADDRESS_MAP_H_ */

@@ -186,7 +186,7 @@ struct et131x_adapter {
 	u8 MCList[NIC_MAX_MCAST_LIST][ETH_ALEN];
 
 	/* Pointer to the device's PCI register space */
-	ADDRESS_MAP_t __iomem *regs;
+	struct ADDRESS_MAP_t __iomem *regs;
 
 	/* Registry parameters */
 	u8 SpeedDuplex;		/* speed/duplex */

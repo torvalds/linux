@@ -104,9 +104,9 @@
  */
 void ConfigMACRegs1(struct et131x_adapter *etdev)
 {
-	struct _MAC_t __iomem *pMac = &etdev->regs->mac;
-	MAC_STATION_ADDR1_t station1;
-	MAC_STATION_ADDR2_t station2;
+	struct MAC_t __iomem *pMac = &etdev->regs->mac;
+	union MAC_STATION_ADDR1_t station1;
+	union MAC_STATION_ADDR2_t station2;
 	u32 ipg;
 
 	/* First we need to reset everything.  Write to MAC configuration
@@ -165,7 +165,7 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 void ConfigMACRegs2(struct et131x_adapter *etdev)
 {
 	int32_t delay = 0;
-	struct _MAC_t __iomem *pMac = &etdev->regs->mac;
+	struct MAC_t __iomem *pMac = &etdev->regs->mac;
 	u32 cfg1;
 	u32 cfg2;
 	u32 ifctrl;
@@ -237,9 +237,9 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 
 void ConfigRxMacRegs(struct et131x_adapter *etdev)
 {
-	struct _RXMAC_t __iomem *pRxMac = &etdev->regs->rxmac;
-	RXMAC_WOL_SA_LO_t sa_lo;
-	RXMAC_WOL_SA_HI_t sa_hi;
+	struct RXMAC_t __iomem *pRxMac = &etdev->regs->rxmac;
+	union RXMAC_WOL_SA_LO_t sa_lo;
+	union RXMAC_WOL_SA_HI_t sa_hi;
 	u32 pf_ctrl = 0;
 
 	/* Disable the MAC while it is being configured (also disable WOL) */
@@ -534,7 +534,7 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 
 void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 {
-	struct _RXMAC_t __iomem *rxmac = &etdev->regs->rxmac;
+	struct RXMAC_t __iomem *rxmac = &etdev->regs->rxmac;
 	uint32_t nIndex;
 	uint32_t result;
 	uint32_t hash1 = 0;
@@ -582,10 +582,10 @@ void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 
 void SetupDeviceForUnicast(struct et131x_adapter *etdev)
 {
-	struct _RXMAC_t __iomem *rxmac = &etdev->regs->rxmac;
-	RXMAC_UNI_PF_ADDR1_t uni_pf1;
-	RXMAC_UNI_PF_ADDR2_t uni_pf2;
-	RXMAC_UNI_PF_ADDR3_t uni_pf3;
+	struct RXMAC_t __iomem *rxmac = &etdev->regs->rxmac;
+	union RXMAC_UNI_PF_ADDR1_t uni_pf1;
+	union RXMAC_UNI_PF_ADDR2_t uni_pf2;
+	union RXMAC_UNI_PF_ADDR3_t uni_pf3;
 	u32 pm_csr;
 
 	/* Set up unicast packet filter reg 3 to be the first two octets of

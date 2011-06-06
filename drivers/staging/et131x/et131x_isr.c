@@ -245,7 +245,7 @@ void et131x_isr_handler(struct work_struct *work)
 	struct et131x_adapter *etdev =
 		container_of(work, struct et131x_adapter, task);
 	u32 status = etdev->Stats.InterruptStatus;
-	ADDRESS_MAP_t __iomem *iomem = etdev->regs;
+	struct ADDRESS_MAP_t __iomem *iomem = etdev->regs;
 
 	/*
 	 * These first two are by far the most common.  Once handled, we clear
