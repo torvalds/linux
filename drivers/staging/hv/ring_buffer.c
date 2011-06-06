@@ -50,6 +50,8 @@ hv_get_ringbuffer_availbytes(struct hv_ring_buffer_info *rbi,
 {
 	u32 read_loc, write_loc;
 
+	smp_read_barrier_depends();
+
 	/* Capture the read/write indices before they changed */
 	read_loc = rbi->ring_buffer->read_index;
 	write_loc = rbi->ring_buffer->write_index;
