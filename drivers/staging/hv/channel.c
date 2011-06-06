@@ -355,9 +355,24 @@ static int create_gpadl_header(void *kbuffer, u32 size,
 				  sizeof(struct vmbus_channel_gpadl_body) +
 				  pfncurr * sizeof(u64);
 			msgbody = kzalloc(msgsize, GFP_KERNEL);
-			/* FIXME: we probably need to more if this fails */
-			if (!msgbody)
+
+			if (!msgbody) {
+				struct vmbus_channel_msginfo *pos = NULL;
+				struct vmbus_channel_msginfo *tmp = NULL;
+				/*
+				 * Free up all the allocated messages.
+				 */
+				list_for_each_entry_safe(pos, tmp,
+					&msgheader->submsglist,
+					msglistentry) {
+
+					list_del(&pos->msglistentry);
+					kfree(pos);
+				}
+
 				goto nomem;
+			}
+
 			msgbody->msgsize = msgsize;
 			(*messagecount)++;
 			gpadl_body =
