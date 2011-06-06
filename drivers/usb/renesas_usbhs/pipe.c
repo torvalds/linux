@@ -532,12 +532,17 @@ static struct usbhs_pipe *usbhsp_get_pipe(struct usbhs_priv *priv, u32 type)
 }
 
 void usbhs_pipe_init(struct usbhs_priv *priv,
-		     void (*tx_done)(struct usbhs_pkt *pkt),
-		     void (*rx_done)(struct usbhs_pkt *pkt))
+		     void (*done)(struct usbhs_pkt *pkt))
 {
 	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
+	struct device *dev = usbhs_priv_to_dev(priv);
 	struct usbhs_pipe *pipe;
 	int i;
+
+	if (!done) {
+		dev_err(dev, "no done function\n");
+		return;
+	}
 
 	/*
 	 * FIXME
@@ -565,8 +570,7 @@ void usbhs_pipe_init(struct usbhs_priv *priv,
 		usbhsp_pipectrl_set(pipe, ACLRM, 0);
 	}
 
-	info->tx_done = tx_done;
-	info->rx_done = rx_done;
+	info->done = done;
 }
 
 struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,

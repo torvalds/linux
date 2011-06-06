@@ -19,30 +19,43 @@
 
 #include "pipe.h"
 
+struct usbhs_pkt_handle;
 struct usbhs_pkt {
 	struct list_head node;
 	struct usbhs_pipe *pipe;
+	struct usbhs_pkt_handle *handler;
 	void *buf;
 	int length;
 	int actual;
 	int zero;
 };
 
+struct usbhs_pkt_handle {
+	int (*prepare)(struct usbhs_pkt *pkt);
+	int (*try_run)(struct usbhs_pkt *pkt);
+};
+
 /*
  * fifo
  */
-int usbhs_fifo_write(struct usbhs_pkt *pkt);
-int usbhs_fifo_read(struct usbhs_pkt *pkt);
-int usbhs_fifo_prepare_write(struct usbhs_pipe *pipe);
-int usbhs_fifo_prepare_read(struct usbhs_pipe *pipe);
+void usbhs_fifo_init(struct usbhs_priv *priv);
+void usbhs_fifo_quit(struct usbhs_priv *priv);
 
 /*
  * packet info
  */
+extern struct usbhs_pkt_handle usbhs_fifo_push_handler;
+extern struct usbhs_pkt_handle usbhs_fifo_pop_handler;
+extern struct usbhs_pkt_handle usbhs_ctrl_stage_end_handler;
+
 void usbhs_pkt_init(struct usbhs_pkt *pkt);
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
+		    struct usbhs_pkt_handle *handler,
 		    void *buf, int len, int zero);
 void usbhs_pkt_pop(struct usbhs_pkt *pkt);
 struct usbhs_pkt *usbhs_pkt_get(struct usbhs_pipe *pipe);
+
+#define usbhs_pkt_start(p)	((p)->handler->prepare(p))
+#define usbhs_pkt_run(p)	((p)->handler->try_run(p))
 
 #endif /* RENESAS_USB_FIFO_H */
