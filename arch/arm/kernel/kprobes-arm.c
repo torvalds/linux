@@ -997,6 +997,23 @@ static const union decode_item arm_1111_table[] = {
 	DECODE_END
 };
 
+static const union decode_item arm_cccc_000x_____1xx1_table[] = {
+	/* LDRD/STRD lr,pc,{...	cccc 000x x0x0 xxxx 111x xxxx 1101 xxxx */
+	DECODE_REJECT	(0x0e10e0d0, 0x0000e0d0),
+
+	/* LDRD (register)	cccc 000x x0x0 xxxx xxxx xxxx 1101 xxxx */
+	/* STRD (register)	cccc 000x x0x0 xxxx xxxx xxxx 1111 xxxx */
+	DECODE_EMULATEX	(0x0e5000d0, 0x000000d0, emulate_ldrdstrd,
+						 REGS(NOPCWB, NOPCX, 0, 0, NOPC)),
+
+	/* LDRD (immediate)	cccc 000x x1x0 xxxx xxxx xxxx 1101 xxxx */
+	/* STRD (immediate)	cccc 000x x1x0 xxxx xxxx xxxx 1111 xxxx */
+	DECODE_EMULATEX	(0x0e5000d0, 0x004000d0, emulate_ldrdstrd,
+						 REGS(NOPCWB, NOPCX, 0, 0, 0)),
+
+	DECODE_END
+};
+
 static const union decode_item arm_cccc_000x_table[] = {
 	/* Data-processing (register)					*/
 
@@ -1192,23 +1209,9 @@ space_cccc_000x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 			}
 
 		} else if ((insn & 0x0e1000d0) == 0x00000d0) {
-			/* STRD/LDRD */
-			if ((insn & 0x0000e000) == 0x0000e000)
-				return INSN_REJECTED;	/* Rd is LR or PC */
-			if (is_writeback(insn) && is_r15(insn, 16))
-				return INSN_REJECTED;	/* Writeback to PC */
 
-			insn &= 0xfff00fff;
-			insn |= 0x00002000;	/* Rn = r0, Rd = r2 */
-			if (!(insn & (1 << 22))) {
-				/* Register index */
-				insn &= ~0xf;
-				insn |= 1;	/* Rm = r1 */
-			}
-			asi->insn[0] = insn;
-			asi->insn_handler =
-				(insn & (1 << 5)) ? emulate_strd : emulate_ldrd;
-			return INSN_GOOD;
+			return kprobe_decode_insn(insn, asi, arm_cccc_000x_____1xx1_table,
+									false);
 		}
 
 		/* LDRH/STRH/LDRSB/LDRSH */
