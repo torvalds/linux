@@ -874,15 +874,3 @@ int vmbus_recvpacket_raw(struct vmbus_channel *channel, void *buffer,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vmbus_recvpacket_raw);
-
-/*
- * vmbus_ontimer - Timer event callback
- */
-void vmbus_ontimer(unsigned long data)
-{
-	struct vmbus_channel *channel = (struct vmbus_channel *)data;
-
-	if (channel->onchannel_callback)
-		channel->onchannel_callback(channel->channel_callback_context);
-}
-
