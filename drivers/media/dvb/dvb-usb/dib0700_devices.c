@@ -2794,7 +2794,7 @@ static int xc4000_tuner_attach(struct dvb_usb_adapter *adap)
 	tun_i2c = dib7000p_get_i2c_master(adap->fe,
 					  DIBX000_I2C_INTERFACE_TUNER, 1);
 	if (tun_i2c == NULL) {
-		printk("Could not reach tuner i2c bus\n");
+		printk(KERN_ERR "Could not reach tuner i2c bus\n");
 		return 0;
 	}
 
