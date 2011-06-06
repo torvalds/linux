@@ -624,29 +624,27 @@ fail:
 	return error;
 }
 
+int gfs2_initxattrs(struct inode *inode, const struct xattr *xattr_array,
+		    void *fs_info)
+{
+	const struct xattr *xattr;
+	int err = 0;
+
+	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
+		err = __gfs2_xattr_set(inode, xattr->name, xattr->value,
+				       xattr->value_len, 0,
+				       GFS2_EATYPE_SECURITY);
+		if (err < 0)
+			break;
+	}
+	return err;
+}
+
 static int gfs2_security_init(struct gfs2_inode *dip, struct gfs2_inode *ip,
 			      const struct qstr *qstr)
 {
-	int err;
-	size_t len;
-	void *value;
-	char *name;
-
-	err = security_inode_init_security(&ip->i_inode, &dip->i_inode, qstr,
-					   &name, &value, &len);
-
-	if (err) {
-		if (err == -EOPNOTSUPP)
-			return 0;
-		return err;
-	}
-
-	err = __gfs2_xattr_set(&ip->i_inode, name, value, len, 0,
-			       GFS2_EATYPE_SECURITY);
-	kfree(value);
-	kfree(name);
-
-	return err;
+	return security_inode_init_security(&ip->i_inode, &dip->i_inode, qstr,
+					    &gfs2_initxattrs, NULL);
 }
 
 /**
