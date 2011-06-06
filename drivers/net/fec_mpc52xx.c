@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/crc32.h>
 #include <linux/hardirq.h>
 #include <linux/delay.h>

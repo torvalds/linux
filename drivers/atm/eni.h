@@ -8,6 +8,7 @@
 
 #include <linux/atm.h>
 #include <linux/atmdev.h>
+#include <linux/interrupt.h>
 #include <linux/sonet.h>
 #include <linux/skbuff.h>
 #include <linux/time.h>

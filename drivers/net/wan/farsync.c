@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/if.h>
 #include <linux/hdlc.h>
 #include <asm/io.h>

@@ -4,6 +4,7 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#include <linux/hardirq.h>
 #include <linux/init.h>
 #include <linux/version.h>
 #include <linux/module.h>

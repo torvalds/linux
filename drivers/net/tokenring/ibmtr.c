@@ -123,6 +123,7 @@ in the event that chatty debug messages are desired - jjs 12/30/98 */
 /* some 95 OS send many non UI frame; this allow removing the warning */
 #define TR_FILTERNONUI	1
 
+#include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/netdevice.h>
 #include <linux/ip.h>

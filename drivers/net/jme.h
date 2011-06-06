@@ -24,6 +24,7 @@
 
 #ifndef __JME_H_INCLUDED__
 #define __JME_H_INCLUDED__
+#include <linux/interrupt.h>
 
 #define DRV_NAME	"jme"
 #define DRV_VERSION	"1.0.8"

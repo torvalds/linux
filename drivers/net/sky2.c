@@ -32,6 +32,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/pci.h>
+#include <linux/interrupt.h>
 #include <linux/ip.h>
 #include <linux/slab.h>
 #include <net/ip.h>

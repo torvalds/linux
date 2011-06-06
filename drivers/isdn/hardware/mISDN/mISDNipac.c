@@ -20,6 +20,7 @@
  *
  */
 
+#include <linux/irqreturn.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mISDNhw.h>

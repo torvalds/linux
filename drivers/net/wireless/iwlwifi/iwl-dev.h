@@ -31,6 +31,7 @@
 #ifndef __iwl_dev_h__
 #define __iwl_dev_h__
 
+#include <linux/interrupt.h>
 #include <linux/pci.h> /* for struct pci_device_id */
 #include <linux/kernel.h>
 #include <linux/wait.h>

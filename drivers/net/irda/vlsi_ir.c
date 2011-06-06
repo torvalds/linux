@@ -36,6 +36,7 @@ MODULE_LICENSE("GPL");
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>

@@ -3,6 +3,7 @@
  * It prepares command and sends it to firmware when it is ready.
  */
 
+#include <linux/hardirq.h>
 #include <linux/kfifo.h>
 #include <linux/sched.h>
 #include <linux/slab.h>

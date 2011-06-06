@@ -40,6 +40,7 @@
 #ifndef __CXGB4VF_ADAPTER_H__
 #define __CXGB4VF_ADAPTER_H__
 
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>

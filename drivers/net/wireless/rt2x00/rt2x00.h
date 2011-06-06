@@ -29,6 +29,7 @@
 #define RT2X00_H
 
 #include <linux/bitops.h>
+#include <linux/interrupt.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>

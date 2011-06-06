@@ -24,6 +24,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/crc32.h>

@@ -50,6 +50,7 @@
 #include <linux/wanrouter.h>	/* WAN router definitions */
 #include <linux/cyclomx.h>	/* cyclomx common user API definitions */
 #include <linux/init.h>         /* __init (when not using as a module) */
+#include <linux/interrupt.h>
 
 unsigned int cycx_debug;
 

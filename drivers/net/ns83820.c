@@ -106,6 +106,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/ip.h>	/* for iph */
 #include <linux/in.h>	/* for IPPROTO_... */
 #include <linux/compiler.h>

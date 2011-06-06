@@ -99,6 +99,7 @@
 #include <asm/irq.h>
 
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/string.h>
 
 #include <linux/if_arp.h>

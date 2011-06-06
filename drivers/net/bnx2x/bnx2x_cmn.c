@@ -17,6 +17,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/interrupt.h>
 #include <linux/ip.h>
 #include <net/ipv6.h>
 #include <net/ip6_checksum.h>
