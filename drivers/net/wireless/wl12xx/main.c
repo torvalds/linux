@@ -1613,6 +1613,7 @@ static int wl1271_op_resume(struct ieee80211_hw *hw)
 		wl1271_enable_interrupts(wl);
 	}
 	wl1271_configure_resume(wl);
+	wl->wow_enabled = false;
 
 	return 0;
 }
