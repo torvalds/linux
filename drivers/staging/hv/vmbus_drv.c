@@ -631,7 +631,6 @@ void vmbus_child_driver_unregister(struct device_driver *drv)
 
 	driver_unregister(drv);
 
-	drv->bus = NULL;
 }
 EXPORT_SYMBOL(vmbus_child_driver_unregister);
 
