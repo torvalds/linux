@@ -919,7 +919,7 @@ static int check_firmware(struct dvb_frontend *fe, unsigned int type,
 	struct xc4000_priv         *priv = fe->tuner_priv;
 	struct firmware_properties new_fw;
 	int			   rc = 0, is_retry = 0;
-	u16			   version = 0, hwmodel;
+	u16			   hwmodel;
 	v4l2_std_id		   std0;
 	u8			   hw_major, hw_minor, fw_major, fw_minor;
 
@@ -1032,23 +1032,23 @@ check_device:
 		hwmodel, hw_major, hw_minor, fw_major, fw_minor);
 
 	/* Check firmware version against what we downloaded. */
-#ifdef DJH_DEBUG
-	if (priv->firm_version != ((version & 0xf0) << 4 | (version & 0x0f))) {
-		printk("Incorrect readback of firmware version %x.\n",
-		       (version & 0xff));
+	if (priv->firm_version != ((fw_major << 8) | fw_minor)) {
+		printk(KERN_WARNING
+		       "Incorrect readback of firmware version %d.%d.\n",
+		       fw_major, fw_minor);
 		goto fail;
 	}
-#endif
 
 	/* Check that the tuner hardware model remains consistent over time. */
 	if (priv->hwmodel == 0 &&
 	    (hwmodel == XC_PRODUCT_ID_XC4000 ||
 	     hwmodel == XC_PRODUCT_ID_XC4100)) {
 		priv->hwmodel = hwmodel;
-		priv->hwvers  = version & 0xff00;
+		priv->hwvers = (hw_major << 8) | hw_minor;
 	} else if (priv->hwmodel == 0 || priv->hwmodel != hwmodel ||
-		   priv->hwvers != (version & 0xff00)) {
-		printk("Read invalid device hardware information - tuner "
+		   priv->hwvers != ((hw_major << 8) | hw_minor)) {
+		printk(KERN_WARNING
+		       "Read invalid device hardware information - tuner "
 		       "hung?\n");
 		goto fail;
 	}
