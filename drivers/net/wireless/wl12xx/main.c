@@ -1474,12 +1474,9 @@ static struct notifier_block wl1271_dev_notifier = {
 };
 
 #ifdef CONFIG_PM
-static int wl1271_configure_suspend(struct wl1271 *wl)
+static int wl1271_configure_suspend_sta(struct wl1271 *wl)
 {
 	int ret;
-
-	if (wl->bss_type != BSS_TYPE_STA_BSS)
-		return 0;
 
 	mutex_lock(&wl->mutex);
 
@@ -1525,11 +1522,41 @@ out:
 
 }
 
-static void wl1271_configure_resume(struct wl1271 *wl)
+static int wl1271_configure_suspend_ap(struct wl1271 *wl)
 {
 	int ret;
 
-	if (wl->bss_type != BSS_TYPE_STA_BSS)
+	mutex_lock(&wl->mutex);
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out_unlock;
+
+	ret = wl1271_acx_set_ap_beacon_filter(wl, true);
+
+	wl1271_ps_elp_sleep(wl);
+out_unlock:
+	mutex_unlock(&wl->mutex);
+	return ret;
+
+}
+
+static int wl1271_configure_suspend(struct wl1271 *wl)
+{
+	if (wl->bss_type == BSS_TYPE_STA_BSS)
+		return wl1271_configure_suspend_sta(wl);
+	if (wl->bss_type == BSS_TYPE_AP_BSS)
+		return wl1271_configure_suspend_ap(wl);
+	return 0;
+}
+
+static void wl1271_configure_resume(struct wl1271 *wl)
+{
+	int ret;
+	bool is_sta = wl->bss_type == BSS_TYPE_STA_BSS;
+	bool is_ap = wl->bss_type == BSS_TYPE_AP_BSS;
+
+	if (!is_sta && !is_ap)
 		return;
 
 	mutex_lock(&wl->mutex);
@@ -1537,10 +1564,14 @@ static void wl1271_configure_resume(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	/* exit psm if it wasn't configured */
-	if (!test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags))
-		wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
-				   wl->basic_rate, true);
+	if (is_sta) {
+		/* exit psm if it wasn't configured */
+		if (!test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags))
+			wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
+					   wl->basic_rate, true);
+	} else if (is_ap) {
+		wl1271_acx_set_ap_beacon_filter(wl, false);
+	}
 
 	wl1271_ps_elp_sleep(wl);
 out:
