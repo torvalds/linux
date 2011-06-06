@@ -255,13 +255,13 @@ int mei_flow_ctrl_creds(struct mei_device *dev, struct mei_cl *cl)
 {
 	int i;
 
-	if (!dev->num_mei_me_clients)
+	if (!dev->me_clients_num)
 		return 0;
 
 	if (cl->mei_flow_ctrl_creds > 0)
 		return 1;
 
-	for (i = 0; i < dev->num_mei_me_clients; i++) {
+	for (i = 0; i < dev->me_clients_num; i++) {
 		struct mei_me_client  *me_cl = &dev->me_clients[i];
 		if (me_cl->client_id == cl->me_client_id) {
 			if (me_cl->mei_flow_ctrl_creds) {
@@ -290,10 +290,10 @@ int mei_flow_ctrl_reduce(struct mei_device *dev, struct mei_cl *cl)
 {
 	int i;
 
-	if (!dev->num_mei_me_clients)
+	if (!dev->me_clients_num)
 		return -ENOENT;
 
-	for (i = 0; i < dev->num_mei_me_clients; i++) {
+	for (i = 0; i < dev->me_clients_num; i++) {
 		struct mei_me_client  *me_cl = &dev->me_clients[i];
 		if (me_cl->client_id == cl->me_client_id) {
 			if (me_cl->props.single_recv_buf != 0) {

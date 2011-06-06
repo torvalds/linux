@@ -240,7 +240,7 @@ static void __devexit mei_remove(struct pci_dev *pdev)
 	mei_remove_client_from_file_list(dev, dev->iamthif_cl.host_client_id);
 
 	dev->iamthif_current_cb = NULL;
-	dev->num_mei_me_clients = 0;
+	dev->me_clients_num = 0;
 
 	mutex_unlock(&dev->device_lock);
 
@@ -800,7 +800,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			rets = -ENODEV;
 			goto unlock_dev;
 		}
-		for (i = 0; i < dev->num_mei_me_clients; i++) {
+		for (i = 0; i < dev->me_clients_num; i++) {
 			if (dev->me_clients[i].client_id ==
 				dev->iamthif_cl.me_client_id)
 				break;
@@ -810,7 +810,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			rets = -ENODEV;
 			goto unlock_dev;
 		}
-		if (i == dev->num_mei_me_clients ||
+		if (i == dev->me_clients_num ||
 		    (dev->me_clients[i].client_id !=
 		      dev->iamthif_cl.me_client_id)) {
 			rets = -ENODEV;
@@ -868,7 +868,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		    cl->me_client_id);
 		goto unlock_dev;
 	}
-	for (i = 0; i < dev->num_mei_me_clients; i++) {
+	for (i = 0; i < dev->me_clients_num; i++) {
 		if (dev->me_clients[i].client_id ==
 		    cl->me_client_id)
 			break;
@@ -877,7 +877,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		rets = -ENODEV;
 		goto unlock_dev;
 	}
-	if (i == dev->num_mei_me_clients) {
+	if (i == dev->me_clients_num) {
 		rets = -ENODEV;
 		goto unlock_dev;
 	}

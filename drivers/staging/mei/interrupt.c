@@ -499,7 +499,7 @@ static void add_single_flow_creds(struct mei_device *dev,
 	struct mei_me_client *client;
 	int i;
 
-	for (i = 0; i < dev->num_mei_me_clients; i++) {
+	for (i = 0; i < dev->me_clients_num; i++) {
 		client = &dev->me_clients[i];
 		if (client && flow->me_addr == client->client_id) {
 			if (client->props.single_recv_buf) {

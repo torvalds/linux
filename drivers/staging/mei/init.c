@@ -317,7 +317,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		dev->extra_write_index = 0;
 	}
 
-	dev->num_mei_me_clients = 0;
+	dev->me_clients_num = 0;
 	dev->rd_msg_hdr = 0;
 	dev->stop = false;
 	dev->wd_pending = false;
@@ -443,9 +443,9 @@ void mei_allocate_me_clients_storage(struct mei_device *dev)
 
 	/* count how many ME clients we have */
 	for_each_set_bit(b, dev->me_clients_map, MEI_CLIENTS_MAX)
-		dev->num_mei_me_clients++;
+		dev->me_clients_num++;
 
-	if (dev->num_mei_me_clients <= 0)
+	if (dev->me_clients_num <= 0)
 		return ;
 
 
@@ -454,9 +454,9 @@ void mei_allocate_me_clients_storage(struct mei_device *dev)
 		dev->me_clients = NULL;
 	}
 	dev_dbg(&dev->pdev->dev, "memory allocation for ME clients size=%zd.\n",
-		dev->num_mei_me_clients * sizeof(struct mei_me_client));
+		dev->me_clients_num * sizeof(struct mei_me_client));
 	/* allocate storage for ME clients representation */
-	clients = kcalloc(dev->num_mei_me_clients,
+	clients = kcalloc(dev->me_clients_num,
 			sizeof(struct mei_me_client), GFP_KERNEL);
 	if (!clients) {
 		dev_dbg(&dev->pdev->dev, "memory allocation for ME clients failed.\n");
@@ -550,7 +550,7 @@ int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid)
 {
 	int i, res = -1;
 
-	for (i = 0; i < dev->num_mei_me_clients; ++i)
+	for (i = 0; i < dev->me_clients_num; ++i)
 		if (uuid_le_cmp(cuuid,
 				dev->me_clients[i].props.protocol_name) == 0) {
 			res = i;

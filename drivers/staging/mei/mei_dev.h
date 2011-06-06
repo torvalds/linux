@@ -236,7 +236,7 @@ struct mei_device {
 	struct mei_me_client *me_clients; /* Note: memory has to be allocated */
 	DECLARE_BITMAP(me_clients_map, MEI_CLIENTS_MAX);
 	DECLARE_BITMAP(host_clients_map, MEI_CLIENTS_MAX);
-	u8 num_mei_me_clients;
+	u8 me_clients_num;
 	u8 me_client_presentation_num;
 	u8 me_client_index;
 	bool mei_host_buffer_is_empty;

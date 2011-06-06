@@ -277,13 +277,13 @@ int amthi_read(struct mei_device *dev, struct file *file,
 		return -ETIMEDOUT;
 	}
 
-	for (i = 0; i < dev->num_mei_me_clients; i++) {
+	for (i = 0; i < dev->me_clients_num; i++) {
 		if (dev->me_clients[i].client_id ==
 		    dev->iamthif_cl.me_client_id)
 			break;
 	}
 
-	if (i == dev->num_mei_me_clients) {
+	if (i == dev->me_clients_num) {
 		dev_dbg(&dev->pdev->dev, "amthi client not found.\n");
 		return -ENODEV;
 	}
@@ -409,7 +409,7 @@ int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
 	dev_dbg(&dev->pdev->dev, "allocation call back successful. host client = %d, ME client = %d\n",
 		cl->host_client_id, cl->me_client_id);
 
-	for (i = 0; i < dev->num_mei_me_clients; i++) {
+	for (i = 0; i < dev->me_clients_num; i++) {
 		if (dev->me_clients[i].client_id == cl->me_client_id)
 			break;
 
@@ -420,7 +420,7 @@ int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
 		goto unlock;
 	}
 
-	if (i == dev->num_mei_me_clients) {
+	if (i == dev->me_clients_num) {
 		rets = -ENODEV;
 		goto unlock;
 	}
