@@ -496,18 +496,11 @@ static int
 nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
 {
-	struct nouveau_mem *old_node = old_mem->mm_node;
-	struct nouveau_mem *new_node = new_mem->mm_node;
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	struct nouveau_mem *node = old_mem->mm_node;
+	u64 src_offset = node->vma[0].offset;
+	u64 dst_offset = node->vma[1].offset;
 	u32 page_count = new_mem->num_pages;
-	u64 src_offset, dst_offset;
 	int ret;
-
-	src_offset = old_node->tmp_vma.offset;
-	if (new_node->tmp_vma.node)
-		dst_offset = new_node->tmp_vma.offset;
-	else
-		dst_offset = nvbo->vma.offset;
 
 	page_count = new_mem->num_pages;
 	while (page_count) {
@@ -542,18 +535,12 @@ static int
 nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
 {
-	struct nouveau_mem *old_node = old_mem->mm_node;
-	struct nouveau_mem *new_node = new_mem->mm_node;
+	struct nouveau_mem *node = old_mem->mm_node;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	u64 length = (new_mem->num_pages << PAGE_SHIFT);
-	u64 src_offset, dst_offset;
+	u64 src_offset = node->vma[0].offset;
+	u64 dst_offset = node->vma[1].offset;
 	int ret;
-
-	src_offset = old_node->tmp_vma.offset;
-	if (new_node->tmp_vma.node)
-		dst_offset = new_node->tmp_vma.offset;
-	else
-		dst_offset = nvbo->vma.offset;
 
 	while (length) {
 		u32 amount, stride, height;
@@ -690,6 +677,27 @@ nv04_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 }
 
 static int
+nouveau_vma_getmap(struct nouveau_channel *chan, struct nouveau_bo *nvbo,
+		   struct ttm_mem_reg *mem, struct nouveau_vma *vma)
+{
+	struct nouveau_mem *node = mem->mm_node;
+	int ret;
+
+	ret = nouveau_vm_get(chan->vm, mem->num_pages << PAGE_SHIFT,
+			     node->page_shift, NV_MEM_ACCESS_RO, vma);
+	if (ret)
+		return ret;
+
+	if (mem->mem_type == TTM_PL_VRAM)
+		nouveau_vm_map(vma, node);
+	else
+		nouveau_vm_map_sg(vma, 0, mem->num_pages << PAGE_SHIFT,
+				  node, node->pages);
+
+	return 0;
+}
+
+static int
 nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 		     bool no_wait_reserve, bool no_wait_gpu,
 		     struct ttm_mem_reg *new_mem)
@@ -706,31 +714,20 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 		mutex_lock_nested(&chan->mutex, NOUVEAU_KCHANNEL_MUTEX);
 	}
 
-	/* create temporary vma for old memory, this will get cleaned
-	 * up after ttm destroys the ttm_mem_reg
+	/* create temporary vmas for the transfer and attach them to the
+	 * old nouveau_mem node, these will get cleaned up after ttm has
+	 * destroyed the ttm_mem_reg
 	 */
 	if (dev_priv->card_type >= NV_50) {
 		struct nouveau_mem *node = old_mem->mm_node;
-		if (!node->tmp_vma.node) {
-			u32 page_shift = nvbo->vma.node->type;
-			if (old_mem->mem_type == TTM_PL_TT)
-				page_shift = nvbo->vma.vm->spg_shift;
 
-			ret = nouveau_vm_get(chan->vm,
-					     old_mem->num_pages << PAGE_SHIFT,
-					     page_shift, NV_MEM_ACCESS_RO,
-					     &node->tmp_vma);
-			if (ret)
-				goto out;
-		}
+		ret = nouveau_vma_getmap(chan, nvbo, old_mem, &node->vma[0]);
+		if (ret)
+			goto out;
 
-		if (old_mem->mem_type == TTM_PL_VRAM)
-			nouveau_vm_map(&node->tmp_vma, node);
-		else {
-			nouveau_vm_map_sg(&node->tmp_vma, 0,
-					  old_mem->num_pages << PAGE_SHIFT,
-					  node, node->pages);
-		}
+		ret = nouveau_vma_getmap(chan, nvbo, new_mem, &node->vma[1]);
+		if (ret)
+			goto out;
 	}
 
 	if (dev_priv->card_type < NV_50)
@@ -757,7 +754,6 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 		      bool no_wait_reserve, bool no_wait_gpu,
 		      struct ttm_mem_reg *new_mem)
 {
-	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
 	u32 placement_memtype = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
 	struct ttm_placement placement;
 	struct ttm_mem_reg tmp_mem;
@@ -777,23 +773,7 @@ nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict, bool intr,
 	if (ret)
 		goto out;
 
-	if (dev_priv->card_type >= NV_50) {
-		struct nouveau_bo *nvbo = nouveau_bo(bo);
-		struct nouveau_mem *node = tmp_mem.mm_node;
-		struct nouveau_vma *vma = &nvbo->vma;
-		if (vma->node->type != vma->vm->spg_shift)
-			vma = &node->tmp_vma;
-		nouveau_vm_map_sg(vma, 0, tmp_mem.num_pages << PAGE_SHIFT,
-				  node, node->pages);
-	}
-
 	ret = nouveau_bo_move_m2mf(bo, true, intr, no_wait_reserve, no_wait_gpu, &tmp_mem);
-
-	if (dev_priv->card_type >= NV_50) {
-		struct nouveau_bo *nvbo = nouveau_bo(bo);
-		nouveau_vm_unmap(&nvbo->vma);
-	}
-
 	if (ret)
 		goto out;
 
@@ -846,21 +826,15 @@ nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 	if (!vma->vm)
 		return;
 
-	switch (new_mem->mem_type) {
-	case TTM_PL_VRAM:
-		nouveau_vm_map(vma, node);
-		break;
-	case TTM_PL_TT:
-		if (vma->node->type != vma->vm->spg_shift) {
-			nouveau_vm_unmap(vma);
-			vma = &node->tmp_vma;
-		}
-		nouveau_vm_map_sg(vma, 0, new_mem->num_pages << PAGE_SHIFT,
-				  node, node->pages);
-		break;
-	default:
+	if (new_mem->mem_type == TTM_PL_VRAM) {
+		nouveau_vm_map(&nvbo->vma, new_mem->mm_node);
+	} else
+	if (new_mem->mem_type == TTM_PL_TT &&
+	    nvbo->page_shift == nvbo->vma.vm->spg_shift) {
+		nouveau_vm_map_sg(&nvbo->vma, 0, new_mem->
+				  num_pages << PAGE_SHIFT, node, node->pages);
+	} else {
 		nouveau_vm_unmap(&nvbo->vma);
-		break;
 	}
 }
 

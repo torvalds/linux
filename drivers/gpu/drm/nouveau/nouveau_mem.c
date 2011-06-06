@@ -762,20 +762,29 @@ nouveau_vram_manager_fini(struct ttm_mem_type_manager *man)
 	return 0;
 }
 
+static inline void
+nouveau_mem_node_cleanup(struct nouveau_mem *node)
+{
+	if (node->vma[0].node) {
+		nouveau_vm_unmap(&node->vma[0]);
+		nouveau_vm_put(&node->vma[0]);
+	}
+
+	if (node->vma[1].node) {
+		nouveau_vm_unmap(&node->vma[1]);
+		nouveau_vm_put(&node->vma[1]);
+	}
+}
+
 static void
 nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(man->bdev);
 	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
-	struct nouveau_mem *node = mem->mm_node;
 	struct drm_device *dev = dev_priv->dev;
 
-	if (node->tmp_vma.node) {
-		nouveau_vm_unmap(&node->tmp_vma);
-		nouveau_vm_put(&node->tmp_vma);
-	}
-
+	nouveau_mem_node_cleanup(mem->mm_node);
 	vram->put(dev, (struct nouveau_mem **)&mem->mm_node);
 }
 
@@ -860,15 +869,9 @@ static void
 nouveau_gart_manager_del(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
-	struct nouveau_mem *node = mem->mm_node;
-
-	if (node->tmp_vma.node) {
-		nouveau_vm_unmap(&node->tmp_vma);
-		nouveau_vm_put(&node->tmp_vma);
-	}
-
+	nouveau_mem_node_cleanup(mem->mm_node);
 	mem->mm_node = NULL;
-	kfree(node);
+	kfree(mem->mm_node);
 }
 
 static int
@@ -878,11 +881,7 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
-	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_vma *vma = &nvbo->vma;
-	struct nouveau_vm *vm = vma->vm;
 	struct nouveau_mem *node;
-	int ret;
 
 	if (unlikely((mem->num_pages << PAGE_SHIFT) >=
 		     dev_priv->gart_info.aper_size))
@@ -891,24 +890,8 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
+	node->page_shift = 12;
 
-	/* This node must be for evicting large-paged VRAM
-	 * to system memory.  Due to a nv50 limitation of
-	 * not being able to mix large/small pages within
-	 * the same PDE, we need to create a temporary
-	 * small-paged VMA for the eviction.
-	 */
-	if (vma->node->type != vm->spg_shift) {
-		ret = nouveau_vm_get(vm, (u64)vma->node->length << 12,
-				     vm->spg_shift, NV_MEM_ACCESS_RW,
-				     &node->tmp_vma);
-		if (ret) {
-			kfree(node);
-			return ret;
-		}
-	}
-
-	node->page_shift = nvbo->vma.node->type;
 	mem->mm_node = node;
 	mem->start   = 0;
 	return 0;

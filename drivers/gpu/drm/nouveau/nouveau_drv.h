@@ -77,7 +77,7 @@ struct nouveau_mem {
 	struct drm_device *dev;
 
 	struct nouveau_vma bar_vma;
-	struct nouveau_vma tmp_vma;
+	struct nouveau_vma vma[2];
 	u8  page_shift;
 
 	struct drm_mm_node *tag;
