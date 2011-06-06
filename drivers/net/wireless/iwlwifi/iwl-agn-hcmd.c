@@ -111,10 +111,8 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 
 		memset(&cmd, 0, sizeof(cmd));
 
-		cmd.hdr.op_code = priv->_agn.phy_calib_chain_noise_gain_cmd;
-		cmd.hdr.first_group = 0;
-		cmd.hdr.groups_num = 1;
-		cmd.hdr.data_valid = 1;
+		iwl_set_calib_hdr(&cmd.hdr,
+			priv->_agn.phy_calib_chain_noise_gain_cmd);
 		cmd.delta_gain_1 = data->delta_gain_code[1];
 		cmd.delta_gain_2 = data->delta_gain_code[2];
 		iwl_send_cmd_pdu_async(priv, REPLY_PHY_CALIBRATION_CMD,
@@ -144,10 +142,8 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 		data->beacon_count = 0;
 
 		memset(&cmd, 0, sizeof(cmd));
-		cmd.hdr.op_code = priv->_agn.phy_calib_chain_noise_reset_cmd;
-		cmd.hdr.first_group = 0;
-		cmd.hdr.groups_num = 1;
-		cmd.hdr.data_valid = 1;
+		iwl_set_calib_hdr(&cmd.hdr,
+			priv->_agn.phy_calib_chain_noise_reset_cmd);
 		ret = iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
 					sizeof(cmd), &cmd);
 		if (ret)

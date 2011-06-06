@@ -183,10 +183,7 @@ static int iwlagn_set_Xtal_calib(struct iwl_priv *priv)
 	__le16 *xtal_calib =
 		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_XTAL);
 
-	cmd.hdr.op_code = IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD;
-	cmd.hdr.first_group = 0;
-	cmd.hdr.groups_num = 1;
-	cmd.hdr.data_valid = 1;
+	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD);
 	cmd.cap_pin1 = le16_to_cpu(xtal_calib[0]);
 	cmd.cap_pin2 = le16_to_cpu(xtal_calib[1]);
 	return iwl_calib_set(&priv->calib_results[IWL_CALIB_XTAL],
@@ -198,14 +195,13 @@ static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
 	struct iwl_calib_temperature_offset_cmd cmd;
 	__le16 *offset_calib =
 		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_TEMPERATURE);
-	cmd.hdr.op_code = IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD;
-	cmd.hdr.first_group = 0;
-	cmd.hdr.groups_num = 1;
-	cmd.hdr.data_valid = 1;
+
+	memset(&cmd, 0, sizeof(cmd));
+	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
 	cmd.radio_sensor_offset = le16_to_cpu(offset_calib[1]);
 	if (!(cmd.radio_sensor_offset))
 		cmd.radio_sensor_offset = DEFAULT_RADIO_SENSOR_OFFSET;
-	cmd.reserved = 0;
+
 	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
 			cmd.radio_sensor_offset);
 	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],

@@ -129,6 +129,14 @@ static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 	tasklet_kill(&priv->irq_tasklet);
 }
 
+static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
+{
+	hdr->op_code = cmd;
+	hdr->first_group = 0;
+	hdr->groups_num = 1;
+	hdr->data_valid = 1;
+}
+
 int iwl_prepare_card_hw(struct iwl_priv *priv);
 
 int iwlagn_start_device(struct iwl_priv *priv);
