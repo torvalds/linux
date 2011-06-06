@@ -633,7 +633,6 @@ int vmbus_sendpacket(struct vmbus_channel *channel, const void *buffer,
 
 	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3);
 
-	/* TODO: We should determine if this is optional */
 	if (ret == 0 && !hv_get_ringbuffer_interrupt_mask(&channel->outbound))
 		vmbus_setevent(channel);
 
@@ -695,7 +694,6 @@ int vmbus_sendpacket_pagebuffer(struct vmbus_channel *channel,
 
 	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3);
 
-	/* TODO: We should determine if this is optional */
 	if (ret == 0 && !hv_get_ringbuffer_interrupt_mask(&channel->outbound))
 		vmbus_setevent(channel);
 
@@ -758,7 +756,6 @@ int vmbus_sendpacket_multipagebuffer(struct vmbus_channel *channel,
 
 	ret = hv_ringbuffer_write(&channel->outbound, bufferlist, 3);
 
-	/* TODO: We should determine if this is optional */
 	if (ret == 0 && !hv_get_ringbuffer_interrupt_mask(&channel->outbound))
 		vmbus_setevent(channel);
 
