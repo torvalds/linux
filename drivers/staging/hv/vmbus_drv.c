@@ -758,14 +758,6 @@ static struct acpi_driver vmbus_acpi_driver = {
 	},
 };
 
-static void vmbus_acpi_exit(void)
-{
-	acpi_bus_unregister_driver(&vmbus_acpi_driver);
-
-	return;
-}
-
-
 /*
  * We use a PCI table to determine if we should autoload this driver  This is
  * needed by distro tools to determine if the hyperv drivers should be
@@ -796,7 +788,7 @@ static int __init hv_acpi_init(void)
 	wait_for_completion(&probe_event);
 
 	if (irq <= 0) {
-		vmbus_acpi_exit();
+		acpi_bus_unregister_driver(&vmbus_acpi_driver);
 		return -ENODEV;
 	}
 
