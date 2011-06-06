@@ -669,6 +669,9 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 						 &rx_status,
 						 (u8 *) pdesc, skb);
 
+		if (stats.crc || stats.hwerror)
+			goto done;
+
 		new_skb = dev_alloc_skb(rtlpci->rxbuffersize);
 		if (unlikely(!new_skb)) {
 			RT_TRACE(rtlpriv, (COMP_INTR | COMP_RECV),
@@ -696,56 +699,50 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 		hdr = rtl_get_hdr(skb);
 		fc = rtl_get_fc(skb);
 
-		if (!stats.crc && !stats.hwerror) {
-			memcpy(IEEE80211_SKB_RXCB(skb), &rx_status,
-				       sizeof(rx_status));
+		memcpy(IEEE80211_SKB_RXCB(skb), &rx_status,
+		       sizeof(rx_status));
 
-			if (is_broadcast_ether_addr(hdr->addr1)) {
-				;/*TODO*/
-			} else if (is_multicast_ether_addr(hdr->addr1)) {
-				;/*TODO*/
-			} else {
-				unicast = true;
-				rtlpriv->stats.rxbytesunicast += skb->len;
-			}
+		if (is_broadcast_ether_addr(hdr->addr1)) {
+			;/*TODO*/
+		} else if (is_multicast_ether_addr(hdr->addr1)) {
+			;/*TODO*/
+		} else {
+			unicast = true;
+			rtlpriv->stats.rxbytesunicast += skb->len;
+		}
 
-			rtl_is_special_data(hw, skb, false);
+		rtl_is_special_data(hw, skb, false);
 
-			if (ieee80211_is_data(fc)) {
-				rtlpriv->cfg->ops->led_control(hw, LED_CTL_RX);
+		if (ieee80211_is_data(fc)) {
+			rtlpriv->cfg->ops->led_control(hw, LED_CTL_RX);
 
-				if (unicast)
-					rtlpriv->link_info.num_rx_inperiod++;
-			}
+			if (unicast)
+				rtlpriv->link_info.num_rx_inperiod++;
+		}
 
-			/* for sw lps */
-			rtl_swlps_beacon(hw, (void *)skb->data, skb->len);
-			rtl_recognize_peer(hw, (void *)skb->data, skb->len);
-			if ((rtlpriv->mac80211.opmode == NL80211_IFTYPE_AP) &&
-			    (rtlpriv->rtlhal.current_bandtype ==
-			     BAND_ON_2_4G) &&
-			     (ieee80211_is_beacon(fc) ||
-			     ieee80211_is_probe_resp(fc))) {
+		/* for sw lps */
+		rtl_swlps_beacon(hw, (void *)skb->data, skb->len);
+		rtl_recognize_peer(hw, (void *)skb->data, skb->len);
+		if ((rtlpriv->mac80211.opmode == NL80211_IFTYPE_AP) &&
+		    (rtlpriv->rtlhal.current_bandtype == BAND_ON_2_4G) &&
+		     (ieee80211_is_beacon(fc) ||
+		     ieee80211_is_probe_resp(fc))) {
+			dev_kfree_skb_any(skb);
+		} else {
+			if (unlikely(!rtl_action_proc(hw, skb, false))) {
 				dev_kfree_skb_any(skb);
 			} else {
-				if (unlikely(!rtl_action_proc(hw, skb,
-				    false))) {
-					dev_kfree_skb_any(skb);
-				} else {
-					struct sk_buff *uskb = NULL;
-					u8 *pdata;
-					uskb = dev_alloc_skb(skb->len + 128);
-					memcpy(IEEE80211_SKB_RXCB(uskb),
-					       &rx_status, sizeof(rx_status));
-					pdata = (u8 *)skb_put(uskb, skb->len);
-					memcpy(pdata, skb->data, skb->len);
-					dev_kfree_skb_any(skb);
+				struct sk_buff *uskb = NULL;
+				u8 *pdata;
+				uskb = dev_alloc_skb(skb->len + 128);
+				memcpy(IEEE80211_SKB_RXCB(uskb),
+				       &rx_status, sizeof(rx_status));
+				pdata = (u8 *)skb_put(uskb, skb->len);
+				memcpy(pdata, skb->data, skb->len);
+				dev_kfree_skb_any(skb);
 
-					ieee80211_rx_irqsafe(hw, uskb);
-				}
+				ieee80211_rx_irqsafe(hw, uskb);
 			}
-		} else {
-			dev_kfree_skb_any(skb);
 		}
 
 		if (((rtlpriv->link_info.num_rx_inperiod +
