@@ -44,28 +44,32 @@ static const char *ad1836_deemp[] = {"None", "44.1kHz", "32kHz", "48kHz"};
 static const struct soc_enum ad1836_deemp_enum =
 	SOC_ENUM_SINGLE(AD1836_DAC_CTRL1, 8, 4, ad1836_deemp);
 
+#define AD1836_DAC_VOLUME(x) \
+	SOC_DOUBLE_R("DAC" #x " Playback Volume", AD1836_DAC_L_VOL(x), \
+			AD1836_DAC_R_VOL(x), 0, 0x3FF, 0)
+
+#define AD1836_DAC_SWITCH(x) \
+	SOC_DOUBLE("DAC" #x " Playback Switch", AD1836_DAC_CTRL2, \
+			AD1836_MUTE_LEFT(x), AD1836_MUTE_RIGHT(x), 1, 1)
+
+#define AD1836_ADC_SWITCH(x) \
+	SOC_DOUBLE("ADC" #x " Capture Switch", AD1836_ADC_CTRL2, \
+		AD1836_MUTE_LEFT(x), AD1836_MUTE_RIGHT(x), 1, 1)
+
 static const struct snd_kcontrol_new ad1836_snd_controls[] = {
 	/* DAC volume control */
-	SOC_DOUBLE_R("DAC1 Volume", AD1836_DAC_L1_VOL,
-			AD1836_DAC_R1_VOL, 0, 0x3FF, 0),
-	SOC_DOUBLE_R("DAC2 Volume", AD1836_DAC_L2_VOL,
-			AD1836_DAC_R2_VOL, 0, 0x3FF, 0),
-	SOC_DOUBLE_R("DAC3 Volume", AD1836_DAC_L3_VOL,
-			AD1836_DAC_R3_VOL, 0, 0x3FF, 0),
+	AD1836_DAC_VOLUME(1),
+	AD1836_DAC_VOLUME(2),
+	AD1836_DAC_VOLUME(3),
 
 	/* ADC switch control */
-	SOC_DOUBLE("ADC1 Switch", AD1836_ADC_CTRL2, AD1836_ADCL1_MUTE,
-		AD1836_ADCR1_MUTE, 1, 1),
-	SOC_DOUBLE("ADC2 Switch", AD1836_ADC_CTRL2, AD1836_ADCL2_MUTE,
-		AD1836_ADCR2_MUTE, 1, 1),
+	AD1836_ADC_SWITCH(1),
+	AD1836_ADC_SWITCH(2),
 
 	/* DAC switch control */
-	SOC_DOUBLE("DAC1 Switch", AD1836_DAC_CTRL2, AD1836_DACL1_MUTE,
-		AD1836_DACR1_MUTE, 1, 1),
-	SOC_DOUBLE("DAC2 Switch", AD1836_DAC_CTRL2, AD1836_DACL2_MUTE,
-		AD1836_DACR2_MUTE, 1, 1),
-	SOC_DOUBLE("DAC3 Switch", AD1836_DAC_CTRL2, AD1836_DACL3_MUTE,
-		AD1836_DACR3_MUTE, 1, 1),
+	AD1836_DAC_SWITCH(1),
+	AD1836_DAC_SWITCH(2),
+	AD1836_DAC_SWITCH(3),
 
 	/* ADC high-pass filter */
 	SOC_SINGLE("ADC High Pass Filter Switch", AD1836_ADC_CTRL1,
@@ -242,12 +246,12 @@ static int ad1836_probe(struct snd_soc_codec *codec)
 	/* left/right diff:PGA/MUX */
 	snd_soc_write(codec, AD1836_ADC_CTRL3, 0x3A);
 	/* volume */
-	snd_soc_write(codec, AD1836_DAC_L1_VOL, 0x3FF);
-	snd_soc_write(codec, AD1836_DAC_R1_VOL, 0x3FF);
-	snd_soc_write(codec, AD1836_DAC_L2_VOL, 0x3FF);
-	snd_soc_write(codec, AD1836_DAC_R2_VOL, 0x3FF);
-	snd_soc_write(codec, AD1836_DAC_L3_VOL, 0x3FF);
-	snd_soc_write(codec, AD1836_DAC_R3_VOL, 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_L_VOL(1), 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_R_VOL(1), 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_L_VOL(2), 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_R_VOL(2), 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_L_VOL(3), 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_R_VOL(3), 0x3FF);
 
 	snd_soc_add_controls(codec, ad1836_snd_controls,
 			     ARRAY_SIZE(ad1836_snd_controls));
