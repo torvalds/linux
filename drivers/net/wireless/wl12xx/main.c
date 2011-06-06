@@ -31,6 +31,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/wl12xx.h>
+#include <linux/sched.h>
 
 #include "wl12xx.h"
 #include "wl12xx_80211.h"
@@ -368,8 +369,18 @@ static struct conf_drv_settings default_conf = {
 		.interval                      = 20,
 		.always                        = 0,
 	},
+	.fwlog = {
+		.mode                         = WL12XX_FWLOG_ON_DEMAND,
+		.mem_blocks                   = 2,
+		.severity                     = 0,
+		.timestamp                    = WL12XX_FWLOG_TIMESTAMP_DISABLED,
+		.output                       = WL12XX_FWLOG_OUTPUT_HOST,
+		.threshold                    = 0,
+	},
 	.hci_io_ds = HCI_IO_DS_6MA,
 };
+
+static char *fwlog_param;
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl,
 					 bool reset_tx_queues);
@@ -617,8 +628,24 @@ static void wl1271_conf_init(struct wl1271 *wl)
 
 	/* apply driver default configuration */
 	memcpy(&wl->conf, &default_conf, sizeof(default_conf));
-}
 
+	/* Adjust settings according to optional module parameters */
+	if (fwlog_param) {
+		if (!strcmp(fwlog_param, "continuous")) {
+			wl->conf.fwlog.mode = WL12XX_FWLOG_CONTINUOUS;
+		} else if (!strcmp(fwlog_param, "ondemand")) {
+			wl->conf.fwlog.mode = WL12XX_FWLOG_ON_DEMAND;
+		} else if (!strcmp(fwlog_param, "dbgpins")) {
+			wl->conf.fwlog.mode = WL12XX_FWLOG_CONTINUOUS;
+			wl->conf.fwlog.output = WL12XX_FWLOG_OUTPUT_DBG_PINS;
+		} else if (!strcmp(fwlog_param, "disable")) {
+			wl->conf.fwlog.mem_blocks = 0;
+			wl->conf.fwlog.output = WL12XX_FWLOG_OUTPUT_NONE;
+		} else {
+			wl1271_error("Unknown fwlog parameter %s", fwlog_param);
+		}
+	}
+}
 
 static int wl1271_plt_init(struct wl1271 *wl)
 {
@@ -1105,6 +1132,83 @@ void wl12xx_queue_recovery_work(struct wl1271 *wl)
 		ieee80211_queue_work(wl->hw, &wl->recovery_work);
 }
 
+size_t wl12xx_copy_fwlog(struct wl1271 *wl, u8 *memblock, size_t maxlen)
+{
+	size_t len = 0;
+
+	/* The FW log is a length-value list, find where the log end */
+	while (len < maxlen) {
+		if (memblock[len] == 0)
+			break;
+		if (len + memblock[len] + 1 > maxlen)
+			break;
+		len += memblock[len] + 1;
+	}
+
+	/* Make sure we have enough room */
+	len = min(len, (size_t)(PAGE_SIZE - wl->fwlog_size));
+
+	/* Fill the FW log file, consumed by the sysfs fwlog entry */
+	memcpy(wl->fwlog + wl->fwlog_size, memblock, len);
+	wl->fwlog_size += len;
+
+	return len;
+}
+
+static void wl12xx_read_fwlog_panic(struct wl1271 *wl)
+{
+	u32 addr;
+	u32 first_addr;
+	u8 *block;
+
+	if ((wl->quirks & WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED) ||
+	    (wl->conf.fwlog.mode != WL12XX_FWLOG_ON_DEMAND) ||
+	    (wl->conf.fwlog.mem_blocks == 0))
+		return;
+
+	wl1271_info("Reading FW panic log");
+
+	block = kmalloc(WL12XX_HW_BLOCK_SIZE, GFP_KERNEL);
+	if (!block)
+		return;
+
+	/*
+	 * Make sure the chip is awake and the logger isn't active.
+	 * This might fail if the firmware hanged.
+	 */
+	if (!wl1271_ps_elp_wakeup(wl))
+		wl12xx_cmd_stop_fwlog(wl);
+
+	/* Read the first memory block address */
+	wl1271_fw_status(wl, wl->fw_status);
+	first_addr = __le32_to_cpu(wl->fw_status->sta.log_start_addr);
+	if (!first_addr)
+		goto out;
+
+	/* Traverse the memory blocks linked list */
+	addr = first_addr;
+	do {
+		memset(block, 0, WL12XX_HW_BLOCK_SIZE);
+		wl1271_read_hwaddr(wl, addr, block, WL12XX_HW_BLOCK_SIZE,
+				   false);
+
+		/*
+		 * Memory blocks are linked to one another. The first 4 bytes
+		 * of each memory block hold the hardware address of the next
+		 * one. The last memory block points to the first one.
+		 */
+		addr = __le32_to_cpup((__le32 *)block);
+		if (!wl12xx_copy_fwlog(wl, block + sizeof(addr),
+				       WL12XX_HW_BLOCK_SIZE - sizeof(addr)))
+			break;
+	} while (addr && (addr != first_addr));
+
+	wake_up_interruptible(&wl->fwlog_waitq);
+
+out:
+	kfree(block);
+}
+
 static void wl1271_recovery_work(struct work_struct *work)
 {
 	struct wl1271 *wl =
@@ -1117,6 +1221,8 @@ static void wl1271_recovery_work(struct work_struct *work)
 
 	/* Avoid a recursive recovery */
 	set_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags);
+
+	wl12xx_read_fwlog_panic(wl);
 
 	wl1271_info("Hardware recovery in progress. FW ver: %s pc: 0x%x",
 		    wl->chip.fw_ver_str, wl1271_read32(wl, SCR_PAD4));
@@ -3942,6 +4048,69 @@ static ssize_t wl1271_sysfs_show_hw_pg_ver(struct device *dev,
 static DEVICE_ATTR(hw_pg_ver, S_IRUGO | S_IWUSR,
 		   wl1271_sysfs_show_hw_pg_ver, NULL);
 
+static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
+				       struct bin_attribute *bin_attr,
+				       char *buffer, loff_t pos, size_t count)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct wl1271 *wl = dev_get_drvdata(dev);
+	ssize_t len;
+	int ret;
+
+	ret = mutex_lock_interruptible(&wl->mutex);
+	if (ret < 0)
+		return -ERESTARTSYS;
+
+	/* Let only one thread read the log at a time, blocking others */
+	while (wl->fwlog_size == 0) {
+		DEFINE_WAIT(wait);
+
+		prepare_to_wait_exclusive(&wl->fwlog_waitq,
+					  &wait,
+					  TASK_INTERRUPTIBLE);
+
+		if (wl->fwlog_size != 0) {
+			finish_wait(&wl->fwlog_waitq, &wait);
+			break;
+		}
+
+		mutex_unlock(&wl->mutex);
+
+		schedule();
+		finish_wait(&wl->fwlog_waitq, &wait);
+
+		if (signal_pending(current))
+			return -ERESTARTSYS;
+
+		ret = mutex_lock_interruptible(&wl->mutex);
+		if (ret < 0)
+			return -ERESTARTSYS;
+	}
+
+	/* Check if the fwlog is still valid */
+	if (wl->fwlog_size < 0) {
+		mutex_unlock(&wl->mutex);
+		return 0;
+	}
+
+	/* Seeking is not supported - old logs are not kept. Disregard pos. */
+	len = min(count, (size_t)wl->fwlog_size);
+	wl->fwlog_size -= len;
+	memcpy(buffer, wl->fwlog, len);
+
+	/* Make room for new messages */
+	memmove(wl->fwlog, wl->fwlog + len, wl->fwlog_size);
+
+	mutex_unlock(&wl->mutex);
+
+	return len;
+}
+
+static struct bin_attribute fwlog_attr = {
+	.attr = {.name = "fwlog", .mode = S_IRUSR},
+	.read = wl1271_sysfs_read_fwlog,
+};
+
 int wl1271_register_hw(struct wl1271 *wl)
 {
 	int ret;
@@ -4160,6 +4329,8 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->sched_scanning = false;
 	setup_timer(&wl->rx_streaming_timer, wl1271_rx_streaming_timer,
 		    (unsigned long) wl);
+	wl->fwlog_size = 0;
+	init_waitqueue_head(&wl->fwlog_waitq);
 
 	memset(wl->tx_frames_map, 0, sizeof(wl->tx_frames_map));
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
@@ -4186,11 +4357,18 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 		goto err_aggr;
 	}
 
+	/* Allocate one page for the FW log */
+	wl->fwlog = (u8 *)get_zeroed_page(GFP_KERNEL);
+	if (!wl->fwlog) {
+		ret = -ENOMEM;
+		goto err_dummy_packet;
+	}
+
 	/* Register platform device */
 	ret = platform_device_register(wl->plat_dev);
 	if (ret) {
 		wl1271_error("couldn't register platform device");
-		goto err_dummy_packet;
+		goto err_fwlog;
 	}
 	dev_set_drvdata(&wl->plat_dev->dev, wl);
 
@@ -4208,13 +4386,26 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 		goto err_bt_coex_state;
 	}
 
+	/* Create sysfs file for the FW log */
+	ret = device_create_bin_file(&wl->plat_dev->dev, &fwlog_attr);
+	if (ret < 0) {
+		wl1271_error("failed to create sysfs file fwlog");
+		goto err_hw_pg_ver;
+	}
+
 	return hw;
+
+err_hw_pg_ver:
+	device_remove_file(&wl->plat_dev->dev, &dev_attr_hw_pg_ver);
 
 err_bt_coex_state:
 	device_remove_file(&wl->plat_dev->dev, &dev_attr_bt_coex_state);
 
 err_platform:
 	platform_device_unregister(wl->plat_dev);
+
+err_fwlog:
+	free_page((unsigned long)wl->fwlog);
 
 err_dummy_packet:
 	dev_kfree_skb(wl->dummy_packet);
@@ -4240,7 +4431,15 @@ EXPORT_SYMBOL_GPL(wl1271_alloc_hw);
 
 int wl1271_free_hw(struct wl1271 *wl)
 {
+	/* Unblock any fwlog readers */
+	mutex_lock(&wl->mutex);
+	wl->fwlog_size = -1;
+	wake_up_interruptible_all(&wl->fwlog_waitq);
+	mutex_unlock(&wl->mutex);
+
+	device_remove_bin_file(&wl->plat_dev->dev, &fwlog_attr);
 	platform_device_unregister(wl->plat_dev);
+	free_page((unsigned long)wl->fwlog);
 	dev_kfree_skb(wl->dummy_packet);
 	free_pages((unsigned long)wl->aggr_buf,
 			get_order(WL1271_AGGR_BUFFER_SIZE));
@@ -4267,6 +4466,10 @@ u32 wl12xx_debug_level = DEBUG_NONE;
 EXPORT_SYMBOL_GPL(wl12xx_debug_level);
 module_param_named(debug_level, wl12xx_debug_level, uint, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(debug_level, "wl12xx debugging level");
+
+module_param_named(fwlog, fwlog_param, charp, 0);
+MODULE_PARM_DESC(keymap,
+		 "FW logger options: continuous, ondemand, dbgpins or disable");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");

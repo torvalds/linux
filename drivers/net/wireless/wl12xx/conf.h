@@ -1277,6 +1277,30 @@ struct conf_rx_streaming_settings {
 	u8 always;
 };
 
+struct conf_fwlog {
+	/* Continuous or on-demand */
+	u8 mode;
+
+	/*
+	 * Number of memory blocks dedicated for the FW logger
+	 *
+	 * Range: 1-3, or 0 to disable the FW logger
+	 */
+	u8 mem_blocks;
+
+	/* Minimum log level threshold */
+	u8 severity;
+
+	/* Include/exclude timestamps from the log messages */
+	u8 timestamp;
+
+	/* See enum wl1271_fwlogger_output */
+	u8 output;
+
+	/* Regulates the frequency of log messages */
+	u8 threshold;
+};
+
 struct conf_drv_settings {
 	struct conf_sg_settings sg;
 	struct conf_rx_settings rx;
@@ -1293,6 +1317,7 @@ struct conf_drv_settings {
 	struct conf_memory_settings mem_wl128x;
 	struct conf_fm_coex fm_coex;
 	struct conf_rx_streaming_settings rx_streaming;
+	struct conf_fwlog fwlog;
 	u8 hci_io_ds;
 };
 

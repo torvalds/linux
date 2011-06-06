@@ -828,6 +828,8 @@ struct wl1271_acx_sta_config_memory {
 	u8 tx_free_req;
 	u8 rx_free_req;
 	u8 tx_min;
+	u8 fwlog_blocks;
+	u8 padding[3];
 } __packed;
 
 struct wl1271_acx_mem_map {

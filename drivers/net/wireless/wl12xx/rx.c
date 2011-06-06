@@ -22,6 +22,7 @@
  */
 
 #include <linux/gfp.h>
+#include <linux/sched.h>
 
 #include "wl12xx.h"
 #include "acx.h"
@@ -106,6 +107,13 @@ static int wl1271_rx_handle_data(struct wl1271 *wl, u8 *data, u32 length)
 
 	/* the data read starts with the descriptor */
 	desc = (struct wl1271_rx_descriptor *) data;
+
+	if (desc->packet_class == WL12XX_RX_CLASS_LOGGER) {
+		size_t len = length - sizeof(*desc);
+		wl12xx_copy_fwlog(wl, data + sizeof(*desc), len);
+		wake_up_interruptible(&wl->fwlog_waitq);
+		return 0;
+	}
 
 	switch (desc->status & WL1271_RX_DESC_STATUS_MASK) {
 	/* discard corrupted packets */

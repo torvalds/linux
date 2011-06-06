@@ -226,6 +226,8 @@ enum {
 #define FW_VER_MINOR_1_SPARE_STA_MIN 58
 #define FW_VER_MINOR_1_SPARE_AP_MIN  47
 
+#define FW_VER_MINOR_FWLOG_STA_MIN 70
+
 struct wl1271_chip {
 	u32 id;
 	char fw_ver_str[ETHTOOL_BUSINFO_LEN];
@@ -284,8 +286,7 @@ struct wl1271_fw_sta_status {
 	u8  tx_total;
 	u8  reserved1;
 	__le16 reserved2;
-	/* Total structure size is 68 bytes */
-	u32 padding;
+	__le32 log_start_addr;
 } __packed;
 
 struct wl1271_fw_full_status {
@@ -472,6 +473,15 @@ struct wl1271 {
 	/* Network stack work  */
 	struct work_struct netstack_work;
 
+	/* FW log buffer */
+	u8 *fwlog;
+
+	/* Number of valid bytes in the FW log buffer */
+	ssize_t fwlog_size;
+
+	/* Sysfs FW log entry readers wait queue */
+	wait_queue_head_t fwlog_waitq;
+
 	/* Hardware recovery work */
 	struct work_struct recovery_work;
 
@@ -614,6 +624,7 @@ int wl1271_plt_start(struct wl1271 *wl);
 int wl1271_plt_stop(struct wl1271 *wl);
 int wl1271_recalc_rx_streaming(struct wl1271 *wl);
 void wl12xx_queue_recovery_work(struct wl1271 *wl);
+size_t wl12xx_copy_fwlog(struct wl1271 *wl, u8 *memblock, size_t maxlen);
 
 #define JOIN_TIMEOUT 5000 /* 5000 milliseconds to join */
 
@@ -654,5 +665,10 @@ void wl12xx_queue_recovery_work(struct wl1271 *wl);
  * consumption
  */
 #define WL12XX_QUIRK_LPD_MODE                   BIT(3)
+
+/* Older firmwares did not implement the FW logger over bus feature */
+#define WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED	BIT(4)
+
+#define WL12XX_HW_BLOCK_SIZE	256
 
 #endif

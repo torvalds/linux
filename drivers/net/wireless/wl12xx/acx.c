@@ -1067,6 +1067,7 @@ int wl1271_acx_sta_mem_cfg(struct wl1271 *wl)
 	mem_conf->tx_free_req = mem->min_req_tx_blocks;
 	mem_conf->rx_free_req = mem->min_req_rx_blocks;
 	mem_conf->tx_min = mem->tx_min;
+	mem_conf->fwlog_blocks = wl->conf.fwlog.mem_blocks;
 
 	ret = wl1271_cmd_configure(wl, ACX_MEM_CFG, mem_conf,
 				   sizeof(*mem_conf));

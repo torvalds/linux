@@ -117,6 +117,15 @@ static unsigned int wl12xx_get_fw_ver_quirks(struct wl1271 *wl)
 	      (fw_ver[FW_VER_MINOR] < FW_VER_MINOR_1_SPARE_AP_MIN))))
 		quirks |= WL12XX_QUIRK_USE_2_SPARE_BLOCKS;
 
+	/* Only new station firmwares support routing fw logs to the host */
+	if ((fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_STA) &&
+	    (fw_ver[FW_VER_MINOR] < FW_VER_MINOR_FWLOG_STA_MIN))
+		quirks |= WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED;
+
+	/* This feature is not yet supported for AP mode */
+	if (fw_ver[FW_VER_IF_TYPE] == FW_VER_IF_TYPE_AP)
+		quirks |= WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED;
+
 	return quirks;
 }
 
