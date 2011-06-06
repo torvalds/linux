@@ -309,7 +309,7 @@ static int pwc_vidioc_set_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 	    pixelformat != V4L2_PIX_FMT_PWC2)
 		return -EINVAL;
 
-	if (pdev->iso_init)
+	if (vb2_is_streaming(&pdev->vb_queue))
 		return -EBUSY;
 
 	PWC_DEBUG_IOCTL("Trying to set format to: width=%d height=%d fps=%d "
@@ -673,150 +673,47 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 	return pwc_vidioc_set_fmt(pdev, f);
 }
 
-static int pwc_reqbufs(struct file *file, void *fh, struct v4l2_requestbuffers *rb)
+static int pwc_reqbufs(struct file *file, void *fh,
+		       struct v4l2_requestbuffers *rb)
 {
-	int nbuffers;
+	struct pwc_device *pdev = video_drvdata(file);
 
-	PWC_DEBUG_IOCTL("ioctl(VIDIOC_REQBUFS) count=%d\n", rb->count);
-	if (rb->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-	if (rb->memory != V4L2_MEMORY_MMAP)
-		return -EINVAL;
-
-	nbuffers = rb->count;
-	if (nbuffers < 2)
-		nbuffers = 2;
-	else if (nbuffers > pwc_mbufs)
-		nbuffers = pwc_mbufs;
-	/* Force to use our # of buffers */
-	rb->count = pwc_mbufs;
-	return 0;
+	return vb2_reqbufs(&pdev->vb_queue, rb);
 }
 
 static int pwc_querybuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
 	struct pwc_device *pdev = video_drvdata(file);
-	int index;
 
-	PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYBUF) index=%d\n", buf->index);
-	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYBUF) Bad type\n");
-		return -EINVAL;
-	}
-	index = buf->index;
-	if (index < 0 || index >= pwc_mbufs) {
-		PWC_DEBUG_IOCTL("ioctl(VIDIOC_QUERYBUF) Bad index %d\n", buf->index);
-		return -EINVAL;
-	}
-
-	buf->m.offset = index * pdev->len_per_image;
-	if (pdev->pixfmt != V4L2_PIX_FMT_YUV420)
-		buf->bytesused = pdev->frame_size + sizeof(struct pwc_raw_frame);
-	else
-		buf->bytesused = pdev->view.size;
-	buf->field = V4L2_FIELD_NONE;
-	buf->memory = V4L2_MEMORY_MMAP;
-	/*buf->flags = V4L2_BUF_FLAG_MAPPED;*/
-	buf->length = pdev->len_per_image;
-
-	PWC_DEBUG_READ("VIDIOC_QUERYBUF: index=%d\n", buf->index);
-	PWC_DEBUG_READ("VIDIOC_QUERYBUF: m.offset=%d\n", buf->m.offset);
-	PWC_DEBUG_READ("VIDIOC_QUERYBUF: bytesused=%d\n", buf->bytesused);
-
-	return 0;
+	return vb2_querybuf(&pdev->vb_queue, buf);
 }
 
 static int pwc_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
-	PWC_DEBUG_IOCTL("ioctl(VIDIOC_QBUF) index=%d\n", buf->index);
-	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-	if (buf->memory != V4L2_MEMORY_MMAP)
-		return -EINVAL;
-	if (buf->index >= pwc_mbufs)
-		return -EINVAL;
+	struct pwc_device *pdev = video_drvdata(file);
 
-	buf->flags |= V4L2_BUF_FLAG_QUEUED;
-	buf->flags &= ~V4L2_BUF_FLAG_DONE;
-
-	return 0;
+	return vb2_qbuf(&pdev->vb_queue, buf);
 }
 
 static int pwc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
-	DECLARE_WAITQUEUE(wait, current);
 	struct pwc_device *pdev = video_drvdata(file);
-	int ret;
 
-	PWC_DEBUG_IOCTL("ioctl(VIDIOC_DQBUF)\n");
-
-	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	add_wait_queue(&pdev->frameq, &wait);
-	while (pdev->full_frames == NULL) {
-		if (pdev->error_status) {
-			remove_wait_queue(&pdev->frameq, &wait);
-			set_current_state(TASK_RUNNING);
-			return -pdev->error_status;
-		}
-
-		if (signal_pending(current)) {
-			remove_wait_queue(&pdev->frameq, &wait);
-			set_current_state(TASK_RUNNING);
-			return -ERESTARTSYS;
-		}
-		mutex_unlock(&pdev->modlock);
-		schedule();
-		set_current_state(TASK_INTERRUPTIBLE);
-		mutex_lock(&pdev->modlock);
-	}
-	remove_wait_queue(&pdev->frameq, &wait);
-	set_current_state(TASK_RUNNING);
-
-	PWC_DEBUG_IOCTL("VIDIOC_DQBUF: frame ready.\n");
-	/* Decompress data in pdev->images[pdev->fill_image] */
-	ret = pwc_handle_frame(pdev);
-	if (ret)
-		return ret;
-	PWC_DEBUG_IOCTL("VIDIOC_DQBUF: after pwc_handle_frame\n");
-
-	buf->index = pdev->fill_image;
-	if (pdev->pixfmt != V4L2_PIX_FMT_YUV420)
-		buf->bytesused = pdev->frame_size + sizeof(struct pwc_raw_frame);
-	else
-		buf->bytesused = pdev->view.size;
-	buf->flags = V4L2_BUF_FLAG_MAPPED;
-	buf->field = V4L2_FIELD_NONE;
-	do_gettimeofday(&buf->timestamp);
-	buf->sequence = 0;
-	buf->memory = V4L2_MEMORY_MMAP;
-	buf->m.offset = pdev->fill_image * pdev->len_per_image;
-	buf->length = pdev->len_per_image;
-	pwc_next_image(pdev);
-
-	PWC_DEBUG_IOCTL("VIDIOC_DQBUF: buf->index=%d\n", buf->index);
-	PWC_DEBUG_IOCTL("VIDIOC_DQBUF: buf->length=%d\n", buf->length);
-	PWC_DEBUG_IOCTL("VIDIOC_DQBUF: m.offset=%d\n", buf->m.offset);
-	PWC_DEBUG_IOCTL("VIDIOC_DQBUF: bytesused=%d\n", buf->bytesused);
-	PWC_DEBUG_IOCTL("VIDIOC_DQBUF: leaving\n");
-	return 0;
-
+	return vb2_dqbuf(&pdev->vb_queue, buf, file->f_flags & O_NONBLOCK);
 }
 
 static int pwc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 {
 	struct pwc_device *pdev = video_drvdata(file);
 
-	return pwc_isoc_init(pdev);
+	return vb2_streamon(&pdev->vb_queue, i);
 }
 
 static int pwc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 {
 	struct pwc_device *pdev = video_drvdata(file);
 
-	pwc_isoc_cleanup(pdev);
-	return 0;
+	return vb2_streamoff(&pdev->vb_queue, i);
 }
 
 static int pwc_enum_framesizes(struct file *file, void *fh,

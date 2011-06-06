@@ -36,6 +36,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/videobuf2-vmalloc.h>
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 #include <linux/input.h>
 #endif
@@ -112,18 +113,17 @@
 #define FRAME_LOWMARK 5
 
 /* Size and number of buffers for the ISO pipe. */
-#define MAX_ISO_BUFS		2
+#define MAX_ISO_BUFS		3
 #define ISO_FRAMES_PER_DESC	10
 #define ISO_MAX_FRAME_SIZE	960
 #define ISO_BUFFER_SIZE 	(ISO_FRAMES_PER_DESC * ISO_MAX_FRAME_SIZE)
 
-/* Frame buffers: contains compressed or uncompressed video data. */
-#define MAX_FRAMES		5
 /* Maximum size after decompression is 640x480 YUV data, 1.5 * 640 * 480 */
 #define PWC_FRAME_SIZE 		(460800 + TOUCAM_HEADER_SIZE + TOUCAM_TRAILER_SIZE)
 
-/* Absolute maximum number of buffers available for mmap() */
-#define MAX_IMAGES 		10
+/* Absolute minimum and maximum number of buffers available for mmap() */
+#define MIN_FRAMES		2
+#define MAX_FRAMES		16
 
 /* Some macros to quickly find the type of a webcam */
 #define DEVICE_USE_CODEC1(x) ((x)<675)
@@ -143,16 +143,10 @@ struct pwc_iso_buf
 /* intermediate buffers with raw data from the USB cam */
 struct pwc_frame_buf
 {
-   void *data;
-   volatile int filled;		/* number of bytes filled */
-   struct pwc_frame_buf *next;	/* list */
-};
-
-/* additionnal informations used when dealing image between kernel and userland */
-struct pwc_imgbuf
-{
-	unsigned long offset;	/* offset of this buffer in the big array of image_data */
-	int   vma_use_count;	/* count the number of time this memory is mapped */
+	struct vb2_buffer vb;	/* common v4l buffer stuff -- must be first */
+	struct list_head list;
+	void *data;
+	int filled;		/* number of bytes filled */
 };
 
 struct pwc_device
@@ -177,8 +171,6 @@ struct pwc_device
    int vframes, vsize;		/* frames-per-second & size (see PSZ_*) */
    int pixfmt;			/* pixelformat: V4L2_PIX_FMT_YUV420 or raw: _PWC1, _PWC2 */
    int vframe_count;		/* received frames */
-   int vframes_dumped; 		/* counter for dumped frames */
-   int vframes_error;		/* frames received in error */
    int vmax_packet_size;	/* USB maxpacket size */
    int vlast_packet_size;	/* for frame synchronisation */
    int visoc_errors;		/* number of contiguous ISOC errors */
@@ -192,35 +184,29 @@ struct pwc_device
    int cmd_len;
    unsigned char cmd_buf[13];
 
-   /* The image acquisition requires 3 to 4 steps:
-      1. data is gathered in short packets from the USB controller
-      2. data is synchronized and packed into a frame buffer
-      3a. in case data is compressed, decompress it directly into image buffer
-      3b. in case data is uncompressed, copy into image buffer with viewport
-      4. data is transferred to the user process
-
-      Note that MAX_ISO_BUFS != MAX_FRAMES != MAX_IMAGES....
-      We have in effect a back-to-back-double-buffer system.
-    */
-   /* 1: isoc */
    struct pwc_iso_buf sbuf[MAX_ISO_BUFS];
    char iso_init;
 
-   /* 2: frame */
-   struct pwc_frame_buf *fbuf;	/* all frames */
-   struct pwc_frame_buf *empty_frames, *empty_frames_tail;	/* all empty frames */
-   struct pwc_frame_buf *full_frames, *full_frames_tail;	/* all filled frames */
-   struct pwc_frame_buf *fill_frame;	/* frame currently being filled */
-   struct pwc_frame_buf *read_frame;	/* frame currently read by user process */
+	/* videobuf2 queue and queued buffers list */
+	struct vb2_queue vb_queue;
+	struct list_head queued_bufs;
+	spinlock_t queued_bufs_lock;
+
+	/*
+	 * Frame currently being filled, this only gets touched by the
+	 * isoc urb complete handler, and by stream start / stop since
+	 * start / stop touch it before / after starting / killing the urbs
+	 * no locking is needed around this
+	 */
+	struct pwc_frame_buf *fill_buf;
+
    int frame_header_size, frame_trailer_size;
    int frame_size;
    int frame_total_size; /* including header & trailer */
    int drop_frames;
 
-   /* 3: decompression */
    void *decompress_data;		/* private data for decompression engine */
 
-   /* 4: image */
    /* We have an 'image' and a 'view', where 'image' is the fixed-size image
       as delivered by the camera, and 'view' is the size requested by the
       program. The camera image is centered in this viewport, laced with
@@ -232,15 +218,7 @@ struct pwc_device
    struct pwc_coord image, view;	/* image and viewport size */
    struct pwc_coord offset;		/* offset within the viewport */
 
-   void *image_data;			/* total buffer, which is subdivided into ... */
-   struct pwc_imgbuf images[MAX_IMAGES];/* ...several images... */
-   int fill_image;			/* ...which are rotated. */
-   int len_per_image;			/* length per image */
-   int image_read_pos;			/* In case we read data in pieces, keep track of were we are in the imagebuffer */
-   int image_used[MAX_IMAGES];		/* For MCAPTURE and SYNC */
-
    struct mutex modlock;		/* to prevent races in video_open(), etc */
-   spinlock_t ptrlock;			/* for manipulating the buffer pointers */
 
    /*** motorized pan/tilt feature */
    struct pwc_mpt_range angle_range;
@@ -253,7 +231,6 @@ struct pwc_device
 #endif
 
    /*** Misc. data ***/
-   wait_queue_head_t frameq;		/* When waiting for a frame to finish... */
 #if PWC_INT_PIPE
    void *usb_int_handler;		/* for the interrupt endpoint */
 #endif
@@ -263,13 +240,6 @@ struct pwc_device
 #ifdef CONFIG_USB_PWC_DEBUG
 extern int pwc_trace;
 #endif
-extern int pwc_mbufs;
-
-/** functions in pwc-if.c */
-int pwc_handle_frame(struct pwc_device *pdev);
-void pwc_next_image(struct pwc_device *pdev);
-int pwc_isoc_init(struct pwc_device *pdev);
-void pwc_isoc_cleanup(struct pwc_device *pdev);
 
 /** Functions in pwc-misc.c */
 /* sizes in pixels */
@@ -334,6 +304,6 @@ extern const struct v4l2_ioctl_ops pwc_ioctl_ops;
 
 /** pwc-uncompress.c */
 /* Expand frame to image, possibly including decompression. Uses read_frame and fill_image */
-extern int pwc_decompress(struct pwc_device *pdev);
+int pwc_decompress(struct pwc_device *pdev, struct pwc_frame_buf *fbuf);
 
 #endif

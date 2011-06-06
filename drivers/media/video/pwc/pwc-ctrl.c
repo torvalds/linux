@@ -511,13 +511,9 @@ unsigned int pwc_get_fps(struct pwc_device *pdev, unsigned int index, unsigned i
 	return ret;
 }
 
-#define BLACK_Y 0
-#define BLACK_U 128
-#define BLACK_V 128
-
 static void pwc_set_image_buffer_size(struct pwc_device *pdev)
 {
-	int i, factor = 0;
+	int factor = 0;
 
 	/* for V4L2_PIX_FMT_YUV420 */
 	switch (pdev->pixfmt) {
@@ -541,22 +537,9 @@ static void pwc_set_image_buffer_size(struct pwc_device *pdev)
 	 */
 	pdev->offset.x = ((pdev->view.x - pdev->image.x) / 2) & 0xFFFC;
 	pdev->offset.y = ((pdev->view.y - pdev->image.y) / 2) & 0xFFFE;
-
-	/* Fill buffers with black colors */
-	for (i = 0; i < pwc_mbufs; i++) {
-		unsigned char *p = pdev->image_data + pdev->images[i].offset;
-		memset(p, BLACK_Y, pdev->view.x * pdev->view.y);
-		p += pdev->view.x * pdev->view.y;
-		memset(p, BLACK_U, pdev->view.x * pdev->view.y/4);
-		p += pdev->view.x * pdev->view.y/4;
-		memset(p, BLACK_V, pdev->view.x * pdev->view.y/4);
-	}
 }
 
-
-
 /* BRIGHTNESS */
-
 int pwc_get_brightness(struct pwc_device *pdev)
 {
 	char buf;
