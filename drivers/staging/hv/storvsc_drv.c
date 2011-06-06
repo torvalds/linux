@@ -756,7 +756,7 @@ static struct hv_driver storvsc_drv = {
 /*
  * storvsc_drv_init - StorVsc driver initialization.
  */
-static int storvsc_drv_init(void)
+static int __init storvsc_drv_init(void)
 {
 	int ret;
 	struct hv_driver *drv = &storvsc_drv;
@@ -797,17 +797,8 @@ static void __exit storvsc_drv_exit(void)
 	vmbus_child_driver_unregister(&storvsc_drv.driver);
 }
 
-static int __init storvsc_init(void)
-{
-	int ret;
-
-	DPRINT_INFO(STORVSC_DRV, "Storvsc initializing....");
-	ret = storvsc_drv_init();
-	return ret;
-}
-
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
 MODULE_DESCRIPTION("Microsoft Hyper-V virtual storage driver");
-module_init(storvsc_init);
+module_init(storvsc_drv_init);
 module_exit(storvsc_drv_exit);
