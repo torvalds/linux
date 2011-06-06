@@ -329,7 +329,7 @@ static int vmbus_probe(struct device *child_device)
 	} else {
 		pr_err("probe not set for driver %s\n",
 		       dev_name(child_device));
-		ret = -1;
+		ret = -ENODEV;
 	}
 	return ret;
 }
@@ -352,7 +352,7 @@ static int vmbus_remove(struct device *child_device)
 		} else {
 			pr_err("remove not set for driver %s\n",
 				dev_name(child_device));
-			ret = -1;
+			ret = -ENODEV;
 		}
 	}
 
