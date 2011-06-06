@@ -811,7 +811,7 @@ int vmbus_recvpacket(struct vmbus_channel *channel, void *buffer,
 
 		pr_err("Buffer too small - got %d needs %d\n",
 			   bufferlen, userlen);
-		return -1;
+		return -ETOOSMALL;
 	}
 
 	*requestid = desc.trans_id;
