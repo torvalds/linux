@@ -108,7 +108,7 @@ static void et131x_xcvr_init(struct et131x_adapter *etdev);
 int PhyMiRead(struct et131x_adapter *etdev, u8 xcvrAddr,
 	      u8 xcvrReg, u16 *value)
 {
-	struct MAC_t __iomem *mac = &etdev->regs->mac;
+	struct mac_regs __iomem *mac = &etdev->regs->mac;
 	int status = 0;
 	u32 delay;
 	u32 miiAddr;
@@ -176,7 +176,7 @@ int PhyMiRead(struct et131x_adapter *etdev, u8 xcvrAddr,
  */
 int MiWrite(struct et131x_adapter *etdev, u8 xcvrReg, u16 value)
 {
-	struct MAC_t __iomem *mac = &etdev->regs->mac;
+	struct mac_regs __iomem *mac = &etdev->regs->mac;
 	int status = 0;
 	u8 xcvrAddr = etdev->Stats.xcvr_addr;
 	u32 delay;

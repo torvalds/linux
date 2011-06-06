@@ -104,9 +104,9 @@
  */
 void ConfigMACRegs1(struct et131x_adapter *etdev)
 {
-	struct MAC_t __iomem *pMac = &etdev->regs->mac;
-	union MAC_STATION_ADDR1_t station1;
-	union MAC_STATION_ADDR2_t station2;
+	struct mac_regs __iomem *pMac = &etdev->regs->mac;
+	u32 station1;
+	u32 station2;
 	u32 ipg;
 
 	/* First we need to reset everything.  Write to MAC configuration
@@ -136,14 +136,14 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	 * station address is used for generating and checking pause control
 	 * packets.
 	 */
-	station2.bits.Octet1 = etdev->addr[0];
-	station2.bits.Octet2 = etdev->addr[1];
-	station1.bits.Octet3 = etdev->addr[2];
-	station1.bits.Octet4 = etdev->addr[3];
-	station1.bits.Octet5 = etdev->addr[4];
-	station1.bits.Octet6 = etdev->addr[5];
-	writel(station1.value, &pMac->station_addr_1.value);
-	writel(station2.value, &pMac->station_addr_2.value);
+	station2 = (etdev->addr[1] << ET_MAC_STATION_ADDR2_OC2_SHIFT) |
+		   (etdev->addr[0] << ET_MAC_STATION_ADDR2_OC1_SHIFT);
+	station1 = (etdev->addr[5] << ET_MAC_STATION_ADDR1_OC6_SHIFT) |
+		   (etdev->addr[4] << ET_MAC_STATION_ADDR1_OC5_SHIFT) |
+		   (etdev->addr[3] << ET_MAC_STATION_ADDR1_OC4_SHIFT) |
+		    etdev->addr[2];
+	writel(station1, &pMac->station_addr_1);
+	writel(station2, &pMac->station_addr_2);
 
 	/* Max ethernet packet in bytes that will passed by the mac without
 	 * being truncated.  Allow the MAC to pass 4 more than our max packet
@@ -165,7 +165,7 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 void ConfigMACRegs2(struct et131x_adapter *etdev)
 {
 	int32_t delay = 0;
-	struct MAC_t __iomem *pMac = &etdev->regs->mac;
+	struct mac_regs __iomem *pMac = &etdev->regs->mac;
 	u32 cfg1;
 	u32 cfg2;
 	u32 ifctrl;
@@ -237,9 +237,9 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 
 void ConfigRxMacRegs(struct et131x_adapter *etdev)
 {
-	struct RXMAC_t __iomem *pRxMac = &etdev->regs->rxmac;
-	union RXMAC_WOL_SA_LO_t sa_lo;
-	union RXMAC_WOL_SA_HI_t sa_hi;
+	struct rxmac_regs __iomem *pRxMac = &etdev->regs->rxmac;
+	u32 sa_lo;
+	u32 sa_hi = 0;
 	u32 pf_ctrl = 0;
 
 	/* Disable the MAC while it is being configured (also disable WOL) */
@@ -280,15 +280,15 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	writel(0, &pRxMac->mask4_word3);
 
 	/* Lets setup the WOL Source Address */
-	sa_lo.bits.sa3 = etdev->addr[2];
-	sa_lo.bits.sa4 = etdev->addr[3];
-	sa_lo.bits.sa5 = etdev->addr[4];
-	sa_lo.bits.sa6 = etdev->addr[5];
-	writel(sa_lo.value, &pRxMac->sa_lo.value);
+	sa_lo = (etdev->addr[2] << ET_WOL_LO_SA3_SHIFT) |
+		(etdev->addr[3] << ET_WOL_LO_SA4_SHIFT) |
+		(etdev->addr[4] << ET_WOL_LO_SA5_SHIFT) |
+		 etdev->addr[5];
+	writel(sa_lo, &pRxMac->sa_lo);
 
-	sa_hi.bits.sa1 = etdev->addr[0];
-	sa_hi.bits.sa2 = etdev->addr[1];
-	writel(sa_hi.value, &pRxMac->sa_hi.value);
+	sa_hi = (u32) (etdev->addr[0] << ET_WOL_HI_SA1_SHIFT) |
+	               etdev->addr[1];
+	writel(sa_hi, &pRxMac->sa_hi);
 
 	/* Disable all Packet Filtering */
 	writel(0, &pRxMac->pf_ctrl);
@@ -298,9 +298,9 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 		SetupDeviceForUnicast(etdev);
 		pf_ctrl |= 4;	/* Unicast filter */
 	} else {
-		writel(0, &pRxMac->uni_pf_addr1.value);
-		writel(0, &pRxMac->uni_pf_addr2.value);
-		writel(0, &pRxMac->uni_pf_addr3.value);
+		writel(0, &pRxMac->uni_pf_addr1);
+		writel(0, &pRxMac->uni_pf_addr2);
+		writel(0, &pRxMac->uni_pf_addr3);
 	}
 
 	/* Let's initialize the Multicast hash */
@@ -534,7 +534,7 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 
 void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 {
-	struct RXMAC_t __iomem *rxmac = &etdev->regs->rxmac;
+	struct rxmac_regs __iomem *rxmac = &etdev->regs->rxmac;
 	uint32_t nIndex;
 	uint32_t result;
 	uint32_t hash1 = 0;
@@ -582,10 +582,10 @@ void SetupDeviceForMulticast(struct et131x_adapter *etdev)
 
 void SetupDeviceForUnicast(struct et131x_adapter *etdev)
 {
-	struct RXMAC_t __iomem *rxmac = &etdev->regs->rxmac;
-	union RXMAC_UNI_PF_ADDR1_t uni_pf1;
-	union RXMAC_UNI_PF_ADDR2_t uni_pf2;
-	union RXMAC_UNI_PF_ADDR3_t uni_pf3;
+	struct rxmac_regs __iomem *rxmac = &etdev->regs->rxmac;
+	u32 uni_pf1;
+	u32 uni_pf2;
+	u32 uni_pf3;
 	u32 pm_csr;
 
 	/* Set up unicast packet filter reg 3 to be the first two octets of
@@ -597,25 +597,25 @@ void SetupDeviceForUnicast(struct et131x_adapter *etdev)
 	 * Set up unicast packet filter reg 3 to be the octets 2 - 5 of the
 	 * MAC address for first address
 	 */
-	uni_pf3.bits.addr1_1 = etdev->addr[0];
-	uni_pf3.bits.addr1_2 = etdev->addr[1];
-	uni_pf3.bits.addr2_1 = etdev->addr[0];
-	uni_pf3.bits.addr2_2 = etdev->addr[1];
+	uni_pf3 = (etdev->addr[0] << ET_UNI_PF_ADDR2_1_SHIFT) |
+		  (etdev->addr[1] << ET_UNI_PF_ADDR2_2_SHIFT) |
+		  (etdev->addr[0] << ET_UNI_PF_ADDR1_1_SHIFT) |
+		   etdev->addr[1];
 
-	uni_pf2.bits.addr2_3 = etdev->addr[2];
-	uni_pf2.bits.addr2_4 = etdev->addr[3];
-	uni_pf2.bits.addr2_5 = etdev->addr[4];
-	uni_pf2.bits.addr2_6 = etdev->addr[5];
+	uni_pf2 = (etdev->addr[2] << ET_UNI_PF_ADDR2_3_SHIFT) |
+		  (etdev->addr[3] << ET_UNI_PF_ADDR2_4_SHIFT) |
+		  (etdev->addr[4] << ET_UNI_PF_ADDR2_5_SHIFT) |
+		   etdev->addr[5];
 
-	uni_pf1.bits.addr1_3 = etdev->addr[2];
-	uni_pf1.bits.addr1_4 = etdev->addr[3];
-	uni_pf1.bits.addr1_5 = etdev->addr[4];
-	uni_pf1.bits.addr1_6 = etdev->addr[5];
+	uni_pf1 = (etdev->addr[2] << ET_UNI_PF_ADDR1_3_SHIFT) |
+		  (etdev->addr[3] << ET_UNI_PF_ADDR1_4_SHIFT) |
+		  (etdev->addr[4] << ET_UNI_PF_ADDR1_5_SHIFT) |
+		   etdev->addr[5];
 
 	pm_csr = readl(&etdev->regs->global.pm_csr);
 	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
-		writel(uni_pf1.value, &rxmac->uni_pf_addr1.value);
-		writel(uni_pf2.value, &rxmac->uni_pf_addr2.value);
-		writel(uni_pf3.value, &rxmac->uni_pf_addr3.value);
+		writel(uni_pf1, &rxmac->uni_pf_addr1);
+		writel(uni_pf2, &rxmac->uni_pf_addr2);
+		writel(uni_pf3, &rxmac->uni_pf_addr3);
 	}
 }
