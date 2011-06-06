@@ -1958,7 +1958,7 @@ static int ext4_ext_walk_space(struct inode *inode, ext4_lblk_t block,
 			err = -EIO;
 			break;
 		}
-		err = func(inode, path, &cbex, ex, cbdata);
+		err = func(inode, next, &cbex, ex, cbdata);
 		ext4_ext_drop_refs(path);
 
 		if (err < 0)
@@ -3914,14 +3914,13 @@ int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 /*
  * Callback function called for each extent to gather FIEMAP information.
  */
-static int ext4_ext_fiemap_cb(struct inode *inode, struct ext4_ext_path *path,
+static int ext4_ext_fiemap_cb(struct inode *inode, ext4_lblk_t next,
 		       struct ext4_ext_cache *newex, struct ext4_extent *ex,
 		       void *data)
 {
 	__u64	logical;
 	__u64	physical;
 	__u64	length;
-	loff_t	size;
 	__u32	flags = 0;
 	int		ret = 0;
 	struct fiemap_extent_info *fieinfo = data;
@@ -4103,8 +4102,7 @@ found_delayed_extent:
 	if (ex && ext4_ext_is_uninitialized(ex))
 		flags |= FIEMAP_EXTENT_UNWRITTEN;
 
-	size = i_size_read(inode);
-	if (logical + length >= size)
+	if (next == EXT_MAX_BLOCKS)
 		flags |= FIEMAP_EXTENT_LAST;
 
 	ret = fiemap_fill_next_extent(fieinfo, logical, physical,

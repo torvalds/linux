@@ -125,7 +125,7 @@ struct ext4_ext_path {
  * positive retcode - signal for ext4_ext_walk_space(), see below
  * callback must return valid extent (passed or newly created)
  */
-typedef int (*ext_prepare_callback)(struct inode *, struct ext4_ext_path *,
+typedef int (*ext_prepare_callback)(struct inode *, ext4_lblk_t,
 					struct ext4_ext_cache *,
 					struct ext4_extent *, void *);
 
