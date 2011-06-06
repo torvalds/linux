@@ -550,11 +550,14 @@ static u16 usbhsp_setup_pipecfg(struct usbhs_pipe *pipe,
 
 	/* DIR */
 	if (usb_endpoint_dir_in(desc))
-		usbhsp_flags_set(pipe, IS_DIR_IN);
+		usbhsp_flags_set(pipe, IS_DIR_HOST);
 
 	if ((is_host  && usb_endpoint_dir_out(desc)) ||
 	    (!is_host && usb_endpoint_dir_in(desc)))
 		dir |= DIR_OUT;
+
+	if (!dir)
+		usbhsp_flags_set(pipe, IS_DIR_IN);
 
 	/* SHTNAK */
 	if (usbhsp_type_is(pipe, USB_ENDPOINT_XFER_BULK) &&
@@ -676,6 +679,11 @@ int usbhs_pipe_get_maxpacket(struct usbhs_pipe *pipe)
 int usbhs_pipe_is_dir_in(struct usbhs_pipe *pipe)
 {
 	return usbhsp_flags_has(pipe, IS_DIR_IN);
+}
+
+int usbhs_pipe_is_dir_host(struct usbhs_pipe *pipe)
+{
+	return usbhsp_flags_has(pipe, IS_DIR_HOST);
 }
 
 void usbhs_pipe_clear_sequence(struct usbhs_pipe *pipe)
