@@ -889,7 +889,6 @@ void vmbus_onchannel_event(struct vmbus_channel *channel)
 
 	channel->onchannel_callback(channel->channel_callback_context);
 
-	mod_timer(&channel->poll_timer, jiffies + usecs_to_jiffies(100));
 }
 
 /*
