@@ -1985,8 +1985,17 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		spte |= PT_WRITABLE_MASK;
 
 		if (!vcpu->arch.mmu.direct_map
-		    && !(pte_access & ACC_WRITE_MASK))
+		    && !(pte_access & ACC_WRITE_MASK)) {
 			spte &= ~PT_USER_MASK;
+			/*
+			 * If we converted a user page to a kernel page,
+			 * so that the kernel can write to it when cr0.wp=0,
+			 * then we should prevent the kernel from executing it
+			 * if SMEP is enabled.
+			 */
+			if (kvm_read_cr4_bits(vcpu, X86_CR4_SMEP))
+				spte |= PT64_NX_MASK;
+		}
 
 		/*
 		 * Optimization: for pte sync, if spte was writable the hash
@@ -2955,6 +2964,7 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 int kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context)
 {
 	int r;
+	bool smep = kvm_read_cr4_bits(vcpu, X86_CR4_SMEP);
 	ASSERT(vcpu);
 	ASSERT(!VALID_PAGE(vcpu->arch.mmu.root_hpa));
 
@@ -2969,6 +2979,8 @@ int kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *context)
 
 	vcpu->arch.mmu.base_role.cr4_pae = !!is_pae(vcpu);
 	vcpu->arch.mmu.base_role.cr0_wp  = is_write_protection(vcpu);
+	vcpu->arch.mmu.base_role.smep_andnot_wp
+		= smep && !is_write_protection(vcpu);
 
 	return r;
 }
