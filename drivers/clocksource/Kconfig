@@ -3,3 +3,6 @@ config CLKSRC_I8253
 
 config CLKSRC_MMIO
 	bool
+
+config DW_APB_TIMER
+	bool
