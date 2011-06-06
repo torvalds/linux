@@ -100,6 +100,7 @@ config GPIO_MXS
 config GPIO_MXC
 	def_bool y
 	depends on ARCH_MXC
+	select GPIO_BASIC_MMIO_CORE
 
 config GPIO_PLAT_SAMSUNG
 	bool "Samsung SoCs GPIO library support"
