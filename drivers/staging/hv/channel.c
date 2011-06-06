@@ -555,7 +555,6 @@ void vmbus_close(struct vmbus_channel *channel)
 
 	/* Stop callback and cancel the timer asap */
 	channel->onchannel_callback = NULL;
-	del_timer_sync(&channel->poll_timer);
 
 	/* Send a closing message */
 	info = kmalloc(sizeof(*info) +

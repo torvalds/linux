@@ -283,10 +283,6 @@ static struct vmbus_channel *alloc_channel(void)
 
 	spin_lock_init(&channel->inbound_lock);
 
-	init_timer(&channel->poll_timer);
-	channel->poll_timer.data = (unsigned long)channel;
-	channel->poll_timer.function = vmbus_ontimer;
-
 	channel->controlwq = create_workqueue("hv_vmbus_ctl");
 	if (!channel->controlwq) {
 		kfree(channel);
@@ -315,7 +311,6 @@ static void release_channel(struct work_struct *work)
  */
 void free_channel(struct vmbus_channel *channel)
 {
-	del_timer_sync(&channel->poll_timer);
 
 	/*
 	 * We have to release the channel's workqueue/thread in the vmbus's
