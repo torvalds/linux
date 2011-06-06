@@ -268,10 +268,6 @@ static int beagle_twl_gpio_setup(struct device *dev,
 	mmc[0].gpio_cd = gpio + 0;
 	omap2_hsmmc_init(mmc);
 
-	/* link regulators to MMC adapters */
-	beagle_vmmc1_supply.dev = mmc[0].dev;
-	beagle_vsim_supply.dev = mmc[0].dev;
-
 	/*
 	 * TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, XM active
 	 * high / others active low)

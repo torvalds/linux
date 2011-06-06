@@ -270,13 +270,6 @@ static int zoom_twl_gpio_setup(struct device *dev,
 	mmc[0].gpio_cd = gpio + 0;
 	omap2_hsmmc_init(mmc);
 
-	/* link regulators to MMC adapters ... we "know" the
-	 * regulators will be set up only *after* we return.
-	*/
-	zoom_vmmc1_supply.dev = mmc[0].dev;
-	zoom_vsim_supply.dev = mmc[0].dev;
-	zoom_vmmc2_supply.dev = mmc[1].dev;
-
 	ret = gpio_request_one(LCD_PANEL_ENABLE_GPIO, GPIOF_OUT_INIT_LOW,
 			       "lcd enable");
 	if (ret)

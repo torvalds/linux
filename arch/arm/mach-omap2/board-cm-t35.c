@@ -483,10 +483,6 @@ static int cm_t35_twl_gpio_setup(struct device *dev, unsigned gpio,
 	mmc[0].gpio_cd = gpio + 0;
 	omap2_hsmmc_init(mmc);
 
-	/* link regulators to MMC adapters */
-	cm_t35_vmmc1_supply.dev = mmc[0].dev;
-	cm_t35_vsim_supply.dev = mmc[0].dev;
-
 	return 0;
 }
 

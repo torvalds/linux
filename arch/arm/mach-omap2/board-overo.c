@@ -417,8 +417,6 @@ static int overo_twl_gpio_setup(struct device *dev,
 {
 	omap2_hsmmc_init(mmc);
 
-	overo_vmmc1_supply.dev = mmc[0].dev;
-
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
 	/* TWL4030_GPIO_MAX + 1 == ledB, PMU_STAT (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;

@@ -341,8 +341,6 @@ static void __init omap_ldp_init(void)
 		ARRAY_SIZE(ldp_nand_partitions), ZOOM_NAND_CS, 0);
 
 	omap2_hsmmc_init(mmc);
-	/* link regulators to MMC adapters */
-	ldp_vmmc1_supply.dev = mmc[0].dev;
 }
 
 MACHINE_START(OMAP_LDP, "OMAP LDP board")

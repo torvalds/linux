@@ -130,8 +130,6 @@ static void __init board_mmc_init(void)
 	}
 
 	omap2_hsmmc_init(board_mmc_info);
-	/* link regulators to MMC adapters */
-	omap3logic_vmmc1_supply.dev = board_mmc_info[0].dev;
 }
 
 static struct omap_smsc911x_platform_data __initdata board_smsc911x_data = {

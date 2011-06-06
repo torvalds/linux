@@ -137,10 +137,6 @@ static int touchbook_twl_gpio_setup(struct device *dev,
 	mmc[0].gpio_cd = gpio + 0;
 	omap2_hsmmc_init(mmc);
 
-	/* link regulators to MMC adapters */
-	touchbook_vmmc1_supply.dev = mmc[0].dev;
-	touchbook_vsim_supply.dev = mmc[0].dev;
-
 	/* REVISIT: need ehci-omap hooks for external VBUS
 	 * power switch and overcurrent detect
 	 */
