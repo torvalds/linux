@@ -139,24 +139,6 @@ static int snd_soc_dapm_set_bias_level(struct snd_soc_dapm_context *dapm,
 	struct snd_soc_card *card = dapm->card;
 	int ret = 0;
 
-	switch (level) {
-	case SND_SOC_BIAS_ON:
-		dev_dbg(dapm->dev, "Setting full bias\n");
-		break;
-	case SND_SOC_BIAS_PREPARE:
-		dev_dbg(dapm->dev, "Setting bias prepare\n");
-		break;
-	case SND_SOC_BIAS_STANDBY:
-		dev_dbg(dapm->dev, "Setting standby bias\n");
-		break;
-	case SND_SOC_BIAS_OFF:
-		dev_dbg(dapm->dev, "Setting bias off\n");
-		break;
-	default:
-		dev_err(dapm->dev, "Setting invalid bias %d\n", level);
-		return -EINVAL;
-	}
-
 	trace_snd_soc_bias_level_start(card, level);
 
 	if (card && card->set_bias_level)
