@@ -384,18 +384,6 @@ struct iwl_tx_ant_config_cmd {
 
 #define UCODE_VALID_OK	cpu_to_le32(0x1)
 
-enum iwlagn_ucode_subtype {
-	UCODE_SUBTYPE_REGULAR	= 0,
-	UCODE_SUBTYPE_REGULAR_NEW = 1,
-	UCODE_SUBTYPE_INIT	= 9,
-
-	/*
-	 * Not a valid subtype, the ucode has just a u8, so
-	 * we can use something > 0xff for this value.
-	 */
-	UCODE_SUBTYPE_NONE_LOADED = 0x100,
-};
-
 /**
  * REPLY_ALIVE = 0x1 (response only, not a command)
  *

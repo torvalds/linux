@@ -602,12 +602,12 @@ static void iwlagn_alive_fn(struct iwl_priv *priv,
 
 int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 				 struct fw_img *image,
-				 int subtype, int alternate_subtype)
+				 enum iwlagn_ucode_type ucode_type)
 {
 	struct iwl_notification_wait alive_wait;
 	struct iwlagn_alive_data alive_data;
 	int ret;
-	enum iwlagn_ucode_subtype old_type;
+	enum iwlagn_ucode_type old_type;
 
 	ret = iwlagn_start_device(priv);
 	if (ret)
@@ -617,7 +617,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 				      iwlagn_alive_fn, &alive_data);
 
 	old_type = priv->ucode_type;
-	priv->ucode_type = subtype;
+	priv->ucode_type = ucode_type;
 
 	ret = iwlagn_load_given_ucode(priv, image);
 	if (ret) {
@@ -641,15 +641,6 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 
 	if (!alive_data.valid) {
 		IWL_ERR(priv, "Loaded ucode is not valid!\n");
-		priv->ucode_type = old_type;
-		return -EIO;
-	}
-
-	if (alive_data.subtype != subtype &&
-	    alive_data.subtype != alternate_subtype) {
-		IWL_ERR(priv,
-			"Loaded ucode is not expected type (got %d, expected %d)!\n",
-			alive_data.subtype, subtype);
 		priv->ucode_type = old_type;
 		return -EIO;
 	}
@@ -685,7 +676,7 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 	if (!priv->ucode_init.code.len)
 		return 0;
 
-	if (priv->ucode_type != UCODE_SUBTYPE_NONE_LOADED)
+	if (priv->ucode_type != IWL_UCODE_NONE)
 		return 0;
 
 	iwlagn_init_notification_wait(priv, &calib_wait,
@@ -694,7 +685,7 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 
 	/* Will also start the device */
 	ret = iwlagn_load_ucode_wait_alive(priv, &priv->ucode_init,
-					   UCODE_SUBTYPE_INIT, -1);
+					   IWL_UCODE_INIT);
 	if (ret)
 		goto error;
 

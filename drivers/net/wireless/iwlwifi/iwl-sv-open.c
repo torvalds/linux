@@ -397,7 +397,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 
 	case IWL_TM_CMD_APP2DEV_LOAD_INIT_FW:
 		status = iwlagn_load_ucode_wait_alive(priv, &priv->ucode_init,
-					   UCODE_SUBTYPE_INIT, -1);
+						      IWL_UCODE_INIT);
 		if (status)
 			IWL_DEBUG_INFO(priv,
 				"Error loading init ucode: %d\n", status);
@@ -411,8 +411,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 	case IWL_TM_CMD_APP2DEV_LOAD_RUNTIME_FW:
 		status = iwlagn_load_ucode_wait_alive(priv,
 					   &priv->ucode_rt,
-					   UCODE_SUBTYPE_REGULAR,
-					   UCODE_SUBTYPE_REGULAR_NEW);
+					   IWL_UCODE_REGULAR);
 		if (status) {
 			IWL_DEBUG_INFO(priv,
 				"Error loading runtime ucode: %d\n", status);

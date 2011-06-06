@@ -1168,6 +1168,13 @@ enum iwl_scan_type {
 	IWL_SCAN_OFFCH_TX,
 };
 
+enum iwlagn_ucode_type {
+	IWL_UCODE_NONE,
+	IWL_UCODE_REGULAR,
+	IWL_UCODE_INIT,
+	IWL_UCODE_WOWLAN,
+};
+
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 struct iwl_testmode_trace {
 	u32 buff_size;
@@ -1273,7 +1280,7 @@ struct iwl_priv {
 	struct fw_img ucode_rt;
 	struct fw_img ucode_init;
 
-	enum iwlagn_ucode_subtype ucode_type;
+	enum iwlagn_ucode_type ucode_type;
 	u8 ucode_write_complete;	/* the image write is complete */
 	char firmware_name[25];
 

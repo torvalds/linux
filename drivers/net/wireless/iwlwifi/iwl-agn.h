@@ -161,7 +161,7 @@ void iwlagn_send_prio_tbl(struct iwl_priv *priv);
 int iwlagn_run_init_ucode(struct iwl_priv *priv);
 int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 				 struct fw_img *image,
-				 int subtype, int alternate_subtype);
+				 enum iwlagn_ucode_type ucode_type);
 
 /* lib */
 void iwl_check_abort_status(struct iwl_priv *priv,
