@@ -24,6 +24,7 @@ struct usbhs_priv;
 
 #include "./mod.h"
 #include "./pipe.h"
+#include "./fifo.h"
 
 /*
  *

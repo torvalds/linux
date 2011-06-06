@@ -376,7 +376,7 @@ static int usbhsg_try_run_send_packet(struct usbhsg_uep *uep,
 	 *  - after callback_update,
 	 *  - before queue_pop / stage_end
 	 */
-	usbhs_fifo_enable(pipe);
+	usbhs_pipe_enable(pipe);
 
 	/*
 	 * all data were sent ?
@@ -454,7 +454,7 @@ static int usbhsg_try_run_receive_packet(struct usbhsg_uep *uep,
 		int disable = 0;
 
 		uep->handler->irq_mask(uep, disable);
-		usbhs_fifo_disable(pipe);
+		usbhs_pipe_disable(pipe);
 		usbhsg_queue_pop(uep, ureq, 0);
 	}
 
@@ -546,9 +546,9 @@ static int usbhsg_recip_handler_std_clear_endpoint(struct usbhs_priv *priv,
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(uep);
 
 	if (!usbhsg_status_has(gpriv, USBHSG_STATUS_WEDGE)) {
-		usbhs_fifo_disable(pipe);
+		usbhs_pipe_disable(pipe);
 		usbhs_pipe_clear_sequence(pipe);
-		usbhs_fifo_enable(pipe);
+		usbhs_pipe_enable(pipe);
 	}
 
 	usbhsg_recip_handler_std_control_done(priv, uep, ctrl);
@@ -695,7 +695,7 @@ static int usbhsg_irq_ctrl_stage(struct usbhs_priv *priv,
 		ret = gpriv->driver->setup(&gpriv->gadget, &ctrl);
 
 	if (ret < 0)
-		usbhs_fifo_stall(pipe);
+		usbhs_pipe_stall(pipe);
 
 	return ret;
 }
@@ -803,7 +803,7 @@ static int usbhsg_pipe_disable(struct usbhsg_uep *uep)
 	 *********  assume under spin lock  *********
 	 */
 
-	usbhs_fifo_disable(pipe);
+	usbhs_pipe_disable(pipe);
 
 	/*
 	 * disable pipe irq
@@ -1016,9 +1016,9 @@ static int __usbhsg_ep_set_halt_wedge(struct usb_ep *ep, int halt, int wedge)
 			halt, usbhs_pipe_number(pipe));
 
 		if (halt)
-			usbhs_fifo_stall(pipe);
+			usbhs_pipe_stall(pipe);
 		else
-			usbhs_fifo_disable(pipe);
+			usbhs_pipe_disable(pipe);
 
 		if (halt && wedge)
 			usbhsg_status_set(gpriv, USBHSG_STATUS_WEDGE);
