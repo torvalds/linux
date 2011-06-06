@@ -531,7 +531,9 @@ static struct usbhs_pipe *usbhsp_get_pipe(struct usbhs_priv *priv, u32 type)
 	return pipe;
 }
 
-void usbhs_pipe_init(struct usbhs_priv *priv)
+void usbhs_pipe_init(struct usbhs_priv *priv,
+		     void (*tx_done)(struct usbhs_pkt *pkt),
+		     void (*rx_done)(struct usbhs_pkt *pkt))
 {
 	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
 	struct usbhs_pipe *pipe;
@@ -561,6 +563,9 @@ void usbhs_pipe_init(struct usbhs_priv *priv)
 		usbhsp_pipectrl_set(pipe, ACLRM, ACLRM);
 		usbhsp_pipectrl_set(pipe, ACLRM, 0);
 	}
+
+	info->tx_done = tx_done;
+	info->rx_done = rx_done;
 }
 
 struct usbhs_pipe *usbhs_pipe_malloc(struct usbhs_priv *priv,
@@ -638,7 +643,6 @@ void usbhs_dcp_control_transfer_done(struct usbhs_pipe *pipe)
 	usbhs_pipe_enable(pipe);
 	usbhsp_pipectrl_set(pipe, CCPL, CCPL);
 }
-
 
 /*
  *		pipe module function

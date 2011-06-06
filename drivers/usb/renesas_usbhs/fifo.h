@@ -17,14 +17,29 @@
 #ifndef RENESAS_USB_FIFO_H
 #define RENESAS_USB_FIFO_H
 
-#include "common.h"
+#include "pipe.h"
+
+struct usbhs_pkt {
+	struct usbhs_pipe *pipe;
+	int maxp;
+	void *buf;
+	int length;
+	int actual;
+};
 
 /*
  * fifo
  */
-int usbhs_fifo_write(struct usbhs_pipe *pipe, u8 *buf, int len);
-int usbhs_fifo_read(struct usbhs_pipe *pipe, u8 *buf, int len);
+int usbhs_fifo_write(struct usbhs_pkt *pkt);
+int usbhs_fifo_read(struct usbhs_pkt *pkt);
 int usbhs_fifo_prepare_write(struct usbhs_pipe *pipe);
 int usbhs_fifo_prepare_read(struct usbhs_pipe *pipe);
+
+/*
+ * packet info
+ */
+void usbhs_pkt_update(struct usbhs_pkt *pkt,
+		      struct usbhs_pipe *pipe,
+		      void *buf, int len);
 
 #endif /* RENESAS_USB_FIFO_H */

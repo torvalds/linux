@@ -20,6 +20,20 @@
 #include "./pipe.h"
 
 /*
+ *		packet info function
+ */
+void usbhs_pkt_update(struct usbhs_pkt *pkt,
+		      struct usbhs_pipe *pipe,
+		      void *buf, int len)
+{
+	pkt->pipe	= pipe;
+	pkt->buf	= buf;
+	pkt->length	= len;
+	pkt->actual	= 0;
+	pkt->maxp	= 0;
+}
+
+/*
  *		FIFO ctrl
  */
 static void usbhsf_send_terminator(struct usbhs_pipe *pipe)
@@ -93,13 +107,16 @@ int usbhs_fifo_prepare_write(struct usbhs_pipe *pipe)
 	return usbhsf_fifo_select(pipe, 1);
 }
 
-int usbhs_fifo_write(struct usbhs_pipe *pipe, u8 *buf, int len)
+int usbhs_fifo_write(struct usbhs_pkt *pkt)
 {
+	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
 	void __iomem *addr = priv->base + CFIFO;
 	int maxp = usbhs_pipe_get_maxpacket(pipe);
 	int total_len;
-	int i, ret;
+	u8 *buf = pkt->buf;
+	int i, ret, len;
 
 	ret = usbhs_pipe_is_accessible(pipe);
 	if (ret < 0)
@@ -113,7 +130,7 @@ int usbhs_fifo_write(struct usbhs_pipe *pipe, u8 *buf, int len)
 	if (ret < 0)
 		return ret;
 
-	len = min(len, maxp);
+	len = min(pkt->length, maxp);
 	total_len = len;
 
 	/*
@@ -135,7 +152,16 @@ int usbhs_fifo_write(struct usbhs_pipe *pipe, u8 *buf, int len)
 	if (total_len < maxp)
 		usbhsf_send_terminator(pipe);
 
-	return total_len;
+	usbhs_pipe_enable(pipe);
+
+	/* update pkt */
+	if (info->tx_done) {
+		pkt->actual	= total_len;
+		pkt->maxp	= maxp;
+		info->tx_done(pkt);
+	}
+
+	return 0;
 }
 
 int usbhs_fifo_prepare_read(struct usbhs_pipe *pipe)
@@ -154,13 +180,16 @@ int usbhs_fifo_prepare_read(struct usbhs_pipe *pipe)
 	return ret;
 }
 
-int usbhs_fifo_read(struct usbhs_pipe *pipe, u8 *buf, int len)
+int usbhs_fifo_read(struct usbhs_pkt *pkt)
 {
+	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct usbhs_pipe_info *info = usbhs_priv_to_pipeinfo(priv);
 	void __iomem *addr = priv->base + CFIFO;
-	int rcv_len;
+	u8 *buf = pkt->buf;
+	int rcv_len, len;
 	int i, ret;
-	int total_len;
+	int total_len = 0;
 	u32 data = 0;
 
 	ret = usbhsf_fifo_select(pipe, 0);
@@ -181,10 +210,10 @@ int usbhs_fifo_read(struct usbhs_pipe *pipe, u8 *buf, int len)
 	 */
 	if (0 == rcv_len) {
 		usbhsf_fifo_clear(pipe);
-		return 0;
+		goto usbhs_fifo_read_end;
 	}
 
-	len = min(rcv_len, len);
+	len = min(rcv_len, pkt->length);
 	total_len = len;
 
 	/*
@@ -207,5 +236,13 @@ int usbhs_fifo_read(struct usbhs_pipe *pipe, u8 *buf, int len)
 		buf[i] = (data >> ((i & 0x03) * 8)) & 0xff;
 	}
 
-	return total_len;
+usbhs_fifo_read_end:
+	if (info->rx_done) {
+		/* update pkt */
+		pkt->actual	= total_len;
+		pkt->maxp	= usbhs_pipe_get_maxpacket(pipe);
+		info->rx_done(pkt);
+	}
+
+	return 0;
 }
