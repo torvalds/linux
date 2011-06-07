@@ -3330,6 +3330,7 @@ static int ftrace_process_locs(struct module *mod,
 {
 	unsigned long *p;
 	unsigned long addr;
+	unsigned long flags;
 
 	mutex_lock(&ftrace_lock);
 	p = start;
@@ -3346,7 +3347,13 @@ static int ftrace_process_locs(struct module *mod,
 		ftrace_record_ip(addr);
 	}
 
+	/*
+	 * Disable interrupts to prevent interrupts from executing
+	 * code that is being modified.
+	 */
+	local_irq_save(flags);
 	ftrace_update_code(mod);
+	local_irq_restore(flags);
 	mutex_unlock(&ftrace_lock);
 
 	return 0;
