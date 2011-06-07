@@ -3245,13 +3245,7 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 
 	case CX88_BOARD_WINFAST_TV2000_XP_GLOBAL:
 	case CX88_BOARD_WINFAST_DTV1800H:
-		/* GPIO 12 (xc3028 tuner reset) */
-		cx_set(MO_GP1_IO, 0x1010);
-		mdelay(50);
-		cx_clear(MO_GP1_IO, 0x10);
-		mdelay(50);
-		cx_set(MO_GP1_IO, 0x10);
-		mdelay(50);
+		cx88_xc3028_winfast1800h_callback(core, XC2028_TUNER_RESET, 0);
 		break;
 
 	case CX88_BOARD_WINFAST_DTV1800H_XC4000:
