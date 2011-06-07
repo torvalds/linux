@@ -301,6 +301,27 @@ static struct dentry *d_kill(struct dentry *dentry, struct dentry *parent)
 	return parent;
 }
 
+/*
+ * Unhash a dentry without inserting an RCU walk barrier or checking that
+ * dentry->d_lock is locked.  The caller must take care of that, if
+ * appropriate.
+ */
+static void __d_shrink(struct dentry *dentry)
+{
+	if (!d_unhashed(dentry)) {
+		struct hlist_bl_head *b;
+		if (unlikely(dentry->d_flags & DCACHE_DISCONNECTED))
+			b = &dentry->d_sb->s_anon;
+		else
+			b = d_hash(dentry->d_parent, dentry->d_name.hash);
+
+		hlist_bl_lock(b);
+		__hlist_bl_del(&dentry->d_hash);
+		dentry->d_hash.pprev = NULL;
+		hlist_bl_unlock(b);
+	}
+}
+
 /**
  * d_drop - drop a dentry
  * @dentry: dentry to drop
@@ -319,17 +340,7 @@ static struct dentry *d_kill(struct dentry *dentry, struct dentry *parent)
 void __d_drop(struct dentry *dentry)
 {
 	if (!d_unhashed(dentry)) {
-		struct hlist_bl_head *b;
-		if (unlikely(dentry->d_flags & DCACHE_DISCONNECTED))
-			b = &dentry->d_sb->s_anon;
-		else
-			b = d_hash(dentry->d_parent, dentry->d_name.hash);
-
-		hlist_bl_lock(b);
-		__hlist_bl_del(&dentry->d_hash);
-		dentry->d_hash.pprev = NULL;
-		hlist_bl_unlock(b);
-
+		__d_shrink(dentry);
 		dentry_rcuwalk_barrier(dentry);
 	}
 }
@@ -832,10 +843,8 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 	BUG_ON(!IS_ROOT(dentry));
 
 	/* detach this root from the system */
-	spin_lock(&dentry->d_lock);
 	dentry_lru_del(dentry);
-	__d_drop(dentry);
-	spin_unlock(&dentry->d_lock);
+	__d_shrink(dentry);
 
 	for (;;) {
 		/* descend to the first leaf in the current subtree */
@@ -844,16 +853,11 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 
 			/* this is a branch with children - detach all of them
 			 * from the system in one go */
-			spin_lock(&dentry->d_lock);
 			list_for_each_entry(loop, &dentry->d_subdirs,
 					    d_u.d_child) {
-				spin_lock_nested(&loop->d_lock,
-						DENTRY_D_LOCK_NESTED);
 				dentry_lru_del(loop);
-				__d_drop(loop);
-				spin_unlock(&loop->d_lock);
+				__d_shrink(loop);
 			}
-			spin_unlock(&dentry->d_lock);
 
 			/* move to the first child */
 			dentry = list_entry(dentry->d_subdirs.next,
@@ -885,10 +889,8 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 				list_del(&dentry->d_u.d_child);
 			} else {
 				parent = dentry->d_parent;
-				spin_lock(&parent->d_lock);
 				parent->d_count--;
 				list_del(&dentry->d_u.d_child);
-				spin_unlock(&parent->d_lock);
 			}
 
 			inode = dentry->d_inode;
@@ -935,9 +937,7 @@ void shrink_dcache_for_umount(struct super_block *sb)
 
 	dentry = sb->s_root;
 	sb->s_root = NULL;
-	spin_lock(&dentry->d_lock);
 	dentry->d_count--;
-	spin_unlock(&dentry->d_lock);
 	shrink_dcache_for_umount_subtree(dentry);
 
 	while (!hlist_bl_empty(&sb->s_anon)) {
