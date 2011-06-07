@@ -769,6 +769,7 @@ nouveau_open(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fpriv *fpriv;
+	int ret;
 
 	fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
 	if (unlikely(!fpriv))
@@ -777,8 +778,17 @@ nouveau_open(struct drm_device *dev, struct drm_file *file_priv)
 	spin_lock_init(&fpriv->lock);
 	INIT_LIST_HEAD(&fpriv->channels);
 
-	if (dev_priv->card_type >= NV_50)
+	if (dev_priv->card_type == NV_50) {
+		ret = nouveau_vm_new(dev, 0, (1ULL << 40), 0x0020000000ULL,
+				     &fpriv->vm);
+		if (ret) {
+			kfree(fpriv);
+			return ret;
+		}
+	} else
+	if (dev_priv->card_type >= NV_C0) {
 		nouveau_vm_ref(dev_priv->chan_vm, &fpriv->vm, NULL);
+	}
 
 	file_priv->driver_priv = fpriv;
 	return 0;
