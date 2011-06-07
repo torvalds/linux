@@ -240,6 +240,7 @@ struct nouveau_channel {
 		uint32_t sequence;
 		uint32_t sequence_ack;
 		atomic_t last_sequence_irq;
+		struct nouveau_vma vma;
 	} fence;
 
 	/* DMA push buffer */
