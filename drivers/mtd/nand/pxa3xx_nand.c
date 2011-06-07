@@ -685,6 +685,8 @@ static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
 		 * OOB, ignore such double bit errors
 		 */
 		if (is_buf_blank(buf, mtd->writesize))
+			info->retcode = ERR_NONE;
+		else
 			mtd->ecc_stats.failed++;
 	}
 
