@@ -330,6 +330,20 @@ config ARCH_BCMRING
 	help
 	  Support for Broadcom's BCMRing platform.
 
+config ARCH_HIGHBANK
+	bool "Calxeda Highbank-based"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_TIMER_SP804
+	select CLKDEV_LOOKUP
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU
+	select USE_OF
+	help
+	  Support for the Calxeda Highbank SoC based boards.
+
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x-based"
 	select CPU_ARM720T
