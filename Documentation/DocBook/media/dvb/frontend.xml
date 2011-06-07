@@ -221,8 +221,20 @@ by</para>
 <section id="dvb-frontend-parameters">
 <title>frontend parameters</title>
 <para>The kind of parameters passed to the frontend device for tuning depend on
-the kind of hardware you are using. All kinds of parameters are combined as an
-union in the FrontendParameters structure:</para>
+the kind of hardware you are using.</para>
+<para>The struct <constant>dvb_frontend_parameters</constant> uses an
+union with specific per-system parameters. However, as newer delivery systems
+required more data, the structure size weren't enough to fit, and just
+extending its size would break the existing applications. So, those parameters
+were replaced by the usage of <link linkend="FE_GET_SET_PROPERTY">
+<constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant></link> ioctl's. The
+new API is flexible enough to add new parameters to existing delivery systems,
+and to add newer delivery systems.</para>
+<para>So, newer applications should use <link linkend="FE_GET_SET_PROPERTY">
+<constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant></link> instead, in
+order to be able to support the newer System Delivery like  DVB-S2, DVB-T2,
+DVB-C2, ISDB, etc.</para>
+<para>All kinds of parameters are combined as an union in the FrontendParameters structure:</para>
 <programlisting>
 struct dvb_frontend_parameters {
 	uint32_t frequency;     /&#x22C6; (absolute) frequency in Hz for QAM/OFDM &#x22C6;/
