@@ -397,7 +397,7 @@ nouveau_mem_vram_init(struct drm_device *dev)
 		if (pci_dma_supported(dev->pdev, DMA_BIT_MASK(40)))
 			dma_bits = 40;
 	} else
-	if (drm_pci_device_is_pcie(dev) &&
+	if (0 && drm_pci_device_is_pcie(dev) &&
 	    dev_priv->chipset  > 0x40 &&
 	    dev_priv->chipset != 0x45) {
 		if (pci_dma_supported(dev->pdev, DMA_BIT_MASK(39)))
@@ -868,7 +868,9 @@ nouveau_gart_manager_del(struct ttm_mem_type_manager *man,
 		nouveau_vm_unmap(&node->tmp_vma);
 		nouveau_vm_put(&node->tmp_vma);
 	}
+
 	mem->mm_node = NULL;
+	kfree(node);
 }
 
 static int
