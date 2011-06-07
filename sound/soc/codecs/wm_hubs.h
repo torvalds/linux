@@ -23,6 +23,7 @@ struct wm_hubs_data {
 	int dcs_codes;
 	int dcs_readback_mode;
 	int hp_startup_mode;
+	int series_startup;
 
 	bool class_w;
 	u16 class_w_dcs;

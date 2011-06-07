@@ -2903,6 +2903,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 			wm8994->hubs.dcs_codes = -5;
 			wm8994->hubs.hp_startup_mode = 1;
 			wm8994->hubs.dcs_readback_mode = 1;
+			wm8994->hubs.series_startup = 1;
 			break;
 		default:
 			wm8994->hubs.dcs_readback_mode = 1;
