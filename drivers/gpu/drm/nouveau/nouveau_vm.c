@@ -396,8 +396,8 @@ nouveau_vm_del(struct nouveau_vm *vm)
 	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
 		nouveau_vm_unlink(vm, vpgd->obj);
 	}
-	WARN_ON(nouveau_mm_fini(&vm->mm) != 0);
 
+	nouveau_mm_fini(&vm->mm);
 	kfree(vm->pgt);
 	kfree(vm);
 }
