@@ -1753,6 +1753,18 @@ static struct super_type super_types[] = {
 	},
 };
 
+static void sync_super(mddev_t *mddev, mdk_rdev_t *rdev)
+{
+	if (mddev->sync_super) {
+		mddev->sync_super(mddev, rdev);
+		return;
+	}
+
+	BUG_ON(mddev->major_version >= ARRAY_SIZE(super_types));
+
+	super_types[mddev->major_version].sync_super(mddev, rdev);
+}
+
 static int match_mddev_units(mddev_t *mddev1, mddev_t *mddev2)
 {
 	mdk_rdev_t *rdev, *rdev2;
@@ -2171,8 +2183,7 @@ static void sync_sbs(mddev_t * mddev, int nospares)
 			/* Don't update this superblock */
 			rdev->sb_loaded = 2;
 		} else {
-			super_types[mddev->major_version].
-				sync_super(mddev, rdev);
+			sync_super(mddev, rdev);
 			rdev->sb_loaded = 1;
 		}
 	}
