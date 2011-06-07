@@ -332,10 +332,6 @@ static struct regulator_consumer_supply pandora_vmmc3_supply[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.2"),
 };
 
-static struct regulator_consumer_supply pandora_vdda_dac_supply[] = {
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
-};
-
 static struct regulator_consumer_supply pandora_vdds_supplies[] = {
 	REGULATOR_SUPPLY("vdds_sdi", "omapdss"),
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
@@ -389,36 +385,6 @@ static struct regulator_init_data pandora_vmmc2 = {
 	},
 	.num_consumer_supplies	= ARRAY_SIZE(pandora_vmmc2_supply),
 	.consumer_supplies	= pandora_vmmc2_supply,
-};
-
-/* VDAC for DSS driving S-Video */
-static struct regulator_init_data pandora_vdac = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(pandora_vdda_dac_supply),
-	.consumer_supplies	= pandora_vdda_dac_supply,
-};
-
-/* VPLL2 for digital video outputs */
-static struct regulator_init_data pandora_vpll2 = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(pandora_vdds_supplies),
-	.consumer_supplies	= pandora_vdds_supplies,
 };
 
 /* VAUX1 for LCD */
@@ -514,8 +480,6 @@ static struct twl4030_platform_data omap3pandora_twldata = {
 	.gpio		= &omap3pandora_gpio_data,
 	.vmmc1		= &pandora_vmmc1,
 	.vmmc2		= &pandora_vmmc2,
-	.vdac		= &pandora_vdac,
-	.vpll2		= &pandora_vpll2,
 	.vaux1		= &pandora_vaux1,
 	.vaux2		= &pandora_vaux2,
 	.vaux4		= &pandora_vaux4,
@@ -534,7 +498,16 @@ static struct i2c_board_info __initdata omap3pandora_i2c3_boardinfo[] = {
 static int __init omap3pandora_i2c_init(void)
 {
 	omap3_pmic_get_config(&omap3pandora_twldata,
-			      TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO, 0);
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO,
+			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
+
+	omap3pandora_twldata.vdac->constraints.apply_uV = true;
+
+	omap3pandora_twldata.vpll2->constraints.apply_uV = true;
+	omap3pandora_twldata.vpll2->num_consumer_supplies =
+					ARRAY_SIZE(pandora_vdds_supplies);
+	omap3pandora_twldata.vpll2->consumer_supplies = pandora_vdds_supplies;
+
 	omap3_pmic_init("tps65950", &omap3pandora_twldata);
 	/* i2c2 pins are not connected */
 	omap_register_i2c_bus(3, 100, omap3pandora_i2c3_boardinfo,

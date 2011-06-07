@@ -394,10 +394,6 @@ static struct regulator_consumer_supply rx51_vaux1_consumers[] = {
 	REGULATOR_SUPPLY("vdd", "2-0063"),
 };
 
-static struct regulator_consumer_supply rx51_vdac_supply[] = {
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
-};
-
 static struct regulator_init_data rx51_vaux1 = {
 	.constraints = {
 		.name			= "V28",
@@ -512,21 +508,6 @@ static struct regulator_init_data rx51_vsim = {
 	},
 	.num_consumer_supplies	= ARRAY_SIZE(rx51_vsim_supply),
 	.consumer_supplies	= rx51_vsim_supply,
-};
-
-static struct regulator_init_data rx51_vdac = {
-	.constraints = {
-		.name			= "VDAC",
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(rx51_vdac_supply),
-	.consumer_supplies	= rx51_vdac_supply,
 };
 
 static struct regulator_init_data rx51_vio = {
@@ -781,7 +762,6 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 	.vaux4			= &rx51_vaux4,
 	.vmmc1			= &rx51_vmmc1,
 	.vsim			= &rx51_vsim,
-	.vdac			= &rx51_vdac,
 	.vio			= &rx51_vio,
 };
 
@@ -838,7 +818,12 @@ static int __init rx51_i2c_init(void)
 	}
 	rx51_twldata.vmmc2 = &rx51_vmmc2;
 	omap3_pmic_get_config(&rx51_twldata,
-			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_MADC, 0);
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_MADC,
+			TWL_COMMON_REGULATOR_VDAC);
+
+	rx51_twldata.vdac->constraints.apply_uV = true;
+	rx51_twldata.vdac->constraints.name = "VDAC";
+
 	omap_pmic_init(1, 2200, "twl5030", INT_34XX_SYS_NIRQ, &rx51_twldata);
 	omap_register_i2c_bus(2, 100, rx51_peripherals_i2c_board_info_2,
 			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_2));

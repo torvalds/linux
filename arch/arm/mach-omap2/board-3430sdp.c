@@ -283,16 +283,6 @@ static struct regulator_consumer_supply sdp3430_vaux3_supplies[] = {
 	REGULATOR_SUPPLY("vcc", "spi1.0"),
 };
 
-static struct regulator_consumer_supply sdp3430_vdda_dac_supplies[] = {
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
-};
-
-/* VPLL2 for digital video outputs */
-static struct regulator_consumer_supply sdp3430_vpll2_supplies[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
-};
-
 static struct regulator_consumer_supply sdp3430_vmmc1_supplies[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
@@ -409,36 +399,6 @@ static struct regulator_init_data sdp3430_vsim = {
 	.consumer_supplies	= sdp3430_vsim_supplies,
 };
 
-/* VDAC for DSS driving S-Video */
-static struct regulator_init_data sdp3430_vdac = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(sdp3430_vdda_dac_supplies),
-	.consumer_supplies	= sdp3430_vdda_dac_supplies,
-};
-
-static struct regulator_init_data sdp3430_vpll2 = {
-	.constraints = {
-		.name			= "VDVI",
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(sdp3430_vpll2_supplies),
-	.consumer_supplies	= sdp3430_vpll2_supplies,
-};
-
 static struct twl4030_platform_data sdp3430_twldata = {
 	/* platform_data for children goes here */
 	.gpio		= &sdp3430_gpio_data,
@@ -451,16 +411,19 @@ static struct twl4030_platform_data sdp3430_twldata = {
 	.vmmc1		= &sdp3430_vmmc1,
 	.vmmc2		= &sdp3430_vmmc2,
 	.vsim		= &sdp3430_vsim,
-	.vdac		= &sdp3430_vdac,
-	.vpll2		= &sdp3430_vpll2,
 };
 
 static int __init omap3430_i2c_init(void)
 {
 	/* i2c1 for PMIC only */
 	omap3_pmic_get_config(&sdp3430_twldata,
-			  TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_BCI |
-			  TWL_COMMON_PDATA_MADC | TWL_COMMON_PDATA_AUDIO, 0);
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_BCI |
+			TWL_COMMON_PDATA_MADC | TWL_COMMON_PDATA_AUDIO,
+			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
+	sdp3430_twldata.vdac->constraints.apply_uV = true;
+	sdp3430_twldata.vpll2->constraints.apply_uV = true;
+	sdp3430_twldata.vpll2->constraints.name = "VDVI";
+
 	omap3_pmic_init("twl4030", &sdp3430_twldata);
 
 	/* i2c2 on camera connector (for sensor control) and optional isp1301 */

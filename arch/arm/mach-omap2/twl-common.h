@@ -21,6 +21,11 @@
 #define TWL_COMMON_REGULATOR_VUSB	(1 << 9)
 #define TWL_COMMON_REGULATOR_CLK32KG	(1 << 10)
 
+/* TWL4030 LDO regulators */
+#define TWL_COMMON_REGULATOR_VPLL1	(1 << 4)
+#define TWL_COMMON_REGULATOR_VPLL2	(1 << 5)
+
+
 struct twl4030_platform_data;
 
 void omap_pmic_init(int bus, u32 clkrate, const char *pmic_type, int pmic_irq,

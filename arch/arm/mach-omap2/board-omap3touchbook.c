@@ -206,42 +206,11 @@ static struct regulator_init_data touchbook_vsim = {
 	.consumer_supplies	= touchbook_vsim_supply,
 };
 
-/* VDAC for DSS driving S-Video (8 mA unloaded, max 65 mA) */
-static struct regulator_init_data touchbook_vdac = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(touchbook_vdac_supply),
-	.consumer_supplies	= touchbook_vdac_supply,
-};
-
-/* VPLL2 for digital video outputs */
-static struct regulator_init_data touchbook_vpll2 = {
-	.constraints = {
-		.name			= "VDVI",
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(touchbook_vdvi_supply),
-	.consumer_supplies	= touchbook_vdvi_supply,
-};
-
 static struct twl4030_platform_data touchbook_twldata = {
 	/* platform_data for children goes here */
 	.gpio		= &touchbook_gpio_data,
 	.vmmc1		= &touchbook_vmmc1,
 	.vsim		= &touchbook_vsim,
-	.vdac		= &touchbook_vdac,
-	.vpll2		= &touchbook_vpll2,
 };
 
 static struct i2c_board_info __initdata touchBook_i2c_boardinfo[] = {
@@ -254,7 +223,18 @@ static int __init omap3_touchbook_i2c_init(void)
 {
 	/* Standard TouchBook bus */
 	omap3_pmic_get_config(&touchbook_twldata,
-			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO, 0);
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO,
+			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
+
+	touchbook_twldata.vdac->num_consumer_supplies =
+					ARRAY_SIZE(touchbook_vdac_supply);
+	touchbook_twldata.vdac->consumer_supplies = touchbook_vdac_supply;
+
+	touchbook_twldata.vpll2->constraints.name = "VDVI";
+	touchbook_twldata.vpll2->num_consumer_supplies =
+					ARRAY_SIZE(touchbook_vdvi_supply);
+	touchbook_twldata.vpll2->consumer_supplies = touchbook_vdvi_supply;
+
 	omap3_pmic_init("twl4030", &touchbook_twldata);
 	/* Additional TouchBook bus */
 	omap_register_i2c_bus(3, 100, touchBook_i2c_boardinfo,

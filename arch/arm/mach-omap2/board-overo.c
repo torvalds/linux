@@ -265,15 +265,6 @@ static struct omap_dss_board_info overo_dss_data = {
 	.default_device	= &overo_dvi_device,
 };
 
-static struct regulator_consumer_supply overo_vdda_dac_supply[] = {
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
-};
-
-static struct regulator_consumer_supply overo_vdds_dsi_supply[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
-};
-
 static struct mtd_partition overo_nand_partitions[] = {
 	{
 		.name           = "xloader",
@@ -447,46 +438,19 @@ static struct regulator_init_data overo_vmmc1 = {
 	.consumer_supplies	= overo_vmmc1_supply,
 };
 
-/* VDAC for DSS driving S-Video (8 mA unloaded, max 65 mA) */
-static struct regulator_init_data overo_vdac = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(overo_vdda_dac_supply),
-	.consumer_supplies	= overo_vdda_dac_supply,
-};
-
-/* VPLL2 for digital video outputs */
-static struct regulator_init_data overo_vpll2 = {
-	.constraints = {
-		.name			= "VDVI",
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(overo_vdds_dsi_supply),
-	.consumer_supplies	= overo_vdds_dsi_supply,
-};
-
 static struct twl4030_platform_data overo_twldata = {
 	.gpio		= &overo_gpio_data,
 	.vmmc1		= &overo_vmmc1,
-	.vdac		= &overo_vdac,
-	.vpll2		= &overo_vpll2,
 };
 
 static int __init overo_i2c_init(void)
 {
 	omap3_pmic_get_config(&overo_twldata,
-			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO, 0);
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO,
+			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
+
+	overo_twldata.vpll2->constraints.name = "VDVI";
+
 	omap3_pmic_init("tps65950", &overo_twldata);
 	/* i2c2 pins are used for gpio */
 	omap_register_i2c_bus(3, 400, NULL, 0);

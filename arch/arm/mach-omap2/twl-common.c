@@ -87,6 +87,41 @@ static struct twl4030_codec_data omap3_codec_pdata = {
 	.audio = &omap3_audio,
 };
 
+static struct regulator_consumer_supply omap3_vdda_dac_supplies[] = {
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
+};
+
+static struct regulator_init_data omap3_vdac_idata = {
+	.constraints = {
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(omap3_vdda_dac_supplies),
+	.consumer_supplies	= omap3_vdda_dac_supplies,
+};
+
+static struct regulator_consumer_supply omap3_vpll2_supplies[] = {
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
+};
+
+static struct regulator_init_data omap3_vpll2_idata = {
+	.constraints = {
+		.min_uV                 = 1800000,
+		.max_uV                 = 1800000,
+		.valid_modes_mask       = REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask         = REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies		= ARRAY_SIZE(omap3_vpll2_supplies),
+	.consumer_supplies		= omap3_vpll2_supplies,
+};
+
 static struct regulator_init_data omap4_vdac_idata = {
 	.constraints = {
 		.min_uV			= 1800000,
@@ -259,4 +294,11 @@ void __init omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
 
 	if (pdata_flags & TWL_COMMON_PDATA_AUDIO && !pmic_data->codec)
 		pmic_data->codec = &omap3_codec_pdata;
+
+	/* Common regulator configurations */
+	if (regulators_flags & TWL_COMMON_REGULATOR_VDAC && !pmic_data->vdac)
+		pmic_data->vdac = &omap3_vdac_idata;
+
+	if (regulators_flags & TWL_COMMON_REGULATOR_VPLL2 && !pmic_data->vpll2)
+		pmic_data->vpll2 = &omap3_vpll2_idata;
 }

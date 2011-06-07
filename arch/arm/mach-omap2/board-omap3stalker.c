@@ -383,52 +383,10 @@ static struct twl4030_keypad_data omap3stalker_kp_data = {
 	.rep		= 1,
 };
 
-static struct regulator_consumer_supply omap3_stalker_vdda_dac_supply[] = {
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
-};
-
-/* VDAC for DSS driving S-Video */
-static struct regulator_init_data omap3_stalker_vdac = {
-	.constraints		= {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV		= true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-		| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-		| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(omap3_stalker_vdda_dac_supply),
-	.consumer_supplies	= omap3_stalker_vdda_dac_supply,
-};
-
-/* VPLL2 for digital video outputs */
-static struct regulator_consumer_supply omap3_stalker_vpll2_supplies[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
-};
-
-static struct regulator_init_data omap3_stalker_vpll2 = {
-	.constraints		= {
-		.name			= "VDVI",
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.apply_uV = true,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-		| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-		| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(omap3_stalker_vpll2_supplies),
-	.consumer_supplies	= omap3_stalker_vpll2_supplies,
-};
-
 static struct twl4030_platform_data omap3stalker_twldata = {
 	/* platform_data for children goes here */
 	.keypad		= &omap3stalker_kp_data,
 	.gpio		= &omap3stalker_gpio_data,
-	.vdac		= &omap3_stalker_vdac,
-	.vpll2		= &omap3_stalker_vpll2,
 	.vmmc1		= &omap3stalker_vmmc1,
 	.vsim		= &omap3stalker_vsim,
 };
@@ -451,7 +409,13 @@ static int __init omap3_stalker_i2c_init(void)
 {
 	omap3_pmic_get_config(&omap3stalker_twldata,
 			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_MADC |
-			TWL_COMMON_PDATA_AUDIO, 0);
+			TWL_COMMON_PDATA_AUDIO,
+			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
+
+	omap3stalker_twldata.vdac->constraints.apply_uV = true;
+	omap3stalker_twldata.vpll2->constraints.apply_uV = true;
+	omap3stalker_twldata.vpll2->constraints.name = "VDVI";
+
 	omap3_pmic_init("twl4030", &omap3stalker_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, omap3stalker_i2c_boardinfo3,
