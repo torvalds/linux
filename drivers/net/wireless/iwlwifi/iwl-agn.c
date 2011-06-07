@@ -1485,7 +1485,8 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	priv->new_scan_threshold_behaviour =
 		!!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
 
-	if (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN) {
+	if ((priv->cfg->sku & EEPROM_SKU_CAP_IPAN_ENABLE) &&
+	    (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN)) {
 		priv->valid_contexts |= BIT(IWL_RXON_CTX_PAN);
 		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
 	} else
@@ -3425,27 +3426,9 @@ out:
 	return hw;
 }
 
-static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static void iwl_init_context(struct iwl_priv *priv)
 {
-	int err = 0, i;
-	struct iwl_priv *priv;
-	struct ieee80211_hw *hw;
-	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
-	unsigned long flags;
-	u16 pci_cmd, num_mac;
-	u32 hw_rev;
-
-	/************************
-	 * 1. Allocating HW data
-	 ************************/
-
-	hw = iwl_alloc_all(cfg);
-	if (!hw) {
-		err = -ENOMEM;
-		goto out;
-	}
-	priv = hw->priv;
-	/* At this point both hw and priv are allocated. */
+	int i;
 
 	/*
 	 * The default context is always valid,
@@ -3477,8 +3460,10 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->contexts[IWL_RXON_CTX_BSS].unused_devtype = RXON_DEV_TYPE_ESS;
 
 	priv->contexts[IWL_RXON_CTX_PAN].rxon_cmd = REPLY_WIPAN_RXON;
-	priv->contexts[IWL_RXON_CTX_PAN].rxon_timing_cmd = REPLY_WIPAN_RXON_TIMING;
-	priv->contexts[IWL_RXON_CTX_PAN].rxon_assoc_cmd = REPLY_WIPAN_RXON_ASSOC;
+	priv->contexts[IWL_RXON_CTX_PAN].rxon_timing_cmd =
+		REPLY_WIPAN_RXON_TIMING;
+	priv->contexts[IWL_RXON_CTX_PAN].rxon_assoc_cmd =
+		REPLY_WIPAN_RXON_ASSOC;
 	priv->contexts[IWL_RXON_CTX_PAN].qos_cmd = REPLY_WIPAN_QOS_PARAM;
 	priv->contexts[IWL_RXON_CTX_PAN].ap_sta_id = IWL_AP_ID_PAN;
 	priv->contexts[IWL_RXON_CTX_PAN].wep_key_cmd = REPLY_WIPAN_WEPKEY;
@@ -3498,6 +3483,28 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->contexts[IWL_RXON_CTX_PAN].unused_devtype = RXON_DEV_TYPE_P2P;
 
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
+}
+
+static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+{
+	int err = 0;
+	struct iwl_priv *priv;
+	struct ieee80211_hw *hw;
+	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
+	unsigned long flags;
+	u16 pci_cmd, num_mac;
+	u32 hw_rev;
+
+	/************************
+	 * 1. Allocating HW data
+	 ************************/
+
+	hw = iwl_alloc_all(cfg);
+	if (!hw) {
+		err = -ENOMEM;
+		goto out;	}
+	priv = hw->priv;
+	/* At this point both hw and priv are allocated. */
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
@@ -3621,6 +3628,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		priv->addresses[1].addr[5]++;
 		priv->hw->wiphy->n_addresses++;
 	}
+
+	/* initialize all valid contexts */
+	iwl_init_context(priv);
 
 	/************************
 	 * 5. Setup HW constants
