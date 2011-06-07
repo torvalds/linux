@@ -756,6 +756,8 @@ struct btrfs_space_info {
 				   chunks for this space */
 	unsigned int chunk_alloc:1;	/* set if we are allocating a chunk */
 
+	unsigned int flush:1;		/* set if we are trying to make space */
+
 	unsigned int force_alloc;	/* set if we need to force a chunk
 					   alloc for this space */
 
@@ -766,6 +768,7 @@ struct btrfs_space_info {
 	spinlock_t lock;
 	struct rw_semaphore groups_sem;
 	atomic_t caching_threads;
+	wait_queue_head_t wait;
 };
 
 struct btrfs_block_rsv {
