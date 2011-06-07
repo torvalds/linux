@@ -87,9 +87,9 @@ nouveau_bo_fixup_align(struct nouveau_bo *nvbo, u32 flags,
 }
 
 int
-nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
-	       int size, int align, uint32_t flags, uint32_t tile_mode,
-	       uint32_t tile_flags, struct nouveau_bo **pnvbo)
+nouveau_bo_new(struct drm_device *dev, int size, int align,
+	       uint32_t flags, uint32_t tile_mode, uint32_t tile_flags,
+	       struct nouveau_bo **pnvbo)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *nvbo;
@@ -123,7 +123,6 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 		}
 	}
 
-	nvbo->channel = chan;
 	ret = ttm_bo_init(&dev_priv->ttm.bdev, &nvbo->bo, size,
 			  ttm_bo_type_device, &nvbo->placement,
 			  align >> PAGE_SHIFT, 0, false, NULL, size,
@@ -132,7 +131,6 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 		/* ttm will call nouveau_bo_del_ttm if it fails.. */
 		return ret;
 	}
-	nvbo->channel = NULL;
 
 	*pnvbo = nvbo;
 	return 0;

@@ -96,7 +96,7 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 	if (!flags || domain & NOUVEAU_GEM_DOMAIN_CPU)
 		flags |= TTM_PL_FLAG_SYSTEM;
 
-	ret = nouveau_bo_new(dev, NULL, size, align, flags, tile_mode,
+	ret = nouveau_bo_new(dev, size, align, flags, tile_mode,
 			     tile_flags, pnvbo);
 	if (ret)
 		return ret;

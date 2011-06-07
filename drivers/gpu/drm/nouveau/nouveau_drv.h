@@ -1270,10 +1270,9 @@ extern int nv04_crtc_create(struct drm_device *, int index);
 
 /* nouveau_bo.c */
 extern struct ttm_bo_driver nouveau_bo_driver;
-extern int nouveau_bo_new(struct drm_device *, struct nouveau_channel *,
-			  int size, int align, uint32_t flags,
-			  uint32_t tile_mode, uint32_t tile_flags,
-			  struct nouveau_bo **);
+extern int nouveau_bo_new(struct drm_device *, int size, int align,
+			  uint32_t flags, uint32_t tile_mode,
+			  uint32_t tile_flags, struct nouveau_bo **);
 extern int nouveau_bo_pin(struct nouveau_bo *, uint32_t flags);
 extern int nouveau_bo_unpin(struct nouveau_bo *);
 extern int nouveau_bo_map(struct nouveau_bo *);
