@@ -123,21 +123,28 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 }
 
 static int
-nouveau_gem_info(struct drm_gem_object *gem, struct drm_nouveau_gem_info *rep)
+nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
+		 struct drm_nouveau_gem_info *rep)
 {
-	struct drm_nouveau_private *dev_priv = gem->dev->dev_private;
+	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
+	struct nouveau_vma *vma;
 
 	if (nvbo->bo.mem.mem_type == TTM_PL_TT)
 		rep->domain = NOUVEAU_GEM_DOMAIN_GART;
 	else
 		rep->domain = NOUVEAU_GEM_DOMAIN_VRAM;
 
+	rep->offset = nvbo->bo.offset;
+	if (fpriv->vm) {
+		vma = nouveau_bo_vma_find(nvbo, fpriv->vm);
+		if (!vma)
+			return -EINVAL;
+
+		rep->offset = vma->offset;
+	}
+
 	rep->size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
-	if (dev_priv->card_type < NV_50)
-		rep->offset = nvbo->bo.offset;
-	else
-		rep->offset = nvbo->vma.offset;
 	rep->map_handle = nvbo->bo.addr_space_offset;
 	rep->tile_mode = nvbo->tile_mode;
 	rep->tile_flags = nvbo->tile_flags;
@@ -167,14 +174,15 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gem_info(nvbo->gem, &req->info);
-	if (ret)
-		goto out;
-
 	ret = drm_gem_handle_create(file_priv, nvbo->gem, &req->info.handle);
+	if (ret == 0) {
+		ret = nouveau_gem_info(file_priv, nvbo->gem, &req->info);
+		if (ret)
+			drm_gem_handle_delete(file_priv, req->info.handle);
+	}
+
 	/* drop reference from allocate - handle holds it now */
 	drm_gem_object_unreference_unlocked(nvbo->gem);
-out:
 	return ret;
 }
 
@@ -800,7 +808,7 @@ nouveau_gem_ioctl_info(struct drm_device *dev, void *data,
 	if (!gem)
 		return -ENOENT;
 
-	ret = nouveau_gem_info(gem, req);
+	ret = nouveau_gem_info(file_priv, gem, req);
 	drm_gem_object_unreference_unlocked(gem);
 	return ret;
 }
