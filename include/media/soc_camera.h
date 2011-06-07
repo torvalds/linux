@@ -201,11 +201,8 @@ struct soc_camera_format_xlate {
 };
 
 struct soc_camera_ops {
-	int (*suspend)(struct soc_camera_device *, pm_message_t state);
-	int (*resume)(struct soc_camera_device *);
 	unsigned long (*query_bus_param)(struct soc_camera_device *);
 	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
-	int (*enum_input)(struct soc_camera_device *, struct v4l2_input *);
 	const struct v4l2_queryctrl *controls;
 	int num_controls;
 };

@@ -199,22 +199,15 @@ static int soc_camera_try_fmt_vid_cap(struct file *file, void *priv,
 static int soc_camera_enum_input(struct file *file, void *priv,
 				 struct v4l2_input *inp)
 {
-	struct soc_camera_device *icd = file->private_data;
-	int ret = 0;
-
 	if (inp->index != 0)
 		return -EINVAL;
 
-	if (icd->ops->enum_input)
-		ret = icd->ops->enum_input(icd, inp);
-	else {
-		/* default is camera */
-		inp->type = V4L2_INPUT_TYPE_CAMERA;
-		inp->std  = V4L2_STD_UNKNOWN;
-		strcpy(inp->name, "Camera");
-	}
+	/* default is camera */
+	inp->type = V4L2_INPUT_TYPE_CAMERA;
+	inp->std  = V4L2_STD_UNKNOWN;
+	strcpy(inp->name, "Camera");
 
-	return ret;
+	return 0;
 }
 
 static int soc_camera_g_input(struct file *file, void *priv, unsigned int *i)
