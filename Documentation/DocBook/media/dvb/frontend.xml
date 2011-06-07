@@ -262,6 +262,15 @@ OFDM frontends the <constant>frequency</constant> specifies the absolute frequen
  };
 </programlisting>
 </section>
+<section id="dvb-vsb-parameters">
+<title>VSB parameters</title>
+<para>DVB-T frontends are supported by the <constant>dvb_vsb_parameters</constant> structure:</para>
+<programlisting>
+struct dvb_vsb_parameters {
+	fe_modulation_t modulation;	/&#x22C6; modulation type (see above) &#x22C6;/
+};
+</programlisting>
+</section>
 <section id="dvb-ofdm-parameters">
 <title>OFDM parameters</title>
 <para>DVB-T frontends are supported by the <constant>dvb_ofdm_parameters</constant> structure:</para>
@@ -275,15 +284,6 @@ OFDM frontends the <constant>frequency</constant> specifies the absolute frequen
 	 fe_guard_interval_t guard_interval;
 	 fe_hierarchy_t      hierarchy_information;
  };
-</programlisting>
-</section>
-<section id="dvb-vsb-parameters">
-<title>VSB parameters</title>
-<para>DVB-T frontends are supported by the <constant>dvb_vsb_parameters</constant> structure:</para>
-<programlisting>
-struct dvb_vsb_parameters {
-	fe_modulation_t modulation;	/&#x22C6; modulation type (see above) &#x22C6;/
-};
 </programlisting>
 </section>
 <section id="fe-spectral-inversion-t">
@@ -304,7 +304,9 @@ itself.
 </section>
 <section id="fe-code-rate-t">
 <title>frontend code rate</title>
-<para>The possible values for the <constant>FEC_inner</constant> field are
+<para>The possible values for the <constant>fec_inner</constant> field used on
+<link refend="dvb-qpsk-parameters"><constant>struct dvb_qpsk_parameters</constant></link> and
+<link refend="dvb-qam-parameters"><constant>struct dvb_qam_parameters</constant></link> are:
 </para>
 <programlisting>
 typedef enum fe_code_rate {
@@ -327,9 +329,12 @@ detection.
 </para>
 </section>
 <section id="fe-modulation-t">
-<title>frontend modulation type for QAM and OFDM</title>
-<para>For cable and terrestrial frontends (QAM and OFDM) one also has to specify the quadrature
-modulation mode which can be one of the following:
+<title>frontend modulation type for QAM, OFDM and VSB</title>
+<para>For cable and terrestrial frontends, e. g. for
+<link refend="dvb-qam-parameters"><constant>struct dvb_qpsk_parameters</constant></link>,
+<link refend="dvb-ofdm-parameters"><constant>struct dvb_qam_parameters</constant></link> and
+<link refend="dvb-vsb-parameters"><constant>struct dvb_qam_parameters</constant></link>,
+it needs to specify the quadrature modulation mode which can be one of the following:
 </para>
 <programlisting>
  typedef enum fe_modulation {
@@ -352,7 +357,7 @@ modulation mode which can be one of the following:
 <para>Finally, there are several more parameters for OFDM:
 </para>
 <section id="fe-transmit-mode-t">
-<title>Number of carriers per channel, on OFTM modulation</title>
+<title>Number of carriers per channel</title>
 <programlisting>
 typedef enum fe_transmit_mode {
 	TRANSMISSION_MODE_2K,
