@@ -56,6 +56,11 @@ nouveau_channel_pushbuf_init(struct nouveau_channel *chan)
 	 */
 	chan->pushbuf_base = chan->pushbuf_bo->bo.offset;
 	if (dev_priv->card_type >= NV_50) {
+		ret = nouveau_bo_vma_add(chan->pushbuf_bo, chan->vm,
+					 &chan->pushbuf_vma);
+		if (ret)
+			goto out;
+
 		if (dev_priv->card_type < NV_C0) {
 			ret = nouveau_gpuobj_dma_new(chan,
 						     NV_CLASS_DMA_IN_MEMORY, 0,
@@ -64,7 +69,7 @@ nouveau_channel_pushbuf_init(struct nouveau_channel *chan)
 						     NV_MEM_TARGET_VM,
 						     &chan->pushbuf);
 		}
-		chan->pushbuf_base = chan->pushbuf_bo->vma.offset;
+		chan->pushbuf_base = chan->pushbuf_vma.offset;
 	} else
 	if (chan->pushbuf_bo->bo.mem.mem_type == TTM_PL_TT) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
@@ -95,6 +100,7 @@ nouveau_channel_pushbuf_init(struct nouveau_channel *chan)
 out:
 	if (ret) {
 		NV_ERROR(dev, "error initialising pushbuf: %d\n", ret);
+		nouveau_bo_vma_del(chan->pushbuf_bo, &chan->pushbuf_vma);
 		nouveau_gpuobj_ref(NULL, &chan->pushbuf);
 		if (chan->pushbuf_bo) {
 			nouveau_bo_unmap(chan->pushbuf_bo);
@@ -295,6 +301,7 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	/* destroy any resources the channel owned */
 	nouveau_gpuobj_ref(NULL, &chan->pushbuf);
 	if (chan->pushbuf_bo) {
+		nouveau_bo_vma_del(chan->pushbuf_bo, &chan->pushbuf_vma);
 		nouveau_bo_unmap(chan->pushbuf_bo);
 		nouveau_bo_unpin(chan->pushbuf_bo);
 		nouveau_bo_ref(NULL, &chan->pushbuf_bo);

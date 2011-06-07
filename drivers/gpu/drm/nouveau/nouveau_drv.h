@@ -245,6 +245,7 @@ struct nouveau_channel {
 	/* DMA push buffer */
 	struct nouveau_gpuobj *pushbuf;
 	struct nouveau_bo     *pushbuf_bo;
+	struct nouveau_vma     pushbuf_vma;
 	uint32_t               pushbuf_base;
 
 	/* Notifier memory */
