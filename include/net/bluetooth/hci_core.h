@@ -224,7 +224,7 @@ struct hci_conn {
 	spinlock_t	lock;
 
 	bdaddr_t	dst;
-	__u8            dst_type;
+	__u8		dst_type;
 	__u16		handle;
 	__u16		state;
 	__u8		mode;
@@ -317,7 +317,8 @@ static inline long inquiry_entry_age(struct inquiry_entry *e)
 	return jiffies - e->timestamp;
 }
 
-struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr);
+struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev,
+							bdaddr_t *bdaddr);
 void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data);
 
 /* ----- HCI Connections ----- */
@@ -433,8 +434,8 @@ void hci_conn_hash_flush(struct hci_dev *hdev);
 void hci_conn_check_pending(struct hci_dev *hdev);
 
 struct hci_conn *hci_connect(struct hci_dev *hdev, int type,
-					__u16 pkt_type, bdaddr_t *dst,
-					__u8 sec_level, __u8 auth_type);
+						__u16 pkt_type, bdaddr_t *dst,
+						__u8 sec_level, __u8 auth_type);
 int hci_conn_check_link_mode(struct hci_conn *conn);
 int hci_conn_check_secure(struct hci_conn *conn, __u8 sec_level);
 int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type);
@@ -463,10 +464,12 @@ static inline void hci_conn_put(struct hci_conn *conn)
 				timeo = msecs_to_jiffies(conn->disc_timeout);
 				if (!conn->out)
 					timeo *= 20;
-			} else
+			} else {
 				timeo = msecs_to_jiffies(10);
-		} else
+			}
+		} else {
 			timeo = msecs_to_jiffies(10);
+		}
 		mod_timer(&conn->disc_timer, jiffies + timeo);
 	}
 }
@@ -581,16 +584,20 @@ struct hci_proto {
 
 	void		*priv;
 
-	int (*connect_ind)	(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 type);
+	int (*connect_ind)	(struct hci_dev *hdev, bdaddr_t *bdaddr,
+								__u8 type);
 	int (*connect_cfm)	(struct hci_conn *conn, __u8 status);
 	int (*disconn_ind)	(struct hci_conn *conn);
 	int (*disconn_cfm)	(struct hci_conn *conn, __u8 reason);
-	int (*recv_acldata)	(struct hci_conn *conn, struct sk_buff *skb, __u16 flags);
+	int (*recv_acldata)	(struct hci_conn *conn, struct sk_buff *skb,
+								__u16 flags);
 	int (*recv_scodata)	(struct hci_conn *conn, struct sk_buff *skb);
-	int (*security_cfm)	(struct hci_conn *conn, __u8 status, __u8 encrypt);
+	int (*security_cfm)	(struct hci_conn *conn, __u8 status,
+								__u8 encrypt);
 };
 
-static inline int hci_proto_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 type)
+static inline int hci_proto_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr,
+								__u8 type)
 {
 	register struct hci_proto *hp;
 	int mask = 0;
@@ -676,7 +683,8 @@ static inline void hci_proto_auth_cfm(struct hci_conn *conn, __u8 status)
 		conn->security_cfm_cb(conn, status);
 }
 
-static inline void hci_proto_encrypt_cfm(struct hci_conn *conn, __u8 status, __u8 encrypt)
+static inline void hci_proto_encrypt_cfm(struct hci_conn *conn, __u8 status,
+								__u8 encrypt)
 {
 	register struct hci_proto *hp;
 
@@ -701,7 +709,8 @@ struct hci_cb {
 
 	char *name;
 
-	void (*security_cfm)	(struct hci_conn *conn, __u8 status, __u8 encrypt);
+	void (*security_cfm)	(struct hci_conn *conn, __u8 status,
+								__u8 encrypt);
 	void (*key_change_cfm)	(struct hci_conn *conn, __u8 status);
 	void (*role_switch_cfm)	(struct hci_conn *conn, __u8 status, __u8 role);
 };
@@ -727,7 +736,8 @@ static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 	read_unlock_bh(&hci_cb_list_lock);
 }
 
-static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status, __u8 encrypt)
+static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status,
+								__u8 encrypt)
 {
 	struct list_head *p;
 
@@ -758,7 +768,8 @@ static inline void hci_key_change_cfm(struct hci_conn *conn, __u8 status)
 	read_unlock_bh(&hci_cb_list_lock);
 }
 
-static inline void hci_role_switch_cfm(struct hci_conn *conn, __u8 status, __u8 role)
+static inline void hci_role_switch_cfm(struct hci_conn *conn, __u8 status,
+								__u8 role)
 {
 	struct list_head *p;
 

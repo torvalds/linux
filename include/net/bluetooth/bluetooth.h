@@ -137,7 +137,8 @@ int  bt_sock_register(int proto, const struct net_proto_family *ops);
 int  bt_sock_unregister(int proto);
 void bt_sock_link(struct bt_sock_list *l, struct sock *s);
 void bt_sock_unlink(struct bt_sock_list *l, struct sock *s);
-int  bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags);
+int  bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
+				struct msghdr *msg, size_t len, int flags);
 int  bt_sock_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 			struct msghdr *msg, size_t len, int flags);
 uint bt_sock_poll(struct file * file, struct socket *sock, poll_table *wait);
@@ -172,8 +173,8 @@ static inline struct sk_buff *bt_skb_alloc(unsigned int len, gfp_t how)
 	return skb;
 }
 
-static inline struct sk_buff *bt_skb_send_alloc(struct sock *sk, unsigned long len, 
-							int nb, int *err)
+static inline struct sk_buff *bt_skb_send_alloc(struct sock *sk,
+					unsigned long len, int nb, int *err)
 {
 	struct sk_buff *skb;
 
