@@ -1866,7 +1866,7 @@ static unsigned int azx_via_get_position(struct azx *chip,
 	unsigned int fifo_size;
 
 	link_pos = azx_sd_readl(azx_dev, SD_LPIB);
-	if (azx_dev->index >= 4) {
+	if (azx_dev->substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* Playback, no problem using link position */
 		return link_pos;
 	}
