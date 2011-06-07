@@ -283,6 +283,7 @@ static int __devexit ndfc_remove(struct platform_device *ofdev)
 	struct ndfc_controller *ndfc = dev_get_drvdata(&ofdev->dev);
 
 	nand_release(&ndfc->mtd);
+	kfree(ndfc->mtd.name);
 
 	return 0;
 }
