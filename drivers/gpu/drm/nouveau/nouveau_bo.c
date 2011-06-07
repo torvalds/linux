@@ -138,8 +138,6 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	}
 	nvbo->channel = NULL;
 
-	if (nvbo->vma.node)
-		nvbo->bo.offset = nvbo->vma.offset;
 	*pnvbo = nvbo;
 	return 0;
 }

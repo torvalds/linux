@@ -167,7 +167,7 @@ nv50_dma_push(struct nouveau_channel *chan, struct nouveau_bo *bo,
 	      int delta, int length)
 {
 	struct nouveau_bo *pb = chan->pushbuf_bo;
-	uint64_t offset = bo->bo.offset + delta;
+	uint64_t offset = bo->vma.offset + delta;
 	int ip = (chan->dma.ib_put * 2) + chan->dma.ib_base;
 
 	BUG_ON(chan->dma.ib_free < 1);

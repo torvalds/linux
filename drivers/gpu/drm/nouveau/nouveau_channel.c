@@ -64,7 +64,7 @@ nouveau_channel_pushbuf_init(struct nouveau_channel *chan)
 						     NV_MEM_TARGET_VM,
 						     &chan->pushbuf);
 		}
-		chan->pushbuf_base = chan->pushbuf_bo->bo.offset;
+		chan->pushbuf_base = chan->pushbuf_bo->vma.offset;
 	} else
 	if (chan->pushbuf_bo->bo.mem.mem_type == TTM_PL_TT) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,

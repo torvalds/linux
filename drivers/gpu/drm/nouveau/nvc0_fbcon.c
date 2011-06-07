@@ -203,8 +203,8 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 	BEGIN_NVC0(chan, 2, NvSub2D, 0x0000, 1);
 	OUT_RING  (chan, 0x0000902d);
 	BEGIN_NVC0(chan, 2, NvSub2D, 0x0104, 2);
-	OUT_RING  (chan, upper_32_bits(chan->notifier_bo->bo.offset));
-	OUT_RING  (chan, lower_32_bits(chan->notifier_bo->bo.offset));
+	OUT_RING  (chan, upper_32_bits(chan->notifier_bo->vma.offset));
+	OUT_RING  (chan, lower_32_bits(chan->notifier_bo->vma.offset));
 	BEGIN_NVC0(chan, 2, NvSub2D, 0x0290, 1);
 	OUT_RING  (chan, 0);
 	BEGIN_NVC0(chan, 2, NvSub2D, 0x0888, 1);

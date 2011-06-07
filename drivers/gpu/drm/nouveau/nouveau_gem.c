@@ -125,6 +125,7 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 static int
 nouveau_gem_info(struct drm_gem_object *gem, struct drm_nouveau_gem_info *rep)
 {
+	struct drm_nouveau_private *dev_priv = gem->dev->dev_private;
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 
 	if (nvbo->bo.mem.mem_type == TTM_PL_TT)
@@ -133,7 +134,10 @@ nouveau_gem_info(struct drm_gem_object *gem, struct drm_nouveau_gem_info *rep)
 		rep->domain = NOUVEAU_GEM_DOMAIN_VRAM;
 
 	rep->size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
-	rep->offset = nvbo->bo.offset;
+	if (dev_priv->card_type < NV_50)
+		rep->offset = nvbo->bo.offset;
+	else
+		rep->offset = nvbo->vma.offset;
 	rep->map_handle = nvbo->bo.addr_space_offset;
 	rep->tile_mode = nvbo->tile_mode;
 	rep->tile_flags = nvbo->tile_flags;
