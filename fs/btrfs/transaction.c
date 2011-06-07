@@ -260,7 +260,7 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 {
 	struct btrfs_trans_handle *h;
 	struct btrfs_transaction *cur_trans;
-	int retries = 0;
+	u64 num_bytes = 0;
 	int ret;
 
 	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
@@ -273,6 +273,19 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 		h->orig_rsv = h->block_rsv;
 		h->block_rsv = NULL;
 		goto got_it;
+	}
+
+	/*
+	 * Do the reservation before we join the transaction so we can do all
+	 * the appropriate flushing if need be.
+	 */
+	if (num_items > 0 && root != root->fs_info->chunk_root) {
+		num_bytes = btrfs_calc_trans_metadata_size(root, num_items);
+		ret = btrfs_block_rsv_add(NULL, root,
+					  &root->fs_info->trans_block_rsv,
+					  num_bytes);
+		if (ret)
+			return ERR_PTR(ret);
 	}
 again:
 	h = kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
@@ -310,24 +323,9 @@ again:
 		goto again;
 	}
 
-	if (num_items > 0) {
-		ret = btrfs_trans_reserve_metadata(h, root, num_items);
-		if (ret == -EAGAIN && !retries) {
-			retries++;
-			btrfs_commit_transaction(h, root);
-			goto again;
-		} else if (ret == -EAGAIN) {
-			/*
-			 * We have already retried and got EAGAIN, so really we
-			 * don't have space, so set ret to -ENOSPC.
-			 */
-			ret = -ENOSPC;
-		}
-
-		if (ret < 0) {
-			btrfs_end_transaction(h, root);
-			return ERR_PTR(ret);
-		}
+	if (num_bytes) {
+		h->block_rsv = &root->fs_info->trans_block_rsv;
+		h->bytes_reserved = num_bytes;
 	}
 
 got_it:

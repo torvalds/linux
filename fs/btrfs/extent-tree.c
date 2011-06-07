@@ -3874,26 +3874,6 @@ int btrfs_truncate_reserve_metadata(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-int btrfs_trans_reserve_metadata(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root,
-				 int num_items)
-{
-	u64 num_bytes;
-	int ret;
-
-	if (num_items == 0 || root->fs_info->chunk_root == root)
-		return 0;
-
-	num_bytes = btrfs_calc_trans_metadata_size(root, num_items);
-	ret = btrfs_block_rsv_add(trans, root, &root->fs_info->trans_block_rsv,
-				  num_bytes);
-	if (!ret) {
-		trans->bytes_reserved += num_bytes;
-		trans->block_rsv = &root->fs_info->trans_block_rsv;
-	}
-	return ret;
-}
-
 void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root)
 {
