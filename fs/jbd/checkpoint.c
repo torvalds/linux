@@ -22,6 +22,7 @@
 #include <linux/jbd.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/blkdev.h>
 #include <trace/events/jbd.h>
 
 /*
@@ -257,9 +258,12 @@ static void
 __flush_batch(journal_t *journal, struct buffer_head **bhs, int *batch_count)
 {
 	int i;
+	struct blk_plug plug;
 
+	blk_start_plug(&plug);
 	for (i = 0; i < *batch_count; i++)
-		write_dirty_buffer(bhs[i], WRITE);
+		write_dirty_buffer(bhs[i], WRITE_SYNC);
+	blk_finish_plug(&plug);
 
 	for (i = 0; i < *batch_count; i++) {
 		struct buffer_head *bh = bhs[i];
