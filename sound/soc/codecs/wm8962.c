@@ -78,6 +78,8 @@ struct wm8962_priv {
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip gpio_chip;
 #endif
+
+	int irq;
 };
 
 /* We can't use the same notifier block for more than one supply and
@@ -3731,8 +3733,6 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	int ret;
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	struct wm8962_pdata *pdata = dev_get_platdata(codec->dev);
-	struct i2c_client *i2c = container_of(codec->dev, struct i2c_client,
-					      dev);
 	u16 *reg_cache = codec->reg_cache;
 	int i, trigger, irq_pol;
 	bool dmicclk, dmicdat;
@@ -3899,7 +3899,7 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	wm8962_init_beep(codec);
 	wm8962_init_gpio(codec);
 
-	if (i2c->irq) {
+	if (wm8962->irq) {
 		if (pdata && pdata->irq_active_low) {
 			trigger = IRQF_TRIGGER_LOW;
 			irq_pol = WM8962_IRQ_POL;
@@ -3911,12 +3911,13 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 		snd_soc_update_bits(codec, WM8962_INTERRUPT_CONTROL,
 				    WM8962_IRQ_POL, irq_pol);
 
-		ret = request_threaded_irq(i2c->irq, NULL, wm8962_irq,
+		ret = request_threaded_irq(wm8962->irq, NULL, wm8962_irq,
 					   trigger | IRQF_ONESHOT,
 					   "wm8962", codec);
 		if (ret != 0) {
 			dev_err(codec->dev, "Failed to request IRQ %d: %d\n",
-				i2c->irq, ret);
+				wm8962->irq, ret);
+			wm8962->irq = 0;
 			/* Non-fatal */
 		} else {
 			/* Enable some IRQs by default */
@@ -3941,12 +3942,10 @@ err:
 static int wm8962_remove(struct snd_soc_codec *codec)
 {
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
-	struct i2c_client *i2c = container_of(codec->dev, struct i2c_client,
-					      dev);
 	int i;
 
-	if (i2c->irq)
-		free_irq(i2c->irq, codec);
+	if (wm8962->irq)
+		free_irq(wm8962->irq, codec);
 
 	cancel_delayed_work_sync(&wm8962->mic_work);
 
@@ -3985,6 +3984,8 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, wm8962);
+
+	wm8962->irq = i2c->irq;
 
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_wm8962, &wm8962_dai, 1);
