@@ -1589,8 +1589,12 @@ static int pxa_camera_suspend(struct soc_camera_device *icd, pm_message_t state)
 	pcdev->save_cicr[i++] = __raw_readl(pcdev->base + CICR3);
 	pcdev->save_cicr[i++] = __raw_readl(pcdev->base + CICR4);
 
-	if ((pcdev->icd) && (pcdev->icd->ops->suspend))
-		ret = pcdev->icd->ops->suspend(pcdev->icd, state);
+	if (pcdev->icd) {
+		struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+		ret = v4l2_subdev_call(sd, core, s_power, 0);
+		if (ret == -ENOIOCTLCMD)
+			ret = 0;
+	}
 
 	return ret;
 }
@@ -1611,8 +1615,12 @@ static int pxa_camera_resume(struct soc_camera_device *icd)
 	__raw_writel(pcdev->save_cicr[i++], pcdev->base + CICR3);
 	__raw_writel(pcdev->save_cicr[i++], pcdev->base + CICR4);
 
-	if ((pcdev->icd) && (pcdev->icd->ops->resume))
-		ret = pcdev->icd->ops->resume(pcdev->icd);
+	if (pcdev->icd) {
+		struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+		ret = v4l2_subdev_call(sd, core, s_power, 1);
+		if (ret == -ENOIOCTLCMD)
+			ret = 0;
+	}
 
 	/* Restart frame capture if active buffer exists */
 	if (!ret && pcdev->active)
