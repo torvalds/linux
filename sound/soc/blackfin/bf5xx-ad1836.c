@@ -75,7 +75,7 @@ static struct snd_soc_dai_link bf5xx_ad1836_dai[] = {
 		.cpu_dai_name = "bfin-tdm.0",
 		.codec_dai_name = "ad1836-hifi",
 		.platform_name = "bfin-tdm-pcm-audio",
-		.codec_name = "ad1836.0",
+		.codec_name = "spi0.4",
 		.ops = &bf5xx_ad1836_ops,
 	},
 	{
@@ -84,7 +84,7 @@ static struct snd_soc_dai_link bf5xx_ad1836_dai[] = {
 		.cpu_dai_name = "bfin-tdm.1",
 		.codec_dai_name = "ad1836-hifi",
 		.platform_name = "bfin-tdm-pcm-audio",
-		.codec_name = "ad1836.0",
+		.codec_name = "spi0.4",
 		.ops = &bf5xx_ad1836_ops,
 	},
 };
