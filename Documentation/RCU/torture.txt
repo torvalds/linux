@@ -122,6 +122,9 @@ torture_type	The type of RCU to test, with string values as follows:
 		"rcu_bh_sync": rcu_read_lock_bh(), rcu_read_unlock_bh(),
 			and synchronize_rcu_bh().
 
+		"rcu_bh_expedited": rcu_read_lock_bh(), rcu_read_unlock_bh(),
+			and synchronize_rcu_bh_expedited().
+
 		"srcu": srcu_read_lock(), srcu_read_unlock() and
 			synchronize_srcu().
 

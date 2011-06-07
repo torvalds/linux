@@ -480,30 +480,6 @@ static void rcu_bh_torture_deferred_free(struct rcu_torture *p)
 	call_rcu_bh(&p->rtort_rcu, rcu_torture_cb);
 }
 
-struct rcu_bh_torture_synchronize {
-	struct rcu_head head;
-	struct completion completion;
-};
-
-static void rcu_bh_torture_wakeme_after_cb(struct rcu_head *head)
-{
-	struct rcu_bh_torture_synchronize *rcu;
-
-	rcu = container_of(head, struct rcu_bh_torture_synchronize, head);
-	complete(&rcu->completion);
-}
-
-static void rcu_bh_torture_synchronize(void)
-{
-	struct rcu_bh_torture_synchronize rcu;
-
-	init_rcu_head_on_stack(&rcu.head);
-	init_completion(&rcu.completion);
-	call_rcu_bh(&rcu.head, rcu_bh_torture_wakeme_after_cb);
-	wait_for_completion(&rcu.completion);
-	destroy_rcu_head_on_stack(&rcu.head);
-}
-
 static struct rcu_torture_ops rcu_bh_ops = {
 	.init		= NULL,
 	.cleanup	= NULL,
@@ -512,7 +488,7 @@ static struct rcu_torture_ops rcu_bh_ops = {
 	.readunlock	= rcu_bh_torture_read_unlock,
 	.completed	= rcu_bh_torture_completed,
 	.deferred_free	= rcu_bh_torture_deferred_free,
-	.sync		= rcu_bh_torture_synchronize,
+	.sync		= synchronize_rcu_bh,
 	.cb_barrier	= rcu_barrier_bh,
 	.fqs		= rcu_bh_force_quiescent_state,
 	.stats		= NULL,
@@ -528,12 +504,28 @@ static struct rcu_torture_ops rcu_bh_sync_ops = {
 	.readunlock	= rcu_bh_torture_read_unlock,
 	.completed	= rcu_bh_torture_completed,
 	.deferred_free	= rcu_sync_torture_deferred_free,
-	.sync		= rcu_bh_torture_synchronize,
+	.sync		= synchronize_rcu_bh,
 	.cb_barrier	= NULL,
 	.fqs		= rcu_bh_force_quiescent_state,
 	.stats		= NULL,
 	.irq_capable	= 1,
 	.name		= "rcu_bh_sync"
+};
+
+static struct rcu_torture_ops rcu_bh_expedited_ops = {
+	.init		= rcu_sync_torture_init,
+	.cleanup	= NULL,
+	.readlock	= rcu_bh_torture_read_lock,
+	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
+	.readunlock	= rcu_bh_torture_read_unlock,
+	.completed	= rcu_bh_torture_completed,
+	.deferred_free	= rcu_sync_torture_deferred_free,
+	.sync		= synchronize_rcu_bh_expedited,
+	.cb_barrier	= NULL,
+	.fqs		= rcu_bh_force_quiescent_state,
+	.stats		= NULL,
+	.irq_capable	= 1,
+	.name		= "rcu_bh_expedited"
 };
 
 /*
@@ -659,11 +651,6 @@ static void rcu_sched_torture_deferred_free(struct rcu_torture *p)
 	call_rcu_sched(&p->rtort_rcu, rcu_torture_cb);
 }
 
-static void sched_torture_synchronize(void)
-{
-	synchronize_sched();
-}
-
 static struct rcu_torture_ops sched_ops = {
 	.init		= rcu_sync_torture_init,
 	.cleanup	= NULL,
@@ -672,7 +659,7 @@ static struct rcu_torture_ops sched_ops = {
 	.readunlock	= sched_torture_read_unlock,
 	.completed	= rcu_no_completed,
 	.deferred_free	= rcu_sched_torture_deferred_free,
-	.sync		= sched_torture_synchronize,
+	.sync		= synchronize_sched,
 	.cb_barrier	= rcu_barrier_sched,
 	.fqs		= rcu_sched_force_quiescent_state,
 	.stats		= NULL,
@@ -688,7 +675,7 @@ static struct rcu_torture_ops sched_sync_ops = {
 	.readunlock	= sched_torture_read_unlock,
 	.completed	= rcu_no_completed,
 	.deferred_free	= rcu_sync_torture_deferred_free,
-	.sync		= sched_torture_synchronize,
+	.sync		= synchronize_sched,
 	.cb_barrier	= NULL,
 	.fqs		= rcu_sched_force_quiescent_state,
 	.stats		= NULL,
@@ -1425,7 +1412,7 @@ rcu_torture_init(void)
 	int firsterr = 0;
 	static struct rcu_torture_ops *torture_ops[] =
 		{ &rcu_ops, &rcu_sync_ops, &rcu_expedited_ops,
-		  &rcu_bh_ops, &rcu_bh_sync_ops,
+		  &rcu_bh_ops, &rcu_bh_sync_ops, &rcu_bh_expedited_ops,
 		  &srcu_ops, &srcu_expedited_ops,
 		  &sched_ops, &sched_sync_ops, &sched_expedited_ops, };
 
