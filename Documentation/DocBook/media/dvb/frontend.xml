@@ -20,19 +20,44 @@ cards, in which case there exists no frontend device.</para>
 <section id="frontend_types">
 <title>Frontend Data Types</title>
 
-<section id="frontend_type">
-<title>frontend type</title>
+<section id="fe-type-t">
+<title>Frontend type</title>
 
 <para>For historical reasons frontend types are named after the type of modulation used in
-transmission.</para>
-<programlisting>
-	typedef enum fe_type {
-	FE_QPSK,   /&#x22C6; DVB-S &#x22C6;/
-	FE_QAM,    /&#x22C6; DVB-C &#x22C6;/
-	FE_OFDM    /&#x22C6; DVB-T &#x22C6;/
-	} fe_type_t;
-</programlisting>
+transmission. The fontend types are given by fe_type_t type, defined as:</para>
 
+<table pgwide="1" frame="none" id="fe-type">
+<title>Frontend types</title>
+<tgroup cols="2">
+   &cs-def;
+   <thead>
+     <row>
+       <entry>fe_type</entry>
+       <entry>Description</entry>
+     </row>
+  </thead>
+  <tbody valign="top">
+  <row>
+     <entry id="FE_QPSK"><constant>FE_QPSK</constant></entry>
+     <entry>For DVB-S standard</entry>
+  </row>
+  <row>
+     <entry id="FE_QAM"><constant>FE_QAM</constant></entry>
+     <entry>For DVB-C standard</entry>
+  </row>
+  <row>
+     <entry id="FE_OFDM"><constant>FE_OFDM</constant></entry>
+     <entry>For DVB-T standard. Also used for ISDB-T on compatibility mode</entry>
+  </row>
+  <row>
+     <entry id="FE_ATSC"><constant>FE_ATSC</constant></entry>
+     <entry>For ATSC standard (terrestrial or cable)</entry>
+  </row>
+</tbody></tgroup></table>
+
+<para>Newer formats like DVB-S2, ISDB-T, ISDB-S and DVB-T2 are not described at the above, as they're
+supported via the new <link linkend="FE_GET_SET_PROPERTY">FE_GET_PROPERTY/FE_GET_SET_PROPERTY</link> method.
+</para>
 </section>
 
 <section id="frontend_caps">
