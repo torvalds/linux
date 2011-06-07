@@ -28,6 +28,7 @@
 
 #include "cx88.h"
 #include "tea5767.h"
+#include "xc4000.h"
 
 static unsigned int tuner[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
 static unsigned int radio[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
@@ -2948,6 +2949,15 @@ static int cx88_xc2028_tuner_callback(struct cx88_core *core,
 	return -EINVAL;
 }
 
+static int cx88_xc4000_tuner_callback(struct cx88_core *core,
+				      int command, int arg)
+{
+	/* Board-specific callbacks */
+	switch (core->boardnr) {
+	}
+	return -EINVAL;
+}
+
 /* ----------------------------------------------------------------------- */
 /* Tuner callback function. Currently only needed for the Pinnacle 	   *
  * PCTV HD 800i with an xc5000 sillicon tuner. This is used for both	   *
@@ -3022,6 +3032,9 @@ int cx88_tuner_callback(void *priv, int component, int command, int arg)
 		case TUNER_XC2028:
 			info_printk(core, "Calling XC2028/3028 callback\n");
 			return cx88_xc2028_tuner_callback(core, command, arg);
+		case TUNER_XC4000:
+			info_printk(core, "Calling XC4000 callback\n");
+			return cx88_xc4000_tuner_callback(core, command, arg);
 		case TUNER_XC5000:
 			info_printk(core, "Calling XC5000 callback\n");
 			return cx88_xc5000_tuner_callback(core, command, arg);

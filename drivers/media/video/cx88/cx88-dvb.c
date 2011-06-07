@@ -41,6 +41,7 @@
 #include "or51132.h"
 #include "lgdt330x.h"
 #include "s5h1409.h"
+#include "xc4000.h"
 #include "xc5000.h"
 #include "nxt200x.h"
 #include "cx24123.h"
@@ -601,6 +602,39 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 
 	printk(KERN_INFO "%s/2: xc3028 attached\n",
 	       dev->core->name);
+
+	return 0;
+}
+
+static int attach_xc4000(struct cx8802_dev *dev, struct xc4000_config *cfg)
+{
+	struct dvb_frontend *fe;
+	struct videobuf_dvb_frontend *fe0 = NULL;
+
+	/* Get the first frontend */
+	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
+	if (!fe0)
+		return -EINVAL;
+
+	if (!fe0->dvb.frontend) {
+		printk(KERN_ERR "%s/2: dvb frontend not attached. "
+				"Can't attach xc4000\n",
+		       dev->core->name);
+		return -EINVAL;
+	}
+
+	fe = dvb_attach(xc4000_attach, fe0->dvb.frontend, &dev->core->i2c_adap,
+			cfg);
+	if (!fe) {
+		printk(KERN_ERR "%s/2: xc4000 attach failed\n",
+		       dev->core->name);
+		dvb_frontend_detach(fe0->dvb.frontend);
+		dvb_unregister_frontend(fe0->dvb.frontend);
+		fe0->dvb.frontend = NULL;
+		return -EINVAL;
+	}
+
+	printk(KERN_INFO "%s/2: xc4000 attached\n", dev->core->name);
 
 	return 0;
 }
