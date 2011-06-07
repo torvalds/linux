@@ -67,10 +67,8 @@ static void inftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	inftl = kzalloc(sizeof(*inftl), GFP_KERNEL);
 
-	if (!inftl) {
-		printk(KERN_WARNING "INFTL: Out of memory for data structures\n");
+	if (!inftl)
 		return;
-	}
 
 	inftl->mbd.mtd = mtd;
 	inftl->mbd.devnum = -1;

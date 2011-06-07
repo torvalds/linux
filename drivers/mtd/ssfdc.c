@@ -304,11 +304,8 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 		return;
 
 	ssfdc = kzalloc(sizeof(struct ssfdcr_record), GFP_KERNEL);
-	if (!ssfdc) {
-		printk(KERN_WARNING
-			"SSFDC_RO: out of memory for data structures\n");
+	if (!ssfdc)
 		return;
-	}
 
 	ssfdc->mbd.mtd = mtd;
 	ssfdc->mbd.devnum = -1;
@@ -342,11 +339,8 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	/* Allocate logical block map */
 	ssfdc->logic_block_map = kmalloc(sizeof(ssfdc->logic_block_map[0]) *
 					 ssfdc->map_len, GFP_KERNEL);
-	if (!ssfdc->logic_block_map) {
-		printk(KERN_WARNING
-			"SSFDC_RO: out of memory for data structures\n");
+	if (!ssfdc->logic_block_map)
 		goto out_err;
-	}
 	memset(ssfdc->logic_block_map, 0xff, sizeof(ssfdc->logic_block_map[0]) *
 		ssfdc->map_len);
 

@@ -444,7 +444,6 @@ static int rtc_from4_errstat(struct mtd_info *mtd, struct nand_chip *this,
 		len = mtd->writesize;
 		buf = kmalloc(len, GFP_KERNEL);
 		if (!buf) {
-			printk(KERN_ERR "rtc_from4_errstat: Out of memory!\n");
 			er_stat = 1;
 			goto out;
 		}

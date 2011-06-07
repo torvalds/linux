@@ -188,10 +188,8 @@ int onenand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	len = this->chipsize >> (this->erase_shift + 2);
 	/* Allocate memory (2bit per block) and clear the memory bad block table */
 	bbm->bbt = kzalloc(len, GFP_KERNEL);
-	if (!bbm->bbt) {
-		printk(KERN_ERR "onenand_scan_bbt: Out of memory\n");
+	if (!bbm->bbt)
 		return -ENOMEM;
-	}
 
 	/* Set the bad block position */
 	bbm->badblockpos = ONENAND_BADBLOCK_POS;

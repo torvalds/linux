@@ -1121,10 +1121,8 @@ int nand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	 * table.
 	 */
 	this->bbt = kzalloc(len, GFP_KERNEL);
-	if (!this->bbt) {
-		printk(KERN_ERR "nand_scan_bbt: Out of memory\n");
+	if (!this->bbt)
 		return -ENOMEM;
-	}
 
 	/*
 	 * If no primary table decriptor is given, scan the device to build a
@@ -1146,7 +1144,6 @@ int nand_scan_bbt(struct mtd_info *mtd, struct nand_bbt_descr *bd)
 	len += (len >> this->page_shift) * mtd->oobsize;
 	buf = vmalloc(len);
 	if (!buf) {
-		printk(KERN_ERR "nand_bbt: Out of memory\n");
 		kfree(this->bbt);
 		this->bbt = NULL;
 		return -ENOMEM;
@@ -1195,10 +1192,8 @@ int nand_update_bbt(struct mtd_info *mtd, loff_t offs)
 	len = (1 << this->bbt_erase_shift);
 	len += (len >> this->page_shift) * mtd->oobsize;
 	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf) {
-		printk(KERN_ERR "nand_update_bbt: Out of memory\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	writeops = md != NULL ? 0x03 : 0x01;
 
@@ -1307,10 +1302,8 @@ static int nand_create_default_bbt_descr(struct nand_chip *this)
 		return -EINVAL;
 	}
 	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
-	if (!bd) {
-		printk(KERN_ERR "nand_create_default_bbt_descr: Out of memory\n");
+	if (!bd)
 		return -ENOMEM;
-	}
 	bd->options = this->bbt_options;
 	bd->offs = this->badblockpos;
 	bd->len = (this->options & NAND_BUSWIDTH_16) ? 2 : 1;
