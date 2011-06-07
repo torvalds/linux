@@ -127,7 +127,7 @@ static const struct snd_soc_dapm_route ad183x_dapm_routes[] = {
 static const DECLARE_TLV_DB_SCALE(ad1836_in_tlv, 0, 300, 0);
 
 static const struct snd_kcontrol_new ad1836_controls[] = {
-	SOC_DOUBLE_TLV("ADC2 Capture Volume", AD183X_ADC_CTRL1, 3, 0, 4, 0,
+	SOC_DOUBLE_TLV("ADC2 Capture Volume", AD1836_ADC_CTRL1, 3, 0, 4, 0,
 	    ad1836_in_tlv),
 };
 
