@@ -235,25 +235,9 @@ static struct regulator_init_data touchbook_vpll2 = {
 	.consumer_supplies	= touchbook_vdvi_supply,
 };
 
-static struct twl4030_usb_data touchbook_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
-};
-
-static struct twl4030_codec_audio_data touchbook_audio_data;
-
-static struct twl4030_codec_data touchbook_codec_data = {
-	.audio_mclk = 26000000,
-	.audio = &touchbook_audio_data,
-};
-
 static struct twl4030_platform_data touchbook_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
-
 	/* platform_data for children goes here */
-	.usb		= &touchbook_usb_data,
 	.gpio		= &touchbook_gpio_data,
-	.codec		= &touchbook_codec_data,
 	.vmmc1		= &touchbook_vmmc1,
 	.vsim		= &touchbook_vsim,
 	.vdac		= &touchbook_vdac,
@@ -269,8 +253,9 @@ static struct i2c_board_info __initdata touchBook_i2c_boardinfo[] = {
 static int __init omap3_touchbook_i2c_init(void)
 {
 	/* Standard TouchBook bus */
+	omap3_pmic_get_config(&touchbook_twldata,
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO, 0);
 	omap3_pmic_init("twl4030", &touchbook_twldata);
-
 	/* Additional TouchBook bus */
 	omap_register_i2c_bus(3, 100, touchBook_i2c_boardinfo,
 			ARRAY_SIZE(touchBook_i2c_boardinfo));

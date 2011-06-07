@@ -288,10 +288,6 @@ static struct twl4030_keypad_data rx51_kp_data = {
 	.rep		= 1,
 };
 
-static struct twl4030_madc_platform_data rx51_madc_data = {
-	.irq_line		= 1,
-};
-
 /* Enable input logic and pull all lines up when eMMC is on. */
 static struct omap_board_mux rx51_mmc2_on_mux[] = {
 	OMAP3_MUX(SDMMC2_CMD, OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
@@ -603,10 +599,6 @@ static struct twl4030_gpio_platform_data rx51_gpio_data = {
 	.setup			= rx51_twlgpio_setup,
 };
 
-static struct twl4030_usb_data rx51_usb_data = {
-	.usb_mode		= T2_USB_MODE_ULPI,
-};
-
 static struct twl4030_ins sleep_on_seq[] __initdata = {
 /*
  * Turn off everything
@@ -778,14 +770,9 @@ struct twl4030_codec_data rx51_codec_data __initdata = {
 };
 
 static struct twl4030_platform_data rx51_twldata __initdata = {
-	.irq_base		= TWL4030_IRQ_BASE,
-	.irq_end		= TWL4030_IRQ_END,
-
 	/* platform_data for children goes here */
 	.gpio			= &rx51_gpio_data,
 	.keypad			= &rx51_kp_data,
-	.madc			= &rx51_madc_data,
-	.usb			= &rx51_usb_data,
 	.power			= &rx51_t2scripts_data,
 	.codec			= &rx51_codec_data,
 
@@ -850,6 +837,8 @@ static int __init rx51_i2c_init(void)
 		rx51_twldata.vaux3 = &rx51_vaux3_cam;
 	}
 	rx51_twldata.vmmc2 = &rx51_vmmc2;
+	omap3_pmic_get_config(&rx51_twldata,
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_MADC, 0);
 	omap_pmic_init(1, 2200, "twl5030", INT_34XX_SYS_NIRQ, &rx51_twldata);
 	omap_register_i2c_bus(2, 100, rx51_peripherals_i2c_board_info_2,
 			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_2));

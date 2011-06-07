@@ -433,10 +433,6 @@ static struct twl4030_gpio_platform_data overo_gpio_data = {
 	.setup		= overo_twl_gpio_setup,
 };
 
-static struct twl4030_usb_data overo_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
-};
-
 static struct regulator_init_data overo_vmmc1 = {
 	.constraints = {
 		.min_uV			= 1850000,
@@ -480,19 +476,8 @@ static struct regulator_init_data overo_vpll2 = {
 	.consumer_supplies	= overo_vdds_dsi_supply,
 };
 
-static struct twl4030_codec_audio_data overo_audio_data;
-
-static struct twl4030_codec_data overo_codec_data = {
-	.audio_mclk = 26000000,
-	.audio = &overo_audio_data,
-};
-
 static struct twl4030_platform_data overo_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
 	.gpio		= &overo_gpio_data,
-	.usb		= &overo_usb_data,
-	.codec		= &overo_codec_data,
 	.vmmc1		= &overo_vmmc1,
 	.vdac		= &overo_vdac,
 	.vpll2		= &overo_vpll2,
@@ -500,6 +485,8 @@ static struct twl4030_platform_data overo_twldata = {
 
 static int __init overo_i2c_init(void)
 {
+	omap3_pmic_get_config(&overo_twldata,
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO, 0);
 	omap3_pmic_init("tps65950", &overo_twldata);
 	/* i2c2 pins are used for gpio */
 	omap_register_i2c_bus(3, 400, NULL, 0);

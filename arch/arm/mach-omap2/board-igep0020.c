@@ -443,10 +443,6 @@ static struct twl4030_gpio_platform_data igep_twl4030_gpio_pdata = {
 	.setup		= igep_twl_gpio_setup,
 };
 
-static struct twl4030_usb_data igep_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
-};
-
 static int igep2_enable_dvi(struct omap_dss_device *dssdev)
 {
 	gpio_direction_output(IGEP2_GPIO_DVI_PUP, 1);
@@ -522,13 +518,6 @@ static void __init igep_init_early(void)
 				  m65kxxxxam_sdrc_params);
 }
 
-static struct twl4030_codec_audio_data igep2_audio_data;
-
-static struct twl4030_codec_data igep2_codec_data = {
-	.audio_mclk = 26000000,
-	.audio = &igep2_audio_data,
-};
-
 static int igep2_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_RIGHT),
@@ -561,11 +550,7 @@ static struct twl4030_keypad_data igep2_keypad_pdata = {
 };
 
 static struct twl4030_platform_data igep_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
-
 	/* platform_data for children goes here */
-	.usb		= &igep_usb_data,
 	.gpio		= &igep_twl4030_gpio_pdata,
 	.vmmc1          = &igep_vmmc1,
 	.vio		= &igep_vio,
@@ -581,6 +566,8 @@ static void __init igep_i2c_init(void)
 {
 	int ret;
 
+	omap3_pmic_get_config(&igep_twldata, TWL_COMMON_PDATA_USB, 0);
+
 	if (machine_is_igep0020()) {
 		/*
 		 * Bus 3 is attached to the DVI port where devices like the
@@ -591,9 +578,10 @@ static void __init igep_i2c_init(void)
 		if (ret)
 			pr_warning("IGEP2: Could not register I2C3 bus (%d)\n", ret);
 
-		igep_twldata.codec	= &igep2_codec_data;
 		igep_twldata.keypad	= &igep2_keypad_pdata;
 		igep_twldata.vpll2	= &igep2_vpll2;
+		/* Use common codec data */
+		omap3_pmic_get_config(&igep_twldata, TWL_COMMON_PDATA_AUDIO, 0);
 	}
 
 	omap3_pmic_init("twl4030", &igep_twldata);

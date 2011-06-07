@@ -332,25 +332,9 @@ static struct regulator_init_data devkit8000_vio = {
 	.consumer_supplies      = devkit8000_vio_supply,
 };
 
-static struct twl4030_usb_data devkit8000_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
-};
-
-static struct twl4030_codec_audio_data devkit8000_audio_data;
-
-static struct twl4030_codec_data devkit8000_codec_data = {
-	.audio_mclk = 26000000,
-	.audio = &devkit8000_audio_data,
-};
-
 static struct twl4030_platform_data devkit8000_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
-
 	/* platform_data for children goes here */
-	.usb		= &devkit8000_usb_data,
 	.gpio		= &devkit8000_gpio_data,
-	.codec		= &devkit8000_codec_data,
 	.vmmc1		= &devkit8000_vmmc1,
 	.vdac		= &devkit8000_vdac,
 	.vpll1		= &devkit8000_vpll1,
@@ -360,6 +344,8 @@ static struct twl4030_platform_data devkit8000_twldata = {
 
 static int __init devkit8000_i2c_init(void)
 {
+	omap3_pmic_get_config(&devkit8000_twldata,
+			  TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO, 0);
 	omap3_pmic_init("tps65930", &devkit8000_twldata);
 	/* Bus 3 is attached to the DVI port where devices like the pico DLP
 	 * projector don't work reliably with 400kHz */

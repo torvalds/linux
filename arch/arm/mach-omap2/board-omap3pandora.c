@@ -508,25 +508,10 @@ static struct platform_device pandora_vwlan_device = {
 	},
 };
 
-static struct twl4030_usb_data omap3pandora_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
-};
-
-static struct twl4030_codec_audio_data omap3pandora_audio_data;
-
-static struct twl4030_codec_data omap3pandora_codec_data = {
-	.audio_mclk = 26000000,
-	.audio = &omap3pandora_audio_data,
-};
-
 static struct twl4030_bci_platform_data pandora_bci_data;
 
 static struct twl4030_platform_data omap3pandora_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
 	.gpio		= &omap3pandora_gpio_data,
-	.usb		= &omap3pandora_usb_data,
-	.codec		= &omap3pandora_codec_data,
 	.vmmc1		= &pandora_vmmc1,
 	.vmmc2		= &pandora_vmmc2,
 	.vdac		= &pandora_vdac,
@@ -548,6 +533,8 @@ static struct i2c_board_info __initdata omap3pandora_i2c3_boardinfo[] = {
 
 static int __init omap3pandora_i2c_init(void)
 {
+	omap3_pmic_get_config(&omap3pandora_twldata,
+			      TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO, 0);
 	omap3_pmic_init("tps65950", &omap3pandora_twldata);
 	/* i2c2 pins are not connected */
 	omap_register_i2c_bus(3, 100, omap3pandora_i2c3_boardinfo,

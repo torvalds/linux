@@ -410,10 +410,6 @@ static struct regulator_init_data cm_t35_vpll2 = {
 	.consumer_supplies	= cm_t35_vdvi_supply,
 };
 
-static struct twl4030_usb_data cm_t35_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
-};
-
 static uint32_t cm_t35_keymap[] = {
 	KEY(0, 0, KEY_A),	KEY(0, 1, KEY_B),	KEY(0, 2, KEY_LEFT),
 	KEY(1, 0, KEY_UP),	KEY(1, 1, KEY_ENTER),	KEY(1, 2, KEY_DOWN),
@@ -492,12 +488,8 @@ static struct twl4030_gpio_platform_data cm_t35_gpio_data = {
 };
 
 static struct twl4030_platform_data cm_t35_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
-
 	/* platform_data for children goes here */
 	.keypad		= &cm_t35_kp_data,
-	.usb		= &cm_t35_usb_data,
 	.gpio		= &cm_t35_gpio_data,
 	.vmmc1		= &cm_t35_vmmc1,
 	.vsim		= &cm_t35_vsim,
@@ -507,6 +499,7 @@ static struct twl4030_platform_data cm_t35_twldata = {
 
 static void __init cm_t35_init_i2c(void)
 {
+	omap3_pmic_get_config(&cm_t35_twldata, TWL_COMMON_PDATA_USB, 0);
 	omap3_pmic_init("tps65930", &cm_t35_twldata);
 }
 
