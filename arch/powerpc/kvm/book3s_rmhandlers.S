@@ -251,12 +251,4 @@ define_load_up(altivec)
 define_load_up(vsx)
 #endif
 
-.global kvmppc_trampoline_lowmem
-kvmppc_trampoline_lowmem:
-	PPC_LONG kvmppc_handler_lowmem_trampoline - CONFIG_KERNEL_START
-
-.global kvmppc_trampoline_enter
-kvmppc_trampoline_enter:
-	PPC_LONG kvmppc_handler_trampoline_enter - CONFIG_KERNEL_START
-
 #include "book3s_segment.S"

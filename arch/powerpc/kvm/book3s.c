@@ -1342,8 +1342,8 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	vcpu_book3s->slb_nr = 64;
 
 	/* remember where some real-mode handlers are */
-	vcpu->arch.trampoline_lowmem = kvmppc_trampoline_lowmem;
-	vcpu->arch.trampoline_enter = kvmppc_trampoline_enter;
+	vcpu->arch.trampoline_lowmem = (ulong)kvmppc_handler_lowmem_trampoline;
+	vcpu->arch.trampoline_enter = (ulong)kvmppc_handler_trampoline_enter;
 	vcpu->arch.highmem_handler = (ulong)kvmppc_handler_highmem;
 #ifdef CONFIG_PPC_BOOK3S_64
 	vcpu->arch.rmcall = *(ulong*)kvmppc_rmcall;
