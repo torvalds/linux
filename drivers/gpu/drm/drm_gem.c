@@ -129,7 +129,7 @@ drm_gem_destroy(struct drm_device *dev)
 }
 
 /**
- * Initialize an already allocate GEM object of the specified size with
+ * Initialize an already allocated GEM object of the specified size with
  * shmfs backing store.
  */
 int drm_gem_object_init(struct drm_device *dev,
@@ -149,6 +149,27 @@ int drm_gem_object_init(struct drm_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL(drm_gem_object_init);
+
+/**
+ * Initialize an already allocated GEM object of the specified size with
+ * no GEM provided backing store. Instead the caller is responsible for
+ * backing the object and handling it.
+ */
+int drm_gem_private_object_init(struct drm_device *dev,
+			struct drm_gem_object *obj, size_t size)
+{
+	BUG_ON((size & (PAGE_SIZE - 1)) != 0);
+
+	obj->dev = dev;
+	obj->filp = NULL;
+
+	kref_init(&obj->refcount);
+	atomic_set(&obj->handle_count, 0);
+	obj->size = size;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_gem_private_object_init);
 
 /**
  * Allocate a GEM object of the specified size with shmfs backing store
@@ -444,7 +465,8 @@ drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 void
 drm_gem_object_release(struct drm_gem_object *obj)
 {
-	fput(obj->filp);
+	if (obj->filp)
+	    fput(obj->filp);
 }
 EXPORT_SYMBOL(drm_gem_object_release);
 
