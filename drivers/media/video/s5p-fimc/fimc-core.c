@@ -1898,7 +1898,7 @@ static struct samsung_fimc_variant fimc0_variant_exynos4 = {
 	.has_mainscaler_ext = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
-	.hor_offs_align	 = 1,
+	.hor_offs_align	 = 2,
 	.out_buf_count	 = 32,
 	.pix_limit	 = &s5p_pix_limit[1],
 };
@@ -1910,7 +1910,7 @@ static struct samsung_fimc_variant fimc3_variant_exynos4 = {
 	.has_mainscaler_ext = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
-	.hor_offs_align	 = 1,
+	.hor_offs_align	 = 2,
 	.out_buf_count	 = 32,
 	.pix_limit	 = &s5p_pix_limit[3],
 };
