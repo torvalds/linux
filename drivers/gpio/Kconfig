@@ -96,6 +96,7 @@ config GPIO_MXC
 	def_bool y
 	depends on ARCH_MXC
 	select GPIO_GENERIC
+	select GENERIC_IRQ_CHIP
 
 config GPIO_MXS
 	def_bool y
