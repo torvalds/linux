@@ -293,6 +293,7 @@ struct nouveau_channel {
 
 	uint32_t sw_subchannel[8];
 
+	struct nouveau_vma dispc_vma[2];
 	struct {
 		struct nouveau_gpuobj *vblsem;
 		uint32_t vblsem_head;

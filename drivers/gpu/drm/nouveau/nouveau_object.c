@@ -717,6 +717,17 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 		nv_wo32(chan->ramin, 0x0204, upper_32_bits(vpgd->obj->vinst));
 		nv_wo32(chan->ramin, 0x0208, 0xffffffff);
 		nv_wo32(chan->ramin, 0x020c, 0x000000ff);
+
+		for (i = 0; i < 2; i++) {
+			struct nv50_display_crtc *dispc =
+				&nv50_display(dev)->crtc[i];
+
+			ret = nouveau_bo_vma_add(dispc->sem.bo, chan->vm,
+						 &chan->dispc_vma[i]);
+			if (ret)
+				return ret;
+		}
+
 		return 0;
 	}
 
@@ -841,9 +852,14 @@ void
 nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
+	int i;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
+	for (i = 0; i < 2; i++) {
+		struct nv50_display_crtc *dispc = &nv50_display(dev)->crtc[i];
+		nouveau_bo_vma_del(dispc->sem.bo, &chan->dispc_vma[i]);
+	}
 	nouveau_vm_ref(NULL, &chan->vm, chan->vm_pd);
 	nouveau_gpuobj_ref(NULL, &chan->vm_pd);
 
