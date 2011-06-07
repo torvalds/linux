@@ -364,9 +364,11 @@ static struct snd_pcm_ops atmel_pcm_ops = {
 \*--------------------------------------------------------------------------*/
 static u64 atmel_pcm_dmamask = 0xffffffff;
 
-static int atmel_pcm_new(struct snd_card *card,
-	struct snd_soc_dai *dai, struct snd_pcm *pcm)
+static int atmel_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
 
 	if (!card->dev->dma_mask)
