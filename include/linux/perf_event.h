@@ -894,8 +894,8 @@ struct perf_event_context {
 	u64				parent_gen;
 	u64				generation;
 	int				pin_count;
-	struct rcu_head			rcu_head;
 	int				nr_cgroups; /* cgroup events present */
+	struct rcu_head			rcu_head;
 };
 
 /*
