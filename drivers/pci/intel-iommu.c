@@ -3388,7 +3388,7 @@ static void __init init_iommu_pm_ops(void)
 }
 
 #else
-static inline int init_iommu_pm_ops(void) { }
+static inline void init_iommu_pm_ops(void) {}
 #endif	/* CONFIG_PM */
 
 /*
