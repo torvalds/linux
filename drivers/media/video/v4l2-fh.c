@@ -93,10 +93,8 @@ void v4l2_fh_exit(struct v4l2_fh *fh)
 {
 	if (fh->vdev == NULL)
 		return;
-
-	fh->vdev = NULL;
-
 	v4l2_event_free(fh);
+	fh->vdev = NULL;
 }
 EXPORT_SYMBOL_GPL(v4l2_fh_exit);
 

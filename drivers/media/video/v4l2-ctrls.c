@@ -23,6 +23,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-dev.h>
 
 #define has_op(master, op) \
@@ -556,6 +557,41 @@ static bool type_is_int(const struct v4l2_ctrl *ctrl)
 	}
 }
 
+static void fill_event(struct v4l2_event *ev, struct v4l2_ctrl *ctrl, u32 changes)
+{
+	memset(ev->reserved, 0, sizeof(ev->reserved));
+	ev->type = V4L2_EVENT_CTRL;
+	ev->id = ctrl->id;
+	ev->u.ctrl.changes = changes;
+	ev->u.ctrl.type = ctrl->type;
+	ev->u.ctrl.flags = ctrl->flags;
+	if (ctrl->type == V4L2_CTRL_TYPE_STRING)
+		ev->u.ctrl.value64 = 0;
+	else
+		ev->u.ctrl.value64 = ctrl->cur.val64;
+	ev->u.ctrl.minimum = ctrl->minimum;
+	ev->u.ctrl.maximum = ctrl->maximum;
+	if (ctrl->type == V4L2_CTRL_TYPE_MENU)
+		ev->u.ctrl.step = 1;
+	else
+		ev->u.ctrl.step = ctrl->step;
+	ev->u.ctrl.default_value = ctrl->default_value;
+}
+
+static void send_event(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 changes)
+{
+	struct v4l2_event ev;
+	struct v4l2_ctrl_fh *pos;
+
+	if (list_empty(&ctrl->fhs))
+			return;
+	fill_event(&ev, ctrl, changes);
+
+	list_for_each_entry(pos, &ctrl->fhs, node)
+		if (pos->fh != fh)
+			v4l2_event_queue_fh(pos->fh, &ev);
+}
+
 /* Helper function: copy the current control value back to the caller */
 static int cur_to_user(struct v4l2_ext_control *c,
 		       struct v4l2_ctrl *ctrl)
@@ -660,17 +696,25 @@ static int ctrl_is_volatile(struct v4l2_ext_control *c,
 static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
 						bool update_inactive)
 {
+	bool changed = false;
+
 	if (ctrl == NULL)
 		return;
 	switch (ctrl->type) {
+	case V4L2_CTRL_TYPE_BUTTON:
+		changed = true;
+		break;
 	case V4L2_CTRL_TYPE_STRING:
 		/* strings are always 0-terminated */
+		changed = strcmp(ctrl->string, ctrl->cur.string);
 		strcpy(ctrl->cur.string, ctrl->string);
 		break;
 	case V4L2_CTRL_TYPE_INTEGER64:
+		changed = ctrl->val64 != ctrl->cur.val64;
 		ctrl->cur.val64 = ctrl->val64;
 		break;
 	default:
+		changed = ctrl->val != ctrl->cur.val;
 		ctrl->cur.val = ctrl->val;
 		break;
 	}
@@ -679,6 +723,10 @@ static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
 		if (!is_cur_manual(ctrl->cluster[0]))
 			ctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 	}
+	if (changed || update_inactive)
+		send_event(fh, ctrl,
+			(changed ? V4L2_EVENT_CTRL_CH_VALUE : 0) |
+			(update_inactive ? V4L2_EVENT_CTRL_CH_FLAGS : 0));
 }
 
 /* Copy the current value to the new value */
@@ -819,6 +867,7 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 {
 	struct v4l2_ctrl_ref *ref, *next_ref;
 	struct v4l2_ctrl *ctrl, *next_ctrl;
+	struct v4l2_ctrl_fh *ctrl_fh, *next_ctrl_fh;
 
 	if (hdl == NULL || hdl->buckets == NULL)
 		return;
@@ -832,6 +881,10 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 	/* Free all controls owned by the handler */
 	list_for_each_entry_safe(ctrl, next_ctrl, &hdl->ctrls, node) {
 		list_del(&ctrl->node);
+		list_for_each_entry_safe(ctrl_fh, next_ctrl_fh, &ctrl->fhs, node) {
+			list_del(&ctrl_fh->node);
+			kfree(ctrl_fh);
+		}
 		kfree(ctrl);
 	}
 	kfree(hdl->buckets);
@@ -1030,6 +1083,7 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 	}
 
 	INIT_LIST_HEAD(&ctrl->node);
+	INIT_LIST_HEAD(&ctrl->fhs);
 	ctrl->handler = hdl;
 	ctrl->ops = ops;
 	ctrl->id = id;
@@ -1171,6 +1225,9 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 		/* Skip handler-private controls. */
 		if (ctrl->is_private)
 			continue;
+		/* And control classes */
+		if (ctrl->type == V4L2_CTRL_TYPE_CTRL_CLASS)
+			continue;
 		ret = handler_new_ref(hdl, ctrl);
 		if (ret)
 			break;
@@ -1222,15 +1279,21 @@ EXPORT_SYMBOL(v4l2_ctrl_auto_cluster);
 /* Activate/deactivate a control. */
 void v4l2_ctrl_activate(struct v4l2_ctrl *ctrl, bool active)
 {
+	/* invert since the actual flag is called 'inactive' */
+	bool inactive = !active;
+	bool old;
+
 	if (ctrl == NULL)
 		return;
 
-	if (!active)
+	if (inactive)
 		/* set V4L2_CTRL_FLAG_INACTIVE */
-		set_bit(4, &ctrl->flags);
+		old = test_and_set_bit(4, &ctrl->flags);
 	else
 		/* clear V4L2_CTRL_FLAG_INACTIVE */
-		clear_bit(4, &ctrl->flags);
+		old = test_and_clear_bit(4, &ctrl->flags);
+	if (old != inactive)
+		send_event(NULL, ctrl, V4L2_EVENT_CTRL_CH_FLAGS);
 }
 EXPORT_SYMBOL(v4l2_ctrl_activate);
 
@@ -1242,15 +1305,21 @@ EXPORT_SYMBOL(v4l2_ctrl_activate);
    these controls. */
 void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed)
 {
+	bool old;
+
 	if (ctrl == NULL)
 		return;
 
+	v4l2_ctrl_lock(ctrl);
 	if (grabbed)
 		/* set V4L2_CTRL_FLAG_GRABBED */
-		set_bit(1, &ctrl->flags);
+		old = test_and_set_bit(1, &ctrl->flags);
 	else
 		/* clear V4L2_CTRL_FLAG_GRABBED */
-		clear_bit(1, &ctrl->flags);
+		old = test_and_clear_bit(1, &ctrl->flags);
+	if (old != grabbed)
+		send_event(NULL, ctrl, V4L2_EVENT_CTRL_CH_FLAGS);
+	v4l2_ctrl_unlock(ctrl);
 }
 EXPORT_SYMBOL(v4l2_ctrl_grab);
 
@@ -1956,3 +2025,39 @@ int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
 	return set_ctrl(NULL, ctrl, &val);
 }
 EXPORT_SYMBOL(v4l2_ctrl_s_ctrl);
+
+void v4l2_ctrl_add_fh(struct v4l2_ctrl_handler *hdl,
+		struct v4l2_ctrl_fh *ctrl_fh,
+		struct v4l2_event_subscription *sub)
+{
+	struct v4l2_ctrl *ctrl = v4l2_ctrl_find(hdl, sub->id);
+
+	v4l2_ctrl_lock(ctrl);
+	list_add_tail(&ctrl_fh->node, &ctrl->fhs);
+	if (ctrl->type != V4L2_CTRL_TYPE_CTRL_CLASS &&
+	    (sub->flags & V4L2_EVENT_SUB_FL_SEND_INITIAL)) {
+		struct v4l2_event ev;
+
+		fill_event(&ev, ctrl, V4L2_EVENT_CTRL_CH_VALUE |
+			V4L2_EVENT_CTRL_CH_FLAGS);
+		v4l2_event_queue_fh(ctrl_fh->fh, &ev);
+	}
+	v4l2_ctrl_unlock(ctrl);
+}
+EXPORT_SYMBOL(v4l2_ctrl_add_fh);
+
+void v4l2_ctrl_del_fh(struct v4l2_ctrl *ctrl, struct v4l2_fh *fh)
+{
+	struct v4l2_ctrl_fh *pos;
+
+	v4l2_ctrl_lock(ctrl);
+	list_for_each_entry(pos, &ctrl->fhs, node) {
+		if (pos->fh == fh) {
+			list_del(&pos->node);
+			kfree(pos);
+			break;
+		}
+	}
+	v4l2_ctrl_unlock(ctrl);
+}
+EXPORT_SYMBOL(v4l2_ctrl_del_fh);

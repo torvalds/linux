@@ -28,9 +28,10 @@
 /* forward references */
 struct v4l2_ctrl_handler;
 struct v4l2_ctrl;
-struct v4l2_fh;
 struct video_device;
 struct v4l2_subdev;
+struct v4l2_event_subscription;
+struct v4l2_fh;
 
 /** struct v4l2_ctrl_ops - The control operations that the driver has to provide.
   * @g_volatile_ctrl: Get a new value for this control. Generally only relevant
@@ -107,6 +108,7 @@ struct v4l2_ctrl_ops {
 struct v4l2_ctrl {
 	/* Administrative fields */
 	struct list_head node;
+	struct list_head fhs;
 	struct v4l2_ctrl_handler *handler;
 	struct v4l2_ctrl **cluster;
 	unsigned ncontrols;
@@ -178,6 +180,11 @@ struct v4l2_ctrl_handler {
 	struct v4l2_ctrl_ref **buckets;
 	u16 nr_of_buckets;
 	int error;
+};
+
+struct v4l2_ctrl_fh {
+	struct list_head node;
+	struct v4l2_fh *fh;
 };
 
 /** struct v4l2_ctrl_config - Control configuration structure.
@@ -425,9 +432,9 @@ struct v4l2_ctrl *v4l2_ctrl_find(struct v4l2_ctrl_handler *hdl, u32 id);
   * This sets or clears the V4L2_CTRL_FLAG_INACTIVE flag atomically.
   * Does nothing if @ctrl == NULL.
   * This will usually be called from within the s_ctrl op.
+  * The V4L2_EVENT_CTRL event will be generated afterwards.
   *
-  * This function can be called regardless of whether the control handler
-  * is locked or not.
+  * This function assumes that the control handler is locked.
   */
 void v4l2_ctrl_activate(struct v4l2_ctrl *ctrl, bool active);
 
@@ -437,11 +444,12 @@ void v4l2_ctrl_activate(struct v4l2_ctrl *ctrl, bool active);
   *
   * This sets or clears the V4L2_CTRL_FLAG_GRABBED flag atomically.
   * Does nothing if @ctrl == NULL.
+  * The V4L2_EVENT_CTRL event will be generated afterwards.
   * This will usually be called when starting or stopping streaming in the
   * driver.
   *
-  * This function can be called regardless of whether the control handler
-  * is locked or not.
+  * This function assumes that the control handler is not locked and will
+  * take the lock itself.
   */
 void v4l2_ctrl_grab(struct v4l2_ctrl *ctrl, bool grabbed);
 
@@ -485,6 +493,11 @@ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl);
   * This function is for integer type controls only.
   */
 int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
+
+void v4l2_ctrl_add_fh(struct v4l2_ctrl_handler *hdl,
+		struct v4l2_ctrl_fh *ctrl_fh,
+		struct v4l2_event_subscription *sub);
+void v4l2_ctrl_del_fh(struct v4l2_ctrl *ctrl, struct v4l2_fh *fh);
 
 /* Helpers for ioctl_ops. If hdl == NULL then they will all return -EINVAL. */
 int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc);
