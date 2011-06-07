@@ -842,32 +842,20 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 
 	BUG_ON(!IS_ROOT(dentry));
 
-	/* detach this root from the system */
-	dentry_lru_del(dentry);
-	__d_shrink(dentry);
-
 	for (;;) {
 		/* descend to the first leaf in the current subtree */
-		while (!list_empty(&dentry->d_subdirs)) {
-			struct dentry *loop;
-
-			/* this is a branch with children - detach all of them
-			 * from the system in one go */
-			list_for_each_entry(loop, &dentry->d_subdirs,
-					    d_u.d_child) {
-				dentry_lru_del(loop);
-				__d_shrink(loop);
-			}
-
-			/* move to the first child */
+		while (!list_empty(&dentry->d_subdirs))
 			dentry = list_entry(dentry->d_subdirs.next,
 					    struct dentry, d_u.d_child);
-		}
 
 		/* consume the dentries from this leaf up through its parents
 		 * until we find one with children or run out altogether */
 		do {
 			struct inode *inode;
+
+			/* detach from the system */
+			dentry_lru_del(dentry);
+			__d_shrink(dentry);
 
 			if (dentry->d_count != 0) {
 				printk(KERN_ERR
