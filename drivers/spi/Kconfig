@@ -371,11 +371,14 @@ config SPI_TI_SSP
 	  serial port.
 
 config SPI_TOPCLIFF_PCH
-	tristate "Topcliff PCH SPI Controller"
+	tristate "Intel EG20T PCH/OKI SEMICONDUCTOR ML7213 IOH SPI controller"
 	depends on PCI
 	help
 	  SPI driver for the Topcliff PCH (Platform Controller Hub) SPI bus
 	  used in some x86 embedded processors.
+
+	  This driver also supports the ML7213, a companion chip for the
+	  Atom E6xx series and compatible with the Intel EG20T PCH.
 
 config SPI_TXX9
 	tristate "Toshiba TXx9 SPI controller"
