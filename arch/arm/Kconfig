@@ -1875,10 +1875,6 @@ config CPU_FREQ_PXA
 	default y
 	select CPU_FREQ_DEFAULT_GOV_USERSPACE
 
-config CPU_FREQ_S3C64XX
-	bool "CPUfreq support for Samsung S3C64XX CPUs"
-	depends on CPU_FREQ && CPU_S3C6410
-
 config CPU_FREQ_S3C
 	bool
 	help
