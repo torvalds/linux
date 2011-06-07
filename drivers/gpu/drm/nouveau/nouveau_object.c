@@ -768,7 +768,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 			struct nouveau_gpuobj *sem = NULL;
 			struct nv50_display_crtc *dispc =
 				&nv50_display(dev)->crtc[i];
-			u64 offset = dispc->sem.bo->bo.mem.start << PAGE_SHIFT;
+			u64 offset = dispc->sem.bo->bo.offset;
 
 			ret = nouveau_gpuobj_dma_new(chan, 0x3d, offset, 0xfff,
 						     NV_MEM_ACCESS_RW,

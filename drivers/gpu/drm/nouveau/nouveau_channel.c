@@ -54,7 +54,7 @@ nouveau_channel_pushbuf_init(struct nouveau_channel *chan)
 	 * buffer resides, userspace can submit its own push buffers from
 	 * anywhere within the same memtype.
 	 */
-	chan->pushbuf_base = chan->pushbuf_bo->bo.mem.start << PAGE_SHIFT;
+	chan->pushbuf_base = chan->pushbuf_bo->bo.offset;
 	if (dev_priv->card_type >= NV_50) {
 		if (dev_priv->card_type < NV_C0) {
 			ret = nouveau_gpuobj_dma_new(chan,

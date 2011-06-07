@@ -122,7 +122,7 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 			target = NV_MEM_TARGET_VRAM;
 		else
 			target = NV_MEM_TARGET_GART;
-		offset  = chan->notifier_bo->bo.mem.start << PAGE_SHIFT;
+		offset  = chan->notifier_bo->bo.offset;
 	} else {
 		target = NV_MEM_TARGET_VM;
 		offset = chan->notifier_bo->vma.offset;

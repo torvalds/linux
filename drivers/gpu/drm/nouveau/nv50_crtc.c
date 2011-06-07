@@ -104,7 +104,7 @@ nv50_crtc_blank(struct nouveau_crtc *nv_crtc, bool blanked)
 		OUT_RING(evo, nv_crtc->lut.depth == 8 ?
 				NV50_EVO_CRTC_CLUT_MODE_OFF :
 				NV50_EVO_CRTC_CLUT_MODE_ON);
-		OUT_RING(evo, (nv_crtc->lut.nvbo->bo.mem.start << PAGE_SHIFT) >> 8);
+		OUT_RING(evo, nv_crtc->lut.nvbo->bo.offset >> 8);
 		if (dev_priv->chipset != 0x50) {
 			BEGIN_RING(evo, 0, NV84_EVO_CRTC(index, CLUT_DMA), 1);
 			OUT_RING(evo, NvEvoVRAM);
@@ -372,7 +372,7 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 
 	nouveau_bo_unmap(cursor);
 
-	nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.nvbo->bo.mem.start << PAGE_SHIFT);
+	nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.nvbo->bo.offset);
 	nv_crtc->cursor.show(nv_crtc, true);
 
 out:
@@ -546,7 +546,7 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 		}
 	}
 
-	nv_crtc->fb.offset = fb->nvbo->bo.mem.start << PAGE_SHIFT;
+	nv_crtc->fb.offset = fb->nvbo->bo.offset;
 	nv_crtc->fb.tile_flags = nouveau_bo_tile_layout(fb->nvbo);
 	nv_crtc->fb.cpp = drm_fb->bits_per_pixel / 8;
 	if (!nv_crtc->fb.blanked && dev_priv->chipset != 0x50) {

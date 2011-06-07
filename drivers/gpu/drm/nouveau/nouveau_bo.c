@@ -433,7 +433,6 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 				     TTM_MEMTYPE_FLAG_CMA;
 			man->available_caching = TTM_PL_MASK_CACHING;
 			man->default_caching = TTM_PL_FLAG_CACHED;
-			man->gpu_offset = dev_priv->gart_info.aper_base;
 			break;
 		default:
 			NV_ERROR(dev, "Unknown GART type: %d\n",

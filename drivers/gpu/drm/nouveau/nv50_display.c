@@ -484,7 +484,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	OUT_RING  (evo, 0x00000000);
 	OUT_RING  (evo, 0x00000000);
 	BEGIN_RING(evo, 0, 0x0800, 5);
-	OUT_RING  (evo, (nv_fb->nvbo->bo.mem.start << PAGE_SHIFT) >> 8);
+	OUT_RING  (evo, nv_fb->nvbo->bo.offset >> 8);
 	OUT_RING  (evo, 0);
 	OUT_RING  (evo, (fb->height << 16) | fb->width);
 	OUT_RING  (evo, nv_fb->r_pitch);

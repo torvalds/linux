@@ -154,7 +154,7 @@ nv50_evo_channel_init(struct nouveau_channel *evo)
 {
 	struct drm_device *dev = evo->dev;
 	int id = evo->id, ret, i;
-	u64 pushbuf = evo->pushbuf_bo->bo.mem.start << PAGE_SHIFT;
+	u64 pushbuf = evo->pushbuf_bo->bo.offset;
 	u32 tmp;
 
 	tmp = nv_rd32(dev, NV50_PDISPLAY_EVO_CTRL(id));
@@ -335,13 +335,12 @@ nv50_evo_create(struct drm_device *dev)
 		ret = nouveau_bo_new(dev, NULL, 4096, 0x1000, TTM_PL_FLAG_VRAM,
 				     0, 0x0000, &dispc->sem.bo);
 		if (!ret) {
-			offset = dispc->sem.bo->bo.mem.start << PAGE_SHIFT;
-
 			ret = nouveau_bo_pin(dispc->sem.bo, TTM_PL_FLAG_VRAM);
 			if (!ret)
 				ret = nouveau_bo_map(dispc->sem.bo);
 			if (ret)
 				nouveau_bo_ref(NULL, &dispc->sem.bo);
+			offset = dispc->sem.bo->bo.offset;
 		}
 
 		if (ret)
