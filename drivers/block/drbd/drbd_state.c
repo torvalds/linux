@@ -1574,7 +1574,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 			spin_unlock_irq(&connection->req_lock);
 		}
 	}
-	kref_put(&connection->kref, &conn_destroy);
+	kref_put(&connection->kref, drbd_destroy_connection);
 
 	conn_md_sync(connection);
 

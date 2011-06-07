@@ -117,7 +117,7 @@ module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0
 /* in 2.6.x, our device mapping and config info contains our virtual gendisks
  * as member "struct gendisk *vdisk;"
  */
-struct idr minors;
+struct idr drbd_devices;
 struct list_head drbd_connections;  /* list of struct drbd_connection */
 
 struct kmem_cache *drbd_request_cache;
@@ -364,7 +364,7 @@ restart:
 
 	/* Release mod reference taken when thread was started */
 
-	kref_put(&connection->kref, &conn_destroy);
+	kref_put(&connection->kref, drbd_destroy_connection);
 	module_put(THIS_MODULE);
 	return retval;
 }
@@ -416,7 +416,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 		if (IS_ERR(nt)) {
 			conn_err(connection, "Couldn't start thread\n");
 
-			kref_put(&connection->kref, &conn_destroy);
+			kref_put(&connection->kref, drbd_destroy_connection);
 			module_put(THIS_MODULE);
 			return false;
 		}
@@ -2158,7 +2158,7 @@ static void drbd_release_all_peer_reqs(struct drbd_device *device)
 }
 
 /* caution. no locking. */
-void drbd_minor_destroy(struct kref *kref)
+void drbd_destroy_device(struct kref *kref)
 {
 	struct drbd_device *device = container_of(kref, struct drbd_device, kref);
 	struct drbd_connection *connection = first_peer_device(device)->connection;
@@ -2195,7 +2195,7 @@ void drbd_minor_destroy(struct kref *kref)
 	kfree(first_peer_device(device));
 	kfree(device);
 
-	kref_put(&connection->kref, &conn_destroy);
+	kref_put(&connection->kref, drbd_destroy_connection);
 }
 
 /* One global retry thread, if we need to push back some bio and have it
@@ -2301,26 +2301,26 @@ static void drbd_cleanup(void)
 
 	drbd_genl_unregister();
 
-	idr_for_each_entry(&minors, device, i) {
-		idr_remove(&minors, device_to_minor(device));
+	idr_for_each_entry(&drbd_devices, device, i) {
+		idr_remove(&drbd_devices, device_to_minor(device));
 		idr_remove(&first_peer_device(device)->connection->volumes, device->vnr);
 		destroy_workqueue(device->submit.wq);
 		del_gendisk(device->vdisk);
 		/* synchronize_rcu(); No other threads running at this point */
-		kref_put(&device->kref, &drbd_minor_destroy);
+		kref_put(&device->kref, drbd_destroy_device);
 	}
 
 	/* not _rcu since, no other updater anymore. Genl already unregistered */
 	list_for_each_entry_safe(connection, tmp, &drbd_connections, connections) {
 		list_del(&connection->connections); /* not _rcu no proc, not other threads */
 		/* synchronize_rcu(); */
-		kref_put(&connection->kref, &conn_destroy);
+		kref_put(&connection->kref, drbd_destroy_connection);
 	}
 
 	drbd_destroy_mempools();
 	unregister_blkdev(DRBD_MAJOR, "drbd");
 
-	idr_destroy(&minors);
+	idr_destroy(&drbd_devices);
 
 	printk(KERN_INFO "drbd: module cleanup done.\n");
 }
@@ -2576,7 +2576,7 @@ fail:
 	return NULL;
 }
 
-void conn_destroy(struct kref *kref)
+void drbd_destroy_connection(struct kref *kref)
 {
 	struct drbd_connection *connection = container_of(kref, struct drbd_connection, kref);
 
@@ -2688,7 +2688,7 @@ enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigne
 	device->read_requests = RB_ROOT;
 	device->write_requests = RB_ROOT;
 
-	minor_got = idr_alloc(&minors, device, minor, minor + 1, GFP_KERNEL);
+	minor_got = idr_alloc(&drbd_devices, device, minor, minor + 1, GFP_KERNEL);
 	if (minor_got < 0) {
 		if (minor_got == -ENOSPC) {
 			err = ERR_MINOR_EXISTS;
@@ -2725,7 +2725,7 @@ enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigne
 out_idr_remove_vol:
 	idr_remove(&connection->volumes, vnr_got);
 out_idr_remove_minor:
-	idr_remove(&minors, minor_got);
+	idr_remove(&drbd_devices, minor_got);
 	synchronize_rcu();
 out_no_minor_idr:
 	drbd_bm_cleanup(device);
@@ -2736,7 +2736,7 @@ out_no_io_page:
 out_no_disk:
 	blk_cleanup_queue(q);
 out_no_q:
-	kref_put(&connection->kref, &conn_destroy);
+	kref_put(&connection->kref, drbd_destroy_connection);
 out_no_peer_device:
 	kfree(device);
 	return err;
@@ -2772,7 +2772,7 @@ int __init drbd_init(void)
 	init_waitqueue_head(&drbd_pp_wait);
 
 	drbd_proc = NULL; /* play safe for drbd_cleanup */
-	idr_init(&minors);
+	idr_init(&drbd_devices);
 
 	rwlock_init(&global_state_lock);
 	INIT_LIST_HEAD(&drbd_connections);
@@ -2863,7 +2863,7 @@ void conn_md_sync(struct drbd_connection *connection)
 		kref_get(&device->kref);
 		rcu_read_unlock();
 		drbd_md_sync(device);
-		kref_put(&device->kref, &drbd_minor_destroy);
+		kref_put(&device->kref, drbd_destroy_device);
 		rcu_read_lock();
 	}
 	rcu_read_unlock();

@@ -166,7 +166,7 @@ drbd_insert_fault(struct drbd_device *device, unsigned int type) {
 #define div_floor(A, B) ((A)/(B))
 
 extern struct ratelimit_state drbd_ratelimit_state;
-extern struct idr minors; /* RCU, updates: genl_lock() */
+extern struct idr drbd_devices; /* RCU, updates: genl_lock() */
 extern struct list_head drbd_connections; /* RCU, updates: genl_lock() */
 
 extern const char *cmdname(enum drbd_packet cmd);
@@ -771,7 +771,7 @@ struct drbd_device {
 
 static inline struct drbd_device *minor_to_device(unsigned int minor)
 {
-	return (struct drbd_device *)idr_find(&minors, minor);
+	return (struct drbd_device *)idr_find(&drbd_devices, minor);
 }
 
 static inline struct drbd_peer_device *first_peer_device(struct drbd_device *device)
@@ -1175,11 +1175,11 @@ extern rwlock_t global_state_lock;
 
 extern int conn_lowest_minor(struct drbd_connection *connection);
 enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigned int minor, int vnr);
-extern void drbd_minor_destroy(struct kref *kref);
+extern void drbd_destroy_device(struct kref *kref);
 
 extern int set_resource_options(struct drbd_connection *connection, struct res_opts *res_opts);
 extern struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts);
-extern void conn_destroy(struct kref *kref);
+extern void drbd_destroy_connection(struct kref *kref);
 struct drbd_connection *conn_get_by_name(const char *name);
 extern struct drbd_connection *conn_get_by_addrs(void *my_addr, int my_addr_len,
 					    void *peer_addr, int peer_addr_len);

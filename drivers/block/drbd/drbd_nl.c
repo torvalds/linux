@@ -45,8 +45,8 @@
 // int drbd_adm_create_resource(struct sk_buff *skb, struct genl_info *info);
 // int drbd_adm_delete_resource(struct sk_buff *skb, struct genl_info *info);
 
-int drbd_adm_add_minor(struct sk_buff *skb, struct genl_info *info);
-int drbd_adm_delete_minor(struct sk_buff *skb, struct genl_info *info);
+int drbd_adm_new_minor(struct sk_buff *skb, struct genl_info *info);
+int drbd_adm_del_minor(struct sk_buff *skb, struct genl_info *info);
 
 int drbd_adm_new_resource(struct sk_buff *skb, struct genl_info *info);
 int drbd_adm_del_resource(struct sk_buff *skb, struct genl_info *info);
@@ -274,7 +274,7 @@ fail:
 static int drbd_adm_finish(struct genl_info *info, int retcode)
 {
 	if (adm_ctx.connection) {
-		kref_put(&adm_ctx.connection->kref, &conn_destroy);
+		kref_put(&adm_ctx.connection->kref, drbd_destroy_connection);
 		adm_ctx.connection = NULL;
 	}
 
@@ -517,7 +517,7 @@ static int _try_outdate_peer_async(void *data)
 
 	conn_try_outdate_peer(connection);
 
-	kref_put(&connection->kref, &conn_destroy);
+	kref_put(&connection->kref, drbd_destroy_connection);
 	return 0;
 }
 
@@ -529,7 +529,7 @@ void conn_try_outdate_peer_async(struct drbd_connection *connection)
 	opa = kthread_run(_try_outdate_peer_async, connection, "drbd_async_h");
 	if (IS_ERR(opa)) {
 		conn_err(connection, "out of mem, failed to invoke fence-peer helper\n");
-		kref_put(&connection->kref, &conn_destroy);
+		kref_put(&connection->kref, drbd_destroy_connection);
 	}
 }
 
@@ -2924,7 +2924,7 @@ static int get_one_status(struct sk_buff *skb, struct netlink_callback *cb)
 	 * on each iteration.
 	 */
 
-	/* synchronize with conn_create()/conn_destroy() */
+	/* synchronize with conn_create()/drbd_destroy_connection() */
 	rcu_read_lock();
 	/* revalidate iterator position */
 	list_for_each_entry_rcu(tmp, &drbd_connections, connections) {
@@ -3056,7 +3056,7 @@ int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb)
 	if (!connection)
 		return -ENODEV;
 
-	kref_put(&connection->kref, &conn_destroy); /* get_one_status() (re)validates connection by itself */
+	kref_put(&connection->kref, drbd_destroy_connection); /* get_one_status() (re)validates connection by itself */
 
 	/* prime iterators, and set "filter" mode mark:
 	 * only dump this connection. */
@@ -3266,7 +3266,7 @@ out:
 	return 0;
 }
 
-int drbd_adm_add_minor(struct sk_buff *skb, struct genl_info *info)
+int drbd_adm_new_minor(struct sk_buff *skb, struct genl_info *info)
 {
 	struct drbd_genlmsghdr *dh = info->userhdr;
 	enum drbd_ret_code retcode;
@@ -3303,7 +3303,7 @@ out:
 	return 0;
 }
 
-static enum drbd_ret_code adm_delete_minor(struct drbd_device *device)
+static enum drbd_ret_code adm_del_minor(struct drbd_device *device)
 {
 	if (device->state.disk == D_DISKLESS &&
 	    /* no need to be device->state.conn == C_STANDALONE &&
@@ -3313,17 +3313,17 @@ static enum drbd_ret_code adm_delete_minor(struct drbd_device *device)
 		_drbd_request_state(device, NS(conn, C_WF_REPORT_PARAMS),
 				    CS_VERBOSE + CS_WAIT_COMPLETE);
 		idr_remove(&first_peer_device(device)->connection->volumes, device->vnr);
-		idr_remove(&minors, device_to_minor(device));
+		idr_remove(&drbd_devices, device_to_minor(device));
 		destroy_workqueue(device->submit.wq);
 		del_gendisk(device->vdisk);
 		synchronize_rcu();
-		kref_put(&device->kref, &drbd_minor_destroy);
+		kref_put(&device->kref, drbd_destroy_device);
 		return NO_ERROR;
 	} else
 		return ERR_MINOR_CONFIGURED;
 }
 
-int drbd_adm_delete_minor(struct sk_buff *skb, struct genl_info *info)
+int drbd_adm_del_minor(struct sk_buff *skb, struct genl_info *info)
 {
 	enum drbd_ret_code retcode;
 
@@ -3333,7 +3333,7 @@ int drbd_adm_delete_minor(struct sk_buff *skb, struct genl_info *info)
 	if (retcode != NO_ERROR)
 		goto out;
 
-	retcode = adm_delete_minor(adm_ctx.device);
+	retcode = adm_del_minor(adm_ctx.device);
 out:
 	drbd_adm_finish(info, retcode);
 	return 0;
@@ -3389,7 +3389,7 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 
 	/* delete volumes */
 	idr_for_each_entry(&adm_ctx.connection->volumes, device, i) {
-		retcode = adm_delete_minor(device);
+		retcode = adm_del_minor(device);
 		if (retcode != NO_ERROR) {
 			/* "can not happen" */
 			drbd_msg_put_info("failed to delete volume");
@@ -3401,7 +3401,7 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 	if (conn_lowest_minor(adm_ctx.connection) < 0) {
 		list_del_rcu(&adm_ctx.connection->connections);
 		synchronize_rcu();
-		kref_put(&adm_ctx.connection->kref, &conn_destroy);
+		kref_put(&adm_ctx.connection->kref, drbd_destroy_connection);
 
 		retcode = NO_ERROR;
 	} else {
@@ -3428,7 +3428,7 @@ int drbd_adm_del_resource(struct sk_buff *skb, struct genl_info *info)
 	if (conn_lowest_minor(adm_ctx.connection) < 0) {
 		list_del_rcu(&adm_ctx.connection->connections);
 		synchronize_rcu();
-		kref_put(&adm_ctx.connection->kref, &conn_destroy);
+		kref_put(&adm_ctx.connection->kref, drbd_destroy_connection);
 
 		retcode = NO_ERROR;
 	} else {

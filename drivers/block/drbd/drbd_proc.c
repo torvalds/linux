@@ -236,7 +236,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 	*/
 
 	rcu_read_lock();
-	idr_for_each_entry(&minors, device, i) {
+	idr_for_each_entry(&drbd_devices, device, i) {
 		if (prev_i != i - 1)
 			seq_printf(seq, "\n");
 		prev_i = i;

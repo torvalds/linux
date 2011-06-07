@@ -1058,7 +1058,7 @@ randomize:
 			clear_bit(DISCARD_MY_DATA, &device->flags);
 
 		drbd_connected(device);
-		kref_put(&device->kref, &drbd_minor_destroy);
+		kref_put(&device->kref, drbd_destroy_device);
 		rcu_read_lock();
 	}
 	rcu_read_unlock();
@@ -1166,7 +1166,7 @@ static void drbd_flush(struct drbd_connection *connection)
 				drbd_bump_write_ordering(connection, WO_drain_io);
 			}
 			put_ldev(device);
-			kref_put(&device->kref, &drbd_minor_destroy);
+			kref_put(&device->kref, drbd_destroy_device);
 
 			rcu_read_lock();
 			if (rv)
@@ -1409,7 +1409,7 @@ static void conn_wait_active_ee_empty(struct drbd_connection *connection)
 		kref_get(&device->kref);
 		rcu_read_unlock();
 		drbd_wait_ee_list_empty(device, &device->active_ee);
-		kref_put(&device->kref, &drbd_minor_destroy);
+		kref_put(&device->kref, drbd_destroy_device);
 		rcu_read_lock();
 	}
 	rcu_read_unlock();
@@ -4459,7 +4459,7 @@ static void conn_disconnect(struct drbd_connection *connection)
 		kref_get(&device->kref);
 		rcu_read_unlock();
 		drbd_disconnected(device);
-		kref_put(&device->kref, &drbd_minor_destroy);
+		kref_put(&device->kref, &drbd_destroy_device);
 		rcu_read_lock();
 	}
 	rcu_read_unlock();
@@ -5199,10 +5199,10 @@ static int connection_finish_peer_reqs(struct drbd_connection *connection)
 			kref_get(&device->kref);
 			rcu_read_unlock();
 			if (drbd_finish_peer_reqs(device)) {
-				kref_put(&device->kref, &drbd_minor_destroy);
+				kref_put(&device->kref, drbd_destroy_device);
 				return 1;
 			}
-			kref_put(&device->kref, &drbd_minor_destroy);
+			kref_put(&device->kref, drbd_destroy_device);
 			rcu_read_lock();
 		}
 		set_bit(SIGNAL_ASENDER, &connection->flags);
