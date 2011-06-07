@@ -870,7 +870,7 @@ static void wl1271_flush_deferred_work(struct wl1271 *wl)
 
 	/* Return sent skbs to the network stack */
 	while ((skb = skb_dequeue(&wl->deferred_tx_queue)))
-		ieee80211_tx_status(wl->hw, skb);
+		ieee80211_tx_status_ni(wl->hw, skb);
 }
 
 static void wl1271_netstack_work(struct work_struct *work)

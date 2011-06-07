@@ -782,7 +782,7 @@ void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid)
 			info = IEEE80211_SKB_CB(skb);
 			info->status.rates[0].idx = -1;
 			info->status.rates[0].count = 0;
-			ieee80211_tx_status(wl->hw, skb);
+			ieee80211_tx_status_ni(wl->hw, skb);
 			total++;
 		}
 	}
@@ -820,7 +820,7 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 					info = IEEE80211_SKB_CB(skb);
 					info->status.rates[0].idx = -1;
 					info->status.rates[0].count = 0;
-					ieee80211_tx_status(wl->hw, skb);
+					ieee80211_tx_status_ni(wl->hw, skb);
 				}
 			}
 		}
@@ -863,7 +863,7 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 			info->status.rates[0].idx = -1;
 			info->status.rates[0].count = 0;
 
-			ieee80211_tx_status(wl->hw, skb);
+			ieee80211_tx_status_ni(wl->hw, skb);
 		}
 	}
 }

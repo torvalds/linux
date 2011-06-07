@@ -204,7 +204,7 @@ static void wl1271_ps_filter_frames(struct wl1271 *wl, u8 hlid)
 			info = IEEE80211_SKB_CB(skb);
 			info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 			info->status.rates[0].idx = -1;
-			ieee80211_tx_status(wl->hw, skb);
+			ieee80211_tx_status_ni(wl->hw, skb);
 			filtered++;
 		}
 	}
