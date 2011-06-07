@@ -17,6 +17,7 @@
 
 #include <linux/completion.h>
 #include <linux/interrupt.h>
+#include <linux/list.h>
 
 /*
  * Register values.
@@ -249,6 +250,12 @@ enum wm831x_parent {
 	WM8326 = 0x8326,
 };
 
+struct wm831x;
+enum wm831x_auxadc;
+
+typedef int (*wm831x_auxadc_read_fn)(struct wm831x *wm831x,
+				     enum wm831x_auxadc input);
+
 struct wm831x {
 	struct mutex io_lock;
 
@@ -277,8 +284,9 @@ struct wm831x {
 	int gpio_update[WM831X_NUM_GPIO_REGS];
 
 	struct mutex auxadc_lock;
-	struct completion auxadc_done;
-	u16 auxadc_data;
+	struct list_head auxadc_pending;
+	u16 auxadc_active;
+	wm831x_auxadc_read_fn auxadc_read;
 
 	/* The WM831x has a security key blocking access to certain
 	 * registers.  The mutex is taken by the accessors for locking
@@ -305,5 +313,6 @@ void wm831x_device_exit(struct wm831x *wm831x);
 int wm831x_device_suspend(struct wm831x *wm831x);
 int wm831x_irq_init(struct wm831x *wm831x, int irq);
 void wm831x_irq_exit(struct wm831x *wm831x);
+void wm831x_auxadc_init(struct wm831x *wm831x);
 
 #endif
