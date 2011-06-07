@@ -53,7 +53,6 @@ struct mxs_gpio_port {
 	void __iomem *base;
 	int id;
 	int irq;
-	int irq_high;
 	int virtual_irq_start;
 	struct bgpio_chip bgc;
 };
@@ -174,21 +173,12 @@ static void mxs_gpio_irq_handler(u32 irq, struct irq_desc *desc)
  */
 static int mxs_gpio_set_wake_irq(struct irq_data *d, unsigned int enable)
 {
-	u32 gpio = irq_to_gpio(d->irq);
-	u32 gpio_idx = gpio & 0x1f;
 	struct mxs_gpio_port *port = irq_data_get_irq_chip_data(d);
 
-	if (enable) {
-		if (port->irq_high && (gpio_idx >= 16))
-			enable_irq_wake(port->irq_high);
-		else
-			enable_irq_wake(port->irq);
-	} else {
-		if (port->irq_high && (gpio_idx >= 16))
-			disable_irq_wake(port->irq_high);
-		else
-			disable_irq_wake(port->irq);
-	}
+	if (enable)
+		enable_irq_wake(port->irq);
+	else
+		disable_irq_wake(port->irq);
 
 	return 0;
 }
