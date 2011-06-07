@@ -1483,11 +1483,11 @@ static long __video_do_ioctl(struct file *file,
 		dbgarg(cmd, "id=0x%x, value=%d\n", p->id, p->value);
 
 		if (vfh && vfh->ctrl_handler) {
-			ret = v4l2_s_ctrl(vfh->ctrl_handler, p);
+			ret = v4l2_s_ctrl(vfh, vfh->ctrl_handler, p);
 			break;
 		}
 		if (vfd->ctrl_handler) {
-			ret = v4l2_s_ctrl(vfd->ctrl_handler, p);
+			ret = v4l2_s_ctrl(NULL, vfd->ctrl_handler, p);
 			break;
 		}
 		if (ops->vidioc_s_ctrl) {
@@ -1532,9 +1532,9 @@ static long __video_do_ioctl(struct file *file,
 			break;
 		v4l_print_ext_ctrls(cmd, vfd, p, 1);
 		if (vfh && vfh->ctrl_handler)
-			ret = v4l2_s_ext_ctrls(vfh->ctrl_handler, p);
+			ret = v4l2_s_ext_ctrls(vfh, vfh->ctrl_handler, p);
 		else if (vfd->ctrl_handler)
-			ret = v4l2_s_ext_ctrls(vfd->ctrl_handler, p);
+			ret = v4l2_s_ext_ctrls(NULL, vfd->ctrl_handler, p);
 		else if (check_ext_ctrls(p, 0))
 			ret = ops->vidioc_s_ext_ctrls(file, fh, p);
 		break;

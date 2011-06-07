@@ -657,7 +657,8 @@ static int ctrl_is_volatile(struct v4l2_ext_control *c,
 }
 
 /* Copy the new value to the current value. */
-static void new_to_cur(struct v4l2_ctrl *ctrl, bool update_inactive)
+static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
+						bool update_inactive)
 {
 	if (ctrl == NULL)
 		return;
@@ -1717,7 +1718,8 @@ EXPORT_SYMBOL(v4l2_ctrl_g_ctrl);
 /* Core function that calls try/s_ctrl and ensures that the new value is
    copied to the current value on a set.
    Must be called with ctrl->handler->lock held. */
-static int try_or_set_control_cluster(struct v4l2_ctrl *master, bool set)
+static int try_or_set_control_cluster(struct v4l2_fh *fh,
+					struct v4l2_ctrl *master, bool set)
 {
 	bool update_flag;
 	bool try = !set;
@@ -1768,12 +1770,13 @@ static int try_or_set_control_cluster(struct v4l2_ctrl *master, bool set)
 
 	update_flag = is_cur_manual(master) != is_new_manual(master);
 	for (i = 0; i < master->ncontrols; i++)
-		new_to_cur(master->cluster[i], update_flag && i > 0);
+		new_to_cur(fh, master->cluster[i], update_flag && i > 0);
 	return 0;
 }
 
 /* Try or set controls. */
-static int try_or_set_ext_ctrls(struct v4l2_ctrl_handler *hdl,
+static int try_or_set_ext_ctrls(struct v4l2_fh *fh,
+				struct v4l2_ctrl_handler *hdl,
 				struct v4l2_ext_controls *cs,
 				struct ctrl_helper *helpers,
 				bool set)
@@ -1818,7 +1821,7 @@ static int try_or_set_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 		ret = cluster_walk(i, cs, helpers, user_to_new);
 
 		if (!ret)
-			ret = try_or_set_control_cluster(master, set);
+			ret = try_or_set_control_cluster(fh, master, set);
 
 		/* Copy the new values back to userspace. */
 		if (!ret)
@@ -1831,7 +1834,7 @@ static int try_or_set_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 }
 
 /* Try or try-and-set controls */
-static int try_set_ext_ctrls(struct v4l2_ctrl_handler *hdl,
+static int try_set_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 			     struct v4l2_ext_controls *cs,
 			     bool set)
 {
@@ -1858,7 +1861,7 @@ static int try_set_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 
 	/* First 'try' all controls and abort on error */
 	if (!ret)
-		ret = try_or_set_ext_ctrls(hdl, cs, helpers, false);
+		ret = try_or_set_ext_ctrls(NULL, hdl, cs, helpers, false);
 	/* If this is a 'set' operation and the initial 'try' failed,
 	   then set error_idx to count to tell the application that no
 	   controls changed value yet. */
@@ -1868,7 +1871,7 @@ static int try_set_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 		/* Reset 'handled' state */
 		for (i = 0; i < cs->count; i++)
 			helpers[i].handled = false;
-		ret = try_or_set_ext_ctrls(hdl, cs, helpers, true);
+		ret = try_or_set_ext_ctrls(fh, hdl, cs, helpers, true);
 	}
 
 	if (cs->count > ARRAY_SIZE(helper))
@@ -1878,30 +1881,31 @@ static int try_set_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 
 int v4l2_try_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs)
 {
-	return try_set_ext_ctrls(hdl, cs, false);
+	return try_set_ext_ctrls(NULL, hdl, cs, false);
 }
 EXPORT_SYMBOL(v4l2_try_ext_ctrls);
 
-int v4l2_s_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs)
+int v4l2_s_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
+					struct v4l2_ext_controls *cs)
 {
-	return try_set_ext_ctrls(hdl, cs, true);
+	return try_set_ext_ctrls(fh, hdl, cs, true);
 }
 EXPORT_SYMBOL(v4l2_s_ext_ctrls);
 
 int v4l2_subdev_try_ext_ctrls(struct v4l2_subdev *sd, struct v4l2_ext_controls *cs)
 {
-	return try_set_ext_ctrls(sd->ctrl_handler, cs, false);
+	return try_set_ext_ctrls(NULL, sd->ctrl_handler, cs, false);
 }
 EXPORT_SYMBOL(v4l2_subdev_try_ext_ctrls);
 
 int v4l2_subdev_s_ext_ctrls(struct v4l2_subdev *sd, struct v4l2_ext_controls *cs)
 {
-	return try_set_ext_ctrls(sd->ctrl_handler, cs, true);
+	return try_set_ext_ctrls(NULL, sd->ctrl_handler, cs, true);
 }
 EXPORT_SYMBOL(v4l2_subdev_s_ext_ctrls);
 
 /* Helper function for VIDIOC_S_CTRL compatibility */
-static int set_ctrl(struct v4l2_ctrl *ctrl, s32 *val)
+static int set_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, s32 *val)
 {
 	struct v4l2_ctrl *master = ctrl->cluster[0];
 	int ret;
@@ -1916,15 +1920,16 @@ static int set_ctrl(struct v4l2_ctrl *ctrl, s32 *val)
 
 	ctrl->val = *val;
 	ctrl->is_new = 1;
-	ret = try_or_set_control_cluster(master, false);
+	ret = try_or_set_control_cluster(NULL, master, false);
 	if (!ret)
-		ret = try_or_set_control_cluster(master, true);
+		ret = try_or_set_control_cluster(fh, master, true);
 	*val = ctrl->cur.val;
 	v4l2_ctrl_unlock(ctrl);
 	return ret;
 }
 
-int v4l2_s_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_control *control)
+int v4l2_s_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
+					struct v4l2_control *control)
 {
 	struct v4l2_ctrl *ctrl = v4l2_ctrl_find(hdl, control->id);
 
@@ -1934,13 +1939,13 @@ int v4l2_s_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_control *control)
 	if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
 		return -EACCES;
 
-	return set_ctrl(ctrl, &control->value);
+	return set_ctrl(fh, ctrl, &control->value);
 }
 EXPORT_SYMBOL(v4l2_s_ctrl);
 
 int v4l2_subdev_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *control)
 {
-	return v4l2_s_ctrl(sd->ctrl_handler, control);
+	return v4l2_s_ctrl(NULL, sd->ctrl_handler, control);
 }
 EXPORT_SYMBOL(v4l2_subdev_s_ctrl);
 
@@ -1948,6 +1953,6 @@ int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
 {
 	/* It's a driver bug if this happens. */
 	WARN_ON(!type_is_int(ctrl));
-	return set_ctrl(ctrl, &val);
+	return set_ctrl(NULL, ctrl, &val);
 }
 EXPORT_SYMBOL(v4l2_ctrl_s_ctrl);
