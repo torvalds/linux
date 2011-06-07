@@ -38,9 +38,9 @@
 #include "sam9_smc.h"
 #include "generic.h"
 
-static void __init gsia18s_map_io(void)
+static void __init gsia18s_init_early(void)
 {
-	stamp9g20_map_io();
+	stamp9g20_init_early();
 
 	/*
 	 * USART0 on ttyS1 (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI).
@@ -576,9 +576,9 @@ static void __init gsia18s_board_init(void)
 }
 
 MACHINE_START(GSIA18S, "GS_IA18_S")
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91sam926x_timer,
-	.map_io		= gsia18s_map_io,
+	.map_io		= at91sam9260_map_io,
+	.init_early	= gsia18s_init_early,
 	.init_irq	= init_irq,
 	.init_machine	= gsia18s_board_init,
 MACHINE_END

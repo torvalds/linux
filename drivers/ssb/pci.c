@@ -662,7 +662,6 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 static int ssb_pci_sprom_get(struct ssb_bus *bus,
 			     struct ssb_sprom *sprom)
 {
-	const struct ssb_sprom *fallback;
 	int err;
 	u16 *buf;
 
@@ -670,7 +669,7 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 		ssb_printk(KERN_ERR PFX "No SPROM available!\n");
 		return -ENODEV;
 	}
-	if (bus->chipco.dev) {	/* can be unavailible! */
+	if (bus->chipco.dev) {	/* can be unavailable! */
 		/*
 		 * get SPROM offset: SSB_SPROM_BASE1 except for
 		 * chipcommon rev >= 31 or chip ID is 0x4312 and
@@ -707,10 +706,17 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 		if (err) {
 			/* All CRC attempts failed.
 			 * Maybe there is no SPROM on the device?
-			 * If we have a fallback, use that. */
-			fallback = ssb_get_fallback_sprom();
-			if (fallback) {
-				memcpy(sprom, fallback, sizeof(*sprom));
+			 * Now we ask the arch code if there is some sprom
+			 * available for this device in some other storage */
+			err = ssb_fill_sprom_with_fallback(bus, sprom);
+			if (err) {
+				ssb_printk(KERN_WARNING PFX "WARNING: Using"
+					   " fallback SPROM failed (err %d)\n",
+					   err);
+			} else {
+				ssb_dprintk(KERN_DEBUG PFX "Using SPROM"
+					    " revision %d provided by"
+					    " platform.\n", sprom->revision);
 				err = 0;
 				goto out_free;
 			}

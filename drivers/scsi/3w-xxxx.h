@@ -8,7 +8,7 @@
 
    Copyright (C) 1999-2010 3ware Inc.
 
-   Kernel compatiblity By:	Andre Hedrick <andre@suse.com>
+   Kernel compatibility By:	Andre Hedrick <andre@suse.com>
    Non-Copyright (C) 2000	Andre Hedrick <andre@suse.com>
 
    This program is free software; you can redistribute it and/or modify

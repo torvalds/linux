@@ -139,7 +139,7 @@ tapechar_read(struct file *filp, char __user *data, size_t count, loff_t *ppos)
 	/*
 	 * If the tape isn't terminated yet, do it now. And since we then
 	 * are at the end of the tape there wouldn't be anything to read
-	 * anyways. So we return immediatly.
+	 * anyways. So we return immediately.
 	 */
 	if(device->required_tapemarks) {
 		return tape_std_terminate_write(device);

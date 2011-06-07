@@ -43,8 +43,8 @@ typedef enum {
     PN15_PATTERN
 }TX_DATA_PATTERN;
 
-/* Continous tx
-   mode : TCMD_CONT_TX_OFF - Disabling continous tx
+/* Continuous tx
+   mode : TCMD_CONT_TX_OFF - Disabling continuous tx
           TCMD_CONT_TX_SINE - Enable continuous unmodulated tx
           TCMD_CONT_TX_FRAME- Enable continuous modulated tx
    freq : Channel freq in Mhz. (e.g 2412 for channel 1 in 11 g)

@@ -43,12 +43,12 @@
 
 							/* Error detection via CRC */
 #define R592_STATUS_SEND_ERR		(1 << 24)	/* Send failed */
-#define R592_STATUS_RECV_ERR		(1 << 25)	/* Recieve failed */
+#define R592_STATUS_RECV_ERR		(1 << 25)	/* Receive failed */
 
 							/* Card state */
-#define R592_STATUS_RDY			(1 << 28)	/* RDY signal recieved */
+#define R592_STATUS_RDY			(1 << 28)	/* RDY signal received */
 #define R592_STATUS_CED			(1 << 29)	/* INT: Command done (serial mode)*/
-#define R592_STATUS_SFIFO_INPUT		(1 << 30)	/* Small fifo recieved data*/
+#define R592_STATUS_SFIFO_INPUT		(1 << 30)	/* Small fifo received data*/
 
 #define R592_SFIFO_SIZE			32		/* total size of small fifo is 32 bytes */
 #define R592_SFIFO_PACKET		8		/* packet size of small fifo */

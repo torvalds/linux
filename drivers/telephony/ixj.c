@@ -169,7 +169,7 @@
  * Added support for Linux 2.4.x kernels.
  *
  * Revision 3.77  2001/01/09 04:00:52  eokerson
- * Linetest will now test the line, even if it has previously succeded.
+ * Linetest will now test the line, even if it has previously succeeded.
  *
  * Revision 3.76  2001/01/08 19:27:00  eokerson
  * Fixed problem with standard cable on Internet PhoneCARD.
@@ -352,7 +352,7 @@ static void ixj_fsk_alloc(IXJ *j)
 		} else {
 			j->fsksize = 8000;
 			if(ixjdebug & 0x0200) {
-				printk("IXJ phone%d - allocate succeded\n", j->board);
+				printk("IXJ phone%d - allocate succeeded\n", j->board);
 			}
 		}
 	}
@@ -487,7 +487,7 @@ DSPbase +
 8-9		Hardware Status Register			Read Only
 A-B		Hardware Control Register			Read Write
 C-D Host Transmit (Write) Data Buffer Access Port (buffer input)Write Only
-E-F Host Recieve (Read) Data Buffer Access Port (buffer input)	Read Only
+E-F Host Receive (Read) Data Buffer Access Port (buffer input)	Read Only
 ************************************************************************/
 
 static inline void ixj_read_HSR(IXJ *j)
@@ -4195,7 +4195,7 @@ static void ixj_aec_start(IXJ *j, int level)
 			ixj_WriteDSPCommand(0xE338, j);	/* Set Echo Suppresser Attenuation to 0dB */
 
 			/* Now we can set the AGC initial parameters and turn it on */
-			ixj_WriteDSPCommand(0xCF90, j);	/* Set AGC Minumum gain */
+			ixj_WriteDSPCommand(0xCF90, j);	/* Set AGC Minimum gain */
 			ixj_WriteDSPCommand(0x0020, j);	/* to 0.125 (-18dB) */
 	
 			ixj_WriteDSPCommand(0xCF91, j);	/* Set AGC Maximum gain */

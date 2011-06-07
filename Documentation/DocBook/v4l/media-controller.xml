@@ -78,9 +78,9 @@
 <appendix id="media-user-func">
   <title>Function Reference</title>
   <!-- Keep this alphabetically sorted. -->
-  &sub-media-open;
-  &sub-media-close;
-  &sub-media-ioctl;
+  &sub-media-func-open;
+  &sub-media-func-close;
+  &sub-media-func-ioctl;
   <!-- All ioctls go here. -->
   &sub-media-ioc-device-info;
   &sub-media-ioc-enum-entities;

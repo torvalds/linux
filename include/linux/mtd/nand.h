@@ -237,9 +237,9 @@ typedef enum {
  * If passed additionally to NAND_USE_FLASH_BBT then BBT code will not touch
  * the OOB area.
  */
-#define NAND_USE_FLASH_BBT_NO_OOB	0x00100000
+#define NAND_USE_FLASH_BBT_NO_OOB	0x00800000
 /* Create an empty BBT with no vendor information if the BBT is available */
-#define NAND_CREATE_EMPTY_BBT		0x00200000
+#define NAND_CREATE_EMPTY_BBT		0x01000000
 
 /* Options set by nand scan */
 /* Nand scan has allocated controller struct */
@@ -416,9 +416,9 @@ struct nand_buffers {
  * @select_chip:	[REPLACEABLE] select chip nr
  * @block_bad:		[REPLACEABLE] check, if the block is bad
  * @block_markbad:	[REPLACEABLE] mark the block bad
- * @cmd_ctrl:		[BOARDSPECIFIC] hardwarespecific funtion for controlling
+ * @cmd_ctrl:		[BOARDSPECIFIC] hardwarespecific function for controlling
  *			ALE/CLE/nCE. Also used to write command and address
- * @init_size:		[BOARDSPECIFIC] hardwarespecific funtion for setting
+ * @init_size:		[BOARDSPECIFIC] hardwarespecific function for setting
  *			mtd->oobsize, mtd->writesize and so on.
  *			@id_data contains the 8 bytes values of NAND_CMD_READID.
  *			Return with the bus width.
@@ -437,7 +437,7 @@ struct nand_buffers {
  * @erase_cmd:		[INTERN] erase command write function, selectable due
  *			to AND support.
  * @scan_bbt:		[REPLACEABLE] function to scan bad block table
- * @chip_delay:		[BOARDSPECIFIC] chip dependent delay for transfering
+ * @chip_delay:		[BOARDSPECIFIC] chip dependent delay for transferring
  *			data from array to read regs (tR).
  * @state:		[INTERN] the current state of the NAND device
  * @oob_poi:		poison value buffer

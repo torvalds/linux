@@ -1,7 +1,7 @@
 /*
  * sgiseeq.c: Seeq8003 ethernet driver for SGI machines.
  *
- * Copyright (C) 1996 David S. Miller (dm@engr.sgi.com)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  */
 
 #undef DEBUG
@@ -33,7 +33,7 @@ static char *sgiseeqstr = "SGI Seeq8003";
  * with that in mind, I've decided to make this driver look completely like a
  * stupid Lance from a driver architecture perspective.  Only difference is that
  * here our "ring buffer" looks and acts like a real Lance one does but is
- * layed out like how the HPC DMA and the Seeq want it to.  You'd be surprised
+ * laid out like how the HPC DMA and the Seeq want it to.  You'd be surprised
  * how a stupid idea like this can pay off in performance, not to mention
  * making this driver 2,000 times easier to write. ;-)
  */
@@ -77,7 +77,7 @@ struct sgiseeq_tx_desc {
 };
 
 /*
- * Warning: This structure is layed out in a certain way because HPC dma
+ * Warning: This structure is laid out in a certain way because HPC dma
  *          descriptors must be 8-byte aligned.  So don't touch this without
  *          some care.
  */

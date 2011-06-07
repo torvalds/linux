@@ -812,12 +812,9 @@ static int chip_ready (struct map_info *map, struct flchip *chip, unsigned long 
 			        break;
 
 			if (time_after(jiffies, timeo)) {
-				/* Urgh. Resume and pretend we weren't here.  */
-				map_write(map, CMD(0xd0), adr);
-				/* Make sure we're in 'read status' mode if it had finished */
-				map_write(map, CMD(0x70), adr);
-				chip->state = FL_ERASING;
-				chip->oldstate = FL_READY;
+				/* Urgh. Resume and pretend we weren't here.
+				 * Make sure we're in 'read status' mode if it had finished */
+				put_chip(map, chip, adr);
 				printk(KERN_ERR "%s: Chip not ready after erase "
 				       "suspended: status = 0x%lx\n", map->name, status.x[0]);
 				return -EIO;
@@ -997,7 +994,6 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
 
 	switch(chip->oldstate) {
 	case FL_ERASING:
-		chip->state = chip->oldstate;
 		/* What if one interleaved chip has finished and the
 		   other hasn't? The old code would leave the finished
 		   one in READY mode. That's bad, and caused -EROFS
@@ -1247,12 +1243,12 @@ static int inval_cache_and_wait_for_operation(
 			break;
 
 		if (chip->erase_suspended && chip_state == FL_ERASING)  {
-			/* Erase suspend occured while sleep: reset timeout */
+			/* Erase suspend occurred while sleep: reset timeout */
 			timeo = reset_timeo;
 			chip->erase_suspended = 0;
 		}
 		if (chip->write_suspended && chip_state == FL_WRITING)  {
-			/* Write suspend occured while sleep: reset timeout */
+			/* Write suspend occurred while sleep: reset timeout */
 			timeo = reset_timeo;
 			chip->write_suspended = 0;
 		}

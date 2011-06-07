@@ -109,7 +109,7 @@ struct cx18_av_state {
 	int is_initialized;
 
 	/*
-	 * The VBI slicer starts operating and counting lines, begining at
+	 * The VBI slicer starts operating and counting lines, beginning at
 	 * slicer line count of 1, at D lines after the deassertion of VRESET.
 	 * This staring field line, S, is 6 (& 319) or 10 (& 273) for 625 or 525
 	 * line systems respectively.  Sliced ancillary data captured on VBI

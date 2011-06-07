@@ -167,7 +167,7 @@ static int __devinit njs_pci_probe(struct pci_dev *dev_netjet,
 		return(0);
 	}
 	/* the TJ300 and TJ320 must be detected, the IRQ handling is different
-	 * unfortunatly the chips use the same device ID, but the TJ320 has
+	 * unfortunately the chips use the same device ID, but the TJ320 has
 	 * the bit20 in status PCI cfg register set
 	 */
 	pci_read_config_dword(dev_netjet, 0x04, &cfg);

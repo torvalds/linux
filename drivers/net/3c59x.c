@@ -901,14 +901,14 @@ static const struct dev_pm_ops vortex_pm_ops = {
 #endif /* !CONFIG_PM */
 
 #ifdef CONFIG_EISA
-static struct eisa_device_id vortex_eisa_ids[] = {
+static const struct eisa_device_id vortex_eisa_ids[] __devinitconst = {
 	{ "TCM5920", CH_3C592 },
 	{ "TCM5970", CH_3C597 },
 	{ "" }
 };
 MODULE_DEVICE_TABLE(eisa, vortex_eisa_ids);
 
-static int __init vortex_eisa_probe(struct device *device)
+static int __devinit vortex_eisa_probe(struct device *device)
 {
 	void __iomem *ioaddr;
 	struct eisa_device *edev;
@@ -984,7 +984,7 @@ static int __init vortex_eisa_init(void)
 		 * any device have been found when we exit from
 		 * eisa_driver_register (the bus root driver may not be
 		 * initialized yet). So we blindly assume something was
-		 * found, and let the sysfs magic happend...
+		 * found, and let the sysfs magic happened...
 		 */
 		eisa_found = 1;
 	}

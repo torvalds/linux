@@ -13,7 +13,7 @@ being invoked on all nodes in ip27-memory.c.
 9. start_thread must turn off UX64 ... and define tlb_refill_debug.
 10. Need a bad pmd table, bad pte table. __bad_pmd_table/__bad_pagetable
 does not agree with pgd_bad/pmd_bad.
-11. All intrs (ip27_do_irq handlers) are targetted at cpu A on the node.
+11. All intrs (ip27_do_irq handlers) are targeted at cpu A on the node.
 This might need to change later. Only the timer intr is set up to be
 received on both Cpu A and B. (ip27_do_irq()/bridge_startup())
 13. Cache flushing (specially the SMP version) has to be investigated.

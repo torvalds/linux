@@ -26,11 +26,11 @@ Additional options to the assembler (for built-in and modules).
 
 AFLAGS_MODULE
 --------------------------------------------------
-Addtional module specific options to use for $(AS).
+Additional module specific options to use for $(AS).
 
 AFLAGS_KERNEL
 --------------------------------------------------
-Addtional options for $(AS) when used for assembler
+Additional options for $(AS) when used for assembler
 code for code that is compiled as built-in.
 
 KCFLAGS
@@ -39,12 +39,12 @@ Additional options to the C compiler (for built-in and modules).
 
 CFLAGS_KERNEL
 --------------------------------------------------
-Addtional options for $(CC) when used to compile
+Additional options for $(CC) when used to compile
 code that is compiled as built-in.
 
 CFLAGS_MODULE
 --------------------------------------------------
-Addtional module specific options to use for $(CC).
+Additional module specific options to use for $(CC).
 
 LDFLAGS_MODULE
 --------------------------------------------------

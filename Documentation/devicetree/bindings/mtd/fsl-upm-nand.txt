@@ -15,7 +15,7 @@ Optional properties:
 - gpios : may specify optional GPIOs connected to the Ready-Not-Busy pins
 	(R/B#). For multi-chip devices, "n" GPIO definitions are required
 	according to the number of chips.
-- chip-delay : chip dependent delay for transfering data from array to
+- chip-delay : chip dependent delay for transferring data from array to
 	read registers (tR). Required if property "gpios" is not used
 	(R/B# pins not connected).
 

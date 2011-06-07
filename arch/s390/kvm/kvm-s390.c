@@ -721,7 +721,7 @@ static int __init kvm_s390_init(void)
 
 	/*
 	 * guests can ask for up to 255+1 double words, we need a full page
-	 * to hold the maximum amount of facilites. On the other hand, we
+	 * to hold the maximum amount of facilities. On the other hand, we
 	 * only set facilities that are known to work in KVM.
 	 */
 	facilities = (unsigned long long *) get_zeroed_page(GFP_KERNEL|GFP_DMA);

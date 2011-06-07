@@ -40,7 +40,7 @@
 #include <asm/kvm_book3s_asm.h>
 #include <asm/ptrace.h>
 
-/* The physical memory is layed out such that the secondary processor
+/* The physical memory is laid out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow
  * using the layout described in exceptions-64s.S
  */
@@ -147,6 +147,8 @@ __secondary_hold:
 	mtctr	r4
 	mr	r3,r24
 	li	r4,0
+	/* Make sure that patched code is visible */
+	isync
 	bctr
 #else
 	BUG_OPCODE
@@ -216,19 +218,25 @@ generic_secondary_common_init:
 	 */
 	LOAD_REG_ADDR(r13, paca)	/* Load paca pointer		 */
 	ld	r13,0(r13)		/* Get base vaddr of paca array	 */
+#ifndef CONFIG_SMP
+	addi	r13,r13,PACA_SIZE	/* know r13 if used accidentally */
+	b	.kexec_wait		/* wait for next kernel if !SMP	 */
+#else
+	LOAD_REG_ADDR(r7, nr_cpu_ids)	/* Load nr_cpu_ids address       */
+	lwz	r7,0(r7)		/* also the max paca allocated 	 */
 	li	r5,0			/* logical cpu id                */
 1:	lhz	r6,PACAHWCPUID(r13)	/* Load HW procid from paca      */
 	cmpw	r6,r24			/* Compare to our id             */
 	beq	2f
 	addi	r13,r13,PACA_SIZE	/* Loop to next PACA on miss     */
 	addi	r5,r5,1
-	cmpwi	r5,NR_CPUS
+	cmpw	r5,r7			/* Check if more pacas exist     */
 	blt	1b
 
 	mr	r3,r24			/* not found, copy phys to r3	 */
 	b	.kexec_wait		/* next kernel might do better	 */
 
-2:	mtspr	SPRN_SPRG_PACA,r13	/* Save vaddr of paca in an SPRG */
+2:	SET_PACA(r13)
 #ifdef CONFIG_PPC_BOOK3E
 	addi	r12,r13,PACA_EXTLB	/* and TLB exc frame in another  */
 	mtspr	SPRN_SPRG_TLB_EXFRAME,r12
@@ -236,34 +244,39 @@ generic_secondary_common_init:
 
 	/* From now on, r24 is expected to be logical cpuid */
 	mr	r24,r5
-3:	HMT_LOW
-	lbz	r23,PACAPROCSTART(r13)	/* Test if this processor should */
-					/* start.			 */
-
-#ifndef CONFIG_SMP
-	b	3b			/* Never go on non-SMP		 */
-#else
-	cmpwi	0,r23,0
-	beq	3b			/* Loop until told to go	 */
-
-	sync				/* order paca.run and cur_cpu_spec */
 
 	/* See if we need to call a cpu state restore handler */
 	LOAD_REG_ADDR(r23, cur_cpu_spec)
 	ld	r23,0(r23)
 	ld	r23,CPU_SPEC_RESTORE(r23)
 	cmpdi	0,r23,0
-	beq	4f
+	beq	3f
 	ld	r23,0(r23)
 	mtctr	r23
 	bctrl
 
-4:	/* Create a temp kernel stack for use before relocation is on.	*/
+3:	LOAD_REG_ADDR(r3, boot_cpu_count) /* Decrement boot_cpu_count */
+	lwarx	r4,0,r3
+	subi	r4,r4,1
+	stwcx.	r4,0,r3
+	bne	3b
+	isync
+
+4:	HMT_LOW
+	lbz	r23,PACAPROCSTART(r13)	/* Test if this processor should */
+					/* start.			 */
+	cmpwi	0,r23,0
+	beq	4b			/* Loop until told to go	 */
+
+	sync				/* order paca.run and cur_cpu_spec */
+	isync				/* In case code patching happened */
+
+	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
 	subi	r1,r1,STACK_FRAME_OVERHEAD
 
 	b	__secondary_start
-#endif
+#endif /* SMP */
 
 /*
  * Turn the MMU off.
@@ -534,7 +547,14 @@ _GLOBAL(pmac_secondary_start)
 	ld	r4,0(r4)		/* Get base vaddr of paca array	*/
 	mulli	r13,r24,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r4		/* for this processor.		*/
-	mtspr	SPRN_SPRG_PACA,r13	/* Save vaddr of paca in an SPRG*/
+	SET_PACA(r13)			/* Save vaddr of paca in an SPRG*/
+
+	/* Mark interrupts soft and hard disabled (they might be enabled
+	 * in the PACA when doing hotplug)
+	 */
+	li	r0,0
+	stb	r0,PACASOFTIRQEN(r13)
+	stb	r0,PACAHARDIRQEN(r13)
 
 	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
@@ -638,7 +658,7 @@ _GLOBAL(enable_64b_mode)
 	oris	r11,r11,0x8000		/* CM bit set, we'll set ICM later */
 	mtmsr	r11
 #else /* CONFIG_PPC_BOOK3E */
-	li	r12,(MSR_SF | MSR_ISF)@highest
+	li	r12,(MSR_64BIT | MSR_ISF)@highest
 	sldi	r12,r12,48
 	or	r11,r11,r12
 	mtmsrd	r11

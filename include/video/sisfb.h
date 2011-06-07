@@ -151,7 +151,7 @@ struct sisfb_cmd {
 	__u32  sisfb_result[4];
 };
 
-/* Addtional IOCTLs for communication sisfb <> X driver                */
+/* Additional IOCTLs for communication sisfb <> X driver                */
 /* If changing this, vgatypes.h must also be changed (for X driver)    */
 
 /* ioctl for identifying and giving some info (esp. memory heap start) */

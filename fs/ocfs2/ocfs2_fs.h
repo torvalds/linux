@@ -441,7 +441,7 @@ static unsigned char ocfs2_type_by_mode[S_IFMT >> S_SHIFT] = {
 struct ocfs2_block_check {
 /*00*/	__le32 bc_crc32e;	/* 802.3 Ethernet II CRC32 */
 	__le16 bc_ecc;		/* Single-error-correction parity vector.
-				   This is a simple Hamming code dependant
+				   This is a simple Hamming code dependent
 				   on the blocksize.  OCFS2's maximum
 				   blocksize, 4K, requires 16 parity bits,
 				   so we fit in __le16. */
@@ -750,7 +750,7 @@ struct ocfs2_dinode {
 							  after an unclean
 							  shutdown */
 		} journal1;
-	} id1;				/* Inode type dependant 1 */
+	} id1;				/* Inode type dependent 1 */
 /*C0*/	union {
 		struct ocfs2_super_block	i_super;
 		struct ocfs2_local_alloc	i_lab;
@@ -1019,7 +1019,7 @@ struct ocfs2_xattr_entry {
 	__le16	xe_name_offset;  /* byte offset from the 1st entry in the
 				    local xattr storage(inode, xattr block or
 				    xattr bucket). */
-	__u8	xe_name_len;	 /* xattr name len, does't include prefix. */
+	__u8	xe_name_len;	 /* xattr name len, doesn't include prefix. */
 	__u8	xe_type;         /* the low 7 bits indicate the name prefix
 				  * type and the highest bit indicates whether
 				  * the EA is stored in the local storage. */

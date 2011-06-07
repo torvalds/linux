@@ -54,7 +54,7 @@
  * endpoint and read from it in the notification endpoint. In SDIO we
  * talk to it via the write address and read from the read address.
  *
- * Upon entrance to boot mode, the device sends (preceeded with a few
+ * Upon entrance to boot mode, the device sends (preceded with a few
  * zero length packets (ZLPs) on the notification endpoint in USB) a
  * reboot barker (4 le32 words with the same value). We ack it by
  * sending the same barker to the device. The device acks with a
@@ -1589,7 +1589,7 @@ int i2400m_dev_bootstrap(struct i2400m *i2400m, enum i2400m_bri flags)
 		i2400m->fw_name = fw_name;
 		ret = i2400m_fw_bootstrap(i2400m, fw, flags);
 		release_firmware(fw);
-		if (ret >= 0)	/* firmware loaded succesfully */
+		if (ret >= 0)	/* firmware loaded successfully */
 			break;
 		i2400m->fw_name = NULL;
 	}

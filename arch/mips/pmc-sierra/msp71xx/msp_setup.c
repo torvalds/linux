@@ -239,7 +239,7 @@ void __init prom_init(void)
 #ifdef CONFIG_PMCTWILED
 	/*
 	 * Setup LED states before the subsys_initcall loads other
-	 * dependant drivers/modules.
+	 * dependent drivers/modules.
 	 */
 	pmctwiled_setup();
 #endif

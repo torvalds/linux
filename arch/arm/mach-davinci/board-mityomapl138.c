@@ -29,7 +29,7 @@
 #include <mach/mux.h>
 #include <mach/spi.h>
 
-#define MITYOMAPL138_PHY_ID		"0:03"
+#define MITYOMAPL138_PHY_ID		""
 
 #define FACTORY_CONFIG_MAGIC	0x012C0138
 #define FACTORY_CONFIG_VERSION	0x00010001
@@ -414,7 +414,7 @@ static struct resource mityomapl138_nandflash_resource[] = {
 
 static struct platform_device mityomapl138_nandflash_device = {
 	.name		= "davinci_nand",
-	.id		= 0,
+	.id		= 1,
 	.dev		= {
 		.platform_data	= &mityomapl138_nandflash_data,
 	},

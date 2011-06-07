@@ -35,14 +35,14 @@
 # KBUILD_MODPOST_WARN can be set to avoid error out in case of undefined
 # symbols in the final module linking stage
 # KBUILD_MODPOST_NOFINAL can be set to skip the final link of modules.
-# This is solely usefull to speed up test compiles
+# This is solely useful to speed up test compiles
 PHONY := _modpost
 _modpost: __modpost
 
 include include/config/auto.conf
 include scripts/Kbuild.include
 
-# When building external modules load the Kbuild file to retreive EXTRA_SYMBOLS info
+# When building external modules load the Kbuild file to retrieve EXTRA_SYMBOLS info
 ifneq ($(KBUILD_EXTMOD),)
 
 # set src + obj - they may be used when building the .mod.c file

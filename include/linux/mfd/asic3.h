@@ -16,6 +16,13 @@
 
 #include <linux/types.h>
 
+struct led_classdev;
+struct asic3_led {
+	const char	*name;
+	const char	*default_trigger;
+	struct led_classdev *cdev;
+};
+
 struct asic3_platform_data {
 	u16 *gpio_config;
 	unsigned int gpio_config_num;
@@ -23,6 +30,8 @@ struct asic3_platform_data {
 	unsigned int irq_base;
 
 	unsigned int gpio_base;
+
+	struct asic3_led *leds;
 };
 
 #define ASIC3_NUM_GPIO_BANKS	4
@@ -111,9 +120,9 @@ struct asic3_platform_data {
 #define ASIC3_GPIOA11_PWM0		ASIC3_CONFIG_GPIO(11, 1, 1, 0)
 #define ASIC3_GPIOA12_PWM1		ASIC3_CONFIG_GPIO(12, 1, 1, 0)
 #define ASIC3_GPIOA15_CONTROL_CX	ASIC3_CONFIG_GPIO(15, 1, 1, 0)
-#define ASIC3_GPIOC0_LED0		ASIC3_CONFIG_GPIO(32, 1, 1, 0)
-#define ASIC3_GPIOC1_LED1		ASIC3_CONFIG_GPIO(33, 1, 1, 0)
-#define ASIC3_GPIOC2_LED2		ASIC3_CONFIG_GPIO(34, 1, 1, 0)
+#define ASIC3_GPIOC0_LED0		ASIC3_CONFIG_GPIO(32, 1, 0, 0)
+#define ASIC3_GPIOC1_LED1		ASIC3_CONFIG_GPIO(33, 1, 0, 0)
+#define ASIC3_GPIOC2_LED2		ASIC3_CONFIG_GPIO(34, 1, 0, 0)
 #define ASIC3_GPIOC3_SPI_RXD		ASIC3_CONFIG_GPIO(35, 1, 0, 0)
 #define ASIC3_GPIOC4_CF_nCD		ASIC3_CONFIG_GPIO(36, 1, 0, 0)
 #define ASIC3_GPIOC4_SPI_TXD		ASIC3_CONFIG_GPIO(36, 1, 1, 0)
@@ -152,6 +161,7 @@ struct asic3_platform_data {
 #define PWM_TIMEBASE_VALUE(x)    ((x)&0xf)   /* Low 4 bits sets time base */
 #define PWM_TIMEBASE_ENABLE     (1 << 4)   /* Enable clock */
 
+#define ASIC3_NUM_LEDS                  3
 #define ASIC3_LED_0_Base                0x0700
 #define ASIC3_LED_1_Base                0x0800
 #define ASIC3_LED_2_Base 		      0x0900
@@ -287,10 +297,17 @@ struct asic3_platform_data {
  *
  *****************************************************************************/
 #define ASIC3_SD_CONFIG_BASE	0x0400 /* Assumes 32 bit addressing */
+#define ASIC3_SD_CONFIG_SIZE	0x0200 /* Assumes 32 bit addressing */
 #define ASIC3_SD_CTRL_BASE	0x1000
 #define ASIC3_SDIO_CTRL_BASE	0x1200
 
 #define ASIC3_MAP_SIZE_32BIT	0x2000
 #define ASIC3_MAP_SIZE_16BIT	0x1000
+
+/* Functions needed by leds-asic3 */
+
+struct asic3;
+extern void asic3_write_register(struct asic3 *asic, unsigned int reg, u32 val);
+extern u32 asic3_read_register(struct asic3 *asic, unsigned int reg);
 
 #endif /* __ASIC3_H__ */

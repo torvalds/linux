@@ -141,29 +141,4 @@ extern struct device_attribute *bfad_im_vport_attrs[];
 
 irqreturn_t bfad_intx(int irq, void *dev_id);
 
-/* Firmware releated */
-#define BFAD_FW_FILE_CT_FC      "ctfw_fc.bin"
-#define BFAD_FW_FILE_CT_CNA     "ctfw_cna.bin"
-#define BFAD_FW_FILE_CB_FC      "cbfw_fc.bin"
-
-u32 *bfad_get_firmware_buf(struct pci_dev *pdev);
-u32 *bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
-		u32 *bfi_image_size, char *fw_name);
-
-static inline u32 *
-bfad_load_fwimg(struct pci_dev *pdev)
-{
-	return bfad_get_firmware_buf(pdev);
-}
-
-static inline void
-bfad_free_fwimg(void)
-{
-	if (bfi_image_ct_fc_size && bfi_image_ct_fc)
-		vfree(bfi_image_ct_fc);
-	if (bfi_image_ct_cna_size && bfi_image_ct_cna)
-		vfree(bfi_image_ct_cna);
-	if (bfi_image_cb_fc_size && bfi_image_cb_fc)
-		vfree(bfi_image_cb_fc);
-}
 #endif

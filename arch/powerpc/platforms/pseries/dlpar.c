@@ -74,7 +74,7 @@ static struct device_node *dlpar_parse_cc_node(struct cc_workarea *ccwa)
 		return NULL;
 
 	/* The configure connector reported name does not contain a
-	 * preceeding '/', so we allocate a buffer large enough to
+	 * preceding '/', so we allocate a buffer large enough to
 	 * prepend this to the full_name.
 	 */
 	name = (char *)ccwa + ccwa->name_offset;

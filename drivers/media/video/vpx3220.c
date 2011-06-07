@@ -354,7 +354,7 @@ static int vpx3220_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 
 	/* Here we back up the input selection because it gets
 	   overwritten when we fill the registers with the
-	   choosen video norm */
+	   chosen video norm */
 	temp_input = vpx3220_fp_read(sd, 0xf2);
 
 	v4l2_dbg(1, debug, sd, "s_std %llx\n", (unsigned long long)std);

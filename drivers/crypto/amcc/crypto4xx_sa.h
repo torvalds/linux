@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * This file defines the security context
- * assoicate format.
+ * associate format.
  */
 
 #ifndef __CRYPTO4XX_SA_H__

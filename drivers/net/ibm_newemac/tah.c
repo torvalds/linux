@@ -60,7 +60,7 @@ void tah_reset(struct platform_device *ofdev)
 		printk(KERN_ERR "%s: reset timeout\n",
 			ofdev->dev.of_node->full_name);
 
-	/* 10KB TAH TX FIFO accomodates the max MTU of 9000 */
+	/* 10KB TAH TX FIFO accommodates the max MTU of 9000 */
 	out_be32(&p->mr,
 		 TAH_MR_CVR | TAH_MR_ST_768 | TAH_MR_TFS_10KB | TAH_MR_DTFP |
 		 TAH_MR_DIG);

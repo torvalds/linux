@@ -26,7 +26,9 @@
 #ifndef __STMMAC_PLATFORM_DATA
 #define __STMMAC_PLATFORM_DATA
 
-/* platfrom data for platfrom device structure's platfrom_data field */
+#include <linux/platform_device.h>
+
+/* platform data for platform device structure's platform_data field */
 
 /* Private data for the STM on-board ethernet driver */
 struct plat_stmmacenet_data {

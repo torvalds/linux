@@ -185,7 +185,7 @@ static void pcap_isr_work(struct work_struct *work)
 		ezx_pcap_read(pcap, PCAP_REG_MSR, &msr);
 		ezx_pcap_read(pcap, PCAP_REG_ISR, &isr);
 
-		/* We cant service/ack irqs that are assigned to port 2 */
+		/* We can't service/ack irqs that are assigned to port 2 */
 		if (!(pdata->config & PCAP_SECOND_PORT)) {
 			ezx_pcap_read(pcap, PCAP_REG_INT_SEL, &int_sel);
 			isr &= ~int_sel;
@@ -457,7 +457,7 @@ static int __devinit ezx_pcap_probe(struct spi_device *spi)
 	pcap->workqueue = create_singlethread_workqueue("pcapd");
 	if (!pcap->workqueue) {
 		ret = -ENOMEM;
-		dev_err(&spi->dev, "cant create pcap thread\n");
+		dev_err(&spi->dev, "can't create pcap thread\n");
 		goto free_pcap;
 	}
 

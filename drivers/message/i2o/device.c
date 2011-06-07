@@ -65,7 +65,7 @@ int i2o_device_claim(struct i2o_device *dev)
 
 	rc = i2o_device_issue_claim(dev, I2O_CMD_UTIL_CLAIM, I2O_CLAIM_PRIMARY);
 	if (!rc)
-		pr_debug("i2o: claim of device %d succeded\n",
+		pr_debug("i2o: claim of device %d succeeded\n",
 			 dev->lct_data.tid);
 	else
 		pr_debug("i2o: claim of device %d failed %d\n",
@@ -110,7 +110,7 @@ int i2o_device_claim_release(struct i2o_device *dev)
 	}
 
 	if (!rc)
-		pr_debug("i2o: claim release of device %d succeded\n",
+		pr_debug("i2o: claim release of device %d succeeded\n",
 			 dev->lct_data.tid);
 	else
 		pr_debug("i2o: claim release of device %d failed %d\n",
@@ -248,7 +248,7 @@ static int i2o_device_add(struct i2o_controller *c, i2o_lct_entry *entry)
 			goto unreg_dev;
 	}
 
-	/* create user entries refering to this device */
+	/* create user entries referring to this device */
 	list_for_each_entry(tmp, &c->devices, list)
 	    if ((tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
 		&& (tmp != i2o_dev)) {
@@ -267,7 +267,7 @@ static int i2o_device_add(struct i2o_controller *c, i2o_lct_entry *entry)
 			goto rmlink1;
 	}
 
-	/* create parent entries refering to this device */
+	/* create parent entries referring to this device */
 	list_for_each_entry(tmp, &c->devices, list)
 	    if ((tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
 		&& (tmp != i2o_dev)) {

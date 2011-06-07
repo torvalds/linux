@@ -279,11 +279,15 @@ When the system goes into the standby or memory sleep state, the phases are:
 	time.)  Unlike the other suspend-related phases, during the prepare
 	phase the device tree is traversed top-down.
 
-	The prepare phase uses only a bus callback.  After the callback method
-	returns, no new children may be registered below the device.  The method
-	may also prepare the device or driver in some way for the upcoming
-	system power transition, but it should not put the device into a
-	low-power state.
+	In addition to that, if device drivers need to allocate additional
+	memory to be able to hadle device suspend correctly, that should be
+	done in the prepare phase.
+
+	After the prepare callback method returns, no new children may be
+	registered below the device.  The method may also prepare the device or
+	driver in some way for the upcoming system power transition (for
+	example, by allocating additional memory required for this purpose), but
+	it should not put the device into a low-power state.
 
     2.	The suspend methods should quiesce the device to stop it from performing
 	I/O.  They also may save the device registers and put it into the
@@ -367,7 +371,7 @@ Drivers need to be able to handle hardware which has been reset since the
 suspend methods were called, for example by complete reinitialization.
 This may be the hardest part, and the one most protected by NDA'd documents
 and chip errata.  It's simplest if the hardware state hasn't changed since
-the suspend was carried out, but that can't be guaranteed (in fact, it ususally
+the suspend was carried out, but that can't be guaranteed (in fact, it usually
 is not the case).
 
 Drivers must also be prepared to notice that the device has been removed

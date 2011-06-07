@@ -453,7 +453,7 @@ static bool fwnet_pd_update(struct fwnet_peer *peer,
 	memcpy(pd->pbuf + frag_off, frag_buf, frag_len);
 
 	/*
-	 * Move list entry to beginnig of list so that oldest partial
+	 * Move list entry to beginning of list so that oldest partial
 	 * datagrams percolate to the end of the list
 	 */
 	list_move_tail(&pd->pd_link, &peer->pd_list);
@@ -881,7 +881,9 @@ static void fwnet_receive_broadcast(struct fw_iso_context *context,
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	if (retval < 0)
+	if (retval >= 0)
+		fw_iso_context_queue_flush(dev->broadcast_rcv_context);
+	else
 		fw_error("requeue failed\n");
 }
 

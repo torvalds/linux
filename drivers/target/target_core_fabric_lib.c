@@ -433,7 +433,7 @@ char *iscsi_parse_pr_out_transport_id(
 		/*
 		 * Go ahead and do the lower case conversion of the received
 		 * 12 ASCII characters representing the ISID in the TransportID
-		 * for comparision against the running iSCSI session's ISID from
+		 * for comparison against the running iSCSI session's ISID from
 		 * iscsi_target.c:lio_sess_get_initiator_sid()
 		 */
 		for (i = 0; i < 12; i++) {

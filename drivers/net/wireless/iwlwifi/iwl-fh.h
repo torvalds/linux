@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,14 +77,14 @@
 /**
  * Keep-Warm (KW) buffer base address.
  *
- * Driver must allocate a 4KByte buffer that is used by 4965 for keeping the
+ * Driver must allocate a 4KByte buffer that is for keeping the
  * host DRAM powered on (via dummy accesses to DRAM) to maintain low-latency
- * DRAM access when 4965 is Txing or Rxing.  The dummy accesses prevent host
+ * DRAM access when doing Txing or Rxing.  The dummy accesses prevent host
  * from going into a power-savings mode that would cause higher DRAM latency,
  * and possible data over/under-runs, before all Tx/Rx is complete.
  *
  * Driver loads FH_KW_MEM_ADDR_REG with the physical address (bits 35:4)
- * of the buffer, which must be 4K aligned.  Once this is set up, the 4965
+ * of the buffer, which must be 4K aligned.  Once this is set up, the device
  * automatically invokes keep-warm accesses when normal accesses might not
  * be sufficient to maintain fast DRAM response.
  *
@@ -97,7 +97,7 @@
 /**
  * TFD Circular Buffers Base (CBBC) addresses
  *
- * 4965 has 16 base pointer registers, one for each of 16 host-DRAM-resident
+ * Device has 16 base pointer registers, one for each of 16 host-DRAM-resident
  * circular buffers (CBs/queues) containing Transmit Frame Descriptors (TFDs)
  * (see struct iwl_tfd_frame).  These 16 pointer registers are offset by 0x04
  * bytes from one another.  Each TFD circular buffer in DRAM must be 256-byte
@@ -116,16 +116,16 @@
 /**
  * Rx SRAM Control and Status Registers (RSCSR)
  *
- * These registers provide handshake between driver and 4965 for the Rx queue
+ * These registers provide handshake between driver and device for the Rx queue
  * (this queue handles *all* command responses, notifications, Rx data, etc.
- * sent from 4965 uCode to host driver).  Unlike Tx, there is only one Rx
+ * sent from uCode to host driver).  Unlike Tx, there is only one Rx
  * queue, and only one Rx DMA/FIFO channel.  Also unlike Tx, which can
  * concatenate up to 20 DRAM buffers to form a Tx frame, each Receive Buffer
  * Descriptor (RBD) points to only one Rx Buffer (RB); there is a 1:1
  * mapping between RBDs and RBs.
  *
  * Driver must allocate host DRAM memory for the following, and set the
- * physical address of each into 4965 registers:
+ * physical address of each into device registers:
  *
  * 1)  Receive Buffer Descriptor (RBD) circular buffer (CB), typically with 256
  *     entries (although any power of 2, up to 4096, is selectable by driver).
@@ -140,20 +140,20 @@
  *     Driver sets physical address [35:8] of base of RBD circular buffer
  *     into FH_RSCSR_CHNL0_RBDCB_BASE_REG [27:0].
  *
- * 2)  Rx status buffer, 8 bytes, in which 4965 indicates which Rx Buffers
+ * 2)  Rx status buffer, 8 bytes, in which uCode indicates which Rx Buffers
  *     (RBs) have been filled, via a "write pointer", actually the index of
  *     the RB's corresponding RBD within the circular buffer.  Driver sets
  *     physical address [35:4] into FH_RSCSR_CHNL0_STTS_WPTR_REG [31:0].
  *
  *     Bit fields in lower dword of Rx status buffer (upper dword not used
- *     by driver; see struct iwl4965_shared, val0):
+ *     by driver:
  *     31-12:  Not used by driver
  *     11- 0:  Index of last filled Rx buffer descriptor
- *             (4965 writes, driver reads this value)
+ *             (device writes, driver reads this value)
  *
- * As the driver prepares Receive Buffers (RBs) for 4965 to fill, driver must
+ * As the driver prepares Receive Buffers (RBs) for device to fill, driver must
  * enter pointers to these RBs into contiguous RBD circular buffer entries,
- * and update the 4965's "write" index register,
+ * and update the device's "write" index register,
  * FH_RSCSR_CHNL0_RBDCB_WPTR_REG.
  *
  * This "write" index corresponds to the *next* RBD that the driver will make
@@ -162,12 +162,12 @@
  * RBs), should be 8 after preparing the first 8 RBs (for example), and must
  * wrap back to 0 at the end of the circular buffer (but don't wrap before
  * "read" index has advanced past 1!  See below).
- * NOTE:  4965 EXPECTS THE WRITE INDEX TO BE INCREMENTED IN MULTIPLES OF 8.
+ * NOTE:  DEVICE EXPECTS THE WRITE INDEX TO BE INCREMENTED IN MULTIPLES OF 8.
  *
- * As the 4965 fills RBs (referenced from contiguous RBDs within the circular
+ * As the device fills RBs (referenced from contiguous RBDs within the circular
  * buffer), it updates the Rx status buffer in host DRAM, 2) described above,
  * to tell the driver the index of the latest filled RBD.  The driver must
- * read this "read" index from DRAM after receiving an Rx interrupt from 4965.
+ * read this "read" index from DRAM after receiving an Rx interrupt from device
  *
  * The driver must also internally keep track of a third index, which is the
  * next RBD to process.  When receiving an Rx interrupt, driver should process
@@ -176,7 +176,7 @@
  * driver may process the RB pointed to by RBD 0.  Depending on volume of
  * traffic, there may be many RBs to process.
  *
- * If read index == write index, 4965 thinks there is no room to put new data.
+ * If read index == write index, device thinks there is no room to put new data.
  * Due to this, the maximum number of filled RBs is 255, instead of 256.  To
  * be safe, make sure that there is a gap of at least 2 RBDs between "write"
  * and "read" indexes; that is, make sure that there are no more than 254
@@ -303,7 +303,7 @@
 /**
  * Transmit DMA Channel Control/Status Registers (TCSR)
  *
- * 4965 has one configuration register for each of 8 Tx DMA/FIFO channels
+ * Device has one configuration register for each of 8 Tx DMA/FIFO channels
  * supported in hardware (don't confuse these with the 16 Tx queues in DRAM,
  * which feed the DMA/FIFO channels); config regs are separated by 0x20 bytes.
  *
@@ -326,7 +326,6 @@
 #define FH_TCSR_UPPER_BOUND  (FH_MEM_LOWER_BOUND + 0xE60)
 
 /* Find Control/Status reg for given Tx DMA/FIFO channel */
-#define FH49_TCSR_CHNL_NUM                            (7)
 #define FH50_TCSR_CHNL_NUM                            (8)
 
 /* TCSR: tx_config register values */
@@ -424,7 +423,6 @@
 #define RX_LOW_WATERMARK 8
 
 /* Size of one Rx buffer in host DRAM */
-#define IWL_RX_BUF_SIZE_3K (3 * 1000) /* 3945 only */
 #define IWL_RX_BUF_SIZE_4K (4 * 1024)
 #define IWL_RX_BUF_SIZE_8K (8 * 1024)
 
@@ -436,14 +434,14 @@
  * @finished_rb_num [0:11] - Indicates the index of the current RB
  * 	in which the last frame was written to
  * @finished_fr_num [0:11] - Indicates the index of the RX Frame
- * 	which was transfered
+ * 	which was transferred
  */
 struct iwl_rb_status {
 	__le16 closed_rb_num;
 	__le16 closed_fr_num;
 	__le16 finished_rb_num;
 	__le16 finished_fr_nam;
-	__le32 __unused; /* 3945 only */
+	__le32 __unused;
 } __packed;
 
 

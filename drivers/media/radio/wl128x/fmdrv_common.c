@@ -352,7 +352,7 @@ static void send_tasklet(unsigned long arg)
 	if (!atomic_read(&fmdev->tx_cnt))
 		return;
 
-	/* Check, is there any timeout happenned to last transmitted packet */
+	/* Check, is there any timeout happened to last transmitted packet */
 	if ((jiffies - fmdev->last_tx_jiffies) > FM_DRV_TX_TIMEOUT) {
 		fmerr("TX timeout occurred\n");
 		atomic_set(&fmdev->tx_cnt, 1);
@@ -478,7 +478,7 @@ u32 fmc_send_cmd(struct fmdev *fmdev, u8 fm_op, u16 type, void *payload,
 		return -ETIMEDOUT;
 	}
 	if (!fmdev->resp_skb) {
-		fmerr("Reponse SKB is missing\n");
+		fmerr("Response SKB is missing\n");
 		return -EFAULT;
 	}
 	spin_lock_irqsave(&fmdev->resp_skb_lock, flags);
@@ -1494,12 +1494,17 @@ u32 fmc_prepare(struct fmdev *fmdev)
 	}
 
 	memset(&fm_st_proto, 0, sizeof(fm_st_proto));
-	fm_st_proto.type = ST_FM;
 	fm_st_proto.recv = fm_st_receive;
 	fm_st_proto.match_packet = NULL;
 	fm_st_proto.reg_complete_cb = fm_st_reg_comp_cb;
 	fm_st_proto.write = NULL; /* TI ST driver will fill write pointer */
 	fm_st_proto.priv_data = fmdev;
+	fm_st_proto.chnl_id = 0x08;
+	fm_st_proto.max_frame_size = 0xff;
+	fm_st_proto.hdr_len = 1;
+	fm_st_proto.offset_len_in_hdr = 0;
+	fm_st_proto.len_size = 1;
+	fm_st_proto.reserve = 1;
 
 	ret = st_register(&fm_st_proto);
 	if (ret == -EINPROGRESS) {
@@ -1532,7 +1537,7 @@ u32 fmc_prepare(struct fmdev *fmdev)
 		g_st_write = fm_st_proto.write;
 	} else {
 		fmerr("Failed to get ST write func pointer\n");
-		ret = st_unregister(ST_FM);
+		ret = st_unregister(&fm_st_proto);
 		if (ret < 0)
 			fmerr("st_unregister failed %d\n", ret);
 		return -EAGAIN;
@@ -1586,13 +1591,14 @@ u32 fmc_prepare(struct fmdev *fmdev)
  */
 u32 fmc_release(struct fmdev *fmdev)
 {
+	static struct st_proto_s fm_st_proto;
 	u32 ret;
 
 	if (!test_bit(FM_CORE_READY, &fmdev->flag)) {
 		fmdbg("FM Core is already down\n");
 		return 0;
 	}
-	/* Sevice pending read */
+	/* Service pending read */
 	wake_up_interruptible(&fmdev->rx.rds.read_queue);
 
 	tasklet_kill(&fmdev->tx_task);
@@ -1604,7 +1610,11 @@ u32 fmc_release(struct fmdev *fmdev)
 	fmdev->resp_comp = NULL;
 	fmdev->rx.freq = 0;
 
-	ret = st_unregister(ST_FM);
+	memset(&fm_st_proto, 0, sizeof(fm_st_proto));
+	fm_st_proto.chnl_id = 0x08;
+
+	ret = st_unregister(&fm_st_proto);
+
 	if (ret < 0)
 		fmerr("Failed to de-register FM from ST %d\n", ret);
 	else

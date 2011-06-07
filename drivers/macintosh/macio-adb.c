@@ -147,7 +147,7 @@ static int macio_adb_reset_bus(void)
 
 	/* Hrm... we may want to not lock interrupts for so
 	 * long ... oh well, who uses that chip anyway ? :)
-	 * That function will be seldomly used during boot
+	 * That function will be seldom used during boot
 	 * on rare machines, so...
 	 */
 	spin_lock_irqsave(&macio_lock, flags);

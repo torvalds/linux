@@ -428,7 +428,7 @@ my_misc_callback(cy_as_device *dev_p, uint8_t context,
 				if (v & CY_AS_MEM_P0_VM_SET_CFGMODE)
 					cy_as_hal_print_message(
 					"initialization message "
-					"recieved, but config bit "
+					"received, but config bit "
 					"still set\n");
 
 				v = cy_as_hal_read_register(dev_p->tag,
@@ -436,7 +436,7 @@ my_misc_callback(cy_as_device *dev_p, uint8_t context,
 				if ((v & CY_AS_MEM_RST_RSTCMPT) == 0)
 					cy_as_hal_print_message(
 					"initialization message "
-					"recieved, but reset complete "
+					"received, but reset complete "
 					"bit still not set\n");
 			}
 			break;
@@ -2381,7 +2381,7 @@ try_wakeup_again:
 	/*
 	 * release the west bridge micro-_controller from reset,
 	 * so that firmware initialization can complete. the attempt
-	 * to release antioch reset is made upto 8 times.
+	 * to release antioch reset is made up to 8 times.
 	 */
 	v = 0x03;
 	count = 0x08;

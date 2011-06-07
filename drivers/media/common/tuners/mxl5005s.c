@@ -106,7 +106,7 @@ enum {
 /* MXL5005 Tuner Register Struct */
 struct TunerReg {
 	u16 Reg_Num;	/* Tuner Register Address */
-	u16 Reg_Val;	/* Current sw programmed value waiting to be writen */
+	u16 Reg_Val;	/* Current sw programmed value waiting to be written */
 };
 
 enum {
@@ -4024,6 +4024,8 @@ static int mxl5005s_set_params(struct dvb_frontend *fe,
 			case BANDWIDTH_8_MHZ:
 				req_bw  = MXL5005S_BANDWIDTH_8MHZ;
 				break;
+			default:
+				return -EINVAL;
 			}
 		}
 

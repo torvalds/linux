@@ -594,7 +594,9 @@ static int rtsx_polling_thread(void *__dev)
 	wait_timeout((delay_use + 5) * 1000);
 
 	for (;;) {
-		wait_timeout(POLLING_INTERVAL);
+
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(POLLING_INTERVAL);
 
 		/* lock the device pointers */
 		mutex_lock(&(dev->dev_mutex));
@@ -824,13 +826,13 @@ static void rtsx_init_options(struct rtsx_chip *chip)
 	chip->fpga_ms_hg_clk = CLK_80;
 	chip->fpga_ms_4bit_clk = CLK_80;
 	chip->fpga_ms_1bit_clk = CLK_40;
-	chip->asic_sd_sdr104_clk = 207;
-	chip->asic_sd_sdr50_clk = 99;
-	chip->asic_sd_ddr50_clk = 99;
-	chip->asic_sd_hs_clk = 99;
-	chip->asic_mmc_52m_clk = 99;
-	chip->asic_ms_hg_clk = 119;
-	chip->asic_ms_4bit_clk = 79;
+	chip->asic_sd_sdr104_clk = 203;
+	chip->asic_sd_sdr50_clk = 98;
+	chip->asic_sd_ddr50_clk = 98;
+	chip->asic_sd_hs_clk = 98;
+	chip->asic_mmc_52m_clk = 98;
+	chip->asic_ms_hg_clk = 117;
+	chip->asic_ms_4bit_clk = 78;
 	chip->asic_ms_1bit_clk = 39;
 	chip->ssc_depth_sd_sdr104 = SSC_DEPTH_2M;
 	chip->ssc_depth_sd_sdr50 = SSC_DEPTH_2M;

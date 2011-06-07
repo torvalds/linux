@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/prefetch.h>
 #include <net/ip6_checksum.h>
 
 #include "qlge.h"
@@ -660,7 +661,7 @@ static void ql_disable_interrupts(struct ql_adapter *qdev)
 /* If we're running with multiple MSI-X vectors then we enable on the fly.
  * Otherwise, we may have multiple outstanding workers and don't want to
  * enable until the last one finishes. In this case, the irq_cnt gets
- * incremented everytime we queue a worker and decremented everytime
+ * incremented every time we queue a worker and decremented every time
  * a worker finishes.  Once it hits zero we enable the interrupt.
  */
 u32 ql_enable_completion_interrupt(struct ql_adapter *qdev, u32 intr)
@@ -1571,7 +1572,7 @@ static void ql_process_mac_rx_page(struct ql_adapter *qdev,
 	skb->protocol = eth_type_trans(skb, ndev);
 	skb_checksum_none_assert(skb);
 
-	if (qdev->rx_csum &&
+	if ((ndev->features & NETIF_F_RXCSUM) &&
 		!(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
 		/* TCP frame. */
 		if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_T) {
@@ -1684,7 +1685,7 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 	/* If rx checksum is on, and there are no
 	 * csum or frame errors.
 	 */
-	if (qdev->rx_csum &&
+	if ((ndev->features & NETIF_F_RXCSUM) &&
 		!(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
 		/* TCP frame. */
 		if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_T) {
@@ -2004,7 +2005,7 @@ static void ql_process_mac_split_rx_intr(struct ql_adapter *qdev,
 	/* If rx checksum is on, and there are no
 	 * csum or frame errors.
 	 */
-	if (qdev->rx_csum &&
+	if ((ndev->features & NETIF_F_RXCSUM) &&
 		!(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
 		/* TCP frame. */
 		if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_T) {
@@ -3299,7 +3300,7 @@ msi:
  * will service it.  An example would be if there are
  * 2 vectors (so 2 RSS rings) and 8 TX completion rings.
  * This would mean that vector 0 would service RSS ring 0
- * and TX competion rings 0,1,2 and 3.  Vector 1 would
+ * and TX completion rings 0,1,2 and 3.  Vector 1 would
  * service RSS ring 1 and TX completion rings 4,5,6 and 7.
  */
 static void ql_set_tx_vect(struct ql_adapter *qdev)
@@ -4152,7 +4153,7 @@ static int ql_change_rx_buffers(struct ql_adapter *qdev)
 	int i, status;
 	u32 lbq_buf_len;
 
-	/* Wait for an oustanding reset to complete. */
+	/* Wait for an outstanding reset to complete. */
 	if (!test_bit(QL_ADAPTER_UP, &qdev->flags)) {
 		int i = 3;
 		while (i-- && !test_bit(QL_ADAPTER_UP, &qdev->flags)) {
@@ -4281,7 +4282,7 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 			if (ql_set_routing_reg
 			    (qdev, RT_IDX_PROMISCUOUS_SLOT, RT_IDX_VALID, 1)) {
 				netif_err(qdev, hw, qdev->ndev,
-					  "Failed to set promiscous mode.\n");
+					  "Failed to set promiscuous mode.\n");
 			} else {
 				set_bit(QL_PROMISCUOUS, &qdev->flags);
 			}
@@ -4291,7 +4292,7 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 			if (ql_set_routing_reg
 			    (qdev, RT_IDX_PROMISCUOUS_SLOT, RT_IDX_VALID, 0)) {
 				netif_err(qdev, hw, qdev->ndev,
-					  "Failed to clear promiscous mode.\n");
+					  "Failed to clear promiscuous mode.\n");
 			} else {
 				clear_bit(QL_PROMISCUOUS, &qdev->flags);
 			}
@@ -4412,12 +4413,12 @@ error:
 	rtnl_unlock();
 }
 
-static struct nic_operations qla8012_nic_ops = {
+static const struct nic_operations qla8012_nic_ops = {
 	.get_flash		= ql_get_8012_flash_params,
 	.port_initialize	= ql_8012_port_initialize,
 };
 
-static struct nic_operations qla8000_nic_ops = {
+static const struct nic_operations qla8000_nic_ops = {
 	.get_flash		= ql_get_8000_flash_params,
 	.port_initialize	= ql_8000_port_initialize,
 };
@@ -4621,7 +4622,6 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	/*
 	 * Set up the operating parameters.
 	 */
-	qdev->rx_csum = 1;
 	qdev->workqueue = create_singlethread_workqueue(ndev->name);
 	INIT_DELAYED_WORK(&qdev->asic_reset_work, ql_asic_reset_work);
 	INIT_DELAYED_WORK(&qdev->mpi_reset_work, ql_mpi_reset_work);
@@ -4695,15 +4695,11 @@ static int __devinit qlge_probe(struct pci_dev *pdev,
 
 	qdev = netdev_priv(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
-	ndev->features = (0
-			  | NETIF_F_IP_CSUM
-			  | NETIF_F_SG
-			  | NETIF_F_TSO
-			  | NETIF_F_TSO6
-			  | NETIF_F_TSO_ECN
-			  | NETIF_F_HW_VLAN_TX
-			  | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER);
-	ndev->features |= NETIF_F_GRO;
+	ndev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN |
+		NETIF_F_HW_VLAN_TX | NETIF_F_RXCSUM;
+	ndev->features = ndev->hw_features |
+		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
 
 	if (test_bit(QL_DMA64, &qdev->flags))
 		ndev->features |= NETIF_F_HIGHDMA;

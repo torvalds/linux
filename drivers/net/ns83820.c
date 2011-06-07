@@ -512,7 +512,7 @@ static void ns83820_vlan_rx_register(struct net_device *ndev, struct vlan_group 
 /* Packet Receiver
  *
  * The hardware supports linked lists of receive descriptors for
- * which ownership is transfered back and forth by means of an
+ * which ownership is transferred back and forth by means of an
  * ownership bit.  While the hardware does support the use of a
  * ring for receive descriptors, we only make use of a chain in
  * an attempt to reduce bus traffic under heavy load scenarios.
@@ -1147,7 +1147,7 @@ again:
 #ifdef NS83820_VLAN_ACCEL_SUPPORT
 	if(vlan_tx_tag_present(skb)) {
 		/* fetch the vlan tag info out of the
-		 * ancilliary data if the vlan code
+		 * ancillary data if the vlan code
 		 * is using hw vlan acceleration
 		 */
 		short tag = vlan_tx_tag_get(skb);
@@ -1251,7 +1251,7 @@ static int ns83820_get_settings(struct net_device *ndev,
 	/*
 	 * Here's the list of available ethtool commands from other drivers:
 	 *	cmd->advertising =
-	 *	cmd->speed =
+	 *	ethtool_cmd_speed_set(cmd, ...)
 	 *	cmd->duplex =
 	 *	cmd->port = 0;
 	 *	cmd->phy_address =
@@ -1289,13 +1289,13 @@ static int ns83820_get_settings(struct net_device *ndev,
 	cmd->duplex = fullduplex ? DUPLEX_FULL : DUPLEX_HALF;
 	switch (cfg / CFG_SPDSTS0 & 3) {
 	case 2:
-		cmd->speed = SPEED_1000;
+		ethtool_cmd_speed_set(cmd, SPEED_1000);
 		break;
 	case 1:
-		cmd->speed = SPEED_100;
+		ethtool_cmd_speed_set(cmd, SPEED_100);
 		break;
 	default:
-		cmd->speed = SPEED_10;
+		ethtool_cmd_speed_set(cmd, SPEED_10);
 		break;
 	}
 	cmd->autoneg = (tbicr & TBICR_MR_AN_ENABLE)

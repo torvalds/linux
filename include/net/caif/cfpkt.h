@@ -16,12 +16,6 @@ struct cfpkt;
  */
 struct cfpkt *cfpkt_create(u16 len);
 
-/* Create a CAIF packet.
- * data Data to copy.
- * len Length of packet to be created
- * @return New packet.
- */
-struct cfpkt *cfpkt_create_uplink(const unsigned char *data, unsigned int len);
 /*
  * Destroy a CAIF Packet.
  * pkt Packet to be destoyed.
@@ -181,22 +175,6 @@ u16 cfpkt_iterate(struct cfpkt *pkt,
 		u16 (*iter_func)(u16 chks, void *buf, u16 len),
 		u16 data);
 
-/* Append by giving user access to packet buffer
- * cfpkt Packet to append to
- * buf Buffer inside pkt that user shall copy data into
- * buflen Length of buffer and number of bytes added to packet
- * @return 0 on error, 1 on success
- */
-int cfpkt_raw_append(struct cfpkt *cfpkt, void **buf, unsigned int buflen);
-
-/* Extract by giving user access to packet buffer
- * cfpkt Packet to extract from
- * buf Buffer inside pkt that user shall copy data from
- * buflen Length of buffer and number of bytes removed from packet
- * @return 0 on error, 1 on success
- */
-int cfpkt_raw_extract(struct cfpkt *cfpkt, void **buf, unsigned int buflen);
-
 /* Map from a "native" packet (e.g. Linux Socket Buffer) to a CAIF packet.
  *  dir - Direction indicating whether this packet is to be sent or received.
  *  nativepkt  - The native packet to be transformed to a CAIF packet
@@ -210,59 +188,6 @@ struct cfpkt *cfpkt_fromnative(enum caif_direction dir, void *nativepkt);
  */
 void *cfpkt_tonative(struct cfpkt *pkt);
 
-/*
- * Insert a packet in the packet queue.
- * pktq Packet queue to insert into
- * pkt Packet to be inserted in queue
- * prio Priority of packet
- */
-void cfpkt_queue(struct cfpktq *pktq, struct cfpkt *pkt,
-		 unsigned short prio);
-
-/*
- * Remove a packet from the packet queue.
- * pktq Packet queue to fetch packets from.
- * @return Dequeued packet.
- */
-struct cfpkt *cfpkt_dequeue(struct cfpktq *pktq);
-
-/*
- * Peek into a packet from the packet queue.
- * pktq Packet queue to fetch packets from.
- * @return Peeked packet.
- */
-struct cfpkt *cfpkt_qpeek(struct cfpktq *pktq);
-
-/*
- * Initiates the packet queue.
- * @return Pointer to new packet queue.
- */
-struct cfpktq *cfpktq_create(void);
-
-/*
- * Get the number of packets in the queue.
- * pktq Packet queue to fetch count from.
- * @return Number of packets in queue.
- */
-int cfpkt_qcount(struct cfpktq *pktq);
-
-/*
- * Put content of packet into buffer for debuging purposes.
- * pkt Packet to copy data from
- * buf Buffer to copy data into
- * buflen Length of data to copy
- * @return Pointer to copied data
- */
-char *cfpkt_log_pkt(struct cfpkt *pkt, char *buf, int buflen);
-
-/*
- * Clones a packet and releases the original packet.
- * This is used for taking ownership of a packet e.g queueing.
- * pkt Packet to clone and release.
- * @return Cloned packet.
- */
-struct cfpkt *cfpkt_clone_release(struct cfpkt *pkt);
-
 
 /*
  * Returns packet information for a packet.
@@ -270,5 +195,4 @@ struct cfpkt *cfpkt_clone_release(struct cfpkt *pkt);
  * @return Packet information
  */
 struct caif_payload_info *cfpkt_info(struct cfpkt *pkt);
-/*! @} */
 #endif				/* CFPKT_H_ */

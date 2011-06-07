@@ -582,7 +582,7 @@ static void svia_configure(struct pci_dev *pdev, int board_id)
 	 * When host issues HOLD, device may send up to 20DW of data
 	 * before acknowledging it with HOLDA and the host should be
 	 * able to buffer them in FIFO.  Unfortunately, some WD drives
-	 * send upto 40DW before acknowledging HOLD and, in the
+	 * send up to 40DW before acknowledging HOLD and, in the
 	 * default configuration, this ends up overflowing vt6421's
 	 * FIFO, making the controller abort the transaction with
 	 * R_ERR.

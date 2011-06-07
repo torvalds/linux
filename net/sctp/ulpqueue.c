@@ -240,7 +240,7 @@ int sctp_ulpq_tail_event(struct sctp_ulpq *ulpq, struct sctp_ulpevent *event)
 		} else {
 			/*
 			 * If fragment interleave is enabled, we
-			 * can queue this to the recieve queue instead
+			 * can queue this to the receive queue instead
 			 * of the lobby.
 			 */
 			if (sctp_sk(sk)->frag_interleave)

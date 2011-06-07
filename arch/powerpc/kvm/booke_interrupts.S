@@ -380,7 +380,6 @@ lightweight_exit:
 	 * because host interrupt handlers would get confused. */
 	lwz	r1, VCPU_GPR(r1)(r4)
 
-	/* XXX handle USPRG0 */
 	/* Host interrupt handlers may have clobbered these guest-readable
 	 * SPRGs, so we need to reload them here with the guest's values. */
 	lwz	r3, VCPU_SPRG4(r4)

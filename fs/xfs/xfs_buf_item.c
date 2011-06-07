@@ -992,7 +992,7 @@ xfs_buf_iodone_callbacks(
 	lasttarg = XFS_BUF_TARGET(bp);
 
 	/*
-	 * If the write was asynchronous then noone will be looking for the
+	 * If the write was asynchronous then no one will be looking for the
 	 * error.  Clear the error state and write the buffer out again.
 	 *
 	 * During sync or umount we'll write all pending buffers again

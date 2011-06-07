@@ -70,7 +70,7 @@ xfs_synchronize_times(
 
 /*
  * If the linux inode is valid, mark it dirty.
- * Used when commiting a dirty inode into a transaction so that
+ * Used when committing a dirty inode into a transaction so that
  * the inode will get written back by the linux code
  */
 void

@@ -1019,7 +1019,7 @@ EXPORT_SYMBOL(omap_set_dma_callback);
  * If the channel is running the caller must disable interrupts prior calling
  * this function and process the returned value before re-enabling interrupt to
  * prevent races with the interrupt handler. Note that in continuous mode there
- * is a chance for CSSA_L register overflow inbetween the two reads resulting
+ * is a chance for CSSA_L register overflow between the two reads resulting
  * in incorrect return value.
  */
 dma_addr_t omap_get_dma_src_pos(int lch)
@@ -1046,7 +1046,7 @@ EXPORT_SYMBOL(omap_get_dma_src_pos);
  * If the channel is running the caller must disable interrupts prior calling
  * this function and process the returned value before re-enabling interrupt to
  * prevent races with the interrupt handler. Note that in continuous mode there
- * is a chance for CDSA_L register overflow inbetween the two reads resulting
+ * is a chance for CDSA_L register overflow between the two reads resulting
  * in incorrect return value.
  */
 dma_addr_t omap_get_dma_dst_pos(int lch)

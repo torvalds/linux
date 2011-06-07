@@ -120,17 +120,21 @@ static void serport_ldisc_close(struct tty_struct *tty)
  * 'interrupt' routine.
  */
 
-static void serport_ldisc_receive(struct tty_struct *tty, const unsigned char *cp, char *fp, int count)
+static unsigned int serport_ldisc_receive(struct tty_struct *tty,
+		const unsigned char *cp, char *fp, int count)
 {
 	struct serport *serport = (struct serport*) tty->disc_data;
 	unsigned long flags;
 	unsigned int ch_flags;
+	int ret = 0;
 	int i;
 
 	spin_lock_irqsave(&serport->lock, flags);
 
-	if (!test_bit(SERPORT_ACTIVE, &serport->flags))
+	if (!test_bit(SERPORT_ACTIVE, &serport->flags)) {
+		ret = -EINVAL;
 		goto out;
+	}
 
 	for (i = 0; i < count; i++) {
 		switch (fp[i]) {
@@ -152,6 +156,8 @@ static void serport_ldisc_receive(struct tty_struct *tty, const unsigned char *c
 
 out:
 	spin_unlock_irqrestore(&serport->lock, flags);
+
+	return ret == 0 ? count : ret;
 }
 
 /*

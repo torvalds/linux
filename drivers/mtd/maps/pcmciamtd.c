@@ -497,7 +497,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 		dev->pcmcia_map.set_vpp = pcmciamtd_set_vpp;
 
 	/* Request a memory window for PCMCIA. Some architeures can map windows
-	 * upto the maximum that PCMCIA can support (64MiB) - this is ideal and
+	 * up to the maximum that PCMCIA can support (64MiB) - this is ideal and
 	 * we aim for a window the size of the whole card - otherwise we try
 	 * smaller windows until we succeed
 	 */
@@ -630,7 +630,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 		dev->pcmcia_map.copy_to = pcmcia_copy_to;
 	}
 
-	if(add_mtd_device(mtd)) {
+	if (mtd_device_register(mtd, NULL, 0)) {
 		map_destroy(mtd);
 		dev->mtd_info = NULL;
 		dev_err(&dev->p_dev->dev,
@@ -669,7 +669,7 @@ static void pcmciamtd_detach(struct pcmcia_device *link)
 	DEBUG(3, "link=0x%p", link);
 
 	if(dev->mtd_info) {
-		del_mtd_device(dev->mtd_info);
+		mtd_device_unregister(dev->mtd_info);
 		dev_info(&dev->p_dev->dev, "mtd%d: Removing\n",
 			 dev->mtd_info->index);
 		map_destroy(dev->mtd_info);
@@ -694,7 +694,7 @@ static int pcmciamtd_probe(struct pcmcia_device *link)
 	return pcmciamtd_config(link);
 }
 
-static struct pcmcia_device_id pcmciamtd_ids[] = {
+static const struct pcmcia_device_id pcmciamtd_ids[] = {
 	PCMCIA_DEVICE_FUNC_ID(1),
 	PCMCIA_DEVICE_PROD_ID123("IO DATA", "PCS-2M", "2MB SRAM", 0x547e66dc, 0x1fed36cd, 0x36eadd21),
 	PCMCIA_DEVICE_PROD_ID12("IBM", "2MB SRAM", 0xb569a6e5, 0x36eadd21),

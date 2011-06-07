@@ -12,6 +12,7 @@
 
 #include <linux/device.h>
 #include <linux/cdev.h>
+#include <linux/irq.h>
 #include "sysfs.h"
 #include "chrdev.h"
 
@@ -24,8 +25,157 @@
 /* Event interface flags */
 #define IIO_BUSY_BIT_POS 1
 
-struct iio_dev;
+/* naughty temporary hack to match these against the event version
+   - need to flattern these together */
+enum iio_chan_type {
+	/* real channel types */
+	IIO_IN,
+	IIO_CURRENT,
+	IIO_POWER,
+	IIO_ACCEL,
+	IIO_IN_DIFF,
+	IIO_GYRO,
+	IIO_MAGN,
+	IIO_LIGHT,
+	IIO_INTENSITY,
+	IIO_PROXIMITY,
+	IIO_TEMP,
+	IIO_INCLI,
+	IIO_ROT,
+	IIO_ANGL,
+	IIO_TIMESTAMP,
+};
 
+#define IIO_MOD_X			0
+#define IIO_MOD_LIGHT_BOTH		0
+#define IIO_MOD_Y			1
+#define IIO_MOD_LIGHT_IR		1
+#define IIO_MOD_Z			2
+#define IIO_MOD_X_AND_Y			3
+#define IIO_MOD_X_ANX_Z			4
+#define IIO_MOD_Y_AND_Z			5
+#define IIO_MOD_X_AND_Y_AND_Z		6
+#define IIO_MOD_X_OR_Y			7
+#define IIO_MOD_X_OR_Z			8
+#define IIO_MOD_Y_OR_Z			9
+#define IIO_MOD_X_OR_Y_OR_Z		10
+
+/* Could add the raw attributes as well - allowing buffer only devices */
+enum iio_chan_info_enum {
+	IIO_CHAN_INFO_SCALE_SHARED,
+	IIO_CHAN_INFO_SCALE_SEPARATE,
+	IIO_CHAN_INFO_OFFSET_SHARED,
+	IIO_CHAN_INFO_OFFSET_SEPARATE,
+	IIO_CHAN_INFO_CALIBSCALE_SHARED,
+	IIO_CHAN_INFO_CALIBSCALE_SEPARATE,
+	IIO_CHAN_INFO_CALIBBIAS_SHARED,
+	IIO_CHAN_INFO_CALIBBIAS_SEPARATE,
+	IIO_CHAN_INFO_PEAK_SHARED,
+	IIO_CHAN_INFO_PEAK_SEPARATE,
+	IIO_CHAN_INFO_PEAK_SCALE_SHARED,
+	IIO_CHAN_INFO_PEAK_SCALE_SEPARATE,
+};
+
+/**
+ * struct iio_chan_spec - specification of a single channel
+ * @type:		What type of measurement is the channel making.
+ * @channel:		What number or name do we wish to asign the channel.
+ * @channel2:		If there is a second number for a differential
+ *			channel then this is it. If modified is set then the
+ *			value here specifies the modifier.
+ * @address:		Driver specific identifier.
+ * @scan_index:	Monotonic index to give ordering in scans when read
+ *			from a buffer.
+ * @scan_type:		Sign:		's' or 'u' to specify signed or unsigned
+ *			realbits:	Number of valid bits of data
+ *			storage_bits:	Realbits + padding
+ *			shift:		Shift right by this before masking out
+ *					realbits.
+ * @info_mask:		What information is to be exported about this channel.
+ *			This includes calibbias, scale etc.
+ * @event_mask:	What events can this channel produce.
+ * @extend_name:	Allows labeling of channel attributes with an
+ *			informative name. Note this has no effect codes etc,
+ *			unlike modifiers.
+ * @processed_val:	Flag to specify the data access attribute should be
+ *			*_input rather than *_raw.
+ * @modified:		Does a modifier apply to this channel. What these are
+ *			depends on the channel type.  Modifier is set in
+ *			channel2. Examples are IIO_MOD_X for axial sensors about
+ *			the 'x' axis.
+ * @indexed:		Specify the channel has a numerical index. If not,
+ *			the value in channel will be suppressed for attribute
+ *			but not for event codes. Typically set it to 0 when
+ *			the index is false.
+ */
+struct iio_chan_spec {
+	enum iio_chan_type	type;
+	int			channel;
+	int			channel2;
+	unsigned long		address;
+	int			scan_index;
+	struct {
+		char	sign;
+		u8	realbits;
+		u8	storagebits;
+		u8	shift;
+	} scan_type;
+	const long		info_mask;
+	const long		event_mask;
+	const char		*extend_name;
+	unsigned		processed_val:1;
+	unsigned		modified:1;
+	unsigned		indexed:1;
+};
+/* Meant for internal use only */
+void __iio_device_attr_deinit(struct device_attribute *dev_attr);
+int __iio_device_attr_init(struct device_attribute *dev_attr,
+			   const char *postfix,
+			   struct iio_chan_spec const *chan,
+			   ssize_t (*readfunc)(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf),
+			   ssize_t (*writefunc)(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf,
+						size_t len),
+			   bool generic);
+#define IIO_ST(si, rb, sb, sh)						\
+	{ .sign = si, .realbits = rb, .storagebits = sb, .shift = sh }
+
+#define IIO_CHAN(_type, _mod, _indexed, _proc, _name, _chan, _chan2,	\
+		 _inf_mask, _address, _si, _stype, _event_mask)		\
+	{ .type = _type,						\
+	  .modified = _mod,						\
+	  .indexed = _indexed,						\
+	  .processed_val = _proc,					\
+	  .extend_name = _name,						\
+	  .channel = _chan,						\
+	  .channel2 = _chan2,						\
+	  .info_mask = _inf_mask,					\
+	  .address = _address,						\
+	  .scan_index = _si,						\
+	  .scan_type = _stype,						\
+	  .event_mask = _event_mask }
+
+#define IIO_CHAN_SOFT_TIMESTAMP(_si)					\
+	{ .type = IIO_TIMESTAMP, .channel = -1,				\
+			.scan_index = _si, .scan_type = IIO_ST('s', 64, 64, 0) }
+
+int __iio_add_chan_devattr(const char *postfix,
+			   const char *group,
+			   struct iio_chan_spec const *chan,
+			   ssize_t (*func)(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf),
+			   ssize_t (*writefunc)(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf,
+						size_t len),
+			   int mask,
+			   bool generic,
+			   struct device *dev,
+			   struct list_head *attr_list);
 /**
  * iio_get_time_ns() - utility function to get a time stamp for events etc
  **/
@@ -41,26 +191,6 @@ static inline s64 iio_get_time_ns(void)
 	return timespec_to_ns(&ts);
 }
 
-/**
- * iio_add_event_to_list() - Wraps adding to event lists
- * @el:		the list element of the event to be handled.
- * @head:	the list associated with the event handler being used.
- *
- * Does reference counting to allow shared handlers.
- **/
-void iio_add_event_to_list(struct iio_event_handler_list *el,
-			   struct list_head *head);
-
-/**
- * iio_remove_event_from_list() - Wraps removing from event list
- * @el:		element to be removed
- * @head:	associate list head for the interrupt handler.
- *
- * Does reference counting to allow shared handlers.
- **/
-void iio_remove_event_from_list(struct iio_event_handler_list *el,
-				struct list_head *head);
-
 /* Device operating modes */
 #define INDIO_DIRECT_MODE		0x01
 #define INDIO_RING_TRIGGERED		0x02
@@ -70,6 +200,62 @@ void iio_remove_event_from_list(struct iio_event_handler_list *el,
 
 /* Vast majority of this is set by the industrialio subsystem on a
  * call to iio_device_register. */
+#define IIO_VAL_INT 1
+#define IIO_VAL_INT_PLUS_MICRO 2
+
+/**
+ * struct iio_info - constant information about device
+ * @driver_module:	module structure used to ensure correct
+ *			ownership of chrdevs etc
+ * @num_interrupt_lines:number of physical interrupt lines from device
+ * @event_attrs:	event control attributes
+ * @attrs:		general purpose device attributes
+ * @read_raw:		function to request a value from the device.
+ *			mask specifies which value. Note 0 means a reading of
+ *			the channel in question.  Return value will specify the
+ *			type of value returned by the device. val and val2 will
+ *			contain the elements making up the returned value.
+ * @write_raw:		function to write a value to the device.
+ *			Parameters are the same as for read_raw.
+ * @read_event_config:	find out if the event is enabled.
+ * @write_event_config:	set if the event is enabled.
+ * @read_event_value:	read a value associated with the event. Meaning
+ *			is event dependant. event_code specifies which event.
+ * @write_event_value:	write the value associate with the event.
+ *			Meaning is event dependent.
+ **/
+struct iio_info {
+	struct module			*driver_module;
+	int				num_interrupt_lines;
+	struct attribute_group		*event_attrs;
+	const struct attribute_group	*attrs;
+
+	int (*read_raw)(struct iio_dev *indio_dev,
+			struct iio_chan_spec const *chan,
+			int *val,
+			int *val2,
+			long mask);
+
+	int (*write_raw)(struct iio_dev *indio_dev,
+			 struct iio_chan_spec const *chan,
+			 int val,
+			 int val2,
+			 long mask);
+
+	int (*read_event_config)(struct iio_dev *indio_dev,
+				 int event_code);
+
+	int (*write_event_config)(struct iio_dev *indio_dev,
+				  int event_code,
+				  int state);
+
+	int (*read_event_value)(struct iio_dev *indio_dev,
+				int event_code,
+				int *val);
+	int (*write_event_value)(struct iio_dev *indio_dev,
+				 int event_code,
+				 int val);
+};
 
 /**
  * struct iio_dev - industrial I/O device
@@ -79,20 +265,18 @@ void iio_remove_event_from_list(struct iio_event_handler_list *el,
  * @currentmode:	[DRIVER] current operating mode
  * @dev:		[DRIVER] device structure, should be assigned a parent
  *			and owner
- * @attrs:		[DRIVER] general purpose device attributes
- * @driver_module:	[DRIVER] module structure used to ensure correct
- *			ownership of chrdevs etc
- * @num_interrupt_lines:[DRIVER] number of physical interrupt lines from device
- * @interrupts:		[INTERN] interrupt line specific event lists etc
- * @event_attrs:	[DRIVER] event control attributes
- * @event_conf_attrs:	[DRIVER] event configuration attributes
  * @event_interfaces:	[INTERN] event chrdevs associated with interrupt lines
  * @ring:		[DRIVER] any ring buffer present
  * @mlock:		[INTERN] lock used to prevent simultaneous device state
  *			changes
  * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
  * @trig:		[INTERN] current device trigger (ring buffer modes)
- * @pollfunc:		[DRIVER] function run on trigger being recieved
+ * @pollfunc:		[DRIVER] function run on trigger being received
+ * @channels:		[DRIVER] channel specification structure table
+ * @num_channels:	[DRIVER] number of chanels specified in @channels.
+ * @channel_attr_list:	[INTERN] keep track of automatically created channel
+ *			attributes.
+ * @name:		[DRIVER] name of the device.
  **/
 struct iio_dev {
 	int				id;
@@ -100,13 +284,6 @@ struct iio_dev {
 	int				modes;
 	int				currentmode;
 	struct device			dev;
-	const struct attribute_group	*attrs;
-	struct module			*driver_module;
-
-	int				num_interrupt_lines;
-	struct iio_interrupt		**interrupts;
-	struct attribute_group		*event_attrs;
-	struct attribute_group		*event_conf_attrs;
 
 	struct iio_event_interface	*event_interfaces;
 
@@ -116,6 +293,13 @@ struct iio_dev {
 	u32				*available_scan_masks;
 	struct iio_trigger		*trig;
 	struct iio_poll_func		*pollfunc;
+
+	struct iio_chan_spec const *channels;
+	int num_channels;
+
+	struct list_head channel_attr_list;
+	const char *name;
+	const struct iio_info *info;
 };
 
 /**
@@ -131,47 +315,6 @@ int iio_device_register(struct iio_dev *dev_info);
 void iio_device_unregister(struct iio_dev *dev_info);
 
 /**
- * struct iio_interrupt - wrapper used to allow easy handling of multiple
- *			physical interrupt lines
- * @dev_info:		the iio device for which the is an interrupt line
- * @line_number:	associated line number
- * @id:			ida allocated unique id number
- * @irq:		associate interrupt number
- * @ev_list:		event handler list for associated events
- * @ev_list_lock:	ensure only one access to list at a time
- **/
-struct iio_interrupt {
-	struct iio_dev			*dev_info;
-	int				line_number;
-	int				id;
-	int				irq;
-	struct list_head		ev_list;
-	spinlock_t			ev_list_lock;
-};
-
-#define to_iio_interrupt(i) container_of(i, struct iio_interrupt, ev_list)
-
-/**
- * iio_register_interrupt_line() - Tell IIO about interrupt lines
- *
- * @irq:		Typically provided via platform data
- * @dev_info:		IIO device info structure for device
- * @line_number:	Which interrupt line of the device is this?
- * @type:		Interrupt type (e.g. edge triggered etc)
- * @name:		Identifying name.
- **/
-int iio_register_interrupt_line(unsigned int			irq,
-				struct iio_dev			*dev_info,
-				int				line_number,
-				unsigned long			type,
-				const char			*name);
-
-void iio_unregister_interrupt_line(struct iio_dev *dev_info,
-				   int line_number);
-
-
-
-/**
  * iio_push_event() - try to add event to the list for userspace reading
  * @dev_info:		IIO device structure
  * @ev_line:		Which event line (hardware interrupt)
@@ -182,50 +325,6 @@ int iio_push_event(struct iio_dev *dev_info,
 		  int ev_line,
 		  int ev_code,
 		  s64 timestamp);
-
-/**
- * __iio_push_event() - tries to add an event to the list associated with a chrdev
- * @ev_int:		the event interface to which we are pushing the event
- * @ev_code:		the outgoing event code
- * @timestamp:		timestamp of the event
- * @shared_pointer_p:	the shared event pointer
- **/
-int __iio_push_event(struct iio_event_interface *ev_int,
-		    int ev_code,
-		    s64 timestamp,
-		    struct iio_shared_ev_pointer*
-		    shared_pointer_p);
-/**
- * __iio_change_event() - change an event code in case of event escalation
- * @ev:			the event to be changed
- * @ev_code:		new event code
- * @timestamp:		new timestamp
- **/
-void __iio_change_event(struct iio_detected_event_list *ev,
-			int ev_code,
-			s64 timestamp);
-
-/**
- * iio_setup_ev_int() - configure an event interface (chrdev)
- * @name:		name used for resulting sysfs directory etc.
- * @ev_int:		interface we are configuring
- * @owner:		module that is responsible for registering this ev_int
- * @dev:		device whose ev_int this is
- **/
-int iio_setup_ev_int(struct iio_event_interface *ev_int,
-		     const char *name,
-		     struct module *owner,
-		     struct device *dev);
-
-void iio_free_ev_int(struct iio_event_interface *ev_int);
-
-/**
- * iio_allocate_chrdev() - Allocate a chrdev
- * @handler:	struct that contains relevant file handling for chrdev
- * @dev_info:	iio_dev for which chrdev is being created
- **/
-int iio_allocate_chrdev(struct iio_handler *handler, struct iio_dev *dev_info);
-void iio_deallocate_chrdev(struct iio_handler *handler);
 
 /* Used to distinguish between bipolar and unipolar scan elemenents.
  * Whilst this may seem obvious, we may well want to change the representation
@@ -264,10 +363,25 @@ static inline void *iio_dev_get_devdata(struct iio_dev *d)
 	return d->dev_data;
 }
 
+
+/* Can we make this smaller? */
+#define IIO_ALIGN L1_CACHE_BYTES
 /**
  * iio_allocate_device() - allocate an iio_dev from a driver
+ * @sizeof_priv: Space to allocate for private structure.
  **/
-struct iio_dev *iio_allocate_device(void);
+struct iio_dev *iio_allocate_device(int sizeof_priv);
+
+static inline void *iio_priv(const struct iio_dev *dev)
+{
+	return (char *)dev + ALIGN(sizeof(struct iio_dev), IIO_ALIGN);
+}
+
+static inline struct iio_dev *iio_priv_to_dev(void *priv)
+{
+	return (struct iio_dev *)((char *)priv -
+				  ALIGN(sizeof(struct iio_dev), IIO_ALIGN));
+}
 
 /**
  * iio_free_device() - free an iio_dev from a driver

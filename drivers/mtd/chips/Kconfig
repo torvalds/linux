@@ -19,7 +19,7 @@ config MTD_JEDECPROBE
 	help
 	  This option enables JEDEC-style probing of flash chips which are not
 	  compatible with the Common Flash Interface, but will use the common
-	  CFI-targetted flash drivers for any chips which are identified which
+	  CFI-targeted flash drivers for any chips which are identified which
 	  are in fact compatible in all but the probe method. This actually
 	  covers most AMD/Fujitsu-compatible chips and also non-CFI
 	  Intel chips.

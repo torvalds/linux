@@ -85,7 +85,7 @@ out:
 
 /*
  * Helper function for splitting a string into an argv-like array.
- * originaly copied from lib/argv_split.c
+ * originally copied from lib/argv_split.c
  */
 static const char *skip_sep(const char *cp)
 {

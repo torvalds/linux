@@ -117,7 +117,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 		ecmd->port = PORT_TP;
 
-		ecmd->speed = adapter->link_speed;
+		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 		ecmd->duplex = adapter->link_duplex;
 		ecmd->autoneg = adapter->link_autoneg;
 
@@ -134,7 +134,7 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		}
 
 		if (netif_running(dev) && adapter->has_link_events) {
-			ecmd->speed = adapter->link_speed;
+			ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 			ecmd->autoneg = adapter->link_autoneg;
 			ecmd->duplex = adapter->link_duplex;
 			goto skip;
@@ -146,10 +146,10 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			u16 pcifn = adapter->ahw.pci_func;
 
 			val = NXRD32(adapter, P3_LINK_SPEED_REG(pcifn));
-			ecmd->speed = P3_LINK_SPEED_MHZ *
-					P3_LINK_SPEED_VAL(pcifn, val);
+			ethtool_cmd_speed_set(ecmd, P3_LINK_SPEED_MHZ *
+					      P3_LINK_SPEED_VAL(pcifn, val));
 		} else
-			ecmd->speed = SPEED_10000;
+			ethtool_cmd_speed_set(ecmd, SPEED_10000);
 
 		ecmd->duplex = DUPLEX_FULL;
 		ecmd->autoneg = AUTONEG_DISABLE;
@@ -251,6 +251,7 @@ static int
 netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(ecmd);
 	int ret;
 
 	if (adapter->ahw.port_type != NETXEN_NIC_GBE)
@@ -259,14 +260,14 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	if (!(adapter->capabilities & NX_FW_CAPABILITY_GBE_LINK_CFG))
 		return -EOPNOTSUPP;
 
-	ret = nx_fw_cmd_set_gbe_port(adapter, ecmd->speed, ecmd->duplex,
+	ret = nx_fw_cmd_set_gbe_port(adapter, speed, ecmd->duplex,
 				     ecmd->autoneg);
 	if (ret == NX_RCODE_NOT_SUPPORTED)
 		return -EOPNOTSUPP;
 	else if (ret)
 		return -EIO;
 
-	adapter->link_speed = ecmd->speed;
+	adapter->link_speed = speed;
 	adapter->link_duplex = ecmd->duplex;
 	adapter->link_autoneg = ecmd->autoneg;
 
@@ -676,62 +677,6 @@ netxen_nic_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
-static u32 netxen_nic_get_tx_csum(struct net_device *dev)
-{
-	return dev->features & NETIF_F_IP_CSUM;
-}
-
-static u32 netxen_nic_get_rx_csum(struct net_device *dev)
-{
-	struct netxen_adapter *adapter = netdev_priv(dev);
-	return adapter->rx_csum;
-}
-
-static int netxen_nic_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct netxen_adapter *adapter = netdev_priv(dev);
-
-	if (data) {
-		adapter->rx_csum = data;
-		return 0;
-	}
-
-	if (dev->features & NETIF_F_LRO) {
-		if (netxen_config_hw_lro(adapter, NETXEN_NIC_LRO_DISABLED))
-			return -EIO;
-
-		dev->features &= ~NETIF_F_LRO;
-		netxen_send_lro_cleanup(adapter);
-		netdev_info(dev, "disabling LRO as rx_csum is off\n");
-	}
-	adapter->rx_csum = data;
-	return 0;
-}
-
-static u32 netxen_nic_get_tso(struct net_device *dev)
-{
-	struct netxen_adapter *adapter = netdev_priv(dev);
-
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
-		return (dev->features & (NETIF_F_TSO | NETIF_F_TSO6)) != 0;
-
-	return (dev->features & NETIF_F_TSO) != 0;
-}
-
-static int netxen_nic_set_tso(struct net_device *dev, u32 data)
-{
-	if (data) {
-		struct netxen_adapter *adapter = netdev_priv(dev);
-
-		dev->features |= NETIF_F_TSO;
-		if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
-			dev->features |= NETIF_F_TSO6;
-	} else
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-
-	return 0;
-}
-
 static void
 netxen_nic_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
@@ -866,43 +811,6 @@ static int netxen_get_intr_coalesce(struct net_device *netdev,
 	return 0;
 }
 
-static int netxen_nic_set_flags(struct net_device *netdev, u32 data)
-{
-	struct netxen_adapter *adapter = netdev_priv(netdev);
-	int hw_lro;
-
-	if (ethtool_invalid_flags(netdev, data, ETH_FLAG_LRO))
-		return -EINVAL;
-
-	if (!(adapter->capabilities & NX_FW_CAPABILITY_HW_LRO))
-		return -EINVAL;
-
-	if (!adapter->rx_csum) {
-		netdev_info(netdev, "rx csum is off, cannot toggle LRO\n");
-		return -EINVAL;
-	}
-
-	if (!!(data & ETH_FLAG_LRO) == !!(netdev->features & NETIF_F_LRO))
-		return 0;
-
-	if (data & ETH_FLAG_LRO) {
-		hw_lro = NETXEN_NIC_LRO_ENABLED;
-		netdev->features |= NETIF_F_LRO;
-	} else {
-		hw_lro = NETXEN_NIC_LRO_DISABLED;
-		netdev->features &= ~NETIF_F_LRO;
-	}
-
-	if (netxen_config_hw_lro(adapter, hw_lro))
-		return -EIO;
-
-	if ((hw_lro == 0) && netxen_send_lro_cleanup(adapter))
-		return -EIO;
-
-
-	return 0;
-}
-
 const struct ethtool_ops netxen_nic_ethtool_ops = {
 	.get_settings = netxen_nic_get_settings,
 	.set_settings = netxen_nic_set_settings,
@@ -916,21 +824,12 @@ const struct ethtool_ops netxen_nic_ethtool_ops = {
 	.set_ringparam = netxen_nic_set_ringparam,
 	.get_pauseparam = netxen_nic_get_pauseparam,
 	.set_pauseparam = netxen_nic_set_pauseparam,
-	.get_tx_csum = netxen_nic_get_tx_csum,
-	.set_tx_csum = ethtool_op_set_tx_csum,
-	.set_sg = ethtool_op_set_sg,
-	.get_tso = netxen_nic_get_tso,
-	.set_tso = netxen_nic_set_tso,
 	.get_wol = netxen_nic_get_wol,
 	.set_wol = netxen_nic_set_wol,
 	.self_test = netxen_nic_diag_test,
 	.get_strings = netxen_nic_get_strings,
 	.get_ethtool_stats = netxen_nic_get_ethtool_stats,
 	.get_sset_count = netxen_get_sset_count,
-	.get_rx_csum = netxen_nic_get_rx_csum,
-	.set_rx_csum = netxen_nic_set_rx_csum,
 	.get_coalesce = netxen_get_intr_coalesce,
 	.set_coalesce = netxen_set_intr_coalesce,
-	.get_flags = ethtool_op_get_flags,
-	.set_flags = netxen_nic_set_flags,
 };

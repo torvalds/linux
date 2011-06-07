@@ -247,7 +247,15 @@ static struct mtd_partition ezkit_partitions[] = {
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
 		.name       = "file system(nor)",
-		.size       = MTDPART_SIZ_FULL,
+		.size       = 0x800000 - 0x40000 - 0x1C0000 - 0x2000 * 8,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "config(nor)",
+		.size       = 0x2000 * 7,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "u-boot env(nor)",
+		.size       = 0x2000,
 		.offset     = MTDPART_OFS_APPEND,
 	}
 };

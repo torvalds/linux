@@ -159,8 +159,7 @@ static int savage_setup_i2c_bus(struct savagefb_i2c_chan *chan,
 		else
 			dev_warn(&chan->par->pcidev->dev,
 				 "Failed to register I2C bus %s.\n", name);
-	} else
-		chan->par = NULL;
+	}
 
 	return rc;
 }
@@ -170,9 +169,10 @@ void savagefb_create_i2c_busses(struct fb_info *info)
 	struct savagefb_par *par = info->par;
 	par->chan.par	= par;
 
-	switch(info->fix.accel) {
-	case FB_ACCEL_PROSAVAGE_DDRK:
-	case FB_ACCEL_PROSAVAGE_PM:
+	switch (par->chip) {
+	case S3_PROSAVAGE:
+	case S3_PROSAVAGEDDR:
+	case S3_TWISTER:
 		par->chan.reg         = CR_SERIAL2;
 		par->chan.ioaddr      = par->mmio.vbase;
 		par->chan.algo.setsda = prosavage_gpio_setsda;
@@ -180,7 +180,7 @@ void savagefb_create_i2c_busses(struct fb_info *info)
 		par->chan.algo.getsda = prosavage_gpio_getsda;
 		par->chan.algo.getscl = prosavage_gpio_getscl;
 		break;
-	case FB_ACCEL_SAVAGE4:
+	case S3_SAVAGE4:
 		par->chan.reg = CR_SERIAL1;
 		if (par->pcidev->revision > 1 && !(VGArCR(0xa6, par) & 0x40))
 			par->chan.reg = CR_SERIAL2;
@@ -190,8 +190,8 @@ void savagefb_create_i2c_busses(struct fb_info *info)
 		par->chan.algo.getsda = prosavage_gpio_getsda;
 		par->chan.algo.getscl = prosavage_gpio_getscl;
 		break;
-	case FB_ACCEL_SAVAGE2000:
-		par->chan.reg         = 0xff20;
+	case S3_SAVAGE2000:
+		par->chan.reg         = MM_SERIAL1;
 		par->chan.ioaddr      = par->mmio.vbase;
 		par->chan.algo.setsda = savage4_gpio_setsda;
 		par->chan.algo.setscl = savage4_gpio_setscl;

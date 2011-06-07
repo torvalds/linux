@@ -95,7 +95,7 @@ static void __init sni_a20r_timer_setup(void)
 static __init unsigned long dosample(void)
 {
 	u32 ct0, ct1;
-	volatile u8 msb, lsb;
+	volatile u8 msb;
 
 	/* Start the counter. */
 	outb_p(0x34, 0x43);
@@ -108,7 +108,7 @@ static __init unsigned long dosample(void)
 	/* Latch and spin until top byte of counter0 is zero */
 	do {
 		outb(0x00, 0x43);
-		lsb = inb(0x40);
+		(void) inb(0x40);
 		msb = inb(0x40);
 		ct1 = read_c0_count();
 	} while (msb);

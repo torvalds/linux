@@ -67,7 +67,7 @@ int __init __deprecated cpg_clk_init(void)
 }
 
 /*
- * Placeholder for compatability, until the lazy CPUs do this
+ * Placeholder for compatibility, until the lazy CPUs do this
  * on their own.
  */
 int __init __weak arch_clk_init(void)

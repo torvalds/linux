@@ -15,7 +15,6 @@
 #include <linux/regulator/driver.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
-#include <linux/mfd/core.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/err.h>
@@ -337,11 +336,12 @@ static int __devinit mc13783_regulator_probe(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv;
 	struct mc13xxx *mc13783 = dev_get_drvdata(pdev->dev.parent);
-	struct mc13783_regulator_platform_data *pdata = mfd_get_data(pdev);
+	struct mc13783_regulator_platform_data *pdata =
+		dev_get_platdata(&pdev->dev);
 	struct mc13783_regulator_init_data *init_data;
 	int i, ret;
 
-	dev_dbg(&pdev->dev, "mc13783_regulator_probe id %d\n", pdev->id);
+	dev_dbg(&pdev->dev, "%s id %d\n", __func__, pdev->id);
 
 	priv = kzalloc(sizeof(*priv) +
 			pdata->num_regulators * sizeof(priv->regulators[0]),
@@ -381,7 +381,8 @@ err:
 static int __devexit mc13783_regulator_remove(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv = platform_get_drvdata(pdev);
-	struct mc13783_regulator_platform_data *pdata = mfd_get_data(pdev);
+	struct mc13783_regulator_platform_data *pdata =
+		dev_get_platdata(&pdev->dev);
 	int i;
 
 	platform_set_drvdata(pdev, NULL);

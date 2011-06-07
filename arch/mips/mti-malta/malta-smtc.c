@@ -130,7 +130,7 @@ int plat_set_irq_affinity(struct irq_data *d, const struct cpumask *affinity,
 	 * cleared in the affinity mask, there will never be any
 	 * interrupt forwarding.  But as soon as a program or operator
 	 * sets affinity for one of the related IRQs, we need to make
-	 * sure that we don't ever try to forward across the VPE boundry,
+	 * sure that we don't ever try to forward across the VPE boundary,
 	 * at least not until we engineer a system where the interrupt
 	 * _ack() or _end() function can somehow know that it corresponds
 	 * to an interrupt taken on another VPE, and perform the appropriate

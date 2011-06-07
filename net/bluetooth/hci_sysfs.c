@@ -216,13 +216,13 @@ static ssize_t show_type(struct device *dev, struct device_attribute *attr, char
 static ssize_t show_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	char name[249];
+	char name[HCI_MAX_NAME_LENGTH + 1];
 	int i;
 
-	for (i = 0; i < 248; i++)
+	for (i = 0; i < HCI_MAX_NAME_LENGTH; i++)
 		name[i] = hdev->dev_name[i];
 
-	name[248] = '\0';
+	name[HCI_MAX_NAME_LENGTH] = '\0';
 	return sprintf(buf, "%s\n", name);
 }
 
@@ -277,10 +277,12 @@ static ssize_t show_idle_timeout(struct device *dev, struct device_attribute *at
 static ssize_t store_idle_timeout(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	unsigned long val;
+	unsigned int val;
+	int rv;
 
-	if (strict_strtoul(buf, 0, &val) < 0)
-		return -EINVAL;
+	rv = kstrtouint(buf, 0, &val);
+	if (rv < 0)
+		return rv;
 
 	if (val != 0 && (val < 500 || val > 3600000))
 		return -EINVAL;
@@ -299,15 +301,14 @@ static ssize_t show_sniff_max_interval(struct device *dev, struct device_attribu
 static ssize_t store_sniff_max_interval(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	unsigned long val;
+	u16 val;
+	int rv;
 
-	if (strict_strtoul(buf, 0, &val) < 0)
-		return -EINVAL;
+	rv = kstrtou16(buf, 0, &val);
+	if (rv < 0)
+		return rv;
 
-	if (val < 0x0002 || val > 0xFFFE || val % 2)
-		return -EINVAL;
-
-	if (val < hdev->sniff_min_interval)
+	if (val == 0 || val % 2 || val < hdev->sniff_min_interval)
 		return -EINVAL;
 
 	hdev->sniff_max_interval = val;
@@ -324,15 +325,14 @@ static ssize_t show_sniff_min_interval(struct device *dev, struct device_attribu
 static ssize_t store_sniff_min_interval(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	unsigned long val;
+	u16 val;
+	int rv;
 
-	if (strict_strtoul(buf, 0, &val) < 0)
-		return -EINVAL;
+	rv = kstrtou16(buf, 0, &val);
+	if (rv < 0)
+		return rv;
 
-	if (val < 0x0002 || val > 0xFFFE || val % 2)
-		return -EINVAL;
-
-	if (val > hdev->sniff_max_interval)
+	if (val == 0 || val % 2 || val > hdev->sniff_max_interval)
 		return -EINVAL;
 
 	hdev->sniff_min_interval = val;
@@ -511,6 +511,35 @@ static const struct file_operations uuids_fops = {
 	.release	= single_release,
 };
 
+static int auto_accept_delay_set(void *data, u64 val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock_bh(hdev);
+
+	hdev->auto_accept_delay = val;
+
+	hci_dev_unlock_bh(hdev);
+
+	return 0;
+}
+
+static int auto_accept_delay_get(void *data, u64 *val)
+{
+	struct hci_dev *hdev = data;
+
+	hci_dev_lock_bh(hdev);
+
+	*val = hdev->auto_accept_delay;
+
+	hci_dev_unlock_bh(hdev);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(auto_accept_delay_fops, auto_accept_delay_get,
+					auto_accept_delay_set, "%llu\n");
+
 int hci_register_sysfs(struct hci_dev *hdev)
 {
 	struct device *dev = &hdev->dev;
@@ -545,6 +574,8 @@ int hci_register_sysfs(struct hci_dev *hdev)
 
 	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
 
+	debugfs_create_file("auto_accept_delay", 0444, hdev->debugfs, hdev,
+						&auto_accept_delay_fops);
 	return 0;
 }
 

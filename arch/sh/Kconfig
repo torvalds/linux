@@ -21,9 +21,9 @@ config SUPERH
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_GENERIC_HARDIRQS
 	select HAVE_SPARSE_IRQ
+	select IRQ_FORCED_THREADING
 	select RTC_LIB
 	select GENERIC_ATOMIC64
-	select GENERIC_HARDIRQS_NO_DEPRECATED
 	select GENERIC_IRQ_SHOW
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
@@ -70,12 +70,6 @@ config GENERIC_BUG
 config GENERIC_CSUM
 	def_bool y
 	depends on SUPERH64
-
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
-config GENERIC_FIND_BIT_LE
-	def_bool y
 
 config GENERIC_HWEIGHT
 	def_bool y

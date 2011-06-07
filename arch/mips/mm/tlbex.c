@@ -352,7 +352,7 @@ static void __cpuinit __maybe_unused build_tlb_probe_entry(u32 **p)
 
 /*
  * Write random or indexed TLB entry, and care about the hazards from
- * the preceeding mtc0 and for the following eret.
+ * the preceding mtc0 and for the following eret.
  */
 enum tlb_write_entry { tlb_random, tlb_indexed };
 
@@ -404,6 +404,7 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_5KC:
 	case CPU_TX49XX:
 	case CPU_PR4450:
+	case CPU_XLR:
 		uasm_i_nop(p);
 		tlbw(p);
 		break;
@@ -1151,8 +1152,8 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 	struct uasm_reloc *r = relocs;
 	u32 *f;
 	unsigned int final_len;
-	struct mips_huge_tlb_info htlb_info;
-	enum vmalloc64_mode vmalloc_mode;
+	struct mips_huge_tlb_info htlb_info __maybe_unused;
+	enum vmalloc64_mode vmalloc_mode __maybe_unused;
 
 	memset(tlb_handler, 0, sizeof(tlb_handler));
 	memset(labels, 0, sizeof(labels));

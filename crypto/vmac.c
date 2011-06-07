@@ -95,7 +95,7 @@ const u64 mpoly = UINT64_C(0x1fffffff1fffffff);  /* Poly key mask     */
 
 /*
  * For highest performance the L1 NH and L2 polynomial hashes should be
- * carefully implemented to take advantage of one's target architechture.
+ * carefully implemented to take advantage of one's target architecture.
  * Here these two hash functions are defined multiple time; once for
  * 64-bit architectures, once for 32-bit SSE2 architectures, and once
  * for the rest (32-bit) architectures.

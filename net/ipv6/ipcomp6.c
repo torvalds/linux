@@ -55,7 +55,7 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 {
 	struct net *net = dev_net(skb->dev);
 	__be32 spi;
-	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
+	const struct ipv6hdr *iph = (const struct ipv6hdr *)skb->data;
 	struct ip_comp_hdr *ipcomph =
 		(struct ip_comp_hdr *)(skb->data + offset);
 	struct xfrm_state *x;
@@ -64,7 +64,8 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		return;
 
 	spi = htonl(ntohs(ipcomph->cpi));
-	x = xfrm_state_lookup(net, skb->mark, (xfrm_address_t *)&iph->daddr, spi, IPPROTO_COMP, AF_INET6);
+	x = xfrm_state_lookup(net, skb->mark, (const xfrm_address_t *)&iph->daddr,
+			      spi, IPPROTO_COMP, AF_INET6);
 	if (!x)
 		return;
 

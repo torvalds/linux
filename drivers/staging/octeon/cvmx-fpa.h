@@ -195,7 +195,7 @@ static inline void cvmx_fpa_async_alloc(uint64_t scr_addr, uint64_t pool)
 	cvmx_fpa_iobdma_data_t data;
 
 	/*
-	 * Hardware only uses 64 bit alligned locations, so convert
+	 * Hardware only uses 64 bit aligned locations, so convert
 	 * from byte address to 64-bit index
 	 */
 	data.s.scraddr = scr_addr >> 3;

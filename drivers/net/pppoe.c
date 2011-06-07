@@ -115,7 +115,7 @@ struct pppoe_net {
  * 2) Session stage (MAC and SID are known)
  *
  * Ethernet frames have a special tag for this but
- * we use simplier approach based on session id
+ * we use simpler approach based on session id
  */
 static inline bool stage_session(__be16 sid)
 {
@@ -317,7 +317,7 @@ static void pppoe_flush_dev(struct net_device *dev)
 			lock_sock(sk);
 
 			if (po->pppoe_dev == dev &&
-			    sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND)) {
+			    sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND | PPPOX_ZOMBIE)) {
 				pppox_unbind_sock(sk);
 				sk->sk_state = PPPOX_ZOMBIE;
 				sk->sk_state_change(sk);

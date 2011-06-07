@@ -6754,8 +6754,6 @@ struct bnx2 {
 	u32			rx_max_ring_idx;
 	u32			rx_max_pg_ring_idx;
 
-	u32			rx_csum;
-
 	/* TX constants */
 	int		tx_ring_size;
 	u32		tx_wake_thresh;
@@ -6922,6 +6920,7 @@ struct bnx2 {
 	u8			num_tx_rings;
 	u8			num_rx_rings;
 
+	u32 			leds_save;
 	u32			idle_chk_status_idx;
 
 #ifdef BCM_CNIC

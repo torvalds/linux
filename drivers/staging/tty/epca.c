@@ -7,7 +7,7 @@
 	** This driver is no longer supported by Digi **
 
 	Much of this design and code came from epca.c which was
-	copyright (C) 1994, 1995 Troy De Jongh, and subsquently
+	copyright (C) 1994, 1995 Troy De Jongh, and subsequently
 	modified by David Nugent, Christoph Lameter, Mike McLagan.
 
 	This program is free software; you can redistribute it and/or modify
@@ -471,7 +471,7 @@ static void shutdown(struct channel *ch, struct tty_struct *tty)
 	memoff(ch);
 
 	/*
-	 * The channel has officialy been closed. The next time it is opened it
+	 * The channel has officially been closed. The next time it is opened it
 	 * will have to reinitialized. Set a flag to indicate this.
 	 */
 	/* Prevent future Digi programmed interrupts from coming active */
@@ -975,7 +975,7 @@ static int __init pc_init(void)
 
 	/*
 	 * Note : If lilo was used to configure the driver and the ignore
-	 * epcaconfig option was choosen (digiepca=2) then nbdevs and num_cards
+	 * epcaconfig option was chosen (digiepca=2) then nbdevs and num_cards
 	 * will equal 0 at this point. This is okay; PCI cards will still be
 	 * picked up if detected.
 	 */
@@ -1230,14 +1230,14 @@ static void post_fep_init(unsigned int crd)
 	memaddr = bd->re_map_membase;
 
 	/*
-	 * The below assignment will set bc to point at the BEGINING of the
+	 * The below assignment will set bc to point at the BEGINNING of the
 	 * cards channel structures. For 1 card there will be between 8 and 64
 	 * of these structures.
 	 */
 	bc = memaddr + CHANSTRUCT;
 
 	/*
-	 * The below assignment will set gd to point at the BEGINING of global
+	 * The below assignment will set gd to point at the BEGINNING of global
 	 * memory address 0xc00. The first data in that global memory actually
 	 * starts at address 0xc1a. The command in pointer begins at 0xd10.
 	 */
@@ -1492,7 +1492,7 @@ static void doevent(int crd)
 		/*
 		 * The two assignments below get the current modem status
 		 * (mstat) and the previous modem status (lstat). These are
-		 * useful becuase an event could signal a change in modem
+		 * useful because an event could signal a change in modem
 		 * signals itself.
 		 */
 		mstat = readb(eventbuf + 2);
@@ -1897,7 +1897,7 @@ static void receive_data(struct channel *ch, struct tty_struct *tty)
 		/*
 		 * Even if head has wrapped around only report the amount of
 		 * data to be equal to the size - tail. Remember memcpy can't
-		 * automaticly wrap around the receive buffer.
+		 * automatically wrap around the receive buffer.
 		 */
 		dataToRead = (wrapgap < bytesAvailable) ? wrapgap
 							: bytesAvailable;
@@ -2543,7 +2543,7 @@ static void __init epca_setup(char *str, int *ints)
 					break;
 			/*
 			 * If the index incremented above refers to a
-			 * legitamate board type set it here.
+			 * legitimate board type set it here.
 			 */
 			if (index < EPCA_NUM_TYPES)
 				board.type = loop;

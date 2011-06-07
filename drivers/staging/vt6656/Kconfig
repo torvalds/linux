@@ -1,6 +1,6 @@
 config VT6656
 	tristate "VIA Technologies VT6656 support"
-	depends on USB && WLAN
+	depends on USB && WLAN && m
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select FW_LOADER

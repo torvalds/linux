@@ -540,6 +540,7 @@ int p54_update_beacon_tim(struct p54_common *priv, u16 aid, bool set);
 int p54_setup_mac(struct p54_common *priv);
 int p54_set_ps(struct p54_common *priv);
 int p54_fetch_statistics(struct p54_common *priv);
+int p54_set_groupfilter(struct p54_common *priv);
 
 /* e/v DCF setup */
 int p54_set_edcf(struct p54_common *priv);

@@ -31,7 +31,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
-#include <scsi/libsas.h> /* For TASK_ATTR_* */
+#include <scsi/scsi_tcq.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_transport.h>
@@ -95,17 +95,17 @@ static struct se_cmd *tcm_loop_allocate_core_cmd(
 	if (sc->device->tagged_supported) {
 		switch (sc->tag) {
 		case HEAD_OF_QUEUE_TAG:
-			sam_task_attr = TASK_ATTR_HOQ;
+			sam_task_attr = MSG_HEAD_TAG;
 			break;
 		case ORDERED_QUEUE_TAG:
-			sam_task_attr = TASK_ATTR_ORDERED;
+			sam_task_attr = MSG_ORDERED_TAG;
 			break;
 		default:
-			sam_task_attr = TASK_ATTR_SIMPLE;
+			sam_task_attr = MSG_SIMPLE_TAG;
 			break;
 		}
 	} else
-		sam_task_attr = TASK_ATTR_SIMPLE;
+		sam_task_attr = MSG_SIMPLE_TAG;
 
 	/*
 	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
@@ -379,7 +379,7 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
 	 */
 	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess, 0,
-				DMA_NONE, TASK_ATTR_SIMPLE,
+				DMA_NONE, MSG_SIMPLE_TAG,
 				&tl_cmd->tl_sense_buf[0]);
 	/*
 	 * Allocate the LUN_RESET TMR
@@ -939,18 +939,6 @@ static u16 tcm_loop_get_fabric_sense_len(void)
 	return 0;
 }
 
-static u64 tcm_loop_pack_lun(unsigned int lun)
-{
-	u64 result;
-
-	/* LSB of lun into byte 1 big-endian */
-	result = ((lun & 0xff) << 8);
-	/* use flat space addressing method */
-	result |= 0x40 | ((lun >> 8) & 0x3f);
-
-	return cpu_to_le64(result);
-}
-
 static char *tcm_loop_dump_proto_id(struct tcm_loop_hba *tl_hba)
 {
 	switch (tl_hba->tl_proto_id) {
@@ -1481,7 +1469,6 @@ static int tcm_loop_register_configfs(void)
 	fabric->tf_ops.set_fabric_sense_len = &tcm_loop_set_fabric_sense_len;
 	fabric->tf_ops.get_fabric_sense_len = &tcm_loop_get_fabric_sense_len;
 	fabric->tf_ops.is_state_remove = &tcm_loop_is_state_remove;
-	fabric->tf_ops.pack_lun = &tcm_loop_pack_lun;
 
 	tf_cg = &fabric->tf_group;
 	/*

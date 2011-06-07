@@ -201,28 +201,28 @@ static void lsmini_power_off(void)
 #define LSMINI_GPIO_HDD_POWER0	1
 #define LSMINI_GPIO_HDD_POWER1	19
 
-static struct orion5x_mpp_mode lsmini_mpp_modes[] __initdata = {
-	{  0, MPP_UNUSED }, /* LED_RESERVE1 (unused) */
-	{  1, MPP_GPIO }, /* HDD_PWR */
-	{  2, MPP_GPIO }, /* LED_ALARM */
-	{  3, MPP_GPIO }, /* LED_INFO */
-	{  4, MPP_UNUSED },
-	{  5, MPP_UNUSED },
-	{  6, MPP_UNUSED },
-	{  7, MPP_UNUSED },
-	{  8, MPP_UNUSED },
-	{  9, MPP_GPIO }, /* LED_FUNC */
-	{ 10, MPP_UNUSED },
-	{ 11, MPP_UNUSED }, /* LED_ETH (dummy) */
-	{ 12, MPP_UNUSED },
-	{ 13, MPP_UNUSED },
-	{ 14, MPP_GPIO }, /* LED_PWR */
-	{ 15, MPP_GPIO }, /* FUNC */
-	{ 16, MPP_GPIO }, /* USB_PWR */
-	{ 17, MPP_GPIO }, /* AUTO_POWER */
-	{ 18, MPP_GPIO }, /* POWER */
-	{ 19, MPP_GPIO }, /* HDD_PWR1 */
-	{ -1 },
+static unsigned int lsmini_mpp_modes[] __initdata = {
+	MPP0_UNUSED, /* LED_RESERVE1 (unused) */
+	MPP1_GPIO, /* HDD_PWR */
+	MPP2_GPIO, /* LED_ALARM */
+	MPP3_GPIO, /* LED_INFO */
+	MPP4_UNUSED,
+	MPP5_UNUSED,
+	MPP6_UNUSED,
+	MPP7_UNUSED,
+	MPP8_UNUSED,
+	MPP9_GPIO, /* LED_FUNC */
+	MPP10_UNUSED,
+	MPP11_UNUSED, /* LED_ETH (dummy) */
+	MPP12_UNUSED,
+	MPP13_UNUSED,
+	MPP14_GPIO, /* LED_PWR */
+	MPP15_GPIO, /* FUNC */
+	MPP16_GPIO, /* USB_PWR */
+	MPP17_GPIO, /* AUTO_POWER */
+	MPP18_GPIO, /* POWER */
+	MPP19_GPIO, /* HDD_PWR1 */
+	0,
 };
 
 static void __init lsmini_init(void)

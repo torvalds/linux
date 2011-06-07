@@ -64,7 +64,7 @@ typedef enum _HT_CHANNEL_WIDTH{
 }HT_CHANNEL_WIDTH, *PHT_CHANNEL_WIDTH;
 
 //
-// Represent Extention Channel Offset in HT Capabilities
+// Represent Extension Channel Offset in HT Capabilities
 // This is available only in 40Mhz mode.
 //
 typedef enum _HT_EXTCHNL_OFFSET{

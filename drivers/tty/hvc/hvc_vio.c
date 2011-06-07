@@ -1,7 +1,7 @@
 /*
  * vio driver interface to hvc_console.c
  *
- * This code was moved here to allow the remaing code to be reused as a
+ * This code was moved here to allow the remaining code to be reused as a
  * generic polling mode with semi-reliable transport driver core to the
  * console and tty subsystems.
  *

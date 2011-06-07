@@ -19,7 +19,7 @@
  *
  * This file is a kernel module that places a breakpoint over ksym_name kernel
  * variable using Hardware Breakpoint register. The corresponding handler which
- * prints a backtrace is invoked everytime a write operation is performed on
+ * prints a backtrace is invoked every time a write operation is performed on
  * that variable.
  *
  * Copyright (C) IBM Corporation, 2009

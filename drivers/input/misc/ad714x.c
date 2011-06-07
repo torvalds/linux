@@ -79,13 +79,7 @@ struct ad714x_slider_drv {
 struct ad714x_wheel_drv {
 	int abs_pos;
 	int flt_pos;
-	int pre_mean_value;
 	int pre_highest_stage;
-	int pre_mean_value_no_offset;
-	int mean_value;
-	int mean_value_no_offset;
-	int pos_offset;
-	int pos_ratio;
 	int highest_stage;
 	enum ad714x_device_state state;
 	struct input_dev *input;
@@ -158,10 +152,10 @@ static void ad714x_use_com_int(struct ad714x_chip *ad714x,
 	unsigned short data;
 	unsigned short mask;
 
-	mask = ((1 << (end_stage + 1)) - 1) - (1 << start_stage);
+	mask = ((1 << (end_stage + 1)) - 1) - ((1 << start_stage) - 1);
 
 	ad714x->read(ad714x->dev, STG_COM_INT_EN_REG, &data);
-	data |= 1 << start_stage;
+	data |= 1 << end_stage;
 	ad714x->write(ad714x->dev, STG_COM_INT_EN_REG, data);
 
 	ad714x->read(ad714x->dev, STG_HIGH_INT_EN_REG, &data);
@@ -175,10 +169,10 @@ static void ad714x_use_thr_int(struct ad714x_chip *ad714x,
 	unsigned short data;
 	unsigned short mask;
 
-	mask = ((1 << (end_stage + 1)) - 1) - (1 << start_stage);
+	mask = ((1 << (end_stage + 1)) - 1) - ((1 << start_stage) - 1);
 
 	ad714x->read(ad714x->dev, STG_COM_INT_EN_REG, &data);
-	data &= ~(1 << start_stage);
+	data &= ~(1 << end_stage);
 	ad714x->write(ad714x->dev, STG_COM_INT_EN_REG, data);
 
 	ad714x->read(ad714x->dev, STG_HIGH_INT_EN_REG, &data);
@@ -404,7 +398,6 @@ static void ad714x_slider_state_machine(struct ad714x_chip *ad714x, int idx)
 				ad714x_slider_cal_highest_stage(ad714x, idx);
 				ad714x_slider_cal_abs_pos(ad714x, idx);
 				ad714x_slider_cal_flt_pos(ad714x, idx);
-
 				input_report_abs(sw->input, ABS_X, sw->flt_pos);
 				input_report_key(sw->input, BTN_TOUCH, 1);
 			} else {
@@ -468,104 +461,41 @@ static void ad714x_wheel_cal_sensor_val(struct ad714x_chip *ad714x, int idx)
 /*
  * When the scroll wheel is activated, we compute the absolute position based
  * on the sensor values. To calculate the position, we first determine the
- * sensor that has the greatest response among the 8 sensors that constitutes
- * the scrollwheel. Then we determined the 2 sensors on either sides of the
+ * sensor that has the greatest response among the sensors that constitutes
+ * the scrollwheel. Then we determined the sensors on either sides of the
  * sensor with the highest response and we apply weights to these sensors. The
- * result of this computation gives us the mean value which defined by the
- * following formula:
- * For i= second_before_highest_stage to i= second_after_highest_stage
- *         v += Sensor response(i)*WEIGHT*(i+3)
- *         w += Sensor response(i)
- * Mean_Value=v/w
- * pos_on_scrollwheel = (Mean_Value - position_offset) / position_ratio
+ * result of this computation gives us the mean value.
  */
 
-#define WEIGHT_FACTOR 30
-/* This constant prevents the "PositionOffset" from reaching a big value */
-#define OFFSET_POSITION_CLAMP	120
 static void ad714x_wheel_cal_abs_pos(struct ad714x_chip *ad714x, int idx)
 {
 	struct ad714x_wheel_plat *hw = &ad714x->hw->wheel[idx];
 	struct ad714x_wheel_drv *sw = &ad714x->sw->wheel[idx];
 	int stage_num = hw->end_stage - hw->start_stage + 1;
-	int second_before, first_before, highest, first_after, second_after;
+	int first_before, highest, first_after;
 	int a_param, b_param;
 
-	/* Calculate Mean value */
-
-	second_before = (sw->highest_stage + stage_num - 2) % stage_num;
 	first_before = (sw->highest_stage + stage_num - 1) % stage_num;
 	highest = sw->highest_stage;
 	first_after = (sw->highest_stage + stage_num + 1) % stage_num;
-	second_after = (sw->highest_stage + stage_num + 2) % stage_num;
 
-	if (((sw->highest_stage - hw->start_stage) > 1) &&
-	    ((hw->end_stage - sw->highest_stage) > 1)) {
-		a_param = ad714x->sensor_val[second_before] *
-			(second_before - hw->start_stage + 3) +
-			ad714x->sensor_val[first_before] *
-			(second_before - hw->start_stage + 3) +
-			ad714x->sensor_val[highest] *
-			(second_before - hw->start_stage + 3) +
-			ad714x->sensor_val[first_after] *
-			(first_after - hw->start_stage + 3) +
-			ad714x->sensor_val[second_after] *
-			(second_after - hw->start_stage + 3);
-	} else {
-		a_param = ad714x->sensor_val[second_before] *
-			(second_before - hw->start_stage + 1) +
-			ad714x->sensor_val[first_before] *
-			(second_before - hw->start_stage + 2) +
-			ad714x->sensor_val[highest] *
-			(second_before - hw->start_stage + 3) +
-			ad714x->sensor_val[first_after] *
-			(first_after - hw->start_stage + 4) +
-			ad714x->sensor_val[second_after] *
-			(second_after - hw->start_stage + 5);
-	}
-	a_param *= WEIGHT_FACTOR;
-
-	b_param = ad714x->sensor_val[second_before] +
+	a_param = ad714x->sensor_val[highest] *
+		(highest - hw->start_stage) +
+		ad714x->sensor_val[first_before] *
+		(highest - hw->start_stage - 1) +
+		ad714x->sensor_val[first_after] *
+		(highest - hw->start_stage + 1);
+	b_param = ad714x->sensor_val[highest] +
 		ad714x->sensor_val[first_before] +
-		ad714x->sensor_val[highest] +
-		ad714x->sensor_val[first_after] +
-		ad714x->sensor_val[second_after];
+		ad714x->sensor_val[first_after];
 
-	sw->pre_mean_value = sw->mean_value;
-	sw->mean_value = a_param / b_param;
+	sw->abs_pos = ((hw->max_coord / (hw->end_stage - hw->start_stage)) *
+			a_param) / b_param;
 
-	/* Calculate the offset */
-
-	if ((sw->pre_highest_stage == hw->end_stage) &&
-			(sw->highest_stage == hw->start_stage))
-		sw->pos_offset = sw->mean_value;
-	else if ((sw->pre_highest_stage == hw->start_stage) &&
-			(sw->highest_stage == hw->end_stage))
-		sw->pos_offset = sw->pre_mean_value;
-
-	if (sw->pos_offset > OFFSET_POSITION_CLAMP)
-		sw->pos_offset = OFFSET_POSITION_CLAMP;
-
-	/* Calculate the mean value without the offset */
-
-	sw->pre_mean_value_no_offset = sw->mean_value_no_offset;
-	sw->mean_value_no_offset = sw->mean_value - sw->pos_offset;
-	if (sw->mean_value_no_offset < 0)
-		sw->mean_value_no_offset = 0;
-
-	/* Calculate ratio to scale down to NUMBER_OF_WANTED_POSITIONS */
-
-	if ((sw->pre_highest_stage == hw->end_stage) &&
-			(sw->highest_stage == hw->start_stage))
-		sw->pos_ratio = (sw->pre_mean_value_no_offset * 100) /
-			hw->max_coord;
-	else if ((sw->pre_highest_stage == hw->start_stage) &&
-			(sw->highest_stage == hw->end_stage))
-		sw->pos_ratio = (sw->mean_value_no_offset * 100) /
-			hw->max_coord;
-	sw->abs_pos = (sw->mean_value_no_offset * 100) / sw->pos_ratio;
 	if (sw->abs_pos > hw->max_coord)
 		sw->abs_pos = hw->max_coord;
+	else if (sw->abs_pos < 0)
+		sw->abs_pos = 0;
 }
 
 static void ad714x_wheel_cal_flt_pos(struct ad714x_chip *ad714x, int idx)
@@ -639,9 +569,8 @@ static void ad714x_wheel_state_machine(struct ad714x_chip *ad714x, int idx)
 				ad714x_wheel_cal_highest_stage(ad714x, idx);
 				ad714x_wheel_cal_abs_pos(ad714x, idx);
 				ad714x_wheel_cal_flt_pos(ad714x, idx);
-
 				input_report_abs(sw->input, ABS_WHEEL,
-					sw->abs_pos);
+					sw->flt_pos);
 				input_report_key(sw->input, BTN_TOUCH, 1);
 			} else {
 				/* When the user lifts off the sensor, configure
@@ -1149,6 +1078,8 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 			input[alloc_idx]->id.bustype = bus_type;
 			input[alloc_idx]->id.product = ad714x->product;
 			input[alloc_idx]->id.version = ad714x->version;
+			input[alloc_idx]->name = "ad714x_captouch_slider";
+			input[alloc_idx]->dev.parent = dev;
 
 			error = input_register_device(input[alloc_idx]);
 			if (error)
@@ -1179,6 +1110,8 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 			input[alloc_idx]->id.bustype = bus_type;
 			input[alloc_idx]->id.product = ad714x->product;
 			input[alloc_idx]->id.version = ad714x->version;
+			input[alloc_idx]->name = "ad714x_captouch_wheel";
+			input[alloc_idx]->dev.parent = dev;
 
 			error = input_register_device(input[alloc_idx]);
 			if (error)
@@ -1212,6 +1145,8 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 			input[alloc_idx]->id.bustype = bus_type;
 			input[alloc_idx]->id.product = ad714x->product;
 			input[alloc_idx]->id.version = ad714x->version;
+			input[alloc_idx]->name = "ad714x_captouch_pad";
+			input[alloc_idx]->dev.parent = dev;
 
 			error = input_register_device(input[alloc_idx]);
 			if (error)
@@ -1240,6 +1175,8 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 		input[alloc_idx]->id.bustype = bus_type;
 		input[alloc_idx]->id.product = ad714x->product;
 		input[alloc_idx]->id.version = ad714x->version;
+		input[alloc_idx]->name = "ad714x_captouch_button";
+		input[alloc_idx]->dev.parent = dev;
 
 		error = input_register_device(input[alloc_idx]);
 		if (error)
@@ -1249,7 +1186,9 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 	}
 
 	error = request_threaded_irq(ad714x->irq, NULL, ad714x_interrupt_thread,
-			IRQF_TRIGGER_FALLING, "ad714x_captouch", ad714x);
+				plat_data->irqflags ?
+					plat_data->irqflags : IRQF_TRIGGER_FALLING,
+				"ad714x_captouch", ad714x);
 	if (error) {
 		dev_err(dev, "can't allocate irq %d\n", ad714x->irq);
 		goto err_unreg_dev;

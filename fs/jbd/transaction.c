@@ -266,7 +266,8 @@ static handle_t *new_handle(int nblocks)
  * This function is visible to journal users (like ext3fs), so is not
  * called with the journal already locked.
  *
- * Return a pointer to a newly allocated handle, or NULL on failure
+ * Return a pointer to a newly allocated handle, or an ERR_PTR() value
+ * on failure.
  */
 handle_t *journal_start(journal_t *journal, int nblocks)
 {
@@ -1392,7 +1393,7 @@ int journal_stop(handle_t *handle)
 	 * by 30x or more...
 	 *
 	 * We try and optimize the sleep time against what the underlying disk
-	 * can do, instead of having a static sleep time.  This is usefull for
+	 * can do, instead of having a static sleep time.  This is useful for
 	 * the case where our storage is so fast that it is more optimal to go
 	 * ahead and force a flush and wait for the transaction to be committed
 	 * than it is to wait for an arbitrary amount of time for new writers to

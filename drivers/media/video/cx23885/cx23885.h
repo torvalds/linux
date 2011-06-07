@@ -214,7 +214,7 @@ struct cx23885_board {
 
 	/* Vendors can and do run the PCIe bridge at different
 	 * clock rates, driven physically by crystals on the PCBs.
-	 * The core has to accomodate this. This allows the user
+	 * The core has to accommodate this. This allows the user
 	 * to add new boards with new frequencys. The value is
 	 * expressed in Hz.
 	 *

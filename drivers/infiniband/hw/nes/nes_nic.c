@@ -902,7 +902,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 		nes_write_indexed(nesdev, NES_IDX_NIC_UNICAST_ALL, nic_active);
 	}
 
-	nes_debug(NES_DBG_NIC_RX, "Number of MC entries = %d, Promiscous = %d, All Multicast = %d.\n",
+	nes_debug(NES_DBG_NIC_RX, "Number of MC entries = %d, Promiscuous = %d, All Multicast = %d.\n",
 		  mc_count, !!(netdev->flags & IFF_PROMISC),
 		  !!(netdev->flags & IFF_ALLMULTI));
 	if (!mc_all_on) {
@@ -1092,34 +1092,6 @@ static const char nes_ethtool_stringset[][ETH_GSTRING_LEN] = {
 	"LRO no_desc",
 };
 #define NES_ETHTOOL_STAT_COUNT  ARRAY_SIZE(nes_ethtool_stringset)
-
-/**
- * nes_netdev_get_rx_csum
- */
-static u32 nes_netdev_get_rx_csum (struct net_device *netdev)
-{
-	struct nes_vnic *nesvnic = netdev_priv(netdev);
-
-	if (nesvnic->rx_checksum_disabled)
-		return 0;
-	else
-		return 1;
-}
-
-
-/**
- * nes_netdev_set_rc_csum
- */
-static int nes_netdev_set_rx_csum(struct net_device *netdev, u32 enable)
-{
-	struct nes_vnic *nesvnic = netdev_priv(netdev);
-
-	if (enable)
-		nesvnic->rx_checksum_disabled = 0;
-	else
-		nesvnic->rx_checksum_disabled = 1;
-	return 0;
-}
 
 
 /**
@@ -1521,7 +1493,7 @@ static int nes_netdev_get_settings(struct net_device *netdev, struct ethtool_cmd
 	et_cmd->maxrxpkt = 511;
 
 	if (nesadapter->OneG_Mode) {
-		et_cmd->speed = SPEED_1000;
+		ethtool_cmd_speed_set(et_cmd, SPEED_1000);
 		if (phy_type == NES_PHY_TYPE_PUMA_1G) {
 			et_cmd->supported   = SUPPORTED_1000baseT_Full;
 			et_cmd->advertising = ADVERTISED_1000baseT_Full;
@@ -1560,7 +1532,7 @@ static int nes_netdev_get_settings(struct net_device *netdev, struct ethtool_cmd
 		et_cmd->advertising = ADVERTISED_10000baseT_Full;
 		et_cmd->phy_address = mac_index;
 	}
-	et_cmd->speed = SPEED_10000;
+	ethtool_cmd_speed_set(et_cmd, SPEED_10000);
 	et_cmd->autoneg = AUTONEG_DISABLE;
 	return 0;
 }
@@ -1598,19 +1570,10 @@ static int nes_netdev_set_settings(struct net_device *netdev, struct ethtool_cmd
 }
 
 
-static int nes_netdev_set_flags(struct net_device *netdev, u32 flags)
-{
-	return ethtool_op_set_flags(netdev, flags, ETH_FLAG_LRO);
-}
-
-
 static const struct ethtool_ops nes_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_settings = nes_netdev_get_settings,
 	.set_settings = nes_netdev_set_settings,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.get_rx_csum = nes_netdev_get_rx_csum,
-	.get_sg = ethtool_op_get_sg,
 	.get_strings = nes_netdev_get_strings,
 	.get_sset_count = nes_netdev_get_sset_count,
 	.get_ethtool_stats = nes_netdev_get_ethtool_stats,
@@ -1619,13 +1582,6 @@ static const struct ethtool_ops nes_ethtool_ops = {
 	.set_coalesce = nes_netdev_set_coalesce,
 	.get_pauseparam = nes_netdev_get_pauseparam,
 	.set_pauseparam = nes_netdev_set_pauseparam,
-	.set_tx_csum = ethtool_op_set_tx_csum,
-	.set_rx_csum = nes_netdev_set_rx_csum,
-	.set_sg = ethtool_op_set_sg,
-	.get_tso = ethtool_op_get_tso,
-	.set_tso = ethtool_op_set_tso,
-	.get_flags = ethtool_op_get_flags,
-	.set_flags = nes_netdev_set_flags,
 };
 
 
@@ -1727,12 +1683,11 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	netdev->dev_addr[5] = (u8)u64temp;
 	memcpy(netdev->perm_addr, netdev->dev_addr, 6);
 
-	if ((nesvnic->logical_port < 2) || (nesdev->nesadapter->hw_rev != NE020_REV)) {
-		netdev->features |= NETIF_F_TSO | NETIF_F_SG | NETIF_F_IP_CSUM;
-		netdev->features |= NETIF_F_GSO | NETIF_F_TSO | NETIF_F_SG | NETIF_F_IP_CSUM;
-	} else {
-		netdev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
-	}
+	netdev->hw_features = NETIF_F_RXCSUM | NETIF_F_SG | NETIF_F_IP_CSUM;
+	if ((nesvnic->logical_port < 2) || (nesdev->nesadapter->hw_rev != NE020_REV))
+		netdev->hw_features |= NETIF_F_TSO;
+	netdev->features |= netdev->hw_features;
+	netdev->hw_features |= NETIF_F_LRO;
 
 	nes_debug(NES_DBG_INIT, "nesvnic = %p, reported features = 0x%lX, QPid = %d,"
 			" nic_index = %d, logical_port = %d, mac_index = %d.\n",

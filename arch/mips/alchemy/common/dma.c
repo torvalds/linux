@@ -58,6 +58,9 @@
  * returned from request_dma.
  */
 
+/* DMA Channel register block spacing */
+#define DMA_CHANNEL_LEN		0x00000100
+
 DEFINE_SPINLOCK(au1000_dma_spin_lock);
 
 struct dma_chan au1000_dma_table[NUM_AU1000_DMA_CHANNELS] = {
@@ -77,22 +80,23 @@ static const struct dma_dev {
 	unsigned int fifo_addr;
 	unsigned int dma_mode;
 } dma_dev_table[DMA_NUM_DEV] = {
-	{UART0_ADDR + UART_TX, 0},
-	{UART0_ADDR + UART_RX, 0},
-	{0, 0},
-	{0, 0},
-	{AC97C_DATA, DMA_DW16 },          /* coherent */
-	{AC97C_DATA, DMA_DR | DMA_DW16 }, /* coherent */
-	{UART3_ADDR + UART_TX, DMA_DW8 | DMA_NC},
-	{UART3_ADDR + UART_RX, DMA_DR | DMA_DW8 | DMA_NC},
-	{USBD_EP0RD, DMA_DR | DMA_DW8 | DMA_NC},
-	{USBD_EP0WR, DMA_DW8 | DMA_NC},
-	{USBD_EP2WR, DMA_DW8 | DMA_NC},
-	{USBD_EP3WR, DMA_DW8 | DMA_NC},
-	{USBD_EP4RD, DMA_DR | DMA_DW8 | DMA_NC},
-	{USBD_EP5RD, DMA_DR | DMA_DW8 | DMA_NC},
-	{I2S_DATA, DMA_DW32 | DMA_NC},
-	{I2S_DATA, DMA_DR | DMA_DW32 | DMA_NC}
+	{ AU1000_UART0_PHYS_ADDR + 0x04, DMA_DW8 },		/* UART0_TX */
+	{ AU1000_UART0_PHYS_ADDR + 0x00, DMA_DW8 | DMA_DR },	/* UART0_RX */
+	{ 0, 0 },	/* DMA_REQ0 */
+	{ 0, 0 },	/* DMA_REQ1 */
+	{ AU1000_AC97_PHYS_ADDR + 0x08, DMA_DW16 },		/* AC97 TX c */
+	{ AU1000_AC97_PHYS_ADDR + 0x08, DMA_DW16 | DMA_DR },	/* AC97 RX c */
+	{ AU1000_UART3_PHYS_ADDR + 0x04, DMA_DW8 | DMA_NC },	/* UART3_TX */
+	{ AU1000_UART3_PHYS_ADDR + 0x00, DMA_DW8 | DMA_NC | DMA_DR }, /* UART3_RX */
+	{ AU1000_USBD_PHYS_ADDR + 0x00, DMA_DW8 | DMA_NC | DMA_DR }, /* EP0RD */
+	{ AU1000_USBD_PHYS_ADDR + 0x04, DMA_DW8 | DMA_NC }, /* EP0WR */
+	{ AU1000_USBD_PHYS_ADDR + 0x08, DMA_DW8 | DMA_NC }, /* EP2WR */
+	{ AU1000_USBD_PHYS_ADDR + 0x0c, DMA_DW8 | DMA_NC }, /* EP3WR */
+	{ AU1000_USBD_PHYS_ADDR + 0x10, DMA_DW8 | DMA_NC | DMA_DR }, /* EP4RD */
+	{ AU1000_USBD_PHYS_ADDR + 0x14, DMA_DW8 | DMA_NC | DMA_DR }, /* EP5RD */
+	/* on Au1500, these 2 are DMA_REQ2/3 (GPIO208/209) instead! */
+	{ AU1000_I2S_PHYS_ADDR + 0x00, DMA_DW32 | DMA_NC},	/* I2S TX */
+	{ AU1000_I2S_PHYS_ADDR + 0x00, DMA_DW32 | DMA_NC | DMA_DR}, /* I2S RX */
 };
 
 int au1000_dma_read_proc(char *buf, char **start, off_t fpos,
@@ -123,10 +127,10 @@ int au1000_dma_read_proc(char *buf, char **start, off_t fpos,
 
 /* Device FIFO addresses and default DMA modes - 2nd bank */
 static const struct dma_dev dma_dev_table_bank2[DMA_NUM_DEV_BANK2] = {
-	{ SD0_XMIT_FIFO, DMA_DS | DMA_DW8 },		/* coherent */
-	{ SD0_RECV_FIFO, DMA_DS | DMA_DR | DMA_DW8 },	/* coherent */
-	{ SD1_XMIT_FIFO, DMA_DS | DMA_DW8 },		/* coherent */
-	{ SD1_RECV_FIFO, DMA_DS | DMA_DR | DMA_DW8 }	/* coherent */
+	{ AU1100_SD0_PHYS_ADDR + 0x00, DMA_DS | DMA_DW8 },		/* coherent */
+	{ AU1100_SD0_PHYS_ADDR + 0x04, DMA_DS | DMA_DW8 | DMA_DR },	/* coherent */
+	{ AU1100_SD1_PHYS_ADDR + 0x00, DMA_DS | DMA_DW8 },		/* coherent */
+	{ AU1100_SD1_PHYS_ADDR + 0x04, DMA_DS | DMA_DW8 | DMA_DR }	/* coherent */
 };
 
 void dump_au1000_dma_channel(unsigned int dmanr)
@@ -202,7 +206,7 @@ int request_au1000_dma(int dev_id, const char *dev_str,
 	}
 
 	/* fill it in */
-	chan->io = DMA_CHANNEL_BASE + i * DMA_CHANNEL_LEN;
+	chan->io = KSEG1ADDR(AU1000_DMA_PHYS_ADDR) + i * DMA_CHANNEL_LEN;
 	chan->dev_id = dev_id;
 	chan->dev_str = dev_str;
 	chan->fifo_addr = dev->fifo_addr;

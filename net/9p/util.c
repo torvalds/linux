@@ -67,7 +67,7 @@ EXPORT_SYMBOL(p9_idpool_create);
 
 /**
  * p9_idpool_destroy - create a new per-connection id pool
- * @p: idpool to destory
+ * @p: idpool to destroy
  */
 
 void p9_idpool_destroy(struct p9_idpool *p)
@@ -93,7 +93,7 @@ int p9_idpool_get(struct p9_idpool *p)
 
 retry:
 	if (idr_pre_get(&p->pool, GFP_NOFS) == 0)
-		return 0;
+		return -1;
 
 	spin_lock_irqsave(&p->lock, flags);
 

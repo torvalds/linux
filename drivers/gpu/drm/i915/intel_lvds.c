@@ -473,19 +473,13 @@ static enum drm_connector_status
 intel_lvds_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
-	enum drm_connector_status status = connector_status_connected;
+	enum drm_connector_status status;
 
 	status = intel_panel_detect(dev);
 	if (status != connector_status_unknown)
 		return status;
 
-	/* ACPI lid methods were generally unreliable in this generation, so
-	 * don't even bother.
-	 */
-	if (IS_GEN2(dev) || IS_GEN3(dev))
-		return connector_status_connected;
-
-	return status;
+	return connector_status_connected;
 }
 
 /**
@@ -544,6 +538,9 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 		container_of(nb, struct drm_i915_private, lid_notifier);
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_connector *connector = dev_priv->int_lvds_connector;
+
+	if (dev->switch_power_state != DRM_SWITCH_POWER_ON)
+		return NOTIFY_OK;
 
 	/*
 	 * check and update the status of LVDS connector after receiving
@@ -835,25 +832,6 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 	return false;
 }
 
-static bool intel_lvds_ddc_probe(struct drm_device *dev, u8 pin)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u8 buf = 0;
-	struct i2c_msg msgs[] = {
-		{
-			.addr = 0xA0,
-			.flags = 0,
-			.len = 1,
-			.buf = &buf,
-		},
-	};
-	struct i2c_adapter *i2c = &dev_priv->gmbus[pin].adapter;
-	/* XXX this only appears to work when using GMBUS */
-	if (intel_gmbus_is_forced_bit(i2c))
-		return true;
-	return i2c_transfer(i2c, msgs, 1) == 1;
-}
-
 /**
  * intel_lvds_init - setup LVDS connectors on this device
  * @dev: drm device
@@ -892,11 +870,6 @@ bool intel_lvds_init(struct drm_device *dev)
 			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
 			return false;
 		}
-	}
-
-	if (!intel_lvds_ddc_probe(dev, pin)) {
-		DRM_DEBUG_KMS("LVDS did not respond to DDC probe\n");
-		return false;
 	}
 
 	intel_lvds = kzalloc(sizeof(struct intel_lvds), GFP_KERNEL);

@@ -50,7 +50,6 @@ void puv3_pci_adjust_zones(unsigned long *size, unsigned long *holes);
 
 /* kuser area */
 #define KUSER_VECPAGE_BASE	(KUSER_BASE + UL(0x3fff0000))
-#define KUSER_UNIGFX_BASE	(PAGE_OFFSET + PKUNITY_UNIGFX_MMAP_BASE)
 /* kuser_vecpage (0xbfff0000) is ro, and vectors page (0xffff0000) is rw */
 #define kuser_vecpage_to_vectors(x)	((x) - (KUSER_VECPAGE_BASE)	\
 					+ (VECTORS_BASE))

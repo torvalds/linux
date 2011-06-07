@@ -687,7 +687,7 @@ static void videobuf_done(struct omap1_cam_dev *pcdev,
 		 * In CONTIG mode, the current buffer parameters had already
 		 * been entered into the DMA programming register set while the
 		 * buffer was fetched with prepare_next_vb(), they may have also
-		 * been transfered into the runtime set and already active if
+		 * been transferred into the runtime set and already active if
 		 * the DMA still running.
 		 */
 	} else {
@@ -835,7 +835,7 @@ static irqreturn_t cam_isr(int irq, void *data)
 				/*
 				 * If exactly 2 sgbufs from the next sglist have
 				 * been programmed into the DMA engine (the
-				 * frist one already transfered into the DMA
+				 * first one already transferred into the DMA
 				 * runtime register set, the second one still
 				 * in the programming set), then we are in sync.
 				 */
@@ -990,63 +990,80 @@ static void omap1_cam_remove_device(struct soc_camera_device *icd)
 }
 
 /* Duplicate standard formats based on host capability of byte swapping */
-static const struct soc_mbus_pixelfmt omap1_cam_formats[] = {
-	[V4L2_MBUS_FMT_UYVY8_2X8] = {
+static const struct soc_mbus_lookup omap1_cam_formats[] = {
+{
+	.code = V4L2_MBUS_FMT_UYVY8_2X8,
+	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_YUYV,
 		.name			= "YUYV",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
 	},
-	[V4L2_MBUS_FMT_VYUY8_2X8] = {
+}, {
+	.code = V4L2_MBUS_FMT_VYUY8_2X8,
+	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_YVYU,
 		.name			= "YVYU",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
 	},
-	[V4L2_MBUS_FMT_YUYV8_2X8] = {
+}, {
+	.code = V4L2_MBUS_FMT_YUYV8_2X8,
+	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_UYVY,
 		.name			= "UYVY",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
 	},
-	[V4L2_MBUS_FMT_YVYU8_2X8] = {
+}, {
+	.code = V4L2_MBUS_FMT_YVYU8_2X8,
+	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_VYUY,
 		.name			= "VYUY",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
 	},
-	[V4L2_MBUS_FMT_RGB555_2X8_PADHI_BE] = {
+}, {
+	.code = V4L2_MBUS_FMT_RGB555_2X8_PADHI_BE,
+	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_RGB555,
 		.name			= "RGB555",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
 	},
-	[V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE] = {
+}, {
+	.code = V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE,
+	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_RGB555X,
 		.name			= "RGB555X",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
 	},
-	[V4L2_MBUS_FMT_RGB565_2X8_BE] = {
+}, {
+	.code = V4L2_MBUS_FMT_RGB565_2X8_BE,
+	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_RGB565,
 		.name			= "RGB565",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
 	},
-	[V4L2_MBUS_FMT_RGB565_2X8_LE] = {
+}, {
+	.code = V4L2_MBUS_FMT_RGB565_2X8_LE,
+	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_RGB565X,
 		.name			= "RGB565X",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
 	},
+},
 };
 
 static int omap1_cam_get_formats(struct soc_camera_device *icd,
@@ -1065,7 +1082,7 @@ static int omap1_cam_get_formats(struct soc_camera_device *icd,
 
 	fmt = soc_mbus_get_fmtdesc(code);
 	if (!fmt) {
-		dev_err(dev, "%s: invalid format code #%d: %d\n", __func__,
+		dev_warn(dev, "%s: unsupported format code #%d: %d\n", __func__,
 				idx, code);
 		return 0;
 	}
@@ -1085,12 +1102,14 @@ static int omap1_cam_get_formats(struct soc_camera_device *icd,
 	case V4L2_MBUS_FMT_RGB565_2X8_LE:
 		formats++;
 		if (xlate) {
-			xlate->host_fmt	= &omap1_cam_formats[code];
+			xlate->host_fmt	= soc_mbus_find_fmtdesc(code,
+						omap1_cam_formats,
+						ARRAY_SIZE(omap1_cam_formats));
 			xlate->code	= code;
 			xlate++;
 			dev_dbg(dev,
 				"%s: providing format %s as byte swapped code #%d\n",
-				__func__, omap1_cam_formats[code].name, code);
+				__func__, xlate->host_fmt->name, code);
 		}
 	default:
 		if (xlate)

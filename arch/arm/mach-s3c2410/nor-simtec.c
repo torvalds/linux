@@ -32,7 +32,7 @@
 
 #include "nor-simtec.h"
 
-static void simtec_nor_vpp(struct map_info *map, int vpp)
+static void simtec_nor_vpp(struct platform_device *pdev, int vpp)
 {
 	unsigned int val;
 	unsigned long flags;

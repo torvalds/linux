@@ -900,7 +900,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		 */
 		new->handler = irq_nested_primary_handler;
 	} else {
-		irq_setup_forced_threading(new);
+		if (irq_settings_can_thread(desc))
+			irq_setup_forced_threading(new);
 	}
 
 	/*
@@ -1051,6 +1052,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	register_irq_proc(irq, desc);
 	new->dir = NULL;
 	register_handler_proc(irq, new);
+	free_cpumask_var(mask);
 
 	return 0;
 

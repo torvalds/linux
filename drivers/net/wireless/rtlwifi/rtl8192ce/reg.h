@@ -72,6 +72,7 @@
 #define REG_GPIO_IO_SEL_2			0x0062
 /* RTL8723 WIFI/BT/GPS Multi-Function control source. */
 #define REG_MULTI_FUNC_CTRL			0x0068
+
 #define REG_MCUFWDL				0x0080
 
 #define REG_HMEBOX_EXT_0			0x0088
@@ -542,7 +543,7 @@
 #define	IMR_OCPINT				BIT(1)
 #define	IMR_WLANOFF				BIT(0)
 
-#define	HWSET_MAX_SIZE				128
+#define EFUSE_REAL_CONTENT_LEN			512
 
 #define	EEPROM_DEFAULT_TSSI			0x0
 #define EEPROM_DEFAULT_TXPOWERDIFF		0x0
@@ -656,6 +657,7 @@
 #define	STOPBE					BIT(1)
 #define	STOPBK					BIT(0)
 
+#define	RCR_APPFCS				BIT(31)
 #define	RCR_APP_FCS				BIT(31)
 #define	RCR_APP_MIC				BIT(30)
 #define	RCR_APP_ICV				BIT(29)
@@ -688,6 +690,7 @@
 
 #define REG_USB_INFO				0xFE17
 #define REG_USB_SPECIAL_OPTION			0xFE55
+
 #define REG_USB_DMA_AGG_TO			0xFE5B
 #define REG_USB_AGG_TO				0xFE5C
 #define REG_USB_AGG_TH				0xFE5D
@@ -775,7 +778,6 @@
 
 #define	BOOT_FROM_EEPROM			BIT(4)
 #define	EEPROM_EN				BIT(5)
-#define	EEPROMSEL				BOOT_FROM_EEPROM
 
 #define AFE_BGEN				BIT(0)
 #define AFE_MBEN				BIT(1)
@@ -901,28 +903,7 @@
 #define BD_PKG_SEL				BIT(25)
 #define BD_HCI_SEL				BIT(26)
 #define TYPE_ID					BIT(27)
-
-/* REG_GPIO_OUTSTS (For RTL8723 only) */
-#define	EFS_HCI_SEL				(BIT(0)|BIT(1))
-#define	PAD_HCI_SEL				(BIT(2)|BIT(3))
-#define	HCI_SEL					(BIT(4)|BIT(5))
-#define	PKG_SEL_HCI				BIT(6)
-#define	FEN_GPS					BIT(7)
-#define	FEN_BT					BIT(8)
-#define	FEN_WL					BIT(9)
-#define	FEN_PCI					BIT(10)
-#define	FEN_USB					BIT(11)
-#define	BTRF_HWPDN_N				BIT(12)
-#define	WLRF_HWPDN_N				BIT(13)
-#define	PDN_BT_N				BIT(14)
-#define	PDN_GPS_N				BIT(15)
-#define	BT_CTL_HWPDN				BIT(16)
-#define	GPS_CTL_HWPDN				BIT(17)
-#define	PPHY_SUSB				BIT(20)
-#define	UPHY_SUSB				BIT(21)
-#define	PCI_SUSEN				BIT(22)
-#define	USB_SUSEN				BIT(23)
-#define	RF_RL_ID			(BIT(31) | BIT(30) | BIT(29) | BIT(28))
+#define	RF_RL_ID		(BIT(31) | BIT(30) | BIT(29) | BIT(28))
 
 #define CHIP_VER_RTL_MASK			0xF000
 #define CHIP_VER_RTL_SHIFT			12
@@ -1077,6 +1058,7 @@
 #define _RARF_RC8(x)				(((x) & 0x1F) << 24)
 
 #define AC_PARAM_TXOP_OFFSET			16
+#define AC_PARAM_TXOP_LIMIT_OFFSET		16
 #define AC_PARAM_ECW_MAX_OFFSET			12
 #define AC_PARAM_ECW_MIN_OFFSET			8
 #define AC_PARAM_AIFS_OFFSET			0
@@ -1221,33 +1203,11 @@
 #define EPROM_CMD_CONFIG			0x3
 #define EPROM_CMD_LOAD				1
 
-#define	HWSET_MAX_SIZE_92S		HWSET_MAX_SIZE
+#define	HWSET_MAX_SIZE_92S			HWSET_MAX_SIZE
+
+#define	WL_HWPDN_EN				BIT(0)
 
 #define	HAL_8192C_HW_GPIO_WPS_BIT		BIT(2)
-
-/* REG_MULTI_FUNC_CTRL(For RTL8723 Only) */
-/* Enable GPIO[9] as WiFi HW PDn source */
-#define	WL_HWPDN_EN				BIT(0)
-/* WiFi HW PDn polarity control */
-#define	WL_HWPDN_SL				BIT(1)
-/* WiFi function enable */
-#define	WL_FUNC_EN				BIT(2)
-/* Enable GPIO[9] as WiFi RF HW PDn source */
-#define	WL_HWROF_EN				BIT(3)
-/* Enable GPIO[11] as BT HW PDn source */
-#define	BT_HWPDN_EN				BIT(16)
-/* BT HW PDn polarity control */
-#define	BT_HWPDN_SL				BIT(17)
-/* BT function enable */
-#define	BT_FUNC_EN				BIT(18)
-/* Enable GPIO[11] as BT/GPS RF HW PDn source */
-#define	BT_HWROF_EN				BIT(19)
-/* Enable GPIO[10] as GPS HW PDn source */
-#define	GPS_HWPDN_EN				BIT(20)
-/* GPS HW PDn polarity control */
-#define	GPS_HWPDN_SL				BIT(21)
-/* GPS function enable */
-#define	GPS_FUNC_EN				BIT(22)
 
 #define	RPMAC_RESET				0x100
 #define	RPMAC_TXSTART				0x104

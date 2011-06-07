@@ -42,7 +42,20 @@
 struct acpi_table_ibft *ibft_addr;
 EXPORT_SYMBOL_GPL(ibft_addr);
 
-#define IBFT_SIGN "iBFT"
+static const struct {
+	char *sign;
+} ibft_signs[] = {
+#ifdef CONFIG_ACPI
+	/*
+	 * One spec says "IBFT", the other says "iBFT". We have to check
+	 * for both.
+	 */
+	{ ACPI_SIG_IBFT },
+#endif
+	{ "iBFT" },
+	{ "BIFT" },	/* Broadcom iSCSI Offload */
+};
+
 #define IBFT_SIGN_LEN 4
 #define IBFT_START 0x80000 /* 512kB */
 #define IBFT_END 0x100000 /* 1MB */
@@ -62,6 +75,7 @@ static int __init find_ibft_in_mem(void)
 	unsigned long pos;
 	unsigned int len = 0;
 	void *virt;
+	int i;
 
 	for (pos = IBFT_START; pos < IBFT_END; pos += 16) {
 		/* The table can't be inside the VGA BIOS reserved space,
@@ -69,18 +83,23 @@ static int __init find_ibft_in_mem(void)
 		if (pos == VGA_MEM)
 			pos += VGA_SIZE;
 		virt = isa_bus_to_virt(pos);
-		if (memcmp(virt, IBFT_SIGN, IBFT_SIGN_LEN) == 0) {
-			unsigned long *addr =
-			    (unsigned long *)isa_bus_to_virt(pos + 4);
-			len = *addr;
-			/* if the length of the table extends past 1M,
-			 * the table cannot be valid. */
-			if (pos + len <= (IBFT_END-1)) {
-				ibft_addr = (struct acpi_table_ibft *)virt;
-				break;
+
+		for (i = 0; i < ARRAY_SIZE(ibft_signs); i++) {
+			if (memcmp(virt, ibft_signs[i].sign, IBFT_SIGN_LEN) ==
+			    0) {
+				unsigned long *addr =
+				    (unsigned long *)isa_bus_to_virt(pos + 4);
+				len = *addr;
+				/* if the length of the table extends past 1M,
+				 * the table cannot be valid. */
+				if (pos + len <= (IBFT_END-1)) {
+					ibft_addr = (struct acpi_table_ibft *)virt;
+					goto done;
+				}
 			}
 		}
 	}
+done:
 	return len;
 }
 /*
@@ -89,18 +108,12 @@ static int __init find_ibft_in_mem(void)
  */
 unsigned long __init find_ibft_region(unsigned long *sizep)
 {
-
+	int i;
 	ibft_addr = NULL;
 
 #ifdef CONFIG_ACPI
-	/*
-	 * One spec says "IBFT", the other says "iBFT". We have to check
-	 * for both.
-	 */
-	if (!ibft_addr)
-		acpi_table_parse(ACPI_SIG_IBFT, acpi_find_ibft);
-	if (!ibft_addr)
-		acpi_table_parse(IBFT_SIGN, acpi_find_ibft);
+	for (i = 0; i < ARRAY_SIZE(ibft_signs) && !ibft_addr; i++)
+		acpi_table_parse(ibft_signs[i].sign, acpi_find_ibft);
 #endif /* CONFIG_ACPI */
 
 	/* iBFT 1.03 section 1.4.3.1 mandates that UEFI machines will

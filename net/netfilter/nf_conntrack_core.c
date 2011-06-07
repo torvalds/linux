@@ -453,7 +453,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	   REJECT will give spurious warnings here. */
 	/* NF_CT_ASSERT(atomic_read(&ct->ct_general.use) == 1); */
 
-	/* No external references means noone else could have
+	/* No external references means no one else could have
 	   confirmed us. */
 	NF_CT_ASSERT(!nf_ct_is_confirmed(ct));
 	pr_debug("Confirming conntrack %p\n", ct);
@@ -901,7 +901,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	ret = l3proto->get_l4proto(skb, skb_network_offset(skb),
 				   &dataoff, &protonum);
 	if (ret <= 0) {
-		pr_debug("not prepared to track yet or error occured\n");
+		pr_debug("not prepared to track yet or error occurred\n");
 		NF_CT_STAT_INC_ATOMIC(net, error);
 		NF_CT_STAT_INC_ATOMIC(net, invalid);
 		ret = -ret;

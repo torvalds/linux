@@ -583,6 +583,8 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
 	if (!autofs4_oz_mode(sbi) && !capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
+	dentry_unhash(dentry);
+
 	if (atomic_dec_and_test(&ino->count)) {
 		p_ino = autofs4_dentry_ino(dentry->d_parent);
 		if (p_ino && dentry->d_parent != dentry)
@@ -612,7 +614,7 @@ static int autofs4_dir_unlink(struct inode *dir, struct dentry *dentry)
  * set the DMANAGED_AUTOMOUNT and DMANAGED_TRANSIT flags on the leaves
  * of the directory tree. There is no need to clear the automount flag
  * following a mount or restore it after an expire because these mounts
- * are always covered. However, it is neccessary to ensure that these
+ * are always covered. However, it is necessary to ensure that these
  * flags are clear on non-empty directories to avoid unnecessary calls
  * during path walks.
  */

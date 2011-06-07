@@ -115,7 +115,7 @@ static int vol_cdev_open(struct inode *inode, struct file *file)
 		mode = UBI_READONLY;
 
 	dbg_gen("open device %d, volume %d, mode %d",
-	        ubi_num, vol_id, mode);
+		ubi_num, vol_id, mode);
 
 	desc = ubi_open_volume(ubi_num, vol_id, mode);
 	if (IS_ERR(desc))
@@ -158,7 +158,7 @@ static loff_t vol_cdev_llseek(struct file *file, loff_t offset, int origin)
 	loff_t new_offset;
 
 	if (vol->updating) {
-		 /* Update is in progress, seeking is prohibited */
+		/* Update is in progress, seeking is prohibited */
 		dbg_err("updating");
 		return -EBUSY;
 	}
@@ -561,18 +561,18 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 	}
 
 	/* Set volume property command */
-	case UBI_IOCSETPROP:
+	case UBI_IOCSETVOLPROP:
 	{
-		struct ubi_set_prop_req req;
+		struct ubi_set_vol_prop_req req;
 
 		err = copy_from_user(&req, argp,
-				sizeof(struct ubi_set_prop_req));
+				     sizeof(struct ubi_set_vol_prop_req));
 		if (err) {
 			err = -EFAULT;
 			break;
 		}
 		switch (req.property) {
-		case UBI_PROP_DIRECT_WRITE:
+		case UBI_VOL_PROP_DIRECT_WRITE:
 			mutex_lock(&ubi->device_mutex);
 			desc->vol->direct_writes = !!req.value;
 			mutex_unlock(&ubi->device_mutex);
@@ -1100,5 +1100,5 @@ const struct file_operations ubi_ctrl_cdev_operations = {
 	.owner          = THIS_MODULE,
 	.unlocked_ioctl = ctrl_cdev_ioctl,
 	.compat_ioctl   = ctrl_cdev_compat_ioctl,
-	.llseek		= noop_llseek,
+	.llseek		= no_llseek,
 };

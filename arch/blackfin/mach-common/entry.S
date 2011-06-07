@@ -268,7 +268,7 @@ ENTRY(_handle_bad_cplb)
 	/* To get here, we just tried and failed to change a CPLB
 	 * so, handle things in trap_c (C code), by lowering to
 	 * IRQ5, just like we normally do. Since this is not a
-	 * "normal" return path, we have a do alot of stuff to
+	 * "normal" return path, we have a do a lot of stuff to
 	 * the stack to get ready so, we can fall through - we
 	 * need to make a CPLB exception look like a normal exception
 	 */
@@ -817,7 +817,7 @@ _new_old_task:
 	rets = [sp++];
 
 	/*
-	 * When we come out of resume, r0 carries "old" task, becuase we are
+	 * When we come out of resume, r0 carries "old" task, because we are
 	 * in "new" task.
 	 */
 	rts;
@@ -1753,6 +1753,8 @@ ENTRY(_sys_call_table)
 	.long _sys_open_by_handle_at
 	.long _sys_clock_adjtime
 	.long _sys_syncfs
+	.long _sys_setns
+	.long _sys_sendmmsg		/* 380 */
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall

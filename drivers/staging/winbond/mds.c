@@ -492,7 +492,7 @@ Mds_Tx(struct wbsoft_priv *adapter)
 
 			TxDesIndex = pMds->TxDesIndex; /* Get the current ID */
 			pTxDes->Descriptor_ID = TxDesIndex;
-			pMds->TxDesFrom[TxDesIndex] = 2; /* Storing the information of source comming from */
+			pMds->TxDesFrom[TxDesIndex] = 2; /* Storing the information of source coming from */
 			pMds->TxDesIndex++;
 			pMds->TxDesIndex %= MAX_USB_TX_DESCRIPTOR;
 

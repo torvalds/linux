@@ -24,11 +24,6 @@
  * GNU General Public License for more details.
  */
 
-/*
- * TODO:
- * - add timeout on polled transfers
- */
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -286,6 +281,8 @@
 #define ENABLE_ALL_INTERRUPTS (~DEFAULT_SSP_REG_IMSC)
 
 #define CLEAR_ALL_INTERRUPTS  0x3
+
+#define SPI_POLLING_TIMEOUT 1000
 
 
 /*
@@ -661,7 +658,7 @@ static void readwriter(struct pl022 *pl022)
 {
 
 	/*
-	 * The FIFO depth is different inbetween primecell variants.
+	 * The FIFO depth is different between primecell variants.
 	 * I believe filling in too much in the FIFO might cause
 	 * errons in 8bit wide transfers on ARM variants (just 8 words
 	 * FIFO, means only 8x8 = 64 bits in FIFO) at least.
@@ -722,7 +719,7 @@ static void readwriter(struct pl022 *pl022)
 		 * This inner reader takes care of things appearing in the RX
 		 * FIFO as we're transmitting. This will happen a lot since the
 		 * clock starts running when you put things into the TX FIFO,
-		 * and then things are continously clocked into the RX FIFO.
+		 * and then things are continuously clocked into the RX FIFO.
 		 */
 		while ((readw(SSP_SR(pl022->virtbase)) & SSP_SR_MASK_RNE)
 		       && (pl022->rx < pl022->rx_end)) {
@@ -842,7 +839,7 @@ static void dma_callback(void *data)
 
 	unmap_free_dma_scatter(pl022);
 
-	/* Update total bytes transfered */
+	/* Update total bytes transferred */
 	msg->actual_length += pl022->cur_transfer->len;
 	if (pl022->cur_transfer->cs_change)
 		pl022->cur_chip->
@@ -1063,7 +1060,7 @@ static int __init pl022_dma_probe(struct pl022 *pl022)
 					    pl022->master_info->dma_filter,
 					    pl022->master_info->dma_rx_param);
 	if (!pl022->dma_rx_channel) {
-		dev_err(&pl022->adev->dev, "no RX DMA channel!\n");
+		dev_dbg(&pl022->adev->dev, "no RX DMA channel!\n");
 		goto err_no_rxchan;
 	}
 
@@ -1071,13 +1068,13 @@ static int __init pl022_dma_probe(struct pl022 *pl022)
 					    pl022->master_info->dma_filter,
 					    pl022->master_info->dma_tx_param);
 	if (!pl022->dma_tx_channel) {
-		dev_err(&pl022->adev->dev, "no TX DMA channel!\n");
+		dev_dbg(&pl022->adev->dev, "no TX DMA channel!\n");
 		goto err_no_txchan;
 	}
 
 	pl022->dummypage = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!pl022->dummypage) {
-		dev_err(&pl022->adev->dev, "no DMA dummypage!\n");
+		dev_dbg(&pl022->adev->dev, "no DMA dummypage!\n");
 		goto err_no_dummypage;
 	}
 
@@ -1093,6 +1090,8 @@ err_no_txchan:
 	dma_release_channel(pl022->dma_rx_channel);
 	pl022->dma_rx_channel = NULL;
 err_no_rxchan:
+	dev_err(&pl022->adev->dev,
+			"Failed to work in dma mode, work without dma!\n");
 	return -ENODEV;
 }
 
@@ -1224,7 +1223,7 @@ static irqreturn_t pl022_interrupt_handler(int irq, void *dev_id)
 				 "number of bytes on a 16bit bus?)\n",
 				 (u32) (pl022->rx - pl022->rx_end));
 		}
-		/* Update total bytes transfered */
+		/* Update total bytes transferred */
 		msg->actual_length += pl022->cur_transfer->len;
 		if (pl022->cur_transfer->cs_change)
 			pl022->cur_chip->
@@ -1378,6 +1377,7 @@ static void do_polling_transfer(struct pl022 *pl022)
 	struct spi_transfer *transfer = NULL;
 	struct spi_transfer *previous = NULL;
 	struct chip_data *chip;
+	unsigned long time, timeout;
 
 	chip = pl022->cur_chip;
 	message = pl022->cur_msg;
@@ -1415,18 +1415,28 @@ static void do_polling_transfer(struct pl022 *pl022)
 		       SSP_CR1(pl022->virtbase));
 
 		dev_dbg(&pl022->adev->dev, "polling transfer ongoing ...\n");
-		/* FIXME: insert a timeout so we don't hang here indefinately */
-		while (pl022->tx < pl022->tx_end || pl022->rx < pl022->rx_end)
-			readwriter(pl022);
 
-		/* Update total byte transfered */
+		timeout = jiffies + msecs_to_jiffies(SPI_POLLING_TIMEOUT);
+		while (pl022->tx < pl022->tx_end || pl022->rx < pl022->rx_end) {
+			time = jiffies;
+			readwriter(pl022);
+			if (time_after(time, timeout)) {
+				dev_warn(&pl022->adev->dev,
+				"%s: timeout!\n", __func__);
+				message->state = STATE_ERROR;
+				goto out;
+			}
+			cpu_relax();
+		}
+
+		/* Update total byte transferred */
 		message->actual_length += pl022->cur_transfer->len;
 		if (pl022->cur_transfer->cs_change)
 			pl022->cur_chip->cs_control(SSP_CHIP_DESELECT);
 		/* Move to next transfer */
 		message->state = next_transfer(pl022);
 	}
-
+out:
 	/* Handle end of message */
 	if (message->state == STATE_DONE)
 		message->status = 0;
@@ -1555,7 +1565,7 @@ static int stop_queue(struct pl022 *pl022)
 	 * A wait_queue on the pl022->busy could be used, but then the common
 	 * execution path (pump_messages) would be required to call wake_up or
 	 * friends on every SPI message. Do this instead */
-	while (!list_empty(&pl022->queue) && pl022->busy && limit--) {
+	while ((!list_empty(&pl022->queue) || pl022->busy) && limit--) {
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
 		msleep(10);
 		spin_lock_irqsave(&pl022->queue_lock, flags);
@@ -2107,7 +2117,7 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	if (platform_info->enable_dma) {
 		status = pl022_dma_probe(pl022);
 		if (status != 0)
-			goto err_no_dma;
+			platform_info->enable_dma = 0;
 	}
 
 	/* Initialize and start queue */
@@ -2129,7 +2139,7 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 			"probe - problem registering spi master\n");
 		goto err_spi_register;
 	}
-	dev_dbg(dev, "probe succeded\n");
+	dev_dbg(dev, "probe succeeded\n");
 	/*
 	 * Disable the silicon block pclk and any voltage domain and just
 	 * power it up and clock it when it's needed
@@ -2143,7 +2153,6 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
  err_init_queue:
 	destroy_queue(pl022);
 	pl022_dma_remove(pl022);
- err_no_dma:
 	free_irq(adev->irq[0], pl022);
  err_no_irq:
 	clk_put(pl022->clk);
@@ -2184,7 +2193,7 @@ pl022_remove(struct amba_device *adev)
 	spi_unregister_master(pl022->master);
 	spi_master_put(pl022->master);
 	amba_set_drvdata(adev, NULL);
-	dev_dbg(&adev->dev, "remove succeded\n");
+	dev_dbg(&adev->dev, "remove succeeded\n");
 	return 0;
 }
 

@@ -97,26 +97,21 @@ err:
 }
 
 extern struct inode *gfs2_inode_lookup(struct super_block *sb, unsigned type, 
-				       u64 no_addr, u64 no_formal_ino);
+				       u64 no_addr, u64 no_formal_ino,
+				       int non_block);
 extern struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
 					 u64 *no_formal_ino,
 					 unsigned int blktype);
-extern struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr);
+extern struct inode *gfs2_ilookup(struct super_block *sb, u64 no_addr, int nonblock);
 
 extern int gfs2_inode_refresh(struct gfs2_inode *ip);
 
-extern int gfs2_dinode_dealloc(struct gfs2_inode *inode);
-extern int gfs2_change_nlink(struct gfs2_inode *ip, int diff);
 extern struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 				  int is_root);
-extern struct inode *gfs2_createi(struct gfs2_holder *ghs,
-				  const struct qstr *name,
-				  unsigned int mode, dev_t dev);
 extern int gfs2_permission(struct inode *inode, int mask, unsigned int flags);
 extern int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr);
 extern struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
 extern void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
-extern void gfs2_dinode_print(const struct gfs2_inode *ip);
 
 extern const struct inode_operations gfs2_file_iops;
 extern const struct inode_operations gfs2_dir_iops;

@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
@@ -764,7 +765,7 @@ EXPORT_SYMBOL(sram_alloc_with_lsl);
 /* Need to keep line of output the same.  Currently, that is 44 bytes
  * (including newline).
  */
-static int _sram_proc_read(char *buf, int *len, int count, const char *desc,
+static int _sram_proc_show(struct seq_file *m, const char *desc,
 		struct sram_piece *pfree_head,
 		struct sram_piece *pused_head)
 {
@@ -773,13 +774,13 @@ static int _sram_proc_read(char *buf, int *len, int count, const char *desc,
 	if (!pfree_head || !pused_head)
 		return -1;
 
-	*len += sprintf(&buf[*len], "--- SRAM %-14s Size   PID State     \n", desc);
+	seq_printf(m, "--- SRAM %-14s Size   PID State     \n", desc);
 
 	/* search the relevant memory slot */
 	pslot = pused_head->next;
 
 	while (pslot != NULL) {
-		*len += sprintf(&buf[*len], "%p-%p %10i %5i %-10s\n",
+		seq_printf(m, "%p-%p %10i %5i %-10s\n",
 			pslot->paddr, pslot->paddr + pslot->size,
 			pslot->size, pslot->pid, "ALLOCATED");
 
@@ -789,7 +790,7 @@ static int _sram_proc_read(char *buf, int *len, int count, const char *desc,
 	pslot = pfree_head->next;
 
 	while (pslot != NULL) {
-		*len += sprintf(&buf[*len], "%p-%p %10i %5i %-10s\n",
+		seq_printf(m, "%p-%p %10i %5i %-10s\n",
 			pslot->paddr, pslot->paddr + pslot->size,
 			pslot->size, pslot->pid, "FREE");
 
@@ -798,54 +799,62 @@ static int _sram_proc_read(char *buf, int *len, int count, const char *desc,
 
 	return 0;
 }
-static int sram_proc_read(char *buf, char **start, off_t offset, int count,
-		int *eof, void *data)
+static int sram_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0;
 	unsigned int cpu;
 
 	for (cpu = 0; cpu < num_possible_cpus(); ++cpu) {
-		if (_sram_proc_read(buf, &len, count, "Scratchpad",
+		if (_sram_proc_show(m, "Scratchpad",
 			&per_cpu(free_l1_ssram_head, cpu), &per_cpu(used_l1_ssram_head, cpu)))
 			goto not_done;
 #if L1_DATA_A_LENGTH != 0
-		if (_sram_proc_read(buf, &len, count, "L1 Data A",
+		if (_sram_proc_show(m, "L1 Data A",
 			&per_cpu(free_l1_data_A_sram_head, cpu),
 			&per_cpu(used_l1_data_A_sram_head, cpu)))
 			goto not_done;
 #endif
 #if L1_DATA_B_LENGTH != 0
-		if (_sram_proc_read(buf, &len, count, "L1 Data B",
+		if (_sram_proc_show(m, "L1 Data B",
 			&per_cpu(free_l1_data_B_sram_head, cpu),
 			&per_cpu(used_l1_data_B_sram_head, cpu)))
 			goto not_done;
 #endif
 #if L1_CODE_LENGTH != 0
-		if (_sram_proc_read(buf, &len, count, "L1 Instruction",
+		if (_sram_proc_show(m, "L1 Instruction",
 			&per_cpu(free_l1_inst_sram_head, cpu),
 			&per_cpu(used_l1_inst_sram_head, cpu)))
 			goto not_done;
 #endif
 	}
 #if L2_LENGTH != 0
-	if (_sram_proc_read(buf, &len, count, "L2", &free_l2_sram_head,
-		&used_l2_sram_head))
+	if (_sram_proc_show(m, "L2", &free_l2_sram_head, &used_l2_sram_head))
 		goto not_done;
 #endif
-	*eof = 1;
  not_done:
-	return len;
+	return 0;
 }
+
+static int sram_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, sram_proc_show, NULL);
+}
+
+static const struct file_operations sram_proc_ops = {
+	.open		= sram_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static int __init sram_proc_init(void)
 {
 	struct proc_dir_entry *ptr;
-	ptr = create_proc_entry("sram", S_IFREG | S_IRUGO, NULL);
+
+	ptr = proc_create("sram", S_IRUGO, NULL, &sram_proc_ops);
 	if (!ptr) {
 		printk(KERN_WARNING "unable to create /proc/sram\n");
 		return -1;
 	}
-	ptr->read_proc = sram_proc_read;
 	return 0;
 }
 late_initcall(sram_proc_init);

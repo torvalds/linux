@@ -216,7 +216,7 @@ extern void bte_error_handler(unsigned long);
 	bte_copy(0, dest, len, ((mode) | BTE_ZERO_FILL), notification)
 
 /*
- * The following is the prefered way of calling bte_unaligned_copy
+ * The following is the preferred way of calling bte_unaligned_copy
  * If the copy is fully cache line aligned, then bte_copy is
  * used instead.  Since bte_copy is inlined, this saves a call
  * stack.  NOTE: bte_copy is called synchronously and does block

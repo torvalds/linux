@@ -29,7 +29,6 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
-#include <linux/input/matrix_keypad.h>
 #include <linux/usb/otg.h>
 
 #include <mach/hardware.h>
@@ -103,6 +102,8 @@ static iomux_v3_cfg_t mx25pdk_pads[] = {
 	MX25_PAD_SD1_DATA1__SD1_DATA1,
 	MX25_PAD_SD1_DATA2__SD1_DATA2,
 	MX25_PAD_SD1_DATA3__SD1_DATA3,
+	MX25_PAD_A14__GPIO_2_0, /* WriteProtect */
+	MX25_PAD_A15__GPIO_2_1, /* CardDetect */
 
 	/* I2C1 */
 	MX25_PAD_I2C1_CLK__I2C1_CLK,
@@ -208,6 +209,14 @@ static const struct imxi2c_platform_data mx25_3ds_i2c0_data __initconst = {
 	.bitrate = 100000,
 };
 
+#define SD1_GPIO_WP	IMX_GPIO_NR(2, 0)
+#define SD1_GPIO_CD	IMX_GPIO_NR(2, 1)
+
+static const struct esdhc_platform_data mx25pdk_esdhc_pdata __initconst = {
+	.wp_gpio = SD1_GPIO_WP,
+	.cd_gpio = SD1_GPIO_CD,
+};
+
 static void __init mx25pdk_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx25pdk_pads,
@@ -225,7 +234,7 @@ static void __init mx25pdk_init(void)
 	imx25_add_fec(&mx25_fec_pdata);
 	imx25_add_imx_keypad(&mx25pdk_keymap_data);
 
-	imx25_add_sdhci_esdhc_imx(0, NULL);
+	imx25_add_sdhci_esdhc_imx(0, &mx25pdk_esdhc_pdata);
 	imx25_add_imx_i2c0(&mx25_3ds_i2c0_data);
 }
 

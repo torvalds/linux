@@ -52,7 +52,7 @@
  */
 #define UMAL_MIISTATUS		(PKUNITY_UMAL_BASE + 0x0030)
 /*
- * MII Managment Indicator UMAL_MIIIDCT
+ * MII Management Indicator UMAL_MIIIDCT
  */
 #define UMAL_MIIIDCT		(PKUNITY_UMAL_BASE + 0x0034)
 /*
@@ -91,7 +91,7 @@
 #define UMAL_FIFORAM6		(PKUNITY_UMAL_BASE + 0x0078)
 #define UMAL_FIFORAM7		(PKUNITY_UMAL_BASE + 0x007c)
 
-/* MAHBE MODUEL OF UMAL */
+/* MAHBE MODULE OF UMAL */
 /* UMAL's MAHBE module interfaces to the host system through 32-bit AHB Master
  * and Slave ports.Registers within the M-AHBE provide Control and Status
  * information concerning these transfers.

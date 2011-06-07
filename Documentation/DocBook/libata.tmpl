@@ -1032,7 +1032,7 @@ and other resources, etc.
 	   <listitem>
 	   <para>
 	   This is indicated by ICRC bit in the ERROR register and
-	   means that corruption occurred during data transfer.  Upto
+	   means that corruption occurred during data transfer.  Up to
 	   ATA/ATAPI-7, the standard specifies that this bit is only
 	   applicable to UDMA transfers but ATA/ATAPI-8 draft revision
 	   1f says that the bit may be applicable to multiword DMA and
@@ -1045,10 +1045,10 @@ and other resources, etc.
 	   <term>ABRT error during data transfer or on completion</term>
 	   <listitem>
 	   <para>
-	   Upto ATA/ATAPI-7, the standard specifies that ABRT could be
+	   Up to ATA/ATAPI-7, the standard specifies that ABRT could be
 	   set on ICRC errors and on cases where a device is not able
 	   to complete a command.  Combined with the fact that MWDMA
-	   and PIO transfer errors aren't allowed to use ICRC bit upto
+	   and PIO transfer errors aren't allowed to use ICRC bit up to
 	   ATA/ATAPI-7, it seems to imply that ABRT bit alone could
 	   indicate tranfer errors.
 	   </para>
@@ -1122,7 +1122,7 @@ and other resources, etc.
 	<para>
 	Depending on commands, not all STATUS/ERROR bits are
 	applicable.  These non-applicable bits are marked with
-	&quot;na&quot; in the output descriptions but upto ATA/ATAPI-7
+	&quot;na&quot; in the output descriptions but up to ATA/ATAPI-7
 	no definition of &quot;na&quot; can be found.  However,
 	ATA/ATAPI-8 draft revision 1f describes &quot;N/A&quot; as
 	follows.
@@ -1507,7 +1507,7 @@ and other resources, etc.
 
 	<listitem>
 	<para>
-	CHS set up with INITIALIZE DEVICE PARAMETERS (seldomly used)
+	CHS set up with INITIALIZE DEVICE PARAMETERS (seldom used)
 	</para>
 	</listitem>
 

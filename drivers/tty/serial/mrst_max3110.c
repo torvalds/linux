@@ -23,7 +23,7 @@
  *    1 word. If SPI master controller doesn't support sclk frequency change,
  *    then the char need be sent out one by one with some delay
  *
- * 2. Currently only RX availabe interrrupt is used, no need for waiting TXE
+ * 2. Currently only RX available interrrupt is used, no need for waiting TXE
  *    interrupt for a low speed UART device
  */
 
@@ -56,7 +56,7 @@ struct uart_max3110 {
 	wait_queue_head_t wq;
 	struct task_struct *main_thread;
 	struct task_struct *read_thread;
-	struct mutex thread_mutex;;
+	struct mutex thread_mutex;
 
 	u32 baud;
 	u16 cur_conf;

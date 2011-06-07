@@ -724,7 +724,7 @@ static struct pxafb_mach_info spitz_pxafb_info = {
 
 static void __init spitz_lcd_init(void)
 {
-	set_pxa_fb_info(&spitz_pxafb_info);
+	pxa_set_fb_info(NULL, &spitz_pxafb_info);
 }
 #else
 static inline void spitz_lcd_init(void) {}

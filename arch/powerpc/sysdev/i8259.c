@@ -185,18 +185,6 @@ static int i8259_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static void i8259_host_unmap(struct irq_host *h, unsigned int virq)
-{
-	/* Make sure irq is masked in hardware */
-	i8259_mask_irq(irq_get_irq_data(virq));
-
-	/* remove chip and handler */
-	irq_set_chip_and_handler(virq, NULL, NULL);
-
-	/* Make sure it's completed */
-	synchronize_irq(virq);
-}
-
 static int i8259_host_xlate(struct irq_host *h, struct device_node *ct,
 			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
@@ -220,7 +208,6 @@ static int i8259_host_xlate(struct irq_host *h, struct device_node *ct,
 static struct irq_host_ops i8259_host_ops = {
 	.match = i8259_host_match,
 	.map = i8259_host_map,
-	.unmap = i8259_host_unmap,
 	.xlate = i8259_host_xlate,
 };
 

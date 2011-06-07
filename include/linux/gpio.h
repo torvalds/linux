@@ -25,9 +25,9 @@ struct gpio_chip;
  * warning when something is wrongly called.
  */
 
-static inline int gpio_is_valid(int number)
+static inline bool gpio_is_valid(int number)
 {
-	return 0;
+	return false;
 }
 
 static inline int gpio_request(unsigned gpio, const char *label)
@@ -41,7 +41,7 @@ static inline int gpio_request_one(unsigned gpio,
 	return -ENOSYS;
 }
 
-static inline int gpio_request_array(struct gpio *array, size_t num)
+static inline int gpio_request_array(const struct gpio *array, size_t num)
 {
 	return -ENOSYS;
 }
@@ -54,7 +54,7 @@ static inline void gpio_free(unsigned gpio)
 	WARN_ON(1);
 }
 
-static inline void gpio_free_array(struct gpio *array, size_t num)
+static inline void gpio_free_array(const struct gpio *array, size_t num)
 {
 	might_sleep();
 

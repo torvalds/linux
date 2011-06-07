@@ -7,7 +7,6 @@ config UML
 	bool
 	default y
 	select HAVE_GENERIC_HARDIRQS
-	select GENERIC_HARDIRQS_NO_DEPRECATED
 	select GENERIC_IRQ_SHOW
 
 config MMU

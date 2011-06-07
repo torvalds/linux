@@ -1502,5 +1502,12 @@ extern int parse_insn_tile(tile_bundle_bits bits,
                            decoded[TILE_MAX_INSTRUCTIONS_PER_BUNDLE]);
 
 
+/* Given a set of bundle bits and a specific pipe, returns which
+ * instruction the bundle contains in that pipe.
+ */
+extern const struct tile_opcode *
+find_opcode(tile_bundle_bits bits, tile_pipeline pipe);
+
+
 
 #endif /* opcode_tile_h */

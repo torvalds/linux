@@ -19,6 +19,7 @@
 #include <linux/usb.h>
 #include <linux/usb/audio.h>
 
+#include <sound/control.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/pcm.h>
@@ -263,10 +264,24 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 }
 
 /*
+ * Create a standard mixer for the specified interface.
+ */
+static int create_standard_mixer_quirk(struct snd_usb_audio *chip,
+				       struct usb_interface *iface,
+				       struct usb_driver *driver,
+				       const struct snd_usb_audio_quirk *quirk)
+{
+	if (quirk->ifnum < 0)
+		return 0;
+
+	return snd_usb_create_mixer(chip, quirk->ifnum, 0);
+}
+
+/*
  * audio-interface quirks
  *
  * returns zero if no standard audio/MIDI parsing is needed.
- * returns a postive value if standard audio/midi interfaces are parsed
+ * returns a positive value if standard audio/midi interfaces are parsed
  * after this.
  * returns a negative value at error.
  */
@@ -294,7 +309,8 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_audio_quirk,
 		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
 		[QUIRK_AUDIO_EDIROL_UAXX] = create_uaxx_quirk,
-		[QUIRK_AUDIO_ALIGN_TRANSFER] = create_align_transfer_quirk
+		[QUIRK_AUDIO_ALIGN_TRANSFER] = create_align_transfer_quirk,
+		[QUIRK_AUDIO_STANDARD_MIXER] = create_standard_mixer_quirk,
 	};
 
 	if (quirk->type < QUIRK_TYPE_COUNT) {
@@ -533,12 +549,14 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 
 	case USB_ID(0x0d8c, 0x0102):
 		/* C-Media CM6206 / CM106-Like Sound Device */
+	case USB_ID(0x0ccd, 0x00b1): /* Terratec Aureon 7.1 USB */
 		return snd_usb_cm6206_boot_quirk(dev);
 
 	case USB_ID(0x133e, 0x0815):
 		/* Access Music VirusTI Desktop */
 		return snd_usb_accessmusic_boot_quirk(dev);
 
+	case USB_ID(0x17cc, 0x1000): /* Komplete Audio 6 */
 	case USB_ID(0x17cc, 0x1010): /* Traktor Audio 6 */
 	case USB_ID(0x17cc, 0x1020): /* Traktor Audio 10 */
 		return snd_usb_nativeinstruments_boot_quirk(dev);

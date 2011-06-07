@@ -193,8 +193,6 @@ extern struct plat_smp_ops msmtc_smp_ops;
 
 void __init prom_init(void)
 {
-	int result;
-
 	prom_argc = fw_arg0;
 	_prom_argv = (int *) fw_arg1;
 	_prom_envp = (int *) fw_arg2;
@@ -360,20 +358,14 @@ void __init prom_init(void)
 #ifdef CONFIG_SERIAL_8250_CONSOLE
 	console_config();
 #endif
-	/* Early detection of CMP support */
-	result = gcmp_probe(GCMP_BASE_ADDR, GCMP_ADDRSPACE_SZ);
-
 #ifdef CONFIG_MIPS_CMP
-	if (result)
+	/* Early detection of CMP support */
+	if (gcmp_probe(GCMP_BASE_ADDR, GCMP_ADDRSPACE_SZ))
 		register_smp_ops(&cmp_smp_ops);
+	else
 #endif
 #ifdef CONFIG_MIPS_MT_SMP
-#ifdef CONFIG_MIPS_CMP
-	if (!result)
 		register_smp_ops(&vsmp_smp_ops);
-#else
-	register_smp_ops(&vsmp_smp_ops);
-#endif
 #endif
 #ifdef CONFIG_MIPS_MT_SMTC
 	register_smp_ops(&msmtc_smp_ops);

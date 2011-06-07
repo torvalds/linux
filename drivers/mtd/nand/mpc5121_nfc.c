@@ -131,9 +131,7 @@ struct mpc5121_nfc_prv {
 
 static void mpc5121_nfc_done(struct mtd_info *mtd);
 
-#ifdef CONFIG_MTD_PARTITIONS
 static const char *mpc5121_nfc_pprobes[] = { "cmdlinepart", NULL };
-#endif
 
 /* Read NFC register */
 static inline u16 nfc_read(struct mtd_info *mtd, uint reg)
@@ -658,9 +656,7 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op)
 	struct mpc5121_nfc_prv *prv;
 	struct resource res;
 	struct mtd_info *mtd;
-#ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *parts;
-#endif
 	struct nand_chip *chip;
 	unsigned long regs_paddr, regs_size;
 	const __be32 *chips_no;
@@ -841,7 +837,6 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op)
 	dev_set_drvdata(dev, mtd);
 
 	/* Register device in MTD */
-#ifdef CONFIG_MTD_PARTITIONS
 	retval = parse_mtd_partitions(mtd, mpc5121_nfc_pprobes, &parts, 0);
 #ifdef CONFIG_MTD_OF_PARTS
 	if (retval == 0)
@@ -854,12 +849,7 @@ static int __devinit mpc5121_nfc_probe(struct platform_device *op)
 		goto error;
 	}
 
-	if (retval > 0)
-		retval = add_mtd_partitions(mtd, parts, retval);
-	else
-#endif
-		retval = add_mtd_device(mtd);
-
+	retval = mtd_device_register(mtd, parts, retval);
 	if (retval) {
 		dev_err(dev, "Error adding MTD device!\n");
 		devm_free_irq(dev, prv->irq, mtd);

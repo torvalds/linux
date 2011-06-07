@@ -1320,13 +1320,9 @@ static int cmp_read(struct firedtv *fdtv, u64 addr, __be32 *data)
 {
 	int ret;
 
-	mutex_lock(&fdtv->avc_mutex);
-
 	ret = fdtv_read(fdtv, addr, data);
 	if (ret < 0)
 		dev_err(fdtv->device, "CMP: read I/O error\n");
-
-	mutex_unlock(&fdtv->avc_mutex);
 
 	return ret;
 }
@@ -1335,18 +1331,9 @@ static int cmp_lock(struct firedtv *fdtv, u64 addr, __be32 data[])
 {
 	int ret;
 
-	mutex_lock(&fdtv->avc_mutex);
-
-	/* data[] is stack-allocated and should not be DMA-mapped. */
-	memcpy(fdtv->avc_data, data, 8);
-
-	ret = fdtv_lock(fdtv, addr, fdtv->avc_data);
+	ret = fdtv_lock(fdtv, addr, data);
 	if (ret < 0)
 		dev_err(fdtv->device, "CMP: lock I/O error\n");
-	else
-		memcpy(data, fdtv->avc_data, 8);
-
-	mutex_unlock(&fdtv->avc_mutex);
 
 	return ret;
 }

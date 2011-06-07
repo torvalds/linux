@@ -57,10 +57,10 @@ PREFIX = "ahc_"
  * a later time.  This problem cannot be resolved by holding a single entry
  * in scratch ram since a reconnecting target can request sense and this will
  * create yet another SCB waiting for selection.  The solution used here is to 
- * use byte 27 of the SCB as a psuedo-next pointer and to thread a list
+ * use byte 27 of the SCB as a pseudo-next pointer and to thread a list
  * of SCBs that are awaiting selection.  Since 0-0xfe are valid SCB indexes, 
  * SCB_LIST_NULL is 0xff which is out of range.  An entry is also added to
- * this list everytime a request sense occurs or after completing a non-tagged
+ * this list every time a request sense occurs or after completing a non-tagged
  * command for which a second SCB has been queued.  The sequencer will
  * automatically consume the entries.
  */
@@ -752,7 +752,7 @@ idle_loop:
 
 	/*
 	 * We fetch a "cacheline aligned" and sized amount of data
-	 * so we don't end up referencing a non-existant page.
+	 * so we don't end up referencing a non-existent page.
 	 * Cacheline aligned is in quotes because the kernel will
 	 * set the prefetch amount to a reasonable level if the
 	 * cacheline size is unknown.
@@ -1485,7 +1485,7 @@ p_status_okay:
  * This is done to allow the host to send messages outside of an identify
  * sequence while protecting the seqencer from testing the MK_MESSAGE bit
  * on an SCB that might not be for the current nexus. (For example, a
- * BDR message in responce to a bad reselection would leave us pointed to
+ * BDR message in response to a bad reselection would leave us pointed to
  * an SCB that doesn't have anything to do with the current target).
  *
  * Otherwise, treat MSG_OUT as a 1 byte message to send (abort, abort tag,
@@ -1999,7 +1999,7 @@ if ((ahc->flags & AHC_TARGETROLE) != 0) {
  * from out to in, wait an additional data release delay before continuing.
  */
 change_phase:
-	/* Wait for preceeding I/O session to complete. */
+	/* Wait for preceding I/O session to complete. */
 	test	SCSISIGI, ACKI jnz .;
 
 	/* Change the phase */

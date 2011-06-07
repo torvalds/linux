@@ -31,7 +31,7 @@
 /*
  * Alter this version for the I7300 module when modifications are made
  */
-#define I7300_REVISION    " Ver: 1.0.0 " __DATE__
+#define I7300_REVISION    " Ver: 1.0.0"
 
 #define EDAC_MOD_STR      "i7300_edac"
 
@@ -1065,7 +1065,7 @@ static int __devinit i7300_init_one(struct pci_dev *pdev,
 	 * actual number of slots/dimms per channel, we thus utilize the
 	 * resource as specified by the chipset. Thus, we might have
 	 * have more DIMMs per channel than actually on the mobo, but this
-	 * allows the driver to support upto the chipset max, without
+	 * allows the driver to support up to the chipset max, without
 	 * some fancy mobo determination.
 	 */
 	num_dimms_per_channel = MAX_SLOTS;

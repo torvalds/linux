@@ -104,7 +104,7 @@
 #define MIX_PLAYB(x) (vortex->mixplayb[x])
 #define MIX_SPDIF(x) (vortex->mixspdif[x])
 
-#define NR_WTPB 0x20		/* WT channels per eahc bank. */
+#define NR_WTPB 0x20		/* WT channels per each bank. */
 
 /* Structs */
 typedef struct {

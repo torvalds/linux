@@ -13,7 +13,7 @@
 
 /*
  * A driver for the Freescale Semiconductor i.MXC CPUfreq module.
- * The CPUFREQ driver is for controling CPU frequency. It allows you to change
+ * The CPUFREQ driver is for controlling CPU frequency. It allows you to change
  * the CPU clock speed on the fly.
  */
 
@@ -153,8 +153,8 @@ static int __init mxc_cpufreq_init(struct cpufreq_policy *policy)
 	ret = cpufreq_frequency_table_cpuinfo(policy, imx_freq_table);
 
 	if (ret < 0) {
-		printk(KERN_ERR "%s: failed to register i.MXC CPUfreq \
-				with error code %d\n", __func__, ret);
+		printk(KERN_ERR "%s: failed to register i.MXC CPUfreq with error code %d\n",
+		       __func__, ret);
 		goto err;
 	}
 

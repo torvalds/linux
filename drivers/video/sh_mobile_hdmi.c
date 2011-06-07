@@ -1131,15 +1131,19 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 		pm_runtime_get_sync(hdmi->dev);
 
 		ret = sh_hdmi_read_edid(hdmi, &hdmi_rate, &parent_rate);
-		if (ret < 0)
+		if (ret < 0) {
+			pm_runtime_put(hdmi->dev);
 			goto out;
+		}
 
 		hdmi->hp_state = HDMI_HOTPLUG_EDID_DONE;
 
 		/* Reconfigure the clock */
 		ret = sh_hdmi_clk_configure(hdmi, hdmi_rate, parent_rate);
-		if (ret < 0)
+		if (ret < 0) {
+			pm_runtime_put(hdmi->dev);
 			goto out;
+		}
 
 		msleep(10);
 		sh_hdmi_configure(hdmi);
@@ -1336,6 +1340,7 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 ecodec:
 	free_irq(irq, hdmi);
 ereqirq:
+	pm_runtime_suspend(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	iounmap(hdmi->base);
 emap:
@@ -1372,6 +1377,7 @@ static int __exit sh_hdmi_remove(struct platform_device *pdev)
 	free_irq(irq, hdmi);
 	/* Wait for already scheduled work */
 	cancel_delayed_work_sync(&hdmi->edid_work);
+	pm_runtime_suspend(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	clk_disable(hdmi->hdmi_clk);
 	clk_put(hdmi->hdmi_clk);

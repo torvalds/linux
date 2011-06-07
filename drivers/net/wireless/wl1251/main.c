@@ -497,7 +497,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	wl->rx_last_id = 0;
 	wl->next_tx_complete = 0;
 	wl->elp = false;
-	wl->psm = 0;
+	wl->station_mode = STATION_ACTIVE_MODE;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1251_DEFAULT_POWER_LEVEL;
 	wl->rssi_thold = 0;
@@ -632,8 +632,24 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 
 		wl->psm_requested = false;
 
-		if (wl->psm) {
+		if (wl->station_mode != STATION_ACTIVE_MODE) {
 			ret = wl1251_ps_set_mode(wl, STATION_ACTIVE_MODE);
+			if (ret < 0)
+				goto out_sleep;
+		}
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
+		if (conf->flags & IEEE80211_CONF_IDLE) {
+			ret = wl1251_ps_set_mode(wl, STATION_IDLE);
+			if (ret < 0)
+				goto out_sleep;
+		} else {
+			ret = wl1251_ps_set_mode(wl, STATION_ACTIVE_MODE);
+			if (ret < 0)
+				goto out_sleep;
+			ret = wl1251_join(wl, wl->bss_type, wl->channel,
+					  wl->beacon_int, wl->dtim_period);
 			if (ret < 0)
 				goto out_sleep;
 		}
@@ -1384,7 +1400,7 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 	wl->rx_config = WL1251_DEFAULT_RX_CONFIG;
 	wl->rx_filter = WL1251_DEFAULT_RX_FILTER;
 	wl->elp = false;
-	wl->psm = 0;
+	wl->station_mode = STATION_ACTIVE_MODE;
 	wl->psm_requested = false;
 	wl->tx_queue_stopped = false;
 	wl->power_level = WL1251_DEFAULT_POWER_LEVEL;

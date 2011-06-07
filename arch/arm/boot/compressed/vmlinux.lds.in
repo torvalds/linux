@@ -54,6 +54,7 @@ SECTIONS
   .bss			: { *(.bss) }
   _end = .;
 
+  . = ALIGN(8);		/* the stack must be 64-bit aligned */
   .stack		: { *(.stack) }
 
   .stab 0		: { *(.stab) }

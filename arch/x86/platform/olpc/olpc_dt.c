@@ -19,7 +19,9 @@
 #include <linux/kernel.h>
 #include <linux/bootmem.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/of_pdt.h>
+#include <asm/olpc.h>
 #include <asm/olpc_ofw.h>
 
 static phandle __init olpc_dt_getsibling(phandle node)
@@ -180,3 +182,20 @@ void __init olpc_dt_build_devicetree(void)
 	pr_info("PROM DT: Built device tree with %u bytes of memory.\n",
 			prom_early_allocated);
 }
+
+/* A list of DT node/bus matches that we want to expose as platform devices */
+static struct of_device_id __initdata of_ids[] = {
+	{ .compatible = "olpc,xo1-battery" },
+	{ .compatible = "olpc,xo1-dcon" },
+	{ .compatible = "olpc,xo1-rtc" },
+	{},
+};
+
+static int __init olpc_create_platform_devices(void)
+{
+	if (machine_is_olpc())
+		return of_platform_bus_probe(NULL, of_ids, NULL);
+	else
+		return 0;
+}
+device_initcall(olpc_create_platform_devices);

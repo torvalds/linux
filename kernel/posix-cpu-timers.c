@@ -1347,7 +1347,7 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 
 	/*
 	 * Now that all the timers on our list have the firing flag,
-	 * noone will touch their list entries but us.  We'll take
+	 * no one will touch their list entries but us.  We'll take
 	 * each timer's lock before clearing its firing flag, so no
 	 * timer call will interfere.
 	 */
@@ -1514,7 +1514,7 @@ static int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 			return -EFAULT;
 
 		restart_block->fn = posix_cpu_nsleep_restart;
-		restart_block->nanosleep.index = which_clock;
+		restart_block->nanosleep.clockid = which_clock;
 		restart_block->nanosleep.rmtp = rmtp;
 		restart_block->nanosleep.expires = timespec_to_ns(rqtp);
 	}
@@ -1523,7 +1523,7 @@ static int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 
 static long posix_cpu_nsleep_restart(struct restart_block *restart_block)
 {
-	clockid_t which_clock = restart_block->nanosleep.index;
+	clockid_t which_clock = restart_block->nanosleep.clockid;
 	struct timespec t;
 	struct itimerspec it;
 	int error;

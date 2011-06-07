@@ -968,7 +968,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 			 * contains garbage because of a power cut during erase
 			 * operation. So we just schedule this PEB for erasure.
 			 *
-			 * Besides, in case of NOR flash, we deliberatly
+			 * Besides, in case of NOR flash, we deliberately
 			 * corrupt both headers because NOR flash erasure is
 			 * slow and can start from the end.
 			 */
@@ -1103,7 +1103,7 @@ static int check_what_we_have(struct ubi_device *ubi, struct ubi_scan_info *si)
 		 * otherwise, only print a warning.
 		 */
 		if (si->corr_peb_count >= max_corr) {
-			ubi_err("too many corrupted PEBs, refusing this device");
+			ubi_err("too many corrupted PEBs, refusing");
 			return -EINVAL;
 		}
 	}

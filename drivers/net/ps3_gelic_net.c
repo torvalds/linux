@@ -632,7 +632,7 @@ static inline void gelic_card_enable_rxdmac(struct gelic_card *card)
  * @card: card structure
  *
  * gelic_card_disable_rxdmac terminates processing on the DMA controller by
- * turing off DMA and issueing a force end
+ * turing off DMA and issuing a force end
  */
 static inline void gelic_card_disable_rxdmac(struct gelic_card *card)
 {
@@ -650,7 +650,7 @@ static inline void gelic_card_disable_rxdmac(struct gelic_card *card)
  * @card: card structure
  *
  * gelic_card_disable_txdmac terminates processing on the DMA controller by
- * turing off DMA and issueing a force end
+ * turing off DMA and issuing a force end
  */
 static inline void gelic_card_disable_txdmac(struct gelic_card *card)
 {
@@ -951,7 +951,7 @@ static void gelic_net_pass_skb_up(struct gelic_descr *descr,
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	/* checksum offload */
-	if (card->rx_csum) {
+	if (netdev->features & NETIF_F_RXCSUM) {
 		if ((data_status & GELIC_DESCR_DATA_STATUS_CHK_MASK) &&
 		    (!(data_error & GELIC_DESCR_DATA_ERROR_CHK_MASK)))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1243,17 +1243,17 @@ static int gelic_ether_get_settings(struct net_device *netdev,
 
 	switch (card->ether_port_status & GELIC_LV1_ETHER_SPEED_MASK) {
 	case GELIC_LV1_ETHER_SPEED_10:
-		cmd->speed = SPEED_10;
+		ethtool_cmd_speed_set(cmd, SPEED_10);
 		break;
 	case GELIC_LV1_ETHER_SPEED_100:
-		cmd->speed = SPEED_100;
+		ethtool_cmd_speed_set(cmd, SPEED_100);
 		break;
 	case GELIC_LV1_ETHER_SPEED_1000:
-		cmd->speed = SPEED_1000;
+		ethtool_cmd_speed_set(cmd, SPEED_1000);
 		break;
 	default:
 		pr_info("%s: speed unknown\n", __func__);
-		cmd->speed = SPEED_10;
+		ethtool_cmd_speed_set(cmd, SPEED_10);
 		break;
 	}
 
@@ -1309,21 +1309,6 @@ static int gelic_ether_set_settings(struct net_device *netdev,
 	if (ret)
 		return ret;
 
-	return 0;
-}
-
-u32 gelic_net_get_rx_csum(struct net_device *netdev)
-{
-	struct gelic_card *card = netdev_card(netdev);
-
-	return card->rx_csum;
-}
-
-int gelic_net_set_rx_csum(struct net_device *netdev, u32 data)
-{
-	struct gelic_card *card = netdev_card(netdev);
-
-	card->rx_csum = data;
 	return 0;
 }
 
@@ -1411,10 +1396,6 @@ static const struct ethtool_ops gelic_ether_ethtool_ops = {
 	.get_settings	= gelic_ether_get_settings,
 	.set_settings	= gelic_ether_set_settings,
 	.get_link	= ethtool_op_get_link,
-	.get_tx_csum	= ethtool_op_get_tx_csum,
-	.set_tx_csum	= ethtool_op_set_tx_csum,
-	.get_rx_csum	= gelic_net_get_rx_csum,
-	.set_rx_csum	= gelic_net_set_rx_csum,
 	.get_wol	= gelic_net_get_wol,
 	.set_wol	= gelic_net_set_wol,
 };
@@ -1512,7 +1493,11 @@ int __devinit gelic_net_setup_netdev(struct net_device *netdev,
 	int status;
 	u64 v1, v2;
 
+	netdev->hw_features = NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
+
 	netdev->features = NETIF_F_IP_CSUM;
+	if (GELIC_CARD_RX_CSUM_DEFAULT)
+		netdev->features |= NETIF_F_RXCSUM;
 
 	status = lv1_net_control(bus_id(card), dev_id(card),
 				 GELIC_LV1_GET_MAC_ADDRESS,
@@ -1756,7 +1741,6 @@ static int __devinit ps3_gelic_driver_probe(struct ps3_system_bus_device *dev)
 	/* setup card structure */
 	card->irq_mask = GELIC_CARD_RXINT | GELIC_CARD_TXINT |
 		GELIC_CARD_PORT_STATUS_CHANGED;
-	card->rx_csum = GELIC_CARD_RX_CSUM_DEFAULT;
 
 
 	if (gelic_card_init_chain(card, &card->tx_chain,

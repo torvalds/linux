@@ -609,7 +609,7 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 	DBC_REQUIRE(dev_node_strg != NULL);
 
 	/*
-	 *  Allocate memory to hold the string. This will live untill
+	 *  Allocate memory to hold the string. This will live until
 	 *  it is freed in the Release resources. Update the driver object
 	 *  list.
 	 */

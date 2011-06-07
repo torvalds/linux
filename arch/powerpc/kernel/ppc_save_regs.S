@@ -15,7 +15,7 @@
 
 /*
  * Grab the register values as they are now.
- * This won't do a particularily good job because we really
+ * This won't do a particularly good job because we really
  * want our caller's caller's registers, and our caller has
  * already executed its prologue.
  * ToDo: We could reach back into the caller's save area to do

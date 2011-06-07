@@ -875,7 +875,7 @@ static void start_adc(struct cs4297a_state *s)
 		if (s->prop_adc.fmt & AFMT_S8 || s->prop_adc.fmt & AFMT_U8) {
 			// 
 			// now only use 16 bit capture, due to truncation issue
-			// in the chip, noticable distortion occurs.
+			// in the chip, noticeable distortion occurs.
 			// allocate buffer and then convert from 16 bit to 
 			// 8 bit for the user buffer.
 			//

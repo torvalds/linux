@@ -146,6 +146,12 @@ static int loop_tx_ir(struct rc_dev *dev, int *txbuf, u32 n)
 		if (rawir.duration)
 			ir_raw_event_store_with_filter(dev, &rawir);
 	}
+
+	/* Fake a silence long enough to cause us to go idle */
+	rawir.pulse = false;
+	rawir.duration = dev->timeout;
+	ir_raw_event_store_with_filter(dev, &rawir);
+
 	ir_raw_event_handle(dev);
 
 out:

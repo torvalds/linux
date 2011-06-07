@@ -109,7 +109,7 @@ struct usb_req_rfwrite {
 	__le16 bits;
 	/* RF2595: 24 */
 	__le16 bit_values[0];
-	/* (CR203 & ~(RF_IF_LE | RF_CLK | RF_DATA)) | (bit ? RF_DATA : 0) */
+	/* (ZD_CR203 & ~(RF_IF_LE | RF_CLK | RF_DATA)) | (bit ? RF_DATA : 0) */
 } __packed;
 
 /* USB interrupt */
@@ -183,6 +183,7 @@ struct zd_usb_rx {
 	spinlock_t lock;
 	struct mutex setup_mutex;
 	struct delayed_work idle_work;
+	struct tasklet_struct reset_timer_tasklet;
 	u8 fragment[2 * USB_MAX_RX_SIZE];
 	unsigned int fragment_length;
 	unsigned int usb_packet_size;

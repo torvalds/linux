@@ -28,6 +28,7 @@ extern void pcie_aspm_exit_link_state(struct pci_dev *pdev);
 extern void pcie_aspm_pm_state_change(struct pci_dev *pdev);
 extern void pcie_aspm_powersave_config_link(struct pci_dev *pdev);
 extern void pci_disable_link_state(struct pci_dev *pdev, int state);
+extern void pci_disable_link_state_locked(struct pci_dev *pdev, int state);
 extern void pcie_clear_aspm(void);
 extern void pcie_no_aspm(void);
 #else

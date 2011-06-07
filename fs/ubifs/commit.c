@@ -182,7 +182,7 @@ static int do_commit(struct ubifs_info *c)
 	c->mst_node->root_len    = cpu_to_le32(zroot.len);
 	c->mst_node->ihead_lnum  = cpu_to_le32(c->ihead_lnum);
 	c->mst_node->ihead_offs  = cpu_to_le32(c->ihead_offs);
-	c->mst_node->index_size  = cpu_to_le64(c->old_idx_sz);
+	c->mst_node->index_size  = cpu_to_le64(c->bi.old_idx_sz);
 	c->mst_node->lpt_lnum    = cpu_to_le32(c->lpt_lnum);
 	c->mst_node->lpt_offs    = cpu_to_le32(c->lpt_offs);
 	c->mst_node->nhead_lnum  = cpu_to_le32(c->nhead_lnum);
@@ -577,7 +577,7 @@ int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 	size_t sz;
 
 	if (!(ubifs_chk_flags & UBIFS_CHK_OLD_IDX))
-		goto out;
+		return 0;
 
 	INIT_LIST_HEAD(&list);
 

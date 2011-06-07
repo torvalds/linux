@@ -267,7 +267,7 @@ The following information is available in this file:
               Option: tag_info:{{value[,value...]}[,{value[,value...]}...]}
           Definition: Set the per-target tagged queue depth on a
                       per controller basis.  Both controllers and targets
-                      may be ommitted indicating that they should retain
+                      may be omitted indicating that they should retain
                       the default tag depth.
             Examples: tag_info:{{16,32,32,64,8,8,,32,32,32,32,32,32,32,32,32}
                         On Controller 0
@@ -291,7 +291,7 @@ The following information is available in this file:
                       The rd_strm_bitmask is a 16 bit hex value in which
                       each bit represents a target.  Setting the target's
                       bit to '1' enables read streaming for that
-                      target.  Controllers may be ommitted indicating that
+                      target.  Controllers may be omitted indicating that
                       they should retain the default read streaming setting.
              Example: rd_strm:{0x0041}
                         On Controller 0
@@ -313,7 +313,7 @@ The following information is available in this file:
    -----------------------------------------------------------------
               Option: dv: {value[,value...]}
           Definition: Set Domain Validation Policy on a per-controller basis.
-                      Controllers may be ommitted indicating that
+                      Controllers may be omitted indicating that
                       they should retain the default read streaming setting.
              Example: dv:{-1,0,,1,1,0}
                         On Controller 0 leave DV at its default setting.
@@ -340,7 +340,7 @@ The following information is available in this file:
               Option: precomp: {value[,value...]}
           Definition: Set IO Cell precompensation value on a per-controller
                       basis.
-                      Controllers may be ommitted indicating that
+                      Controllers may be omitted indicating that
                       they should retain the default precompensation setting.
              Example: precomp:{0x1}
                         On Controller 0 set precompensation to 1.
@@ -353,7 +353,7 @@ The following information is available in this file:
    -----------------------------------------------------------------
               Option: slewrate: {value[,value...]}
           Definition: Set IO Cell slew rate on a per-controller basis.
-                      Controllers may be ommitted indicating that
+                      Controllers may be omitted indicating that
                       they should retain the default slew rate setting.
              Example: slewrate:{0x1}
                         On Controller 0 set slew rate to 1.
@@ -366,7 +366,7 @@ The following information is available in this file:
    -----------------------------------------------------------------
               Option: amplitude: {value[,value...]}
           Definition: Set IO Cell signal amplitude on a per-controller basis.
-                      Controllers may be ommitted indicating that
+                      Controllers may be omitted indicating that
                       they should retain the default read streaming setting.
              Example: amplitude:{0x1}
                         On Controller 0 set amplitude to 1.

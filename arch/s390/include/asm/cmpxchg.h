@@ -167,7 +167,6 @@ static inline unsigned long __cmpxchg(void *ptr, unsigned long old,
 #ifdef CONFIG_64BIT
 #define cmpxchg64(ptr, o, n)						\
 ({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
 	cmpxchg((ptr), (o), (n));					\
 })
 #else /* CONFIG_64BIT */

@@ -53,7 +53,7 @@ void cifs_dfs_release_automount_timer(void)
  *
  * Extracts sharename form full UNC.
  * i.e. strips from UNC trailing path that is not part of share
- * name and fixup missing '\' in the begining of DFS node refferal
+ * name and fixup missing '\' in the beginning of DFS node refferal
  * if necessary.
  * Returns pointer to share name on success or ERR_PTR on error.
  * Caller is responsible for freeing returned string.
@@ -272,7 +272,7 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	struct dfs_info3_param *referrals = NULL;
 	unsigned int num_referrals = 0;
 	struct cifs_sb_info *cifs_sb;
-	struct cifsSesInfo *ses;
+	struct cifs_ses *ses;
 	char *full_path;
 	int xid, i;
 	int rc;

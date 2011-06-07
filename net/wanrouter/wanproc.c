@@ -51,7 +51,7 @@
 
 /*
  *	Structures for interfacing with the /proc filesystem.
- *	Router creates its own directory /proc/net/router with the folowing
+ *	Router creates its own directory /proc/net/router with the following
  *	entries:
  *	config		device configuration
  *	status		global device statistics

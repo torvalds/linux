@@ -13,8 +13,6 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
-#include <linux/mv643xx_eth.h>
-#include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
 #include <linux/ethtool.h>
 #include <asm/mach/map.h>
@@ -22,11 +20,12 @@
 #include <mach/mv78xx0.h>
 #include <mach/bridge-regs.h>
 #include <plat/cache-feroceon-l2.h>
-#include <plat/ehci-orion.h>
 #include <plat/orion_nand.h>
 #include <plat/time.h>
+#include <plat/common.h>
 #include "common.h"
 
+static int get_tclk(void);
 
 /*****************************************************************************
  * Common bits
@@ -168,284 +167,61 @@ void __init mv78xx0_map_io(void)
 /*****************************************************************************
  * EHCI
  ****************************************************************************/
-static struct orion_ehci_data mv78xx0_ehci_data = {
-	.dram		= &mv78xx0_mbus_dram_info,
-	.phy_version	= EHCI_PHY_NA,
-};
-
-static u64 ehci_dmamask = 0xffffffffUL;
-
-
-/*****************************************************************************
- * EHCI0
- ****************************************************************************/
-static struct resource mv78xx0_ehci0_resources[] = {
-	{
-		.start	= USB0_PHYS_BASE,
-		.end	= USB0_PHYS_BASE + 0x0fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_MV78XX0_USB_0,
-		.end	= IRQ_MV78XX0_USB_0,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ehci0 = {
-	.name		= "orion-ehci",
-	.id		= 0,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
-		.platform_data		= &mv78xx0_ehci_data,
-	},
-	.resource	= mv78xx0_ehci0_resources,
-	.num_resources	= ARRAY_SIZE(mv78xx0_ehci0_resources),
-};
-
 void __init mv78xx0_ehci0_init(void)
 {
-	platform_device_register(&mv78xx0_ehci0);
+	orion_ehci_init(&mv78xx0_mbus_dram_info,
+			USB0_PHYS_BASE, IRQ_MV78XX0_USB_0);
 }
 
 
 /*****************************************************************************
  * EHCI1
  ****************************************************************************/
-static struct resource mv78xx0_ehci1_resources[] = {
-	{
-		.start	= USB1_PHYS_BASE,
-		.end	= USB1_PHYS_BASE + 0x0fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_MV78XX0_USB_1,
-		.end	= IRQ_MV78XX0_USB_1,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ehci1 = {
-	.name		= "orion-ehci",
-	.id		= 1,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
-		.platform_data		= &mv78xx0_ehci_data,
-	},
-	.resource	= mv78xx0_ehci1_resources,
-	.num_resources	= ARRAY_SIZE(mv78xx0_ehci1_resources),
-};
-
 void __init mv78xx0_ehci1_init(void)
 {
-	platform_device_register(&mv78xx0_ehci1);
+	orion_ehci_1_init(&mv78xx0_mbus_dram_info,
+			  USB1_PHYS_BASE, IRQ_MV78XX0_USB_1);
 }
 
 
 /*****************************************************************************
  * EHCI2
  ****************************************************************************/
-static struct resource mv78xx0_ehci2_resources[] = {
-	{
-		.start	= USB2_PHYS_BASE,
-		.end	= USB2_PHYS_BASE + 0x0fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_MV78XX0_USB_2,
-		.end	= IRQ_MV78XX0_USB_2,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ehci2 = {
-	.name		= "orion-ehci",
-	.id		= 2,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
-		.platform_data		= &mv78xx0_ehci_data,
-	},
-	.resource	= mv78xx0_ehci2_resources,
-	.num_resources	= ARRAY_SIZE(mv78xx0_ehci2_resources),
-};
-
 void __init mv78xx0_ehci2_init(void)
 {
-	platform_device_register(&mv78xx0_ehci2);
+	orion_ehci_2_init(&mv78xx0_mbus_dram_info,
+			  USB2_PHYS_BASE, IRQ_MV78XX0_USB_2);
 }
 
 
 /*****************************************************************************
  * GE00
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data mv78xx0_ge00_shared_data = {
-	.t_clk		= 0,
-	.dram		= &mv78xx0_mbus_dram_info,
-};
-
-static struct resource mv78xx0_ge00_shared_resources[] = {
-	{
-		.name	= "ge00 base",
-		.start	= GE00_PHYS_BASE + 0x2000,
-		.end	= GE00_PHYS_BASE + 0x3fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "ge err irq",
-		.start	= IRQ_MV78XX0_GE_ERR,
-		.end	= IRQ_MV78XX0_GE_ERR,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ge00_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &mv78xx0_ge00_shared_data,
-	},
-	.num_resources	= ARRAY_SIZE(mv78xx0_ge00_shared_resources),
-	.resource	= mv78xx0_ge00_shared_resources,
-};
-
-static struct resource mv78xx0_ge00_resources[] = {
-	{
-		.name	= "ge00 irq",
-		.start	= IRQ_MV78XX0_GE00_SUM,
-		.end	= IRQ_MV78XX0_GE00_SUM,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ge00 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 0,
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge00_resources,
-	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
-	},
-};
-
 void __init mv78xx0_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	eth_data->shared = &mv78xx0_ge00_shared;
-	mv78xx0_ge00.dev.platform_data = eth_data;
-
-	platform_device_register(&mv78xx0_ge00_shared);
-	platform_device_register(&mv78xx0_ge00);
+	orion_ge00_init(eth_data, &mv78xx0_mbus_dram_info,
+			GE00_PHYS_BASE, IRQ_MV78XX0_GE00_SUM,
+			IRQ_MV78XX0_GE_ERR, get_tclk());
 }
 
 
 /*****************************************************************************
  * GE01
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data mv78xx0_ge01_shared_data = {
-	.t_clk		= 0,
-	.dram		= &mv78xx0_mbus_dram_info,
-	.shared_smi	= &mv78xx0_ge00_shared,
-};
-
-static struct resource mv78xx0_ge01_shared_resources[] = {
-	{
-		.name	= "ge01 base",
-		.start	= GE01_PHYS_BASE + 0x2000,
-		.end	= GE01_PHYS_BASE + 0x3fff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device mv78xx0_ge01_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 1,
-	.dev		= {
-		.platform_data	= &mv78xx0_ge01_shared_data,
-	},
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge01_shared_resources,
-};
-
-static struct resource mv78xx0_ge01_resources[] = {
-	{
-		.name	= "ge01 irq",
-		.start	= IRQ_MV78XX0_GE01_SUM,
-		.end	= IRQ_MV78XX0_GE01_SUM,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ge01 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 1,
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge01_resources,
-	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
-	},
-};
-
 void __init mv78xx0_ge01_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	eth_data->shared = &mv78xx0_ge01_shared;
-	mv78xx0_ge01.dev.platform_data = eth_data;
-
-	platform_device_register(&mv78xx0_ge01_shared);
-	platform_device_register(&mv78xx0_ge01);
+	orion_ge01_init(eth_data, &mv78xx0_mbus_dram_info,
+			GE01_PHYS_BASE, IRQ_MV78XX0_GE01_SUM,
+			NO_IRQ, get_tclk());
 }
 
 
 /*****************************************************************************
  * GE10
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data mv78xx0_ge10_shared_data = {
-	.t_clk		= 0,
-	.dram		= &mv78xx0_mbus_dram_info,
-	.shared_smi	= &mv78xx0_ge00_shared,
-};
-
-static struct resource mv78xx0_ge10_shared_resources[] = {
-	{
-		.name	= "ge10 base",
-		.start	= GE10_PHYS_BASE + 0x2000,
-		.end	= GE10_PHYS_BASE + 0x3fff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device mv78xx0_ge10_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 2,
-	.dev		= {
-		.platform_data	= &mv78xx0_ge10_shared_data,
-	},
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge10_shared_resources,
-};
-
-static struct resource mv78xx0_ge10_resources[] = {
-	{
-		.name	= "ge10 irq",
-		.start	= IRQ_MV78XX0_GE10_SUM,
-		.end	= IRQ_MV78XX0_GE10_SUM,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ge10 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 2,
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge10_resources,
-	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
-	},
-};
-
 void __init mv78xx0_ge10_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	u32 dev, rev;
-
-	eth_data->shared = &mv78xx0_ge10_shared;
-	mv78xx0_ge10.dev.platform_data = eth_data;
 
 	/*
 	 * On the Z0, ge10 and ge11 are internally connected back
@@ -458,64 +234,18 @@ void __init mv78xx0_ge10_init(struct mv643xx_eth_platform_data *eth_data)
 		eth_data->duplex = DUPLEX_FULL;
 	}
 
-	platform_device_register(&mv78xx0_ge10_shared);
-	platform_device_register(&mv78xx0_ge10);
+	orion_ge10_init(eth_data, &mv78xx0_mbus_dram_info,
+			GE10_PHYS_BASE, IRQ_MV78XX0_GE10_SUM,
+			NO_IRQ, get_tclk());
 }
 
 
 /*****************************************************************************
  * GE11
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data mv78xx0_ge11_shared_data = {
-	.t_clk		= 0,
-	.dram		= &mv78xx0_mbus_dram_info,
-	.shared_smi	= &mv78xx0_ge00_shared,
-};
-
-static struct resource mv78xx0_ge11_shared_resources[] = {
-	{
-		.name	= "ge11 base",
-		.start	= GE11_PHYS_BASE + 0x2000,
-		.end	= GE11_PHYS_BASE + 0x3fff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device mv78xx0_ge11_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 3,
-	.dev		= {
-		.platform_data	= &mv78xx0_ge11_shared_data,
-	},
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge11_shared_resources,
-};
-
-static struct resource mv78xx0_ge11_resources[] = {
-	{
-		.name	= "ge11 irq",
-		.start	= IRQ_MV78XX0_GE11_SUM,
-		.end	= IRQ_MV78XX0_GE11_SUM,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_ge11 = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 3,
-	.num_resources	= 1,
-	.resource	= mv78xx0_ge11_resources,
-	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
-	},
-};
-
 void __init mv78xx0_ge11_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	u32 dev, rev;
-
-	eth_data->shared = &mv78xx0_ge11_shared;
-	mv78xx0_ge11.dev.platform_data = eth_data;
 
 	/*
 	 * On the Z0, ge10 and ge11 are internally connected back
@@ -528,292 +258,67 @@ void __init mv78xx0_ge11_init(struct mv643xx_eth_platform_data *eth_data)
 		eth_data->duplex = DUPLEX_FULL;
 	}
 
-	platform_device_register(&mv78xx0_ge11_shared);
-	platform_device_register(&mv78xx0_ge11);
+	orion_ge11_init(eth_data, &mv78xx0_mbus_dram_info,
+			GE11_PHYS_BASE, IRQ_MV78XX0_GE11_SUM,
+			NO_IRQ, get_tclk());
 }
 
 /*****************************************************************************
- * I2C bus 0
+ * I2C
  ****************************************************************************/
-
-static struct mv64xxx_i2c_pdata mv78xx0_i2c_0_pdata = {
-	.freq_m		= 8, /* assumes 166 MHz TCLK */
-	.freq_n		= 3,
-	.timeout	= 1000, /* Default timeout of 1 second */
-};
-
-static struct resource mv78xx0_i2c_0_resources[] = {
-	{
-		.start  = I2C_0_PHYS_BASE,
-		.end    = I2C_0_PHYS_BASE + 0x1f,
-		.flags  = IORESOURCE_MEM,
-	}, {
-		.start  = IRQ_MV78XX0_I2C_0,
-		.end    = IRQ_MV78XX0_I2C_0,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-
-static struct platform_device mv78xx0_i2c_0 = {
-	.name		= MV64XXX_I2C_CTLR_NAME,
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(mv78xx0_i2c_0_resources),
-	.resource	= mv78xx0_i2c_0_resources,
-	.dev		= {
-		.platform_data	= &mv78xx0_i2c_0_pdata,
-	},
-};
-
-/*****************************************************************************
- * I2C bus 1
- ****************************************************************************/
-
-static struct mv64xxx_i2c_pdata mv78xx0_i2c_1_pdata = {
-	.freq_m		= 8, /* assumes 166 MHz TCLK */
-	.freq_n		= 3,
-	.timeout	= 1000, /* Default timeout of 1 second */
-};
-
-static struct resource mv78xx0_i2c_1_resources[] = {
-	{
-		.start  = I2C_1_PHYS_BASE,
-		.end    = I2C_1_PHYS_BASE + 0x1f,
-		.flags  = IORESOURCE_MEM,
-	}, {
-		.start  = IRQ_MV78XX0_I2C_1,
-		.end    = IRQ_MV78XX0_I2C_1,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-
-static struct platform_device mv78xx0_i2c_1 = {
-	.name		= MV64XXX_I2C_CTLR_NAME,
-	.id		= 1,
-	.num_resources	= ARRAY_SIZE(mv78xx0_i2c_1_resources),
-	.resource	= mv78xx0_i2c_1_resources,
-	.dev		= {
-		.platform_data	= &mv78xx0_i2c_1_pdata,
-	},
-};
-
 void __init mv78xx0_i2c_init(void)
 {
-	platform_device_register(&mv78xx0_i2c_0);
-	platform_device_register(&mv78xx0_i2c_1);
+	orion_i2c_init(I2C_0_PHYS_BASE, IRQ_MV78XX0_I2C_0, 8);
+	orion_i2c_1_init(I2C_1_PHYS_BASE, IRQ_MV78XX0_I2C_1, 8);
 }
 
 /*****************************************************************************
  * SATA
  ****************************************************************************/
-static struct resource mv78xx0_sata_resources[] = {
-	{
-		.name	= "sata base",
-		.start	= SATA_PHYS_BASE,
-		.end	= SATA_PHYS_BASE + 0x5000 - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "sata irq",
-		.start	= IRQ_MV78XX0_SATA,
-		.end	= IRQ_MV78XX0_SATA,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_sata = {
-	.name		= "sata_mv",
-	.id		= 0,
-	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
-	},
-	.num_resources	= ARRAY_SIZE(mv78xx0_sata_resources),
-	.resource	= mv78xx0_sata_resources,
-};
-
 void __init mv78xx0_sata_init(struct mv_sata_platform_data *sata_data)
 {
-	sata_data->dram = &mv78xx0_mbus_dram_info;
-	mv78xx0_sata.dev.platform_data = sata_data;
-	platform_device_register(&mv78xx0_sata);
+	orion_sata_init(sata_data, &mv78xx0_mbus_dram_info,
+			SATA_PHYS_BASE, IRQ_MV78XX0_SATA);
 }
 
 
 /*****************************************************************************
  * UART0
  ****************************************************************************/
-static struct plat_serial8250_port mv78xx0_uart0_data[] = {
-	{
-		.mapbase	= UART0_PHYS_BASE,
-		.membase	= (char *)UART0_VIRT_BASE,
-		.irq		= IRQ_MV78XX0_UART_0,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource mv78xx0_uart0_resources[] = {
-	{
-		.start		= UART0_PHYS_BASE,
-		.end		= UART0_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_MV78XX0_UART_0,
-		.end		= IRQ_MV78XX0_UART_0,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_uart0 = {
-	.name			= "serial8250",
-	.id			= 0,
-	.dev			= {
-		.platform_data	= mv78xx0_uart0_data,
-	},
-	.resource		= mv78xx0_uart0_resources,
-	.num_resources		= ARRAY_SIZE(mv78xx0_uart0_resources),
-};
-
 void __init mv78xx0_uart0_init(void)
 {
-	platform_device_register(&mv78xx0_uart0);
+	orion_uart0_init(UART0_VIRT_BASE, UART0_PHYS_BASE,
+			 IRQ_MV78XX0_UART_0, get_tclk());
 }
 
 
 /*****************************************************************************
  * UART1
  ****************************************************************************/
-static struct plat_serial8250_port mv78xx0_uart1_data[] = {
-	{
-		.mapbase	= UART1_PHYS_BASE,
-		.membase	= (char *)UART1_VIRT_BASE,
-		.irq		= IRQ_MV78XX0_UART_1,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource mv78xx0_uart1_resources[] = {
-	{
-		.start		= UART1_PHYS_BASE,
-		.end		= UART1_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_MV78XX0_UART_1,
-		.end		= IRQ_MV78XX0_UART_1,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_uart1 = {
-	.name			= "serial8250",
-	.id			= 1,
-	.dev			= {
-		.platform_data	= mv78xx0_uart1_data,
-	},
-	.resource		= mv78xx0_uart1_resources,
-	.num_resources		= ARRAY_SIZE(mv78xx0_uart1_resources),
-};
-
 void __init mv78xx0_uart1_init(void)
 {
-	platform_device_register(&mv78xx0_uart1);
+	orion_uart1_init(UART1_VIRT_BASE, UART1_PHYS_BASE,
+			 IRQ_MV78XX0_UART_1, get_tclk());
 }
 
 
 /*****************************************************************************
  * UART2
  ****************************************************************************/
-static struct plat_serial8250_port mv78xx0_uart2_data[] = {
-	{
-		.mapbase	= UART2_PHYS_BASE,
-		.membase	= (char *)UART2_VIRT_BASE,
-		.irq		= IRQ_MV78XX0_UART_2,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource mv78xx0_uart2_resources[] = {
-	{
-		.start		= UART2_PHYS_BASE,
-		.end		= UART2_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_MV78XX0_UART_2,
-		.end		= IRQ_MV78XX0_UART_2,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_uart2 = {
-	.name			= "serial8250",
-	.id			= 2,
-	.dev			= {
-		.platform_data	= mv78xx0_uart2_data,
-	},
-	.resource		= mv78xx0_uart2_resources,
-	.num_resources		= ARRAY_SIZE(mv78xx0_uart2_resources),
-};
-
 void __init mv78xx0_uart2_init(void)
 {
-	platform_device_register(&mv78xx0_uart2);
+	orion_uart2_init(UART2_VIRT_BASE, UART2_PHYS_BASE,
+			 IRQ_MV78XX0_UART_2, get_tclk());
 }
-
 
 /*****************************************************************************
  * UART3
  ****************************************************************************/
-static struct plat_serial8250_port mv78xx0_uart3_data[] = {
-	{
-		.mapbase	= UART3_PHYS_BASE,
-		.membase	= (char *)UART3_VIRT_BASE,
-		.irq		= IRQ_MV78XX0_UART_3,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource mv78xx0_uart3_resources[] = {
-	{
-		.start		= UART3_PHYS_BASE,
-		.end		= UART3_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_MV78XX0_UART_3,
-		.end		= IRQ_MV78XX0_UART_3,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device mv78xx0_uart3 = {
-	.name			= "serial8250",
-	.id			= 3,
-	.dev			= {
-		.platform_data	= mv78xx0_uart3_data,
-	},
-	.resource		= mv78xx0_uart3_resources,
-	.num_resources		= ARRAY_SIZE(mv78xx0_uart3_resources),
-};
-
 void __init mv78xx0_uart3_init(void)
 {
-	platform_device_register(&mv78xx0_uart3);
+	orion_uart3_init(UART3_VIRT_BASE, UART3_PHYS_BASE,
+			 IRQ_MV78XX0_UART_3, get_tclk());
 }
-
 
 /*****************************************************************************
  * Time handling
@@ -895,13 +400,4 @@ void __init mv78xx0_init(void)
 #ifdef CONFIG_CACHE_FEROCEON_L2
 	feroceon_l2_init(is_l2_writethrough());
 #endif
-
-	mv78xx0_ge00_shared_data.t_clk = tclk;
-	mv78xx0_ge01_shared_data.t_clk = tclk;
-	mv78xx0_ge10_shared_data.t_clk = tclk;
-	mv78xx0_ge11_shared_data.t_clk = tclk;
-	mv78xx0_uart0_data[0].uartclk = tclk;
-	mv78xx0_uart1_data[0].uartclk = tclk;
-	mv78xx0_uart2_data[0].uartclk = tclk;
-	mv78xx0_uart3_data[0].uartclk = tclk;
 }

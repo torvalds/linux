@@ -8,7 +8,6 @@
 
 /*****************************************************************************/
 
-#include <linux/sys.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/asm-offsets.h>
@@ -20,7 +19,7 @@
 
 /*
  *	If we don't have a fixed memory size, then lets build in code
- *	to auto detect the DRAM size. Obviously this is the prefered
+ *	to auto detect the DRAM size. Obviously this is the preferred
  *	method, and should work for most boards. It won't work for those
  *	that do not have their RAM starting at address 0, and it only
  *	works on SDRAM (not boards fitted with SRAM).

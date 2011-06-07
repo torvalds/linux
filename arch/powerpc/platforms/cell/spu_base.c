@@ -32,6 +32,7 @@
 #include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/linux_logo.h>
+#include <linux/syscore_ops.h>
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
 #include <asm/spu_csa.h>
@@ -521,18 +522,8 @@ void spu_init_channels(struct spu *spu)
 }
 EXPORT_SYMBOL_GPL(spu_init_channels);
 
-static int spu_shutdown(struct sys_device *sysdev)
-{
-	struct spu *spu = container_of(sysdev, struct spu, sysdev);
-
-	spu_free_irqs(spu);
-	spu_destroy_spu(spu);
-	return 0;
-}
-
 static struct sysdev_class spu_sysdev_class = {
 	.name = "spu",
-	.shutdown = spu_shutdown,
 };
 
 int spu_add_sysdev_attr(struct sysdev_attribute *attr)
@@ -797,6 +788,22 @@ static inline void crash_register_spus(struct list_head *list)
 }
 #endif
 
+static void spu_shutdown(void)
+{
+	struct spu *spu;
+
+	mutex_lock(&spu_full_list_mutex);
+	list_for_each_entry(spu, &spu_full_list, full_list) {
+		spu_free_irqs(spu);
+		spu_destroy_spu(spu);
+	}
+	mutex_unlock(&spu_full_list_mutex);
+}
+
+static struct syscore_ops spu_syscore_ops = {
+	.shutdown = spu_shutdown,
+};
+
 static int __init init_spu_base(void)
 {
 	int i, ret = 0;
@@ -830,6 +837,7 @@ static int __init init_spu_base(void)
 	crash_register_spus(&spu_full_list);
 	mutex_unlock(&spu_full_list_mutex);
 	spu_add_sysdev_attr(&attr_stat);
+	register_syscore_ops(&spu_syscore_ops);
 
 	spu_init_affinity();
 

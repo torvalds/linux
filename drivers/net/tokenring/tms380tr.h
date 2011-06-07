@@ -442,7 +442,7 @@ typedef struct {
 #define PASS_FIRST_BUF_ONLY	0x0100	/* Passes only first internal buffer
 					 * of each received frame; FrameSize
 					 * of RPLs must contain internal
-					 * BUFFER_SIZE bits for promiscous mode.
+					 * BUFFER_SIZE bits for promiscuous mode.
 					 */
 #define ENABLE_FULL_DUPLEX_SELECTION	0x2000 
  					/* Enable the use of full-duplex

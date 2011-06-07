@@ -174,7 +174,7 @@ void viafb_set_gamma_table(int bpp, unsigned int *gamma_table)
 	}
 
 	/* If adjust Gamma value in SAMM, fill IGA1,
-	   IGA2 Gamma table simultanous. */
+	   IGA2 Gamma table simultaneous. */
 	/* Switch to IGA2 Gamma Table */
 	if ((active_device_amount > 1) &&
 		!((viaparinfo->chip_info->gfx_chip_name ==

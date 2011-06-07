@@ -654,7 +654,7 @@ void __i2400m_dev_reset_handle(struct work_struct *ws)
 	if (result == -EUCLEAN) {
 		/*
 		 * We come here because the reset during operational mode
-		 * wasn't successully done and need to proceed to a bus
+		 * wasn't successfully done and need to proceed to a bus
 		 * reset. For the dev_reset_handle() to be able to handle
 		 * the reset event later properly, we restore boot_mode back
 		 * to the state before previous reset. ie: just like we are
@@ -755,7 +755,7 @@ EXPORT_SYMBOL_GPL(i2400m_error_recovery);
  * Alloc the command and ack buffers for boot mode
  *
  * Get the buffers needed to deal with boot mode messages.  These
- * buffers need to be allocated before the sdio recieve irq is setup.
+ * buffers need to be allocated before the sdio receive irq is setup.
  */
 static
 int i2400m_bm_buf_alloc(struct i2400m *i2400m)

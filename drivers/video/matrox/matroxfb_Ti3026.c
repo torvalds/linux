@@ -387,7 +387,7 @@ static int Ti3026_init(struct matrox_fb_info *minfo, struct my_timming *m)
 			hw->DACreg[POS3026_XMISCCTRL] = TVP3026_XMISCCTRL_DAC_PUP | TVP3026_XMISCCTRL_DAC_8BIT | TVP3026_XMISCCTRL_PSEL_DIS | TVP3026_XMISCCTRL_PSEL_LOW;
 			break;
 		case 16:
-			/* XLATCHCTRL should be _4_1 / _2_1... Why is not? (_2_1 is used everytime) */
+			/* XLATCHCTRL should be _4_1 / _2_1... Why is not? (_2_1 is used every time) */
 			hw->DACreg[POS3026_XTRUECOLORCTRL] = (minfo->fbcon.var.green.length == 5) ? (TVP3026_XTRUECOLORCTRL_DIRECTCOLOR | TVP3026_XTRUECOLORCTRL_ORGB_1555) : (TVP3026_XTRUECOLORCTRL_DIRECTCOLOR | TVP3026_XTRUECOLORCTRL_RGB_565);
 			hw->DACreg[POS3026_XMUXCTRL] = muxctrl | TVP3026_XMUXCTRL_PIXEL_16BIT;
 			hw->DACreg[POS3026_XCLKCTRL] = TVP3026_XCLKCTRL_SRC_PLL | TVP3026_XCLKCTRL_DIV2;
@@ -399,7 +399,7 @@ static int Ti3026_init(struct matrox_fb_info *minfo, struct my_timming *m)
 			hw->DACreg[POS3026_XCLKCTRL] = TVP3026_XCLKCTRL_SRC_PLL | TVP3026_XCLKCTRL_DIV4;
 			break;
 		case 32:
-			/* XLATCHCTRL should be _2_1 / _1_1... Why is not? (_2_1 is used everytime) */
+			/* XLATCHCTRL should be _2_1 / _1_1... Why is not? (_2_1 is used every time) */
 			hw->DACreg[POS3026_XMUXCTRL] = muxctrl | TVP3026_XMUXCTRL_PIXEL_32BIT;
 			break;
 		default:

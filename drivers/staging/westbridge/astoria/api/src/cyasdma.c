@@ -1082,7 +1082,7 @@ cy_as_dma_received_data(cy_as_device *dev_p,
 	/*
 	 * if the data received exceeds the size of the DMA buffer,
 	 * clip the data to the size of the buffer.  this can lead
-	 * to loosing some data, but is not different than doing
+	 * to losing some data, but is not different than doing
 	 * non-packet reads on the other endpoints.
 	 */
 	if (dsize > dma_p->size - dma_p->offset)

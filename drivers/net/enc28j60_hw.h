@@ -303,7 +303,7 @@
 /* maximum ethernet frame length */
 #define MAX_FRAMELEN		1518
 
-/* Prefered half duplex: LEDA: Link status LEDB: Rx/Tx activity */
+/* Preferred half duplex: LEDA: Link status LEDB: Rx/Tx activity */
 #define ENC28J60_LAMPS_MODE	0x3476
 
 #endif

@@ -359,7 +359,7 @@ enum nfsstat4 {
 						/* Error 10073 is unused. */
 	NFS4ERR_CLIENTID_BUSY	= 10074,	/* clientid has state */
 	NFS4ERR_PNFS_IO_HOLE	= 10075,	/* IO to _SPARSE file hole */
-	NFS4ERR_SEQ_FALSE_RETRY	= 10076,	/* retry not origional */
+	NFS4ERR_SEQ_FALSE_RETRY	= 10076,	/* retry not original */
 	NFS4ERR_BAD_HIGH_SLOT	= 10077,	/* sequence arg bad */
 	NFS4ERR_DEADSESSION	= 10078,	/* persistent session dead */
 	NFS4ERR_ENCR_ALG_UNSUPP = 10079,	/* SSV alg mismatch */
@@ -562,6 +562,7 @@ enum {
 	NFSPROC4_CLNT_LAYOUTGET,
 	NFSPROC4_CLNT_GETDEVICEINFO,
 	NFSPROC4_CLNT_LAYOUTCOMMIT,
+	NFSPROC4_CLNT_LAYOUTRETURN,
 };
 
 /* nfs41 types */
@@ -570,9 +571,11 @@ struct nfs4_sessionid {
 };
 
 /* Create Session Flags */
-#define SESSION4_PERSIST	 0x001
-#define SESSION4_BACK_CHAN 	 0x002
-#define SESSION4_RDMA		 0x004
+#define SESSION4_PERSIST	0x001
+#define SESSION4_BACK_CHAN	0x002
+#define SESSION4_RDMA		0x004
+
+#define SESSION4_FLAG_MASK_A	0x007
 
 enum state_protect_how4 {
 	SP4_NONE	= 0,

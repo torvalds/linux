@@ -747,8 +747,8 @@ char * get_container_type(unsigned tindex)
  * Arguments: [1] pointer to void [1] int
  *
  * Purpose: Sets SCSI inquiry data strings for vendor, product
- * and revision level. Allows strings to be set in platform dependant
- * files instead of in OS dependant driver source.
+ * and revision level. Allows strings to be set in platform dependent
+ * files instead of in OS dependent driver source.
  */
 
 static void setinqstr(struct aac_dev *dev, void *data, int tindex)

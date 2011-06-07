@@ -178,7 +178,7 @@
  *
  * The resulting average clock frequency (assuming 33.333 MHz oscillator) is:
  * freq = 66.666 MHz / (A + (B + 1) / (C + 1))
- * minumum freq = 66.666 MHz / (A + 1)
+ * minimum freq = 66.666 MHz / (A + 1)
  * maximum freq = 66.666 MHz / A
  *
  * Example: A = 2, B = 2, C = 7, CLOCK_CR register = 2 << 22 | 2 << 12 | 7
@@ -230,7 +230,7 @@
 #define PKT_PIPE_MODE_WRITE		0x57
 
 /* HDLC packet status values - desc->status */
-#define ERR_SHUTDOWN		1 /* stop or shutdown occurrance */
+#define ERR_SHUTDOWN		1 /* stop or shutdown occurrence */
 #define ERR_HDLC_ALIGN		2 /* HDLC alignment error */
 #define ERR_HDLC_FCS		3 /* HDLC Frame Check Sum error */
 #define ERR_RXFREE_Q_EMPTY	4 /* RX-free queue became empty while receiving

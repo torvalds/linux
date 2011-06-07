@@ -32,7 +32,7 @@
 /*
  * This is the size at which it becomes more efficient to
  * clean the whole cache, rather than using the individual
- * cache line maintainence instructions.
+ * cache line maintenance instructions.
  *
  *  Size  Clean (ticks) Dirty (ticks)
  *   4096   21  20  21    53  55  54

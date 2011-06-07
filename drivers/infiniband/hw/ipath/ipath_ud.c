@@ -86,7 +86,7 @@ static void ipath_ud_loopback(struct ipath_qp *sqp, struct ipath_swqe *swqe)
 	}
 
 	/*
-	 * A GRH is expected to preceed the data even if not
+	 * A GRH is expected to precede the data even if not
 	 * present on the wire.
 	 */
 	length = swqe->length;
@@ -515,7 +515,7 @@ void ipath_ud_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	}
 
 	/*
-	 * A GRH is expected to preceed the data even if not
+	 * A GRH is expected to precede the data even if not
 	 * present on the wire.
 	 */
 	wc.byte_len = tlen + sizeof(struct ib_grh);

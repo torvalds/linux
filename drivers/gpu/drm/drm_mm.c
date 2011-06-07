@@ -431,7 +431,7 @@ EXPORT_SYMBOL(drm_mm_search_free_in_range);
 void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
 {
 	list_replace(&old->node_list, &new->node_list);
-	list_replace(&old->node_list, &new->hole_stack);
+	list_replace(&old->hole_stack, &new->hole_stack);
 	new->hole_follows = old->hole_follows;
 	new->mm = old->mm;
 	new->start = old->start;
@@ -551,7 +551,7 @@ EXPORT_SYMBOL(drm_mm_scan_add_block);
  * corrupted.
  *
  * When the scan list is empty, the selected memory nodes can be freed. An
- * immediatly following drm_mm_search_free with best_match = 0 will then return
+ * immediately following drm_mm_search_free with best_match = 0 will then return
  * the just freed block (because its at the top of the free_stack list).
  *
  * Returns one if this block should be evicted, zero otherwise. Will always
@@ -699,8 +699,8 @@ int drm_mm_dump_table(struct seq_file *m, struct drm_mm *mm)
 				entry->size);
 		total_used += entry->size;
 		if (entry->hole_follows) {
-			hole_start = drm_mm_hole_node_start(&mm->head_node);
-			hole_end = drm_mm_hole_node_end(&mm->head_node);
+			hole_start = drm_mm_hole_node_start(entry);
+			hole_end = drm_mm_hole_node_end(entry);
 			hole_size = hole_end - hole_start;
 			seq_printf(m, "0x%08lx-0x%08lx: 0x%08lx: free\n",
 					hole_start, hole_end, hole_size);

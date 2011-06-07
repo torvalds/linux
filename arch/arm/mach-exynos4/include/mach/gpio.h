@@ -18,7 +18,7 @@
 #define gpio_cansleep	__gpio_cansleep
 #define gpio_to_irq	__gpio_to_irq
 
-/* Practically, GPIO banks upto GPZ are the configurable gpio banks */
+/* Practically, GPIO banks up to GPZ are the configurable gpio banks */
 
 /* GPIO bank sizes */
 #define EXYNOS4_GPIO_A0_NR	(8)

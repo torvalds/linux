@@ -37,7 +37,7 @@ struct nvc0_fifo_priv {
 };
 
 struct nvc0_fifo_chan {
-	struct nouveau_bo *user;
+	struct nouveau_gpuobj *user;
 	struct nouveau_gpuobj *ramfc;
 };
 
@@ -106,7 +106,7 @@ nvc0_fifo_create_context(struct nouveau_channel *chan)
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nvc0_fifo_priv *priv = pfifo->priv;
 	struct nvc0_fifo_chan *fifoch;
-	u64 ib_virt, user_vinst;
+	u64 ib_virt = chan->pushbuf_base + chan->dma.ib_base * 4;
 	int ret;
 
 	chan->fifo_priv = kzalloc(sizeof(*fifoch), GFP_KERNEL);
@@ -115,28 +115,13 @@ nvc0_fifo_create_context(struct nouveau_channel *chan)
 	fifoch = chan->fifo_priv;
 
 	/* allocate vram for control regs, map into polling area */
-	ret = nouveau_bo_new(dev, NULL, 0x1000, 0, TTM_PL_FLAG_VRAM,
-			     0, 0, &fifoch->user);
+	ret = nouveau_gpuobj_new(dev, NULL, 0x1000, 0x1000,
+				 NVOBJ_FLAG_ZERO_ALLOC, &fifoch->user);
 	if (ret)
 		goto error;
 
-	ret = nouveau_bo_pin(fifoch->user, TTM_PL_FLAG_VRAM);
-	if (ret) {
-		nouveau_bo_ref(NULL, &fifoch->user);
-		goto error;
-	}
-
-	user_vinst = fifoch->user->bo.mem.start << PAGE_SHIFT;
-
-	ret = nouveau_bo_map(fifoch->user);
-	if (ret) {
-		nouveau_bo_unpin(fifoch->user);
-		nouveau_bo_ref(NULL, &fifoch->user);
-		goto error;
-	}
-
 	nouveau_vm_map_at(&priv->user_vma, chan->id * 0x1000,
-			  fifoch->user->bo.mem.mm_node);
+			  *(struct nouveau_mem **)fifoch->user->node);
 
 	chan->user = ioremap_wc(pci_resource_start(dev->pdev, 1) +
 				priv->user_vma.offset + (chan->id * 0x1000),
@@ -146,20 +131,6 @@ nvc0_fifo_create_context(struct nouveau_channel *chan)
 		goto error;
 	}
 
-	ib_virt = chan->pushbuf_base + chan->dma.ib_base * 4;
-
-	/* zero channel regs */
-	nouveau_bo_wr32(fifoch->user, 0x0040/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x0044/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x0048/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x004c/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x0050/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x0058/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x005c/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x0060/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x0088/4, 0);
-	nouveau_bo_wr32(fifoch->user, 0x008c/4, 0);
-
 	/* ramfc */
 	ret = nouveau_gpuobj_new_fake(dev, chan->ramin->pinst,
 				      chan->ramin->vinst, 0x100,
@@ -167,8 +138,8 @@ nvc0_fifo_create_context(struct nouveau_channel *chan)
 	if (ret)
 		goto error;
 
-	nv_wo32(fifoch->ramfc, 0x08, lower_32_bits(user_vinst));
-	nv_wo32(fifoch->ramfc, 0x0c, upper_32_bits(user_vinst));
+	nv_wo32(fifoch->ramfc, 0x08, lower_32_bits(fifoch->user->vinst));
+	nv_wo32(fifoch->ramfc, 0x0c, upper_32_bits(fifoch->user->vinst));
 	nv_wo32(fifoch->ramfc, 0x10, 0x0000face);
 	nv_wo32(fifoch->ramfc, 0x30, 0xfffff902);
 	nv_wo32(fifoch->ramfc, 0x48, lower_32_bits(ib_virt));
@@ -223,11 +194,7 @@ nvc0_fifo_destroy_context(struct nouveau_channel *chan)
 		return;
 
 	nouveau_gpuobj_ref(NULL, &fifoch->ramfc);
-	if (fifoch->user) {
-		nouveau_bo_unmap(fifoch->user);
-		nouveau_bo_unpin(fifoch->user);
-		nouveau_bo_ref(NULL, &fifoch->user);
-	}
+	nouveau_gpuobj_ref(NULL, &fifoch->user);
 	kfree(fifoch);
 }
 
@@ -240,6 +207,21 @@ nvc0_fifo_load_context(struct nouveau_channel *chan)
 int
 nvc0_fifo_unload_context(struct drm_device *dev)
 {
+	int i;
+
+	for (i = 0; i < 128; i++) {
+		if (!(nv_rd32(dev, 0x003004 + (i * 4)) & 1))
+			continue;
+
+		nv_mask(dev, 0x003004 + (i * 4), 0x00000001, 0x00000000);
+		nv_wr32(dev, 0x002634, i);
+		if (!nv_wait(dev, 0x002634, 0xffffffff, i)) {
+			NV_INFO(dev, "PFIFO: kick ch %d failed: 0x%08x\n",
+				i, nv_rd32(dev, 0x002634));
+			return -EBUSY;
+		}
+	}
+
 	return 0;
 }
 
@@ -309,6 +291,7 @@ nvc0_fifo_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
+	struct nouveau_channel *chan;
 	struct nvc0_fifo_priv *priv;
 	int ret, i;
 
@@ -351,23 +334,74 @@ nvc0_fifo_init(struct drm_device *dev)
 	nv_wr32(dev, 0x002a00, 0xffffffff); /* clears PFIFO.INTR bit 30 */
 	nv_wr32(dev, 0x002100, 0xffffffff);
 	nv_wr32(dev, 0x002140, 0xbfffffff);
+
+	/* restore PFIFO context table */
+	for (i = 0; i < 128; i++) {
+		chan = dev_priv->channels.ptr[i];
+		if (!chan || !chan->fifo_priv)
+			continue;
+
+		nv_wr32(dev, 0x003000 + (i * 8), 0xc0000000 |
+						 (chan->ramin->vinst >> 12));
+		nv_wr32(dev, 0x003004 + (i * 8), 0x001f0001);
+	}
+	nvc0_fifo_playlist_update(dev);
+
 	return 0;
 }
 
 struct nouveau_enum nvc0_fifo_fault_unit[] = {
-	{ 0, "PGRAPH" },
-	{ 3, "PEEPHOLE" },
-	{ 4, "BAR1" },
-	{ 5, "BAR3" },
-	{ 7, "PFIFO" },
+	{ 0x00, "PGRAPH" },
+	{ 0x03, "PEEPHOLE" },
+	{ 0x04, "BAR1" },
+	{ 0x05, "BAR3" },
+	{ 0x07, "PFIFO" },
+	{ 0x10, "PBSP" },
+	{ 0x11, "PPPP" },
+	{ 0x13, "PCOUNTER" },
+	{ 0x14, "PVP" },
+	{ 0x15, "PCOPY0" },
+	{ 0x16, "PCOPY1" },
+	{ 0x17, "PDAEMON" },
 	{}
 };
 
 struct nouveau_enum nvc0_fifo_fault_reason[] = {
-	{ 0, "PT_NOT_PRESENT" },
-	{ 1, "PT_TOO_SHORT" },
-	{ 2, "PAGE_NOT_PRESENT" },
-	{ 3, "VM_LIMIT_EXCEEDED" },
+	{ 0x00, "PT_NOT_PRESENT" },
+	{ 0x01, "PT_TOO_SHORT" },
+	{ 0x02, "PAGE_NOT_PRESENT" },
+	{ 0x03, "VM_LIMIT_EXCEEDED" },
+	{ 0x04, "NO_CHANNEL" },
+	{ 0x05, "PAGE_SYSTEM_ONLY" },
+	{ 0x06, "PAGE_READ_ONLY" },
+	{ 0x0a, "COMPRESSED_SYSRAM" },
+	{ 0x0c, "INVALID_STORAGE_TYPE" },
+	{}
+};
+
+struct nouveau_enum nvc0_fifo_fault_hubclient[] = {
+	{ 0x01, "PCOPY0" },
+	{ 0x02, "PCOPY1" },
+	{ 0x04, "DISPATCH" },
+	{ 0x05, "CTXCTL" },
+	{ 0x06, "PFIFO" },
+	{ 0x07, "BAR_READ" },
+	{ 0x08, "BAR_WRITE" },
+	{ 0x0b, "PVP" },
+	{ 0x0c, "PPPP" },
+	{ 0x0d, "PBSP" },
+	{ 0x11, "PCOUNTER" },
+	{ 0x12, "PDAEMON" },
+	{ 0x14, "CCACHE" },
+	{ 0x15, "CCACHE_POST" },
+	{}
+};
+
+struct nouveau_enum nvc0_fifo_fault_gpcclient[] = {
+	{ 0x01, "TEX" },
+	{ 0x0c, "ESETUP" },
+	{ 0x0e, "CTXCTL" },
+	{ 0x0f, "PROP" },
 	{}
 };
 
@@ -385,12 +419,20 @@ nvc0_fifo_isr_vm_fault(struct drm_device *dev, int unit)
 	u32 valo = nv_rd32(dev, 0x2804 + (unit * 0x10));
 	u32 vahi = nv_rd32(dev, 0x2808 + (unit * 0x10));
 	u32 stat = nv_rd32(dev, 0x280c + (unit * 0x10));
+	u32 client = (stat & 0x00001f00) >> 8;
 
 	NV_INFO(dev, "PFIFO: %s fault at 0x%010llx [",
 		(stat & 0x00000080) ? "write" : "read", (u64)vahi << 32 | valo);
 	nouveau_enum_print(nvc0_fifo_fault_reason, stat & 0x0000000f);
 	printk("] from ");
 	nouveau_enum_print(nvc0_fifo_fault_unit, unit);
+	if (stat & 0x00000040) {
+		printk("/");
+		nouveau_enum_print(nvc0_fifo_fault_hubclient, client);
+	} else {
+		printk("/GPC%d/", (stat & 0x1f000000) >> 24);
+		nouveau_enum_print(nvc0_fifo_fault_gpcclient, client);
+	}
 	printk(" on channel 0x%010llx\n", (u64)inst << 12);
 }
 

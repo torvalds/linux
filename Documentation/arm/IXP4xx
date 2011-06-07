@@ -36,7 +36,7 @@ Linux currently supports the following features on the IXP4xx chips:
 - Timers (watchdog, OS)
 
 The following components of the chips are not supported by Linux and
-require the use of Intel's propietary CSR softare:
+require the use of Intel's proprietary CSR softare:
 
 - USB device interface
 - Network interfaces (HSS, Utopia, NPEs, etc)
@@ -47,7 +47,7 @@ software from:
 
    http://developer.intel.com/design/network/products/npfamily/ixp425.htm    
 
-DO NOT POST QUESTIONS TO THE LINUX MAILING LISTS REGARDING THE PROPIETARY
+DO NOT POST QUESTIONS TO THE LINUX MAILING LISTS REGARDING THE PROPRIETARY
 SOFTWARE.
 
 There are several websites that provide directions/pointers on using

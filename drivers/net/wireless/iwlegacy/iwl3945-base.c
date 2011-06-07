@@ -93,6 +93,7 @@ MODULE_LICENSE("GPL");
 struct iwl_mod_params iwl3945_mod_params = {
 	.sw_crypto = 1,
 	.restart_fw = 1,
+	.disable_hw_scan = 1,
 	/* the rest are 0 by default */
 };
 
@@ -2747,11 +2748,12 @@ static void iwl3945_bg_init_alive_start(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, init_alive_start.work);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
 	mutex_lock(&priv->mutex);
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		goto out;
+
 	iwl3945_init_alive_start(priv);
+out:
 	mutex_unlock(&priv->mutex);
 }
 
@@ -2760,11 +2762,12 @@ static void iwl3945_bg_alive_start(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, alive_start.work);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
 	mutex_lock(&priv->mutex);
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		goto out;
+
 	iwl3945_alive_start(priv);
+out:
 	mutex_unlock(&priv->mutex);
 }
 
@@ -2994,10 +2997,12 @@ static void iwl3945_bg_restart(struct work_struct *data)
 	} else {
 		iwl3945_down(priv);
 
-		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-			return;
-
 		mutex_lock(&priv->mutex);
+		if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
+			mutex_unlock(&priv->mutex);
+			return;
+		}
+
 		__iwl3945_up(priv);
 		mutex_unlock(&priv->mutex);
 	}
@@ -3008,11 +3013,12 @@ static void iwl3945_bg_rx_replenish(struct work_struct *data)
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, rx_replenish);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
 	mutex_lock(&priv->mutex);
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		goto out;
+
 	iwl3945_rx_replenish(priv);
+out:
 	mutex_unlock(&priv->mutex);
 }
 
@@ -3809,7 +3815,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	INIT_LIST_HEAD(&priv->free_frames);
 
 	mutex_init(&priv->mutex);
-	mutex_init(&priv->sync_cmd_mutex);
 
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
@@ -3823,10 +3828,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 		IWL_DELAY_NEXT_FORCE_RF_RESET;
 	priv->force_reset[IWL_FW_RESET].reset_duration =
 		IWL_DELAY_NEXT_FORCE_FW_RELOAD;
-
-
-	priv->tx_power_user_lmt = IWL_DEFAULT_TX_POWER;
-	priv->tx_power_next = IWL_DEFAULT_TX_POWER;
 
 	if (eeprom->version < EEPROM_3945_EEPROM_VERSION) {
 		IWL_WARN(priv, "Unsupported EEPROM version: 0x%04X\n",
@@ -3960,8 +3961,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 * "the hard way", rather than using device's scan.
 	 */
 	if (iwl3945_mod_params.disable_hw_scan) {
-		dev_printk(KERN_DEBUG, &(pdev->dev),
-			"sw scan support is deprecated\n");
+		IWL_DEBUG_INFO(priv, "Disabling hw_scan\n");
 		iwl3945_hw_ops.hw_scan = NULL;
 	}
 
@@ -4280,8 +4280,7 @@ MODULE_PARM_DESC(swcrypto,
 		"using software crypto (default 1 [software])");
 module_param_named(disable_hw_scan, iwl3945_mod_params.disable_hw_scan,
 		int, S_IRUGO);
-MODULE_PARM_DESC(disable_hw_scan,
-		"disable hardware scanning (default 0) (deprecated)");
+MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 1)");
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 module_param_named(debug, iwlegacy_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");

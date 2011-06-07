@@ -7,7 +7,7 @@
 #include <linux/serial_reg.h>
 #include <mach/hardware.h>
 
-static volatile u8 *uart_base;
+volatile u8 *uart_base;
 
 #define TX_DONE		(UART_LSR_TEMT | UART_LSR_THRE)
 

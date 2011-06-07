@@ -41,6 +41,7 @@
 #include <net/ipv6.h>
 #include <net/tcp.h>
 #include <linux/dma-mapping.h>
+#include <linux/prefetch.h>
 
 #include "t4vf_common.h"
 #include "t4vf_defs.h"
@@ -224,8 +225,8 @@ static inline bool is_buf_mapped(const struct rx_sw_desc *sdesc)
 /**
  *	need_skb_unmap - does the platform need unmapping of sk_buffs?
  *
- *	Returns true if the platfrom needs sk_buff unmapping.  The compiler
- *	optimizes away unecessary code if this returns true.
+ *	Returns true if the platform needs sk_buff unmapping.  The compiler
+ *	optimizes away unnecessary code if this returns true.
  */
 static inline int need_skb_unmap(void)
 {
@@ -267,7 +268,7 @@ static inline unsigned int fl_cap(const struct sge_fl *fl)
  *
  *	Tests specified Free List to see whether the number of buffers
  *	available to the hardware has falled below our "starvation"
- *	threshhold.
+ *	threshold.
  */
 static inline bool fl_starving(const struct sge_fl *fl)
 {
@@ -1149,7 +1150,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
 		/*
 		 * After we're done injecting the Work Request for this
-		 * packet, we'll be below our "stop threshhold" so stop the TX
+		 * packet, we'll be below our "stop threshold" so stop the TX
 		 * Queue now and schedule a request for an SGE Egress Queue
 		 * Update message.  The queue will get started later on when
 		 * the firmware processes this Work Request and sends us an
@@ -1555,8 +1556,8 @@ int t4vf_ethrx_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	pi = netdev_priv(skb->dev);
 	rxq->stats.pkts++;
 
-	if (csum_ok && (pi->rx_offload & RX_CSO) && !pkt->err_vec &&
-	    (be32_to_cpu(pkt->l2info) & (RXF_UDP|RXF_TCP))) {
+	if (csum_ok && (rspq->netdev->features & NETIF_F_RXCSUM) &&
+	    !pkt->err_vec && (be32_to_cpu(pkt->l2info) & (RXF_UDP|RXF_TCP))) {
 		if (!pkt->ip_frag)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else {

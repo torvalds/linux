@@ -522,6 +522,7 @@ void bnx2fc_process_l2_frame_compl(struct bnx2fc_rport *tgt,
 	fp = fc_frame_alloc(lport, payload_len);
 	if (!fp) {
 		printk(KERN_ERR PFX "fc_frame_alloc failure\n");
+		kfree(unsol_els);
 		return;
 	}
 
@@ -547,6 +548,7 @@ void bnx2fc_process_l2_frame_compl(struct bnx2fc_rport *tgt,
 				 */
 				printk(KERN_ERR PFX "dropping ELS 0x%x\n", op);
 				kfree_skb(skb);
+				kfree(unsol_els);
 				return;
 			}
 		}
@@ -563,6 +565,7 @@ void bnx2fc_process_l2_frame_compl(struct bnx2fc_rport *tgt,
 	} else {
 		BNX2FC_HBA_DBG(lport, "fh_r_ctl = 0x%x\n", fh->fh_r_ctl);
 		kfree_skb(skb);
+		kfree(unsol_els);
 	}
 }
 

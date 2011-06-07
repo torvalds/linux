@@ -4,7 +4,7 @@ The Linux kernel supports the following overcommit handling modes
 		address space are refused. Used for a typical system. It
 		ensures a seriously wild allocation fails while allowing
 		overcommit to reduce swap usage.  root is allowed to 
-		allocate slighly more memory in this mode. This is the 
+		allocate slightly more memory in this mode. This is the 
 		default.
 
 1	-	Always overcommit. Appropriate for some scientific

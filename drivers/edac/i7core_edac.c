@@ -59,7 +59,7 @@ MODULE_PARM_DESC(use_pci_fixup, "Enable PCI fixup to seek for hidden devices");
 /*
  * Alter this version for the module when modifications are made
  */
-#define I7CORE_REVISION    " Ver: 1.0.0 " __DATE__
+#define I7CORE_REVISION    " Ver: 1.0.0"
 #define EDAC_MOD_STR      "i7core_edac"
 
 /*
@@ -1772,7 +1772,7 @@ static void i7core_check_error(struct mem_ctl_info *mci)
 	/*
 	 * MCE first step: Copy all mce errors into a temporary buffer
 	 * We use a double buffering here, to reduce the risk of
-	 * loosing an error.
+	 * losing an error.
 	 */
 	smp_rmb();
 	count = (pvt->mce_out + MCE_LOG_LEN - pvt->mce_in)

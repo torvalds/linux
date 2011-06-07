@@ -35,7 +35,7 @@ struct target_core_fabric_ops {
 	/*
 	 * Optional function pointer for TCM to perform command map
 	 * from TCM processing thread context, for those struct se_cmd
-	 * initally allocated in interrupt context.
+	 * initially allocated in interrupt context.
 	 */
 	int (*new_cmd_map)(struct se_cmd *);
 	/*
@@ -77,7 +77,6 @@ struct target_core_fabric_ops {
 	u16 (*set_fabric_sense_len)(struct se_cmd *, u32);
 	u16 (*get_fabric_sense_len)(void);
 	int (*is_state_remove)(struct se_cmd *);
-	u64 (*pack_lun)(unsigned int);
 	/*
 	 * fabric module calls for target_core_fabric_configfs.c
 	 */

@@ -45,6 +45,7 @@
 #include <linux/interrupt.h>
 #include <linux/if_ether.h>
 #include <linux/aer.h>
+#include <linux/prefetch.h>
 #ifdef CONFIG_IGB_DCA
 #include <linux/dca.h>
 #endif
@@ -200,7 +201,7 @@ static struct pci_driver igb_driver = {
 	.probe    = igb_probe,
 	.remove   = __devexit_p(igb_remove),
 #ifdef CONFIG_PM
-	/* Power Managment Hooks */
+	/* Power Management Hooks */
 	.suspend  = igb_suspend,
 	.resume   = igb_resume,
 #endif
@@ -2292,7 +2293,7 @@ static void igb_init_hw_timer(struct igb_adapter *adapter)
 		/**
 		 * Scale the NIC clock cycle by a large factor so that
 		 * relatively small clock corrections can be added or
-		 * substracted at each clock tick. The drawbacks of a large
+		 * subtracted at each clock tick. The drawbacks of a large
 		 * factor are a) that the clock register overflows more quickly
 		 * (not such a big deal) and b) that the increment per tick has
 		 * to fit into 24 bits.  As a result we need to use a shift of
@@ -3409,7 +3410,7 @@ static void igb_set_rx_mode(struct net_device *netdev)
 		} else {
 			/*
 			 * Write addresses to the MTA, if the attempt fails
-			 * then we should just turn on promiscous mode so
+			 * then we should just turn on promiscuous mode so
 			 * that we can at least receive multicast traffic
 			 */
 			count = igb_write_mc_addr_list(netdev);
@@ -3423,7 +3424,7 @@ static void igb_set_rx_mode(struct net_device *netdev)
 		/*
 		 * Write addresses to available RAR registers, if there is not
 		 * sufficient space to store all the addresses then enable
-		 * unicast promiscous mode
+		 * unicast promiscuous mode
 		 */
 		count = igb_write_uc_addr_list(netdev);
 		if (count < 0) {
@@ -3532,6 +3533,25 @@ bool igb_has_link(struct igb_adapter *adapter)
 	return link_active;
 }
 
+static bool igb_thermal_sensor_event(struct e1000_hw *hw, u32 event)
+{
+	bool ret = false;
+	u32 ctrl_ext, thstat;
+
+	/* check for thermal sensor event on i350, copper only */
+	if (hw->mac.type == e1000_i350) {
+		thstat = rd32(E1000_THSTAT);
+		ctrl_ext = rd32(E1000_CTRL_EXT);
+
+		if ((hw->phy.media_type == e1000_media_type_copper) &&
+		    !(ctrl_ext & E1000_CTRL_EXT_LINK_MODE_SGMII)) {
+			ret = !!(thstat & event);
+		}
+	}
+
+	return ret;
+}
+
 /**
  * igb_watchdog - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
@@ -3550,7 +3570,7 @@ static void igb_watchdog_task(struct work_struct *work)
                                                    watchdog_task);
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
-	u32 link, ctrl_ext, thstat;
+	u32 link;
 	int i;
 
 	link = igb_has_link(adapter);
@@ -3574,25 +3594,14 @@ static void igb_watchdog_task(struct work_struct *work)
 			       ((ctrl & E1000_CTRL_RFCE) ?  "RX" :
 			       ((ctrl & E1000_CTRL_TFCE) ?  "TX" : "None")));
 
-			/* check for thermal sensor event on i350,
-			 * copper only */
-			if (hw->mac.type == e1000_i350) {
-				thstat = rd32(E1000_THSTAT);
-				ctrl_ext = rd32(E1000_CTRL_EXT);
-				if ((hw->phy.media_type ==
-				     e1000_media_type_copper) && !(ctrl_ext &
-				     E1000_CTRL_EXT_LINK_MODE_SGMII)) {
-					if (thstat &
-					    E1000_THSTAT_LINK_THROTTLE) {
-						printk(KERN_INFO "igb: %s The "
-						       "network adapter link "
-						       "speed was downshifted "
-						       "because it "
-						       "overheated.\n",
-						       netdev->name);
-					}
-				}
+			/* check for thermal sensor event */
+			if (igb_thermal_sensor_event(hw, E1000_THSTAT_LINK_THROTTLE)) {
+				printk(KERN_INFO "igb: %s The network adapter "
+						 "link speed was downshifted "
+						 "because it overheated.\n",
+						 netdev->name);
 			}
+
 			/* adjust timeout factor according to speed/duplex */
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
@@ -3618,22 +3627,15 @@ static void igb_watchdog_task(struct work_struct *work)
 		if (netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			/* check for thermal sensor event on i350
-			 * copper only*/
-			if (hw->mac.type == e1000_i350) {
-				thstat = rd32(E1000_THSTAT);
-				ctrl_ext = rd32(E1000_CTRL_EXT);
-				if ((hw->phy.media_type ==
-				     e1000_media_type_copper) && !(ctrl_ext &
-				     E1000_CTRL_EXT_LINK_MODE_SGMII)) {
-					if (thstat & E1000_THSTAT_PWR_DOWN) {
-						printk(KERN_ERR "igb: %s The "
-						"network adapter was stopped "
-						"because it overheated.\n",
+
+			/* check for thermal sensor event */
+			if (igb_thermal_sensor_event(hw, E1000_THSTAT_PWR_DOWN)) {
+				printk(KERN_ERR "igb: %s The network adapter "
+						"was stopped because it "
+						"overheated.\n",
 						netdev->name);
-					}
-				}
 			}
+
 			/* Links status message must follow this format */
 			printk(KERN_INFO "igb: %s NIC Link is Down\n",
 			       netdev->name);
@@ -4317,7 +4319,7 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 
 	/*
 	 * count reflects descriptors mapped, if 0 or less then mapping error
-	 * has occured and we need to rewind the descriptor queue
+	 * has occurred and we need to rewind the descriptor queue
 	 */
 	count = igb_tx_map_adv(tx_ring, skb, first);
 	if (!count) {
@@ -5352,8 +5354,8 @@ static void igb_msg_task(struct igb_adapter *adapter)
  *  The unicast table address is a register array of 32-bit registers.
  *  The table is meant to be used in a way similar to how the MTA is used
  *  however due to certain limitations in the hardware it is necessary to
- *  set all the hash bits to 1 and use the VMOLR ROPE bit as a promiscous
- *  enable bit to allow vlan tag stripping when promiscous mode is enabled
+ *  set all the hash bits to 1 and use the VMOLR ROPE bit as a promiscuous
+ *  enable bit to allow vlan tag stripping when promiscuous mode is enabled
  **/
 static void igb_set_uta(struct igb_adapter *adapter)
 {
@@ -6348,21 +6350,25 @@ static void igb_restore_vlan(struct igb_adapter *adapter)
 	}
 }
 
-int igb_set_spd_dplx(struct igb_adapter *adapter, u16 spddplx)
+int igb_set_spd_dplx(struct igb_adapter *adapter, u32 spd, u8 dplx)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 
 	mac->autoneg = 0;
 
+	/* Make sure dplx is at most 1 bit and lsb of speed is not set
+	 * for the switch() below to work */
+	if ((spd & 1) || (dplx & ~1))
+		goto err_inval;
+
 	/* Fiber NIC's only allow 1000 Gbps Full duplex */
 	if ((adapter->hw.phy.media_type == e1000_media_type_internal_serdes) &&
-		spddplx != (SPEED_1000 + DUPLEX_FULL)) {
-		dev_err(&pdev->dev, "Unsupported Speed/Duplex configuration\n");
-		return -EINVAL;
-	}
+	    spd != SPEED_1000 &&
+	    dplx != DUPLEX_FULL)
+		goto err_inval;
 
-	switch (spddplx) {
+	switch (spd + dplx) {
 	case SPEED_10 + DUPLEX_HALF:
 		mac->forced_speed_duplex = ADVERTISE_10_HALF;
 		break;
@@ -6381,10 +6387,13 @@ int igb_set_spd_dplx(struct igb_adapter *adapter, u16 spddplx)
 		break;
 	case SPEED_1000 + DUPLEX_HALF: /* not supported */
 	default:
-		dev_err(&pdev->dev, "Unsupported Speed/Duplex configuration\n");
-		return -EINVAL;
+		goto err_inval;
 	}
 	return 0;
+
+err_inval:
+	dev_err(&pdev->dev, "Unsupported Speed/Duplex configuration\n");
+	return -EINVAL;
 }
 
 static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake)

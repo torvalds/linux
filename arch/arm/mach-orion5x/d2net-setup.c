@@ -267,28 +267,28 @@ static struct platform_device d2net_gpio_buttons = {
  * General Setup
  ****************************************************************************/
 
-static struct orion5x_mpp_mode d2net_mpp_modes[] __initdata = {
-	{  0, MPP_GPIO },	/* Board ID (bit 0) */
-	{  1, MPP_GPIO },	/* Board ID (bit 1) */
-	{  2, MPP_GPIO },	/* Board ID (bit 2) */
-	{  3, MPP_GPIO },	/* SATA 0 power */
-	{  4, MPP_UNUSED },
-	{  5, MPP_GPIO },	/* Fan fail detection */
-	{  6, MPP_GPIO },	/* Red front LED */
-	{  7, MPP_UNUSED },
-	{  8, MPP_GPIO },	/* Rear power switch (on|auto) */
-	{  9, MPP_GPIO },	/* Rear power switch (auto|off) */
-	{ 10, MPP_UNUSED },
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_GPIO },	/* SATA 1 power */
-	{ 13, MPP_UNUSED },
-	{ 14, MPP_SATA_LED },	/* SATA 0 active */
-	{ 15, MPP_SATA_LED },	/* SATA 1 active */
-	{ 16, MPP_GPIO },	/* Blue front LED blink control */
-	{ 17, MPP_UNUSED },
-	{ 18, MPP_GPIO },	/* Front button (0 = Released, 1 = Pushed ) */
-	{ 19, MPP_UNUSED },
-	{ -1 }
+static unsigned int d2net_mpp_modes[] __initdata = {
+	MPP0_GPIO,	/* Board ID (bit 0) */
+	MPP1_GPIO,	/* Board ID (bit 1) */
+	MPP2_GPIO,	/* Board ID (bit 2) */
+	MPP3_GPIO,	/* SATA 0 power */
+	MPP4_UNUSED,
+	MPP5_GPIO,	/* Fan fail detection */
+	MPP6_GPIO,	/* Red front LED */
+	MPP7_UNUSED,
+	MPP8_GPIO,	/* Rear power switch (on|auto) */
+	MPP9_GPIO,	/* Rear power switch (auto|off) */
+	MPP10_UNUSED,
+	MPP11_UNUSED,
+	MPP12_GPIO,	/* SATA 1 power */
+	MPP13_UNUSED,
+	MPP14_SATA_LED,	/* SATA 0 active */
+	MPP15_SATA_LED,	/* SATA 1 active */
+	MPP16_GPIO,	/* Blue front LED blink control */
+	MPP17_UNUSED,
+	MPP18_GPIO,	/* Front button (0 = Released, 1 = Pushed ) */
+	MPP19_UNUSED,
+	0,
 	/* 22: USB port 1 fuse (0 = Fail, 1 = Ok) */
 	/* 23: Blue front LED off */
 	/* 24: Inhibit board power off (0 = Disabled, 1 = Enabled) */

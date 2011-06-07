@@ -316,7 +316,7 @@ static int com20020_resume(struct pcmcia_device *link)
 	return 0;
 }
 
-static struct pcmcia_device_id com20020_ids[] = {
+static const struct pcmcia_device_id com20020_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Contemporary Control Systems, Inc.",
 			"PCM20 Arcnet Adapter", 0x59991666, 0x95dfffaf),
 	PCMCIA_DEVICE_PROD_ID12("SoHard AG",

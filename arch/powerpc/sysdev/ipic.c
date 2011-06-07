@@ -18,7 +18,7 @@
 #include <linux/stddef.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/device.h>
 #include <linux/bootmem.h>
 #include <linux/spinlock.h>
@@ -521,12 +521,10 @@ static inline struct ipic * ipic_from_irq(unsigned int virq)
 	return primary_ipic;
 }
 
-#define ipic_irq_to_hw(virq)	((unsigned int)irq_map[virq].hwirq)
-
 static void ipic_unmask_irq(struct irq_data *d)
 {
 	struct ipic *ipic = ipic_from_irq(d->irq);
-	unsigned int src = ipic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 temp;
 
@@ -542,7 +540,7 @@ static void ipic_unmask_irq(struct irq_data *d)
 static void ipic_mask_irq(struct irq_data *d)
 {
 	struct ipic *ipic = ipic_from_irq(d->irq);
-	unsigned int src = ipic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 temp;
 
@@ -562,7 +560,7 @@ static void ipic_mask_irq(struct irq_data *d)
 static void ipic_ack_irq(struct irq_data *d)
 {
 	struct ipic *ipic = ipic_from_irq(d->irq);
-	unsigned int src = ipic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 temp;
 
@@ -581,7 +579,7 @@ static void ipic_ack_irq(struct irq_data *d)
 static void ipic_mask_irq_and_ack(struct irq_data *d)
 {
 	struct ipic *ipic = ipic_from_irq(d->irq);
-	unsigned int src = ipic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 temp;
 
@@ -604,7 +602,7 @@ static void ipic_mask_irq_and_ack(struct irq_data *d)
 static int ipic_set_irq_type(struct irq_data *d, unsigned int flow_type)
 {
 	struct ipic *ipic = ipic_from_irq(d->irq);
-	unsigned int src = ipic_irq_to_hw(d->irq);
+	unsigned int src = irqd_to_hwirq(d);
 	unsigned int vold, vnew, edibit;
 
 	if (flow_type == IRQ_TYPE_NONE)
@@ -793,7 +791,7 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 int ipic_set_priority(unsigned int virq, unsigned int priority)
 {
 	struct ipic *ipic = ipic_from_irq(virq);
-	unsigned int src = ipic_irq_to_hw(virq);
+	unsigned int src = virq_to_hw(virq);
 	u32 temp;
 
 	if (priority > 7)
@@ -821,7 +819,7 @@ int ipic_set_priority(unsigned int virq, unsigned int priority)
 void ipic_set_highest_priority(unsigned int virq)
 {
 	struct ipic *ipic = ipic_from_irq(virq);
-	unsigned int src = ipic_irq_to_hw(virq);
+	unsigned int src = virq_to_hw(virq);
 	u32 temp;
 
 	temp = ipic_read(ipic->regs, IPIC_SICFR);
@@ -902,7 +900,7 @@ static struct {
 	u32 sercr;
 } ipic_saved_state;
 
-static int ipic_suspend(struct sys_device *sdev, pm_message_t state)
+static int ipic_suspend(void)
 {
 	struct ipic *ipic = primary_ipic;
 
@@ -933,7 +931,7 @@ static int ipic_suspend(struct sys_device *sdev, pm_message_t state)
 	return 0;
 }
 
-static int ipic_resume(struct sys_device *sdev)
+static void ipic_resume(void)
 {
 	struct ipic *ipic = primary_ipic;
 
@@ -949,44 +947,26 @@ static int ipic_resume(struct sys_device *sdev)
 	ipic_write(ipic->regs, IPIC_SECNR, ipic_saved_state.secnr);
 	ipic_write(ipic->regs, IPIC_SERMR, ipic_saved_state.sermr);
 	ipic_write(ipic->regs, IPIC_SERCR, ipic_saved_state.sercr);
-
-	return 0;
 }
 #else
 #define ipic_suspend NULL
 #define ipic_resume NULL
 #endif
 
-static struct sysdev_class ipic_sysclass = {
-	.name = "ipic",
+static struct syscore_ops ipic_syscore_ops = {
 	.suspend = ipic_suspend,
 	.resume = ipic_resume,
 };
 
-static struct sys_device device_ipic = {
-	.id		= 0,
-	.cls		= &ipic_sysclass,
-};
-
-static int __init init_ipic_sysfs(void)
+static int __init init_ipic_syscore(void)
 {
-	int rc;
-
 	if (!primary_ipic || !primary_ipic->regs)
 		return -ENODEV;
-	printk(KERN_DEBUG "Registering ipic with sysfs...\n");
 
-	rc = sysdev_class_register(&ipic_sysclass);
-	if (rc) {
-		printk(KERN_ERR "Failed registering ipic sys class\n");
-		return -ENODEV;
-	}
-	rc = sysdev_register(&device_ipic);
-	if (rc) {
-		printk(KERN_ERR "Failed registering ipic sys device\n");
-		return -ENODEV;
-	}
+	printk(KERN_DEBUG "Registering ipic system core operations\n");
+	register_syscore_ops(&ipic_syscore_ops);
+
 	return 0;
 }
 
-subsys_initcall(init_ipic_sysfs);
+subsys_initcall(init_ipic_syscore);

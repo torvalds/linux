@@ -369,7 +369,7 @@ struct max3107_port {
 	struct spi_device *spi;
 
 #if defined(CONFIG_GPIOLIB)
-	/* GPIO chip stucture */
+	/* GPIO chip structure */
 	struct gpio_chip chip;
 #endif
 

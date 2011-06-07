@@ -97,8 +97,8 @@ static const struct ieee80211_regdomain ath_world_regdom_66_69 = {
 	}
 };
 
-/* Can be used by 0x67, 0x6A and 0x68 */
-static const struct ieee80211_regdomain ath_world_regdom_67_68_6A = {
+/* Can be used by 0x67, 0x68, 0x6A and 0x6C */
+static const struct ieee80211_regdomain ath_world_regdom_67_68_6A_6C = {
 	.n_reg_rules = 4,
 	.alpha2 =  "99",
 	.reg_rules = {
@@ -151,7 +151,8 @@ ieee80211_regdomain *ath_world_regdomain(struct ath_regulatory *reg)
 	case 0x67:
 	case 0x68:
 	case 0x6A:
-		return &ath_world_regdom_67_68_6A;
+	case 0x6C:
+		return &ath_world_regdom_67_68_6A_6C;
 	default:
 		WARN_ON(1);
 		return ath_default_world_regdomain();
@@ -268,7 +269,7 @@ ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	}
 
 	/*
-	 * If a country IE has been recieved check its rule for this
+	 * If a country IE has been received check its rule for this
 	 * channel first before enabling active scan. The passive scan
 	 * would have been enforced by the initial processing of our
 	 * custom regulatory domain.
@@ -333,6 +334,7 @@ static void ath_reg_apply_world_flags(struct wiphy *wiphy,
 	case 0x63:
 	case 0x66:
 	case 0x67:
+	case 0x6C:
 		ath_reg_apply_beaconing_flags(wiphy, initiator);
 		break;
 	case 0x68:
@@ -476,7 +478,7 @@ ath_regd_init_wiphy(struct ath_regulatory *reg,
 		wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 	} else {
 		/*
-		 * This gets applied in the case of the absense of CRDA,
+		 * This gets applied in the case of the absence of CRDA,
 		 * it's our own custom world regulatory domain, similar to
 		 * cfg80211's but we enable passive scanning.
 		 */

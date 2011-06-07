@@ -12,6 +12,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "util.h"
+#include "debug.h"
 
 #include <sys/mman.h>
 
@@ -165,11 +166,11 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
 	return NULL;
 }
 
-union perf_event *perf_evlist__read_on_cpu(struct perf_evlist *evlist, int cpu)
+union perf_event *perf_evlist__mmap_read(struct perf_evlist *evlist, int idx)
 {
 	/* XXX Move this to perf.c, making it generally available */
 	unsigned int page_size = sysconf(_SC_PAGE_SIZE);
-	struct perf_mmap *md = &evlist->mmap[cpu];
+	struct perf_mmap *md = &evlist->mmap[idx];
 	unsigned int head = perf_mmap__read_head(md);
 	unsigned int old = md->prev;
 	unsigned char *data = md->base + page_size;
@@ -234,34 +235,124 @@ union perf_event *perf_evlist__read_on_cpu(struct perf_evlist *evlist, int cpu)
 
 void perf_evlist__munmap(struct perf_evlist *evlist)
 {
-	int cpu;
+	int i;
 
+	for (i = 0; i < evlist->nr_mmaps; i++) {
+		if (evlist->mmap[i].base != NULL) {
+			munmap(evlist->mmap[i].base, evlist->mmap_len);
+			evlist->mmap[i].base = NULL;
+		}
+	}
+
+	free(evlist->mmap);
+	evlist->mmap = NULL;
+}
+
+int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
+{
+	evlist->nr_mmaps = evlist->cpus->nr;
+	if (evlist->cpus->map[0] == -1)
+		evlist->nr_mmaps = evlist->threads->nr;
+	evlist->mmap = zalloc(evlist->nr_mmaps * sizeof(struct perf_mmap));
+	return evlist->mmap != NULL ? 0 : -ENOMEM;
+}
+
+static int __perf_evlist__mmap(struct perf_evlist *evlist, struct perf_evsel *evsel,
+			       int idx, int prot, int mask, int fd)
+{
+	evlist->mmap[idx].prev = 0;
+	evlist->mmap[idx].mask = mask;
+	evlist->mmap[idx].base = mmap(NULL, evlist->mmap_len, prot,
+				      MAP_SHARED, fd, 0);
+	if (evlist->mmap[idx].base == MAP_FAILED) {
+		if (evlist->cpus->map[idx] == -1 && evsel->attr.inherit)
+			ui__warning("Inherit is not allowed on per-task "
+				    "events using mmap.\n");
+		return -1;
+	}
+
+	perf_evlist__add_pollfd(evlist, fd);
+	return 0;
+}
+
+static int perf_evlist__mmap_per_cpu(struct perf_evlist *evlist, int prot, int mask)
+{
+	struct perf_evsel *evsel;
+	int cpu, thread;
+
+	for (cpu = 0; cpu < evlist->cpus->nr; cpu++) {
+		int output = -1;
+
+		for (thread = 0; thread < evlist->threads->nr; thread++) {
+			list_for_each_entry(evsel, &evlist->entries, node) {
+				int fd = FD(evsel, cpu, thread);
+
+				if (output == -1) {
+					output = fd;
+					if (__perf_evlist__mmap(evlist, evsel, cpu,
+								prot, mask, output) < 0)
+						goto out_unmap;
+				} else {
+					if (ioctl(fd, PERF_EVENT_IOC_SET_OUTPUT, output) != 0)
+						goto out_unmap;
+				}
+
+				if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
+				    perf_evlist__id_add_fd(evlist, evsel, cpu, thread, fd) < 0)
+					goto out_unmap;
+			}
+		}
+	}
+
+	return 0;
+
+out_unmap:
 	for (cpu = 0; cpu < evlist->cpus->nr; cpu++) {
 		if (evlist->mmap[cpu].base != NULL) {
 			munmap(evlist->mmap[cpu].base, evlist->mmap_len);
 			evlist->mmap[cpu].base = NULL;
 		}
 	}
+	return -1;
 }
 
-int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
+static int perf_evlist__mmap_per_thread(struct perf_evlist *evlist, int prot, int mask)
 {
-	evlist->mmap = zalloc(evlist->cpus->nr * sizeof(struct perf_mmap));
-	return evlist->mmap != NULL ? 0 : -ENOMEM;
-}
+	struct perf_evsel *evsel;
+	int thread;
 
-static int __perf_evlist__mmap(struct perf_evlist *evlist, int cpu, int prot,
-			       int mask, int fd)
-{
-	evlist->mmap[cpu].prev = 0;
-	evlist->mmap[cpu].mask = mask;
-	evlist->mmap[cpu].base = mmap(NULL, evlist->mmap_len, prot,
-				      MAP_SHARED, fd, 0);
-	if (evlist->mmap[cpu].base == MAP_FAILED)
-		return -1;
+	for (thread = 0; thread < evlist->threads->nr; thread++) {
+		int output = -1;
 
-	perf_evlist__add_pollfd(evlist, fd);
+		list_for_each_entry(evsel, &evlist->entries, node) {
+			int fd = FD(evsel, 0, thread);
+
+			if (output == -1) {
+				output = fd;
+				if (__perf_evlist__mmap(evlist, evsel, thread,
+							prot, mask, output) < 0)
+					goto out_unmap;
+			} else {
+				if (ioctl(fd, PERF_EVENT_IOC_SET_OUTPUT, output) != 0)
+					goto out_unmap;
+			}
+
+			if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
+			    perf_evlist__id_add_fd(evlist, evsel, 0, thread, fd) < 0)
+				goto out_unmap;
+		}
+	}
+
 	return 0;
+
+out_unmap:
+	for (thread = 0; thread < evlist->threads->nr; thread++) {
+		if (evlist->mmap[thread].base != NULL) {
+			munmap(evlist->mmap[thread].base, evlist->mmap_len);
+			evlist->mmap[thread].base = NULL;
+		}
+	}
+	return -1;
 }
 
 /** perf_evlist__mmap - Create per cpu maps to receive events
@@ -282,11 +373,11 @@ static int __perf_evlist__mmap(struct perf_evlist *evlist, int cpu, int prot,
 int perf_evlist__mmap(struct perf_evlist *evlist, int pages, bool overwrite)
 {
 	unsigned int page_size = sysconf(_SC_PAGE_SIZE);
-	int mask = pages * page_size - 1, cpu;
-	struct perf_evsel *first_evsel, *evsel;
+	int mask = pages * page_size - 1;
+	struct perf_evsel *evsel;
 	const struct cpu_map *cpus = evlist->cpus;
 	const struct thread_map *threads = evlist->threads;
-	int thread, prot = PROT_READ | (overwrite ? 0 : PROT_WRITE);
+	int prot = PROT_READ | (overwrite ? 0 : PROT_WRITE);
 
 	if (evlist->mmap == NULL && perf_evlist__alloc_mmap(evlist) < 0)
 		return -ENOMEM;
@@ -296,42 +387,18 @@ int perf_evlist__mmap(struct perf_evlist *evlist, int pages, bool overwrite)
 
 	evlist->overwrite = overwrite;
 	evlist->mmap_len = (pages + 1) * page_size;
-	first_evsel = list_entry(evlist->entries.next, struct perf_evsel, node);
 
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
 		    evsel->sample_id == NULL &&
 		    perf_evsel__alloc_id(evsel, cpus->nr, threads->nr) < 0)
 			return -ENOMEM;
-
-		for (cpu = 0; cpu < cpus->nr; cpu++) {
-			for (thread = 0; thread < threads->nr; thread++) {
-				int fd = FD(evsel, cpu, thread);
-
-				if (evsel->idx || thread) {
-					if (ioctl(fd, PERF_EVENT_IOC_SET_OUTPUT,
-						  FD(first_evsel, cpu, 0)) != 0)
-						goto out_unmap;
-				} else if (__perf_evlist__mmap(evlist, cpu, prot, mask, fd) < 0)
-					goto out_unmap;
-
-				if ((evsel->attr.read_format & PERF_FORMAT_ID) &&
-				    perf_evlist__id_add_fd(evlist, evsel, cpu, thread, fd) < 0)
-					goto out_unmap;
-			}
-		}
 	}
 
-	return 0;
+	if (evlist->cpus->map[0] == -1)
+		return perf_evlist__mmap_per_thread(evlist, prot, mask);
 
-out_unmap:
-	for (cpu = 0; cpu < cpus->nr; cpu++) {
-		if (evlist->mmap[cpu].base != NULL) {
-			munmap(evlist->mmap[cpu].base, evlist->mmap_len);
-			evlist->mmap[cpu].base = NULL;
-		}
-	}
-	return -1;
+	return perf_evlist__mmap_per_cpu(evlist, prot, mask);
 }
 
 int perf_evlist__create_maps(struct perf_evlist *evlist, pid_t target_pid,
@@ -342,7 +409,7 @@ int perf_evlist__create_maps(struct perf_evlist *evlist, pid_t target_pid,
 	if (evlist->threads == NULL)
 		return -1;
 
-	if (target_tid != -1)
+	if (cpu_list == NULL && target_tid != -1)
 		evlist->cpus = cpu_map__dummy_new();
 	else
 		evlist->cpus = cpu_map__new(cpu_list);
@@ -391,4 +458,35 @@ int perf_evlist__set_filters(struct perf_evlist *evlist)
 	}
 
 	return 0;
+}
+
+u64 perf_evlist__sample_type(struct perf_evlist *evlist)
+{
+	struct perf_evsel *pos;
+	u64 type = 0;
+
+	list_for_each_entry(pos, &evlist->entries, node) {
+		if (!type)
+			type = pos->attr.sample_type;
+		else if (type != pos->attr.sample_type)
+			die("non matching sample_type");
+	}
+
+	return type;
+}
+
+bool perf_evlist__sample_id_all(const struct perf_evlist *evlist)
+{
+	bool value = false, first = true;
+	struct perf_evsel *pos;
+
+	list_for_each_entry(pos, &evlist->entries, node) {
+		if (first) {
+			value = pos->attr.sample_id_all;
+			first = false;
+		} else if (value != pos->attr.sample_id_all)
+			die("non matching sample_id_all");
+	}
+
+	return value;
 }

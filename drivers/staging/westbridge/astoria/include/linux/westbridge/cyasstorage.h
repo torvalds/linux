@@ -832,7 +832,7 @@ typedef struct cy_as_sdio_func {
    * CY_AS_ERROR_NO_FIRMWARE - the firmware has not been
    *	loaded into West Bridge
    * CY_AS_ERROR_INVALID_HANDLE - an invalid handle was passed in
-   * CY_AS_ERROR_SUCCESS - the module started sucessfully
+   * CY_AS_ERROR_SUCCESS - the module started successfully
    * CY_AS_ERROR_TIMEOUT - a timeout occurred communicating
    *	with the West Bridge device
    * CY_AS_ERROR_OUT_OF_MEMORY
@@ -882,7 +882,7 @@ cy_as_storage_start(
    * CY_AS_ERROR_INVALID_HANDLE - an invalid handle was
    *	passed in
    * CY_AS_ERROR_SUCCESS - this module was shut
-   *	down sucessfully
+   *	down successfully
    * CY_AS_ERROR_TIMEOUT - a timeout occurred
    *	communicating with the West Bridge device
    * CY_AS_ERROR_NOT_RUNNING
@@ -934,7 +934,7 @@ cy_as_storage_stop(
    * CY_AS_ERROR_INVALID_HANDLE - an invalid handle
    *	was passed in
    * CY_AS_ERROR_SUCCESS - the function was registered
-   *	sucessfully
+   *	successfully
    * CY_AS_ERROR_NOT_RUNNING - the stack is not running
 
    See Also
@@ -981,7 +981,7 @@ cy_as_storage_register_callback(
    *	been started
    * CY_AS_ERROR_INVALID_HANDLE - an invalid handle was
    *	passed in
-   * CY_AS_ERROR_SUCCESS - this request was sucessfully
+   * CY_AS_ERROR_SUCCESS - this request was successfully
    *	transmitted to the West Bridge device
    * CY_AS_ERROR_TIMEOUT - a timeout occurred communicating
    *	with the West Bridge device
@@ -1034,7 +1034,7 @@ cy_as_storage_claim(
    *	been started
    * CY_AS_ERROR_INVALID_HANDLE - an invalid handle
    *	was passed in
-   * CY_AS_ERROR_SUCCESS - the media was sucessfully
+   * CY_AS_ERROR_SUCCESS - the media was successfully
    *	released
    * CY_AS_ERROR_MEDIA_NOT_CLAIMED - the media was not
    *	claimed by the P port
@@ -1905,7 +1905,7 @@ cy_as_storage_get_transfer_amount(
    differ between SD cards.
 
    A large erase can take a while to complete depending on the SD
-   card. In such a case it is reccomended that an async call is made.
+   card. In such a case it is recommended that an async call is made.
 
    Returns
    * CY_AS_ERROR_SUCCESS - API call completed successfully
@@ -1926,7 +1926,7 @@ cy_as_storage_get_transfer_amount(
    *	required before erase is allowed
    * CY_AS_ERROR_NO_SUCH_BUS
    * CY_AS_ERROR_NO_SUCH_DEVICE
-   * CY_AS_ERROR_NOT_SUPPORTED - Erase is currenly only supported
+   * CY_AS_ERROR_NOT_SUPPORTED - Erase is currently only supported
    *	on SD and using SD only firmware
    * CY_AS_ERROR_OUT_OF_MEMORY
 
@@ -1985,7 +1985,7 @@ cy_as_storage_erase(
    *	type was made
    * CY_AS_ERROR_OUT_OF_MEMORY - insufficient memory available
    * CY_AS_ERROR_INVALID_RESPONSE - an error message was
-   *	recieved from the firmware
+   *	received from the firmware
    * CY_AS_ERROR_MEDIA_ACCESS_FAILURE - there was error in
    *	reading from the media
    * CY_AS_ERROR_INVALID_FUNCTION - An IO attempt was made to
@@ -2047,7 +2047,7 @@ cy_as_sdio_get_c_i_s_info(
    *	pair does not exist
    * CY_AS_ERROR_OUT_OF_MEMORY - insufficient memory available
    * CY_AS_ERROR_INVALID_RESPONSE - an error message was
-   *	recieved from the firmware
+   *	received from the firmware
 
 */
 cy_as_return_status_t
@@ -2095,7 +2095,7 @@ cy_as_sdio_query_card(
    *	pair does not exist
    * CY_AS_ERROR_OUT_OF_MEMORY - insufficient memory available
    * CY_AS_ERROR_INVALID_RESPONSE - an error message was
-   *	recieved from the firmware
+   *	received from the firmware
    */
 cy_as_return_status_t
 cy_as_sdio_reset_card(
@@ -2139,7 +2139,7 @@ cy_as_sdio_reset_card(
    * CY_AS_ERROR_NO_SUCH_DEVICE - the specified media/device pair
    *	does not exist
    * CY_AS_ERROR_OUT_OF_MEMORY - insufficient memory available
-   * CY_AS_ERROR_INVALID_RESPONSE - an error message was recieved
+   * CY_AS_ERROR_INVALID_RESPONSE - an error message was received
    *	from the firmware
    * CY_AS_ERROR_MEDIA_ACCESS_FAILURE - there was error in reading
    *	from the media
@@ -2198,7 +2198,7 @@ cy_as_sdio_direct_read(
    * CY_AS_ERROR_NO_SUCH_DEVICE - the specified media/device
    * pair does not exist
    * CY_AS_ERROR_OUT_OF_MEMORY - insufficient memory available
-   * CY_AS_ERROR_INVALID_RESPONSE - an error message was recieved
+   * CY_AS_ERROR_INVALID_RESPONSE - an error message was received
    * from the firmware
    * CY_AS_ERROR_MEDIA_ACCESS_FAILURE - there was error in
    * reading from the media
@@ -2262,7 +2262,7 @@ cy_as_sdio_direct_write(
    * CY_AS_ERROR_OUT_OF_MEMORY - insufficient memory
    *	available
    * CY_AS_ERROR_INVALID_RESPONSE - an error message was
-   *	recieved from the firmware
+   *	received from the firmware
    * CY_AS_ERROR_MEDIA_ACCESS_FAILURE - there was error in
    *	reading from the media
    * CY_AS_ERROR_INVALID_FUNCTION - An IO attempt was made
@@ -2319,7 +2319,7 @@ cy_as_sdio_set_blocksize(
    *	pair does not exist
    * CY_AS_ERROR_ASYNC_PENDING - an async operation is pending
    * CY_AS_ERROR_OUT_OF_MEMORY - insufficient memory available
-   * CY_AS_ERROR_INVALID_RESPONSE - an error message was recieved
+   * CY_AS_ERROR_INVALID_RESPONSE - an error message was received
    *	from the firmware
    * CY_AS_ERROR_MEDIA_ACCESS_FAILURE - there was error in
    *	reading from the media
@@ -2396,7 +2396,7 @@ cy_as_sdio_extended_read(
    * CY_AS_ERROR_ASYNC_PENDING - an async operation is pending
    * CY_AS_ERROR_OUT_OF_MEMORY - insufficient memory available
    * CY_AS_ERROR_INVALID_RESPONSE - an error message was
-   *	recieved from the firmware
+   *	received from the firmware
    * CY_AS_ERROR_MEDIA_ACCESS_FAILURE - there was error in
    *	reading from the media
    * CY_AS_ERROR_INVALID_FUNCTION - An IO attempt was made
@@ -2471,7 +2471,7 @@ cy_as_sdio_extended_write(
    * pair does not exist
    * CY_AS_ERROR_OUT_OF_MEMORY - insufficient memory available
    * CY_AS_ERROR_INVALID_RESPONSE - an error message was
-   *	recieved from the firmware
+   *	received from the firmware
    * CY_AS_ERROR_MEDIA_ACCESS_FAILURE - there was error in
    *	reading from the media
    * CY_AS_ERROR_INVALID_FUNCTION - An IO attempt was made
@@ -2714,7 +2714,7 @@ cy_as_sdio_suspend(
    * CY_AS_ERROR_OUT_OF_MEMORY - insufficient memory
    *	available
    * CY_AS_ERROR_INVALID_RESPONSE - an error message was
-   *	recieved from the firmware
+   *	received from the firmware
    * CY_AS_ERROR_MEDIA_ACCESS_FAILURE - there was error
    *	in reading from the media
    * CY_AS_ERROR_INVALID_FUNCTION - An IO attempt was

@@ -41,6 +41,7 @@
 
 #include "mux.h"
 #include "hsmmc.h"
+#include "common-board-devices.h"
 
 #define SDP2430_CS0_BASE	0x04000000
 #define SECONDARY_LCD_GPIO		147
@@ -180,15 +181,6 @@ static struct twl4030_platform_data sdp2430_twldata = {
 	.vmmc1		= &sdp2430_vmmc1,
 };
 
-static struct i2c_board_info __initdata sdp2430_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl4030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_24XX_SYS_NIRQ,
-		.platform_data = &sdp2430_twldata,
-	},
-};
-
 static struct i2c_board_info __initdata sdp2430_i2c1_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("isp1301_omap", 0x2D),
@@ -201,8 +193,7 @@ static int __init omap2430_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 100, sdp2430_i2c1_boardinfo,
 			ARRAY_SIZE(sdp2430_i2c1_boardinfo));
-	omap_register_i2c_bus(2, 2600, sdp2430_i2c_boardinfo,
-			ARRAY_SIZE(sdp2430_i2c_boardinfo));
+	omap2_pmic_init("twl4030", &sdp2430_twldata);
 	return 0;
 }
 
@@ -217,11 +208,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{}	/* Terminator */
 };
 
-static struct omap_musb_board_data musb_board_data = {
-	.interface_type		= MUSB_INTERFACE_ULPI,
-	.mode			= MUSB_OTG,
-	.power			= 100,
-};
 static struct omap_usb_config sdp2430_usb_config __initdata = {
 	.otg		= 1,
 #ifdef  CONFIG_USB_GADGET_OMAP
@@ -240,8 +226,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 
 static void __init omap_2430sdp_init(void)
 {
-	int ret;
-
 	omap2430_mux_init(board_mux, OMAP_PACKAGE_ZAC);
 
 	omap_board_config = sdp2430_config;
@@ -255,14 +239,13 @@ static void __init omap_2430sdp_init(void)
 	omap2_usbfs_init(&sdp2430_usb_config);
 
 	omap_mux_init_signal("usb0hs_stp", OMAP_PULL_ENA | OMAP_PULL_UP);
-	usb_musb_init(&musb_board_data);
+	usb_musb_init(NULL);
 
 	board_smc91x_init();
 
 	/* Turn off secondary LCD backlight */
-	ret = gpio_request(SECONDARY_LCD_GPIO, "Secondary LCD backlight");
-	if (ret == 0)
-		gpio_direction_output(SECONDARY_LCD_GPIO, 0);
+	gpio_request_one(SECONDARY_LCD_GPIO, GPIOF_OUT_INIT_LOW,
+			 "Secondary LCD backlight");
 }
 
 static void __init omap_2430sdp_map_io(void)

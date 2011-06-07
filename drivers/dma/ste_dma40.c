@@ -90,7 +90,7 @@ struct d40_lli_pool {
  * @lli_log: Same as above but for logical channels.
  * @lli_pool: The pool with two entries pre-allocated.
  * @lli_len: Number of llis of current descriptor.
- * @lli_current: Number of transfered llis.
+ * @lli_current: Number of transferred llis.
  * @lcla_alloc: Number of LCLA entries allocated.
  * @txd: DMA engine struct. Used for among other things for communication
  * during a transfer.
@@ -1214,7 +1214,7 @@ static void dma_tasklet(unsigned long data)
 	return;
 
  err:
-	/* Rescue manouver if receiving double interrupts */
+	/* Rescue manoeuvre if receiving double interrupts */
 	if (d40c->pending_tx > 0)
 		d40c->pending_tx--;
 	spin_unlock_irqrestore(&d40c->lock, flags);
@@ -1829,7 +1829,7 @@ d40_get_dev_addr(struct d40_chan *chan, enum dma_data_direction direction)
 {
 	struct stedma40_platform_data *plat = chan->base->plat_data;
 	struct stedma40_chan_cfg *cfg = &chan->dma_cfg;
-	dma_addr_t addr;
+	dma_addr_t addr = 0;
 
 	if (chan->runtime_addr)
 		return chan->runtime_addr;
@@ -2962,4 +2962,4 @@ static int __init stedma40_init(void)
 {
 	return platform_driver_probe(&d40_driver, d40_probe);
 }
-arch_initcall(stedma40_init);
+subsys_initcall(stedma40_init);

@@ -62,7 +62,7 @@ MODULE_PARM_DESC(fake_hw_scan, "Install fake (no-op) hw-scan handler");
  * 	an intersection to occur but each device will still use their
  * 	respective regulatory requested domains. Subsequent radios will
  * 	use the resulting intersection.
- * @HWSIM_REGTEST_WORLD_ROAM: Used for testing the world roaming. We acomplish
+ * @HWSIM_REGTEST_WORLD_ROAM: Used for testing the world roaming. We accomplish
  *	this by using a custom beacon-capable regulatory domain for the first
  *	radio. All other device world roam.
  * @HWSIM_REGTEST_CUSTOM_WORLD: Used for testing the custom world regulatory
@@ -1515,18 +1515,9 @@ static int __init init_mac80211_hwsim(void)
 	if (hwsim_mon == NULL)
 		goto failed;
 
-	rtnl_lock();
-
-	err = dev_alloc_name(hwsim_mon, hwsim_mon->name);
+	err = register_netdev(hwsim_mon);
 	if (err < 0)
 		goto failed_mon;
-
-
-	err = register_netdevice(hwsim_mon);
-	if (err < 0)
-		goto failed_mon;
-
-	rtnl_unlock();
 
 	return 0;
 

@@ -8,27 +8,26 @@
  * Copyright (C) 2009 Lemote, Inc.
  * Author: Wu Zhangjin, wuzhangjin@gmail.com
  *
+ * Copyright (C) 2011 Igalia, S.L.
+ * Author: Javier M. Mellid <jmunhoz@igalia.com>
+ *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License. See the file COPYING in the main directory of this archive for
  *  more details.
  *
  * Version 0.10.26192.21.01
  *	- Add PowerPC/Big endian support
- *	- Add 2D support for Lynx
- *	- Verified on2.6.19.2  Boyod.yang <boyod.yang@siliconmotion.com.cn>
+ *	- Verified on 2.6.19.2
+ *	Boyod.yang <boyod.yang@siliconmotion.com.cn>
  *
  * Version 0.09.2621.00.01
- *	- Only support Linux Kernel's version 2.6.21.
- *	Boyod.yang  <boyod.yang@siliconmotion.com.cn>
+ *	- Only support Linux Kernel's version 2.6.21
+ *	Boyod.yang <boyod.yang@siliconmotion.com.cn>
  *
  * Version 0.09
- *	- Only support Linux Kernel's version 2.6.12.
+ *	- Only support Linux Kernel's version 2.6.12
  *	Boyod.yang <boyod.yang@siliconmotion.com.cn>
  */
-
-#ifndef __KERNEL__
-#define __KERNEL__
-#endif
 
 #include <linux/io.h>
 #include <linux/fb.h>
@@ -43,15 +42,15 @@
 #include <linux/pm.h>
 #endif
 
-struct screen_info smtc_screen_info;
-
 #include "smtcfb.h"
 
 #ifdef DEBUG
-#define smdbg(format, arg...)	printk(KERN_DEBUG format , ## arg)
+#define smdbg(format, arg...) printk(KERN_DEBUG format , ## arg)
 #else
 #define smdbg(format, arg...)
 #endif
+
+struct screen_info smtc_screen_info;
 
 /*
 * Private structure
@@ -103,17 +102,17 @@ struct vesa_mode_table	{
 static struct vesa_mode_table vesa_mode[] = {
 	{"0x301", 640,  480,  8},
 	{"0x303", 800,  600,  8},
-	{"0x305", 1024, 768,	8},
+	{"0x305", 1024, 768,  8},
 	{"0x307", 1280, 1024, 8},
 
 	{"0x311", 640,  480,  16},
 	{"0x314", 800,  600,  16},
-	{"0x317", 1024, 768,	16},
+	{"0x317", 1024, 768,  16},
 	{"0x31A", 1280, 1024, 16},
 
 	{"0x312", 640,  480,  24},
 	{"0x315", 800,  600,  24},
-	{"0x318", 1024, 768,	24},
+	{"0x318", 1024, 768,  24},
 	{"0x31B", 1280, 1024, 24},
 };
 
@@ -129,7 +128,30 @@ u16 smtc_ChipIDs[] = {
 	0x720
 };
 
-#define numSMTCchipIDs (sizeof(smtc_ChipIDs) / sizeof(u16))
+#define numSMTCchipIDs ARRAY_SIZE(smtc_ChipIDs)
+
+static struct fb_var_screeninfo smtcfb_var = {
+	.xres           = 1024,
+	.yres           = 600,
+	.xres_virtual   = 1024,
+	.yres_virtual   = 600,
+	.bits_per_pixel = 16,
+	.red            = {16, 8, 0},
+	.green          = {8, 8, 0},
+	.blue           = {0, 8, 0},
+	.activate       = FB_ACTIVATE_NOW,
+	.height         = -1,
+	.width          = -1,
+	.vmode          = FB_VMODE_NONINTERLACED,
+};
+
+static struct fb_fix_screeninfo smtcfb_fix = {
+	.id             = "sm712fb",
+	.type           = FB_TYPE_PACKED_PIXELS,
+	.visual         = FB_VISUAL_TRUECOLOR,
+	.line_length    = 800 * 3,
+	.accel          = FB_ACCEL_SMI_LYNX,
+};
 
 static void sm712_set_timing(struct smtcfb_info *sfb,
 			     struct par_info *ppar_info)
@@ -271,29 +293,6 @@ static void smtc_set_timing(struct smtcfb_info *sfb, struct par_info
 		break;
 	}
 }
-
-static struct fb_var_screeninfo smtcfb_var = {
-	.xres = 1024,
-	.yres = 600,
-	.xres_virtual = 1024,
-	.yres_virtual = 600,
-	.bits_per_pixel = 16,
-	.red = {16, 8, 0},
-	.green = {8, 8, 0},
-	.blue = {0, 8, 0},
-	.activate = FB_ACTIVATE_NOW,
-	.height = -1,
-	.width = -1,
-	.vmode = FB_VMODE_NONINTERLACED,
-};
-
-static struct fb_fix_screeninfo smtcfb_fix = {
-	.id = "sm712fb",
-	.type = FB_TYPE_PACKED_PIXELS,
-	.visual = FB_VISUAL_TRUECOLOR,
-	.line_length = 800 * 3,
-	.accel = FB_ACCEL_SMI_LYNX,
-};
 
 /* chan_to_field
  *
@@ -608,20 +607,6 @@ smtcfb_write(struct fb_info *info, const char __user *buf, size_t count,
 }
 #endif	/* ! __BIG_ENDIAN */
 
-static struct fb_ops smtcfb_ops = {
-	.owner = THIS_MODULE,
-	.fb_setcolreg = smtc_setcolreg,
-	.fb_blank = cfb_blank,
-	.fb_fillrect = cfb_fillrect,
-	.fb_imageblit = cfb_imageblit,
-	.fb_copyarea = cfb_copyarea,
-#ifdef __BIG_ENDIAN
-	.fb_read = smtcfb_read,
-	.fb_write = smtcfb_write,
-#endif
-
-};
-
 void smtcfb_setmode(struct smtcfb_info *sfb)
 {
 	switch (sfb->fb.var.bits_per_pixel) {
@@ -680,6 +665,47 @@ void smtcfb_setmode(struct smtcfb_info *sfb)
 	smtc_set_timing(sfb, &hw);
 }
 
+static int smtc_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+	/* sanity checks */
+	if (var->xres_virtual < var->xres)
+		var->xres_virtual = var->xres;
+
+	if (var->yres_virtual < var->yres)
+		var->yres_virtual = var->yres;
+
+	/* set valid default bpp */
+	if ((var->bits_per_pixel != 8)  && (var->bits_per_pixel != 16) &&
+	    (var->bits_per_pixel != 24) && (var->bits_per_pixel != 32))
+		var->bits_per_pixel = 16;
+
+	return 0;
+}
+
+static int smtc_set_par(struct fb_info *info)
+{
+	struct smtcfb_info *sfb = (struct smtcfb_info *)info;
+
+	smtcfb_setmode(sfb);
+
+	return 0;
+}
+
+static struct fb_ops smtcfb_ops = {
+	.owner        = THIS_MODULE,
+	.fb_check_var = smtc_check_var,
+	.fb_set_par   = smtc_set_par,
+	.fb_setcolreg = smtc_setcolreg,
+	.fb_blank     = cfb_blank,
+	.fb_fillrect  = cfb_fillrect,
+	.fb_imageblit = cfb_imageblit,
+	.fb_copyarea  = cfb_copyarea,
+#ifdef __BIG_ENDIAN
+	.fb_read      = smtcfb_read,
+	.fb_write     = smtcfb_write,
+#endif
+};
+
 /*
  * Alloc struct smtcfb_info and assign the default value
  */
@@ -688,7 +714,7 @@ static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *dev,
 {
 	struct smtcfb_info *sfb;
 
-	sfb = kzalloc(sizeof(struct smtcfb_info), GFP_KERNEL);
+	sfb = kzalloc(sizeof(*sfb), GFP_KERNEL);
 
 	if (!sfb)
 		return NULL;
@@ -757,7 +783,7 @@ static int smtc_map_smem(struct smtcfb_info *sfb,
 	sfb->fb.screen_base = smtc_VRAMBaseAddress;
 
 	if (!sfb->fb.screen_base) {
-		printk(KERN_INFO "%s: unable to map screen memory\n",
+		printk(KERN_ERR "%s: unable to map screen memory\n",
 				sfb->fb.fix.id);
 		return -ENOMEM;
 	}
@@ -800,7 +826,7 @@ static void smtc_free_fb_info(struct smtcfb_info *sfb)
  *	Returns zero.
  *
  */
-static int __init __maybe_unused sm712vga_setup(char *options)
+static int __init sm712vga_setup(char *options)
 {
 	int index;
 
@@ -816,7 +842,7 @@ static int __init __maybe_unused sm712vga_setup(char *options)
 	smdbg("\nsm712vga_setup = %s\n", options);
 
 	for (index = 0;
-	     index < (sizeof(vesa_mode) / sizeof(struct vesa_mode_table));
+	     index < ARRAY_SIZE(vesa_mode);
 	     index++) {
 		if (strstr(options, vesa_mode[index].mode_index)) {
 			smtc_screen_info.lfb_width = vesa_mode[index].lfb_width;
@@ -850,7 +876,6 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 	err = pci_enable_device(pdev);	/* enable SMTC chip */
 	if (err)
 		return err;
-	err = -ENOMEM;
 
 	hw.chipID = ent->device;
 	sprintf(name, "sm%Xfb", hw.chipID);
@@ -913,7 +938,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		}
 #endif
 		if (!smtc_RegBaseAddress) {
-			printk(KERN_INFO
+			printk(KERN_ERR
 				"%s: unable to map memory mapped IO\n",
 				sfb->fb.fix.id);
 			err = -ENOMEM;
@@ -948,7 +973,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		smtc_seqw(0x6b, 0x02);
 		break;
 	default:
-		printk(KERN_INFO
+		printk(KERN_ERR
 		"No valid Silicon Motion display chip was detected!\n");
 
 		goto failed_fb;
@@ -965,7 +990,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 		goto failed;
 
 	smtcfb_setmode(sfb);
-	/* Primary display starting from 0 postion */
+	/* Primary display starting from 0 position */
 	hw.BaseAddressInVRAM = 0;
 	sfb->fb.par = &hw;
 
@@ -980,8 +1005,8 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 
 	return 0;
 
- failed:
-	printk(KERN_INFO "Silicon Motion, Inc.  primary display init fail\n");
+failed:
+	printk(KERN_ERR "Silicon Motion, Inc.  primary display init fail\n");
 
 	smtc_unmap_smem(sfb);
 	smtc_unmap_mmio(sfb);
@@ -1019,13 +1044,11 @@ static void __devexit smtcfb_pci_remove(struct pci_dev *pdev)
 	smtc_free_fb_info(sfb);
 }
 
-/* Jason (08/14/2009)
- * suspend function, called when the suspend event is triggered
- */
-static int __maybe_unused smtcfb_suspend(struct pci_dev *pdev, pm_message_t msg)
+#ifdef CONFIG_PM
+static int smtcfb_pci_suspend(struct device *device)
 {
+	struct pci_dev *pdev = to_pci_dev(device);
 	struct smtcfb_info *sfb;
-	int retv;
 
 	sfb = pci_get_drvdata(pdev);
 
@@ -1035,47 +1058,22 @@ static int __maybe_unused smtcfb_suspend(struct pci_dev *pdev, pm_message_t msg)
 	smtc_seqw(0x20, (smtc_seqr(0x20) | 0xc0));
 	smtc_seqw(0x69, (smtc_seqr(0x69) & 0xf7));
 
-	switch (msg.event) {
-	case PM_EVENT_FREEZE:
-	case PM_EVENT_PRETHAW:
-		pdev->dev.power.power_state = msg;
-		return 0;
-	}
+	console_lock();
+	fb_set_suspend(&sfb->fb, 1);
+	console_unlock();
 
-	/* when doing suspend, call fb apis and pci apis */
-	if (msg.event == PM_EVENT_SUSPEND) {
-		console_lock();
-		fb_set_suspend(&sfb->fb, 1);
-		console_unlock();
-		retv = pci_save_state(pdev);
-		pci_disable_device(pdev);
-		retv = pci_choose_state(pdev, msg);
-		retv = pci_set_power_state(pdev, retv);
-	}
-
-	pdev->dev.power.power_state = msg;
-
-	/* additionaly turn off all function blocks including internal PLLs */
+	/* additionally turn off all function blocks including internal PLLs */
 	smtc_seqw(0x21, 0xff);
 
 	return 0;
 }
 
-static int __maybe_unused smtcfb_resume(struct pci_dev *pdev)
+static int smtcfb_pci_resume(struct device *device)
 {
+	struct pci_dev *pdev = to_pci_dev(device);
 	struct smtcfb_info *sfb;
-	int retv;
 
 	sfb = pci_get_drvdata(pdev);
-
-	/* when resuming, restore pci data and fb cursor */
-	if (pdev->dev.power.power_state.event != PM_EVENT_FREEZE) {
-		retv = pci_set_power_state(pdev, PCI_D0);
-		pci_restore_state(pdev);
-		if (pci_enable_device(pdev))
-			return -1;
-		pci_set_master(pdev);
-	}
 
 	/* reinit hardware */
 	sm7xx_init_hw();
@@ -1112,20 +1110,29 @@ static int __maybe_unused smtcfb_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-/* Jason (08/13/2009)
- * pci_driver struct used to wrap the original driver
- * so that it can be registered into the kernel and
- * the proper method would be called when suspending and resuming
- */
+static const struct dev_pm_ops sm7xx_pm_ops = {
+	.suspend = smtcfb_pci_suspend,
+	.resume = smtcfb_pci_resume,
+	.freeze = smtcfb_pci_suspend,
+	.thaw = smtcfb_pci_resume,
+	.poweroff = smtcfb_pci_suspend,
+	.restore = smtcfb_pci_resume,
+};
+
+#define SM7XX_PM_OPS (&sm7xx_pm_ops)
+
+#else  /* !CONFIG_PM */
+
+#define SM7XX_PM_OPS NULL
+
+#endif /* !CONFIG_PM */
+
 static struct pci_driver smtcfb_driver = {
 	.name = "smtcfb",
 	.id_table = smtcfb_pci_table,
 	.probe = smtcfb_pci_probe,
 	.remove = __devexit_p(smtcfb_pci_remove),
-#ifdef CONFIG_PM
-	.suspend = smtcfb_suspend,
-	.resume = smtcfb_resume,
-#endif
+	.driver.pm  = SM7XX_PM_OPS,
 };
 
 static int __init smtcfb_init(void)

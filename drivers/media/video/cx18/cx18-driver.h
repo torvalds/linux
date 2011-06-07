@@ -65,6 +65,10 @@
 #include "dvb_net.h"
 #include "dvbdev.h"
 
+/* Videobuf / YUV support */
+#include <media/videobuf-core.h>
+#include <media/videobuf-vmalloc.h>
+
 #ifndef CONFIG_PCI
 #  error "This driver requires kernel PCI support."
 #endif
@@ -403,6 +407,23 @@ struct cx18_stream {
 	struct cx18_queue q_idle;	/* idle - not in rotation */
 
 	struct work_struct out_work_order;
+
+	/* Videobuf for YUV video */
+	u32 pixelformat;
+	struct list_head vb_capture;    /* video capture queue */
+	spinlock_t vb_lock;
+	struct timer_list vb_timeout;
+
+	struct videobuf_queue vbuf_q;
+	spinlock_t vbuf_q_lock; /* Protect vbuf_q */
+	enum v4l2_buf_type vb_type;
+};
+
+struct cx18_videobuf_buffer {
+	/* Common video buffer sub-system struct */
+	struct videobuf_buffer vb;
+	v4l2_std_id tvnorm; /* selected tv norm */
+	u32 bytes_used;
 };
 
 struct cx18_open_id {
@@ -410,6 +431,10 @@ struct cx18_open_id {
 	u32 open_id;
 	int type;
 	struct cx18 *cx;
+
+	struct videobuf_queue vbuf_q;
+	spinlock_t s_lock; /* Protect vbuf_q */
+	enum v4l2_buf_type vb_type;
 };
 
 static inline struct cx18_open_id *fh2id(struct v4l2_fh *fh)

@@ -518,7 +518,7 @@ static int omap_mux_dbg_board_show(struct seq_file *s, void *unused)
 			seq_printf(s, "/* %s */\n", m->muxnames[mode]);
 
 		/*
-		 * XXX: Might be revisited to support differences accross
+		 * XXX: Might be revisited to support differences across
 		 * same OMAP generation.
 		 */
 		seq_printf(s, "OMAP%d_MUX(%s, ", omap_gen, m0_def);

@@ -461,7 +461,7 @@ static int aha1740_queuecommand_lck(Scsi_Cmnd * SCpnt, void (*done)(Scsi_Cmnd *)
 	/* The Adaptec Spec says the card is so fast that the loops
            will only be executed once in the code below. Even if this
            was true with the fastest processors when the spec was
-           written, it doesn't seem to be true with todays fast
+           written, it doesn't seem to be true with today's fast
            processors. We print a warning if the code is executed more
            often than LOOPCNT_WARN. If this happens, it should be
            investigated. If the count reaches LOOPCNT_MAX, we assume

@@ -221,15 +221,17 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 		  struct hard_iface *hard_iface, uint8_t dstaddr[])
 {
 	struct unicast_packet tmp_uc, *unicast_packet;
+	struct hard_iface *primary_if;
 	struct sk_buff *frag_skb;
 	struct unicast_frag_packet *frag1, *frag2;
 	int uc_hdr_len = sizeof(struct unicast_packet);
 	int ucf_hdr_len = sizeof(struct unicast_frag_packet);
 	int data_len = skb->len - uc_hdr_len;
-	int large_tail = 0;
+	int large_tail = 0, ret = NET_RX_DROP;
 	uint16_t seqno;
 
-	if (!bat_priv->primary_if)
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if)
 		goto dropped;
 
 	frag_skb = dev_alloc_skb(data_len - (data_len / 2) + ucf_hdr_len);
@@ -254,7 +256,7 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	frag1->version = COMPAT_VERSION;
 	frag1->packet_type = BAT_UNICAST_FRAG;
 
-	memcpy(frag1->orig, bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
+	memcpy(frag1->orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(frag2, frag1, sizeof(struct unicast_frag_packet));
 
 	if (data_len & 1)
@@ -269,13 +271,17 @@ int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 
 	send_skb_packet(skb, hard_iface, dstaddr);
 	send_skb_packet(frag_skb, hard_iface, dstaddr);
-	return NET_RX_SUCCESS;
+	ret = NET_RX_SUCCESS;
+	goto out;
 
 drop_frag:
 	kfree_skb(frag_skb);
 dropped:
 	kfree_skb(skb);
-	return NET_RX_DROP;
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
+	return ret;
 }
 
 int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
@@ -289,12 +295,12 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 
 	/* get routing information */
 	if (is_multicast_ether_addr(ethhdr->h_dest)) {
-		orig_node = (struct orig_node *)gw_get_selected(bat_priv);
+		orig_node = (struct orig_node *)gw_get_selected_orig(bat_priv);
 		if (orig_node)
 			goto find_router;
 	}
 
-	/* check for hna host - increases orig_node refcount */
+	/* check for tt host - increases orig_node refcount */
 	orig_node = transtable_search(bat_priv, ethhdr->h_dest);
 
 find_router:

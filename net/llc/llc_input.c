@@ -121,8 +121,7 @@ static inline int llc_fixup_skb(struct sk_buff *skb)
 		s32 data_size = ntohs(pdulen) - llc_len;
 
 		if (data_size < 0 ||
-		    ((skb_tail_pointer(skb) -
-		      (u8 *)pdu) - llc_len) < data_size)
+		    !pskb_may_pull(skb, data_size))
 			return 0;
 		if (unlikely(pskb_trim_rcsum(skb, data_size)))
 			return 0;

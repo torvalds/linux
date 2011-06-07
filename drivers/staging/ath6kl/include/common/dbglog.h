@@ -24,10 +24,6 @@
 #ifndef _DBGLOG_H_
 #define _DBGLOG_H_
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -44,7 +40,7 @@ extern "C" {
 #define DBGLOG_MODULEID_NUM_MAX          16 /* Upper limit is width of mask */
 
 /*
- * Please ensure that the definition of any new module intrduced is captured
+ * Please ensure that the definition of any new module introduced is captured
  * between the DBGLOG_MODULEID_START and DBGLOG_MODULEID_END defines. The 
  * structure is required for the parser to correctly pick up the values for
  * different modules.
@@ -125,10 +121,6 @@ PREPACK struct dbglog_config_s {
 
 #ifdef __cplusplus
 }
-#endif
-
-#ifndef ATH_TARGET
-#include "athendpack.h"
 #endif
 
 #endif /* _DBGLOG_H_ */

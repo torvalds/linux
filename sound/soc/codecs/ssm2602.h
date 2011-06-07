@@ -117,11 +117,5 @@
 #define SSM2602_CACHEREGNUM 	10
 
 #define SSM2602_SYSCLK	0
-#define SSM2602_DAI		0
-
-struct ssm2602_setup_data {
-	int i2c_bus;
-	unsigned short i2c_address;
-};
 
 #endif

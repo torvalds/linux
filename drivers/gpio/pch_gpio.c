@@ -105,6 +105,7 @@ static int pch_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 		reg_val |= (1 << nr);
 	else
 		reg_val &= ~(1 << nr);
+	iowrite32(reg_val, &chip->reg->po);
 
 	mutex_unlock(&chip->lock);
 
@@ -282,8 +283,10 @@ static int pch_gpio_resume(struct pci_dev *pdev)
 #define pch_gpio_resume NULL
 #endif
 
+#define PCI_VENDOR_ID_ROHM             0x10DB
 static DEFINE_PCI_DEVICE_TABLE(pch_gpio_pcidev_id) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8803) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8014) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, pch_gpio_pcidev_id);

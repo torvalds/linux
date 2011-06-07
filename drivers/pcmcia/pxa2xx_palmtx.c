@@ -3,7 +3,7 @@
  *
  * Driver for Palm T|X PCMCIA
  *
- * Copyright (C) 2007-2008 Marek Vasut <marek.vasut@gmail.com>
+ * Copyright (C) 2007-2011 Marek Vasut <marek.vasut@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,67 +13,34 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 
 #include <asm/mach-types.h>
-
-#include <mach/gpio.h>
 #include <mach/palmtx.h>
-
 #include "soc_common.h"
+
+static struct gpio palmtx_pcmcia_gpios[] = {
+	{ GPIO_NR_PALMTX_PCMCIA_POWER1,	GPIOF_INIT_LOW,	"PCMCIA Power 1" },
+	{ GPIO_NR_PALMTX_PCMCIA_POWER2,	GPIOF_INIT_LOW,	"PCMCIA Power 2" },
+	{ GPIO_NR_PALMTX_PCMCIA_RESET,	GPIOF_INIT_HIGH,"PCMCIA Reset" },
+	{ GPIO_NR_PALMTX_PCMCIA_READY,	GPIOF_IN,	"PCMCIA Ready" },
+};
 
 static int palmtx_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	int ret;
 
-	ret = gpio_request(GPIO_NR_PALMTX_PCMCIA_POWER1, "PCMCIA PWR1");
-	if (ret)
-		goto err1;
-	ret = gpio_direction_output(GPIO_NR_PALMTX_PCMCIA_POWER1, 0);
-	if (ret)
-		goto err2;
-
-	ret = gpio_request(GPIO_NR_PALMTX_PCMCIA_POWER2, "PCMCIA PWR2");
-	if (ret)
-		goto err2;
-	ret = gpio_direction_output(GPIO_NR_PALMTX_PCMCIA_POWER2, 0);
-	if (ret)
-		goto err3;
-
-	ret = gpio_request(GPIO_NR_PALMTX_PCMCIA_RESET, "PCMCIA RST");
-	if (ret)
-		goto err3;
-	ret = gpio_direction_output(GPIO_NR_PALMTX_PCMCIA_RESET, 1);
-	if (ret)
-		goto err4;
-
-	ret = gpio_request(GPIO_NR_PALMTX_PCMCIA_READY, "PCMCIA RDY");
-	if (ret)
-		goto err4;
-	ret = gpio_direction_input(GPIO_NR_PALMTX_PCMCIA_READY);
-	if (ret)
-		goto err5;
+	ret = gpio_request_array(palmtx_pcmcia_gpios,
+				ARRAY_SIZE(palmtx_pcmcia_gpios));
 
 	skt->socket.pci_irq = gpio_to_irq(GPIO_NR_PALMTX_PCMCIA_READY);
-	return 0;
 
-err5:
-	gpio_free(GPIO_NR_PALMTX_PCMCIA_READY);
-err4:
-	gpio_free(GPIO_NR_PALMTX_PCMCIA_RESET);
-err3:
-	gpio_free(GPIO_NR_PALMTX_PCMCIA_POWER2);
-err2:
-	gpio_free(GPIO_NR_PALMTX_PCMCIA_POWER1);
-err1:
 	return ret;
 }
 
 static void palmtx_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 {
-	gpio_free(GPIO_NR_PALMTX_PCMCIA_READY);
-	gpio_free(GPIO_NR_PALMTX_PCMCIA_RESET);
-	gpio_free(GPIO_NR_PALMTX_PCMCIA_POWER2);
-	gpio_free(GPIO_NR_PALMTX_PCMCIA_POWER1);
+	gpio_free_array(palmtx_pcmcia_gpios, ARRAY_SIZE(palmtx_pcmcia_gpios));
 }
 
 static void palmtx_pcmcia_socket_state(struct soc_pcmcia_socket *skt,

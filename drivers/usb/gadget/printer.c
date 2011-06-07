@@ -126,7 +126,7 @@ static struct printer_dev usb_printer_gadget;
 #define PRINTER_VENDOR_NUM	0x0525		/* NetChip */
 #define PRINTER_PRODUCT_NUM	0xa4a8		/* Linux-USB Printer Gadget */
 
-/* Some systems will want different product identifers published in the
+/* Some systems will want different product identifiers published in the
  * device descriptor, either numbers or strings or both.  These string
  * parameters are in UTF-8 (superset of ASCII's 7 bit characters).
  */
@@ -1189,6 +1189,8 @@ printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			else if (gadget->a_alt_hnp_support)
 				DBG(dev, "HNP needs a different root port\n");
 			value = printer_set_config(dev, wValue);
+			if (!value)
+				value = set_interface(dev, PRINTER_INTERFACE);
 			break;
 		case USB_REQ_GET_CONFIGURATION:
 			if (ctrl->bRequestType != USB_DIR_IN)

@@ -3,7 +3,7 @@
 /*
  *	linux/arch/m68knommu/platform/528x/config.c
  *
- *	Sub-architcture dependant initialization code for the Freescale
+ *	Sub-architcture dependent initialization code for the Freescale
  *	5280, 5281 and 5282 CPUs.
  *
  *	Copyright (C) 1999-2003, Greg Ungerer (gerg@snapgear.com)

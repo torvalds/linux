@@ -351,7 +351,7 @@ struct pch_gbe_functions {
 };
 
 /**
- * struct pch_gbe_mac_info - MAC infomation
+ * struct pch_gbe_mac_info - MAC information
  * @addr[6]:		Store the MAC address
  * @fc:			Mode of flow control
  * @fc_autoneg:		Auto negotiation enable for flow control setting
@@ -375,7 +375,7 @@ struct pch_gbe_mac_info {
 };
 
 /**
- * struct pch_gbe_phy_info - PHY infomation
+ * struct pch_gbe_phy_info - PHY information
  * @addr:		PHY address
  * @id:			PHY's identifier
  * @revision:		PHY's revision
@@ -393,7 +393,7 @@ struct pch_gbe_phy_info {
 /*!
  * @ingroup Gigabit Ether driver Layer
  * @struct  pch_gbe_bus_info
- * @brief   Bus infomation
+ * @brief   Bus information
  */
 struct pch_gbe_bus_info {
 	u8 type;
@@ -404,7 +404,7 @@ struct pch_gbe_bus_info {
 /*!
  * @ingroup Gigabit Ether driver Layer
  * @struct  pch_gbe_hw
- * @brief   Hardware infomation
+ * @brief   Hardware information
  */
 struct pch_gbe_hw {
 	void *back;
@@ -462,7 +462,7 @@ struct pch_gbe_tx_desc {
 
 
 /**
- * struct pch_gbe_buffer - Buffer infomation
+ * struct pch_gbe_buffer - Buffer information
  * @skb:	pointer to a socket buffer
  * @dma:	DMA address
  * @time_stamp:	time stamp
@@ -477,7 +477,7 @@ struct pch_gbe_buffer {
 };
 
 /**
- * struct pch_gbe_tx_ring - tx ring infomation
+ * struct pch_gbe_tx_ring - tx ring information
  * @tx_lock:	spinlock structs
  * @desc:	pointer to the descriptor ring memory
  * @dma:	physical address of the descriptor ring
@@ -499,7 +499,7 @@ struct pch_gbe_tx_ring {
 };
 
 /**
- * struct pch_gbe_rx_ring - rx ring infomation
+ * struct pch_gbe_rx_ring - rx ring information
  * @desc:	pointer to the descriptor ring memory
  * @dma:	physical address of the descriptor ring
  * @size:	length of descriptor ring in bytes
@@ -597,8 +597,6 @@ struct pch_gbe_hw_stats {
  * @rx_ring:		Pointer of Rx descriptor ring structure
  * @rx_buffer_len:	Receive buffer length
  * @tx_queue_len:	Transmit queue length
- * @rx_csum:		Receive TCP/IP checksum enable/disable
- * @tx_csum:		Transmit TCP/IP checksum enable/disable
  * @have_msi:		PCI MSI mode flag
  */
 
@@ -623,8 +621,6 @@ struct pch_gbe_adapter {
 	struct pch_gbe_rx_ring *rx_ring;
 	unsigned long rx_buffer_len;
 	unsigned long tx_queue_len;
-	bool rx_csum;
-	bool tx_csum;
 	bool have_msi;
 };
 

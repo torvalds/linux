@@ -160,10 +160,7 @@ static struct msm_mmc_platform_data qsd8x50_sdc1_data = {
 
 static void __init qsd8x50_init_mmc(void)
 {
-	if (machine_is_qsd8x50_ffa() || machine_is_qsd8x50a_ffa())
-		vreg_mmc = vreg_get(NULL, "gp6");
-	else
-		vreg_mmc = vreg_get(NULL, "gp5");
+	vreg_mmc = vreg_get(NULL, "gp5");
 
 	if (IS_ERR(vreg_mmc)) {
 		pr_err("vreg get for vreg_mmc failed (%ld)\n",

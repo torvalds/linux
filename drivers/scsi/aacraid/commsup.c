@@ -421,7 +421,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	if (!(hw_fib->header.XferState & cpu_to_le32(HostOwned)))
 		return -EBUSY;
 	/*
-	 *	There are 5 cases with the wait and reponse requested flags.
+	 *	There are 5 cases with the wait and response requested flags.
 	 *	The only invalid cases are if the caller requests to wait and
 	 *	does not request a response and if the caller does not want a
 	 *	response and the Fib is not allocated from pool. If a response

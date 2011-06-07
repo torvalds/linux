@@ -87,12 +87,12 @@ static const u8 init_NTSC_TESTPATTERN[] = {
 
 static const u8 init_NTSC[] = {
 	0x00, 0x1E,	/* Power up all DACs and PLL */
-	0xC3, 0x26,	/* Program RGB->YCrCb Color Space convertion matrix */
-	0xC5, 0x12,	/* Program RGB->YCrCb Color Space convertion matrix */
-	0xC2, 0x4A,	/* Program RGB->YCrCb Color Space convertion matrix */
-	0xC6, 0x5E,	/* Program RGB->YCrCb Color Space convertion matrix */
-	0xBD, 0x19,	/* Program RGB->YCrCb Color Space convertion matrix */
-	0xBF, 0x42,	/* Program RGB->YCrCb Color Space convertion matrix */
+	0xC3, 0x26,	/* Program RGB->YCrCb Color Space conversion matrix */
+	0xC5, 0x12,	/* Program RGB->YCrCb Color Space conversion matrix */
+	0xC2, 0x4A,	/* Program RGB->YCrCb Color Space conversion matrix */
+	0xC6, 0x5E,	/* Program RGB->YCrCb Color Space conversion matrix */
+	0xBD, 0x19,	/* Program RGB->YCrCb Color Space conversion matrix */
+	0xBF, 0x42,	/* Program RGB->YCrCb Color Space conversion matrix */
 	0x8C, 0x1F,	/* NTSC Subcarrier Frequency */
 	0x8D, 0x7C,	/* NTSC Subcarrier Frequency */
 	0x8E, 0xF0,	/* NTSC Subcarrier Frequency */
@@ -109,12 +109,12 @@ static const u8 init_NTSC[] = {
 
 static const u8 init_PAL[] = {
 	0x00, 0x1E,	/* Power up all DACs and PLL */
-	0xC3, 0x26,	/* Program RGB->YCrCb Color Space convertion matrix */
-	0xC5, 0x12,	/* Program RGB->YCrCb Color Space convertion matrix */
-	0xC2, 0x4A,	/* Program RGB->YCrCb Color Space convertion matrix */
-	0xC6, 0x5E,	/* Program RGB->YCrCb Color Space convertion matrix */
-	0xBD, 0x19,	/* Program RGB->YCrCb Color Space convertion matrix */
-	0xBF, 0x42,	/* Program RGB->YCrCb Color Space convertion matrix */
+	0xC3, 0x26,	/* Program RGB->YCrCb Color Space conversion matrix */
+	0xC5, 0x12,	/* Program RGB->YCrCb Color Space conversion matrix */
+	0xC2, 0x4A,	/* Program RGB->YCrCb Color Space conversion matrix */
+	0xC6, 0x5E,	/* Program RGB->YCrCb Color Space conversion matrix */
+	0xBD, 0x19,	/* Program RGB->YCrCb Color Space conversion matrix */
+	0xBF, 0x42,	/* Program RGB->YCrCb Color Space conversion matrix */
 	0x8C, 0xCB,	/* PAL Subcarrier Frequency */
 	0x8D, 0x8A,	/* PAL Subcarrier Frequency */
 	0x8E, 0x09,	/* PAL Subcarrier Frequency */

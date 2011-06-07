@@ -1221,7 +1221,6 @@ struct ksz_port_info {
 #define LINK_INT_WORKING		(1 << 0)
 #define SMALL_PACKET_TX_BUG		(1 << 1)
 #define HALF_DUPLEX_SIGNAL_BUG		(1 << 2)
-#define IPV6_CSUM_GEN_HACK		(1 << 3)
 #define RX_HUGE_FRAME			(1 << 4)
 #define STP_SUPPORT			(1 << 8)
 
@@ -3748,7 +3747,6 @@ static int hw_init(struct ksz_hw *hw)
 		if (1 == rc)
 			hw->features |= HALF_DUPLEX_SIGNAL_BUG;
 	}
-	hw->features |= IPV6_CSUM_GEN_HACK;
 	return rc;
 }
 
@@ -4887,8 +4885,7 @@ static netdev_tx_t netdev_tx(struct sk_buff *skb, struct net_device *dev)
 	left = hw_alloc_pkt(hw, skb->len, num);
 	if (left) {
 		if (left < num ||
-				((hw->features & IPV6_CSUM_GEN_HACK) &&
-				(CHECKSUM_PARTIAL == skb->ip_summed) &&
+				((CHECKSUM_PARTIAL == skb->ip_summed) &&
 				(ETH_P_IPV6 == htons(skb->protocol)))) {
 			struct sk_buff *org_skb = skb;
 
@@ -6001,6 +5998,7 @@ static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
 	struct ksz_port *port = &priv->port;
+	u32 speed = ethtool_cmd_speed(cmd);
 	int rc;
 
 	/*
@@ -6009,11 +6007,11 @@ static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	 */
 	if (cmd->autoneg && priv->advertising == cmd->advertising) {
 		cmd->advertising |= ADVERTISED_ALL;
-		if (10 == cmd->speed)
+		if (10 == speed)
 			cmd->advertising &=
 				~(ADVERTISED_100baseT_Full |
 				ADVERTISED_100baseT_Half);
-		else if (100 == cmd->speed)
+		else if (100 == speed)
 			cmd->advertising &=
 				~(ADVERTISED_10baseT_Full |
 				ADVERTISED_10baseT_Half);
@@ -6035,8 +6033,8 @@ static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		port->force_link = 0;
 	} else {
 		port->duplex = cmd->duplex + 1;
-		if (cmd->speed != 1000)
-			port->speed = cmd->speed;
+		if (1000 != speed)
+			port->speed = speed;
 		if (cmd->autoneg)
 			port->force_link = 0;
 		else
@@ -6583,57 +6581,33 @@ static void netdev_get_ethtool_stats(struct net_device *dev,
 }
 
 /**
- * netdev_get_rx_csum - get receive checksum support
+ * netdev_set_features - set receive checksum support
  * @dev:	Network device.
- *
- * This function gets receive checksum support setting.
- *
- * Return true if receive checksum is enabled; false otherwise.
- */
-static u32 netdev_get_rx_csum(struct net_device *dev)
-{
-	struct dev_priv *priv = netdev_priv(dev);
-	struct dev_info *hw_priv = priv->adapter;
-	struct ksz_hw *hw = &hw_priv->hw;
-
-	return hw->rx_cfg &
-		(DMA_RX_CSUM_UDP |
-		DMA_RX_CSUM_TCP |
-		DMA_RX_CSUM_IP);
-}
-
-/**
- * netdev_set_rx_csum - set receive checksum support
- * @dev:	Network device.
- * @data:	Zero to disable receive checksum support.
+ * @features:	New device features (offloads).
  *
  * This function sets receive checksum support setting.
  *
  * Return 0 if successful; otherwise an error code.
  */
-static int netdev_set_rx_csum(struct net_device *dev, u32 data)
+static int netdev_set_features(struct net_device *dev, u32 features)
 {
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
 	struct ksz_hw *hw = &hw_priv->hw;
-	u32 new_setting = hw->rx_cfg;
 
-	if (data)
-		new_setting |=
-			(DMA_RX_CSUM_UDP | DMA_RX_CSUM_TCP |
-			DMA_RX_CSUM_IP);
-	else
-		new_setting &=
-			~(DMA_RX_CSUM_UDP | DMA_RX_CSUM_TCP |
-			DMA_RX_CSUM_IP);
-	new_setting &= ~DMA_RX_CSUM_UDP;
 	mutex_lock(&hw_priv->lock);
-	if (new_setting != hw->rx_cfg) {
-		hw->rx_cfg = new_setting;
-		if (hw->enabled)
-			writel(hw->rx_cfg, hw->io + KS_DMA_RX_CTRL);
-	}
+
+	/* see note in hw_setup() */
+	if (features & NETIF_F_RXCSUM)
+		hw->rx_cfg |= DMA_RX_CSUM_TCP | DMA_RX_CSUM_IP;
+	else
+		hw->rx_cfg &= ~(DMA_RX_CSUM_TCP | DMA_RX_CSUM_IP);
+
+	if (hw->enabled)
+		writel(hw->rx_cfg, hw->io + KS_DMA_RX_CTRL);
+
 	mutex_unlock(&hw_priv->lock);
+
 	return 0;
 }
 
@@ -6658,12 +6632,6 @@ static struct ethtool_ops netdev_ethtool_ops = {
 	.get_strings		= netdev_get_strings,
 	.get_sset_count		= netdev_get_sset_count,
 	.get_ethtool_stats	= netdev_get_ethtool_stats,
-	.get_rx_csum		= netdev_get_rx_csum,
-	.set_rx_csum		= netdev_set_rx_csum,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.set_tx_csum		= ethtool_op_set_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
-	.set_sg			= ethtool_op_set_sg,
 };
 
 /*
@@ -6828,14 +6796,15 @@ static int __init netdev_init(struct net_device *dev)
 	/* 500 ms timeout */
 	dev->watchdog_timeo = HZ / 2;
 
-	dev->features |= NETIF_F_IP_CSUM;
+	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_RXCSUM;
 
 	/*
 	 * Hardware does not really support IPv6 checksum generation, but
-	 * driver actually runs faster with this on.  Refer IPV6_CSUM_GEN_HACK.
+	 * driver actually runs faster with this on.
 	 */
-	dev->features |= NETIF_F_IPV6_CSUM;
-	dev->features |= NETIF_F_SG;
+	dev->hw_features |= NETIF_F_IPV6_CSUM;
+
+	dev->features |= dev->hw_features;
 
 	sema_init(&priv->proc_sem, 1);
 
@@ -6860,6 +6829,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_start_xmit		= netdev_tx,
 	.ndo_tx_timeout		= netdev_tx_timeout,
 	.ndo_change_mtu		= netdev_change_mtu,
+	.ndo_set_features	= netdev_set_features,
 	.ndo_set_mac_address	= netdev_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= netdev_ioctl,

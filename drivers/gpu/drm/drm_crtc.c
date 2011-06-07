@@ -1699,7 +1699,7 @@ int drm_mode_addfb(struct drm_device *dev,
 
 	mutex_lock(&dev->mode_config.mutex);
 
-	/* TODO check buffer is sufficently large */
+	/* TODO check buffer is sufficiently large */
 	/* TODO setup destructor callback */
 
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
@@ -1750,7 +1750,7 @@ int drm_mode_rmfb(struct drm_device *dev,
 
 	mutex_lock(&dev->mode_config.mutex);
 	obj = drm_mode_object_find(dev, *id, DRM_MODE_OBJECT_FB);
-	/* TODO check that we realy get a framebuffer back. */
+	/* TODO check that we really get a framebuffer back. */
 	if (!obj) {
 		DRM_ERROR("mode invalid framebuffer id\n");
 		ret = -EINVAL;

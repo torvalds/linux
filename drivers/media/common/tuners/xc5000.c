@@ -628,6 +628,15 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 	dprintk(1, "*** Quality (0:<8dB, 7:>56dB) = %d\n", quality);
 }
 
+/*
+ * As defined on EN 300 429, the DVB-C roll-off factor is 0.15.
+ * So, the amount of the needed bandwith is given by:
+ * 	Bw = Symbol_rate * (1 + 0.15)
+ * As such, the maximum symbol rate supported by 6 MHz is given by:
+ *	max_symbol_rate = 6 MHz / 1.15 = 5217391 Bauds
+ */
+#define MAX_SYMBOL_RATE_6MHz	5217391
+
 static int xc5000_set_params(struct dvb_frontend *fe,
 	struct dvb_frontend_parameters *params)
 {
@@ -688,21 +697,32 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 		}
 		priv->rf_mode = XC_RF_MODE_AIR;
 	} else if (fe->ops.info.type == FE_QAM) {
-		dprintk(1, "%s() QAM\n", __func__);
 		switch (params->u.qam.modulation) {
+		case QAM_256:
+		case QAM_AUTO:
 		case QAM_16:
 		case QAM_32:
 		case QAM_64:
 		case QAM_128:
-		case QAM_256:
-		case QAM_AUTO:
 			dprintk(1, "%s() QAM modulation\n", __func__);
-			priv->bandwidth = BANDWIDTH_8_MHZ;
-			priv->video_standard = DTV7_8;
-			priv->freq_hz = params->frequency - 2750000;
 			priv->rf_mode = XC_RF_MODE_CABLE;
+			/*
+			 * Using a 8MHz bandwidth sometimes fail
+			 * with 6MHz-spaced channels, due to inter-carrier
+			 * interference. So, use DTV6 firmware
+			 */
+			if (params->u.qam.symbol_rate <= MAX_SYMBOL_RATE_6MHz) {
+				priv->bandwidth = BANDWIDTH_6_MHZ;
+				priv->video_standard = DTV6;
+				priv->freq_hz = params->frequency - 1750000;
+			} else {
+				priv->bandwidth = BANDWIDTH_8_MHZ;
+				priv->video_standard = DTV7_8;
+				priv->freq_hz = params->frequency - 2750000;
+			}
 			break;
 		default:
+			dprintk(1, "%s() Unsupported QAM type\n", __func__);
 			return -EINVAL;
 		}
 	} else {

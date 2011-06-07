@@ -1289,7 +1289,7 @@ start:
              memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
              netif_rx(pDevice->skb);
              pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-         };
+         }
    #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
   // if(pDevice->bWPASuppWextEnabled == true)
       {
@@ -1489,7 +1489,7 @@ BSSvUpdateNodeTxCounter(
                     }
                 }
             }
-        };
+        }
 
         if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) ||
             (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)) {
@@ -1543,9 +1543,9 @@ BSSvUpdateNodeTxCounter(
                         }
                     }
                 }
-            };
+            }
         }
-    };
+    }
 
     return;
 

@@ -14,7 +14,7 @@ extern void mac_init_IRQ(void);
 extern int mac_irq_pending(unsigned int);
 
 /*
- *	Floppy driver magic hook - probably shouldnt be here
+ *	Floppy driver magic hook - probably shouldn't be here
  */
 
 extern void via1_set_head(int);

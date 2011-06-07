@@ -37,7 +37,7 @@ Generic scaling / cropping scheme
 -1'-
 
 In the above chart minuses and slashes represent "real" data amounts, points and
-accents represent "useful" data, basically, CEU scaled amd cropped output,
+accents represent "useful" data, basically, CEU scaled and cropped output,
 mapped back onto the client's source plane.
 
 Such a configuration can be produced by user requests:
@@ -65,7 +65,7 @@ Do not touch input rectangle - it is already optimal.
 
 1. Calculate current sensor scales:
 
-	scale_s = ((3') - (3)) / ((2') - (2))
+	scale_s = ((2') - (2)) / ((3') - (3))
 
 2. Calculate "effective" input crop (sensor subwindow) - CEU crop scaled back at
 current sensor scales onto input window - this is user S_CROP:
@@ -80,7 +80,7 @@ window:
 4. Calculate sensor output window by applying combined scales to real input
 window:
 
-	width_s_out = ((2') - (2)) / scale_comb
+	width_s_out = ((7') - (7)) = ((2') - (2)) / scale_comb
 
 5. Apply iterative sensor S_FMT for sensor output window.
 

@@ -263,6 +263,7 @@ struct bfa_ioc_hwif_s {
 					bfa_boolean_t msix);
 	void		(*ioc_notify_fail)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_ownership_reset)	(struct bfa_ioc_s *ioc);
+	bfa_boolean_t   (*ioc_sync_start)       (struct bfa_ioc_s *ioc);
 	void		(*ioc_sync_join)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_sync_leave)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_sync_ack)		(struct bfa_ioc_s *ioc);

@@ -264,7 +264,7 @@ snd_pcm_indirect2_playback_transfer(struct snd_pcm_substream *substream,
 		if (diff < -(snd_pcm_sframes_t) (runtime->boundary / 2))
 			diff += runtime->boundary;
 		/* number of bytes "added" by ALSA increases the number of
-		 * bytes which are ready to "be transfered to HW"/"played"
+		 * bytes which are ready to "be transferred to HW"/"played"
 		 * Then, set rec->appl_ptr to not count bytes twice next time.
 		 */
 		rec->sw_ready += (int)frames_to_bytes(runtime, diff);
@@ -330,7 +330,7 @@ snd_pcm_indirect2_playback_transfer(struct snd_pcm_substream *substream,
 		/* copy bytes from intermediate buffer position sw_data to the
 		 * HW and return number of bytes actually written
 		 * Furthermore, set hw_ready to 0, if the fifo isn't empty
-		 * now => more could be transfered to fifo
+		 * now => more could be transferred to fifo
 		 */
 		bytes = copy(substream, rec, bytes);
 		rec->bytes2hw += bytes;

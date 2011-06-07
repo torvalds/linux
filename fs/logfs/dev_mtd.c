@@ -60,7 +60,7 @@ static int mtd_write(struct super_block *sb, loff_t ofs, size_t len, void *buf)
  * asynchronous properties.  So just to prevent the first implementor of such
  * a thing from breaking logfs in 2350, we do the usual pointless dance to
  * declare a completion variable and wait for completion before returning
- * from mtd_erase().  What an excercise in futility!
+ * from mtd_erase().  What an exercise in futility!
  */
 static void logfs_erase_callback(struct erase_info *ei)
 {

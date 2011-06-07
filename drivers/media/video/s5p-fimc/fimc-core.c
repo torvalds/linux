@@ -361,10 +361,20 @@ static void fimc_capture_irq_handler(struct fimc_dev *fimc)
 {
 	struct fimc_vid_cap *cap = &fimc->vid_cap;
 	struct fimc_vid_buffer *v_buf;
+	struct timeval *tv;
+	struct timespec ts;
 
 	if (!list_empty(&cap->active_buf_q) &&
 	    test_bit(ST_CAPT_RUN, &fimc->state)) {
+		ktime_get_real_ts(&ts);
+
 		v_buf = active_queue_pop(cap);
+
+		tv = &v_buf->vb.v4l2_buf.timestamp;
+		tv->tv_sec = ts.tv_sec;
+		tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+		v_buf->vb.v4l2_buf.sequence = cap->frame_count++;
+
 		vb2_buffer_done(&v_buf->vb, VB2_BUF_STATE_DONE);
 	}
 
@@ -758,7 +768,7 @@ static void fimc_unlock(struct vb2_queue *vq)
 	mutex_unlock(&ctx->fimc_dev->lock);
 }
 
-struct vb2_ops fimc_qops = {
+static struct vb2_ops fimc_qops = {
 	.queue_setup	 = fimc_queue_setup,
 	.buf_prepare	 = fimc_buf_prepare,
 	.buf_queue	 = fimc_buf_queue,
@@ -927,23 +937,23 @@ int fimc_vidioc_try_fmt_mplane(struct file *file, void *priv,
 	pix->num_planes = fmt->memplanes;
 	pix->colorspace	= V4L2_COLORSPACE_JPEG;
 
+
 	for (i = 0; i < pix->num_planes; ++i) {
-		int bpl = pix->plane_fmt[i].bytesperline;
+		u32 bpl = pix->plane_fmt[i].bytesperline;
+		u32 *sizeimage = &pix->plane_fmt[i].sizeimage;
 
-		dbg("[%d] bpl: %d, depth: %d, w: %d, h: %d",
-		    i, bpl, fmt->depth[i], pix->width, pix->height);
+		if (fmt->colplanes > 1 && (bpl == 0 || bpl < pix->width))
+			bpl = pix->width; /* Planar */
 
-		if (!bpl || (bpl * 8 / fmt->depth[i]) > pix->width)
-			bpl = (pix->width * fmt->depth[0]) >> 3;
+		if (fmt->colplanes == 1 && /* Packed */
+		    (bpl == 0 || ((bpl * 8) / fmt->depth[i]) < pix->width))
+			bpl = (pix->width * fmt->depth[0]) / 8;
 
-		if (!pix->plane_fmt[i].sizeimage)
-			pix->plane_fmt[i].sizeimage = pix->height * bpl;
+		if (i == 0) /* Same bytesperline for each plane. */
+			mod_x = bpl;
 
-		pix->plane_fmt[i].bytesperline = bpl;
-
-		dbg("[%d]: bpl: %d, sizeimage: %d",
-		    i, pix->plane_fmt[i].bytesperline,
-		    pix->plane_fmt[i].sizeimage);
+		pix->plane_fmt[i].bytesperline = mod_x;
+		*sizeimage = (pix->width * pix->height * fmt->depth[i]) / 8;
 	}
 
 	return 0;
@@ -965,7 +975,7 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *priv,
 
 	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, f->type);
 
-	if (vb2_is_streaming(vq)) {
+	if (vb2_is_busy(vq)) {
 		v4l2_err(&fimc->m2m.v4l2_dev, "queue (%d) busy\n", f->type);
 		return -EBUSY;
 	}
@@ -985,8 +995,10 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *priv,
 	if (!frame->fmt)
 		return -EINVAL;
 
-	for (i = 0; i < frame->fmt->colplanes; i++)
-		frame->payload[i] = pix->plane_fmt[i].bytesperline * pix->height;
+	for (i = 0; i < frame->fmt->colplanes; i++) {
+		frame->payload[i] =
+			(pix->width * pix->height * frame->fmt->depth[i]) / 8;
+	}
 
 	frame->f_width	= pix->plane_fmt[0].bytesperline * 8 /
 		frame->fmt->depth[0];
@@ -1750,7 +1762,7 @@ static int __devexit fimc_remove(struct platform_device *pdev)
 }
 
 /* Image pixel limits, similar across several FIMC HW revisions. */
-static struct fimc_pix_limit s5p_pix_limit[3] = {
+static struct fimc_pix_limit s5p_pix_limit[4] = {
 	[0] = {
 		.scaler_en_w	= 3264,
 		.scaler_dis_w	= 8192,
@@ -1773,6 +1785,14 @@ static struct fimc_pix_limit s5p_pix_limit[3] = {
 		.in_rot_en_h	= 1280,
 		.in_rot_dis_w	= 8192,
 		.out_rot_en_w	= 1280,
+		.out_rot_dis_w	= 1920,
+	},
+	[3] = {
+		.scaler_en_w	= 1920,
+		.scaler_dis_w	= 8192,
+		.in_rot_en_h	= 1366,
+		.in_rot_dis_w	= 8192,
+		.out_rot_en_w	= 1366,
 		.out_rot_dis_w	= 1920,
 	},
 };
@@ -1827,7 +1847,7 @@ static struct samsung_fimc_variant fimc2_variant_s5pv210 = {
 	.pix_limit	 = &s5p_pix_limit[2],
 };
 
-static struct samsung_fimc_variant fimc0_variant_s5pv310 = {
+static struct samsung_fimc_variant fimc0_variant_exynos4 = {
 	.pix_hoff	 = 1,
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
@@ -1840,7 +1860,7 @@ static struct samsung_fimc_variant fimc0_variant_s5pv310 = {
 	.pix_limit	 = &s5p_pix_limit[1],
 };
 
-static struct samsung_fimc_variant fimc2_variant_s5pv310 = {
+static struct samsung_fimc_variant fimc2_variant_exynos4 = {
 	.pix_hoff	 = 1,
 	.has_cistatus2	 = 1,
 	.has_mainscaler_ext = 1,
@@ -1848,7 +1868,7 @@ static struct samsung_fimc_variant fimc2_variant_s5pv310 = {
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 1,
 	.out_buf_count	 = 32,
-	.pix_limit	 = &s5p_pix_limit[2],
+	.pix_limit	 = &s5p_pix_limit[3],
 };
 
 /* S5PC100 */
@@ -1874,12 +1894,12 @@ static struct samsung_fimc_driverdata fimc_drvdata_s5pv210 = {
 };
 
 /* S5PV310, S5PC210 */
-static struct samsung_fimc_driverdata fimc_drvdata_s5pv310 = {
+static struct samsung_fimc_driverdata fimc_drvdata_exynos4 = {
 	.variant = {
-		[0] = &fimc0_variant_s5pv310,
-		[1] = &fimc0_variant_s5pv310,
-		[2] = &fimc0_variant_s5pv310,
-		[3] = &fimc2_variant_s5pv310,
+		[0] = &fimc0_variant_exynos4,
+		[1] = &fimc0_variant_exynos4,
+		[2] = &fimc0_variant_exynos4,
+		[3] = &fimc2_variant_exynos4,
 	},
 	.num_entities = 4,
 	.lclk_frequency = 166000000UL,
@@ -1893,8 +1913,8 @@ static struct platform_device_id fimc_driver_ids[] = {
 		.name		= "s5pv210-fimc",
 		.driver_data	= (unsigned long)&fimc_drvdata_s5pv210,
 	}, {
-		.name		= "s5pv310-fimc",
-		.driver_data	= (unsigned long)&fimc_drvdata_s5pv310,
+		.name		= "exynos4-fimc",
+		.driver_data	= (unsigned long)&fimc_drvdata_exynos4,
 	},
 	{},
 };

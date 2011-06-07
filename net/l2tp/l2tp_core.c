@@ -954,7 +954,7 @@ static int l2tp_build_l2tpv3_header(struct l2tp_session *session, void *buf)
 }
 
 static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
-			  size_t data_len)
+			  struct flowi *fl, size_t data_len)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	unsigned int len = skb->len;
@@ -987,7 +987,7 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb,
 
 	/* Queue the packet to IP for output */
 	skb->local_df = 1;
-	error = ip_queue_xmit(skb);
+	error = ip_queue_xmit(skb, fl);
 
 	/* Update stats */
 	if (error >= 0) {
@@ -1028,6 +1028,7 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 	int data_len = skb->len;
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	struct sock *sk = tunnel->sock;
+	struct flowi *fl;
 	struct udphdr *uh;
 	struct inet_sock *inet;
 	__wsum csum;
@@ -1060,14 +1061,21 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 			      IPSKB_REROUTED);
 	nf_reset(skb);
 
+	bh_lock_sock(sk);
+	if (sock_owned_by_user(sk)) {
+		dev_kfree_skb(skb);
+		goto out_unlock;
+	}
+
 	/* Get routing info from the tunnel socket */
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst_clone(__sk_dst_get(sk)));
 
+	inet = inet_sk(sk);
+	fl = &inet->cork.fl;
 	switch (tunnel->encap) {
 	case L2TP_ENCAPTYPE_UDP:
 		/* Setup UDP header */
-		inet = inet_sk(sk);
 		__skb_push(skb, sizeof(*uh));
 		skb_reset_transport_header(skb);
 		uh = udp_hdr(skb);
@@ -1105,7 +1113,9 @@ int l2tp_xmit_skb(struct l2tp_session *session, struct sk_buff *skb, int hdr_len
 
 	l2tp_skb_set_owner_w(skb, sk);
 
-	l2tp_xmit_core(session, skb, data_len);
+	l2tp_xmit_core(session, skb, fl, data_len);
+out_unlock:
+	bh_unlock_sock(sk);
 
 abort:
 	return 0;
@@ -1425,16 +1435,15 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 
 	/* Add tunnel to our list */
 	INIT_LIST_HEAD(&tunnel->list);
-	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
-	list_add_rcu(&tunnel->list, &pn->l2tp_tunnel_list);
-	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
-	synchronize_rcu();
 	atomic_inc(&l2tp_tunnel_count);
 
 	/* Bump the reference count. The tunnel context is deleted
-	 * only when this drops to zero.
+	 * only when this drops to zero. Must be done before list insertion
 	 */
 	l2tp_tunnel_inc_refcount(tunnel);
+	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
+	list_add_rcu(&tunnel->list, &pn->l2tp_tunnel_list);
+	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
 
 	err = 0;
 err:
@@ -1626,7 +1635,6 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 			hlist_add_head_rcu(&session->global_hlist,
 					   l2tp_session_id_hash_2(pn, session_id));
 			spin_unlock_bh(&pn->l2tp_session_hlist_lock);
-			synchronize_rcu();
 		}
 
 		/* Ignore management session in session count value */

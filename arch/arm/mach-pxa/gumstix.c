@@ -26,6 +26,7 @@
 #include <linux/gpio.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/usb/gpio_vbus.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -106,14 +107,22 @@ static void __init gumstix_mmc_init(void)
 #endif
 
 #ifdef CONFIG_USB_GADGET_PXA25X
-static struct pxa2xx_udc_mach_info gumstix_udc_info __initdata = {
+static struct gpio_vbus_mach_info gumstix_udc_info = {
 	.gpio_vbus		= GPIO_GUMSTIX_USB_GPIOn,
 	.gpio_pullup		= GPIO_GUMSTIX_USB_GPIOx,
 };
 
+static struct platform_device gumstix_gpio_vbus = {
+	.name	= "gpio-vbus",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &gumstix_udc_info,
+	},
+};
+
 static void __init gumstix_udc_init(void)
 {
-	pxa_set_udc_info(&gumstix_udc_info);
+	platform_device_register(&gumstix_gpio_vbus);
 }
 #else
 static void gumstix_udc_init(void)

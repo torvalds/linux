@@ -384,7 +384,7 @@ static void debug_isoc_show_one(struct seq_file *s,
 	seq_printf(s, "%s %d:\n"
 		"cc=0X%02X\n"
 		"scheduled frame %d (%d)\n"
-		"submittted frame %d (%d)\n"
+		"submitted frame %d (%d)\n"
 		"completed frame %d (%d)\n"
 		"requested length=%d\n"
 		"completed length=%d\n\n",

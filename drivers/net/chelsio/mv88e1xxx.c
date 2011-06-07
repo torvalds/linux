@@ -41,7 +41,7 @@ static void mdio_clear_bit(struct cphy *cphy, int reg, u32 bitval)
  *
  * PARAMS: cphy     - Pointer to PHY instance data.
  *
- * RETURN:  0 - Successfull reset.
+ * RETURN:  0 - Successful reset.
  *         -1 - Timeout.
  */
 static int mv88e1xxx_reset(struct cphy *cphy, int wait)

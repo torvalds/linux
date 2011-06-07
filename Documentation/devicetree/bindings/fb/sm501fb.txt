@@ -18,9 +18,9 @@ Optional properties:
 - edid : verbatim EDID data block describing attached display.
   Data from the detailed timing descriptor will be used to
   program the display controller.
-- little-endian: availiable on big endian systems, to
+- little-endian: available on big endian systems, to
   set different foreign endian.
-- big-endian: availiable on little endian systems, to
+- big-endian: available on little endian systems, to
   set different foreign endian.
 
 Example for MPC5200:

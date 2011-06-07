@@ -483,9 +483,9 @@ static int ufs_parse_options (char * options, unsigned * mount_options)
 }
 
 /*
- * Diffrent types of UFS hold fs_cstotal in different
- * places, and use diffrent data structure for it.
- * To make things simplier we just copy fs_cstotal to ufs_sb_private_info
+ * Different types of UFS hold fs_cstotal in different
+ * places, and use different data structure for it.
+ * To make things simpler we just copy fs_cstotal to ufs_sb_private_info
  */
 static void ufs_setup_cstotal(struct super_block *sb)
 {

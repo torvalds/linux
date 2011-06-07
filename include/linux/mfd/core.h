@@ -33,8 +33,9 @@ struct mfd_cell {
 	int			(*suspend)(struct platform_device *dev);
 	int			(*resume)(struct platform_device *dev);
 
-	/* mfd_data can be used to pass data to client drivers */
-	void			*mfd_data;
+	/* platform data passed to the sub devices drivers */
+	void			*platform_data;
+	size_t			pdata_size;
 
 	/*
 	 * These resources can be specified relative to the parent device.
@@ -86,16 +87,7 @@ extern int mfd_clone_cell(const char *cell, const char **clones,
  */
 static inline const struct mfd_cell *mfd_get_cell(struct platform_device *pdev)
 {
-	return pdev->dev.platform_data;
-}
-
-/*
- * Given a platform device that's been created by mfd_add_devices(), fetch
- * the .mfd_data entry from the mfd_cell that created it.
- */
-static inline void *mfd_get_data(struct platform_device *pdev)
-{
-	return mfd_get_cell(pdev)->mfd_data;
+	return pdev->mfd_cell;
 }
 
 extern int mfd_add_devices(struct device *parent, int id,

@@ -130,7 +130,6 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 			      item_size - (ptr + sub_item_len - item_start));
 	ret = btrfs_truncate_item(trans, root, path,
 				  item_size - sub_item_len, 1);
-	BUG_ON(ret);
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -167,7 +166,6 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 
 		old_size = btrfs_item_size_nr(path->nodes[0], path->slots[0]);
 		ret = btrfs_extend_item(trans, root, path, ins_len);
-		BUG_ON(ret);
 		ref = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				     struct btrfs_inode_ref);
 		ref = (struct btrfs_inode_ref *)((unsigned long)ref + old_size);

@@ -247,7 +247,7 @@ void core_scsi3_ua_for_check_condition(
 		}
 		/*
 		 * Otherwise for the default 00b, release the UNIT ATTENTION
-		 * condition.  Return the ASC/ASCQ of the higest priority UA
+		 * condition.  Return the ASC/ASCQ of the highest priority UA
 		 * (head of the list) in the outgoing CHECK_CONDITION + sense.
 		 */
 		if (head) {
@@ -304,7 +304,7 @@ int core_scsi3_ua_clear_for_request_sense(
 	 * matching struct se_lun.
 	 *
 	 * Once the returning ASC/ASCQ values are set, we go ahead and
-	 * release all of the Unit Attention conditions for the assoicated
+	 * release all of the Unit Attention conditions for the associated
 	 * struct se_lun.
 	 */
 	spin_lock(&deve->ua_lock);

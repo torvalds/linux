@@ -444,7 +444,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 		printk(KERN_INFO " .Reserved = 0x%x\n", hdr->reserved);
 		printk(KERN_INFO " .Version = 0x%x\n", hdr->version);
 
-		/* Retreive bootloader if reqd */
+		/* Retrieve bootloader if reqd */
 		if ((hdr->firmwaresize == 0) && (hdr->bslsize == 0))
 			/* Second bootloader in the firmware file */
 			filesize = hdr->reserved * 16;

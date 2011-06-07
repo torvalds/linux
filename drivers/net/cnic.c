@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
+#include <linux/prefetch.h>
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define BCM_VLAN 1
 #endif
@@ -2966,31 +2967,36 @@ static int cnic_service_bnx2x(void *data, void *status_blk)
 	return 0;
 }
 
+static void cnic_ulp_stop_one(struct cnic_local *cp, int if_type)
+{
+	struct cnic_ulp_ops *ulp_ops;
+
+	if (if_type == CNIC_ULP_ISCSI)
+		cnic_send_nlmsg(cp, ISCSI_KEVENT_IF_DOWN, NULL);
+
+	mutex_lock(&cnic_lock);
+	ulp_ops = rcu_dereference_protected(cp->ulp_ops[if_type],
+					    lockdep_is_held(&cnic_lock));
+	if (!ulp_ops) {
+		mutex_unlock(&cnic_lock);
+		return;
+	}
+	set_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[if_type]);
+	mutex_unlock(&cnic_lock);
+
+	if (test_and_clear_bit(ULP_F_START, &cp->ulp_flags[if_type]))
+		ulp_ops->cnic_stop(cp->ulp_handle[if_type]);
+
+	clear_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[if_type]);
+}
+
 static void cnic_ulp_stop(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
 	int if_type;
 
-	cnic_send_nlmsg(cp, ISCSI_KEVENT_IF_DOWN, NULL);
-
-	for (if_type = 0; if_type < MAX_CNIC_ULP_TYPE; if_type++) {
-		struct cnic_ulp_ops *ulp_ops;
-
-		mutex_lock(&cnic_lock);
-		ulp_ops = rcu_dereference_protected(cp->ulp_ops[if_type],
-						    lockdep_is_held(&cnic_lock));
-		if (!ulp_ops) {
-			mutex_unlock(&cnic_lock);
-			continue;
-		}
-		set_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[if_type]);
-		mutex_unlock(&cnic_lock);
-
-		if (test_and_clear_bit(ULP_F_START, &cp->ulp_flags[if_type]))
-			ulp_ops->cnic_stop(cp->ulp_handle[if_type]);
-
-		clear_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[if_type]);
-	}
+	for (if_type = 0; if_type < MAX_CNIC_ULP_TYPE; if_type++)
+		cnic_ulp_stop_one(cp, if_type);
 }
 
 static void cnic_ulp_start(struct cnic_dev *dev)
@@ -3039,6 +3045,12 @@ static int cnic_ctl(void *data, struct cnic_ctl_info *info)
 
 		cnic_put(dev);
 		break;
+	case CNIC_CTL_STOP_ISCSI_CMD: {
+		struct cnic_local *cp = dev->cnic_priv;
+		set_bit(CNIC_LCL_FL_STOP_ISCSI, &cp->cnic_local_flags);
+		queue_delayed_work(cnic_wq, &cp->delete_task, 0);
+		break;
+	}
 	case CNIC_CTL_COMPLETION_CMD: {
 		u32 cid = BNX2X_SW_CID(info->data.comp.cid);
 		u32 l5_cid;
@@ -3562,7 +3574,11 @@ static void cnic_init_csk_state(struct cnic_sock *csk)
 
 static int cnic_cm_connect(struct cnic_sock *csk, struct cnic_sockaddr *saddr)
 {
+	struct cnic_local *cp = csk->dev->cnic_priv;
 	int err = 0;
+
+	if (cp->ethdev->drv_state & CNIC_DRV_STATE_NO_ISCSI)
+		return -EOPNOTSUPP;
 
 	if (!cnic_in_use(csk))
 		return -EINVAL;
@@ -3964,6 +3980,15 @@ static void cnic_delete_task(struct work_struct *work)
 
 	cp = container_of(work, struct cnic_local, delete_task.work);
 	dev = cp->dev;
+
+	if (test_and_clear_bit(CNIC_LCL_FL_STOP_ISCSI, &cp->cnic_local_flags)) {
+		struct drv_ctl_info info;
+
+		cnic_ulp_stop_one(cp, CNIC_ULP_ISCSI);
+
+		info.cmd = DRV_CTL_ISCSI_STOPPED_CMD;
+		cp->ethdev->drv_ctl(dev->netdev, &info);
+	}
 
 	for (i = 0; i < cp->max_cid_space; i++) {
 		struct cnic_context *ctx = &cp->ctx_tbl[i];

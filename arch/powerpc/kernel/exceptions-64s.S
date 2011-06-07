@@ -5,7 +5,7 @@
  * handling and other fixed offset specific things.
  *
  * This file is meant to be #included from head_64.S due to
- * position dependant assembly.
+ * position dependent assembly.
  *
  * Most of this originates from head_64.S and thus has the same
  * copyright history.
@@ -37,23 +37,51 @@
 	.globl __start_interrupts
 __start_interrupts:
 
-	STD_EXCEPTION_PSERIES(0x100, system_reset)
+	.globl system_reset_pSeries;
+system_reset_pSeries:
+	HMT_MEDIUM;
+	DO_KVM	0x100;
+	SET_SCRATCH0(r13)
+#ifdef CONFIG_PPC_P7_NAP
+BEGIN_FTR_SECTION
+	/* Running native on arch 2.06 or later, check if we are
+	 * waking up from nap. We only handle no state loss and
+	 * supervisor state loss. We do -not- handle hypervisor
+	 * state loss at this time.
+	 */
+	mfspr	r13,SPRN_SRR1
+	rlwinm	r13,r13,47-31,30,31
+	cmpwi	cr0,r13,1
+	bne	1f
+	b	.power7_wakeup_noloss
+1:	cmpwi	cr0,r13,2
+	bne	1f
+	b	.power7_wakeup_loss
+	/* Total loss of HV state is fatal, we could try to use the
+	 * PIR to locate a PACA, then use an emergency stack etc...
+	 * but for now, let's just stay stuck here
+	 */
+1:	cmpwi	cr0,r13,3
+	beq	.
+END_FTR_SECTION_IFSET(CPU_FTR_HVMODE_206)
+#endif /* CONFIG_PPC_P7_NAP */
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD)
 
 	. = 0x200
 _machine_check_pSeries:
 	HMT_MEDIUM
 	DO_KVM	0x200
-	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
+	SET_SCRATCH0(r13)
+	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common, EXC_STD)
 
 	. = 0x300
 	.globl data_access_pSeries
 data_access_pSeries:
 	HMT_MEDIUM
 	DO_KVM	0x300
-	mtspr	SPRN_SPRG_SCRATCH0,r13
+	SET_SCRATCH0(r13)
 BEGIN_FTR_SECTION
-	mfspr	r13,SPRN_SPRG_PACA
+	GET_PACA(r13)
 	std	r9,PACA_EXSLB+EX_R9(r13)
 	std	r10,PACA_EXSLB+EX_R10(r13)
 	mfspr	r10,SPRN_DAR
@@ -67,22 +95,22 @@ BEGIN_FTR_SECTION
 	std	r11,PACA_EXGEN+EX_R11(r13)
 	ld	r11,PACA_EXSLB+EX_R9(r13)
 	std	r12,PACA_EXGEN+EX_R12(r13)
-	mfspr	r12,SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r12)
 	std	r10,PACA_EXGEN+EX_R10(r13)
 	std	r11,PACA_EXGEN+EX_R9(r13)
 	std	r12,PACA_EXGEN+EX_R13(r13)
-	EXCEPTION_PROLOG_PSERIES_1(data_access_common)
+	EXCEPTION_PROLOG_PSERIES_1(data_access_common, EXC_STD)
 FTR_SECTION_ELSE
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, data_access_common)
-ALT_FTR_SECTION_END_IFCLR(CPU_FTR_SLB)
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, data_access_common, EXC_STD)
+ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_SLB)
 
 	. = 0x380
 	.globl data_access_slb_pSeries
 data_access_slb_pSeries:
 	HMT_MEDIUM
 	DO_KVM	0x380
-	mtspr	SPRN_SPRG_SCRATCH0,r13
-	mfspr	r13,SPRN_SPRG_PACA		/* get paca address into r13 */
+	SET_SCRATCH0(r13)
+	GET_PACA(r13)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_DAR
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
@@ -95,7 +123,7 @@ data_access_slb_pSeries:
 	std	r10,PACA_EXSLB+EX_R10(r13)
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
-	mfspr	r10,SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r10)
 	std	r10,PACA_EXSLB+EX_R13(r13)
 	mfspr	r12,SPRN_SRR1		/* and SRR1 */
 #ifndef CONFIG_RELOCATABLE
@@ -113,15 +141,15 @@ data_access_slb_pSeries:
 	bctr
 #endif
 
-	STD_EXCEPTION_PSERIES(0x400, instruction_access)
+	STD_EXCEPTION_PSERIES(0x400, 0x400, instruction_access)
 
 	. = 0x480
 	.globl instruction_access_slb_pSeries
 instruction_access_slb_pSeries:
 	HMT_MEDIUM
 	DO_KVM	0x480
-	mtspr	SPRN_SPRG_SCRATCH0,r13
-	mfspr	r13,SPRN_SPRG_PACA		/* get paca address into r13 */
+	SET_SCRATCH0(r13)
+	GET_PACA(r13)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
@@ -134,7 +162,7 @@ instruction_access_slb_pSeries:
 	std	r10,PACA_EXSLB+EX_R10(r13)
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
-	mfspr	r10,SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r10)
 	std	r10,PACA_EXSLB+EX_R13(r13)
 	mfspr	r12,SPRN_SRR1		/* and SRR1 */
 #ifndef CONFIG_RELOCATABLE
@@ -147,13 +175,29 @@ instruction_access_slb_pSeries:
 	bctr
 #endif
 
-	MASKABLE_EXCEPTION_PSERIES(0x500, hardware_interrupt)
-	STD_EXCEPTION_PSERIES(0x600, alignment)
-	STD_EXCEPTION_PSERIES(0x700, program_check)
-	STD_EXCEPTION_PSERIES(0x800, fp_unavailable)
-	MASKABLE_EXCEPTION_PSERIES(0x900, decrementer)
-	STD_EXCEPTION_PSERIES(0xa00, trap_0a)
-	STD_EXCEPTION_PSERIES(0xb00, trap_0b)
+	/* We open code these as we can't have a ". = x" (even with
+	 * x = "." within a feature section
+	 */
+	. = 0x500;
+	.globl hardware_interrupt_pSeries;
+	.globl hardware_interrupt_hv;
+hardware_interrupt_pSeries:
+hardware_interrupt_hv:
+	BEGIN_FTR_SECTION
+		_MASKABLE_EXCEPTION_PSERIES(0x500, hardware_interrupt, EXC_STD)
+	FTR_SECTION_ELSE
+		_MASKABLE_EXCEPTION_PSERIES(0x502, hardware_interrupt, EXC_HV)
+	ALT_FTR_SECTION_END_IFCLR(CPU_FTR_HVMODE_206)
+
+	STD_EXCEPTION_PSERIES(0x600, 0x600, alignment)
+	STD_EXCEPTION_PSERIES(0x700, 0x700, program_check)
+	STD_EXCEPTION_PSERIES(0x800, 0x800, fp_unavailable)
+
+	MASKABLE_EXCEPTION_PSERIES(0x900, 0x900, decrementer)
+	MASKABLE_EXCEPTION_HV(0x980, 0x980, decrementer)
+
+	STD_EXCEPTION_PSERIES(0xa00, 0xa00, trap_0a)
+	STD_EXCEPTION_PSERIES(0xb00, 0xb00, trap_0b)
 
 	. = 0xc00
 	.globl	system_call_pSeries
@@ -165,13 +209,13 @@ BEGIN_FTR_SECTION
 	beq-	1f
 END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	mr	r9,r13
-	mfspr	r13,SPRN_SPRG_PACA
+	GET_PACA(r13)
 	mfspr	r11,SPRN_SRR0
-	ld	r12,PACAKBASE(r13)
-	ld	r10,PACAKMSR(r13)
-	LOAD_HANDLER(r12, system_call_entry)
-	mtspr	SPRN_SRR0,r12
 	mfspr	r12,SPRN_SRR1
+	ld	r10,PACAKBASE(r13)
+	LOAD_HANDLER(r10, system_call_entry)
+	mtspr	SPRN_SRR0,r10
+	ld	r10,PACAKMSR(r13)
 	mtspr	SPRN_SRR1,r10
 	rfid
 	b	.	/* prevent speculative execution */
@@ -183,8 +227,21 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	rfid		/* return to userspace */
 	b	.
 
-	STD_EXCEPTION_PSERIES(0xd00, single_step)
-	STD_EXCEPTION_PSERIES(0xe00, trap_0e)
+	STD_EXCEPTION_PSERIES(0xd00, 0xd00, single_step)
+
+	/* At 0xe??? we have a bunch of hypervisor exceptions, we branch
+	 * out of line to handle them
+	 */
+	. = 0xe00
+	b	h_data_storage_hv
+	. = 0xe20
+	b	h_instr_storage_hv
+	. = 0xe40
+	b	emulation_assist_hv
+	. = 0xe50
+	b	hmi_exception_hv
+	. = 0xe60
+	b	hmi_exception_hv
 
 	/* We need to deal with the Altivec unavailable exception
 	 * here which is at 0xf20, thus in the middle of the
@@ -193,39 +250,42 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	 */
 performance_monitor_pSeries_1:
 	. = 0xf00
-	DO_KVM	0xf00
 	b	performance_monitor_pSeries
 
 altivec_unavailable_pSeries_1:
 	. = 0xf20
-	DO_KVM	0xf20
 	b	altivec_unavailable_pSeries
 
 vsx_unavailable_pSeries_1:
 	. = 0xf40
-	DO_KVM	0xf40
 	b	vsx_unavailable_pSeries
 
 #ifdef CONFIG_CBE_RAS
-	HSTD_EXCEPTION_PSERIES(0x1200, cbe_system_error)
+	STD_EXCEPTION_HV(0x1200, 0x1202, cbe_system_error)
 #endif /* CONFIG_CBE_RAS */
-	STD_EXCEPTION_PSERIES(0x1300, instruction_breakpoint)
+	STD_EXCEPTION_PSERIES(0x1300, 0x1300, instruction_breakpoint)
 #ifdef CONFIG_CBE_RAS
-	HSTD_EXCEPTION_PSERIES(0x1600, cbe_maintenance)
+	STD_EXCEPTION_HV(0x1600, 0x1602, cbe_maintenance)
 #endif /* CONFIG_CBE_RAS */
-	STD_EXCEPTION_PSERIES(0x1700, altivec_assist)
+	STD_EXCEPTION_PSERIES(0x1700, 0x1700, altivec_assist)
 #ifdef CONFIG_CBE_RAS
-	HSTD_EXCEPTION_PSERIES(0x1800, cbe_thermal)
+	STD_EXCEPTION_HV(0x1800, 0x1802, cbe_thermal)
 #endif /* CONFIG_CBE_RAS */
 
 	. = 0x3000
 
-/*** pSeries interrupt support ***/
+/*** Out of line interrupts support ***/
+
+	/* moved from 0xe00 */
+	STD_EXCEPTION_HV(., 0xe00, h_data_storage)
+	STD_EXCEPTION_HV(., 0xe20, h_instr_storage)
+	STD_EXCEPTION_HV(., 0xe40, emulation_assist)
+	STD_EXCEPTION_HV(., 0xe60, hmi_exception) /* need to flush cache ? */
 
 	/* moved from 0xf00 */
-	STD_EXCEPTION_PSERIES(., performance_monitor)
-	STD_EXCEPTION_PSERIES(., altivec_unavailable)
-	STD_EXCEPTION_PSERIES(., vsx_unavailable)
+	STD_EXCEPTION_PSERIES(., 0xf00, performance_monitor)
+	STD_EXCEPTION_PSERIES(., 0xf20, altivec_unavailable)
+	STD_EXCEPTION_PSERIES(., 0xf40, vsx_unavailable)
 
 /*
  * An interrupt came in while soft-disabled; clear EE in SRR1,
@@ -240,17 +300,30 @@ masked_interrupt:
 	rotldi	r10,r10,16
 	mtspr	SPRN_SRR1,r10
 	ld	r10,PACA_EXGEN+EX_R10(r13)
-	mfspr	r13,SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r13)
 	rfid
+	b	.
+
+masked_Hinterrupt:
+	stb	r10,PACAHARDIRQEN(r13)
+	mtcrf	0x80,r9
+	ld	r9,PACA_EXGEN+EX_R9(r13)
+	mfspr	r10,SPRN_HSRR1
+	rldicl	r10,r10,48,1		/* clear MSR_EE */
+	rotldi	r10,r10,16
+	mtspr	SPRN_HSRR1,r10
+	ld	r10,PACA_EXGEN+EX_R10(r13)
+	GET_SCRATCH0(r13)
+	hrfid
 	b	.
 
 	.align	7
 do_stab_bolted_pSeries:
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
-	mfspr	r10,SPRN_SPRG_SCRATCH0
+	GET_SCRATCH0(r10)
 	std	r10,PACA_EXSLB+EX_R13(r13)
-	EXCEPTION_PROLOG_PSERIES_1(.do_stab_bolted)
+	EXCEPTION_PROLOG_PSERIES_1(.do_stab_bolted, EXC_STD)
 
 #ifdef CONFIG_PPC_PSERIES
 /*
@@ -260,15 +333,15 @@ do_stab_bolted_pSeries:
       .align 7
 system_reset_fwnmi:
 	HMT_MEDIUM
-	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
+	SET_SCRATCH0(r13)		/* save r13 */
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD)
 
 	.globl machine_check_fwnmi
       .align 7
 machine_check_fwnmi:
 	HMT_MEDIUM
-	mtspr	SPRN_SPRG_SCRATCH0,r13		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
+	SET_SCRATCH0(r13)		/* save r13 */
+	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common, EXC_STD)
 
 #endif /* CONFIG_PPC_PSERIES */
 
@@ -282,7 +355,7 @@ slb_miss_user_pseries:
 	std	r10,PACA_EXGEN+EX_R10(r13)
 	std	r11,PACA_EXGEN+EX_R11(r13)
 	std	r12,PACA_EXGEN+EX_R12(r13)
-	mfspr	r10,SPRG_SCRATCH0
+	GET_SCRATCH0(r10)
 	ld	r11,PACA_EXSLB+EX_R9(r13)
 	ld	r12,PACA_EXSLB+EX_R3(r13)
 	std	r10,PACA_EXGEN+EX_R13(r13)
@@ -342,6 +415,8 @@ machine_check_common:
 	STD_EXCEPTION_COMMON(0xb00, trap_0b, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xd00, single_step, .single_step_exception)
 	STD_EXCEPTION_COMMON(0xe00, trap_0e, .unknown_exception)
+        STD_EXCEPTION_COMMON(0xe40, emulation_assist, .program_check_exception)
+        STD_EXCEPTION_COMMON(0xe60, hmi_exception, .unknown_exception)
 	STD_EXCEPTION_COMMON_IDLE(0xf00, performance_monitor, .performance_monitor_exception)
 	STD_EXCEPTION_COMMON(0x1300, instruction_breakpoint, .instruction_breakpoint_exception)
 #ifdef CONFIG_ALTIVEC
@@ -386,9 +461,24 @@ bad_stack:
 	std	r12,_XER(r1)
 	SAVE_GPR(0,r1)
 	SAVE_GPR(2,r1)
-	SAVE_4GPRS(3,r1)
-	SAVE_2GPRS(7,r1)
-	SAVE_10GPRS(12,r1)
+	ld	r10,EX_R3(r3)
+	std	r10,GPR3(r1)
+	SAVE_GPR(4,r1)
+	SAVE_4GPRS(5,r1)
+	ld	r9,EX_R9(r3)
+	ld	r10,EX_R10(r3)
+	SAVE_2GPRS(9,r1)
+	ld	r9,EX_R11(r3)
+	ld	r10,EX_R12(r3)
+	ld	r11,EX_R13(r3)
+	std	r9,GPR11(r1)
+	std	r10,GPR12(r1)
+	std	r11,GPR13(r1)
+BEGIN_FTR_SECTION
+	ld	r10,EX_CFAR(r3)
+	std	r10,ORIG_GPR3(r1)
+END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
+	SAVE_8GPRS(14,r1)
 	SAVE_10GPRS(22,r1)
 	lhz	r12,PACA_TRAP_SAVE(r13)
 	std	r12,_TRAP(r1)
@@ -397,6 +487,9 @@ bad_stack:
 	li	r12,0
 	std	r12,0(r11)
 	ld	r2,PACATOC(r13)
+	ld	r11,exception_marker@toc(r2)
+	std	r12,RESULT(r1)
+	std	r11,STACK_FRAME_OVERHEAD-16(r1)
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.kernel_bad_stack
 	b	1b
@@ -419,6 +512,19 @@ data_access_common:
 	li	r5,0x300
 	b	.do_hash_page	 	/* Try to handle as hpte fault */
 
+	.align  7
+        .globl  h_data_storage_common
+h_data_storage_common:
+        mfspr   r10,SPRN_HDAR
+        std     r10,PACA_EXGEN+EX_DAR(r13)
+        mfspr   r10,SPRN_HDSISR
+        stw     r10,PACA_EXGEN+EX_DSISR(r13)
+        EXCEPTION_PROLOG_COMMON(0xe00, PACA_EXGEN)
+        bl      .save_nvgprs
+        addi    r3,r1,STACK_FRAME_OVERHEAD
+        bl      .unknown_exception
+        b       .ret_from_except
+
 	.align	7
 	.globl instruction_access_common
 instruction_access_common:
@@ -427,6 +533,8 @@ instruction_access_common:
 	andis.	r4,r12,0x5820
 	li	r5,0x400
 	b	.do_hash_page		/* Try to handle as hpte fault */
+
+        STD_EXCEPTION_COMMON(0xe20, h_instr_storage, .unknown_exception)
 
 /*
  * Here is the common SLB miss user that is used when going to virtual
@@ -750,7 +858,7 @@ _STATIC(do_hash_page)
 BEGIN_FTR_SECTION
 	andis.	r0,r4,0x0020		/* Is it a segment table fault? */
 	bne-	do_ste_alloc		/* If so handle it */
-END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 
 	clrrdi	r11,r1,THREAD_SHIFT
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
@@ -977,20 +1085,6 @@ _GLOBAL(do_stab_bolted)
 	rfid
 	b	.	/* prevent speculative execution */
 
-/*
- * Space for CPU0's segment table.
- *
- * On iSeries, the hypervisor must fill in at least one entry before
- * we get control (with relocate on).  The address is given to the hv
- * as a page number (see xLparMap below), so this must be at a
- * fixed address (the linker can't compute (u64)&initial_stab >>
- * PAGE_SHIFT).
- */
-	. = STAB0_OFFSET	/* 0x6000 */
-	.globl initial_stab
-initial_stab:
-	.space	4096
-
 #ifdef CONFIG_PPC_PSERIES
 /*
  * Data area reserved for FWNMI option.
@@ -1027,3 +1121,17 @@ xLparMap:
 #ifdef CONFIG_PPC_PSERIES
         . = 0x8000
 #endif /* CONFIG_PPC_PSERIES */
+
+/*
+ * Space for CPU0's segment table.
+ *
+ * On iSeries, the hypervisor must fill in at least one entry before
+ * we get control (with relocate on).  The address is given to the hv
+ * as a page number (see xLparMap above), so this must be at a
+ * fixed address (the linker can't compute (u64)&initial_stab >>
+ * PAGE_SHIFT).
+ */
+	. = STAB0_OFFSET	/* 0x8000 */
+	.globl initial_stab
+initial_stab:
+	.space	4096

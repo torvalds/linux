@@ -1147,7 +1147,7 @@ static void srp_process_aer_req(struct srp_target_port *target,
 static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 {
 	struct ib_device *dev = target->srp_host->srp_dev->dev;
-	struct srp_iu *iu = (struct srp_iu *) wc->wr_id;
+	struct srp_iu *iu = (struct srp_iu *) (uintptr_t) wc->wr_id;
 	int res;
 	u8 opcode;
 
@@ -1231,7 +1231,7 @@ static void srp_send_completion(struct ib_cq *cq, void *target_ptr)
 			break;
 		}
 
-		iu = (struct srp_iu *) wc.wr_id;
+		iu = (struct srp_iu *) (uintptr_t) wc.wr_id;
 		list_add(&iu->list, &target->free_tx);
 	}
 }

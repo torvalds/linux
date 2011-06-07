@@ -496,7 +496,7 @@ out_err:
 	return err;
 }
 
-static struct of_device_id __initdata fire_match[] = {
+static const struct of_device_id fire_match[] = {
 	{
 		.name = "pci",
 		.compatible = "pciex108e,80f0",

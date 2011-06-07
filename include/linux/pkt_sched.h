@@ -223,7 +223,7 @@ struct tc_gred_qopt {
 	__u32		limit;        /* HARD maximal queue length (bytes)    */
 	__u32		qth_min;      /* Min average length threshold (bytes) */
 	__u32		qth_max;      /* Max average length threshold (bytes) */
-	__u32		DP;           /* upto 2^32 DPs */
+	__u32		DP;           /* up to 2^32 DPs */
 	__u32		backlog;
 	__u32		qave;
 	__u32		forced;
@@ -587,5 +587,20 @@ struct tc_sfb_xstats {
 };
 
 #define SFB_MAX_PROB 0xFFFF
+
+/* QFQ */
+enum {
+	TCA_QFQ_UNSPEC,
+	TCA_QFQ_WEIGHT,
+	TCA_QFQ_LMAX,
+	__TCA_QFQ_MAX
+};
+
+#define TCA_QFQ_MAX	(__TCA_QFQ_MAX - 1)
+
+struct tc_qfq_stats {
+	__u32 weight;
+	__u32 lmax;
+};
 
 #endif

@@ -233,7 +233,7 @@ static void slave_free(struct snd_kcontrol *kcontrol)
  * Add a slave control to the group with the given master control
  *
  * All slaves must be the same type (returning the same information
- * via info callback).  The fucntion doesn't check it, so it's your
+ * via info callback).  The function doesn't check it, so it's your
  * responsibility.
  *
  * Also, some additional limitations:
