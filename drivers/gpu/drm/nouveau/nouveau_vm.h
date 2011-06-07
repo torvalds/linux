@@ -42,6 +42,7 @@ struct nouveau_vm_pgd {
 
 struct nouveau_vma {
 	struct list_head head;
+	int refcount;
 	struct nouveau_vm *vm;
 	struct nouveau_mm_node *node;
 	u64 offset;

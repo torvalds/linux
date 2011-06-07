@@ -115,7 +115,6 @@ struct nouveau_bo {
 
 	struct nouveau_channel *channel;
 
-	struct nouveau_vma vma;
 	struct list_head vma_list;
 	unsigned page_shift;
 

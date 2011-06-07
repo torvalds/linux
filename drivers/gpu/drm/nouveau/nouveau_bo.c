@@ -49,7 +49,6 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
 
 	nv10_mem_put_tile_region(dev, nvbo->tile, NULL);
-	nouveau_bo_vma_del(nvbo, &nvbo->vma);
 	kfree(nvbo);
 }
 
@@ -114,14 +113,6 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	nouveau_bo_fixup_align(nvbo, flags, &align, &size);
 	nvbo->bo.mem.num_pages = size >> PAGE_SHIFT;
 	nouveau_bo_placement_set(nvbo, flags, 0);
-
-	if (dev_priv->chan_vm) {
-		ret = nouveau_bo_vma_add(nvbo, dev_priv->chan_vm, &nvbo->vma);
-		if (ret) {
-			kfree(nvbo);
-			return ret;
-		}
-	}
 
 	ret = ttm_bo_init(&dev_priv->ttm.bdev, &nvbo->bo, size,
 			  ttm_bo_type_device, &nvbo->placement,
@@ -1103,6 +1094,7 @@ nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nouveau_vm *vm,
 		nouveau_vm_map_sg(vma, 0, size, node, node->pages);
 
 	list_add_tail(&vma->head, &nvbo->vma_list);
+	vma->refcount = 1;
 	return 0;
 }
 

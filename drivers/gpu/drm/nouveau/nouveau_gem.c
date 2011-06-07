@@ -63,20 +63,60 @@ int
 nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 {
 	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
+	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
+	struct nouveau_vma *vma;
+	int ret;
 
 	if (!fpriv->vm)
 		return 0;
 
-	return 0;
+	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, 0);
+	if (ret)
+		return ret;
+
+	vma = nouveau_bo_vma_find(nvbo, fpriv->vm);
+	if (!vma) {
+		vma = kzalloc(sizeof(*vma), GFP_KERNEL);
+		if (!vma) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		ret = nouveau_bo_vma_add(nvbo, fpriv->vm, vma);
+		if (ret) {
+			kfree(vma);
+			goto out;
+		}
+	} else {
+		vma->refcount++;
+	}
+
+out:
+	ttm_bo_unreserve(&nvbo->bo);
+	return ret;
 }
 
 void
 nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 {
 	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
+	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
+	struct nouveau_vma *vma;
+	int ret;
 
 	if (!fpriv->vm)
 		return;
+
+	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, 0);
+	if (ret)
+		return;
+
+	vma = nouveau_bo_vma_find(nvbo, fpriv->vm);
+	if (vma) {
+		if (--vma->refcount == 0)
+			nouveau_bo_vma_del(nvbo, vma);
+	}
+	ttm_bo_unreserve(&nvbo->bo);
 }
 
 int
