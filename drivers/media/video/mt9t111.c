@@ -6612,9 +6612,7 @@ static struct reginfo sensor_af_init1[] =
 
 static struct reginfo sensor_af_trigger[] =
 {
-	/*{0x098e,0xb006, WORD_LEN, 0 },
-	{0xb006,0x01, BYTE_LEN, 0},*/
-	{0x098E, 0x4403, WORD_LEN, 0}, 
+	/*{0x098E, 0x4403, WORD_LEN, 0}, 
 	{0x0990, 0x8001, WORD_LEN, 0}, 
 	{0x098E, 0x440B, WORD_LEN, 0}, 
 	{0x0990, 0x0000, WORD_LEN, 0}, //032
@@ -6635,7 +6633,7 @@ static struct reginfo sensor_af_trigger[] =
 	{0x098E, 0xB019, WORD_LEN, 0}, 
 	{0x0990, 0x0001, WORD_LEN, 0}, 
 	{0x098E, 0xB019, WORD_LEN, 0}, 
-	{0x0990, 0x0001, WORD_LEN, 0}, 
+	{0x0990, 0x0001, WORD_LEN, 0}, */
 	{SEQUENCE_END, 0x00}
 };
 static int sensor_af_single(struct i2c_client *client)
@@ -6902,10 +6900,22 @@ sensor_INIT_ERR:
 static int sensor_deactivate(struct i2c_client *client)
 {
 	struct soc_camera_device *icd = client->dev.platform_data;
-
+	u16 reg_val;
 	SENSOR_DG("\n%s..%s.. Enter\n",SENSOR_NAME_STRING(),__FUNCTION__);
 
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
+
+	
+	sensor_task_lock(client, 1);
+	
+	sensor_read( client, 0x001a, &reg_val);
+	struct reginfo reg_info;
+	reg_info.reg = 0x001a;
+	reg_info.val = reg_val & (~0x0200);//reg_val & (~0x02);
+	reg_info.reg_len = 0x04;
+	sensor_write(client, &reg_info);
+	
+	sensor_task_lock(client, 0);
 	sensor_ioctrl(icd, Sensor_PowerDown, 1);
 	/* ddl@rock-chips.com : sensor config init width , because next open sensor quickly(soc_camera_open -> Try to configure with default parameters) */
 	icd->user_width = SENSOR_INIT_WIDTH;
