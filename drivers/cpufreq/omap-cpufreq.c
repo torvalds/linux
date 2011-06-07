@@ -152,7 +152,6 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 {
 	int result = 0;
 	struct device *mpu_dev;
-	static cpumask_var_t cpumask;
 
 	if (cpu_is_omap24xx())
 		mpu_clk = clk_get(NULL, "virt_prcm_set");
@@ -200,8 +199,7 @@ static int __cpuinit omap_cpu_init(struct cpufreq_policy *policy)
 	 */
 	if (is_smp()) {
 		policy->shared_type = CPUFREQ_SHARED_TYPE_ANY;
-		cpumask_or(cpumask, cpumask_of(policy->cpu), cpumask);
-		cpumask_copy(policy->cpus, cpumask);
+		cpumask_setall(policy->cpus);
 	}
 
 	/* FIXME: what's the actual transition time? */
