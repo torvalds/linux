@@ -163,6 +163,11 @@ struct vivi_dev {
 	struct v4l2_ctrl	   *contrast;
 	struct v4l2_ctrl	   *saturation;
 	struct v4l2_ctrl	   *hue;
+	struct {
+		/* autogain/gain cluster */
+		struct v4l2_ctrl	   *autogain;
+		struct v4l2_ctrl	   *gain;
+	};
 	struct v4l2_ctrl	   *volume;
 	struct v4l2_ctrl	   *button;
 	struct v4l2_ctrl	   *boolean;
@@ -453,6 +458,7 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 	unsigned ms;
 	char str[100];
 	int h, line = 1;
+	s32 gain;
 
 	if (!vbuf)
 		return;
@@ -475,6 +481,7 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 			dev->width, dev->height, dev->input);
 	gen_text(dev, vbuf, line++ * 16, 16, str);
 
+	gain = v4l2_ctrl_g_ctrl(dev->gain);
 	mutex_lock(&dev->ctrl_handler.lock);
 	snprintf(str, sizeof(str), " brightness %3d, contrast %3d, saturation %3d, hue %d ",
 			dev->brightness->cur.val,
@@ -482,7 +489,8 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 			dev->saturation->cur.val,
 			dev->hue->cur.val);
 	gen_text(dev, vbuf, line++ * 16, 16, str);
-	snprintf(str, sizeof(str), " volume %3d ", dev->volume->cur.val);
+	snprintf(str, sizeof(str), " autogain %d, gain %3d, volume %3d ",
+			dev->autogain->cur.val, gain, dev->volume->cur.val);
 	gen_text(dev, vbuf, line++ * 16, 16, str);
 	snprintf(str, sizeof(str), " int32 %d, int64 %lld ",
 			dev->int32->cur.val,
@@ -978,6 +986,15 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 
 /* --- controls ---------------------------------------------- */
 
+static int vivi_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct vivi_dev *dev = container_of(ctrl->handler, struct vivi_dev, ctrl_handler);
+
+	if (ctrl == dev->autogain)
+		dev->gain->val = jiffies & 0xff;
+	return 0;
+}
+
 static int vivi_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct vivi_dev *dev = container_of(ctrl->handler, struct vivi_dev, ctrl_handler);
@@ -1040,6 +1057,7 @@ static int vivi_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 static const struct v4l2_ctrl_ops vivi_ctrl_ops = {
+	.g_volatile_ctrl = vivi_g_volatile_ctrl,
 	.s_ctrl = vivi_s_ctrl,
 };
 
@@ -1208,6 +1226,10 @@ static int __init vivi_create_instance(int inst)
 			V4L2_CID_SATURATION, 0, 255, 1, 127);
 	dev->hue = v4l2_ctrl_new_std(hdl, &vivi_ctrl_ops,
 			V4L2_CID_HUE, -128, 127, 1, 0);
+	dev->autogain = v4l2_ctrl_new_std(hdl, &vivi_ctrl_ops,
+			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+	dev->gain = v4l2_ctrl_new_std(hdl, &vivi_ctrl_ops,
+			V4L2_CID_GAIN, 0, 255, 1, 100);
 	dev->button = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_button, NULL);
 	dev->int32 = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_int32, NULL);
 	dev->int64 = v4l2_ctrl_new_custom(hdl, &vivi_ctrl_int64, NULL);
@@ -1218,6 +1240,7 @@ static int __init vivi_create_instance(int inst)
 		ret = hdl->error;
 		goto unreg_dev;
 	}
+	v4l2_ctrl_auto_cluster(2, &dev->autogain, 0, true);
 	dev->v4l2_dev.ctrl_handler = hdl;
 
 	/* initialize locks */
