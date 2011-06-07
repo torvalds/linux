@@ -97,7 +97,7 @@ static int omap_target(struct cpufreq_policy *policy,
 	freqs.new = clk_round_rate(mpu_clk, target_freq * 1000) / 1000;
 	freqs.cpu = policy->cpu;
 
-	if (freqs.old == freqs.new)
+	if (freqs.old == freqs.new && policy->cur == freqs.new)
 		return ret;
 
 	/* notifiers */
