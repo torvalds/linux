@@ -568,26 +568,34 @@ static struct attribute_group interactive_attr_group = {
 	.name = "interactive",
 };
 
-static int cpufreq_governor_interactive(struct cpufreq_policy *new_policy,
+static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		unsigned int event)
 {
 	int rc;
-	struct cpufreq_interactive_cpuinfo *pcpu =
-		&per_cpu(cpuinfo, new_policy->cpu);
+	unsigned int j;
+	struct cpufreq_interactive_cpuinfo *pcpu;
+	struct cpufreq_frequency_table *freq_table;
 
 	switch (event) {
 	case CPUFREQ_GOV_START:
-		if (!cpu_online(new_policy->cpu))
+		if (!cpu_online(policy->cpu))
 			return -EINVAL;
 
-		pcpu->policy = new_policy;
-		pcpu->freq_table = cpufreq_frequency_get_table(new_policy->cpu);
-		pcpu->target_freq = new_policy->cur;
-		pcpu->freq_change_time_in_idle =
-			get_cpu_idle_time_us(new_policy->cpu,
+		freq_table =
+			cpufreq_frequency_get_table(policy->cpu);
+
+		for_each_cpu(j, policy->cpus) {
+			pcpu = &per_cpu(cpuinfo, j);
+			pcpu->policy = policy;
+			pcpu->target_freq = policy->cur;
+			pcpu->freq_table = freq_table;
+			pcpu->freq_change_time_in_idle =
+				get_cpu_idle_time_us(j,
 					     &pcpu->freq_change_time);
-		pcpu->governor_enabled = 1;
-		smp_wmb();
+			pcpu->governor_enabled = 1;
+			smp_wmb();
+		}
+
 		/*
 		 * Do not register the idle hook and create sysfs
 		 * entries if we have already done so.
@@ -605,18 +613,22 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *new_policy,
 		break;
 
 	case CPUFREQ_GOV_STOP:
-		pcpu->governor_enabled = 0;
-		smp_wmb();
-		del_timer_sync(&pcpu->cpu_timer);
-		flush_work(&freq_scale_down_work);
-		/*
-		 * Reset idle exit time since we may cancel the timer
-		 * before it can run after the last idle exit time,
-		 * to avoid tripping the check in idle exit for a timer
-		 * that is trying to run.
-		 */
-		pcpu->idle_exit_time = 0;
+		for_each_cpu(j, policy->cpus) {
+			pcpu = &per_cpu(cpuinfo, j);
+			pcpu->governor_enabled = 0;
+			smp_wmb();
+			del_timer_sync(&pcpu->cpu_timer);
 
+			/*
+			 * Reset idle exit time since we may cancel the timer
+			 * before it can run after the last idle exit time,
+			 * to avoid tripping the check in idle exit for a timer
+			 * that is trying to run.
+			 */
+			pcpu->idle_exit_time = 0;
+		}
+
+		flush_work(&freq_scale_down_work);
 		if (atomic_dec_return(&active_count) > 0)
 			return 0;
 
@@ -627,12 +639,12 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *new_policy,
 		break;
 
 	case CPUFREQ_GOV_LIMITS:
-		if (new_policy->max < new_policy->cur)
-			__cpufreq_driver_target(new_policy,
-					new_policy->max, CPUFREQ_RELATION_H);
-		else if (new_policy->min > new_policy->cur)
-			__cpufreq_driver_target(new_policy,
-					new_policy->min, CPUFREQ_RELATION_L);
+		if (policy->max < policy->cur)
+			__cpufreq_driver_target(policy,
+					policy->max, CPUFREQ_RELATION_H);
+		else if (policy->min > policy->cur)
+			__cpufreq_driver_target(policy,
+					policy->min, CPUFREQ_RELATION_L);
 		break;
 	}
 	return 0;
