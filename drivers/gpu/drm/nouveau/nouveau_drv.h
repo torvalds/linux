@@ -249,6 +249,7 @@ struct nouveau_channel {
 
 	/* Notifier memory */
 	struct nouveau_bo *notifier_bo;
+	struct nouveau_vma notifier_vma;
 	struct drm_mm notifier_heap;
 
 	/* PFIFO context */
