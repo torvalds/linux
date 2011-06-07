@@ -133,9 +133,9 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 		break;
 	case 1:
 		reg = snd_soc_read(codec, WM8993_DC_SERVO_3);
-		reg_l = (reg & WM8993_DCS_DAC_WR_VAL_1_MASK)
+		reg_r = (reg & WM8993_DCS_DAC_WR_VAL_1_MASK)
 			>> WM8993_DCS_DAC_WR_VAL_1_SHIFT;
-		reg_r = reg & WM8993_DCS_DAC_WR_VAL_0_MASK;
+		reg_l = reg & WM8993_DCS_DAC_WR_VAL_0_MASK;
 		break;
 	default:
 		WARN(1, "Unknown DCS readback method\n");
@@ -149,13 +149,13 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 		dev_dbg(codec->dev, "Applying %d code DC servo correction\n",
 			hubs->dcs_codes);
 
-		/* HPOUT1L */
-		offset = reg_l;
+		/* HPOUT1R */
+		offset = reg_r;
 		offset += hubs->dcs_codes;
 		dcs_cfg = (u8)offset << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
 
-		/* HPOUT1R */
-		offset = reg_r;
+		/* HPOUT1L */
+		offset = reg_l;
 		offset += hubs->dcs_codes;
 		dcs_cfg |= (u8)offset;
 
@@ -167,8 +167,8 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 				  WM8993_DCS_TRIG_DAC_WR_0 |
 				  WM8993_DCS_TRIG_DAC_WR_1);
 	} else {
-		dcs_cfg = reg_l << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
-		dcs_cfg |= reg_r;
+		dcs_cfg = reg_r << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
+		dcs_cfg |= reg_l;
 	}
 
 	/* Save the callibrated offset if we're in class W mode and
