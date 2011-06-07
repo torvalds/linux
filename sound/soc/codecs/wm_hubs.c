@@ -194,7 +194,7 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 
 	/* If we're applying an offset correction then updating the
 	 * callibration would be likely to introduce further offsets. */
-	if (hubs->dcs_codes)
+	if (hubs->dcs_codes || hubs->no_series_update)
 		return ret;
 
 	/* Only need to do this if the outputs are active */
