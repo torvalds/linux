@@ -386,37 +386,37 @@ int m5mols_mode(struct m5mols_info *info, u8 mode)
 static int m5mols_get_version(struct v4l2_subdev *sd)
 {
 	struct m5mols_info *info = to_m5mols(sd);
-	union {
-		struct m5mols_version ver;
-		u8 bytes[VERSION_SIZE];
-	} version;
-	u8 cmd = CAT0_VER_CUSTOMER;
+	struct m5mols_version *ver = &info->ver;
+	u8 *str = ver->str;
+	int i;
 	int ret;
 
-	do {
-		ret = m5mols_read_u8(sd, SYSTEM_CMD(cmd), &version.bytes[cmd]);
-		if (ret)
-			return ret;
-	} while (cmd++ != CAT0_VER_AWB);
-
-	do {
-		ret = m5mols_read_u8(sd, SYSTEM_VER_STRING, &version.bytes[cmd]);
-		if (ret)
-			return ret;
-		if (cmd >= VERSION_SIZE - 1)
-			return -EINVAL;
-	} while (version.bytes[cmd++]);
-
-	ret = m5mols_read_u8(sd, AF_VERSION, &version.bytes[cmd]);
+	ret = m5mols_read_u8(sd, SYSTEM_VER_CUSTOMER, &ver->customer);
+	if (!ret)
+		ret = m5mols_read_u8(sd, SYSTEM_VER_PROJECT, &ver->project);
+	if (!ret)
+		ret = m5mols_read_u16(sd, SYSTEM_VER_FIRMWARE, &ver->fw);
+	if (!ret)
+		ret = m5mols_read_u16(sd, SYSTEM_VER_HARDWARE, &ver->hw);
+	if (!ret)
+		ret = m5mols_read_u16(sd, SYSTEM_VER_PARAMETER, &ver->param);
+	if (!ret)
+		ret = m5mols_read_u16(sd, SYSTEM_VER_AWB, &ver->awb);
+	if (!ret)
+		ret = m5mols_read_u8(sd, AF_VERSION, &ver->af);
 	if (ret)
 		return ret;
 
-	/* store version information swapped for being readable */
-	info->ver	= version.ver;
-	info->ver.fw	= be16_to_cpu(info->ver.fw);
-	info->ver.hw	= be16_to_cpu(info->ver.hw);
-	info->ver.param	= be16_to_cpu(info->ver.param);
-	info->ver.awb	= be16_to_cpu(info->ver.awb);
+	for (i = 0; i < VERSION_STRING_SIZE; i++) {
+		ret = m5mols_read_u8(sd, SYSTEM_VER_STRING, &str[i]);
+		if (ret)
+			return ret;
+	}
+
+	ver->fw = be16_to_cpu(ver->fw);
+	ver->hw = be16_to_cpu(ver->hw);
+	ver->param = be16_to_cpu(ver->param);
+	ver->awb = be16_to_cpu(ver->awb);
 
 	v4l2_info(sd, "Manufacturer\t[%s]\n",
 			is_manufacturer(info, REG_SAMSUNG_ELECTRO) ?

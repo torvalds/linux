@@ -56,12 +56,23 @@
  * more specific contents, see definition if file m5mols.h.
  */
 #define CAT0_VER_CUSTOMER	0x00	/* customer version */
-#define CAT0_VER_AWB		0x09	/* Auto WB version */
+#define CAT0_VER_PROJECT	0x01	/* project version */
+#define CAT0_VER_FIRMWARE	0x02	/* Firmware version */
+#define CAT0_VER_HARDWARE	0x04	/* Hardware version */
+#define CAT0_VER_PARAMETER	0x06	/* Parameter version */
+#define CAT0_VER_AWB		0x08	/* Auto WB version */
 #define CAT0_VER_STRING		0x0a	/* string including M-5MOLS */
 #define CAT0_SYSMODE		0x0b	/* SYSTEM mode register */
 #define CAT0_STATUS		0x0c	/* SYSTEM mode status register */
 #define CAT0_INT_FACTOR		0x10	/* interrupt pending register */
 #define CAT0_INT_ENABLE		0x11	/* interrupt enable register */
+
+#define SYSTEM_VER_CUSTOMER	I2C_REG(CAT_SYSTEM, CAT0_VER_CUSTOMER, 1)
+#define SYSTEM_VER_PROJECT	I2C_REG(CAT_SYSTEM, CAT0_VER_PROJECT, 1)
+#define SYSTEM_VER_FIRMWARE	I2C_REG(CAT_SYSTEM, CAT0_VER_FIRMWARE, 2)
+#define SYSTEM_VER_HARDWARE	I2C_REG(CAT_SYSTEM, CAT0_VER_HARDWARE, 2)
+#define SYSTEM_VER_PARAMETER	I2C_REG(CAT_SYSTEM, CAT0_VER_PARAMETER, 2)
+#define SYSTEM_VER_AWB		I2C_REG(CAT_SYSTEM, CAT0_VER_AWB, 2)
 
 #define SYSTEM_SYSMODE		I2C_REG(CAT_SYSTEM, CAT0_SYSMODE, 1)
 #define REG_SYSINIT		0x00	/* SYSTEM mode */

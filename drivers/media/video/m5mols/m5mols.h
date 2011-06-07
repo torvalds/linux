@@ -154,7 +154,6 @@ struct m5mols_version {
 	u8	str[VERSION_STRING_SIZE];
 	u8	af;
 };
-#define VERSION_SIZE sizeof(struct m5mols_version)
 
 /**
  * struct m5mols_info - M-5MOLS driver data structure
