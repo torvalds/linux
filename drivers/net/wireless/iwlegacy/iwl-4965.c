@@ -1235,7 +1235,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *c
 
 		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
 		iwl_legacy_print_rx_config_cmd(priv, ctx);
-		return 0;
+		goto set_tx_power;
 	}
 
 	/* If we are currently associated and the new config requires
@@ -1315,6 +1315,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *c
 
 	iwl4965_init_sensitivity(priv);
 
+set_tx_power:
 	/* If we issue a new RXON command which required a tune then we must
 	 * send a new TXPOWER command or we won't be able to Tx any frames */
 	ret = iwl_legacy_set_tx_power(priv, priv->tx_power_next, true);
@@ -1541,7 +1542,7 @@ static void iwl4965_temperature_calib(struct iwl_priv *priv)
 	s32 temp;
 
 	temp = iwl4965_hw_get_temperature(priv);
-	if (temp < 0)
+	if (IWL_TX_POWER_TEMPERATURE_OUT_OF_RANGE(temp))
 		return;
 
 	if (priv->temperature != temp) {
