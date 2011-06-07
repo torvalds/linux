@@ -23,40 +23,45 @@ cards, in which case there exists no frontend device.</para>
 <section id="fe-type-t">
 <title>Frontend type</title>
 
-<para>For historical reasons frontend types are named after the type of modulation used in
+<para>For historical reasons, frontend types are named by the type of modulation used in
 transmission. The fontend types are given by fe_type_t type, defined as:</para>
 
 <table pgwide="1" frame="none" id="fe-type">
 <title>Frontend types</title>
-<tgroup cols="2">
+<tgroup cols="3">
    &cs-def;
    <thead>
      <row>
        <entry>fe_type</entry>
        <entry>Description</entry>
+       <entry><link linkend="DTV-DELIVERY-SYSTEM">DTV_DELIVERY_SYSTEM</link> equivalent type</entry>
      </row>
   </thead>
   <tbody valign="top">
   <row>
      <entry id="FE_QPSK"><constant>FE_QPSK</constant></entry>
      <entry>For DVB-S standard</entry>
+     <entry><constant>SYS_DVBS</constant></entry>
   </row>
   <row>
      <entry id="FE_QAM"><constant>FE_QAM</constant></entry>
-     <entry>For DVB-C standard</entry>
+     <entry>For DVB-C annex A/C standard</entry>
+     <entry><constant>SYS_DVBC_ANNEX_AC</constant></entry>
   </row>
   <row>
      <entry id="FE_OFDM"><constant>FE_OFDM</constant></entry>
-     <entry>For DVB-T standard. Also used for ISDB-T on compatibility mode</entry>
+     <entry>For DVB-T standard</entry>
+     <entry><constant>SYS_DVBT</constant></entry>
   </row>
   <row>
      <entry id="FE_ATSC"><constant>FE_ATSC</constant></entry>
-     <entry>For ATSC standard (terrestrial or cable)</entry>
+     <entry>For ATSC standard (terrestrial) or for DVB-C Annex B (cable) used in US.</entry>
+     <entry><constant>SYS_ATSC</constant> (terrestrial) or <constant>SYS_DVBC_ANNEX_B</constant> (cable)</entry>
   </row>
 </tbody></tgroup></table>
 
 <para>Newer formats like DVB-S2, ISDB-T, ISDB-S and DVB-T2 are not described at the above, as they're
-supported via the new <link linkend="FE_GET_SET_PROPERTY">FE_GET_PROPERTY/FE_GET_SET_PROPERTY</link> method.
+supported via the new <link linkend="FE_GET_SET_PROPERTY">FE_GET_PROPERTY/FE_GET_SET_PROPERTY</link> ioctl's, using the <link linkend="DTV-DELIVERY-SYSTEM">DTV_DELIVERY_SYSTEM</link> parameter.
 </para>
 </section>
 
