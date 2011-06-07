@@ -204,7 +204,7 @@ endif
 quiet_cmd_shipped = SHIPPED $@
 cmd_shipped = cat $< > $@
 
-$(obj)/%:: $(src)/%_shipped
+$(obj)/%: $(src)/%_shipped
 	$(call cmd,shipped)
 
 # Commands useful for building a boot image
