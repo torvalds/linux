@@ -173,4 +173,11 @@ config RK29_JTAG
 	  This is an option for SDK board. Always enable JTAG clock,
 	  but consumes more power.
 
+config RK29_LAST_LOG
+	bool "Save the last kernel log on /proc/last_log"
+	depends on DEBUG_KERNEL && PRINTK
+	default y
+	help
+	  It is only intended for debugging.
+
 endif
