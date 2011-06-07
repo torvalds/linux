@@ -1984,6 +1984,7 @@ static const unsigned int classd_tlv[] = {
 	0, 6, TLV_DB_SCALE_ITEM(0, 150, 0),
 	7, 7, TLV_DB_SCALE_ITEM(1200, 0, 0),
 };
+static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 
 /* The VU bits for the headphones are in a different register to the mute
  * bits and only take effect on the PGA if it is actually powered.
@@ -2121,6 +2122,18 @@ SOC_SINGLE_TLV("HPMIXR MIXINR Volume", WM8962_HEADPHONE_MIXER_4,
 
 SOC_SINGLE_TLV("Speaker Boost Volume", WM8962_CLASS_D_CONTROL_2, 0, 7, 0,
 	       classd_tlv),
+
+SOC_SINGLE("EQ Switch", WM8962_EQ1, WM8962_EQ_ENA_SHIFT, 1, 0),
+SOC_DOUBLE_R_TLV("EQ1 Volume", WM8962_EQ2, WM8962_EQ22,
+		 WM8962_EQL_B1_GAIN_SHIFT, 31, 0, eq_tlv),
+SOC_DOUBLE_R_TLV("EQ2 Volume", WM8962_EQ2, WM8962_EQ22,
+		 WM8962_EQL_B2_GAIN_SHIFT, 31, 0, eq_tlv),
+SOC_DOUBLE_R_TLV("EQ3 Volume", WM8962_EQ2, WM8962_EQ22,
+		 WM8962_EQL_B3_GAIN_SHIFT, 31, 0, eq_tlv),
+SOC_DOUBLE_R_TLV("EQ4 Volume", WM8962_EQ3, WM8962_EQ23,
+		 WM8962_EQL_B4_GAIN_SHIFT, 31, 0, eq_tlv),
+SOC_DOUBLE_R_TLV("EQ5 Volume", WM8962_EQ3, WM8962_EQ23,
+		 WM8962_EQL_B5_GAIN_SHIFT, 31, 0, eq_tlv),
 };
 
 static const struct snd_kcontrol_new wm8962_spk_mono_controls[] = {
@@ -3897,6 +3910,9 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 			    WM8962_HPOUT_VU, WM8962_HPOUT_VU);
 	snd_soc_update_bits(codec, WM8962_HPOUTR_VOLUME,
 			    WM8962_HPOUT_VU, WM8962_HPOUT_VU);
+
+	/* Stereo control for EQ */
+	snd_soc_update_bits(codec, WM8962_EQ1, WM8962_EQ_SHARED_COEFF, 0);
 
 	wm8962_add_widgets(codec);
 
