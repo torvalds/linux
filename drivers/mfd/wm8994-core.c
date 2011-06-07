@@ -316,7 +316,7 @@ static int wm8994_suspend(struct device *dev)
 static int wm8994_resume(struct device *dev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(dev);
-	int ret;
+	int ret, i;
 
 	/* We may have lied to the PM core about suspending */
 	if (!wm8994->suspended)
@@ -329,10 +329,16 @@ static int wm8994_resume(struct device *dev)
 		return ret;
 	}
 
-	ret = wm8994_write(wm8994, WM8994_INTERRUPT_STATUS_1_MASK,
-			   WM8994_NUM_IRQ_REGS * 2, &wm8994->irq_masks_cur);
-	if (ret < 0)
-		dev_err(dev, "Failed to restore interrupt masks: %d\n", ret);
+	/* Write register at a time as we use the cache on the CPU so store
+	 * it in native endian.
+	 */
+	for (i = 0; i < ARRAY_SIZE(wm8994->irq_masks_cur); i++) {
+		ret = wm8994_reg_write(wm8994, WM8994_INTERRUPT_STATUS_1_MASK
+				       + i, wm8994->irq_masks_cur[i]);
+		if (ret < 0)
+			dev_err(dev, "Failed to restore interrupt masks: %d\n",
+				ret);
+	}
 
 	ret = wm8994_write(wm8994, WM8994_LDO_1, WM8994_NUM_LDO_REGS * 2,
 			   &wm8994->ldo_regs);
