@@ -1501,7 +1501,8 @@ static int pxa_camera_try_fmt(struct soc_camera_device *icd,
 	/* limit to sensor capabilities */
 	mf.width	= pix->width;
 	mf.height	= pix->height;
-	mf.field	= pix->field;
+	/* Only progressive video supported so far */
+	mf.field	= V4L2_FIELD_NONE;
 	mf.colorspace	= pix->colorspace;
 	mf.code		= xlate->code;
 
