@@ -102,6 +102,7 @@ config GPIO_MXS
 	def_bool y
 	depends on ARCH_MXS
 	select GPIO_GENERIC
+	select GENERIC_IRQ_CHIP
 
 config GPIO_PLAT_SAMSUNG
 	def_bool y
