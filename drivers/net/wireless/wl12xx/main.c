@@ -4138,6 +4138,12 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	INIT_WORK(&wl->rx_streaming_disable_work,
 		  wl1271_rx_streaming_disable_work);
 
+	wl->freezable_wq = create_freezable_workqueue("wl12xx_wq");
+	if (!wl->freezable_wq) {
+		ret = -ENOMEM;
+		goto err_hw;
+	}
+
 	wl->channel = WL1271_DEFAULT_CHANNEL;
 	wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
 	wl->default_key = 0;
@@ -4182,7 +4188,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->aggr_buf = (u8 *)__get_free_pages(GFP_KERNEL, order);
 	if (!wl->aggr_buf) {
 		ret = -ENOMEM;
-		goto err_hw;
+		goto err_wq;
 	}
 
 	wl->dummy_packet = wl12xx_alloc_dummy_packet(wl);
@@ -4227,6 +4233,9 @@ err_dummy_packet:
 err_aggr:
 	free_pages((unsigned long)wl->aggr_buf, order);
 
+err_wq:
+	destroy_workqueue(wl->freezable_wq);
+
 err_hw:
 	wl1271_debugfs_exit(wl);
 	kfree(plat_dev);
@@ -4257,6 +4266,7 @@ int wl1271_free_hw(struct wl1271 *wl)
 
 	kfree(wl->fw_status);
 	kfree(wl->tx_res_if);
+	destroy_workqueue(wl->freezable_wq);
 
 	ieee80211_free_hw(wl->hw);
 

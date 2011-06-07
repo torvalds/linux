@@ -727,7 +727,7 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 
 	/* return the packet to the stack */
 	skb_queue_tail(&wl->deferred_tx_queue, skb);
-	ieee80211_queue_work(wl->hw, &wl->netstack_work);
+	queue_work(wl->freezable_wq, &wl->netstack_work);
 	wl1271_free_tx_id(wl, result->id);
 }
 
