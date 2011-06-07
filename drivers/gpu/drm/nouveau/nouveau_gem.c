@@ -333,6 +333,7 @@ static int
 validate_list(struct nouveau_channel *chan, struct list_head *list,
 	      struct drm_nouveau_gem_pushbuf_bo *pbbo, uint64_t user_pbbo_ptr)
 {
+	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct drm_nouveau_gem_pushbuf_bo __user *upbbo =
 				(void __force __user *)(uintptr_t)user_pbbo_ptr;
 	struct drm_device *dev = chan->dev;
@@ -371,24 +372,26 @@ validate_list(struct nouveau_channel *chan, struct list_head *list,
 			return ret;
 		}
 
-		if (nvbo->bo.offset == b->presumed.offset &&
-		    ((nvbo->bo.mem.mem_type == TTM_PL_VRAM &&
-		      b->presumed.domain & NOUVEAU_GEM_DOMAIN_VRAM) ||
-		     (nvbo->bo.mem.mem_type == TTM_PL_TT &&
-		      b->presumed.domain & NOUVEAU_GEM_DOMAIN_GART)))
-			continue;
+		if (dev_priv->card_type < NV_50) {
+			if (nvbo->bo.offset == b->presumed.offset &&
+			    ((nvbo->bo.mem.mem_type == TTM_PL_VRAM &&
+			      b->presumed.domain & NOUVEAU_GEM_DOMAIN_VRAM) ||
+			     (nvbo->bo.mem.mem_type == TTM_PL_TT &&
+			      b->presumed.domain & NOUVEAU_GEM_DOMAIN_GART)))
+				continue;
 
-		if (nvbo->bo.mem.mem_type == TTM_PL_TT)
-			b->presumed.domain = NOUVEAU_GEM_DOMAIN_GART;
-		else
-			b->presumed.domain = NOUVEAU_GEM_DOMAIN_VRAM;
-		b->presumed.offset = nvbo->bo.offset;
-		b->presumed.valid = 0;
-		relocs++;
+			if (nvbo->bo.mem.mem_type == TTM_PL_TT)
+				b->presumed.domain = NOUVEAU_GEM_DOMAIN_GART;
+			else
+				b->presumed.domain = NOUVEAU_GEM_DOMAIN_VRAM;
+			b->presumed.offset = nvbo->bo.offset;
+			b->presumed.valid = 0;
+			relocs++;
 
-		if (DRM_COPY_TO_USER(&upbbo[nvbo->pbbo_index].presumed,
-				     &b->presumed, sizeof(b->presumed)))
-			return -EFAULT;
+			if (DRM_COPY_TO_USER(&upbbo[nvbo->pbbo_index].presumed,
+					     &b->presumed, sizeof(b->presumed)))
+				return -EFAULT;
+		}
 	}
 
 	return relocs;
