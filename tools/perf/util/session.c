@@ -247,8 +247,13 @@ int perf_session__resolve_callchain(struct perf_session *self,
 	callchain_cursor_reset(&self->callchain_cursor);
 
 	for (i = 0; i < chain->nr; i++) {
-		u64 ip = chain->ips[i];
+		u64 ip;
 		struct addr_location al;
+
+		if (callchain_param.order == ORDER_CALLEE)
+			ip = chain->ips[i];
+		else
+			ip = chain->ips[chain->nr - i - 1];
 
 		if (ip >= PERF_CONTEXT_MAX) {
 			switch (ip) {
