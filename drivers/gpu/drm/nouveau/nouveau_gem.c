@@ -60,9 +60,9 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 }
 
 int
-nouveau_gem_new(struct drm_device *dev, struct nouveau_channel *chan,
-		int size, int align, uint32_t domain, uint32_t tile_mode,
-		uint32_t tile_flags, struct nouveau_bo **pnvbo)
+nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
+		uint32_t tile_mode, uint32_t tile_flags,
+		struct nouveau_bo **pnvbo)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *nvbo;
@@ -76,7 +76,7 @@ nouveau_gem_new(struct drm_device *dev, struct nouveau_channel *chan,
 	if (!flags || domain & NOUVEAU_GEM_DOMAIN_CPU)
 		flags |= TTM_PL_FLAG_SYSTEM;
 
-	ret = nouveau_bo_new(dev, chan, size, align, flags, tile_mode,
+	ret = nouveau_bo_new(dev, NULL, size, align, flags, tile_mode,
 			     tile_flags, pnvbo);
 	if (ret)
 		return ret;
@@ -127,7 +127,6 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct drm_nouveau_gem_new *req = data;
 	struct nouveau_bo *nvbo = NULL;
-	struct nouveau_channel *chan = NULL;
 	int ret = 0;
 
 	if (unlikely(dev_priv->ttm.bdev.dev_mapping == NULL))
@@ -138,17 +137,9 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	if (req->channel_hint) {
-		chan = nouveau_channel_get(file_priv, req->channel_hint);
-		if (IS_ERR(chan))
-			return PTR_ERR(chan);
-	}
-
-	ret = nouveau_gem_new(dev, chan, req->info.size, req->align,
+	ret = nouveau_gem_new(dev, req->info.size, req->align,
 			      req->info.domain, req->info.tile_mode,
 			      req->info.tile_flags, &nvbo);
-	if (chan)
-		nouveau_channel_put(&chan);
 	if (ret)
 		return ret;
 

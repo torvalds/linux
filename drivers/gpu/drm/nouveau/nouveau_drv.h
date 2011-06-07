@@ -1324,10 +1324,9 @@ static inline struct nouveau_fence *nouveau_fence_ref(struct nouveau_fence *obj)
 }
 
 /* nouveau_gem.c */
-extern int nouveau_gem_new(struct drm_device *, struct nouveau_channel *,
-			   int size, int align, uint32_t domain,
-			   uint32_t tile_mode, uint32_t tile_flags,
-			   struct nouveau_bo **);
+extern int nouveau_gem_new(struct drm_device *, int size, int align,
+			   uint32_t domain, uint32_t tile_mode,
+			   uint32_t tile_flags, struct nouveau_bo **);
 extern int nouveau_gem_object_new(struct drm_gem_object *);
 extern void nouveau_gem_object_del(struct drm_gem_object *);
 extern int nouveau_gem_ioctl_new(struct drm_device *, void *,

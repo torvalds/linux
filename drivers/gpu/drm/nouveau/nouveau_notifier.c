@@ -46,7 +46,7 @@ nouveau_notifier_init_channel(struct nouveau_channel *chan)
 		ttmpl = TTM_PL_FLAG_TT;
 	}
 
-	ret = nouveau_gem_new(dev, NULL, PAGE_SIZE, 0, flags, 0, 0, &ntfy);
+	ret = nouveau_gem_new(dev, PAGE_SIZE, 0, flags, 0, 0, &ntfy);
 	if (ret)
 		return ret;
 
