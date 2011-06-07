@@ -5,7 +5,7 @@ always		:= $(hostprogs-y)
 genksyms-objs	:= genksyms.o parse.o lex.o
 
 # -I needed for generated C source (shipped source)
-HOSTCFLAGS_parse.o := -Wno-uninitialized -I$(src)
+HOSTCFLAGS_parse.tab.o := -I$(src)
 
 # dependencies on generated files need to be listed explicitly
 $(obj)/lex.o: $(obj)/parse.h $(obj)/keywords.c
