@@ -264,6 +264,11 @@ static int wq_condition2 = 0;
 static int new_frame_seted = 1;
 #endif
 static struct wake_lock idlelock; /* only for fb */
+#ifdef CONFIG_FB_ROTATE_VIDEO	
+//add by zyc
+static bool has_set_rotate; 
+static u32 last_yuv_phy[2] = {0,0};
+#endif
 
 int mcu_do_refresh(struct rk29fb_inf *inf)
 {
@@ -1881,6 +1886,83 @@ static int fb1_set_par(struct fb_info *info)
     }
     wq_condition2 = 0;
 
+#if CONFIG_FB_ROTATE_VIDEO
+//need refresh	,zyc add		
+	if(has_set_rotate == true)
+	{
+		u32 yuv_phy[2];
+		struct rk29_ipp_req ipp_req;
+		static u32 dstoffset = 0;
+		static int fb_index = 0;
+		
+		yuv_phy[0] = last_yuv_phy[0];
+		yuv_phy[1] = last_yuv_phy[1];
+		yuv_phy[0] += par->y_offset;
+		yuv_phy[1] += par->c_offset;
+		if((var->rotate == 90) ||(var->rotate == 270))
+			{
+				dstoffset = (dstoffset+1)%2;
+				ipp_req.src0.fmt = 3;
+				ipp_req.src0.YrgbMst = yuv_phy[0];
+				ipp_req.src0.CbrMst = yuv_phy[1];
+				ipp_req.src0.w = var->xres;
+				ipp_req.src0.h = var->yres;
+
+				ipp_req.dst0.fmt = 3;
+				ipp_req.dst0.YrgbMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*2*dstoffset;
+				ipp_req.dst0.CbrMst = inf->fb0->fix.mmio_start + screen->x_res*screen->y_res*(2*dstoffset+1);
+				//   if(var->xres > screen->x_res)
+				//   {
+					ipp_req.dst0.w = screen->x_res;
+					ipp_req.dst0.h = screen->y_res;
+				//  }   else	{
+				//	  ipp_req.dst0.w = var->yres;
+				// 	  ipp_req.dst0.h = var->xres;
+				//   }
+				ipp_req.src_vir_w = ipp_req.src0.w;
+				ipp_req.dst_vir_w = ipp_req.dst0.w;
+				ipp_req.timeout = 100;
+				if(var->rotate == 90)
+					ipp_req.flag = IPP_ROT_90;
+				else if(var->rotate == 270)
+					ipp_req.flag = IPP_ROT_270;
+
+				ipp_do_blit(&ipp_req);
+				fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
+				yuv_phy[0] = ipp_req.dst0.YrgbMst;
+				yuv_phy[1] = ipp_req.dst0.CbrMst;	 
+				fix->smem_start = yuv_phy[0];
+				fix->mmio_start = yuv_phy[1];
+			}
+		else
+			{
+			
+				fix->smem_start = yuv_phy[0];
+				fix->mmio_start = yuv_phy[1];
+			}
+			
+		LcdWrReg(inf, WIN0_YRGB_MST, yuv_phy[0]);
+		LcdWrReg(inf, WIN0_CBR_MST, yuv_phy[1]);
+		// enable win0 after the win0 par is seted
+		LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(par->par_seted && par->addr_seted));
+		par->addr_seted = 1;
+		LcdWrReg(inf, REG_CFG_DONE, 0x01);
+		if(par->addr_seted ) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		par->mirror.y_offset = yuv_phy[0];
+		par->mirror.c_offset = yuv_phy[1];
+		local_irq_restore(flags);
+
+		mcu_refresh(inf);
+		//printk("0x%.8x 0x%.8x mirror\n", par->mirror.y_offset, par->mirror.c_offset);
+		}
+
+	}
+
+    has_set_rotate = false;
+#endif
     return 0;
 }
 
@@ -1990,6 +2072,13 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             u32 yuv_phy[2];
             if (copy_from_user(yuv_phy, argp, 8))
 			    return -EFAULT;
+#ifdef CONFIG_FB_ROTATE_VIDEO 
+		//add by zyc
+		if(has_set_rotate == true)
+		break;
+		last_yuv_phy[0] = yuv_phy[0];
+		last_yuv_phy[1] = yuv_phy[1];
+#endif
 
             fix0->smem_start = yuv_phy[0];
             fix0->mmio_start = yuv_phy[1];
@@ -2058,6 +2147,8 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
     case FB1_IOCTL_SET_ROTATE:    //change MCU panel scan direction
         fbprintk(">>>>>> change lcdc direction(%d) \n", (int)arg);
       #ifdef CONFIG_FB_ROTATE_VIDEO 
+	  	//zyc add
+    	has_set_rotate = true;
         if(arg == 0 || arg==180)
             var->rotate = arg;    
         else if (arg == 90 || arg==270)
