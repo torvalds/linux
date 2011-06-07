@@ -1328,7 +1328,24 @@ static int dvb_register(struct cx8802_dev *dev)
 				goto frontend_detach;
 		}
 		break;
-	 case CX88_BOARD_GENIATECH_X8000_MT:
+	case CX88_BOARD_WINFAST_DTV2000H_PLUS:
+		fe0->dvb.frontend = dvb_attach(zl10353_attach,
+					       &cx88_pinnacle_hybrid_pctv,
+					       &core->i2c_adap);
+		if (fe0->dvb.frontend) {
+			struct xc4000_config cfg = {
+				.i2c_address	  = 0x61,
+				.default_pm	  = 0,
+				.dvb_amplitude	  = 134,
+				.set_smoothedcvbs = 1,
+				.if_khz		  = 4560
+			};
+			fe0->dvb.frontend->ops.i2c_gate_ctrl = NULL;
+			if (attach_xc4000(dev, &cfg) < 0)
+				goto frontend_detach;
+		}
+		break;
+	case CX88_BOARD_GENIATECH_X8000_MT:
 		dev->ts_gen_cntrl = 0x00;
 
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,
@@ -1609,6 +1626,11 @@ static int cx8802_dvb_advise_acquire(struct cx8802_driver *drv)
 			break;
 		}
 		udelay(1000);
+		break;
+
+	case CX88_BOARD_WINFAST_DTV2000H_PLUS:
+		/* set RF input to AIR for DVB-T (GPIO 16) */
+		cx_write(MO_GP2_IO, 0x0101);
 		break;
 
 	default:
