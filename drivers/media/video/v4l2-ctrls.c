@@ -1450,8 +1450,7 @@ EXPORT_SYMBOL(v4l2_subdev_querymenu);
    Find the controls in the control array and do some basic checks. */
 static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 			     struct v4l2_ext_controls *cs,
-			     struct ctrl_helper *helpers,
-			     bool try)
+			     struct ctrl_helper *helpers)
 {
 	u32 i;
 
@@ -1460,8 +1459,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 		struct v4l2_ctrl *ctrl;
 		u32 id = c->id & V4L2_CTRL_ID_MASK;
 
-		if (try)
-			cs->error_idx = i;
+		cs->error_idx = i;
 
 		if (cs->ctrl_class && V4L2_CTRL_ID2CLASS(id) != cs->ctrl_class)
 			return -EINVAL;
@@ -1554,7 +1552,8 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs
 			return -ENOMEM;
 	}
 
-	ret = prepare_ext_ctrls(hdl, cs, helpers, false);
+	ret = prepare_ext_ctrls(hdl, cs, helpers);
+	cs->error_idx = cs->count;
 
 	for (i = 0; !ret && i < cs->count; i++)
 		if (helpers[i].ctrl->flags & V4L2_CTRL_FLAG_WRITE_ONLY)
@@ -1701,12 +1700,10 @@ static int try_or_set_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 	unsigned i, j;
 	int ret = 0;
 
-	cs->error_idx = cs->count;
 	for (i = 0; i < cs->count; i++) {
 		struct v4l2_ctrl *ctrl = helpers[i].ctrl;
 
-		if (!set)
-			cs->error_idx = i;
+		cs->error_idx = i;
 
 		if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
 			return -EACCES;
@@ -1724,11 +1721,10 @@ static int try_or_set_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 		struct v4l2_ctrl *ctrl = helpers[i].ctrl;
 		struct v4l2_ctrl *master = ctrl->cluster[0];
 
-		cs->error_idx = i;
-
 		if (helpers[i].handled)
 			continue;
 
+		cs->error_idx = i;
 		v4l2_ctrl_lock(ctrl);
 
 		/* Reset the 'is_new' flags of the cluster */
@@ -1777,12 +1773,11 @@ static int try_set_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 		if (!helpers)
 			return -ENOMEM;
 	}
-	ret = prepare_ext_ctrls(hdl, cs, helpers, !set);
-	if (ret)
-		goto free;
+	ret = prepare_ext_ctrls(hdl, cs, helpers);
 
 	/* First 'try' all controls and abort on error */
-	ret = try_or_set_ext_ctrls(hdl, cs, helpers, false);
+	if (!ret)
+		ret = try_or_set_ext_ctrls(hdl, cs, helpers, false);
 	/* If this is a 'set' operation and the initial 'try' failed,
 	   then set error_idx to count to tell the application that no
 	   controls changed value yet. */
@@ -1795,7 +1790,6 @@ static int try_set_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 		ret = try_or_set_ext_ctrls(hdl, cs, helpers, true);
 	}
 
-free:
 	if (cs->count > ARRAY_SIZE(helper))
 		kfree(helpers);
 	return ret;
