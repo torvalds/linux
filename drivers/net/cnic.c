@@ -4225,14 +4225,6 @@ static void cnic_enable_bnx2_int(struct cnic_dev *dev)
 		BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID | cp->last_status_idx);
 }
 
-static void cnic_get_bnx2_iscsi_info(struct cnic_dev *dev)
-{
-	u32 max_conn;
-
-	max_conn = cnic_reg_rd_ind(dev, BNX2_FW_MAX_ISCSI_CONN);
-	dev->max_iscsi_conn = max_conn;
-}
-
 static void cnic_disable_bnx2_int_sync(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
@@ -4556,8 +4548,6 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 		cnic_reg_wr_ind(dev, BNX2_COM_SCRATCH + 0x20, 0);
 		return err;
 	}
-
-	cnic_get_bnx2_iscsi_info(dev);
 
 	return 0;
 }
@@ -5223,6 +5213,8 @@ static struct cnic_dev *init_bnx2_cnic(struct net_device *dev)
 	cp->ethdev = ethdev;
 	cdev->pcidev = pdev;
 	cp->chip_id = ethdev->chip_id;
+
+	cdev->max_iscsi_conn = ethdev->max_iscsi_conn;
 
 	cp->cnic_ops = &cnic_bnx2_ops;
 	cp->start_hw = cnic_start_bnx2_hw;
