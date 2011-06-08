@@ -797,6 +797,24 @@ static int e1000_is_need_ioport(struct pci_dev *pdev)
 	}
 }
 
+static int e1000_set_features(struct net_device *netdev, u32 features)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	u32 changed = features ^ netdev->features;
+
+	if (!(changed & NETIF_F_RXCSUM))
+		return 0;
+
+	adapter->rx_csum = !!(features & NETIF_F_RXCSUM);
+
+	if (netif_running(netdev))
+		e1000_reinit_locked(adapter);
+	else
+		e1000_reset(adapter);
+
+	return 0;
+}
+
 static const struct net_device_ops e1000_netdev_ops = {
 	.ndo_open		= e1000_open,
 	.ndo_stop		= e1000_close,
@@ -815,6 +833,7 @@ static const struct net_device_ops e1000_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= e1000_netpoll,
 #endif
+	.ndo_set_features       = e1000_set_features,
 };
 
 /**
@@ -1016,16 +1035,19 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	}
 
 	if (hw->mac_type >= e1000_82543) {
-		netdev->features = NETIF_F_SG |
-				   NETIF_F_HW_CSUM |
-				   NETIF_F_HW_VLAN_TX |
+		netdev->hw_features = NETIF_F_SG |
+				   NETIF_F_HW_CSUM;
+		netdev->features = NETIF_F_HW_VLAN_TX |
 				   NETIF_F_HW_VLAN_RX |
 				   NETIF_F_HW_VLAN_FILTER;
 	}
 
 	if ((hw->mac_type >= e1000_82544) &&
 	   (hw->mac_type != e1000_82547))
-		netdev->features |= NETIF_F_TSO;
+		netdev->hw_features |= NETIF_F_TSO;
+
+	netdev->features |= netdev->hw_features;
+	netdev->hw_features |= NETIF_F_RXCSUM;
 
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
