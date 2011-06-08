@@ -2100,7 +2100,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.tx_stats_read = iwl4965_ucode_tx_stats_read,
 		.general_stats_read = iwl4965_ucode_general_stats_read,
 	},
-	.check_plcp_health = iwl4965_good_plcp_health,
 };
 
 static const struct iwl_legacy_ops iwl4965_legacy_ops = {

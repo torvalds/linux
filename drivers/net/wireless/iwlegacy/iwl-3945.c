@@ -408,7 +408,6 @@ void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUGFS
 	iwl3945_accumulative_statistics(priv, (__le32 *)&pkt->u.raw);
 #endif
-	iwl_legacy_recover_from_statistics(priv, pkt);
 
 	memcpy(&priv->_3945.statistics, pkt->u.raw, sizeof(priv->_3945.statistics));
 }
