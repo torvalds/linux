@@ -890,7 +890,7 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	struct sk_buff *skb;
 
 	/* is PCI flag set on buffer? */
-	if (buf->buffer->element[0].flags & 0x40)
+	if (buf->buffer->element[0].sflags & SBAL_SFLAGS0_PCI_REQ)
 		atomic_dec(&queue->set_pci_flags_count);
 
 	skb = skb_dequeue(&buf->skb_list);
@@ -906,9 +906,11 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 		buf->is_header[i] = 0;
 		buf->buffer->element[i].length = 0;
 		buf->buffer->element[i].addr = NULL;
-		buf->buffer->element[i].flags = 0;
+		buf->buffer->element[i].eflags = 0;
+		buf->buffer->element[i].sflags = 0;
 	}
-	buf->buffer->element[15].flags = 0;
+	buf->buffer->element[15].eflags = 0;
+	buf->buffer->element[15].sflags = 0;
 	buf->next_element_to_fill = 0;
 	atomic_set(&buf->state, QETH_QDIO_BUF_EMPTY);
 }
@@ -2368,9 +2370,10 @@ static int qeth_init_input_buffer(struct qeth_card *card,
 		buf->buffer->element[i].length = PAGE_SIZE;
 		buf->buffer->element[i].addr =  pool_entry->elements[i];
 		if (i == QETH_MAX_BUFFER_ELEMENTS(card) - 1)
-			buf->buffer->element[i].flags = SBAL_FLAGS_LAST_ENTRY;
+			buf->buffer->element[i].eflags = SBAL_EFLAGS_LAST_ENTRY;
 		else
-			buf->buffer->element[i].flags = 0;
+			buf->buffer->element[i].eflags = 0;
+		buf->buffer->element[i].sflags = 0;
 	}
 	return 0;
 }
@@ -2718,11 +2721,11 @@ int qeth_check_qdio_errors(struct qeth_card *card, struct qdio_buffer *buf,
 	if (qdio_error) {
 		QETH_CARD_TEXT(card, 2, dbftext);
 		QETH_CARD_TEXT_(card, 2, " F15=%02X",
-			       buf->element[15].flags & 0xff);
+			       buf->element[15].sflags);
 		QETH_CARD_TEXT_(card, 2, " F14=%02X",
-			       buf->element[14].flags & 0xff);
+			       buf->element[14].sflags);
 		QETH_CARD_TEXT_(card, 2, " qerr=%X", qdio_error);
-		if ((buf->element[15].flags & 0xff) == 0x12) {
+		if ((buf->element[15].sflags) == 0x12) {
 			card->stats.rx_dropped++;
 			return 0;
 		} else
@@ -2798,7 +2801,7 @@ EXPORT_SYMBOL_GPL(qeth_queue_input_buffer);
 static int qeth_handle_send_error(struct qeth_card *card,
 		struct qeth_qdio_out_buffer *buffer, unsigned int qdio_err)
 {
-	int sbalf15 = buffer->buffer->element[15].flags & 0xff;
+	int sbalf15 = buffer->buffer->element[15].sflags;
 
 	QETH_CARD_TEXT(card, 6, "hdsnderr");
 	if (card->info.type == QETH_CARD_TYPE_IQD) {
@@ -2907,8 +2910,8 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 
 	for (i = index; i < index + count; ++i) {
 		buf = &queue->bufs[i % QDIO_MAX_BUFFERS_PER_Q];
-		buf->buffer->element[buf->next_element_to_fill - 1].flags |=
-				SBAL_FLAGS_LAST_ENTRY;
+		buf->buffer->element[buf->next_element_to_fill - 1].eflags |=
+				SBAL_EFLAGS_LAST_ENTRY;
 
 		if (queue->card->info.type == QETH_CARD_TYPE_IQD)
 			continue;
@@ -2921,7 +2924,7 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 				/* it's likely that we'll go to packing
 				 * mode soon */
 				atomic_inc(&queue->set_pci_flags_count);
-				buf->buffer->element[0].flags |= 0x40;
+				buf->buffer->element[0].sflags |= SBAL_SFLAGS0_PCI_REQ;
 			}
 		} else {
 			if (!atomic_read(&queue->set_pci_flags_count)) {
@@ -2934,7 +2937,7 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 				 * further send was requested by the stack
 				 */
 				atomic_inc(&queue->set_pci_flags_count);
-				buf->buffer->element[0].flags |= 0x40;
+				buf->buffer->element[0].sflags |= SBAL_SFLAGS0_PCI_REQ;
 			}
 		}
 	}
@@ -3180,20 +3183,20 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 		if (!length) {
 			if (first_lap)
 				if (skb_shinfo(skb)->nr_frags)
-					buffer->element[element].flags =
-						SBAL_FLAGS_FIRST_FRAG;
+					buffer->element[element].eflags =
+						SBAL_EFLAGS_FIRST_FRAG;
 				else
-					buffer->element[element].flags = 0;
+					buffer->element[element].eflags = 0;
 			else
-				buffer->element[element].flags =
-				    SBAL_FLAGS_MIDDLE_FRAG;
+				buffer->element[element].eflags =
+				    SBAL_EFLAGS_MIDDLE_FRAG;
 		} else {
 			if (first_lap)
-				buffer->element[element].flags =
-				    SBAL_FLAGS_FIRST_FRAG;
+				buffer->element[element].eflags =
+				    SBAL_EFLAGS_FIRST_FRAG;
 			else
-				buffer->element[element].flags =
-				    SBAL_FLAGS_MIDDLE_FRAG;
+				buffer->element[element].eflags =
+				    SBAL_EFLAGS_MIDDLE_FRAG;
 		}
 		data += length_here;
 		element++;
@@ -3205,12 +3208,12 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 		buffer->element[element].addr = (char *)page_to_phys(frag->page)
 			+ frag->page_offset;
 		buffer->element[element].length = frag->size;
-		buffer->element[element].flags = SBAL_FLAGS_MIDDLE_FRAG;
+		buffer->element[element].eflags = SBAL_EFLAGS_MIDDLE_FRAG;
 		element++;
 	}
 
-	if (buffer->element[element - 1].flags)
-		buffer->element[element - 1].flags = SBAL_FLAGS_LAST_FRAG;
+	if (buffer->element[element - 1].eflags)
+		buffer->element[element - 1].eflags = SBAL_EFLAGS_LAST_FRAG;
 	*next_element_to_fill = element;
 }
 
@@ -3234,7 +3237,7 @@ static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 		/*fill first buffer entry only with header information */
 		buffer->element[element].addr = skb->data;
 		buffer->element[element].length = hdr_len;
-		buffer->element[element].flags = SBAL_FLAGS_FIRST_FRAG;
+		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
 		buf->next_element_to_fill++;
 		skb->data += hdr_len;
 		skb->len  -= hdr_len;
@@ -3246,7 +3249,7 @@ static inline int qeth_fill_buffer(struct qeth_qdio_out_q *queue,
 		buffer->element[element].addr = hdr;
 		buffer->element[element].length = sizeof(struct qeth_hdr) +
 							hd_len;
-		buffer->element[element].flags = SBAL_FLAGS_FIRST_FRAG;
+		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
 		buf->is_header[element] = 1;
 		buf->next_element_to_fill++;
 	}
