@@ -363,6 +363,19 @@ static int sci_rxfill(struct uart_port *port)
 	return (sci_in(port, SCxSR) & SCxSR_RDxF(port)) != 0;
 }
 
+/*
+ * SCI helper for checking the state of the muxed port/RXD pins.
+ */
+static inline int sci_rxd_in(struct uart_port *port)
+{
+	struct sci_port *s = to_sci_port(port);
+
+	if (s->cfg->port_reg <= 0)
+		return 1;
+
+	return !!__raw_readb(s->cfg->port_reg);
+}
+
 /* ********************************************************************** *
  *                   the interrupt related routines                       *
  * ********************************************************************** */

@@ -287,32 +287,3 @@ SCIF_FNS(SCLSR,                         0,  0, 0x24, 16)
 #endif
 #define sci_in(port, reg) sci_##reg##_in(port)
 #define sci_out(port, reg, value) sci_##reg##_out(port, value)
-
-#if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7707) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7708) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7709)
-static inline int sci_rxd_in(struct uart_port *port)
-{
-	if (port->mapbase == 0xfffffe80)
-		return __raw_readb(SCPDR)&0x01 ? 1 : 0; /* SCI */
-	return 1;
-}
-#elif defined(CONFIG_CPU_SUBTYPE_SH7750)  || \
-      defined(CONFIG_CPU_SUBTYPE_SH7751)  || \
-      defined(CONFIG_CPU_SUBTYPE_SH7751R) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7750R) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7750S) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7091)
-static inline int sci_rxd_in(struct uart_port *port)
-{
-	if (port->mapbase == 0xffe00000)
-		return __raw_readb(SCSPTR1)&0x01 ? 1 : 0; /* SCI */
-	return 1;
-}
-#else /* default case for non-SCI processors */
-static inline int sci_rxd_in(struct uart_port *port)
-{
-	return 1;
-}
-#endif

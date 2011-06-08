@@ -86,6 +86,8 @@ struct plat_sci_port {
 	int		overrun_bit;
 	unsigned int	error_mask;
 
+	int		port_reg;
+
 	struct device	*dma_dev;
 
 	unsigned int	dma_slave_tx;
