@@ -87,6 +87,7 @@ config GPIO_IT8761E
 config GPIO_EP93XX
 	def_bool y
 	depends on ARCH_EP93XX
+	select GPIO_GENERIC
 
 config GPIO_EXYNOS4
 	def_bool y

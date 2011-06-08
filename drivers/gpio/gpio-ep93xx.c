@@ -2,6 +2,7 @@
  * Generic EP93xx GPIO handling
  *
  * Copyright (c) 2008 Ryan Mallon <ryan@bluewatersys.com>
+ * Copyright (c) 2011 H Hartley Sweeten <hsweeten@visionengravers.com>
  *
  * Based on code originally from:
  *  linux/arch/arm/mach-ep93xx/core.c
@@ -14,13 +15,19 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
-#include <linux/module.h>
-#include <linux/seq_file.h>
+#include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
+#include <linux/basic_mmio_gpio.h>
 
 #include <mach/hardware.h>
+
+struct ep93xx_gpio {
+	void __iomem		*mmio_base;
+	struct bgpio_chip	bgc[8];
+};
 
 /*************************************************************************
  * Interrupt handling for EP93xx on-chip GPIOs
@@ -223,7 +230,7 @@ static struct irq_chip ep93xx_gpio_irq_chip = {
 	.irq_set_type	= ep93xx_gpio_irq_type,
 };
 
-void __init ep93xx_gpio_init_irq(void)
+static void ep93xx_gpio_init_irq(void)
 {
 	int gpio_irq;
 
@@ -258,87 +265,33 @@ void __init ep93xx_gpio_init_irq(void)
 /*************************************************************************
  * gpiolib interface for EP93xx on-chip GPIOs
  *************************************************************************/
-struct ep93xx_gpio_chip {
-	struct gpio_chip	chip;
-
-	void __iomem		*data_reg;
-	void __iomem		*data_dir_reg;
+struct ep93xx_gpio_bank {
+	const char	*label;
+	int		data;
+	int		dir;
+	int		base;
+	bool		has_debounce;
 };
 
-#define to_ep93xx_gpio_chip(c) container_of(c, struct ep93xx_gpio_chip, chip)
-
-static int ep93xx_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
-{
-	struct ep93xx_gpio_chip *ep93xx_chip = to_ep93xx_gpio_chip(chip);
-	unsigned long flags;
-	u8 v;
-
-	local_irq_save(flags);
-	v = __raw_readb(ep93xx_chip->data_dir_reg);
-	v &= ~(1 << offset);
-	__raw_writeb(v, ep93xx_chip->data_dir_reg);
-	local_irq_restore(flags);
-
-	return 0;
-}
-
-static int ep93xx_gpio_direction_output(struct gpio_chip *chip,
-					unsigned offset, int val)
-{
-	struct ep93xx_gpio_chip *ep93xx_chip = to_ep93xx_gpio_chip(chip);
-	unsigned long flags;
-	int line;
-	u8 v;
-
-	local_irq_save(flags);
-
-	/* Set the value */
-	v = __raw_readb(ep93xx_chip->data_reg);
-	if (val)
-		v |= (1 << offset);
-	else
-		v &= ~(1 << offset);
-	__raw_writeb(v, ep93xx_chip->data_reg);
-
-	/* Drive as an output */
-	line = chip->base + offset;
-	if (line <= EP93XX_GPIO_LINE_MAX_IRQ) {
-		/* Ports A/B/F */
-		ep93xx_gpio_int_mask(line);
-		ep93xx_gpio_update_int_params(line >> 3);
+#define EP93XX_GPIO_BANK(_label, _data, _dir, _base, _debounce)	\
+	{							\
+		.label		= _label,			\
+		.data		= _data,			\
+		.dir		= _dir,				\
+		.base		= _base,			\
+		.has_debounce	= _debounce,			\
 	}
 
-	v = __raw_readb(ep93xx_chip->data_dir_reg);
-	v |= (1 << offset);
-	__raw_writeb(v, ep93xx_chip->data_dir_reg);
-
-	local_irq_restore(flags);
-
-	return 0;
-}
-
-static int ep93xx_gpio_get(struct gpio_chip *chip, unsigned offset)
-{
-	struct ep93xx_gpio_chip *ep93xx_chip = to_ep93xx_gpio_chip(chip);
-
-	return !!(__raw_readb(ep93xx_chip->data_reg) & (1 << offset));
-}
-
-static void ep93xx_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
-{
-	struct ep93xx_gpio_chip *ep93xx_chip = to_ep93xx_gpio_chip(chip);
-	unsigned long flags;
-	u8 v;
-
-	local_irq_save(flags);
-	v = __raw_readb(ep93xx_chip->data_reg);
-	if (val)
-		v |= (1 << offset);
-	else
-		v &= ~(1 << offset);
-	__raw_writeb(v, ep93xx_chip->data_reg);
-	local_irq_restore(flags);
-}
+static struct ep93xx_gpio_bank ep93xx_gpio_banks[] = {
+	EP93XX_GPIO_BANK("A", 0x00, 0x10, 0, true),
+	EP93XX_GPIO_BANK("B", 0x04, 0x14, 8, true),
+	EP93XX_GPIO_BANK("C", 0x08, 0x18, 40, false),
+	EP93XX_GPIO_BANK("D", 0x0c, 0x1c, 24, false),
+	EP93XX_GPIO_BANK("E", 0x20, 0x24, 32, false),
+	EP93XX_GPIO_BANK("F", 0x30, 0x34, 16, true),
+	EP93XX_GPIO_BANK("G", 0x38, 0x3c, 48, false),
+	EP93XX_GPIO_BANK("H", 0x40, 0x44, 56, false),
+};
 
 static int ep93xx_gpio_set_debounce(struct gpio_chip *chip,
 				    unsigned offset, unsigned debounce)
@@ -354,55 +307,100 @@ static int ep93xx_gpio_set_debounce(struct gpio_chip *chip,
 	return 0;
 }
 
-#define EP93XX_GPIO_BANK(name, dr, ddr, base_gpio)			\
-	{								\
-		.chip = {						\
-			.label		  = name,			\
-			.direction_input  = ep93xx_gpio_direction_input, \
-			.direction_output = ep93xx_gpio_direction_output, \
-			.get		  = ep93xx_gpio_get,		\
-			.set		  = ep93xx_gpio_set,		\
-			.base		  = base_gpio,			\
-			.ngpio		  = 8,				\
-		},							\
-		.data_reg	= EP93XX_GPIO_REG(dr),			\
-		.data_dir_reg	= EP93XX_GPIO_REG(ddr),			\
+static int ep93xx_gpio_add_bank(struct bgpio_chip *bgc, struct device *dev,
+	void __iomem *mmio_base, struct ep93xx_gpio_bank *bank)
+{
+	void __iomem *data = mmio_base + bank->data;
+	void __iomem *dir =  mmio_base + bank->dir;
+	int err;
+
+	err = bgpio_init(bgc, dev, 1, data, NULL, NULL, dir, NULL, false);
+	if (err)
+		return err;
+
+	bgc->gc.label = bank->label;
+	bgc->gc.base = bank->base;
+
+	if (bank->has_debounce)
+		bgc->gc.set_debounce = ep93xx_gpio_set_debounce;
+
+	return gpiochip_add(&bgc->gc);
+}
+
+static int __devinit ep93xx_gpio_probe(struct platform_device *pdev)
+{
+	struct ep93xx_gpio *ep93xx_gpio;
+	struct resource *res;
+	void __iomem *mmio;
+	int i;
+	int ret;
+
+	ep93xx_gpio = kzalloc(sizeof(*ep93xx_gpio), GFP_KERNEL);
+	if (!ep93xx_gpio)
+		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		ret = -ENXIO;
+		goto exit_free;
 	}
 
-static struct ep93xx_gpio_chip ep93xx_gpio_banks[] = {
-	EP93XX_GPIO_BANK("A", 0x00, 0x10, 0),
-	EP93XX_GPIO_BANK("B", 0x04, 0x14, 8),
-	EP93XX_GPIO_BANK("C", 0x08, 0x18, 40),
-	EP93XX_GPIO_BANK("D", 0x0c, 0x1c, 24),
-	EP93XX_GPIO_BANK("E", 0x20, 0x24, 32),
-	EP93XX_GPIO_BANK("F", 0x30, 0x34, 16),
-	EP93XX_GPIO_BANK("G", 0x38, 0x3c, 48),
-	EP93XX_GPIO_BANK("H", 0x40, 0x44, 56),
-};
+	if (!request_mem_region(res->start, resource_size(res), pdev->name)) {
+		ret = -EBUSY;
+		goto exit_free;
+	}
 
-void __init ep93xx_gpio_init(void)
-{
-	int i;
+	mmio = ioremap(res->start, resource_size(res));
+	if (!mmio) {
+		ret = -ENXIO;
+		goto exit_release;
+	}
+	ep93xx_gpio->mmio_base = mmio;
 
-	/* Set Ports C, D, E, G, and H for GPIO use */
+	/* Default all ports to GPIO */
 	ep93xx_devcfg_set_bits(EP93XX_SYSCON_DEVCFG_KEYS |
-				 EP93XX_SYSCON_DEVCFG_GONK |
-				 EP93XX_SYSCON_DEVCFG_EONIDE |
-				 EP93XX_SYSCON_DEVCFG_GONIDE |
-				 EP93XX_SYSCON_DEVCFG_HONIDE);
+			       EP93XX_SYSCON_DEVCFG_GONK |
+			       EP93XX_SYSCON_DEVCFG_EONIDE |
+			       EP93XX_SYSCON_DEVCFG_GONIDE |
+			       EP93XX_SYSCON_DEVCFG_HONIDE);
 
 	for (i = 0; i < ARRAY_SIZE(ep93xx_gpio_banks); i++) {
-		struct gpio_chip *chip = &ep93xx_gpio_banks[i].chip;
+		struct bgpio_chip *bgc = &ep93xx_gpio->bgc[i];
+		struct ep93xx_gpio_bank *bank = &ep93xx_gpio_banks[i];
 
-		/*
-		 * Ports A, B, and F support input debouncing when
-		 * used as interrupts.
-		 */
-		if (!strcmp(chip->label, "A") ||
-		    !strcmp(chip->label, "B") ||
-		    !strcmp(chip->label, "F"))
-			chip->set_debounce = ep93xx_gpio_set_debounce;
-
-		gpiochip_add(chip);
+		if (ep93xx_gpio_add_bank(bgc, &pdev->dev, mmio, bank))
+			dev_warn(&pdev->dev, "Unable to add gpio bank %s\n",
+				bank->label);
 	}
+
+	ep93xx_gpio_init_irq();
+
+	return 0;
+
+exit_release:
+	release_mem_region(res->start, resource_size(res));
+exit_free:
+	kfree(ep93xx_gpio);
+	dev_info(&pdev->dev, "%s failed with errno %d\n", __func__, ret);
+	return ret;
 }
+
+static struct platform_driver ep93xx_gpio_driver = {
+	.driver		= {
+		.name	= "gpio-ep93xx",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= ep93xx_gpio_probe,
+};
+
+static int __init ep93xx_gpio_init(void)
+{
+	pr_info("%s\n", __func__);
+	return platform_driver_register(&ep93xx_gpio_driver);
+}
+postcore_initcall(ep93xx_gpio_init);
+
+MODULE_AUTHOR("Ryan Mallon <ryan@bluewatersys.com> "
+		"H Hartley Sweeten <hsweeten@visionengravers.com>");
+MODULE_DESCRIPTION("EP93XX GPIO driver");
+MODULE_LICENSE("GPL");
