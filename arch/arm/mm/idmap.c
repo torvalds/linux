@@ -100,17 +100,18 @@ static int __init init_static_idmap(void)
 arch_initcall(init_static_idmap);
 
 /*
- * In order to soft-boot, we need to insert a 1:1 mapping in place of
- * the user-mode pages.  This will then ensure that we have predictable
- * results when turning the mmu off
+ * In order to soft-boot, we need to switch to a 1:1 mapping for the
+ * cpu_reset functions. This will then ensure that we have predictable
+ * results when turning off the mmu.
  */
 void setup_mm_for_reboot(void)
 {
-	/*
-	 * We need to access to user-mode page tables here. For kernel threads
-	 * we don't have any user-mode mappings so we use the context that we
-	 * "borrowed".
-	 */
-	identity_mapping_add(current->active_mm->pgd, 0, TASK_SIZE);
+	/* Clean and invalidate L1. */
+	flush_cache_all();
+
+	/* Switch to the identity mapping. */
+	cpu_switch_mm(idmap_pgd, &init_mm);
+
+	/* Flush the TLB. */
 	local_flush_tlb_all();
 }
