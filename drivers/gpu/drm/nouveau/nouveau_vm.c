@@ -369,23 +369,26 @@ nouveau_vm_link(struct nouveau_vm *vm, struct nouveau_gpuobj *pgd)
 }
 
 static void
-nouveau_vm_unlink(struct nouveau_vm *vm, struct nouveau_gpuobj *pgd)
+nouveau_vm_unlink(struct nouveau_vm *vm, struct nouveau_gpuobj *mpgd)
 {
 	struct nouveau_vm_pgd *vpgd, *tmp;
+	struct nouveau_gpuobj *pgd = NULL;
 
-	if (!pgd)
+	if (!mpgd)
 		return;
 
 	mutex_lock(&vm->mm->mutex);
 	list_for_each_entry_safe(vpgd, tmp, &vm->pgd_list, head) {
-		if (vpgd->obj != pgd)
-			continue;
-
-		list_del(&vpgd->head);
-		nouveau_gpuobj_ref(NULL, &vpgd->obj);
-		kfree(vpgd);
+		if (vpgd->obj == mpgd) {
+			pgd = vpgd->obj;
+			list_del(&vpgd->head);
+			kfree(vpgd);
+			break;
+		}
 	}
 	mutex_unlock(&vm->mm->mutex);
+
+	nouveau_gpuobj_ref(NULL, &pgd);
 }
 
 static void
