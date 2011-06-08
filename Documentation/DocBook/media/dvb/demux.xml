@@ -135,17 +135,42 @@ struct dmx_pes_filter_params
 
 <section id="dmx-stc">
 <title>struct dmx_stc</title>
- <programlisting>
+<programlisting>
 struct dmx_stc {
 	unsigned int num;	/&#x22C6; input : which STC? 0..N &#x22C6;/
 	unsigned int base;	/&#x22C6; output: divisor for stc to get 90 kHz clock &#x22C6;/
 	__u64 stc;		/&#x22C6; output: stc in 'base'&#x22C6;90 kHz units &#x22C6;/
 };
 </programlisting>
- </section>
-
 </section>
 
+<section id="dmx-caps">
+<title>struct dmx_caps</title>
+<programlisting>
+ typedef struct dmx_caps {
+	__u32 caps;
+	int num_decoders;
+} dmx_caps_t;
+</programlisting>
+</section>
+
+<section id="dmx-source-t">
+<title>enum dmx_source_t</title>
+<programlisting>
+typedef enum {
+	DMX_SOURCE_FRONT0 = 0,
+	DMX_SOURCE_FRONT1,
+	DMX_SOURCE_FRONT2,
+	DMX_SOURCE_FRONT3,
+	DMX_SOURCE_DVR0   = 16,
+	DMX_SOURCE_DVR1,
+	DMX_SOURCE_DVR2,
+	DMX_SOURCE_DVR3
+} dmx_source_t;
+</programlisting>
+</section>
+
+</section>
 <section id="dmx_fcalls">
 <title>Demux Function Calls</title>
 
