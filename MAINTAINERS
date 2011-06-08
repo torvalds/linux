@@ -6444,9 +6444,11 @@ S:	Maintained
 F:	drivers/media/video/et61x251/
 
 USB GADGET/PERIPHERAL SUBSYSTEM
+M:	Felipe Balbi <balbi@ti.com>
 L:	linux-usb@vger.kernel.org
 W:	http://www.linux-usb.org/gadget
-S:	Orphan
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
+S:	Maintained
 F:	drivers/usb/gadget/
 F:	include/linux/usb/gadget*
 
