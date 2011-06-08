@@ -550,9 +550,9 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 
 /* prepad is the amount to reserve at front.  len is length after that.
  * linear is a hint as to how much to copy (usually headers). */
-static inline struct sk_buff *tun_alloc_skb(struct tun_struct *tun,
-					    size_t prepad, size_t len,
-					    size_t linear, int noblock)
+static struct sk_buff *tun_alloc_skb(struct tun_struct *tun,
+				     size_t prepad, size_t len,
+				     size_t linear, int noblock)
 {
 	struct sock *sk = tun->socket.sk;
 	struct sk_buff *skb;
@@ -578,9 +578,9 @@ static inline struct sk_buff *tun_alloc_skb(struct tun_struct *tun,
 }
 
 /* Get packet from user space buffer */
-static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
-				       const struct iovec *iv, size_t count,
-				       int noblock)
+static ssize_t tun_get_user(struct tun_struct *tun,
+			    const struct iovec *iv, size_t count,
+			    int noblock)
 {
 	struct tun_pi pi = { 0, cpu_to_be16(ETH_P_IP) };
 	struct sk_buff *skb;
@@ -729,9 +729,9 @@ static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 }
 
 /* Put packet to the user space buffer */
-static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
-				       struct sk_buff *skb,
-				       const struct iovec *iv, int len)
+static ssize_t tun_put_user(struct tun_struct *tun,
+			    struct sk_buff *skb,
+			    const struct iovec *iv, int len)
 {
 	struct tun_pi pi = { 0, skb->protocol };
 	ssize_t total = 0;
