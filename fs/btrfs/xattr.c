@@ -158,8 +158,6 @@ int __btrfs_setxattr(struct btrfs_trans_handle *trans,
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	btrfs_set_trans_block_group(trans, inode);
-
 	ret = do_setxattr(trans, inode, name, value, size, flags);
 	if (ret)
 		goto out;

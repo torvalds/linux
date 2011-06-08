@@ -76,7 +76,7 @@
  * 	tty device.  It is solely the responsibility of the line
  * 	discipline to handle poll requests.
  *
- * unsigned int (*receive_buf)(struct tty_struct *, const unsigned char *cp,
+ * void	(*receive_buf)(struct tty_struct *, const unsigned char *cp,
  * 		       char *fp, int count);
  *
  * 	This function is called by the low-level tty driver to send
@@ -84,8 +84,7 @@
  * 	processing.  <cp> is a pointer to the buffer of input
  * 	character received by the device.  <fp> is a pointer to a
  * 	pointer of flag bytes which indicate whether a character was
- * 	received with a parity error, etc. Returns the amount of bytes
- * 	received.
+ * 	received with a parity error, etc.
  * 
  * void	(*write_wakeup)(struct tty_struct *);
  *
@@ -141,8 +140,8 @@ struct tty_ldisc_ops {
 	/*
 	 * The following routines are called from below.
 	 */
-	unsigned int (*receive_buf)(struct tty_struct *,
-			const unsigned char *cp, char *fp, int count);
+	void	(*receive_buf)(struct tty_struct *, const unsigned char *cp,
+			       char *fp, int count);
 	void	(*write_wakeup)(struct tty_struct *);
 	void	(*dcd_change)(struct tty_struct *, unsigned int,
 				struct pps_event_time *);
