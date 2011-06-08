@@ -39,7 +39,6 @@
 #include "fw.h"
 
 extern const char driver_version[];
-extern struct mwifiex_adapter *g_adapter;
 
 enum {
 	MWIFIEX_ASYNC_CMD,
