@@ -651,7 +651,7 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 		reason = "unrecognized superblock version";
 	else if (chunksize < 512)
 		reason = "bitmap chunksize too small";
-	else if ((1 << ffz(~chunksize)) != chunksize)
+	else if (!is_power_of_2(chunksize))
 		reason = "bitmap chunksize not a power of 2";
 	else if (daemon_sleep < 1 || daemon_sleep > MAX_SCHEDULE_TIMEOUT)
 		reason = "daemon sleep period out of range";
