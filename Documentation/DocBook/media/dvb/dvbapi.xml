@@ -114,8 +114,32 @@ Added ISDB-T test originally written by Patrick Boettcher
     &sub-examples;
   </chapter>
 <!-- END OF CHAPTERS -->
+  <appendix id="audio_h">
+    <title>DVB Audio Header File</title>
+    &sub-audio-h;
+  </appendix>
+  <appendix id="ca_h">
+    <title>DVB Conditional Access Header File</title>
+    &sub-ca-h;
+  </appendix>
+  <appendix id="dmx_h">
+    <title>DVB Demux Header File</title>
+    &sub-dmx-h;
+  </appendix>
   <appendix id="frontend_h">
     <title>DVB Frontend Header File</title>
     &sub-frontend-h;
+  </appendix>
+  <appendix id="net_h">
+    <title>DVB Network Header File</title>
+    &sub-net-h;
+  </appendix>
+  <appendix id="osd_h">
+    <title>DVB OSD Header File</title>
+    &sub-osd-h;
+  </appendix>
+  <appendix id="video_h">
+    <title>DVB Video Header File</title>
+    &sub-video-h;
   </appendix>
 

@@ -175,9 +175,26 @@ the devices are described in the following chapters.</para>
 The DVB API include files should be included in application sources with
 a partial path like:</para>
 
-
+<programlisting>
+	#include &#x003C;linux/dvb/audio.h&#x003E;
+</programlisting>
+<programlisting>
+	#include &#x003C;linux/dvb/ca.h&#x003E;
+</programlisting>
+<programlisting>
+	#include &#x003C;linux/dvb/dmx.h&#x003E;
+</programlisting>
 <programlisting>
 	#include &#x003C;linux/dvb/frontend.h&#x003E;
+</programlisting>
+<programlisting>
+	#include &#x003C;linux/dvb/net.h&#x003E;
+</programlisting>
+<programlisting>
+	#include &#x003C;linux/dvb/osd.h&#x003E;
+</programlisting>
+<programlisting>
+	#include &#x003C;linux/dvb/video.h&#x003E;
 </programlisting>
 
 <para>To enable applications to support different API version, an
