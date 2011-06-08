@@ -32,7 +32,7 @@
 /**
  * Get count number of pages from pool to pages list.
  *
- * @pages: heado of empty linked list where pages are filled.
+ * @pages: head of empty linked list where pages are filled.
  * @flags: ttm flags for page allocation.
  * @cstate: ttm caching state for the page.
  * @count: number of pages to allocate.
