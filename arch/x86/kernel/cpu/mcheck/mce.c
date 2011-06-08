@@ -1537,19 +1537,18 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 	do {
 		for (i = prev; i < next; i++) {
 			unsigned long start = jiffies;
+			struct mce *m = &mcelog.entry[i];
 
-			while (!mcelog.entry[i].finished) {
+			while (!m->finished) {
 				if (time_after_eq(jiffies, start + 2)) {
-					memset(mcelog.entry + i, 0,
-					       sizeof(struct mce));
+					memset(m, 0, sizeof(*m));
 					goto timeout;
 				}
 				cpu_relax();
 			}
 			smp_rmb();
-			err |= copy_to_user(buf, mcelog.entry + i,
-					    sizeof(struct mce));
-			buf += sizeof(struct mce);
+			err |= copy_to_user(buf, m, sizeof(*m));
+			buf += sizeof(*m);
 timeout:
 			;
 		}
@@ -1569,13 +1568,13 @@ timeout:
 	on_each_cpu(collect_tscs, cpu_tsc, 1);
 
 	for (i = next; i < MCE_LOG_LEN; i++) {
-		if (mcelog.entry[i].finished &&
-		    mcelog.entry[i].tsc < cpu_tsc[mcelog.entry[i].cpu]) {
-			err |= copy_to_user(buf, mcelog.entry+i,
-					    sizeof(struct mce));
+		struct mce *m = &mcelog.entry[i];
+
+		if (m->finished && m->tsc < cpu_tsc[m->cpu]) {
+			err |= copy_to_user(buf, m, sizeof(*m));
 			smp_rmb();
-			buf += sizeof(struct mce);
-			memset(&mcelog.entry[i], 0, sizeof(struct mce));
+			buf += sizeof(*m);
+			memset(m, 0, sizeof(*m));
 		}
 	}
 
