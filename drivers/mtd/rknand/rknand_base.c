@@ -659,10 +659,10 @@ static int rknand_probe(struct platform_device *pdev)
     parts = nand_info->parts;
     for(i=0;i<g_num_partitions;i++)
     {
-        printk(">>> part[%d]: name=%s offset=0x%012llx\n", i, parts[i].name, parts[i].offset);
-        if(strcmp(parts[i].name,"cache") == 0)
+        //printk(">>> part[%d]: name=%s offset=0x%012llx\n", i, parts[i].name, parts[i].offset);
+        if(strcmp(parts[i].name,"backup") == 0)
         {
-            SysImageWriteEndAdd = (unsigned long)parts[i].offset>>9;//sector
+            SysImageWriteEndAdd = (unsigned long)(parts[i].offset + parts[i].size)>>9;//sector
 	        printk(">>> SysImageWriteEndAdd=0x%lx\n", SysImageWriteEndAdd);
             break;
         }
