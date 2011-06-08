@@ -7,6 +7,8 @@ the capability ioctls weren't implemented yet via the new way.</para>
 <para>The typical usage for the <constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant>
 API is to replace the ioctl's were the <link linkend="dvb-frontend-parameters">
 struct <constant>dvb_frontend_parameters</constant></link> were used.</para>
+<section id="dtv-property">
+<title>DTV property type</title>
 <programlisting>
 /* Reserved fields should be set to 0 */
 struct dtv_property {
@@ -25,12 +27,17 @@ struct dtv_property {
 
 /* num of properties cannot exceed DTV_IOCTL_MAX_MSGS per ioctl */
 #define DTV_IOCTL_MAX_MSGS 64
-
+</programlisting>
+</section>
+<section id="dtv-properties">
+<title>DTV properties type</title>
+<programlisting>
 struct dtv_properties {
 	__u32 num;
 	struct dtv_property *props;
 };
 </programlisting>
+</section>
 
 <section id="FE_GET_PROPERTY">
 <title>FE_GET_PROPERTY</title>

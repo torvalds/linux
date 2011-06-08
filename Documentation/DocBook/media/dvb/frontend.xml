@@ -140,7 +140,7 @@ a specific frontend type.</para>
 	};
 </programlisting>
 </section>
-<section role="subsection">
+<section role="subsection" id="dvb-diseqc-slave-reply">
 <title>diseqc slave reply</title>
 
 <para>A reply to the frontend from DiSEqC 2.0 capable equipment.</para>
