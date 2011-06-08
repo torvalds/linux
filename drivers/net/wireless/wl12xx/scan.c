@@ -331,16 +331,22 @@ wl1271_scan_get_sched_scan_channels(struct wl1271 *wl,
 	struct conf_sched_scan_settings *c = &wl->conf.sched_scan;
 	int i, j;
 	u32 flags;
+	bool force_passive = !req->n_ssids;
 
 	for (i = 0, j = start;
 	     i < req->n_channels && j < MAX_CHANNELS_ALL_BANDS;
 	     i++) {
 		flags = req->channels[i]->flags;
 
-		if (!(flags & IEEE80211_CHAN_DISABLED) &&
-		    ((flags & IEEE80211_CHAN_PASSIVE_SCAN) == passive) &&
-		    ((flags & IEEE80211_CHAN_RADAR) == radar) &&
-		    (req->channels[i]->band == band)) {
+		if (force_passive)
+			flags |= IEEE80211_CHAN_PASSIVE_SCAN;
+
+		if ((req->channels[i]->band == band) &&
+		    !(flags & IEEE80211_CHAN_DISABLED) &&
+		    (!!(flags & IEEE80211_CHAN_RADAR) == radar) &&
+		    /* if radar is set, we ignore the passive flag */
+		    (radar ||
+		     !!(flags & IEEE80211_CHAN_PASSIVE_SCAN) == passive)) {
 			wl1271_debug(DEBUG_SCAN, "band %d, center_freq %d ",
 				     req->channels[i]->band,
 				     req->channels[i]->center_freq);
@@ -350,7 +356,12 @@ wl1271_scan_get_sched_scan_channels(struct wl1271 *wl,
 			wl1271_debug(DEBUG_SCAN, "max_power %d",
 				     req->channels[i]->max_power);
 
-			if (flags & IEEE80211_CHAN_PASSIVE_SCAN) {
+			if (flags & IEEE80211_CHAN_RADAR) {
+				channels[j].flags |= SCAN_CHANNEL_FLAGS_DFS;
+				channels[j].passive_duration =
+					cpu_to_le16(c->dwell_time_dfs);
+			}
+			else if (flags & IEEE80211_CHAN_PASSIVE_SCAN) {
 				channels[j].passive_duration =
 					cpu_to_le16(c->dwell_time_passive);
 			} else {
@@ -359,7 +370,7 @@ wl1271_scan_get_sched_scan_channels(struct wl1271 *wl,
 				channels[j].max_duration =
 					cpu_to_le16(c->max_dwell_time_active);
 			}
-			channels[j].tx_power_att = req->channels[j]->max_power;
+			channels[j].tx_power_att = req->channels[i]->max_power;
 			channels[j].channel = req->channels[i]->hw_value;
 
 			j++;
@@ -386,7 +397,11 @@ wl1271_scan_sched_scan_channels(struct wl1271 *wl,
 		wl1271_scan_get_sched_scan_channels(wl, req, cfg->channels,
 						    IEEE80211_BAND_2GHZ,
 						    false, false, idx);
-	idx += cfg->active[0];
+	/*
+	 * 5GHz channels always start at position 14, not immediately
+	 * after the last 2.4GHz channel
+	 */
+	idx = 14;
 
 	cfg->passive[1] =
 		wl1271_scan_get_sched_scan_channels(wl, req, cfg->channels,
@@ -394,22 +409,23 @@ wl1271_scan_sched_scan_channels(struct wl1271 *wl,
 						    false, true, idx);
 	idx += cfg->passive[1];
 
-	cfg->active[1] =
-		wl1271_scan_get_sched_scan_channels(wl, req, cfg->channels,
-						    IEEE80211_BAND_5GHZ,
-						    false, false, 14);
-	idx += cfg->active[1];
-
 	cfg->dfs =
 		wl1271_scan_get_sched_scan_channels(wl, req, cfg->channels,
 						    IEEE80211_BAND_5GHZ,
-						    true, false, idx);
+						    true, true, idx);
 	idx += cfg->dfs;
+
+	cfg->active[1] =
+		wl1271_scan_get_sched_scan_channels(wl, req, cfg->channels,
+						    IEEE80211_BAND_5GHZ,
+						    false, false, idx);
+	idx += cfg->active[1];
 
 	wl1271_debug(DEBUG_SCAN, "    2.4GHz: active %d passive %d",
 		     cfg->active[0], cfg->passive[0]);
 	wl1271_debug(DEBUG_SCAN, "    5GHz: active %d passive %d",
 		     cfg->active[1], cfg->passive[1]);
+	wl1271_debug(DEBUG_SCAN, "    DFS: %d", cfg->dfs);
 
 	return idx;
 }
@@ -421,6 +437,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	struct wl1271_cmd_sched_scan_config *cfg = NULL;
 	struct conf_sched_scan_settings *c = &wl->conf.sched_scan;
 	int i, total_channels, ret;
+	bool force_passive = !req->n_ssids;
 
 	wl1271_debug(DEBUG_CMD, "cmd sched_scan scan config");
 
@@ -444,7 +461,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	for (i = 0; i < SCAN_MAX_CYCLE_INTERVALS; i++)
 		cfg->intervals[i] = cpu_to_le32(req->interval);
 
-	if (req->ssids[0].ssid_len && req->ssids[0].ssid) {
+	if (!force_passive && req->ssids[0].ssid_len && req->ssids[0].ssid) {
 		cfg->filter_type = SCAN_SSID_FILTER_SPECIFIC;
 		cfg->ssid_len = req->ssids[0].ssid_len;
 		memcpy(cfg->ssid, req->ssids[0].ssid,
@@ -461,7 +478,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 		goto out;
 	}
 
-	if (cfg->active[0]) {
+	if (!force_passive && cfg->active[0]) {
 		ret = wl1271_cmd_build_probe_req(wl, req->ssids[0].ssid,
 						 req->ssids[0].ssid_len,
 						 ies->ie[IEEE80211_BAND_2GHZ],
@@ -473,7 +490,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 		}
 	}
 
-	if (cfg->active[1]) {
+	if (!force_passive && cfg->active[1]) {
 		ret = wl1271_cmd_build_probe_req(wl,  req->ssids[0].ssid,
 						 req->ssids[0].ssid_len,
 						 ies->ie[IEEE80211_BAND_5GHZ],

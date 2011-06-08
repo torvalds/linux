@@ -504,7 +504,7 @@ static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 		BUG_ON(!new_device);
 		memcpy(new_device, device, sizeof(*new_device));
 		new_device->name = kstrdup(device->name, GFP_NOFS);
-		BUG_ON(!new_device->name);
+		BUG_ON(device->name && !new_device->name);
 		new_device->bdev = NULL;
 		new_device->writeable = 0;
 		new_device->in_fs_metadata = 0;

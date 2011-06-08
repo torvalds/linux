@@ -82,7 +82,7 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	void *addr;
 
 	addr = __in_29bit_mode() ?
-	       (void *)P1SEGADDR((unsigned long)vaddr) : vaddr;
+	       (void *)CAC_ADDR((unsigned long)vaddr) : vaddr;
 
 	switch (direction) {
 	case DMA_FROM_DEVICE:		/* invalidate only */
