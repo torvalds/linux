@@ -21,10 +21,10 @@ the following values, depending on whether we are replaying from an internal (de
 external (user write) source.
 </para>
 <programlisting>
- typedef enum {
-	 AUDIO_SOURCE_DEMUX,
-	 AUDIO_SOURCE_MEMORY
- } audio_stream_source_t;
+typedef enum {
+	AUDIO_SOURCE_DEMUX,
+	AUDIO_SOURCE_MEMORY
+} audio_stream_source_t;
 </programlisting>
 <para>AUDIO_SOURCE_DEMUX selects the demultiplexer (fed either by the frontend or the
 DVR device) as the source of the video stream. If AUDIO_SOURCE_MEMORY
@@ -39,11 +39,11 @@ call.
 state of audio playback.
 </para>
 <programlisting>
- typedef enum {
-	 AUDIO_STOPPED,
-	 AUDIO_PLAYING,
-	 AUDIO_PAUSED
- } audio_play_state_t;
+typedef enum {
+	AUDIO_STOPPED,
+	AUDIO_PLAYING,
+	AUDIO_PAUSED
+} audio_play_state_t;
 </programlisting>
 
 </section>
@@ -53,11 +53,13 @@ state of audio playback.
 following values.
 </para>
 <programlisting>
- typedef enum {
-	 AUDIO_STEREO,
-	 AUDIO_MONO_LEFT,
-	 AUDIO_MONO_RIGHT,
- } audio_channel_select_t;
+typedef enum {
+	AUDIO_STEREO,
+	AUDIO_MONO_LEFT,
+	AUDIO_MONO_RIGHT,
+	AUDIO_MONO,
+	AUDIO_STEREO_SWAPPED
+} audio_channel_select_t;
 </programlisting>
 
 </section>
@@ -67,14 +69,15 @@ following values.
 states of the playback operation.
 </para>
 <programlisting>
- typedef struct audio_status {
-	 boolean AV_sync_state;
-	 boolean mute_state;
-	 audio_play_state_t play_state;
-	 audio_stream_source_t stream_source;
-	 audio_channel_select_t channel_select;
-	 boolean bypass_mode;
- } audio_status_t;
+typedef struct audio_status {
+	boolean AV_sync_state;
+	boolean mute_state;
+	audio_play_state_t play_state;
+	audio_stream_source_t stream_source;
+	audio_channel_select_t channel_select;
+	boolean bypass_mode;
+	audio_mixer_t mixer_state;
+} audio_status_t;
 </programlisting>
 
 </section>
@@ -84,10 +87,10 @@ states of the playback operation.
 volume.
 </para>
 <programlisting>
- typedef struct audio_mixer {
-	 unsigned int volume_left;
-	 unsigned int volume_right;
- } audio_mixer_t;
+typedef struct audio_mixer {
+	unsigned int volume_left;
+	unsigned int volume_right;
+} audio_mixer_t;
 </programlisting>
 
 </section>
@@ -114,12 +117,12 @@ bits set according to the hardwares capabilities.
 <para>The ioctl AUDIO_SET_KARAOKE uses the following format:
 </para>
 <programlisting>
- typedef
- struct audio_karaoke{
-	 int vocal1;
-	 int vocal2;
-	 int melody;
- } audio_karaoke_t;
+typedef
+struct audio_karaoke {
+	int vocal1;
+	int vocal2;
+	int melody;
+} audio_karaoke_t;
 </programlisting>
 <para>If Vocal1 or Vocal2 are non-zero, they get mixed into left and right t at 70% each. If both,
 Vocal1 and Vocal2 are non-zero, Vocal1 gets mixed into the left channel and Vocal2 into the
