@@ -44,7 +44,7 @@ typedef struct ca_descr_info {
 <section id="ca-caps">
 <title>ca_caps_t</title>
 <programlisting>
-typedef struct ca_cap_s {
+typedef struct ca_caps {
 	unsigned int slot_num;  /&#x22C6; total number of CA card and module slots &#x22C6;/
 	unsigned int slot_type; /&#x22C6; OR of all supported types &#x22C6;/
 	unsigned int descr_num; /&#x22C6; total number of descrambler slots (keys) &#x22C6;/
@@ -75,7 +75,18 @@ typedef struct ca_descr {
 	unsigned char cw[8];
 } ca_descr_t;
 </programlisting>
- </section></section>
+</section>
+
+<section id="ca-pid">
+<title>ca-pid</title>
+<programlisting>
+typedef struct ca_pid {
+	unsigned int pid;
+	int index;		/&#x22C6; -1 == disable&#x22C6;/
+} ca_pid_t;
+</programlisting>
+</section></section>
+
 <section id="ca_function_calls">
 <title>CA Function Calls</title>
 
