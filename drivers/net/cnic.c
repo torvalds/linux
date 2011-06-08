@@ -2778,13 +2778,10 @@ static u32 cnic_service_bnx2_queues(struct cnic_dev *dev)
 
 		/* Tell compiler that status_blk fields can change. */
 		barrier();
-		if (status_idx != *cp->kcq1.status_idx_ptr) {
-			status_idx = (u16) *cp->kcq1.status_idx_ptr;
-			/* status block index must be read first */
-			rmb();
-			cp->kwq_con_idx = *cp->kwq_con_idx_ptr;
-		} else
-			break;
+		status_idx = (u16) *cp->kcq1.status_idx_ptr;
+		/* status block index must be read first */
+		rmb();
+		cp->kwq_con_idx = *cp->kwq_con_idx_ptr;
 	}
 
 	CNIC_WR16(dev, cp->kcq1.io_addr, cp->kcq1.sw_prod_idx);
@@ -2908,8 +2905,6 @@ static u32 cnic_service_bnx2x_kcq(struct cnic_dev *dev, struct kcq_info *info)
 
 		/* Tell compiler that sblk fields can change. */
 		barrier();
-		if (last_status == *info->status_idx_ptr)
-			break;
 
 		last_status = *info->status_idx_ptr;
 		/* status block index must be read before reading the KCQ */
