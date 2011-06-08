@@ -9,7 +9,6 @@
 #include <regex.h>
 #include <sys/utsname.h>
 
-#define LKC_DIRECT_LINK
 #include "lkc.h"
 
 struct symbol symbol_yes = {

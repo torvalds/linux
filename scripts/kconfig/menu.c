@@ -3,10 +3,11 @@
  * Released under the terms of the GNU GPL v2.0.
  */
 
+#include <ctype.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define LKC_DIRECT_LINK
 #include "lkc.h"
 
 static const char nohelp_text[] = N_(

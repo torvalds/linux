@@ -14,7 +14,6 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
-#define LKC_DIRECT_LINK
 #include "lkc.h"
 
 static void conf(struct menu *menu);
@@ -106,6 +105,7 @@ static int conf_askvalue(struct symbol *sym, const char *def)
 			return 0;
 		}
 		check_stdin();
+		/* fall through */
 	case oldaskconfig:
 		fflush(stdout);
 		xfgets(line, 128, stdin);
@@ -150,6 +150,7 @@ static int conf_string(struct menu *menu)
 				def = NULL;
 				break;
 			}
+			/* fall through */
 		default:
 			line[strlen(line)-1] = 0;
 			def = line;
@@ -304,6 +305,7 @@ static int conf_choice(struct menu *menu)
 				break;
 			}
 			check_stdin();
+			/* fall through */
 		case oldaskconfig:
 			fflush(stdout);
 			xfgets(line, 128, stdin);
@@ -369,6 +371,7 @@ static void conf(struct menu *menu)
 				check_conf(menu);
 				return;
 			}
+			/* fall through */
 		case P_COMMENT:
 			prompt = menu_get_prompt(menu);
 			if (prompt)
