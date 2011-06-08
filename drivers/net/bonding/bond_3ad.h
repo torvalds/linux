@@ -254,9 +254,6 @@ struct ad_bond_info {
 	struct ad_system system;	    /* 802.3ad system structure */
 	u32 agg_select_timer;	    // Timer to select aggregator after all adapter's hand shakes
 	u32 agg_select_mode;	    // Mode of selection of active aggregator(bandwidth/count)
-	int lacp_fast;		/* whether fast periodic tx should be
-				 * requested
-				 */
 	struct timer_list ad_timer;
 };
 
@@ -269,7 +266,7 @@ struct ad_slave_info {
 };
 
 // ================= AD Exported functions to the main bonding code ==================
-void bond_3ad_initialize(struct bonding *bond, u16 tick_resolution, int lacp_fast);
+void bond_3ad_initialize(struct bonding *bond, u16 tick_resolution);
 int  bond_3ad_bind_slave(struct slave *slave);
 void bond_3ad_unbind_slave(struct slave *slave);
 void bond_3ad_state_machine_handler(struct work_struct *);
