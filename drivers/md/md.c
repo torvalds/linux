@@ -7045,7 +7045,6 @@ void md_do_sync(mddev_t *mddev)
 }
 EXPORT_SYMBOL_GPL(md_do_sync);
 
-
 static int remove_and_add_spares(mddev_t *mddev)
 {
 	mdk_rdev_t *rdev;
@@ -7157,6 +7156,9 @@ static void reap_sync_thread(mddev_t *mddev)
  */
 void md_check_recovery(mddev_t *mddev)
 {
+	if (mddev->suspended)
+		return;
+
 	if (mddev->bitmap)
 		bitmap_daemon_work(mddev);
 
