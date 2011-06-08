@@ -866,6 +866,11 @@ bool radeon_combios_get_clock_info(struct drm_device *dev)
 		rdev->clock.default_sclk = sclk;
 		rdev->clock.default_mclk = mclk;
 
+		if (RBIOS32(pll_info + 0x16))
+			rdev->clock.max_pixel_clock = RBIOS32(pll_info + 0x16);
+		else
+			rdev->clock.max_pixel_clock = 35000; /* might need something asic specific */
+
 		return true;
 	}
 	return false;
