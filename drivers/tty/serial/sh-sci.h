@@ -2,15 +2,13 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
+#if defined(CONFIG_CPU_SUBTYPE_SH7705) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7706) || \
     defined(CONFIG_CPU_SUBTYPE_SH7707) || \
     defined(CONFIG_CPU_SUBTYPE_SH7708) || \
     defined(CONFIG_CPU_SUBTYPE_SH7709)
 # define SCPCR  0xA4000116 /* 16 bit SCI and SCIF */
 # define SCPDR  0xA4000136 /* 8  bit SCI and SCIF */
-#elif defined(CONFIG_CPU_SUBTYPE_SH7705)
-# define SCPCR 0xA4000116
-# define SCPDR 0xA4000136
 #elif defined(CONFIG_CPU_SUBTYPE_SH7720) || \
       defined(CONFIG_CPU_SUBTYPE_SH7721) || \
       defined(CONFIG_ARCH_SH73A0) || \
@@ -19,20 +17,16 @@
       defined(CONFIG_ARCH_SH7372)
 # define PORT_PTCR	   0xA405011EUL
 # define PORT_PVCR	   0xA4050122UL
-#elif defined(CONFIG_SH_RTS7751R2D)
-# define SCSPTR1 0xFFE0001C /* 8 bit SCIF */
-# define SCSPTR2 0xFFE80020 /* 16 bit SCIF */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7750)  || \
       defined(CONFIG_CPU_SUBTYPE_SH7750R) || \
       defined(CONFIG_CPU_SUBTYPE_SH7750S) || \
       defined(CONFIG_CPU_SUBTYPE_SH7091)  || \
       defined(CONFIG_CPU_SUBTYPE_SH7751)  || \
-      defined(CONFIG_CPU_SUBTYPE_SH7751R)
-# define SCSPTR1 0xffe0001c /* 8  bit SCI */
+      defined(CONFIG_CPU_SUBTYPE_SH7751R) || \
+      defined(CONFIG_CPU_SUBTYPE_SH4_202)
 # define SCSPTR2 0xFFE80020 /* 16 bit SCIF */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7760)
 # define SCSPTR0 0xfe600024 /* 16 bit SCIF */
-# define SCSPTR1 0xfe610024 /* 16 bit SCIF */
 # define SCSPTR2 0xfe620024 /* 16 bit SCIF */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
 # define SCSPTR0 0xA4400000	  /* 16 bit SCIF */
@@ -48,16 +42,13 @@
 # define SCSPTR0		SCPDR0
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723)
 # define SCSPTR0                0xa4050160
-#elif defined(CONFIG_CPU_SUBTYPE_SH4_202)
-# define SCSPTR2 0xffe80020 /* 16 bit SCIF */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7757)
 # define SCSPTR0 0xfe4b0020
-#elif defined(CONFIG_CPU_SUBTYPE_SH7763)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7763) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7780)
 # define SCSPTR0 0xffe00024 /* 16 bit SCIF */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7770)
 # define SCSPTR0 0xff923020 /* 16 bit SCIF */
-#elif defined(CONFIG_CPU_SUBTYPE_SH7780)
-# define SCSPTR0	0xffe00024	/* 16 bit SCIF */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7785) || \
       defined(CONFIG_CPU_SUBTYPE_SH7786)
 # define SCSPTR0	0xffea0024	/* 16 bit SCIF */
