@@ -2790,17 +2790,43 @@ static const int bclk_divs[] = {
 	1, -1, 2, 3, 4, -1, 6, 8, -1, 12, 16, 24, -1, 32, 32, 32
 };
 
+static const int sysclk_rates[] = {
+	64, 128, 192, 256, 384, 512, 768, 1024, 1408, 1536,
+};
+
 static void wm8962_configure_bclk(struct snd_soc_codec *codec)
 {
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	int dspclk, i;
 	int clocking2 = 0;
+	int clocking4 = 0;
 	int aif2 = 0;
 
-	if (!wm8962->bclk) {
-		dev_dbg(codec->dev, "No BCLK rate configured\n");
+	if (!wm8962->sysclk_rate) {
+		dev_dbg(codec->dev, "No SYSCLK configured\n");
 		return;
 	}
+
+	if (!wm8962->bclk || !wm8962->lrclk) {
+		dev_dbg(codec->dev, "No audio clocks configured\n");
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(sysclk_rates); i++) {
+		if (sysclk_rates[i] == wm8962->sysclk_rate / wm8962->lrclk) {
+			clocking4 |= i << WM8962_SYSCLK_RATE_SHIFT;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(sysclk_rates)) {
+		dev_err(codec->dev, "Unsupported sysclk ratio %d\n",
+			wm8962->sysclk_rate / wm8962->lrclk);
+		return;
+	}
+
+	snd_soc_update_bits(codec, WM8962_CLOCKING_4,
+			    WM8962_SYSCLK_RATE_MASK, clocking4);
 
 	dspclk = snd_soc_read(codec, WM8962_CLOCKING1);
 	if (dspclk < 0) {
@@ -2871,6 +2897,8 @@ static int wm8962_set_bias_level(struct snd_soc_codec *codec,
 		/* VMID 2*50k */
 		snd_soc_update_bits(codec, WM8962_PWR_MGMT_1,
 				    WM8962_VMID_SEL_MASK, 0x80);
+
+		wm8962_configure_bclk(codec);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
@@ -2903,8 +2931,6 @@ static int wm8962_set_bias_level(struct snd_soc_codec *codec,
 			snd_soc_update_bits(codec, WM8962_CLOCKING2,
 					    WM8962_CLKREG_OVD,
 					    WM8962_CLKREG_OVD);
-
-			wm8962_configure_bclk(codec);
 		}
 
 		/* VMID 2*250k */
@@ -2945,10 +2971,6 @@ static const struct {
 	{ 96000, 6 },
 };
 
-static const int sysclk_rates[] = {
-	64, 128, 192, 256, 384, 512, 768, 1024, 1408, 1536,
-};
-
 static int wm8962_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
@@ -2956,40 +2978,26 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
-	int rate = params_rate(params);
 	int i;
 	int aif0 = 0;
 	int adctl3 = 0;
-	int clocking4 = 0;
 
 	wm8962->bclk = snd_soc_params_to_bclk(params);
 	wm8962->lrclk = params_rate(params);
 
 	for (i = 0; i < ARRAY_SIZE(sr_vals); i++) {
-		if (sr_vals[i].rate == rate) {
+		if (sr_vals[i].rate == wm8962->lrclk) {
 			adctl3 |= sr_vals[i].reg;
 			break;
 		}
 	}
 	if (i == ARRAY_SIZE(sr_vals)) {
-		dev_err(codec->dev, "Unsupported rate %dHz\n", rate);
+		dev_err(codec->dev, "Unsupported rate %dHz\n", wm8962->lrclk);
 		return -EINVAL;
 	}
 
-	if (rate % 8000 == 0)
+	if (wm8962->lrclk % 8000 == 0)
 		adctl3 |= WM8962_SAMPLE_RATE_INT_MODE;
-
-	for (i = 0; i < ARRAY_SIZE(sysclk_rates); i++) {
-		if (sysclk_rates[i] == wm8962->sysclk_rate / rate) {
-			clocking4 |= i << WM8962_SYSCLK_RATE_SHIFT;
-			break;
-		}
-	}
-	if (i == ARRAY_SIZE(sysclk_rates)) {
-		dev_err(codec->dev, "Unsupported sysclk ratio %d\n",
-			wm8962->sysclk_rate / rate);
-		return -EINVAL;
-	}
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -3012,8 +3020,6 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_update_bits(codec, WM8962_ADDITIONAL_CONTROL_3,
 			    WM8962_SAMPLE_RATE_INT_MODE |
 			    WM8962_SAMPLE_RATE_MASK, adctl3);
-	snd_soc_update_bits(codec, WM8962_CLOCKING_4,
-			    WM8962_SYSCLK_RATE_MASK, clocking4);
 
 	wm8962_configure_bclk(codec);
 
