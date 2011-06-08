@@ -3646,7 +3646,7 @@ void btrfs_evict_inode(struct inode *inode)
 	btrfs_i_size_write(inode, 0);
 
 	while (1) {
-		trans = btrfs_start_transaction(root, 0);
+		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
 		trans->block_rsv = root->orphan_block_rsv;
 
