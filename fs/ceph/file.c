@@ -318,10 +318,10 @@ more:
 				  ci->i_truncate_seq,
 				  ci->i_truncate_size,
 				  page_pos, pages_left, page_align);
-	hit_stripe = this_len < left;
-	was_short = ret >= 0 && ret < this_len;
 	if (ret == -ENOENT)
 		ret = 0;
+	hit_stripe = this_len < left;
+	was_short = ret >= 0 && ret < this_len;
 	dout("striped_read %llu~%u (read %u) got %d%s%s\n", pos, left, read,
 	     ret, hit_stripe ? " HITSTRIPE" : "", was_short ? " SHORT" : "");
 
