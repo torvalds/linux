@@ -690,6 +690,50 @@ nouveau_gpuobj_channel_init_pramin(struct nouveau_channel *chan)
 	return 0;
 }
 
+static int
+nvc0_gpuobj_channel_init(struct nouveau_channel *chan, struct nouveau_vm *vm)
+{
+	struct drm_device *dev = chan->dev;
+	struct nouveau_gpuobj *pgd = NULL;
+	struct nouveau_vm_pgd *vpgd;
+	int ret, i;
+
+	ret = nouveau_gpuobj_new(dev, NULL, 4096, 0x1000, 0, &chan->ramin);
+	if (ret)
+		return ret;
+
+	/* create page directory for this vm if none currently exists,
+	 * will be destroyed automagically when last reference to the
+	 * vm is removed
+	 */
+	if (list_empty(&vm->pgd_list)) {
+		ret = nouveau_gpuobj_new(dev, NULL, 65536, 0x1000, 0, &pgd);
+		if (ret)
+			return ret;
+	}
+	nouveau_vm_ref(vm, &chan->vm, pgd);
+	nouveau_gpuobj_ref(NULL, &pgd);
+
+	/* point channel at vm's page directory */
+	vpgd = list_first_entry(&vm->pgd_list, struct nouveau_vm_pgd, head);
+	nv_wo32(chan->ramin, 0x0200, lower_32_bits(vpgd->obj->vinst));
+	nv_wo32(chan->ramin, 0x0204, upper_32_bits(vpgd->obj->vinst));
+	nv_wo32(chan->ramin, 0x0208, 0xffffffff);
+	nv_wo32(chan->ramin, 0x020c, 0x000000ff);
+
+	/* map display semaphore buffers into channel's vm */
+	for (i = 0; i < 2; i++) {
+		struct nv50_display_crtc *dispc = &nv50_display(dev)->crtc[i];
+
+		ret = nouveau_bo_vma_add(dispc->sem.bo, chan->vm,
+					 &chan->dispc_vma[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int
 nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 			    uint32_t vram_h, uint32_t tt_h)
@@ -702,34 +746,8 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	int ret, i;
 
 	NV_DEBUG(dev, "ch%d vram=0x%08x tt=0x%08x\n", chan->id, vram_h, tt_h);
-	if (dev_priv->card_type == NV_C0) {
-		struct nouveau_vm_pgd *vpgd;
-
-		ret = nouveau_gpuobj_new(dev, NULL, 4096, 0x1000, 0,
-					 &chan->ramin);
-		if (ret)
-			return ret;
-
-		nouveau_vm_ref(vm, &chan->vm, NULL);
-
-		vpgd = list_first_entry(&vm->pgd_list, struct nouveau_vm_pgd, head);
-		nv_wo32(chan->ramin, 0x0200, lower_32_bits(vpgd->obj->vinst));
-		nv_wo32(chan->ramin, 0x0204, upper_32_bits(vpgd->obj->vinst));
-		nv_wo32(chan->ramin, 0x0208, 0xffffffff);
-		nv_wo32(chan->ramin, 0x020c, 0x000000ff);
-
-		for (i = 0; i < 2; i++) {
-			struct nv50_display_crtc *dispc =
-				&nv50_display(dev)->crtc[i];
-
-			ret = nouveau_bo_vma_add(dispc->sem.bo, chan->vm,
-						 &chan->dispc_vma[i]);
-			if (ret)
-				return ret;
-		}
-
-		return 0;
-	}
+	if (dev_priv->card_type == NV_C0)
+		return nvc0_gpuobj_channel_init(chan, vm);
 
 	/* Allocate a chunk of memory for per-channel object storage */
 	ret = nouveau_gpuobj_channel_init_pramin(chan);

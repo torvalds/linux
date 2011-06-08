@@ -787,7 +787,12 @@ nouveau_open(struct drm_device *dev, struct drm_file *file_priv)
 		}
 	} else
 	if (dev_priv->card_type >= NV_C0) {
-		nouveau_vm_ref(dev_priv->chan_vm, &fpriv->vm, NULL);
+		ret = nouveau_vm_new(dev, 0, (1ULL << 40), 0x0008000000ULL,
+				     &fpriv->vm);
+		if (ret) {
+			kfree(fpriv);
+			return ret;
+		}
 	}
 
 	file_priv->driver_priv = fpriv;
