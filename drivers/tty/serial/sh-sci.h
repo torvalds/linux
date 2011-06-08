@@ -9,8 +9,6 @@
 # define SCPCR  0xA4000116 /* 16 bit SCI and SCIF */
 # define SCPDR  0xA4000136 /* 8  bit SCI and SCIF */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705)
-# define SCIF0		0xA4400000
-# define SCIF2		0xA4410000
 # define SCPCR 0xA4000116
 # define SCPDR 0xA4000136
 #elif defined(CONFIG_CPU_SUBTYPE_SH7720) || \
@@ -48,8 +46,6 @@
 #elif defined(CONFIG_CPU_SUBTYPE_SH7343)
 # define SCSPTR0 0xffe00010	/* 16 bit SCIF */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7722)
-# define PADR			0xA4050120
-# define PSDR			0xA405013e
 # define PWDR			0xA4050166
 # define PSCR			0xA405011E
 # define SCIF_ORER		0x0001	/* overrun error bit */
