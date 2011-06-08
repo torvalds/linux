@@ -58,44 +58,102 @@ static struct severity {
 #define MCI_UC_SAR (MCI_STATUS_UC|MCI_STATUS_S|MCI_STATUS_AR)
 #define MCACOD 0xffff
 
-	BITCLR(MCI_STATUS_VAL, NO, "Invalid"),
-	BITCLR(MCI_STATUS_EN, NO, "Not enabled"),
-	BITSET(MCI_STATUS_PCC, PANIC, "Processor context corrupt"),
+	BITCLR(
+		MCI_STATUS_VAL,
+		NO, "Invalid"
+		),
+	BITCLR(
+		MCI_STATUS_EN,
+		NO, "Not enabled"
+		),
+	BITSET(
+		MCI_STATUS_PCC,
+		PANIC, "Processor context corrupt"
+		),
 	/* When MCIP is not set something is very confused */
-	MCGMASK(MCG_STATUS_MCIP, 0, PANIC, "MCIP not set in MCA handler"),
+	MCGMASK(
+		MCG_STATUS_MCIP, 0,
+		PANIC, "MCIP not set in MCA handler"
+		),
 	/* Neither return not error IP -- no chance to recover -> PANIC */
-	MCGMASK(MCG_STATUS_RIPV|MCG_STATUS_EIPV, 0, PANIC,
-		"Neither restart nor error IP"),
-	MCGMASK(MCG_STATUS_RIPV, 0, PANIC, "In kernel and no restart IP",
-		KERNEL),
-	BITCLR(MCI_STATUS_UC, KEEP, "Corrected error", NOSER),
+	MCGMASK(
+		MCG_STATUS_RIPV|MCG_STATUS_EIPV, 0,
+		PANIC, "Neither restart nor error IP"
+		),
+	MCGMASK(
+		MCG_STATUS_RIPV, 0,
+		PANIC, "In kernel and no restart IP",
+		KERNEL
+		),
+	BITCLR(
+		MCI_STATUS_UC,
+		KEEP, "Corrected error",
+		NOSER
+		),
 
 	/* ignore OVER for UCNA */
-	MASK(MCI_UC_SAR, MCI_STATUS_UC, KEEP,
-	     "Uncorrected no action required", SER),
-	MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_STATUS_UC|MCI_STATUS_AR, PANIC,
-	     "Illegal combination (UCNA with AR=1)", SER),
-	MASK(MCI_STATUS_S, 0, KEEP, "Non signalled machine check", SER),
+	MASK(
+		MCI_UC_SAR, MCI_STATUS_UC,
+		KEEP, "Uncorrected no action required",
+		SER
+		),
+	MASK(
+		MCI_STATUS_OVER|MCI_UC_SAR, MCI_STATUS_UC|MCI_STATUS_AR,
+		PANIC, "Illegal combination (UCNA with AR=1)",
+		SER
+		),
+	MASK(
+		MCI_STATUS_S, 0,
+		KEEP, "Non signalled machine check",
+		SER
+		),
 
 	/* AR add known MCACODs here */
-	MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_STATUS_OVER|MCI_UC_SAR, PANIC,
-	     "Action required with lost events", SER),
-	MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_SAR, PANIC,
-	     "Action required; unknown MCACOD", SER),
+	MASK(
+		MCI_STATUS_OVER|MCI_UC_SAR, MCI_STATUS_OVER|MCI_UC_SAR,
+		PANIC, "Action required with lost events",
+		SER
+		),
+	MASK(
+		MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_SAR,
+		PANIC, "Action required; unknown MCACOD",
+		SER
+		),
 
 	/* known AO MCACODs: */
-	MASK(MCI_UC_SAR|MCI_STATUS_OVER|0xfff0, MCI_UC_S|0xc0, AO,
-	     "Action optional: memory scrubbing error", SER),
-	MASK(MCI_UC_SAR|MCI_STATUS_OVER|MCACOD, MCI_UC_S|0x17a, AO,
-	     "Action optional: last level cache writeback error", SER),
+	MASK(
+		MCI_UC_SAR|MCI_STATUS_OVER|0xfff0, MCI_UC_S|0xc0,
+		AO, "Action optional: memory scrubbing error",
+		SER
+		),
+	MASK(
+		MCI_UC_SAR|MCI_STATUS_OVER|MCACOD, MCI_UC_S|0x17a,
+		AO, "Action optional: last level cache writeback error",
+		SER
+		),
 
-	MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_S, SOME,
-	     "Action optional unknown MCACOD", SER),
-	MASK(MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_S|MCI_STATUS_OVER, SOME,
-	     "Action optional with lost events", SER),
-	BITSET(MCI_STATUS_UC|MCI_STATUS_OVER, PANIC, "Overflowed uncorrected"),
-	BITSET(MCI_STATUS_UC, UC, "Uncorrected"),
-	BITSET(0, SOME, "No match")	/* always matches. keep at end */
+	MASK(
+		MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_S,
+		SOME, "Action optional unknown MCACOD",
+		SER
+		),
+	MASK(
+		MCI_STATUS_OVER|MCI_UC_SAR, MCI_UC_S|MCI_STATUS_OVER,
+		SOME, "Action optional with lost events",
+		SER
+		),
+	BITSET(
+		MCI_STATUS_UC|MCI_STATUS_OVER,
+		PANIC, "Overflowed uncorrected"
+		),
+	BITSET(
+		MCI_STATUS_UC,
+		UC, "Uncorrected"
+		),
+	BITSET(
+		0,
+		SOME, "No match"
+		)	/* always matches. keep at end */
 };
 
 /*
