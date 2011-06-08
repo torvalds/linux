@@ -149,7 +149,7 @@ static inline void enable_p5_mce(void) {}
 
 void mce_setup(struct mce *m);
 void mce_log(struct mce *m);
-DECLARE_PER_CPU(struct sys_device, mce_dev);
+DECLARE_PER_CPU(struct sys_device, mce_sysdev);
 
 /*
  * Maximum banks number.

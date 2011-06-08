@@ -548,7 +548,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		if (!b)
 			goto out;
 
-		err = sysfs_create_link(&per_cpu(mce_dev, cpu).kobj,
+		err = sysfs_create_link(&per_cpu(mce_sysdev, cpu).kobj,
 					b->kobj, name);
 		if (err)
 			goto out;
@@ -571,7 +571,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		goto out;
 	}
 
-	b->kobj = kobject_create_and_add(name, &per_cpu(mce_dev, cpu).kobj);
+	b->kobj = kobject_create_and_add(name, &per_cpu(mce_sysdev, cpu).kobj);
 	if (!b->kobj)
 		goto out_free;
 
@@ -591,7 +591,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		if (i == cpu)
 			continue;
 
-		err = sysfs_create_link(&per_cpu(mce_dev, i).kobj,
+		err = sysfs_create_link(&per_cpu(mce_sysdev, i).kobj,
 					b->kobj, name);
 		if (err)
 			goto out;
@@ -669,7 +669,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 #ifdef CONFIG_SMP
 	/* sibling symlink */
 	if (shared_bank[bank] && b->blocks->cpu != cpu) {
-		sysfs_remove_link(&per_cpu(mce_dev, cpu).kobj, name);
+		sysfs_remove_link(&per_cpu(mce_sysdev, cpu).kobj, name);
 		per_cpu(threshold_banks, cpu)[bank] = NULL;
 
 		return;
@@ -681,7 +681,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 		if (i == cpu)
 			continue;
 
-		sysfs_remove_link(&per_cpu(mce_dev, i).kobj, name);
+		sysfs_remove_link(&per_cpu(mce_sysdev, i).kobj, name);
 		per_cpu(threshold_banks, i)[bank] = NULL;
 	}
 

@@ -1697,7 +1697,7 @@ int __init mcheck_init(void)
 }
 
 /*
- * Sysfs support
+ * mce_syscore: PM support
  */
 
 /*
@@ -1717,12 +1717,12 @@ static int mce_disable_error_reporting(void)
 	return 0;
 }
 
-static int mce_suspend(void)
+static int mce_syscore_suspend(void)
 {
 	return mce_disable_error_reporting();
 }
 
-static void mce_shutdown(void)
+static void mce_syscore_shutdown(void)
 {
 	mce_disable_error_reporting();
 }
@@ -1732,17 +1732,21 @@ static void mce_shutdown(void)
  * Only one CPU is active at this time, the others get re-added later using
  * CPU hotplug:
  */
-static void mce_resume(void)
+static void mce_syscore_resume(void)
 {
 	__mcheck_cpu_init_generic();
 	__mcheck_cpu_init_vendor(__this_cpu_ptr(&cpu_info));
 }
 
 static struct syscore_ops mce_syscore_ops = {
-	.suspend	= mce_suspend,
-	.shutdown	= mce_shutdown,
-	.resume		= mce_resume,
+	.suspend	= mce_syscore_suspend,
+	.shutdown	= mce_syscore_shutdown,
+	.resume		= mce_syscore_resume,
 };
+
+/*
+ * mce_sysdev: Sysfs support
+ */
 
 static void mce_cpu_restart(void *data)
 {
@@ -1779,11 +1783,11 @@ static void mce_enable_ce(void *all)
 		__mcheck_cpu_init_timer();
 }
 
-static struct sysdev_class mce_sysclass = {
+static struct sysdev_class mce_sysdev_class = {
 	.name		= "machinecheck",
 };
 
-DEFINE_PER_CPU(struct sys_device, mce_dev);
+DEFINE_PER_CPU(struct sys_device, mce_sysdev);
 
 __cpuinitdata
 void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
@@ -1912,7 +1916,7 @@ static struct sysdev_ext_attribute attr_cmci_disabled = {
 	&mce_cmci_disabled
 };
 
-static struct sysdev_attribute *mce_attrs[] = {
+static struct sysdev_attribute *mce_sysdev_attrs[] = {
 	&attr_tolerant.attr,
 	&attr_check_interval.attr,
 	&attr_trigger,
@@ -1923,12 +1927,12 @@ static struct sysdev_attribute *mce_attrs[] = {
 	NULL
 };
 
-static cpumask_var_t mce_dev_initialized;
+static cpumask_var_t mce_sysdev_initialized;
 
 /* Per cpu sysdev init. All of the cpus still share the same ctrl bank: */
-static __cpuinit int mce_create_device(unsigned int cpu)
+static __cpuinit int mce_sysdev_create(unsigned int cpu)
 {
-	struct sys_device *sysdev = &per_cpu(mce_dev, cpu);
+	struct sys_device *sysdev = &per_cpu(mce_sysdev, cpu);
 	int err;
 	int i, j;
 
@@ -1937,14 +1941,14 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 
 	memset(&sysdev->kobj, 0, sizeof(struct kobject));
 	sysdev->id  = cpu;
-	sysdev->cls = &mce_sysclass;
+	sysdev->cls = &mce_sysdev_class;
 
 	err = sysdev_register(sysdev);
 	if (err)
 		return err;
 
-	for (i = 0; mce_attrs[i]; i++) {
-		err = sysdev_create_file(sysdev, mce_attrs[i]);
+	for (i = 0; mce_sysdev_attrs[i]; i++) {
+		err = sysdev_create_file(sysdev, mce_sysdev_attrs[i]);
 		if (err)
 			goto error;
 	}
@@ -1953,7 +1957,7 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 		if (err)
 			goto error2;
 	}
-	cpumask_set_cpu(cpu, mce_dev_initialized);
+	cpumask_set_cpu(cpu, mce_sysdev_initialized);
 
 	return 0;
 error2:
@@ -1961,29 +1965,29 @@ error2:
 		sysdev_remove_file(sysdev, &mce_banks[j].attr);
 error:
 	while (--i >= 0)
-		sysdev_remove_file(sysdev, mce_attrs[i]);
+		sysdev_remove_file(sysdev, mce_sysdev_attrs[i]);
 
 	sysdev_unregister(sysdev);
 
 	return err;
 }
 
-static __cpuinit void mce_remove_device(unsigned int cpu)
+static __cpuinit void mce_sysdev_remove(unsigned int cpu)
 {
-	struct sys_device *sysdev = &per_cpu(mce_dev, cpu);
+	struct sys_device *sysdev = &per_cpu(mce_sysdev, cpu);
 	int i;
 
-	if (!cpumask_test_cpu(cpu, mce_dev_initialized))
+	if (!cpumask_test_cpu(cpu, mce_sysdev_initialized))
 		return;
 
-	for (i = 0; mce_attrs[i]; i++)
-		sysdev_remove_file(sysdev, mce_attrs[i]);
+	for (i = 0; mce_sysdev_attrs[i]; i++)
+		sysdev_remove_file(sysdev, mce_sysdev_attrs[i]);
 
 	for (i = 0; i < banks; i++)
 		sysdev_remove_file(sysdev, &mce_banks[i].attr);
 
 	sysdev_unregister(sysdev);
-	cpumask_clear_cpu(cpu, mce_dev_initialized);
+	cpumask_clear_cpu(cpu, mce_sysdev_initialized);
 }
 
 /* Make sure there are no machine checks on offlined CPUs. */
@@ -2033,7 +2037,7 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
-		mce_create_device(cpu);
+		mce_sysdev_create(cpu);
 		if (threshold_cpu_callback)
 			threshold_cpu_callback(action, cpu);
 		break;
@@ -2041,7 +2045,7 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	case CPU_DEAD_FROZEN:
 		if (threshold_cpu_callback)
 			threshold_cpu_callback(action, cpu);
-		mce_remove_device(cpu);
+		mce_sysdev_remove(cpu);
 		break;
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
@@ -2095,16 +2099,16 @@ static __init int mcheck_init_device(void)
 	if (!mce_available(&boot_cpu_data))
 		return -EIO;
 
-	zalloc_cpumask_var(&mce_dev_initialized, GFP_KERNEL);
+	zalloc_cpumask_var(&mce_sysdev_initialized, GFP_KERNEL);
 
 	mce_init_banks();
 
-	err = sysdev_class_register(&mce_sysclass);
+	err = sysdev_class_register(&mce_sysdev_class);
 	if (err)
 		return err;
 
 	for_each_online_cpu(i) {
-		err = mce_create_device(i);
+		err = mce_sysdev_create(i);
 		if (err)
 			return err;
 	}
