@@ -584,7 +584,7 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
 {
 	struct tun_pi pi = { 0, cpu_to_be16(ETH_P_IP) };
 	struct sk_buff *skb;
-	size_t len = count, align = 0;
+	size_t len = count, align = NET_SKB_PAD;
 	struct virtio_net_hdr gso = { 0 };
 	int offset = 0;
 
@@ -614,7 +614,7 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
 	}
 
 	if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV) {
-		align = NET_IP_ALIGN;
+		align += NET_IP_ALIGN;
 		if (unlikely(len < ETH_HLEN ||
 			     (gso.hdr_len && gso.hdr_len < ETH_HLEN)))
 			return -EINVAL;
