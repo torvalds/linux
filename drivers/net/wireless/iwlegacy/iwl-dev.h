@@ -1164,12 +1164,6 @@ struct iwl_priv {
 #endif
 #if defined(CONFIG_IWL4965) || defined(CONFIG_IWL4965_MODULE)
 		struct {
-			/*
-			 * reporting the number of tids has AGG on. 0 means
-			 * no AGGREGATION
-			 */
-			u8 agg_tids_count;
-
 			struct iwl_rx_phy_res last_phy_res;
 			bool last_phy_res_valid;
 

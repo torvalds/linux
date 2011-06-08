@@ -2442,20 +2442,10 @@ int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_START:
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwl4965_tx_agg_start(priv, vif, sta, tid, ssn);
-		if (ret == 0) {
-			priv->_4965.agg_tids_count++;
-			IWL_DEBUG_HT(priv, "priv->_4965.agg_tids_count = %u\n",
-				     priv->_4965.agg_tids_count);
-		}
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
 		ret = iwl4965_tx_agg_stop(priv, vif, sta, tid);
-		if ((ret == 0) && (priv->_4965.agg_tids_count > 0)) {
-			priv->_4965.agg_tids_count--;
-			IWL_DEBUG_HT(priv, "priv->_4965.agg_tids_count = %u\n",
-				     priv->_4965.agg_tids_count);
-		}
 		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 			ret = 0;
 		break;
@@ -2796,7 +2786,6 @@ static int iwl4965_init_drv(struct iwl_priv *priv)
 	priv->iw_mode = NL80211_IFTYPE_STATION;
 	priv->current_ht_config.smps = IEEE80211_SMPS_STATIC;
 	priv->missed_beacon_threshold = IWL_MISSED_BEACON_THRESHOLD_DEF;
-	priv->_4965.agg_tids_count = 0;
 
 	/* initialize force reset */
 	priv->force_reset.reset_duration = IWL_DELAY_NEXT_FORCE_FW_RELOAD;
