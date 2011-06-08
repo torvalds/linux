@@ -931,7 +931,6 @@ void iwl_legacy_irq_handle_error(struct iwl_priv *priv)
 	priv->cfg->ops->lib->dump_nic_error_log(priv);
 	if (priv->cfg->ops->lib->dump_fh)
 		priv->cfg->ops->lib->dump_fh(priv, NULL, false);
-	priv->cfg->ops->lib->dump_nic_event_log(priv, false, NULL, false);
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 	if (iwl_legacy_get_debug_level(priv) & IWL_DL_FW_ERRORS)
 		iwl_legacy_print_rx_config_cmd(priv,

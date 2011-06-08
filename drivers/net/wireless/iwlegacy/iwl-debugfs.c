@@ -391,48 +391,6 @@ static ssize_t iwl_legacy_dbgfs_nvm_read(struct file *file,
 	return ret;
 }
 
-static ssize_t iwl_legacy_dbgfs_log_event_read(struct file *file,
-					 char __user *user_buf,
-					 size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	char *buf;
-	int pos = 0;
-	ssize_t ret = -ENOMEM;
-
-	ret = pos = priv->cfg->ops->lib->dump_nic_event_log(
-					priv, true, &buf, true);
-	if (buf) {
-		ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-		kfree(buf);
-	}
-	return ret;
-}
-
-static ssize_t iwl_legacy_dbgfs_log_event_write(struct file *file,
-					const char __user *user_buf,
-					size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	u32 event_log_flag;
-	char buf[8];
-	int buf_size;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &event_log_flag) != 1)
-		return -EFAULT;
-	if (event_log_flag == 1)
-		priv->cfg->ops->lib->dump_nic_event_log(priv, true,
-							NULL, false);
-
-	return count;
-}
-
-
-
 static ssize_t
 iwl_legacy_dbgfs_channels_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
@@ -706,7 +664,6 @@ static ssize_t iwl_legacy_dbgfs_disable_ht40_read(struct file *file,
 }
 
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
-DEBUGFS_READ_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_FILE_OPS(nvm);
 DEBUGFS_READ_FILE_OPS(stations);
 DEBUGFS_READ_FILE_OPS(channels);
@@ -1098,56 +1055,6 @@ static ssize_t iwl_legacy_dbgfs_clear_ucode_statistics_write(struct file *file,
 	return count;
 }
 
-static ssize_t iwl_legacy_dbgfs_ucode_tracing_read(struct file *file,
-					char __user *user_buf,
-					size_t count, loff_t *ppos) {
-
-	struct iwl_priv *priv = file->private_data;
-	int pos = 0;
-	char buf[128];
-	const size_t bufsz = sizeof(buf);
-
-	pos += scnprintf(buf + pos, bufsz - pos, "ucode trace timer is %s\n",
-			priv->event_log.ucode_trace ? "On" : "Off");
-	pos += scnprintf(buf + pos, bufsz - pos, "non_wraps_count:\t\t %u\n",
-			priv->event_log.non_wraps_count);
-	pos += scnprintf(buf + pos, bufsz - pos, "wraps_once_count:\t\t %u\n",
-			priv->event_log.wraps_once_count);
-	pos += scnprintf(buf + pos, bufsz - pos, "wraps_more_count:\t\t %u\n",
-			priv->event_log.wraps_more_count);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-}
-
-static ssize_t iwl_legacy_dbgfs_ucode_tracing_write(struct file *file,
-					 const char __user *user_buf,
-					 size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	char buf[8];
-	int buf_size;
-	int trace;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &trace) != 1)
-		return -EFAULT;
-
-	if (trace) {
-		priv->event_log.ucode_trace = true;
-		/* schedule the ucode timer to occur in UCODE_TRACE_PERIOD */
-		mod_timer(&priv->ucode_trace,
-			jiffies + msecs_to_jiffies(UCODE_TRACE_PERIOD));
-	} else {
-		priv->event_log.ucode_trace = false;
-		del_timer_sync(&priv->ucode_trace);
-	}
-
-	return count;
-}
-
 static ssize_t iwl_legacy_dbgfs_rxon_flags_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos) {
@@ -1312,7 +1219,6 @@ DEBUGFS_READ_FILE_OPS(chain_noise);
 DEBUGFS_READ_FILE_OPS(power_save_status);
 DEBUGFS_WRITE_FILE_OPS(clear_ucode_statistics);
 DEBUGFS_WRITE_FILE_OPS(clear_traffic_statistics);
-DEBUGFS_READ_WRITE_FILE_OPS(ucode_tracing);
 DEBUGFS_READ_FILE_OPS(fh_reg);
 DEBUGFS_READ_WRITE_FILE_OPS(missed_beacon);
 DEBUGFS_READ_WRITE_FILE_OPS(force_reset);
@@ -1347,7 +1253,6 @@ int iwl_legacy_dbgfs_register(struct iwl_priv *priv, const char *name)
 
 	DEBUGFS_ADD_FILE(nvm, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(sram, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(log_event, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(stations, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(channels, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(status, dir_data, S_IRUSR);
@@ -1373,8 +1278,6 @@ int iwl_legacy_dbgfs_register(struct iwl_priv *priv, const char *name)
 		DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
 	if (priv->cfg->base_params->chain_noise_calib_by_driver)
 		DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
-	if (priv->cfg->base_params->ucode_tracing)
-		DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, S_IWUSR);

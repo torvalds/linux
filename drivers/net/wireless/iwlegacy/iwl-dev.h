@@ -855,32 +855,6 @@ struct traffic_stats {
 };
 
 /*
- * schedule the timer to wake up every UCODE_TRACE_PERIOD milliseconds
- * to perform continuous uCode event logging operation if enabled
- */
-#define UCODE_TRACE_PERIOD (100)
-
-/*
- * iwl_event_log: current uCode event log position
- *
- * @ucode_trace: enable/disable ucode continuous trace timer
- * @num_wraps: how many times the event buffer wraps
- * @next_entry:  the entry just before the next one that uCode would fill
- * @non_wraps_count: counter for no wrap detected when dump ucode events
- * @wraps_once_count: counter for wrap once detected when dump ucode events
- * @wraps_more_count: counter for wrap more than once detected
- *		      when dump ucode events
- */
-struct iwl_event_log {
-	bool ucode_trace;
-	u32 num_wraps;
-	u32 next_entry;
-	int non_wraps_count;
-	int wraps_once_count;
-	int wraps_more_count;
-};
-
-/*
  * host interrupt timeout value
  * used with setting interrupt coalescing timer
  * the CSR_INT_COALESCING is an 8 bit register in 32-usec unit
@@ -1270,11 +1244,8 @@ struct iwl_priv {
 	u32 disable_tx_power_cal;
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
-	struct timer_list ucode_trace;
 	struct timer_list watchdog;
 	bool hw_ready;
-
-	struct iwl_event_log event_log;
 
 	struct led_classdev led;
 	unsigned long blink_on, blink_off;

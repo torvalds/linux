@@ -143,8 +143,7 @@ struct iwl_lib_ops {
 	int (*is_valid_rtc_data_addr)(u32 addr);
 	/* 1st ucode load */
 	int (*load_ucode)(struct iwl_priv *priv);
-	int (*dump_nic_event_log)(struct iwl_priv *priv,
-				  bool full_log, char **buf, bool display);
+
 	void (*dump_nic_error_log)(struct iwl_priv *priv);
 	int (*dump_fh)(struct iwl_priv *priv, char **buf, bool display);
 	int (*set_channel_switch)(struct iwl_priv *priv,
@@ -206,7 +205,6 @@ struct iwl_mod_params {
  * @chain_noise_num_beacons: number of beacons used to compute chain noise
  * @wd_timeout: TX queues watchdog timeout
  * @temperature_kelvin: temperature report by uCode in kelvin
- * @max_event_log_size: size of event log buffer size for ucode event logging
  * @ucode_tracing: support ucode continuous tracing
  * @sensitivity_calib_by_driver: driver has the capability to perform
  *	sensitivity calibration operation
@@ -226,7 +224,6 @@ struct iwl_base_params {
 	int chain_noise_num_beacons;
 	unsigned int wd_timeout;
 	bool temperature_kelvin;
-	u32 max_event_log_size;
 	const bool ucode_tracing;
 	const bool sensitivity_calib_by_driver;
 	const bool chain_noise_calib_by_driver;
@@ -515,8 +512,6 @@ extern const struct dev_pm_ops iwl_legacy_pm_ops;
 *  Error Handling Debugging
 ******************************************************/
 void iwl4965_dump_nic_error_log(struct iwl_priv *priv);
-int iwl4965_dump_nic_event_log(struct iwl_priv *priv,
-			   bool full_log, char **buf, bool display);
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 void iwl_legacy_print_rx_config_cmd(struct iwl_priv *priv,
 			     struct iwl_rxon_context *ctx);

@@ -2639,7 +2639,6 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.txq_free_tfd = iwl3945_hw_txq_free_tfd,
 	.txq_init = iwl3945_hw_tx_queue_init,
 	.load_ucode = iwl3945_load_bsm,
-	.dump_nic_event_log = iwl3945_dump_nic_event_log,
 	.dump_nic_error_log = iwl3945_dump_nic_error_log,
 	.apm_ops = {
 		.init = iwl3945_apm_init,
@@ -2698,7 +2697,6 @@ static struct iwl_base_params iwl3945_base_params = {
 	.use_bsm = true,
 	.led_compensation = 64,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
-	.max_event_log_size = 512,
 };
 
 static struct iwl_cfg iwl3945_bg_cfg = {
