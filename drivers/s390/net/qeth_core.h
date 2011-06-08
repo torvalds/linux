@@ -361,7 +361,7 @@ enum qeth_header_ids {
 
 static inline int qeth_is_last_sbale(struct qdio_buffer_element *sbale)
 {
-	return (sbale->flags & SBAL_FLAGS_LAST_ENTRY);
+	return (sbale->eflags & SBAL_EFLAGS_LAST_ENTRY);
 }
 
 enum qeth_qdio_buffer_states {

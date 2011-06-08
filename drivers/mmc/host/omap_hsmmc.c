@@ -435,6 +435,9 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 		reg = regulator_get(host->dev, "vmmc_aux");
 		host->vcc_aux = IS_ERR(reg) ? NULL : reg;
 
+		/* For eMMC do not power off when not in sleep state */
+		if (mmc_slot(host).no_regulator_off_init)
+			return 0;
 		/*
 		* UGLY HACK:  workaround regulator framework bugs.
 		* When the bootloader leaves a supply active, it's
