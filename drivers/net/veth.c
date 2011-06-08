@@ -24,12 +24,12 @@
 #define MAX_MTU 65535		/* Max L3 MTU (arbitrary) */
 
 struct veth_net_stats {
-	unsigned long	rx_packets;
-	unsigned long	tx_packets;
-	unsigned long	rx_bytes;
-	unsigned long	tx_bytes;
-	unsigned long	tx_dropped;
-	unsigned long	rx_dropped;
+	u64	rx_packets;
+	u64	tx_packets;
+	u64	rx_bytes;
+	u64	tx_bytes;
+	u64	tx_dropped;
+	u64	rx_dropped;
 };
 
 struct veth_priv {
@@ -159,32 +159,27 @@ rx_drop:
  * general routines
  */
 
-static struct net_device_stats *veth_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *veth_get_stats64(struct net_device *dev,
+						  struct rtnl_link_stats64 *tot)
 {
 	struct veth_priv *priv;
 	int cpu;
-	struct veth_net_stats *stats, total = {0};
+	struct veth_net_stats *stats;
 
 	priv = netdev_priv(dev);
 
 	for_each_possible_cpu(cpu) {
 		stats = per_cpu_ptr(priv->stats, cpu);
 
-		total.rx_packets += stats->rx_packets;
-		total.tx_packets += stats->tx_packets;
-		total.rx_bytes   += stats->rx_bytes;
-		total.tx_bytes   += stats->tx_bytes;
-		total.tx_dropped += stats->tx_dropped;
-		total.rx_dropped += stats->rx_dropped;
+		tot->rx_packets += stats->rx_packets;
+		tot->tx_packets += stats->tx_packets;
+		tot->rx_bytes   += stats->rx_bytes;
+		tot->tx_bytes   += stats->tx_bytes;
+		tot->tx_dropped += stats->tx_dropped;
+		tot->rx_dropped += stats->rx_dropped;
 	}
-	dev->stats.rx_packets = total.rx_packets;
-	dev->stats.tx_packets = total.tx_packets;
-	dev->stats.rx_bytes   = total.rx_bytes;
-	dev->stats.tx_bytes   = total.tx_bytes;
-	dev->stats.tx_dropped = total.tx_dropped;
-	dev->stats.rx_dropped = total.rx_dropped;
 
-	return &dev->stats;
+	return tot;
 }
 
 static int veth_open(struct net_device *dev)
@@ -254,7 +249,7 @@ static const struct net_device_ops veth_netdev_ops = {
 	.ndo_stop            = veth_close,
 	.ndo_start_xmit      = veth_xmit,
 	.ndo_change_mtu      = veth_change_mtu,
-	.ndo_get_stats       = veth_get_stats,
+	.ndo_get_stats64     = veth_get_stats64,
 	.ndo_set_mac_address = eth_mac_addr,
 };
 
