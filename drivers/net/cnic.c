@@ -3767,7 +3767,13 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 		break;
 
 	case L4_KCQE_OPCODE_VALUE_CLOSE_RECEIVED:
-		cnic_cm_upcall(cp, csk, opcode);
+		/* after we already sent CLOSE_REQ */
+		if (test_bit(CNIC_F_BNX2X_CLASS, &dev->flags) &&
+		    !test_bit(SK_F_OFFLD_COMPLETE, &csk->flags) &&
+		    csk->state == L4_KCQE_OPCODE_VALUE_CLOSE_COMP)
+			cp->close_conn(csk, L4_KCQE_OPCODE_VALUE_RESET_COMP);
+		else
+			cnic_cm_upcall(cp, csk, opcode);
 		break;
 	}
 	csk_put(csk);
@@ -3821,12 +3827,14 @@ static int cnic_ready_to_close(struct cnic_sock *csk, u32 opcode)
 	}
 
 	/* 1. If event opcode matches the expected event in csk->state
-	 * 2. If the expected event is CLOSE_COMP, we accept any event
+	 * 2. If the expected event is CLOSE_COMP or RESET_COMP, we accept any
+	 *    event
 	 * 3. If the expected event is 0, meaning the connection was never
 	 *    never established, we accept the opcode from cm_abort.
 	 */
 	if (opcode == csk->state || csk->state == 0 ||
-	    csk->state == L4_KCQE_OPCODE_VALUE_CLOSE_COMP) {
+	    csk->state == L4_KCQE_OPCODE_VALUE_CLOSE_COMP ||
+	    csk->state == L4_KCQE_OPCODE_VALUE_RESET_COMP) {
 		if (!test_and_set_bit(SK_F_CLOSING, &csk->flags)) {
 			if (csk->state == 0)
 				csk->state = opcode;
