@@ -1925,28 +1925,28 @@ static cpumask_var_t mce_dev_initialized;
 /* Per cpu sysdev init. All of the cpus still share the same ctrl bank: */
 static __cpuinit int mce_create_device(unsigned int cpu)
 {
+	struct sys_device *sysdev = &per_cpu(mce_dev, cpu);
 	int err;
 	int i, j;
 
 	if (!mce_available(&boot_cpu_data))
 		return -EIO;
 
-	memset(&per_cpu(mce_dev, cpu).kobj, 0, sizeof(struct kobject));
-	per_cpu(mce_dev, cpu).id	= cpu;
-	per_cpu(mce_dev, cpu).cls	= &mce_sysclass;
+	memset(&sysdev->kobj, 0, sizeof(struct kobject));
+	sysdev->id  = cpu;
+	sysdev->cls = &mce_sysclass;
 
-	err = sysdev_register(&per_cpu(mce_dev, cpu));
+	err = sysdev_register(sysdev);
 	if (err)
 		return err;
 
 	for (i = 0; mce_attrs[i]; i++) {
-		err = sysdev_create_file(&per_cpu(mce_dev, cpu), mce_attrs[i]);
+		err = sysdev_create_file(sysdev, mce_attrs[i]);
 		if (err)
 			goto error;
 	}
 	for (j = 0; j < banks; j++) {
-		err = sysdev_create_file(&per_cpu(mce_dev, cpu),
-					&mce_banks[j].attr);
+		err = sysdev_create_file(sysdev, &mce_banks[j].attr);
 		if (err)
 			goto error2;
 	}
@@ -1955,30 +1955,31 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 	return 0;
 error2:
 	while (--j >= 0)
-		sysdev_remove_file(&per_cpu(mce_dev, cpu), &mce_banks[j].attr);
+		sysdev_remove_file(sysdev, &mce_banks[j].attr);
 error:
 	while (--i >= 0)
-		sysdev_remove_file(&per_cpu(mce_dev, cpu), mce_attrs[i]);
+		sysdev_remove_file(sysdev, mce_attrs[i]);
 
-	sysdev_unregister(&per_cpu(mce_dev, cpu));
+	sysdev_unregister(sysdev);
 
 	return err;
 }
 
 static __cpuinit void mce_remove_device(unsigned int cpu)
 {
+	struct sys_device *sysdev = &per_cpu(mce_dev, cpu);
 	int i;
 
 	if (!cpumask_test_cpu(cpu, mce_dev_initialized))
 		return;
 
 	for (i = 0; mce_attrs[i]; i++)
-		sysdev_remove_file(&per_cpu(mce_dev, cpu), mce_attrs[i]);
+		sysdev_remove_file(sysdev, mce_attrs[i]);
 
 	for (i = 0; i < banks; i++)
-		sysdev_remove_file(&per_cpu(mce_dev, cpu), &mce_banks[i].attr);
+		sysdev_remove_file(sysdev, &mce_banks[i].attr);
 
-	sysdev_unregister(&per_cpu(mce_dev, cpu));
+	sysdev_unregister(sysdev);
 	cpumask_clear_cpu(cpu, mce_dev_initialized);
 }
 
