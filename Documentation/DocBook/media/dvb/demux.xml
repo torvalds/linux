@@ -7,15 +7,19 @@ accessed by including <emphasis role="tt">linux/dvb/dmx.h</emphasis> in your app
 <section id="dmx_types">
 <title>Demux Data Types</title>
 
-<section id="dmx_output_t">
+<section id="dmx-output-t">
 <title>dmx_output_t</title>
- <programlisting>
- typedef enum
- {
-	 DMX_OUT_DECODER,
-	 DMX_OUT_TAP,
-	 DMX_OUT_TS_TAP
- } dmx_output_t;
+<programlisting>
+typedef enum
+{
+	DMX_OUT_DECODER, /&#x22C6; Streaming directly to decoder. &#x22C6;/
+	DMX_OUT_TAP,     /&#x22C6; Output going to a memory buffer &#x22C6;/
+			 /&#x22C6; (to be retrieved via the read command).&#x22C6;/
+	DMX_OUT_TS_TAP,  /&#x22C6; Output multiplexed into a new TS  &#x22C6;/
+			 /&#x22C6; (to be retrieved by reading from the &#x22C6;/
+			 /&#x22C6; logical DVR device).                 &#x22C6;/
+	DMX_OUT_TSDEMUX_TAP /&#x22C6; Like TS_TAP but retrieved from the DMX device &#x22C6;/
+} dmx_output_t;
 </programlisting>
 <para><emphasis role="tt">DMX_OUT_TAP</emphasis> delivers the stream output to the demux device on which the ioctl is
 called.
@@ -26,96 +30,95 @@ specified.
 </para>
 </section>
 
-<section id="dmx_input_t">
+<section id="dmx-input-t">
 <title>dmx_input_t</title>
- <programlisting>
- typedef enum
- {
-	 DMX_IN_FRONTEND,
-	 DMX_IN_DVR
- } dmx_input_t;
+<programlisting>
+typedef enum
+{
+	DMX_IN_FRONTEND, /&#x22C6; Input from a front-end device.  &#x22C6;/
+	DMX_IN_DVR       /&#x22C6; Input from the logical DVR device.  &#x22C6;/
+} dmx_input_t;
 </programlisting>
 </section>
 
-<section id="dmx_pes_type_t">
+<section id="dmx-pes-type-t">
 <title>dmx_pes_type_t</title>
- <programlisting>
- typedef enum
- {
-	 DMX_PES_AUDIO,
-	 DMX_PES_VIDEO,
-	 DMX_PES_TELETEXT,
-	 DMX_PES_SUBTITLE,
-	 DMX_PES_PCR,
-	 DMX_PES_OTHER
- } dmx_pes_type_t;
+<programlisting>
+typedef enum
+{
+	DMX_PES_AUDIO0,
+	DMX_PES_VIDEO0,
+	DMX_PES_TELETEXT0,
+	DMX_PES_SUBTITLE0,
+	DMX_PES_PCR0,
+
+	DMX_PES_AUDIO1,
+	DMX_PES_VIDEO1,
+	DMX_PES_TELETEXT1,
+	DMX_PES_SUBTITLE1,
+	DMX_PES_PCR1,
+
+	DMX_PES_AUDIO2,
+	DMX_PES_VIDEO2,
+	DMX_PES_TELETEXT2,
+	DMX_PES_SUBTITLE2,
+	DMX_PES_PCR2,
+
+	DMX_PES_AUDIO3,
+	DMX_PES_VIDEO3,
+	DMX_PES_TELETEXT3,
+	DMX_PES_SUBTITLE3,
+	DMX_PES_PCR3,
+
+	DMX_PES_OTHER
+} dmx_pes_type_t;
 </programlisting>
 </section>
 
-<section id="dmx_event_t">
-<title>dmx_event_t</title>
- <programlisting>
- typedef enum
- {
-	 DMX_SCRAMBLING_EV,
-	 DMX_FRONTEND_EV
- } dmx_event_t;
-</programlisting>
-</section>
-
-<section id="dmx_scrambling_status_t">
-<title>dmx_scrambling_status_t</title>
- <programlisting>
- typedef enum
- {
-	 DMX_SCRAMBLING_OFF,
-	 DMX_SCRAMBLING_ON
- } dmx_scrambling_status_t;
-</programlisting>
-</section>
-
-<section id="dmx_filter">
+<section id="dmx-filter">
 <title>struct dmx_filter</title>
  <programlisting>
  typedef struct dmx_filter
- {
-	 uint8_t         filter[DMX_FILTER_SIZE];
-	 uint8_t         mask[DMX_FILTER_SIZE];
- } dmx_filter_t;
+{
+	__u8  filter[DMX_FILTER_SIZE];
+	__u8  mask[DMX_FILTER_SIZE];
+	__u8  mode[DMX_FILTER_SIZE];
+} dmx_filter_t;
 </programlisting>
 </section>
 
-<section id="dmx_sct_filter_params">
+<section id="dmx-sct-filter-params">
 <title>struct dmx_sct_filter_params</title>
- <programlisting>
- struct dmx_sct_filter_params
- {
-	 uint16_t            pid;
-	 dmx_filter_t        filter;
-	 uint32_t            timeout;
-	 uint32_t            flags;
- #define DMX_CHECK_CRC       1
- #define DMX_ONESHOT         2
- #define DMX_IMMEDIATE_START 4
- };
+<programlisting>
+struct dmx_sct_filter_params
+{
+	__u16          pid;
+	dmx_filter_t   filter;
+	__u32          timeout;
+	__u32          flags;
+#define DMX_CHECK_CRC       1
+#define DMX_ONESHOT         2
+#define DMX_IMMEDIATE_START 4
+#define DMX_KERNEL_CLIENT   0x8000
+};
 </programlisting>
 </section>
 
-<section id="dmx_pes_filter_params">
+<section id="dmx-pes-filter-params">
 <title>struct dmx_pes_filter_params</title>
- <programlisting>
- struct dmx_pes_filter_params
- {
-	 uint16_t            pid;
-	 dmx_input_t         input;
-	 dmx_output_t        output;
-	 dmx_pes_type_t      pes_type;
-	 uint32_t            flags;
- };
+<programlisting>
+struct dmx_pes_filter_params
+{
+	__u16          pid;
+	dmx_input_t    input;
+	dmx_output_t   output;
+	dmx_pes_type_t pes_type;
+	__u32          flags;
+};
 </programlisting>
 </section>
 
-<section id="dmx_event">
+<section id="dmx-event">
 <title>struct dmx_event</title>
  <programlisting>
  struct dmx_event
@@ -130,14 +133,14 @@ specified.
 </programlisting>
 </section>
 
-<section id="dmx_stc">
+<section id="dmx-stc">
 <title>struct dmx_stc</title>
  <programlisting>
- struct dmx_stc {
-	 unsigned int num;       /&#x22C6; input : which STC? 0..N &#x22C6;/
-	 unsigned int base;      /&#x22C6; output: divisor for stc to get 90 kHz clock &#x22C6;/
-	 uint64_t stc;           /&#x22C6; output: stc in 'base'&#x22C6;90 kHz units &#x22C6;/
- };
+struct dmx_stc {
+	unsigned int num;	/&#x22C6; input : which STC? 0..N &#x22C6;/
+	unsigned int base;	/&#x22C6; output: divisor for stc to get 90 kHz clock &#x22C6;/
+	__u64 stc;		/&#x22C6; output: stc in 'base'&#x22C6;90 kHz units &#x22C6;/
+};
 </programlisting>
  </section>
 
@@ -491,7 +494,7 @@ specified.
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="dmx_start">
+<section id="DMX_START">
 <title>DMX_START</title>
 <para>DESCRIPTION
 </para>
@@ -556,7 +559,7 @@ specified.
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="dmx_stop">
+<section id="DMX_STOP">
 <title>DMX_STOP</title>
 <para>DESCRIPTION
 </para>
@@ -603,7 +606,7 @@ specified.
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="dmx_set_filter">
+<section id="DMX_SET_FILTER">
 <title>DMX_SET_FILTER</title>
 <para>DESCRIPTION
 </para>
@@ -673,7 +676,7 @@ specified.
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="dmx_set_pes_filter">
+<section id="DMX_SET_PES_FILTER">
 <title>DMX_SET_PES_FILTER</title>
 <para>DESCRIPTION
 </para>
@@ -756,7 +759,7 @@ specified.
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="dms_set_buffer_size">
+<section id="DMX_SET_BUFFER_SIZE">
 <title>DMX_SET_BUFFER_SIZE</title>
 <para>DESCRIPTION
 </para>
@@ -819,7 +822,7 @@ specified.
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="dmx_get_event">
+<section id="DMX_GET_EVENT">
 <title>DMX_GET_EVENT</title>
 <para>DESCRIPTION
 </para>
@@ -899,7 +902,7 @@ specified.
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="dmx_get_stc">
+<section id="DMX_GET_STC">
 <title>DMX_GET_STC</title>
 <para>DESCRIPTION
 </para>
