@@ -130,6 +130,20 @@ config AD7780
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7780.
 
+config AD7793
+	tristate "Analog Devices AD7792 AD7793 ADC driver"
+	depends on SPI
+	select IIO_RING_BUFFER
+	select IIO_SW_RING
+	select IIO_TRIGGER
+	help
+	  Say yes here to build support for Analog Devices
+	  AD7792 and AD7793 SPI analog to digital convertors (ADC).
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called AD7793.
+
 config AD7745
 	tristate "Analog Devices AD7745, AD7746 AD7747 capacitive sensor driver"
 	depends on I2C
