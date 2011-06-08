@@ -181,32 +181,25 @@
 #define SCI_MAJOR		204
 #define SCI_MINOR_START		8
 
-#define SCI_IN(size, offset)					\
-  if ((size) == 8) {						\
-    return ioread8(port->membase + (offset));			\
-  } else {							\
-    return ioread16(port->membase + (offset));			\
-  }
-#define SCI_OUT(size, offset, value)				\
-  if ((size) == 8) {						\
-    iowrite8(value, port->membase + (offset));			\
-  } else if ((size) == 16) {					\
-    iowrite16(value, port->membase + (offset));			\
-  }
+#define SCI_IN(size, offset)		\
+	ioread##size(port->membase + (offset))
+
+#define SCI_OUT(size, offset, value)	\
+	iowrite##size(value, port->membase + (offset))
 
 #define CPU_SCIx_FNS(name, sci_offset, sci_size, scif_offset, scif_size)\
   static inline unsigned int sci_##name##_in(struct uart_port *port)	\
   {									\
     if (port->type == PORT_SCIF || port->type == PORT_SCIFB) {		\
-      SCI_IN(scif_size, scif_offset)					\
+      return SCI_IN(scif_size, scif_offset);				\
     } else {	/* PORT_SCI or PORT_SCIFA */				\
-      SCI_IN(sci_size, sci_offset);					\
+      return SCI_IN(sci_size, sci_offset);				\
     }									\
   }									\
   static inline void sci_##name##_out(struct uart_port *port, unsigned int value) \
   {									\
     if (port->type == PORT_SCIF || port->type == PORT_SCIFB) {		\
-      SCI_OUT(scif_size, scif_offset, value)				\
+      SCI_OUT(scif_size, scif_offset, value);				\
     } else {	/* PORT_SCI or PORT_SCIFA */				\
       SCI_OUT(sci_size, sci_offset, value);				\
     }									\
@@ -215,21 +208,11 @@
 #define CPU_SCIF_FNS(name, scif_offset, scif_size)			\
   static inline unsigned int sci_##name##_in(struct uart_port *port)	\
   {									\
-    SCI_IN(scif_size, scif_offset);					\
+    return SCI_IN(scif_size, scif_offset);				\
   }									\
   static inline void sci_##name##_out(struct uart_port *port, unsigned int value) \
   {									\
     SCI_OUT(scif_size, scif_offset, value);				\
-  }
-
-#define CPU_SCI_FNS(name, sci_offset, sci_size)				\
-  static inline unsigned int sci_##name##_in(struct uart_port* port)	\
-  {									\
-    SCI_IN(sci_size, sci_offset);					\
-  }									\
-  static inline void sci_##name##_out(struct uart_port* port, unsigned int value) \
-  {									\
-    SCI_OUT(sci_size, sci_offset, value);				\
   }
 
 #if defined(CONFIG_CPU_SH3) || \
