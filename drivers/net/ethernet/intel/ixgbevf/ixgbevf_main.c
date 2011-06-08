@@ -3253,6 +3253,18 @@ static struct rtnl_link_stats64 *ixgbevf_get_stats(struct net_device *netdev,
 	return stats;
 }
 
+static int ixgbevf_set_features(struct net_device *netdev, u32 features)
+{
+	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+
+	if (features & NETIF_F_RXCSUM)
+		adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
+	else
+		adapter->flags &= ~IXGBE_FLAG_RX_CSUM_ENABLED;
+
+	return 0;
+}
+
 static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= ixgbevf_open,
 	.ndo_stop		= ixgbevf_close,
@@ -3265,6 +3277,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_tx_timeout		= ixgbevf_tx_timeout,
 	.ndo_vlan_rx_add_vid	= ixgbevf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ixgbevf_vlan_rx_kill_vid,
+	.ndo_set_features	= ixgbevf_set_features,
 };
 
 static void ixgbevf_assign_netdev_ops(struct net_device *dev)
@@ -3377,16 +3390,18 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	/* setup the private structure */
 	err = ixgbevf_sw_init(adapter);
 
-	netdev->features = NETIF_F_SG |
+	netdev->hw_features = NETIF_F_SG |
 			   NETIF_F_IP_CSUM |
+			   NETIF_F_IPV6_CSUM |
+			   NETIF_F_TSO |
+			   NETIF_F_TSO6 |
+			   NETIF_F_RXCSUM;
+
+	netdev->features = netdev->hw_features |
 			   NETIF_F_HW_VLAN_TX |
 			   NETIF_F_HW_VLAN_RX |
 			   NETIF_F_HW_VLAN_FILTER;
 
-	netdev->features |= NETIF_F_IPV6_CSUM;
-	netdev->features |= NETIF_F_TSO;
-	netdev->features |= NETIF_F_TSO6;
-	netdev->features |= NETIF_F_GRO;
 	netdev->vlan_features |= NETIF_F_TSO;
 	netdev->vlan_features |= NETIF_F_TSO6;
 	netdev->vlan_features |= NETIF_F_IP_CSUM;

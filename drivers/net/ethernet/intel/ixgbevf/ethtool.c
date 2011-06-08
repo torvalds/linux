@@ -117,44 +117,6 @@ static int ixgbevf_get_settings(struct net_device *netdev,
 	return 0;
 }
 
-static u32 ixgbevf_get_rx_csum(struct net_device *netdev)
-{
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
-	return adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED;
-}
-
-static int ixgbevf_set_rx_csum(struct net_device *netdev, u32 data)
-{
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
-	if (data)
-		adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
-	else
-		adapter->flags &= ~IXGBE_FLAG_RX_CSUM_ENABLED;
-
-	if (netif_running(netdev)) {
-		if (!adapter->dev_closed)
-			ixgbevf_reinit_locked(adapter);
-	} else {
-		ixgbevf_reset(adapter);
-	}
-
-	return 0;
-}
-
-static int ixgbevf_set_tso(struct net_device *netdev, u32 data)
-{
-	if (data) {
-		netdev->features |= NETIF_F_TSO;
-		netdev->features |= NETIF_F_TSO6;
-	} else {
-		netif_tx_stop_all_queues(netdev);
-		netdev->features &= ~NETIF_F_TSO;
-		netdev->features &= ~NETIF_F_TSO6;
-		netif_tx_start_all_queues(netdev);
-	}
-	return 0;
-}
-
 static u32 ixgbevf_get_msglevel(struct net_device *netdev)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
@@ -720,16 +682,8 @@ static struct ethtool_ops ixgbevf_ethtool_ops = {
 	.get_link               = ethtool_op_get_link,
 	.get_ringparam          = ixgbevf_get_ringparam,
 	.set_ringparam          = ixgbevf_set_ringparam,
-	.get_rx_csum            = ixgbevf_get_rx_csum,
-	.set_rx_csum            = ixgbevf_set_rx_csum,
-	.get_tx_csum            = ethtool_op_get_tx_csum,
-	.set_tx_csum            = ethtool_op_set_tx_ipv6_csum,
-	.get_sg                 = ethtool_op_get_sg,
-	.set_sg                 = ethtool_op_set_sg,
 	.get_msglevel           = ixgbevf_get_msglevel,
 	.set_msglevel           = ixgbevf_set_msglevel,
-	.get_tso                = ethtool_op_get_tso,
-	.set_tso                = ixgbevf_set_tso,
 	.self_test              = ixgbevf_diag_test,
 	.get_sset_count         = ixgbevf_get_sset_count,
 	.get_strings            = ixgbevf_get_strings,
