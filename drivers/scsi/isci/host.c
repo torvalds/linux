@@ -52,6 +52,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <linux/circ_buf.h>
 #include <linux/device.h>
 #include <scsi/sas.h>
 #include "host.h"
@@ -1054,6 +1055,33 @@ done:
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 }
 
+static void isci_tci_free(struct isci_host *ihost, u16 tci)
+{
+	u16 tail = ihost->tci_tail & (SCI_MAX_IO_REQUESTS-1);
+
+	ihost->tci_pool[tail] = tci;
+	ihost->tci_tail = tail + 1;
+}
+
+static u16 isci_tci_alloc(struct isci_host *ihost)
+{
+	u16 head = ihost->tci_head & (SCI_MAX_IO_REQUESTS-1);
+	u16 tci = ihost->tci_pool[head];
+
+	ihost->tci_head = head + 1;
+	return tci;
+}
+
+static u16 isci_tci_active(struct isci_host *ihost)
+{
+	return CIRC_CNT(ihost->tci_head, ihost->tci_tail, SCI_MAX_IO_REQUESTS);
+}
+
+static u16 isci_tci_space(struct isci_host *ihost)
+{
+	return CIRC_SPACE(ihost->tci_head, ihost->tci_tail, SCI_MAX_IO_REQUESTS);
+}
+
 static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 					     u32 timeout)
 {
@@ -1069,9 +1097,11 @@ static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 	}
 
 	/* Build the TCi free pool */
-	sci_pool_initialize(scic->tci_pool);
+	BUILD_BUG_ON(SCI_MAX_IO_REQUESTS > 1 << sizeof(ihost->tci_pool[0]) * 8);
+	ihost->tci_head = 0;
+	ihost->tci_tail = 0;
 	for (index = 0; index < scic->task_context_entries; index++)
-		sci_pool_put(scic->tci_pool, index);
+		isci_tci_free(ihost, index);
 
 	/* Build the RNi free pool */
 	scic_sds_remote_node_table_initialize(
@@ -3063,18 +3093,17 @@ enum sci_task_status scic_controller_start_task(
  * currently available tags to be allocated. All return other values indicate a
  * legitimate tag.
  */
-u16 scic_controller_allocate_io_tag(
-	struct scic_sds_controller *scic)
+u16 scic_controller_allocate_io_tag(struct scic_sds_controller *scic)
 {
-	u16 task_context;
-	u16 sequence_count;
+	struct isci_host *ihost = scic_to_ihost(scic);
+	u16 tci;
+	u16 seq;
 
-	if (!sci_pool_empty(scic->tci_pool)) {
-		sci_pool_get(scic->tci_pool, task_context);
+	if (isci_tci_space(ihost)) {
+		tci = isci_tci_alloc(ihost);
+		seq = scic->io_request_sequence[tci];
 
-		sequence_count = scic->io_request_sequence[task_context];
-
-		return scic_sds_io_tag_construct(sequence_count, task_context);
+		return scic_sds_io_tag_construct(seq, tci);
 	}
 
 	return SCI_CONTROLLER_INVALID_IO_TAG;
@@ -3105,10 +3134,10 @@ u16 scic_controller_allocate_io_tag(
  * tags. SCI_FAILURE_INVALID_IO_TAG This value is returned if the supplied tag
  * is not a valid IO tag value.
  */
-enum sci_status scic_controller_free_io_tag(
-	struct scic_sds_controller *scic,
-	u16 io_tag)
+enum sci_status scic_controller_free_io_tag(struct scic_sds_controller *scic,
+					    u16 io_tag)
 {
+	struct isci_host *ihost = scic_to_ihost(scic);
 	u16 sequence;
 	u16 index;
 
@@ -3117,18 +3146,16 @@ enum sci_status scic_controller_free_io_tag(
 	sequence = scic_sds_io_tag_get_sequence(io_tag);
 	index    = scic_sds_io_tag_get_index(io_tag);
 
-	if (!sci_pool_full(scic->tci_pool)) {
-		if (sequence == scic->io_request_sequence[index]) {
-			scic_sds_io_sequence_increment(
-				scic->io_request_sequence[index]);
+	/* prevent tail from passing head */
+	if (isci_tci_active(ihost) == 0)
+		return SCI_FAILURE_INVALID_IO_TAG;
 
-			sci_pool_put(scic->tci_pool, index);
+	if (sequence == scic->io_request_sequence[index]) {
+		scic_sds_io_sequence_increment(scic->io_request_sequence[index]);
 
-			return SCI_SUCCESS;
-		}
+		isci_tci_free(ihost, index);
+
+		return SCI_SUCCESS;
 	}
-
 	return SCI_FAILURE_INVALID_IO_TAG;
 }
-
-

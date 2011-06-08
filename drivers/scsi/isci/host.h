@@ -57,7 +57,6 @@
 
 #include "remote_device.h"
 #include "phy.h"
-#include "pool.h"
 #include "isci.h"
 #include "remote_node_table.h"
 #include "registers.h"
@@ -178,11 +177,6 @@ struct scic_sds_controller {
 	 * This field is the free RNi data structure
 	 */
 	struct scic_remote_node_table available_remote_nodes;
-
-	/**
-	 * This field is the TCi pool used to manage the task context index.
-	 */
-	SCI_POOL_CREATE(tci_pool, u16, SCI_MAX_IO_REQUESTS);
 
 	/**
 	 * This filed is the struct scic_power_control data used to controll when direct
@@ -310,6 +304,10 @@ struct scic_sds_controller {
 
 struct isci_host {
 	struct scic_sds_controller sci;
+	u16 tci_head;
+	u16 tci_tail;
+	u16 tci_pool[SCI_MAX_IO_REQUESTS];
+
 	union scic_oem_parameters oem_parameters;
 
 	int id; /* unique within a given pci device */
@@ -422,8 +420,6 @@ enum scic_sds_controller_states {
 	 */
 	SCIC_FAILED,
 };
-
-
 
 /**
  * struct isci_pci_info - This class represents the pci function containing the
