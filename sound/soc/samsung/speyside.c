@@ -301,6 +301,7 @@ static struct snd_soc_card speyside = {
 	.num_configs = ARRAY_SIZE(speyside_codec_conf),
 
 	.set_bias_level = speyside_set_bias_level,
+	.set_bias_level_post = speyside_set_bias_level_post,
 
 	.controls = controls,
 	.num_controls = ARRAY_SIZE(controls),
