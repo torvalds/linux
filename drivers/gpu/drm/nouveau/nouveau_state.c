@@ -720,10 +720,15 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	struct nouveau_engine *engine = &dev_priv->engine;
 	int e;
 
+	drm_kms_helper_poll_fini(dev);
+	nouveau_fbcon_fini(dev);
+
 	if (dev_priv->channel) {
-		nouveau_fence_fini(dev);
 		nouveau_channel_put_unlocked(&dev_priv->channel);
+		nouveau_fence_fini(dev);
 	}
+
+	engine->display.destroy(dev);
 
 	if (!dev_priv->noaccel) {
 		engine->fifo.takedown(dev);
@@ -1063,11 +1068,7 @@ void nouveau_lastclose(struct drm_device *dev)
 int nouveau_unload(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_engine *engine = &dev_priv->engine;
 
-	drm_kms_helper_poll_fini(dev);
-	nouveau_fbcon_fini(dev);
-	engine->display.destroy(dev);
 	nouveau_card_takedown(dev);
 
 	iounmap(dev_priv->mmio);
