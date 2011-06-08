@@ -124,6 +124,7 @@ struct mddev_s
 #define MD_CHANGE_DEVS	0	/* Some device status has changed */
 #define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
 #define MD_CHANGE_PENDING 2	/* switch from 'clean' to 'active' in progress */
+#define MD_ARRAY_FIRST_USE 3    /* First use of array, needs initialization */
 
 	int				suspended;
 	atomic_t			active_io;
