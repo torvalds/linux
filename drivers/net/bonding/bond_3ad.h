@@ -253,7 +253,6 @@ struct ad_system {
 struct ad_bond_info {
 	struct ad_system system;	    /* 802.3ad system structure */
 	u32 agg_select_timer;	    // Timer to select aggregator after all adapter's hand shakes
-	u32 agg_select_mode;	    // Mode of selection of active aggregator(bandwidth/count)
 	struct timer_list ad_timer;
 };
 
