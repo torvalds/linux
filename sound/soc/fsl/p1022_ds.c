@@ -232,7 +232,7 @@ static int get_parent_cell_index(struct device_node *np)
 
 	iprop = of_get_property(parent, "cell-index", NULL);
 	if (iprop)
-		ret = *iprop;
+		ret = be32_to_cpup(iprop);
 
 	of_node_put(parent);
 
@@ -261,7 +261,7 @@ static int codec_node_dev_name(struct device_node *np, char *buf, size_t len)
 	if (!iprop)
 		return -EINVAL;
 
-	addr = *iprop;
+	addr = be32_to_cpup(iprop);
 
 	bus = get_parent_cell_index(np);
 	if (bus < 0)
@@ -308,7 +308,7 @@ static int get_dma_channel(struct device_node *ssi_np,
 		return -EINVAL;
 	}
 
-	*dma_channel_id = *iprop;
+	*dma_channel_id = be32_to_cpup(iprop);
 	*dma_id = get_parent_cell_index(dma_channel_np);
 	of_node_put(dma_channel_np);
 
@@ -379,7 +379,7 @@ static int p1022_ds_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto error;
 	}
-	mdata->ssi_id = *iprop;
+	mdata->ssi_id = be32_to_cpup(iprop);
 
 	/* Get the serial format and clock direction. */
 	sprop = of_get_property(np, "fsl,mode", NULL);
@@ -405,7 +405,7 @@ static int p1022_ds_probe(struct platform_device *pdev)
 			ret = -EINVAL;
 			goto error;
 		}
-		mdata->clk_frequency = *iprop;
+		mdata->clk_frequency = be32_to_cpup(iprop);
 	} else if (strcasecmp(sprop, "i2s-master") == 0) {
 		mdata->dai_format = SND_SOC_DAIFMT_I2S;
 		mdata->codec_clk_direction = SND_SOC_CLOCK_IN;
