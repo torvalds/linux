@@ -193,6 +193,19 @@ config MMC_SDHCI_PXA
 
 	  If unsure, say N.
 
+config MMC_SDHCI_PXAV3
+	tristate "Marvell MMP2 SD Host Controller support (PXAV3)"
+	depends on CLKDEV_LOOKUP
+	select MMC_SDHCI
+	select MMC_SDHCI_PLTFM
+	default CPU_MMP2
+	help
+	  This selects the Marvell(R) PXAV3 SD Host Controller.
+	  If you have a MMP2 platform with SD Host Controller
+	  and a card slot, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_SPEAR
 	tristate "SDHCI support on ST SPEAr platform"
 	depends on MMC_SDHCI && PLAT_SPEAR
