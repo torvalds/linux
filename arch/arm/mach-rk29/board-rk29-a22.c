@@ -57,6 +57,7 @@
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/leds.h>
 
 #include "devices.h"
 
@@ -1984,19 +1985,30 @@ struct platform_device aw9364_device_backlight = {
 
 #endif
 
-#ifdef CONFIG_BUTTON_LIGHT	 
-struct rk29_button_light_info rk29_button_light_info = {
-	.led_on_pin   = RK29_PIN6_PB4,
-	.led_on_level = GPIO_HIGH,
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+#define NUM_LEDS 1
+struct gpio_led rk29_leds[NUM_LEDS] = {
+		{
+			.name = "rk29_led",
+			.gpio = RK29_PIN6_PB4,
+			.active_low = 0,
+			.default_state = LEDS_GPIO_DEFSTATE_OFF,
+		},
 };
 
-struct platform_device rk29_device_button_light = {
-		.name	= "rk29_button_light",
-		.id 	= -1,
-		.dev	= {
-		   .platform_data  = &rk29_button_light_info,
-		}
+struct gpio_led_platform_data rk29_leds_pdata = {
+	.num_leds = NUM_LEDS,
+	.leds = &rk29_leds,
 };
+
+struct platform_device rk29_device_gpio_leds = {
+	.name	= "leds-gpio",
+	.id 	= -1,
+	.dev	= {
+	   .platform_data  = &rk29_leds_pdata,
+	},
+};
+
 #endif
 
 /*****************************************************************************************
@@ -2507,8 +2519,8 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_AW9364
 	&aw9364_device_backlight,
 #endif
-#ifdef CONFIG_BUTTON_LIGHT	  
-	&rk29_device_button_light,
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+	&rk29_device_gpio_leds,
 #endif
 #ifdef CONFIG_RK29_VMAC
 	&rk29_device_vmac,
