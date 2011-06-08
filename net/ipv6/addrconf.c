@@ -1559,6 +1559,11 @@ static int addrconf_ifid_sit(u8 *eui, struct net_device *dev)
 	return -1;
 }
 
+static int addrconf_ifid_gre(u8 *eui, struct net_device *dev)
+{
+	return __ipv6_isatap_ifid(eui, *(__be32 *)dev->dev_addr);
+}
+
 static int ipv6_generate_eui64(u8 *eui, struct net_device *dev)
 {
 	switch (dev->type) {
@@ -1572,6 +1577,8 @@ static int ipv6_generate_eui64(u8 *eui, struct net_device *dev)
 		return addrconf_ifid_infiniband(eui, dev);
 	case ARPHRD_SIT:
 		return addrconf_ifid_sit(eui, dev);
+	case ARPHRD_IPGRE:
+		return addrconf_ifid_gre(eui, dev);
 	}
 	return -1;
 }
@@ -2423,6 +2430,29 @@ static void addrconf_sit_config(struct net_device *dev)
 }
 #endif
 
+#if defined(CONFIG_NET_IPGRE) || defined(CONFIG_NET_IPGRE_MODULE)
+static void addrconf_gre_config(struct net_device *dev)
+{
+	struct inet6_dev *idev;
+	struct in6_addr addr;
+
+	pr_info("ipv6: addrconf_gre_config(%s)\n", dev->name);
+
+	ASSERT_RTNL();
+
+	if ((idev = ipv6_find_idev(dev)) == NULL) {
+		printk(KERN_DEBUG "init gre: add_dev failed\n");
+		return;
+	}
+
+	ipv6_addr_set(&addr,  htonl(0xFE800000), 0, 0, 0);
+	addrconf_prefix_route(&addr, 64, dev, 0, 0);
+
+	if (!ipv6_generate_eui64(addr.s6_addr + 8, dev))
+		addrconf_add_linklocal(idev, &addr);
+}
+#endif
+
 static inline int
 ipv6_inherit_linklocal(struct inet6_dev *idev, struct net_device *link_dev)
 {
@@ -2537,6 +2567,11 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 #if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
 		case ARPHRD_SIT:
 			addrconf_sit_config(dev);
+			break;
+#endif
+#if defined(CONFIG_NET_IPGRE) || defined(CONFIG_NET_IPGRE_MODULE)
+		case ARPHRD_IPGRE:
+			addrconf_gre_config(dev);
 			break;
 #endif
 		case ARPHRD_TUNNEL6:
