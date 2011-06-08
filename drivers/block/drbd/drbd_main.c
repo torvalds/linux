@@ -118,7 +118,7 @@ module_param_string(usermode_helper, usermode_helper, sizeof(usermode_helper), 0
  * as member "struct gendisk *vdisk;"
  */
 struct idr drbd_devices;
-struct list_head drbd_connections;  /* list of struct drbd_connection */
+struct list_head drbd_resources;
 
 struct kmem_cache *drbd_request_cache;
 struct kmem_cache *drbd_ee_cache;	/* peer requests */
@@ -330,7 +330,8 @@ static int drbd_thread_setup(void *arg)
 	int retval;
 
 	snprintf(current->comm, sizeof(current->comm), "drbd_%c_%s",
-		 thi->name[0], thi->connection->name);
+		 thi->name[0],
+		 thi->connection->resource->name);
 
 restart:
 	retval = thi->function(thi);
@@ -411,7 +412,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 		flush_signals(current); /* otherw. may get -ERESTARTNOINTR */
 
 		nt = kthread_create(drbd_thread_setup, (void *) thi,
-				    "drbd_%c_%s", thi->name[0], thi->connection->name);
+				    "drbd_%c_%s", thi->name[0], thi->connection->resource->name);
 
 		if (IS_ERR(nt)) {
 			conn_err(connection, "Couldn't start thread\n");
@@ -2276,12 +2277,31 @@ void drbd_restart_request(struct drbd_request *req)
 	queue_work(retry.wq, &retry.worker);
 }
 
+void drbd_destroy_resource(struct kref *kref)
+{
+	struct drbd_resource *resource =
+		container_of(kref, struct drbd_resource, kref);
+
+	kfree(resource->name);
+	kfree(resource);
+}
+
+void drbd_free_resource(struct drbd_resource *resource)
+{
+	struct drbd_connection *connection, *tmp;
+
+	for_each_connection_safe(connection, tmp, resource) {
+		list_del(&connection->connections);
+		kref_put(&connection->kref, drbd_destroy_connection);
+	}
+	kref_put(&resource->kref, drbd_destroy_resource);
+}
 
 static void drbd_cleanup(void)
 {
 	unsigned int i;
 	struct drbd_device *device;
-	struct drbd_connection *connection, *tmp;
+	struct drbd_resource *resource, *tmp;
 
 	unregister_reboot_notifier(&drbd_notifier);
 
@@ -2311,10 +2331,9 @@ static void drbd_cleanup(void)
 	}
 
 	/* not _rcu since, no other updater anymore. Genl already unregistered */
-	list_for_each_entry_safe(connection, tmp, &drbd_connections, connections) {
-		list_del(&connection->connections); /* not _rcu no proc, not other threads */
-		/* synchronize_rcu(); */
-		kref_put(&connection->kref, drbd_destroy_connection);
+	for_each_resource_safe(resource, tmp, &drbd_resources) {
+		list_del(&resource->resources);
+		drbd_free_resource(resource);
 	}
 
 	drbd_destroy_mempools();
@@ -2391,13 +2410,15 @@ static void drbd_init_workqueue(struct drbd_work_queue* wq)
 struct drbd_connection *conn_get_by_name(const char *name)
 {
 	struct drbd_connection *connection;
+	struct drbd_resource *resource;
 
 	if (!name || !name[0])
 		return NULL;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(connection, &drbd_connections, connections) {
-		if (!strcmp(connection->name, name)) {
+	for_each_resource_rcu(resource, &drbd_resources) {
+		if (!strcmp(resource->name, name)) {
+			connection = first_connection(resource);
 			kref_get(&connection->kref);
 			goto found;
 		}
@@ -2411,16 +2432,19 @@ found:
 struct drbd_connection *conn_get_by_addrs(void *my_addr, int my_addr_len,
 				     void *peer_addr, int peer_addr_len)
 {
+	struct drbd_resource *resource;
 	struct drbd_connection *connection;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(connection, &drbd_connections, connections) {
-		if (connection->my_addr_len == my_addr_len &&
-		    connection->peer_addr_len == peer_addr_len &&
-		    !memcmp(&connection->my_addr, my_addr, my_addr_len) &&
-		    !memcmp(&connection->peer_addr, peer_addr, peer_addr_len)) {
-			kref_get(&connection->kref);
-			goto found;
+	for_each_resource_rcu(resource, &drbd_resources) {
+		for_each_connection_rcu(connection, resource) {
+			if (connection->my_addr_len == my_addr_len &&
+			    connection->peer_addr_len == peer_addr_len &&
+			    !memcmp(&connection->my_addr, my_addr, my_addr_len) &&
+			    !memcmp(&connection->peer_addr, peer_addr, peer_addr_len)) {
+				kref_get(&connection->kref);
+				goto found;
+			}
 		}
 	}
 	connection = NULL;
@@ -2506,18 +2530,33 @@ fail:
 
 }
 
+struct drbd_resource *drbd_create_resource(const char *name)
+{
+	struct drbd_resource *resource;
+
+	resource = kmalloc(sizeof(struct drbd_resource), GFP_KERNEL);
+	if (!resource)
+		return NULL;
+	resource->name = kstrdup(name, GFP_KERNEL);
+	if (!resource->name) {
+		kfree(resource);
+		return NULL;
+	}
+	kref_init(&resource->kref);
+	INIT_LIST_HEAD(&resource->connections);
+	list_add_tail_rcu(&resource->resources, &drbd_resources);
+	return resource;
+}
+
 /* caller must be under genl_lock() */
 struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 {
+	struct drbd_resource *resource;
 	struct drbd_connection *connection;
 
 	connection = kzalloc(sizeof(struct drbd_connection), GFP_KERNEL);
 	if (!connection)
 		return NULL;
-
-	connection->name = kstrdup(name, GFP_KERNEL);
-	if (!connection->name)
-		goto fail;
 
 	if (drbd_alloc_socket(&connection->data))
 		goto fail;
@@ -2545,6 +2584,10 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 	connection->send.current_epoch_nr = 0;
 	connection->send.current_epoch_writes = 0;
 
+	resource = drbd_create_resource(name);
+	if (!resource)
+		goto fail;
+
 	connection->cstate = C_STANDALONE;
 	mutex_init(&connection->cstate_mutex);
 	spin_lock_init(&connection->req_lock);
@@ -2561,7 +2604,10 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 	drbd_thread_init(connection, &connection->asender, drbd_asender, "asender");
 
 	kref_init(&connection->kref);
-	list_add_tail_rcu(&connection->connections, &drbd_connections);
+
+	kref_get(&resource->kref);
+	connection->resource = resource;
+	list_add_tail_rcu(&connection->connections, &resource->connections);
 
 	return connection;
 
@@ -2570,7 +2616,6 @@ fail:
 	free_cpumask_var(connection->cpu_mask);
 	drbd_free_socket(&connection->meta);
 	drbd_free_socket(&connection->data);
-	kfree(connection->name);
 	kfree(connection);
 
 	return NULL;
@@ -2579,6 +2624,7 @@ fail:
 void drbd_destroy_connection(struct kref *kref)
 {
 	struct drbd_connection *connection = container_of(kref, struct drbd_connection, kref);
+	struct drbd_resource *resource = connection->resource;
 
 	if (atomic_read(&connection->current_epoch->epoch_size) !=  0)
 		conn_err(connection, "epoch_size:%d\n", atomic_read(&connection->current_epoch->epoch_size));
@@ -2589,10 +2635,10 @@ void drbd_destroy_connection(struct kref *kref)
 	free_cpumask_var(connection->cpu_mask);
 	drbd_free_socket(&connection->meta);
 	drbd_free_socket(&connection->data);
-	kfree(connection->name);
 	kfree(connection->int_dig_in);
 	kfree(connection->int_dig_vv);
 	kfree(connection);
+	kref_put(&resource->kref, drbd_destroy_resource);
 }
 
 static int init_submitter(struct drbd_device *device)
@@ -2775,7 +2821,7 @@ int __init drbd_init(void)
 	idr_init(&drbd_devices);
 
 	rwlock_init(&global_state_lock);
-	INIT_LIST_HEAD(&drbd_connections);
+	INIT_LIST_HEAD(&drbd_resources);
 
 	err = drbd_genl_register();
 	if (err) {

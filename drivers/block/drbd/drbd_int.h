@@ -105,7 +105,7 @@ struct drbd_connection;
 #define DEV (disk_to_dev(device->vdisk))
 
 #define conn_printk(LEVEL, TCONN, FMT, ARGS...) \
-	printk(LEVEL "d-con %s: " FMT, TCONN->name , ## ARGS)
+	printk(LEVEL "d-con %s: " FMT, TCONN->resource->name , ## ARGS)
 #define conn_alert(TCONN, FMT, ARGS...)  conn_printk(KERN_ALERT, TCONN, FMT, ## ARGS)
 #define conn_crit(TCONN, FMT, ARGS...)   conn_printk(KERN_CRIT, TCONN, FMT, ## ARGS)
 #define conn_err(TCONN, FMT, ARGS...)    conn_printk(KERN_ERR, TCONN, FMT, ## ARGS)
@@ -167,7 +167,7 @@ drbd_insert_fault(struct drbd_device *device, unsigned int type) {
 
 extern struct ratelimit_state drbd_ratelimit_state;
 extern struct idr drbd_devices; /* RCU, updates: genl_lock() */
-extern struct list_head drbd_connections; /* RCU, updates: genl_lock() */
+extern struct list_head drbd_resources; /* RCU, updates: genl_lock() */
 
 extern const char *cmdname(enum drbd_packet cmd);
 
@@ -536,9 +536,16 @@ enum {
 	DISCONNECT_SENT,
 };
 
-struct drbd_connection {			/* is a resource from the config file */
-	char *name;			/* Resource name */
-	struct list_head connections;	/* linked on global drbd_connections */
+struct drbd_resource {
+	char *name;
+	struct kref kref;
+	struct list_head connections;
+	struct list_head resources;
+};
+
+struct drbd_connection {
+	struct list_head connections;
+	struct drbd_resource *resource;
 	struct kref kref;
 	struct idr volumes;		/* <connection, vnr> to device mapping */
 	enum drbd_conns cstate;		/* Only C_STANDALONE to C_WF_REPORT_PARAMS */
@@ -778,6 +785,24 @@ static inline struct drbd_peer_device *first_peer_device(struct drbd_device *dev
 {
 	return list_first_entry(&device->peer_devices, struct drbd_peer_device, peer_devices);
 }
+
+#define for_each_resource(resource, _resources) \
+	list_for_each_entry(resource, _resources, resources)
+
+#define for_each_resource_rcu(resource, _resources) \
+	list_for_each_entry_rcu(resource, _resources, resources)
+
+#define for_each_resource_safe(resource, tmp, _resources) \
+	list_for_each_entry_safe(resource, tmp, _resources, resources)
+
+#define for_each_connection(connection, resource) \
+	list_for_each_entry(connection, &resource->connections, connections)
+
+#define for_each_connection_rcu(connection, resource) \
+	list_for_each_entry_rcu(connection, &resource->connections, connections)
+
+#define for_each_connection_safe(connection, tmp, resource) \
+	list_for_each_entry_safe(connection, tmp, &resource->connections, connections)
 
 #define for_each_peer_device(peer_device, device) \
 	list_for_each_entry(peer_device, &device->peer_devices, peer_devices)
@@ -1177,12 +1202,16 @@ extern int conn_lowest_minor(struct drbd_connection *connection);
 enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigned int minor, int vnr);
 extern void drbd_destroy_device(struct kref *kref);
 
+extern struct drbd_resource *drbd_create_resource(const char *name);
+extern void drbd_free_resource(struct drbd_resource *resource);
+
 extern int set_resource_options(struct drbd_connection *connection, struct res_opts *res_opts);
 extern struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts);
 extern void drbd_destroy_connection(struct kref *kref);
 struct drbd_connection *conn_get_by_name(const char *name);
 extern struct drbd_connection *conn_get_by_addrs(void *my_addr, int my_addr_len,
 					    void *peer_addr, int peer_addr_len);
+extern void drbd_destroy_resource(struct kref *kref);
 extern void conn_free_crypto(struct drbd_connection *connection);
 
 extern int proc_details;
@@ -2080,6 +2109,12 @@ static inline void drbd_md_flush(struct drbd_device *device)
 		set_bit(MD_NO_FUA, &device->flags);
 		dev_err(DEV, "meta data flush failed with status %d, disabling md-flushes\n", r);
 	}
+}
+
+static inline struct drbd_connection *first_connection(struct drbd_resource *resource)
+{
+	return list_first_entry(&resource->connections,
+				struct drbd_connection, connections);
 }
 
 #endif
