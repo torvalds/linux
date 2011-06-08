@@ -2237,6 +2237,22 @@ static int __devinit savagefb_probe(struct pci_dev* dev,
 				 &info->modelist);
 #endif
 	info->var = savagefb_var800x600x8;
+	/* if a panel was detected, default to a CVT mode instead */
+	if (par->SavagePanelWidth) {
+		struct fb_videomode cvt_mode;
+
+		memset(&cvt_mode, 0, sizeof(cvt_mode));
+		cvt_mode.xres = par->SavagePanelWidth;
+		cvt_mode.yres = par->SavagePanelHeight;
+		cvt_mode.refresh = 60;
+		/* FIXME: if we know there is only the panel
+		 * we can enable reduced blanking as well */
+		if (fb_find_mode_cvt(&cvt_mode, 0, 0))
+			printk(KERN_WARNING "No CVT mode found for panel\n");
+		else if (fb_find_mode(&info->var, info, NULL, NULL, 0,
+				      &cvt_mode, 0) != 3)
+			info->var = savagefb_var800x600x8;
+	}
 
 	if (mode_option) {
 		fb_find_mode(&info->var, info, mode_option,
