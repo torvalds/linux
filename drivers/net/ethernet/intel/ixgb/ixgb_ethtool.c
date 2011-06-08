@@ -115,7 +115,7 @@ ixgb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 	return 0;
 }
 
-static void ixgb_set_speed_duplex(struct net_device *netdev)
+void ixgb_set_speed_duplex(struct net_device *netdev)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	/* be optimistic about our link, since we were up before */
@@ -191,57 +191,6 @@ ixgb_set_pauseparam(struct net_device *netdev,
 	} else
 		ixgb_reset(adapter);
 
-	return 0;
-}
-
-static u32
-ixgb_get_rx_csum(struct net_device *netdev)
-{
-	struct ixgb_adapter *adapter = netdev_priv(netdev);
-
-	return adapter->rx_csum;
-}
-
-static int
-ixgb_set_rx_csum(struct net_device *netdev, u32 data)
-{
-	struct ixgb_adapter *adapter = netdev_priv(netdev);
-
-	adapter->rx_csum = data;
-
-	if (netif_running(netdev)) {
-		ixgb_down(adapter, true);
-		ixgb_up(adapter);
-		ixgb_set_speed_duplex(netdev);
-	} else
-		ixgb_reset(adapter);
-	return 0;
-}
-
-static u32
-ixgb_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_HW_CSUM) != 0;
-}
-
-static int
-ixgb_set_tx_csum(struct net_device *netdev, u32 data)
-{
-	if (data)
-		netdev->features |= NETIF_F_HW_CSUM;
-	else
-		netdev->features &= ~NETIF_F_HW_CSUM;
-
-	return 0;
-}
-
-static int
-ixgb_set_tso(struct net_device *netdev, u32 data)
-{
-	if (data)
-		netdev->features |= NETIF_F_TSO;
-	else
-		netdev->features &= ~NETIF_F_TSO;
 	return 0;
 }
 
@@ -736,14 +685,8 @@ static const struct ethtool_ops ixgb_ethtool_ops = {
 	.set_ringparam = ixgb_set_ringparam,
 	.get_pauseparam	= ixgb_get_pauseparam,
 	.set_pauseparam	= ixgb_set_pauseparam,
-	.get_rx_csum = ixgb_get_rx_csum,
-	.set_rx_csum = ixgb_set_rx_csum,
-	.get_tx_csum = ixgb_get_tx_csum,
-	.set_tx_csum = ixgb_set_tx_csum,
-	.set_sg	= ethtool_op_set_sg,
 	.get_msglevel = ixgb_get_msglevel,
 	.set_msglevel = ixgb_set_msglevel,
-	.set_tso = ixgb_set_tso,
 	.get_strings = ixgb_get_strings,
 	.set_phys_id = ixgb_set_phys_id,
 	.get_sset_count = ixgb_get_sset_count,

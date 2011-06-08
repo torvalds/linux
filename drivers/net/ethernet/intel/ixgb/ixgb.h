@@ -204,6 +204,8 @@ extern void ixgb_set_ethtool_ops(struct net_device *netdev);
 extern char ixgb_driver_name[];
 extern const char ixgb_driver_version[];
 
+extern void ixgb_set_speed_duplex(struct net_device *netdev);
+
 extern int ixgb_up(struct ixgb_adapter *adapter);
 extern void ixgb_down(struct ixgb_adapter *adapter, bool kill_watchdog);
 extern void ixgb_reset(struct ixgb_adapter *adapter);

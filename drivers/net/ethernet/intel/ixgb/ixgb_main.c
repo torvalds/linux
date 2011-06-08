@@ -325,6 +325,28 @@ ixgb_reset(struct ixgb_adapter *adapter)
 	}
 }
 
+static int
+ixgb_set_features(struct net_device *netdev, u32 features)
+{
+	struct ixgb_adapter *adapter = netdev_priv(netdev);
+	u32 changed = features ^ netdev->features;
+
+	if (!(changed & NETIF_F_RXCSUM))
+		return 0;
+
+	adapter->rx_csum = !!(features & NETIF_F_RXCSUM);
+
+	if (netif_running(netdev)) {
+		ixgb_down(adapter, true);
+		ixgb_up(adapter);
+		ixgb_set_speed_duplex(netdev);
+	} else
+		ixgb_reset(adapter);
+
+	return 0;
+}
+
+
 static const struct net_device_ops ixgb_netdev_ops = {
 	.ndo_open 		= ixgb_open,
 	.ndo_stop		= ixgb_close,
@@ -340,6 +362,7 @@ static const struct net_device_ops ixgb_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixgb_netpoll,
 #endif
+	.ndo_set_features       = ixgb_set_features,
 };
 
 /**
@@ -439,12 +462,14 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_sw_init;
 
-	netdev->features = NETIF_F_SG |
-			   NETIF_F_HW_CSUM |
+	netdev->hw_features = NETIF_F_SG |
+			   NETIF_F_TSO |
+			   NETIF_F_HW_CSUM;
+	netdev->features = netdev->hw_features |
 			   NETIF_F_HW_VLAN_TX |
 			   NETIF_F_HW_VLAN_RX |
 			   NETIF_F_HW_VLAN_FILTER;
-	netdev->features |= NETIF_F_TSO;
+	netdev->hw_features |= NETIF_F_RXCSUM;
 
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
