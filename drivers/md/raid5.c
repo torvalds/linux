@@ -4858,7 +4858,7 @@ static raid5_conf_t *setup_conf(mddev_t *mddev)
 			printk(KERN_INFO "md/raid:%s: device %s operational as raid"
 			       " disk %d\n",
 			       mdname(mddev), bdevname(rdev->bdev, b), raid_disk);
-		} else
+		} else if (rdev->saved_raid_disk != raid_disk)
 			/* Cannot rely on bitmap to complete recovery */
 			conf->fullsync = 1;
 	}
