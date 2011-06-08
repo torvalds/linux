@@ -2149,7 +2149,6 @@ static struct iwl_base_params iwl4965_base_params = {
 	.use_bsm = true,
 	.led_compensation = 61,
 	.chain_noise_num_beacons = IWL4965_CAL_NUM_BEACONS,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.temperature_kelvin = true,
 	.max_event_log_size = 512,

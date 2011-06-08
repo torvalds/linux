@@ -2697,7 +2697,6 @@ static struct iwl_base_params iwl3945_base_params = {
 	.set_l0s = false,
 	.use_bsm = true,
 	.led_compensation = 64,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 512,
 };

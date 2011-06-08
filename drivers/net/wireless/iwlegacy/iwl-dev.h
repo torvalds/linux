@@ -895,30 +895,12 @@ struct iwl_event_log {
 #define IWL_HOST_INT_CALIB_TIMEOUT_DEF	(0x10)
 #define IWL_HOST_INT_CALIB_TIMEOUT_MIN	(0x0)
 
-/*
- * This is the threshold value of plcp error rate per 100mSecs.  It is
- * used to set and check for the validity of plcp_delta.
- */
-#define IWL_MAX_PLCP_ERR_THRESHOLD_MIN	(1)
-#define IWL_MAX_PLCP_ERR_THRESHOLD_DEF	(50)
-#define IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF	(100)
-#define IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF	(200)
-#define IWL_MAX_PLCP_ERR_THRESHOLD_MAX	(255)
-#define IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE	(0)
-
-#define IWL_DELAY_NEXT_FORCE_RF_RESET  (HZ*3)
 #define IWL_DELAY_NEXT_FORCE_FW_RELOAD (HZ*5)
 
 /* TX queue watchdog timeouts in mSecs */
 #define IWL_DEF_WD_TIMEOUT	(2000)
 #define IWL_LONG_WD_TIMEOUT	(10000)
 #define IWL_MAX_WD_TIMEOUT	(120000)
-
-enum iwl_reset {
-	IWL_RF_RESET = 0,
-	IWL_FW_RESET,
-	IWL_MAX_FORCE_RESET,
-};
 
 struct iwl_force_reset {
 	int reset_request_count;
@@ -1032,11 +1014,8 @@ struct iwl_priv {
 	/* track IBSS manager (last beacon) status */
 	u32 ibss_manager;
 
-	/* storing the jiffies when the plcp error rate is received */
-	unsigned long plcp_jiffies;
-
 	/* force reset */
-	struct iwl_force_reset force_reset[IWL_MAX_FORCE_RESET];
+	struct iwl_force_reset force_reset;
 
 	/* we allocate array of iwl_channel_info for NIC's valid channels.
 	 *    Access via channel # using indirect index array */
@@ -1057,7 +1036,6 @@ struct iwl_priv {
 	enum ieee80211_band scan_band;
 	struct cfg80211_scan_request *scan_request;
 	struct ieee80211_vif *scan_vif;
-	bool is_internal_short_scan;
 	u8 scan_tx_ant[IEEE80211_NUM_BANDS];
 	u8 mgmt_tx_ant;
 
@@ -1256,7 +1234,6 @@ struct iwl_priv {
 	struct iwl_rxon_context *beacon_ctx;
 	struct sk_buff *beacon_skb;
 
-	struct work_struct start_internal_scan;
 	struct work_struct tx_flush;
 
 	struct tasklet_struct irq_tasklet;

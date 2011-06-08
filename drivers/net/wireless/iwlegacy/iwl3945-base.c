@@ -1762,49 +1762,6 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 #endif
 }
 
-static int iwl3945_get_single_channel_for_scan(struct iwl_priv *priv,
-					       struct ieee80211_vif *vif,
-					       enum ieee80211_band band,
-					       struct iwl3945_scan_channel *scan_ch)
-{
-	const struct ieee80211_supported_band *sband;
-	u16 passive_dwell = 0;
-	u16 active_dwell = 0;
-	int added = 0;
-	u8 channel = 0;
-
-	sband = iwl_get_hw_mode(priv, band);
-	if (!sband) {
-		IWL_ERR(priv, "invalid band\n");
-		return added;
-	}
-
-	active_dwell = iwl_legacy_get_active_dwell_time(priv, band, 0);
-	passive_dwell = iwl_legacy_get_passive_dwell_time(priv, band, vif);
-
-	if (passive_dwell <= active_dwell)
-		passive_dwell = active_dwell + 1;
-
-
-	channel = iwl_legacy_get_single_channel_number(priv, band);
-
-	if (channel) {
-		scan_ch->channel = channel;
-		scan_ch->type = 0;	/* passive */
-		scan_ch->active_dwell = cpu_to_le16(active_dwell);
-		scan_ch->passive_dwell = cpu_to_le16(passive_dwell);
-		/* Set txpower levels to defaults */
-		scan_ch->tpc.dsp_atten = 110;
-		if (band == IEEE80211_BAND_5GHZ)
-			scan_ch->tpc.tx_gain = ((1 << 5) | (3 << 3)) | 3;
-		else
-			scan_ch->tpc.tx_gain = ((1 << 5) | (5 << 3));
-		added++;
-	} else
-		IWL_ERR(priv, "no valid channel found\n");
-	return added;
-}
-
 static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 					 enum ieee80211_band band,
 				     u8 is_active, u8 n_probes,
@@ -2816,6 +2773,7 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	enum ieee80211_band band;
 	bool is_active = false;
 	int ret;
+	u16 len;
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -2834,17 +2792,14 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->quiet_time = IWL_ACTIVE_QUIET_TIME;
 
 	if (iwl_legacy_is_associated(priv, IWL_RXON_CTX_BSS)) {
-		u16 interval = 0;
+		u16 interval;
 		u32 extra;
 		u32 suspend_time = 100;
 		u32 scan_suspend_time = 100;
 
 		IWL_DEBUG_INFO(priv, "Scanning while associated...\n");
 
-		if (priv->is_internal_short_scan)
-			interval = 0;
-		else
-			interval = vif->bss_conf.beacon_int;
+		interval = vif->bss_conf.beacon_int;
 
 		scan->suspend_time = 0;
 		scan->max_out_time = cpu_to_le32(200 * 1024);
@@ -2866,9 +2821,7 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			       scan_suspend_time, interval);
 	}
 
-	if (priv->is_internal_short_scan) {
-		IWL_DEBUG_SCAN(priv, "Start internal passive scan.\n");
-	} else if (priv->scan_request->n_ssids) {
+	if (priv->scan_request->n_ssids) {
 		int i, p = 0;
 		IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
 		for (i = 0; i < priv->scan_request->n_ssids; i++) {
@@ -2919,36 +2872,17 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
 					IWL_GOOD_CRC_TH_DISABLED;
 
-	if (!priv->is_internal_short_scan) {
-		scan->tx_cmd.len = cpu_to_le16(
-			iwl_legacy_fill_probe_req(priv,
-				(struct ieee80211_mgmt *)scan->data,
-				vif->addr,
-				priv->scan_request->ie,
-				priv->scan_request->ie_len,
-				IWL_MAX_SCAN_SIZE - sizeof(*scan)));
-	} else {
-		/* use bcast addr, will not be transmitted but must be valid */
-		scan->tx_cmd.len = cpu_to_le16(
-			iwl_legacy_fill_probe_req(priv,
-				(struct ieee80211_mgmt *)scan->data,
-				iwlegacy_bcast_addr, NULL, 0,
-				IWL_MAX_SCAN_SIZE - sizeof(*scan)));
-	}
+	len = iwl_legacy_fill_probe_req(priv, (struct ieee80211_mgmt *)scan->data,
+					vif->addr, priv->scan_request->ie,
+					priv->scan_request->ie_len,
+					IWL_MAX_SCAN_SIZE - sizeof(*scan));
+	scan->tx_cmd.len = cpu_to_le16(len);
+
 	/* select Rx antennas */
 	scan->flags |= iwl3945_get_antenna_flags(priv);
 
-	if (priv->is_internal_short_scan) {
-		scan->channel_count =
-			iwl3945_get_single_channel_for_scan(priv, vif, band,
-				(void *)&scan->data[le16_to_cpu(
-				scan->tx_cmd.len)]);
-	} else {
-		scan->channel_count =
-			iwl3945_get_channels_for_scan(priv, band, is_active, n_probes,
-				(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)], vif);
-	}
-
+	scan->channel_count = iwl3945_get_channels_for_scan(priv, band, is_active, n_probes,
+							    (void *)&scan->data[len], vif);
 	if (scan->channel_count == 0) {
 		IWL_DEBUG_SCAN(priv, "channel count %d\n", scan->channel_count);
 		return -EIO;
@@ -3824,10 +3758,7 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	priv->missed_beacon_threshold = IWL_MISSED_BEACON_THRESHOLD_DEF;
 
 	/* initialize force reset */
-	priv->force_reset[IWL_RF_RESET].reset_duration =
-		IWL_DELAY_NEXT_FORCE_RF_RESET;
-	priv->force_reset[IWL_FW_RESET].reset_duration =
-		IWL_DELAY_NEXT_FORCE_FW_RELOAD;
+	priv->force_reset.reset_duration = IWL_DELAY_NEXT_FORCE_FW_RELOAD;
 
 	if (eeprom->version < EEPROM_3945_EEPROM_VERSION) {
 		IWL_WARN(priv, "Unsupported EEPROM version: 0x%04X\n",

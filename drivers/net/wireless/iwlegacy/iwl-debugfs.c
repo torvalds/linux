@@ -1236,72 +1236,31 @@ static ssize_t iwl_legacy_dbgfs_missed_beacon_write(struct file *file,
 	return count;
 }
 
-static ssize_t iwl_legacy_dbgfs_plcp_delta_read(struct file *file,
-					char __user *user_buf,
-					size_t count, loff_t *ppos) {
-
-	struct iwl_priv *priv = file->private_data;
-	int pos = 0;
-	char buf[12];
-	const size_t bufsz = sizeof(buf);
-
-	pos += scnprintf(buf + pos, bufsz - pos, "%u\n",
-			priv->cfg->base_params->plcp_delta_threshold);
-
-	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-}
-
-static ssize_t iwl_legacy_dbgfs_plcp_delta_write(struct file *file,
-					const char __user *user_buf,
-					size_t count, loff_t *ppos) {
-
-	struct iwl_priv *priv = file->private_data;
-	char buf[8];
-	int buf_size;
-	int plcp;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &plcp) != 1)
-		return -EINVAL;
-	if ((plcp < IWL_MAX_PLCP_ERR_THRESHOLD_MIN) ||
-		(plcp > IWL_MAX_PLCP_ERR_THRESHOLD_MAX))
-		priv->cfg->base_params->plcp_delta_threshold =
-			IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE;
-	else
-		priv->cfg->base_params->plcp_delta_threshold = plcp;
-	return count;
-}
-
 static ssize_t iwl_legacy_dbgfs_force_reset_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
 	struct iwl_priv *priv = file->private_data;
-	int i, pos = 0;
+	int pos = 0;
 	char buf[300];
 	const size_t bufsz = sizeof(buf);
 	struct iwl_force_reset *force_reset;
 
-	for (i = 0; i < IWL_MAX_FORCE_RESET; i++) {
-		force_reset = &priv->force_reset[i];
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"Force reset method %d\n", i);
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"\tnumber of reset request: %d\n",
-				force_reset->reset_request_count);
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"\tnumber of reset request success: %d\n",
-				force_reset->reset_success_count);
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"\tnumber of reset request reject: %d\n",
-				force_reset->reset_reject_count);
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"\treset duration: %lu\n",
-				force_reset->reset_duration);
-	}
+	force_reset = &priv->force_reset;
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"\tnumber of reset request: %d\n",
+			force_reset->reset_request_count);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"\tnumber of reset request success: %d\n",
+			force_reset->reset_success_count);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"\tnumber of reset request reject: %d\n",
+			force_reset->reset_reject_count);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"\treset duration: %lu\n",
+			force_reset->reset_duration);
+
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
@@ -1309,25 +1268,11 @@ static ssize_t iwl_legacy_dbgfs_force_reset_write(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
+	int ret;
 	struct iwl_priv *priv = file->private_data;
-	char buf[8];
-	int buf_size;
-	int reset, ret;
 
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &reset) != 1)
-		return -EINVAL;
-	switch (reset) {
-	case IWL_RF_RESET:
-	case IWL_FW_RESET:
-		ret = iwl_legacy_force_reset(priv, reset, true);
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = iwl_legacy_force_reset(priv, true);
+
 	return ret ? ret : count;
 }
 
@@ -1370,7 +1315,6 @@ DEBUGFS_WRITE_FILE_OPS(clear_traffic_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(ucode_tracing);
 DEBUGFS_READ_FILE_OPS(fh_reg);
 DEBUGFS_READ_WRITE_FILE_OPS(missed_beacon);
-DEBUGFS_READ_WRITE_FILE_OPS(plcp_delta);
 DEBUGFS_READ_WRITE_FILE_OPS(force_reset);
 DEBUGFS_READ_FILE_OPS(rxon_flags);
 DEBUGFS_READ_FILE_OPS(rxon_filter_flags);
@@ -1420,7 +1364,6 @@ int iwl_legacy_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(clear_traffic_statistics, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(fh_reg, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(plcp_delta, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(force_reset, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(ucode_rx_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, S_IRUSR);

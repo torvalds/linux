@@ -204,8 +204,6 @@ struct iwl_mod_params {
  *	to the deviation to achieve the desired led frequency.
  *	The detail algorithm is described in iwl-led.c
  * @chain_noise_num_beacons: number of beacons used to compute chain noise
- * @plcp_delta_threshold: plcp error rate threshold used to trigger
- *	radio tuning when there is a high receiving plcp error rate
  * @wd_timeout: TX queues watchdog timeout
  * @temperature_kelvin: temperature report by uCode in kelvin
  * @max_event_log_size: size of event log buffer size for ucode event logging
@@ -226,7 +224,6 @@ struct iwl_base_params {
 
 	u16 led_compensation;
 	int chain_noise_num_beacons;
-	u8 plcp_delta_threshold;
 	unsigned int wd_timeout;
 	bool temperature_kelvin;
 	u32 max_event_log_size;
@@ -438,7 +435,7 @@ int iwl_legacy_mac_hw_scan(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif,
 		    struct cfg80211_scan_request *req);
 void iwl_legacy_internal_short_hw_scan(struct iwl_priv *priv);
-int iwl_legacy_force_reset(struct iwl_priv *priv, int mode, bool external);
+int iwl_legacy_force_reset(struct iwl_priv *priv, bool external);
 u16 iwl_legacy_fill_probe_req(struct iwl_priv *priv,
 			struct ieee80211_mgmt *frame,
 		       const u8 *ta, const u8 *ie, int ie_len, int left);
