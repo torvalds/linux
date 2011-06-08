@@ -221,6 +221,8 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 	}
 	if (!adm_ctx.connection && (flags & DRBD_ADM_NEED_RESOURCE)) {
 		drbd_msg_put_info("unknown resource");
+		if (adm_ctx.resource_name)
+			return ERR_RES_NOT_KNOWN;
 		return ERR_INVALID_REQUEST;
 	}
 
@@ -3355,16 +3357,11 @@ int drbd_adm_down(struct sk_buff *skb, struct genl_info *info)
 	struct drbd_device *device;
 	unsigned i;
 
-	retcode = drbd_adm_prepare(skb, info, 0);
+	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_RESOURCE);
 	if (!adm_ctx.reply_skb)
 		return retcode;
 	if (retcode != NO_ERROR)
 		goto out;
-
-	if (!adm_ctx.connection) {
-		retcode = ERR_RES_NOT_KNOWN;
-		goto out;
-	}
 
 	/* demote */
 	idr_for_each_entry(&adm_ctx.connection->volumes, device, i) {
