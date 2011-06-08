@@ -2162,7 +2162,8 @@ static void drbd_release_all_peer_reqs(struct drbd_device *device)
 void drbd_destroy_device(struct kref *kref)
 {
 	struct drbd_device *device = container_of(kref, struct drbd_device, kref);
-	struct drbd_connection *connection = first_peer_device(device)->connection;
+	struct drbd_resource *resource = device->resource;
+	struct drbd_connection *connection;
 
 	del_timer_sync(&device->request_timer);
 
@@ -2196,7 +2197,9 @@ void drbd_destroy_device(struct kref *kref)
 	kfree(first_peer_device(device));
 	kfree(device);
 
-	kref_put(&connection->kref, drbd_destroy_connection);
+	for_each_connection(connection, resource)
+		kref_put(&connection->kref, drbd_destroy_connection);
+	kref_put(&resource->kref, drbd_destroy_resource);
 }
 
 /* One global retry thread, if we need to push back some bio and have it
@@ -2282,6 +2285,7 @@ void drbd_destroy_resource(struct kref *kref)
 	struct drbd_resource *resource =
 		container_of(kref, struct drbd_resource, kref);
 
+	idr_destroy(&resource->devices);
 	kfree(resource->name);
 	kfree(resource);
 }
@@ -2321,14 +2325,8 @@ static void drbd_cleanup(void)
 
 	drbd_genl_unregister();
 
-	idr_for_each_entry(&drbd_devices, device, i) {
-		idr_remove(&drbd_devices, device_to_minor(device));
-		idr_remove(&first_peer_device(device)->connection->volumes, device->vnr);
-		destroy_workqueue(device->submit.wq);
-		del_gendisk(device->vdisk);
-		/* synchronize_rcu(); No other threads running at this point */
-		kref_put(&device->kref, drbd_destroy_device);
-	}
+	idr_for_each_entry(&drbd_devices, device, i)
+		drbd_delete_minor(device);
 
 	/* not _rcu since, no other updater anymore. Genl already unregistered */
 	for_each_resource_safe(resource, tmp, &drbd_resources) {
@@ -2543,6 +2541,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
 		return NULL;
 	}
 	kref_init(&resource->kref);
+	idr_init(&resource->devices);
 	INIT_LIST_HEAD(&resource->connections);
 	list_add_tail_rcu(&resource->resources, &drbd_resources);
 	return resource;
@@ -2658,6 +2657,7 @@ static int init_submitter(struct drbd_device *device)
 
 enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigned int minor, int vnr)
 {
+	struct drbd_resource *resource = connection->resource;
 	struct drbd_device *device;
 	struct drbd_peer_device *peer_device;
 	struct gendisk *disk;
@@ -2673,14 +2673,17 @@ enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigne
 	device = kzalloc(sizeof(struct drbd_device), GFP_KERNEL);
 	if (!device)
 		return ERR_NOMEM;
+	kref_init(&device->kref);
+
 	peer_device = kzalloc(sizeof(struct drbd_peer_device), GFP_KERNEL);
 	if (!peer_device)
 		goto out_no_peer_device;
 
 	INIT_LIST_HEAD(&device->peer_devices);
 	list_add(&peer_device->peer_devices, &device->peer_devices);
+	kref_get(&resource->kref);
+	device->resource = resource;
 	kref_get(&connection->kref);
-	device->resource = connection->resource;
 	peer_device->connection = connection;
 	peer_device->device = device;
 
@@ -2723,7 +2726,7 @@ enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigne
 	blk_queue_max_hw_sectors(q, DRBD_MAX_BIO_SIZE_SAFE >> 8);
 	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
 	blk_queue_merge_bvec(q, drbd_merge_bvec);
-	q->queue_lock = &first_peer_device(device)->connection->req_lock; /* needed since we use */
+	q->queue_lock = &connection->req_lock;
 
 	device->md_io_page = alloc_page(GFP_KERNEL);
 	if (!device->md_io_page)
@@ -2742,6 +2745,17 @@ enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigne
 		}
 		goto out_no_minor_idr;
 	}
+	kref_get(&device->kref);
+
+	id = idr_alloc(&resource->devices, device, vnr, vnr + 1, GFP_KERNEL);
+	if (id < 0) {
+		if (id == -ENOSPC) {
+			err = ERR_MINOR_EXISTS;
+			drbd_msg_put_info("requested minor exists already");
+		}
+		goto out_idr_remove_minor;
+	}
+	kref_get(&device->kref);
 
 	id = idr_alloc(&connection->volumes, device, vnr, vnr + 1, GFP_KERNEL);
 	if (id < 0) {
@@ -2749,8 +2763,9 @@ enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigne
 			err = ERR_INVALID_REQUEST;
 			drbd_msg_put_info("requested volume exists already");
 		}
-		goto out_idr_remove_minor;
+		goto out_idr_remove_from_resource;
 	}
+	kref_get(&device->kref);
 
 	if (init_submitter(device)) {
 		err = ERR_NOMEM;
@@ -2759,7 +2774,6 @@ enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigne
 	}
 
 	add_disk(disk);
-	kref_init(&device->kref); /* one ref for both idrs and the the add_disk */
 
 	/* inherit the connection state */
 	device->state.conn = connection->cstate;
@@ -2770,6 +2784,8 @@ enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigne
 
 out_idr_remove_vol:
 	idr_remove(&connection->volumes, vnr);
+out_idr_remove_from_resource:
+	idr_remove(&resource->devices, vnr);
 out_idr_remove_minor:
 	idr_remove(&drbd_devices, minor);
 	synchronize_rcu();
@@ -2783,9 +2799,27 @@ out_no_disk:
 	blk_cleanup_queue(q);
 out_no_q:
 	kref_put(&connection->kref, drbd_destroy_connection);
+	kref_put(&resource->kref, drbd_destroy_resource);
 out_no_peer_device:
 	kfree(device);
 	return err;
+}
+
+void drbd_delete_minor(struct drbd_device *device)
+{
+	struct drbd_resource *resource = device->resource;
+	struct drbd_connection *connection;
+	int refs = 3;
+
+	for_each_connection(connection, resource) {
+		idr_remove(&connection->volumes, device->vnr);
+		refs++;
+	}
+	idr_remove(&resource->devices, device->vnr);
+	idr_remove(&drbd_devices, device_to_minor(device));
+	del_gendisk(device->vdisk);
+	synchronize_rcu();
+	kref_sub(&device->kref, refs, drbd_destroy_device);
 }
 
 int __init drbd_init(void)

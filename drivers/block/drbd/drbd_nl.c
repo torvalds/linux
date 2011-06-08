@@ -3324,12 +3324,7 @@ static enum drbd_ret_code adm_del_minor(struct drbd_device *device)
 	    device->state.role == R_SECONDARY) {
 		_drbd_request_state(device, NS(conn, C_WF_REPORT_PARAMS),
 				    CS_VERBOSE + CS_WAIT_COMPLETE);
-		idr_remove(&first_peer_device(device)->connection->volumes, device->vnr);
-		idr_remove(&drbd_devices, device_to_minor(device));
-		destroy_workqueue(device->submit.wq);
-		del_gendisk(device->vdisk);
-		synchronize_rcu();
-		kref_put(&device->kref, drbd_destroy_device);
+		drbd_delete_minor(device);
 		return NO_ERROR;
 	} else
 		return ERR_MINOR_CONFIGURED;
