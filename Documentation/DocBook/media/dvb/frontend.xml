@@ -276,7 +276,7 @@ OFDM frontends the <constant>frequency</constant> specifies the absolute frequen
 </section>
 <section id="dvb-vsb-parameters">
 <title>VSB parameters</title>
-<para>DVB-T frontends are supported by the <constant>dvb_vsb_parameters</constant> structure:</para>
+<para>ATSC frontends are supported by the <constant>dvb_vsb_parameters</constant> structure:</para>
 <programlisting>
 struct dvb_vsb_parameters {
 	fe_modulation_t modulation;	/&#x22C6; modulation type (see above) &#x22C6;/
