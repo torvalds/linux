@@ -134,10 +134,6 @@ Added ISDB-T test originally written by Patrick Boettcher
     <title>DVB Network Header File</title>
     &sub-net-h;
   </appendix>
-  <appendix id="osd_h">
-    <title>DVB OSD Header File</title>
-    &sub-osd-h;
-  </appendix>
   <appendix id="video_h">
     <title>DVB Video Header File</title>
     &sub-video-h;
