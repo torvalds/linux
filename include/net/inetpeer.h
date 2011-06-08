@@ -32,7 +32,6 @@ struct inet_peer {
 	struct inet_peer __rcu	*avl_left, *avl_right;
 	struct inetpeer_addr	daddr;
 	__u32			avl_height;
-	struct list_head	unused;
 	__u32			dtime;		/* the time of last use of not
 						 * referenced entries */
 	atomic_t		refcnt;
@@ -56,6 +55,7 @@ struct inet_peer {
 			struct inetpeer_addr_base	redirect_learned;
 		};
 		struct rcu_head         rcu;
+		struct inet_peer	*gc_next;
 	};
 };
 

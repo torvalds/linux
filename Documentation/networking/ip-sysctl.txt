@@ -106,16 +106,6 @@ inet_peer_maxttl - INTEGER
 	when the number of entries in the pool is very small).
 	Measured in seconds.
 
-inet_peer_gc_mintime - INTEGER
-	Minimum interval between garbage collection passes.  This interval is
-	in effect under high memory pressure on the pool.
-	Measured in seconds.
-
-inet_peer_gc_maxtime - INTEGER
-	Minimum interval between garbage collection passes.  This interval is
-	in effect under low (or absent) memory pressure on the pool.
-	Measured in seconds.
-
 TCP variables:
 
 somaxconn - INTEGER
