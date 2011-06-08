@@ -747,7 +747,7 @@ static int __init bfin_debug_mmrs_init(void)
 #endif
 
 	parent = debugfs_create_dir("dmac", top);
-#ifdef DMA_TC_CNT
+#ifdef DMAC_TC_CNT
 	D16(DMAC_TC_CNT);
 	D16(DMAC_TC_PER);
 #endif
