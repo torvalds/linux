@@ -85,6 +85,12 @@
 /* BB FIXME - analyze following length BB */
 #define MAX_SMB2_HDR_SIZE 0x78 /* 4 len + 64 hdr + (2*24 wct) + 2 bct + 2 pad */
 
+#define SMB2_PROTO_NUMBER __constant_cpu_to_le32(0x424d53fe)
+
+#define SMB2_HEADER_SIZE __constant_le16_to_cpu(64)
+
+#define SMB2_ERROR_STRUCTURE_SIZE2 __constant_le16_to_cpu(9)
+
 /*
  * SMB2 Header Definition
  *
@@ -110,6 +116,36 @@ struct smb2_hdr {
 	__u32  TreeId;		/* opaque - so do not make little endian */
 	__u64  SessionId;	/* opaque - so do not make little endian */
 	__u8   Signature[16];
+} __packed;
+
+struct smb2_pdu {
+	struct smb2_hdr hdr;
+	__le16 StructureSize2; /* size of wct area (varies, request specific) */
+} __packed;
+
+/*
+ *	SMB2 flag definitions
+ */
+#define SMB2_FLAGS_SERVER_TO_REDIR	__constant_cpu_to_le32(0x00000001)
+#define SMB2_FLAGS_ASYNC_COMMAND	__constant_cpu_to_le32(0x00000002)
+#define SMB2_FLAGS_RELATED_OPERATIONS	__constant_cpu_to_le32(0x00000004)
+#define SMB2_FLAGS_SIGNED		__constant_cpu_to_le32(0x00000008)
+#define SMB2_FLAGS_DFS_OPERATIONS	__constant_cpu_to_le32(0x10000000)
+
+/*
+ *	Definitions for SMB2 Protocol Data Units (network frames)
+ *
+ *  See MS-SMB2.PDF specification for protocol details.
+ *  The Naming convention is the lower case version of the SMB2
+ *  command code name for the struct. Note that structures must be packed.
+ *
+ */
+struct smb2_err_rsp {
+	struct smb2_hdr hdr;
+	__le16 StructureSize;
+	__le16 Reserved; /* MBZ */
+	__le32 ByteCount;  /* even if zero, at least one byte follows */
+	__u8   ErrorData[1];  /* variable length */
 } __packed;
 
 #endif				/* _SMB2PDU_H */

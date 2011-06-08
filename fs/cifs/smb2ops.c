@@ -107,6 +107,38 @@ smb2_get_next_mid(struct TCP_Server_Info *server)
 	return mid;
 }
 
+static struct mid_q_entry *
+smb2_find_mid(struct TCP_Server_Info *server, char *buf)
+{
+	struct mid_q_entry *mid;
+	struct smb2_hdr *hdr = (struct smb2_hdr *)buf;
+
+	spin_lock(&GlobalMid_Lock);
+	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
+		if ((mid->mid == hdr->MessageId) &&
+		    (mid->mid_state == MID_REQUEST_SUBMITTED) &&
+		    (mid->command == hdr->Command)) {
+			spin_unlock(&GlobalMid_Lock);
+			return mid;
+		}
+	}
+	spin_unlock(&GlobalMid_Lock);
+	return NULL;
+}
+
+static void
+smb2_dump_detail(void *buf)
+{
+#ifdef CONFIG_CIFS_DEBUG2
+	struct smb2_hdr *smb = (struct smb2_hdr *)buf;
+
+	cERROR(1, "Cmd: %d Err: 0x%x Flags: 0x%x Mid: %llu Pid: %d",
+		  smb->Command, smb->Status, smb->Flags, smb->MessageId,
+		  smb->ProcessId);
+	cERROR(1, "smb buf %p len %u", smb, smb2_calc_size(smb));
+#endif
+}
+
 struct smb_version_operations smb21_operations = {
 	.setup_request = smb2_setup_request,
 	.check_receive = smb2_check_receive,
@@ -115,9 +147,14 @@ struct smb_version_operations smb21_operations = {
 	.get_credits_field = smb2_get_credits_field,
 	.get_credits = smb2_get_credits,
 	.get_next_mid = smb2_get_next_mid,
+	.find_mid = smb2_find_mid,
+	.check_message = smb2_check_message,
+	.dump_detail = smb2_dump_detail,
 };
 
 struct smb_version_values smb21_values = {
 	.version_string = SMB21_VERSION_STRING,
+	.header_size = sizeof(struct smb2_hdr),
+	.max_header_size = MAX_SMB2_HDR_SIZE,
 	.lock_cmd = SMB2_LOCK,
 };

@@ -33,6 +33,8 @@ struct statfs;
  *****************************************************************
  */
 extern int map_smb2_to_linux_error(char *buf, bool log_err);
+extern int smb2_check_message(char *buf, unsigned int length);
+extern unsigned int smb2_calc_size(struct smb2_hdr *hdr);
 
 extern int smb2_check_receive(struct mid_q_entry *mid,
 			      struct TCP_Server_Info *server, bool log_error);
