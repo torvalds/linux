@@ -84,6 +84,10 @@ struct dentry *kvm_debugfs_dir;
 
 static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,
 			   unsigned long arg);
+#ifdef CONFIG_COMPAT
+static long kvm_vcpu_compat_ioctl(struct file *file, unsigned int ioctl,
+				  unsigned long arg);
+#endif
 static int hardware_enable_all(void);
 static void hardware_disable_all(void);
 
@@ -1586,7 +1590,9 @@ static int kvm_vcpu_release(struct inode *inode, struct file *filp)
 static struct file_operations kvm_vcpu_fops = {
 	.release        = kvm_vcpu_release,
 	.unlocked_ioctl = kvm_vcpu_ioctl,
-	.compat_ioctl   = kvm_vcpu_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = kvm_vcpu_compat_ioctl,
+#endif
 	.mmap           = kvm_vcpu_mmap,
 	.llseek		= noop_llseek,
 };
@@ -1874,6 +1880,50 @@ out:
 	kfree(kvm_sregs);
 	return r;
 }
+
+#ifdef CONFIG_COMPAT
+static long kvm_vcpu_compat_ioctl(struct file *filp,
+				  unsigned int ioctl, unsigned long arg)
+{
+	struct kvm_vcpu *vcpu = filp->private_data;
+	void __user *argp = compat_ptr(arg);
+	int r;
+
+	if (vcpu->kvm->mm != current->mm)
+		return -EIO;
+
+	switch (ioctl) {
+	case KVM_SET_SIGNAL_MASK: {
+		struct kvm_signal_mask __user *sigmask_arg = argp;
+		struct kvm_signal_mask kvm_sigmask;
+		compat_sigset_t csigset;
+		sigset_t sigset;
+
+		if (argp) {
+			r = -EFAULT;
+			if (copy_from_user(&kvm_sigmask, argp,
+					   sizeof kvm_sigmask))
+				goto out;
+			r = -EINVAL;
+			if (kvm_sigmask.len != sizeof csigset)
+				goto out;
+			r = -EFAULT;
+			if (copy_from_user(&csigset, sigmask_arg->sigset,
+					   sizeof csigset))
+				goto out;
+		}
+		sigset_from_compat(&sigset, &csigset);
+		r = kvm_vcpu_ioctl_set_sigmask(vcpu, &sigset);
+		break;
+	}
+	default:
+		r = kvm_vcpu_ioctl(filp, ioctl, arg);
+	}
+
+out:
+	return r;
+}
+#endif
 
 static long kvm_vm_ioctl(struct file *filp,
 			   unsigned int ioctl, unsigned long arg)
