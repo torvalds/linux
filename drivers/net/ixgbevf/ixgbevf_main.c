@@ -3364,7 +3364,7 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	hw->mac.type  = ii->mac;
 
 	memcpy(&hw->mbx.ops, &ixgbevf_mbx_ops,
-	       sizeof(struct ixgbe_mac_operations));
+	       sizeof(struct ixgbe_mbx_operations));
 
 	adapter->flags &= ~IXGBE_FLAG_RX_PS_CAPABLE;
 	adapter->flags &= ~IXGBE_FLAG_RX_PS_ENABLED;
