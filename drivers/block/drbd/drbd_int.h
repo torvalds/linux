@@ -631,6 +631,7 @@ struct drbd_peer_device {
 };
 
 struct drbd_device {
+	struct drbd_resource *resource;
 	struct list_head peer_devices;
 	int vnr;			/* volume number within the connection */
 	struct kref kref;

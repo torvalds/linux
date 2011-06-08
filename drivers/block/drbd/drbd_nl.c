@@ -251,7 +251,7 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 	    first_peer_device(adm_ctx.device)->connection != adm_ctx.connection) {
 		pr_warning("request: minor=%u, resource=%s; but that minor belongs to connection %s\n",
 				adm_ctx.minor, adm_ctx.resource_name,
-				first_peer_device(adm_ctx.device)->connection->resource->name);
+				adm_ctx.device->resource->name);
 		drbd_msg_put_info("minor exists in different resource");
 		return ERR_INVALID_REQUEST;
 	}
@@ -261,7 +261,7 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 		pr_warning("request: minor=%u, volume=%u; but that minor is volume %u in %s\n",
 				adm_ctx.minor, adm_ctx.volume,
 				adm_ctx.device->vnr,
-				first_peer_device(adm_ctx.device)->connection->resource->name);
+				adm_ctx.device->resource->name);
 		drbd_msg_put_info("minor exists as different volume");
 		return ERR_INVALID_REQUEST;
 	}

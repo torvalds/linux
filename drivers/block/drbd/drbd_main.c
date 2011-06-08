@@ -2681,6 +2681,7 @@ enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigne
 	INIT_LIST_HEAD(&device->peer_devices);
 	list_add(&peer_device->peer_devices, &device->peer_devices);
 	kref_get(&connection->kref);
+	device->resource = connection->resource;
 	peer_device->connection = connection;
 	peer_device->device = device;
 
