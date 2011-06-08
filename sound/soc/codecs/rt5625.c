@@ -27,6 +27,12 @@
 
 #endif
 
+#if 0
+#define DBG(x...) printk(KERN_INFO x)
+#else
+#define DBG(x...) do { } while (0)
+#endif
+
 #define AUDIO_NAME "rt5625"
 #define RT5625_VERSION "0.03 alsa 1.0.21"
 #define ALSA_SOC_VERSION "1.0.21"
@@ -214,11 +220,11 @@ static unsigned int rt5625_read_hw_reg(struct snd_soc_codec *codec, unsigned int
 	
 	i2c_master_reg8_recv(codec->control_data,reg,data,2,100 * 1000);	
 	   	      
-    value = (data[0]<<8) | data[1];         
-    
-    printk("rt5625_read reg%x=%x\n",reg,value);
-       
-    return value;	
+	value = (data[0]<<8) | data[1];
+
+	DBG(KERN_INFO "rt5625_read ok, reg = %x, value = %x\n", reg, value);
+
+	return value;	
 }
 
 
@@ -258,19 +264,19 @@ static int rt5625_write(struct snd_soc_codec *codec, unsigned int reg,
 	{		
 		regvalue = ((reg == 0x80) ? &reg80 : ((reg == 0x82) ? &reg82 : &reg84));
 		*regvalue = value;
-		printk(KERN_INFO "rt5625_write ok, reg = %x, value = %x\n", reg, value);
+		DBG("rt5625_write ok, reg = %x, value = %x\n", reg, value);
 		return 0;
 	}
 	rt5625_write_reg_cache(codec, reg, value);
 
 	if (codec->hw_write(codec->control_data, data, 3) == 3)
 	{
-		printk(KERN_INFO "rt5625_write ok, reg = %x, value = %x\n", reg, value);
+		DBG("rt5625_write ok, reg = %x, value = %x\n", reg, value);
 		return 0;
 	}
 	else 
 	{
-		printk(KERN_ERR "rt5625_write fail\n");
+		printk("rt5625_write fail\n");
 		return -EIO;
 	}
 }
@@ -281,7 +287,7 @@ int rt5625_write_mask(struct snd_soc_codec *codec, unsigned int reg,unsigned int
 	unsigned char RetVal=0;
 	unsigned  int CodecData;
 
-//	printk(KERN_INFO "rt5625_write_mask ok, reg = %x, value = %x ,mask= %x\n", reg, value,mask);
+	DBG("rt5625_write_mask ok, reg = %x, value = %x ,mask= %x\n", reg, value,mask);
 
 	if(!mask)
 		return 0; 
@@ -325,7 +331,7 @@ void rt5625_write_index_mask(struct snd_soc_codec *codec, unsigned int reg,unsig
 //	unsigned char RetVal=0;
 	unsigned  int CodecData;
 
-//	printk(KERN_INFO "rt5625_write_index_mask ok, reg = %x, value = %x ,mask= %x\n", reg, value,mask);
+	DBG("rt5625_write_index_mask ok, reg = %x, value = %x ,mask= %x\n", reg, value,mask);
 
 	if(!mask)
 		return; 
@@ -405,7 +411,7 @@ static unsigned int rt5625_read_vodsp_reg(struct snd_soc_codec *codec, unsigned 
 		return -EBUSY;
 	nDataL = rt5625_read(codec, RT5625_VODSP_REG_DATA);
 	value = ((nDataH & 0xff) << 8) |(nDataL & 0xff);
-	printk(KERN_INFO "%s vodspreg=0x%x, value=0x%x\n", __func__, vodspreg, value);
+	DBG("%s vodspreg=0x%x, value=0x%x\n", __func__, vodspreg, value);
 	return value;
 }
 
@@ -475,7 +481,7 @@ static int rt5625_eq_sel_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 //*************************************************************************************************
 //*************************************************************************************************
 static const char *rt5625_aec_path_sel[] = {"aec func disable","aec func for pcm in/out",
-											"aec func for iis in/out","aec func for analog in/out"};		/*0*/			
+                                            "aec func for iis in/out","aec func for analog in/out"};		/*0*/			
 static const char *rt5625_spk_out_sel[] = {"Class AB", "Class D"}; 					/*1*/
 static const char *rt5625_spk_l_source_sel[] = {"LPRN", "LPRP", "LPLN", "MM"};		/*2*/	
 static const char *rt5625_spkmux_source_sel[] = {"VMID", "HP Mixer", 
@@ -796,7 +802,7 @@ static int enable_vodsp_aec(struct snd_soc_codec *codec, unsigned int VodspAEC_E
 
 static void rt5625_aec_config(struct snd_soc_codec *codec, unsigned int mode)
 {
-	printk("rt5625_aec_config %d\n",mode);
+	DBG("rt5625_aec_config %d\n",mode);
 
 	if (mode == VODSP_AEC_DISABLE)
 	{
@@ -856,7 +862,7 @@ static int rt5625_set_dsp_mode(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 	u16 Virtual_reg = rt5625_read(codec, VIRTUAL_REG_FOR_MISC_FUNC);
 	int rt5625_mode=(Virtual_reg)&0x03;
 
-	printk("1rt5625_mode=%d,value[0]=%ld,Virtual_reg=%x\n",rt5625_mode,ucontrol->value.integer.value[0],Virtual_reg);
+	DBG("rt5625_mode=%d,value[0]=%ld,Virtual_reg=%x\n",rt5625_mode,ucontrol->value.integer.value[0],Virtual_reg);
 
 	if ( rt5625_mode == ucontrol->value.integer.value[0])
 		return 0;
@@ -896,7 +902,7 @@ static int rt5625_set_dsp_mode(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 	Virtual_reg |= (ucontrol->value.integer.value[0]);
 	rt5625_write(codec, VIRTUAL_REG_FOR_MISC_FUNC, Virtual_reg);
 
-	printk("2rt5625_mode=%d,value[0]=%ld,Virtual_reg=%x\n",rt5625_mode,ucontrol->value.integer.value[0],Virtual_reg);
+	DBG("2rt5625_mode=%d,value[0]=%ld,Virtual_reg=%x\n",rt5625_mode,ucontrol->value.integer.value[0],Virtual_reg);
 	return 0;
 }
 
@@ -973,15 +979,17 @@ static void hp_depop_mode2(struct snd_soc_codec *codec)
 {
         rt5625_write_mask(codec, RT5625_PWR_MANAG_ADD1, PWR_SOFTGEN_EN, PWR_SOFTGEN_EN);
         rt5625_write_mask(codec, RT5625_PWR_MANAG_ADD3, PWR_HP_R_OUT_VOL|PWR_HP_L_OUT_VOL,
-                										PWR_HP_R_OUT_VOL|PWR_HP_L_OUT_VOL);
+	                  PWR_HP_R_OUT_VOL|PWR_HP_L_OUT_VOL);
         rt5625_write(codec, RT5625_MISC_CTRL,HP_DEPOP_MODE2_EN);
-		printk(KERN_INFO "delay 500 msec\n");
+
+	DBG("delay 500 msec\n");
+
         schedule_timeout_uninterruptible(msecs_to_jiffies(500));
 		
 
         rt5625_write_mask(codec, RT5625_PWR_MANAG_ADD1, PWR_HP_OUT_AMP|PWR_HP_OUT_ENH_AMP,
-                PWR_HP_OUT_AMP|PWR_HP_OUT_ENH_AMP);
-//        rt5625_write_mask(codec, RT5625_MISC_CTRL, 0, HP_DEPOP_MODE2_EN);
+	                  PWR_HP_OUT_AMP|PWR_HP_OUT_ENH_AMP);
+	//rt5625_write_mask(codec, RT5625_MISC_CTRL, 0, HP_DEPOP_MODE2_EN);
 
 }
 
@@ -1085,7 +1093,7 @@ static int mixer_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, in
 	struct snd_soc_codec *codec = w->codec;
 	unsigned int l, r;
 
-	printk(KERN_INFO "enter %s\n", __func__);
+	DBG("enter %s\n", __func__);
 
 	l= rt5625_read(codec, HPL_MIXER);
 	r = rt5625_read(codec, HPR_MIXER);
@@ -1132,7 +1140,7 @@ static int spk_pga_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, 
 	struct snd_soc_codec *codec = w->codec;
 	int reg;
 	
-	printk(KERN_INFO "enter %s\n", __func__);
+	DBG("enter %s\n", __func__);
 	reg = rt5625_read(codec, VIRTUAL_REG_FOR_MISC_FUNC) & (0x3 << 4);
 	if ((reg >> 4) != 0x3 && reg != 0)
 		return 0;
@@ -1140,13 +1148,13 @@ static int spk_pga_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, 
 	switch (event)
 	{
 		case SND_SOC_DAPM_POST_PMU:
-			printk(KERN_INFO "after virtual spk power up!\n");
+			DBG("after virtual spk power up!\n");
 			rt5625_write_mask(codec, 0x3e, 0x3000, 0x3000);
 			rt5625_write_mask(codec, 0x02, 0x0000, 0x8080);
 			rt5625_write_mask(codec, 0x3a, 0x0400, 0x0400);//power on spk amp
 			break;
 		case SND_SOC_DAPM_POST_PMD:
-			printk(KERN_INFO "aftet virtual spk power down!\n");
+			DBG("aftet virtual spk power down!\n");
 			rt5625_write_mask(codec, 0x3a, 0x0000, 0x0400);//power off spk amp
 			rt5625_write_mask(codec, 0x02, 0x8080, 0x8080);
 			rt5625_write_mask(codec, 0x3e, 0x0000, 0x3000);                 
@@ -1165,7 +1173,7 @@ static int hp_pga_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, i
 	struct snd_soc_codec *codec = w->codec;
 	int reg;
 
-	printk(KERN_INFO "enter %s\n", __func__);
+	DBG("enter %s\n", __func__);
 
 	reg = rt5625_read(codec, VIRTUAL_REG_FOR_MISC_FUNC) & (0x3 << 6);
 	if ((reg >> 6) != 0x3 && reg != 0)
@@ -1175,7 +1183,7 @@ static int hp_pga_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, i
 	{
 		case SND_SOC_DAPM_POST_PMD:
 
-			printk(KERN_INFO "aftet virtual hp power down!\n");
+			DBG("aftet virtual hp power down!\n");
 
 			hp_mute_unmute_depop(codec,1);//mute hp
 			rt5625_write_mask(codec, 0x3a, 0x0000, 0x0300);
@@ -1184,7 +1192,7 @@ static int hp_pga_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, i
 
 		case SND_SOC_DAPM_POST_PMU:	
 
-			printk(KERN_INFO "after virtual hp power up!\n");
+			DBG("after virtual hp power up!\n");
 			hp_depop_mode2(codec);
 			hp_mute_unmute_depop(codec,0);//unmute hp
 			break;
@@ -1374,12 +1382,11 @@ static const struct snd_soc_dapm_route audio_map[] = {
 		/*aux out mux*/
 		{"AUXOUT Mux", "HP Mixer", "HP Mixer"},
 		{"AUXOUT Mux", "SPK Mixer", "SPK Mixer"},
-		{"SPKOUT Mux", "Mono Mixer", "MoNo Mixer"},
+		{"AUXOUT Mux", "Mono Mixer", "MoNo Mixer"},
 
 		/*spkl out pga*/
 		{"SPKL Out PGA", NULL, "SPKOUT Mux"},
-		
-		
+
 		/*spkr out pga*/
 		{"SPKR Out PGA", NULL, "SPKOUT Mux"},
 		
@@ -1434,73 +1441,76 @@ struct _pll_div{
   **************************************************************/
 static const struct _pll_div codec_master_pll1_div[] = {
 		
-	{  2048000,  8192000,	0x0ea0},
-	{  3686400,  8192000,	0x4e27},
-	{ 12000000,  8192000,	0x456b},
-	{ 13000000,  8192000,	0x495f},
-	{ 13100000,	 8192000,	0x0320},
-	{  2048000,  11289600,	0xf637},
-	{  3686400,  11289600,	0x2f22},
-	{ 12000000,  11289600,	0x3e2f},
-	{ 13000000,  11289600,	0x4d5b},
-	{ 13100000,	 11289600,	0x363b},
-	{  2048000,  16384000,	0x1ea0},
-	{  3686400,  16384000,	0x9e27},
-	{ 12000000,  16384000,	0x452b},
-	{ 13000000,  16384000,	0x542f},
-	{ 13100000,	 16384000,	0x03a0},
-	{  2048000,  16934400,	0xe625},
-	{  3686400,  16934400,	0x9126},
-	{ 12000000,  16934400,	0x4d2c},
-	{ 13000000,  16934400,	0x742f},
-	{ 13100000,	 16934400,	0x3c27},
-	{  2048000,  22579200,	0x2aa0},
-	{  3686400,  22579200,	0x2f20},
-	{ 12000000,  22579200,	0x7e2f},
-	{ 13000000,  22579200,	0x742f},
-	{ 13100000,	 22579200,	0x3c27},
-	{  2048000,  24576000,	0x2ea0},
-	{  3686400,  24576000,	0xee27},
-	{ 12000000,  24576000,	0x2915},
-	{ 13000000,  24576000,	0x772e},
-	{ 13100000,	 24576000,	0x0d20},
-	{ 26000000,  24576000,	0x2027},
-	{ 26000000,  22579200,	0x392f},
-	{ 24576000,  22579200,	0x0921},
-	{ 24576000,  24576000,	0x02a0},
+	{   2048000,  8192000,   0x0ea0},
+	{   3686400,  8192000,   0x4e27},
+	{  12000000,  8192000,   0x456b},
+	{  13000000,  8192000,   0x495f},
+	{  13100000,  8192000,   0x0320},
+	{   2048000,  11289600,	 0xf637},
+	{   3686400,  11289600,  0x2f22},
+	{  12000000,  11289600,  0x3e2f},
+	{  13000000,  11289600,  0x4d5b},
+	{  13100000,  11289600,  0x363b},
+	{   2048000,  16384000,  0x1ea0},
+	{   3686400,  16384000,  0x9e27},
+	{  12000000,  16384000,  0x452b},
+	{  13000000,  16384000,  0x542f},
+	{  13100000,  16384000,  0x03a0},
+	{   2048000,  16934400,  0xe625},
+	{   3686400,  16934400,  0x9126},
+	{  12000000,  16934400,  0x4d2c},
+	{  13000000,  16934400,  0x742f},
+	{  13100000,  16934400,  0x3c27},
+	{   2048000,  22579200,  0x2aa0},
+	{   3686400,  22579200,  0x2f20},
+	{  12000000,  22579200,  0x7e2f},
+	{  13000000,  22579200,  0x742f},
+	{  13100000,  22579200,  0x3c27},
+	{   2048000,  24576000,  0x2ea0},
+	{   3686400,  24576000,  0xee27},
+	{  11289600,  24576000,  0x950F},
+	{  12000000,  24576000,  0x2915},
+	{  12288000,  24576000,  0x0600},
+	{  13000000,  24576000,  0x772e},
+	{  13100000,  24576000,  0x0d20},
+	{  26000000,  24576000,  0x2027},
+	{  26000000,  22579200,  0x392f},
+	{  24576000,  22579200,  0x0921},
+	{  24576000,  24576000,  0x02a0},
 };
 
 static const struct _pll_div codec_bclk_pll1_div[] = {
 
-	{   256000,   4096000,	0x3ea0},
-	{	352800,	  5644800,	0x3ea0},
-	{	512000,	  8192000,	0x3ea0},
-	{	705600,  11289600, 	0x3ea0},
+	{   256000,   4096000,  0x3ea0},
+	{   352800,   5644800,  0x3ea0},
+	{   512000,   8192000,  0x3ea0},
+	{   705600,  11289600, 	0x3ea0},
 	{  1024000,  16384000,  0x3ea0},	
-	{  1411200,  22579200,	0x3ea0},
-	{  1536000,	 24576000,	0x3ea0},	
+	{  1411200,  22579200,  0x3ea0},
+	{  1536000,  24576000,  0x3ea0},	
 	{  2048000,  16384000,  0x1ea0},	
-	{  2822400,  22579200,	0x1ea0},
-	{  3072000,	 24576000,	0x1ea0},
-	{	705600,  11289600, 	0x3ea0},
-	{ 	705600,   8467200, 	0x3ab0},
-	{  2822400,	 11289600,	0x1ee0},
-	{  3072000,	 12288000,	0x1ee0},			
+	{  2822400,  22579200,  0x1ea0},
+	{  3072000,  24576000,  0x1ea0},
+	{   705600,  11289600, 	0x3ea0},
+	{   705600,   8467200, 	0x3ab0},
+	{  2822400,  11289600,  0x1ee0},
+	{  3072000,  12288000,  0x1ee0},			
 };
 
 static const struct _pll_div codec_vbclk_pll1_div[] = {
-	{   256000,   4096000,	0x3ea0},
-	{	352800,	  5644800,	0x3ea0},
-	{	512000,	  8192000,	0x3ea0},
-	{	705600,  11289600, 	0x3ea0},
+
+	{   256000,   4096000,  0x3ea0},
+	{   352800,   5644800,  0x3ea0},
+	{   512000,   8192000,  0x3ea0},
+	{   705600,  11289600,  0x3ea0},
 	{  1024000,  16384000,  0x3ea0},	
-	{  1411200,  22579200,	0x3ea0},
-	{  1536000,	 24576000,	0x3ea0},	
+	{  1411200,  22579200,  0x3ea0},
+	{  1536000,  24576000,  0x3ea0},	
 	{  2048000,  16384000,  0x1ea0},	
-	{  2822400,  22579200,	0x1ea0},
-	{  3072000,	 24576000,	0x1ea0},
-	{	705600,  11289600, 	0x3ea0},
-	{ 	705600,   8467200, 	0x3ab0},
+	{  2822400,  22579200,  0x1ea0},
+	{  3072000,  24576000,  0x1ea0},
+	{   705600,  11289600, 	0x3ea0},
+	{   705600,   8467200, 	0x3ab0},
 };
 
 
@@ -1518,51 +1528,53 @@ struct _coeff_div_voice {
 };
 
 static const struct _coeff_div_stereo coeff_div_stereo[] = {
-		/*bclk is config to 32fs, if codec is choose to be slave mode , input bclk should be 32*fs */
-		{24576000, 48000, 0x3174, 0x1010},      
-		{12288000, 48000, 0x1174, 0x0000},
-		{18432000, 48000, 0x2174, 0x1111},
-		{36864000, 48000, 0x2274, 0x2020},
-		{49152000, 48000, 0xf074, 0x3030},
-        {24576000, 48000, 0x3172,0x1010},
-        {24576000,  8000, 0xB274,0x2424},
-        {24576000, 16000, 0xB174,0x2222},
-        {24576000, 32000, 0xB074,0x2121},
-        {22579200, 11025, 0X3374,0x1414},
-        {22579200, 22050, 0X3274,0x1212},
-        {22579200, 44100, 0X3174,0x1010},
-		
-		{0, 0, 0, 0},
+
+	/*bclk is config to 32fs, if codec is choose to be slave mode , input bclk should be 32*fs */
+	{24576000,  48000,  0x3174,  0x1010},      
+	{12288000,  48000,  0x1174,  0x0000},
+	{18432000,  48000,  0x2174,  0x1111},
+	{36864000,  48000,  0x2274,  0x2020},
+	{49152000,  48000,  0xf074,  0x3030},
+	{24576000,  48000,  0x3172,  0x1010},
+	{24576000,   8000,  0xB274,  0x2424},
+	{24576000,  16000,  0xB174,  0x2222},
+	{24576000,  32000,  0xB074,  0x2121},
+	{22579200,  11025,  0X3374,  0x1414},
+	{22579200,  22050,  0X3274,  0x1212},
+	{22579200,  44100,  0X3174,  0x1010},
+	{0, 0, 0, 0},
 };
 
 static const struct _coeff_div_voice coeff_div_voice[] = {
-		/*bclk is config to 32fs, if codec is choose to be slave mode , input bclk should be 32*fs */
-		{24576000, 16000, 0x2622}, 
-		{24576000, 8000, 0x2824},
-		{0, 0, 0},
+
+	/*bclk is config to 32fs, if codec is choose to be slave mode , input bclk should be 32*fs */
+	{24576000,  16000,  0x2622}, 
+	{24576000,   8000,  0x2824},
+	{0, 0, 0},
 };
 
 static int get_coeff(unsigned int mclk, unsigned int rate, int mode)
 {
 	int i;
 
-	printk("get_coeff mclk = %d, rate = %d\n", mclk, rate);
-	if (!mode){
+	DBG("get_coeff mclk = %d, rate = %d, mode = %d\n", mclk, rate, mode);
+
+	if (!mode) {
 		for (i = 0; i < ARRAY_SIZE(coeff_div_stereo); i++) {
 			if ((coeff_div_stereo[i].rate == rate) && (coeff_div_stereo[i].mclk == mclk))
 				return i;
 		}
-	}
-	else {
+	} else {
 		for (i = 0; i< ARRAY_SIZE(coeff_div_voice); i++) {
 			if ((coeff_div_voice[i].rate == rate) && (coeff_div_voice[i].mclk == mclk))
 				return i;
 		}
 	}
 
+	printk("can't find a matched mclk and rate in %s\n", 
+	       (mode ? "coeff_div_voice[]" : "coeff_div_audio[]"));
+
 	return -EINVAL;
-	printk(KERN_ERR "can't find a matched mclk and rate in %s\n", 
-				(mode ? "coeff_div_voice[]" : "coeff_div_audio[]"));
 }
 
 
@@ -1573,7 +1585,8 @@ static int rt5625_codec_set_dai_pll(struct snd_soc_dai *codec_dai,
 	int ret = -EINVAL;
 	struct snd_soc_codec *codec = codec_dai->codec;
 
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	DBG("enter %s pll_id = %d freq_in = %d freq_out = %d\n",
+	       __func__, pll_id, freq_in, freq_out);
 
 	if (pll_id < RT5625_PLL1_FROM_MCLK || pll_id > RT5625_PLL1_FROM_VBCLK)
 		return -EINVAL;
@@ -1581,50 +1594,46 @@ static int rt5625_codec_set_dai_pll(struct snd_soc_dai *codec_dai,
 	if (!freq_in || !freq_out)
 		return 0;
 
-	if (RT5625_PLL1_FROM_MCLK == pll_id)
-	{
+	if (RT5625_PLL1_FROM_MCLK == pll_id) {
+
 		for (i = 0; i < ARRAY_SIZE(codec_master_pll1_div); i ++)
 		{
 			if ((freq_in == codec_master_pll1_div[i].pll_in) && (freq_out == codec_master_pll1_div[i].pll_out))
 			{
-				rt5625_write(codec, RT5625_GEN_CTRL_REG2, 0x0000);                    			 /*PLL source from MCLK*/
-				rt5625_write(codec, RT5625_PLL_CTRL, codec_master_pll1_div[i].regvalue);   /*set pll code*/
-				rt5625_write_mask(codec, RT5625_PWR_MANAG_ADD2, 0x8000, 0x8000);			/*enable pll1 power*/
+				rt5625_write(codec, RT5625_GEN_CTRL_REG2, 0x0000);  /*PLL source from MCLK*/
+				rt5625_write(codec, RT5625_PLL_CTRL, codec_master_pll1_div[i].regvalue);  /*set pll code*/
+				rt5625_write_mask(codec, RT5625_PWR_MANAG_ADD2, 0x8000, 0x8000);  /*enable pll1 power*/
 				rt5625_write_mask(codec, RT5625_GEN_CTRL_REG1, 0x8000, 0x8000);
 				ret = 0;
 			}
 		}
-	}
-	else if (RT5625_PLL1_FROM_BCLK == pll_id)
-	{
+	} else if (RT5625_PLL1_FROM_BCLK == pll_id) {
+
 		for (i = 0; i < ARRAY_SIZE(codec_bclk_pll1_div); i ++)
 		{
 			if ((freq_in == codec_bclk_pll1_div[i].pll_in) && (freq_out == codec_bclk_pll1_div[i].pll_out))
 			{
-				rt5625_write(codec, RT5625_GEN_CTRL_REG2, 0x2000);    					/*PLL source from BCLK*/
-				rt5625_write(codec, RT5625_PLL_CTRL, codec_bclk_pll1_div[i].regvalue);   /*set pll1 code*/
-				rt5625_write_mask(codec, RT5625_PWR_MANAG_ADD2, 0x8000, 0x8000);       	 /*enable pll1 power*/
+				rt5625_write(codec, RT5625_GEN_CTRL_REG2, 0x2000);  /*PLL source from BCLK*/
+				rt5625_write(codec, RT5625_PLL_CTRL, codec_bclk_pll1_div[i].regvalue);  /*set pll1 code*/
+				rt5625_write_mask(codec, RT5625_PWR_MANAG_ADD2, 0x8000, 0x8000);  /*enable pll1 power*/
 				rt5625_write_mask(codec, RT5625_GEN_CTRL_REG1, 0x8000, 0x8000);
 				ret = 0;
 			}
 		}
-	}
-	else if (RT5625_PLL1_FROM_VBCLK == pll_id)
-	{
+	} else if (RT5625_PLL1_FROM_VBCLK == pll_id) {
+
 		for (i = 0; i < ARRAY_SIZE(codec_vbclk_pll1_div); i ++)
 		{
 			if ((freq_in == codec_vbclk_pll1_div[i].pll_in) && (freq_out == codec_vbclk_pll1_div[i].pll_out))
 			{
-				rt5625_write(codec, RT5625_GEN_CTRL_REG2, 0x3000);    					/*PLL source from VBCLK*/
-				rt5625_write(codec, RT5625_PLL_CTRL, codec_vbclk_pll1_div[i].regvalue);   /*set pll1 code*/
-				rt5625_write_mask(codec, RT5625_PWR_MANAG_ADD2, 0x8000, 0x8000);       	 /*enable pll1 power*/
+				rt5625_write(codec, RT5625_GEN_CTRL_REG2, 0x3000);  /*PLL source from VBCLK*/
+				rt5625_write(codec, RT5625_PLL_CTRL, codec_vbclk_pll1_div[i].regvalue);  /*set pll1 code*/
+				rt5625_write_mask(codec, RT5625_PWR_MANAG_ADD2, 0x8000, 0x8000);  /*enable pll1 power*/
 				rt5625_write_mask(codec, RT5625_GEN_CTRL_REG1, 0x8000, 0x8000);
 				ret = 0;
 			}
 		}
 	}
-	
-	
 	return 0;
 }
 
@@ -1634,15 +1643,16 @@ static int rt5625_hifi_codec_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct rt5625_priv * rt5625 = codec->private_data;
-	printk(KERN_DEBUG "enter %s\n", __func__);
+
+	DBG("sysclk freq %u for audio i2s\n", freq);
 	
 	if ((freq >= (256 * 8000)) && (freq <= (512 * 48000))) {
 		rt5625->stereo_sysclk = freq;
 		return 0;
 	}
 	
-	printk(KERN_ERR "unsupported sysclk freq %u for audio i2s\n", freq);
-	rt5625->stereo_sysclk=24576000;
+	printk("unsupported sysclk freq %u for audio i2s\n", freq);
+	       rt5625->stereo_sysclk=24576000;
 	
 	return 0;
 }
@@ -1652,15 +1662,16 @@ static int rt5625_voice_codec_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct rt5625_priv * rt5625 = codec->private_data;
-	
+
+	DBG("sysclk freq %u for voice pcm\n", freq);
 
 	if ((freq >= (256 * 8000)) && (freq <= (512 * 48000))) {
 		rt5625->voice_sysclk = freq;
 		return 0;
 	}			
 
-	printk(KERN_ERR "unsupported sysclk freq %u for voice pcm\n", freq);
-	rt5625->voice_sysclk = 24576000;
+	printk("unsupported sysclk freq %u for voice pcm\n", freq);
+	       rt5625->voice_sysclk = 24576000;
 	
 	return 0;
 }
@@ -1679,8 +1690,7 @@ static int rt5625_hifi_pcm_hw_params(struct snd_pcm_substream *substream,
 	int rate = params_rate(params);
 	int coeff = get_coeff(rt5625->stereo_sysclk, rate, 0);
 	
-	printk(KERN_DEBUG "enter %s\n", __func__);
-
+	DBG("enter %s rate = %d \n", __func__, rate);
 
 	switch (params_format(params))
 	{
@@ -1694,8 +1704,6 @@ static int rt5625_hifi_pcm_hw_params(struct snd_pcm_substream *substream,
 			iface |= 0x000c;
 	}
 
-
-	
 	rt5625_write(codec, RT5625_MAIN_SDP_CTRL, iface);
 	rt5625_write_mask(codec, 0x3a, 0xc801, 0xc801);   /*power i2s and dac ref*/
 	if (coeff >= 0) {
@@ -1719,7 +1727,7 @@ static int rt5625_voice_pcm_hw_params(struct snd_pcm_substream *substream,
 	int rate = params_rate(params);
 	int coeff = get_coeff(rt5625->voice_sysclk, rate, 1);
 
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	DBG("enter %s rate = %d \n", __func__, rate);
 
 	list_for_each_entry(w, &codec->dapm_widgets, list)
 	{
@@ -1755,7 +1763,7 @@ static int rt5625_hifi_codec_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u16 iface = 0;
 
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	DBG("enter %s fmt = %d\n", __func__, fmt);
 
 	/*set master/slave interface*/
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK)
@@ -1811,7 +1819,7 @@ static int rt5625_voice_codec_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigne
 	struct snd_soc_codec *codec = codec_dai->codec;
 	int iface;
 
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	DBG("enter %s\n", __func__);
 	/*set slave/master mode*/
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK)
 	{
@@ -1865,7 +1873,7 @@ static int rt5625_voice_codec_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigne
 static int rt5625_hifi_codec_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	
+
 	if (mute) 
 		rt5625_write_mask(codec, RT5625_STEREO_DAC_VOL, 0x8080, 0x8080);
 	else
@@ -1914,7 +1922,7 @@ static int rt5625_set_bias_level(struct snd_soc_codec *codec,
 
 #define RT5625_STEREO_RATES	SNDRV_PCM_RATE_8000_48000
 
-#define RT5626_VOICE_RATES (SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_8000)
+#define RT5626_VOICE_RATES SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_8000
 
 #define RT5625_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
 			SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -1974,7 +1982,7 @@ struct snd_soc_dai rt5625_dai[] = {
 		.playback = {
 			.stream_name = "Voice Playback",
 			.channels_min = 1,
-			.channels_max =1,
+			.channels_max = 1,
 			.rates = RT5626_VOICE_RATES,
 			.formats = RT5625_FORMATS,
 		},
@@ -2011,13 +2019,13 @@ static void rt5625_work(struct work_struct *work)
 
 static int rt56xx_hwdep_open(struct snd_hwdep *hw, struct file *file)
 {
-	printk("enter %s\n", __func__);
+	DBG("enter %s\n", __func__);
 	return 0;
 }
 
 static int rt56xx_hwdep_release(struct snd_hwdep *hw, struct file *file)
 {
-	printk("enter %s\n", __func__);
+	DBG("enter %s\n", __func__);
 	return 0;
 }
 
@@ -2072,7 +2080,7 @@ static int rt56xx_codec_dump_reg(struct snd_hwdep *hw, struct file *file, unsign
 	int number = codec->reg_cache_size;
 	int i;
 
-	printk(KERN_DEBUG "enter %s, number = %d\n", __func__, number);	
+	DBG("enter %s, number = %d\n", __func__, number);	
 	if (copy_from_user(&rt56xx, _rt56xx, sizeof(rt56xx)))
 		return -EFAULT;
 	
@@ -2191,7 +2199,7 @@ static int rt5625_init(struct snd_soc_device *socdev)
 		printk(KERN_ERR "rt5625: failed to register card\n");
 		goto card_err;
 	}
-	printk(KERN_DEBUG "rt5625: initial ok\n");
+	DBG("rt5625: initial ok\n");
 	return 0;
 
 	card_err:
