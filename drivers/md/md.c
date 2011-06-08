@@ -1781,8 +1781,8 @@ int md_integrity_register(mddev_t *mddev)
 
 	if (list_empty(&mddev->disks))
 		return 0; /* nothing to do */
-	if (blk_get_integrity(mddev->gendisk))
-		return 0; /* already registered */
+	if (!mddev->gendisk || blk_get_integrity(mddev->gendisk))
+		return 0; /* shouldn't register, or already is */
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		/* skip spares and non-functional disks */
 		if (test_bit(Faulty, &rdev->flags))
