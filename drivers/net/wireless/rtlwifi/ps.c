@@ -68,6 +68,7 @@ bool rtl_ps_disable_nic(struct ieee80211_hw *hw)
 
 	/*<2> Disable Interrupt */
 	rtlpriv->cfg->ops->disable_interrupt(hw);
+	tasklet_kill(&rtlpriv->works.irq_tasklet);
 
 	/*<3> Disable Adapter */
 	rtlpriv->cfg->ops->hw_disable(hw);
@@ -82,10 +83,8 @@ bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	enum rf_pwrstate rtstate;
 	bool actionallowed = false;
 	u16 rfwait_cnt = 0;
-	unsigned long flag;
 
 	/*protect_or_not = true; */
 
@@ -98,10 +97,9 @@ bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 	 *should wait to be executed.
 	 */
 	while (true) {
-		spin_lock_irqsave(&rtlpriv->locks.rf_ps_lock, flag);
+		spin_lock(&rtlpriv->locks.rf_ps_lock);
 		if (ppsc->rfchange_inprogress) {
-			spin_unlock_irqrestore(&rtlpriv->locks.rf_ps_lock,
-					       flag);
+			spin_unlock(&rtlpriv->locks.rf_ps_lock);
 
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 				 ("RF Change in progress!"
@@ -122,15 +120,12 @@ bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 			}
 		} else {
 			ppsc->rfchange_inprogress = true;
-			spin_unlock_irqrestore(&rtlpriv->locks.rf_ps_lock,
-					       flag);
+			spin_unlock(&rtlpriv->locks.rf_ps_lock);
 			break;
 		}
 	}
 
 no_protect:
-	rtstate = ppsc->rfpwr_state;
-
 	switch (state_toset) {
 	case ERFON:
 		ppsc->rfoff_reason &= (~changesource);
@@ -173,9 +168,9 @@ no_protect:
 		rtlpriv->cfg->ops->set_rf_power_state(hw, state_toset);
 
 	if (!protect_or_not) {
-		spin_lock_irqsave(&rtlpriv->locks.rf_ps_lock, flag);
+		spin_lock(&rtlpriv->locks.rf_ps_lock);
 		ppsc->rfchange_inprogress = false;
-		spin_unlock_irqrestore(&rtlpriv->locks.rf_ps_lock, flag);
+		spin_unlock(&rtlpriv->locks.rf_ps_lock);
 	}
 
 	return actionallowed;
@@ -289,12 +284,11 @@ void rtl_ips_nic_on(struct ieee80211_hw *hw)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	enum rf_pwrstate rtstate;
-	unsigned long flags;
 
 	if (mac->opmode != NL80211_IFTYPE_STATION)
 		return;
 
-	spin_lock_irqsave(&rtlpriv->locks.ips_lock, flags);
+	spin_lock(&rtlpriv->locks.ips_lock);
 
 	if (ppsc->inactiveps) {
 		rtstate = ppsc->rfpwr_state;
@@ -310,7 +304,7 @@ void rtl_ips_nic_on(struct ieee80211_hw *hw)
 		}
 	}
 
-	spin_unlock_irqrestore(&rtlpriv->locks.ips_lock, flags);
+	spin_unlock(&rtlpriv->locks.ips_lock);
 }
 
 /*for FW LPS*/
@@ -428,7 +422,6 @@ void rtl_lps_enter(struct ieee80211_hw *hw)
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	unsigned long flag;
 
 	if (!ppsc->fwctrl_lps)
 		return;
@@ -449,7 +442,7 @@ void rtl_lps_enter(struct ieee80211_hw *hw)
 	if (mac->link_state != MAC80211_LINKED)
 		return;
 
-	spin_lock_irqsave(&rtlpriv->locks.lps_lock, flag);
+	spin_lock(&rtlpriv->locks.lps_lock);
 
 	/* Idle for a while if we connect to AP a while ago. */
 	if (mac->cnt_after_linked >= 2) {
@@ -461,7 +454,7 @@ void rtl_lps_enter(struct ieee80211_hw *hw)
 		}
 	}
 
-	spin_unlock_irqrestore(&rtlpriv->locks.lps_lock, flag);
+	spin_unlock(&rtlpriv->locks.lps_lock);
 }
 
 /*Leave the leisure power save mode.*/
@@ -470,9 +463,8 @@ void rtl_lps_leave(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	unsigned long flag;
 
-	spin_lock_irqsave(&rtlpriv->locks.lps_lock, flag);
+	spin_lock(&rtlpriv->locks.lps_lock);
 
 	if (ppsc->fwctrl_lps) {
 		if (ppsc->dot11_psmode != EACTIVE) {
@@ -493,7 +485,7 @@ void rtl_lps_leave(struct ieee80211_hw *hw)
 			rtl_lps_set_psmode(hw, EACTIVE);
 		}
 	}
-	spin_unlock_irqrestore(&rtlpriv->locks.lps_lock, flag);
+	spin_unlock(&rtlpriv->locks.lps_lock);
 }
 
 /* For sw LPS*/
@@ -582,7 +574,6 @@ void rtl_swlps_rf_awake(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	unsigned long flag;
 
 	if (!rtlpriv->psc.swctrl_lps)
 		return;
@@ -595,9 +586,9 @@ void rtl_swlps_rf_awake(struct ieee80211_hw *hw)
 		RT_CLEAR_PS_LEVEL(ppsc, RT_PS_LEVEL_ASPM);
 	}
 
-	spin_lock_irqsave(&rtlpriv->locks.lps_lock, flag);
+	spin_lock(&rtlpriv->locks.lps_lock);
 	rtl_ps_set_rf_state(hw, ERFON, RF_CHANGE_BY_PS, false);
-	spin_unlock_irqrestore(&rtlpriv->locks.lps_lock, flag);
+	spin_unlock(&rtlpriv->locks.lps_lock);
 }
 
 void rtl_swlps_rfon_wq_callback(void *data)
@@ -614,7 +605,6 @@ void rtl_swlps_rf_sleep(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	unsigned long flag;
 	u8 sleep_intv;
 
 	if (!rtlpriv->psc.sw_ps_enabled)
@@ -631,16 +621,16 @@ void rtl_swlps_rf_sleep(struct ieee80211_hw *hw)
 	if (rtlpriv->link_info.busytraffic)
 		return;
 
-	spin_lock_irqsave(&rtlpriv->locks.rf_ps_lock, flag);
+	spin_lock(&rtlpriv->locks.rf_ps_lock);
 	if (rtlpriv->psc.rfchange_inprogress) {
-		spin_unlock_irqrestore(&rtlpriv->locks.rf_ps_lock, flag);
+		spin_unlock(&rtlpriv->locks.rf_ps_lock);
 		return;
 	}
-	spin_unlock_irqrestore(&rtlpriv->locks.rf_ps_lock, flag);
+	spin_unlock(&rtlpriv->locks.rf_ps_lock);
 
-	spin_lock_irqsave(&rtlpriv->locks.lps_lock, flag);
+	spin_lock(&rtlpriv->locks.lps_lock);
 	rtl_ps_set_rf_state(hw, ERFSLEEP, RF_CHANGE_BY_PS, false);
-	spin_unlock_irqrestore(&rtlpriv->locks.lps_lock, flag);
+	spin_unlock(&rtlpriv->locks.lps_lock);
 
 	if (ppsc->reg_rfps_level & RT_RF_OFF_LEVL_ASPM &&
 		!RT_IN_PS_LEVEL(ppsc, RT_PS_LEVEL_ASPM)) {

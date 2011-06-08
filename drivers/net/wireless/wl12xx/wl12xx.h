@@ -564,6 +564,7 @@ struct wl1271 {
 	/* RX BA constraint value */
 	bool ba_support;
 	u8 ba_rx_bitmap;
+	bool ba_allowed;
 
 	int tcxo_clock;
 

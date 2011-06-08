@@ -1531,6 +1531,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	sdio_set_drvdata(func, card);
 
 	adapter->dev = &func->dev;
+	strcpy(adapter->fw_name, SD8787_DEFAULT_FW_NAME);
 
 	return 0;
 
@@ -1552,7 +1553,6 @@ disable_func:
  *        the first interrupt got from bootloader
  *      - Disable host interrupt mask register
  *      - Get SDIO port
- *      - Get revision ID
  *      - Initialize SDIO variables in card
  *      - Allocate MP registers
  *      - Allocate MPA Tx and Rx buffers
@@ -1575,10 +1575,6 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 
 	/* Get SDIO ioport */
 	mwifiex_init_sdio_ioport(adapter);
-
-	/* Get revision ID */
-#define REV_ID_REG	0x5c
-	mwifiex_read_reg(adapter, REV_ID_REG, &adapter->revision_id);
 
 	/* Initialize SDIO variables in card */
 	card->mp_rd_bitmap = 0;
@@ -1751,4 +1747,4 @@ MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex SDIO Driver version " SDIO_VERSION);
 MODULE_VERSION(SDIO_VERSION);
 MODULE_LICENSE("GPL v2");
-MODULE_FIRMWARE("sd8787.bin");
+MODULE_FIRMWARE("mrvl/sd8787_uapsta.bin");

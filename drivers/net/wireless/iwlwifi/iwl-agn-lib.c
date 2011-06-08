@@ -408,9 +408,9 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 	unsigned long flags;
 
 	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
-		IWL_ERR(priv, "Read index for DMA queue txq_id (%d) index %d "
-			  "is out of range [0-%d] %d %d\n", txq_id,
-			  index, txq->q.n_bd, txq->q.write_ptr,
+		IWL_ERR(priv, "%s: Read index for DMA queue txq_id (%d) "
+			  "index %d is out of range [0-%d] %d %d\n", __func__,
+			  txq_id, index, txq->q.n_bd, txq->q.write_ptr,
 			  txq->q.read_ptr);
 		return;
 	}
@@ -1797,6 +1797,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 		priv->cfg->ops->lib->update_chain_flags(priv);
 
 	if (smps_request != -1) {
+		priv->current_ht_config.smps = smps_request;
 		for_each_context(priv, ctx) {
 			if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION)
 				ieee80211_request_smps(ctx->vif, smps_request);

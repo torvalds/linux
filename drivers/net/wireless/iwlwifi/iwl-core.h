@@ -90,7 +90,6 @@ struct iwl_cmd;
 #define IWL_CMD(x) case x: return #x
 
 struct iwl_hcmd_ops {
-	int (*commit_rxon)(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 	void (*set_rxon_chain)(struct iwl_priv *priv,
 			       struct iwl_rxon_context *ctx);
 	int (*set_tx_ant)(struct iwl_priv *priv, u8 valid_tx_ant);
@@ -112,7 +111,6 @@ struct iwl_hcmd_utils_ops {
 	int  (*calc_rssi)(struct iwl_priv *priv,
 			  struct iwl_rx_phy_res *rx_resp);
 	int (*request_scan)(struct iwl_priv *priv, struct ieee80211_vif *vif);
-	void (*post_scan)(struct iwl_priv *priv);
 };
 
 struct iwl_apm_ops {
@@ -141,7 +139,6 @@ struct iwl_lib_ops {
 	struct iwl_apm_ops apm_ops;
 
 	/* power */
-	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
@@ -225,7 +222,7 @@ struct iwl_base_params {
  * @ampdu_factor: Maximum A-MPDU length factor
  * @ampdu_density: Minimum A-MPDU spacing
  * @bt_sco_disable: uCode should not response to BT in SCO/ESCO mode
-*/
+ */
 struct iwl_bt_params {
 	bool advanced_bt_coexist;
 	u8 bt_init_traffic_load;
@@ -238,10 +235,11 @@ struct iwl_bt_params {
 };
 /*
  * @use_rts_for_aggregation: use rts/cts protection for HT traffic
-*/
+ */
 struct iwl_ht_params {
 	const bool ht_greenfield_support; /* if used set to true */
 	bool use_rts_for_aggregation;
+	enum ieee80211_smps_mode smps_mode;
 };
 
 /**
@@ -560,6 +558,7 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_POWER_PMI	16
 #define STATUS_FW_ERROR		17
 #define STATUS_DEVICE_ENABLED	18
+#define STATUS_CHANNEL_SWITCH_PENDING 19
 
 
 static inline int iwl_is_ready(struct iwl_priv *priv)
@@ -612,11 +611,7 @@ void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 
 int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
-static inline int iwlcore_commit_rxon(struct iwl_priv *priv,
-				      struct iwl_rxon_context *ctx)
-{
-	return priv->cfg->ops->hcmd->commit_rxon(priv, ctx);
-}
+
 static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 			struct iwl_priv *priv, enum ieee80211_band band)
 {

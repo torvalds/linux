@@ -46,11 +46,10 @@ EXPORT_SYMBOL(ar9003_paprd_enable);
 
 static int ar9003_get_training_power_2g(struct ath_hw *ah)
 {
-	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
-	struct ar9300_modal_eep_header *hdr = &eep->modalHeader2G;
+	struct ath9k_channel *chan = ah->curchan;
 	unsigned int power, scale, delta;
 
-	scale = MS(le32_to_cpu(hdr->papdRateMaskHt20), AR9300_PAPRD_SCALE_1);
+	scale = ar9003_get_paprd_scale_factor(ah, chan);
 	power = REG_READ_FIELD(ah, AR_PHY_POWERTX_RATE5,
 			       AR_PHY_POWERTX_RATE5_POWERTXHT20_0);
 
@@ -67,20 +66,10 @@ static int ar9003_get_training_power_2g(struct ath_hw *ah)
 static int ar9003_get_training_power_5g(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
-	struct ar9300_modal_eep_header *hdr = &eep->modalHeader5G;
 	struct ath9k_channel *chan = ah->curchan;
 	unsigned int power, scale, delta;
 
-	if (chan->channel >= 5700)
-		scale = MS(le32_to_cpu(hdr->papdRateMaskHt20),
-			   AR9300_PAPRD_SCALE_1);
-	else if (chan->channel >= 5400)
-		scale = MS(le32_to_cpu(hdr->papdRateMaskHt40),
-			   AR9300_PAPRD_SCALE_2);
-	else
-		scale = MS(le32_to_cpu(hdr->papdRateMaskHt40),
-			   AR9300_PAPRD_SCALE_1);
+	scale = ar9003_get_paprd_scale_factor(ah, chan);
 
 	if (IS_CHAN_HT40(chan))
 		power = REG_READ_FIELD(ah, AR_PHY_POWERTX_RATE8,
@@ -119,15 +108,16 @@ static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 	else
 		training_power = ar9003_get_training_power_5g(ah);
 
+	ath_dbg(common, ATH_DBG_CALIBRATE,
+		"Training power: %d, Target power: %d\n",
+		training_power, ah->paprd_target_power);
+
 	if (training_power < 0) {
 		ath_dbg(common, ATH_DBG_CALIBRATE,
 			"PAPRD target power delta out of range");
 		return -ERANGE;
 	}
 	ah->paprd_training_power = training_power;
-	ath_dbg(common, ATH_DBG_CALIBRATE,
-		"Training power: %d, Target power: %d\n",
-		ah->paprd_training_power, ah->paprd_target_power);
 
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_AM2AM, AR_PHY_PAPRD_AM2AM_MASK,
 		      ah->paprd_ratemask);

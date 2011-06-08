@@ -299,7 +299,7 @@ static void b43_nphy_tx_power_ctrl(struct b43_wldev *dev, bool enable)
 static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
-	struct ssb_sprom *sprom = &(dev->sdev->bus->sprom);
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 
 	u8 txpi[2], bbmult, i;
 	u16 tmp, radio_gain, dac_gain;
@@ -423,16 +423,15 @@ static void b43_radio_init2055_pre(struct b43_wldev *dev)
 static void b43_radio_init2055_post(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
-	struct ssb_sprom *sprom = &(dev->sdev->bus->sprom);
-	struct ssb_boardinfo *binfo = &(dev->sdev->bus->boardinfo);
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 	int i;
 	u16 val;
 	bool workaround = false;
 
 	if (sprom->revision < 4)
-		workaround = (binfo->vendor != PCI_VENDOR_ID_BROADCOM &&
-				binfo->type == 0x46D &&
-				binfo->rev >= 0x41);
+		workaround = (dev->dev->board_vendor != PCI_VENDOR_ID_BROADCOM
+			      && dev->dev->board_type == 0x46D
+			      && dev->dev->board_rev >= 0x41);
 	else
 		workaround =
 			!(sprom->boardflags2_lo & B43_BFL2_RXBB_INT_REG_DIS);
@@ -983,7 +982,7 @@ static u16 b43_nphy_classifier(struct b43_wldev *dev, u16 mask, u16 val)
 {
 	u16 tmp;
 
-	if (dev->sdev->id.revision == 16)
+	if (dev->dev->core_rev == 16)
 		b43_mac_suspend(dev);
 
 	tmp = b43_phy_read(dev, B43_NPHY_CLASSCTL);
@@ -993,7 +992,7 @@ static u16 b43_nphy_classifier(struct b43_wldev *dev, u16 mask, u16 val)
 	tmp |= (val & mask);
 	b43_phy_maskset(dev, B43_NPHY_CLASSCTL, 0xFFF8, tmp);
 
-	if (dev->sdev->id.revision == 16)
+	if (dev->dev->core_rev == 16)
 		b43_mac_enable(dev);
 
 	return tmp;
@@ -1168,7 +1167,7 @@ static void b43_nphy_adjust_lna_gain_table(struct b43_wldev *dev)
 static void b43_nphy_gain_ctrl_workarounds(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
-	struct ssb_sprom *sprom = &(dev->sdev->bus->sprom);
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 
 	/* PHY rev 0, 1, 2 */
 	u8 i, j;
@@ -1373,7 +1372,7 @@ static void b43_nphy_gain_ctrl_workarounds(struct b43_wldev *dev)
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/Workarounds */
 static void b43_nphy_workarounds(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_n *nphy = phy->n;
 
@@ -1443,9 +1442,9 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
 
 		/* N PHY WAR TX Chain Update with hw_phytxchain as argument */
 
-		if ((bus->sprom.boardflags2_lo & B43_BFL2_APLL_WAR &&
+		if ((sprom->boardflags2_lo & B43_BFL2_APLL_WAR &&
 		    b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ) ||
-		    (bus->sprom.boardflags2_lo & B43_BFL2_GPLL_WAR &&
+		    (sprom->boardflags2_lo & B43_BFL2_GPLL_WAR &&
 		    b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ))
 			tmp32 = 0x00088888;
 		else
@@ -1503,8 +1502,8 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_LO2, 0x2D8);
 		b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_UP2, 0x301);
 
-		if (bus->sprom.boardflags2_lo & 0x100 &&
-		    bus->boardinfo.type == 0x8B) {
+		if (sprom->boardflags2_lo & 0x100 &&
+		    dev->dev->board_type == 0x8B) {
 			delays1[0] = 0x1;
 			delays1[5] = 0x14;
 		}
@@ -3586,7 +3585,7 @@ static void b43_nphy_set_rx_core_state(struct b43_wldev *dev, u8 mask)
  */
 int b43_phy_initn(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_n *nphy = phy->n;
 	u8 tx_pwr_state;
@@ -3599,7 +3598,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 	bool do_cal = false;
 
 	if ((dev->phy.rev >= 3) &&
-	   (bus->sprom.boardflags_lo & B43_BFL_EXTLNA) &&
+	   (sprom->boardflags_lo & B43_BFL_EXTLNA) &&
 	   (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)) {
 		chipco_set32(&dev->sdev->bus->chipco, SSB_CHIPCO_CHIPCTL, 0x40);
 	}
@@ -3639,9 +3638,9 @@ int b43_phy_initn(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_AFESEQ_TX2RX_PUD_20M, 0x20);
 	b43_phy_write(dev, B43_NPHY_AFESEQ_TX2RX_PUD_40M, 0x20);
 
-	if (bus->sprom.boardflags2_lo & 0x100 ||
-	    (bus->boardinfo.vendor == PCI_VENDOR_ID_APPLE &&
-	     bus->boardinfo.type == 0x8B))
+	if (sprom->boardflags2_lo & 0x100 ||
+	    (dev->dev->board_vendor == PCI_VENDOR_ID_APPLE &&
+	     dev->dev->board_type == 0x8B))
 		b43_phy_write(dev, B43_NPHY_TXREALFD, 0xA0);
 	else
 		b43_phy_write(dev, B43_NPHY_TXREALFD, 0xB8);

@@ -36,6 +36,7 @@
 #include "iwl-sta.h"
 #include "iwl-io.h"
 #include "iwl-helpers.h"
+#include "iwl-agn.h"
 
 /* For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
  * sending probe req.  This should be set long enough to hear probe responses
@@ -600,14 +601,7 @@ out_settings:
 	if (!iwl_is_ready_rf(priv))
 		goto out;
 
-	/*
-	 * We do not commit power settings while scan is pending,
-	 * do it now if the settings changed.
-	 */
-	iwl_power_set_mode(priv, &priv->power_data.sleep_cmd_next, false);
-	iwl_set_tx_power(priv, priv->tx_power_next, false);
-
-	priv->cfg->ops->utils->post_scan(priv);
+	iwlagn_post_scan(priv);
 
 out:
 	mutex_unlock(&priv->mutex);

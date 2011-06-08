@@ -884,12 +884,10 @@ static void _rtl92se_hw_configure(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
 	u8 reg_bw_opmode = 0;
-	u32 reg_ratr = 0, reg_rrsr = 0;
+	u32 reg_rrsr = 0;
 	u8 regtmp = 0;
 
 	reg_bw_opmode = BW_OPMODE_20MHZ;
-	reg_ratr = RATE_ALL_CCK | RATE_ALL_OFDM_AG | RATE_ALL_OFDM_1SS |
-				RATE_ALL_OFDM_2SS;
 	reg_rrsr = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
 
 	regtmp = rtl_read_byte(rtlpriv, INIRTSMCS_SEL);
@@ -1122,14 +1120,12 @@ static int _rtl92se_set_media_status(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 bt_msr = rtl_read_byte(rtlpriv, MSR);
-	enum led_ctl_mode ledaction = LED_CTL_NO_LINK;
 	u32 temp;
 	bt_msr &= ~MSR_LINK_MASK;
 
 	switch (type) {
 	case NL80211_IFTYPE_UNSPECIFIED:
 		bt_msr |= (MSR_LINK_NONE << MSR_LINK_SHIFT);
-		ledaction = LED_CTL_LINK;
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
 			 ("Set Network type to NO LINK!\n"));
 		break;
@@ -1140,7 +1136,6 @@ static int _rtl92se_set_media_status(struct ieee80211_hw *hw,
 		break;
 	case NL80211_IFTYPE_STATION:
 		bt_msr |= (MSR_LINK_MANAGED << MSR_LINK_SHIFT);
-		ledaction = LED_CTL_LINK;
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
 			 ("Set Network type to STA!\n"));
 		break;
@@ -1231,6 +1226,7 @@ void rtl92se_disable_interrupt(struct ieee80211_hw *hw)
 	rtl_write_dword(rtlpriv, INTA_MASK + 4, 0);
 
 	rtlpci->irq_enabled = false;
+	synchronize_irq(rtlpci->pdev->irq);
 }
 
 
@@ -2271,7 +2267,7 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	enum rf_pwrstate rfpwr_toset, cur_rfstate;
+	enum rf_pwrstate rfpwr_toset /*, cur_rfstate */;
 	unsigned long flag = 0;
 	bool actuallyset = false;
 	bool turnonbypowerdomain = false;
@@ -2292,7 +2288,7 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 		spin_unlock_irqrestore(&rtlpriv->locks.rf_ps_lock, flag);
 	}
 
-	cur_rfstate = ppsc->rfpwr_state;
+	/* cur_rfstate = ppsc->rfpwr_state;*/
 
 	/* because after _rtl92s_phy_set_rfhalt, all power
 	 * closed, so we must open some power for GPIO check,
