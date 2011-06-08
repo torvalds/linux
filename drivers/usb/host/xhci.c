@@ -1551,6 +1551,11 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 				"and endpoint is not disabled.\n");
 		ret = -EINVAL;
 		break;
+	case COMP_DEV_ERR:
+		dev_warn(&udev->dev, "ERROR: Incompatible device for endpoint "
+				"configure command.\n");
+		ret = -ENODEV;
+		break;
 	case COMP_SUCCESS:
 		dev_dbg(&udev->dev, "Successful Endpoint Configure command\n");
 		ret = 0;
@@ -1584,6 +1589,11 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 				"evaluate context command.\n");
 		xhci_dbg_ctx(xhci, virt_dev->out_ctx, 1);
 		ret = -EINVAL;
+		break;
+	case COMP_DEV_ERR:
+		dev_warn(&udev->dev, "ERROR: Incompatible device for evaluate "
+				"context command.\n");
+		ret = -ENODEV;
 		break;
 	case COMP_MEL_ERR:
 		/* Max Exit Latency too large error */
@@ -2866,6 +2876,11 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	case COMP_TX_ERR:
 		dev_warn(&udev->dev, "Device not responding to set address.\n");
 		ret = -EPROTO;
+		break;
+	case COMP_DEV_ERR:
+		dev_warn(&udev->dev, "ERROR: Incompatible device for address "
+				"device command.\n");
+		ret = -ENODEV;
 		break;
 	case COMP_SUCCESS:
 		xhci_dbg(xhci, "Successful Address Device command\n");

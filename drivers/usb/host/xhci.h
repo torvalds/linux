@@ -874,6 +874,8 @@ struct xhci_transfer_event {
 #define COMP_PING_ERR	20
 /* Event Ring is full */
 #define COMP_ER_FULL	21
+/* Incompatible Device Error */
+#define COMP_DEV_ERR	22
 /* Missed Service Error - HC couldn't service an isoc ep within interval */
 #define COMP_MISSED_INT	23
 /* Successfully stopped command ring */
