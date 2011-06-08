@@ -524,6 +524,63 @@ role="subsection"><title>AUDIO_PAUSE</title>
 </entry>
  </row></tbody></tgroup></informaltable>
 
+
+</section><section id="AUDIO_CONTINUE"
+role="subsection"><title>AUDIO_CONTINUE</title>
+<para>DESCRIPTION
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>This ioctl restarts the decoding and playing process previously paused
+with AUDIO_PAUSE command.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>It only works if the stream were previously stopped with AUDIO_PAUSE</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>SYNOPSIS
+</para>
+<informaltable><tgroup cols="1"><tbody><row><entry
+ align="char">
+<para>int ioctl(int fd, int request = AUDIO_CONTINUE);</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>PARAMETERS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>int fd</para>
+</entry><entry
+ align="char">
+<para>File descriptor returned by a previous call to open().</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>int request</para>
+</entry><entry
+ align="char">
+<para>Equals AUDIO_CONTINUE for this command.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+<para>ERRORS
+</para>
+<informaltable><tgroup cols="2"><tbody><row><entry
+ align="char">
+<para>EBADF</para>
+</entry><entry
+ align="char">
+<para>fd is not a valid open file descriptor.</para>
+</entry>
+ </row><row><entry
+ align="char">
+<para>EINTERNAL</para>
+</entry><entry
+ align="char">
+<para>Internal error.</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+
 </section><section id="AUDIO_SELECT_SOURCE"
 role="subsection"><title>AUDIO_SELECT_SOURCE</title>
 <para>DESCRIPTION
