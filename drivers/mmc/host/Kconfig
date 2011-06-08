@@ -206,6 +206,19 @@ config MMC_SDHCI_PXAV3
 
 	  If unsure, say N.
 
+config MMC_SDHCI_PXAV2
+	tristate "Marvell PXA9XX SD Host Controller support (PXAV2)"
+	depends on CLKDEV_LOOKUP
+	select MMC_SDHCI
+	select MMC_SDHCI_PLTFM
+	default CPU_PXA910
+	help
+	  This selects the Marvell(R) PXAV2 SD Host Controller.
+	  If you have a PXA9XX platform with SD Host Controller
+	  and a card slot, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_SPEAR
 	tristate "SDHCI support on ST SPEAr platform"
 	depends on MMC_SDHCI && PLAT_SPEAR
