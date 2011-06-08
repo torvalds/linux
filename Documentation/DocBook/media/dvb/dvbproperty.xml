@@ -449,13 +449,14 @@ typedef enum fe_delivery_system {
 		<para>Note: This value cannot be determined by an automatic channel search.</para>
 	</section>
 	<section id="isdb-hierq-layers">
-		<title>Hierarchical layers</title>
+		<title><constant>DTV-ISDBT-LAYER*</constant> parameters</title>
 		<para>ISDB-T channels can be coded hierarchically. As opposed to DVB-T in
 			ISDB-T hierarchical layers can be decoded simultaneously. For that
 			reason a ISDB-T demodulator has 3 viterbi and 3 reed-solomon-decoders.</para>
 		<para>ISDB-T has 3 hierarchical layers which each can use a part of the
 			available segments. The total number of segments over all layers has
 			to 13 in ISDB-T.</para>
+		<para>There are 3 parameter sets, for Layers A, B and C.</para>
 		<section id="DTV-ISDBT-LAYER-ENABLED">
 			<title><constant>DTV_ISDBT_LAYER_ENABLED</constant></title>
 			<para>Hierarchical reception in ISDB-T is achieved by enabling or disabling
