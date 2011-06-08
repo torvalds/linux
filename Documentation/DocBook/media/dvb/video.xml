@@ -37,8 +37,8 @@ stream.
 </para>
 </section>
 
-<section id="video-display-format-t">
-<title>video_display_format_t</title>
+<section id="video-displayformat-t">
+<title>video_displayformat_t</title>
 <para>In case the display format of the video stream and of the display hardware differ the
 application has to specify how to handle the cropping of the picture. This can be done using
 the VIDEO_SET_DISPLAY_FORMAT call (??) which accepts
@@ -88,6 +88,49 @@ typedef enum {
 } video_play_state_t;
 </programlisting>
 </section>
+
+<section id="video-command">
+<para>The structure must be zeroed before use by the application
+This ensures it can be extended safely in the future.</para>
+<title>struct video-command</title>
+<programlisting>
+struct video_command {
+	__u32 cmd;
+	__u32 flags;
+	union {
+		struct {
+			__u64 pts;
+		} stop;
+
+		struct {
+			/&#x22C6; 0 or 1000 specifies normal speed,
+			   1 specifies forward single stepping,
+			   -1 specifies backward single stepping,
+			   &gt;>1: playback at speed/1000 of the normal speed,
+			   &lt;-1: reverse playback at (-speed/1000) of the normal speed. &#x22C6;/
+			__s32 speed;
+			__u32 format;
+		} play;
+
+		struct {
+			__u32 data[16];
+		} raw;
+	};
+};
+</programlisting>
+</section>
+
+<section id="video-size-t">
+<title>struct video_size-t</title>
+<programlisting>
+typedef struct {
+	int w;
+	int h;
+	video_format_t aspect_ratio;
+} video_size_t;
+</programlisting>
+</section>
+
 
 <section id="video-event">
 <title>struct video_event</title>
