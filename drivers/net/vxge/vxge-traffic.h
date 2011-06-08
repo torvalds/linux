@@ -240,7 +240,7 @@ struct vxge_hw_tim_intr_config {
 	u32				btimer_val;
 #define VXGE_HW_MIN_TIM_BTIMER_VAL				0
 #define VXGE_HW_MAX_TIM_BTIMER_VAL				67108864
-#define VXGE_HW_USE_FLASH_DEFAULT				0xffffffff
+#define VXGE_HW_USE_FLASH_DEFAULT				(~0)
 
 	u32				timer_ac_en;
 #define VXGE_HW_TIM_TIMER_AC_ENABLE				1
@@ -681,7 +681,7 @@ struct vxge_hw_xmac_aggr_stats {
  * @rx_red_discard: Count of received frames that are discarded because of RED
  *            (Random Early Discard).
  * @rx_xgmii_ctrl_err_cnt: Maintains a count of unexpected or misplaced control
- *            characters occuring between times of normal data transmission
+ *            characters occurring between times of normal data transmission
  *            (i.e. not included in RX_XGMII_DATA_ERR_CNT). This counter is
  *            incremented when either -
  *            1) The Reconciliation Sublayer (RS) is expecting one control

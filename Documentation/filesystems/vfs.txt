@@ -97,7 +97,7 @@ functions:
 The passed struct file_system_type describes your filesystem. When a
 request is made to mount a filesystem onto a directory in your namespace,
 the VFS will call the appropriate mount() method for the specific
-filesystem.  New vfsmount refering to the tree returned by ->mount()
+filesystem.  New vfsmount referring to the tree returned by ->mount()
 will be attached to the mountpoint, so that when pathname resolution
 reaches the mountpoint it will jump into the root of that vfsmount.
 
@@ -211,7 +211,7 @@ struct super_operations {
         struct inode *(*alloc_inode)(struct super_block *sb);
         void (*destroy_inode)(struct inode *);
 
-        void (*dirty_inode) (struct inode *);
+        void (*dirty_inode) (struct inode *, int flags);
         int (*write_inode) (struct inode *, int);
         void (*drop_inode) (struct inode *);
         void (*delete_inode) (struct inode *);

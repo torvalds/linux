@@ -66,18 +66,7 @@ static int rt_next_event(unsigned long delta, struct clock_event_device *evt)
 static void rt_set_mode(enum clock_event_mode mode,
 		struct clock_event_device *evt)
 {
-	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
-		/* The only mode supported */
-		break;
-
-	case CLOCK_EVT_MODE_PERIODIC:
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_RESUME:
-		/* Nothing to do  */
-		break;
-	}
+	/* Nothing to do ...  */
 }
 
 int rt_timer_irq;
@@ -174,8 +163,7 @@ static void __init hub_rt_clocksource_init(void)
 {
 	struct clocksource *cs = &hub_rt_clocksource;
 
-	clocksource_set_clock(cs, CYCLES_PER_SEC);
-	clocksource_register(cs);
+	clocksource_register_hz(cs, CYCLES_PER_SEC);
 }
 
 void __init plat_time_init(void)

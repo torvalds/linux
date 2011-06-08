@@ -299,7 +299,7 @@ static void __init setup_chaos(struct pci_controller *hose,
  * This function deals with some "special cases" devices.
  *
  *  0 -> No special case
- *  1 -> Skip the device but act as if the access was successfull
+ *  1 -> Skip the device but act as if the access was successful
  *       (return 0xff's on reads, eventually, cache config space
  *       accesses in a later version)
  * -1 -> Hide the device (unsuccessful access)

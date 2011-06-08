@@ -610,7 +610,7 @@ static int i2o_block_release(struct gendisk *disk, fmode_t mode)
 
 	/*
 	 * This is to deail with the case of an application
-	 * opening a device and then the device dissapears while
+	 * opening a device and then the device disappears while
 	 * it's in use, and then the application tries to release
 	 * it.  ex: Unmounting a deleted RAID volume at reboot.
 	 * If we send messages, it will just cause FAILs since
@@ -717,7 +717,7 @@ static unsigned int i2o_block_check_events(struct gendisk *disk,
 
 /**
  *	i2o_block_transfer - Transfer a request to/from the I2O controller
- *	@req: the request which should be transfered
+ *	@req: the request which should be transferred
  *
  *	This function converts the request into a I2O message. The necessary
  *	DMA buffers are allocated and after everything is setup post the message
@@ -1000,7 +1000,6 @@ static struct i2o_block_device *i2o_block_device_alloc(void)
 	gd->major = I2O_MAJOR;
 	gd->queue = queue;
 	gd->fops = &i2o_block_fops;
-	gd->events = DISK_EVENT_MEDIA_CHANGE;
 	gd->private_data = dev;
 
 	dev->gd = gd;

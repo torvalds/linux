@@ -431,7 +431,7 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		}
 	}
 
-	/* Acer laptop (Acer TravelMate 5730G) has an HDMI port
+	/* Acer laptop (Acer TravelMate 5730/5730G) has an HDMI port
 	 * on the laptop and a DVI port on the docking station and
 	 * both share the same encoder, hpd pin, and ddc line.
 	 * So while the bios table is technically correct,
@@ -440,7 +440,7 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 	 * with different crtcs which isn't possible on the hardware
 	 * side and leaves no crtcs for LVDS or VGA.
 	 */
-	if ((dev->pdev->device == 0x95c4) &&
+	if (((dev->pdev->device == 0x95c4) || (dev->pdev->device == 0x9591)) &&
 	    (dev->pdev->subsystem_vendor == 0x1025) &&
 	    (dev->pdev->subsystem_device == 0x013c)) {
 		if ((*connector_type == DRM_MODE_CONNECTOR_DVII) &&
@@ -675,7 +675,8 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 							ATOM_ENCODER_CAP_RECORD *cap_record;
 							u16 caps = 0;
 
-							while (record->ucRecordType > 0 &&
+							while (record->ucRecordSize > 0 &&
+							       record->ucRecordType > 0 &&
 							       record->ucRecordType <= ATOM_MAX_OBJECT_RECORD_NUMBER) {
 								switch (record->ucRecordType) {
 								case ATOM_ENCODER_CAP_RECORD_TYPE:
@@ -720,7 +721,8 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 									break;
 							}
 
-							while (record->ucRecordType > 0 &&
+							while (record->ucRecordSize > 0 &&
+							       record->ucRecordType > 0 &&
 							       record->ucRecordType <= ATOM_MAX_OBJECT_RECORD_NUMBER) {
 								switch (record->ucRecordType) {
 								case ATOM_I2C_RECORD_TYPE:
@@ -782,10 +784,9 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 						ATOM_HPD_INT_RECORD *hpd_record;
 						ATOM_I2C_ID_CONFIG_ACCESS *i2c_config;
 
-						while (record->ucRecordType > 0
-						       && record->
-						       ucRecordType <=
-						       ATOM_MAX_OBJECT_RECORD_NUMBER) {
+						while (record->ucRecordSize > 0 &&
+						       record->ucRecordType > 0 &&
+						       record->ucRecordType <= ATOM_MAX_OBJECT_RECORD_NUMBER) {
 							switch (record->ucRecordType) {
 							case ATOM_I2C_RECORD_TYPE:
 								i2c_record =
@@ -1573,9 +1574,17 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 			ATOM_FAKE_EDID_PATCH_RECORD *fake_edid_record;
 			ATOM_PANEL_RESOLUTION_PATCH_RECORD *panel_res_record;
 			bool bad_record = false;
-			u8 *record = (u8 *)(mode_info->atom_context->bios +
-					    data_offset +
-					    le16_to_cpu(lvds_info->info.usModePatchTableOffset));
+			u8 *record;
+
+			if ((frev == 1) && (crev < 2))
+				/* absolute */
+				record = (u8 *)(mode_info->atom_context->bios +
+						le16_to_cpu(lvds_info->info.usModePatchTableOffset));
+			else
+				/* relative */
+				record = (u8 *)(mode_info->atom_context->bios +
+						data_offset +
+						le16_to_cpu(lvds_info->info.usModePatchTableOffset));
 			while (*record != ATOM_RECORD_END_TYPE) {
 				switch (*record) {
 				case LCD_MODE_PATCH_RECORD_MODE_TYPE:
@@ -1598,9 +1607,10 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 							memcpy((u8 *)edid, (u8 *)&fake_edid_record->ucFakeEDIDString[0],
 							       fake_edid_record->ucFakeEDIDLength);
 
-							if (drm_edid_is_valid(edid))
+							if (drm_edid_is_valid(edid)) {
 								rdev->mode_info.bios_hardcoded_edid = edid;
-							else
+								rdev->mode_info.bios_hardcoded_edid_size = edid_size;
+							} else
 								kfree(edid);
 						}
 					}
@@ -2175,24 +2185,27 @@ static void radeon_atombios_add_pplib_thermal_controller(struct radeon_device *r
 	}
 }
 
-static u16 radeon_atombios_get_default_vddc(struct radeon_device *rdev)
+static void radeon_atombios_get_default_voltages(struct radeon_device *rdev,
+						 u16 *vddc, u16 *vddci)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
 	int index = GetIndexIntoMasterTable(DATA, FirmwareInfo);
 	u8 frev, crev;
 	u16 data_offset;
 	union firmware_info *firmware_info;
-	u16 vddc = 0;
+
+	*vddc = 0;
+	*vddci = 0;
 
 	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
 				   &frev, &crev, &data_offset)) {
 		firmware_info =
 			(union firmware_info *)(mode_info->atom_context->bios +
 						data_offset);
-		vddc = le16_to_cpu(firmware_info->info_14.usBootUpVDDCVoltage);
+		*vddc = le16_to_cpu(firmware_info->info_14.usBootUpVDDCVoltage);
+		if ((frev == 2) && (crev >= 2))
+			*vddci = le16_to_cpu(firmware_info->info_22.usBootUpVDDCIVoltage);
 	}
-
-	return vddc;
 }
 
 static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rdev,
@@ -2202,7 +2215,9 @@ static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rde
 	int j;
 	u32 misc = le32_to_cpu(non_clock_info->ulCapsAndSettings);
 	u32 misc2 = le16_to_cpu(non_clock_info->usClassification);
-	u16 vddc = radeon_atombios_get_default_vddc(rdev);
+	u16 vddc, vddci;
+
+	radeon_atombios_get_default_voltages(rdev, &vddc, &vddci);
 
 	rdev->pm.power_state[state_index].misc = misc;
 	rdev->pm.power_state[state_index].misc2 = misc2;
@@ -2243,6 +2258,7 @@ static void radeon_atombios_parse_pplib_non_clock_info(struct radeon_device *rde
 			rdev->pm.default_sclk = rdev->pm.power_state[state_index].clock_info[0].sclk;
 			rdev->pm.default_mclk = rdev->pm.power_state[state_index].clock_info[0].mclk;
 			rdev->pm.default_vddc = rdev->pm.power_state[state_index].clock_info[0].voltage.voltage;
+			rdev->pm.default_vddci = rdev->pm.power_state[state_index].clock_info[0].voltage.vddci;
 		} else {
 			/* patch the table values with the default slck/mclk from firmware info */
 			for (j = 0; j < mode_index; j++) {
@@ -2285,6 +2301,8 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 			VOLTAGE_SW;
 		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage =
 			le16_to_cpu(clock_info->evergreen.usVDDC);
+		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.vddci =
+			le16_to_cpu(clock_info->evergreen.usVDDCI);
 	} else {
 		sclk = le16_to_cpu(clock_info->r600.usEngineClockLow);
 		sclk |= clock_info->r600.ucEngineClockHigh << 16;
@@ -2576,25 +2594,25 @@ union set_voltage {
 	struct _SET_VOLTAGE_PARAMETERS_V2 v2;
 };
 
-void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level)
+void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 voltage_type)
 {
 	union set_voltage args;
 	int index = GetIndexIntoMasterTable(COMMAND, SetVoltage);
-	u8 frev, crev, volt_index = level;
+	u8 frev, crev, volt_index = voltage_level;
 
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
 		return;
 
 	switch (crev) {
 	case 1:
-		args.v1.ucVoltageType = SET_VOLTAGE_TYPE_ASIC_VDDC;
+		args.v1.ucVoltageType = voltage_type;
 		args.v1.ucVoltageMode = SET_ASIC_VOLTAGE_MODE_ALL_SOURCE;
 		args.v1.ucVoltageIndex = volt_index;
 		break;
 	case 2:
-		args.v2.ucVoltageType = SET_VOLTAGE_TYPE_ASIC_VDDC;
+		args.v2.ucVoltageType = voltage_type;
 		args.v2.ucVoltageMode = SET_ASIC_VOLTAGE_MODE_SET_VOLTAGE;
-		args.v2.usVoltageLevel = cpu_to_le16(level);
+		args.v2.usVoltageLevel = cpu_to_le16(voltage_level);
 		break;
 	default:
 		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);

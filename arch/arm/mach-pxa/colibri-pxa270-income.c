@@ -22,7 +22,6 @@
 #include <linux/platform_device.h>
 #include <linux/pwm_backlight.h>
 #include <linux/i2c/pxa-i2c.h>
-#include <linux/sysdev.h>
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
@@ -175,7 +174,7 @@ static struct pxafb_mach_info income_lcd_screen = {
 
 static void __init income_lcd_init(void)
 {
-	set_pxa_fb_info(&income_lcd_screen);
+	pxa_set_fb_info(NULL, &income_lcd_screen);
 }
 #else
 static inline void income_lcd_init(void) {}

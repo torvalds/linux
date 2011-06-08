@@ -621,7 +621,7 @@ static int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
 
 	/*
 	 * Let's allocate the resource here rather than further up the stack as
-	 * it avoids pushing loads of bus dependant stuff up the stack
+	 * it avoids pushing loads of bus dependent stuff up the stack
 	 */
 	retval = ca91cx42_alloc_resource(image, size);
 	if (retval) {
@@ -1052,7 +1052,7 @@ static int ca91cx42_dma_list_add(struct vme_dma_list *list,
 		pci_attr = dest->private;
 	}
 
-	/* Check we can do fullfill required attributes */
+	/* Check we can do fulfill required attributes */
 	if ((vme_attr->aspace & ~(VME_A16 | VME_A24 | VME_A32 | VME_USER1 |
 		VME_USER2)) != 0) {
 
@@ -1069,7 +1069,7 @@ static int ca91cx42_dma_list_add(struct vme_dma_list *list,
 		goto err_cycle;
 	}
 
-	/* Check to see if we can fullfill source and destination */
+	/* Check to see if we can fulfill source and destination */
 	if (!(((src->type == VME_DMA_PCI) && (dest->type == VME_DMA_VME)) ||
 		((src->type == VME_DMA_VME) && (dest->type == VME_DMA_PCI)))) {
 

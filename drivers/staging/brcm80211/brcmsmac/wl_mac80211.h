@@ -67,11 +67,8 @@ struct wl_info {
 #ifdef LINUXSTA_PS
 	u32 pci_psstate[16];	/* pci ps-state save/restore */
 #endif
-	/* RPC, handle, lock, txq, workitem */
-	uint stats_id;		/* the current set of stats */
-	/* ping-pong stats counters updated by Linux watchdog */
-	struct net_device_stats stats_watchdog[2];
 	struct wl_firmware fw;
+	struct wiphy *wiphy;
 };
 
 #define WL_LOCK(wl)	spin_lock_bh(&(wl)->lock)

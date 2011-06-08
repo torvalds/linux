@@ -1261,14 +1261,13 @@ idt77252_rx_raw(struct idt77252_dev *card)
 				    PCI_DMA_FROMDEVICE);
 
 	while (head != tail) {
-		unsigned int vpi, vci, pti;
+		unsigned int vpi, vci;
 		u32 header;
 
 		header = le32_to_cpu(*(u32 *) &queue->data[0]);
 
 		vpi = (header & ATM_HDR_VPI_MASK) >> ATM_HDR_VPI_SHIFT;
 		vci = (header & ATM_HDR_VCI_MASK) >> ATM_HDR_VCI_SHIFT;
-		pti = (header & ATM_HDR_PTI_MASK) >> ATM_HDR_PTI_SHIFT;
 
 #ifdef CONFIG_ATM_IDT77252_DEBUG
 		if (debug & DBG_RAW_CELL) {
@@ -2709,53 +2708,10 @@ idt77252_proc_read(struct atm_dev *dev, loff_t * pos, char *page)
 static void
 idt77252_collect_stat(struct idt77252_dev *card)
 {
-	u32 cdc, vpec, icc;
+	(void) readl(SAR_REG_CDC);
+	(void) readl(SAR_REG_VPEC);
+	(void) readl(SAR_REG_ICC);
 
-	cdc = readl(SAR_REG_CDC);
-	vpec = readl(SAR_REG_VPEC);
-	icc = readl(SAR_REG_ICC);
-
-#ifdef	NOTDEF
-	printk("%s:", card->name);
-
-	if (cdc & 0x7f0000) {
-		char *s = "";
-
-		printk(" [");
-		if (cdc & (1 << 22)) {
-			printk("%sRM ID", s);
-			s = " | ";
-		}
-		if (cdc & (1 << 21)) {
-			printk("%sCON TAB", s);
-			s = " | ";
-		}
-		if (cdc & (1 << 20)) {
-			printk("%sNO FB", s);
-			s = " | ";
-		}
-		if (cdc & (1 << 19)) {
-			printk("%sOAM CRC", s);
-			s = " | ";
-		}
-		if (cdc & (1 << 18)) {
-			printk("%sRM CRC", s);
-			s = " | ";
-		}
-		if (cdc & (1 << 17)) {
-			printk("%sRM FIFO", s);
-			s = " | ";
-		}
-		if (cdc & (1 << 16)) {
-			printk("%sRX FIFO", s);
-			s = " | ";
-		}
-		printk("]");
-	}
-
-	printk(" CDC %04x, VPEC %04x, ICC: %04x\n",
-	       cdc & 0xffff, vpec & 0xffff, icc & 0xffff);
-#endif
 }
 
 static irqreturn_t
@@ -3495,7 +3451,7 @@ init_card(struct atm_dev *dev)
 		return -1;
 	}
 	if (dev->phy->ioctl == NULL) {
-		printk("%s: LT had no IOCTL funtion defined.\n", card->name);
+		printk("%s: LT had no IOCTL function defined.\n", card->name);
 		deinit_card(card);
 		return -1;
 	}

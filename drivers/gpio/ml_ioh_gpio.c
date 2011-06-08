@@ -15,6 +15,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/gpio.h>
 
@@ -116,6 +117,7 @@ static int ioh_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 		reg_val |= (1 << nr);
 	else
 		reg_val &= ~(1 << nr);
+	iowrite32(reg_val, &chip->reg->regs[chip->ch].po);
 
 	mutex_unlock(&chip->lock);
 
@@ -137,6 +139,7 @@ static int ioh_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 /*
  * Save register configuration and disable interrupts.
  */
@@ -156,6 +159,7 @@ static void ioh_gpio_restore_reg_conf(struct ioh_gpio *chip)
 	/* to store contents of PM register */
 	iowrite32(chip->ioh_gpio_reg.pm_reg, &chip->reg->regs[chip->ch].pm);
 }
+#endif
 
 static void ioh_gpio_setup(struct ioh_gpio *chip, int num_port)
 {

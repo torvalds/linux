@@ -597,7 +597,7 @@ static int bcm_enet_set_mac_address(struct net_device *dev, void *p)
 }
 
 /*
- * Change rx mode (promiscous/allmulti) and update multicast list
+ * Change rx mode (promiscuous/allmulti) and update multicast list
  */
 static void bcm_enet_set_multicast_list(struct net_device *dev)
 {
@@ -839,8 +839,8 @@ static int bcm_enet_open(struct net_device *dev)
 	if (ret)
 		goto out_phy_disconnect;
 
-	ret = request_irq(priv->irq_rx, bcm_enet_isr_dma,
-			  IRQF_SAMPLE_RANDOM | IRQF_DISABLED, dev->name, dev);
+	ret = request_irq(priv->irq_rx, bcm_enet_isr_dma, IRQF_DISABLED,
+			  dev->name, dev);
 	if (ret)
 		goto out_freeirq;
 
@@ -1346,7 +1346,8 @@ static int bcm_enet_get_settings(struct net_device *dev,
 		return phy_ethtool_gset(priv->phydev, cmd);
 	} else {
 		cmd->autoneg = 0;
-		cmd->speed = (priv->force_speed_100) ? SPEED_100 : SPEED_10;
+		ethtool_cmd_speed_set(cmd, ((priv->force_speed_100)
+					    ? SPEED_100 : SPEED_10));
 		cmd->duplex = (priv->force_duplex_full) ?
 			DUPLEX_FULL : DUPLEX_HALF;
 		cmd->supported = ADVERTISED_10baseT_Half  |

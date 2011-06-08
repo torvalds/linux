@@ -291,7 +291,6 @@ void Wb35Tx_EP2VM_start(struct wbsoft_priv *adapter)
 	if (atomic_inc_return(&pWb35Tx->TxResultCount) == 1) {
 		pWb35Tx->EP2vm_state = VM_RUNNING;
 		Wb35Tx_EP2VM(adapter);
-	}
-	else
+	} else
 		atomic_dec(&pWb35Tx->TxResultCount);
 }

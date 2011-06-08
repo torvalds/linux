@@ -7,7 +7,6 @@ config FRV
 	select HAVE_PERF_EVENTS
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_SHOW
-	select GENERIC_HARDIRQS_NO_DEPRECATED
 
 config ZONE_DMA
 	bool
@@ -19,14 +18,6 @@ config RWSEM_GENERIC_SPINLOCK
 
 config RWSEM_XCHGADD_ALGORITHM
 	bool
-
-config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
-
-config GENERIC_FIND_BIT_LE
-	bool
-	default y
 
 config GENERIC_HWEIGHT
 	bool

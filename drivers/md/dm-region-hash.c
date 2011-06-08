@@ -419,7 +419,7 @@ void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
 	/*
 	 * Possible cases:
 	 *   1) DM_RH_DIRTY
-	 *   2) DM_RH_NOSYNC: was dirty, other preceeding writes failed
+	 *   2) DM_RH_NOSYNC: was dirty, other preceding writes failed
 	 *   3) DM_RH_RECOVERING: flushing pending writes
 	 * Either case, the region should have not been connected to list.
 	 */

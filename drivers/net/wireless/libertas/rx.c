@@ -1,6 +1,9 @@
-/**
-  * This file contains the handling of RX in wlan driver.
-  */
+/*
+ * This file contains the handling of RX in wlan driver.
+ */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -40,12 +43,12 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	struct sk_buff *skb);
 
 /**
- *  @brief This function processes received packet and forwards it
- *  to kernel/upper layer
+ * lbs_process_rxed_packet - processes received packet and forwards it
+ * to kernel/upper layer
  *
- *  @param	priv	A pointer to struct lbs_private
- *  @param	skb		A pointer to skb which includes the received packet
- *  @return	0 or -1
+ * @priv:	A pointer to &struct lbs_private
+ * @skb:	A pointer to skb which includes the received packet
+ * returns:	0 or -1
  */
 int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 {
@@ -156,11 +159,11 @@ done:
 EXPORT_SYMBOL_GPL(lbs_process_rxed_packet);
 
 /**
- *  @brief This function converts Tx/Rx rates from the Marvell WLAN format
- *  (see Table 2 in Section 3.1) to IEEE80211_RADIOTAP_RATE units (500 Kb/s)
+ * convert_mv_rate_to_radiotap - converts Tx/Rx rates from Marvell WLAN format
+ * (see Table 2 in Section 3.1) to IEEE80211_RADIOTAP_RATE units (500 Kb/s)
  *
- *  @param	rate	Input rate
- *  @return	Output Rate (0 if invalid)
+ * @rate:	Input rate
+ * returns:	Output Rate (0 if invalid)
  */
 static u8 convert_mv_rate_to_radiotap(u8 rate)
 {
@@ -191,17 +194,17 @@ static u8 convert_mv_rate_to_radiotap(u8 rate)
 	case 12:		/*  54 Mbps */
 		return 108;
 	}
-	lbs_pr_alert("Invalid Marvell WLAN rate %i\n", rate);
+	pr_alert("Invalid Marvell WLAN rate %i\n", rate);
 	return 0;
 }
 
 /**
- *  @brief This function processes a received 802.11 packet and forwards it
- *  to kernel/upper layer
+ * process_rxed_802_11_packet - processes a received 802.11 packet and forwards
+ * it to kernel/upper layer
  *
- *  @param	priv	A pointer to struct lbs_private
- *  @param	skb		A pointer to skb which includes the received packet
- *  @return	0 or -1
+ * @priv:	A pointer to &struct lbs_private
+ * @skb:	A pointer to skb which includes the received packet
+ * returns:	0 or -1
  */
 static int process_rxed_802_11_packet(struct lbs_private *priv,
 	struct sk_buff *skb)
@@ -248,7 +251,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	/* add space for the new radio header */
 	if ((skb_headroom(skb) < sizeof(struct rx_radiotap_hdr)) &&
 	    pskb_expand_head(skb, sizeof(struct rx_radiotap_hdr), 0, GFP_ATOMIC)) {
-		lbs_pr_alert("%s: couldn't pskb_expand_head\n", __func__);
+		netdev_alert(dev, "%s: couldn't pskb_expand_head\n", __func__);
 		ret = -ENOMEM;
 		kfree_skb(skb);
 		goto done;

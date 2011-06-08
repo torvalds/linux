@@ -102,7 +102,7 @@
 #define		AT91_MCI_RDIRE		(1 << 17)	/* Response Direction Error */
 #define		AT91_MCI_RCRCE		(1 << 18)	/* Response CRC Error */
 #define		AT91_MCI_RENDE		(1 << 19)	/* Response End Bit Error */
-#define		AT91_MCI_RTOE		(1 << 20)	/* Reponse Time-out Error */
+#define		AT91_MCI_RTOE		(1 << 20)	/* Response Time-out Error */
 #define		AT91_MCI_DCRCE		(1 << 21)	/* Data CRC Error */
 #define		AT91_MCI_DTOE		(1 << 22)	/* Data Time-out Error */
 #define		AT91_MCI_OVRE		(1 << 30)	/* Overrun */

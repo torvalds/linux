@@ -25,7 +25,7 @@
 		.macro	addruart, rp, rv
 		.endm
 
-#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K)
+#if defined(CONFIG_CPU_V6) || defined(CONFIG_CPU_V6K) || defined(CONFIG_CPU_V7)
 
 		.macro	senduart, rd, rx
 		mcr	p14, 0, \rd, c0, c5, 0
@@ -47,23 +47,6 @@
 		tst	\rx, #0x20000000
 		bne	1001b
 1002:
-		.endm
-
-#elif defined(CONFIG_CPU_V7)
-
-		.macro	senduart, rd, rx
-		mcr	p14, 0, \rd, c0, c5, 0
-		.endm
-
-		.macro	busyuart, rd, rx
-busy:		mrc	p14, 0, pc, c0, c1, 0
-		bcs	busy
-		.endm
-
-		.macro	waituart, rd, rx
-wait:		mrc	p14, 0, pc, c0, c1, 0
-		bcs	wait
-
 		.endm
 
 #elif defined(CONFIG_CPU_XSCALE)

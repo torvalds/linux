@@ -74,6 +74,8 @@ config KATMAI
 	select 440SPe
 	select PCI
 	select PPC4xx_PCI_EXPRESS
+	select PCI_MSI
+	select PCC4xx_MSI
 	help
 	  This option enables support for the AMCC PPC440SPe evaluation board.
 
@@ -118,6 +120,8 @@ config CANYONLANDS
 	select 460EX
 	select PCI
 	select PPC4xx_PCI_EXPRESS
+	select PCI_MSI
+	select PPC4xx_MSI
 	select IBM_NEW_EMAC_RGMII
 	select IBM_NEW_EMAC_ZMII
 	help
@@ -144,6 +148,8 @@ config REDWOOD
 	select 460SX
 	select PCI
 	select PPC4xx_PCI_EXPRESS
+	select PCI_MSI
+	select PPC4xx_MSI
 	help
 	  This option enables support for the AMCC PPC460SX Redwood board.
 

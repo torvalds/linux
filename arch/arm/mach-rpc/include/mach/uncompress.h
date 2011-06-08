@@ -66,12 +66,12 @@ extern __attribute__((pure)) struct param_struct *params(void);
 #define params (params())
 
 #ifndef STANDALONE_DEBUG 
-static unsigned long video_num_cols;
-static unsigned long video_num_rows;
-static unsigned long video_x;
-static unsigned long video_y;
-static unsigned char bytes_per_char_v;
-static int white;
+unsigned long video_num_cols;
+unsigned long video_num_rows;
+unsigned long video_x;
+unsigned long video_y;
+unsigned char bytes_per_char_v;
+int white;
 
 /*
  * This does not append a newline

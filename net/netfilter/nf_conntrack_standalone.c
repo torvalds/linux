@@ -245,7 +245,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	ret = 0;
 release:
 	nf_ct_put(ct);
-	return 0;
+	return ret;
 }
 
 static const struct seq_operations ct_seq_ops = {

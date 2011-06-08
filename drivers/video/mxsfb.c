@@ -401,7 +401,7 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 	writel(CTRL1_FIFO_CLEAR, host->base + LCDC_CTRL1 + REG_SET);
 
 	ctrl = CTRL_BYPASS_COUNT | CTRL_MASTER |
-		CTRL_SET_BUS_WIDTH(host->ld_intf_width);;
+		CTRL_SET_BUS_WIDTH(host->ld_intf_width);
 
 	switch (fb_info->var.bits_per_pixel) {
 	case 16:

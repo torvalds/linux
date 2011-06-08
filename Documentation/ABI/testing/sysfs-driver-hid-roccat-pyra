@@ -39,7 +39,7 @@ Date:		August 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can store 5 profiles which can be switched by the
 		press of a button. A profile is split in settings and buttons.
-		profile_settings holds informations like resolution, sensitivity
+		profile_settings holds information like resolution, sensitivity
 		and light effects.
 		When written, this file lets one write the respective profile
 		settings back to the mouse. The data has to be 13 bytes long.
@@ -54,7 +54,7 @@ Date:		August 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can store 5 profiles which can be switched by the
 		press of a button. A profile is split in settings and buttons.
-		profile_settings holds informations like resolution, sensitivity
+		profile_settings holds information like resolution, sensitivity
 		and light effects.
 		When read, these files return the respective profile settings.
 		The returned data is 13 bytes in size.
@@ -66,7 +66,7 @@ Date:		August 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can store 5 profiles which can be switched by the
 		press of a button. A profile is split in settings and buttons.
-		profile_buttons holds informations about button layout.
+		profile_buttons holds information about button layout.
 		When written, this file lets one write the respective profile
 		buttons back to the mouse. The data has to be 19 bytes long.
 		The mouse will reject invalid data.
@@ -80,7 +80,7 @@ Date:		August 2010
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can store 5 profiles which can be switched by the
 		press of a button. A profile is split in settings and buttons.
-		profile_buttons holds informations about button layout.
+		profile_buttons holds information about button layout.
 		When read, these files return the respective profile buttons.
 		The returned data is 19 bytes in size.
 		This file is readonly.

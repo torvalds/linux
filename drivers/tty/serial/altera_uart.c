@@ -540,11 +540,14 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 	int i = pdev->id;
 	int ret;
 
-	/* -1 emphasizes that the platform must have one port, no .N suffix */
-	if (i == -1)
-		i = 0;
+	/* if id is -1 scan for a free id and use that one */
+	if (i == -1) {
+		for (i = 0; i < CONFIG_SERIAL_ALTERA_UART_MAXPORTS; i++)
+			if (altera_uart_ports[i].port.mapbase == 0)
+				break;
+	}
 
-	if (i >= CONFIG_SERIAL_ALTERA_UART_MAXPORTS)
+	if (i < 0 || i >= CONFIG_SERIAL_ALTERA_UART_MAXPORTS)
 		return -EINVAL;
 
 	port = &altera_uart_ports[i].port;
@@ -587,6 +590,8 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 	port->ops = &altera_uart_ops;
 	port->flags = UPF_BOOT_AUTOCONF;
 
+	dev_set_drvdata(&pdev->dev, port);
+
 	uart_add_one_port(&altera_uart_driver, port);
 
 	return 0;
@@ -594,14 +599,13 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 
 static int __devexit altera_uart_remove(struct platform_device *pdev)
 {
-	struct uart_port *port;
-	int i = pdev->id;
+	struct uart_port *port = dev_get_drvdata(&pdev->dev);
 
-	if (i == -1)
-		i = 0;
-
-	port = &altera_uart_ports[i].port;
-	uart_remove_one_port(&altera_uart_driver, port);
+	if (port) {
+		uart_remove_one_port(&altera_uart_driver, port);
+		dev_set_drvdata(&pdev->dev, NULL);
+		port->mapbase = 0;
+	}
 
 	return 0;
 }

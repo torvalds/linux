@@ -40,10 +40,6 @@
 extern "C" {
 #endif
 
-#ifndef ATH_TARGET
-#include "athstartpack.h"
-#endif
-
 #include "dbglog.h"
 
 /*
@@ -148,7 +144,6 @@ typedef PREPACK struct {
  * All masks are 18-bit masks with bit N operating on GPIO pin N.
  */
 
-#include "gpio.h"
 
 /*
  * Set GPIO pin output state.
@@ -191,7 +186,7 @@ typedef PREPACK struct {
 } POSTPACK WMIX_GPIO_INTR_ACK_CMD;
 
 /*
- * Target informs Host of GPIO interrupts that have ocurred since the
+ * Target informs Host of GPIO interrupts that have occurred since the
  * last WMIX_GIPO_INTR_ACK_CMD was received.  Additional information --
  * the current GPIO input values is provided -- in order to support
  * use of a GPIO interrupt as a Data Valid signal for other GPIO pins.
@@ -268,9 +263,6 @@ typedef PREPACK struct {
     u32 count;
 } POSTPACK WMIX_PROF_COUNT_EVENT;
 
-#ifndef ATH_TARGET
-#include "athendpack.h"
-#endif
 
 #ifdef __cplusplus
 }

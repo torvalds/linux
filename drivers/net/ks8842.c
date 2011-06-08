@@ -26,7 +26,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/core.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -321,7 +320,7 @@ static void ks8842_reset_hw(struct ks8842_adapter *adapter)
 	/* RX 2 kb high watermark */
 	ks8842_write16(adapter, 0, 0x1000, REG_QRFCR);
 
-	/* aggresive back off in half duplex */
+	/* aggressive back off in half duplex */
 	ks8842_enable_bits(adapter, 32, 1 << 8, REG_SGCR1);
 
 	/* enable no excessive collison drop */
@@ -1146,7 +1145,7 @@ static int __devinit ks8842_probe(struct platform_device *pdev)
 	struct resource *iomem;
 	struct net_device *netdev;
 	struct ks8842_adapter *adapter;
-	struct ks8842_platform_data *pdata = mfd_get_data(pdev);
+	struct ks8842_platform_data *pdata = pdev->dev.platform_data;
 	u16 id;
 	unsigned i;
 

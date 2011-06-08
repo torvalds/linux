@@ -114,7 +114,6 @@ static int __init _config_common_vdd_data(struct omap_vdd_info *vdd)
 	sys_clk_speed /= 1000;
 
 	/* Generic voltage parameters */
-	vdd->curr_volt = 1200000;
 	vdd->volt_scale = vp_forceupdate_scale_voltage;
 	vdd->vp_enabled = false;
 
@@ -149,7 +148,6 @@ static int vp_volt_debug_get(void *data, u64 *val)
 	}
 
 	vsel = vdd->read_reg(prm_mod_offs, vdd->vp_data->voltage);
-	pr_notice("curr_vsel = %x\n", vsel);
 
 	if (!vdd->pmic_info->vsel_to_uv) {
 		pr_warning("PMIC function to convert vsel to voltage"
@@ -851,7 +849,7 @@ int omap_voltage_scale_vdd(struct voltagedomain *voltdm,
  * @voltdm:	pointer to the VDD whose voltage is to be reset.
  *
  * This API finds out the correct voltage the voltage domain is supposed
- * to be at and resets the voltage to that level. Should be used expecially
+ * to be at and resets the voltage to that level. Should be used especially
  * while disabling any voltage compensation modules.
  */
 void omap_voltage_reset(struct voltagedomain *voltdm)
@@ -912,7 +910,7 @@ void omap_voltage_get_volttable(struct voltagedomain *voltdm,
  * This API searches only through the non-compensated voltages int the
  * voltage table.
  * Returns pointer to the voltage table entry corresponding to volt on
- * sucess. Returns -ENODATA if no voltage table exisits for the passed voltage
+ * success. Returns -ENODATA if no voltage table exisits for the passed voltage
  * domain or if there is no matching entry.
  */
 struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,

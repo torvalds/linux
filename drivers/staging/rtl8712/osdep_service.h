@@ -145,7 +145,8 @@ static inline u32 is_list_empty(struct list_head *phead)
 		return false;
 }
 
-static inline void list_insert_tail(struct list_head *plist, struct list_head *phead)
+static inline void list_insert_tail(struct list_head *plist,
+				    struct list_head *phead)
 {
 	list_add_tail(plist, phead);
 }

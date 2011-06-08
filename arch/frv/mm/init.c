@@ -41,8 +41,6 @@
 
 #undef DEBUG
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-
 /*
  * BAD_PAGE is the page that is used for page faults when linux
  * is out-of-memory. Older versions of linux just did a

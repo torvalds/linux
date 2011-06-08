@@ -335,7 +335,7 @@ be off by a factor of five. The important point is that the first command reset
 in fact generates a reset pulse on the board. This pulse is guaranteed to last
 less than 10 milliseconds. The additional delay ensures the 1400 has had the
 chance to respond sufficiently to the first reset. Why not a longer delay? Much
-more than 50 milliseconds gets to be noticable, but the board would still work.
+more than 50 milliseconds gets to be noticeable, but the board would still work.
 
 Once all 16 bytes of the Power-on Reset Message have been read, the bootstrap
 firmware is ready to receive loadware.
@@ -399,7 +399,7 @@ typedef union _porStr		// "por" stands for Power On Reset
 		// expandable products must report a MAP of available channels. Since 
 		// each UART supports four ports, we represent each UART found by a
 		// single bit. Using two bytes to supply the mapping information we
-		// report the presense or absense of up to 16 UARTS, or 64 ports in
+		// report the presence or absence of up to 16 UARTS, or 64 ports in
 		// steps of 4 ports. For -IIEX products, the ports are numbered
 		// starting at the box closest to the controller in the "chain".
 

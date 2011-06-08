@@ -305,7 +305,7 @@ static int speaker_mode_get(struct snd_kcontrol *kcontrol,
 /*
  * Stop any attempts to change speaker mode while the speaker is enabled.
  *
- * We also have some special anti-pop controls dependant on speaker
+ * We also have some special anti-pop controls dependent on speaker
  * mode which must be changed along with the mode.
  */
 static int speaker_mode_put(struct snd_kcontrol *kcontrol,
@@ -456,7 +456,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 
 	pr_debug("Fvco=%dHz\n", target);
 
-	/* Find an appropraite FLL_FRATIO and factor it out of the target */
+	/* Find an appropriate FLL_FRATIO and factor it out of the target */
 	for (i = 0; i < ARRAY_SIZE(fll_fratios); i++) {
 		if (fll_fratios[i].min <= Fref && Fref <= fll_fratios[i].max) {
 			fll_div->fll_fratio = fll_fratios[i].fll_fratio;

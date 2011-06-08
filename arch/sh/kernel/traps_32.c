@@ -87,7 +87,6 @@ void die(const char * str, struct pt_regs * regs, long err)
 	bust_spinlocks(1);
 
 	printk("%s: %04lx [#%d]\n", str, err & 0xffff, ++die_counter);
-	sysfs_printk_last_file();
 	print_modules();
 	show_regs(regs);
 

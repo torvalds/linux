@@ -108,7 +108,8 @@ typedef unsigned int ext4_group_t;
 #define EXT4_MB_DELALLOC_RESERVED	0x0400
 /* We are doing stream allocation */
 #define EXT4_MB_STREAM_ALLOC		0x0800
-
+/* Use reserved root blocks if needed */
+#define EXT4_MB_USE_ROOT_BLOCKS		0x1000
 
 struct ext4_allocation_request {
 	/* target inode for block we're allocating */
@@ -209,6 +210,8 @@ struct ext4_io_submit {
  */
 #define	EXT4_BAD_INO		 1	/* Bad blocks inode */
 #define EXT4_ROOT_INO		 2	/* Root inode */
+#define EXT4_USR_QUOTA_INO	 3	/* User quota inode */
+#define EXT4_GRP_QUOTA_INO	 4	/* Group quota inode */
 #define EXT4_BOOT_LOADER_INO	 5	/* Boot loader inode */
 #define EXT4_UNDEL_DIR_INO	 6	/* Undelete directory inode */
 #define EXT4_RESIZE_INO		 7	/* Reserved group descriptors inode */
@@ -512,6 +515,10 @@ struct ext4_new_group_data {
 	/* Convert extent to initialized after IO complete */
 #define EXT4_GET_BLOCKS_IO_CONVERT_EXT		(EXT4_GET_BLOCKS_CONVERT|\
 					 EXT4_GET_BLOCKS_CREATE_UNINIT_EXT)
+	/* Punch out blocks of an extent */
+#define EXT4_GET_BLOCKS_PUNCH_OUT_EXT		0x0020
+	/* Don't normalize allocation size (used for fallocate) */
+#define EXT4_GET_BLOCKS_NO_NORMALIZE		0x0040
 
 /*
  * Flags used by ext4_free_blocks
@@ -1028,7 +1035,7 @@ struct ext4_super_block {
 	__le16	s_want_extra_isize; 	/* New inodes should reserve # bytes */
 	__le32	s_flags;		/* Miscellaneous flags */
 	__le16  s_raid_stride;		/* RAID stride */
-	__le16  s_mmp_interval;         /* # seconds to wait in MMP checking */
+	__le16  s_mmp_update_interval;  /* # seconds to wait in MMP checking */
 	__le64  s_mmp_block;            /* Block for multi-mount protection */
 	__le32  s_raid_stripe_width;    /* blocks on all data disks (N*stride)*/
 	__u8	s_log_groups_per_flex;  /* FLEX_BG group size */
@@ -1144,6 +1151,9 @@ struct ext4_sb_info {
 	unsigned long s_ext_blocks;
 	unsigned long s_ext_extents;
 #endif
+	/* ext4 extent cache stats */
+	unsigned long extent_cache_hits;
+	unsigned long extent_cache_misses;
 
 	/* for buddy allocator */
 	struct ext4_group_info ***s_group_info;
@@ -1201,6 +1211,9 @@ struct ext4_sb_info {
 	struct ext4_li_request *s_li_request;
 	/* Wait multiplier for lazy initialization thread */
 	unsigned int s_li_wait_mult;
+
+	/* Kernel thread for multiple mount protection */
+	struct task_struct *s_mmp_tsk;
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
@@ -1338,6 +1351,7 @@ static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
 #define EXT4_FEATURE_RO_COMPAT_GDT_CSUM		0x0010
 #define EXT4_FEATURE_RO_COMPAT_DIR_NLINK	0x0020
 #define EXT4_FEATURE_RO_COMPAT_EXTRA_ISIZE	0x0040
+#define EXT4_FEATURE_RO_COMPAT_QUOTA		0x0100
 
 #define EXT4_FEATURE_INCOMPAT_COMPRESSION	0x0001
 #define EXT4_FEATURE_INCOMPAT_FILETYPE		0x0002
@@ -1351,13 +1365,29 @@ static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
 #define EXT4_FEATURE_INCOMPAT_EA_INODE		0x0400 /* EA in inode */
 #define EXT4_FEATURE_INCOMPAT_DIRDATA		0x1000 /* data in dirent */
 
+#define EXT2_FEATURE_COMPAT_SUPP	EXT4_FEATURE_COMPAT_EXT_ATTR
+#define EXT2_FEATURE_INCOMPAT_SUPP	(EXT4_FEATURE_INCOMPAT_FILETYPE| \
+					 EXT4_FEATURE_INCOMPAT_META_BG)
+#define EXT2_FEATURE_RO_COMPAT_SUPP	(EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER| \
+					 EXT4_FEATURE_RO_COMPAT_LARGE_FILE| \
+					 EXT4_FEATURE_RO_COMPAT_BTREE_DIR)
+
+#define EXT3_FEATURE_COMPAT_SUPP	EXT4_FEATURE_COMPAT_EXT_ATTR
+#define EXT3_FEATURE_INCOMPAT_SUPP	(EXT4_FEATURE_INCOMPAT_FILETYPE| \
+					 EXT4_FEATURE_INCOMPAT_RECOVER| \
+					 EXT4_FEATURE_INCOMPAT_META_BG)
+#define EXT3_FEATURE_RO_COMPAT_SUPP	(EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER| \
+					 EXT4_FEATURE_RO_COMPAT_LARGE_FILE| \
+					 EXT4_FEATURE_RO_COMPAT_BTREE_DIR)
+
 #define EXT4_FEATURE_COMPAT_SUPP	EXT2_FEATURE_COMPAT_EXT_ATTR
 #define EXT4_FEATURE_INCOMPAT_SUPP	(EXT4_FEATURE_INCOMPAT_FILETYPE| \
 					 EXT4_FEATURE_INCOMPAT_RECOVER| \
 					 EXT4_FEATURE_INCOMPAT_META_BG| \
 					 EXT4_FEATURE_INCOMPAT_EXTENTS| \
 					 EXT4_FEATURE_INCOMPAT_64BIT| \
-					 EXT4_FEATURE_INCOMPAT_FLEX_BG)
+					 EXT4_FEATURE_INCOMPAT_FLEX_BG| \
+					 EXT4_FEATURE_INCOMPAT_MMP)
 #define EXT4_FEATURE_RO_COMPAT_SUPP	(EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER| \
 					 EXT4_FEATURE_RO_COMPAT_LARGE_FILE| \
 					 EXT4_FEATURE_RO_COMPAT_GDT_CSUM| \
@@ -1590,12 +1620,6 @@ void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
  */
 struct ext4_lazy_init {
 	unsigned long		li_state;
-
-	wait_queue_head_t	li_wait_daemon;
-	wait_queue_head_t	li_wait_task;
-	struct timer_list	li_timer;
-	struct task_struct	*li_task;
-
 	struct list_head	li_request_list;
 	struct mutex		li_list_mtx;
 };
@@ -1613,6 +1637,67 @@ struct ext4_features {
 	struct kobject f_kobj;
 	struct completion f_kobj_unregister;
 };
+
+/*
+ * This structure will be used for multiple mount protection. It will be
+ * written into the block number saved in the s_mmp_block field in the
+ * superblock. Programs that check MMP should assume that if
+ * SEQ_FSCK (or any unknown code above SEQ_MAX) is present then it is NOT safe
+ * to use the filesystem, regardless of how old the timestamp is.
+ */
+#define EXT4_MMP_MAGIC     0x004D4D50U /* ASCII for MMP */
+#define EXT4_MMP_SEQ_CLEAN 0xFF4D4D50U /* mmp_seq value for clean unmount */
+#define EXT4_MMP_SEQ_FSCK  0xE24D4D50U /* mmp_seq value when being fscked */
+#define EXT4_MMP_SEQ_MAX   0xE24D4D4FU /* maximum valid mmp_seq value */
+
+struct mmp_struct {
+	__le32	mmp_magic;		/* Magic number for MMP */
+	__le32	mmp_seq;		/* Sequence no. updated periodically */
+
+	/*
+	 * mmp_time, mmp_nodename & mmp_bdevname are only used for information
+	 * purposes and do not affect the correctness of the algorithm
+	 */
+	__le64	mmp_time;		/* Time last updated */
+	char	mmp_nodename[64];	/* Node which last updated MMP block */
+	char	mmp_bdevname[32];	/* Bdev which last updated MMP block */
+
+	/*
+	 * mmp_check_interval is used to verify if the MMP block has been
+	 * updated on the block device. The value is updated based on the
+	 * maximum time to write the MMP block during an update cycle.
+	 */
+	__le16	mmp_check_interval;
+
+	__le16	mmp_pad1;
+	__le32	mmp_pad2[227];
+};
+
+/* arguments passed to the mmp thread */
+struct mmpd_data {
+	struct buffer_head *bh; /* bh from initial read_mmp_block() */
+	struct super_block *sb;  /* super block of the fs */
+};
+
+/*
+ * Check interval multiplier
+ * The MMP block is written every update interval and initially checked every
+ * update interval x the multiplier (the value is then adapted based on the
+ * write latency). The reason is that writes can be delayed under load and we
+ * don't want readers to incorrectly assume that the filesystem is no longer
+ * in use.
+ */
+#define EXT4_MMP_CHECK_MULT		2UL
+
+/*
+ * Minimum interval for MMP checking in seconds.
+ */
+#define EXT4_MMP_MIN_CHECK_INTERVAL	5UL
+
+/*
+ * Maximum interval for MMP checking in seconds.
+ */
+#define EXT4_MMP_MAX_CHECK_INTERVAL	300UL
 
 /*
  * Function prototypes
@@ -1638,10 +1723,12 @@ extern int ext4_bg_has_super(struct super_block *sb, ext4_group_t group);
 extern unsigned long ext4_bg_num_gdb(struct super_block *sb,
 			ext4_group_t group);
 extern ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
-			ext4_fsblk_t goal, unsigned long *count, int *errp);
-extern int ext4_claim_free_blocks(struct ext4_sb_info *sbi, s64 nblocks);
-extern void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
-				ext4_fsblk_t block, unsigned long count);
+					 ext4_fsblk_t goal,
+					 unsigned int flags,
+					 unsigned long *count,
+					 int *errp);
+extern int ext4_claim_free_blocks(struct ext4_sb_info *sbi,
+				  s64 nblocks, unsigned int flags);
 extern ext4_fsblk_t ext4_count_free_blocks(struct super_block *);
 extern void ext4_check_blocks_bitmap(struct super_block *);
 extern struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
@@ -1706,6 +1793,8 @@ extern void ext4_free_blocks(handle_t *handle, struct inode *inode,
 			     unsigned long count, int flags);
 extern int ext4_mb_add_groupinfo(struct super_block *sb,
 		ext4_group_t i, struct ext4_group_desc *desc);
+extern void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
+				ext4_fsblk_t block, unsigned long count);
 extern int ext4_trim_fs(struct super_block *, struct fstrim_range *);
 
 /* inode.c */
@@ -1724,11 +1813,12 @@ extern int  ext4_getattr(struct vfsmount *mnt, struct dentry *dentry,
 extern void ext4_evict_inode(struct inode *);
 extern void ext4_clear_inode(struct inode *);
 extern int  ext4_sync_inode(handle_t *, struct inode *);
-extern void ext4_dirty_inode(struct inode *);
+extern void ext4_dirty_inode(struct inode *, int);
 extern int ext4_change_inode_journal_flag(struct inode *, int);
 extern int ext4_get_inode_loc(struct inode *, struct ext4_iloc *);
 extern int ext4_can_truncate(struct inode *inode);
 extern void ext4_truncate(struct inode *);
+extern int ext4_punch_hole(struct file *file, loff_t offset, loff_t length);
 extern int ext4_truncate_restart_trans(handle_t *, struct inode *, int nblocks);
 extern void ext4_set_inode_flags(struct inode *);
 extern void ext4_get_inode_flags(struct ext4_inode_info *);
@@ -1738,6 +1828,8 @@ extern int ext4_writepage_trans_blocks(struct inode *);
 extern int ext4_chunk_trans_blocks(struct inode *, int nrblocks);
 extern int ext4_block_truncate_page(handle_t *handle,
 		struct address_space *mapping, loff_t from);
+extern int ext4_block_zero_page_range(handle_t *handle,
+		struct address_space *mapping, loff_t from, loff_t length);
 extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
 extern qsize_t *ext4_get_reserved_space(struct inode *inode);
 extern void ext4_da_update_reserve_space(struct inode *inode,
@@ -1788,6 +1880,10 @@ extern void __ext4_warning(struct super_block *, const char *, unsigned int,
 						       __LINE__, ## message)
 extern void ext4_msg(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
+extern void __dump_mmp_msg(struct super_block *, struct mmp_struct *mmp,
+			   const char *, unsigned int, const char *);
+#define dump_mmp_msg(sb, mmp, msg)	__dump_mmp_msg(sb, mmp, __func__, \
+						       __LINE__, msg)
 extern void __ext4_grp_locked_error(const char *, unsigned int, \
 				    struct super_block *, ext4_group_t, \
 				    unsigned long, ext4_fsblk_t, \
@@ -2064,6 +2160,8 @@ extern int ext4_ext_index_trans_blocks(struct inode *inode, int nrblocks,
 extern int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 			       struct ext4_map_blocks *map, int flags);
 extern void ext4_ext_truncate(struct inode *);
+extern int ext4_ext_punch_hole(struct file *file, loff_t offset,
+				loff_t length);
 extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
 extern long ext4_fallocate(struct file *file, int mode, loff_t offset,
@@ -2091,6 +2189,9 @@ extern int ext4_bio_write_page(struct ext4_io_submit *io,
 			       struct page *page,
 			       int len,
 			       struct writeback_control *wbc);
+
+/* mmp.c */
+extern int ext4_multi_mount_protect(struct super_block *, ext4_fsblk_t);
 
 /* BH_Uninit flag: blocks are allocated but uninitialized on disk */
 enum ext4_state_bits {

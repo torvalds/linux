@@ -53,7 +53,7 @@ struct platform_device *__init imx_add_fec(
 	struct resource res[] = {
 		{
 			.start = data->iobase,
-			.end = data->iobase + SZ_4K,
+			.end = data->iobase + SZ_4K - 1,
 			.flags = IORESOURCE_MEM,
 		}, {
 			.start = data->irq,

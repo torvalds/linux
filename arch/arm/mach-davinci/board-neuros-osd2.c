@@ -11,7 +11,7 @@
  * DM644X-EVM board. It has:
  * 	DM6446M02 module with 256MB NAND, 256MB RAM, TLV320AIC32 AIC,
  * 	USB, Ethernet, SD/MMC, UART, THS8200, TVP7000 for video.
- * 	Additionaly realtime clock, IR remote control receiver,
+ * 	Additionally realtime clock, IR remote control receiver,
  * 	IR Blaster based on MSP430 (firmware although is different
  * 	from used in DM644X-EVM), internal ATA-6 3.5” HDD drive
  * 	with PATA interface, two muxed red-green leds.

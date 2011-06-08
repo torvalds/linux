@@ -90,7 +90,7 @@ static inline int DoC_WaitReady(void __iomem * docptr)
 	return ret;
 }
 
-/* For some reason the Millennium Plus seems to occassionally put itself
+/* For some reason the Millennium Plus seems to occasionally put itself
  * into reset mode. For me this happens randomly, with no pattern that I
  * can detect. M-systems suggest always check this on any block level
  * operation and setting to normal mode if in reset mode.
@@ -499,7 +499,7 @@ void DoCMilPlus_init(struct mtd_info *mtd)
 		docmilpluslist = mtd;
 		mtd->size  = this->totlen;
 		mtd->erasesize = this->erasesize;
-		add_mtd_device(mtd);
+		mtd_device_register(mtd, NULL, 0);
 		return;
 	}
 }
@@ -1091,7 +1091,7 @@ static void __exit cleanup_doc2001plus(void)
 		this = mtd->priv;
 		docmilpluslist = this->nextdoc;
 
-		del_mtd_device(mtd);
+		mtd_device_unregister(mtd);
 
 		iounmap(this->virtadr);
 		kfree(this->chips);

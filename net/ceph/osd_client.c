@@ -124,7 +124,7 @@ static void calc_layout(struct ceph_osd_client *osdc,
 	ceph_calc_raw_layout(osdc, layout, vino.snap, off,
 			     plen, &bno, req, op);
 
-	sprintf(req->r_oid, "%llx.%08llx", vino.ino, bno);
+	snprintf(req->r_oid, sizeof(req->r_oid), "%llx.%08llx", vino.ino, bno);
 	req->r_oid_len = strlen(req->r_oid);
 }
 
@@ -470,8 +470,8 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 					 snapc, ops,
 					 use_mempool,
 					 GFP_NOFS, NULL, NULL);
-	if (IS_ERR(req))
-		return req;
+	if (!req)
+		return NULL;
 
 	/* calculate max write size */
 	calc_layout(osdc, vino, layout, off, plen, req, ops);
@@ -579,9 +579,15 @@ static void __kick_osd_requests(struct ceph_osd_client *osdc,
 
 	list_for_each_entry_safe(req, nreq, &osd->o_linger_requests,
 				 r_linger_osd) {
-		__unregister_linger_request(osdc, req);
+		/*
+		 * reregister request prior to unregistering linger so
+		 * that r_osd is preserved.
+		 */
+		BUG_ON(!list_empty(&req->r_req_lru_item));
 		__register_request(osdc, req);
-		list_move(&req->r_req_lru_item, &osdc->req_unsent);
+		list_add(&req->r_req_lru_item, &osdc->req_unsent);
+		list_add(&req->r_osd_item, &req->r_osd->o_requests);
+		__unregister_linger_request(osdc, req);
 		dout("requeued lingering %p tid %llu osd%d\n", req, req->r_tid,
 		     osd->o_osd);
 	}
@@ -798,7 +804,7 @@ static void __register_request(struct ceph_osd_client *osdc,
 	req->r_request->hdr.tid = cpu_to_le64(req->r_tid);
 	INIT_LIST_HEAD(&req->r_req_lru_item);
 
-	dout("register_request %p tid %lld\n", req, req->r_tid);
+	dout("__register_request %p tid %lld\n", req, req->r_tid);
 	__insert_request(osdc, req);
 	ceph_osdc_get_request(req);
 	osdc->num_requests++;
@@ -837,8 +843,7 @@ static void __unregister_request(struct ceph_osd_client *osdc,
 			dout("moving osd to %p lru\n", req->r_osd);
 			__move_osd_to_lru(osdc, req->r_osd);
 		}
-		if (list_empty(&req->r_osd_item) &&
-		    list_empty(&req->r_linger_item))
+		if (list_empty(&req->r_linger_item))
 			req->r_osd = NULL;
 	}
 
@@ -883,7 +888,8 @@ static void __unregister_linger_request(struct ceph_osd_client *osdc,
 			dout("moving osd to %p lru\n", req->r_osd);
 			__move_osd_to_lru(osdc, req->r_osd);
 		}
-		req->r_osd = NULL;
+		if (list_empty(&req->r_osd_item))
+			req->r_osd = NULL;
 	}
 }
 
@@ -917,7 +923,7 @@ EXPORT_SYMBOL(ceph_osdc_set_request_linger);
 /*
  * Pick an osd (the first 'up' osd in the pg), allocate the osd struct
  * (as needed), and set the request r_osd appropriately.  If there is
- * no up osd, set r_osd to NULL.  Move the request to the appropiate list
+ * no up osd, set r_osd to NULL.  Move the request to the appropriate list
  * (unsent, homeless) or leave on in-flight lru.
  *
  * Return 0 if unchanged, 1 if changed, or negative on error.
@@ -1415,6 +1421,15 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 done:
 	downgrade_write(&osdc->map_sem);
 	ceph_monc_got_osdmap(&osdc->client->monc, osdc->osdmap->epoch);
+
+	/*
+	 * subscribe to subsequent osdmap updates if full to ensure
+	 * we find out when we are no longer full and stop returning
+	 * ENOSPC.
+	 */
+	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL))
+		ceph_monc_request_next_osdmap(&osdc->client->monc);
+
 	send_queued(osdc);
 	up_read(&osdc->map_sem);
 	wake_up_all(&osdc->client->auth_wq);
@@ -1602,11 +1617,11 @@ void handle_watch_notify(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 	     cookie, ver, event);
 	if (event) {
 		event_work = kmalloc(sizeof(*event_work), GFP_NOIO);
-		INIT_WORK(&event_work->work, do_event_work);
 		if (!event_work) {
 			dout("ERROR: could not allocate event_work\n");
 			goto done_err;
 		}
+		INIT_WORK(&event_work->work, do_event_work);
 		event_work->event = event;
 		event_work->ver = ver;
 		event_work->notify_id = notify_id;
@@ -1671,8 +1686,14 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 	 */
 	if (req->r_sent == 0) {
 		rc = __map_request(osdc, req);
-		if (rc < 0)
-			return rc;
+		if (rc < 0) {
+			if (nofail) {
+				dout("osdc_start_request failed map, "
+				     " will retry %lld\n", req->r_tid);
+				rc = 0;
+			}
+			goto out_unlock;
+		}
 		if (req->r_osd == NULL) {
 			dout("send_request %p no up osds in pg\n", req);
 			ceph_monc_request_next_osdmap(&osdc->client->monc);
@@ -1689,6 +1710,8 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 			}
 		}
 	}
+
+out_unlock:
 	mutex_unlock(&osdc->request_mutex);
 	up_read(&osdc->map_sem);
 	return rc;

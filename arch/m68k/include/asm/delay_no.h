@@ -16,7 +16,7 @@ static inline void __delay(unsigned long loops)
 	 * long word alignment which is the faster version.
 	 * The 0x4a8e is of course a 'tstl %fp' instruction.  This is better
 	 * than using a NOP (0x4e71) instruction because it executes in one
-	 * cycle not three and doesn't allow for an arbitary delay waiting
+	 * cycle not three and doesn't allow for an arbitrary delay waiting
 	 * for bus cycles to finish.  Also fp/a6 isn't likely to cause a
 	 * stall waiting for the register to become valid if such is added
 	 * to the coldfire at some stage.

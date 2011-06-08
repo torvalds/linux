@@ -38,7 +38,7 @@ space. We also use it to keep the user-mode virtual mapping in the same
 map during kernel-mode, so that the kernel easily can access the corresponding
 user-mode process' data.
 
-As a comparision, the Linux/i386 2.0 puts the kernel and physical RAM at
+As a comparison, the Linux/i386 2.0 puts the kernel and physical RAM at
 address 0, overlapping with the user-mode virtual space, so that descriptor
 registers are needed for each memory access to specify which MMU space to
 map through. That changed in 2.2, putting the kernel/physical RAM at 

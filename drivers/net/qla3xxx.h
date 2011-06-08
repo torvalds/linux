@@ -770,7 +770,7 @@ enum {
 	FM93C56A_WDS = 0x0,
 	FM93C56A_ERASE = 0x3,
 	FM93C56A_ERASE_ALL = 0x0,
-/* Command Extentions */
+/* Command Extensions */
 	FM93C56A_WEN_EXT = 0x3,
 	FM93C56A_WRITE_ALL_EXT = 0x1,
 	FM93C56A_WDS_EXT = 0x0,

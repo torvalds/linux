@@ -149,7 +149,7 @@
  * (with a moved message header to make sure it is size-aligned to
  * 16), TAIL room that was unusable (and thus is marked with a message
  * header that says 'skip this') and at the head of the buffer, an
- * imcomplete message with a couple of payloads.
+ * incomplete message with a couple of payloads.
  *
  * N   ___________________________________________________
  *    |                                                   |
@@ -819,7 +819,7 @@ EXPORT_SYMBOL_GPL(i2400m_tx);
  * the FIF that is ready for transmission.
  *
  * It sets the state in @i2400m to indicate the bus-specific driver is
- * transfering that message (i2400m->tx_msg_size).
+ * transferring that message (i2400m->tx_msg_size).
  *
  * Once the transfer is completed, call i2400m_tx_msg_sent().
  *

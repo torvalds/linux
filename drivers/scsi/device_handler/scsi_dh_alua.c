@@ -541,7 +541,7 @@ static int alua_check_sense(struct scsi_device *sdev,
  *
  * Evaluate the Target Port Group State.
  * Returns SCSI_DH_DEV_OFFLINED if the path is
- * found to be unuseable.
+ * found to be unusable.
  */
 static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 {
@@ -620,7 +620,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 		break;
 	case TPGS_STATE_OFFLINE:
 	case TPGS_STATE_UNAVAILABLE:
-		/* Path unuseable for unavailable/offline */
+		/* Path unusable for unavailable/offline */
 		err = SCSI_DH_DEV_OFFLINED;
 		break;
 	default:
@@ -782,7 +782,7 @@ static int alua_bus_attach(struct scsi_device *sdev)
 	h->sdev = sdev;
 
 	err = alua_initialize(sdev, h);
-	if (err != SCSI_DH_OK)
+	if ((err != SCSI_DH_OK) && (err != SCSI_DH_DEV_OFFLINED))
 		goto failed;
 
 	if (!try_module_get(THIS_MODULE))

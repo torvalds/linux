@@ -189,6 +189,16 @@ static int max517_resume(struct i2c_client *client)
 	return i2c_master_send(client, &outbuf, 1);
 }
 
+static const struct iio_info max517_info = {
+	.attrs = &max517_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
+static const struct iio_info max518_info = {
+	.attrs = &max517_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int max517_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -206,7 +216,7 @@ static int max517_probe(struct i2c_client *client,
 
 	data->client = client;
 
-	data->indio_dev = iio_allocate_device();
+	data->indio_dev = iio_allocate_device(0);
 	if (data->indio_dev == NULL) {
 		err = -ENOMEM;
 		goto exit_free_data;
@@ -217,11 +227,10 @@ static int max517_probe(struct i2c_client *client,
 
 	/* reduced attribute set for MAX517 */
 	if (id->driver_data == ID_MAX517)
-		data->indio_dev->attrs = &max517_attribute_group;
+		data->indio_dev->info = &max517_info;
 	else
-		data->indio_dev->attrs = &max518_attribute_group;
+		data->indio_dev->info = &max518_info;
 	data->indio_dev->dev_data = (void *)(data);
-	data->indio_dev->driver_module = THIS_MODULE;
 	data->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/*

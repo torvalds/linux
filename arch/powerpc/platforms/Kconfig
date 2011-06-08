@@ -20,6 +20,7 @@ source "arch/powerpc/platforms/embedded6xx/Kconfig"
 source "arch/powerpc/platforms/44x/Kconfig"
 source "arch/powerpc/platforms/40x/Kconfig"
 source "arch/powerpc/platforms/amigaone/Kconfig"
+source "arch/powerpc/platforms/wsp/Kconfig"
 
 config KVM_GUEST
 	bool "KVM Guest support"
@@ -46,7 +47,7 @@ config PPC_OF_BOOT_TRAMPOLINE
 	help
 	  Support from booting from Open Firmware or yaboot using an
 	  Open Firmware client interface. This enables the kernel to
-	  communicate with open firmware to retrieve system informations
+	  communicate with open firmware to retrieve system information
 	  such as the device tree.
 
 	  In case of doubt, say Y
@@ -56,15 +57,18 @@ config UDBG_RTAS_CONSOLE
 	depends on PPC_RTAS
 	default n
 
+config PPC_SMP_MUXED_IPI
+	bool
+	help
+	  Select this opton if your platform supports SMP and your
+	  interrupt controller provides less than 4 interrupts to each
+	  cpu.	This will enable the generic code to multiplex the 4
+	  messages on to one ipi.
+
 config PPC_UDBG_BEAT
 	bool "BEAT based debug console"
 	depends on PPC_CELLEB
 	default n
-
-config XICS
-	depends on PPC_PSERIES
-	bool
-	default y
 
 config IPIC
 	bool
@@ -147,14 +151,27 @@ config PPC_970_NAP
 	bool
 	default n
 
+config PPC_P7_NAP
+	bool
+	default n
+
 config PPC_INDIRECT_IO
 	bool
 	select GENERIC_IOMAP
-	default n
+
+config PPC_INDIRECT_PIO
+	bool
+	select PPC_INDIRECT_IO
+
+config PPC_INDIRECT_MMIO
+	bool
+	select PPC_INDIRECT_IO
+
+config PPC_IO_WORKAROUNDS
+	bool
 
 config GENERIC_IOMAP
 	bool
-	default n
 
 source "drivers/cpufreq/Kconfig"
 

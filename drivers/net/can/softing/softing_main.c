@@ -218,7 +218,7 @@ static int softing_handle_1(struct softing *card)
 	ptr = buf;
 	cmd = *ptr++;
 	if (cmd == 0xff)
-		/* not quite usefull, probably the card has got out */
+		/* not quite useful, probably the card has got out */
 		return 0;
 	netdev = card->net[0];
 	if (cmd & CMD_BUS2)
@@ -797,7 +797,7 @@ static __devinit int softing_pdev_probe(struct platform_device *pdev)
 	ret = -EINVAL;
 	pres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!pres)
-		goto platform_resource_failed;;
+		goto platform_resource_failed;
 	card->dpram_phys = pres->start;
 	card->dpram_size = pres->end - pres->start + 1;
 	card->dpram = ioremap_nocache(card->dpram_phys, card->dpram_size);

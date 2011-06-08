@@ -468,8 +468,6 @@ struct jme_adapter {
 enum jme_flags_bits {
 	JME_FLAG_MSI		= 1,
 	JME_FLAG_SSET		= 2,
-	JME_FLAG_TXCSUM		= 3,
-	JME_FLAG_TSO		= 4,
 	JME_FLAG_POLL		= 5,
 	JME_FLAG_SHUTDOWN	= 6,
 };

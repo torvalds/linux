@@ -95,7 +95,7 @@ axon_ram_irq_handler(int irq, void *dev)
 
 	BUG_ON(!bank);
 
-	dev_err(&device->dev, "Correctable memory error occured\n");
+	dev_err(&device->dev, "Correctable memory error occurred\n");
 	bank->ecc_counter++;
 	return IRQ_HANDLED;
 }
@@ -216,7 +216,7 @@ static int axon_ram_probe(struct platform_device *device)
 			AXON_RAM_DEVICE_NAME, axon_ram_bank_id, bank->size >> 20);
 
 	bank->ph_addr = resource.start;
-	bank->io_addr = (unsigned long) ioremap_flags(
+	bank->io_addr = (unsigned long) ioremap_prot(
 			bank->ph_addr, bank->size, _PAGE_NO_CACHE);
 	if (bank->io_addr == 0) {
 		dev_err(&device->dev, "ioremap() failed\n");

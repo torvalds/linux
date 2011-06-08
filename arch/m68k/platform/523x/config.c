@@ -3,7 +3,7 @@
 /*
  *	linux/arch/m68knommu/platform/523x/config.c
  *
- *	Sub-architcture dependant initialization code for the Freescale
+ *	Sub-architcture dependent initialization code for the Freescale
  *	523x CPUs.
  *
  *	Copyright (C) 1999-2005, Greg Ungerer (gerg@snapgear.com)

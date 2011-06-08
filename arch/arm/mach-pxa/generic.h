@@ -61,10 +61,10 @@ extern unsigned pxa3xx_get_clk_frequency_khz(int);
 #define pxa3xx_get_clk_frequency_khz(x)		(0)
 #endif
 
-extern struct sysdev_class pxa_irq_sysclass;
-extern struct sysdev_class pxa_gpio_sysclass;
-extern struct sysdev_class pxa2xx_mfp_sysclass;
-extern struct sysdev_class pxa3xx_mfp_sysclass;
+extern struct syscore_ops pxa_irq_syscore_ops;
+extern struct syscore_ops pxa_gpio_syscore_ops;
+extern struct syscore_ops pxa2xx_mfp_syscore_ops;
+extern struct syscore_ops pxa3xx_mfp_syscore_ops;
 
 void __init pxa_set_ffuart_info(void *info);
 void __init pxa_set_btuart_info(void *info);

@@ -3595,7 +3595,7 @@ static int claim_resources(SLMP_INFO *info)
 	info->memory_base = ioremap_nocache(info->phys_memory_base,
 								SCA_MEM_SIZE);
 	if (!info->memory_base) {
-		printk( "%s(%d):%s Cant map shared memory, MemAddr=%08X\n",
+		printk( "%s(%d):%s Can't map shared memory, MemAddr=%08X\n",
 			__FILE__,__LINE__,info->device_name, info->phys_memory_base );
 		info->init_error = DiagStatus_CantAssignPciResources;
 		goto errout;
@@ -3603,7 +3603,7 @@ static int claim_resources(SLMP_INFO *info)
 
 	info->lcr_base = ioremap_nocache(info->phys_lcr_base, PAGE_SIZE);
 	if (!info->lcr_base) {
-		printk( "%s(%d):%s Cant map LCR memory, MemAddr=%08X\n",
+		printk( "%s(%d):%s Can't map LCR memory, MemAddr=%08X\n",
 			__FILE__,__LINE__,info->device_name, info->phys_lcr_base );
 		info->init_error = DiagStatus_CantAssignPciResources;
 		goto errout;
@@ -3612,7 +3612,7 @@ static int claim_resources(SLMP_INFO *info)
 
 	info->sca_base = ioremap_nocache(info->phys_sca_base, PAGE_SIZE);
 	if (!info->sca_base) {
-		printk( "%s(%d):%s Cant map SCA memory, MemAddr=%08X\n",
+		printk( "%s(%d):%s Can't map SCA memory, MemAddr=%08X\n",
 			__FILE__,__LINE__,info->device_name, info->phys_sca_base );
 		info->init_error = DiagStatus_CantAssignPciResources;
 		goto errout;
@@ -3622,7 +3622,7 @@ static int claim_resources(SLMP_INFO *info)
 	info->statctrl_base = ioremap_nocache(info->phys_statctrl_base,
 								PAGE_SIZE);
 	if (!info->statctrl_base) {
-		printk( "%s(%d):%s Cant map SCA Status/Control memory, MemAddr=%08X\n",
+		printk( "%s(%d):%s Can't map SCA Status/Control memory, MemAddr=%08X\n",
 			__FILE__,__LINE__,info->device_name, info->phys_statctrl_base );
 		info->init_error = DiagStatus_CantAssignPciResources;
 		goto errout;
@@ -3869,7 +3869,7 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 					port_array[0]->irq_flags,
 					port_array[0]->device_name,
 					port_array[0]) < 0 ) {
-			printk( "%s(%d):%s Cant request interrupt, IRQ=%d\n",
+			printk( "%s(%d):%s Can't request interrupt, IRQ=%d\n",
 				__FILE__,__LINE__,
 				port_array[0]->device_name,
 				port_array[0]->irq_level );

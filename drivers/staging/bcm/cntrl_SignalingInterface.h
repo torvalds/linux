@@ -21,7 +21,7 @@
 #define VENDOR_PHS_PARAM_LENGTH 10
 #define MAX_NUM_ACTIVE_BS 10
 #define AUTH_TOKEN_LENGTH	10
-#define NUM_HARQ_CHANNELS	16	//Changed from 10 to 16 to accomodate all HARQ channels
+#define NUM_HARQ_CHANNELS	16	//Changed from 10 to 16 to accommodate all HARQ channels
 #define VENDOR_CLASSIFIER_PARAM_LENGTH 1 //Changed the size to 1 byte since we dnt use it
 #define  VENDOR_SPECIF_QOS_PARAM 1
 #define VENDOR_PHS_PARAM_LENGTH	10
@@ -109,13 +109,13 @@ typedef struct _stPhsRuleSI {
     B_UINT8                         u8PHSI;
 	/**  PHSF Length Of The Service Flow*/
     B_UINT8                         u8PHSFLength;
-    /** String of bytes containing header information to be supressed by the sending CS and reconstructed by the receiving CS*/
+    /** String of bytes containing header information to be suppressed by the sending CS and reconstructed by the receiving CS*/
     B_UINT8                         u8PHSF[MAX_PHS_LENGTHS];
 	/**  PHSM Length Of The Service Flow*/
     B_UINT8                         u8PHSMLength;
 	/**  PHS Mask for the SF*/
     B_UINT8                         u8PHSM[MAX_PHS_LENGTHS];
-	/**  8bit Total number of bytes to be supressed for the Service Flow*/
+	/**  8bit Total number of bytes to be suppressed for the Service Flow*/
     B_UINT8                         u8PHSS;
 	/**  8bit Indicates whether or not Packet Header contents need to be verified prior to supression */
     B_UINT8                         u8PHSV;

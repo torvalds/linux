@@ -254,7 +254,7 @@ typedef union {
 #define MDIO_CLAUSE_45_READ_INC 2
 #define MDIO_CLAUSE_45_READ     3
 
-/* MMD identifiers, mostly for accessing devices withing XENPAK modules. */
+/* MMD identifiers, mostly for accessing devices within XENPAK modules. */
 #define CVMX_MMD_DEVICE_PMA_PMD      1
 #define CVMX_MMD_DEVICE_WIS          2
 #define CVMX_MMD_DEVICE_PCS          3

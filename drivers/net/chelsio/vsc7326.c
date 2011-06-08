@@ -566,7 +566,7 @@ static int mac_disable(struct cmac *mac, int which)
 	for (i = 0; i <= 0x3a; ++i)
 		vsc_write(mac->adapter, CRA(4, port, i), 0);
 
-	/* Clear sofware counters */
+	/* Clear software counters */
 	memset(&mac->stats, 0, sizeof(struct cmac_statistics));
 
 	return 0;

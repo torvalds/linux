@@ -46,7 +46,7 @@ void DAC1064_global_restore(struct matrox_fb_info *minfo);
 #define      M1064_XDVICLKCTRL_DVILOOPCTL       0x30
 	/* CRTC2 pixel clock allowed to(0)/blocked from(1) driving CRTC2 */
 #define      M1064_XDVICLKCTRL_C2DVICLKEN       0x40
-	/* P1PLL loop filter bandwith selection */
+	/* P1PLL loop filter bandwidth selection */
 #define      M1064_XDVICLKCTRL_P1LOOPBWDTCTL    0x80
 #define M1064_XCURCOL0RED	0x08
 #define M1064_XCURCOL0GREEN	0x09

@@ -325,7 +325,7 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 
 			/*
 			 * Ensure that updates to the QH will
-			 * occure before priming.
+			 * occur before priming.
 			 */
 			wmb();
 
@@ -338,7 +338,7 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 			& EP_QUEUE_HEAD_NEXT_POINTER_MASK;;
 		dqh->size_ioc_int_sts = 0;
 
-		/* Ensure that updates to the QH will occure before priming. */
+		/* Ensure that updates to the QH will occur before priming. */
 		wmb();
 
 		/* Prime the Endpoint */
@@ -1845,7 +1845,7 @@ static irqreturn_t mv_udc_irq(int irq, void *dev)
 		return IRQ_NONE;
 	}
 
-	/* Clear all the interrupts occured */
+	/* Clear all the interrupts occurred */
 	writel(status, &udc->op_regs->usbsts);
 
 	if (status & USBSTS_ERR)

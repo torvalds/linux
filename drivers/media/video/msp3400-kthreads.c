@@ -87,7 +87,7 @@ static struct msp3400c_init_data_dem {
 		{-8, -8, 4, 6, 78, 107},
 		MSP_CARRIER(10.7), MSP_CARRIER(10.7),
 		0x00d0, 0x0480, 0x0020, 0x3000
-	}, {	/* Terrestial FM-mono + FM-stereo */
+	}, {	/* Terrestrial FM-mono + FM-stereo */
 		{3, 18, 27, 48, 66, 72},
 		{3, 18, 27, 48, 66, 72},
 		MSP_CARRIER(5.5), MSP_CARRIER(5.5),

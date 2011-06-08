@@ -2332,7 +2332,7 @@ static int frontend_init(struct av7110 *av7110)
  * increment. That's how the 7146 is programmed to do event
  * counting in this budget-patch.c
  * I *think* HPS setting has something to do with the phase
- * of HS but I cant be 100% sure in that.
+ * of HS but I can't be 100% sure in that.
  *
  * hardware debug note: a working budget card (including budget patch)
  * with vpeirq() interrupt setup in mode "0x90" (every 64K) will

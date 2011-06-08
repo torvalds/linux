@@ -42,7 +42,7 @@ struct pq2ads_pci_pic {
 static void pq2ads_pci_mask_irq(struct irq_data *d)
 {
 	struct pq2ads_pci_pic *priv = irq_data_get_irq_chip_data(d);
-	int irq = NUM_IRQS - virq_to_hw(d->irq) - 1;
+	int irq = NUM_IRQS - irqd_to_hwirq(d) - 1;
 
 	if (irq != -1) {
 		unsigned long flags;
@@ -58,7 +58,7 @@ static void pq2ads_pci_mask_irq(struct irq_data *d)
 static void pq2ads_pci_unmask_irq(struct irq_data *d)
 {
 	struct pq2ads_pci_pic *priv = irq_data_get_irq_chip_data(d);
-	int irq = NUM_IRQS - virq_to_hw(d->irq) - 1;
+	int irq = NUM_IRQS - irqd_to_hwirq(d) - 1;
 
 	if (irq != -1) {
 		unsigned long flags;
@@ -112,16 +112,8 @@ static int pci_pic_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static void pci_host_unmap(struct irq_host *h, unsigned int virq)
-{
-	/* remove chip and handler */
-	irq_set_chip_data(virq, NULL);
-	irq_set_chip(virq, NULL);
-}
-
 static struct irq_host_ops pci_pic_host_ops = {
 	.map = pci_pic_host_map,
-	.unmap = pci_host_unmap,
 };
 
 int __init pq2ads_pci_init_irq(void)

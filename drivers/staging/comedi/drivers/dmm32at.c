@@ -532,7 +532,7 @@ static int dmm32at_ai_rinsn(struct comedi_device *dev,
 		msb = dmm_inb(dev, DMM32AT_AIMSB);
 
 		/* invert sign bit to make range unsigned, this is an
-		   idiosyncracy of the diamond board, it return
+		   idiosyncrasy of the diamond board, it return
 		   conversions as a signed value, i.e. -32768 to
 		   32767, flipping the bit and interpreting it as
 		   signed gives you a range of 0 to 65535 which is

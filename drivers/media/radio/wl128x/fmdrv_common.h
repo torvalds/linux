@@ -362,7 +362,7 @@ struct fm_event_msg_hdr {
 #define FM_TX_PREEMPH_50US		0
 #define FM_TX_PREEMPH_75US		2
 
-/* FM TX antenna impedence values */
+/* FM TX antenna impedance values */
 #define FM_TX_ANT_IMP_50		0
 #define FM_TX_ANT_IMP_200		1
 #define FM_TX_ANT_IMP_500		2

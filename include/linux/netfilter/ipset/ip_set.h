@@ -293,7 +293,7 @@ struct ip_set {
 	/* Lock protecting the set data */
 	rwlock_t lock;
 	/* References to the set */
-	atomic_t ref;
+	u32 ref;
 	/* The core set type */
 	struct ip_set_type *type;
 	/* The type variant doing the real job */

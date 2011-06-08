@@ -36,6 +36,12 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	struct net_bridge *br;
 	int err;
 
+	/* register of bridge completed, add sysfs entries */
+	if ((dev->priv_flags & IFF_EBRIDGE) && event == NETDEV_REGISTER) {
+		br_sysfs_addbr(dev);
+		return NOTIFY_DONE;
+	}
+
 	/* not a port of a bridge */
 	p = br_port_get_rtnl(dev);
 	if (!p)
@@ -60,10 +66,7 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		break;
 
 	case NETDEV_FEAT_CHANGE:
-		spin_lock_bh(&br->lock);
-		if (netif_running(br->dev))
-			br_features_recompute(br);
-		spin_unlock_bh(&br->lock);
+		netdev_update_features(br->dev);
 		break;
 
 	case NETDEV_DOWN:

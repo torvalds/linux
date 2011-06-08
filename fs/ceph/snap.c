@@ -206,7 +206,7 @@ void ceph_put_snap_realm(struct ceph_mds_client *mdsc,
 		up_write(&mdsc->snap_rwsem);
 	} else {
 		spin_lock(&mdsc->snap_empty_lock);
-		list_add(&mdsc->snap_empty, &realm->empty_item);
+		list_add(&realm->empty_item, &mdsc->snap_empty);
 		spin_unlock(&mdsc->snap_empty_lock);
 	}
 }
@@ -342,7 +342,7 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 	num = 0;
 	snapc->seq = realm->seq;
 	if (parent) {
-		/* include any of parent's snaps occuring _after_ my
+		/* include any of parent's snaps occurring _after_ my
 		   parent became my parent */
 		for (i = 0; i < parent->cached_context->num_snaps; i++)
 			if (parent->cached_context->snaps[i] >=

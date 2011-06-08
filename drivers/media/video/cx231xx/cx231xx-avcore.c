@@ -1354,7 +1354,7 @@ void cx231xx_dump_SC_reg(struct cx231xx *dev)
 {
 	u8 value[4] = { 0, 0, 0, 0 };
 	int status = 0;
-	cx231xx_info("cx231xx_dump_SC_reg %s!\n", __TIME__);
+	cx231xx_info("cx231xx_dump_SC_reg!\n");
 
 	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, BOARD_CFG_STAT,
 				 value, 4);
@@ -2577,7 +2577,7 @@ int cx231xx_initialize_stream_xfer(struct cx231xx *dev, u32 media_type)
 			break;
 
 		case 6:	/* ts1 parallel mode */
-			cx231xx_info("%s: set ts1 parrallel mode registers\n",
+			cx231xx_info("%s: set ts1 parallel mode registers\n",
 				     __func__);
 			status = cx231xx_mode_register(dev, TS_MODE_REG, 0x100);
 			status = cx231xx_mode_register(dev, TS1_CFG_REG, 0x400);

@@ -587,7 +587,7 @@ static int rose_clear_routes(void)
 
 /*
  *	Check that the device given is a valid AX.25 interface that is "up".
- * 	called whith RTNL
+ * 	called with RTNL
  */
 static struct net_device *rose_ax25_dev_find(char *devname)
 {

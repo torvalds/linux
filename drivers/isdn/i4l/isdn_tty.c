@@ -792,7 +792,7 @@ isdn_tty_suspend(char *id, modem_info * info, atemu * m)
 }
 
 /* isdn_tty_resume() tries to resume a suspended call
- * setup of the lower levels before that. unfortunatly here is no
+ * setup of the lower levels before that. unfortunately here is no
  * checking for compatibility of used protocols implemented by Q931
  * It does the same things like isdn_tty_dial, the last command
  * is different, may be we can merge it.
@@ -998,7 +998,6 @@ isdn_tty_change_speed(modem_info * info)
 {
 	uint cflag,
 	 cval,
-	 fcr,
 	 quot;
 	int i;
 
@@ -1037,7 +1036,6 @@ isdn_tty_change_speed(modem_info * info)
 		cval |= UART_LCR_PARITY;
 	if (!(cflag & PARODD))
 		cval |= UART_LCR_EPAR;
-	fcr = 0;
 
 	/* CTS flow control flag and modem status interrupts */
 	if (cflag & CRTSCTS) {

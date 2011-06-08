@@ -90,7 +90,7 @@ typedef struct {
 #define RCREG_ERR        0x8000	/* accept damaged and collided pkts */
 #define RCREG_RNT        0x4000	/* accept packets that are < 64     */
 #define RCREG_BRD        0x2000	/* accept broadcasts                */
-#define RCREG_PRO        0x1000	/* promiscous mode                  */
+#define RCREG_PRO        0x1000	/* promiscuous mode                  */
 #define RCREG_AMC        0x0800	/* accept all multicasts            */
 #define RCREG_LB_NONE    0x0000	/* no loopback                      */
 #define RCREG_LB_MAC     0x0200	/* MAC loopback                     */

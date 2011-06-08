@@ -169,7 +169,7 @@ static inline int tracehook_unsafe_exec(struct task_struct *task)
  * tracehook_tracer_task - return the task that is tracing the given task
  * @tsk:		task to consider
  *
- * Returns NULL if noone is tracing @task, or the &struct task_struct
+ * Returns NULL if no one is tracing @task, or the &struct task_struct
  * pointer to its tracer.
  *
  * Must called under rcu_read_lock().  The pointer returned might be kept
@@ -448,7 +448,7 @@ static inline int tracehook_force_sigpending(void)
  *
  * Return zero to check for a real pending signal normally.
  * Return -1 after releasing the siglock to repeat the check.
- * Return a signal number to induce an artifical signal delivery,
+ * Return a signal number to induce an artificial signal delivery,
  * setting *@info and *@return_ka to specify its details and behavior.
  *
  * The @return_ka->sa_handler value controls the disposition of the
@@ -466,33 +466,6 @@ static inline int tracehook_get_signal(struct task_struct *task,
 				       struct k_sigaction *return_ka)
 {
 	return 0;
-}
-
-/**
- * tracehook_notify_jctl - report about job control stop/continue
- * @notify:		zero, %CLD_STOPPED or %CLD_CONTINUED
- * @why:		%CLD_STOPPED or %CLD_CONTINUED
- *
- * This is called when we might call do_notify_parent_cldstop().
- *
- * @notify is zero if we would not ordinarily send a %SIGCHLD,
- * or is the %CLD_STOPPED or %CLD_CONTINUED .si_code for %SIGCHLD.
- *
- * @why is %CLD_STOPPED when about to stop for job control;
- * we are already in %TASK_STOPPED state, about to call schedule().
- * It might also be that we have just exited (check %PF_EXITING),
- * but need to report that a group-wide stop is complete.
- *
- * @why is %CLD_CONTINUED when waking up after job control stop and
- * ready to make a delayed @notify report.
- *
- * Return the %CLD_* value for %SIGCHLD, or zero to generate no signal.
- *
- * Called with the siglock held.
- */
-static inline int tracehook_notify_jctl(int notify, int why)
-{
-	return notify ?: (current->ptrace & PT_PTRACED) ? why : 0;
 }
 
 /**

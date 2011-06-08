@@ -75,7 +75,7 @@ struct fcp_cmnd32 {
 #define	FCP_PTA_SIMPLE	    0	/* simple task attribute */
 #define	FCP_PTA_HEADQ	    1	/* head of queue task attribute */
 #define	FCP_PTA_ORDERED     2	/* ordered task attribute */
-#define	FCP_PTA_ACA	    4	/* auto. contigent allegiance */
+#define	FCP_PTA_ACA	    4	/* auto. contingent allegiance */
 #define	FCP_PTA_MASK	    7	/* mask for task attribute field */
 #define	FCP_PRI_SHIFT	    3	/* priority field starts in bit 3 */
 #define	FCP_PRI_RESVD_MASK  0x80	/* reserved bits in priority field */

@@ -22,7 +22,7 @@
  * Note that both include/scsi/scsi_cmnd.h:MAX_COMMAND_SIZE and
  * include/linux/blkdev.h:BLOCK_MAX_CDB as of v2.6.36-rc4 still use
  * 16-byte CDBs by default and require an extra allocation for
- * 32-byte CDBs to becasue of legacy issues.
+ * 32-byte CDBs to because of legacy issues.
  *
  * Within TCM Core there are no such legacy limitiations, so we go ahead
  * use 32-byte CDBs by default and use include/scsi/scsi.h:scsi_command_size()
@@ -98,6 +98,7 @@ enum transport_state_table {
 	TRANSPORT_REMOVE	= 14,
 	TRANSPORT_FREE		= 15,
 	TRANSPORT_NEW_CMD_MAP	= 16,
+	TRANSPORT_FREE_CMD_INTR = 17,
 };
 
 /* Used for struct se_cmd->se_cmd_flags */
@@ -302,7 +303,7 @@ struct t10_wwn {
 
 
 /*
- * Used by TCM Core internally to signal if >= SPC-3 peristent reservations
+ * Used by TCM Core internally to signal if >= SPC-3 persistent reservations
  * emulation is enabled or disabled, or running in with TCM/pSCSI passthrough
  * mode
  */
@@ -934,7 +935,7 @@ struct se_portal_group {
 	struct list_head	acl_node_list;
 	struct se_lun		*tpg_lun_list;
 	struct se_lun		tpg_virt_lun0;
-	/* List of TCM sessions assoicated wth this TPG */
+	/* List of TCM sessions associated wth this TPG */
 	struct list_head	tpg_sess_list;
 	/* Pointer to $FABRIC_MOD dependent code */
 	struct target_core_fabric_ops *se_tpg_tfo;

@@ -257,7 +257,7 @@ out:
 }
 
 /* Wait for a signal event, without holding a mutex. Either return TIMEOUT if
- * the event never occured, or SAA_OK if it was signaled during the wait.
+ * the event never occurred, or SAA_OK if it was signaled during the wait.
  */
 int saa7164_cmd_wait(struct saa7164_dev *dev, u8 seqno)
 {

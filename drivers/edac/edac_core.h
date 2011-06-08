@@ -164,7 +164,7 @@ enum mem_type {
 /* chipset Error Detection and Correction capabilities and mode */
 enum edac_type {
 	EDAC_UNKNOWN = 0,	/* Unknown if ECC is available */
-	EDAC_NONE,		/* Doesnt support ECC */
+	EDAC_NONE,		/* Doesn't support ECC */
 	EDAC_RESERVED,		/* Reserved ECC type */
 	EDAC_PARITY,		/* Detects parity errors */
 	EDAC_EC,		/* Error Checking - no correction */
@@ -233,7 +233,7 @@ enum scrub_type {
  *			of these in parallel provides 64 bits which is common
  *			for a memory stick.
  *
- * Memory Stick:	A printed circuit board that agregates multiple
+ * Memory Stick:	A printed circuit board that aggregates multiple
  *			memory devices in parallel.  This is the atomic
  *			memory component that is purchaseable by Joe consumer
  *			and loaded into a memory socket.
@@ -385,7 +385,7 @@ struct mem_ctl_info {
 
 	/* Get the current sdram memory scrub rate from the internal
 	   representation and converts it to the closest matching
-	   bandwith in bytes/sec.
+	   bandwidth in bytes/sec.
 	 */
 	int (*get_sdram_scrub_rate) (struct mem_ctl_info * mci);
 
@@ -421,10 +421,6 @@ struct mem_ctl_info {
 	u32 ce_count;		/* Total Correctable Errors for this MC */
 	unsigned long start_time;	/* mci load start time (in jiffies) */
 
-	/* this stuff is for safe removal of mc devices from global list while
-	 * NMI handlers may be traversing list
-	 */
-	struct rcu_head rcu;
 	struct completion complete;
 
 	/* edac sysfs device control */
@@ -620,10 +616,6 @@ struct edac_device_ctl_info {
 
 	unsigned long start_time;	/* edac_device load start time (jiffies) */
 
-	/* these are for safe removal of mc devices from global list while
-	 * NMI handlers may be traversing list
-	 */
-	struct rcu_head rcu;
 	struct completion removal_complete;
 
 	/* sysfs top name under 'edac' directory
@@ -722,10 +714,6 @@ struct edac_pci_ctl_info {
 
 	unsigned long start_time;	/* edac_pci load start time (jiffies) */
 
-	/* these are for safe removal of devices from global list while
-	 * NMI handlers may be traversing list
-	 */
-	struct rcu_head rcu;
 	struct completion complete;
 
 	/* sysfs top name under 'edac' directory
@@ -823,7 +811,7 @@ extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
  * There are a limited number of error logging registers that can
  * be exausted.  When all registers are exhausted and an additional
  * error occurs then an error overflow register records that an
- * error occured and the type of error, but doesn't have any
+ * error occurred and the type of error, but doesn't have any
  * further information.  The ce/ue versions make for cleaner
  * reporting logic and function interface - reduces conditional
  * statement clutter and extra function arguments.

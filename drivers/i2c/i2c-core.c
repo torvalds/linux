@@ -348,7 +348,7 @@ EXPORT_SYMBOL(i2c_verify_client);
 
 
 /* This is a permissive address validity check, I2C address map constraints
- * are purposedly not enforced, except for the general call address. */
+ * are purposely not enforced, except for the general call address. */
 static int i2c_check_client_addr_validity(const struct i2c_client *client)
 {
 	if (client->flags & I2C_CLIENT_TEN) {
@@ -797,7 +797,8 @@ static int i2c_do_add_adapter(struct i2c_driver *driver,
 
 	/* Let legacy drivers scan this bus for matching devices */
 	if (driver->attach_adapter) {
-		dev_warn(&adap->dev, "attach_adapter method is deprecated\n");
+		dev_warn(&adap->dev, "%s: attach_adapter method is deprecated\n",
+			 driver->driver.name);
 		dev_warn(&adap->dev, "Please use another way to instantiate "
 			 "your i2c_client\n");
 		/* We ignore the return code; if it fails, too bad */
@@ -984,7 +985,8 @@ static int i2c_do_del_adapter(struct i2c_driver *driver,
 
 	if (!driver->detach_adapter)
 		return 0;
-	dev_warn(&adapter->dev, "detach_adapter method is deprecated\n");
+	dev_warn(&adapter->dev, "%s: detach_adapter method is deprecated\n",
+		 driver->driver.name);
 	res = driver->detach_adapter(adapter);
 	if (res)
 		dev_err(&adapter->dev, "detach_adapter failed (%d) "

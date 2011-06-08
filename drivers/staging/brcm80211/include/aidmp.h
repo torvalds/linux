@@ -292,7 +292,7 @@ typedef volatile struct _aidmp {
 #define	AI_OOBDINWIDTH		0x364
 #define	AI_OOBDOUTWIDTH		0x368
 
-#if	defined(IL_BIGENDIAN) && defined(BCMHND74K)
+#if	defined(__BIG_ENDIAN) && defined(BCMHND74K)
 /* Selective swapped defines for those registers we need in
  * big-endian code.
  */
@@ -303,7 +303,7 @@ typedef volatile struct _aidmp {
 #define	AI_RESETCTRL		0x804
 #define	AI_RESETSTATUS		0x800
 
-#else				/* !IL_BIGENDIAN || !BCMHND74K */
+#else				/* !__BIG_ENDIAN || !BCMHND74K */
 
 #define	AI_IOCTRLSET		0x400
 #define	AI_IOCTRLCLEAR		0x404
@@ -312,7 +312,7 @@ typedef volatile struct _aidmp {
 #define	AI_RESETCTRL		0x800
 #define	AI_RESETSTATUS		0x804
 
-#endif				/* IL_BIGENDIAN && BCMHND74K */
+#endif				/* __BIG_ENDIAN && BCMHND74K */
 
 #define	AI_IOCTRLWIDTH		0x700
 #define	AI_IOSTATUSWIDTH	0x704

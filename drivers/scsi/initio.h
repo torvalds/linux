@@ -116,7 +116,7 @@ typedef struct {
 #define TUL_SBusId      0x89	/* 09 R   SCSI BUS ID                   */
 #define TUL_STimeOut    0x8A	/* 0A W   Sel/Resel Time Out Register   */
 #define TUL_SIdent      0x8A	/* 0A R   Identify Message Register     */
-#define TUL_SAvail      0x8A	/* 0A R   Availiable Counter Register   */
+#define TUL_SAvail      0x8A	/* 0A R   Available Counter Register   */
 #define TUL_SData       0x8B	/* 0B R/W SCSI data in/out              */
 #define TUL_SFifo       0x8C	/* 0C R/W FIFO                          */
 #define TUL_SSignal     0x90	/* 10 R/W SCSI signal in/out            */
@@ -389,7 +389,7 @@ struct scsi_ctrl_blk {
 /* Bit Definition for status */
 #define SCB_RENT        0x01
 #define SCB_PEND        0x02
-#define SCB_CONTIG      0x04	/* Contigent Allegiance */
+#define SCB_CONTIG      0x04	/* Contingent Allegiance */
 #define SCB_SELECT      0x08
 #define SCB_BUSY        0x10
 #define SCB_DONE        0x20

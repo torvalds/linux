@@ -293,7 +293,7 @@ bitmap_ip_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	for (; !before(ip_to, ip); ip += map->hosts) {
 		id = ip_to_id(map, ip);
-		ret = adtfn(set, &id, timeout);;
+		ret = adtfn(set, &id, timeout);
 
 		if (ret && !ip_set_eexist(ret, flags))
 			return ret;
@@ -338,8 +338,7 @@ bitmap_ip_head(struct ip_set *set, struct sk_buff *skb)
 	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP_TO, htonl(map->last_ip));
 	if (map->netmask != 32)
 		NLA_PUT_U8(skb, IPSET_ATTR_NETMASK, map->netmask);
-	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES,
-		      htonl(atomic_read(&set->ref) - 1));
+	NLA_PUT_NET32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref - 1));
 	NLA_PUT_NET32(skb, IPSET_ATTR_MEMSIZE,
 		      htonl(sizeof(*map) + map->memsize));
 	if (with_timeout(map->timeout))

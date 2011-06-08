@@ -93,6 +93,8 @@ static int __init ux500_probe(struct platform_device *pdev)
 	}
 
 	musb->dev.parent		= &pdev->dev;
+	musb->dev.dma_mask		= pdev->dev.dma_mask;
+	musb->dev.coherent_dma_mask	= pdev->dev.coherent_dma_mask;
 
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;

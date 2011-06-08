@@ -168,7 +168,7 @@ retry:
 /*
  * Get the next TX message in the TX FIFO and send it to the device
  *
- * Note we exit the loop if i2400mu_tx() fails; that funtion only
+ * Note we exit the loop if i2400mu_tx() fails; that function only
  * fails on hard error (failing to tx a buffer not being one of them,
  * see its doc).
  *

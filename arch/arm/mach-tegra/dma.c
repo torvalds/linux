@@ -223,7 +223,7 @@ int tegra_dma_dequeue_req(struct tegra_dma_channel *ch,
 	 *  - Change the source selector to invalid to stop the DMA from
 	 *    FIFO to memory.
 	 *  - Read the status register to know the number of pending
-	 *    bytes to be transfered.
+	 *    bytes to be transferred.
 	 *  - Finally stop or program the DMA to the next buffer in the
 	 *    list.
 	 */
@@ -244,7 +244,7 @@ int tegra_dma_dequeue_req(struct tegra_dma_channel *ch,
 	if (status & STA_BUSY)
 		req->bytes_transferred -= to_transfer;
 
-	/* In continous transfer mode, DMA only tracks the count of the
+	/* In continuous transfer mode, DMA only tracks the count of the
 	 * half DMA buffer. So, if the DMA already finished half the DMA
 	 * then add the half buffer to the completed count.
 	 *

@@ -28,14 +28,18 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_grctx.h"
+#include "nouveau_ramht.h"
 
-static int nv40_graph_register(struct drm_device *);
-static void nv40_graph_isr(struct drm_device *);
+struct nv40_graph_engine {
+	struct nouveau_exec_engine base;
+	u32 grctx_size;
+};
 
-struct nouveau_channel *
+static struct nouveau_channel *
 nv40_graph_channel(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj *grctx;
 	uint32_t inst;
 	int i;
 
@@ -45,72 +49,15 @@ nv40_graph_channel(struct drm_device *dev)
 	inst = (inst & NV40_PGRAPH_CTXCTL_CUR_INSTANCE) << 4;
 
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-		struct nouveau_channel *chan = dev_priv->channels.ptr[i];
+		if (!dev_priv->channels.ptr[i])
+			continue;
 
-		if (chan && chan->ramin_grctx &&
-		    chan->ramin_grctx->pinst == inst)
-			return chan;
+		grctx = dev_priv->channels.ptr[i]->engctx[NVOBJ_ENGINE_GR];
+		if (grctx && grctx->pinst == inst)
+			return dev_priv->channels.ptr[i];
 	}
 
 	return NULL;
-}
-
-int
-nv40_graph_create_context(struct nouveau_channel *chan)
-{
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	struct nouveau_grctx ctx = {};
-	unsigned long flags;
-	int ret;
-
-	ret = nouveau_gpuobj_new(dev, chan, pgraph->grctx_size, 16,
-				 NVOBJ_FLAG_ZERO_ALLOC, &chan->ramin_grctx);
-	if (ret)
-		return ret;
-
-	/* Initialise default context values */
-	ctx.dev = chan->dev;
-	ctx.mode = NOUVEAU_GRCTX_VALS;
-	ctx.data = chan->ramin_grctx;
-	nv40_grctx_init(&ctx);
-
-	nv_wo32(chan->ramin_grctx, 0, chan->ramin_grctx->pinst);
-
-	/* init grctx pointer in ramfc, and on PFIFO if channel is
-	 * already active there
-	 */
-	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	nv_wo32(chan->ramfc, 0x38, chan->ramin_grctx->pinst >> 4);
-	nv_mask(dev, 0x002500, 0x00000001, 0x00000000);
-	if ((nv_rd32(dev, 0x003204) & 0x0000001f) == chan->id)
-		nv_wr32(dev, 0x0032e0, chan->ramin_grctx->pinst >> 4);
-	nv_mask(dev, 0x002500, 0x00000001, 0x00000001);
-	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
-	return 0;
-}
-
-void
-nv40_graph_destroy_context(struct nouveau_channel *chan)
-{
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	pgraph->fifo_access(dev, false);
-
-	/* Unload the context if it's the currently active one */
-	if (pgraph->channel(dev) == chan)
-		pgraph->unload_context(dev);
-
-	pgraph->fifo_access(dev, true);
-	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
-
-	/* Free the context resources */
-	nouveau_gpuobj_ref(NULL, &chan->ramin_grctx);
 }
 
 static int
@@ -154,40 +101,7 @@ nv40_graph_transfer_context(struct drm_device *dev, uint32_t inst, int save)
 	return 0;
 }
 
-/* Restore the context for a specific channel into PGRAPH */
-int
-nv40_graph_load_context(struct nouveau_channel *chan)
-{
-	struct drm_device *dev = chan->dev;
-	uint32_t inst;
-	int ret;
-
-	if (!chan->ramin_grctx)
-		return -EINVAL;
-	inst = chan->ramin_grctx->pinst >> 4;
-
-	ret = nv40_graph_transfer_context(dev, inst, 0);
-	if (ret)
-		return ret;
-
-	/* 0x40032C, no idea of it's exact function.  Could simply be a
-	 * record of the currently active PGRAPH context.  It's currently
-	 * unknown as to what bit 24 does.  The nv ddx has it set, so we will
-	 * set it here too.
-	 */
-	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_POINTER, inst);
-	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR,
-		 (inst & NV40_PGRAPH_CTXCTL_CUR_INSTANCE) |
-		  NV40_PGRAPH_CTXCTL_CUR_LOADED);
-	/* 0x32E0 records the instance address of the active FIFO's PGRAPH
-	 * context.  If at any time this doesn't match 0x40032C, you will
-	 * recieve PGRAPH_INTR_CONTEXT_SWITCH
-	 */
-	nv_wr32(dev, NV40_PFIFO_GRCTX_INSTANCE, inst);
-	return 0;
-}
-
-int
+static int
 nv40_graph_unload_context(struct drm_device *dev)
 {
 	uint32_t inst;
@@ -204,7 +118,98 @@ nv40_graph_unload_context(struct drm_device *dev)
 	return ret;
 }
 
-void
+static int
+nv40_graph_context_new(struct nouveau_channel *chan, int engine)
+{
+	struct nv40_graph_engine *pgraph = nv_engine(chan->dev, engine);
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj *grctx = NULL;
+	struct nouveau_grctx ctx = {};
+	unsigned long flags;
+	int ret;
+
+	ret = nouveau_gpuobj_new(dev, NULL, pgraph->grctx_size, 16,
+				 NVOBJ_FLAG_ZERO_ALLOC, &grctx);
+	if (ret)
+		return ret;
+
+	/* Initialise default context values */
+	ctx.dev = chan->dev;
+	ctx.mode = NOUVEAU_GRCTX_VALS;
+	ctx.data = grctx;
+	nv40_grctx_init(&ctx);
+
+	nv_wo32(grctx, 0, grctx->vinst);
+
+	/* init grctx pointer in ramfc, and on PFIFO if channel is
+	 * already active there
+	 */
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	nv_wo32(chan->ramfc, 0x38, grctx->vinst >> 4);
+	nv_mask(dev, 0x002500, 0x00000001, 0x00000000);
+	if ((nv_rd32(dev, 0x003204) & 0x0000001f) == chan->id)
+		nv_wr32(dev, 0x0032e0, grctx->vinst >> 4);
+	nv_mask(dev, 0x002500, 0x00000001, 0x00000001);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
+
+	chan->engctx[engine] = grctx;
+	return 0;
+}
+
+static void
+nv40_graph_context_del(struct nouveau_channel *chan, int engine)
+{
+	struct nouveau_gpuobj *grctx = chan->engctx[engine];
+	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	nv04_graph_fifo_access(dev, false);
+
+	/* Unload the context if it's the currently active one */
+	if (nv40_graph_channel(dev) == chan)
+		nv40_graph_unload_context(dev);
+
+	nv04_graph_fifo_access(dev, true);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
+
+	/* Free the context resources */
+	nouveau_gpuobj_ref(NULL, &grctx);
+	chan->engctx[engine] = NULL;
+}
+
+int
+nv40_graph_object_new(struct nouveau_channel *chan, int engine,
+		      u32 handle, u16 class)
+{
+	struct drm_device *dev = chan->dev;
+	struct nouveau_gpuobj *obj = NULL;
+	int ret;
+
+	ret = nouveau_gpuobj_new(dev, chan, 20, 16, NVOBJ_FLAG_ZERO_FREE, &obj);
+	if (ret)
+		return ret;
+	obj->engine = 1;
+	obj->class  = class;
+
+	nv_wo32(obj, 0x00, class);
+	nv_wo32(obj, 0x04, 0x00000000);
+#ifndef __BIG_ENDIAN
+	nv_wo32(obj, 0x08, 0x00000000);
+#else
+	nv_wo32(obj, 0x08, 0x01000000);
+#endif
+	nv_wo32(obj, 0x0c, 0x00000000);
+	nv_wo32(obj, 0x10, 0x00000000);
+
+	ret = nouveau_ramht_insert(chan, handle, obj);
+	nouveau_gpuobj_ref(NULL, &obj);
+	return ret;
+}
+
+static void
 nv40_graph_set_tile_region(struct drm_device *dev, int i)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -257,14 +262,14 @@ nv40_graph_set_tile_region(struct drm_device *dev, int i)
  * C51		0x4e
  */
 int
-nv40_graph_init(struct drm_device *dev)
+nv40_graph_init(struct drm_device *dev, int engine)
 {
-	struct drm_nouveau_private *dev_priv =
-		(struct drm_nouveau_private *)dev->dev_private;
+	struct nv40_graph_engine *pgraph = nv_engine(dev, engine);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
 	struct nouveau_grctx ctx = {};
 	uint32_t vramsz, *cp;
-	int ret, i, j;
+	int i, j;
 
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) &
 			~NV_PMC_ENABLE_PGRAPH);
@@ -280,7 +285,7 @@ nv40_graph_init(struct drm_device *dev)
 	ctx.data = cp;
 	ctx.ctxprog_max = 256;
 	nv40_grctx_init(&ctx);
-	dev_priv->engine.graph.grctx_size = ctx.ctxvals_pos * 4;
+	pgraph->grctx_size = ctx.ctxvals_pos * 4;
 
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
 	for (i = 0; i < ctx.ctxprog_len; i++)
@@ -288,14 +293,9 @@ nv40_graph_init(struct drm_device *dev)
 
 	kfree(cp);
 
-	ret = nv40_graph_register(dev);
-	if (ret)
-		return ret;
-
 	/* No context present currently */
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, 0x00000000);
 
-	nouveau_irq_register(dev, 12, nv40_graph_isr);
 	nv_wr32(dev, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nv_wr32(dev, NV40_PGRAPH_INTR_EN, 0xFFFFFFFF);
 
@@ -428,47 +428,10 @@ nv40_graph_init(struct drm_device *dev)
 	return 0;
 }
 
-void nv40_graph_takedown(struct drm_device *dev)
-{
-	nouveau_irq_unregister(dev, 12);
-}
-
 static int
-nv40_graph_register(struct drm_device *dev)
+nv40_graph_fini(struct drm_device *dev, int engine)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->engine.graph.registered)
-		return 0;
-
-	NVOBJ_CLASS(dev, 0x506e, SW); /* nvsw */
-	NVOBJ_CLASS(dev, 0x0030, GR); /* null */
-	NVOBJ_CLASS(dev, 0x0039, GR); /* m2mf */
-	NVOBJ_CLASS(dev, 0x004a, GR); /* gdirect */
-	NVOBJ_CLASS(dev, 0x009f, GR); /* imageblit (nv12) */
-	NVOBJ_CLASS(dev, 0x008a, GR); /* ifc */
-	NVOBJ_CLASS(dev, 0x0089, GR); /* sifm */
-	NVOBJ_CLASS(dev, 0x3089, GR); /* sifm (nv40) */
-	NVOBJ_CLASS(dev, 0x0062, GR); /* surf2d */
-	NVOBJ_CLASS(dev, 0x3062, GR); /* surf2d (nv40) */
-	NVOBJ_CLASS(dev, 0x0043, GR); /* rop */
-	NVOBJ_CLASS(dev, 0x0012, GR); /* beta1 */
-	NVOBJ_CLASS(dev, 0x0072, GR); /* beta4 */
-	NVOBJ_CLASS(dev, 0x0019, GR); /* cliprect */
-	NVOBJ_CLASS(dev, 0x0044, GR); /* pattern */
-	NVOBJ_CLASS(dev, 0x309e, GR); /* swzsurf */
-
-	/* curie */
-	if (nv44_graph_class(dev))
-		NVOBJ_CLASS(dev, 0x4497, GR);
-	else
-		NVOBJ_CLASS(dev, 0x4097, GR);
-
-	/* nvsw */
-	NVOBJ_CLASS(dev, 0x506e, SW);
-	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv04_graph_mthd_page_flip);
-
-	dev_priv->engine.graph.registered = true;
+	nv40_graph_unload_context(dev);
 	return 0;
 }
 
@@ -476,17 +439,17 @@ static int
 nv40_graph_isr_chid(struct drm_device *dev, u32 inst)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *chan;
+	struct nouveau_gpuobj *grctx;
 	unsigned long flags;
 	int i;
 
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-		chan = dev_priv->channels.ptr[i];
-		if (!chan || !chan->ramin_grctx)
+		if (!dev_priv->channels.ptr[i])
 			continue;
+		grctx = dev_priv->channels.ptr[i]->engctx[NVOBJ_ENGINE_GR];
 
-		if (inst == chan->ramin_grctx->pinst)
+		if (grctx && grctx->pinst == inst)
 			break;
 	}
 	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
@@ -536,4 +499,64 @@ nv40_graph_isr(struct drm_device *dev)
 				chid, inst, subc, class, mthd, data);
 		}
 	}
+}
+
+static void
+nv40_graph_destroy(struct drm_device *dev, int engine)
+{
+	struct nv40_graph_engine *pgraph = nv_engine(dev, engine);
+
+	nouveau_irq_unregister(dev, 12);
+
+	NVOBJ_ENGINE_DEL(dev, GR);
+	kfree(pgraph);
+}
+
+int
+nv40_graph_create(struct drm_device *dev)
+{
+	struct nv40_graph_engine *pgraph;
+
+	pgraph = kzalloc(sizeof(*pgraph), GFP_KERNEL);
+	if (!pgraph)
+		return -ENOMEM;
+
+	pgraph->base.destroy = nv40_graph_destroy;
+	pgraph->base.init = nv40_graph_init;
+	pgraph->base.fini = nv40_graph_fini;
+	pgraph->base.context_new = nv40_graph_context_new;
+	pgraph->base.context_del = nv40_graph_context_del;
+	pgraph->base.object_new = nv40_graph_object_new;
+	pgraph->base.set_tile_region = nv40_graph_set_tile_region;
+
+	NVOBJ_ENGINE_ADD(dev, GR, &pgraph->base);
+	nouveau_irq_register(dev, 12, nv40_graph_isr);
+
+	NVOBJ_CLASS(dev, 0x506e, SW); /* nvsw */
+	NVOBJ_CLASS(dev, 0x0030, GR); /* null */
+	NVOBJ_CLASS(dev, 0x0039, GR); /* m2mf */
+	NVOBJ_CLASS(dev, 0x004a, GR); /* gdirect */
+	NVOBJ_CLASS(dev, 0x009f, GR); /* imageblit (nv12) */
+	NVOBJ_CLASS(dev, 0x008a, GR); /* ifc */
+	NVOBJ_CLASS(dev, 0x0089, GR); /* sifm */
+	NVOBJ_CLASS(dev, 0x3089, GR); /* sifm (nv40) */
+	NVOBJ_CLASS(dev, 0x0062, GR); /* surf2d */
+	NVOBJ_CLASS(dev, 0x3062, GR); /* surf2d (nv40) */
+	NVOBJ_CLASS(dev, 0x0043, GR); /* rop */
+	NVOBJ_CLASS(dev, 0x0012, GR); /* beta1 */
+	NVOBJ_CLASS(dev, 0x0072, GR); /* beta4 */
+	NVOBJ_CLASS(dev, 0x0019, GR); /* cliprect */
+	NVOBJ_CLASS(dev, 0x0044, GR); /* pattern */
+	NVOBJ_CLASS(dev, 0x309e, GR); /* swzsurf */
+
+	/* curie */
+	if (nv44_graph_class(dev))
+		NVOBJ_CLASS(dev, 0x4497, GR);
+	else
+		NVOBJ_CLASS(dev, 0x4097, GR);
+
+	/* nvsw */
+	NVOBJ_CLASS(dev, 0x506e, SW);
+	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv04_graph_mthd_page_flip);
+	return 0;
 }

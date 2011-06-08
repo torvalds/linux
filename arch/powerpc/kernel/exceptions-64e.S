@@ -17,6 +17,7 @@
 #include <asm/cputable.h>
 #include <asm/setup.h>
 #include <asm/thread_info.h>
+#include <asm/reg_a2.h>
 #include <asm/exception-64e.h>
 #include <asm/bug.h>
 #include <asm/irqflags.h>
@@ -252,9 +253,6 @@ exception_marker:
 	.balign	0x1000
 	.globl interrupt_base_book3e
 interrupt_base_book3e:					/* fake trap */
-	/* Note: If real debug exceptions are supported by the HW, the vector
-	 * below will have to be patched up to point to an appropriate handler
-	 */
 	EXCEPTION_STUB(0x000, machine_check)		/* 0x0200 */
 	EXCEPTION_STUB(0x020, critical_input)		/* 0x0580 */
 	EXCEPTION_STUB(0x040, debug_crit)		/* 0x0d00 */
@@ -271,8 +269,13 @@ interrupt_base_book3e:					/* fake trap */
 	EXCEPTION_STUB(0x1a0, watchdog)			/* 0x09f0 */
 	EXCEPTION_STUB(0x1c0, data_tlb_miss)
 	EXCEPTION_STUB(0x1e0, instruction_tlb_miss)
+	EXCEPTION_STUB(0x260, perfmon)
 	EXCEPTION_STUB(0x280, doorbell)
 	EXCEPTION_STUB(0x2a0, doorbell_crit)
+	EXCEPTION_STUB(0x2c0, guest_doorbell)
+	EXCEPTION_STUB(0x2e0, guest_doorbell_crit)
+	EXCEPTION_STUB(0x300, hypercall)
+	EXCEPTION_STUB(0x320, ehpriv)
 
 	.globl interrupt_end_book3e
 interrupt_end_book3e:
@@ -379,7 +382,7 @@ interrupt_end_book3e:
 	mfspr	r13,SPRN_SPRG_PACA	/* get our PACA */
 	b	system_call_common
 
-/* Auxillary Processor Unavailable Interrupt */
+/* Auxiliary Processor Unavailable Interrupt */
 	START_EXCEPTION(ap_unavailable);
 	NORMAL_EXCEPTION_PROLOG(0xf20, PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0xf20, PACA_EXGEN, INTS_KEEP)
@@ -454,6 +457,70 @@ interrupt_end_book3e:
 kernel_dbg_exc:
 	b	.	/* NYI */
 
+/* Debug exception as a debug interrupt*/
+	START_EXCEPTION(debug_debug);
+	DBG_EXCEPTION_PROLOG(0xd00, PROLOG_ADDITION_2REGS)
+
+	/*
+	 * If there is a single step or branch-taken exception in an
+	 * exception entry sequence, it was probably meant to apply to
+	 * the code where the exception occurred (since exception entry
+	 * doesn't turn off DE automatically).  We simulate the effect
+	 * of turning off DE on entry to an exception handler by turning
+	 * off DE in the DSRR1 value and clearing the debug status.
+	 */
+
+	mfspr	r14,SPRN_DBSR		/* check single-step/branch taken */
+	andis.	r15,r14,DBSR_IC@h
+	beq+	1f
+
+	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
+	LOAD_REG_IMMEDIATE(r15,interrupt_end_book3e)
+	cmpld	cr0,r10,r14
+	cmpld	cr1,r10,r15
+	blt+	cr0,1f
+	bge+	cr1,1f
+
+	/* here it looks like we got an inappropriate debug exception. */
+	lis	r14,DBSR_IC@h		/* clear the IC event */
+	rlwinm	r11,r11,0,~MSR_DE	/* clear DE in the DSRR1 value */
+	mtspr	SPRN_DBSR,r14
+	mtspr	SPRN_DSRR1,r11
+	lwz	r10,PACA_EXDBG+EX_CR(r13)	/* restore registers */
+	ld	r1,PACA_EXDBG+EX_R1(r13)
+	ld	r14,PACA_EXDBG+EX_R14(r13)
+	ld	r15,PACA_EXDBG+EX_R15(r13)
+	mtcr	r10
+	ld	r10,PACA_EXDBG+EX_R10(r13)	/* restore registers */
+	ld	r11,PACA_EXDBG+EX_R11(r13)
+	mfspr	r13,SPRN_SPRG_DBG_SCRATCH
+	rfdi
+
+	/* Normal debug exception */
+	/* XXX We only handle coming from userspace for now since we can't
+	 *     quite save properly an interrupted kernel state yet
+	 */
+1:	andi.	r14,r11,MSR_PR;		/* check for userspace again */
+	beq	kernel_dbg_exc;		/* if from kernel mode */
+
+	/* Now we mash up things to make it look like we are coming on a
+	 * normal exception
+	 */
+	mfspr	r15,SPRN_SPRG_DBG_SCRATCH
+	mtspr	SPRN_SPRG_GEN_SCRATCH,r15
+	mfspr	r14,SPRN_DBSR
+	EXCEPTION_COMMON(0xd00, PACA_EXDBG, INTS_DISABLE_ALL)
+	std	r14,_DSISR(r1)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	mr	r4,r14
+	ld	r14,PACA_EXDBG+EX_R14(r13)
+	ld	r15,PACA_EXDBG+EX_R15(r13)
+	bl	.save_nvgprs
+	bl	.DebugException
+	b	.ret_from_except
+
+	MASKABLE_EXCEPTION(0x260, perfmon, .performance_monitor_exception, ACK_NONE)
+
 /* Doorbell interrupt */
 	MASKABLE_EXCEPTION(0x2070, doorbell, .doorbell_exception, ACK_NONE)
 
@@ -467,6 +534,11 @@ kernel_dbg_exc:
 //	bl	.doorbell_critical_exception
 //	b	ret_from_crit_except
 	b	.
+
+	MASKABLE_EXCEPTION(0x2c0, guest_doorbell, .unknown_exception, ACK_NONE)
+	MASKABLE_EXCEPTION(0x2e0, guest_doorbell_crit, .unknown_exception, ACK_NONE)
+	MASKABLE_EXCEPTION(0x310, hypercall, .unknown_exception, ACK_NONE)
+	MASKABLE_EXCEPTION(0x320, ehpriv, .unknown_exception, ACK_NONE)
 
 
 /*
@@ -587,7 +659,12 @@ fast_exception_return:
 BAD_STACK_TRAMPOLINE(0x000)
 BAD_STACK_TRAMPOLINE(0x100)
 BAD_STACK_TRAMPOLINE(0x200)
+BAD_STACK_TRAMPOLINE(0x260)
+BAD_STACK_TRAMPOLINE(0x2c0)
+BAD_STACK_TRAMPOLINE(0x2e0)
 BAD_STACK_TRAMPOLINE(0x300)
+BAD_STACK_TRAMPOLINE(0x310)
+BAD_STACK_TRAMPOLINE(0x320)
 BAD_STACK_TRAMPOLINE(0x400)
 BAD_STACK_TRAMPOLINE(0x500)
 BAD_STACK_TRAMPOLINE(0x600)
@@ -864,8 +941,23 @@ have_hes:
 	 * that will have to be made dependent on whether we are running under
 	 * a hypervisor I suppose.
 	 */
-	ori	r3,r3,MAS0_HES | MAS0_WQ_ALLWAYS
-	mtspr	SPRN_MAS0,r3
+
+	/* BEWARE, MAGIC
+	 * This code is called as an ordinary function on the boot CPU. But to
+	 * avoid duplication, this code is also used in SCOM bringup of
+	 * secondary CPUs. We read the code between the initial_tlb_code_start
+	 * and initial_tlb_code_end labels one instruction at a time and RAM it
+	 * into the new core via SCOM. That doesn't process branches, so there
+	 * must be none between those two labels. It also means if this code
+	 * ever takes any parameters, the SCOM code must also be updated to
+	 * provide them.
+	 */
+	.globl a2_tlbinit_code_start
+a2_tlbinit_code_start:
+
+	ori	r11,r3,MAS0_WQ_ALLWAYS
+	oris	r11,r11,MAS0_ESEL(3)@h /* Use way 3: workaround A2 erratum 376 */
+	mtspr	SPRN_MAS0,r11
 	lis	r3,(MAS1_VALID | MAS1_IPROT)@h
 	ori	r3,r3,BOOK3E_PAGESZ_1GB << MAS1_TSIZE_SHIFT
 	mtspr	SPRN_MAS1,r3
@@ -879,17 +971,85 @@ have_hes:
 	/* Write the TLB entry */
 	tlbwe
 
+	.globl a2_tlbinit_after_linear_map
+a2_tlbinit_after_linear_map:
+
 	/* Now we branch the new virtual address mapped by this entry */
 	LOAD_REG_IMMEDIATE(r3,1f)
 	mtctr	r3
 	bctr
 
 1:	/* We are now running at PAGE_OFFSET, clean the TLB of everything
-	 * else (XXX we should scan for bolted crap from the firmware too)
+	 * else (including IPROTed things left by firmware)
+	 * r4 = TLBnCFG
+	 * r3 = current address (more or less)
 	 */
+
+	li	r5,0
+	mtspr	SPRN_MAS6,r5
+	tlbsx	0,r3
+
+	rlwinm	r9,r4,0,TLBnCFG_N_ENTRY
+	rlwinm	r10,r4,8,0xff
+	addi	r10,r10,-1	/* Get inner loop mask */
+
+	li	r3,1
+
+	mfspr	r5,SPRN_MAS1
+	rlwinm	r5,r5,0,(~(MAS1_VALID|MAS1_IPROT))
+
+	mfspr	r6,SPRN_MAS2
+	rldicr	r6,r6,0,51		/* Extract EPN */
+
+	mfspr	r7,SPRN_MAS0
+	rlwinm	r7,r7,0,0xffff0fff	/* Clear HES and WQ */
+
+	rlwinm	r8,r7,16,0xfff		/* Extract ESEL */
+
+2:	add	r4,r3,r8
+	and	r4,r4,r10
+
+	rlwimi	r7,r4,16,MAS0_ESEL_MASK
+
+	mtspr	SPRN_MAS0,r7
+	mtspr	SPRN_MAS1,r5
+	mtspr	SPRN_MAS2,r6
+	tlbwe
+
+	addi	r3,r3,1
+	and.	r4,r3,r10
+
+	bne	3f
+	addis	r6,r6,(1<<30)@h
+3:
+	cmpw	r3,r9
+	blt	2b
+
+	.globl  a2_tlbinit_after_iprot_flush
+a2_tlbinit_after_iprot_flush:
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_WSP
+	/* Now establish early debug mappings if applicable */
+	/* Restore the MAS0 we used for linear mapping load */
+	mtspr	SPRN_MAS0,r11
+
+	lis	r3,(MAS1_VALID | MAS1_IPROT)@h
+	ori	r3,r3,(BOOK3E_PAGESZ_4K << MAS1_TSIZE_SHIFT)
+	mtspr	SPRN_MAS1,r3
+	LOAD_REG_IMMEDIATE(r3, WSP_UART_VIRT | MAS2_I | MAS2_G)
+	mtspr	SPRN_MAS2,r3
+	LOAD_REG_IMMEDIATE(r3, WSP_UART_PHYS | MAS3_SR | MAS3_SW)
+	mtspr	SPRN_MAS7_MAS3,r3
+	/* re-use the MAS8 value from the linear mapping */
+	tlbwe
+#endif /* CONFIG_PPC_EARLY_DEBUG_WSP */
+
 	PPC_TLBILX(0,0,0)
 	sync
 	isync
+
+	.globl a2_tlbinit_code_end
+a2_tlbinit_code_end:
 
 	/* We translate LR and return */
 	mflr	r3
@@ -1039,4 +1199,34 @@ _GLOBAL(__setup_base_ivors)
 
 	sync
 
+	blr
+
+_GLOBAL(setup_perfmon_ivor)
+	SET_IVOR(35, 0x260) /* Performance Monitor */
+	blr
+
+_GLOBAL(setup_doorbell_ivors)
+	SET_IVOR(36, 0x280) /* Processor Doorbell */
+	SET_IVOR(37, 0x2a0) /* Processor Doorbell Crit */
+
+	/* Check MMUCFG[LPIDSIZE] to determine if we have category E.HV */
+	mfspr	r10,SPRN_MMUCFG
+	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
+	beqlr
+
+	SET_IVOR(38, 0x2c0) /* Guest Processor Doorbell */
+	SET_IVOR(39, 0x2e0) /* Guest Processor Doorbell Crit/MC */
+	blr
+
+_GLOBAL(setup_ehv_ivors)
+	/*
+	 * We may be running as a guest and lack E.HV even on a chip
+	 * that normally has it.
+	 */
+	mfspr	r10,SPRN_MMUCFG
+	rlwinm.	r10,r10,0,MMUCFG_LPIDSIZE
+	beqlr
+
+	SET_IVOR(40, 0x300) /* Embedded Hypervisor System Call */
+	SET_IVOR(41, 0x320) /* Embedded Hypervisor Privilege */
 	blr

@@ -381,7 +381,7 @@ static void neo_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 		/* Copy data from uart to the queue */
 		memcpy_fromio(ch->ch_rqueue + head, &ch->ch_neo_uart->txrxburst, n);
 		/*
-		 * Since RX_FIFO_DATA_ERROR was 0, we are guarenteed
+		 * Since RX_FIFO_DATA_ERROR was 0, we are guaranteed
 		 * that all the data currently in the FIFO is free of
 		 * breaks and parity/frame/orun errors.
 		 */
@@ -1210,7 +1210,7 @@ static irqreturn_t neo_intr(int irq, void *voidbrd)
 			 * Why would I check EVERY possibility of type of
 			 * interrupt, when we know its TXRDY???
 			 * Becuz for some reason, even tho we got triggered for TXRDY,
-			 * it seems to be occassionally wrong. Instead of TX, which
+			 * it seems to be occasionally wrong. Instead of TX, which
 			 * it should be, I was getting things like RXDY too. Weird.
 			 */
 			neo_parse_isr(brd, port);

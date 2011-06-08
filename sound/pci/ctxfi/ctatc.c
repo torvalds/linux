@@ -1627,7 +1627,7 @@ static struct ct_atc atc_preset __devinitdata = {
  *  Creates and initializes a hardware manager.
  *
  *  Creates kmallocated ct_atc structure. Initializes hardware.
- *  Returns 0 if suceeds, or negative error code if fails.
+ *  Returns 0 if succeeds, or negative error code if fails.
  */
 
 int __devinit ct_atc_create(struct snd_card *card, struct pci_dev *pci,

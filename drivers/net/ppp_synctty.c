@@ -178,7 +178,7 @@ ppp_print_buffer (const char *name, const __u8 *buf, int count)
  * way to fix this is to use a rwlock in the tty struct, but for now
  * we use a single global rwlock for all ttys in ppp line discipline.
  *
- * FIXME: Fixed in tty_io nowdays.
+ * FIXME: Fixed in tty_io nowadays.
  */
 static DEFINE_RWLOCK(disc_data_lock);
 
@@ -381,7 +381,7 @@ ppp_sync_poll(struct tty_struct *tty, struct file *file, poll_table *wait)
 }
 
 /* May sleep, don't call from interrupt level or with interrupts disabled */
-static void
+static unsigned int
 ppp_sync_receive(struct tty_struct *tty, const unsigned char *buf,
 		  char *cflags, int count)
 {
@@ -389,7 +389,7 @@ ppp_sync_receive(struct tty_struct *tty, const unsigned char *buf,
 	unsigned long flags;
 
 	if (!ap)
-		return;
+		return -ENODEV;
 	spin_lock_irqsave(&ap->recv_lock, flags);
 	ppp_sync_input(ap, buf, cflags, count);
 	spin_unlock_irqrestore(&ap->recv_lock, flags);
@@ -397,6 +397,8 @@ ppp_sync_receive(struct tty_struct *tty, const unsigned char *buf,
 		tasklet_schedule(&ap->tsk);
 	sp_put(ap);
 	tty_unthrottle(tty);
+
+	return count;
 }
 
 static void

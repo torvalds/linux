@@ -796,7 +796,7 @@ static int r592_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (memstick_add_host(host))
 		goto error7;
 
-	message("driver succesfully loaded");
+	message("driver successfully loaded");
 	return 0;
 error7:
 	free_irq(dev->irq, dev);

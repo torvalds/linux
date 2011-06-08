@@ -194,7 +194,7 @@ each pad.
 
 Links are represented by a struct media_link instance, defined in
 include/media/media-entity.h. Each entity stores all links originating at or
-targetting any of its pads in a links array. A given link is thus stored
+targeting any of its pads in a links array. A given link is thus stored
 twice, once in the source entity and once in the target entity. The array is
 pre-allocated and grows dynamically as needed.
 
@@ -348,6 +348,6 @@ a streaming entity. Links that can be modified while streaming must be marked
 with the MEDIA_LNK_FL_DYNAMIC flag.
 
 If other operations need to be disallowed on streaming entities (such as
-changing entities configuration parameters) drivers can explictly check the
+changing entities configuration parameters) drivers can explicitly check the
 media_entity stream_count field to find out if an entity is streaming. This
 operation must be done with the media_device graph_mutex held.

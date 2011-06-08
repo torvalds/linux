@@ -34,7 +34,7 @@
 /*
  * The following parameters depend on the CPU speed, bus speed, ...
  * These can be tuned for specific use cases, e.g. if isochronous transfers
- * are very important, bandwith can be sacrificed to guarantee that the
+ * are very important, bandwidth can be sacrificed to guarantee that the
  * 1ms deadline will be met.
  * If bulk transfers are important, the MAX_FRAME_BW can be increased,
  * but some (or many) isochronous deadlines might not be met.

@@ -31,6 +31,7 @@
 #ifndef _E1000_H_
 #define _E1000_H_
 
+#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
@@ -39,6 +40,7 @@
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
 #include <linux/crc32.h>
+#include <linux/if_vlan.h>
 
 #include "hw.h"
 
@@ -280,7 +282,7 @@ struct e1000_adapter {
 
 	const struct e1000_info *ei;
 
-	struct vlan_group *vlgrp;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u32 bd_number;
 	u32 rx_buffer_len;
 	u16 mng_vlan_id;
@@ -389,13 +391,10 @@ struct e1000_adapter {
 
 	bool fc_autoneg;
 
-	unsigned long led_status;
-
 	unsigned int flags;
 	unsigned int flags2;
 	struct work_struct downshift_task;
 	struct work_struct update_phy_task;
-	struct work_struct led_blink_task;
 	struct work_struct print_hang_task;
 
 	bool idle_check;
@@ -456,6 +455,7 @@ struct e1000_info {
 #define FLAG2_HAS_PHY_STATS               (1 << 4)
 #define FLAG2_HAS_EEE                     (1 << 5)
 #define FLAG2_DMA_BURST                   (1 << 6)
+#define FLAG2_DISABLE_ASPM_L0S            (1 << 7)
 #define FLAG2_DISABLE_AIM                 (1 << 8)
 #define FLAG2_CHECK_PHY_HANG              (1 << 9)
 
@@ -484,7 +484,6 @@ extern const char e1000e_driver_version[];
 
 extern void e1000e_check_options(struct e1000_adapter *adapter);
 extern void e1000e_set_ethtool_ops(struct net_device *netdev);
-extern void e1000e_led_blink_task(struct work_struct *work);
 
 extern int e1000e_up(struct e1000_adapter *adapter);
 extern void e1000e_down(struct e1000_adapter *adapter);
@@ -502,7 +501,6 @@ extern void e1000e_set_interrupt_capability(struct e1000_adapter *adapter);
 extern void e1000e_reset_interrupt_capability(struct e1000_adapter *adapter);
 extern void e1000e_get_hw_control(struct e1000_adapter *adapter);
 extern void e1000e_release_hw_control(struct e1000_adapter *adapter);
-extern void e1000e_disable_aspm(struct pci_dev *pdev, u16 state);
 
 extern unsigned int copybreak;
 
@@ -573,7 +571,7 @@ extern s32 e1000e_valid_led_default(struct e1000_hw *hw, u16 *data);
 extern void e1000e_config_collision_dist(struct e1000_hw *hw);
 extern s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw);
 extern s32 e1000e_force_mac_fc(struct e1000_hw *hw);
-extern s32 e1000e_blink_led(struct e1000_hw *hw);
+extern s32 e1000e_blink_led_generic(struct e1000_hw *hw);
 extern void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value);
 extern s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw);
 extern void e1000e_reset_adaptive(struct e1000_hw *hw);

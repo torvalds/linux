@@ -149,7 +149,7 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 				ARRAY_SIZE(omap2_mcbsp_latency), false);
 	kfree(pdata);
 	if (IS_ERR(od))  {
-		pr_err("%s: Cant build omap_device for %s:%s.\n", __func__,
+		pr_err("%s: Can't build omap_device for %s:%s.\n", __func__,
 					name, oh->name);
 		return PTR_ERR(od);
 	}

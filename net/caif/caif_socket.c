@@ -19,7 +19,7 @@
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
 #include <linux/caif/caif_socket.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <net/caif/caif_layer.h>
@@ -48,6 +48,7 @@ static struct dentry *debugfsdir;
 #ifdef CONFIG_DEBUG_FS
 struct debug_fs_counter {
 	atomic_t caif_nr_socks;
+	atomic_t caif_sock_create;
 	atomic_t num_connect_req;
 	atomic_t num_connect_resp;
 	atomic_t num_connect_fail_resp;
@@ -59,11 +60,11 @@ struct debug_fs_counter {
 	atomic_t num_rx_flow_on;
 };
 static struct debug_fs_counter cnt;
-#define	dbfs_atomic_inc(v) atomic_inc(v)
-#define	dbfs_atomic_dec(v) atomic_dec(v)
+#define	dbfs_atomic_inc(v) atomic_inc_return(v)
+#define	dbfs_atomic_dec(v) atomic_dec_return(v)
 #else
-#define	dbfs_atomic_inc(v)
-#define	dbfs_atomic_dec(v)
+#define	dbfs_atomic_inc(v) 0
+#define	dbfs_atomic_dec(v) 0
 #endif
 
 struct caifsock {
@@ -155,9 +156,10 @@ static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
 		(unsigned)sk->sk_rcvbuf && rx_flow_is_on(cf_sk)) {
-		pr_debug("sending flow OFF (queue len = %d %d)\n",
-			atomic_read(&cf_sk->sk.sk_rmem_alloc),
-			sk_rcvbuf_lowwater(cf_sk));
+		if (net_ratelimit())
+			pr_debug("sending flow OFF (queue len = %d %d)\n",
+					atomic_read(&cf_sk->sk.sk_rmem_alloc),
+					sk_rcvbuf_lowwater(cf_sk));
 		set_rx_flow_off(cf_sk);
 		dbfs_atomic_inc(&cnt.num_rx_flow_off);
 		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
@@ -168,7 +170,8 @@ static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		return err;
 	if (!sk_rmem_schedule(sk, skb->truesize) && rx_flow_is_on(cf_sk)) {
 		set_rx_flow_off(cf_sk);
-		pr_debug("sending flow OFF due to rmem_schedule\n");
+		if (net_ratelimit())
+			pr_debug("sending flow OFF due to rmem_schedule\n");
 		dbfs_atomic_inc(&cnt.num_rx_flow_off);
 		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
 	}
@@ -202,11 +205,23 @@ static int caif_sktrecv_cb(struct cflayer *layr, struct cfpkt *pkt)
 	skb = cfpkt_tonative(pkt);
 
 	if (unlikely(cf_sk->sk.sk_state != CAIF_CONNECTED)) {
-		cfpkt_destroy(pkt);
+		kfree_skb(skb);
 		return 0;
 	}
 	caif_queue_rcv_skb(&cf_sk->sk, skb);
 	return 0;
+}
+
+static void cfsk_hold(struct cflayer *layr)
+{
+	struct caifsock *cf_sk = container_of(layr, struct caifsock, layer);
+	sock_hold(&cf_sk->sk);
+}
+
+static void cfsk_put(struct cflayer *layr)
+{
+	struct caifsock *cf_sk = container_of(layr, struct caifsock, layer);
+	sock_put(&cf_sk->sk);
 }
 
 /* Packet Control Callback function called from CAIF */
@@ -232,6 +247,8 @@ static void caif_ctrl_cb(struct cflayer *layr,
 
 	case CAIF_CTRLCMD_INIT_RSP:
 		/* We're now connected */
+		caif_client_register_refcnt(&cf_sk->layer,
+						cfsk_hold, cfsk_put);
 		dbfs_atomic_inc(&cnt.num_connect_resp);
 		cf_sk->sk.sk_state = CAIF_CONNECTED;
 		set_tx_flow_on(cf_sk);
@@ -242,7 +259,6 @@ static void caif_ctrl_cb(struct cflayer *layr,
 		/* We're now disconnected */
 		cf_sk->sk.sk_state = CAIF_DISCONNECTED;
 		cf_sk->sk.sk_state_change(&cf_sk->sk);
-		cfcnfg_release_adap_layer(&cf_sk->layer);
 		break;
 
 	case CAIF_CTRLCMD_INIT_FAIL_RSP:
@@ -519,43 +535,14 @@ static int transmit_skb(struct sk_buff *skb, struct caifsock *cf_sk,
 			int noblock, long timeo)
 {
 	struct cfpkt *pkt;
-	int ret, loopcnt = 0;
 
 	pkt = cfpkt_fromnative(CAIF_DIR_OUT, skb);
-	memset(cfpkt_info(pkt), 0, sizeof(struct caif_payload_info));
-	do {
+	memset(skb->cb, 0, sizeof(struct caif_payload_info));
 
-		ret = -ETIMEDOUT;
+	if (cf_sk->layer.dn == NULL)
+		return -EINVAL;
 
-		/* Slight paranoia, probably not needed. */
-		if (unlikely(loopcnt++ > 1000)) {
-			pr_warn("transmit retries failed, error = %d\n", ret);
-			break;
-		}
-
-		if (cf_sk->layer.dn != NULL)
-			ret = cf_sk->layer.dn->transmit(cf_sk->layer.dn, pkt);
-		if (likely(ret >= 0))
-			break;
-		/* if transmit return -EAGAIN, then retry */
-		if (noblock && ret == -EAGAIN)
-			break;
-		timeo = caif_wait_for_flow_on(cf_sk, 0, timeo, &ret);
-		if (signal_pending(current)) {
-			ret = sock_intr_errno(timeo);
-			break;
-		}
-		if (ret)
-			break;
-		if (cf_sk->sk.sk_state != CAIF_CONNECTED ||
-			sock_flag(&cf_sk->sk, SOCK_DEAD) ||
-			(cf_sk->sk.sk_shutdown & RCV_SHUTDOWN)) {
-			ret = -EPIPE;
-			cf_sk->sk.sk_err = EPIPE;
-			break;
-		}
-	} while (ret == -EAGAIN);
-	return ret;
+	return cf_sk->layer.dn->transmit(cf_sk->layer.dn, pkt);
 }
 
 /* Copied from af_unix:unix_dgram_sendmsg, and adapted to CAIF */
@@ -620,7 +607,9 @@ static int caif_seqpkt_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		goto err;
 	ret = transmit_skb(skb, cf_sk, noblock, timeo);
 	if (ret < 0)
-		goto err;
+		/* skb is already freed */
+		return ret;
+
 	return len;
 err:
 	kfree_skb(skb);
@@ -826,7 +815,8 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 				sk->sk_state == CAIF_DISCONNECTED);
 		if (sk->sk_shutdown & SHUTDOWN_MASK) {
 			/* Allow re-connect after SHUTDOWN_IND */
-			caif_disconnect_client(&cf_sk->layer);
+			caif_disconnect_client(sock_net(sk), &cf_sk->layer);
+			caif_free_client(&cf_sk->layer);
 			break;
 		}
 		/* No reconnect on a seqpacket socket */
@@ -866,8 +856,10 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 
 	dbfs_atomic_inc(&cnt.num_connect_req);
 	cf_sk->layer.receive = caif_sktrecv_cb;
-	err = caif_connect_client(&cf_sk->conn_req,
+
+	err = caif_connect_client(sock_net(sk), &cf_sk->conn_req,
 				&cf_sk->layer, &ifindex, &headroom, &tailroom);
+
 	if (err < 0) {
 		cf_sk->sk.sk_socket->state = SS_UNCONNECTED;
 		cf_sk->sk.sk_state = CAIF_DISCONNECTED;
@@ -935,7 +927,6 @@ static int caif_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
-	int res = 0;
 
 	if (!sk)
 		return 0;
@@ -947,13 +938,14 @@ static int caif_release(struct socket *sock)
 	 * caif_queue_rcv_skb checks SOCK_DEAD holding the queue lock,
 	 * this ensures no packets when sock is dead.
 	 */
-	spin_lock(&sk->sk_receive_queue.lock);
+	spin_lock_bh(&sk->sk_receive_queue.lock);
 	sock_set_flag(sk, SOCK_DEAD);
-	spin_unlock(&sk->sk_receive_queue.lock);
+	spin_unlock_bh(&sk->sk_receive_queue.lock);
 	sock->sk = NULL;
 
 	dbfs_atomic_inc(&cnt.num_disconnect);
 
+	WARN_ON(IS_ERR(cf_sk->debugfs_socket_dir));
 	if (cf_sk->debugfs_socket_dir != NULL)
 		debugfs_remove_recursive(cf_sk->debugfs_socket_dir);
 
@@ -961,19 +953,15 @@ static int caif_release(struct socket *sock)
 	sk->sk_state = CAIF_DISCONNECTED;
 	sk->sk_shutdown = SHUTDOWN_MASK;
 
-	if (cf_sk->sk.sk_socket->state == SS_CONNECTED ||
-		cf_sk->sk.sk_socket->state == SS_CONNECTING)
-		res = caif_disconnect_client(&cf_sk->layer);
-
+	caif_disconnect_client(sock_net(sk), &cf_sk->layer);
 	cf_sk->sk.sk_socket->state = SS_DISCONNECTING;
 	wake_up_interruptible_poll(sk_sleep(sk), POLLERR|POLLHUP);
 
 	sock_orphan(sk);
-	cf_sk->layer.dn = NULL;
 	sk_stream_kill_queues(&cf_sk->sk);
 	release_sock(sk);
 	sock_put(sk);
-	return res;
+	return 0;
 }
 
 /* Copied from af_unix.c:unix_poll(), added CAIF tx_flow handling */
@@ -1060,16 +1048,18 @@ static void caif_sock_destructor(struct sock *sk)
 	caif_assert(sk_unhashed(sk));
 	caif_assert(!sk->sk_socket);
 	if (!sock_flag(sk, SOCK_DEAD)) {
-		pr_info("Attempt to release alive CAIF socket: %p\n", sk);
+		pr_debug("Attempt to release alive CAIF socket: %p\n", sk);
 		return;
 	}
 	sk_stream_kill_queues(&cf_sk->sk);
 	dbfs_atomic_dec(&cnt.caif_nr_socks);
+	caif_free_client(&cf_sk->layer);
 }
 
 static int caif_create(struct net *net, struct socket *sock, int protocol,
 			int kern)
 {
+	int num;
 	struct sock *sk = NULL;
 	struct caifsock *cf_sk = NULL;
 	static struct proto prot = {.name = "PF_CAIF",
@@ -1127,19 +1117,21 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 	set_rx_flow_on(cf_sk);
 
 	/* Set default options on configuration */
-	cf_sk->sk.sk_priority= CAIF_PRIO_NORMAL;
+	cf_sk->sk.sk_priority = CAIF_PRIO_NORMAL;
 	cf_sk->conn_req.link_selector = CAIF_LINK_LOW_LATENCY;
 	cf_sk->conn_req.protocol = protocol;
 	/* Increase the number of sockets created. */
 	dbfs_atomic_inc(&cnt.caif_nr_socks);
+	num = dbfs_atomic_inc(&cnt.caif_sock_create);
 #ifdef CONFIG_DEBUG_FS
 	if (!IS_ERR(debugfsdir)) {
+
 		/* Fill in some information concerning the misc socket. */
-		snprintf(cf_sk->name, sizeof(cf_sk->name), "cfsk%d",
-				atomic_read(&cnt.caif_nr_socks));
+		snprintf(cf_sk->name, sizeof(cf_sk->name), "cfsk%d", num);
 
 		cf_sk->debugfs_socket_dir =
 			debugfs_create_dir(cf_sk->name, debugfsdir);
+
 		debugfs_create_u32("sk_state", S_IRUSR | S_IWUSR,
 				cf_sk->debugfs_socket_dir,
 				(u32 *) &cf_sk->sk.sk_state);
@@ -1183,6 +1175,9 @@ static int __init caif_sktinit_module(void)
 		debugfs_create_u32("num_sockets", S_IRUSR | S_IWUSR,
 				debugfsdir,
 				(u32 *) &cnt.caif_nr_socks);
+		debugfs_create_u32("num_create", S_IRUSR | S_IWUSR,
+				debugfsdir,
+				(u32 *) &cnt.caif_sock_create);
 		debugfs_create_u32("num_connect_req", S_IRUSR | S_IWUSR,
 				debugfsdir,
 				(u32 *) &cnt.num_connect_req);

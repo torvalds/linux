@@ -177,7 +177,7 @@ void radeon_pm_suspend(struct radeon_device *rdev);
 void radeon_pm_resume(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
-void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level);
+void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 voltage_type);
 void rs690_pm_info(struct radeon_device *rdev);
 extern int rv6xx_get_temp(struct radeon_device *rdev);
 extern int rv770_get_temp(struct radeon_device *rdev);
@@ -679,11 +679,11 @@ struct radeon_wb {
  * @sideport_bandwidth: sideport bandwidth the gpu has (MByte/s) (IGP)
  * @ht_bandwidth:       ht bandwidth the gpu has (MByte/s) (IGP)
  * @core_bandwidth:     core GPU bandwidth the gpu has (MByte/s) (IGP)
- * @sclk:          	GPU clock Mhz (core bandwith depends of this clock)
+ * @sclk:          	GPU clock Mhz (core bandwidth depends of this clock)
  * @needed_bandwidth:   current bandwidth needs
  *
  * It keeps track of various data needed to take powermanagement decision.
- * Bandwith need is used to determine minimun clock of the GPU and memory.
+ * Bandwidth need is used to determine minimun clock of the GPU and memory.
  * Equation between gpu/memory clock and available bandwidth is hw dependent
  * (type of memory, bus size, efficiency, ...)
  */
@@ -767,7 +767,9 @@ struct radeon_voltage {
 	u8 vddci_id; /* index into vddci voltage table */
 	bool vddci_enabled;
 	/* r6xx+ sw */
-	u32 voltage;
+	u16 voltage;
+	/* evergreen+ vddci */
+	u16 vddci;
 };
 
 /* clock mode flags */
@@ -835,10 +837,12 @@ struct radeon_pm {
 	int                     default_power_state_index;
 	u32                     current_sclk;
 	u32                     current_mclk;
-	u32                     current_vddc;
+	u16                     current_vddc;
+	u16                     current_vddci;
 	u32                     default_sclk;
 	u32                     default_mclk;
-	u32                     default_vddc;
+	u16                     default_vddc;
+	u16                     default_vddci;
 	struct radeon_i2c_chan *i2c_bus;
 	/* selected pm method */
 	enum radeon_pm_method     pm_method;

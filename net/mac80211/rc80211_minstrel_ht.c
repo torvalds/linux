@@ -259,7 +259,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 		}
 	}
 
-	/* try to sample up to half of the availble rates during each interval */
+	/* try to sample up to half of the available rates during each interval */
 	mi->sample_count *= 4;
 
 	cur_prob = 0;
@@ -464,6 +464,7 @@ minstrel_calc_retransmit(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	const struct mcs_group *group;
 	unsigned int tx_time, tx_time_rtscts, tx_time_data;
 	unsigned int cw = mp->cw_min;
+	unsigned int ctime = 0;
 	unsigned int t_slot = 9; /* FIXME */
 	unsigned int ampdu_len = MINSTREL_TRUNC(mi->avg_ampdu_len);
 
@@ -480,13 +481,27 @@ minstrel_calc_retransmit(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 
 	group = &minstrel_mcs_groups[index / MCS_GROUP_RATES];
 	tx_time_data = group->duration[index % MCS_GROUP_RATES] * ampdu_len;
-	tx_time = 2 * (t_slot + mi->overhead + tx_time_data);
-	tx_time_rtscts = 2 * (t_slot + mi->overhead_rtscts + tx_time_data);
+
+	/* Contention time for first 2 tries */
+	ctime = (t_slot * cw) >> 1;
+	cw = min((cw << 1) | 1, mp->cw_max);
+	ctime += (t_slot * cw) >> 1;
+	cw = min((cw << 1) | 1, mp->cw_max);
+
+	/* Total TX time for data and Contention after first 2 tries */
+	tx_time = ctime + 2 * (mi->overhead + tx_time_data);
+	tx_time_rtscts = ctime + 2 * (mi->overhead_rtscts + tx_time_data);
+
+	/* See how many more tries we can fit inside segment size */
 	do {
-		cw = (cw << 1) | 1;
-		cw = min(cw, mp->cw_max);
-		tx_time += cw + t_slot + mi->overhead;
-		tx_time_rtscts += cw + t_slot + mi->overhead_rtscts;
+		/* Contention time for this try */
+		ctime = (t_slot * cw) >> 1;
+		cw = min((cw << 1) | 1, mp->cw_max);
+
+		/* Total TX time after this try */
+		tx_time += ctime + mi->overhead + tx_time_data;
+		tx_time_rtscts += ctime + mi->overhead_rtscts + tx_time_data;
+
 		if (tx_time_rtscts < mp->segment_size)
 			mr->retry_count_rtscts++;
 	} while ((tx_time < mp->segment_size) &&
@@ -659,18 +674,14 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	struct ieee80211_mcs_info *mcs = &sta->ht_cap.mcs;
 	struct ieee80211_local *local = hw_to_local(mp->hw);
 	u16 sta_cap = sta->ht_cap.cap;
+	int n_supported = 0;
 	int ack_dur;
 	int stbc;
 	int i;
 
 	/* fall back to the old minstrel for legacy stations */
-	if (!sta->ht_cap.ht_supported) {
-		msp->is_ht = false;
-		memset(&msp->legacy, 0, sizeof(msp->legacy));
-		msp->legacy.r = msp->ratelist;
-		msp->legacy.sample_table = msp->sample_table;
-		return mac80211_minstrel.rate_init(priv, sband, sta, &msp->legacy);
-	}
+	if (!sta->ht_cap.ht_supported)
+		goto use_legacy;
 
 	BUILD_BUG_ON(ARRAY_SIZE(minstrel_mcs_groups) !=
 		MINSTREL_MAX_STREAMS * MINSTREL_STREAM_GROUPS);
@@ -725,7 +736,22 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 
 		mi->groups[i].supported =
 			mcs->rx_mask[minstrel_mcs_groups[i].streams - 1];
+
+		if (mi->groups[i].supported)
+			n_supported++;
 	}
+
+	if (!n_supported)
+		goto use_legacy;
+
+	return;
+
+use_legacy:
+	msp->is_ht = false;
+	memset(&msp->legacy, 0, sizeof(msp->legacy));
+	msp->legacy.r = msp->ratelist;
+	msp->legacy.sample_table = msp->sample_table;
+	return mac80211_minstrel.rate_init(priv, sband, sta, &msp->legacy);
 }
 
 static void

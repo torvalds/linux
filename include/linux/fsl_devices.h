@@ -72,6 +72,7 @@ struct fsl_usb2_platform_data {
 	void		(*exit)(struct platform_device *);
 	void __iomem	*regs;		/* ioremap'd register base */
 	struct clk	*clk;
+	unsigned	power_budget;	/* hcd->power_budget */
 	unsigned	big_endian_mmio:1;
 	unsigned	big_endian_desc:1;
 	unsigned	es:1;		/* need USBMODE:ES */
@@ -79,6 +80,21 @@ struct fsl_usb2_platform_data {
 	unsigned	have_sysif_regs:1;
 	unsigned	invert_drvvbus:1;
 	unsigned	invert_pwr_fault:1;
+
+	unsigned	suspended:1;
+	unsigned	already_suspended:1;
+
+	/* register save area for suspend/resume */
+	u32		pm_command;
+	u32		pm_status;
+	u32		pm_intr_enable;
+	u32		pm_frame_index;
+	u32		pm_segment;
+	u32		pm_frame_list;
+	u32		pm_async_next;
+	u32		pm_configured_flag;
+	u32		pm_portsc;
+	u32		pm_usbgenctrl;
 };
 
 /* Flags in fsl_usb2_mph_platform_data */

@@ -566,7 +566,7 @@ static struct ipvs_sctp_nextstate
 	 * SHUTDOWN sent from the client, waitinf for SHUT ACK from the server
 	 */
 	/*
-	 * We recieved the data chuck, keep the state unchanged. I assume
+	 * We received the data chuck, keep the state unchanged. I assume
 	 * that still data chuncks  can be received by both the peers in
 	 * SHUDOWN state
 	 */
@@ -633,7 +633,7 @@ static struct ipvs_sctp_nextstate
 	 * SHUTDOWN sent from the server, waitinf for SHUTDOWN ACK from client
 	 */
 	/*
-	 * We recieved the data chuck, keep the state unchanged. I assume
+	 * We received the data chuck, keep the state unchanged. I assume
 	 * that still data chuncks  can be received by both the peers in
 	 * SHUDOWN state
 	 */
@@ -701,7 +701,7 @@ static struct ipvs_sctp_nextstate
 	 * SHUTDOWN ACK from the client, awaiting for SHUTDOWN COM from server
 	 */
 	/*
-	 * We recieved the data chuck, keep the state unchanged. I assume
+	 * We received the data chuck, keep the state unchanged. I assume
 	 * that still data chuncks  can be received by both the peers in
 	 * SHUDOWN state
 	 */
@@ -771,7 +771,7 @@ static struct ipvs_sctp_nextstate
 	 * SHUTDOWN ACK from the server, awaiting for SHUTDOWN COM from client
 	 */
 	/*
-	 * We recieved the data chuck, keep the state unchanged. I assume
+	 * We received the data chuck, keep the state unchanged. I assume
 	 * that still data chuncks  can be received by both the peers in
 	 * SHUDOWN state
 	 */

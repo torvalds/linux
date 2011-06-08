@@ -61,7 +61,7 @@
 
 
 /**
- * If a beacon dissapears for longer than this, then we consider the
+ * If a beacon disappears for longer than this, then we consider the
  * device who was represented by that beacon to be gone.
  *
  * ECMA-368[17.2.3, last para] establishes that a device must not

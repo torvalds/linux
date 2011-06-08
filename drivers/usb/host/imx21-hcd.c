@@ -1323,7 +1323,7 @@ static void process_etds(struct usb_hcd *hcd, struct imx21 *imx21, int sof)
  * (and hence no interrupt occurs).
  * This causes the transfer in question to hang.
  * The kludge below checks for this condition at each SOF and processes any
- * blocked ETDs (after an arbitary 10 frame wait)
+ * blocked ETDs (after an arbitrary 10 frame wait)
  *
  * With a single active transfer the usbtest test suite will run for days
  * without the kludge.

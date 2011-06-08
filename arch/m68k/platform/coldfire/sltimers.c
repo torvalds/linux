@@ -106,7 +106,7 @@ static cycle_t mcfslt_read_clk(struct clocksource *cs)
 	cycles = mcfslt_cnt;
 	local_irq_restore(flags);
 
-	/* substract because slice timers count down */
+	/* subtract because slice timers count down */
 	return cycles - scnt;
 }
 

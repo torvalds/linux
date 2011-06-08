@@ -138,7 +138,7 @@ Hotplug is able to load the driver, when it is needed (because you plugged
 in the device).
 
 If you want to enable debug output, you have to load the driver manually and
-from withing the dvb-kernel cvs repository.
+from within the dvb-kernel cvs repository.
 
 first have a look, which debug level are available:
 

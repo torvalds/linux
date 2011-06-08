@@ -38,7 +38,7 @@ void s5pv210_setup_sdhci_cfg_card(struct platform_device *dev,
 {
 	u32 ctrl2, ctrl3;
 
-	/* don't need to alter anything acording to card-type */
+	/* don't need to alter anything according to card-type */
 
 	writel(S3C64XX_SDHCI_CONTROL4_DRIVE_9mA, r + S3C64XX_SDHCI_CONTROL4);
 

@@ -57,8 +57,18 @@ int		pcie_max_read_reqsz;
 int		bfa_debugfs_enable = 1;
 int		msix_disable_cb = 0, msix_disable_ct = 0;
 
+/* Firmware releated */
 u32	bfi_image_ct_fc_size, bfi_image_ct_cna_size, bfi_image_cb_fc_size;
 u32     *bfi_image_ct_fc, *bfi_image_ct_cna, *bfi_image_cb_fc;
+
+#define BFAD_FW_FILE_CT_FC      "ctfw_fc.bin"
+#define BFAD_FW_FILE_CT_CNA     "ctfw_cna.bin"
+#define BFAD_FW_FILE_CB_FC      "cbfw_fc.bin"
+
+static u32 *bfad_load_fwimg(struct pci_dev *pdev);
+static void bfad_free_fwimg(void);
+static void bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
+		u32 *bfi_image_size, char *fw_name);
 
 static const char *msix_name_ct[] = {
 	"cpe0", "cpe1", "cpe2", "cpe3",
@@ -222,6 +232,9 @@ bfad_sm_created(struct bfad_s *bfad, enum bfad_sm_event event)
 		if ((bfad->bfad_flags & BFAD_HAL_INIT_DONE)) {
 			bfa_sm_send_event(bfad, BFAD_E_INIT_SUCCESS);
 		} else {
+			printk(KERN_WARNING
+				"bfa %s: bfa init failed\n",
+				bfad->pci_name);
 			bfad->bfad_flags |= BFAD_HAL_INIT_FAIL;
 			bfa_sm_send_event(bfad, BFAD_E_INIT_FAILED);
 		}
@@ -991,10 +1004,6 @@ bfad_cfg_pport(struct bfad_s *bfad, enum bfa_lport_role role)
 		bfad->pport.roles |= BFA_LPORT_ROLE_FCP_IM;
 	}
 
-	/* Setup the debugfs node for this scsi_host */
-	if (bfa_debugfs_enable)
-		bfad_debugfs_init(&bfad->pport);
-
 	bfad->bfad_flags |= BFAD_CFG_PPORT_DONE;
 
 out:
@@ -1004,10 +1013,6 @@ out:
 void
 bfad_uncfg_pport(struct bfad_s *bfad)
 {
-	/* Remove the debugfs node for this scsi_host */
-	kfree(bfad->regdata);
-	bfad_debugfs_exit(&bfad->pport);
-
 	if ((supported_fc4s & BFA_LPORT_ROLE_FCP_IM) &&
 	    (bfad->pport.roles & BFA_LPORT_ROLE_FCP_IM)) {
 		bfad_im_scsi_host_free(bfad, bfad->pport.im_port);
@@ -1278,7 +1283,7 @@ bfad_setup_intr(struct bfad_s *bfad)
 			 * interrupts into one vector, so even if we
 			 * can try to request less vectors, we don't
 			 * know how to associate interrupt events to
-			 *  vectors. Linux doesn't dupicate vectors
+			 *  vectors. Linux doesn't duplicate vectors
 			 * in the MSIX table for this case.
 			 */
 
@@ -1389,6 +1394,10 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	bfad->pport.bfad = bfad;
 	INIT_LIST_HEAD(&bfad->pbc_vport_list);
 
+	/* Setup the debugfs node for this bfad */
+	if (bfa_debugfs_enable)
+		bfad_debugfs_init(&bfad->pport);
+
 	retval = bfad_drv_init(bfad);
 	if (retval != BFA_STATUS_OK)
 		goto out_drv_init_failure;
@@ -1404,6 +1413,9 @@ out_bfad_sm_failure:
 	bfa_detach(&bfad->bfa);
 	bfad_hal_mem_release(bfad);
 out_drv_init_failure:
+	/* Remove the debugfs node for this bfad */
+	kfree(bfad->regdata);
+	bfad_debugfs_exit(&bfad->pport);
 	mutex_lock(&bfad_mutex);
 	bfad_inst--;
 	list_del(&bfad->list_entry);
@@ -1444,6 +1456,10 @@ bfad_pci_remove(struct pci_dev *pdev)
 	bfa_detach(&bfad->bfa);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	bfad_hal_mem_release(bfad);
+
+	/* Remove the debugfs node for this bfad */
+	kfree(bfad->regdata);
+	bfad_debugfs_exit(&bfad->pport);
 
 	/* Cleaning the BFAD instance */
 	mutex_lock(&bfad_mutex);
@@ -1550,7 +1566,7 @@ bfad_exit(void)
 }
 
 /* Firmware handling */
-u32 *
+static void
 bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
 		u32 *bfi_image_size, char *fw_name)
 {
@@ -1558,27 +1574,25 @@ bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
 
 	if (request_firmware(&fw, fw_name, &pdev->dev)) {
 		printk(KERN_ALERT "Can't locate firmware %s\n", fw_name);
-		goto error;
+		*bfi_image = NULL;
+		goto out;
 	}
 
 	*bfi_image = vmalloc(fw->size);
 	if (NULL == *bfi_image) {
 		printk(KERN_ALERT "Fail to allocate buffer for fw image "
 			"size=%x!\n", (u32) fw->size);
-		goto error;
+		goto out;
 	}
 
 	memcpy(*bfi_image, fw->data, fw->size);
 	*bfi_image_size = fw->size/sizeof(u32);
-
-	return *bfi_image;
-
-error:
-	return NULL;
+out:
+	release_firmware(fw);
 }
 
-u32 *
-bfad_get_firmware_buf(struct pci_dev *pdev)
+static u32 *
+bfad_load_fwimg(struct pci_dev *pdev)
 {
 	if (pdev->device == BFA_PCI_DEVICE_ID_CT_FC) {
 		if (bfi_image_ct_fc_size == 0)
@@ -1596,6 +1610,17 @@ bfad_get_firmware_buf(struct pci_dev *pdev)
 				&bfi_image_cb_fc_size, BFAD_FW_FILE_CB_FC);
 		return bfi_image_cb_fc;
 	}
+}
+
+static void
+bfad_free_fwimg(void)
+{
+	if (bfi_image_ct_fc_size && bfi_image_ct_fc)
+		vfree(bfi_image_ct_fc);
+	if (bfi_image_ct_cna_size && bfi_image_ct_cna)
+		vfree(bfi_image_ct_cna);
+	if (bfi_image_cb_fc_size && bfi_image_cb_fc)
+		vfree(bfi_image_cb_fc);
 }
 
 module_init(bfad_init);

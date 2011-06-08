@@ -80,12 +80,6 @@ static inline struct inode *NILFS_BTNC_I(struct address_space *btnc)
 	return &ii->vfs_inode;
 }
 
-static inline struct inode *NILFS_AS_I(struct address_space *mapping)
-{
-	return (mapping->host) ? :
-		container_of(mapping, struct inode, i_data);
-}
-
 /*
  * Dynamic state flags of NILFS on-memory inode (i_state)
  */
@@ -114,19 +108,19 @@ enum {
  * Macros to check inode numbers
  */
 #define NILFS_MDT_INO_BITS   \
-  ((unsigned int)(1 << NILFS_DAT_INO | 1 << NILFS_CPFILE_INO |		\
-		  1 << NILFS_SUFILE_INO | 1 << NILFS_IFILE_INO |	\
-		  1 << NILFS_ATIME_INO | 1 << NILFS_SKETCH_INO))
+	((unsigned int)(1 << NILFS_DAT_INO | 1 << NILFS_CPFILE_INO |	\
+			1 << NILFS_SUFILE_INO | 1 << NILFS_IFILE_INO |	\
+			1 << NILFS_ATIME_INO | 1 << NILFS_SKETCH_INO))
 
 #define NILFS_SYS_INO_BITS   \
-  ((unsigned int)(1 << NILFS_ROOT_INO) | NILFS_MDT_INO_BITS)
+	((unsigned int)(1 << NILFS_ROOT_INO) | NILFS_MDT_INO_BITS)
 
 #define NILFS_FIRST_INO(sb) (((struct the_nilfs *)sb->s_fs_info)->ns_first_ino)
 
 #define NILFS_MDT_INODE(sb, ino) \
-  ((ino) < NILFS_FIRST_INO(sb) && (NILFS_MDT_INO_BITS & (1 << (ino))))
+	((ino) < NILFS_FIRST_INO(sb) && (NILFS_MDT_INO_BITS & (1 << (ino))))
 #define NILFS_VALID_INODE(sb, ino) \
-  ((ino) >= NILFS_FIRST_INO(sb) || (NILFS_SYS_INO_BITS & (1 << (ino))))
+	((ino) >= NILFS_FIRST_INO(sb) || (NILFS_SYS_INO_BITS & (1 << (ino))))
 
 /**
  * struct nilfs_transaction_info: context information for synchronization
@@ -275,7 +269,7 @@ int nilfs_load_inode_block(struct inode *inode, struct buffer_head **pbh);
 extern int nilfs_inode_dirty(struct inode *);
 int nilfs_set_file_dirty(struct inode *inode, unsigned nr_dirty);
 extern int nilfs_mark_inode_dirty(struct inode *);
-extern void nilfs_dirty_inode(struct inode *);
+extern void nilfs_dirty_inode(struct inode *, int flags);
 int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		 __u64 start, __u64 len);
 
@@ -285,7 +279,7 @@ extern void nilfs_destroy_inode(struct inode *);
 extern void nilfs_error(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern void nilfs_warning(struct super_block *, const char *, const char *, ...)
-       __attribute__ ((format (printf, 3, 4)));
+	__attribute__ ((format (printf, 3, 4)));
 extern struct nilfs_super_block *
 nilfs_read_super_block(struct super_block *, u64, int, struct buffer_head **);
 extern int nilfs_store_magic_and_option(struct super_block *,
@@ -298,6 +292,7 @@ struct nilfs_super_block **nilfs_prepare_super(struct super_block *sb,
 					       int flip);
 int nilfs_commit_super(struct super_block *sb, int flag);
 int nilfs_cleanup_super(struct super_block *sb);
+int nilfs_resize_fs(struct super_block *sb, __u64 newsize);
 int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
 			    struct nilfs_root **root);
 int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno);

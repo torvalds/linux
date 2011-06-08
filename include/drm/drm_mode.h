@@ -277,7 +277,7 @@ struct drm_mode_mode_cmd {
 #define DRM_MODE_CURSOR_MOVE	(1<<1)
 
 /*
- * depending on the value in flags diffrent members are used.
+ * depending on the value in flags different members are used.
  *
  * CURSOR_BO uses
  *    crtc

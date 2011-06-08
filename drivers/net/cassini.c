@@ -51,7 +51,7 @@
  * TX has 4 queues. currently these queues are used in a round-robin
  * fashion for load balancing. They can also be used for QoS. for that
  * to work, however, QoS information needs to be exposed down to the driver
- * level so that subqueues get targetted to particular transmit rings.
+ * level so that subqueues get targeted to particular transmit rings.
  * alternatively, the queues can be configured via use of the all-purpose
  * ioctl.
  *
@@ -709,10 +709,11 @@ static void cas_begin_auto_negotiation(struct cas *cp, struct ethtool_cmd *ep)
 	if (ep->autoneg == AUTONEG_ENABLE)
 		cp->link_cntl = BMCR_ANENABLE;
 	else {
+		u32 speed = ethtool_cmd_speed(ep);
 		cp->link_cntl = 0;
-		if (ep->speed == SPEED_100)
+		if (speed == SPEED_100)
 			cp->link_cntl |= BMCR_SPEED100;
-		else if (ep->speed == SPEED_1000)
+		else if (speed == SPEED_1000)
 			cp->link_cntl |= CAS_BMCR_SPEED1000;
 		if (ep->duplex == DUPLEX_FULL)
 			cp->link_cntl |= BMCR_FULLDPLX;
@@ -4605,18 +4606,17 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (bmcr & BMCR_ANENABLE) {
 		cmd->advertising |= ADVERTISED_Autoneg;
 		cmd->autoneg = AUTONEG_ENABLE;
-		cmd->speed = ((speed == 10) ?
-			      SPEED_10 :
-			      ((speed == 1000) ?
-			       SPEED_1000 : SPEED_100));
+		ethtool_cmd_speed_set(cmd, ((speed == 10) ?
+					    SPEED_10 :
+					    ((speed == 1000) ?
+					     SPEED_1000 : SPEED_100)));
 		cmd->duplex = full_duplex ? DUPLEX_FULL : DUPLEX_HALF;
 	} else {
 		cmd->autoneg = AUTONEG_DISABLE;
-		cmd->speed =
-			(bmcr & CAS_BMCR_SPEED1000) ?
-			SPEED_1000 :
-			((bmcr & BMCR_SPEED100) ? SPEED_100:
-			 SPEED_10);
+		ethtool_cmd_speed_set(cmd, ((bmcr & CAS_BMCR_SPEED1000) ?
+					    SPEED_1000 :
+					    ((bmcr & BMCR_SPEED100) ?
+					     SPEED_100 : SPEED_10)));
 		cmd->duplex =
 			(bmcr & BMCR_FULLDPLX) ?
 			DUPLEX_FULL : DUPLEX_HALF;
@@ -4633,14 +4633,14 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		 * settings that we configured.
 		 */
 		if (cp->link_cntl & BMCR_ANENABLE) {
-			cmd->speed = 0;
+			ethtool_cmd_speed_set(cmd, 0);
 			cmd->duplex = 0xff;
 		} else {
-			cmd->speed = SPEED_10;
+			ethtool_cmd_speed_set(cmd, SPEED_10);
 			if (cp->link_cntl & BMCR_SPEED100) {
-				cmd->speed = SPEED_100;
+				ethtool_cmd_speed_set(cmd, SPEED_100);
 			} else if (cp->link_cntl & CAS_BMCR_SPEED1000) {
-				cmd->speed = SPEED_1000;
+				ethtool_cmd_speed_set(cmd, SPEED_1000);
 			}
 			cmd->duplex = (cp->link_cntl & BMCR_FULLDPLX)?
 				DUPLEX_FULL : DUPLEX_HALF;
@@ -4653,6 +4653,7 @@ static int cas_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct cas *cp = netdev_priv(dev);
 	unsigned long flags;
+	u32 speed = ethtool_cmd_speed(cmd);
 
 	/* Verify the settings we care about. */
 	if (cmd->autoneg != AUTONEG_ENABLE &&
@@ -4660,9 +4661,9 @@ static int cas_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return -EINVAL;
 
 	if (cmd->autoneg == AUTONEG_DISABLE &&
-	    ((cmd->speed != SPEED_1000 &&
-	      cmd->speed != SPEED_100 &&
-	      cmd->speed != SPEED_10) ||
+	    ((speed != SPEED_1000 &&
+	      speed != SPEED_100 &&
+	      speed != SPEED_10) ||
 	     (cmd->duplex != DUPLEX_HALF &&
 	      cmd->duplex != DUPLEX_FULL)))
 		return -EINVAL;
@@ -5165,7 +5166,7 @@ err_out_free_res:
 	pci_release_regions(pdev);
 
 err_write_cacheline:
-	/* Try to restore it in case the error occured after we
+	/* Try to restore it in case the error occurred after we
 	 * set it.
 	 */
 	pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, orig_cacheline_size);

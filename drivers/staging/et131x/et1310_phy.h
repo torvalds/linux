@@ -468,7 +468,7 @@ typedef union _MI_ANAR_t {
 #define TRUEPHY_ANEG_COMPLETE           1
 #define TRUEPHY_ANEG_DISABLED           2
 
-/* Define duplex advertisment flags */
+/* Define duplex advertisement flags */
 #define TRUEPHY_ADV_DUPLEX_NONE         0x00
 #define TRUEPHY_ADV_DUPLEX_FULL         0x01
 #define TRUEPHY_ADV_DUPLEX_HALF         0x02

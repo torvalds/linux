@@ -33,9 +33,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.05.34-rc1"
-#define MEGASAS_RELDATE				"Feb. 24, 2011"
-#define MEGASAS_EXT_VERSION			"Thu. Feb. 24 17:00:00 PDT 2011"
+#define MEGASAS_VERSION				"00.00.05.38-rc1"
+#define MEGASAS_RELDATE				"May. 11, 2011"
+#define MEGASAS_EXT_VERSION			"Wed. May. 11 17:00:00 PDT 2011"
 
 /*
  * Device IDs
@@ -76,8 +76,8 @@
 #define MFI_STATE_READY				0xB0000000
 #define MFI_STATE_OPERATIONAL			0xC0000000
 #define MFI_STATE_FAULT				0xF0000000
-#define  MFI_RESET_REQUIRED			0x00000001
-
+#define MFI_RESET_REQUIRED			0x00000001
+#define MFI_RESET_ADAPTER			0x00000002
 #define MEGAMFI_FRAME_SIZE			64
 
 /*
@@ -1347,7 +1347,7 @@ struct megasas_instance {
 	struct timer_list io_completion_timer;
 	struct list_head internal_reset_pending_q;
 
-	/* Ptr to hba specfic information */
+	/* Ptr to hba specific information */
 	void *ctrl_context;
 	u8	msi_flag;
 	struct msix_entry msixentry;

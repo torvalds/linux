@@ -30,9 +30,9 @@
 #include <asm/atomic.h>
 #include <asm/mathemu.h>
 #include <asm/cpcmd.h>
-#include <asm/s390_ext.h>
 #include <asm/lowcore.h>
 #include <asm/debug.h>
+#include <asm/irq.h>
 
 #ifndef CONFIG_64BIT
 #define ONELONG "%08lx: "
@@ -672,6 +672,7 @@ static struct insn opcode_b2[] = {
 	{ "rp", 0x77, INSTR_S_RD },
 	{ "stcke", 0x78, INSTR_S_RD },
 	{ "sacf", 0x79, INSTR_S_RD },
+	{ "spp", 0x80, INSTR_S_RD },
 	{ "stsi", 0x7d, INSTR_S_RD },
 	{ "srnm", 0x99, INSTR_S_RD },
 	{ "stfpc", 0x9c, INSTR_S_RD },

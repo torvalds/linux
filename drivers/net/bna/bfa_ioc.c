@@ -38,6 +38,8 @@
 #define bfa_ioc_map_port(__ioc) ((__ioc)->ioc_hwif->ioc_map_port(__ioc))
 #define bfa_ioc_notify_fail(__ioc)			\
 			((__ioc)->ioc_hwif->ioc_notify_fail(__ioc))
+#define bfa_ioc_sync_start(__ioc)               \
+			((__ioc)->ioc_hwif->ioc_sync_start(__ioc))
 #define bfa_ioc_sync_join(__ioc)			\
 			((__ioc)->ioc_hwif->ioc_sync_join(__ioc))
 #define bfa_ioc_sync_leave(__ioc)			\
@@ -80,7 +82,6 @@ static void bfa_ioc_pf_fwmismatch(struct bfa_ioc *ioc);
 static void bfa_ioc_boot(struct bfa_ioc *ioc, u32 boot_type,
 			 u32 boot_param);
 static u32 bfa_ioc_smem_pgnum(struct bfa_ioc *ioc, u32 fmaddr);
-static u32 bfa_ioc_smem_pgoff(struct bfa_ioc *ioc, u32 fmaddr);
 static void bfa_ioc_get_adapter_serial_num(struct bfa_ioc *ioc,
 						char *serial_num);
 static void bfa_ioc_get_adapter_fw_ver(struct bfa_ioc *ioc,
@@ -602,7 +603,7 @@ bfa_iocpf_sm_fwcheck(struct bfa_iocpf *iocpf, enum iocpf_event event)
 	switch (event) {
 	case IOCPF_E_SEMLOCKED:
 		if (bfa_ioc_firmware_lock(ioc)) {
-			if (bfa_ioc_sync_complete(ioc)) {
+			if (bfa_ioc_sync_start(ioc)) {
 				iocpf->retry_count = 0;
 				bfa_ioc_sync_join(ioc);
 				bfa_fsm_set_state(iocpf, bfa_iocpf_sm_hwinit);
@@ -1272,13 +1273,12 @@ bfa_ioc_lpu_stop(struct bfa_ioc *ioc)
 void
 bfa_nw_ioc_fwver_get(struct bfa_ioc *ioc, struct bfi_ioc_image_hdr *fwhdr)
 {
-	u32	pgnum, pgoff;
+	u32	pgnum;
 	u32	loff = 0;
 	int		i;
 	u32	*fwsig = (u32 *) fwhdr;
 
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
-	pgoff = bfa_ioc_smem_pgoff(ioc, loff);
 	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
 	for (i = 0; i < (sizeof(struct bfi_ioc_image_hdr) / sizeof(u32));
@@ -1314,7 +1314,7 @@ bfa_nw_ioc_fwver_cmp(struct bfa_ioc *ioc, struct bfi_ioc_image_hdr *fwhdr)
  * execution context (driver/bios) must match.
  */
 static bool
-bfa_ioc_fwver_valid(struct bfa_ioc *ioc)
+bfa_ioc_fwver_valid(struct bfa_ioc *ioc, u32 boot_env)
 {
 	struct bfi_ioc_image_hdr fwhdr, *drv_fwhdr;
 
@@ -1325,7 +1325,7 @@ bfa_ioc_fwver_valid(struct bfa_ioc *ioc)
 	if (fwhdr.signature != drv_fwhdr->signature)
 		return false;
 
-	if (fwhdr.exec != drv_fwhdr->exec)
+	if (swab32(fwhdr.param) != boot_env)
 		return false;
 
 	return bfa_nw_ioc_fwver_cmp(ioc, &fwhdr);
@@ -1352,8 +1352,11 @@ bfa_ioc_hwinit(struct bfa_ioc *ioc, bool force)
 {
 	enum bfi_ioc_state ioc_fwstate;
 	bool fwvalid;
+	u32 boot_env;
 
 	ioc_fwstate = readl(ioc->ioc_regs.ioc_fwstate);
+
+	boot_env = BFI_BOOT_LOADER_OS;
 
 	if (force)
 		ioc_fwstate = BFI_IOC_UNINIT;
@@ -1362,10 +1365,10 @@ bfa_ioc_hwinit(struct bfa_ioc *ioc, bool force)
 	 * check if firmware is valid
 	 */
 	fwvalid = (ioc_fwstate == BFI_IOC_UNINIT) ?
-		false : bfa_ioc_fwver_valid(ioc);
+		false : bfa_ioc_fwver_valid(ioc, boot_env);
 
 	if (!fwvalid) {
-		bfa_ioc_boot(ioc, BFI_BOOT_TYPE_NORMAL, ioc->pcidev.device_id);
+		bfa_ioc_boot(ioc, BFI_BOOT_TYPE_NORMAL, boot_env);
 		return;
 	}
 
@@ -1396,7 +1399,7 @@ bfa_ioc_hwinit(struct bfa_ioc *ioc, bool force)
 	/**
 	 * Initialize the h/w for any other states.
 	 */
-	bfa_ioc_boot(ioc, BFI_BOOT_TYPE_NORMAL, ioc->pcidev.device_id);
+	bfa_ioc_boot(ioc, BFI_BOOT_TYPE_NORMAL, boot_env);
 }
 
 void
@@ -1506,10 +1509,10 @@ bfa_ioc_hb_stop(struct bfa_ioc *ioc)
  */
 static void
 bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
-		    u32 boot_param)
+		    u32 boot_env)
 {
 	u32 *fwimg;
-	u32 pgnum, pgoff;
+	u32 pgnum;
 	u32 loff = 0;
 	u32 chunkno = 0;
 	u32 i;
@@ -1522,7 +1525,6 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 	fwimg = bfa_cb_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc), chunkno);
 
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
-	pgoff = bfa_ioc_smem_pgoff(ioc, loff);
 
 	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
@@ -1558,10 +1560,10 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 	/*
 	 * Set boot type and boot param at the end.
 	*/
-	writel((swab32(swab32(boot_type))), ((ioc->ioc_regs.smem_page_start)
+	writel(boot_type, ((ioc->ioc_regs.smem_page_start)
 			+ (BFI_BOOT_TYPE_OFF)));
-	writel((swab32(swab32(boot_param))), ((ioc->ioc_regs.smem_page_start)
-			+ (BFI_BOOT_PARAM_OFF)));
+	writel(boot_env, ((ioc->ioc_regs.smem_page_start)
+			+ (BFI_BOOT_LOADER_OFF)));
 }
 
 static void
@@ -1721,7 +1723,7 @@ bfa_ioc_pll_init(struct bfa_ioc *ioc)
  * as the entry vector.
  */
 static void
-bfa_ioc_boot(struct bfa_ioc *ioc, u32 boot_type, u32 boot_param)
+bfa_ioc_boot(struct bfa_ioc *ioc, u32 boot_type, u32 boot_env)
 {
 	void __iomem *rb;
 
@@ -1734,7 +1736,7 @@ bfa_ioc_boot(struct bfa_ioc *ioc, u32 boot_type, u32 boot_param)
 	 * Initialize IOC state of all functions on a chip reset.
 	 */
 	rb = ioc->pcidev.pci_bar_kva;
-	if (boot_param == BFI_BOOT_TYPE_MEMTEST) {
+	if (boot_type == BFI_BOOT_TYPE_MEMTEST) {
 		writel(BFI_IOC_MEMTEST, (rb + BFA_IOC0_STATE_REG));
 		writel(BFI_IOC_MEMTEST, (rb + BFA_IOC1_STATE_REG));
 	} else {
@@ -1743,7 +1745,7 @@ bfa_ioc_boot(struct bfa_ioc *ioc, u32 boot_type, u32 boot_param)
 	}
 
 	bfa_ioc_msgflush(ioc);
-	bfa_ioc_download_fw(ioc, boot_type, boot_param);
+	bfa_ioc_download_fw(ioc, boot_type, boot_env);
 
 	/**
 	 * Enable interrupts just before starting LPU
@@ -1918,12 +1920,6 @@ static u32
 bfa_ioc_smem_pgnum(struct bfa_ioc *ioc, u32 fmaddr)
 {
 	return PSS_SMEM_PGNUM(ioc->ioc_regs.smem_pg0, fmaddr);
-}
-
-static u32
-bfa_ioc_smem_pgoff(struct bfa_ioc *ioc, u32 fmaddr)
-{
-	return PSS_SMEM_PGOFF(fmaddr);
 }
 
 /**
@@ -2219,13 +2215,9 @@ bfa_nw_ioc_get_mac(struct bfa_ioc *ioc)
 static void
 bfa_ioc_recover(struct bfa_ioc *ioc)
 {
-	u16 bdf;
-
-	bdf = (ioc->pcidev.pci_slot << 8 | ioc->pcidev.pci_func << 3 |
-					ioc->pcidev.device_id);
-
-	pr_crit("Firmware heartbeat failure at %d", bdf);
-	BUG_ON(1);
+	pr_crit("Heart Beat of IOC has failed\n");
+	bfa_ioc_stats(ioc, ioc_hbfails);
+	bfa_fsm_send_event(ioc, IOC_E_HBFAIL);
 }
 
 static void

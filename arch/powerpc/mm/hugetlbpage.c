@@ -529,7 +529,7 @@ static int __init hugetlbpage_init(void)
 {
 	int psize;
 
-	if (!cpu_has_feature(CPU_FTR_16M_PAGE))
+	if (!mmu_has_feature(MMU_FTR_16M_PAGE))
 		return -ENODEV;
 
 	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {

@@ -130,7 +130,7 @@ static int add_eventfd(struct lguest *lg, unsigned long addr, int fd)
 	rcu_assign_pointer(lg->eventfds, new);
 
 	/*
-	 * We're not in a big hurry.  Wait until noone's looking at old
+	 * We're not in a big hurry.  Wait until no one's looking at old
 	 * version, then free it.
 	 */
 	synchronize_rcu();

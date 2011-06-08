@@ -23,7 +23,6 @@
 
 #include "a_config.h"
 #include "athdefs.h"
-#include "a_types.h"
 #include "a_osapi.h"
 #define ATH_MODULE_NAME misc
 #include "a_debug.h"
@@ -341,7 +340,7 @@ static void SeekCredits(struct common_credit_state_info *pCredInfo,
         credits = min(pCredInfo->CurrentFreeCredits,pEPDist->TxCreditsSeek);
 
         if (credits >= pEPDist->TxCreditsSeek) {
-                /* we found some to fullfill the seek request */
+                /* we found some to fulfill the seek request */
             break;
         }
 
@@ -364,8 +363,8 @@ static void SeekCredits(struct common_credit_state_info *pCredInfo,
 
             if ((pCurEpDist->TxCreditsAssigned - need) >= pCurEpDist->TxCreditsMin) {
                     /* the current one has been allocated more than it's minimum and it
-                     * has enough credits assigned above it's minimum to fullfill our need
-                     * try to take away just enough to fullfill our need */
+                     * has enough credits assigned above it's minimum to fulfill our need
+                     * try to take away just enough to fulfill our need */
                 ReduceCredits(pCredInfo,
                               pCurEpDist,
                               pCurEpDist->TxCreditsAssigned - need);

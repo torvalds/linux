@@ -228,7 +228,7 @@ static const struct snd_kcontrol_new neo1973_wm8753_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Handset Mic"),
 };
 
-/* GTA02 specific routes and controlls */
+/* GTA02 specific routes and controls */
 
 #ifdef CONFIG_MACH_NEO1973_GTA02
 
@@ -372,7 +372,7 @@ static int neo1973_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-/* GTA01 specific controlls */
+/* GTA01 specific controls */
 
 #ifdef CONFIG_MACH_NEO1973_GTA01
 
@@ -432,7 +432,6 @@ static struct snd_soc_dai_link neo1973_dai[] = {
 { /* Voice via BT */
 	.name = "Bluetooth",
 	.stream_name = "Voice",
-	.platform_name = "samsung-audio",
 	.cpu_dai_name = "dfbmcs320-pcm",
 	.codec_dai_name = "wm8753-voice",
 	.codec_name = "wm8753-codec.0-001a",

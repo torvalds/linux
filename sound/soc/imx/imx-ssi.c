@@ -16,7 +16,7 @@
  * sane processor vendors have a FIFO per AC97 slot, the i.MX has only
  * one FIFO which combines all valid receive slots. We cannot even select
  * which slots we want to receive. The WM9712 with which this driver
- * was developped with always sends GPIO status data in slot 12 which
+ * was developed with always sends GPIO status data in slot 12 which
  * we receive in our (PCM-) data stream. The only chance we have is to
  * manually skip this data in the FIQ handler. With sampling rates different
  * from 48000Hz not every frame has valid receive data, so the ratio
@@ -666,12 +666,6 @@ static int imx_ssi_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx0");
 	if (res)
 		ssi->dma_params_rx.dma = res->start;
-
-	if ((cpu_is_mx27() || cpu_is_mx21()) &&
-			!(ssi->flags & IMX_SSI_USE_AC97) &&
-			(ssi->flags & IMX_SSI_DMA)) {
-		ssi->flags |= IMX_SSI_DMA;
-	}
 
 	platform_set_drvdata(pdev, ssi);
 

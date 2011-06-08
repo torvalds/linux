@@ -46,7 +46,7 @@
 #define SPI_INT_RXFI			(1 << 4)
 #define SPI_INT_MSTI			(1 << 5)
 
-/* TX RX interrupt level threshhold, max can be 256 */
+/* TX RX interrupt level threshold, max can be 256 */
 #define SPI_INT_THRESHOLD		32
 
 enum dw_ssi_type {
@@ -137,8 +137,6 @@ struct dw_spi {
 	u8			max_bits_per_word;	/* maxim is 16b */
 	u32			dma_width;
 	int			cs_change;
-	int			(*write)(struct dw_spi *dws);
-	int			(*read)(struct dw_spi *dws);
 	irqreturn_t		(*transfer_handler)(struct dw_spi *dws);
 	void			(*cs_control)(u32 command);
 

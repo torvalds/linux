@@ -703,7 +703,7 @@ int migrate_platform_irqs(unsigned int cpu)
 				data->chip->irq_disable(data);
 				data->chip->irq_set_affinity(data, mask, false);
 				data->chip->irq_enable(data);
-				printk ("Re-targetting CPEI to cpu %d\n", new_cpei_cpu);
+				printk ("Re-targeting CPEI to cpu %d\n", new_cpei_cpu);
 			}
 		}
 		if (!data) {

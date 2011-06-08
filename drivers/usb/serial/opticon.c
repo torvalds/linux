@@ -116,7 +116,7 @@ static void opticon_read_bulk_callback(struct urb *urb)
 		} else {
 			if ((data[0] == 0x00) && (data[1] == 0x01)) {
 				spin_lock_irqsave(&priv->lock, flags);
-				/* CTS status infomation package */
+				/* CTS status information package */
 				if (data[2] == 0x00)
 					priv->cts = false;
 				else
@@ -289,8 +289,11 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	/* The conncected devices do not have a bulk write endpoint,
 	 * to transmit data to de barcode device the control endpoint is used */
 	dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
-	if (!dr)
-		return -ENOMEM;
+	if (!dr) {
+		dev_err(&port->dev, "out of memory\n");
+		count = -ENOMEM;
+		goto error;
+	}
 
 	dr->bRequestType = USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT;
 	dr->bRequest = 0x01;
@@ -413,7 +416,7 @@ static int opticon_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static int opticon_tiocmset(struct tty_struct *tty, struct file *file,
+static int opticon_tiocmset(struct tty_struct *tty,
 			   unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;

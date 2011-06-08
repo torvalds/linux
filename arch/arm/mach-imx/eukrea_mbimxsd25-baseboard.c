@@ -22,7 +22,6 @@
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
-#include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <video/platform_lcd.h>
 
@@ -32,7 +31,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/mx25.h>
-#include <mach/imx-uart.h>
 #include <mach/audmux.h>
 
 #include "devices-imx25.h"
@@ -207,23 +205,14 @@ static struct gpio_keys_button eukrea_mbimxsd_gpio_buttons[] = {
 	},
 };
 
-static struct gpio_keys_platform_data eukrea_mbimxsd_button_data = {
+static const struct gpio_keys_platform_data
+		eukrea_mbimxsd_button_data __initconst = {
 	.buttons	= eukrea_mbimxsd_gpio_buttons,
 	.nbuttons	= ARRAY_SIZE(eukrea_mbimxsd_gpio_buttons),
 };
 
-static struct platform_device eukrea_mbimxsd_button_device = {
-	.name		= "gpio-keys",
-	.id		= -1,
-	.num_resources	= 0,
-	.dev		= {
-		.platform_data	= &eukrea_mbimxsd_button_data,
-	}
-};
-
 static struct platform_device *platform_devices[] __initdata = {
 	&eukrea_mbimxsd_leds_gpio,
-	&eukrea_mbimxsd_button_device,
 	&eukrea_mbimxsd_lcd_powerdev,
 };
 
@@ -240,6 +229,11 @@ static struct i2c_board_info eukrea_mbimxsd_i2c_devices[] = {
 static const
 struct imx_ssi_platform_data eukrea_mbimxsd_ssi_pdata __initconst = {
 	.flags = IMX_SSI_SYN | IMX_SSI_NET | IMX_SSI_USE_I2S_SLAVE,
+};
+
+static struct esdhc_platform_data sd1_pdata = {
+	.cd_gpio = GPIO_SD1CD,
+	.wp_gpio = -EINVAL,
 };
 
 /*
@@ -275,7 +269,7 @@ void __init eukrea_mbimxsd25_baseboard_init(void)
 	imx25_add_imx_ssi(0, &eukrea_mbimxsd_ssi_pdata);
 
 	imx25_add_flexcan1(NULL);
-	imx25_add_sdhci_esdhc_imx(0, NULL);
+	imx25_add_sdhci_esdhc_imx(0, &sd1_pdata);
 
 	gpio_request(GPIO_LED1, "LED1");
 	gpio_direction_output(GPIO_LED1, 1);
@@ -293,4 +287,5 @@ void __init eukrea_mbimxsd25_baseboard_init(void)
 				ARRAY_SIZE(eukrea_mbimxsd_i2c_devices));
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx_add_gpio_keys(&eukrea_mbimxsd_button_data);
 }

@@ -158,17 +158,17 @@
 
 /**
  * struct sca3000_state - device instance state information
- * @us: 	 		the associated spi device
- * @info: 	  		chip variant information
- * @indio_dev: 	 		device information used by the IIO core
- * @interrupt_handler_ws: 	event interrupt handler for all events
- * @last_timestamp: 		the timestamp of the last event
- * @mo_det_use_count: 		reference counter for the motion detection unit
- * @lock: 		 	lock used to protect elements of sca3000_state
- * 	 			and the underlying device state.
- * @bpse: 		 	number of bits per scan element
- * @tx: 		 	dma-able transmit buffer
- * @rx: 		 	dma-able receive buffer
+ * @us:			the associated spi device
+ * @info:			chip variant information
+ * @indio_dev:			device information used by the IIO core
+ * @interrupt_handler_ws:	event interrupt handler for all events
+ * @last_timestamp:		the timestamp of the last event
+ * @mo_det_use_count:		reference counter for the motion detection unit
+ * @lock:			lock used to protect elements of sca3000_state
+ *				and the underlying device state.
+ * @bpse:			number of bits per scan element
+ * @tx:			dma-able transmit buffer
+ * @rx:			dma-able receive buffer
  **/
 struct sca3000_state {
 	struct spi_device		*us;
@@ -179,15 +179,14 @@ struct sca3000_state {
 	int				mo_det_use_count;
 	struct mutex			lock;
 	int				bpse;
-	u8				*tx;
-	/* not used during a ring buffer read */
-	u8				*rx;
+	/* Can these share a cacheline ? */
+	u8				rx[2] ____cacheline_aligned;
+	u8				tx[6] ____cacheline_aligned;
 };
 
 /**
- * struct sca3000_chip_info - model dependant parameters
- * @name: 			model identification
- * @scale:			string containing floating point scale factor
+ * struct sca3000_chip_info - model dependent parameters
+ * @scale:			scale * 10^-6
  * @temp_output:		some devices have temperature sensors.
  * @measurement_mode_freq:	normal mode sampling frequency
  * @option_mode_1:		first optional mode. Not all models have one
@@ -199,30 +198,20 @@ struct sca3000_state {
  * sca3000 variant.
  **/
 struct sca3000_chip_info {
-	const char		*name;
-	const char		*scale;
+	unsigned int		scale;
 	bool			temp_output;
 	int			measurement_mode_freq;
 	int			option_mode_1;
 	int			option_mode_1_freq;
 	int			option_mode_2;
 	int			option_mode_2_freq;
+	int			mot_det_mult_xz[6];
+	int			mot_det_mult_y[7];
 };
 
-/**
- * sca3000_read_data() read a series of values from the device
- * @dev:		device
- * @reg_address_high:	start address (decremented read)
- * @rx:			pointer where recieved data is placed. Callee
- *			responsible for freeing this.
- * @len:		number of bytes to read
- *
- * The main lock must be held.
- **/
-int sca3000_read_data(struct sca3000_state *st,
-		      u8 reg_address_high,
-		      u8 **rx_p,
-		      int len);
+int sca3000_read_data_short(struct sca3000_state *st,
+			    u8 reg_address_high,
+			    int len);
 
 /**
  * sca3000_write_reg() write a single register
@@ -232,29 +221,6 @@ int sca3000_read_data(struct sca3000_state *st,
  * The main lock must be held.
  **/
 int sca3000_write_reg(struct sca3000_state *st, u8 address, u8 val);
-
-/* Conversion function for use with the ring buffer when in 11bit mode */
-static inline int sca3000_11bit_convert(uint8_t msb, uint8_t lsb)
-{
-	int16_t val;
-
-	val = ((lsb >> 3) & 0x1C) | (msb << 5);
-	val |= (val & (1 << 12)) ? 0xE000 : 0;
-
-	return val;
-}
-
-static inline int sca3000_13bit_convert(uint8_t msb, uint8_t lsb)
-{
-	s16 val;
-
-	val = ((lsb >> 3) & 0x1F) | (msb << 5);
-	/* sign fill */
-	val |= (val & (1 << 12)) ? 0xE000 : 0;
-
-	return val;
-}
-
 
 #ifdef CONFIG_IIO_RING_BUFFER
 /**

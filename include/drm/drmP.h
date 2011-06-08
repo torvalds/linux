@@ -95,7 +95,7 @@ struct drm_device;
  * drm_core, drm_driver, drm_kms
  * drm_core level can be used in the generic drm code. For example:
  * 	drm_ioctl, drm_mm, drm_memory
- * The macro definiton of DRM_DEBUG is used.
+ * The macro definition of DRM_DEBUG is used.
  * 	DRM_DEBUG(fmt, args...)
  * 	The debug info by using the DRM_DEBUG can be obtained by adding
  * 	the boot option of "drm.debug=1".
@@ -122,10 +122,14 @@ struct drm_device;
  * using the DRM_DEBUG_KMS and DRM_DEBUG.
  */
 
-extern void drm_ut_debug_printk(unsigned int request_level,
+extern __attribute__((format (printf, 4, 5)))
+void drm_ut_debug_printk(unsigned int request_level,
 				const char *prefix,
 				const char *function_name,
 				const char *format, ...);
+extern __attribute__((format (printf, 2, 3)))
+int drm_err(const char *func, const char *format, ...);
+
 /***********************************************************************/
 /** \name DRM template customization defaults */
 /*@{*/
@@ -181,21 +185,11 @@ extern void drm_ut_debug_printk(unsigned int request_level,
  * \param fmt printf() like format string.
  * \param arg arguments
  */
-#define DRM_ERROR(fmt, arg...) \
-	printk(KERN_ERR "[" DRM_NAME ":%s] *ERROR* " fmt , __func__ , ##arg)
+#define DRM_ERROR(fmt, ...)				\
+	drm_err(__func__, fmt, ##__VA_ARGS__)
 
-/**
- * Memory error output.
- *
- * \param area memory area where the error occurred.
- * \param fmt printf() like format string.
- * \param arg arguments
- */
-#define DRM_MEM_ERROR(area, fmt, arg...) \
-	printk(KERN_ERR "[" DRM_NAME ":%s:%s] *ERROR* " fmt , __func__, \
-	       drm_mem_stats[area].name , ##arg)
-
-#define DRM_INFO(fmt, arg...)  printk(KERN_INFO "[" DRM_NAME "] " fmt , ##arg)
+#define DRM_INFO(fmt, ...)				\
+	printk(KERN_INFO "[" DRM_NAME "] " fmt, ##__VA_ARGS__)
 
 /**
  * Debug output.
@@ -808,7 +802,7 @@ struct drm_driver {
 	 *
 	 * \return Flags, or'ed together as follows:
 	 *
-	 * DRM_SCANOUTPOS_VALID = Query successfull.
+	 * DRM_SCANOUTPOS_VALID = Query successful.
 	 * DRM_SCANOUTPOS_INVBL = Inside vblank.
 	 * DRM_SCANOUTPOS_ACCURATE = Returned position is accurate. A lack of
 	 * this flag means that returned position may be offset by a constant
@@ -999,6 +993,22 @@ struct drm_minor {
 	struct list_head master_list;
 	struct drm_mode_group mode_group;
 };
+
+/* mode specified on the command line */
+struct drm_cmdline_mode {
+	bool specified;
+	bool refresh_specified;
+	bool bpp_specified;
+	int xres, yres;
+	int bpp;
+	int refresh;
+	bool rb;
+	bool interlace;
+	bool cvt;
+	bool margins;
+	enum drm_connector_force force;
+};
+
 
 struct drm_pending_vblank_event {
 	struct drm_pending_event base;
@@ -1394,6 +1404,15 @@ extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 						 unsigned flags,
 						 struct drm_crtc *refcrtc);
 extern void drm_calc_timestamping_constants(struct drm_crtc *crtc);
+
+extern bool
+drm_mode_parse_command_line_for_connector(const char *mode_option,
+					  struct drm_connector *connector,
+					  struct drm_cmdline_mode *mode);
+
+extern struct drm_display_mode *
+drm_mode_create_from_cmdline_mode(struct drm_device *dev,
+				  struct drm_cmdline_mode *cmd);
 
 /* Modesetting support */
 extern void drm_vblank_pre_modeset(struct drm_device *dev, int crtc);

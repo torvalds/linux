@@ -567,6 +567,8 @@ struct b43_dma {
 	struct b43_dmaring *tx_ring_mcast; /* Multicast */
 
 	struct b43_dmaring *rx_ring;
+
+	u32 translation; /* Routing bits */
 };
 
 struct b43_pio_txqueue;
@@ -648,8 +650,8 @@ struct b43_request_fw_context {
 	char errors[B43_NR_FWTYPES][128];
 	/* Temporary buffer for storing the firmware name. */
 	char fwname[64];
-	/* A fatal error occured while requesting. Firmware reqest
-	 * can not continue, as any other reqest will also fail. */
+	/* A fatal error occurred while requesting. Firmware request
+	 * can not continue, as any other request will also fail. */
 	int fatal_failure;
 };
 
@@ -705,7 +707,7 @@ enum {
 
 /* Data structure for one wireless device (802.11 core) */
 struct b43_wldev {
-	struct ssb_device *dev;
+	struct ssb_device *sdev;
 	struct b43_wl *wl;
 
 	/* The device initialization status.
@@ -879,22 +881,34 @@ static inline enum ieee80211_band b43_current_band(struct b43_wl *wl)
 
 static inline u16 b43_read16(struct b43_wldev *dev, u16 offset)
 {
-	return ssb_read16(dev->dev, offset);
+	return ssb_read16(dev->sdev, offset);
 }
 
 static inline void b43_write16(struct b43_wldev *dev, u16 offset, u16 value)
 {
-	ssb_write16(dev->dev, offset, value);
+	ssb_write16(dev->sdev, offset, value);
 }
 
 static inline u32 b43_read32(struct b43_wldev *dev, u16 offset)
 {
-	return ssb_read32(dev->dev, offset);
+	return ssb_read32(dev->sdev, offset);
 }
 
 static inline void b43_write32(struct b43_wldev *dev, u16 offset, u32 value)
 {
-	ssb_write32(dev->dev, offset, value);
+	ssb_write32(dev->sdev, offset, value);
+}
+
+static inline void b43_block_read(struct b43_wldev *dev, void *buffer,
+				 size_t count, u16 offset, u8 reg_width)
+{
+	ssb_block_read(dev->sdev, buffer, count, offset, reg_width);
+}
+
+static inline void b43_block_write(struct b43_wldev *dev, const void *buffer,
+				   size_t count, u16 offset, u8 reg_width)
+{
+	ssb_block_write(dev->sdev, buffer, count, offset, reg_width);
 }
 
 static inline bool b43_using_pio_transfers(struct b43_wldev *dev)

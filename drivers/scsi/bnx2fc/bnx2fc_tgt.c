@@ -395,7 +395,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 		rp = rport->dd_data;
 		if (rport->port_id == FC_FID_DIR_SERV) {
 			/*
-			 * bnx2fc_rport structure doesnt exist for
+			 * bnx2fc_rport structure doesn't exist for
 			 * directory server.
 			 * We should not come here, as lport will
 			 * take care of fabric login

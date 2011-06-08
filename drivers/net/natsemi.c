@@ -203,7 +203,7 @@ skbuff at an offset of "+2", 16-byte aligning the IP header.
 IIId. Synchronization
 
 Most operations are synchronized on the np->lock irq spinlock, except the
-recieve and transmit paths which are synchronised using a combination of
+receive and transmit paths which are synchronised using a combination of
 hardware descriptor ownership, disabling interrupts and NAPI poll scheduling.
 
 IVb. References
@@ -726,7 +726,7 @@ static void move_int_phy(struct net_device *dev, int addr)
 	 * There are two addresses we must avoid:
 	 * - the address on the external phy that is used for transmission.
 	 * - the address that we want to access. User space can access phys
-	 *   on the mii bus with SIOCGMIIREG/SIOCSMIIREG, independant from the
+	 *   on the mii bus with SIOCGMIIREG/SIOCSMIIREG, independent from the
 	 *   phy that is used for transmission.
 	 */
 
@@ -859,6 +859,9 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 		dev->dev_addr[i*2+1] = eedata >> 7;
 		prev_eedata = eedata;
 	}
+
+	/* Store MAC Address in perm_addr */
+	memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 
 	dev->base_addr = (unsigned long __force) ioaddr;
 	dev->irq = irq;
@@ -1982,7 +1985,7 @@ static void init_ring(struct net_device *dev)
 
 	np->rx_head_desc = &np->rx_ring[0];
 
-	/* Please be carefull before changing this loop - at least gcc-2.95.1
+	/* Please be careful before changing this loop - at least gcc-2.95.1
 	 * miscompiles it otherwise.
 	 */
 	/* Initialize all Rx descriptors. */
@@ -2817,7 +2820,7 @@ static int netdev_get_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 	u32 tmp;
 
 	ecmd->port        = dev->if_port;
-	ecmd->speed       = np->speed;
+	ethtool_cmd_speed_set(ecmd, np->speed);
 	ecmd->duplex      = np->duplex;
 	ecmd->autoneg     = np->autoneg;
 	ecmd->advertising = 0;
@@ -2875,9 +2878,9 @@ static int netdev_get_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 		tmp = mii_nway_result(
 			np->advertising & mdio_read(dev, MII_LPA));
 		if (tmp == LPA_100FULL || tmp == LPA_100HALF)
-			ecmd->speed  = SPEED_100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 		else
-			ecmd->speed  = SPEED_10;
+			ethtool_cmd_speed_set(ecmd, SPEED_10);
 		if (tmp == LPA_100FULL || tmp == LPA_10FULL)
 			ecmd->duplex = DUPLEX_FULL;
 		else
@@ -2905,7 +2908,8 @@ static int netdev_set_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 			return -EINVAL;
 		}
 	} else if (ecmd->autoneg == AUTONEG_DISABLE) {
-		if (ecmd->speed != SPEED_10 && ecmd->speed != SPEED_100)
+		u32 speed = ethtool_cmd_speed(ecmd);
+		if (speed != SPEED_10 && speed != SPEED_100)
 			return -EINVAL;
 		if (ecmd->duplex != DUPLEX_HALF && ecmd->duplex != DUPLEX_FULL)
 			return -EINVAL;
@@ -2953,7 +2957,7 @@ static int netdev_set_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (ecmd->advertising & ADVERTISED_100baseT_Full)
 			np->advertising |= ADVERTISE_100FULL;
 	} else {
-		np->speed  = ecmd->speed;
+		np->speed  = ethtool_cmd_speed(ecmd);
 		np->duplex = ecmd->duplex;
 		/* user overriding the initial full duplex parm? */
 		if (np->duplex == DUPLEX_HALF)

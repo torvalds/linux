@@ -1972,7 +1972,7 @@ static int ipath_do_user_init(struct file *fp,
 	 * 0 to 1.  So for those chips, we turn it off and then back on.
 	 * This will (very briefly) affect any other open ports, but the
 	 * duration is very short, and therefore isn't an issue.  We
-	 * explictly set the in-memory tail copy to 0 beforehand, so we
+	 * explicitly set the in-memory tail copy to 0 beforehand, so we
 	 * don't have to wait to be sure the DMA update has happened
 	 * (chip resets head/tail to 0 on transition to enable).
 	 */

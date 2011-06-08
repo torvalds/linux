@@ -117,7 +117,7 @@ enum gelic_descr_rx_error {
 	GELIC_DESCR_RXDATAERR	= 0x00020000, /* IP packet format error */
 	GELIC_DESCR_RXCALERR	= 0x00010000, /* cariier extension length
 					      * error */
-	GELIC_DESCR_RXCREXERR	= 0x00008000, /* carrier extention error */
+	GELIC_DESCR_RXCREXERR	= 0x00008000, /* carrier extension error */
 	GELIC_DESCR_RXMLTCST	= 0x00004000, /* multicast address frame */
 	/* bit 13..0 reserved */
 };
@@ -290,7 +290,6 @@ struct gelic_card {
 	struct gelic_descr_chain tx_chain;
 	struct gelic_descr_chain rx_chain;
 	int rx_dma_restart_required;
-	int rx_csum;
 	/*
 	 * tx_lock guards tx descriptor list and
 	 * tx_dma_progress.
@@ -377,8 +376,6 @@ extern int gelic_net_setup_netdev(struct net_device *netdev,
 /* shared ethtool ops */
 extern void gelic_net_get_drvinfo(struct net_device *netdev,
 				  struct ethtool_drvinfo *info);
-extern u32 gelic_net_get_rx_csum(struct net_device *netdev);
-extern int gelic_net_set_rx_csum(struct net_device *netdev, u32 data);
 extern void gelic_net_poll_controller(struct net_device *netdev);
 
 #endif /* _GELIC_NET_H */

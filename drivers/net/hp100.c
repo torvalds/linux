@@ -180,22 +180,22 @@ struct hp100_private {
 
 	u_int *page_vaddr_algn;	/* Aligned virtual address of allocated page */
 	u_long whatever_offset;	/* Offset to bus/phys/dma address */
-	int rxrcommit;		/* # Rx PDLs commited to adapter */
-	int txrcommit;		/* # Tx PDLs commited to adapter */
+	int rxrcommit;		/* # Rx PDLs committed to adapter */
+	int txrcommit;		/* # Tx PDLs committed to adapter */
 };
 
 /*
  *  variables
  */
 #ifdef CONFIG_ISA
-static const char *hp100_isa_tbl[] = {
+static const char *const hp100_isa_tbl[] __devinitconst = {
 	"HWPF150", /* HP J2573 rev A */
 	"HWP1950", /* HP J2573 */
 };
 #endif
 
 #ifdef CONFIG_EISA
-static struct eisa_device_id hp100_eisa_tbl[] = {
+static const struct eisa_device_id hp100_eisa_tbl[] __devinitconst = {
 	{ "HWPF180" }, /* HP J2577 rev A */
 	{ "HWP1920" }, /* HP 27248B */
 	{ "HWP1940" }, /* HP J2577 */
@@ -336,7 +336,7 @@ static __devinit const char *hp100_read_id(int ioaddr)
 }
 
 #ifdef CONFIG_ISA
-static __init int hp100_isa_probe1(struct net_device *dev, int ioaddr)
+static __devinit int hp100_isa_probe1(struct net_device *dev, int ioaddr)
 {
 	const char *sig;
 	int i;
@@ -372,7 +372,7 @@ static __init int hp100_isa_probe1(struct net_device *dev, int ioaddr)
  * EISA and PCI are handled by device infrastructure.
  */
 
-static int  __init hp100_isa_probe(struct net_device *dev, int addr)
+static int  __devinit hp100_isa_probe(struct net_device *dev, int addr)
 {
 	int err = -ENODEV;
 
@@ -396,7 +396,7 @@ static int  __init hp100_isa_probe(struct net_device *dev, int addr)
 #endif /* CONFIG_ISA */
 
 #if !defined(MODULE) && defined(CONFIG_ISA)
-struct net_device * __init hp100_probe(int unit)
+struct net_device * __devinit hp100_probe(int unit)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct hp100_private));
 	int err;
@@ -716,7 +716,7 @@ static int __devinit hp100_probe1(struct net_device *dev, int ioaddr,
 	 * implemented/tested only with the lassen chip anyway... */
 	if (lp->mode == 1) {	/* busmaster */
 		dma_addr_t page_baddr;
-		/* Get physically continous memory for TX & RX PDLs    */
+		/* Get physically continuous memory for TX & RX PDLs    */
 		/* Conversion to new PCI API :
 		 * Pages are always aligned and zeroed, no need to it ourself.
 		 * Doc says should be OK for EISA bus as well - Jean II */
@@ -1596,7 +1596,7 @@ drop:
 
 /* clean_txring checks if packets have been sent by the card by reading
  * the TX_PDL register from the performance page and comparing it to the
- * number of commited packets. It then frees the skb's of the packets that
+ * number of committed packets. It then frees the skb's of the packets that
  * obviously have been sent to the network.
  *
  * Needs the PERFORMANCE page selected.
@@ -1617,7 +1617,7 @@ static void hp100_clean_txring(struct net_device *dev)
 
 #ifdef HP100_DEBUG
 	if (donecount > MAX_TX_PDL)
-		printk("hp100: %s: Warning: More PDLs transmitted than commited to card???\n", dev->name);
+		printk("hp100: %s: Warning: More PDLs transmitted than committed to card???\n", dev->name);
 #endif
 
 	for (; 0 != donecount; donecount--) {
@@ -1765,7 +1765,7 @@ drop:
  * Receive Function (Non-Busmaster mode)
  * Called when an "Receive Packet" interrupt occurs, i.e. the receive
  * packet counter is non-zero.
- * For non-busmaster, this function does the whole work of transfering
+ * For non-busmaster, this function does the whole work of transferring
  * the packet to the host memory and then up to higher layers via skb
  * and netif_rx.
  */
@@ -1892,7 +1892,7 @@ static void hp100_rx_bm(struct net_device *dev)
 		/* RX_PKT_CNT states how many PDLs are currently formatted and available to
 		 * the cards BM engine */
 	if ((hp100_inw(RX_PKT_CNT) & 0x00ff) >= lp->rxrcommit) {
-		printk("hp100: %s: More packets received than commited? RX_PKT_CNT=0x%x, commit=0x%x\n",
+		printk("hp100: %s: More packets received than committed? RX_PKT_CNT=0x%x, commit=0x%x\n",
 				     dev->name, hp100_inw(RX_PKT_CNT) & 0x00ff,
 				     lp->rxrcommit);
 		return;
@@ -2256,7 +2256,7 @@ static irqreturn_t hp100_interrupt(int irq, void *dev_id)
 		if (lp->mode != 1)	/* non busmaster */
 			hp100_rx(dev);
 		else if (!(val & HP100_RX_PDL_FILL_COMPL)) {
-			/* Shouldnt happen - maybe we missed a RX_PDL_FILL Interrupt?  */
+			/* Shouldn't happen - maybe we missed a RX_PDL_FILL Interrupt?  */
 			hp100_rx_bm(dev);
 		}
 	}
@@ -2843,7 +2843,7 @@ static void cleanup_dev(struct net_device *d)
 }
 
 #ifdef CONFIG_EISA
-static int __init hp100_eisa_probe (struct device *gendev)
+static int __devinit hp100_eisa_probe (struct device *gendev)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct hp100_private));
 	struct eisa_device *edev = to_eisa_device(gendev);

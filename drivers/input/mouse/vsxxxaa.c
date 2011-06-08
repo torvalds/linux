@@ -334,7 +334,7 @@ static void vsxxxaa_handle_POR_packet(struct vsxxxaa *mouse)
 	 * M: manufacturer location code
 	 * R: revision code
 	 * E: Error code. If it's in the range of 0x00..0x1f, only some
-	 *    minor problem occured. Errors >= 0x20 are considered bad
+	 *    minor problem occurred. Errors >= 0x20 are considered bad
 	 *    and the device may not work properly...
 	 * D: <0010> == mouse, <0100> == tablet
 	 */

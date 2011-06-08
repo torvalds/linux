@@ -68,9 +68,9 @@ struct spider_pic {
 };
 static struct spider_pic spider_pics[SPIDER_CHIP_COUNT];
 
-static struct spider_pic *spider_virq_to_pic(unsigned int virq)
+static struct spider_pic *spider_irq_data_to_pic(struct irq_data *d)
 {
-	return irq_map[virq].host->host_data;
+	return irq_data_get_irq_chip_data(d);
 }
 
 static void __iomem *spider_get_irq_config(struct spider_pic *pic,
@@ -81,24 +81,24 @@ static void __iomem *spider_get_irq_config(struct spider_pic *pic,
 
 static void spider_unmask_irq(struct irq_data *d)
 {
-	struct spider_pic *pic = spider_virq_to_pic(d->irq);
-	void __iomem *cfg = spider_get_irq_config(pic, irq_map[d->irq].hwirq);
+	struct spider_pic *pic = spider_irq_data_to_pic(d);
+	void __iomem *cfg = spider_get_irq_config(pic, irqd_to_hwirq(d));
 
 	out_be32(cfg, in_be32(cfg) | 0x30000000u);
 }
 
 static void spider_mask_irq(struct irq_data *d)
 {
-	struct spider_pic *pic = spider_virq_to_pic(d->irq);
-	void __iomem *cfg = spider_get_irq_config(pic, irq_map[d->irq].hwirq);
+	struct spider_pic *pic = spider_irq_data_to_pic(d);
+	void __iomem *cfg = spider_get_irq_config(pic, irqd_to_hwirq(d));
 
 	out_be32(cfg, in_be32(cfg) & ~0x30000000u);
 }
 
 static void spider_ack_irq(struct irq_data *d)
 {
-	struct spider_pic *pic = spider_virq_to_pic(d->irq);
-	unsigned int src = irq_map[d->irq].hwirq;
+	struct spider_pic *pic = spider_irq_data_to_pic(d);
+	unsigned int src = irqd_to_hwirq(d);
 
 	/* Reset edge detection logic if necessary
 	 */
@@ -116,8 +116,8 @@ static void spider_ack_irq(struct irq_data *d)
 static int spider_set_irq_type(struct irq_data *d, unsigned int type)
 {
 	unsigned int sense = type & IRQ_TYPE_SENSE_MASK;
-	struct spider_pic *pic = spider_virq_to_pic(d->irq);
-	unsigned int hw = irq_map[d->irq].hwirq;
+	struct spider_pic *pic = spider_irq_data_to_pic(d);
+	unsigned int hw = irqd_to_hwirq(d);
 	void __iomem *cfg = spider_get_irq_config(pic, hw);
 	u32 old_mask;
 	u32 ic;
@@ -171,6 +171,7 @@ static struct irq_chip spider_pic = {
 static int spider_host_map(struct irq_host *h, unsigned int virq,
 			irq_hw_number_t hw)
 {
+	irq_set_chip_data(virq, h->host_data);
 	irq_set_chip_and_handler(virq, &spider_pic, handle_level_irq);
 
 	/* Set default irq type */

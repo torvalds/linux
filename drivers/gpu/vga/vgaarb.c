@@ -61,7 +61,7 @@ struct vga_device {
 	unsigned int mem_lock_cnt;	/* legacy MEM lock count */
 	unsigned int io_norm_cnt;	/* normal IO count */
 	unsigned int mem_norm_cnt;	/* normal MEM count */
-
+	bool bridge_has_one_vga;
 	/* allow IRQ enable/disable hook */
 	void *cookie;
 	void (*irq_set_state)(void *cookie, bool enable);
@@ -151,7 +151,7 @@ static inline void vga_irq_set_state(struct vga_device *vgadev, bool state)
 static void vga_check_first_use(void)
 {
 	/* we should inform all GPUs in the system that
-	 * VGA arb has occured and to try and disable resources
+	 * VGA arb has occurred and to try and disable resources
 	 * if they can */
 	if (!vga_arbiter_used) {
 		vga_arbiter_used = true;
@@ -165,6 +165,8 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 	unsigned int wants, legacy_wants, match;
 	struct vga_device *conflict;
 	unsigned int pci_bits;
+	u32 flags = 0;
+
 	/* Account for "normal" resources to lock. If we decode the legacy,
 	 * counterpart, we need to request it as well
 	 */
@@ -237,16 +239,23 @@ static struct vga_device *__vga_tryget(struct vga_device *vgadev,
 		/* looks like he doesn't have a lock, we can steal
 		 * them from him
 		 */
-		vga_irq_set_state(conflict, false);
 
+		flags = 0;
 		pci_bits = 0;
-		if (lwants & (VGA_RSRC_LEGACY_MEM|VGA_RSRC_NORMAL_MEM))
-			pci_bits |= PCI_COMMAND_MEMORY;
-		if (lwants & (VGA_RSRC_LEGACY_IO|VGA_RSRC_NORMAL_IO))
-			pci_bits |= PCI_COMMAND_IO;
 
-		pci_set_vga_state(conflict->pdev, false, pci_bits,
-				  change_bridge);
+		if (!conflict->bridge_has_one_vga) {
+			vga_irq_set_state(conflict, false);
+			flags |= PCI_VGA_STATE_CHANGE_DECODES;
+			if (lwants & (VGA_RSRC_LEGACY_MEM|VGA_RSRC_NORMAL_MEM))
+				pci_bits |= PCI_COMMAND_MEMORY;
+			if (lwants & (VGA_RSRC_LEGACY_IO|VGA_RSRC_NORMAL_IO))
+				pci_bits |= PCI_COMMAND_IO;
+		}
+
+		if (change_bridge)
+			flags |= PCI_VGA_STATE_CHANGE_BRIDGE;
+
+		pci_set_vga_state(conflict->pdev, false, pci_bits, flags);
 		conflict->owns &= ~lwants;
 		/* If he also owned non-legacy, that is no longer the case */
 		if (lwants & VGA_RSRC_LEGACY_MEM)
@@ -261,14 +270,24 @@ enable_them:
 	 * also have in "decodes". We can lock resources we don't decode but
 	 * not own them.
 	 */
+	flags = 0;
 	pci_bits = 0;
-	if (wants & (VGA_RSRC_LEGACY_MEM|VGA_RSRC_NORMAL_MEM))
-		pci_bits |= PCI_COMMAND_MEMORY;
-	if (wants & (VGA_RSRC_LEGACY_IO|VGA_RSRC_NORMAL_IO))
-		pci_bits |= PCI_COMMAND_IO;
-	pci_set_vga_state(vgadev->pdev, true, pci_bits, !!(wants & VGA_RSRC_LEGACY_MASK));
 
-	vga_irq_set_state(vgadev, true);
+	if (!vgadev->bridge_has_one_vga) {
+		flags |= PCI_VGA_STATE_CHANGE_DECODES;
+		if (wants & (VGA_RSRC_LEGACY_MEM|VGA_RSRC_NORMAL_MEM))
+			pci_bits |= PCI_COMMAND_MEMORY;
+		if (wants & (VGA_RSRC_LEGACY_IO|VGA_RSRC_NORMAL_IO))
+			pci_bits |= PCI_COMMAND_IO;
+	}
+	if (!!(wants & VGA_RSRC_LEGACY_MASK))
+		flags |= PCI_VGA_STATE_CHANGE_BRIDGE;
+
+	pci_set_vga_state(vgadev->pdev, true, pci_bits, flags);
+
+	if (!vgadev->bridge_has_one_vga) {
+		vga_irq_set_state(vgadev, true);
+	}
 	vgadev->owns |= (wants & vgadev->decodes);
 lock_them:
 	vgadev->locks |= (rsrc & VGA_RSRC_LEGACY_MASK);
@@ -421,6 +440,62 @@ bail:
 }
 EXPORT_SYMBOL(vga_put);
 
+/* Rules for using a bridge to control a VGA descendant decoding:
+   if a bridge has only one VGA descendant then it can be used
+   to control the VGA routing for that device.
+   It should always use the bridge closest to the device to control it.
+   If a bridge has a direct VGA descendant, but also have a sub-bridge
+   VGA descendant then we cannot use that bridge to control the direct VGA descendant.
+   So for every device we register, we need to iterate all its parent bridges
+   so we can invalidate any devices using them properly.
+*/
+static void vga_arbiter_check_bridge_sharing(struct vga_device *vgadev)
+{
+	struct vga_device *same_bridge_vgadev;
+	struct pci_bus *new_bus, *bus;
+	struct pci_dev *new_bridge, *bridge;
+
+	vgadev->bridge_has_one_vga = true;
+
+	if (list_empty(&vga_list))
+		return;
+
+	/* okay iterate the new devices bridge hierarachy */
+	new_bus = vgadev->pdev->bus;
+	while (new_bus) {
+		new_bridge = new_bus->self;
+
+		if (new_bridge) {
+			/* go through list of devices already registered */
+			list_for_each_entry(same_bridge_vgadev, &vga_list, list) {
+				bus = same_bridge_vgadev->pdev->bus;
+				bridge = bus->self;
+
+				/* see if the share a bridge with this device */
+				if (new_bridge == bridge) {
+					/* if their direct parent bridge is the same
+					   as any bridge of this device then it can't be used
+					   for that device */
+					same_bridge_vgadev->bridge_has_one_vga = false;
+				}
+
+				/* now iterate the previous devices bridge hierarchy */
+				/* if the new devices parent bridge is in the other devices
+				   hierarchy then we can't use it to control this device */
+				while (bus) {
+					bridge = bus->self;
+					if (bridge) {
+						if (bridge == vgadev->pdev->bus->self)
+							vgadev->bridge_has_one_vga = false;
+					}
+					bus = bus->parent;
+				}
+			}
+		}
+		new_bus = new_bus->parent;
+	}
+}
+
 /*
  * Currently, we assume that the "initial" setup of the system is
  * not sane, that is we come up with conflicting devices and let
@@ -499,6 +574,8 @@ static bool vga_arbiter_add_pci_device(struct pci_dev *pdev)
 	    ((vgadev->owns & VGA_RSRC_LEGACY_MASK) == VGA_RSRC_LEGACY_MASK))
 		vga_default = pci_dev_get(pdev);
 #endif
+
+	vga_arbiter_check_bridge_sharing(vgadev);
 
 	/* Add to the list */
 	list_add(&vgadev->list, &vga_list);
@@ -774,7 +851,7 @@ static ssize_t vga_arb_read(struct file *file, char __user * buf,
 	 */
 	spin_lock_irqsave(&vga_lock, flags);
 
-	/* If we are targetting the default, use it */
+	/* If we are targeting the default, use it */
 	pdev = priv->target;
 	if (pdev == NULL || pdev == PCI_INVALID_CARD) {
 		spin_unlock_irqrestore(&vga_lock, flags);
@@ -1222,6 +1299,7 @@ static int __init vga_arb_device_init(void)
 {
 	int rc;
 	struct pci_dev *pdev;
+	struct vga_device *vgadev;
 
 	rc = misc_register(&vga_arb_device);
 	if (rc < 0)
@@ -1238,6 +1316,13 @@ static int __init vga_arb_device_init(void)
 		vga_arbiter_add_pci_device(pdev);
 
 	pr_info("vgaarb: loaded\n");
+
+	list_for_each_entry(vgadev, &vga_list, list) {
+		if (vgadev->bridge_has_one_vga)
+			pr_info("vgaarb: bridge control possible %s\n", pci_name(vgadev->pdev));
+		else
+			pr_info("vgaarb: no bridge control possible %s\n", pci_name(vgadev->pdev));
+	}
 	return rc;
 }
 subsys_initcall(vga_arb_device_init);

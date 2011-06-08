@@ -700,7 +700,7 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 	/* The USB 2.0 spec says 256 ms.  This is close enough and won't
 	 * exceed that limit if HZ is 100. The math is more clunky than
 	 * maybe expected, this is to make sure that all timers for USB devices
-	 * fire at the same time to give the CPU a break inbetween */
+	 * fire at the same time to give the CPU a break in between */
 	if (hcd->uses_new_polling ? HCD_POLL_RH(hcd) :
 			(length == 0 && hcd->status_urb != NULL))
 		mod_timer (&hcd->rh_timer, (jiffies/(HZ/4) + 1) * (HZ/4));
@@ -986,7 +986,7 @@ static int register_root_hub(struct usb_hcd *hcd)
 		spin_unlock_irq (&hcd_root_hub_lock);
 
 		/* Did the HC die before the root hub was registered? */
-		if (HCD_DEAD(hcd) || hcd->state == HC_STATE_HALT)
+		if (HCD_DEAD(hcd))
 			usb_hc_died (hcd);	/* This time clean up */
 	}
 
@@ -1908,7 +1908,7 @@ void usb_free_streams(struct usb_interface *interface,
 
 	/* Streams only apply to bulk endpoints. */
 	for (i = 0; i < num_eps; i++)
-		if (!usb_endpoint_xfer_bulk(&eps[i]->desc))
+		if (!eps[i] || !usb_endpoint_xfer_bulk(&eps[i]->desc))
 			return;
 
 	hcd->driver->free_streams(hcd, dev, eps, num_eps, mem_flags);
@@ -2128,9 +2128,6 @@ irqreturn_t usb_hcd_irq (int irq, void *__hcd)
 		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 		if (hcd->shared_hcd)
 			set_bit(HCD_FLAG_SAW_IRQ, &hcd->shared_hcd->flags);
-
-		if (unlikely(hcd->state == HC_STATE_HALT))
-			usb_hc_died(hcd);
 		rc = IRQ_HANDLED;
 	}
 
@@ -2407,6 +2404,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		rhdev->speed = USB_SPEED_SUPER;
 		break;
 	default:
+		retval = -EINVAL;
 		goto err_set_rh_speed;
 	}
 

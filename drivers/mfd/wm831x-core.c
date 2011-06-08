@@ -1442,7 +1442,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
 	int rev;
 	enum wm831x_parent parent;
-	int ret;
+	int ret, i;
 
 	mutex_init(&wm831x->io_lock);
 	mutex_init(&wm831x->key_lock);
@@ -1578,6 +1578,17 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		if (ret != 0) {
 			dev_err(wm831x->dev, "pre_init() failed: %d\n", ret);
 			goto err;
+		}
+	}
+
+	if (pdata) {
+		for (i = 0; i < ARRAY_SIZE(pdata->gpio_defaults); i++) {
+			if (!pdata->gpio_defaults[i])
+				continue;
+
+			wm831x_reg_write(wm831x,
+					 WM831X_GPIO1_CONTROL + i,
+					 pdata->gpio_defaults[i] & 0xffff);
 		}
 	}
 

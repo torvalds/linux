@@ -126,7 +126,7 @@ find_endpoint_directions(cy_as_device *dev_p,
 	cy_as_physical_endpoint_state desired;
 
 	/*
-	 * note, there is no error checking here becuase
+	 * note, there is no error checking here because
 	 * ISO error checking happens when the API is called.
 	 */
 	for (i = 0; i < 10; i++) {

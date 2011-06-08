@@ -55,7 +55,7 @@ xfrm4_init_temprop(struct xfrm_state *x, const struct xfrm_tmpl *tmpl,
 
 int xfrm4_extract_header(struct sk_buff *skb)
 {
-	struct iphdr *iph = ip_hdr(skb);
+	const struct iphdr *iph = ip_hdr(skb);
 
 	XFRM_MODE_SKB_CB(skb)->ihl = sizeof(*iph);
 	XFRM_MODE_SKB_CB(skb)->id = iph->id;
@@ -78,6 +78,7 @@ static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.init_tempsel		= __xfrm4_init_tempsel,
 	.init_temprop		= xfrm4_init_temprop,
 	.output			= xfrm4_output,
+	.output_finish		= xfrm4_output_finish,
 	.extract_input		= xfrm4_extract_input,
 	.extract_output		= xfrm4_extract_output,
 	.transport_finish	= xfrm4_transport_finish,

@@ -469,7 +469,7 @@ static void lcd_stop(struct gspca_dev *gspca_dev)
 static int isoc_enable(struct gspca_dev *gspca_dev)
 {
 	gspca_dev->usb_buf[0] = 0x00;
-	gspca_dev->usb_buf[1] = 0x4d;  /* ISOC transfering enable... */
+	gspca_dev->usb_buf[1] = 0x4d;  /* ISOC transferring enable... */
 	return mr_write(gspca_dev, 2);
 }
 

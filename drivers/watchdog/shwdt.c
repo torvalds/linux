@@ -50,7 +50,7 @@
  * necssary.
  *
  * As a result of this timing problem, the only modes that are particularly
- * feasible are the 4096 and the 2048 divisors, which yeild 5.25 and 2.62ms
+ * feasible are the 4096 and the 2048 divisors, which yield 5.25 and 2.62ms
  * overflow periods respectively.
  *
  * Also, since we can't really expect userspace to be responsive enough

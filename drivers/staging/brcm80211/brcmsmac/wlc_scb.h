@@ -17,8 +17,6 @@
 #ifndef _wlc_scb_h_
 #define _wlc_scb_h_
 
-extern bool wlc_aggregatable(struct wlc_info *wlc, u8 tid);
-
 #define AMPDU_TX_BA_MAX_WSIZE	64	/* max Tx ba window size (in pdu) */
 /* structure to store per-tid state for the ampdu initiator */
 typedef struct scb_ampdu_tid_ini {

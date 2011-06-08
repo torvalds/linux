@@ -328,7 +328,7 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	struct pci_bus *frozen_bus;
 	int rc = 0;
 	enum pci_ers_result result = PCI_ERS_RESULT_NONE;
-	const char *location, *pci_str, *drv_str;
+	const char *location, *pci_str, *drv_str, *bus_pci_str, *bus_drv_str;
 
 	frozen_dn = find_device_pe(event->dn);
 	if (!frozen_dn) {
@@ -364,13 +364,8 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	frozen_pdn = PCI_DN(frozen_dn);
 	frozen_pdn->eeh_freeze_count++;
 
-	if (frozen_pdn->pcidev) {
-		pci_str = pci_name (frozen_pdn->pcidev);
-		drv_str = pcid_name (frozen_pdn->pcidev);
-	} else {
-		pci_str = eeh_pci_name(event->dev);
-		drv_str = pcid_name (event->dev);
-	}
+	pci_str = eeh_pci_name(event->dev);
+	drv_str = pcid_name(event->dev);
 	
 	if (frozen_pdn->eeh_freeze_count > EEH_MAX_ALLOWED_FREEZES)
 		goto excess_failures;
@@ -378,8 +373,17 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	printk(KERN_WARNING
 	   "EEH: This PCI device has failed %d times in the last hour:\n",
 		frozen_pdn->eeh_freeze_count);
+
+	if (frozen_pdn->pcidev) {
+		bus_pci_str = pci_name(frozen_pdn->pcidev);
+		bus_drv_str = pcid_name(frozen_pdn->pcidev);
+		printk(KERN_WARNING
+			"EEH: Bus location=%s driver=%s pci addr=%s\n",
+			location, bus_drv_str, bus_pci_str);
+	}
+
 	printk(KERN_WARNING
-		"EEH: location=%s driver=%s pci addr=%s\n",
+		"EEH: Device location=%s driver=%s pci addr=%s\n",
 		location, drv_str, pci_str);
 
 	/* Walk the various device drivers attached to this slot through

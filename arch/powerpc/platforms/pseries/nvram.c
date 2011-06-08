@@ -480,7 +480,31 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 		const char *new_msgs, unsigned long new_len)
 {
 	static unsigned int oops_count = 0;
+	static bool panicking = false;
 	size_t text_len;
+
+	switch (reason) {
+	case KMSG_DUMP_RESTART:
+	case KMSG_DUMP_HALT:
+	case KMSG_DUMP_POWEROFF:
+		/* These are almost always orderly shutdowns. */
+		return;
+	case KMSG_DUMP_OOPS:
+	case KMSG_DUMP_KEXEC:
+		break;
+	case KMSG_DUMP_PANIC:
+		panicking = true;
+		break;
+	case KMSG_DUMP_EMERG:
+		if (panicking)
+			/* Panic report already captured. */
+			return;
+		break;
+	default:
+		pr_err("%s: ignoring unrecognized KMSG_DUMP_* reason %d\n",
+						__FUNCTION__, (int) reason);
+		return;
+	}
 
 	if (clobbering_unread_rtas_event())
 		return;

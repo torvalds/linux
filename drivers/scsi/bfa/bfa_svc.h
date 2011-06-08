@@ -127,7 +127,7 @@ struct bfa_fcxp_req_info_s {
 					 * rport nexus is established
 					 */
 	struct fchs_s	fchs;	/*  request FC header structure */
-	u8		cts;	/*  continous sequence */
+	u8		cts;	/*  continuous sequence */
 	u8		class;	/*  FC class for the request/response */
 	u16	max_frmsz;	/*  max send frame size */
 	u16	vf_id;	/*  vsan tag if applicable */

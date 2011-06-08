@@ -50,20 +50,14 @@ void __init check_iommu_entries(struct iommu_table_entry *start,
 				struct iommu_table_entry *finish)
 {
 	struct iommu_table_entry *p, *q, *x;
-	char sym_p[KSYM_SYMBOL_LEN];
-	char sym_q[KSYM_SYMBOL_LEN];
 
 	/* Simple cyclic dependency checker. */
 	for (p = start; p < finish; p++) {
 		q = find_dependents_of(start, finish, p);
 		x = find_dependents_of(start, finish, q);
 		if (p == x) {
-			sprint_symbol(sym_p, (unsigned long)p->detect);
-			sprint_symbol(sym_q, (unsigned long)q->detect);
-
-			printk(KERN_ERR "CYCLIC DEPENDENCY FOUND! %s depends" \
-					" on %s and vice-versa. BREAKING IT.\n",
-					sym_p, sym_q);
+			printk(KERN_ERR "CYCLIC DEPENDENCY FOUND! %pS depends on %pS and vice-versa. BREAKING IT.\n",
+			       p->detect, q->detect);
 			/* Heavy handed way..*/
 			x->depend = 0;
 		}
@@ -72,12 +66,8 @@ void __init check_iommu_entries(struct iommu_table_entry *start,
 	for (p = start; p < finish; p++) {
 		q = find_dependents_of(p, finish, p);
 		if (q && q > p) {
-			sprint_symbol(sym_p, (unsigned long)p->detect);
-			sprint_symbol(sym_q, (unsigned long)q->detect);
-
-			printk(KERN_ERR "EXECUTION ORDER INVALID! %s "\
-					"should be called before %s!\n",
-					sym_p, sym_q);
+			printk(KERN_ERR "EXECUTION ORDER INVALID! %pS should be called before %pS!\n",
+			       p->detect, q->detect);
 		}
 	}
 }

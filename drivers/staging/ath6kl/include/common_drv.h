@@ -81,10 +81,6 @@ int ar6000_set_htc_params(struct hif_device *hifDevice,
                                u32 MboxIsrYieldValue,
                                u8 HtcControlBuffers);
 
-int ar6000_prepare_target(struct hif_device *hifDevice,
-                               u32 TargetType,
-                               u32 TargetVersion);
-
 int ar6000_set_hci_bridge_flags(struct hif_device *hifDevice,
                                      u32 TargetType,
                                      u32 Flags);

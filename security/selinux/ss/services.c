@@ -1359,26 +1359,35 @@ out:
 }
 
 static void filename_compute_type(struct policydb *p, struct context *newcontext,
-				  u32 scon, u32 tcon, u16 tclass,
-				  const struct qstr *qstr)
+				  u32 stype, u32 ttype, u16 tclass,
+				  const char *objname)
 {
-	struct filename_trans *ft;
-	for (ft = p->filename_trans; ft; ft = ft->next) {
-		if (ft->stype == scon &&
-		    ft->ttype == tcon &&
-		    ft->tclass == tclass &&
-		    !strcmp(ft->name, qstr->name)) {
-			newcontext->type = ft->otype;
-			return;
-		}
-	}
+	struct filename_trans ft;
+	struct filename_trans_datum *otype;
+
+	/*
+	 * Most filename trans rules are going to live in specific directories
+	 * like /dev or /var/run.  This bitmap will quickly skip rule searches
+	 * if the ttype does not contain any rules.
+	 */
+	if (!ebitmap_get_bit(&p->filename_trans_ttypes, ttype))
+		return;
+
+	ft.stype = stype;
+	ft.ttype = ttype;
+	ft.tclass = tclass;
+	ft.name = objname;
+
+	otype = hashtab_search(p->filename_trans, &ft);
+	if (otype)
+		newcontext->type = otype->otype;
 }
 
 static int security_compute_sid(u32 ssid,
 				u32 tsid,
 				u16 orig_tclass,
 				u32 specified,
-				const struct qstr *qstr,
+				const char *objname,
 				u32 *out_sid,
 				bool kern)
 {
@@ -1478,23 +1487,21 @@ static int security_compute_sid(u32 ssid,
 		newcontext.type = avdatum->data;
 	}
 
-	/* if we have a qstr this is a file trans check so check those rules */
-	if (qstr)
+	/* if we have a objname this is a file trans check so check those rules */
+	if (objname)
 		filename_compute_type(&policydb, &newcontext, scontext->type,
-				      tcontext->type, tclass, qstr);
+				      tcontext->type, tclass, objname);
 
 	/* Check for class-specific changes. */
-	if  (tclass == policydb.process_class) {
-		if (specified & AVTAB_TRANSITION) {
-			/* Look for a role transition rule. */
-			for (roletr = policydb.role_tr; roletr;
-			     roletr = roletr->next) {
-				if (roletr->role == scontext->role &&
-				    roletr->type == tcontext->type) {
-					/* Use the role transition rule. */
-					newcontext.role = roletr->new_role;
-					break;
-				}
+	if (specified & AVTAB_TRANSITION) {
+		/* Look for a role transition rule. */
+		for (roletr = policydb.role_tr; roletr; roletr = roletr->next) {
+			if ((roletr->role == scontext->role) &&
+			    (roletr->type == tcontext->type) &&
+			    (roletr->tclass == tclass)) {
+				/* Use the role transition rule. */
+				newcontext.role = roletr->new_role;
+				break;
 			}
 		}
 	}
@@ -1541,13 +1548,14 @@ int security_transition_sid(u32 ssid, u32 tsid, u16 tclass,
 			    const struct qstr *qstr, u32 *out_sid)
 {
 	return security_compute_sid(ssid, tsid, tclass, AVTAB_TRANSITION,
-				    qstr, out_sid, true);
+				    qstr ? qstr->name : NULL, out_sid, true);
 }
 
-int security_transition_sid_user(u32 ssid, u32 tsid, u16 tclass, u32 *out_sid)
+int security_transition_sid_user(u32 ssid, u32 tsid, u16 tclass,
+				 const char *objname, u32 *out_sid)
 {
 	return security_compute_sid(ssid, tsid, tclass, AVTAB_TRANSITION,
-				    NULL, out_sid, false);
+				    objname, out_sid, false);
 }
 
 /**
@@ -2209,10 +2217,11 @@ out_unlock:
 		goto out;
 	}
 	for (i = 0, j = 0; i < mynel; i++) {
+		struct av_decision dummy_avd;
 		rc = avc_has_perm_noaudit(fromsid, mysids[i],
 					  SECCLASS_PROCESS, /* kernel value */
 					  PROCESS__TRANSITION, AVC_STRICT,
-					  NULL);
+					  &dummy_avd);
 		if (!rc)
 			mysids2[j++] = mysids[i];
 		cond_resched();
@@ -2806,7 +2815,7 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 	case AUDIT_SUBJ_CLR:
 	case AUDIT_OBJ_LEV_LOW:
 	case AUDIT_OBJ_LEV_HIGH:
-		/* we do not allow a range, indicated by the presense of '-' */
+		/* we do not allow a range, indicated by the presence of '-' */
 		if (strchr(rulestr, '-'))
 			return -EINVAL;
 		break;
@@ -3075,7 +3084,7 @@ static void security_netlbl_cache_add(struct netlbl_lsm_secattr *secattr,
  * Description:
  * Convert the given NetLabel security attributes in @secattr into a
  * SELinux SID.  If the @secattr field does not contain a full SELinux
- * SID/context then use SECINITSID_NETMSG as the foundation.  If possibile the
+ * SID/context then use SECINITSID_NETMSG as the foundation.  If possible the
  * 'cache' field of @secattr is set and the CACHE flag is set; this is to
  * allow the @secattr to be used by NetLabel to cache the secattr to SID
  * conversion for future lookups.  Returns zero on success, negative values on
@@ -3190,7 +3199,7 @@ out:
  * @len: length of data in bytes
  *
  */
-int security_read_policy(void **data, ssize_t *len)
+int security_read_policy(void **data, size_t *len)
 {
 	int rc;
 	struct policy_file fp;

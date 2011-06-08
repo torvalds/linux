@@ -74,9 +74,9 @@ struct tlb_client_info {
 				 * packets to a Client that the Hash function
 				 * gave this entry index.
 				 */
-	u32 tx_bytes;		/* Each Client acumulates the BytesTx that
-				 * were tranmitted to it, and after each
-				 * CallBack the LoadHistory is devided
+	u32 tx_bytes;		/* Each Client accumulates the BytesTx that
+				 * were transmitted to it, and after each
+				 * CallBack the LoadHistory is divided
 				 * by the balance interval
 				 */
 	u32 load_history;	/* This field contains the amount of Bytes
@@ -122,7 +122,6 @@ struct tlb_slave_info {
 };
 
 struct alb_bond_info {
-	struct timer_list	alb_timer;
 	struct tlb_client_info	*tx_hashtbl; /* Dynamically allocated */
 	spinlock_t		tx_hashtbl_lock;
 	u32			unbalanced_load;
@@ -130,7 +129,6 @@ struct alb_bond_info {
 	int			lp_counter;
 	/* -------- rlb parameters -------- */
 	int rlb_enabled;
-	struct packet_type	rlb_pkt_type;
 	struct rlb_client_info	*rx_hashtbl;	/* Receive hash table */
 	spinlock_t		rx_hashtbl_lock;
 	u32			rx_hashtbl_head;
@@ -140,7 +138,6 @@ struct alb_bond_info {
 	struct slave		*next_rx_slave;/* next slave to be assigned
 						* to a new rx client for
 						*/
-	u32			rlb_interval_counter;
 	u8			primary_is_promisc;	   /* boolean */
 	u32			rlb_promisc_timeout_counter;/* counts primary
 							     * promiscuity time

@@ -1411,9 +1411,8 @@ static int __devinit atl2_probe(struct pci_dev *pdev,
 
 	err = -EIO;
 
-#ifdef NETIF_F_HW_VLAN_TX
+	netdev->hw_features = NETIF_F_SG;
 	netdev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
-#endif
 
 	/* Init PHY as early as possible due to power saving issue  */
 	atl2_phy_init(&adapter->hw);
@@ -1701,7 +1700,7 @@ static struct pci_driver atl2_driver = {
 	.id_table = atl2_pci_tbl,
 	.probe    = atl2_probe,
 	.remove   = __devexit_p(atl2_remove),
-	/* Power Managment Hooks */
+	/* Power Management Hooks */
 	.suspend  = atl2_suspend,
 #ifdef CONFIG_PM
 	.resume   = atl2_resume,
@@ -1770,13 +1769,13 @@ static int atl2_get_settings(struct net_device *netdev,
 	ecmd->transceiver = XCVR_INTERNAL;
 
 	if (adapter->link_speed != SPEED_0) {
-		ecmd->speed = adapter->link_speed;
+		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 		if (adapter->link_duplex == FULL_DUPLEX)
 			ecmd->duplex = DUPLEX_FULL;
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 
@@ -1838,11 +1837,6 @@ static int atl2_set_settings(struct net_device *netdev,
 
 	clear_bit(__ATL2_RESETTING, &adapter->flags);
 	return 0;
-}
-
-static u32 atl2_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_HW_CSUM) != 0;
 }
 
 static u32 atl2_get_msglevel(struct net_device *netdev)
@@ -1996,13 +1990,15 @@ static int atl2_set_eeprom(struct net_device *netdev,
 	if (!eeprom_buff)
 		return -ENOMEM;
 
-	ptr = (u32 *)eeprom_buff;
+	ptr = eeprom_buff;
 
 	if (eeprom->offset & 3) {
 		/* need read/modify/write of first changed EEPROM word */
 		/* only the second byte of the word is being modified */
-		if (!atl2_read_eeprom(hw, first_dword*4, &(eeprom_buff[0])))
-			return -EIO;
+		if (!atl2_read_eeprom(hw, first_dword*4, &(eeprom_buff[0]))) {
+			ret_val = -EIO;
+			goto out;
+		}
 		ptr++;
 	}
 	if (((eeprom->offset + eeprom->len) & 3)) {
@@ -2011,18 +2007,22 @@ static int atl2_set_eeprom(struct net_device *netdev,
 		 * only the first byte of the word is being modified
 		 */
 		if (!atl2_read_eeprom(hw, last_dword * 4,
-			&(eeprom_buff[last_dword - first_dword])))
-			return -EIO;
+					&(eeprom_buff[last_dword - first_dword]))) {
+			ret_val = -EIO;
+			goto out;
+		}
 	}
 
 	/* Device's eeprom is always little-endian, word addressable */
 	memcpy(ptr, bytes, eeprom->len);
 
 	for (i = 0; i < last_dword - first_dword + 1; i++) {
-		if (!atl2_write_eeprom(hw, ((first_dword+i)*4), eeprom_buff[i]))
-			return -EIO;
+		if (!atl2_write_eeprom(hw, ((first_dword+i)*4), eeprom_buff[i])) {
+			ret_val = -EIO;
+			goto out;
+		}
 	}
-
+ out:
 	kfree(eeprom_buff);
 	return ret_val;
 }
@@ -2106,12 +2106,6 @@ static const struct ethtool_ops atl2_ethtool_ops = {
 	.get_eeprom_len		= atl2_get_eeprom_len,
 	.get_eeprom		= atl2_get_eeprom,
 	.set_eeprom		= atl2_set_eeprom,
-	.get_tx_csum		= atl2_get_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
-	.set_sg			= ethtool_op_set_sg,
-#ifdef NETIF_F_TSO
-	.get_tso		= ethtool_op_get_tso,
-#endif
 };
 
 static void atl2_set_ethtool_ops(struct net_device *netdev)

@@ -67,7 +67,7 @@
 
 #define MAX_SPU_COUNT 0xFFFFFF	/* maximum 24 bit LFSR value */
 
-/* Minumum HW interval timer setting to send value to trace buffer is 10 cycle.
+/* Minimum HW interval timer setting to send value to trace buffer is 10 cycle.
  * To configure counter to send value every N cycles set counter to
  * 2^32 - 1 - N.
  */
@@ -1470,7 +1470,7 @@ static int cell_global_start(struct op_counter_config *ctr)
  * trace buffer at the maximum rate possible.  The trace buffer is configured
  * to store the PCs, wrapping when it is full.  The performance counter is
  * initialized to the max hardware count minus the number of events, N, between
- * samples.  Once the N events have occured, a HW counter overflow occurs
+ * samples.  Once the N events have occurred, a HW counter overflow occurs
  * causing the generation of a HW counter interrupt which also stops the
  * writing of the SPU PC values to the trace buffer.  Hence the last PC
  * written to the trace buffer is the SPU PC that we want.  Unfortunately,
@@ -1656,7 +1656,7 @@ static void cell_handle_interrupt_ppu(struct pt_regs *regs,
 		 * The counters were frozen by the interrupt.
 		 * Reenable the interrupt and restart the counters.
 		 * If there was a race between the interrupt handler and
-		 * the virtual counter routine.	 The virutal counter
+		 * the virtual counter routine.	 The virtual counter
 		 * routine may have cleared the interrupts.  Hence must
 		 * use the virt_cntr_inter_mask to re-enable the interrupts.
 		 */

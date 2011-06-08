@@ -90,7 +90,7 @@ int spu_alloc_lscsa(struct spu_state *csa)
 	 */
 	for (i = 0; i < SPU_LSCSA_NUM_BIG_PAGES; i++) {
 		/* XXX This is likely to fail, we should use a special pool
-		 *     similiar to what hugetlbfs does.
+		 *     similar to what hugetlbfs does.
 		 */
 		csa->lscsa_pages[i] = alloc_pages(GFP_KERNEL,
 						  SPU_64K_PAGE_ORDER);

@@ -266,11 +266,11 @@ static int irq_cpu(int irq)
 
 
 	/* Let the interrupt stay if possible */
-	if (cpu_isset(cpu, irq_allocations[irq - FIRST_IRQ].mask))
+	if (cpumask_test_cpu(cpu, &irq_allocations[irq - FIRST_IRQ].mask))
 		goto out;
 
 	/* IRQ must be moved to another CPU. */
-	cpu = first_cpu(irq_allocations[irq - FIRST_IRQ].mask);
+	cpu = cpumask_first(&irq_allocations[irq - FIRST_IRQ].mask);
 	irq_allocations[irq - FIRST_IRQ].cpu = cpu;
 out:
 	spin_unlock_irqrestore(&irq_lock, flags);
@@ -374,7 +374,7 @@ crisv32_do_multiple(struct pt_regs* regs)
 	irq_enter();
 
 	for (i = 0; i < NBR_REGS; i++) {
-		/* Get which IRQs that happend. */
+		/* Get which IRQs that happened. */
 		masked[i] = REG_RD_INT_VECT(intr_vect, irq_regs[cpu],
 			r_masked_vect, i);
 

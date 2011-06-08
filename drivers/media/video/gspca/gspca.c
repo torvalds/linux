@@ -55,7 +55,7 @@ MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 12, 0)
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 13, 0)
 
 #ifdef GSPCA_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
@@ -857,7 +857,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		}
 
 		/* the bandwidth is not wide enough
-		 * negociate or try a lower alternate setting */
+		 * negotiate or try a lower alternate setting */
 		PDEBUG(D_ERR|D_STREAM,
 			"bandwidth not wide enough - trying again");
 		msleep(20);	/* wait for kill complete */
@@ -2346,7 +2346,7 @@ void gspca_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	/* release the device */
-	/* (this will call gspca_release() immediatly or on last close) */
+	/* (this will call gspca_release() immediately or on last close) */
 	video_unregister_device(&gspca_dev->vdev);
 
 /*	PDEBUG(D_PROBE, "disconnect complete"); */
@@ -2495,6 +2495,6 @@ module_exit(gspca_exit);
 module_param_named(debug, gspca_debug, int, 0644);
 MODULE_PARM_DESC(debug,
 		"Debug (bit) 0x01:error 0x02:probe 0x04:config"
-		" 0x08:stream 0x10:frame 0x20:packet 0x40:USBin 0x80:USBout"
+		" 0x08:stream 0x10:frame 0x20:packet"
 		" 0x0100: v4l2");
 #endif

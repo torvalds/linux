@@ -1670,7 +1670,7 @@ int proc_stop(void *hprocessor)
 	if (!status) {
 		dev_dbg(bridge, "%s: processor in standby mode\n", __func__);
 		p_proc_object->proc_state = PROC_STOPPED;
-		/* Destory the Node Manager, msg_ctrl Manager */
+		/* Destroy the Node Manager, msg_ctrl Manager */
 		if (!(dev_destroy2(p_proc_object->dev_obj))) {
 			/* Destroy the msg_ctrl by calling msg_delete */
 			dev_get_msg_mgr(p_proc_object->dev_obj, &hmsg_mgr);
@@ -1827,7 +1827,7 @@ static int proc_monitor(struct proc_object *proc_obj)
 
 	/* This is needed only when Device is loaded when it is
 	 * already 'ACTIVE' */
-	/* Destory the Node Manager, msg_ctrl Manager */
+	/* Destroy the Node Manager, msg_ctrl Manager */
 	if (!dev_destroy2(proc_obj->dev_obj)) {
 		/* Destroy the msg_ctrl by calling msg_delete */
 		dev_get_msg_mgr(proc_obj->dev_obj, &hmsg_mgr);

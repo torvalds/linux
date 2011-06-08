@@ -39,7 +39,7 @@ module_param(extram_pool_sz, int, 0);
 MODULE_PARM_DESC(extram_pool_sz, "external ram pool size to allocate");
 
 /*
- * Host event IRQ numbers from PRUSS - PRUSS can generate upto 8 interrupt
+ * Host event IRQ numbers from PRUSS - PRUSS can generate up to 8 interrupt
  * events to AINTC of ARM host processor - which can be used for IPC b/w PRUSS
  * firmware and user space application, async notification from PRU firmware
  * to user space application

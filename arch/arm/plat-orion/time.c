@@ -81,24 +81,6 @@ static void __init setup_sched_clock(unsigned long tclk)
 }
 
 /*
- * Clocksource handling.
- */
-static cycle_t orion_clksrc_read(struct clocksource *cs)
-{
-	return 0xffffffff - readl(timer_base + TIMER0_VAL_OFF);
-}
-
-static struct clocksource orion_clksrc = {
-	.name		= "orion_clocksource",
-	.rating		= 300,
-	.read		= orion_clksrc_read,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
-
-
-/*
  * Clockevent handling.
  */
 static int
@@ -247,7 +229,8 @@ orion_time_init(u32 _bridge_base, u32 _bridge_timer1_clr_mask,
 	writel(u & ~BRIDGE_INT_TIMER0, bridge_base + BRIDGE_MASK_OFF);
 	u = readl(timer_base + TIMER_CTRL_OFF);
 	writel(u | TIMER0_EN | TIMER0_RELOAD_EN, timer_base + TIMER_CTRL_OFF);
-	clocksource_register_hz(&orion_clksrc, tclk);
+	clocksource_mmio_init(timer_base + TIMER0_VAL_OFF, "orion_clocksource",
+		tclk, 300, 32, clocksource_mmio_readl_down);
 
 	/*
 	 * Setup clockevent timer (interrupt-driven).

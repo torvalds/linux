@@ -241,7 +241,7 @@ typedef struct bulkwrmbuffer
 
 typedef enum _FLASH2X_SECTION_VAL
 {
-	NO_SECTION_VAL = 0, //no section is choosen when absolute offset is given for RD/WR
+	NO_SECTION_VAL = 0, //no section is chosen when absolute offset is given for RD/WR
 	ISO_IMAGE1,
 	ISO_IMAGE2,
 	DSD0,

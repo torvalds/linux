@@ -208,7 +208,7 @@ extern void at91_gpio_resume(void);
 
 /*-------------------------------------------------------------------------*/
 
-/* wrappers for "new style" GPIO calls. the old AT91-specfic ones should
+/* wrappers for "new style" GPIO calls. the old AT91-specific ones should
  * eventually be removed (along with this errno.h inclusion), and the
  * gpio request/free calls should probably be implemented.
  */

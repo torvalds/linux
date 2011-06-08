@@ -52,7 +52,7 @@ void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
 
-	if (!test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags) || !hw_key)
+	if (!test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags) || !hw_key)
 		return;
 
 	__set_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags);
@@ -80,7 +80,7 @@ unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_key_conf *key = tx_info->control.hw_key;
 	unsigned int overhead = 0;
 
-	if (!test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags) || !key)
+	if (!test_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags) || !key)
 		return overhead;
 
 	/*
@@ -237,7 +237,7 @@ void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
 	}
 
 	/*
-	 * NOTE: Always count the payload as transfered,
+	 * NOTE: Always count the payload as transferred,
 	 * even when alignment was set to zero. This is required
 	 * for determining the correct offset for the ICV data.
 	 */

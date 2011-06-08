@@ -100,7 +100,7 @@
  */
 #define TIMEOUT_TIME 10
 /*
- * Define this if you want to have verbose explaination of SCSI
+ * Define this if you want to have verbose explanation of SCSI
  * status/messages.
  */
 #undef CONFIG_ACORNSCSI_CONSTANTS
@@ -1561,7 +1561,7 @@ void acornscsi_message(AS_Host *host)
 	/*
 	 * If we were negociating sync transfer, we don't yet know if
 	 * this REJECT is for the sync transfer or for the tagged queue/wide
-	 * transfer.  Re-initiate sync transfer negociation now, and if
+	 * transfer.  Re-initiate sync transfer negotiation now, and if
 	 * we got a REJECT in response to SDTR, then it'll be set to DONE.
 	 */
 	if (host->device[host->SCpnt->device->id].sync_state == SYNC_SENT_REQUEST)

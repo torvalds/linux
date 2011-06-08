@@ -523,7 +523,7 @@ static int fuse_readpage(struct file *file, struct page *page)
 		goto out;
 
 	/*
-	 * Page writeback can extend beyond the liftime of the
+	 * Page writeback can extend beyond the lifetime of the
 	 * page-cache page, so make sure we read a properly synced
 	 * page.
 	 */

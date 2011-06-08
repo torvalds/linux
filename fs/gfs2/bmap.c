@@ -780,6 +780,8 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	metadata = (height != ip->i_height - 1);
 	if (metadata)
 		revokes = (height) ? sdp->sd_inptrs : sdp->sd_diptrs;
+	else if (ip->i_depth)
+		revokes = sdp->sd_inptrs;
 
 	if (ip != GFS2_I(sdp->sd_rindex))
 		error = gfs2_rindex_hold(sdp, &ip->i_alloc->al_ri_gh);
@@ -1136,7 +1138,7 @@ void gfs2_trim_blocks(struct inode *inode)
  * earlier versions of GFS2 have a bug in the stuffed file reading
  * code which will result in a buffer overrun if the size is larger
  * than the max stuffed file size. In order to prevent this from
- * occuring, such files are unstuffed, but in other cases we can
+ * occurring, such files are unstuffed, but in other cases we can
  * just update the inode size directly.
  *
  * Returns: 0 on success, or -ve on error

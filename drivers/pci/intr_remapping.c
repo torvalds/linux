@@ -289,7 +289,7 @@ int free_irte(int irq)
  * source validation type
  */
 #define SVT_NO_VERIFY		0x0  /* no verification is required */
-#define SVT_VERIFY_SID_SQ	0x1  /* verify using SID and SQ fiels */
+#define SVT_VERIFY_SID_SQ	0x1  /* verify using SID and SQ fields */
 #define SVT_VERIFY_BUS		0x2  /* verify bus of request-id */
 
 /*

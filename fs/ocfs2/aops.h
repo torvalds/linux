@@ -71,7 +71,7 @@ static inline void ocfs2_iocb_set_rw_locked(struct kiocb *iocb, int level)
 
 /*
  * Using a named enum representing lock types in terms of #N bit stored in
- * iocb->private, which is going to be used for communication bewteen
+ * iocb->private, which is going to be used for communication between
  * ocfs2_dio_end_io() and ocfs2_file_aio_write/read().
  */
 enum ocfs2_iocb_lock_bits {

@@ -78,7 +78,7 @@ typedef s32 klconf_off_t;
  */
 #define MAX_SLOTS_PER_NODE	(1 + 2 + 6 + 2)
 
-/* XXX if each node is guranteed to have some memory */
+/* XXX if each node is guaranteed to have some memory */
 
 #define MAX_PCI_DEVS		8
 
@@ -539,7 +539,7 @@ typedef struct klinfo_s {                  /* Generic info */
 #define KLSTRUCT_IOC3_TTY 	24
 
 /* Early Access IO proms are compatible
-   only with KLSTRUCT values upto 24. */
+   only with KLSTRUCT values up to 24. */
 
 #define KLSTRUCT_FIBERCHANNEL 	25
 #define KLSTRUCT_MOD_SERIAL_NUM 26

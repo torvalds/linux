@@ -363,6 +363,24 @@ static unsigned long long nilfs_max_size(unsigned int blkbits)
 	return res;
 }
 
+/**
+ * nilfs_nrsvsegs - calculate the number of reserved segments
+ * @nilfs: nilfs object
+ * @nsegs: total number of segments
+ */
+unsigned long nilfs_nrsvsegs(struct the_nilfs *nilfs, unsigned long nsegs)
+{
+	return max_t(unsigned long, NILFS_MIN_NRSVSEGS,
+		     DIV_ROUND_UP(nsegs * nilfs->ns_r_segments_percentage,
+				  100));
+}
+
+void nilfs_set_nsegments(struct the_nilfs *nilfs, unsigned long nsegs)
+{
+	nilfs->ns_nsegments = nsegs;
+	nilfs->ns_nrsvsegs = nilfs_nrsvsegs(nilfs, nsegs);
+}
+
 static int nilfs_store_disk_layout(struct the_nilfs *nilfs,
 				   struct nilfs_super_block *sbp)
 {
@@ -389,13 +407,9 @@ static int nilfs_store_disk_layout(struct the_nilfs *nilfs,
 	}
 
 	nilfs->ns_first_data_block = le64_to_cpu(sbp->s_first_data_block);
-	nilfs->ns_nsegments = le64_to_cpu(sbp->s_nsegments);
 	nilfs->ns_r_segments_percentage =
 		le32_to_cpu(sbp->s_r_segments_percentage);
-	nilfs->ns_nrsvsegs =
-		max_t(unsigned long, NILFS_MIN_NRSVSEGS,
-		      DIV_ROUND_UP(nilfs->ns_nsegments *
-				   nilfs->ns_r_segments_percentage, 100));
+	nilfs_set_nsegments(nilfs, le64_to_cpu(sbp->s_nsegments));
 	nilfs->ns_crc_seed = le32_to_cpu(sbp->s_crc_seed);
 	return 0;
 }

@@ -183,7 +183,7 @@ static inline struct htb_class *htb_find(u32 handle, struct Qdisc *sch)
  * filters in qdisc and in inner nodes (if higher filter points to the inner
  * node). If we end up with classid MAJOR:0 we enqueue the skb into special
  * internal fifo (direct). These packets then go directly thru. If we still
- * have no valid leaf we try to use MAJOR:default leaf. It still unsuccessfull
+ * have no valid leaf we try to use MAJOR:default leaf. It still unsuccessful
  * then finish and return direct queue.
  */
 #define HTB_DIRECT ((struct htb_class *)-1L)

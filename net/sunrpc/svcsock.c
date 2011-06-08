@@ -387,6 +387,33 @@ static int svc_recvfrom(struct svc_rqst *rqstp, struct kvec *iov, int nr,
 	return len;
 }
 
+static int svc_partial_recvfrom(struct svc_rqst *rqstp,
+				struct kvec *iov, int nr,
+				int buflen, unsigned int base)
+{
+	size_t save_iovlen;
+	void __user *save_iovbase;
+	unsigned int i;
+	int ret;
+
+	if (base == 0)
+		return svc_recvfrom(rqstp, iov, nr, buflen);
+
+	for (i = 0; i < nr; i++) {
+		if (iov[i].iov_len > base)
+			break;
+		base -= iov[i].iov_len;
+	}
+	save_iovlen = iov[i].iov_len;
+	save_iovbase = iov[i].iov_base;
+	iov[i].iov_len -= base;
+	iov[i].iov_base += base;
+	ret = svc_recvfrom(rqstp, &iov[i], nr - i, buflen);
+	iov[i].iov_len = save_iovlen;
+	iov[i].iov_base = save_iovbase;
+	return ret;
+}
+
 /*
  * Set socket snd and rcv buffer lengths
  */
@@ -409,7 +436,6 @@ static void svc_sock_setbufsize(struct socket *sock, unsigned int snd,
 	lock_sock(sock->sk);
 	sock->sk->sk_sndbuf = snd * 2;
 	sock->sk->sk_rcvbuf = rcv * 2;
-	sock->sk->sk_userlocks |= SOCK_SNDBUF_LOCK|SOCK_RCVBUF_LOCK;
 	sock->sk->sk_write_space(sock->sk);
 	release_sock(sock->sk);
 #endif
@@ -884,6 +910,56 @@ failed:
 	return NULL;
 }
 
+static unsigned int svc_tcp_restore_pages(struct svc_sock *svsk, struct svc_rqst *rqstp)
+{
+	unsigned int i, len, npages;
+
+	if (svsk->sk_tcplen <= sizeof(rpc_fraghdr))
+		return 0;
+	len = svsk->sk_tcplen - sizeof(rpc_fraghdr);
+	npages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	for (i = 0; i < npages; i++) {
+		if (rqstp->rq_pages[i] != NULL)
+			put_page(rqstp->rq_pages[i]);
+		BUG_ON(svsk->sk_pages[i] == NULL);
+		rqstp->rq_pages[i] = svsk->sk_pages[i];
+		svsk->sk_pages[i] = NULL;
+	}
+	rqstp->rq_arg.head[0].iov_base = page_address(rqstp->rq_pages[0]);
+	return len;
+}
+
+static void svc_tcp_save_pages(struct svc_sock *svsk, struct svc_rqst *rqstp)
+{
+	unsigned int i, len, npages;
+
+	if (svsk->sk_tcplen <= sizeof(rpc_fraghdr))
+		return;
+	len = svsk->sk_tcplen - sizeof(rpc_fraghdr);
+	npages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	for (i = 0; i < npages; i++) {
+		svsk->sk_pages[i] = rqstp->rq_pages[i];
+		rqstp->rq_pages[i] = NULL;
+	}
+}
+
+static void svc_tcp_clear_pages(struct svc_sock *svsk)
+{
+	unsigned int i, len, npages;
+
+	if (svsk->sk_tcplen <= sizeof(rpc_fraghdr))
+		goto out;
+	len = svsk->sk_tcplen - sizeof(rpc_fraghdr);
+	npages = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	for (i = 0; i < npages; i++) {
+		BUG_ON(svsk->sk_pages[i] == NULL);
+		put_page(svsk->sk_pages[i]);
+		svsk->sk_pages[i] = NULL;
+	}
+out:
+	svsk->sk_tcplen = 0;
+}
+
 /*
  * Receive data.
  * If we haven't gotten the record length yet, get the next four bytes.
@@ -893,31 +969,15 @@ failed:
 static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 {
 	struct svc_serv	*serv = svsk->sk_xprt.xpt_server;
+	unsigned int want;
 	int len;
-
-	if (test_and_clear_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags))
-		/* sndbuf needs to have room for one request
-		 * per thread, otherwise we can stall even when the
-		 * network isn't a bottleneck.
-		 *
-		 * We count all threads rather than threads in a
-		 * particular pool, which provides an upper bound
-		 * on the number of threads which will access the socket.
-		 *
-		 * rcvbuf just needs to be able to hold a few requests.
-		 * Normally they will be removed from the queue
-		 * as soon a a complete request arrives.
-		 */
-		svc_sock_setbufsize(svsk->sk_sock,
-				    (serv->sv_nrthreads+3) * serv->sv_max_mesg,
-				    3 * serv->sv_max_mesg);
 
 	clear_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 
 	if (svsk->sk_tcplen < sizeof(rpc_fraghdr)) {
-		int		want = sizeof(rpc_fraghdr) - svsk->sk_tcplen;
 		struct kvec	iov;
 
+		want = sizeof(rpc_fraghdr) - svsk->sk_tcplen;
 		iov.iov_base = ((char *) &svsk->sk_reclen) + svsk->sk_tcplen;
 		iov.iov_len  = want;
 		if ((len = svc_recvfrom(rqstp, &iov, 1, want)) < 0)
@@ -927,7 +987,7 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 		if (len < want) {
 			dprintk("svc: short recvfrom while reading record "
 				"length (%d of %d)\n", len, want);
-			goto err_again; /* record header not complete */
+			return -EAGAIN;
 		}
 
 		svsk->sk_reclen = ntohl(svsk->sk_reclen);
@@ -954,82 +1014,74 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 		}
 	}
 
-	/* Check whether enough data is available */
-	len = svc_recv_available(svsk);
-	if (len < 0)
-		goto error;
+	if (svsk->sk_reclen < 8)
+		goto err_delete; /* client is nuts. */
 
-	if (len < svsk->sk_reclen) {
-		dprintk("svc: incomplete TCP record (%d of %d)\n",
-			len, svsk->sk_reclen);
-		goto err_again;	/* record not complete */
-	}
 	len = svsk->sk_reclen;
-	set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 
 	return len;
- error:
-	if (len == -EAGAIN)
-		dprintk("RPC: TCP recv_record got EAGAIN\n");
+error:
+	dprintk("RPC: TCP recv_record got %d\n", len);
 	return len;
- err_delete:
+err_delete:
 	set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
- err_again:
 	return -EAGAIN;
 }
 
-static int svc_process_calldir(struct svc_sock *svsk, struct svc_rqst *rqstp,
-			       struct rpc_rqst **reqpp, struct kvec *vec)
+static int receive_cb_reply(struct svc_sock *svsk, struct svc_rqst *rqstp)
 {
+	struct rpc_xprt *bc_xprt = svsk->sk_xprt.xpt_bc_xprt;
 	struct rpc_rqst *req = NULL;
-	u32 *p;
-	u32 xid;
-	u32 calldir;
-	int len;
+	struct kvec *src, *dst;
+	__be32 *p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
+	__be32 xid;
+	__be32 calldir;
 
-	len = svc_recvfrom(rqstp, vec, 1, 8);
-	if (len < 0)
-		goto error;
-
-	p = (u32 *)rqstp->rq_arg.head[0].iov_base;
 	xid = *p++;
 	calldir = *p;
 
-	if (calldir == 0) {
-		/* REQUEST is the most common case */
-		vec[0] = rqstp->rq_arg.head[0];
-	} else {
-		/* REPLY */
-		struct rpc_xprt *bc_xprt = svsk->sk_xprt.xpt_bc_xprt;
+	if (bc_xprt)
+		req = xprt_lookup_rqst(bc_xprt, xid);
 
-		if (bc_xprt)
-			req = xprt_lookup_rqst(bc_xprt, xid);
-
-		if (!req) {
-			printk(KERN_NOTICE
-				"%s: Got unrecognized reply: "
-				"calldir 0x%x xpt_bc_xprt %p xid %08x\n",
-				__func__, ntohl(calldir),
-				bc_xprt, xid);
-			vec[0] = rqstp->rq_arg.head[0];
-			goto out;
-		}
-
-		memcpy(&req->rq_private_buf, &req->rq_rcv_buf,
-		       sizeof(struct xdr_buf));
-		/* copy the xid and call direction */
-		memcpy(req->rq_private_buf.head[0].iov_base,
-		       rqstp->rq_arg.head[0].iov_base, 8);
-		vec[0] = req->rq_private_buf.head[0];
+	if (!req) {
+		printk(KERN_NOTICE
+			"%s: Got unrecognized reply: "
+			"calldir 0x%x xpt_bc_xprt %p xid %08x\n",
+			__func__, ntohl(calldir),
+			bc_xprt, xid);
+		return -EAGAIN;
 	}
- out:
-	vec[0].iov_base += 8;
-	vec[0].iov_len -= 8;
-	len = svsk->sk_reclen - 8;
- error:
-	*reqpp = req;
-	return len;
+
+	memcpy(&req->rq_private_buf, &req->rq_rcv_buf, sizeof(struct xdr_buf));
+	/*
+	 * XXX!: cheating for now!  Only copying HEAD.
+	 * But we know this is good enough for now (in fact, for any
+	 * callback reply in the forseeable future).
+	 */
+	dst = &req->rq_private_buf.head[0];
+	src = &rqstp->rq_arg.head[0];
+	if (dst->iov_len < src->iov_len)
+		return -EAGAIN; /* whatever; just giving up. */
+	memcpy(dst->iov_base, src->iov_base, src->iov_len);
+	xprt_complete_rqst(req->rq_task, svsk->sk_reclen);
+	rqstp->rq_arg.len = 0;
+	return 0;
 }
+
+static int copy_pages_to_kvecs(struct kvec *vec, struct page **pages, int len)
+{
+	int i = 0;
+	int t = 0;
+
+	while (t < len) {
+		vec[i].iov_base = page_address(pages[i]);
+		vec[i].iov_len = PAGE_SIZE;
+		i++;
+		t += PAGE_SIZE;
+	}
+	return i;
+}
+
 
 /*
  * Receive data from a TCP socket.
@@ -1041,8 +1093,10 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	struct svc_serv	*serv = svsk->sk_xprt.xpt_server;
 	int		len;
 	struct kvec *vec;
-	int pnum, vlen;
-	struct rpc_rqst *req = NULL;
+	unsigned int want, base;
+	__be32 *p;
+	__be32 calldir;
+	int pnum;
 
 	dprintk("svc: tcp_recv %p data %d conn %d close %d\n",
 		svsk, test_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags),
@@ -1053,87 +1107,73 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	if (len < 0)
 		goto error;
 
+	base = svc_tcp_restore_pages(svsk, rqstp);
+	want = svsk->sk_reclen - base;
+
 	vec = rqstp->rq_vec;
-	vec[0] = rqstp->rq_arg.head[0];
-	vlen = PAGE_SIZE;
 
-	/*
-	 * We have enough data for the whole tcp record. Let's try and read the
-	 * first 8 bytes to get the xid and the call direction. We can use this
-	 * to figure out if this is a call or a reply to a callback. If
-	 * sk_reclen is < 8 (xid and calldir), then this is a malformed packet.
-	 * In that case, don't bother with the calldir and just read the data.
-	 * It will be rejected in svc_process.
-	 */
-	if (len >= 8) {
-		len = svc_process_calldir(svsk, rqstp, &req, vec);
-		if (len < 0)
-			goto err_again;
-		vlen -= 8;
-	}
+	pnum = copy_pages_to_kvecs(&vec[0], &rqstp->rq_pages[0],
+						svsk->sk_reclen);
 
-	pnum = 1;
-	while (vlen < len) {
-		vec[pnum].iov_base = (req) ?
-			page_address(req->rq_private_buf.pages[pnum - 1]) :
-			page_address(rqstp->rq_pages[pnum]);
-		vec[pnum].iov_len = PAGE_SIZE;
-		pnum++;
-		vlen += PAGE_SIZE;
-	}
 	rqstp->rq_respages = &rqstp->rq_pages[pnum];
 
 	/* Now receive data */
-	len = svc_recvfrom(rqstp, vec, pnum, len);
-	if (len < 0)
-		goto err_again;
-
-	/*
-	 * Account for the 8 bytes we read earlier
-	 */
-	len += 8;
-
-	if (req) {
-		xprt_complete_rqst(req->rq_task, len);
-		len = 0;
-		goto out;
+	len = svc_partial_recvfrom(rqstp, vec, pnum, want, base);
+	if (len >= 0)
+		svsk->sk_tcplen += len;
+	if (len != want) {
+		if (len < 0 && len != -EAGAIN)
+			goto err_other;
+		svc_tcp_save_pages(svsk, rqstp);
+		dprintk("svc: incomplete TCP record (%d of %d)\n",
+			svsk->sk_tcplen, svsk->sk_reclen);
+		goto err_noclose;
 	}
-	dprintk("svc: TCP complete record (%d bytes)\n", len);
-	rqstp->rq_arg.len = len;
+
+	rqstp->rq_arg.len = svsk->sk_reclen;
 	rqstp->rq_arg.page_base = 0;
-	if (len <= rqstp->rq_arg.head[0].iov_len) {
-		rqstp->rq_arg.head[0].iov_len = len;
+	if (rqstp->rq_arg.len <= rqstp->rq_arg.head[0].iov_len) {
+		rqstp->rq_arg.head[0].iov_len = rqstp->rq_arg.len;
 		rqstp->rq_arg.page_len = 0;
-	} else {
-		rqstp->rq_arg.page_len = len - rqstp->rq_arg.head[0].iov_len;
-	}
+	} else
+		rqstp->rq_arg.page_len = rqstp->rq_arg.len - rqstp->rq_arg.head[0].iov_len;
 
 	rqstp->rq_xprt_ctxt   = NULL;
 	rqstp->rq_prot	      = IPPROTO_TCP;
 
-out:
+	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
+	calldir = p[1];
+	if (calldir)
+		len = receive_cb_reply(svsk, rqstp);
+
 	/* Reset TCP read info */
 	svsk->sk_reclen = 0;
 	svsk->sk_tcplen = 0;
+	/* If we have more data, signal svc_xprt_enqueue() to try again */
+	if (svc_recv_available(svsk) > sizeof(rpc_fraghdr))
+		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
+
+	if (len < 0)
+		goto error;
 
 	svc_xprt_copy_addrs(rqstp, &svsk->sk_xprt);
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpcnt++;
 
-	return len;
+	dprintk("svc: TCP complete record (%d bytes)\n", rqstp->rq_arg.len);
+	return rqstp->rq_arg.len;
 
-err_again:
-	if (len == -EAGAIN) {
-		dprintk("RPC: TCP recvfrom got EAGAIN\n");
-		return len;
-	}
 error:
-	if (len != -EAGAIN) {
-		printk(KERN_NOTICE "%s: recvfrom returned errno %d\n",
-		       svsk->sk_xprt.xpt_server->sv_name, -len);
-		set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
-	}
+	if (len != -EAGAIN)
+		goto err_other;
+	dprintk("RPC: TCP recvfrom got EAGAIN\n");
 	return -EAGAIN;
+err_other:
+	printk(KERN_NOTICE "%s: recvfrom returned errno %d\n",
+	       svsk->sk_xprt.xpt_server->sv_name, -len);
+	set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
+err_noclose:
+	return -EAGAIN;	/* record not complete */
 }
 
 /*
@@ -1304,18 +1344,10 @@ static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 
 		svsk->sk_reclen = 0;
 		svsk->sk_tcplen = 0;
+		memset(&svsk->sk_pages[0], 0, sizeof(svsk->sk_pages));
 
 		tcp_sk(sk)->nonagle |= TCP_NAGLE_OFF;
 
-		/* initialise setting must have enough space to
-		 * receive and respond to one request.
-		 * svc_tcp_recvfrom will re-adjust if necessary
-		 */
-		svc_sock_setbufsize(svsk->sk_sock,
-				    3 * svsk->sk_xprt.xpt_server->sv_max_mesg,
-				    3 * svsk->sk_xprt.xpt_server->sv_max_mesg);
-
-		set_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags);
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 		if (sk->sk_state != TCP_ESTABLISHED)
 			set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
@@ -1379,8 +1411,14 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	/* Initialize the socket */
 	if (sock->type == SOCK_DGRAM)
 		svc_udp_init(svsk, serv);
-	else
+	else {
+		/* initialise setting must have enough space to
+		 * receive and respond to one request.
+		 */
+		svc_sock_setbufsize(svsk->sk_sock, 4 * serv->sv_max_mesg,
+					4 * serv->sv_max_mesg);
 		svc_tcp_init(svsk, serv);
+	}
 
 	dprintk("svc: svc_setup_socket created %p (inet %p)\n",
 				svsk, svsk->sk_sk);
@@ -1562,8 +1600,10 @@ static void svc_tcp_sock_detach(struct svc_xprt *xprt)
 
 	svc_sock_detach(xprt);
 
-	if (!test_bit(XPT_LISTENER, &xprt->xpt_flags))
+	if (!test_bit(XPT_LISTENER, &xprt->xpt_flags)) {
+		svc_tcp_clear_pages(svsk);
 		kernel_sock_shutdown(svsk->sk_sock, SHUT_RDWR);
+	}
 }
 
 /*

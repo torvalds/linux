@@ -17,6 +17,7 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <asm/uaccess.h>
 
 static inline char _tolower(const char c)
 {
@@ -49,12 +50,9 @@ static int _kstrtoull(const char *s, unsigned int base, unsigned long long *res)
 			val = *s - '0';
 		else if ('a' <= _tolower(*s) && _tolower(*s) <= 'f')
 			val = _tolower(*s) - 'a' + 10;
-		else if (*s == '\n') {
-			if (*(s + 1) == '\0')
-				break;
-			else
-				return -EINVAL;
-		} else
+		else if (*s == '\n' && *(s + 1) == '\0')
+			break;
+		else
 			return -EINVAL;
 
 		if (val >= base)
@@ -225,3 +223,28 @@ int kstrtos8(const char *s, unsigned int base, s8 *res)
 	return 0;
 }
 EXPORT_SYMBOL(kstrtos8);
+
+#define kstrto_from_user(f, g, type)					\
+int f(const char __user *s, size_t count, unsigned int base, type *res)	\
+{									\
+	/* sign, base 2 representation, newline, terminator */		\
+	char buf[1 + sizeof(type) * 8 + 1 + 1];				\
+									\
+	count = min(count, sizeof(buf) - 1);				\
+	if (copy_from_user(buf, s, count))				\
+		return -EFAULT;						\
+	buf[count] = '\0';						\
+	return g(buf, base, res);					\
+}									\
+EXPORT_SYMBOL(f)
+
+kstrto_from_user(kstrtoull_from_user,	kstrtoull,	unsigned long long);
+kstrto_from_user(kstrtoll_from_user,	kstrtoll,	long long);
+kstrto_from_user(kstrtoul_from_user,	kstrtoul,	unsigned long);
+kstrto_from_user(kstrtol_from_user,	kstrtol,	long);
+kstrto_from_user(kstrtouint_from_user,	kstrtouint,	unsigned int);
+kstrto_from_user(kstrtoint_from_user,	kstrtoint,	int);
+kstrto_from_user(kstrtou16_from_user,	kstrtou16,	u16);
+kstrto_from_user(kstrtos16_from_user,	kstrtos16,	s16);
+kstrto_from_user(kstrtou8_from_user,	kstrtou8,	u8);
+kstrto_from_user(kstrtos8_from_user,	kstrtos8,	s8);

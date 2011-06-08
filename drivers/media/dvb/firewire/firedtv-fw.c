@@ -125,6 +125,7 @@ static void handle_iso(struct fw_iso_context *context, u32 cycle,
 
 		i = (i + 1) & (N_PACKETS - 1);
 	}
+	fw_iso_context_queue_flush(ctx->context);
 	ctx->current_packet = i;
 }
 

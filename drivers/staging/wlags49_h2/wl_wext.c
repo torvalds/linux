@@ -2575,7 +2575,7 @@ static int wireless_set_scan(struct net_device *dev, struct iw_request_info *inf
          * This looks like a nice place to test if the HCF is still
          * communicating with the card. It seems that sometimes BAP_1
          * gets corrupted. By looking at the comments in HCF the
-         * cause is still a mistery. Okay, the communication to the
+         * cause is still a mystery. Okay, the communication to the
          * card is dead, reset the card to revive.
          */
 	if((lp->hcfCtx.IFB_CardStat & CARD_STAT_DEFUNCT) != 0)
@@ -3924,7 +3924,7 @@ void wl_wext_event_mic_failed( struct net_device *dev )
 	memset( msg, 0, sizeof( msg ));
 
 
-	/* Becuase MIC failures are not part of the Wireless Extensions yet, they
+	/* Because MIC failures are not part of the Wireless Extensions yet, they
 	   must be passed as a string using an IWEVCUSTOM event. In order for the
 	   event to be effective, the string format must be known by both the
 	   driver and the supplicant. The following is the string format used by the
@@ -3999,7 +3999,7 @@ void wl_wext_event_assoc_ie( struct net_device *dev )
 		memcpy( &data.rawData, &( lp->ltvRecord.u.u8[1] ), 88 );
 		wpa_ie = wl_parse_wpa_ie( &data, &length );
 
-		/* Becuase this event (Association WPA-IE) is not part of the Wireless
+		/* Because this event (Association WPA-IE) is not part of the Wireless
 		Extensions yet, it must be passed as a string using an IWEVCUSTOM event.
 		In order for the event to be effective, the string format must be known
 		by both the driver and the supplicant. The following is the string format

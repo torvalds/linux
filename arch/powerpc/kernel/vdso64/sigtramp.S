@@ -20,7 +20,7 @@
 
 /* The nop here is a hack.  The dwarf2 unwind routines subtract 1 from
    the return address to get an address in the middle of the presumed
-   call instruction.  Since we don't have a call here, we artifically
+   call instruction.  Since we don't have a call here, we artificially
    extend the range covered by the unwind info by padding before the
    real start.  */
 	nop

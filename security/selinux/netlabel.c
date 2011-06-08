@@ -151,7 +151,7 @@ void selinux_netlbl_sk_security_free(struct sk_security_struct *sksec)
  *
  * Description:
  * Called when the NetLabel state of a sk_security_struct needs to be reset.
- * The caller is responsibile for all the NetLabel sk_security_struct locking.
+ * The caller is responsible for all the NetLabel sk_security_struct locking.
  *
  */
 void selinux_netlbl_sk_security_reset(struct sk_security_struct *sksec)

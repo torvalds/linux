@@ -36,13 +36,13 @@
 #define MBCS_RD_DMA_CTRL	0x0110	/* Read DMA Control */
 #define MBCS_RD_DMA_AMO_DEST	0x0118	/* Read DMA AMO Destination */
 #define MBCS_RD_DMA_INT_DEST	0x0120	/* Read DMA Interrupt Destination */
-#define MBCS_RD_DMA_AUX_STAT	0x0130	/* Read DMA Auxillary Status */
+#define MBCS_RD_DMA_AUX_STAT	0x0130	/* Read DMA Auxiliary Status */
 #define MBCS_WR_DMA_SYS_ADDR	0x0200	/* Write DMA System Address */
 #define MBCS_WR_DMA_LOC_ADDR	0x0208	/* Write DMA Local Address */
 #define MBCS_WR_DMA_CTRL	0x0210	/* Write DMA Control */
 #define MBCS_WR_DMA_AMO_DEST	0x0218	/* Write DMA AMO Destination */
 #define MBCS_WR_DMA_INT_DEST	0x0220	/* Write DMA Interrupt Destination */
-#define MBCS_WR_DMA_AUX_STAT	0x0230	/* Write DMA Auxillary Status */
+#define MBCS_WR_DMA_AUX_STAT	0x0230	/* Write DMA Auxiliary Status */
 #define MBCS_ALG_AMO_DEST	0x0300	/* Algorithm AMO Destination */
 #define MBCS_ALG_INT_DEST	0x0308	/* Algorithm Interrupt Destination */
 #define MBCS_ALG_OFFSETS	0x0310

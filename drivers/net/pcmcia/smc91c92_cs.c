@@ -1264,7 +1264,7 @@ static netdev_tx_t smc_start_xmit(struct sk_buff *skb,
 
 /*======================================================================
 
-    Handle a Tx anomolous event.  Entered while in Window 2.
+    Handle a Tx anomalous event.  Entered while in Window 2.
 
 ======================================================================*/
 
@@ -1860,7 +1860,7 @@ static int smc_netdev_get_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
     tmp = inw(ioaddr + CONFIG);
     ecmd->port = (tmp & CFG_AUI_SELECT) ? PORT_AUI : PORT_TP;
     ecmd->transceiver = XCVR_INTERNAL;
-    ecmd->speed = SPEED_10;
+    ethtool_cmd_speed_set(ecmd, SPEED_10);
     ecmd->phy_address = ioaddr + MGMT;
 
     SMC_SELECT_BANK(0);
@@ -1875,8 +1875,8 @@ static int smc_netdev_set_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
     u16 tmp;
     unsigned int ioaddr = dev->base_addr;
 
-    if (ecmd->speed != SPEED_10)
-    	return -EINVAL;
+    if (ethtool_cmd_speed(ecmd) != SPEED_10)
+	return -EINVAL;
     if (ecmd->duplex != DUPLEX_HALF && ecmd->duplex != DUPLEX_FULL)
     	return -EINVAL;
     if (ecmd->port != PORT_TP && ecmd->port != PORT_AUI)
@@ -2014,7 +2014,7 @@ static int smc_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 	return rc;
 }
 
-static struct pcmcia_device_id smc91c92_ids[] = {
+static const struct pcmcia_device_id smc91c92_ids[] = {
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0109, 0x0501),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0140, 0x000a),
 	PCMCIA_PFC_DEVICE_PROD_ID123(0, "MEGAHERTZ", "CC/XJEM3288", "DATA/FAX/CELL ETHERNET MODEM", 0xf510db04, 0x04cd2988, 0x46a52d63),

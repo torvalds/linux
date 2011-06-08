@@ -265,7 +265,7 @@ static unsigned long sm501fb_ps_to_hz(unsigned long psvalue)
 	return (unsigned long)numerator;
 }
 
-/* sm501fb_hz_to_ps is identical to the oposite transform */
+/* sm501fb_hz_to_ps is identical to the opposite transform */
 
 #define sm501fb_hz_to_ps(x) sm501fb_ps_to_hz(x)
 
@@ -1625,22 +1625,22 @@ static int sm501fb_start(struct sm501fb_info *info,
 	return 0; /* everything is setup */
 
  err_mem_res:
-	release_resource(info->fbmem_res);
-	kfree(info->fbmem_res);
+	release_mem_region(info->fbmem_res->start,
+			   resource_size(info->fbmem_res));
 
  err_regs2d_map:
 	iounmap(info->regs2d);
 
  err_regs2d_res:
-	release_resource(info->regs2d_res);
-	kfree(info->regs2d_res);
+	release_mem_region(info->regs2d_res->start,
+			   resource_size(info->regs2d_res));
 
  err_regs_map:
 	iounmap(info->regs);
 
  err_regs_res:
-	release_resource(info->regs_res);
-	kfree(info->regs_res);
+	release_mem_region(info->regs_res->start,
+			   resource_size(info->regs_res));
 
  err_release:
 	return ret;
@@ -1652,16 +1652,16 @@ static void sm501fb_stop(struct sm501fb_info *info)
 	sm501_unit_power(info->dev->parent, SM501_GATE_DISPLAY, 0);
 
 	iounmap(info->fbmem);
-	release_resource(info->fbmem_res);
-	kfree(info->fbmem_res);
+	release_mem_region(info->fbmem_res->start,
+			   resource_size(info->fbmem_res));
 
 	iounmap(info->regs2d);
-	release_resource(info->regs2d_res);
-	kfree(info->regs2d_res);
+	release_mem_region(info->regs2d_res->start,
+			   resource_size(info->regs2d_res));
 
 	iounmap(info->regs);
-	release_resource(info->regs_res);
-	kfree(info->regs_res);
+	release_mem_region(info->regs_res->start,
+			   resource_size(info->regs_res));
 }
 
 static int sm501fb_init_fb(struct fb_info *fb,
@@ -1719,7 +1719,7 @@ static int sm501fb_init_fb(struct fb_info *fb,
 	       (head == HEAD_CRT) ? &sm501fb_ops_crt : &sm501fb_ops_pnl,
 	       sizeof(struct fb_ops));
 
-	/* update ops dependant on what we've been passed */
+	/* update ops dependent on what we've been passed */
 
 	if ((pd->flags & SM501FB_FLAG_USE_HWCURSOR) == 0)
 		par->ops.fb_cursor = NULL;

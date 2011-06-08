@@ -55,8 +55,6 @@
 #define FM_DRV_TX_TIMEOUT      (5*HZ)	/* 5 seconds */
 #define FM_DRV_RX_SEEK_TIMEOUT (20*HZ)	/* 20 seconds */
 
-#define NO_OF_ENTRIES_IN_ARRAY(array) (sizeof(array) / sizeof(array[0]))
-
 #define fmerr(format, ...) \
 	printk(KERN_ERR "fmdrv: " format, ## __VA_ARGS__)
 #define fmwarn(format, ...) \

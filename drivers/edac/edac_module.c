@@ -15,7 +15,7 @@
 #include "edac_core.h"
 #include "edac_module.h"
 
-#define EDAC_VERSION "Ver: 2.1.0 " __DATE__
+#define EDAC_VERSION "Ver: 2.1.0"
 
 #ifdef CONFIG_EDAC_DEBUG
 /* Values of 0 to 4 will generate output */

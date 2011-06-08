@@ -90,7 +90,6 @@ void __init pxa_set_mci_info(struct pxamci_platform_data *info)
 
 static struct pxa2xx_udc_mach_info pxa_udc_info = {
 	.gpio_pullup = -1,
-	.gpio_vbus   = -1,
 };
 
 void __init pxa_set_udc_info(struct pxa2xx_udc_mach_info *info)
@@ -188,14 +187,10 @@ struct platform_device pxa_device_fb = {
 	.resource	= pxafb_resources,
 };
 
-void __init set_pxa_fb_info(struct pxafb_mach_info *info)
+void __init pxa_set_fb_info(struct device *parent, struct pxafb_mach_info *info)
 {
+	pxa_device_fb.dev.parent = parent;
 	pxa_register_device(&pxa_device_fb, info);
-}
-
-void __init set_pxa_fb_parent(struct device *parent_dev)
-{
-	pxa_device_fb.dev.parent = parent_dev;
 }
 
 static struct resource pxa_resource_ffuart[] = {

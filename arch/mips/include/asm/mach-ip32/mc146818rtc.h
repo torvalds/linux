@@ -26,7 +26,7 @@ static inline void CMOS_WRITE(unsigned char data, unsigned long addr)
 }
 
 /*
- * FIXME: Do it right. For now just assume that noone lives in 20th century
+ * FIXME: Do it right. For now just assume that no one lives in 20th century
  * and no O2 user in 22th century ;-)
  */
 #define mc146818_decode_year(year) ((year) + 2000)

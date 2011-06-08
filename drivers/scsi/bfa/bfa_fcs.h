@@ -705,7 +705,7 @@ enum rport_event {
 	RPSM_EVENT_ADDRESS_CHANGE = 15, /*  Rport's PID has changed     */
 	RPSM_EVENT_ADDRESS_DISC = 16,   /*  Need to Discover rport's PID */
 	RPSM_EVENT_PRLO_RCVD   = 17,    /*  PRLO from remote device     */
-	RPSM_EVENT_PLOGI_RETRY = 18,    /*  Retry PLOGI continously */
+	RPSM_EVENT_PLOGI_RETRY = 18,    /*  Retry PLOGI continuously */
 };
 
 /*

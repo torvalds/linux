@@ -245,7 +245,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	acpi_sleep=	[HW,ACPI] Sleep options
 			Format: { s3_bios, s3_mode, s3_beep, s4_nohwsig,
-				  old_ordering, s4_nonvs, sci_force_enable }
+				  old_ordering, nonvs, sci_force_enable }
 			See Documentation/power/video.txt for information on
 			s3_bios and s3_mode.
 			s3_beep is for debugging; it makes the PC's speaker beep
@@ -699,7 +699,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ekgdboc=	[X86,KGDB] Allow early kernel console debugging
 			ekgdboc=kbd
 
-			This is desgined to be used in conjunction with
+			This is designed to be used in conjunction with
 			the boot argument: earlyprintk=vga
 
 	edd=		[EDD]
@@ -1664,6 +1664,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			noexec=on: enable non-executable mappings (default)
 			noexec=off: disable non-executable mappings
 
+	nosmep		[X86]
+			Disable SMEP (Supervisor Mode Execution Protection)
+			even if it is supported by processor.
+
 	noexec32	[X86-64]
 			This affects only 32-bit executables.
 			noexec32=on: enable non-executable mappings (default)
@@ -1773,9 +1777,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nosoftlockup	[KNL] Disable the soft-lockup detector.
 
-	noswapaccount	[KNL] Disable accounting of swap in memory resource
-			controller. (See Documentation/cgroups/memory.txt)
-
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
 
 	notsc		[BUGS=X86-32] Disable Time Stamp Counter
@@ -1832,15 +1833,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				perfmon on Intel CPUs instead of the
 				CPU specific event set.
 
-	oops=panic	Always panic on oopses. Default is to just kill the process,
-			but there is a small probability of deadlocking the machine.
+	oops=panic	Always panic on oopses. Default is to just kill the
+			process, but there is a small probability of
+			deadlocking the machine.
 			This will also cause panics on machine check exceptions.
 			Useful together with panic=30 to trigger a reboot.
 
 	OSS		[HW,OSS]
 			See Documentation/sound/oss/oss-parameters.txt
 
-	panic=		[KNL] Kernel behaviour on panic
+	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
+			seconds before rebooting
 			Format: <timeout>
 
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is
@@ -2343,6 +2346,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	softlockup_panic=
 			[KNL] Should the soft-lockup detector generate panics.
+			Format: <integer>
 
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver
 			See Documentation/sonypi.txt
@@ -2475,8 +2479,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	topology=	[S390]
 			Format: {off | on}
 			Specify if the kernel should make use of the cpu
-			topology informations if the hardware supports these.
-			The scheduler will make use of these informations and
+			topology information if the hardware supports this.
+			The scheduler will make use of this information and
 			e.g. base its process migration decisions on it.
 			Default is on.
 
@@ -2529,8 +2533,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			reported either.
 
 	unknown_nmi_panic
-			[X86]
-			Set unknown_nmi_panic=1 early on boot.
+			[X86] Cause panic on unknown NMI.
 
 	usbcore.autosuspend=
 			[USB] The autosuspend time delay (in seconds) used
@@ -2579,6 +2582,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					bytes of sense data);
 				c = FIX_CAPACITY (decrease the reported
 					device capacity by one sector);
+				d = NO_READ_DISC_INFO (don't use
+					READ_DISC_INFO command);
+				e = NO_READ_CAPACITY_16 (don't use
+					READ_CAPACITY_16 command);
 				h = CAPACITY_HEURISTICS (decrease the
 					reported device capacity by one
 					sector if the number is odd);

@@ -989,8 +989,8 @@ static int mif6_add(struct net *net, struct mr6_table *mrt,
 }
 
 static struct mfc6_cache *ip6mr_cache_find(struct mr6_table *mrt,
-					   struct in6_addr *origin,
-					   struct in6_addr *mcastgrp)
+					   const struct in6_addr *origin,
+					   const struct in6_addr *mcastgrp)
 {
 	int line = MFC6_HASH(mcastgrp, origin);
 	struct mfc6_cache *c;

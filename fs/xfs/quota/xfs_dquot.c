@@ -600,7 +600,7 @@ xfs_qm_dqread(
 
 	/*
 	 * Reservation counters are defined as reservation plus current usage
-	 * to avoid having to add everytime.
+	 * to avoid having to add every time.
 	 */
 	dqp->q_res_bcount = be64_to_cpu(ddqp->d_bcount);
 	dqp->q_res_icount = be64_to_cpu(ddqp->d_icount);

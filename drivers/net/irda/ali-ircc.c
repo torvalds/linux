@@ -76,7 +76,7 @@ static int  ali_ircc_probe_53(ali_chip_t *chip, chipio_t *info);
 static int  ali_ircc_init_43(ali_chip_t *chip, chipio_t *info);
 static int  ali_ircc_init_53(ali_chip_t *chip, chipio_t *info);
 
-/* These are the currently known ALi sourth-bridge chipsets, the only one difference
+/* These are the currently known ALi south-bridge chipsets, the only one difference
  * is that M1543C doesn't support HP HDSL-3600
  */
 static ali_chip_t chips[] =
@@ -1108,7 +1108,7 @@ static void ali_ircc_sir_change_speed(struct ali_ircc_cb *priv, __u32 speed)
 	outb(lcr,		  iobase+UART_LCR); /* Set 8N1	*/
 	outb(fcr,		  iobase+UART_FCR); /* Enable FIFO's */
 
-	/* without this, the conection will be broken after come back from FIR speed,
+	/* without this, the connection will be broken after come back from FIR speed,
 	   but with this, the SIR connection is harder to established */
 	outb((UART_MCR_DTR | UART_MCR_RTS | UART_MCR_OUT2), iobase+UART_MCR);
 	
@@ -1800,7 +1800,7 @@ static int  ali_ircc_dma_receive_complete(struct ali_ircc_cb *self)
 	MessageCount = inb(iobase+ FIR_LSR)&0x07;
 	
 	if (MessageCount > 0)	
-		IRDA_DEBUG(0, "%s(), Messsage count = %d,\n", __func__ , MessageCount);
+		IRDA_DEBUG(0, "%s(), Message count = %d,\n", __func__ , MessageCount);
 		
 	for (i=0; i<=MessageCount; i++)
 	{

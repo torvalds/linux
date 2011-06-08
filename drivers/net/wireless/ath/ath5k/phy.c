@@ -335,11 +335,11 @@ static void ath5k_hw_wait_for_synth(struct ath5k_hw *ah,
  * http://madwifi-project.org/ticket/1659
  * with various measurements and diagrams
  *
- * TODO: Deal with power drops due to probes by setting an apropriate
+ * TODO: Deal with power drops due to probes by setting an appropriate
  * tx power on the probe packets ! Make this part of the calibration process.
  */
 
-/* Initialize ah_gain durring attach */
+/* Initialize ah_gain during attach */
 int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah)
 {
 	/* Initialize the gain optimization values */
@@ -1049,7 +1049,7 @@ static int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 \**************************/
 
 /*
- * Convertion needed for RF5110
+ * Conversion needed for RF5110
  */
 static u32 ath5k_hw_rf5110_chan2athchan(struct ieee80211_channel *channel)
 {
@@ -1088,7 +1088,7 @@ static int ath5k_hw_rf5110_channel(struct ath5k_hw *ah,
 }
 
 /*
- * Convertion needed for 5111
+ * Conversion needed for 5111
  */
 static int ath5k_hw_rf5111_chan2athchan(unsigned int ieee,
 		struct ath5k_athchan_2ghz *athchan)
@@ -2201,7 +2201,7 @@ ath5k_create_power_curve(s16 pmin, s16 pmax,
 /*
  * Get the surrounding per-channel power calibration piers
  * for a given frequency so that we can interpolate between
- * them and come up with an apropriate dataset for our current
+ * them and come up with an appropriate dataset for our current
  * channel.
  */
 static void
@@ -2618,7 +2618,7 @@ ath5k_write_pcdac_table(struct ath5k_hw *ah)
 /*
  * Set the gain boundaries and create final Power to PDADC table
  *
- * We can have up to 4 pd curves, we need to do a simmilar process
+ * We can have up to 4 pd curves, we need to do a similar process
  * as we do for RF5112. This time we don't have an edge_flag but we
  * set the gain boundaries on a separate register.
  */
@@ -2826,13 +2826,13 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 	u32 target = channel->center_freq;
 	int pdg, i;
 
-	/* Get surounding freq piers for this channel */
+	/* Get surrounding freq piers for this channel */
 	ath5k_get_chan_pcal_surrounding_piers(ah, channel,
 						&pcinfo_L,
 						&pcinfo_R);
 
 	/* Loop over pd gain curves on
-	 * surounding freq piers by index */
+	 * surrounding freq piers by index */
 	for (pdg = 0; pdg < ee->ee_pd_gains[ee_mode]; pdg++) {
 
 		/* Fill curves in reverse order
@@ -2923,7 +2923,7 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 		}
 
 		/* Interpolate between curves
-		 * of surounding freq piers to
+		 * of surrounding freq piers to
 		 * get the final curve for this
 		 * pd gain. Re-use tmpL for interpolation
 		 * output */
@@ -2947,7 +2947,7 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 
 	/* Fill min and max power levels for this
 	 * channel by interpolating the values on
-	 * surounding channels to complete the dataset */
+	 * surrounding channels to complete the dataset */
 	ah->ah_txpower.txp_min_pwr = ath5k_get_interpolated_value(target,
 					(s16) pcinfo_L->freq,
 					(s16) pcinfo_R->freq,
@@ -3179,7 +3179,7 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 
 	/* FIXME: TPC scale reduction */
 
-	/* Get surounding channels for per-rate power table
+	/* Get surrounding channels for per-rate power table
 	 * calibration */
 	ath5k_get_rate_pcal_data(ah, channel, &rate_info);
 

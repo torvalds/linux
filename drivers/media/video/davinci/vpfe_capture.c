@@ -1691,7 +1691,7 @@ static int vpfe_s_crop(struct file *file, void *priv,
 		goto unlock_out;
 	}
 
-	/* adjust the width to 16 pixel boundry */
+	/* adjust the width to 16 pixel boundary */
 	crop->c.width = ((crop->c.width + 15) & ~0xf);
 
 	/* make sure parameters are valid */

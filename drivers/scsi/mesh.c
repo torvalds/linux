@@ -415,8 +415,7 @@ static void mesh_start_cmd(struct mesh_state *ms, struct scsi_cmnd *cmd)
 #if 1
 	if (DEBUG_TARGET(cmd)) {
 		int i;
-		printk(KERN_DEBUG "mesh_start: %p ser=%lu tgt=%d cmd=",
-		       cmd, cmd->serial_number, id);
+		printk(KERN_DEBUG "mesh_start: %p tgt=%d cmd=", cmd, id);
 		for (i = 0; i < cmd->cmd_len; ++i)
 			printk(" %x", cmd->cmnd[i]);
 		printk(" use_sg=%d buffer=%p bufflen=%u\n",

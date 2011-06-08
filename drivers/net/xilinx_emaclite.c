@@ -786,7 +786,7 @@ static int xemaclite_mdio_read(struct mii_bus *bus, int phy_id, int reg)
  * @reg:	register number to write to
  * @val:	value to write to the register number specified by reg
  *
- * This fucntion waits till the device is ready to accept a new MDIO
+ * This function waits till the device is ready to accept a new MDIO
  * request and then writes the val to the MDIO Write Data register.
  */
 static int xemaclite_mdio_write(struct mii_bus *bus, int phy_id, int reg,

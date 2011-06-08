@@ -417,7 +417,7 @@ int SetOverlayViewPort(volatile STG4000REG __iomem *pSTGReg,
 	/***************** Horizontal decimation/scaling ***************************/
 
 	/*
-	 * Now we handle the horizontal case, this is a simplified verison of
+	 * Now we handle the horizontal case, this is a simplified version of
 	 * the vertical case in that we decimate by factors of 2.  as we are
 	 * working in words we should always be able to decimate by these
 	 * factors.  as we always have to have a buffer which is aligned to a

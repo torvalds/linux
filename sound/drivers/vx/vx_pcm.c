@@ -1189,7 +1189,7 @@ void vx_pcm_update_intr(struct vx_core *chip, unsigned int events)
 
 
 /*
- * vx_init_audio_io - check the availabe audio i/o and allocate pipe arrays
+ * vx_init_audio_io - check the available audio i/o and allocate pipe arrays
  */
 static int vx_init_audio_io(struct vx_core *chip)
 {

@@ -316,22 +316,17 @@ static inline void smk_ad_setfield_u_tsk(struct smk_audit_info *a,
 static inline void smk_ad_setfield_u_fs_path_dentry(struct smk_audit_info *a,
 						    struct dentry *d)
 {
-	a->a.u.fs.path.dentry = d;
-}
-static inline void smk_ad_setfield_u_fs_path_mnt(struct smk_audit_info *a,
-						 struct vfsmount *m)
-{
-	a->a.u.fs.path.mnt = m;
+	a->a.u.dentry = d;
 }
 static inline void smk_ad_setfield_u_fs_inode(struct smk_audit_info *a,
 					      struct inode *i)
 {
-	a->a.u.fs.inode = i;
+	a->a.u.inode = i;
 }
 static inline void smk_ad_setfield_u_fs_path(struct smk_audit_info *a,
 					     struct path p)
 {
-	a->a.u.fs.path = p;
+	a->a.u.path = p;
 }
 static inline void smk_ad_setfield_u_net_sk(struct smk_audit_info *a,
 					    struct sock *sk)

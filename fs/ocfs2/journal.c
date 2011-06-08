@@ -1260,6 +1260,9 @@ void ocfs2_complete_mount_recovery(struct ocfs2_super *osb)
 {
 	struct ocfs2_journal *journal = osb->journal;
 
+	if (ocfs2_is_hard_readonly(osb))
+		return;
+
 	/* No need to queue up our truncate_log as regular cleanup will catch
 	 * that */
 	ocfs2_queue_recovery_completion(journal, osb->slot_num,
@@ -1368,7 +1371,7 @@ skip_recovery:
 		mlog_errno(status);
 
 	/* Now it is right time to recover quotas... We have to do this under
-	 * superblock lock so that noone can start using the slot (and crash)
+	 * superblock lock so that no one can start using the slot (and crash)
 	 * before we recover it */
 	for (i = 0; i < rm_quota_used; i++) {
 		qrec = ocfs2_begin_quota_recovery(osb, rm_quota[i]);

@@ -132,8 +132,8 @@
  * As i can see in ar5k_ar5210_tx_start Reyk uses some of the values of BCR
  * for this register, so i guess TQ1V,TQ1FV and BDMAE have the same meaning
  * here and SNP/SNAP means "snapshot" (so this register gets synced with BCR).
- * So SNAPPEDBCRVALID sould also stand for "snapped BCR -values- valid", so i
- * renamed it to SNAPSHOTSVALID to make more sense. I realy have no idea what
+ * So SNAPPEDBCRVALID should also stand for "snapped BCR -values- valid", so i
+ * renamed it to SNAPSHOTSVALID to make more sense. I really have no idea what
  * else can it be. I also renamed SNPBCMD to SNPADHOC to match BCR.
  */
 #define AR5K_BSR		0x002c			/* Register Address */
@@ -283,7 +283,7 @@
  */
 #define AR5K_ISR		0x001c			/* Register Address [5210] */
 #define AR5K_PISR		0x0080			/* Register Address [5211+] */
-#define AR5K_ISR_RXOK		0x00000001	/* Frame successfuly recieved */
+#define AR5K_ISR_RXOK		0x00000001	/* Frame successfuly received */
 #define AR5K_ISR_RXDESC		0x00000002	/* RX descriptor request */
 #define AR5K_ISR_RXERR		0x00000004	/* Receive error */
 #define AR5K_ISR_RXNOFRM	0x00000008	/* No frame received (receive timeout) */
@@ -372,12 +372,12 @@
 /*
  * Interrupt Mask Registers
  *
- * As whith ISRs 5210 has one IMR (AR5K_IMR) and 5211/5212 has one primary
+ * As with ISRs 5210 has one IMR (AR5K_IMR) and 5211/5212 has one primary
  * (AR5K_PIMR) and 4 secondary IMRs (AR5K_SIMRx). Note that ISR/IMR flags match.
  */
 #define	AR5K_IMR		0x0020			/* Register Address [5210] */
 #define AR5K_PIMR		0x00a0			/* Register Address [5211+] */
-#define AR5K_IMR_RXOK		0x00000001	/* Frame successfuly recieved*/
+#define AR5K_IMR_RXOK		0x00000001	/* Frame successfuly received*/
 #define AR5K_IMR_RXDESC		0x00000002	/* RX descriptor request*/
 #define AR5K_IMR_RXERR		0x00000004	/* Receive error*/
 #define AR5K_IMR_RXNOFRM	0x00000008	/* No frame received (receive timeout)*/
@@ -895,7 +895,7 @@
 #define AR5K_PCICFG_SL_INTEN		0x00000800	/* Enable interrupts when asleep */
 #define AR5K_PCICFG_LED_BCTL		0x00001000	/* Led blink (?) [5210] */
 #define AR5K_PCICFG_RETRY_FIX		0x00001000	/* Enable pci core retry fix */
-#define AR5K_PCICFG_SL_INPEN		0x00002000	/* Sleep even whith pending interrupts*/
+#define AR5K_PCICFG_SL_INPEN		0x00002000	/* Sleep even with pending interrupts*/
 #define AR5K_PCICFG_SPWR_DN		0x00010000	/* Mask for power status */
 #define AR5K_PCICFG_LEDMODE		0x000e0000	/* Ledmode [5211+] */
 #define AR5K_PCICFG_LEDMODE_PROP	0x00000000	/* Blink on standard traffic [5211+] */

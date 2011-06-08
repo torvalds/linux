@@ -562,7 +562,7 @@ static int ene_sd_init(struct us_data *us)
 
 	result = ene_send_scsi_cmd(us, FDIR_READ, NULL, 0);
 	if (result != USB_STOR_XFER_GOOD) {
-		US_DEBUGP("Exection SD Init Code Fail !!\n");
+		US_DEBUGP("Execution SD Init Code Fail !!\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -581,7 +581,7 @@ static int ene_sd_init(struct us_data *us)
 
 	result = ene_send_scsi_cmd(us, FDIR_READ, &buf, 0);
 	if (result != USB_STOR_XFER_GOOD) {
-		US_DEBUGP("Exection SD Init Code Fail !!\n");
+		US_DEBUGP("Execution SD Init Code Fail !!\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -715,8 +715,8 @@ static int ene_ub6250_probe(struct usb_interface *intf,
 
 	if (!(misc_reg03 & 0x01)) {
 		result = -ENODEV;
-		printk(KERN_NOTICE "ums_eneub6250: The driver only supports SD\
-		card. To use SM/MS card, please build driver/stagging/keucr\n");
+		printk(KERN_NOTICE "ums_eneub6250: The driver only supports SD card. "
+		       "To use SM/MS card, please build driver/staging/keucr\n");
 		usb_stor_disconnect(intf);
 	}
 

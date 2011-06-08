@@ -83,7 +83,7 @@ nouveau_dma_init(struct nouveau_channel *chan)
 		return ret;
 
 	/* NV_MEMORY_TO_MEMORY_FORMAT requires a notifier object */
-	ret = nouveau_notifier_alloc(chan, NvNotify0, 32, 0xfd0, 0x1000,
+	ret = nouveau_notifier_alloc(chan, NvNotify0, 32, 0xfe0, 0x1000,
 				     &chan->m2mf_ntfy);
 	if (ret)
 		return ret;

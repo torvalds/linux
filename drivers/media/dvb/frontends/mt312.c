@@ -670,7 +670,7 @@ static int mt312_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 		if (ret < 0)
 			goto error;
 
-		/* preserve this bit to not accidently shutdown ADC */
+		/* preserve this bit to not accidentally shutdown ADC */
 		val &= 0x80;
 		break;
 	}

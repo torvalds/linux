@@ -284,7 +284,7 @@ static void esd_usb2_rx_event(struct esd_usb2_net_priv *priv,
 				break;
 			}
 
-			/* Error occured during transmission? */
+			/* Error occurred during transmission? */
 			if (!(ecc & SJA1000_ECC_DIR))
 				cf->data[2] |= CAN_ERR_PROT_TX;
 

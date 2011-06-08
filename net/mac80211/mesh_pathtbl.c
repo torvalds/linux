@@ -36,10 +36,77 @@ struct mpath_node {
 	struct mesh_path *mpath;
 };
 
-static struct mesh_table *mesh_paths;
-static struct mesh_table *mpp_paths; /* Store paths for MPP&MAP */
+static struct mesh_table __rcu *mesh_paths;
+static struct mesh_table __rcu *mpp_paths; /* Store paths for MPP&MAP */
 
 int mesh_paths_generation;
+
+/* This lock will have the grow table function as writer and add / delete nodes
+ * as readers. When reading the table (i.e. doing lookups) we are well protected
+ * by RCU
+ */
+static DEFINE_RWLOCK(pathtbl_resize_lock);
+
+
+static inline struct mesh_table *resize_dereference_mesh_paths(void)
+{
+	return rcu_dereference_protected(mesh_paths,
+		lockdep_is_held(&pathtbl_resize_lock));
+}
+
+static inline struct mesh_table *resize_dereference_mpp_paths(void)
+{
+	return rcu_dereference_protected(mpp_paths,
+		lockdep_is_held(&pathtbl_resize_lock));
+}
+
+/*
+ * CAREFUL -- "tbl" must not be an expression,
+ * in particular not an rcu_dereference(), since
+ * it's used twice. So it is illegal to do
+ *	for_each_mesh_entry(rcu_dereference(...), ...)
+ */
+#define for_each_mesh_entry(tbl, p, node, i) \
+	for (i = 0; i <= tbl->hash_mask; i++) \
+		hlist_for_each_entry_rcu(node, p, &tbl->hash_buckets[i], list)
+
+
+static struct mesh_table *mesh_table_alloc(int size_order)
+{
+	int i;
+	struct mesh_table *newtbl;
+
+	newtbl = kmalloc(sizeof(struct mesh_table), GFP_ATOMIC);
+	if (!newtbl)
+		return NULL;
+
+	newtbl->hash_buckets = kzalloc(sizeof(struct hlist_head) *
+			(1 << size_order), GFP_ATOMIC);
+
+	if (!newtbl->hash_buckets) {
+		kfree(newtbl);
+		return NULL;
+	}
+
+	newtbl->hashwlock = kmalloc(sizeof(spinlock_t) *
+			(1 << size_order), GFP_ATOMIC);
+	if (!newtbl->hashwlock) {
+		kfree(newtbl->hash_buckets);
+		kfree(newtbl);
+		return NULL;
+	}
+
+	newtbl->size_order = size_order;
+	newtbl->hash_mask = (1 << size_order) - 1;
+	atomic_set(&newtbl->entries,  0);
+	get_random_bytes(&newtbl->hash_rnd,
+			sizeof(newtbl->hash_rnd));
+	for (i = 0; i <= newtbl->hash_mask; i++)
+		spin_lock_init(&newtbl->hashwlock[i]);
+
+	return newtbl;
+}
+
 static void __mesh_table_free(struct mesh_table *tbl)
 {
 	kfree(tbl->hash_buckets);
@@ -47,7 +114,7 @@ static void __mesh_table_free(struct mesh_table *tbl)
 	kfree(tbl);
 }
 
-void mesh_table_free(struct mesh_table *tbl, bool free_leafs)
+static void mesh_table_free(struct mesh_table *tbl, bool free_leafs)
 {
 	struct hlist_head *mesh_hash;
 	struct hlist_node *p, *q;
@@ -55,60 +122,56 @@ void mesh_table_free(struct mesh_table *tbl, bool free_leafs)
 
 	mesh_hash = tbl->hash_buckets;
 	for (i = 0; i <= tbl->hash_mask; i++) {
-		spin_lock(&tbl->hashwlock[i]);
+		spin_lock_bh(&tbl->hashwlock[i]);
 		hlist_for_each_safe(p, q, &mesh_hash[i]) {
 			tbl->free_node(p, free_leafs);
 			atomic_dec(&tbl->entries);
 		}
-		spin_unlock(&tbl->hashwlock[i]);
+		spin_unlock_bh(&tbl->hashwlock[i]);
 	}
 	__mesh_table_free(tbl);
 }
 
-static struct mesh_table *mesh_table_grow(struct mesh_table *tbl)
+static int mesh_table_grow(struct mesh_table *oldtbl,
+			   struct mesh_table *newtbl)
 {
-	struct mesh_table *newtbl;
 	struct hlist_head *oldhash;
 	struct hlist_node *p, *q;
 	int i;
 
-	if (atomic_read(&tbl->entries)
-			< tbl->mean_chain_len * (tbl->hash_mask + 1))
-		goto endgrow;
+	if (atomic_read(&oldtbl->entries)
+			< oldtbl->mean_chain_len * (oldtbl->hash_mask + 1))
+		return -EAGAIN;
 
-	newtbl = mesh_table_alloc(tbl->size_order + 1);
-	if (!newtbl)
-		goto endgrow;
+	newtbl->free_node = oldtbl->free_node;
+	newtbl->mean_chain_len = oldtbl->mean_chain_len;
+	newtbl->copy_node = oldtbl->copy_node;
+	atomic_set(&newtbl->entries, atomic_read(&oldtbl->entries));
 
-	newtbl->free_node = tbl->free_node;
-	newtbl->mean_chain_len = tbl->mean_chain_len;
-	newtbl->copy_node = tbl->copy_node;
-	atomic_set(&newtbl->entries, atomic_read(&tbl->entries));
-
-	oldhash = tbl->hash_buckets;
-	for (i = 0; i <= tbl->hash_mask; i++)
+	oldhash = oldtbl->hash_buckets;
+	for (i = 0; i <= oldtbl->hash_mask; i++)
 		hlist_for_each(p, &oldhash[i])
-			if (tbl->copy_node(p, newtbl) < 0)
+			if (oldtbl->copy_node(p, newtbl) < 0)
 				goto errcopy;
 
-	return newtbl;
+	return 0;
 
 errcopy:
 	for (i = 0; i <= newtbl->hash_mask; i++) {
 		hlist_for_each_safe(p, q, &newtbl->hash_buckets[i])
-			tbl->free_node(p, 0);
+			oldtbl->free_node(p, 0);
 	}
-	__mesh_table_free(newtbl);
-endgrow:
-	return NULL;
+	return -ENOMEM;
 }
 
+static u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata,
+			   struct mesh_table *tbl)
+{
+	/* Use last four bytes of hw addr and interface index as hash index */
+	return jhash_2words(*(u32 *)(addr+2), sdata->dev->ifindex, tbl->hash_rnd)
+		& tbl->hash_mask;
+}
 
-/* This lock will have the grow table function as writer and add / delete nodes
- * as readers. When reading the table (i.e. doing lookups) we are well protected
- * by RCU
- */
-static DEFINE_RWLOCK(pathtbl_resize_lock);
 
 /**
  *
@@ -218,12 +281,13 @@ struct mesh_path *mpp_path_lookup(u8 *dst, struct ieee80211_sub_if_data *sdata)
  */
 struct mesh_path *mesh_path_lookup_by_idx(int idx, struct ieee80211_sub_if_data *sdata)
 {
+	struct mesh_table *tbl = rcu_dereference(mesh_paths);
 	struct mpath_node *node;
 	struct hlist_node *p;
 	int i;
 	int j = 0;
 
-	for_each_mesh_entry(mesh_paths, p, node, i) {
+	for_each_mesh_entry(tbl, p, node, i) {
 		if (sdata && node->mpath->sdata != sdata)
 			continue;
 		if (j++ == idx) {
@@ -253,6 +317,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
+	struct mesh_table *tbl;
 	struct mesh_path *mpath, *new_mpath;
 	struct mpath_node *node, *new_node;
 	struct hlist_head *bucket;
@@ -280,7 +345,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	if (!new_node)
 		goto err_node_alloc;
 
-	read_lock(&pathtbl_resize_lock);
+	read_lock_bh(&pathtbl_resize_lock);
 	memcpy(new_mpath->dst, dst, ETH_ALEN);
 	new_mpath->sdata = sdata;
 	new_mpath->flags = 0;
@@ -292,10 +357,12 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	spin_lock_init(&new_mpath->state_lock);
 	init_timer(&new_mpath->timer);
 
-	hash_idx = mesh_table_hash(dst, sdata, mesh_paths);
-	bucket = &mesh_paths->hash_buckets[hash_idx];
+	tbl = resize_dereference_mesh_paths();
 
-	spin_lock(&mesh_paths->hashwlock[hash_idx]);
+	hash_idx = mesh_table_hash(dst, sdata, tbl);
+	bucket = &tbl->hash_buckets[hash_idx];
+
+	spin_lock_bh(&tbl->hashwlock[hash_idx]);
 
 	err = -EEXIST;
 	hlist_for_each_entry(node, n, bucket, list) {
@@ -305,14 +372,14 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	}
 
 	hlist_add_head_rcu(&new_node->list, bucket);
-	if (atomic_inc_return(&mesh_paths->entries) >=
-		mesh_paths->mean_chain_len * (mesh_paths->hash_mask + 1))
+	if (atomic_inc_return(&tbl->entries) >=
+	    tbl->mean_chain_len * (tbl->hash_mask + 1))
 		grow = 1;
 
 	mesh_paths_generation++;
 
-	spin_unlock(&mesh_paths->hashwlock[hash_idx]);
-	read_unlock(&pathtbl_resize_lock);
+	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	read_unlock_bh(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPATH_TABLE,  &ifmsh->wrkq_flags);
 		ieee80211_queue_work(&local->hw, &sdata->work);
@@ -320,8 +387,8 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	return 0;
 
 err_exists:
-	spin_unlock(&mesh_paths->hashwlock[hash_idx]);
-	read_unlock(&pathtbl_resize_lock);
+	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	read_unlock_bh(&pathtbl_resize_lock);
 	kfree(new_node);
 err_node_alloc:
 	kfree(new_mpath);
@@ -330,46 +397,59 @@ err_path_alloc:
 	return err;
 }
 
+static void mesh_table_free_rcu(struct rcu_head *rcu)
+{
+	struct mesh_table *tbl = container_of(rcu, struct mesh_table, rcu_head);
+
+	mesh_table_free(tbl, false);
+}
+
 void mesh_mpath_table_grow(void)
 {
 	struct mesh_table *oldtbl, *newtbl;
 
-	write_lock(&pathtbl_resize_lock);
-	oldtbl = mesh_paths;
-	newtbl = mesh_table_grow(mesh_paths);
-	if (!newtbl) {
-		write_unlock(&pathtbl_resize_lock);
-		return;
+	write_lock_bh(&pathtbl_resize_lock);
+	oldtbl = resize_dereference_mesh_paths();
+	newtbl = mesh_table_alloc(oldtbl->size_order + 1);
+	if (!newtbl)
+		goto out;
+	if (mesh_table_grow(oldtbl, newtbl) < 0) {
+		__mesh_table_free(newtbl);
+		goto out;
 	}
 	rcu_assign_pointer(mesh_paths, newtbl);
-	write_unlock(&pathtbl_resize_lock);
 
-	synchronize_rcu();
-	mesh_table_free(oldtbl, false);
+	call_rcu(&oldtbl->rcu_head, mesh_table_free_rcu);
+
+ out:
+	write_unlock_bh(&pathtbl_resize_lock);
 }
 
 void mesh_mpp_table_grow(void)
 {
 	struct mesh_table *oldtbl, *newtbl;
 
-	write_lock(&pathtbl_resize_lock);
-	oldtbl = mpp_paths;
-	newtbl = mesh_table_grow(mpp_paths);
-	if (!newtbl) {
-		write_unlock(&pathtbl_resize_lock);
-		return;
+	write_lock_bh(&pathtbl_resize_lock);
+	oldtbl = resize_dereference_mpp_paths();
+	newtbl = mesh_table_alloc(oldtbl->size_order + 1);
+	if (!newtbl)
+		goto out;
+	if (mesh_table_grow(oldtbl, newtbl) < 0) {
+		__mesh_table_free(newtbl);
+		goto out;
 	}
 	rcu_assign_pointer(mpp_paths, newtbl);
-	write_unlock(&pathtbl_resize_lock);
+	call_rcu(&oldtbl->rcu_head, mesh_table_free_rcu);
 
-	synchronize_rcu();
-	mesh_table_free(oldtbl, false);
+ out:
+	write_unlock_bh(&pathtbl_resize_lock);
 }
 
 int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
+	struct mesh_table *tbl;
 	struct mesh_path *mpath, *new_mpath;
 	struct mpath_node *node, *new_node;
 	struct hlist_head *bucket;
@@ -394,7 +474,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	if (!new_node)
 		goto err_node_alloc;
 
-	read_lock(&pathtbl_resize_lock);
+	read_lock_bh(&pathtbl_resize_lock);
 	memcpy(new_mpath->dst, dst, ETH_ALEN);
 	memcpy(new_mpath->mpp, mpp, ETH_ALEN);
 	new_mpath->sdata = sdata;
@@ -404,10 +484,12 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	new_mpath->exp_time = jiffies;
 	spin_lock_init(&new_mpath->state_lock);
 
-	hash_idx = mesh_table_hash(dst, sdata, mpp_paths);
-	bucket = &mpp_paths->hash_buckets[hash_idx];
+	tbl = resize_dereference_mpp_paths();
 
-	spin_lock(&mpp_paths->hashwlock[hash_idx]);
+	hash_idx = mesh_table_hash(dst, sdata, tbl);
+	bucket = &tbl->hash_buckets[hash_idx];
+
+	spin_lock_bh(&tbl->hashwlock[hash_idx]);
 
 	err = -EEXIST;
 	hlist_for_each_entry(node, n, bucket, list) {
@@ -417,12 +499,12 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	}
 
 	hlist_add_head_rcu(&new_node->list, bucket);
-	if (atomic_inc_return(&mpp_paths->entries) >=
-		mpp_paths->mean_chain_len * (mpp_paths->hash_mask + 1))
+	if (atomic_inc_return(&tbl->entries) >=
+	    tbl->mean_chain_len * (tbl->hash_mask + 1))
 		grow = 1;
 
-	spin_unlock(&mpp_paths->hashwlock[hash_idx]);
-	read_unlock(&pathtbl_resize_lock);
+	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	read_unlock_bh(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPP_TABLE,  &ifmsh->wrkq_flags);
 		ieee80211_queue_work(&local->hw, &sdata->work);
@@ -430,8 +512,8 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	return 0;
 
 err_exists:
-	spin_unlock(&mpp_paths->hashwlock[hash_idx]);
-	read_unlock(&pathtbl_resize_lock);
+	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	read_unlock_bh(&pathtbl_resize_lock);
 	kfree(new_node);
 err_node_alloc:
 	kfree(new_mpath);
@@ -450,6 +532,7 @@ err_path_alloc:
  */
 void mesh_plink_broken(struct sta_info *sta)
 {
+	struct mesh_table *tbl;
 	static const u8 bcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct mesh_path *mpath;
 	struct mpath_node *node;
@@ -458,10 +541,11 @@ void mesh_plink_broken(struct sta_info *sta)
 	int i;
 
 	rcu_read_lock();
-	for_each_mesh_entry(mesh_paths, p, node, i) {
+	tbl = rcu_dereference(mesh_paths);
+	for_each_mesh_entry(tbl, p, node, i) {
 		mpath = node->mpath;
 		spin_lock_bh(&mpath->state_lock);
-		if (mpath->next_hop == sta &&
+		if (rcu_dereference(mpath->next_hop) == sta &&
 		    mpath->flags & MESH_PATH_ACTIVE &&
 		    !(mpath->flags & MESH_PATH_FIXED)) {
 			mpath->flags &= ~MESH_PATH_ACTIVE;
@@ -490,30 +574,38 @@ void mesh_plink_broken(struct sta_info *sta)
  */
 void mesh_path_flush_by_nexthop(struct sta_info *sta)
 {
+	struct mesh_table *tbl;
 	struct mesh_path *mpath;
 	struct mpath_node *node;
 	struct hlist_node *p;
 	int i;
 
-	for_each_mesh_entry(mesh_paths, p, node, i) {
+	rcu_read_lock();
+	tbl = rcu_dereference(mesh_paths);
+	for_each_mesh_entry(tbl, p, node, i) {
 		mpath = node->mpath;
-		if (mpath->next_hop == sta)
+		if (rcu_dereference(mpath->next_hop) == sta)
 			mesh_path_del(mpath->dst, mpath->sdata);
 	}
+	rcu_read_unlock();
 }
 
 void mesh_path_flush(struct ieee80211_sub_if_data *sdata)
 {
+	struct mesh_table *tbl;
 	struct mesh_path *mpath;
 	struct mpath_node *node;
 	struct hlist_node *p;
 	int i;
 
-	for_each_mesh_entry(mesh_paths, p, node, i) {
+	rcu_read_lock();
+	tbl = rcu_dereference(mesh_paths);
+	for_each_mesh_entry(tbl, p, node, i) {
 		mpath = node->mpath;
 		if (mpath->sdata == sdata)
 			mesh_path_del(mpath->dst, mpath->sdata);
 	}
+	rcu_read_unlock();
 }
 
 static void mesh_path_node_reclaim(struct rcu_head *rp)
@@ -537,6 +629,7 @@ static void mesh_path_node_reclaim(struct rcu_head *rp)
  */
 int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 {
+	struct mesh_table *tbl;
 	struct mesh_path *mpath;
 	struct mpath_node *node;
 	struct hlist_head *bucket;
@@ -544,20 +637,21 @@ int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 	int hash_idx;
 	int err = 0;
 
-	read_lock(&pathtbl_resize_lock);
-	hash_idx = mesh_table_hash(addr, sdata, mesh_paths);
-	bucket = &mesh_paths->hash_buckets[hash_idx];
+	read_lock_bh(&pathtbl_resize_lock);
+	tbl = resize_dereference_mesh_paths();
+	hash_idx = mesh_table_hash(addr, sdata, tbl);
+	bucket = &tbl->hash_buckets[hash_idx];
 
-	spin_lock(&mesh_paths->hashwlock[hash_idx]);
+	spin_lock_bh(&tbl->hashwlock[hash_idx]);
 	hlist_for_each_entry(node, n, bucket, list) {
 		mpath = node->mpath;
 		if (mpath->sdata == sdata &&
-				memcmp(addr, mpath->dst, ETH_ALEN) == 0) {
+		    memcmp(addr, mpath->dst, ETH_ALEN) == 0) {
 			spin_lock_bh(&mpath->state_lock);
 			mpath->flags |= MESH_PATH_RESOLVING;
 			hlist_del_rcu(&node->list);
 			call_rcu(&node->rcu, mesh_path_node_reclaim);
-			atomic_dec(&mesh_paths->entries);
+			atomic_dec(&tbl->entries);
 			spin_unlock_bh(&mpath->state_lock);
 			goto enddel;
 		}
@@ -566,8 +660,8 @@ int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 	err = -ENXIO;
 enddel:
 	mesh_paths_generation++;
-	spin_unlock(&mesh_paths->hashwlock[hash_idx]);
-	read_unlock(&pathtbl_resize_lock);
+	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	read_unlock_bh(&pathtbl_resize_lock);
 	return err;
 }
 
@@ -628,7 +722,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
  *
  * @mpath: mesh path whose queue has to be freed
  *
- * Locking: the function must me called withing a rcu_read_lock region
+ * Locking: the function must me called within a rcu_read_lock region
  */
 void mesh_path_flush_pending(struct mesh_path *mpath)
 {
@@ -667,8 +761,10 @@ static void mesh_path_node_free(struct hlist_node *p, bool free_leafs)
 	struct mpath_node *node = hlist_entry(p, struct mpath_node, list);
 	mpath = node->mpath;
 	hlist_del_rcu(p);
-	if (free_leafs)
+	if (free_leafs) {
+		del_timer_sync(&mpath->timer);
 		kfree(mpath);
+	}
 	kfree(node);
 }
 
@@ -693,52 +789,60 @@ static int mesh_path_node_copy(struct hlist_node *p, struct mesh_table *newtbl)
 
 int mesh_pathtbl_init(void)
 {
-	mesh_paths = mesh_table_alloc(INIT_PATHS_SIZE_ORDER);
-	if (!mesh_paths)
-		return -ENOMEM;
-	mesh_paths->free_node = &mesh_path_node_free;
-	mesh_paths->copy_node = &mesh_path_node_copy;
-	mesh_paths->mean_chain_len = MEAN_CHAIN_LEN;
+	struct mesh_table *tbl_path, *tbl_mpp;
 
-	mpp_paths = mesh_table_alloc(INIT_PATHS_SIZE_ORDER);
-	if (!mpp_paths) {
-		mesh_table_free(mesh_paths, true);
+	tbl_path = mesh_table_alloc(INIT_PATHS_SIZE_ORDER);
+	if (!tbl_path)
+		return -ENOMEM;
+	tbl_path->free_node = &mesh_path_node_free;
+	tbl_path->copy_node = &mesh_path_node_copy;
+	tbl_path->mean_chain_len = MEAN_CHAIN_LEN;
+
+	tbl_mpp = mesh_table_alloc(INIT_PATHS_SIZE_ORDER);
+	if (!tbl_mpp) {
+		mesh_table_free(tbl_path, true);
 		return -ENOMEM;
 	}
-	mpp_paths->free_node = &mesh_path_node_free;
-	mpp_paths->copy_node = &mesh_path_node_copy;
-	mpp_paths->mean_chain_len = MEAN_CHAIN_LEN;
+	tbl_mpp->free_node = &mesh_path_node_free;
+	tbl_mpp->copy_node = &mesh_path_node_copy;
+	tbl_mpp->mean_chain_len = MEAN_CHAIN_LEN;
+
+	/* Need no locking since this is during init */
+	RCU_INIT_POINTER(mesh_paths, tbl_path);
+	RCU_INIT_POINTER(mpp_paths, tbl_mpp);
 
 	return 0;
 }
 
 void mesh_path_expire(struct ieee80211_sub_if_data *sdata)
 {
+	struct mesh_table *tbl;
 	struct mesh_path *mpath;
 	struct mpath_node *node;
 	struct hlist_node *p;
 	int i;
 
-	read_lock(&pathtbl_resize_lock);
-	for_each_mesh_entry(mesh_paths, p, node, i) {
+	rcu_read_lock();
+	tbl = rcu_dereference(mesh_paths);
+	for_each_mesh_entry(tbl, p, node, i) {
 		if (node->mpath->sdata != sdata)
 			continue;
 		mpath = node->mpath;
 		spin_lock_bh(&mpath->state_lock);
 		if ((!(mpath->flags & MESH_PATH_RESOLVING)) &&
 		    (!(mpath->flags & MESH_PATH_FIXED)) &&
-			time_after(jiffies,
-			 mpath->exp_time + MESH_PATH_EXPIRE)) {
+		     time_after(jiffies, mpath->exp_time + MESH_PATH_EXPIRE)) {
 			spin_unlock_bh(&mpath->state_lock);
 			mesh_path_del(mpath->dst, mpath->sdata);
 		} else
 			spin_unlock_bh(&mpath->state_lock);
 	}
-	read_unlock(&pathtbl_resize_lock);
+	rcu_read_unlock();
 }
 
 void mesh_pathtbl_unregister(void)
 {
-	mesh_table_free(mesh_paths, true);
-	mesh_table_free(mpp_paths, true);
+	/* no need for locking during exit path */
+	mesh_table_free(rcu_dereference_raw(mesh_paths), true);
+	mesh_table_free(rcu_dereference_raw(mpp_paths), true);
 }

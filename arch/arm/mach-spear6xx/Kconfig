@@ -4,17 +4,18 @@
 
 if ARCH_SPEAR6XX
 
-choice
-	prompt "SPEAr6XX Family"
-	default MACH_SPEAR600
+menu "SPEAr6xx Implementations"
+config BOARD_SPEAR600_EVB
+	bool "SPEAr600 Evaluation Board"
+	select MACH_SPEAR600
+	help
+	  Supports ST SPEAr600 Evaluation Board
+
+endmenu
 
 config MACH_SPEAR600
 	bool "SPEAr600"
 	help
 	  Supports ST SPEAr600 Machine
-endchoice
-
-# Adding SPEAr6XX machine specific configuration files
-source "arch/arm/mach-spear6xx/Kconfig600"
 
 endif #ARCH_SPEAR6XX

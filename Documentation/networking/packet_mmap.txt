@@ -223,7 +223,7 @@ we will get the following buffer structure:
 
 A frame can be of any size with the only condition it can fit in a block. A block
 can only hold an integer number of frames, or in other words, a frame cannot 
-be spawned accross two blocks, so there are some details you have to take into 
+be spawned across two blocks, so there are some details you have to take into 
 account when choosing the frame_size. See "Mapping and use of the circular 
 buffer (ring)".
 

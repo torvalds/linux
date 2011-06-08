@@ -1557,7 +1557,7 @@ struct tree_balance {
 /* When inserting an item. */
 #define M_INSERT	'i'
 /* When inserting into (directories only) or appending onto an already
-   existant item. */
+   existent item. */
 #define M_PASTE		'p'
 /* When deleting an item. */
 #define M_DELETE	'd'

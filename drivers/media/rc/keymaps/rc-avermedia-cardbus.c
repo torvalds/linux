@@ -52,7 +52,7 @@ static struct rc_map_table avermedia_cardbus[] = {
 	{ 0x28, KEY_SELECT },		/* Select */
 	{ 0x29, KEY_BLUE },		/* Blue/Picture */
 	{ 0x2a, KEY_BACKSPACE },	/* Back */
-	{ 0x2b, KEY_MEDIA },		/* PIP (Picture-in-picture) */
+	{ 0x2b, KEY_VIDEO },		/* PIP (Picture-in-picture) */
 	{ 0x2c, KEY_DOWN },
 	{ 0x2e, KEY_DOT },
 	{ 0x2f, KEY_TV },		/* Live TV */

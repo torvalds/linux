@@ -1275,7 +1275,7 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha,
 	if (ha->isp_ops->start_firmware(ha) == QLA_ERROR)
 		goto exit_init_hba;
 
-	if (qla4xxx_get_fw_version(ha) == QLA_ERROR)
+	if (qla4xxx_about_firmware(ha) == QLA_ERROR)
 		goto exit_init_hba;
 
 	if (ha->isp_ops->get_sys_info(ha) == QLA_ERROR)
@@ -1338,7 +1338,7 @@ exit_init_hba:
 	}
 
 	DEBUG2(printk("scsi%ld: initialize adapter: %s\n", ha->host_no,
-	    status == QLA_ERROR ? "FAILED" : "SUCCEDED"));
+	    status == QLA_ERROR ? "FAILED" : "SUCCEEDED"));
 	return status;
 }
 

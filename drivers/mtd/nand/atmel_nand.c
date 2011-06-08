@@ -30,6 +30,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
+#include <linux/dmaengine.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
 
@@ -209,22 +210,8 @@ static int atmel_nand_dma_op(struct mtd_info *mtd, void *buf, int len,
 	int err = -EIO;
 	enum dma_data_direction dir = is_read ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
-	if (buf >= high_memory) {
-		struct page *pg;
-
-		if (((size_t)buf & PAGE_MASK) !=
-		    ((size_t)(buf + len - 1) & PAGE_MASK)) {
-			dev_warn(host->dev, "Buffer not fit in one page\n");
-			goto err_buf;
-		}
-
-		pg = vmalloc_to_page(buf);
-		if (pg == 0) {
-			dev_err(host->dev, "Failed to vmalloc_to_page\n");
-			goto err_buf;
-		}
-		p = page_address(pg) + ((size_t)buf & ~PAGE_MASK);
-	}
+	if (buf >= high_memory)
+		goto err_buf;
 
 	dma_dev = host->dma_chan->device;
 
@@ -280,7 +267,8 @@ static void atmel_read_buf(struct mtd_info *mtd, u8 *buf, int len)
 	struct nand_chip *chip = mtd->priv;
 	struct atmel_nand_host *host = chip->priv;
 
-	if (use_dma && len >= mtd->oobsize)
+	if (use_dma && len > mtd->oobsize)
+		/* only use DMA for bigger than oob size: better performances */
 		if (atmel_nand_dma_op(mtd, buf, len, 1) == 0)
 			return;
 
@@ -295,7 +283,8 @@ static void atmel_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
 	struct nand_chip *chip = mtd->priv;
 	struct atmel_nand_host *host = chip->priv;
 
-	if (use_dma && len >= mtd->oobsize)
+	if (use_dma && len > mtd->oobsize)
+		/* only use DMA for bigger than oob size: better performances */
 		if (atmel_nand_dma_op(mtd, (void *)buf, len, 0) == 0)
 			return;
 
@@ -506,11 +495,8 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	struct resource *regs;
 	struct resource *mem;
 	int res;
-
-#ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *partitions = NULL;
 	int num_partitions = 0;
-#endif
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
@@ -599,7 +585,10 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		nand_chip->options |= NAND_USE_FLASH_BBT;
 	}
 
-	if (cpu_has_dma() && use_dma) {
+	if (!cpu_has_dma())
+		use_dma = 0;
+
+	if (use_dma) {
 		dma_cap_mask_t mask;
 
 		dma_cap_zero(mask);
@@ -611,7 +600,8 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		}
 	}
 	if (use_dma)
-		dev_info(host->dev, "Using DMA for NAND access.\n");
+		dev_info(host->dev, "Using %s for DMA transfers.\n",
+					dma_chan_name(host->dma_chan));
 	else
 		dev_info(host->dev, "No DMA support for NAND access.\n");
 
@@ -664,7 +654,6 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		goto err_scan_tail;
 	}
 
-#ifdef CONFIG_MTD_PARTITIONS
 #ifdef CONFIG_MTD_CMDLINE_PARTS
 	mtd->name = "atmel_nand";
 	num_partitions = parse_mtd_partitions(mtd, part_probes,
@@ -680,17 +669,11 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		goto err_no_partitions;
 	}
 
-	res = add_mtd_partitions(mtd, partitions, num_partitions);
-#else
-	res = add_mtd_device(mtd);
-#endif
-
+	res = mtd_device_register(mtd, partitions, num_partitions);
 	if (!res)
 		return res;
 
-#ifdef CONFIG_MTD_PARTITIONS
 err_no_partitions:
-#endif
 	nand_release(mtd);
 err_scan_tail:
 err_scan_ident:

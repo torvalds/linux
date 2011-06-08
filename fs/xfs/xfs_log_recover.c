@@ -101,7 +101,7 @@ xlog_get_bp(
 	/*
 	 * We do log I/O in units of log sectors (a power-of-2
 	 * multiple of the basic block size), so we round up the
-	 * requested size to acommodate the basic blocks required
+	 * requested size to accommodate the basic blocks required
 	 * for complete log sectors.
 	 *
 	 * In addition, the buffer may be used for a non-sector-
@@ -112,7 +112,7 @@ xlog_get_bp(
 	 * an issue.  Nor will this be a problem if the log I/O is
 	 * done in basic blocks (sector size 1).  But otherwise we
 	 * extend the buffer by one extra log sector to ensure
-	 * there's space to accomodate this possiblility.
+	 * there's space to accommodate this possibility.
 	 */
 	if (nbblks > 1 && log->l_sectBBsize > 1)
 		nbblks += log->l_sectBBsize;
@@ -202,6 +202,35 @@ xlog_bread(
 
 	*offset = xlog_align(log, blk_no, nbblks, bp);
 	return 0;
+}
+
+/*
+ * Read at an offset into the buffer. Returns with the buffer in it's original
+ * state regardless of the result of the read.
+ */
+STATIC int
+xlog_bread_offset(
+	xlog_t		*log,
+	xfs_daddr_t	blk_no,		/* block to read from */
+	int		nbblks,		/* blocks to read */
+	xfs_buf_t	*bp,
+	xfs_caddr_t	offset)
+{
+	xfs_caddr_t	orig_offset = XFS_BUF_PTR(bp);
+	int		orig_len = bp->b_buffer_length;
+	int		error, error2;
+
+	error = XFS_BUF_SET_PTR(bp, offset, BBTOB(nbblks));
+	if (error)
+		return error;
+
+	error = xlog_bread_noalign(log, blk_no, nbblks, bp);
+
+	/* must reset buffer pointer even on error */
+	error2 = XFS_BUF_SET_PTR(bp, orig_offset, orig_len);
+	if (error)
+		return error;
+	return error2;
 }
 
 /*
@@ -1229,20 +1258,12 @@ xlog_write_log_records(
 		 */
 		ealign = round_down(end_block, sectbb);
 		if (j == 0 && (start_block + endcount > ealign)) {
-			offset = XFS_BUF_PTR(bp);
-			balign = BBTOB(ealign - start_block);
-			error = XFS_BUF_SET_PTR(bp, offset + balign,
-						BBTOB(sectbb));
+			offset = XFS_BUF_PTR(bp) + BBTOB(ealign - start_block);
+			error = xlog_bread_offset(log, ealign, sectbb,
+							bp, offset);
 			if (error)
 				break;
 
-			error = xlog_bread_noalign(log, ealign, sectbb, bp);
-			if (error)
-				break;
-
-			error = XFS_BUF_SET_PTR(bp, offset, bufblks);
-			if (error)
-				break;
 		}
 
 		offset = xlog_align(log, start_block, endcount, bp);
@@ -3448,19 +3469,9 @@ xlog_do_recovery_pass(
 				 *   - order is important.
 				 */
 				wrapped_hblks = hblks - split_hblks;
-				error = XFS_BUF_SET_PTR(hbp,
-						offset + BBTOB(split_hblks),
-						BBTOB(hblks - split_hblks));
-				if (error)
-					goto bread_err2;
-
-				error = xlog_bread_noalign(log, 0,
-							   wrapped_hblks, hbp);
-				if (error)
-					goto bread_err2;
-
-				error = XFS_BUF_SET_PTR(hbp, offset,
-							BBTOB(hblks));
+				error = xlog_bread_offset(log, 0,
+						wrapped_hblks, hbp,
+						offset + BBTOB(split_hblks));
 				if (error)
 					goto bread_err2;
 			}
@@ -3511,19 +3522,9 @@ xlog_do_recovery_pass(
 				 *   _first_, then the log start (LR header end)
 				 *   - order is important.
 				 */
-				error = XFS_BUF_SET_PTR(dbp,
-						offset + BBTOB(split_bblks),
-						BBTOB(bblks - split_bblks));
-				if (error)
-					goto bread_err2;
-
-				error = xlog_bread_noalign(log, wrapped_hblks,
-						bblks - split_bblks,
-						dbp);
-				if (error)
-					goto bread_err2;
-
-				error = XFS_BUF_SET_PTR(dbp, offset, h_size);
+				error = xlog_bread_offset(log, 0,
+						bblks - split_bblks, hbp,
+						offset + BBTOB(split_bblks));
 				if (error)
 					goto bread_err2;
 			}

@@ -90,7 +90,7 @@ MODULE_SUPPORTED_DEVICE("FT1000");
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_asic_read
-// Descripton: This function will retrieve the value of a specific ASIC
+// Description: This function will retrieve the value of a specific ASIC
 //             register.
 // Input:
 //    dev - network device structure
@@ -107,7 +107,7 @@ inline u16 ft1000_asic_read(struct net_device *dev, u16 offset)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_asic_write
-// Descripton: This function will set the value of a specific ASIC
+// Description: This function will set the value of a specific ASIC
 //             register.
 // Input:
 //    dev - network device structure
@@ -124,7 +124,7 @@ inline void ft1000_asic_write(struct net_device *dev, u16 offset, u16 value)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_read_fifo_len
-// Descripton: This function will read the ASIC Uplink FIFO status register
+// Description: This function will read the ASIC Uplink FIFO status register
 //             which will return the number of bytes remaining in the Uplink FIFO.
 //             Sixteen bytes are subtracted to make sure that the ASIC does not
 //             reach its threshold.
@@ -148,7 +148,7 @@ static inline u16 ft1000_read_fifo_len(struct net_device *dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_read_dpram
-// Descripton: This function will read the specific area of dpram
+// Description: This function will read the specific area of dpram
 //             (Electrabuzz ASIC only)
 // Input:
 //     dev    - device structure
@@ -175,7 +175,7 @@ u16 ft1000_read_dpram(struct net_device * dev, int offset)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_write_dpram
-// Descripton: This function will write to a specific area of dpram
+// Description: This function will write to a specific area of dpram
 //             (Electrabuzz ASIC only)
 // Input:
 //     dev    - device structure
@@ -201,7 +201,7 @@ static inline void ft1000_write_dpram(struct net_device *dev,
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_read_dpram_mag_16
-// Descripton: This function will read the specific area of dpram
+// Description: This function will read the specific area of dpram
 //             (Magnemite ASIC only)
 // Input:
 //     dev    - device structure
@@ -233,7 +233,7 @@ u16 ft1000_read_dpram_mag_16(struct net_device *dev, int offset, int Index)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_write_dpram_mag_16
-// Descripton: This function will write to a specific area of dpram
+// Description: This function will write to a specific area of dpram
 //             (Magnemite ASIC only)
 // Input:
 //     dev    - device structure
@@ -263,7 +263,7 @@ static inline void ft1000_write_dpram_mag_16(struct net_device *dev,
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_read_dpram_mag_32
-// Descripton: This function will read the specific area of dpram
+// Description: This function will read the specific area of dpram
 //             (Magnemite ASIC only)
 // Input:
 //     dev    - device structure
@@ -290,7 +290,7 @@ u32 ft1000_read_dpram_mag_32(struct net_device *dev, int offset)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_write_dpram_mag_32
-// Descripton: This function will write to a specific area of dpram
+// Description: This function will write to a specific area of dpram
 //             (Magnemite ASIC only)
 // Input:
 //     dev    - device structure
@@ -315,7 +315,7 @@ void ft1000_write_dpram_mag_32(struct net_device *dev, int offset, u32 value)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_enable_interrupts
-// Descripton: This function will enable interrupts base on the current interrupt mask.
+// Description: This function will enable interrupts base on the current interrupt mask.
 // Input:
 //     dev    - device structure
 // Output:
@@ -340,7 +340,7 @@ static void ft1000_enable_interrupts(struct net_device *dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_disable_interrupts
-// Descripton: This function will disable all interrupts.
+// Description: This function will disable all interrupts.
 // Input:
 //     dev    - device structure
 // Output:
@@ -364,7 +364,7 @@ static void ft1000_disable_interrupts(struct net_device *dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_reset_asic
-// Descripton: This function will call the Card Service function to reset the
+// Description: This function will call the Card Service function to reset the
 //             ASIC.
 // Input:
 //     dev    - device structure
@@ -408,7 +408,7 @@ static void ft1000_reset_asic(struct net_device *dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_reset_card
-// Descripton: This function will reset the card
+// Description: This function will reset the card
 // Input:
 //     dev    - device structure
 // Output:
@@ -571,7 +571,7 @@ static int ft1000_reset_card(struct net_device *dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_chkcard
-// Descripton: This function will check if the device is presently available on
+// Description: This function will check if the device is presently available on
 //             the system.
 // Input:
 //     dev    - device structure
@@ -607,7 +607,7 @@ static int ft1000_chkcard(struct net_device *dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_hbchk
-// Descripton: This function will perform the heart beat check of the DSP as
+// Description: This function will perform the heart beat check of the DSP as
 //             well as the ASIC.
 // Input:
 //     dev    - device structure
@@ -828,7 +828,7 @@ static void ft1000_hbchk(u_long data)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_send_cmd
-// Descripton:
+// Description:
 // Input:
 // Output:
 //
@@ -908,7 +908,7 @@ void ft1000_send_cmd (struct net_device *dev, u16 *ptempbuffer, int size, u16 qt
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_receive_cmd
-// Descripton: This function will read a message from the dpram area.
+// Description: This function will read a message from the dpram area.
 // Input:
 //    dev - network device structure
 //    pbuffer - caller supply address to buffer
@@ -1003,7 +1003,7 @@ BOOLEAN ft1000_receive_cmd(struct net_device *dev, u16 * pbuffer, int maxsz, u16
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_proc_drvmsg
-// Descripton: This function will process the various driver messages.
+// Description: This function will process the various driver messages.
 // Input:
 //     dev    - device structure
 //     pnxtph - pointer to next pseudo header
@@ -1285,7 +1285,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_parse_dpram_msg
-// Descripton: This function will parse the message received from the DSP
+// Description: This function will parse the message received from the DSP
 //             via the DPRAM interface.
 // Input:
 //     dev    - device structure
@@ -1442,7 +1442,7 @@ int ft1000_parse_dpram_msg(struct net_device *dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_flush_fifo
-// Descripton: This function will flush one packet from the downlink
+// Description: This function will flush one packet from the downlink
 //             FIFO.
 // Input:
 //     dev      - device structure
@@ -1587,7 +1587,7 @@ static void ft1000_flush_fifo(struct net_device *dev, u16 DrvErrNum)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_copy_up_pkt
-// Descripton: This function will pull Flarion packets out of the Downlink
+// Description: This function will pull Flarion packets out of the Downlink
 //             FIFO and convert it to an ethernet packet.  The ethernet packet will
 //             then be deliver to the TCP/IP stack.
 // Input:
@@ -1773,7 +1773,7 @@ int ft1000_copy_up_pkt(struct net_device *dev)
 //---------------------------------------------------------------------------
 //
 // Function:   ft1000_copy_down_pkt
-// Descripton: This function will take an ethernet packet and convert it to
+// Description: This function will take an ethernet packet and convert it to
 //             a Flarion packet prior to sending it to the ASIC Downlink
 //             FIFO.
 // Input:
@@ -2288,7 +2288,3 @@ err_dev:
 	free_netdev(dev);
 	return NULL;
 }
-
-EXPORT_SYMBOL(init_ft1000_card);
-EXPORT_SYMBOL(stop_ft1000_card);
-EXPORT_SYMBOL(flarion_ft1000_cnt);

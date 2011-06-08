@@ -1,6 +1,6 @@
 /*
  * Common Flash Interface support:
- *   Generic utility functions not dependant on command set
+ *   Generic utility functions not dependent on command set
  *
  * Copyright (C) 2002 Red Hat
  * Copyright (C) 2003 STMicroelectronics Limited

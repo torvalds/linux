@@ -51,7 +51,7 @@
 
 /* The documentation for this chip is allegedly released         */
 /* However I have not seen it, not have I managed to contact     */
-/* anyone who has. HOWEVER the chip bears a striking resemblence */
+/* anyone who has. HOWEVER the chip bears a striking resemblance */
 /* to the IrDA controller in the Toshiba RISC TMPR3922 chip      */
 /* the documentation for this is freely available at             */
 /* http://www.madingley.org/james/resources/toshoboe/TMPR3922.pdf */

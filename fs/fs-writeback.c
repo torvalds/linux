@@ -144,7 +144,7 @@ __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
  *
  * Description:
  *   This does WB_SYNC_NONE opportunistic writeback. The IO is only
- *   started when this function returns, we make no guarentees on
+ *   started when this function returns, we make no guarantees on
  *   completion. Caller need not hold sb s_umount semaphore.
  *
  */
@@ -1007,9 +1007,6 @@ static noinline void block_dump___mark_inode_dirty(struct inode *inode)
  * In short, make sure you hash any inodes _before_ you start marking
  * them dirty.
  *
- * This function *must* be atomic for the I_DIRTY_PAGES case -
- * set_page_dirty() is called under spinlock in several places.
- *
  * Note that for blockdevs, inode->dirtied_when represents the dirtying time of
  * the block-special inode (/dev/hda1) itself.  And the ->dirtied_when field of
  * the kernel-internal blockdev inode represents the dirtying time of the
@@ -1028,7 +1025,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 	 */
 	if (flags & (I_DIRTY_SYNC | I_DIRTY_DATASYNC)) {
 		if (sb->s_op->dirty_inode)
-			sb->s_op->dirty_inode(inode);
+			sb->s_op->dirty_inode(inode, flags);
 	}
 
 	/*

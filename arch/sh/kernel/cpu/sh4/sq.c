@@ -20,6 +20,7 @@
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/io.h>
+#include <linux/prefetch.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <cpu/sq.h>

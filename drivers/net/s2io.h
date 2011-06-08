@@ -376,7 +376,7 @@ static const u16 fifo_selector[MAX_TX_FIFOS] = {0, 1, 3, 3, 7, 7, 7, 7};
 /* Maintains Per FIFO related information. */
 struct tx_fifo_config {
 #define	MAX_AVAILABLE_TXDS	8192
-	u32 fifo_len;		/* specifies len of FIFO upto 8192, ie no of TxDLs */
+	u32 fifo_len;		/* specifies len of FIFO up to 8192, ie no of TxDLs */
 /* Priority definition */
 #define TX_FIFO_PRI_0               0	/*Highest */
 #define TX_FIFO_PRI_1               1
@@ -893,9 +893,6 @@ struct s2io_nic {
 	u16 all_multi_pos;
 	u16 promisc_flg;
 
-	/*  Id timer, used to blink NIC to physically identify NIC. */
-	struct timer_list id_timer;
-
 	/*  Restart timer, used to restart NIC if the device is stuck and
 	 *  a schedule task that will set the correct Link state once the
 	 *  NIC's PHY has stabilized after a state change.
@@ -1005,18 +1002,16 @@ static inline void writeq(u64 val, void __iomem *addr)
 #define LF	2
 static inline void SPECIAL_REG_WRITE(u64 val, void __iomem *addr, int order)
 {
-	u32 ret;
-
 	if (order == LF) {
 		writel((u32) (val), addr);
-		ret = readl(addr);
+		(void) readl(addr);
 		writel((u32) (val >> 32), (addr + 4));
-		ret = readl(addr + 4);
+		(void) readl(addr + 4);
 	} else {
 		writel((u32) (val >> 32), (addr + 4));
-		ret = readl(addr + 4);
+		(void) readl(addr + 4);
 		writel((u32) (val), addr);
-		ret = readl(addr);
+		(void) readl(addr);
 	}
 }
 

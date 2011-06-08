@@ -1038,6 +1038,7 @@ static void floppy_disable_hlt(void)
 {
 	unsigned long flags;
 
+	WARN_ONCE(1, "floppy_disable_hlt() scheduled for removal in 2012");
 	spin_lock_irqsave(&floppy_hlt_lock, flags);
 	if (!hlt_disabled) {
 		hlt_disabled = 1;
@@ -4205,7 +4206,6 @@ static int __init floppy_init(void)
 		disks[dr]->major = FLOPPY_MAJOR;
 		disks[dr]->first_minor = TOMINOR(dr);
 		disks[dr]->fops = &floppy_fops;
-		disks[dr]->events = DISK_EVENT_MEDIA_CHANGE;
 		sprintf(disks[dr]->disk_name, "fd%d", dr);
 
 		init_timer(&motor_off_timer[dr]);

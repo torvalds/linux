@@ -51,14 +51,13 @@ void __init prom_init(void)
 	prom_init_cmdline();
 
 	memsize_str = prom_getenv("memsize");
-	if (!memsize_str)
+	if (!memsize_str || strict_strtoul(memsize_str, 0, &memsize))
 		memsize = 0x04000000;
-	else
-		strict_strtoul(memsize_str, 0, &memsize);
+
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
 }
 
 void prom_putchar(unsigned char c)
 {
-	alchemy_uart_putchar(UART0_PHYS_ADDR, c);
+	alchemy_uart_putchar(AU1000_UART0_PHYS_ADDR, c);
 }

@@ -821,7 +821,7 @@ i2GetStatus(i2ChanStrPtr pCh, int resetBits)
 //
 // Description:
 // Strips data from the input buffer and writes it to pDest. If there is a
-// collosal blunder, (invalid structure pointers or the like), returns -1.
+// colossal blunder, (invalid structure pointers or the like), returns -1.
 // Otherwise, returns the number of bytes read.
 //******************************************************************************
 static int
@@ -909,7 +909,7 @@ i2Input_exit:
 // Returns:    Number of bytes stripped, or -1 for error
 //
 // Description:
-// Strips any data from the input buffer. If there is a collosal blunder,
+// Strips any data from the input buffer. If there is a colossal blunder,
 // (invalid structure pointers or the like), returns -1. Otherwise, returns the
 // number of bytes stripped.
 //******************************************************************************
@@ -963,7 +963,7 @@ i2InputFlush(i2ChanStrPtr pCh)
 // Returns:    Number of bytes available, or -1 for error
 //
 // Description:
-// If there is a collosal blunder, (invalid structure pointers or the like),
+// If there is a colossal blunder, (invalid structure pointers or the like),
 // returns -1. Otherwise, returns the number of bytes stripped. Otherwise,
 // returns the number of bytes available in the buffer.
 //******************************************************************************
@@ -1001,7 +1001,7 @@ i2InputAvailable(i2ChanStrPtr pCh)
 //
 // Description:
 // Queues the data at pSource to be sent as data packets to the board. If there
-// is a collosal blunder, (invalid structure pointers or the like), returns -1.
+// is a colossal blunder, (invalid structure pointers or the like), returns -1.
 // Otherwise, returns the number of bytes written. What if there is not enough
 // room for all the data? If pCh->channelOptions & CO_NBLOCK_WRITE is set, then
 // we transfer as many characters as we can now, then return. If this bit is
