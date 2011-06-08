@@ -1348,9 +1348,6 @@ struct net_device {
 	/* max exchange id for FCoE LRO by ddp */
 	unsigned int		fcoe_ddp_xid;
 #endif
-	/* n-tuple filter list attached to this device */
-	struct ethtool_rx_ntuple_list ethtool_ntuple_list;
-
 	/* phy device may attach itself for hardware timestamping */
 	struct phy_device *phydev;
 
