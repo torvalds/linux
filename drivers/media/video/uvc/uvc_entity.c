@@ -30,7 +30,7 @@ static int uvc_mc_register_entity(struct uvc_video_chain *chain,
 	struct uvc_entity *remote;
 	unsigned int i;
 	u8 remote_pad;
-	int ret;
+	int ret = 0;
 
 	for (i = 0; i < entity->num_pads; ++i) {
 		struct media_entity *source;
