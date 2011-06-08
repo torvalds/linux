@@ -1660,7 +1660,7 @@ wl_control_wl_start(struct net_device *dev)
 
 		g_onoff = G_WLAN_SET_ON;
 	}
-	WL_ERROR(("Exited %s \n", __FUNCTION__));
+	WL_TRACE(("Exited %s \n", __FUNCTION__));
 
 	DHD_OS_MUTEX_UNLOCK(&wl_start_lock);
 	return ret;
@@ -7385,10 +7385,9 @@ wl_iw_set_priv(
 	    }
 #endif 
 	    else {
-			WL_TRACE(("Unknown PRIVATE command %s\n", extra));
+			WL_ERROR(("Unknown PRIVATE command %s - ignored\n", extra));
 			snprintf(extra, MAX_WX_STRING, "OK");
 			dwrq->length = strlen("OK") + 1;
-			WL_ERROR(("Unknown PRIVATE command, ignored\n"));
 		}
 	}
 
