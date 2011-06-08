@@ -223,7 +223,8 @@ bfin_debug_mmrs_dma(struct dentry *parent, unsigned long base, int num, char mdm
 	__DMA(CURR_DESC_PTR, curr_desc_ptr);
 	__DMA(CURR_ADDR, curr_addr);
 	__DMA(IRQ_STATUS, irq_status);
-	__DMA(PERIPHERAL_MAP, peripheral_map);
+	if (strcmp(pfx, "IMDMA") != 0)
+		__DMA(PERIPHERAL_MAP, peripheral_map);
 	__DMA(CURR_X_COUNT, curr_x_count);
 	__DMA(CURR_Y_COUNT, curr_y_count);
 }
