@@ -19,11 +19,9 @@
       defined(CONFIG_ARCH_SH7372)
 # define PORT_PTCR	   0xA405011EUL
 # define PORT_PVCR	   0xA4050122UL
-# define SCIF_ORER	   0x0200   /* overrun error bit */
 #elif defined(CONFIG_SH_RTS7751R2D)
 # define SCSPTR1 0xFFE0001C /* 8 bit SCIF */
 # define SCSPTR2 0xFFE80020 /* 16 bit SCIF */
-# define SCIF_ORER 0x0001   /* overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7750)  || \
       defined(CONFIG_CPU_SUBTYPE_SH7750R) || \
       defined(CONFIG_CPU_SUBTYPE_SH7750S) || \
@@ -32,15 +30,12 @@
       defined(CONFIG_CPU_SUBTYPE_SH7751R)
 # define SCSPTR1 0xffe0001c /* 8  bit SCI */
 # define SCSPTR2 0xFFE80020 /* 16 bit SCIF */
-# define SCIF_ORER 0x0001   /* overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7760)
 # define SCSPTR0 0xfe600024 /* 16 bit SCIF */
 # define SCSPTR1 0xfe610024 /* 16 bit SCIF */
 # define SCSPTR2 0xfe620024 /* 16 bit SCIF */
-# define SCIF_ORER 0x0001  /* overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
 # define SCSPTR0 0xA4400000	  /* 16 bit SCIF */
-# define SCIF_ORER 0x0001   /* overrun error bit */
 # define PACR 0xa4050100
 # define PBCR 0xa4050102
 #elif defined(CONFIG_CPU_SUBTYPE_SH7343)
@@ -48,35 +43,24 @@
 #elif defined(CONFIG_CPU_SUBTYPE_SH7722)
 # define PWDR			0xA4050166
 # define PSCR			0xA405011E
-# define SCIF_ORER		0x0001	/* overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7366)
 # define SCPDR0			0xA405013E      /* 16 bit SCIF0 PSDR */
 # define SCSPTR0		SCPDR0
-# define SCIF_ORER		0x0001  /* overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723)
 # define SCSPTR0                0xa4050160
-# define SCIF_ORER              0x0001  /* overrun error bit */
-#elif defined(CONFIG_CPU_SUBTYPE_SH7724)
-# define SCIF_ORER              0x0001  /* overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SH4_202)
 # define SCSPTR2 0xffe80020 /* 16 bit SCIF */
-# define SCIF_ORER 0x0001   /* overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7757)
 # define SCSPTR0 0xfe4b0020
-# define SCIF_ORER 0x0001
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763)
 # define SCSPTR0 0xffe00024 /* 16 bit SCIF */
-# define SCIF_ORER 0x0001  /* overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7770)
 # define SCSPTR0 0xff923020 /* 16 bit SCIF */
-# define SCIF_ORER 0x0001  /* overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7780)
 # define SCSPTR0	0xffe00024	/* 16 bit SCIF */
-# define SCIF_ORER	0x0001		/* Overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7785) || \
       defined(CONFIG_CPU_SUBTYPE_SH7786)
 # define SCSPTR0	0xffea0024	/* 16 bit SCIF */
-# define SCIF_ORER	0x0001		/* Overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7201) || \
       defined(CONFIG_CPU_SUBTYPE_SH7203) || \
       defined(CONFIG_CPU_SUBTYPE_SH7206) || \
@@ -84,35 +68,11 @@
 # define SCSPTR0 0xfffe8020 /* 16 bit SCIF */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7619)
 # define SCSPTR0 0xf8400020 /* 16 bit SCIF */
-# define SCIF_ORER 0x0001  /* overrun error bit */
 #elif defined(CONFIG_CPU_SUBTYPE_SHX3)
 # define SCSPTR0 0xffc30020		/* 16 bit SCIF */
-# define SCIF_ORER 0x0001		/* Overrun error bit */
 #else
 # error CPU subtype not defined
 #endif
-
-/* SCxSR SCI */
-#define SCI_TDRE  0x80 /* 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
-#define SCI_RDRF  0x40 /* 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
-#define SCI_ORER  0x20 /* 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
-#define SCI_FER   0x10 /* 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
-#define SCI_PER   0x08 /* 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
-#define SCI_TEND  0x04 /* 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
-/*      SCI_MPB   0x02  * 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
-/*      SCI_MPBT  0x01  * 7707 SCI, 7708 SCI, 7709 SCI, 7750 SCI */
-
-#define SCI_ERRORS ( SCI_PER | SCI_FER | SCI_ORER)
-
-/* SCxSR SCIF */
-#define SCIF_ER    0x0080 /* 7705 SCIF, 7707 SCIF, 7709 SCIF, 7750 SCIF */
-#define SCIF_TEND  0x0040 /* 7705 SCIF, 7707 SCIF, 7709 SCIF, 7750 SCIF */
-#define SCIF_TDFE  0x0020 /* 7705 SCIF, 7707 SCIF, 7709 SCIF, 7750 SCIF */
-#define SCIF_BRK   0x0010 /* 7705 SCIF, 7707 SCIF, 7709 SCIF, 7750 SCIF */
-#define SCIF_FER   0x0008 /* 7705 SCIF, 7707 SCIF, 7709 SCIF, 7750 SCIF */
-#define SCIF_PER   0x0004 /* 7705 SCIF, 7707 SCIF, 7709 SCIF, 7750 SCIF */
-#define SCIF_RDF   0x0002 /* 7705 SCIF, 7707 SCIF, 7709 SCIF, 7750 SCIF */
-#define SCIF_DR    0x0001 /* 7705 SCIF, 7707 SCIF, 7709 SCIF, 7750 SCIF */
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7705) || \
     defined(CONFIG_CPU_SUBTYPE_SH7720) || \
@@ -121,35 +81,27 @@
     defined(CONFIG_ARCH_SH7367) || \
     defined(CONFIG_ARCH_SH7377) || \
     defined(CONFIG_ARCH_SH7372)
-# define SCIF_ORER    0x0200
-# define SCIF_ERRORS ( SCIF_PER | SCIF_FER | SCIF_ER | SCIF_BRK | SCIF_ORER)
 # define SCIF_RFDC_MASK 0x007f
 # define SCIF_TXROOM_MAX 64
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763)
-# define SCIF_ERRORS ( SCIF_PER | SCIF_FER | SCIF_ER | SCIF_BRK )
 # define SCIF_RFDC_MASK 0x007f
 # define SCIF_TXROOM_MAX 64
 /* SH7763 SCIF2 support */
 # define SCIF2_RFDC_MASK 0x001f
 # define SCIF2_TXROOM_MAX 16
 #else
-# define SCIF_ERRORS ( SCIF_PER | SCIF_FER | SCIF_ER | SCIF_BRK)
 # define SCIF_RFDC_MASK 0x001f
 # define SCIF_TXROOM_MAX 16
 #endif
 
-#ifndef SCIF_ORER
-#define SCIF_ORER	0x0000
-#endif
-
 #define SCxSR_TEND(port)	(((port)->type == PORT_SCI) ? SCI_TEND   : SCIF_TEND)
-#define SCxSR_ERRORS(port)	(((port)->type == PORT_SCI) ? SCI_ERRORS : SCIF_ERRORS)
 #define SCxSR_RDxF(port)	(((port)->type == PORT_SCI) ? SCI_RDRF   : SCIF_RDF)
 #define SCxSR_TDxE(port)	(((port)->type == PORT_SCI) ? SCI_TDRE   : SCIF_TDFE)
 #define SCxSR_FER(port)		(((port)->type == PORT_SCI) ? SCI_FER    : SCIF_FER)
 #define SCxSR_PER(port)		(((port)->type == PORT_SCI) ? SCI_PER    : SCIF_PER)
 #define SCxSR_BRK(port)		(((port)->type == PORT_SCI) ? 0x00       : SCIF_BRK)
-#define SCxSR_ORER(port)	(((port)->type == PORT_SCI) ? SCI_ORER	 : SCIF_ORER)
+
+#define SCxSR_ERRORS(port)	(to_sci_port(port)->cfg->error_mask)
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7705) || \
     defined(CONFIG_CPU_SUBTYPE_SH7720) || \

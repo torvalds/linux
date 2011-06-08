@@ -8,6 +8,8 @@
  * Generic header for SuperH SCI(F) (used by sh/sh64/h8300 and related parts)
  */
 
+#define SCIx_NOT_SUPPORTED	(-1)
+
 enum {
 	SCBRR_ALGO_1,		/* ((clk + 16 * bps) / (16 * bps) - 1) */
 	SCBRR_ALGO_2,		/* ((clk + 16 * bps) / (32 * bps) - 1) */
@@ -24,6 +26,28 @@ enum {
 #define SCSCR_TOIE	(1 << 2)	/* not supported by all parts */
 #define SCSCR_CKE1	(1 << 1)
 #define SCSCR_CKE0	(1 << 0)
+
+/* SCxSR SCI */
+#define SCI_TDRE  0x80
+#define SCI_RDRF  0x40
+#define SCI_ORER  0x20
+#define SCI_FER   0x10
+#define SCI_PER   0x08
+#define SCI_TEND  0x04
+
+#define SCI_DEFAULT_ERROR_MASK (SCI_PER | SCI_FER)
+
+/* SCxSR SCIF */
+#define SCIF_ER    0x0080
+#define SCIF_TEND  0x0040
+#define SCIF_TDFE  0x0020
+#define SCIF_BRK   0x0010
+#define SCIF_FER   0x0008
+#define SCIF_PER   0x0004
+#define SCIF_RDF   0x0002
+#define SCIF_DR    0x0001
+
+#define SCIF_DEFAULT_ERROR_MASK (SCIF_PER | SCIF_FER | SCIF_ER | SCIF_BRK)
 
 /* Offsets into the sci_port->irqs array */
 enum {
@@ -55,6 +79,12 @@ struct plat_sci_port {
 
 	unsigned int	scbrr_algo_id;		/* SCBRR calculation algo */
 	unsigned int	scscr;			/* SCSCR initialization */
+
+	/*
+	 * Platform overrides if necessary, defaults otherwise.
+	 */
+	int		overrun_bit;
+	unsigned int	error_mask;
 
 	struct device	*dma_dev;
 

@@ -563,13 +563,19 @@ static int sci_handle_errors(struct uart_port *port)
 	int copied = 0;
 	unsigned short status = sci_in(port, SCxSR);
 	struct tty_struct *tty = port->state->port.tty;
+	struct sci_port *s = to_sci_port(port);
 
-	if (status & SCxSR_ORER(port)) {
-		/* overrun error */
-		if (tty_insert_flip_char(tty, 0, TTY_OVERRUN))
-			copied++;
+	/*
+	 * Handle overruns, if supported.
+	 */
+	if (s->cfg->overrun_bit != SCIx_NOT_SUPPORTED) {
+		if (status & (1 << s->cfg->overrun_bit)) {
+			/* overrun error */
+			if (tty_insert_flip_char(tty, 0, TTY_OVERRUN))
+				copied++;
 
-		dev_notice(port->dev, "overrun error");
+			dev_notice(port->dev, "overrun error");
+		}
 	}
 
 	if (status & SCxSR_FER(port)) {
@@ -617,12 +623,19 @@ static int sci_handle_errors(struct uart_port *port)
 static int sci_handle_fifo_overrun(struct uart_port *port)
 {
 	struct tty_struct *tty = port->state->port.tty;
+	struct sci_port *s = to_sci_port(port);
 	int copied = 0;
 
+	/*
+	 * XXX: Technically not limited to non-SCIFs, it's simply the
+	 * SCLSR check that is for the moment SCIF-specific. This
+	 * probably wants to be revisited for SCIFA/B as well as for
+	 * factoring in SCI overrun detection.
+	 */
 	if (port->type != PORT_SCIF)
 		return 0;
 
-	if ((sci_in(port, SCLSR) & SCIF_ORER) != 0) {
+	if ((sci_in(port, SCLSR) & (1 << s->cfg->overrun_bit))) {
 		sci_out(port, SCLSR, 0);
 
 		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
@@ -1754,6 +1767,32 @@ static int __devinit sci_init_single(struct platform_device *dev,
 	sci_port->break_timer.data = (unsigned long)sci_port;
 	sci_port->break_timer.function = sci_break_timer;
 	init_timer(&sci_port->break_timer);
+
+	/*
+	 * Establish some sensible defaults for the error detection.
+	 */
+	if (!p->error_mask)
+		p->error_mask = (p->type == PORT_SCI) ?
+			SCI_DEFAULT_ERROR_MASK : SCIF_DEFAULT_ERROR_MASK;
+
+	/*
+	 * Establish sensible defaults for the overrun detection, unless
+	 * the part has explicitly disabled support for it.
+	 */
+	if (p->overrun_bit != SCIx_NOT_SUPPORTED) {
+		if (p->type == PORT_SCI)
+			p->overrun_bit = 5;
+		else if (p->scbrr_algo_id == SCBRR_ALGO_4)
+			p->overrun_bit = 9;
+		else
+			p->overrun_bit = 0;
+
+		/*
+		 * Make the error mask inclusive of overrun detection, if
+		 * supported.
+		 */
+		p->error_mask |= (1 << p->overrun_bit);
+	}
 
 	sci_port->cfg		= p;
 
