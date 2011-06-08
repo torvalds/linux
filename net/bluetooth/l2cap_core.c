@@ -4127,7 +4127,7 @@ static int l2cap_disconn_ind(struct hci_conn *hcon)
 
 	BT_DBG("hcon %p", hcon);
 
-	if (hcon->type != ACL_LINK || !conn)
+	if ((hcon->type != ACL_LINK && hcon->type != LE_LINK) || !conn)
 		return 0x13;
 
 	return conn->disc_reason;
