@@ -8,73 +8,72 @@ including <emphasis role="tt">linux/dvb/ca.h</emphasis> in your application.
 <title>CA Data Types</title>
 
 
-<section id="ca_slot_info_t">
+<section id="ca-slot-info">
 <title>ca_slot_info_t</title>
  <programlisting>
- /&#x22C6; slot interface types and info &#x22C6;/
+typedef struct ca_slot_info {
+	int num;               /&#x22C6; slot number &#x22C6;/
 
- typedef struct ca_slot_info_s {
-	 int num;               /&#x22C6; slot number &#x22C6;/
+	int type;              /&#x22C6; CA interface this slot supports &#x22C6;/
+#define CA_CI            1     /&#x22C6; CI high level interface &#x22C6;/
+#define CA_CI_LINK       2     /&#x22C6; CI link layer level interface &#x22C6;/
+#define CA_CI_PHYS       4     /&#x22C6; CI physical layer level interface &#x22C6;/
+#define CA_DESCR         8     /&#x22C6; built-in descrambler &#x22C6;/
+#define CA_SC          128     /&#x22C6; simple smart card interface &#x22C6;/
 
-	 int type;           /&#x22C6; CA interface this slot supports &#x22C6;/
- #define CA_CI            1  /&#x22C6; CI high level interface &#x22C6;/
- #define CA_CI_LINK       2  /&#x22C6; CI link layer level interface &#x22C6;/
- #define CA_CI_PHYS       4  /&#x22C6; CI physical layer level interface &#x22C6;/
- #define CA_SC          128  /&#x22C6; simple smart card interface &#x22C6;/
-
-	 unsigned int flags;
- #define CA_CI_MODULE_PRESENT 1 /&#x22C6; module (or card) inserted &#x22C6;/
- #define CA_CI_MODULE_READY   2
- } ca_slot_info_t;
+	unsigned int flags;
+#define CA_CI_MODULE_PRESENT 1 /&#x22C6; module (or card) inserted &#x22C6;/
+#define CA_CI_MODULE_READY   2
+} ca_slot_info_t;
 </programlisting>
 
 </section>
-<section id="ca_descr_info_t">
+<section id="ca-descr-info">
 <title>ca_descr_info_t</title>
- <programlisting>
- typedef struct ca_descr_info_s {
-	 unsigned int num;  /&#x22C6; number of available descramblers (keys) &#x22C6;/
-	 unsigned int type; /&#x22C6; type of supported scrambling system &#x22C6;/
- #define CA_ECD           1
- #define CA_NDS           2
- #define CA_DSS           4
- } ca_descr_info_t;
+<programlisting>
+typedef struct ca_descr_info {
+	unsigned int num;  /&#x22C6; number of available descramblers (keys) &#x22C6;/
+	unsigned int type; /&#x22C6; type of supported scrambling system &#x22C6;/
+#define CA_ECD           1
+#define CA_NDS           2
+#define CA_DSS           4
+} ca_descr_info_t;
 </programlisting>
 
 </section>
-<section id="ca_cap_t">
-<title>ca_cap_t</title>
- <programlisting>
- typedef struct ca_cap_s {
-	 unsigned int slot_num;  /&#x22C6; total number of CA card and module slots &#x22C6;/
-	 unsigned int slot_type; /&#x22C6; OR of all supported types &#x22C6;/
-	 unsigned int descr_num; /&#x22C6; total number of descrambler slots (keys) &#x22C6;/
-	 unsigned int descr_type;/&#x22C6; OR of all supported types &#x22C6;/
+<section id="ca-caps">
+<title>ca_caps_t</title>
+<programlisting>
+typedef struct ca_cap_s {
+	unsigned int slot_num;  /&#x22C6; total number of CA card and module slots &#x22C6;/
+	unsigned int slot_type; /&#x22C6; OR of all supported types &#x22C6;/
+	unsigned int descr_num; /&#x22C6; total number of descrambler slots (keys) &#x22C6;/
+	unsigned int descr_type;/&#x22C6; OR of all supported types &#x22C6;/
  } ca_cap_t;
 </programlisting>
 
 </section>
-<section id="ca_msg_t">
+<section id="ca-msg">
 <title>ca_msg_t</title>
- <programlisting>
- /&#x22C6; a message to/from a CI-CAM &#x22C6;/
- typedef struct ca_msg_s {
-	 unsigned int index;
-	 unsigned int type;
-	 unsigned int length;
-	 unsigned char msg[256];
- } ca_msg_t;
+<programlisting>
+/&#x22C6; a message to/from a CI-CAM &#x22C6;/
+typedef struct ca_msg {
+	unsigned int index;
+	unsigned int type;
+	unsigned int length;
+	unsigned char msg[256];
+} ca_msg_t;
 </programlisting>
 
 </section>
-<section id="ca_descr_t">
+<section id="ca-descr">
 <title>ca_descr_t</title>
- <programlisting>
- typedef struct ca_descr_s {
-	 unsigned int index;
-	 unsigned int parity;
-	 unsigned char cw[8];
- } ca_descr_t;
+<programlisting>
+typedef struct ca_descr {
+	unsigned int index;
+	unsigned int parity;
+	unsigned char cw[8];
+} ca_descr_t;
 </programlisting>
  </section></section>
 <section id="ca_function_calls">
