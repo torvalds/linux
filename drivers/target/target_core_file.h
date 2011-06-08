@@ -16,8 +16,6 @@ struct fd_request {
 	struct se_task	fd_task;
 	/* SCSI CDB from iSCSI Command PDU */
 	unsigned char	fd_scsi_cdb[TCM_MAX_COMMAND_SIZE];
-	/* FILEIO device */
-	struct fd_dev	*fd_dev;
 } ____cacheline_aligned;
 
 #define FBDF_HAS_PATH		0x01

@@ -292,7 +292,7 @@ struct se_subsystem_api {
 	 * drivers.  Provided out of convenience.
 	 */
 	int (*transport_complete)(struct se_task *task);
-	struct se_task *(*alloc_task)(struct se_cmd *);
+	struct se_task *(*alloc_task)(unsigned char *cdb);
 	/*
 	 * do_task():
 	 */
@@ -341,11 +341,6 @@ struct se_subsystem_api {
 	 * Get the sector_t from a subsystem backstore..
 	 */
 	sector_t (*get_blocks)(struct se_device *);
-	/*
-	 * do_se_mem_map():
-	 */
-	int (*do_se_mem_map)(struct se_task *, struct list_head *, void *,
-				struct se_mem *, struct se_mem **, u32 *, u32 *);
 	/*
 	 * get_sense_buffer():
 	 */

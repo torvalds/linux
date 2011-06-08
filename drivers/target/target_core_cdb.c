@@ -73,7 +73,7 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 	 * payload going back for EVPD=0
 	 */
 	if (cmd->data_length < 6) {
-		printk(KERN_ERR "SCSI Inquiry payload length: %u"
+		pr_err("SCSI Inquiry payload length: %u"
 			" too small for EVPD=0\n", cmd->data_length);
 		return -EINVAL;
 	}
@@ -327,7 +327,7 @@ check_tpgi:
 
 		spin_lock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 		tg_pt_gp = tg_pt_gp_mem->tg_pt_gp;
-		if (!(tg_pt_gp)) {
+		if (!tg_pt_gp) {
 			spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 			goto check_lu_gp;
 		}
@@ -358,12 +358,12 @@ check_lu_gp:
 			goto check_scsi_name;
 		}
 		lu_gp_mem = dev->dev_alua_lu_gp_mem;
-		if (!(lu_gp_mem))
+		if (!lu_gp_mem)
 			goto check_scsi_name;
 
 		spin_lock(&lu_gp_mem->lu_gp_mem_lock);
 		lu_gp = lu_gp_mem->lu_gp;
-		if (!(lu_gp)) {
+		if (!lu_gp) {
 			spin_unlock(&lu_gp_mem->lu_gp_mem_lock);
 			goto check_scsi_name;
 		}
@@ -475,14 +475,14 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 		have_tp = 1;
 
 	if (cmd->data_length < (0x10 + 4)) {
-		printk(KERN_INFO "Received data_length: %u"
+		pr_debug("Received data_length: %u"
 			" too small for EVPD 0xb0\n",
 			cmd->data_length);
 		return -EINVAL;
 	}
 
 	if (have_tp && cmd->data_length < (0x3c + 4)) {
-		printk(KERN_INFO "Received data_length: %u"
+		pr_debug("Received data_length: %u"
 			" too small for TPE=1 EVPD 0xb0\n",
 			cmd->data_length);
 		have_tp = 0;
@@ -490,6 +490,9 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 
 	buf[0] = dev->transport->get_device_type(dev);
 	buf[3] = have_tp ? 0x3c : 0x10;
+
+	/* Set WSNZ to 1 */
+	buf[4] = 0x01;
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH GRANULARITY
@@ -667,7 +670,7 @@ target_emulate_inquiry(struct se_cmd *cmd)
 	 * payload length left for the next outgoing EVPD metadata
 	 */
 	if (cmd->data_length < 4) {
-		printk(KERN_ERR "SCSI Inquiry payload length: %u"
+		pr_err("SCSI Inquiry payload length: %u"
 			" too small for EVPD=1\n", cmd->data_length);
 		return -EINVAL;
 	}
@@ -685,7 +688,7 @@ target_emulate_inquiry(struct se_cmd *cmd)
 		}
 
 	transport_kunmap_first_data_page(cmd);
-	printk(KERN_ERR "Unknown VPD Code: 0x%02x\n", cdb[2]);
+	pr_err("Unknown VPD Code: 0x%02x\n", cdb[2]);
 	return -EINVAL;
 }
 
@@ -891,7 +894,7 @@ target_emulate_modesense(struct se_cmd *cmd, int ten)
 		length += target_modesense_control(dev, &buf[offset+length]);
 		break;
 	default:
-		printk(KERN_ERR "Got Unknown Mode Page: 0x%02x\n",
+		pr_err("Got Unknown Mode Page: 0x%02x\n",
 				cdb[2] & 0x3f);
 		return PYX_TRANSPORT_UNKNOWN_MODE_PAGE;
 	}
@@ -947,14 +950,14 @@ target_emulate_request_sense(struct se_cmd *cmd)
 	int err = 0;
 
 	if (cdb[1] & 0x01) {
-		printk(KERN_ERR "REQUEST_SENSE description emulation not"
+		pr_err("REQUEST_SENSE description emulation not"
 			" supported\n");
 		return PYX_TRANSPORT_INVALID_CDB_FIELD;
 	}
 
 	buf = transport_kmap_first_data_page(cmd);
 
-	if (!(core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq))) {
+	if (!core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq)) {
 		/*
 		 * CURRENT ERROR, UNIT ATTENTION
 		 */
@@ -1028,18 +1031,18 @@ target_emulate_unmap(struct se_task *task)
 	buf = transport_kmap_first_data_page(cmd);
 
 	ptr = &buf[offset];
-	printk(KERN_INFO "UNMAP: Sub: %s Using dl: %hu bd_dl: %hu size: %hu"
+	pr_debug("UNMAP: Sub: %s Using dl: %hu bd_dl: %hu size: %hu"
 		" ptr: %p\n", dev->transport->name, dl, bd_dl, size, ptr);
 
 	while (size) {
 		lba = get_unaligned_be64(&ptr[0]);
 		range = get_unaligned_be32(&ptr[8]);
-		printk(KERN_INFO "UNMAP: Using lba: %llu and range: %u\n",
+		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
 				 (unsigned long long)lba, range);
 
 		ret = dev->transport->do_discard(dev, lba, range);
 		if (ret < 0) {
-			printk(KERN_ERR "blkdev_issue_discard() failed: %d\n",
+			pr_err("blkdev_issue_discard() failed: %d\n",
 					ret);
 			goto err;
 		}
@@ -1084,12 +1087,12 @@ target_emulate_write_same(struct se_task *task, int write_same32)
 	else
 		range = (dev->transport->get_blocks(dev) - lba);
 
-	printk(KERN_INFO "WRITE_SAME UNMAP: LBA: %llu Range: %llu\n",
+	pr_debug("WRITE_SAME UNMAP: LBA: %llu Range: %llu\n",
 		 (unsigned long long)lba, (unsigned long long)range);
 
 	ret = dev->transport->do_discard(dev, lba, range);
 	if (ret < 0) {
-		printk(KERN_INFO "blkdev_issue_discard() failed for WRITE_SAME\n");
+		pr_debug("blkdev_issue_discard() failed for WRITE_SAME\n");
 		return ret;
 	}
 
@@ -1125,7 +1128,7 @@ transport_emulate_control_cdb(struct se_task *task)
 			ret = target_emulate_readcapacity_16(cmd);
 			break;
 		default:
-			printk(KERN_ERR "Unsupported SA: 0x%02x\n",
+			pr_err("Unsupported SA: 0x%02x\n",
 				cmd->t_task_cdb[1] & 0x1f);
 			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
 		}
@@ -1135,7 +1138,7 @@ transport_emulate_control_cdb(struct se_task *task)
 		break;
 	case UNMAP:
 		if (!dev->transport->do_discard) {
-			printk(KERN_ERR "UNMAP emulation not supported for: %s\n",
+			pr_err("UNMAP emulation not supported for: %s\n",
 					dev->transport->name);
 			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
 		}
@@ -1143,7 +1146,7 @@ transport_emulate_control_cdb(struct se_task *task)
 		break;
 	case WRITE_SAME_16:
 		if (!dev->transport->do_discard) {
-			printk(KERN_ERR "WRITE_SAME_16 emulation not supported"
+			pr_err("WRITE_SAME_16 emulation not supported"
 					" for: %s\n", dev->transport->name);
 			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
 		}
@@ -1155,7 +1158,7 @@ transport_emulate_control_cdb(struct se_task *task)
 		switch (service_action) {
 		case WRITE_SAME_32:
 			if (!dev->transport->do_discard) {
-				printk(KERN_ERR "WRITE_SAME_32 SA emulation not"
+				pr_err("WRITE_SAME_32 SA emulation not"
 					" supported for: %s\n",
 					dev->transport->name);
 				return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
@@ -1163,7 +1166,7 @@ transport_emulate_control_cdb(struct se_task *task)
 			ret = target_emulate_write_same(task, 1);
 			break;
 		default:
-			printk(KERN_ERR "Unsupported VARIABLE_LENGTH_CMD SA:"
+			pr_err("Unsupported VARIABLE_LENGTH_CMD SA:"
 					" 0x%02x\n", service_action);
 			break;
 		}
@@ -1171,8 +1174,7 @@ transport_emulate_control_cdb(struct se_task *task)
 	case SYNCHRONIZE_CACHE:
 	case 0x91: /* SYNCHRONIZE_CACHE_16: */
 		if (!dev->transport->do_sync_cache) {
-			printk(KERN_ERR
-				"SYNCHRONIZE_CACHE emulation not supported"
+			pr_err("SYNCHRONIZE_CACHE emulation not supported"
 				" for: %s\n", dev->transport->name);
 			return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
 		}
@@ -1189,7 +1191,7 @@ transport_emulate_control_cdb(struct se_task *task)
 	case WRITE_FILEMARKS:
 		break;
 	default:
-		printk(KERN_ERR "Unsupported SCSI Opcode: 0x%02x for %s\n",
+		pr_err("Unsupported SCSI Opcode: 0x%02x for %s\n",
 			cmd->t_task_cdb[0], dev->transport->name);
 		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
 	}

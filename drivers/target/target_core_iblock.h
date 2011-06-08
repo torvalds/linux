@@ -12,7 +12,6 @@ struct iblock_req {
 	atomic_t ib_bio_cnt;
 	atomic_t ib_bio_err_cnt;
 	struct bio *ib_bio;
-	struct iblock_dev *ib_dev;
 } ____cacheline_aligned;
 
 #define IBDF_HAS_UDEV_PATH		0x01

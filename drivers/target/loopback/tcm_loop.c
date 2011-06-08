@@ -79,7 +79,7 @@ static struct se_cmd *tcm_loop_allocate_core_cmd(
 
 	tl_cmd = kmem_cache_zalloc(tcm_loop_cmd_cache, GFP_ATOMIC);
 	if (!tl_cmd) {
-		printk(KERN_ERR "Unable to allocate struct tcm_loop_cmd\n");
+		pr_err("Unable to allocate struct tcm_loop_cmd\n");
 		set_host_byte(sc, DID_ERROR);
 		return NULL;
 	}
@@ -281,7 +281,7 @@ static int tcm_loop_queuecommand(
 	struct tcm_loop_hba *tl_hba;
 	struct tcm_loop_tpg *tl_tpg;
 
-	TL_CDB_DEBUG("tcm_loop_queuecommand() %d:%d:%d:%d got CDB: 0x%02x"
+	pr_debug("tcm_loop_queuecommand() %d:%d:%d:%d got CDB: 0x%02x"
 		" scsi_buf_len: %u\n", sc->device->host->host_no,
 		sc->device->id, sc->device->channel, sc->device->lun,
 		sc->cmnd[0], scsi_bufflen(sc));
@@ -331,7 +331,7 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 	 */
 	tl_nexus = tl_hba->tl_nexus;
 	if (!tl_nexus) {
-		printk(KERN_ERR "Unable to perform device reset without"
+		pr_err("Unable to perform device reset without"
 				" active I_T Nexus\n");
 		return FAILED;
 	}
@@ -344,13 +344,13 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 
 	tl_cmd = kmem_cache_zalloc(tcm_loop_cmd_cache, GFP_KERNEL);
 	if (!tl_cmd) {
-		printk(KERN_ERR "Unable to allocate memory for tl_cmd\n");
+		pr_err("Unable to allocate memory for tl_cmd\n");
 		return FAILED;
 	}
 
 	tl_tmr = kzalloc(sizeof(struct tcm_loop_tmr), GFP_KERNEL);
 	if (!tl_tmr) {
-		printk(KERN_ERR "Unable to allocate memory for tl_tmr\n");
+		pr_err("Unable to allocate memory for tl_tmr\n");
 		goto release;
 	}
 	init_waitqueue_head(&tl_tmr->tl_tmr_wait);
@@ -435,7 +435,7 @@ static int tcm_loop_driver_probe(struct device *dev)
 	sh = scsi_host_alloc(&tcm_loop_driver_template,
 			sizeof(struct tcm_loop_hba));
 	if (!sh) {
-		printk(KERN_ERR "Unable to allocate struct scsi_host\n");
+		pr_err("Unable to allocate struct scsi_host\n");
 		return -ENODEV;
 	}
 	tl_hba->sh = sh;
@@ -454,7 +454,7 @@ static int tcm_loop_driver_probe(struct device *dev)
 
 	error = scsi_add_host(sh, &tl_hba->dev);
 	if (error) {
-		printk(KERN_ERR "%s: scsi_add_host failed\n", __func__);
+		pr_err("%s: scsi_add_host failed\n", __func__);
 		scsi_host_put(sh);
 		return -ENODEV;
 	}
@@ -495,7 +495,7 @@ static int tcm_loop_setup_hba_bus(struct tcm_loop_hba *tl_hba, int tcm_loop_host
 
 	ret = device_register(&tl_hba->dev);
 	if (ret) {
-		printk(KERN_ERR "device_register() failed for"
+		pr_err("device_register() failed for"
 				" tl_hba->dev: %d\n", ret);
 		return -ENODEV;
 	}
@@ -513,24 +513,24 @@ static int tcm_loop_alloc_core_bus(void)
 
 	tcm_loop_primary = root_device_register("tcm_loop_0");
 	if (IS_ERR(tcm_loop_primary)) {
-		printk(KERN_ERR "Unable to allocate tcm_loop_primary\n");
+		pr_err("Unable to allocate tcm_loop_primary\n");
 		return PTR_ERR(tcm_loop_primary);
 	}
 
 	ret = bus_register(&tcm_loop_lld_bus);
 	if (ret) {
-		printk(KERN_ERR "bus_register() failed for tcm_loop_lld_bus\n");
+		pr_err("bus_register() failed for tcm_loop_lld_bus\n");
 		goto dev_unreg;
 	}
 
 	ret = driver_register(&tcm_loop_driverfs);
 	if (ret) {
-		printk(KERN_ERR "driver_register() failed for"
+		pr_err("driver_register() failed for"
 				"tcm_loop_driverfs\n");
 		goto bus_unreg;
 	}
 
-	printk(KERN_INFO "Initialized TCM Loop Core Bus\n");
+	pr_debug("Initialized TCM Loop Core Bus\n");
 	return ret;
 
 bus_unreg:
@@ -546,7 +546,7 @@ static void tcm_loop_release_core_bus(void)
 	bus_unregister(&tcm_loop_lld_bus);
 	root_device_unregister(tcm_loop_primary);
 
-	printk(KERN_INFO "Releasing TCM Loop Core BUS\n");
+	pr_debug("Releasing TCM Loop Core BUS\n");
 }
 
 static char *tcm_loop_get_fabric_name(void)
@@ -574,7 +574,7 @@ static u8 tcm_loop_get_fabric_proto_ident(struct se_portal_group *se_tpg)
 	case SCSI_PROTOCOL_ISCSI:
 		return iscsi_get_fabric_proto_ident(se_tpg);
 	default:
-		printk(KERN_ERR "Unknown tl_proto_id: 0x%02x, using"
+		pr_err("Unknown tl_proto_id: 0x%02x, using"
 			" SAS emulation\n", tl_hba->tl_proto_id);
 		break;
 	}
@@ -630,7 +630,7 @@ static u32 tcm_loop_get_pr_transport_id(
 		return iscsi_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
 					format_code, buf);
 	default:
-		printk(KERN_ERR "Unknown tl_proto_id: 0x%02x, using"
+		pr_err("Unknown tl_proto_id: 0x%02x, using"
 			" SAS emulation\n", tl_hba->tl_proto_id);
 		break;
 	}
@@ -660,7 +660,7 @@ static u32 tcm_loop_get_pr_transport_id_len(
 		return iscsi_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
 					format_code);
 	default:
-		printk(KERN_ERR "Unknown tl_proto_id: 0x%02x, using"
+		pr_err("Unknown tl_proto_id: 0x%02x, using"
 			" SAS emulation\n", tl_hba->tl_proto_id);
 		break;
 	}
@@ -694,7 +694,7 @@ static char *tcm_loop_parse_pr_out_transport_id(
 		return iscsi_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
 					port_nexus_ptr);
 	default:
-		printk(KERN_ERR "Unknown tl_proto_id: 0x%02x, using"
+		pr_err("Unknown tl_proto_id: 0x%02x, using"
 			" SAS emulation\n", tl_hba->tl_proto_id);
 		break;
 	}
@@ -743,7 +743,7 @@ static struct se_node_acl *tcm_loop_tpg_alloc_fabric_acl(
 
 	tl_nacl = kzalloc(sizeof(struct tcm_loop_nacl), GFP_KERNEL);
 	if (!tl_nacl) {
-		printk(KERN_ERR "Unable to allocate struct tcm_loop_nacl\n");
+		pr_err("Unable to allocate struct tcm_loop_nacl\n");
 		return NULL;
 	}
 
@@ -853,7 +853,7 @@ static int tcm_loop_queue_data_in(struct se_cmd *se_cmd)
 				struct tcm_loop_cmd, tl_se_cmd);
 	struct scsi_cmnd *sc = tl_cmd->sc;
 
-	TL_CDB_DEBUG("tcm_loop_queue_data_in() called for scsi_cmnd: %p"
+	pr_debug("tcm_loop_queue_data_in() called for scsi_cmnd: %p"
 		     " cdb: 0x%02x\n", sc, sc->cmnd[0]);
 
 	sc->result = SAM_STAT_GOOD;
@@ -868,7 +868,7 @@ static int tcm_loop_queue_status(struct se_cmd *se_cmd)
 				struct tcm_loop_cmd, tl_se_cmd);
 	struct scsi_cmnd *sc = tl_cmd->sc;
 
-	TL_CDB_DEBUG("tcm_loop_queue_status() called for scsi_cmnd: %p"
+	pr_debug("tcm_loop_queue_status() called for scsi_cmnd: %p"
 			" cdb: 0x%02x\n", sc, sc->cmnd[0]);
 
 	if (se_cmd->sense_buffer &&
@@ -943,7 +943,7 @@ static int tcm_loop_port_link(
 	 */
 	scsi_add_device(tl_hba->sh, 0, tl_tpg->tl_tpgt, lun->unpacked_lun);
 
-	printk(KERN_INFO "TCM_Loop_ConfigFS: Port Link Successful\n");
+	pr_debug("TCM_Loop_ConfigFS: Port Link Successful\n");
 	return 0;
 }
 
@@ -961,7 +961,7 @@ static void tcm_loop_port_unlink(
 	sd = scsi_device_lookup(tl_hba->sh, 0, tl_tpg->tl_tpgt,
 				se_lun->unpacked_lun);
 	if (!sd) {
-		printk(KERN_ERR "Unable to locate struct scsi_device for %d:%d:"
+		pr_err("Unable to locate struct scsi_device for %d:%d:"
 			"%d\n", 0, tl_tpg->tl_tpgt, se_lun->unpacked_lun);
 		return;
 	}
@@ -974,7 +974,7 @@ static void tcm_loop_port_unlink(
 	atomic_dec(&tl_tpg->tl_tpg_port_count);
 	smp_mb__after_atomic_dec();
 
-	printk(KERN_INFO "TCM_Loop_ConfigFS: Port Unlink Successful\n");
+	pr_debug("TCM_Loop_ConfigFS: Port Unlink Successful\n");
 }
 
 /* End items for tcm_loop_port_cit */
@@ -991,14 +991,14 @@ static int tcm_loop_make_nexus(
 	int ret = -ENOMEM;
 
 	if (tl_tpg->tl_hba->tl_nexus) {
-		printk(KERN_INFO "tl_tpg->tl_hba->tl_nexus already exists\n");
+		pr_debug("tl_tpg->tl_hba->tl_nexus already exists\n");
 		return -EEXIST;
 	}
 	se_tpg = &tl_tpg->tl_se_tpg;
 
 	tl_nexus = kzalloc(sizeof(struct tcm_loop_nexus), GFP_KERNEL);
 	if (!tl_nexus) {
-		printk(KERN_ERR "Unable to allocate struct tcm_loop_nexus\n");
+		pr_err("Unable to allocate struct tcm_loop_nexus\n");
 		return -ENOMEM;
 	}
 	/*
@@ -1027,7 +1027,7 @@ static int tcm_loop_make_nexus(
 	__transport_register_session(se_tpg, tl_nexus->se_sess->se_node_acl,
 			tl_nexus->se_sess, tl_nexus);
 	tl_tpg->tl_hba->tl_nexus = tl_nexus;
-	printk(KERN_INFO "TCM_Loop_ConfigFS: Established I_T Nexus to emulated"
+	pr_debug("TCM_Loop_ConfigFS: Established I_T Nexus to emulated"
 		" %s Initiator Port: %s\n", tcm_loop_dump_proto_id(tl_hba),
 		name);
 	return 0;
@@ -1053,13 +1053,13 @@ static int tcm_loop_drop_nexus(
 		return -ENODEV;
 
 	if (atomic_read(&tpg->tl_tpg_port_count)) {
-		printk(KERN_ERR "Unable to remove TCM_Loop I_T Nexus with"
+		pr_err("Unable to remove TCM_Loop I_T Nexus with"
 			" active TPG port count: %d\n",
 			atomic_read(&tpg->tl_tpg_port_count));
 		return -EPERM;
 	}
 
-	printk(KERN_INFO "TCM_Loop_ConfigFS: Removing I_T Nexus to emulated"
+	pr_debug("TCM_Loop_ConfigFS: Removing I_T Nexus to emulated"
 		" %s Initiator Port: %s\n", tcm_loop_dump_proto_id(tl_hba),
 		tl_nexus->se_sess->se_node_acl->initiatorname);
 	/*
@@ -1115,7 +1115,7 @@ static ssize_t tcm_loop_tpg_store_nexus(
 	 * tcm_loop_make_nexus()
 	 */
 	if (strlen(page) >= TL_WWN_ADDR_LEN) {
-		printk(KERN_ERR "Emulated NAA Sas Address: %s, exceeds"
+		pr_err("Emulated NAA Sas Address: %s, exceeds"
 				" max: %d\n", page, TL_WWN_ADDR_LEN);
 		return -EINVAL;
 	}
@@ -1124,7 +1124,7 @@ static ssize_t tcm_loop_tpg_store_nexus(
 	ptr = strstr(i_port, "naa.");
 	if (ptr) {
 		if (tl_hba->tl_proto_id != SCSI_PROTOCOL_SAS) {
-			printk(KERN_ERR "Passed SAS Initiator Port %s does not"
+			pr_err("Passed SAS Initiator Port %s does not"
 				" match target port protoid: %s\n", i_port,
 				tcm_loop_dump_proto_id(tl_hba));
 			return -EINVAL;
@@ -1135,7 +1135,7 @@ static ssize_t tcm_loop_tpg_store_nexus(
 	ptr = strstr(i_port, "fc.");
 	if (ptr) {
 		if (tl_hba->tl_proto_id != SCSI_PROTOCOL_FCP) {
-			printk(KERN_ERR "Passed FCP Initiator Port %s does not"
+			pr_err("Passed FCP Initiator Port %s does not"
 				" match target port protoid: %s\n", i_port,
 				tcm_loop_dump_proto_id(tl_hba));
 			return -EINVAL;
@@ -1146,7 +1146,7 @@ static ssize_t tcm_loop_tpg_store_nexus(
 	ptr = strstr(i_port, "iqn.");
 	if (ptr) {
 		if (tl_hba->tl_proto_id != SCSI_PROTOCOL_ISCSI) {
-			printk(KERN_ERR "Passed iSCSI Initiator Port %s does not"
+			pr_err("Passed iSCSI Initiator Port %s does not"
 				" match target port protoid: %s\n", i_port,
 				tcm_loop_dump_proto_id(tl_hba));
 			return -EINVAL;
@@ -1154,7 +1154,7 @@ static ssize_t tcm_loop_tpg_store_nexus(
 		port_ptr = &i_port[0];
 		goto check_newline;
 	}
-	printk(KERN_ERR "Unable to locate prefix for emulated Initiator Port:"
+	pr_err("Unable to locate prefix for emulated Initiator Port:"
 			" %s\n", i_port);
 	return -EINVAL;
 	/*
@@ -1194,7 +1194,7 @@ struct se_portal_group *tcm_loop_make_naa_tpg(
 
 	tpgt_str = strstr(name, "tpgt_");
 	if (!tpgt_str) {
-		printk(KERN_ERR "Unable to locate \"tpgt_#\" directory"
+		pr_err("Unable to locate \"tpgt_#\" directory"
 				" group\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -1202,7 +1202,7 @@ struct se_portal_group *tcm_loop_make_naa_tpg(
 	tpgt = (unsigned short int) simple_strtoul(tpgt_str, &end_ptr, 0);
 
 	if (tpgt >= TL_TPGS_PER_HBA) {
-		printk(KERN_ERR "Passed tpgt: %hu exceeds TL_TPGS_PER_HBA:"
+		pr_err("Passed tpgt: %hu exceeds TL_TPGS_PER_HBA:"
 				" %u\n", tpgt, TL_TPGS_PER_HBA);
 		return ERR_PTR(-EINVAL);
 	}
@@ -1218,7 +1218,7 @@ struct se_portal_group *tcm_loop_make_naa_tpg(
 	if (ret < 0)
 		return ERR_PTR(-ENOMEM);
 
-	printk(KERN_INFO "TCM_Loop_ConfigFS: Allocated Emulated %s"
+	pr_debug("TCM_Loop_ConfigFS: Allocated Emulated %s"
 		" Target Port %s,t,0x%04x\n", tcm_loop_dump_proto_id(tl_hba),
 		config_item_name(&wwn->wwn_group.cg_item), tpgt);
 
@@ -1245,7 +1245,7 @@ void tcm_loop_drop_naa_tpg(
 	 */
 	core_tpg_deregister(se_tpg);
 
-	printk(KERN_INFO "TCM_Loop_ConfigFS: Deallocated Emulated %s"
+	pr_debug("TCM_Loop_ConfigFS: Deallocated Emulated %s"
 		" Target Port %s,t,0x%04x\n", tcm_loop_dump_proto_id(tl_hba),
 		config_item_name(&wwn->wwn_group.cg_item), tpgt);
 }
@@ -1266,7 +1266,7 @@ struct se_wwn *tcm_loop_make_scsi_hba(
 
 	tl_hba = kzalloc(sizeof(struct tcm_loop_hba), GFP_KERNEL);
 	if (!tl_hba) {
-		printk(KERN_ERR "Unable to allocate struct tcm_loop_hba\n");
+		pr_err("Unable to allocate struct tcm_loop_hba\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	/*
@@ -1286,7 +1286,7 @@ struct se_wwn *tcm_loop_make_scsi_hba(
 	}
 	ptr = strstr(name, "iqn.");
 	if (!ptr) {
-		printk(KERN_ERR "Unable to locate prefix for emulated Target "
+		pr_err("Unable to locate prefix for emulated Target "
 				"Port: %s\n", name);
 		ret = -EINVAL;
 		goto out;
@@ -1295,7 +1295,7 @@ struct se_wwn *tcm_loop_make_scsi_hba(
 
 check_len:
 	if (strlen(name) >= TL_WWN_ADDR_LEN) {
-		printk(KERN_ERR "Emulated NAA %s Address: %s, exceeds"
+		pr_err("Emulated NAA %s Address: %s, exceeds"
 			" max: %d\n", name, tcm_loop_dump_proto_id(tl_hba),
 			TL_WWN_ADDR_LEN);
 		ret = -EINVAL;
@@ -1314,7 +1314,7 @@ check_len:
 
 	sh = tl_hba->sh;
 	tcm_loop_hba_no_cnt++;
-	printk(KERN_INFO "TCM_Loop_ConfigFS: Allocated emulated Target"
+	pr_debug("TCM_Loop_ConfigFS: Allocated emulated Target"
 		" %s Address: %s at Linux/SCSI Host ID: %d\n",
 		tcm_loop_dump_proto_id(tl_hba), name, sh->host_no);
 
@@ -1337,7 +1337,7 @@ void tcm_loop_drop_scsi_hba(
 	 */
 	device_unregister(&tl_hba->dev);
 
-	printk(KERN_INFO "TCM_Loop_ConfigFS: Deallocated emulated Target"
+	pr_debug("TCM_Loop_ConfigFS: Deallocated emulated Target"
 		" SAS Address: %s at Linux/SCSI Host ID: %d\n",
 		config_item_name(&wwn->wwn_group.cg_item), host_no);
 }
@@ -1373,7 +1373,7 @@ static int tcm_loop_register_configfs(void)
 	 */
 	fabric = target_fabric_configfs_init(THIS_MODULE, "loopback");
 	if (IS_ERR(fabric)) {
-		printk(KERN_ERR "tcm_loop_register_configfs() failed!\n");
+		pr_err("tcm_loop_register_configfs() failed!\n");
 		return PTR_ERR(fabric);
 	}
 	/*
@@ -1464,7 +1464,7 @@ static int tcm_loop_register_configfs(void)
 	 */
 	ret = target_fabric_configfs_register(fabric);
 	if (ret < 0) {
-		printk(KERN_ERR "target_fabric_configfs_register() for"
+		pr_err("target_fabric_configfs_register() for"
 				" TCM_Loop failed!\n");
 		target_fabric_configfs_free(fabric);
 		return -1;
@@ -1473,7 +1473,7 @@ static int tcm_loop_register_configfs(void)
 	 * Setup our local pointer to *fabric.
 	 */
 	tcm_loop_fabric_configfs = fabric;
-	printk(KERN_INFO "TCM_LOOP[0] - Set fabric ->"
+	pr_debug("TCM_LOOP[0] - Set fabric ->"
 			" tcm_loop_fabric_configfs\n");
 	return 0;
 }
@@ -1485,7 +1485,7 @@ static void tcm_loop_deregister_configfs(void)
 
 	target_fabric_configfs_deregister(tcm_loop_fabric_configfs);
 	tcm_loop_fabric_configfs = NULL;
-	printk(KERN_INFO "TCM_LOOP[0] - Cleared"
+	pr_debug("TCM_LOOP[0] - Cleared"
 				" tcm_loop_fabric_configfs\n");
 }
 
@@ -1498,7 +1498,7 @@ static int __init tcm_loop_fabric_init(void)
 				__alignof__(struct tcm_loop_cmd),
 				0, NULL);
 	if (!tcm_loop_cmd_cache) {
-		printk(KERN_ERR "kmem_cache_create() for"
+		pr_debug("kmem_cache_create() for"
 			" tcm_loop_cmd_cache failed\n");
 		return -ENOMEM;
 	}

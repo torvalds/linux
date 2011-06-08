@@ -403,7 +403,7 @@ struct se_queue_obj {
 struct se_task {
 	unsigned char	task_sense;
 	struct scatterlist *task_sg;
-	u32		task_sg_num;
+	u32		task_sg_nents;
 	struct scatterlist *task_sg_bidi;
 	u8		task_scsi_status;
 	u8		task_flags;

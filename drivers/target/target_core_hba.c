@@ -58,8 +58,8 @@ int transport_subsystem_register(struct se_subsystem_api *sub_api)
 
 	mutex_lock(&subsystem_mutex);
 	list_for_each_entry(s, &subsystem_list, sub_api_list) {
-		if (!(strcmp(s->name, sub_api->name))) {
-			printk(KERN_ERR "%p is already registered with"
+		if (!strcmp(s->name, sub_api->name)) {
+			pr_err("%p is already registered with"
 				" duplicate name %s, unable to process"
 				" request\n", s, s->name);
 			mutex_unlock(&subsystem_mutex);
@@ -69,7 +69,7 @@ int transport_subsystem_register(struct se_subsystem_api *sub_api)
 	list_add_tail(&sub_api->sub_api_list, &subsystem_list);
 	mutex_unlock(&subsystem_mutex);
 
-	printk(KERN_INFO "TCM: Registered subsystem plugin: %s struct module:"
+	pr_debug("TCM: Registered subsystem plugin: %s struct module:"
 			" %p\n", sub_api->name, sub_api->owner);
 	return 0;
 }
@@ -109,7 +109,7 @@ core_alloc_hba(const char *plugin_name, u32 plugin_dep_id, u32 hba_flags)
 
 	hba = kzalloc(sizeof(*hba), GFP_KERNEL);
 	if (!hba) {
-		printk(KERN_ERR "Unable to allocate struct se_hba\n");
+		pr_err("Unable to allocate struct se_hba\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -135,7 +135,7 @@ core_alloc_hba(const char *plugin_name, u32 plugin_dep_id, u32 hba_flags)
 	list_add_tail(&hba->hba_node, &hba_list);
 	spin_unlock(&hba_lock);
 
-	printk(KERN_INFO "CORE_HBA[%d] - Attached HBA to Generic Target"
+	pr_debug("CORE_HBA[%d] - Attached HBA to Generic Target"
 			" Core\n", hba->hba_id);
 
 	return hba;
@@ -161,7 +161,7 @@ core_delete_hba(struct se_hba *hba)
 	list_del(&hba->hba_node);
 	spin_unlock(&hba_lock);
 
-	printk(KERN_INFO "CORE_HBA[%d] - Detached HBA from Generic Target"
+	pr_debug("CORE_HBA[%d] - Detached HBA from Generic Target"
 			" Core\n", hba->hba_id);
 
 	if (hba->transport->owner)

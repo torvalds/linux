@@ -41,13 +41,6 @@
 #include "target_core_alua.h"
 #include "target_core_pr.h"
 
-#define DEBUG_LUN_RESET
-#ifdef DEBUG_LUN_RESET
-#define DEBUG_LR(x...) printk(KERN_INFO x)
-#else
-#define DEBUG_LR(x...)
-#endif
-
 struct se_tmr_req *core_tmr_alloc_req(
 	struct se_cmd *se_cmd,
 	void *fabric_tmr_ptr,
@@ -57,8 +50,8 @@ struct se_tmr_req *core_tmr_alloc_req(
 
 	tmr = kmem_cache_zalloc(se_tmr_req_cache, (in_interrupt()) ?
 					GFP_ATOMIC : GFP_KERNEL);
-	if (!(tmr)) {
-		printk(KERN_ERR "Unable to allocate struct se_tmr_req\n");
+	if (!tmr) {
+		pr_err("Unable to allocate struct se_tmr_req\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	tmr->task_cmd = se_cmd;
@@ -93,14 +86,14 @@ static void core_tmr_handle_tas_abort(
 	int tas,
 	int fe_count)
 {
-	if (!(fe_count)) {
+	if (!fe_count) {
 		transport_cmd_finish_abort(cmd, 1);
 		return;
 	}
 	/*
 	 * TASK ABORTED status (TAS) bit support
 	*/
-	if (((tmr_nacl != NULL) &&
+	if ((tmr_nacl &&
 	     (tmr_nacl == cmd->se_sess->se_node_acl)) || tas)
 		transport_send_task_abort(cmd);
 
@@ -141,13 +134,13 @@ int core_tmr_lun_reset(
 		tmr_nacl = tmr->task_cmd->se_sess->se_node_acl;
 		tmr_tpg = tmr->task_cmd->se_sess->se_tpg;
 		if (tmr_nacl && tmr_tpg) {
-			DEBUG_LR("LUN_RESET: TMR caller fabric: %s"
+			pr_debug("LUN_RESET: TMR caller fabric: %s"
 				" initiator port %s\n",
 				tmr_tpg->se_tpg_tfo->get_fabric_name(),
 				tmr_nacl->initiatorname);
 		}
 	}
-	DEBUG_LR("LUN_RESET: %s starting for [%s], tas: %d\n",
+	pr_debug("LUN_RESET: %s starting for [%s], tas: %d\n",
 		(preempt_and_abort_list) ? "Preempt" : "TMR",
 		dev->transport->name, tas);
 	/*
@@ -163,8 +156,8 @@ int core_tmr_lun_reset(
 			continue;
 
 		cmd = tmr_p->task_cmd;
-		if (!(cmd)) {
-			printk(KERN_ERR "Unable to locate struct se_cmd for TMR\n");
+		if (!cmd) {
+			pr_err("Unable to locate struct se_cmd for TMR\n");
 			continue;
 		}
 		/*
@@ -172,14 +165,14 @@ int core_tmr_lun_reset(
 		 * parameter (eg: for PROUT PREEMPT_AND_ABORT service action
 		 * skip non regisration key matching TMRs.
 		 */
-		if ((preempt_and_abort_list != NULL) &&
+		if (preempt_and_abort_list &&
 		    (core_scsi3_check_cdb_abort_and_preempt(
 					preempt_and_abort_list, cmd) != 0))
 			continue;
 		spin_unlock_irq(&dev->se_tmr_lock);
 
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
-		if (!(atomic_read(&cmd->t_transport_active))) {
+		if (!atomic_read(&cmd->t_transport_active)) {
 			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 			spin_lock_irq(&dev->se_tmr_lock);
 			continue;
@@ -189,7 +182,7 @@ int core_tmr_lun_reset(
 			spin_lock_irq(&dev->se_tmr_lock);
 			continue;
 		}
-		DEBUG_LR("LUN_RESET: %s releasing TMR %p Function: 0x%02x,"
+		pr_debug("LUN_RESET: %s releasing TMR %p Function: 0x%02x,"
 			" Response: 0x%02x, t_state: %d\n",
 			(preempt_and_abort_list) ? "Preempt" : "", tmr_p,
 			tmr_p->function, tmr_p->response, cmd->t_state);
@@ -224,7 +217,7 @@ int core_tmr_lun_reset(
 	list_for_each_entry_safe(task, task_tmp, &dev->state_task_list,
 				t_state_list) {
 		if (!task->task_se_cmd) {
-			printk(KERN_ERR "task->task_se_cmd is NULL!\n");
+			pr_err("task->task_se_cmd is NULL!\n");
 			continue;
 		}
 		cmd = task->task_se_cmd;
@@ -233,7 +226,7 @@ int core_tmr_lun_reset(
 		 * For PREEMPT_AND_ABORT usage, only process commands
 		 * with a matching reservation key.
 		 */
-		if ((preempt_and_abort_list != NULL) &&
+		if (preempt_and_abort_list &&
 		    (core_scsi3_check_cdb_abort_and_preempt(
 					preempt_and_abort_list, cmd) != 0))
 			continue;
@@ -248,14 +241,14 @@ int core_tmr_lun_reset(
 		spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
-		DEBUG_LR("LUN_RESET: %s cmd: %p task: %p"
+		pr_debug("LUN_RESET: %s cmd: %p task: %p"
 			" ITT/CmdSN: 0x%08x/0x%08x, i_state: %d, t_state/"
 			"def_t_state: %d/%d cdb: 0x%02x\n",
 			(preempt_and_abort_list) ? "Preempt" : "", cmd, task,
 			cmd->se_tfo->get_task_tag(cmd), 0,
 			cmd->se_tfo->get_cmd_state(cmd), cmd->t_state,
 			cmd->deferred_t_state, cmd->t_task_cdb[0]);
-		DEBUG_LR("LUN_RESET: ITT[0x%08x] - pr_res_key: 0x%016Lx"
+		pr_debug("LUN_RESET: ITT[0x%08x] - pr_res_key: 0x%016Lx"
 			" t_task_cdbs: %d t_task_cdbs_left: %d"
 			" t_task_cdbs_sent: %d -- t_transport_active: %d"
 			" t_transport_stop: %d t_transport_sent: %d\n",
@@ -272,10 +265,10 @@ int core_tmr_lun_reset(
 			spin_unlock_irqrestore(
 				&cmd->t_state_lock, flags);
 
-			DEBUG_LR("LUN_RESET: Waiting for task: %p to shutdown"
+			pr_debug("LUN_RESET: Waiting for task: %p to shutdown"
 				" for dev: %p\n", task, dev);
 			wait_for_completion(&task->task_stop_comp);
-			DEBUG_LR("LUN_RESET Completed task: %p shutdown for"
+			pr_debug("LUN_RESET Completed task: %p shutdown for"
 				" dev: %p\n", task, dev);
 			spin_lock_irqsave(&cmd->t_state_lock, flags);
 			atomic_dec(&cmd->t_task_cdbs_left);
@@ -288,10 +281,10 @@ int core_tmr_lun_reset(
 		}
 		__transport_stop_task_timer(task, &flags);
 
-		if (!(atomic_dec_and_test(&cmd->t_task_cdbs_ex_left))) {
+		if (!atomic_dec_and_test(&cmd->t_task_cdbs_ex_left)) {
 			spin_unlock_irqrestore(
 					&cmd->t_state_lock, flags);
-			DEBUG_LR("LUN_RESET: Skipping task: %p, dev: %p for"
+			pr_debug("LUN_RESET: Skipping task: %p, dev: %p for"
 				" t_task_cdbs_ex_left: %d\n", task, dev,
 				atomic_read(&cmd->t_task_cdbs_ex_left));
 
@@ -301,7 +294,7 @@ int core_tmr_lun_reset(
 		fe_count = atomic_read(&cmd->t_fe_count);
 
 		if (atomic_read(&cmd->t_transport_active)) {
-			DEBUG_LR("LUN_RESET: got t_transport_active = 1 for"
+			pr_debug("LUN_RESET: got t_transport_active = 1 for"
 				" task: %p, t_fe_count: %d dev: %p\n", task,
 				fe_count, dev);
 			atomic_set(&cmd->t_transport_aborted, 1);
@@ -312,7 +305,7 @@ int core_tmr_lun_reset(
 			spin_lock_irqsave(&dev->execute_task_lock, flags);
 			continue;
 		}
-		DEBUG_LR("LUN_RESET: Got t_transport_active = 0 for task: %p,"
+		pr_debug("LUN_RESET: Got t_transport_active = 0 for task: %p,"
 			" t_fe_count: %d dev: %p\n", task, fe_count, dev);
 		atomic_set(&cmd->t_transport_aborted, 1);
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
@@ -335,7 +328,7 @@ int core_tmr_lun_reset(
 		 * For PREEMPT_AND_ABORT usage, only process commands
 		 * with a matching reservation key.
 		 */
-		if ((preempt_and_abort_list != NULL) &&
+		if (preempt_and_abort_list &&
 		    (core_scsi3_check_cdb_abort_and_preempt(
 					preempt_and_abort_list, cmd) != 0))
 			continue;
@@ -350,7 +343,7 @@ int core_tmr_lun_reset(
 		list_del(&cmd->se_queue_node);
 		spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
 
-		DEBUG_LR("LUN_RESET: %s from Device Queue: cmd: %p t_state:"
+		pr_debug("LUN_RESET: %s from Device Queue: cmd: %p t_state:"
 			" %d t_fe_count: %d\n", (preempt_and_abort_list) ?
 			"Preempt" : "", cmd, cmd->t_state,
 			atomic_read(&cmd->t_fe_count));
@@ -368,20 +361,20 @@ int core_tmr_lun_reset(
 	 * Clear any legacy SPC-2 reservation when called during
 	 * LOGICAL UNIT RESET
 	 */
-	if (!(preempt_and_abort_list) &&
+	if (!preempt_and_abort_list &&
 	     (dev->dev_flags & DF_SPC2_RESERVATIONS)) {
 		spin_lock(&dev->dev_reservation_lock);
 		dev->dev_reserved_node_acl = NULL;
 		dev->dev_flags &= ~DF_SPC2_RESERVATIONS;
 		spin_unlock(&dev->dev_reservation_lock);
-		printk(KERN_INFO "LUN_RESET: SCSI-2 Released reservation\n");
+		pr_debug("LUN_RESET: SCSI-2 Released reservation\n");
 	}
 
 	spin_lock_irq(&dev->stats_lock);
 	dev->num_resets++;
 	spin_unlock_irq(&dev->stats_lock);
 
-	DEBUG_LR("LUN_RESET: %s for [%s] Complete\n",
+	pr_debug("LUN_RESET: %s for [%s] Complete\n",
 			(preempt_and_abort_list) ? "Preempt" : "TMR",
 			dev->transport->name);
 	return 0;

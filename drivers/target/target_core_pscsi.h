@@ -23,13 +23,12 @@
 
 struct pscsi_plugin_task {
 	struct se_task pscsi_task;
-	unsigned char *pscsi_cdb;
-	unsigned char __pscsi_cdb[TCM_MAX_COMMAND_SIZE];
 	unsigned char pscsi_sense[SCSI_SENSE_BUFFERSIZE];
 	int	pscsi_direction;
 	int	pscsi_result;
 	u32	pscsi_resid;
 	struct request *pscsi_req;
+	unsigned char pscsi_cdb[0];
 } ____cacheline_aligned;
 
 #define PDF_HAS_CHANNEL_ID	0x01

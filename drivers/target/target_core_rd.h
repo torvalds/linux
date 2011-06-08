@@ -32,8 +32,6 @@ struct rd_request {
 	u32		rd_page_count;
 	/* Scatterlist count */
 	u32		rd_size;
-	/* Ramdisk device */
-	struct rd_dev	*rd_dev;
 } ____cacheline_aligned;
 
 struct rd_dev_sg_table {
