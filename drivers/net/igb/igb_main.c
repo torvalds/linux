@@ -1748,6 +1748,21 @@ void igb_reset(struct igb_adapter *adapter)
 	igb_get_phy_info(hw);
 }
 
+static int igb_set_features(struct net_device *netdev, u32 features)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	int i;
+
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		if (features & NETIF_F_RXCSUM)
+			adapter->rx_ring[i]->flags |= IGB_RING_FLAG_RX_CSUM;
+		else
+			adapter->rx_ring[i]->flags &= ~IGB_RING_FLAG_RX_CSUM;
+	}
+
+	return 0;
+}
+
 static const struct net_device_ops igb_netdev_ops = {
 	.ndo_open		= igb_open,
 	.ndo_stop		= igb_close,
@@ -1770,6 +1785,7 @@ static const struct net_device_ops igb_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= igb_netpoll,
 #endif
+	.ndo_set_features       = igb_set_features,
 };
 
 /**
@@ -1909,16 +1925,17 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		dev_info(&pdev->dev,
 			"PHY reset is blocked due to SOL/IDER session.\n");
 
-	netdev->features = NETIF_F_SG |
+	netdev->hw_features = NETIF_F_SG |
 			   NETIF_F_IP_CSUM |
+			   NETIF_F_IPV6_CSUM |
+			   NETIF_F_TSO |
+			   NETIF_F_TSO6 |
+			   NETIF_F_RXCSUM;
+
+	netdev->features = netdev->hw_features |
 			   NETIF_F_HW_VLAN_TX |
 			   NETIF_F_HW_VLAN_RX |
 			   NETIF_F_HW_VLAN_FILTER;
-
-	netdev->features |= NETIF_F_IPV6_CSUM;
-	netdev->features |= NETIF_F_TSO;
-	netdev->features |= NETIF_F_TSO6;
-	netdev->features |= NETIF_F_GRO;
 
 	netdev->vlan_features |= NETIF_F_TSO;
 	netdev->vlan_features |= NETIF_F_TSO6;
@@ -1931,8 +1948,10 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
 	}
 
-	if (hw->mac.type >= e1000_82576)
+	if (hw->mac.type >= e1000_82576) {
+		netdev->hw_features |= NETIF_F_SCTP_CSUM;
 		netdev->features |= NETIF_F_SCTP_CSUM;
+	}
 
 	adapter->en_mng_pt = igb_enable_mng_pass_thru(hw);
 
