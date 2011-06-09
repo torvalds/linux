@@ -395,7 +395,6 @@ static struct platform_driver ep93xx_gpio_driver = {
 
 static int __init ep93xx_gpio_init(void)
 {
-	pr_info("%s\n", __func__);
 	return platform_driver_register(&ep93xx_gpio_driver);
 }
 postcore_initcall(ep93xx_gpio_init);
