@@ -422,6 +422,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->vram.put		= nv50_vram_del;
 		engine->vram.flags_valid	= nvc0_vram_flags_valid;
 		engine->pm.temp_get		= nv84_temp_get;
+		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		break;
 	default:
 		NV_ERROR(dev, "NV%02x unsupported\n", dev_priv->chipset);
