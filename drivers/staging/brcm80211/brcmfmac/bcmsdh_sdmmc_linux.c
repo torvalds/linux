@@ -16,19 +16,18 @@
 #include <linux/types.h>
 #include <linux/sched.h>	/* request_irq() */
 #include <linux/netdevice.h>
-#include <net/cfg80211.h>
-#include <defs.h>
-#include <brcmu_utils.h>
-#include <brcmu_wifi.h>
-#include "sdio_host.h"
-#include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */
-#include <sdiovar.h>		/* to get msglevel bit values */
-
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
+#include <net/cfg80211.h>
 
+#include <defs.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
+#include "sdio_host.h"
+#include "bcmsdbus.h"		/* bcmsdh to/from specific controller APIs */
+#include "sdiovar.h"		/* to get msglevel bit values */
 #include "dngl_stats.h"
 #include "dhd.h"
 
@@ -53,8 +52,8 @@
 
 #include <bcmsdh_sdmmc.h>
 
-#include <dhd_dbg.h>
-#include <wl_cfg80211.h>
+#include "dhd_dbg.h"
+#include "wl_cfg80211.h"
 
 extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
 extern void sdioh_sdmmc_devintr_on(sdioh_info_t *sd);

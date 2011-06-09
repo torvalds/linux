@@ -23,12 +23,11 @@
 #include <linux/mmc/sdio.h>
 #include <asm/unaligned.h>
 #include <defs.h>
-#include "sdio_host.h"
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
 #include <brcm_hw_ids.h>
-
 #include <soc.h>
+#include "sdio_host.h"
 
 /* register access macros */
 #ifndef __BIG_ENDIAN
@@ -162,13 +161,13 @@ typedef struct {
 #endif				/* DHD_DEBUG */
 #include <chipcommon.h>
 
-#include <sbsdio.h>
+#include "sbsdio.h"
 
-#include <dngl_stats.h>
-#include <dhd.h>
-#include <dhd_bus.h>
-#include <dhd_proto.h>
-#include <dhd_dbg.h>
+#include "dngl_stats.h"
+#include "dhd.h"
+#include "dhd_bus.h"
+#include "dhd_proto.h"
+#include "dhd_dbg.h"
 #include <sdiovar.h>
 #include <bcmchip.h>
 

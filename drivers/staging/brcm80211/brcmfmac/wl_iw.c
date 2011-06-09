@@ -13,28 +13,22 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
 #include <linux/kthread.h>
 #include <linux/semaphore.h>
-#include <defs.h>
+#include <linux/ieee80211.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
+#include <linux/if_arp.h>
+#include <linux/uaccess.h>
 
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
-
-#include <linux/if_arp.h>
-#include <asm/uaccess.h>
-
-#include <dngl_stats.h>
-#include <dhd.h>
-#include <linux/ieee80211.h>
+#include <defs.h>
+#include "dngl_stats.h"
+#include "dhd.h"
 
 struct si_pub;
-
-#include <dngl_stats.h>
-#include <dhd.h>
 
 #define WPA_OUI			"\x00\x50\xF2"
 #define DOT11_MNG_RSN_ID			48

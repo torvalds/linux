@@ -16,22 +16,20 @@
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/mmc/sdio.h>
-#include <defs.h>
-#include <brcm_hw_ids.h>
-#include <brcmu_utils.h>
-#include <brcmu_wifi.h>
-#include "sdio_host.h"
-#include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */
-#include <sdiovar.h>		/* ioctl/iovars */
-
 #include <linux/mmc/core.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/suspend.h>
 
-#include <dngl_stats.h>
-#include <dhd.h>
-
+#include <defs.h>
+#include <brcm_hw_ids.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
+#include "sdio_host.h"
+#include "bcmsdbus.h"		/* bcmsdh to/from specific controller APIs */
+#include "sdiovar.h"		/* ioctl/iovars */
+#include "dngl_stats.h"
+#include "dhd.h"
 #include "bcmsdh_sdmmc.h"
 
 extern int sdio_function_init(void);

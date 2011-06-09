@@ -22,11 +22,11 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 
-#include <dngl_stats.h>
-#include <dhd.h>
-#include <dhd_proto.h>
-#include <dhd_bus.h>
-#include <dhd_dbg.h>
+#include "dngl_stats.h"
+#include "dhd.h"
+#include "dhd_proto.h"
+#include "dhd_bus.h"
+#include "dhd_dbg.h"
 
 struct cdc_ioctl {
 	u32 cmd;	/* ioctl command value */

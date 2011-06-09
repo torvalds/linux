@@ -16,10 +16,10 @@
 #include <linux/pci.h>
 #include <net/mac80211.h>
 
-#include "types.h"
 #include <brcm_hw_ids.h>
 #include <aiutils.h>
 #include <chipcommon.h>
+#include "types.h"
 #include "rate.h"
 #include "phy/phy_hal.h"
 #include "channel.h"

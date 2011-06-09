@@ -17,28 +17,24 @@
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
 #include <linux/sched.h>
-
-#include <brcmu_utils.h>
-#include <defs.h>
-#include <brcmu_wifi.h>
-
-#include <asm/uaccess.h>
-
-#include <dngl_stats.h>
-#include <dhd.h>
-
 #include <linux/kthread.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>
 #include <linux/etherdevice.h>
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
-#include <net/cfg80211.h>
-
-#include <net/rtnetlink.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/firmware.h>
-#include <wl_cfg80211.h>
+#include <linux/uaccess.h>
+#include <net/cfg80211.h>
+#include <net/rtnetlink.h>
+
+#include <brcmu_utils.h>
+#include <defs.h>
+#include <brcmu_wifi.h>
+#include "dngl_stats.h"
+#include "dhd.h"
+#include "wl_cfg80211.h"
 
 void sdioh_sdio_set_host_pm_flags(int flag);
 

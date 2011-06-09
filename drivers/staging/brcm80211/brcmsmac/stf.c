@@ -17,7 +17,6 @@
 #include <net/mac80211.h>
 
 #include "types.h"
-
 #include "d11.h"
 #include "rate.h"
 #include "phy/phy_hal.h"

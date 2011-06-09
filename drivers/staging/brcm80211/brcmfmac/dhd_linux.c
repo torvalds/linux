@@ -36,13 +36,12 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 
-#include <dngl_stats.h>
-#include <dhd.h>
-#include <dhd_bus.h>
-#include <dhd_proto.h>
-#include <dhd_dbg.h>
-
-#include <wl_cfg80211.h>
+#include "dngl_stats.h"
+#include "dhd.h"
+#include "dhd_bus.h"
+#include "dhd_proto.h"
+#include "dhd_dbg.h"
+#include "wl_cfg80211.h"
 
 #define EPI_VERSION_STR		"4.218.248.5"
 #define ETH_P_BRCM			0x886c

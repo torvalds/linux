@@ -18,8 +18,8 @@
 #include <linux/errno.h>
 
 #include <brcm_hw_ids.h>
-#include "aiutils.h"
 #include <chipcommon.h>
+#include "aiutils.h"
 #include "otp.h"
 
 #define OTPS_GUP_MASK		0x00000f00

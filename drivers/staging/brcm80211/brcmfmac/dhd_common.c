@@ -16,16 +16,16 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/sched.h>
-#include <defs.h>
-#include <brcmu_wifi.h>
 #include <linux/netdevice.h>
 #include <asm/unaligned.h>
+#include <defs.h>
+#include <brcmu_wifi.h>
 #include <brcmu_utils.h>
-#include <dngl_stats.h>
-#include <dhd.h>
-#include <dhd_bus.h>
-#include <dhd_proto.h>
-#include <dhd_dbg.h>
+#include "dngl_stats.h"
+#include "dhd.h"
+#include "dhd_bus.h"
+#include "dhd_proto.h"
+#include "dhd_dbg.h"
 
 #define BRCM_OUI		"\x00\x10\x18"
 #define DOT11_OUI_LEN			3
