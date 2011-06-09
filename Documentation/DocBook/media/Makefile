@@ -21,10 +21,10 @@ MEDIA_TEMP =  media-entities.tmpl \
 IMGFILES := $(addprefix $(MEDIA_OBJ_DIR)/media/, $(notdir $(shell ls $(MEDIA_SRC_DIR)/*/*.gif $(MEDIA_SRC_DIR)/*/*.png)))
 GENFILES := $(addprefix $(MEDIA_OBJ_DIR)/, $(MEDIA_TEMP))
 
-PHONY += cleanmediadocs mediaindexdocs
+PHONY += cleanmediadocs
 
 cleanmediadocs:
-	-@rm `find $(MEDIA_OBJ_DIR) -type l` $(GENFILES) $(IMGFILES)
+	-@rm `find $(MEDIA_OBJ_DIR) -type l` $(GENFILES) $(IMGFILES) 2>/dev/null
 
 $(obj)/media_api.xml: $(GENFILES) FORCE
 
