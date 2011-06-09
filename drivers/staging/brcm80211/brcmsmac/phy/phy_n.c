@@ -23456,7 +23456,7 @@ wlc_phy_est_tonepwr_nphy(phy_info_t *pi, s32 *qdBm_pwrbuf, u8 num_samps)
 
 	tssi_type =
 	    CHSPEC_IS5G(pi->radio_chanspec) ?
-	    (u8)NPHY_RSSI_SEL_TSSI_5G:(u8)NPHY_RSSI_SEL_TSSI_2G;
+	    (u8)NPHY_RSSI_SEL_TSSI_5G : (u8)NPHY_RSSI_SEL_TSSI_2G;
 
 	wlc_phy_poll_rssi_nphy(pi, tssi_type, rssi_buf, num_samps);
 

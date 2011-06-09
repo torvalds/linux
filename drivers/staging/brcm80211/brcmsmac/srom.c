@@ -1318,9 +1318,9 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 	vp = b.buf;
 	*vp++ = '\0';
 
- 	err = initvars_table(base, vp, vars, count);
+	err = initvars_table(base, vp, vars, count);
 
- errout:
+errout:
 	if (base)
 		kfree(base);
 
