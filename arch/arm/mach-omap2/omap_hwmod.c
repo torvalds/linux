@@ -2625,7 +2625,7 @@ ohsps_unlock:
  * Returns the context loss count of the powerdomain assocated with @oh
  * upon success, or zero if no powerdomain exists for @oh.
  */
-u32 omap_hwmod_get_context_loss_count(struct omap_hwmod *oh)
+int omap_hwmod_get_context_loss_count(struct omap_hwmod *oh)
 {
 	struct powerdomain *pwrdm;
 	int ret = 0;
