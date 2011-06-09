@@ -102,6 +102,37 @@ static void free_dev_data(struct iommu_dev_data *dev_data)
 	kfree(dev_data);
 }
 
+static struct iommu_dev_data *search_dev_data(u16 devid)
+{
+	struct iommu_dev_data *dev_data;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_data_list_lock, flags);
+	list_for_each_entry(dev_data, &dev_data_list, dev_data_list) {
+		if (dev_data->devid == devid)
+			goto out_unlock;
+	}
+
+	dev_data = NULL;
+
+out_unlock:
+	spin_unlock_irqrestore(&dev_data_list_lock, flags);
+
+	return dev_data;
+}
+
+static struct iommu_dev_data *find_dev_data(u16 devid)
+{
+	struct iommu_dev_data *dev_data;
+
+	dev_data = search_dev_data(devid);
+
+	if (dev_data == NULL)
+		dev_data = alloc_dev_data(devid);
+
+	return dev_data;
+}
+
 static inline u16 get_device_id(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -178,7 +209,7 @@ static int iommu_init_device(struct device *dev)
 	if (dev->archdata.iommu)
 		return 0;
 
-	dev_data = alloc_dev_data(get_device_id(dev));
+	dev_data = find_dev_data(get_device_id(dev));
 	if (!dev_data)
 		return -ENOMEM;
 
