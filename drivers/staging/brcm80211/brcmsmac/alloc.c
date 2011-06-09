@@ -126,7 +126,7 @@ static void wlc_bsscfg_ID_assign(struct brcms_c_info *wlc,
 /*
  * The common driver entry routine. Error codes should be unique
  */
-struct brcms_c_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
+struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 {
 	struct brcms_c_info *wlc;
 
@@ -246,11 +246,11 @@ struct brcms_c_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 	return wlc;
 
  fail:
-	wlc_detach_mfree(wlc);
+	brcms_c_detach_mfree(wlc);
 	return NULL;
 }
 
-void wlc_detach_mfree(struct brcms_c_info *wlc)
+void brcms_c_detach_mfree(struct brcms_c_info *wlc)
 {
 	if (wlc == NULL)
 		return;

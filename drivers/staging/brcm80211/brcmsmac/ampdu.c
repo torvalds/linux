@@ -110,35 +110,37 @@ struct cb_del_ampdu_pars {
 #define SCB_AMPDU_CUBBY(ampdu, scb) (&(scb->scb_ampdu))
 #define SCB_AMPDU_INI(scb_ampdu, tid) (&(scb_ampdu->ini[tid]))
 
-static void wlc_ffpld_init(struct ampdu_info *ampdu);
-static int wlc_ffpld_check_txfunfl(struct brcms_c_info *wlc, int f);
-static void wlc_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f);
+static void brcms_c_ffpld_init(struct ampdu_info *ampdu);
+static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int f);
+static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f);
 
-static scb_ampdu_tid_ini_t *wlc_ampdu_init_tid_ini(struct ampdu_info *ampdu,
+static scb_ampdu_tid_ini_t *brcms_c_ampdu_init_tid_ini(struct ampdu_info *ampdu,
 						   scb_ampdu_t *scb_ampdu,
 						   u8 tid, bool override);
-static void ampdu_update_max_txlen(struct ampdu_info *ampdu, u8 dur);
-static void scb_ampdu_update_config(struct ampdu_info *ampdu, struct scb *scb);
-static void scb_ampdu_update_config_all(struct ampdu_info *ampdu);
+static void brcms_c_scb_ampdu_update_max_txlen(struct ampdu_info *ampdu,
+					       u8 dur);
+static void brcms_c_scb_ampdu_update_config(struct ampdu_info *ampdu,
+					    struct scb *scb);
+static void brcms_c_scb_ampdu_update_config_all(struct ampdu_info *ampdu);
 
-#define wlc_ampdu_txflowcontrol(a, b, c)	do {} while (0)
+#define brcms_c_ampdu_txflowcontrol(a, b, c)	do {} while (0)
 
-static void wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu,
+static void brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu,
 					  struct scb *scb,
 					  struct sk_buff *p, tx_status_t *txs,
 					  u32 frmtxstatus, u32 frmtxstatus2);
-static bool wlc_ampdu_cap(struct ampdu_info *ampdu);
-static int wlc_ampdu_set(struct ampdu_info *ampdu, bool on);
+static bool brcms_c_ampdu_cap(struct ampdu_info *ampdu);
+static int brcms_c_ampdu_set(struct ampdu_info *ampdu, bool on);
 
-struct ampdu_info *wlc_ampdu_attach(struct brcms_c_info *wlc)
+struct ampdu_info *brcms_c_ampdu_attach(struct brcms_c_info *wlc)
 {
 	struct ampdu_info *ampdu;
 	int i;
 
 	ampdu = kzalloc(sizeof(struct ampdu_info), GFP_ATOMIC);
 	if (!ampdu) {
-		wiphy_err(wlc->wiphy, "wl%d: wlc_ampdu_attach: out of mem\n",
-			  wlc->pub->unit);
+		wiphy_err(wlc->wiphy, "wl%d: brcms_c_ampdu_attach: out of mem"
+			  "\n", wlc->pub->unit);
 		return NULL;
 	}
 	ampdu->wlc = wlc;
@@ -174,18 +176,18 @@ struct ampdu_info *wlc_ampdu_attach(struct brcms_c_info *wlc)
 		ampdu->rr_retry_limit_tid[i] = ampdu->rr_retry_limit;
 	}
 
-	ampdu_update_max_txlen(ampdu, ampdu->dur);
+	brcms_c_scb_ampdu_update_max_txlen(ampdu, ampdu->dur);
 	ampdu->mfbr = false;
 	/* try to set ampdu to the default value */
-	wlc_ampdu_set(ampdu, wlc->pub->_ampdu);
+	brcms_c_ampdu_set(ampdu, wlc->pub->_ampdu);
 
 	ampdu->tx_max_funl = FFPLD_TX_MAX_UNFL;
-	wlc_ffpld_init(ampdu);
+	brcms_c_ffpld_init(ampdu);
 
 	return ampdu;
 }
 
-void wlc_ampdu_detach(struct ampdu_info *ampdu)
+void brcms_c_ampdu_detach(struct ampdu_info *ampdu)
 {
 	int i;
 
@@ -201,7 +203,8 @@ void wlc_ampdu_detach(struct ampdu_info *ampdu)
 	kfree(ampdu);
 }
 
-static void scb_ampdu_update_config(struct ampdu_info *ampdu, struct scb *scb)
+static void brcms_c_scb_ampdu_update_config(struct ampdu_info *ampdu,
+					    struct scb *scb)
 {
 	scb_ampdu_t *scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
 	int i;
@@ -229,12 +232,12 @@ static void scb_ampdu_update_config(struct ampdu_info *ampdu, struct scb *scb)
 				 mcs2ampdu_table[FFPLD_MAX_MCS]);
 }
 
-static void scb_ampdu_update_config_all(struct ampdu_info *ampdu)
+static void brcms_c_scb_ampdu_update_config_all(struct ampdu_info *ampdu)
 {
-	scb_ampdu_update_config(ampdu, ampdu->wlc->pub->global_scb);
+	brcms_c_scb_ampdu_update_config(ampdu, ampdu->wlc->pub->global_scb);
 }
 
-static void wlc_ffpld_init(struct ampdu_info *ampdu)
+static void brcms_c_ffpld_init(struct ampdu_info *ampdu)
 {
 	int i, j;
 	wlc_fifo_info_t *fifo;
@@ -258,7 +261,7 @@ static void wlc_ffpld_init(struct ampdu_info *ampdu)
  * Return 1 if pre-loading not active, -1 if not an underflow event,
  * 0 if pre-loading module took care of the event.
  */
-static int wlc_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
+static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 {
 	struct ampdu_info *ampdu = wlc->ampdu;
 	u32 phy_rate = MCS_RATE(FFPLD_MAX_MCS, true, false);
@@ -339,7 +342,7 @@ static int wlc_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 			fifo->ampdu_pld_size = max_pld_size;
 
 		/* update scb release size */
-		scb_ampdu_update_config_all(ampdu);
+		brcms_c_scb_ampdu_update_config_all(ampdu);
 
 		/*
 		   compute a new dma xfer rate for max_mpdu @ max mcs.
@@ -366,17 +369,17 @@ static int wlc_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 				fifo->mcs2ampdu_table[FFPLD_MAX_MCS] -= 1;
 
 			/* recompute the table */
-			wlc_ffpld_calc_mcs2ampdu_table(ampdu, fid);
+			brcms_c_ffpld_calc_mcs2ampdu_table(ampdu, fid);
 
 			/* update scb release size */
-			scb_ampdu_update_config_all(ampdu);
+			brcms_c_scb_ampdu_update_config_all(ampdu);
 		}
 	}
 	fifo->accum_txfunfl = 0;
 	return 0;
 }
 
-static void wlc_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
+static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 {
 	int i;
 	u32 phy_rate, dma_rate, tmp;
@@ -409,7 +412,7 @@ static void wlc_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 }
 
 static void
-wlc_ampdu_agg(struct ampdu_info *ampdu, struct scb *scb, struct sk_buff *p,
+brcms_c_ampdu_agg(struct ampdu_info *ampdu, struct scb *scb, struct sk_buff *p,
 	      uint prec)
 {
 	scb_ampdu_t *scb_ampdu;
@@ -421,13 +424,13 @@ wlc_ampdu_agg(struct ampdu_info *ampdu, struct scb *scb, struct sk_buff *p,
 	/* initialize initiator on first packet; sends addba req */
 	ini = SCB_AMPDU_INI(scb_ampdu, tid);
 	if (ini->magic != INI_MAGIC) {
-		ini = wlc_ampdu_init_tid_ini(ampdu, scb_ampdu, tid, false);
+		ini = brcms_c_ampdu_init_tid_ini(ampdu, scb_ampdu, tid, false);
 	}
 	return;
 }
 
 int
-wlc_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
+brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 	      struct sk_buff **pdu, int prec)
 {
 	struct brcms_c_info *wlc;
@@ -480,7 +483,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 		return -EBUSY;
 	}
 
-	wlc_ampdu_agg(ampdu, scb, p, tid);
+	brcms_c_ampdu_agg(ampdu, scb, p, tid);
 
 	rr_retry_limit = ampdu->rr_retry_limit_tid[tid];
 	ampdu_len = 0;
@@ -808,7 +811,7 @@ wlc_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 }
 
 void
-wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
+brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		     struct sk_buff *p, tx_status_t *txs)
 {
 	scb_ampdu_t *scb_ampdu;
@@ -841,7 +844,7 @@ wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 	if (likely(scb)) {
 		scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
 		ini = SCB_AMPDU_INI(scb_ampdu, p->priority);
-		wlc_ampdu_dotxstatus_complete(ampdu, scb, p, txs, s1, s2);
+		brcms_c_ampdu_dotxstatus_complete(ampdu, scb, p, txs, s1, s2);
 	} else {
 		/* loop through all pkts and free */
 		u8 queue = txs->frameid & TXFID_QUEUE_MASK;
@@ -860,12 +863,13 @@ wlc_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		}
 		brcms_c_txfifo_complete(wlc, queue, ampdu->txpkt_weight);
 	}
-	wlc_ampdu_txflowcontrol(wlc, scb_ampdu, ini);
+	brcms_c_ampdu_txflowcontrol(wlc, scb_ampdu, ini);
 }
 
 static void
-rate_status(struct brcms_c_info *wlc, struct ieee80211_tx_info *tx_info,
-	    tx_status_t *txs, u8 mcs)
+brcms_c_ampdu_rate_status(struct brcms_c_info *wlc,
+			  struct ieee80211_tx_info *tx_info,
+			  tx_status_t *txs, u8 mcs)
 {
 	struct ieee80211_tx_rate *txrate = tx_info->status.rates;
 	int i;
@@ -880,7 +884,7 @@ rate_status(struct brcms_c_info *wlc, struct ieee80211_tx_info *tx_info,
 #define SHORTNAME "AMPDU status"
 
 static void
-wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
+brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			      struct sk_buff *p, tx_status_t *txs,
 			      u32 s1, u32 s2)
 {
@@ -954,9 +958,9 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 					  wlc->default_bss->chanspec));
 			} else {
 				if (supr_status != TX_STATUS_SUPR_FRAG)
-					wiphy_err(wiphy, "%s: wlc_ampdu_dotx"
-						  "status:supr_status 0x%x\n",
-						 __func__, supr_status);
+					wiphy_err(wiphy, "%s:"
+						  "supr_status 0x%x\n",
+						  __func__, supr_status);
 			}
 			/* no need to retry for badch; will fail again */
 			if (supr_status == TX_STATUS_SUPR_BADCH ||
@@ -968,14 +972,14 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				/* if there were underflows, but pre-loading is not active,
 				   notify rate adaptation.
 				 */
-				if (wlc_ffpld_check_txfunfl(wlc, prio2fifo[tid])
-				    > 0) {
+				if (brcms_c_ffpld_check_txfunfl(wlc,
+							prio2fifo[tid]) > 0) {
 					tx_error = true;
 				}
 			}
 		} else if (txs->phyerr) {
 			update_rate = false;
-			wiphy_err(wiphy, "wl%d: wlc_ampdu_dotxstatus: tx phy "
+			wiphy_err(wiphy, "wl%d: ampdu tx phy "
 				  "error (0x%x)\n", wlc->pub->unit,
 				  txs->phyerr);
 
@@ -1017,7 +1021,8 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 
 				/* ampdu_ack_len: number of acked aggregated frames */
 				/* ampdu_len: number of aggregated frames */
-				rate_status(wlc, tx_info, txs, mcs);
+				brcms_c_ampdu_rate_status(wlc, tx_info, txs,
+							  mcs);
 				tx_info->flags |= IEEE80211_TX_STAT_ACK;
 				tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
 				tx_info->status.ampdu_ack_len =
@@ -1073,13 +1078,13 @@ wlc_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	brcms_c_send_q(wlc);
 
 	/* update rate state */
-	antselid = wlc_antsel_antsel2id(wlc->asi, mimoantsel);
+	antselid = brcms_c_antsel_antsel2id(wlc->asi, mimoantsel);
 
 	brcms_c_txfifo_complete(wlc, queue, ampdu->txpkt_weight);
 }
 
 /* initialize the initiator code for tid */
-static scb_ampdu_tid_ini_t *wlc_ampdu_init_tid_ini(struct ampdu_info *ampdu,
+static scb_ampdu_tid_ini_t *brcms_c_ampdu_init_tid_ini(struct ampdu_info *ampdu,
 						   scb_ampdu_t *scb_ampdu,
 						   u8 tid, bool override)
 {
@@ -1099,7 +1104,7 @@ static scb_ampdu_tid_ini_t *wlc_ampdu_init_tid_ini(struct ampdu_info *ampdu,
 	return ini;
 }
 
-static int wlc_ampdu_set(struct ampdu_info *ampdu, bool on)
+static int brcms_c_ampdu_set(struct ampdu_info *ampdu, bool on)
 {
 	struct brcms_c_info *wlc = ampdu->wlc;
 
@@ -1111,7 +1116,7 @@ static int wlc_ampdu_set(struct ampdu_info *ampdu, bool on)
 				"nmode enabled\n", wlc->pub->unit);
 			return -ENOTSUPP;
 		}
-		if (!wlc_ampdu_cap(ampdu)) {
+		if (!brcms_c_ampdu_cap(ampdu)) {
 			wiphy_err(ampdu->wlc->wiphy, "wl%d: device not "
 				"ampdu capable\n", wlc->pub->unit);
 			return -ENOTSUPP;
@@ -1122,7 +1127,7 @@ static int wlc_ampdu_set(struct ampdu_info *ampdu, bool on)
 	return 0;
 }
 
-static bool wlc_ampdu_cap(struct ampdu_info *ampdu)
+static bool brcms_c_ampdu_cap(struct ampdu_info *ampdu)
 {
 	if (WLC_PHY_11N_CAP(ampdu->wlc->band))
 		return true;
@@ -1130,7 +1135,7 @@ static bool wlc_ampdu_cap(struct ampdu_info *ampdu)
 		return false;
 }
 
-static void ampdu_update_max_txlen(struct ampdu_info *ampdu, u8 dur)
+static void brcms_c_scb_ampdu_update_max_txlen(struct ampdu_info *ampdu, u8 dur)
 {
 	u32 rate, mcs;
 
@@ -1151,7 +1156,7 @@ static void ampdu_update_max_txlen(struct ampdu_info *ampdu, u8 dur)
 	}
 }
 
-void wlc_ampdu_macaddr_upd(struct brcms_c_info *wlc)
+void brcms_c_ampdu_macaddr_upd(struct brcms_c_info *wlc)
 {
 	char template[T_RAM_ACCESS_SZ * 2];
 
@@ -1168,7 +1173,7 @@ bool brcms_c_aggregatable(struct brcms_c_info *wlc, u8 tid)
 	return wlc->ampdu->ini_enable[tid];
 }
 
-void wlc_ampdu_shm_upd(struct ampdu_info *ampdu)
+void brcms_c_ampdu_shm_upd(struct ampdu_info *ampdu)
 {
 	struct brcms_c_info *wlc = ampdu->wlc;
 
@@ -1217,7 +1222,7 @@ static void dma_cb_fn_ampdu(void *txi, void *arg_a)
  * When a remote party is no longer available for ampdu communication, any
  * pending tx ampdu packets in the driver have to be flushed.
  */
-void wlc_ampdu_flush(struct brcms_c_info *wlc,
+void brcms_c_ampdu_flush(struct brcms_c_info *wlc,
 		     struct ieee80211_sta *sta, u16 tid)
 {
 	struct brcms_c_txq_info *qi = wlc->pkt_queue;

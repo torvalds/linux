@@ -526,7 +526,7 @@ void brcms_c_init(struct brcms_c_info *wlc)
 	wlc_duty_cycle_set(wlc, wlc->tx_duty_cycle_cck, false, true);
 
 	/* Update some shared memory locations related to max AMPDU size allowed to received */
-	wlc_ampdu_shm_upd(wlc->ampdu);
+	brcms_c_ampdu_shm_upd(wlc->ampdu);
 
 	/* band-specific inits */
 	wlc_bsinit(wlc);
@@ -652,7 +652,7 @@ int brcms_c_set_mac(struct brcms_c_bsscfg *cfg)
 		brcms_c_set_addrmatch(wlc, RCM_MAC_OFFSET, cfg->cur_etheraddr);
 	}
 
-	wlc_ampdu_macaddr_upd(wlc);
+	brcms_c_ampdu_macaddr_upd(wlc);
 
 	return err;
 }
@@ -760,14 +760,14 @@ static void wlc_set_phy_chanspec(struct brcms_c_info *wlc, chanspec_t chanspec)
 	/* Set the chanspec and power limits for this locale after computing
 	 * any 11h local tx power constraints.
 	 */
-	wlc_channel_set_chanspec(wlc->cmi, chanspec,
+	brcms_c_channel_set_chanspec(wlc->cmi, chanspec,
 				 wlc_local_constraint_qdbm(wlc));
 
 	if (wlc->stf->ss_algosel_auto)
-		wlc_stf_ss_algo_channel_get(wlc, &wlc->stf->ss_algo_channel,
+		brcms_c_stf_ss_algo_channel_get(wlc, &wlc->stf->ss_algo_channel,
 					    chanspec);
 
-	wlc_stf_ss_update(wlc, wlc->band);
+	brcms_c_stf_ss_update(wlc, wlc->band);
 
 }
 
@@ -777,7 +777,7 @@ void brcms_c_set_chanspec(struct brcms_c_info *wlc, chanspec_t chanspec)
 	bool switchband = false;
 	chanspec_t old_chanspec = wlc->chanspec;
 
-	if (!wlc_valid_chanspec_db(wlc->cmi, chanspec)) {
+	if (!brcms_c_valid_chanspec_db(wlc->cmi, chanspec)) {
 		wiphy_err(wlc->wiphy, "wl%d: %s: Bad channel %d\n",
 			  wlc->pub->unit, __func__, CHSPEC_CHANNEL(chanspec));
 		return;
@@ -812,12 +812,12 @@ void brcms_c_set_chanspec(struct brcms_c_info *wlc, chanspec_t chanspec)
 
 	/* init antenna selection */
 	if (CHSPEC_WLC_BW(old_chanspec) != CHSPEC_WLC_BW(chanspec)) {
-		wlc_antsel_init(wlc->asi);
+		brcms_c_antsel_init(wlc->asi);
 
 		/* Fix the hardware rateset based on bw.
 		 * Mainly add MCS32 for 40Mhz, remove MCS 32 for 20Mhz
 		 */
-		wlc_rateset_bw_mcs_filter(&wlc->band->hw_rateset,
+		brcms_c_rateset_bw_mcs_filter(&wlc->band->hw_rateset,
 					  wlc->band->
 					  mimo_cap_40 ? CHSPEC_WLC_BW(chanspec)
 					  : 0);
@@ -865,7 +865,7 @@ void brcms_c_beacon_phytxctl_txant_upd(struct brcms_c_info *wlc,
 
 	/* for non-siso rates or default setting, use the available chains */
 	if (WLC_PHY_11N_CAP(wlc->band)) {
-		phytxant = wlc_stf_phytxchain_sel(wlc, bcn_rspec);
+		phytxant = brcms_c_stf_phytxchain_sel(wlc, bcn_rspec);
 	}
 
 	phyctl = brcms_c_read_shm(wlc, M_BCN_PCTLWD);
@@ -1014,12 +1014,12 @@ static void wlc_bandinit_ordered(struct brcms_c_info *wlc, chanspec_t chanspec)
 		brcms_default_rateset(wlc, &default_rateset);
 
 		/* fill in hw_rate */
-		wlc_rateset_filter(&default_rateset, &wlc->band->hw_rateset,
+		brcms_c_rateset_filter(&default_rateset, &wlc->band->hw_rateset,
 				   false, WLC_RATES_CCK_OFDM, WLC_RATE_MASK,
 				   (bool) N_ENAB(wlc->pub));
 
 		/* init basic rate lookup */
-		wlc_rate_lookup_init(wlc, &default_rateset);
+		brcms_c_rate_lookup_init(wlc, &default_rateset);
 	}
 
 	/* sync up phy/radio chanspec */
@@ -1039,7 +1039,7 @@ static void WLBANDINITFN(wlc_bsinit) (struct brcms_c_info *wlc)
 	wlc_ucode_mac_upd(wlc);
 
 	/* init antenna selection */
-	wlc_antsel_init(wlc->asi);
+	brcms_c_antsel_init(wlc->asi);
 
 }
 
@@ -1317,23 +1317,23 @@ static uint wlc_attach_module(struct brcms_c_info *wlc)
 	uint unit;
 	unit = wlc->pub->unit;
 
-	wlc->asi = wlc_antsel_attach(wlc);
+	wlc->asi = brcms_c_antsel_attach(wlc);
 	if (wlc->asi == NULL) {
-		wiphy_err(wlc->wiphy, "wl%d: wlc_attach: wlc_antsel_attach "
+		wiphy_err(wlc->wiphy, "wl%d: wlc_attach: antsel_attach "
 			  "failed\n", unit);
 		err = 44;
 		goto fail;
 	}
 
-	wlc->ampdu = wlc_ampdu_attach(wlc);
+	wlc->ampdu = brcms_c_ampdu_attach(wlc);
 	if (wlc->ampdu == NULL) {
-		wiphy_err(wlc->wiphy, "wl%d: wlc_attach: wlc_ampdu_attach "
+		wiphy_err(wlc->wiphy, "wl%d: wlc_attach: brcms_c_ampdu_attach "
 			  "failed\n", unit);
 		err = 50;
 		goto fail;
 	}
 
-	if ((wlc_stf_attach(wlc) != 0)) {
+	if ((brcms_c_stf_attach(wlc) != 0)) {
 		wiphy_err(wlc->wiphy, "wl%d: wlc_attach: wlc_stf_attach "
 			  "failed\n", unit);
 		err = 68;
@@ -1364,7 +1364,7 @@ void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	uint n_disabled;
 
 	/* allocate struct brcms_c_info state and its substructures */
-	wlc = (struct brcms_c_info *) wlc_attach_malloc(unit, &err, device);
+	wlc = (struct brcms_c_info *) brcms_c_attach_malloc(unit, &err, device);
 	if (wlc == NULL)
 		goto fail;
 	wlc->wiphy = wl->wiphy;
@@ -1419,7 +1419,7 @@ void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	wlc->tx_duty_cycle_cck =
 	    (u16) getintvar(pub->vars, "tx_duty_cycle_cck");
 
-	wlc_stf_phy_chain_calc(wlc);
+	brcms_c_stf_phy_chain_calc(wlc);
 
 	/* txchain 1: txant 0, txchain 2: txant 1 */
 	if (WLCISNPHY(wlc->band) && (wlc->stf->txstreams == 1))
@@ -1482,14 +1482,14 @@ void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 		brcms_default_rateset(wlc, &wlc->band->defrateset);
 
 		/* fill in hw_rateset (used early by WLC_SET_RATESET) */
-		wlc_rateset_filter(&wlc->band->defrateset,
+		brcms_c_rateset_filter(&wlc->band->defrateset,
 				   &wlc->band->hw_rateset, false,
 				   WLC_RATES_CCK_OFDM, WLC_RATE_MASK,
 				   (bool) N_ENAB(wlc->pub));
 	}
 
 	/* update antenna config due to wlc->stf->txant/txchain/ant_rx_ovr change */
-	wlc_stf_phy_txant_upd(wlc);
+	brcms_c_stf_phy_txant_upd(wlc);
 
 	/* attach each modules */
 	err = wlc_attach_module(wlc);
@@ -1504,9 +1504,9 @@ void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	}
 
 	/* depend on rateset, gmode */
-	wlc->cmi = wlc_channel_mgr_attach(wlc);
+	wlc->cmi = brcms_c_channel_mgr_attach(wlc);
 	if (!wlc->cmi) {
-		wiphy_err(wl->wiphy, "wl%d: %s: wlc_channel_mgr_attach failed"
+		wiphy_err(wl->wiphy, "wl%d: %s: channel_mgr_attach failed"
 			  "\n", unit, __func__);
 		err = 33;
 		goto fail;
@@ -1573,7 +1573,7 @@ void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 		wlc->ht_cap.cap_info &= ~IEEE80211_HT_CAP_TX_STBC;
 	}
 	if (n_disabled & WLFEATURE_DISABLE_11N_STBC_RX)
-		wlc_stf_stbc_rx_set(wlc, HT_CAP_RX_STBC_NO);
+		brcms_c_stf_stbc_rx_set(wlc, HT_CAP_RX_STBC_NO);
 
 	/* apply the GF override from nvram conf */
 	if (n_disabled & WLFEATURE_DISABLE_11N_GF)
@@ -1696,16 +1696,16 @@ static void wlc_timers_deinit(struct brcms_c_info *wlc)
 static void wlc_detach_module(struct brcms_c_info *wlc)
 {
 	if (wlc->asi) {
-		wlc_antsel_detach(wlc->asi);
+		brcms_c_antsel_detach(wlc->asi);
 		wlc->asi = NULL;
 	}
 
 	if (wlc->ampdu) {
-		wlc_ampdu_detach(wlc->ampdu);
+		brcms_c_ampdu_detach(wlc->ampdu);
 		wlc->ampdu = NULL;
 	}
 
-	wlc_stf_detach(wlc);
+	brcms_c_stf_detach(wlc);
 }
 
 /*
@@ -1733,7 +1733,7 @@ uint brcms_c_detach(struct brcms_c_info *wlc)
 	if (!wlc_radio_monitor_stop(wlc))
 		callbacks++;
 
-	wlc_channel_mgr_detach(wlc->cmi);
+	brcms_c_channel_mgr_detach(wlc->cmi);
 
 	wlc_timers_deinit(wlc);
 
@@ -1743,7 +1743,7 @@ uint brcms_c_detach(struct brcms_c_info *wlc)
 	while (wlc->tx_queues != NULL)
 		wlc_txq_free(wlc, wlc->tx_queues);
 
-	wlc_detach_mfree(wlc);
+	brcms_c_detach_mfree(wlc);
 	return callbacks;
 }
 
@@ -2006,7 +2006,7 @@ static void wlc_watchdog(void *arg)
 	    ((wlc->pub->now - wlc->tempsense_lasttime) >=
 	     WLC_TEMPSENSE_PERIOD)) {
 		wlc->tempsense_lasttime = wlc->pub->now;
-		wlc_tempsense_upd(wlc);
+		brcms_c_tempsense_upd(wlc);
 	}
 }
 
@@ -2112,7 +2112,7 @@ int brcms_c_up(struct brcms_c_info *wlc)
 	wlc->WDarmed = true;
 
 	/* ensure antenna config is up to date */
-	wlc_stf_phy_txant_upd(wlc);
+	brcms_c_stf_phy_txant_upd(wlc);
 	/* ensure LDPC config is in sync */
 	wlc_ht_update_ldpc(wlc, wlc->stf->ldpc);
 
@@ -2247,7 +2247,7 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 		return -EINVAL;
 
 	/* Legacy or bust when no OFDM is supported by regulatory */
-	if ((wlc_channel_locale_flags_in_band(wlc->cmi, band->bandunit) &
+	if ((brcms_c_channel_locale_flags_in_band(wlc->cmi, band->bandunit) &
 	     WLC_NO_OFDM) && (gmode != GMODE_LEGACY_B))
 		return -EINVAL;
 
@@ -2264,13 +2264,14 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 	switch (gmode) {
 	case GMODE_LEGACY_B:
 		shortslot = WLC_SHORTSLOT_OFF;
-		wlc_rateset_copy(&gphy_legacy_rates, &rs);
+		brcms_c_rateset_copy(&gphy_legacy_rates, &rs);
 
 		break;
 
 	case GMODE_LRS:
 		if (AP_ENAB(wlc->pub))
-			wlc_rateset_copy(&cck_rates, &wlc->sup_rates_override);
+			brcms_c_rateset_copy(&cck_rates,
+					     &wlc->sup_rates_override);
 		break;
 
 	case GMODE_AUTO:
@@ -2285,7 +2286,7 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 
 	case GMODE_PERFORMANCE:
 		if (AP_ENAB(wlc->pub))	/* Put all rates into the Supported Rates element */
-			wlc_rateset_copy(&cck_ofdm_rates,
+			brcms_c_rateset_copy(&cck_ofdm_rates,
 					 &wlc->sup_rates_override);
 
 		shortslot = WLC_SHORTSLOT_ON;
@@ -2344,7 +2345,7 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 
 	/* Use the default 11g rateset */
 	if (!rs.count)
-		wlc_rateset_copy(&cck_ofdm_rates, &rs);
+		brcms_c_rateset_copy(&cck_ofdm_rates, &rs);
 
 	if (ofdm_basic) {
 		for (i = 0; i < rs.count; i++) {
@@ -2401,7 +2402,7 @@ int brcms_c_set_nmode(struct brcms_c_info *wlc, s32 nmode)
 		wlc->pub->_n_enab = OFF;
 		wlc->default_bss->flags &= ~WLC_BSS_HT;
 		/* delete the mcs rates from the default and hw ratesets */
-		wlc_rateset_mcs_clear(&wlc->default_bss->rateset);
+		brcms_c_rateset_mcs_clear(&wlc->default_bss->rateset);
 		for (i = 0; i < NBANDS(wlc); i++) {
 			memset(wlc->bandstate[i]->hw_rateset.mcs, 0,
 			       MCSSET_LEN);
@@ -2429,7 +2430,7 @@ int brcms_c_set_nmode(struct brcms_c_info *wlc, s32 nmode)
 			wlc->pub->_n_enab = SUPPORT_11N;
 		wlc->default_bss->flags |= WLC_BSS_HT;
 		/* add the mcs rates to the default and hw ratesets */
-		wlc_rateset_mcs_build(&wlc->default_bss->rateset,
+		brcms_c_rateset_mcs_build(&wlc->default_bss->rateset,
 				      wlc->stf->txstreams);
 		for (i = 0; i < NBANDS(wlc); i++)
 			memcpy(wlc->bandstate[i]->hw_rateset.mcs,
@@ -2457,7 +2458,7 @@ static int wlc_set_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs_arg)
 	/* try the current band */
 	bandunit = wlc->band->bandunit;
 	memcpy(&new, &rs, sizeof(wlc_rateset_t));
-	if (wlc_rate_hwrs_filter_sort_validate
+	if (brcms_c_rate_hwrs_filter_sort_validate
 	    (&new, &wlc->bandstate[bandunit]->hw_rateset, true,
 	     wlc->stf->txstreams))
 		goto good;
@@ -2466,7 +2467,7 @@ static int wlc_set_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs_arg)
 	if (IS_MBAND_UNLOCKED(wlc)) {
 		bandunit = OTHERBANDUNIT(wlc);
 		memcpy(&new, &rs, sizeof(wlc_rateset_t));
-		if (wlc_rate_hwrs_filter_sort_validate(&new,
+		if (brcms_c_rate_hwrs_filter_sort_validate(&new,
 						       &wlc->
 						       bandstate[bandunit]->
 						       hw_rateset, true,
@@ -2579,7 +2580,7 @@ _wlc_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 				break;
 			}
 
-			if (!wlc_valid_chanspec_db(wlc->cmi, chspec)) {
+			if (!brcms_c_valid_chanspec_db(wlc->cmi, chspec)) {
 				bcmerror = -EINVAL;
 				break;
 			}
@@ -3233,7 +3234,7 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 	while (prec_map && (pkt[0] = brcmu_pktq_mdeq(q, prec_map, &prec))) {
 		tx_info = IEEE80211_SKB_CB(pkt[0]);
 		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
-			err = wlc_sendampdu(wlc->ampdu, qi, pkt, prec);
+			err = brcms_c_sendampdu(wlc->ampdu, qi, pkt, prec);
 		} else {
 			count = 1;
 			err = brcms_c_prep_pdu(wlc, pkt[0], &fifo);
@@ -3557,7 +3558,7 @@ u16 brcms_c_phytxctl1_calc(struct brcms_c_info *wlc, ratespec_t rspec)
 	} else {		/* legacy OFDM/CCK */
 		s16 phycfg;
 		/* get the phyctl byte from rate phycfg table */
-		phycfg = wlc_rate_legacy_phyctl(RSPEC2RATE(rspec));
+		phycfg = brcms_c_rate_legacy_phyctl(RSPEC2RATE(rspec));
 		if (phycfg == -1) {
 			wiphy_err(wlc->wiphy, "wlc_phytxctl1_calc: wrong "
 				  "legacy OFDM/CCK rate\n");
@@ -3770,8 +3771,8 @@ wlc_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		} else {
 			if (!is_multicast_ether_addr(h->addr1)) {
 				/* set tx antenna config */
-				wlc_antsel_antcfg_get(wlc->asi, false, false, 0,
-						      0, &antcfg, &fbantcfg);
+				brcms_c_antsel_antcfg_get(wlc->asi, false,
+					false, 0, 0, &antcfg, &fbantcfg);
 			}
 		}
 	}
@@ -4103,7 +4104,7 @@ wlc_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	/* add null delimiter count */
 	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) && IS_MCS(rspec)) {
 		txh->RTSPLCPFallback[AMPDU_FBR_NULL_DELIM] =
-		    wlc_ampdu_null_delim_cnt(wlc->ampdu, scb, rspec, phylen);
+		   brcm_c_ampdu_null_delim_cnt(wlc->ampdu, scb, rspec, phylen);
 	}
 #endif
 
@@ -4130,7 +4131,7 @@ wlc_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	}
 
 	/* phytxant is properly bit shifted */
-	phyctl |= wlc_stf_d11hdrs_phyctl_txant(wlc, rspec[0]);
+	phyctl |= brcms_c_stf_d11hdrs_phyctl_txant(wlc, rspec[0]);
 	txh->PhyTxControlWord = cpu_to_le16(phyctl);
 
 	/* PhyTxControlWord_1 */
@@ -4348,7 +4349,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, tx_status_t *txs, u32 frm_tx2)
 		scb = (struct scb *)tx_info->control.sta->drv_priv;
 
 	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
-		wlc_ampdu_dotxstatus(wlc->ampdu, scb, p, txs);
+		brcms_c_ampdu_dotxstatus(wlc->ampdu, scb, p, txs);
 		return false;
 	}
 
@@ -4535,7 +4536,7 @@ prep_mac80211_status(struct brcms_c_info *wlc, d11rxhdr_t *rxh,
 
 	plcp = p->data;
 
-	rspec = wlc_compute_rspec(rxh, plcp);
+	rspec = brcms_c_compute_rspec(rxh, plcp);
 	if (IS_MCS(rspec)) {
 		rx_status->rate_idx = rspec & RSPEC_RATE_MASK;
 		rx_status->flag |= RX_FLAG_HT;
@@ -4930,7 +4931,7 @@ wlc_calc_cts_time(struct brcms_c_info *wlc, ratespec_t rspec, u8 preamble_type)
 }
 
 /* derive wlc->band->basic_rate[] table from 'rateset' */
-void wlc_rate_lookup_init(struct brcms_c_info *wlc, wlc_rateset_t *rateset)
+void brcms_c_rate_lookup_init(struct brcms_c_info *wlc, wlc_rateset_t *rateset)
 {
 	u8 rate;
 	u8 mandatory;
@@ -4954,8 +4955,8 @@ void wlc_rate_lookup_init(struct brcms_c_info *wlc, wlc_rateset_t *rateset)
 		rate = (rateset->rates[i] & WLC_RATE_MASK);
 
 		if (rate > WLC_MAXRATE) {
-			wiphy_err(wlc->wiphy, "wlc_rate_lookup_init: invalid "
-				  "rate 0x%X in rate set\n",
+			wiphy_err(wlc->wiphy, "brcms_c_rate_lookup_init: "
+				  "invalid rate 0x%X in rate set\n",
 				  rateset->rates[i]);
 			continue;
 		}
@@ -5079,8 +5080,8 @@ void brcms_c_set_ratetable(struct brcms_c_info *wlc)
 
 	rs_dflt = wlc_rateset_get_hwrs(wlc);
 
-	wlc_rateset_copy(rs_dflt, &rs);
-	wlc_rateset_mcs_upd(&rs, wlc->stf->txstreams);
+	brcms_c_rateset_copy(rs_dflt, &rs);
+	brcms_c_rateset_mcs_upd(&rs, wlc->stf->txstreams);
 
 	/* walk the phy rate table and update SHM basic rate lookup table */
 	for (i = 0; i < rs.count; i++) {
@@ -5178,8 +5179,8 @@ void brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc, uint frame_len)
 
 	rs_dflt = wlc_rateset_get_hwrs(wlc);
 
-	wlc_rateset_copy(rs_dflt, &rs);
-	wlc_rateset_mcs_upd(&rs, wlc->stf->txstreams);
+	brcms_c_rateset_copy(rs_dflt, &rs);
+	brcms_c_rateset_mcs_upd(&rs, wlc->stf->txstreams);
 
 	/* walk the phy rate table and update MAC core SHM basic rate table entries */
 	for (i = 0; i < rs.count; i++) {
@@ -5460,10 +5461,11 @@ void brcms_c_bsscfg_reprate_init(struct brcms_c_bsscfg *bsscfg)
 
 void brcms_default_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs)
 {
-	wlc_rateset_default(rs, NULL, wlc->band->phytype, wlc->band->bandtype,
-			    false, WLC_RATE_MASK_FULL, (bool) N_ENAB(wlc->pub),
-			    CHSPEC_WLC_BW(wlc->default_bss->chanspec),
-			    wlc->stf->txstreams);
+	brcms_c_rateset_default(rs, NULL, wlc->band->phytype,
+		wlc->band->bandtype, false, WLC_RATE_MASK_FULL,
+		(bool) N_ENAB(wlc->pub),
+		CHSPEC_WLC_BW(wlc->default_bss->chanspec),
+		wlc->stf->txstreams);
 }
 
 static void wlc_bss_default_init(struct brcms_c_info *wlc)
@@ -5491,9 +5493,10 @@ static void wlc_bss_default_init(struct brcms_c_info *wlc)
 		band = wlc->bandstate[OTHERBANDUNIT(wlc)];
 
 	/* init bss rates to the band specific default rate set */
-	wlc_rateset_default(&bi->rateset, NULL, band->phytype, band->bandtype,
-			    false, WLC_RATE_MASK_FULL, (bool) N_ENAB(wlc->pub),
-			    CHSPEC_WLC_BW(chanspec), wlc->stf->txstreams);
+	brcms_c_rateset_default(&bi->rateset, NULL, band->phytype,
+		band->bandtype, false, WLC_RATE_MASK_FULL,
+		(bool) N_ENAB(wlc->pub), CHSPEC_WLC_BW(chanspec),
+		wlc->stf->txstreams);
 
 	if (N_ENAB(wlc->pub))
 		bi->flags |= WLC_BSS_HT;

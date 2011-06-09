@@ -14,5 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-extern struct brcms_c_info *wlc_attach_malloc(uint unit, uint *err, uint devid);
-extern void wlc_detach_mfree(struct brcms_c_info *wlc);
+extern struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err,
+						  uint devid);
+extern void brcms_c_detach_mfree(struct brcms_c_info *wlc);

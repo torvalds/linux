@@ -651,7 +651,7 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 
 	case IEEE80211_AMPDU_TX_STOP:
 		LOCK(wl);
-		wlc_ampdu_flush(wl->wlc, sta, tid);
+		brcms_c_ampdu_flush(wl->wlc, sta, tid);
 		UNLOCK(wl);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;

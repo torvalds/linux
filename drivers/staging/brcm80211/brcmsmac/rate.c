@@ -246,12 +246,10 @@ const wlc_rateset_t cck_rates = {
 	 0x00, 0x00, 0x00, 0x00}
 };
 
-static bool wlc_rateset_valid(wlc_rateset_t *rs, bool check_brate);
-
 /* check if rateset is valid.
  * if check_brate is true, rateset without a basic rate is considered NOT valid.
  */
-static bool wlc_rateset_valid(wlc_rateset_t *rs, bool check_brate)
+static bool brcms_c_rateset_valid(wlc_rateset_t *rs, bool check_brate)
 {
 	uint idx;
 
@@ -269,7 +267,7 @@ static bool wlc_rateset_valid(wlc_rateset_t *rs, bool check_brate)
 	return false;
 }
 
-void wlc_rateset_mcs_upd(wlc_rateset_t *rs, u8 txstreams)
+void brcms_c_rateset_mcs_upd(wlc_rateset_t *rs, u8 txstreams)
 {
 	int i;
 	for (i = txstreams; i < MAX_STREAMS_SUPPORTED; i++)
@@ -280,7 +278,7 @@ void wlc_rateset_mcs_upd(wlc_rateset_t *rs, u8 txstreams)
  * and check if resulting rateset is valid.
 */
 bool
-wlc_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
+brcms_c_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 				   const wlc_rateset_t *hw_rs,
 				   bool check_brate, u8 txstreams)
 {
@@ -315,14 +313,14 @@ wlc_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 	for (i = 0; i < MCSSET_LEN; i++)
 		rs->mcs[i] = (rs->mcs[i] & hw_rs->mcs[i]);
 
-	if (wlc_rateset_valid(rs, check_brate))
+	if (brcms_c_rateset_valid(rs, check_brate))
 		return true;
 	else
 		return false;
 }
 
 /* calculate the rate of a rx'd frame and return it as a ratespec */
-ratespec_t wlc_compute_rspec(d11rxhdr_t *rxh, u8 *plcp)
+ratespec_t brcms_c_compute_rspec(d11rxhdr_t *rxh, u8 *plcp)
 {
 	int phy_type;
 	ratespec_t rspec = PHY_TXC1_BW_20MHZ << RSPEC_BW_SHIFT;
@@ -368,7 +366,7 @@ ratespec_t wlc_compute_rspec(d11rxhdr_t *rxh, u8 *plcp)
 }
 
 /* copy rateset src to dst as-is (no masking or sorting) */
-void wlc_rateset_copy(const wlc_rateset_t *src, wlc_rateset_t *dst)
+void brcms_c_rateset_copy(const wlc_rateset_t *src, wlc_rateset_t *dst)
 {
 	memcpy(dst, src, sizeof(wlc_rateset_t));
 }
@@ -383,7 +381,7 @@ void wlc_rateset_copy(const wlc_rateset_t *src, wlc_rateset_t *dst)
  * 'xmask' is the copy mask (typically 0x7f or 0xff).
  */
 void
-wlc_rateset_filter(wlc_rateset_t *src, wlc_rateset_t *dst, bool basic_only,
+brcms_c_rateset_filter(wlc_rateset_t *src, wlc_rateset_t *dst, bool basic_only,
 		   u8 rates, uint xmask, bool mcsallow)
 {
 	uint i;
@@ -407,14 +405,14 @@ wlc_rateset_filter(wlc_rateset_t *src, wlc_rateset_t *dst, bool basic_only,
 	if (mcsallow && rates != WLC_RATES_CCK)
 		memcpy(&dst->mcs[0], &src->mcs[0], MCSSET_LEN);
 	else
-		wlc_rateset_mcs_clear(dst);
+		brcms_c_rateset_mcs_clear(dst);
 }
 
 /* select rateset for a given phy_type and bandtype and filter it, sort it
  * and fill rs_tgt with result
  */
 void
-wlc_rateset_default(wlc_rateset_t *rs_tgt, const wlc_rateset_t *rs_hw,
+brcms_c_rateset_default(wlc_rateset_t *rs_tgt, const wlc_rateset_t *rs_hw,
 		    uint phy_type, int bandtype, bool cck_only, uint rate_mask,
 		    bool mcsallow, u8 bw, u8 txstreams)
 {
@@ -447,16 +445,16 @@ wlc_rateset_default(wlc_rateset_t *rs_tgt, const wlc_rateset_t *rs_hw,
 	if (!rs_hw)
 		rs_hw = rs_dflt;
 
-	wlc_rateset_copy(rs_dflt, &rs_sel);
-	wlc_rateset_mcs_upd(&rs_sel, txstreams);
-	wlc_rateset_filter(&rs_sel, rs_tgt, false,
+	brcms_c_rateset_copy(rs_dflt, &rs_sel);
+	brcms_c_rateset_mcs_upd(&rs_sel, txstreams);
+	brcms_c_rateset_filter(&rs_sel, rs_tgt, false,
 			   cck_only ? WLC_RATES_CCK : WLC_RATES_CCK_OFDM,
 			   rate_mask, mcsallow);
-	wlc_rate_hwrs_filter_sort_validate(rs_tgt, rs_hw, false,
+	brcms_c_rate_hwrs_filter_sort_validate(rs_tgt, rs_hw, false,
 					   mcsallow ? txstreams : 1);
 }
 
-s16 wlc_rate_legacy_phyctl(uint rate)
+s16 brcms_c_rate_legacy_phyctl(uint rate)
 {
 	uint i;
 	for (i = 0; i < LEGACY_PHYCFG_TABLE_SIZE; i++)
@@ -466,21 +464,21 @@ s16 wlc_rate_legacy_phyctl(uint rate)
 	return -1;
 }
 
-void wlc_rateset_mcs_clear(wlc_rateset_t *rateset)
+void brcms_c_rateset_mcs_clear(wlc_rateset_t *rateset)
 {
 	uint i;
 	for (i = 0; i < MCSSET_LEN; i++)
 		rateset->mcs[i] = 0;
 }
 
-void wlc_rateset_mcs_build(wlc_rateset_t *rateset, u8 txstreams)
+void brcms_c_rateset_mcs_build(wlc_rateset_t *rateset, u8 txstreams)
 {
 	memcpy(&rateset->mcs[0], &cck_ofdm_mimo_rates.mcs[0], MCSSET_LEN);
-	wlc_rateset_mcs_upd(rateset, txstreams);
+	brcms_c_rateset_mcs_upd(rateset, txstreams);
 }
 
 /* Based on bandwidth passed, allow/disallow MCS 32 in the rateset */
-void wlc_rateset_bw_mcs_filter(wlc_rateset_t *rateset, u8 bw)
+void brcms_c_rateset_bw_mcs_filter(wlc_rateset_t *rateset, u8 bw)
 {
 	if (bw == WLC_40_MHZ)
 		setbit(rateset->mcs, 32);

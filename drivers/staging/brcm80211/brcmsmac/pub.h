@@ -620,11 +620,11 @@ extern struct wlc_pub *brcms_c_pub(void *wlc);
 /* common functions for every port */
 extern void brcms_c_mhf(struct brcms_c_info *wlc, u8 idx, u16 mask, u16 val,
 		    int bands);
-extern void wlc_rate_lookup_init(struct brcms_c_info *wlc,
-				 wlc_rateset_t *rateset);
+extern void brcms_c_rate_lookup_init(struct brcms_c_info *wlc,
+				     wlc_rateset_t *rateset);
 extern void brcms_default_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs);
 
-extern void wlc_ampdu_flush(struct brcms_c_info *wlc,
+extern void brcms_c_ampdu_flush(struct brcms_c_info *wlc,
 			    struct ieee80211_sta *sta, u16 tid);
 extern int brcms_c_set_par(struct brcms_c_info *wlc, enum wlc_par_id par_id,
 			   int val);

@@ -133,35 +133,37 @@ extern const u8 ofdm_rate_lookup[];
 #define OFDM_PHY2MAC_RATE(rlpt)		(ofdm_rate_lookup[rlpt & 0x7])
 #define CCK_PHY2MAC_RATE(signal)	(signal/5)
 
-/* Rates specified in wlc_rateset_filter() */
+/* Rates specified in brcms_c_rateset_filter() */
 #define WLC_RATES_CCK_OFDM	0
 #define WLC_RATES_CCK		1
 #define WLC_RATES_OFDM		2
 
 /* sanitize, and sort a rateset with the basic bit(s) preserved, validate rateset */
-extern bool wlc_rate_hwrs_filter_sort_validate(struct wlc_rateset *rs,
+extern bool brcms_c_rate_hwrs_filter_sort_validate(struct wlc_rateset *rs,
 					       const struct wlc_rateset *hw_rs,
 					       bool check_brate,
 					       u8 txstreams);
 /* copy rateset src to dst as-is (no masking or sorting) */
-extern void wlc_rateset_copy(const struct wlc_rateset *src,
+extern void brcms_c_rateset_copy(const struct wlc_rateset *src,
 			     struct wlc_rateset *dst);
 
 /* would be nice to have these documented ... */
-extern ratespec_t wlc_compute_rspec(d11rxhdr_t *rxh, u8 *plcp);
+extern ratespec_t brcms_c_compute_rspec(d11rxhdr_t *rxh, u8 *plcp);
 
-extern void wlc_rateset_filter(struct wlc_rateset *src, struct wlc_rateset *dst,
-			       bool basic_only, u8 rates, uint xmask,
-			       bool mcsallow);
-extern void wlc_rateset_default(struct wlc_rateset *rs_tgt,
+extern void brcms_c_rateset_filter(struct wlc_rateset *src,
+	struct wlc_rateset *dst, bool basic_only, u8 rates, uint xmask,
+	bool mcsallow);
+
+extern void brcms_c_rateset_default(struct wlc_rateset *rs_tgt,
 				const struct wlc_rateset *rs_hw, uint phy_type,
 				int bandtype, bool cck_only, uint rate_mask,
 				bool mcsallow, u8 bw, u8 txstreams);
-extern s16 wlc_rate_legacy_phyctl(uint rate);
+extern s16 brcms_c_rate_legacy_phyctl(uint rate);
 
-extern void wlc_rateset_mcs_upd(struct wlc_rateset *rs, u8 txstreams);
-extern void wlc_rateset_mcs_clear(struct wlc_rateset *rateset);
-extern void wlc_rateset_mcs_build(struct wlc_rateset *rateset, u8 txstreams);
-extern void wlc_rateset_bw_mcs_filter(struct wlc_rateset *rateset, u8 bw);
+extern void brcms_c_rateset_mcs_upd(struct wlc_rateset *rs, u8 txstreams);
+extern void brcms_c_rateset_mcs_clear(struct wlc_rateset *rateset);
+extern void brcms_c_rateset_mcs_build(struct wlc_rateset *rateset,
+				      u8 txstreams);
+extern void brcms_c_rateset_bw_mcs_filter(struct wlc_rateset *rateset, u8 bw);
 
 #endif				/* _WLC_RATE_H_ */
