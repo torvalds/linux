@@ -4945,6 +4945,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/epip/linux-2.6-unicore32.gi
 F:	drivers/input/serio/i8042-unicore32io.h
 F:	drivers/i2c/busses/i2c-puv3.c
 F:	drivers/video/fb-puv3.c
+F:	drivers/rtc/rtc-puv3.c
 
 PMC SIERRA MaxRAID DRIVER
 M:	Anil Ravindranath <anil_ravindranath@pmc-sierra.com>
