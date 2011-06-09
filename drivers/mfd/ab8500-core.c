@@ -363,7 +363,7 @@ static void ab8500_irq_remove(struct ab8500 *ab8500)
 	}
 }
 
-static struct resource ab8500_gpio_resources[] = {
+static struct resource __devinitdata ab8500_gpio_resources[] = {
 	{
 		.name	= "GPIO_INT6",
 		.start	= AB8500_INT_GPIO6R,
@@ -372,7 +372,7 @@ static struct resource ab8500_gpio_resources[] = {
 	}
 };
 
-static struct resource ab8500_gpadc_resources[] = {
+static struct resource __devinitdata ab8500_gpadc_resources[] = {
 	{
 		.name	= "HW_CONV_END",
 		.start	= AB8500_INT_GP_HW_ADC_CONV_END,
@@ -387,7 +387,7 @@ static struct resource ab8500_gpadc_resources[] = {
 	},
 };
 
-static struct resource ab8500_rtc_resources[] = {
+static struct resource __devinitdata ab8500_rtc_resources[] = {
 	{
 		.name	= "60S",
 		.start	= AB8500_INT_RTC_60S,
@@ -402,7 +402,7 @@ static struct resource ab8500_rtc_resources[] = {
 	},
 };
 
-static struct resource ab8500_poweronkey_db_resources[] = {
+static struct resource __devinitdata ab8500_poweronkey_db_resources[] = {
 	{
 		.name	= "ONKEY_DBF",
 		.start	= AB8500_INT_PON_KEY1DB_F,
@@ -417,7 +417,7 @@ static struct resource ab8500_poweronkey_db_resources[] = {
 	},
 };
 
-static struct resource ab8500_bm_resources[] = {
+static struct resource __devinitdata ab8500_bm_resources[] = {
 	{
 		.name = "MAIN_EXT_CH_NOT_OK",
 		.start = AB8500_INT_MAIN_EXT_CH_NOT_OK,
@@ -534,7 +534,7 @@ static struct resource ab8500_bm_resources[] = {
 	},
 };
 
-static struct resource ab8500_debug_resources[] = {
+static struct resource __devinitdata ab8500_debug_resources[] = {
 	{
 		.name	= "IRQ_FIRST",
 		.start	= AB8500_INT_MAIN_EXT_CH_NOT_OK,
@@ -549,7 +549,7 @@ static struct resource ab8500_debug_resources[] = {
 	},
 };
 
-static struct resource ab8500_usb_resources[] = {
+static struct resource __devinitdata ab8500_usb_resources[] = {
 	{
 		.name = "ID_WAKEUP_R",
 		.start = AB8500_INT_ID_WAKEUP_R,
@@ -582,7 +582,7 @@ static struct resource ab8500_usb_resources[] = {
 	},
 };
 
-static struct resource ab8500_temp_resources[] = {
+static struct resource __devinitdata ab8500_temp_resources[] = {
 	{
 		.name  = "AB8500_TEMP_WARM",
 		.start = AB8500_INT_TEMP_WARM,
@@ -591,7 +591,7 @@ static struct resource ab8500_temp_resources[] = {
 	},
 };
 
-static struct mfd_cell ab8500_devs[] = {
+static struct mfd_cell __devinitdata ab8500_devs[] = {
 #ifdef CONFIG_DEBUG_FS
 	{
 		.name = "ab8500-debug",
