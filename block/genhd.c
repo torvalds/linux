@@ -1414,22 +1414,36 @@ static unsigned long disk_events_poll_jiffies(struct gendisk *disk)
 	return msecs_to_jiffies(intv_msecs);
 }
 
-static void __disk_block_events(struct gendisk *disk, bool sync)
+/**
+ * disk_block_events - block and flush disk event checking
+ * @disk: disk to block events for
+ *
+ * On return from this function, it is guaranteed that event checking
+ * isn't in progress and won't happen until unblocked by
+ * disk_unblock_events().  Events blocking is counted and the actual
+ * unblocking happens after the matching number of unblocks are done.
+ *
+ * Note that this intentionally does not block event checking from
+ * disk_clear_events().
+ *
+ * CONTEXT:
+ * Might sleep.
+ */
+void disk_block_events(struct gendisk *disk)
 {
 	struct disk_events *ev = disk->ev;
 	unsigned long flags;
 	bool cancel;
 
+	if (!ev)
+		return;
+
 	spin_lock_irqsave(&ev->lock, flags);
 	cancel = !ev->block++;
 	spin_unlock_irqrestore(&ev->lock, flags);
 
-	if (cancel) {
-		if (sync)
-			cancel_delayed_work_sync(&disk->ev->dwork);
-		else
-			cancel_delayed_work(&disk->ev->dwork);
-	}
+	if (cancel)
+		cancel_delayed_work_sync(&disk->ev->dwork);
 }
 
 static void __disk_unblock_events(struct gendisk *disk, bool check_now)
@@ -1458,27 +1472,6 @@ static void __disk_unblock_events(struct gendisk *disk, bool check_now)
 		queue_delayed_work(system_nrt_wq, &ev->dwork, intv);
 out_unlock:
 	spin_unlock_irqrestore(&ev->lock, flags);
-}
-
-/**
- * disk_block_events - block and flush disk event checking
- * @disk: disk to block events for
- *
- * On return from this function, it is guaranteed that event checking
- * isn't in progress and won't happen until unblocked by
- * disk_unblock_events().  Events blocking is counted and the actual
- * unblocking happens after the matching number of unblocks are done.
- *
- * Note that this intentionally does not block event checking from
- * disk_clear_events().
- *
- * CONTEXT:
- * Might sleep.
- */
-void disk_block_events(struct gendisk *disk)
-{
-	if (disk->ev)
-		__disk_block_events(disk, true);
 }
 
 /**
@@ -1554,7 +1547,7 @@ unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
 	spin_unlock_irq(&ev->lock);
 
 	/* uncondtionally schedule event check and wait for it to finish */
-	__disk_block_events(disk, true);
+	disk_block_events(disk);
 	queue_delayed_work(system_nrt_wq, &ev->dwork, 0);
 	flush_delayed_work(&ev->dwork);
 	__disk_unblock_events(disk, false);
@@ -1672,7 +1665,7 @@ static ssize_t disk_events_poll_msecs_store(struct device *dev,
 	if (intv < 0 && intv != -1)
 		return -EINVAL;
 
-	__disk_block_events(disk, true);
+	disk_block_events(disk);
 	disk->ev->poll_msecs = intv;
 	__disk_unblock_events(disk, true);
 
@@ -1778,7 +1771,7 @@ static void disk_del_events(struct gendisk *disk)
 	if (!disk->ev)
 		return;
 
-	__disk_block_events(disk, true);
+	disk_block_events(disk);
 
 	mutex_lock(&disk_events_mutex);
 	list_del_init(&disk->ev->node);
