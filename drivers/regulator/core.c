@@ -1033,7 +1033,7 @@ static void unset_regulator_supplies(struct regulator_dev *rdev)
 	}
 }
 
-#define REG_STR_SIZE	32
+#define REG_STR_SIZE	64
 
 static struct regulator *create_regulator(struct regulator_dev *rdev,
 					  struct device *dev,
