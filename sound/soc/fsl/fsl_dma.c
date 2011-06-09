@@ -312,7 +312,7 @@ static int fsl_dma_new(struct snd_soc_pcm_runtime *rtd)
 	 * should allocate a DMA buffer only for the streams that are valid.
 	 */
 
-	if (dai->driver->playback.channels_min) {
+	if (pcm->streams[0].substream) {
 		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, card->dev,
 			fsl_dma_hardware.buffer_bytes_max,
 			&pcm->streams[0].substream->dma_buffer);
@@ -322,13 +322,13 @@ static int fsl_dma_new(struct snd_soc_pcm_runtime *rtd)
 		}
 	}
 
-	if (dai->driver->capture.channels_min) {
+	if (pcm->streams[1].substream) {
 		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, card->dev,
 			fsl_dma_hardware.buffer_bytes_max,
 			&pcm->streams[1].substream->dma_buffer);
 		if (ret) {
-			snd_dma_free_pages(&pcm->streams[0].substream->dma_buffer);
 			dev_err(card->dev, "can't alloc capture dma buffer\n");
+			snd_dma_free_pages(&pcm->streams[0].substream->dma_buffer);
 			return ret;
 		}
 	}
@@ -451,7 +451,8 @@ static int fsl_dma_open(struct snd_pcm_substream *substream)
 	dma_private->ld_buf_phys = ld_buf_phys;
 	dma_private->dma_buf_phys = substream->dma_buffer.addr;
 
-	ret = request_irq(dma_private->irq, fsl_dma_isr, 0, "DMA", dma_private);
+	ret = request_irq(dma_private->irq, fsl_dma_isr, 0, "fsldma-audio",
+			  dma_private);
 	if (ret) {
 		dev_err(dev, "can't register ISR for IRQ %u (ret=%i)\n",
 			dma_private->irq, ret);
