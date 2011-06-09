@@ -3540,6 +3540,7 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 		priv->cfg->name, hw_rev);
 
 	if (iwl_prepare_card_hw(priv)) {
+		err = -EIO;
 		IWL_WARN(priv, "Failed, HW not ready\n");
 		goto out_free_traffic_mem;
 	}
