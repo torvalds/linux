@@ -64,11 +64,11 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	if (perflvl == pm->cur)
 		return 0;
 
-	if (pm->voltage.supported && pm->voltage_set && perflvl->voltage) {
-		ret = pm->voltage_set(dev, perflvl->voltage);
+	if (pm->voltage.supported && pm->voltage_set && perflvl->volt_min) {
+		ret = pm->voltage_set(dev, perflvl->volt_min);
 		if (ret) {
 			NV_ERROR(dev, "voltage_set %d failed: %d\n",
-				 perflvl->voltage, ret);
+				 perflvl->volt_min, ret);
 		}
 	}
 
@@ -146,8 +146,10 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 
 	if (pm->voltage.supported && pm->voltage_get) {
 		ret = pm->voltage_get(dev);
-		if (ret > 0)
-			perflvl->voltage = ret;
+		if (ret > 0) {
+			perflvl->volt_min = ret;
+			perflvl->volt_max = ret;
+		}
 	}
 
 	return 0;
@@ -156,7 +158,7 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 static void
 nouveau_pm_perflvl_info(struct nouveau_pm_level *perflvl, char *ptr, int len)
 {
-	char c[16], s[16], v[16], f[16], t[16];
+	char c[16], s[16], v[32], f[16], t[16];
 
 	c[0] = '\0';
 	if (perflvl->core)
@@ -167,8 +169,14 @@ nouveau_pm_perflvl_info(struct nouveau_pm_level *perflvl, char *ptr, int len)
 		snprintf(s, sizeof(s), " shader %dMHz", perflvl->shader / 1000);
 
 	v[0] = '\0';
-	if (perflvl->voltage)
-		snprintf(v, sizeof(v), " voltage %dmV", perflvl->voltage / 1000);
+	if (perflvl->volt_min && perflvl->volt_min != perflvl->volt_max) {
+		snprintf(v, sizeof(v), " voltage %dmV-%dmV",
+			 perflvl->volt_min / 1000, perflvl->volt_max / 1000);
+	} else
+	if (perflvl->volt_min) {
+		snprintf(v, sizeof(v), " voltage %dmV",
+			 perflvl->volt_min / 1000);
+	}
 
 	f[0] = '\0';
 	if (perflvl->fanspeed)

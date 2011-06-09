@@ -134,6 +134,49 @@ nouveau_perf_timing(struct drm_device *dev, struct bit_entry *P,
 	return &pm->memtimings.timing[entry[1]];
 }
 
+static void
+nouveau_perf_voltage(struct drm_device *dev, struct bit_entry *P,
+		     struct nouveau_pm_level *perflvl)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	u8 *vmap;
+	int id;
+
+	id = perflvl->volt_min;
+	perflvl->volt_min = 0;
+
+	/* pre-fermi vbios stores the voltage level directly in the
+	 * perflvl entry as a multiple of 10mV
+	 */
+	if (dev_priv->card_type < NV_C0) {
+		perflvl->volt_min = id * 10000;
+		perflvl->volt_max = perflvl->volt_min;
+		return;
+	}
+
+	/* from fermi onwards, the perflvl stores an index into yet another
+	 * vbios table containing a min/max voltage value for the perflvl
+	 */
+	if (P->version != 2 || P->length < 34) {
+		NV_DEBUG(dev, "where's our volt map table ptr? %d %d\n",
+			 P->version, P->length);
+		return;
+	}
+
+	vmap = ROMPTR(bios, P->data[32]);
+	if (!vmap) {
+		NV_DEBUG(dev, "volt map table pointer invalid\n");
+		return;
+	}
+
+	if (id < vmap[3]) {
+		vmap += vmap[1] + (vmap[2] * id);
+		perflvl->volt_min = ROM32(vmap[0]);
+		perflvl->volt_max = ROM32(vmap[4]);
+	}
+}
+
 void
 nouveau_perf_init(struct drm_device *dev)
 {
@@ -204,7 +247,7 @@ nouveau_perf_init(struct drm_device *dev)
 		case 0x15:
 			perflvl->fanspeed = entry[55];
 			if (recordlen > 56)
-				perflvl->voltage = entry[56] * 10000;
+				perflvl->volt_min = entry[56];
 			perflvl->core = ROM32(entry[1]) * 10;
 			perflvl->memory = ROM32(entry[5]) * 20;
 			break;
@@ -212,7 +255,7 @@ nouveau_perf_init(struct drm_device *dev)
 		case 0x23:
 		case 0x24:
 			perflvl->fanspeed = entry[4];
-			perflvl->voltage = entry[5] * 10000;
+			perflvl->volt_min = entry[5];
 			perflvl->core = ROM16(entry[6]) * 1000;
 
 			if (dev_priv->chipset == 0x49 ||
@@ -224,7 +267,7 @@ nouveau_perf_init(struct drm_device *dev)
 			break;
 		case 0x25:
 			perflvl->fanspeed = entry[4];
-			perflvl->voltage = entry[5] * 10000;
+			perflvl->volt_min = entry[5];
 			perflvl->core = ROM16(entry[6]) * 1000;
 			perflvl->shader = ROM16(entry[10]) * 1000;
 			perflvl->memory = ROM16(entry[12]) * 1000;
@@ -233,7 +276,7 @@ nouveau_perf_init(struct drm_device *dev)
 			perflvl->memscript = ROM16(entry[2]);
 		case 0x35:
 			perflvl->fanspeed = entry[6];
-			perflvl->voltage = entry[7] * 10000;
+			perflvl->volt_min = entry[7];
 			perflvl->core = ROM16(entry[8]) * 1000;
 			perflvl->shader = ROM16(entry[10]) * 1000;
 			perflvl->memory = ROM16(entry[12]) * 1000;
@@ -243,7 +286,7 @@ nouveau_perf_init(struct drm_device *dev)
 		case 0x40:
 #define subent(n) entry[perf[2] + ((n) * perf[3])]
 			perflvl->fanspeed = 0; /*XXX*/
-			perflvl->voltage = entry[2] * 10000;
+			perflvl->volt_min = entry[2];
 			if (dev_priv->card_type == NV_50) {
 				perflvl->core = ROM16(subent(0)) & 0xfff;
 				perflvl->shader = ROM16(subent(1)) & 0xfff;
@@ -263,8 +306,9 @@ nouveau_perf_init(struct drm_device *dev)
 		}
 
 		/* make sure vid is valid */
-		if (pm->voltage.supported && perflvl->voltage) {
-			vid = nouveau_volt_vid_lookup(dev, perflvl->voltage);
+		nouveau_perf_voltage(dev, &P, perflvl);
+		if (pm->voltage.supported && perflvl->volt_min) {
+			vid = nouveau_volt_vid_lookup(dev, perflvl->volt_min);
 			if (vid < 0) {
 				NV_DEBUG(dev, "drop perflvl %d, bad vid\n", i);
 				entry += recordlen;

@@ -451,7 +451,8 @@ struct nouveau_pm_level {
 	u32 unk05;
 	u32 unk0a;
 
-	u32 voltage; /* microvolts */
+	u32 volt_min; /* microvolts */
+	u32 volt_max;
 	u8  fanspeed;
 
 	u16 memscript;
