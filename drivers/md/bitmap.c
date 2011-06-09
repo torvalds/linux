@@ -1408,7 +1408,7 @@ int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sect
 			return 0;
 		}
 
-		if (unlikely((*bmc & COUNTER_MAX) == COUNTER_MAX)) {
+		if (unlikely(COUNTER(*bmc) == COUNTER_MAX)) {
 			DEFINE_WAIT(__wait);
 			/* note that it is safe to do the prepare_to_wait
 			 * after the test as long as we do it before dropping
@@ -1480,10 +1480,10 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 			sysfs_notify_dirent_safe(bitmap->sysfs_can_clear);
 		}
 
-		if (!success && ! (*bmc & NEEDED_MASK))
+		if (!success && !NEEDED(*bmc))
 			*bmc |= NEEDED_MASK;
 
-		if ((*bmc & COUNTER_MAX) == COUNTER_MAX)
+		if (COUNTER(*bmc) == COUNTER_MAX)
 			wake_up(&bitmap->overflow_wait);
 
 		(*bmc)--;
