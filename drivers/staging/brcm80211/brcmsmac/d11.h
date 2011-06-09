@@ -14,23 +14,10 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_D11_H
-#define	_D11_H
+#ifndef	_BRCM_D11_H_
+#define	_BRCM_D11_H_
 
-#include <sbconfig.h>
-
-#ifndef WL_RSSI_ANT_MAX
-#define WL_RSSI_ANT_MAX		4	/* max possible rx antennas */
-#elif WL_RSSI_ANT_MAX != 4
-#error "WL_RSSI_ANT_MAX does not match"
-#endif
-
-/* cpp contortions to concatenate w/arg prescan */
-#ifndef	PAD
-#define	_PADLINE(line)	pad ## line
-#define	_XSTR(line)	_PADLINE(line)
-#define	PAD		_XSTR(__LINE__)
-#endif
+#include <linux/ieee80211.h>
 
 #define	BCN_TMPL_LEN		512	/* length of the BCN template area */
 
@@ -55,6 +42,12 @@
 /* Legacy TX FIFO numbers */
 #define	TX_DATA_FIFO		TX_AC_BE_FIFO
 #define	TX_CTL_FIFO		TX_AC_VO_FIFO
+
+#ifndef WL_RSSI_ANT_MAX
+#define WL_RSSI_ANT_MAX		4	/* max possible rx antennas */
+#elif WL_RSSI_ANT_MAX != 4
+#error "WL_RSSI_ANT_MAX does not match"
+#endif
 
 typedef volatile struct {
 	u32 intstatus;
@@ -112,8 +105,6 @@ typedef volatile struct {
 
 /*
  * Host Interface Registers
- * - primed from hnd_cores/dot11mac/systemC/registers/ihr.h
- * - but definitely not complete
  */
 typedef volatile struct _d11regs {
 	/* Device Control ("semi-standard host registers") */
@@ -439,9 +430,6 @@ typedef volatile struct _d11regs {
 
 	/* SHM *//* 0x800 - 0xEFE */
 	u16 PAD[0x380];	/* 0x800 - 0xEFE */
-
-	/* SB configuration registers: 0xF00 */
-	sbconfig_t sbconfig;	/* sb config regs occupy top 256 bytes */
 } d11regs_t;
 
 #define	PIHR_BASE	0x0400	/* byte address of packed IHR region */
@@ -1770,4 +1758,21 @@ typedef struct macstat {
 #define SHM_BYT_CNT	0x2	/* IHR location */
 #define MAX_BYT_CNT	0x600	/* Maximum frame len */
 
-#endif				/* _D11_H */
+typedef struct d11cnt {
+	u32 txfrag;
+	u32 txmulti;
+	u32 txfail;
+	u32 txretry;
+	u32 txretrie;
+	u32 rxdup;
+	u32 txrts;
+	u32 txnocts;
+	u32 txnoack;
+	u32 rxfrag;
+	u32 rxmulti;
+	u32 rxcrc;
+	u32 txfrmsnt;
+	u32 rxundec;
+} d11cnt_t;
+
+#endif				/* _BRCM_D11_H_ */

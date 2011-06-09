@@ -102,6 +102,7 @@ TODO:
 
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

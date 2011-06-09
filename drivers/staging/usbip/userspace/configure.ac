@@ -1,8 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([usbip], [0.1.8], [usbip-devel@lists.sourceforge.net])
-AC_DEFINE([USBIP_VERSION], [0x000106], [numeric version number])
+AC_INIT([usbip], [1.0.0], [usbip-devel@lists.sourceforge.net])
+AC_DEFINE([USBIP_VERSION], [0x00000100], [binary-coded decimal version number])
 
 CURRENT=0
 REVISION=1
@@ -29,7 +29,7 @@ AC_PROG_MAKE_SET
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h netinet/in.h stdint.h stdlib.h dnl
-		  string.h strings.h sys/socket.h syslog.h unistd.h])
+		  string.h sys/socket.h syslog.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_INT32_T
@@ -41,7 +41,7 @@ AC_TYPE_UINT8_T
 
 # Checks for library functions.
 AC_FUNC_REALLOC
-AC_CHECK_FUNCS([bzero memset mkdir regcomp socket strchr strerror strstr dnl
+AC_CHECK_FUNCS([memset mkdir regcomp socket strchr strerror strstr dnl
 		strtoul])
 
 AC_CHECK_HEADER([sysfs/libsysfs.h],

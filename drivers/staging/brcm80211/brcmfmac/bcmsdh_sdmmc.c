@@ -15,11 +15,12 @@
  */
 #include <linux/types.h>
 #include <linux/netdevice.h>
-#include <bcmdefs.h>
-#include <bcmdevs.h>
-#include <bcmutils.h>
-#include <sdio.h>		/* SDIO Device and Protocol Specs */
-#include <sdioh.h>		/* SDIO Host Controller Specification */
+#include <linux/mmc/sdio.h>
+#include <defs.h>
+#include <brcm_hw_ids.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
+#include "sdio_host.h"
 #include <bcmsdbus.h>		/* bcmsdh to/from specific controller APIs */
 #include <sdiovar.h>		/* ioctl/iovars */
 
@@ -45,16 +46,9 @@ extern int sdio_reset_comm(struct mmc_card *card);
 
 extern PBCMSDH_SDMMC_INSTANCE gInstance;
 
-uint sd_sdmode = SDIOH_MODE_SD4;	/* Use SD4 mode by default */
 uint sd_f2_blocksize = 512;	/* Default blocksize */
 
-uint sd_divisor = 2;		/* Default 48MHz/2 = 24MHz */
-
-uint sd_power = 1;		/* Default to SD Slot powered ON */
-uint sd_clock = 1;		/* Default to SD Clock turned ON */
-uint sd_hiok = false;		/* Don't use hi-speed mode by default */
 uint sd_msglevel = 0x01;
-uint sd_use_dma = true;
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_byte_wait);
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_word_wait);
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_packet_wait);
@@ -81,16 +75,16 @@ static int sdioh_sdmmc_card_enablefuncs(sdioh_info_t *sd)
 	sd_trace(("%s\n", __func__));
 
 	/* Get the Card's common CIS address */
-	sd->com_cis_ptr = sdioh_sdmmc_get_cisaddr(sd, SDIOD_CCCR_CISPTR_0);
+	sd->com_cis_ptr = sdioh_sdmmc_get_cisaddr(sd, SDIO_CCCR_CIS);
 	sd->func_cis_ptr[0] = sd->com_cis_ptr;
 	sd_info(("%s: Card's Common CIS Ptr = 0x%x\n", __func__,
 		 sd->com_cis_ptr));
 
 	/* Get the Card's function CIS (for each function) */
-	for (fbraddr = SDIOD_FBR_STARTADDR, func = 1;
+	for (fbraddr = SDIO_FBR_BASE(1), func = 1;
 	     func <= sd->num_funcs; func++, fbraddr += SDIOD_FBR_SIZE) {
 		sd->func_cis_ptr[func] =
-		    sdioh_sdmmc_get_cisaddr(sd, SDIOD_FBR_CISPTR_0 + fbraddr);
+		    sdioh_sdmmc_get_cisaddr(sd, SDIO_FBR_CIS + fbraddr);
 		sd_info(("%s: Function %d CIS Ptr = 0x%x\n", __func__, func,
 			 sd->func_cis_ptr[func]));
 	}
@@ -138,7 +132,6 @@ sdioh_info_t *sdioh_attach(void *bar0, uint irq)
 	}
 
 	sd->num_funcs = 2;
-	sd->sd_blockmode = true;
 	sd->use_client_ints = true;
 	sd->client_block_size[0] = 64;
 
@@ -352,45 +345,21 @@ uint sdioh_query_iofnum(sdioh_info_t *sd)
 /* IOVar table */
 enum {
 	IOV_MSGLEVEL = 1,
-	IOV_BLOCKMODE,
 	IOV_BLOCKSIZE,
-	IOV_DMA,
 	IOV_USEINTS,
 	IOV_NUMINTS,
-	IOV_NUMLOCALINTS,
-	IOV_HOSTREG,
 	IOV_DEVREG,
-	IOV_DIVISOR,
-	IOV_SDMODE,
-	IOV_HISPEED,
 	IOV_HCIREGS,
-	IOV_POWER,
-	IOV_CLOCK,
 	IOV_RXCHAIN
 };
 
-const bcm_iovar_t sdioh_iovars[] = {
+const struct brcmu_iovar sdioh_iovars[] = {
 	{"sd_msglevel", IOV_MSGLEVEL, 0, IOVT_UINT32, 0},
-	{"sd_blockmode", IOV_BLOCKMODE, 0, IOVT_BOOL, 0},
 	{"sd_blocksize", IOV_BLOCKSIZE, 0, IOVT_UINT32, 0},/* ((fn << 16) |
 								 size) */
-	{"sd_dma", IOV_DMA, 0, IOVT_BOOL, 0},
 	{"sd_ints", IOV_USEINTS, 0, IOVT_BOOL, 0},
 	{"sd_numints", IOV_NUMINTS, 0, IOVT_UINT32, 0},
-	{"sd_numlocalints", IOV_NUMLOCALINTS, 0, IOVT_UINT32, 0},
-	{"sd_hostreg", IOV_HOSTREG, 0, IOVT_BUFFER, sizeof(sdreg_t)}
-	,
 	{"sd_devreg", IOV_DEVREG, 0, IOVT_BUFFER, sizeof(sdreg_t)}
-	,
-	{"sd_divisor", IOV_DIVISOR, 0, IOVT_UINT32, 0}
-	,
-	{"sd_power", IOV_POWER, 0, IOVT_UINT32, 0}
-	,
-	{"sd_clock", IOV_CLOCK, 0, IOVT_UINT32, 0}
-	,
-	{"sd_mode", IOV_SDMODE, 0, IOVT_UINT32, 100}
-	,
-	{"sd_highspeed", IOV_HISPEED, 0, IOVT_UINT32, 0}
 	,
 	{"sd_rxchain", IOV_RXCHAIN, 0, IOVT_BOOL, 0}
 	,
@@ -401,7 +370,7 @@ int
 sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	       void *params, int plen, void *arg, int len, bool set)
 {
-	const bcm_iovar_t *vi = NULL;
+	const struct brcmu_iovar *vi = NULL;
 	int bcmerror = 0;
 	int val_size;
 	s32 int_val = 0;
@@ -418,13 +387,13 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 	sd_trace(("%s: Enter (%s %s)\n", __func__, (set ? "set" : "get"),
 		  name));
 
-	vi = bcm_iovar_lookup(sdioh_iovars, name);
+	vi = brcmu_iovar_lookup(sdioh_iovars, name);
 	if (vi == NULL) {
 		bcmerror = -ENOTSUPP;
 		goto exit;
 	}
 
-	bcmerror = bcm_iovar_lencheck(vi, arg, len, set);
+	bcmerror = brcmu_iovar_lencheck(vi, arg, len, set);
 	if (bcmerror != 0)
 		goto exit;
 
@@ -455,16 +424,6 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 	case IOV_SVAL(IOV_MSGLEVEL):
 		sd_msglevel = int_val;
-		break;
-
-	case IOV_GVAL(IOV_BLOCKMODE):
-		int_val = (s32) si->sd_blockmode;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_BLOCKMODE):
-		si->sd_blockmode = (bool) int_val;
-		/* Haven't figured out how to make non-block mode with DMA */
 		break;
 
 	case IOV_GVAL(IOV_BLOCKSIZE):
@@ -518,15 +477,6 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 		memcpy(arg, &int_val, val_size);
 		break;
 
-	case IOV_GVAL(IOV_DMA):
-		int_val = (s32) si->sd_use_dma;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_DMA):
-		si->sd_use_dma = (bool) int_val;
-		break;
-
 	case IOV_GVAL(IOV_USEINTS):
 		int_val = (s32) si->use_client_ints;
 		memcpy(arg, &int_val, val_size);
@@ -541,110 +491,10 @@ sdioh_iovar_op(sdioh_info_t *si, const char *name,
 
 		break;
 
-	case IOV_GVAL(IOV_DIVISOR):
-		int_val = (u32) sd_divisor;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_DIVISOR):
-		sd_divisor = int_val;
-		break;
-
-	case IOV_GVAL(IOV_POWER):
-		int_val = (u32) sd_power;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_POWER):
-		sd_power = int_val;
-		break;
-
-	case IOV_GVAL(IOV_CLOCK):
-		int_val = (u32) sd_clock;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_CLOCK):
-		sd_clock = int_val;
-		break;
-
-	case IOV_GVAL(IOV_SDMODE):
-		int_val = (u32) sd_sdmode;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_SDMODE):
-		sd_sdmode = int_val;
-		break;
-
-	case IOV_GVAL(IOV_HISPEED):
-		int_val = (u32) sd_hiok;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_HISPEED):
-		sd_hiok = int_val;
-		break;
-
 	case IOV_GVAL(IOV_NUMINTS):
 		int_val = (s32) si->intrcount;
 		memcpy(arg, &int_val, val_size);
 		break;
-
-	case IOV_GVAL(IOV_NUMLOCALINTS):
-		int_val = (s32) 0;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_GVAL(IOV_HOSTREG):
-		{
-			sdreg_t *sd_ptr = (sdreg_t *) params;
-
-			if (sd_ptr->offset < SD_SysAddr
-			    || sd_ptr->offset > SD_MaxCurCap) {
-				sd_err(("%s: bad offset 0x%x\n", __func__,
-					sd_ptr->offset));
-				bcmerror = -EINVAL;
-				break;
-			}
-
-			sd_trace(("%s: rreg%d at offset %d\n", __func__,
-				  (sd_ptr->offset & 1) ? 8
-				  : ((sd_ptr->offset & 2) ? 16 : 32),
-				  sd_ptr->offset));
-			if (sd_ptr->offset & 1)
-				int_val = 8;	/* sdioh_sdmmc_rreg8(si,
-						 sd_ptr->offset); */
-			else if (sd_ptr->offset & 2)
-				int_val = 16;	/* sdioh_sdmmc_rreg16(si,
-						 sd_ptr->offset); */
-			else
-				int_val = 32;	/* sdioh_sdmmc_rreg(si,
-						 sd_ptr->offset); */
-
-			memcpy(arg, &int_val, sizeof(int_val));
-			break;
-		}
-
-	case IOV_SVAL(IOV_HOSTREG):
-		{
-			sdreg_t *sd_ptr = (sdreg_t *) params;
-
-			if (sd_ptr->offset < SD_SysAddr
-			    || sd_ptr->offset > SD_MaxCurCap) {
-				sd_err(("%s: bad offset 0x%x\n", __func__,
-					sd_ptr->offset));
-				bcmerror = -EINVAL;
-				break;
-			}
-
-			sd_trace(("%s: wreg%d value 0x%08x at offset %d\n",
-				  __func__, sd_ptr->value,
-				  (sd_ptr->offset & 1) ? 8
-				  : ((sd_ptr->offset & 2) ? 16 : 32),
-				  sd_ptr->offset));
-			break;
-		}
 
 	case IOV_GVAL(IOV_DEVREG):
 		{
@@ -792,7 +642,7 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr,
 			 * Handle F2 enable
 			 * as a special case.
 			 */
-			if (regaddr == SDIOD_CCCR_IOEN) {
+			if (regaddr == SDIO_CCCR_IOEx) {
 				if (gInstance->func[2]) {
 					sdio_claim_host(gInstance->func[2]);
 					if (*byte & SDIO_FUNC_ENABLE_2) {
@@ -817,7 +667,7 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr,
 			}
 #if defined(MMC_SDIO_ABORT)
 			/* to allow abort command through F1 */
-			else if (regaddr == SDIOD_CCCR_IOABORT) {
+			else if (regaddr == SDIO_CCCR_ABORT) {
 				sdio_claim_host(gInstance->func[func]);
 				/*
 				 * this sdio_f0_writeb() can be replaced
@@ -1039,9 +889,9 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 	if (pkt == NULL) {
 		sd_data(("%s: Creating new %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", buflen_u));
-		mypkt = bcm_pkt_buf_get_skb(buflen_u);
+		mypkt = brcmu_pkt_buf_get_skb(buflen_u);
 		if (!mypkt) {
-			sd_err(("%s: bcm_pkt_buf_get_skb failed: len %d\n",
+			sd_err(("%s: brcmu_pkt_buf_get_skb failed: len %d\n",
 				__func__, buflen_u));
 			return SDIOH_API_RC_FAIL;
 		}
@@ -1057,7 +907,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		if (!write)
 			memcpy(buffer, mypkt->data, buflen_u);
 
-		bcm_pkt_buf_free_skb(mypkt);
+		brcmu_pkt_buf_free_skb(mypkt);
 	} else if (((u32) (pkt->data) & DMA_ALIGN_MASK) != 0) {
 		/* Case 2: We have a packet, but it is unaligned. */
 
@@ -1066,9 +916,9 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 
 		sd_data(("%s: Creating aligned %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", pkt->len));
-		mypkt = bcm_pkt_buf_get_skb(pkt->len);
+		mypkt = brcmu_pkt_buf_get_skb(pkt->len);
 		if (!mypkt) {
-			sd_err(("%s: bcm_pkt_buf_get_skb failed: len %d\n",
+			sd_err(("%s: brcmu_pkt_buf_get_skb failed: len %d\n",
 				__func__, pkt->len));
 			return SDIOH_API_RC_FAIL;
 		}
@@ -1084,7 +934,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		if (!write)
 			memcpy(pkt->data, mypkt->data, mypkt->len);
 
-		bcm_pkt_buf_free_skb(mypkt);
+		brcmu_pkt_buf_free_skb(mypkt);
 	} else {		/* case 3: We have a packet and
 				 it is aligned. */
 		sd_data(("%s: Aligned %s Packet, direct DMA\n",
@@ -1105,8 +955,8 @@ extern int sdioh_abort(sdioh_info_t *sd, uint func)
 	sd_trace(("%s: Enter\n", __func__));
 
 #if defined(MMC_SDIO_ABORT)
-	/* issue abort cmd52 command through F1 */
-	sdioh_request_byte(sd, SD_IO_OP_WRITE, SDIO_FUNC_0, SDIOD_CCCR_IOABORT,
+	/* issue abort cmd52 command through F0 */
+	sdioh_request_byte(sd, SDIOH_WRITE, SDIO_FUNC_0, SDIO_CCCR_ABORT,
 			   &t_func);
 #endif				/* defined(MMC_SDIO_ABORT) */
 

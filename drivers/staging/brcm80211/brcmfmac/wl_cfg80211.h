@@ -17,11 +17,6 @@
 #ifndef _wl_cfg80211_h_
 #define _wl_cfg80211_h_
 
-#include <linux/wireless.h>
-#include <linux/wireless.h>
-#include <net/cfg80211.h>
-#include <wlioctl.h>
-
 struct wl_conf;
 struct wl_iface;
 struct wl_priv;
@@ -39,7 +34,7 @@ struct wl_ibss;
 
 #define	WL_ERR(fmt, args...)					\
 do {								\
-	if (wl_dbg_level & WL_DBG_ERR) {			\
+	if (brcmf_dbg_level & WL_DBG_ERR) {			\
 		if (net_ratelimit()) {				\
 			printk(KERN_ERR "ERROR @%s : " fmt,	\
 				__func__, ##args);		\
@@ -50,7 +45,7 @@ do {								\
 #if (defined BCMDBG)
 #define	WL_INFO(fmt, args...)					\
 do {								\
-	if (wl_dbg_level & WL_DBG_INFO) {			\
+	if (brcmf_dbg_level & WL_DBG_INFO) {			\
 		if (net_ratelimit()) {				\
 			printk(KERN_ERR "INFO @%s : " fmt,	\
 				__func__, ##args);		\
@@ -60,7 +55,7 @@ do {								\
 
 #define	WL_TRACE(fmt, args...)					\
 do {								\
-	if (wl_dbg_level & WL_DBG_TRACE) {			\
+	if (brcmf_dbg_level & WL_DBG_TRACE) {			\
 		if (net_ratelimit()) {				\
 			printk(KERN_ERR "TRACE @%s : " fmt,	\
 				__func__, ##args);		\
@@ -70,7 +65,7 @@ do {								\
 
 #define	WL_SCAN(fmt, args...)					\
 do {								\
-	if (wl_dbg_level & WL_DBG_SCAN) {			\
+	if (brcmf_dbg_level & WL_DBG_SCAN) {			\
 		if (net_ratelimit()) {				\
 			printk(KERN_ERR "SCAN @%s : " fmt,	\
 				__func__, ##args);		\
@@ -80,7 +75,7 @@ do {								\
 
 #define	WL_CONN(fmt, args...)					\
 do {								\
-	if (wl_dbg_level & WL_DBG_CONN) {			\
+	if (brcmf_dbg_level & WL_DBG_CONN) {			\
 		if (net_ratelimit()) {				\
 			printk(KERN_ERR "CONN @%s : " fmt,	\
 				__func__, ##args);		\

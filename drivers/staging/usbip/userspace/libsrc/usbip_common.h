@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <strings.h>
 
 #include <sysfs/libsysfs.h>
 #include <netdb.h>
@@ -26,7 +25,11 @@
 #define VHCI_STATE_PATH "/var/run/vhci_hcd"
 #endif
 
-//#include <linux/usb_ch9.h>
+/* kernel module names */
+#define USBIP_CORE_MOD_NAME	"usbip-core"
+#define USBIP_HOST_DRV_NAME	"usbip-host"
+#define USBIP_VHCI_DRV_NAME	"vhci_hcd"
+
 enum usb_device_speed {
 	USB_SPEED_UNKNOWN = 0,                  /* enumerating */
 	USB_SPEED_LOW, USB_SPEED_FULL,          /* usb 1.1 */
@@ -101,7 +104,7 @@ extern int usbip_use_debug ;
 #define BUG()	do { err("sorry, it's a bug"); abort(); } while (0)
 
 
-struct usb_interface {
+struct usbip_usb_interface {
 	uint8_t bInterfaceClass;
 	uint8_t bInterfaceSubClass;
 	uint8_t bInterfaceProtocol;
@@ -110,7 +113,7 @@ struct usb_interface {
 
 
 
-struct usb_device {
+struct usbip_usb_device {
 	char path[SYSFS_PATH_MAX];
 	char busid[SYSFS_BUS_ID_SIZE];
 
@@ -132,11 +135,12 @@ struct usb_device {
 
 #define to_string(s)	#s
 
-void dump_usb_interface(struct usb_interface *);
-void dump_usb_device(struct usb_device *);
-int read_usb_device(struct sysfs_device *sdev, struct usb_device *udev);
+void dump_usb_interface(struct usbip_usb_interface *);
+void dump_usb_device(struct usbip_usb_device *);
+int read_usb_device(struct sysfs_device *sdev, struct usbip_usb_device *udev);
 int read_attr_value(struct sysfs_device *dev, const char *name, const char *format);
-int read_usb_interface(struct usb_device *udev, int i, struct usb_interface *uinf);
+int read_usb_interface(struct usbip_usb_device *udev, int i,
+		       struct usbip_usb_interface *uinf);
 
 const char *usbip_speed_string(int num);
 const char *usbip_status_string(int32_t status);

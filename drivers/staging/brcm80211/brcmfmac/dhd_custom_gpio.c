@@ -15,13 +15,13 @@
  */
 
 #include <linux/netdevice.h>
-#include <bcmutils.h>
+#include <linux/sched.h>
+#include <brcmu_utils.h>
+#include <defs.h>
+#include <brcmu_wifi.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>
-
-#include <wlioctl.h>
-#include <wl_iw.h>
 
 #define WL_ERROR(fmt, args...) printk(fmt, ##args)
 #define WL_TRACE(fmt, args...) no_printk(fmt, ##args)

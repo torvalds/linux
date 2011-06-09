@@ -63,7 +63,7 @@ extern int dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 			    bool set);
 
 /* Add bus dump output to a buffer */
-extern void dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf);
+extern void dhd_bus_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf);
 
 /* Clear any bus counters */
 extern void dhd_bus_clearcounts(dhd_pub_t *dhdp);

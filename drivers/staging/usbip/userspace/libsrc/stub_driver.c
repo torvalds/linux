@@ -8,10 +8,6 @@
 
 #include "usbip.h"
 
-/* kernel module name */
-static const char *usbip_stub_driver_name = "usbip-host";
-
-
 struct usbip_stub_driver *stub_driver;
 
 static struct sysfs_driver *open_sysfs_stub_driver(void)
@@ -31,11 +27,12 @@ static struct sysfs_driver *open_sysfs_stub_driver(void)
 
 	snprintf(stub_driver_path, SYSFS_PATH_MAX, "%s/%s/usb/%s/%s",
 			sysfs_mntpath, SYSFS_BUS_NAME, SYSFS_DRIVERS_NAME,
-			usbip_stub_driver_name);
+			USBIP_HOST_DRV_NAME);
 
 	stub_driver = sysfs_open_driver_path(stub_driver_path);
 	if (!stub_driver) {
-		err("usbip-core.ko and usbip-host.ko must be loaded");
+		err(USBIP_CORE_MOD_NAME ".ko and " USBIP_HOST_DRV_NAME
+		    ".ko must be loaded");
 		return NULL;
 	}
 
@@ -46,7 +43,7 @@ static struct sysfs_driver *open_sysfs_stub_driver(void)
 #define SYSFS_OPEN_RETRIES 100
 
 /* only the first interface value is true! */
-static int32_t read_attr_usbip_status(struct usb_device *udev)
+static int32_t read_attr_usbip_status(struct usbip_usb_device *udev)
 {
 	char attrpath[SYSFS_PATH_MAX];
 	struct sysfs_attribute *attr;
@@ -148,7 +145,8 @@ static struct usbip_exported_device *usbip_exported_device_new(char *sdevpath)
 		goto err;
 
 	/* reallocate buffer to include usb interface data */
-	size_t size = sizeof(*edev) + edev->udev.bNumInterfaces * sizeof(struct usb_interface);
+	size_t size = sizeof(*edev) + edev->udev.bNumInterfaces *
+		sizeof(struct usbip_usb_interface);
 	edev = (struct usbip_exported_device *) realloc(edev, size);
 	if (!edev) {
 		err("alloc device");
@@ -200,7 +198,8 @@ static int refresh_exported_devices(void)
 
 	suinf_list = sysfs_get_driver_devices(stub_driver->sysfs_driver);
 	if (!suinf_list) {
-		printf("Bind usbip-host.ko to a usb device to be exportable!\n");
+		info("bind " USBIP_HOST_DRV_NAME ".ko to a usb device to be "
+		     "exportable!\n");
 		goto bye;
 	}
 

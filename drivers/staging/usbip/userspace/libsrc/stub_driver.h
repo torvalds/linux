@@ -19,8 +19,8 @@ struct usbip_exported_device {
 	struct sysfs_device *sudev;
 
 	int32_t status;
-	struct usb_device    udev;
-	struct usb_interface uinf[];
+	struct usbip_usb_device    udev;
+	struct usbip_usb_interface uinf[];
 };
 
 

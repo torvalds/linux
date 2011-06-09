@@ -23,17 +23,17 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/completion.h>
+#include <linux/sched.h>
 
-#include <pcicfg.h>
-#include <bcmdefs.h>
-#include <bcmdevs.h>
-#include <bcmutils.h>
+#include <defs.h>
+#include <brcm_hw_ids.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
+#include "sdio_host.h"
 
 #if defined(OOB_INTR_ONLY)
 #include <linux/irq.h>
 extern void dhdsdio_isr(void *args);
-#include <dngl_stats.h>
-#include <dhd.h>
 #endif				/* defined(OOB_INTR_ONLY) */
 #if defined(CONFIG_MACH_SANDGATE2G) || defined(CONFIG_MACH_LOGICPD_PXA270)
 #if !defined(BCMPLATFORM_BUS)
@@ -364,23 +364,6 @@ void bcmsdh_unregister_oob_intr(void)
 
 extern uint sd_msglevel;	/* Debug message level */
 module_param(sd_msglevel, uint, 0);
-
-extern uint sd_power;		/* 0 = SD Power OFF,
-					 1 = SD Power ON. */
-module_param(sd_power, uint, 0);
-
-extern uint sd_clock;		/* SD Clock Control, 0 = SD Clock OFF,
-				 1 = SD Clock ON */
-module_param(sd_clock, uint, 0);
-
-extern uint sd_divisor;		/* Divisor (-1 means external clock) */
-module_param(sd_divisor, uint, 0);
-
-extern uint sd_sdmode;		/* Default is SD4, 0=SPI, 1=SD1, 2=SD4 */
-module_param(sd_sdmode, uint, 0);
-
-extern uint sd_hiok;		/* Ok to use hi-speed mode */
-module_param(sd_hiok, uint, 0);
 
 extern uint sd_f2_blocksize;
 module_param(sd_f2_blocksize, int, 0);
