@@ -38,6 +38,23 @@ struct smp_cmd_pairing {
 	__u8	resp_key_dist;
 } __packed;
 
+#define SMP_IO_DISPLAY_ONLY	0x00
+#define SMP_IO_DISPLAY_YESNO	0x01
+#define SMP_IO_KEYBOARD_ONLY	0x02
+#define SMP_IO_NO_INPUT_OUTPUT	0x03
+#define SMP_IO_KEYBOARD_DISPLAY	0x04
+
+#define SMP_OOB_NOT_PRESENT	0x00
+#define SMP_OOB_PRESENT		0x01
+
+#define SMP_DIST_ENC_KEY	0x01
+#define SMP_DIST_ID_KEY		0x02
+#define SMP_DIST_SIGN		0x04
+
+#define SMP_AUTH_NONE		0x00
+#define SMP_AUTH_BONDING	0x01
+#define SMP_AUTH_MITM		0x04
+
 #define SMP_CMD_PAIRING_CONFIRM	0x03
 struct smp_cmd_pairing_confirm {
 	__u8	confirm_val[16];
