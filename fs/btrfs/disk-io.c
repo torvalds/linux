@@ -2911,9 +2911,8 @@ static int btrfs_destroy_delalloc_inodes(struct btrfs_root *root)
 
 	INIT_LIST_HEAD(&splice);
 
-	list_splice_init(&root->fs_info->delalloc_inodes, &splice);
-
 	spin_lock(&root->fs_info->delalloc_lock);
+	list_splice_init(&root->fs_info->delalloc_inodes, &splice);
 
 	while (!list_empty(&splice)) {
 		btrfs_inode = list_entry(splice.next, struct btrfs_inode,
