@@ -42,6 +42,7 @@
 #include <linux/notifier.h>
 #include <linux/rfkill.h>
 #include <linux/timer.h>
+#include <linux/crypto.h>
 #include <net/sock.h>
 
 #include <asm/system.h>
@@ -58,6 +59,8 @@ static void hci_rx_task(unsigned long arg);
 static void hci_tx_task(unsigned long arg);
 
 static DEFINE_RWLOCK(hci_task_lock);
+
+static int enable_smp;
 
 /* HCI device list */
 LIST_HEAD(hci_dev_list);
@@ -1274,6 +1277,14 @@ int hci_add_adv_entry(struct hci_dev *hdev,
 	return 0;
 }
 
+static struct crypto_blkcipher *alloc_cypher(void)
+{
+	if (enable_smp)
+		return crypto_alloc_blkcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
+
+	return ERR_PTR(-ENOTSUPP);
+}
+
 /* Register HCI device */
 int hci_register_dev(struct hci_dev *hdev)
 {
@@ -1358,6 +1369,11 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (!hdev->workqueue)
 		goto nomem;
 
+	hdev->tfm = alloc_cypher();
+	if (IS_ERR(hdev->tfm))
+		BT_INFO("Failed to load transform for ecb(aes): %ld",
+							PTR_ERR(hdev->tfm));
+
 	hci_register_sysfs(hdev);
 
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
@@ -1405,6 +1421,9 @@ int hci_unregister_dev(struct hci_dev *hdev)
 	if (!test_bit(HCI_INIT, &hdev->flags) &&
 					!test_bit(HCI_SETUP, &hdev->flags))
 		mgmt_index_removed(hdev->id);
+
+	if (!IS_ERR(hdev->tfm))
+		crypto_free_blkcipher(hdev->tfm);
 
 	hci_notify(hdev, HCI_DEV_UNREG);
 
@@ -2242,3 +2261,6 @@ static void hci_cmd_task(unsigned long arg)
 		}
 	}
 }
+
+module_param(enable_smp, bool, 0644);
+MODULE_PARM_DESC(enable_smp, "Enable SMP support (LE only)");
