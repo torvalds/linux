@@ -311,7 +311,7 @@ struct protection_domain {
 struct iommu_dev_data {
 	struct list_head list;		  /* For domain->dev_list */
 	struct list_head dev_data_list;	  /* For global dev_data_list */
-	struct device *alias;		  /* The Alias Device */
+	struct iommu_dev_data *alias_data;/* The alias dev_data */
 	struct protection_domain *domain; /* Domain the device is bound to */
 	atomic_t bind;			  /* Domain attach reverent count */
 	u16 devid;			  /* PCI Device ID */

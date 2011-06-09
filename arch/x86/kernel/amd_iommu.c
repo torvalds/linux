@@ -203,7 +203,6 @@ static bool check_device(struct device *dev)
 static int iommu_init_device(struct device *dev)
 {
 	struct iommu_dev_data *dev_data;
-	struct pci_dev *pdev;
 	u16 alias;
 
 	if (dev->archdata.iommu)
@@ -215,13 +214,16 @@ static int iommu_init_device(struct device *dev)
 
 	alias = amd_iommu_alias_table[dev_data->devid];
 	if (alias != dev_data->devid) {
-		pdev = pci_get_bus_and_slot(PCI_BUS(alias), alias & 0xff);
-		if (pdev)
-			dev_data->alias = &pdev->dev;
-		else {
+		struct iommu_dev_data *alias_data;
+
+		alias_data = find_dev_data(alias);
+		if (alias_data == NULL) {
+			pr_err("AMD-Vi: Warning: Unhandled device %s\n",
+					dev_name(dev));
 			free_dev_data(dev_data);
 			return -ENOTSUPP;
 		}
+		dev_data->alias_data = alias_data;
 	}
 
 	dev->archdata.iommu = dev_data;
@@ -1642,14 +1644,8 @@ static int __attach_device(struct iommu_dev_data *dev_data,
 	/* lock domain */
 	spin_lock(&domain->lock);
 
-	if (dev_data->alias != NULL) {
-		struct iommu_dev_data *alias_data;
-
-		alias_data = get_dev_data(dev_data->alias);
-
-		ret = -EINVAL;
-		if (!alias_data)
-			goto out_unlock;
+	if (dev_data->alias_data != NULL) {
+		struct iommu_dev_data *alias_data = dev_data->alias_data;
 
 		/* Some sanity checks */
 		ret = -EBUSY;
@@ -1721,7 +1717,6 @@ static int attach_device(struct device *dev,
  */
 static void __detach_device(struct iommu_dev_data *dev_data)
 {
-	struct iommu_dev_data *alias_data;
 	struct protection_domain *domain;
 	unsigned long flags;
 
@@ -1731,8 +1726,9 @@ static void __detach_device(struct iommu_dev_data *dev_data)
 
 	spin_lock_irqsave(&domain->lock, flags);
 
-	if (dev_data->alias) {
-		alias_data = get_dev_data(dev_data->alias);
+	if (dev_data->alias_data != NULL) {
+		struct iommu_dev_data *alias_data = dev_data->alias_data;
+
 		if (atomic_dec_and_test(&alias_data->bind))
 			do_detach(alias_data);
 	}
@@ -1779,7 +1775,7 @@ static void detach_device(struct device *dev)
  */
 static struct protection_domain *domain_for_device(struct device *dev)
 {
-	struct iommu_dev_data *dev_data, *alias_data;
+	struct iommu_dev_data *dev_data;
 	struct protection_domain *dom = NULL;
 	unsigned long flags;
 
@@ -1788,8 +1784,8 @@ static struct protection_domain *domain_for_device(struct device *dev)
 	if (dev_data->domain)
 		return dev_data->domain;
 
-	if (dev_data->alias != NULL) {
-		alias_data = get_dev_data(dev_data->alias);
+	if (dev_data->alias_data != NULL) {
+		struct iommu_dev_data *alias_data = dev_data->alias_data;
 
 		read_lock_irqsave(&amd_iommu_devtable_lock, flags);
 		if (alias_data->domain != NULL) {
