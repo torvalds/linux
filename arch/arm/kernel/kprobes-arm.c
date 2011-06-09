@@ -894,6 +894,35 @@ prep_emulate_rdhi16rdlo12rs8rm0_wflags(kprobe_opcode_t insn,
 }
 
 static void __kprobes
+emulate_ldrdstrd(struct kprobe *p, struct pt_regs *regs)
+{
+	kprobe_opcode_t insn = p->opcode;
+	unsigned long pc = (unsigned long)p->addr + 8;
+	int rt = (insn >> 12) & 0xf;
+	int rn = (insn >> 16) & 0xf;
+	int rm = insn & 0xf;
+
+	register unsigned long rtv asm("r0") = regs->uregs[rt];
+	register unsigned long rt2v asm("r1") = regs->uregs[rt+1];
+	register unsigned long rnv asm("r2") = (rn == 15) ? pc
+							  : regs->uregs[rn];
+	register unsigned long rmv asm("r3") = regs->uregs[rm];
+
+	__asm__ __volatile__ (
+		BLX("%[fn]")
+		: "=r" (rtv), "=r" (rt2v), "=r" (rnv)
+		: "0" (rtv), "1" (rt2v), "2" (rnv), "r" (rmv),
+		  [fn] "r" (p->ainsn.insn_fn)
+		: "lr", "memory", "cc"
+	);
+
+	regs->uregs[rt] = rtv;
+	regs->uregs[rt+1] = rt2v;
+	if (is_writeback(insn))
+		regs->uregs[rn] = rnv;
+}
+
+static void __kprobes
 emulate_rd12rn16rm0rs8_rwflags(struct kprobe *p, struct pt_regs *regs)
 {
 	kprobe_opcode_t insn = p->opcode;
