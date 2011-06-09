@@ -2028,7 +2028,7 @@ static char *ai_devpathvar(struct si_pub *sih, char *var, int len,
 }
 
 /* return true if PCIE capability exists in the pci config space */
-static __used bool ai_ispcie(si_info_t *sii)
+static bool ai_ispcie(si_info_t *sii)
 {
 	u8 cap_ptr;
 
