@@ -1623,6 +1623,7 @@ static inline void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *
 				/* Encryption implies authentication */
 				conn->link_mode |= HCI_LM_AUTH;
 				conn->link_mode |= HCI_LM_ENCRYPT;
+				conn->sec_level = conn->pending_sec_level;
 			} else
 				conn->link_mode &= ~HCI_LM_ENCRYPT;
 		}
