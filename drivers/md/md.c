@@ -2262,7 +2262,7 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		if (rdev->raid_disk == -1)
 			return -EEXIST;
 		/* personality does all needed checks */
-		if (rdev->mddev->pers->hot_add_disk == NULL)
+		if (rdev->mddev->pers->hot_remove_disk == NULL)
 			return -EINVAL;
 		err = rdev->mddev->pers->
 			hot_remove_disk(rdev->mddev, rdev->raid_disk);
