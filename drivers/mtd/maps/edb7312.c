@@ -88,8 +88,9 @@ static int __init init_edb7312nor(void)
 	}
 	if (mymtd) {
 		mymtd->owner = THIS_MODULE;
+		mymtd->name = MTDID;
 
-		mtd_parts_nb = parse_mtd_partitions(mymtd, probes, &mtd_parts, MTDID);
+		mtd_parts_nb = parse_mtd_partitions(mymtd, probes, &mtd_parts, 0);
 		if (mtd_parts_nb > 0)
 			part_type = "detected";
 
