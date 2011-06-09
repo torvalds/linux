@@ -2515,7 +2515,6 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	int val, *pval;
 	bool bool_val;
 	int bcmerror;
-	d11regs_t *regs;
 	struct scb *nextscb;
 	bool ta_ok;
 	uint band;
@@ -2551,7 +2550,6 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	/* bool conversion to avoid duplication below */
 	bool_val = val != 0;
 	bcmerror = 0;
-	regs = wlc->regs;
 
 	if ((arg == NULL) || (len <= 0)) {
 		wiphy_err(wlc->wiphy, "wl%d: %s: Command %d needs arguments\n",
