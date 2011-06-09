@@ -500,6 +500,12 @@ void usbhs_pipe_clear_sequence(struct usbhs_pipe *pipe)
 	usbhsp_pipectrl_set(pipe, SQCLR, SQCLR);
 }
 
+void usbhs_pipe_clear(struct usbhs_pipe *pipe)
+{
+	usbhsp_pipectrl_set(pipe, ACLRM, ACLRM);
+	usbhsp_pipectrl_set(pipe, ACLRM, 0);
+}
+
 static struct usbhs_pipe *usbhsp_get_pipe(struct usbhs_priv *priv, u32 type)
 {
 	struct usbhs_pipe *pos, *pipe;
@@ -568,8 +574,7 @@ void usbhs_pipe_init(struct usbhs_priv *priv,
 		INIT_LIST_HEAD(&pipe->list);
 
 		/* pipe force init */
-		usbhsp_pipectrl_set(pipe, ACLRM, ACLRM);
-		usbhsp_pipectrl_set(pipe, ACLRM, 0);
+		usbhs_pipe_clear(pipe);
 	}
 
 	info->done = done;

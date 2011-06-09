@@ -462,8 +462,11 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 	 * if it already have pipe,
 	 * nothing to do
 	 */
-	if (uep->pipe)
+	if (uep->pipe) {
+		usbhs_pipe_clear(uep->pipe);
+		usbhs_pipe_clear_sequence(uep->pipe);
 		return 0;
+	}
 
 	pipe = usbhs_pipe_malloc(priv, desc);
 	if (pipe) {
