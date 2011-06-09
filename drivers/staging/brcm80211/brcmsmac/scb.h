@@ -22,17 +22,17 @@
 
 #define AMPDU_TX_BA_MAX_WSIZE	64	/* max Tx ba window size (in pdu) */
 /* structure to store per-tid state for the ampdu initiator */
-typedef struct scb_ampdu_tid_ini {
+struct scb_ampdu_tid_ini {
 	u32 magic;
 	u8 tx_in_transit;	/* number of pending mpdus in transit in driver */
 	u8 tid;		/* initiator tid for easy lookup */
 	u8 txretry[AMPDU_TX_BA_MAX_WSIZE];	/* tx retry count; indexed by seq modulo */
 	struct scb *scb;	/* backptr for easy lookup */
-} scb_ampdu_tid_ini_t;
+};
 
 #define AMPDU_MAX_SCB_TID	NUMPRIO
 
-typedef struct scb_ampdu {
+struct scb_ampdu {
 	struct scb *scb;	/* back pointer for easy reference */
 	u8 mpdu_density;	/* mpdu density */
 	u8 max_pdu;		/* max pdus allowed in ampdu */
@@ -46,7 +46,7 @@ typedef struct scb_ampdu {
 	 * static.
 	 */
 	scb_ampdu_tid_ini_t ini[AMPDU_MAX_SCB_TID];	/* initiator info - per tid (NUMPRIO) */
-} scb_ampdu_t;
+};
 
 #define SCB_MAGIC 	0xbeefcafe
 #define INI_MAGIC 	0xabcd1234

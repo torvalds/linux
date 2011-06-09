@@ -107,7 +107,7 @@
 
 struct ieee80211_tx_queue_params;
 
-typedef struct wlc_tunables {
+struct wlc_tunables {
 	int ntxd;		/* size of tx descriptor table */
 	int nrxd;		/* size of rx descriptor table */
 	int rxbufsz;		/* size of rx buffers to post */
@@ -123,14 +123,14 @@ typedef struct wlc_tunables {
 	int rxbnd;		/* max # of rx bufs to process before deferring to dpc */
 	int txsbnd;		/* max # tx status to process in wlc_txstatus() */
 	int memreserved;	/* memory reserved for BMAC's USB dma rx */
-} wlc_tunables_t;
+};
 
-typedef struct wlc_rateset {
+struct wlc_rateset {
 	uint count;		/* number of rates in rates[] */
 	u8 rates[WLC_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
 	u8 htphy_membership;	/* HT PHY Membership */
 	u8 mcs[MCSSET_LEN];	/* supported mcs index bit map */
-} wlc_rateset_t;
+};
 
 struct rsn_parms {
 	u8 flags;		/* misc booleans (e.g., supported) */
@@ -161,7 +161,7 @@ struct rsn_parms {
 	IEEE80211_HT_CAP_MAX_AMSDU | IEEE80211_HT_CAP_DSSSCCK40)
 
 /* wlc internal bss_info */
-typedef struct wlc_bss_info {
+struct wlc_bss_info {
 	u8 BSSID[ETH_ALEN];	/* network BSSID */
 	u16 flags;		/* flags for internal attributes */
 	u8 SSID_len;		/* the length of SSID */
@@ -184,7 +184,7 @@ typedef struct wlc_bss_info {
 	u8 qbss_load_chan_free;	/* indicates how free the channel is */
 	u8 mcipher;		/* multicast cipher */
 	u8 wpacfg;		/* wpa config index */
-} wlc_bss_info_t;
+};
 
 /* forward declarations */
 struct wlc_if;
@@ -326,7 +326,7 @@ struct wlc_pub {
 };
 
 /* wl_monitor rx status per packet */
-typedef struct wl_rxsts {
+struct wl_rxsts {
 	uint pkterror;		/* error flags per pkt */
 	uint phytype;		/* 802.11 A/B/G ... */
 	uint channel;		/* channel */
@@ -341,7 +341,7 @@ typedef struct wl_rxsts {
 	uint encoding;		/* Unknown, CCK, PBCC, OFDM */
 	uint nfrmtype;		/* special 802.11n frames(AMPDU, AMSDU) */
 	struct brcms_if *wlif;	/* wl interface */
-} wl_rxsts_t;
+};
 
 /* status per error RX pkt */
 #define WL_RXS_CRC_ERROR		0x00000001	/* CRC Error in packet */
@@ -582,10 +582,10 @@ extern const u8 wme_fifo2ac[];
 
 #define HIGHEST_SINGLE_STREAM_MCS	7	/* MCS values greater than this enable multiple streams */
 
-typedef struct {
+struct wlc_antselcfg {
 	u8 ant_config[ANT_SELCFG_MAX];	/* antenna configuration */
 	u8 num_antcfg;	/* number of available antenna configurations */
-} wlc_antselcfg_t;
+};
 
 /* common functions for every port */
 extern void *wlc_attach(struct brcms_info *wl, u16 vendor, u16 device,

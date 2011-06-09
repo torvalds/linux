@@ -18,10 +18,10 @@
 
 /* dup state between BMAC(struct wlc_hw_info) and HIGH(struct wlc_info)
    driver */
-typedef struct wlc_bmac_state {
+struct wlc_bmac_state {
 	u32 machwcap;	/* mac hw capibility */
 	u32 preamble_ovr;	/* preamble override */
-} wlc_bmac_state_t;
+};
 
 enum {
 	IOV_BMAC_DIAG,

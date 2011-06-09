@@ -32,24 +32,24 @@ struct dma_pub;
 
 /* 32 bits addressing */
 
-typedef volatile struct {	/* diag access */
+struct dma32diag {	/* diag access */
 	u32 fifoaddr;	/* diag address */
 	u32 fifodatalow;	/* low 32bits of data */
 	u32 fifodatahigh;	/* high 32bits of data */
 	u32 pad;		/* reserved */
-} dma32diag_t;
+};
 
 /* 64 bits addressing */
 
 /* dma registers per channel(xmt or rcv) */
-typedef volatile struct {
+struct dma64regs {
 	u32 control;		/* enable, et al */
 	u32 ptr;		/* last descriptor posted to chip */
 	u32 addrlow;		/* descriptor ring base address low 32-bits (8K aligned) */
 	u32 addrhigh;	/* descriptor ring base address bits 63:32 (8K aligned) */
 	u32 status0;		/* current descriptor, xmt state */
 	u32 status1;		/* active descriptor, xmt error */
-} dma64regs_t;
+};
 
 /* map/unmap direction */
 #define	DMA_TX	1		/* TX direction for DMA */
@@ -57,11 +57,11 @@ typedef volatile struct {
 #define BUS_SWAP32(v)		(v)
 
 /* range param for dma_getnexttxp() and dma_txreclaim */
-typedef enum txd_range {
+enum txd_range {
 	DMA_RANGE_ALL = 1,
 	DMA_RANGE_TRANSMITTED,
 	DMA_RANGE_TRANSFERED
-} txd_range_t;
+};
 
 /* dma function type */
 typedef void (*di_detach_t) (struct dma_pub *dmah);
@@ -114,7 +114,7 @@ typedef uint(*di_txpending_t) (struct dma_pub *dmah);
 typedef uint(*di_txcommitted_t) (struct dma_pub *dmah);
 
 /* dma opsvec */
-typedef struct di_fcn_s {
+struct di_fcn_s {
 	di_detach_t detach;
 	di_txinit_t txinit;
 	di_txreset_t txreset;
@@ -159,7 +159,7 @@ typedef struct di_fcn_s {
 	di_txpending_t txpending;
 	di_txcommitted_t txcommitted;
 	uint endnum;
-} di_fcn_t;
+};
 
 /*
  * Exported data structure (read-only)

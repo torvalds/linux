@@ -14,8 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-typedef phytbl_info_t dot11lcnphytbl_info_t;
-
 extern const dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_rev0[];
 extern const u32 dot11lcnphytbl_rx_gain_info_sz_rev0;
 extern const dot11lcnphytbl_info_t dot11lcn_sw_ctrl_tbl_info_4313;
@@ -35,13 +33,13 @@ extern const dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_extlna_2G_rev2[];
 
 extern const dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_extlna_5G_rev2[];
 
-typedef struct {
+struct _lcnphy_tx_gain_tbl_entry {
 	unsigned char gm;
 	unsigned char pga;
 	unsigned char pad;
 	unsigned char dac;
 	unsigned char bb_mult;
-} lcnphy_tx_gain_tbl_entry;
+};
 
 extern const lcnphy_tx_gain_tbl_entry dot11lcnphy_2GHz_gaintable_rev0[];
 extern const lcnphy_tx_gain_tbl_entry dot11lcnphy_2GHz_extPA_gaintable_rev0[];

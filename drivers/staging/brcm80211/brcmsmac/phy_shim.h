@@ -108,7 +108,6 @@
 
 /* Forward declarations */
 struct wlc_hw_info;
-typedef struct wlc_phy_shim_info wlc_phy_shim_info_t;
 
 extern wlc_phy_shim_info_t *wlc_phy_shim_attach(struct wlc_hw_info *wlc_hw,
 						void *wl, void *wlc);

@@ -43,16 +43,15 @@ extern u32 phyhal_msg_level;
 
 #define LCNXN_BASEREV		16
 
-typedef struct {
+struct wlc_phy_srom_fem {
 	u8 tssipos;		/* TSSI positive slope, 1: positive, 0: negative */
 	u8 extpagain;	/* Ext PA gain-type: full-gain: 0, pa-lite: 1, no_pa: 2 */
 	u8 pdetrange;	/* support 32 combinations of different Pdet dynamic ranges */
 	u8 triso;		/* TR switch isolation */
 	u8 antswctrllut;	/* antswctrl lookup table configuration: 32 possible choices */
-} wlc_phy_srom_fem_t;
+};
 
 struct wlc_hw_info;
-typedef struct phy_info phy_info_t;
 typedef void (*initfn_t) (phy_info_t *);
 typedef void (*chansetfn_t) (phy_info_t *, chanspec_t);
 typedef int (*longtrnfn_t) (phy_info_t *, int);
@@ -224,7 +223,7 @@ enum {
 	MPHASE_CAL_STATE_IDLETSSI
 };
 
-typedef enum {
+enum phy_cal_mode {
 	CAL_FULL,
 	CAL_RECAL,
 	CAL_CURRECAL,
@@ -232,7 +231,7 @@ typedef enum {
 	CAL_GCTRL,
 	CAL_SOFT,
 	CAL_DIGLO
-} phy_cal_mode_t;
+};
 
 #define RDR_NTIERS  1
 #define RDR_TIER_SIZE 64
@@ -294,21 +293,21 @@ typedef enum {
 #define PHY_LTRN_LIST_LEN	64
 extern u16 ltrn_list[PHY_LTRN_LIST_LEN];
 
-typedef struct _phy_table_info {
+struct phy_table_info {
 	uint table;
 	int q;
 	uint max;
-} phy_table_info_t;
+};
 
-typedef struct phytbl_info {
+struct phytbl_info {
 	const void *tbl_ptr;
 	u32 tbl_len;
 	u32 tbl_id;
 	u32 tbl_offset;
 	u32 tbl_width;
-} phytbl_info_t;
+};
 
-typedef struct {
+struct interference_info {
 	u8 curr_home_channel;
 	u16 crsminpwrthld_40_stored;
 	u16 crsminpwrthld_20L_stored;
@@ -378,10 +377,9 @@ typedef struct {
 	u16 radio_2057_core2_rssi_wb2_gc_stored;
 	u16 radio_2057_core1_rssi_nb_gc_stored;
 	u16 radio_2057_core2_rssi_nb_gc_stored;
+};
 
-} interference_info_t;
-
-typedef struct {
+struct aci_save_gphy {
 	u16 rc_cal_ovr;
 	u16 phycrsth1;
 	u16 phycrsth2;
@@ -415,21 +413,21 @@ typedef struct {
 	u16 div_srch_gn_back;
 	u16 ant_dwell;
 	u16 ant_wr_settle;
-} aci_save_gphy_t;
+};
 
-typedef struct _lo_complex_t {
+struct lo_complex_abgphy_info {
 	s8 i;
 	s8 q;
-} lo_complex_abgphy_info_t;
+};
 
-typedef struct _nphy_iq_comp {
+struct nphy_iq_comp {
 	s16 a0;
 	s16 b0;
 	s16 a1;
 	s16 b1;
-} nphy_iq_comp_t;
+};
 
-typedef struct _nphy_txpwrindex {
+struct nphy_txpwrindex {
 	s8 index;
 	s8 index_internal;
 	s8 index_internal_save;
@@ -440,9 +438,9 @@ typedef struct _nphy_txpwrindex {
 	u16 iqcomp_a;
 	u16 iqcomp_b;
 	u16 locomp;
-} phy_txpwrindex_t;
+};
 
-typedef struct {
+struct txiqcal_cache {
 
 	u16 txcal_coeffs_2G[8];
 	u16 txcal_radio_regs_2G[8];
@@ -451,9 +449,9 @@ typedef struct {
 	u16 txcal_coeffs_5G[8];
 	u16 txcal_radio_regs_5G[8];
 	nphy_iq_comp_t rxcal_coeffs_5G;
-} txiqcal_cache_t;
+};
 
-typedef struct _nphy_pwrctrl {
+struct nphy_pwrctrl {
 	s8 max_pwr_2g;
 	s8 idle_targ_2g;
 	s16 pwrdet_2g_a1;
@@ -480,34 +478,34 @@ typedef struct _nphy_pwrctrl {
 	s16 a1;
 	s16 b0;
 	s16 b1;
-} phy_pwrctrl_t;
+};
 
-typedef struct _nphy_txgains {
+struct nphy_txgains {
 	u16 txlpf[2];
 	u16 txgm[2];
 	u16 pga[2];
 	u16 pad[2];
 	u16 ipa[2];
-} nphy_txgains_t;
+};
 
 #define PHY_NOISEVAR_BUFSIZE 10
 
-typedef struct _nphy_noisevar_buf {
+struct nphy_noisevar_buf {
 	int bufcount;
 	int tone_id[PHY_NOISEVAR_BUFSIZE];
 	u32 noise_vars[PHY_NOISEVAR_BUFSIZE];
 	u32 min_noise_vars[PHY_NOISEVAR_BUFSIZE];
-} phy_noisevar_buf_t;
+};
 
-typedef struct {
+struct rssical_cache {
 	u16 rssical_radio_regs_2G[2];
 	u16 rssical_phyregs_2G[12];
 
 	u16 rssical_radio_regs_5G[2];
 	u16 rssical_phyregs_5G[12];
-} rssical_cache_t;
+};
 
-typedef struct {
+struct lcnphy_cal_results {
 
 	u16 txiqlocal_a;
 	u16 txiqlocal_b;
@@ -531,7 +529,7 @@ typedef struct {
 
 	u16 rxiqcal_coeff_a0;
 	u16 rxiqcal_coeff_b0;
-} lcnphy_cal_results_t;
+};
 
 struct shared_phy {
 	struct phy_info *phy_head;
@@ -584,10 +582,7 @@ struct phy_pub {
 };
 
 struct phy_info_nphy;
-typedef struct phy_info_nphy phy_info_nphy_t;
-
 struct phy_info_lcnphy;
-typedef struct phy_info_lcnphy phy_info_lcnphy_t;
 
 struct phy_func_ptr {
 	initfn_t init;
@@ -603,7 +598,6 @@ struct phy_func_ptr {
 	rxsigpwrfn_t rxsigpwr;
 	detachfn_t detach;
 };
-typedef struct phy_func_ptr phy_func_ptr_t;
 
 struct phy_info {
 	wlc_phy_t pubpi_ro;
@@ -948,34 +942,32 @@ struct phy_info {
 	struct wiphy *wiphy;
 };
 
-typedef s32 fixed;
-
-typedef struct _cs32 {
+struct _cs32 {
 	fixed q;
 	fixed i;
-} cs32;
+};
 
-typedef struct radio_regs {
+struct radio_regs {
 	u16 address;
 	u32 init_a;
 	u32 init_g;
 	u8 do_init_a;
 	u8 do_init_g;
-} radio_regs_t;
+};
 
-typedef struct radio_20xx_regs {
+struct radio_20xx_regs {
 	u16 address;
 	u8 init;
 	u8 do_init;
-} radio_20xx_regs_t;
+};
 
-typedef struct lcnphy_radio_regs {
+struct lcnphy_radio_regs {
 	u16 address;
 	u8 init_a;
 	u8 init_g;
 	u8 do_init_a;
 	u8 do_init_g;
-} lcnphy_radio_regs_t;
+};
 
 extern lcnphy_radio_regs_t lcnphy_radio_regs_2064[];
 extern lcnphy_radio_regs_t lcnphy_radio_regs_2066[];
@@ -1137,11 +1129,11 @@ extern s32 wlc_lcnphy_rx_signal_power(phy_info_t *pi, s32 gain_index);
 #define NPHY_MAX_HPVGA1_INDEX		10
 #define NPHY_DEF_HPVGA1_INDEXLIMIT	7
 
-typedef struct _phy_iq_est {
+struct phy_iq_est {
 	s32 iq_prod;
 	u32 i_pwr;
 	u32 q_pwr;
-} phy_iq_est_t;
+};
 
 extern void wlc_phy_stay_in_carriersearch_nphy(phy_info_t *pi, bool enable);
 extern void wlc_nphy_deaf_mode(phy_info_t *pi, bool mode);

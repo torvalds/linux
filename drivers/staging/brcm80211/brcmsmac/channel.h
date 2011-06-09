@@ -58,7 +58,7 @@ struct wlc_info;
 #define IS_SINGLEBAND_5G(device)	0
 
 /* locale channel and power info. */
-typedef struct {
+struct locale_info {
 	u32 valid_channels;
 	u8 radar_channels;	/* List of radar sensitive channels */
 	u8 restricted_channels;	/* List of channels used only if APs are detected */
@@ -67,7 +67,7 @@ typedef struct {
 						 * per sub-band
 						 */
 	u8 flags;
-} locale_info_t;
+};
 
 /* bits for locale_info flags */
 #define WLC_PEAK_CONDUCTED	0x00	/* Peak for locals */
@@ -86,11 +86,11 @@ typedef struct {
  * maxpwr arrays are index by channel for 2.4 GHz limits, and
  * by sub-band for 5 GHz limits using CHANNEL_POWER_IDX_5G(channel)
  */
-typedef struct {
+struct locale_mimo_info {
 	s8 maxpwr20[WLC_MAXPWR_MIMO_TBL_SIZE];	/* tx 20 MHz power limits, qdBm units */
 	s8 maxpwr40[WLC_MAXPWR_MIMO_TBL_SIZE];	/* tx 40 MHz power limits, qdBm units */
 	u8 flags;
-} locale_mimo_info_t;
+};
 
 extern const chanvec_t chanvec_all_2G;
 extern const chanvec_t chanvec_all_5G;
@@ -104,10 +104,6 @@ struct country_info {
 	const u8 locale_mimo_2G;	/* 2.4G mimo info */
 	const u8 locale_mimo_5G;	/* 5G mimo info */
 };
-
-typedef struct country_info country_info_t;
-
-typedef struct wlc_cm_info wlc_cm_info_t;
 
 extern wlc_cm_info_t *wlc_channel_mgr_attach(struct wlc_info *wlc);
 extern void wlc_channel_mgr_detach(wlc_cm_info_t *wlc_cm);

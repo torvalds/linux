@@ -314,14 +314,14 @@ struct wlc_stf {
 /* number of 802.11 default (non-paired, group keys) */
 #define WSEC_MAX_DEFAULT_KEYS	4	/* # of default keys */
 
-typedef struct wsec_iv {
+struct wsec_iv {
 	u32 hi;		/* upper 32 bits of IV */
 	u16 lo;		/* lower 16 bits of IV */
-} wsec_iv_t;
+};
 
 #define WLC_NUMRXIVS	16	/* # rx IVs (one per 802.11e TID) */
 
-typedef struct wsec_key {
+struct wsec_key {
 	u8 ea[ETH_ALEN];	/* per station */
 	u8 idx;		/* key index in wsec_keys array */
 	u8 id;		/* key ID [0-3] */
@@ -337,8 +337,7 @@ typedef struct wsec_key {
 	u8 data[WLAN_MAX_KEY_LEN];	/* key data */
 	wsec_iv_t rxiv[WLC_NUMRXIVS];	/* Rx IV (one per TID) */
 	wsec_iv_t txiv;		/* Tx IV */
-
-} wsec_key_t;
+};
 
 /*
  * core state (mac)
@@ -424,7 +423,6 @@ struct edcf_acparam {
 	u8 ECW;
 	u16 TXOP;
 } __attribute__((packed));
-typedef struct edcf_acparam edcf_acparam_t;
 
 struct wme_param_ie {
 	u8 oui[3];
@@ -435,7 +433,6 @@ struct wme_param_ie {
 	u8 rsvd;
 	edcf_acparam_t acparam[AC_COUNT];
 } __attribute__((packed));
-typedef struct wme_param_ie wme_param_ie_t;
 
 /* virtual interface */
 struct wlc_if {
