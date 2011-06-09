@@ -349,7 +349,7 @@ int btrfs_wait_for_commit(struct btrfs_root *root, u64 transid)
 					    list) {
 			if (t->in_commit) {
 				if (t->commit_done)
-					goto out;
+					break;
 				cur_trans = t;
 				atomic_inc(&cur_trans->use_count);
 				break;
