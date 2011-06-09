@@ -278,7 +278,7 @@ const u8 wme_fifo2ac[] = { AC_BK, AC_BE, AC_VI, AC_VO, AC_BE, AC_BE };
 /* WME/802.1E Access Category to TX FIFO number */
 static const u8 wme_ac2fifo[] = { 1, 0, 2, 3 };
 
-static bool in_send_q = false;
+static bool in_send_q;
 
 /* Shared memory location index for various AC params */
 #define wme_shmemacindex(ac)	wme_ac2fifo[ac]
@@ -2363,7 +2363,7 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 
 	/* Set default bss rateset */
 	wlc->default_bss->rateset.count = rs.count;
-	memcpy(wlc->default_bss->rateset.rates, rs.rates, 
+	memcpy(wlc->default_bss->rateset.rates, rs.rates,
 	       sizeof(wlc->default_bss->rateset.rates));
 
 	return ret;
@@ -2556,7 +2556,7 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 	}
 
 	/* default argument is generic integer */
-	pval = arg ? (int *)arg:NULL;
+	pval = arg ? (int *)arg : NULL;
 
 	/* This will prevent the misaligned access */
 	if (pval && (u32) len >= sizeof(val))
