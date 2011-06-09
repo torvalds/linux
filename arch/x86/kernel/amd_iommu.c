@@ -695,17 +695,16 @@ void iommu_flush_all_caches(struct amd_iommu *iommu)
  */
 static int device_flush_iotlb(struct device *dev, u64 address, size_t size)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct iommu_dev_data *dev_data;
 	struct amd_iommu *iommu;
 	struct iommu_cmd cmd;
-	u16 devid;
 	int qdep;
 
-	qdep  = pci_ats_queue_depth(pdev);
-	devid = get_device_id(dev);
-	iommu = amd_iommu_rlookup_table[devid];
+	dev_data = get_dev_data(dev);
+	qdep     = dev_data->ats.qdep;
+	iommu    = amd_iommu_rlookup_table[dev_data->devid];
 
-	build_inv_iotlb_pages(&cmd, devid, qdep, address, size);
+	build_inv_iotlb_pages(&cmd, dev_data->devid, qdep, address, size);
 
 	return iommu_queue_command(iommu, &cmd);
 }
@@ -728,7 +727,7 @@ static int device_flush_dte(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (pci_ats_enabled(pdev))
+	if (dev_data->ats.enabled)
 		ret = device_flush_iotlb(dev, 0, ~0UL);
 
 	return ret;
@@ -760,9 +759,8 @@ static void __domain_flush_pages(struct protection_domain *domain,
 	}
 
 	list_for_each_entry(dev_data, &domain->dev_list, list) {
-		struct pci_dev *pdev = to_pci_dev(dev_data->dev);
 
-		if (!pci_ats_enabled(pdev))
+		if (!dev_data->ats.enabled)
 			continue;
 
 		ret |= device_flush_iotlb(dev_data->dev, address, size);
@@ -1576,8 +1574,7 @@ static void do_attach(struct device *dev, struct protection_domain *domain)
 	iommu    = amd_iommu_rlookup_table[dev_data->devid];
 	pdev     = to_pci_dev(dev);
 
-	if (amd_iommu_iotlb_sup)
-		ats = pci_ats_enabled(pdev);
+	ats = dev_data->ats.enabled;
 
 	/* Update data structures */
 	dev_data->domain = domain;
@@ -1674,11 +1671,16 @@ static int attach_device(struct device *dev,
 			 struct protection_domain *domain)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct iommu_dev_data *dev_data;
 	unsigned long flags;
 	int ret;
 
-	if (amd_iommu_iotlb_sup)
-		pci_enable_ats(pdev, PAGE_SHIFT);
+	dev_data = get_dev_data(dev);
+
+	if (amd_iommu_iotlb_sup && pci_enable_ats(pdev, PAGE_SHIFT) == 0) {
+		dev_data->ats.enabled = true;
+		dev_data->ats.qdep    = pci_ats_queue_depth(pdev);
+	}
 
 	write_lock_irqsave(&amd_iommu_devtable_lock, flags);
 	ret = __attach_device(dev, domain);
@@ -1736,7 +1738,7 @@ static void __detach_device(struct device *dev)
  */
 static void detach_device(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
+	struct iommu_dev_data *dev_data;
 	unsigned long flags;
 
 	/* lock device table */
@@ -1744,8 +1746,12 @@ static void detach_device(struct device *dev)
 	__detach_device(dev);
 	write_unlock_irqrestore(&amd_iommu_devtable_lock, flags);
 
-	if (amd_iommu_iotlb_sup && pci_ats_enabled(pdev))
-		pci_disable_ats(pdev);
+	dev_data = get_dev_data(dev);
+
+	if (dev_data->ats.enabled) {
+		pci_disable_ats(to_pci_dev(dev));
+		dev_data->ats.enabled = false;
+	}
 }
 
 /*
@@ -1890,10 +1896,8 @@ static void update_device_table(struct protection_domain *domain)
 {
 	struct iommu_dev_data *dev_data;
 
-	list_for_each_entry(dev_data, &domain->dev_list, list) {
-		struct pci_dev *pdev = to_pci_dev(dev_data->dev);
-		set_dte_entry(dev_data->devid, domain, pci_ats_enabled(pdev));
-	}
+	list_for_each_entry(dev_data, &domain->dev_list, list)
+		set_dte_entry(dev_data->devid, domain, dev_data->ats.enabled);
 }
 
 static void update_domain(struct protection_domain *domain)
