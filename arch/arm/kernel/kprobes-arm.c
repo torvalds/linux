@@ -1494,6 +1494,12 @@ space_cccc_11xx(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 	return INSN_REJECTED;
 }
 
+static void __kprobes arm_singlestep(struct kprobe *p, struct pt_regs *regs)
+{
+	regs->ARM_pc += 4;
+	p->ainsn.insn_handler(p, regs);
+}
+
 /* Return:
  *   INSN_REJECTED     If instruction is one not allowed to kprobe,
  *   INSN_GOOD         If instruction is supported and uses instruction slot,
@@ -1509,6 +1515,7 @@ space_cccc_11xx(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 enum kprobe_insn __kprobes
 arm_kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 {
+	asi->insn_singlestep = arm_singlestep;
 	asi->insn_check_cc = kprobe_condition_checks[insn>>28];
 	asi->insn[1] = KPROBE_RETURN_INSTRUCTION;
 

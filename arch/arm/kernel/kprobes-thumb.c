@@ -33,9 +33,24 @@ static unsigned long __kprobes thumb_check_cc(unsigned long cpsr)
 	return true;
 }
 
+static void __kprobes thumb16_singlestep(struct kprobe *p, struct pt_regs *regs)
+{
+	regs->ARM_pc += 2;
+	p->ainsn.insn_handler(p, regs);
+	regs->ARM_cpsr = it_advance(regs->ARM_cpsr);
+}
+
+static void __kprobes thumb32_singlestep(struct kprobe *p, struct pt_regs *regs)
+{
+	regs->ARM_pc += 4;
+	p->ainsn.insn_handler(p, regs);
+	regs->ARM_cpsr = it_advance(regs->ARM_cpsr);
+}
+
 enum kprobe_insn __kprobes
 thumb16_kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 {
+	asi->insn_singlestep = thumb16_singlestep;
 	asi->insn_check_cc = thumb_check_cc;
 	return INSN_REJECTED;
 }
@@ -43,6 +58,7 @@ thumb16_kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 enum kprobe_insn __kprobes
 thumb32_kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 {
+	asi->insn_singlestep = thumb32_singlestep;
 	asi->insn_check_cc = thumb_check_cc;
 	return INSN_REJECTED;
 }
