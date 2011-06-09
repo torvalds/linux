@@ -275,6 +275,7 @@ struct tps65912_board {
 	int is_dcdc4_avs;
 	int irq;
 	int irq_base;
+	int gpio_base;
 	struct regulator_init_data *tps65912_pmic_init_data;
 };
 
