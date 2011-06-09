@@ -203,7 +203,7 @@ nouveau_volt_init(struct drm_device *dev)
 
 	entry = volt + headerlen;
 	for (i = 0; i < entries; i++, entry += recordlen) {
-		voltage->level[i].voltage = entry[0];
+		voltage->level[i].voltage = entry[0] * 10000;
 		voltage->level[i].vid     = entry[1] >> vidshift;
 	}
 	voltage->nr_level  = entries;

@@ -414,8 +414,8 @@ struct nouveau_gpio_engine {
 };
 
 struct nouveau_pm_voltage_level {
-	u8 voltage;
-	u8 vid;
+	u32 voltage; /* microvolts */
+	u8  vid;
 };
 
 struct nouveau_pm_voltage {
@@ -451,8 +451,8 @@ struct nouveau_pm_level {
 	u32 unk05;
 	u32 unk0a;
 
-	u8 voltage;
-	u8 fanspeed;
+	u32 voltage; /* microvolts */
+	u8  fanspeed;
 
 	u16 memscript;
 	struct nouveau_pm_memtiming *timing;

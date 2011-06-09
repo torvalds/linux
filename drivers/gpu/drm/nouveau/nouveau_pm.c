@@ -168,7 +168,7 @@ nouveau_pm_perflvl_info(struct nouveau_pm_level *perflvl, char *ptr, int len)
 
 	v[0] = '\0';
 	if (perflvl->voltage)
-		snprintf(v, sizeof(v), " voltage %dmV", perflvl->voltage * 10);
+		snprintf(v, sizeof(v), " voltage %dmV", perflvl->voltage / 1000);
 
 	f[0] = '\0';
 	if (perflvl->fanspeed)
