@@ -3249,18 +3249,18 @@ static void ixgbevf_shutdown(struct pci_dev *pdev)
 }
 
 static const struct net_device_ops ixgbe_netdev_ops = {
-	.ndo_open		= &ixgbevf_open,
-	.ndo_stop		= &ixgbevf_close,
-	.ndo_start_xmit		= &ixgbevf_xmit_frame,
-	.ndo_set_rx_mode	= &ixgbevf_set_rx_mode,
-	.ndo_set_multicast_list	= &ixgbevf_set_rx_mode,
+	.ndo_open		= ixgbevf_open,
+	.ndo_stop		= ixgbevf_close,
+	.ndo_start_xmit		= ixgbevf_xmit_frame,
+	.ndo_set_rx_mode	= ixgbevf_set_rx_mode,
+	.ndo_set_multicast_list	= ixgbevf_set_rx_mode,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= &ixgbevf_set_mac,
-	.ndo_change_mtu		= &ixgbevf_change_mtu,
-	.ndo_tx_timeout		= &ixgbevf_tx_timeout,
-	.ndo_vlan_rx_register	= &ixgbevf_vlan_rx_register,
-	.ndo_vlan_rx_add_vid	= &ixgbevf_vlan_rx_add_vid,
-	.ndo_vlan_rx_kill_vid	= &ixgbevf_vlan_rx_kill_vid,
+	.ndo_set_mac_address	= ixgbevf_set_mac,
+	.ndo_change_mtu		= ixgbevf_change_mtu,
+	.ndo_tx_timeout		= ixgbevf_tx_timeout,
+	.ndo_vlan_rx_register	= ixgbevf_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= ixgbevf_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= ixgbevf_vlan_rx_kill_vid,
 };
 
 static void ixgbevf_assign_netdev_ops(struct net_device *dev)
