@@ -229,7 +229,7 @@ real_irq_entry:
 #ifdef CONFIG_SMP
 	.globl	patchme_maybe_smp_msg
 
-	cmp	%l7, 12
+	cmp	%l7, 11
 patchme_maybe_smp_msg:
 	bgu	maybe_smp4m_msg
 	 nop
@@ -293,7 +293,7 @@ maybe_smp4m_msg:
 	WRITE_PAUSE
 	wr	%l4, PSR_ET, %psr
 	WRITE_PAUSE
-	sll	%o2, 28, %o2		! shift for simpler checks below
+	sll	%o3, 28, %o2		! shift for simpler checks below
 maybe_smp4m_msg_check_single:
 	andcc	%o2, 0x1, %g0
 	beq,a	maybe_smp4m_msg_check_mask
