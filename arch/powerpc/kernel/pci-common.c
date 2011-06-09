@@ -107,7 +107,7 @@ static resource_size_t pcibios_io_size(const struct pci_controller *hose)
 #ifdef CONFIG_PPC64
 	return hose->pci_io_size;
 #else
-	return hose->io_resource.end - hose->io_resource.start + 1;
+	return resource_size(&hose->io_resource);
 #endif
 }
 

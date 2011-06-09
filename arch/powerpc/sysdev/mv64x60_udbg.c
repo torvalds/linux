@@ -125,11 +125,11 @@ static void mv64x60_udbg_init(void)
 
 	of_node_put(np);
 
-	mpsc_base = ioremap(r[0].start, r[0].end - r[0].start + 1);
+	mpsc_base = ioremap(r[0].start, resource_size(&r[0]));
 	if (!mpsc_base)
 		return;
 
-	mpsc_intr_cause = ioremap(r[1].start, r[1].end - r[1].start + 1);
+	mpsc_intr_cause = ioremap(r[1].start, resource_size(&r[1]));
 	if (!mpsc_intr_cause) {
 		iounmap(mpsc_base);
 		return;

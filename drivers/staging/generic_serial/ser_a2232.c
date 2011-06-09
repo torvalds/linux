@@ -746,7 +746,8 @@ static int __init a2232board_init(void)
 		zd_a2232[nr_a2232] = z;
 
 		boardaddr = ZTWO_VADDR( z->resource.start );
-		printk("Board is located at address 0x%x, size is 0x%x.\n", boardaddr, (unsigned int) ((z->resource.end+1) - (z->resource.start)));
+		printk("Board is located at address 0x%x, size is 0x%x\n",
+		       boardaddr, (unsigned int)resource_size(&z->resource));
 
 		mem = (volatile struct a2232memory *) boardaddr;
 

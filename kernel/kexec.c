@@ -1095,7 +1095,7 @@ size_t crash_get_memory_size(void)
 	size_t size = 0;
 	mutex_lock(&kexec_mutex);
 	if (crashk_res.end != crashk_res.start)
-		size = crashk_res.end - crashk_res.start + 1;
+		size = resource_size(&crashk_res);
 	mutex_unlock(&kexec_mutex);
 	return size;
 }

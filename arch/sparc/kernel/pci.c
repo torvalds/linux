@@ -820,11 +820,9 @@ static int __pci_mmap_make_offset_bus(struct pci_dev *pdev, struct vm_area_struc
 	unsigned long space_size, user_offset, user_size;
 
 	if (mmap_state == pci_mmap_io) {
-		space_size = (pbm->io_space.end -
-			      pbm->io_space.start) + 1;
+		space_size = resource_size(&pbm->io_space);
 	} else {
-		space_size = (pbm->mem_space.end -
-			      pbm->mem_space.start) + 1;
+		space_size = resource_size(&pbm->mem_space);
 	}
 
 	/* Make sure the request is in range. */

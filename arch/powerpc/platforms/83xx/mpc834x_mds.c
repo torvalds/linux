@@ -53,7 +53,7 @@ static int mpc834xemds_usb_cfg(void)
 		struct resource res;
 
 		of_address_to_resource(np, 0, &res);
-		bcsr_regs = ioremap(res.start, res.end - res.start + 1);
+		bcsr_regs = ioremap(res.start, resource_size(&res));
 		of_node_put(np);
 	}
 	if (!bcsr_regs)

@@ -126,7 +126,7 @@ void __init reserve_crashkernel(void)
 	/* We might have got these values via the command line or the
 	 * device tree, either way sanitise them now. */
 
-	crash_size = crashk_res.end - crashk_res.start + 1;
+	crash_size = resource_size(&crashk_res);
 
 #ifndef CONFIG_RELOCATABLE
 	if (crashk_res.start != KDUMP_KERNELBASE)
@@ -222,7 +222,7 @@ static void __init export_crashk_values(struct device_node *node)
 
 	if (crashk_res.start != 0) {
 		prom_add_property(node, &crashk_base_prop);
-		crashk_size = crashk_res.end - crashk_res.start + 1;
+		crashk_size = resource_size(&crashk_res);
 		prom_add_property(node, &crashk_size_prop);
 	}
 }

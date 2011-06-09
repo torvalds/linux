@@ -678,7 +678,7 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 		kfree(ssi_private);
 		return ret;
 	}
-	ssi_private->ssi = ioremap(res.start, 1 + res.end - res.start);
+	ssi_private->ssi = ioremap(res.start, resource_size(&res));
 	ssi_private->ssi_phys = res.start;
 	ssi_private->irq = irq_of_parse_and_map(np, 0);
 

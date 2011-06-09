@@ -129,12 +129,12 @@ static void __init mv78xx0_pcie_preinit(void)
 		struct pcie_port *pp = pcie_port + i;
 
 		mv78xx0_setup_pcie_io_win(win++, pp->res[0].start,
-			pp->res[0].end - pp->res[0].start + 1,
-			pp->maj, pp->min);
+					  resource_size(&pp->res[0]),
+					  pp->maj, pp->min);
 
 		mv78xx0_setup_pcie_mem_win(win++, pp->res[1].start,
-			pp->res[1].end - pp->res[1].start + 1,
-			pp->maj, pp->min);
+					   resource_size(&pp->res[1]),
+					   pp->maj, pp->min);
 	}
 }
 

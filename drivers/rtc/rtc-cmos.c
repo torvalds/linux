@@ -606,7 +606,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	 * (needing ioremap etc), not i/o space resources like this ...
 	 */
 	ports = request_region(ports->start,
-			ports->end + 1 - ports->start,
+			resource_size(ports),
 			driver_name);
 	if (!ports) {
 		dev_dbg(dev, "i/o registers already in use\n");
@@ -750,7 +750,7 @@ cleanup1:
 	cmos_rtc.dev = NULL;
 	rtc_device_unregister(cmos_rtc.rtc);
 cleanup0:
-	release_region(ports->start, ports->end + 1 - ports->start);
+	release_region(ports->start, resource_size(ports));
 	return retval;
 }
 
@@ -779,7 +779,7 @@ static void __exit cmos_do_remove(struct device *dev)
 	cmos->rtc = NULL;
 
 	ports = cmos->iomem;
-	release_region(ports->start, ports->end + 1 - ports->start);
+	release_region(ports->start, resource_size(ports));
 	cmos->iomem = NULL;
 
 	cmos->dev = NULL;

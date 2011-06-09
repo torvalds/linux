@@ -129,7 +129,7 @@ int __init mmio_nvram_init(void)
 		goto out;
 	}
 	nvram_addr = r.start;
-	mmio_nvram_len = r.end - r.start + 1;
+	mmio_nvram_len = resource_size(&r);
 	if ( (!mmio_nvram_len) || (!nvram_addr) ) {
 		printk(KERN_WARNING "nvram: address or length is 0\n");
 		ret = -EIO;

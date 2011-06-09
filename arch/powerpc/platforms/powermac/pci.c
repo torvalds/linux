@@ -838,8 +838,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	 * into cfg_addr
 	 */
 	hose->cfg_data = ioremap(cfg_res.start, 0x02000000);
-	hose->cfg_addr = ioremap(self_res.start,
-				 self_res.end - self_res.start + 1);
+	hose->cfg_addr = ioremap(self_res.start, resource_size(&self_res));
 
 	/*
 	 * /ht node doesn't expose a "ranges" property, we read the register
@@ -1323,8 +1322,7 @@ static void fixup_u4_pcie(struct pci_dev* dev)
 		 */
 		if (r->start >= 0xf0000000 && r->start < 0xf3000000)
 			continue;
-		if (!region || (r->end - r->start) >
-		    (region->end - region->start))
+		if (!region || resource_size(r) > resource_size(region))
 			region = r;
 	}
 	/* Nothing found, bail */

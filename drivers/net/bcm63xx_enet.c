@@ -1646,7 +1646,7 @@ static int __devinit bcm_enet_probe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
-	iomem_size = res_mem->end - res_mem->start + 1;
+	iomem_size = resource_size(res_mem);
 	if (!request_mem_region(res_mem->start, iomem_size, "bcm63xx_enet")) {
 		ret = -EBUSY;
 		goto out;
@@ -1861,7 +1861,7 @@ static int __devexit bcm_enet_remove(struct platform_device *pdev)
 	/* release device resources */
 	iounmap(priv->base);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 	/* disable hw block clocks */
 	if (priv->phy_clk) {
@@ -1897,7 +1897,7 @@ static int __devinit bcm_enet_shared_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	iomem_size = res->end - res->start + 1;
+	iomem_size = resource_size(res);
 	if (!request_mem_region(res->start, iomem_size, "bcm63xx_enet_dma"))
 		return -EBUSY;
 
@@ -1915,7 +1915,7 @@ static int __devexit bcm_enet_shared_remove(struct platform_device *pdev)
 
 	iounmap(bcm_enet_shared_base);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 	return 0;
 }
 

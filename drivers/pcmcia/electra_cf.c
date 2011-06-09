@@ -209,9 +209,9 @@ static int __devinit electra_cf_probe(struct platform_device *ofdev)
 
 	cf->ofdev = ofdev;
 	cf->mem_phys = mem.start;
-	cf->mem_size = PAGE_ALIGN(mem.end - mem.start);
+	cf->mem_size = PAGE_ALIGN(resource_size(&mem));
 	cf->mem_base = ioremap(cf->mem_phys, cf->mem_size);
-	cf->io_size = PAGE_ALIGN(io.end - io.start);
+	cf->io_size = PAGE_ALIGN(resource_size(&io));
 
 	area = __get_vm_area(cf->io_size, 0, PHB_IO_BASE, PHB_IO_END);
 	if (area == NULL)

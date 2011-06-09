@@ -285,7 +285,7 @@ static int __init sbc8560_bdrstcr_init(void)
 
 	printk(KERN_INFO "sbc8560: Found BRSTCR at i/o 0x%x\n", res.start);
 
-	brstcr = ioremap(res.start, res.end - res.start);
+	brstcr = ioremap(res.start, resource_size(&res));
 	if(!brstcr)
 		printk(KERN_WARNING "sbc8560: ioremap of brstcr failed.\n");
 

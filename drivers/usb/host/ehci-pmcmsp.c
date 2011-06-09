@@ -124,7 +124,7 @@ static int usb_hcd_msp_map_regs(struct mspusb_device *dev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res == NULL)
 		return -ENOMEM;
-	res_len = res->end - res->start + 1;
+	res_len = resource_size(res);
 	if (!request_mem_region(res->start, res_len, "mab regs"))
 		return -EBUSY;
 
@@ -140,7 +140,7 @@ static int usb_hcd_msp_map_regs(struct mspusb_device *dev)
 		retval = -ENOMEM;
 		goto err2;
 	}
-	res_len = res->end - res->start + 1;
+	res_len = resource_size(res);
 	if (!request_mem_region(res->start, res_len, "usbid regs")) {
 		retval = -EBUSY;
 		goto err2;
@@ -154,13 +154,13 @@ static int usb_hcd_msp_map_regs(struct mspusb_device *dev)
 	return 0;
 err3:
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	res_len = res->end - res->start + 1;
+	res_len = resource_size(res);
 	release_mem_region(res->start, res_len);
 err2:
 	iounmap(dev->mab_regs);
 err1:
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	res_len = res->end - res->start + 1;
+	res_len = resource_size(res);
 	release_mem_region(res->start, res_len);
 	dev_err(&pdev->dev, "Failed to map non-EHCI regs.\n");
 	return retval;
@@ -194,7 +194,7 @@ int usb_hcd_msp_probe(const struct hc_driver *driver,
 		goto err1;
 	}
 	hcd->rsrc_start = res->start;
-	hcd->rsrc_len = res->end - res->start + 1;
+	hcd->rsrc_len = resource_size(res);
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, dev->name)) {
 		retval = -EBUSY;
 		goto err1;
