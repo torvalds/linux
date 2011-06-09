@@ -1739,7 +1739,7 @@ S:	Supported
 F:	drivers/net/enic/
 
 CIRRUS LOGIC EP93XX ETHERNET DRIVER
-M:	Lennert Buytenhek <kernel@wantstofly.org>
+M:	Hartley Sweeten <hsweeten@visionengravers.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/arm/ep93xx_eth.c
