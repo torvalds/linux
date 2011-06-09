@@ -693,14 +693,13 @@ void iommu_flush_all_caches(struct amd_iommu *iommu)
 /*
  * Command send function for flushing on-device TLB
  */
-static int device_flush_iotlb(struct device *dev, u64 address, size_t size)
+static int device_flush_iotlb(struct iommu_dev_data *dev_data,
+			      u64 address, size_t size)
 {
-	struct iommu_dev_data *dev_data;
 	struct amd_iommu *iommu;
 	struct iommu_cmd cmd;
 	int qdep;
 
-	dev_data = get_dev_data(dev);
 	qdep     = dev_data->ats.qdep;
 	iommu    = amd_iommu_rlookup_table[dev_data->devid];
 
@@ -712,23 +711,19 @@ static int device_flush_iotlb(struct device *dev, u64 address, size_t size)
 /*
  * Command send function for invalidating a device table entry
  */
-static int device_flush_dte(struct device *dev)
+static int device_flush_dte(struct iommu_dev_data *dev_data)
 {
-	struct iommu_dev_data *dev_data;
 	struct amd_iommu *iommu;
-	struct pci_dev *pdev;
 	int ret;
 
-	pdev     = to_pci_dev(dev);
-	dev_data = get_dev_data(dev);
-	iommu    = amd_iommu_rlookup_table[dev_data->devid];
+	iommu = amd_iommu_rlookup_table[dev_data->devid];
 
 	ret = iommu_flush_dte(iommu, dev_data->devid);
 	if (ret)
 		return ret;
 
 	if (dev_data->ats.enabled)
-		ret = device_flush_iotlb(dev, 0, ~0UL);
+		ret = device_flush_iotlb(dev_data, 0, ~0UL);
 
 	return ret;
 }
@@ -763,7 +758,7 @@ static void __domain_flush_pages(struct protection_domain *domain,
 		if (!dev_data->ats.enabled)
 			continue;
 
-		ret |= device_flush_iotlb(dev_data->dev, address, size);
+		ret |= device_flush_iotlb(dev_data, address, size);
 	}
 
 	WARN_ON(ret);
@@ -815,7 +810,7 @@ static void domain_flush_devices(struct protection_domain *domain)
 	spin_lock_irqsave(&domain->lock, flags);
 
 	list_for_each_entry(dev_data, &domain->dev_list, list)
-		device_flush_dte(dev_data->dev);
+		device_flush_dte(dev_data);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
 }
@@ -1586,7 +1581,7 @@ static void do_attach(struct device *dev, struct protection_domain *domain)
 	domain->dev_cnt                 += 1;
 
 	/* Flush the DTE entry */
-	device_flush_dte(dev);
+	device_flush_dte(dev_data);
 }
 
 static void do_detach(struct device *dev)
@@ -1607,7 +1602,7 @@ static void do_detach(struct device *dev)
 	clear_dte_entry(dev_data->devid);
 
 	/* Flush the DTE entry */
-	device_flush_dte(dev);
+	device_flush_dte(dev_data);
 }
 
 /*
