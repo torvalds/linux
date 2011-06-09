@@ -1300,6 +1300,7 @@ struct iwl_priv {
 
 	/* command queue number */
 	u8 cmd_queue;
+	u8 last_sync_cmd_id;
 
 	/* max number of station keys */
 	u8 sta_key_max_num;
