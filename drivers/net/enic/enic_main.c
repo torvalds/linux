@@ -153,12 +153,12 @@ static inline unsigned int enic_legacy_notify_intr(void)
 
 static inline unsigned int enic_msix_rq_intr(struct enic *enic, unsigned int rq)
 {
-	return rq;
+	return enic->cq[enic_cq_rq(enic, rq)].interrupt_offset;
 }
 
 static inline unsigned int enic_msix_wq_intr(struct enic *enic, unsigned int wq)
 {
-	return enic->rq_count + wq;
+	return enic->cq[enic_cq_wq(enic, wq)].interrupt_offset;
 }
 
 static inline unsigned int enic_msix_err_intr(struct enic *enic)
