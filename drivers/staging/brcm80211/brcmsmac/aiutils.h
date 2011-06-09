@@ -470,10 +470,6 @@ struct si_info {
 
 	void *pch;		/* PCI/E core handle */
 
-	gpioh_item_t *gpioh_head;	/* GPIO event handlers list */
-
-	bool memseg;		/* flag to toggle MEM_SEG register */
-
 	char *vars;
 	uint varsz;
 
