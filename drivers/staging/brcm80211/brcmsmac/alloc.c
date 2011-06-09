@@ -20,14 +20,14 @@
 #include "main.h"
 #include "alloc.h"
 
-static struct brcms_c_bsscfg *wlc_bsscfg_malloc(uint unit);
-static void wlc_bsscfg_mfree(struct brcms_c_bsscfg *cfg);
-static struct wlc_pub *wlc_pub_malloc(uint unit,
+static struct brcms_c_bsscfg *brcms_c_bsscfg_malloc(uint unit);
+static void brcms_c_bsscfg_mfree(struct brcms_c_bsscfg *cfg);
+static struct wlc_pub *brcms_c_pub_malloc(uint unit,
 				      uint *err, uint devid);
-static void wlc_pub_mfree(struct wlc_pub *pub);
-static void wlc_tunables_init(wlc_tunables_t *tunables, uint devid);
+static void brcms_c_pub_mfree(struct wlc_pub *pub);
+static void brcms_c_tunables_init(wlc_tunables_t *tunables, uint devid);
 
-static void wlc_tunables_init(wlc_tunables_t *tunables, uint devid)
+static void brcms_c_tunables_init(wlc_tunables_t *tunables, uint devid)
 {
 	tunables->ntxd = NTXD;
 	tunables->nrxd = NRXD;
@@ -45,7 +45,7 @@ static void wlc_tunables_init(wlc_tunables_t *tunables, uint devid)
 	tunables->txsbnd = TXSBND;
 }
 
-static struct wlc_pub *wlc_pub_malloc(uint unit, uint *err, uint devid)
+static struct wlc_pub *brcms_c_pub_malloc(uint unit, uint *err, uint devid)
 {
 	struct wlc_pub *pub;
 
@@ -62,7 +62,7 @@ static struct wlc_pub *wlc_pub_malloc(uint unit, uint *err, uint devid)
 	}
 
 	/* need to init the tunables now */
-	wlc_tunables_init(pub->tunables, devid);
+	brcms_c_tunables_init(pub->tunables, devid);
 
 	pub->multicast = kzalloc(ETH_ALEN * MAXMULTILIST, GFP_ATOMIC);
 	if (pub->multicast == NULL) {
@@ -73,11 +73,11 @@ static struct wlc_pub *wlc_pub_malloc(uint unit, uint *err, uint devid)
 	return pub;
 
  fail:
-	wlc_pub_mfree(pub);
+	brcms_c_pub_mfree(pub);
 	return NULL;
 }
 
-static void wlc_pub_mfree(struct wlc_pub *pub)
+static void brcms_c_pub_mfree(struct wlc_pub *pub)
 {
 	if (pub == NULL)
 		return;
@@ -87,7 +87,7 @@ static void wlc_pub_mfree(struct wlc_pub *pub)
 	kfree(pub);
 }
 
-static struct brcms_c_bsscfg *wlc_bsscfg_malloc(uint unit)
+static struct brcms_c_bsscfg *brcms_c_bsscfg_malloc(uint unit)
 {
 	struct brcms_c_bsscfg *cfg;
 
@@ -102,11 +102,11 @@ static struct brcms_c_bsscfg *wlc_bsscfg_malloc(uint unit)
 	return cfg;
 
  fail:
-	wlc_bsscfg_mfree(cfg);
+	brcms_c_bsscfg_mfree(cfg);
 	return NULL;
 }
 
-static void wlc_bsscfg_mfree(struct brcms_c_bsscfg *cfg)
+static void brcms_c_bsscfg_mfree(struct brcms_c_bsscfg *cfg)
 {
 	if (cfg == NULL)
 		return;
@@ -116,7 +116,7 @@ static void wlc_bsscfg_mfree(struct brcms_c_bsscfg *cfg)
 	kfree(cfg);
 }
 
-static void wlc_bsscfg_ID_assign(struct brcms_c_info *wlc,
+static void brcms_c_bsscfg_ID_assign(struct brcms_c_info *wlc,
 				 struct brcms_c_bsscfg *bsscfg)
 {
 	bsscfg->ID = wlc->next_bsscfg_ID;
@@ -137,7 +137,7 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 	}
 
 	/* allocate struct brcms_c_pub state structure */
-	wlc->pub = wlc_pub_malloc(unit, err, devid);
+	wlc->pub = brcms_c_pub_malloc(unit, err, devid);
 	if (wlc->pub == NULL) {
 		*err = 1003;
 		goto fail;
@@ -181,12 +181,12 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 		goto fail;
 	}
 
-	wlc->cfg = wlc_bsscfg_malloc(unit);
+	wlc->cfg = brcms_c_bsscfg_malloc(unit);
 	if (wlc->cfg == NULL) {
 		*err = 1011;
 		goto fail;
 	}
-	wlc_bsscfg_ID_assign(wlc, wlc->cfg);
+	brcms_c_bsscfg_ID_assign(wlc, wlc->cfg);
 
 	wlc->wsec_def_keys[0] =
 		kzalloc(sizeof(wsec_key_t) * WLC_DEFAULT_KEYS, GFP_ATOMIC);
@@ -255,8 +255,8 @@ void brcms_c_detach_mfree(struct brcms_c_info *wlc)
 	if (wlc == NULL)
 		return;
 
-	wlc_bsscfg_mfree(wlc->cfg);
-	wlc_pub_mfree(wlc->pub);
+	brcms_c_bsscfg_mfree(wlc->cfg);
+	brcms_c_pub_mfree(wlc->pub);
 	kfree(wlc->modulecb);
 	kfree(wlc->default_bss);
 	kfree(wlc->wsec_def_keys[0]);

@@ -653,7 +653,7 @@ extern void brcms_c_wait_for_tx_completion(struct brcms_c_info *wlc,
 
 /* helper functions */
 extern bool brcms_c_check_radio_disabled(struct brcms_c_info *wlc);
-extern bool wlc_radio_monitor_stop(struct brcms_c_info *wlc);
+extern bool brcms_c_radio_monitor_stop(struct brcms_c_info *wlc);
 
 #define	MAXBANDS		2	/* Maximum #of bands */
 /* bandstate array indices */

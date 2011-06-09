@@ -139,9 +139,9 @@ extern void brcms_b_band_stf_ss_set(struct brcms_c_hw_info *wlc_hw,
 
 extern void brcms_b_wait_for_wake(struct brcms_c_hw_info *wlc_hw);
 
-extern void wlc_ucode_wake_override_set(struct brcms_c_hw_info *wlc_hw,
+extern void brcms_c_ucode_wake_override_set(struct brcms_c_hw_info *wlc_hw,
 					u32 override_bit);
-extern void wlc_ucode_wake_override_clear(struct brcms_c_hw_info *wlc_hw,
+extern void brcms_c_ucode_wake_override_clear(struct brcms_c_hw_info *wlc_hw,
 					  u32 override_bit);
 
 extern void brcms_b_set_addrmatch(struct brcms_c_hw_info *wlc_hw,

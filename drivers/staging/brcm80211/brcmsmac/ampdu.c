@@ -505,7 +505,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 
 		if (err) {
 			if (err == -EBUSY) {
-				wiphy_err(wiphy, "wl%d: wlc_sendampdu: "
+				wiphy_err(wiphy, "wl%d: sendampdu: "
 					  "prep_xdu retry; seq 0x%x\n",
 					  wlc->pub->unit, seq);
 				*pdu = p;
@@ -513,7 +513,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 			}
 
 			/* error in the packet; reject it */
-			wiphy_err(wiphy, "wl%d: wlc_sendampdu: prep_xdu "
+			wiphy_err(wiphy, "wl%d: sendampdu: prep_xdu "
 				  "rejected; seq 0x%x\n", wlc->pub->unit, seq);
 			*pdu = NULL;
 			break;

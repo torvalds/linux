@@ -801,7 +801,7 @@ static struct brcms_info *brcms_attach(u16 vendor, u16 device,
 			     wl->regsva, wl->bcm_bustype, btparam, &err);
 	brcms_release_fw(wl);
 	if (!wl->wlc) {
-		wiphy_err(wl->wiphy, "%s: wlc_attach() failed with code %d\n",
+		wiphy_err(wl->wiphy, "%s: attach() failed with code %d\n",
 			  KBUILD_MODNAME, err);
 		goto fail;
 	}
@@ -1241,7 +1241,7 @@ static void brcms_remove(struct pci_dev *pdev)
 	status = brcms_c_chipmatch(pdev->vendor, pdev->device);
 	UNLOCK(wl);
 	if (!status) {
-		wiphy_err(wl->wiphy, "wl: brcms_remove: wlc_chipmatch "
+		wiphy_err(wl->wiphy, "wl: brcms_remove: chipmatch "
 				     "failed\n");
 		return;
 	}

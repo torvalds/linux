@@ -177,13 +177,14 @@ void wlapi_bmac_core_phypll_reset(wlc_phy_shim_info_t *physhim)
 
 void wlapi_bmac_ucode_wake_override_phyreg_set(wlc_phy_shim_info_t *physhim)
 {
-	wlc_ucode_wake_override_set(physhim->wlc_hw, WLC_WAKE_OVERRIDE_PHYREG);
+	brcms_c_ucode_wake_override_set(physhim->wlc_hw,
+					WLC_WAKE_OVERRIDE_PHYREG);
 }
 
 void wlapi_bmac_ucode_wake_override_phyreg_clear(wlc_phy_shim_info_t *physhim)
 {
-	wlc_ucode_wake_override_clear(physhim->wlc_hw,
-				      WLC_WAKE_OVERRIDE_PHYREG);
+	brcms_c_ucode_wake_override_clear(physhim->wlc_hw,
+					  WLC_WAKE_OVERRIDE_PHYREG);
 }
 
 void
