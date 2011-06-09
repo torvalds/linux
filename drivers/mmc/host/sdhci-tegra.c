@@ -116,6 +116,9 @@ static int __devinit tegra_sdhci_probe(struct platform_device *pdev)
 	if (plat->force_hs != 0)
 		sdhci->quirks |= SDHCI_QUIRK_FORCE_HIGH_SPEED_MODE;
 
+	if (plat->rt_disable != 0)
+		sdhci->quirks |= SDHCI_QUIRK_RUNTIME_DISABLE;
+
 	rc = sdhci_add_host(sdhci);
 	if (rc)
 		goto err_clk_disable;
