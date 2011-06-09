@@ -4193,9 +4193,10 @@ F:	drivers/usb/image/microtek.*
 
 MIPS
 M:	Ralf Baechle <ralf@linux-mips.org>
-W:	http://www.linux-mips.org/
 L:	linux-mips@linux-mips.org
+W:	http://www.linux-mips.org/
 T:	git git://git.linux-mips.org/pub/scm/linux.git
+Q:	http://patchwork.linux-mips.org/project/linux-mips/list/
 S:	Supported
 F:	Documentation/mips/
 F:	arch/mips/
