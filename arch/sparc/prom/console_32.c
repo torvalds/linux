@@ -38,7 +38,7 @@ static int prom_nbputchar(const char *buf)
 		break;
 	default:
 		break;
-	};
+	}
 	restore_current();
 	spin_unlock_irqrestore(&prom_lock, flags);
 	return i; /* Ugh, we could spin forever on unsupported proms ;( */

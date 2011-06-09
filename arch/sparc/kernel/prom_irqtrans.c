@@ -694,7 +694,7 @@ static unsigned int sbus_of_build_irq(struct device_node *dp,
 		case 3:
 			iclr = reg_base + SYSIO_ICLR_SLOT3;
 			break;
-		};
+		}
 
 		iclr += ((unsigned long)sbus_level - 1UL) * 8UL;
 	}
