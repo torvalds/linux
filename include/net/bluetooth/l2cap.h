@@ -399,6 +399,7 @@ struct l2cap_conn {
 	__u8		prsp[7]; /* SMP Pairing Response */
 	__u8		prnd[16]; /* SMP Pairing Random */
 	__u8		pcnf[16]; /* SMP Pairing Confirm */
+	__u8		tk[16]; /* SMP Temporary Key */
 
 	struct list_head chan_l;
 	rwlock_t	chan_lock;

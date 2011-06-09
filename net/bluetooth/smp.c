@@ -198,6 +198,9 @@ static void smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	rp->resp_key_dist = 0x00;
 	rp->auth_req &= (SMP_AUTH_BONDING | SMP_AUTH_MITM);
 
+	/* Just works */
+	memset(conn->tk, 0, sizeof(conn->tk));
+
 	conn->prsp[0] = SMP_CMD_PAIRING_RSP;
 	memcpy(&conn->prsp[1], rp, sizeof(*rp));
 
@@ -208,14 +211,29 @@ static void smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_pairing *rp = (void *) skb->data;
 	struct smp_cmd_pairing_confirm cp;
+	struct crypto_blkcipher *tfm = conn->hcon->hdev->tfm;
+	int ret;
+	u8 res[16];
 
 	BT_DBG("conn %p", conn);
 
-	memset(&cp, 0, sizeof(cp));
+	/* Just works */
+	memset(conn->tk, 0, sizeof(conn->tk));
 
 	conn->prsp[0] = SMP_CMD_PAIRING_RSP;
 	memcpy(&conn->prsp[1], rp, sizeof(*rp));
 	skb_pull(skb, sizeof(*rp));
+
+	ret = smp_rand(conn->prnd);
+	if (ret)
+		return;
+
+	ret = smp_c1(tfm, conn->tk, conn->prnd, conn->preq, conn->prsp, 0,
+			conn->src, conn->hcon->dst_type, conn->dst, res);
+	if (ret)
+		return;
+
+	swap128(res, cp.confirm_val);
 
 	smp_send_cmd(conn, SMP_CMD_PAIRING_CONFIRM, sizeof(cp), &cp);
 }
@@ -223,39 +241,90 @@ static void smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 static void smp_cmd_pairing_confirm(struct l2cap_conn *conn,
 							struct sk_buff *skb)
 {
+	struct crypto_blkcipher *tfm = conn->hcon->hdev->tfm;
+
 	BT_DBG("conn %p %s", conn, conn->hcon->out ? "master" : "slave");
 
+	memcpy(conn->pcnf, skb->data, sizeof(conn->pcnf));
+	skb_pull(skb, sizeof(conn->pcnf));
+
 	if (conn->hcon->out) {
-		struct smp_cmd_pairing_random random;
+		u8 random[16];
 
-		memset(&random, 0, sizeof(random));
-
+		swap128(conn->prnd, random);
 		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(random),
-								&random);
+								random);
 	} else {
-		struct smp_cmd_pairing_confirm confirm;
+		struct smp_cmd_pairing_confirm cp;
+		int ret;
+		u8 res[16];
 
-		memset(&confirm, 0, sizeof(confirm));
+		ret = smp_rand(conn->prnd);
+		if (ret)
+			return;
 
-		smp_send_cmd(conn, SMP_CMD_PAIRING_CONFIRM, sizeof(confirm),
-								&confirm);
+		ret = smp_c1(tfm, conn->tk, conn->prnd, conn->preq, conn->prsp,
+						conn->hcon->dst_type, conn->dst,
+						0, conn->src, res);
+		if (ret)
+			return;
+
+		swap128(res, cp.confirm_val);
+
+		smp_send_cmd(conn, SMP_CMD_PAIRING_CONFIRM, sizeof(cp), &cp);
 	}
 }
 
 static void smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 {
-	struct smp_cmd_pairing_random cp;
+	struct crypto_blkcipher *tfm = conn->hcon->hdev->tfm;
+	int ret;
+	u8 key[16], res[16], random[16], confirm[16], buf[128];
+
+	swap128(skb->data, random);
+	skb_pull(skb, sizeof(random));
+
+	if (conn->hcon->out)
+		ret = smp_c1(tfm, conn->tk, random, conn->preq, conn->prsp, 0,
+				conn->src, conn->hcon->dst_type, conn->dst,
+				res);
+	else
+		ret = smp_c1(tfm, conn->tk, random, conn->preq, conn->prsp,
+				conn->hcon->dst_type, conn->dst, 0, conn->src,
+				res);
+	if (ret)
+		return;
 
 	BT_DBG("conn %p %s", conn, conn->hcon->out ? "master" : "slave");
 
-	skb_pull(skb, sizeof(cp));
+	swap128(res, confirm);
+
+	if (memcmp(conn->pcnf, confirm, sizeof(conn->pcnf)) != 0) {
+		struct smp_cmd_pairing_fail cp;
+
+		BT_ERR("Pairing failed (confirmation values mismatch)");
+		cp.reason = SMP_CONFIRM_FAILED;
+		smp_send_cmd(conn, SMP_CMD_PAIRING_FAIL, sizeof(cp), &cp);
+		return;
+	}
 
 	if (conn->hcon->out) {
-		/* FIXME: start encryption */
-	} else {
-		memset(&cp, 0, sizeof(cp));
+		smp_s1(tfm, conn->tk, random, conn->prnd, key);
 
-		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(cp), &cp);
+		hex_dump_to_buffer(key, sizeof(key), 16, 1, buf,
+							sizeof(buf), 0);
+		BT_DBG("key %s", buf);
+	} else {
+		u8 r[16];
+
+		swap128(conn->prnd, r);
+		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(r), r);
+
+		smp_s1(tfm, conn->tk, conn->prnd, random, key);
+
+		hex_dump_to_buffer(key, sizeof(key), 16, 1, buf,
+							sizeof(buf), 0);
+		BT_DBG("key %s", buf);
 	}
 }
 
