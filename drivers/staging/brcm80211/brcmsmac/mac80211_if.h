@@ -85,7 +85,7 @@ struct brcms_info {
 /* misc callbacks */
 struct brcms_info;
 struct brcms_if;
-struct wlc_if;
+struct brcms_c_if;
 extern void brcms_init(struct brcms_info *wl);
 extern uint brcms_reset(struct brcms_info *wl);
 extern void brcms_intrson(struct brcms_info *wl);

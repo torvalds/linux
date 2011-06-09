@@ -27,7 +27,7 @@
 #define	WL_HWRXOFF		38	/* chip rx buffer offset */
 #define	INVCHANNEL		255	/* invalid channel */
 #define	MAXCOREREV		28	/* max # supported core revisions (0 .. MAXCOREREV - 1) */
-#define WLC_MAXMODULES		22	/* max #  wlc_module_register() calls */
+#define WLC_MAXMODULES		22  /* max # brcms_c_module_register() calls */
 
 #define SEQNUM_SHIFT		4
 #define AMPDU_DELIMITER_LEN	4
@@ -74,7 +74,7 @@
 		 ((unsigned)(bits) << field ## _S))
 
 /* For managing scan result lists */
-struct wlc_bss_list {
+struct brcms_c_bss_list {
 	uint count;
 	bool beacon;		/* set for beacon, cleared for probe response */
 	wlc_bss_info_t *ptrs[MAXBSS];
@@ -135,7 +135,7 @@ struct wlc_bss_list {
 	(((cfg)->WPA_auth != WPA_AUTH_DISABLED && WSEC_ENABLED((cfg)->wsec)) ? \
 	(cfg)->wsec_portopen : true)
 
-#define PS_ALLOWED(wlc)	wlc_ps_allowed(wlc)
+#define PS_ALLOWED(wlc)	brcms_c_ps_allowed(wlc)
 
 #define DATA_BLOCK_TX_SUPR	(1 << 4)
 
@@ -236,7 +236,7 @@ extern const u8 prio2fifo[];
 
 #define WLCWLUNIT(wlc)		((wlc)->pub->unit)
 
-struct wlc_protection {
+struct brcms_c_protection {
 	bool _g;		/* use g spec protection, driver internal */
 	s8 g_override;	/* override for use of g spec protection */
 	u8 gmode_user;	/* user config gmode, operating band->gmode is different */
@@ -251,7 +251,7 @@ struct wlc_protection {
 };
 
 /* anything affects the single/dual streams/antenna operation */
-struct wlc_stf {
+struct brcms_c_stf {
 	u8 hw_txchain;	/* HW txchain bitmap cfg */
 	u8 txchain;		/* txchain bitmap being used */
 	u8 txstreams;	/* number of txchains being used */
@@ -295,7 +295,7 @@ struct wlc_stf {
 /* wlc_bss_info flag bit values */
 #define WLC_BSS_HT		0x0020	/* BSS is HT (MIMO) capable */
 
-/* Flags used in wlc_txq_info.stopped */
+/* Flags used in brcms_c_txq_info.stopped */
 #define TXQ_STOP_FOR_PRIOFC_MASK	0x000000FF	/* per prio flow control bits */
 #define TXQ_STOP_FOR_PKT_DRAIN		0x00000100	/* stop txq enqueue for packet drain */
 #define TXQ_STOP_FOR_AMPDU_FLOW_CNTRL	0x00000200	/* stop txq enqueue for ampdu flow control */
@@ -348,7 +348,7 @@ struct wsec_key {
 /*
  * core state (mac)
  */
-struct wlccore {
+struct brcms_c_core {
 	uint coreidx;		/* # sb enumerated core */
 
 	/* fifo */
@@ -361,7 +361,7 @@ struct wlccore {
 /*
  * band state (phy+ana+radio)
  */
-struct wlcband {
+struct brcms_c_band {
 	int bandtype;		/* WLC_BAND_2G, WLC_BAND_5G */
 	uint bandunit;		/* bandstate[] index */
 
@@ -393,7 +393,7 @@ struct wlcband {
 };
 
 /* tx completion callback takes 3 args */
-typedef void (*pkcb_fn_t) (struct wlc_info *wlc, uint txstatus, void *arg);
+typedef void (*pkcb_fn_t) (struct brcms_c_info *wlc, uint txstatus, void *arg);
 
 struct pkt_cb {
 	pkcb_fn_t fn;		/* function to call when tx frame completes */
@@ -441,8 +441,8 @@ struct wme_param_ie {
 } __attribute__((packed));
 
 /* virtual interface */
-struct wlc_if {
-	struct wlc_if *next;
+struct brcms_c_if {
+	struct brcms_c_if *next;
 	u8 type;		/* WLC_IFTYPE_BSS or WLC_IFTYPE_WDS */
 	u8 index;		/* assigned in wl_add_if(), index of the wlif if any,
 				 * not necessarily corresponding to bsscfg._idx or
@@ -450,17 +450,19 @@ struct wlc_if {
 				 */
 	u8 flags;		/* flags for the interface */
 	struct brcms_if *wlif;		/* pointer to wlif */
-	struct wlc_txq_info *qi;	/* pointer to associated tx queue */
+	struct brcms_c_txq_info *qi;	/* pointer to associated tx queue */
 	union {
-		struct scb *scb;	/* pointer to scb if WLC_IFTYPE_WDS */
-		struct wlc_bsscfg *bsscfg;	/* pointer to bsscfg if WLC_IFTYPE_BSS */
+		/* pointer to scb if WLC_IFTYPE_WDS */
+		struct scb *scb;
+		/* pointer to bsscfg if WLC_IFTYPE_BSS */
+		struct brcms_c_bsscfg *bsscfg;
 	} u;
 };
 
 /* flags for the interface, this interface is linked to a brcms_if */
 #define WLC_IF_LINKED		0x02
 
-struct wlc_hwband {
+struct brcms_c_hwband {
 	int bandtype;		/* WLC_BAND_2G, WLC_BAND_5G */
 	uint bandunit;		/* bandstate[] index */
 	u16 mhfs[MHFMAX];	/* MHF array shadow */
@@ -477,9 +479,9 @@ struct wlc_hwband {
 	bool abgphy_encore;
 };
 
-struct wlc_hw_info {
+struct brcms_c_hw_info {
 	bool _piomode;		/* true if pio mode */
-	struct wlc_info *wlc;
+	struct brcms_c_info *wlc;
 
 	/* fifo */
 	struct dma_pub *di[NFIFO];	/* dma handles, per fifo */
@@ -504,8 +506,9 @@ struct wlc_hw_info {
 	d11regs_t *regs;	/* pointer to device registers */
 	void *physhim;		/* phy shim layer handler */
 	void *phy_sh;		/* pointer to shared phy state */
-	struct wlc_hwband *band;/* pointer to active per-band state */
-	struct wlc_hwband *bandstate[MAXBANDS];/* band state per phy/radio */
+	struct brcms_c_hwband *band;/* pointer to active per-band state */
+	/* band state per phy/radio */
+	struct brcms_c_hwband *bandstate[MAXBANDS];
 	u16 bmac_phytxant;	/* cache of high phytxant state */
 	bool shortslot;		/* currently using 11g ShortSlot timing */
 	u16 SRL;		/* 802.11 dot11ShortRetryLimit */
@@ -558,8 +561,8 @@ struct wlc_hw_info {
  * if they belong to the same flow of traffic from the device. For multi-channel
  * operation there are independent TX Queues for each channel.
  */
-struct wlc_txq_info {
-	struct wlc_txq_info *next;
+struct brcms_c_txq_info {
+	struct brcms_c_txq_info *next;
 	struct pktq q;
 	uint stopped;		/* tx flow control bits */
 };
@@ -567,12 +570,13 @@ struct wlc_txq_info {
 /*
  * Principal common (os-independent) software data structure.
  */
-struct wlc_info {
+struct brcms_c_info {
 	struct wlc_pub *pub;		/* pointer to wlc public state */
 	struct brcms_info *wl;	/* pointer to os-specific private state */
 	d11regs_t *regs;	/* pointer to device registers */
 
-	struct wlc_hw_info *hw;	/* HW related state used primarily by BMAC */
+	/* HW related state used primarily by BMAC */
+	struct brcms_c_hw_info *hw;
 
 	/* clock */
 	int clkreq_override;	/* setting for clkreq for PCIE : Auto, 0, 1 */
@@ -589,11 +593,11 @@ struct wlc_info {
 	bool clk;		/* core is out of reset and has clock */
 
 	/* multiband */
-	struct wlccore *core;	/* pointer to active io core */
-	struct wlcband *band;	/* pointer to active per-band state */
-	struct wlccore *corestate;	/* per-core state (one per hw core) */
+	struct brcms_c_core *core;	/* pointer to active io core */
+	struct brcms_c_band *band;	/* pointer to active per-band state */
+	struct brcms_c_core *corestate;	/* per-core state (one per hw core) */
 	/* per-band state (one per phy/radio): */
-	struct wlcband *bandstate[MAXBANDS];
+	struct brcms_c_band *bandstate[MAXBANDS];
 
 	bool war16165;		/* PCI slow clock 16165 war flag */
 
@@ -633,7 +637,7 @@ struct wlc_info {
 	u8 mpc_dlycnt;	/* # of watchdog cnt before turn disable radio */
 	u8 mpc_offcnt;	/* # of watchdog cnt that radio is disabled */
 	u8 mpc_delay_off;	/* delay radio disable by # of watchdog cnt */
-	u8 prev_non_delay_mpc;	/* prev state wlc_is_non_delay_mpc */
+	u8 prev_non_delay_mpc;	/* prev state brcms_c_is_non_delay_mpc */
 
 	/* timer for watchdog routine */
 	struct brcms_timer *wdtimer;
@@ -674,11 +678,11 @@ struct wlc_info {
 	 * BSS Configurations set of BSS configurations, idx 0 is default and
 	 * always valid
 	 */
-	struct wlc_bsscfg *bsscfg[WLC_MAXBSSCFG];
-	struct wlc_bsscfg *cfg;	/* the primary bsscfg (can be AP or STA) */
+	struct brcms_c_bsscfg *bsscfg[WLC_MAXBSSCFG];
+	struct brcms_c_bsscfg *cfg; /* the primary bsscfg (can be AP or STA) */
 
 	/* tx queue */
-	struct wlc_txq_info *tx_queues;	/* common TX Queue list */
+	struct brcms_c_txq_info *tx_queues;	/* common TX Queue list */
 
 	/* security */
 	wsec_key_t *wsec_keys[WSEC_MAX_KEYS];	/* dynamic key storage */
@@ -730,10 +734,10 @@ struct wlc_info {
 	s8 shortslot_override;	/* 11g ShortSlot override */
 	bool include_legacy_erp;	/* include Legacy ERP info elt ID 47 as well as g ID 42 */
 
-	struct wlc_protection *protection;
+	struct brcms_c_protection *protection;
 	s8 PLCPHdr_override;	/* 802.11b Preamble Type override */
 
-	struct wlc_stf *stf;
+	struct brcms_c_stf *stf;
 
 	ratespec_t bcn_rspec;	/* save bcn ratespec purpose */
 
@@ -744,7 +748,7 @@ struct wlc_info {
 
 	u16 next_bsscfg_ID;
 
-	struct wlc_txq_info *pkt_queue; /* txq for transmit packets */
+	struct brcms_c_txq_info *pkt_queue; /* txq for transmit packets */
 	u32 mpc_dur;		/* total time (ms) in mpc mode except for the
 				 * portion since radio is turned off last time
 				 */
@@ -756,7 +760,7 @@ struct wlc_info {
 
 /* antsel module specific state */
 struct antsel_info {
-	struct wlc_info *wlc;	/* pointer to main wlc structure */
+	struct brcms_c_info *wlc;	/* pointer to main wlc structure */
 	struct wlc_pub *pub;		/* pointer to public fn */
 	u8 antsel_type;	/* Type of boardlevel mimo antenna switch-logic
 				 * 0 = N/A, 1 = 2x4 board, 2 = 2x3 CB2 board
@@ -768,8 +772,8 @@ struct antsel_info {
 };
 
 /* BSS configuration state */
-struct wlc_bsscfg {
-	struct wlc_info *wlc;	/* wlc to which this bsscfg belongs to. */
+struct brcms_c_bsscfg {
+	struct brcms_c_info *wlc; /* wlc to which this bsscfg belongs to. */
 	bool up;		/* is this configuration up operational */
 	bool enable;		/* is this configuration enabled */
 	bool associated;	/* is BSS in ASSOCIATED state */
@@ -867,140 +871,142 @@ struct wlc_bsscfg {
 #define WLC_IS_MATCH_SSID(wlc, ssid1, ssid2, len1, len2) \
 	((len1 == len2) && !memcmp(ssid1, ssid2, len1))
 
-extern void wlc_fatal_error(struct wlc_info *wlc);
-extern void wlc_bmac_rpc_watchdog(struct wlc_info *wlc);
-extern void wlc_recv(struct wlc_info *wlc, struct sk_buff *p);
-extern bool wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2);
-extern void wlc_txfifo(struct wlc_info *wlc, uint fifo, struct sk_buff *p,
-		       bool commit, s8 txpktpend);
-extern void wlc_txfifo_complete(struct wlc_info *wlc, uint fifo, s8 txpktpend);
-extern void wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
-			uint prec);
-extern void wlc_info_init(struct wlc_info *wlc, int unit);
-extern void wlc_print_txstatus(tx_status_t *txs);
-extern int wlc_xmtfifo_sz_get(struct wlc_info *wlc, uint fifo, uint *blocks);
-extern void wlc_write_template_ram(struct wlc_info *wlc, int offset, int len,
-				   void *buf);
-extern void wlc_write_hw_bcntemplates(struct wlc_info *wlc, void *bcn, int len,
-				      bool both);
-extern void wlc_pllreq(struct wlc_info *wlc, bool set, mbool req_bit);
-extern void wlc_reset_bmac_done(struct wlc_info *wlc);
+extern void brcms_c_fatal_error(struct brcms_c_info *wlc);
+extern void brcms_b_rpc_watchdog(struct brcms_c_info *wlc);
+extern void brcms_c_recv(struct brcms_c_info *wlc, struct sk_buff *p);
+extern bool brcms_c_dotxstatus(struct brcms_c_info *wlc, tx_status_t *txs,
+			       u32 frm_tx2);
+extern void brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo,
+			   struct sk_buff *p,
+			   bool commit, s8 txpktpend);
+extern void brcms_c_txfifo_complete(struct brcms_c_info *wlc, uint fifo,
+				    s8 txpktpend);
+extern void brcms_c_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
+			    uint prec);
+extern void brcms_c_info_init(struct brcms_c_info *wlc, int unit);
+extern void brcms_c_print_txstatus(tx_status_t *txs);
+extern int brcms_c_xmtfifo_sz_get(struct brcms_c_info *wlc, uint fifo,
+				  uint *blocks);
+extern void brcms_c_write_template_ram(struct brcms_c_info *wlc, int offset,
+				       int len, void *buf);
+extern void brcms_c_write_hw_bcntemplates(struct brcms_c_info *wlc, void *bcn,
+					  int len, bool both);
+extern void brcms_c_pllreq(struct brcms_c_info *wlc, bool set, mbool req_bit);
+extern void brcms_c_reset_bmac_done(struct brcms_c_info *wlc);
 
 #if defined(BCMDBG)
-extern void wlc_print_rxh(d11rxhdr_t *rxh);
-extern void wlc_print_hdrs(struct wlc_info *wlc, const char *prefix, u8 *frame,
-			   d11txh_t *txh, d11rxhdr_t *rxh, uint len);
-extern void wlc_print_txdesc(d11txh_t *txh);
+extern void brcms_c_print_rxh(d11rxhdr_t *rxh);
+extern void brcms_c_print_txdesc(d11txh_t *txh);
 #else
-#define wlc_print_txdesc(a)
-#endif
-#if defined(BCMDBG)
-extern void wlc_print_dot11_mac_hdr(u8 *buf, int len);
+#define brcms_c_print_txdesc(a)
 #endif
 
-extern void wlc_setxband(struct wlc_hw_info *wlc_hw, uint bandunit);
-extern void wlc_coredisable(struct wlc_hw_info *wlc_hw);
+extern void brcms_c_setxband(struct brcms_c_hw_info *wlc_hw, uint bandunit);
+extern void brcms_c_coredisable(struct brcms_c_hw_info *wlc_hw);
 
-extern bool wlc_valid_rate(struct wlc_info *wlc, ratespec_t rate, int band,
-			   bool verbose);
-extern void wlc_ap_upd(struct wlc_info *wlc);
+extern bool brcms_c_valid_rate(struct brcms_c_info *wlc, ratespec_t rate,
+			       int band, bool verbose);
+extern void brcms_c_ap_upd(struct brcms_c_info *wlc);
 
 /* helper functions */
-extern void wlc_shm_ssid_upd(struct wlc_info *wlc, struct wlc_bsscfg *cfg);
-extern int wlc_set_gmode(struct wlc_info *wlc, u8 gmode, bool config);
+extern void brcms_c_shm_ssid_upd(struct brcms_c_info *wlc,
+				 struct brcms_c_bsscfg *cfg);
+extern int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config);
 
-extern void wlc_mac_bcn_promisc_change(struct wlc_info *wlc, bool promisc);
-extern void wlc_mac_bcn_promisc(struct wlc_info *wlc);
-extern void wlc_mac_promisc(struct wlc_info *wlc);
-extern void wlc_txflowcontrol(struct wlc_info *wlc, struct wlc_txq_info *qi,
-			      bool on, int prio);
-extern void wlc_txflowcontrol_override(struct wlc_info *wlc,
-				       struct wlc_txq_info *qi,
+extern void brcms_c_mac_bcn_promisc_change(struct brcms_c_info *wlc,
+					   bool promisc);
+extern void brcms_c_mac_bcn_promisc(struct brcms_c_info *wlc);
+extern void brcms_c_mac_promisc(struct brcms_c_info *wlc);
+extern void brcms_c_txflowcontrol(struct brcms_c_info *wlc,
+				  struct brcms_c_txq_info *qi,
+				  bool on, int prio);
+extern void brcms_c_txflowcontrol_override(struct brcms_c_info *wlc,
+				       struct brcms_c_txq_info *qi,
 				       bool on, uint override);
-extern bool wlc_txflowcontrol_prio_isset(struct wlc_info *wlc,
-					 struct wlc_txq_info *qi, int prio);
-extern void wlc_send_q(struct wlc_info *wlc);
-extern int wlc_prep_pdu(struct wlc_info *wlc, struct sk_buff *pdu, uint *fifo);
+extern bool brcms_c_txflowcontrol_prio_isset(struct brcms_c_info *wlc,
+					     struct brcms_c_txq_info *qi,
+					     int prio);
+extern void brcms_c_send_q(struct brcms_c_info *wlc);
+extern int brcms_c_prep_pdu(struct brcms_c_info *wlc, struct sk_buff *pdu,
+			    uint *fifo);
 
-extern u16 wlc_calc_lsig_len(struct wlc_info *wlc, ratespec_t ratespec,
+extern u16 brcms_c_calc_lsig_len(struct brcms_c_info *wlc, ratespec_t ratespec,
 				uint mac_len);
-extern ratespec_t wlc_rspec_to_rts_rspec(struct wlc_info *wlc, ratespec_t rspec,
-					 bool use_rspec, u16 mimo_ctlchbw);
-extern u16 wlc_compute_rtscts_dur(struct wlc_info *wlc, bool cts_only,
-				     ratespec_t rts_rate, ratespec_t frame_rate,
-				     u8 rts_preamble_type,
-				     u8 frame_preamble_type, uint frame_len,
-				     bool ba);
+extern ratespec_t brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc,
+					     ratespec_t rspec,
+					     bool use_rspec, u16 mimo_ctlchbw);
+extern u16 brcms_c_compute_rtscts_dur(struct brcms_c_info *wlc, bool cts_only,
+				      ratespec_t rts_rate,
+				      ratespec_t frame_rate,
+				      u8 rts_preamble_type,
+				      u8 frame_preamble_type, uint frame_len,
+				      bool ba);
 
-extern void wlc_tbtt(struct wlc_info *wlc);
-extern void wlc_inval_dma_pkts(struct wlc_hw_info *hw,
+extern void brcms_c_tbtt(struct brcms_c_info *wlc);
+extern void brcms_c_inval_dma_pkts(struct brcms_c_hw_info *hw,
 			       struct ieee80211_sta *sta,
 			       void (*dma_callback_fn));
 
-#if defined(BCMDBG)
-extern void wlc_dump_ie(struct wlc_info *wlc, struct brcmu_tlv *ie,
-			struct brcmu_strbuf *b);
-#endif
-
-extern void wlc_reprate_init(struct wlc_info *wlc);
-extern void wlc_bsscfg_reprate_init(struct wlc_bsscfg *bsscfg);
+extern void brcms_c_reprate_init(struct brcms_c_info *wlc);
+extern void brcms_c_bsscfg_reprate_init(struct brcms_c_bsscfg *bsscfg);
 
 /* Shared memory access */
-extern void wlc_write_shm(struct wlc_info *wlc, uint offset, u16 v);
-extern u16 wlc_read_shm(struct wlc_info *wlc, uint offset);
-extern void wlc_copyto_shm(struct wlc_info *wlc, uint offset, const void *buf,
-			   int len);
+extern void brcms_c_write_shm(struct brcms_c_info *wlc, uint offset, u16 v);
+extern u16 brcms_c_read_shm(struct brcms_c_info *wlc, uint offset);
+extern void brcms_c_copyto_shm(struct brcms_c_info *wlc, uint offset,
+			       const void *buf, int len);
 
-extern void wlc_update_beacon(struct wlc_info *wlc);
-extern void wlc_bss_update_beacon(struct wlc_info *wlc,
-				  struct wlc_bsscfg *bsscfg);
+extern void brcms_c_update_beacon(struct brcms_c_info *wlc);
+extern void brcms_c_bss_update_beacon(struct brcms_c_info *wlc,
+				  struct brcms_c_bsscfg *bsscfg);
 
-extern void wlc_update_probe_resp(struct wlc_info *wlc, bool suspend);
-extern void wlc_bss_update_probe_resp(struct wlc_info *wlc,
-				      struct wlc_bsscfg *cfg, bool suspend);
-
-extern bool wlc_ismpc(struct wlc_info *wlc);
-extern bool wlc_is_non_delay_mpc(struct wlc_info *wlc);
-extern void wlc_radio_mpc_upd(struct wlc_info *wlc);
-extern bool wlc_prec_enq(struct wlc_info *wlc, struct pktq *q, void *pkt,
-			 int prec);
-extern bool wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q,
+extern void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend);
+extern void brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,
+					  struct brcms_c_bsscfg *cfg,
+					  bool suspend);
+extern bool brcms_c_ismpc(struct brcms_c_info *wlc);
+extern bool brcms_c_is_non_delay_mpc(struct brcms_c_info *wlc);
+extern void brcms_c_radio_mpc_upd(struct brcms_c_info *wlc);
+extern bool brcms_c_prec_enq(struct brcms_c_info *wlc, struct pktq *q,
+			     void *pkt, int prec);
+extern bool brcms_c_prec_enq_head(struct brcms_c_info *wlc, struct pktq *q,
 			      struct sk_buff *pkt, int prec, bool head);
-extern u16 wlc_phytxctl1_calc(struct wlc_info *wlc, ratespec_t rspec);
-extern void wlc_compute_plcp(struct wlc_info *wlc, ratespec_t rate, uint length,
-			     u8 *plcp);
-extern uint wlc_calc_frame_time(struct wlc_info *wlc, ratespec_t ratespec,
-				u8 preamble_type, uint mac_len);
+extern u16 brcms_c_phytxctl1_calc(struct brcms_c_info *wlc, ratespec_t rspec);
+extern void brcms_c_compute_plcp(struct brcms_c_info *wlc, ratespec_t rate,
+				 uint length, u8 *plcp);
+extern uint brcms_c_calc_frame_time(struct brcms_c_info *wlc,
+				    ratespec_t ratespec,
+				    u8 preamble_type, uint mac_len);
 
-extern void wlc_set_chanspec(struct wlc_info *wlc, chanspec_t chanspec);
+extern void brcms_c_set_chanspec(struct brcms_c_info *wlc,
+				 chanspec_t chanspec);
 
-extern bool wlc_timers_init(struct wlc_info *wlc, int unit);
+extern bool brcms_c_timers_init(struct brcms_c_info *wlc, int unit);
 
-#if defined(BCMDBG)
-extern void wlc_print_ies(struct wlc_info *wlc, u8 *ies, uint ies_len);
-#endif
-
-extern int wlc_set_nmode(struct wlc_info *wlc, s32 nmode);
-extern void wlc_mimops_action_ht_send(struct wlc_info *wlc,
-				      struct wlc_bsscfg *bsscfg,
+extern int brcms_c_set_nmode(struct brcms_c_info *wlc, s32 nmode);
+extern void brcms_c_mimops_action_ht_send(struct brcms_c_info *wlc,
+				      struct brcms_c_bsscfg *bsscfg,
 				      u8 mimops_mode);
 
-extern void wlc_switch_shortslot(struct wlc_info *wlc, bool shortslot);
-extern void wlc_set_bssid(struct wlc_bsscfg *cfg);
-extern void wlc_edcf_setparams(struct wlc_info *wlc, bool suspend);
+extern void brcms_c_switch_shortslot(struct brcms_c_info *wlc, bool shortslot);
+extern void brcms_c_set_bssid(struct brcms_c_bsscfg *cfg);
+extern void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend);
 
-extern void wlc_set_ratetable(struct wlc_info *wlc);
-extern int wlc_set_mac(struct wlc_bsscfg *cfg);
-extern void wlc_beacon_phytxctl_txant_upd(struct wlc_info *wlc,
+extern void brcms_c_set_ratetable(struct brcms_c_info *wlc);
+extern int brcms_c_set_mac(struct brcms_c_bsscfg *cfg);
+extern void brcms_c_beacon_phytxctl_txant_upd(struct brcms_c_info *wlc,
 					  ratespec_t bcn_rate);
-extern void wlc_mod_prb_rsp_rate_table(struct wlc_info *wlc, uint frame_len);
-extern ratespec_t wlc_lowest_basic_rspec(struct wlc_info *wlc,
-					 wlc_rateset_t *rs);
-extern void wlc_radio_disable(struct wlc_info *wlc);
-extern void wlc_bcn_li_upd(struct wlc_info *wlc);
-extern void wlc_set_home_chanspec(struct wlc_info *wlc, chanspec_t chanspec);
-extern bool wlc_ps_allowed(struct wlc_info *wlc);
-extern bool wlc_stay_awake(struct wlc_info *wlc);
-extern void wlc_wme_initparams_sta(struct wlc_info *wlc, wme_param_ie_t *pe);
+extern void brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc,
+					   uint frame_len);
+extern ratespec_t brcms_c_lowest_basic_rspec(struct brcms_c_info *wlc,
+					     wlc_rateset_t *rs);
+extern void brcms_c_radio_disable(struct brcms_c_info *wlc);
+extern void brcms_c_bcn_li_upd(struct brcms_c_info *wlc);
+extern void brcms_c_set_home_chanspec(struct brcms_c_info *wlc,
+				      chanspec_t chanspec);
+extern bool brcms_c_ps_allowed(struct brcms_c_info *wlc);
+extern bool brcms_c_stay_awake(struct brcms_c_info *wlc);
+extern void brcms_c_wme_initparams_sta(struct brcms_c_info *wlc,
+				       wme_param_ie_t *pe);
 
 #endif				/* _BRCM_MAIN_H_ */

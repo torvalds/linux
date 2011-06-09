@@ -206,7 +206,7 @@
  * Defaults for tunables (e.g. sizing constants)
  *
  * For each new tunable, add a member to the end
- * of wlc_tunables_t in wlc_pub.h to enable
+ * of wlc_tunables_t in brcms_c_pub.h to enable
  * runtime checks of tunable values. (Directly
  * using the macros in code invalidates ROM code)
  *
@@ -235,7 +235,7 @@
 #define WLC_AMPDUDATAHIWAT 255
 
 /* bounded rx loops */
-#define RXBND		8	/* max # frames to process in wlc_recv() */
+#define RXBND		8	/* max # frames to process in brcms_c_recv() */
 #define TXSBND		8	/* max # tx status to process in wlc_txstatus() */
 
 #define WLBANDINITFN(_fn)	_fn
@@ -355,22 +355,22 @@ typedef u32 mbool;
 /* forward declarations */
 struct sk_buff;
 struct brcms_info;
-struct wlc_info;
-struct wlc_hw_info;
-struct wlc_if;
+struct brcms_c_info;
+struct brcms_c_hw_info;
+struct brcms_c_if;
 struct brcms_if;
 struct ampdu_info;
 struct antsel_info;
 struct bmac_pmq;
 struct d11init;
 struct dma_pub;
-struct wlc_bsscfg;
+struct brcms_c_bsscfg;
 struct brcmu_strbuf;
 struct si_pub;
 struct wiphy;
 struct brcmu_iovar;
-struct wlc_txq_info;
-struct wlcband;
+struct brcms_c_txq_info;
+struct brcms_c_band;
 
 typedef struct gpioh_item gpioh_item_t;
 typedef struct si_info si_info_t;

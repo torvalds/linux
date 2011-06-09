@@ -81,7 +81,7 @@ const u8 mimo_2x3_div_antselid_tbl[16] = {
 	0, 0, 0, 0, 0, 0, 0, 0	/* pat to antselid */
 };
 
-struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc)
+struct antsel_info *wlc_antsel_attach(struct brcms_c_info *wlc)
 {
 	struct antsel_info *asi;
 
@@ -282,7 +282,7 @@ static u16 wlc_antsel_antcfg2antsel(struct antsel_info *asi, u8 ant_cfg)
 /* boardlevel antenna selection: ucode interface control */
 static int wlc_antsel_cfgupd(struct antsel_info *asi, wlc_antselcfg_t *antsel)
 {
-	struct wlc_info *wlc = asi->wlc;
+	struct brcms_c_info *wlc = asi->wlc;
 	u8 ant_cfg;
 	u16 mimo_antsel;
 
@@ -291,7 +291,7 @@ static int wlc_antsel_cfgupd(struct antsel_info *asi, wlc_antselcfg_t *antsel)
 	 */
 	ant_cfg = antsel->ant_config[ANT_SELCFG_TX_DEF];
 	mimo_antsel = wlc_antsel_antcfg2antsel(asi, ant_cfg);
-	wlc_write_shm(wlc, M_MIMO_ANTSEL_TXDFLT, mimo_antsel);
+	brcms_c_write_shm(wlc, M_MIMO_ANTSEL_TXDFLT, mimo_antsel);
 	/* Update driver stats for currently selected default tx/rx antenna config */
 	asi->antcfg_cur.ant_config[ANT_SELCFG_TX_DEF] = ant_cfg;
 
@@ -300,7 +300,7 @@ static int wlc_antsel_cfgupd(struct antsel_info *asi, wlc_antselcfg_t *antsel)
 	 */
 	ant_cfg = antsel->ant_config[ANT_SELCFG_RX_DEF];
 	mimo_antsel = wlc_antsel_antcfg2antsel(asi, ant_cfg);
-	wlc_write_shm(wlc, M_MIMO_ANTSEL_RXDFLT, mimo_antsel);
+	brcms_c_write_shm(wlc, M_MIMO_ANTSEL_RXDFLT, mimo_antsel);
 	/* Update driver stats for currently selected default tx/rx antenna config */
 	asi->antcfg_cur.ant_config[ANT_SELCFG_RX_DEF] = ant_cfg;
 

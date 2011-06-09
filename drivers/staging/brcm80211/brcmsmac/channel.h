@@ -20,7 +20,7 @@
 #define WLC_TXPWR_DB_FACTOR 4	/* conversion for phy txpwr cacluations that use .25 dB units */
 
 
-struct wlc_info;
+struct brcms_c_info;
 
 /* maxpwr mapping to 5GHz band channels:
  * maxpwr[0] - channels [34-48]
@@ -105,7 +105,7 @@ struct country_info {
 	const u8 locale_mimo_5G;	/* 5G mimo info */
 };
 
-extern wlc_cm_info_t *wlc_channel_mgr_attach(struct wlc_info *wlc);
+extern wlc_cm_info_t *wlc_channel_mgr_attach(struct brcms_c_info *wlc);
 extern void wlc_channel_mgr_detach(wlc_cm_info_t *wlc_cm);
 
 extern u8 wlc_channel_locale_flags_in_band(wlc_cm_info_t *wlc_cm,

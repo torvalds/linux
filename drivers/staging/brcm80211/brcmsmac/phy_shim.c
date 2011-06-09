@@ -30,12 +30,12 @@
 
 /* PHY SHIM module specific state */
 struct wlc_phy_shim_info {
-	struct wlc_hw_info *wlc_hw;	/* pointer to main wlc_hw structure */
+	struct brcms_c_hw_info *wlc_hw;	/* pointer to main wlc_hw structure */
 	void *wlc;		/* pointer to main wlc structure */
 	void *wl;		/* pointer to os-specific private state */
 };
 
-wlc_phy_shim_info_t *wlc_phy_shim_attach(struct wlc_hw_info *wlc_hw,
+wlc_phy_shim_info_t *wlc_phy_shim_attach(struct brcms_c_hw_info *wlc_hw,
 						       void *wl, void *wlc) {
 	wlc_phy_shim_info_t *physhim = NULL;
 
@@ -122,7 +122,7 @@ void wlapi_bmac_corereset(wlc_phy_shim_info_t *physhim, u32 flags)
 
 void wlapi_suspend_mac_and_wait(wlc_phy_shim_info_t *physhim)
 {
-	wlc_suspend_mac_and_wait(physhim->wlc);
+	brcms_c_suspend_mac_and_wait(physhim->wlc);
 }
 
 void wlapi_switch_macfreq(wlc_phy_shim_info_t *physhim, u8 spurmode)
@@ -132,7 +132,7 @@ void wlapi_switch_macfreq(wlc_phy_shim_info_t *physhim, u8 spurmode)
 
 void wlapi_enable_mac(wlc_phy_shim_info_t *physhim)
 {
-	wlc_enable_mac(physhim->wlc);
+	brcms_c_enable_mac(physhim->wlc);
 }
 
 void wlapi_bmac_mctrl(wlc_phy_shim_info_t *physhim, u32 mask, u32 val)

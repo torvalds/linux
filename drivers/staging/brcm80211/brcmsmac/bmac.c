@@ -71,82 +71,86 @@ static u16 xmtfifo_sz[][NFIFO] = {
 	{9, 58, 22, 14, 14, 5},	/* corerev 24: 2304, 14848, 5632, 3584, 3584, 1280 */
 };
 
-static void brcms_b_clkctl_clk(struct wlc_hw_info *wlc, uint mode);
-static void brcms_b_coreinit(struct wlc_info *wlc);
+static void brcms_b_clkctl_clk(struct brcms_c_hw_info *wlc, uint mode);
+static void brcms_b_coreinit(struct brcms_c_info *wlc);
 
 /* used by wlc_wakeucode_init() */
-static void wlc_write_inits(struct wlc_hw_info *wlc_hw,
+static void wlc_write_inits(struct brcms_c_hw_info *wlc_hw,
 			    const struct d11init *inits);
-static void wlc_ucode_write(struct wlc_hw_info *wlc_hw, const u32 ucode[],
+static void wlc_ucode_write(struct brcms_c_hw_info *wlc_hw, const u32 ucode[],
 			    const uint nbytes);
-static void wlc_ucode_download(struct wlc_hw_info *wlc);
-static void wlc_ucode_txant_set(struct wlc_hw_info *wlc_hw);
+static void wlc_ucode_download(struct brcms_c_hw_info *wlc);
+static void wlc_ucode_txant_set(struct brcms_c_hw_info *wlc_hw);
 
-/* used by wlc_dpc() */
-static bool brcms_b_dotxstatus(struct wlc_hw_info *wlc, tx_status_t *txs,
+/* used by brcms_c_dpc() */
+static bool brcms_b_dotxstatus(struct brcms_c_hw_info *wlc, tx_status_t *txs,
 				u32 s2);
-static bool brcms_b_txstatus(struct wlc_hw_info *wlc, bool bound, bool *fatal);
-static bool brcms_b_recv(struct wlc_hw_info *wlc_hw, uint fifo, bool bound);
+static bool brcms_b_txstatus(struct brcms_c_hw_info *wlc, bool bound,
+			     bool *fatal);
+static bool brcms_b_recv(struct brcms_c_hw_info *wlc_hw, uint fifo, bool bound);
 
-/* used by wlc_down() */
-static void wlc_flushqueues(struct wlc_info *wlc);
+/* used by brcms_c_down() */
+static void wlc_flushqueues(struct brcms_c_info *wlc);
 
-static void wlc_write_mhf(struct wlc_hw_info *wlc_hw, u16 *mhfs);
-static void wlc_mctrl_reset(struct wlc_hw_info *wlc_hw);
-static void brcms_b_corerev_fifofixup(struct wlc_hw_info *wlc_hw);
-static bool brcms_b_tx_fifo_suspended(struct wlc_hw_info *wlc_hw,
+static void wlc_write_mhf(struct brcms_c_hw_info *wlc_hw, u16 *mhfs);
+static void wlc_mctrl_reset(struct brcms_c_hw_info *wlc_hw);
+static void brcms_b_corerev_fifofixup(struct brcms_c_hw_info *wlc_hw);
+static bool brcms_b_tx_fifo_suspended(struct brcms_c_hw_info *wlc_hw,
 				       uint tx_fifo);
-static void brcms_b_tx_fifo_suspend(struct wlc_hw_info *wlc_hw, uint tx_fifo);
-static void brcms_b_tx_fifo_resume(struct wlc_hw_info *wlc_hw, uint tx_fifo);
+static void brcms_b_tx_fifo_suspend(struct brcms_c_hw_info *wlc_hw,
+				    uint tx_fifo);
+static void brcms_b_tx_fifo_resume(struct brcms_c_hw_info *wlc_hw,
+				   uint tx_fifo);
 
 /* Low Level Prototypes */
-static int brcms_b_bandtype(struct wlc_hw_info *wlc_hw);
-static void brcms_b_info_init(struct wlc_hw_info *wlc_hw);
-static void brcms_b_xtal(struct wlc_hw_info *wlc_hw, bool want);
-static u16 brcms_b_read_objmem(struct wlc_hw_info *wlc_hw, uint offset,
+static int brcms_b_bandtype(struct brcms_c_hw_info *wlc_hw);
+static void brcms_b_info_init(struct brcms_c_hw_info *wlc_hw);
+static void brcms_b_xtal(struct brcms_c_hw_info *wlc_hw, bool want);
+static u16 brcms_b_read_objmem(struct brcms_c_hw_info *wlc_hw, uint offset,
 				   u32 sel);
-static void brcms_b_write_objmem(struct wlc_hw_info *wlc_hw, uint offset,
+static void brcms_b_write_objmem(struct brcms_c_hw_info *wlc_hw, uint offset,
 				  u16 v, u32 sel);
-static void brcms_b_core_phy_clk(struct wlc_hw_info *wlc_hw, bool clk);
-static bool brcms_b_attach_dmapio(struct wlc_info *wlc, uint j, bool wme);
-static void brcms_b_detach_dmapio(struct wlc_hw_info *wlc_hw);
-static void wlc_ucode_bsinit(struct wlc_hw_info *wlc_hw);
-static bool wlc_validboardtype(struct wlc_hw_info *wlc);
-static bool wlc_isgoodchip(struct wlc_hw_info *wlc_hw);
-static bool brcms_b_validate_chip_access(struct wlc_hw_info *wlc_hw);
-static char *wlc_get_macaddr(struct wlc_hw_info *wlc_hw);
-static void wlc_mhfdef(struct wlc_info *wlc, u16 *mhfs, u16 mhf2_init);
-static void wlc_mctrl_write(struct wlc_hw_info *wlc_hw);
-static void brcms_b_mute(struct wlc_hw_info *wlc_hw, bool want, mbool flags);
-static void wlc_ucode_mute_override_set(struct wlc_hw_info *wlc_hw);
-static void wlc_ucode_mute_override_clear(struct wlc_hw_info *wlc_hw);
-static u32 wlc_wlintrsoff(struct wlc_info *wlc);
-static void wlc_wlintrsrestore(struct wlc_info *wlc, u32 macintmask);
-static void wlc_gpio_init(struct wlc_info *wlc);
-static void wlc_write_hw_bcntemplate0(struct wlc_hw_info *wlc_hw, void *bcn,
+static void brcms_b_core_phy_clk(struct brcms_c_hw_info *wlc_hw, bool clk);
+static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme);
+static void brcms_b_detach_dmapio(struct brcms_c_hw_info *wlc_hw);
+static void wlc_ucode_bsinit(struct brcms_c_hw_info *wlc_hw);
+static bool wlc_validboardtype(struct brcms_c_hw_info *wlc);
+static bool wlc_isgoodchip(struct brcms_c_hw_info *wlc_hw);
+static bool brcms_b_validate_chip_access(struct brcms_c_hw_info *wlc_hw);
+static char *wlc_get_macaddr(struct brcms_c_hw_info *wlc_hw);
+static void wlc_mhfdef(struct brcms_c_info *wlc, u16 *mhfs, u16 mhf2_init);
+static void wlc_mctrl_write(struct brcms_c_hw_info *wlc_hw);
+static void brcms_b_mute(struct brcms_c_hw_info *wlc_hw, bool want,
+			 mbool flags);
+static void wlc_ucode_mute_override_set(struct brcms_c_hw_info *wlc_hw);
+static void wlc_ucode_mute_override_clear(struct brcms_c_hw_info *wlc_hw);
+static u32 wlc_wlintrsoff(struct brcms_c_info *wlc);
+static void wlc_wlintrsrestore(struct brcms_c_info *wlc, u32 macintmask);
+static void wlc_gpio_init(struct brcms_c_info *wlc);
+static void wlc_write_hw_bcntemplate0(struct brcms_c_hw_info *wlc_hw, void *bcn,
 				      int len);
-static void wlc_write_hw_bcntemplate1(struct wlc_hw_info *wlc_hw, void *bcn,
+static void wlc_write_hw_bcntemplate1(struct brcms_c_hw_info *wlc_hw, void *bcn,
 				      int len);
-static void brcms_b_bsinit(struct wlc_info *wlc, chanspec_t chanspec);
-static u32 wlc_setband_inact(struct wlc_info *wlc, uint bandunit);
-static void brcms_b_setband(struct wlc_hw_info *wlc_hw, uint bandunit,
+static void brcms_b_bsinit(struct brcms_c_info *wlc, chanspec_t chanspec);
+static u32 wlc_setband_inact(struct brcms_c_info *wlc, uint bandunit);
+static void brcms_b_setband(struct brcms_c_hw_info *wlc_hw, uint bandunit,
 			     chanspec_t chanspec);
-static void brcms_b_update_slot_timing(struct wlc_hw_info *wlc_hw,
+static void brcms_b_update_slot_timing(struct brcms_c_hw_info *wlc_hw,
 					bool shortslot);
-static void wlc_upd_ofdm_pctl1_table(struct wlc_hw_info *wlc_hw);
-static u16 brcms_b_ofdm_ratetable_offset(struct wlc_hw_info *wlc_hw,
+static void wlc_upd_ofdm_pctl1_table(struct brcms_c_hw_info *wlc_hw);
+static u16 brcms_b_ofdm_ratetable_offset(struct brcms_c_hw_info *wlc_hw,
 					     u8 rate);
 
 /* === Low Level functions === */
 
-void brcms_b_set_shortslot(struct wlc_hw_info *wlc_hw, bool shortslot)
+void brcms_b_set_shortslot(struct brcms_c_hw_info *wlc_hw, bool shortslot)
 {
 	wlc_hw->shortslot = shortslot;
 
 	if (BAND_2G(brcms_b_bandtype(wlc_hw)) && wlc_hw->up) {
-		wlc_suspend_mac_and_wait(wlc_hw->wlc);
+		brcms_c_suspend_mac_and_wait(wlc_hw->wlc);
 		brcms_b_update_slot_timing(wlc_hw, shortslot);
-		wlc_enable_mac(wlc_hw->wlc);
+		brcms_c_enable_mac(wlc_hw->wlc);
 	}
 }
 
@@ -155,7 +159,7 @@ void brcms_b_set_shortslot(struct wlc_hw_info *wlc_hw, bool shortslot)
  * or shortslot 11g (9us slots)
  * The PSM needs to be suspended for this call.
  */
-static void brcms_b_update_slot_timing(struct wlc_hw_info *wlc_hw,
+static void brcms_b_update_slot_timing(struct brcms_c_hw_info *wlc_hw,
 					bool shortslot)
 {
 	d11regs_t *regs;
@@ -173,7 +177,7 @@ static void brcms_b_update_slot_timing(struct wlc_hw_info *wlc_hw,
 	}
 }
 
-static void WLBANDINITFN(wlc_ucode_bsinit) (struct wlc_hw_info *wlc_hw)
+static void WLBANDINITFN(wlc_ucode_bsinit) (struct brcms_c_hw_info *wlc_hw)
 {
 	struct wiphy *wiphy = wlc_hw->wlc->wiphy;
 
@@ -205,9 +209,10 @@ static void WLBANDINITFN(wlc_ucode_bsinit) (struct wlc_hw_info *wlc_hw)
 }
 
 /* switch to new band but leave it inactive */
-static u32 WLBANDINITFN(wlc_setband_inact) (struct wlc_info *wlc, uint bandunit)
+static u32 WLBANDINITFN(wlc_setband_inact) (struct brcms_c_info *wlc,
+					    uint bandunit)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	u32 macintmask;
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc_hw->unit);
@@ -222,7 +227,7 @@ static u32 WLBANDINITFN(wlc_setband_inact) (struct wlc_info *wlc, uint bandunit)
 
 	brcms_b_core_phy_clk(wlc_hw, OFF);
 
-	wlc_setxband(wlc_hw, bandunit);
+	brcms_c_setxband(wlc_hw, bandunit);
 
 	return macintmask;
 }
@@ -233,7 +238,7 @@ static u32 WLBANDINITFN(wlc_setband_inact) (struct wlc_info *wlc, uint bandunit)
  * Param 'bound' indicates max. # frames to process before break out.
  */
 static bool
-brcms_b_recv(struct wlc_hw_info *wlc_hw, uint fifo, bool bound)
+brcms_b_recv(struct brcms_c_hw_info *wlc_hw, uint fifo, bool bound)
 {
 	struct sk_buff *p;
 	struct sk_buff *head = NULL;
@@ -271,7 +276,7 @@ brcms_b_recv(struct wlc_hw_info *wlc_hw, uint fifo, bool bound)
 		/* compute the RSSI from d11rxhdr and record it in wlc_rxd11hr */
 		wlc_phy_rssi_compute(wlc_hw->band->pi, wlc_rxhdr);
 
-		wlc_recv(wlc_hw->wlc, p);
+		brcms_c_recv(wlc_hw->wlc, p);
 	}
 
 	return n >= bound_limit;
@@ -281,10 +286,10 @@ brcms_b_recv(struct wlc_hw_info *wlc_hw, uint fifo, bool bound)
  *   Return true if another dpc needs to be re-scheduled. false otherwise.
  *   Param 'bounded' indicates if applicable loops should be bounded.
  */
-bool wlc_dpc(struct wlc_info *wlc, bool bounded)
+bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 {
 	u32 macintstatus;
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	d11regs_t *regs = wlc_hw->regs;
 	bool fatal = false;
 	struct wiphy *wiphy = wlc->wiphy;
@@ -309,7 +314,7 @@ bool wlc_dpc(struct wlc_info *wlc, bool bounded)
 	/* ZZZ: Use AP_ACTIVE ? */
 	if (AP_ENAB(wlc->pub) && (!APSTA_ENAB(wlc->pub))
 	    && (macintstatus & MI_BCNTPL)) {
-		wlc_update_beacon(wlc);
+		brcms_c_update_beacon(wlc);
 	}
 
 	/* PMQ entry addition */
@@ -327,7 +332,7 @@ bool wlc_dpc(struct wlc_info *wlc, bool bounded)
 	}
 
 	if (macintstatus & (MI_TBTT | MI_DTIM_TBTT))
-		wlc_tbtt(wlc);
+		brcms_c_tbtt(wlc);
 
 	/* ATIM window end */
 	if (macintstatus & MI_ATIMWINEND) {
@@ -374,7 +379,7 @@ bool wlc_dpc(struct wlc_info *wlc, bool bounded)
 
 	/* send any enq'd tx packets. Just makes sure to jump start tx */
 	if (!pktq_empty(&wlc->pkt_queue->q))
-		wlc_send_q(wlc);
+		brcms_c_send_q(wlc);
 
 	/* it isn't done and needs to be resched if macintstatus is non-zero */
 	return wlc->macintstatus != 0;
@@ -387,8 +392,8 @@ bool wlc_dpc(struct wlc_info *wlc, bool bounded)
 /* common low-level watchdog code */
 void brcms_b_watchdog(void *arg)
 {
-	struct wlc_info *wlc = (struct wlc_info *) arg;
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_info *wlc = (struct brcms_c_info *) arg;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
@@ -408,7 +413,7 @@ void brcms_b_watchdog(void *arg)
 }
 
 void
-brcms_b_set_chanspec(struct wlc_hw_info *wlc_hw, chanspec_t chanspec,
+brcms_b_set_chanspec(struct brcms_c_hw_info *wlc_hw, chanspec_t chanspec,
 		      bool mute, struct txpwr_limits *txpwr)
 {
 	uint bandunit;
@@ -430,7 +435,7 @@ brcms_b_set_chanspec(struct wlc_hw_info *wlc_hw, chanspec_t chanspec,
 							   pi, chanspec);
 				brcms_b_setband(wlc_hw, bandunit, chanspec);
 			} else {
-				wlc_setxband(wlc_hw, bandunit);
+				brcms_c_setxband(wlc_hw, bandunit);
 			}
 		}
 	}
@@ -451,20 +456,20 @@ brcms_b_set_chanspec(struct wlc_hw_info *wlc_hw, chanspec_t chanspec,
 	}
 }
 
-int brcms_b_state_get(struct wlc_hw_info *wlc_hw, brcms_b_state_t *state)
+int brcms_b_state_get(struct brcms_c_hw_info *wlc_hw, brcms_b_state_t *state)
 {
 	state->machwcap = wlc_hw->machwcap;
 
 	return 0;
 }
 
-static bool brcms_b_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
+static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 {
 	uint i;
 	char name[8];
 	/* ucode host flag 2 needed for pio mode, independent of band and fifo */
 	u16 pio_mhf2 = 0;
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	uint unit = wlc_hw->unit;
 	wlc_tunables_t *tune = wlc->pub->tunables;
 	struct wiphy *wiphy = wlc->wiphy;
@@ -555,7 +560,7 @@ static bool brcms_b_attach_dmapio(struct wlc_info *wlc, uint j, bool wme)
 	return true;
 }
 
-static void brcms_b_detach_dmapio(struct wlc_hw_info *wlc_hw)
+static void brcms_b_detach_dmapio(struct brcms_c_hw_info *wlc_hw)
 {
 	uint j;
 
@@ -573,10 +578,10 @@ static void brcms_b_detach_dmapio(struct wlc_hw_info *wlc_hw)
  *    initialize software state for each core and band
  *    put the whole chip in reset(driver down state), no clock
  */
-int brcms_b_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
+int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 		    bool piomode, void *regsva, uint bustype, void *btparam)
 {
-	struct wlc_hw_info *wlc_hw;
+	struct brcms_c_hw_info *wlc_hw;
 	d11regs_t *regs;
 	char *macaddr = NULL;
 	char *vars;
@@ -597,7 +602,7 @@ int brcms_b_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	wlc_hw->band = wlc_hw->bandstate[0];
 	wlc_hw->_piomode = piomode;
 
-	/* populate struct wlc_hw_info with default values  */
+	/* populate struct brcms_c_hw_info with default values  */
 	brcms_b_info_init(wlc_hw);
 
 	/*
@@ -643,7 +648,7 @@ int brcms_b_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 		}
 
 		/* verify again the device is supported */
-		if (!wlc_chipmatch(vendor, device)) {
+		if (!brcms_c_chipmatch(vendor, device)) {
 			wiphy_err(wiphy, "wl%d: brcms_b_attach: Unsupported "
 				"vendor/device (0x%x/0x%x)\n",
 				 unit, vendor, device);
@@ -722,8 +727,8 @@ int brcms_b_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	if ((wlc_hw->sih->chip == BCM43225_CHIP_ID))
 		wlc_hw->_nbands = 1;
 
-	/* BMAC_NOTE: remove init of pub values when wlc_attach() unconditionally does the
-	 * init of these values
+	/* BMAC_NOTE: remove init of pub values when brcms_c_attach()
+	 * unconditionally does the init of these values
 	 */
 	wlc->vendorid = wlc_hw->vendorid;
 	wlc->deviceid = wlc_hw->deviceid;
@@ -782,7 +787,7 @@ int brcms_b_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 		if (IS_SINGLEBAND_5G(wlc_hw->deviceid))
 			j = BAND_5G_INDEX;
 
-		wlc_setxband(wlc_hw, j);
+		brcms_c_setxband(wlc_hw, j);
 
 		wlc_hw->band->bandunit = j;
 		wlc_hw->band->bandtype = j ? WLC_BAND_5G : WLC_BAND_2G;
@@ -864,7 +869,7 @@ int brcms_b_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 	}
 
 	/* disable core to match driver "down" state */
-	wlc_coredisable(wlc_hw);
+	brcms_c_coredisable(wlc_hw);
 
 	/* Match driver "down" state */
 	if (wlc_hw->sih->bustype == PCI_BUS)
@@ -918,13 +923,13 @@ int brcms_b_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 }
 
 /*
- * Initialize wlc_info default values ...
+ * Initialize brcms_c_info default values ...
  * may get overrides later in this function
  *  BMAC_NOTES, move low out and resolve the dangling ones
  */
-static void brcms_b_info_init(struct wlc_hw_info *wlc_hw)
+static void brcms_b_info_init(struct brcms_c_hw_info *wlc_hw)
 {
-	struct wlc_info *wlc = wlc_hw->wlc;
+	struct brcms_c_info *wlc = wlc_hw->wlc;
 
 	/* set default sw macintmask value */
 	wlc->defmacintmask = DEF_MACINTMASK;
@@ -944,11 +949,11 @@ static void brcms_b_info_init(struct wlc_hw_info *wlc_hw)
 /*
  * low level detach
  */
-int brcms_b_detach(struct wlc_info *wlc)
+int brcms_b_detach(struct brcms_c_info *wlc)
 {
 	uint i;
-	struct wlc_hwband *band;
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hwband *band;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	int callbacks;
 
 	callbacks = 0;
@@ -993,7 +998,7 @@ int brcms_b_detach(struct wlc_info *wlc)
 
 }
 
-void brcms_b_reset(struct wlc_hw_info *wlc_hw)
+void brcms_b_reset(struct brcms_c_hw_info *wlc_hw)
 {
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
@@ -1004,15 +1009,15 @@ void brcms_b_reset(struct wlc_hw_info *wlc_hw)
 	/* purge the dma rings */
 	wlc_flushqueues(wlc_hw->wlc);
 
-	wlc_reset_bmac_done(wlc_hw->wlc);
+	brcms_c_reset_bmac_done(wlc_hw->wlc);
 }
 
 void
-brcms_b_init(struct wlc_hw_info *wlc_hw, chanspec_t chanspec,
+brcms_b_init(struct brcms_c_hw_info *wlc_hw, chanspec_t chanspec,
 			  bool mute) {
 	u32 macintmask;
 	bool fastclk;
-	struct wlc_info *wlc = wlc_hw->wlc;
+	struct brcms_c_info *wlc = wlc_hw->wlc;
 
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
@@ -1025,7 +1030,7 @@ brcms_b_init(struct wlc_hw_info *wlc_hw, chanspec_t chanspec,
 	macintmask = brcms_intrsoff(wlc->wl);
 
 	/* set up the specified band and chanspec */
-	wlc_setxband(wlc_hw, CHSPEC_WLCBANDUNIT(chanspec));
+	brcms_c_setxband(wlc_hw, CHSPEC_WLCBANDUNIT(chanspec));
 	wlc_phy_chanspec_radio_set(wlc_hw->band->pi, chanspec);
 
 	/* do one-time phy inits and calibration */
@@ -1045,7 +1050,7 @@ brcms_b_init(struct wlc_hw_info *wlc_hw, chanspec_t chanspec,
 	brcms_intrsrestore(wlc->wl, macintmask);
 
 	/* seed wake_override with WLC_WAKE_OVERRIDE_MACSUSPEND since the mac is suspended
-	 * and wlc_enable_mac() will clear this override bit.
+	 * and brcms_c_enable_mac() will clear this override bit.
 	 */
 	mboolset(wlc_hw->wake_override, WLC_WAKE_OVERRIDE_MACSUSPEND);
 
@@ -1059,7 +1064,7 @@ brcms_b_init(struct wlc_hw_info *wlc_hw, chanspec_t chanspec,
 		brcms_b_clkctl_clk(wlc_hw, CLK_DYNAMIC);
 }
 
-int brcms_b_up_prep(struct wlc_hw_info *wlc_hw)
+int brcms_b_up_prep(struct brcms_c_hw_info *wlc_hw)
 {
 	uint coremask;
 
@@ -1067,14 +1072,14 @@ int brcms_b_up_prep(struct wlc_hw_info *wlc_hw)
 
 	/*
 	 * Enable pll and xtal, initialize the power control registers,
-	 * and force fastclock for the remainder of wlc_up().
+	 * and force fastclock for the remainder of brcms_c_up().
 	 */
 	brcms_b_xtal(wlc_hw, ON);
 	ai_clkctl_init(wlc_hw->sih);
 	brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
 
 	/*
-	 * Configure pci/pcmcia here instead of in wlc_attach()
+	 * Configure pci/pcmcia here instead of in brcms_c_attach()
 	 * to allow mfg hotswap:  down, hotswap (chip power cycle), up.
 	 */
 	coremask = (1 << wlc_hw->wlc->core->coreidx);
@@ -1103,7 +1108,7 @@ int brcms_b_up_prep(struct wlc_hw_info *wlc_hw)
 	return 0;
 }
 
-int brcms_b_up_finish(struct wlc_hw_info *wlc_hw)
+int brcms_b_up_finish(struct brcms_c_hw_info *wlc_hw)
 {
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
@@ -1116,7 +1121,7 @@ int brcms_b_up_finish(struct wlc_hw_info *wlc_hw)
 	return 0;
 }
 
-int brcms_b_bmac_down_prep(struct wlc_hw_info *wlc_hw)
+int brcms_b_bmac_down_prep(struct brcms_c_hw_info *wlc_hw)
 {
 	bool dev_gone;
 	uint callbacks = 0;
@@ -1144,7 +1149,7 @@ int brcms_b_bmac_down_prep(struct wlc_hw_info *wlc_hw)
 	return callbacks;
 }
 
-int brcms_b_down_finish(struct wlc_hw_info *wlc_hw)
+int brcms_b_down_finish(struct brcms_c_hw_info *wlc_hw)
 {
 	uint callbacks = 0;
 	bool dev_gone;
@@ -1172,9 +1177,9 @@ int brcms_b_down_finish(struct wlc_hw_info *wlc_hw)
 		if (ai_iscoreup(wlc_hw->sih)) {
 			if (R_REG(&wlc_hw->regs->maccontrol) &
 			    MCTL_EN_MAC)
-				wlc_suspend_mac_and_wait(wlc_hw->wlc);
+				brcms_c_suspend_mac_and_wait(wlc_hw->wlc);
 			callbacks += brcms_reset(wlc_hw->wlc->wl);
-			wlc_coredisable(wlc_hw);
+			brcms_c_coredisable(wlc_hw);
 		}
 
 		/* turn off primary xtal and pll */
@@ -1188,7 +1193,7 @@ int brcms_b_down_finish(struct wlc_hw_info *wlc_hw)
 	return callbacks;
 }
 
-void brcms_b_wait_for_wake(struct wlc_hw_info *wlc_hw)
+void brcms_b_wait_for_wake(struct brcms_c_hw_info *wlc_hw)
 {
 	/* delay before first read of ucode state */
 	udelay(40);
@@ -1198,18 +1203,18 @@ void brcms_b_wait_for_wake(struct wlc_hw_info *wlc_hw)
 		  DBGST_ASLEEP), wlc_hw->wlc->fastpwrup_dly);
 }
 
-void brcms_b_hw_etheraddr(struct wlc_hw_info *wlc_hw, u8 *ea)
+void brcms_b_hw_etheraddr(struct brcms_c_hw_info *wlc_hw, u8 *ea)
 {
 	memcpy(ea, wlc_hw->etheraddr, ETH_ALEN);
 }
 
-static int brcms_b_bandtype(struct wlc_hw_info *wlc_hw)
+static int brcms_b_bandtype(struct brcms_c_hw_info *wlc_hw)
 {
 	return wlc_hw->band->bandtype;
 }
 
 /* control chip clock to save power, enable dynamic clock or force fast clock */
-static void brcms_b_clkctl_clk(struct wlc_hw_info *wlc_hw, uint mode)
+static void brcms_b_clkctl_clk(struct brcms_c_hw_info *wlc_hw, uint mode)
 {
 	if (PMUCTL_ENAB(wlc_hw->sih)) {
 		/* new chips with PMU, CCS_FORCEHT will distribute the HT clock on backplane,
@@ -1280,9 +1285,9 @@ static void brcms_b_clkctl_clk(struct wlc_hw_info *wlc_hw, uint mode)
 
 /* set initial host flags value */
 static void
-wlc_mhfdef(struct wlc_info *wlc, u16 *mhfs, u16 mhf2_init)
+wlc_mhfdef(struct brcms_c_info *wlc, u16 *mhfs, u16 mhf2_init)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 
 	memset(mhfs, 0, MHFMAX * sizeof(u16));
 
@@ -1310,7 +1315,7 @@ wlc_mhfdef(struct wlc_info *wlc, u16 *mhfs, u16 mhf2_init)
  *                   WLC_BAND_ALL  <--- All bands
  */
 void
-brcms_b_mhf(struct wlc_hw_info *wlc_hw, u8 idx, u16 mask, u16 val,
+brcms_b_mhf(struct brcms_c_hw_info *wlc_hw, u8 idx, u16 mask, u16 val,
 	     int bands)
 {
 	u16 save;
@@ -1318,7 +1323,7 @@ brcms_b_mhf(struct wlc_hw_info *wlc_hw, u8 idx, u16 mask, u16 val,
 		M_HOST_FLAGS1, M_HOST_FLAGS2, M_HOST_FLAGS3, M_HOST_FLAGS4,
 		M_HOST_FLAGS5
 	};
-	struct wlc_hwband *band;
+	struct brcms_c_hwband *band;
 
 	if ((val & ~mask) || idx >= MHFMAX)
 		return; /* error condition */
@@ -1362,9 +1367,9 @@ brcms_b_mhf(struct wlc_hw_info *wlc_hw, u8 idx, u16 mask, u16 val,
 	}
 }
 
-u16 brcms_b_mhf_get(struct wlc_hw_info *wlc_hw, u8 idx, int bands)
+u16 brcms_b_mhf_get(struct brcms_c_hw_info *wlc_hw, u8 idx, int bands)
 {
-	struct wlc_hwband *band;
+	struct brcms_c_hwband *band;
 
 	if (idx >= MHFMAX)
 		return 0; /* error condition */
@@ -1388,7 +1393,7 @@ u16 brcms_b_mhf_get(struct wlc_hw_info *wlc_hw, u8 idx, int bands)
 	return band->mhfs[idx];
 }
 
-static void wlc_write_mhf(struct wlc_hw_info *wlc_hw, u16 *mhfs)
+static void wlc_write_mhf(struct brcms_c_hw_info *wlc_hw, u16 *mhfs)
 {
 	u8 idx;
 	u16 addr[] = {
@@ -1404,7 +1409,7 @@ static void wlc_write_mhf(struct wlc_hw_info *wlc_hw, u16 *mhfs)
 /* set the maccontrol register to desired reset state and
  * initialize the sw cache of the register
  */
-static void wlc_mctrl_reset(struct wlc_hw_info *wlc_hw)
+static void wlc_mctrl_reset(struct brcms_c_hw_info *wlc_hw)
 {
 	/* IHR accesses are always enabled, PSM disabled, HPS off and WAKE on */
 	wlc_hw->maccontrol = 0;
@@ -1415,7 +1420,7 @@ static void wlc_mctrl_reset(struct wlc_hw_info *wlc_hw)
 }
 
 /* set or clear maccontrol bits */
-void brcms_b_mctrl(struct wlc_hw_info *wlc_hw, u32 mask, u32 val)
+void brcms_b_mctrl(struct brcms_c_hw_info *wlc_hw, u32 mask, u32 val)
 {
 	u32 maccontrol;
 	u32 new_maccontrol;
@@ -1437,7 +1442,7 @@ void brcms_b_mctrl(struct wlc_hw_info *wlc_hw, u32 mask, u32 val)
 }
 
 /* write the software state of maccontrol and overrides to the maccontrol register */
-static void wlc_mctrl_write(struct wlc_hw_info *wlc_hw)
+static void wlc_mctrl_write(struct brcms_c_hw_info *wlc_hw)
 {
 	u32 maccontrol = wlc_hw->maccontrol;
 
@@ -1454,7 +1459,8 @@ static void wlc_mctrl_write(struct wlc_hw_info *wlc_hw)
 	W_REG(&wlc_hw->regs->maccontrol, maccontrol);
 }
 
-void wlc_ucode_wake_override_set(struct wlc_hw_info *wlc_hw, u32 override_bit)
+void wlc_ucode_wake_override_set(struct brcms_c_hw_info *wlc_hw,
+				 u32 override_bit)
 {
 	if (wlc_hw->wake_override || (wlc_hw->maccontrol & MCTL_WAKE)) {
 		mboolset(wlc_hw->wake_override, override_bit);
@@ -1469,7 +1475,8 @@ void wlc_ucode_wake_override_set(struct wlc_hw_info *wlc_hw, u32 override_bit)
 	return;
 }
 
-void wlc_ucode_wake_override_clear(struct wlc_hw_info *wlc_hw, u32 override_bit)
+void wlc_ucode_wake_override_clear(struct brcms_c_hw_info *wlc_hw,
+				   u32 override_bit)
 {
 	mboolclr(wlc_hw->wake_override, override_bit);
 
@@ -1488,7 +1495,7 @@ void wlc_ucode_wake_override_clear(struct wlc_hw_info *wlc_hw, u32 override_bit)
  * STA               0              1 <--- This will ensure no beacons
  * IBSS              0              0
  */
-static void wlc_ucode_mute_override_set(struct wlc_hw_info *wlc_hw)
+static void wlc_ucode_mute_override_set(struct brcms_c_hw_info *wlc_hw)
 {
 	wlc_hw->mute_override = 1;
 
@@ -1504,7 +1511,7 @@ static void wlc_ucode_mute_override_set(struct wlc_hw_info *wlc_hw)
 }
 
 /* Clear the override on AP and INFRA bits */
-static void wlc_ucode_mute_override_clear(struct wlc_hw_info *wlc_hw)
+static void wlc_ucode_mute_override_clear(struct brcms_c_hw_info *wlc_hw)
 {
 	if (wlc_hw->mute_override == 0)
 		return;
@@ -1524,7 +1531,7 @@ static void wlc_ucode_mute_override_clear(struct wlc_hw_info *wlc_hw)
  * Write a MAC address to the given match reg offset in the RXE match engine.
  */
 void
-brcms_b_set_addrmatch(struct wlc_hw_info *wlc_hw, int match_reg_offset,
+brcms_b_set_addrmatch(struct brcms_c_hw_info *wlc_hw, int match_reg_offset,
 		       const u8 *addr)
 {
 	d11regs_t *regs;
@@ -1549,7 +1556,7 @@ brcms_b_set_addrmatch(struct wlc_hw_info *wlc_hw, int match_reg_offset,
 }
 
 void
-brcms_b_write_template_ram(struct wlc_hw_info *wlc_hw, int offset, int len,
+brcms_b_write_template_ram(struct brcms_c_hw_info *wlc_hw, int offset, int len,
 			    void *buf)
 {
 	d11regs_t *regs;
@@ -1581,7 +1588,7 @@ brcms_b_write_template_ram(struct wlc_hw_info *wlc_hw, int offset, int len,
 	}
 }
 
-void brcms_b_set_cwmin(struct wlc_hw_info *wlc_hw, u16 newmin)
+void brcms_b_set_cwmin(struct brcms_c_hw_info *wlc_hw, u16 newmin)
 {
 	wlc_hw->band->CWmin = newmin;
 
@@ -1590,7 +1597,7 @@ void brcms_b_set_cwmin(struct wlc_hw_info *wlc_hw, u16 newmin)
 	W_REG(&wlc_hw->regs->objdata, newmin);
 }
 
-void brcms_b_set_cwmax(struct wlc_hw_info *wlc_hw, u16 newmax)
+void brcms_b_set_cwmax(struct brcms_c_hw_info *wlc_hw, u16 newmax)
 {
 	wlc_hw->band->CWmax = newmax;
 
@@ -1599,7 +1606,7 @@ void brcms_b_set_cwmax(struct wlc_hw_info *wlc_hw, u16 newmax)
 	W_REG(&wlc_hw->regs->objdata, newmax);
 }
 
-void brcms_b_bw_set(struct wlc_hw_info *wlc_hw, u16 bw)
+void brcms_b_bw_set(struct brcms_c_hw_info *wlc_hw, u16 bw)
 {
 	bool fastclk;
 
@@ -1619,7 +1626,7 @@ void brcms_b_bw_set(struct wlc_hw_info *wlc_hw, u16 bw)
 }
 
 static void
-wlc_write_hw_bcntemplate0(struct wlc_hw_info *wlc_hw, void *bcn, int len)
+wlc_write_hw_bcntemplate0(struct brcms_c_hw_info *wlc_hw, void *bcn, int len)
 {
 	d11regs_t *regs = wlc_hw->regs;
 
@@ -1632,7 +1639,7 @@ wlc_write_hw_bcntemplate0(struct wlc_hw_info *wlc_hw, void *bcn, int len)
 }
 
 static void
-wlc_write_hw_bcntemplate1(struct wlc_hw_info *wlc_hw, void *bcn, int len)
+wlc_write_hw_bcntemplate1(struct brcms_c_hw_info *wlc_hw, void *bcn, int len)
 {
 	d11regs_t *regs = wlc_hw->regs;
 
@@ -1646,8 +1653,8 @@ wlc_write_hw_bcntemplate1(struct wlc_hw_info *wlc_hw, void *bcn, int len)
 
 /* mac is assumed to be suspended at this point */
 void
-brcms_b_write_hw_bcntemplates(struct wlc_hw_info *wlc_hw, void *bcn, int len,
-			       bool both)
+brcms_b_write_hw_bcntemplates(struct brcms_c_hw_info *wlc_hw, void *bcn,
+			      int len, bool both)
 {
 	d11regs_t *regs = wlc_hw->regs;
 
@@ -1665,10 +1672,10 @@ brcms_b_write_hw_bcntemplates(struct wlc_hw_info *wlc_hw, void *bcn, int len,
 	}
 }
 
-static void WLBANDINITFN(brcms_b_upd_synthpu) (struct wlc_hw_info *wlc_hw)
+static void WLBANDINITFN(brcms_b_upd_synthpu) (struct brcms_c_hw_info *wlc_hw)
 {
 	u16 v;
-	struct wlc_info *wlc = wlc_hw->wlc;
+	struct brcms_c_info *wlc = wlc_hw->wlc;
 	/* update SYNTHPU_DLY */
 
 	if (WLCISLCNPHY(wlc->band)) {
@@ -1684,9 +1691,9 @@ static void WLBANDINITFN(brcms_b_upd_synthpu) (struct wlc_hw_info *wlc_hw)
 
 /* band-specific init */
 static void
-WLBANDINITFN(brcms_b_bsinit) (struct wlc_info *wlc, chanspec_t chanspec)
+WLBANDINITFN(brcms_b_bsinit) (struct brcms_c_info *wlc, chanspec_t chanspec)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 
 	BCMMSG(wlc->wiphy, "wl%d: bandunit %d\n", wlc_hw->unit,
 		wlc_hw->band->bandunit);
@@ -1716,7 +1723,7 @@ WLBANDINITFN(brcms_b_bsinit) (struct wlc_info *wlc, chanspec_t chanspec)
 	brcms_b_upd_synthpu(wlc_hw);
 }
 
-static void brcms_b_core_phy_clk(struct wlc_hw_info *wlc_hw, bool clk)
+static void brcms_b_core_phy_clk(struct brcms_c_hw_info *wlc_hw, bool clk)
 {
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d: clk %d\n", wlc_hw->unit, clk);
 
@@ -1741,7 +1748,7 @@ static void brcms_b_core_phy_clk(struct wlc_hw_info *wlc_hw, bool clk)
 }
 
 /* Perform a soft reset of the PHY PLL */
-void brcms_b_core_phypll_reset(struct wlc_hw_info *wlc_hw)
+void brcms_b_core_phypll_reset(struct brcms_c_hw_info *wlc_hw)
 {
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
@@ -1762,7 +1769,7 @@ void brcms_b_core_phypll_reset(struct wlc_hw_info *wlc_hw)
 /* light way to turn on phy clock without reset for NPHY only
  *  refer to brcms_b_core_phy_clk for full version
  */
-void brcms_b_phyclk_fgc(struct wlc_hw_info *wlc_hw, bool clk)
+void brcms_b_phyclk_fgc(struct brcms_c_hw_info *wlc_hw, bool clk)
 {
 	/* support(necessary for NPHY and HYPHY) only */
 	if (!WLCISNPHY(wlc_hw->band))
@@ -1775,7 +1782,7 @@ void brcms_b_phyclk_fgc(struct wlc_hw_info *wlc_hw, bool clk)
 
 }
 
-void brcms_b_macphyclk_set(struct wlc_hw_info *wlc_hw, bool clk)
+void brcms_b_macphyclk_set(struct brcms_c_hw_info *wlc_hw, bool clk)
 {
 	if (ON == clk)
 		ai_core_cflags(wlc_hw->sih, SICF_MPCLKE, SICF_MPCLKE);
@@ -1783,7 +1790,7 @@ void brcms_b_macphyclk_set(struct wlc_hw_info *wlc_hw, bool clk)
 		ai_core_cflags(wlc_hw->sih, SICF_MPCLKE, 0);
 }
 
-void brcms_b_phy_reset(struct wlc_hw_info *wlc_hw)
+void brcms_b_phy_reset(struct brcms_c_hw_info *wlc_hw)
 {
 	wlc_phy_t *pih = wlc_hw->band->pi;
 	u32 phy_bw_clkbits;
@@ -1827,9 +1834,9 @@ void brcms_b_phy_reset(struct wlc_hw_info *wlc_hw)
 
 /* switch to and initialize new band */
 static void
-WLBANDINITFN(brcms_b_setband) (struct wlc_hw_info *wlc_hw, uint bandunit,
+WLBANDINITFN(brcms_b_setband) (struct brcms_c_hw_info *wlc_hw, uint bandunit,
 				chanspec_t chanspec) {
-	struct wlc_info *wlc = wlc_hw->wlc;
+	struct brcms_c_info *wlc = wlc_hw->wlc;
 	u32 macintmask;
 
 	/* Enable the d11 core before accessing it */
@@ -1851,7 +1858,7 @@ WLBANDINITFN(brcms_b_setband) (struct wlc_hw_info *wlc_hw, uint bandunit,
 	/*
 	 * If there are any pending software interrupt bits,
 	 * then replace these with a harmless nonzero value
-	 * so wlc_dpc() will re-enable interrupts when done.
+	 * so brcms_c_dpc() will re-enable interrupts when done.
 	 */
 	if (wlc->macintstatus)
 		wlc->macintstatus = MI_DMAINT;
@@ -1864,7 +1871,8 @@ WLBANDINITFN(brcms_b_setband) (struct wlc_hw_info *wlc_hw, uint bandunit,
 }
 
 /* low-level band switch utility routine */
-void WLBANDINITFN(wlc_setxband) (struct wlc_hw_info *wlc_hw, uint bandunit)
+void WLBANDINITFN(brcms_c_setxband) (struct brcms_c_hw_info *wlc_hw,
+				     uint bandunit)
 {
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d: bandunit %d\n", wlc_hw->unit,
 		bandunit);
@@ -1881,7 +1889,7 @@ void WLBANDINITFN(wlc_setxband) (struct wlc_hw_info *wlc_hw, uint bandunit)
 	}
 }
 
-static bool wlc_isgoodchip(struct wlc_hw_info *wlc_hw)
+static bool wlc_isgoodchip(struct brcms_c_hw_info *wlc_hw)
 {
 
 	/* reject unsupported corerev */
@@ -1894,7 +1902,7 @@ static bool wlc_isgoodchip(struct wlc_hw_info *wlc_hw)
 	return true;
 }
 
-static bool wlc_validboardtype(struct wlc_hw_info *wlc_hw)
+static bool wlc_validboardtype(struct brcms_c_hw_info *wlc_hw)
 {
 	bool goodboard = true;
 	uint boardrev = wlc_hw->boardrev;
@@ -1918,7 +1926,7 @@ static bool wlc_validboardtype(struct wlc_hw_info *wlc_hw)
 	return goodboard;
 }
 
-static char *wlc_get_macaddr(struct wlc_hw_info *wlc_hw)
+static char *wlc_get_macaddr(struct brcms_c_hw_info *wlc_hw)
 {
 	const char *varname = "macaddr";
 	char *macaddr;
@@ -1948,7 +1956,7 @@ static char *wlc_get_macaddr(struct wlc_hw_info *wlc_hw)
  * this function could be called when driver is down and w/o clock
  * it operates on different registers depending on corerev and boardflag.
  */
-bool brcms_b_radio_read_hwdisabled(struct wlc_hw_info *wlc_hw)
+bool brcms_b_radio_read_hwdisabled(struct brcms_c_hw_info *wlc_hw)
 {
 	bool v, clk, xtal;
 	u32 resetbits = 0, flags = 0;
@@ -1991,7 +1999,7 @@ bool brcms_b_radio_read_hwdisabled(struct wlc_hw_info *wlc_hw)
 }
 
 /* Initialize just the hardware when coming out of POR or S3/S5 system states */
-void brcms_b_hw_up(struct wlc_hw_info *wlc_hw)
+void brcms_b_hw_up(struct brcms_c_hw_info *wlc_hw)
 {
 	if (wlc_hw->wlc->pub->hw_up)
 		return;
@@ -2000,7 +2008,7 @@ void brcms_b_hw_up(struct wlc_hw_info *wlc_hw)
 
 	/*
 	 * Enable pll and xtal, initialize the power control registers,
-	 * and force fastclock for the remainder of wlc_up().
+	 * and force fastclock for the remainder of brcms_c_up().
 	 */
 	brcms_b_xtal(wlc_hw, ON);
 	ai_clkctl_init(wlc_hw->sih);
@@ -2033,7 +2041,7 @@ void brcms_b_hw_up(struct wlc_hw_info *wlc_hw)
 	}
 }
 
-static bool wlc_dma_rxreset(struct wlc_hw_info *wlc_hw, uint fifo)
+static bool wlc_dma_rxreset(struct brcms_c_hw_info *wlc_hw, uint fifo)
 {
 	struct dma_pub *di = wlc_hw->di[fifo];
 	return dma_rxreset(di);
@@ -2047,7 +2055,7 @@ static bool wlc_dma_rxreset(struct wlc_hw_info *wlc_hw, uint fifo)
  *   clear software macintstatus for fresh new start
  * one testing hack wlc_hw->noreset will bypass the d11/phy reset
  */
-void brcms_b_corereset(struct wlc_hw_info *wlc_hw, u32 flags)
+void brcms_b_corereset(struct brcms_c_hw_info *wlc_hw, u32 flags)
 {
 	d11regs_t *regs;
 	uint i;
@@ -2130,7 +2138,7 @@ void brcms_b_corereset(struct wlc_hw_info *wlc_hw, u32 flags)
 /* txfifo sizes needs to be modified(increased) since the newer cores
  * have more memory.
  */
-static void brcms_b_corerev_fifofixup(struct wlc_hw_info *wlc_hw)
+static void brcms_b_corerev_fifofixup(struct brcms_c_hw_info *wlc_hw)
 {
 	d11regs_t *regs = wlc_hw->regs;
 	u16 fifo_nu;
@@ -2185,9 +2193,9 @@ static void brcms_b_corerev_fifofixup(struct wlc_hw_info *wlc_hw)
  *   config other core registers
  *   init dma
  */
-static void brcms_b_coreinit(struct wlc_info *wlc)
+static void brcms_b_coreinit(struct brcms_c_info *wlc)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	d11regs_t *regs;
 	u32 sflags;
 	uint bcnint_us;
@@ -2375,7 +2383,7 @@ static void brcms_b_coreinit(struct wlc_info *wlc)
  *  - 559241 = 0x88889 => tsf_clk_frac_h = 0x8, tsf_clk_frac_l = 0x8889
  */
 
-void brcms_b_switch_macfreq(struct wlc_hw_info *wlc_hw, u8 spurmode)
+void brcms_b_switch_macfreq(struct brcms_c_hw_info *wlc_hw, u8 spurmode)
 {
 	d11regs_t *regs;
 	regs = wlc_hw->regs;
@@ -2404,9 +2412,9 @@ void brcms_b_switch_macfreq(struct wlc_hw_info *wlc_hw, u8 spurmode)
 }
 
 /* Initialize GPIOs that are controlled by D11 core */
-static void wlc_gpio_init(struct wlc_info *wlc)
+static void wlc_gpio_init(struct brcms_c_info *wlc)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	d11regs_t *regs;
 	u32 gc, gm;
 
@@ -2466,9 +2474,9 @@ static void wlc_gpio_init(struct wlc_info *wlc)
 	ai_gpiocontrol(wlc_hw->sih, gm, gc, GPIO_DRV_PRIORITY);
 }
 
-static void wlc_ucode_download(struct wlc_hw_info *wlc_hw)
+static void wlc_ucode_download(struct brcms_c_hw_info *wlc_hw)
 {
-	struct wlc_info *wlc;
+	struct brcms_c_info *wlc;
 	wlc = wlc_hw->wlc;
 
 	if (wlc_hw->ucode_loaded)
@@ -2496,7 +2504,7 @@ static void wlc_ucode_download(struct wlc_hw_info *wlc_hw)
 	}
 }
 
-static void wlc_ucode_write(struct wlc_hw_info *wlc_hw, const u32 ucode[],
+static void wlc_ucode_write(struct brcms_c_hw_info *wlc_hw, const u32 ucode[],
 			      const uint nbytes) {
 	d11regs_t *regs = wlc_hw->regs;
 	uint i;
@@ -2512,7 +2520,7 @@ static void wlc_ucode_write(struct wlc_hw_info *wlc_hw, const u32 ucode[],
 		W_REG(&regs->objdata, ucode[i]);
 }
 
-static void wlc_write_inits(struct wlc_hw_info *wlc_hw,
+static void wlc_write_inits(struct brcms_c_hw_info *wlc_hw,
 			    const struct d11init *inits)
 {
 	int i;
@@ -2532,7 +2540,7 @@ static void wlc_write_inits(struct wlc_hw_info *wlc_hw,
 	}
 }
 
-static void wlc_ucode_txant_set(struct wlc_hw_info *wlc_hw)
+static void wlc_ucode_txant_set(struct brcms_c_hw_info *wlc_hw)
 {
 	u16 phyctl;
 	u16 phytxant = wlc_hw->bmac_phytxant;
@@ -2549,7 +2557,7 @@ static void wlc_ucode_txant_set(struct wlc_hw_info *wlc_hw)
 	brcms_b_write_shm(wlc_hw, M_RSP_PCTLWD, phyctl);
 }
 
-void brcms_b_txant_set(struct wlc_hw_info *wlc_hw, u16 phytxant)
+void brcms_b_txant_set(struct brcms_c_hw_info *wlc_hw, u16 phytxant)
 {
 	/* update sw state */
 	wlc_hw->bmac_phytxant = phytxant;
@@ -2561,12 +2569,12 @@ void brcms_b_txant_set(struct wlc_hw_info *wlc_hw, u16 phytxant)
 
 }
 
-u16 brcms_b_get_txant(struct wlc_hw_info *wlc_hw)
+u16 brcms_b_get_txant(struct brcms_c_hw_info *wlc_hw)
 {
 	return (u16) wlc_hw->wlc->stf->txant;
 }
 
-void brcms_b_antsel_type_set(struct wlc_hw_info *wlc_hw, u8 antsel_type)
+void brcms_b_antsel_type_set(struct brcms_c_hw_info *wlc_hw, u8 antsel_type)
 {
 	wlc_hw->antsel_type = antsel_type;
 
@@ -2574,7 +2582,7 @@ void brcms_b_antsel_type_set(struct wlc_hw_info *wlc_hw, u8 antsel_type)
 	wlc_phy_antsel_type_set(wlc_hw->band->pi, antsel_type);
 }
 
-void brcms_b_fifoerrors(struct wlc_hw_info *wlc_hw)
+void brcms_b_fifoerrors(struct brcms_c_hw_info *wlc_hw)
 {
 	bool fatal = false;
 	uint unit;
@@ -2630,7 +2638,7 @@ void brcms_b_fifoerrors(struct wlc_hw_info *wlc_hw)
 		}
 
 		if (fatal) {
-			wlc_fatal_error(wlc_hw->wlc);	/* big hammer */
+			brcms_c_fatal_error(wlc_hw->wlc);	/* big hammer */
 			break;
 		} else
 			W_REG(&regs->intctrlregs[idx].intstatus,
@@ -2638,9 +2646,9 @@ void brcms_b_fifoerrors(struct wlc_hw_info *wlc_hw)
 	}
 }
 
-void wlc_intrson(struct wlc_info *wlc)
+void brcms_c_intrson(struct brcms_c_info *wlc)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	wlc->macintmask = wlc->defmacintmask;
 	W_REG(&wlc_hw->regs->macintmask, wlc->macintmask);
 }
@@ -2650,7 +2658,7 @@ void wlc_intrson(struct wlc_info *wlc)
  *  but also because per-port code may require sync with valid interrupt.
  */
 
-static u32 wlc_wlintrsoff(struct wlc_info *wlc)
+static u32 wlc_wlintrsoff(struct brcms_c_info *wlc)
 {
 	if (!wlc->hw->up)
 		return 0;
@@ -2658,7 +2666,7 @@ static u32 wlc_wlintrsoff(struct wlc_info *wlc)
 	return brcms_intrsoff(wlc->wl);
 }
 
-static void wlc_wlintrsrestore(struct wlc_info *wlc, u32 macintmask)
+static void wlc_wlintrsrestore(struct brcms_c_info *wlc, u32 macintmask)
 {
 	if (!wlc->hw->up)
 		return;
@@ -2666,9 +2674,9 @@ static void wlc_wlintrsrestore(struct wlc_info *wlc, u32 macintmask)
 	brcms_intrsrestore(wlc->wl, macintmask);
 }
 
-u32 wlc_intrsoff(struct wlc_info *wlc)
+u32 brcms_c_intrsoff(struct brcms_c_info *wlc)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	u32 macintmask;
 
 	if (!wlc_hw->clk)
@@ -2685,9 +2693,9 @@ u32 wlc_intrsoff(struct wlc_info *wlc)
 	return wlc->macintstatus ? 0 : macintmask;
 }
 
-void wlc_intrsrestore(struct wlc_info *wlc, u32 macintmask)
+void brcms_c_intrsrestore(struct brcms_c_info *wlc, u32 macintmask)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	if (!wlc_hw->clk)
 		return;
 
@@ -2695,7 +2703,7 @@ void wlc_intrsrestore(struct wlc_info *wlc, u32 macintmask)
 	W_REG(&wlc_hw->regs->macintmask, wlc->macintmask);
 }
 
-static void brcms_b_mute(struct wlc_hw_info *wlc_hw, bool on, mbool flags)
+static void brcms_b_mute(struct brcms_c_hw_info *wlc_hw, bool on, mbool flags)
 {
 	u8 null_ether_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
 
@@ -2731,7 +2739,8 @@ static void brcms_b_mute(struct wlc_hw_info *wlc_hw, bool on, mbool flags)
 		wlc_ucode_mute_override_clear(wlc_hw);
 }
 
-int brcms_b_xmtfifo_sz_get(struct wlc_hw_info *wlc_hw, uint fifo, uint *blocks)
+int brcms_b_xmtfifo_sz_get(struct brcms_c_hw_info *wlc_hw, uint fifo,
+			   uint *blocks)
 {
 	if (fifo >= NFIFO)
 		return -EINVAL;
@@ -2750,7 +2759,8 @@ int brcms_b_xmtfifo_sz_get(struct wlc_hw_info *wlc_hw, uint fifo, uint *blocks)
  * be pulling data into a tx fifo, by the time the MAC acks the suspend
  * request.
  */
-static bool brcms_b_tx_fifo_suspended(struct wlc_hw_info *wlc_hw, uint tx_fifo)
+static bool brcms_b_tx_fifo_suspended(struct brcms_c_hw_info *wlc_hw,
+				      uint tx_fifo)
 {
 	/* check that a suspend has been requested and is no longer pending */
 
@@ -2769,7 +2779,8 @@ static bool brcms_b_tx_fifo_suspended(struct wlc_hw_info *wlc_hw, uint tx_fifo)
 	return false;
 }
 
-static void brcms_b_tx_fifo_suspend(struct wlc_hw_info *wlc_hw, uint tx_fifo)
+static void brcms_b_tx_fifo_suspend(struct brcms_c_hw_info *wlc_hw,
+				    uint tx_fifo)
 {
 	u8 fifo = 1 << tx_fifo;
 
@@ -2791,19 +2802,21 @@ static void brcms_b_tx_fifo_suspend(struct wlc_hw_info *wlc_hw, uint tx_fifo)
 		 * so suspend the mac before suspending the FIFO
 		 */
 		if (WLC_PHY_11N_CAP(wlc_hw->band))
-			wlc_suspend_mac_and_wait(wlc_hw->wlc);
+			brcms_c_suspend_mac_and_wait(wlc_hw->wlc);
 
 		dma_txsuspend(wlc_hw->di[tx_fifo]);
 
 		if (WLC_PHY_11N_CAP(wlc_hw->band))
-			wlc_enable_mac(wlc_hw->wlc);
+			brcms_c_enable_mac(wlc_hw->wlc);
 	}
 }
 
-static void brcms_b_tx_fifo_resume(struct wlc_hw_info *wlc_hw, uint tx_fifo)
+static void brcms_b_tx_fifo_resume(struct brcms_c_hw_info *wlc_hw,
+				   uint tx_fifo)
 {
-	/* BMAC_NOTE: WLC_TX_FIFO_ENAB is done in wlc_dpc() for DMA case but need to be done
-	 * here for PIO otherwise the watchdog will catch the inconsistency and fire
+	/* BMAC_NOTE: WLC_TX_FIFO_ENAB is done in brcms_c_dpc() for DMA case
+	 * but need to be done here for PIO otherwise the watchdog will catch
+	 * the inconsistency and fire
 	 */
 	/* Two clients of this code, 11h Quiet period and scanning. */
 	if (wlc_hw->di[tx_fifo])
@@ -2828,9 +2841,9 @@ static void brcms_b_tx_fifo_resume(struct wlc_hw_info *wlc_hw, uint tx_fifo)
  *   0 if the interrupt is not for us, or we are in some special cases;
  *   device interrupt status bits otherwise.
  */
-static inline u32 wlc_intstatus(struct wlc_info *wlc, bool in_isr)
+static inline u32 wlc_intstatus(struct brcms_c_info *wlc, bool in_isr)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	d11regs_t *regs = wlc_hw->regs;
 	u32 macintstatus;
 
@@ -2885,7 +2898,7 @@ static inline u32 wlc_intstatus(struct wlc_info *wlc, bool in_isr)
 
 /* Update wlc->macintstatus and wlc->intstatus[]. */
 /* Return true if they are updated successfully. false otherwise */
-bool wlc_intrsupd(struct wlc_info *wlc)
+bool brcms_c_intrsupd(struct brcms_c_info *wlc)
 {
 	u32 macintstatus;
 
@@ -2905,12 +2918,12 @@ bool wlc_intrsupd(struct wlc_info *wlc)
 /*
  * First-level interrupt processing.
  * Return true if this was our interrupt, false otherwise.
- * *wantdpc will be set to true if further wlc_dpc() processing is required,
+ * *wantdpc will be set to true if further brcms_c_dpc() processing is required,
  * false otherwise.
  */
-bool wlc_isr(struct wlc_info *wlc, bool *wantdpc)
+bool brcms_c_isr(struct brcms_c_info *wlc, bool *wantdpc)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	u32 macintstatus;
 
 	*wantdpc = false;
@@ -2939,7 +2952,7 @@ bool wlc_isr(struct wlc_info *wlc, bool *wantdpc)
 }
 
 static bool
-brcms_b_dotxstatus(struct wlc_hw_info *wlc_hw, tx_status_t *txs, u32 s2)
+brcms_b_dotxstatus(struct brcms_c_hw_info *wlc_hw, tx_status_t *txs, u32 s2)
 {
 	/* discard intermediate indications for ucode with one legitimate case:
 	 *   e.g. if "useRTS" is set. ucode did a successful rts/cts exchange, but the subsequent
@@ -2951,17 +2964,17 @@ brcms_b_dotxstatus(struct wlc_hw_info *wlc_hw, tx_status_t *txs, u32 s2)
 		return false;
 	}
 
-	return wlc_dotxstatus(wlc_hw->wlc, txs, s2);
+	return brcms_c_dotxstatus(wlc_hw->wlc, txs, s2);
 }
 
 /* process tx completion events in BMAC
  * Return true if more tx status need to be processed. false otherwise.
  */
 static bool
-brcms_b_txstatus(struct wlc_hw_info *wlc_hw, bool bound, bool *fatal)
+brcms_b_txstatus(struct brcms_c_hw_info *wlc_hw, bool bound, bool *fatal)
 {
 	bool morepending = false;
-	struct wlc_info *wlc = wlc_hw->wlc;
+	struct brcms_c_info *wlc = wlc_hw->wlc;
 	d11regs_t *regs;
 	tx_status_t txstatus, *txs;
 	u32 s1, s2;
@@ -3007,14 +3020,14 @@ brcms_b_txstatus(struct wlc_hw_info *wlc_hw, bool bound, bool *fatal)
 		morepending = true;
 
 	if (!pktq_empty(&wlc->pkt_queue->q))
-		wlc_send_q(wlc);
+		brcms_c_send_q(wlc);
 
 	return morepending;
 }
 
-void wlc_suspend_mac_and_wait(struct wlc_info *wlc)
+void brcms_c_suspend_mac_and_wait(struct brcms_c_info *wlc)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	d11regs_t *regs = wlc_hw->regs;
 	u32 mc, mi;
 	struct wiphy *wiphy = wlc->wiphy;
@@ -3081,9 +3094,9 @@ void wlc_suspend_mac_and_wait(struct wlc_info *wlc)
 	WARN_ON(mc & MCTL_EN_MAC);
 }
 
-void wlc_enable_mac(struct wlc_info *wlc)
+void brcms_c_enable_mac(struct brcms_c_info *wlc)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	d11regs_t *regs = wlc_hw->regs;
 	u32 mc, mi;
 
@@ -3116,7 +3129,7 @@ void wlc_enable_mac(struct wlc_info *wlc)
 	wlc_ucode_wake_override_clear(wlc_hw, WLC_WAKE_OVERRIDE_MACSUSPEND);
 }
 
-static void wlc_upd_ofdm_pctl1_table(struct wlc_hw_info *wlc_hw)
+static void wlc_upd_ofdm_pctl1_table(struct brcms_c_hw_info *wlc_hw)
 {
 	u8 rate;
 	u8 rates[8] = {
@@ -3150,7 +3163,8 @@ static void wlc_upd_ofdm_pctl1_table(struct wlc_hw_info *wlc_hw)
 	}
 }
 
-static u16 brcms_b_ofdm_ratetable_offset(struct wlc_hw_info *wlc_hw, u8 rate)
+static u16 brcms_b_ofdm_ratetable_offset(struct brcms_c_hw_info *wlc_hw,
+					 u8 rate)
 {
 	uint i;
 	u8 plcp_rate = 0;
@@ -3183,7 +3197,7 @@ static u16 brcms_b_ofdm_ratetable_offset(struct wlc_hw_info *wlc_hw, u8 rate)
 	return 2 * brcms_b_read_shm(wlc_hw, M_RT_DIRMAP_A + (plcp_rate * 2));
 }
 
-void brcms_b_band_stf_ss_set(struct wlc_hw_info *wlc_hw, u8 stf_mode)
+void brcms_b_band_stf_ss_set(struct brcms_c_hw_info *wlc_hw, u8 stf_mode)
 {
 	wlc_hw->hw_stf_ss_opmode = stf_mode;
 
@@ -3192,7 +3206,7 @@ void brcms_b_band_stf_ss_set(struct wlc_hw_info *wlc_hw, u8 stf_mode)
 }
 
 void
-brcms_b_read_tsf(struct wlc_hw_info *wlc_hw, u32 *tsf_l_ptr,
+brcms_b_read_tsf(struct brcms_c_hw_info *wlc_hw, u32 *tsf_l_ptr,
 		  u32 *tsf_h_ptr)
 {
 	d11regs_t *regs = wlc_hw->regs;
@@ -3204,7 +3218,7 @@ brcms_b_read_tsf(struct wlc_hw_info *wlc_hw, u32 *tsf_l_ptr,
 	return;
 }
 
-static bool brcms_b_validate_chip_access(struct wlc_hw_info *wlc_hw)
+static bool brcms_b_validate_chip_access(struct brcms_c_hw_info *wlc_hw)
 {
 	d11regs_t *regs;
 	u32 w, val;
@@ -3269,7 +3283,7 @@ static bool brcms_b_validate_chip_access(struct wlc_hw_info *wlc_hw)
 
 #define PHYPLL_WAIT_US	100000
 
-void brcms_b_core_phypll_ctl(struct wlc_hw_info *wlc_hw, bool on)
+void brcms_b_core_phypll_ctl(struct brcms_c_hw_info *wlc_hw, bool on)
 {
 	d11regs_t *regs;
 	u32 tmp;
@@ -3321,7 +3335,7 @@ void brcms_b_core_phypll_ctl(struct wlc_hw_info *wlc_hw, bool on)
 	}
 }
 
-void wlc_coredisable(struct wlc_hw_info *wlc_hw)
+void brcms_c_coredisable(struct brcms_c_hw_info *wlc_hw)
 {
 	bool dev_gone;
 
@@ -3359,7 +3373,7 @@ void wlc_coredisable(struct wlc_hw_info *wlc_hw)
 }
 
 /* power both the pll and external oscillator on/off */
-static void brcms_b_xtal(struct wlc_hw_info *wlc_hw, bool want)
+static void brcms_b_xtal(struct brcms_c_hw_info *wlc_hw, bool want)
 {
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d: want %d\n", wlc_hw->unit, want);
 
@@ -3378,9 +3392,9 @@ static void brcms_b_xtal(struct wlc_hw_info *wlc_hw, bool want)
 	}
 }
 
-static void wlc_flushqueues(struct wlc_info *wlc)
+static void wlc_flushqueues(struct brcms_c_info *wlc)
 {
-	struct wlc_hw_info *wlc_hw = wlc->hw;
+	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	uint i;
 
 	wlc->txpend16165war = 0;
@@ -3397,18 +3411,18 @@ static void wlc_flushqueues(struct wlc_info *wlc)
 	dma_rxreclaim(wlc_hw->di[RX_FIFO]);
 }
 
-u16 brcms_b_read_shm(struct wlc_hw_info *wlc_hw, uint offset)
+u16 brcms_b_read_shm(struct brcms_c_hw_info *wlc_hw, uint offset)
 {
 	return brcms_b_read_objmem(wlc_hw, offset, OBJADDR_SHM_SEL);
 }
 
-void brcms_b_write_shm(struct wlc_hw_info *wlc_hw, uint offset, u16 v)
+void brcms_b_write_shm(struct brcms_c_hw_info *wlc_hw, uint offset, u16 v)
 {
 	brcms_b_write_objmem(wlc_hw, offset, v, OBJADDR_SHM_SEL);
 }
 
 static u16
-brcms_b_read_objmem(struct wlc_hw_info *wlc_hw, uint offset, u32 sel)
+brcms_b_read_objmem(struct brcms_c_hw_info *wlc_hw, uint offset, u32 sel)
 {
 	d11regs_t *regs = wlc_hw->regs;
 	volatile u16 *objdata_lo = (volatile u16 *)&regs->objdata;
@@ -3427,7 +3441,8 @@ brcms_b_read_objmem(struct wlc_hw_info *wlc_hw, uint offset, u32 sel)
 }
 
 static void
-brcms_b_write_objmem(struct wlc_hw_info *wlc_hw, uint offset, u16 v, u32 sel)
+brcms_b_write_objmem(struct brcms_c_hw_info *wlc_hw, uint offset, u16 v,
+		     u32 sel)
 {
 	d11regs_t *regs = wlc_hw->regs;
 	volatile u16 *objdata_lo = (volatile u16 *)&regs->objdata;
@@ -3448,8 +3463,8 @@ brcms_b_write_objmem(struct wlc_hw_info *wlc_hw, uint offset, u16 v, u32 sel)
  * 'sel' selects the type of memory
  */
 void
-brcms_b_copyto_objmem(struct wlc_hw_info *wlc_hw, uint offset, const void *buf,
-		       int len, u32 sel)
+brcms_b_copyto_objmem(struct brcms_c_hw_info *wlc_hw, uint offset,
+		      const void *buf, int len, u32 sel)
 {
 	u16 v;
 	const u8 *p = (const u8 *)buf;
@@ -3470,7 +3485,7 @@ brcms_b_copyto_objmem(struct wlc_hw_info *wlc_hw, uint offset, const void *buf,
  * 'sel' selects the type of memory
  */
 void
-brcms_b_copyfrom_objmem(struct wlc_hw_info *wlc_hw, uint offset, void *buf,
+brcms_b_copyfrom_objmem(struct brcms_c_hw_info *wlc_hw, uint offset, void *buf,
 			 int len, u32 sel)
 {
 	u16 v;
@@ -3487,7 +3502,8 @@ brcms_b_copyfrom_objmem(struct wlc_hw_info *wlc_hw, uint offset, void *buf,
 	}
 }
 
-void brcms_b_copyfrom_vars(struct wlc_hw_info *wlc_hw, char **buf, uint *len)
+void brcms_b_copyfrom_vars(struct brcms_c_hw_info *wlc_hw, char **buf,
+			   uint *len)
 {
 	BCMMSG(wlc_hw->wlc->wiphy, "nvram vars totlen=%d\n",
 		wlc_hw->vars_size);
@@ -3496,7 +3512,7 @@ void brcms_b_copyfrom_vars(struct wlc_hw_info *wlc_hw, char **buf, uint *len)
 	*len = wlc_hw->vars_size;
 }
 
-void brcms_b_retrylimit_upd(struct wlc_hw_info *wlc_hw, u16 SRL, u16 LRL)
+void brcms_b_retrylimit_upd(struct brcms_c_hw_info *wlc_hw, u16 SRL, u16 LRL)
 {
 	wlc_hw->SRL = SRL;
 	wlc_hw->LRL = LRL;
@@ -3514,7 +3530,7 @@ void brcms_b_retrylimit_upd(struct wlc_hw_info *wlc_hw, u16 SRL, u16 LRL)
 	}
 }
 
-void brcms_b_pllreq(struct wlc_hw_info *wlc_hw, bool set, mbool req_bit)
+void brcms_b_pllreq(struct brcms_c_hw_info *wlc_hw, bool set, mbool req_bit)
 {
 	if (set) {
 		if (mboolisset(wlc_hw->pllreq, req_bit))
@@ -3543,7 +3559,7 @@ void brcms_b_pllreq(struct wlc_hw_info *wlc_hw, bool set, mbool req_bit)
 	return;
 }
 
-u16 brcms_b_rate_shm_offset(struct wlc_hw_info *wlc_hw, u8 rate)
+u16 brcms_b_rate_shm_offset(struct brcms_c_hw_info *wlc_hw, u8 rate)
 {
 	u16 table_ptr;
 	u8 phy_rate, index;
@@ -3567,7 +3583,7 @@ u16 brcms_b_rate_shm_offset(struct wlc_hw_info *wlc_hw, u8 rate)
 	return 2 * brcms_b_read_shm(wlc_hw, table_ptr + (index * 2));
 }
 
-void brcms_b_antsel_set(struct wlc_hw_info *wlc_hw, u32 antsel_avail)
+void brcms_b_antsel_set(struct brcms_c_hw_info *wlc_hw, u32 antsel_avail)
 {
 	wlc_hw->antsel_avail = antsel_avail;
 }

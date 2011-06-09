@@ -20,8 +20,8 @@
 #include "main.h"
 #include "alloc.h"
 
-static struct wlc_bsscfg *wlc_bsscfg_malloc(uint unit);
-static void wlc_bsscfg_mfree(struct wlc_bsscfg *cfg);
+static struct brcms_c_bsscfg *wlc_bsscfg_malloc(uint unit);
+static void wlc_bsscfg_mfree(struct brcms_c_bsscfg *cfg);
 static struct wlc_pub *wlc_pub_malloc(uint unit,
 				      uint *err, uint devid);
 static void wlc_pub_mfree(struct wlc_pub *pub);
@@ -87,11 +87,11 @@ static void wlc_pub_mfree(struct wlc_pub *pub)
 	kfree(pub);
 }
 
-static struct wlc_bsscfg *wlc_bsscfg_malloc(uint unit)
+static struct brcms_c_bsscfg *wlc_bsscfg_malloc(uint unit)
 {
-	struct wlc_bsscfg *cfg;
+	struct brcms_c_bsscfg *cfg;
 
-	cfg = kzalloc(sizeof(struct wlc_bsscfg), GFP_ATOMIC);
+	cfg = kzalloc(sizeof(struct brcms_c_bsscfg), GFP_ATOMIC);
 	if (cfg == NULL)
 		goto fail;
 
@@ -106,7 +106,7 @@ static struct wlc_bsscfg *wlc_bsscfg_malloc(uint unit)
 	return NULL;
 }
 
-static void wlc_bsscfg_mfree(struct wlc_bsscfg *cfg)
+static void wlc_bsscfg_mfree(struct brcms_c_bsscfg *cfg)
 {
 	if (cfg == NULL)
 		return;
@@ -116,8 +116,8 @@ static void wlc_bsscfg_mfree(struct wlc_bsscfg *cfg)
 	kfree(cfg);
 }
 
-static void wlc_bsscfg_ID_assign(struct wlc_info *wlc,
-				 struct wlc_bsscfg *bsscfg)
+static void wlc_bsscfg_ID_assign(struct brcms_c_info *wlc,
+				 struct brcms_c_bsscfg *bsscfg)
 {
 	bsscfg->ID = wlc->next_bsscfg_ID;
 	wlc->next_bsscfg_ID++;
@@ -126,17 +126,17 @@ static void wlc_bsscfg_ID_assign(struct wlc_info *wlc,
 /*
  * The common driver entry routine. Error codes should be unique
  */
-struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
+struct brcms_c_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 {
-	struct wlc_info *wlc;
+	struct brcms_c_info *wlc;
 
-	wlc = kzalloc(sizeof(struct wlc_info), GFP_ATOMIC);
+	wlc = kzalloc(sizeof(struct brcms_c_info), GFP_ATOMIC);
 	if (wlc == NULL) {
 		*err = 1002;
 		goto fail;
 	}
 
-	/* allocate struct wlc_pub state structure */
+	/* allocate struct brcms_c_pub state structure */
 	wlc->pub = wlc_pub_malloc(unit, err, devid);
 	if (wlc->pub == NULL) {
 		*err = 1003;
@@ -144,9 +144,9 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 	}
 	wlc->pub->wlc = wlc;
 
-	/* allocate struct wlc_hw_info state structure */
+	/* allocate struct brcms_c_hw_info state structure */
 
-	wlc->hw = kzalloc(sizeof(struct wlc_hw_info), GFP_ATOMIC);
+	wlc->hw = kzalloc(sizeof(struct brcms_c_hw_info), GFP_ATOMIC);
 	if (wlc->hw == NULL) {
 		*err = 1005;
 		goto fail;
@@ -154,7 +154,7 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 	wlc->hw->wlc = wlc;
 
 	wlc->hw->bandstate[0] =
-		kzalloc(sizeof(struct wlc_hwband) * MAXBANDS, GFP_ATOMIC);
+		kzalloc(sizeof(struct brcms_c_hwband) * MAXBANDS, GFP_ATOMIC);
 	if (wlc->hw->bandstate[0] == NULL) {
 		*err = 1006;
 		goto fail;
@@ -162,9 +162,9 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 		int i;
 
 		for (i = 1; i < MAXBANDS; i++) {
-			wlc->hw->bandstate[i] = (struct wlc_hwband *)
+			wlc->hw->bandstate[i] = (struct brcms_c_hwband *)
 			    ((unsigned long)wlc->hw->bandstate[0] +
-			     (sizeof(struct wlc_hwband) * i));
+			     (sizeof(struct brcms_c_hwband) * i));
 		}
 	}
 
@@ -202,20 +202,21 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 		}
 	}
 
-	wlc->protection = kzalloc(sizeof(struct wlc_protection), GFP_ATOMIC);
+	wlc->protection = kzalloc(sizeof(struct brcms_c_protection),
+				  GFP_ATOMIC);
 	if (wlc->protection == NULL) {
 		*err = 1016;
 		goto fail;
 	}
 
-	wlc->stf = kzalloc(sizeof(struct wlc_stf), GFP_ATOMIC);
+	wlc->stf = kzalloc(sizeof(struct brcms_c_stf), GFP_ATOMIC);
 	if (wlc->stf == NULL) {
 		*err = 1017;
 		goto fail;
 	}
 
 	wlc->bandstate[0] =
-		kzalloc(sizeof(struct wlcband)*MAXBANDS, GFP_ATOMIC);
+		kzalloc(sizeof(struct brcms_c_band)*MAXBANDS, GFP_ATOMIC);
 	if (wlc->bandstate[0] == NULL) {
 		*err = 1025;
 		goto fail;
@@ -223,13 +224,13 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 		int i;
 
 		for (i = 1; i < MAXBANDS; i++) {
-			wlc->bandstate[i] =
-			    (struct wlcband *) ((unsigned long)wlc->bandstate[0]
-			    + (sizeof(struct wlcband)*i));
+			wlc->bandstate[i] = (struct brcms_c_band *)
+				((unsigned long)wlc->bandstate[0]
+				+ (sizeof(struct brcms_c_band)*i));
 		}
 	}
 
-	wlc->corestate = kzalloc(sizeof(struct wlccore), GFP_ATOMIC);
+	wlc->corestate = kzalloc(sizeof(struct brcms_c_core), GFP_ATOMIC);
 	if (wlc->corestate == NULL) {
 		*err = 1026;
 		goto fail;
@@ -249,7 +250,7 @@ struct wlc_info *wlc_attach_malloc(uint unit, uint *err, uint devid)
 	return NULL;
 }
 
-void wlc_detach_mfree(struct wlc_info *wlc)
+void wlc_detach_mfree(struct brcms_c_info *wlc)
 {
 	if (wlc == NULL)
 		return;

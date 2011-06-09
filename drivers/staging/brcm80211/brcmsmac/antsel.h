@@ -17,7 +17,7 @@
 #ifndef _BRCM_ANTSEL_H_
 #define _BRCM_ANTSEL_H_
 
-extern struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc);
+extern struct antsel_info *wlc_antsel_attach(struct brcms_c_info *wlc);
 extern void wlc_antsel_detach(struct antsel_info *asi);
 extern void wlc_antsel_init(struct antsel_info *asi);
 extern void wlc_antsel_antcfg_get(struct antsel_info *asi, bool usedef,
