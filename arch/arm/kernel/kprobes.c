@@ -51,6 +51,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	kprobe_opcode_t insn;
 	kprobe_opcode_t tmp_insn[MAX_INSN_SIZE];
 	unsigned long addr = (unsigned long)p->addr;
+	bool thumb;
 	kprobe_decode_insn_t *decode_insn;
 	int is;
 
@@ -58,6 +59,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 		return -EINVAL;
 
 #ifdef CONFIG_THUMB2_KERNEL
+	thumb = true;
 	addr &= ~1; /* Bit 0 would normally be set to indicate Thumb code */
 	insn = ((u16 *)addr)[0];
 	if (is_wide_instruction(insn)) {
@@ -67,6 +69,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	} else
 		decode_insn = thumb16_kprobe_decode_insn;
 #else /* !CONFIG_THUMB2_KERNEL */
+	thumb = false;
 	if (addr & 0x3)
 		return -EINVAL;
 	insn = *p->addr;
@@ -88,6 +91,8 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 			p->ainsn.insn[is] = tmp_insn[is];
 		flush_insns(p->ainsn.insn,
 				sizeof(p->ainsn.insn[0]) * MAX_INSN_SIZE);
+		p->ainsn.insn_fn = (kprobe_insn_fn_t *)
+					((uintptr_t)p->ainsn.insn | thumb);
 		break;
 
 	case INSN_GOOD_NO_SLOT:	/* instruction doesn't need insn slot */
