@@ -309,7 +309,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 	msg[0].len = 1;
 	msg[0].buf = &start_reg;
 	msg[0].scl_rate = 400*1000;
-	msg[0].udelay = 150;
+	msg[0].udelay = 200;
 	
 	msg[1].addr = ts->client->addr;
 	msg[1].flags = ts->client->flags | I2C_M_RD;
