@@ -235,13 +235,12 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 			    struct fb_info *info)
 {
 	struct s3c_fb_win *win = info->par;
-	struct s3c_fb_pd_win *windata = win->windata;
 	struct s3c_fb *sfb = win->parent;
 
 	dev_dbg(sfb->dev, "checking parameters\n");
 
-	var->xres_virtual = max((unsigned int)windata->virtual_x, var->xres);
-	var->yres_virtual = max((unsigned int)windata->virtual_y, var->yres);
+	var->xres_virtual = max(var->xres_virtual, var->xres);
+	var->yres_virtual = max(var->yres_virtual, var->yres);
 
 	if (!s3c_fb_validate_win_bpp(win, var->bits_per_pixel)) {
 		dev_dbg(sfb->dev, "win %d: unsupported bpp %d\n",
