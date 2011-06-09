@@ -96,18 +96,21 @@ inline void cal_run_idle(gceCHIPPOWERSTATE State)
 gceCHIPPOWERSTATE lastState = gcvPOWER_IDLE;
 int lasthighfreq = 0;
 extern int needhighfreq;
+extern int lowfreq;
+extern int highfreq;
 struct clk *clk_gpu = NULL;
 inline void get_idle_change(gceCHIPPOWERSTATE State)
 {
     if(gcvPOWER_ON!=lastState && gcvPOWER_ON==State)  //gcvPOWER_IDLE->gcvPOWER_ON
     {
         if(lasthighfreq != needhighfreq) {
-            int gpufreq = needhighfreq ? 552 : 360;
+            int gpufreq = needhighfreq ? highfreq : lowfreq;
+            if(gpufreq<24)      gpufreq = 24;
+            if(gpufreq>600)     gpufreq = 600;
+            
             clk_gpu = clk_get(NULL, "gpu");
-            clk_set_parent(clk_gpu, clk_get(NULL, "general_pll"));
-            clk_set_rate(clk_get(NULL, "codec_pll"), gpufreq*1000000);
             clk_set_rate(clk_gpu, gpufreq*1000000);
-            clk_set_parent(clk_gpu, clk_get(NULL, "codec_pll"));
+            
             lasthighfreq = needhighfreq;
             
             printk("gpu: change freq to %d \n", gpufreq); 

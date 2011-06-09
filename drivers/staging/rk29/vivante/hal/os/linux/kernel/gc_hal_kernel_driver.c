@@ -244,6 +244,8 @@ void gputimer_callback(unsigned long arg)
 #include <linux/timer.h>
 struct timer_list gpu_timer;
 int needhighfreq = 0;
+int lowfreq = 300;
+int highfreq = 552;
 void mod_gpu_timer(void)
 {
     mod_timer(&gpu_timer, jiffies + 3*HZ);
@@ -1042,14 +1044,14 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 {
 	int ret = -ENODEV;
 	struct resource *res;
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,"gpu_irq");
+	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "gpu_irq");
 	if (!res) {
 		printk(KERN_ERR "%s: No irq line supplied.\n",__FUNCTION__);
 		goto gpu_probe_fail;
 	}
 	irqLine = res->start;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,"gpu_base");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gpu_base");
 	if (!res) {
 		printk(KERN_ERR "%s: No register base supplied.\n",__FUNCTION__);
 		goto gpu_probe_fail;
@@ -1058,7 +1060,7 @@ static int __devinit gpu_probe(struct platform_device *pdev)
     // dkm: 不能+1
 	registerMemSize = res->end - res->start;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,"gpu_mem");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gpu_mem");
 	if (!res) {
 		printk(KERN_ERR "%s: No memory base supplied.\n",__FUNCTION__);
 		goto gpu_probe_fail;
@@ -1066,6 +1068,18 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 	contiguousBase  = res->start;
     // dkm: 不能+1
 	contiguousSize  = res->end - res->start;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_IO, "gpu_clk");
+	if (!res) {
+		printk(KERN_ERR "%s: No gpu clk supplied, use default!\n", __FUNCTION__);
+	} else {
+	    coreClock = res->end * 1000000;
+// dkm: gcdENABLE_AUTO_FREQ
+#if (2==gcdENABLE_AUTO_FREQ)
+        lowfreq = res->start;
+        highfreq = res->end;
+#endif
+    }
 
 // dkm: gcdENABLE_AUTO_FREQ
 #if (1==gcdENABLE_AUTO_FREQ)

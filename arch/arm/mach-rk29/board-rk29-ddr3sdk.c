@@ -1258,6 +1258,8 @@ static struct platform_device rk29sdk_rfkill = {
 
 
 #ifdef CONFIG_VIVANTE
+#define GPU_HIGH_CLOCK        552
+#define GPU_LOW_CLOCK         300
 static struct resource resources_gpu[] = {
     [0] = {
 		.name 	= "gpu_irq",
@@ -1266,16 +1268,22 @@ static struct resource resources_gpu[] = {
         .flags  = IORESOURCE_IRQ,
     },
     [1] = {
-		.name = "gpu_base",
+		.name   = "gpu_base",
         .start  = RK29_GPU_PHYS,
         .end    = RK29_GPU_PHYS + RK29_GPU_SIZE,
         .flags  = IORESOURCE_MEM,
     },
     [2] = {
-		.name = "gpu_mem",
+		.name   = "gpu_mem",
         .start  = PMEM_GPU_BASE,
         .end    = PMEM_GPU_BASE + PMEM_GPU_SIZE,
         .flags  = IORESOURCE_MEM,
+    },
+    [3] = {
+		.name 	= "gpu_clk",
+        .start 	= GPU_LOW_CLOCK,
+        .end    = GPU_HIGH_CLOCK,
+        .flags  = IORESOURCE_IO,
     },
 };
 static struct platform_device rk29_device_gpu = {
@@ -1285,6 +1293,7 @@ static struct platform_device rk29_device_gpu = {
     .resource         = resources_gpu,
 };
 #endif
+
 #ifdef CONFIG_KEYS_RK29
 extern struct rk29_keys_platform_data rk29_keys_pdata;
 static struct platform_device rk29_device_keys = {
