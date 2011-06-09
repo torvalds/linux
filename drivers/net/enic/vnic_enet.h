@@ -51,4 +51,11 @@ struct vnic_enet_config {
 #define VENETF_RSSHASH_TCPIPV6_EX 0x400	/* Hash on TCP + IPv6 ext. fields */
 #define VENETF_LOOP		0x800	/* Loopback enabled */
 
+#define VENET_INTR_TYPE_MIN	0	/* Timer specs min interrupt spacing */
+#define VENET_INTR_TYPE_IDLE	1	/* Timer specs idle time before irq */
+
+#define VENET_INTR_MODE_ANY	0	/* Try MSI-X, then MSI, then INTx */
+#define VENET_INTR_MODE_MSI	1	/* Try MSI then INTx */
+#define VENET_INTR_MODE_INTX	2	/* Try INTx only */
+
 #endif /* _VNIC_ENIC_H_ */
