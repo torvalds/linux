@@ -1693,6 +1693,6 @@ void __init xen_init_IRQ(void)
 	} else {
 		irq_ctx_init(smp_processor_id());
 		if (xen_initial_domain())
-			xen_setup_pirqs();
+			pci_xen_initial_domain();
 	}
 }
