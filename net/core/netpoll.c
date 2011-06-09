@@ -792,6 +792,12 @@ int netpoll_setup(struct netpoll *np)
 		return -ENODEV;
 	}
 
+	if (ndev->master) {
+		printk(KERN_ERR "%s: %s is a slave device, aborting.\n",
+		       np->name, np->dev_name);
+		return -EBUSY;
+	}
+
 	if (!netif_running(ndev)) {
 		unsigned long atmost, atleast;
 
