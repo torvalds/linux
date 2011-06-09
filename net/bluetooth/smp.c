@@ -277,12 +277,15 @@ static void smp_cmd_pairing_confirm(struct l2cap_conn *conn,
 
 static void smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 {
-	struct crypto_blkcipher *tfm = conn->hcon->hdev->tfm;
+	struct hci_conn *hcon = conn->hcon;
+	struct crypto_blkcipher *tfm = hcon->hdev->tfm;
 	int ret;
 	u8 key[16], res[16], random[16], confirm[16], buf[128];
 
 	swap128(skb->data, random);
 	skb_pull(skb, sizeof(random));
+
+	memset(hcon->ltk, 0, sizeof(hcon->ltk));
 
 	if (conn->hcon->out)
 		ret = smp_c1(tfm, conn->tk, random, conn->preq, conn->prsp, 0,
@@ -309,11 +312,15 @@ static void smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 	}
 
 	if (conn->hcon->out) {
-		smp_s1(tfm, conn->tk, random, conn->prnd, key);
+		__le16 ediv;
+		u8 rand[8];
 
-		hex_dump_to_buffer(key, sizeof(key), 16, 1, buf,
-							sizeof(buf), 0);
-		BT_DBG("key %s", buf);
+		smp_s1(tfm, conn->tk, random, conn->prnd, key);
+		swap128(key, hcon->ltk);
+
+		memset(rand, 0, sizeof(rand));
+		ediv = 0;
+		hci_le_start_enc(hcon, ediv, rand, hcon->ltk);
 	} else {
 		u8 r[16];
 
@@ -321,6 +328,7 @@ static void smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(r), r);
 
 		smp_s1(tfm, conn->tk, conn->prnd, random, key);
+		swap128(key, hcon->ltk);
 
 		hex_dump_to_buffer(key, sizeof(key), 16, 1, buf,
 							sizeof(buf), 0);

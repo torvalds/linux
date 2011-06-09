@@ -745,6 +745,33 @@ struct hci_cp_le_conn_update {
 	__le16   max_ce_len;
 } __packed;
 
+#define HCI_OP_LE_START_ENC		0x2019
+struct hci_cp_le_start_enc {
+	__le16	handle;
+	__u8	rand[8];
+	__le16	ediv;
+	__u8	ltk[16];
+} __packed;
+
+#define HCI_OP_LE_LTK_REPLY		0x201a
+struct hci_cp_le_ltk_reply {
+	__le16	handle;
+	__u8	ltk[16];
+} __packed;
+struct hci_rp_le_ltk_reply {
+	__u8	status;
+	__le16	handle;
+} __packed;
+
+#define HCI_OP_LE_LTK_NEG_REPLY		0x201b
+struct hci_cp_le_ltk_neg_reply {
+	__le16	handle;
+} __packed;
+struct hci_rp_le_ltk_neg_reply {
+	__u8	status;
+	__le16	handle;
+} __packed;
+
 /* ---- HCI Events ---- */
 #define HCI_EV_INQUIRY_COMPLETE		0x01
 
@@ -1033,6 +1060,13 @@ struct hci_ev_le_conn_complete {
 	__le16   latency;
 	__le16   supervision_timeout;
 	__u8     clk_accurancy;
+} __packed;
+
+#define HCI_EV_LE_LTK_REQ		0x05
+struct hci_ev_le_ltk_req {
+	__le16	handle;
+	__u8	random[8];
+	__le16	ediv;
 } __packed;
 
 /* Advertising report event types */
