@@ -689,23 +689,16 @@ static void scic_sds_port_construct_dummy_rnc(struct scic_sds_port *sci_port, u1
 	rnc->ssp.arbitration_wait_time = 0;
 }
 
-/**
- * scic_sds_port_construct_dummy_task() - create dummy task for si workaround
- * @sci_port The logical port on which we need to create the
- *            remote node context.
- *            context.
- * @tci The remote node index for this remote node context.
- *
- * This routine will construct a dummy task context data structure.  This
+/*
+ * construct a dummy task context data structure.  This
  * structure will be posted to the hardwre to work around a scheduler error
  * in the hardware.
- *
  */
-static void scic_sds_port_construct_dummy_task(struct scic_sds_port *sci_port, u16 tci)
+static void scic_sds_port_construct_dummy_task(struct scic_sds_port *sci_port, u16 tag)
 {
 	struct scu_task_context *task_context;
 
-	task_context = scic_sds_controller_get_task_context_buffer(sci_port->owning_controller, tci);
+	task_context = scic_sds_controller_get_task_context_buffer(sci_port->owning_controller, tag);
 
 	memset(task_context, 0, sizeof(struct scu_task_context));
 
@@ -716,7 +709,7 @@ static void scic_sds_port_construct_dummy_task(struct scic_sds_port *sci_port, u
 	task_context->protocol_engine_index = 0;
 	task_context->logical_port_index = sci_port->physical_port_index;
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_SSP;
-	task_context->task_index = scic_sds_io_tag_get_index(tci);
+	task_context->task_index = ISCI_TAG_TCI(tag);
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 

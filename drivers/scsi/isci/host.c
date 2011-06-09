@@ -284,23 +284,16 @@ static void scic_sds_controller_task_completion(struct scic_sds_controller *scic
 						u32 completion_entry)
 {
 	u32 index;
-	struct scic_sds_request *io_request;
+	struct scic_sds_request *sci_req;
 
 	index = SCU_GET_COMPLETION_INDEX(completion_entry);
-	io_request = scic->io_request_table[index];
+	sci_req = scic->io_request_table[index];
 
 	/* Make sure that we really want to process this IO request */
-	if (
-		(io_request != NULL)
-		&& (io_request->io_tag != SCI_CONTROLLER_INVALID_IO_TAG)
-		&& (
-			scic_sds_io_tag_get_sequence(io_request->io_tag)
-			== scic->io_request_sequence[index]
-			)
-		) {
+	if (sci_req && sci_req->io_tag != SCI_CONTROLLER_INVALID_IO_TAG &&
+	    ISCI_TAG_SEQ(sci_req->io_tag) == scic->io_request_sequence[index])
 		/* Yep this is a valid io request pass it along to the io request handler */
-		scic_sds_io_request_tc_completion(io_request, completion_entry);
-	}
+		scic_sds_io_request_tc_completion(sci_req, completion_entry);
 }
 
 static void scic_sds_controller_sdma_completion(struct scic_sds_controller *scic,
@@ -2682,37 +2675,28 @@ void scic_sds_controller_copy_task_context(
 	sci_req->task_context_buffer = task_context_buffer;
 }
 
-/**
- * This method returns the task context buffer for the given io tag.
- * @scic:
- * @io_tag:
- *
- * struct scu_task_context*
- */
-struct scu_task_context *scic_sds_controller_get_task_context_buffer(
-	struct scic_sds_controller *scic,
-	u16 io_tag
-	) {
-	u16 task_index = scic_sds_io_tag_get_index(io_tag);
+struct scu_task_context *scic_sds_controller_get_task_context_buffer(struct scic_sds_controller *scic,
+								     u16 io_tag)
+{
+	u16 tci = ISCI_TAG_TCI(io_tag);
 
-	if (task_index < scic->task_context_entries) {
-		return &scic->task_context_table[task_index];
+	if (tci < scic->task_context_entries) {
+		return &scic->task_context_table[tci];
 	}
 
 	return NULL;
 }
 
-struct scic_sds_request *scic_request_by_tag(struct scic_sds_controller *scic,
-					     u16 io_tag)
+struct scic_sds_request *scic_request_by_tag(struct scic_sds_controller *scic, u16 io_tag)
 {
 	u16 task_index;
 	u16 task_sequence;
 
-	task_index = scic_sds_io_tag_get_index(io_tag);
+	task_index = ISCI_TAG_TCI(io_tag);
 
-	if (task_index  < scic->task_context_entries) {
+	if (task_index < scic->task_context_entries) {
 		if (scic->io_request_table[task_index] != NULL) {
-			task_sequence = scic_sds_io_tag_get_sequence(io_tag);
+			task_sequence = ISCI_TAG_SEQ(io_tag);
 
 			if (task_sequence == scic->io_request_sequence[task_index]) {
 				return scic->io_request_table[task_index];
@@ -2875,11 +2859,10 @@ void scic_sds_controller_release_frame(
  * successfully started the IO request. SCI_SUCCESS if the IO request was
  * successfully started. Determine the failure situations and return values.
  */
-enum sci_status scic_controller_start_io(
-	struct scic_sds_controller *scic,
-	struct scic_sds_remote_device *rdev,
-	struct scic_sds_request *req,
-	u16 io_tag)
+enum sci_status scic_controller_start_io(struct scic_sds_controller *scic,
+					 struct scic_sds_remote_device *rdev,
+					 struct scic_sds_request *req,
+					 u16 io_tag)
 {
 	enum sci_status status;
 
@@ -2892,7 +2875,7 @@ enum sci_status scic_controller_start_io(
 	if (status != SCI_SUCCESS)
 		return status;
 
-	scic->io_request_table[scic_sds_io_tag_get_index(req->io_tag)] = req;
+	scic->io_request_table[ISCI_TAG_TCI(req->io_tag)] = req;
 	scic_sds_controller_post_request(scic, scic_sds_request_get_post_context(req));
 	return SCI_SUCCESS;
 }
@@ -2979,7 +2962,7 @@ enum sci_status scic_controller_complete_io(
 		if (status != SCI_SUCCESS)
 			return status;
 
-		index = scic_sds_io_tag_get_index(request->io_tag);
+		index = ISCI_TAG_TCI(request->io_tag);
 		scic->io_request_table[index] = NULL;
 		return SCI_SUCCESS;
 	default:
@@ -2998,7 +2981,7 @@ enum sci_status scic_controller_continue_io(struct scic_sds_request *sci_req)
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	scic->io_request_table[scic_sds_io_tag_get_index(sci_req->io_tag)] = sci_req;
+	scic->io_request_table[ISCI_TAG_TCI(sci_req->io_tag)] = sci_req;
 	scic_sds_controller_post_request(scic, scic_sds_request_get_post_context(sci_req));
 	return SCI_SUCCESS;
 }
@@ -3050,7 +3033,7 @@ enum sci_task_status scic_controller_start_task(
 	status = scic_sds_remote_device_start_task(scic, rdev, req);
 	switch (status) {
 	case SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS:
-		scic->io_request_table[scic_sds_io_tag_get_index(req->io_tag)] = req;
+		scic->io_request_table[ISCI_TAG_TCI(req->io_tag)] = req;
 
 		/*
 		 * We will let framework know this task request started successfully,
@@ -3059,7 +3042,7 @@ enum sci_task_status scic_controller_start_task(
 		 */
 		return SCI_SUCCESS;
 	case SCI_SUCCESS:
-		scic->io_request_table[scic_sds_io_tag_get_index(req->io_tag)] = req;
+		scic->io_request_table[ISCI_TAG_TCI(req->io_tag)] = req;
 
 		scic_sds_controller_post_request(scic,
 			scic_sds_request_get_post_context(req));
@@ -3096,14 +3079,12 @@ enum sci_task_status scic_controller_start_task(
 u16 scic_controller_allocate_io_tag(struct scic_sds_controller *scic)
 {
 	struct isci_host *ihost = scic_to_ihost(scic);
-	u16 tci;
-	u16 seq;
 
 	if (isci_tci_space(ihost)) {
-		tci = isci_tci_alloc(ihost);
-		seq = scic->io_request_sequence[tci];
+		u16 tci = isci_tci_alloc(ihost);
+		u8 seq = scic->io_request_sequence[tci];
 
-		return scic_sds_io_tag_construct(seq, tci);
+		return ISCI_TAG(seq, tci);
 	}
 
 	return SCI_CONTROLLER_INVALID_IO_TAG;
@@ -3138,22 +3119,17 @@ enum sci_status scic_controller_free_io_tag(struct scic_sds_controller *scic,
 					    u16 io_tag)
 {
 	struct isci_host *ihost = scic_to_ihost(scic);
-	u16 sequence;
-	u16 index;
-
-	BUG_ON(io_tag == SCI_CONTROLLER_INVALID_IO_TAG);
-
-	sequence = scic_sds_io_tag_get_sequence(io_tag);
-	index    = scic_sds_io_tag_get_index(io_tag);
+	u16 tci = ISCI_TAG_TCI(io_tag);
+	u16 seq = ISCI_TAG_SEQ(io_tag);
 
 	/* prevent tail from passing head */
 	if (isci_tci_active(ihost) == 0)
 		return SCI_FAILURE_INVALID_IO_TAG;
 
-	if (sequence == scic->io_request_sequence[index]) {
-		scic_sds_io_sequence_increment(scic->io_request_sequence[index]);
+	if (seq == scic->io_request_sequence[tci]) {
+		scic->io_request_sequence[tci] = (seq+1) & (SCI_MAX_SEQ-1);
 
-		isci_tci_free(ihost, index);
+		isci_tci_free(ihost, ISCI_TAG_TCI(io_tag));
 
 		return SCI_SUCCESS;
 	}

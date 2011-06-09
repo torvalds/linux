@@ -184,13 +184,8 @@ struct scic_sds_controller {
 	 */
 	struct scic_power_control power_control;
 
-	/**
-	 * This field is the array of sequence values for the IO Tag fields.  Even
-	 * though only 4 bits of the field is used for the sequence the sequence is 16
-	 * bits in size so the sequence can be bitwise or'd with the TCi to build the
-	 * IO Tag value.
-	 */
-	u16 io_request_sequence[SCI_MAX_IO_REQUESTS];
+	/* sequence number per tci */
+	u8 io_request_sequence[SCI_MAX_IO_REQUESTS];
 
 	/**
 	 * This field in the array of sequence values for the RNi.  These are used
@@ -552,40 +547,12 @@ static inline struct isci_host *scic_to_ihost(struct scic_sds_controller *scic)
  */
 #define scic_sds_controller_get_protocol_engine_group(controller) 0
 
-/**
- * scic_sds_io_tag_construct() -
- *
- * This macro constructs an IO tag from the sequence and index values.
- */
-#define scic_sds_io_tag_construct(sequence, task_index)	\
-	((sequence) << 12 | (task_index))
+/* see scic_controller_io_tag_allocate|free for how seq and tci are built */
+#define ISCI_TAG(seq, tci) (((u16) (seq)) << 12 | tci)
 
-/**
- * scic_sds_io_tag_get_sequence() -
- *
- * This macro returns the IO sequence from the IO tag value.
- */
-#define scic_sds_io_tag_get_sequence(io_tag) \
-	(((io_tag) & 0xF000) >> 12)
-
-/**
- * scic_sds_io_tag_get_index() -
- *
- * This macro returns the TCi from the io tag value
- */
-#define scic_sds_io_tag_get_index(io_tag) \
-	((io_tag) & 0x0FFF)
-
-/**
- * scic_sds_io_sequence_increment() -
- *
- * This is a helper macro to increment the io sequence count. We may find in
- * the future that it will be faster to store the sequence count in such a way
- * as we dont perform the shift operation to build io tag values so therefore
- * need a way to incrment them correctly
- */
-#define scic_sds_io_sequence_increment(value) \
-	((value) = (((value) + 1) & 0x000F))
+/* these are returned by the hardware, so sanitize them */
+#define ISCI_TAG_SEQ(tag) (((tag) >> 12) & (SCI_MAX_SEQ-1))
+#define ISCI_TAG_TCI(tag) ((tag) & (SCI_MAX_IO_REQUESTS-1))
 
 /* expander attached sata devices require 3 rnc slots */
 static inline int scic_sds_remote_device_node_count(struct scic_sds_remote_device *sci_dev)

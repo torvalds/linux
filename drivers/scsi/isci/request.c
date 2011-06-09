@@ -258,7 +258,7 @@ static void scu_ssp_reqeust_construct_task_context(
 			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
 			 (scic_sds_port_get_index(target_port) <<
 			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
-			 scic_sds_io_tag_get_index(sds_request->io_tag));
+			  ISCI_TAG_TCI(sds_request->io_tag));
 	} else {
 		/*
 		 * Build the task context now since we have already read
@@ -433,7 +433,7 @@ static void scu_sata_reqeust_construct_task_context(
 			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
 			 (scic_sds_port_get_index(target_port) <<
 			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
-			 scic_sds_io_tag_get_index(sci_req->io_tag));
+			  ISCI_TAG_TCI(sci_req->io_tag));
 	} else {
 		/*
 		 * Build the task context now since we have already read
@@ -741,7 +741,7 @@ static u32 sci_req_tx_bytes(struct scic_sds_request *sci_req)
 		 */
 		ret_val = readl(scu_reg_base +
 				(SCU_TASK_CONTEXT_SRAM + offsetof(struct scu_task_context, type.ssp.data_offset)) +
-				((sizeof(struct scu_task_context)) * scic_sds_io_tag_get_index(sci_req->io_tag)));
+				((sizeof(struct scu_task_context)) * ISCI_TAG_TCI(sci_req->io_tag)));
 	}
 
 	return ret_val;
@@ -777,7 +777,7 @@ enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req)
 	if (sci_req->io_tag != SCI_CONTROLLER_INVALID_IO_TAG) {
 		task_context = sci_req->task_context_buffer;
 
-		task_context->task_index = scic_sds_io_tag_get_index(sci_req->io_tag);
+		task_context->task_index = ISCI_TAG_TCI(sci_req->io_tag);
 
 		switch (task_context->protocol_type) {
 		case SCU_TASK_CONTEXT_PROTOCOL_SMP:
@@ -811,7 +811,7 @@ enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req)
 			scic_sds_controller_copy_task_context(scic, sci_req);
 
 		/* Add to the post_context the io tag value */
-		sci_req->post_context |= scic_sds_io_tag_get_index(sci_req->io_tag);
+		sci_req->post_context |= ISCI_TAG_TCI(sci_req->io_tag);
 
 		/* Everything is good go ahead and change state */
 		sci_change_state(&sci_req->sm, SCI_REQ_STARTED);
@@ -3325,7 +3325,7 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
 			 (scic_sds_port_get_index(sci_port) <<
 			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
-			 scic_sds_io_tag_get_index(sci_req->io_tag));
+			  ISCI_TAG_TCI(sci_req->io_tag));
 	} else {
 		/*
 		 * Build the task context now since we have already read
