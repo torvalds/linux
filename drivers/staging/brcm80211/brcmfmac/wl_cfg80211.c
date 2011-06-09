@@ -101,7 +101,8 @@ static s32 wl_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
 						 struct net_device *dev,
 						 u8 key_idx);
 static s32 wl_cfg80211_resume(struct wiphy *wiphy);
-static s32 wl_cfg80211_suspend(struct wiphy *wiphy);
+static s32 wl_cfg80211_suspend(struct wiphy *wiphy,
+				 struct cfg80211_wowlan *wow);
 static s32 wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 				   struct cfg80211_pmksa *pmksa);
 static s32 wl_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
@@ -2092,7 +2093,7 @@ static s32 wl_cfg80211_resume(struct wiphy *wiphy)
 	return 0;
 }
 
-static s32 wl_cfg80211_suspend(struct wiphy *wiphy)
+static s32 wl_cfg80211_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wow)
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
 	struct net_device *ndev = wl_to_ndev(wl);
