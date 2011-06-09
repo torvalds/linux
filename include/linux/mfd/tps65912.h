@@ -273,6 +273,8 @@ struct tps65912_board {
 	int is_dcdc2_avs;
 	int is_dcdc3_avs;
 	int is_dcdc4_avs;
+	int irq;
+	int irq_base;
 	struct regulator_init_data *tps65912_pmic_init_data;
 };
 
@@ -306,6 +308,7 @@ struct tps65912 {
 };
 
 struct tps65912_platform_data {
+	int irq;
 	int irq_base;
 };
 
@@ -317,5 +320,7 @@ int tps65912_reg_read(struct tps65912 *tps65912, u8 reg);
 int tps65912_reg_write(struct tps65912 *tps65912, u8 reg, u8 val);
 int tps65912_device_init(struct tps65912 *tps65912);
 void tps65912_device_exit(struct tps65912 *tps65912);
+int tps65912_irq_init(struct tps65912 *tps65912, int irq,
+			struct tps65912_platform_data *pdata);
 
 #endif /*  __LINUX_MFD_TPS65912_H */

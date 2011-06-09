@@ -124,7 +124,15 @@ EXPORT_SYMBOL_GPL(tps65912_reg_write);
 int tps65912_device_init(struct tps65912 *tps65912)
 {
 	struct tps65912_board *pmic_plat_data = tps65912->dev->platform_data;
+	struct tps65912_platform_data *init_data;
 	int ret, dcdc_avs, value;
+
+	init_data = kzalloc(sizeof(struct tps65912_platform_data), GFP_KERNEL);
+	if (init_data == NULL)
+		return -ENOMEM;
+
+	init_data->irq = pmic_plat_data->irq;
+	init_data->irq_base = pmic_plat_data->irq;
 
 	mutex_init(&tps65912->io_mutex);
 	dev_set_drvdata(tps65912->dev, tps65912);
@@ -145,9 +153,14 @@ int tps65912_device_init(struct tps65912 *tps65912)
 	if (ret < 0)
 		goto err;
 
+	ret = tps65912_irq_init(tps65912, init_data->irq, init_data);
+	if (ret < 0)
+		goto err;
+
 	return ret;
 
 err:
+	kfree(init_data);
 	mfd_remove_devices(tps65912->dev);
 	kfree(tps65912);
 	return ret;
