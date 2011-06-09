@@ -37,9 +37,8 @@ static bool match_tcp(const struct sk_buff *skb, struct xt_action_param *par)
 	 * be good citizens.
 	 */
 	th = skb_header_pointer(skb, par->thoff, sizeof(_tcph), &_tcph);
-	if (th == NULL) {
+	if (th == NULL)
 		return false;
-	}
 
 	if (einfo->operation & XT_ECN_OP_MATCH_ECE) {
 		if (einfo->invert & XT_ECN_OP_MATCH_ECE) {
@@ -75,14 +74,12 @@ static bool ecn_mt4(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_ecn_info *info = par->matchinfo;
 
-	if (info->operation & XT_ECN_OP_MATCH_IP)
-		if (!match_ip(skb, info))
-			return false;
+	if (info->operation & XT_ECN_OP_MATCH_IP && !match_ip(skb, info))
+		return false;
 
-	if (info->operation & (XT_ECN_OP_MATCH_ECE | XT_ECN_OP_MATCH_CWR)) {
-		if (!match_tcp(skb, par))
-			return false;
-	}
+	if (info->operation & (XT_ECN_OP_MATCH_ECE | XT_ECN_OP_MATCH_CWR) &&
+	    !match_tcp(skb, par))
+		return false;
 
 	return true;
 }
