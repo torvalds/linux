@@ -395,6 +395,11 @@ struct l2cap_conn {
 
 	__u8		disc_reason;
 
+	__u8		preq[7]; /* SMP Pairing Request */
+	__u8		prsp[7]; /* SMP Pairing Response */
+	__u8		prnd[16]; /* SMP Pairing Random */
+	__u8		pcnf[16]; /* SMP Pairing Confirm */
+
 	struct list_head chan_l;
 	rwlock_t	chan_lock;
 };
