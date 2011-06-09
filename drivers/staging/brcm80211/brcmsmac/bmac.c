@@ -327,7 +327,7 @@ bool wlc_dpc(struct wlc_info *wlc, bool bounded)
 	}
 
 	if (macintstatus & (MI_TBTT | MI_DTIM_TBTT))
-		wlc_tbtt(wlc, regs);
+		wlc_tbtt(wlc);
 
 	/* ATIM window end */
 	if (macintstatus & MI_ATIMWINEND) {

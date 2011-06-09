@@ -932,7 +932,7 @@ extern u16 wlc_compute_rtscts_dur(struct wlc_info *wlc, bool cts_only,
 				     u8 frame_preamble_type, uint frame_len,
 				     bool ba);
 
-extern void wlc_tbtt(struct wlc_info *wlc, d11regs_t *regs);
+extern void wlc_tbtt(struct wlc_info *wlc);
 extern void wlc_inval_dma_pkts(struct wlc_hw_info *hw,
 			       struct ieee80211_sta *sta,
 			       void (*dma_callback_fn));

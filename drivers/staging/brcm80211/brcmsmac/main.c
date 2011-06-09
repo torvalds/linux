@@ -4243,7 +4243,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	return 0;
 }
 
-void wlc_tbtt(struct wlc_info *wlc, d11regs_t *regs)
+void wlc_tbtt(struct wlc_info *wlc)
 {
 	struct wlc_bsscfg *cfg = wlc->cfg;
 
