@@ -249,6 +249,12 @@ config REGULATOR_TPS6507X
 	  three step-down converters and two general-purpose LDO voltage regulators.
 	  It supports TI's software based Class-2 SmartReflex implementation.
 
+config REGULATOR_TPS65912
+	tristate "TI TPS65912 Power regulator"
+	depends on (MFD_TPS65912_I2C || MFD_TPS65912_SPI)
+	help
+	    This driver supports TPS65912 voltage regulator chip.
+
 config REGULATOR_88PM8607
 	bool "Marvell 88PM8607 Power regulators"
 	depends on MFD_88PM860X=y
