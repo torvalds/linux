@@ -83,7 +83,11 @@ void b43_bus_ssb_block_write(struct b43_bus_dev *dev, const void *buffer,
 
 struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev)
 {
-	struct b43_bus_dev *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	struct b43_bus_dev *dev;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return NULL;
 
 	dev->bus_type = B43_BUS_SSB;
 	dev->sdev = sdev;

@@ -5025,6 +5025,8 @@ int b43_ssb_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
 	int first = 0;
 
 	dev = b43_bus_dev_ssb_init(sdev);
+	if (!dev)
+		return -ENOMEM;
 
 	wl = ssb_get_devtypedata(sdev);
 	if (!wl) {
