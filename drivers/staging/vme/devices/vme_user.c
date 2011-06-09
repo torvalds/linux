@@ -461,6 +461,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 {
 	struct vme_master master;
 	struct vme_slave slave;
+	struct vme_irq_id irq_req;
 	unsigned long copied;
 	unsigned int minor = MINOR(inode->i_rdev);
 	int retval;
@@ -471,6 +472,21 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 
 	switch (type[minor]) {
 	case CONTROL_MINOR:
+		switch (cmd) {
+		case VME_IRQ_GEN:
+			copied = copy_from_user(&irq_req, (char *)arg,
+						sizeof(struct vme_irq_id));
+			if (copied != 0) {
+				printk(KERN_WARNING "Partial copy from userspace\n");
+				return -EFAULT;
+			}
+
+			retval = vme_irq_generate(vme_user_bridge,
+						  irq_req.level,
+						  irq_req.statid);
+
+			return retval;
+		}
 		break;
 	case MASTER_MINOR:
 		switch (cmd) {
