@@ -24,6 +24,8 @@
 #define outb_pit        outb_p
 
 extern raw_spinlock_t i8253_lock;
+extern struct clock_event_device i8253_clockevent;
+extern void clockevent_i8253_init(bool oneshot);
 
 extern void setup_pit_timer(void);
 
