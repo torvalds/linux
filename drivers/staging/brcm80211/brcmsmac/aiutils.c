@@ -434,7 +434,7 @@ static void ai_hwfixup(si_info_t *sii)
 }
 
 /* parse the enumeration rom to identify all cores */
-void ai_scan(struct si_pub *sih, void *regs, uint devid)
+void ai_scan(struct si_pub *sih, void *regs)
 {
 	si_info_t *sii = SI_INFO(sih);
 	chipcregs_t *cc = (chipcregs_t *) regs;
@@ -850,11 +850,10 @@ u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val)
 
 /* *************** from siutils.c ************** */
 /* local prototypes */
-static si_info_t *ai_doattach(si_info_t *sii, uint devid, void *regs,
+static si_info_t *ai_doattach(si_info_t *sii, void *regs,
 			      uint bustype, void *sdh, char **vars,
 			      uint *varsz);
-static bool ai_buscore_prep(si_info_t *sii, uint bustype, uint devid,
-			    void *sdh);
+static bool ai_buscore_prep(si_info_t *sii, uint bustype);
 static bool ai_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 			     u32 savewin, uint *origidx, void *regs);
 static void ai_nvram_process(si_info_t *sii, char *pvars);
@@ -877,7 +876,7 @@ static u32 ai_gpioreservation;
  * vars - pointer to a pointer area for "environment" variables
  * varsz - pointer to int to return the size of the vars
  */
-struct si_pub *ai_attach(uint devid, void *regs, uint bustype,
+struct si_pub *ai_attach(void *regs, uint bustype,
 		void *sdh, char **vars, uint *varsz)
 {
 	si_info_t *sii;
@@ -889,7 +888,7 @@ struct si_pub *ai_attach(uint devid, void *regs, uint bustype,
 		return NULL;
 	}
 
-	if (ai_doattach(sii, devid, regs, bustype, sdh, vars, varsz) ==
+	if (ai_doattach(sii, regs, bustype, sdh, vars, varsz) ==
 	    NULL) {
 		kfree(sii);
 		return NULL;
@@ -903,8 +902,7 @@ struct si_pub *ai_attach(uint devid, void *regs, uint bustype,
 /* global kernel resource */
 static si_info_t ksii;
 
-static bool ai_buscore_prep(si_info_t *sii, uint bustype, uint devid,
-			    void *sdh)
+static bool ai_buscore_prep(si_info_t *sii, uint bustype)
 {
 	/* kludge to enable the clock on the 4306 which lacks a slowclock */
 	if (bustype == PCI_BUS && !ai_ispcie(sii))
@@ -1070,7 +1068,7 @@ static __used void ai_nvram_process(si_info_t *sii, char *pvars)
 	sii->pub.boardflags = getintvar(pvars, "boardflags");
 }
 
-static si_info_t *ai_doattach(si_info_t *sii, uint devid,
+static si_info_t *ai_doattach(si_info_t *sii,
 			      void *regs, uint bustype, void *pbus,
 			      char **vars, uint *varsz)
 {
@@ -1116,7 +1114,7 @@ static si_info_t *ai_doattach(si_info_t *sii, uint devid,
 	sih->bustype = bustype;
 
 	/* bus/core/clk setup for register access */
-	if (!ai_buscore_prep(sii, bustype, devid, pbus)) {
+	if (!ai_buscore_prep(sii, bustype)) {
 		SI_ERROR(("si_doattach: si_core_clk_prep failed %d\n",
 			  bustype));
 		return NULL;
@@ -1142,7 +1140,7 @@ static si_info_t *ai_doattach(si_info_t *sii, uint devid,
 	if (socitype == SOCI_AI) {
 		SI_MSG(("Found chip type AI (0x%08x)\n", w));
 		/* pass chipc address instead of original core base */
-		ai_scan(&sii->pub, (void *)cc, devid);
+		ai_scan(&sii->pub, (void *)cc);
 	} else {
 		SI_ERROR(("Found chip of unknown type (0x%08x)\n", w));
 		return NULL;

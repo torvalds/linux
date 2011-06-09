@@ -499,7 +499,7 @@ struct si_info {
 };
 
 /* AMBA Interconnect exported externs */
-extern void ai_scan(struct si_pub *sih, void *regs, uint devid);
+extern void ai_scan(struct si_pub *sih, void *regs);
 
 extern uint ai_flag(struct si_pub *sih);
 extern void ai_setint(struct si_pub *sih, int siflag);
@@ -521,7 +521,7 @@ extern u32 ai_addrspacesize(struct si_pub *sih, uint asidx);
 extern void ai_write_wrap_reg(struct si_pub *sih, u32 offset, u32 val);
 
 /* === exported functions === */
-extern struct si_pub *ai_attach(uint pcidev, void *regs, uint bustype,
+extern struct si_pub *ai_attach(void *regs, uint bustype,
 		       void *sdh, char **vars, uint *varsz);
 
 extern void ai_detach(struct si_pub *sih);
