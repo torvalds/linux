@@ -21,6 +21,7 @@
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("Xtables: Explicit Congestion Notification (ECN) flag match for IPv4");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("ipt_ecn");
 
 static inline bool match_ip(const struct sk_buff *skb,
 			    const struct ipt_ecn_info *einfo)
