@@ -868,6 +868,30 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cc_le_ltk_reply(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_rp_le_ltk_reply *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hci_req_complete(hdev, HCI_OP_LE_LTK_REPLY, rp->status);
+}
+
+static void hci_cc_le_ltk_neg_reply(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_rp_le_ltk_neg_reply *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	hci_req_complete(hdev, HCI_OP_LE_LTK_NEG_REPLY, rp->status);
+}
+
 static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 {
 	BT_DBG("%s status 0x%x", hdev->name, status);
@@ -1246,6 +1270,11 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, __u8 status)
 	}
 
 	hci_dev_unlock(hdev);
+}
+
+static void hci_cs_le_start_enc(struct hci_dev *hdev, u8 status)
+{
+	BT_DBG("%s status 0x%x", hdev->name, status);
 }
 
 static inline void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1857,6 +1886,14 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 		hci_cc_le_set_scan_enable(hdev, skb);
 		break;
 
+	case HCI_OP_LE_LTK_REPLY:
+		hci_cc_le_ltk_reply(hdev, skb);
+		break;
+
+	case HCI_OP_LE_LTK_NEG_REPLY:
+		hci_cc_le_ltk_neg_reply(hdev, skb);
+		break;
+
 	default:
 		BT_DBG("%s opcode 0x%x", hdev->name, opcode);
 		break;
@@ -1933,6 +1970,10 @@ static inline void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_LE_CREATE_CONN:
 		hci_cs_le_create_conn(hdev, ev->status);
+		break;
+
+	case HCI_OP_LE_START_ENC:
+		hci_cs_le_start_enc(hdev, ev->status);
 		break;
 
 	default:
@@ -2747,6 +2788,28 @@ static inline void hci_le_adv_report_evt(struct hci_dev *hdev,
 	hci_dev_unlock(hdev);
 }
 
+static inline void hci_le_ltk_request_evt(struct hci_dev *hdev,
+						struct sk_buff *skb)
+{
+	struct hci_ev_le_ltk_req *ev = (void *) skb->data;
+	struct hci_cp_le_ltk_reply cp;
+	struct hci_conn *conn;
+
+	BT_DBG("%s handle %d", hdev->name, cpu_to_le16(ev->handle));
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
+
+	memset(&cp, 0, sizeof(cp));
+	cp.handle = cpu_to_le16(conn->handle);
+	memcpy(cp.ltk, conn->ltk, sizeof(conn->ltk));
+
+	hci_send_cmd(hdev, HCI_OP_LE_LTK_REPLY, sizeof(cp), &cp);
+
+	hci_dev_unlock(hdev);
+}
+
 static inline void hci_le_meta_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_le_meta *le_ev = (void *) skb->data;
@@ -2760,6 +2823,10 @@ static inline void hci_le_meta_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_LE_ADVERTISING_REPORT:
 		hci_le_adv_report_evt(hdev, skb);
+		break;
+
+	case HCI_EV_LE_LTK_REQ:
+		hci_le_ltk_request_evt(hdev, skb);
 		break;
 
 	default:
