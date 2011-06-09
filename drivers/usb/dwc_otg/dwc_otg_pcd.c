@@ -1123,6 +1123,7 @@ static int32_t dwc_otg_pcd_suspend_cb( void *_p ,int suspend)
 {
 	dwc_otg_pcd_t *pcd = (dwc_otg_pcd_t *)_p;
 //#ifdef CONFIG_ANDROID_POWER
+#if 0
 	/* yk@rk 20100520
 	 * PC disconnect the USB, unlock the msc_lock and
 	 * system can enter level 2 sleep mode.
@@ -1134,6 +1135,7 @@ static int32_t dwc_otg_pcd_suspend_cb( void *_p ,int suspend)
 	 	if(cdev->config)
 			pcd->conn_status = 3;
 	}
+#endif
 //#endif		
 	if (pcd->driver && pcd->driver->resume) 
 	{
@@ -1892,7 +1894,8 @@ int dwc_otg_pcd_init(struct device *dev)
     pcd->vbus_status  = 0;
     pcd->phy_suspend  = 0;
     if(dwc_otg_is_device_mode(core_if))
-    	dwc_otg_pcd_start_vbus_timer( pcd );
+        mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<4)); // delay 16 S
+//    	dwc_otg_pcd_start_vbus_timer( pcd );
 	return 0;
 }
 /**
