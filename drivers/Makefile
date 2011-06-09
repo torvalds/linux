@@ -122,3 +122,6 @@ obj-y				+= ieee802154/
 obj-y				+= clk/
 
 obj-$(CONFIG_HWSPINLOCK)	+= hwspinlock/
+
+# Virtualization drivers
+obj-$(CONFIG_VIRT_DRIVERS)	+= virt/
