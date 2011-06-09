@@ -337,7 +337,7 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	batman_packet = (struct batman_packet *)(hard_iface->packet_buff);
 	batman_packet->packet_type = BAT_PACKET;
 	batman_packet->version = COMPAT_VERSION;
-	batman_packet->flags = 0;
+	batman_packet->flags = NO_FLAGS;
 	batman_packet->ttl = 2;
 	batman_packet->tq = TQ_MAX_VALUE;
 	batman_packet->num_tt = 0;

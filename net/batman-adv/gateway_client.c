@@ -322,7 +322,7 @@ void gw_node_update(struct bat_priv *bat_priv,
 
 		gw_node->deleted = 0;
 
-		if (new_gwflags == 0) {
+		if (new_gwflags == NO_FLAGS) {
 			gw_node->deleted = jiffies;
 			bat_dbg(DBG_BATMAN, bat_priv,
 				"Gateway %pM removed from gateway list\n",
@@ -335,7 +335,7 @@ void gw_node_update(struct bat_priv *bat_priv,
 		goto unlock;
 	}
 
-	if (new_gwflags == 0)
+	if (new_gwflags == NO_FLAGS)
 		goto unlock;
 
 	gw_node_add(bat_priv, orig_node, new_gwflags);
