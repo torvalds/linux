@@ -14,18 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/ctype.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/netdevice.h>
-#include <linux/sched.h>
-#include <linux/printk.h>
-#include <defs.h>
-#include <stdarg.h>
 #include <brcmu_utils.h>
-#include <brcm_hw_ids.h>
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver utilities.");

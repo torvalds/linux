@@ -14,19 +14,16 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/string.h>
 #include <linux/pci.h>
+
 #include <defs.h>
-#include "types.h"
-#include <brcmu_utils.h>
-#include <aiutils.h>
 #include <soc.h>
-#include <brcm_hw_ids.h>
 #include <chipcommon.h>
-#include <scb.h>
-#include <pub.h>
-#include <nicpci.h>
+#include "aiutils.h"
+#include "pub.h"
+#include "nicpci.h"
 
 /* SPROM offsets */
 #define SRSH_ASPM_OFFSET		4	/* word 4 */

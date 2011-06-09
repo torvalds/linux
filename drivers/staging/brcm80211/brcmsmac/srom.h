@@ -17,6 +17,8 @@
 #ifndef	_BRCM_SROM_H_
 #define	_BRCM_SROM_H_
 
+#include "types.h"
+
 /* Prototypes */
 extern int srom_var_init(struct si_pub *sih, uint bus, void *curmap,
 			 char **vars, uint *count);

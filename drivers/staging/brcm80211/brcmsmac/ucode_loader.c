@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/types.h>
 #include <defs.h>
+#include "types.h"
 #include <ucode_loader.h>
 
 enum {

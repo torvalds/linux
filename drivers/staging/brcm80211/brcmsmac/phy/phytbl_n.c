@@ -14,11 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/kernel.h>
-
-#include <dma.h>
-#include <phy_int.h>
-#include <phytbl_n.h>
+#include <types.h>
+#include "phytbl_n.h"
 
 const u32 frame_struct_rev0[] = {
 	0x08004a04,

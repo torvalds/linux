@@ -16,6 +16,9 @@
 
 #define ANT_SWCTRL_TBL_REV3_IDX (0)
 
+#include <types.h>
+#include "phy_int.h"
+
 extern const mimophytbl_info_t mimophytbl_info_rev0[],
     mimophytbl_info_rev0_volatile[];
 extern const u32 mimophytbl_info_sz_rev0, mimophytbl_info_sz_rev0_volatile;

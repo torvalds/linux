@@ -17,6 +17,12 @@
 #ifndef _BRCM_MAIN_H_
 #define _BRCM_MAIN_H_
 
+#include <linux/etherdevice.h>
+
+#include <brcmu_utils.h>
+#include "types.h"
+#include "d11.h"
+
 #define MA_WINDOW_SZ		8	/* moving average window size */
 #define	WL_HWRXOFF		38	/* chip rx buffer offset */
 #define	INVCHANNEL		255	/* invalid channel */

@@ -21,11 +21,9 @@
 #ifndef _BRCM_PHY_HAL_H_
 #define _BRCM_PHY_HAL_H_
 
-#include <aiutils.h>
-#include <d11.h>
+#include <brcmu_utils.h>
+#include <brcmu_wifi.h>
 #include <phy_shim.h>
-#include <net/mac80211.h>	/* struct wiphy */
-#include "brcmu_wifi.h"		/* chanspec_t */
 
 #define	IDCODE_VER_MASK		0x0000000f
 #define	IDCODE_VER_SHIFT	0

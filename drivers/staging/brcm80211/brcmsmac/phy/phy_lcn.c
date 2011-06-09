@@ -14,25 +14,16 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/pci.h>
-#include <brcmu_utils.h>
-#include <aiutils.h>
+
 #include <pmu.h>
-#include <scb.h>
-#include <pub.h>
-
-#include <brcm_hw_ids.h>
-#include <dma.h>
-
-#include "phy_radio.h"
-#include "phy_int.h"
+#include <d11.h>
+#include <phy_shim.h>
 #include "phy_qmath.h"
-#include "phy_lcn.h"
+#include "phy_hal.h"
+#include "phy_radio.h"
 #include "phytbl_lcn.h"
+#include "phy_lcn.h"
 
 #define PLL_2064_NDIV		90
 #define PLL_2064_LOW_END_VCO 	3000

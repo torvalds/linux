@@ -13,23 +13,12 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <linux/kernel.h>
-#include <linux/types.h>
 
-#include <defs.h>
 #include <brcmu_utils.h>
-#include <aiutils.h>
-#include "dma.h"
-
-#include "d11.h"
 #include "types.h"
-#include "scb.h"
 #include "pub.h"
-#include "alloc.h"
-#include "rate.h"
-#include "phy/phy_hal.h"
-#include "channel.h"
 #include "main.h"
+#include "alloc.h"
 
 static struct wlc_bsscfg *wlc_bsscfg_malloc(uint unit);
 static void wlc_bsscfg_mfree(struct wlc_bsscfg *cfg);

@@ -14,24 +14,13 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/pci.h>
+#include <linux/slab.h>
+#include <net/mac80211.h>
 
-#include <defs.h>
-#include <brcmu_utils.h>
-#include <aiutils.h>
-#include <brcm_hw_ids.h>
-#include "dma.h"
-
-#include "d11.h"
-#include "rate.h"
-#include "scb.h"
-#include "pub.h"
-#include "phy/phy_hal.h"
+#include "types.h"
 #include "bmac.h"
-#include "channel.h"
 #include "main.h"
+#include "phy_shim.h"
 #include "antsel.h"
 
 #define ANT_SELCFG_AUTO		0x80	/* bit indicates antenna sel AUTO */

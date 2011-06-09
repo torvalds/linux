@@ -17,8 +17,10 @@
 #ifndef _BRCM_SCB_H_
 #define _BRCM_SCB_H_
 
-#include <linux/if_ether.h>	/* for ETH_ALEN */
+#include <linux/if_ether.h>
+#include <brcmu_utils.h>
 #include <defs.h>
+#include "types.h"
 
 #define AMPDU_TX_BA_MAX_WSIZE	64	/* max Tx ba window size (in pdu) */
 /* structure to store per-tid state for the ampdu initiator */

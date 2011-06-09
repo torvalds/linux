@@ -17,6 +17,9 @@
 #ifndef _BRCM_MAC80211_IF_H_
 #define _BRCM_MAC80211_IF_H_
 
+#include <linux/timer.h>
+#include <linux/interrupt.h>
+
 /* softmac ioctl definitions */
 #define WLC_SET_SHORTSLOT_OVERRIDE		146
 

@@ -17,6 +17,8 @@
 #ifndef _BRCM_QMATH_H_
 #define _BRCM_QMATH_H_
 
+#include <types.h>
+
 u16 qm_mulu16(u16 op1, u16 op2);
 
 s16 qm_muls16(s16 op1, s16 op2);

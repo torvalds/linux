@@ -17,6 +17,8 @@
 #ifndef _WLC_RATE_H_
 #define _WLC_RATE_H_
 
+#include "types.h"
+
 extern const u8 rate_info[];
 extern const struct wlc_rateset cck_ofdm_mimo_rates;
 extern const struct wlc_rateset ofdm_mimo_rates;

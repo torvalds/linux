@@ -17,6 +17,8 @@
 #ifndef _BRCM_TYPES_H_
 #define _BRCM_TYPES_H_
 
+#include <linux/types.h>
+
 /* Bus types */
 #define	SI_BUS			0	/* SOC Interconnect */
 #define	PCI_BUS			1	/* PCI target */
@@ -365,6 +367,10 @@ struct dma_pub;
 struct wlc_bsscfg;
 struct brcmu_strbuf;
 struct si_pub;
+struct wiphy;
+struct brcmu_iovar;
+struct wlc_txq_info;
+struct wlcband;
 
 typedef struct gpioh_item gpioh_item_t;
 typedef struct si_info si_info_t;

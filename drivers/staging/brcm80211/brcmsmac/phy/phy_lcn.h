@@ -17,6 +17,8 @@
 #ifndef _BRCM_PHY_LCN_H_
 #define _BRCM_PHY_LCN_H_
 
+#include <types.h>
+
 struct phy_info_lcnphy {
 	int lcnphy_txrf_sp_9_override;
 	u8 lcnphy_full_cal_channel;

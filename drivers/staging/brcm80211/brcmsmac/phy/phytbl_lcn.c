@@ -14,10 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/types.h>
-#include <dma.h>
-#include <phy_int.h>
-#include <phytbl_lcn.h>
+#include <types.h>
+#include "phytbl_lcn.h"
 
 const u32 dot11lcn_gain_tbl_rev0[] = {
 	0x00000000,

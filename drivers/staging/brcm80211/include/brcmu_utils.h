@@ -17,6 +17,8 @@
 #ifndef	_BRCMU_UTILS_H_
 #define	_BRCMU_UTILS_H_
 
+#include <linux/skbuff.h>
+
 /* Buffer structure for collecting string-formatted data
 * using brcmu_bprintf() API.
 * Use brcmu_binit() to initialize before use

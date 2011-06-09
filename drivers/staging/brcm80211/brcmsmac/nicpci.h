@@ -17,6 +17,8 @@
 #ifndef	_BRCM_NICPCI_H_
 #define	_BRCM_NICPCI_H_
 
+#include "types.h"
+
 /* PCI configuration address space size */
 #define PCI_SZPCR		256
 

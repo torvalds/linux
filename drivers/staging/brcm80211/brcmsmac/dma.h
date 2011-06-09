@@ -19,11 +19,6 @@
 
 #include "types.h"		/* forward structure declarations */
 
-#ifndef _dma_pub_
-#define _dma_pub_
-struct dma_pub;
-#endif				/* _dma_pub_ */
-
 /* DMA structure:
  *  support two DMA engines: 32 bits address or 64 bit addressing
  *  basic DMA register set is per channel(transmit or receive)

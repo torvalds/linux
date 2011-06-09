@@ -17,6 +17,8 @@
 #ifndef	_BRCM_OTP_H_
 #define	_BRCM_OTP_H_
 
+#include "types.h"
+
 /* OTP regions */
 #define OTP_HW_RGN	1
 #define OTP_SW_RGN	2

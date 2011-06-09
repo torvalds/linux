@@ -13,26 +13,19 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
 #include <linux/delay.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <defs.h>
-#include "types.h"
-#include <linux/module.h>
 #include <linux/pci.h>
-#include <brcmu_utils.h>
-#include <aiutils.h>
-#include <soc.h>
-#include <chipcommon.h>
-#include <brcm_hw_ids.h>
 
-/* ********** from siutils.c *********** */
-#include <nicpci.h>
+#include <defs.h>
+#include <chipcommon.h>
+#include <brcmu_utils.h>
+#include <brcm_hw_ids.h>
+#include "types.h"
+#include "pub.h"
+#include "pmu.h"
 #include "srom.h"
-#include <pmu.h>
-#include <scb.h>
-#include <pub.h>
+#include "nicpci.h"
+#include "aiutils.h"
 
 /* slow_clk_ctl */
 #define SCC_SS_MASK		0x00000007	/* slow clock source mask */

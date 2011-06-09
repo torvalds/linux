@@ -16,6 +16,9 @@
 #ifndef _BRCM_BOTTOM_MAC_H_
 #define _BRCM_BOTTOM_MAC_H_
 
+#include <brcmu_wifi.h>
+#include "types.h"
+
 /* dup state between BMAC(struct wlc_hw_info) and HIGH(struct wlc_info)
    driver */
 struct wlc_bmac_state {

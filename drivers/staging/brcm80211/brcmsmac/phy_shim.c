@@ -20,31 +20,13 @@
  *   On the PHY->WL driver direction, all calls go through this layer since PHY doesn't have the
  *   access to wlc_hw pointer.
  */
+#include <linux/slab.h>
+#include <net/mac80211.h>
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-
-#include <defs.h>
-#include <brcmu_utils.h>
-#include <brcmu_wifi.h>
-#include <aiutils.h>
-#include <chipcommon.h>
-#include "dma.h"
-#include <pmu.h>
-
-#include "types.h"
-#include "d11.h"
-#include "rate.h"
-#include "scb.h"
-#include "pub.h"
-#include "phy/phy_hal.h"
-#include "channel.h"
-#include "srom.h"
 #include "bmac.h"
-#include "phy_hal.h"
 #include "main.h"
-#include "phy_shim.h"
 #include "mac80211_if.h"
+#include "phy_shim.h"
 
 /* PHY SHIM module specific state */
 struct wlc_phy_shim_info {

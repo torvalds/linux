@@ -13,39 +13,20 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
-
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-
-#include <defs.h>
-#include <brcm_hw_ids.h>
-#include <brcmu_wifi.h>
-#include <aiutils.h>
-#include "srom.h"
-#include "otp.h"
-#include <brcmu_utils.h>
-#include <chipcommon.h>
-#include <nicpci.h>
-#include "dma.h"
+#include <net/mac80211.h>
 
 #include "types.h"
-#include "pmu.h"
-#include "d11.h"
+#include <brcm_hw_ids.h>
+#include <aiutils.h>
+#include <chipcommon.h>
 #include "rate.h"
-#include "scb.h"
-#include "pub.h"
 #include "phy/phy_hal.h"
 #include "channel.h"
 #include "main.h"
 #include "ucode_loader.h"
-#include "antsel.h"
-#include "alloc.h"
-#include "bmac.h"
 #include "mac80211_if.h"
+#include "bmac.h"
 
 #define	TIMER_INTERVAL_WATCHDOG_BMAC	1000	/* watchdog timer, in unit of ms */
 

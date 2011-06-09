@@ -14,23 +14,18 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/bitops.h>
 #include <linux/delay.h>
-#include <linux/module.h>
-#include <linux/pci.h>
 
-#include <defs.h>
-#include <chipcommon.h>
 #include <brcm_hw_ids.h>
-#include <dma.h>
-
-#include <types.h>
-#include <phy_int.h>
-#include <phyreg_n.h>
-#include <phy_radio.h>
-#include <phy_lcn.h>
+#include <chipcommon.h>
+#include <aiutils.h>
+#include <d11.h>
+#include <phy_shim.h>
+#include "phy_hal.h"
+#include "phy_int.h"
+#include "phy_radio.h"
+#include "phy_lcn.h"
+#include "phyreg_n.h"
 
 u32 phyhal_msg_level = PHYHAL_ERROR;
 

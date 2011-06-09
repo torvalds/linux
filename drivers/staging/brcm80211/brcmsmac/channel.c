@@ -14,26 +14,16 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/module.h>
-#include <linux/pci.h>
+#include <net/mac80211.h>
 
 #include <defs.h>
-#include <brcmu_utils.h>
-#include <aiutils.h>
-#include "dma.h"
-
-#include "types.h"
-#include "d11.h"
-#include "scb.h"
 #include "pub.h"
 #include "phy/phy_hal.h"
 #include "bmac.h"
-#include "rate.h"
-#include "channel.h"
 #include "main.h"
 #include "stf.h"
+#include "channel.h"
 
 #define	VALID_CHANNEL20_DB(wlc, val) wlc_valid_channel20_db((wlc)->cmi, val)
 #define	VALID_CHANNEL20_IN_BAND(wlc, bandunit, val) \

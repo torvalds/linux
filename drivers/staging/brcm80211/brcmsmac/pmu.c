@@ -13,17 +13,15 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <linux/kernel.h>
-#include <linux/types.h>
+
 #include <linux/delay.h>
 #include <linux/io.h>
 
 #include <brcm_hw_ids.h>
-#include "types.h"
 #include <chipcommon.h>
 #include <brcmu_utils.h>
-#include "scb.h"
 #include "pub.h"
+#include "aiutils.h"
 #include "pmu.h"
 
 /*

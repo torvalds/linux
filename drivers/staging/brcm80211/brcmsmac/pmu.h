@@ -18,10 +18,7 @@
 #ifndef _BRCM_PMU_H_
 #define _BRCM_PMU_H_
 
-#include <linux/types.h>
-
-#include <aiutils.h>
-
+#include "types.h"
 /*
  * LDO selections used in si_pmu_set_ldo_voltage
  */

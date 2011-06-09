@@ -16,24 +16,15 @@
 
 #define __UNDEF_NO_VERSION__
 
-#include <linux/kernel.h>
 #include <linux/etherdevice.h>
-#include <linux/types.h>
-#include <linux/pci_ids.h>
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/firmware.h>
 #include <net/mac80211.h>
 #include <defs.h>
-#include <brcmu_wifi.h>
-#include <brcmu_utils.h>
-#include <nicpci.h>
-#include "dma.h"
-
+#include "nicpci.h"
 #include "phy/phy_int.h"
 #include "d11.h"
-#include "types.h"
 #include "channel.h"
 #include "scb.h"
 #include "pub.h"

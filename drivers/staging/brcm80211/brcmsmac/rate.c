@@ -13,17 +13,11 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <linux/kernel.h>
-#include <linux/module.h>
 
-#include <defs.h>
+#include <brcmu_wifi.h>
 #include <brcmu_utils.h>
-#include <aiutils.h>
-#include "dma.h"
 
-#include "types.h"
 #include "d11.h"
-#include "scb.h"
 #include "pub.h"
 #include "rate.h"
 

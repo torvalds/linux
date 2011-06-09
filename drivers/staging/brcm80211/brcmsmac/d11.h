@@ -19,6 +19,10 @@
 
 #include <linux/ieee80211.h>
 
+#include <defs.h>
+#include "pub.h"
+#include "dma.h"
+
 #define	BCN_TMPL_LEN		512	/* length of the BCN template area */
 
 /* RX FIFO numbers */

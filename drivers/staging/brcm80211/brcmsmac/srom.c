@@ -13,22 +13,19 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/io.h>
 #include <linux/etherdevice.h>
-#include <defs.h>
-#include <linux/module.h>
-#include <linux/pci.h>
 #include <stdarg.h>
-#include "types.h"
-#include <brcmu_utils.h>
-#include <soc.h>
+
 #include <chipcommon.h>
-#include <brcm_hw_ids.h>
-#include <nicpci.h>
-#include <aiutils.h>
-#include "srom.h"
+#include <brcmu_utils.h>
+#include "nicpci.h"
+#include "aiutils.h"
 #include "otp.h"
+#include "srom.h"
 
 #define SROM_OFFSET(sih) ((sih->ccrev > 31) ? \
 	(((sih->cccaps & CC_CAP_SROM) == 0) ? NULL : \

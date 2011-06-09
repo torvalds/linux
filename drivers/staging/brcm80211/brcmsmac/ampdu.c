@@ -13,22 +13,12 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <linux/kernel.h>
 #include <net/mac80211.h>
 
-#include <defs.h>
-#include <brcmu_utils.h>
-#include <aiutils.h>
-#include "dma.h"
-#include <d11.h>
-
-#include "types.h"
 #include "rate.h"
 #include "scb.h"
-#include "pub.h"
 #include "phy/phy_hal.h"
 #include "antsel.h"
-#include "channel.h"
 #include "main.h"
 #include "ampdu.h"
 

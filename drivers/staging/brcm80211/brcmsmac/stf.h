@@ -17,6 +17,8 @@
 #ifndef _BRCM_STF_H_
 #define _BRCM_STF_H_
 
+#include "types.h"
+
 extern int wlc_stf_attach(struct wlc_info *wlc);
 extern void wlc_stf_detach(struct wlc_info *wlc);
 

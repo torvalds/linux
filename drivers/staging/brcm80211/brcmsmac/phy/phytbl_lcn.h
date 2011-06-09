@@ -14,6 +14,9 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <types.h>
+#include "phy_int.h"
+
 extern const dot11lcnphytbl_info_t dot11lcnphytbl_rx_gain_info_rev0[];
 extern const u32 dot11lcnphytbl_rx_gain_info_sz_rev0;
 extern const dot11lcnphytbl_info_t dot11lcn_sw_ctrl_tbl_info_4313;

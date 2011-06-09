@@ -14,19 +14,11 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/delay.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/module.h>
-#include <linux/pci.h>
-#include <linux/crc-ccitt.h>
+#include <linux/io.h>
+#include <linux/errno.h>
 
-#include <defs.h>
 #include <brcm_hw_ids.h>
-#include "types.h"
-#include <brcmu_utils.h>
-#include <aiutils.h>
-#include <soc.h>
+#include "aiutils.h"
 #include <chipcommon.h>
 #include "otp.h"
 

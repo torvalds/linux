@@ -13,36 +13,23 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <linux/kernel.h>
-#include <linux/ctype.h>
-#include <linux/etherdevice.h>
+
 #include <linux/pci_ids.h>
 #include <net/mac80211.h>
 
-#include <defs.h>
 #include <brcm_hw_ids.h>
-#include <brcmu_utils.h>
-#include <brcmu_wifi.h>
 #include <aiutils.h>
-#include "srom.h"
-#include "dma.h"
-
-#include "pmu.h"
-#include "d11.h"
-#include "types.h"
 #include "rate.h"
 #include "scb.h"
-#include "pub.h"
 #include "phy/phy_hal.h"
 #include "channel.h"
-#include "main.h"
 #include "bmac.h"
-#include "phy_hal.h"
 #include "antsel.h"
 #include "stf.h"
 #include "ampdu.h"
 #include "alloc.h"
 #include "mac80211_if.h"
+#include "main.h"
 
 /*
  * WPA(2) definitions

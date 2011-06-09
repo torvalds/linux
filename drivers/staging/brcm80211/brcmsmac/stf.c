@@ -14,20 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-
-#include <defs.h>
-#include <brcmu_utils.h>
-#include <aiutils.h>
-#include <brcmu_wifi.h>
-#include "dma.h"
+#include <net/mac80211.h>
 
 #include "types.h"
+
 #include "d11.h"
 #include "rate.h"
-#include "scb.h"
-#include "pub.h"
 #include "phy/phy_hal.h"
 #include "channel.h"
 #include "main.h"
