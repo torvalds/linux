@@ -402,7 +402,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 	if ((ssc_p->daifmt & SND_SOC_DAIFMT_FORMAT_MASK) == SND_SOC_DAIFMT_I2S
 		&& bits > 16) {
 		printk(KERN_WARNING
-				"atmel_ssc_dai: sample size %d"
+				"atmel_ssc_dai: sample size %d "
 				"is too large for I2S\n", bits);
 		return -EINVAL;
 	}
