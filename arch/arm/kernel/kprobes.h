@@ -95,6 +95,20 @@ static inline unsigned long it_advance(unsigned long cpsr)
 	return cpsr;
 }
 
+static inline void __kprobes bx_write_pc(long pcv, struct pt_regs *regs)
+{
+	long cpsr = regs->ARM_cpsr;
+	if (pcv & 0x1) {
+		cpsr |= PSR_T_BIT;
+		pcv &= ~0x1;
+	} else {
+		cpsr &= ~PSR_T_BIT;
+		pcv &= ~0x2;	/* Avoid UNPREDICTABLE address allignment */
+	}
+	regs->ARM_cpsr = cpsr;
+	regs->ARM_pc = pcv;
+}
+
 void __kprobes kprobe_simulate_nop(struct kprobe *p, struct pt_regs *regs);
 void __kprobes kprobe_emulate_none(struct kprobe *p, struct pt_regs *regs);
 
