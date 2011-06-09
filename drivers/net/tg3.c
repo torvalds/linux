@@ -5774,7 +5774,7 @@ static void tg3_skb_error_unmap(struct tg3_napi *tnapi,
 			 dma_unmap_addr(txb, mapping),
 			 skb_headlen(skb),
 			 PCI_DMA_TODEVICE);
-	for (i = 0; i <= last; i++) {
+	for (i = 0; i < last; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		entry = NEXT_TX(entry);

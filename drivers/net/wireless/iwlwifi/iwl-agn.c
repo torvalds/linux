@@ -3831,11 +3831,11 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 
 /* 6150 WiFi/WiMax Series */
 	{IWL_PCI_DEVICE(0x0885, 0x1305, iwl6150_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0885, 0x1306, iwl6150_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0885, 0x1307, iwl6150_bg_cfg)},
 	{IWL_PCI_DEVICE(0x0885, 0x1325, iwl6150_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0885, 0x1326, iwl6150_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0885, 0x1327, iwl6150_bg_cfg)},
 	{IWL_PCI_DEVICE(0x0886, 0x1315, iwl6150_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0886, 0x1316, iwl6150_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0886, 0x1317, iwl6150_bg_cfg)},
 
 /* 1000 Series WiFi */
 	{IWL_PCI_DEVICE(0x0083, 0x1205, iwl1000_bgn_cfg)},

@@ -1282,8 +1282,8 @@ queue_max_integrity_segments(struct request_queue *q)
 #define blk_get_integrity(a)			(0)
 #define blk_integrity_compare(a, b)		(0)
 #define blk_integrity_register(a, b)		(0)
-#define blk_integrity_unregister(a)		do { } while (0);
-#define blk_queue_max_integrity_segments(a, b)	do { } while (0);
+#define blk_integrity_unregister(a)		do { } while (0)
+#define blk_queue_max_integrity_segments(a, b)	do { } while (0)
 #define queue_max_integrity_segments(a)		(0)
 #define blk_integrity_merge_rq(a, b, c)		(0)
 #define blk_integrity_merge_bio(a, b, c)	(0)

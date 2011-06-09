@@ -581,6 +581,7 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 	ubifs_assert(wbuf->size % c->min_io_size == 0);
 	ubifs_assert(mutex_is_locked(&wbuf->io_mutex));
 	ubifs_assert(!c->ro_media && !c->ro_mount);
+	ubifs_assert(!c->space_fixup);
 	if (c->leb_size - wbuf->offs >= c->max_write_size)
 		ubifs_assert(!((wbuf->offs + wbuf->size) % c->max_write_size));
 
@@ -759,6 +760,7 @@ int ubifs_write_node(struct ubifs_info *c, void *buf, int len, int lnum,
 	ubifs_assert(lnum >= 0 && lnum < c->leb_cnt && offs >= 0);
 	ubifs_assert(offs % c->min_io_size == 0 && offs < c->leb_size);
 	ubifs_assert(!c->ro_media && !c->ro_mount);
+	ubifs_assert(!c->space_fixup);
 
 	if (c->ro_error)
 		return -EROFS;

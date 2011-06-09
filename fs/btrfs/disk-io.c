@@ -1505,24 +1505,24 @@ static int transaction_kthread(void *arg)
 		vfs_check_frozen(root->fs_info->sb, SB_FREEZE_WRITE);
 		mutex_lock(&root->fs_info->transaction_kthread_mutex);
 
-		spin_lock(&root->fs_info->new_trans_lock);
+		spin_lock(&root->fs_info->trans_lock);
 		cur = root->fs_info->running_transaction;
 		if (!cur) {
-			spin_unlock(&root->fs_info->new_trans_lock);
+			spin_unlock(&root->fs_info->trans_lock);
 			goto sleep;
 		}
 
 		now = get_seconds();
 		if (!cur->blocked &&
 		    (now < cur->start_time || now - cur->start_time < 30)) {
-			spin_unlock(&root->fs_info->new_trans_lock);
+			spin_unlock(&root->fs_info->trans_lock);
 			delay = HZ * 5;
 			goto sleep;
 		}
 		transid = cur->transid;
-		spin_unlock(&root->fs_info->new_trans_lock);
+		spin_unlock(&root->fs_info->trans_lock);
 
-		trans = btrfs_join_transaction(root, 1);
+		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
 		if (transid == trans->transid) {
 			ret = btrfs_commit_transaction(trans, root);
@@ -1613,7 +1613,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->ordered_operations);
 	INIT_LIST_HEAD(&fs_info->caching_block_groups);
 	spin_lock_init(&fs_info->delalloc_lock);
-	spin_lock_init(&fs_info->new_trans_lock);
+	spin_lock_init(&fs_info->trans_lock);
 	spin_lock_init(&fs_info->ref_cache_lock);
 	spin_lock_init(&fs_info->fs_roots_radix_lock);
 	spin_lock_init(&fs_info->delayed_iput_lock);
@@ -1645,6 +1645,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->max_inline = 8192 * 1024;
 	fs_info->metadata_ratio = 0;
 	fs_info->defrag_inodes = RB_ROOT;
+	fs_info->trans_no_join = 0;
 
 	fs_info->thread_pool_size = min_t(unsigned long,
 					  num_online_cpus() + 2, 8);
@@ -1709,7 +1710,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->do_barriers = 1;
 
 
-	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->ordered_operations_mutex);
 	mutex_init(&fs_info->tree_log_mutex);
 	mutex_init(&fs_info->chunk_mutex);
@@ -2479,13 +2479,13 @@ int btrfs_commit_super(struct btrfs_root *root)
 	down_write(&root->fs_info->cleanup_work_sem);
 	up_write(&root->fs_info->cleanup_work_sem);
 
-	trans = btrfs_join_transaction(root, 1);
+	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 	ret = btrfs_commit_transaction(trans, root);
 	BUG_ON(ret);
 	/* run commit again to drop the original snapshot */
-	trans = btrfs_join_transaction(root, 1);
+	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 	btrfs_commit_transaction(trans, root);
@@ -3024,10 +3024,13 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 
 	WARN_ON(1);
 
-	mutex_lock(&root->fs_info->trans_mutex);
 	mutex_lock(&root->fs_info->transaction_kthread_mutex);
 
+	spin_lock(&root->fs_info->trans_lock);
 	list_splice_init(&root->fs_info->trans_list, &list);
+	root->fs_info->trans_no_join = 1;
+	spin_unlock(&root->fs_info->trans_lock);
+
 	while (!list_empty(&list)) {
 		t = list_entry(list.next, struct btrfs_transaction, list);
 		if (!t)
@@ -3052,23 +3055,18 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 		t->blocked = 0;
 		if (waitqueue_active(&root->fs_info->transaction_wait))
 			wake_up(&root->fs_info->transaction_wait);
-		mutex_unlock(&root->fs_info->trans_mutex);
 
-		mutex_lock(&root->fs_info->trans_mutex);
 		t->commit_done = 1;
 		if (waitqueue_active(&t->commit_wait))
 			wake_up(&t->commit_wait);
-		mutex_unlock(&root->fs_info->trans_mutex);
-
-		mutex_lock(&root->fs_info->trans_mutex);
 
 		btrfs_destroy_pending_snapshots(t);
 
 		btrfs_destroy_delalloc_inodes(root);
 
-		spin_lock(&root->fs_info->new_trans_lock);
+		spin_lock(&root->fs_info->trans_lock);
 		root->fs_info->running_transaction = NULL;
-		spin_unlock(&root->fs_info->new_trans_lock);
+		spin_unlock(&root->fs_info->trans_lock);
 
 		btrfs_destroy_marked_extents(root, &t->dirty_pages,
 					     EXTENT_DIRTY);
@@ -3082,8 +3080,10 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 		kmem_cache_free(btrfs_transaction_cachep, t);
 	}
 
+	spin_lock(&root->fs_info->trans_lock);
+	root->fs_info->trans_no_join = 0;
+	spin_unlock(&root->fs_info->trans_lock);
 	mutex_unlock(&root->fs_info->transaction_kthread_mutex);
-	mutex_unlock(&root->fs_info->trans_mutex);
 
 	return 0;
 }
