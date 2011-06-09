@@ -123,34 +123,6 @@
 	)
 
 /**
- * INCREMENT_COMPLETION_QUEUE_GET() -
- *
- * This macro will increment the controllers completion queue index value and
- * possibly toggle the cycle bit if the completion queue index wraps back to 0.
- */
-#define INCREMENT_COMPLETION_QUEUE_GET(controller, index, cycle) \
-	INCREMENT_QUEUE_GET(\
-		(index), \
-		(cycle), \
-		SCU_MAX_COMPLETION_QUEUE_ENTRIES, \
-		SMU_CQGR_CYCLE_BIT)
-
-/**
- * INCREMENT_EVENT_QUEUE_GET() -
- *
- * This macro will increment the controllers event queue index value and
- * possibly toggle the event cycle bit if the event queue index wraps back to 0.
- */
-#define INCREMENT_EVENT_QUEUE_GET(controller, index, cycle) \
-	INCREMENT_QUEUE_GET(\
-		(index), \
-		(cycle), \
-		SCU_MAX_EVENTS, \
-		SMU_CQGR_EVENT_CYCLE_BIT \
-		)
-
-
-/**
  * NORMALIZE_GET_POINTER() -
  *
  * This macro will normalize the completion queue get pointer so its value can
@@ -528,15 +500,13 @@ static void scic_sds_controller_event_completion(struct scic_sds_controller *sci
 	}
 }
 
-
-
 static void scic_sds_controller_process_completions(struct scic_sds_controller *scic)
 {
 	u32 completion_count = 0;
 	u32 completion_entry;
 	u32 get_index;
 	u32 get_cycle;
-	u32 event_index;
+	u32 event_get;
 	u32 event_cycle;
 
 	dev_dbg(scic_to_dev(scic),
@@ -548,7 +518,7 @@ static void scic_sds_controller_process_completions(struct scic_sds_controller *
 	get_index = NORMALIZE_GET_POINTER(scic->completion_queue_get);
 	get_cycle = SMU_CQGR_CYCLE_BIT & scic->completion_queue_get;
 
-	event_index = NORMALIZE_EVENT_POINTER(scic->completion_queue_get);
+	event_get = NORMALIZE_EVENT_POINTER(scic->completion_queue_get);
 	event_cycle = SMU_CQGR_EVENT_CYCLE_BIT & scic->completion_queue_get;
 
 	while (
@@ -558,7 +528,11 @@ static void scic_sds_controller_process_completions(struct scic_sds_controller *
 		completion_count++;
 
 		completion_entry = scic->completion_queue[get_index];
-		INCREMENT_COMPLETION_QUEUE_GET(scic, get_index, get_cycle);
+
+		/* increment the get pointer and check for rollover to toggle the cycle bit */
+		get_cycle ^= ((get_index+1) & SCU_MAX_COMPLETION_QUEUE_ENTRIES) <<
+			     (SMU_COMPLETION_QUEUE_GET_CYCLE_BIT_SHIFT - SCU_MAX_COMPLETION_QUEUE_SHIFT);
+		get_index = (get_index+1) & (SCU_MAX_COMPLETION_QUEUE_ENTRIES-1);
 
 		dev_dbg(scic_to_dev(scic),
 			"%s: completion queue entry:0x%08x\n",
@@ -579,18 +553,14 @@ static void scic_sds_controller_process_completions(struct scic_sds_controller *
 			break;
 
 		case SCU_COMPLETION_TYPE_EVENT:
-			INCREMENT_EVENT_QUEUE_GET(scic, event_index, event_cycle);
+		case SCU_COMPLETION_TYPE_NOTIFY: {
+			event_cycle ^= ((event_get+1) & SCU_MAX_EVENTS) <<
+				       (SMU_COMPLETION_QUEUE_GET_EVENT_CYCLE_BIT_SHIFT - SCU_MAX_EVENTS_SHIFT);
+			event_get = (event_get+1) & (SCU_MAX_EVENTS-1);
+
 			scic_sds_controller_event_completion(scic, completion_entry);
 			break;
-
-		case SCU_COMPLETION_TYPE_NOTIFY:
-			/*
-			 * Presently we do the same thing with a notify event that we do with the
-			 * other event codes. */
-			INCREMENT_EVENT_QUEUE_GET(scic, event_index, event_cycle);
-			scic_sds_controller_event_completion(scic, completion_entry);
-			break;
-
+		}
 		default:
 			dev_warn(scic_to_dev(scic),
 				 "%s: SCIC Controller received unknown "
@@ -607,7 +577,7 @@ static void scic_sds_controller_process_completions(struct scic_sds_controller *
 			SMU_CQGR_GEN_BIT(ENABLE) |
 			SMU_CQGR_GEN_BIT(EVENT_ENABLE) |
 			event_cycle |
-			SMU_CQGR_GEN_VAL(EVENT_POINTER, event_index) |
+			SMU_CQGR_GEN_VAL(EVENT_POINTER, event_get) |
 			get_cycle |
 			SMU_CQGR_GEN_VAL(POINTER, get_index);
 

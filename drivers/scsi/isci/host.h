@@ -524,22 +524,6 @@ static inline struct isci_host *scic_to_ihost(struct scic_sds_controller *scic)
 }
 
 /**
- * INCREMENT_QUEUE_GET() -
- *
- * This macro will increment the specified index to and if the index wraps to 0
- * it will toggel the cycle bit.
- */
-#define INCREMENT_QUEUE_GET(index, cycle, entry_count, bit_toggle) \
-	{ \
-		if ((index) + 1 == entry_count) {	\
-			(index) = 0; \
-			(cycle) = (cycle) ^ (bit_toggle); \
-		} else { \
-			index = index + 1; \
-		} \
-	}
-
-/**
  * scic_sds_controller_get_protocol_engine_group() -
  *
  * This macro returns the protocol engine group for this controller object.

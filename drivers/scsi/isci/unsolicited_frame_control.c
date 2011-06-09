@@ -209,7 +209,8 @@ bool scic_sds_unsolicited_frame_control_release_frame(
 	/*
 	 * In the event there are NULL entries in the UF table, we need to
 	 * advance the get pointer in order to find out if this frame should
-	 * be released (i.e. update the get pointer). */
+	 * be released (i.e. update the get pointer)
+	 */
 	while (lower_32_bits(uf_control->address_table.array[frame_get]) == 0 &&
 	       upper_32_bits(uf_control->address_table.array[frame_get]) == 0 &&
 	       frame_get < SCU_MAX_UNSOLICITED_FRAMES)
@@ -217,40 +218,37 @@ bool scic_sds_unsolicited_frame_control_release_frame(
 
 	/*
 	 * The table has a NULL entry as it's last element.  This is
-	 * illegal. */
+	 * illegal.
+	 */
 	BUG_ON(frame_get >= SCU_MAX_UNSOLICITED_FRAMES);
+	if (frame_index >= SCU_MAX_UNSOLICITED_FRAMES)
+		return false;
 
-	if (frame_index < SCU_MAX_UNSOLICITED_FRAMES) {
-		uf_control->buffers.array[frame_index].state = UNSOLICITED_FRAME_RELEASED;
+	uf_control->buffers.array[frame_index].state = UNSOLICITED_FRAME_RELEASED;
 
+	if (frame_get != frame_index) {
 		/*
-		 * The frame index is equal to the current get pointer so we
-		 * can now free up all of the frame entries that */
-		if (frame_get == frame_index) {
-			while (
-				uf_control->buffers.array[frame_get].state
-				== UNSOLICITED_FRAME_RELEASED
-				) {
-				uf_control->buffers.array[frame_get].state = UNSOLICITED_FRAME_EMPTY;
-
-				INCREMENT_QUEUE_GET(
-					frame_get,
-					frame_cycle,
-					SCU_MAX_UNSOLICITED_FRAMES - 1,
-					SCU_MAX_UNSOLICITED_FRAMES);
-			}
-
-			uf_control->get =
-				(SCU_UFQGP_GEN_BIT(ENABLE_BIT) | frame_cycle | frame_get);
-
-			return true;
-		} else {
-			/*
-			 * Frames remain in use until we advance the get pointer
-			 * so there is nothing we can do here */
-		}
+		 * Frames remain in use until we advance the get pointer
+		 * so there is nothing we can do here
+		 */
+		return false;
 	}
 
-	return false;
-}
+	/*
+	 * The frame index is equal to the current get pointer so we
+	 * can now free up all of the frame entries that
+	 */
+	while (uf_control->buffers.array[frame_get].state == UNSOLICITED_FRAME_RELEASED) {
+		uf_control->buffers.array[frame_get].state = UNSOLICITED_FRAME_EMPTY;
 
+		if (frame_get+1 == SCU_MAX_UNSOLICITED_FRAMES-1) {
+			frame_cycle ^= SCU_MAX_UNSOLICITED_FRAMES;
+			frame_get = 0;
+		} else
+			frame_get++;
+	}
+
+	uf_control->get = SCU_UFQGP_GEN_BIT(ENABLE_BIT) | frame_cycle | frame_get;
+
+	return true;
+}
