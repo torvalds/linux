@@ -557,8 +557,7 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 		 * these LEBs could possibly be written to at the power cut
 		 * time.
 		 */
-		sleb = ubifs_recover_leb(c, lnum, offs, c->sbuf,
-					 b->bud->jhead != GCHD);
+		sleb = ubifs_recover_leb(c, lnum, offs, c->sbuf, b->bud->jhead);
 	else
 		sleb = ubifs_scan(c, lnum, offs, c->sbuf, 0);
 	if (IS_ERR(sleb))

@@ -661,7 +661,7 @@ static void ks8842_rx_frame(struct net_device *netdev,
 
 	/* check the status */
 	if ((status & RXSR_VALID) && !(status & RXSR_ERROR)) {
-		struct sk_buff *skb = netdev_alloc_skb_ip_align(netdev, len);
+		struct sk_buff *skb = netdev_alloc_skb_ip_align(netdev, len + 3);
 
 		if (skb) {
 

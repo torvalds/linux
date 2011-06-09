@@ -2247,10 +2247,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 
 	if (should_fail_alloc_page(gfp_mask, order))
 		return NULL;
-#ifndef CONFIG_ZONE_DMA
-	if (WARN_ON_ONCE(gfp_mask & __GFP_DMA))
-		return NULL;
-#endif
 
 	/*
 	 * Check the zones suitable for the gfp_mask contain at least one
