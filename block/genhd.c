@@ -1508,10 +1508,18 @@ void disk_unblock_events(struct gendisk *disk)
  */
 void disk_check_events(struct gendisk *disk)
 {
-	if (disk->ev) {
-		__disk_block_events(disk, false);
-		__disk_unblock_events(disk, true);
+	struct disk_events *ev = disk->ev;
+	unsigned long flags;
+
+	if (!ev)
+		return;
+
+	spin_lock_irqsave(&ev->lock, flags);
+	if (!ev->block) {
+		cancel_delayed_work(&ev->dwork);
+		queue_delayed_work(system_nrt_wq, &ev->dwork, 0);
 	}
+	spin_unlock_irqrestore(&ev->lock, flags);
 }
 EXPORT_SYMBOL_GPL(disk_check_events);
 
