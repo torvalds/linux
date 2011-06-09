@@ -20,9 +20,6 @@
 
 #define PIT_LATCH	((PIT_TICK_RATE + HZ/2) / HZ)
 
-#define inb_pit         inb_p
-#define outb_pit        outb_p
-
 extern raw_spinlock_t i8253_lock;
 extern struct clock_event_device i8253_clockevent;
 extern void clockevent_i8253_init(bool oneshot);
