@@ -136,7 +136,7 @@ struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc)
 	}
 
 	/* Set the antenna selection type for the low driver */
-	wlc_bmac_antsel_type_set(wlc->hw, asi->antsel_type);
+	brcms_b_antsel_type_set(wlc->hw, asi->antsel_type);
 
 	/* Init (auto/manual) antenna selection */
 	wlc_antsel_init_cfg(asi, &asi->antcfg_11n, true);

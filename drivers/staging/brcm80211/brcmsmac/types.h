@@ -374,7 +374,7 @@ struct wlcband;
 
 typedef struct gpioh_item gpioh_item_t;
 typedef struct si_info si_info_t;
-typedef struct wlc_bmac_state wlc_bmac_state_t;
+typedef struct brcms_b_state brcms_b_state_t;
 typedef struct locale_info locale_info_t;
 typedef struct locale_mimo_info locale_mimo_info_t;
 typedef struct country_info country_info_t;

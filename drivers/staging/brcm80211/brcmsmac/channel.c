@@ -1122,7 +1122,7 @@ wlc_channel_set_chanspec(wlc_cm_info_t *wlc_cm, chanspec_t chanspec,
 	wlc_channel_min_txpower_limits_with_local_constraint(wlc_cm, &txpwr,
 							     local_constraint_qdbm);
 
-	wlc_bmac_set_chanspec(wlc->hw, chanspec,
+	brcms_b_set_chanspec(wlc->hw, chanspec,
 			      (wlc_quiet_chanspec(wlc_cm, chanspec) != 0),
 			      &txpwr);
 }

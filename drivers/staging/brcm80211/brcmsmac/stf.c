@@ -194,7 +194,7 @@ static int wlc_stf_txcore_set(struct wlc_info *wlc, u8 Nsts, u8 core_mask)
 		 * frames when 1 stream core map changed
 		 */
 		wlc->stf->phytxant = core_mask << PHY_TXC_ANT_SHIFT;
-		wlc_bmac_txant_set(wlc->hw, wlc->stf->phytxant);
+		brcms_b_txant_set(wlc->hw, wlc->stf->phytxant);
 		if (wlc->clk) {
 			wlc_suspend_mac_and_wait(wlc);
 			wlc_beacon_phytxctl_txant_upd(wlc, wlc->bcn_rspec);
@@ -314,7 +314,7 @@ int wlc_stf_ss_update(struct wlc_info *wlc, struct wlcband *band)
 	}
 	if (prev_stf_ss != upd_stf_ss) {
 		wlc->stf->ss_opmode = upd_stf_ss;
-		wlc_bmac_band_stf_ss_set(wlc->hw, upd_stf_ss);
+		brcms_b_band_stf_ss_set(wlc->hw, upd_stf_ss);
 	}
 
 	return ret_code;
@@ -396,7 +396,7 @@ static void _wlc_stf_phy_txant_upd(struct wlc_info *wlc)
 			wlc->stf->phytxant = PHY_TXC_OLD_ANT_LAST;
 	}
 
-	wlc_bmac_txant_set(wlc->hw, wlc->stf->phytxant);
+	brcms_b_txant_set(wlc->hw, wlc->stf->phytxant);
 }
 
 void wlc_stf_phy_txant_upd(struct wlc_info *wlc)

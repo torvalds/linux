@@ -165,7 +165,7 @@
  */
 
 /* To inform the ucode of the last mcast frame posted so that it can clear moredata bit */
-#define BCMCFID(wlc, fid) wlc_bmac_write_shm((wlc)->hw, M_BCMC_FID, (fid))
+#define BCMCFID(wlc, fid) brcms_b_write_shm((wlc)->hw, M_BCMC_FID, (fid))
 
 #define WLC_WAR16165(wlc) (wlc->pub->sih->bustype == PCI_BUS && \
 				(!AP_ENAB(wlc->pub)) && (wlc->war16165))
@@ -416,7 +416,7 @@ void wlc_reset(struct wlc_info *wlc)
 	memset((char *)wlc->core->macstat_snapshot, 0,
 		sizeof(macstat_t));
 
-	wlc_bmac_reset(wlc->hw);
+	brcms_b_reset(wlc->hw);
 }
 
 void wlc_fatal_error(struct wlc_info *wlc)
@@ -470,7 +470,7 @@ void wlc_init(struct wlc_info *wlc)
 	else
 		chanspec = wlc_init_chanspec(wlc);
 
-	wlc_bmac_init(wlc->hw, chanspec, mute);
+	brcms_b_init(wlc->hw, chanspec, mute);
 
 	/* update beacon listen interval */
 	wlc_bcn_li_upd(wlc);
@@ -632,7 +632,7 @@ void wlc_set_ps_ctrl(struct wlc_info *wlc)
 	awake_before = ((v1 & MCTL_WAKE) || ((v1 & MCTL_HPS) == 0));
 
 	if (!awake_before)
-		wlc_bmac_wait_for_wake(wlc->hw);
+		brcms_b_wait_for_wake(wlc->hw);
 
 }
 
@@ -702,7 +702,7 @@ void wlc_switch_shortslot(struct wlc_info *wlc, bool shortslot)
 					WLAN_CAPABILITY_SHORT_SLOT_TIME;
 	}
 
-	wlc_bmac_set_shortslot(wlc->hw, shortslot);
+	brcms_b_set_shortslot(wlc->hw, shortslot);
 }
 
 static u8 wlc_local_constraint_qdbm(struct wlc_info *wlc)
@@ -793,10 +793,13 @@ void wlc_set_chanspec(struct wlc_info *wlc, chanspec_t chanspec)
 					  CHSPEC_CHANNEL(chanspec));
 				return;
 			}
-			/* BMAC_NOTE: should the setband call come after the wlc_bmac_chanspec() ?
-			 * if the setband updates (wlc_bsinit) use low level calls to inspect and
-			 * set state, the state inspected may be from the wrong band, or the
-			 * following wlc_bmac_set_chanspec() may undo the work.
+			/*
+			 * should the setband call come after the
+			 * brcms_b_chanspec() ? if the setband updates
+			 * (wlc_bsinit) use low level calls to inspect and
+			 * set state, the state inspected may be from the wrong
+			 * band, or the following brcms_b_set_chanspec() may
+			 * undo the work.
 			 */
 			wlc_setband(wlc, bandunit);
 		}
@@ -1291,9 +1294,9 @@ void wlc_info_init(struct wlc_info *wlc, int unit)
 
 static bool wlc_state_bmac_sync(struct wlc_info *wlc)
 {
-	wlc_bmac_state_t state_bmac;
+	brcms_b_state_t state_bmac;
 
-	if (wlc_bmac_state_get(wlc->hw, &state_bmac) != 0)
+	if (brcms_b_state_get(wlc->hw, &state_bmac) != 0)
 		return false;
 
 	wlc->machwcap = state_bmac.machwcap;
@@ -1386,7 +1389,7 @@ void *wlc_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	 * low level attach steps(all hw accesses go
 	 * inside, no more in rest of the attach)
 	 */
-	err = wlc_bmac_attach(wlc, vendor, device, unit, piomode, regsva,
+	err = brcms_b_attach(wlc, vendor, device, unit, piomode, regsva,
 			      bustype, btparam);
 	if (err)
 		goto fail;
@@ -1402,7 +1405,7 @@ void *wlc_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	pub->phy_11ncapable = WLC_PHY_11N_CAP(wlc->band);
 
 	/* propagate *vars* from BMAC driver to high driver */
-	wlc_bmac_copyfrom_vars(wlc->hw, &pub->vars, &wlc->vars_size);
+	brcms_b_copyfrom_vars(wlc->hw, &pub->vars, &wlc->vars_size);
 
 
 	/* set maximum allowed duty cycle */
@@ -1428,7 +1431,7 @@ void *wlc_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 			wlc->core->txavail[i] = wlc->hw->txavail[i];
 	}
 
-	wlc_bmac_hw_etheraddr(wlc->hw, wlc->perm_etheraddr);
+	brcms_b_hw_etheraddr(wlc->hw, wlc->perm_etheraddr);
 
 	memcpy(&pub->cur_etheraddr, &wlc->perm_etheraddr, ETH_ALEN);
 
@@ -1576,10 +1579,10 @@ void *wlc_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	if ((wlc->pub->sih->chip) == BCM43235_CHIP_ID) {
 		if ((getintvar(wlc->pub->vars, "aa2g") == 7) ||
 		    (getintvar(wlc->pub->vars, "aa5g") == 7)) {
-			wlc_bmac_antsel_set(wlc->hw, 1);
+			brcms_b_antsel_set(wlc->hw, 1);
 		}
 	} else {
-		wlc_bmac_antsel_set(wlc->hw, wlc->asi->antsel_avail);
+		brcms_b_antsel_set(wlc->hw, wlc->asi->antsel_avail);
 	}
 
 	if (perr)
@@ -1716,7 +1719,7 @@ uint wlc_detach(struct wlc_info *wlc)
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
-	callbacks += wlc_bmac_detach(wlc);
+	callbacks += brcms_b_detach(wlc);
 
 	/* delete software timers */
 	if (!wlc_radio_monitor_stop(wlc))
@@ -1754,7 +1757,7 @@ static void wlc_radio_hwdisable_upd(struct wlc_info *wlc)
 	if (wlc->pub->wlfeatureflag & WL_SWFL_NOHWRADIO || wlc->pub->hw_off)
 		return;
 
-	if (wlc_bmac_radio_read_hwdisabled(wlc->hw)) {
+	if (brcms_b_radio_read_hwdisabled(wlc->hw)) {
 		mboolset(wlc->pub->radio_disabled, WL_RADIO_HW_DISABLE);
 	} else {
 		mboolclr(wlc->pub->radio_disabled, WL_RADIO_HW_DISABLE);
@@ -1969,7 +1972,7 @@ static void wlc_watchdog(void *arg)
 	if (wlc->pub->radio_disabled)
 		return;
 
-	wlc_bmac_watchdog(wlc);
+	brcms_b_watchdog(wlc);
 
 	/* occasionally sample mac stat counters to detect 16-bit counter wrap */
 	if ((wlc->pub->now % SW_TIMER_MAC_STAT_UPD) == 0)
@@ -2009,7 +2012,7 @@ int wlc_up(struct wlc_info *wlc)
 		return -ENOMEDIUM;
 
 	if (!wlc->pub->hw_up) {
-		wlc_bmac_hw_up(wlc->hw);
+		brcms_b_hw_up(wlc->hw);
 		wlc->pub->hw_up = true;
 	}
 
@@ -2031,10 +2034,10 @@ int wlc_up(struct wlc_info *wlc)
 	 * if radio is disabled, abort up, lower power, start radio timer and return 0(for NDIS)
 	 * don't call radio_update to avoid looping wlc_up.
 	 *
-	 * wlc_bmac_up_prep() returns either 0 or -BCME_RADIOOFF only
+	 * brcms_b_up_prep() returns either 0 or -BCME_RADIOOFF only
 	 */
 	if (!wlc->pub->radio_disabled) {
-		int status = wlc_bmac_up_prep(wlc->hw);
+		int status = brcms_b_up_prep(wlc->hw);
 		if (status == -ENOMEDIUM) {
 			if (!mboolisset
 			    (wlc->pub->radio_disabled, WL_RADIO_HW_DISABLE)) {
@@ -2061,7 +2064,7 @@ int wlc_up(struct wlc_info *wlc)
 		return 0;
 	}
 
-	/* wlc_bmac_up_prep has done wlc_corereset(). so clk is on, set it */
+	/* brcms_b_up_prep has done wlc_corereset(). so clk is on, set it */
 	wlc->clk = true;
 
 	wlc_radio_monitor_stop(wlc);
@@ -2087,7 +2090,7 @@ int wlc_up(struct wlc_info *wlc)
 		wlc_enable_mac(wlc);
 	}
 
-	wlc_bmac_up_finish(wlc->hw);
+	brcms_b_up_finish(wlc->hw);
 
 	/* other software states up after ISR is running */
 	/* start APs that were to be brought up but are not up  yet */
@@ -2162,7 +2165,7 @@ uint wlc_down(struct wlc_info *wlc)
 	/* in between, mpc could try to bring down again.. */
 	wlc->going_down = true;
 
-	callbacks += wlc_bmac_down_prep(wlc->hw);
+	callbacks += brcms_b_bmac_down_prep(wlc->hw);
 
 	dev_gone = DEVICEREMOVED(wlc);
 
@@ -2194,9 +2197,9 @@ uint wlc_down(struct wlc_info *wlc)
 		brcmu_pktq_flush(&qi->q, true, NULL, NULL);
 	}
 
-	callbacks += wlc_bmac_down_finish(wlc->hw);
+	callbacks += brcms_b_down_finish(wlc->hw);
 
-	/* wlc_bmac_down_finish has done wlc_coredisable(). so clk is off */
+	/* brcms_b_down_finish has done wlc_coredisable(). so clk is off */
 	wlc->clk = false;
 
 	wlc->going_down = false;
@@ -2598,7 +2601,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			int ac;
 			wlc->SRL = (u16) val;
 
-			wlc_bmac_retrylimit_upd(wlc->hw, wlc->SRL, wlc->LRL);
+			brcms_b_retrylimit_upd(wlc->hw, wlc->SRL, wlc->LRL);
 
 			for (ac = 0; ac < AC_COUNT; ac++) {
 				WLC_WME_RETRY_SHORT_SET(wlc, ac, wlc->SRL);
@@ -2613,7 +2616,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			int ac;
 			wlc->LRL = (u16) val;
 
-			wlc_bmac_retrylimit_upd(wlc->hw, wlc->SRL, wlc->LRL);
+			brcms_b_retrylimit_upd(wlc->hw, wlc->SRL, wlc->LRL);
 
 			for (ac = 0; ac < AC_COUNT; ac++) {
 				WLC_WME_RETRY_LONG_SET(wlc, ac, wlc->LRL);
@@ -2889,8 +2892,8 @@ void wlc_statsupd(struct wlc_info *wlc)
 #endif				/* BCMDBG */
 
 	/* Read mac stats from contiguous shared memory */
-	wlc_bmac_copyfrom_shm(wlc->hw, M_UCODE_MACSTAT,
-			      &macstats, sizeof(macstat_t));
+	brcms_b_copyfrom_shm(wlc->hw, M_UCODE_MACSTAT,
+			     &macstats, sizeof(macstat_t));
 
 #ifdef BCMDBG
 	/* check for rx fifo 0 overflow */
@@ -3066,7 +3069,7 @@ void wlc_print_rxh(d11rxhdr_t *rxh)
 
 static u16 wlc_rate_shm_offset(struct wlc_info *wlc, u8 rate)
 {
-	return wlc_bmac_rate_shm_offset(wlc->hw, rate);
+	return brcms_b_rate_shm_offset(wlc->hw, rate);
 }
 
 /* Callback for device removed */
@@ -3305,7 +3308,7 @@ wlc_txfifo(struct wlc_info *wlc, uint fifo, struct sk_buff *p, bool commit,
 
 
 	/* Bump up pending count for if not using rpc. If rpc is used, this will be handled
-	 * in wlc_bmac_txfifo()
+	 * in brcms_b_txfifo()
 	 */
 	if (commit) {
 		TXPKTPENDINC(wlc, fifo, txpktpend);
@@ -4457,7 +4460,7 @@ void wlc_bcn_li_upd(struct wlc_info *wlc)
  * |<---------- tsf_h ----------->||<--- tsf_l -->||<-RxTSFTime ->|
  *
  * The RxTSFTime are the lowest 16 bits and provided by the ucode. The
- * tsf_l is filled in by wlc_bmac_recv, which is done earlier in the
+ * tsf_l is filled in by brcms_b_recv, which is done earlier in the
  * receive call sequence after rx interrupt. Only the higher 16 bits
  * are used. Finally, the tsf_h is read from the tsf register.
  */
@@ -4466,7 +4469,7 @@ static u64 wlc_recover_tsf64(struct wlc_info *wlc, struct wlc_d11rxhdr *rxh)
 	u32 tsf_h, tsf_l;
 	u16 rx_tsf_0_15, rx_tsf_16_31;
 
-	wlc_bmac_read_tsf(wlc->hw, &tsf_l, &tsf_h);
+	brcms_b_read_tsf(wlc->hw, &tsf_l, &tsf_h);
 
 	rx_tsf_16_31 = (u16)(tsf_l >> 16);
 	rx_tsf_0_15 = rxh->rxhdr.RxTSFTime;
@@ -5368,7 +5371,7 @@ wlc_bss_update_probe_resp(struct wlc_info *wlc, struct wlc_bsscfg *cfg,
 			wlc_suspend_mac_and_wait(wlc);
 
 		/* write the probe response into the template region */
-		wlc_bmac_write_template_ram(wlc->hw, T_PRS_TPL_BASE,
+		brcms_b_write_template_ram(wlc->hw, T_PRS_TPL_BASE,
 					    (len + 3) & ~3, prb_resp);
 
 		/* write the length of the probe response frame (+PLCP/-FCS) */
@@ -5626,7 +5629,7 @@ wlc_duty_cycle_set(struct wlc_info *wlc, int duty_cycle, bool isOFDM,
  */
 u16 wlc_read_shm(struct wlc_info *wlc, uint offset)
 {
-	return wlc_bmac_read_shm(wlc->hw, offset);
+	return brcms_b_read_shm(wlc->hw, offset);
 }
 
 /* Write a single u16 to shared memory.
@@ -5634,7 +5637,7 @@ u16 wlc_read_shm(struct wlc_info *wlc, uint offset)
  */
 void wlc_write_shm(struct wlc_info *wlc, uint offset, u16 v)
 {
-	wlc_bmac_write_shm(wlc->hw, offset, v);
+	brcms_b_write_shm(wlc->hw, offset, v);
 }
 
 /* Copy a buffer to shared memory.
@@ -5647,50 +5650,50 @@ void wlc_copyto_shm(struct wlc_info *wlc, uint offset, const void *buf, int len)
 	if (len <= 0 || (offset & 1) || (len & 1))
 		return;
 
-	wlc_bmac_copyto_objmem(wlc->hw, offset, buf, len, OBJADDR_SHM_SEL);
+	brcms_b_copyto_objmem(wlc->hw, offset, buf, len, OBJADDR_SHM_SEL);
 
 }
 
 /* wrapper BMAC functions to for HIGH driver access */
 void wlc_mctrl(struct wlc_info *wlc, u32 mask, u32 val)
 {
-	wlc_bmac_mctrl(wlc->hw, mask, val);
+	brcms_b_mctrl(wlc->hw, mask, val);
 }
 
 void wlc_mhf(struct wlc_info *wlc, u8 idx, u16 mask, u16 val, int bands)
 {
-	wlc_bmac_mhf(wlc->hw, idx, mask, val, bands);
+	brcms_b_mhf(wlc->hw, idx, mask, val, bands);
 }
 
 int wlc_xmtfifo_sz_get(struct wlc_info *wlc, uint fifo, uint *blocks)
 {
-	return wlc_bmac_xmtfifo_sz_get(wlc->hw, fifo, blocks);
+	return brcms_b_xmtfifo_sz_get(wlc->hw, fifo, blocks);
 }
 
 void wlc_write_template_ram(struct wlc_info *wlc, int offset, int len,
 			    void *buf)
 {
-	wlc_bmac_write_template_ram(wlc->hw, offset, len, buf);
+	brcms_b_write_template_ram(wlc->hw, offset, len, buf);
 }
 
 void wlc_write_hw_bcntemplates(struct wlc_info *wlc, void *bcn, int len,
 			       bool both)
 {
-	wlc_bmac_write_hw_bcntemplates(wlc->hw, bcn, len, both);
+	brcms_b_write_hw_bcntemplates(wlc->hw, bcn, len, both);
 }
 
 void
 wlc_set_addrmatch(struct wlc_info *wlc, int match_reg_offset,
 		  const u8 *addr)
 {
-	wlc_bmac_set_addrmatch(wlc->hw, match_reg_offset, addr);
+	brcms_b_set_addrmatch(wlc->hw, match_reg_offset, addr);
 	if (match_reg_offset == RCM_BSSID_OFFSET)
 		memcpy(wlc->cfg->BSSID, addr, ETH_ALEN);
 }
 
 void wlc_pllreq(struct wlc_info *wlc, bool set, mbool req_bit)
 {
-	wlc_bmac_pllreq(wlc->hw, set, req_bit);
+	brcms_b_pllreq(wlc->hw, set, req_bit);
 }
 
 void wlc_reset_bmac_done(struct wlc_info *wlc)
