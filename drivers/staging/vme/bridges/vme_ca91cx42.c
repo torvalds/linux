@@ -256,6 +256,18 @@ static void ca91cx42_irq_exit(struct ca91cx42_driver *bridge,
 	free_irq(pdev->irq, pdev);
 }
 
+static int ca91cx42_iack_received(struct ca91cx42_driver *bridge, int level)
+{
+	u32 tmp;
+
+	tmp = ioread32(bridge->base + LINT_STAT);
+
+	if (tmp & (1 << level))
+		return 0;
+	else
+		return 1;
+}
+
 /*
  * Set up an VME interrupt
  */
@@ -311,7 +323,8 @@ static int ca91cx42_irq_generate(struct vme_bridge *ca91cx42_bridge, int level,
 	iowrite32(tmp, bridge->base + VINT_EN);
 
 	/* Wait for IACK */
-	wait_event_interruptible(bridge->iack_queue, 0);
+	wait_event_interruptible(bridge->iack_queue,
+				 ca91cx42_iack_received(bridge, level));
 
 	/* Return interrupt to low state */
 	tmp = ioread32(bridge->base + VINT_EN);
