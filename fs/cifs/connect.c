@@ -2149,7 +2149,10 @@ cifs_put_tlink(struct tcon_link *tlink)
 }
 
 static inline struct tcon_link *
-cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb);
+cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb)
+{
+	return cifs_sb->master_tlink;
+}
 
 static int
 compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
@@ -3482,12 +3485,6 @@ out:
 	kfree(vol_info);
 
 	return tcon;
-}
-
-static inline struct tcon_link *
-cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb)
-{
-	return cifs_sb->master_tlink;
 }
 
 struct cifs_tcon *
