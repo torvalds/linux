@@ -1487,11 +1487,10 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 
 	release_mem_region(sfb->regs_res->start, resource_size(sfb->regs_res));
 
-	kfree(sfb);
-
 	pm_runtime_put_sync(sfb->dev);
 	pm_runtime_disable(sfb->dev);
 
+	kfree(sfb);
 	return 0;
 }
 
