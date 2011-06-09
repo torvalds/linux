@@ -1170,7 +1170,7 @@ static int _iscan_sysioc_thread(void *data)
 {
 	u32 status;
 	iscan_info_t *iscan = (iscan_info_t *) data;
-	static bool iscan_pass_abort = false;
+	static bool iscan_pass_abort;
 
 	allow_signal(SIGTERM);
 	status = WL_SCAN_RESULTS_PARTIAL;

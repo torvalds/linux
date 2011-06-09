@@ -323,9 +323,8 @@ static void wl_debugfs_remove_netdev(struct wl_priv *wl);
 
 #define WL_PRIV_GET() 							\
 	({								\
-	struct wl_iface *ci;						\
-	if (unlikely(!(wl_cfg80211_dev && 				\
-		(ci = wl_get_drvdata(wl_cfg80211_dev))))) {		\
+	struct wl_iface *ci = wl_get_drvdata(wl_cfg80211_dev);		\
+	if (unlikely(!ci)) {						\
 		WL_ERR("wl_cfg80211_dev is unavailable\n");		\
 		BUG();							\
 	} 								\
@@ -4298,7 +4297,11 @@ static void wl_set_drvdata(struct wl_dev *dev, void *data)
 
 static void *wl_get_drvdata(struct wl_dev *dev)
 {
-	return dev->driver_data;
+	void *data = NULL;
+
+	if (dev)
+		data = dev->driver_data;
+	return data;
 }
 
 s32 wl_cfg80211_read_fw(s8 *buf, u32 size)

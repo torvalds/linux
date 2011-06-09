@@ -339,7 +339,7 @@ int dhd_idletime = DHD_IDLETIME_TICKS;
 module_param(dhd_idletime, int, 0);
 
 /* Use polling */
-uint dhd_poll = false;
+uint dhd_poll;
 module_param(dhd_poll, uint, 0);
 
 /* Use cfg80211 */
@@ -1817,9 +1817,12 @@ dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
 	ASSERT(dhd && (ifidx < DHD_MAX_IFS));
 
 	ifp = dhd->iflist[ifidx];
-	if (!ifp && !(ifp = kmalloc(sizeof(dhd_if_t), GFP_ATOMIC))) {
-		DHD_ERROR(("%s: OOM - dhd_if_t\n", __func__));
-		return -ENOMEM;
+	if (!ifp) {
+		ifp = kmalloc(sizeof(dhd_if_t), GFP_ATOMIC);
+		if (!ifp) {
+			DHD_ERROR(("%s: OOM - dhd_if_t\n", __func__));
+			return -ENOMEM;
+		}
 	}
 
 	memset(ifp, 0, sizeof(dhd_if_t));
