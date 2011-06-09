@@ -45,6 +45,10 @@ static DEFINE_RWLOCK(amd_iommu_devtable_lock);
 static LIST_HEAD(iommu_pd_list);
 static DEFINE_SPINLOCK(iommu_pd_list_lock);
 
+/* List of all available dev_data structures */
+static LIST_HEAD(dev_data_list);
+static DEFINE_SPINLOCK(dev_data_list_lock);
+
 /*
  * Domain for untranslated devices - only allocated
  * if iommu=pt passed on kernel cmd line.
@@ -67,6 +71,35 @@ static void update_domain(struct protection_domain *domain);
  * Helper functions
  *
  ****************************************************************************/
+
+static struct iommu_dev_data *alloc_dev_data(void)
+{
+	struct iommu_dev_data *dev_data;
+	unsigned long flags;
+
+	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
+	if (!dev_data)
+		return NULL;
+
+	atomic_set(&dev_data->bind, 0);
+
+	spin_lock_irqsave(&dev_data_list_lock, flags);
+	list_add_tail(&dev_data->dev_data_list, &dev_data_list);
+	spin_unlock_irqrestore(&dev_data_list_lock, flags);
+
+	return dev_data;
+}
+
+static void free_dev_data(struct iommu_dev_data *dev_data)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_data_list_lock, flags);
+	list_del(&dev_data->dev_data_list);
+	spin_unlock_irqrestore(&dev_data_list_lock, flags);
+
+	kfree(dev_data);
+}
 
 static inline u16 get_device_id(struct device *dev)
 {
@@ -139,31 +172,27 @@ static int iommu_init_device(struct device *dev)
 {
 	struct iommu_dev_data *dev_data;
 	struct pci_dev *pdev;
-	u16 devid, alias;
+	u16 alias;
 
 	if (dev->archdata.iommu)
 		return 0;
 
-	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
+	dev_data = alloc_dev_data();
 	if (!dev_data)
 		return -ENOMEM;
 
 	dev_data->dev = dev;
 
-	devid = get_device_id(dev);
-	alias = amd_iommu_alias_table[devid];
+	alias = amd_iommu_alias_table[get_device_id(dev)];
 	pdev = pci_get_bus_and_slot(PCI_BUS(alias), alias & 0xff);
 	if (pdev)
 		dev_data->alias = &pdev->dev;
 	else {
-		kfree(dev_data);
+		free_dev_data(dev_data);
 		return -ENOTSUPP;
 	}
 
-	atomic_set(&dev_data->bind, 0);
-
 	dev->archdata.iommu = dev_data;
-
 
 	return 0;
 }
@@ -184,11 +213,16 @@ static void iommu_ignore_device(struct device *dev)
 
 static void iommu_uninit_device(struct device *dev)
 {
-	kfree(dev->archdata.iommu);
+	/*
+	 * Nothing to do here - we keep dev_data around for unplugged devices
+	 * and reuse it when the device is re-plugged - not doing so would
+	 * introduce a ton of races.
+	 */
 }
 
 void __init amd_iommu_uninit_devices(void)
 {
+	struct iommu_dev_data *dev_data, *n;
 	struct pci_dev *pdev = NULL;
 
 	for_each_pci_dev(pdev) {
@@ -198,6 +232,10 @@ void __init amd_iommu_uninit_devices(void)
 
 		iommu_uninit_device(&pdev->dev);
 	}
+
+	/* Free all of our dev_data structures */
+	list_for_each_entry_safe(dev_data, n, &dev_data_list, dev_data_list)
+		free_dev_data(dev_data);
 }
 
 int __init amd_iommu_init_devices(void)
