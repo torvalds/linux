@@ -491,6 +491,9 @@ int irq_set_irq_wake(unsigned int irq, unsigned int on)
 	struct irq_desc *desc = irq_get_desc_buslock(irq, &flags);
 	int ret = 0;
 
+	if (!desc)
+		return -EINVAL;
+
 	/* wakeup-capable irqs can be shared between drivers that
 	 * don't need to have the same sleep mode behaviors.
 	 */
