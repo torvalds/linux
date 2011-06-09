@@ -183,9 +183,6 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 			return -EINVAL;
 		}
 #endif
-#ifdef __alpha__
-		map->offset += dev->hose->mem_space->start;
-#endif
 		/* Some drivers preinitialize some maps, without the X Server
 		 * needing to be aware of it.  Therefore, we just return success
 		 * when the server tries to create a duplicate map.
