@@ -142,43 +142,6 @@ static struct nlattr *nested_attr_tb[128];
 #define BUILD_BUG_ON_NULL(e) ((void *)sizeof(struct { int:-!!(e); }))
 #endif
 
-static inline int drbd_nla_check_mandatory(int maxtype, struct nlattr *nla)
-{
-	struct nlattr *head = nla_data(nla);
-	int len = nla_len(nla);
-	int rem;
-
-	/*
-	 * validate_nla (called from nla_parse_nested) ignores attributes
-	 * beyond maxtype, and does not understand the DRBD_GENLA_F_MANDATORY flag.
-	 * In order to have it validate attributes with the DRBD_GENLA_F_MANDATORY
-	 * flag set also, check and remove that flag before calling
-	 * nla_parse_nested.
-	 */
-
-	nla_for_each_attr(nla, head, len, rem) {
-		if (nla->nla_type & DRBD_GENLA_F_MANDATORY) {
-			nla->nla_type &= ~DRBD_GENLA_F_MANDATORY;
-			if (nla_type(nla) > maxtype)
-				return -EOPNOTSUPP;
-		}
-	}
-	return 0;
-}
-
-static inline int drbd_nla_parse_nested(struct nlattr *tb[], int maxtype,
-					struct nlattr *nla,
-					const struct nla_policy *policy)
-{
-	int err;
-
-	err = drbd_nla_check_mandatory(maxtype, nla);
-	if (!err)
-		err = nla_parse_nested(tb, maxtype, nla, policy);
-
-	return err;
-}
-
 #undef GENL_struct
 #define GENL_struct(tag_name, tag_number, s_name, s_fields)		\
 /* *_from_attrs functions are static, but potentially unused */		\

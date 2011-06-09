@@ -96,7 +96,7 @@ GENL_struct(DRBD_NLA_CFG_REPLY, 1, drbd_cfg_reply,
  * and the volume id within the resource. */
 GENL_struct(DRBD_NLA_CFG_CONTEXT, 2, drbd_cfg_context,
 	__u32_field(1, DRBD_GENLA_F_MANDATORY,	ctx_volume)
-	__str_field(2, DRBD_GENLA_F_MANDATORY,	ctx_conn_name, 128)
+	__str_field(2, DRBD_GENLA_F_MANDATORY,	ctx_resource_name, 128)
 )
 
 GENL_struct(DRBD_NLA_DISK_CONF, 3, disk_conf,
