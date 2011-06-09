@@ -2588,11 +2588,11 @@ static bool wl_is_nonetwork(struct wl_priv *wl, const wl_event_msg_t *e)
 {
 	u32 event = be32_to_cpu(e->event_type);
 	u32 status = be32_to_cpu(e->status);
-	u16 flags = be16_to_cpu(e->flags);
 
 	if (event == WLC_E_LINK && status == WLC_E_STATUS_NO_NETWORKS) {
 		WL_CONN("Processing Link %s & no network found\n",
-				flags & WLC_EVENT_MSG_LINK ? "up" : "down");
+				be16_to_cpu(e->flags) & WLC_EVENT_MSG_LINK ?
+				"up" : "down");
 		return true;
 	}
 
