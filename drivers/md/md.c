@@ -5274,6 +5274,8 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		if (mddev->degraded)
 			set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+		if (!err)
+			md_new_event(mddev);
 		md_wakeup_thread(mddev->thread);
 		return err;
 	}
