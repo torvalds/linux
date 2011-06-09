@@ -83,9 +83,6 @@ struct brcms_info {
 };
 
 /* misc callbacks */
-struct brcms_info;
-struct brcms_if;
-struct brcms_c_if;
 extern void brcms_init(struct brcms_info *wl);
 extern uint brcms_reset(struct brcms_info *wl);
 extern void brcms_intrson(struct brcms_info *wl);
@@ -99,7 +96,6 @@ extern bool wl_alloc_dma_resources(struct brcms_info *wl, uint dmaddrwidth);
 extern bool brcms_rfkill_set_hw_state(struct brcms_info *wl);
 
 /* timer functions */
-struct brcms_timer;
 extern struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 				      void (*fn) (void *arg), void *arg,
 				      const char *name);

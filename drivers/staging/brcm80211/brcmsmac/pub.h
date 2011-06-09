@@ -106,8 +106,6 @@
 #define	WL_SPURAVOID_ON1	1
 #define	WL_SPURAVOID_ON2	2
 
-struct ieee80211_tx_queue_params;
-
 struct wlc_tunables {
 	int ntxd;		/* size of tx descriptor table */
 	int nrxd;		/* size of rx descriptor table */
@@ -186,9 +184,6 @@ struct wlc_bss_info {
 	u8 mcipher;		/* multicast cipher */
 	u8 wpacfg;		/* wpa config index */
 };
-
-/* forward declarations */
-struct brcms_c_if;
 
 /* brcms_c_ioctl error codes */
 #define WLC_ENOIOCTL	1	/* No such Ioctl */
@@ -383,14 +378,6 @@ enum wlc_par_id {
 	IOV_QTXPOWER,
 	IOV_BCN_LI_BCN		/* Beacon listen interval in # of beacons */
 };
-
-/* forward declare and use the struct notation so we don't have to
- * have it defined if not necessary.
- */
-struct brcms_c_info;
-struct brcms_c_hw_info;
-struct brcms_c_bsscfg;
-struct brcms_c_if;
 
 /***********************************************
  * Feature-related macros to optimize out code *
@@ -637,7 +624,6 @@ extern void wlc_rate_lookup_init(struct brcms_c_info *wlc,
 				 wlc_rateset_t *rateset);
 extern void brcms_default_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs);
 
-struct ieee80211_sta;
 extern void wlc_ampdu_flush(struct brcms_c_info *wlc,
 			    struct ieee80211_sta *sta, u16 tid);
 extern int brcms_c_set_par(struct brcms_c_info *wlc, enum wlc_par_id par_id,

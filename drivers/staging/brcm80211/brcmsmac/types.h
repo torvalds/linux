@@ -371,6 +371,8 @@ struct wiphy;
 struct brcmu_iovar;
 struct brcms_c_txq_info;
 struct brcms_c_band;
+struct ieee80211_tx_queue_params;
+struct ieee80211_sta;
 
 typedef struct gpioh_item gpioh_item_t;
 typedef struct si_info si_info_t;

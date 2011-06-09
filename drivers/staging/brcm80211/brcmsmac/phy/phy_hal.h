@@ -154,10 +154,6 @@ struct chanvec {
 	u8 vec[MAXCHANNEL / NBBY];
 };
 
-struct rpc_info;
-
-struct phy_pub;
-
 struct shared_phy_params {
 	struct si_pub *sih;
 	void *physhim;

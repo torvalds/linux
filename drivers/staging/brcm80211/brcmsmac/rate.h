@@ -138,8 +138,6 @@ extern const u8 ofdm_rate_lookup[];
 #define WLC_RATES_CCK		1
 #define WLC_RATES_OFDM		2
 
-struct wlc_rateset;
-
 /* sanitize, and sort a rateset with the basic bit(s) preserved, validate rateset */
 extern bool wlc_rate_hwrs_filter_sort_validate(struct wlc_rateset *rs,
 					       const struct wlc_rateset *hw_rs,

@@ -28,8 +28,6 @@
 #include "dngl_stats.h"
 #include "dhd.h"
 
-struct si_pub;
-
 #define WPA_OUI			"\x00\x50\xF2"
 #define DOT11_MNG_RSN_ID			48
 #define DOT11_MNG_WPA_ID			221

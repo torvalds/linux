@@ -49,7 +49,6 @@ struct wlc_phy_srom_fem {
 	u8 antswctrllut;	/* antswctrl lookup table configuration: 32 possible choices */
 };
 
-struct brcms_c_hw_info;
 typedef void (*initfn_t) (phy_info_t *);
 typedef void (*chansetfn_t) (phy_info_t *, chanspec_t);
 typedef int (*longtrnfn_t) (phy_info_t *, int);
@@ -578,9 +577,6 @@ struct phy_pub {
 	uint ana_rev;
 	bool abgphy_encore;
 };
-
-struct phy_info_nphy;
-struct phy_info_lcnphy;
 
 struct phy_func_ptr {
 	initfn_t init;

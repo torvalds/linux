@@ -139,7 +139,7 @@ extern uint brcmu_pkttotlen(struct sk_buff *p);
 extern int brcmu_ether_atoe(char *p, u8 *ea);
 
 /* ip address */
-	struct ipv4_addr;
+struct ipv4_addr;
 
 #ifdef BCMDBG
 extern void brcmu_prpkt(const char *msg, struct sk_buff *p0);

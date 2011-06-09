@@ -20,8 +20,6 @@
 #define WLC_TXPWR_DB_FACTOR 4	/* conversion for phy txpwr cacluations that use .25 dB units */
 
 
-struct brcms_c_info;
-
 /* maxpwr mapping to 5GHz band channels:
  * maxpwr[0] - channels [34-48]
  * maxpwr[1] - channels [52-60]

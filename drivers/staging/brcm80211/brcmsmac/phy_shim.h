@@ -108,15 +108,11 @@
 #define WLC_N_TXRX_CHAIN0		0
 #define WLC_N_TXRX_CHAIN1		1
 
-/* Forward declarations */
-struct brcms_c_hw_info;
-
 extern wlc_phy_shim_info_t *wlc_phy_shim_attach(struct brcms_c_hw_info *wlc_hw,
 						void *wl, void *wlc);
 extern void wlc_phy_shim_detach(wlc_phy_shim_info_t *physhim);
 
 /* PHY to WL utility functions */
-struct wlapi_timer;
 extern struct wlapi_timer *wlapi_init_timer(wlc_phy_shim_info_t *physhim,
 					    void (*fn) (void *arg), void *arg,
 					    const char *name);
