@@ -343,6 +343,12 @@ do {						\
 #define SET_REG(r, mask, val) \
 		W_REG((r), ((R_REG(r) & ~(mask)) | (val)))
 
+/* multi-bool data type: set of bools, mbool is true if any is set */
+typedef u32 mbool;
+#define mboolset(mb, bit)		((mb) |= (bit))	/* set one bool */
+#define mboolclr(mb, bit)		((mb) &= ~(bit))	/* clear one bool */
+#define mboolisset(mb, bit)		(((mb) & (bit)) != 0)	/* true if one bool is set */
+#define	mboolmaskset(mb, mask, val)	((mb) = (((mb) & ~(mask)) | (val)))
 
 /* forward declarations */
 struct sk_buff;
