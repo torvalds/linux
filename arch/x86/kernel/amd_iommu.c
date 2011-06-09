@@ -1798,7 +1798,6 @@ static int device_change_notifier(struct notifier_block *nb,
 		goto out;
 	}
 
-	device_flush_dte(dev);
 	iommu_completion_wait(iommu);
 
 out:
@@ -2605,7 +2604,6 @@ static void amd_iommu_detach_device(struct iommu_domain *dom,
 	if (!iommu)
 		return;
 
-	device_flush_dte(dev);
 	iommu_completion_wait(iommu);
 }
 
