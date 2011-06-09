@@ -22,6 +22,7 @@
 struct tegra_sdhci_platform_data {
 	const char *clk_id;
 	int force_hs;
+	int rt_disable;
 	int cd_gpio;
 	int wp_gpio;
 	int power_gpio;
