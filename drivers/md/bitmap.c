@@ -1837,9 +1837,6 @@ int bitmap_create(mddev_t *mddev)
 	bitmap->chunks = chunks;
 	bitmap->pages = pages;
 	bitmap->missing_pages = pages;
-	bitmap->counter_bits = COUNTER_BITS;
-
-	bitmap->syncchunk = ~0UL;
 
 #ifdef INJECT_FATAL_FAULT_1
 	bitmap->bp = NULL;
