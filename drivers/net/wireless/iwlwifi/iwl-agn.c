@@ -3488,7 +3488,9 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	hw = iwl_alloc_all(cfg);
 	if (!hw) {
 		err = -ENOMEM;
-		goto out;	}
+		goto out;
+	}
+
 	priv = hw->priv;
 
 	priv->bus.priv = priv;
