@@ -64,6 +64,94 @@ static void smp_send_cmd(struct l2cap_conn *conn, u8 code, u16 len, void *data)
 	hci_send_acl(conn->hcon, skb, 0);
 }
 
+static void smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
+{
+	struct smp_cmd_pairing *rp = (void *) skb->data;
+
+	BT_DBG("conn %p", conn);
+
+	skb_pull(skb, sizeof(*rp));
+
+	rp->io_capability = 0x00;
+	rp->oob_flag = 0x00;
+	rp->max_key_size = 16;
+	rp->init_key_dist = 0x00;
+	rp->resp_key_dist = 0x00;
+	rp->auth_req &= (SMP_AUTH_BONDING | SMP_AUTH_MITM);
+
+	smp_send_cmd(conn, SMP_CMD_PAIRING_RSP, sizeof(*rp), rp);
+}
+
+static void smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
+{
+	struct smp_cmd_pairing_confirm cp;
+
+	BT_DBG("conn %p", conn);
+
+	memset(&cp, 0, sizeof(cp));
+
+	smp_send_cmd(conn, SMP_CMD_PAIRING_CONFIRM, sizeof(cp), &cp);
+}
+
+static void smp_cmd_pairing_confirm(struct l2cap_conn *conn,
+							struct sk_buff *skb)
+{
+	BT_DBG("conn %p %s", conn, conn->hcon->out ? "master" : "slave");
+
+	if (conn->hcon->out) {
+		struct smp_cmd_pairing_random random;
+
+		memset(&random, 0, sizeof(random));
+
+		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(random),
+								&random);
+	} else {
+		struct smp_cmd_pairing_confirm confirm;
+
+		memset(&confirm, 0, sizeof(confirm));
+
+		smp_send_cmd(conn, SMP_CMD_PAIRING_CONFIRM, sizeof(confirm),
+								&confirm);
+	}
+}
+
+static void smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
+{
+	struct smp_cmd_pairing_random cp;
+
+	BT_DBG("conn %p %s", conn, conn->hcon->out ? "master" : "slave");
+
+	skb_pull(skb, sizeof(cp));
+
+	if (conn->hcon->out) {
+		/* FIXME: start encryption */
+	} else {
+		memset(&cp, 0, sizeof(cp));
+
+		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(cp), &cp);
+	}
+}
+
+static void smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
+{
+	struct smp_cmd_security_req *rp = (void *) skb->data;
+	struct smp_cmd_pairing cp;
+
+	BT_DBG("conn %p", conn);
+
+	skb_pull(skb, sizeof(*rp));
+	memset(&cp, 0, sizeof(cp));
+
+	cp.io_capability = 0x00;
+	cp.oob_flag = 0x00;
+	cp.max_key_size = 16;
+	cp.init_key_dist = 0x00;
+	cp.resp_key_dist = 0x00;
+	cp.auth_req = rp->auth_req & (SMP_AUTH_BONDING | SMP_AUTH_MITM);
+
+	smp_send_cmd(conn, SMP_CMD_PAIRING_REQ, sizeof(cp), &cp);
+}
+
 int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 {
 	__u8 authreq;
@@ -114,24 +202,33 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 
 	switch (code) {
 	case SMP_CMD_PAIRING_REQ:
-		reason = SMP_PAIRING_NOTSUPP;
-		smp_send_cmd(conn, SMP_CMD_PAIRING_FAIL, sizeof(reason),
-								&reason);
-		err = -EOPNOTSUPP;
+		smp_cmd_pairing_req(conn, skb);
 		break;
 
 	case SMP_CMD_PAIRING_FAIL:
 		break;
 
 	case SMP_CMD_PAIRING_RSP:
+		smp_cmd_pairing_rsp(conn, skb);
+		break;
+
+	case SMP_CMD_SECURITY_REQ:
+		smp_cmd_security_req(conn, skb);
+		break;
+
 	case SMP_CMD_PAIRING_CONFIRM:
+		smp_cmd_pairing_confirm(conn, skb);
+		break;
+
 	case SMP_CMD_PAIRING_RANDOM:
+		smp_cmd_pairing_random(conn, skb);
+		break;
+
 	case SMP_CMD_ENCRYPT_INFO:
 	case SMP_CMD_MASTER_IDENT:
 	case SMP_CMD_IDENT_INFO:
 	case SMP_CMD_IDENT_ADDR_INFO:
 	case SMP_CMD_SIGN_INFO:
-	case SMP_CMD_SECURITY_REQ:
 	default:
 		BT_DBG("Unknown command code 0x%2.2x", code);
 
