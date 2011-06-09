@@ -168,8 +168,8 @@ static int vme_user_open(struct inode *inode, struct file *file)
 	unsigned int minor = MINOR(inode->i_rdev);
 
 	down(&image[minor].sem);
-	/* Only allow device to be opened if a resource is allocated */
-	if (image[minor].resource == NULL) {
+	/* Allow device to be opened if a resource is needed and allocated. */
+	if (minor < CONTROL_MINOR && image[minor].resource == NULL) {
 		printk(KERN_ERR "No resources allocated for device\n");
 		err = -EINVAL;
 		goto err_res;
@@ -321,6 +321,9 @@ static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
 	size_t image_size;
 	size_t okcount;
 
+	if (minor == CONTROL_MINOR)
+		return 0;
+
 	down(&image[minor].sem);
 
 	/* XXX Do we *really* want this helper - we can use vme_*_get ? */
@@ -365,6 +368,9 @@ static ssize_t vme_user_write(struct file *file, const char __user *buf,
 	size_t image_size;
 	size_t okcount;
 
+	if (minor == CONTROL_MINOR)
+		return 0;
+
 	down(&image[minor].sem);
 
 	image_size = vme_get_size(image[minor].resource);
@@ -405,6 +411,9 @@ static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 	loff_t absolute = -1;
 	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
 	size_t image_size;
+
+	if (minor == CONTROL_MINOR)
+		return -EINVAL;
 
 	down(&image[minor].sem);
 	image_size = vme_get_size(image[minor].resource);
