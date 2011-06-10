@@ -745,22 +745,27 @@ static inline void fimc_deactivate_capture(struct fimc_dev *fimc)
 }
 
 /*
- * Add buf to the capture active buffers queue.
- * Locking: Need to be called with fimc_dev::slock held.
+ * Buffer list manipulation functions. Must be called with fimc.slock held.
  */
-static inline void active_queue_add(struct fimc_vid_cap *vid_cap,
-				    struct fimc_vid_buffer *buf)
+
+/**
+ * fimc_active_queue_add - add buffer to the capture active buffers queue
+ * @buf: buffer to add to the active buffers list
+ */
+static inline void fimc_active_queue_add(struct fimc_vid_cap *vid_cap,
+					 struct fimc_vid_buffer *buf)
 {
 	list_add_tail(&buf->list, &vid_cap->active_buf_q);
 	vid_cap->active_buf_cnt++;
 }
 
-/*
- * Pop a video buffer from the capture active buffers queue
- * Locking: Need to be called with fimc_dev::slock held.
+/**
+ * fimc_active_queue_pop - pop buffer from the capture active buffers queue
+ *
+ * The caller must assure the active_buf_q list is not empty.
  */
-static inline struct fimc_vid_buffer *
-active_queue_pop(struct fimc_vid_cap *vid_cap)
+static inline struct fimc_vid_buffer *fimc_active_queue_pop(
+				    struct fimc_vid_cap *vid_cap)
 {
 	struct fimc_vid_buffer *buf;
 	buf = list_entry(vid_cap->active_buf_q.next,
@@ -770,16 +775,23 @@ active_queue_pop(struct fimc_vid_cap *vid_cap)
 	return buf;
 }
 
-/* Add video buffer to the capture pending buffers queue */
+/**
+ * fimc_pending_queue_add - add buffer to the capture pending buffers queue
+ * @buf: buffer to add to the pending buffers list
+ */
 static inline void fimc_pending_queue_add(struct fimc_vid_cap *vid_cap,
 					  struct fimc_vid_buffer *buf)
 {
 	list_add_tail(&buf->list, &vid_cap->pending_buf_q);
 }
 
-/* Add video buffer to the capture pending buffers queue */
-static inline struct fimc_vid_buffer *
-pending_queue_pop(struct fimc_vid_cap *vid_cap)
+/**
+ * fimc_pending_queue_pop - pop buffer from the capture pending buffers queue
+ *
+ * The caller must assure the pending_buf_q list is not empty.
+ */
+static inline struct fimc_vid_buffer *fimc_pending_queue_pop(
+				     struct fimc_vid_cap *vid_cap)
 {
 	struct fimc_vid_buffer *buf;
 	buf = list_entry(vid_cap->pending_buf_q.next,

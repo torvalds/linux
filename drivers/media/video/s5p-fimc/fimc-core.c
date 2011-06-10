@@ -338,7 +338,7 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, bool final)
 	    test_bit(ST_CAPT_RUN, &fimc->state) && final) {
 		ktime_get_real_ts(&ts);
 
-		v_buf = active_queue_pop(cap);
+		v_buf = fimc_active_queue_pop(cap);
 
 		tv = &v_buf->vb.v4l2_buf.timestamp;
 		tv->tv_sec = ts.tv_sec;
@@ -355,12 +355,12 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, bool final)
 
 	if (!list_empty(&cap->pending_buf_q)) {
 
-		v_buf = pending_queue_pop(cap);
+		v_buf = fimc_pending_queue_pop(cap);
 		fimc_hw_set_output_addr(fimc, &v_buf->paddr, cap->buf_index);
 		v_buf->index = cap->buf_index;
 
 		/* Move the buffer to the capture active queue */
-		active_queue_add(cap, v_buf);
+		fimc_active_queue_add(cap, v_buf);
 
 		dbg("next frame: %d, done frame: %d",
 		    fimc_hw_get_frame_index(fimc), v_buf->index);

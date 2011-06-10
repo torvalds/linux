@@ -84,12 +84,12 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc)
 
 	/* Release buffers that were enqueued in the driver by videobuf2. */
 	while (!list_empty(&cap->pending_buf_q)) {
-		buf = pending_queue_pop(cap);
+		buf = fimc_pending_queue_pop(cap);
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
 
 	while (!list_empty(&cap->active_buf_q)) {
-		buf = active_queue_pop(cap);
+		buf = fimc_active_queue_pop(cap);
 		vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
 
@@ -279,7 +279,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 
 		fimc_hw_set_output_addr(fimc, &buf->paddr, buf_id);
 		buf->index = vid_cap->buf_index;
-		active_queue_add(vid_cap, buf);
+		fimc_active_queue_add(vid_cap, buf);
 
 		if (++vid_cap->buf_index >= FIMC_MAX_OUT_BUFS)
 			vid_cap->buf_index = 0;
