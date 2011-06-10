@@ -119,7 +119,7 @@ __copy_tofrom_user:
 	 * r7, r3 - count
 	 * r4 - tempval
 	 */
-	beqid	r7, 3f /* zero size is not likely */
+	beqid	r7, 0f /* zero size is not likely */
 	andi	r3, r7, 0x3 /* filter add count */
 	bneid	r3, 4f /* if is odd value then byte copying */
 	or	r3, r5, r6 /* find if is any to/from unaligned */
@@ -142,11 +142,11 @@ __copy_tofrom_user:
 	addik	r7,r7,-1
 	bneid	r7,1b
 	addik	r3,r3,1		/* delay slot */
-3:
+0:
 	addik	r3,r7,0
 	rtsd	r15,8
 	nop
 	.size   __copy_tofrom_user, . - __copy_tofrom_user
 
 	.section	__ex_table,"a"
-	.word	1b,3b,2b,3b,5b,3b,6b,3b
+	.word	1b,0b,2b,0b,5b,0b,6b,0b
