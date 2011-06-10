@@ -381,8 +381,8 @@ static void l2cap_chan_del(struct l2cap_chan *chan, int err)
 	} else
 		sk->sk_state_change(sk);
 
-	if (!(chan->conf_state & L2CAP_CONF_OUTPUT_DONE &&
-			chan->conf_state & L2CAP_CONF_INPUT_DONE))
+	if (!(test_bit(CONF_OUTPUT_DONE, &chan->conf_state) &&
+			test_bit(CONF_INPUT_DONE, &chan->conf_state)))
 		return;
 
 	skb_queue_purge(&chan->tx_q);
@@ -633,7 +633,7 @@ static inline void l2cap_send_rr_or_rnr(struct l2cap_chan *chan, u16 control)
 
 static inline int __l2cap_no_conn_pending(struct l2cap_chan *chan)
 {
-	return !(chan->conf_state & L2CAP_CONF_CONNECT_PEND);
+	return !test_bit(CONF_CONNECT_PEND, &chan->conf_state);
 }
 
 static void l2cap_do_start(struct l2cap_chan *chan)
@@ -651,7 +651,7 @@ static void l2cap_do_start(struct l2cap_chan *chan)
 			req.psm  = chan->psm;
 
 			chan->ident = l2cap_get_ident(conn);
-			chan->conf_state |= L2CAP_CONF_CONNECT_PEND;
+			set_bit(CONF_CONNECT_PEND, &chan->conf_state);
 
 			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_REQ,
 							sizeof(req), &req);
@@ -740,10 +740,9 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 				continue;
 			}
 
-			if (!l2cap_mode_supported(chan->mode,
-					conn->feat_mask)
-					&& chan->conf_state &
-					L2CAP_CONF_STATE2_DEVICE) {
+			if (!l2cap_mode_supported(chan->mode, conn->feat_mask)
+					&& test_bit(CONF_STATE2_DEVICE,
+					&chan->conf_state)) {
 				/* l2cap_chan_close() calls list_del(chan)
 				 * so release the lock */
 				read_unlock_bh(&conn->chan_lock);
@@ -757,7 +756,7 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 			req.psm  = chan->psm;
 
 			chan->ident = l2cap_get_ident(conn);
-			chan->conf_state |= L2CAP_CONF_CONNECT_PEND;
+			set_bit(CONF_CONNECT_PEND, &chan->conf_state);
 
 			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_REQ,
 							sizeof(req), &req);
@@ -788,13 +787,13 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP,
 							sizeof(rsp), &rsp);
 
-			if (chan->conf_state & L2CAP_CONF_REQ_SENT ||
+			if (test_bit(CONF_REQ_SENT, &chan->conf_state) ||
 					rsp.result != L2CAP_CR_SUCCESS) {
 				bh_unlock_sock(sk);
 				continue;
 			}
 
-			chan->conf_state |= L2CAP_CONF_REQ_SENT;
+			set_bit(CONF_REQ_SENT, &chan->conf_state);
 			l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_CONF_REQ,
 						l2cap_build_conf_req(chan, buf), buf);
 			chan->num_conf_req++;
@@ -1917,7 +1916,7 @@ static int l2cap_build_conf_req(struct l2cap_chan *chan, void *data)
 	switch (chan->mode) {
 	case L2CAP_MODE_STREAMING:
 	case L2CAP_MODE_ERTM:
-		if (chan->conf_state & L2CAP_CONF_STATE2_DEVICE)
+		if (test_bit(CONF_STATE2_DEVICE, &chan->conf_state))
 			break;
 
 		/* fall through */
@@ -1964,7 +1963,7 @@ done:
 			break;
 
 		if (chan->fcs == L2CAP_FCS_NONE ||
-				chan->conf_state & L2CAP_CONF_NO_FCS_RECV) {
+				test_bit(CONF_NO_FCS_RECV, &chan->conf_state)) {
 			chan->fcs = L2CAP_FCS_NONE;
 			l2cap_add_conf_opt(&ptr, L2CAP_CONF_FCS, 1, chan->fcs);
 		}
@@ -1987,7 +1986,7 @@ done:
 			break;
 
 		if (chan->fcs == L2CAP_FCS_NONE ||
-				chan->conf_state & L2CAP_CONF_NO_FCS_RECV) {
+				test_bit(CONF_NO_FCS_RECV, &chan->conf_state)) {
 			chan->fcs = L2CAP_FCS_NONE;
 			l2cap_add_conf_opt(&ptr, L2CAP_CONF_FCS, 1, chan->fcs);
 		}
@@ -2039,7 +2038,7 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data)
 
 		case L2CAP_CONF_FCS:
 			if (val == L2CAP_FCS_NONE)
-				chan->conf_state |= L2CAP_CONF_NO_FCS_RECV;
+				set_bit(CONF_NO_FCS_RECV, &chan->conf_state);
 
 			break;
 
@@ -2059,7 +2058,7 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data)
 	switch (chan->mode) {
 	case L2CAP_MODE_STREAMING:
 	case L2CAP_MODE_ERTM:
-		if (!(chan->conf_state & L2CAP_CONF_STATE2_DEVICE)) {
+		if (!test_bit(CONF_STATE2_DEVICE, &chan->conf_state)) {
 			chan->mode = l2cap_select_mode(rfc.mode,
 					chan->conn->feat_mask);
 			break;
@@ -2092,14 +2091,14 @@ done:
 			result = L2CAP_CONF_UNACCEPT;
 		else {
 			chan->omtu = mtu;
-			chan->conf_state |= L2CAP_CONF_MTU_DONE;
+			set_bit(CONF_MTU_DONE, &chan->conf_state);
 		}
 		l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, chan->omtu);
 
 		switch (rfc.mode) {
 		case L2CAP_MODE_BASIC:
 			chan->fcs = L2CAP_FCS_NONE;
-			chan->conf_state |= L2CAP_CONF_MODE_DONE;
+			set_bit(CONF_MODE_DONE, &chan->conf_state);
 			break;
 
 		case L2CAP_MODE_ERTM:
@@ -2116,7 +2115,7 @@ done:
 			rfc.monitor_timeout =
 				le16_to_cpu(L2CAP_DEFAULT_MONITOR_TO);
 
-			chan->conf_state |= L2CAP_CONF_MODE_DONE;
+			set_bit(CONF_MODE_DONE, &chan->conf_state);
 
 			l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
 					sizeof(rfc), (unsigned long) &rfc);
@@ -2129,7 +2128,7 @@ done:
 
 			chan->remote_mps = le16_to_cpu(rfc.max_pdu_size);
 
-			chan->conf_state |= L2CAP_CONF_MODE_DONE;
+			set_bit(CONF_MODE_DONE, &chan->conf_state);
 
 			l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
 					sizeof(rfc), (unsigned long) &rfc);
@@ -2144,7 +2143,7 @@ done:
 		}
 
 		if (result == L2CAP_CONF_SUCCESS)
-			chan->conf_state |= L2CAP_CONF_OUTPUT_DONE;
+			set_bit(CONF_OUTPUT_DONE, &chan->conf_state);
 	}
 	rsp->scid   = cpu_to_le16(chan->dcid);
 	rsp->result = cpu_to_le16(result);
@@ -2186,7 +2185,7 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len, voi
 			if (olen == sizeof(rfc))
 				memcpy(&rfc, (void *)val, olen);
 
-			if ((chan->conf_state & L2CAP_CONF_STATE2_DEVICE) &&
+			if (test_bit(CONF_STATE2_DEVICE, &chan->conf_state) &&
 							rfc.mode != chan->mode)
 				return -ECONNREFUSED;
 
@@ -2248,10 +2247,9 @@ void __l2cap_connect_rsp_defer(struct l2cap_chan *chan)
 	l2cap_send_cmd(conn, chan->ident,
 				L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 
-	if (chan->conf_state & L2CAP_CONF_REQ_SENT)
+	if (test_and_set_bit(CONF_REQ_SENT, &chan->conf_state))
 		return;
 
-	chan->conf_state |= L2CAP_CONF_REQ_SENT;
 	l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_CONF_REQ,
 			l2cap_build_conf_req(chan, buf), buf);
 	chan->num_conf_req++;
@@ -2433,10 +2431,10 @@ sendresp:
 					L2CAP_INFO_REQ, sizeof(info), &info);
 	}
 
-	if (chan && !(chan->conf_state & L2CAP_CONF_REQ_SENT) &&
+	if (chan && !test_bit(CONF_REQ_SENT, &chan->conf_state) &&
 				result == L2CAP_CR_SUCCESS) {
 		u8 buf[128];
-		chan->conf_state |= L2CAP_CONF_REQ_SENT;
+		set_bit(CONF_REQ_SENT, &chan->conf_state);
 		l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_CONF_REQ,
 					l2cap_build_conf_req(chan, buf), buf);
 		chan->num_conf_req++;
@@ -2477,12 +2475,10 @@ static inline int l2cap_connect_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hd
 		l2cap_state_change(chan, BT_CONFIG);
 		chan->ident = 0;
 		chan->dcid = dcid;
-		chan->conf_state &= ~L2CAP_CONF_CONNECT_PEND;
+		clear_bit(CONF_CONNECT_PEND, &chan->conf_state);
 
-		if (chan->conf_state & L2CAP_CONF_REQ_SENT)
+		if (test_and_set_bit(CONF_REQ_SENT, &chan->conf_state))
 			break;
-
-		chan->conf_state |= L2CAP_CONF_REQ_SENT;
 
 		l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_CONF_REQ,
 					l2cap_build_conf_req(chan, req), req);
@@ -2490,7 +2486,7 @@ static inline int l2cap_connect_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hd
 		break;
 
 	case L2CAP_CR_PEND:
-		chan->conf_state |= L2CAP_CONF_CONNECT_PEND;
+		set_bit(CONF_CONNECT_PEND, &chan->conf_state);
 		break;
 
 	default:
@@ -2512,14 +2508,12 @@ static inline int l2cap_connect_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hd
 
 static inline void set_default_fcs(struct l2cap_chan *chan)
 {
-	struct l2cap_pinfo *pi = l2cap_pi(chan->sk);
-
 	/* FCS is enabled only in ERTM or streaming mode, if one or both
 	 * sides request it.
 	 */
 	if (chan->mode != L2CAP_MODE_ERTM && chan->mode != L2CAP_MODE_STREAMING)
 		chan->fcs = L2CAP_FCS_NONE;
-	else if (!(pi->chan->conf_state & L2CAP_CONF_NO_FCS_RECV))
+	else if (!test_bit(CONF_NO_FCS_RECV, &chan->conf_state))
 		chan->fcs = L2CAP_FCS_CRC16;
 }
 
@@ -2586,10 +2580,10 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 	/* Reset config buffer. */
 	chan->conf_len = 0;
 
-	if (!(chan->conf_state & L2CAP_CONF_OUTPUT_DONE))
+	if (!test_bit(CONF_OUTPUT_DONE, &chan->conf_state))
 		goto unlock;
 
-	if (chan->conf_state & L2CAP_CONF_INPUT_DONE) {
+	if (test_bit(CONF_INPUT_DONE, &chan->conf_state)) {
 		set_default_fcs(chan);
 
 		l2cap_state_change(chan, BT_CONNECTED);
@@ -2604,9 +2598,8 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 		goto unlock;
 	}
 
-	if (!(chan->conf_state & L2CAP_CONF_REQ_SENT)) {
+	if (!test_and_set_bit(CONF_REQ_SENT, &chan->conf_state)) {
 		u8 buf[64];
-		chan->conf_state |= L2CAP_CONF_REQ_SENT;
 		l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_CONF_REQ,
 					l2cap_build_conf_req(chan, buf), buf);
 		chan->num_conf_req++;
@@ -2679,9 +2672,9 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 	if (flags & 0x01)
 		goto done;
 
-	chan->conf_state |= L2CAP_CONF_INPUT_DONE;
+	set_bit(CONF_INPUT_DONE, &chan->conf_state);
 
-	if (chan->conf_state & L2CAP_CONF_OUTPUT_DONE) {
+	if (test_bit(CONF_OUTPUT_DONE, &chan->conf_state)) {
 		set_default_fcs(chan);
 
 		l2cap_state_change(chan, BT_CONNECTED);
@@ -4203,7 +4196,7 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 			continue;
 		}
 
-		if (chan->conf_state & L2CAP_CONF_CONNECT_PEND) {
+		if (test_bit(CONF_CONNECT_PEND, &chan->conf_state)) {
 			bh_unlock_sock(sk);
 			continue;
 		}
@@ -4222,7 +4215,7 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 				req.psm  = chan->psm;
 
 				chan->ident = l2cap_get_ident(conn);
-				chan->conf_state |= L2CAP_CONF_CONNECT_PEND;
+				set_bit(CONF_CONNECT_PEND, &chan->conf_state);
 
 				l2cap_send_cmd(conn, chan->ident,
 					L2CAP_CONN_REQ, sizeof(req), &req);
