@@ -295,6 +295,8 @@ static int nfs_pageio_do_add_request(struct nfs_pageio_descriptor *desc,
 		if (!nfs_can_coalesce_requests(prev, req, desc))
 			return 0;
 	} else {
+		if (desc->pg_ops->pg_init)
+			desc->pg_ops->pg_init(desc, req);
 		desc->pg_base = req->wb_pgbase;
 	}
 	nfs_list_remove_request(req);

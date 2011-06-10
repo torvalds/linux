@@ -149,10 +149,6 @@ extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
 /* pnfs.c */
 void get_layout_hdr(struct pnfs_layout_hdr *lo);
 void put_lseg(struct pnfs_layout_segment *lseg);
-struct pnfs_layout_segment *
-pnfs_update_layout(struct inode *ino, struct nfs_open_context *ctx,
-		   loff_t pos, u64 count, enum pnfs_iomode access_type,
-		   gfp_t gfp_flags);
 
 bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *);
 bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *, int);
@@ -163,6 +159,8 @@ enum pnfs_try_status pnfs_try_to_write_data(struct nfs_write_data *,
 					     const struct rpc_call_ops *, int);
 enum pnfs_try_status pnfs_try_to_read_data(struct nfs_read_data *,
 					    const struct rpc_call_ops *);
+void pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *, struct nfs_page *);
+void pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *, struct nfs_page *);
 bool pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev, struct nfs_page *req);
 int pnfs_layout_process(struct nfs4_layoutget *lgp);
 void pnfs_free_lseg_list(struct list_head *tmp_list);
@@ -316,14 +314,6 @@ get_lseg(struct pnfs_layout_segment *lseg)
 
 static inline void put_lseg(struct pnfs_layout_segment *lseg)
 {
-}
-
-static inline struct pnfs_layout_segment *
-pnfs_update_layout(struct inode *ino, struct nfs_open_context *ctx,
-		   loff_t pos, u64 count, enum pnfs_iomode access_type,
-		   gfp_t gfp_flags)
-{
-	return NULL;
 }
 
 static inline enum pnfs_try_status

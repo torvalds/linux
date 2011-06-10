@@ -916,7 +916,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc)
 	unsigned int offset;
 	int requests = 0;
 	int ret = 0;
-	struct pnfs_layout_segment *lseg;
+	struct pnfs_layout_segment *lseg = desc->pg_lseg;
 	LIST_HEAD(list);
 
 	nfs_list_remove_request(req);
@@ -940,10 +940,6 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc)
 	} while (nbytes != 0);
 	atomic_set(&req->wb_complete, requests);
 
-	BUG_ON(desc->pg_lseg);
-	lseg = pnfs_update_layout(desc->pg_inode, req->wb_context,
-				  req_offset(req), desc->pg_count,
-				  IOMODE_RW, GFP_NOFS);
 	ClearPageError(page);
 	offset = 0;
 	nbytes = desc->pg_count;
@@ -976,6 +972,8 @@ out_bad:
 		nfs_writedata_free(data);
 	}
 	nfs_redirty_request(req);
+	put_lseg(lseg);
+	desc->pg_lseg = NULL;
 	return -ENOMEM;
 }
 
@@ -1016,10 +1014,6 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc)
 		*pages++ = req->wb_page;
 	}
 	req = nfs_list_entry(data->pages.next);
-	if ((!lseg) && list_is_singular(&data->pages))
-		lseg = pnfs_update_layout(desc->pg_inode, req->wb_context,
-					  req_offset(req), desc->pg_count,
-					  IOMODE_RW, GFP_NOFS);
 
 	if ((desc->pg_ioflags & FLUSH_COND_STABLE) &&
 	    (desc->pg_moreio || NFS_I(desc->pg_inode)->ncommit))

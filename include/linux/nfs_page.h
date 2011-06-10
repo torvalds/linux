@@ -57,6 +57,7 @@ struct nfs_page {
 
 struct nfs_pageio_descriptor;
 struct nfs_pageio_ops {
+	void	(*pg_init)(struct nfs_pageio_descriptor *, struct nfs_page *);
 	bool	(*pg_test)(struct nfs_pageio_descriptor *, struct nfs_page *, struct nfs_page *);
 	int	(*pg_doio)(struct nfs_pageio_descriptor *);
 };

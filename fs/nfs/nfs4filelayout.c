@@ -682,11 +682,13 @@ filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 }
 
 static const struct nfs_pageio_ops filelayout_pg_read_ops = {
+	.pg_init = pnfs_generic_pg_init_read,
 	.pg_test = filelayout_pg_test,
 	.pg_doio = nfs_generic_pg_readpages,
 };
 
 static const struct nfs_pageio_ops filelayout_pg_write_ops = {
+	.pg_init = pnfs_generic_pg_init_write,
 	.pg_test = filelayout_pg_test,
 	.pg_doio = nfs_generic_pg_writepages,
 };
