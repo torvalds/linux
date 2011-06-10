@@ -329,16 +329,6 @@ static int bond_del_vlan(struct bonding *bond, unsigned short vlan_id)
 
 			kfree(vlan);
 
-			if (list_empty(&bond->vlan_list) &&
-			    (bond->slave_cnt == 0)) {
-				/* Last VLAN removed and no slaves, so
-				 * restore block on adding VLANs. This will
-				 * be removed once new slaves that are not
-				 * VLAN challenged will be added.
-				 */
-				bond->dev->features |= NETIF_F_VLAN_CHALLENGED;
-			}
-
 			res = 0;
 			goto out;
 		}
