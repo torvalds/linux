@@ -451,10 +451,6 @@ nouveau_mem_vram_init(struct drm_device *dev)
 		dev_priv->ramin_rsvd_vram = 512 * 1024;
 	}
 
-	ret = dev_priv->engine.vram.init(dev);
-	if (ret)
-		return ret;
-
 	NV_INFO(dev, "Detected %dMiB VRAM\n", (int)(dev_priv->vram_size >> 20));
 	if (dev_priv->vram_sys_base) {
 		NV_INFO(dev, "Stolen system memory at: 0x%010llx\n",
@@ -729,36 +725,16 @@ nouveau_mem_timing_fini(struct drm_device *dev)
 }
 
 static int
-nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long p_size)
+nouveau_vram_manager_init(struct ttm_mem_type_manager *man, unsigned long psize)
 {
-	struct drm_nouveau_private *dev_priv = nouveau_bdev(man->bdev);
-	struct nouveau_mm *mm;
-	u64 size, block, rsvd;
-	int ret;
-
-	rsvd  = (256 * 1024); /* vga memory */
-	size  = (p_size << PAGE_SHIFT) - rsvd;
-	block = dev_priv->vram_rblock_size;
-
-	ret = nouveau_mm_init(&mm, rsvd >> 12, size >> 12, block >> 12);
-	if (ret)
-		return ret;
-
-	man->priv = mm;
+	/* nothing to do */
 	return 0;
 }
 
 static int
 nouveau_vram_manager_fini(struct ttm_mem_type_manager *man)
 {
-	struct nouveau_mm *mm = man->priv;
-	int ret;
-
-	ret = nouveau_mm_fini(&mm);
-	if (ret)
-		return ret;
-
-	man->priv = NULL;
+	/* nothing to do */
 	return 0;
 }
 

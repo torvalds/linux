@@ -504,7 +504,10 @@ struct nouveau_pm_engine {
 };
 
 struct nouveau_vram_engine {
+	struct nouveau_mm *mm;
+
 	int  (*init)(struct drm_device *);
+	void (*takedown)(struct drm_device *dev);
 	int  (*get)(struct drm_device *, u64, u32 align, u32 size_nc,
 		    u32 type, struct nouveau_mem **);
 	void (*put)(struct drm_device *, struct nouveau_mem **);
@@ -717,7 +720,6 @@ struct drm_nouveau_private {
 	/* VRAM/fb configuration */
 	uint64_t vram_size;
 	uint64_t vram_sys_base;
-	u32 vram_rblock_size;
 
 	uint64_t fb_phys;
 	uint64_t fb_available_size;
