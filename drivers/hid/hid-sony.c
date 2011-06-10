@@ -28,6 +28,12 @@
 #define SIXAXIS_CONTROLLER_USB  (1 << 1)
 #define SIXAXIS_CONTROLLER_BT   (1 << 2)
 
+static const u8 sixaxis_rdesc_fixup[] = {
+	0x95, 0x13, 0x09, 0x01, 0x81, 0x02, 0x95, 0x0C,
+	0x81, 0x01, 0x75, 0x10, 0x95, 0x04, 0x26, 0xFF,
+	0x03, 0x46, 0xFF, 0x03, 0x09, 0x01, 0x81, 0x02
+};
+
 struct sony_sc {
 	unsigned long quirks;
 };
@@ -42,6 +48,15 @@ static __u8 *sony_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 			*rsize >= 56 && rdesc[54] == 0x81 && rdesc[55] == 0x07) {
 		hid_info(hdev, "Fixing up Sony Vaio VGX report descriptor\n");
 		rdesc[55] = 0x06;
+	}
+
+	/* The HID descriptor exposed over BT has a trailing zero byte */
+	if ((((sc->quirks & SIXAXIS_CONTROLLER_USB) && *rsize == 148) ||
+			((sc->quirks & SIXAXIS_CONTROLLER_BT) && *rsize == 149)) &&
+			rdesc[83] == 0x75) {
+		hid_info(hdev, "Fixing up Sony Sixaxis report descriptor\n");
+		memcpy((void *)&rdesc[83], (void *)&sixaxis_rdesc_fixup,
+			sizeof(sixaxis_rdesc_fixup));
 	}
 	return rdesc;
 }
