@@ -91,40 +91,41 @@ static inline unsigned short read_ireg(u_long base_addr, u_int reg)
 #define am_writeword(dev,off,val) __raw_writew(val, ISAMEM_BASE + ((off) << 1))
 #define am_readword(dev,off)      __raw_readw(ISAMEM_BASE + ((off) << 1))
 
-static inline void
+static void
 am_writebuffer(struct net_device *dev, u_int offset, unsigned char *buf, unsigned int length)
 {
 	offset = ISAMEM_BASE + (offset << 1);
 	length = (length + 1) & ~1;
 	if ((int)buf & 2) {
-		__asm__ __volatile__("str%?h	%2, [%0], #4"
+		asm volatile("str%?h	%2, [%0], #4"
 		 : "=&r" (offset) : "0" (offset), "r" (buf[0] | (buf[1] << 8)));
 		buf += 2;
 		length -= 2;
 	}
 	while (length > 8) {
-		unsigned int tmp, tmp2;
-		__asm__ __volatile__(
-			"ldm%?ia	%1!, {%2, %3}\n\t"
+		register unsigned int tmp asm("r2"), tmp2 asm("r3");
+		asm volatile(
+			"ldm%?ia	%0!, {%1, %2}"
+			: "+r" (buf), "=&r" (tmp), "=&r" (tmp2));
+		length -= 8;
+		asm volatile(
+			"str%?h	%1, [%0], #4\n\t"
+			"mov%?	%1, %1, lsr #16\n\t"
+			"str%?h	%1, [%0], #4\n\t"
 			"str%?h	%2, [%0], #4\n\t"
 			"mov%?	%2, %2, lsr #16\n\t"
-			"str%?h	%2, [%0], #4\n\t"
-			"str%?h	%3, [%0], #4\n\t"
-			"mov%?	%3, %3, lsr #16\n\t"
-			"str%?h	%3, [%0], #4"
-		: "=&r" (offset), "=&r" (buf), "=r" (tmp), "=r" (tmp2)
-		: "0" (offset), "1" (buf));
-		length -= 8;
+			"str%?h	%2, [%0], #4"
+		: "+r" (offset), "=&r" (tmp), "=&r" (tmp2));
 	}
 	while (length > 0) {
-		__asm__ __volatile__("str%?h	%2, [%0], #4"
+		asm volatile("str%?h	%2, [%0], #4"
 		 : "=&r" (offset) : "0" (offset), "r" (buf[0] | (buf[1] << 8)));
 		buf += 2;
 		length -= 2;
 	}
 }
 
-static inline void
+static void
 am_readbuffer(struct net_device *dev, u_int offset, unsigned char *buf, unsigned int length)
 {
 	offset = ISAMEM_BASE + (offset << 1);
@@ -140,12 +141,12 @@ am_readbuffer(struct net_device *dev, u_int offset, unsigned char *buf, unsigned
 		length -= 2;
 	}
 	while (length > 8) {
-		unsigned int tmp, tmp2, tmp3;
+		register unsigned int tmp asm("r2"), tmp2 asm("r3"), tmp3;
 		asm volatile(
 			"ldr%?h	%2, [%0], #4\n\t"
+			"ldr%?h	%4, [%0], #4\n\t"
 			"ldr%?h	%3, [%0], #4\n\t"
-			"orr%?	%2, %2, %3, lsl #16\n\t"
-			"ldr%?h	%3, [%0], #4\n\t"
+			"orr%?	%2, %2, %4, lsl #16\n\t"
 			"ldr%?h	%4, [%0], #4\n\t"
 			"orr%?	%3, %3, %4, lsl #16\n\t"
 			"stm%?ia	%1!, {%2, %3}"
