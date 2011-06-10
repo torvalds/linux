@@ -1064,19 +1064,21 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		gfp_flags = GFP_NOFS;
 	}
 
-	if (pgio->pg_count == prev->wb_bytes) {
+	if (pgio->pg_lseg == NULL) {
+		if (pgio->pg_count != prev->wb_bytes)
+			return true;
 		/* This is first coelesce call for a series of nfs_pages */
 		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 						   prev->wb_context,
-						   req_offset(req),
+						   req_offset(prev),
 						   pgio->pg_count,
 						   access_type,
 						   gfp_flags);
-		return true;
+		if (pgio->pg_lseg == NULL)
+			return true;
 	}
 
-	if (pgio->pg_lseg &&
-	    req_offset(req) > end_offset(pgio->pg_lseg->pls_range.offset,
+	if (req_offset(req) > end_offset(pgio->pg_lseg->pls_range.offset,
 					 pgio->pg_lseg->pls_range.length))
 		return false;
 
