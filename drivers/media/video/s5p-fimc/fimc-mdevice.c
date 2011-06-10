@@ -759,6 +759,7 @@ static int __devinit fimc_md_probe(struct platform_device *pdev)
 
 	v4l2_dev = &fmd->v4l2_dev;
 	v4l2_dev->mdev = &fmd->media_dev;
+	v4l2_dev->notify = fimc_sensor_notify;
 	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name), "%s",
 		 dev_name(&pdev->dev));
 

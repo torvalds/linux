@@ -723,6 +723,8 @@ void fimc_unregister_capture_device(struct fimc_dev *fimc);
 int fimc_capture_ctrls_create(struct fimc_dev *fimc);
 int fimc_vid_cap_buf_queue(struct fimc_dev *fimc,
 			     struct fimc_vid_buffer *fimc_vb);
+void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
+			void *arg);
 int fimc_capture_suspend(struct fimc_dev *fimc);
 int fimc_capture_resume(struct fimc_dev *fimc);
 int fimc_capture_config_update(struct fimc_ctx *ctx);
