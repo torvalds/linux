@@ -1668,8 +1668,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	init_waitqueue_head(&fs_info->scrub_pause_wait);
 	init_rwsem(&fs_info->scrub_super_lock);
 	fs_info->scrub_workers_refcnt = 0;
-	btrfs_init_workers(&fs_info->scrub_workers, "scrub",
-			   fs_info->thread_pool_size, &fs_info->generic_worker);
 
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = blksize_bits(4096);
