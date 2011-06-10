@@ -45,9 +45,24 @@ void __init find_str_pc_offset(void)
 #endif /* !find_str_pc_offset */
 
 
+#ifndef test_load_write_pc_interworking
+
+bool load_write_pc_interworks;
+
+void __init test_load_write_pc_interworking(void)
+{
+	int arch = cpu_architecture();
+	BUG_ON(arch == CPU_ARCH_UNKNOWN);
+	load_write_pc_interworks = arch >= CPU_ARCH_ARMv5T;
+}
+
+#endif /* !test_load_write_pc_interworking */
+
+
 void __init arm_kprobe_decode_init(void)
 {
 	find_str_pc_offset();
+	test_load_write_pc_interworking();
 }
 
 

@@ -109,6 +109,30 @@ static inline void __kprobes bx_write_pc(long pcv, struct pt_regs *regs)
 	regs->ARM_pc = pcv;
 }
 
+
+#if __LINUX_ARM_ARCH__ >= 6
+
+/* Kernels built for >= ARMv6 should never run on <= ARMv5 hardware, so... */
+#define load_write_pc_interworks true
+#define test_load_write_pc_interworking()
+
+#else /* __LINUX_ARM_ARCH__ < 6 */
+
+/* We need run-time testing to determine if load_write_pc() should interwork. */
+extern bool load_write_pc_interworks;
+void __init test_load_write_pc_interworking(void);
+
+#endif
+
+static inline void __kprobes load_write_pc(long pcv, struct pt_regs *regs)
+{
+	if (load_write_pc_interworks)
+		bx_write_pc(pcv, regs);
+	else
+		regs->ARM_pc = pcv;
+}
+
+
 void __kprobes kprobe_simulate_nop(struct kprobe *p, struct pt_regs *regs);
 void __kprobes kprobe_emulate_none(struct kprobe *p, struct pt_regs *regs);
 
