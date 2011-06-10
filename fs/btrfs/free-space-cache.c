@@ -1492,7 +1492,7 @@ static int insert_into_bitmap(struct btrfs_free_space_ctl *ctl,
 
 	if (ctl->op == &free_space_op)
 		block_group = ctl->private;
-
+again:
 	/*
 	 * Since we link bitmaps right into the cluster we need to see if we
 	 * have a cluster here, and if so and it has our bitmap we need to add
@@ -1510,13 +1510,13 @@ static int insert_into_bitmap(struct btrfs_free_space_ctl *ctl,
 		node = rb_first(&cluster->root);
 		if (!node) {
 			spin_unlock(&cluster->lock);
-			goto again;
+			goto no_cluster_bitmap;
 		}
 
 		entry = rb_entry(node, struct btrfs_free_space, offset_index);
 		if (!entry->bitmap) {
 			spin_unlock(&cluster->lock);
-			goto again;
+			goto no_cluster_bitmap;
 		}
 
 		if (entry->offset == offset_to_bitmap(ctl, offset)) {
@@ -1531,7 +1531,8 @@ static int insert_into_bitmap(struct btrfs_free_space_ctl *ctl,
 			goto out;
 		}
 	}
-again:
+
+no_cluster_bitmap:
 	bitmap_info = tree_search_offset(ctl, offset_to_bitmap(ctl, offset),
 					 1, 0);
 	if (!bitmap_info) {
