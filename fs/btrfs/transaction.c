@@ -1118,8 +1118,11 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 		wait_current_trans_commit_start_and_unblock(root, cur_trans);
 	else
 		wait_current_trans_commit_start(root, cur_trans);
-	put_transaction(cur_trans);
 
+	if (current->journal_info == trans)
+		current->journal_info = NULL;
+
+	put_transaction(cur_trans);
 	return 0;
 }
 
