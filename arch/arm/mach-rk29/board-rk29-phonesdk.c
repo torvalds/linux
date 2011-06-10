@@ -2178,8 +2178,8 @@ static int rk29sdk_wifi_bt_gpio_control_init(void)
     }
 
     gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
-    gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_HIGH);
-    gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_HIGH);
+    gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
+    gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW);
 
     pr_info("%s: init finished\n",__func__);
 
@@ -2190,18 +2190,20 @@ static int rk29sdk_wifi_power(int on)
 {
         pr_info("%s: %d\n", __func__, on);
         if (on){
-                gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, on);
+                gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_HIGH);
+                gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_HIGH);
                 mdelay(100);
                 pr_info("wifi turn on power\n");
         }else{
                 if (!rk29sdk_bt_power_state){
-                        gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, on);
+                        gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
                         mdelay(100);
                         pr_info("wifi shut off power\n");
                 }else
                 {
                         pr_info("wifi shouldn't shut off power, bt is using it!\n");
                 }
+                gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_LOW);
 
         }
 
