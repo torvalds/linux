@@ -367,7 +367,8 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 	clear_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
 	io_tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
 	while (1) {
-		ret = read_extent_buffer_pages(io_tree, eb, start, 1,
+		ret = read_extent_buffer_pages(io_tree, eb, start,
+					       WAIT_COMPLETE,
 					       btree_get_extent, mirror_num);
 		if (!ret &&
 		    !verify_parent_transid(io_tree, eb, parent_transid))
@@ -974,7 +975,7 @@ int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize,
 	if (!buf)
 		return 0;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
-				 buf, 0, 0, btree_get_extent, 0);
+				 buf, 0, WAIT_NONE, btree_get_extent, 0);
 	free_extent_buffer(buf);
 	return ret;
 }

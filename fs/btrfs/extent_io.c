@@ -3349,8 +3349,7 @@ int extent_buffer_uptodate(struct extent_io_tree *tree,
 }
 
 int read_extent_buffer_pages(struct extent_io_tree *tree,
-			     struct extent_buffer *eb,
-			     u64 start, int wait,
+			     struct extent_buffer *eb, u64 start, int wait,
 			     get_extent_t *get_extent, int mirror_num)
 {
 	unsigned long i;
@@ -3386,7 +3385,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	num_pages = num_extent_pages(eb->start, eb->len);
 	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
-		if (!wait) {
+		if (wait == WAIT_NONE) {
 			if (!trylock_page(page))
 				goto unlock_exit;
 		} else {
@@ -3430,7 +3429,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	if (bio)
 		submit_one_bio(READ, bio, mirror_num, bio_flags);
 
-	if (ret || !wait)
+	if (ret || wait != WAIT_COMPLETE)
 		return ret;
 
 	for (i = start_i; i < num_pages; i++) {
