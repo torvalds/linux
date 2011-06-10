@@ -30,7 +30,7 @@
 #include "fimc-core.h"
 
 static char *fimc_clocks[MAX_FIMC_CLOCKS] = {
-	"sclk_fimc", "fimc", "sclk_cam"
+	"sclk_fimc", "fimc"
 };
 
 static struct fimc_fmt fimc_formats[] = {
@@ -1636,7 +1636,6 @@ static int fimc_probe(struct platform_device *pdev)
 	struct samsung_fimc_driverdata *drv_data;
 	struct s5p_platform_fimc *pdata;
 	int ret = 0;
-	int cap_input_index = -1;
 
 	dev_dbg(&pdev->dev, "%s():\n", __func__);
 
@@ -1689,14 +1688,6 @@ static int fimc_probe(struct platform_device *pdev)
 		goto err_req_region;
 	}
 
-	fimc->num_clocks = MAX_FIMC_CLOCKS - 1;
-
-	/* Check if a video capture node needs to be registered. */
-	if (pdata && pdata->num_clients > 0) {
-		cap_input_index = 0;
-		fimc->num_clocks++;
-	}
-
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "failed to get IRQ resource\n");
@@ -1705,6 +1696,7 @@ static int fimc_probe(struct platform_device *pdev)
 	}
 	fimc->irq = res->start;
 
+	fimc->num_clocks = MAX_FIMC_CLOCKS;
 	ret = fimc_clk_get(fimc);
 	if (ret)
 		goto err_regs_unmap;

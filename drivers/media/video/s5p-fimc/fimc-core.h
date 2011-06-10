@@ -34,7 +34,7 @@
 
 /* Time to wait for next frame VSYNC interrupt while stopping operation. */
 #define FIMC_SHUTDOWN_TIMEOUT	((100*HZ)/1000)
-#define MAX_FIMC_CLOCKS		3
+#define MAX_FIMC_CLOCKS		2
 #define MODULE_NAME		"s5p-fimc"
 #define FIMC_MAX_DEVS		4
 #define FIMC_MAX_OUT_BUFS	4
@@ -46,7 +46,6 @@
 enum {
 	CLK_BUS,
 	CLK_GATE,
-	CLK_CAM,
 };
 
 enum fimc_dev_flags {
