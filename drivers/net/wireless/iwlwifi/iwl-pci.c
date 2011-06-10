@@ -141,6 +141,15 @@ static struct device *iwl_pci_get_dev(const struct iwl_bus *bus)
 	return &(IWL_BUS_GET_PCI_DEV(bus)->dev);
 }
 
+static void iwl_pci_get_hw_id(struct iwl_bus *bus, char buf[],
+			      int buf_len)
+{
+	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
+
+	snprintf(buf, buf_len, "PCI ID: 0x%04X:0x%04X", pci_dev->device,
+		 pci_dev->subsystem_device);
+}
+
 static void iwl_pci_write8(struct iwl_bus *bus, u32 ofs, u8 val)
 {
 	iowrite8(val, IWL_BUS_GET_PCI_BUS(bus)->hw_base + ofs);
@@ -162,6 +171,7 @@ static struct iwl_bus_ops pci_ops = {
 	.apm_config = iwl_pci_apm_config,
 	.set_drv_data = iwl_pci_set_drv_data,
 	.get_dev = iwl_pci_get_dev,
+	.get_hw_id = iwl_pci_get_hw_id,
 	.write8 = iwl_pci_write8,
 	.write32 = iwl_pci_write32,
 	.read32 = iwl_pci_read32,
