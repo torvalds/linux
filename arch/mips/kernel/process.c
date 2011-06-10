@@ -103,7 +103,6 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 		__init_dsp();
 	regs->cp0_epc = pc;
 	regs->regs[29] = sp;
-	current_thread_info()->addr_limit = USER_DS;
 }
 
 void exit_thread(void)
