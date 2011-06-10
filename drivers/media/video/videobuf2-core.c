@@ -1189,6 +1189,7 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	 * has not already dequeued before initiating cancel.
 	 */
 	INIT_LIST_HEAD(&q->done_list);
+	atomic_set(&q->queued_count, 0);
 	wake_up_all(&q->done_wq);
 
 	/*
