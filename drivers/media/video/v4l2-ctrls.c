@@ -1013,6 +1013,7 @@ static int handler_new_ref(struct v4l2_ctrl_handler *hdl,
 	   insertion is an O(1) operation. */
 	if (list_empty(&hdl->ctrl_refs) || id > node2id(hdl->ctrl_refs.prev)) {
 		list_add_tail(&new_ref->node, &hdl->ctrl_refs);
+		hdl->nr_of_refs++;
 		goto insert_in_hash;
 	}
 
@@ -2061,3 +2062,22 @@ void v4l2_ctrl_del_fh(struct v4l2_ctrl *ctrl, struct v4l2_fh *fh)
 	v4l2_ctrl_unlock(ctrl);
 }
 EXPORT_SYMBOL(v4l2_ctrl_del_fh);
+
+int v4l2_ctrl_subscribe_fh(struct v4l2_fh *fh,
+			struct v4l2_event_subscription *sub, unsigned n)
+{
+	struct v4l2_ctrl_handler *hdl = fh->ctrl_handler;
+	int ret = 0;
+
+	if (!fh->events)
+		ret = v4l2_event_init(fh);
+	if (!ret) {
+		if (hdl->nr_of_refs * 2 > n)
+			n = hdl->nr_of_refs * 2;
+		ret = v4l2_event_alloc(fh, n);
+	}
+	if (!ret)
+		ret = v4l2_event_subscribe(fh, sub);
+	return ret;
+}
+EXPORT_SYMBOL(v4l2_ctrl_subscribe_fh);
