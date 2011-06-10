@@ -3329,6 +3329,16 @@ interface and may change in the future.</para>
 		  <entry>The short circuit protection of the flash
 		  controller has been triggered.</entry>
 		</row>
+		<row>
+		  <entry><constant>V4L2_FLASH_FAULT_OVER_CURRENT</constant></entry>
+		  <entry>Current in the LED power supply has exceeded the limit
+		  specific to the flash controller.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_FLASH_FAULT_INDICATOR</constant></entry>
+		  <entry>The flash controller has detected a short or open
+		  circuit condition on the indicator LED.</entry>
+		</row>
 	      </tbody>
 	    </entrytbl>
 	  </row>
