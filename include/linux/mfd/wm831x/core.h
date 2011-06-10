@@ -18,6 +18,7 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/regmap.h>
 
 /*
  * Register values.
@@ -361,12 +362,8 @@ struct wm831x {
 	struct mutex io_lock;
 
 	struct device *dev;
-	int (*read_dev)(struct wm831x *wm831x, unsigned short reg,
-			int bytes, void *dest);
-	int (*write_dev)(struct wm831x *wm831x, unsigned short reg,
-			 int bytes, void *src);
 
-	void *control_data;
+	struct regmap *regmap;
 
 	int irq;  /* Our chip IRQ */
 	struct mutex irq_lock;
@@ -415,5 +412,7 @@ int wm831x_device_suspend(struct wm831x *wm831x);
 int wm831x_irq_init(struct wm831x *wm831x, int irq);
 void wm831x_irq_exit(struct wm831x *wm831x);
 void wm831x_auxadc_init(struct wm831x *wm831x);
+
+extern struct regmap_config wm831x_regmap_config;
 
 #endif

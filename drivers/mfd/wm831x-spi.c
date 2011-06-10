@@ -16,58 +16,16 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/spi/spi.h>
+#include <linux/regmap.h>
+#include <linux/err.h>
 
 #include <linux/mfd/wm831x/core.h>
-
-static int wm831x_spi_read_device(struct wm831x *wm831x, unsigned short reg,
-				  int bytes, void *dest)
-{
-	u16 tx_val;
-	u16 *d = dest;
-	int r, ret;
-
-	/* Go register at a time */
-	for (r = reg; r < reg + (bytes / 2); r++) {
-		tx_val = r | 0x8000;
-
-		ret = spi_write_then_read(wm831x->control_data,
-					  (u8 *)&tx_val, 2, (u8 *)d, 2);
-		if (ret != 0)
-			return ret;
-
-		*d = be16_to_cpu(*d);
-
-		d++;
-	}
-
-	return 0;
-}
-
-static int wm831x_spi_write_device(struct wm831x *wm831x, unsigned short reg,
-				   int bytes, void *src)
-{
-	struct spi_device *spi = wm831x->control_data;
-	u16 *s = src;
-	u16 data[2];
-	int ret, r;
-
-	/* Go register at a time */
-	for (r = reg; r < reg + (bytes / 2); r++) {
-		data[0] = r;
-		data[1] = *s++;
-
-		ret = spi_write(spi, (char *)&data, sizeof(data));
-		if (ret != 0)
-			return ret;
-	}
-
-	return 0;
-}
 
 static int __devinit wm831x_spi_probe(struct spi_device *spi)
 {
 	struct wm831x *wm831x;
 	enum wm831x_parent type;
+	int ret;
 
 	/* Currently SPI support for ID tables is unmerged, we're faking it */
 	if (strcmp(spi->modalias, "wm8310") == 0)
@@ -98,9 +56,15 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 
 	dev_set_drvdata(&spi->dev, wm831x);
 	wm831x->dev = &spi->dev;
-	wm831x->control_data = spi;
-	wm831x->read_dev = wm831x_spi_read_device;
-	wm831x->write_dev = wm831x_spi_write_device;
+
+	wm831x->regmap = regmap_init_spi(wm831x->dev, &wm831x_regmap_config);
+	if (IS_ERR(wm831x->regmap)) {
+		ret = PTR_ERR(wm831x->regmap);
+		dev_err(wm831x->dev, "Failed to allocate register map: %d\n",
+			ret);
+		kfree(wm831x);
+		return ret;
+	}
 
 	return wm831x_device_init(wm831x, type, spi->irq);
 }

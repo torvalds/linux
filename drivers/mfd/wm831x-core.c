@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
+#include <linux/err.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
@@ -160,29 +161,6 @@ int wm831x_reg_unlock(struct wm831x *wm831x)
 }
 EXPORT_SYMBOL_GPL(wm831x_reg_unlock);
 
-static int wm831x_read(struct wm831x *wm831x, unsigned short reg,
-		       int bytes, void *dest)
-{
-	int ret, i;
-	u16 *buf = dest;
-
-	BUG_ON(bytes % 2);
-	BUG_ON(bytes <= 0);
-
-	ret = wm831x->read_dev(wm831x, reg, bytes, dest);
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < bytes / 2; i++) {
-		buf[i] = be16_to_cpu(buf[i]);
-
-		dev_vdbg(wm831x->dev, "Read %04x from R%d(0x%x)\n",
-			 buf[i], reg + i, reg + i);
-	}
-
-	return 0;
-}
-
 /**
  * wm831x_reg_read: Read a single WM831x register.
  *
@@ -191,14 +169,10 @@ static int wm831x_read(struct wm831x *wm831x, unsigned short reg,
  */
 int wm831x_reg_read(struct wm831x *wm831x, unsigned short reg)
 {
-	unsigned short val;
+	unsigned int val;
 	int ret;
 
-	mutex_lock(&wm831x->io_lock);
-
-	ret = wm831x_read(wm831x, reg, 2, &val);
-
-	mutex_unlock(&wm831x->io_lock);
+	ret = regmap_read(wm831x->regmap, reg, &val);
 
 	if (ret < 0)
 		return ret;
@@ -218,15 +192,7 @@ EXPORT_SYMBOL_GPL(wm831x_reg_read);
 int wm831x_bulk_read(struct wm831x *wm831x, unsigned short reg,
 		     int count, u16 *buf)
 {
-	int ret;
-
-	mutex_lock(&wm831x->io_lock);
-
-	ret = wm831x_read(wm831x, reg, count * 2, buf);
-
-	mutex_unlock(&wm831x->io_lock);
-
-	return ret;
+	return regmap_bulk_read(wm831x->regmap, reg, buf, count);
 }
 EXPORT_SYMBOL_GPL(wm831x_bulk_read);
 
@@ -234,7 +200,7 @@ static int wm831x_write(struct wm831x *wm831x, unsigned short reg,
 			int bytes, void *src)
 {
 	u16 *buf = src;
-	int i;
+	int i, ret;
 
 	BUG_ON(bytes % 2);
 	BUG_ON(bytes <= 0);
@@ -245,11 +211,10 @@ static int wm831x_write(struct wm831x *wm831x, unsigned short reg,
 
 		dev_vdbg(wm831x->dev, "Write %04x to R%d(0x%x)\n",
 			 buf[i], reg + i, reg + i);
-
-		buf[i] = cpu_to_be16(buf[i]);
+		ret = regmap_write(wm831x->regmap, reg + i, buf[i]);
 	}
 
-	return wm831x->write_dev(wm831x, reg, bytes, src);
+	return 0;
 }
 
 /**
@@ -286,20 +251,14 @@ int wm831x_set_bits(struct wm831x *wm831x, unsigned short reg,
 		    unsigned short mask, unsigned short val)
 {
 	int ret;
-	u16 r;
 
 	mutex_lock(&wm831x->io_lock);
 
-	ret = wm831x_read(wm831x, reg, 2, &r);
-	if (ret < 0)
-		goto out;
+	if (!wm831x_reg_locked(wm831x, reg))
+		ret = regmap_update_bits(wm831x->regmap, reg, mask, val);
+	else
+		ret = -EPERM;
 
-	r &= ~mask;
-	r |= val & mask;
-
-	ret = wm831x_write(wm831x, reg, 2, &r);
-
-out:
 	mutex_unlock(&wm831x->io_lock);
 
 	return ret;
@@ -1292,6 +1251,12 @@ static struct mfd_cell backlight_devs[] = {
 	},
 };
 
+struct regmap_config wm831x_regmap_config = {
+	.reg_bits = 16,
+	.val_bits = 16,
+};
+EXPORT_SYMBOL_GPL(wm831x_regmap_config);
+
 /*
  * Instantiate the generic non-control parts of the device.
  */
@@ -1309,7 +1274,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	ret = wm831x_reg_read(wm831x, WM831X_PARENT_ID);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read parent ID: %d\n", ret);
-		goto err;
+		goto err_regmap;
 	}
 	switch (ret) {
 	case 0x6204:
@@ -1318,20 +1283,20 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	default:
 		dev_err(wm831x->dev, "Device is not a WM831x: ID %x\n", ret);
 		ret = -EINVAL;
-		goto err;
+		goto err_regmap;
 	}
 
 	ret = wm831x_reg_read(wm831x, WM831X_REVISION);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read revision: %d\n", ret);
-		goto err;
+		goto err_regmap;
 	}
 	rev = (ret & WM831X_PARENT_REV_MASK) >> WM831X_PARENT_REV_SHIFT;
 
 	ret = wm831x_reg_read(wm831x, WM831X_RESET_ID);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read device ID: %d\n", ret);
-		goto err;
+		goto err_regmap;
 	}
 
 	/* Some engineering samples do not have the ID set, rely on
@@ -1406,7 +1371,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	default:
 		dev_err(wm831x->dev, "Unknown WM831x device %04x\n", ret);
 		ret = -EINVAL;
-		goto err;
+		goto err_regmap;
 	}
 
 	/* This will need revisiting in future but is OK for all
@@ -1420,7 +1385,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	ret = wm831x_reg_read(wm831x, WM831X_SECURITY_KEY);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read security key: %d\n", ret);
-		goto err;
+		goto err_regmap;
 	}
 	if (ret != 0) {
 		dev_warn(wm831x->dev, "Security key had non-zero value %x\n",
@@ -1433,7 +1398,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		ret = pdata->pre_init(wm831x);
 		if (ret != 0) {
 			dev_err(wm831x->dev, "pre_init() failed: %d\n", ret);
-			goto err;
+			goto err_regmap;
 		}
 	}
 
@@ -1456,7 +1421,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 
 	ret = wm831x_irq_init(wm831x, irq);
 	if (ret != 0)
-		goto err;
+		goto err_regmap;
 
 	wm831x_auxadc_init(wm831x);
 
@@ -1552,8 +1517,9 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 
 err_irq:
 	wm831x_irq_exit(wm831x);
-err:
+err_regmap:
 	mfd_remove_devices(wm831x->dev);
+	regmap_exit(wm831x->regmap);
 	kfree(wm831x);
 	return ret;
 }
@@ -1565,6 +1531,7 @@ void wm831x_device_exit(struct wm831x *wm831x)
 	if (wm831x->irq_base)
 		free_irq(wm831x->irq_base + WM831X_IRQ_AUXADC_DATA, wm831x);
 	wm831x_irq_exit(wm831x);
+	regmap_exit(wm831x->regmap);
 	kfree(wm831x);
 }
 
