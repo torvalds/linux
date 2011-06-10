@@ -179,8 +179,15 @@ config RK29_LAST_LOG
 	default y
 	help
 	  It is only intended for debugging.
-config RK29_SRAM_SPI
-	tristate "Support spi driver codec run in sram"
+menu "The control interface support for RK29 suspend "
+config RK29_SPI_INSRAM
+	tristate "Support spi control interface"
+	depends on REGULATOR_WM831X
 	default n
+config RK29_PWM_INSRAM
+	tristate "Support pwm control interface"
+	depends on RK29_PWM_REGULATOR
+	default y
+endmenu
 
 endif

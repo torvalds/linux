@@ -9,9 +9,6 @@
 #include <linux/suspend.h>
 #include <linux/random.h> 
 #include <linux/crc32.h>
-#ifdef CONFIG_RK29_PWM_REGULATOR
-#include <linux/regulator/rk29-pwm-regulator.h>
-#endif
 #include <linux/io.h>
 #include <linux/wakelock.h>
 #include <asm/tlbflush.h>
@@ -26,18 +23,8 @@
 #include <mach/gpio.h>
 #include <mach/ddr.h>
 #include <mach/memtester.h>
-
 #include <mach/iomux.h>
-
-#if defined(CONFIG_RK29_SRAM_SPI)
-void sram_spi_pread(void);
-void __sramfunc rk29_spi_ctr_vol_sleep(void);
-void __sramfunc rk29_spi_ctr_vol_resume(void);
-#else
-#define sram_spi_pread()
-#define rk29_spi_ctr_vol_sleep()
-#define rk29_spi_ctr_vol_resume()
-#endif
+#include <mach/pm-vol.h>
 
 #define grf_readl(offset) readl(RK29_GRF_BASE + offset)
 #define grf_writel(v, offset) do { writel(v, RK29_GRF_BASE + offset); readl(RK29_GRF_BASE + offset); } while (0)
@@ -151,42 +138,6 @@ static void inline printascii(const char *s) {}
 static void inline printhex(unsigned int hex) {}
 #endif /* DEBUG */
 
-#ifdef CONFIG_RK29_PWM_REGULATOR
-#define pwm_write_reg(addr, val)	__raw_writel(val, addr + (RK29_PWM_BASE + 2*0x10))
-#define pwm_read_reg(addr)		__raw_readl(addr + (RK29_PWM_BASE + 2*0x10))
-
-static u32 __sramdata pwm_lrc, pwm_hrc;
-static void __sramfunc rk29_set_core_voltage(int uV)
-{
-	u32 gate1;
-
-	gate1 = cru_readl(CRU_CLKGATE1_CON);
-	cru_writel(gate1 & ~((1 << CLK_GATE_PCLK_PEIRPH % 32) | (1 << CLK_GATE_ACLK_PEIRPH % 32) | (1 << CLK_GATE_ACLK_CPU_PERI % 32)), CRU_CLKGATE1_CON);
-
-	/* iomux pwm2 */
-	writel((readl(RK29_GRF_BASE + 0x58) & ~(0x3<<6)) | (0x2<<6), RK29_GRF_BASE + 0x58);
-
-	if (uV) {
-		pwm_lrc = pwm_read_reg(PWM_REG_LRC);
-		pwm_hrc = pwm_read_reg(PWM_REG_HRC);
-	}
-
-	pwm_write_reg(PWM_REG_CTRL, PWM_DIV|PWM_RESET);
-	if (uV == 1000000) {
-		pwm_write_reg(PWM_REG_LRC, 12);
-		pwm_write_reg(PWM_REG_HRC, 10);
-	} else {
-		pwm_write_reg(PWM_REG_LRC, pwm_lrc);
-		pwm_write_reg(PWM_REG_HRC, pwm_hrc);
-	}
-	pwm_write_reg(PWM_REG_CNTR, 0);
-	pwm_write_reg(PWM_REG_CTRL, PWM_DIV|PWM_ENABLE|PWM_TimeEN);
-
-	LOOP(5 * 1000 * LOOPS_PER_USEC); /* delay 5ms */
-
-	cru_writel(gate1, CRU_CLKGATE1_CON);
-}
-#endif /* CONFIG_RK29_PWM_REGULATOR */
 /*volatile __sramdata */int ddr_debug;
 module_param(ddr_debug, int, 0644);
 #if 1
@@ -277,6 +228,7 @@ void __sramfunc ddr_testmode(void)
 static void __sramfunc rk29_sram_suspend(void)
 {
 	u32 clksel0;
+	u32 vol;
 
 	if ((ddr_debug == 1) || (ddr_debug == 2))
 		ddr_testmode();
@@ -285,13 +237,7 @@ static void __sramfunc rk29_sram_suspend(void)
 	ddr_suspend();
 
 	printch('6');
-#ifdef CONFIG_RK29_PWM_REGULATOR
-	rk29_set_core_voltage(1000000);
-#endif
-#if defined(CONFIG_RK29_SRAM_SPI)
-	rk29_spi_ctr_vol_sleep();
-#endif
-
+	vol=rk29_suspend_voltage_set(1000000);
 	printch('7');
 	clksel0 = cru_readl(CRU_CLKSEL0_CON);
 	/* set arm clk 24MHz/32 = 750KHz */
@@ -306,12 +252,8 @@ static void __sramfunc rk29_sram_suspend(void)
 	cru_writel(clksel0, CRU_CLKSEL0_CON);
 	printch('7');
 
-#ifdef CONFIG_RK29_PWM_REGULATOR
-	rk29_set_core_voltage(0);
-#endif
-#if defined(CONFIG_RK29_SRAM_SPI)
-	rk29_spi_ctr_vol_resume();
-#endif
+	rk29_suspend_voltage_resume(vol);
+
 
 	printch('6');
 
@@ -409,13 +351,8 @@ static int rk29_pm_enter(suspend_state_t state)
 #endif
 
 	printch('0');
+	interface_ctr_reg_pread();
 
-#ifdef CONFIG_RK29_PWM_REGULATOR
-	/* touch TLB */
-	flush_tlb_all();
-	readl(RK29_PWM_BASE);
-	readl(RK29_GRF_BASE);
-#endif
 
 	/* disable clock */
 	clkgate[0] = cru_readl(CRU_CLKGATE0_CON);
@@ -486,9 +423,7 @@ static int rk29_pm_enter(suspend_state_t state)
 	delay_500ns();
 	/* set aclk_periph = hclk_periph = pclk_periph = 24MHz */
 	cru_writel(clksel0 & ~0x7FC000, CRU_CLKSEL0_CON);
-#if defined(CONFIG_RK29_SRAM_SPI)
-	sram_spi_pread();
-#endif
+
 	printch('4');
 	
 	rk29_suspend();
