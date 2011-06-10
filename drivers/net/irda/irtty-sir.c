@@ -216,23 +216,23 @@ static int irtty_do_write(struct sir_dev *dev, const unsigned char *ptr, size_t 
  * usbserial:	urb-complete-interrupt / softint
  */
 
-static unsigned int irtty_receive_buf(struct tty_struct *tty,
-		const unsigned char *cp, char *fp, int count)
+static void irtty_receive_buf(struct tty_struct *tty, const unsigned char *cp,
+			      char *fp, int count) 
 {
 	struct sir_dev *dev;
 	struct sirtty_cb *priv = tty->disc_data;
 	int	i;
 
-	IRDA_ASSERT(priv != NULL, return -ENODEV;);
-	IRDA_ASSERT(priv->magic == IRTTY_MAGIC, return -EINVAL;);
+	IRDA_ASSERT(priv != NULL, return;);
+	IRDA_ASSERT(priv->magic == IRTTY_MAGIC, return;);
 
 	if (unlikely(count==0))		/* yes, this happens */
-		return 0;
+		return;
 
 	dev = priv->dev;
 	if (!dev) {
 		IRDA_WARNING("%s(), not ready yet!\n", __func__);
-		return -ENODEV;
+		return;
 	}
 
 	for (i = 0; i < count; i++) {
@@ -242,13 +242,11 @@ static unsigned int irtty_receive_buf(struct tty_struct *tty,
  		if (fp && *fp++) { 
 			IRDA_DEBUG(0, "Framing or parity error!\n");
 			sirdev_receive(dev, NULL, 0);	/* notify sir_dev (updating stats) */
-			return -EINVAL;
+			return;
  		}
 	}
 
 	sirdev_receive(dev, cp, count);
-
-	return count;
 }
 
 /*

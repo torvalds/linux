@@ -678,6 +678,7 @@ static int btrfs_batch_insert_items(struct btrfs_trans_handle *trans,
 	INIT_LIST_HEAD(&head);
 
 	next = item;
+	nitems = 0;
 
 	/*
 	 * count the number of the continuous items that we can insert in batch
@@ -1129,7 +1130,7 @@ static void btrfs_async_run_delayed_node_done(struct btrfs_work *work)
 	delayed_node = async_node->delayed_node;
 	root = delayed_node->root;
 
-	trans = btrfs_join_transaction(root, 0);
+	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		goto free_path;
 
@@ -1572,8 +1573,7 @@ static void fill_stack_inode_item(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_inode_transid(inode_item, trans->transid);
 	btrfs_set_stack_inode_rdev(inode_item, inode->i_rdev);
 	btrfs_set_stack_inode_flags(inode_item, BTRFS_I(inode)->flags);
-	btrfs_set_stack_inode_block_group(inode_item,
-					  BTRFS_I(inode)->block_group);
+	btrfs_set_stack_inode_block_group(inode_item, 0);
 
 	btrfs_set_stack_timespec_sec(btrfs_inode_atime(inode_item),
 				     inode->i_atime.tv_sec);
@@ -1595,7 +1595,7 @@ int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root, struct inode *inode)
 {
 	struct btrfs_delayed_node *delayed_node;
-	int ret;
+	int ret = 0;
 
 	delayed_node = btrfs_get_or_create_delayed_node(inode);
 	if (IS_ERR(delayed_node))

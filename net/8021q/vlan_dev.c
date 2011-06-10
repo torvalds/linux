@@ -165,7 +165,7 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 		u64_stats_update_begin(&stats->syncp);
 		stats->tx_packets++;
 		stats->tx_bytes += len;
-		u64_stats_update_begin(&stats->syncp);
+		u64_stats_update_end(&stats->syncp);
 	} else {
 		this_cpu_inc(vlan_dev_info(dev)->vlan_pcpu_stats->tx_dropped);
 	}

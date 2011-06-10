@@ -747,8 +747,8 @@ static void st_tty_close(struct tty_struct *tty)
 	pr_debug("%s: done ", __func__);
 }
 
-static unsigned int st_tty_receive(struct tty_struct *tty,
-		const unsigned char *data, char *tty_flags, int count)
+static void st_tty_receive(struct tty_struct *tty, const unsigned char *data,
+			   char *tty_flags, int count)
 {
 #ifdef VERBOSE
 	print_hex_dump(KERN_DEBUG, ">in>", DUMP_PREFIX_NONE,
@@ -761,8 +761,6 @@ static unsigned int st_tty_receive(struct tty_struct *tty,
 	 */
 	st_recv(tty->disc_data, data, count);
 	pr_debug("done %s", __func__);
-
-	return count;
 }
 
 /* wake-up function called in from the TTY layer
