@@ -43,8 +43,11 @@
 
 #include <arch/interrupts.h>
 
-static noinline void force_sig_info_fault(int si_signo, int si_code,
-	unsigned long address, int fault_num, struct task_struct *tsk)
+static noinline void force_sig_info_fault(const char *type, int si_signo,
+					  int si_code, unsigned long address,
+					  int fault_num,
+					  struct task_struct *tsk,
+					  struct pt_regs *regs)
 {
 	siginfo_t info;
 
@@ -59,6 +62,7 @@ static noinline void force_sig_info_fault(int si_signo, int si_code,
 	info.si_code = si_code;
 	info.si_addr = (void __user *)address;
 	info.si_trapno = fault_num;
+	trace_unhandled_signal(type, regs, address, si_signo);
 	force_sig_info(si_signo, &info, tsk);
 }
 
@@ -71,11 +75,12 @@ SYSCALL_DEFINE2(cmpxchg_badaddr, unsigned long, address,
 		struct pt_regs *, regs)
 {
 	if (address >= PAGE_OFFSET)
-		force_sig_info_fault(SIGSEGV, SEGV_MAPERR, address,
-				     INT_DTLB_MISS, current);
+		force_sig_info_fault("atomic segfault", SIGSEGV, SEGV_MAPERR,
+				     address, INT_DTLB_MISS, current, regs);
 	else
-		force_sig_info_fault(SIGBUS, BUS_ADRALN, address,
-				     INT_UNALIGN_DATA, current);
+		force_sig_info_fault("atomic alignment fault", SIGBUS,
+				     BUS_ADRALN, address,
+				     INT_UNALIGN_DATA, current, regs);
 
 	/*
 	 * Adjust pc to point at the actual instruction, which is unusual
@@ -471,8 +476,8 @@ bad_area_nosemaphore:
 		 */
 		local_irq_enable();
 
-		force_sig_info_fault(SIGSEGV, si_code, address,
-				     fault_num, tsk);
+		force_sig_info_fault("segfault", SIGSEGV, si_code, address,
+				     fault_num, tsk, regs);
 		return 0;
 	}
 
@@ -547,7 +552,8 @@ do_sigbus:
 	if (is_kernel_mode)
 		goto no_context;
 
-	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, fault_num, tsk);
+	force_sig_info_fault("bus error", SIGBUS, BUS_ADRERR, address,
+			     fault_num, tsk, regs);
 	return 0;
 }
 
@@ -732,6 +738,7 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 		panic("Bad fault number %d in do_page_fault", fault_num);
 	}
 
+#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
 	if (EX1_PL(regs->ex1) != USER_PL) {
 		struct async_tlb *async;
 		switch (fault_num) {
@@ -775,6 +782,7 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 			return;
 		}
 	}
+#endif
 
 	handle_page_fault(regs, fault_num, is_page_fault, address, write);
 }
@@ -801,8 +809,6 @@ static void handle_async_page_fault(struct pt_regs *regs,
 				  async->address, async->is_write);
 	}
 }
-#endif /* CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC() */
-
 
 /*
  * This routine effectively re-issues asynchronous page faults
@@ -824,6 +830,8 @@ void do_async_page_fault(struct pt_regs *regs)
 	handle_async_page_fault(regs, &current->thread.sn_async_tlb);
 #endif
 }
+#endif /* CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC() */
+
 
 void vmalloc_sync_all(void)
 {

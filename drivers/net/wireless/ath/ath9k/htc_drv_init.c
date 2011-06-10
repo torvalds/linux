@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -258,7 +258,7 @@ static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid,
 	 */
 
 	if (IS_AR7010_DEVICE(drv_info))
-		priv->htc->credits = 48;
+		priv->htc->credits = 45;
 	else
 		priv->htc->credits = 33;
 
@@ -768,11 +768,6 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 	hw->queues = 4;
 	hw->channel_change_time = 5000;
 	hw->max_listen_interval = 10;
-
-	if (AR_SREV_9271(priv->ah))
-		hw->max_tx_aggregation_subframes = MAX_TX_AMPDU_SUBFRAMES_9271;
-	else
-		hw->max_tx_aggregation_subframes = MAX_TX_AMPDU_SUBFRAMES_7010;
 
 	hw->vif_data_size = sizeof(struct ath9k_htc_vif);
 	hw->sta_data_size = sizeof(struct ath9k_htc_sta);

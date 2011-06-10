@@ -294,6 +294,7 @@ struct iio_poll_func
 	pf->h = h;
 	pf->thread = thread;
 	pf->type = type;
+	pf->private_data = private;
 
 	return pf;
 }

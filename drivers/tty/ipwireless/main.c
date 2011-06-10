@@ -33,7 +33,7 @@
 #include <pcmcia/ss.h>
 #include <pcmcia/ds.h>
 
-static struct pcmcia_device_id ipw_ids[] = {
+static const struct pcmcia_device_id ipw_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x02f2, 0x0100),
 	PCMCIA_DEVICE_MANF_CARD(0x02f2, 0x0200),
 	PCMCIA_DEVICE_NULL

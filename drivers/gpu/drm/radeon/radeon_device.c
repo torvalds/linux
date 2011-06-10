@@ -82,6 +82,8 @@ static const char radeon_family_name[][16] = {
 	"CYPRESS",
 	"HEMLOCK",
 	"PALM",
+	"SUMO",
+	"SUMO2",
 	"BARTS",
 	"TURKS",
 	"CAICOS",
@@ -752,6 +754,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	dma_bits = rdev->need_dma32 ? 32 : 40;
 	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
 	if (r) {
+		rdev->need_dma32 = true;
 		printk(KERN_WARNING "radeon: No suitable DMA available.\n");
 	}
 
@@ -923,6 +926,9 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_fbdev_set_suspend(rdev, 0);
 	console_unlock();
 
+	/* init dig PHYs */
+	if (rdev->is_atom_bios)
+		radeon_atom_encoder_init(rdev);
 	/* reset hpd state */
 	radeon_hpd_init(rdev);
 	/* blat the mode back in */

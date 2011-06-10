@@ -798,7 +798,12 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 			getnstimeofday(&ts);
 		h.h2->tp_sec = ts.tv_sec;
 		h.h2->tp_nsec = ts.tv_nsec;
-		h.h2->tp_vlan_tci = vlan_tx_tag_get(skb);
+		if (vlan_tx_tag_present(skb)) {
+			h.h2->tp_vlan_tci = vlan_tx_tag_get(skb);
+			status |= TP_STATUS_VLAN_VALID;
+		} else {
+			h.h2->tp_vlan_tci = 0;
+		}
 		hdrlen = sizeof(*h.h2);
 		break;
 	default:
@@ -1725,8 +1730,12 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 		aux.tp_snaplen = skb->len;
 		aux.tp_mac = 0;
 		aux.tp_net = skb_network_offset(skb);
-		aux.tp_vlan_tci = vlan_tx_tag_get(skb);
-
+		if (vlan_tx_tag_present(skb)) {
+			aux.tp_vlan_tci = vlan_tx_tag_get(skb);
+			aux.tp_status |= TP_STATUS_VLAN_VALID;
+		} else {
+			aux.tp_vlan_tci = 0;
+		}
 		put_cmsg(msg, SOL_PACKET, PACKET_AUXDATA, sizeof(aux), &aux);
 	}
 
@@ -2706,7 +2715,7 @@ static int packet_seq_show(struct seq_file *seq, void *v)
 		const struct packet_sock *po = pkt_sk(s);
 
 		seq_printf(seq,
-			   "%p %-6d %-4d %04x   %-5d %1d %-6u %-6u %-6lu\n",
+			   "%pK %-6d %-4d %04x   %-5d %1d %-6u %-6u %-6lu\n",
 			   s,
 			   atomic_read(&s->sk_refcnt),
 			   s->sk_type,

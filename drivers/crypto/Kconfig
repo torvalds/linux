@@ -74,6 +74,8 @@ config ZCRYPT
 	  + PCI-X Cryptographic Coprocessor (PCIXCC)
 	  + Crypto Express2 Coprocessor (CEX2C)
 	  + Crypto Express2 Accelerator (CEX2A)
+	  + Crypto Express3 Coprocessor (CEX3C)
+	  + Crypto Express3 Accelerator (CEX3A)
 
 config ZCRYPT_MONOLITHIC
 	bool "Monolithic zcrypt module"

@@ -191,8 +191,6 @@ extern unsigned long __secondary_hold_spinloop;
 extern unsigned long __secondary_hold_acknowledge;
 extern char __secondary_hold;
 
-extern irqreturn_t debug_ipi_action(int irq, void *data);
-
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

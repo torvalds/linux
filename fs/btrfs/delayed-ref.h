@@ -166,12 +166,6 @@ int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 
 struct btrfs_delayed_ref_head *
 btrfs_find_delayed_ref_head(struct btrfs_trans_handle *trans, u64 bytenr);
-int btrfs_delayed_ref_pending(struct btrfs_trans_handle *trans, u64 bytenr);
-int btrfs_update_delayed_ref(struct btrfs_trans_handle *trans,
-			  u64 bytenr, u64 num_bytes, u64 orig_parent,
-			  u64 parent, u64 orig_ref_root, u64 ref_root,
-			  u64 orig_ref_generation, u64 ref_generation,
-			  u64 owner_objectid, int pin);
 int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
 			   struct btrfs_delayed_ref_head *head);
 int btrfs_find_ref_cluster(struct btrfs_trans_handle *trans,

@@ -213,11 +213,16 @@ static int dmae_set_dmars(struct sh_dmae_chan *sh_chan, u16 val)
 						struct sh_dmae_device, common);
 	struct sh_dmae_pdata *pdata = shdev->pdata;
 	const struct sh_dmae_channel *chan_pdata = &pdata->channel[sh_chan->id];
-	u16 __iomem *addr = shdev->dmars + chan_pdata->dmars / sizeof(u16);
+	u16 __iomem *addr = shdev->dmars;
 	int shift = chan_pdata->dmars_bit;
 
 	if (dmae_is_busy(sh_chan))
 		return -EBUSY;
+
+	/* in the case of a missing DMARS resource use first memory window */
+	if (!addr)
+		addr = (u16 __iomem *)shdev->chan_reg;
+	addr += chan_pdata->dmars / sizeof(u16);
 
 	__raw_writew((__raw_readw(addr) & (0xff00 >> shift)) | (val << shift),
 		     addr);
@@ -338,7 +343,7 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 
 		dmae_set_dmars(sh_chan, cfg->mid_rid);
 		dmae_set_chcr(sh_chan, cfg->chcr);
-	} else if ((sh_dmae_readl(sh_chan, CHCR) & 0xf00) != 0x400) {
+	} else {
 		dmae_init(sh_chan);
 	}
 
@@ -1078,7 +1083,7 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	unsigned long irqflags = IRQF_DISABLED,
 		chan_flag[SH_DMAC_MAX_CHANNELS] = {};
 	int errirq, chan_irq[SH_DMAC_MAX_CHANNELS];
-	int err, i, irq_cnt = 0, irqres = 0;
+	int err, i, irq_cnt = 0, irqres = 0, irq_cap = 0;
 	struct sh_dmae_device *shdev;
 	struct resource *chan, *dmars, *errirq_res, *chanirq_res;
 
@@ -1087,7 +1092,7 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	chan = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	/* DMARS area is optional, if absent, this controller cannot do slave DMA */
+	/* DMARS area is optional */
 	dmars = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	/*
 	 * IRQ resources:
@@ -1139,6 +1144,8 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	/* platform data */
 	shdev->pdata = pdata;
 
+	platform_set_drvdata(pdev, shdev);
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
@@ -1154,7 +1161,7 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&shdev->common.channels);
 
 	dma_cap_set(DMA_MEMCPY, shdev->common.cap_mask);
-	if (dmars)
+	if (pdata->slave && pdata->slave_num)
 		dma_cap_set(DMA_SLAVE, shdev->common.cap_mask);
 
 	shdev->common.device_alloc_chan_resources
@@ -1203,8 +1210,13 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 	    !platform_get_resource(pdev, IORESOURCE_IRQ, 1)) {
 		/* Special case - all multiplexed */
 		for (; irq_cnt < pdata->channel_num; irq_cnt++) {
-			chan_irq[irq_cnt] = chanirq_res->start;
-			chan_flag[irq_cnt] = IRQF_SHARED;
+			if (irq_cnt < SH_DMAC_MAX_CHANNELS) {
+				chan_irq[irq_cnt] = chanirq_res->start;
+				chan_flag[irq_cnt] = IRQF_SHARED;
+			} else {
+				irq_cap = 1;
+				break;
+			}
 		}
 	} else {
 		do {
@@ -1218,32 +1230,41 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 					"Found IRQ %d for channel %d\n",
 					i, irq_cnt);
 				chan_irq[irq_cnt++] = i;
+
+				if (irq_cnt >= SH_DMAC_MAX_CHANNELS)
+					break;
+			}
+
+			if (irq_cnt >= SH_DMAC_MAX_CHANNELS) {
+				irq_cap = 1;
+				break;
 			}
 			chanirq_res = platform_get_resource(pdev,
 						IORESOURCE_IRQ, ++irqres);
 		} while (irq_cnt < pdata->channel_num && chanirq_res);
 	}
 
-	if (irq_cnt < pdata->channel_num)
-		goto eirqres;
-
 	/* Create DMA Channel */
-	for (i = 0; i < pdata->channel_num; i++) {
+	for (i = 0; i < irq_cnt; i++) {
 		err = sh_dmae_chan_probe(shdev, i, chan_irq[i], chan_flag[i]);
 		if (err)
 			goto chan_probe_err;
 	}
 
+	if (irq_cap)
+		dev_notice(&pdev->dev, "Attempting to register %d DMA "
+			   "channels when a maximum of %d are supported.\n",
+			   pdata->channel_num, SH_DMAC_MAX_CHANNELS);
+
 	pm_runtime_put(&pdev->dev);
 
-	platform_set_drvdata(pdev, shdev);
 	dma_async_device_register(&shdev->common);
 
 	return err;
 
 chan_probe_err:
 	sh_dmae_chan_remove(shdev);
-eirqres:
+
 #if defined(CONFIG_CPU_SH4) || defined(CONFIG_ARCH_SHMOBILE)
 	free_irq(errirq, shdev);
 eirq_err:
@@ -1258,6 +1279,8 @@ rst_err:
 
 	if (dmars)
 		iounmap(shdev->dmars);
+
+	platform_set_drvdata(pdev, NULL);
 emapdmars:
 	iounmap(shdev->chan_reg);
 	synchronize_rcu();
@@ -1295,6 +1318,8 @@ static int __exit sh_dmae_remove(struct platform_device *pdev)
 	if (shdev->dmars)
 		iounmap(shdev->dmars);
 	iounmap(shdev->chan_reg);
+
+	platform_set_drvdata(pdev, NULL);
 
 	synchronize_rcu();
 	kfree(shdev);

@@ -6,6 +6,10 @@ Supported chips:
     Prefix: 'f71808e'
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: Not public
+  * Fintek F71808A
+    Prefix: 'f71808a'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Not public
   * Fintek F71858FG
     Prefix: 'f71858fg'
     Addresses scanned: none, address read from Super I/O config space

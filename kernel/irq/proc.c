@@ -19,7 +19,7 @@ static struct proc_dir_entry *root_irq_dir;
 
 #ifdef CONFIG_SMP
 
-static int irq_affinity_proc_show(struct seq_file *m, void *v)
+static int show_irq_affinity(int type, struct seq_file *m, void *v)
 {
 	struct irq_desc *desc = irq_to_desc((long)m->private);
 	const struct cpumask *mask = desc->irq_data.affinity;
@@ -28,7 +28,10 @@ static int irq_affinity_proc_show(struct seq_file *m, void *v)
 	if (irqd_is_setaffinity_pending(&desc->irq_data))
 		mask = desc->pending_mask;
 #endif
-	seq_cpumask(m, mask);
+	if (type)
+		seq_cpumask_list(m, mask);
+	else
+		seq_cpumask(m, mask);
 	seq_putc(m, '\n');
 	return 0;
 }
@@ -59,7 +62,18 @@ static int irq_affinity_hint_proc_show(struct seq_file *m, void *v)
 #endif
 
 int no_irq_affinity;
-static ssize_t irq_affinity_proc_write(struct file *file,
+static int irq_affinity_proc_show(struct seq_file *m, void *v)
+{
+	return show_irq_affinity(0, m, v);
+}
+
+static int irq_affinity_list_proc_show(struct seq_file *m, void *v)
+{
+	return show_irq_affinity(1, m, v);
+}
+
+
+static ssize_t write_irq_affinity(int type, struct file *file,
 		const char __user *buffer, size_t count, loff_t *pos)
 {
 	unsigned int irq = (int)(long)PDE(file->f_path.dentry->d_inode)->data;
@@ -72,7 +86,10 @@ static ssize_t irq_affinity_proc_write(struct file *file,
 	if (!alloc_cpumask_var(&new_value, GFP_KERNEL))
 		return -ENOMEM;
 
-	err = cpumask_parse_user(buffer, count, new_value);
+	if (type)
+		err = cpumask_parselist_user(buffer, count, new_value);
+	else
+		err = cpumask_parse_user(buffer, count, new_value);
 	if (err)
 		goto free_cpumask;
 
@@ -100,9 +117,26 @@ free_cpumask:
 	return err;
 }
 
+static ssize_t irq_affinity_proc_write(struct file *file,
+		const char __user *buffer, size_t count, loff_t *pos)
+{
+	return write_irq_affinity(0, file, buffer, count, pos);
+}
+
+static ssize_t irq_affinity_list_proc_write(struct file *file,
+		const char __user *buffer, size_t count, loff_t *pos)
+{
+	return write_irq_affinity(1, file, buffer, count, pos);
+}
+
 static int irq_affinity_proc_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, irq_affinity_proc_show, PDE(inode)->data);
+}
+
+static int irq_affinity_list_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, irq_affinity_list_proc_show, PDE(inode)->data);
 }
 
 static int irq_affinity_hint_proc_open(struct inode *inode, struct file *file)
@@ -123,6 +157,14 @@ static const struct file_operations irq_affinity_hint_proc_fops = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
+};
+
+static const struct file_operations irq_affinity_list_proc_fops = {
+	.open		= irq_affinity_list_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= irq_affinity_list_proc_write,
 };
 
 static int default_affinity_show(struct seq_file *m, void *v)
@@ -289,6 +331,10 @@ void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 	proc_create_data("affinity_hint", 0400, desc->dir,
 			 &irq_affinity_hint_proc_fops, (void *)(long)irq);
 
+	/* create /proc/irq/<irq>/smp_affinity_list */
+	proc_create_data("smp_affinity_list", 0600, desc->dir,
+			 &irq_affinity_list_proc_fops, (void *)(long)irq);
+
 	proc_create_data("node", 0444, desc->dir,
 			 &irq_node_proc_fops, (void *)(long)irq);
 #endif
@@ -306,6 +352,7 @@ void unregister_irq_proc(unsigned int irq, struct irq_desc *desc)
 #ifdef CONFIG_SMP
 	remove_proc_entry("smp_affinity", desc->dir);
 	remove_proc_entry("affinity_hint", desc->dir);
+	remove_proc_entry("smp_affinity_list", desc->dir);
 	remove_proc_entry("node", desc->dir);
 #endif
 	remove_proc_entry("spurious", desc->dir);

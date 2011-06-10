@@ -16,7 +16,7 @@
 
 #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
 
-#ifdef CONFIG_GENERIC_FIND_NEXT_BIT
+#ifndef find_next_bit
 /*
  * Find the next set bit in a memory region.
  */
@@ -59,7 +59,9 @@ found_middle:
 	return result + __ffs(tmp);
 }
 EXPORT_SYMBOL(find_next_bit);
+#endif
 
+#ifndef find_next_zero_bit
 /*
  * This implementation of find_{first,next}_zero_bit was stolen from
  * Linus' asm-alpha/bitops.h.
@@ -103,9 +105,9 @@ found_middle:
 	return result + ffz(tmp);
 }
 EXPORT_SYMBOL(find_next_zero_bit);
-#endif /* CONFIG_GENERIC_FIND_NEXT_BIT */
+#endif
 
-#ifdef CONFIG_GENERIC_FIND_FIRST_BIT
+#ifndef find_first_bit
 /*
  * Find the first set bit in a memory region.
  */
@@ -131,7 +133,9 @@ found:
 	return result + __ffs(tmp);
 }
 EXPORT_SYMBOL(find_first_bit);
+#endif
 
+#ifndef find_first_zero_bit
 /*
  * Find the first cleared bit in a memory region.
  */
@@ -157,10 +161,9 @@ found:
 	return result + ffz(tmp);
 }
 EXPORT_SYMBOL(find_first_zero_bit);
-#endif /* CONFIG_GENERIC_FIND_FIRST_BIT */
+#endif
 
 #ifdef __BIG_ENDIAN
-#ifdef CONFIG_GENERIC_FIND_BIT_LE
 
 /* include/linux/byteorder does not support "unsigned long" type */
 static inline unsigned long ext2_swabp(const unsigned long * x)
@@ -186,6 +189,7 @@ static inline unsigned long ext2_swab(const unsigned long y)
 #endif
 }
 
+#ifndef find_next_zero_bit_le
 unsigned long find_next_zero_bit_le(const void *addr, unsigned
 		long size, unsigned long offset)
 {
@@ -229,7 +233,9 @@ found_middle_swap:
 	return result + ffz(ext2_swab(tmp));
 }
 EXPORT_SYMBOL(find_next_zero_bit_le);
+#endif
 
+#ifndef find_next_bit_le
 unsigned long find_next_bit_le(const void *addr, unsigned
 		long size, unsigned long offset)
 {
@@ -274,6 +280,6 @@ found_middle_swap:
 	return result + __ffs(ext2_swab(tmp));
 }
 EXPORT_SYMBOL(find_next_bit_le);
+#endif
 
-#endif /* CONFIG_GENERIC_FIND_BIT_LE */
 #endif /* __BIG_ENDIAN */

@@ -16,7 +16,7 @@ void show_mem(unsigned int filter)
 		nonshared = 0, highmem = 0;
 
 	printk("Mem-Info:\n");
-	__show_free_areas(filter);
+	show_free_areas(filter);
 
 	for_each_online_pgdat(pgdat) {
 		unsigned long i, flags;

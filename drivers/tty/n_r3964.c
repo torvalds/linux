@@ -139,8 +139,8 @@ static int r3964_ioctl(struct tty_struct *tty, struct file *file,
 static void r3964_set_termios(struct tty_struct *tty, struct ktermios *old);
 static unsigned int r3964_poll(struct tty_struct *tty, struct file *file,
 		struct poll_table_struct *wait);
-static unsigned int r3964_receive_buf(struct tty_struct *tty,
-		const unsigned char *cp, char *fp, int count);
+static void r3964_receive_buf(struct tty_struct *tty, const unsigned char *cp,
+		char *fp, int count);
 
 static struct tty_ldisc_ops tty_ldisc_N_R3964 = {
 	.owner = THIS_MODULE,
@@ -1239,8 +1239,8 @@ static unsigned int r3964_poll(struct tty_struct *tty, struct file *file,
 	return result;
 }
 
-static unsigned int r3964_receive_buf(struct tty_struct *tty,
-		const unsigned char *cp, char *fp, int count)
+static void r3964_receive_buf(struct tty_struct *tty, const unsigned char *cp,
+			char *fp, int count)
 {
 	struct r3964_info *pInfo = tty->disc_data;
 	const unsigned char *p;
@@ -1257,8 +1257,6 @@ static unsigned int r3964_receive_buf(struct tty_struct *tty,
 		}
 
 	}
-
-	return count;
 }
 
 MODULE_LICENSE("GPL");

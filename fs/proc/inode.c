@@ -28,6 +28,7 @@ static void proc_evict_inode(struct inode *inode)
 {
 	struct proc_dir_entry *de;
 	struct ctl_table_header *head;
+	const struct proc_ns_operations *ns_ops;
 
 	truncate_inode_pages(&inode->i_data, 0);
 	end_writeback(inode);
@@ -44,6 +45,10 @@ static void proc_evict_inode(struct inode *inode)
 		rcu_assign_pointer(PROC_I(inode)->sysctl, NULL);
 		sysctl_head_put(head);
 	}
+	/* Release any associated namespace */
+	ns_ops = PROC_I(inode)->ns_ops;
+	if (ns_ops && ns_ops->put)
+		ns_ops->put(PROC_I(inode)->ns);
 }
 
 static struct kmem_cache * proc_inode_cachep;
@@ -62,6 +67,8 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	ei->pde = NULL;
 	ei->sysctl = NULL;
 	ei->sysctl_entry = NULL;
+	ei->ns = NULL;
+	ei->ns_ops = NULL;
 	inode = &ei->vfs_inode;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	return inode;

@@ -458,7 +458,7 @@ nouveau_sgdma_init(struct drm_device *dev)
 		dev_priv->gart_info.type = NOUVEAU_GART_HW;
 		dev_priv->gart_info.func = &nv50_sgdma_backend;
 	} else
-	if (drm_pci_device_is_pcie(dev) &&
+	if (0 && drm_pci_device_is_pcie(dev) &&
 	    dev_priv->chipset > 0x40 && dev_priv->chipset != 0x45) {
 		if (nv44_graph_class(dev)) {
 			dev_priv->gart_info.func = &nv44_sgdma_backend;

@@ -29,12 +29,10 @@
 #include <mach/db8500-regs.h>
 #include <mach/db5500-regs.h>
 
-/* ST-Ericsson modified pl022 id */
-#define SSP_PER_ID		0x01080022
-
 #ifndef __ASSEMBLY__
 
 #include <mach/id.h>
+extern void __iomem *_PRCMU_BASE;
 
 #define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
 

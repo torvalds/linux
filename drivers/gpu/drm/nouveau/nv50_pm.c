@@ -47,6 +47,21 @@ nv50_pm_clock_get(struct drm_device *dev, u32 id)
 
 	reg0 = nv_rd32(dev, pll.reg + 0);
 	reg1 = nv_rd32(dev, pll.reg + 4);
+
+	if ((reg0 & 0x80000000) == 0) {
+		if (id == PLL_SHADER) {
+			NV_DEBUG(dev, "Shader PLL is disabled. "
+				"Shader clock is twice the core\n");
+			ret = nv50_pm_clock_get(dev, PLL_CORE);
+			if (ret > 0)
+				return ret << 1;
+		} else if (id == PLL_MEMORY) {
+			NV_DEBUG(dev, "Memory PLL is disabled. "
+				"Memory clock is equal to the ref_clk\n");
+			return pll.refclk;
+		}
+	}
+
 	P = (reg0 & 0x00070000) >> 16;
 	N = (reg1 & 0x0000ff00) >> 8;
 	M = (reg1 & 0x000000ff);

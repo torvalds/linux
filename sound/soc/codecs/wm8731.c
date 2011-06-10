@@ -198,7 +198,7 @@ static int wm8731_check_osc(struct snd_soc_dapm_widget *source,
 {
 	struct wm8731_priv *wm8731 = snd_soc_codec_get_drvdata(source->codec);
 
-	return wm8731->sysclk_type == WM8731_SYSCLK_MCLK;
+	return wm8731->sysclk_type == WM8731_SYSCLK_XTAL;
 }
 
 static const struct snd_soc_dapm_route wm8731_intercon[] = {

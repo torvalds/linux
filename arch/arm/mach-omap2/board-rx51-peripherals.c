@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/mmc/host.h>
+#include <linux/power/isp1704_charger.h>
 
 #include <plat/mcspi.h>
 #include <plat/board.h>
@@ -43,6 +44,7 @@
 
 #include "mux.h"
 #include "hsmmc.h"
+#include "common-board-devices.h"
 
 #define SYSTEM_REV_B_USES_VAUX3	0x1699
 #define SYSTEM_REV_S_USES_VAUX3 0x8
@@ -51,6 +53,8 @@
 #define RX51_WL1251_IRQ_GPIO		42
 #define RX51_FMTX_RESET_GPIO		163
 #define RX51_FMTX_IRQ			53
+
+#define RX51_USB_TRANSCEIVER_RST_GPIO	67
 
 /* list all spi devices here */
 enum {
@@ -110,9 +114,29 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 	},
 };
 
-static struct platform_device rx51_charger_device = {
-	.name = "isp1704_charger",
+static void rx51_charger_set_power(bool on)
+{
+	gpio_set_value(RX51_USB_TRANSCEIVER_RST_GPIO, on);
+}
+
+static struct isp1704_charger_data rx51_charger_data = {
+	.set_power	= rx51_charger_set_power,
 };
+
+static struct platform_device rx51_charger_device = {
+	.name	= "isp1704_charger",
+	.dev	= {
+		.platform_data = &rx51_charger_data,
+	},
+};
+
+static void __init rx51_charger_init(void)
+{
+	WARN_ON(gpio_request_one(RX51_USB_TRANSCEIVER_RST_GPIO,
+		GPIOF_OUT_INIT_LOW, "isp1704_reset"));
+
+	platform_device_register(&rx51_charger_device);
+}
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 
@@ -464,6 +488,7 @@ static struct regulator_init_data rx51_vmmc2 = {
 		.name			= "V28_A",
 		.min_uV			= 2800000,
 		.max_uV			= 3000000,
+		.always_on		= true, /* due VIO leak to AIC34 VDDs */
 		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
@@ -557,10 +582,8 @@ static __init void rx51_init_si4713(void)
 static int rx51_twlgpio_setup(struct device *dev, unsigned gpio, unsigned n)
 {
 	/* FIXME this gpio setup is just a placeholder for now */
-	gpio_request(gpio + 6, "backlight_pwm");
-	gpio_direction_output(gpio + 6, 0);
-	gpio_request(gpio + 7, "speaker_en");
-	gpio_direction_output(gpio + 7, 1);
+	gpio_request_one(gpio + 6, GPIOF_OUT_INIT_LOW, "backlight_pwm");
+	gpio_request_one(gpio + 7, GPIOF_OUT_INIT_LOW, "speaker_en");
 
 	return 0;
 }
@@ -730,7 +753,7 @@ static struct twl4030_resconfig twl4030_rconfig[] __initdata = {
 	{ .resource = RES_RESET, .devgroup = -1,
 	  .type = 1, .type2 = -1, .remap_off = -1, .remap_sleep = -1
 	},
-	{ .resource = RES_Main_Ref, .devgroup = -1,
+	{ .resource = RES_MAIN_REF, .devgroup = -1,
 	  .type = 1, .type2 = -1, .remap_off = -1, .remap_sleep = -1
 	},
 	{ 0, 0},
@@ -775,15 +798,6 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 static struct tpa6130a2_platform_data rx51_tpa6130a2_data __initdata_or_module = {
 	.id			= TPA6130A2,
 	.power_gpio		= 98,
-};
-
-static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_1[] = {
-	{
-		I2C_BOARD_INFO("twl5030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &rx51_twldata,
-	},
 };
 
 /* Audio setup data */
@@ -833,8 +847,7 @@ static int __init rx51_i2c_init(void)
 		rx51_twldata.vaux3 = &rx51_vaux3_cam;
 	}
 	rx51_twldata.vmmc2 = &rx51_vmmc2;
-	omap_register_i2c_bus(1, 2200, rx51_peripherals_i2c_board_info_1,
-			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_1));
+	omap_pmic_init(1, 2200, "twl5030", INT_34XX_SYS_NIRQ, &rx51_twldata);
 	omap_register_i2c_bus(2, 100, rx51_peripherals_i2c_board_info_2,
 			      ARRAY_SIZE(rx51_peripherals_i2c_board_info_2));
 	omap_register_i2c_bus(3, 400, NULL, 0);
@@ -921,25 +934,19 @@ static void rx51_wl1251_set_power(bool enable)
 	gpio_set_value(RX51_WL1251_POWER_GPIO, enable);
 }
 
+static struct gpio rx51_wl1251_gpios[] __initdata = {
+	{ RX51_WL1251_POWER_GPIO, GPIOF_OUT_INIT_LOW,	"wl1251 power"	},
+	{ RX51_WL1251_IRQ_GPIO,	  GPIOF_IN,		"wl1251 irq"	},
+};
+
 static void __init rx51_init_wl1251(void)
 {
 	int irq, ret;
 
-	ret = gpio_request(RX51_WL1251_POWER_GPIO, "wl1251 power");
+	ret = gpio_request_array(rx51_wl1251_gpios,
+				 ARRAY_SIZE(rx51_wl1251_gpios));
 	if (ret < 0)
 		goto error;
-
-	ret = gpio_direction_output(RX51_WL1251_POWER_GPIO, 0);
-	if (ret < 0)
-		goto err_power;
-
-	ret = gpio_request(RX51_WL1251_IRQ_GPIO, "wl1251 irq");
-	if (ret < 0)
-		goto err_power;
-
-	ret = gpio_direction_input(RX51_WL1251_IRQ_GPIO);
-	if (ret < 0)
-		goto err_irq;
 
 	irq = gpio_to_irq(RX51_WL1251_IRQ_GPIO);
 	if (irq < 0)
@@ -952,10 +959,7 @@ static void __init rx51_init_wl1251(void)
 
 err_irq:
 	gpio_free(RX51_WL1251_IRQ_GPIO);
-
-err_power:
 	gpio_free(RX51_WL1251_POWER_GPIO);
-
 error:
 	printk(KERN_ERR "wl1251 board initialisation failed\n");
 	wl1251_pdata.set_power = NULL;
@@ -981,6 +985,6 @@ void __init rx51_peripherals_init(void)
 	if (partition)
 		omap2_hsmmc_init(mmc);
 
-	platform_device_register(&rx51_charger_device);
+	rx51_charger_init();
 }
 

@@ -257,5 +257,6 @@ bool _rtl92ce_phy_config_bb_with_headerfile(struct ieee80211_hw *hw,
 					    u8 configtype);
 bool _rtl92ce_phy_config_bb_with_pgheaderfile(struct ieee80211_hw *hw,
 					      u8 configtype);
+void rtl92ce_phy_set_bw_mode_callback(struct ieee80211_hw *hw);
 
 #endif

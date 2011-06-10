@@ -31,6 +31,17 @@ static int process_sdio_pending_irqs(struct mmc_card *card)
 {
 	int i, ret, count;
 	unsigned char pending;
+	struct sdio_func *func;
+
+	/*
+	 * Optimization, if there is only 1 function interrupt registered
+	 * call irq handler directly
+	 */
+	func = card->sdio_single_irq;
+	if (func) {
+		func->irq_handler(func);
+		return 1;
+	}
 
 	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_INTx, 0, &pending);
 	if (ret) {
@@ -42,7 +53,7 @@ static int process_sdio_pending_irqs(struct mmc_card *card)
 	count = 0;
 	for (i = 1; i <= 7; i++) {
 		if (pending & (1 << i)) {
-			struct sdio_func *func = card->sdio_func[i - 1];
+			func = card->sdio_func[i - 1];
 			if (!func) {
 				printk(KERN_WARNING "%s: pending IRQ for "
 					"non-existent function\n",
@@ -186,6 +197,24 @@ static int sdio_card_irq_put(struct mmc_card *card)
 	return 0;
 }
 
+/* If there is only 1 function registered set sdio_single_irq */
+static void sdio_single_irq_set(struct mmc_card *card)
+{
+	struct sdio_func *func;
+	int i;
+
+	card->sdio_single_irq = NULL;
+	if ((card->host->caps & MMC_CAP_SDIO_IRQ) &&
+	    card->host->sdio_irqs == 1)
+		for (i = 0; i < card->sdio_funcs; i++) {
+		       func = card->sdio_func[i];
+		       if (func && func->irq_handler) {
+			       card->sdio_single_irq = func;
+			       break;
+		       }
+	       }
+}
+
 /**
  *	sdio_claim_irq - claim the IRQ for a SDIO function
  *	@func: SDIO function
@@ -227,6 +256,7 @@ int sdio_claim_irq(struct sdio_func *func, sdio_irq_handler_t *handler)
 	ret = sdio_card_irq_get(func->card);
 	if (ret)
 		func->irq_handler = NULL;
+	sdio_single_irq_set(func->card);
 
 	return ret;
 }
@@ -251,6 +281,7 @@ int sdio_release_irq(struct sdio_func *func)
 	if (func->irq_handler) {
 		func->irq_handler = NULL;
 		sdio_card_irq_put(func->card);
+		sdio_single_irq_set(func->card);
 	}
 
 	ret = mmc_io_rw_direct(func->card, 0, 0, SDIO_CCCR_IENx, 0, &reg);

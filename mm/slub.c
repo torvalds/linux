@@ -1831,7 +1831,6 @@ load_freelist:
 	page->inuse = page->objects;
 	page->freelist = NULL;
 
-unlock_out:
 	slab_unlock(page);
 	c->tid = next_tid(c->tid);
 	local_irq_restore(flags);
@@ -1884,7 +1883,8 @@ debug:
 	deactivate_slab(s, c);
 	c->page = NULL;
 	c->node = NUMA_NO_NODE;
-	goto unlock_out;
+	local_irq_restore(flags);
+	return object;
 }
 
 /*

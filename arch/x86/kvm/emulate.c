@@ -47,38 +47,40 @@
 #define DstDI       (5<<1)	/* Destination is in ES:(E)DI */
 #define DstMem64    (6<<1)	/* 64bit memory operand */
 #define DstImmUByte (7<<1)	/* 8-bit unsigned immediate operand */
-#define DstMask     (7<<1)
+#define DstDX       (8<<1)	/* Destination is in DX register */
+#define DstMask     (0xf<<1)
 /* Source operand type. */
-#define SrcNone     (0<<4)	/* No source operand. */
-#define SrcReg      (1<<4)	/* Register operand. */
-#define SrcMem      (2<<4)	/* Memory operand. */
-#define SrcMem16    (3<<4)	/* Memory operand (16-bit). */
-#define SrcMem32    (4<<4)	/* Memory operand (32-bit). */
-#define SrcImm      (5<<4)	/* Immediate operand. */
-#define SrcImmByte  (6<<4)	/* 8-bit sign-extended immediate operand. */
-#define SrcOne      (7<<4)	/* Implied '1' */
-#define SrcImmUByte (8<<4)      /* 8-bit unsigned immediate operand. */
-#define SrcImmU     (9<<4)      /* Immediate operand, unsigned */
-#define SrcSI       (0xa<<4)	/* Source is in the DS:RSI */
-#define SrcImmFAddr (0xb<<4)	/* Source is immediate far address */
-#define SrcMemFAddr (0xc<<4)	/* Source is far address in memory */
-#define SrcAcc      (0xd<<4)	/* Source Accumulator */
-#define SrcImmU16   (0xe<<4)    /* Immediate operand, unsigned, 16 bits */
-#define SrcMask     (0xf<<4)
+#define SrcNone     (0<<5)	/* No source operand. */
+#define SrcReg      (1<<5)	/* Register operand. */
+#define SrcMem      (2<<5)	/* Memory operand. */
+#define SrcMem16    (3<<5)	/* Memory operand (16-bit). */
+#define SrcMem32    (4<<5)	/* Memory operand (32-bit). */
+#define SrcImm      (5<<5)	/* Immediate operand. */
+#define SrcImmByte  (6<<5)	/* 8-bit sign-extended immediate operand. */
+#define SrcOne      (7<<5)	/* Implied '1' */
+#define SrcImmUByte (8<<5)      /* 8-bit unsigned immediate operand. */
+#define SrcImmU     (9<<5)      /* Immediate operand, unsigned */
+#define SrcSI       (0xa<<5)	/* Source is in the DS:RSI */
+#define SrcImmFAddr (0xb<<5)	/* Source is immediate far address */
+#define SrcMemFAddr (0xc<<5)	/* Source is far address in memory */
+#define SrcAcc      (0xd<<5)	/* Source Accumulator */
+#define SrcImmU16   (0xe<<5)    /* Immediate operand, unsigned, 16 bits */
+#define SrcDX       (0xf<<5)	/* Source is in DX register */
+#define SrcMask     (0xf<<5)
 /* Generic ModRM decode. */
-#define ModRM       (1<<8)
+#define ModRM       (1<<9)
 /* Destination is only written; never read. */
-#define Mov         (1<<9)
-#define BitOp       (1<<10)
-#define MemAbs      (1<<11)      /* Memory operand is absolute displacement */
-#define String      (1<<12)     /* String instruction (rep capable) */
-#define Stack       (1<<13)     /* Stack instruction (push/pop) */
-#define GroupMask   (7<<14)     /* Opcode uses one of the group mechanisms */
-#define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
-#define GroupDual   (2<<14)     /* Alternate decoding of mod == 3 */
-#define Prefix      (3<<14)     /* Instruction varies with 66/f2/f3 prefix */
-#define RMExt       (4<<14)     /* Opcode extension in ModRM r/m if mod == 3 */
-#define Sse         (1<<17)     /* SSE Vector instruction */
+#define Mov         (1<<10)
+#define BitOp       (1<<11)
+#define MemAbs      (1<<12)      /* Memory operand is absolute displacement */
+#define String      (1<<13)     /* String instruction (rep capable) */
+#define Stack       (1<<14)     /* Stack instruction (push/pop) */
+#define GroupMask   (7<<15)     /* Opcode uses one of the group mechanisms */
+#define Group       (1<<15)     /* Bits 3:5 of modrm byte extend opcode */
+#define GroupDual   (2<<15)     /* Alternate decoding of mod == 3 */
+#define Prefix      (3<<15)     /* Instruction varies with 66/f2/f3 prefix */
+#define RMExt       (4<<15)     /* Opcode extension in ModRM r/m if mod == 3 */
+#define Sse         (1<<18)     /* SSE Vector instruction */
 /* Misc flags */
 #define Prot        (1<<21) /* instruction generates #UD if not in prot-mode */
 #define VendorSpecific (1<<22) /* Vendor specific instruction */
@@ -3154,8 +3156,8 @@ static struct opcode opcode_table[256] = {
 	I(DstReg | SrcMem | ModRM | Src2Imm, em_imul_3op),
 	I(SrcImmByte | Mov | Stack, em_push),
 	I(DstReg | SrcMem | ModRM | Src2ImmByte, em_imul_3op),
-	D2bvIP(DstDI | Mov | String, ins, check_perm_in), /* insb, insw/insd */
-	D2bvIP(SrcSI | ImplicitOps | String, outs, check_perm_out), /* outsb, outsw/outsd */
+	D2bvIP(DstDI | SrcDX | Mov | String, ins, check_perm_in), /* insb, insw/insd */
+	D2bvIP(SrcSI | DstDX | String, outs, check_perm_out), /* outsb, outsw/outsd */
 	/* 0x70 - 0x7F */
 	X16(D(SrcImmByte)),
 	/* 0x80 - 0x87 */
@@ -3212,8 +3214,8 @@ static struct opcode opcode_table[256] = {
 	/* 0xE8 - 0xEF */
 	D(SrcImm | Stack), D(SrcImm | ImplicitOps),
 	D(SrcImmFAddr | No64), D(SrcImmByte | ImplicitOps),
-	D2bvIP(SrcNone | DstAcc,     in,  check_perm_in),
-	D2bvIP(SrcAcc | ImplicitOps, out, check_perm_out),
+	D2bvIP(SrcDX | DstAcc, in,  check_perm_in),
+	D2bvIP(SrcAcc | DstDX, out, check_perm_out),
 	/* 0xF0 - 0xF7 */
 	N, DI(ImplicitOps, icebp), N, N,
 	DI(ImplicitOps | Priv, hlt), D(ImplicitOps),
@@ -3613,6 +3615,12 @@ done_prefixes:
 		memop.bytes = c->op_bytes + 2;
 		goto srcmem_common;
 		break;
+	case SrcDX:
+		c->src.type = OP_REG;
+		c->src.bytes = 2;
+		c->src.addr.reg = &c->regs[VCPU_REGS_RDX];
+		fetch_register_operand(&c->src);
+		break;
 	}
 
 	if (rc != X86EMUL_CONTINUE)
@@ -3681,6 +3689,12 @@ done_prefixes:
 			register_address(c, c->regs[VCPU_REGS_RDI]);
 		c->dst.addr.mem.seg = VCPU_SREG_ES;
 		c->dst.val = 0;
+		break;
+	case DstDX:
+		c->dst.type = OP_REG;
+		c->dst.bytes = 2;
+		c->dst.addr.reg = &c->regs[VCPU_REGS_RDX];
+		fetch_register_operand(&c->dst);
 		break;
 	case ImplicitOps:
 		/* Special instructions do their own operand decoding. */
@@ -4027,7 +4041,6 @@ special_insn:
 		break;
 	case 0xec: /* in al,dx */
 	case 0xed: /* in (e/r)ax,dx */
-		c->src.val = c->regs[VCPU_REGS_RDX];
 	do_io_in:
 		if (!pio_in_emulated(ctxt, ops, c->dst.bytes, c->src.val,
 				     &c->dst.val))
@@ -4035,7 +4048,6 @@ special_insn:
 		break;
 	case 0xee: /* out dx,al */
 	case 0xef: /* out dx,(e/r)ax */
-		c->dst.val = c->regs[VCPU_REGS_RDX];
 	do_io_out:
 		ops->pio_out_emulated(ctxt, c->src.bytes, c->dst.val,
 				      &c->src.val, 1);

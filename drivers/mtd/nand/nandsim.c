@@ -2383,7 +2383,9 @@ static int __init ns_init_module(void)
 		goto err_exit;
 
 	/* Register NAND partitions */
-	if ((retval = add_mtd_partitions(nsmtd, &nand->partitions[0], nand->nbparts)) != 0)
+	retval = mtd_device_register(nsmtd, &nand->partitions[0],
+				     nand->nbparts);
+	if (retval != 0)
 		goto err_exit;
 
         return 0;

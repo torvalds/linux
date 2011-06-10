@@ -29,7 +29,7 @@
 #include <linux/mm.h>
 #include <linux/omapfb.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 #include <plat/vrfb.h>
 
 #include "omapfb.h"
@@ -50,10 +50,12 @@ static ssize_t store_rotate_type(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct omapfb2_mem_region *rg;
-	enum omap_dss_rotation_type rot_type;
+	int rot_type;
 	int r;
 
-	rot_type = simple_strtoul(buf, NULL, 0);
+	r = kstrtoint(buf, 0, &rot_type);
+	if (r)
+		return r;
 
 	if (rot_type != OMAP_DSS_ROT_DMA && rot_type != OMAP_DSS_ROT_VRFB)
 		return -EINVAL;
@@ -102,14 +104,15 @@ static ssize_t store_mirror(struct device *dev,
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
-	unsigned long mirror;
+	int mirror;
 	int r;
 	struct fb_var_screeninfo new_var;
 
-	mirror = simple_strtoul(buf, NULL, 0);
+	r = kstrtoint(buf, 0, &mirror);
+	if (r)
+		return r;
 
-	if (mirror != 0 && mirror != 1)
-		return -EINVAL;
+	mirror = !!mirror;
 
 	if (!lock_fb_info(fbi))
 		return -ENODEV;
@@ -445,7 +448,11 @@ static ssize_t store_size(struct device *dev, struct device_attribute *attr,
 	int r;
 	int i;
 
-	size = PAGE_ALIGN(simple_strtoul(buf, NULL, 0));
+	r = kstrtoul(buf, 0, &size);
+	if (r)
+		return r;
+
+	size = PAGE_ALIGN(size);
 
 	if (!lock_fb_info(fbi))
 		return -ENODEV;

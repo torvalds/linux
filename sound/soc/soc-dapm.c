@@ -325,6 +325,7 @@ static int dapm_connect_mixer(struct snd_soc_dapm_context *dapm,
 }
 
 static int dapm_is_shared_kcontrol(struct snd_soc_dapm_context *dapm,
+	struct snd_soc_dapm_widget *kcontrolw,
 	const struct snd_kcontrol_new *kcontrol_new,
 	struct snd_kcontrol **kcontrol)
 {
@@ -334,6 +335,8 @@ static int dapm_is_shared_kcontrol(struct snd_soc_dapm_context *dapm,
 	*kcontrol = NULL;
 
 	list_for_each_entry(w, &dapm->card->widgets, list) {
+		if (w == kcontrolw || w->dapm != kcontrolw->dapm)
+			continue;
 		for (i = 0; i < w->num_kcontrols; i++) {
 			if (&w->kcontrol_news[i] == kcontrol_new) {
 				if (w->kcontrols)
@@ -468,7 +471,7 @@ static int dapm_new_mux(struct snd_soc_dapm_context *dapm,
 		return -EINVAL;
 	}
 
-	shared = dapm_is_shared_kcontrol(dapm, &w->kcontrol_news[0],
+	shared = dapm_is_shared_kcontrol(dapm, w, &w->kcontrol_news[0],
 					 &kcontrol);
 	if (kcontrol) {
 		wlist = kcontrol->private_data;
@@ -1110,7 +1113,7 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 	trace_snd_soc_dapm_start(card);
 
 	list_for_each_entry(d, &card->dapm_list, list)
-		if (d->n_widgets)
+		if (d->n_widgets || d->codec == NULL)
 			d->dev_power = 0;
 
 	/* Check which widgets we need to power and store them in

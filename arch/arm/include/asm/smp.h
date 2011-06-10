@@ -20,12 +20,6 @@
 
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
-/*
- * at the moment, there's not a big penalty for changing CPUs
- * (the >big< penalty is running SMP in the first place)
- */
-#define PROC_CHANGE_PENALTY		15
-
 struct seq_file;
 
 /*
@@ -76,6 +70,7 @@ extern void platform_smp_prepare_cpus(unsigned int);
  */
 struct secondary_data {
 	unsigned long pgdir;
+	unsigned long swapper_pg_dir;
 	void *stack;
 };
 extern struct secondary_data secondary_data;

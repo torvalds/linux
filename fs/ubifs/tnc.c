@@ -2557,11 +2557,11 @@ int ubifs_tnc_remove_nm(struct ubifs_info *c, const union ubifs_key *key,
 		if (err) {
 			/* Ensure the znode is dirtied */
 			if (znode->cnext || !ubifs_zn_dirty(znode)) {
-				    znode = dirty_cow_bottom_up(c, znode);
-				    if (IS_ERR(znode)) {
-					    err = PTR_ERR(znode);
-					    goto out_unlock;
-				    }
+				znode = dirty_cow_bottom_up(c, znode);
+				if (IS_ERR(znode)) {
+					err = PTR_ERR(znode);
+					goto out_unlock;
+				}
 			}
 			err = tnc_delete(c, znode, n);
 		}
@@ -2876,12 +2876,13 @@ static void tnc_destroy_cnext(struct ubifs_info *c)
  */
 void ubifs_tnc_close(struct ubifs_info *c)
 {
-	long clean_freed;
-
 	tnc_destroy_cnext(c);
 	if (c->zroot.znode) {
-		clean_freed = ubifs_destroy_tnc_subtree(c->zroot.znode);
-		atomic_long_sub(clean_freed, &ubifs_clean_zn_cnt);
+		long n;
+
+		ubifs_destroy_tnc_subtree(c->zroot.znode);
+		n = atomic_long_read(&c->clean_zn_cnt);
+		atomic_long_sub(n, &ubifs_clean_zn_cnt);
 	}
 	kfree(c->gap_lebs);
 	kfree(c->ilebs);

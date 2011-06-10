@@ -587,7 +587,7 @@ ar6k_cfg80211_connect_event(struct ar6_softc *ar, u16 channel,
                                 WLAN_STATUS_SUCCESS, GFP_KERNEL);
     } else {
         /* inform roam event to cfg80211 */
-        cfg80211_roamed(ar->arNetDev, bssid,
+	cfg80211_roamed(ar->arNetDev, ibss_channel, bssid,
                         assocReqIe, assocReqLen,
                         assocRespIe, assocRespLen,
                         GFP_KERNEL);
@@ -870,7 +870,8 @@ ar6k_cfg80211_scanComplete_event(struct ar6_softc *ar, int status)
     if(ar->scan_request)
     {
         /* Translate data to cfg80211 mgmt format */
-        wmi_iterate_nodes(ar->arWmi, ar6k_cfg80211_scan_node, ar->wdev->wiphy);
+	if (ar->arWmi)
+		wmi_iterate_nodes(ar->arWmi, ar6k_cfg80211_scan_node, ar->wdev->wiphy);
 
         cfg80211_scan_done(ar->scan_request,
             ((status & A_ECANCELED) || (status & A_EBUSY)) ? true : false);

@@ -35,22 +35,6 @@ const char *perf_event__name(unsigned int id)
 	return perf_event__names[id];
 }
 
-int perf_sample_size(u64 sample_type)
-{
-	u64 mask = sample_type & PERF_SAMPLE_MASK;
-	int size = 0;
-	int i;
-
-	for (i = 0; i < 64; i++) {
-		if (mask & (1ULL << i))
-			size++;
-	}
-
-	size *= sizeof(u64);
-
-	return size;
-}
-
 static struct perf_sample synth_sample = {
 	.pid	   = -1,
 	.tid	   = -1,
@@ -553,9 +537,18 @@ static int perf_event__process_kernel_mmap(union perf_event *event,
 			goto out_problem;
 
 		perf_event__set_kernel_mmap_len(event, machine->vmlinux_maps);
-		perf_session__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps,
-							 symbol_name,
-							 event->mmap.pgoff);
+
+		/*
+		 * Avoid using a zero address (kptr_restrict) for the ref reloc
+		 * symbol. Effectively having zero here means that at record
+		 * time /proc/sys/kernel/kptr_restrict was non zero.
+		 */
+		if (event->mmap.pgoff != 0) {
+			perf_session__set_kallsyms_ref_reloc_sym(machine->vmlinux_maps,
+								 symbol_name,
+								 event->mmap.pgoff);
+		}
+
 		if (machine__is_default_guest(machine)) {
 			/*
 			 * preload dso of guest kernel and modules

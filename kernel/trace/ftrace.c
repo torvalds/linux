@@ -109,12 +109,18 @@ ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip);
 static void ftrace_global_list_func(unsigned long ip,
 				    unsigned long parent_ip)
 {
-	struct ftrace_ops *op = rcu_dereference_raw(ftrace_global_list); /*see above*/
+	struct ftrace_ops *op;
 
+	if (unlikely(trace_recursion_test(TRACE_GLOBAL_BIT)))
+		return;
+
+	trace_recursion_set(TRACE_GLOBAL_BIT);
+	op = rcu_dereference_raw(ftrace_global_list); /*see above*/
 	while (op != &ftrace_list_end) {
 		op->func(ip, parent_ip);
 		op = rcu_dereference_raw(op->next); /*see above*/
 	};
+	trace_recursion_clear(TRACE_GLOBAL_BIT);
 }
 
 static void ftrace_pid_func(unsigned long ip, unsigned long parent_ip)
@@ -1638,12 +1644,12 @@ static void ftrace_startup_enable(int command)
 	ftrace_run_update_code(command);
 }
 
-static void ftrace_startup(struct ftrace_ops *ops, int command)
+static int ftrace_startup(struct ftrace_ops *ops, int command)
 {
 	bool hash_enable = true;
 
 	if (unlikely(ftrace_disabled))
-		return;
+		return -ENODEV;
 
 	ftrace_start_up++;
 	command |= FTRACE_ENABLE_CALLS;
@@ -1662,6 +1668,8 @@ static void ftrace_startup(struct ftrace_ops *ops, int command)
 		ftrace_hash_rec_enable(ops, 1);
 
 	ftrace_startup_enable(command);
+
+	return 0;
 }
 
 static void ftrace_shutdown(struct ftrace_ops *ops, int command)
@@ -2501,7 +2509,7 @@ static void __enable_ftrace_function_probe(void)
 
 	ret = __register_ftrace_function(&trace_probe_ops);
 	if (!ret)
-		ftrace_startup(&trace_probe_ops, 0);
+		ret = ftrace_startup(&trace_probe_ops, 0);
 
 	ftrace_probe_registered = 1;
 }
@@ -3466,7 +3474,11 @@ device_initcall(ftrace_nodyn_init);
 static inline int ftrace_init_dyn_debugfs(struct dentry *d_tracer) { return 0; }
 static inline void ftrace_startup_enable(int command) { }
 /* Keep as macros so we do not need to define the commands */
-# define ftrace_startup(ops, command)	do { } while (0)
+# define ftrace_startup(ops, command)			\
+	({						\
+		(ops)->flags |= FTRACE_OPS_FL_ENABLED;	\
+		0;					\
+	})
 # define ftrace_shutdown(ops, command)	do { } while (0)
 # define ftrace_startup_sysctl()	do { } while (0)
 # define ftrace_shutdown_sysctl()	do { } while (0)
@@ -3484,6 +3496,10 @@ ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip)
 {
 	struct ftrace_ops *op;
 
+	if (unlikely(trace_recursion_test(TRACE_INTERNAL_BIT)))
+		return;
+
+	trace_recursion_set(TRACE_INTERNAL_BIT);
 	/*
 	 * Some of the ops may be dynamically allocated,
 	 * they must be freed after a synchronize_sched().
@@ -3496,6 +3512,7 @@ ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip)
 		op = rcu_dereference_raw(op->next);
 	};
 	preempt_enable_notrace();
+	trace_recursion_clear(TRACE_INTERNAL_BIT);
 }
 
 static void clear_ftrace_swapper(void)
@@ -3799,7 +3816,7 @@ int register_ftrace_function(struct ftrace_ops *ops)
 
 	ret = __register_ftrace_function(ops);
 	if (!ret)
-		ftrace_startup(ops, 0);
+		ret = ftrace_startup(ops, 0);
 
 
  out_unlock:
@@ -4045,7 +4062,7 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 	ftrace_graph_return = retfunc;
 	ftrace_graph_entry = entryfunc;
 
-	ftrace_startup(&global_ops, FTRACE_START_FUNC_RET);
+	ret = ftrace_startup(&global_ops, FTRACE_START_FUNC_RET);
 
 out:
 	mutex_unlock(&ftrace_lock);

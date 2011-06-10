@@ -22,7 +22,7 @@ SND_SOC_DAPM_ADC("ADC", "wm1250-ev1 Capture", SND_SOC_NOPM, 0, 0),
 SND_SOC_DAPM_DAC("DAC", "wm1250-ev1 Playback", SND_SOC_NOPM, 0, 0),
 
 SND_SOC_DAPM_INPUT("WM1250 Input"),
-SND_SOC_DAPM_INPUT("WM1250 Output"),
+SND_SOC_DAPM_OUTPUT("WM1250 Output"),
 };
 
 static const struct snd_soc_dapm_route wm1250_ev1_dapm_routes[] = {

@@ -1570,14 +1570,8 @@ void *carl9170_alloc(size_t priv_size)
 	INIT_LIST_HEAD(&ar->vif_list);
 	init_completion(&ar->tx_flush);
 
-	/*
-	 * Note:
-	 * IBSS/ADHOC and AP mode are only enabled, if the firmware
-	 * supports these modes. The code which will add the
-	 * additional interface_modes is in fw.c.
-	 */
-	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-				     BIT(NL80211_IFTYPE_P2P_CLIENT);
+	/* firmware decides which modes we support */
+	hw->wiphy->interface_modes = 0;
 
 	hw->flags |= IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_REPORTS_TX_ACK_STATUS |

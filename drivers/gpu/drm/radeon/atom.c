@@ -652,12 +652,12 @@ static void atom_op_compare(atom_exec_context *ctx, int *ptr, int arg)
 
 static void atom_op_delay(atom_exec_context *ctx, int *ptr, int arg)
 {
-	uint8_t count = U8((*ptr)++);
+	unsigned count = U8((*ptr)++);
 	SDEBUG("   count: %d\n", count);
 	if (arg == ATOM_UNIT_MICROSEC)
 		udelay(count);
 	else
-		schedule_timeout_uninterruptible(msecs_to_jiffies(count));
+		msleep(count);
 }
 
 static void atom_op_div(atom_exec_context *ctx, int *ptr, int arg)

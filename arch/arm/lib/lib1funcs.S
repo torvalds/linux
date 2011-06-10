@@ -35,7 +35,7 @@ Boston, MA 02111-1307, USA.  */
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-
+#include <asm/unwind.h>
 
 .macro ARM_DIV_BODY dividend, divisor, result, curbit
 
@@ -207,6 +207,7 @@ Boston, MA 02111-1307, USA.  */
 
 ENTRY(__udivsi3)
 ENTRY(__aeabi_uidiv)
+UNWIND(.fnstart)
 
 	subs	r2, r1, #1
 	moveq	pc, lr
@@ -230,10 +231,12 @@ ENTRY(__aeabi_uidiv)
 	mov	r0, r0, lsr r2
 	mov	pc, lr
 
+UNWIND(.fnend)
 ENDPROC(__udivsi3)
 ENDPROC(__aeabi_uidiv)
 
 ENTRY(__umodsi3)
+UNWIND(.fnstart)
 
 	subs	r2, r1, #1			@ compare divisor with 1
 	bcc	Ldiv0
@@ -247,10 +250,12 @@ ENTRY(__umodsi3)
 
 	mov	pc, lr
 
+UNWIND(.fnend)
 ENDPROC(__umodsi3)
 
 ENTRY(__divsi3)
 ENTRY(__aeabi_idiv)
+UNWIND(.fnstart)
 
 	cmp	r1, #0
 	eor	ip, r0, r1			@ save the sign of the result.
@@ -287,10 +292,12 @@ ENTRY(__aeabi_idiv)
 	rsbmi	r0, r0, #0
 	mov	pc, lr
 
+UNWIND(.fnend)
 ENDPROC(__divsi3)
 ENDPROC(__aeabi_idiv)
 
 ENTRY(__modsi3)
+UNWIND(.fnstart)
 
 	cmp	r1, #0
 	beq	Ldiv0
@@ -310,11 +317,14 @@ ENTRY(__modsi3)
 	rsbmi	r0, r0, #0
 	mov	pc, lr
 
+UNWIND(.fnend)
 ENDPROC(__modsi3)
 
 #ifdef CONFIG_AEABI
 
 ENTRY(__aeabi_uidivmod)
+UNWIND(.fnstart)
+UNWIND(.save {r0, r1, ip, lr}	)
 
 	stmfd	sp!, {r0, r1, ip, lr}
 	bl	__aeabi_uidiv
@@ -323,10 +333,12 @@ ENTRY(__aeabi_uidivmod)
 	sub	r1, r1, r3
 	mov	pc, lr
 
+UNWIND(.fnend)
 ENDPROC(__aeabi_uidivmod)
 
 ENTRY(__aeabi_idivmod)
-
+UNWIND(.fnstart)
+UNWIND(.save {r0, r1, ip, lr}	)
 	stmfd	sp!, {r0, r1, ip, lr}
 	bl	__aeabi_idiv
 	ldmfd	sp!, {r1, r2, ip, lr}
@@ -334,15 +346,18 @@ ENTRY(__aeabi_idivmod)
 	sub	r1, r1, r3
 	mov	pc, lr
 
+UNWIND(.fnend)
 ENDPROC(__aeabi_idivmod)
 
 #endif
 
 Ldiv0:
-
+UNWIND(.fnstart)
+UNWIND(.pad #4)
+UNWIND(.save {lr})
 	str	lr, [sp, #-8]!
 	bl	__div0
 	mov	r0, #0			@ About as wrong as it could be.
 	ldr	pc, [sp], #8
-
-
+UNWIND(.fnend)
+ENDPROC(Ldiv0)

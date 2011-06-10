@@ -28,7 +28,7 @@ static void change_page_attr(unsigned long addr, int numpages,
 
 		pte = *ptep;
 		pte = set(pte);
-		ptep_invalidate(&init_mm, addr, ptep);
+		__ptep_ipte(addr, ptep);
 		*ptep = pte;
 		addr += PAGE_SIZE;
 	}

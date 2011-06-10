@@ -659,15 +659,10 @@ static int bf5xx_nand_hw_init(struct bf5xx_nand_info *info)
 static int __devinit bf5xx_nand_add_partition(struct bf5xx_nand_info *info)
 {
 	struct mtd_info *mtd = &info->mtd;
-
-#ifdef CONFIG_MTD_PARTITIONS
 	struct mtd_partition *parts = info->platform->partitions;
 	int nr = info->platform->nr_partitions;
 
-	return add_mtd_partitions(mtd, parts, nr);
-#else
-	return add_mtd_device(mtd);
-#endif
+	return mtd_device_register(mtd, parts, nr);
 }
 
 static int __devexit bf5xx_nand_remove(struct platform_device *pdev)

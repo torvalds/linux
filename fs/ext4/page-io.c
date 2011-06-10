@@ -203,45 +203,28 @@ static void ext4_end_bio(struct bio *bio, int error)
 	for (i = 0; i < io_end->num_io_pages; i++) {
 		struct page *page = io_end->pages[i]->p_page;
 		struct buffer_head *bh, *head;
-		int partial_write = 0;
+		loff_t offset;
+		loff_t io_end_offset;
 
-		head = page_buffers(page);
-		if (error)
+		if (error) {
 			SetPageError(page);
-		BUG_ON(!head);
-		if (head->b_size != PAGE_CACHE_SIZE) {
-			loff_t offset;
-			loff_t io_end_offset = io_end->offset + io_end->size;
+			set_bit(AS_EIO, &page->mapping->flags);
+			head = page_buffers(page);
+			BUG_ON(!head);
+
+			io_end_offset = io_end->offset + io_end->size;
 
 			offset = (sector_t) page->index << PAGE_CACHE_SHIFT;
 			bh = head;
 			do {
 				if ((offset >= io_end->offset) &&
-				    (offset+bh->b_size <= io_end_offset)) {
-					if (error)
-						buffer_io_error(bh);
+				    (offset+bh->b_size <= io_end_offset))
+					buffer_io_error(bh);
 
-				}
-				if (buffer_delay(bh))
-					partial_write = 1;
-				else if (!buffer_mapped(bh))
-					clear_buffer_dirty(bh);
-				else if (buffer_dirty(bh))
-					partial_write = 1;
 				offset += bh->b_size;
 				bh = bh->b_this_page;
 			} while (bh != head);
 		}
-
-		/*
-		 * If this is a partial write which happened to make
-		 * all buffers uptodate then we can optimize away a
-		 * bogus readpage() for the next read(). Here we
-		 * 'discover' whether the page went uptodate as a
-		 * result of this (potentially partial) write.
-		 */
-		if (!partial_write)
-			SetPageUptodate(page);
 
 		put_io_page(io_end->pages[i]);
 	}
