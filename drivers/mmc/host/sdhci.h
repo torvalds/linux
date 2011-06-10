@@ -264,6 +264,8 @@ struct sdhci_host {
 #define SDHCI_QUIRK_NO_SDIO_IRQ				(1LL<<36)
 /* Controller should only use high-speed mode */
 #define SDHCI_QUIRK_FORCE_HIGH_SPEED_MODE		(1LL<<37)
+/* Controller allows runtime enable / disable */
+#define SDHCI_QUIRK_RUNTIME_DISABLE			(1LL<<38)
 
 	int			irq;		/* Device IRQ */
 	void __iomem *		ioaddr;		/* Mapped address */
