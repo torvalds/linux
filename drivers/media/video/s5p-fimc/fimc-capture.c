@@ -30,6 +30,44 @@
 #include "fimc-mdevice.h"
 #include "fimc-core.h"
 
+static int fimc_init_capture(struct fimc_dev *fimc)
+{
+	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
+	struct fimc_sensor_info *sensor;
+	unsigned long flags;
+	int ret = 0;
+
+	if (fimc->pipeline.sensor == NULL || ctx == NULL)
+		return -ENXIO;
+	if (ctx->s_frame.fmt == NULL)
+		return -EINVAL;
+
+	sensor = v4l2_get_subdev_hostdata(fimc->pipeline.sensor);
+
+	spin_lock_irqsave(&fimc->slock, flags);
+	fimc_prepare_dma_offset(ctx, &ctx->d_frame);
+	fimc_set_yuv_order(ctx);
+
+	fimc_hw_set_camera_polarity(fimc, sensor->pdata);
+	fimc_hw_set_camera_type(fimc, sensor->pdata);
+	fimc_hw_set_camera_source(fimc, sensor->pdata);
+	fimc_hw_set_camera_offset(fimc, &ctx->s_frame);
+
+	ret = fimc_set_scaler_info(ctx);
+	if (!ret) {
+		fimc_hw_set_input_path(ctx);
+		fimc_hw_set_prescaler(ctx);
+		fimc_hw_set_mainscaler(ctx);
+		fimc_hw_set_target_format(ctx);
+		fimc_hw_set_rotation(ctx);
+		fimc_hw_set_effect(ctx);
+		fimc_hw_set_output_path(ctx);
+		fimc_hw_set_out_dma(ctx);
+	}
+	spin_unlock_irqrestore(&fimc->slock, flags);
+	return ret;
+}
+
 static void fimc_capture_state_cleanup(struct fimc_dev *fimc)
 {
 	struct fimc_vid_cap *cap = &fimc->vid_cap;
@@ -85,46 +123,16 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct fimc_ctx *ctx = q->drv_priv;
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct s5p_fimc_isp_info *isp_info;
+	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
 	int min_bufs;
 	int ret;
 
 	fimc_hw_reset(fimc);
+	vid_cap->frame_count = 0;
 
-	ret = v4l2_subdev_call(fimc->vid_cap.sd, video, s_stream, 1);
-	if (ret && ret != -ENOIOCTLCMD)
-		goto error;
-
-	ret = fimc_prepare_config(ctx, ctx->state);
+	ret = fimc_init_capture(fimc);
 	if (ret)
 		goto error;
-
-	isp_info = &fimc->pdata->isp_info[fimc->vid_cap.input_index];
-	fimc_hw_set_camera_type(fimc, isp_info);
-	fimc_hw_set_camera_source(fimc, isp_info);
-	fimc_hw_set_camera_offset(fimc, &ctx->s_frame);
-
-	if (ctx->state & FIMC_PARAMS) {
-		ret = fimc_set_scaler_info(ctx);
-		if (ret) {
-			err("Scaler setup error");
-			goto error;
-		}
-		fimc_hw_set_input_path(ctx);
-		fimc_hw_set_prescaler(ctx);
-		fimc_hw_set_mainscaler(ctx);
-		fimc_hw_set_target_format(ctx);
-		fimc_hw_set_rotation(ctx);
-		fimc_hw_set_effect(ctx);
-	}
-
-	fimc_hw_set_output_path(ctx);
-	fimc_hw_set_out_dma(ctx);
-
-	INIT_LIST_HEAD(&fimc->vid_cap.pending_buf_q);
-	INIT_LIST_HEAD(&fimc->vid_cap.active_buf_q);
-	fimc->vid_cap.frame_count = 0;
-	fimc->vid_cap.buf_index = 0;
 
 	set_bit(ST_CAPT_PEND, &fimc->state);
 

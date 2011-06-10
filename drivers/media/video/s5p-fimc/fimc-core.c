@@ -476,7 +476,7 @@ int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
 }
 
 /* Set order for 1 and 2 plane YCBCR 4:2:2 formats. */
-static void fimc_set_yuv_order(struct fimc_ctx *ctx)
+void fimc_set_yuv_order(struct fimc_ctx *ctx)
 {
 	/* The one only mode supported in SoC. */
 	ctx->in_order_2p = S5P_FIMC_LSB_CRCB;
@@ -518,7 +518,7 @@ static void fimc_set_yuv_order(struct fimc_ctx *ctx)
 	dbg("ctx->out_order_1p= %d", ctx->out_order_1p);
 }
 
-static void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f)
+void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f)
 {
 	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
 	u32 i, depth = 0;
