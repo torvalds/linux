@@ -1198,6 +1198,7 @@ struct iwl_bus;
  * @apm_config: will be called during the config of the APM configuration
  * @set_drv_data: set the priv pointer to the bus layer
  * @get_dev: returns the device struct
+ * @get_irq: returns the irq number
  * @get_hw_id: prints the hw_id in the provided buffer
  * @write8: write a byte to register at offset ofs
  * @write32: write a dword to register at offset ofs
@@ -1208,6 +1209,7 @@ struct iwl_bus_ops {
 	void (*apm_config)(struct iwl_bus *bus);
 	void (*set_drv_data)(struct iwl_bus *bus, void *priv);
 	struct device *(*get_dev)(const struct iwl_bus *bus);
+	unsigned int (*get_irq)(const struct iwl_bus *bus);
 	void (*get_hw_id)(struct iwl_bus *bus, char buf[], int buf_len);
 	void (*write8)(struct iwl_bus *bus, u32 ofs, u8 val);
 	void (*write32)(struct iwl_bus *bus, u32 ofs, u32 val);

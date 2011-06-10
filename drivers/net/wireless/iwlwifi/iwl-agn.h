@@ -125,7 +125,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data);
 static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 {
 	/* wait to make sure we flush pending tasklet*/
-	synchronize_irq(priv->pci_dev->irq);
+	synchronize_irq(priv->bus.ops->get_irq(&priv->bus));
 	tasklet_kill(&priv->irq_tasklet);
 }
 

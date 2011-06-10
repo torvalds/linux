@@ -141,6 +141,11 @@ static struct device *iwl_pci_get_dev(const struct iwl_bus *bus)
 	return &(IWL_BUS_GET_PCI_DEV(bus)->dev);
 }
 
+static unsigned int iwl_pci_get_irq(const struct iwl_bus *bus)
+{
+	return IWL_BUS_GET_PCI_DEV(bus)->irq;
+}
+
 static void iwl_pci_get_hw_id(struct iwl_bus *bus, char buf[],
 			      int buf_len)
 {
@@ -171,6 +176,7 @@ static struct iwl_bus_ops pci_ops = {
 	.apm_config = iwl_pci_apm_config,
 	.set_drv_data = iwl_pci_set_drv_data,
 	.get_dev = iwl_pci_get_dev,
+	.get_irq = iwl_pci_get_irq,
 	.get_hw_id = iwl_pci_get_hw_id,
 	.write8 = iwl_pci_write8,
 	.write32 = iwl_pci_write32,
