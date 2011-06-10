@@ -191,7 +191,6 @@ static int buffer_prepare(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct fimc_ctx *ctx = vq->drv_priv;
-	struct v4l2_device *v4l2_dev = &ctx->fimc_dev->m2m.v4l2_dev;
 	int i;
 
 	if (!ctx->d_frame.fmt || vq->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
@@ -201,7 +200,8 @@ static int buffer_prepare(struct vb2_buffer *vb)
 		unsigned long size = get_plane_size(&ctx->d_frame, i);
 
 		if (vb2_plane_size(vb, i) < size) {
-			v4l2_err(v4l2_dev, "User buffer too small (%ld < %ld)\n",
+			v4l2_err(ctx->fimc_dev->vid_cap.vfd,
+				 "User buffer too small (%ld < %ld)\n",
 				 vb2_plane_size(vb, i), size);
 			return -EINVAL;
 		}
@@ -413,7 +413,8 @@ static int fimc_cap_s_fmt_mplane(struct file *file, void *priv,
 	pix = &f->fmt.pix_mp;
 	frame->fmt = find_format(f, FMT_FLAGS_M2M | FMT_FLAGS_CAM);
 	if (!frame->fmt) {
-		err("fimc target format not found\n");
+		v4l2_err(fimc->vid_cap.vfd,
+			 "Not supported capture (FIMC target) color format\n");
 		return -EINVAL;
 	}
 
@@ -473,7 +474,7 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 		return -EBUSY;
 
 	if (!(ctx->state & FIMC_DST_FMT)) {
-		v4l2_err(&fimc->vid_cap.v4l2_dev, "Format is not set\n");
+		v4l2_err(fimc->vid_cap.vfd, "Format is not set\n");
 		return -EINVAL;
 	}
 
@@ -603,9 +604,8 @@ static int fimc_cap_s_crop(struct file *file, void *fh,
 		return ret;
 
 	if (!(ctx->state & FIMC_DST_FMT)) {
-		v4l2_err(&fimc->vid_cap.v4l2_dev,
-			 "Capture color format not set\n");
-		return -EINVAL; /* TODO: make sure this is the right value */
+		v4l2_err(fimc->vid_cap.vfd, "Capture format is not set\n");
+		return -EINVAL;
 	}
 
 	f = &ctx->s_frame;
@@ -614,7 +614,7 @@ static int fimc_cap_s_crop(struct file *file, void *fh,
 				      ctx->d_frame.width, ctx->d_frame.height,
 				      ctx->rotation);
 	if (ret) {
-		v4l2_err(&fimc->vid_cap.v4l2_dev, "Out of the scaler range\n");
+		v4l2_err(fimc->vid_cap.vfd, "Out of the scaler range\n");
 		return ret;
 	}
 
@@ -658,16 +658,16 @@ static const struct v4l2_ioctl_ops fimc_capture_ioctl_ops = {
 };
 
 /* fimc->lock must be already initialized */
-int fimc_register_capture_device(struct fimc_dev *fimc)
+int fimc_register_capture_device(struct fimc_dev *fimc,
+				 struct v4l2_device *v4l2_dev)
 {
-	struct v4l2_device *v4l2_dev = &fimc->vid_cap.v4l2_dev;
 	struct video_device *vfd;
 	struct fimc_vid_cap *vid_cap;
 	struct fimc_ctx *ctx;
 	struct v4l2_format f;
 	struct fimc_frame *fr;
 	struct vb2_queue *q;
-	int ret;
+	int ret = -ENOMEM;
 
 	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
 	if (!ctx)
@@ -685,20 +685,14 @@ int fimc_register_capture_device(struct fimc_dev *fimc)
 	fr->width = fr->f_width = fr->o_width = 640;
 	fr->height = fr->f_height = fr->o_height = 480;
 
-	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name),
-		 "%s.capture", dev_name(&fimc->pdev->dev));
-
-	ret = v4l2_device_register(NULL, v4l2_dev);
-	if (ret)
-		goto err_info;
-
 	vfd = video_device_alloc();
 	if (!vfd) {
 		v4l2_err(v4l2_dev, "Failed to allocate video device\n");
-		goto err_v4l2_reg;
+		goto err_vd_alloc;
 	}
 
-	strlcpy(vfd->name, v4l2_dev->name, sizeof(vfd->name));
+	snprintf(vfd->name, sizeof(vfd->name), "%s.capture",
+		 dev_name(&fimc->pdev->dev));
 
 	vfd->fops	= &fimc_capture_fops;
 	vfd->ioctl_ops	= &fimc_capture_ioctl_ops;
@@ -741,11 +735,8 @@ int fimc_register_capture_device(struct fimc_dev *fimc)
 
 err_ent:
 	video_device_release(vfd);
-err_v4l2_reg:
-	v4l2_device_unregister(v4l2_dev);
-err_info:
+err_vd_alloc:
 	kfree(ctx);
-	dev_err(&fimc->pdev->dev, "failed to install\n");
 	return ret;
 }
 

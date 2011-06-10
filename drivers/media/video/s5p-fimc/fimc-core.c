@@ -236,10 +236,11 @@ static int fimc_get_scaler_factor(u32 src, u32 tar, u32 *ratio, u32 *shift)
 
 int fimc_set_scaler_info(struct fimc_ctx *ctx)
 {
+	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
+	struct device *dev = &ctx->fimc_dev->pdev->dev;
 	struct fimc_scaler *sc = &ctx->scaler;
 	struct fimc_frame *s_frame = &ctx->s_frame;
 	struct fimc_frame *d_frame = &ctx->d_frame;
-	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
 	int tx, ty, sx, sy;
 	int ret;
 
@@ -251,15 +252,14 @@ int fimc_set_scaler_info(struct fimc_ctx *ctx)
 		ty = d_frame->height;
 	}
 	if (tx <= 0 || ty <= 0) {
-		v4l2_err(&ctx->fimc_dev->m2m.v4l2_dev,
-			"invalid target size: %d x %d", tx, ty);
+		dev_err(dev, "Invalid target size: %dx%d", tx, ty);
 		return -EINVAL;
 	}
 
 	sx = s_frame->width;
 	sy = s_frame->height;
 	if (sx <= 0 || sy <= 0) {
-		err("invalid source size: %d x %d", sx, sy);
+		dev_err(dev, "Invalid source size: %dx%d", sx, sy);
 		return -EINVAL;
 	}
 	sc->real_width = sx;
@@ -898,7 +898,7 @@ int fimc_vidioc_try_fmt_mplane(struct file *file, void *priv,
 	mask = is_output ? FMT_FLAGS_M2M : FMT_FLAGS_M2M | FMT_FLAGS_CAM;
 	fmt = find_format(f, mask);
 	if (!fmt) {
-		v4l2_err(&fimc->m2m.v4l2_dev, "Fourcc format (0x%X) invalid.\n",
+		v4l2_err(fimc->v4l2_dev, "Fourcc format (0x%X) invalid.\n",
 			 pix->pixelformat);
 		return -EINVAL;
 	}
@@ -973,7 +973,7 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *priv,
 	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, f->type);
 
 	if (vb2_is_busy(vq)) {
-		v4l2_err(&fimc->m2m.v4l2_dev, "queue (%d) busy\n", f->type);
+		v4l2_err(fimc->m2m.vfd, "queue (%d) busy\n", f->type);
 		return -EBUSY;
 	}
 
@@ -982,7 +982,7 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *priv,
 	} else if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		frame = &ctx->d_frame;
 	} else {
-		v4l2_err(&fimc->m2m.v4l2_dev,
+		v4l2_err(fimc->m2m.vfd,
 			 "Wrong buffer/video queue type (%d)\n", f->type);
 		return -EINVAL;
 	}
@@ -1110,7 +1110,7 @@ int fimc_vidioc_g_ctrl(struct file *file, void *priv,
 			return v4l2_subdev_call(fimc->vid_cap.sd, core,
 						g_ctrl, ctrl);
 		} else {
-			v4l2_err(&fimc->m2m.v4l2_dev, "Invalid control\n");
+			v4l2_err(fimc->m2m.vfd, "Invalid control\n");
 			return -EINVAL;
 		}
 	}
@@ -1128,8 +1128,7 @@ int check_ctrl_val(struct fimc_ctx *ctx,  struct v4l2_control *ctrl)
 
 	if (ctrl->value < c->minimum || ctrl->value > c->maximum
 		|| (c->step != 0 && ctrl->value % c->step != 0)) {
-		v4l2_err(&ctx->fimc_dev->m2m.v4l2_dev,
-		"Invalid control value\n");
+		v4l2_err(ctx->fimc_dev->m2m.vfd, "Invalid control value\n");
 		return -ERANGE;
 	}
 
@@ -1165,7 +1164,7 @@ int fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_control *ctrl)
 		}
 
 		if (ret) {
-			v4l2_err(&fimc->m2m.v4l2_dev, "Out of scaler range\n");
+			v4l2_err(fimc->m2m.vfd, "Out of scaler range\n");
 			return -EINVAL;
 		}
 
@@ -1177,7 +1176,7 @@ int fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_control *ctrl)
 		break;
 
 	default:
-		v4l2_err(&fimc->m2m.v4l2_dev, "Invalid control\n");
+		v4l2_err(fimc->v4l2_dev, "Invalid control\n");
 		return -EINVAL;
 	}
 
@@ -1245,7 +1244,7 @@ int fimc_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 	int i;
 
 	if (cr->c.top < 0 || cr->c.left < 0) {
-		v4l2_err(&fimc->m2m.v4l2_dev,
+		v4l2_err(fimc->m2m.vfd,
 			"doesn't support negative values for top & left\n");
 		return -EINVAL;
 	}
@@ -1326,7 +1325,7 @@ static int fimc_m2m_s_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 						      ctx->rotation);
 		}
 		if (ret) {
-			v4l2_err(&fimc->m2m.v4l2_dev, "Out of scaler range\n");
+			v4l2_err(fimc->m2m.vfd, "Out of scaler range\n");
 			return -EINVAL;
 		}
 	}
@@ -1494,30 +1493,23 @@ static struct v4l2_m2m_ops m2m_ops = {
 	.job_abort	= fimc_job_abort,
 };
 
-int fimc_register_m2m_device(struct fimc_dev *fimc)
+int fimc_register_m2m_device(struct fimc_dev *fimc,
+			     struct v4l2_device *v4l2_dev)
 {
 	struct video_device *vfd;
 	struct platform_device *pdev;
-	struct v4l2_device *v4l2_dev;
 	int ret = 0;
 
 	if (!fimc)
 		return -ENODEV;
 
 	pdev = fimc->pdev;
-	v4l2_dev = &fimc->m2m.v4l2_dev;
-
-	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name),
-		 "%s.m2m", dev_name(&pdev->dev));
-
-	ret = v4l2_device_register(&pdev->dev, v4l2_dev);
-	if (ret)
-		goto err_m2m_r1;
+	fimc->v4l2_dev = v4l2_dev;
 
 	vfd = video_device_alloc();
 	if (!vfd) {
 		v4l2_err(v4l2_dev, "Failed to allocate video device\n");
-		goto err_m2m_r1;
+		return -ENOMEM;
 	}
 
 	vfd->fops	= &fimc_m2m_fops;
@@ -1527,17 +1519,15 @@ int fimc_register_m2m_device(struct fimc_dev *fimc)
 	vfd->release	= video_device_release;
 	vfd->lock	= &fimc->lock;
 
-	snprintf(vfd->name, sizeof(vfd->name), "%s:m2m", dev_name(&pdev->dev));
-
+	snprintf(vfd->name, sizeof(vfd->name), "%s.m2m", dev_name(&pdev->dev));
 	video_set_drvdata(vfd, fimc);
-	platform_set_drvdata(pdev, fimc);
 
 	fimc->m2m.vfd = vfd;
 	fimc->m2m.m2m_dev = v4l2_m2m_init(&m2m_ops);
 	if (IS_ERR(fimc->m2m.m2m_dev)) {
 		v4l2_err(v4l2_dev, "failed to initialize v4l2-m2m device\n");
 		ret = PTR_ERR(fimc->m2m.m2m_dev);
-		goto err_m2m_r2;
+		goto err_init;
 	}
 
 	ret = media_entity_init(&vfd->entity, 0, NULL, 0);
@@ -1545,11 +1535,8 @@ int fimc_register_m2m_device(struct fimc_dev *fimc)
 		return 0;
 
 	v4l2_m2m_release(fimc->m2m.m2m_dev);
-err_m2m_r2:
+err_init:
 	video_device_release(fimc->m2m.vfd);
-err_m2m_r1:
-	v4l2_device_unregister(v4l2_dev);
-
 	return ret;
 }
 
@@ -1560,7 +1547,6 @@ void fimc_unregister_m2m_device(struct fimc_dev *fimc)
 
 	if (fimc->m2m.m2m_dev)
 		v4l2_m2m_release(fimc->m2m.m2m_dev);
-	v4l2_device_unregister(&fimc->m2m.v4l2_dev);
 	if (fimc->m2m.vfd) {
 		media_entity_cleanup(&fimc->m2m.vfd->entity);
 		/* Can also be called if video device wasn't registered */

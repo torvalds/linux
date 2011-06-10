@@ -281,14 +281,12 @@ struct fimc_frame {
 /**
  * struct fimc_m2m_device - v4l2 memory-to-memory device data
  * @vfd: the video device node for v4l2 m2m mode
- * @v4l2_dev: v4l2 device for m2m mode
  * @m2m_dev: v4l2 memory-to-memory device data
  * @ctx: hardware context data
  * @refcnt: the reference counter
  */
 struct fimc_m2m_device {
 	struct video_device	*vfd;
-	struct v4l2_device	v4l2_dev;
 	struct v4l2_m2m_dev	*m2m_dev;
 	struct fimc_ctx		*ctx;
 	int			refcnt;
@@ -298,7 +296,6 @@ struct fimc_m2m_device {
  * struct fimc_vid_cap - camera capture device information
  * @ctx: hardware context data
  * @vfd: video device node for camera capture mode
- * @v4l2_dev: v4l2_device struct to manage subdevs
  * @sd: pointer to camera sensor subdevice currently in use
  * @vd_pad: fimc video capture node pad
  * @fmt: Media Bus format configured at selected image sensor
@@ -316,7 +313,6 @@ struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
 	struct vb2_alloc_ctx		*alloc_ctx;
 	struct video_device		*vfd;
-	struct v4l2_device		v4l2_dev;
 	struct v4l2_subdev		*sd;;
 	struct media_pad		vd_pad;
 	struct v4l2_mbus_framefmt	fmt;
@@ -407,6 +403,7 @@ struct fimc_ctx;
  * @regs_res:	the resource claimed for IO registers
  * @irq:	FIMC interrupt number
  * @irq_queue:	interrupt handler waitqueue
+ * @v4l2_dev:	root v4l2_device
  * @m2m:	memory-to-memory V4L2 device information
  * @vid_cap:	camera capture device information
  * @state:	flags used to synchronize m2m and capture mode operation
@@ -425,6 +422,7 @@ struct fimc_dev {
 	struct resource			*regs_res;
 	int				irq;
 	wait_queue_head_t		irq_queue;
+	struct v4l2_device		*v4l2_dev;
 	struct fimc_m2m_device		m2m;
 	struct fimc_vid_cap		vid_cap;
 	unsigned long			state;
@@ -569,7 +567,7 @@ static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
 	} else if (V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE == type) {
 		frame = &ctx->d_frame;
 	} else {
-		v4l2_err(&ctx->fimc_dev->m2m.v4l2_dev,
+		v4l2_err(ctx->fimc_dev->v4l2_dev,
 			"Wrong buffer/video queue type (%d)\n", type);
 		return ERR_PTR(-EINVAL);
 	}
@@ -644,11 +642,14 @@ int fimc_set_scaler_info(struct fimc_ctx *ctx);
 int fimc_prepare_config(struct fimc_ctx *ctx, u32 flags);
 int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
 		      struct fimc_frame *frame, struct fimc_addr *paddr);
-int fimc_register_m2m_device(struct fimc_dev *fimc);
+int fimc_register_m2m_device(struct fimc_dev *fimc,
+			     struct v4l2_device *v4l2_dev);
+void fimc_unregister_m2m_device(struct fimc_dev *fimc);
 
 /* -----------------------------------------------------*/
 /* fimc-capture.c					*/
-int fimc_register_capture_device(struct fimc_dev *fimc);
+int fimc_register_capture_device(struct fimc_dev *fimc,
+				 struct v4l2_device *v4l2_dev);
 void fimc_unregister_capture_device(struct fimc_dev *fimc);
 int fimc_vid_cap_buf_queue(struct fimc_dev *fimc,
 			     struct fimc_vid_buffer *fimc_vb);
