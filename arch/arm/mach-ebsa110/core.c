@@ -30,10 +30,7 @@
 
 #include <asm/mach/time.h>
 
-#define IRQ_MASK		0xfe000000	/* read */
-#define IRQ_MSET		0xfe000000	/* write */
-#define IRQ_STAT		0xff000000	/* read */
-#define IRQ_MCLR		0xff000000	/* write */
+#include "core.h"
 
 static void ebsa110_mask_irq(struct irq_data *d)
 {
