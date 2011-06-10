@@ -1031,7 +1031,7 @@ static int __devinit snd_lx6464es_create(struct snd_card *card,
 	chip->port_dsp_bar = pci_ioremap_bar(pci, 2);
 
 	err = request_irq(pci->irq, lx_interrupt, IRQF_SHARED,
-			  card_name, chip);
+			  KBUILD_MODNAME, chip);
 	if (err) {
 		snd_printk(KERN_ERR LXP "unable to grab IRQ %d\n", pci->irq);
 		goto request_irq_failed;

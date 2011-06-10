@@ -2377,7 +2377,7 @@ static int __devinit snd_via82xx_create(struct snd_card *card,
 			chip_type == TYPE_VIA8233 ?
 			snd_via8233_interrupt :	snd_via686_interrupt,
 			IRQF_SHARED,
-			card->driver, chip)) {
+			KBUILD_MODNAME, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_via82xx_free(chip);
 		return -EBUSY;

@@ -1925,7 +1925,7 @@ static int hw_card_start(struct hw *hw)
 
 	if (hw->irq < 0) {
 		err = request_irq(pci->irq, ct_20k2_interrupt, IRQF_SHARED,
-				  "ctxfi", hw);
+				  KBUILD_MODNAME, hw);
 		if (err < 0) {
 			printk(KERN_ERR "XFi: Cannot get irq %d\n", pci->irq);
 			goto error2;

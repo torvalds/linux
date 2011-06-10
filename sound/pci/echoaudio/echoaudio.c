@@ -1995,7 +1995,7 @@ static __devinit int snd_echo_create(struct snd_card *card,
 		ioremap_nocache(chip->dsp_registers_phys, sz);
 
 	if (request_irq(pci->irq, snd_echo_interrupt, IRQF_SHARED,
-			ECHOCARD_NAME, chip)) {
+			KBUILD_MODNAME, chip)) {
 		snd_echo_free(chip);
 		snd_printk(KERN_ERR "cannot grab irq\n");
 		return -EBUSY;
@@ -2286,7 +2286,7 @@ static int snd_echo_resume(struct pci_dev *pci)
 	kfree(commpage_bak);
 
 	if (request_irq(pci->irq, snd_echo_interrupt, IRQF_SHARED,
-			ECHOCARD_NAME, chip)) {
+			KBUILD_MODNAME, chip)) {
 		snd_echo_free(chip);
 		snd_printk(KERN_ERR "cannot grab irq\n");
 		return -EBUSY;

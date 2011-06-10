@@ -760,7 +760,7 @@ static int __devinit snd_bt87x_create(struct snd_card *card,
 	snd_bt87x_writel(chip, REG_INT_STAT, MY_INTERRUPTS);
 
 	err = request_irq(pci->irq, snd_bt87x_interrupt, IRQF_SHARED,
-			  "Bt87x audio", chip);
+			  KBUILD_MODNAME, chip);
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot grab irq %d\n", pci->irq);
 		goto fail;

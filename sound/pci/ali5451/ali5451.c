@@ -2090,7 +2090,7 @@ static int __devinit snd_ali_resources(struct snd_ali *codec)
 	codec->port = pci_resource_start(codec->pci, 0);
 
 	if (request_irq(codec->pci->irq, snd_ali_card_interrupt,
-			IRQF_SHARED, "ALI 5451", codec)) {
+			IRQF_SHARED, KBUILD_MODNAME, codec)) {
 		snd_printk(KERN_ERR "Unable to request irq.\n");
 		return -EBUSY;
 	}

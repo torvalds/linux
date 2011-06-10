@@ -2607,7 +2607,7 @@ static int __devinit snd_ice1712_create(struct snd_card *card,
 	ice->profi_port = pci_resource_start(pci, 3);
 
 	if (request_irq(pci->irq, snd_ice1712_interrupt, IRQF_SHARED,
-			"ICE1712", ice)) {
+			KBUILD_MODNAME, ice)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_ice1712_free(ice);
 		return -EIO;

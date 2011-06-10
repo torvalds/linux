@@ -1355,7 +1355,7 @@ static int __devinit snd_rme32_create(struct rme32 * rme32)
 	}
 
 	if (request_irq(pci->irq, snd_rme32_interrupt, IRQF_SHARED,
-			"RME32", rme32)) {
+			KBUILD_MODNAME, rme32)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}

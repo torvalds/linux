@@ -317,7 +317,7 @@ static int __devinit snd_aw2_create(struct snd_card *card,
 	snd_aw2_saa7146_setup(&chip->saa7146, chip->iobase_virt);
 
 	if (request_irq(pci->irq, snd_aw2_saa7146_interrupt,
-			IRQF_SHARED, "Audiowerk2", chip)) {
+			IRQF_SHARED, KBUILD_MODNAME, chip)) {
 		printk(KERN_ERR "aw2: Cannot grab irq %d\n", pci->irq);
 
 		iounmap(chip->iobase_virt);

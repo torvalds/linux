@@ -1890,7 +1890,7 @@ snd_riptide_create(struct snd_card *card, struct pci_dev *pci,
 	UNSET_AIE(hwport);
 
 	if (request_irq(pci->irq, snd_riptide_interrupt, IRQF_SHARED,
-			"RIPTIDE", chip)) {
+			KBUILD_MODNAME, chip)) {
 		snd_printk(KERN_ERR "Riptide: unable to grab IRQ %d\n",
 			   pci->irq);
 		snd_riptide_free(chip);

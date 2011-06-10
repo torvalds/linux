@@ -648,7 +648,7 @@ static int __devinit lola_create(struct snd_card *card, struct pci_dev *pci,
 		goto errout;
 
 	if (request_irq(pci->irq, lola_interrupt, IRQF_SHARED,
-			DRVNAME, chip)) {
+			KBUILD_MODNAME, chip)) {
 		printk(KERN_ERR SFX "unable to grab IRQ %d\n", pci->irq);
 		err = -EBUSY;
 		goto errout;

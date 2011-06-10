@@ -1268,7 +1268,7 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 	}
 
 	if (request_irq(pci->irq, snd_mixart_interrupt, IRQF_SHARED,
-			CARD_NAME, mgr)) {
+			KBUILD_MODNAME, mgr)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_mixart_free(mgr);
 		return -EBUSY;

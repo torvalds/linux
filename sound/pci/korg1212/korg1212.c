@@ -2241,7 +2241,7 @@ static int __devinit snd_korg1212_create(struct snd_card *card, struct pci_dev *
 
         err = request_irq(pci->irq, snd_korg1212_interrupt,
                           IRQF_SHARED,
-                          "korg1212", korg1212);
+                          KBUILD_MODNAME, korg1212);
 
         if (err) {
 		snd_printk(KERN_ERR "korg1212: unable to grab IRQ %d\n", pci->irq);
