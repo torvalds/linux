@@ -42,7 +42,6 @@
 #include <linux/pci-ats.h>
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
-#include "pci.h"
 
 #define ROOT_SIZE		VTD_PAGE_SIZE
 #define CONTEXT_SIZE		VTD_PAGE_SIZE
