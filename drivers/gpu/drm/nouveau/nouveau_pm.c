@@ -72,10 +72,12 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		}
 	}
 
-	nouveau_pm_clock_set(dev, perflvl, PLL_CORE, perflvl->core);
-	nouveau_pm_clock_set(dev, perflvl, PLL_SHADER, perflvl->shader);
-	nouveau_pm_clock_set(dev, perflvl, PLL_MEMORY, perflvl->memory);
-	nouveau_pm_clock_set(dev, perflvl, PLL_UNK05, perflvl->unk05);
+	if (pm->clock_set) {
+		nouveau_pm_clock_set(dev, perflvl, PLL_CORE, perflvl->core);
+		nouveau_pm_clock_set(dev, perflvl, PLL_SHADER, perflvl->shader);
+		nouveau_pm_clock_set(dev, perflvl, PLL_MEMORY, perflvl->memory);
+		nouveau_pm_clock_set(dev, perflvl, PLL_UNK05, perflvl->unk05);
+	}
 
 	pm->cur = perflvl;
 	return 0;
@@ -91,9 +93,6 @@ nouveau_pm_profile_set(struct drm_device *dev, const char *profile)
 	/* safety precaution, for now */
 	if (nouveau_perflvl_wr != 7777)
 		return -EPERM;
-
-	if (!pm->clock_set)
-		return -EINVAL;
 
 	if (!strncmp(profile, "boot", 4))
 		perflvl = &pm->boot;
