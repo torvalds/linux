@@ -196,6 +196,42 @@ am79c961_ramtest(struct net_device *dev, unsigned int val)
 	return errorcount;
 }
 
+static void am79c961_mc_hash(char *addr, u16 *hash)
+{
+	if (addr[0] & 0x01) {
+		int idx, bit;
+		u32 crc;
+
+		crc = ether_crc_le(ETH_ALEN, addr);
+
+		idx = crc >> 30;
+		bit = (crc >> 26) & 15;
+
+		hash[idx] |= 1 << bit;
+	}
+}
+
+static unsigned int am79c961_get_rx_mode(struct net_device *dev, u16 *hash)
+{
+	unsigned int mode = MODE_PORT_10BT;
+
+	if (dev->flags & IFF_PROMISC) {
+		mode |= MODE_PROMISC;
+		memset(hash, 0xff, 4 * sizeof(*hash));
+	} else if (dev->flags & IFF_ALLMULTI) {
+		memset(hash, 0xff, 4 * sizeof(*hash));
+	} else {
+		struct netdev_hw_addr *ha;
+
+		memset(hash, 0, 4 * sizeof(*hash));
+
+		netdev_for_each_mc_addr(ha, dev)
+			am79c961_mc_hash(ha->addr, hash);
+	}
+
+	return mode;
+}
+
 static void
 am79c961_init_for_open(struct net_device *dev)
 {
@@ -203,6 +239,7 @@ am79c961_init_for_open(struct net_device *dev)
 	unsigned long flags;
 	unsigned char *p;
 	u_int hdr_addr, first_free_addr;
+	u16 multi_hash[4], mode = am79c961_get_rx_mode(dev, multi_hash);
 	int i;
 
 	/*
@@ -218,16 +255,12 @@ am79c961_init_for_open(struct net_device *dev)
 	write_ireg (dev->base_addr, 2, 0x0000); /* MODE register selects media */
 
 	for (i = LADRL; i <= LADRH; i++)
-		write_rreg (dev->base_addr, i, 0);
+		write_rreg (dev->base_addr, i, multi_hash[i - LADRL]);
 
 	for (i = PADRL, p = dev->dev_addr; i <= PADRH; i++, p += 2)
 		write_rreg (dev->base_addr, i, p[0] | (p[1] << 8));
 
-	i = MODE_PORT_10BT;
-	if (dev->flags & IFF_PROMISC)
-		i |= MODE_PROMISC;
-
-	write_rreg (dev->base_addr, MODE, i);
+	write_rreg (dev->base_addr, MODE, mode);
 	write_rreg (dev->base_addr, POLLINT, 0);
 	write_rreg (dev->base_addr, SIZERXR, -RX_BUFFERS);
 	write_rreg (dev->base_addr, SIZETXR, -TX_BUFFERS);
@@ -340,21 +373,6 @@ am79c961_close(struct net_device *dev)
 	return 0;
 }
 
-static void am79c961_mc_hash(char *addr, unsigned short *hash)
-{
-	if (addr[0] & 0x01) {
-		int idx, bit;
-		u32 crc;
-
-		crc = ether_crc_le(ETH_ALEN, addr);
-
-		idx = crc >> 30;
-		bit = (crc >> 26) & 15;
-
-		hash[idx] |= 1 << bit;
-	}
-}
-
 /*
  * Set or clear promiscuous/multicast mode filter for this adapter.
  */
@@ -362,23 +380,8 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 {
 	struct dev_priv *priv = netdev_priv(dev);
 	unsigned long flags;
-	unsigned short multi_hash[4], mode;
+	u16 multi_hash[4], mode = am79c961_get_rx_mode(dev, multi_hash);
 	int i, stopped;
-
-	mode = MODE_PORT_10BT;
-
-	if (dev->flags & IFF_PROMISC) {
-		mode |= MODE_PROMISC;
-	} else if (dev->flags & IFF_ALLMULTI) {
-		memset(multi_hash, 0xff, sizeof(multi_hash));
-	} else {
-		struct netdev_hw_addr *ha;
-
-		memset(multi_hash, 0x00, sizeof(multi_hash));
-
-		netdev_for_each_mc_addr(ha, dev)
-			am79c961_mc_hash(ha->addr, multi_hash);
-	}
 
 	spin_lock_irqsave(&priv->chip_lock, flags);
 
