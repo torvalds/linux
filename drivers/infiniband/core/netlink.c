@@ -148,7 +148,7 @@ static int ibnl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 				return -EINVAL;
 			return netlink_dump_start(nls, skb, nlh,
 						  client->cb_table[op].dump,
-						  NULL);
+						  NULL, 0);
 		}
 	}
 
