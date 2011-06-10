@@ -736,7 +736,7 @@ static const char *default_mtd_part_types[] = {"cmdlinepart", NULL};
  * @master: the master partition (describes whole MTD device)
  * @types: names of partition parsers to try or %NULL
  * @pparts: array of partitions found is returned here
- * @origin: MTD device start address (use %0 if unsure)
+ * @data: MTD partition parser-specific data
  *
  * This function tries to find partition on MTD device @master. It uses MTD
  * partition parsers, specified in @types. However, if @types is %NULL, then
@@ -750,7 +750,8 @@ static const char *default_mtd_part_types[] = {"cmdlinepart", NULL};
  *   point to an array containing this number of &struct mtd_info objects.
  */
 int parse_mtd_partitions(struct mtd_info *master, const char **types,
-			 struct mtd_partition **pparts, unsigned long origin)
+			 struct mtd_partition **pparts,
+			 struct mtd_part_parser_data *data)
 {
 	struct mtd_part_parser *parser;
 	int ret = 0;
@@ -764,7 +765,7 @@ int parse_mtd_partitions(struct mtd_info *master, const char **types,
 				parser = get_partition_parser(*types);
 		if (!parser)
 			continue;
-		ret = (*parser->parse_fn)(master, pparts, origin);
+		ret = (*parser->parse_fn)(master, pparts, data);
 		if (ret > 0) {
 			printk(KERN_NOTICE "%d %s partitions found on MTD device %s\n",
 			       ret, parser->name, master->name);

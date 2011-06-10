@@ -457,7 +457,7 @@ EXPORT_SYMBOL_GPL(mtd_device_register);
  * @mtd: the MTD device to register
  * @types: the list of MTD partition probes to try, see
  *         'parse_mtd_partitions()' for more information
- * @origin: start address of MTD device, %0 unless you are sure you need this.
+ * @parser_data: MTD partition parser-specific data
  * @parts: fallback partition information to register, if parsing fails;
  *         only valid if %nr_parts > %0
  * @nr_parts: the number of partitions in parts, if zero then the full
@@ -480,14 +480,14 @@ EXPORT_SYMBOL_GPL(mtd_device_register);
  * Returns zero in case of success and a negative error code in case of failure.
  */
 int mtd_device_parse_register(struct mtd_info *mtd, const char **types,
-			      unsigned long origin,
+			      struct mtd_part_parser_data *parser_data,
 			      const struct mtd_partition *parts,
 			      int nr_parts)
 {
 	int err;
 	struct mtd_partition *real_parts;
 
-	err = parse_mtd_partitions(mtd, types, &real_parts, origin);
+	err = parse_mtd_partitions(mtd, types, &real_parts, parser_data);
 	if (err <= 0 && nr_parts) {
 		real_parts = kmemdup(parts, sizeof(*parts) * nr_parts,
 				     GFP_KERNEL);
