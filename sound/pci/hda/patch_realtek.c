@@ -11924,7 +11924,7 @@ static const struct hda_verb alc262_nec_verbs[] = {
  *  0x1b = port replicator headphone out
  */
 
-#define ALC_HP_EVENT	0x37
+#define ALC_HP_EVENT	ALC880_HP_EVENT
 
 static const struct hda_verb alc262_fujitsu_unsol_verbs[] = {
 	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
