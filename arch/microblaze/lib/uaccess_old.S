@@ -121,32 +121,31 @@ __copy_tofrom_user:
 	 */
 	beqid	r7, 0f /* zero size is not likely */
 	andi	r3, r7, 0x3 /* filter add count */
-	bneid	r3, 4f /* if is odd value then byte copying */
+	bneid	r3, bu /* if is odd value then byte copying */
 	or	r3, r5, r6 /* find if is any to/from unaligned */
 	andi	r3, r3, 0x3 /* mask unaligned */
-	bneid	r3, 1f /* it is unaligned -> then jump */
+	bneid	r3, bu1 /* it is unaligned -> then jump */
 	or	r3, r0, r0
 
-/* at least one 4 byte copy */
-5:	lw	r4, r6, r3
-6:	sw	r4, r5, r3
+w1:	lw	r4, r6, r3 /* at least one 4 byte copy */
+w2:	sw	r4, r5, r3
 	addik	r7, r7, -4
-	bneid	r7, 5b
+	bneid	r7, w1
 	addik	r3, r3, 4
 	addik	r3, r7, 0
 	rtsd	r15, 8
 	nop
 
 	.section	__ex_table,"a"
-	.word	5b, 0f;
-	.word	6b, 0f;
+	.word	w1, 0f;
+	.word	w2, 0f;
 	.text
 
-4:	or	r3, r0, r0
-1:	lbu	r4,r6,r3
-2:	sb	r4,r5,r3
+bu:	or	r3, r0, r0
+bu1:	lbu	r4,r6,r3
+bu2:	sb	r4,r5,r3
 	addik	r7,r7,-1
-	bneid	r7,1b
+	bneid	r7,bu1
 	addik	r3,r3,1		/* delay slot */
 0:
 	addik	r3,r7,0
@@ -155,6 +154,6 @@ __copy_tofrom_user:
 	.size   __copy_tofrom_user, . - __copy_tofrom_user
 
 	.section	__ex_table,"a"
-	.word	1b, 0b;
-	.word	2b, 0b;
+	.word	bu1, 0b;
+	.word	bu2, 0b;
 	.text
