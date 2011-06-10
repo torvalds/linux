@@ -136,6 +136,12 @@ __copy_tofrom_user:
 	addik	r3, r7, 0
 	rtsd	r15, 8
 	nop
+
+	.section	__ex_table,"a"
+	.word	5b, 0f;
+	.word	6b, 0f;
+	.text
+
 4:	or	r3, r0, r0
 1:	lbu	r4,r6,r3
 2:	sb	r4,r5,r3
@@ -149,4 +155,6 @@ __copy_tofrom_user:
 	.size   __copy_tofrom_user, . - __copy_tofrom_user
 
 	.section	__ex_table,"a"
-	.word	1b,0b,2b,0b,5b,0b,6b,0b
+	.word	1b, 0b;
+	.word	2b, 0b;
+	.text
