@@ -204,7 +204,8 @@ nouveau_volt_init(struct drm_device *dev)
 	}
 
 	/* parse vbios entries into common format */
-	if (volt[0] < 0x40) {
+	voltage->version = volt[0];
+	if (voltage->version < 0x40) {
 		voltage->nr_level = entries;
 		voltage->level =
 			kcalloc(entries, sizeof(*voltage->level), GFP_KERNEL);

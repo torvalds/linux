@@ -146,16 +146,16 @@ nouveau_perf_voltage(struct drm_device *dev, struct bit_entry *P,
 	id = perflvl->volt_min;
 	perflvl->volt_min = 0;
 
-	/* pre-fermi vbios stores the voltage level directly in the
-	 * perflvl entry as a multiple of 10mV
+	/* boards using voltage table version <0x40 store the voltage
+	 * level directly in the perflvl entry as a multiple of 10mV
 	 */
-	if (dev_priv->card_type < NV_C0) {
+	if (dev_priv->engine.pm.voltage.version < 0x40) {
 		perflvl->volt_min = id * 10000;
 		perflvl->volt_max = perflvl->volt_min;
 		return;
 	}
 
-	/* from fermi onwards, the perflvl stores an index into yet another
+	/* on newer ones, the perflvl stores an index into yet another
 	 * vbios table containing a min/max voltage value for the perflvl
 	 */
 	if (P->version != 2 || P->length < 34) {

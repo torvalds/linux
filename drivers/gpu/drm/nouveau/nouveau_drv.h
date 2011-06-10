@@ -420,6 +420,7 @@ struct nouveau_pm_voltage_level {
 
 struct nouveau_pm_voltage {
 	bool supported;
+	u8 version;
 	u8 vid_mask;
 
 	struct nouveau_pm_voltage_level *level;
