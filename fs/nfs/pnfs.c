@@ -1078,11 +1078,22 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 			return true;
 	}
 
-	if (req_offset(req) > end_offset(pgio->pg_lseg->pls_range.offset,
-					 pgio->pg_lseg->pls_range.length))
-		return false;
-
-	return true;
+	/*
+	 * Test if a nfs_page is fully contained in the pnfs_layout_range.
+	 * Note that this test makes several assumptions:
+	 * - that the previous nfs_page in the struct nfs_pageio_descriptor
+	 *   is known to lie within the range.
+	 *   - that the nfs_page being tested is known to be contiguous with the
+	 *   previous nfs_page.
+	 *   - Layout ranges are page aligned, so we only have to test the
+	 *   start offset of the request.
+	 *
+	 * Please also note that 'end_offset' is actually the offset of the
+	 * first byte that lies outside the pnfs_layout_range. FIXME?
+	 *
+	 */
+	return req_offset(req) < end_offset(pgio->pg_lseg->pls_range.offset,
+					 pgio->pg_lseg->pls_range.length);
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_test);
 
