@@ -113,25 +113,82 @@ static irqreturn_t  bp_apwakeup_work_func(int irq, void *data)
 	//wake_up_interruptible(&dev->wakeup);
 	return IRQ_HANDLED;
 }
+
+static irqreturn_t BBwakeup_isr(int irq, void *dev_id)
+{
+	struct rk2818_23d_data *pdata = dev_id;
+	
+	MODEMDBG("%s \n", __FUNCTION__);
+	//if(irq != gpio_to_irq(RK29_PIN1_PC0))
+	//{
+	//		printk("irq != gpio_to_irq(RK29_PIN1_PC0) \n");
+	//		return IRQ_NONE;
+	//}
+	
+//	disable_irq_wake(irq);
+	
+	if(bpstatus_irq_enable == true)
+	{
+		MODEMDBG("mtk23d_wakelock 3s \n");
+		wake_lock_timeout(&mtk23d_wakelock, 3 * HZ);
+	}
+		
+
+	return IRQ_HANDLED;
+}
+
 int modem_poweron_off(int on_off)
 {
 	struct rk2818_23d_data *pdata = gpdata;
+	int result, error = 0, irq = 0;	
 	
   if(on_off)
   {
-		printk("modem_poweron\n");
-		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
-		mdelay(300);
-		gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
-		msleep(4000);
-		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+			printk("modem_poweron\n");
+			
+		  gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);  // power on enable
+		  mdelay(300);
+			gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);  // release reset
+			msleep(3000);
+			gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);  // power on relase
+				
+			#if 1 // phc
+			rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_UART0_SOUT);
+			rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_UART0_SIN); 
+			rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
+			rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_UART0_CTS_N); 	
+			#endif
+			
+		  gpio_direction_input(pdata->bp_statue);
+		  gpio_direction_input(pdata->bp_ap_wakeup);
+			
+			/* 初始化BP唤醒AP的功能 */
+			wakelock_inited = false;
+			irq = gpio_to_irq(pdata->bp_statue);
+			if (irq < 0) {
+				printk("can't get pdata->bp_statue irq \n");
+			}
+			else
+			{
+				error = request_irq(irq, BBwakeup_isr,
+						    IRQF_TRIGGER_FALLING,
+						    NULL,
+						    pdata);
+				if (error) {
+					printk("mtk23d_probe bp_statue request_irq error!!! \n");
+				}
+			}
+			if (!wakelock_inited) {
+				wake_lock_init(&mtk23d_wakelock, WAKE_LOCK_SUSPEND, "23d_resume");
+				wakelock_inited = true;
+			}
   }
   else
   {
-		printk("modem_poweroff\n");
-		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
-		mdelay(100);
-		gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
+			printk("modem_poweroff\n");
+			gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
+			mdelay(100);
+			gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
   }
 }
 static int power_on =1;
@@ -148,12 +205,6 @@ static int mtk23d_open(struct inode *inode, struct file *file)
 	{
 		power_on = 0;
 		modem_poweron_off(1);
-		#if 1 // phc
-		rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_UART0_SOUT);
-		rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_UART0_SIN); 
-		rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
-		rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_UART0_CTS_N); 	
-		#endif
 	}
 	device_init_wakeup(&pdev, 1);
 
@@ -180,15 +231,17 @@ static int mtk23d_ioctl(struct inode *inode,struct file *file, unsigned int cmd,
 	switch(cmd)
 	{
 		case MTK23D_RESET:		
+			printk("MTK23D_RESET\n");
 			gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
 			mdelay(100);
 			gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_LOW:GPIO_HIGH);
 			mdelay(300);
 			gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
-			msleep(4000);
+			msleep(3000);
 			gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
 			break;
 		case MTK23D_IMEI_READ:
+			printk("MTK23D_IMEI_READ\n");
 			if(copy_to_user(argp, &(imei_value[0]), 16))
 			{
 				printk("ERROR: copy_to_user---%s\n", __FUNCTION__);
@@ -214,29 +267,6 @@ static struct miscdevice mtk23d_misc = {
 	.fops = &mtk23d_fops
 };
 
-static irqreturn_t BBwakeup_isr(int irq, void *dev_id)
-{
-	struct rk2818_23d_data *pdata = dev_id;
-	
-	MODEMDBG("%s \n", __FUNCTION__);
-	//if(irq != gpio_to_irq(RK29_PIN1_PC0))
-	//{
-	//		printk("irq != gpio_to_irq(RK29_PIN1_PC0) \n");
-	//		return IRQ_NONE;
-	//}
-	
-//	disable_irq_wake(irq);
-	
-	if(bpstatus_irq_enable == true)
-	{
-		MODEMDBG("mtk23d_wakelock 3s \n");
-		wake_lock_timeout(&mtk23d_wakelock, 3 * HZ);
-	}
-		
-
-	return IRQ_HANDLED;
-}
-
 static int mtk23d_probe(struct platform_device *pdev)
 {
 	struct rk2818_23d_data *pdata = gpdata = pdev->dev.platform_data;
@@ -245,27 +275,7 @@ static int mtk23d_probe(struct platform_device *pdev)
 	
 	MODEMDBG("mtk23d_probe\n");
 
-#if 1	
-	rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_GPIO1B7); 			
-	gpio_request(RK29_PIN1_PB7, NULL);
-	gpio_direction_output(RK29_PIN1_PB7,GPIO_LOW);
-	gpio_pull_updown(RK29_PIN1_PB7, PullDisable);  // 下拉禁止
-	
-	rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_GPIO1B6); 		
-	gpio_request(RK29_PIN1_PB6, NULL);
-	gpio_direction_output(RK29_PIN1_PB6,GPIO_LOW);	
-	gpio_pull_updown(RK29_PIN1_PB6, PullDisable);  // 下拉禁止
-	
-	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_GPIO1C1); 			
-	gpio_request(RK29_PIN1_PC1, NULL);
-	gpio_direction_output(RK29_PIN1_PC1,GPIO_LOW);
-	
-	rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_GPIO1C0); 		
-	gpio_request(RK29_PIN1_PC0, NULL);
-	gpio_direction_input(RK29_PIN1_PC0);		
-#endif
-
-	pdata->io_init();
+	//pdata->io_init();
 
 	mt6223d_data = kzalloc(sizeof(struct modem_dev), GFP_KERNEL);
 	if(NULL == mt6223d_data)
@@ -303,63 +313,62 @@ static int mtk23d_probe(struct platform_device *pdev)
 		goto err1;
 	}
 	
-#if 1 // phc
-	gpio_set_value(pdata->bp_power, pdata->bp_power_active_low? GPIO_HIGH:GPIO_LOW);
-	gpio_direction_output(pdata->ap_statue, GPIO_LOW);
-	gpio_direction_output(pdata->ap_bp_wakeup, GPIO_LOW);
-	mdelay(100);
-	gpio_direction_output(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
-	mdelay(100);
-	gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
-	gpio_set_value(pdata->ap_bp_wakeup, GPIO_HIGH);
+	if(pdata->bp_ap_wakeup) // SDK板中，该口没有引出
+	{
+		result = gpio_request(pdata->bp_ap_wakeup, "mtk23d");
+		if (result) {
+			printk("failed to request BP_AP_WAKEUP gpio\n");
+			goto err0;
+		}		
+	}
 	
+#if 1 // GPIO初始化，并且防止漏电
+	rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_GPIO1B7); 			
+	gpio_request(RK29_PIN1_PB7, NULL);
+	gpio_direction_output(RK29_PIN1_PB7,GPIO_LOW);
+	gpio_pull_updown(RK29_PIN1_PB7, PullDisable);  // 下拉禁止
+	
+	rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_GPIO1B6); 		
+	gpio_request(RK29_PIN1_PB6, NULL);
+	gpio_direction_output(RK29_PIN1_PB6,GPIO_LOW);	
+	gpio_pull_updown(RK29_PIN1_PB6, PullDisable);  // 下拉禁止
+	
+	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_GPIO1C1); 			
+	gpio_request(RK29_PIN1_PC1, NULL);
+	gpio_direction_output(RK29_PIN1_PC1,GPIO_LOW);
+	
+	rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_GPIO1C0); 		
+	gpio_request(RK29_PIN1_PC0, NULL);
+	//gpio_direction_input(RK29_PIN1_PC0);		
+	gpio_direction_output(RK29_PIN1_PC0,GPIO_LOW);
+
+
+  gpio_direction_output(pdata->bp_power, GPIO_LOW);
+	gpio_direction_output(pdata->ap_statue, GPIO_LOW);
+	gpio_direction_output(pdata->ap_bp_wakeup, GPIO_LOW);   
+	gpio_direction_output(pdata->bp_reset, GPIO_LOW);
+	//gpio_direction_output(pdata->bp_statue,GPIO_LOW);
 	gpio_direction_input(pdata->bp_statue);
+	if(pdata->bp_ap_wakeup) // SDK板中，该口没有引出
+	{
+		//gpio_direction_output(pdata->bp_ap_wakeup,GPIO_LOW);
+		gpio_direction_input(pdata->bp_ap_wakeup);
+	}
+	
+	/*复位BP*/
+	gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
+	//mdelay(200);
+	//gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
 #endif	
-	
-#if 0 
-	gpio_direction_input(pdata->bp_statue);
-	
-	//rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 0);
-	gpio_direction_output(pdata->ap_statue, GPIO_LOW);
-	
-	//rk2818_mux_api_set(GPIOF5_APWM3_DPWM3_NAME,0);
-	gpio_direction_output(pdata->ap_bp_wakeup, GPIO_LOW);
-	mdelay(100);
-	//rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_GPIO1_A3B7);
-	gpio_direction_output(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_LOW:GPIO_HIGH);
-	mdelay(100);
-	gpio_set_value(pdata->bp_reset, pdata->bp_reset_active_low? GPIO_HIGH:GPIO_LOW);
-	gpio_set_value(pdata->ap_bp_wakeup, GPIO_HIGH);
-#endif
 
 	INIT_WORK(&mt6223d_data->work, bpwakeup_work_func_work);
-        power_on = 1;
+  power_on = 1;
 	result = misc_register(&mtk23d_misc);
 	if(result)
 	{
 		MODEMDBG("misc_register err\n");
 	}
 	MODEMDBG("mtk23d_probe ok\n");
-	
-	wakelock_inited = false;
-	irq = gpio_to_irq(pdata->bp_statue);
-	if (irq < 0) {
-		printk("can't get pdata->bp_statue irq \n");
-	}
-	else
-	{
-		error = request_irq(irq, BBwakeup_isr,
-				    IRQF_TRIGGER_FALLING,
-				    NULL,
-				    pdata);
-		if (error) {
-			printk("mtk23d_probe bp_statue request_irq error!!! \n");
-		}
-	}
-	if (!wakelock_inited) {
-		wake_lock_init(&mtk23d_wakelock, WAKE_LOCK_SUSPEND, "23d_resume");
-		wakelock_inited = true;
-	}
 	
 	return result;
 err0:
@@ -387,6 +396,7 @@ int mtk23d_suspend(struct platform_device *pdev)
 	struct rk2818_23d_data *pdata = pdev->dev.platform_data;
 	
 	MODEMDBG("%s \n", __FUNCTION__);
+	
 	//enable_irq_wake(irq);
 	ap_sleep(pdev);
 	ap_wakeup_bp(pdev, 0);
@@ -432,7 +442,7 @@ void mtk23d_shutdown(struct platform_device *pdev, pm_message_t state)
 	struct modem_dev *mt6223d_data = platform_get_drvdata(pdev);
 	
 	MODEMDBG("%s \n", __FUNCTION__);
-	
+
 	modem_poweron_off(0);  // power down
 
 	cancel_work_sync(&mt6223d_data->work);

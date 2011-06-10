@@ -2143,7 +2143,7 @@ struct rk2818_23d_data rk2818_23d_info = {
         .bp_statue = RK29_PIN0_PA2,//input  high bp sleep;
         .ap_statue = RK29_PIN0_PA3,//output high ap sleep;
         .ap_bp_wakeup = RK29_PIN0_PA0, //output AP wake up BP used rising edge;
-        //.bp_ap_wakeup = RK2818_PIN_PA4,//input BP wake up AP
+        .bp_ap_wakeup = RK29_PIN0_PA4,//input BP wake up AP
 };
 struct platform_device rk2818_device_mtk23d = {
         .name = "mtk23d",
