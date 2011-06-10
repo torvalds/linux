@@ -1731,7 +1731,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		if (!uptodate && tree->ops &&
 		    tree->ops->readpage_io_failed_hook) {
 			ret = tree->ops->readpage_io_failed_hook(bio, page,
-							 start, end, NULL);
+							 start, end, state);
 			if (ret == 0) {
 				uptodate =
 					test_bit(BIO_UPTODATE, &bio->bi_flags);
