@@ -120,11 +120,10 @@ __copy_tofrom_user:
 	 * r4 - tempval
 	 */
 	beqid	r7, 0f /* zero size is not likely */
-	andi	r3, r7, 0x3 /* filter add count */
-	bneid	r3, bu /* if is odd value then byte copying */
 	or	r3, r5, r6 /* find if is any to/from unaligned */
-	andi	r3, r3, 0x3 /* mask unaligned */
-	bneid	r3, bu1 /* it is unaligned -> then jump */
+	or	r3, r3, r7 /* find if count is unaligned */
+	andi	r3, r3, 0x3 /* mask last 3 bits */
+	bneid	r3, bu1 /* if r3 is not zero then byte copying */
 	or	r3, r0, r0
 
 w1:	lw	r4, r6, r3 /* at least one 4 byte copy */
@@ -141,7 +140,6 @@ w2:	sw	r4, r5, r3
 	.word	w2, 0f;
 	.text
 
-bu:	or	r3, r0, r0
 bu1:	lbu	r4,r6,r3
 bu2:	sb	r4,r5,r3
 	addik	r7,r7,-1
