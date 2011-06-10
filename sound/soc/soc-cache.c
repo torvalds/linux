@@ -466,6 +466,9 @@ static bool snd_soc_set_cache_val(void *base, unsigned int idx,
 static unsigned int snd_soc_get_cache_val(const void *base, unsigned int idx,
 		unsigned int word_size)
 {
+	if (!base)
+		return -1;
+
 	switch (word_size) {
 	case 1: {
 		const u8 *cache = base;
