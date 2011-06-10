@@ -460,6 +460,7 @@ struct fimc_dev {
  * @state:		flags to keep track of user configuration
  * @fimc_dev:		the FIMC device this context applies to
  * @m2m_ctx:		memory-to-memory device context
+ * @fh:			v4l2 file handle
  */
 struct fimc_ctx {
 	spinlock_t		slock;
@@ -479,7 +480,10 @@ struct fimc_ctx {
 	u32			state;
 	struct fimc_dev		*fimc_dev;
 	struct v4l2_m2m_ctx	*m2m_ctx;
+	struct v4l2_fh		fh;
 };
+
+#define fh_to_ctx(__fh) container_of(__fh, struct fimc_ctx, fh)
 
 static inline bool fimc_capture_active(struct fimc_dev *fimc)
 {
@@ -632,18 +636,16 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 /* fimc-core.c */
 int fimc_vidioc_enum_fmt_mplane(struct file *file, void *priv,
 				struct v4l2_fmtdesc *f);
-int fimc_vidioc_g_fmt_mplane(struct file *file, void *priv,
-			     struct v4l2_format *f);
-int fimc_vidioc_try_fmt_mplane(struct file *file, void *priv,
-			       struct v4l2_format *f);
 int fimc_vidioc_queryctrl(struct file *file, void *priv,
 			  struct v4l2_queryctrl *qc);
 int fimc_vidioc_g_ctrl(struct file *file, void *priv,
 		       struct v4l2_control *ctrl);
 
+int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f);
 int fimc_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr);
 int check_ctrl_val(struct fimc_ctx *ctx,  struct v4l2_control *ctrl);
 int fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_control *ctrl);
+int fimc_fill_format(struct fimc_frame *frame, struct v4l2_format *f);
 
 struct fimc_fmt *find_format(struct v4l2_format *f, unsigned int mask);
 struct fimc_fmt *find_mbus_format(struct v4l2_mbus_framefmt *f,
