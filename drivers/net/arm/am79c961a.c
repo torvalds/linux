@@ -50,7 +50,7 @@ static const char version[] =
 #ifdef __arm__
 static void write_rreg(u_long base, u_int reg, u_int val)
 {
-	__asm__(
+	asm volatile(
 	"str%?h	%1, [%2]	@ NET_RAP\n\t"
 	"str%?h	%0, [%2, #-4]	@ NET_RDP"
 	:
@@ -60,7 +60,7 @@ static void write_rreg(u_long base, u_int reg, u_int val)
 static inline unsigned short read_rreg(u_long base_addr, u_int reg)
 {
 	unsigned short v;
-	__asm__(
+	asm volatile(
 	"str%?h	%1, [%2]	@ NET_RAP\n\t"
 	"ldr%?h	%0, [%2, #-4]	@ NET_RDP"
 	: "=r" (v)
@@ -70,7 +70,7 @@ static inline unsigned short read_rreg(u_long base_addr, u_int reg)
 
 static inline void write_ireg(u_long base, u_int reg, u_int val)
 {
-	__asm__(
+	asm volatile(
 	"str%?h	%1, [%2]	@ NET_RAP\n\t"
 	"str%?h	%0, [%2, #8]	@ NET_IDP"
 	:
@@ -80,7 +80,7 @@ static inline void write_ireg(u_long base, u_int reg, u_int val)
 static inline unsigned short read_ireg(u_long base_addr, u_int reg)
 {
 	u_short v;
-	__asm__(
+	asm volatile(
 	"str%?h	%1, [%2]	@ NAT_RAP\n\t"
 	"ldr%?h	%0, [%2, #8]	@ NET_IDP\n\t"
 	: "=r" (v)
@@ -131,7 +131,7 @@ am_readbuffer(struct net_device *dev, u_int offset, unsigned char *buf, unsigned
 	length = (length + 1) & ~1;
 	if ((int)buf & 2) {
 		unsigned int tmp;
-		__asm__ __volatile__(
+		asm volatile(
 			"ldr%?h	%2, [%0], #4\n\t"
 			"str%?b	%2, [%1], #1\n\t"
 			"mov%?	%2, %2, lsr #8\n\t"
@@ -141,7 +141,7 @@ am_readbuffer(struct net_device *dev, u_int offset, unsigned char *buf, unsigned
 	}
 	while (length > 8) {
 		unsigned int tmp, tmp2, tmp3;
-		__asm__ __volatile__(
+		asm volatile(
 			"ldr%?h	%2, [%0], #4\n\t"
 			"ldr%?h	%3, [%0], #4\n\t"
 			"orr%?	%2, %2, %3, lsl #16\n\t"
@@ -155,7 +155,7 @@ am_readbuffer(struct net_device *dev, u_int offset, unsigned char *buf, unsigned
 	}
 	while (length > 0) {
 		unsigned int tmp;
-		__asm__ __volatile__(
+		asm volatile(
 			"ldr%?h	%2, [%0], #4\n\t"
 			"str%?b	%2, [%1], #1\n\t"
 			"mov%?	%2, %2, lsr #8\n\t"
