@@ -650,7 +650,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_TRACE,
 			 ("BSS_CHANGED_HT\n"));
 		rcu_read_lock();
-		sta = get_sta(hw, vif, (u8 *)bss_conf->bssid);
+		sta = get_sta(hw, vif, bss_conf->bssid);
 		if (sta) {
 			if (sta->ht_cap.ampdu_density >
 			    mac->current_ampdu_density)
@@ -685,7 +685,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		rtlpriv->cfg->ops->set_network_type(hw, vif->type);
 
 		rcu_read_lock();
-		sta = get_sta(hw, vif, (u8 *)bss_conf->bssid);
+		sta = get_sta(hw, vif, bss_conf->bssid);
 		if (!sta) {
 			rcu_read_unlock();
 			goto out;

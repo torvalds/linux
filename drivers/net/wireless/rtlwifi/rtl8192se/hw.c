@@ -516,7 +516,7 @@ static u8 _rtl92se_rf_onoff_detect(struct ieee80211_hw *hw)
 	mdelay(10);
 
 	/* check GPIO3 */
-	u1tmp = rtl_read_byte(rtlpriv, GPIO_IN);
+	u1tmp = rtl_read_byte(rtlpriv, GPIO_IN_SE);
 	retval = (u1tmp & HAL_8192S_HW_GPIO_OFF_BIT) ? ERFON : ERFOFF;
 
 	return retval;
