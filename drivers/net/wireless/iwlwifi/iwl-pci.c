@@ -66,6 +66,12 @@
 #include "iwl-pci.h"
 #include "iwl-agn.h"
 #include "iwl-core.h"
+#include "iwl-io.h"
+
+/* PCI registers */
+#define PCI_CFG_RETRY_TIMEOUT	0x041
+#define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
+#define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
 
 struct iwl_pci_bus {
 	/* basic pci-network driver stuff */
@@ -80,6 +86,50 @@ struct iwl_pci_bus {
 
 #define IWL_BUS_GET_PCI_DEV(_iwl_bus) \
 			((IWL_BUS_GET_PCI_BUS(_iwl_bus))->pci_dev)
+
+static u16 iwl_pciexp_link_ctrl(struct iwl_bus *bus)
+{
+	int pos;
+	u16 pci_lnk_ctl;
+	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
+
+	pos = pci_find_capability(pci_dev, PCI_CAP_ID_EXP);
+	pci_read_config_word(pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
+	return pci_lnk_ctl;
+}
+
+static bool iwl_pci_is_pm_supported(struct iwl_bus *bus)
+{
+	u16 lctl = iwl_pciexp_link_ctrl(bus);
+
+	return !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
+}
+
+static void iwl_pci_apm_config(struct iwl_bus *bus)
+{
+	/*
+	 * HW bug W/A for instability in PCIe bus L0S->L1 transition.
+	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
+	 * If so (likely), disable L0S, so device moves directly L0->L1;
+	 *    costs negligible amount of power savings.
+	 * If not (unlikely), enable L0S, so there is at least some
+	 *    power savings, even without L1.
+	 */
+	u16 lctl = iwl_pciexp_link_ctrl(bus);
+
+	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
+				PCI_CFG_LINK_CTRL_VAL_L1_EN) {
+		/* L1-ASPM enabled; disable(!) L0S */
+		iwl_set_bit(bus->priv, CSR_GIO_REG,
+				CSR_GIO_REG_VAL_L0S_ENABLED);
+		IWL_DEBUG_POWER(bus->priv, "L1 Enabled; Disabling L0S\n");
+	} else {
+		/* L1-ASPM disabled; enable(!) L0S */
+		iwl_clear_bit(bus->priv, CSR_GIO_REG,
+				CSR_GIO_REG_VAL_L0S_ENABLED);
+		IWL_DEBUG_POWER(bus->priv, "L1 Disabled; Enabling L0S\n");
+	}
+}
 
 static void iwl_pci_set_drv_data(struct iwl_bus *bus, void *drv_priv)
 {
@@ -108,6 +158,8 @@ static u32 iwl_pci_read32(struct iwl_bus *bus, u32 ofs)
 }
 
 static struct iwl_bus_ops pci_ops = {
+	.get_pm_support = iwl_pci_is_pm_supported,
+	.apm_config = iwl_pci_apm_config,
 	.set_drv_data = iwl_pci_set_drv_data,
 	.get_dev = iwl_pci_get_dev,
 	.write8 = iwl_pci_write8,

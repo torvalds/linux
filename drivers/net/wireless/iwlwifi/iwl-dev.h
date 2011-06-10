@@ -1193,6 +1193,9 @@ struct iwl_bus;
 
 /**
  * struct iwl_bus_ops - bus specific operations
+
+ * @get_pm_support: must returns true if the bus can go to sleep
+ * @apm_config: will be called during the config of the APM configuration
  * @set_drv_data: set the priv pointer to the bus layer
  * @get_dev: returns the device struct
  * @write8: write a byte to register at offset ofs
@@ -1200,6 +1203,8 @@ struct iwl_bus;
  * @wread32: read a dword at register at offset ofs
  */
 struct iwl_bus_ops {
+	bool (*get_pm_support)(struct iwl_bus *bus);
+	void (*apm_config)(struct iwl_bus *bus);
 	void (*set_drv_data)(struct iwl_bus *bus, void *priv);
 	struct device *(*get_dev)(const struct iwl_bus *bus);
 	void (*write8)(struct iwl_bus *bus, u32 ofs, u8 val);

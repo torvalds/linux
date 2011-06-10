@@ -245,7 +245,7 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 		}
 	}
 
-	if (priv->power_data.pci_pm)
+	if (priv->power_data.bus_pm)
 		cmd->flags |= IWL_POWER_PCI_PM_MSK;
 	else
 		cmd->flags &= ~IWL_POWER_PCI_PM_MSK;
@@ -260,7 +260,7 @@ static void iwl_power_sleep_cam_cmd(struct iwl_priv *priv,
 {
 	memset(cmd, 0, sizeof(*cmd));
 
-	if (priv->power_data.pci_pm)
+	if (priv->power_data.bus_pm)
 		cmd->flags |= IWL_POWER_PCI_PM_MSK;
 
 	IWL_DEBUG_POWER(priv, "Sleep command for CAM\n");
@@ -296,7 +296,7 @@ static void iwl_power_fill_sleep_cmd(struct iwl_priv *priv,
 	cmd->flags = IWL_POWER_DRIVER_ALLOW_SLEEP_MSK |
 		     IWL_POWER_FAST_PD; /* no use seeing frames for others */
 
-	if (priv->power_data.pci_pm)
+	if (priv->power_data.bus_pm)
 		cmd->flags |= IWL_POWER_PCI_PM_MSK;
 
 	if (priv->cfg->base_params->shadow_reg_enable)
@@ -425,9 +425,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 /* initialize to default */
 void iwl_power_initialize(struct iwl_priv *priv)
 {
-	u16 lctl = iwl_pcie_link_ctl(priv);
-
-	priv->power_data.pci_pm = !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
+	priv->power_data.bus_pm = priv->bus.ops->get_pm_support(&priv->bus);
 
 	priv->power_data.debug_sleep_level_override = -1;
 

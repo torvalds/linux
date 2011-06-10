@@ -470,20 +470,6 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
 
 int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 
-
-/*****************************************************
- * PCI						     *
- *****************************************************/
-
-static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
-{
-	int pos;
-	u16 pci_lnk_ctl;
-	pos = pci_find_capability(priv->pci_dev, PCI_CAP_ID_EXP);
-	pci_read_config_word(priv->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
-	return pci_lnk_ctl;
-}
-
 void iwl_bg_watchdog(unsigned long data);
 u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval);
 __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,

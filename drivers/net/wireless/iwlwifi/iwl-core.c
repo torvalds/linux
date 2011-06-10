@@ -997,8 +997,6 @@ void iwl_apm_stop(struct iwl_priv *priv)
 int iwl_apm_init(struct iwl_priv *priv)
 {
 	int ret = 0;
-	u16 lctl;
-
 	IWL_DEBUG_INFO(priv, "Init card's basic functions\n");
 
 	/*
@@ -1027,27 +1025,7 @@ int iwl_apm_init(struct iwl_priv *priv)
 	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
 
-	/*
-	 * HW bug W/A for instability in PCIe bus L0->L0S->L1 transition.
-	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
-	 * If so (likely), disable L0S, so device moves directly L0->L1;
-	 *    costs negligible amount of power savings.
-	 * If not (unlikely), enable L0S, so there is at least some
-	 *    power savings, even without L1.
-	 */
-	lctl = iwl_pcie_link_ctl(priv);
-	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
-				PCI_CFG_LINK_CTRL_VAL_L1_EN) {
-		/* L1-ASPM enabled; disable(!) L0S  */
-		iwl_set_bit(priv, CSR_GIO_REG,
-				CSR_GIO_REG_VAL_L0S_ENABLED);
-		IWL_DEBUG_POWER(priv, "L1 Enabled; Disabling L0S\n");
-	} else {
-		/* L1-ASPM disabled; enable(!) L0S */
-		iwl_clear_bit(priv, CSR_GIO_REG,
-				CSR_GIO_REG_VAL_L0S_ENABLED);
-		IWL_DEBUG_POWER(priv, "L1 Disabled; Enabling L0S\n");
-	}
+	priv->bus.ops->apm_config(&priv->bus);
 
 	/* Configure analog phase-lock-loop before activating to D0A */
 	if (priv->cfg->base_params->pll_cfg_val)
