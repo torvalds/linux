@@ -74,7 +74,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Focus         1
 
 
-#define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED     350000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
 #define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
@@ -6188,7 +6188,7 @@ static const struct v4l2_queryctrl sensor_controls[] =
         .maximum	= 255,
         .step		= 1,
         .default_value = 125,
-    },*/
+    },
 	{
         .id		= V4L2_CID_FOCUS_AUTO,
         .type		= V4L2_CTRL_TYPE_BOOLEAN,
@@ -6197,7 +6197,7 @@ static const struct v4l2_queryctrl sensor_controls[] =
         .maximum	= 1,
         .step		= 1,
         .default_value = 0,
-    },/*{
+    },*/{
         .id		= V4L2_CID_FOCUS_CONTINUOUS,
         .type		= V4L2_CTRL_TYPE_BOOLEAN,
         .name		= "Focus Control",
@@ -6205,7 +6205,7 @@ static const struct v4l2_queryctrl sensor_controls[] =
         .maximum	= 1,
         .step		= 1,
         .default_value = 0,
-    },*/
+    },
     #endif
 
 	#if CONFIG_SENSOR_Flash

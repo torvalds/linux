@@ -69,7 +69,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
 
-#define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED     250000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
 #define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
@@ -138,7 +138,7 @@ static struct reginfo sensor_init_data[] =
 	{0x11,0x0d}, 
 	{0x12,0x2a}, 
 	{0x13,0x00}, 
-	{0x14,0x10}, 	
+	{0x14,0x11}, 	
 	{0x15,0x0a}, 
 	{0x16,0x05}, 
 	{0x17,0x01}, 
