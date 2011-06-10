@@ -65,6 +65,15 @@ struct v4l2_ctrl_ops {
   *		control's current value cannot be cached and needs to be
   *		retrieved through the g_volatile_ctrl op. Drivers can set
   *		this flag.
+  * @is_auto:   If set, then this control selects whether the other cluster
+  *		members are in 'automatic' mode or 'manual' mode. This is
+  *		used for autogain/gain type clusters. Drivers should never
+  *		set this flag directly.
+  * @manual_mode_value: If the is_auto flag is set, then this is the value
+  *		of the auto control that determines if that control is in
+  *		manual mode. So if the value of the auto control equals this
+  *		value, then the whole cluster is in manual mode. Drivers should
+  *		never set this flag directly.
   * @ops:	The control ops.
   * @id:	The control ID.
   * @name:	The control name.
@@ -105,6 +114,8 @@ struct v4l2_ctrl {
 	unsigned int is_new:1;
 	unsigned int is_private:1;
 	unsigned int is_volatile:1;
+	unsigned int is_auto:1;
+	unsigned int manual_mode_value:5;
 
 	const struct v4l2_ctrl_ops *ops;
 	u32 id;
@@ -361,6 +372,40 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
   * @controls: 	The cluster control array of size @ncontrols.
   */
 void v4l2_ctrl_cluster(unsigned ncontrols, struct v4l2_ctrl **controls);
+
+
+/** v4l2_ctrl_auto_cluster() - Mark all controls in the cluster as belonging to
+  * that cluster and set it up for autofoo/foo-type handling.
+  * @ncontrols:	The number of controls in this cluster.
+  * @controls:	The cluster control array of size @ncontrols. The first control
+  *		must be the 'auto' control (e.g. autogain, autoexposure, etc.)
+  * @manual_val: The value for the first control in the cluster that equals the
+  *		manual setting.
+  * @set_volatile: If true, then all controls except the first auto control will
+  *		have is_volatile set to true. If false, then is_volatile will not
+  *		be touched.
+  *
+  * Use for control groups where one control selects some automatic feature and
+  * the other controls are only active whenever the automatic feature is turned
+  * off (manual mode). Typical examples: autogain vs gain, auto-whitebalance vs
+  * red and blue balance, etc.
+  *
+  * The behavior of such controls is as follows:
+  *
+  * When the autofoo control is set to automatic, then any manual controls
+  * are set to inactive and any reads will call g_volatile_ctrl (if the control
+  * was marked volatile).
+  *
+  * When the autofoo control is set to manual, then any manual controls will
+  * be marked active, and any reads will just return the current value without
+  * going through g_volatile_ctrl.
+  *
+  * In addition, this function will set the V4L2_CTRL_FLAG_UPDATE flag
+  * on the autofoo control and V4L2_CTRL_FLAG_INACTIVE on the foo control(s)
+  * if autofoo is in auto mode.
+  */
+void v4l2_ctrl_auto_cluster(unsigned ncontrols, struct v4l2_ctrl **controls,
+			u8 manual_val, bool set_volatile);
 
 
 /** v4l2_ctrl_find() - Find a control with the given ID.

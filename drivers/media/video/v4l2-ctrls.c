@@ -39,6 +39,20 @@ struct ctrl_helper {
 	bool handled;
 };
 
+/* Small helper function to determine if the autocluster is set to manual
+   mode. In that case the is_volatile flag should be ignored. */
+static bool is_cur_manual(const struct v4l2_ctrl *master)
+{
+	return master->is_auto && master->cur.val == master->manual_mode_value;
+}
+
+/* Same as above, but this checks the against the new value instead of the
+   current value. */
+static bool is_new_manual(const struct v4l2_ctrl *master)
+{
+	return master->is_auto && master->val == master->manual_mode_value;
+}
+
 /* Returns NULL or a character pointer array containing the menu for
    the given control ID. The pointer array ends with a NULL pointer.
    An empty string signifies a menu entry that is invalid. This allows
@@ -643,7 +657,7 @@ static int ctrl_is_volatile(struct v4l2_ext_control *c,
 }
 
 /* Copy the new value to the current value. */
-static void new_to_cur(struct v4l2_ctrl *ctrl)
+static void new_to_cur(struct v4l2_ctrl *ctrl, bool update_inactive)
 {
 	if (ctrl == NULL)
 		return;
@@ -658,6 +672,11 @@ static void new_to_cur(struct v4l2_ctrl *ctrl)
 	default:
 		ctrl->cur.val = ctrl->val;
 		break;
+	}
+	if (update_inactive) {
+		ctrl->flags &= ~V4L2_CTRL_FLAG_INACTIVE;
+		if (!is_cur_manual(ctrl->cluster[0]))
+			ctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 	}
 }
 
@@ -1166,7 +1185,7 @@ void v4l2_ctrl_cluster(unsigned ncontrols, struct v4l2_ctrl **controls)
 	int i;
 
 	/* The first control is the master control and it must not be NULL */
-	BUG_ON(controls[0] == NULL);
+	BUG_ON(ncontrols == 0 || controls[0] == NULL);
 
 	for (i = 0; i < ncontrols; i++) {
 		if (controls[i]) {
@@ -1176,6 +1195,28 @@ void v4l2_ctrl_cluster(unsigned ncontrols, struct v4l2_ctrl **controls)
 	}
 }
 EXPORT_SYMBOL(v4l2_ctrl_cluster);
+
+void v4l2_ctrl_auto_cluster(unsigned ncontrols, struct v4l2_ctrl **controls,
+			    u8 manual_val, bool set_volatile)
+{
+	struct v4l2_ctrl *master = controls[0];
+	u32 flag;
+	int i;
+
+	v4l2_ctrl_cluster(ncontrols, controls);
+	WARN_ON(ncontrols <= 1);
+	master->is_auto = true;
+	master->manual_mode_value = manual_val;
+	master->flags |= V4L2_CTRL_FLAG_UPDATE;
+	flag = is_cur_manual(master) ? 0 : V4L2_CTRL_FLAG_INACTIVE;
+
+	for (i = 1; i < ncontrols; i++)
+		if (controls[i]) {
+			controls[i]->is_volatile = set_volatile;
+			controls[i]->flags |= flag;
+		}
+}
+EXPORT_SYMBOL(v4l2_ctrl_auto_cluster);
 
 /* Activate/deactivate a control. */
 void v4l2_ctrl_activate(struct v4l2_ctrl *ctrl, bool active)
@@ -1595,7 +1636,7 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs
 		v4l2_ctrl_lock(master);
 
 		/* g_volatile_ctrl will update the new control values */
-		if (has_volatiles) {
+		if (has_volatiles && !is_cur_manual(master)) {
 			for (j = 0; j < master->ncontrols; j++)
 				cur_to_new(master->cluster[j]);
 			ret = call_op(master, g_volatile_ctrl);
@@ -1633,7 +1674,7 @@ static int get_ctrl(struct v4l2_ctrl *ctrl, s32 *val)
 
 	v4l2_ctrl_lock(master);
 	/* g_volatile_ctrl will update the current control values */
-	if (ctrl->is_volatile) {
+	if (ctrl->is_volatile && !is_cur_manual(master)) {
 		for (i = 0; i < master->ncontrols; i++)
 			cur_to_new(master->cluster[i]);
 		ret = call_op(master, g_volatile_ctrl);
@@ -1678,6 +1719,7 @@ EXPORT_SYMBOL(v4l2_ctrl_g_ctrl);
    Must be called with ctrl->handler->lock held. */
 static int try_or_set_control_cluster(struct v4l2_ctrl *master, bool set)
 {
+	bool update_flag;
 	bool try = !set;
 	int ret = 0;
 	int i;
@@ -1717,14 +1759,17 @@ static int try_or_set_control_cluster(struct v4l2_ctrl *master, bool set)
 		ret = call_op(master, try_ctrl);
 
 	/* Don't set if there is no change */
-	if (!ret && set && cluster_changed(master)) {
-		ret = call_op(master, s_ctrl);
-		/* If OK, then make the new values permanent. */
-		if (!ret)
-			for (i = 0; i < master->ncontrols; i++)
-				new_to_cur(master->cluster[i]);
-	}
-	return ret;
+	if (ret || !set || !cluster_changed(master))
+		return ret;
+	ret = call_op(master, s_ctrl);
+	/* If OK, then make the new values permanent. */
+	if (ret)
+		return ret;
+
+	update_flag = is_cur_manual(master) != is_new_manual(master);
+	for (i = 0; i < master->ncontrols; i++)
+		new_to_cur(master->cluster[i], update_flag && i > 0);
+	return 0;
 }
 
 /* Try or set controls. */
