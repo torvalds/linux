@@ -87,7 +87,8 @@ struct pnfs_layoutdriver_type {
 	void (*free_lseg) (struct pnfs_layout_segment *lseg);
 
 	/* test for nfs page cache coalescing */
-	bool (*pg_test)(struct nfs_pageio_descriptor *, struct nfs_page *, struct nfs_page *);
+	const struct nfs_pageio_ops *pg_read_ops;
+	const struct nfs_pageio_ops *pg_write_ops;
 
 	/* Returns true if layoutdriver wants to divert this request to
 	 * driver's commit routine.
@@ -152,6 +153,10 @@ struct pnfs_layout_segment *
 pnfs_update_layout(struct inode *ino, struct nfs_open_context *ctx,
 		   loff_t pos, u64 count, enum pnfs_iomode access_type,
 		   gfp_t gfp_flags);
+
+bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *);
+bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *, int);
+
 void set_pnfs_layoutdriver(struct nfs_server *, u32 id);
 void unset_pnfs_layoutdriver(struct nfs_server *);
 enum pnfs_try_status pnfs_try_to_write_data(struct nfs_write_data *,
@@ -293,15 +298,6 @@ static inline int pnfs_return_layout(struct inode *ino)
 	return 0;
 }
 
-static inline void pnfs_pageio_init(struct nfs_pageio_descriptor *pgio,
-				    struct inode *inode)
-{
-	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
-
-	if (ld)
-		pgio->pg_test = ld->pg_test;
-}
-
 #else  /* CONFIG_NFS_V4_1 */
 
 static inline void pnfs_destroy_all_layouts(struct nfs_client *clp)
@@ -385,9 +381,14 @@ static inline void unset_pnfs_layoutdriver(struct nfs_server *s)
 {
 }
 
-static inline void pnfs_pageio_init(struct nfs_pageio_descriptor *pgio,
-				    struct inode *inode)
+static inline bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode)
 {
+	return false;
+}
+
+static inline bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode, int ioflags)
+{
+	return false;
 }
 
 static inline void

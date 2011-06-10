@@ -230,7 +230,7 @@ EXPORT_SYMBOL_GPL(nfs_generic_pg_test);
  */
 void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 		     struct inode *inode,
-		     int (*doio)(struct nfs_pageio_descriptor *),
+		     const struct nfs_pageio_ops *pg_ops,
 		     size_t bsize,
 		     int io_flags)
 {
@@ -241,12 +241,10 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_base = 0;
 	desc->pg_moreio = 0;
 	desc->pg_inode = inode;
-	desc->pg_doio = doio;
+	desc->pg_ops = pg_ops;
 	desc->pg_ioflags = io_flags;
 	desc->pg_error = 0;
 	desc->pg_lseg = NULL;
-	desc->pg_test = nfs_generic_pg_test;
-	pnfs_pageio_init(desc, inode);
 }
 
 /**
@@ -276,7 +274,7 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 		return false;
 	if (prev->wb_pgbase + prev->wb_bytes != PAGE_CACHE_SIZE)
 		return false;
-	return pgio->pg_test(pgio, prev, req);
+	return pgio->pg_ops->pg_test(pgio, prev, req);
 }
 
 /**
@@ -311,7 +309,7 @@ static int nfs_pageio_do_add_request(struct nfs_pageio_descriptor *desc,
 static void nfs_pageio_doio(struct nfs_pageio_descriptor *desc)
 {
 	if (!list_empty(&desc->pg_list)) {
-		int error = desc->pg_doio(desc);
+		int error = desc->pg_ops->pg_doio(desc);
 		if (error < 0)
 			desc->pg_error = error;
 		else

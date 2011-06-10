@@ -1056,6 +1056,30 @@ out_forget_reply:
 }
 
 bool
+pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode)
+{
+	struct nfs_server *server = NFS_SERVER(inode);
+	struct pnfs_layoutdriver_type *ld = server->pnfs_curr_ld;
+
+	if (ld == NULL)
+		return false;
+	nfs_pageio_init(pgio, inode, ld->pg_read_ops, server->rsize, 0);
+	return true;
+}
+
+bool
+pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode, int ioflags)
+{
+	struct nfs_server *server = NFS_SERVER(inode);
+	struct pnfs_layoutdriver_type *ld = server->pnfs_curr_ld;
+
+	if (ld == NULL)
+		return false;
+	nfs_pageio_init(pgio, inode, ld->pg_write_ops, server->wsize, ioflags);
+	return true;
+}
+
+bool
 pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		     struct nfs_page *req)
 {

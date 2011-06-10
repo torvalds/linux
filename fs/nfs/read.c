@@ -32,6 +32,7 @@
 
 static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc);
 static int nfs_pagein_one(struct nfs_pageio_descriptor *desc);
+static const struct nfs_pageio_ops nfs_pageio_read_ops;
 static const struct rpc_call_ops nfs_read_partial_ops;
 static const struct rpc_call_ops nfs_read_full_ops;
 
@@ -113,6 +114,20 @@ static void nfs_readpage_truncate_uninitialised_page(struct nfs_read_data *data)
 	}
 }
 
+static void nfs_pageio_init_read_mds(struct nfs_pageio_descriptor *pgio,
+		struct inode *inode)
+{
+	nfs_pageio_init(pgio, inode, &nfs_pageio_read_ops,
+			NFS_SERVER(inode)->rsize, 0);
+}
+
+static void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
+		struct inode *inode)
+{
+	if (!pnfs_pageio_init_read(pgio, inode))
+		nfs_pageio_init_read_mds(pgio, inode);
+}
+
 int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 		       struct page *page)
 {
@@ -131,14 +146,11 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	if (len < PAGE_CACHE_SIZE)
 		zero_user_segment(page, len, PAGE_CACHE_SIZE);
 
-	nfs_pageio_init(&pgio, inode, NULL, 0, 0);
+	nfs_pageio_init_read(&pgio, inode);
 	nfs_list_add_request(new, &pgio.pg_list);
 	pgio.pg_count = len;
 
-	if (NFS_SERVER(inode)->rsize < PAGE_CACHE_SIZE)
-		nfs_pagein_multi(&pgio);
-	else
-		nfs_pagein_one(&pgio);
+	nfs_pageio_complete(&pgio);
 	return 0;
 }
 
@@ -364,6 +376,20 @@ out:
 	desc->pg_lseg = NULL;
 	return ret;
 }
+
+int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
+{
+	if (desc->pg_bsize < PAGE_CACHE_SIZE)
+		return nfs_pagein_multi(desc);
+	return nfs_pagein_one(desc);
+}
+EXPORT_SYMBOL_GPL(nfs_generic_pg_readpages);
+
+
+static const struct nfs_pageio_ops nfs_pageio_read_ops = {
+	.pg_test = nfs_generic_pg_test,
+	.pg_doio = nfs_generic_pg_readpages,
+};
 
 /*
  * This is the callback from RPC telling us whether a reply was
@@ -635,8 +661,6 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 		.pgio = &pgio,
 	};
 	struct inode *inode = mapping->host;
-	struct nfs_server *server = NFS_SERVER(inode);
-	size_t rsize = server->rsize;
 	unsigned long npages;
 	int ret = -ESTALE;
 
@@ -664,10 +688,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	if (ret == 0)
 		goto read_complete; /* all pages were read */
 
-	if (rsize < PAGE_CACHE_SIZE)
-		nfs_pageio_init(&pgio, inode, nfs_pagein_multi, rsize, 0);
-	else
-		nfs_pageio_init(&pgio, inode, nfs_pagein_one, rsize, 0);
+	nfs_pageio_init_read(&pgio, inode);
 
 	ret = read_cache_pages(mapping, pages, readpage_async_filler, &desc);
 

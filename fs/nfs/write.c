@@ -1033,15 +1033,31 @@ out:
 	return ret;
 }
 
+int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
+{
+	if (desc->pg_bsize < PAGE_CACHE_SIZE)
+		return nfs_flush_multi(desc);
+	return nfs_flush_one(desc);
+}
+EXPORT_SYMBOL_GPL(nfs_generic_pg_writepages);
+
+static const struct nfs_pageio_ops nfs_pageio_write_ops = {
+	.pg_test = nfs_generic_pg_test,
+	.pg_doio = nfs_generic_pg_writepages,
+};
+
+static void nfs_pageio_init_write_mds(struct nfs_pageio_descriptor *pgio,
+				  struct inode *inode, int ioflags)
+{
+	nfs_pageio_init(pgio, inode, &nfs_pageio_write_ops,
+				NFS_SERVER(inode)->wsize, ioflags);
+}
+
 static void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
 				  struct inode *inode, int ioflags)
 {
-	size_t wsize = NFS_SERVER(inode)->wsize;
-
-	if (wsize < PAGE_CACHE_SIZE)
-		nfs_pageio_init(pgio, inode, nfs_flush_multi, wsize, ioflags);
-	else
-		nfs_pageio_init(pgio, inode, nfs_flush_one, wsize, ioflags);
+	if (!pnfs_pageio_init_write(pgio, inode, ioflags))
+		nfs_pageio_init_write_mds(pgio, inode, ioflags);
 }
 
 /*

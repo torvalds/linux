@@ -1007,6 +1007,16 @@ static bool objio_pg_test(struct nfs_pageio_descriptor *pgio,
 			OBJIO_LSEG(pgio->pg_lseg)->max_io_size;
 }
 
+static const struct nfs_pageio_ops objio_pg_read_ops = {
+	.pg_test = objio_pg_test,
+	.pg_doio = nfs_generic_pg_readpages,
+};
+
+static const struct nfs_pageio_ops objio_pg_write_ops = {
+	.pg_test = objio_pg_test,
+	.pg_doio = nfs_generic_pg_writepages,
+};
+
 static struct pnfs_layoutdriver_type objlayout_type = {
 	.id = LAYOUT_OSD2_OBJECTS,
 	.name = "LAYOUT_OSD2_OBJECTS",
@@ -1020,7 +1030,8 @@ static struct pnfs_layoutdriver_type objlayout_type = {
 
 	.read_pagelist           = objlayout_read_pagelist,
 	.write_pagelist          = objlayout_write_pagelist,
-	.pg_test                 = objio_pg_test,
+	.pg_read_ops             = &objio_pg_read_ops,
+	.pg_write_ops            = &objio_pg_write_ops,
 
 	.free_deviceid_node	 = objio_free_deviceid_node,
 

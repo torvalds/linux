@@ -658,7 +658,7 @@ filelayout_alloc_lseg(struct pnfs_layout_hdr *layoutid,
  * return true  : coalesce page
  * return false : don't coalesce page
  */
-bool
+static bool
 filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		   struct nfs_page *req)
 {
@@ -680,6 +680,16 @@ filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 
 	return (p_stripe == r_stripe);
 }
+
+static const struct nfs_pageio_ops filelayout_pg_read_ops = {
+	.pg_test = filelayout_pg_test,
+	.pg_doio = nfs_generic_pg_readpages,
+};
+
+static const struct nfs_pageio_ops filelayout_pg_write_ops = {
+	.pg_test = filelayout_pg_test,
+	.pg_doio = nfs_generic_pg_writepages,
+};
 
 static bool filelayout_mark_pnfs_commit(struct pnfs_layout_segment *lseg)
 {
@@ -878,7 +888,8 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.owner			= THIS_MODULE,
 	.alloc_lseg		= filelayout_alloc_lseg,
 	.free_lseg		= filelayout_free_lseg,
-	.pg_test		= filelayout_pg_test,
+	.pg_read_ops		= &filelayout_pg_read_ops,
+	.pg_write_ops		= &filelayout_pg_write_ops,
 	.mark_pnfs_commit	= filelayout_mark_pnfs_commit,
 	.choose_commit_list	= filelayout_choose_commit_list,
 	.commit_pagelist	= filelayout_commit_pagelist,

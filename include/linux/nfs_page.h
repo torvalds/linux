@@ -55,6 +55,12 @@ struct nfs_page {
 	struct nfs_writeverf	wb_verf;	/* Commit cookie */
 };
 
+struct nfs_pageio_descriptor;
+struct nfs_pageio_ops {
+	bool	(*pg_test)(struct nfs_pageio_descriptor *, struct nfs_page *, struct nfs_page *);
+	int	(*pg_doio)(struct nfs_pageio_descriptor *);
+};
+
 struct nfs_pageio_descriptor {
 	struct list_head	pg_list;
 	unsigned long		pg_bytes_written;
@@ -64,11 +70,10 @@ struct nfs_pageio_descriptor {
 	char			pg_moreio;
 
 	struct inode		*pg_inode;
-	int			(*pg_doio)(struct nfs_pageio_descriptor *);
+	const struct nfs_pageio_ops *pg_ops;
 	int 			pg_ioflags;
 	int			pg_error;
 	struct pnfs_layout_segment *pg_lseg;
-	bool			(*pg_test)(struct nfs_pageio_descriptor *, struct nfs_page *, struct nfs_page *);
 };
 
 #define NFS_WBACK_BUSY(req)	(test_bit(PG_BUSY,&(req)->wb_flags))
@@ -85,7 +90,7 @@ extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *dst,
 			  pgoff_t idx_start, unsigned int npages, int tag);
 extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     struct inode *inode,
-			     int (*doio)(struct nfs_pageio_descriptor *desc),
+			     const struct nfs_pageio_ops *pg_ops,
 			     size_t bsize,
 			     int how);
 extern	int nfs_pageio_add_request(struct nfs_pageio_descriptor *,
@@ -99,6 +104,9 @@ extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
 extern	int nfs_set_page_tag_locked(struct nfs_page *req);
 extern  void nfs_clear_page_tag_locked(struct nfs_page *req);
+
+extern	int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc);
+extern	int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc);
 
 
 /*
