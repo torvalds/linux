@@ -194,8 +194,7 @@ static void handle_uncompressed_page(struct zram *zram,
 	unsigned char *user_mem, *cmem;
 
 	user_mem = kmap_atomic(page, KM_USER0);
-	cmem = kmap_atomic(zram->table[index].page, KM_USER1) +
-			zram->table[index].offset;
+	cmem = kmap_atomic(zram->table[index].page, KM_USER1);
 
 	memcpy(user_mem, cmem, PAGE_SIZE);
 	kunmap_atomic(user_mem, KM_USER0);
