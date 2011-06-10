@@ -25,8 +25,10 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-dev.h>
 
+#define has_op(master, op) \
+	(master->ops && master->ops->op)
 #define call_op(master, op) \
-	((master->ops && master->ops->op) ? master->ops->op(master) : 0)
+	(has_op(master, op) ? master->ops->op(master) : 0)
 
 /* Internal temporary helper struct, one for each v4l2_ext_control */
 struct ctrl_helper {
@@ -624,6 +626,20 @@ static int new_to_user(struct v4l2_ext_control *c,
 		break;
 	}
 	return 0;
+}
+
+static int ctrl_to_user(struct v4l2_ext_control *c,
+		       struct v4l2_ctrl *ctrl)
+{
+	if (ctrl->is_volatile)
+		return new_to_user(c, ctrl);
+	return cur_to_user(c, ctrl);
+}
+
+static int ctrl_is_volatile(struct v4l2_ext_control *c,
+		       struct v4l2_ctrl *ctrl)
+{
+	return ctrl->is_volatile;
 }
 
 /* Copy the new value to the current value. */
@@ -1535,7 +1551,7 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs
 	struct ctrl_helper helper[4];
 	struct ctrl_helper *helpers = helper;
 	int ret;
-	int i;
+	int i, j;
 
 	cs->error_idx = cs->count;
 	cs->ctrl_class = V4L2_CTRL_ID2CLASS(cs->ctrl_class);
@@ -1562,19 +1578,33 @@ int v4l2_g_ext_ctrls(struct v4l2_ctrl_handler *hdl, struct v4l2_ext_controls *cs
 	for (i = 0; !ret && i < cs->count; i++) {
 		struct v4l2_ctrl *ctrl = helpers[i].ctrl;
 		struct v4l2_ctrl *master = ctrl->cluster[0];
+		bool has_volatiles;
 
 		if (helpers[i].handled)
 			continue;
 
 		cs->error_idx = i;
 
+		/* Any volatile controls requested from this cluster? */
+		has_volatiles = ctrl->is_volatile;
+		if (!has_volatiles && has_op(master, g_volatile_ctrl) &&
+				master->ncontrols > 1)
+			has_volatiles = cluster_walk(i, cs, helpers,
+						ctrl_is_volatile);
+
 		v4l2_ctrl_lock(master);
-		/* g_volatile_ctrl will update the current control values */
-		if (ctrl->is_volatile)
+
+		/* g_volatile_ctrl will update the new control values */
+		if (has_volatiles) {
+			for (j = 0; j < master->ncontrols; j++)
+				cur_to_new(master->cluster[j]);
 			ret = call_op(master, g_volatile_ctrl);
-		/* If OK, then copy the current control values to the caller */
+		}
+		/* If OK, then copy the current (for non-volatile controls)
+		   or the new (for volatile controls) control values to the
+		   caller */
 		if (!ret)
-			ret = cluster_walk(i, cs, helpers, cur_to_user);
+			ret = cluster_walk(i, cs, helpers, ctrl_to_user);
 		v4l2_ctrl_unlock(master);
 		cluster_done(i, cs, helpers);
 	}
@@ -1596,15 +1626,21 @@ static int get_ctrl(struct v4l2_ctrl *ctrl, s32 *val)
 {
 	struct v4l2_ctrl *master = ctrl->cluster[0];
 	int ret = 0;
+	int i;
 
 	if (ctrl->flags & V4L2_CTRL_FLAG_WRITE_ONLY)
 		return -EACCES;
 
 	v4l2_ctrl_lock(master);
 	/* g_volatile_ctrl will update the current control values */
-	if (ctrl->is_volatile)
+	if (ctrl->is_volatile) {
+		for (i = 0; i < master->ncontrols; i++)
+			cur_to_new(master->cluster[i]);
 		ret = call_op(master, g_volatile_ctrl);
-	*val = ctrl->cur.val;
+		*val = ctrl->val;
+	} else {
+		*val = ctrl->cur.val;
+	}
 	v4l2_ctrl_unlock(master);
 	return ret;
 }
