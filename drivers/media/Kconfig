@@ -87,7 +87,7 @@ config DVB_CORE
 config DVB_NET
 	bool "DVB Network Support"
 	default (NET && INET)
-	depends on NET && INET
+	depends on NET && INET && DVB_CORE
 	help
 	  The DVB network support in the DVB core can
 	  optionally be disabled if this
