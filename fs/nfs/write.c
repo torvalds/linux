@@ -1040,7 +1040,7 @@ static const struct nfs_pageio_ops nfs_pageio_write_ops = {
 	.pg_doio = nfs_generic_pg_writepages,
 };
 
-static void nfs_pageio_init_write_mds(struct nfs_pageio_descriptor *pgio,
+void nfs_pageio_init_write_mds(struct nfs_pageio_descriptor *pgio,
 				  struct inode *inode, int ioflags)
 {
 	nfs_pageio_init(pgio, inode, &nfs_pageio_write_ops,
