@@ -1394,7 +1394,7 @@ static int snd_fm801_resume(struct pci_dev *pci)
 #endif
 
 static struct pci_driver driver = {
-	.name = "FM801",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_fm801_ids,
 	.probe = snd_card_fm801_probe,
 	.remove = __devexit_p(snd_card_fm801_remove),

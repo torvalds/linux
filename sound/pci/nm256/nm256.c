@@ -1743,7 +1743,7 @@ static void __devexit snd_nm256_remove(struct pci_dev *pci)
 
 
 static struct pci_driver driver = {
-	.name = "NeoMagic 256",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_nm256_ids,
 	.probe = snd_nm256_probe,
 	.remove = __devexit_p(snd_nm256_remove),

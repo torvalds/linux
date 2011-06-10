@@ -2295,7 +2295,7 @@ static void __devexit snd_ali_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "ALI 5451",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_ali_ids,
 	.probe = snd_ali_probe,
 	.remove = __devexit_p(snd_ali_remove),

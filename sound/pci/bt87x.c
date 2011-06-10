@@ -965,7 +965,7 @@ static DEFINE_PCI_DEVICE_TABLE(snd_bt87x_default_ids) = {
 };
 
 static struct pci_driver driver = {
-	.name = "Bt87x",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_bt87x_ids,
 	.probe = snd_bt87x_probe,
 	.remove = __devexit_p(snd_bt87x_remove),

@@ -1137,7 +1137,7 @@ static void __devexit snd_lx6464es_remove(struct pci_dev *pci)
 
 
 static struct pci_driver driver = {
-	.name =     "Digigram LX6464ES",
+	.name =     KBUILD_MODNAME,
 	.id_table = snd_lx6464es_ids,
 	.probe =    snd_lx6464es_probe,
 	.remove = __devexit_p(snd_lx6464es_remove),

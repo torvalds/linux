@@ -1381,7 +1381,7 @@ static void __devexit snd_mixart_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "Digigram miXart",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_mixart_ids,
 	.probe = snd_mixart_probe,
 	.remove = __devexit_p(snd_mixart_remove),

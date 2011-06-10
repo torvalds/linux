@@ -2327,7 +2327,7 @@ static void __devexit snd_echo_remove(struct pci_dev *pci)
 
 /* pci_driver definition */
 static struct pci_driver driver = {
-	.name = "Echoaudio " ECHOCARD_NAME,
+	.name = KBUILD_MODNAME,
 	.id_table = snd_echo_ids,
 	.probe = snd_echo_probe,
 	.remove = __devexit_p(snd_echo_remove),

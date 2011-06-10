@@ -171,7 +171,7 @@ MODULE_DEVICE_TABLE(pci, snd_aw2_ids);
 
 /* pci_driver definition */
 static struct pci_driver driver = {
-	.name = "Emagic Audiowerk 2",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_aw2_ids,
 	.probe = snd_aw2_probe,
 	.remove = __devexit_p(snd_aw2_remove),

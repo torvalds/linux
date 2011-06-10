@@ -5637,7 +5637,7 @@ static void __devexit snd_hdsp_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name =     "RME Hammerfall DSP",
+	.name =     KBUILD_MODNAME,
 	.id_table = snd_hdsp_ids,
 	.probe =    snd_hdsp_probe,
 	.remove = __devexit_p(snd_hdsp_remove),

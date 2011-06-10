@@ -1882,7 +1882,7 @@ static void __devexit snd_es1938_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "ESS ES1938 (Solo-1)",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_es1938_ids,
 	.probe = snd_es1938_probe,
 	.remove = __devexit_p(snd_es1938_remove),

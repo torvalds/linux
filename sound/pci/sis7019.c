@@ -1436,7 +1436,7 @@ static void __devexit snd_sis7019_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver sis7019_driver = {
-	.name = "SiS7019",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_sis7019_ids,
 	.probe = snd_sis7019_probe,
 	.remove = __devexit_p(snd_sis7019_remove),

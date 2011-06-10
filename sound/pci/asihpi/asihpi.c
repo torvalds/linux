@@ -2924,7 +2924,7 @@ static DEFINE_PCI_DEVICE_TABLE(asihpi_pci_tbl) = {
 MODULE_DEVICE_TABLE(pci, asihpi_pci_tbl);
 
 static struct pci_driver driver = {
-	.name = "asihpi",
+	.name = KBUILD_MODNAME,
 	.id_table = asihpi_pci_tbl,
 	.probe = snd_asihpi_probe,
 	.remove = __devexit_p(snd_asihpi_remove),

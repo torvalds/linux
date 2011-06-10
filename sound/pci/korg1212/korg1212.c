@@ -2477,7 +2477,7 @@ static void __devexit snd_korg1212_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "korg1212",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_korg1212_ids,
 	.probe = snd_korg1212_probe,
 	.remove = __devexit_p(snd_korg1212_remove),

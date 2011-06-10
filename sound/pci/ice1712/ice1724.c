@@ -2802,7 +2802,7 @@ static int snd_vt1724_resume(struct pci_dev *pci)
 #endif
 
 static struct pci_driver driver = {
-	.name = "ICE1724",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_vt1724_ids,
 	.probe = snd_vt1724_probe,
 	.remove = __devexit_p(snd_vt1724_remove),

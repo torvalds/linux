@@ -290,7 +290,7 @@ static int snd_vx222_resume(struct pci_dev *pci)
 #endif
 
 static struct pci_driver driver = {
-	.name = "Digigram VX222",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_vx222_ids,
 	.probe = snd_vx222_probe,
 	.remove = __devexit_p(snd_vx222_remove),

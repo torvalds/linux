@@ -1055,7 +1055,7 @@ static DEFINE_PCI_DEVICE_TABLE(snd_ad1889_ids) = {
 MODULE_DEVICE_TABLE(pci, snd_ad1889_ids);
 
 static struct pci_driver ad1889_pci_driver = {
-	.name = "AD1889 Audio",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_ad1889_ids,
 	.probe = snd_ad1889_probe,
 	.remove = __devexit_p(snd_ad1889_remove),

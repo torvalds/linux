@@ -1608,7 +1608,7 @@ static void __devexit pcxhr_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "Digigram pcxhr",
+	.name = KBUILD_MODNAME,
 	.id_table = pcxhr_ids,
 	.probe = pcxhr_probe,
 	.remove = __devexit_p(pcxhr_remove),
