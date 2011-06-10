@@ -1216,10 +1216,10 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *c
 	 * receive commit_rxon request
 	 * abort any previous channel switch if still in process
 	 */
-	if (priv->switch_rxon.switch_in_progress &&
-	    (priv->switch_rxon.channel != ctx->staging.channel)) {
+	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status) &&
+	    (priv->switch_channel != ctx->staging.channel)) {
 		IWL_DEBUG_11H(priv, "abort channel switch on %d\n",
-		      le16_to_cpu(priv->switch_rxon.channel));
+		      le16_to_cpu(priv->switch_channel));
 		iwl_legacy_chswitch_done(priv, false);
 	}
 
@@ -1401,9 +1401,6 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv,
 		IWL_DEBUG_11H(priv, "error:%d  fill txpower_tbl\n", rc);
 		return rc;
 	}
-
-	priv->switch_rxon.channel = cmd.channel;
-	priv->switch_rxon.switch_in_progress = true;
 
 	return iwl_legacy_send_cmd_pdu(priv,
 			 REPLY_CHANNEL_SWITCH, sizeof(cmd), &cmd);
