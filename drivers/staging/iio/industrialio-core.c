@@ -47,6 +47,7 @@ static const char * const iio_chan_type_name_spec_shared[] = {
 	[IIO_TIMESTAMP] = "timestamp",
 	[IIO_ACCEL] = "accel",
 	[IIO_IN] = "in",
+	[IIO_OUT] = "out",
 	[IIO_CURRENT] = "current",
 	[IIO_POWER] = "power",
 	[IIO_IN_DIFF] = "in-in",
@@ -675,7 +676,8 @@ static int iio_device_add_channel_sysfs(struct iio_dev *dev_info,
 	else
 		ret = __iio_add_chan_devattr("raw", NULL, chan,
 					     &iio_read_channel_info,
-					     NULL,
+					     (chan->type == IIO_OUT ?
+					     &iio_write_channel_info : NULL),
 					     0,
 					     0,
 					     &dev_info->dev,
