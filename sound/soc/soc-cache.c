@@ -61,7 +61,7 @@ static int do_hw_write(struct snd_soc_codec *codec, unsigned int reg,
 		return -EIO;
 }
 
-static unsigned int do_hw_read(struct snd_soc_codec *codec, unsigned int reg)
+static unsigned int hw_read(struct snd_soc_codec *codec, unsigned int reg)
 {
 	int ret;
 	unsigned int val;
@@ -82,12 +82,6 @@ static unsigned int do_hw_read(struct snd_soc_codec *codec, unsigned int reg)
 	return val;
 }
 
-static unsigned int snd_soc_4_12_read(struct snd_soc_codec *codec,
-				      unsigned int reg)
-{
-	return do_hw_read(codec, reg);
-}
-
 static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
 			      unsigned int value)
 {
@@ -96,12 +90,6 @@ static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
 	data = cpu_to_be16((reg << 12) | (value & 0xffffff));
 
 	return do_hw_write(codec, reg, value, &data, 2);
-}
-
-static unsigned int snd_soc_7_9_read(struct snd_soc_codec *codec,
-				     unsigned int reg)
-{
-	return do_hw_read(codec, reg);
 }
 
 static int snd_soc_7_9_write(struct snd_soc_codec *codec, unsigned int reg,
@@ -126,12 +114,6 @@ static int snd_soc_8_8_write(struct snd_soc_codec *codec, unsigned int reg,
 	return do_hw_write(codec, reg, value, data, 2);
 }
 
-static unsigned int snd_soc_8_8_read(struct snd_soc_codec *codec,
-				     unsigned int reg)
-{
-	return do_hw_read(codec, reg);
-}
-
 static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
 			      unsigned int value)
 {
@@ -142,12 +124,6 @@ static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
 	memcpy(&data[1], &val, sizeof(val));
 
 	return do_hw_write(codec, reg, value, data, 3);
-}
-
-static unsigned int snd_soc_8_16_read(struct snd_soc_codec *codec,
-				      unsigned int reg)
-{
-	return do_hw_read(codec, reg);
 }
 
 #if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
@@ -232,12 +208,6 @@ static unsigned int snd_soc_16_8_read_i2c(struct snd_soc_codec *codec,
 #define snd_soc_16_8_read_i2c NULL
 #endif
 
-static unsigned int snd_soc_16_8_read(struct snd_soc_codec *codec,
-				      unsigned int reg)
-{
-	return do_hw_read(codec, reg);
-}
-
 static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
 			      unsigned int value)
 {
@@ -266,12 +236,6 @@ static unsigned int snd_soc_16_16_read_i2c(struct snd_soc_codec *codec,
 #else
 #define snd_soc_16_16_read_i2c NULL
 #endif
-
-static unsigned int snd_soc_16_16_read(struct snd_soc_codec *codec,
-				       unsigned int reg)
-{
-	return do_hw_read(codec, reg);
-}
 
 static int snd_soc_16_16_write(struct snd_soc_codec *codec, unsigned int reg,
 			       unsigned int value)
@@ -337,30 +301,30 @@ static struct {
 } io_types[] = {
 	{
 		.addr_bits = 4, .data_bits = 12,
-		.write = snd_soc_4_12_write, .read = snd_soc_4_12_read,
+		.write = snd_soc_4_12_write,
 	},
 	{
 		.addr_bits = 7, .data_bits = 9,
-		.write = snd_soc_7_9_write, .read = snd_soc_7_9_read,
+		.write = snd_soc_7_9_write,
 	},
 	{
 		.addr_bits = 8, .data_bits = 8,
-		.write = snd_soc_8_8_write, .read = snd_soc_8_8_read,
+		.write = snd_soc_8_8_write,
 		.i2c_read = snd_soc_8_8_read_i2c,
 	},
 	{
 		.addr_bits = 8, .data_bits = 16,
-		.write = snd_soc_8_16_write, .read = snd_soc_8_16_read,
+		.write = snd_soc_8_16_write,
 		.i2c_read = snd_soc_8_16_read_i2c,
 	},
 	{
 		.addr_bits = 16, .data_bits = 8,
-		.write = snd_soc_16_8_write, .read = snd_soc_16_8_read,
+		.write = snd_soc_16_8_write,
 		.i2c_read = snd_soc_16_8_read_i2c,
 	},
 	{
 		.addr_bits = 16, .data_bits = 16,
-		.write = snd_soc_16_16_write, .read = snd_soc_16_16_read,
+		.write = snd_soc_16_16_write,
 		.i2c_read = snd_soc_16_16_read_i2c,
 	},
 };
@@ -402,7 +366,7 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 	}
 
 	codec->write = io_types[i].write;
-	codec->read = io_types[i].read;
+	codec->read = hw_read;
 	codec->bulk_write_raw = snd_soc_hw_bulk_write_raw;
 
 	switch (control) {
