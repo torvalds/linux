@@ -437,7 +437,8 @@ static int rockchip_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		vol = substream->number % 100;
 		streamType = (substream->number / 100) % 100;
 		DBG("enter:vol=%d,streamType=%d\n",vol,streamType);
-		pCodec_dai->ops->set_volume(streamType, vol);
+		if(pCodec_dai->ops->set_volume)
+			pCodec_dai->ops->set_volume(streamType, vol);
 	}
 	/****************************************************/
 	spin_lock(&prtd->lock);
