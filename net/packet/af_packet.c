@@ -1685,6 +1685,8 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 			vnet_hdr.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
 			vnet_hdr.csum_start = skb_checksum_start_offset(skb);
 			vnet_hdr.csum_offset = skb->csum_offset;
+		} else if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
+			vnet_hdr.flags = VIRTIO_NET_HDR_F_DATA_VALID;
 		} /* else everything is zero */
 
 		err = memcpy_toiovec(msg->msg_iov, (void *)&vnet_hdr,

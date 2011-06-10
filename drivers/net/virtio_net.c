@@ -274,6 +274,8 @@ static void receive_buf(struct net_device *dev, void *buf, unsigned int len)
 					  hdr->hdr.csum_start,
 					  hdr->hdr.csum_offset))
 			goto frame_err;
+	} else if (hdr->hdr.flags & VIRTIO_NET_HDR_F_DATA_VALID) {
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
 	skb->protocol = eth_type_trans(skb, dev);

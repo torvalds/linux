@@ -788,6 +788,8 @@ static ssize_t tun_put_user(struct tun_struct *tun,
 			gso.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
 			gso.csum_start = skb_checksum_start_offset(skb);
 			gso.csum_offset = skb->csum_offset;
+		} else if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
+			gso.flags = VIRTIO_NET_HDR_F_DATA_VALID;
 		} /* else everything is zero */
 
 		if (unlikely(memcpy_toiovecend(iv, (void *)&gso, total,
