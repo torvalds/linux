@@ -1407,12 +1407,6 @@ extern bool conn_try_outdate_peer(struct drbd_tconn *tconn);
 extern void conn_try_outdate_peer_async(struct drbd_tconn *tconn);
 extern int drbd_khelper(struct drbd_conf *mdev, char *cmd);
 
-struct nla_policy;
-extern int drbd_nla_check_mandatory(int maxtype, struct nlattr *nla);
-extern int drbd_nla_parse_nested(struct nlattr *tb[], int maxtype, struct nlattr *nla,
-				 const struct nla_policy *policy);
-extern struct nlattr *drbd_nla_find_nested(int maxtype, struct nlattr *nla, int attrtype);
-
 /* drbd_worker.c */
 extern int drbd_worker(struct drbd_thread *thi);
 enum drbd_ret_code drbd_resync_after_valid(struct drbd_conf *mdev, int o_minor);

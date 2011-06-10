@@ -3,6 +3,7 @@
 
 #include <linux/ctype.h>
 #include <linux/mm.h>
+#include "drbd_int.h"
 
 /* see get_sb_bdev and bd_claim */
 extern char *drbd_sec_holder;

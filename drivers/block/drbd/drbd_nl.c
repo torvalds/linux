@@ -75,6 +75,7 @@ int drbd_adm_get_timeout_type(struct sk_buff *skb, struct genl_info *info);
 int drbd_adm_get_status_all(struct sk_buff *skb, struct netlink_callback *cb);
 
 #include <linux/drbd_genl_api.h>
+#include "drbd_nla.h"
 #include <linux/genl_magic_func.h>
 
 /* used blkdev_get_by_path, to claim our meta data device(s) */
@@ -3218,54 +3219,4 @@ failed:
 	dev_err(DEV, "Error %d while broadcasting event. "
 			"Event seq:%u sib_reason:%u\n",
 			err, seq, sib->sib_reason);
-}
-
-int drbd_nla_check_mandatory(int maxtype, struct nlattr *nla)
-{
-	struct nlattr *head = nla_data(nla);
-	int len = nla_len(nla);
-	int rem;
-
-	/*
-	 * validate_nla (called from nla_parse_nested) ignores attributes
-	 * beyond maxtype, and does not understand the DRBD_GENLA_F_MANDATORY flag.
-	 * In order to have it validate attributes with the DRBD_GENLA_F_MANDATORY
-	 * flag set also, check and remove that flag before calling
-	 * nla_parse_nested.
-	 */
-
-	nla_for_each_attr(nla, head, len, rem) {
-		if (nla->nla_type & DRBD_GENLA_F_MANDATORY) {
-			nla->nla_type &= ~DRBD_GENLA_F_MANDATORY;
-			if (nla_type(nla) > maxtype)
-				return -EOPNOTSUPP;
-		}
-	}
-	return 0;
-}
-
-int drbd_nla_parse_nested(struct nlattr *tb[], int maxtype, struct nlattr *nla,
-			  const struct nla_policy *policy)
-{
-	int err;
-
-	err = drbd_nla_check_mandatory(maxtype, nla);
-	if (!err)
-		err = nla_parse_nested(tb, maxtype, nla, policy);
-
-	return err;
-}
-
-struct nlattr *drbd_nla_find_nested(int maxtype, struct nlattr *nla, int attrtype)
-{
-	int err;
-	/*
-	 * If any nested attribute has the DRBD_GENLA_F_MANDATORY flag set and
-	 * we don't know about that attribute, reject all the nested
-	 * attributes.
-	 */
-	err = drbd_nla_check_mandatory(maxtype, nla);
-	if (err)
-		return ERR_PTR(err);
-	return nla_find_nested(nla, attrtype);
 }
