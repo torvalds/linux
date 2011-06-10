@@ -1648,7 +1648,6 @@ static int __cpuinit rcu_spawn_one_cpu_kthread(int cpu)
 	if (IS_ERR(t))
 		return PTR_ERR(t);
 	kthread_bind(t, cpu);
-	set_task_state(t, TASK_INTERRUPTIBLE);
 	per_cpu(rcu_cpu_kthread_cpu, cpu) = cpu;
 	WARN_ON_ONCE(per_cpu(rcu_cpu_kthread_task, cpu) != NULL);
 	per_cpu(rcu_cpu_kthread_task, cpu) = t;
@@ -1756,7 +1755,6 @@ static int __cpuinit rcu_spawn_one_node_kthread(struct rcu_state *rsp,
 		if (IS_ERR(t))
 			return PTR_ERR(t);
 		raw_spin_lock_irqsave(&rnp->lock, flags);
-		set_task_state(t, TASK_INTERRUPTIBLE);
 		rnp->node_kthread_task = t;
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		sp.sched_priority = 99;
@@ -1765,6 +1763,8 @@ static int __cpuinit rcu_spawn_one_node_kthread(struct rcu_state *rsp,
 	return rcu_spawn_one_boost_kthread(rsp, rnp, rnp_index);
 }
 
+static void rcu_wake_one_boost_kthread(struct rcu_node *rnp);
+
 /*
  * Spawn all kthreads -- called as soon as the scheduler is running.
  */
@@ -1772,18 +1772,30 @@ static int __init rcu_spawn_kthreads(void)
 {
 	int cpu;
 	struct rcu_node *rnp;
+	struct task_struct *t;
 
 	rcu_kthreads_spawnable = 1;
 	for_each_possible_cpu(cpu) {
 		per_cpu(rcu_cpu_has_work, cpu) = 0;
-		if (cpu_online(cpu))
+		if (cpu_online(cpu)) {
 			(void)rcu_spawn_one_cpu_kthread(cpu);
+			t = per_cpu(rcu_cpu_kthread_task, cpu);
+			if (t)
+				wake_up_process(t);
+		}
 	}
 	rnp = rcu_get_root(rcu_state);
 	(void)rcu_spawn_one_node_kthread(rcu_state, rnp);
+	if (rnp->node_kthread_task)
+		wake_up_process(rnp->node_kthread_task);
 	if (NUM_RCU_NODES > 1) {
-		rcu_for_each_leaf_node(rcu_state, rnp)
+		rcu_for_each_leaf_node(rcu_state, rnp) {
 			(void)rcu_spawn_one_node_kthread(rcu_state, rnp);
+			t = rnp->node_kthread_task;
+			if (t)
+				wake_up_process(t);
+			rcu_wake_one_boost_kthread(rnp);
+		}
 	}
 	return 0;
 }
@@ -2188,14 +2200,14 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptible)
 	raw_spin_unlock_irqrestore(&rsp->onofflock, flags);
 }
 
-static void __cpuinit rcu_online_cpu(int cpu)
+static void __cpuinit rcu_prepare_cpu(int cpu)
 {
 	rcu_init_percpu_data(cpu, &rcu_sched_state, 0);
 	rcu_init_percpu_data(cpu, &rcu_bh_state, 0);
 	rcu_preempt_init_percpu_data(cpu);
 }
 
-static void __cpuinit rcu_online_kthreads(int cpu)
+static void __cpuinit rcu_prepare_kthreads(int cpu)
 {
 	struct rcu_data *rdp = per_cpu_ptr(rcu_state->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;
@@ -2206,6 +2218,31 @@ static void __cpuinit rcu_online_kthreads(int cpu)
 		if (rnp->node_kthread_task == NULL)
 			(void)rcu_spawn_one_node_kthread(rcu_state, rnp);
 	}
+}
+
+/*
+ * kthread_create() creates threads in TASK_UNINTERRUPTIBLE state,
+ * but the RCU threads are woken on demand, and if demand is low this
+ * could be a while triggering the hung task watchdog.
+ *
+ * In order to avoid this, poke all tasks once the CPU is fully
+ * up and running.
+ */
+static void __cpuinit rcu_online_kthreads(int cpu)
+{
+	struct rcu_data *rdp = per_cpu_ptr(rcu_state->rda, cpu);
+	struct rcu_node *rnp = rdp->mynode;
+	struct task_struct *t;
+
+	t = per_cpu(rcu_cpu_kthread_task, cpu);
+	if (t)
+		wake_up_process(t);
+
+	t = rnp->node_kthread_task;
+	if (t)
+		wake_up_process(t);
+
+	rcu_wake_one_boost_kthread(rnp);
 }
 
 /*
@@ -2221,10 +2258,11 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 	switch (action) {
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
-		rcu_online_cpu(cpu);
-		rcu_online_kthreads(cpu);
+		rcu_prepare_cpu(cpu);
+		rcu_prepare_kthreads(cpu);
 		break;
 	case CPU_ONLINE:
+		rcu_online_kthreads(cpu);
 	case CPU_DOWN_FAILED:
 		rcu_node_kthread_setaffinity(rnp, -1);
 		rcu_cpu_kthread_setrt(cpu, 1);

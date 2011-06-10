@@ -227,6 +227,7 @@ static int usb6fire_fw_ezusb_upload(
 	ret = usb6fire_fw_ihex_init(fw, rec);
 	if (ret < 0) {
 		kfree(rec);
+		release_firmware(fw);
 		snd_printk(KERN_ERR PREFIX "error validating ezusb "
 				"firmware %s.\n", fwname);
 		return ret;

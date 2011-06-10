@@ -517,18 +517,17 @@ static int x25_asy_close(struct net_device *dev)
  * and sent on to some IP layer for further processing.
  */
 
-static unsigned int x25_asy_receive_buf(struct tty_struct *tty,
+static void x25_asy_receive_buf(struct tty_struct *tty,
 				const unsigned char *cp, char *fp, int count)
 {
 	struct x25_asy *sl = tty->disc_data;
-	int bytes = count;
 
 	if (!sl || sl->magic != X25_ASY_MAGIC || !netif_running(sl->dev))
 		return;
 
 
 	/* Read the characters out of the buffer */
-	while (bytes--) {
+	while (count--) {
 		if (fp && *fp++) {
 			if (!test_and_set_bit(SLF_ERROR, &sl->flags))
 				sl->dev->stats.rx_errors++;
@@ -537,8 +536,6 @@ static unsigned int x25_asy_receive_buf(struct tty_struct *tty,
 		}
 		x25_asy_unesc(sl, *cp++);
 	}
-
-	return count;
 }
 
 /*
