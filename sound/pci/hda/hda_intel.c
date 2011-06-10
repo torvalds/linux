@@ -177,7 +177,8 @@ MODULE_DESCRIPTION("Intel HDA driver");
 #define ICH6_REG_INTCTL			0x20
 #define ICH6_REG_INTSTS			0x24
 #define ICH6_REG_WALLCLK		0x30	/* 24Mhz source */
-#define ICH6_REG_SYNC			0x34	
+#define ICH6_REG_OLD_SSYNC		0x34	/* SSYNC for old ICH */
+#define ICH6_REG_SSYNC			0x38
 #define ICH6_REG_CORBLBASE		0x40
 #define ICH6_REG_CORBUBASE		0x44
 #define ICH6_REG_CORBWP			0x48
@@ -479,6 +480,7 @@ enum {
 #define AZX_DCAPS_POSFIX_VIA	(1 << 17)	/* Use VIACOMBO as default */
 #define AZX_DCAPS_NO_64BIT	(1 << 18)	/* No 64bit address */
 #define AZX_DCAPS_SYNC_WRITE	(1 << 19)	/* sync each cmd write */
+#define AZX_DCAPS_OLD_SSYNC	(1 << 20)	/* Old SSYNC reg for ICH */
 
 /* quirks for ATI SB / AMD Hudson */
 #define AZX_DCAPS_PRESET_ATI_SB \
@@ -1795,7 +1797,11 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	spin_lock(&chip->reg_lock);
 	if (nsync > 1) {
 		/* first, set SYNC bits of corresponding streams */
-		azx_writel(chip, SYNC, azx_readl(chip, SYNC) | sbits);
+		if (chip->driver_caps & AZX_DCAPS_OLD_SSYNC)
+			azx_writel(chip, OLD_SSYNC,
+				   azx_readl(chip, OLD_SSYNC) | sbits);
+		else
+			azx_writel(chip, SSYNC, azx_readl(chip, SSYNC) | sbits);
 	}
 	snd_pcm_group_for_each_entry(s, substream) {
 		if (s->pcm->card != substream->pcm->card)
@@ -1851,7 +1857,11 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	if (nsync > 1) {
 		spin_lock(&chip->reg_lock);
 		/* reset SYNC bits */
-		azx_writel(chip, SYNC, azx_readl(chip, SYNC) & ~sbits);
+		if (chip->driver_caps & AZX_DCAPS_OLD_SSYNC)
+			azx_writel(chip, OLD_SSYNC,
+				   azx_readl(chip, OLD_SSYNC) & ~sbits);
+		else
+			azx_writel(chip, SSYNC, azx_readl(chip, SSYNC) & ~sbits);
 		spin_unlock(&chip->reg_lock);
 	}
 	return 0;
@@ -2819,6 +2829,22 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	/* SCH */
 	{ PCI_DEVICE(0x8086, 0x811b),
 	  .driver_data = AZX_DRIVER_SCH | AZX_DCAPS_SCH_SNOOP },
+	{ PCI_DEVICE(0x8086, 0x2668),
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC },  /* ICH6 */
+	{ PCI_DEVICE(0x8086, 0x27d8),
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC },  /* ICH7 */
+	{ PCI_DEVICE(0x8086, 0x269a),
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC },  /* ESB2 */
+	{ PCI_DEVICE(0x8086, 0x284b),
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC },  /* ICH8 */
+	{ PCI_DEVICE(0x8086, 0x293e),
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC },  /* ICH9 */
+	{ PCI_DEVICE(0x8086, 0x293f),
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC },  /* ICH9 */
+	{ PCI_DEVICE(0x8086, 0x3a3e),
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC },  /* ICH10 */
+	{ PCI_DEVICE(0x8086, 0x3a6e),
+	  .driver_data = AZX_DRIVER_ICH | AZX_DCAPS_OLD_SSYNC },  /* ICH10 */
 	/* Generic Intel */
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_ANY_ID),
 	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,
