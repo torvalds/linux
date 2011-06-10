@@ -324,7 +324,7 @@ struct l2cap_chan {
 	__u16		monitor_timeout;
 	__u16		mps;
 
-	__u8		conf_state;
+	unsigned long	conf_state;
 	__u16		conn_state;
 
 	__u8		next_tx_seq;
@@ -424,14 +424,16 @@ struct l2cap_pinfo {
 	struct l2cap_chan	*chan;
 };
 
-#define L2CAP_CONF_REQ_SENT       0x01
-#define L2CAP_CONF_INPUT_DONE     0x02
-#define L2CAP_CONF_OUTPUT_DONE    0x04
-#define L2CAP_CONF_MTU_DONE       0x08
-#define L2CAP_CONF_MODE_DONE      0x10
-#define L2CAP_CONF_CONNECT_PEND   0x20
-#define L2CAP_CONF_NO_FCS_RECV    0x40
-#define L2CAP_CONF_STATE2_DEVICE  0x80
+enum {
+	CONF_REQ_SENT,
+	CONF_INPUT_DONE,
+	CONF_OUTPUT_DONE,
+	CONF_MTU_DONE,
+	CONF_MODE_DONE,
+	CONF_CONNECT_PEND,
+	CONF_NO_FCS_RECV,
+	CONF_STATE2_DEVICE,
+};
 
 #define L2CAP_CONF_MAX_CONF_REQ 2
 #define L2CAP_CONF_MAX_CONF_RSP 2

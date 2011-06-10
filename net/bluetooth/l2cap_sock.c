@@ -512,7 +512,7 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 		chan->mode = opts.mode;
 		switch (chan->mode) {
 		case L2CAP_MODE_BASIC:
-			chan->conf_state &= ~L2CAP_CONF_STATE2_DEVICE;
+			clear_bit(CONF_STATE2_DEVICE, &chan->conf_state);
 			break;
 		case L2CAP_MODE_ERTM:
 		case L2CAP_MODE_STREAMING:
@@ -891,7 +891,7 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->omtu = 0;
 		if (!disable_ertm && sk->sk_type == SOCK_STREAM) {
 			chan->mode = L2CAP_MODE_ERTM;
-			chan->conf_state |= L2CAP_CONF_STATE2_DEVICE;
+			set_bit(CONF_STATE2_DEVICE, &chan->conf_state);
 		} else {
 			chan->mode = L2CAP_MODE_BASIC;
 		}
