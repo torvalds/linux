@@ -272,8 +272,11 @@ static int rk29_gps_probe(struct platform_device *pdev)
 	pdata->power_flag = 0;
 
 	//gps power down
+	rk29_gps_uart_to_gpio(pdata->uart_id);
 	if (pdata->power_down)
 		pdata->power_down();
+	if (pdata->reset)
+		pdata->reset(GPIO_LOW);
 
 	pgps = pdata;
 
