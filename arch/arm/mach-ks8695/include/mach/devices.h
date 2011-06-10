@@ -30,7 +30,7 @@ extern void __init ks8695_init_leds(u8 cpu_led, u8 timer_led);
 
 struct ks8695_pci_cfg {
 	short mode;
-	int (*map_irq)(struct pci_dev *, u8, u8);
+	int (*map_irq)(const struct pci_dev *, u8, u8);
 };
 extern __init void ks8695_init_pci(struct ks8695_pci_cfg *);
 

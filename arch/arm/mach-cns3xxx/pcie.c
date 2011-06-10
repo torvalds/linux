@@ -172,7 +172,7 @@ static struct pci_bus *cns3xxx_pci_scan_bus(int nr, struct pci_sys_data *sys)
 	return pci_scan_bus(sys->busnr, &cns3xxx_pcie_ops, sys);
 }
 
-static int cns3xxx_pcie_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int cns3xxx_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	struct cns3xxx_pcie *cnspci = pdev_to_cnspci(dev);
 	int irq = cnspci->irqs[slot];

@@ -221,7 +221,8 @@ static void __init wrt350n_v2_init(void)
 	platform_device_register(&wrt350n_v2_button_device);
 }
 
-static int __init wrt350n_v2_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int __init wrt350n_v2_pci_map_irq(const struct pci_dev *dev, u8 slot,
+	u8 pin)
 {
 	int irq;
 
