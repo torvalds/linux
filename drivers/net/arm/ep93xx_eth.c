@@ -492,7 +492,7 @@ static int ep93xx_alloc_buffers(struct ep93xx_priv *ep)
 	int i;
 
 	ep->descs = dma_alloc_coherent(dev, sizeof(struct ep93xx_descs),
-				&ep->descs_dma_addr, GFP_KERNEL | GFP_DMA);
+				&ep->descs_dma_addr, GFP_KERNEL);
 	if (ep->descs == NULL)
 		return 1;
 
