@@ -14,9 +14,6 @@
  * v4l2_device/v4l2_subdev conversion by:
  * Copyright (C) 2009 Hans Verkuil <hverkuil@xs4all.nl>
  *
- * Note: this conversion is untested! Please contact the linux-media
- * mailinglist if you can test this, together with the test results.
- *
  * This file may be distributed under the terms of the GNU General
  * Public License, version 2.
  */
