@@ -1234,8 +1234,10 @@ Type: vm ioctl
 Parameters: struct kvm_assigned_msix_nr (in)
 Returns: 0 on success, -1 on error
 
-Set the number of MSI-X interrupts for an assigned device. This service can
-only be called once in the lifetime of an assigned device.
+Set the number of MSI-X interrupts for an assigned device. The number is
+reset again by terminating the MSI-X assignment of the device via
+KVM_DEASSIGN_DEV_IRQ. Calling this service more than once at any earlier
+point will fail.
 
 struct kvm_assigned_msix_nr {
 	__u32 assigned_dev_id;
