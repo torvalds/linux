@@ -185,8 +185,9 @@ enum {
 	/* module wm8775: just ident 8775 */
 	V4L2_IDENT_WM8775 = 8775,
 
-	/* module cafe_ccic, just ident 8801 */
+	/* Marvell controllers starting at 8801 */
 	V4L2_IDENT_CAFE = 8801,
+	V4L2_IDENT_ARMADA610 = 8802,
 
 	/* AKM AK8813/AK8814 */
 	V4L2_IDENT_AK8813 = 8813,

@@ -167,7 +167,7 @@ static void mcam_set_config_needed(struct mcam_camera *cam, int needed)
 
 
 /*
- * Debugging and related.  FIXME these are broken
+ * Debugging and related.
  */
 #define cam_err(cam, fmt, arg...) \
 	dev_err((cam)->dev, fmt, ##arg);
@@ -202,7 +202,8 @@ static void mcam_ctlr_dma(struct mcam_camera *cam)
 		mcam_reg_clear_bit(cam, REG_CTRL1, C1_TWOBUFS);
 	} else
 		mcam_reg_set_bit(cam, REG_CTRL1, C1_TWOBUFS);
-	mcam_reg_write(cam, REG_UBAR, 0); /* 32 bits only for now */
+	if (cam->chip_id == V4L2_IDENT_CAFE)
+		mcam_reg_write(cam, REG_UBAR, 0); /* 32 bits only */
 }
 
 static void mcam_ctlr_image(struct mcam_camera *cam)
@@ -358,8 +359,8 @@ static void mcam_ctlr_power_up(struct mcam_camera *cam)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
-	mcam_reg_clear_bit(cam, REG_CTRL1, C1_PWRDWN);
 	cam->plat_power_up(cam);
+	mcam_reg_clear_bit(cam, REG_CTRL1, C1_PWRDWN);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 	msleep(5); /* Just to be sure */
 }
@@ -369,8 +370,13 @@ static void mcam_ctlr_power_down(struct mcam_camera *cam)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
-	cam->plat_power_down(cam);
+	/*
+	 * School of hard knocks department: be sure we do any register
+	 * twiddling on the controller *before* calling the platform
+	 * power down routine.
+	 */
 	mcam_reg_set_bit(cam, REG_CTRL1, C1_PWRDWN);
+	cam->plat_power_down(cam);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 }
 
@@ -1622,14 +1628,20 @@ out_unregister:
 
 void mccic_shutdown(struct mcam_camera *cam)
 {
-	if (cam->users > 0)
+	/*
+	 * If we have no users (and we really, really should have no
+	 * users) the device will already be powered down.  Trying to
+	 * take it down again will wedge the machine, which is frowned
+	 * upon.
+	 */
+	if (cam->users > 0) {
 		cam_warn(cam, "Removing a device with users!\n");
+		mcam_ctlr_power_down(cam);
+	}
+	mcam_free_dma_bufs(cam);
 	if (cam->n_sbufs > 0)
 		/* What if they are still mapped?  Shouldn't be, but... */
 		mcam_free_sio_buffers(cam);
-	mcam_ctlr_stop_dma(cam);
-	mcam_ctlr_power_down(cam);
-	mcam_free_dma_bufs(cam);
 	video_unregister_device(&cam->vdev);
 	v4l2_device_unregister(&cam->v4l2_dev);
 }
