@@ -2925,11 +2925,8 @@ static void be_netdev_init(struct net_device *netdev)
 	netdev->features |= netdev->hw_features |
 		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
 
-	netdev->vlan_features |= NETIF_F_SG | NETIF_F_TSO |
+	netdev->vlan_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-
-	if (lancer_chip(adapter))
-		netdev->vlan_features |= NETIF_F_TSO6;
 
 	netdev->flags |= IFF_MULTICAST;
 
