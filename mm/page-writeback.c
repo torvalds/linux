@@ -490,9 +490,6 @@ static void balance_dirty_pages(struct address_space *mapping,
 	bool dirty_exceeded = false;
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 
-	if (!bdi_cap_account_dirty(bdi))
-		return;
-
 	for (;;) {
 		struct writeback_control wbc = {
 			.sync_mode	= WB_SYNC_NONE,
@@ -631,8 +628,12 @@ static DEFINE_PER_CPU(unsigned long, bdp_ratelimits) = 0;
 void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 					unsigned long nr_pages_dirtied)
 {
+	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	unsigned long ratelimit;
 	unsigned long *p;
+
+	if (!bdi_cap_account_dirty(bdi))
+		return;
 
 	ratelimit = ratelimit_pages;
 	if (mapping->backing_dev_info->dirty_exceeded)
