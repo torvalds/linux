@@ -2103,7 +2103,7 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	ec->tx_max_coalesced_frames_irq = adapter->tx_ring[0]->work_limit;
+	ec->tx_max_coalesced_frames_irq = adapter->tx_work_limit;
 
 	/* only valid if in constant ITR mode */
 	switch (adapter->rx_itr_setting) {
@@ -2192,7 +2192,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 
 	if (ec->tx_max_coalesced_frames_irq)
-		adapter->tx_ring[0]->work_limit = ec->tx_max_coalesced_frames_irq;
+		adapter->tx_work_limit = ec->tx_max_coalesced_frames_irq;
 
 	if (ec->rx_coalesce_usecs > 1) {
 		/* check the limits */
@@ -2267,12 +2267,14 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 			else
 				/* rx only or mixed */
 				q_vector->eitr = adapter->rx_eitr_param;
+			q_vector->tx.work_limit = adapter->tx_work_limit;
 			ixgbe_write_eitr(q_vector);
 		}
 	/* Legacy Interrupt Mode */
 	} else {
 		q_vector = adapter->q_vector[0];
 		q_vector->eitr = adapter->rx_eitr_param;
+		q_vector->tx.work_limit = adapter->tx_work_limit;
 		ixgbe_write_eitr(q_vector);
 	}
 

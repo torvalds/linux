@@ -214,12 +214,10 @@ struct ixgbe_ring {
 		struct ixgbe_rx_buffer *rx_buffer_info;
 	};
 	unsigned long state;
-	u8 atr_sample_rate;
-	u8 atr_count;
+	u8 __iomem *tail;
+
 	u16 count;			/* amount of descriptors */
 	u16 rx_buf_len;
-	u16 next_to_use;
-	u16 next_to_clean;
 
 	u8 queue_index; /* needed for multiqueue queue management */
 	u8 reg_idx;			/* holds the special value that gets
@@ -227,15 +225,13 @@ struct ixgbe_ring {
 					 * associated with this ring, which is
 					 * different for DCB and RSS modes
 					 */
+	u8 atr_sample_rate;
+	u8 atr_count;
+
+	u16 next_to_use;
+	u16 next_to_clean;
+
 	u8 dcb_tc;
-
-	u16 work_limit;			/* max work per interrupt */
-
-	u8 __iomem *tail;
-
-	unsigned int total_bytes;
-	unsigned int total_packets;
-
 	struct ixgbe_queue_stats stats;
 	struct u64_stats_sync syncp;
 	union {
@@ -283,6 +279,9 @@ struct ixgbe_ring_container {
 #else
 	DECLARE_BITMAP(idx, MAX_TX_QUEUES);
 #endif
+	unsigned int total_bytes;	/* total bytes processed this int */
+	unsigned int total_packets;	/* total packets processed this int */
+	u16 work_limit;			/* total work allowed per interrupt */
 	u8 count;			/* total number of rings in vector */
 	u8 itr;				/* current ITR setting for ring */
 };
@@ -416,6 +415,9 @@ struct ixgbe_adapter {
 	u32 tx_itr_setting;
 	u16 eitr_low;
 	u16 eitr_high;
+
+	/* Work limits */
+	u16 tx_work_limit;
 
 	/* TX */
 	struct ixgbe_ring *tx_ring[MAX_TX_QUEUES] ____cacheline_aligned_in_smp;

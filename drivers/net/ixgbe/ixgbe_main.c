@@ -805,7 +805,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	eop_desc = IXGBE_TX_DESC_ADV(tx_ring, eop);
 
 	while ((eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)) &&
-	       (count < tx_ring->work_limit)) {
+	       (count < q_vector->tx.work_limit)) {
 		bool cleaned = false;
 		rmb(); /* read buffer_info after eop_desc */
 		for ( ; !cleaned; count++) {
@@ -834,11 +834,11 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	}
 
 	tx_ring->next_to_clean = i;
-	tx_ring->total_bytes += total_bytes;
-	tx_ring->total_packets += total_packets;
-	u64_stats_update_begin(&tx_ring->syncp);
-	tx_ring->stats.packets += total_packets;
 	tx_ring->stats.bytes += total_bytes;
+	tx_ring->stats.packets += total_packets;
+	u64_stats_update_begin(&tx_ring->syncp);
+	q_vector->tx.total_bytes += total_bytes;
+	q_vector->tx.total_packets += total_packets;
 	u64_stats_update_end(&tx_ring->syncp);
 
 	if (check_for_tx_hang(tx_ring) && ixgbe_check_tx_hang(tx_ring)) {
@@ -886,7 +886,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		}
 	}
 
-	return count < tx_ring->work_limit;
+	return count < q_vector->tx.work_limit;
 }
 
 #ifdef CONFIG_IXGBE_DCA
@@ -1486,12 +1486,12 @@ next_desc:
 	}
 #endif /* IXGBE_FCOE */
 
-	rx_ring->total_packets += total_rx_packets;
-	rx_ring->total_bytes += total_rx_bytes;
 	u64_stats_update_begin(&rx_ring->syncp);
 	rx_ring->stats.packets += total_rx_packets;
 	rx_ring->stats.bytes += total_rx_bytes;
 	u64_stats_update_end(&rx_ring->syncp);
+	q_vector->rx.total_packets += total_rx_packets;
+	q_vector->rx.total_bytes += total_rx_bytes;
 }
 
 static int ixgbe_clean_rxonly(struct napi_struct *, int);
@@ -1597,11 +1597,8 @@ enum latency_range {
 
 /**
  * ixgbe_update_itr - update the dynamic ITR value based on statistics
- * @adapter: pointer to adapter
- * @eitr: eitr setting (ints per sec) to give last timeslice
- * @itr_setting: current throttle rate in ints/second
- * @packets: the number of packets during this measurement interval
- * @bytes: the number of bytes during this measurement interval
+ * @q_vector: structure containing interrupt and ring information
+ * @ring_container: structure containing ring performance data
  *
  *      Stores a new ITR value based on packets and byte
  *      counts during the last interrupt.  The advantage of per interrupt
@@ -1613,17 +1610,18 @@ enum latency_range {
  *      this functionality is controlled by the InterruptThrottleRate module
  *      parameter (see ixgbe_param.c)
  **/
-static u8 ixgbe_update_itr(struct ixgbe_adapter *adapter,
-			   u32 eitr, u8 itr_setting,
-			   int packets, int bytes)
+static void ixgbe_update_itr(struct ixgbe_q_vector *q_vector,
+			     struct ixgbe_ring_container *ring_container)
 {
-	unsigned int retval = itr_setting;
-	u32 timepassed_us;
 	u64 bytes_perint;
+	struct ixgbe_adapter *adapter = q_vector->adapter;
+	int bytes = ring_container->total_bytes;
+	int packets = ring_container->total_packets;
+	u32 timepassed_us;
+	u8 itr_setting = ring_container->itr;
 
 	if (packets == 0)
-		goto update_itr_done;
-
+		return;
 
 	/* simple throttlerate management
 	 *    0-20MB/s lowest (100000 ints/s)
@@ -1631,28 +1629,32 @@ static u8 ixgbe_update_itr(struct ixgbe_adapter *adapter,
 	 *  100-1249MB/s bulk (8000 ints/s)
 	 */
 	/* what was last interrupt timeslice? */
-	timepassed_us = 1000000/eitr;
+	timepassed_us = 1000000/q_vector->eitr;
 	bytes_perint = bytes / timepassed_us; /* bytes/usec */
 
 	switch (itr_setting) {
 	case lowest_latency:
 		if (bytes_perint > adapter->eitr_low)
-			retval = low_latency;
+			itr_setting = low_latency;
 		break;
 	case low_latency:
 		if (bytes_perint > adapter->eitr_high)
-			retval = bulk_latency;
+			itr_setting = bulk_latency;
 		else if (bytes_perint <= adapter->eitr_low)
-			retval = lowest_latency;
+			itr_setting = lowest_latency;
 		break;
 	case bulk_latency:
 		if (bytes_perint <= adapter->eitr_high)
-			retval = low_latency;
+			itr_setting = low_latency;
 		break;
 	}
 
-update_itr_done:
-	return retval;
+	/* clear work counters since we have the values we need */
+	ring_container->total_bytes = 0;
+	ring_container->total_packets = 0;
+
+	/* write updated itr to ring container */
+	ring_container->itr = itr_setting;
 }
 
 /**
@@ -1698,42 +1700,13 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 	IXGBE_WRITE_REG(hw, IXGBE_EITR(v_idx), itr_reg);
 }
 
-static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
+static void ixgbe_set_itr(struct ixgbe_q_vector *q_vector)
 {
-	struct ixgbe_adapter *adapter = q_vector->adapter;
-	int i, r_idx;
-	u32 new_itr;
-	u8 current_itr, ret_itr;
+	u32 new_itr = q_vector->eitr;
+	u8 current_itr;
 
-	r_idx = find_first_bit(q_vector->tx.idx, adapter->num_tx_queues);
-	for (i = 0; i < q_vector->tx.count; i++) {
-		struct ixgbe_ring *tx_ring = adapter->tx_ring[r_idx];
-		ret_itr = ixgbe_update_itr(adapter, q_vector->eitr,
-					   q_vector->tx.itr,
-					   tx_ring->total_packets,
-					   tx_ring->total_bytes);
-		/* if the result for this queue would decrease interrupt
-		 * rate for this vector then use that result */
-		q_vector->tx.itr = ((q_vector->tx.itr > ret_itr) ?
-				    q_vector->tx.itr - 1 : ret_itr);
-		r_idx = find_next_bit(q_vector->tx.idx, adapter->num_tx_queues,
-				      r_idx + 1);
-	}
-
-	r_idx = find_first_bit(q_vector->rx.idx, adapter->num_rx_queues);
-	for (i = 0; i < q_vector->rx.count; i++) {
-		struct ixgbe_ring *rx_ring = adapter->rx_ring[r_idx];
-		ret_itr = ixgbe_update_itr(adapter, q_vector->eitr,
-					   q_vector->rx.itr,
-					   rx_ring->total_packets,
-					   rx_ring->total_bytes);
-		/* if the result for this queue would decrease interrupt
-		 * rate for this vector then use that result */
-		q_vector->rx.itr = ((q_vector->rx.itr > ret_itr) ?
-				    q_vector->rx.itr - 1 : ret_itr);
-		r_idx = find_next_bit(q_vector->rx.idx, adapter->num_rx_queues,
-				      r_idx + 1);
-	}
+	ixgbe_update_itr(q_vector, &q_vector->tx);
+	ixgbe_update_itr(q_vector, &q_vector->rx);
 
 	current_itr = max(q_vector->rx.itr, q_vector->tx.itr);
 
@@ -1746,8 +1719,9 @@ static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
 		new_itr = 20000; /* aka hwitr = ~200 */
 		break;
 	case bulk_latency:
-	default:
 		new_itr = 8000;
+		break;
+	default:
 		break;
 	}
 
@@ -1755,7 +1729,7 @@ static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
 		/* do an exponential smoothing */
 		new_itr = ((q_vector->eitr * 9) + new_itr)/10;
 
-		/* save the algorithm value here, not the smoothed one */
+		/* save the algorithm value here */
 		q_vector->eitr = new_itr;
 
 		ixgbe_write_eitr(q_vector);
@@ -2001,8 +1975,6 @@ static irqreturn_t ixgbe_msix_clean_tx(int irq, void *data)
 	r_idx = find_first_bit(q_vector->tx.idx, adapter->num_tx_queues);
 	for (i = 0; i < q_vector->tx.count; i++) {
 		tx_ring = adapter->tx_ring[r_idx];
-		tx_ring->total_bytes = 0;
-		tx_ring->total_packets = 0;
 		r_idx = find_next_bit(q_vector->tx.idx, adapter->num_tx_queues,
 				      r_idx + 1);
 	}
@@ -2034,8 +2006,6 @@ static irqreturn_t ixgbe_msix_clean_rx(int irq, void *data)
 	r_idx = find_first_bit(q_vector->rx.idx, adapter->num_rx_queues);
 	for (i = 0; i < q_vector->rx.count; i++) {
 		rx_ring = adapter->rx_ring[r_idx];
-		rx_ring->total_bytes = 0;
-		rx_ring->total_packets = 0;
 		r_idx = find_next_bit(q_vector->rx.idx, adapter->num_rx_queues,
 				      r_idx + 1);
 	}
@@ -2063,8 +2033,6 @@ static irqreturn_t ixgbe_msix_clean_many(int irq, void *data)
 	r_idx = find_first_bit(q_vector->tx.idx, adapter->num_tx_queues);
 	for (i = 0; i < q_vector->tx.count; i++) {
 		ring = adapter->tx_ring[r_idx];
-		ring->total_bytes = 0;
-		ring->total_packets = 0;
 		r_idx = find_next_bit(q_vector->tx.idx, adapter->num_tx_queues,
 				      r_idx + 1);
 	}
@@ -2072,8 +2040,6 @@ static irqreturn_t ixgbe_msix_clean_many(int irq, void *data)
 	r_idx = find_first_bit(q_vector->rx.idx, adapter->num_rx_queues);
 	for (i = 0; i < q_vector->rx.count; i++) {
 		ring = adapter->rx_ring[r_idx];
-		ring->total_bytes = 0;
-		ring->total_packets = 0;
 		r_idx = find_next_bit(q_vector->rx.idx, adapter->num_rx_queues,
 				      r_idx + 1);
 	}
@@ -2115,7 +2081,7 @@ static int ixgbe_clean_rxonly(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete(napi);
 		if (adapter->rx_itr_setting & 1)
-			ixgbe_set_itr_msix(q_vector);
+			ixgbe_set_itr(q_vector);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state))
 			ixgbe_irq_enable_queues(adapter,
 						((u64)1 << q_vector->v_idx));
@@ -2173,7 +2139,7 @@ static int ixgbe_clean_rxtx_many(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete(napi);
 		if (adapter->rx_itr_setting & 1)
-			ixgbe_set_itr_msix(q_vector);
+			ixgbe_set_itr(q_vector);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state))
 			ixgbe_irq_enable_queues(adapter,
 						((u64)1 << q_vector->v_idx));
@@ -2215,7 +2181,7 @@ static int ixgbe_clean_txonly(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete(napi);
 		if (adapter->tx_itr_setting & 1)
-			ixgbe_set_itr_msix(q_vector);
+			ixgbe_set_itr(q_vector);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state))
 			ixgbe_irq_enable_queues(adapter,
 						((u64)1 << q_vector->v_idx));
@@ -2244,6 +2210,7 @@ static inline void map_vector_to_txq(struct ixgbe_adapter *a, int v_idx,
 	set_bit(t_idx, q_vector->tx.idx);
 	q_vector->tx.count++;
 	tx_ring->q_vector = q_vector;
+	q_vector->tx.work_limit = a->tx_work_limit;
 }
 
 /**
@@ -2386,51 +2353,6 @@ free_queue_irqs:
 	return err;
 }
 
-static void ixgbe_set_itr(struct ixgbe_adapter *adapter)
-{
-	struct ixgbe_q_vector *q_vector = adapter->q_vector[0];
-	struct ixgbe_ring *rx_ring = adapter->rx_ring[0];
-	struct ixgbe_ring *tx_ring = adapter->tx_ring[0];
-	u32 new_itr = q_vector->eitr;
-	u8 current_itr;
-
-	q_vector->tx.itr = ixgbe_update_itr(adapter, new_itr,
-					    q_vector->tx.itr,
-					    tx_ring->total_packets,
-					    tx_ring->total_bytes);
-	q_vector->rx.itr = ixgbe_update_itr(adapter, new_itr,
-					    q_vector->rx.itr,
-					    rx_ring->total_packets,
-					    rx_ring->total_bytes);
-
-	current_itr = max(q_vector->rx.itr, q_vector->tx.itr);
-
-	switch (current_itr) {
-	/* counts and packets in update_itr are dependent on these numbers */
-	case lowest_latency:
-		new_itr = 100000;
-		break;
-	case low_latency:
-		new_itr = 20000; /* aka hwitr = ~200 */
-		break;
-	case bulk_latency:
-		new_itr = 8000;
-		break;
-	default:
-		break;
-	}
-
-	if (new_itr != q_vector->eitr) {
-		/* do an exponential smoothing */
-		new_itr = ((q_vector->eitr * 9) + new_itr)/10;
-
-		/* save the algorithm value here */
-		q_vector->eitr = new_itr;
-
-		ixgbe_write_eitr(q_vector);
-	}
-}
-
 /**
  * ixgbe_irq_enable - Enable default interrupt generation settings
  * @adapter: board private structure
@@ -2528,10 +2450,6 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 	ixgbe_check_fan_failure(adapter, eicr);
 
 	if (napi_schedule_prep(&(q_vector->napi))) {
-		adapter->tx_ring[0]->total_packets = 0;
-		adapter->tx_ring[0]->total_bytes = 0;
-		adapter->rx_ring[0]->total_packets = 0;
-		adapter->rx_ring[0]->total_bytes = 0;
 		/* would disable interrupts here but EIAM disabled it */
 		__napi_schedule(&(q_vector->napi));
 	}
@@ -4299,7 +4217,7 @@ static int ixgbe_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete(napi);
 		if (adapter->rx_itr_setting & 1)
-			ixgbe_set_itr(adapter);
+			ixgbe_set_itr(q_vector);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state))
 			ixgbe_irq_enable_queues(adapter, IXGBE_EIMS_RTX_QUEUE);
 	}
@@ -5224,6 +5142,9 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->tx_ring_count = IXGBE_DEFAULT_TXD;
 	adapter->rx_ring_count = IXGBE_DEFAULT_RXD;
 
+	/* set default work limits */
+	adapter->tx_work_limit = adapter->tx_ring_count;
+
 	/* initialize eeprom parameters */
 	if (ixgbe_init_eeprom_params_generic(hw)) {
 		e_dev_err("EEPROM initialization failed\n");
@@ -5270,7 +5191,6 @@ int ixgbe_setup_tx_resources(struct ixgbe_ring *tx_ring)
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
-	tx_ring->work_limit = tx_ring->count;
 	return 0;
 
 err:
