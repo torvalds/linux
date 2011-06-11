@@ -84,7 +84,14 @@ struct cafe_camera {
 #define	  TWSIC0_EN	  0x00000001	/* TWSI enable */
 #define	  TWSIC0_MODE	  0x00000002	/* 1 = 16-bit, 0 = 8-bit */
 #define	  TWSIC0_SID	  0x000003fc	/* Slave ID */
-#define	  TWSIC0_SID_SHIFT 2
+/*
+ * Subtle trickery: the slave ID field starts with bit 2.  But the
+ * Linux i2c stack wants to treat the bottommost bit as a separate
+ * read/write bit, which is why slave ID's are usually presented
+ * >>1.  For consistency with that behavior, we shift over three
+ * bits instead of two.
+ */
+#define	  TWSIC0_SID_SHIFT 3
 #define	  TWSIC0_CLKDIV	  0x0007fc00	/* Clock divider */
 #define	  TWSIC0_MASKACK  0x00400000	/* Mask ack from sensor */
 #define	  TWSIC0_OVMAGIC  0x00800000	/* Make it work on OV sensors */

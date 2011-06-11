@@ -1549,7 +1549,7 @@ int mccic_register(struct mcam_camera *cam)
 {
 	struct i2c_board_info ov7670_info = {
 		.type = "ov7670",
-		.addr = 0x42,
+		.addr = 0x42 >> 1,
 		.platform_data = &sensor_cfg,
 	};
 	int ret;
