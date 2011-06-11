@@ -83,7 +83,7 @@ static int gpio_set_irq_type(struct irq_data *d, u32 type)
 		edge = GPIO_INT_FALL_EDGE;
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
-		val = gpio_get_value(gpio & 31);
+		val = gpio_get_value(gpio);
 		if (val) {
 			edge = GPIO_INT_LOW_LEV;
 			pr_debug("mxc: set GPIO %d to low trigger\n", gpio);
