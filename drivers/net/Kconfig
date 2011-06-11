@@ -467,17 +467,6 @@ config ADAPTEC_STARFIRE
 	  To compile this driver as a module, choose M here: the module
 	  will be called starfire.  This is recommended.
 
-config KSZ884X_PCI
-	tristate "Micrel KSZ8841/2 PCI"
-	depends on NET_PCI && PCI
-	select MII
-	select CRC32
-	help
-	  This PCI driver is for Micrel KSZ8841/KSZ8842 PCI Ethernet chip.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ksz884x.
-
 config FORCEDETH
 	tristate "nForce Ethernet support"
 	depends on NET_PCI && PCI
@@ -549,30 +538,6 @@ config TLAN
 	  will be called tlan.
 
 	  Please email feedback to <torben.mathiasen@compaq.com>.
-
-config KS8842
-	tristate "Micrel KSZ8841/42 with generic bus interface"
-	depends on HAS_IOMEM && DMA_ENGINE
-	help
-	  This platform driver is for KSZ8841(1-port) / KS8842(2-port)
-	  ethernet switch chip (managed, VLAN, QoS) from Micrel or
-	  Timberdale(FPGA).
-
-config KS8851
-	tristate "Micrel KS8851 SPI"
-	depends on SPI
-	select MII
-	select CRC32
-	help
-	  SPI driver for Micrel KS8851 SPI attached network chip.
-
-config KS8851_MLL
-	tristate "Micrel KS8851 MLL"
-	depends on HAS_IOMEM
-	select MII
-	help
-	  This platform driver is for Micrel KS8851 Address/data bus
-	  multiplexed network chip.
 
 config CPMAC
 	tristate "TI AR7 CPMAC Ethernet support (EXPERIMENTAL)"
