@@ -49,7 +49,7 @@ struct snd_tea575x {
 	bool tuned;			/* tuned to a station */
 	unsigned int val;		/* hw value */
 	unsigned long freq;		/* frequency */
-	unsigned long in_use;		/* set if the device is in use */
+	struct mutex mutex;
 	struct snd_tea575x_ops *ops;
 	void *private_data;
 	u8 card[32];
