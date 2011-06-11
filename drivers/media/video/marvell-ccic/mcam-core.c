@@ -7,7 +7,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/dmi.h>
 #include <linux/mm.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -1536,22 +1535,7 @@ int mccic_irq(struct mcam_camera *cam, unsigned int irqs)
  * Registration and such.
  */
 
-/* FIXME this is really platform stuff */
-static const struct dmi_system_id olpc_xo1_dmi[] = {
-	{
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "OLPC"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "XO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "1"),
-		},
-	},
-	{ }
-};
-
 static struct ov7670_config sensor_cfg = {
-	/* This controller only does SMBUS */
-	.use_smbus = true,
-
 	/*
 	 * Exclude QCIF mode, because it only captures a tiny portion
 	 * of the sensor FOV
@@ -1590,13 +1574,11 @@ int mccic_register(struct mcam_camera *cam)
 
 	mcam_ctlr_init(cam);
 
-	/* Apply XO-1 clock speed */
-	if (dmi_check_system(olpc_xo1_dmi))
-		sensor_cfg.clock_speed = 45;
-
 	/*
 	 * Try to find the sensor.
 	 */
+	sensor_cfg.clock_speed = cam->clock_speed;
+	sensor_cfg.use_smbus = cam->use_smbus;
 	cam->sensor_addr = ov7670_info.addr;
 	cam->sensor = v4l2_i2c_new_subdev_board(&cam->v4l2_dev,
 			&cam->i2c_adapter, &ov7670_info, NULL);

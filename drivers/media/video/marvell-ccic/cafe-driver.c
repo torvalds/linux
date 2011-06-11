@@ -404,6 +404,12 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	mcam->plat_power_down = cafe_ctlr_power_down;
 	mcam->dev = &pdev->dev;
 	/*
+	 * Set the clock speed for the XO 1; I don't believe this
+	 * driver has ever run anywhere else.
+	 */
+	mcam->clock_speed = 45;
+	mcam->use_smbus = 1;
+	/*
 	 * Get set up on the PCI bus.
 	 */
 	ret = pci_enable_device(pdev);

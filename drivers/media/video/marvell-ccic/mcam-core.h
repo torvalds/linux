@@ -42,6 +42,8 @@ struct mcam_camera {
 	spinlock_t dev_lock;
 	struct device *dev; /* For messages, dma alloc */
 	unsigned int chip_id;
+	short int clock_speed;	/* Sensor clock speed, default 30 */
+	short int use_smbus;	/* SMBUS or straight I2c? */
 
 	/*
 	 * Callbacks from the core to the platform code.
