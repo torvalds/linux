@@ -1039,6 +1039,24 @@ static inline void ixgbe_rx_hash(union ixgbe_adv_rx_desc *rx_desc,
 }
 
 /**
+ * ixgbe_rx_is_fcoe - check the rx desc for incoming pkt type
+ * @adapter: address of board private structure
+ * @rx_desc: advanced rx descriptor
+ *
+ * Returns : true if it is FCoE pkt
+ */
+static inline bool ixgbe_rx_is_fcoe(struct ixgbe_adapter *adapter,
+				    union ixgbe_adv_rx_desc *rx_desc)
+{
+	__le16 pkt_info = rx_desc->wb.lower.lo_dword.hs_rss.pkt_info;
+
+	return (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
+	       ((pkt_info & cpu_to_le16(IXGBE_RXDADV_PKTTYPE_ETQF_MASK)) ==
+		(cpu_to_le16(IXGBE_ETQF_FILTER_FCOE <<
+			     IXGBE_RXDADV_PKTTYPE_ETQF_SHIFT)));
+}
+
+/**
  * ixgbe_receive_skb - Send a completed packet up the stack
  * @adapter: board private structure
  * @skb: packet to send up
@@ -1070,14 +1088,14 @@ static void ixgbe_receive_skb(struct ixgbe_q_vector *q_vector,
  * @adapter: address of board private structure
  * @status_err: hardware indication of status of receive
  * @skb: skb currently being received and modified
+ * @status_err: status error value of last descriptor in packet
  **/
 static inline void ixgbe_rx_checksum(struct ixgbe_adapter *adapter,
 				     union ixgbe_adv_rx_desc *rx_desc,
-				     struct sk_buff *skb)
+				     struct sk_buff *skb,
+				     u32 status_err)
 {
-	u32 status_err = le32_to_cpu(rx_desc->wb.upper.status_error);
-
-	skb_checksum_none_assert(skb);
+	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Rx csum disabled */
 	if (!(adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED))
@@ -1421,14 +1439,12 @@ static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		}
 
 		/* ERR_MASK will only have valid bits if EOP set */
-		if (staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) {
-			/* trim packet back to size 0 and recycle it */
-			__pskb_trim(skb, 0);
-			rx_buffer_info->skb = skb;
+		if (unlikely(staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK)) {
+			dev_kfree_skb_any(skb);
 			goto next_desc;
 		}
 
-		ixgbe_rx_checksum(adapter, rx_desc, skb);
+		ixgbe_rx_checksum(adapter, rx_desc, skb, staterr);
 		if (adapter->netdev->features & NETIF_F_RXHASH)
 			ixgbe_rx_hash(rx_desc, skb);
 
@@ -1439,8 +1455,9 @@ static void ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
 #ifdef IXGBE_FCOE
 		/* if ddp, not passing to ULD unless for FCP_RSP or error */
-		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
-			ddp_bytes = ixgbe_fcoe_ddp(adapter, rx_desc, skb);
+		if (ixgbe_rx_is_fcoe(adapter, rx_desc)) {
+			ddp_bytes = ixgbe_fcoe_ddp(adapter, rx_desc, skb,
+						   staterr);
 			if (!ddp_bytes)
 				goto next_desc;
 		}

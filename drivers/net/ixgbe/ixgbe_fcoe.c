@@ -37,25 +37,6 @@
 #include <scsi/libfcoe.h>
 
 /**
- * ixgbe_rx_is_fcoe - check the rx desc for incoming pkt type
- * @rx_desc: advanced rx descriptor
- *
- * Returns : true if it is FCoE pkt
- */
-static inline bool ixgbe_rx_is_fcoe(union ixgbe_adv_rx_desc *rx_desc)
-{
-	u16 p;
-
-	p = le16_to_cpu(rx_desc->wb.lower.lo_dword.hs_rss.pkt_info);
-	if (p & IXGBE_RXDADV_PKTTYPE_ETQF) {
-		p &= IXGBE_RXDADV_PKTTYPE_ETQF_MASK;
-		p >>= IXGBE_RXDADV_PKTTYPE_ETQF_SHIFT;
-		return p == IXGBE_ETQF_FILTER_FCOE;
-	}
-	return false;
-}
-
-/**
  * ixgbe_fcoe_clear_ddp - clear the given ddp context
  * @ddp - ptr to the ixgbe_fcoe_ddp
  *
@@ -135,7 +116,6 @@ int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid)
 out_ddp_put:
 	return len;
 }
-
 
 /**
  * ixgbe_fcoe_ddp_setup - called to set up ddp context
@@ -380,23 +360,20 @@ int ixgbe_fcoe_ddp_target(struct net_device *netdev, u16 xid,
  */
 int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		   union ixgbe_adv_rx_desc *rx_desc,
-		   struct sk_buff *skb)
+		   struct sk_buff *skb,
+		   u32 staterr)
 {
 	u16 xid;
 	u32 fctl;
-	u32 sterr, fceofe, fcerr, fcstat;
+	u32 fceofe, fcerr, fcstat;
 	int rc = -EINVAL;
 	struct ixgbe_fcoe *fcoe;
 	struct ixgbe_fcoe_ddp *ddp;
 	struct fc_frame_header *fh;
 	struct fcoe_crc_eof *crc;
 
-	if (!ixgbe_rx_is_fcoe(rx_desc))
-		goto ddp_out;
-
-	sterr = le32_to_cpu(rx_desc->wb.upper.status_error);
-	fcerr = (sterr & IXGBE_RXDADV_ERR_FCERR);
-	fceofe = (sterr & IXGBE_RXDADV_ERR_FCEOFE);
+	fcerr = (staterr & IXGBE_RXDADV_ERR_FCERR);
+	fceofe = (staterr & IXGBE_RXDADV_ERR_FCEOFE);
 	if (fcerr == IXGBE_FCERR_BADCRC)
 		skb_checksum_none_assert(skb);
 	else
@@ -425,7 +402,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	if (fcerr | fceofe)
 		goto ddp_out;
 
-	fcstat = (sterr & IXGBE_RXDADV_STAT_FCSTAT);
+	fcstat = (staterr & IXGBE_RXDADV_STAT_FCSTAT);
 	if (fcstat) {
 		/* update length of DDPed data */
 		ddp->len = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
