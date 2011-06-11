@@ -63,6 +63,12 @@ typedef struct wl_action_frame {
 
 #define WL_WIFI_ACTION_FRAME_SIZE sizeof(struct wl_action_frame)
 
+typedef struct ssid_info
+{
+	uint8		ssid_len;
+	uint8		ssid[32];
+} ssid_info_t;
+
 typedef struct wl_af_params {
 	uint32          channel;
 	int32           dwell_time;
@@ -638,12 +644,14 @@ typedef struct wl_assoc_info {
 	uint32      resp_len;
 	uint32      flags;
 	struct dot11_assoc_req req;
-	struct ether_addr reassoc_bssid; /* used in reassoc's */
+	struct ether_addr reassoc_bssid;
 	struct dot11_assoc_resp resp;
 } wl_assoc_info_t;
 
-/* flags */
-#define WLC_ASSOC_REQ_IS_REASSOC 0x01 /* assoc req was actually a reassoc */
+
+#define WLC_ASSOC_REQ_IS_REASSOC 0x01
+
+
 
 #define WLC_TXFILTER_OVERRIDE_DISABLED  0
 #define WLC_TXFILTER_OVERRIDE_ENABLED   1

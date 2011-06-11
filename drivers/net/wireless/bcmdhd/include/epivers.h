@@ -33,17 +33,17 @@
 
 #define	EPI_RC_NUMBER		125
 
-#define	EPI_INCREMENTAL_NUMBER	22
+#define	EPI_INCREMENTAL_NUMBER	27
 
 #define	EPI_BUILD_NUMBER	0
 
-#define	EPI_VERSION		5, 90, 125, 22
+#define	EPI_VERSION		5, 90, 125, 27
 
-#define	EPI_VERSION_NUM		0x055a7d16
+#define	EPI_VERSION_NUM		0x055a7d1b
 
 #define EPI_VERSION_DEV		5.90.125
 
 
-#define	EPI_VERSION_STR		"5.90.125.22"
+#define	EPI_VERSION_STR		"5.90.125.27"
 
 #endif 

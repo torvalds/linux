@@ -5610,11 +5610,11 @@ dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh)
 
 bool
 dhd_bus_download_firmware(struct dhd_bus *bus, osl_t *osh,
-                          char *fw_path, char *nv_path)
+                          char *pfw_path, char *pnv_path)
 {
 	bool ret;
-	bus->fw_path = fw_path;
-	bus->nv_path = nv_path;
+	bus->fw_path = pfw_path;
+	bus->nv_path = pnv_path;
 
 	ret = dhdsdio_download_firmware(bus, osh, bus->sdh);
 
@@ -5858,7 +5858,7 @@ err:
 #endif /* BCMEMBEDIMAGE */
 
 static int
-dhdsdio_download_code_file(struct dhd_bus *bus, char *fw_path)
+dhdsdio_download_code_file(struct dhd_bus *bus, char *pfw_path)
 {
 	int bcmerror = -1;
 	int offset = 0;
@@ -5866,9 +5866,9 @@ dhdsdio_download_code_file(struct dhd_bus *bus, char *fw_path)
 	void *image = NULL;
 	uint8 *memblock = NULL, *memptr;
 
-	DHD_INFO(("%s: download firmware %s\n", __FUNCTION__, fw_path));
+	DHD_INFO(("%s: download firmware %s\n", __FUNCTION__, pfw_path));
 
-	image = dhd_os_open_image(fw_path);
+	image = dhd_os_open_image(pfw_path);
 	if (image == NULL)
 		goto err;
 
@@ -5930,17 +5930,17 @@ dhdsdio_download_nvram(struct dhd_bus *bus)
 	void * image = NULL;
 	char * memblock = NULL;
 	char *bufp;
-	char *nv_path;
+	char *pnv_path;
 	bool nvram_file_exists;
 
-	nv_path = bus->nv_path;
+	pnv_path = bus->nv_path;
 
-	nvram_file_exists = ((nv_path != NULL) && (nv_path[0] != '\0'));
+	nvram_file_exists = ((pnv_path != NULL) && (pnv_path[0] != '\0'));
 	if (!nvram_file_exists && (bus->nvram_params == NULL))
 		return (0);
 
 	if (nvram_file_exists) {
-		image = dhd_os_open_image(nv_path);
+		image = dhd_os_open_image(pnv_path);
 		if (image == NULL)
 			goto err;
 	}

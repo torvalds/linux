@@ -155,8 +155,6 @@ typedef struct {
 #if defined(BCM_RPC_NOCOPY) || defined(BCM_RCP_TXNOCOPY)
 
 #define BCMEXTRAHDROOM 220
-#elif defined(BCM43237) && defined(BCMPKTPOOL) && defined(DMATXRC)
-#define BCMEXTRAHDROOM 0
 #else
 #define BCMEXTRAHDROOM 172
 #endif

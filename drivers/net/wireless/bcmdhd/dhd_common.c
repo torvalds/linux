@@ -204,12 +204,12 @@ dhd_common_init(osl_t *osh)
 
 #ifdef CONFIG_BCMDHD_FW_PATH
 	bcm_strncpy_s(fw_path, sizeof(fw_path), CONFIG_BCMDHD_FW_PATH, MOD_PARAM_PATHLEN-1);
-#else
+#else /* CONFIG_BCMDHD_FW_PATH */
 	fw_path[0] = '\0';
 #endif /* CONFIG_BCMDHD_FW_PATH */
 #ifdef CONFIG_BCMDHD_NVRAM_PATH
 	bcm_strncpy_s(nv_path, sizeof(nv_path), CONFIG_BCMDHD_NVRAM_PATH, MOD_PARAM_PATHLEN-1);
-#else
+#else /* CONFIG_BCMDHD_NVRAM_PATH */
 	nv_path[0] = '\0';
 #endif /* CONFIG_BCMDHD_NVRAM_PATH */
 #ifdef SOFTAP
@@ -568,7 +568,7 @@ dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, void *pkt, int prec)
 	else if (pktq_full(q)) {
 		p = pktq_peek_tail(q, &eprec);
 		ASSERT(p);
-		if (eprec > prec)
+		if (eprec > prec || eprec < 0)
 			return FALSE;
 	}
 
@@ -1541,7 +1541,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	int						str_len;
 	uint32					mask_size;
 	uint32					pattern_size;
-	char buf[256];
+	char buf[WLC_IOCTL_SMLEN];
 	char *ptr;
 	uint filter_mode = 1;
 	uint32 listen_interval = LISTEN_INTERVAL; /* Default Listen Interval in Beacons */
@@ -1624,11 +1624,13 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	memset(buf, 0, sizeof(buf));
 	ptr = buf;
 	bcm_mkiovar("ver", (char *)&buf, 4, buf, sizeof(buf));
-	dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf), TRUE, 0);
-	bcmstrtok(&ptr, "\n", 0);
-	/* Print fw version info */
-	DHD_ERROR(("Firmware version = %s\n", buf));
-
+	if ((ret  = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf), FALSE, 0)) < 0)
+		DHD_ERROR(("%s failed %d\n", __FUNCTION__, ret));
+	else {
+		bcmstrtok(&ptr, "\n", 0);
+		/* Print fw version info */
+		DHD_ERROR(("Firmware version = %s\n", buf));
+	}
 	/* Set PowerSave mode */
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode, sizeof(power_mode), TRUE, 0);
 
@@ -1989,8 +1991,8 @@ int
 dhd_get_dtim_skip(dhd_pub_t *dhd)
 {
 	int bcn_li_dtim;
-	char buf[128];
 	int ret;
+	uint8 bssid[6];
 	int dtim_assoc = 0;
 
 	if ((dhd->dtim_skip == 0) || (dhd->dtim_skip == 1))
@@ -1998,16 +2000,19 @@ dhd_get_dtim_skip(dhd_pub_t *dhd)
 	else
 		bcn_li_dtim = dhd->dtim_skip;
 
-	/* Read DTIM value if associated */
-	memset(buf, 0, sizeof(buf));
-	bcm_mkiovar("dtim_assoc", 0, 0, buf, sizeof(buf));
-	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0)) < 0) {
-		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
-		bcn_li_dtim = 1;
+	/* Check if associated */
+	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_BSSID,
+		(char *)&bssid, ETHER_ADDR_LEN, FALSE, 0)) == BCME_NOTASSOCIATED) {
+		DHD_TRACE(("%s NOT assoc ret %d\n", __FUNCTION__, ret));
 		goto exit;
 	}
-	else
-		dtim_assoc = dtoh32(*(int *)buf);
+
+	/* if assoc grab ap's dtim value */
+	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_DTIMPRD,
+		&dtim_assoc, sizeof(dtim_assoc), FALSE, 0)) < 0) {
+		DHD_ERROR(("%s failed code %d\n", __FUNCTION__, ret));
+		goto exit;
+	}
 
 	DHD_ERROR(("%s bcn_li_dtim=%d DTIM=%d Listen=%d\n",
 		__FUNCTION__, bcn_li_dtim, dtim_assoc, LISTEN_INTERVAL));

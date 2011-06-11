@@ -35,11 +35,14 @@
 #include <net/cfg80211.h>
 #include <linux/rfkill.h>
 
+#include <wl_cfgp2p.h>
+
 struct wl_conf;
 struct wl_iface;
 struct wl_priv;
 struct wl_security;
 struct wl_ibss;
+
 
 #define htod32(i) i
 #define htod16(i) i
@@ -164,19 +167,6 @@ enum wl_fw_status {
 	WL_NVRAM_LOADING_DONE
 };
 
-/* dongle status */
-enum wl_cfgp2p_status {
-	WLP2P_STATUS_DISCOVERY_ON,
-	WLP2P_STATUS_SEARCH_ENABLED,
-	WLP2P_STATUS_IF_ADD,
-	WLP2P_STATUS_IF_DEL,
-	WLP2P_STATUS_IF_DELETING,
-	WLP2P_STATUS_IF_CHANGING,
-	WLP2P_STATUS_IF_CHANGED,
-	WLP2P_STATUS_LISTEN_EXPIRED,
-	WLP2P_STATUS_ACTION_TX_COMPLETED,
-	WLP2P_STATUS_SCANNING
-};
 /* beacon / probe_response */
 struct beacon_proberesp {
 	__le64 timestamp;
@@ -315,37 +305,7 @@ struct wl_pmk_list {
 	pmkid_list_t pmkids;
 	pmkid_t foo[MAXPMKID - 1];
 };
-/* Enumeration of the usages of the BSSCFGs used by the P2P Library.  Do not
- * confuse this with a bsscfg index.  This value is an index into the
- * saved_ie[] array of structures which in turn contains a bsscfg index field.
- */
-typedef enum {
-	P2PAPI_BSSCFG_PRIMARY, /* maps to driver's primary bsscfg */
-	P2PAPI_BSSCFG_DEVICE, /* maps to driver's P2P device discovery bsscfg */
-	P2PAPI_BSSCFG_CONNECTION, /* maps to driver's P2P connection bsscfg */
-	P2PAPI_BSSCFG_MAX
-} p2p_bsscfg_type_t;
 
-#define IE_MAX_LEN 300
-/* Structure to hold all saved P2P and WPS IEs for a BSSCFG */
-typedef struct p2p_saved_ie_s {
-	u8  p2p_probe_req_ie[IE_MAX_LEN];
-	u32 p2p_probe_req_ie_len;
-	u8  p2p_probe_res_ie[IE_MAX_LEN];
-	u32 p2p_probe_res_ie_len;
-	u8  p2p_assoc_req_ie[IE_MAX_LEN];
-	u32 p2p_assoc_req_ie_len;
-	u8  p2p_assoc_res_ie[IE_MAX_LEN];
-	u32 p2p_assoc_res_ie_len;
-	u8  p2p_beacon_ie[IE_MAX_LEN];
-	u32 p2p_beacon_ie_len;
-} p2p_saved_ie_t;
-
-struct p2p_bss {
-    u32 bssidx;
-    struct net_device *dev;
-	p2p_saved_ie_t saved_ie;
-};
 
 #define ESCAN_BUF_SIZE (64 * 1024)
 
@@ -417,19 +377,9 @@ struct wl_priv {
 	struct ieee80211_channel remain_on_chan;
 	enum nl80211_channel_type remain_on_chan_type;
 	u64 cache_cookie;
-    wait_queue_head_t dongle_event_wait;
-	struct timer_list *listen_timer;
+	wait_queue_head_t dongle_event_wait;
+	struct p2p_info p2p;
 	s8 last_eventmask[WL_EVENTING_MASK_LEN];
-	bool p2p_on;    /* p2p on/off switch */
-	bool p2p_scan;
-	bool p2p_vif_created;
-	s8 p2p_vir_ifname[IFNAMSIZ];
-	unsigned long p2p_status;
-	struct ether_addr p2p_dev_addr;
-	struct ether_addr p2p_int_addr;
-	struct p2p_bss p2p_bss_idx[P2PAPI_BSSCFG_MAX];
-	wlc_ssid_t p2p_ssid;
-	s32 sta_generation;
 	u8 ci[0] __attribute__ ((__aligned__(NETDEV_ALIGN)));
 };
 
@@ -448,10 +398,7 @@ struct wl_priv {
 #define wl_to_iscan(w) (w->iscan)
 #define wl_to_conn(w) (&w->conn_info)
 #define wiphy_from_scan(w) (w->escan_info.wiphy)
-#define wl_to_p2p_bss_ndev(w, type) 	(wl->p2p_bss_idx[type].dev)
-#define wl_to_p2p_bss_bssidx(w, type) 	(wl->p2p_bss_idx[type].bssidx)
-#define wl_to_p2p_bss_saved_ie(w, type) 	(wl->p2p_bss_idx[type].saved_ie)
-#define wl_to_p2p_bss(w, type) (wl->p2p_bss_idx[type])
+
 static inline struct wl_bss_info *next_bss(struct wl_scan_results *list, struct wl_bss_info *bss)
 {
 	return bss = bss ?
@@ -535,7 +482,7 @@ extern s32 wl_cfg80211_attach_post(struct net_device *ndev);
 extern void wl_cfg80211_detach(void);
 /* event handler from dongle */
 extern void wl_cfg80211_event(struct net_device *ndev, const wl_event_msg_t *e,
-            void *data, gfp_t gfp);
+            void *data);
 extern void wl_cfg80211_set_sdio_func(void *func);	/* set sdio function info */
 extern struct sdio_func *wl_cfg80211_get_sdio_func(void);	/* set sdio function info */
 extern s32 wl_cfg80211_up(void);	/* dongle up */

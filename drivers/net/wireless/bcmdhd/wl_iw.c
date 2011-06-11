@@ -104,8 +104,8 @@ bool g_set_essid_before_scan = TRUE;
 #if defined(SOFTAP)
 #define WL_SOFTAP(x)
 static struct net_device *priv_dev;
-static bool		ap_cfg_running = FALSE;
-bool            ap_fw_loaded = FALSE;
+bool		ap_cfg_running = FALSE;
+bool		ap_fw_loaded = FALSE;
 struct net_device *ap_net_dev = NULL;
 tsk_ctl_t	ap_eth_ctl;  
 static int wl_iw_set_ap_security(struct net_device *dev, struct ap_profile *ap);
@@ -1660,7 +1660,7 @@ wl_control_wl_start(struct net_device *dev)
 
 		g_onoff = G_WLAN_SET_ON;
 	}
-	WL_TRACE(("Exited %s \n", __FUNCTION__));
+	WL_TRACE(("Exited %s\n", __FUNCTION__));
 
 	DHD_OS_MUTEX_UNLOCK(&wl_start_lock);
 	return ret;
@@ -8499,8 +8499,10 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 
 	
 	iscan->iscan_ex_params_p = (wl_iscan_params_t*)kmalloc(params_size, GFP_KERNEL);
-	if (!iscan->iscan_ex_params_p)
+	if (!iscan->iscan_ex_params_p) {
+		kfree(iscan);
 		return -ENOMEM;
+	}
 	iscan->iscan_ex_param_size = params_size;
 
 	
