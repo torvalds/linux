@@ -489,7 +489,7 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	if (!request_mem_region(r->start, (r->end - r->start) + 1,
+	if (!request_mem_region(r->start, resource_size(r),
 				dev_name(&pdev->dev))) {
 		status = -EBUSY;
 		goto out;
@@ -511,7 +511,7 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 	return status;
 
 out_rel_mem:
-	release_mem_region(r->start, (r->end - r->start) + 1);
+	release_mem_region(r->start, resource_size(r));
 
 out:
 	spi_master_put(master);
@@ -531,7 +531,7 @@ static int __exit orion_spi_remove(struct platform_device *pdev)
 	cancel_work_sync(&spi->work);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(r->start, (r->end - r->start) + 1);
+	release_mem_region(r->start, resource_size(r));
 
 	spi_unregister_master(master);
 

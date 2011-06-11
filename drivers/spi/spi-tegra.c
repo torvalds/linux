@@ -498,14 +498,14 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	if (!request_mem_region(r->start, (r->end - r->start) + 1,
+	if (!request_mem_region(r->start, resource_size(r),
 				dev_name(&pdev->dev))) {
 		ret = -EBUSY;
 		goto err0;
 	}
 
 	tspi->phys = r->start;
-	tspi->base = ioremap(r->start, r->end - r->start + 1);
+	tspi->base = ioremap(r->start, resource_size(r));
 	if (!tspi->base) {
 		dev_err(&pdev->dev, "can't ioremap iomem\n");
 		ret = -ENOMEM;
@@ -563,7 +563,7 @@ err3:
 err2:
 	iounmap(tspi->base);
 err1:
-	release_mem_region(r->start, (r->end - r->start) + 1);
+	release_mem_region(r->start, resource_size(r));
 err0:
 	spi_master_put(master);
 	return ret;
@@ -588,7 +588,7 @@ static int __devexit spi_tegra_remove(struct platform_device *pdev)
 	iounmap(tspi->base);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(r->start, (r->end - r->start) + 1);
+	release_mem_region(r->start, resource_size(r));
 
 	return 0;
 }

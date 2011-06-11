@@ -1116,8 +1116,8 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 		status = -ENODEV;
 		goto err1;
 	}
-	if (!request_mem_region(r->start, (r->end - r->start) + 1,
-			dev_name(&pdev->dev))) {
+	if (!request_mem_region(r->start, resource_size(r),
+				dev_name(&pdev->dev))) {
 		status = -EBUSY;
 		goto err1;
 	}
@@ -1125,7 +1125,7 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 	r->start += pdata->regs_offset;
 	r->end += pdata->regs_offset;
 	mcspi->phys = r->start;
-	mcspi->base = ioremap(r->start, r->end - r->start + 1);
+	mcspi->base = ioremap(r->start, resource_size(r));
 	if (!mcspi->base) {
 		dev_dbg(&pdev->dev, "can't ioremap MCSPI\n");
 		status = -ENOMEM;
@@ -1190,7 +1190,7 @@ err4:
 err3:
 	kfree(mcspi->dma_channels);
 err2:
-	release_mem_region(r->start, (r->end - r->start) + 1);
+	release_mem_region(r->start, resource_size(r));
 	iounmap(mcspi->base);
 err1:
 	return status;
@@ -1210,7 +1210,7 @@ static int __exit omap2_mcspi_remove(struct platform_device *pdev)
 
 	omap2_mcspi_disable_clocks(mcspi);
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(r->start, (r->end - r->start) + 1);
+	release_mem_region(r->start, resource_size(r));
 
 	base = mcspi->base;
 	spi_unregister_master(master);

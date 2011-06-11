@@ -502,7 +502,7 @@ static int __init spi_ppc4xx_of_probe(struct platform_device *op)
 		goto free_gpios;
 	}
 	hw->mapbase = resource.start;
-	hw->mapsize = resource.end - resource.start + 1;
+	hw->mapsize = resource_size(&resource);
 
 	/* Sanity check */
 	if (hw->mapsize < sizeof(struct spi_ppc4xx_regs)) {

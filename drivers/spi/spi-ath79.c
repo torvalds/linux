@@ -232,7 +232,7 @@ static __devinit int ath79_spi_probe(struct platform_device *pdev)
 		goto err_put_master;
 	}
 
-	sp->base = ioremap(r->start, r->end - r->start + 1);
+	sp->base = ioremap(r->start, resource_size(r));
 	if (!sp->base) {
 		ret = -ENXIO;
 		goto err_put_master;
