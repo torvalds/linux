@@ -707,6 +707,8 @@ source "drivers/media/video/cx18/Kconfig"
 
 source "drivers/media/video/saa7164/Kconfig"
 
+source "drivers/media/video/marvell-ccic/Kconfig"
+
 config VIDEO_M32R_AR
 	tristate "AR devices"
 	depends on M32R && VIDEO_V4L2
@@ -725,15 +727,6 @@ config VIDEO_M32R_AR_M64278
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called arv.
-
-config VIDEO_CAFE_CCIC
-	tristate "Marvell 88ALP01 (Cafe) CMOS Camera Controller support"
-	depends on PCI && I2C && VIDEO_V4L2
-	select VIDEO_OV7670
-	---help---
-	  This is a video4linux2 driver for the Marvell 88ALP01 integrated
-	  CMOS camera controller.  This is the controller found on first-
-	  generation OLPC systems.
 
 config VIDEO_SR030PC30
 	tristate "SR030PC30 VGA camera sensor support"

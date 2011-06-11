@@ -127,7 +127,7 @@ obj-$(CONFIG_VIDEO_M32R_AR_M64278) += arv.o
 
 obj-$(CONFIG_VIDEO_CX2341X) += cx2341x.o
 
-obj-$(CONFIG_VIDEO_CAFE_CCIC) += cafe_ccic.o
+obj-$(CONFIG_VIDEO_CAFE_CCIC) += marvell-ccic/
 
 obj-$(CONFIG_VIDEO_VIA_CAMERA) += via-camera.o
 

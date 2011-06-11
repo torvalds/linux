@@ -36,6 +36,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/ov7670.h>
 #include <linux/device.h>
 #include <linux/wait.h>
 #include <linux/list.h>
@@ -47,7 +48,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-#include "ov7670.h"
 #include "cafe_ccic-regs.h"
 
 #define CAFE_VERSION 0x000002
