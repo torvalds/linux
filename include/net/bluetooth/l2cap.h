@@ -325,7 +325,7 @@ struct l2cap_chan {
 	__u16		mps;
 
 	unsigned long	conf_state;
-	__u16		conn_state;
+	unsigned long	conn_state;
 
 	__u8		next_tx_seq;
 	__u8		expected_ack_seq;
@@ -438,17 +438,19 @@ enum {
 #define L2CAP_CONF_MAX_CONF_REQ 2
 #define L2CAP_CONF_MAX_CONF_RSP 2
 
-#define L2CAP_CONN_SAR_SDU         0x0001
-#define L2CAP_CONN_SREJ_SENT       0x0002
-#define L2CAP_CONN_WAIT_F          0x0004
-#define L2CAP_CONN_SREJ_ACT        0x0008
-#define L2CAP_CONN_SEND_PBIT       0x0010
-#define L2CAP_CONN_REMOTE_BUSY     0x0020
-#define L2CAP_CONN_LOCAL_BUSY      0x0040
-#define L2CAP_CONN_REJ_ACT         0x0080
-#define L2CAP_CONN_SEND_FBIT       0x0100
-#define L2CAP_CONN_RNR_SENT        0x0200
-#define L2CAP_CONN_SAR_RETRY       0x0400
+enum {
+	CONN_SAR_SDU,
+	CONN_SREJ_SENT,
+	CONN_WAIT_F,
+	CONN_SREJ_ACT,
+	CONN_SEND_PBIT,
+	CONN_REMOTE_BUSY,
+	CONN_LOCAL_BUSY,
+	CONN_REJ_ACT,
+	CONN_SEND_FBIT,
+	CONN_RNR_SENT,
+	CONN_SAR_RETRY,
+};
 
 #define __set_chan_timer(c, t) l2cap_set_timer(c, &c->chan_timer, (t))
 #define __clear_chan_timer(c) l2cap_clear_timer(c, &c->chan_timer)
