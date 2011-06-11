@@ -334,9 +334,13 @@ static struct i2c_algorithm cafe_smbus_algo = {
 
 static int cafe_smbus_setup(struct cafe_camera *cam)
 {
-	struct i2c_adapter *adap = &cam->mcam.i2c_adapter;
+	struct i2c_adapter *adap;
 	int ret;
 
+	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
+	if (adap == NULL)
+		return -ENOMEM;
+	cam->mcam.i2c_adapter = adap;
 	cafe_smbus_enable_irq(cam);
 	adap->owner = THIS_MODULE;
 	adap->algo = &cafe_smbus_algo;
@@ -351,7 +355,8 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 
 static void cafe_smbus_shutdown(struct cafe_camera *cam)
 {
-	i2c_del_adapter(&cam->mcam.i2c_adapter);
+	i2c_del_adapter(cam->mcam.i2c_adapter);
+	kfree(cam->mcam.i2c_adapter);
 }
 
 

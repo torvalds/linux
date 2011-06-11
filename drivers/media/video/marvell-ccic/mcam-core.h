@@ -37,7 +37,7 @@ struct mcam_camera {
 	 * These fields should be set by the platform code prior to
 	 * calling mcam_register().
 	 */
-	struct i2c_adapter i2c_adapter;
+	struct i2c_adapter *i2c_adapter;
 	unsigned char __iomem *regs;
 	spinlock_t dev_lock;
 	struct device *dev; /* For messages, dma alloc */
