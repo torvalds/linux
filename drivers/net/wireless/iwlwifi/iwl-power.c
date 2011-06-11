@@ -358,9 +358,15 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 		iwl_static_sleep_cmd(priv, cmd,
 				     priv->power_data.debug_sleep_level_override,
 				     dtimper);
-	else if (iwlagn_mod_params.no_sleep_autoadjust)
-		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_1, dtimper);
-	else
+	else if (iwlagn_mod_params.no_sleep_autoadjust) {
+		if (iwlagn_mod_params.power_level > IWL_POWER_INDEX_1 &&
+		    iwlagn_mod_params.power_level <= IWL_POWER_INDEX_5)
+			iwl_static_sleep_cmd(priv, cmd,
+				iwlagn_mod_params.power_level, dtimper);
+		else
+			iwl_static_sleep_cmd(priv, cmd,
+				IWL_POWER_INDEX_1, dtimper);
+	} else
 		iwl_power_fill_sleep_cmd(priv, cmd,
 					 priv->hw->conf.dynamic_ps_timeout,
 					 priv->hw->conf.max_sleep_period);

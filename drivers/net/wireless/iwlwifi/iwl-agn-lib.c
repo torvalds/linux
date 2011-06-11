@@ -624,6 +624,7 @@ struct iwl_mod_params iwlagn_mod_params = {
 	.plcp_check = true,
 	.bt_coex_active = true,
 	.no_sleep_autoadjust = true,
+	.power_level = IWL_POWER_INDEX_1,
 	/* the rest are 0 by default */
 };
 

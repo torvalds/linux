@@ -164,6 +164,7 @@ struct iwl_mod_params {
 	int led_mode;		/* def: 0 = system default */
 	bool no_sleep_autoadjust; /* def: true = disable autoadjust */
 	bool power_save;	/* def: false = disable power save */
+	int power_level;	/* def: 1 = power level */
 };
 
 /*
