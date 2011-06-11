@@ -1783,6 +1783,21 @@ static int hw_have_digit_io_switch(struct hw *hw)
 	return !(hw->model == CTSB073X || hw->model == CTUAA);
 }
 
+static int hw_have_dedicated_mic(struct hw *hw)
+{
+	return 0;
+}
+
+static int hw_have_output_switch(struct hw *hw)
+{
+	return 0;
+}
+
+static int hw_have_mic_source_switch(struct hw *hw)
+{
+	return 0;
+}
+
 #define CTLBITS(a, b, c, d)	(((a) << 24) | ((b) << 16) | ((c) << 8) | (d))
 
 #define UAA_CFG_PWRSTATUS	0x44
@@ -2173,6 +2188,9 @@ static struct hw ct20k1_preset __devinitdata = {
 	.is_adc_source_selected = hw_is_adc_input_selected,
 	.select_adc_source = hw_adc_input_select,
 	.have_digit_io_switch = hw_have_digit_io_switch,
+	.have_dedicated_mic = hw_have_dedicated_mic,
+	.have_output_switch = hw_have_output_switch,
+	.have_mic_source_switch = hw_have_mic_source_switch,
 #ifdef CONFIG_PM
 	.suspend = hw_suspend,
 	.resume = hw_resume,

@@ -115,12 +115,20 @@ struct ct_atc {
 	int (*line_clfe_unmute)(struct ct_atc *atc, unsigned char state);
 	int (*line_rear_unmute)(struct ct_atc *atc, unsigned char state);
 	int (*line_in_unmute)(struct ct_atc *atc, unsigned char state);
+	int (*mic_unmute)(struct ct_atc *atc, unsigned char state);
 	int (*spdif_out_unmute)(struct ct_atc *atc, unsigned char state);
 	int (*spdif_in_unmute)(struct ct_atc *atc, unsigned char state);
 	int (*spdif_out_get_status)(struct ct_atc *atc, unsigned int *status);
 	int (*spdif_out_set_status)(struct ct_atc *atc, unsigned int status);
 	int (*spdif_out_passthru)(struct ct_atc *atc, unsigned char state);
 	int (*have_digit_io_switch)(struct ct_atc *atc);
+	int (*have_dedicated_mic)(struct ct_atc *atc);
+	int (*have_output_switch)(struct ct_atc *atc);
+	int (*output_switch_get)(struct ct_atc *atc);
+	int (*output_switch_put)(struct ct_atc *atc, int position);
+	int (*have_mic_source_switch)(struct ct_atc *atc);
+	int (*mic_source_switch_get)(struct ct_atc *atc);
+	int (*mic_source_switch_put)(struct ct_atc *atc, int position);
 
 	/* Don't touch! Used for internal object. */
 	void *rsc_mgrs[NUM_RSCTYP]; /* chip resource managers */

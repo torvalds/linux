@@ -39,6 +39,7 @@ enum CTCARDS {
 	CT20K2_MODEL_FIRST = CTSB0760,
 	CTHENDRIX,
 	CTSB0880,
+	CTSB1270,
 	CT20K2_UNKNOWN,
 	NUM_CTCARDS		/* This should always be the last */
 };
@@ -71,6 +72,13 @@ struct hw {
 	int (*is_adc_source_selected)(struct hw *hw, enum ADCSRC source);
 	int (*select_adc_source)(struct hw *hw, enum ADCSRC source);
 	int (*have_digit_io_switch)(struct hw *hw);
+	int (*have_dedicated_mic)(struct hw *hw);
+	int (*have_output_switch)(struct hw *hw);
+	int (*output_switch_get)(struct hw *hw);
+	int (*output_switch_put)(struct hw *hw, int position);
+	int (*have_mic_source_switch)(struct hw *hw);
+	int (*mic_source_switch_get)(struct hw *hw);
+	int (*mic_source_switch_put)(struct hw *hw, int position);
 
 	/* SRC operations */
 	int (*src_rsc_get_ctrl_blk)(void **rblk);
