@@ -25,6 +25,7 @@
 #include <sound/core.h>
 
 #include "ctvmem.h"
+#include "cthardware.h"
 #include "ctresource.h"
 
 enum CTALSADEVS {		/* Types of alsa devices */
@@ -121,12 +122,9 @@ struct ct_atc {
 	int (*spdif_out_get_status)(struct ct_atc *atc, unsigned int *status);
 	int (*spdif_out_set_status)(struct ct_atc *atc, unsigned int status);
 	int (*spdif_out_passthru)(struct ct_atc *atc, unsigned char state);
-	int (*have_digit_io_switch)(struct ct_atc *atc);
-	int (*have_dedicated_mic)(struct ct_atc *atc);
-	int (*have_output_switch)(struct ct_atc *atc);
+	struct capabilities (*capabilities)(struct ct_atc *atc);
 	int (*output_switch_get)(struct ct_atc *atc);
 	int (*output_switch_put)(struct ct_atc *atc, int position);
-	int (*have_mic_source_switch)(struct ct_atc *atc);
 	int (*mic_source_switch_get)(struct ct_atc *atc);
 	int (*mic_source_switch_put)(struct ct_atc *atc, int position);
 

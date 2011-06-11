@@ -1915,19 +1915,16 @@ error:
 	return err;
 }
 
-static int hw_have_digit_io_switch(struct hw *hw)
+static struct capabilities hw_capabilities(struct hw *hw)
 {
-	return 0;
-}
+	struct capabilities cap;
 
-static int hw_have_dedicated_mic(struct hw *hw)
-{
-	return hw->model == CTSB1270;
-}
+	cap.digit_io_switch = 0;
+	cap.dedicated_mic = hw->model == CTSB1270;
+	cap.output_switch = hw->model == CTSB1270;
+	cap.mic_source_switch = hw->model == CTSB1270;
 
-static int hw_have_output_switch(struct hw *hw)
-{
-	return hw->model == CTSB1270;
+	return cap;
 }
 
 static int hw_output_switch_get(struct hw *hw)
@@ -1976,11 +1973,6 @@ static int hw_output_switch_put(struct hw *hw, int position)
 	hw_write_20kx(hw, GPIO_DATA, data);
 
 	return 1;
-}
-
-static int hw_have_mic_source_switch(struct hw *hw)
-{
-	return hw->model == CTSB1270;
 }
 
 static int hw_mic_source_switch_get(struct hw *hw)
@@ -2256,12 +2248,9 @@ static struct hw ct20k2_preset __devinitdata = {
 	.pll_init = hw_pll_init,
 	.is_adc_source_selected = hw_is_adc_input_selected,
 	.select_adc_source = hw_adc_input_select,
-	.have_digit_io_switch = hw_have_digit_io_switch,
-	.have_dedicated_mic = hw_have_dedicated_mic,
-	.have_output_switch = hw_have_output_switch,
+	.capabilities = hw_capabilities,
 	.output_switch_get = hw_output_switch_get,
 	.output_switch_put = hw_output_switch_put,
-	.have_mic_source_switch = hw_have_mic_source_switch,
 	.mic_source_switch_get = hw_mic_source_switch_get,
 	.mic_source_switch_put = hw_mic_source_switch_put,
 #ifdef CONFIG_PM

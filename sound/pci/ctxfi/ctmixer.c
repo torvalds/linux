@@ -527,7 +527,7 @@ do_digit_io_switch(struct ct_atc *atc, int state)
 static void do_switch(struct ct_atc *atc, enum CTALSA_MIXER_CTL type, int state)
 {
 	struct ct_mixer *mixer = atc->mixer;
-	int have_dedicated_mic = atc->have_dedicated_mic(atc);
+	struct capabilities cap = atc->capabilities(atc);
 
 	/* Do changes in mixer. */
 	if ((SWH_CAPTURE_START <= type) && (SWH_CAPTURE_END >= type)) {
@@ -540,14 +540,14 @@ static void do_switch(struct ct_atc *atc, enum CTALSA_MIXER_CTL type, int state)
 		}
 	}
 	/* Do changes out of mixer. */
-	if (!have_dedicated_mic &&
+	if (!cap.dedicated_mic &&
 	    (MIXER_LINEIN_C_S == type || MIXER_MIC_C_S == type)) {
 		if (state)
 			do_line_mic_switch(atc, type);
 		atc->line_in_unmute(atc, state);
-	} else if (have_dedicated_mic && (MIXER_LINEIN_C_S == type))
+	} else if (cap.dedicated_mic && (MIXER_LINEIN_C_S == type))
 		atc->line_in_unmute(atc, state);
-	else if (have_dedicated_mic && (MIXER_MIC_C_S == type))
+	else if (cap.dedicated_mic && (MIXER_MIC_C_S == type))
 		atc->mic_unmute(atc, state);
 	else if (MIXER_SPDIFI_C_S == type)
 		atc->spdif_in_unmute(atc, state);
@@ -739,6 +739,7 @@ static int ct_mixer_kcontrols_create(struct ct_mixer *mixer)
 {
 	enum CTALSA_MIXER_CTL type;
 	struct ct_atc *atc = mixer->atc;
+	struct capabilities cap = atc->capabilities(atc);
 	int err;
 
 	/* Create snd kcontrol instances on demand */
@@ -752,8 +753,7 @@ static int ct_mixer_kcontrols_create(struct ct_mixer *mixer)
 		}
 	}
 
-	ct_kcontrol_init_table[MIXER_DIGITAL_IO_S].ctl =
-					atc->have_digit_io_switch(atc);
+	ct_kcontrol_init_table[MIXER_DIGITAL_IO_S].ctl = cap.digit_io_switch;
 
 	for (type = SWH_MIXER_START; type <= SWH_MIXER_END; type++) {
 		if (ct_kcontrol_init_table[type].ctl) {
@@ -777,13 +777,13 @@ static int ct_mixer_kcontrols_create(struct ct_mixer *mixer)
 	if (err)
 		return err;
 
-	if (atc->have_output_switch(atc)) {
+	if (cap.output_switch) {
 		err = ct_mixer_kcontrol_new(mixer, &output_ctl);
 		if (err)
 			return err;
 	}
 
-	if (atc->have_mic_source_switch(atc)) {
+	if (cap.mic_source_switch) {
 		err = ct_mixer_kcontrol_new(mixer, &mic_source_ctl);
 		if (err)
 			return err;
@@ -799,7 +799,7 @@ static int ct_mixer_kcontrols_create(struct ct_mixer *mixer)
 	atc->spdif_out_unmute(atc, 0);
 	set_switch_state(mixer, MIXER_SPDIFO_P_S, 0);
 	atc->line_in_unmute(atc, 0);
-	if (atc->have_dedicated_mic(atc))
+	if (cap.dedicated_mic)
 		atc->mic_unmute(atc, 0);
 	atc->spdif_in_unmute(atc, 0);
 	set_switch_state(mixer, MIXER_PCM_C_S, 0);
