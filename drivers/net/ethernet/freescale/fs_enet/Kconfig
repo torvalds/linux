@@ -1,6 +1,6 @@
 config FS_ENET
        tristate "Freescale Ethernet Driver"
-       depends on CPM1 || CPM2 || PPC_MPC512x
+       depends on NET_VENDOR_FREESCALE && (CPM1 || CPM2 || PPC_MPC512x)
        select MII
        select PHYLIB
 

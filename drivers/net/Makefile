@@ -13,19 +13,8 @@ obj-$(CONFIG_TI_DAVINCI_CPDMA) += davinci_cpdma.o
 obj-$(CONFIG_IP1000) += ipg.o
 obj-$(CONFIG_CAN) += can/
 obj-$(CONFIG_BONDING) += bonding/
-obj-$(CONFIG_GIANFAR) += gianfar_driver.o
-obj-$(CONFIG_PTP_1588_CLOCK_GIANFAR) += gianfar_ptp.o
 obj-$(CONFIG_JME) += jme.o
 obj-$(CONFIG_VMXNET3) += vmxnet3/
-
-gianfar_driver-objs := gianfar.o \
-		gianfar_ethtool.o \
-		gianfar_sysfs.o
-
-obj-$(CONFIG_UCC_GETH) += ucc_geth_driver.o
-ucc_geth_driver-objs := ucc_geth.o ucc_geth_ethtool.o
-
-obj-$(CONFIG_FSL_PQ_MDIO) += fsl_pq_mdio.o
 
 #
 # link order important here
@@ -63,11 +52,6 @@ obj-$(CONFIG_HAMACHI) += hamachi.o
 obj-$(CONFIG_NET) += Space.o loopback.o
 obj-$(CONFIG_NET_SB1000) += sb1000.o
 obj-$(CONFIG_HP100) += hp100.o
-obj-$(CONFIG_FEC) += fec.o
-obj-$(CONFIG_FEC_MPC52xx) += fec_mpc52xx.o
-ifeq ($(CONFIG_FEC_MPC52xx_MDIO),y)
-	obj-$(CONFIG_FEC_MPC52xx) += fec_mpc52xx_phy.o
-endif
 obj-$(CONFIG_FORCEDETH) += forcedeth.o
 
 obj-$(CONFIG_TSI108_ETH) += tsi108_eth.o
@@ -138,8 +122,6 @@ obj-$(CONFIG_IRDA) += irda/
 obj-$(CONFIG_ETRAX_ETHERNET) += cris/
 
 obj-$(CONFIG_NETCONSOLE) += netconsole.o
-
-obj-$(CONFIG_FS_ENET) += fs_enet/
 
 obj-$(CONFIG_VIRTIO_NET) += virtio_net.o
 

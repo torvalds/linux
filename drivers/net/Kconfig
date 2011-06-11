@@ -605,39 +605,6 @@ config NET_POCKET
 	  the questions about this class of network devices. If you say Y, you
 	  will be asked for your specific device in the following questions.
 
-config FEC
-	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
-	depends on M523x || M527x || M5272 || M528x || M520x || M532x || \
-		IMX_HAVE_PLATFORM_FEC || MXS_HAVE_PLATFORM_FEC
-	default IMX_HAVE_PLATFORM_FEC || MXS_HAVE_PLATFORM_FEC if ARM
-	select PHYLIB
-	help
-	  Say Y here if you want to use the built-in 10/100 Fast ethernet
-	  controller on some Motorola ColdFire and Freescale i.MX processors.
-
-config FEC_MPC52xx
-	tristate "MPC52xx FEC driver"
-	depends on PPC_MPC52xx && PPC_BESTCOMM
-	select CRC32
-	select PHYLIB
-	select PPC_BESTCOMM_FEC
-	---help---
-	  This option enables support for the MPC5200's on-chip
-	  Fast Ethernet Controller
-	  If compiled as module, it will be called fec_mpc52xx.
-
-config FEC_MPC52xx_MDIO
-	bool "MPC52xx FEC MDIO bus driver"
-	depends on FEC_MPC52xx
-	default y
-	---help---
-	  The MPC5200's FEC can connect to the Ethernet either with
-	  an external MII PHY chip or 10 Mbps 7-wire interface
-	  (Motorola? industry standard).
-	  If your board uses an external PHY connected to FEC, enable this.
-	  If not sure, enable.
-	  If compiled as module, it will be called fec_mpc52xx_phy.
-
 config XILINX_EMACLITE
 	tristate "Xilinx 10/100 Ethernet Lite support"
 	depends on PPC32 || MICROBLAZE
@@ -650,9 +617,6 @@ config LANTIQ_ETOP
 	depends on SOC_TYPE_XWAY
 	help
 	  Support for the MII0 inside the Lantiq SoC
-
-
-source "drivers/net/fs_enet/Kconfig"
 
 source "drivers/net/octeon/Kconfig"
 
@@ -768,36 +732,6 @@ config GELIC_WIRELESS
 	  use wireless feature, disabling this option saves memory.  As
 	  the driver automatically distinguishes the models, you can
 	  safely enable this option even if you have a wireless-less model.
-
-config FSL_PQ_MDIO
-	tristate "Freescale PQ MDIO"
-	depends on FSL_SOC
-	select PHYLIB
-	help
-	  This driver supports the MDIO bus used by the gianfar and UCC drivers.
-
-config GIANFAR
-	tristate "Gianfar Ethernet"
-	depends on FSL_SOC
-	select FSL_PQ_MDIO
-	select PHYLIB
-	select CRC32
-	help
-	  This driver supports the Gigabit TSEC on the MPC83xx, MPC85xx,
-	  and MPC86xx family of chips, and the FEC on the 8540.
-
-config UCC_GETH
-	tristate "Freescale QE Gigabit Ethernet"
-	depends on QUICC_ENGINE
-	select FSL_PQ_MDIO
-	select PHYLIB
-	help
-	  This driver supports the Gigabit Ethernet mode of the QUICC Engine,
-	  which is available on some Freescale SOCs.
-
-config UGETH_TX_ON_DEMAND
-	bool "Transmit on Demand support"
-	depends on UCC_GETH
 
 config XILINX_LL_TEMAC
 	tristate "Xilinx LL TEMAC (LocalLink Tri-mode Ethernet MAC) driver"
