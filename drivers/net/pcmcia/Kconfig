@@ -21,16 +21,6 @@ menuconfig NET_PCMCIA
 
 if NET_PCMCIA && PCMCIA
 
-config PCMCIA_FMVJ18X
-	tristate "Fujitsu FMV-J18x PCMCIA support"
-	select CRC32
-	help
-	  Say Y here if you intend to attach a Fujitsu FMV-J18x or compatible
-	  PCMCIA (PC-card) Ethernet card to your computer.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called fmvj18x_cs.  If unsure, say N.
-
 config PCMCIA_XIRC2PS
 	tristate "Xircom 16-bit PCMCIA support"
 	help

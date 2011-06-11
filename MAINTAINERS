@@ -2525,7 +2525,7 @@ F:	net/bridge/
 ETHERTEAM 16I DRIVER
 M:	Mika Kuoppala <miku@iki.fi>
 S:	Maintained
-F:	drivers/net/eth16i.c
+F:	drivers/net/ethernet/fujitsu/eth16i.c
 
 EXT2 FILE SYSTEM
 M:	Jan Kara <jack@suse.cz>
