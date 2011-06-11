@@ -277,6 +277,15 @@ struct ixgbe_ring_feature {
 	int mask;
 } ____cacheline_internodealigned_in_smp;
 
+struct ixgbe_ring_container {
+#if MAX_RX_QUEUES > MAX_TX_QUEUES
+	DECLARE_BITMAP(idx, MAX_RX_QUEUES);
+#else
+	DECLARE_BITMAP(idx, MAX_TX_QUEUES);
+#endif
+	u8 count;			/* total number of rings in vector */
+	u8 itr;				/* current ITR setting for ring */
+};
 
 #define MAX_RX_PACKET_BUFFERS ((adapter->flags & IXGBE_FLAG_DCB_ENABLED) \
                               ? 8 : 1)
@@ -294,12 +303,7 @@ struct ixgbe_q_vector {
 	int cpu;	    /* CPU for DCA */
 #endif
 	struct napi_struct napi;
-	DECLARE_BITMAP(rxr_idx, MAX_RX_QUEUES); /* Rx ring indices */
-	DECLARE_BITMAP(txr_idx, MAX_TX_QUEUES); /* Tx ring indices */
-	u8 rxr_count;     /* Rx ring count assigned to this vector */
-	u8 txr_count;     /* Tx ring count assigned to this vector */
-	u8 tx_itr;
-	u8 rx_itr;
+	struct ixgbe_ring_container rx, tx;
 	u32 eitr;
 	cpumask_var_t affinity_mask;
 	char name[IFNAMSIZ + 9];

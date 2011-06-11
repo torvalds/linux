@@ -2122,7 +2122,7 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 	}
 
 	/* if in mixed tx/rx queues per vector mode, report only rx settings */
-	if (adapter->q_vector[0]->txr_count && adapter->q_vector[0]->rxr_count)
+	if (adapter->q_vector[0]->tx.count && adapter->q_vector[0]->rx.count)
 		return 0;
 
 	/* only valid if in constant ITR mode */
@@ -2187,7 +2187,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	bool need_reset = false;
 
 	/* don't accept tx specific changes if we've got mixed RxTx vectors */
-	if (adapter->q_vector[0]->txr_count && adapter->q_vector[0]->rxr_count
+	if (adapter->q_vector[0]->tx.count && adapter->q_vector[0]->rx.count
 	   && ec->tx_coalesce_usecs)
 		return -EINVAL;
 
@@ -2261,7 +2261,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		int num_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 		for (i = 0; i < num_vectors; i++) {
 			q_vector = adapter->q_vector[i];
-			if (q_vector->txr_count && !q_vector->rxr_count)
+			if (q_vector->tx.count && !q_vector->rx.count)
 				/* tx only */
 				q_vector->eitr = adapter->tx_eitr_param;
 			else
