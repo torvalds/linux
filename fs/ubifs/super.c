@@ -1971,6 +1971,53 @@ static struct ubi_volume_desc *open_ubi(const char *name, int mode)
 	return ERR_PTR(-EINVAL);
 }
 
+static struct ubifs_info *alloc_ubifs_info(struct ubi_volume_desc *ubi)
+{
+	struct ubifs_info *c;
+
+	c = kzalloc(sizeof(struct ubifs_info), GFP_KERNEL);
+	if (c) {
+		spin_lock_init(&c->cnt_lock);
+		spin_lock_init(&c->cs_lock);
+		spin_lock_init(&c->buds_lock);
+		spin_lock_init(&c->space_lock);
+		spin_lock_init(&c->orphan_lock);
+		init_rwsem(&c->commit_sem);
+		mutex_init(&c->lp_mutex);
+		mutex_init(&c->tnc_mutex);
+		mutex_init(&c->log_mutex);
+		mutex_init(&c->mst_mutex);
+		mutex_init(&c->umount_mutex);
+		mutex_init(&c->bu_mutex);
+		mutex_init(&c->write_reserve_mutex);
+		init_waitqueue_head(&c->cmt_wq);
+		c->buds = RB_ROOT;
+		c->old_idx = RB_ROOT;
+		c->size_tree = RB_ROOT;
+		c->orph_tree = RB_ROOT;
+		INIT_LIST_HEAD(&c->infos_list);
+		INIT_LIST_HEAD(&c->idx_gc);
+		INIT_LIST_HEAD(&c->replay_list);
+		INIT_LIST_HEAD(&c->replay_buds);
+		INIT_LIST_HEAD(&c->uncat_list);
+		INIT_LIST_HEAD(&c->empty_list);
+		INIT_LIST_HEAD(&c->freeable_list);
+		INIT_LIST_HEAD(&c->frdi_idx_list);
+		INIT_LIST_HEAD(&c->unclean_leb_list);
+		INIT_LIST_HEAD(&c->old_buds);
+		INIT_LIST_HEAD(&c->orph_list);
+		INIT_LIST_HEAD(&c->orph_new);
+		c->no_chk_data_crc = 1;
+
+		c->highest_inum = UBIFS_FIRST_INO;
+		c->lhead_lnum = c->ltail_lnum = UBIFS_LOG_LNUM;
+
+		ubi_get_volume_info(ubi, &c->vi);
+		ubi_get_device_info(c->vi.ubi_num, &c->di);
+	}
+	return c;
+}
+
 static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct ubi_volume_desc *ubi = sb->s_fs_info;
@@ -1978,49 +2025,11 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *root;
 	int err;
 
-	c = kzalloc(sizeof(struct ubifs_info), GFP_KERNEL);
+	c = alloc_ubifs_info(ubi);
 	if (!c)
 		return -ENOMEM;
 
-	spin_lock_init(&c->cnt_lock);
-	spin_lock_init(&c->cs_lock);
-	spin_lock_init(&c->buds_lock);
-	spin_lock_init(&c->space_lock);
-	spin_lock_init(&c->orphan_lock);
-	init_rwsem(&c->commit_sem);
-	mutex_init(&c->lp_mutex);
-	mutex_init(&c->tnc_mutex);
-	mutex_init(&c->log_mutex);
-	mutex_init(&c->mst_mutex);
-	mutex_init(&c->umount_mutex);
-	mutex_init(&c->bu_mutex);
-	mutex_init(&c->write_reserve_mutex);
-	init_waitqueue_head(&c->cmt_wq);
-	c->buds = RB_ROOT;
-	c->old_idx = RB_ROOT;
-	c->size_tree = RB_ROOT;
-	c->orph_tree = RB_ROOT;
-	INIT_LIST_HEAD(&c->infos_list);
-	INIT_LIST_HEAD(&c->idx_gc);
-	INIT_LIST_HEAD(&c->replay_list);
-	INIT_LIST_HEAD(&c->replay_buds);
-	INIT_LIST_HEAD(&c->uncat_list);
-	INIT_LIST_HEAD(&c->empty_list);
-	INIT_LIST_HEAD(&c->freeable_list);
-	INIT_LIST_HEAD(&c->frdi_idx_list);
-	INIT_LIST_HEAD(&c->unclean_leb_list);
-	INIT_LIST_HEAD(&c->old_buds);
-	INIT_LIST_HEAD(&c->orph_list);
-	INIT_LIST_HEAD(&c->orph_new);
-	c->no_chk_data_crc = 1;
-
 	c->vfs_sb = sb;
-	c->highest_inum = UBIFS_FIRST_INO;
-	c->lhead_lnum = c->ltail_lnum = UBIFS_LOG_LNUM;
-
-	ubi_get_volume_info(ubi, &c->vi);
-	ubi_get_device_info(c->vi.ubi_num, &c->di);
-
 	/* Re-open the UBI device in read-write mode */
 	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READWRITE);
 	if (IS_ERR(c->ubi)) {
