@@ -1090,6 +1090,7 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 			dev_err(emac_dev, "DaVinci EMAC: desc submit failed");
 		goto fail_tx;
 	}
+	skb_tx_timestamp(skb);
 
 	return NETDEV_TX_OK;
 
