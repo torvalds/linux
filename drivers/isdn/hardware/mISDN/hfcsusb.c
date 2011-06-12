@@ -283,6 +283,7 @@ hfcsusb_ph_info(struct hfcsusb *hw)
 	_queue_data(&dch->dev.D, MPH_INFORMATION_IND, MISDN_ID_ANY,
 		sizeof(struct ph_info_dch) + dch->dev.nrbchan *
 		sizeof(struct ph_info_ch), phi, GFP_ATOMIC);
+	kfree(phi);
 }
 
 /*
