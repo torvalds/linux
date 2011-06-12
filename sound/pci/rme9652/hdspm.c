@@ -1143,7 +1143,7 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 
 		/* if wordclock has synced freq and wordclock is valid */
 		if ((status2 & HDSPM_wcLock) != 0 &&
-				(status & HDSPM_SelSyncRef0) == 0) {
+				(status2 & HDSPM_SelSyncRef0) == 0) {
 
 			rate_bits = status2 & HDSPM_wcFreqMask;
 
