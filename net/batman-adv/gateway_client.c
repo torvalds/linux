@@ -179,6 +179,7 @@ void gw_election(struct bat_priv *bat_priv)
 {
 	struct gw_node *curr_gw = NULL, *next_gw = NULL;
 	struct neigh_node *router = NULL;
+	char gw_addr[18] = { '\0' };
 
 	/**
 	 * The batman daemon checks here if we already passed a full originator
@@ -200,6 +201,8 @@ void gw_election(struct bat_priv *bat_priv)
 		goto out;
 
 	if (next_gw) {
+		sprintf(gw_addr, "%pM", next_gw->orig_node->orig);
+
 		router = orig_node_get_router(next_gw->orig_node);
 		if (!router) {
 			gw_deselect(bat_priv);
@@ -210,12 +213,14 @@ void gw_election(struct bat_priv *bat_priv)
 	if ((curr_gw) && (!next_gw)) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Removing selected gateway - no gateway in range\n");
+		throw_uevent(bat_priv, UEV_GW, UEV_DEL, NULL);
 	} else if ((!curr_gw) && (next_gw)) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Adding route to gateway %pM (gw_flags: %i, tq: %i)\n",
 			next_gw->orig_node->orig,
 			next_gw->orig_node->gw_flags,
 			router->tq_avg);
+		throw_uevent(bat_priv, UEV_GW, UEV_ADD, gw_addr);
 	} else {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Changing route to gateway %pM "
@@ -223,6 +228,7 @@ void gw_election(struct bat_priv *bat_priv)
 			next_gw->orig_node->orig,
 			next_gw->orig_node->gw_flags,
 			router->tq_avg);
+		throw_uevent(bat_priv, UEV_GW, UEV_CHANGE, gw_addr);
 	}
 
 	gw_select(bat_priv, next_gw);
