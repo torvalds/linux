@@ -735,6 +735,7 @@ static const struct af9015_rc_setup af9015_rc_setup_hashes[] = {
 	{ 0xb8feb708, RC_MAP_MSI_DIGIVOX_II },
 	{ 0xa3703d00, RC_MAP_ALINK_DTU_M },
 	{ 0x9b7dc64e, RC_MAP_TOTAL_MEDIA_IN_HAND }, /* MYGICTV U718 */
+	{ 0x5d49e3db, RC_MAP_DIGITTRADE }, /* LC-Power LC-USB-DVBT */
 	{ }
 };
 
