@@ -431,6 +431,9 @@ static ssize_t koneplus_sysfs_set_actual_profile(struct device *dev,
 	if (retval)
 		return retval;
 
+	if (profile > 4)
+		return -EINVAL;
+
 	mutex_lock(&koneplus->koneplus_lock);
 
 	retval = koneplus_set_actual_profile(usb_dev, profile);
@@ -439,7 +442,7 @@ static ssize_t koneplus_sysfs_set_actual_profile(struct device *dev,
 		return retval;
 	}
 
-	koneplus->actual_profile = profile;
+	koneplus_profile_activated(koneplus, profile);
 
 	roccat_report.type = KONEPLUS_MOUSE_REPORT_BUTTON_TYPE_PROFILE;
 	roccat_report.data1 = profile + 1;
@@ -749,6 +752,9 @@ static int koneplus_raw_event(struct hid_device *hdev,
 
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
 			!= USB_INTERFACE_PROTOCOL_MOUSE)
+		return 0;
+
+	if (koneplus == NULL)
 		return 0;
 
 	koneplus_keep_values_up_to_date(koneplus, data);

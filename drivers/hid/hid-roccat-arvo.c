@@ -163,6 +163,9 @@ static ssize_t arvo_sysfs_set_actual_profile(struct device *dev,
 	if (retval)
 		return retval;
 
+	if (profile < 1 || profile > 5)
+		return -EINVAL;
+
 	temp_buf.command = ARVO_COMMAND_ACTUAL_PROFILE;
 	temp_buf.actual_profile = profile;
 
@@ -399,7 +402,7 @@ static int arvo_raw_event(struct hid_device *hdev,
 	if (size != 3)
 		return 0;
 
-	if (arvo->roccat_claimed)
+	if (arvo && arvo->roccat_claimed)
 		arvo_report_to_chrdev(arvo, data);
 
 	return 0;

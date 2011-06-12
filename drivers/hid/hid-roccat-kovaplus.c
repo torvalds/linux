@@ -337,7 +337,7 @@ static ssize_t kovaplus_sysfs_set_actual_profile(struct device *dev,
 
 	mutex_lock(&kovaplus->kovaplus_lock);
 	retval = kovaplus_set_actual_profile(usb_dev, profile);
-	kovaplus->actual_profile = profile;
+	kovaplus_profile_activated(kovaplus, profile);
 	mutex_unlock(&kovaplus->kovaplus_lock);
 	if (retval)
 		return retval;
@@ -660,6 +660,9 @@ static int kovaplus_raw_event(struct hid_device *hdev,
 
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
 			!= USB_INTERFACE_PROTOCOL_MOUSE)
+		return 0;
+
+	if (kovaplus == NULL)
 		return 0;
 
 	kovaplus_keep_values_up_to_date(kovaplus, data);

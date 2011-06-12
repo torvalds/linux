@@ -832,6 +832,9 @@ static int kone_raw_event(struct hid_device *hdev, struct hid_report *report,
 	if (size != sizeof(struct kone_mouse_event))
 		return 0;
 
+	if (kone == NULL)
+		return 0;
+
 	/*
 	 * Firmware 1.38 introduced new behaviour for tilt and special buttons.
 	 * Pressed button is reported in each movement event.

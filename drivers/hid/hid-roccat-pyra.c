@@ -637,6 +637,9 @@ static int pyra_raw_event(struct hid_device *hdev, struct hid_report *report,
 			!= USB_INTERFACE_PROTOCOL_MOUSE)
 		return 0;
 
+	if (pyra == NULL)
+		return 0;
+
 	pyra_keep_values_up_to_date(pyra, data);
 
 	if (pyra->roccat_claimed)
