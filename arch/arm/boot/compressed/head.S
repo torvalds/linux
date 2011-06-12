@@ -248,6 +248,18 @@ restart:	adr	r0, LC0
 
 		mov	r8, r6			@ use the appended device tree
 
+		/*
+		 * Make sure that the DTB doesn't end up in the final
+		 * kernel's .bss area. To do so, we adjust the decompressed
+		 * kernel size to compensate if that .bss size is larger
+		 * than the relocated code.
+		 */
+		ldr	r5, =_kernel_bss_size
+		adr	r1, wont_overwrite
+		sub	r1, r6, r1
+		subs	r1, r5, r1
+		addhi	r9, r9, r1
+
 		/* Get the dtb's size */
 		ldr	r5, [r6, #4]
 #ifndef __ARMEB__
@@ -276,15 +288,14 @@ dtb_check_done:
  *   r10 = end of this image, including  bss/stack/malloc space if non XIP
  * We basically want:
  *   r4 - 16k page directory >= r10 -> OK
- *   r4 + image length <= current position (pc) -> OK
+ *   r4 + image length <= address of wont_overwrite -> OK
  */
 		add	r10, r10, #16384
 		cmp	r4, r10
 		bhs	wont_overwrite
 		add	r10, r4, r9
-   ARM(		cmp	r10, pc		)
- THUMB(		mov	lr, pc		)
- THUMB(		cmp	r10, lr		)
+		adr	r9, wont_overwrite
+		cmp	r10, r9
 		bls	wont_overwrite
 
 /*
