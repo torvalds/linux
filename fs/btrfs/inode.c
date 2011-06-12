@@ -1986,7 +1986,7 @@ static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	}
 
 	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)
-		return 0;
+		goto good;
 
 	if (root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID &&
 	    test_range_bit(io_tree, start, end, EXTENT_NODATASUM, 1, NULL)) {
@@ -3646,7 +3646,7 @@ void btrfs_evict_inode(struct inode *inode)
 	btrfs_i_size_write(inode, 0);
 
 	while (1) {
-		trans = btrfs_start_transaction(root, 0);
+		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
 		trans->block_rsv = root->orphan_block_rsv;
 
