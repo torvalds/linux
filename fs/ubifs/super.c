@@ -1848,7 +1848,6 @@ static void ubifs_put_super(struct super_block *sb)
 	bdi_destroy(&c->bdi);
 	ubi_close_volume(c->ubi);
 	mutex_unlock(&c->umount_mutex);
-	kfree(c);
 }
 
 static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
@@ -2020,21 +2019,16 @@ static struct ubifs_info *alloc_ubifs_info(struct ubi_volume_desc *ubi)
 
 static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 {
-	struct ubi_volume_desc *ubi = sb->s_fs_info;
-	struct ubifs_info *c;
+	struct ubifs_info *c = sb->s_fs_info;
 	struct inode *root;
 	int err;
-
-	c = alloc_ubifs_info(ubi);
-	if (!c)
-		return -ENOMEM;
 
 	c->vfs_sb = sb;
 	/* Re-open the UBI device in read-write mode */
 	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READWRITE);
 	if (IS_ERR(c->ubi)) {
 		err = PTR_ERR(c->ubi);
-		goto out_free;
+		goto out;
 	}
 
 	/*
@@ -2100,24 +2094,29 @@ out_bdi:
 	bdi_destroy(&c->bdi);
 out_close:
 	ubi_close_volume(c->ubi);
-out_free:
-	kfree(c);
+out:
 	return err;
 }
 
 static int sb_test(struct super_block *sb, void *data)
 {
-	dev_t *dev = data;
+	struct ubifs_info *c1 = data;
 	struct ubifs_info *c = sb->s_fs_info;
 
-	return c->vi.cdev == *dev;
+	return c->vi.cdev == c1->vi.cdev;
+}
+
+static int sb_set(struct super_block *sb, void *data)
+{
+	sb->s_fs_info = data;
+	return set_anon_super(sb, NULL);
 }
 
 static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 			const char *name, void *data)
 {
 	struct ubi_volume_desc *ubi;
-	struct ubi_volume_info vi;
+	struct ubifs_info *c;
 	struct super_block *sb;
 	int err;
 
@@ -2134,19 +2133,24 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 			name, (int)PTR_ERR(ubi));
 		return ERR_CAST(ubi);
 	}
-	ubi_get_volume_info(ubi, &vi);
 
-	dbg_gen("opened ubi%d_%d", vi.ubi_num, vi.vol_id);
+	c = alloc_ubifs_info(ubi);
+	if (!c) {
+		err = -ENOMEM;
+		goto out_close;
+	}
 
-	sb = sget(fs_type, &sb_test, &set_anon_super, &vi.cdev);
+	dbg_gen("opened ubi%d_%d", c->vi.ubi_num, c->vi.vol_id);
+
+	sb = sget(fs_type, sb_test, sb_set, c);
 	if (IS_ERR(sb)) {
 		err = PTR_ERR(sb);
-		goto out_close;
+		kfree(c);
 	}
 
 	if (sb->s_root) {
 		struct ubifs_info *c1 = sb->s_fs_info;
-
+		kfree(c);
 		/* A new mount point for already mounted UBIFS */
 		dbg_gen("this ubi volume is already mounted");
 		if (!!(flags & MS_RDONLY) != c1->ro_mount) {
@@ -2155,11 +2159,6 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 		}
 	} else {
 		sb->s_flags = flags;
-		/*
-		 * Pass 'ubi' to 'fill_super()' in sb->s_fs_info where it is
-		 * replaced by 'c'.
-		 */
-		sb->s_fs_info = ubi;
 		err = ubifs_fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
 		if (err)
 			goto out_deact;
@@ -2179,11 +2178,18 @@ out_close:
 	return ERR_PTR(err);
 }
 
+static void kill_ubifs_super(struct super_block *s)
+{
+	struct ubifs_info *c = s->s_fs_info;
+	kill_anon_super(s);
+	kfree(c);
+}
+
 static struct file_system_type ubifs_fs_type = {
 	.name    = "ubifs",
 	.owner   = THIS_MODULE,
 	.mount   = ubifs_mount,
-	.kill_sb = kill_anon_super,
+	.kill_sb = kill_ubifs_super,
 };
 
 /*
