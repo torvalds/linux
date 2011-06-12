@@ -588,6 +588,8 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dnet_writel(bp, irq_enable, INTR_ENB);
 	}
 
+	skb_tx_timestamp(skb);
+
 	/* free the buffer */
 	dev_kfree_skb(skb);
 
