@@ -521,6 +521,7 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_DMA_AREA_KILOBYTES (HDSPM_DMA_AREA_BYTES/1024)
 
 /* revisions >= 230 indicate AES32 card */
+#define HDSPM_MADI_OLD_REV	207
 #define HDSPM_MADI_REV		210
 #define HDSPM_RAYDAT_REV	211
 #define HDSPM_AIO_REV		212
@@ -6379,6 +6380,7 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 
 	switch (hdspm->firmware_rev) {
 	case HDSPM_MADI_REV:
+	case HDSPM_MADI_OLD_REV:
 		hdspm->io_type = MADI;
 		hdspm->card_name = "RME MADI";
 		hdspm->midiPorts = 3;
