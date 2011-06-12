@@ -84,10 +84,10 @@ config FIRMWARE_IN_KERNEL
 	help
 	  The kernel source tree includes a number of firmware 'blobs'
 	  that are used by various drivers. The recommended way to
-	  use these is to run "make firmware_install" and to copy the
-	  resulting binary files created in usr/lib/firmware/ of the
-	  kernel tree to /lib/firmware/ on your system so that they can
-	  be loaded by userspace helpers on request.
+	  use these is to run "make firmware_install", which, after
+	  converting ihex files to binary, copies all of the needed
+	  binary files in firmware/ to /lib/firmware/ on your system so
+	  that they can be loaded by userspace helpers on request.
 
 	  Enabling this option will build each required firmware blob
 	  into the kernel directly, where request_firmware() will find
