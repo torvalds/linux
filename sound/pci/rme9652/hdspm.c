@@ -1639,12 +1639,14 @@ static int snd_hdspm_midi_input_read (struct hdspm_midi *hmidi)
 		}
 	}
 	hmidi->pending = 0;
+	spin_unlock_irqrestore(&hmidi->lock, flags);
 
+	spin_lock_irqsave(&hmidi->hdspm->lock, flags);
 	hmidi->hdspm->control_register |= hmidi->ie;
 	hdspm_write(hmidi->hdspm, HDSPM_controlRegister,
 		    hmidi->hdspm->control_register);
+	spin_unlock_irqrestore(&hmidi->hdspm->lock, flags);
 
-	spin_unlock_irqrestore (&hmidi->lock, flags);
 	return snd_hdspm_midi_output_write (hmidi);
 }
 
