@@ -572,7 +572,7 @@ static void falcon_get_lock(void)
 }
 
 
-int __init atari_scsi_detect(struct scsi_host_template *host)
+static int __init atari_scsi_detect(struct scsi_host_template *host)
 {
 	static int called = 0;
 	struct Scsi_Host *instance;
@@ -724,7 +724,7 @@ int __init atari_scsi_detect(struct scsi_host_template *host)
 	return 1;
 }
 
-int atari_scsi_release(struct Scsi_Host *sh)
+static int atari_scsi_release(struct Scsi_Host *sh)
 {
 	if (IS_A_TT())
 		free_irq(IRQ_TT_MFP_SCSI, sh);
@@ -788,7 +788,7 @@ static int __init atari_scsi_setup(char *str)
 __setup("atascsi=", atari_scsi_setup);
 #endif /* !MODULE */
 
-int atari_scsi_bus_reset(Scsi_Cmnd *cmd)
+static int atari_scsi_bus_reset(Scsi_Cmnd *cmd)
 {
 	int rv;
 	struct NCR5380_hostdata *hostdata =
@@ -861,7 +861,7 @@ static void __init atari_scsi_reset_boot(void)
 #endif
 
 
-const char *atari_scsi_info(struct Scsi_Host *host)
+static const char *atari_scsi_info(struct Scsi_Host *host)
 {
 	/* atari_scsi_detect() is verbose enough... */
 	static const char string[] = "Atari native SCSI";
@@ -871,8 +871,9 @@ const char *atari_scsi_info(struct Scsi_Host *host)
 
 #if defined(REAL_DMA)
 
-unsigned long atari_scsi_dma_setup(struct Scsi_Host *instance, void *data,
-				   unsigned long count, int dir)
+static unsigned long atari_scsi_dma_setup(struct Scsi_Host *instance,
+					  void *data, unsigned long count,
+					  int dir)
 {
 	unsigned long addr = virt_to_phys(data);
 
