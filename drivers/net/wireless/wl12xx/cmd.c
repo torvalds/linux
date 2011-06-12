@@ -134,6 +134,11 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 	/* Override the REF CLK from the NVS with the one from platform data */
 	gen_parms->general_params.ref_clock = wl->ref_clock;
 
+	/* LPD mode enable (bits 6-7) in WL1271 AP mode only */
+	if (wl->quirks & WL12XX_QUIRK_LPD_MODE)
+		gen_parms->general_params.general_settings |=
+			GENERAL_SETTINGS_DRPW_LPD;
+
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), answer);
 	if (ret < 0) {
 		wl1271_warning("CMD_INI_FILE_GENERAL_PARAM failed");

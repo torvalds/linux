@@ -749,6 +749,9 @@ int wl1271_load_firmware(struct wl1271 *wl)
 		clk |= (wl->ref_clock << 1) << 4;
 	}
 
+	if (wl->quirks & WL12XX_QUIRK_LPD_MODE)
+		clk |= SCRATCH_ENABLE_LPD;
+
 	wl1271_write32(wl, DRPW_SCRATCH_START, clk);
 
 	wl1271_set_partition(wl, &part_table[PART_WORK]);
