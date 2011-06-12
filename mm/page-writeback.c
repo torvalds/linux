@@ -777,6 +777,79 @@ static void global_update_bandwidth(unsigned long thresh,
 	spin_unlock(&dirty_lock);
 }
 
+/*
+ * Maintain bdi->dirty_ratelimit, the base dirty throttle rate.
+ *
+ * Normal bdi tasks will be curbed at or below it in long term.
+ * Obviously it should be around (write_bw / N) when there are N dd tasks.
+ */
+static void bdi_update_dirty_ratelimit(struct backing_dev_info *bdi,
+				       unsigned long thresh,
+				       unsigned long bg_thresh,
+				       unsigned long dirty,
+				       unsigned long bdi_thresh,
+				       unsigned long bdi_dirty,
+				       unsigned long dirtied,
+				       unsigned long elapsed)
+{
+	unsigned long write_bw = bdi->avg_write_bandwidth;
+	unsigned long dirty_ratelimit = bdi->dirty_ratelimit;
+	unsigned long dirty_rate;
+	unsigned long task_ratelimit;
+	unsigned long balanced_dirty_ratelimit;
+	unsigned long pos_ratio;
+
+	/*
+	 * The dirty rate will match the writeout rate in long term, except
+	 * when dirty pages are truncated by userspace or re-dirtied by FS.
+	 */
+	dirty_rate = (dirtied - bdi->dirtied_stamp) * HZ / elapsed;
+
+	pos_ratio = bdi_position_ratio(bdi, thresh, bg_thresh, dirty,
+				       bdi_thresh, bdi_dirty);
+	/*
+	 * task_ratelimit reflects each dd's dirty rate for the past 200ms.
+	 */
+	task_ratelimit = (u64)dirty_ratelimit *
+					pos_ratio >> RATELIMIT_CALC_SHIFT;
+	task_ratelimit++; /* it helps rampup dirty_ratelimit from tiny values */
+
+	/*
+	 * A linear estimation of the "balanced" throttle rate. The theory is,
+	 * if there are N dd tasks, each throttled at task_ratelimit, the bdi's
+	 * dirty_rate will be measured to be (N * task_ratelimit). So the below
+	 * formula will yield the balanced rate limit (write_bw / N).
+	 *
+	 * Note that the expanded form is not a pure rate feedback:
+	 *	rate_(i+1) = rate_(i) * (write_bw / dirty_rate)		     (1)
+	 * but also takes pos_ratio into account:
+	 *	rate_(i+1) = rate_(i) * (write_bw / dirty_rate) * pos_ratio  (2)
+	 *
+	 * (1) is not realistic because pos_ratio also takes part in balancing
+	 * the dirty rate.  Consider the state
+	 *	pos_ratio = 0.5						     (3)
+	 *	rate = 2 * (write_bw / N)				     (4)
+	 * If (1) is used, it will stuck in that state! Because each dd will
+	 * be throttled at
+	 *	task_ratelimit = pos_ratio * rate = (write_bw / N)	     (5)
+	 * yielding
+	 *	dirty_rate = N * task_ratelimit = write_bw		     (6)
+	 * put (6) into (1) we get
+	 *	rate_(i+1) = rate_(i)					     (7)
+	 *
+	 * So we end up using (2) to always keep
+	 *	rate_(i+1) ~= (write_bw / N)				     (8)
+	 * regardless of the value of pos_ratio. As long as (8) is satisfied,
+	 * pos_ratio is able to drive itself to 1.0, which is not only where
+	 * the dirty count meet the setpoint, but also where the slope of
+	 * pos_ratio is most flat and hence task_ratelimit is least fluctuated.
+	 */
+	balanced_dirty_ratelimit = div_u64((u64)task_ratelimit * write_bw,
+					   dirty_rate | 1);
+
+	bdi->dirty_ratelimit = max(balanced_dirty_ratelimit, 1UL);
+}
+
 void __bdi_update_bandwidth(struct backing_dev_info *bdi,
 			    unsigned long thresh,
 			    unsigned long bg_thresh,
@@ -787,6 +860,7 @@ void __bdi_update_bandwidth(struct backing_dev_info *bdi,
 {
 	unsigned long now = jiffies;
 	unsigned long elapsed = now - bdi->bw_time_stamp;
+	unsigned long dirtied;
 	unsigned long written;
 
 	/*
@@ -795,6 +869,7 @@ void __bdi_update_bandwidth(struct backing_dev_info *bdi,
 	if (elapsed < BANDWIDTH_INTERVAL)
 		return;
 
+	dirtied = percpu_counter_read(&bdi->bdi_stat[BDI_DIRTIED]);
 	written = percpu_counter_read(&bdi->bdi_stat[BDI_WRITTEN]);
 
 	/*
@@ -804,12 +879,16 @@ void __bdi_update_bandwidth(struct backing_dev_info *bdi,
 	if (elapsed > HZ && time_before(bdi->bw_time_stamp, start_time))
 		goto snapshot;
 
-	if (thresh)
+	if (thresh) {
 		global_update_bandwidth(thresh, dirty, now);
-
+		bdi_update_dirty_ratelimit(bdi, thresh, bg_thresh, dirty,
+					   bdi_thresh, bdi_dirty,
+					   dirtied, elapsed);
+	}
 	bdi_update_write_bandwidth(bdi, elapsed, written);
 
 snapshot:
+	bdi->dirtied_stamp = dirtied;
 	bdi->written_stamp = written;
 	bdi->bw_time_stamp = now;
 }
