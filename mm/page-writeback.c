@@ -1086,6 +1086,10 @@ static void balance_dirty_pages(struct address_space *mapping,
 		task_ratelimit = (u64)dirty_ratelimit *
 					pos_ratio >> RATELIMIT_CALC_SHIFT;
 		pause = (HZ * pages_dirtied) / (task_ratelimit | 1);
+		if (unlikely(pause <= 0)) {
+			pause = 1; /* avoid resetting nr_dirtied_pause below */
+			break;
+		}
 		pause = min(pause, max_pause);
 
 pause:
@@ -1107,7 +1111,21 @@ pause:
 		bdi->dirty_exceeded = 0;
 
 	current->nr_dirtied = 0;
-	current->nr_dirtied_pause = dirty_poll_interval(nr_dirty, dirty_thresh);
+	if (pause == 0) { /* in freerun area */
+		current->nr_dirtied_pause =
+				dirty_poll_interval(nr_dirty, dirty_thresh);
+	} else if (pause <= max_pause / 4 &&
+		   pages_dirtied >= current->nr_dirtied_pause) {
+		current->nr_dirtied_pause = clamp_val(
+					dirty_ratelimit * (max_pause / 2) / HZ,
+					pages_dirtied + pages_dirtied / 8,
+					pages_dirtied * 4);
+	} else if (pause >= max_pause) {
+		current->nr_dirtied_pause = 1 | clamp_val(
+					dirty_ratelimit * (max_pause / 2) / HZ,
+					pages_dirtied / 4,
+					pages_dirtied - pages_dirtied / 8);
+	}
 
 	if (writeback_in_progress(bdi))
 		return;
