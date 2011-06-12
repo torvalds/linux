@@ -1200,12 +1200,13 @@ static void context_stop(struct context *ctx)
 	reg_write(ctx->ohci, CONTROL_CLEAR(ctx->regs), CONTEXT_RUN);
 	ctx->running = false;
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 1000; i++) {
 		reg = reg_read(ctx->ohci, CONTROL_SET(ctx->regs));
 		if ((reg & CONTEXT_ACTIVE) == 0)
 			return;
 
-		mdelay(1);
+		if (i)
+			udelay(10);
 	}
 	fw_error("Error: DMA context still active (0x%08x)\n", reg);
 }
