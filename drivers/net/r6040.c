@@ -846,6 +846,8 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 
 	spin_unlock_irqrestore(&lp->lock, flags);
 
+	skb_tx_timestamp(skb);
+
 	return NETDEV_TX_OK;
 }
 
