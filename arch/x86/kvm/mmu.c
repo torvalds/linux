@@ -3054,8 +3054,18 @@ static void destroy_kvm_mmu(struct kvm_vcpu *vcpu)
 
 int kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
 {
+	int r;
+
 	destroy_kvm_mmu(vcpu);
-	return init_kvm_mmu(vcpu);
+	r = init_kvm_mmu(vcpu);
+
+	if (r)
+		goto err;
+
+	kvm_mmu_sync_roots(vcpu);
+	kvm_mmu_flush_tlb(vcpu);
+err:
+	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_reset_context);
 
