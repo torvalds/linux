@@ -99,6 +99,7 @@ enum transport_state_table {
 	TRANSPORT_FREE		= 15,
 	TRANSPORT_NEW_CMD_MAP	= 16,
 	TRANSPORT_FREE_CMD_INTR = 17,
+	TRANSPORT_COMPLETE_QF_WP = 18,
 };
 
 /* Used for struct se_cmd->se_cmd_flags */
@@ -125,6 +126,7 @@ enum se_cmd_flags_table {
 	SCF_PASSTHROUGH_CONTIG_TO_SG	= 0x00200000,
 	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00400000,
 	SCF_EMULATE_CDB_ASYNC		= 0x01000000,
+	SCF_EMULATE_QUEUE_FULL		= 0x02000000,
 };
 
 /* struct se_dev_entry->lun_flags and struct se_lun->lun_access */
@@ -466,6 +468,7 @@ struct se_cmd {
 	struct list_head	se_delayed_node;
 	struct list_head	se_ordered_node;
 	struct list_head	se_lun_node;
+	struct list_head	se_qf_node;
 	struct se_device      *se_dev;
 	struct se_dev_entry   *se_deve;
 	struct se_device	*se_obj_ptr;
@@ -480,6 +483,8 @@ struct se_cmd {
 	void (*transport_split_cdb)(unsigned long long, u32 *, unsigned char *);
 	void (*transport_wait_for_tasks)(struct se_cmd *, int, int);
 	void (*transport_complete_callback)(struct se_cmd *);
+	int (*transport_qf_callback)(struct se_cmd *);
+
 	unsigned char		*t_task_cdb;
 	unsigned char		__t_task_cdb[TCM_MAX_COMMAND_SIZE];
 	unsigned long long	t_task_lba;
@@ -743,6 +748,7 @@ struct se_device {
 	atomic_t		dev_status_thr_count;
 	atomic_t		dev_hoq_count;
 	atomic_t		dev_ordered_sync;
+	atomic_t		dev_qf_count;
 	struct se_obj		dev_obj;
 	struct se_obj		dev_access_obj;
 	struct se_obj		dev_export_obj;
@@ -758,6 +764,7 @@ struct se_device {
 	spinlock_t		dev_status_thr_lock;
 	spinlock_t		se_port_lock;
 	spinlock_t		se_tmr_lock;
+	spinlock_t		qf_cmd_lock;
 	/* Used for legacy SPC-2 reservationsa */
 	struct se_node_acl	*dev_reserved_node_acl;
 	/* Used for ALUA Logical Unit Group membership */
@@ -771,10 +778,12 @@ struct se_device {
 	struct task_struct	*process_thread;
 	pid_t			process_thread_pid;
 	struct task_struct		*dev_mgmt_thread;
+	struct work_struct	qf_work_queue;
 	struct list_head	delayed_cmd_list;
 	struct list_head	ordered_cmd_list;
 	struct list_head	execute_task_list;
 	struct list_head	state_task_list;
+	struct list_head	qf_cmd_list;
 	/* Pointer to associated SE HBA */
 	struct se_hba		*se_hba;
 	struct se_subsystem_dev *se_sub_dev;
