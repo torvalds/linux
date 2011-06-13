@@ -1384,7 +1384,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 		offset += 2 * sizeof(__u16);
 	verdict = ip_vs_icmp_xmit(skb, cp, pp, offset, hooknum);
 
-  out:
+out:
 	__ip_vs_conn_put(cp);
 
 	return verdict;
@@ -2018,14 +2018,14 @@ cleanup_sub:
 	unregister_pernet_subsys(&ipvs_core_ops);
 cleanup_sync:
 	ip_vs_sync_cleanup();
-  cleanup_conn:
+cleanup_conn:
 	ip_vs_conn_cleanup();
-  cleanup_app:
+cleanup_app:
 	ip_vs_app_cleanup();
-  cleanup_protocol:
+cleanup_protocol:
 	ip_vs_protocol_cleanup();
 	ip_vs_control_cleanup();
-  cleanup_estimator:
+cleanup_estimator:
 	ip_vs_estimator_cleanup();
 	return ret;
 }

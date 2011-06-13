@@ -1334,9 +1334,9 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 		ip_vs_bind_pe(svc, pe);
 	}
 
-  out_unlock:
+out_unlock:
 	write_unlock_bh(&__ip_vs_svc_lock);
-  out:
+out:
 	ip_vs_scheduler_put(old_sched);
 	ip_vs_pe_put(old_pe);
 	return ret;
@@ -2469,7 +2469,7 @@ __ip_vs_get_service_entries(struct net *net,
 			count++;
 		}
 	}
-  out:
+out:
 	return ret;
 }
 
@@ -2707,7 +2707,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		ret = -EINVAL;
 	}
 
-  out:
+out:
 	mutex_unlock(&__ip_vs_mutex);
 	return ret;
 }
