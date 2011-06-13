@@ -332,7 +332,7 @@ void ft_sess_close(struct se_session *se_sess)
 	lport = sess->tport->lport;
 	port_id = sess->port_id;
 	if (port_id == -1) {
-		mutex_lock(&ft_lport_lock);
+		mutex_unlock(&ft_lport_lock);
 		return;
 	}
 	FT_SESS_DBG("port_id %x\n", port_id);
