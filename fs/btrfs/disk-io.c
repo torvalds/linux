@@ -1312,7 +1312,9 @@ again:
 	spin_lock_init(&root->cache_lock);
 	init_waitqueue_head(&root->cache_wait);
 
-	set_anon_super(&root->anon_super, NULL);
+	ret = set_anon_super(&root->anon_super, NULL);
+	if (ret)
+		goto fail;
 
 	if (btrfs_root_refs(&root->root_item) == 0) {
 		ret = -ENOENT;
