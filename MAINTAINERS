@@ -5820,14 +5820,14 @@ SIS 190 ETHERNET DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/sis190.c
+F:	drivers/net/ethernet/sis/sis190.c
 
 SIS 900/7016 FAST ETHERNET DRIVER
 M:	Daniele Venzano <venza@brownhat.org>
 W:	http://www.brownhat.org/sis900.html
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/sis900.*
+F:	drivers/net/ethernet/sis/sis900.*
 
 SIS 96X I2C/SMBUS DRIVER
 M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
