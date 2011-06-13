@@ -915,12 +915,29 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfa_fcs_attach(&bfad->bfa_fcs, &bfad->bfa, bfad, BFA_FALSE);
 	bfad->bfa_fcs.fdmi_enabled = fdmi_enable;
 	bfad->bfa_fcs.bbscn_enabled = fc_credit_recovery;
+	bfa_fcs_init(&bfad->bfa_fcs);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	bfad->bfad_flags |= BFAD_DRV_INIT_DONE;
 
+	/* configure base port */
+	rc = bfad_cfg_pport(bfad, BFA_LPORT_ROLE_FCP_IM);
+	if (rc != BFA_STATUS_OK)
+		goto out_cfg_pport_fail;
+
 	return BFA_STATUS_OK;
 
+out_cfg_pport_fail:
+	/* fcs exit - on cfg pport failure */
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	init_completion(&bfad->comp);
+	bfad->pport.flags |= BFAD_PORT_DELETE;
+	bfa_fcs_exit(&bfad->bfa_fcs);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	wait_for_completion(&bfad->comp);
+	/* bfa detach - free hal memory */
+	bfa_detach(&bfad->bfa);
+	bfad_hal_mem_release(bfad);
 out_hal_mem_alloc_failure:
 	return BFA_STATUS_FAILED;
 }
@@ -952,6 +969,7 @@ bfad_drv_start(struct bfad_s *bfad)
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	bfa_iocfc_start(&bfad->bfa);
+	bfa_fcs_pbc_vport_init(&bfad->bfa_fcs);
 	bfa_fcs_fabric_modstart(&bfad->bfa_fcs);
 	bfad->bfad_flags |= BFAD_HAL_START_DONE;
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -1056,19 +1074,19 @@ bfad_start_ops(struct bfad_s *bfad) {
 	strncpy(driver_info.os_device_name, bfad->pci_name,
 		sizeof(driver_info.os_device_name - 1));
 
-	/* FCS INIT */
+	/* FCS driver info init */
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	bfa_fcs_driver_info_init(&bfad->bfa_fcs, &driver_info);
-	bfa_fcs_init(&bfad->bfa_fcs);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	retval = bfad_cfg_pport(bfad, BFA_LPORT_ROLE_FCP_IM);
-	if (retval != BFA_STATUS_OK) {
-		if (bfa_sm_cmp_state(bfad, bfad_sm_initializing))
-			bfa_sm_set_state(bfad, bfad_sm_failed);
-		bfad_stop(bfad);
-		return BFA_STATUS_FAILED;
-	}
+	/*
+	 * FCS update cfg - reset the pwwn/nwwn of fabric base logical port
+	 * with values learned during bfa_init firmware GETATTR REQ.
+	 */
+	bfa_fcs_update_cfg(&bfad->bfa_fcs);
+
+	/* Setup fc host fixed attribute if the lk supports */
+	bfad_fc_host_init(bfad->pport.im_port);
 
 	/* BFAD level FC4 IM specific resource allocation */
 	retval = bfad_im_probe(bfad);

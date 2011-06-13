@@ -287,8 +287,8 @@ struct bfa_ioc_hwif_s {
 #define bfa_ioc_portid(__ioc)		((__ioc)->port_id)
 #define bfa_ioc_asic_gen(__ioc)		((__ioc)->asic_gen)
 #define bfa_ioc_is_cna(__ioc)	\
-	((bfa_ioc_get_type(ioc) == BFA_IOC_TYPE_FCoE) ||	\
-	 (bfa_ioc_get_type(ioc) == BFA_IOC_TYPE_LL))
+	((bfa_ioc_get_type(__ioc) == BFA_IOC_TYPE_FCoE) ||	\
+	 (bfa_ioc_get_type(__ioc) == BFA_IOC_TYPE_LL))
 #define bfa_ioc_fetch_stats(__ioc, __stats) \
 		(((__stats)->drv_stats) = (__ioc)->stats)
 #define bfa_ioc_clr_stats(__ioc)	\

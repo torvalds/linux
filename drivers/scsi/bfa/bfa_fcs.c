@@ -92,24 +92,48 @@ bfa_fcs_attach(struct bfa_fcs_s *fcs, struct bfa_s *bfa, struct bfad_s *bfad,
 void
 bfa_fcs_init(struct bfa_fcs_s *fcs)
 {
-	int		i, npbc_vports;
+	int	i;
 	struct bfa_fcs_mod_s  *mod;
-	struct bfi_pbc_vport_s pbc_vports[BFI_PBC_MAX_VPORTS];
 
 	for (i = 0; i < sizeof(fcs_modules) / sizeof(fcs_modules[0]); i++) {
 		mod = &fcs_modules[i];
 		if (mod->modinit)
 			mod->modinit(fcs);
 	}
+}
+
+/*
+ * FCS update cfg - reset the pwwn/nwwn of fabric base logical port
+ * with values learned during bfa_init firmware GETATTR REQ.
+ */
+void
+bfa_fcs_update_cfg(struct bfa_fcs_s *fcs)
+{
+	struct bfa_fcs_fabric_s *fabric = &fcs->fabric;
+	struct bfa_lport_cfg_s *port_cfg = &fabric->bport.port_cfg;
+	struct bfa_ioc_s *ioc = &fabric->fcs->bfa->ioc;
+
+	port_cfg->nwwn = ioc->attr->nwwn;
+	port_cfg->pwwn = ioc->attr->pwwn;
+}
+
+/*
+ * fcs pbc vport initialization
+ */
+void
+bfa_fcs_pbc_vport_init(struct bfa_fcs_s *fcs)
+{
+	int i, npbc_vports;
+	struct bfi_pbc_vport_s pbc_vports[BFI_PBC_MAX_VPORTS];
+
 	/* Initialize pbc vports */
 	if (!fcs->min_cfg) {
 		npbc_vports =
-		    bfa_iocfc_get_pbc_vports(fcs->bfa, pbc_vports);
+			bfa_iocfc_get_pbc_vports(fcs->bfa, pbc_vports);
 		for (i = 0; i < npbc_vports; i++)
 			bfa_fcb_pbc_vport_create(fcs->bfa->bfad, pbc_vports[i]);
 	}
 }
-
 
 /*
  *	brief

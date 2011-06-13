@@ -175,21 +175,11 @@ bfad_im_info(struct Scsi_Host *shost)
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s *bfad = im_port->bfad;
-	struct bfa_s *bfa = &bfad->bfa;
-	struct bfa_ioc_s *ioc = &bfa->ioc;
-	char model[BFA_ADAPTER_MODEL_NAME_LEN];
-
-	bfa_get_adapter_model(bfa, model);
 
 	memset(bfa_buf, 0, sizeof(bfa_buf));
-	if (bfa_ioc_is_cna(ioc))
-		snprintf(bfa_buf, sizeof(bfa_buf),
-		"Brocade FCOE Adapter, " "model: %s hwpath: %s driver: %s",
-		 model, bfad->pci_name, BFAD_DRIVER_VERSION);
-	else
-		snprintf(bfa_buf, sizeof(bfa_buf),
-		"Brocade FC Adapter, " "model: %s hwpath: %s driver: %s",
-		model, bfad->pci_name, BFAD_DRIVER_VERSION);
+	snprintf(bfa_buf, sizeof(bfa_buf),
+		"Brocade FC/FCOE Adapter, " "hwpath: %s driver: %s",
+		bfad->pci_name, BFAD_DRIVER_VERSION);
 
 	return bfa_buf;
 }
@@ -571,9 +561,6 @@ bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port,
 		printk(KERN_WARNING "scsi_add_host failure %d\n", error);
 		goto out_fc_rel;
 	}
-
-	/* setup host fixed attribute if the lk supports */
-	bfad_fc_host_init(im_port);
 
 	return 0;
 
