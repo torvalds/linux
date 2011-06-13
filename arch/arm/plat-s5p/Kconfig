@@ -39,6 +39,7 @@ config S5P_GPIO_INT
 
 config S5P_HRT
 	bool
+	select SAMSUNG_DEV_PWM
 	help
 	  Use the High Resolution timer support
 
