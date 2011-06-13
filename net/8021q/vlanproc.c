@@ -231,7 +231,7 @@ static void *vlan_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 	++*pos;
 
-	dev = (struct net_device *)v;
+	dev = v;
 	if (v == SEQ_START_TOKEN)
 		dev = net_device_entry(&net->dev_base_head);
 

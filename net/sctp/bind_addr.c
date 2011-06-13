@@ -430,7 +430,7 @@ union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 	list_for_each_entry(laddr, &bp->address_list, list) {
 		addr_buf = (union sctp_addr *)addrs;
 		for (i = 0; i < addrcnt; i++) {
-			addr = (union sctp_addr *)addr_buf;
+			addr = addr_buf;
 			af = sctp_get_af_specific(addr->v4.sin_family);
 			if (!af)
 				break;
