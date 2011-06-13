@@ -146,7 +146,6 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 {
 	struct isci_host *ihost = dev_to_ihost(task->dev);
-	struct isci_request *request = NULL;
 	struct isci_remote_device *device;
 	unsigned long flags;
 	int ret;
@@ -226,8 +225,7 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 				spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 				/* build and send the request. */
-				status = isci_request_execute(ihost, task, &request,
-							      gfp_flags);
+				status = isci_request_execute(ihost, task, gfp_flags);
 
 				if (status != SCI_SUCCESS) {
 
@@ -254,54 +252,34 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 	return 0;
 }
 
-
-
-/**
- * isci_task_request_build() - This function builds the task request object.
- * @isci_host: This parameter specifies the ISCI host object
- * @request: This parameter points to the isci_request object allocated in the
- *    request construct function.
- * @tmf: This parameter is the task management struct to be built
- *
- * SCI_SUCCESS on successfull completion, or specific failure code.
- */
-static enum sci_status isci_task_request_build(
-	struct isci_host *isci_host,
-	struct isci_request **isci_request,
-	struct isci_tmf *isci_tmf)
+static struct isci_request *isci_task_request_build(struct isci_host *ihost,
+						    struct isci_tmf *isci_tmf)
 {
-	struct scic_sds_remote_device *sci_device;
+	struct scic_sds_remote_device *sci_dev;
 	enum sci_status status = SCI_FAILURE;
-	struct isci_request *request = NULL;
-	struct isci_remote_device *isci_device;
+	struct isci_request *ireq = NULL;
+	struct isci_remote_device *idev;
 	struct domain_device *dev;
 
-	dev_dbg(&isci_host->pdev->dev,
+	dev_dbg(&ihost->pdev->dev,
 		"%s: isci_tmf = %p\n", __func__, isci_tmf);
 
-	isci_device = isci_tmf->device;
-	sci_device = &isci_device->sci;
-	dev = isci_device->domain_dev;
+	idev = isci_tmf->device;
+	sci_dev = &idev->sci;
+	dev = idev->domain_dev;
 
 	/* do common allocation and init of request object. */
-	status = isci_request_alloc_tmf(
-		isci_host,
-		isci_tmf,
-		&request,
-		isci_device,
-		GFP_ATOMIC
-		);
-
-	if (status != SCI_SUCCESS)
-		goto out;
+	ireq = isci_request_alloc_tmf(ihost, isci_tmf, idev, GFP_ATOMIC);
+	if (!ireq)
+		return NULL;
 
 	/* let the core do it's construct. */
-	status = scic_task_request_construct(&isci_host->sci, sci_device,
+	status = scic_task_request_construct(&ihost->sci, sci_dev,
 					     SCI_CONTROLLER_INVALID_IO_TAG,
-					     &request->sci);
+					     &ireq->sci);
 
 	if (status != SCI_SUCCESS) {
-		dev_warn(&isci_host->pdev->dev,
+		dev_warn(&ihost->pdev->dev,
 			 "%s: scic_task_request_construct failed - "
 			 "status = 0x%x\n",
 			 __func__,
@@ -312,30 +290,23 @@ static enum sci_status isci_task_request_build(
 	/* XXX convert to get this from task->tproto like other drivers */
 	if (dev->dev_type == SAS_END_DEV) {
 		isci_tmf->proto = SAS_PROTOCOL_SSP;
-		status = scic_task_request_construct_ssp(&request->sci);
+		status = scic_task_request_construct_ssp(&ireq->sci);
 		if (status != SCI_SUCCESS)
 			goto errout;
 	}
 
 	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
 		isci_tmf->proto = SAS_PROTOCOL_SATA;
-		status = isci_sata_management_task_request_build(request);
+		status = isci_sata_management_task_request_build(ireq);
 
 		if (status != SCI_SUCCESS)
 			goto errout;
 	}
-
-	goto out;
-
+	return ireq;
  errout:
-
-	/* release the dma memory if we fail. */
-	isci_request_free(isci_host, request);
-	request = NULL;
-
- out:
-	*isci_request = request;
-	return status;
+	isci_request_free(ihost, ireq);
+	ireq = NULL;
+	return ireq;
 }
 
 /**
@@ -350,16 +321,14 @@ static enum sci_status isci_task_request_build(
  * TMF_RESP_FUNC_COMPLETE on successful completion of the TMF (this includes
  * error conditions reported in the IU status), or TMF_RESP_FUNC_FAILED.
  */
-int isci_task_execute_tmf(
-	struct isci_host *isci_host,
-	struct isci_tmf *tmf,
-	unsigned long timeout_ms)
+int isci_task_execute_tmf(struct isci_host *ihost, struct isci_tmf *tmf,
+			  unsigned long timeout_ms)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
 	enum sci_task_status status = SCI_TASK_FAILURE;
 	struct scic_sds_remote_device *sci_device;
 	struct isci_remote_device *isci_device = tmf->device;
-	struct isci_request *request;
+	struct isci_request *ireq;
 	int ret = TMF_RESP_FUNC_FAILED;
 	unsigned long flags;
 	unsigned long timeleft;
@@ -368,13 +337,13 @@ int isci_task_execute_tmf(
 	 * if the device is not there and ready.
 	 */
 	if (!isci_device || isci_device->status != isci_ready_for_io) {
-		dev_dbg(&isci_host->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			"%s: isci_device = %p not ready (%d)\n",
 			__func__,
 			isci_device, isci_device->status);
 		return TMF_RESP_FUNC_FAILED;
 	} else
-		dev_dbg(&isci_host->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			"%s: isci_device = %p\n",
 			__func__, isci_device);
 
@@ -383,64 +352,59 @@ int isci_task_execute_tmf(
 	/* Assign the pointer to the TMF's completion kernel wait structure. */
 	tmf->complete = &completion;
 
-	isci_task_request_build(
-		isci_host,
-		&request,
-		tmf
-		);
-
-	if (!request) {
-		dev_warn(&isci_host->pdev->dev,
+	ireq = isci_task_request_build(ihost, tmf);
+	if (!ireq) {
+		dev_warn(&ihost->pdev->dev,
 			"%s: isci_task_request_build failed\n",
 			__func__);
 		return TMF_RESP_FUNC_FAILED;
 	}
 
-	spin_lock_irqsave(&isci_host->scic_lock, flags);
+	spin_lock_irqsave(&ihost->scic_lock, flags);
 
 	/* start the TMF io. */
 	status = scic_controller_start_task(
-		&isci_host->sci,
+		&ihost->sci,
 		sci_device,
-		&request->sci,
+		&ireq->sci,
 		SCI_CONTROLLER_INVALID_IO_TAG);
 
 	if (status != SCI_TASK_SUCCESS) {
-		dev_warn(&isci_host->pdev->dev,
+		dev_warn(&ihost->pdev->dev,
 			 "%s: start_io failed - status = 0x%x, request = %p\n",
 			 __func__,
 			 status,
-			 request);
-		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+			 ireq);
+		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		goto cleanup_request;
 	}
 
 	if (tmf->cb_state_func != NULL)
 		tmf->cb_state_func(isci_tmf_started, tmf, tmf->cb_data);
 
-	isci_request_change_state(request, started);
+	isci_request_change_state(ireq, started);
 
 	/* add the request to the remote device request list. */
-	list_add(&request->dev_node, &isci_device->reqs_in_process);
+	list_add(&ireq->dev_node, &isci_device->reqs_in_process);
 
-	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	/* Wait for the TMF to complete, or a timeout. */
 	timeleft = wait_for_completion_timeout(&completion,
 				       jiffies + msecs_to_jiffies(timeout_ms));
 
 	if (timeleft == 0) {
-		spin_lock_irqsave(&isci_host->scic_lock, flags);
+		spin_lock_irqsave(&ihost->scic_lock, flags);
 
 		if (tmf->cb_state_func != NULL)
 			tmf->cb_state_func(isci_tmf_timed_out, tmf, tmf->cb_data);
 
 		status = scic_controller_terminate_request(
-			&request->isci_host->sci,
-			&request->isci_device->sci,
-			&request->sci);
+			&ireq->isci_host->sci,
+			&ireq->isci_device->sci,
+			&ireq->sci);
 
-		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 	}
 
 	isci_print_tmf(tmf);
@@ -448,7 +412,7 @@ int isci_task_execute_tmf(
 	if (tmf->status == SCI_SUCCESS)
 		ret =  TMF_RESP_FUNC_COMPLETE;
 	else if (tmf->status == SCI_FAILURE_IO_RESPONSE_VALID) {
-		dev_dbg(&isci_host->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			"%s: tmf.status == "
 			"SCI_FAILURE_IO_RESPONSE_VALID\n",
 			__func__);
@@ -456,18 +420,18 @@ int isci_task_execute_tmf(
 	}
 	/* Else - leave the default "failed" status alone. */
 
-	dev_dbg(&isci_host->pdev->dev,
+	dev_dbg(&ihost->pdev->dev,
 		"%s: completed request = %p\n",
 		__func__,
-		request);
+		ireq);
 
-	if (request->io_request_completion != NULL) {
+	if (ireq->io_request_completion != NULL) {
 		/* A thread is waiting for this TMF to finish. */
-		complete(request->io_request_completion);
+		complete(ireq->io_request_completion);
 	}
 
  cleanup_request:
-	isci_request_free(isci_host, request);
+	isci_request_free(ihost, ireq);
 	return ret;
 }
 

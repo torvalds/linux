@@ -679,16 +679,13 @@ static inline void isci_request_free(struct isci_host *isci_host,
 
 #define isci_request_access_tmf(req) ((req)->ttype_ptr.tmf_task_ptr)
 
-int isci_request_alloc_tmf(struct isci_host *isci_host,
-			   struct isci_tmf *isci_tmf,
-			   struct isci_request **isci_request,
-			   struct isci_remote_device *isci_device,
-			   gfp_t gfp_flags);
-
+struct isci_request *isci_request_alloc_tmf(struct isci_host *ihost,
+					    struct isci_tmf *isci_tmf,
+					    struct isci_remote_device *idev,
+					    gfp_t gfp_flags);
 
 int isci_request_execute(struct isci_host *isci_host,
 			 struct sas_task *task,
-			 struct isci_request **request,
 			 gfp_t gfp_flags);
 
 /**

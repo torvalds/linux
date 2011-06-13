@@ -3510,172 +3510,110 @@ static enum sci_status isci_io_request_build(
 	return SCI_SUCCESS;
 }
 
-/**
- * isci_request_alloc_core() - This function gets the request object from the
- *    isci_host dma cache.
- * @isci_host: This parameter specifies the ISCI host object
- * @isci_request: This parameter will contain the pointer to the new
- *    isci_request object.
- * @isci_device: This parameter is the pointer to the isci remote device object
- *    that is the destination for this request.
- * @gfp_flags: This parameter specifies the os allocation flags.
- *
- * SCI_SUCCESS on successfull completion, or specific failure code.
- */
-static int isci_request_alloc_core(
-	struct isci_host *isci_host,
-	struct isci_request **isci_request,
-	struct isci_remote_device *isci_device,
-	gfp_t gfp_flags)
+static struct isci_request *isci_request_alloc_core(struct isci_host *ihost,
+						    struct isci_remote_device *idev,
+						    gfp_t gfp_flags)
 {
-	int ret = 0;
 	dma_addr_t handle;
-	struct isci_request *request;
+	struct isci_request *ireq;
 
-
-	/* get pointer to dma memory. This actually points
-	 * to both the isci_remote_device object and the
-	 * sci object. The isci object is at the beginning
-	 * of the memory allocated here.
-	 */
-	request = dma_pool_alloc(isci_host->dma_pool, gfp_flags, &handle);
-	if (!request) {
-		dev_warn(&isci_host->pdev->dev,
+	ireq = dma_pool_alloc(ihost->dma_pool, gfp_flags, &handle);
+	if (!ireq) {
+		dev_warn(&ihost->pdev->dev,
 			 "%s: dma_pool_alloc returned NULL\n", __func__);
-		return -ENOMEM;
+		return NULL;
 	}
 
 	/* initialize the request object.	*/
-	spin_lock_init(&request->state_lock);
-	request->request_daddr = handle;
-	request->isci_host = isci_host;
-	request->isci_device = isci_device;
-	request->io_request_completion = NULL;
-	request->terminated = false;
+	spin_lock_init(&ireq->state_lock);
+	ireq->request_daddr = handle;
+	ireq->isci_host = ihost;
+	ireq->isci_device = idev;
+	ireq->io_request_completion = NULL;
+	ireq->terminated = false;
 
-	request->num_sg_entries = 0;
+	ireq->num_sg_entries = 0;
 
-	request->complete_in_target = false;
+	ireq->complete_in_target = false;
 
-	INIT_LIST_HEAD(&request->completed_node);
-	INIT_LIST_HEAD(&request->dev_node);
+	INIT_LIST_HEAD(&ireq->completed_node);
+	INIT_LIST_HEAD(&ireq->dev_node);
 
-	*isci_request = request;
-	isci_request_change_state(request, allocated);
+	isci_request_change_state(ireq, allocated);
 
-	return ret;
+	return ireq;
 }
 
-static int isci_request_alloc_io(
-	struct isci_host *isci_host,
-	struct sas_task *task,
-	struct isci_request **isci_request,
-	struct isci_remote_device *isci_device,
-	gfp_t gfp_flags)
+static struct isci_request *isci_request_alloc_io(struct isci_host *ihost,
+						  struct sas_task *task,
+						  struct isci_remote_device *idev,
+						  gfp_t gfp_flags)
 {
-	int retval = isci_request_alloc_core(isci_host, isci_request,
-					     isci_device, gfp_flags);
+	struct isci_request *ireq;
 
-	if (!retval) {
-		(*isci_request)->ttype_ptr.io_task_ptr = task;
-		(*isci_request)->ttype                 = io_task;
-
-		task->lldd_task = *isci_request;
+	ireq = isci_request_alloc_core(ihost, idev, gfp_flags);
+	if (ireq) {
+		ireq->ttype_ptr.io_task_ptr = task;
+		ireq->ttype = io_task;
+		task->lldd_task = ireq;
 	}
-	return retval;
+	return ireq;
 }
 
-/**
- * isci_request_alloc_tmf() - This function gets the request object from the
- *    isci_host dma cache and initializes the relevant fields as a sas_task.
- * @isci_host: This parameter specifies the ISCI host object
- * @sas_task: This parameter is the task struct from the upper layer driver.
- * @isci_request: This parameter will contain the pointer to the new
- *    isci_request object.
- * @isci_device: This parameter is the pointer to the isci remote device object
- *    that is the destination for this request.
- * @gfp_flags: This parameter specifies the os allocation flags.
- *
- * SCI_SUCCESS on successfull completion, or specific failure code.
- */
-int isci_request_alloc_tmf(
-	struct isci_host *isci_host,
-	struct isci_tmf *isci_tmf,
-	struct isci_request **isci_request,
-	struct isci_remote_device *isci_device,
-	gfp_t gfp_flags)
+struct isci_request *isci_request_alloc_tmf(struct isci_host *ihost,
+					    struct isci_tmf *isci_tmf,
+					    struct isci_remote_device *idev,
+					    gfp_t gfp_flags)
 {
-	int retval = isci_request_alloc_core(isci_host, isci_request,
-					     isci_device, gfp_flags);
+	struct isci_request *ireq;
 
-	if (!retval) {
-
-		(*isci_request)->ttype_ptr.tmf_task_ptr = isci_tmf;
-		(*isci_request)->ttype = tmf_task;
+	ireq = isci_request_alloc_core(ihost, idev, gfp_flags);
+	if (ireq) {
+		ireq->ttype_ptr.tmf_task_ptr = isci_tmf;
+		ireq->ttype = tmf_task;
 	}
-	return retval;
+	return ireq;
 }
 
-/**
- * isci_request_execute() - This function allocates the isci_request object,
- *    all fills in some common fields.
- * @isci_host: This parameter specifies the ISCI host object
- * @sas_task: This parameter is the task struct from the upper layer driver.
- * @isci_request: This parameter will contain the pointer to the new
- *    isci_request object.
- * @gfp_flags: This parameter specifies the os allocation flags.
- *
- * SCI_SUCCESS on successfull completion, or specific failure code.
- */
-int isci_request_execute(
-	struct isci_host *isci_host,
-	struct sas_task *task,
-	struct isci_request **isci_request,
-	gfp_t gfp_flags)
+int isci_request_execute(struct isci_host *ihost, struct sas_task *task,
+			 gfp_t gfp_flags)
 {
-	int ret = 0;
-	struct scic_sds_remote_device *sci_device;
 	enum sci_status status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
-	struct isci_remote_device *isci_device;
-	struct isci_request *request;
+	struct scic_sds_remote_device *sci_dev;
+	struct isci_remote_device *idev;
+	struct isci_request *ireq;
 	unsigned long flags;
+	int ret = 0;
 
-	isci_device = task->dev->lldd_dev;
-	sci_device = &isci_device->sci;
+	idev = task->dev->lldd_dev;
+	sci_dev = &idev->sci;
 
 	/* do common allocation and init of request object. */
-	ret = isci_request_alloc_io(
-		isci_host,
-		task,
-		&request,
-		isci_device,
-		gfp_flags
-		);
-
-	if (ret)
+	ireq = isci_request_alloc_io(ihost, task, idev, gfp_flags);
+	if (!ireq)
 		goto out;
 
-	status = isci_io_request_build(isci_host, request, isci_device);
+	status = isci_io_request_build(ihost, ireq, idev);
 	if (status != SCI_SUCCESS) {
-		dev_warn(&isci_host->pdev->dev,
+		dev_warn(&ihost->pdev->dev,
 			 "%s: request_construct failed - status = 0x%x\n",
 			 __func__,
 			 status);
 		goto out;
 	}
 
-	spin_lock_irqsave(&isci_host->scic_lock, flags);
+	spin_lock_irqsave(&ihost->scic_lock, flags);
 
 	/* send the request, let the core assign the IO TAG.	*/
-	status = scic_controller_start_io(&isci_host->sci, sci_device,
-					  &request->sci,
+	status = scic_controller_start_io(&ihost->sci, sci_dev,
+					  &ireq->sci,
 					  SCI_CONTROLLER_INVALID_IO_TAG);
 	if (status != SCI_SUCCESS &&
 	    status != SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
-		dev_warn(&isci_host->pdev->dev,
+		dev_warn(&ihost->pdev->dev,
 			 "%s: failed request start (0x%x)\n",
 			 __func__, status);
-		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		goto out;
 	}
 
@@ -3687,21 +3625,21 @@ int isci_request_execute(
 	 * Update it's status and add it to the list in the
 	 * remote device object.
 	 */
-	list_add(&request->dev_node, &isci_device->reqs_in_process);
+	list_add(&ireq->dev_node, &idev->reqs_in_process);
 
 	if (status == SCI_SUCCESS) {
 		/* Save the tag for possible task mgmt later. */
-		request->io_tag = request->sci.io_tag;
-		isci_request_change_state(request, started);
+		ireq->io_tag = ireq->sci.io_tag;
+		isci_request_change_state(ireq, started);
 	} else {
 		/* The request did not really start in the
 		 * hardware, so clear the request handle
 		 * here so no terminations will be done.
 		 */
-		request->terminated = true;
-		isci_request_change_state(request, completed);
+		ireq->terminated = true;
+		isci_request_change_state(ireq, completed);
 	}
-	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	if (status ==
 	    SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
@@ -3716,7 +3654,7 @@ int isci_request_execute(
 		/* Cause this task to be scheduled in the SCSI error
 		* handler thread.
 		*/
-		isci_execpath_callback(isci_host, task,
+		isci_execpath_callback(ihost, task,
 				       sas_task_abort);
 
 		/* Change the status, since we are holding
@@ -3729,11 +3667,10 @@ int isci_request_execute(
  out:
 	if (status != SCI_SUCCESS) {
 		/* release dma memory on failure. */
-		isci_request_free(isci_host, request);
-		request = NULL;
+		isci_request_free(ihost, ireq);
+		ireq = NULL;
 		ret = SCI_FAILURE;
 	}
 
-	*isci_request = request;
 	return ret;
 }
