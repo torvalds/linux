@@ -213,6 +213,7 @@ config MACH_MX53_ARD
 	bool "Support MX53 ARD platforms"
 	select SOC_IMX53
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	help
 	  Include support for MX53 ARD platform. This includes specific
 	  configurations for the board and its peripherals.

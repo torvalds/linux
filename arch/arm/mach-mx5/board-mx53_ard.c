@@ -36,6 +36,8 @@
 #include "devices-imx53.h"
 
 #define ARD_ETHERNET_INT_B	IMX_GPIO_NR(2, 31)
+#define ARD_SD1_CD		IMX_GPIO_NR(1, 1)
+#define ARD_SD1_WP		IMX_GPIO_NR(1, 9)
 
 static iomux_v3_cfg_t mx53_ard_pads[] = {
 	/* UART1 */
@@ -69,6 +71,19 @@ static iomux_v3_cfg_t mx53_ard_pads[] = {
 	MX53_PAD_EIM_OE__EMI_WEIM_OE,
 	MX53_PAD_EIM_RW__EMI_WEIM_RW,
 	MX53_PAD_EIM_CS1__EMI_WEIM_CS_1,
+	/* SDHC1 */
+	MX53_PAD_SD1_CMD__ESDHC1_CMD,
+	MX53_PAD_SD1_CLK__ESDHC1_CLK,
+	MX53_PAD_SD1_DATA0__ESDHC1_DAT0,
+	MX53_PAD_SD1_DATA1__ESDHC1_DAT1,
+	MX53_PAD_SD1_DATA2__ESDHC1_DAT2,
+	MX53_PAD_SD1_DATA3__ESDHC1_DAT3,
+	MX53_PAD_PATA_DATA8__ESDHC1_DAT4,
+	MX53_PAD_PATA_DATA9__ESDHC1_DAT5,
+	MX53_PAD_PATA_DATA10__ESDHC1_DAT6,
+	MX53_PAD_PATA_DATA11__ESDHC1_DAT7,
+	MX53_PAD_GPIO_1__GPIO1_1,
+	MX53_PAD_GPIO_9__GPIO1_9,
 };
 
 static struct resource ard_smsc911x_resources[] = {
@@ -98,6 +113,11 @@ static struct platform_device ard_smsc_lan9220_device = {
 	.dev = {
 		.platform_data = &ard_smsc911x_config,
 	},
+};
+
+static const struct esdhc_platform_data mx53_ard_sd1_data __initconst = {
+	.cd_gpio = ARD_SD1_CD,
+	.wp_gpio = ARD_SD1_WP,
 };
 
 static void __init mx53_ard_io_init(void)
@@ -156,6 +176,8 @@ static void __init mx53_ard_board_init(void)
 	mx53_ard_io_init();
 	weim_cs_config();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+
+	imx53_add_sdhci_esdhc_imx(0, &mx53_ard_sd1_data);
 }
 
 static void __init mx53_ard_timer_init(void)
