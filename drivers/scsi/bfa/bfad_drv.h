@@ -43,6 +43,7 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_transport.h>
+#include <scsi/scsi_bsg_fc.h>
 
 #include "bfa_modules.h"
 #include "bfa_fcs.h"
@@ -110,6 +111,7 @@ struct bfad_msix_s {
 enum {
 	BFA_TRC_LDRV_BFAD		= 1,
 	BFA_TRC_LDRV_IM			= 2,
+	BFA_TRC_LDRV_BSG		= 3,
 };
 
 enum bfad_port_pvb_type {

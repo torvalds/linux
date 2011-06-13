@@ -130,6 +130,7 @@ enum bfa_status {
 	BFA_STATUS_ETIMER	= 5,	/*  Timer expired - Retry, if persists,
 					 *  contact support */
 	BFA_STATUS_EPROTOCOL	= 6,	/*  Protocol error */
+	BFA_STATUS_UNKNOWN_VFID = 11,	/*  VF_ID not found */
 	BFA_STATUS_DEVBUSY	= 13,	/*  Device busy - Retry operation */
 	BFA_STATUS_UNKNOWN_LWWN = 18,	/*  LPORT PWWN not found */
 	BFA_STATUS_UNKNOWN_RWWN = 19,	/*  RPORT PWWN not found */
@@ -138,11 +139,13 @@ enum bfa_status {
 	BFA_STATUS_UNSUPP_SPEED	= 23,	/*  Invalid Speed Check speed setting */
 	BFA_STATUS_INVLD_DFSZ	= 24,	/*  Invalid Max data field size */
 	BFA_STATUS_FABRIC_RJT	= 29,	/*  Reject from attached fabric */
+	BFA_STATUS_PORT_OFFLINE = 34,	/*  Port is not online */
 	BFA_STATUS_VPORT_WWN_BP	= 46,	/*  WWN is same as base port's WWN */
 	BFA_STATUS_NO_FCPIM_NEXUS = 52,	/* No FCP Nexus exists with the rport */
 	BFA_STATUS_IOC_FAILURE	= 56,	/* IOC failure - Retry, if persists
 					 * contact support */
 	BFA_STATUS_INVALID_WWN	= 57,	/*  Invalid WWN */
+	BFA_STATUS_VERSION_FAIL = 70, /* Application/Driver version mismatch */
 	BFA_STATUS_DIAG_BUSY	= 71,	/*  diag busy */
 	BFA_STATUS_ENOFSAVE	= 78,	/*  No saved firmware trace */
 	BFA_STATUS_IOC_DISABLED = 82,   /* IOC is already disabled */

@@ -583,6 +583,8 @@ struct fc_function_template bfad_im_fc_function_template = {
 	.vport_create = bfad_im_vport_create,
 	.vport_delete = bfad_im_vport_delete,
 	.vport_disable = bfad_im_vport_disable,
+	.bsg_request = bfad_im_bsg_request,
+	.bsg_timeout = bfad_im_bsg_timeout,
 };
 
 struct fc_function_template bfad_im_vport_fc_function_template = {

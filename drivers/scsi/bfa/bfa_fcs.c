@@ -1370,6 +1370,45 @@ bfa_fcs_vf_lookup(struct bfa_fcs_s *fcs, u16 vf_id)
 }
 
 /*
+ *	Return the list of local logical ports present in the given VF.
+ *
+ *	@param[in]	vf	vf for which logical ports are returned
+ *	@param[out]	lpwwn	returned logical port wwn list
+ *	@param[in,out]	nlports in:size of lpwwn list;
+ *				out:total elements present,
+ *				actual elements returned is limited by the size
+ */
+void
+bfa_fcs_vf_get_ports(bfa_fcs_vf_t *vf, wwn_t lpwwn[], int *nlports)
+{
+	struct list_head *qe;
+	struct bfa_fcs_vport_s *vport;
+	int	i = 0;
+	struct bfa_fcs_s	*fcs;
+
+	if (vf == NULL || lpwwn == NULL || *nlports == 0)
+		return;
+
+	fcs = vf->fcs;
+
+	bfa_trc(fcs, vf->vf_id);
+	bfa_trc(fcs, (uint32_t) *nlports);
+
+	lpwwn[i++] = vf->bport.port_cfg.pwwn;
+
+	list_for_each(qe, &vf->vport_q) {
+		if (i >= *nlports)
+			break;
+
+		vport = (struct bfa_fcs_vport_s *) qe;
+		lpwwn[i++] = vport->lport.port_cfg.pwwn;
+	}
+
+	bfa_trc(fcs, i);
+	*nlports = i;
+}
+
+/*
  * BFA FCS PPORT ( physical port)
  */
 static void

@@ -731,6 +731,7 @@ void bfa_fcs_exit(struct bfa_fcs_s *fcs);
  * bfa fcs vf public functions
  */
 bfa_fcs_vf_t *bfa_fcs_vf_lookup(struct bfa_fcs_s *fcs, u16 vf_id);
+void bfa_fcs_vf_get_ports(bfa_fcs_vf_t *vf, wwn_t vpwwn[], int *nports);
 
 /*
  * fabric protected interface functions
