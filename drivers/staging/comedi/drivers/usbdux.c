@@ -1935,11 +1935,8 @@ static int usbdux_pwm_cancel(struct comedi_device *dev,
 	dev_dbg(&this_usbduxsub->interface->dev,
 		"comedi %d: sending pwm off command to the usb device.\n",
 		dev->minor);
-	res = send_dux_commands(this_usbduxsub, SENDPWMOFF);
-	if (res < 0)
-		return res;
 
-	return res;
+	return send_dux_commands(this_usbduxsub, SENDPWMOFF);
 }
 
 static void usbduxsub_pwm_irq(struct urb *urb)

@@ -994,11 +994,7 @@ static int fill_board_specific_data(struct tm6000_core *dev)
 	if (rc < 0)
 		return rc;
 
-	rc = v4l2_device_register(&dev->udev->dev, &dev->v4l2_dev);
-	if (rc < 0)
-		return rc;
-
-	return rc;
+	return v4l2_device_register(&dev->udev->dev, &dev->v4l2_dev);
 }
 
 

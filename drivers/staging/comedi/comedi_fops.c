@@ -1291,10 +1291,10 @@ static int do_lock_ioctl(struct comedi_device *dev, unsigned int arg,
 		s->lock = file;
 	spin_unlock_irqrestore(&s->spin_lock, flags);
 
+#if 0
 	if (ret < 0)
 		return ret;
 
-#if 0
 	if (s->lock_f)
 		ret = s->lock_f(dev, s);
 #endif

@@ -4164,13 +4164,7 @@ s32 wl_cfg80211_down(void)
 
 static s32 wl_dongle_probecap(struct wl_priv *wl)
 {
-	s32 err = 0;
-
-	err = wl_update_wiphybands(wl);
-	if (unlikely(err))
-		return err;
-
-	return err;
+	return wl_update_wiphybands(wl);
 }
 
 static void *wl_read_prof(struct wl_priv *wl, s32 item)
