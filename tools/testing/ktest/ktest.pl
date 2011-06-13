@@ -101,6 +101,7 @@ my $sleep_time;
 my $bisect_sleep_time;
 my $patchcheck_sleep_time;
 my $store_failures;
+my $test_name;
 my $timeout;
 my $booted_timeout;
 my $detect_triplefault;
@@ -620,9 +621,15 @@ sub fail {
 	    end_monitor;
 	}
 
+	my $name = "";
+
+	if (defined($test_name)) {
+	    $name = " ($test_name)";
+	}
+
 	doprint "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
 	doprint "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
-	doprint "KTEST RESULT: TEST $i Failed: ", @_, "\n";
+	doprint "KTEST RESULT: TEST $i$name Failed: ", @_, "\n";
 	doprint "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
 	doprint "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
 
@@ -1130,9 +1137,15 @@ sub success {
 
     $successes++;
 
+    my $name = "";
+
+    if (defined($test_name)) {
+	$name = " ($test_name)";
+    }
+
     doprint "\n\n*******************************************\n";
     doprint     "*******************************************\n";
-    doprint     "KTEST RESULT: TEST $i SUCCESS!!!!         **\n";
+    doprint     "KTEST RESULT: TEST $i$name SUCCESS!!!!         **\n";
     doprint     "*******************************************\n";
     doprint     "*******************************************\n";
 
@@ -2181,6 +2194,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $bisect_skip = set_test_option("BISECT_SKIP", $i);
     $config_bisect_good = set_test_option("CONFIG_BISECT_GOOD", $i);
     $store_failures = set_test_option("STORE_FAILURES", $i);
+    $test_name = set_test_option("TEST_NAME", $i);
     $timeout = set_test_option("TIMEOUT", $i);
     $booted_timeout = set_test_option("BOOTED_TIMEOUT", $i);
     $console = set_test_option("CONSOLE", $i);
