@@ -185,6 +185,12 @@ int pnfs_layoutcommit_inode(struct inode *inode, bool sync);
 int _pnfs_return_layout(struct inode *);
 int pnfs_ld_write_done(struct nfs_write_data *);
 int pnfs_ld_read_done(struct nfs_read_data *);
+struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
+					       struct nfs_open_context *ctx,
+					       loff_t pos,
+					       u64 count,
+					       enum pnfs_iomode iomode,
+					       gfp_t gfp_flags);
 
 /* pnfs_dev.c */
 struct nfs4_deviceid_node {
