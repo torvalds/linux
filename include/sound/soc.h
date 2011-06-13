@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/regmap.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/control.h>
@@ -576,6 +577,7 @@ struct snd_soc_codec {
 	const void *reg_def_copy;
 	const struct snd_soc_cache_ops *cache_ops;
 	struct mutex cache_rw_mutex;
+	int val_bytes;
 
 	/* dapm */
 	struct snd_soc_dapm_context dapm;

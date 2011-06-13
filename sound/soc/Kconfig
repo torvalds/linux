@@ -7,6 +7,8 @@ menuconfig SND_SOC
 	select SND_PCM
 	select AC97_BUS if SND_SOC_AC97_BUS
 	select SND_JACK if INPUT=y || INPUT=SND
+	select REGMAP_I2C if I2C
+	select REGMAP_SPI if SPI_MASTER
 	---help---
 
 	  If you want ASoC support, you should say Y here and also to the
