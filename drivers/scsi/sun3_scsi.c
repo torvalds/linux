@@ -314,6 +314,7 @@ int sun3scsi_release (struct Scsi_Host *shpnt)
 
 	iounmap((void *)sun3_scsi_regp);
 
+	NCR5380_exit(shpnt);
 	return 0;
 }
 
