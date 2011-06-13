@@ -1349,7 +1349,6 @@ config SMP_ON_UP
 
 config HAVE_ARM_SCU
 	bool
-	depends on SMP
 	help
 	  This option enables support for the ARM system coherency unit
 
