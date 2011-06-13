@@ -6022,8 +6022,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	    tg3_4g_overflow_test(mapping, len))
 		would_hit_hwbug = 1;
 
-	if (tg3_flag(tp, 40BIT_DMA_LIMIT_BUG) &&
-	    tg3_40bit_overflow_test(tp, mapping, len))
+	if (tg3_40bit_overflow_test(tp, mapping, len))
 		would_hit_hwbug = 1;
 
 	if (tg3_flag(tp, 5701_DMA_BUG))
@@ -6060,8 +6059,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			    tg3_4g_overflow_test(mapping, len))
 				would_hit_hwbug = 1;
 
-			if (tg3_flag(tp, 40BIT_DMA_LIMIT_BUG) &&
-			    tg3_40bit_overflow_test(tp, mapping, len))
+			if (tg3_40bit_overflow_test(tp, mapping, len))
 				would_hit_hwbug = 1;
 
 			if (tg3_flag(tp, HW_TSO_1) ||
@@ -13712,8 +13710,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	if (tg3_flag(tp, 5755_PLUS))
 		tg3_flag_set(tp, SHORT_DMA_BUG);
-	else
-		tg3_flag_set(tp, 40BIT_DMA_LIMIT_BUG);
 
 	if (tg3_flag(tp, 5717_PLUS))
 		tg3_flag_set(tp, LRG_PROD_RING_CAP);
