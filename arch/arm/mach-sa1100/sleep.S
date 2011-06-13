@@ -31,9 +31,11 @@
 ENTRY(sa1100_cpu_suspend)
 	stmfd	sp!, {r4 - r12, lr}		@ save registers on stack
 	mov	r1, r0
-	ldr	r3, =sa1100_cpu_resume		@ return function
+	adr	r3, BSYM(sa1100_finish_suspend)
 	bl	cpu_suspend
+	ldmfd	sp!, {r4 - r12, pc}		@ return to caller
 
+sa1100_finish_suspend:
 	@ disable clock switching
 	mcr	p15, 0, r1, c15, c2, 2
 
@@ -139,12 +141,3 @@ sa1110_sdram_controller_fix:
 	str	r13, [r12]
 
 20:	b	20b			@ loop waiting for sleep
-
-/*
- * cpu_sa1100_resume()
- *
- * entry point from bootloader into kernel during resume
- */
-	.align 5
-sa1100_cpu_resume:
-	ldmfd	sp!, {r4 - r12, pc}		@ return to caller

@@ -11,13 +11,11 @@
  * Save CPU state for a suspend
  *  r1 = v:p offset
  *  r2 = suspend function arg0
- *  r3 = virtual return function
- * Note: sp is decremented to allocate space for CPU state on stack
- * r0-r3,ip,lr corrupted
+ *  r3 = suspend function
+ * Note: does not return until system resumes
  */
 ENTRY(cpu_suspend)
-	stmfd	sp!, {r3}
-	stmfd	sp!, {r4 - r11}
+	stmfd	sp!, {r4 - r11, lr}
 #ifdef MULTI_CPU
 	ldr	r10, =processor
 	ldr	r5, [r10, #CPU_SLEEP_SIZE] @ size of CPU sleep state
@@ -33,7 +31,7 @@ ENTRY(cpu_suspend)
 	stmfd	sp!, {r1, r6, ip}	@ save v:p, virt SP, phys resume fn
 	ldr	r5, =sleep_save_sp
 	add	r6, sp, r1		@ convert SP to phys
-	stmfd	sp!, {r2, lr}		@ save suspend func arg and pointer
+	stmfd	sp!, {r2, r3}		@ save suspend func arg and pointer
 #ifdef CONFIG_SMP
 	ALT_SMP(mrc p15, 0, lr, c0, c0, 5)
 	ALT_UP(mov lr, #0)
