@@ -867,26 +867,31 @@ ar6k_cfg80211_scanComplete_event(struct ar6_softc *ar, int status)
 
     AR_DEBUG_PRINTF(ATH_DEBUG_INFO, ("%s: status %d\n", __func__, status));
 
-    if(ar->scan_request)
-    {
-        /* Translate data to cfg80211 mgmt format */
-	if (ar->arWmi)
-		wmi_iterate_nodes(ar->arWmi, ar6k_cfg80211_scan_node, ar->wdev->wiphy);
+    if (!ar->scan_request)
+	    return;
 
-        cfg80211_scan_done(ar->scan_request,
-            ((status & A_ECANCELED) || (status & A_EBUSY)) ? true : false);
+    if ((status == A_ECANCELED) || (status == A_EBUSY)) {
+	    cfg80211_scan_done(ar->scan_request, true);
+	    goto out;
+    }
 
-        if(ar->scan_request->n_ssids &&
-           ar->scan_request->ssids[0].ssid_len) {
+    /* Translate data to cfg80211 mgmt format */
+    wmi_iterate_nodes(ar->arWmi, ar6k_cfg80211_scan_node, ar->wdev->wiphy);
+
+    cfg80211_scan_done(ar->scan_request, false);
+
+    if(ar->scan_request->n_ssids &&
+       ar->scan_request->ssids[0].ssid_len) {
             u8 i;
 
             for (i = 0; i < ar->scan_request->n_ssids; i++) {
-                wmi_probedSsid_cmd(ar->arWmi, i+1, DISABLE_SSID_FLAG,
-                                   0, NULL);
+		    wmi_probedSsid_cmd(ar->arWmi, i+1, DISABLE_SSID_FLAG,
+				       0, NULL);
             }
-        }
-        ar->scan_request = NULL;
     }
+
+out:
+    ar->scan_request = NULL;
 }
 
 static int
