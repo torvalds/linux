@@ -1031,6 +1031,16 @@ sub monitor {
     return 1;
 }
 
+sub do_post_install {
+
+    return if (!defined($post_install));
+
+    my $cp_post_install = $post_install;
+    $cp_post_install =~ s/\$KERNEL_VERSION/$version/g;
+    run_command "$cp_post_install" or
+	dodie "Failed to run post install";
+}
+
 sub install {
 
     run_scp "$outputdir/$build_target", "$target_image" or
@@ -1050,6 +1060,7 @@ sub install {
     close(IN);
 
     if (!$install_mods) {
+	do_post_install;
 	doprint "No modules needed\n";
 	return;
     }
@@ -1077,12 +1088,7 @@ sub install {
 
     run_ssh "rm -f /tmp/$modtar";
 
-    return if (!defined($post_install));
-
-    my $cp_post_install = $post_install;
-    $cp_post_install =~ s/\$KERNEL_VERSION/$version/g;
-    run_command "$cp_post_install" or
-	dodie "Failed to run post install";
+    do_post_install;
 }
 
 sub check_buildlog {
