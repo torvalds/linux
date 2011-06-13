@@ -24,7 +24,7 @@ bcmdhd-objs += wl_cfg80211.o wl_cfgp2p.o wldev_common.o
 DHDCFLAGS += -DWL_CFG80211
 endif
 ifneq ($(CONFIG_ANDROID),)
-DHDCFLAGS += -DANDROID
+DHDCFLAGS += -DANDROID -DGET_CUSTOM_MAC_ENABLE
 endif
 EXTRA_CFLAGS = $(DHDCFLAGS)
 EXTRA_LDFLAGS += --strip-debug
