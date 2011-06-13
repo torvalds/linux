@@ -85,10 +85,6 @@
 #include <linux/videodev2.h>
 #include <linux/soundcard.h>
 
-#ifndef PAGE_SIZE
-#error "PAGE_SIZE not defined"
-#endif /* PAGE_SIZE */
-
 /*---------------------------------------------------------------------------*/
 /*  VENDOR, PRODUCT:  Syntek Semiconductor Co., Ltd
  *
