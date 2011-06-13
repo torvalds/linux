@@ -9936,6 +9936,18 @@ static int tg3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 
 	cmd->advertising = tp->link_config.advertising;
+	if (tg3_flag(tp, PAUSE_AUTONEG)) {
+		if (tp->link_config.flowctrl & FLOW_CTRL_RX) {
+			if (tp->link_config.flowctrl & FLOW_CTRL_TX) {
+				cmd->advertising |= ADVERTISED_Pause;
+			} else {
+				cmd->advertising |= ADVERTISED_Pause |
+						    ADVERTISED_Asym_Pause;
+			}
+		} else if (tp->link_config.flowctrl & FLOW_CTRL_TX) {
+			cmd->advertising |= ADVERTISED_Asym_Pause;
+		}
+	}
 	if (netif_running(dev)) {
 		ethtool_cmd_speed_set(cmd, tp->link_config.active_speed);
 		cmd->duplex = tp->link_config.active_duplex;
