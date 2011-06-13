@@ -268,6 +268,7 @@ extern const u8 iwl_eeprom_band_1[14];
 
 /* General */
 #define EEPROM_DEVICE_ID                    (2*0x08)	/* 2 bytes */
+#define EEPROM_SUBSYSTEM_ID		    (2*0x0A)	/* 2 bytes */
 #define EEPROM_MAC_ADDRESS                  (2*0x15)	/* 6  bytes */
 #define EEPROM_BOARD_REVISION               (2*0x35)	/* 2  bytes */
 #define EEPROM_BOARD_PBA_NUMBER             (2*0x3B+1)	/* 9  bytes */
