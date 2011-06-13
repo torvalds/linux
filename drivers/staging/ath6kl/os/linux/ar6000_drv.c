@@ -4133,6 +4133,13 @@ ar6000_ready_event(void *devt, u8 *datap, u8 phyCap, u32 sw_ver, u32 abi_ver)
     ar->arVersion.wlan_ver = sw_ver;
     ar->arVersion.abi_ver = abi_ver;
 
+    snprintf(ar->wdev->wiphy->fw_version, sizeof(ar->wdev->wiphy->fw_version),
+	     "%u:%u:%u:%u",
+	     (ar->arVersion.wlan_ver & 0xf0000000) >> 28,
+	     (ar->arVersion.wlan_ver & 0x0f000000) >> 24,
+	     (ar->arVersion.wlan_ver & 0x00ff0000) >> 16,
+	     (ar->arVersion.wlan_ver & 0x0000ffff));
+
     /* Indicate to the waiting thread that the ready event was received */
     ar->arWmiReady = true;
     wake_up(&arEvent);
