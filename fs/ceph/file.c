@@ -476,9 +476,6 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 	else
 		pos = *offset;
 
-	io_align = pos & ~PAGE_MASK;
-	buf_align = (unsigned long)data & ~PAGE_MASK;
-
 	ret = filemap_write_and_wait_range(inode->i_mapping, pos, pos + left);
 	if (ret < 0)
 		return ret;
@@ -502,6 +499,8 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 	 * boundary.  this isn't atomic, unfortunately.  :(
 	 */
 more:
+	io_align = pos & ~PAGE_MASK;
+	buf_align = (unsigned long)data & ~PAGE_MASK;
 	len = left;
 	if (file->f_flags & O_DIRECT) {
 		/* write from beginning of first page, regardless of
@@ -591,6 +590,7 @@ out:
 		pos += len;
 		written += len;
 		left -= len;
+		data += written;
 		if (left)
 			goto more;
 
