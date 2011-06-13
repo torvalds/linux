@@ -27,28 +27,6 @@ BUILD OPTIONS AND DEPENDENCIES
 Unless EASYCAP_DEBUG is defined during compilation it will not be possible
 to select a debug level at the time of module installation.
 
-If the parameter EASYCAP_IS_VIDEODEV_CLIENT is undefined during compilation
-the built module is entirely independent of the videodev module, and when
-the EasyCAP is physically plugged into a USB port the special files
-/dev/easycap0 and /dev/easysnd1 are created as video and sound sources
-respectively.
-
-If the parameter EASYCAP_IS_VIDEODEV_CLIENT is defined during compilation
-the built easycap module is configured to register with the videodev module,
-in which case the special files created when the EasyCAP is plugged in are
-/dev/video0 and /dev/easysnd0.
-
-During in-tree builds the following should should be defined whenever the
-parameter EASYCAP_IS_VIDEODEV_CLIENT is defined:
-
-EASYCAP_NEEDS_V4L2_DEVICE_H
-EASYCAP_NEEDS_V4L2_FOPS
-EASYCAP_NEEDS_UNLOCKED_IOCTL
-
-If the build is performed out-of-tree against older kernels the parameters
-to be defined depend on the kernel version in a way which will not be
-discussed here.
-
 
 KNOWN RUNTIME ISSUES
 --------------------
