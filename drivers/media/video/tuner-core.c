@@ -1223,7 +1223,7 @@ static int tuner_resume(struct i2c_client *c)
 	tuner_dbg("resume\n");
 
 	if (!t->standby)
-		if (set_mode(t, t->type) == 0)
+		if (set_mode(t, t->mode) == 0)
 			set_freq(t, 0);
 
 	return 0;
