@@ -76,13 +76,6 @@ static int subdev_open(struct file *file)
 	}
 
 	v4l2_fh_init(&subdev_fh->vfh, vdev);
-
-	if (sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS) {
-		ret = v4l2_event_alloc(&subdev_fh->vfh, sd->nevents);
-		if (ret)
-			goto err;
-	}
-
 	v4l2_fh_add(&subdev_fh->vfh);
 	file->private_data = &subdev_fh->vfh;
 #if defined(CONFIG_MEDIA_CONTROLLER)

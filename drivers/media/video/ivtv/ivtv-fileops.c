@@ -966,10 +966,6 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 		return -ENOMEM;
 	}
 	v4l2_fh_init(&item->fh, s->vdev);
-	if (s->type == IVTV_DEC_STREAM_TYPE_YUV ||
-	    s->type == IVTV_DEC_STREAM_TYPE_MPG) {
-		res = v4l2_event_alloc(&item->fh, 60);
-	}
 	if (res < 0) {
 		v4l2_fh_exit(&item->fh);
 		kfree(item);

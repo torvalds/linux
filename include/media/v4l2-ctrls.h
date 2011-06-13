@@ -171,7 +171,6 @@ struct v4l2_ctrl_ref {
   *		control is needed multiple times, so this is a simple
   *		optimization.
   * @buckets:	Buckets for the hashing. Allows for quick control lookup.
-  * @nr_of_refs: Total number of control references in the list.
   * @nr_of_buckets: Total number of buckets in the array.
   * @error:	The error code of the first failed control addition.
   */
@@ -181,7 +180,6 @@ struct v4l2_ctrl_handler {
 	struct list_head ctrl_refs;
 	struct v4l2_ctrl_ref *cached;
 	struct v4l2_ctrl_ref **buckets;
-	u16 nr_of_refs;
 	u16 nr_of_buckets;
 	int error;
 };
@@ -498,23 +496,6 @@ void v4l2_ctrl_add_event(struct v4l2_ctrl *ctrl,
 		struct v4l2_subscribed_event *sev);
 void v4l2_ctrl_del_event(struct v4l2_ctrl *ctrl,
 		struct v4l2_subscribed_event *sev);
-
-/** v4l2_ctrl_subscribe_fh() - Helper function that subscribes a control event.
-  * @fh:	The file handler that subscribed the control event.
-  * @sub:	The event to subscribe (type must be V4L2_EVENT_CTRL).
-  * @n:		How many events should be allocated? (Passed to v4l2_event_alloc).
-  *		Recommended to set to twice the number of controls plus whatever
-  *		is needed for other events. This function will set n to
-  *		max(n, 2 * fh->ctrl_handler->nr_of_refs).
-  *
-  * A helper function that initializes the fh for events, allocates the
-  * list of events and subscribes the control event.
-  *
-  * Typically called in the handler of VIDIOC_SUBSCRIBE_EVENT in the
-  * V4L2_EVENT_CTRL case.
-  */
-int v4l2_ctrl_subscribe_fh(struct v4l2_fh *fh,
-			struct v4l2_event_subscription *sub, unsigned n);
 
 /* Helpers for ioctl_ops. If hdl == NULL then they will all return -EINVAL. */
 int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc);

@@ -1691,7 +1691,7 @@ static int ccdc_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 	if (sub->type != V4L2_EVENT_OMAP3ISP_HS_VS)
 		return -EINVAL;
 
-	return v4l2_event_subscribe(fh, sub);
+	return v4l2_event_subscribe(fh, sub, OMAP3ISP_CCDC_NEVENTS);
 }
 
 static int ccdc_unsubscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
@@ -2162,7 +2162,6 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 	sd->grp_id = 1 << 16;	/* group ID for isp subdevs */
 	v4l2_set_subdevdata(sd, ccdc);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
-	sd->nevents = OMAP3ISP_CCDC_NEVENTS;
 
 	pads[CCDC_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	pads[CCDC_PAD_SOURCE_VP].flags = MEDIA_PAD_FL_SOURCE;

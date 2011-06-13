@@ -1450,13 +1450,11 @@ static int ivtv_subscribe_event(struct v4l2_fh *fh, struct v4l2_event_subscripti
 	switch (sub->type) {
 	case V4L2_EVENT_VSYNC:
 	case V4L2_EVENT_EOS:
-		break;
 	case V4L2_EVENT_CTRL:
-		return v4l2_ctrl_subscribe_fh(fh, sub, 0);
+		return v4l2_event_subscribe(fh, sub, 0);
 	default:
 		return -EINVAL;
 	}
-	return v4l2_event_subscribe(fh, sub);
 }
 
 static int ivtv_log_status(struct file *file, void *fh)

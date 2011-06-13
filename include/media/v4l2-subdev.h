@@ -513,8 +513,6 @@ struct v4l2_subdev {
 	void *host_priv;
 	/* subdev device node */
 	struct video_device devnode;
-	/* number of events to be allocated on open */
-	unsigned int nevents;
 };
 
 #define media_entity_to_v4l2_subdev(ent) \

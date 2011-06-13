@@ -40,10 +40,8 @@ struct v4l2_fh {
 	/* Events */
 	wait_queue_head_t	wait;
 	struct list_head	subscribed; /* Subscribed events */
-	struct list_head	free; /* Events ready for use */
 	struct list_head	available; /* Dequeueable event */
 	unsigned int		navailable;
-	unsigned int		nallocated; /* Number of allocated events */
 	u32			sequence;
 };
 
