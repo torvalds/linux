@@ -1900,7 +1900,6 @@ void bond_3ad_initialize(struct bonding *bond, u16 tick_resolution)
 int bond_3ad_bind_slave(struct slave *slave)
 {
 	struct bonding *bond = bond_get_bond_by_slave(slave);
-	int lacp_fast = bond->params.lacp_fast;
 	struct port *port;
 	struct aggregator *aggregator;
 
@@ -1916,7 +1915,7 @@ int bond_3ad_bind_slave(struct slave *slave)
 		// port initialization
 		port = &(SLAVE_AD_INFO(slave).port);
 
-		ad_initialize_port(port, lacp_fast);
+		ad_initialize_port(port, bond->params.lacp_fast);
 
 		port->slave = slave;
 		port->actor_port_number = SLAVE_AD_INFO(slave).id;
