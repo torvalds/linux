@@ -452,7 +452,7 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix)
 	 * first find a good copy
 	 */
 	for (i = 0; i < multi->num_stripes; ++i) {
-		if (i == sbio->spag[ix].mirror_num)
+		if (i + 1 == sbio->spag[ix].mirror_num)
 			continue;
 
 		if (scrub_fixup_io(READ, multi->stripes[i].dev->bdev,
@@ -930,21 +930,21 @@ static noinline_for_stack int scrub_stripe(struct scrub_dev *sdev,
 	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
 		offset = map->stripe_len * num;
 		increment = map->stripe_len * map->num_stripes;
-		mirror_num = 0;
+		mirror_num = 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
 		int factor = map->num_stripes / map->sub_stripes;
 		offset = map->stripe_len * (num / map->sub_stripes);
 		increment = map->stripe_len * factor;
-		mirror_num = num % map->sub_stripes;
+		mirror_num = num % map->sub_stripes + 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID1) {
 		increment = map->stripe_len;
-		mirror_num = num % map->num_stripes;
+		mirror_num = num % map->num_stripes + 1;
 	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
 		increment = map->stripe_len;
-		mirror_num = num % map->num_stripes;
+		mirror_num = num % map->num_stripes + 1;
 	} else {
 		increment = map->stripe_len;
-		mirror_num = 0;
+		mirror_num = 1;
 	}
 
 	path = btrfs_alloc_path();
