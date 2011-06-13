@@ -19,9 +19,13 @@ ENTRY(cpu_suspend)
 	mov	r9, lr
 #ifdef MULTI_CPU
 	ldr	r10, =processor
-	mov	r2, sp			@ current virtual SP
 	ldr	r0, [r10, #CPU_SLEEP_SIZE] @ size of CPU sleep state
 	ldr	ip, [r10, #CPU_DO_RESUME] @ virtual resume function
+#else
+	ldr	r0, =cpu_suspend_size
+	ldr	ip, =cpu_do_resume
+#endif
+	mov	r2, sp			@ current virtual SP
 	sub	sp, sp, r0		@ allocate CPU state on stack
 	mov	r0, sp			@ save pointer
 	add	ip, ip, r1		@ convert resume fn to phys
@@ -36,26 +40,10 @@ ENTRY(cpu_suspend)
 #else
 	str	r2, [r3]		@ save phys SP
 #endif
+#ifdef MULTI_CPU
 	mov	lr, pc
 	ldr	pc, [r10, #CPU_DO_SUSPEND] @ save CPU state
 #else
-	mov	r2, sp			@ current virtual SP
-	ldr	r0, =cpu_suspend_size
-	ldr	ip, =cpu_do_resume
-	sub	sp, sp, r0		@ allocate CPU state on stack
-	mov	r0, sp			@ save pointer
-	add	ip, ip, r1		@ convert resume fn to phys
-	stmfd	sp!, {r1, r2, ip}	@ save v:p, virt SP, phys resume fn
-	ldr	r3, =sleep_save_sp
-	add	r2, sp, r1		@ convert SP to phys
-#ifdef CONFIG_SMP
-	ALT_SMP(mrc p15, 0, lr, c0, c0, 5)
-	ALT_UP(mov lr, #0)
-	and	lr, lr, #15
-	str	r2, [r3, lr, lsl #2]	@ save phys SP
-#else
-	str	r2, [r3]		@ save phys SP
-#endif
 	bl	cpu_do_suspend
 #endif
 
