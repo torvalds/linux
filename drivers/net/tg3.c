@@ -10470,6 +10470,9 @@ error:
 #define NVRAM_SELFBOOT_FORMAT1_0_SIZE	0x14
 #define NVRAM_SELFBOOT_FORMAT1_2_SIZE	0x18
 #define NVRAM_SELFBOOT_FORMAT1_3_SIZE	0x1c
+#define NVRAM_SELFBOOT_FORMAT1_4_SIZE	0x20
+#define NVRAM_SELFBOOT_FORMAT1_5_SIZE	0x24
+#define NVRAM_SELFBOOT_FORMAT1_6_SIZE	0x4c
 #define NVRAM_SELFBOOT_HW_SIZE 0x20
 #define NVRAM_SELFBOOT_DATA_SIZE 0x1c
 
@@ -10500,8 +10503,17 @@ static int tg3_test_nvram(struct tg3 *tp)
 			case TG3_EEPROM_SB_REVISION_3:
 				size = NVRAM_SELFBOOT_FORMAT1_3_SIZE;
 				break;
+			case TG3_EEPROM_SB_REVISION_4:
+				size = NVRAM_SELFBOOT_FORMAT1_4_SIZE;
+				break;
+			case TG3_EEPROM_SB_REVISION_5:
+				size = NVRAM_SELFBOOT_FORMAT1_5_SIZE;
+				break;
+			case TG3_EEPROM_SB_REVISION_6:
+				size = NVRAM_SELFBOOT_FORMAT1_6_SIZE;
+				break;
 			default:
-				return 0;
+				return -EIO;
 			}
 		} else
 			return 0;
