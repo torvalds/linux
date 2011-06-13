@@ -7754,6 +7754,9 @@ static void tg3_rings_reset(struct tg3 *tp)
 
 	/* Disable interrupts */
 	tw32_mailbox_f(tp->napi[0].int_mbox, 1);
+	tp->napi[0].chk_msi_cnt = 0;
+	tp->napi[0].last_rx_cons = 0;
+	tp->napi[0].last_tx_cons = 0;
 
 	/* Zero mailbox registers. */
 	if (tg3_flag(tp, SUPPORT_MSIX)) {
@@ -7764,6 +7767,9 @@ static void tg3_rings_reset(struct tg3 *tp)
 				tw32_mailbox(tp->napi[i].prodmbox, 0);
 			tw32_rx_mbox(tp->napi[i].consmbox, 0);
 			tw32_mailbox_f(tp->napi[i].int_mbox, 1);
+			tp->napi[0].chk_msi_cnt = 0;
+			tp->napi[i].last_rx_cons = 0;
+			tp->napi[i].last_tx_cons = 0;
 		}
 		if (!tg3_flag(tp, ENABLE_TSS))
 			tw32_mailbox(tp->napi[0].prodmbox, 0);
@@ -8819,6 +8825,30 @@ static void tg3_periodic_fetch_stats(struct tg3 *tp)
 	TG3_STAT_ADD32(&sp->rx_errors, RCVLPC_IN_ERRORS_CNT);
 }
 
+static void tg3_chk_missed_msi(struct tg3 *tp)
+{
+	u32 i;
+
+	for (i = 0; i < tp->irq_cnt; i++) {
+		struct tg3_napi *tnapi = &tp->napi[i];
+
+		if (tg3_has_work(tnapi)) {
+			if (tnapi->last_rx_cons == tnapi->rx_rcb_ptr &&
+			    tnapi->last_tx_cons == tnapi->tx_cons) {
+				if (tnapi->chk_msi_cnt < 1) {
+					tnapi->chk_msi_cnt++;
+					return;
+				}
+				tw32_mailbox(tnapi->int_mbox,
+					     tnapi->last_tag << 24);
+			}
+		}
+		tnapi->chk_msi_cnt = 0;
+		tnapi->last_rx_cons = tnapi->rx_rcb_ptr;
+		tnapi->last_tx_cons = tnapi->tx_cons;
+	}
+}
+
 static void tg3_timer(unsigned long __opaque)
 {
 	struct tg3 *tp = (struct tg3 *) __opaque;
@@ -8827,6 +8857,10 @@ static void tg3_timer(unsigned long __opaque)
 		goto restart_timer;
 
 	spin_lock(&tp->lock);
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765)
+		tg3_chk_missed_msi(tp);
 
 	if (!tg3_flag(tp, TAGGED_STATUS)) {
 		/* All of this garbage is because when using non-tagged
@@ -9303,7 +9337,9 @@ static int tg3_open(struct net_device *dev)
 		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
 		tg3_free_rings(tp);
 	} else {
-		if (tg3_flag(tp, TAGGED_STATUS))
+		if (tg3_flag(tp, TAGGED_STATUS) &&
+			GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5717 &&
+			GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_57765)
 			tp->timer_offset = HZ;
 		else
 			tp->timer_offset = HZ / 10;
