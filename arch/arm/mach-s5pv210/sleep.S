@@ -39,11 +39,8 @@
 	*/
 
 ENTRY(s3c_cpu_save)
-
-	stmfd	sp!, { r3 - r12, lr }
 	adr	r3, BSYM(s5pv210_finish_suspend)
-	bl	cpu_suspend
-	ldmfd	sp!, { r3 - r12, pc }
+	b	cpu_suspend
 
 s5pv210_finish_suspend:
 	ldr	r0, =pm_cpu_sleep
