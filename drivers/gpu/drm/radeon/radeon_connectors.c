@@ -1235,6 +1235,16 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 					ret = connector_status_connected;
 			}
 		}
+
+		if ((ret == connector_status_disconnected) &&
+		    radeon_connector->dac_load_detect) {
+			struct drm_encoder *encoder = radeon_best_single_encoder(connector);
+			struct drm_encoder_helper_funcs *encoder_funcs;
+			if (encoder) {
+				encoder_funcs = encoder->helper_private;
+				ret = encoder_funcs->detect(encoder, connector);
+			}
+		}
 	}
 
 	radeon_connector_update_scratch_regs(connector, ret);
@@ -1408,6 +1418,10 @@ radeon_add_atom_connector(struct drm_device *dev,
 		default:
 			connector->interlace_allowed = true;
 			connector->doublescan_allowed = true;
+			radeon_connector->dac_load_detect = true;
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.load_detect_property,
+						      1);
 			break;
 		case DRM_MODE_CONNECTOR_DVII:
 		case DRM_MODE_CONNECTOR_DVID:
@@ -1429,6 +1443,12 @@ radeon_add_atom_connector(struct drm_device *dev,
 				connector->doublescan_allowed = true;
 			else
 				connector->doublescan_allowed = false;
+			if (connector_type == DRM_MODE_CONNECTOR_DVII) {
+				radeon_connector->dac_load_detect = true;
+				drm_connector_attach_property(&radeon_connector->base,
+							      rdev->mode_info.load_detect_property,
+							      1);
+			}
 			break;
 		case DRM_MODE_CONNECTOR_LVDS:
 		case DRM_MODE_CONNECTOR_eDP:

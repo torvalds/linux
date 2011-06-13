@@ -1999,6 +1999,53 @@ radeon_atom_dac_detect(struct drm_encoder *encoder, struct drm_connector *connec
 	return connector_status_disconnected;
 }
 
+static enum drm_connector_status
+radeon_atom_dig_detect(struct drm_encoder *encoder, struct drm_connector *connector)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+	struct drm_encoder *ext_encoder = radeon_atom_get_external_encoder(encoder);
+	u32 bios_0_scratch;
+
+	if (!ASIC_IS_DCE4(rdev))
+		return connector_status_unknown;
+
+	if (!ext_encoder)
+		return connector_status_unknown;
+
+	if ((radeon_connector->devices & ATOM_DEVICE_CRT_SUPPORT) == 0)
+		return connector_status_unknown;
+
+	/* load detect on the dp bridge */
+	atombios_external_encoder_setup(encoder, ext_encoder,
+					EXTERNAL_ENCODER_ACTION_V3_DACLOAD_DETECTION);
+
+	bios_0_scratch = RREG32(R600_BIOS_0_SCRATCH);
+
+	DRM_DEBUG_KMS("Bios 0 scratch %x %08x\n", bios_0_scratch, radeon_encoder->devices);
+	if (radeon_connector->devices & ATOM_DEVICE_CRT1_SUPPORT) {
+		if (bios_0_scratch & ATOM_S0_CRT1_MASK)
+			return connector_status_connected;
+	}
+	if (radeon_connector->devices & ATOM_DEVICE_CRT2_SUPPORT) {
+		if (bios_0_scratch & ATOM_S0_CRT2_MASK)
+			return connector_status_connected;
+	}
+	if (radeon_connector->devices & ATOM_DEVICE_CV_SUPPORT) {
+		if (bios_0_scratch & (ATOM_S0_CV_MASK|ATOM_S0_CV_MASK_A))
+			return connector_status_connected;
+	}
+	if (radeon_connector->devices & ATOM_DEVICE_TV1_SUPPORT) {
+		if (bios_0_scratch & (ATOM_S0_TV1_COMPOSITE | ATOM_S0_TV1_COMPOSITE_A))
+			return connector_status_connected; /* CTV */
+		else if (bios_0_scratch & (ATOM_S0_TV1_SVIDEO | ATOM_S0_TV1_SVIDEO_A))
+			return connector_status_connected; /* STV */
+	}
+	return connector_status_disconnected;
+}
+
 static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -2162,7 +2209,7 @@ static const struct drm_encoder_helper_funcs radeon_atom_dig_helper_funcs = {
 	.mode_set = radeon_atom_encoder_mode_set,
 	.commit = radeon_atom_encoder_commit,
 	.disable = radeon_atom_encoder_disable,
-	/* no detect for TMDS/LVDS yet */
+	.detect = radeon_atom_dig_detect,
 };
 
 static const struct drm_encoder_helper_funcs radeon_atom_dac_helper_funcs = {
