@@ -201,18 +201,25 @@ nomem:
  * recheck_error gets called for every page in the bio, even though only
  * one may be bad
  */
-static void scrub_recheck_error(struct scrub_bio *sbio, int ix)
+static int scrub_recheck_error(struct scrub_bio *sbio, int ix)
 {
+	struct scrub_dev *sdev = sbio->sdev;
+	u64 sector = (sbio->physical + ix * PAGE_SIZE) >> 9;
+
 	if (sbio->err) {
-		if (scrub_fixup_io(READ, sbio->sdev->dev->bdev,
-				   (sbio->physical + ix * PAGE_SIZE) >> 9,
+		if (scrub_fixup_io(READ, sbio->sdev->dev->bdev, sector,
 				   sbio->bio->bi_io_vec[ix].bv_page) == 0) {
 			if (scrub_fixup_check(sbio, ix) == 0)
-				return;
+				return 0;
 		}
 	}
 
+	spin_lock(&sdev->stat_lock);
+	++sdev->stat.read_errors;
+	spin_unlock(&sdev->stat_lock);
+
 	scrub_fixup(sbio, ix);
+	return 1;
 }
 
 static int scrub_fixup_check(struct scrub_bio *sbio, int ix)
@@ -382,8 +389,14 @@ static void scrub_checksum(struct btrfs_work *work)
 	int ret;
 
 	if (sbio->err) {
+		ret = 0;
 		for (i = 0; i < sbio->count; ++i)
-			scrub_recheck_error(sbio, i);
+			ret |= scrub_recheck_error(sbio, i);
+		if (!ret) {
+			spin_lock(&sdev->stat_lock);
+			++sdev->stat.unverified_errors;
+			spin_unlock(&sdev->stat_lock);
+		}
 
 		sbio->bio->bi_flags &= ~(BIO_POOL_MASK - 1);
 		sbio->bio->bi_flags |= 1 << BIO_UPTODATE;
@@ -396,10 +409,6 @@ static void scrub_checksum(struct btrfs_work *work)
 			bi->bv_offset = 0;
 			bi->bv_len = PAGE_SIZE;
 		}
-
-		spin_lock(&sdev->stat_lock);
-		++sdev->stat.read_errors;
-		spin_unlock(&sdev->stat_lock);
 		goto out;
 	}
 	for (i = 0; i < sbio->count; ++i) {
@@ -420,8 +429,14 @@ static void scrub_checksum(struct btrfs_work *work)
 			WARN_ON(1);
 		}
 		kunmap_atomic(buffer, KM_USER0);
-		if (ret)
-			scrub_recheck_error(sbio, i);
+		if (ret) {
+			ret = scrub_recheck_error(sbio, i);
+			if (!ret) {
+				spin_lock(&sdev->stat_lock);
+				++sdev->stat.unverified_errors;
+				spin_unlock(&sdev->stat_lock);
+			}
+		}
 	}
 
 out:
