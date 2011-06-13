@@ -851,7 +851,16 @@ sub monitor {
 
     while (!$done) {
 
-	if ($booted) {
+	if ($bug && defined($stop_after_failure) &&
+	    $stop_after_failure >= 0) {
+	    my $time = $stop_after_failure - (time - $failure_start);
+	    $line = wait_for_input($monitor_fp, $time);
+	    if (!defined($line)) {
+		doprint "bug timed out after $booted_timeout seconds\n";
+		doprint "Test forced to stop after $stop_after_failure seconds after failure\n";
+		last;
+	    }
+	} elsif ($booted) {
 	    $line = wait_for_input($monitor_fp, $booted_timeout);
 	    if (!defined($line)) {
 		my $s = $booted_timeout == 1 ? "" : "s";
