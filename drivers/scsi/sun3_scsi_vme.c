@@ -137,7 +137,7 @@ static struct Scsi_Host *default_instance;
  *
  */
  
-static int sun3scsi_detect(struct scsi_host_template * tpnt)
+static int __init sun3scsi_detect(struct scsi_host_template * tpnt)
 {
 	unsigned long ioaddr, irq = 0;
 	static int called = 0;
