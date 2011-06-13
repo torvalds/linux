@@ -988,9 +988,10 @@ static void cfq_group_served(struct cfq_data *cfqd, struct cfq_group *cfqg,
 
 	cfq_log_cfqg(cfqd, cfqg, "served: vt=%llu min_vt=%llu", cfqg->vdisktime,
 					st->min_vdisktime);
-	cfq_log_cfqq(cfqq->cfqd, cfqq, "sl_used=%u disp=%u charge=%u iops=%u"
-			" sect=%u", used_sl, cfqq->slice_dispatch, charge,
-			iops_mode(cfqd), cfqq->nr_sectors);
+	cfq_log_cfqq(cfqq->cfqd, cfqq,
+		     "sl_used=%u disp=%u charge=%u iops=%u sect=%lu",
+		     used_sl, cfqq->slice_dispatch, charge,
+		     iops_mode(cfqd), cfqq->nr_sectors);
 	cfq_blkiocg_update_timeslice_used(&cfqg->blkg, used_sl,
 					  unaccounted_sl);
 	cfq_blkiocg_set_start_empty_time(&cfqg->blkg);
@@ -2018,8 +2019,8 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	 */
 	if (sample_valid(cic->ttime_samples) &&
 	    (cfqq->slice_end - jiffies < cic->ttime_mean)) {
-		cfq_log_cfqq(cfqd, cfqq, "Not idling. think_time:%d",
-				cic->ttime_mean);
+		cfq_log_cfqq(cfqd, cfqq, "Not idling. think_time:%lu",
+			     cic->ttime_mean);
 		return;
 	}
 
