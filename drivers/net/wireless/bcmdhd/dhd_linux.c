@@ -89,7 +89,7 @@ typedef struct histo_ {
 static histo_t vi_d1, vi_d2, vi_d3, vi_d4;
 #endif /* WLMEDIA_HTSF */
 
-#if defined(ANDROID) && defined(SOFTAP)
+#if defined(SOFTAP)
 extern bool	ap_cfg_running;
 #endif
 
@@ -1123,7 +1123,7 @@ dhd_op_if(dhd_if_t *ifp)
 					__FUNCTION__, err));
 				ret = -EOPNOTSUPP;
 			} else {
-#if defined(ANDROID) && defined(SOFTAP)
+#if defined(SOFTAP)
 		if (ap_cfg_running && !(dhd->dhd_state & DHD_ATTACH_STATE_CFG80211)) {
 				 /* semaphore that the soft AP CODE waits on */
 				flags = dhd_os_spin_lock(&dhd->pub);
