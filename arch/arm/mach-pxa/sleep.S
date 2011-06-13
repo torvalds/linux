@@ -59,7 +59,7 @@ ENTRY(pxa27x_cpu_suspend)
 	mra	r2, r3, acc0
 #endif
 	stmfd	sp!, {r2 - r12, lr}		@ save registers on stack
-	mov	r4, r0				@ save sleep mode
+	mov	r2, r0				@ save sleep mode
 	ldr	r3, =pxa_cpu_resume		@ resume function
 	bl	cpu_suspend
 
@@ -67,7 +67,7 @@ ENTRY(pxa27x_cpu_suspend)
 	@ (also workaround for sighting 28071)
 
 	@ prepare value for sleep mode
-	mov	r1, r4				@ sleep mode
+	mov	r1, r0				@ sleep mode
 
 	@ prepare pointer to physical address 0 (virtual mapping in generic.c)
 	mov	r2, #UNCACHED_PHYS_0
@@ -109,11 +109,11 @@ ENTRY(pxa27x_cpu_suspend)
 
 ENTRY(pxa25x_cpu_suspend)
 	stmfd	sp!, {r2 - r12, lr}		@ save registers on stack
-	mov	r4, r0				@ save sleep mode
+	mov	r2, r0				@ save sleep mode
 	ldr	r3, =pxa_cpu_resume		@ resume function
 	bl	cpu_suspend
 	@ prepare value for sleep mode
-	mov	r1, r4				@ sleep mode
+	mov	r1, r0				@ sleep mode
 
 	@ prepare pointer to physical address 0 (virtual mapping in generic.c)
 	mov	r2, #UNCACHED_PHYS_0
