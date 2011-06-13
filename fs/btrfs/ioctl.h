@@ -193,6 +193,17 @@ struct btrfs_ioctl_space_args {
 	struct btrfs_ioctl_space_info spaces[0];
 };
 
+struct btrfs_data_container {
+	__u32	bytes_left;	/* out -- bytes not needed to deliver output */
+	__u32	bytes_missing;	/* out -- additional bytes needed for result */
+	__u32	elem_cnt;	/* out */
+	__u32	elem_missed;	/* out */
+	union {
+		char	*str[0];	/* out */
+		__u64	val[0];		/* out */
+	};
+};
+
 #define BTRFS_IOC_SNAP_CREATE _IOW(BTRFS_IOCTL_MAGIC, 1, \
 				   struct btrfs_ioctl_vol_args)
 #define BTRFS_IOC_DEFRAG _IOW(BTRFS_IOCTL_MAGIC, 2, \
