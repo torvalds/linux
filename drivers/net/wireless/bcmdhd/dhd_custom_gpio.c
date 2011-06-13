@@ -47,11 +47,13 @@ int wifi_set_carddetect(int on);
 int wifi_set_power(int on, unsigned long msec);
 int wifi_get_irq_number(unsigned long *irq_flags_ptr);
 int wifi_get_mac_addr(unsigned char *buf);
+void *wifi_get_country_code(char *ccode);
 #else
 int wifi_set_carddetect(int on) { return -1; }
 int wifi_set_power(int on, unsigned long msec) { return -1; }
 int wifi_get_irq_number(unsigned long *irq_flags_ptr) { return -1; }
 int wifi_get_mac_addr(unsigned char *buf) { return -1; }
+void *wifi_get_country_code(char *ccode) { return NULL; }
 #endif
 #endif
 
@@ -251,6 +253,19 @@ const struct cntry_locales_custom translate_custom_table[] = {
 */
 void get_customized_country_code(char *country_iso_code, wl_country_t *cspec)
 {
+#ifdef CUSTOMER_HW2
+	struct cntry_locales_custom *cloc_ptr;
+
+	if (!cspec)
+		return;
+
+	cloc_ptr = wifi_get_country_code(country_iso_code);
+	if (cloc_ptr) {
+		strlcpy(cspec->ccode, cloc_ptr->custom_locale, WLC_CNTRY_BUF_SZ);
+		cspec->rev = cloc_ptr->custom_locale_rev;
+	}
+	return;
+#else
 	int size, i;
 
 	size = ARRAYSIZE(translate_custom_table);
@@ -275,4 +290,5 @@ void get_customized_country_code(char *country_iso_code, wl_country_t *cspec)
 	cspec->rev = translate_custom_table[0].custom_locale_rev;
 #endif /* EXMAPLE_TABLE */
 	return;
+#endif
 }
