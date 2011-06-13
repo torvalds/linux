@@ -58,12 +58,12 @@ int		bfa_debugfs_enable = 1;
 int		msix_disable_cb = 0, msix_disable_ct = 0;
 
 /* Firmware releated */
-u32	bfi_image_ct_fc_size, bfi_image_ct_cna_size, bfi_image_cb_fc_size;
-u32     *bfi_image_ct_fc, *bfi_image_ct_cna, *bfi_image_cb_fc;
+u32	bfi_image_cb_size, bfi_image_ct_size, bfi_image_ct2_size;
+u32	*bfi_image_cb, *bfi_image_ct, *bfi_image_ct2;
 
-#define BFAD_FW_FILE_CT_FC      "ctfw_fc.bin"
-#define BFAD_FW_FILE_CT_CNA     "ctfw_cna.bin"
-#define BFAD_FW_FILE_CB_FC      "cbfw_fc.bin"
+#define BFAD_FW_FILE_CB		"cbfw.bin"
+#define BFAD_FW_FILE_CT		"ctfw.bin"
+#define BFAD_FW_FILE_CT2	"ct2fw.bin"
 
 static u32 *bfad_load_fwimg(struct pci_dev *pdev);
 static void bfad_free_fwimg(void);
@@ -71,18 +71,18 @@ static void bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
 		u32 *bfi_image_size, char *fw_name);
 
 static const char *msix_name_ct[] = {
+	"ctrl",
 	"cpe0", "cpe1", "cpe2", "cpe3",
-	"rme0", "rme1", "rme2", "rme3",
-	"ctrl" };
+	"rme0", "rme1", "rme2", "rme3" };
 
 static const char *msix_name_cb[] = {
 	"cpe0", "cpe1", "cpe2", "cpe3",
 	"rme0", "rme1", "rme2", "rme3",
 	"eemc", "elpu0", "elpu1", "epss", "mlpu" };
 
-MODULE_FIRMWARE(BFAD_FW_FILE_CT_FC);
-MODULE_FIRMWARE(BFAD_FW_FILE_CT_CNA);
-MODULE_FIRMWARE(BFAD_FW_FILE_CB_FC);
+MODULE_FIRMWARE(BFAD_FW_FILE_CB);
+MODULE_FIRMWARE(BFAD_FW_FILE_CT);
+MODULE_FIRMWARE(BFAD_FW_FILE_CT2);
 
 module_param(os_name, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(os_name, "OS name of the hba host machine");
@@ -787,6 +787,7 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 		}
 
 	bfad->pci_bar0_kva = pci_iomap(pdev, 0, pci_resource_len(pdev, 0));
+	bfad->pci_bar2_kva = pci_iomap(pdev, 2, pci_resource_len(pdev, 2));
 
 	if (bfad->pci_bar0_kva == NULL) {
 		printk(KERN_ERR "Fail to map bar0\n");
@@ -868,6 +869,7 @@ void
 bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad)
 {
 	pci_iounmap(pdev, bfad->pci_bar0_kva);
+	pci_iounmap(pdev, bfad->pci_bar2_kva);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
@@ -1233,8 +1235,8 @@ bfad_install_msix_handler(struct bfad_s *bfad)
 	for (i = 0; i < bfad->nvec; i++) {
 		sprintf(bfad->msix_tab[i].name, "bfa-%s-%s",
 				bfad->pci_name,
-				((bfa_asic_id_ct(bfad->hal_pcidev.device_id)) ?
-				msix_name_ct[i] : msix_name_cb[i]));
+				((bfa_asic_id_cb(bfad->hal_pcidev.device_id)) ?
+				msix_name_cb[i] : msix_name_ct[i]));
 
 		error = request_irq(bfad->msix_tab[i].msix.vector,
 				    (irq_handler_t) bfad_msix, 0,
@@ -1272,8 +1274,8 @@ bfad_setup_intr(struct bfad_s *bfad)
 	/* Set up the msix entry table */
 	bfad_init_msix_entry(bfad, msix_entries, mask, max_bit);
 
-	if ((bfa_asic_id_ct(pdev->device) && !msix_disable_ct) ||
-	    (!bfa_asic_id_ct(pdev->device) && !msix_disable_cb)) {
+	if ((bfa_asic_id_ctc(pdev->device) && !msix_disable_ct) ||
+	   (bfa_asic_id_cb(pdev->device) && !msix_disable_cb)) {
 
 		error = pci_enable_msix(bfad->pcidev, msix_entries, bfad->nvec);
 		if (error) {
@@ -1346,7 +1348,8 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	int		error = -ENODEV, retval;
 
 	/* For single port cards - only claim function 0 */
-	if ((pdev->device == BFA_PCI_DEVICE_ID_FC_8G1P) &&
+	if ((pdev->device == BFA_PCI_DEVICE_ID_FC_8G1P ||
+	     pdev->device == BFA_PCI_DEVICE_ID_CT2) &&
 		(PCI_FUNC(pdev->devfn) != 0))
 		return -ENODEV;
 
@@ -1501,6 +1504,14 @@ struct pci_device_id bfad_id_table[] = {
 		.class = (PCI_CLASS_SERIAL_FIBER << 8),
 		.class_mask = ~0,
 	},
+	{
+		.vendor = BFA_PCI_VENDOR_ID_BROCADE,
+		.device = BFA_PCI_DEVICE_ID_CT2,
+		.subvendor = PCI_ANY_ID,
+		.subdevice = PCI_ANY_ID,
+		.class = (PCI_CLASS_SERIAL_FIBER << 8),
+		.class_mask = ~0,
+	},
 
 	{0, 0},
 };
@@ -1594,33 +1605,33 @@ out:
 static u32 *
 bfad_load_fwimg(struct pci_dev *pdev)
 {
-	if (pdev->device == BFA_PCI_DEVICE_ID_CT_FC) {
-		if (bfi_image_ct_fc_size == 0)
-			bfad_read_firmware(pdev, &bfi_image_ct_fc,
-				&bfi_image_ct_fc_size, BFAD_FW_FILE_CT_FC);
-		return bfi_image_ct_fc;
-	} else if (pdev->device == BFA_PCI_DEVICE_ID_CT) {
-		if (bfi_image_ct_cna_size == 0)
-			bfad_read_firmware(pdev, &bfi_image_ct_cna,
-				&bfi_image_ct_cna_size, BFAD_FW_FILE_CT_CNA);
-		return bfi_image_ct_cna;
+	if (pdev->device == BFA_PCI_DEVICE_ID_CT2) {
+		if (bfi_image_ct2_size == 0)
+			bfad_read_firmware(pdev, &bfi_image_ct2,
+				&bfi_image_ct2_size, BFAD_FW_FILE_CT2);
+		return bfi_image_ct2;
+	} else if (bfa_asic_id_ct(pdev->device)) {
+		if (bfi_image_ct_size == 0)
+			bfad_read_firmware(pdev, &bfi_image_ct,
+				&bfi_image_ct_size, BFAD_FW_FILE_CT);
+		return bfi_image_ct;
 	} else {
-		if (bfi_image_cb_fc_size == 0)
-			bfad_read_firmware(pdev, &bfi_image_cb_fc,
-				&bfi_image_cb_fc_size, BFAD_FW_FILE_CB_FC);
-		return bfi_image_cb_fc;
+		if (bfi_image_cb_size == 0)
+			bfad_read_firmware(pdev, &bfi_image_cb,
+				&bfi_image_cb_size, BFAD_FW_FILE_CB);
+		return bfi_image_cb;
 	}
 }
 
 static void
 bfad_free_fwimg(void)
 {
-	if (bfi_image_ct_fc_size && bfi_image_ct_fc)
-		vfree(bfi_image_ct_fc);
-	if (bfi_image_ct_cna_size && bfi_image_ct_cna)
-		vfree(bfi_image_ct_cna);
-	if (bfi_image_cb_fc_size && bfi_image_cb_fc)
-		vfree(bfi_image_cb_fc);
+	if (bfi_image_ct2_size && bfi_image_ct2)
+		vfree(bfi_image_ct2);
+	if (bfi_image_ct_size && bfi_image_ct)
+		vfree(bfi_image_ct);
+	if (bfi_image_cb_size && bfi_image_cb)
+		vfree(bfi_image_cb);
 }
 
 module_init(bfad_init);

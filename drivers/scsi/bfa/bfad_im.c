@@ -182,7 +182,7 @@ bfad_im_info(struct Scsi_Host *shost)
 	bfa_get_adapter_model(bfa, model);
 
 	memset(bfa_buf, 0, sizeof(bfa_buf));
-	if (ioc->ctdev && !ioc->fcmode)
+	if (bfa_ioc_is_cna(ioc))
 		snprintf(bfa_buf, sizeof(bfa_buf),
 		"Brocade FCOE Adapter, " "model: %s hwpath: %s driver: %s",
 		 model, bfad->pci_name, BFAD_DRIVER_VERSION);

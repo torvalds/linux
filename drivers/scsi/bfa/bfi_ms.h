@@ -68,11 +68,24 @@ struct bfi_iocfc_bootwwns {
 	u8		rsvd[7];
 };
 
+/**
+ * Queue configuration response from firmware
+ */
+struct bfi_iocfc_qreg_s {
+	u32	cpe_q_ci_off[BFI_IOC_MAX_CQS];
+	u32	cpe_q_pi_off[BFI_IOC_MAX_CQS];
+	u32	cpe_qctl_off[BFI_IOC_MAX_CQS];
+	u32	rme_q_ci_off[BFI_IOC_MAX_CQS];
+	u32	rme_q_pi_off[BFI_IOC_MAX_CQS];
+	u32	rme_qctl_off[BFI_IOC_MAX_CQS];
+};
+
 struct bfi_iocfc_cfgrsp_s {
 	struct bfa_iocfc_fwcfg_s	fwcfg;
 	struct bfa_iocfc_intr_attr_s	intr_attr;
 	struct bfi_iocfc_bootwwns	bootwwns;
 	struct bfi_pbc_s		pbc_cfg;
+	struct bfi_iocfc_qreg_s		qreg;
 };
 
 /*
@@ -771,5 +784,28 @@ struct bfi_tskim_rsp_s {
 };
 
 #pragma pack()
+
+/*
+ * Crossbow PCI MSI-X vector defines
+ */
+enum {
+	BFI_MSIX_CPE_QMIN_CB = 0,
+	BFI_MSIX_CPE_QMAX_CB = 7,
+	BFI_MSIX_RME_QMIN_CB = 8,
+	BFI_MSIX_RME_QMAX_CB = 15,
+	BFI_MSIX_CB_MAX = 22,
+};
+
+/*
+ * Catapult FC PCI MSI-X vector defines
+ */
+enum {
+	BFI_MSIX_LPU_ERR_CT = 0,
+	BFI_MSIX_CPE_QMIN_CT = 1,
+	BFI_MSIX_CPE_QMAX_CT = 4,
+	BFI_MSIX_RME_QMIN_CT = 5,
+	BFI_MSIX_RME_QMAX_CT = 8,
+	BFI_MSIX_CT_MAX = 9,
+};
 
 #endif /* __BFI_MS_H__ */

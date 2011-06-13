@@ -246,8 +246,6 @@ struct bfa_ioc_s {
 	struct bfa_trc_mod_s	*trcmod;
 	struct bfa_ioc_drv_stats_s	stats;
 	bfa_boolean_t		fcmode;
-	bfa_boolean_t		ctdev;
-	bfa_boolean_t		cna;
 	bfa_boolean_t		pllinit;
 	bfa_boolean_t		stats_busy;	/*  outstanding stats */
 	u8			port_id;
@@ -257,10 +255,14 @@ struct bfa_ioc_s {
 	struct bfa_ioc_mbox_mod_s mbox_mod;
 	struct bfa_ioc_hwif_s	*ioc_hwif;
 	struct bfa_iocpf_s	iocpf;
+	enum bfi_asic_gen	asic_gen;
+	enum bfi_asic_mode	asic_mode;
+	enum bfi_port_mode	port0_mode;
+	enum bfi_port_mode	port1_mode;
 };
 
 struct bfa_ioc_hwif_s {
-	bfa_status_t (*ioc_pll_init) (void __iomem *rb, bfa_boolean_t fcmode);
+	bfa_status_t (*ioc_pll_init) (void __iomem *rb, enum bfi_asic_mode m);
 	bfa_boolean_t	(*ioc_firmware_lock)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_firmware_unlock)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_reg_init)	(struct bfa_ioc_s *ioc);
@@ -280,6 +282,10 @@ struct bfa_ioc_hwif_s {
 #define bfa_ioc_devid(__ioc)		((__ioc)->pcidev.device_id)
 #define bfa_ioc_bar0(__ioc)		((__ioc)->pcidev.pci_bar_kva)
 #define bfa_ioc_portid(__ioc)		((__ioc)->port_id)
+#define bfa_ioc_asic_gen(__ioc)		((__ioc)->asic_gen)
+#define bfa_ioc_is_cna(__ioc)	\
+	((bfa_ioc_get_type(ioc) == BFA_IOC_TYPE_FCoE) ||	\
+	 (bfa_ioc_get_type(ioc) == BFA_IOC_TYPE_LL))
 #define bfa_ioc_fetch_stats(__ioc, __stats) \
 		(((__stats)->drv_stats) = (__ioc)->stats)
 #define bfa_ioc_clr_stats(__ioc)	\
@@ -293,12 +299,9 @@ struct bfa_ioc_hwif_s {
 
 #define bfa_ioc_stats(_ioc, _stats)	((_ioc)->stats._stats++)
 #define BFA_IOC_FWIMG_MINSZ	(16 * 1024)
-#define BFA_IOC_FWIMG_TYPE(__ioc)					\
-	(((__ioc)->ctdev) ?						\
-	 (((__ioc)->fcmode) ? BFI_IMAGE_CT_FC : BFI_IMAGE_CT_CNA) :	\
-	 BFI_IMAGE_CB_FC)
-#define BFA_IOC_FW_SMEM_SIZE(__ioc)					\
-	(((__ioc)->ctdev) ? BFI_SMEM_CT_SIZE : BFI_SMEM_CB_SIZE)
+#define BFA_IOC_FW_SMEM_SIZE(__ioc)			\
+	((bfa_ioc_asic_gen(__ioc) == BFI_ASIC_GEN_CB)	\
+	 ? BFI_SMEM_CB_SIZE : BFI_SMEM_CT_SIZE)
 #define BFA_IOC_FLASH_CHUNK_NO(off)		(off / BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_OFFSET_IN_CHUNK(off)	(off % BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_CHUNK_ADDR(chunkno)  (chunkno * BFI_FLASH_CHUNK_SZ_WORDS)
@@ -311,7 +314,7 @@ void bfa_ioc_mbox_register(struct bfa_ioc_s *ioc,
 		bfa_ioc_mbox_mcfunc_t *mcfuncs);
 void bfa_ioc_mbox_isr(struct bfa_ioc_s *ioc);
 void bfa_ioc_mbox_send(struct bfa_ioc_s *ioc, void *ioc_msg, int len);
-void bfa_ioc_msgget(struct bfa_ioc_s *ioc, void *mbmsg);
+bfa_boolean_t bfa_ioc_msgget(struct bfa_ioc_s *ioc, void *mbmsg);
 void bfa_ioc_mbox_regisr(struct bfa_ioc_s *ioc, enum bfi_mclass mc,
 		bfa_ioc_mbox_mcfunc_t cbfn, void *cbarg);
 
@@ -321,21 +324,25 @@ void bfa_ioc_mbox_regisr(struct bfa_ioc_s *ioc, enum bfi_mclass mc,
 
 #define bfa_ioc_pll_init_asic(__ioc) \
 	((__ioc)->ioc_hwif->ioc_pll_init((__ioc)->pcidev.pci_bar_kva, \
-			   (__ioc)->fcmode))
+			   (__ioc)->asic_mode))
 
 bfa_status_t bfa_ioc_pll_init(struct bfa_ioc_s *ioc);
-bfa_status_t bfa_ioc_cb_pll_init(void __iomem *rb, bfa_boolean_t fcmode);
-bfa_boolean_t bfa_ioc_ct_pll_init_complete(void __iomem *rb);
-bfa_status_t bfa_ioc_ct_pll_init(void __iomem *rb, bfa_boolean_t fcmode);
+bfa_status_t bfa_ioc_cb_pll_init(void __iomem *rb, enum bfi_asic_mode mode);
+bfa_status_t bfa_ioc_ct_pll_init(void __iomem *rb, enum bfi_asic_mode mode);
+bfa_status_t bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode mode);
 
-#define	bfa_ioc_isr_mode_set(__ioc, __msix)			\
-			((__ioc)->ioc_hwif->ioc_isr_mode_set(__ioc, __msix))
+#define bfa_ioc_isr_mode_set(__ioc, __msix) do {			\
+	if ((__ioc)->ioc_hwif->ioc_isr_mode_set)			\
+		((__ioc)->ioc_hwif->ioc_isr_mode_set(__ioc, __msix));	\
+} while (0)
 #define	bfa_ioc_ownership_reset(__ioc)				\
 			((__ioc)->ioc_hwif->ioc_ownership_reset(__ioc))
 
 
-void bfa_ioc_set_ct_hwif(struct bfa_ioc_s *ioc);
 void bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc);
+void bfa_ioc_set_ct_hwif(struct bfa_ioc_s *ioc);
+void bfa_ioc_set_ct2_hwif(struct bfa_ioc_s *ioc);
+void bfa_ioc_ct2_poweron(struct bfa_ioc_s *ioc);
 
 void bfa_ioc_attach(struct bfa_ioc_s *ioc, void *bfa,
 		struct bfa_ioc_cbfn_s *cbfn, struct bfa_timer_mod_s *timer_mod);
@@ -349,7 +356,7 @@ void bfa_ioc_disable(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_intx_claim(struct bfa_ioc_s *ioc);
 
 void bfa_ioc_boot(struct bfa_ioc_s *ioc, u32 boot_type,
-		u32 boot_param);
+		u32 boot_env);
 void bfa_ioc_isr(struct bfa_ioc_s *ioc, struct bfi_mbmsg_s *msg);
 void bfa_ioc_error_isr(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_is_operational(struct bfa_ioc_s *ioc);
@@ -397,50 +404,64 @@ mac_t bfa_ioc_get_mfg_mac(struct bfa_ioc_s *ioc);
 /*
  * F/W Image Size & Chunk
  */
-extern u32 bfi_image_ct_fc_size;
-extern u32 bfi_image_ct_cna_size;
-extern u32 bfi_image_cb_fc_size;
-extern u32 *bfi_image_ct_fc;
-extern u32 *bfi_image_ct_cna;
-extern u32 *bfi_image_cb_fc;
+extern u32 bfi_image_cb_size;
+extern u32 bfi_image_ct_size;
+extern u32 bfi_image_ct2_size;
+extern u32 *bfi_image_cb;
+extern u32 *bfi_image_ct;
+extern u32 *bfi_image_ct2;
 
 static inline u32 *
-bfi_image_ct_fc_get_chunk(u32 off)
-{	return (u32 *)(bfi_image_ct_fc + off); }
+bfi_image_cb_get_chunk(u32 off)
+{
+	return (u32 *)(bfi_image_cb + off);
+}
 
 static inline u32 *
-bfi_image_ct_cna_get_chunk(u32 off)
-{	return (u32 *)(bfi_image_ct_cna + off); }
+bfi_image_ct_get_chunk(u32 off)
+{
+	return (u32 *)(bfi_image_ct + off);
+}
 
 static inline u32 *
-bfi_image_cb_fc_get_chunk(u32 off)
-{	return (u32 *)(bfi_image_cb_fc + off); }
+bfi_image_ct2_get_chunk(u32 off)
+{
+	return (u32 *)(bfi_image_ct2 + off);
+}
 
 static inline u32*
-bfa_cb_image_get_chunk(int type, u32 off)
+bfa_cb_image_get_chunk(enum bfi_asic_gen asic_gen, u32 off)
 {
-	switch (type) {
-	case BFI_IMAGE_CT_FC:
-		return bfi_image_ct_fc_get_chunk(off);	break;
-	case BFI_IMAGE_CT_CNA:
-		return bfi_image_ct_cna_get_chunk(off);	break;
-	case BFI_IMAGE_CB_FC:
-		return bfi_image_cb_fc_get_chunk(off);	break;
-	default: return NULL;
+	switch (asic_gen) {
+	case BFI_ASIC_GEN_CB:
+		return bfi_image_cb_get_chunk(off);
+		break;
+	case BFI_ASIC_GEN_CT:
+		return bfi_image_ct_get_chunk(off);
+		break;
+	case BFI_ASIC_GEN_CT2:
+		return bfi_image_ct2_get_chunk(off);
+		break;
+	default:
+		return NULL;
 	}
 }
 
 static inline u32
-bfa_cb_image_get_size(int type)
+bfa_cb_image_get_size(enum bfi_asic_gen asic_gen)
 {
-	switch (type) {
-	case BFI_IMAGE_CT_FC:
-		return bfi_image_ct_fc_size;	break;
-	case BFI_IMAGE_CT_CNA:
-		return bfi_image_ct_cna_size;	break;
-	case BFI_IMAGE_CB_FC:
-		return bfi_image_cb_fc_size;	break;
-	default: return 0;
+	switch (asic_gen) {
+	case BFI_ASIC_GEN_CB:
+		return bfi_image_cb_size;
+		break;
+	case BFI_ASIC_GEN_CT:
+		return bfi_image_ct_size;
+		break;
+	case BFI_ASIC_GEN_CT2:
+		return bfi_image_ct2_size;
+		break;
+	default:
+		return 0;
 	}
 }
 

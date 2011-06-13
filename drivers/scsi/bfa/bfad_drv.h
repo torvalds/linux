@@ -189,6 +189,7 @@ struct bfad_s {
 	struct bfa_pcidev_s hal_pcidev;
 	struct bfa_ioc_pci_attr_s pci_attr;
 	void __iomem   *pci_bar0_kva;
+	void __iomem   *pci_bar2_kva;
 	struct completion comp;
 	struct completion suspend;
 	struct completion disable_comp;

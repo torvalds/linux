@@ -17,7 +17,7 @@
 
 #include "bfad_drv.h"
 #include "bfa_ioc.h"
-#include "bfi_ctreg.h"
+#include "bfi_reg.h"
 #include "bfa_defs.h"
 #include "bfa_defs_svc.h"
 
@@ -1219,13 +1219,13 @@ bfa_ioc_sem_get(void __iomem *sem_reg)
 
 	r32 = readl(sem_reg);
 
-	while (r32 && (cnt < BFA_SEM_SPINCNT)) {
+	while ((r32 & 1) && (cnt < BFA_SEM_SPINCNT)) {
 		cnt++;
 		udelay(2);
 		r32 = readl(sem_reg);
 	}
 
-	if (r32 == 0)
+	if (!(r32 & 1))
 		return BFA_TRUE;
 
 	WARN_ON(cnt >= BFA_SEM_SPINCNT);
@@ -1242,7 +1242,7 @@ bfa_ioc_hw_sem_get(struct bfa_ioc_s *ioc)
 	 * will return 1. Semaphore is released by writing 1 to the register
 	 */
 	r32 = readl(ioc->ioc_regs.ioc_sem_reg);
-	if (r32 == 0) {
+	if (!(r32 & 1)) {
 		bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_SEMLOCKED);
 		return;
 	}
@@ -1351,7 +1351,7 @@ bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc, struct bfi_ioc_image_hdr_s *fwhdr)
 	int i;
 
 	drv_fwhdr = (struct bfi_ioc_image_hdr_s *)
-		bfa_cb_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc), 0);
+		bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), 0);
 
 	for (i = 0; i < BFI_IOC_MD5SUM_SZ; i++) {
 		if (fwhdr->md5sum[i] != drv_fwhdr->md5sum[i]) {
@@ -1377,7 +1377,7 @@ bfa_ioc_fwver_valid(struct bfa_ioc_s *ioc, u32 boot_env)
 
 	bfa_ioc_fwver_get(ioc, &fwhdr);
 	drv_fwhdr = (struct bfi_ioc_image_hdr_s *)
-		bfa_cb_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc), 0);
+		bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), 0);
 
 	if (fwhdr.signature != drv_fwhdr->signature) {
 		bfa_trc(ioc, fwhdr.signature);
@@ -1385,8 +1385,8 @@ bfa_ioc_fwver_valid(struct bfa_ioc_s *ioc, u32 boot_env)
 		return BFA_FALSE;
 	}
 
-	if (swab32(fwhdr.param) != boot_env) {
-		bfa_trc(ioc, fwhdr.param);
+	if (swab32(fwhdr.bootenv) != boot_env) {
+		bfa_trc(ioc, fwhdr.bootenv);
 		bfa_trc(ioc, boot_env);
 		return BFA_FALSE;
 	}
@@ -1422,8 +1422,8 @@ bfa_ioc_hwinit(struct bfa_ioc_s *ioc, bfa_boolean_t force)
 
 	bfa_trc(ioc, ioc_fwstate);
 
-	boot_type = BFI_BOOT_TYPE_NORMAL;
-	boot_env = BFI_BOOT_LOADER_OS;
+	boot_type = BFI_FWBOOT_TYPE_NORMAL;
+	boot_env = BFI_FWBOOT_ENV_OS;
 
 	/*
 	 * check if firmware is valid
@@ -1580,25 +1580,26 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 	u32 loff = 0;
 	u32 chunkno = 0;
 	u32 i;
+	u32 asicmode;
 
 	/*
 	 * Initialize LMEM first before code download
 	 */
 	bfa_ioc_lmem_init(ioc);
 
-	bfa_trc(ioc, bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)));
-	fwimg = bfa_cb_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc), chunkno);
+	bfa_trc(ioc, bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc)));
+	fwimg = bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), chunkno);
 
 	pgnum = PSS_SMEM_PGNUM(ioc->ioc_regs.smem_pg0, loff);
 	pgoff = PSS_SMEM_PGOFF(loff);
 
 	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
-	for (i = 0; i < bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)); i++) {
+	for (i = 0; i < bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc)); i++) {
 
 		if (BFA_IOC_FLASH_CHUNK_NO(i) != chunkno) {
 			chunkno = BFA_IOC_FLASH_CHUNK_NO(i);
-			fwimg = bfa_cb_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc),
+			fwimg = bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc),
 					BFA_IOC_FLASH_CHUNK_ADDR(chunkno));
 		}
 
@@ -1624,11 +1625,15 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 			ioc->ioc_regs.host_page_num_fn);
 
 	/*
-	 * Set boot type and boot param at the end.
-	*/
-	bfa_mem_write(ioc->ioc_regs.smem_page_start, BFI_BOOT_TYPE_OFF,
+	 * Set boot type and device mode at the end.
+	 */
+	asicmode = BFI_FWBOOT_DEVMODE(ioc->asic_gen, ioc->asic_mode,
+				ioc->port0_mode, ioc->port1_mode);
+	bfa_mem_write(ioc->ioc_regs.smem_page_start, BFI_FWBOOT_DEVMODE_OFF,
+			swab32(asicmode));
+	bfa_mem_write(ioc->ioc_regs.smem_page_start, BFI_FWBOOT_TYPE_OFF,
 			swab32(boot_type));
-	bfa_mem_write(ioc->ioc_regs.smem_page_start, BFI_BOOT_LOADER_OFF,
+	bfa_mem_write(ioc->ioc_regs.smem_page_start, BFI_FWBOOT_ENV_OFF,
 			swab32(boot_env));
 }
 
@@ -1879,8 +1884,6 @@ bfa_ioc_pll_init(struct bfa_ioc_s *ioc)
 void
 bfa_ioc_boot(struct bfa_ioc_s *ioc, u32 boot_type, u32 boot_env)
 {
-	void __iomem *rb;
-
 	bfa_ioc_stats(ioc, ioc_boots);
 
 	if (bfa_ioc_pll_init(ioc) != BFA_STATUS_OK)
@@ -1889,13 +1892,12 @@ bfa_ioc_boot(struct bfa_ioc_s *ioc, u32 boot_type, u32 boot_env)
 	/*
 	 * Initialize IOC state of all functions on a chip reset.
 	 */
-	rb = ioc->pcidev.pci_bar_kva;
-	if (boot_type == BFI_BOOT_TYPE_MEMTEST) {
-		writel(BFI_IOC_MEMTEST, (rb + BFA_IOC0_STATE_REG));
-		writel(BFI_IOC_MEMTEST, (rb + BFA_IOC1_STATE_REG));
+	if (boot_type == BFI_FWBOOT_TYPE_MEMTEST) {
+		writel(BFI_IOC_MEMTEST, ioc->ioc_regs.ioc_fwstate);
+		writel(BFI_IOC_MEMTEST, ioc->ioc_regs.alt_ioc_fwstate);
 	} else {
-		writel(BFI_IOC_INITING, (rb + BFA_IOC0_STATE_REG));
-		writel(BFI_IOC_INITING, (rb + BFA_IOC1_STATE_REG));
+		writel(BFI_IOC_INITING, ioc->ioc_regs.ioc_fwstate);
+		writel(BFI_IOC_INITING, ioc->ioc_regs.alt_ioc_fwstate);
 	}
 
 	bfa_ioc_msgflush(ioc);
@@ -1935,12 +1937,16 @@ bfa_ioc_is_initialized(struct bfa_ioc_s *ioc)
 		(r32 != BFI_IOC_MEMTEST));
 }
 
-void
+bfa_boolean_t
 bfa_ioc_msgget(struct bfa_ioc_s *ioc, void *mbmsg)
 {
 	__be32	*msgp = mbmsg;
 	u32	r32;
 	int		i;
+
+	r32 = readl(ioc->ioc_regs.lpu_mbox_cmd);
+	if ((r32 & 1) == 0)
+		return BFA_FALSE;
 
 	/*
 	 * read the MBOX msg
@@ -1957,6 +1963,8 @@ bfa_ioc_msgget(struct bfa_ioc_s *ioc, void *mbmsg)
 	 */
 	writel(1, ioc->ioc_regs.lpu_mbox_cmd);
 	readl(ioc->ioc_regs.lpu_mbox_cmd);
+
+	return BFA_TRUE;
 }
 
 void
@@ -2040,16 +2048,55 @@ bfa_ioc_pci_init(struct bfa_ioc_s *ioc, struct bfa_pcidev_s *pcidev,
 {
 	ioc->clscode	= clscode;
 	ioc->pcidev	= *pcidev;
-	ioc->ctdev	= bfa_asic_id_ct(ioc->pcidev.device_id);
-	ioc->cna	= ioc->ctdev && !ioc->fcmode;
+
+	/*
+	 * Initialize IOC and device personality
+	 */
+	ioc->port0_mode = ioc->port1_mode = BFI_PORT_MODE_FC;
+	ioc->asic_mode  = BFI_ASIC_MODE_FC;
+
+	switch (pcidev->device_id) {
+	case BFA_PCI_DEVICE_ID_FC_8G1P:
+	case BFA_PCI_DEVICE_ID_FC_8G2P:
+		ioc->asic_gen = BFI_ASIC_GEN_CB;
+		break;
+
+	case BFA_PCI_DEVICE_ID_CT:
+		ioc->asic_gen = BFI_ASIC_GEN_CT;
+		ioc->port0_mode = ioc->port1_mode = BFI_PORT_MODE_ETH;
+		ioc->asic_mode  = BFI_ASIC_MODE_ETH;
+		break;
+
+	case BFA_PCI_DEVICE_ID_CT_FC:
+		ioc->asic_gen = BFI_ASIC_GEN_CT;
+		break;
+
+	case BFA_PCI_DEVICE_ID_CT2:
+		ioc->asic_gen = BFI_ASIC_GEN_CT2;
+		if (clscode == BFI_PCIFN_CLASS_FC)
+			ioc->asic_mode  = BFI_ASIC_MODE_FC16;
+		else {
+			ioc->port0_mode = ioc->port1_mode = BFI_PORT_MODE_ETH;
+			ioc->asic_mode = BFI_ASIC_MODE_ETH;
+		}
+		break;
+
+	default:
+		WARN_ON(1);
+	}
 
 	/*
 	 * Set asic specific interfaces. See bfa_ioc_cb.c and bfa_ioc_ct.c
 	 */
-	if (ioc->ctdev)
-		bfa_ioc_set_ct_hwif(ioc);
-	else
+	if (ioc->asic_gen == BFI_ASIC_GEN_CB)
 		bfa_ioc_set_cb_hwif(ioc);
+	else if (ioc->asic_gen == BFI_ASIC_GEN_CT)
+		bfa_ioc_set_ct_hwif(ioc);
+	else {
+		WARN_ON(ioc->asic_gen != BFI_ASIC_GEN_CT2);
+		bfa_ioc_set_ct2_hwif(ioc);
+		bfa_ioc_ct2_poweron(ioc);
+	}
 
 	bfa_ioc_map_port(ioc);
 	bfa_ioc_reg_init(ioc);
@@ -2175,7 +2222,8 @@ bfa_ioc_mbox_isr(struct bfa_ioc_s *ioc)
 	struct bfi_mbmsg_s		m;
 	int				mc;
 
-	bfa_ioc_msgget(ioc, &m);
+	if (!bfa_ioc_msgget(ioc, &m))
+		return;
 
 	/*
 	 * Treat IOC message class as special.
@@ -2202,7 +2250,6 @@ void
 bfa_ioc_set_fcmode(struct bfa_ioc_s *ioc)
 {
 	ioc->fcmode  = BFA_TRUE;
-	ioc->port_id = bfa_ioc_pcifn(ioc);
 }
 
 /*
@@ -2242,17 +2289,16 @@ bfa_boolean_t
 bfa_ioc_adapter_is_disabled(struct bfa_ioc_s *ioc)
 {
 	u32	ioc_state;
-	void __iomem *rb = ioc->pcidev.pci_bar_kva;
 
 	if (!bfa_fsm_cmp_state(ioc, bfa_ioc_sm_disabled))
 		return BFA_FALSE;
 
-	ioc_state = readl(rb + BFA_IOC0_STATE_REG);
+	ioc_state = readl(ioc->ioc_regs.ioc_fwstate);
 	if (!bfa_ioc_state_disabled(ioc_state))
 		return BFA_FALSE;
 
 	if (ioc->pcidev.device_id != BFA_PCI_DEVICE_ID_FC_8G1P) {
-		ioc_state = readl(rb + BFA_IOC1_STATE_REG);
+		ioc_state = readl(ioc->ioc_regs.alt_ioc_fwstate);
 		if (!bfa_ioc_state_disabled(ioc_state))
 			return BFA_FALSE;
 	}
@@ -2311,22 +2357,24 @@ bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 
 	bfa_ioc_get_pci_chip_rev(ioc, ad_attr->hw_ver);
 
-	ad_attr->cna_capable = ioc->cna;
-	ad_attr->trunk_capable = (ad_attr->nports > 1) && !ioc->cna &&
-				!ad_attr->is_mezz;
+	ad_attr->cna_capable = bfa_ioc_is_cna(ioc);
+	ad_attr->trunk_capable = (ad_attr->nports > 1) &&
+				  !bfa_ioc_is_cna(ioc) && !ad_attr->is_mezz;
 }
 
 enum bfa_ioc_type_e
 bfa_ioc_get_type(struct bfa_ioc_s *ioc)
 {
-	if (!ioc->ctdev || ioc->fcmode)
-		return BFA_IOC_TYPE_FC;
-	else if (ioc->clscode == BFI_PCIFN_CLASS_FC)
-		return BFA_IOC_TYPE_FCoE;
-	else {
-		WARN_ON(ioc->clscode != BFI_PCIFN_CLASS_ETH);
+	enum bfi_port_mode mode;
+
+	if (ioc->clscode == BFI_PCIFN_CLASS_ETH)
 		return BFA_IOC_TYPE_LL;
-	}
+
+	WARN_ON(ioc->clscode != BFI_PCIFN_CLASS_FC);
+
+	mode = (ioc->port_id == 0) ? ioc->port0_mode : ioc->port1_mode;
+	return (mode == BFI_PORT_MODE_FC)
+		? BFA_IOC_TYPE_FC : BFA_IOC_TYPE_FCoE;
 }
 
 void
@@ -2479,7 +2527,7 @@ bfa_ioc_get_mfg_mac(struct bfa_ioc_s *ioc)
 bfa_boolean_t
 bfa_ioc_get_fcmode(struct bfa_ioc_s *ioc)
 {
-	return ioc->fcmode || !bfa_asic_id_ct(ioc->pcidev.device_id);
+	return ioc->fcmode || bfa_asic_id_cb(ioc->pcidev.device_id);
 }
 
 /*

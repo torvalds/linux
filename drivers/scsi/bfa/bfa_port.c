@@ -24,8 +24,6 @@
 
 BFA_TRC_FILE(CNA, PORT);
 
-#define bfa_ioc_portid(__ioc) ((__ioc)->port_id)
-
 static void
 bfa_port_stats_swap(struct bfa_port_s *port, union bfa_port_stats_u *stats)
 {

@@ -136,7 +136,6 @@ struct bfa_cb_qe_s {
 	struct list_head         qe;
 	bfa_cb_cbfn_t  cbfn;
 	bfa_boolean_t   once;
-	u32		rsvd;
 	void           *cbarg;
 };
 
@@ -205,11 +204,9 @@ struct bfa_iocfc_regs_s {
 	void __iomem	*intr_mask;
 	void __iomem	*cpe_q_pi[BFI_IOC_MAX_CQS];
 	void __iomem	*cpe_q_ci[BFI_IOC_MAX_CQS];
-	void __iomem	*cpe_q_depth[BFI_IOC_MAX_CQS];
 	void __iomem	*cpe_q_ctrl[BFI_IOC_MAX_CQS];
 	void __iomem	*rme_q_ci[BFI_IOC_MAX_CQS];
 	void __iomem	*rme_q_pi[BFI_IOC_MAX_CQS];
-	void __iomem	*rme_q_depth[BFI_IOC_MAX_CQS];
 	void __iomem	*rme_q_ctrl[BFI_IOC_MAX_CQS];
 };
 
@@ -238,6 +235,8 @@ struct bfa_hwif_s {
 				u32 *nvecs, u32 *maxvec);
 	void (*hw_msix_get_rme_range) (struct bfa_s *bfa, u32 *start,
 				       u32 *end);
+	int	cpe_vec_q0;
+	int	rme_vec_q0;
 };
 typedef void (*bfa_cb_iocfc_t) (void *cbarg, enum bfa_status status);
 
@@ -257,7 +256,6 @@ struct bfa_iocfc_s {
 	struct bfi_iocfc_cfg_s *cfginfo;
 	struct bfa_dma_s	cfgrsp_dma;
 	struct bfi_iocfc_cfgrsp_s *cfgrsp;
-	struct bfi_iocfc_cfg_reply_s *cfg_reply;
 	struct bfa_dma_s	req_cq_ba[BFI_IOC_MAX_CQS];
 	struct bfa_dma_s	req_cq_shadow_ci[BFI_IOC_MAX_CQS];
 	struct bfa_dma_s	rsp_cq_ba[BFI_IOC_MAX_CQS];
@@ -277,8 +275,11 @@ struct bfa_iocfc_s {
 	((__bfa)->iocfc.hwif.hw_msix_install(__bfa))
 #define bfa_msix_uninstall(__bfa)					\
 	((__bfa)->iocfc.hwif.hw_msix_uninstall(__bfa))
-#define bfa_isr_mode_set(__bfa, __msix)					\
-	((__bfa)->iocfc.hwif.hw_isr_mode_set(__bfa, __msix))
+#define bfa_isr_mode_set(__bfa, __msix) do {				\
+	if ((__bfa)->iocfc.hwif.hw_isr_mode_set)			\
+		(__bfa)->iocfc.hwif.hw_isr_mode_set(__bfa, __msix);	\
+} while (0)
+
 #define bfa_msix_getvecs(__bfa, __vecmap, __nvecs, __maxvec)		\
 	((__bfa)->iocfc.hwif.hw_msix_getvecs(__bfa, __vecmap,		\
 					__nvecs, __maxvec))
@@ -321,6 +322,7 @@ void bfa_hwcb_msix_getvecs(struct bfa_s *bfa, u32 *vecmap, u32 *nvecs,
 void bfa_hwcb_msix_get_rme_range(struct bfa_s *bfa, u32 *start,
 				 u32 *end);
 void bfa_hwct_reginit(struct bfa_s *bfa);
+void bfa_hwct2_reginit(struct bfa_s *bfa);
 void bfa_hwct_reqq_ack(struct bfa_s *bfa, int rspq);
 void bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq);
 void bfa_hwct_msix_init(struct bfa_s *bfa, int nvecs);

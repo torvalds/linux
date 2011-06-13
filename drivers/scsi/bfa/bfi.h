@@ -28,12 +28,6 @@
  */
 #define	BFI_FLASH_CHUNK_SZ			256	/*  Flash chunk size */
 #define	BFI_FLASH_CHUNK_SZ_WORDS	(BFI_FLASH_CHUNK_SZ/sizeof(u32))
-enum {
-	BFI_IMAGE_CB_FC,
-	BFI_IMAGE_CT_FC,
-	BFI_IMAGE_CT_CNA,
-	BFI_IMAGE_MAX,
-};
 
 /*
  * Msg header common to all msgs
@@ -193,22 +187,27 @@ enum bfi_mclass {
 #define BFI_IOC_MAX_CQS_ASIC	8
 #define BFI_IOC_MSGLEN_MAX	32	/* 32 bytes */
 
-#define BFI_BOOT_TYPE_OFF		8
-#define BFI_BOOT_LOADER_OFF		12
-
-#define BFI_BOOT_TYPE_NORMAL		0
-#define	BFI_BOOT_TYPE_FLASH		1
-#define	BFI_BOOT_TYPE_MEMTEST		2
-
-#define BFI_BOOT_LOADER_OS		0
-#define BFI_BOOT_LOADER_BIOS		1
-#define BFI_BOOT_LOADER_UEFI		2
-
 /*
  *----------------------------------------------------------------------
  *				IOC
  *----------------------------------------------------------------------
  */
+
+/*
+ * Different asic generations
+ */
+enum bfi_asic_gen {
+	BFI_ASIC_GEN_CB		= 1,	/* crossbow 8G FC		*/
+	BFI_ASIC_GEN_CT		= 2,	/* catapult 8G FC or 10G CNA	*/
+	BFI_ASIC_GEN_CT2	= 3,	/* catapult-2 16G FC or 10G CNA	*/
+};
+
+enum bfi_asic_mode {
+	BFI_ASIC_MODE_FC	= 1,	/* FC upto 8G speed		*/
+	BFI_ASIC_MODE_FC16	= 2,	/* FC upto 16G speed		*/
+	BFI_ASIC_MODE_ETH	= 3,	/* Ethernet ports		*/
+	BFI_ASIC_MODE_COMBO	= 4,	/* FC 16G and Ethernet 10G port	*/
+};
 
 enum bfi_ioc_h2i_msgs {
 	BFI_IOC_H2I_ENABLE_REQ		= 1,
@@ -290,12 +289,33 @@ struct bfi_ioc_getattr_reply_s {
 #define BFI_IOC_FW_SIGNATURE	(0xbfadbfad)
 #define BFI_IOC_MD5SUM_SZ	4
 struct bfi_ioc_image_hdr_s {
-	u32	signature;	/*  constant signature */
-	u32	rsvd_a;
-	u32	exec;		/*  exec vector	*/
-	u32	param;		/*  parameters		*/
+	u32	signature;	/* constant signature		*/
+	u8	asic_gen;	/* asic generation		*/
+	u8	asic_mode;
+	u8	port0_mode;	/* device mode for port 0	*/
+	u8	port1_mode;	/* device mode for port 1	*/
+	u32	exec;		/* exec vector			*/
+	u32	bootenv;	/* fimware boot env		*/
 	u32	rsvd_b[4];
 	u32	md5sum[BFI_IOC_MD5SUM_SZ];
+};
+
+#define BFI_FWBOOT_DEVMODE_OFF		4
+#define BFI_FWBOOT_TYPE_OFF		8
+#define BFI_FWBOOT_ENV_OFF		12
+#define BFI_FWBOOT_DEVMODE(__asic_gen, __asic_mode, __p0_mode, __p1_mode) \
+	(((u32)(__asic_gen)) << 24 |		\
+	 ((u32)(__asic_mode)) << 16 |		\
+	 ((u32)(__p0_mode)) << 8 |		\
+	 ((u32)(__p1_mode)))
+
+#define BFI_FWBOOT_TYPE_NORMAL	0
+#define BFI_FWBOOT_TYPE_MEMTEST	1
+#define BFI_FWBOOT_ENV_OS       0
+
+enum bfi_port_mode {
+	BFI_PORT_MODE_FC	= 1,
+	BFI_PORT_MODE_ETH	= 2,
 };
 
 /*

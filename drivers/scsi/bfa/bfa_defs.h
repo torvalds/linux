@@ -386,11 +386,18 @@ enum {
 	BFA_PCI_DEVICE_ID_FC_8G1P	= 0x17,
 	BFA_PCI_DEVICE_ID_CT		= 0x14,
 	BFA_PCI_DEVICE_ID_CT_FC		= 0x21,
+	BFA_PCI_DEVICE_ID_CT2		= 0x22,
 };
 
-#define bfa_asic_id_ct(devid)			\
-	((devid) == BFA_PCI_DEVICE_ID_CT ||	\
-	 (devid) == BFA_PCI_DEVICE_ID_CT_FC)
+#define bfa_asic_id_cb(__d)			\
+	((__d) == BFA_PCI_DEVICE_ID_FC_8G2P ||	\
+	 (__d) == BFA_PCI_DEVICE_ID_FC_8G1P)
+#define bfa_asic_id_ct(__d)			\
+	((__d) == BFA_PCI_DEVICE_ID_CT ||	\
+	 (__d) == BFA_PCI_DEVICE_ID_CT_FC)
+#define bfa_asic_id_ct2(__d)	((__d) == BFA_PCI_DEVICE_ID_CT2)
+#define bfa_asic_id_ctc(__d)	\
+	(bfa_asic_id_ct(__d) || bfa_asic_id_ct2(__d))
 
 /*
  * PCI sub-system device and vendor ID information
