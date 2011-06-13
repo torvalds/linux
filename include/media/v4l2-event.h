@@ -38,9 +38,18 @@ struct v4l2_kevent {
 };
 
 struct v4l2_subscribed_event {
+	/* list node for the v4l2_fh->subscribed list */
 	struct list_head	list;
+	/* event type */
 	u32			type;
+	/* associated object ID (e.g. control ID) */
 	u32			id;
+	/* copy of v4l2_event_subscription->flags */
+	u32			flags;
+	/* filehandle that subscribed to this event */
+	struct v4l2_fh		*fh;
+	/* list node that hooks into the object's event list (if there is one) */
+	struct list_head	node;
 };
 
 int v4l2_event_alloc(struct v4l2_fh *fh, unsigned int n);

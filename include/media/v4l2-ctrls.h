@@ -31,6 +31,7 @@ struct v4l2_ctrl;
 struct video_device;
 struct v4l2_subdev;
 struct v4l2_event_subscription;
+struct v4l2_subscribed_event;
 struct v4l2_fh;
 
 /** struct v4l2_ctrl_ops - The control operations that the driver has to provide.
@@ -53,6 +54,7 @@ struct v4l2_ctrl_ops {
 
 /** struct v4l2_ctrl - The control structure.
   * @node:	The list node.
+  * @ev_subs:	The list of control event subscriptions.
   * @handler:	The handler that owns the control.
   * @cluster:	Point to start of cluster array.
   * @ncontrols:	Number of controls in cluster array.
@@ -108,7 +110,7 @@ struct v4l2_ctrl_ops {
 struct v4l2_ctrl {
 	/* Administrative fields */
 	struct list_head node;
-	struct list_head fhs;
+	struct list_head ev_subs;
 	struct v4l2_ctrl_handler *handler;
 	struct v4l2_ctrl **cluster;
 	unsigned ncontrols;
@@ -182,11 +184,6 @@ struct v4l2_ctrl_handler {
 	u16 nr_of_refs;
 	u16 nr_of_buckets;
 	int error;
-};
-
-struct v4l2_ctrl_fh {
-	struct list_head node;
-	struct v4l2_fh *fh;
 };
 
 /** struct v4l2_ctrl_config - Control configuration structure.
@@ -497,10 +494,10 @@ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl);
 int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
 
 /* Internal helper functions that deal with control events. */
-void v4l2_ctrl_add_fh(struct v4l2_ctrl_handler *hdl,
-		struct v4l2_ctrl_fh *ctrl_fh,
-		struct v4l2_event_subscription *sub);
-void v4l2_ctrl_del_fh(struct v4l2_ctrl *ctrl, struct v4l2_fh *fh);
+void v4l2_ctrl_add_event(struct v4l2_ctrl *ctrl,
+		struct v4l2_subscribed_event *sev);
+void v4l2_ctrl_del_event(struct v4l2_ctrl *ctrl,
+		struct v4l2_subscribed_event *sev);
 
 /** v4l2_ctrl_subscribe_fh() - Helper function that subscribes a control event.
   * @fh:	The file handler that subscribed the control event.

@@ -213,7 +213,6 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 {
 	struct v4l2_subscribed_event *sev, *found_ev;
 	struct v4l2_ctrl *ctrl = NULL;
-	struct v4l2_ctrl_fh *ctrl_fh = NULL;
 	unsigned long flags;
 
 	if (sub->type == V4L2_EVENT_CTRL) {
@@ -222,17 +221,9 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 			return -EINVAL;
 	}
 
-	sev = kmalloc(sizeof(*sev), GFP_KERNEL);
+	sev = kzalloc(sizeof(*sev), GFP_KERNEL);
 	if (!sev)
 		return -ENOMEM;
-	if (ctrl) {
-		ctrl_fh = kzalloc(sizeof(*ctrl_fh), GFP_KERNEL);
-		if (!ctrl_fh) {
-			kfree(sev);
-			return -ENOMEM;
-		}
-		ctrl_fh->fh = fh;
-	}
 
 	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
 
@@ -241,22 +232,19 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 		INIT_LIST_HEAD(&sev->list);
 		sev->type = sub->type;
 		sev->id = sub->id;
+		sev->fh = fh;
+		sev->flags = sub->flags;
 
 		list_add(&sev->list, &fh->subscribed);
-		sev = NULL;
 	}
 
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 
 	/* v4l2_ctrl_add_fh uses a mutex, so do this outside the spin lock */
-	if (ctrl) {
-		if (found_ev)
-			kfree(ctrl_fh);
-		else
-			v4l2_ctrl_add_fh(fh->ctrl_handler, ctrl_fh, sub);
-	}
-
-	kfree(sev);
+	if (found_ev)
+		kfree(sev);
+	else if (ctrl)
+		v4l2_ctrl_add_event(ctrl, sev);
 
 	return 0;
 }
@@ -298,15 +286,17 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
 
 	sev = v4l2_event_subscribed(fh, sub->type, sub->id);
-	if (sev != NULL)
+	if (sev != NULL) {
 		list_del(&sev->list);
+		sev->fh = NULL;
+	}
 
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
-	if (sev->type == V4L2_EVENT_CTRL) {
+	if (sev && sev->type == V4L2_EVENT_CTRL) {
 		struct v4l2_ctrl *ctrl = v4l2_ctrl_find(fh->ctrl_handler, sev->id);
 
 		if (ctrl)
-			v4l2_ctrl_del_fh(ctrl, fh);
+			v4l2_ctrl_del_event(ctrl, sev);
 	}
 
 	kfree(sev);

@@ -581,15 +581,15 @@ static void fill_event(struct v4l2_event *ev, struct v4l2_ctrl *ctrl, u32 change
 static void send_event(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 changes)
 {
 	struct v4l2_event ev;
-	struct v4l2_ctrl_fh *pos;
+	struct v4l2_subscribed_event *sev;
 
-	if (list_empty(&ctrl->fhs))
+	if (list_empty(&ctrl->ev_subs))
 			return;
 	fill_event(&ev, ctrl, changes);
 
-	list_for_each_entry(pos, &ctrl->fhs, node)
-		if (pos->fh != fh)
-			v4l2_event_queue_fh(pos->fh, &ev);
+	list_for_each_entry(sev, &ctrl->ev_subs, node)
+		if (sev->fh && sev->fh != fh)
+			v4l2_event_queue_fh(sev->fh, &ev);
 }
 
 /* Helper function: copy the current control value back to the caller */
@@ -867,7 +867,7 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 {
 	struct v4l2_ctrl_ref *ref, *next_ref;
 	struct v4l2_ctrl *ctrl, *next_ctrl;
-	struct v4l2_ctrl_fh *ctrl_fh, *next_ctrl_fh;
+	struct v4l2_subscribed_event *sev, *next_sev;
 
 	if (hdl == NULL || hdl->buckets == NULL)
 		return;
@@ -881,10 +881,8 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 	/* Free all controls owned by the handler */
 	list_for_each_entry_safe(ctrl, next_ctrl, &hdl->ctrls, node) {
 		list_del(&ctrl->node);
-		list_for_each_entry_safe(ctrl_fh, next_ctrl_fh, &ctrl->fhs, node) {
-			list_del(&ctrl_fh->node);
-			kfree(ctrl_fh);
-		}
+		list_for_each_entry_safe(sev, next_sev, &ctrl->ev_subs, node)
+			list_del(&sev->node);
 		kfree(ctrl);
 	}
 	kfree(hdl->buckets);
@@ -1084,7 +1082,7 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 	}
 
 	INIT_LIST_HEAD(&ctrl->node);
-	INIT_LIST_HEAD(&ctrl->fhs);
+	INIT_LIST_HEAD(&ctrl->ev_subs);
 	ctrl->handler = hdl;
 	ctrl->ops = ops;
 	ctrl->id = id;
@@ -2028,41 +2026,31 @@ int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
 }
 EXPORT_SYMBOL(v4l2_ctrl_s_ctrl);
 
-void v4l2_ctrl_add_fh(struct v4l2_ctrl_handler *hdl,
-		struct v4l2_ctrl_fh *ctrl_fh,
-		struct v4l2_event_subscription *sub)
+void v4l2_ctrl_add_event(struct v4l2_ctrl *ctrl,
+				struct v4l2_subscribed_event *sev)
 {
-	struct v4l2_ctrl *ctrl = v4l2_ctrl_find(hdl, sub->id);
-
 	v4l2_ctrl_lock(ctrl);
-	list_add_tail(&ctrl_fh->node, &ctrl->fhs);
+	list_add_tail(&sev->node, &ctrl->ev_subs);
 	if (ctrl->type != V4L2_CTRL_TYPE_CTRL_CLASS &&
-	    (sub->flags & V4L2_EVENT_SUB_FL_SEND_INITIAL)) {
+	    (sev->flags & V4L2_EVENT_SUB_FL_SEND_INITIAL)) {
 		struct v4l2_event ev;
 
 		fill_event(&ev, ctrl, V4L2_EVENT_CTRL_CH_VALUE |
 			V4L2_EVENT_CTRL_CH_FLAGS);
-		v4l2_event_queue_fh(ctrl_fh->fh, &ev);
+		v4l2_event_queue_fh(sev->fh, &ev);
 	}
 	v4l2_ctrl_unlock(ctrl);
 }
-EXPORT_SYMBOL(v4l2_ctrl_add_fh);
+EXPORT_SYMBOL(v4l2_ctrl_add_event);
 
-void v4l2_ctrl_del_fh(struct v4l2_ctrl *ctrl, struct v4l2_fh *fh)
+void v4l2_ctrl_del_event(struct v4l2_ctrl *ctrl,
+				struct v4l2_subscribed_event *sev)
 {
-	struct v4l2_ctrl_fh *pos;
-
 	v4l2_ctrl_lock(ctrl);
-	list_for_each_entry(pos, &ctrl->fhs, node) {
-		if (pos->fh == fh) {
-			list_del(&pos->node);
-			kfree(pos);
-			break;
-		}
-	}
+	list_del(&sev->node);
 	v4l2_ctrl_unlock(ctrl);
 }
-EXPORT_SYMBOL(v4l2_ctrl_del_fh);
+EXPORT_SYMBOL(v4l2_ctrl_del_event);
 
 int v4l2_ctrl_subscribe_fh(struct v4l2_fh *fh,
 			struct v4l2_event_subscription *sub, unsigned n)
