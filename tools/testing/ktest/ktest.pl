@@ -119,6 +119,7 @@ my $successes = 0;
 my %entered_configs;
 my %config_help;
 my %variable;
+my %force_config;
 
 $config_help{"MACHINE"} = << "EOF"
  The machine hostname that you will test.
@@ -1044,21 +1045,69 @@ sub check_buildlog {
     return 1;
 }
 
-sub make_oldconfig {
-    my ($defconfig) = @_;
+sub apply_min_config {
+    my $outconfig = "$output_config.new";
 
-    if (!run_command "$defconfig $make oldnoconfig") {
+    # Read the config file and remove anything that
+    # is in the force_config hash (from minconfig and others)
+    # then add the force config back.
+
+    doprint "Applying minimum configurations into $output_config.new\n";
+
+    open (OUT, ">$outconfig") or
+	dodie "Can't create $outconfig";
+
+    if (-f $output_config) {
+	open (IN, $output_config) or
+	    dodie "Failed to open $output_config";
+	while (<IN>) {
+	    if (/^(# )?(CONFIG_[^\s=]*)/) {
+		next if (defined($force_config{$2}));
+	    }
+	    print OUT;
+	}
+	close IN;
+    }
+    foreach my $config (keys %force_config) {
+	print OUT "$force_config{$config}\n";
+    }
+    close OUT;
+
+    run_command "mv $outconfig $output_config";
+}
+
+sub make_oldconfig {
+
+    apply_min_config;
+
+    if (!run_command "$make oldnoconfig") {
 	# Perhaps oldnoconfig doesn't exist in this version of the kernel
 	# try a yes '' | oldconfig
 	doprint "oldnoconfig failed, trying yes '' | make oldconfig\n";
-	run_command "yes '' | $defconfig $make oldconfig" or
+	run_command "yes '' | $make oldconfig" or
 	    dodie "failed make config oldconfig";
     }
 }
 
+# read a config file and use this to force new configs.
+sub load_force_config {
+    my ($config) = @_;
+
+    open(IN, $config) or
+	dodie "failed to read $config";
+    while (<IN>) {
+	chomp;
+	if (/^(CONFIG[^\s=]*)(\s*=.*)/) {
+	    $force_config{$1} = $_;
+	} elsif (/^# (CONFIG_\S*) is not set/) {
+	    $force_config{$1} = $_;
+	}
+    }
+    close IN;
+}
+
 sub build {
     my ($type) = @_;
-    my $defconfig = "";
 
     unlink $buildlog;
 
@@ -1098,15 +1147,15 @@ sub build {
     close(OUT);
 
     if (defined($minconfig)) {
-	$defconfig = "KCONFIG_ALLCONFIG=$minconfig";
+	load_force_config($minconfig);
     }
 
-    if ($type eq "oldnoconfig") {
-	make_oldconfig $defconfig;
-    } else {
-	run_command "$defconfig $make $type" or
+    if ($type ne "oldnoconfig") {
+	run_command "$make $type" or
 	    dodie "failed make config";
     }
+    # Run old config regardless, to enforce min configurations
+    make_oldconfig;
 
     $redirect = "$buildlog";
     if (!run_command "$make $build_options") {
@@ -1587,7 +1636,7 @@ sub create_config {
     close(OUT);
 
 #    exit;
-    make_oldconfig "";
+    make_oldconfig;
 }
 
 sub compare_configs {
@@ -1778,9 +1827,8 @@ sub config_bisect {
 	    dodie "failed to append $addconfig";
     }
 
-    my $defconfig = "";
     if (-f $tmpconfig) {
-	$defconfig = "KCONFIG_ALLCONFIG=$tmpconfig";
+	load_force_config($tmpconfig);
 	process_config_ignore $tmpconfig;
     }
 
@@ -1801,7 +1849,7 @@ sub config_bisect {
     close(IN);
 
     # Now run oldconfig with the minconfig (and addconfigs)
-    make_oldconfig $defconfig;
+    make_oldconfig;
 
     # check to see what we lost (or gained)
     open (IN, $output_config)
