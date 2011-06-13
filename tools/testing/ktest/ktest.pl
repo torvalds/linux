@@ -841,11 +841,19 @@ sub monitor {
 
 	if ($booted) {
 	    $line = wait_for_input($monitor_fp, $booted_timeout);
+	    if (!defined($line)) {
+		my $s = $booted_timeout == 1 ? "" : "s";
+		doprint "Successful boot found: break after $booted_timeout second$s\n";
+		last;
+	    }
 	} else {
 	    $line = wait_for_input($monitor_fp);
+	    if (!defined($line)) {
+		my $s = $timeout == 1 ? "" : "s";
+		doprint "Timed out after $timeout second$s\n";
+		last;
+	    }
 	}
-
-	last if (!defined($line));
 
 	doprint $line;
 	print DMESG $line;
