@@ -2076,16 +2076,16 @@ out:
 }
 
 int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
-			    get_extent_t *get_extent)
+			    get_extent_t *get_extent, int mirror_num)
 {
 	struct bio *bio = NULL;
 	unsigned long bio_flags = 0;
 	int ret;
 
-	ret = __extent_read_full_page(tree, page, get_extent, &bio, 0,
+	ret = __extent_read_full_page(tree, page, get_extent, &bio, mirror_num,
 				      &bio_flags);
 	if (bio)
-		ret = submit_one_bio(READ, bio, 0, bio_flags);
+		ret = submit_one_bio(READ, bio, mirror_num, bio_flags);
 	return ret;
 }
 
