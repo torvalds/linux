@@ -44,6 +44,8 @@ extern void
 radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
 			     struct drm_connector *drm_connector);
 
+bool radeon_connector_encoder_is_dp_bridge(struct drm_connector *connector);
+
 void radeon_connector_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -1070,10 +1072,10 @@ static int radeon_dp_get_modes(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
+	struct drm_encoder *encoder = radeon_best_single_encoder(connector);
 	int ret;
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
-		struct drm_encoder *encoder;
 		struct drm_display_mode *mode;
 
 		if (!radeon_dig_connector->edp_on)
@@ -1085,7 +1087,6 @@ static int radeon_dp_get_modes(struct drm_connector *connector)
 						     ATOM_TRANSMITTER_ACTION_POWER_OFF);
 
 		if (ret > 0) {
-			encoder = radeon_best_single_encoder(connector);
 			if (encoder) {
 				radeon_fixup_lvds_native_mode(encoder, connector);
 				/* add scaled modes */
@@ -1109,8 +1110,14 @@ static int radeon_dp_get_modes(struct drm_connector *connector)
 			/* add scaled modes */
 			radeon_add_common_modes(encoder, connector);
 		}
-	} else
+	} else {
+		/* need to setup ddc on the bridge */
+		if (radeon_connector_encoder_is_dp_bridge(connector)) {
+			if (encoder)
+				radeon_atom_ext_encoder_setup_ddc(encoder);
+		}
 		ret = radeon_ddc_get_modes(radeon_connector);
+	}
 
 	return ret;
 }
@@ -1194,6 +1201,7 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	enum drm_connector_status ret = connector_status_disconnected;
 	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
+	struct drm_encoder *encoder = radeon_best_single_encoder(connector);
 
 	if (radeon_connector->edid) {
 		kfree(radeon_connector->edid);
@@ -1201,7 +1209,6 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 	}
 
 	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
-		struct drm_encoder *encoder = radeon_best_single_encoder(connector);
 		if (encoder) {
 			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 			struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
@@ -1221,6 +1228,11 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 			atombios_set_edp_panel_power(connector,
 						     ATOM_TRANSMITTER_ACTION_POWER_OFF);
 	} else {
+		/* need to setup ddc on the bridge */
+		if (radeon_connector_encoder_is_dp_bridge(connector)) {
+			if (encoder)
+				radeon_atom_ext_encoder_setup_ddc(encoder);
+		}
 		radeon_dig_connector->dp_sink_type = radeon_dp_getsinktype(radeon_connector);
 		if (radeon_hpd_sense(rdev, radeon_connector->hpd.hpd)) {
 			ret = connector_status_connected;
