@@ -2405,9 +2405,8 @@ static void drbd_init_workqueue(struct drbd_work_queue* wq)
 	init_waitqueue_head(&wq->q_wait);
 }
 
-struct drbd_connection *conn_get_by_name(const char *name)
+struct drbd_resource *drbd_find_resource(const char *name)
 {
-	struct drbd_connection *connection;
 	struct drbd_resource *resource;
 
 	if (!name || !name[0])
@@ -2416,15 +2415,14 @@ struct drbd_connection *conn_get_by_name(const char *name)
 	rcu_read_lock();
 	for_each_resource_rcu(resource, &drbd_resources) {
 		if (!strcmp(resource->name, name)) {
-			connection = first_connection(resource);
-			kref_get(&connection->kref);
+			kref_get(&resource->kref);
 			goto found;
 		}
 	}
-	connection = NULL;
+	resource = NULL;
 found:
 	rcu_read_unlock();
-	return connection;
+	return resource;
 }
 
 struct drbd_connection *conn_get_by_addrs(void *my_addr, int my_addr_len,
