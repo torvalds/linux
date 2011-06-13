@@ -130,13 +130,7 @@ uvc_v4l2_open(struct file *file)
 	if (handle == NULL)
 		return -ENOMEM;
 
-	ret = v4l2_fh_init(&handle->vfh, vdev);
-	if (ret < 0)
-		goto error;
-
-	ret = v4l2_event_init(&handle->vfh);
-	if (ret < 0)
-		goto error;
+	v4l2_fh_init(&handle->vfh, vdev);
 
 	ret = v4l2_event_alloc(&handle->vfh, 8);
 	if (ret < 0)
@@ -354,7 +348,7 @@ uvc_v4l2_poll(struct file *file, poll_table *wait)
 	struct uvc_file_handle *handle = to_uvc_file_handle(file->private_data);
 	unsigned int mask = 0;
 
-	poll_wait(file, &handle->vfh.events->wait, wait);
+	poll_wait(file, &handle->vfh.wait, wait);
 	if (v4l2_event_pending(&handle->vfh))
 		mask |= POLLPRI;
 

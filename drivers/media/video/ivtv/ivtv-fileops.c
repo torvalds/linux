@@ -722,8 +722,8 @@ unsigned int ivtv_v4l2_dec_poll(struct file *filp, poll_table *wait)
 
 	/* If there are subscribed events, then only use the new event
 	   API instead of the old video.h based API. */
-	if (!list_empty(&id->fh.events->subscribed)) {
-		poll_wait(filp, &id->fh.events->wait, wait);
+	if (!list_empty(&id->fh.subscribed)) {
+		poll_wait(filp, &id->fh.wait, wait);
 		/* Turn off the old-style vsync events */
 		clear_bit(IVTV_F_I_EV_VSYNC_ENABLED, &itv->i_flags);
 		if (v4l2_event_pending(&id->fh))
@@ -773,7 +773,7 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table * wait)
 	if (v4l2_event_pending(&id->fh))
 		res |= POLLPRI;
 	else
-		poll_wait(filp, &id->fh.events->wait, wait);
+		poll_wait(filp, &id->fh.wait, wait);
 
 	if (s->q_full.length || s->q_io.length)
 		return res | POLLIN | POLLRDNORM;

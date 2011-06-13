@@ -32,35 +32,11 @@
 
 static void v4l2_event_unsubscribe_all(struct v4l2_fh *fh);
 
-int v4l2_event_init(struct v4l2_fh *fh)
-{
-	fh->events = kzalloc(sizeof(*fh->events), GFP_KERNEL);
-	if (fh->events == NULL)
-		return -ENOMEM;
-
-	init_waitqueue_head(&fh->events->wait);
-
-	INIT_LIST_HEAD(&fh->events->free);
-	INIT_LIST_HEAD(&fh->events->available);
-	INIT_LIST_HEAD(&fh->events->subscribed);
-
-	fh->events->sequence = -1;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(v4l2_event_init);
-
 int v4l2_event_alloc(struct v4l2_fh *fh, unsigned int n)
 {
-	struct v4l2_events *events = fh->events;
 	unsigned long flags;
 
-	if (!events) {
-		WARN_ON(1);
-		return -ENOMEM;
-	}
-
-	while (events->nallocated < n) {
+	while (fh->nallocated < n) {
 		struct v4l2_kevent *kev;
 
 		kev = kzalloc(sizeof(*kev), GFP_KERNEL);
@@ -68,8 +44,8 @@ int v4l2_event_alloc(struct v4l2_fh *fh, unsigned int n)
 			return -ENOMEM;
 
 		spin_lock_irqsave(&fh->vdev->fh_lock, flags);
-		list_add_tail(&kev->list, &events->free);
-		events->nallocated++;
+		list_add_tail(&kev->list, &fh->free);
+		fh->nallocated++;
 		spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 	}
 
@@ -87,40 +63,31 @@ EXPORT_SYMBOL_GPL(v4l2_event_alloc);
 
 void v4l2_event_free(struct v4l2_fh *fh)
 {
-	struct v4l2_events *events = fh->events;
-
-	if (!events)
-		return;
-
-	list_kfree(&events->free, struct v4l2_kevent, list);
-	list_kfree(&events->available, struct v4l2_kevent, list);
+	list_kfree(&fh->free, struct v4l2_kevent, list);
+	list_kfree(&fh->available, struct v4l2_kevent, list);
 	v4l2_event_unsubscribe_all(fh);
-
-	kfree(events);
-	fh->events = NULL;
 }
 EXPORT_SYMBOL_GPL(v4l2_event_free);
 
 static int __v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event)
 {
-	struct v4l2_events *events = fh->events;
 	struct v4l2_kevent *kev;
 	unsigned long flags;
 
 	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
 
-	if (list_empty(&events->available)) {
+	if (list_empty(&fh->available)) {
 		spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
 		return -ENOENT;
 	}
 
-	WARN_ON(events->navailable == 0);
+	WARN_ON(fh->navailable == 0);
 
-	kev = list_first_entry(&events->available, struct v4l2_kevent, list);
-	list_move(&kev->list, &events->free);
-	events->navailable--;
+	kev = list_first_entry(&fh->available, struct v4l2_kevent, list);
+	list_move(&kev->list, &fh->free);
+	fh->navailable--;
 
-	kev->event.pending = events->navailable;
+	kev->event.pending = fh->navailable;
 	*event = kev->event;
 
 	spin_unlock_irqrestore(&fh->vdev->fh_lock, flags);
@@ -131,7 +98,6 @@ static int __v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event)
 int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
 		       int nonblocking)
 {
-	struct v4l2_events *events = fh->events;
 	int ret;
 
 	if (nonblocking)
@@ -142,8 +108,8 @@ int v4l2_event_dequeue(struct v4l2_fh *fh, struct v4l2_event *event,
 		mutex_unlock(fh->vdev->lock);
 
 	do {
-		ret = wait_event_interruptible(events->wait,
-					       events->navailable != 0);
+		ret = wait_event_interruptible(fh->wait,
+					       fh->navailable != 0);
 		if (ret < 0)
 			break;
 
@@ -161,12 +127,11 @@ EXPORT_SYMBOL_GPL(v4l2_event_dequeue);
 static struct v4l2_subscribed_event *v4l2_event_subscribed(
 		struct v4l2_fh *fh, u32 type, u32 id)
 {
-	struct v4l2_events *events = fh->events;
 	struct v4l2_subscribed_event *sev;
 
 	assert_spin_locked(&fh->vdev->fh_lock);
 
-	list_for_each_entry(sev, &events->subscribed, list) {
+	list_for_each_entry(sev, &fh->subscribed, list) {
 		if (sev->type == type && sev->id == id)
 			return sev;
 	}
@@ -177,7 +142,6 @@ static struct v4l2_subscribed_event *v4l2_event_subscribed(
 static void __v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *ev,
 		const struct timespec *ts)
 {
-	struct v4l2_events *events = fh->events;
 	struct v4l2_subscribed_event *sev;
 	struct v4l2_kevent *kev;
 
@@ -187,24 +151,24 @@ static void __v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *e
 		return;
 
 	/* Increase event sequence number on fh. */
-	events->sequence++;
+	fh->sequence++;
 
 	/* Do we have any free events? */
-	if (list_empty(&events->free))
+	if (list_empty(&fh->free))
 		return;
 
 	/* Take one and fill it. */
-	kev = list_first_entry(&events->free, struct v4l2_kevent, list);
+	kev = list_first_entry(&fh->free, struct v4l2_kevent, list);
 	kev->event.type = ev->type;
 	kev->event.u = ev->u;
 	kev->event.id = ev->id;
 	kev->event.timestamp = *ts;
-	kev->event.sequence = events->sequence;
-	list_move_tail(&kev->list, &events->available);
+	kev->event.sequence = fh->sequence;
+	list_move_tail(&kev->list, &fh->available);
 
-	events->navailable++;
+	fh->navailable++;
 
-	wake_up_all(&events->wait);
+	wake_up_all(&fh->wait);
 }
 
 void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev)
@@ -240,23 +204,17 @@ EXPORT_SYMBOL_GPL(v4l2_event_queue_fh);
 
 int v4l2_event_pending(struct v4l2_fh *fh)
 {
-	return fh->events->navailable;
+	return fh->navailable;
 }
 EXPORT_SYMBOL_GPL(v4l2_event_pending);
 
 int v4l2_event_subscribe(struct v4l2_fh *fh,
 			 struct v4l2_event_subscription *sub)
 {
-	struct v4l2_events *events = fh->events;
 	struct v4l2_subscribed_event *sev, *found_ev;
 	struct v4l2_ctrl *ctrl = NULL;
 	struct v4l2_ctrl_fh *ctrl_fh = NULL;
 	unsigned long flags;
-
-	if (fh->events == NULL) {
-		WARN_ON(1);
-		return -ENOMEM;
-	}
 
 	if (sub->type == V4L2_EVENT_CTRL) {
 		ctrl = v4l2_ctrl_find(fh->ctrl_handler, sub->id);
@@ -284,7 +242,7 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 		sev->type = sub->type;
 		sev->id = sub->id;
 
-		list_add(&sev->list, &events->subscribed);
+		list_add(&sev->list, &fh->subscribed);
 		sev = NULL;
 	}
 
@@ -306,7 +264,6 @@ EXPORT_SYMBOL_GPL(v4l2_event_subscribe);
 
 static void v4l2_event_unsubscribe_all(struct v4l2_fh *fh)
 {
-	struct v4l2_events *events = fh->events;
 	struct v4l2_event_subscription sub;
 	struct v4l2_subscribed_event *sev;
 	unsigned long flags;
@@ -315,8 +272,8 @@ static void v4l2_event_unsubscribe_all(struct v4l2_fh *fh)
 		sev = NULL;
 
 		spin_lock_irqsave(&fh->vdev->fh_lock, flags);
-		if (!list_empty(&events->subscribed)) {
-			sev = list_first_entry(&events->subscribed,
+		if (!list_empty(&fh->subscribed)) {
+			sev = list_first_entry(&fh->subscribed,
 					struct v4l2_subscribed_event, list);
 			sub.type = sev->type;
 			sub.id = sev->id;

@@ -1046,7 +1046,7 @@ vivi_poll(struct file *file, struct poll_table_struct *wait)
 	if (v4l2_event_pending(fh))
 		res |= POLLPRI;
 	else
-		poll_wait(file, &fh->events->wait, wait);
+		poll_wait(file, &fh->wait, wait);
 	return res;
 }
 

@@ -2070,8 +2070,6 @@ int v4l2_ctrl_subscribe_fh(struct v4l2_fh *fh,
 	struct v4l2_ctrl_handler *hdl = fh->ctrl_handler;
 	int ret = 0;
 
-	if (!fh->events)
-		ret = v4l2_event_init(fh);
 	if (!ret) {
 		if (hdl->nr_of_refs * 2 > n)
 			n = hdl->nr_of_refs * 2;
