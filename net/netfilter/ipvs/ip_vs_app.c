@@ -589,13 +589,3 @@ void __net_exit ip_vs_app_net_cleanup(struct net *net)
 {
 	proc_net_remove(net, "ip_vs_app");
 }
-
-int __init ip_vs_app_init(void)
-{
-	return 0;
-}
-
-
-void ip_vs_app_cleanup(void)
-{
-}

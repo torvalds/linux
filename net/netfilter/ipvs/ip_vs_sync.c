@@ -1689,12 +1689,3 @@ void ip_vs_sync_net_cleanup(struct net *net)
 	if (retc && retc != -ESRCH)
 		pr_err("Failed to stop Backup Daemon\n");
 }
-
-int __init ip_vs_sync_init(void)
-{
-	return 0;
-}
-
-void ip_vs_sync_cleanup(void)
-{
-}

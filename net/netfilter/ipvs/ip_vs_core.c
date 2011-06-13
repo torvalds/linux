@@ -1967,36 +1967,23 @@ static int __init ip_vs_init(void)
 {
 	int ret;
 
-	ip_vs_estimator_init();
 	ret = ip_vs_control_init();
 	if (ret < 0) {
 		pr_err("can't setup control.\n");
-		goto cleanup_estimator;
+		goto exit;
 	}
 
 	ip_vs_protocol_init();
 
-	ret = ip_vs_app_init();
-	if (ret < 0) {
-		pr_err("can't setup application helper.\n");
-		goto cleanup_protocol;
-	}
-
 	ret = ip_vs_conn_init();
 	if (ret < 0) {
 		pr_err("can't setup connection table.\n");
-		goto cleanup_app;
-	}
-
-	ret = ip_vs_sync_init();
-	if (ret < 0) {
-		pr_err("can't setup sync data.\n");
-		goto cleanup_conn;
+		goto cleanup_protocol;
 	}
 
 	ret = register_pernet_subsys(&ipvs_core_ops);	/* Alloc ip_vs struct */
 	if (ret < 0)
-		goto cleanup_sync;
+		goto cleanup_conn;
 
 	ret = register_pernet_device(&ipvs_core_dev_ops);
 	if (ret < 0)
@@ -2016,17 +2003,12 @@ cleanup_dev:
 	unregister_pernet_device(&ipvs_core_dev_ops);
 cleanup_sub:
 	unregister_pernet_subsys(&ipvs_core_ops);
-cleanup_sync:
-	ip_vs_sync_cleanup();
 cleanup_conn:
 	ip_vs_conn_cleanup();
-cleanup_app:
-	ip_vs_app_cleanup();
 cleanup_protocol:
 	ip_vs_protocol_cleanup();
 	ip_vs_control_cleanup();
-cleanup_estimator:
-	ip_vs_estimator_cleanup();
+exit:
 	return ret;
 }
 
@@ -2035,12 +2017,9 @@ static void __exit ip_vs_cleanup(void)
 	nf_unregister_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
 	unregister_pernet_device(&ipvs_core_dev_ops);
 	unregister_pernet_subsys(&ipvs_core_ops);	/* free ip_vs struct */
-	ip_vs_sync_cleanup();
 	ip_vs_conn_cleanup();
-	ip_vs_app_cleanup();
 	ip_vs_protocol_cleanup();
 	ip_vs_control_cleanup();
-	ip_vs_estimator_cleanup();
 	pr_info("ipvs unloaded.\n");
 }
 

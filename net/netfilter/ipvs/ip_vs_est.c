@@ -207,12 +207,3 @@ void __net_exit ip_vs_estimator_net_cleanup(struct net *net)
 {
 	del_timer_sync(&net_ipvs(net)->est_timer);
 }
-
-int __init ip_vs_estimator_init(void)
-{
-	return 0;
-}
-
-void ip_vs_estimator_cleanup(void)
-{
-}

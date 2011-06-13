@@ -1117,8 +1117,6 @@ extern void ip_vs_app_inc_put(struct ip_vs_app *inc);
 
 extern int ip_vs_app_pkt_out(struct ip_vs_conn *, struct sk_buff *skb);
 extern int ip_vs_app_pkt_in(struct ip_vs_conn *, struct sk_buff *skb);
-extern int ip_vs_app_init(void);
-extern void ip_vs_app_cleanup(void);
 
 void ip_vs_bind_pe(struct ip_vs_service *svc, struct ip_vs_pe *pe);
 void ip_vs_unbind_pe(struct ip_vs_service *svc);
@@ -1221,15 +1219,11 @@ extern int start_sync_thread(struct net *net, int state, char *mcast_ifn,
 			     __u8 syncid);
 extern int stop_sync_thread(struct net *net, int state);
 extern void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp);
-extern int ip_vs_sync_init(void);
-extern void ip_vs_sync_cleanup(void);
 
 
 /*
  *      IPVS rate estimator prototypes (from ip_vs_est.c)
  */
-extern int ip_vs_estimator_init(void);
-extern void ip_vs_estimator_cleanup(void);
 extern void ip_vs_start_estimator(struct net *net, struct ip_vs_stats *stats);
 extern void ip_vs_stop_estimator(struct net *net, struct ip_vs_stats *stats);
 extern void ip_vs_zero_estimator(struct ip_vs_stats *stats);
