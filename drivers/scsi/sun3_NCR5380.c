@@ -1445,7 +1445,7 @@ static int NCR5380_select(struct Scsi_Host *instance, struct scsi_cmnd *cmd,
     local_irq_restore(flags);
 
     /* Wait for arbitration logic to complete */
-#if NCR_TIMEOUT
+#ifdef NCR_TIMEOUT
     {
       unsigned long timeout = jiffies + 2*NCR_TIMEOUT;
 
