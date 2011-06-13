@@ -2152,14 +2152,6 @@
 
 
 /*** Tigon3 specific PHY MII registers. ***/
-#define  TG3_BMCR_SPEED1000		0x0040
-
-#define MII_TG3_CTRL			0x09 /* 1000-baseT control register */
-#define  MII_TG3_CTRL_ADV_1000_HALF	0x0100
-#define  MII_TG3_CTRL_ADV_1000_FULL	0x0200
-#define  MII_TG3_CTRL_AS_MASTER		0x0800
-#define  MII_TG3_CTRL_ENABLE_AS_MASTER	0x1000
-
 #define MII_TG3_MMD_CTRL		0x0d /* MMD Access Control register */
 #define MII_TG3_MMD_CTRL_DATA_NOINC	0x4000
 #define MII_TG3_MMD_ADDRESS		0x0e /* MMD Address Data register */

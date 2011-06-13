@@ -861,7 +861,7 @@ static int tg3_writephy(struct tg3 *tp, int reg, u32 val)
 	int ret;
 
 	if ((tp->phy_flags & TG3_PHYFLG_IS_FET) &&
-	    (reg == MII_TG3_CTRL || reg == MII_TG3_AUX_CTRL))
+	    (reg == MII_CTRL1000 || reg == MII_TG3_AUX_CTRL))
 		return 0;
 
 	if ((tp->mi_mode & MAC_MI_MODE_AUTO_POLL) != 0) {
@@ -1981,15 +1981,14 @@ static int tg3_phy_reset_5703_4_5(struct tg3 *tp)
 
 		/* Set full-duplex, 1000 mbps.  */
 		tg3_writephy(tp, MII_BMCR,
-			     BMCR_FULLDPLX | TG3_BMCR_SPEED1000);
+			     BMCR_FULLDPLX | BMCR_SPEED1000);
 
 		/* Set to master mode.  */
-		if (tg3_readphy(tp, MII_TG3_CTRL, &phy9_orig))
+		if (tg3_readphy(tp, MII_CTRL1000, &phy9_orig))
 			continue;
 
-		tg3_writephy(tp, MII_TG3_CTRL,
-			     (MII_TG3_CTRL_AS_MASTER |
-			      MII_TG3_CTRL_ENABLE_AS_MASTER));
+		tg3_writephy(tp, MII_CTRL1000,
+			     CTL1000_AS_MASTER | CTL1000_ENABLE_MASTER);
 
 		err = TG3_PHY_AUXCTL_SMDSP_ENABLE(tp);
 		if (err)
@@ -2014,7 +2013,7 @@ static int tg3_phy_reset_5703_4_5(struct tg3 *tp)
 
 	TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
 
-	tg3_writephy(tp, MII_TG3_CTRL, phy9_orig);
+	tg3_writephy(tp, MII_CTRL1000, phy9_orig);
 
 	if (!tg3_readphy(tp, MII_TG3_EXT_CTRL, &reg32)) {
 		reg32 &= ~0x3000;
@@ -2958,16 +2957,15 @@ static int tg3_phy_autoneg_cfg(struct tg3 *tp, u32 advertise, u32 flowctrl)
 
 	new_adv = 0;
 	if (advertise & ADVERTISED_1000baseT_Half)
-		new_adv |= MII_TG3_CTRL_ADV_1000_HALF;
+		new_adv |= ADVERTISE_1000HALF;
 	if (advertise & ADVERTISED_1000baseT_Full)
-		new_adv |= MII_TG3_CTRL_ADV_1000_FULL;
+		new_adv |= ADVERTISE_1000FULL;
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5701_A0 ||
 	    tp->pci_chip_rev_id == CHIPREV_ID_5701_B0)
-		new_adv |= (MII_TG3_CTRL_AS_MASTER |
-			    MII_TG3_CTRL_ENABLE_AS_MASTER);
+		new_adv |= CTL1000_AS_MASTER | CTL1000_ENABLE_MASTER;
 
-	err = tg3_writephy(tp, MII_TG3_CTRL, new_adv);
+	err = tg3_writephy(tp, MII_CTRL1000, new_adv);
 	if (err)
 		goto done;
 
@@ -3076,7 +3074,7 @@ static void tg3_phy_copper_begin(struct tg3 *tp)
 			break;
 
 		case SPEED_1000:
-			bmcr |= TG3_BMCR_SPEED1000;
+			bmcr |= BMCR_SPEED1000;
 			break;
 		}
 
@@ -3153,7 +3151,7 @@ static int tg3_copper_is_advertising_all(struct tg3 *tp, u32 mask)
 		if (mask & ADVERTISED_1000baseT_Full)
 			all_mask |= ADVERTISE_1000FULL;
 
-		if (tg3_readphy(tp, MII_TG3_CTRL, &tg3_ctrl))
+		if (tg3_readphy(tp, MII_CTRL1000, &tg3_ctrl))
 			return 0;
 
 		if ((tg3_ctrl & all_mask) != all_mask)
