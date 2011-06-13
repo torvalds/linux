@@ -159,7 +159,7 @@ static int bf5xx_pcm_open(struct snd_pcm_substream *substream)
 
 	snd_soc_set_runtime_hwparams(substream, &bf5xx_pcm_hardware);
 
-	ret = snd_pcm_hw_constraint_integer(runtime, \
+	ret = snd_pcm_hw_constraint_integer(runtime,
 			SNDRV_PCM_HW_PARAM_PERIODS);
 	if (ret < 0)
 		goto out;
@@ -297,8 +297,8 @@ static int __devexit bfin_i2s_soc_platform_remove(struct platform_device *pdev)
 
 static struct platform_driver bfin_i2s_pcm_driver = {
 	.driver = {
-			.name = "bfin-i2s-pcm-audio",
-			.owner = THIS_MODULE,
+		.name = "bfin-i2s-pcm-audio",
+		.owner = THIS_MODULE,
 	},
 
 	.probe = bfin_i2s_soc_platform_probe,
