@@ -136,6 +136,7 @@ struct bfa_ioc_regs_s {
 	void __iomem *hfn_mbox;
 	void __iomem *lpu_mbox_cmd;
 	void __iomem *lpu_mbox;
+	void __iomem *lpu_read_stat;
 	void __iomem *pss_ctl_reg;
 	void __iomem *pss_err_status_reg;
 	void __iomem *app_pll_fast_ctl_reg;
@@ -277,6 +278,7 @@ struct bfa_ioc_hwif_s {
 	void		(*ioc_sync_leave)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_sync_ack)		(struct bfa_ioc_s *ioc);
 	bfa_boolean_t	(*ioc_sync_complete)	(struct bfa_ioc_s *ioc);
+	bfa_boolean_t	(*ioc_lpu_read_stat)	(struct bfa_ioc_s *ioc);
 };
 
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
@@ -338,7 +340,10 @@ bfa_status_t bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode mode);
 } while (0)
 #define	bfa_ioc_ownership_reset(__ioc)				\
 			((__ioc)->ioc_hwif->ioc_ownership_reset(__ioc))
-
+#define bfa_ioc_lpu_read_stat(__ioc) do {			\
+	if ((__ioc)->ioc_hwif->ioc_lpu_read_stat)		\
+		((__ioc)->ioc_hwif->ioc_lpu_read_stat(__ioc));	\
+} while (0)
 
 void bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc);
 void bfa_ioc_set_ct_hwif(struct bfa_ioc_s *ioc);

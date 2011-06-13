@@ -85,7 +85,7 @@ static void bfa_ioc_send_disable(struct bfa_ioc_s *ioc);
 static void bfa_ioc_send_getattr(struct bfa_ioc_s *ioc);
 static void bfa_ioc_hb_monitor(struct bfa_ioc_s *ioc);
 static void bfa_ioc_mbox_poll(struct bfa_ioc_s *ioc);
-static void bfa_ioc_mbox_hbfail(struct bfa_ioc_s *ioc);
+static void bfa_ioc_mbox_flush(struct bfa_ioc_s *ioc);
 static void bfa_ioc_recover(struct bfa_ioc_s *ioc);
 static void bfa_ioc_check_attr_wwns(struct bfa_ioc_s *ioc);
 static void bfa_ioc_event_notify(struct bfa_ioc_s *ioc ,
@@ -971,6 +971,7 @@ bfa_iocpf_sm_disabling_sync(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 static void
 bfa_iocpf_sm_disabled_entry(struct bfa_iocpf_s *iocpf)
 {
+	bfa_ioc_mbox_flush(iocpf->ioc);
 	bfa_fsm_send_event(iocpf->ioc, IOC_E_DISABLED);
 }
 
@@ -1081,7 +1082,7 @@ bfa_iocpf_sm_fail_sync_entry(struct bfa_iocpf_s *iocpf)
 	/*
 	 * Flush any queued up mailbox requests.
 	 */
-	bfa_ioc_mbox_hbfail(iocpf->ioc);
+	bfa_ioc_mbox_flush(iocpf->ioc);
 
 	bfa_ioc_hw_sem_get(iocpf->ioc);
 }
@@ -1399,6 +1400,7 @@ bfa_ioc_hwinit(struct bfa_ioc_s *ioc, bfa_boolean_t force)
 
 	if (!fwvalid) {
 		bfa_ioc_boot(ioc, boot_type, boot_env);
+		bfa_ioc_poll_fwinit(ioc);
 		return;
 	}
 
@@ -1434,6 +1436,7 @@ bfa_ioc_hwinit(struct bfa_ioc_s *ioc, bfa_boolean_t force)
 	 * Initialize the h/w for any other states.
 	 */
 	bfa_ioc_boot(ioc, boot_type, boot_env);
+	bfa_ioc_poll_fwinit(ioc);
 }
 
 static void
@@ -1668,7 +1671,7 @@ bfa_ioc_mbox_poll(struct bfa_ioc_s *ioc)
  * Cleanup any pending requests.
  */
 static void
-bfa_ioc_mbox_hbfail(struct bfa_ioc_s *ioc)
+bfa_ioc_mbox_flush(struct bfa_ioc_s *ioc)
 {
 	struct bfa_ioc_mbox_mod_s	*mod = &ioc->mbox_mod;
 	struct bfa_mbox_cmd_s		*cmd;
@@ -2178,22 +2181,28 @@ bfa_ioc_mbox_isr(struct bfa_ioc_s *ioc)
 	struct bfi_mbmsg_s		m;
 	int				mc;
 
-	if (!bfa_ioc_msgget(ioc, &m))
-		return;
+	if (bfa_ioc_msgget(ioc, &m)) {
+		/*
+		 * Treat IOC message class as special.
+		 */
+		mc = m.mh.msg_class;
+		if (mc == BFI_MC_IOC) {
+			bfa_ioc_isr(ioc, &m);
+			return;
+		}
 
-	/*
-	 * Treat IOC message class as special.
-	 */
-	mc = m.mh.msg_class;
-	if (mc == BFI_MC_IOC) {
-		bfa_ioc_isr(ioc, &m);
-		return;
+		if ((mc > BFI_MC_MAX) || (mod->mbhdlr[mc].cbfn == NULL))
+			return;
+
+		mod->mbhdlr[mc].cbfn(mod->mbhdlr[mc].cbarg, &m);
 	}
 
-	if ((mc > BFI_MC_MAX) || (mod->mbhdlr[mc].cbfn == NULL))
-		return;
+	bfa_ioc_lpu_read_stat(ioc);
 
-	mod->mbhdlr[mc].cbfn(mod->mbhdlr[mc].cbarg, &m);
+	/*
+	 * Try to send pending mailbox commands
+	 */
+	bfa_ioc_mbox_poll(ioc);
 }
 
 void
@@ -2392,8 +2401,33 @@ bfa_ioc_get_adapter_model(struct bfa_ioc_s *ioc, char *model)
 	/*
 	 * model name
 	 */
-	snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN, "%s-%u",
-		BFA_MFG_NAME, ioc_attr->card_type);
+	if (ioc->asic_gen == BFI_ASIC_GEN_CT2) {
+		int np = bfa_ioc_get_nports(ioc);
+		char c;
+		switch (ioc_attr->card_type) {
+		case BFA_MFG_TYPE_PROWLER_F:
+		case BFA_MFG_TYPE_PROWLER_N:
+		case BFA_MFG_TYPE_PROWLER_C:
+			snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN,
+				"%s-%u-%u",
+				BFA_MFG_NAME, ioc_attr->card_type, np);
+			break;
+		case BFA_MFG_TYPE_PROWLER_D:
+			if (ioc_attr->ic == BFA_MFG_IC_FC)
+				c = 'F';
+			else
+				c = 'P';
+
+			snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN,
+				"%s-%u-%u%c",
+				BFA_MFG_NAME, ioc_attr->card_type, np, c);
+			break;
+		default:
+			break;
+		}
+	} else
+		snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN, "%s-%u",
+			BFA_MFG_NAME, ioc_attr->card_type);
 }
 
 enum bfa_ioc_state

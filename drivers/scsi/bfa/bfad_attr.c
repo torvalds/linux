@@ -218,6 +218,9 @@ bfad_im_get_host_speed(struct Scsi_Host *shost)
 	case BFA_PORT_SPEED_10GBPS:
 		fc_host_speed(shost) = FC_PORTSPEED_10GBIT;
 		break;
+	case BFA_PORT_SPEED_16GBPS:
+		fc_host_speed(shost) = FC_PORTSPEED_16GBIT;
+		break;
 	case BFA_PORT_SPEED_8GBPS:
 		fc_host_speed(shost) = FC_PORTSPEED_8GBIT;
 		break;

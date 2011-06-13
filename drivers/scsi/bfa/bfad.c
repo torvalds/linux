@@ -1348,8 +1348,7 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	int		error = -ENODEV, retval;
 
 	/* For single port cards - only claim function 0 */
-	if ((pdev->device == BFA_PCI_DEVICE_ID_FC_8G1P ||
-	     pdev->device == BFA_PCI_DEVICE_ID_CT2) &&
+	if ((pdev->device == BFA_PCI_DEVICE_ID_FC_8G1P) &&
 		(PCI_FUNC(pdev->devfn) != 0))
 		return -ENODEV;
 

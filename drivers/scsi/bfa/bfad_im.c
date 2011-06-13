@@ -925,7 +925,10 @@ bfad_im_supported_speeds(struct bfa_s *bfa)
 		return 0;
 
 	bfa_ioc_get_attr(&bfa->ioc, ioc_attr);
-	if (ioc_attr->adapter_attr.max_speed == BFA_PORT_SPEED_8GBPS) {
+	if (ioc_attr->adapter_attr.max_speed == BFA_PORT_SPEED_16GBPS)
+		supported_speed |=  FC_PORTSPEED_16GBIT | FC_PORTSPEED_8GBIT |
+				FC_PORTSPEED_4GBIT | FC_PORTSPEED_2GBIT;
+	else if (ioc_attr->adapter_attr.max_speed == BFA_PORT_SPEED_8GBPS) {
 		if (ioc_attr->adapter_attr.is_mezz) {
 			supported_speed |= FC_PORTSPEED_8GBIT |
 				FC_PORTSPEED_4GBIT |

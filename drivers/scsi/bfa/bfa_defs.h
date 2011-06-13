@@ -40,7 +40,12 @@ enum {
 	BFA_MFG_TYPE_ASTRA    = 807,     /*  Astra mezz card            */
 	BFA_MFG_TYPE_LIGHTNING_P0 = 902, /*  Lightning mezz card - old  */
 	BFA_MFG_TYPE_LIGHTNING = 1741,   /*  Lightning mezz card        */
-	BFA_MFG_TYPE_INVALID = 0,        /*  Invalid card type          */
+	BFA_MFG_TYPE_PROWLER_F = 1560,	 /*  Prowler FC only cards	*/
+	BFA_MFG_TYPE_PROWLER_N = 1410,	 /*  Prowler NIC only cards	*/
+	BFA_MFG_TYPE_PROWLER_C = 1710,   /*  Prowler CNA only cards	*/
+	BFA_MFG_TYPE_PROWLER_D = 1860,   /*  Prowler Dual cards		*/
+	BFA_MFG_TYPE_CHINOOK   = 1867,   /*  Chinook cards		*/
+	BFA_MFG_TYPE_INVALID = 0,        /*  Invalid card type		*/
 };
 
 #pragma pack(1)
@@ -53,7 +58,8 @@ enum {
 	(type) == BFA_MFG_TYPE_WANCHESE || \
 	(type) == BFA_MFG_TYPE_ASTRA || \
 	(type) == BFA_MFG_TYPE_LIGHTNING_P0 || \
-	(type) == BFA_MFG_TYPE_LIGHTNING))
+	(type) == BFA_MFG_TYPE_LIGHTNING || \
+	(type) == BFA_MFG_TYPE_CHINOOK))
 
 /*
  * Check if the card having old wwn/mac handling
@@ -337,6 +343,11 @@ struct bfa_ioc_attr_s {
 #define BFA_MFG_SUPPLIER_PARTNUM_SIZE		20
 #define BFA_MFG_SUPPLIER_SERIALNUM_SIZE		20
 #define BFA_MFG_SUPPLIER_REVISION_SIZE		4
+/*
+ * Initial capability definition
+ */
+#define BFA_MFG_IC_FC	0x01
+#define BFA_MFG_IC_ETH	0x02
 
 #pragma pack(1)
 
@@ -425,7 +436,8 @@ enum bfa_port_speed {
 	BFA_PORT_SPEED_16GBPS	= 16,
 	BFA_PORT_SPEED_AUTO =
 		(BFA_PORT_SPEED_1GBPS | BFA_PORT_SPEED_2GBPS |
-		 BFA_PORT_SPEED_4GBPS | BFA_PORT_SPEED_8GBPS),
+		 BFA_PORT_SPEED_4GBPS | BFA_PORT_SPEED_8GBPS |
+		 BFA_PORT_SPEED_16GBPS),
 };
 #define bfa_port_speed_t enum bfa_port_speed
 

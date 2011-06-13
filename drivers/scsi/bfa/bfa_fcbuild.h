@@ -66,6 +66,9 @@ fc_rpsc_operspeed_to_bfa_speed(enum fc_rpsc_op_speed speed)
 	case RPSC_OP_SPEED_8G:
 		return BFA_PORT_SPEED_8GBPS;
 
+	case RPSC_OP_SPEED_16G:
+		return BFA_PORT_SPEED_16GBPS;
+
 	case RPSC_OP_SPEED_10G:
 		return BFA_PORT_SPEED_10GBPS;
 
@@ -93,6 +96,9 @@ fc_bfa_speed_to_rpsc_operspeed(enum bfa_port_speed op_speed)
 
 	case BFA_PORT_SPEED_8GBPS:
 		return RPSC_OP_SPEED_8G;
+
+	case BFA_PORT_SPEED_16GBPS:
+		return RPSC_OP_SPEED_16G;
 
 	case BFA_PORT_SPEED_10GBPS:
 		return RPSC_OP_SPEED_10G;

@@ -251,7 +251,7 @@ struct bfi_ioc_attr_s {
 	u32	adapter_prop;	/*  adapter properties     */
 	u16	maxfrsize;	/*  max receive frame size */
 	char		asic_rev;
-	u8		rsvd_d;
+	u8		ic;	/* initial capability */
 	char		fw_version[BFA_VERSION_LEN];
 	char		optrom_version[BFA_VERSION_LEN];
 	struct		bfa_mfg_vpd_s	vpd;

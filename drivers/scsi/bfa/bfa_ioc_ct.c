@@ -192,11 +192,14 @@ static struct { u32 hfn, lpu; } ct_p1reg[] = {
 	{ HOSTFN3_LPU1_CMD_STAT, LPU1_HOSTFN3_CMD_STAT }
 };
 
-static struct { uint32_t hfn_mbox, lpu_mbox, hfn_pgn, hfn, lpu; } ct2_reg[] = {
+static struct { uint32_t hfn_mbox, lpu_mbox, hfn_pgn, hfn, lpu, lpu_read; }
+	ct2_reg[] = {
 	{ CT2_HOSTFN_LPU0_MBOX0, CT2_LPU0_HOSTFN_MBOX0, CT2_HOSTFN_PAGE_NUM,
-	  CT2_HOSTFN_LPU0_CMD_STAT, CT2_LPU0_HOSTFN_CMD_STAT },
+	  CT2_HOSTFN_LPU0_CMD_STAT, CT2_LPU0_HOSTFN_CMD_STAT,
+	  CT2_HOSTFN_LPU0_READ_STAT},
 	{ CT2_HOSTFN_LPU1_MBOX0, CT2_LPU1_HOSTFN_MBOX0, CT2_HOSTFN_PAGE_NUM,
-	  CT2_HOSTFN_LPU1_CMD_STAT, CT2_LPU1_HOSTFN_CMD_STAT },
+	  CT2_HOSTFN_LPU1_CMD_STAT, CT2_LPU1_HOSTFN_CMD_STAT,
+	  CT2_HOSTFN_LPU1_READ_STAT},
 };
 
 static void
@@ -271,6 +274,7 @@ bfa_ioc_ct2_reg_init(struct bfa_ioc_s *ioc)
 	ioc->ioc_regs.host_page_num_fn = rb + ct2_reg[port].hfn_pgn;
 	ioc->ioc_regs.hfn_mbox_cmd = rb + ct2_reg[port].hfn;
 	ioc->ioc_regs.lpu_mbox_cmd = rb + ct2_reg[port].lpu;
+	ioc->ioc_regs.lpu_read_stat = rb + ct2_reg[port].lpu_read;
 
 	if (port == 0) {
 		ioc->ioc_regs.heartbeat = rb + CT2_BFA_IOC0_HBEAT_REG;
@@ -377,6 +381,20 @@ bfa_ioc_ct_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix)
 	bfa_trc(ioc, r32);
 
 	writel(r32, rb + FNC_PERS_REG);
+}
+
+bfa_boolean_t
+bfa_ioc_ct2_lpu_read_stat(struct bfa_ioc_s *ioc)
+{
+	u32	r32;
+
+	r32 = readl(ioc->ioc_regs.lpu_read_stat);
+	if (r32) {
+		writel(1, ioc->ioc_regs.lpu_read_stat);
+		return BFA_TRUE;
+	}
+
+	return BFA_FALSE;
 }
 
 /*
@@ -540,6 +558,7 @@ bfa_ioc_set_ct2_hwif(struct bfa_ioc_s *ioc)
 	hwif_ct2.ioc_pll_init = bfa_ioc_ct2_pll_init;
 	hwif_ct2.ioc_reg_init = bfa_ioc_ct2_reg_init;
 	hwif_ct2.ioc_map_port = bfa_ioc_ct2_map_port;
+	hwif_ct2.ioc_lpu_read_stat = bfa_ioc_ct2_lpu_read_stat;
 	hwif_ct2.ioc_isr_mode_set = NULL;
 	ioc->ioc_hwif = &hwif_ct2;
 }
@@ -791,15 +810,26 @@ bfa_ioc_ct2_mem_init(void __iomem *rb, enum bfi_asic_mode mode)
 bfa_status_t
 bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode mode)
 {
+	u32	r32;
+
+	/*
+	 * Initialize PLL if not already done by NFC
+	 */
+	r32 = readl((rb + CT2_WGN_STATUS));
+
+	writel(__HALT_NFC_CONTROLLER, (rb + CT2_NFC_CSR_SET_REG));
+
 	bfa_ioc_ct2_sclk_init(rb, mode);
 	bfa_ioc_ct2_lclk_init(rb, mode);
 	bfa_ioc_ct2_mem_init(rb, mode);
 
 	/*
-	 * Disable flash presence to NFC by clearing GPIO 0
+	 * Announce flash device presence, if flash was corrupted.
 	 */
-	writel(0, (rb + PSS_GPIO_OUT_REG));
-	writel(1, (rb + PSS_GPIO_OE_REG));
+	if (r32 == (__WGN_READY | __GLBL_PF_VF_CFG_RDY)) {
+		writel(0, (rb + PSS_GPIO_OUT_REG));
+		writel(1, (rb + PSS_GPIO_OE_REG));
+	}
 
 	writel(BFI_IOC_UNINIT, (rb + CT2_BFA_IOC0_STATE_REG));
 	writel(BFI_IOC_UNINIT, (rb + CT2_BFA_IOC1_STATE_REG));
