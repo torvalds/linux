@@ -654,9 +654,8 @@ void fimc_ctrls_delete(struct fimc_ctx *ctx);
 void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active);
 int fimc_fill_format(struct fimc_frame *frame, struct v4l2_format *f);
 
-struct fimc_fmt *find_format(struct v4l2_format *f, unsigned int mask);
-struct fimc_fmt *find_mbus_format(struct v4l2_mbus_framefmt *f,
-				  unsigned int mask);
+struct fimc_fmt *fimc_find_format(u32 *pixelformat, u32 *mbus_code,
+				  unsigned int mask, int index);
 
 int fimc_check_scaler_ratio(int sw, int sh, int dw, int dh, int rot);
 int fimc_set_scaler_info(struct fimc_ctx *ctx);

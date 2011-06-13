@@ -194,7 +194,7 @@ int fimc_pipeline_s_stream(struct fimc_dev *fimc, int on)
 	if ((on && p->csis) || !on)
 		ret = v4l2_subdev_call(on ? p->csis : p->sensor,
 				       video, s_stream, on);
-	if (ret && ret != -ENOIOCTLCMD)
+	if (ret < 0 && ret != -ENOIOCTLCMD)
 		return ret;
 	if ((!on && p->csis) || on)
 		ret = v4l2_subdev_call(on ? p->sensor : p->csis,

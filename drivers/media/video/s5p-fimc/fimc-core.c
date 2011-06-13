@@ -866,18 +866,17 @@ static int fimc_m2m_querycap(struct file *file, void *fh,
 	return 0;
 }
 
-int fimc_vidioc_enum_fmt_mplane(struct file *file, void *priv,
-				struct v4l2_fmtdesc *f)
+static int fimc_m2m_enum_fmt_mplane(struct file *file, void *priv,
+				    struct v4l2_fmtdesc *f)
 {
 	struct fimc_fmt *fmt;
 
-	if (f->index >= ARRAY_SIZE(fimc_formats))
+	fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_M2M, f->index);
+	if (!fmt)
 		return -EINVAL;
 
-	fmt = &fimc_formats[f->index];
 	strncpy(f->description, fmt->name, sizeof(f->description) - 1);
 	f->pixelformat = fmt->fourcc;
-
 	return 0;
 }
 
@@ -916,34 +915,36 @@ static int fimc_m2m_g_fmt_mplane(struct file *file, void *fh,
 	return fimc_fill_format(frame, f);
 }
 
-struct fimc_fmt *find_format(struct v4l2_format *f, unsigned int mask)
+/**
+ * fimc_find_format - lookup fimc color format by fourcc or media bus format
+ * @pixelformat: fourcc to match, ignored if null
+ * @mbus_code: media bus code to match, ignored if null
+ * @mask: the color flags to match
+ * @index: offset in the fimc_formats array, ignored if negative
+ */
+struct fimc_fmt *fimc_find_format(u32 *pixelformat, u32 *mbus_code,
+				  unsigned int mask, int index)
 {
-	struct fimc_fmt *fmt;
+	struct fimc_fmt *fmt, *def_fmt = NULL;
 	unsigned int i;
+	int id = 0;
+
+	if (index >= ARRAY_SIZE(fimc_formats))
+		return NULL;
 
 	for (i = 0; i < ARRAY_SIZE(fimc_formats); ++i) {
 		fmt = &fimc_formats[i];
-		if (fmt->fourcc == f->fmt.pix_mp.pixelformat &&
-		   (fmt->flags & mask))
-			break;
+		if (!(fmt->flags & mask))
+			continue;
+		if (pixelformat && fmt->fourcc == *pixelformat)
+			return fmt;
+		if (mbus_code && fmt->mbus_code == *mbus_code)
+			return fmt;
+		if (index == id)
+			def_fmt = fmt;
+		id++;
 	}
-
-	return (i == ARRAY_SIZE(fimc_formats)) ? NULL : fmt;
-}
-
-struct fimc_fmt *find_mbus_format(struct v4l2_mbus_framefmt *f,
-				  unsigned int mask)
-{
-	struct fimc_fmt *fmt;
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(fimc_formats); ++i) {
-		fmt = &fimc_formats[i];
-		if (fmt->mbus_code == f->code && (fmt->flags & mask))
-			break;
-	}
-
-	return (i == ARRAY_SIZE(fimc_formats)) ? NULL : fmt;
+	return def_fmt;
 }
 
 int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f)
@@ -966,7 +967,7 @@ int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f)
 	dbg("w: %d, h: %d", pix->width, pix->height);
 
 	mask = is_output ? FMT_FLAGS_M2M : FMT_FLAGS_M2M | FMT_FLAGS_CAM;
-	fmt = find_format(f, mask);
+	fmt = fimc_find_format(&pix->pixelformat, NULL, mask, -1);
 	if (!fmt) {
 		v4l2_err(fimc->v4l2_dev, "Fourcc format (0x%X) invalid.\n",
 			 pix->pixelformat);
@@ -1061,7 +1062,8 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *fh,
 		frame = &ctx->d_frame;
 
 	pix = &f->fmt.pix_mp;
-	frame->fmt = find_format(f, FMT_FLAGS_M2M);
+	frame->fmt = fimc_find_format(&pix->pixelformat, NULL,
+				      FMT_FLAGS_M2M, 0);
 	if (!frame->fmt)
 		return -EINVAL;
 
@@ -1290,8 +1292,8 @@ static int fimc_m2m_s_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 static const struct v4l2_ioctl_ops fimc_m2m_ioctl_ops = {
 	.vidioc_querycap		= fimc_m2m_querycap,
 
-	.vidioc_enum_fmt_vid_cap_mplane	= fimc_vidioc_enum_fmt_mplane,
-	.vidioc_enum_fmt_vid_out_mplane	= fimc_vidioc_enum_fmt_mplane,
+	.vidioc_enum_fmt_vid_cap_mplane	= fimc_m2m_enum_fmt_mplane,
+	.vidioc_enum_fmt_vid_out_mplane	= fimc_m2m_enum_fmt_mplane,
 
 	.vidioc_g_fmt_vid_cap_mplane	= fimc_m2m_g_fmt_mplane,
 	.vidioc_g_fmt_vid_out_mplane	= fimc_m2m_g_fmt_mplane,

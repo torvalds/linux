@@ -389,6 +389,22 @@ static int fimc_vidioc_querycap_capture(struct file *file, void *priv,
 	return 0;
 }
 
+static int fimc_cap_enum_fmt_mplane(struct file *file, void *priv,
+				    struct v4l2_fmtdesc *f)
+{
+	struct fimc_fmt *fmt;
+
+	fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_CAM | FMT_FLAGS_M2M,
+			       f->index);
+	if (!fmt)
+		return -EINVAL;
+	strncpy(f->description, fmt->name, sizeof(f->description) - 1);
+	f->pixelformat = fmt->fourcc;
+	if (fmt->fourcc == V4L2_MBUS_FMT_JPEG_1X8)
+		f->flags |= V4L2_FMT_FLAG_COMPRESSED;
+	return 0;
+}
+
 /* Synchronize formats of the camera interface input and attached  sensor. */
 static int sync_capture_fmt(struct fimc_ctx *ctx)
 {
@@ -407,7 +423,7 @@ static int sync_capture_fmt(struct fimc_ctx *ctx)
 	}
 	dbg("w: %d, h: %d, code= %d", fmt->width, fmt->height, fmt->code);
 
-	frame->fmt = find_mbus_format(fmt, FMT_FLAGS_CAM);
+	frame->fmt = fimc_find_format(NULL, &fmt->code, FMT_FLAGS_CAM, -1);
 	if (!frame->fmt) {
 		err("fimc source format not found\n");
 		return -EINVAL;
@@ -469,12 +485,10 @@ static int fimc_cap_s_fmt_mplane(struct file *file, void *priv,
 	frame = &ctx->d_frame;
 
 	pix = &f->fmt.pix_mp;
-	frame->fmt = find_format(f, FMT_FLAGS_M2M | FMT_FLAGS_CAM);
-	if (!frame->fmt) {
-		v4l2_err(fimc->vid_cap.vfd,
-			 "Not supported capture (FIMC target) color format\n");
+	frame->fmt = fimc_find_format(&pix->pixelformat, NULL,
+				      FMT_FLAGS_M2M | FMT_FLAGS_CAM, 0);
+	if (WARN(frame->fmt == NULL, "Pixel format lookup failed\n"))
 		return -EINVAL;
-	}
 
 	for (i = 0; i < frame->fmt->colplanes; i++) {
 		frame->payload[i] =
@@ -654,7 +668,7 @@ static int fimc_cap_s_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 static const struct v4l2_ioctl_ops fimc_capture_ioctl_ops = {
 	.vidioc_querycap		= fimc_vidioc_querycap_capture,
 
-	.vidioc_enum_fmt_vid_cap_mplane	= fimc_vidioc_enum_fmt_mplane,
+	.vidioc_enum_fmt_vid_cap_mplane	= fimc_cap_enum_fmt_mplane,
 	.vidioc_try_fmt_vid_cap_mplane	= fimc_cap_try_fmt_mplane,
 	.vidioc_s_fmt_vid_cap_mplane	= fimc_cap_s_fmt_mplane,
 	.vidioc_g_fmt_vid_cap_mplane	= fimc_cap_g_fmt_mplane,
@@ -715,7 +729,6 @@ int fimc_register_capture_device(struct fimc_dev *fimc,
 	struct video_device *vfd;
 	struct fimc_vid_cap *vid_cap;
 	struct fimc_ctx *ctx;
-	struct v4l2_format f;
 	struct fimc_frame *fr;
 	struct vb2_queue *q;
 	int ret = -ENOMEM;
@@ -730,9 +743,8 @@ int fimc_register_capture_device(struct fimc_dev *fimc,
 	ctx->state	 = FIMC_CTX_CAP;
 
 	/* Default format of the output frames */
-	f.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB32;
 	fr = &ctx->d_frame;
-	fr->fmt = find_format(&f, FMT_FLAGS_M2M);
+	fr->fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_CAM, 0);
 	fr->width = fr->f_width = fr->o_width = 640;
 	fr->height = fr->f_height = fr->o_height = 480;
 
