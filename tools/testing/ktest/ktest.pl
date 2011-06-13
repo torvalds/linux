@@ -88,6 +88,7 @@ my $bisect_bad = "";
 my $reverse_bisect;
 my $bisect_manual;
 my $bisect_skip;
+my $config_bisect_good;
 my $in_patchcheck = 0;
 my $run_test;
 my $redirect;
@@ -1745,6 +1746,10 @@ sub config_bisect {
 
     my $tmpconfig = "$tmpdir/use_config";
 
+    if (defined($config_bisect_good)) {
+	process_config_ignore $config_bisect_good;
+    }
+
     # Make the file with the bad config and the min config
     if (defined($minconfig)) {
 	# read the min config for things to ignore
@@ -2174,6 +2179,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $patchcheck_sleep_time = set_test_option("PATCHCHECK_SLEEP_TIME", $i);
     $bisect_manual = set_test_option("BISECT_MANUAL", $i);
     $bisect_skip = set_test_option("BISECT_SKIP", $i);
+    $config_bisect_good = set_test_option("CONFIG_BISECT_GOOD", $i);
     $store_failures = set_test_option("STORE_FAILURES", $i);
     $timeout = set_test_option("TIMEOUT", $i);
     $booted_timeout = set_test_option("BOOTED_TIMEOUT", $i);
