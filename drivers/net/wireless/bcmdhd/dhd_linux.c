@@ -25,9 +25,6 @@
  * $Id: dhd_linux.c,v 1.131.2.55 2011-02-09 05:31:56 Exp $
  */
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-#include <linux/platform_device.h>
-#endif
 #include <typedefs.h>
 #include <linuxver.h>
 #include <osl.h>
@@ -104,7 +101,7 @@ extern bool	ap_cfg_running;
 #include <dhd_wlfc.h>
 #endif
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
-
+#include <linux/platform_device.h>
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
 #include <linux/wlan_plat.h>
@@ -113,7 +110,6 @@ extern bool	ap_cfg_running;
 #endif
 
 struct semaphore wifi_control_sem;
-struct dhd_bus *g_bus;
 
 static struct wifi_platform_data *wifi_control_data = NULL;
 static struct resource *wifi_irqres = NULL;
@@ -2627,9 +2623,6 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	 */
 	memcpy(netdev_priv(net), &dhd, sizeof(dhd));
 
-#if defined(CONFIG_WIFI_CONTROL_FUNC)
-	g_bus = bus;
-#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) && 1
 	register_pm_notifier(&dhd_sleep_pm_notifier);
 #endif /*  (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) */
