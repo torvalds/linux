@@ -50,7 +50,7 @@ struct bfi_mhdr_s {
 	} mtag;
 };
 
-#define bfi_mhdr_2_qid(_mh)	(_mh)->mtag.h2i.qid
+#define bfi_mhdr_2_qid(_mh)	((_mh)->mtag.h2i.qid)
 
 #define bfi_h2i_set(_mh, _mc, _op, _lpuid) do {		\
 	(_mh).msg_class		= (_mc);      \
@@ -411,6 +411,7 @@ union bfi_ioc_i2h_msg_u {
 
 #define BFI_PBC_MAX_BLUNS	8
 #define BFI_PBC_MAX_VPORTS	16
+#define BFI_PBC_PORT_DISABLED	2
 
 /*
  * PBC boot lun configuration

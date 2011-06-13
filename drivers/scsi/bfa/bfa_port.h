@@ -44,6 +44,7 @@ struct bfa_port_s {
 	void				*endis_cbarg;
 	bfa_status_t			endis_status;
 	struct bfa_ioc_notify_s		ioc_notify;
+	bfa_boolean_t			pbc_disabled;
 };
 
 void	     bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,

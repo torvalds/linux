@@ -346,9 +346,9 @@ enum bfi_lps_h2i_msgs {
 };
 
 enum bfi_lps_i2h_msgs {
-	BFI_LPS_H2I_LOGIN_RSP	= BFA_I2HM(1),
-	BFI_LPS_H2I_LOGOUT_RSP	= BFA_I2HM(2),
-	BFI_LPS_H2I_CVL_EVENT	= BFA_I2HM(3),
+	BFI_LPS_I2H_LOGIN_RSP	= BFA_I2HM(1),
+	BFI_LPS_I2H_LOGOUT_RSP	= BFA_I2HM(2),
+	BFI_LPS_I2H_CVL_EVENT	= BFA_I2HM(3),
 };
 
 struct bfi_lps_login_req_s {

@@ -236,6 +236,12 @@ bfa_port_enable(struct bfa_port_s *port, bfa_port_endis_cbfn_t cbfn,
 {
 	struct bfi_port_generic_req_s *m;
 
+	/* If port is PBC disabled, return error */
+	if (port->pbc_disabled) {
+		bfa_trc(port, BFA_STATUS_PBC);
+		return BFA_STATUS_PBC;
+	}
+
 	if (bfa_ioc_is_disabled(port->ioc)) {
 		bfa_trc(port, BFA_STATUS_IOC_DISABLED);
 		return BFA_STATUS_IOC_DISABLED;
@@ -279,6 +285,12 @@ bfa_port_disable(struct bfa_port_s *port, bfa_port_endis_cbfn_t cbfn,
 		  void *cbarg)
 {
 	struct bfi_port_generic_req_s *m;
+
+	/* If port is PBC disabled, return error */
+	if (port->pbc_disabled) {
+		bfa_trc(port, BFA_STATUS_PBC);
+		return BFA_STATUS_PBC;
+	}
 
 	if (bfa_ioc_is_disabled(port->ioc)) {
 		bfa_trc(port, BFA_STATUS_IOC_DISABLED);
@@ -456,6 +468,7 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 	port->endis_pending = BFA_FALSE;
 	port->stats_cbfn = NULL;
 	port->endis_cbfn = NULL;
+	port->pbc_disabled = BFA_FALSE;
 
 	bfa_ioc_mbox_regisr(port->ioc, BFI_MC_PORT, bfa_port_isr, port);
 	bfa_ioc_notify_init(&port->ioc_notify, bfa_port_notify, port);

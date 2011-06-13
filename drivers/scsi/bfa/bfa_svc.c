@@ -1934,15 +1934,15 @@ bfa_lps_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	msg.msg = m;
 
 	switch (m->mhdr.msg_id) {
-	case BFI_LPS_H2I_LOGIN_RSP:
+	case BFI_LPS_I2H_LOGIN_RSP:
 		bfa_lps_login_rsp(bfa, msg.login_rsp);
 		break;
 
-	case BFI_LPS_H2I_LOGOUT_RSP:
+	case BFI_LPS_I2H_LOGOUT_RSP:
 		bfa_lps_logout_rsp(bfa, msg.logout_rsp);
 		break;
 
-	case BFI_LPS_H2I_CVL_EVENT:
+	case BFI_LPS_I2H_CVL_EVENT:
 		bfa_lps_rx_cvl_event(bfa, msg.cvl_event);
 		break;
 
@@ -3308,6 +3308,9 @@ bfa_fcport_init(struct bfa_s *bfa)
 	fcport->cfg.rx_bbcredit = bfa_ioc_rx_bbcredit(&bfa->ioc);
 	fcport->speed_sup = bfa_ioc_speed_sup(&bfa->ioc);
 
+	if (bfa_fcport_is_pbcdisabled(bfa))
+		bfa->modules.port.pbc_disabled = BFA_TRUE;
+
 	WARN_ON(!fcport->cfg.maxfrsize);
 	WARN_ON(!fcport->cfg.rx_bbcredit);
 	WARN_ON(!fcport->speed_sup);
@@ -3432,6 +3435,9 @@ bfa_fcport_enable(struct bfa_s *bfa)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
+	if (bfa_fcport_is_pbcdisabled(bfa))
+		return BFA_STATUS_PBC;
+
 	if (bfa_ioc_is_disabled(&bfa->ioc))
 		return BFA_STATUS_IOC_DISABLED;
 
@@ -3445,11 +3451,28 @@ bfa_fcport_enable(struct bfa_s *bfa)
 bfa_status_t
 bfa_fcport_disable(struct bfa_s *bfa)
 {
+	if (bfa_fcport_is_pbcdisabled(bfa))
+		return BFA_STATUS_PBC;
 
 	if (bfa_ioc_is_disabled(&bfa->ioc))
 		return BFA_STATUS_IOC_DISABLED;
 
 	bfa_sm_send_event(BFA_FCPORT_MOD(bfa), BFA_FCPORT_SM_DISABLE);
+	return BFA_STATUS_OK;
+}
+
+/* If PBC is disabled on port, return error */
+bfa_status_t
+bfa_fcport_is_pbcdisabled(struct bfa_s *bfa)
+{
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
+	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
+
+	if (cfgrsp->pbc_cfg.port_enabled == BFI_PBC_PORT_DISABLED) {
+		bfa_trc(bfa, fcport->pwwn);
+		return BFA_STATUS_PBC;
+	}
 	return BFA_STATUS_OK;
 }
 
@@ -3660,10 +3683,16 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr)
 	attr->pport_cfg.path_tov  = bfa_fcpim_path_tov_get(bfa);
 	attr->pport_cfg.q_depth  = bfa_fcpim_qdepth_get(bfa);
 	attr->port_state = bfa_sm_to_state(hal_port_sm_table, fcport->sm);
-	if (bfa_ioc_is_disabled(&fcport->bfa->ioc))
-		attr->port_state = BFA_PORT_ST_IOCDIS;
-	else if (bfa_ioc_fw_mismatch(&fcport->bfa->ioc))
-		attr->port_state = BFA_PORT_ST_FWMISMATCH;
+
+	/* PBC Disabled State */
+	if (bfa_fcport_is_pbcdisabled(bfa))
+		attr->port_state = BFA_PORT_ST_PREBOOT_DISABLED;
+	else {
+		if (bfa_ioc_is_disabled(&fcport->bfa->ioc))
+			attr->port_state = BFA_PORT_ST_IOCDIS;
+		else if (bfa_ioc_fw_mismatch(&fcport->bfa->ioc))
+			attr->port_state = BFA_PORT_ST_FWMISMATCH;
+	}
 
 	/* FCoE vlan */
 	attr->fcoe_vlan = fcport->fcoe_vlan;
