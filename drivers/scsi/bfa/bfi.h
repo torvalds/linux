@@ -101,7 +101,7 @@ union bfi_addr_u {
 };
 
 /*
- * Scatter Gather Element
+ * Scatter Gather Element used for fast-path IO requests
  */
 struct bfi_sge_s {
 #ifdef __BIG_ENDIAN
@@ -114,6 +114,14 @@ struct bfi_sge_s {
 			flags:2;
 #endif
 	union bfi_addr_u sga;
+};
+
+/**
+ * Generic DMA addr-len pair.
+ */
+struct bfi_alen_s {
+	union bfi_addr_u	al_addr;	/* DMA addr of buffer	*/
+	u32			al_len;		/* length of buffer	*/
 };
 
 /*

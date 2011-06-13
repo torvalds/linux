@@ -297,8 +297,8 @@ struct bfi_fcxp_send_req_s {
 	struct fchs_s	fchs;	/*  request FC header structure    */
 	__be32	req_len;	/*  request payload length	    */
 	__be32	rsp_maxlen;	/*  max response length expected   */
-	struct bfi_sge_s   req_sge[BFA_FCXP_MAX_SGES];	/*  request buf    */
-	struct bfi_sge_s   rsp_sge[BFA_FCXP_MAX_SGES];	/*  response buf   */
+	struct bfi_alen_s req_alen;	/* request buffer	*/
+	struct bfi_alen_s rsp_alen;	/* response buffer	*/
 };
 
 /*
@@ -328,7 +328,7 @@ struct bfi_uf_buf_post_s {
 	struct bfi_mhdr_s  mh;		/*  Common msg header		*/
 	u16	buf_tag;	/*  buffer tag			*/
 	__be16	buf_len;	/*  total buffer length	*/
-	struct bfi_sge_s   sge[BFA_UF_MAX_SGES]; /*  buffer DMA SGEs	*/
+	struct bfi_alen_s alen;	/* buffer address/len pair	*/
 };
 
 struct bfi_uf_frm_rcvd_s {

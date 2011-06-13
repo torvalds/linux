@@ -112,18 +112,6 @@ struct bfa_dma_s {
 #define BFI_SMEM_CB_SIZE	0x200000U	/* ! 2MB for crossbow	*/
 #define BFI_SMEM_CT_SIZE	0x280000U	/* ! 2.5MB for catapult	*/
 
-
-#define bfa_dma_addr_set(dma_addr, pa)	\
-		__bfa_dma_addr_set(&dma_addr, (u64)pa)
-
-static inline void
-__bfa_dma_addr_set(union bfi_addr_u *dma_addr, u64 pa)
-{
-	dma_addr->a32.addr_lo = (__be32) pa;
-	dma_addr->a32.addr_hi = (__be32) (pa >> 32);
-}
-
-
 #define bfa_dma_be_addr_set(dma_addr, pa)	\
 		__bfa_dma_be_addr_set(&dma_addr, (u64)pa)
 static inline void
@@ -131,6 +119,16 @@ __bfa_dma_be_addr_set(union bfi_addr_u *dma_addr, u64 pa)
 {
 	dma_addr->a32.addr_lo = cpu_to_be32(pa);
 	dma_addr->a32.addr_hi = cpu_to_be32(pa >> 32);
+}
+
+#define bfa_alen_set(__alen, __len, __pa)	\
+	__bfa_alen_set(__alen, __len, (u64)__pa)
+
+static inline void
+__bfa_alen_set(struct bfi_alen_s *alen, u32 len, u64 pa)
+{
+	alen->al_len = cpu_to_be32(len);
+	bfa_dma_be_addr_set(alen->al_addr, pa);
 }
 
 struct bfa_ioc_regs_s {

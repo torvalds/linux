@@ -750,23 +750,6 @@ hal_fcxp_send_comp(struct bfa_s *bfa, struct bfi_fcxp_send_rsp_s *fcxp_rsp)
 }
 
 static void
-hal_fcxp_set_local_sges(struct bfi_sge_s *sge, u32 reqlen, u64 req_pa)
-{
-	union bfi_addr_u      sga_zero = { {0} };
-
-	sge->sg_len = reqlen;
-	sge->flags = BFI_SGE_DATA_LAST;
-	bfa_dma_addr_set(sge[0].sga, req_pa);
-	bfa_sge_to_be(sge);
-	sge++;
-
-	sge->sga = sga_zero;
-	sge->sg_len = reqlen;
-	sge->flags = BFI_SGE_PGDLEN;
-	bfa_sge_to_be(sge);
-}
-
-static void
 hal_fcxp_tx_plog(struct bfa_s *bfa, u32 reqlen, struct bfa_fcxp_s *fcxp,
 		 struct fchs_s *fchs)
 {
@@ -873,18 +856,16 @@ bfa_fcxp_queue(struct bfa_fcxp_s *fcxp, struct bfi_fcxp_send_req_s *send_req)
 	 * setup req sgles
 	 */
 	if (fcxp->use_ireqbuf == 1) {
-		hal_fcxp_set_local_sges(send_req->req_sge, reqi->req_tot_len,
+		bfa_alen_set(&send_req->req_alen, reqi->req_tot_len,
 					BFA_FCXP_REQ_PLD_PA(fcxp));
 	} else {
 		if (fcxp->nreq_sgles > 0) {
 			WARN_ON(fcxp->nreq_sgles != 1);
-			hal_fcxp_set_local_sges(send_req->req_sge,
-						reqi->req_tot_len,
-						fcxp->req_sga_cbfn(fcxp->caller,
-								   0));
+			bfa_alen_set(&send_req->req_alen, reqi->req_tot_len,
+				fcxp->req_sga_cbfn(fcxp->caller, 0));
 		} else {
 			WARN_ON(reqi->req_tot_len != 0);
-			hal_fcxp_set_local_sges(send_req->rsp_sge, 0, 0);
+			bfa_alen_set(&send_req->rsp_alen, 0, 0);
 		}
 	}
 
@@ -894,19 +875,17 @@ bfa_fcxp_queue(struct bfa_fcxp_s *fcxp, struct bfi_fcxp_send_req_s *send_req)
 	if (fcxp->use_irspbuf == 1) {
 		WARN_ON(rspi->rsp_maxlen > BFA_FCXP_MAX_LBUF_SZ);
 
-		hal_fcxp_set_local_sges(send_req->rsp_sge, rspi->rsp_maxlen,
+		bfa_alen_set(&send_req->rsp_alen, rspi->rsp_maxlen,
 					BFA_FCXP_RSP_PLD_PA(fcxp));
-
 	} else {
 		if (fcxp->nrsp_sgles > 0) {
 			WARN_ON(fcxp->nrsp_sgles != 1);
-			hal_fcxp_set_local_sges(send_req->rsp_sge,
-						rspi->rsp_maxlen,
-						fcxp->rsp_sga_cbfn(fcxp->caller,
-								   0));
+			bfa_alen_set(&send_req->rsp_alen, rspi->rsp_maxlen,
+				fcxp->rsp_sga_cbfn(fcxp->caller, 0));
+
 		} else {
 			WARN_ON(rspi->rsp_maxlen != 0);
-			hal_fcxp_set_local_sges(send_req->rsp_sge, 0, 0);
+			bfa_alen_set(&send_req->rsp_alen, 0, 0);
 		}
 	}
 
@@ -4801,8 +4780,6 @@ static void
 claim_uf_post_msgs(struct bfa_uf_mod_s *ufm, struct bfa_meminfo_s *mi)
 {
 	struct bfi_uf_buf_post_s *uf_bp_msg;
-	struct bfi_sge_s      *sge;
-	union bfi_addr_u      sga_zero = { {0} };
 	u16 i;
 	u16 buf_len;
 
@@ -4818,17 +4795,7 @@ claim_uf_post_msgs(struct bfa_uf_mod_s *ufm, struct bfa_meminfo_s *mi)
 		uf_bp_msg->buf_len = cpu_to_be16(buf_len);
 		bfi_h2i_set(uf_bp_msg->mh, BFI_MC_UF, BFI_UF_H2I_BUF_POST,
 			    bfa_lpuid(ufm->bfa));
-
-		sge = uf_bp_msg->sge;
-		sge[0].sg_len = buf_len;
-		sge[0].flags = BFI_SGE_DATA_LAST;
-		bfa_dma_addr_set(sge[0].sga, ufm_pbs_pa(ufm, i));
-		bfa_sge_to_be(sge);
-
-		sge[1].sg_len = buf_len;
-		sge[1].flags = BFI_SGE_PGDLEN;
-		sge[1].sga = sga_zero;
-		bfa_sge_to_be(&sge[1]);
+		bfa_alen_set(&uf_bp_msg->alen, buf_len, ufm_pbs_pa(ufm, i));
 	}
 
 	/*
