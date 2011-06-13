@@ -197,18 +197,26 @@ struct bfa_ioc_cbfn_s {
 };
 
 /*
- * Heartbeat failure notification queue element.
+ * IOC event notification mechanism.
  */
-struct bfa_ioc_hbfail_notify_s {
+enum bfa_ioc_event_e {
+	BFA_IOC_E_ENABLED	= 1,
+	BFA_IOC_E_DISABLED	= 2,
+	BFA_IOC_E_FAILED	= 3,
+};
+
+typedef void (*bfa_ioc_notify_cbfn_t)(void *, enum bfa_ioc_event_e);
+
+struct bfa_ioc_notify_s {
 	struct list_head		qe;
-	bfa_ioc_hbfail_cbfn_t	cbfn;
+	bfa_ioc_notify_cbfn_t	cbfn;
 	void			*cbarg;
 };
 
 /*
- * Initialize a heartbeat failure notification structure
+ * Initialize a IOC event notification structure
  */
-#define bfa_ioc_hbfail_init(__notify, __cbfn, __cbarg) do {	\
+#define bfa_ioc_notify_init(__notify, __cbfn, __cbarg) do {	\
 	(__notify)->cbfn = (__cbfn);      \
 	(__notify)->cbarg = (__cbarg);      \
 } while (0)
@@ -229,11 +237,11 @@ struct bfa_ioc_s {
 	struct bfa_timer_s	sem_timer;
 	struct bfa_timer_s	hb_timer;
 	u32		hb_count;
-	struct list_head		hb_notify_q;
+	struct list_head	notify_q;
 	void			*dbg_fwsave;
 	int			dbg_fwsave_len;
 	bfa_boolean_t		dbg_fwsave_once;
-	enum bfi_mclass		ioc_mc;
+	enum bfi_pcifn_class	clscode;
 	struct bfa_ioc_regs_s	ioc_regs;
 	struct bfa_trc_mod_s	*trcmod;
 	struct bfa_ioc_drv_stats_s	stats;
@@ -334,7 +342,7 @@ void bfa_ioc_attach(struct bfa_ioc_s *ioc, void *bfa,
 void bfa_ioc_auto_recover(bfa_boolean_t auto_recover);
 void bfa_ioc_detach(struct bfa_ioc_s *ioc);
 void bfa_ioc_pci_init(struct bfa_ioc_s *ioc, struct bfa_pcidev_s *pcidev,
-		enum bfi_mclass mc);
+		enum bfi_pcifn_class clscode);
 void bfa_ioc_mem_claim(struct bfa_ioc_s *ioc,  u8 *dm_kva, u64 dm_pa);
 void bfa_ioc_enable(struct bfa_ioc_s *ioc);
 void bfa_ioc_disable(struct bfa_ioc_s *ioc);

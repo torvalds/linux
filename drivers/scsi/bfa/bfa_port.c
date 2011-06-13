@@ -387,32 +387,43 @@ bfa_port_clear_stats(struct bfa_port_s *port, bfa_port_stats_cbfn_t cbfn,
 }
 
 /*
- * bfa_port_hbfail()
+ * bfa_port_notify()
  *
+ * Port module IOC event handler
  *
  * @param[in] Pointer to the Port module data structure.
+ * @param[in] IOC event structure
  *
  * @return void
  */
 void
-bfa_port_hbfail(void *arg)
+bfa_port_notify(void *arg, enum bfa_ioc_event_e event)
 {
 	struct bfa_port_s *port = (struct bfa_port_s *) arg;
 
-	/* Fail any pending get_stats/clear_stats requests */
-	if (port->stats_busy) {
-		if (port->stats_cbfn)
-			port->stats_cbfn(port->stats_cbarg, BFA_STATUS_FAILED);
-		port->stats_cbfn = NULL;
-		port->stats_busy = BFA_FALSE;
-	}
+	switch (event) {
+	case BFA_IOC_E_DISABLED:
+	case BFA_IOC_E_FAILED:
+		/* Fail any pending get_stats/clear_stats requests */
+		if (port->stats_busy) {
+			if (port->stats_cbfn)
+				port->stats_cbfn(port->stats_cbarg,
+						BFA_STATUS_FAILED);
+			port->stats_cbfn = NULL;
+			port->stats_busy = BFA_FALSE;
+		}
 
-	/* Clear any enable/disable is pending */
-	if (port->endis_pending) {
-		if (port->endis_cbfn)
-			port->endis_cbfn(port->endis_cbarg, BFA_STATUS_FAILED);
-		port->endis_cbfn = NULL;
-		port->endis_pending = BFA_FALSE;
+		/* Clear any enable/disable is pending */
+		if (port->endis_pending) {
+			if (port->endis_cbfn)
+				port->endis_cbfn(port->endis_cbarg,
+						BFA_STATUS_FAILED);
+			port->endis_cbfn = NULL;
+			port->endis_pending = BFA_FALSE;
+		}
+		break;
+	default:
+		break;
 	}
 }
 
@@ -447,8 +458,8 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 	port->endis_cbfn = NULL;
 
 	bfa_ioc_mbox_regisr(port->ioc, BFI_MC_PORT, bfa_port_isr, port);
-	bfa_ioc_hbfail_init(&port->hbfail, bfa_port_hbfail, port);
-	list_add_tail(&port->hbfail.qe, &port->ioc->hb_notify_q);
+	bfa_ioc_notify_init(&port->ioc_notify, bfa_port_notify, port);
+	list_add_tail(&port->ioc_notify.qe, &port->ioc->notify_q);
 
 	/*
 	 * initialize time stamp for stats reset

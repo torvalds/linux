@@ -87,6 +87,8 @@ static void bfa_ioc_mbox_poll(struct bfa_ioc_s *ioc);
 static void bfa_ioc_mbox_hbfail(struct bfa_ioc_s *ioc);
 static void bfa_ioc_recover(struct bfa_ioc_s *ioc);
 static void bfa_ioc_check_attr_wwns(struct bfa_ioc_s *ioc);
+static void bfa_ioc_event_notify(struct bfa_ioc_s *ioc ,
+				enum bfa_ioc_event_e event);
 static void bfa_ioc_disable_comp(struct bfa_ioc_s *ioc);
 static void bfa_ioc_lpu_stop(struct bfa_ioc_s *ioc);
 static void bfa_ioc_debug_save_ftrc(struct bfa_ioc_s *ioc);
@@ -391,6 +393,7 @@ bfa_ioc_sm_op_entry(struct bfa_ioc_s *ioc)
 	struct bfad_s *bfad = (struct bfad_s *)ioc->bfa->bfad;
 
 	ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_OK);
+	bfa_ioc_event_notify(ioc, BFA_IOC_E_ENABLED);
 	bfa_ioc_hb_monitor(ioc);
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level, "IOC enabled\n");
 }
@@ -1185,21 +1188,26 @@ bfa_iocpf_sm_fail(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
  *  BFA IOC private functions
  */
 
+/*
+ * Notify common modules registered for notification.
+ */
+static void
+bfa_ioc_event_notify(struct bfa_ioc_s *ioc, enum bfa_ioc_event_e event)
+{
+	struct bfa_ioc_notify_s	*notify;
+	struct list_head	*qe;
+
+	list_for_each(qe, &ioc->notify_q) {
+		notify = (struct bfa_ioc_notify_s *)qe;
+		notify->cbfn(notify->cbarg, event);
+	}
+}
+
 static void
 bfa_ioc_disable_comp(struct bfa_ioc_s *ioc)
 {
-	struct list_head			*qe;
-	struct bfa_ioc_hbfail_notify_s	*notify;
-
 	ioc->cbfn->disable_cbfn(ioc->bfa);
-
-	/*
-	 * Notify common modules registered for notification.
-	 */
-	list_for_each(qe, &ioc->hb_notify_q) {
-		notify = (struct bfa_ioc_hbfail_notify_s *) qe;
-		notify->cbfn(notify->cbarg);
-	}
+	bfa_ioc_event_notify(ioc, BFA_IOC_E_DISABLED);
 }
 
 bfa_boolean_t
@@ -1508,7 +1516,7 @@ bfa_ioc_send_enable(struct bfa_ioc_s *ioc)
 
 	bfi_h2i_set(enable_req.mh, BFI_MC_IOC, BFI_IOC_H2I_ENABLE_REQ,
 		    bfa_ioc_portid(ioc));
-	enable_req.ioc_class = ioc->ioc_mc;
+	enable_req.clscode = cpu_to_be16(ioc->clscode);
 	do_gettimeofday(&tv);
 	enable_req.tv_sec = be32_to_cpu(tv.tv_sec);
 	bfa_ioc_mbox_send(ioc, &enable_req, sizeof(struct bfi_ioc_ctrl_req_s));
@@ -1816,18 +1824,13 @@ bfa_ioc_smem_clr(struct bfa_ioc_s *ioc, u32 soff, u32 sz)
 static void
 bfa_ioc_fail_notify(struct bfa_ioc_s *ioc)
 {
-	struct list_head		*qe;
-	struct bfa_ioc_hbfail_notify_s	*notify;
 	struct bfad_s *bfad = (struct bfad_s *)ioc->bfa->bfad;
 
 	/*
 	 * Notify driver and common modules registered for notification.
 	 */
 	ioc->cbfn->hbfail_cbfn(ioc->bfa);
-	list_for_each(qe, &ioc->hb_notify_q) {
-		notify = (struct bfa_ioc_hbfail_notify_s *) qe;
-		notify->cbfn(notify->cbarg);
-	}
+	bfa_ioc_event_notify(ioc, BFA_IOC_E_FAILED);
 
 	bfa_ioc_debug_save_ftrc(ioc);
 
@@ -2011,7 +2014,7 @@ bfa_ioc_attach(struct bfa_ioc_s *ioc, void *bfa, struct bfa_ioc_cbfn_s *cbfn,
 	ioc->iocpf.ioc	= ioc;
 
 	bfa_ioc_mbox_attach(ioc);
-	INIT_LIST_HEAD(&ioc->hb_notify_q);
+	INIT_LIST_HEAD(&ioc->notify_q);
 
 	bfa_fsm_set_state(ioc, bfa_ioc_sm_uninit);
 	bfa_fsm_send_event(ioc, IOC_E_RESET);
@@ -2033,9 +2036,9 @@ bfa_ioc_detach(struct bfa_ioc_s *ioc)
  */
 void
 bfa_ioc_pci_init(struct bfa_ioc_s *ioc, struct bfa_pcidev_s *pcidev,
-		 enum bfi_mclass mc)
+		enum bfi_pcifn_class clscode)
 {
-	ioc->ioc_mc	= mc;
+	ioc->clscode	= clscode;
 	ioc->pcidev	= *pcidev;
 	ioc->ctdev	= bfa_asic_id_ct(ioc->pcidev.device_id);
 	ioc->cna	= ioc->ctdev && !ioc->fcmode;
@@ -2318,12 +2321,10 @@ bfa_ioc_get_type(struct bfa_ioc_s *ioc)
 {
 	if (!ioc->ctdev || ioc->fcmode)
 		return BFA_IOC_TYPE_FC;
-	else if (ioc->ioc_mc == BFI_MC_IOCFC)
+	else if (ioc->clscode == BFI_PCIFN_CLASS_FC)
 		return BFA_IOC_TYPE_FCoE;
-	else if (ioc->ioc_mc == BFI_MC_LL)
-		return BFA_IOC_TYPE_LL;
 	else {
-		WARN_ON(ioc->ioc_mc != BFI_MC_LL);
+		WARN_ON(ioc->clscode != BFI_PCIFN_CLASS_ETH);
 		return BFA_IOC_TYPE_LL;
 	}
 }
@@ -2531,7 +2532,7 @@ bfa_ioc_send_fwsync(struct bfa_ioc_s *ioc)
 
 	bfi_h2i_set(req->mh, BFI_MC_IOC, BFI_IOC_H2I_DBG_SYNC,
 		    bfa_ioc_portid(ioc));
-	req->ioc_class = ioc->ioc_mc;
+	req->clscode = cpu_to_be16(ioc->clscode);
 	bfa_ioc_mbox_queue(ioc, &cmd);
 }
 

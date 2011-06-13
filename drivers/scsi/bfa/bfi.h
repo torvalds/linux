@@ -43,12 +43,14 @@ struct bfi_mhdr_s {
 	u8		msg_id;		/*  msg opcode with in the class   */
 	union {
 		struct {
-			u8	rsvd;
+			u8	qid;
 			u8	lpu_id;	/*  msg destination		    */
 		} h2i;
 		u16	i2htok;	/*  token in msgs to host	    */
 	} mtag;
 };
+
+#define bfi_mhdr_2_qid(_mh)	(_mh)->mtag.h2i.qid
 
 #define bfi_h2i_set(_mh, _mc, _op, _lpuid) do {		\
 	(_mh).msg_class		= (_mc);      \
@@ -154,6 +156,14 @@ struct bfi_msg_s {
 struct bfi_mbmsg_s {
 	struct bfi_mhdr_s	mh;
 	u32		pl[BFI_MBMSG_SZ];
+};
+
+/*
+ * Supported PCI function class codes (personality)
+ */
+enum bfi_pcifn_class {
+	BFI_PCIFN_CLASS_FC  = 0x0c04,
+	BFI_PCIFN_CLASS_ETH = 0x0200,
 };
 
 /*
@@ -353,8 +363,8 @@ enum {
  */
 struct bfi_ioc_ctrl_req_s {
 	struct bfi_mhdr_s	mh;
-	u8			ioc_class;
-	u8			rsvd[3];
+	u16			clscode;
+	u16			rsvd;
 	u32		tv_sec;
 };
 #define bfi_ioc_enable_req_t struct bfi_ioc_ctrl_req_s;

@@ -43,12 +43,12 @@ struct bfa_port_s {
 	bfa_port_endis_cbfn_t		endis_cbfn;
 	void				*endis_cbarg;
 	bfa_status_t			endis_status;
-	struct bfa_ioc_hbfail_notify_s	hbfail;
+	struct bfa_ioc_notify_s		ioc_notify;
 };
 
 void	     bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 				void *dev, struct bfa_trc_mod_s *trcmod);
-void	     bfa_port_hbfail(void *arg);
+void	bfa_port_notify(void *arg, enum bfa_ioc_event_e event);
 
 bfa_status_t bfa_port_get_stats(struct bfa_port_s *port,
 				 union bfa_port_stats_u *stats,
