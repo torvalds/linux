@@ -660,21 +660,16 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 	if (radeon_encoder_is_dp_bridge(encoder))
 		return ATOM_ENCODER_MODE_DP;
 
+	/* DVO is always DVO */
+	if (radeon_encoder->encoder_id == ATOM_ENCODER_MODE_DVO)
+		return ATOM_ENCODER_MODE_DVO;
+
 	connector = radeon_get_connector_for_encoder(encoder);
-	if (!connector) {
-		switch (radeon_encoder->encoder_id) {
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
-			return ATOM_ENCODER_MODE_DVI;
-		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
-		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
-		default:
-			return ATOM_ENCODER_MODE_CRT;
-		}
-	}
+	/* if we don't have an active device yet, just use one of
+	 * the connectors tied to the encoder.
+	 */
+	if (!connector)
+		connector = radeon_get_connector_for_encoder_init(encoder);
 	radeon_connector = to_radeon_connector(connector);
 
 	switch (connector->connector_type) {
