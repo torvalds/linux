@@ -634,12 +634,14 @@ _pnfs_return_layout(struct inode *ino)
 
 	spin_lock(&ino->i_lock);
 	lo = nfsi->layout;
-	if (!lo || !mark_matching_lsegs_invalid(lo, &tmp_list, NULL)) {
+	if (!lo) {
 		spin_unlock(&ino->i_lock);
-		dprintk("%s: no layout segments to return\n", __func__);
-		goto out;
+		dprintk("%s: no layout to return\n", __func__);
+		return status;
 	}
 	stateid = nfsi->layout->plh_stateid;
+	mark_matching_lsegs_invalid(lo, &tmp_list, NULL);
+	lo->plh_block_lgets++;
 	/* Reference matched in nfs4_layoutreturn_release */
 	get_layout_hdr(lo);
 	spin_unlock(&ino->i_lock);
