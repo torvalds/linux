@@ -221,8 +221,7 @@ enum bfi_ioc_i2h_msgs {
 	BFI_IOC_I2H_ENABLE_REPLY	= BFA_I2HM(1),
 	BFI_IOC_I2H_DISABLE_REPLY	= BFA_I2HM(2),
 	BFI_IOC_I2H_GETATTR_REPLY	= BFA_I2HM(3),
-	BFI_IOC_I2H_READY_EVENT		= BFA_I2HM(4),
-	BFI_IOC_I2H_HBEAT		= BFA_I2HM(5),
+	BFI_IOC_I2H_HBEAT		= BFA_I2HM(4),
 };
 
 /*
@@ -318,15 +317,6 @@ enum bfi_port_mode {
 	BFI_PORT_MODE_ETH	= 2,
 };
 
-/*
- *  BFI_IOC_I2H_READY_EVENT message
- */
-struct bfi_ioc_rdy_event_s {
-	struct bfi_mhdr_s	mh;		/*  common msg header */
-	u8			init_status;	/*  init event status */
-	u8			rsvd[3];
-};
-
 struct bfi_ioc_hbeat_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		*/
 	u32	   hb_count;	/*  current heart beat count	*/
@@ -418,7 +408,7 @@ union bfi_ioc_h2i_msg_u {
  */
 union bfi_ioc_i2h_msg_u {
 	struct bfi_mhdr_s		mh;
-	struct bfi_ioc_rdy_event_s	rdy_event;
+	struct bfi_ioc_ctrl_reply_s	rdy_event;
 	u32			mboxmsg[BFI_IOC_MSGSZ];
 };
 

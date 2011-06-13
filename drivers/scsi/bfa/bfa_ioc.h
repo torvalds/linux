@@ -224,8 +224,9 @@ struct bfa_ioc_notify_s {
 struct bfa_iocpf_s {
 	bfa_fsm_t		fsm;
 	struct bfa_ioc_s	*ioc;
-	u32		retry_count;
+	bfa_boolean_t		fw_mismatch_notified;
 	bfa_boolean_t		auto_recover;
+	u32			poll_time;
 };
 
 struct bfa_ioc_s {

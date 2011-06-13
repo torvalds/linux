@@ -300,8 +300,8 @@ bfa_ioc_ct2_reg_init(struct bfa_ioc_s *ioc)
 	ioc->ioc_regs.ioc_sem_reg = (rb + CT2_HOST_SEM0_REG);
 	ioc->ioc_regs.ioc_usage_sem_reg = (rb + CT2_HOST_SEM1_REG);
 	ioc->ioc_regs.ioc_init_sem_reg = (rb + CT2_HOST_SEM2_REG);
-	ioc->ioc_regs.ioc_usage_reg = (rb + BFA_FW_USE_COUNT);
-	ioc->ioc_regs.ioc_fail_sync = (rb + BFA_IOC_FAIL_SYNC);
+	ioc->ioc_regs.ioc_usage_reg = (rb + CT2_BFA_FW_USE_COUNT);
+	ioc->ioc_regs.ioc_fail_sync = (rb + CT2_BFA_IOC_FAIL_SYNC);
 
 	/*
 	 * sram memory access
@@ -636,10 +636,10 @@ bfa_ioc_ct_pll_init(void __iomem *rb, enum bfi_asic_mode mode)
 static struct { u32 sclk, speed, half_speed; } ct2_pll[] = {
 	{0},							/* unused */
 	{__APP_PLL_SCLK_CLK_DIV2, 0, 0},			/* FC 8G  */
-	{0, __APP_LPU_SPEED, 0},				/* FC 16G */
+	{0, 0, 0},						/* FC 16G */
 	{__APP_PLL_SCLK_REFCLK_SEL | __APP_PLL_SCLK_CLK_DIV2, 0, /* ETH   */
 	__APP_LPUCLK_HALFSPEED},
-	{0, __APP_LPU_SPEED, 0},				/* COMBO  */
+	{0, 0, 0},						/* COMBO  */
 };
 
 static void
@@ -664,15 +664,13 @@ bfa_ioc_ct2_sclk_init(void __iomem *rb, enum bfi_asic_mode mode)
 	writel(r32 | ct2_pll[mode].sclk, (rb + CT2_APP_PLL_SCLK_CTL_REG));
 
 	/*
-	 * remove clock gating for ethernet subsystem for ethernet mode
+	 * while doing PLL init dont clock gate ethernet subsystem
 	 */
-	if (mode == BFI_ASIC_MODE_ETH) {
-		r32 = readl((rb + CT2_CHIP_MISC_PRG));
-		writel(r32 | __ETH_CLK_ENABLE_PORT0, (rb + CT2_CHIP_MISC_PRG));
+	r32 = readl((rb + CT2_CHIP_MISC_PRG));
+	writel(r32 | __ETH_CLK_ENABLE_PORT0, (rb + CT2_CHIP_MISC_PRG));
 
-		r32 = readl((rb + CT2_PCIE_MISC_REG));
-		writel(r32 | __ETH_CLK_ENABLE_PORT1, (rb + CT2_PCIE_MISC_REG));
-	}
+	r32 = readl((rb + CT2_PCIE_MISC_REG));
+	writel(r32 | __ETH_CLK_ENABLE_PORT1, (rb + CT2_PCIE_MISC_REG));
 
 	/*
 	 * set sclk value
@@ -693,6 +691,19 @@ bfa_ioc_ct2_sclk_init(void __iomem *rb, enum bfi_asic_mode mode)
 	r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
 	writel(r32 & ~__APP_PLL_SCLK_LOGIC_SOFT_RESET,
 		(rb + CT2_APP_PLL_SCLK_CTL_REG));
+
+	/*
+	 * clock gating for ethernet subsystem if not in ethernet mode
+	 */
+	if (mode != BFI_ASIC_MODE_ETH) {
+		r32 = readl((rb + CT2_CHIP_MISC_PRG));
+		writel(r32 & ~__ETH_CLK_ENABLE_PORT0,
+			(rb + CT2_CHIP_MISC_PRG));
+
+		r32 = readl((rb + CT2_PCIE_MISC_REG));
+		writel(r32 & ~__ETH_CLK_ENABLE_PORT1,
+			(rb + CT2_PCIE_MISC_REG));
+	}
 }
 
 static void
@@ -728,7 +739,8 @@ bfa_ioc_ct2_lclk_init(void __iomem *rb, enum bfi_asic_mode mode)
 	 */
 	r32 = readl((rb + CT2_APP_PLL_LCLK_CTL_REG));
 	r32 &= (__P_LCLK_PLL_LOCK | __APP_LPUCLK_HALFSPEED);
-	if (mode == BFI_ASIC_MODE_FC || mode == BFI_ASIC_MODE_ETH)
+	 if (mode == BFI_ASIC_MODE_FC || mode == BFI_ASIC_MODE_FC16 ||
+	     mode == BFI_ASIC_MODE_ETH)
 		r32 |= 0x20c1731b;
 	else
 		r32 |= 0x2081731b;
@@ -755,14 +767,21 @@ bfa_ioc_ct2_mem_init(void __iomem *rb, enum bfi_asic_mode mode)
 
 	fcmode = (mode == BFI_ASIC_MODE_FC) || (mode == BFI_ASIC_MODE_FC16);
 	if (!fcmode) {
-		writel(__PMM_1T_RESET_P, (rb + CT2_PMM_1T_CONTROL_REG_P0));
-		writel(__PMM_1T_RESET_P, (rb + CT2_PMM_1T_CONTROL_REG_P1));
+		writel(__PMM_1T_PNDB_P | __PMM_1T_RESET_P,
+			(rb + CT2_PMM_1T_CONTROL_REG_P0));
+		writel(__PMM_1T_PNDB_P | __PMM_1T_RESET_P,
+			(rb + CT2_PMM_1T_CONTROL_REG_P1));
 	}
 
 	r32 = readl((rb + PSS_CTL_REG));
 	r32 &= ~__PSS_LMEM_RESET;
 	writel(r32, (rb + PSS_CTL_REG));
 	udelay(1000);
+
+	if (!fcmode) {
+		writel(__PMM_1T_PNDB_P, (rb + CT2_PMM_1T_CONTROL_REG_P0));
+		writel(__PMM_1T_PNDB_P, (rb + CT2_PMM_1T_CONTROL_REG_P1));
+	}
 
 	writel(__EDRAM_BISTR_START, (rb + CT2_MBIST_CTL_REG));
 	udelay(1000);
@@ -775,6 +794,12 @@ bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode mode)
 	bfa_ioc_ct2_sclk_init(rb, mode);
 	bfa_ioc_ct2_lclk_init(rb, mode);
 	bfa_ioc_ct2_mem_init(rb, mode);
+
+	/*
+	 * Disable flash presence to NFC by clearing GPIO 0
+	 */
+	writel(0, (rb + PSS_GPIO_OUT_REG));
+	writel(1, (rb + PSS_GPIO_OE_REG));
 
 	writel(BFI_IOC_UNINIT, (rb + CT2_BFA_IOC0_STATE_REG));
 	writel(BFI_IOC_UNINIT, (rb + CT2_BFA_IOC1_STATE_REG));

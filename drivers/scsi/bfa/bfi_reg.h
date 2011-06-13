@@ -137,6 +137,10 @@
 #define __PSS_LPU0_RESET		0x00000001
 #define PSS_ERR_STATUS_REG		0x00018810	/* cb/ct	*/
 #define ERR_SET_REG			0x00018818	/* cb/ct	*/
+#define PSS_GPIO_OUT_REG		0x000188c0	/* cb/ct	*/
+#define __PSS_GPIO_OUT_REG		0x00000fff
+#define PSS_GPIO_OE_REG			0x000188c8	/* cb/ct	*/
+#define __PSS_GPIO_OE_REG		0x000000ff
 
 #define HOSTFN0_LPU_MBOX0_0		0x00019200	/* cb/ct	*/
 #define HOSTFN1_LPU_MBOX0_8		0x00019260	/* cb/ct	*/

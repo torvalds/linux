@@ -228,7 +228,8 @@ struct bfa_hwif_s {
 	void (*hw_reqq_ack)(struct bfa_s *bfa, int reqq);
 	void (*hw_rspq_ack)(struct bfa_s *bfa, int rspq);
 	void (*hw_msix_init)(struct bfa_s *bfa, int nvecs);
-	void (*hw_msix_install)(struct bfa_s *bfa);
+	void (*hw_msix_ctrl_install)(struct bfa_s *bfa);
+	void (*hw_msix_queue_install)(struct bfa_s *bfa);
 	void (*hw_msix_uninstall)(struct bfa_s *bfa);
 	void (*hw_isr_mode_set)(struct bfa_s *bfa, bfa_boolean_t msix);
 	void (*hw_msix_getvecs)(struct bfa_s *bfa, u32 *vecmap,
@@ -271,8 +272,10 @@ struct bfa_iocfc_s {
 	bfa_ioc_portid(&(__bfa)->ioc)
 #define bfa_msix_init(__bfa, __nvecs)					\
 	((__bfa)->iocfc.hwif.hw_msix_init(__bfa, __nvecs))
-#define bfa_msix_install(__bfa)						\
-	((__bfa)->iocfc.hwif.hw_msix_install(__bfa))
+#define bfa_msix_ctrl_install(__bfa)					\
+	((__bfa)->iocfc.hwif.hw_msix_ctrl_install(__bfa))
+#define bfa_msix_queue_install(__bfa)					\
+	((__bfa)->iocfc.hwif.hw_msix_queue_install(__bfa))
 #define bfa_msix_uninstall(__bfa)					\
 	((__bfa)->iocfc.hwif.hw_msix_uninstall(__bfa))
 #define bfa_isr_mode_set(__bfa, __msix) do {				\
@@ -314,7 +317,8 @@ void bfa_hwcb_reginit(struct bfa_s *bfa);
 void bfa_hwcb_reqq_ack(struct bfa_s *bfa, int rspq);
 void bfa_hwcb_rspq_ack(struct bfa_s *bfa, int rspq);
 void bfa_hwcb_msix_init(struct bfa_s *bfa, int nvecs);
-void bfa_hwcb_msix_install(struct bfa_s *bfa);
+void bfa_hwcb_msix_ctrl_install(struct bfa_s *bfa);
+void bfa_hwcb_msix_queue_install(struct bfa_s *bfa);
 void bfa_hwcb_msix_uninstall(struct bfa_s *bfa);
 void bfa_hwcb_isr_mode_set(struct bfa_s *bfa, bfa_boolean_t msix);
 void bfa_hwcb_msix_getvecs(struct bfa_s *bfa, u32 *vecmap, u32 *nvecs,
@@ -326,7 +330,8 @@ void bfa_hwct2_reginit(struct bfa_s *bfa);
 void bfa_hwct_reqq_ack(struct bfa_s *bfa, int rspq);
 void bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq);
 void bfa_hwct_msix_init(struct bfa_s *bfa, int nvecs);
-void bfa_hwct_msix_install(struct bfa_s *bfa);
+void bfa_hwct_msix_ctrl_install(struct bfa_s *bfa);
+void bfa_hwct_msix_queue_install(struct bfa_s *bfa);
 void bfa_hwct_msix_uninstall(struct bfa_s *bfa);
 void bfa_hwct_isr_mode_set(struct bfa_s *bfa, bfa_boolean_t msix);
 void bfa_hwct_msix_getvecs(struct bfa_s *bfa, u32 *vecmap, u32 *nvecs,

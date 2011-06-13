@@ -96,7 +96,19 @@ bfa_hwct_msix_init(struct bfa_s *bfa, int nvecs)
 }
 
 void
-bfa_hwct_msix_install(struct bfa_s *bfa)
+bfa_hwct_msix_ctrl_install(struct bfa_s *bfa)
+{
+	if (bfa->msix.nvecs == 0)
+		return;
+
+	if (bfa->msix.nvecs == 1)
+		bfa->msix.handler[BFI_MSIX_LPU_ERR_CT] = bfa_msix_all;
+	else
+		bfa->msix.handler[BFI_MSIX_LPU_ERR_CT] = bfa_msix_lpu_err;
+}
+
+void
+bfa_hwct_msix_queue_install(struct bfa_s *bfa)
 {
 	int i;
 
@@ -104,7 +116,7 @@ bfa_hwct_msix_install(struct bfa_s *bfa)
 		return;
 
 	if (bfa->msix.nvecs == 1) {
-		for (i = 0; i < BFI_MSIX_CT_MAX; i++)
+		for (i = BFI_MSIX_CPE_QMIN_CT; i < BFI_MSIX_CT_MAX; i++)
 			bfa->msix.handler[i] = bfa_msix_all;
 		return;
 	}
@@ -114,8 +126,6 @@ bfa_hwct_msix_install(struct bfa_s *bfa)
 
 	for (i = BFI_MSIX_RME_QMIN_CT; i <= BFI_MSIX_RME_QMAX_CT; i++)
 		bfa->msix.handler[i] = bfa_msix_rspq;
-
-	bfa->msix.handler[BFI_MSIX_LPU_ERR_CT] = bfa_msix_lpu_err;
 }
 
 void

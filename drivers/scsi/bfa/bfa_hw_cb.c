@@ -86,18 +86,53 @@ bfa_hwcb_msix_getvecs(struct bfa_s *bfa, u32 *msix_vecs_bmap,
 }
 
 /*
+ * Dummy interrupt handler for handling spurious interrupts.
+ */
+static void
+bfa_hwcb_msix_dummy(struct bfa_s *bfa, int vec)
+{
+}
+
+/*
  * No special setup required for crossbow -- vector assignments are implicit.
  */
 void
 bfa_hwcb_msix_init(struct bfa_s *bfa, int nvecs)
 {
-	int i;
-
 	WARN_ON((nvecs != 1) && (nvecs != __HFN_NUMINTS));
 
 	bfa->msix.nvecs = nvecs;
-	if (nvecs == 1) {
-		for (i = 0; i < BFI_MSIX_CB_MAX; i++)
+	bfa_hwcb_msix_uninstall(bfa);
+}
+
+void
+bfa_hwcb_msix_ctrl_install(struct bfa_s *bfa)
+{
+	int i;
+
+	if (bfa->msix.nvecs == 0)
+		return;
+
+	if (bfa->msix.nvecs == 1) {
+		for (i = BFI_MSIX_RME_QMAX_CB+1; i < BFI_MSIX_CB_MAX; i++)
+			bfa->msix.handler[i] = bfa_msix_all;
+		return;
+	}
+
+	for (i = BFI_MSIX_RME_QMAX_CB+1; i < BFI_MSIX_CB_MAX; i++)
+		bfa->msix.handler[i] = bfa_msix_lpu_err;
+}
+
+void
+bfa_hwcb_msix_queue_install(struct bfa_s *bfa)
+{
+	int i;
+
+	if (bfa->msix.nvecs == 0)
+		return;
+
+	if (bfa->msix.nvecs == 1) {
+		for (i = BFI_MSIX_CPE_QMIN_CB; i <= BFI_MSIX_RME_QMAX_CB; i++)
 			bfa->msix.handler[i] = bfa_msix_all;
 		return;
 	}
@@ -107,22 +142,15 @@ bfa_hwcb_msix_init(struct bfa_s *bfa, int nvecs)
 
 	for (i = BFI_MSIX_RME_QMIN_CB; i <= BFI_MSIX_RME_QMAX_CB; i++)
 		bfa->msix.handler[i] = bfa_msix_rspq;
-
-	for (; i < BFI_MSIX_CB_MAX; i++)
-		bfa->msix.handler[i] = bfa_msix_lpu_err;
-}
-
-/*
- * Crossbow -- dummy, interrupts are masked
- */
-void
-bfa_hwcb_msix_install(struct bfa_s *bfa)
-{
 }
 
 void
 bfa_hwcb_msix_uninstall(struct bfa_s *bfa)
 {
+	int i;
+
+	for (i = 0; i < BFI_MSIX_CB_MAX; i++)
+		bfa->msix.handler[i] = bfa_hwcb_msix_dummy;
 }
 
 /*

@@ -248,7 +248,7 @@ bfa_intx(struct bfa_s *bfa)
 	writel(qintr, bfa->iocfc.bfa_regs.intr_status);
 
 	for (queue = 0; queue < BFI_IOC_MAX_CQS_ASIC; queue++) {
-		if (intr & (__HFN_INT_RME_Q0 << queue))
+		if ((intr & (__HFN_INT_RME_Q0 << queue)) && bfa->queue_process)
 			bfa_isr_rspq(bfa, queue & (BFI_IOC_MAX_CQS - 1));
 	}
 	intr &= ~qintr;
@@ -262,7 +262,7 @@ bfa_intx(struct bfa_s *bfa)
 	writel(qintr, bfa->iocfc.bfa_regs.intr_status);
 
 	for (queue = 0; queue < BFI_IOC_MAX_CQS_ASIC; queue++) {
-		if (intr & (__HFN_INT_CPE_Q0 << queue))
+		if ((intr & (__HFN_INT_CPE_Q0 << queue)) && bfa->queue_process)
 			bfa_isr_reqq(bfa, queue & (BFI_IOC_MAX_CQS - 1));
 	}
 	intr &= ~qintr;
@@ -282,7 +282,7 @@ bfa_isr_enable(struct bfa_s *bfa)
 
 	bfa_trc(bfa, pci_func);
 
-	bfa_msix_install(bfa);
+	bfa_msix_ctrl_install(bfa);
 
 	if (bfa_asic_id_ct2(bfa->ioc.pcidev.device_id)) {
 		umsk = __HFN_INT_ERR_MASK_CT2;
@@ -326,9 +326,6 @@ bfa_isr_unhandled(struct bfa_s *bfa, struct bfi_msg_s *m)
 void
 bfa_msix_rspq(struct bfa_s *bfa, int vec)
 {
-	if (!bfa->rme_process)
-		return;
-
 	bfa_isr_rspq(bfa, vec - bfa->iocfc.hwif.rme_vec_q0);
 }
 
@@ -512,7 +509,8 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		iocfc->hwif.hw_reqq_ack = bfa_hwct_reqq_ack;
 		iocfc->hwif.hw_rspq_ack = bfa_hwct_rspq_ack;
 		iocfc->hwif.hw_msix_init = bfa_hwct_msix_init;
-		iocfc->hwif.hw_msix_install = bfa_hwct_msix_install;
+		iocfc->hwif.hw_msix_ctrl_install = bfa_hwct_msix_ctrl_install;
+		iocfc->hwif.hw_msix_queue_install = bfa_hwct_msix_queue_install;
 		iocfc->hwif.hw_msix_uninstall = bfa_hwct_msix_uninstall;
 		iocfc->hwif.hw_isr_mode_set = bfa_hwct_isr_mode_set;
 		iocfc->hwif.hw_msix_getvecs = bfa_hwct_msix_getvecs;
@@ -524,7 +522,8 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		iocfc->hwif.hw_reqq_ack = bfa_hwcb_reqq_ack;
 		iocfc->hwif.hw_rspq_ack = bfa_hwcb_rspq_ack;
 		iocfc->hwif.hw_msix_init = bfa_hwcb_msix_init;
-		iocfc->hwif.hw_msix_install = bfa_hwcb_msix_install;
+		iocfc->hwif.hw_msix_ctrl_install = bfa_hwcb_msix_ctrl_install;
+		iocfc->hwif.hw_msix_queue_install = bfa_hwcb_msix_queue_install;
 		iocfc->hwif.hw_msix_uninstall = bfa_hwcb_msix_uninstall;
 		iocfc->hwif.hw_isr_mode_set = bfa_hwcb_isr_mode_set;
 		iocfc->hwif.hw_msix_getvecs = bfa_hwcb_msix_getvecs;
@@ -640,7 +639,7 @@ bfa_iocfc_start_submod(struct bfa_s *bfa)
 {
 	int		i;
 
-	bfa->rme_process = BFA_TRUE;
+	bfa->queue_process = BFA_TRUE;
 	for (i = 0; i < BFI_IOC_MAX_CQS; i++)
 		bfa->iocfc.hwif.hw_rspq_ack(bfa, i);
 
@@ -743,6 +742,11 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 	bfa_iocfc_qreg(bfa, &cfgrsp->qreg);
 
 	/*
+	 * Install MSIX queue handlers
+	 */
+	bfa_msix_queue_install(bfa);
+
+	/*
 	 * Configuration is complete - initialize/start submodules
 	 */
 	bfa_fcport_init(bfa);
@@ -813,7 +817,7 @@ bfa_iocfc_hbfail_cbfn(void *bfa_arg)
 {
 	struct bfa_s	*bfa = bfa_arg;
 
-	bfa->rme_process = BFA_FALSE;
+	bfa->queue_process = BFA_FALSE;
 
 	bfa_isr_disable(bfa);
 	bfa_iocfc_disable_submod(bfa);
@@ -917,7 +921,7 @@ bfa_iocfc_stop(struct bfa_s *bfa)
 {
 	bfa->iocfc.action = BFA_IOCFC_ACT_STOP;
 
-	bfa->rme_process = BFA_FALSE;
+	bfa->queue_process = BFA_FALSE;
 	bfa_ioc_disable(&bfa->ioc);
 }
 
@@ -1017,7 +1021,7 @@ bfa_iocfc_disable(struct bfa_s *bfa)
 		     "IOC Disable");
 	bfa->iocfc.action = BFA_IOCFC_ACT_DISABLE;
 
-	bfa->rme_process = BFA_FALSE;
+	bfa->queue_process = BFA_FALSE;
 	bfa_ioc_disable(&bfa->ioc);
 }
 
