@@ -287,9 +287,8 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 	/* store old status and compare now and old later */
 	if (usbip_dbg_flag_vhci_rh) {
-		int i = 0;
-		for (i = 0; i < VHCI_NPORTS; i++)
-			prev_port_status[i] = dum->port_status[i];
+		memcpy(prev_port_status, dum->port_status,
+			sizeof(prev_port_status));
 	}
 
 	switch (typeReq) {
