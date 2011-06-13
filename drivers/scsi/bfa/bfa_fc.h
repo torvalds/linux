@@ -1049,15 +1049,6 @@ struct fc_vft_s {
 };
 
 /*
- * FCP
- */
-enum {
-	FCP_RJT		= 0x01000000,	/* SRR reject */
-	FCP_SRR_ACCEPT	= 0x02000000,	/* SRR accept */
-	FCP_SRR		= 0x14000000,	/* Sequence Retransmission Request */
-};
-
-/*
  * FCP_CMND definitions
  */
 #define FCP_CMND_CDB_LEN    16

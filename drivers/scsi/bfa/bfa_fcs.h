@@ -379,6 +379,7 @@ void bfa_fcs_vport_online(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_offline(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_delete_comp(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_fcs_delete(struct bfa_fcs_vport_s *vport);
+void bfa_fcs_vport_stop_comp(struct bfa_fcs_vport_s *vport);
 
 #define BFA_FCS_RPORT_DEF_DEL_TIMEOUT	90	/* in secs */
 #define BFA_FCS_RPORT_MAX_RETRIES	(5)

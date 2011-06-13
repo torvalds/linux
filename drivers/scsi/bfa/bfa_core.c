@@ -51,7 +51,7 @@ static bfa_isr_func_t  bfa_isrs[BFI_MC_MAX] = {
 	bfa_fcxp_isr,		/* BFI_MC_FCXP */
 	bfa_lps_isr,		/* BFI_MC_LPS */
 	bfa_rport_isr,		/* BFI_MC_RPORT */
-	bfa_itnim_isr,		/* BFI_MC_ITNIM */
+	bfa_itnim_isr,		/* BFI_MC_ITN */
 	bfa_isr_unhandled,	/* BFI_MC_IOIM_READ */
 	bfa_isr_unhandled,	/* BFI_MC_IOIM_WRITE */
 	bfa_isr_unhandled,	/* BFI_MC_IOIM_IO */

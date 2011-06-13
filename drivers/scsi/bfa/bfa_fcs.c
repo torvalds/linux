@@ -269,8 +269,8 @@ bfa_fcs_fabric_sm_created(struct bfa_fcs_fabric_s *fabric,
 		break;
 
 	case BFA_FCS_FABRIC_SM_DELETE:
-		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_uninit);
-		bfa_wc_down(&fabric->fcs->wc);
+		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_deleting);
+		bfa_fcs_fabric_delete(fabric);
 		break;
 
 	default:

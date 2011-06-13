@@ -1043,7 +1043,7 @@ bfa_itnim_iocdisable(struct bfa_itnim_s *itnim)
 static bfa_boolean_t
 bfa_itnim_send_fwcreate(struct bfa_itnim_s *itnim)
 {
-	struct bfi_itnim_create_req_s *m;
+	struct bfi_itn_create_req_s *m;
 
 	itnim->msg_no++;
 
@@ -1056,7 +1056,7 @@ bfa_itnim_send_fwcreate(struct bfa_itnim_s *itnim)
 		return BFA_FALSE;
 	}
 
-	bfi_h2i_set(m->mh, BFI_MC_ITNIM, BFI_ITNIM_H2I_CREATE_REQ,
+	bfi_h2i_set(m->mh, BFI_MC_ITN, BFI_ITN_H2I_CREATE_REQ,
 			bfa_lpuid(itnim->bfa));
 	m->fw_handle = itnim->rport->fw_handle;
 	m->class = FC_CLASS_3;
@@ -1074,7 +1074,7 @@ bfa_itnim_send_fwcreate(struct bfa_itnim_s *itnim)
 static bfa_boolean_t
 bfa_itnim_send_fwdelete(struct bfa_itnim_s *itnim)
 {
-	struct bfi_itnim_delete_req_s *m;
+	struct bfi_itn_delete_req_s *m;
 
 	/*
 	 * check for room in queue to send request now
@@ -1085,7 +1085,7 @@ bfa_itnim_send_fwdelete(struct bfa_itnim_s *itnim)
 		return BFA_FALSE;
 	}
 
-	bfi_h2i_set(m->mh, BFI_MC_ITNIM, BFI_ITNIM_H2I_DELETE_REQ,
+	bfi_h2i_set(m->mh, BFI_MC_ITN, BFI_ITN_H2I_DELETE_REQ,
 			bfa_lpuid(itnim->bfa));
 	m->fw_handle = itnim->rport->fw_handle;
 	bfa_stats(itnim, fw_delete);
@@ -1251,7 +1251,7 @@ void
 bfa_itnim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 {
 	struct bfa_fcpim_mod_s *fcpim = BFA_FCPIM_MOD(bfa);
-	union bfi_itnim_i2h_msg_u msg;
+	union bfi_itn_i2h_msg_u msg;
 	struct bfa_itnim_s *itnim;
 
 	bfa_trc(bfa, m->mhdr.msg_id);
@@ -1259,7 +1259,7 @@ bfa_itnim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	msg.msg = m;
 
 	switch (m->mhdr.msg_id) {
-	case BFI_ITNIM_I2H_CREATE_RSP:
+	case BFI_ITN_I2H_CREATE_RSP:
 		itnim = BFA_ITNIM_FROM_TAG(fcpim,
 						msg.create_rsp->bfa_handle);
 		WARN_ON(msg.create_rsp->status != BFA_STATUS_OK);
@@ -1267,7 +1267,7 @@ bfa_itnim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 		bfa_sm_send_event(itnim, BFA_ITNIM_SM_FWRSP);
 		break;
 
-	case BFI_ITNIM_I2H_DELETE_RSP:
+	case BFI_ITN_I2H_DELETE_RSP:
 		itnim = BFA_ITNIM_FROM_TAG(fcpim,
 						msg.delete_rsp->bfa_handle);
 		WARN_ON(msg.delete_rsp->status != BFA_STATUS_OK);
@@ -1275,7 +1275,7 @@ bfa_itnim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 		bfa_sm_send_event(itnim, BFA_ITNIM_SM_FWRSP);
 		break;
 
-	case BFI_ITNIM_I2H_SLER_EVENT:
+	case BFI_ITN_I2H_SLER_EVENT:
 		itnim = BFA_ITNIM_FROM_TAG(fcpim,
 						msg.sler_event->bfa_handle);
 		bfa_stats(itnim, sler_events);

@@ -74,6 +74,7 @@ enum bfa_fcs_lport_event {
 	BFA_FCS_PORT_SM_OFFLINE = 3,
 	BFA_FCS_PORT_SM_DELETE = 4,
 	BFA_FCS_PORT_SM_DELRPORT = 5,
+	BFA_FCS_PORT_SM_STOP = 6,
 };
 
 static void     bfa_fcs_lport_sm_uninit(struct bfa_fcs_lport_s *port,
@@ -85,6 +86,8 @@ static void     bfa_fcs_lport_sm_online(struct bfa_fcs_lport_s *port,
 static void     bfa_fcs_lport_sm_offline(struct bfa_fcs_lport_s *port,
 					enum bfa_fcs_lport_event event);
 static void     bfa_fcs_lport_sm_deleting(struct bfa_fcs_lport_s *port,
+					enum bfa_fcs_lport_event event);
+static void	bfa_fcs_lport_sm_stopping(struct bfa_fcs_lport_s *port,
 					enum bfa_fcs_lport_event event);
 
 static void
@@ -123,6 +126,12 @@ bfa_fcs_lport_sm_init(struct bfa_fcs_lport_s *port,
 		bfa_fcs_lport_deleted(port);
 		break;
 
+	case BFA_FCS_PORT_SM_STOP:
+		/* If vport - send completion call back */
+		if (port->vport)
+			bfa_fcs_vport_stop_comp(port->vport);
+		break;
+
 	case BFA_FCS_PORT_SM_OFFLINE:
 		break;
 
@@ -146,6 +155,23 @@ bfa_fcs_lport_sm_online(
 	case BFA_FCS_PORT_SM_OFFLINE:
 		bfa_sm_set_state(port, bfa_fcs_lport_sm_offline);
 		bfa_fcs_lport_offline_actions(port);
+		break;
+
+	case BFA_FCS_PORT_SM_STOP:
+		__port_action[port->fabric->fab_type].offline(port);
+
+		if (port->num_rports == 0) {
+			bfa_sm_set_state(port, bfa_fcs_lport_sm_init);
+			/* If vport - send completion call back */
+			if (port->vport)
+				bfa_fcs_vport_stop_comp(port->vport);
+		} else {
+			bfa_sm_set_state(port, bfa_fcs_lport_sm_stopping);
+			list_for_each_safe(qe, qen, &port->rport_q) {
+				rport = (struct bfa_fcs_rport_s *) qe;
+				bfa_sm_send_event(rport, RPSM_EVENT_DELETE);
+			}
+		}
 		break;
 
 	case BFA_FCS_PORT_SM_DELETE:
@@ -189,6 +215,21 @@ bfa_fcs_lport_sm_offline(
 		bfa_fcs_lport_online_actions(port);
 		break;
 
+	case BFA_FCS_PORT_SM_STOP:
+		if (port->num_rports == 0) {
+			bfa_sm_set_state(port, bfa_fcs_lport_sm_init);
+			/* If vport - send completion call back */
+			if (port->vport)
+				bfa_fcs_vport_stop_comp(port->vport);
+		} else {
+			bfa_sm_set_state(port, bfa_fcs_lport_sm_stopping);
+			list_for_each_safe(qe, qen, &port->rport_q) {
+				rport = (struct bfa_fcs_rport_s *) qe;
+				bfa_sm_send_event(rport, RPSM_EVENT_DELETE);
+			}
+		}
+		break;
+
 	case BFA_FCS_PORT_SM_DELETE:
 		if (port->num_rports == 0) {
 			bfa_sm_set_state(port, bfa_fcs_lport_sm_uninit);
@@ -204,6 +245,28 @@ bfa_fcs_lport_sm_offline(
 
 	case BFA_FCS_PORT_SM_DELRPORT:
 	case BFA_FCS_PORT_SM_OFFLINE:
+		break;
+
+	default:
+		bfa_sm_fault(port->fcs, event);
+	}
+}
+
+static void
+bfa_fcs_lport_sm_stopping(struct bfa_fcs_lport_s *port,
+			  enum bfa_fcs_lport_event event)
+{
+	bfa_trc(port->fcs, port->port_cfg.pwwn);
+	bfa_trc(port->fcs, event);
+
+	switch (event) {
+	case BFA_FCS_PORT_SM_DELRPORT:
+		if (port->num_rports == 0) {
+			bfa_sm_set_state(port, bfa_fcs_lport_sm_init);
+			/* If vport - send completion call back */
+			if (port->vport)
+				bfa_fcs_vport_stop_comp(port->vport);
+		}
 		break;
 
 	default:
@@ -1672,7 +1735,7 @@ bfa_fcs_lport_fdmi_build_rhba_pyld(struct bfa_fcs_lport_fdmi_s *fdmi, u8 *pyld)
 	memcpy(attr->value, fcs_hba_attr->driver_version, templen);
 	templen = fc_roundup(templen, sizeof(u32));
 	curr_ptr += sizeof(attr->type) + sizeof(templen) + templen;
-	len += templen;;
+	len += templen;
 	count++;
 	attr->len = cpu_to_be16(templen + sizeof(attr->type) +
 			     sizeof(templen));
@@ -4918,6 +4981,7 @@ enum bfa_fcs_vport_event {
 	BFA_FCS_VPORT_SM_DELCOMP = 11,	/*  lport delete completion */
 	BFA_FCS_VPORT_SM_RSP_DUP_WWN = 12,	/*  Dup wnn error*/
 	BFA_FCS_VPORT_SM_RSP_FAILED = 13,	/*  non-retryable failure */
+	BFA_FCS_VPORT_SM_STOPCOMP = 14,	/* vport delete completion */
 };
 
 static void     bfa_fcs_vport_sm_uninit(struct bfa_fcs_vport_s *vport,
@@ -4940,6 +5004,10 @@ static void     bfa_fcs_vport_sm_logo(struct bfa_fcs_vport_s *vport,
 				      enum bfa_fcs_vport_event event);
 static void     bfa_fcs_vport_sm_error(struct bfa_fcs_vport_s *vport,
 				      enum bfa_fcs_vport_event event);
+static void	bfa_fcs_vport_sm_stopping(struct bfa_fcs_vport_s *vport,
+					enum bfa_fcs_vport_event event);
+static void	bfa_fcs_vport_sm_logo_for_stop(struct bfa_fcs_vport_s *vport,
+					enum bfa_fcs_vport_event event);
 
 static struct bfa_sm_table_s  vport_sm_table[] = {
 	{BFA_SM(bfa_fcs_vport_sm_uninit), BFA_FCS_VPORT_UNINIT},
@@ -5040,6 +5108,11 @@ bfa_fcs_vport_sm_offline(struct bfa_fcs_vport_s *vport,
 		bfa_sm_set_state(vport, bfa_fcs_vport_sm_fdisc);
 		vport->fdisc_retries = 0;
 		bfa_fcs_vport_do_fdisc(vport);
+		break;
+
+	case BFA_FCS_VPORT_SM_STOP:
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_cleanup);
+		bfa_sm_send_event(&vport->lport, BFA_FCS_PORT_SM_STOP);
 		break;
 
 	case BFA_FCS_VPORT_SM_OFFLINE:
@@ -5155,10 +5228,41 @@ bfa_fcs_vport_sm_online(struct bfa_fcs_vport_s *vport,
 		bfa_fcs_lport_delete(&vport->lport);
 		break;
 
+	case BFA_FCS_VPORT_SM_STOP:
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_stopping);
+		bfa_sm_send_event(&vport->lport, BFA_FCS_PORT_SM_STOP);
+		break;
+
 	case BFA_FCS_VPORT_SM_OFFLINE:
 		bfa_sm_set_state(vport, bfa_fcs_vport_sm_offline);
 		bfa_sm_send_event(vport->lps, BFA_LPS_SM_OFFLINE);
 		bfa_fcs_lport_offline(&vport->lport);
+		break;
+
+	default:
+		bfa_sm_fault(__vport_fcs(vport), event);
+	}
+}
+
+/*
+ * Vport is being stopped - awaiting lport stop completion to send
+ * LOGO to fabric.
+ */
+static void
+bfa_fcs_vport_sm_stopping(struct bfa_fcs_vport_s *vport,
+			  enum bfa_fcs_vport_event event)
+{
+	bfa_trc(__vport_fcs(vport), __vport_pwwn(vport));
+	bfa_trc(__vport_fcs(vport), event);
+
+	switch (event) {
+	case BFA_FCS_VPORT_SM_STOPCOMP:
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_logo_for_stop);
+		bfa_fcs_vport_do_logo(vport);
+		break;
+
+	case BFA_FCS_VPORT_SM_OFFLINE:
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_cleanup);
 		break;
 
 	default:
@@ -5236,7 +5340,39 @@ bfa_fcs_vport_sm_cleanup(struct bfa_fcs_vport_s *vport,
 		bfa_fcs_vport_free(vport);
 		break;
 
+	case BFA_FCS_VPORT_SM_STOPCOMP:
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_created);
+		break;
+
 	case BFA_FCS_VPORT_SM_DELETE:
+		break;
+
+	default:
+		bfa_sm_fault(__vport_fcs(vport), event);
+	}
+}
+
+/*
+ * LOGO is sent to fabric. Vport stop is in progress. Lport stop cleanup
+ * is done.
+ */
+static void
+bfa_fcs_vport_sm_logo_for_stop(struct bfa_fcs_vport_s *vport,
+			       enum bfa_fcs_vport_event event)
+{
+	bfa_trc(__vport_fcs(vport), __vport_pwwn(vport));
+	bfa_trc(__vport_fcs(vport), event);
+
+	switch (event) {
+	case BFA_FCS_VPORT_SM_OFFLINE:
+		bfa_sm_send_event(vport->lps, BFA_LPS_SM_OFFLINE);
+		/*
+		 * !!! fall through !!!
+		 */
+
+	case BFA_FCS_VPORT_SM_RSP_OK:
+	case BFA_FCS_VPORT_SM_RSP_ERROR:
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_created);
 		break;
 
 	default:
@@ -5419,6 +5555,15 @@ void
 bfa_fcs_vport_fcs_delete(struct bfa_fcs_vport_s *vport)
 {
 	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_DELETE);
+}
+
+/*
+ * Stop completion callback from associated lport
+ */
+void
+bfa_fcs_vport_stop_comp(struct bfa_fcs_vport_s *vport)
+{
+	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_STOPCOMP);
 }
 
 /*

@@ -373,7 +373,8 @@ struct bfi_lps_login_req_s {
 	wwn_t		nwwn;
 	u8		fdisc;
 	u8		auth_en;
-	u8		rsvd[2];
+	u8		lps_role;
+	u8		rsvd[1];
 };
 
 struct bfi_lps_login_rsp_s {
@@ -515,62 +516,63 @@ union bfi_rport_i2h_msg_u {
  * Initiator mode I-T nexus interface defines.
  */
 
-enum bfi_itnim_h2i {
-	BFI_ITNIM_H2I_CREATE_REQ = 1,	/*  i-t nexus creation */
-	BFI_ITNIM_H2I_DELETE_REQ = 2,	/*  i-t nexus deletion */
+enum bfi_itn_h2i {
+	BFI_ITN_H2I_CREATE_REQ = 1,	/*  i-t nexus creation */
+	BFI_ITN_H2I_DELETE_REQ = 2,	/*  i-t nexus deletion */
 };
 
-enum bfi_itnim_i2h {
-	BFI_ITNIM_I2H_CREATE_RSP = BFA_I2HM(1),
-	BFI_ITNIM_I2H_DELETE_RSP = BFA_I2HM(2),
-	BFI_ITNIM_I2H_SLER_EVENT = BFA_I2HM(3),
+enum bfi_itn_i2h {
+	BFI_ITN_I2H_CREATE_RSP = BFA_I2HM(1),
+	BFI_ITN_I2H_DELETE_RSP = BFA_I2HM(2),
+	BFI_ITN_I2H_SLER_EVENT = BFA_I2HM(3),
 };
 
-struct bfi_itnim_create_req_s {
+struct bfi_itn_create_req_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		 */
 	u16	fw_handle;	/*  f/w handle for itnim	 */
 	u8	class;		/*  FC class for IO		 */
 	u8	seq_rec;	/*  sequence recovery support	 */
 	u8	msg_no;		/*  seq id of the msg		 */
+	u8	role;
 };
 
-struct bfi_itnim_create_rsp_s {
+struct bfi_itn_create_rsp_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		 */
 	u16	bfa_handle;	/*  bfa handle for itnim	 */
 	u8	status;		/*  fcp request status		 */
 	u8	seq_id;		/*  seq id of the msg		 */
 };
 
-struct bfi_itnim_delete_req_s {
+struct bfi_itn_delete_req_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		 */
 	u16	fw_handle;	/*  f/w itnim handle		 */
 	u8	seq_id;		/*  seq id of the msg		 */
 	u8	rsvd;
 };
 
-struct bfi_itnim_delete_rsp_s {
+struct bfi_itn_delete_rsp_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		 */
 	u16	bfa_handle;	/*  bfa handle for itnim	 */
 	u8	status;		/*  fcp request status		 */
 	u8	seq_id;		/*  seq id of the msg		 */
 };
 
-struct bfi_itnim_sler_event_s {
+struct bfi_itn_sler_event_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		 */
 	u16	bfa_handle;	/*  bfa handle for itnim	 */
 	u16	rsvd;
 };
 
-union bfi_itnim_h2i_msg_u {
-	struct bfi_itnim_create_req_s *create_req;
-	struct bfi_itnim_delete_req_s *delete_req;
+union bfi_itn_h2i_msg_u {
+	struct bfi_itn_create_req_s *create_req;
+	struct bfi_itn_delete_req_s *delete_req;
 	struct bfi_msg_s	*msg;
 };
 
-union bfi_itnim_i2h_msg_u {
-	struct bfi_itnim_create_rsp_s *create_rsp;
-	struct bfi_itnim_delete_rsp_s *delete_rsp;
-	struct bfi_itnim_sler_event_s *sler_event;
+union bfi_itn_i2h_msg_u {
+	struct bfi_itn_create_rsp_s *create_rsp;
+	struct bfi_itn_delete_rsp_s *delete_rsp;
+	struct bfi_itn_sler_event_s *sler_event;
 	struct bfi_msg_s	*msg;
 };
 

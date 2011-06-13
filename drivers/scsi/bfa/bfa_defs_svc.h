@@ -47,8 +47,6 @@ struct bfa_iocfc_fwcfg_s {
 	u16        num_rports;	/*  number of remote ports	*/
 	u16        num_ioim_reqs;	/*  number of IO reqs		*/
 	u16        num_tskim_reqs;	/*  task management requests	*/
-	u16        num_iotm_reqs;	/*  number of TM IO reqs	*/
-	u16        num_tsktm_reqs;	/*  TM task management requests*/
 	u16        num_fcxp_reqs;	/*  unassisted FC exchanges	*/
 	u16        num_uf_bufs;	/*  unsolicited recv buffers	*/
 	u8		num_cqs;

@@ -172,7 +172,7 @@ enum bfi_mclass {
 	BFI_MC_FCXP		= 9,	/*  FC Transport		    */
 	BFI_MC_LPS		= 10,	/*  lport fc login services	    */
 	BFI_MC_RPORT		= 11,	/*  Remote port		    */
-	BFI_MC_ITNIM		= 12,	/*  I-T nexus (Initiator mode)	    */
+	BFI_MC_ITN		= 12,	/*  I-T nexus (Initiator mode)	    */
 	BFI_MC_IOIM_READ	= 13,	/*  read IO (Initiator mode)	    */
 	BFI_MC_IOIM_WRITE	= 14,	/*  write IO (Initiator mode)	    */
 	BFI_MC_IOIM_IO		= 15,	/*  IO (Initiator mode)	    */
