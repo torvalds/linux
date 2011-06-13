@@ -246,6 +246,13 @@ osl_detach(osl_t *osh)
 	kfree(osh);
 }
 
+struct sk_buff *osl_alloc_skb(unsigned int len)
+{
+	gfp_t flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
+
+	return __dev_alloc_skb(len, flags);
+}
+
 #ifdef CTFPOOL
 
 void *
@@ -266,7 +273,7 @@ osl_ctfpool_add(osl_t *osh)
 	}
 
 	
-	skb = dev_alloc_skb(osh->ctfpool->obj_size);
+	skb = osl_alloc_skb(osh->ctfpool->obj_size);
 	if (skb == NULL) {
 		printf("%s: skb alloc of len %d failed\n", __FUNCTION__,
 		       osh->ctfpool->obj_size);
@@ -426,7 +433,7 @@ osl_pktfastget(osl_t *osh, uint len)
 
 	return skb;
 }
-#endif 
+#endif
 
 
 void * BCMFASTPATH
@@ -435,15 +442,13 @@ osl_pktget(osl_t *osh, uint len)
 	struct sk_buff *skb;
 
 #ifdef CTFPOOL
-	
 	skb = osl_pktfastget(osh, len);
-	if ((skb != NULL) || ((skb = dev_alloc_skb(len)) != NULL)) {
-#else 
-	if ((skb = dev_alloc_skb(len))) {
-#endif 
+	if ((skb != NULL) || ((skb = osl_alloc_skb(len)) != NULL)) {
+#else
+	if ((skb = osl_alloc_skb(len))) {
+#endif
 		skb_put(skb, len);
 		skb->priority = 0;
-
 
 		osh->pub.pktalloced++;
 	}
