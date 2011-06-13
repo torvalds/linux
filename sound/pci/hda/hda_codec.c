@@ -243,7 +243,8 @@ unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
 {
 	unsigned cmd = make_codec_cmd(codec, nid, direct, verb, parm);
 	unsigned int res;
-	codec_exec_verb(codec, cmd, &res);
+	if (codec_exec_verb(codec, cmd, &res))
+		return -1;
 	return res;
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_read);
