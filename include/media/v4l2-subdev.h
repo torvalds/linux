@@ -173,16 +173,13 @@ struct v4l2_subdev_core_ops {
 				 struct v4l2_event_subscription *sub);
 };
 
-/* s_mode: switch the tuner to a specific tuner mode. Replacement of s_radio.
-
-   s_radio: v4l device was opened in Radio mode, to be replaced by s_mode.
+/* s_radio: v4l device was opened in radio mode.
 
    s_type_addr: sets tuner type and its I2C addr.
 
    s_config: sets tda9887 specific stuff, like port1, port2 and qss
  */
 struct v4l2_subdev_tuner_ops {
-	int (*s_mode)(struct v4l2_subdev *sd, enum v4l2_tuner_type);
 	int (*s_radio)(struct v4l2_subdev *sd);
 	int (*s_frequency)(struct v4l2_subdev *sd, struct v4l2_frequency *freq);
 	int (*g_frequency)(struct v4l2_subdev *sd, struct v4l2_frequency *freq);
