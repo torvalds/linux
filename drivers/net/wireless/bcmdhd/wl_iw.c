@@ -8517,7 +8517,7 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 #endif 
 
 	
-	iscan->timer_ms    = 3000;
+	iscan->timer_ms    = 8000;
 	init_timer(&iscan->timer);
 	iscan->timer.data = (ulong)iscan;
 	iscan->timer.function = wl_iw_timerfunc;
