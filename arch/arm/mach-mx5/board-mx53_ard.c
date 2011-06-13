@@ -178,6 +178,7 @@ static void __init mx53_ard_board_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx53_add_sdhci_esdhc_imx(0, &mx53_ard_sd1_data);
+	imx53_add_imx2_wdt(0, NULL);
 }
 
 static void __init mx53_ard_timer_init(void)
