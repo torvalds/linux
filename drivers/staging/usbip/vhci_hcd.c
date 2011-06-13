@@ -464,8 +464,11 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 	if (usbip_dbg_flag_vhci_rh) {
 		pr_debug("port %d\n", rhport);
-		dump_port_status(prev_port_status[rhport]);
-		dump_port_status(dum->port_status[rhport]);
+		/* Only dump valid port status */
+		if (rhport >= 0) {
+			dump_port_status(prev_port_status[rhport]);
+			dump_port_status(dum->port_status[rhport]);
+		}
 	}
 	usbip_dbg_vhci_rh(" bye\n");
 
