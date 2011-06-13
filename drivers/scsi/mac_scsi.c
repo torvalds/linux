@@ -233,7 +233,7 @@ static struct Scsi_Host *default_instance;
  *
  */
  
-int macscsi_detect(struct scsi_host_template * tpnt)
+int __init macscsi_detect(struct scsi_host_template * tpnt)
 {
     static int called = 0;
     int flags = 0;
