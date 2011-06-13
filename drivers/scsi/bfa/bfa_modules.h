@@ -34,7 +34,7 @@ struct bfa_modules_s {
 	struct bfa_lps_mod_s	lps_mod;	/*  fcxp module	      */
 	struct bfa_uf_mod_s	uf_mod;		/*  unsolicited frame module */
 	struct bfa_rport_mod_s	rport_mod;	/*  remote port module	      */
-	struct bfa_fcpim_mod_s	fcpim_mod;	/*  FCP initiator module     */
+	struct bfa_fcp_mod_s	fcp_mod;	/*  FCP initiator module     */
 	struct bfa_sgpg_mod_s	sgpg_mod;	/*  SG page module	      */
 	struct bfa_port_s	port;		/*  Physical port module     */
 };
@@ -50,7 +50,6 @@ enum {
 	BFA_TRC_HAL_IOCFC_CT	= 4,
 	BFA_TRC_HAL_IOCFC_CB	= 5,
 };
-
 
 /*
  * Macro to define a new BFA module
@@ -122,6 +121,6 @@ extern struct bfa_module_s hal_mod_fcxp;
 extern struct bfa_module_s hal_mod_lps;
 extern struct bfa_module_s hal_mod_uf;
 extern struct bfa_module_s hal_mod_rport;
-extern struct bfa_module_s hal_mod_fcpim;
+extern struct bfa_module_s hal_mod_fcp;
 
 #endif /* __BFA_MODULES_H__ */

@@ -31,7 +31,7 @@ static struct bfa_module_s *hal_mods[] = {
 	&hal_mod_lps,
 	&hal_mod_uf,
 	&hal_mod_rport,
-	&hal_mod_fcpim,
+	&hal_mod_fcp,
 	NULL
 };
 
@@ -51,7 +51,7 @@ static bfa_isr_func_t  bfa_isrs[BFI_MC_MAX] = {
 	bfa_fcxp_isr,		/* BFI_MC_FCXP */
 	bfa_lps_isr,		/* BFI_MC_LPS */
 	bfa_rport_isr,		/* BFI_MC_RPORT */
-	bfa_itnim_isr,		/* BFI_MC_ITN */
+	bfa_itn_isr,		/* BFI_MC_ITN */
 	bfa_isr_unhandled,	/* BFI_MC_IOIM_READ */
 	bfa_isr_unhandled,	/* BFI_MC_IOIM_WRITE */
 	bfa_isr_unhandled,	/* BFI_MC_IOIM_IO */
@@ -448,6 +448,8 @@ bfa_iocfc_send_cfg(void *bfa_arg)
 	 */
 	cfg_info->endian_sig = BFI_IOC_ENDIAN_SIG;
 	cfg_info->num_cqs = cfg->fwcfg.num_cqs;
+	cfg_info->num_ioim_reqs = cpu_to_be16(cfg->fwcfg.num_ioim_reqs);
+	cfg_info->num_fwtio_reqs = cpu_to_be16(cfg->fwcfg.num_fwtio_reqs);
 
 	bfa_dma_be_addr_set(cfg_info->cfgrsp_addr, iocfc->cfgrsp_dma.pa);
 	/*
@@ -729,6 +731,7 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 
 	fwcfg->num_cqs	      = fwcfg->num_cqs;
 	fwcfg->num_ioim_reqs  = be16_to_cpu(fwcfg->num_ioim_reqs);
+	fwcfg->num_fwtio_reqs = be16_to_cpu(fwcfg->num_fwtio_reqs);
 	fwcfg->num_tskim_reqs = be16_to_cpu(fwcfg->num_tskim_reqs);
 	fwcfg->num_fcxp_reqs  = be16_to_cpu(fwcfg->num_fcxp_reqs);
 	fwcfg->num_uf_bufs    = be16_to_cpu(fwcfg->num_uf_bufs);
@@ -1272,6 +1275,7 @@ bfa_cfg_get_default(struct bfa_iocfc_cfg_s *cfg)
 	cfg->fwcfg.num_fcxp_reqs = DEF_CFG_NUM_FCXP_REQS;
 	cfg->fwcfg.num_uf_bufs = DEF_CFG_NUM_UF_BUFS;
 	cfg->fwcfg.num_cqs = DEF_CFG_NUM_CQS;
+	cfg->fwcfg.num_fwtio_reqs = 0;
 
 	cfg->drvcfg.num_reqq_elems = DEF_CFG_NUM_REQQ_ELEMS;
 	cfg->drvcfg.num_rspq_elems = DEF_CFG_NUM_RSPQ_ELEMS;
@@ -1293,6 +1297,7 @@ bfa_cfg_get_min(struct bfa_iocfc_cfg_s *cfg)
 	cfg->fwcfg.num_fcxp_reqs   = BFA_FCXP_MIN;
 	cfg->fwcfg.num_uf_bufs     = BFA_UF_MIN;
 	cfg->fwcfg.num_rports      = BFA_RPORT_MIN;
+	cfg->fwcfg.num_fwtio_reqs = 0;
 
 	cfg->drvcfg.num_sgpgs      = BFA_SGPG_MIN;
 	cfg->drvcfg.num_reqq_elems = BFA_REQQ_NELEMS_MIN;

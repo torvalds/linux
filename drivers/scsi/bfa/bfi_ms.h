@@ -40,6 +40,9 @@ struct bfi_iocfc_cfg_s {
 	u8	 sense_buf_len;	/*  SCSI sense length	    */
 	u16	rsvd_1;
 	u32	endian_sig;	/*  endian signature of host     */
+	__be16	num_ioim_reqs;
+	__be16	num_fwtio_reqs;
+	u8	rsvd[4];
 
 	/*
 	 * Request and response circular queue base addresses, size and
