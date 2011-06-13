@@ -175,6 +175,13 @@ struct v4l2_subdev_core_ops {
 
 /* s_radio: v4l device was opened in radio mode.
 
+   g_frequency: freq->type must be filled in. Normally done by video_ioctl2
+	or the bridge driver.
+
+   g_tuner:
+   s_tuner: vt->type must be filled in. Normally done by video_ioctl2 or the
+	bridge driver.
+
    s_type_addr: sets tuner type and its I2C addr.
 
    s_config: sets tda9887 specific stuff, like port1, port2 and qss

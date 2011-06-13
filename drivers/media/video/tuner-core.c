@@ -1117,6 +1117,16 @@ static int tuner_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 	return 0;
 }
 
+/**
+ * tuner_g_frequency - Get the tuned frequency for the tuner
+ * @sd: pointer to struct v4l2_subdev
+ * @f: pointer to struct v4l2_frequency
+ *
+ * At return, the structure f will be filled with tuner frequency
+ * if the tuner matches the f->type.
+ * Note: f->type should be initialized before calling it.
+ * This is done by either video_ioctl2 or by the bridge driver.
+ */
 static int tuner_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 {
 	struct tuner *t = to_tuner(sd);
@@ -1139,6 +1149,16 @@ static int tuner_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 	return 0;
 }
 
+/**
+ * tuner_g_tuner - Fill in tuner information
+ * @sd: pointer to struct v4l2_subdev
+ * @vt: pointer to struct v4l2_tuner
+ *
+ * At return, the structure vt will be filled with tuner information
+ * if the tuner matches vt->type.
+ * Note: vt->type should be initialized before calling it.
+ * This is done by either video_ioctl2 or by the bridge driver.
+ */
 static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 {
 	struct tuner *t = to_tuner(sd);
@@ -1179,6 +1199,15 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
+/**
+ * tuner_s_tuner - Set the tuner's audio mode
+ * @sd: pointer to struct v4l2_subdev
+ * @vt: pointer to struct v4l2_tuner
+ *
+ * Sets the audio mode if the tuner matches vt->type.
+ * Note: vt->type should be initialized before calling it.
+ * This is done by either video_ioctl2 or by the bridge driver.
+ */
 static int tuner_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 {
 	struct tuner *t = to_tuner(sd);
