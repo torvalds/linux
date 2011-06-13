@@ -68,7 +68,6 @@ struct cntry_locales_custom {
 	char custom_locale[WLC_CNTRY_BUF_SZ];	
 	int32 custom_locale_rev;		
 };
-#define SOFTAP 1
 
 
 #define	WL_IW_RSSI_MINVAL		-200	

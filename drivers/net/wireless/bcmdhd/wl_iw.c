@@ -104,10 +104,10 @@ bool g_set_essid_before_scan = TRUE;
 #if defined(SOFTAP)
 #define WL_SOFTAP(x)
 static struct net_device *priv_dev;
-bool		ap_cfg_running = FALSE;
-bool		ap_fw_loaded = FALSE;
+extern bool ap_cfg_running;
+extern bool ap_fw_loaded;
 struct net_device *ap_net_dev = NULL;
-tsk_ctl_t	ap_eth_ctl;  
+tsk_ctl_t ap_eth_ctl;
 static int wl_iw_set_ap_security(struct net_device *dev, struct ap_profile *ap);
 static int wl_iw_softap_deassoc_stations(struct net_device *dev, u8 *mac);
 #endif 

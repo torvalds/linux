@@ -88,7 +88,8 @@ void dhd_iscan_lock(void);
 void dhd_iscan_unlock(void);
 extern int dhd_change_mtu(dhd_pub_t *dhd, int new_mtu, int ifidx);
 #if defined(SOFTAP)
-extern bool ap_fw_loaded;
+bool ap_cfg_running = FALSE;
+bool ap_fw_loaded = FALSE;
 #endif 
 
 #if defined(KEEP_ALIVE)
@@ -1665,11 +1666,12 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* Set Keep Alive : be sure to use FW with -keepalive */
 	int res;
 
-	if (ap_fw_loaded == FALSE) {
+#if defined(SOFTAP)
+	if (ap_fw_loaded == FALSE)
+#endif
 		if ((res = dhd_keep_alive_onoff(dhd, 1)) < 0)
 			DHD_ERROR(("%s set keeplive failed %d\n",
 			__FUNCTION__, res));
-		}
 	}
 #endif
 
