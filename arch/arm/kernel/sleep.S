@@ -12,10 +12,11 @@
  *  r1 = v:p offset
  *  r3 = virtual return function
  * Note: sp is decremented to allocate space for CPU state on stack
- * r0-r3,r9,r10,lr corrupted
+ * r0-r3,ip,lr corrupted
  */
 ENTRY(cpu_suspend)
 	stmfd	sp!, {r3}
+	stmfd	sp!, {r4 - r11}
 	mov	r9, lr
 #ifdef MULTI_CPU
 	ldr	r10, =processor
@@ -88,7 +89,7 @@ ENDPROC(cpu_resume_turn_mmu_on)
 cpu_resume_after_mmu:
 	str	r5, [r2, r4, lsl #2]	@ restore old mapping
 	mcr	p15, 0, r0, c1, c0, 0	@ turn on D-cache
-	ldmfd	sp!, {pc}
+	ldmfd	sp!, {r4 - r11, pc}
 ENDPROC(cpu_resume_after_mmu)
 
 /*
