@@ -41,6 +41,7 @@ $default{"CLEAR_LOG"}		= 0;
 $default{"BISECT_MANUAL"}	= 0;
 $default{"BISECT_SKIP"}		= 1;
 $default{"SUCCESS_LINE"}	= "login:";
+$default{"DETECT_TRIPLE_FAULT"} = 1;
 $default{"BOOTED_TIMEOUT"}	= 1;
 $default{"DIE_ON_FAILURE"}	= 1;
 $default{"SSH_EXEC"}		= "ssh \$SSH_USER\@\$MACHINE \$SSH_COMMAND";
@@ -101,6 +102,7 @@ my $patchcheck_sleep_time;
 my $store_failures;
 my $timeout;
 my $booted_timeout;
+my $detect_triplefault;
 my $console;
 my $success_line;
 my $stop_after_success;
@@ -836,6 +838,7 @@ sub monitor {
     my $failure_start;
     my $monitor_start = time;
     my $done = 0;
+    my $version_found = 0;
 
     while (!$done) {
 
@@ -902,6 +905,22 @@ sub monitor {
 	if ($full_line =~ /Kernel panic -/) {
 	    $failure_start = time;
 	    $bug = 1;
+	}
+
+	# Detect triple faults by testing the banner
+	if ($full_line =~ /\bLinux version (\S+).*\n/) {
+	    if ($1 eq $version) {
+		$version_found = 1;
+	    } elsif ($version_found && $detect_triplefault) {
+		# We already booted into the kernel we are testing,
+		# but now we booted into another kernel?
+		# Consider this a triple fault.
+		doprint "Aleady booted in Linux kernel $version, but now\n";
+		doprint "we booted into Linux kernel $1.\n";
+		doprint "Assuming that this is a triple fault.\n";
+		doprint "To disable this: set DETECT_TRIPLE_FAULT to 0\n";
+		last;
+	    }
 	}
 
 	if ($line =~ /\n/) {
@@ -2159,6 +2178,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $timeout = set_test_option("TIMEOUT", $i);
     $booted_timeout = set_test_option("BOOTED_TIMEOUT", $i);
     $console = set_test_option("CONSOLE", $i);
+    $detect_triplefault = set_test_option("DETECT_TRIPLE_FAULT", $i);
     $success_line = set_test_option("SUCCESS_LINE", $i);
     $stop_after_success = set_test_option("STOP_AFTER_SUCCESS", $i);
     $stop_after_failure = set_test_option("STOP_AFTER_FAILURE", $i);
