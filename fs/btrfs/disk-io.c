@@ -1299,12 +1299,12 @@ again:
 		return root;
 
 	root->free_ino_ctl = kzalloc(sizeof(*root->free_ino_ctl), GFP_NOFS);
-	if (!root->free_ino_ctl)
-		goto fail;
 	root->free_ino_pinned = kzalloc(sizeof(*root->free_ino_pinned),
 					GFP_NOFS);
-	if (!root->free_ino_pinned)
+	if (!root->free_ino_pinned || !root->free_ino_ctl) {
+		ret = -ENOMEM;
 		goto fail;
+	}
 
 	btrfs_init_free_ino_ctl(root);
 	mutex_init(&root->fs_commit_mutex);
