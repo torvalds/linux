@@ -1257,6 +1257,7 @@ bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		break;
 
 	case BFA_LPS_SM_OFFLINE:
+	case BFA_LPS_SM_DELETE:
 		bfa_sm_set_state(lps, bfa_lps_sm_init);
 		break;
 
@@ -1285,6 +1286,7 @@ bfa_lps_sm_loginwait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		break;
 
 	case BFA_LPS_SM_OFFLINE:
+	case BFA_LPS_SM_DELETE:
 		bfa_sm_set_state(lps, bfa_lps_sm_init);
 		bfa_reqq_wcancel(&lps->wqe);
 		break;
@@ -1409,6 +1411,7 @@ bfa_lps_sm_logout(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		break;
 
 	case BFA_LPS_SM_OFFLINE:
+	case BFA_LPS_SM_DELETE:
 		bfa_sm_set_state(lps, bfa_lps_sm_init);
 		break;
 
@@ -1433,6 +1436,7 @@ bfa_lps_sm_logowait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		break;
 
 	case BFA_LPS_SM_OFFLINE:
+	case BFA_LPS_SM_DELETE:
 		bfa_sm_set_state(lps, bfa_lps_sm_init);
 		bfa_reqq_wcancel(&lps->wqe);
 		break;
@@ -1551,6 +1555,7 @@ bfa_lps_login_rsp(struct bfa_s *bfa, struct bfi_lps_login_rsp_s *rsp)
 		lps->lp_mac	= rsp->lp_mac;
 		lps->brcd_switch = rsp->brcd_switch;
 		lps->fcf_mac	= rsp->fcf_mac;
+		lps->pr_bbscn	= rsp->bb_scn;
 
 		break;
 
@@ -1647,6 +1652,7 @@ bfa_lps_send_login(struct bfa_lps_s *lps)
 	m->nwwn		= lps->nwwn;
 	m->fdisc	= lps->fdisc;
 	m->auth_en	= lps->auth_en;
+	m->bb_scn	= lps->bb_scn;
 
 	bfa_reqq_produce(lps->bfa, lps->reqq);
 }
@@ -1838,7 +1844,7 @@ bfa_lps_delete(struct bfa_lps_s *lps)
  */
 void
 bfa_lps_flogi(struct bfa_lps_s *lps, void *uarg, u8 alpa, u16 pdusz,
-	wwn_t pwwn, wwn_t nwwn, bfa_boolean_t auth_en)
+	wwn_t pwwn, wwn_t nwwn, bfa_boolean_t auth_en, uint8_t bb_scn)
 {
 	lps->uarg	= uarg;
 	lps->alpa	= alpa;
@@ -1847,6 +1853,7 @@ bfa_lps_flogi(struct bfa_lps_s *lps, void *uarg, u8 alpa, u16 pdusz,
 	lps->nwwn	= nwwn;
 	lps->fdisc	= BFA_FALSE;
 	lps->auth_en	= auth_en;
+	lps->bb_scn	= bb_scn;
 	bfa_sm_send_event(lps, BFA_LPS_SM_LOGIN);
 }
 
@@ -2900,6 +2907,7 @@ bfa_fcport_reset_linkinfo(struct bfa_fcport_s *fcport)
 {
 	fcport->speed = BFA_PORT_SPEED_UNKNOWN;
 	fcport->topology = BFA_PORT_TOPOLOGY_NONE;
+	fcport->bbsc_op_state = BFA_FALSE;
 }
 
 /*
@@ -3010,6 +3018,7 @@ bfa_fcport_send_txcredit(void *port_cbarg)
 	bfi_h2i_set(m->mh, BFI_MC_FCPORT, BFI_FCPORT_H2I_SET_SVC_PARAMS_REQ,
 			bfa_lpuid(fcport->bfa));
 	m->tx_bbcredit = cpu_to_be16((u16)fcport->cfg.tx_bbcredit);
+	m->bb_scn = fcport->cfg.bb_scn;
 
 	/*
 	 * queue I/O message to firmware
@@ -3626,11 +3635,14 @@ bfa_fcport_get_rx_bbcredit(struct bfa_s *bfa)
 }
 
 void
-bfa_fcport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit)
+bfa_fcport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit, u8 bb_scn)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
 	fcport->cfg.tx_bbcredit = (u8)tx_bbcredit;
+	fcport->cfg.bb_scn = bb_scn;
+	if (bb_scn)
+		fcport->bbsc_op_state = BFA_TRUE;
 	bfa_fcport_send_txcredit(fcport);
 }
 
@@ -3683,6 +3695,7 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr)
 	attr->pport_cfg.path_tov  = bfa_fcpim_path_tov_get(bfa);
 	attr->pport_cfg.q_depth  = bfa_fcpim_qdepth_get(bfa);
 	attr->port_state = bfa_sm_to_state(hal_port_sm_table, fcport->sm);
+	attr->bbsc_op_status =  fcport->bbsc_op_state;
 
 	/* PBC Disabled State */
 	if (bfa_fcport_is_pbcdisabled(bfa))
@@ -3803,6 +3816,14 @@ bfa_fcport_is_qos_enabled(struct bfa_s *bfa)
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
 	return fcport->cfg.qos_enabled;
+}
+
+bfa_boolean_t
+bfa_fcport_is_trunk_enabled(struct bfa_s *bfa)
+{
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+
+	return fcport->cfg.trunked;
 }
 
 /*

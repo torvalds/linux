@@ -53,6 +53,7 @@ int		bfa_log_level = 3; /* WARNING log level */
 int		ioc_auto_recover = BFA_TRUE;
 int		bfa_linkup_delay = -1;
 int		fdmi_enable = BFA_TRUE;
+int		fc_credit_recovery = BFA_TRUE;
 int		pcie_max_read_reqsz;
 int		bfa_debugfs_enable = 1;
 int		msix_disable_cb = 0, msix_disable_ct = 0;
@@ -137,6 +138,9 @@ MODULE_PARM_DESC(msix_disable_ct, "Disable Message Signaled Interrupts "
 			"cards, default=0, Range[false:0|true:1]");
 module_param(fdmi_enable, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(fdmi_enable, "Enables fdmi registration, default=1, "
+				"Range[false:0|true:1]");
+module_param(fc_credit_recovery, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(fc_credit_recovery, "Enables FC Credit Recovery, default=1, "
 				"Range[false:0|true:1]");
 module_param(pcie_max_read_reqsz, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(pcie_max_read_reqsz, "PCIe max read request size, default=0 "
@@ -910,6 +914,7 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfad->bfa_fcs.trcmod = bfad->trcmod;
 	bfa_fcs_attach(&bfad->bfa_fcs, &bfad->bfa, bfad, BFA_FALSE);
 	bfad->bfa_fcs.fdmi_enabled = fdmi_enable;
+	bfad->bfa_fcs.bbscn_enabled = fc_credit_recovery;
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	bfad->bfad_flags |= BFAD_DRV_INIT_DONE;

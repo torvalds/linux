@@ -147,11 +147,11 @@ u16        fc_flogi_acc_build(struct fchs_s *fchs, struct fc_logi_s *flogi,
 				   u32 s_id, __be16 ox_id,
 				   wwn_t port_name, wwn_t node_name,
 				   u16 pdu_size,
-				   u16 local_bb_credits);
+				   u16 local_bb_credits, u8 bb_scn);
 
 u16        fc_plogi_build(struct fchs_s *fchs, void *pld, u32 d_id,
 			       u32 s_id, u16 ox_id, wwn_t port_name,
-			       wwn_t node_name, u16 pdu_size);
+			       wwn_t node_name, u16 pdu_size, u16 bb_cr);
 
 enum fc_parse_status fc_plogi_parse(struct fchs_s *fchs);
 
@@ -189,7 +189,7 @@ u16        fc_scr_build(struct fchs_s *fchs, struct fc_scr_s *scr,
 u16        fc_plogi_acc_build(struct fchs_s *fchs, void *pld, u32 d_id,
 				   u32 s_id, u16 ox_id,
 				   wwn_t port_name, wwn_t node_name,
-				   u16 pdu_size);
+				   u16 pdu_size, u16 bb_cr);
 
 u16        fc_adisc_build(struct fchs_s *fchs, struct fc_adisc_s *adisc,
 			u32 d_id, u32 s_id, __be16 ox_id, wwn_t port_name,

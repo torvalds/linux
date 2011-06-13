@@ -1021,7 +1021,7 @@ struct fc_symname_s {
 #define FC_ED_TOV	2
 #define FC_REC_TOV	(FC_ED_TOV + 1)
 #define FC_RA_TOV	10
-#define FC_ELS_TOV	(2 * FC_RA_TOV)
+#define FC_ELS_TOV	((2 * FC_RA_TOV) + 1)
 #define FC_FCCT_TOV	(3 * FC_RA_TOV)
 
 /*

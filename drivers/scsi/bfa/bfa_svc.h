@@ -377,6 +377,8 @@ struct bfa_lps_s {
 	bfa_status_t	status;		/*  login status		*/
 	u16		pdusz;		/*  max receive PDU size	*/
 	u16		pr_bbcred;	/*  BB_CREDIT from peer		*/
+	u8		pr_bbscn;	/*  BB_SCN from peer		*/
+	u8		bb_scn;		/*  local BB_SCN		*/
 	u8		lsrjt_rsn;	/*  LSRJT reason		*/
 	u8		lsrjt_expl;	/*  LSRJT explanation		*/
 	wwn_t		pwwn;		/*  port wwn of lport		*/
@@ -477,6 +479,7 @@ struct bfa_fcport_s {
 	bfa_boolean_t		diag_busy; /*  diag busy status */
 	bfa_boolean_t		beacon; /*  port beacon status */
 	bfa_boolean_t		link_e2e_beacon; /*  link beacon status */
+	bfa_boolean_t		bbsc_op_state;	/* Cred recov Oper State */
 	struct bfa_fcport_trunk_s trunk;
 	u16		fcoe_vlan;
 };
@@ -515,7 +518,7 @@ void bfa_fcport_event_register(struct bfa_s *bfa,
 bfa_boolean_t bfa_fcport_is_disabled(struct bfa_s *bfa);
 enum bfa_port_speed bfa_fcport_get_ratelim_speed(struct bfa_s *bfa);
 
-void bfa_fcport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit);
+void bfa_fcport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit, u8 bb_scn);
 bfa_boolean_t     bfa_fcport_is_ratelim(struct bfa_s *bfa);
 bfa_boolean_t	bfa_fcport_is_linkup(struct bfa_s *bfa);
 bfa_status_t bfa_fcport_get_stats(struct bfa_s *bfa,
@@ -524,6 +527,7 @@ bfa_status_t bfa_fcport_get_stats(struct bfa_s *bfa,
 bfa_status_t bfa_fcport_clear_stats(struct bfa_s *bfa, bfa_cb_port_t cbfn,
 				    void *cbarg);
 bfa_boolean_t bfa_fcport_is_qos_enabled(struct bfa_s *bfa);
+bfa_boolean_t bfa_fcport_is_trunk_enabled(struct bfa_s *bfa);
 bfa_status_t bfa_fcport_is_pbcdisabled(struct bfa_s *bfa);
 
 /*
@@ -607,7 +611,7 @@ struct bfa_lps_s *bfa_lps_alloc(struct bfa_s *bfa);
 void bfa_lps_delete(struct bfa_lps_s *lps);
 void bfa_lps_flogi(struct bfa_lps_s *lps, void *uarg, u8 alpa,
 		   u16 pdusz, wwn_t pwwn, wwn_t nwwn,
-		   bfa_boolean_t auth_en);
+		   bfa_boolean_t auth_en, u8 bb_scn);
 void bfa_lps_fdisc(struct bfa_lps_s *lps, void *uarg, u16 pdusz,
 		   wwn_t pwwn, wwn_t nwwn);
 void bfa_lps_fdisclogo(struct bfa_lps_s *lps);

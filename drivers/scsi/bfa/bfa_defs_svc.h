@@ -746,6 +746,8 @@ struct bfa_port_cfg_s {
 	u8	 tx_bbcredit;	/*  transmit buffer credits	*/
 	u8	 ratelimit;	/*  ratelimit enabled or not	*/
 	u8	 trl_def_speed;	/*  ratelimit default speed	*/
+	u8	bb_scn;
+	u8	rsvd[3];
 	u16 path_tov;	/*  device path timeout	*/
 	u16 q_depth;	/*  SCSI Queue depth		*/
 };
@@ -782,6 +784,7 @@ struct bfa_port_attr_s {
 	bfa_boolean_t		beacon;		/*  current beacon status */
 	bfa_boolean_t		link_e2e_beacon; /*  link beacon is on */
 	bfa_boolean_t		plog_enabled;	/*  portlog is enabled */
+	bfa_boolean_t	bbsc_op_status;	/* fc credit recovery oper state */
 
 	/*
 	 * Dynamic field - info from FCS
@@ -1018,6 +1021,9 @@ struct bfa_port_fc_stats_s {
 	u64     bad_os_count;   /*  Invalid ordered sets        */
 	u64     err_enc_out;    /*  Encoding err nonframe_8b10b */
 	u64     err_enc;        /*  Encoding err frame_8b10b    */
+	u64	bbsc_frames_lost; /* Credit Recovery-Frames Lost  */
+	u64	bbsc_credits_lost; /* Credit Recovery-Credits Lost */
+	u64	bbsc_link_resets; /* Credit Recovery-Link Resets   */
 };
 
 /*

@@ -1356,7 +1356,8 @@ bfa_fcs_rport_send_plogi(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	len = fc_plogi_build(&fchs, bfa_fcxp_get_reqbuf(fcxp), rport->pid,
 				bfa_fcs_lport_get_fcid(port), 0,
 				port->port_cfg.pwwn, port->port_cfg.nwwn,
-				bfa_fcport_get_maxfrsize(port->fcs->bfa));
+				bfa_fcport_get_maxfrsize(port->fcs->bfa),
+				bfa_fcport_get_rx_bbcredit(port->fcs->bfa));
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 			FC_CLASS_3, len, &fchs, bfa_fcs_rport_plogi_response,
@@ -1476,7 +1477,8 @@ bfa_fcs_rport_send_plogiacc(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 				 rport->pid, bfa_fcs_lport_get_fcid(port),
 				 rport->reply_oxid, port->port_cfg.pwwn,
 				 port->port_cfg.nwwn,
-				 bfa_fcport_get_maxfrsize(port->fcs->bfa));
+				 bfa_fcport_get_maxfrsize(port->fcs->bfa),
+				 bfa_fcport_get_rx_bbcredit(port->fcs->bfa));
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 			FC_CLASS_3, len, &fchs, NULL, NULL, FC_MAX_PDUSZ, 0);
@@ -2120,7 +2122,7 @@ bfa_fcs_rport_update(struct bfa_fcs_rport_s *rport, struct fc_logi_s *plogi)
 
 		port->fabric->bb_credit = be16_to_cpu(plogi->csp.bbcred);
 		bfa_fcport_set_tx_bbcredit(port->fcs->bfa,
-					  port->fabric->bb_credit);
+					  port->fabric->bb_credit, 0);
 	}
 
 }
@@ -2233,22 +2235,6 @@ bfa_fcs_rport_plogi_create(struct bfa_fcs_lport_s *port, struct fchs_s *fchs,
 	bfa_sm_send_event(rport, RPSM_EVENT_PLOGI_RCVD);
 }
 
-static int
-wwn_compare(wwn_t wwn1, wwn_t wwn2)
-{
-	u8		*b1 = (u8 *) &wwn1;
-	u8		*b2 = (u8 *) &wwn2;
-	int		i;
-
-	for (i = 0; i < sizeof(wwn_t); i++) {
-		if (b1[i] < b2[i])
-			return -1;
-		if (b1[i] > b2[i])
-			return 1;
-	}
-	return 0;
-}
-
 /*
  *	Called by bport/vport to handle PLOGI received from an existing
  *	 remote port.
@@ -2265,20 +2251,6 @@ bfa_fcs_rport_plogi(struct bfa_fcs_rport_s *rport, struct fchs_s *rx_fchs,
 
 	rport->reply_oxid = rx_fchs->ox_id;
 	bfa_trc(rport->fcs, rport->reply_oxid);
-
-	/*
-	 * In Switched fabric topology,
-	 * PLOGI to each other. If our pwwn is smaller, ignore it,
-	 * if it is not a well known address.
-	 * If the link topology is N2N,
-	 * this Plogi should be accepted.
-	 */
-	if ((wwn_compare(rport->port->port_cfg.pwwn, rport->pwwn) == -1) &&
-		(bfa_fcs_fabric_is_switched(rport->port->fabric)) &&
-		(!BFA_FCS_PID_IS_WKA(rport->pid))) {
-		bfa_trc(rport->fcs, rport->pid);
-		return;
-	}
 
 	rport->stats.plogi_rcvd++;
 	bfa_sm_send_event(rport, RPSM_EVENT_PLOGI_RCVD);

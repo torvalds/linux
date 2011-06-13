@@ -353,6 +353,7 @@ extern int      bfa_linkup_delay;
 extern int      msix_disable_cb;
 extern int      msix_disable_ct;
 extern int      fdmi_enable;
+extern int	fc_credit_recovery;
 extern int      supported_fc4s;
 extern int	pcie_max_read_reqsz;
 extern int bfa_debugfs_enable;
