@@ -683,8 +683,6 @@ int hostfs_rmdir(struct inode *ino, struct dentry *dentry)
 	char *file;
 	int err;
 
-	dentry_unhash(dentry);
-
 	if ((file = dentry_name(dentry)) == NULL)
 		return -ENOMEM;
 	err = do_rmdir(file);
@@ -737,9 +735,6 @@ int hostfs_rename(struct inode *from_ino, struct dentry *from,
 {
 	char *from_name, *to_name;
 	int err;
-
-	if (to->d_inode && S_ISDIR(to->d_inode->i_mode))
-		dentry_unhash(to);
 
 	if ((from_name = dentry_name(from)) == NULL)
 		return -ENOMEM;

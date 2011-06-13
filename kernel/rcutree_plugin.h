@@ -1196,8 +1196,7 @@ static int rcu_boost_kthread(void *arg)
 
 	for (;;) {
 		rnp->boost_kthread_status = RCU_KTHREAD_WAITING;
-		wait_event_interruptible(rnp->boost_wq, rnp->boost_tasks ||
-							rnp->exp_tasks);
+		rcu_wait(rnp->boost_tasks || rnp->exp_tasks);
 		rnp->boost_kthread_status = RCU_KTHREAD_RUNNING;
 		more2boost = rcu_boost(rnp);
 		if (more2boost)
@@ -1275,14 +1274,6 @@ static void rcu_preempt_boost_start_gp(struct rcu_node *rnp)
 }
 
 /*
- * Initialize the RCU-boost waitqueue.
- */
-static void __init rcu_init_boost_waitqueue(struct rcu_node *rnp)
-{
-	init_waitqueue_head(&rnp->boost_wq);
-}
-
-/*
  * Create an RCU-boost kthread for the specified node if one does not
  * already exist.  We only create this kthread for preemptible RCU.
  * Returns zero if all is well, a negated errno otherwise.
@@ -1306,10 +1297,15 @@ static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 	raw_spin_lock_irqsave(&rnp->lock, flags);
 	rnp->boost_kthread_task = t;
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
-	wake_up_process(t);
 	sp.sched_priority = RCU_KTHREAD_PRIO;
 	sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
 	return 0;
+}
+
+static void __cpuinit rcu_wake_one_boost_kthread(struct rcu_node *rnp)
+{
+	if (rnp->boost_kthread_task)
+		wake_up_process(rnp->boost_kthread_task);
 }
 
 #else /* #ifdef CONFIG_RCU_BOOST */
@@ -1328,15 +1324,15 @@ static void rcu_preempt_boost_start_gp(struct rcu_node *rnp)
 {
 }
 
-static void __init rcu_init_boost_waitqueue(struct rcu_node *rnp)
-{
-}
-
 static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 						 struct rcu_node *rnp,
 						 int rnp_index)
 {
 	return 0;
+}
+
+static void __cpuinit rcu_wake_one_boost_kthread(struct rcu_node *rnp)
+{
 }
 
 #endif /* #else #ifdef CONFIG_RCU_BOOST */
@@ -1520,7 +1516,6 @@ int rcu_needs_cpu(int cpu)
 {
 	int c = 0;
 	int snap;
-	int snap_nmi;
 	int thatcpu;
 
 	/* Check for being in the holdoff period. */
@@ -1531,10 +1526,10 @@ int rcu_needs_cpu(int cpu)
 	for_each_online_cpu(thatcpu) {
 		if (thatcpu == cpu)
 			continue;
-		snap = per_cpu(rcu_dynticks, thatcpu).dynticks;
-		snap_nmi = per_cpu(rcu_dynticks, thatcpu).dynticks_nmi;
+		snap = atomic_add_return(0, &per_cpu(rcu_dynticks,
+						     thatcpu).dynticks);
 		smp_mb(); /* Order sampling of snap with end of grace period. */
-		if (((snap & 0x1) != 0) || ((snap_nmi & 0x1) != 0)) {
+		if ((snap & 0x1) != 0) {
 			per_cpu(rcu_dyntick_drain, cpu) = 0;
 			per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
 			return rcu_needs_cpu_quick_check(cpu);

@@ -1272,8 +1272,8 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 		 * individual writeable reference is too fragile given the
 		 * way @mode is used in blkdev_get/put().
 		 */
-		if ((disk->flags & GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE) &&
-		    !res && (mode & FMODE_WRITE) && !bdev->bd_write_holder) {
+		if (!res && (mode & FMODE_WRITE) && !bdev->bd_write_holder &&
+		    (disk->flags & GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE)) {
 			bdev->bd_write_holder = true;
 			disk_block_events(disk);
 		}

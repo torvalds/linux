@@ -382,7 +382,7 @@ done:
 	end_writeback(inode);
 }
 
-static void ubifs_dirty_inode(struct inode *inode)
+static void ubifs_dirty_inode(struct inode *inode, int flags)
 {
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
@@ -811,15 +811,18 @@ static int alloc_wbufs(struct ubifs_info *c)
 
 		c->jheads[i].wbuf.sync_callback = &bud_wbuf_callback;
 		c->jheads[i].wbuf.jhead = i;
+		c->jheads[i].grouped = 1;
 	}
 
 	c->jheads[BASEHD].wbuf.dtype = UBI_SHORTTERM;
 	/*
 	 * Garbage Collector head likely contains long-term data and
-	 * does not need to be synchronized by timer.
+	 * does not need to be synchronized by timer. Also GC head nodes are
+	 * not grouped.
 	 */
 	c->jheads[GCHD].wbuf.dtype = UBI_LONGTERM;
 	c->jheads[GCHD].wbuf.no_timer = 1;
+	c->jheads[GCHD].grouped = 0;
 
 	return 0;
 }
@@ -1284,12 +1287,25 @@ static int mount_ubifs(struct ubifs_info *c)
 	if ((c->mst_node->flags & cpu_to_le32(UBIFS_MST_DIRTY)) != 0) {
 		ubifs_msg("recovery needed");
 		c->need_recovery = 1;
-		if (!c->ro_mount) {
-			err = ubifs_recover_inl_heads(c, c->sbuf);
-			if (err)
-				goto out_master;
-		}
-	} else if (!c->ro_mount) {
+	}
+
+	if (c->need_recovery && !c->ro_mount) {
+		err = ubifs_recover_inl_heads(c, c->sbuf);
+		if (err)
+			goto out_master;
+	}
+
+	err = ubifs_lpt_init(c, 1, !c->ro_mount);
+	if (err)
+		goto out_master;
+
+	if (!c->ro_mount && c->space_fixup) {
+		err = ubifs_fixup_free_space(c);
+		if (err)
+			goto out_master;
+	}
+
+	if (!c->ro_mount) {
 		/*
 		 * Set the "dirty" flag so that if we reboot uncleanly we
 		 * will notice this immediately on the next mount.
@@ -1297,12 +1313,8 @@ static int mount_ubifs(struct ubifs_info *c)
 		c->mst_node->flags |= cpu_to_le32(UBIFS_MST_DIRTY);
 		err = ubifs_write_master(c);
 		if (err)
-			goto out_master;
+			goto out_lpt;
 	}
-
-	err = ubifs_lpt_init(c, 1, !c->ro_mount);
-	if (err)
-		goto out_lpt;
 
 	err = dbg_check_idx_size(c, c->bi.old_idx_sz);
 	if (err)
@@ -1395,12 +1407,6 @@ static int mount_ubifs(struct ubifs_info *c)
 		}
 	} else
 		ubifs_assert(c->lst.taken_empty_lebs > 0);
-
-	if (!c->ro_mount && c->space_fixup) {
-		err = ubifs_fixup_free_space(c);
-		if (err)
-			goto out_infos;
-	}
 
 	err = dbg_check_filesystem(c);
 	if (err)

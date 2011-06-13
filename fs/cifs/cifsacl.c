@@ -74,8 +74,9 @@ shrink_idmap_tree(struct rb_root *root, int nr_to_scan, int *nr_rem,
  * Run idmap cache shrinker.
  */
 static int
-cifs_idmap_shrinker(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
+cifs_idmap_shrinker(struct shrinker *shrink, struct shrink_control *sc)
 {
+	int nr_to_scan = sc->nr_to_scan;
 	int nr_del = 0;
 	int nr_rem = 0;
 	struct rb_root *root;

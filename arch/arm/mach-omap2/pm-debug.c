@@ -189,7 +189,7 @@ static struct dentry *pm_dbg_dir;
 
 static int pm_dbg_init_done;
 
-static int __init pm_dbg_init(void);
+static int pm_dbg_init(void);
 
 enum {
 	DEBUG_FILE_COUNTERS = 0,
@@ -595,7 +595,7 @@ static int option_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(pm_dbg_option_fops, option_get, option_set, "%llu\n");
 
-static int __init pm_dbg_init(void)
+static int pm_dbg_init(void)
 {
 	int i;
 	struct dentry *d;

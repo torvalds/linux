@@ -824,8 +824,6 @@ static int vfat_rmdir(struct inode *dir, struct dentry *dentry)
 	struct fat_slot_info sinfo;
 	int err;
 
-	dentry_unhash(dentry);
-
 	lock_super(sb);
 
 	err = fat_dir_empty(inode);
@@ -932,9 +930,6 @@ static int vfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 	loff_t dotdot_i_pos, new_i_pos;
 	int err, is_dir, update_dotdot, corrupt = 0;
 	struct super_block *sb = old_dir->i_sb;
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	old_sinfo.bh = sinfo.bh = dotdot_bh = NULL;
 	old_inode = old_dentry->d_inode;

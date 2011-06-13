@@ -425,7 +425,7 @@ static void asus_rfkill_hotplug(struct asus_wmi *asus)
 	if (asus->hotplug_slot) {
 		bus = pci_find_bus(0, 1);
 		if (!bus) {
-			pr_warning("Unable to find PCI bus 1?\n");
+			pr_warn("Unable to find PCI bus 1?\n");
 			goto out_unlock;
 		}
 
@@ -436,12 +436,12 @@ static void asus_rfkill_hotplug(struct asus_wmi *asus)
 		absent = (l == 0xffffffff);
 
 		if (blocked != absent) {
-			pr_warning("BIOS says wireless lan is %s, "
-				   "but the pci device is %s\n",
-				   blocked ? "blocked" : "unblocked",
-				   absent ? "absent" : "present");
-			pr_warning("skipped wireless hotplug as probably "
-				   "inappropriate for this model\n");
+			pr_warn("BIOS says wireless lan is %s, "
+				"but the pci device is %s\n",
+				blocked ? "blocked" : "unblocked",
+				absent ? "absent" : "present");
+			pr_warn("skipped wireless hotplug as probably "
+				"inappropriate for this model\n");
 			goto out_unlock;
 		}
 
@@ -500,7 +500,7 @@ static int asus_register_rfkill_notifier(struct asus_wmi *asus, char *node)
 						     ACPI_SYSTEM_NOTIFY,
 						     asus_rfkill_notify, asus);
 		if (ACPI_FAILURE(status))
-			pr_warning("Failed to register notify on %s\n", node);
+			pr_warn("Failed to register notify on %s\n", node);
 	} else
 		return -ENODEV;
 
@@ -1223,7 +1223,7 @@ static int asus_wmi_sysfs_init(struct platform_device *device)
 /*
  * Platform device
  */
-static int __init asus_wmi_platform_init(struct asus_wmi *asus)
+static int asus_wmi_platform_init(struct asus_wmi *asus)
 {
 	int rv;
 
@@ -1583,12 +1583,12 @@ static int asus_wmi_probe(struct platform_device *pdev)
 	int ret;
 
 	if (!wmi_has_guid(ASUS_WMI_MGMT_GUID)) {
-		pr_warning("Management GUID not found\n");
+		pr_warn("Management GUID not found\n");
 		return -ENODEV;
 	}
 
 	if (wdrv->event_guid && !wmi_has_guid(wdrv->event_guid)) {
-		pr_warning("Event GUID not found\n");
+		pr_warn("Event GUID not found\n");
 		return -ENODEV;
 	}
 

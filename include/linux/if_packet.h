@@ -70,6 +70,7 @@ struct tpacket_auxdata {
 #define TP_STATUS_COPY		0x2
 #define TP_STATUS_LOSING	0x4
 #define TP_STATUS_CSUMNOTREADY	0x8
+#define TP_STATUS_VLAN_VALID   0x10 /* auxdata has valid tp_vlan_tci */
 
 /* Tx ring - header status */
 #define TP_STATUS_AVAILABLE	0x0

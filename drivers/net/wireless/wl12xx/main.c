@@ -311,6 +311,7 @@ static struct conf_drv_settings default_conf = {
 		.min_dwell_time_active = 8,
 		.max_dwell_time_active = 30,
 		.dwell_time_passive    = 100,
+		.dwell_time_dfs        = 150,
 		.num_probe_reqs        = 2,
 		.rssi_threshold        = -90,
 		.snr_threshold         = 0,

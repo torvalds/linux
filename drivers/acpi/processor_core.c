@@ -37,7 +37,6 @@ static struct dmi_system_id __initdata processor_idle_dmi_table[] = {
 	{},
 };
 
-#ifdef CONFIG_SMP
 static int map_lapic_id(struct acpi_subtable_header *entry,
 		 u32 acpi_id, int *apic_id)
 {
@@ -165,7 +164,9 @@ exit:
 
 int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
 {
+#ifdef CONFIG_SMP
 	int i;
+#endif
 	int apic_id = -1;
 
 	apic_id = map_mat_entry(handle, type, acpi_id);
@@ -174,14 +175,19 @@ int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
 	if (apic_id == -1)
 		return apic_id;
 
+#ifdef CONFIG_SMP
 	for_each_possible_cpu(i) {
 		if (cpu_physical_id(i) == apic_id)
 			return i;
 	}
+#else
+	/* In UP kernel, only processor 0 is valid */
+	if (apic_id == 0)
+		return apic_id;
+#endif
 	return -1;
 }
 EXPORT_SYMBOL_GPL(acpi_get_cpuid);
-#endif
 
 static bool __init processor_physically_present(acpi_handle handle)
 {
@@ -217,7 +223,7 @@ static bool __init processor_physically_present(acpi_handle handle)
 	type = (acpi_type == ACPI_TYPE_DEVICE) ? 1 : 0;
 	cpuid = acpi_get_cpuid(handle, type, acpi_id);
 
-	if ((cpuid == -1) && (num_possible_cpus() > 1))
+	if (cpuid == -1)
 		return false;
 
 	return true;

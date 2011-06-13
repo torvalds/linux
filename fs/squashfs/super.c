@@ -245,7 +245,7 @@ allocate_id_index_table:
 		msblk->id_table = NULL;
 		goto failed_mount;
 	}
-	next_table = msblk->id_table[0];
+	next_table = le64_to_cpu(msblk->id_table[0]);
 
 	/* Handle inode lookup table */
 	lookup_table_start = le64_to_cpu(sblk->lookup_table_start);
@@ -261,7 +261,7 @@ allocate_id_index_table:
 		msblk->inode_lookup_table = NULL;
 		goto failed_mount;
 	}
-	next_table = msblk->inode_lookup_table[0];
+	next_table = le64_to_cpu(msblk->inode_lookup_table[0]);
 
 	sb->s_export_op = &squashfs_export_ops;
 
@@ -286,7 +286,7 @@ handle_fragments:
 		msblk->fragment_index = NULL;
 		goto failed_mount;
 	}
-	next_table = msblk->fragment_index[0];
+	next_table = le64_to_cpu(msblk->fragment_index[0]);
 
 check_directory_table:
 	/* Sanity check directory_table */

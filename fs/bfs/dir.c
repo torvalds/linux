@@ -224,9 +224,6 @@ static int bfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct bfs_sb_info *info;
 	int error = -ENOENT;
 
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
-
 	old_bh = new_bh = NULL;
 	old_inode = old_dentry->d_inode;
 	if (S_ISDIR(old_inode->i_mode))

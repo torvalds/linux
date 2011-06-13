@@ -5733,7 +5733,7 @@ int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode)
  * so would cause a commit on atime updates, which we don't bother doing.
  * We handle synchronous inodes at the highest possible level.
  */
-void ext4_dirty_inode(struct inode *inode)
+void ext4_dirty_inode(struct inode *inode, int flags)
 {
 	handle_t *handle;
 

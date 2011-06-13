@@ -1995,7 +1995,7 @@ SetMulticastFilter(struct net_device *dev)
 
 static u_char de4x5_irq[] = EISA_ALLOWED_IRQ_LIST;
 
-static int __devinit de4x5_eisa_probe (struct device *gendev)
+static int __init de4x5_eisa_probe (struct device *gendev)
 {
 	struct eisa_device *edev;
 	u_long iobase;
@@ -2097,7 +2097,7 @@ static int __devexit de4x5_eisa_remove (struct device *device)
 	return 0;
 }
 
-static const struct eisa_device_id de4x5_eisa_ids[] __devinitconst = {
+static struct eisa_device_id de4x5_eisa_ids[] = {
         { "DEC4250", 0 },	/* 0 is the board name index... */
         { "" }
 };
