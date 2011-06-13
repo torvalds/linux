@@ -106,8 +106,6 @@ hardware, but as yet it has actually been tested on only a few of these.
 I have been unable to test and calibrate the S-video input myself because I
 do not possess any equipment with S-video output.
 
-This driver does not understand the V4L1 IOCTL commands.
-
 
 UDEV RULES
 ----------
