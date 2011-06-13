@@ -5822,8 +5822,7 @@ static int tigon3_dma_hwbug_workaround(struct tg3_napi *tnapi,
 		/* Make sure new skb does not cross any 4G boundaries.
 		 * Drop the packet if it does.
 		 */
-		} else if (tg3_flag(tp, 4G_DMA_BNDRY_BUG) &&
-			   tg3_4g_overflow_test(new_addr, new_skb->len)) {
+		} else if (tg3_4g_overflow_test(new_addr, new_skb->len)) {
 			pci_unmap_single(tp->pdev, new_addr, new_skb->len,
 					 PCI_DMA_TODEVICE);
 			ret = -1;
@@ -6018,8 +6017,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (tg3_flag(tp, SHORT_DMA_BUG) && len <= 8)
 		would_hit_hwbug = 1;
 
-	if (tg3_flag(tp, 4G_DMA_BNDRY_BUG) &&
-	    tg3_4g_overflow_test(mapping, len))
+	if (tg3_4g_overflow_test(mapping, len))
 		would_hit_hwbug = 1;
 
 	if (tg3_40bit_overflow_test(tp, mapping, len))
@@ -6055,8 +6053,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			    len <= 8)
 				would_hit_hwbug = 1;
 
-			if (tg3_flag(tp, 4G_DMA_BNDRY_BUG) &&
-			    tg3_4g_overflow_test(mapping, len))
+			if (tg3_4g_overflow_test(mapping, len))
 				would_hit_hwbug = 1;
 
 			if (tg3_40bit_overflow_test(tp, mapping, len))
@@ -13702,11 +13699,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 			tp->irq_max = TG3_IRQ_MAX_VECS;
 		}
 	}
-
-	/* All chips can get confused if TX buffers
-	 * straddle the 4GB address boundary.
-	 */
-	tg3_flag_set(tp, 4G_DMA_BNDRY_BUG);
 
 	if (tg3_flag(tp, 5755_PLUS))
 		tg3_flag_set(tp, SHORT_DMA_BUG);
