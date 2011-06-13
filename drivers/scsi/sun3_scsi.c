@@ -70,6 +70,12 @@
 #include <asm/idprom.h>
 #include <asm/machines.h>
 
+#define NDEBUG 0
+
+#define NDEBUG_ABORT		0x00100000
+#define NDEBUG_TAGS		0x00200000
+#define NDEBUG_MERGING		0x00400000
+
 /* dma on! */
 #define REAL_DMA
 
@@ -85,8 +91,6 @@ static void NCR5380_print(struct Scsi_Host *instance);
 #define USE_WRAPPER
 /*#define RESET_BOOT */
 #define DRIVER_SETUP
-
-#define NDEBUG 0
 
 /*
  * BUG can be used to trigger a strange code-size related hang on 2.1 kernels
