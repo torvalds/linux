@@ -23,7 +23,7 @@ struct gen_74x164_chip {
 	u8			port_config;
 };
 
-static struct gen_74x164_chip *gpio_to_chip(struct gpio_chip *gc)
+static struct gen_74x164_chip *gpio_to_74x164_chip(struct gpio_chip *gc)
 {
 	return container_of(gc, struct gen_74x164_chip, gpio_chip);
 }
@@ -36,7 +36,7 @@ static int __gen_74x164_write_config(struct gen_74x164_chip *chip)
 
 static int gen_74x164_get_value(struct gpio_chip *gc, unsigned offset)
 {
-	struct gen_74x164_chip *chip = gpio_to_chip(gc);
+	struct gen_74x164_chip *chip = gpio_to_74x164_chip(gc);
 	int ret;
 
 	mutex_lock(&chip->lock);
@@ -49,7 +49,7 @@ static int gen_74x164_get_value(struct gpio_chip *gc, unsigned offset)
 static void gen_74x164_set_value(struct gpio_chip *gc,
 		unsigned offset, int val)
 {
-	struct gen_74x164_chip *chip = gpio_to_chip(gc);
+	struct gen_74x164_chip *chip = gpio_to_74x164_chip(gc);
 
 	mutex_lock(&chip->lock);
 	if (val)
