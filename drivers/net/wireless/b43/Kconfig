@@ -112,6 +112,14 @@ config B43_PHY_LP
 	  and embedded devices. It supports 802.11a/g
 	  (802.11a support is optional, and currently disabled).
 
+config B43_PHY_HT
+	bool "Support for HT-PHY devices (BROKEN)"
+	depends on B43 && BROKEN
+	---help---
+	  Support for the HT-PHY.
+
+	  Say N, this is BROKEN and crashes driver.
+
 # This config option automatically enables b43 LEDS support,
 # if it's possible.
 config B43_LEDS
