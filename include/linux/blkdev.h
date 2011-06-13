@@ -73,7 +73,7 @@ enum rq_cmd_type_bits {
 
 /*
  * try to put the fields that are referenced together in the same cacheline.
- * if you modify this structure, be sure to check block/blk-core.c:rq_init()
+ * if you modify this structure, be sure to check block/blk-core.c:blk_rq_init()
  * as well!
  */
 struct request {
