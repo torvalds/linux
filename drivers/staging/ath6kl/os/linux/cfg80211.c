@@ -24,6 +24,7 @@
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
+#include <net/netlink.h>
 
 #include "ar6000_drv.h"
 
@@ -1458,6 +1459,62 @@ ar6k_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
     return 0;
 }
 
+#ifdef CONFIG_NL80211_TESTMODE
+enum ar6k_testmode_attr {
+	__AR6K_TM_ATTR_INVALID	= 0,
+	AR6K_TM_ATTR_CMD	= 1,
+	AR6K_TM_ATTR_DATA	= 2,
+
+	/* keep last */
+	__AR6K_TM_ATTR_AFTER_LAST,
+	AR6K_TM_ATTR_MAX	= __AR6K_TM_ATTR_AFTER_LAST - 1
+};
+
+enum ar6k_testmode_cmd {
+	AR6K_TM_CMD_TCMD		= 0,
+};
+
+#define AR6K_TM_DATA_MAX_LEN 5000
+
+static const struct nla_policy ar6k_testmode_policy[AR6K_TM_ATTR_MAX + 1] = {
+	[AR6K_TM_ATTR_CMD] = { .type = NLA_U32 },
+	[AR6K_TM_ATTR_DATA] = { .type = NLA_BINARY,
+				.len = AR6K_TM_DATA_MAX_LEN },
+};
+
+static int ar6k_testmode_cmd(struct wiphy *wiphy, void *data, int len)
+{
+	struct ar6_softc *ar = wiphy_priv(wiphy);
+	struct nlattr *tb[AR6K_TM_ATTR_MAX + 1];
+	int err, buf_len;
+	void *buf;
+
+	err = nla_parse(tb, AR6K_TM_ATTR_MAX, data, len,
+			ar6k_testmode_policy);
+	if (err)
+		return err;
+
+	if (!tb[AR6K_TM_ATTR_CMD])
+		return -EINVAL;
+
+	switch (nla_get_u32(tb[AR6K_TM_ATTR_CMD])) {
+	case AR6K_TM_CMD_TCMD:
+		if (!tb[AR6K_TM_ATTR_DATA])
+			return -EINVAL;
+
+		buf = nla_data(tb[AR6K_TM_ATTR_DATA]);
+		buf_len = nla_len(tb[AR6K_TM_ATTR_DATA]);
+
+		wmi_test_cmd(ar->arWmi, buf, buf_len);
+
+		return 0;
+
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+#endif
 
 static const
 u32 cipher_suites[] = {
@@ -1633,6 +1690,7 @@ cfg80211_ops ar6k_cfg80211_ops = {
     .join_ibss = ar6k_cfg80211_join_ibss,
     .leave_ibss = ar6k_cfg80211_leave_ibss,
     .get_station = ar6k_get_station,
+    CFG80211_TESTMODE_CMD(ar6k_testmode_cmd)
 };
 
 struct wireless_dev *
