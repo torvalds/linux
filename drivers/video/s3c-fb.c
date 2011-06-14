@@ -884,7 +884,7 @@ static int s3c_fb_pan_display(struct fb_var_screeninfo *var,
 		}
 	}
 	/* Offset in bytes to the end of the displayed area */
-	end_boff = start_boff + var->yres * info->fix.line_length;
+	end_boff = start_boff + info->var.yres * info->fix.line_length;
 
 	/* Temporarily turn off per-vsync update from shadow registers until
 	 * both start and end addresses are updated to prevent corruption */
