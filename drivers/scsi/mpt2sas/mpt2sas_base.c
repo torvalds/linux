@@ -1740,9 +1740,11 @@ _base_display_dell_branding(struct MPT2SAS_ADAPTER *ioc)
 static void
 _base_display_intel_branding(struct MPT2SAS_ADAPTER *ioc)
 {
-	if (ioc->pdev->subsystem_vendor == PCI_VENDOR_ID_INTEL &&
-	    ioc->pdev->device == MPI2_MFGPAGE_DEVID_SAS2008) {
+	if (ioc->pdev->subsystem_vendor != PCI_VENDOR_ID_INTEL)
+		return;
 
+	switch (ioc->pdev->device) {
+	case MPI2_MFGPAGE_DEVID_SAS2008:
 		switch (ioc->pdev->subsystem_device) {
 		case MPT2SAS_INTEL_RMS2LL080_SSDID:
 			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
@@ -1752,7 +1754,20 @@ _base_display_intel_branding(struct MPT2SAS_ADAPTER *ioc)
 			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 			    MPT2SAS_INTEL_RMS2LL040_BRANDING);
 			break;
+		default:
+			break;
 		}
+	case MPI2_MFGPAGE_DEVID_SAS2308_2:
+		switch (ioc->pdev->subsystem_device) {
+		case MPT2SAS_INTEL_RS25GB008_SSDID:
+			printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
+			    MPT2SAS_INTEL_RS25GB008_BRANDING);
+			break;
+		default:
+			break;
+		}
+	default:
+		break;
 	}
 }
 
