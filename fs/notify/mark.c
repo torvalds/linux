@@ -127,19 +127,26 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 	struct inode *inode = NULL;
 
 	spin_lock(&mark->lock);
-
+	/* dont get the group from a mark that is not alive yet */
+	if (!(mark->flags & FSNOTIFY_MARK_FLAG_ALIVE)) {
+		spin_unlock(&mark->lock);
+		return;
+	}
 	fsnotify_get_group(mark->group);
 	group = mark->group;
+	spin_unlock(&mark->lock);
+
+	spin_lock(&group->mark_lock);
+	spin_lock(&mark->lock);
 
 	/* something else already called this function on this mark */
 	if (!(mark->flags & FSNOTIFY_MARK_FLAG_ALIVE)) {
 		spin_unlock(&mark->lock);
+		spin_unlock(&group->mark_lock);
 		goto put_group;
 	}
 
 	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
-
-	spin_lock(&group->mark_lock);
 
 	if (mark->flags & FSNOTIFY_MARK_FLAG_INODE) {
 		inode = mark->i.inode;
@@ -151,8 +158,8 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 
 	list_del_init(&mark->g_list);
 
-	spin_unlock(&group->mark_lock);
 	spin_unlock(&mark->lock);
+	spin_unlock(&group->mark_lock);
 
 	spin_lock(&destroy_lock);
 	list_add(&mark->destroy_list, &destroy_list);
@@ -225,13 +232,13 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 
 	/*
 	 * LOCKING ORDER!!!!
-	 * mark->lock
 	 * group->mark_lock
+	 * mark->lock
 	 * inode->i_lock
 	 */
-	spin_lock(&mark->lock);
 	spin_lock(&group->mark_lock);
 
+	spin_lock(&mark->lock);
 	mark->flags |= FSNOTIFY_MARK_FLAG_ALIVE;
 
 	fsnotify_get_group(group);
@@ -252,12 +259,11 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 		BUG();
 	}
 
-	spin_unlock(&group->mark_lock);
-
 	/* this will pin the object if appropriate */
 	fsnotify_set_mark_mask_locked(mark, mark->mask);
-
 	spin_unlock(&mark->lock);
+
+	spin_unlock(&group->mark_lock);
 
 	if (inode)
 		__fsnotify_update_child_dentry_flags(inode);
@@ -270,8 +276,8 @@ err:
 	mark->group = NULL;
 	atomic_dec(&group->num_marks);
 
-	spin_unlock(&group->mark_lock);
 	spin_unlock(&mark->lock);
+	spin_unlock(&group->mark_lock);
 
 	spin_lock(&destroy_lock);
 	list_add(&mark->destroy_list, &destroy_list);
