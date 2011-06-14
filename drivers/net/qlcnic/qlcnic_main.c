@@ -2159,6 +2159,7 @@ qlcnic_unmap_buffers(struct pci_dev *pdev, struct sk_buff *skb,
 
 	nf = &pbuf->frag_array[0];
 	pci_unmap_single(pdev, nf->dma, skb_headlen(skb), PCI_DMA_TODEVICE);
+	pbuf->skb = NULL;
 }
 
 static inline void

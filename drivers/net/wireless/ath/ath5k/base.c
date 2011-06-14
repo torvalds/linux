@@ -72,6 +72,11 @@ static int modparam_all_channels;
 module_param_named(all_channels, modparam_all_channels, bool, S_IRUGO);
 MODULE_PARM_DESC(all_channels, "Expose all channels the device can use.");
 
+static int modparam_fastchanswitch;
+module_param_named(fastchanswitch, modparam_fastchanswitch, bool, S_IRUGO);
+MODULE_PARM_DESC(fastchanswitch, "Enable fast channel switching for AR2413/AR5413 radios.");
+
+
 /* Module info */
 MODULE_AUTHOR("Jiri Slaby");
 MODULE_AUTHOR("Nick Kossifidis");
@@ -2686,6 +2691,7 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 	struct ath5k_hw *ah = sc->ah;
 	struct ath_common *common = ath5k_hw_common(ah);
 	int ret, ani_mode;
+	bool fast;
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "resetting\n");
 
@@ -2705,7 +2711,10 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 	ath5k_drain_tx_buffs(sc);
 	if (chan)
 		sc->curchan = chan;
-	ret = ath5k_hw_reset(ah, sc->opmode, sc->curchan, chan != NULL,
+
+	fast = ((chan != NULL) && modparam_fastchanswitch) ? 1 : 0;
+
+	ret = ath5k_hw_reset(ah, sc->opmode, sc->curchan, fast,
 								skip_pcu);
 	if (ret) {
 		ATH5K_ERR(sc, "can't reset hardware (%d)\n", ret);

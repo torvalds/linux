@@ -24,94 +24,12 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 
-struct rcu_table_freelist {
-	struct rcu_head rcu;
-	struct mm_struct *mm;
-	unsigned int pgt_index;
-	unsigned int crst_index;
-	unsigned long *table[0];
-};
-
-#define RCU_FREELIST_SIZE \
-	((PAGE_SIZE - sizeof(struct rcu_table_freelist)) \
-	  / sizeof(unsigned long))
-
-static DEFINE_PER_CPU(struct rcu_table_freelist *, rcu_table_freelist);
-
-static void __page_table_free(struct mm_struct *mm, unsigned long *table);
-
-static struct rcu_table_freelist *rcu_table_freelist_get(struct mm_struct *mm)
-{
-	struct rcu_table_freelist **batchp = &__get_cpu_var(rcu_table_freelist);
-	struct rcu_table_freelist *batch = *batchp;
-
-	if (batch)
-		return batch;
-	batch = (struct rcu_table_freelist *) __get_free_page(GFP_ATOMIC);
-	if (batch) {
-		batch->mm = mm;
-		batch->pgt_index = 0;
-		batch->crst_index = RCU_FREELIST_SIZE;
-		*batchp = batch;
-	}
-	return batch;
-}
-
-static void rcu_table_freelist_callback(struct rcu_head *head)
-{
-	struct rcu_table_freelist *batch =
-		container_of(head, struct rcu_table_freelist, rcu);
-
-	while (batch->pgt_index > 0)
-		__page_table_free(batch->mm, batch->table[--batch->pgt_index]);
-	while (batch->crst_index < RCU_FREELIST_SIZE)
-		crst_table_free(batch->mm, batch->table[batch->crst_index++]);
-	free_page((unsigned long) batch);
-}
-
-void rcu_table_freelist_finish(void)
-{
-	struct rcu_table_freelist **batchp = &get_cpu_var(rcu_table_freelist);
-	struct rcu_table_freelist *batch = *batchp;
-
-	if (!batch)
-		goto out;
-	call_rcu(&batch->rcu, rcu_table_freelist_callback);
-	*batchp = NULL;
-out:
-	put_cpu_var(rcu_table_freelist);
-}
-
-static void smp_sync(void *arg)
-{
-}
-
 #ifndef CONFIG_64BIT
 #define ALLOC_ORDER	1
-#define TABLES_PER_PAGE	4
-#define FRAG_MASK	15UL
-#define SECOND_HALVES	10UL
-
-void clear_table_pgstes(unsigned long *table)
-{
-	clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE/4);
-	memset(table + 256, 0, PAGE_SIZE/4);
-	clear_table(table + 512, _PAGE_TYPE_EMPTY, PAGE_SIZE/4);
-	memset(table + 768, 0, PAGE_SIZE/4);
-}
-
+#define FRAG_MASK	0x0f
 #else
 #define ALLOC_ORDER	2
-#define TABLES_PER_PAGE	2
-#define FRAG_MASK	3UL
-#define SECOND_HALVES	2UL
-
-void clear_table_pgstes(unsigned long *table)
-{
-	clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE/2);
-	memset(table + 256, 0, PAGE_SIZE/2);
-}
-
+#define FRAG_MASK	0x03
 #endif
 
 unsigned long VMALLOC_START = VMALLOC_END - VMALLOC_SIZE;
@@ -138,29 +56,6 @@ unsigned long *crst_table_alloc(struct mm_struct *mm)
 void crst_table_free(struct mm_struct *mm, unsigned long *table)
 {
 	free_pages((unsigned long) table, ALLOC_ORDER);
-}
-
-void crst_table_free_rcu(struct mm_struct *mm, unsigned long *table)
-{
-	struct rcu_table_freelist *batch;
-
-	preempt_disable();
-	if (atomic_read(&mm->mm_users) < 2 &&
-	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
-		crst_table_free(mm, table);
-		goto out;
-	}
-	batch = rcu_table_freelist_get(mm);
-	if (!batch) {
-		smp_call_function(smp_sync, NULL, 1);
-		crst_table_free(mm, table);
-		goto out;
-	}
-	batch->table[--batch->crst_index] = table;
-	if (batch->pgt_index >= batch->crst_index)
-		rcu_table_freelist_finish();
-out:
-	preempt_enable();
 }
 
 #ifdef CONFIG_64BIT
@@ -238,123 +133,174 @@ void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)
 }
 #endif
 
+static inline unsigned int atomic_xor_bits(atomic_t *v, unsigned int bits)
+{
+	unsigned int old, new;
+
+	do {
+		old = atomic_read(v);
+		new = old ^ bits;
+	} while (atomic_cmpxchg(v, old, new) != old);
+	return new;
+}
+
 /*
  * page table entry allocation/free routines.
  */
+#ifdef CONFIG_PGSTE
+static inline unsigned long *page_table_alloc_pgste(struct mm_struct *mm)
+{
+	struct page *page;
+	unsigned long *table;
+
+	page = alloc_page(GFP_KERNEL|__GFP_REPEAT);
+	if (!page)
+		return NULL;
+	pgtable_page_ctor(page);
+	atomic_set(&page->_mapcount, 3);
+	table = (unsigned long *) page_to_phys(page);
+	clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE/2);
+	clear_table(table + PTRS_PER_PTE, 0, PAGE_SIZE/2);
+	return table;
+}
+
+static inline void page_table_free_pgste(unsigned long *table)
+{
+	struct page *page;
+
+	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
+	pgtable_page_ctor(page);
+	atomic_set(&page->_mapcount, -1);
+	__free_page(page);
+}
+#endif
+
 unsigned long *page_table_alloc(struct mm_struct *mm)
 {
 	struct page *page;
 	unsigned long *table;
-	unsigned long bits;
+	unsigned int mask, bit;
 
-	bits = (mm->context.has_pgste) ? 3UL : 1UL;
+#ifdef CONFIG_PGSTE
+	if (mm_has_pgste(mm))
+		return page_table_alloc_pgste(mm);
+#endif
+	/* Allocate fragments of a 4K page as 1K/2K page table */
 	spin_lock_bh(&mm->context.list_lock);
-	page = NULL;
+	mask = FRAG_MASK;
 	if (!list_empty(&mm->context.pgtable_list)) {
 		page = list_first_entry(&mm->context.pgtable_list,
 					struct page, lru);
-		if ((page->flags & FRAG_MASK) == ((1UL << TABLES_PER_PAGE) - 1))
-			page = NULL;
+		table = (unsigned long *) page_to_phys(page);
+		mask = atomic_read(&page->_mapcount);
+		mask = mask | (mask >> 4);
 	}
-	if (!page) {
+	if ((mask & FRAG_MASK) == FRAG_MASK) {
 		spin_unlock_bh(&mm->context.list_lock);
 		page = alloc_page(GFP_KERNEL|__GFP_REPEAT);
 		if (!page)
 			return NULL;
 		pgtable_page_ctor(page);
-		page->flags &= ~FRAG_MASK;
+		atomic_set(&page->_mapcount, 1);
 		table = (unsigned long *) page_to_phys(page);
-		if (mm->context.has_pgste)
-			clear_table_pgstes(table);
-		else
-			clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE);
+		clear_table(table, _PAGE_TYPE_EMPTY, PAGE_SIZE);
 		spin_lock_bh(&mm->context.list_lock);
 		list_add(&page->lru, &mm->context.pgtable_list);
+	} else {
+		for (bit = 1; mask & bit; bit <<= 1)
+			table += PTRS_PER_PTE;
+		mask = atomic_xor_bits(&page->_mapcount, bit);
+		if ((mask & FRAG_MASK) == FRAG_MASK)
+			list_del(&page->lru);
 	}
-	table = (unsigned long *) page_to_phys(page);
-	while (page->flags & bits) {
-		table += 256;
-		bits <<= 1;
-	}
-	page->flags |= bits;
-	if ((page->flags & FRAG_MASK) == ((1UL << TABLES_PER_PAGE) - 1))
-		list_move_tail(&page->lru, &mm->context.pgtable_list);
 	spin_unlock_bh(&mm->context.list_lock);
 	return table;
-}
-
-static void __page_table_free(struct mm_struct *mm, unsigned long *table)
-{
-	struct page *page;
-	unsigned long bits;
-
-	bits = ((unsigned long) table) & 15;
-	table = (unsigned long *)(((unsigned long) table) ^ bits);
-	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
-	page->flags ^= bits;
-	if (!(page->flags & FRAG_MASK)) {
-		pgtable_page_dtor(page);
-		__free_page(page);
-	}
 }
 
 void page_table_free(struct mm_struct *mm, unsigned long *table)
 {
 	struct page *page;
-	unsigned long bits;
+	unsigned int bit, mask;
 
-	bits = (mm->context.has_pgste) ? 3UL : 1UL;
-	bits <<= (__pa(table) & (PAGE_SIZE - 1)) / 256 / sizeof(unsigned long);
+#ifdef CONFIG_PGSTE
+	if (mm_has_pgste(mm))
+		return page_table_free_pgste(table);
+#endif
+	/* Free 1K/2K page table fragment of a 4K page */
 	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
+	bit = 1 << ((__pa(table) & ~PAGE_MASK)/(PTRS_PER_PTE*sizeof(pte_t)));
 	spin_lock_bh(&mm->context.list_lock);
-	page->flags ^= bits;
-	if (page->flags & FRAG_MASK) {
-		/* Page now has some free pgtable fragments. */
-		if (!list_empty(&page->lru))
-			list_move(&page->lru, &mm->context.pgtable_list);
-		page = NULL;
-	} else
-		/* All fragments of the 4K page have been freed. */
+	if ((atomic_read(&page->_mapcount) & FRAG_MASK) != FRAG_MASK)
 		list_del(&page->lru);
+	mask = atomic_xor_bits(&page->_mapcount, bit);
+	if (mask & FRAG_MASK)
+		list_add(&page->lru, &mm->context.pgtable_list);
 	spin_unlock_bh(&mm->context.list_lock);
-	if (page) {
+	if (mask == 0) {
 		pgtable_page_dtor(page);
+		atomic_set(&page->_mapcount, -1);
 		__free_page(page);
 	}
 }
 
-void page_table_free_rcu(struct mm_struct *mm, unsigned long *table)
-{
-	struct rcu_table_freelist *batch;
-	struct page *page;
-	unsigned long bits;
+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
 
-	preempt_disable();
-	if (atomic_read(&mm->mm_users) < 2 &&
-	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id()))) {
-		page_table_free(mm, table);
-		goto out;
+static void __page_table_free_rcu(void *table, unsigned bit)
+{
+	struct page *page;
+
+#ifdef CONFIG_PGSTE
+	if (bit == FRAG_MASK)
+		return page_table_free_pgste(table);
+#endif
+	/* Free 1K/2K page table fragment of a 4K page */
+	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
+	if (atomic_xor_bits(&page->_mapcount, bit) == 0) {
+		pgtable_page_dtor(page);
+		atomic_set(&page->_mapcount, -1);
+		__free_page(page);
 	}
-	batch = rcu_table_freelist_get(mm);
-	if (!batch) {
-		smp_call_function(smp_sync, NULL, 1);
-		page_table_free(mm, table);
-		goto out;
+}
+
+void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table)
+{
+	struct mm_struct *mm;
+	struct page *page;
+	unsigned int bit, mask;
+
+	mm = tlb->mm;
+#ifdef CONFIG_PGSTE
+	if (mm_has_pgste(mm)) {
+		table = (unsigned long *) (__pa(table) | FRAG_MASK);
+		tlb_remove_table(tlb, table);
+		return;
 	}
-	bits = (mm->context.has_pgste) ? 3UL : 1UL;
-	bits <<= (__pa(table) & (PAGE_SIZE - 1)) / 256 / sizeof(unsigned long);
+#endif
+	bit = 1 << ((__pa(table) & ~PAGE_MASK) / (PTRS_PER_PTE*sizeof(pte_t)));
 	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
 	spin_lock_bh(&mm->context.list_lock);
-	/* Delayed freeing with rcu prevents reuse of pgtable fragments */
-	list_del_init(&page->lru);
+	if ((atomic_read(&page->_mapcount) & FRAG_MASK) != FRAG_MASK)
+		list_del(&page->lru);
+	mask = atomic_xor_bits(&page->_mapcount, bit | (bit << 4));
+	if (mask & FRAG_MASK)
+		list_add_tail(&page->lru, &mm->context.pgtable_list);
 	spin_unlock_bh(&mm->context.list_lock);
-	table = (unsigned long *)(((unsigned long) table) | bits);
-	batch->table[batch->pgt_index++] = table;
-	if (batch->pgt_index >= batch->crst_index)
-		rcu_table_freelist_finish();
-out:
-	preempt_enable();
+	table = (unsigned long *) (__pa(table) | (bit << 4));
+	tlb_remove_table(tlb, table);
 }
+
+void __tlb_remove_table(void *_table)
+{
+	void *table = (void *)((unsigned long) _table & PAGE_MASK);
+	unsigned type = (unsigned long) _table & ~PAGE_MASK;
+
+	if (type)
+		__page_table_free_rcu(table, type);
+	else
+		free_pages((unsigned long) table, ALLOC_ORDER);
+}
+
+#endif
 
 /*
  * switch on pgstes for its userspace process (for kvm)
@@ -369,7 +315,7 @@ int s390_enable_sie(void)
 		return -EINVAL;
 
 	/* Do we have pgstes? if yes, we are done */
-	if (tsk->mm->context.has_pgste)
+	if (mm_has_pgste(tsk->mm))
 		return 0;
 
 	/* lets check if we are allowed to replace the mm */

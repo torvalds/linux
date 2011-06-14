@@ -1999,12 +1999,12 @@ static int wm8962_put_hp_sw(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	/* If the left PGA is enabled hit that VU bit... */
-	if (reg_cache[WM8962_PWR_MGMT_2] & WM8962_HPOUTL_PGA_ENA)
+	if (snd_soc_read(codec, WM8962_PWR_MGMT_2) & WM8962_HPOUTL_PGA_ENA)
 		return snd_soc_write(codec, WM8962_HPOUTL_VOLUME,
 				     reg_cache[WM8962_HPOUTL_VOLUME]);
 
 	/* ...otherwise the right.  The VU is stereo. */
-	if (reg_cache[WM8962_PWR_MGMT_2] & WM8962_HPOUTR_PGA_ENA)
+	if (snd_soc_read(codec, WM8962_PWR_MGMT_2) & WM8962_HPOUTR_PGA_ENA)
 		return snd_soc_write(codec, WM8962_HPOUTR_VOLUME,
 				     reg_cache[WM8962_HPOUTR_VOLUME]);
 

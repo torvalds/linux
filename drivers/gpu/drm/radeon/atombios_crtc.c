@@ -1045,7 +1045,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
-	u32 tmp;
+	u32 tmp, viewport_w, viewport_h;
 	int r;
 
 	/* no fb bound */
@@ -1171,8 +1171,10 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	y &= ~1;
 	WREG32(EVERGREEN_VIEWPORT_START + radeon_crtc->crtc_offset,
 	       (x << 16) | y);
+	viewport_w = crtc->mode.hdisplay;
+	viewport_h = (crtc->mode.vdisplay + 1) & ~1;
 	WREG32(EVERGREEN_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
-	       (crtc->mode.hdisplay << 16) | crtc->mode.vdisplay);
+	       (viewport_w << 16) | viewport_h);
 
 	/* pageflip setup */
 	/* make sure flip is at vb rather than hb */
@@ -1213,7 +1215,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
 	u32 fb_swap = R600_D1GRPH_SWAP_ENDIAN_NONE;
-	u32 tmp;
+	u32 tmp, viewport_w, viewport_h;
 	int r;
 
 	/* no fb bound */
@@ -1338,8 +1340,10 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	y &= ~1;
 	WREG32(AVIVO_D1MODE_VIEWPORT_START + radeon_crtc->crtc_offset,
 	       (x << 16) | y);
+	viewport_w = crtc->mode.hdisplay;
+	viewport_h = (crtc->mode.vdisplay + 1) & ~1;
 	WREG32(AVIVO_D1MODE_VIEWPORT_SIZE + radeon_crtc->crtc_offset,
-	       (crtc->mode.hdisplay << 16) | crtc->mode.vdisplay);
+	       (viewport_w << 16) | viewport_h);
 
 	/* pageflip setup */
 	/* make sure flip is at vb rather than hb */

@@ -48,6 +48,7 @@
 
 #include "mux.h"
 #include "control.h"
+#include "common-board-devices.h"
 
 #if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
 static struct gpio_led cm_t3517_leds[] = {
@@ -177,7 +178,7 @@ static struct usbhs_omap_board_data cm_t3517_ehci_pdata __initdata = {
 	.reset_gpio_port[2]  = -EINVAL,
 };
 
-static int cm_t3517_init_usbh(void)
+static int __init cm_t3517_init_usbh(void)
 {
 	int err;
 
@@ -203,8 +204,6 @@ static inline int cm_t3517_init_usbh(void)
 #endif
 
 #if defined(CONFIG_MTD_NAND_OMAP2) || defined(CONFIG_MTD_NAND_OMAP2_MODULE)
-#define NAND_BLOCK_SIZE		SZ_128K
-
 static struct mtd_partition cm_t3517_nand_partitions[] = {
 	{
 		.name           = "xloader",

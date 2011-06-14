@@ -30,6 +30,7 @@
 #include <linux/leds.h>
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
@@ -41,7 +42,6 @@
 
 #include <plat/board.h>
 #include <plat/common.h>
-#include <mach/gpio.h>
 #include <mach/hardware.h>
 #include <plat/mcspi.h>
 #include <plat/usb.h>
@@ -56,8 +56,6 @@
 #define PANDORA_WIFI_IRQ_GPIO		21
 #define PANDORA_WIFI_NRESET_GPIO	23
 #define OMAP3_PANDORA_TS_GPIO		94
-
-#define NAND_BLOCK_SIZE			SZ_128K
 
 static struct mtd_partition omap3pandora_nand_partitions[] = {
 	{
