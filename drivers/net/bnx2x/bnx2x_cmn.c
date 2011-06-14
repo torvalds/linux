@@ -2621,7 +2621,12 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 #ifdef BCM_CNIC
 	}
 #endif
-	set_sb_shortcuts(bp, index);
+
+	/* FCoE Queue uses Default SB and doesn't ACK the SB, thus no need to
+	 * set shortcuts for it.
+	 */
+	if (!IS_FCOE_IDX(index))
+		set_sb_shortcuts(bp, index);
 
 	/* Tx */
 	if (!skip_tx_queue(bp, index)) {
@@ -2698,9 +2703,13 @@ int bnx2x_alloc_fp_mem(struct bnx2x *bp)
 	if (bnx2x_alloc_fp_mem_at(bp, 0))
 		return -ENOMEM;
 #ifdef BCM_CNIC
-	/* FCoE */
-	if (bnx2x_alloc_fp_mem_at(bp, FCOE_IDX))
-		return -ENOMEM;
+	if (!NO_FCOE(bp))
+		/* FCoE */
+		if (bnx2x_alloc_fp_mem_at(bp, FCOE_IDX))
+			/* we will fail load process instead of mark
+			 * NO_FCOE_FLAG
+			 */
+			return -ENOMEM;
 #endif
 	/* RSS */
 	for_each_nondefault_eth_queue(bp, i)
