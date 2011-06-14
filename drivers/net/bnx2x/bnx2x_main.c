@@ -1892,8 +1892,12 @@ static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
 		bp->vn_weight_sum += vn_min_rate;
 	}
 
-	/* ... only if all min rates are zeros - disable fairness */
-	if (all_zero) {
+	/* if ETS or all min rates are zeros - disable fairness */
+	if (BNX2X_IS_ETS_ENABLED(bp)) {
+		bp->cmng.flags.cmng_enables &=
+					~CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
+		DP(NETIF_MSG_IFUP, "Fairness will be disabled due to ETS\n");
+	} else if (all_zero) {
 		bp->cmng.flags.cmng_enables &=
 					~CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
 		DP(NETIF_MSG_IFUP, "All MIN values are zeroes"
