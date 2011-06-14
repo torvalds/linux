@@ -112,13 +112,18 @@ static inline u32 e500_shadow_mas2_attrib(u32 mas2, int usermode)
 /*
  * writing shadow tlb entry to host TLB
  */
-static inline void __write_host_tlbe(struct tlbe *stlbe)
+static inline void __write_host_tlbe(struct tlbe *stlbe, uint32_t mas0)
 {
+	unsigned long flags;
+
+	local_irq_save(flags);
+	mtspr(SPRN_MAS0, mas0);
 	mtspr(SPRN_MAS1, stlbe->mas1);
 	mtspr(SPRN_MAS2, stlbe->mas2);
 	mtspr(SPRN_MAS3, stlbe->mas3);
 	mtspr(SPRN_MAS7, stlbe->mas7);
-	__asm__ __volatile__ ("tlbwe\n" : : );
+	asm volatile("isync; tlbwe" : : : "memory");
+	local_irq_restore(flags);
 }
 
 static inline void write_host_tlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
@@ -126,20 +131,15 @@ static inline void write_host_tlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
 {
 	struct tlbe *stlbe = &vcpu_e500->shadow_tlb[tlbsel][esel];
 
-	local_irq_disable();
 	if (tlbsel == 0) {
-		__write_host_tlbe(stlbe);
+		__write_host_tlbe(stlbe,
+				  MAS0_TLBSEL(0) |
+				  MAS0_ESEL(esel & (KVM_E500_TLB0_WAY_NUM - 1)));
 	} else {
-		unsigned register mas0;
-
-		mas0 = mfspr(SPRN_MAS0);
-
-		mtspr(SPRN_MAS0, MAS0_TLBSEL(1) | MAS0_ESEL(to_htlb1_esel(esel)));
-		__write_host_tlbe(stlbe);
-
-		mtspr(SPRN_MAS0, mas0);
+		__write_host_tlbe(stlbe,
+				  MAS0_TLBSEL(1) |
+				  MAS0_ESEL(to_htlb1_esel(esel)));
 	}
-	local_irq_enable();
 }
 
 void kvmppc_e500_tlb_load(struct kvm_vcpu *vcpu, int cpu)
