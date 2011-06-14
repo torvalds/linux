@@ -88,7 +88,8 @@ u32 evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 /* get temperature in millidegrees */
 int evergreen_get_temp(struct radeon_device *rdev)
 {
-	u32 temp, toffset, actual_temp = 0;
+	u32 temp, toffset;
+	int actual_temp = 0;
 
 	if (rdev->family == CHIP_JUNIPER) {
 		toffset = (RREG32(CG_THERMAL_CTRL) & TOFFSET_MASK) >>
