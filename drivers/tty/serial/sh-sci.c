@@ -117,6 +117,255 @@ to_sci_port(struct uart_port *uart)
 	return container_of(uart, struct sci_port, port);
 }
 
+struct plat_sci_reg {
+	u8 offset, size;
+};
+
+/* Helper for invalidating specific entries of an inherited map. */
+#define sci_reg_invalid	{ .offset = 0, .size = 0 }
+
+static struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
+	[SCIx_PROBE_REGTYPE] = {
+		[0 ... SCIx_NR_REGS - 1] = sci_reg_invalid,
+	},
+
+	/*
+	 * Common SCI definitions, dependent on the port's regshift
+	 * value.
+	 */
+	[SCIx_SCI_REGTYPE] = {
+		[SCSMR]		= { 0x00,  8 },
+		[SCBRR]		= { 0x01,  8 },
+		[SCSCR]		= { 0x02,  8 },
+		[SCxTDR]	= { 0x03,  8 },
+		[SCxSR]		= { 0x04,  8 },
+		[SCxRDR]	= { 0x05,  8 },
+		[SCFCR]		= sci_reg_invalid,
+		[SCFDR]		= sci_reg_invalid,
+		[SCTFDR]	= sci_reg_invalid,
+		[SCRFDR]	= sci_reg_invalid,
+		[SCSPTR]	= sci_reg_invalid,
+		[SCLSR]		= sci_reg_invalid,
+	},
+
+	/*
+	 * Common definitions for legacy IrDA ports, dependent on
+	 * regshift value.
+	 */
+	[SCIx_IRDA_REGTYPE] = {
+		[SCSMR]		= { 0x00,  8 },
+		[SCBRR]		= { 0x01,  8 },
+		[SCSCR]		= { 0x02,  8 },
+		[SCxTDR]	= { 0x03,  8 },
+		[SCxSR]		= { 0x04,  8 },
+		[SCxRDR]	= { 0x05,  8 },
+		[SCFCR]		= { 0x06,  8 },
+		[SCFDR]		= { 0x07, 16 },
+		[SCTFDR]	= sci_reg_invalid,
+		[SCRFDR]	= sci_reg_invalid,
+		[SCSPTR]	= sci_reg_invalid,
+		[SCLSR]		= sci_reg_invalid,
+	},
+
+	/*
+	 * Common SCIFA definitions.
+	 */
+	[SCIx_SCIFA_REGTYPE] = {
+		[SCSMR]		= { 0x00, 16 },
+		[SCBRR]		= { 0x04,  8 },
+		[SCSCR]		= { 0x08, 16 },
+		[SCxTDR]	= { 0x20,  8 },
+		[SCxSR]		= { 0x14, 16 },
+		[SCxRDR]	= { 0x24,  8 },
+		[SCFCR]		= { 0x18, 16 },
+		[SCFDR]		= { 0x1c, 16 },
+		[SCTFDR]	= sci_reg_invalid,
+		[SCRFDR]	= sci_reg_invalid,
+		[SCSPTR]	= sci_reg_invalid,
+		[SCLSR]		= sci_reg_invalid,
+	},
+
+	/*
+	 * Common SCIFB definitions.
+	 */
+	[SCIx_SCIFB_REGTYPE] = {
+		[SCSMR]		= { 0x00, 16 },
+		[SCBRR]		= { 0x04,  8 },
+		[SCSCR]		= { 0x08, 16 },
+		[SCxTDR]	= { 0x40,  8 },
+		[SCxSR]		= { 0x14, 16 },
+		[SCxRDR]	= { 0x60,  8 },
+		[SCFCR]		= { 0x18, 16 },
+		[SCFDR]		= { 0x1c, 16 },
+		[SCTFDR]	= sci_reg_invalid,
+		[SCRFDR]	= sci_reg_invalid,
+		[SCSPTR]	= sci_reg_invalid,
+		[SCLSR]		= sci_reg_invalid,
+	},
+
+	/*
+	 * Common SH-3 SCIF definitions.
+	 */
+	[SCIx_SH3_SCIF_REGTYPE] = {
+		[SCSMR]		= { 0x00,  8 },
+		[SCBRR]		= { 0x02,  8 },
+		[SCSCR]		= { 0x04,  8 },
+		[SCxTDR]	= { 0x06,  8 },
+		[SCxSR]		= { 0x08, 16 },
+		[SCxRDR]	= { 0x0a,  8 },
+		[SCFCR]		= { 0x0c,  8 },
+		[SCFDR]		= { 0x0e, 16 },
+		[SCTFDR]	= sci_reg_invalid,
+		[SCRFDR]	= sci_reg_invalid,
+		[SCSPTR]	= sci_reg_invalid,
+		[SCLSR]		= sci_reg_invalid,
+	},
+
+	/*
+	 * Common SH-4(A) SCIF(B) definitions.
+	 */
+	[SCIx_SH4_SCIF_REGTYPE] = {
+		[SCSMR]		= { 0x00, 16 },
+		[SCBRR]		= { 0x04,  8 },
+		[SCSCR]		= { 0x08, 16 },
+		[SCxTDR]	= { 0x0c,  8 },
+		[SCxSR]		= { 0x10, 16 },
+		[SCxRDR]	= { 0x14,  8 },
+		[SCFCR]		= { 0x18, 16 },
+		[SCFDR]		= { 0x1c, 16 },
+		[SCTFDR]	= sci_reg_invalid,
+		[SCRFDR]	= sci_reg_invalid,
+		[SCSPTR]	= { 0x20, 16 },
+		[SCLSR]		= { 0x24, 16 },
+	},
+
+	/*
+	 * Common SH-4(A) SCIF(B) definitions for ports without an SCSPTR
+	 * register.
+	 */
+	[SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE] = {
+		[SCSMR]		= { 0x00, 16 },
+		[SCBRR]		= { 0x04,  8 },
+		[SCSCR]		= { 0x08, 16 },
+		[SCxTDR]	= { 0x0c,  8 },
+		[SCxSR]		= { 0x10, 16 },
+		[SCxRDR]	= { 0x14,  8 },
+		[SCFCR]		= { 0x18, 16 },
+		[SCFDR]		= { 0x1c, 16 },
+		[SCTFDR]	= sci_reg_invalid,
+		[SCRFDR]	= sci_reg_invalid,
+		[SCSPTR]	= sci_reg_invalid,
+		[SCLSR]		= { 0x24, 16 },
+	},
+
+	/*
+	 * Common SH-4(A) SCIF(B) definitions for ports with FIFO data
+	 * count registers.
+	 */
+	[SCIx_SH4_SCIF_FIFODATA_REGTYPE] = {
+		[SCSMR]		= { 0x00, 16 },
+		[SCBRR]		= { 0x04,  8 },
+		[SCSCR]		= { 0x08, 16 },
+		[SCxTDR]	= { 0x0c,  8 },
+		[SCxSR]		= { 0x10, 16 },
+		[SCxRDR]	= { 0x14,  8 },
+		[SCFCR]		= { 0x18, 16 },
+		[SCFDR]		= { 0x1c, 16 },
+		[SCTFDR]	= { 0x1c, 16 },	/* aliased to SCFDR */
+		[SCRFDR]	= { 0x20, 16 },
+		[SCSPTR]	= { 0x24, 16 },
+		[SCLSR]		= { 0x28, 16 },
+	},
+
+	/*
+	 * SH7705-style SCIF(B) ports, lacking both SCSPTR and SCLSR
+	 * registers.
+	 */
+	[SCIx_SH7705_SCIF_REGTYPE] = {
+		[SCSMR]		= { 0x00, 16 },
+		[SCBRR]		= { 0x04,  8 },
+		[SCSCR]		= { 0x08, 16 },
+		[SCxTDR]	= { 0x20,  8 },
+		[SCxSR]		= { 0x14, 16 },
+		[SCxRDR]	= { 0x24,  8 },
+		[SCFCR]		= { 0x18, 16 },
+		[SCFDR]		= { 0x1c, 16 },
+		[SCTFDR]	= sci_reg_invalid,
+		[SCRFDR]	= sci_reg_invalid,
+		[SCSPTR]	= sci_reg_invalid,
+		[SCLSR]		= sci_reg_invalid,
+	},
+};
+
+/*
+ * The "offset" here is rather misleading, in that it refers to an enum
+ * value relative to the port mapping rather than the fixed offset
+ * itself, which needs to be manually retrieved from the platform's
+ * register map for the given port.
+ */
+static unsigned int sci_serial_in(struct uart_port *p, int offset)
+{
+	struct sci_port *s = to_sci_port(p);
+	struct plat_sci_reg *reg = sci_regmap[s->cfg->regtype] + offset;
+
+	if (reg->size == 8)
+		return ioread8(p->membase + (reg->offset << p->regshift));
+	else if (reg->size == 16)
+		return ioread16(p->membase + (reg->offset << p->regshift));
+	else
+		WARN(1, "Invalid register access\n");
+
+	return 0;
+}
+
+static void sci_serial_out(struct uart_port *p, int offset, int value)
+{
+	struct sci_port *s = to_sci_port(p);
+	struct plat_sci_reg *reg = sci_regmap[s->cfg->regtype] + offset;
+
+	if (reg->size == 8)
+		iowrite8(value, p->membase + (reg->offset << p->regshift));
+	else if (reg->size == 16)
+		iowrite16(value, p->membase + (reg->offset << p->regshift));
+	else
+		WARN(1, "Invalid register access\n");
+}
+
+#define sci_in(up, offset)		(up->serial_in(up, offset))
+#define sci_out(up, offset, value)	(up->serial_out(up, offset, value))
+
+static int sci_probe_regmap(struct plat_sci_port *cfg)
+{
+	switch (cfg->type) {
+	case PORT_SCI:
+		cfg->regtype = SCIx_SCI_REGTYPE;
+		break;
+	case PORT_IRDA:
+		cfg->regtype = SCIx_IRDA_REGTYPE;
+		break;
+	case PORT_SCIFA:
+		cfg->regtype = SCIx_SCIFA_REGTYPE;
+		break;
+	case PORT_SCIFB:
+		cfg->regtype = SCIx_SCIFB_REGTYPE;
+		break;
+	case PORT_SCIF:
+		/*
+		 * The SH-4 is a bit of a misnomer here, although that's
+		 * where this particular port layout originated. This
+		 * configuration (or some slight variation thereof)
+		 * remains the dominant model for all SCIFs.
+		 */
+		cfg->regtype = SCIx_SH4_SCIF_REGTYPE;
+		break;
+	default:
+		printk(KERN_ERR "Can't probe register map for given port\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 #if defined(CONFIG_CONSOLE_POLL) || defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
 
 #ifdef CONFIG_CONSOLE_POLL
@@ -160,103 +409,29 @@ static void sci_poll_put_char(struct uart_port *port, unsigned char c)
 }
 #endif /* CONFIG_CONSOLE_POLL || CONFIG_SERIAL_SH_SCI_CONSOLE */
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
-static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
+static void sci_init_pins(struct uart_port *port, unsigned int cflag)
 {
-	if (port->mapbase == 0xA4400000) {
-		__raw_writew(__raw_readw(PACR) & 0xffc0, PACR);
-		__raw_writew(__raw_readw(PBCR) & 0x0fff, PBCR);
-	} else if (port->mapbase == 0xA4410000)
-		__raw_writew(__raw_readw(PBCR) & 0xf003, PBCR);
-}
-#elif defined(CONFIG_CPU_SUBTYPE_SH7720) || defined(CONFIG_CPU_SUBTYPE_SH7721)
-static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
-{
-	unsigned short data;
+	struct sci_port *s = to_sci_port(port);
+	struct plat_sci_reg *reg = sci_regmap[s->cfg->regtype] + SCSPTR;
 
-	if (cflag & CRTSCTS) {
-		/* enable RTS/CTS */
-		if (port->mapbase == 0xa4430000) { /* SCIF0 */
-			/* Clear PTCR bit 9-2; enable all scif pins but sck */
-			data = __raw_readw(PORT_PTCR);
-			__raw_writew((data & 0xfc03), PORT_PTCR);
-		} else if (port->mapbase == 0xa4438000) { /* SCIF1 */
-			/* Clear PVCR bit 9-2 */
-			data = __raw_readw(PORT_PVCR);
-			__raw_writew((data & 0xfc03), PORT_PVCR);
-		}
-	} else {
-		if (port->mapbase == 0xa4430000) { /* SCIF0 */
-			/* Clear PTCR bit 5-2; enable only tx and rx  */
-			data = __raw_readw(PORT_PTCR);
-			__raw_writew((data & 0xffc3), PORT_PTCR);
-		} else if (port->mapbase == 0xa4438000) { /* SCIF1 */
-			/* Clear PVCR bit 5-2 */
-			data = __raw_readw(PORT_PVCR);
-			__raw_writew((data & 0xffc3), PORT_PVCR);
-		}
+	/*
+	 * Use port-specific handler if provided.
+	 */
+	if (s->cfg->ops && s->cfg->ops->init_pins) {
+		s->cfg->ops->init_pins(port, cflag);
+		return;
 	}
-}
-#elif defined(CONFIG_CPU_SH3)
-/* For SH7705, SH7706, SH7707, SH7709, SH7709A, SH7729 */
-static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
-{
-	unsigned short data;
 
-	/* We need to set SCPCR to enable RTS/CTS */
-	data = __raw_readw(SCPCR);
-	/* Clear out SCP7MD1,0, SCP6MD1,0, SCP4MD1,0*/
-	__raw_writew(data & 0x0fcf, SCPCR);
+	/*
+	 * For the generic path SCSPTR is necessary. Bail out if that's
+	 * unavailable, too.
+	 */
+	if (!reg->size)
+		return;
 
-	if (!(cflag & CRTSCTS)) {
-		/* We need to set SCPCR to enable RTS/CTS */
-		data = __raw_readw(SCPCR);
-		/* Clear out SCP7MD1,0, SCP4MD1,0,
-		   Set SCP6MD1,0 = {01} (output)  */
-		__raw_writew((data & 0x0fcf) | 0x1000, SCPCR);
-
-		data = __raw_readb(SCPDR);
-		/* Set /RTS2 (bit6) = 0 */
-		__raw_writeb(data & 0xbf, SCPDR);
-	}
-}
-#elif defined(CONFIG_CPU_SUBTYPE_SH7722)
-static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
-{
-	unsigned short data;
-
-	if (port->mapbase == 0xffe00000) {
-		data = __raw_readw(PSCR);
-		data &= ~0x03cf;
-		if (!(cflag & CRTSCTS))
-			data |= 0x0340;
-
-		__raw_writew(data, PSCR);
-	}
-}
-#elif defined(CONFIG_CPU_SUBTYPE_SH7757) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7763) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7780) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7785) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7786) || \
-      defined(CONFIG_CPU_SUBTYPE_SHX3)
-static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
-{
 	if (!(cflag & CRTSCTS))
-		__raw_writew(0x0080, SCSPTR0); /* Set RTS = 1 */
+		sci_out(port, SCSPTR, 0x0080); /* Set RTS = 1 */
 }
-#elif defined(CONFIG_CPU_SH4) && !defined(CONFIG_CPU_SH4A)
-static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
-{
-	if (!(cflag & CRTSCTS))
-		__raw_writew(0x0080, SCSPTR2); /* Set RTS = 1 */
-}
-#else
-static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
-{
-	/* Nothing to do */
-}
-#endif
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7760) || \
     defined(CONFIG_CPU_SUBTYPE_SH7780) || \
@@ -1752,6 +1927,9 @@ static int __devinit sci_init_single(struct platform_device *dev,
 		break;
 	}
 
+	if (p->regtype == SCIx_PROBE_REGTYPE)
+		BUG_ON(sci_probe_regmap(p) != 0);
+
 	if (dev) {
 		sci_port->iclk = clk_get(&dev->dev, "sci_ick");
 		if (IS_ERR(sci_port->iclk)) {
@@ -1812,15 +1990,19 @@ static int __devinit sci_init_single(struct platform_device *dev,
 	port->mapbase		= p->mapbase;
 	port->type		= p->type;
 	port->flags		= p->flags;
+	port->regshift		= p->regshift;
 
 	/*
-	 * The UART port needs an IRQ value, so we peg this to the TX IRQ
+	 * The UART port needs an IRQ value, so we peg this to the RX IRQ
 	 * for the multi-IRQ ports, which is where we are primarily
 	 * concerned with the shutdown path synchronization.
 	 *
 	 * For the muxed case there's nothing more to do.
 	 */
 	port->irq		= p->irqs[SCIx_RXI_IRQ];
+
+	port->serial_in		= sci_serial_in;
+	port->serial_out	= sci_serial_out;
 
 	if (p->dma_dev)
 		dev_dbg(port->dev, "DMA device %p, tx %d, rx %d\n",

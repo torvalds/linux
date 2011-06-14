@@ -58,6 +58,22 @@ enum {
 	SCIx_NR_IRQS,
 };
 
+enum {
+	SCIx_PROBE_REGTYPE,
+
+	SCIx_SCI_REGTYPE,
+	SCIx_IRDA_REGTYPE,
+	SCIx_SCIFA_REGTYPE,
+	SCIx_SCIFB_REGTYPE,
+	SCIx_SH3_SCIF_REGTYPE,
+	SCIx_SH4_SCIF_REGTYPE,
+	SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
+	SCIx_SH4_SCIF_FIFODATA_REGTYPE,
+	SCIx_SH7705_SCIF_REGTYPE,
+
+	SCIx_NR_REGTYPES,
+};
+
 #define SCIx_IRQ_MUXED(irq)		\
 {					\
 	[SCIx_ERI_IRQ]	= (irq),	\
@@ -66,7 +82,23 @@ enum {
 	[SCIx_BRI_IRQ]	= (irq),	\
 }
 
+/*
+ * SCI register subset common for all port types.
+ * Not all registers will exist on all parts.
+ */
+enum {
+	SCSMR, SCBRR, SCSCR, SCxSR,
+	SCFCR, SCFDR, SCxTDR, SCxRDR,
+	SCLSR, SCTFDR, SCRFDR, SCSPTR,
+
+	SCIx_NR_REGS,
+};
+
 struct device;
+
+struct plat_sci_port_ops {
+	void (*init_pins)(struct uart_port *, unsigned int cflag);
+};
 
 /*
  * Platform device specific platform_data struct
@@ -87,6 +119,10 @@ struct plat_sci_port {
 	unsigned int	error_mask;
 
 	int		port_reg;
+	unsigned char	regshift;
+	unsigned char	regtype;
+
+	struct plat_sci_port_ops	*ops;
 
 	struct device	*dma_dev;
 
