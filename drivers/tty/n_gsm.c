@@ -875,7 +875,8 @@ static int gsm_dlci_data_output_framed(struct gsm_mux *gsm,
 		*dp++ = last << 7 | first << 6 | 1;	/* EA */
 		len--;
 	}
-	memcpy(dp, skb_pull(dlci->skb, len), len);
+	memcpy(dp, dlci->skb->data, len);
+	skb_pull(dlci->skb, len);
 	__gsm_data_queue(dlci, msg);
 	if (last)
 		dlci->skb = NULL;
