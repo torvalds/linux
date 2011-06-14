@@ -819,6 +819,35 @@ Retry_Sense:
 		}
 	}
 
+	/*
+	 * Some devices don't work or return incorrect data the first
+	 * time they get a READ(10) command, or for the first READ(10)
+	 * after a media change.  If the INITIAL_READ10 flag is set,
+	 * keep track of whether READ(10) commands succeed.  If the
+	 * previous one succeeded and this one failed, set the REDO_READ10
+	 * flag to force a retry.
+	 */
+	if (unlikely((us->fflags & US_FL_INITIAL_READ10) &&
+			srb->cmnd[0] == READ_10)) {
+		if (srb->result == SAM_STAT_GOOD) {
+			set_bit(US_FLIDX_READ10_WORKED, &us->dflags);
+		} else if (test_bit(US_FLIDX_READ10_WORKED, &us->dflags)) {
+			clear_bit(US_FLIDX_READ10_WORKED, &us->dflags);
+			set_bit(US_FLIDX_REDO_READ10, &us->dflags);
+		}
+
+		/*
+		 * Next, if the REDO_READ10 flag is set, return a result
+		 * code that will cause the SCSI core to retry the READ(10)
+		 * command immediately.
+		 */
+		if (test_bit(US_FLIDX_REDO_READ10, &us->dflags)) {
+			clear_bit(US_FLIDX_REDO_READ10, &us->dflags);
+			srb->result = DID_IMM_RETRY << 16;
+			srb->sense_buffer[0] = 0;
+		}
+	}
+
 	/* Did we transfer less than the minimum amount required? */
 	if ((srb->result == SAM_STAT_GOOD || srb->sense_buffer[2] == 0) &&
 			scsi_bufflen(srb) - scsi_get_resid(srb) < srb->underflow)

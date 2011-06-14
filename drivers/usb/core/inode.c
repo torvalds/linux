@@ -389,7 +389,6 @@ static int usbfs_rmdir(struct inode *dir, struct dentry *dentry)
 	mutex_unlock(&inode->i_mutex);
 	if (!error)
 		d_delete(dentry);
-	dput(dentry);
 	return error;
 }
 

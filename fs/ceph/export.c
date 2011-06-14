@@ -109,7 +109,7 @@ static struct dentry *__fh_to_dentry(struct super_block *sb,
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
 		inode = req->r_target_inode;
 		if (inode)
-			igrab(inode);
+			ihold(inode);
 		ceph_mdsc_put_request(req);
 		if (!inode)
 			return ERR_PTR(-ESTALE);
@@ -167,7 +167,7 @@ static struct dentry *__cfh_to_dentry(struct super_block *sb,
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
 		inode = req->r_target_inode;
 		if (inode)
-			igrab(inode);
+			ihold(inode);
 		ceph_mdsc_put_request(req);
 		if (!inode)
 			return ERR_PTR(err ? err : -ESTALE);

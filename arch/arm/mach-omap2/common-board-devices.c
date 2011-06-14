@@ -85,17 +85,17 @@ void __init omap_ads7846_init(int bus_num, int gpio_pendown, int gpio_debounce,
 	struct spi_board_info *spi_bi = &ads7846_spi_board_info;
 	int err;
 
-	err = gpio_request(gpio_pendown, "TS PenDown");
-	if (err) {
-		pr_err("Could not obtain gpio for TS PenDown: %d\n", err);
-		return;
+	if (board_pdata && board_pdata->get_pendown_state) {
+		err = gpio_request_one(gpio_pendown, GPIOF_IN, "TSPenDown");
+		if (err) {
+			pr_err("Couldn't obtain gpio for TSPenDown: %d\n", err);
+			return;
+		}
+		gpio_export(gpio_pendown, 0);
+
+		if (gpio_debounce)
+			gpio_set_debounce(gpio_pendown, gpio_debounce);
 	}
-
-	gpio_direction_input(gpio_pendown);
-	gpio_export(gpio_pendown, 0);
-
-	if (gpio_debounce)
-		gpio_set_debounce(gpio_pendown, gpio_debounce);
 
 	ads7846_config.gpio_pendown = gpio_pendown;
 

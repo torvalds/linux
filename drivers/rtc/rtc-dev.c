@@ -421,7 +421,8 @@ static long rtc_dev_ioctl(struct file *file,
 			err = ops->ioctl(rtc->dev.parent, cmd, arg);
 			if (err == -ENOIOCTLCMD)
 				err = -ENOTTY;
-		}
+		} else
+			err = -ENOTTY;
 		break;
 	}
 
