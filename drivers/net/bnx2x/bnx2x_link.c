@@ -9198,6 +9198,52 @@ static int bnx2x_84833_pair_swap_cfg(struct bnx2x_phy *phy,
 	return 0;
 }
 
+
+static int bnx2x_84833_common_init_phy(struct bnx2x *bp,
+						u32 shmem_base_path[],
+						u32 chip_id)
+{
+	u32 reset_pin[2];
+	u32 idx;
+	u8 reset_gpios;
+	if (CHIP_IS_E3(bp)) {
+		/* Assume that these will be GPIOs, not EPIOs. */
+		for (idx = 0; idx < 2; idx++) {
+			/* Map config param to register bit. */
+			reset_pin[idx] = REG_RD(bp, shmem_base_path[idx] +
+				offsetof(struct shmem_region,
+				dev_info.port_hw_config[0].e3_cmn_pin_cfg));
+			reset_pin[idx] = (reset_pin[idx] &
+				PORT_HW_CFG_E3_PHY_RESET_MASK) >>
+				PORT_HW_CFG_E3_PHY_RESET_SHIFT;
+			reset_pin[idx] -= PIN_CFG_GPIO0_P0;
+			reset_pin[idx] = (1 << reset_pin[idx]);
+		}
+		reset_gpios = (u8)(reset_pin[0] | reset_pin[1]);
+	} else {
+		/* E2, look from diff place of shmem. */
+		for (idx = 0; idx < 2; idx++) {
+			reset_pin[idx] = REG_RD(bp, shmem_base_path[idx] +
+				offsetof(struct shmem_region,
+				dev_info.port_hw_config[0].default_cfg));
+			reset_pin[idx] &= PORT_HW_CFG_EXT_PHY_GPIO_RST_MASK;
+			reset_pin[idx] -= PORT_HW_CFG_EXT_PHY_GPIO_RST_GPIO0_P0;
+			reset_pin[idx] >>= PORT_HW_CFG_EXT_PHY_GPIO_RST_SHIFT;
+			reset_pin[idx] = (1 << reset_pin[idx]);
+		}
+		reset_gpios = (u8)(reset_pin[0] | reset_pin[1]);
+	}
+
+	bnx2x_set_mult_gpio(bp, reset_gpios, MISC_REGISTERS_GPIO_OUTPUT_LOW);
+	udelay(10);
+	bnx2x_set_mult_gpio(bp, reset_gpios, MISC_REGISTERS_GPIO_OUTPUT_HIGH);
+	msleep(800);
+	DP(NETIF_MSG_LINK, "84833 reset pulse on pin values 0x%x\n",
+		reset_gpios);
+
+	return 0;
+}
+
 static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 				   struct link_params *params,
 				   struct link_vars *vars)
@@ -9263,8 +9309,14 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 		 MDIO_CTL_REG_84823_MEDIA_COPPER_CORE_DOWN |
 		 MDIO_CTL_REG_84823_MEDIA_PRIORITY_MASK |
 		 MDIO_CTL_REG_84823_MEDIA_FIBER_1G);
-	val |= MDIO_CTL_REG_84823_CTRL_MAC_XFI |
-		MDIO_CTL_REG_84823_MEDIA_LINE_XAUI_L;
+
+	if (CHIP_IS_E3(bp)) {
+		val &= ~(MDIO_CTL_REG_84823_MEDIA_MAC_MASK |
+			 MDIO_CTL_REG_84823_MEDIA_LINE_MASK);
+	} else {
+		val |= (MDIO_CTL_REG_84823_CTRL_MAC_XFI |
+			MDIO_CTL_REG_84823_MEDIA_LINE_XAUI_L);
+	}
 
 	actual_phy_selection = bnx2x_phy_selection(params);
 
@@ -9435,6 +9487,7 @@ static void bnx2x_848x3_link_reset(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u8 port;
+	u16 val16;
 
 	if (!(CHIP_IS_E1(bp)))
 		port = BP_PATH(bp);
@@ -9446,9 +9499,14 @@ static void bnx2x_848x3_link_reset(struct bnx2x_phy *phy,
 			       MISC_REGISTERS_GPIO_OUTPUT_LOW,
 			       port);
 	} else {
-		bnx2x_cl45_write(bp, phy,
-				MDIO_PMA_DEVAD,
-				MDIO_PMA_REG_CTRL, 0x800);
+		bnx2x_cl45_read(bp, phy,
+				MDIO_CTL_DEVAD,
+				0x400f, &val16);
+		/* Put to low power mode on newer FW */
+		if ((val16 & 0x303f) > 0x1009)
+			bnx2x_cl45_write(bp, phy,
+					MDIO_PMA_DEVAD,
+					MDIO_PMA_REG_CTRL, 0x800);
 	}
 }
 
@@ -9647,7 +9705,17 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 		}
 		break;
 	}
+
+	/*
+	 * This is a workaround for E3+84833 until autoneg
+	 * restart is fixed in f/w
+	 */
+	if (CHIP_IS_E3(bp)) {
+		bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+				MDIO_WC_REG_GP2_STATUS_GP_2_1, &val);
+	}
 }
+
 /******************************************************************/
 /*			54616S PHY SECTION			  */
 /******************************************************************/
@@ -11699,6 +11767,13 @@ static int bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base_path[],
 		rc = bnx2x_8726_common_init_phy(bp, shmem_base_path,
 						shmem2_base_path,
 						phy_index, chip_id);
+		break;
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833:
+		/*
+		 * GPIO3's are linked, and so both need to be toggled
+		 * to obtain required 2us pulse.
+		 */
+		rc = bnx2x_84833_common_init_phy(bp, shmem_base_path, chip_id);
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE:
 		rc = -EINVAL;
