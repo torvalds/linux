@@ -94,6 +94,10 @@ static u32 logging_level;
 MODULE_PARM_DESC(logging_level, " bits for enabling additional logging info "
     "(default=0)");
 
+static ushort max_sectors = 0xFFFF;
+module_param(max_sectors, ushort, 0);
+MODULE_PARM_DESC(max_sectors, "max sectors, range 64 to 8192  default=8192");
+
 /* scsi-mid layer global parmeter is max_report_luns, which is 511 */
 #define MPT2SAS_MAX_LUN (16895)
 static int max_lun = MPT2SAS_MAX_LUN;
@@ -7435,6 +7439,25 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->max_lun = max_lun;
 	shost->transportt = mpt2sas_transport_template;
 	shost->unique_id = ioc->id;
+
+	if (max_sectors != 0xFFFF) {
+		if (max_sectors < 64) {
+			shost->max_sectors = 64;
+			printk(MPT2SAS_WARN_FMT "Invalid value %d passed "
+			    "for max_sectors, range is 64 to 8192. Assigning "
+			    "value of 64.\n", ioc->name, max_sectors);
+		} else if (max_sectors > 8192) {
+			shost->max_sectors = 8192;
+			printk(MPT2SAS_WARN_FMT "Invalid value %d passed "
+			    "for max_sectors, range is 64 to 8192. Assigning "
+			    "default value of 8192.\n", ioc->name,
+			    max_sectors);
+		} else {
+			shost->max_sectors = max_sectors & 0xFFFE;
+			printk(MPT2SAS_INFO_FMT "The max_sectors value is "
+			    "set to %d\n", ioc->name, shost->max_sectors);
+		}
+	}
 
 	if ((scsi_add_host(shost, &pdev->dev))) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
