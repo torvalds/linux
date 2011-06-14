@@ -2230,7 +2230,7 @@ static inline void drbd_get_syncer_progress(struct drbd_conf *mdev,
 		 * Note: currently we don't support such large bitmaps on 32bit
 		 * arch anyways, but no harm done to be prepared for it here.
 		 */
-		unsigned int shift = mdev->rs_total >= (1ULL << 32) ? 16 : 10;
+		unsigned int shift = mdev->rs_total > UINT_MAX ? 16 : 10;
 		unsigned long left = *bits_left >> shift;
 		unsigned long total = 1UL + (mdev->rs_total >> shift);
 		unsigned long tmp = 1000UL - left * 1000UL/total;
