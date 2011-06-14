@@ -825,9 +825,11 @@ static int check_kill_permission(int sig, struct siginfo *info,
  * TRAP_STOP to notify ptracer of an event.  @t must have been seized by
  * ptracer.
  *
- * If @t is running, STOP trap will be taken.  If already trapped, STOP
- * trap will be eventually taken without returning to userland after the
- * existing traps are finished by PTRACE_CONT.
+ * If @t is running, STOP trap will be taken.  If trapped for STOP and
+ * ptracer is listening for events, tracee is woken up so that it can
+ * re-trap for the new event.  If trapped otherwise, STOP trap will be
+ * eventually taken without returning to userland after the existing traps
+ * are finished by PTRACE_CONT.
  *
  * CONTEXT:
  * Must be called with @task->sighand->siglock held.
@@ -838,7 +840,7 @@ static void ptrace_trap_notify(struct task_struct *t)
 	assert_spin_locked(&t->sighand->siglock);
 
 	task_set_jobctl_pending(t, JOBCTL_TRAP_NOTIFY);
-	signal_wake_up(t, 0);
+	signal_wake_up(t, t->jobctl & JOBCTL_LISTENING);
 }
 
 /*
@@ -1893,6 +1895,9 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	 */
 	spin_lock_irq(&current->sighand->siglock);
 	current->last_siginfo = NULL;
+
+	/* LISTENING can be set only during STOP traps, clear it */
+	current->jobctl &= ~JOBCTL_LISTENING;
 
 	/*
 	 * Queued signals ignored us while we were stopped for tracing.

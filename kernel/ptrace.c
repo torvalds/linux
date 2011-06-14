@@ -146,7 +146,8 @@ int ptrace_check_attach(struct task_struct *child, bool ignore_state)
 		 */
 		spin_lock_irq(&child->sighand->siglock);
 		WARN_ON_ONCE(task_is_stopped(child));
-		if (task_is_traced(child) || ignore_state)
+		if (ignore_state || (task_is_traced(child) &&
+				     !(child->jobctl & JOBCTL_LISTENING)))
 			ret = 0;
 		spin_unlock_irq(&child->sighand->siglock);
 	}
@@ -660,7 +661,7 @@ int ptrace_request(struct task_struct *child, long request,
 {
 	bool seized = child->ptrace & PT_SEIZED;
 	int ret = -EIO;
-	siginfo_t siginfo;
+	siginfo_t siginfo, *si;
 	void __user *datavp = (void __user *) data;
 	unsigned long __user *datalp = datavp;
 	unsigned long flags;
@@ -710,8 +711,43 @@ int ptrace_request(struct task_struct *child, long request,
 		if (unlikely(!seized || !lock_task_sighand(child, &flags)))
 			break;
 
+		/*
+		 * INTERRUPT doesn't disturb existing trap sans one
+		 * exception.  If ptracer issued LISTEN for the current
+		 * STOP, this INTERRUPT should clear LISTEN and re-trap
+		 * tracee into STOP.
+		 */
 		if (likely(task_set_jobctl_pending(child, JOBCTL_TRAP_STOP)))
-			signal_wake_up(child, 0);
+			signal_wake_up(child, child->jobctl & JOBCTL_LISTENING);
+
+		unlock_task_sighand(child, &flags);
+		ret = 0;
+		break;
+
+	case PTRACE_LISTEN:
+		/*
+		 * Listen for events.  Tracee must be in STOP.  It's not
+		 * resumed per-se but is not considered to be in TRACED by
+		 * wait(2) or ptrace(2).  If an async event (e.g. group
+		 * stop state change) happens, tracee will enter STOP trap
+		 * again.  Alternatively, ptracer can issue INTERRUPT to
+		 * finish listening and re-trap tracee into STOP.
+		 */
+		if (unlikely(!seized || !lock_task_sighand(child, &flags)))
+			break;
+
+		si = child->last_siginfo;
+		if (unlikely(!si || si->si_code >> 8 != PTRACE_EVENT_STOP))
+			break;
+
+		child->jobctl |= JOBCTL_LISTENING;
+
+		/*
+		 * If NOTIFY is set, it means event happened between start
+		 * of this trap and now.  Trigger re-trap immediately.
+		 */
+		if (child->jobctl & JOBCTL_TRAP_NOTIFY)
+			signal_wake_up(child, true);
 
 		unlock_task_sighand(child, &flags);
 		ret = 0;
