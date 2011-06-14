@@ -161,12 +161,15 @@
 				"Intel Integrated RAID Module RMS2LL080"
 #define MPT2SAS_INTEL_RMS2LL040_BRANDING	\
 				"Intel Integrated RAID Module RMS2LL040"
+#define MPT2SAS_INTEL_RS25GB008_BRANDING       \
+				"Intel(R) RAID Controller RS25GB008"
 
 /*
  * Intel HBA SSDIDs
  */
 #define MPT2SAS_INTEL_RMS2LL080_SSDID          0x350E
 #define MPT2SAS_INTEL_RMS2LL040_SSDID          0x350F
+#define MPT2SAS_INTEL_RS25GB008_SSDID          0x3000
 
 
 /*
