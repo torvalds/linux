@@ -288,10 +288,6 @@ static void __devinit pci_read_bridge_io(struct pci_bus *child)
 		if (!res->end)
 			res->end = limit + 0xfff;
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
-	} else {
-		dev_printk(KERN_DEBUG, &dev->dev,
-			 "  bridge window [io  %#06lx-%#06lx] (disabled)\n",
-				 base, limit);
 	}
 }
 
@@ -312,10 +308,6 @@ static void __devinit pci_read_bridge_mmio(struct pci_bus *child)
 		res->start = base;
 		res->end = limit + 0xfffff;
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
-	} else {
-		dev_printk(KERN_DEBUG, &dev->dev,
-			"  bridge window [mem %#010lx-%#010lx] (disabled)\n",
-					 base, limit + 0xfffff);
 	}
 }
 
@@ -363,10 +355,6 @@ static void __devinit pci_read_bridge_mmio_pref(struct pci_bus *child)
 		res->start = base;
 		res->end = limit + 0xfffff;
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
-	} else {
-		dev_printk(KERN_DEBUG, &dev->dev,
-		     "  bridge window [mem %#010lx-%#010lx pref] (disabled)\n",
-					 base, limit + 0xfffff);
 	}
 }
 

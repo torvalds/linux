@@ -336,7 +336,6 @@ static void pci_setup_bridge_io(struct pci_bus *bus)
 		/* Clear upper 16 bits of I/O base/limit. */
 		io_upper16 = 0;
 		l = 0x00f0;
-		dev_info(&bridge->dev, "  bridge window [io  disabled]\n");
 	}
 	/* Temporarily disable the I/O range before updating PCI_IO_BASE. */
 	pci_write_config_dword(bridge, PCI_IO_BASE_UPPER16, 0x0000ffff);
@@ -362,7 +361,6 @@ static void pci_setup_bridge_mmio(struct pci_bus *bus)
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 	} else {
 		l = 0x0000fff0;
-		dev_info(&bridge->dev, "  bridge window [mem disabled]\n");
 	}
 	pci_write_config_dword(bridge, PCI_MEMORY_BASE, l);
 }
@@ -393,7 +391,6 @@ static void pci_setup_bridge_mmio_pref(struct pci_bus *bus)
 		dev_info(&bridge->dev, "  bridge window %pR\n", res);
 	} else {
 		l = 0x0000fff0;
-		dev_info(&bridge->dev, "  bridge window [mem pref disabled]\n");
 	}
 	pci_write_config_dword(bridge, PCI_PREF_MEMORY_BASE, l);
 
