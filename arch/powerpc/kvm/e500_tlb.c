@@ -76,7 +76,8 @@ static inline unsigned int tlb0_get_next_victim(
 
 static inline unsigned int tlb1_max_shadow_size(void)
 {
-	return tlb1_entry_num - tlbcam_index;
+	/* reserve one entry for magic page */
+	return tlb1_entry_num - tlbcam_index - 1;
 }
 
 static inline int tlbe_is_writable(struct tlbe *tlbe)
@@ -140,6 +141,25 @@ static inline void write_host_tlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
 				  MAS0_TLBSEL(1) |
 				  MAS0_ESEL(to_htlb1_esel(esel)));
 	}
+}
+
+void kvmppc_map_magic(struct kvm_vcpu *vcpu)
+{
+	struct tlbe magic;
+	ulong shared_page = ((ulong)vcpu->arch.shared) & PAGE_MASK;
+	pfn_t pfn;
+
+	pfn = (pfn_t)virt_to_phys((void *)shared_page) >> PAGE_SHIFT;
+	get_page(pfn_to_page(pfn));
+
+	magic.mas1 = MAS1_VALID | MAS1_TS |
+		     MAS1_TSIZE(BOOK3E_PAGESZ_4K);
+	magic.mas2 = vcpu->arch.magic_page_ea | MAS2_M;
+	magic.mas3 = (pfn << PAGE_SHIFT) |
+		     MAS3_SW | MAS3_SR | MAS3_UW | MAS3_UR;
+	magic.mas7 = pfn >> (32 - PAGE_SHIFT);
+
+	__write_host_tlbe(&magic, MAS0_TLBSEL(1) | MAS0_ESEL(tlbcam_index));
 }
 
 void kvmppc_e500_tlb_load(struct kvm_vcpu *vcpu, int cpu)

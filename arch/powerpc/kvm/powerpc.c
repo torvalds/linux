@@ -73,7 +73,8 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 	}
 	case HC_VENDOR_KVM | KVM_HC_FEATURES:
 		r = HC_EV_SUCCESS;
-#if defined(CONFIG_PPC_BOOK3S) /* XXX Missing magic page on BookE */
+#if defined(CONFIG_PPC_BOOK3S) || defined(CONFIG_KVM_E500)
+		/* XXX Missing magic page on 44x */
 		r2 |= (1 << KVM_FEATURE_MAGIC_PAGE);
 #endif
 

@@ -472,6 +472,17 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		gpa_t gpaddr;
 		gfn_t gfn;
 
+#ifdef CONFIG_KVM_E500
+		if (!(vcpu->arch.shared->msr & MSR_PR) &&
+		    (eaddr & PAGE_MASK) == vcpu->arch.magic_page_ea) {
+			kvmppc_map_magic(vcpu);
+			kvmppc_account_exit(vcpu, DTLB_VIRT_MISS_EXITS);
+			r = RESUME_GUEST;
+
+			break;
+		}
+#endif
+
 		/* Check the guest TLB. */
 		gtlb_index = kvmppc_mmu_dtlb_index(vcpu, eaddr);
 		if (gtlb_index < 0) {
