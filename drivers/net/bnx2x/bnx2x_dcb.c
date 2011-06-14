@@ -47,33 +47,39 @@ static void bnx2x_dcbx_separate_pauseable_from_non(struct bnx2x *bp,
 				struct cos_help_data *cos_data,
 				u32 *pg_pri_orginal_spread,
 				struct dcbx_ets_feature *ets);
-static void bnx2x_pfc_fw_struct_e2(struct bnx2x *bp);
+static void bnx2x_dcbx_fw_struct(struct bnx2x *bp);
 
 
 static void bnx2x_pfc_set(struct bnx2x *bp)
 {
 	struct bnx2x_nig_brb_pfc_port_params pfc_params = {0};
 	u32 pri_bit, val = 0;
-	u8 pri;
 	int i;
+
+	pfc_params.num_of_rx_cos_priority_mask =
+					bp->dcbx_port_params.ets.num_of_cos;
 
 	/* Tx COS configuration */
 	for (i = 0; i < bp->dcbx_port_params.ets.num_of_cos; i++)
-		if (bp->dcbx_port_params.ets.cos_params[i].pauseable)
-			pfc_params.rx_cos_priority_mask[i] =
-				bp->dcbx_port_params.ets.
-					cos_params[i].pri_bitmask;
+		/*
+		 * We configure only the pauseable bits (non pauseable aren't
+		 * configured at all) it's done to avoid false pauses from
+		 * network
+		 */
+		pfc_params.rx_cos_priority_mask[i] =
+			bp->dcbx_port_params.ets.cos_params[i].pri_bitmask
+				& DCBX_PFC_PRI_PAUSE_MASK(bp);
 
-	/**
+	/*
 	 * Rx COS configuration
 	 * Changing PFC RX configuration .
 	 * In RX COS0 will always be configured to lossy and COS1 to lossless
 	 */
-	for (pri = 0 ; pri < MAX_PFC_PRIORITIES ; pri++) {
-		pri_bit = 1 << pri;
+	for (i = 0 ; i < MAX_PFC_PRIORITIES ; i++) {
+		pri_bit = 1 << i;
 
 		if (pri_bit & DCBX_PFC_PRI_PAUSE_MASK(bp))
-			val |= 1 << (pri * 4);
+			val |= 1 << (i * 4);
 	}
 
 	pfc_params.pkt_priority_to_cos = val;
@@ -252,12 +258,11 @@ static void bnx2x_dcbx_get_ets_feature(struct bnx2x *bp,
 
 
 	/* Clean up old settings of ets on COS */
-	for (i = 0; i < E2_NUM_OF_COS ; i++) {
-
+	for (i = 0; i < ARRAY_SIZE(bp->dcbx_port_params.ets.cos_params) ; i++) {
 		cos_params[i].pauseable = false;
-		cos_params[i].strict = BNX2X_DCBX_COS_NOT_STRICT;
+		cos_params[i].strict = BNX2X_DCBX_STRICT_INVALID;
 		cos_params[i].bw_tbl = DCBX_INVALID_COS_BW;
-		cos_params[i].pri_bitmask = DCBX_PFC_PRI_GET_NON_PAUSE(bp, 0);
+		cos_params[i].pri_bitmask = 0;
 	}
 
 	if (bp->dcbx_port_params.app.enabled &&
@@ -377,25 +382,19 @@ static int bnx2x_dcbx_read_mib(struct bnx2x *bp,
 
 static void bnx2x_pfc_set_pfc(struct bnx2x *bp)
 {
-	if (!CHIP_IS_E1x(bp)) {
-		if (BP_PORT(bp)) {
-			BNX2X_ERR("4 port mode is not supported");
-			return;
-		}
-
-		if (bp->dcbx_port_params.pfc.enabled)
-
-			/* 1. Fills up common PFC structures if required.*/
-			/* 2. Configure NIG, MAC and BRB via the elink:
-			 *    elink must first check if BMAC is not in reset
-			 *    and only then configures the BMAC
-			 *    Or, configure EMAC.
-			 */
-			bnx2x_pfc_set(bp);
-
-		else
-			bnx2x_pfc_clear(bp);
+	if (BP_PORT(bp)) {
+		BNX2X_ERR("4 port mode is not supported");
+		return;
 	}
+
+	if (bp->dcbx_port_params.pfc.enabled)
+		/*
+		 * 1. Fills up common PFC structures if required
+		 * 2. Configure NIG, MAC and BRB via the elink
+		 */
+		bnx2x_pfc_set(bp);
+	else
+		bnx2x_pfc_clear(bp);
 }
 
 static void bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp)
@@ -410,7 +409,7 @@ static void bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp)
 
 static void bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp)
 {
-	bnx2x_pfc_fw_struct_e2(bp);
+	bnx2x_dcbx_fw_struct(bp);
 	DP(NETIF_MSG_LINK, "sending START TRAFFIC\n");
 	bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_START_TRAFFIC,
 		      0, /* connectionless */
@@ -419,18 +418,13 @@ static void bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp)
 		      NONE_CONNECTION_TYPE);
 }
 
-static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
+static void bnx2x_dcbx_2cos_limit_update_ets_config(struct bnx2x *bp)
 {
 	struct bnx2x_dcbx_pg_params *ets = &(bp->dcbx_port_params.ets);
-	u8	status = 0;
+	int rc = 0;
 
-	bnx2x_ets_disabled(&bp->link_params, &bp->link_vars);
-
-	if (!ets->enabled)
-		return;
-
-	if ((ets->num_of_cos == 0) || (ets->num_of_cos > E2_NUM_OF_COS)) {
-		BNX2X_ERR("illegal num of cos= %x", ets->num_of_cos);
+	if (ets->num_of_cos == 0 || ets->num_of_cos > DCBX_COS_MAX_NUM_E2) {
+		BNX2X_ERR("Illegal number of COSes %d\n", ets->num_of_cos);
 		return;
 	}
 
@@ -439,9 +433,9 @@ static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
 		return;
 
 	/* sanity */
-	if (((BNX2X_DCBX_COS_NOT_STRICT == ets->cos_params[0].strict) &&
+	if (((BNX2X_DCBX_STRICT_INVALID == ets->cos_params[0].strict) &&
 	     (DCBX_INVALID_COS_BW == ets->cos_params[0].bw_tbl)) ||
-	    ((BNX2X_DCBX_COS_NOT_STRICT == ets->cos_params[1].strict) &&
+	    ((BNX2X_DCBX_STRICT_INVALID == ets->cos_params[1].strict) &&
 	     (DCBX_INVALID_COS_BW == ets->cos_params[1].bw_tbl))) {
 		BNX2X_ERR("all COS should have at least bw_limit or strict"
 			    "ets->cos_params[0].strict= %x"
@@ -473,15 +467,68 @@ static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
 
 		bnx2x_ets_bw_limit(&bp->link_params, bw_tbl_0, bw_tbl_1);
 	} else {
-		if (ets->cos_params[0].strict == BNX2X_DCBX_COS_HIGH_STRICT)
-			status = bnx2x_ets_strict(&bp->link_params, 0);
+		if (ets->cos_params[0].strict == BNX2X_DCBX_STRICT_COS_HIGHEST)
+			rc = bnx2x_ets_strict(&bp->link_params, 0);
 		else if (ets->cos_params[1].strict
-						== BNX2X_DCBX_COS_HIGH_STRICT)
-			status = bnx2x_ets_strict(&bp->link_params, 1);
-
-		if (status)
+					== BNX2X_DCBX_STRICT_COS_HIGHEST)
+			rc = bnx2x_ets_strict(&bp->link_params, 1);
+		if (rc)
 			BNX2X_ERR("update_ets_params failed\n");
 	}
+}
+
+/*
+ * In E3B0 the configuration may have more than 2 COS.
+ */
+void bnx2x_dcbx_update_ets_config(struct bnx2x *bp)
+{
+	struct bnx2x_dcbx_pg_params *ets = &(bp->dcbx_port_params.ets);
+	struct bnx2x_ets_params ets_params = { 0 };
+	u8 i;
+
+	ets_params.num_of_cos = ets->num_of_cos;
+
+	for (i = 0; i < ets->num_of_cos; i++) {
+		/* COS is SP */
+		if (ets->cos_params[i].strict != BNX2X_DCBX_STRICT_INVALID) {
+			if (ets->cos_params[i].bw_tbl != DCBX_INVALID_COS_BW) {
+				BNX2X_ERR("COS can't be not BW and not SP\n");
+				return;
+			}
+
+			ets_params.cos[i].state = bnx2x_cos_state_strict;
+			ets_params.cos[i].params.sp_params.pri =
+						ets->cos_params[i].strict;
+		} else { /* COS is BW */
+			if (ets->cos_params[i].bw_tbl == DCBX_INVALID_COS_BW) {
+				BNX2X_ERR("COS can't be not BW and not SP\n");
+				return;
+			}
+			ets_params.cos[i].state = bnx2x_cos_state_bw;
+			ets_params.cos[i].params.bw_params.bw =
+						(u8)ets->cos_params[i].bw_tbl;
+		}
+	}
+
+	/* Configure the ETS in HW */
+	if (bnx2x_ets_e3b0_config(&bp->link_params, &bp->link_vars,
+				  &ets_params)) {
+		BNX2X_ERR("bnx2x_ets_e3b0_config failed\n");
+		bnx2x_ets_disabled(&bp->link_params, &bp->link_vars);
+	}
+}
+
+static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
+{
+	bnx2x_ets_disabled(&bp->link_params, &bp->link_vars);
+
+	if (!bp->dcbx_port_params.ets.enabled)
+		return;
+
+	if (CHIP_IS_E3B0(bp))
+		bnx2x_dcbx_update_ets_config(bp);
+	else
+		bnx2x_dcbx_2cos_limit_update_ets_config(bp);
 }
 
 #ifdef BCM_DCBNL
@@ -1113,7 +1160,7 @@ static void bnx2x_dcbx_separate_pauseable_from_non(struct bnx2x *bp,
 			/* If we join a group and one is strict
 			 * than the bw rulls */
 			cos_data->data[entry].strict =
-						BNX2X_DCBX_COS_HIGH_STRICT;
+						BNX2X_DCBX_STRICT_COS_HIGHEST;
 	}
 	if ((0 == cos_data->data[0].pri_join_mask) &&
 	    (0 == cos_data->data[1].pri_join_mask))
@@ -1125,7 +1172,7 @@ static void bnx2x_dcbx_separate_pauseable_from_non(struct bnx2x *bp,
 #define POWER_OF_2(x)	((0 != x) && (0 == (x & (x-1))))
 #endif
 
-static void bxn2x_dcbx_single_pg_to_cos_params(struct bnx2x *bp,
+static void bnx2x_dcbx_2cos_limit_cee_single_pg_to_cos_params(struct bnx2x *bp,
 					      struct pg_help_data *pg_help_data,
 					      struct cos_help_data *cos_data,
 					      u32 pri_join_mask,
@@ -1205,14 +1252,16 @@ static void bxn2x_dcbx_single_pg_to_cos_params(struct bnx2x *bp,
 			if (DCBX_PFC_PRI_GET_PAUSE(bp, pri_join_mask) >
 			    DCBX_PFC_PRI_GET_NON_PAUSE(bp, pri_join_mask)) {
 				cos_data->data[0].strict =
-					BNX2X_DCBX_COS_HIGH_STRICT;
+					BNX2X_DCBX_STRICT_COS_HIGHEST;
 				cos_data->data[1].strict =
-					BNX2X_DCBX_COS_LOW_STRICT;
+					BNX2X_DCBX_STRICT_COS_NEXT_LOWER_PRI(
+						BNX2X_DCBX_STRICT_COS_HIGHEST);
 			} else {
 				cos_data->data[0].strict =
-					BNX2X_DCBX_COS_LOW_STRICT;
+					BNX2X_DCBX_STRICT_COS_NEXT_LOWER_PRI(
+						BNX2X_DCBX_STRICT_COS_HIGHEST);
 				cos_data->data[1].strict =
-					BNX2X_DCBX_COS_HIGH_STRICT;
+					BNX2X_DCBX_STRICT_COS_HIGHEST;
 			}
 			/* Pauseable */
 			cos_data->data[0].pausable = true;
@@ -1248,13 +1297,16 @@ static void bxn2x_dcbx_single_pg_to_cos_params(struct bnx2x *bp,
 			 * and that with the highest priority
 			 * gets the highest strict priority in the arbiter.
 			 */
-			cos_data->data[0].strict = BNX2X_DCBX_COS_LOW_STRICT;
-			cos_data->data[1].strict = BNX2X_DCBX_COS_HIGH_STRICT;
+			cos_data->data[0].strict =
+					BNX2X_DCBX_STRICT_COS_NEXT_LOWER_PRI(
+						BNX2X_DCBX_STRICT_COS_HIGHEST);
+			cos_data->data[1].strict =
+					BNX2X_DCBX_STRICT_COS_HIGHEST;
 		}
 	}
 }
 
-static void bnx2x_dcbx_two_pg_to_cos_params(
+static void bnx2x_dcbx_2cos_limit_cee_two_pg_to_cos_params(
 			    struct bnx2x		*bp,
 			    struct  pg_help_data	*pg_help_data,
 			    struct dcbx_ets_feature	*ets,
@@ -1264,7 +1316,7 @@ static void bnx2x_dcbx_two_pg_to_cos_params(
 			    u8				num_of_dif_pri)
 {
 	u8 i = 0;
-	u8 pg[E2_NUM_OF_COS] = {0};
+	u8 pg[DCBX_COS_MAX_NUM_E2] = { 0 };
 
 	/* If there are both pauseable and non-pauseable priorities,
 	 * the pauseable priorities go to the first queue and
@@ -1320,16 +1372,68 @@ static void bnx2x_dcbx_two_pg_to_cos_params(
 	}
 
 	/* There can be only one strict pg */
-	for (i = 0 ; i < E2_NUM_OF_COS; i++) {
+	for (i = 0 ; i < ARRAY_SIZE(pg); i++) {
 		if (pg[i] < DCBX_MAX_NUM_PG_BW_ENTRIES)
 			cos_data->data[i].cos_bw =
 				DCBX_PG_BW_GET(ets->pg_bw_tbl, pg[i]);
 		else
-			cos_data->data[i].strict = BNX2X_DCBX_COS_HIGH_STRICT;
+			cos_data->data[i].strict =
+						BNX2X_DCBX_STRICT_COS_HIGHEST;
 	}
 }
 
-static void bnx2x_dcbx_three_pg_to_cos_params(
+static int bnx2x_dcbx_join_pgs(
+			      struct bnx2x            *bp,
+			      struct dcbx_ets_feature *ets,
+			      struct pg_help_data     *pg_help_data,
+			      u8                      required_num_of_pg)
+{
+	u8 entry_joined    = pg_help_data->num_of_pg - 1;
+	u8 entry_removed   = entry_joined + 1;
+	u8 pg_joined       = 0;
+
+	if (required_num_of_pg == 0 || ARRAY_SIZE(pg_help_data->data)
+						<= pg_help_data->num_of_pg) {
+
+		BNX2X_ERR("required_num_of_pg can't be zero\n");
+		return -EINVAL;
+	}
+
+	while (required_num_of_pg < pg_help_data->num_of_pg) {
+		entry_joined = pg_help_data->num_of_pg - 2;
+		entry_removed = entry_joined + 1;
+		/* protect index */
+		entry_removed %= ARRAY_SIZE(pg_help_data->data);
+
+		pg_help_data->data[entry_joined].pg_priority |=
+			pg_help_data->data[entry_removed].pg_priority;
+
+		pg_help_data->data[entry_joined].num_of_dif_pri +=
+			pg_help_data->data[entry_removed].num_of_dif_pri;
+
+		if (pg_help_data->data[entry_joined].pg == DCBX_STRICT_PRI_PG ||
+		    pg_help_data->data[entry_removed].pg == DCBX_STRICT_PRI_PG)
+			/* Entries joined strict priority rules */
+			pg_help_data->data[entry_joined].pg =
+							DCBX_STRICT_PRI_PG;
+		else {
+			/* Entries can be joined join BW */
+			pg_joined = DCBX_PG_BW_GET(ets->pg_bw_tbl,
+					pg_help_data->data[entry_joined].pg) +
+				    DCBX_PG_BW_GET(ets->pg_bw_tbl,
+					pg_help_data->data[entry_removed].pg);
+
+			DCBX_PG_BW_SET(ets->pg_bw_tbl,
+				pg_help_data->data[entry_joined].pg, pg_joined);
+		}
+		/* Joined the entries */
+		pg_help_data->num_of_pg--;
+	}
+
+	return 0;
+}
+
+static void bnx2x_dcbx_2cos_limit_cee_three_pg_to_cos_params(
 			      struct bnx2x		*bp,
 			      struct pg_help_data	*pg_help_data,
 			      struct dcbx_ets_feature	*ets,
@@ -1401,24 +1505,203 @@ static void bnx2x_dcbx_three_pg_to_cos_params(
 				/* If we join a group and one is strict
 				 * than the bw rulls */
 				cos_data->data[1].strict =
-					BNX2X_DCBX_COS_HIGH_STRICT;
+					BNX2X_DCBX_STRICT_COS_HIGHEST;
 			}
 		}
 	}
 }
 
 
+static void bnx2x_dcbx_2cos_limit_cee_fill_cos_params(struct bnx2x *bp,
+				       struct pg_help_data *help_data,
+				       struct dcbx_ets_feature *ets,
+				       struct cos_help_data *cos_data,
+				       u32 *pg_pri_orginal_spread,
+				       u32 pri_join_mask,
+				       u8 num_of_dif_pri)
+{
+
+	/* default E2 settings */
+	cos_data->num_of_cos = DCBX_COS_MAX_NUM_E2;
+
+	switch (help_data->num_of_pg) {
+	case 1:
+		bnx2x_dcbx_2cos_limit_cee_single_pg_to_cos_params(
+					       bp,
+					       help_data,
+					       cos_data,
+					       pri_join_mask,
+					       num_of_dif_pri);
+		break;
+	case 2:
+		bnx2x_dcbx_2cos_limit_cee_two_pg_to_cos_params(
+					    bp,
+					    help_data,
+					    ets,
+					    cos_data,
+					    pg_pri_orginal_spread,
+					    pri_join_mask,
+					    num_of_dif_pri);
+		break;
+
+	case 3:
+		bnx2x_dcbx_2cos_limit_cee_three_pg_to_cos_params(
+					      bp,
+					      help_data,
+					      ets,
+					      cos_data,
+					      pg_pri_orginal_spread,
+					      pri_join_mask,
+					      num_of_dif_pri);
+		break;
+	default:
+		BNX2X_ERR("Wrong pg_help_data.num_of_pg\n");
+		bnx2x_dcbx_ets_disabled_entry_data(bp,
+						   cos_data, pri_join_mask);
+	}
+}
+
+static int bnx2x_dcbx_spread_strict_pri(struct bnx2x *bp,
+					struct cos_help_data *cos_data,
+					u8 entry,
+					u8 num_spread_of_entries,
+					u8 strict_app_pris)
+{
+	u8 strict_pri = BNX2X_DCBX_STRICT_COS_HIGHEST;
+	u8 num_of_app_pri = MAX_PFC_PRIORITIES;
+	u8 app_pri_bit = 0;
+
+	while (num_spread_of_entries && num_of_app_pri > 0) {
+		app_pri_bit = 1 << (num_of_app_pri - 1);
+		if (app_pri_bit & strict_app_pris) {
+			struct cos_entry_help_data *data = &cos_data->
+								data[entry];
+			num_spread_of_entries--;
+			if (num_spread_of_entries == 0) {
+				/* last entry needed put all the entries left */
+				data->cos_bw = DCBX_INVALID_COS_BW;
+				data->strict = strict_pri;
+				data->pri_join_mask = strict_app_pris;
+				data->pausable = DCBX_IS_PFC_PRI_SOME_PAUSE(bp,
+							data->pri_join_mask);
+			} else {
+				strict_app_pris &= ~app_pri_bit;
+
+				data->cos_bw = DCBX_INVALID_COS_BW;
+				data->strict = strict_pri;
+				data->pri_join_mask = app_pri_bit;
+				data->pausable = DCBX_IS_PFC_PRI_SOME_PAUSE(bp,
+							data->pri_join_mask);
+			}
+
+			strict_pri =
+			    BNX2X_DCBX_STRICT_COS_NEXT_LOWER_PRI(strict_pri);
+			entry++;
+		}
+
+		num_of_app_pri--;
+	}
+
+	if (num_spread_of_entries)
+		return -EINVAL;
+
+	return 0;
+}
+
+static u8 bnx2x_dcbx_cee_fill_strict_pri(struct bnx2x *bp,
+					 struct cos_help_data *cos_data,
+					 u8 entry,
+					 u8 num_spread_of_entries,
+					 u8 strict_app_pris)
+{
+
+	if (bnx2x_dcbx_spread_strict_pri(bp, cos_data, entry,
+					 num_spread_of_entries,
+					 strict_app_pris)) {
+		struct cos_entry_help_data *data = &cos_data->
+						    data[entry];
+		/* Fill BW entry */
+		data->cos_bw = DCBX_INVALID_COS_BW;
+		data->strict = BNX2X_DCBX_STRICT_COS_HIGHEST;
+		data->pri_join_mask = strict_app_pris;
+		data->pausable = DCBX_IS_PFC_PRI_SOME_PAUSE(bp,
+				 data->pri_join_mask);
+		return 1;
+	}
+
+	return num_spread_of_entries;
+}
+
+static void bnx2x_dcbx_cee_fill_cos_params(struct bnx2x *bp,
+					   struct pg_help_data *help_data,
+					   struct dcbx_ets_feature *ets,
+					   struct cos_help_data *cos_data,
+					   u32 pri_join_mask)
+
+{
+	u8 need_num_of_entries = 0;
+	u8 i = 0;
+	u8 entry = 0;
+
+	/*
+	 * if the number of requested PG-s in CEE is greater than 3
+	 * then the results are not determined since this is a violation
+	 * of the standard.
+	 */
+	if (help_data->num_of_pg > DCBX_COS_MAX_NUM_E3B0) {
+		if (bnx2x_dcbx_join_pgs(bp, ets, help_data,
+					DCBX_COS_MAX_NUM_E3B0)) {
+			BNX2X_ERR("Unable to reduce the number of PGs -"
+				  "we will disables ETS\n");
+			bnx2x_dcbx_ets_disabled_entry_data(bp, cos_data,
+							   pri_join_mask);
+			return;
+		}
+	}
+
+	for (i = 0 ; i < help_data->num_of_pg; i++) {
+		struct pg_entry_help_data *pg =  &help_data->data[i];
+		if (pg->pg < DCBX_MAX_NUM_PG_BW_ENTRIES) {
+			struct cos_entry_help_data *data = &cos_data->
+							    data[entry];
+			/* Fill BW entry */
+			data->cos_bw = DCBX_PG_BW_GET(ets->pg_bw_tbl, pg->pg);
+			data->strict = BNX2X_DCBX_STRICT_INVALID;
+			data->pri_join_mask = pg->pg_priority;
+			data->pausable = DCBX_IS_PFC_PRI_SOME_PAUSE(bp,
+						data->pri_join_mask);
+
+			entry++;
+		} else {
+			need_num_of_entries =  min_t(u8,
+				(u8)pg->num_of_dif_pri,
+				(u8)DCBX_COS_MAX_NUM_E3B0 -
+						 help_data->num_of_pg + 1);
+			/*
+			 * If there are still VOQ-s which have no associated PG,
+			 * then associate these VOQ-s to PG15. These PG-s will
+			 * be used for SP between priorities on PG15.
+			 */
+			entry += bnx2x_dcbx_cee_fill_strict_pri(bp, cos_data,
+				entry, need_num_of_entries, pg->pg_priority);
+		}
+	}
+
+	/* the entry will represent the number of COSes used */
+	cos_data->num_of_cos = entry;
+}
 static void bnx2x_dcbx_fill_cos_params(struct bnx2x *bp,
 				       struct pg_help_data *help_data,
 				       struct dcbx_ets_feature *ets,
 				       u32 *pg_pri_orginal_spread)
 {
-	struct cos_help_data         cos_data ;
+	struct cos_help_data         cos_data;
 	u8                    i                           = 0;
 	u32                   pri_join_mask               = 0;
 	u8                    num_of_dif_pri              = 0;
 
 	memset(&cos_data, 0, sizeof(cos_data));
+
 	/* Validate the pg value */
 	for (i = 0; i < help_data->num_of_pg ; i++) {
 		if (DCBX_STRICT_PRIORITY != help_data->data[i].pg &&
@@ -1429,74 +1712,65 @@ static void bnx2x_dcbx_fill_cos_params(struct bnx2x *bp,
 		num_of_dif_pri  += help_data->data[i].num_of_dif_pri;
 	}
 
-	/* default settings */
-	cos_data.num_of_cos = 2;
-	for (i = 0; i < E2_NUM_OF_COS ; i++) {
-		cos_data.data[i].pri_join_mask    = pri_join_mask;
-		cos_data.data[i].pausable         = false;
-		cos_data.data[i].strict           = BNX2X_DCBX_COS_NOT_STRICT;
-		cos_data.data[i].cos_bw           = DCBX_INVALID_COS_BW;
+	/* defaults */
+	cos_data.num_of_cos = 1;
+	for (i = 0; i < ARRAY_SIZE(cos_data.data); i++) {
+		cos_data.data[i].pri_join_mask = 0;
+		cos_data.data[i].pausable = false;
+		cos_data.data[i].strict = BNX2X_DCBX_STRICT_INVALID;
+		cos_data.data[i].cos_bw = DCBX_INVALID_COS_BW;
 	}
 
-	switch (help_data->num_of_pg) {
-	case 1:
+	if (CHIP_IS_E3B0(bp))
+		bnx2x_dcbx_cee_fill_cos_params(bp, help_data, ets,
+					       &cos_data, pri_join_mask);
+	else /* E2 + E3A0 */
+		bnx2x_dcbx_2cos_limit_cee_fill_cos_params(bp,
+							  help_data, ets,
+							  &cos_data,
+							  pg_pri_orginal_spread,
+							  pri_join_mask,
+							  num_of_dif_pri);
 
-		bxn2x_dcbx_single_pg_to_cos_params(
-					       bp,
-					       help_data,
-					       &cos_data,
-					       pri_join_mask,
-					       num_of_dif_pri);
-		break;
-	case 2:
-		bnx2x_dcbx_two_pg_to_cos_params(
-					    bp,
-					    help_data,
-					    ets,
-					    &cos_data,
-					    pg_pri_orginal_spread,
-					    pri_join_mask,
-					    num_of_dif_pri);
-		break;
-
-	case 3:
-		bnx2x_dcbx_three_pg_to_cos_params(
-					      bp,
-					      help_data,
-					      ets,
-					      &cos_data,
-					      pg_pri_orginal_spread,
-					      pri_join_mask,
-					      num_of_dif_pri);
-
-		break;
-	default:
-		BNX2X_ERR("Wrong pg_help_data.num_of_pg\n");
-		bnx2x_dcbx_ets_disabled_entry_data(bp,
-						   &cos_data, pri_join_mask);
-	}
 
 	for (i = 0; i < cos_data.num_of_cos ; i++) {
-		struct bnx2x_dcbx_cos_params *params =
+		struct bnx2x_dcbx_cos_params *p =
 			&bp->dcbx_port_params.ets.cos_params[i];
 
-		params->pauseable = cos_data.data[i].pausable;
-		params->strict = cos_data.data[i].strict;
-		params->bw_tbl = cos_data.data[i].cos_bw;
-		if (params->pauseable) {
-			params->pri_bitmask =
-			DCBX_PFC_PRI_GET_PAUSE(bp,
-					cos_data.data[i].pri_join_mask);
+		p->strict = cos_data.data[i].strict;
+		p->bw_tbl = cos_data.data[i].cos_bw;
+		p->pri_bitmask = cos_data.data[i].pri_join_mask;
+		p->pauseable = cos_data.data[i].pausable;
+
+		/* sanity */
+		if (p->bw_tbl != DCBX_INVALID_COS_BW ||
+		    p->strict != BNX2X_DCBX_STRICT_INVALID) {
+			if (p->pri_bitmask == 0)
+				BNX2X_ERR("Invalid pri_bitmask for %d\n", i);
+
+			if (CHIP_IS_E2(bp) || CHIP_IS_E3A0(bp)) {
+
+				if (p->pauseable &&
+				    DCBX_PFC_PRI_GET_NON_PAUSE(bp,
+						p->pri_bitmask) != 0)
+					BNX2X_ERR("Inconsistent config for "
+						  "pausable COS %d\n", i);
+
+				if (!p->pauseable &&
+				    DCBX_PFC_PRI_GET_PAUSE(bp,
+						p->pri_bitmask) != 0)
+					BNX2X_ERR("Inconsistent config for "
+						  "nonpausable COS %d\n", i);
+			}
+		}
+
+		if (p->pauseable)
 			DP(NETIF_MSG_LINK, "COS %d PAUSABLE prijoinmask 0x%x\n",
 				  i, cos_data.data[i].pri_join_mask);
-		} else {
-			params->pri_bitmask =
-			DCBX_PFC_PRI_GET_NON_PAUSE(bp,
-					cos_data.data[i].pri_join_mask);
+		else
 			DP(NETIF_MSG_LINK, "COS %d NONPAUSABLE prijoinmask "
 					  "0x%x\n",
 				  i, cos_data.data[i].pri_join_mask);
-		}
 	}
 
 	bp->dcbx_port_params.ets.num_of_cos = cos_data.num_of_cos ;
@@ -1516,7 +1790,7 @@ static void bnx2x_dcbx_get_ets_pri_pg_tbl(struct bnx2x *bp,
 	}
 }
 
-static void bnx2x_pfc_fw_struct_e2(struct bnx2x *bp)
+static void bnx2x_dcbx_fw_struct(struct bnx2x *bp)
 {
 	struct flow_control_configuration   *pfc_fw_cfg = NULL;
 	u16 pri_bit = 0;
@@ -1838,10 +2112,12 @@ static u8 bnx2x_dcbnl_get_numtcs(struct net_device *netdev, int tcid, u8 *num)
 	if (bp->dcb_state) {
 		switch (tcid) {
 		case DCB_NUMTCS_ATTR_PG:
-			*num = E2_NUM_OF_COS;
+			*num = CHIP_IS_E3B0(bp) ? DCBX_COS_MAX_NUM_E3B0 :
+						  DCBX_COS_MAX_NUM_E2;
 			break;
 		case DCB_NUMTCS_ATTR_PFC:
-			*num = E2_NUM_OF_COS;
+			*num = CHIP_IS_E3B0(bp) ? DCBX_COS_MAX_NUM_E3B0 :
+						  DCBX_COS_MAX_NUM_E2;
 			break;
 		default:
 			rval = -EINVAL;
