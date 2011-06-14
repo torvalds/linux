@@ -991,6 +991,9 @@ static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must
 		bio_endio(bio, -EIO);
 	} else {
 		submit_bio(rw, bio);
+		/* this should not count as user activity and cause the
+		 * resync to throttle -- see drbd_rs_should_slow_down(). */
+		atomic_add(len >> 9, &mdev->rs_sect_ev);
 	}
 }
 
