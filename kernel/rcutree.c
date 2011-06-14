@@ -100,6 +100,7 @@ static char rcu_kthreads_spawnable;
 
 static void rcu_node_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu);
 static void invoke_rcu_cpu_kthread(void);
+static void __invoke_rcu_cpu_kthread(void);
 
 #define RCU_KTHREAD_PRIO 1	/* RT priority for per-CPU kthreads. */
 
@@ -1442,13 +1443,21 @@ __rcu_process_callbacks(struct rcu_state *rsp, struct rcu_data *rdp)
 	}
 
 	/* If there are callbacks ready, invoke them. */
-	rcu_do_batch(rsp, rdp);
+	if (cpu_has_callbacks_ready_to_invoke(rdp))
+		__invoke_rcu_cpu_kthread();
+}
+
+static void rcu_kthread_do_work(void)
+{
+	rcu_do_batch(&rcu_sched_state, &__get_cpu_var(rcu_sched_data));
+	rcu_do_batch(&rcu_bh_state, &__get_cpu_var(rcu_bh_data));
+	rcu_preempt_do_callbacks();
 }
 
 /*
  * Do softirq processing for the current CPU.
  */
-static void rcu_process_callbacks(void)
+static void rcu_process_callbacks(struct softirq_action *unused)
 {
 	__rcu_process_callbacks(&rcu_sched_state,
 				&__get_cpu_var(rcu_sched_data));
@@ -1465,7 +1474,7 @@ static void rcu_process_callbacks(void)
  * the current CPU with interrupts disabled, the rcu_cpu_kthread_task
  * cannot disappear out from under us.
  */
-static void invoke_rcu_cpu_kthread(void)
+static void __invoke_rcu_cpu_kthread(void)
 {
 	unsigned long flags;
 
@@ -1477,6 +1486,11 @@ static void invoke_rcu_cpu_kthread(void)
 	}
 	wake_up_process(__this_cpu_read(rcu_cpu_kthread_task));
 	local_irq_restore(flags);
+}
+
+static void invoke_rcu_cpu_kthread(void)
+{
+	raise_softirq(RCU_SOFTIRQ);
 }
 
 /*
@@ -1613,7 +1627,7 @@ static int rcu_cpu_kthread(void *arg)
 		*workp = 0;
 		local_irq_restore(flags);
 		if (work)
-			rcu_process_callbacks();
+			rcu_kthread_do_work();
 		local_bh_enable();
 		if (*workp != 0)
 			spincnt++;
@@ -2387,6 +2401,7 @@ void __init rcu_init(void)
 	rcu_init_one(&rcu_sched_state, &rcu_sched_data);
 	rcu_init_one(&rcu_bh_state, &rcu_bh_data);
 	__rcu_init_preempt();
+	 open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 
 	/*
 	 * We don't need protection against CPU-hotplug here because

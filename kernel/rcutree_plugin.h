@@ -602,6 +602,11 @@ static void rcu_preempt_process_callbacks(void)
 				&__get_cpu_var(rcu_preempt_data));
 }
 
+static void rcu_preempt_do_callbacks(void)
+{
+	rcu_do_batch(&rcu_preempt_state, &__get_cpu_var(rcu_preempt_data));
+}
+
 /*
  * Queue a preemptible-RCU callback for invocation after a grace period.
  */
@@ -994,6 +999,10 @@ static void rcu_preempt_check_callbacks(int cpu)
  * to process.
  */
 static void rcu_preempt_process_callbacks(void)
+{
+}
+
+static void rcu_preempt_do_callbacks(void)
 {
 }
 
