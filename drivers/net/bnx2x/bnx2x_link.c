@@ -6821,9 +6821,9 @@ static int bnx2x_8073_config_init(struct bnx2x_phy *phy,
 
 	/* enable LASI */
 	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM_CTRL, (1<<2));
+			 MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXCTRL, (1<<2));
 	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL,  0x0004);
+			 MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL,  0x0004);
 
 	bnx2x_8073_set_pause_cl37(params, phy, vars);
 
@@ -6831,7 +6831,7 @@ static int bnx2x_8073_config_init(struct bnx2x_phy *phy,
 			MDIO_PMA_DEVAD, MDIO_PMA_REG_M8051_MSGOUT_REG, &tmp1);
 
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM, &tmp1);
+			MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXSTAT, &tmp1);
 
 	DP(NETIF_MSG_LINK, "Before rom RX_ALARM(port1): 0x%x\n", tmp1);
 
@@ -6965,7 +6965,7 @@ static u8 bnx2x_8073_read_status(struct bnx2x_phy *phy,
 	u16 an1000_status = 0;
 
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_STATUS, &val1);
+			MDIO_PMA_DEVAD, MDIO_PMA_LASI_STAT, &val1);
 
 	DP(NETIF_MSG_LINK, "8703 LASI status 0x%x\n", val1);
 
@@ -6981,7 +6981,7 @@ static u8 bnx2x_8073_read_status(struct bnx2x_phy *phy,
 
 	/* Check the LASI */
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM, &val2);
+			MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXSTAT, &val2);
 
 	DP(NETIF_MSG_LINK, "KR 0x9003 0x%x\n", val2);
 
@@ -8109,16 +8109,16 @@ static u8 bnx2x_8706_8726_read_status(struct bnx2x_phy *phy,
 	DP(NETIF_MSG_LINK, "XGXS 8706/8726\n");
 	/* Clear RX Alarm*/
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM, &val2);
+			MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXSTAT, &val2);
 
-	bnx2x_sfp_mask_fault(bp, phy, MDIO_PMA_REG_TX_ALARM,
-			     MDIO_PMA_REG_TX_ALARM_CTRL);
+	bnx2x_sfp_mask_fault(bp, phy, MDIO_PMA_LASI_TXSTAT,
+			     MDIO_PMA_LASI_TXCTRL);
 
 	/* clear LASI indication*/
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_STATUS, &val1);
+			MDIO_PMA_DEVAD, MDIO_PMA_LASI_STAT, &val1);
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_STATUS, &val2);
+			MDIO_PMA_DEVAD, MDIO_PMA_LASI_STAT, &val2);
 	DP(NETIF_MSG_LINK, "8706/8726 LASI status 0x%x--> 0x%x\n", val1, val2);
 
 	bnx2x_cl45_read(bp, phy,
@@ -8149,9 +8149,9 @@ static u8 bnx2x_8706_8726_read_status(struct bnx2x_phy *phy,
 	/* Capture 10G link fault. Read twice to clear stale value. */
 	if (vars->line_speed == SPEED_10000) {
 		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD,
-			    MDIO_PMA_REG_TX_ALARM, &val1);
+			    MDIO_PMA_LASI_TXSTAT, &val1);
 		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD,
-			    MDIO_PMA_REG_TX_ALARM, &val1);
+			    MDIO_PMA_LASI_TXSTAT, &val1);
 		if (val1 & (1<<0))
 			vars->fault_detected = 1;
 	}
@@ -8215,11 +8215,11 @@ static u8 bnx2x_8706_config_init(struct bnx2x_phy *phy,
 				 MDIO_PMA_DEVAD,
 				 MDIO_PMA_REG_DIGITAL_CTRL, 0x400);
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_TX_ALARM_CTRL,
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_TXCTRL,
 				 0);
 		/* Arm LASI for link and Tx fault. */
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL, 3);
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL, 3);
 	} else {
 		/* Force 1Gbps using autoneg with 1G advertisement */
 
@@ -8242,10 +8242,10 @@ static u8 bnx2x_8706_config_init(struct bnx2x_phy *phy,
 		bnx2x_cl45_write(bp, phy,
 				 MDIO_AN_DEVAD, MDIO_AN_REG_CTRL, 0x1200);
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM_CTRL,
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXCTRL,
 				 0x0400);
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL,
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL,
 				 0x0004);
 	}
 	bnx2x_save_bcm_spirom_ver(bp, phy, params->port);
@@ -8379,9 +8379,9 @@ static int bnx2x_8726_config_init(struct bnx2x_phy *phy,
 		bnx2x_cl45_write(bp, phy,
 				 MDIO_PMA_DEVAD, MDIO_PMA_REG_10G_CTRL2, 0xD);
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL, 0x5);
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL, 0x5);
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM_CTRL,
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXCTRL,
 				 0x400);
 	} else if ((phy->req_line_speed == SPEED_AUTO_NEG) &&
 		   (phy->speed_cap_mask &
@@ -8407,14 +8407,14 @@ static int bnx2x_8726_config_init(struct bnx2x_phy *phy,
 		 * change
 		 */
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL, 0x4);
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL, 0x4);
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM_CTRL,
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXCTRL,
 				 0x400);
 
 	} else { /* Default 10G. Set only LASI control */
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL, 1);
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL, 1);
 	}
 
 	/* Set TX PreEmphasis if needed */
@@ -8538,13 +8538,13 @@ static int bnx2x_8727_config_init(struct bnx2x_phy *phy,
 	DP(NETIF_MSG_LINK, "Initializing BCM8727\n");
 	/* enable LASI */
 	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM_CTRL,
+			 MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXCTRL,
 			 rx_alarm_ctrl_val);
 	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_REG_TX_ALARM_CTRL,
+			 MDIO_PMA_DEVAD, MDIO_PMA_LASI_TXCTRL,
 			 0);
 	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL, lasi_ctrl_val);
+			 MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL, lasi_ctrl_val);
 
 	/*
 	 * Initially configure MOD_ABS to interrupt when module is
@@ -8586,7 +8586,7 @@ static int bnx2x_8727_config_init(struct bnx2x_phy *phy,
 			MDIO_PMA_DEVAD, MDIO_PMA_REG_M8051_MSGOUT_REG, &tmp1);
 
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM, &tmp1);
+			MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXSTAT, &tmp1);
 
 	/* Set option 1G speed */
 	if (phy->req_line_speed == SPEED_1000) {
@@ -8726,7 +8726,7 @@ static void bnx2x_8727_handle_mod_abs(struct bnx2x_phy *phy,
 		 */
 		bnx2x_cl45_read(bp, phy,
 				MDIO_PMA_DEVAD,
-				MDIO_PMA_REG_RX_ALARM, &rx_alarm_status);
+				MDIO_PMA_LASI_RXSTAT, &rx_alarm_status);
 
 	} else {
 		/* Module is present */
@@ -8755,7 +8755,7 @@ static void bnx2x_8727_handle_mod_abs(struct bnx2x_phy *phy,
 		 */
 		bnx2x_cl45_read(bp, phy,
 				MDIO_PMA_DEVAD,
-				MDIO_PMA_REG_RX_ALARM, &rx_alarm_status);
+				MDIO_PMA_LASI_RXSTAT, &rx_alarm_status);
 
 
 		if ((val & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_MASK) ==
@@ -8785,23 +8785,23 @@ static u8 bnx2x_8727_read_status(struct bnx2x_phy *phy,
 
 	/* If PHY is not initialized, do not check link status */
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL,
+			MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL,
 			&lasi_ctrl);
 	if (!lasi_ctrl)
 		return 0;
 
 	/* Check the LASI on Rx */
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM,
+			MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXSTAT,
 			&rx_alarm_status);
 	vars->line_speed = 0;
 	DP(NETIF_MSG_LINK, "8727 RX_ALARM_STATUS  0x%x\n", rx_alarm_status);
 
-	bnx2x_sfp_mask_fault(bp, phy, MDIO_PMA_REG_TX_ALARM,
-			     MDIO_PMA_REG_TX_ALARM_CTRL);
+	bnx2x_sfp_mask_fault(bp, phy, MDIO_PMA_LASI_TXSTAT,
+			     MDIO_PMA_LASI_TXCTRL);
 
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_STATUS, &val1);
+			MDIO_PMA_DEVAD, MDIO_PMA_LASI_STAT, &val1);
 
 	DP(NETIF_MSG_LINK, "8727 LASI status 0x%x\n", val1);
 
@@ -8835,7 +8835,7 @@ static u8 bnx2x_8727_read_status(struct bnx2x_phy *phy,
 			/* Disable all RX_ALARMs except for mod_abs */
 			bnx2x_cl45_write(bp, phy,
 					 MDIO_PMA_DEVAD,
-					 MDIO_PMA_REG_RX_ALARM_CTRL, (1<<5));
+					 MDIO_PMA_LASI_RXCTRL, (1<<5));
 
 			bnx2x_cl45_read(bp, phy,
 					MDIO_PMA_DEVAD,
@@ -8848,7 +8848,7 @@ static u8 bnx2x_8727_read_status(struct bnx2x_phy *phy,
 			/* Clear RX alarm */
 			bnx2x_cl45_read(bp, phy,
 				MDIO_PMA_DEVAD,
-				MDIO_PMA_REG_RX_ALARM, &rx_alarm_status);
+				MDIO_PMA_LASI_RXSTAT, &rx_alarm_status);
 			return 0;
 		}
 	} /* Over current check */
@@ -8858,7 +8858,7 @@ static u8 bnx2x_8727_read_status(struct bnx2x_phy *phy,
 		bnx2x_8727_handle_mod_abs(phy, params);
 		/* Enable all mod_abs and link detection bits */
 		bnx2x_cl45_write(bp, phy,
-				 MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM_CTRL,
+				 MDIO_PMA_DEVAD, MDIO_PMA_LASI_RXCTRL,
 				 ((1<<5) | (1<<2)));
 	}
 	DP(NETIF_MSG_LINK, "Enabling 8727 TX laser if SFP is approved\n");
@@ -8898,10 +8898,10 @@ static u8 bnx2x_8727_read_status(struct bnx2x_phy *phy,
 	/* Capture 10G link fault. */
 	if (vars->line_speed == SPEED_10000) {
 		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD,
-			    MDIO_PMA_REG_TX_ALARM, &val1);
+			    MDIO_PMA_LASI_TXSTAT, &val1);
 
 		bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD,
-			    MDIO_PMA_REG_TX_ALARM, &val1);
+			    MDIO_PMA_LASI_TXSTAT, &val1);
 
 		if (val1 & (1<<0)) {
 			vars->fault_detected = 1;
@@ -8941,7 +8941,7 @@ static void bnx2x_8727_link_reset(struct bnx2x_phy *phy,
 	/* Disable Transmitter */
 	bnx2x_sfp_set_transmitter(params, phy, 0);
 	/* Clear LASI */
-	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL, 0);
+	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL, 0);
 
 }
 
@@ -10137,7 +10137,7 @@ static int bnx2x_7101_config_init(struct bnx2x_phy *phy,
 	bnx2x_wait_reset_complete(bp, phy, params);
 
 	bnx2x_cl45_write(bp, phy,
-			 MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_CTRL, 0x1);
+			 MDIO_PMA_DEVAD, MDIO_PMA_LASI_CTRL, 0x1);
 	DP(NETIF_MSG_LINK, "Setting the SFX7101 LED to blink on traffic\n");
 	bnx2x_cl45_write(bp, phy,
 			 MDIO_PMA_DEVAD, MDIO_PMA_REG_7107_LED_CNTL, (1<<3));
@@ -10169,9 +10169,9 @@ static u8 bnx2x_7101_read_status(struct bnx2x_phy *phy,
 	u8 link_up;
 	u16 val1, val2;
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_STATUS, &val2);
+			MDIO_PMA_DEVAD, MDIO_PMA_LASI_STAT, &val2);
 	bnx2x_cl45_read(bp, phy,
-			MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_STATUS, &val1);
+			MDIO_PMA_DEVAD, MDIO_PMA_LASI_STAT, &val1);
 	DP(NETIF_MSG_LINK, "10G-base-T LASI status 0x%x->0x%x\n",
 		   val2, val1);
 	bnx2x_cl45_read(bp, phy,
