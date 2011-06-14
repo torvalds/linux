@@ -360,8 +360,10 @@ static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode 
 
 /* called from fsnotify listeners, such as fanotify or dnotify */
 
-/* get a reference to an existing or create a new group */
+/* create a new group */
 extern struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops);
+/* get reference to a group */
+extern void fsnotify_get_group(struct fsnotify_group *group);
 /* drop reference on a group from fsnotify_alloc_group */
 extern void fsnotify_put_group(struct fsnotify_group *group);
 /* destroy group */

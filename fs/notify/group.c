@@ -63,6 +63,14 @@ void fsnotify_destroy_group(struct fsnotify_group *group)
 }
 
 /*
+ * Get reference to a group.
+ */
+void fsnotify_get_group(struct fsnotify_group *group)
+{
+	atomic_inc(&group->refcnt);
+}
+
+/*
  * Drop a reference to a group.  Free it if it's through.
  */
 void fsnotify_put_group(struct fsnotify_group *group)
