@@ -1888,7 +1888,7 @@ static int fb1_set_par(struct fb_info *info)
 
 #if CONFIG_FB_ROTATE_VIDEO
 //need refresh	,zyc add		
-	if(has_set_rotate == true)
+	if((has_set_rotate == true) && (last_yuv_phy[0] != 0) && (last_yuv_phy[1] != 0))
 	{
 		u32 yuv_phy[2];
 		struct rk29_ipp_req ipp_req;
@@ -1987,6 +1987,12 @@ int fb1_open(struct fb_info *info, int user)
     par->addr_seted = 0;
     inf->video_mode = 1;
     wq_condition2 = 1;
+#if CONFIG_FB_ROTATE_VIDEO
+   //reinitialize  the var when open,zyc
+    last_yuv_phy[0] = 0;
+    last_yuv_phy[1] = 0;
+    has_set_rotate = 0;
+#endif
     if(par->refcount) {
         printk(">>>>>> fb1 has opened! \n");
         return -EACCES;
