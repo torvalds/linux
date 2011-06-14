@@ -245,7 +245,6 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 {
 	set_user_gs(regs, 0);
 	regs->fs		= 0;
-	set_fs(USER_DS);
 	regs->ds		= __USER_DS;
 	regs->es		= __USER_DS;
 	regs->ss		= __USER_DS;

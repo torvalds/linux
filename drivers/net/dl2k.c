@@ -346,7 +346,7 @@ parse_eeprom (struct net_device *dev)
 	if (np->pdev->vendor == PCI_VENDOR_ID_DLINK) {	/* D-Link Only */
 		/* Check CRC */
 		crc = ~ether_crc_le (256 - 4, sromdata);
-		if (psrom->crc != crc) {
+		if (psrom->crc != cpu_to_le32(crc)) {
 			printk (KERN_ERR "%s: EEPROM data CRC error.\n",
 					dev->name);
 			return -1;

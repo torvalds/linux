@@ -1668,8 +1668,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	init_waitqueue_head(&fs_info->scrub_pause_wait);
 	init_rwsem(&fs_info->scrub_super_lock);
 	fs_info->scrub_workers_refcnt = 0;
-	btrfs_init_workers(&fs_info->scrub_workers, "scrub",
-			   fs_info->thread_pool_size, &fs_info->generic_worker);
 
 	sb->s_blocksize = 4096;
 	sb->s_blocksize_bits = blksize_bits(4096);
@@ -2911,9 +2909,8 @@ static int btrfs_destroy_delalloc_inodes(struct btrfs_root *root)
 
 	INIT_LIST_HEAD(&splice);
 
-	list_splice_init(&root->fs_info->delalloc_inodes, &splice);
-
 	spin_lock(&root->fs_info->delalloc_lock);
+	list_splice_init(&root->fs_info->delalloc_inodes, &splice);
 
 	while (!list_empty(&splice)) {
 		btrfs_inode = list_entry(splice.next, struct btrfs_inode,

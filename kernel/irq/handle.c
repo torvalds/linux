@@ -133,12 +133,6 @@ handle_irq_event_percpu(struct irq_desc *desc, struct irqaction *action)
 		switch (res) {
 		case IRQ_WAKE_THREAD:
 			/*
-			 * Set result to handled so the spurious check
-			 * does not trigger.
-			 */
-			res = IRQ_HANDLED;
-
-			/*
 			 * Catch drivers which return WAKE_THREAD but
 			 * did not set up a thread function
 			 */
