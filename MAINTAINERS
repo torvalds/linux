@@ -1889,7 +1889,6 @@ L:	cpufreq@vger.kernel.org
 W:	http://www.codemonkey.org.uk/projects/cpufreq/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davej/cpufreq.git
 S:	Maintained
-F:	arch/x86/kernel/cpu/cpufreq/
 F:	drivers/cpufreq/
 F:	include/linux/cpufreq.h
 
