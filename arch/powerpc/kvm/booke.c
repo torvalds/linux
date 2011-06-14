@@ -13,6 +13,7 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2007
+ * Copyright 2010-2011 Freescale Semiconductor, Inc.
  *
  * Authors: Hollis Blanchard <hollisb@us.ibm.com>
  *          Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
@@ -76,6 +77,57 @@ void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu)
 		       kvmppc_get_gpr(vcpu, i+2),
 		       kvmppc_get_gpr(vcpu, i+3));
 	}
+}
+
+#ifdef CONFIG_SPE
+void kvmppc_vcpu_disable_spe(struct kvm_vcpu *vcpu)
+{
+	preempt_disable();
+	enable_kernel_spe();
+	kvmppc_save_guest_spe(vcpu);
+	vcpu->arch.shadow_msr &= ~MSR_SPE;
+	preempt_enable();
+}
+
+static void kvmppc_vcpu_enable_spe(struct kvm_vcpu *vcpu)
+{
+	preempt_disable();
+	enable_kernel_spe();
+	kvmppc_load_guest_spe(vcpu);
+	vcpu->arch.shadow_msr |= MSR_SPE;
+	preempt_enable();
+}
+
+static void kvmppc_vcpu_sync_spe(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->arch.shared->msr & MSR_SPE) {
+		if (!(vcpu->arch.shadow_msr & MSR_SPE))
+			kvmppc_vcpu_enable_spe(vcpu);
+	} else if (vcpu->arch.shadow_msr & MSR_SPE) {
+		kvmppc_vcpu_disable_spe(vcpu);
+	}
+}
+#else
+static void kvmppc_vcpu_sync_spe(struct kvm_vcpu *vcpu)
+{
+}
+#endif
+
+/* Helper function for "full" MSR writes. No need to call this if only EE is
+ * changing. */
+void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
+{
+	if ((new_msr & MSR_PR) != (vcpu->arch.shared->msr & MSR_PR))
+		kvmppc_mmu_priv_switch(vcpu, new_msr & MSR_PR);
+
+	vcpu->arch.shared->msr = new_msr;
+
+	if (vcpu->arch.shared->msr & MSR_WE) {
+		kvm_vcpu_block(vcpu);
+		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
+	};
+
+	kvmppc_vcpu_sync_spe(vcpu);
 }
 
 static void kvmppc_booke_queue_irqprio(struct kvm_vcpu *vcpu,
@@ -344,10 +396,16 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 
-	case BOOKE_INTERRUPT_SPE_UNAVAIL:
-		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SPE_UNAVAIL);
+#ifdef CONFIG_SPE
+	case BOOKE_INTERRUPT_SPE_UNAVAIL: {
+		if (vcpu->arch.shared->msr & MSR_SPE)
+			kvmppc_vcpu_enable_spe(vcpu);
+		else
+			kvmppc_booke_queue_irqprio(vcpu,
+						   BOOKE_IRQPRIO_SPE_UNAVAIL);
 		r = RESUME_GUEST;
 		break;
+	}
 
 	case BOOKE_INTERRUPT_SPE_FP_DATA:
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SPE_FP_DATA);
@@ -358,6 +416,28 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_SPE_FP_ROUND);
 		r = RESUME_GUEST;
 		break;
+#else
+	case BOOKE_INTERRUPT_SPE_UNAVAIL:
+		/*
+		 * Guest wants SPE, but host kernel doesn't support it.  Send
+		 * an "unimplemented operation" program check to the guest.
+		 */
+		kvmppc_core_queue_program(vcpu, ESR_PUO | ESR_SPV);
+		r = RESUME_GUEST;
+		break;
+
+	/*
+	 * These really should never happen without CONFIG_SPE,
+	 * as we should never enable the real MSR[SPE] in the guest.
+	 */
+	case BOOKE_INTERRUPT_SPE_FP_DATA:
+	case BOOKE_INTERRUPT_SPE_FP_ROUND:
+		printk(KERN_CRIT "%s: unexpected SPE interrupt %u at %08lx\n",
+		       __func__, exit_nr, vcpu->arch.pc);
+		run->hw.hardware_exit_reason = exit_nr;
+		r = RESUME_HOST;
+		break;
+#endif
 
 	case BOOKE_INTERRUPT_DATA_STORAGE:
 		kvmppc_core_queue_data_storage(vcpu, vcpu->arch.fault_dear,

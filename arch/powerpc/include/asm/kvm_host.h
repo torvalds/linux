@@ -195,6 +195,12 @@ struct kvm_vcpu_arch {
 	u64 fpr[32];
 	u64 fpscr;
 
+#ifdef CONFIG_SPE
+	ulong evr[32];
+	ulong spefscr;
+	ulong host_spefscr;
+	u64 acc;
+#endif
 #ifdef CONFIG_ALTIVEC
 	vector128 vr[32];
 	vector128 vscr;
