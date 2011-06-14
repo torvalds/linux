@@ -144,24 +144,6 @@ static inline void write_host_tlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 void kvmppc_e500_tlb_load(struct kvm_vcpu *vcpu, int cpu)
 {
-	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
-	int i;
-	unsigned register mas0;
-
-	/* Load all valid TLB1 entries to reduce guest tlb miss fault */
-	local_irq_disable();
-	mas0 = mfspr(SPRN_MAS0);
-	for (i = 0; i < tlb1_max_shadow_size(); i++) {
-		struct tlbe *stlbe = &vcpu_e500->shadow_tlb[1][i];
-
-		if (get_tlb_v(stlbe)) {
-			mtspr(SPRN_MAS0, MAS0_TLBSEL(1)
-					| MAS0_ESEL(to_htlb1_esel(i)));
-			__write_host_tlbe(stlbe);
-		}
-	}
-	mtspr(SPRN_MAS0, mas0);
-	local_irq_enable();
 }
 
 void kvmppc_e500_tlb_put(struct kvm_vcpu *vcpu)
