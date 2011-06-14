@@ -112,6 +112,9 @@ struct smp_cmd_security_req {
 #define SMP_UNSPECIFIED		0x08
 #define SMP_REPEATED_ATTEMPTS		0x09
 
+#define SMP_MIN_ENC_KEY_SIZE		7
+#define SMP_MAX_ENC_KEY_SIZE		16
+
 /* SMP Commands */
 int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level);
 int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb);

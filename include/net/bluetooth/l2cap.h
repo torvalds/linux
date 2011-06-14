@@ -400,6 +400,7 @@ struct l2cap_conn {
 	__u8		prnd[16]; /* SMP Pairing Random */
 	__u8		pcnf[16]; /* SMP Pairing Confirm */
 	__u8		tk[16]; /* SMP Temporary Key */
+	__u8		smp_key_size;
 
 	struct timer_list security_timer;
 
