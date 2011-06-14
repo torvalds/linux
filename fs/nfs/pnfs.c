@@ -889,7 +889,7 @@ pnfs_find_lseg(struct pnfs_layout_hdr *lo,
 			ret = get_lseg(lseg);
 			break;
 		}
-		if (cmp_layout(range, &lseg->pls_range) > 0)
+		if (lseg->pls_range.offset > range->offset)
 			break;
 	}
 
