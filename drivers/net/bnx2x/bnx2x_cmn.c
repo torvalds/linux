@@ -2136,6 +2136,24 @@ static inline  u8 bnx2x_set_pbd_csum_e2(struct bnx2x *bp, struct sk_buff *skb,
 				sizeof(struct udphdr) - skb->data;
 }
 
+static inline void bnx2x_set_sbd_csum(struct bnx2x *bp, struct sk_buff *skb,
+	struct eth_tx_start_bd *tx_start_bd, u32 xmit_type)
+{
+
+	tx_start_bd->bd_flags.as_bitfield |= ETH_TX_BD_FLAGS_L4_CSUM;
+
+	if (xmit_type & XMIT_CSUM_V4)
+		tx_start_bd->bd_flags.as_bitfield |=
+					ETH_TX_BD_FLAGS_IP_CSUM;
+	else
+		tx_start_bd->bd_flags.as_bitfield |=
+					ETH_TX_BD_FLAGS_IPV6;
+
+	if (!(xmit_type & XMIT_CSUM_TCP))
+		tx_start_bd->bd_flags.as_bitfield |= ETH_TX_BD_FLAGS_IS_UDP;
+
+}
+
 /**
  * bnx2x_set_pbd_csum - update PBD with checksum and return header length
  *
@@ -2307,20 +2325,8 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* turn on parsing and get a BD */
 	bd_prod = TX_BD(NEXT_TX_IDX(bd_prod));
 
-	if (xmit_type & XMIT_CSUM) {
-		tx_start_bd->bd_flags.as_bitfield |= ETH_TX_BD_FLAGS_L4_CSUM;
-
-		if (xmit_type & XMIT_CSUM_V4)
-			tx_start_bd->bd_flags.as_bitfield |=
-						ETH_TX_BD_FLAGS_IP_CSUM;
-		else
-			tx_start_bd->bd_flags.as_bitfield |=
-						ETH_TX_BD_FLAGS_IPV6;
-
-		if (!(xmit_type & XMIT_CSUM_TCP))
-			tx_start_bd->bd_flags.as_bitfield |=
-						ETH_TX_BD_FLAGS_IS_UDP;
-	}
+	if (xmit_type & XMIT_CSUM)
+		bnx2x_set_sbd_csum(bp, skb, tx_start_bd, xmit_type);
 
 	if (CHIP_IS_E2(bp)) {
 		pbd_e2 = &fp->tx_desc_ring[bd_prod].parse_bd_e2;
