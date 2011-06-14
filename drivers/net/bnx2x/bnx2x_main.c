@@ -2847,9 +2847,15 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 
 			/* save nig interrupt mask */
 			nig_mask = REG_RD(bp, nig_int_mask_addr);
-			REG_WR(bp, nig_int_mask_addr, 0);
 
-			bnx2x_link_attn(bp);
+			/* If nig_mask is not set, no need to call the update
+			 * function.
+			 */
+			if (nig_mask) {
+				REG_WR(bp, nig_int_mask_addr, 0);
+
+				bnx2x_link_attn(bp);
+			}
 
 			/* handle unicore attn? */
 		}
