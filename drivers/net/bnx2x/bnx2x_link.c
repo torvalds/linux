@@ -134,6 +134,9 @@
 #define LINK_10GXFD		LINK_STATUS_SPEED_AND_DUPLEX_10GXFD
 #define LINK_20GTFD		LINK_STATUS_SPEED_AND_DUPLEX_20GTFD
 #define LINK_20GXFD		LINK_STATUS_SPEED_AND_DUPLEX_20GXFD
+
+
+
 /* */
 #define SFP_EEPROM_CON_TYPE_ADDR		0x2
 	#define SFP_EEPROM_CON_TYPE_VAL_LC	0x7
@@ -2060,6 +2063,83 @@ static u32 bnx2x_get_emac_base(struct bnx2x *bp,
 }
 
 /******************************************************************/
+/*			CL22 access functions			  */
+/******************************************************************/
+static int bnx2x_cl22_write(struct bnx2x *bp,
+				       struct bnx2x_phy *phy,
+				       u16 reg, u16 val)
+{
+	u32 tmp, mode;
+	u8 i;
+	int rc = 0;
+	/* Switch to CL22 */
+	mode = REG_RD(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_MODE);
+	REG_WR(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_MODE,
+	       mode & ~EMAC_MDIO_MODE_CLAUSE_45);
+
+	/* address */
+	tmp = ((phy->addr << 21) | (reg << 16) | val |
+	       EMAC_MDIO_COMM_COMMAND_WRITE_22 |
+	       EMAC_MDIO_COMM_START_BUSY);
+	REG_WR(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_COMM, tmp);
+
+	for (i = 0; i < 50; i++) {
+		udelay(10);
+
+		tmp = REG_RD(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_COMM);
+		if (!(tmp & EMAC_MDIO_COMM_START_BUSY)) {
+			udelay(5);
+			break;
+		}
+	}
+	if (tmp & EMAC_MDIO_COMM_START_BUSY) {
+		DP(NETIF_MSG_LINK, "write phy register failed\n");
+		rc = -EFAULT;
+	}
+	REG_WR(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_MODE, mode);
+	return rc;
+}
+
+static int bnx2x_cl22_read(struct bnx2x *bp,
+				      struct bnx2x_phy *phy,
+				      u16 reg, u16 *ret_val)
+{
+	u32 val, mode;
+	u16 i;
+	int rc = 0;
+
+	/* Switch to CL22 */
+	mode = REG_RD(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_MODE);
+	REG_WR(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_MODE,
+	       mode & ~EMAC_MDIO_MODE_CLAUSE_45);
+
+	/* address */
+	val = ((phy->addr << 21) | (reg << 16) |
+	       EMAC_MDIO_COMM_COMMAND_READ_22 |
+	       EMAC_MDIO_COMM_START_BUSY);
+	REG_WR(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_COMM, val);
+
+	for (i = 0; i < 50; i++) {
+		udelay(10);
+
+		val = REG_RD(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_COMM);
+		if (!(val & EMAC_MDIO_COMM_START_BUSY)) {
+			*ret_val = (u16)(val & EMAC_MDIO_COMM_DATA);
+			udelay(5);
+			break;
+		}
+	}
+	if (val & EMAC_MDIO_COMM_START_BUSY) {
+		DP(NETIF_MSG_LINK, "read phy register failed\n");
+
+		*ret_val = 0;
+		rc = -EFAULT;
+	}
+	REG_WR(bp, phy->mdio_ctrl + EMAC_REG_EMAC_MDIO_MODE, mode);
+	return rc;
+}
+
+/******************************************************************/
 /*			CL45 access functions			  */
 /******************************************************************/
 static int bnx2x_cl45_read(struct bnx2x *bp, struct bnx2x_phy *phy,
@@ -2649,12 +2729,19 @@ static u8 bnx2x_ext_phy_resolve_fc(struct bnx2x_phy *phy,
 		vars->flow_ctrl = params->req_fc_auto_adv;
 	else if (vars->link_status & LINK_STATUS_AUTO_NEGOTIATE_COMPLETE) {
 		ret = 1;
-		bnx2x_cl45_read(bp, phy,
-				MDIO_AN_DEVAD,
-				MDIO_AN_REG_ADV_PAUSE, &ld_pause);
-		bnx2x_cl45_read(bp, phy,
-				MDIO_AN_DEVAD,
-				MDIO_AN_REG_LP_AUTO_NEG, &lp_pause);
+		if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54616) {
+			bnx2x_cl22_read(bp, phy,
+					0x4, &ld_pause);
+			bnx2x_cl22_read(bp, phy,
+					0x5, &lp_pause);
+		} else {
+			bnx2x_cl45_read(bp, phy,
+					MDIO_AN_DEVAD,
+					MDIO_AN_REG_ADV_PAUSE, &ld_pause);
+			bnx2x_cl45_read(bp, phy,
+					MDIO_AN_DEVAD,
+					MDIO_AN_REG_LP_AUTO_NEG, &lp_pause);
+		}
 		pause_result = (ld_pause &
 				MDIO_AN_REG_ADV_PAUSE_MASK) >> 8;
 		pause_result |= (lp_pause &
@@ -4653,8 +4740,13 @@ static u16 bnx2x_wait_reset_complete(struct bnx2x *bp,
 	u16 cnt, ctrl;
 	/* Wait for soft reset to get cleared up to 1 sec */
 	for (cnt = 0; cnt < 1000; cnt++) {
-		bnx2x_cl45_read(bp, phy,
-				MDIO_PMA_DEVAD, MDIO_PMA_REG_CTRL, &ctrl);
+		if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54616)
+			bnx2x_cl22_read(bp, phy,
+				MDIO_PMA_REG_CTRL, &ctrl);
+		else
+			bnx2x_cl45_read(bp, phy,
+				MDIO_PMA_DEVAD,
+				MDIO_PMA_REG_CTRL, &ctrl);
 		if (!(ctrl & (1<<15)))
 			break;
 		msleep(1);
@@ -8808,6 +8900,329 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 	}
 }
 /******************************************************************/
+/*			54616S PHY SECTION			  */
+/******************************************************************/
+static int bnx2x_54616s_config_init(struct bnx2x_phy *phy,
+					       struct link_params *params,
+					       struct link_vars *vars)
+{
+	struct bnx2x *bp = params->bp;
+	u8 port;
+	u16 autoneg_val, an_1000_val, an_10_100_val, fc_val, temp;
+	u32 cfg_pin;
+
+	DP(NETIF_MSG_LINK, "54616S cfg init\n");
+	usleep_range(1000, 1000);
+
+	/* This works with E3 only, no need to check the chip
+	   before determining the port. */
+	port = params->port;
+
+	cfg_pin = (REG_RD(bp, params->shmem_base +
+			offsetof(struct shmem_region,
+			dev_info.port_hw_config[port].e3_cmn_pin_cfg)) &
+			PORT_HW_CFG_E3_PHY_RESET_MASK) >>
+			PORT_HW_CFG_E3_PHY_RESET_SHIFT;
+
+	/* Drive pin high to bring the GPHY out of reset. */
+	bnx2x_set_cfg_pin(bp, cfg_pin, 1);
+
+	/* wait for GPHY to reset */
+	msleep(50);
+
+	/* reset phy */
+	bnx2x_cl22_write(bp, phy,
+			 MDIO_PMA_REG_CTRL, 0x8000);
+	bnx2x_wait_reset_complete(bp, phy, params);
+
+	/*wait for GPHY to reset */
+	msleep(50);
+
+	/* Configure LED4: set to INTR (0x6). */
+	/* Accessing shadow register 0xe. */
+	bnx2x_cl22_write(bp, phy,
+			MDIO_REG_GPHY_SHADOW,
+			MDIO_REG_GPHY_SHADOW_LED_SEL2);
+	bnx2x_cl22_read(bp, phy,
+			MDIO_REG_GPHY_SHADOW,
+			&temp);
+	temp &= ~(0xf << 4);
+	temp |= (0x6 << 4);
+	bnx2x_cl22_write(bp, phy,
+			MDIO_REG_GPHY_SHADOW,
+			MDIO_REG_GPHY_SHADOW_WR_ENA | temp);
+	/* Configure INTR based on link status change. */
+	bnx2x_cl22_write(bp, phy,
+			MDIO_REG_INTR_MASK,
+			~MDIO_REG_INTR_MASK_LINK_STATUS);
+
+	/* Flip the signal detect polarity (set 0x1c.0x1e[8]). */
+	bnx2x_cl22_write(bp, phy,
+			MDIO_REG_GPHY_SHADOW,
+			MDIO_REG_GPHY_SHADOW_AUTO_DET_MED);
+	bnx2x_cl22_read(bp, phy,
+			MDIO_REG_GPHY_SHADOW,
+			&temp);
+	temp |= MDIO_REG_GPHY_SHADOW_INVERT_FIB_SD;
+	bnx2x_cl22_write(bp, phy,
+			MDIO_REG_GPHY_SHADOW,
+			MDIO_REG_GPHY_SHADOW_WR_ENA | temp);
+
+	/* Set up fc */
+	/* Please refer to Table 28B-3 of 802.3ab-1999 spec. */
+	bnx2x_calc_ieee_aneg_adv(phy, params, &vars->ieee_fc);
+	fc_val = 0;
+	if ((vars->ieee_fc & MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_ASYMMETRIC) ==
+			MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_ASYMMETRIC)
+		fc_val |= MDIO_AN_REG_ADV_PAUSE_ASYMMETRIC;
+
+	if ((vars->ieee_fc & MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH) ==
+			MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH)
+		fc_val |= MDIO_AN_REG_ADV_PAUSE_PAUSE;
+
+	/* read all advertisement */
+	bnx2x_cl22_read(bp, phy,
+			0x09,
+			&an_1000_val);
+
+	bnx2x_cl22_read(bp, phy,
+			0x04,
+			&an_10_100_val);
+
+	bnx2x_cl22_read(bp, phy,
+			MDIO_PMA_REG_CTRL,
+			&autoneg_val);
+
+	/* Disable forced speed */
+	autoneg_val &= ~((1<<6) | (1<<8) | (1<<9) | (1<<12) | (1<<13));
+	an_10_100_val &= ~((1<<5) | (1<<6) | (1<<7) | (1<<8) | (1<<10) |
+			   (1<<11));
+
+	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
+			(phy->speed_cap_mask &
+			PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)) ||
+			(phy->req_line_speed == SPEED_1000)) {
+		an_1000_val |= (1<<8);
+		autoneg_val |= (1<<9 | 1<<12);
+		if (phy->req_duplex == DUPLEX_FULL)
+			an_1000_val |= (1<<9);
+		DP(NETIF_MSG_LINK, "Advertising 1G\n");
+	} else
+		an_1000_val &= ~((1<<8) | (1<<9));
+
+	bnx2x_cl22_write(bp, phy,
+			0x09,
+			an_1000_val);
+	bnx2x_cl22_read(bp, phy,
+			0x09,
+			&an_1000_val);
+
+	/* set 100 speed advertisement */
+	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
+			(phy->speed_cap_mask &
+			(PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL |
+			PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF)))) {
+		an_10_100_val |= (1<<7);
+		/* Enable autoneg and restart autoneg for legacy speeds */
+		autoneg_val |= (1<<9 | 1<<12);
+
+		if (phy->req_duplex == DUPLEX_FULL)
+			an_10_100_val |= (1<<8);
+		DP(NETIF_MSG_LINK, "Advertising 100M\n");
+	}
+
+	/* set 10 speed advertisement */
+	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
+			(phy->speed_cap_mask &
+			(PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL |
+			PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF)))) {
+		an_10_100_val |= (1<<5);
+		autoneg_val |= (1<<9 | 1<<12);
+		if (phy->req_duplex == DUPLEX_FULL)
+			an_10_100_val |= (1<<6);
+		DP(NETIF_MSG_LINK, "Advertising 10M\n");
+	}
+
+	/* Only 10/100 are allowed to work in FORCE mode */
+	if (phy->req_line_speed == SPEED_100) {
+		autoneg_val |= (1<<13);
+		/* Enabled AUTO-MDIX when autoneg is disabled */
+		bnx2x_cl22_write(bp, phy,
+				0x18,
+				(1<<15 | 1<<9 | 7<<0));
+		DP(NETIF_MSG_LINK, "Setting 100M force\n");
+	}
+	if (phy->req_line_speed == SPEED_10) {
+		/* Enabled AUTO-MDIX when autoneg is disabled */
+		bnx2x_cl22_write(bp, phy,
+				0x18,
+				(1<<15 | 1<<9 | 7<<0));
+		DP(NETIF_MSG_LINK, "Setting 10M force\n");
+	}
+
+	bnx2x_cl22_write(bp, phy,
+			0x04,
+			an_10_100_val | fc_val);
+
+	if (phy->req_duplex == DUPLEX_FULL)
+		autoneg_val |= (1<<8);
+
+	bnx2x_cl22_write(bp, phy,
+			MDIO_PMA_REG_CTRL, autoneg_val);
+
+	return 0;
+}
+
+static void bnx2x_54616s_set_link_led(struct bnx2x_phy *phy,
+				      struct link_params *params, u8 mode)
+{
+	struct bnx2x *bp = params->bp;
+	DP(NETIF_MSG_LINK, "54616S set link led (mode=%x)\n", mode);
+	switch (mode) {
+	case LED_MODE_FRONT_PANEL_OFF:
+	case LED_MODE_OFF:
+	case LED_MODE_OPER:
+	case LED_MODE_ON:
+	default:
+		break;
+	}
+	return;
+}
+
+static void bnx2x_54616s_link_reset(struct bnx2x_phy *phy,
+				    struct link_params *params)
+{
+	struct bnx2x *bp = params->bp;
+	u32 cfg_pin;
+	u8 port;
+
+	/* This works with E3 only, no need to check the chip
+	   before determining the port. */
+	port = params->port;
+	cfg_pin = (REG_RD(bp, params->shmem_base +
+			offsetof(struct shmem_region,
+			dev_info.port_hw_config[port].e3_cmn_pin_cfg)) &
+			PORT_HW_CFG_E3_PHY_RESET_MASK) >>
+			PORT_HW_CFG_E3_PHY_RESET_SHIFT;
+
+	/* Drive pin low to put GPHY in reset. */
+	bnx2x_set_cfg_pin(bp, cfg_pin, 0);
+}
+
+static u8 bnx2x_54616s_read_status(struct bnx2x_phy *phy,
+				   struct link_params *params,
+				   struct link_vars *vars)
+{
+	struct bnx2x *bp = params->bp;
+	u16 val;
+	u8 link_up = 0;
+	u16 legacy_status, legacy_speed;
+
+	/* Get speed operation status */
+	bnx2x_cl22_read(bp, phy,
+			0x19,
+			&legacy_status);
+	DP(NETIF_MSG_LINK, "54616S read_status: 0x%x\n", legacy_status);
+
+	/* Read status to clear the PHY interrupt. */
+	bnx2x_cl22_read(bp, phy,
+			MDIO_REG_INTR_STATUS,
+			&val);
+
+	link_up = ((legacy_status & (1<<2)) == (1<<2));
+
+	if (link_up) {
+		legacy_speed = (legacy_status & (7<<8));
+		if (legacy_speed == (7<<8)) {
+			vars->line_speed = SPEED_1000;
+			vars->duplex = DUPLEX_FULL;
+		} else if (legacy_speed == (6<<8)) {
+			vars->line_speed = SPEED_1000;
+			vars->duplex = DUPLEX_HALF;
+		} else if (legacy_speed == (5<<8)) {
+			vars->line_speed = SPEED_100;
+			vars->duplex = DUPLEX_FULL;
+		}
+		/* Omitting 100Base-T4 for now */
+		else if (legacy_speed == (3<<8)) {
+			vars->line_speed = SPEED_100;
+			vars->duplex = DUPLEX_HALF;
+		} else if (legacy_speed == (2<<8)) {
+			vars->line_speed = SPEED_10;
+			vars->duplex = DUPLEX_FULL;
+		} else if (legacy_speed == (1<<8)) {
+			vars->line_speed = SPEED_10;
+			vars->duplex = DUPLEX_HALF;
+		} else /* Should not happen */
+			vars->line_speed = 0;
+
+		DP(NETIF_MSG_LINK, "Link is up in %dMbps,"
+			   " is_duplex_full= %d\n", vars->line_speed,
+			   (vars->duplex == DUPLEX_FULL));
+
+		/* Check legacy speed AN resolution */
+		bnx2x_cl22_read(bp, phy,
+				0x01,
+				&val);
+		if (val & (1<<5))
+			vars->link_status |=
+				LINK_STATUS_AUTO_NEGOTIATE_COMPLETE;
+		bnx2x_cl22_read(bp, phy,
+				0x06,
+				&val);
+		if ((val & (1<<0)) == 0)
+			vars->link_status |=
+				LINK_STATUS_PARALLEL_DETECTION_USED;
+
+		DP(NETIF_MSG_LINK, "BCM54616S: link speed is %d\n",
+			   vars->line_speed);
+		bnx2x_ext_phy_resolve_fc(phy, params, vars);
+	}
+	return link_up;
+}
+
+static void bnx2x_54616s_config_loopback(struct bnx2x_phy *phy,
+				       struct link_params *params)
+{
+	struct bnx2x *bp = params->bp;
+	u16 val;
+	u32 umac_base = params->port ? GRCBASE_UMAC1 : GRCBASE_UMAC0;
+
+	DP(NETIF_MSG_LINK, "2PMA/PMD ext_phy_loopback: 54616s\n");
+
+	/* Enable master/slave manual mmode and set to master */
+	/* mii write 9 [bits set 11 12] */
+	bnx2x_cl22_write(bp, phy, 0x09, 3<<11);
+
+	/* forced 1G and disable autoneg */
+	/* set val [mii read 0] */
+	/* set val [expr $val & [bits clear 6 12 13]] */
+	/* set val [expr $val | [bits set 6 8]] */
+	/* mii write 0 $val */
+	bnx2x_cl22_read(bp, phy, 0x00, &val);
+	val &= ~((1<<6) | (1<<12) | (1<<13));
+	val |= (1<<6) | (1<<8);
+	bnx2x_cl22_write(bp, phy, 0x00, val);
+
+	/* Set external loopback and Tx using 6dB coding */
+	/* mii write 0x18 7 */
+	/* set val [mii read 0x18] */
+	/* mii write 0x18 [expr $val | [bits set 10 15]] */
+	bnx2x_cl22_write(bp, phy, 0x18, 7);
+	bnx2x_cl22_read(bp, phy, 0x18, &val);
+	bnx2x_cl22_write(bp, phy, 0x18, val | (1<<10) | (1<<15));
+
+	/* This register opens the gate for the UMAC despite its name */
+	REG_WR(bp, NIG_REG_EGRESS_EMAC0_PORT + params->port*4, 1);
+
+	/*
+	 * Maximum Frame Length (RW). Defines a 14-Bit maximum frame
+	 * length used by the MAC receive logic to check frames.
+	 */
+	REG_WR(bp, umac_base + UMAC_REG_MAXFR, 0x2710);
+}
+
+/******************************************************************/
 /*			SFX7101 PHY SECTION			  */
 /******************************************************************/
 static void bnx2x_7101_config_loopback(struct bnx2x_phy *phy,
@@ -9390,6 +9805,39 @@ static struct bnx2x_phy phy_84833 = {
 	.phy_specific_func = (phy_specific_func_t)NULL
 };
 
+static struct bnx2x_phy phy_54616s = {
+	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54616,
+	.addr		= 0xff,
+	.def_md_devad	= 0,
+	.flags		= FLAGS_INIT_XGXS_FIRST,
+	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
+	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
+	.mdio_ctrl	= 0,
+	.supported	= (SUPPORTED_10baseT_Half |
+			   SUPPORTED_10baseT_Full |
+			   SUPPORTED_100baseT_Half |
+			   SUPPORTED_100baseT_Full |
+			   SUPPORTED_1000baseT_Full |
+			   SUPPORTED_TP |
+			   SUPPORTED_Autoneg |
+			   SUPPORTED_Pause |
+			   SUPPORTED_Asym_Pause),
+	.media_type	= ETH_PHY_BASE_T,
+	.ver_addr	= 0,
+	.req_flow_ctrl	= 0,
+	.req_line_speed	= 0,
+	.speed_cap_mask	= 0,
+	/* req_duplex = */0,
+	/* rsrv = */0,
+	.config_init	= (config_init_t)bnx2x_54616s_config_init,
+	.read_status	= (read_status_t)bnx2x_54616s_read_status,
+	.link_reset	= (link_reset_t)bnx2x_54616s_link_reset,
+	.config_loopback = (config_loopback_t)bnx2x_54616s_config_loopback,
+	.format_fw_ver	= (format_fw_ver_t)NULL,
+	.hw_reset	= (hw_reset_t)NULL,
+	.set_link_led	= (set_link_led_t)bnx2x_54616s_set_link_led,
+	.phy_specific_func = (phy_specific_func_t)NULL
+};
 /*****************************************************************/
 /*                                                               */
 /* Populate the phy according. Main function: bnx2x_populate_phy   */
@@ -9629,6 +10077,9 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833:
 		*phy = phy_84833;
+		break;
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54616:
+		*phy = phy_54616s;
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 		*phy = phy_7101;

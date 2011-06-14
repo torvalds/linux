@@ -5420,7 +5420,9 @@
 #define EMAC_LED_OVERRIDE					 (1L<<0)
 #define EMAC_LED_TRAFFIC					 (1L<<6)
 #define EMAC_MDIO_COMM_COMMAND_ADDRESS				 (0L<<26)
+#define EMAC_MDIO_COMM_COMMAND_READ_22				 (2L<<26)
 #define EMAC_MDIO_COMM_COMMAND_READ_45				 (3L<<26)
+#define EMAC_MDIO_COMM_COMMAND_WRITE_22				 (1L<<26)
 #define EMAC_MDIO_COMM_COMMAND_WRITE_45 			 (1L<<26)
 #define EMAC_MDIO_COMM_DATA					 (0xffffL<<0)
 #define EMAC_MDIO_COMM_START_BUSY				 (1L<<29)
@@ -6736,6 +6738,16 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_WC0_XGXS_BLK6_XGXS_X2_CONTROL2		0x8141
 
 #define DIGITAL5_ACTUAL_SPEED_TX_MASK			0x003f
+
+/* 54616s */
+#define MDIO_REG_INTR_STATUS				0x1a
+#define MDIO_REG_INTR_MASK				0x1b
+#define MDIO_REG_INTR_MASK_LINK_STATUS			(0x1 << 1)
+#define MDIO_REG_GPHY_SHADOW				0x1c
+#define MDIO_REG_GPHY_SHADOW_LED_SEL2			(0x0e << 10)
+#define MDIO_REG_GPHY_SHADOW_WR_ENA			(0x1 << 15)
+#define MDIO_REG_GPHY_SHADOW_AUTO_DET_MED		(0x1e << 10)
+#define MDIO_REG_GPHY_SHADOW_INVERT_FIB_SD		(0x1 << 8)
 
 #define IGU_FUNC_BASE			0x0400
 
