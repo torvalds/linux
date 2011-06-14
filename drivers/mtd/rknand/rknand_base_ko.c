@@ -224,7 +224,7 @@ static int rk28xxnand_init(struct rknand_info *nand_info)
     mtd->oobsize = 0;
     mtd->oobavail = 0;
     mtd->ecclayout = 0;
-    mtd->erasesize = 8*0x200; 
+    mtd->erasesize = 32*0x200;
     mtd->writesize = 8*0x200;
 
 	// Fill in remaining MTD driver data 
