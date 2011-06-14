@@ -881,8 +881,8 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 
 #ifdef __BIG_ENDIAN
 	/* Put the card in BE mode if it's not */
-	if (nv_rd32(dev, NV03_PMC_BOOT_1))
-		nv_wr32(dev, NV03_PMC_BOOT_1, 0x00000001);
+	if (nv_rd32(dev, NV03_PMC_BOOT_1) != 0x01000001)
+		nv_wr32(dev, NV03_PMC_BOOT_1, 0x01000001);
 
 	DRM_MEMORYBARRIER();
 #endif
