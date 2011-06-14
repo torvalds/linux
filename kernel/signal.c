@@ -266,7 +266,7 @@ bool task_set_jobctl_pending(struct task_struct *task, unsigned int mask)
  * CONTEXT:
  * Must be called with @task->sighand->siglock held.
  */
-static void task_clear_jobctl_trapping(struct task_struct *task)
+void task_clear_jobctl_trapping(struct task_struct *task)
 {
 	if (unlikely(task->jobctl & JOBCTL_TRAPPING)) {
 		task->jobctl &= ~JOBCTL_TRAPPING;
@@ -1790,12 +1790,15 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	/*
 	 * If @why is CLD_STOPPED, we're trapping to participate in a group
 	 * stop.  Do the bookkeeping.  Note that if SIGCONT was delievered
-	 * while siglock was released for the arch hook, PENDING could be
-	 * clear now.  We act as if SIGCONT is received after TASK_TRACED
-	 * is entered - ignore it.
+	 * across siglock relocks since INTERRUPT was scheduled, PENDING
+	 * could be clear now.  We act as if SIGCONT is received after
+	 * TASK_TRACED is entered - ignore it.
 	 */
 	if (why == CLD_STOPPED && (current->jobctl & JOBCTL_STOP_PENDING))
 		gstop_done = task_participate_group_stop(current);
+
+	/* any trap clears pending STOP trap */
+	task_clear_jobctl_pending(current, JOBCTL_TRAP_STOP);
 
 	/* entering a trap, clear TRAPPING */
 	task_clear_jobctl_trapping(current);
@@ -1888,13 +1891,30 @@ void ptrace_notify(int exit_code)
 	spin_unlock_irq(&current->sighand->siglock);
 }
 
-/*
- * This performs the stopping for SIGSTOP and other stop signals.
- * We have to stop all threads in the thread group.
- * Returns non-zero if we've actually stopped and released the siglock.
- * Returns zero if we didn't stop and still hold the siglock.
+/**
+ * do_signal_stop - handle group stop for SIGSTOP and other stop signals
+ * @signr: signr causing group stop if initiating
+ *
+ * If %JOBCTL_STOP_PENDING is not set yet, initiate group stop with @signr
+ * and participate in it.  If already set, participate in the existing
+ * group stop.  If participated in a group stop (and thus slept), %true is
+ * returned with siglock released.
+ *
+ * If ptraced, this function doesn't handle stop itself.  Instead,
+ * %JOBCTL_TRAP_STOP is scheduled and %false is returned with siglock
+ * untouched.  The caller must ensure that INTERRUPT trap handling takes
+ * places afterwards.
+ *
+ * CONTEXT:
+ * Must be called with @current->sighand->siglock held, which is released
+ * on %true return.
+ *
+ * RETURNS:
+ * %false if group stop is already cancelled or ptrace trap is scheduled.
+ * %true if participated in group stop.
  */
-static int do_signal_stop(int signr)
+static bool do_signal_stop(int signr)
+	__releases(&current->sighand->siglock)
 {
 	struct signal_struct *sig = current->signal;
 
@@ -1907,7 +1927,7 @@ static int do_signal_stop(int signr)
 
 		if (!likely(current->jobctl & JOBCTL_STOP_DEQUEUED) ||
 		    unlikely(signal_group_exit(sig)))
-			return 0;
+			return false;
 		/*
 		 * There is no group stop already in progress.  We must
 		 * initiate one now.
@@ -1951,7 +1971,7 @@ static int do_signal_stop(int signr)
 			}
 		}
 	}
-retry:
+
 	if (likely(!task_ptrace(current))) {
 		int notify = 0;
 
@@ -1983,27 +2003,33 @@ retry:
 
 		/* Now we don't run again until woken by SIGCONT or SIGKILL */
 		schedule();
-
-		spin_lock_irq(&current->sighand->siglock);
+		return true;
 	} else {
-		ptrace_stop(current->jobctl & JOBCTL_STOP_SIGMASK,
-			    CLD_STOPPED, 0, NULL);
-		current->exit_code = 0;
+		/*
+		 * While ptraced, group stop is handled by STOP trap.
+		 * Schedule it and let the caller deal with it.
+		 */
+		task_set_jobctl_pending(current, JOBCTL_TRAP_STOP);
+		return false;
 	}
+}
 
-	/*
-	 * JOBCTL_STOP_PENDING could be set if another group stop has
-	 * started since being woken up or ptrace wants us to transit
-	 * between TASK_STOPPED and TRACED.  Retry group stop.
-	 */
-	if (current->jobctl & JOBCTL_STOP_PENDING) {
-		WARN_ON_ONCE(!(current->jobctl & JOBCTL_STOP_SIGMASK));
-		goto retry;
-	}
+/**
+ * do_jobctl_trap - take care of ptrace jobctl traps
+ *
+ * It is currently used only to trap for group stop while ptraced.
+ *
+ * CONTEXT:
+ * Must be called with @current->sighand->siglock held, which may be
+ * released and re-acquired before returning with intervening sleep.
+ */
+static void do_jobctl_trap(void)
+{
+	int signr = current->jobctl & JOBCTL_STOP_SIGMASK;
 
-	spin_unlock_irq(&current->sighand->siglock);
-
-	return 1;
+	WARN_ON_ONCE(!signr);
+	ptrace_stop(signr, CLD_STOPPED, 0, NULL);
+	current->exit_code = 0;
 }
 
 static int ptrace_signal(int signr, siginfo_t *info,
@@ -2109,6 +2135,12 @@ relock:
 		if (unlikely(current->jobctl & JOBCTL_STOP_PENDING) &&
 		    do_signal_stop(0))
 			goto relock;
+
+		if (unlikely(current->jobctl & JOBCTL_TRAP_MASK)) {
+			do_jobctl_trap();
+			spin_unlock_irq(&sighand->siglock);
+			goto relock;
+		}
 
 		signr = dequeue_signal(current, &current->blocked, info);
 
