@@ -276,7 +276,7 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 	ucma_set_event_context(ctx, event, uevent);
 	uevent->resp.event = event->event;
 	uevent->resp.status = event->status;
-	if (cm_id->ps == RDMA_PS_UDP || cm_id->ps == RDMA_PS_IPOIB)
+	if (cm_id->qp_type == IB_QPT_UD)
 		ucma_copy_ud_event(&uevent->resp.param.ud, &event->param.ud);
 	else
 		ucma_copy_conn_event(&uevent->resp.param.conn,
@@ -376,6 +376,9 @@ static int ucma_get_qp_type(struct rdma_ucm_create_id *cmd, enum ib_qp_type *qp_
 	case RDMA_PS_UDP:
 	case RDMA_PS_IPOIB:
 		*qp_type = IB_QPT_UD;
+		return 0;
+	case RDMA_PS_IB:
+		*qp_type = cmd->qp_type;
 		return 0;
 	default:
 		return -EINVAL;
