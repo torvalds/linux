@@ -1595,12 +1595,18 @@ initsoj_safe_exit:
 	return 0;
 }
 
+static int cyasgadget_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int cyasgadget_stop(struct usb_gadget_driver *driver);
+
 static const struct usb_gadget_ops cyasgadget_ops = {
 	.get_frame		 = cyasgadget_get_frame,
 	.wakeup		 = cyasgadget_wakeup,
 	.set_selfpowered = cyasgadget_set_selfpowered,
 	.pullup		 = cyasgadget_pullup,
 	.ioctl	   = cyasgadget_ioctl,
+	.start		= cyasgadget_start,
+	.stop		= cyasgadget_stop,
 };
 
 
@@ -1883,7 +1889,7 @@ static void cyas_ep0_start(
  * disconnect is reported.  then a host may connect again, or
  * the driver might get unbound.
  */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int cyasgadget_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	cyasgadget *dev = cy_as_gadget_controller;
@@ -1938,7 +1944,6 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 static void cyasgadget_nuke(
 							cyasgadget_ep *an_ep
@@ -2011,7 +2016,7 @@ static void cyasgadget_stop_activity(
 	#endif
 }
 
-int usb_gadget_unregister_driver(
+static int cyasgadget_stop(
 				struct usb_gadget_driver *driver
 				)
 {
@@ -2040,7 +2045,6 @@ int usb_gadget_unregister_driver(
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 static void cyas_gadget_release(
 				struct device *_dev
@@ -2071,6 +2075,7 @@ static void cyasgadget_deinit(
 		#endif
 		return;
 	}
+	usb_del_gadget_udc(&cy_as_dev->gadget);
 
 	if (cy_as_dev->driver) {
 		/* should have been done already by driver model core */
@@ -2131,6 +2136,13 @@ static int cyasgadget_initialize(void)
 
 	/* We are done now */
 	cy_as_gadget_controller = cy_as_dev;
+#if 0
+	pdev is the platform_device or pci_device or whatever is used here
+	retval = usb_add_gadget_udc(&pdev->dev, &cy_as_dev->gadget);
+	if (retval)
+		goto done;
+#endif
+
 	return 0;
 
 /*
