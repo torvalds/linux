@@ -541,6 +541,53 @@ struct _tr_list {
 
 typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
 
+/* IOC Facts and Port Facts converted from little endian to cpu */
+union mpi2_version_union {
+	MPI2_VERSION_STRUCT		Struct;
+	u32				Word;
+};
+
+struct mpt2sas_facts {
+	u16			MsgVersion;
+	u16			HeaderVersion;
+	u8			IOCNumber;
+	u8			VP_ID;
+	u8			VF_ID;
+	u16			IOCExceptions;
+	u16			IOCStatus;
+	u32			IOCLogInfo;
+	u8			MaxChainDepth;
+	u8			WhoInit;
+	u8			NumberOfPorts;
+	u8			MaxMSIxVectors;
+	u16			RequestCredit;
+	u16			ProductID;
+	u32			IOCCapabilities;
+	union mpi2_version_union	FWVersion;
+	u16			IOCRequestFrameSize;
+	u16			Reserved3;
+	u16			MaxInitiators;
+	u16			MaxTargets;
+	u16			MaxSasExpanders;
+	u16			MaxEnclosures;
+	u16			ProtocolFlags;
+	u16			HighPriorityCredit;
+	u16			MaxReplyDescriptorPostQueueDepth;
+	u8			ReplyFrameSize;
+	u8			MaxVolumes;
+	u16			MaxDevHandle;
+	u16			MaxPersistentEntries;
+	u16			MinDevHandle;
+};
+
+struct mpt2sas_port_facts {
+	u8			PortNumber;
+	u8			VP_ID;
+	u8			VF_ID;
+	u8			PortType;
+	u16			MaxPostedCmdBuffers;
+};
+
 /**
  * struct MPT2SAS_ADAPTER - per adapter struct
  * @list: ioc_list
@@ -749,8 +796,8 @@ struct MPT2SAS_ADAPTER {
 	u32		event_masks[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];
 
 	/* static config pages */
-	Mpi2IOCFactsReply_t facts;
-	Mpi2PortFactsReply_t *pfacts;
+	struct mpt2sas_facts facts;
+	struct mpt2sas_port_facts *pfacts;
 	Mpi2ManufacturingPage0_t manu_pg0;
 	Mpi2BiosPage2_t	bios_pg2;
 	Mpi2BiosPage3_t	bios_pg3;
@@ -840,7 +887,7 @@ struct MPT2SAS_ADAPTER {
 
 	/* reply free queue */
 	u16 		reply_free_queue_depth;
-	u32		*reply_free;
+	__le32		*reply_free;
 	dma_addr_t	reply_free_dma;
 	struct dma_pool *reply_free_dma_pool;
 	u32		reply_free_host_index;
