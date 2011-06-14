@@ -2810,7 +2810,7 @@ alloc_err:
 
 }
 
-static int bnx2x_reload_if_running(struct net_device *dev)
+int bnx2x_reload_if_running(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 

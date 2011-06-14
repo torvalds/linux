@@ -1238,7 +1238,6 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 			       struct ethtool_ringparam *ering)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int rc = 0;
 
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		printk(KERN_ERR "Handling parity error recovery. Try again later\n");
@@ -1255,12 +1254,7 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 	bp->rx_ring_size = ering->rx_pending;
 	bp->tx_ring_size = ering->tx_pending;
 
-	if (netif_running(dev)) {
-		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
-		rc = bnx2x_nic_load(bp, LOAD_NORMAL);
-	}
-
-	return rc;
+	return bnx2x_reload_if_running(dev);
 }
 
 static void bnx2x_get_pauseparam(struct net_device *dev,
