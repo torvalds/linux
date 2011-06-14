@@ -2,26 +2,6 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7705) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7720) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7721) || \
-    defined(CONFIG_ARCH_SH73A0) || \
-    defined(CONFIG_ARCH_SH7367) || \
-    defined(CONFIG_ARCH_SH7377) || \
-    defined(CONFIG_ARCH_SH7372)
-# define SCIF_RFDC_MASK 0x007f
-# define SCIF_TXROOM_MAX 64
-#elif defined(CONFIG_CPU_SUBTYPE_SH7763)
-# define SCIF_RFDC_MASK 0x007f
-# define SCIF_TXROOM_MAX 64
-/* SH7763 SCIF2 support */
-# define SCIF2_RFDC_MASK 0x001f
-# define SCIF2_TXROOM_MAX 16
-#else
-# define SCIF_RFDC_MASK 0x001f
-# define SCIF_TXROOM_MAX 16
-#endif
-
 #define SCxSR_TEND(port)	(((port)->type == PORT_SCI) ? SCI_TEND   : SCIF_TEND)
 #define SCxSR_RDxF(port)	(((port)->type == PORT_SCI) ? SCI_RDRF   : SCIF_RDF)
 #define SCxSR_TDxE(port)	(((port)->type == PORT_SCI) ? SCI_TDRE   : SCIF_TDFE)

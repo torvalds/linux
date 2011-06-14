@@ -297,6 +297,8 @@ static struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
 	},
 };
 
+#define sci_getreg(up, offset)		(sci_regmap[to_sci_port(up)->cfg->regtype] + offset)
+
 /*
  * The "offset" here is rather misleading, in that it refers to an enum
  * value relative to the port mapping rather than the fixed offset
@@ -305,8 +307,7 @@ static struct plat_sci_reg sci_regmap[SCIx_NR_REGTYPES][SCIx_NR_REGS] = {
  */
 static unsigned int sci_serial_in(struct uart_port *p, int offset)
 {
-	struct sci_port *s = to_sci_port(p);
-	struct plat_sci_reg *reg = sci_regmap[s->cfg->regtype] + offset;
+	struct plat_sci_reg *reg = sci_getreg(p, offset);
 
 	if (reg->size == 8)
 		return ioread8(p->membase + (reg->offset << p->regshift));
@@ -320,8 +321,7 @@ static unsigned int sci_serial_in(struct uart_port *p, int offset)
 
 static void sci_serial_out(struct uart_port *p, int offset, int value)
 {
-	struct sci_port *s = to_sci_port(p);
-	struct plat_sci_reg *reg = sci_regmap[s->cfg->regtype] + offset;
+	struct plat_sci_reg *reg = sci_getreg(p, offset);
 
 	if (reg->size == 8)
 		iowrite8(value, p->membase + (reg->offset << p->regshift));
@@ -433,108 +433,38 @@ static void sci_init_pins(struct uart_port *port, unsigned int cflag)
 		sci_out(port, SCSPTR, 0x0080); /* Set RTS = 1 */
 }
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7760) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7780) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7785) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7786)
-static int scif_txfill(struct uart_port *port)
-{
-	return sci_in(port, SCTFDR) & 0xff;
-}
-
-static int scif_txroom(struct uart_port *port)
-{
-	return SCIF_TXROOM_MAX - scif_txfill(port);
-}
-
-static int scif_rxfill(struct uart_port *port)
-{
-	return sci_in(port, SCRFDR) & 0xff;
-}
-#elif defined(CONFIG_CPU_SUBTYPE_SH7763)
-static int scif_txfill(struct uart_port *port)
-{
-	if (port->mapbase == 0xffe00000 ||
-	    port->mapbase == 0xffe08000)
-		/* SCIF0/1*/
-		return sci_in(port, SCTFDR) & 0xff;
-	else
-		/* SCIF2 */
-		return sci_in(port, SCFDR) >> 8;
-}
-
-static int scif_txroom(struct uart_port *port)
-{
-	if (port->mapbase == 0xffe00000 ||
-	    port->mapbase == 0xffe08000)
-		/* SCIF0/1*/
-		return SCIF_TXROOM_MAX - scif_txfill(port);
-	else
-		/* SCIF2 */
-		return SCIF2_TXROOM_MAX - scif_txfill(port);
-}
-
-static int scif_rxfill(struct uart_port *port)
-{
-	if ((port->mapbase == 0xffe00000) ||
-	    (port->mapbase == 0xffe08000)) {
-		/* SCIF0/1*/
-		return sci_in(port, SCRFDR) & 0xff;
-	} else {
-		/* SCIF2 */
-		return sci_in(port, SCFDR) & SCIF2_RFDC_MASK;
-	}
-}
-#elif defined(CONFIG_ARCH_SH7372)
-static int scif_txfill(struct uart_port *port)
-{
-	if (port->type == PORT_SCIFA)
-		return sci_in(port, SCFDR) >> 8;
-	else
-		return sci_in(port, SCTFDR);
-}
-
-static int scif_txroom(struct uart_port *port)
-{
-	return port->fifosize - scif_txfill(port);
-}
-
-static int scif_rxfill(struct uart_port *port)
-{
-	if (port->type == PORT_SCIFA)
-		return sci_in(port, SCFDR) & SCIF_RFDC_MASK;
-	else
-		return sci_in(port, SCRFDR);
-}
-#else
-static int scif_txfill(struct uart_port *port)
-{
-	return sci_in(port, SCFDR) >> 8;
-}
-
-static int scif_txroom(struct uart_port *port)
-{
-	return SCIF_TXROOM_MAX - scif_txfill(port);
-}
-
-static int scif_rxfill(struct uart_port *port)
-{
-	return sci_in(port, SCFDR) & SCIF_RFDC_MASK;
-}
-#endif
-
 static int sci_txfill(struct uart_port *port)
 {
+	struct plat_sci_reg *reg;
+
+	reg = sci_getreg(port, SCTFDR);
+	if (reg->size)
+		return sci_in(port, SCTFDR) & 0xff;
+
+	reg = sci_getreg(port, SCFDR);
+	if (reg->size)
+		return sci_in(port, SCFDR) >> 8;
+
 	return !(sci_in(port, SCxSR) & SCI_TDRE);
 }
 
 static int sci_txroom(struct uart_port *port)
 {
-	return !sci_txfill(port);
+	return port->fifosize - sci_txfill(port);
 }
 
 static int sci_rxfill(struct uart_port *port)
 {
+	struct plat_sci_reg *reg;
+
+	reg = sci_getreg(port, SCRFDR);
+	if (reg->size)
+		return sci_in(port, SCRFDR) & 0xff;
+
+	reg = sci_getreg(port, SCFDR);
+	if (reg->size)
+		return sci_in(port, SCFDR) & ((port->fifosize << 1) - 1);
+
 	return (sci_in(port, SCxSR) & SCxSR_RDxF(port)) != 0;
 }
 
@@ -574,10 +504,7 @@ static void sci_transmit_chars(struct uart_port *port)
 		return;
 	}
 
-	if (port->type == PORT_SCI)
-		count = sci_txroom(port);
-	else
-		count = scif_txroom(port);
+	count = sci_txroom(port);
 
 	do {
 		unsigned char c;
@@ -632,13 +559,8 @@ static void sci_receive_chars(struct uart_port *port)
 		return;
 
 	while (1) {
-		if (port->type == PORT_SCI)
-			count = sci_rxfill(port);
-		else
-			count = scif_rxfill(port);
-
 		/* Don't copy more bytes than there is room for in the buffer */
-		count = tty_buffer_request_room(tty, count);
+		count = tty_buffer_request_room(tty, sci_rxfill(port));
 
 		/* If for any reason we can't copy more data, we're done! */
 		if (count == 0)
@@ -1096,7 +1018,7 @@ static void sci_free_irq(struct sci_port *port)
 static unsigned int sci_tx_empty(struct uart_port *port)
 {
 	unsigned short status = sci_in(port, SCxSR);
-	unsigned short in_tx_fifo = scif_txfill(port);
+	unsigned short in_tx_fifo = sci_txfill(port);
 
 	return (status & SCxSR_TEND(port)) && !in_tx_fifo ? TIOCSER_TEMT : 0;
 }
