@@ -29,15 +29,23 @@ struct tlbe{
 	u32 mas7;
 };
 
+#define E500_TLB_VALID 1
+#define E500_TLB_DIRTY 2
+
+struct tlbe_priv {
+	pfn_t pfn;
+	unsigned int flags; /* E500_TLB_* */
+};
+
 struct kvmppc_vcpu_e500 {
 	/* Unmodified copy of the guest's TLB. */
-	struct tlbe *guest_tlb[E500_TLB_NUM];
-	/* TLB that's actually used when the guest is running. */
-	struct tlbe *shadow_tlb[E500_TLB_NUM];
+	struct tlbe *gtlb_arch[E500_TLB_NUM];
 
-	unsigned int guest_tlb_size[E500_TLB_NUM];
-	unsigned int shadow_tlb_size[E500_TLB_NUM];
-	unsigned int guest_tlb_nv[E500_TLB_NUM];
+	/* KVM internal information associated with each guest TLB entry */
+	struct tlbe_priv *gtlb_priv[E500_TLB_NUM];
+
+	unsigned int gtlb_size[E500_TLB_NUM];
+	unsigned int gtlb_nv[E500_TLB_NUM];
 
 	u32 host_pid[E500_PID_NUM];
 	u32 pid[E500_PID_NUM];
