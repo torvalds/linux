@@ -184,7 +184,7 @@ enum {
 };
 
 void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state);
-
+void bnx2x_dcbx_pmf_update(struct bnx2x *bp);
 /* DCB netlink */
 #ifdef BCM_DCBNL
 extern const struct dcbnl_rtnl_ops bnx2x_dcbnl_ops;

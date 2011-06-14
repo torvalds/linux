@@ -2477,6 +2477,8 @@ static void bnx2x_pmf_update(struct bnx2x *bp)
 	bp->port.pmf = 1;
 	DP(NETIF_MSG_LINK, "pmf %d\n", bp->port.pmf);
 
+	bnx2x_dcbx_pmf_update(bp);
+
 	/* enable nig attention */
 	val = (0xff0f | (1 << (BP_E1HVN(bp) + 4)));
 	if (bp->common.int_block == INT_BLOCK_HC) {
