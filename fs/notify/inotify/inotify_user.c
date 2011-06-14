@@ -531,6 +531,7 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark *fsn_mark,
 
 	fsn_event_priv = &event_priv->fsnotify_event_priv_data;
 
+	fsnotify_get_group(group);
 	fsn_event_priv->group = group;
 	event_priv->wd = i_mark->wd;
 

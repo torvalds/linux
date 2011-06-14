@@ -33,9 +33,6 @@
  */
 void fsnotify_final_destroy_group(struct fsnotify_group *group)
 {
-	/* clear the notification queue of all events */
-	fsnotify_flush_notify(group);
-
 	if (group->ops->free_group_priv)
 		group->ops->free_group_priv(group);
 
@@ -43,12 +40,10 @@ void fsnotify_final_destroy_group(struct fsnotify_group *group)
 }
 
 /*
- * Trying to get rid of a group.  We need to first get rid of any outstanding
- * allocations and then free the group.  Remember that fsnotify_clear_marks_by_group
- * could miss marks that are being freed by inode and those marks could still
- * hold a reference to this group (via group->num_marks)  If we get into that
- * situtation, the fsnotify_final_destroy_group will get called when that final
- * mark is freed.
+ * Trying to get rid of a group. Remove all marks, flush all events and release
+ * the group reference.
+ * Note that another thread calling fsnotify_clear_marks_by_group() may still
+ * hold a ref to the group.
  */
 void fsnotify_destroy_group(struct fsnotify_group *group)
 {
@@ -57,9 +52,10 @@ void fsnotify_destroy_group(struct fsnotify_group *group)
 
 	synchronize_srcu(&fsnotify_mark_srcu);
 
-	/* past the point of no return, matches the initial value of 1 */
-	if (atomic_dec_and_test(&group->num_marks))
-		fsnotify_final_destroy_group(group);
+	/* clear the notification queue of all events */
+	fsnotify_flush_notify(group);
+
+	fsnotify_put_group(group);
 }
 
 /*
@@ -76,7 +72,7 @@ void fsnotify_get_group(struct fsnotify_group *group)
 void fsnotify_put_group(struct fsnotify_group *group)
 {
 	if (atomic_dec_and_test(&group->refcnt))
-		fsnotify_destroy_group(group);
+		fsnotify_final_destroy_group(group);
 }
 
 /*
@@ -92,11 +88,7 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 
 	/* set to 0 when there a no external references to this group */
 	atomic_set(&group->refcnt, 1);
-	/*
-	 * hits 0 when there are no external references AND no marks for
-	 * this group
-	 */
-	atomic_set(&group->num_marks, 1);
+	atomic_set(&group->num_marks, 0);
 
 	mutex_init(&group->notification_mutex);
 	INIT_LIST_HEAD(&group->notification_list);

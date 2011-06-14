@@ -109,8 +109,11 @@ void fsnotify_get_mark(struct fsnotify_mark *mark)
 
 void fsnotify_put_mark(struct fsnotify_mark *mark)
 {
-	if (atomic_dec_and_test(&mark->refcnt))
+	if (atomic_dec_and_test(&mark->refcnt)) {
+		if (mark->group)
+			fsnotify_put_group(mark->group);
 		mark->free_mark(mark);
+	}
 }
 
 /*
@@ -125,12 +128,13 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 
 	spin_lock(&mark->lock);
 
+	fsnotify_get_group(mark->group);
 	group = mark->group;
 
 	/* something else already called this function on this mark */
 	if (!(mark->flags & FSNOTIFY_MARK_FLAG_ALIVE)) {
 		spin_unlock(&mark->lock);
-		return;
+		goto put_group;
 	}
 
 	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
@@ -177,19 +181,15 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 
 	if (inode && (mark->flags & FSNOTIFY_MARK_FLAG_OBJECT_PINNED))
 		iput(inode);
-
 	/*
 	 * We don't necessarily have a ref on mark from caller so the above iput
 	 * may have already destroyed it.  Don't touch from now on.
 	 */
 
-	/*
-	 * it's possible that this group tried to destroy itself, but this
-	 * this mark was simultaneously being freed by inode.  If that's the
-	 * case, we finish freeing the group here.
-	 */
-	if (unlikely(atomic_dec_and_test(&group->num_marks)))
-		fsnotify_final_destroy_group(group);
+	atomic_dec(&group->num_marks);
+
+put_group:
+	fsnotify_put_group(group);
 }
 
 void fsnotify_set_mark_mask_locked(struct fsnotify_mark *mark, __u32 mask)
@@ -234,6 +234,7 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 
 	mark->flags |= FSNOTIFY_MARK_FLAG_ALIVE;
 
+	fsnotify_get_group(group);
 	mark->group = group;
 	list_add(&mark->g_list, &group->marks_list);
 	atomic_inc(&group->num_marks);
@@ -265,6 +266,7 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 err:
 	mark->flags &= ~FSNOTIFY_MARK_FLAG_ALIVE;
 	list_del_init(&mark->g_list);
+	fsnotify_put_group(group);
 	mark->group = NULL;
 	atomic_dec(&group->num_marks);
 
@@ -317,6 +319,8 @@ void fsnotify_duplicate_mark(struct fsnotify_mark *new, struct fsnotify_mark *ol
 	assert_spin_locked(&old->lock);
 	new->i.inode = old->i.inode;
 	new->m.mnt = old->m.mnt;
+	if (old->group)
+		fsnotify_get_group(old->group);
 	new->group = old->group;
 	new->mask = old->mask;
 	new->free_mark = old->free_mark;
