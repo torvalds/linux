@@ -227,7 +227,7 @@ int __trace_graph_entry(struct trace_array *tr,
 
 static inline int ftrace_graph_ignore_irqs(void)
 {
-	if (!ftrace_graph_skip_irqs)
+	if (!ftrace_graph_skip_irqs || trace_recursion_test(TRACE_IRQ_BIT))
 		return 0;
 
 	return in_irq();
