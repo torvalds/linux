@@ -169,6 +169,7 @@ struct gsm_control {
 struct gsm_mux {
 	struct tty_struct *tty;		/* The tty our ldisc is bound to */
 	spinlock_t lock;
+	unsigned int num;
 
 	/* Events on the GSM channel */
 	wait_queue_head_t event;
@@ -249,6 +250,8 @@ struct gsm_mux {
 #define MAX_MUX		4			/* 256 minors */
 static struct gsm_mux *gsm_mux[MAX_MUX];	/* GSM muxes */
 static spinlock_t gsm_mux_lock;
+
+static struct tty_driver *gsm_tty_driver;
 
 /*
  *	This section of the driver logic implements the GSM encodings
@@ -1996,6 +1999,7 @@ int gsm_activate_mux(struct gsm_mux *gsm)
 	spin_lock(&gsm_mux_lock);
 	for (i = 0; i < MAX_MUX; i++) {
 		if (gsm_mux[i] == NULL) {
+			gsm->num = i;
 			gsm_mux[i] = gsm;
 			break;
 		}
@@ -2101,13 +2105,20 @@ static int gsmld_output(struct gsm_mux *gsm, u8 *data, int len)
 
 static int gsmld_attach_gsm(struct tty_struct *tty, struct gsm_mux *gsm)
 {
-	int ret;
+	int ret, i;
+	int base = gsm->num << 6; /* Base for this MUX */
 
 	gsm->tty = tty_kref_get(tty);
 	gsm->output = gsmld_output;
 	ret =  gsm_activate_mux(gsm);
 	if (ret != 0)
 		tty_kref_put(gsm->tty);
+	else {
+		/* Don't register device 0 - this is the control channel and not
+		   a usable tty interface */
+		for (i = 1; i < NUM_DLCI; i++)
+			tty_register_device(gsm_tty_driver, base + i, NULL);
+	}
 	return ret;
 }
 
@@ -2122,7 +2133,12 @@ static int gsmld_attach_gsm(struct tty_struct *tty, struct gsm_mux *gsm)
 
 static void gsmld_detach_gsm(struct tty_struct *tty, struct gsm_mux *gsm)
 {
+	int i;
+	int base = gsm->num << 6; /* Base for this MUX */
+
 	WARN_ON(tty != gsm->tty);
+	for (i = 1; i < NUM_DLCI; i++)
+		tty_unregister_device(gsm_tty_driver, base + i);
 	gsm_cleanup_mux(gsm);
 	tty_kref_put(gsm->tty);
 	gsm->tty = NULL;
@@ -2712,7 +2728,6 @@ static int gsmtty_break_ctl(struct tty_struct *tty, int state)
 	return gsmtty_modem_update(dlci, encode);
 }
 
-static struct tty_driver *gsm_tty_driver;
 
 /* Virtual ttys for the demux */
 static const struct tty_operations gsmtty_ops = {
