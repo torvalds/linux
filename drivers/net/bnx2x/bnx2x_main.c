@@ -8586,7 +8586,10 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 				return;
 			}
 			break;
+		case PORT_FEATURE_LINK_SPEED_20G:
+			bp->link_params.req_line_speed[idx] = SPEED_20000;
 
+			break;
 		default:
 			BNX2X_ERR("NVRAM config error. "
 				  "BAD link speed link_config 0x%x\n",

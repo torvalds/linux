@@ -33,12 +33,13 @@
 #define BNX2X_FLOW_CTRL_BOTH		PORT_FEATURE_FLOW_CONTROL_BOTH
 #define BNX2X_FLOW_CTRL_NONE		PORT_FEATURE_FLOW_CONTROL_NONE
 
+#define NET_SERDES_IF_XFI		1
+#define NET_SERDES_IF_SFI		2
+#define NET_SERDES_IF_KR		3
+#define NET_SERDES_IF_DXGXS	4
+
 #define SPEED_AUTO_NEG		0
-#define SPEED_12000		12000
-#define SPEED_12500		12500
-#define SPEED_13000		13000
-#define SPEED_15000		15000
-#define SPEED_16000		16000
+#define SPEED_20000		20000
 
 #define SFP_EEPROM_VENDOR_NAME_ADDR		0x14
 #define SFP_EEPROM_VENDOR_NAME_SIZE		16
@@ -46,6 +47,12 @@
 #define SFP_EEPROM_VENDOR_OUI_SIZE		3
 #define SFP_EEPROM_PART_NO_ADDR			0x28
 #define SFP_EEPROM_PART_NO_SIZE			16
+#define SFP_EEPROM_REVISION_ADDR		0x38
+#define SFP_EEPROM_REVISION_SIZE		4
+#define SFP_EEPROM_SERIAL_ADDR			0x44
+#define SFP_EEPROM_SERIAL_SIZE			16
+#define SFP_EEPROM_DATE_ADDR			0x54 /* ASCII YYMMDD */
+#define SFP_EEPROM_DATE_SIZE			6
 #define PWR_FLT_ERR_MSG_LEN			250
 
 #define XGXS_EXT_PHY_TYPE(ext_phy_config) \
@@ -62,7 +69,18 @@
 #define SINGLE_MEDIA(params)		(params->num_phys == 2)
 /* Dual Media board contains two external phy with different media */
 #define DUAL_MEDIA(params)		(params->num_phys == 3)
+
+#define FW_PARAM_PHY_ADDR_MASK		0x000000FF
+#define FW_PARAM_PHY_TYPE_MASK		0x0000FF00
+#define FW_PARAM_MDIO_CTRL_MASK		0xFFFF0000
 #define FW_PARAM_MDIO_CTRL_OFFSET		16
+#define FW_PARAM_PHY_ADDR(fw_param) (fw_param & \
+					   FW_PARAM_PHY_ADDR_MASK)
+#define FW_PARAM_PHY_TYPE(fw_param) (fw_param & \
+					   FW_PARAM_PHY_TYPE_MASK)
+#define FW_PARAM_MDIO_CTRL(fw_param) ((fw_param & \
+					    FW_PARAM_MDIO_CTRL_MASK) >> \
+					    FW_PARAM_MDIO_CTRL_OFFSET)
 #define FW_PARAM_SET(phy_addr, phy_type, mdio_access) \
 	(phy_addr | phy_type | mdio_access << FW_PARAM_MDIO_CTRL_OFFSET)
 
@@ -121,9 +139,12 @@ struct bnx2x_phy {
 #define FLAGS_FAN_FAILURE_DET_REQ	(1<<2)
 	/* Initialize first the XGXS and only then the phy itself */
 #define FLAGS_INIT_XGXS_FIRST		(1<<3)
+#define FLAGS_WC_DUAL_MODE		(1<<4)
 #define FLAGS_4_PORT_MODE		(1<<5)
 #define FLAGS_REARM_LATCH_SIGNAL	(1<<6)
 #define FLAGS_SFP_NOT_APPROVED		(1<<7)
+#define FLAGS_MDC_MDIO_WA		(1<<8)
+#define FLAGS_DUMMY_READ		(1<<9)
 
 	/* preemphasis values for the rx side */
 	u16 rx_preemphasis[4];
@@ -142,8 +163,8 @@ struct bnx2x_phy {
 #define	ETH_PHY_XFP_FIBER   0x2
 #define	ETH_PHY_DA_TWINAX   0x3
 #define	ETH_PHY_BASE_T      0x4
-#define	ETH_PHY_KR	    0xf0
-#define	ETH_PHY_CX4	    0xf1
+#define	ETH_PHY_KR          0xf0
+#define	ETH_PHY_CX4         0xf1
 #define	ETH_PHY_NOT_PRESENT 0xff
 
 	/* The address in which version is located*/
@@ -248,6 +269,8 @@ struct link_params {
 /* Output parameters */
 struct link_vars {
 	u8 phy_flags;
+#define PHY_XGXS_FLAG			(1<<0)
+#define PHY_SGMII_FLAG			(1<<1)
 
 	u8 mac_type;
 #define MAC_TYPE_NONE		0
@@ -414,4 +437,7 @@ void bnx2x_pfc_statistic(struct link_params *params, struct link_vars *vars,
 void bnx2x_init_mod_abs_int(struct bnx2x *bp, struct link_vars *vars,
 			    u32 chip_id, u32 shmem_base, u32 shmem2_base,
 			    u8 port);
+
+int bnx2x_sfp_module_detection(struct bnx2x_phy *phy,
+			       struct link_params *params);
 #endif /* BNX2X_LINK_H */

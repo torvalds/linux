@@ -981,6 +981,13 @@
 #define IGU_REG_WRITE_DONE_PENDING				 0x130480
 #define MCP_A_REG_MCPR_SCRATCH					 0x3a0000
 #define MCP_REG_MCPR_CPU_PROGRAM_COUNTER			 0x8501c
+#define MCP_REG_MCPR_GP_INPUTS					 0x800c0
+#define MCP_REG_MCPR_GP_OENABLE					 0x800c8
+#define MCP_REG_MCPR_GP_OUTPUTS					 0x800c4
+#define MCP_REG_MCPR_IMC_COMMAND				 0x85900
+#define MCP_REG_MCPR_IMC_DATAREG0				 0x85920
+#define MCP_REG_MCPR_IMC_SLAVE_CONTROL				 0x85904
+#define MCP_REG_MCPR_CPU_PROGRAM_COUNTER			 0x8501c
 #define MCP_REG_MCPR_NVM_ACCESS_ENABLE				 0x86424
 #define MCP_REG_MCPR_NVM_ADDR					 0x8640c
 #define MCP_REG_MCPR_NVM_CFG4					 0x8642c
@@ -1477,11 +1484,37 @@
 /* [RW 1] e1hmf for WOL. If clr WOL signal o the PXP will be send on bit 0
    only. */
 #define MISC_REG_E1HMF_MODE					 0xa5f8
+/* [R 1] Status of four port mode path swap input pin. */
+#define MISC_REG_FOUR_PORT_PATH_SWAP				 0xa75c
+/* [RW 2] 4 port path swap overwrite.[0] - Overwrite control; if it is 0 -
+   the path_swap output is equal to 4 port mode path swap input pin; if it
+   is 1 - the path_swap output is equal to bit[1] of this register; [1] -
+   Overwrite value. If bit[0] of this register is 1 this is the value that
+   receives the path_swap output. Reset on Hard reset. */
+#define MISC_REG_FOUR_PORT_PATH_SWAP_OVWR			 0xa738
+/* [R 1] Status of 4 port mode port swap input pin. */
+#define MISC_REG_FOUR_PORT_PORT_SWAP				 0xa754
+/* [RW 2] 4 port port swap overwrite.[0] - Overwrite control; if it is 0 -
+   the port_swap output is equal to 4 port mode port swap input pin; if it
+   is 1 - the port_swap output is equal to bit[1] of this register; [1] -
+   Overwrite value. If bit[0] of this register is 1 this is the value that
+   receives the port_swap output. Reset on Hard reset. */
+#define MISC_REG_FOUR_PORT_PORT_SWAP_OVWR			 0xa734
 /* [RW 32] Debug only: spare RW register reset by core reset */
 #define MISC_REG_GENERIC_CR_0					 0xa460
 #define MISC_REG_GENERIC_CR_1					 0xa464
 /* [RW 32] Debug only: spare RW register reset by por reset */
 #define MISC_REG_GENERIC_POR_1					 0xa474
+/* [RW 32] Bit[0]: EPIO MODE SEL: Setting this bit to 1 will allow SW/FW to
+   use all of the 32 Extended GPIO pins. Without setting this bit; an EPIO
+   can not be configured as an output. Each output has its output enable in
+   the MCP register space; but this bit needs to be set to make use of that.
+   Bit[3:1] spare. Bit[4]: WCVTMON_PWRDN: Powerdown for Warpcore VTMON. When
+   set to 1 - Powerdown. Bit[5]: WCVTMON_RESETB: Reset for Warpcore VTMON.
+   When set to 0 - vTMON is in reset. Bit[6]: setting this bit will change
+   the i/o to an output and will drive the TimeSync output. Bit[31:7]:
+   spare. Global register. Reset by hard reset. */
+#define MISC_REG_GEN_PURP_HWG					 0xa9a0
 /* [RW 32] GPIO. [31-28] FLOAT port 0; [27-24] FLOAT port 0; When any of
    these bits is written as a '1'; the corresponding SPIO bit will turn off
    it's drivers and become an input. This is the reset state of all GPIO
@@ -1684,6 +1717,14 @@
    in this register. address 0 - timer 1; address 1 - timer 2, ...  address 7 -
    timer 8 */
 #define MISC_REG_SW_TIMER_VAL					 0xa5c0
+/* [R 1] Status of two port mode path swap input pin. */
+#define MISC_REG_TWO_PORT_PATH_SWAP				 0xa758
+/* [RW 2] 2 port swap overwrite.[0] - Overwrite control; if it is 0 - the
+   path_swap output is equal to 2 port mode path swap input pin; if it is 1
+   - the path_swap output is equal to bit[1] of this register; [1] -
+   Overwrite value. If bit[0] of this register is 1 this is the value that
+   receives the path_swap output. Reset on Hard reset. */
+#define MISC_REG_TWO_PORT_PATH_SWAP_OVWR			 0xa72c
 /* [RW 1] Set by the MCP to remember if one or more of the drivers is/are
    loaded; 0-prepare; -unprepare */
 #define MISC_REG_UNPREPARED					 0xa424
@@ -1955,6 +1996,10 @@
 /* [RC 32] Parity register #0 read clear */
 #define NIG_REG_NIG_PRTY_STS_CLR_0				 0x183c0
 #define NIG_REG_NIG_PRTY_STS_CLR_1				 0x183d0
+#define MCPR_IMC_COMMAND_ENABLE					 (1L<<31)
+#define MCPR_IMC_COMMAND_IMC_STATUS_BITSHIFT			 16
+#define MCPR_IMC_COMMAND_OPERATION_BITSHIFT			 28
+#define MCPR_IMC_COMMAND_TRANSFER_ADDRESS_BITSHIFT		 8
 /* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
  * Ethernet header. */
 #define NIG_REG_P0_HDRS_AFTER_BASIC				 0x18038
@@ -6232,6 +6277,10 @@
 #define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_16G		0x0C00
 #define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_1G_KX	0x0D00
 #define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_KX4	0x0E00
+#define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_KR	0x0F00
+#define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_XFI	0x1B00
+#define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_20G_DXGXS	0x1E00
+#define MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_SFI	0x1F00
 
 
 #define MDIO_REG_BANK_10G_PARALLEL_DETECT		0x8130
@@ -6573,6 +6622,120 @@ Theotherbitsarereservedandshouldbezero*/
 #define PHY84833_CMD_NOT_OPEN_FOR_CMDS			0x0040
 #define PHY84833_CMD_CLEAR_COMPLETE			0x0080
 #define PHY84833_CMD_OPEN_OVERRIDE			0xa5a5
+
+/* Warpcore clause 45 addressing */
+#define MDIO_WC_DEVAD					0x3
+#define MDIO_WC_REG_IEEE0BLK_MIICNTL			0x0
+#define MDIO_WC_REG_IEEE0BLK_AUTONEGNP			0x7
+#define MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT0	0x10
+#define MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT1	0x11
+#define MDIO_WC_REG_PMD_IEEE9BLK_TENGBASE_KR_PMD_CONTROL_REGISTER_150  0x96
+#define MDIO_WC_REG_XGXSBLK0_XGXSCONTROL		0x8000
+#define MDIO_WC_REG_XGXSBLK0_MISCCONTROL1		0x800e
+#define MDIO_WC_REG_XGXSBLK1_DESKEW			0x8010
+#define MDIO_WC_REG_XGXSBLK1_LANECTRL0			0x8015
+#define MDIO_WC_REG_XGXSBLK1_LANECTRL1			0x8016
+#define MDIO_WC_REG_XGXSBLK1_LANECTRL2			0x8017
+#define MDIO_WC_REG_TX0_ANA_CTRL0			0x8061
+#define MDIO_WC_REG_TX1_ANA_CTRL0			0x8071
+#define MDIO_WC_REG_TX2_ANA_CTRL0			0x8081
+#define MDIO_WC_REG_TX3_ANA_CTRL0			0x8091
+#define MDIO_WC_REG_TX0_TX_DRIVER			0x8067
+#define MDIO_WC_REG_TX0_TX_DRIVER_IPRE_DRIVER_OFFSET		0x04
+#define MDIO_WC_REG_TX0_TX_DRIVER_IPRE_DRIVER_MASK			0x00f0
+#define MDIO_WC_REG_TX0_TX_DRIVER_IDRIVER_OFFSET		0x08
+#define MDIO_WC_REG_TX0_TX_DRIVER_IDRIVER_MASK				0x0f00
+#define MDIO_WC_REG_TX0_TX_DRIVER_POST2_COEFF_OFFSET		0x0c
+#define MDIO_WC_REG_TX0_TX_DRIVER_POST2_COEFF_MASK			0x7000
+#define MDIO_WC_REG_TX1_TX_DRIVER			0x8077
+#define MDIO_WC_REG_TX2_TX_DRIVER			0x8087
+#define MDIO_WC_REG_TX3_TX_DRIVER			0x8097
+#define MDIO_WC_REG_RX0_ANARXCONTROL1G			0x80b9
+#define MDIO_WC_REG_RX2_ANARXCONTROL1G			0x80d9
+#define MDIO_WC_REG_RX0_PCI_CTRL			0x80ba
+#define MDIO_WC_REG_RX1_PCI_CTRL			0x80ca
+#define MDIO_WC_REG_RX2_PCI_CTRL			0x80da
+#define MDIO_WC_REG_RX3_PCI_CTRL			0x80ea
+#define MDIO_WC_REG_XGXSBLK2_UNICORE_MODE_10G		0x8104
+#define MDIO_WC_REG_XGXS_STATUS3			0x8129
+#define MDIO_WC_REG_PAR_DET_10G_STATUS			0x8130
+#define MDIO_WC_REG_PAR_DET_10G_CTRL			0x8131
+#define MDIO_WC_REG_XGXS_X2_CONTROL2			0x8141
+#define MDIO_WC_REG_XGXS_RX_LN_SWAP1			0x816B
+#define MDIO_WC_REG_XGXS_TX_LN_SWAP1			0x8169
+#define MDIO_WC_REG_GP2_STATUS_GP_2_0			0x81d0
+#define MDIO_WC_REG_GP2_STATUS_GP_2_1			0x81d1
+#define MDIO_WC_REG_GP2_STATUS_GP_2_2			0x81d2
+#define MDIO_WC_REG_GP2_STATUS_GP_2_3			0x81d3
+#define MDIO_WC_REG_GP2_STATUS_GP_2_4			0x81d4
+#define MDIO_WC_REG_UC_INFO_B0_DEAD_TRAP		0x81EE
+#define MDIO_WC_REG_UC_INFO_B1_VERSION			0x81F0
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE		0x81F2
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_LANE0_OFFSET	0x0
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_DEFAULT	    0x0
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_SFP_OPT_LR	    0x1
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_SFP_DAC	    0x2
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_SFP_XLAUI	    0x3
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_MODE_LONG_CH_6G	    0x4
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_LANE1_OFFSET	0x4
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_LANE2_OFFSET	0x8
+#define MDIO_WC_REG_UC_INFO_B1_FIRMWARE_LANE3_OFFSET	0xc
+#define MDIO_WC_REG_UC_INFO_B1_CRC			0x81FE
+#define MDIO_WC_REG_DSC_SMC				0x8213
+#define MDIO_WC_REG_DSC2B0_DSC_MISC_CTRL0		0x821e
+#define MDIO_WC_REG_TX_FIR_TAP				0x82e2
+#define MDIO_WC_REG_TX_FIR_TAP_PRE_TAP_OFFSET		0x00
+#define MDIO_WC_REG_TX_FIR_TAP_PRE_TAP_MASK			0x000f
+#define MDIO_WC_REG_TX_FIR_TAP_MAIN_TAP_OFFSET		0x04
+#define MDIO_WC_REG_TX_FIR_TAP_MAIN_TAP_MASK		0x03f0
+#define MDIO_WC_REG_TX_FIR_TAP_POST_TAP_OFFSET		0x0a
+#define MDIO_WC_REG_TX_FIR_TAP_POST_TAP_MASK		0x7c00
+#define MDIO_WC_REG_TX_FIR_TAP_ENABLE		0x8000
+#define MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL	0x82e3
+#define MDIO_WC_REG_CL72_USERB0_CL72_OS_DEF_CTRL	0x82e6
+#define MDIO_WC_REG_CL72_USERB0_CL72_BR_DEF_CTRL	0x82e7
+#define MDIO_WC_REG_CL72_USERB0_CL72_2P5_DEF_CTRL	0x82e8
+#define MDIO_WC_REG_CL72_USERB0_CL72_MISC4_CONTROL	0x82ec
+#define MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X1		0x8300
+#define MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X2		0x8301
+#define MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X3		0x8302
+#define MDIO_WC_REG_SERDESDIGITAL_STATUS1000X1		0x8304
+#define MDIO_WC_REG_SERDESDIGITAL_MISC1			0x8308
+#define MDIO_WC_REG_SERDESDIGITAL_MISC2			0x8309
+#define MDIO_WC_REG_DIGITAL3_UP1			0x8329
+#define MDIO_WC_REG_DIGITAL4_MISC3			0x833c
+#define MDIO_WC_REG_DIGITAL5_MISC6			0x8345
+#define MDIO_WC_REG_DIGITAL5_MISC7			0x8349
+#define MDIO_WC_REG_DIGITAL5_ACTUAL_SPEED		0x834e
+#define MDIO_WC_REG_CL49_USERB0_CTRL			0x8368
+#define MDIO_WC_REG_TX66_CONTROL			0x83b0
+#define MDIO_WC_REG_RX66_CONTROL			0x83c0
+#define MDIO_WC_REG_RX66_SCW0				0x83c2
+#define MDIO_WC_REG_RX66_SCW1				0x83c3
+#define MDIO_WC_REG_RX66_SCW2				0x83c4
+#define MDIO_WC_REG_RX66_SCW3				0x83c5
+#define MDIO_WC_REG_RX66_SCW0_MASK			0x83c6
+#define MDIO_WC_REG_RX66_SCW1_MASK			0x83c7
+#define MDIO_WC_REG_RX66_SCW2_MASK			0x83c8
+#define MDIO_WC_REG_RX66_SCW3_MASK			0x83c9
+#define MDIO_WC_REG_FX100_CTRL1				0x8400
+#define MDIO_WC_REG_FX100_CTRL3				0x8402
+
+#define MDIO_WC_REG_MICROBLK_CMD			0xffc2
+#define MDIO_WC_REG_MICROBLK_DL_STATUS			0xffc5
+#define MDIO_WC_REG_MICROBLK_CMD3			0xffcc
+
+#define MDIO_WC_REG_AERBLK_AER				0xffde
+#define MDIO_WC_REG_COMBO_IEEE0_MIICTRL			0xffe0
+#define MDIO_WC_REG_COMBO_IEEE0_MIIISTAT		0xffe1
+
+#define MDIO_WC0_XGXS_BLK2_LANE_RESET			0x810A
+#define MDIO_WC0_XGXS_BLK2_LANE_RESET_RX_BITSHIFT	0
+#define MDIO_WC0_XGXS_BLK2_LANE_RESET_TX_BITSHIFT	4
+
+#define MDIO_WC0_XGXS_BLK6_XGXS_X2_CONTROL2		0x8141
+
+#define DIGITAL5_ACTUAL_SPEED_TX_MASK			0x003f
 
 #define IGU_FUNC_BASE			0x0400
 
