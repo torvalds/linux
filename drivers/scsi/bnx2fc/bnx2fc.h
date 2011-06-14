@@ -62,7 +62,7 @@
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
-#define BNX2FC_VERSION		"1.0.1"
+#define BNX2FC_VERSION		"1.0.3"
 
 #define PFX			"bnx2fc: "
 
@@ -262,9 +262,14 @@ struct bnx2fc_rport {
 #define BNX2FC_FLAG_UPLD_REQ_COMPL	0x8
 #define BNX2FC_FLAG_EXPL_LOGO		0x9
 
+	u8 src_addr[ETH_ALEN];
 	u32 max_sqes;
 	u32 max_rqes;
 	u32 max_cqes;
+	atomic_t free_sqes;
+
+	struct b577xx_doorbell_set_prod sq_db;
+	struct b577xx_fcoe_rx_doorbell rx_db;
 
 	struct fcoe_sqe *sq;
 	dma_addr_t sq_dma;
@@ -274,7 +279,7 @@ struct bnx2fc_rport {
 
 	struct fcoe_cqe *cq;
 	dma_addr_t cq_dma;
-	u32 cq_cons_idx;
+	u16 cq_cons_idx;
 	u8 cq_curr_toggle_bit;
 	u32 cq_mem_size;
 
@@ -505,6 +510,7 @@ struct fc_seq *bnx2fc_elsct_send(struct fc_lport *lport, u32 did,
 						   struct fc_frame *,
 						   void *),
 				      void *arg, u32 timeout);
+void bnx2fc_arm_cq(struct bnx2fc_rport *tgt);
 int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt);
 void bnx2fc_process_cq_compl(struct bnx2fc_rport *tgt, u16 wqe);
 struct bnx2fc_rport *bnx2fc_tgt_lookup(struct fcoe_port *port,

@@ -25,6 +25,8 @@
 #include <linux/mutex.h>
 
 #include "bnx2x.h"
+#include "bnx2x_cmn.h"
+
 
 /********************************************************/
 #define ETH_HLEN			14
@@ -874,6 +876,54 @@ static void bnx2x_update_pfc_brb(struct link_params *params,
 	}
 }
 
+/******************************************************************************
+* Description:
+*  This function is needed because NIG ARB_CREDIT_WEIGHT_X are
+*  not continues and ARB_CREDIT_WEIGHT_0 + offset is suitable.
+******************************************************************************/
+int bnx2x_pfc_nig_rx_priority_mask(struct bnx2x *bp,
+					      u8 cos_entry,
+					      u32 priority_mask, u8 port)
+{
+	u32 nig_reg_rx_priority_mask_add = 0;
+
+	switch (cos_entry) {
+	case 0:
+	     nig_reg_rx_priority_mask_add = (port) ?
+		 NIG_REG_P1_RX_COS0_PRIORITY_MASK :
+		 NIG_REG_P0_RX_COS0_PRIORITY_MASK;
+	     break;
+	case 1:
+	    nig_reg_rx_priority_mask_add = (port) ?
+		NIG_REG_P1_RX_COS1_PRIORITY_MASK :
+		NIG_REG_P0_RX_COS1_PRIORITY_MASK;
+	    break;
+	case 2:
+	    nig_reg_rx_priority_mask_add = (port) ?
+		NIG_REG_P1_RX_COS2_PRIORITY_MASK :
+		NIG_REG_P0_RX_COS2_PRIORITY_MASK;
+	    break;
+	case 3:
+	    if (port)
+		return -EINVAL;
+	    nig_reg_rx_priority_mask_add = NIG_REG_P0_RX_COS3_PRIORITY_MASK;
+	    break;
+	case 4:
+	    if (port)
+		return -EINVAL;
+	    nig_reg_rx_priority_mask_add = NIG_REG_P0_RX_COS4_PRIORITY_MASK;
+	    break;
+	case 5:
+	    if (port)
+		return -EINVAL;
+	    nig_reg_rx_priority_mask_add = NIG_REG_P0_RX_COS5_PRIORITY_MASK;
+	    break;
+	}
+
+	REG_WR(bp, nig_reg_rx_priority_mask_add, priority_mask);
+
+	return 0;
+}
 static void bnx2x_update_pfc_nig(struct link_params *params,
 		struct link_vars *vars,
 		struct bnx2x_nig_brb_pfc_port_params *nig_params)
@@ -958,15 +1008,12 @@ static void bnx2x_update_pfc_nig(struct link_params *params,
 	REG_WR(bp, NIG_REG_EGRESS_EMAC0_PORT, val);
 
 	if (nig_params) {
+		u8 i = 0;
 		pkt_priority_to_cos = nig_params->pkt_priority_to_cos;
 
-		REG_WR(bp, port ? NIG_REG_P1_RX_COS0_PRIORITY_MASK :
-		       NIG_REG_P0_RX_COS0_PRIORITY_MASK,
-		       nig_params->rx_cos0_priority_mask);
-
-		REG_WR(bp, port ? NIG_REG_P1_RX_COS1_PRIORITY_MASK :
-		       NIG_REG_P0_RX_COS1_PRIORITY_MASK,
-		       nig_params->rx_cos1_priority_mask);
+		for (i = 0; i < nig_params->num_of_rx_cos_priority_mask; i++)
+			bnx2x_pfc_nig_rx_priority_mask(bp, i,
+		nig_params->rx_cos_priority_mask[i], port);
 
 		REG_WR(bp, port ? NIG_REG_LLFC_HIGH_PRIORITY_CLASSES_1 :
 		       NIG_REG_LLFC_HIGH_PRIORITY_CLASSES_0,
@@ -1824,26 +1871,6 @@ void bnx2x_link_status_update(struct link_params *params,
 				vars->line_speed = SPEED_10000;
 				break;
 
-			case LINK_12GTFD:
-				vars->line_speed = SPEED_12000;
-				break;
-
-			case LINK_12_5GTFD:
-				vars->line_speed = SPEED_12500;
-				break;
-
-			case LINK_13GTFD:
-				vars->line_speed = SPEED_13000;
-				break;
-
-			case LINK_15GTFD:
-				vars->line_speed = SPEED_15000;
-				break;
-
-			case LINK_16GTFD:
-				vars->line_speed = SPEED_16000;
-				break;
-
 			default:
 				break;
 		}
@@ -2665,31 +2692,6 @@ static int bnx2x_link_settings_status(struct bnx2x_phy *phy,
 		case GP_STATUS_10G_CX4:
 			new_line_speed = SPEED_10000;
 			vars->link_status |= LINK_10GTFD;
-			break;
-
-		case GP_STATUS_12G_HIG:
-			new_line_speed = SPEED_12000;
-			vars->link_status |= LINK_12GTFD;
-			break;
-
-		case GP_STATUS_12_5G:
-			new_line_speed = SPEED_12500;
-			vars->link_status |= LINK_12_5GTFD;
-			break;
-
-		case GP_STATUS_13G:
-			new_line_speed = SPEED_13000;
-			vars->link_status |= LINK_13GTFD;
-			break;
-
-		case GP_STATUS_15G:
-			new_line_speed = SPEED_15000;
-			vars->link_status |= LINK_15GTFD;
-			break;
-
-		case GP_STATUS_16G:
-			new_line_speed = SPEED_16000;
-			vars->link_status |= LINK_16GTFD;
 			break;
 
 		default:

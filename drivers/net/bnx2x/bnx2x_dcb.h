@@ -179,9 +179,6 @@ void bnx2x_dcbx_set_state(struct bnx2x *bp, bool dcb_on, u32 dcbx_enabled);
 
 enum {
 	BNX2X_DCBX_STATE_NEG_RECEIVED = 0x1,
-#ifdef BCM_CNIC
-	BNX2X_DCBX_STATE_ISCSI_STOPPED,
-#endif
 	BNX2X_DCBX_STATE_TX_PAUSED,
 	BNX2X_DCBX_STATE_TX_RELEASED
 };

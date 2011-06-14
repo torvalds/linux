@@ -81,6 +81,7 @@
 #define PFC_BRB_FULL_LB_XOFF_THRESHOLD				170
 #define PFC_BRB_FULL_LB_XON_THRESHOLD				250
 
+#define MAXVAL(a, b) (((a) > (b)) ? (a) : (b))
 /***********************************************************/
 /*                         Structs                         */
 /***********************************************************/
@@ -262,6 +263,8 @@ struct link_vars {
 #define MAC_TYPE_NONE		0
 #define MAC_TYPE_EMAC		1
 #define MAC_TYPE_BMAC		2
+#define MAC_TYPE_UMAC		3
+#define MAC_TYPE_XMAC		4
 
 	u8 phy_link_up; /* internal phy link indication */
 	u8 link_up;
@@ -363,6 +366,20 @@ int bnx2x_phy_probe(struct link_params *params);
 u8 bnx2x_fan_failure_det_req(struct bnx2x *bp, u32 shmem_base,
 			     u32 shmem2_base, u8 port);
 
+/* DCBX structs */
+
+/* Number of maximum COS per chip */
+#define DCBX_E2E3_MAX_NUM_COS		(2)
+#define DCBX_E3B0_MAX_NUM_COS_PORT0	(6)
+#define DCBX_E3B0_MAX_NUM_COS_PORT1	(3)
+#define DCBX_E3B0_MAX_NUM_COS		( \
+			MAXVAL(DCBX_E3B0_MAX_NUM_COS_PORT0, \
+			    DCBX_E3B0_MAX_NUM_COS_PORT1))
+
+#define DCBX_MAX_NUM_COS			( \
+			MAXVAL(DCBX_E3B0_MAX_NUM_COS, \
+			    DCBX_E2E3_MAX_NUM_COS))
+
 /* PFC port configuration params */
 struct bnx2x_nig_brb_pfc_port_params {
 	/* NIG */
@@ -370,8 +387,8 @@ struct bnx2x_nig_brb_pfc_port_params {
 	u32 llfc_out_en;
 	u32 llfc_enable;
 	u32 pkt_priority_to_cos;
-	u32 rx_cos0_priority_mask;
-	u32 rx_cos1_priority_mask;
+	u8 num_of_rx_cos_priority_mask;
+	u32 rx_cos_priority_mask[DCBX_MAX_NUM_COS];
 	u32 llfc_high_priority_classes;
 	u32 llfc_low_priority_classes;
 	/* BRB */

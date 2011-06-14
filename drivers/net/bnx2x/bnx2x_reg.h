@@ -422,6 +422,7 @@
 #define CFC_REG_NUM_LCIDS_ALLOC 				 0x104020
 /* [R 9] Number of Arriving LCIDs in Link List Block */
 #define CFC_REG_NUM_LCIDS_ARRIVING				 0x104004
+#define CFC_REG_NUM_LCIDS_INSIDE_PF				 0x104120
 /* [R 9] Number of Leaving LCIDs in Link List Block */
 #define CFC_REG_NUM_LCIDS_LEAVING				 0x104018
 #define CFC_REG_WEAK_ENABLE_PF					 0x104124
@@ -783,6 +784,7 @@
 /* [RW 3] The number of simultaneous outstanding requests to Context Fetch
    Interface. */
 #define DORQ_REG_OUTST_REQ					 0x17003c
+#define DORQ_REG_PF_USAGE_CNT					 0x1701d0
 #define DORQ_REG_REGN						 0x170038
 /* [R 4] Current value of response A counter credit. Initial credit is
    configured through write to ~dorq_registers_rsp_init_crd.rsp_init_crd
@@ -1645,6 +1647,17 @@
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_NO_VLAN	 (0x1<<4)
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_UNCST	 (0x1<<2)
 #define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_VLAN	 (0x1<<3)
+/* [RW 5] MDIO PHY Address. The WC uses this address to determine whether or
+ * not it is the recipient of the message on the MDIO interface. The value
+ * is compared to the value on ctrl_md_devad. Drives output
+ * misc_xgxs0_phy_addr. Global register. */
+#define MISC_REG_WC0_CTRL_PHY_ADDR				 0xa9cc
+/* [RW 32] 1 [47] Packet Size = 64 Write to this register write bits 31:0.
+ * Reads from this register will clear bits 31:0. */
+#define MSTAT_REG_RX_STAT_GR64_LO				 0x200
+/* [RW 32] 1 [00] Tx Good Packet Count Write to this register write bits
+ * 31:0. Reads from this register will clear bits 31:0. */
+#define MSTAT_REG_TX_STAT_GTXPOK_LO				 0
 #define NIG_LLH0_XCM_MASK_REG_LLH0_XCM_MASK_BCN			 (0x1<<0)
 #define NIG_LLH1_XCM_MASK_REG_LLH1_XCM_MASK_BCN			 (0x1<<0)
 #define NIG_MASK_INTERRUPT_PORT0_REG_MASK_EMAC0_MISC_MI_INT	 (0x1<<0)
@@ -1838,6 +1851,10 @@
 #define NIG_REG_LLH1_FUNC_MEM					 0x161c0
 #define NIG_REG_LLH1_FUNC_MEM_ENABLE				 0x16160
 #define NIG_REG_LLH1_FUNC_MEM_SIZE				 16
+/* [RW 1] When this bit is set; the LLH will classify the packet before
+ * sending it to the BRB or calculating WoL on it. This bit controls port 1
+ * only. The legacy llh_multi_function_mode bit controls port 0. */
+#define NIG_REG_LLH1_MF_MODE					 0x18614
 /* [RW 8] init credit counter for port1 in LLH */
 #define NIG_REG_LLH1_XCM_INIT_CREDIT				 0x10564
 #define NIG_REG_LLH1_XCM_MASK					 0x10134
@@ -1889,6 +1906,26 @@
  * than one bit may be set; allowing multiple priorities to be mapped to one
  * COS. */
 #define NIG_REG_P0_RX_COS1_PRIORITY_MASK			 0x1805c
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 2. A
+ * priority is mapped to COS 2 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P0_RX_COS2_PRIORITY_MASK			 0x186b0
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 3. A
+ * priority is mapped to COS 3 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P0_RX_COS3_PRIORITY_MASK			 0x186b4
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 4. A
+ * priority is mapped to COS 4 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P0_RX_COS4_PRIORITY_MASK			 0x186b8
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 5. A
+ * priority is mapped to COS 5 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P0_RX_COS5_PRIORITY_MASK			 0x186bc
 /* [RW 15] Specify which of the credit registers the client is to be mapped
  * to. Bits[2:0] are for client 0; bits [14:12] are for client 4. For
  * clients that are not subject to WFQ credit blocking - their
@@ -1926,6 +1963,9 @@
  * for management at priority 0; debug traffic at priorities 1 and 2; COS0
  * traffic at priority 3; and COS1 traffic at priority 4. */
 #define NIG_REG_P0_TX_ARB_PRIORITY_CLIENT			 0x180e4
+/* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
+ * Ethernet header. */
+#define NIG_REG_P1_HDRS_AFTER_BASIC				 0x1818c
 #define NIG_REG_P1_LLH_FUNC_MEM2				 0x184c0
 #define NIG_REG_P1_LLH_FUNC_MEM2_ENABLE			 0x18460
 /* [RW 32] Eight 4-bit configurations for specifying which COS (0-15 for
@@ -1944,6 +1984,11 @@
  * than one bit may be set; allowing multiple priorities to be mapped to one
  * COS. */
 #define NIG_REG_P1_RX_COS1_PRIORITY_MASK			 0x181b0
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 2. A
+ * priority is mapped to COS 2 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P1_RX_COS2_PRIORITY_MASK			 0x186f8
 /* [RW 1] Pause enable for port0. This register may get 1 only when
    ~safc_enable.safc_enable = 0 and ppp_enable.ppp_enable =0 for the same
    port */
@@ -2033,6 +2078,15 @@
 #define PBF_REG_COS1_UPPER_BOUND				 0x15c060
 /* [RW 31] The weight of COS1 in the ETS command arbiter. */
 #define PBF_REG_COS1_WEIGHT					 0x15c058
+/* [R 11] Current credit for the LB queue in the tx port buffers in 16 byte
+ * lines. */
+#define PBF_REG_CREDIT_LB_Q					 0x140338
+/* [R 11] Current credit for queue 0 in the tx port buffers in 16 byte
+ * lines. */
+#define PBF_REG_CREDIT_Q0					 0x14033c
+/* [R 11] Current credit for queue 1 in the tx port buffers in 16 byte
+ * lines. */
+#define PBF_REG_CREDIT_Q1					 0x140340
 /* [RW 1] Disable processing further tasks from port 0 (after ending the
    current task in process). */
 #define PBF_REG_DISABLE_NEW_TASK_PROC_P0			 0x14005c
@@ -2050,14 +2104,25 @@
 /* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
  * Ethernet header. */
 #define PBF_REG_HDRS_AFTER_BASIC				 0x15c0a8
-/* [RW 1] Indicates which COS is conncted to the highest priority in the
- * command arbiter. */
+/* [RW 6] Bit-map indicating which L2 hdrs may appear after L2 tag 0 */
+#define PBF_REG_HDRS_AFTER_TAG_0				 0x15c0b8
+/* [R 1] Removed for E3 B0 - Indicates which COS is conncted to the highest
+ * priority in the command arbiter. */
 #define PBF_REG_HIGH_PRIORITY_COS_NUM				 0x15c04c
 #define PBF_REG_IF_ENABLE_REG					 0x140044
 /* [RW 1] Init bit. When set the initial credits are copied to the credit
    registers (except the port credits). Should be set and then reset after
    the configuration of the block has ended. */
 #define PBF_REG_INIT						 0x140000
+/* [RW 11] Initial credit for the LB queue in the tx port buffers in 16 byte
+ * lines. */
+#define PBF_REG_INIT_CRD_LB_Q					 0x15c248
+/* [RW 11] Initial credit for queue 0 in the tx port buffers in 16 byte
+ * lines. */
+#define PBF_REG_INIT_CRD_Q0					 0x15c230
+/* [RW 11] Initial credit for queue 1 in the tx port buffers in 16 byte
+ * lines. */
+#define PBF_REG_INIT_CRD_Q1					 0x15c234
 /* [RW 1] Init bit for port 0. When set the initial credit of port 0 is
    copied to the credit register. Should be set and then reset after the
    configuration of the port has ended. */
@@ -2070,6 +2135,15 @@
    copied to the credit register. Should be set and then reset after the
    configuration of the port has ended. */
 #define PBF_REG_INIT_P4 					 0x14000c
+/* [R 32] Cyclic counter for the amount credits in 16 bytes lines added for
+ * the LB queue. Reset upon init. */
+#define PBF_REG_INTERNAL_CRD_FREED_CNT_LB_Q			 0x140354
+/* [R 32] Cyclic counter for the amount credits in 16 bytes lines added for
+ * queue 0. Reset upon init. */
+#define PBF_REG_INTERNAL_CRD_FREED_CNT_Q0			 0x140358
+/* [R 32] Cyclic counter for the amount credits in 16 bytes lines added for
+ * queue 1. Reset upon init. */
+#define PBF_REG_INTERNAL_CRD_FREED_CNT_Q1			 0x14035c
 /* [RW 1] Enable for mac interface 0. */
 #define PBF_REG_MAC_IF0_ENABLE					 0x140030
 /* [RW 1] Enable for mac interface 1. */
@@ -2090,24 +2164,49 @@
 /* [RW 11] Initial credit for port 0 in the tx port buffers in 16 byte
    lines. */
 #define PBF_REG_P0_INIT_CRD					 0x1400d0
-/* [RW 1] Indication that pause is enabled for port 0. */
-#define PBF_REG_P0_PAUSE_ENABLE 				 0x140014
-/* [R 8] Number of tasks in port 0 task queue. */
+/* [R 32] Cyclic counter for the amount credits in 16 bytes lines added for
+ * port 0. Reset upon init. */
+#define PBF_REG_P0_INTERNAL_CRD_FREED_CNT			 0x140308
+/* [R 1] Removed for E3 B0 - Indication that pause is enabled for port 0. */
+#define PBF_REG_P0_PAUSE_ENABLE					 0x140014
+/* [R 8] Removed for E3 B0 - Number of tasks in port 0 task queue. */
 #define PBF_REG_P0_TASK_CNT					 0x140204
-/* [R 11] Current credit for port 1 in the tx port buffers in 16 byte lines. */
+/* [R 32] Removed for E3 B0 - Cyclic counter for number of 8 byte lines
+ * freed from the task queue of port 0. Reset upon init. */
+#define PBF_REG_P0_TQ_LINES_FREED_CNT				 0x1402f0
+/* [R 12] Number of 8 bytes lines occupied in the task queue of port 0. */
+#define PBF_REG_P0_TQ_OCCUPANCY					 0x1402fc
+/* [R 11] Removed for E3 B0 - Current credit for port 1 in the tx port
+ * buffers in 16 byte lines. */
 #define PBF_REG_P1_CREDIT					 0x140208
-/* [RW 11] Initial credit for port 1 in the tx port buffers in 16 byte
-   lines. */
+/* [R 11] Removed for E3 B0 - Initial credit for port 0 in the tx port
+ * buffers in 16 byte lines. */
 #define PBF_REG_P1_INIT_CRD					 0x1400d4
-/* [R 8] Number of tasks in port 1 task queue. */
+/* [R 32] Cyclic counter for the amount credits in 16 bytes lines added for
+ * port 1. Reset upon init. */
+#define PBF_REG_P1_INTERNAL_CRD_FREED_CNT			 0x14030c
+/* [R 8] Removed for E3 B0 - Number of tasks in port 1 task queue. */
 #define PBF_REG_P1_TASK_CNT					 0x14020c
+/* [R 32] Removed for E3 B0 - Cyclic counter for number of 8 byte lines
+ * freed from the task queue of port 1. Reset upon init. */
+#define PBF_REG_P1_TQ_LINES_FREED_CNT				 0x1402f4
+/* [R 12] Number of 8 bytes lines occupied in the task queue of port 1. */
+#define PBF_REG_P1_TQ_OCCUPANCY					 0x140300
 /* [R 11] Current credit for port 4 in the tx port buffers in 16 byte lines. */
 #define PBF_REG_P4_CREDIT					 0x140210
 /* [RW 11] Initial credit for port 4 in the tx port buffers in 16 byte
    lines. */
 #define PBF_REG_P4_INIT_CRD					 0x1400e0
-/* [R 8] Number of tasks in port 4 task queue. */
+/* [R 32] Cyclic counter for the amount credits in 16 bytes lines added for
+ * port 4. Reset upon init. */
+#define PBF_REG_P4_INTERNAL_CRD_FREED_CNT			 0x140310
+/* [R 8] Removed for E3 B0 - Number of tasks in port 4 task queue. */
 #define PBF_REG_P4_TASK_CNT					 0x140214
+/* [R 32] Removed for E3 B0 - Cyclic counter for number of 8 byte lines
+ * freed from the task queue of port 4. Reset upon init. */
+#define PBF_REG_P4_TQ_LINES_FREED_CNT				 0x1402f8
+/* [R 12] Number of 8 bytes lines occupied in the task queue of port 4. */
+#define PBF_REG_P4_TQ_OCCUPANCY					 0x140304
 /* [RW 5] Interrupt mask register #0 read/write */
 #define PBF_REG_PBF_INT_MASK					 0x1401d4
 /* [R 5] Interrupt register #0 read */
@@ -2116,6 +2215,27 @@
 #define PBF_REG_PBF_PRTY_MASK					 0x1401e4
 /* [RC 20] Parity register #0 read clear */
 #define PBF_REG_PBF_PRTY_STS_CLR				 0x1401dc
+/* [RW 16] The Ethernet type value for L2 tag 0 */
+#define PBF_REG_TAG_ETHERTYPE_0					 0x15c090
+/* [RW 4] The length of the info field for L2 tag 0. The length is between
+ * 2B and 14B; in 2B granularity */
+#define PBF_REG_TAG_LEN_0					 0x15c09c
+/* [R 32] Cyclic counter for number of 8 byte lines freed from the LB task
+ * queue. Reset upon init. */
+#define PBF_REG_TQ_LINES_FREED_CNT_LB_Q				 0x14038c
+/* [R 32] Cyclic counter for number of 8 byte lines freed from the task
+ * queue 0. Reset upon init. */
+#define PBF_REG_TQ_LINES_FREED_CNT_Q0				 0x140390
+/* [R 32] Cyclic counter for number of 8 byte lines freed from task queue 1.
+ * Reset upon init. */
+#define PBF_REG_TQ_LINES_FREED_CNT_Q1				 0x140394
+/* [R 13] Number of 8 bytes lines occupied in the task queue of the LB
+ * queue. */
+#define PBF_REG_TQ_OCCUPANCY_LB_Q				 0x1403a8
+/* [R 13] Number of 8 bytes lines occupied in the task queue of queue 0. */
+#define PBF_REG_TQ_OCCUPANCY_Q0					 0x1403ac
+/* [R 13] Number of 8 bytes lines occupied in the task queue of queue 1. */
+#define PBF_REG_TQ_OCCUPANCY_Q1					 0x1403b0
 #define PB_REG_CONTROL						 0
 /* [RW 2] Interrupt mask register #0 read/write */
 #define PB_REG_PB_INT_MASK					 0x28
@@ -2445,10 +2565,24 @@
 /* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
  * Ethernet header. */
 #define PRS_REG_HDRS_AFTER_BASIC				 0x40238
+/* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
+ * Ethernet header for port 0 packets. */
+#define PRS_REG_HDRS_AFTER_BASIC_PORT_0				 0x40270
+#define PRS_REG_HDRS_AFTER_BASIC_PORT_1				 0x40290
+/* [R 6] Bit-map indicating which L2 hdrs may appear after L2 tag 0 */
+#define PRS_REG_HDRS_AFTER_TAG_0				 0x40248
+/* [RW 6] Bit-map indicating which L2 hdrs may appear after L2 tag 0 for
+ * port 0 packets */
+#define PRS_REG_HDRS_AFTER_TAG_0_PORT_0				 0x40280
+#define PRS_REG_HDRS_AFTER_TAG_0_PORT_1				 0x402a0
 /* [RW 4] The increment value to send in the CFC load request message */
 #define PRS_REG_INC_VALUE					 0x40048
 /* [RW 6] Bit-map indicating which headers must appear in the packet */
 #define PRS_REG_MUST_HAVE_HDRS					 0x40254
+/* [RW 6] Bit-map indicating which headers must appear in the packet for
+ * port 0 packets */
+#define PRS_REG_MUST_HAVE_HDRS_PORT_0				 0x4028c
+#define PRS_REG_MUST_HAVE_HDRS_PORT_1				 0x402ac
 #define PRS_REG_NIC_MODE					 0x40138
 /* [RW 8] The 8-bit event ID for cases where there is no match on the
    connection. Used in packet start message to TCM. */
@@ -2497,6 +2631,11 @@
 #define PRS_REG_SERIAL_NUM_STATUS_MSB				 0x40158
 /* [R 4] debug only: SRC current credit. Transaction based. */
 #define PRS_REG_SRC_CURRENT_CREDIT				 0x4016c
+/* [RW 16] The Ethernet type value for L2 tag 0 */
+#define PRS_REG_TAG_ETHERTYPE_0					 0x401d4
+/* [RW 4] The length of the info field for L2 tag 0. The length is between
+ * 2B and 14B; in 2B granularity */
+#define PRS_REG_TAG_LEN_0					 0x4022c
 /* [R 8] debug only: TCM current credit. Cycle based. */
 #define PRS_REG_TCM_CURRENT_CREDIT				 0x40160
 /* [R 8] debug only: TSDM current credit. Transaction based. */
@@ -3081,6 +3220,7 @@
 #define QM_REG_BYTECREDITAFULLTHR				 0x168094
 /* [RW 4] The initial credit for interface */
 #define QM_REG_CMINITCRD_0					 0x1680cc
+#define QM_REG_BYTECRDCMDQ_0					 0x16e6e8
 #define QM_REG_CMINITCRD_1					 0x1680d0
 #define QM_REG_CMINITCRD_2					 0x1680d4
 #define QM_REG_CMINITCRD_3					 0x1680d8
@@ -3171,7 +3311,10 @@
 /* [RW 2] The PCI attributes field used in the PCI request. */
 #define QM_REG_PCIREQAT 					 0x168054
 #define QM_REG_PF_EN						 0x16e70c
-/* [R 16] The byte credit of port 0 */
+/* [R 24] The number of tasks stored in the QM for the PF. only even
+ * functions are valid in E2 (odd I registers will be hard wired to 0) */
+#define QM_REG_PF_USG_CNT_0					 0x16e040
+/* [R 16] NOT USED */
 #define QM_REG_PORT0BYTECRD					 0x168300
 /* [R 16] The byte credit of port 1 */
 #define QM_REG_PORT1BYTECRD					 0x168304
@@ -3783,6 +3926,8 @@
 #define TM_REG_LIN0_LOGIC_ADDR					 0x164240
 /* [RW 18] Linear0 Max active cid (in banks of 32 entries). */
 #define TM_REG_LIN0_MAX_ACTIVE_CID				 0x164048
+/* [ST 16] Linear0 Number of scans counter. */
+#define TM_REG_LIN0_NUM_SCANS					 0x1640a0
 /* [WB 64] Linear0 phy address. */
 #define TM_REG_LIN0_PHY_ADDR					 0x164270
 /* [RW 1] Linear0 physical address valid. */
@@ -3790,6 +3935,7 @@
 #define TM_REG_LIN0_SCAN_ON					 0x1640d0
 /* [RW 24] Linear0 array scan timeout. */
 #define TM_REG_LIN0_SCAN_TIME					 0x16403c
+#define TM_REG_LIN0_VNIC_UC					 0x164128
 /* [RW 32] Linear1 logic address. */
 #define TM_REG_LIN1_LOGIC_ADDR					 0x164250
 /* [WB 64] Linear1 phy address. */
@@ -4845,8 +4991,10 @@
 #define XSDM_REG_NUM_OF_Q8_CMD					 0x166264
 /* [ST 32] The number of commands received in queue 9 */
 #define XSDM_REG_NUM_OF_Q9_CMD					 0x166268
-/* [RW 13] The start address in the internal RAM for queue counters */
-#define XSDM_REG_Q_COUNTER_START_ADDR				 0x166010
+/* [W 17] Generate an operation after completion; bit-16 is
+ * AggVectIdx_valid; bits 15:8 are AggVectIdx; bits 7:5 are the TRIG and
+ * bits 4:0 are the T124Param[4:0] */
+#define XSDM_REG_OPERATION_GEN					 0x1664c4
 /* [R 1] pxp_ctrl rd_data fifo empty in sdm_dma_rsp block */
 #define XSDM_REG_RSP_PXP_CTRL_RDATA_EMPTY			 0x166548
 /* [R 1] parser fifo empty in sdm_sync block */
@@ -5129,6 +5277,8 @@
 #define MISC_REGISTERS_RESET_REG_1_RST_PXPV			 (0x1<<27)
 #define MISC_REGISTERS_RESET_REG_1_SET				 0x584
 #define MISC_REGISTERS_RESET_REG_2_CLEAR			 0x598
+#define MISC_REGISTERS_RESET_REG_2_MSTAT0			 (0x1<<24)
+#define MISC_REGISTERS_RESET_REG_2_MSTAT1			 (0x1<<25)
 #define MISC_REGISTERS_RESET_REG_2_RST_BMAC0			 (0x1<<0)
 #define MISC_REGISTERS_RESET_REG_2_RST_EMAC0_HARD_CORE		 (0x1<<14)
 #define MISC_REGISTERS_RESET_REG_2_RST_EMAC1_HARD_CORE		 (0x1<<15)
@@ -5161,6 +5311,7 @@
 #define MISC_REGISTERS_SPIO_OUTPUT_HIGH 			 1
 #define MISC_REGISTERS_SPIO_OUTPUT_LOW				 0
 #define MISC_REGISTERS_SPIO_SET_POS				 8
+#define HW_LOCK_DRV_FLAGS					 10
 #define HW_LOCK_MAX_RESOURCE_VALUE				 31
 #define HW_LOCK_RESOURCE_GPIO					 1
 #define HW_LOCK_RESOURCE_MDIO					 0
@@ -5168,7 +5319,6 @@
 #define HW_LOCK_RESOURCE_RESERVED_08				 8
 #define HW_LOCK_RESOURCE_SPIO					 2
 #define HW_LOCK_RESOURCE_UNDI					 5
-#define PRS_FLAG_OVERETH_IPV4					 1
 #define AEU_INPUTS_ATTN_BITS_ATC_HW_INTERRUPT		      (0x1<<4)
 #define AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR		      (0x1<<5)
 #define AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR		      (1<<18)
@@ -5320,6 +5470,8 @@
 #define GRCBASE_PXP2		0x120000
 #define GRCBASE_PBF		0x140000
 #define GRCBASE_XPB		0x161000
+#define GRCBASE_MSTAT0	    0x162000
+#define GRCBASE_MSTAT1	    0x162800
 #define GRCBASE_TIMERS		0x164000
 #define GRCBASE_XSDM		0x166000
 #define GRCBASE_QM		0x168000
@@ -6243,11 +6395,6 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_ADDR_MSI_ADDR_HI	0x0212
 #define IGU_ADDR_MSI_DATA		0x0213
 
-#define IGU_INT_ENABLE			0
-#define IGU_INT_DISABLE 		1
-#define IGU_INT_NOP				2
-#define IGU_INT_NOP2			3
-
 #define IGU_USE_REGISTER_ustorm_type_0_sb_cleanup  0
 #define IGU_USE_REGISTER_ustorm_type_1_sb_cleanup  1
 #define IGU_USE_REGISTER_cstorm_type_0_sb_cleanup  2
@@ -6317,15 +6464,6 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_NORM_NDSB_NUM_SEGS 1
 #define IGU_BC_BASE_DSB_PROD   128
 #define IGU_NORM_BASE_DSB_PROD 136
-
-#define IGU_CTRL_CMD_TYPE_WR\
-	1
-#define IGU_CTRL_CMD_TYPE_RD\
-	0
-
-#define IGU_SEG_ACCESS_NORM   0
-#define IGU_SEG_ACCESS_DEF    1
-#define IGU_SEG_ACCESS_ATTN   2
 
 	/* FID (if VF - [6] = 0; [5:0] = VF number; if PF - [6] = 1; \
 	[5:2] = 0; [1:0] = PF number) */

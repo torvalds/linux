@@ -55,15 +55,14 @@ static void bnx2x_pfc_set(struct bnx2x *bp)
 	struct bnx2x_nig_brb_pfc_port_params pfc_params = {0};
 	u32 pri_bit, val = 0;
 	u8 pri;
+	int i;
 
 	/* Tx COS configuration */
-	if (bp->dcbx_port_params.ets.cos_params[0].pauseable)
-		pfc_params.rx_cos0_priority_mask =
-			bp->dcbx_port_params.ets.cos_params[0].pri_bitmask;
-	if (bp->dcbx_port_params.ets.cos_params[1].pauseable)
-		pfc_params.rx_cos1_priority_mask =
-			bp->dcbx_port_params.ets.cos_params[1].pri_bitmask;
-
+	for (i = 0; i < bp->dcbx_port_params.ets.num_of_cos; i++)
+		if (bp->dcbx_port_params.ets.cos_params[i].pauseable)
+			pfc_params.rx_cos_priority_mask[i] =
+				bp->dcbx_port_params.ets.
+					cos_params[i].pri_bitmask;
 
 	/**
 	 * Rx COS configuration
@@ -378,7 +377,7 @@ static int bnx2x_dcbx_read_mib(struct bnx2x *bp,
 
 static void bnx2x_pfc_set_pfc(struct bnx2x *bp)
 {
-	if (CHIP_IS_E2(bp)) {
+	if (!CHIP_IS_E1x(bp)) {
 		if (BP_PORT(bp)) {
 			BNX2X_ERR("4 port mode is not supported");
 			return;
@@ -406,7 +405,7 @@ static void bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp)
 		      0 /* connectionless */,
 		      0 /* dataHi is zero */,
 		      0 /* dataLo is zero */,
-		      1 /* common */);
+		      NONE_CONNECTION_TYPE);
 }
 
 static void bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp)
@@ -417,7 +416,7 @@ static void bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp)
 		      0, /* connectionless */
 		      U64_HI(bnx2x_sp_mapping(bp, pfc_config)),
 		      U64_LO(bnx2x_sp_mapping(bp, pfc_config)),
-		      1  /* commmon */);
+		      NONE_CONNECTION_TYPE);
 }
 
 static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
@@ -425,7 +424,7 @@ static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
 	struct bnx2x_dcbx_pg_params *ets = &(bp->dcbx_port_params.ets);
 	u8	status = 0;
 
-	bnx2x_ets_disabled(&bp->link_params);
+	bnx2x_ets_disabled(&bp->link_params/*, &bp->link_vars*/);
 
 	if (!ets->enabled)
 		return;
@@ -527,6 +526,7 @@ static int bnx2x_dcbx_read_shmem_neg_results(struct bnx2x *bp)
 		BNX2X_ERR("FW doesn't support dcbx_neg_res_offset\n");
 		return -EINVAL;
 	}
+
 	rc = bnx2x_dcbx_read_mib(bp, (u32 *)&local_mib, dcbx_neg_res_offset,
 				 DCBX_READ_LOCAL_MIB);
 
@@ -563,15 +563,6 @@ u8 bnx2x_dcbx_dcbnl_app_idtype(struct dcbx_app_priority_entry *ent)
 		DCB_APP_IDTYPE_ETHTYPE;
 }
 
-static inline
-void bnx2x_dcbx_invalidate_local_apps(struct bnx2x *bp)
-{
-	int i;
-	for (i = 0; i < DCBX_MAX_APP_PROTOCOL; i++)
-		bp->dcbx_local_feat.app.app_pri_tbl[i].appBitfield &=
-							~DCBX_APP_ENTRY_VALID;
-}
-
 int bnx2x_dcbnl_update_applist(struct bnx2x *bp, bool delall)
 {
 	int i, err = 0;
@@ -597,32 +588,28 @@ int bnx2x_dcbnl_update_applist(struct bnx2x *bp, bool delall)
 }
 #endif
 
+static inline void bnx2x_update_drv_flags(struct bnx2x *bp, u32 flags, u32 set)
+{
+	if (SHMEM2_HAS(bp, drv_flags)) {
+		u32 drv_flags;
+		bnx2x_acquire_hw_lock(bp, HW_LOCK_DRV_FLAGS);
+		drv_flags = SHMEM2_RD(bp, drv_flags);
+
+		if (set)
+			SET_FLAGS(drv_flags, flags);
+		else
+			RESET_FLAGS(drv_flags, flags);
+
+		SHMEM2_WR(bp, drv_flags, drv_flags);
+		DP(NETIF_MSG_HW, "drv_flags 0x%08x\n", drv_flags);
+		bnx2x_release_hw_lock(bp, HW_LOCK_DRV_FLAGS);
+	}
+}
+
 void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 {
 	switch (state) {
 	case BNX2X_DCBX_STATE_NEG_RECEIVED:
-#ifdef BCM_CNIC
-		if (bp->state != BNX2X_STATE_OPENING_WAIT4_LOAD) {
-			struct cnic_ops *c_ops;
-			struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
-			bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
-			cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;
-			cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI;
-
-			rcu_read_lock();
-			c_ops = rcu_dereference(bp->cnic_ops);
-			if (c_ops) {
-				bnx2x_cnic_notify(bp, CNIC_CTL_STOP_ISCSI_CMD);
-				rcu_read_unlock();
-				return;
-			}
-			rcu_read_unlock();
-		}
-
-		/* fall through if no CNIC initialized  */
-	case BNX2X_DCBX_STATE_ISCSI_STOPPED:
-#endif
-
 		{
 			DP(NETIF_MSG_LINK, "BNX2X_DCBX_STATE_NEG_RECEIVED\n");
 #ifdef BCM_DCBNL
@@ -646,41 +633,28 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 			bnx2x_get_dcbx_drv_param(bp, &bp->dcbx_local_feat,
 						 bp->dcbx_error);
 
-			if (bp->state != BNX2X_STATE_OPENING_WAIT4_LOAD) {
-#ifdef BCM_DCBNL
-				/**
-				 * Add new app tlvs to dcbnl
-				 */
-				bnx2x_dcbnl_update_applist(bp, false);
-#endif
-				bnx2x_dcbx_stop_hw_tx(bp);
-				return;
-			}
-			/* fall through */
+			/* mark DCBX result for PMF migration */
+			bnx2x_update_drv_flags(bp, DRV_FLAGS_DCB_CONFIGURED, 1);
 #ifdef BCM_DCBNL
 			/**
-			 * Invalidate the local app tlvs if they are not added
-			 * to the dcbnl app list to avoid deleting them from
-			 * the list later on
+			 * Add new app tlvs to dcbnl
 			 */
-			bnx2x_dcbx_invalidate_local_apps(bp);
+			bnx2x_dcbnl_update_applist(bp, false);
 #endif
+			bnx2x_dcbx_stop_hw_tx(bp);
+
+			return;
 		}
 	case BNX2X_DCBX_STATE_TX_PAUSED:
 		DP(NETIF_MSG_LINK, "BNX2X_DCBX_STATE_TX_PAUSED\n");
 		bnx2x_pfc_set_pfc(bp);
 
 		bnx2x_dcbx_update_ets_params(bp);
-		if (bp->state != BNX2X_STATE_OPENING_WAIT4_LOAD) {
-			bnx2x_dcbx_resume_hw_tx(bp);
-			return;
-		}
-		/* fall through */
+		bnx2x_dcbx_resume_hw_tx(bp);
+		return;
 	case BNX2X_DCBX_STATE_TX_RELEASED:
 		DP(NETIF_MSG_LINK, "BNX2X_DCBX_STATE_TX_RELEASED\n");
-		if (bp->state != BNX2X_STATE_OPENING_WAIT4_LOAD)
-			bnx2x_fw_command(bp, DRV_MSG_CODE_DCBX_PMF_DRV_OK, 0);
-
+		bnx2x_fw_command(bp, DRV_MSG_CODE_DCBX_PMF_DRV_OK, 0);
 		return;
 	default:
 		BNX2X_ERR("Unknown DCBX_STATE\n");
@@ -868,7 +842,7 @@ static void bnx2x_dcbx_admin_mib_updated_params(struct bnx2x *bp,
 
 void bnx2x_dcbx_set_state(struct bnx2x *bp, bool dcb_on, u32 dcbx_enabled)
 {
-	if (CHIP_IS_E2(bp) && !CHIP_MODE_IS_4_PORT(bp)) {
+	if (!CHIP_IS_E1x(bp) && !CHIP_MODE_IS_4_PORT(bp)) {
 		bp->dcb_state = dcb_on;
 		bp->dcbx_enabled = dcbx_enabled;
 	} else {
@@ -966,13 +940,15 @@ void bnx2x_dcbx_init(struct bnx2x *bp)
 	DP(NETIF_MSG_LINK, "dcb_state %d bp->port.pmf %d\n",
 	   bp->dcb_state, bp->port.pmf);
 
-	if (bp->dcb_state ==  BNX2X_DCB_STATE_ON && bp->port.pmf &&
+	if (bp->dcb_state == BNX2X_DCB_STATE_ON && bp->port.pmf &&
 	    SHMEM2_HAS(bp, dcbx_lldp_params_offset)) {
 		dcbx_lldp_params_offset =
 			SHMEM2_RD(bp, dcbx_lldp_params_offset);
 
 		DP(NETIF_MSG_LINK, "dcbx_lldp_params_offset 0x%x\n",
 		   dcbx_lldp_params_offset);
+
+		bnx2x_update_drv_flags(bp, DRV_FLAGS_DCB_CONFIGURED, 0);
 
 		if (SHMEM_LLDP_DCBX_PARAMS_NONE != dcbx_lldp_params_offset) {
 			bnx2x_dcbx_lldp_updated_params(bp,
@@ -981,46 +957,12 @@ void bnx2x_dcbx_init(struct bnx2x *bp)
 			bnx2x_dcbx_admin_mib_updated_params(bp,
 				dcbx_lldp_params_offset);
 
-			/* set default configuration BC has */
-			bnx2x_dcbx_set_params(bp,
-					      BNX2X_DCBX_STATE_NEG_RECEIVED);
-
+			/* Let HW start negotiation */
 			bnx2x_fw_command(bp,
 					 DRV_MSG_CODE_DCBX_ADMIN_PMF_MSG, 0);
 		}
 	}
 }
-
-void bnx2x_dcb_init_intmem_pfc(struct bnx2x *bp)
-{
-	struct priority_cos pricos[MAX_PFC_TRAFFIC_TYPES];
-	u32 i = 0, addr;
-	memset(pricos, 0, sizeof(pricos));
-	/* Default initialization */
-	for (i = 0; i < MAX_PFC_TRAFFIC_TYPES; i++)
-		pricos[i].priority = LLFC_TRAFFIC_TYPE_TO_PRIORITY_UNMAPPED;
-
-	/* Store per port struct to internal memory */
-	addr = BAR_XSTRORM_INTMEM +
-			XSTORM_CMNG_PER_PORT_VARS_OFFSET(BP_PORT(bp)) +
-			offsetof(struct cmng_struct_per_port,
-				 traffic_type_to_priority_cos);
-	__storm_memset_struct(bp, addr, sizeof(pricos), (u32 *)pricos);
-
-
-	/* LLFC disabled.*/
-	REG_WR8(bp , BAR_XSTRORM_INTMEM +
-		    XSTORM_CMNG_PER_PORT_VARS_OFFSET(BP_PORT(bp)) +
-		    offsetof(struct cmng_struct_per_port, llfc_mode),
-			LLFC_MODE_NONE);
-
-	/* DCBX disabled.*/
-	REG_WR8(bp , BAR_XSTRORM_INTMEM +
-		    XSTORM_CMNG_PER_PORT_VARS_OFFSET(BP_PORT(bp)) +
-		    offsetof(struct cmng_struct_per_port, dcb_enabled),
-			DCB_DISABLED);
-}
-
 static void
 bnx2x_dcbx_print_cos_params(struct bnx2x *bp,
 			    struct flow_control_configuration *pfc_fw_cfg)
@@ -1591,13 +1533,7 @@ static void bnx2x_pfc_fw_struct_e2(struct bnx2x *bp)
 
 	/* Fw version should be incremented each update */
 	pfc_fw_cfg->dcb_version = ++bp->dcb_version;
-	pfc_fw_cfg->dcb_enabled = DCB_ENABLED;
-
-	/* Default initialization */
-	for (pri = 0; pri < MAX_PFC_TRAFFIC_TYPES ; pri++) {
-		tt2cos[pri].priority = LLFC_TRAFFIC_TYPE_TO_PRIORITY_UNMAPPED;
-		tt2cos[pri].cos = 0;
-	}
+	pfc_fw_cfg->dcb_enabled = 1;
 
 	/* Fill priority parameters */
 	for (pri = 0; pri < LLFC_DRIVER_TRAFFIC_TYPE_MAX; pri++) {
@@ -1605,14 +1541,37 @@ static void bnx2x_pfc_fw_struct_e2(struct bnx2x *bp)
 		pri_bit = 1 << tt2cos[pri].priority;
 
 		/* Fill COS parameters based on COS calculated to
-		 * make it more generally for future use */
+		 * make it more general for future use */
 		for (cos = 0; cos < bp->dcbx_port_params.ets.num_of_cos; cos++)
 			if (bp->dcbx_port_params.ets.cos_params[cos].
 						pri_bitmask & pri_bit)
 					tt2cos[pri].cos = cos;
 	}
+
+	/* we never want the FW to add a 0 vlan tag */
+	pfc_fw_cfg->dont_add_pri_0_en = 1;
+
 	bnx2x_dcbx_print_cos_params(bp,	pfc_fw_cfg);
 }
+
+void bnx2x_dcbx_pmf_update(struct bnx2x *bp)
+{
+	/* if we need to syncronize DCBX result from prev PMF
+	 * read it from shmem and update bp accordingly
+	 */
+	if (SHMEM2_HAS(bp, drv_flags) &&
+	   GET_FLAGS(SHMEM2_RD(bp, drv_flags), DRV_FLAGS_DCB_CONFIGURED)) {
+		/* Read neg results if dcbx is in the FW */
+		if (bnx2x_dcbx_read_shmem_neg_results(bp))
+			return;
+
+		bnx2x_dump_dcbx_drv_param(bp, &bp->dcbx_local_feat,
+					  bp->dcbx_error);
+		bnx2x_get_dcbx_drv_param(bp, &bp->dcbx_local_feat,
+					 bp->dcbx_error);
+	}
+}
+
 /* DCB netlink */
 #ifdef BCM_DCBNL
 
