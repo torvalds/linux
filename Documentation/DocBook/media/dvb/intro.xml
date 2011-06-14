@@ -154,6 +154,10 @@ are called:</para>
 </listitem>
  <listitem>
 
+<para><emphasis role="tt">/dev/dvb/adapterN/dvrM</emphasis>,</para>
+</listitem>
+ <listitem>
+
 <para><emphasis role="tt">/dev/dvb/adapterN/caM</emphasis>,</para></listitem></itemizedlist>
 
 <para>where N enumerates the DVB PCI cards in a system starting
