@@ -1801,8 +1801,8 @@ EXPORT_SYMBOL(v4l2_ctrl_g_ctrl);
 /* Core function that calls try/s_ctrl and ensures that the new value is
    copied to the current value on a set.
    Must be called with ctrl->handler->lock held. */
-static int try_or_set_control_cluster(struct v4l2_fh *fh,
-					struct v4l2_ctrl *master, bool set)
+static int try_or_set_cluster(struct v4l2_fh *fh,
+			      struct v4l2_ctrl *master, bool set)
 {
 	bool update_flag;
 	int ret;
@@ -1844,23 +1844,18 @@ static int try_or_set_control_cluster(struct v4l2_fh *fh,
 	return 0;
 }
 
-/* Try or set controls. */
-static int try_or_set_ext_ctrls(struct v4l2_fh *fh,
-				struct v4l2_ctrl_handler *hdl,
-				struct v4l2_ext_controls *cs,
-				struct v4l2_ctrl_helper *helpers,
-				bool set)
+/* Validate controls. */
+static int validate_ctrls(struct v4l2_ext_controls *cs,
+			  struct v4l2_ctrl_helper *helpers, bool set)
 {
-	unsigned i, j;
+	unsigned i;
 	int ret = 0;
 
-	/* Phase 1: validation */
 	cs->error_idx = cs->count;
 	for (i = 0; i < cs->count; i++) {
 		struct v4l2_ctrl *ctrl = helpers[i].ctrl;
 
-		if (!set)
-			cs->error_idx = i;
+		cs->error_idx = i;
 
 		if (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY)
 			return -EACCES;
@@ -1876,8 +1871,38 @@ static int try_or_set_ext_ctrls(struct v4l2_fh *fh,
 		if (ret)
 			return ret;
 	}
+	return 0;
+}
 
-	/* Phase 2: set/try controls */
+/* Try or try-and-set controls */
+static int try_set_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
+			     struct v4l2_ext_controls *cs,
+			     bool set)
+{
+	struct v4l2_ctrl_helper helper[4];
+	struct v4l2_ctrl_helper *helpers = helper;
+	unsigned i, j;
+	int ret;
+
+	cs->error_idx = cs->count;
+	cs->ctrl_class = V4L2_CTRL_ID2CLASS(cs->ctrl_class);
+
+	if (hdl == NULL)
+		return -EINVAL;
+
+	if (cs->count == 0)
+		return class_check(hdl, cs->ctrl_class);
+
+	if (cs->count > ARRAY_SIZE(helper)) {
+		helpers = kmalloc(sizeof(helper[0]) * cs->count, GFP_KERNEL);
+		if (!helpers)
+			return -ENOMEM;
+	}
+	ret = prepare_ext_ctrls(hdl, cs, helpers);
+	if (!ret)
+		ret = validate_ctrls(cs, helpers, set);
+	if (ret && set)
+		cs->error_idx = cs->count;
 	for (i = 0; !ret && i < cs->count; i++) {
 		struct v4l2_ctrl *master;
 		u32 idx = i;
@@ -1902,50 +1927,19 @@ static int try_or_set_ext_ctrls(struct v4l2_fh *fh,
 		} while (!ret && idx);
 
 		if (!ret)
-			ret = try_or_set_control_cluster(fh, master, set);
+			ret = try_or_set_cluster(fh, master, set);
 
 		/* Copy the new values back to userspace. */
 		if (!ret) {
 			idx = i;
 			do {
 				ret = user_to_new(cs->controls + idx,
-						  helpers[idx].ctrl);
+						helpers[idx].ctrl);
 				idx = helpers[idx].next;
 			} while (!ret && idx);
 		}
 		v4l2_ctrl_unlock(master);
 	}
-	return ret;
-}
-
-/* Try or try-and-set controls */
-static int try_set_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
-			     struct v4l2_ext_controls *cs,
-			     bool set)
-{
-	struct v4l2_ctrl_helper helper[4];
-	struct v4l2_ctrl_helper *helpers = helper;
-	int ret;
-
-	cs->error_idx = cs->count;
-	cs->ctrl_class = V4L2_CTRL_ID2CLASS(cs->ctrl_class);
-
-	if (hdl == NULL)
-		return -EINVAL;
-
-	if (cs->count == 0)
-		return class_check(hdl, cs->ctrl_class);
-
-	if (cs->count > ARRAY_SIZE(helper)) {
-		helpers = kmalloc(sizeof(helper[0]) * cs->count, GFP_KERNEL);
-		if (!helpers)
-			return -ENOMEM;
-	}
-	ret = prepare_ext_ctrls(hdl, cs, helpers);
-	if (!ret)
-		ret = try_or_set_ext_ctrls(fh, hdl, cs, helpers, set);
-	else if (set)
-		cs->error_idx = cs->count;
 
 	if (cs->count > ARRAY_SIZE(helper))
 		kfree(helpers);
@@ -1997,7 +1991,7 @@ static int set_ctrl(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, s32 *val)
 
 	ctrl->val = *val;
 	ctrl->is_new = 1;
-	ret = try_or_set_control_cluster(fh, master, true);
+	ret = try_or_set_cluster(fh, master, true);
 	*val = ctrl->cur.val;
 	v4l2_ctrl_unlock(ctrl);
 	return ret;
