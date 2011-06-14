@@ -1147,9 +1147,9 @@ static int pm3fb_pan_display(struct fb_var_screeninfo *var,
 				 struct fb_info *info)
 {
 	struct pm3_par *par = info->par;
-	const u32 xres = (var->xres + 31) & ~31;
+	const u32 xres = (info->var.xres + 31) & ~31;
 
-	par->base = pm3fb_shift_bpp(var->bits_per_pixel,
+	par->base = pm3fb_shift_bpp(info->var.bits_per_pixel,
 					(var->yoffset * xres)
 					+ var->xoffset);
 	PM3_WAIT(par, 1);
