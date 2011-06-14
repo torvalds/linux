@@ -100,8 +100,11 @@ static u64 pci_size(u64 base, u64 maxbase, u64 mask)
 	return size;
 }
 
-static inline enum pci_bar_type decode_bar(struct resource *res, u32 bar)
+static inline enum pci_bar_type decode_bar(struct pci_dev *dev,
+					   struct resource *res, u32 bar)
 {
+	u32 mem_type;
+
 	if ((bar & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO) {
 		res->flags = bar & ~PCI_BASE_ADDRESS_IO_MASK;
 		return pci_bar_io;
@@ -109,8 +112,21 @@ static inline enum pci_bar_type decode_bar(struct resource *res, u32 bar)
 
 	res->flags = bar & ~PCI_BASE_ADDRESS_MEM_MASK;
 
-	if (res->flags & PCI_BASE_ADDRESS_MEM_TYPE_64)
+	mem_type = bar & PCI_BASE_ADDRESS_MEM_TYPE_MASK;
+	switch (mem_type) {
+	case PCI_BASE_ADDRESS_MEM_TYPE_32:
+		break;
+	case PCI_BASE_ADDRESS_MEM_TYPE_1M:
+		dev_info(&dev->dev, "1M mem BAR treated as 32-bit BAR\n");
+		break;
+	case PCI_BASE_ADDRESS_MEM_TYPE_64:
 		return pci_bar_mem64;
+	default:
+		dev_warn(&dev->dev,
+			 "mem unknown type %x treated as 32-bit BAR\n",
+			 mem_type);
+		break;
+	}
 	return pci_bar_mem32;
 }
 
@@ -164,7 +180,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		l = 0;
 
 	if (type == pci_bar_unknown) {
-		type = decode_bar(res, l);
+		type = decode_bar(dev, res, l);
 		res->flags |= pci_calc_resource_flags(l) | IORESOURCE_SIZEALIGN;
 		if (type == pci_bar_io) {
 			l &= PCI_BASE_ADDRESS_IO_MASK;
