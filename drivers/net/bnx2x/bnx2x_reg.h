@@ -2057,6 +2057,26 @@
  * clients that are not subject to WFQ credit blocking - their
  * specifications here are not used. */
 #define NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP			 0x180f0
+/* [RW 32] Specify which of the credit registers the client is to be mapped
+ * to. This register specifies bits 31:0 of the 36-bit value. Bits[3:0] are
+ * for client 0; bits [35:32] are for client 8. For clients that are not
+ * subject to WFQ credit blocking - their specifications here are not used.
+ * This is a new register (with 2_) added in E3 B0 to accommodate the 9
+ * input clients to ETS arbiter. The reset default is set for management and
+ * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
+ * use credit registers 0-5 respectively (0x543210876). Note that credit
+ * registers can not be shared between clients. */
+#define NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP2_LSB		 0x18688
+/* [RW 4] Specify which of the credit registers the client is to be mapped
+ * to. This register specifies bits 35:32 of the 36-bit value. Bits[3:0] are
+ * for client 0; bits [35:32] are for client 8. For clients that are not
+ * subject to WFQ credit blocking - their specifications here are not used.
+ * This is a new register (with 2_) added in E3 B0 to accommodate the 9
+ * input clients to ETS arbiter. The reset default is set for management and
+ * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
+ * use credit registers 0-5 respectively (0x543210876). Note that credit
+ * registers can not be shared between clients. */
+#define NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP2_MSB		 0x1868c
 /* [RW 5] Specify whether the client competes directly in the strict
  * priority arbiter. The bits are mapped according to client ID (client IDs
  * are defined in tx_arb_priority_client). Default value is set to enable
@@ -2071,10 +2091,24 @@
  * reach. */
 #define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_0			 0x1810c
 #define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_1			 0x18110
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_2			 0x18114
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_3			 0x18118
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_4			 0x1811c
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_5			 0x186a0
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_6			 0x186a4
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_7			 0x186a8
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_8			 0x186ac
 /* [RW 32] Specify the weight (in bytes) to be added to credit register 0
  * when it is time to increment. */
 #define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_0			 0x180f8
 #define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_1			 0x180fc
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_2			 0x18100
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_3			 0x18104
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_4			 0x18108
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_5			 0x18690
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_6			 0x18694
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_7			 0x18698
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_8			 0x1869c
 /* [RW 12] Specify the number of strict priority arbitration slots between
  * two round-robin arbitration slots to avoid starvation. A value of 0 means
  * no strict priority cycles - the strict priority with anti-starvation
@@ -2094,6 +2128,26 @@
 #define NIG_REG_P1_HDRS_AFTER_BASIC				 0x1818c
 #define NIG_REG_P1_LLH_FUNC_MEM2				 0x184c0
 #define NIG_REG_P1_LLH_FUNC_MEM2_ENABLE			 0x18460
+/* [RW 32] Specify the client number to be assigned to each priority of the
+ * strict priority arbiter. This register specifies bits 31:0 of the 36-bit
+ * value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
+ * client; bits [35-32] are for priority 8 client. The clients are assigned
+ * the following IDs: 0-management; 1-debug traffic from this port; 2-debug
+ * traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
+ * 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
+ * set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
+ * accommodate the 9 input clients to ETS arbiter. */
+#define NIG_REG_P0_TX_ARB_PRIORITY_CLIENT2_LSB			 0x18680
+/* [RW 4] Specify the client number to be assigned to each priority of the
+ * strict priority arbiter. This register specifies bits 35:32 of the 36-bit
+ * value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
+ * client; bits [35-32] are for priority 8 client. The clients are assigned
+ * the following IDs: 0-management; 1-debug traffic from this port; 2-debug
+ * traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
+ * 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
+ * set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
+ * accommodate the 9 input clients to ETS arbiter. */
+#define NIG_REG_P0_TX_ARB_PRIORITY_CLIENT2_MSB			 0x18684
 #define NIG_REG_P1_MAC_IN_EN					 0x185c0
 /* [RW 1] Output enable for TX MAC interface */
 #define NIG_REG_P1_MAC_OUT_EN					 0x185c4
@@ -2164,6 +2218,54 @@
  * traffic; 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. Default value is
  * 0 for not using WFQ credit blocking. */
 #define NIG_REG_P1_TX_ARB_CLIENT_IS_SUBJECT2WFQ			 0x18238
+#define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_0			 0x18258
+#define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_1			 0x1825c
+#define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_2			 0x18260
+#define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_3			 0x18264
+#define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_4			 0x18268
+#define NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_5			 0x186f4
+/* [RW 32] Specify the weight (in bytes) to be added to credit register 0
+ * when it is time to increment. */
+#define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_0			 0x18244
+#define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_1			 0x18248
+#define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_2			 0x1824c
+#define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_3			 0x18250
+#define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_4			 0x18254
+#define NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_5			 0x186f0
+/* [RW 12] Specify the number of strict priority arbitration slots between
+   two round-robin arbitration slots to avoid starvation. A value of 0 means
+   no strict priority cycles - the strict priority with anti-starvation
+   arbiter becomes a round-robin arbiter. */
+#define NIG_REG_P1_TX_ARB_NUM_STRICT_ARB_SLOTS			 0x18240
+/* [RW 32] Specify the client number to be assigned to each priority of the
+   strict priority arbiter. This register specifies bits 31:0 of the 36-bit
+   value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
+   client; bits [35-32] are for priority 8 client. The clients are assigned
+   the following IDs: 0-management; 1-debug traffic from this port; 2-debug
+   traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
+   6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
+   set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
+   accommodate the 9 input clients to ETS arbiter. Note that this register
+   is the same as the one for port 0, except that port 1 only has COS 0-2
+   traffic. There is no traffic for COS 3-5 of port 1. */
+#define NIG_REG_P1_TX_ARB_PRIORITY_CLIENT2_LSB			 0x186e0
+/* [RW 4] Specify the client number to be assigned to each priority of the
+   strict priority arbiter. This register specifies bits 35:32 of the 36-bit
+   value. Priority 0 is the highest priority. Bits [3:0] are for priority 0
+   client; bits [35-32] are for priority 8 client. The clients are assigned
+   the following IDs: 0-management; 1-debug traffic from this port; 2-debug
+   traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2 traffic;
+   6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. The reset value[35:0] is
+   set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
+   accommodate the 9 input clients to ETS arbiter. Note that this register
+   is the same as the one for port 0, except that port 1 only has COS 0-2
+   traffic. There is no traffic for COS 3-5 of port 1. */
+#define NIG_REG_P1_TX_ARB_PRIORITY_CLIENT2_MSB			 0x186e4
+/* [R 1] TX FIFO for transmitting data to MAC is empty. */
+#define NIG_REG_P1_TX_MACFIFO_EMPTY				 0x18594
+/* [R 1] FIFO empty status of the MCP TX FIFO used for storing MCP packets
+   forwarded to the host. */
+#define NIG_REG_P1_TX_MNG_HOST_FIFO_EMPTY			 0x182b8
 /* [RW 32] Specify the upper bound that credit register 0 is allowed to
  * reach. */
 /* [RW 1] Pause enable for port0. This register may get 1 only when
@@ -2249,12 +2351,36 @@
 #define NIG_STATUS_INTERRUPT_PORT0_REG_STATUS_XGXS0_LINK_STATUS_SIZE 18
 /* [RW 31] The upper bound of the weight of COS0 in the ETS command arbiter. */
 #define PBF_REG_COS0_UPPER_BOUND				 0x15c05c
+/* [RW 31] The upper bound of the weight of COS0 in the ETS command arbiter
+ * of port 0. */
+#define PBF_REG_COS0_UPPER_BOUND_P0				 0x15c2cc
+/* [RW 31] The upper bound of the weight of COS0 in the ETS command arbiter
+ * of port 1. */
+#define PBF_REG_COS0_UPPER_BOUND_P1				 0x15c2e4
 /* [RW 31] The weight of COS0 in the ETS command arbiter. */
 #define PBF_REG_COS0_WEIGHT					 0x15c054
+/* [RW 31] The weight of COS0 in port 0 ETS command arbiter. */
+#define PBF_REG_COS0_WEIGHT_P0					 0x15c2a8
+/* [RW 31] The weight of COS0 in port 1 ETS command arbiter. */
+#define PBF_REG_COS0_WEIGHT_P1					 0x15c2c0
 /* [RW 31] The upper bound of the weight of COS1 in the ETS command arbiter. */
 #define PBF_REG_COS1_UPPER_BOUND				 0x15c060
 /* [RW 31] The weight of COS1 in the ETS command arbiter. */
 #define PBF_REG_COS1_WEIGHT					 0x15c058
+/* [RW 31] The weight of COS1 in port 0 ETS command arbiter. */
+#define PBF_REG_COS1_WEIGHT_P0					 0x15c2ac
+/* [RW 31] The weight of COS1 in port 1 ETS command arbiter. */
+#define PBF_REG_COS1_WEIGHT_P1					 0x15c2c4
+/* [RW 31] The weight of COS2 in port 0 ETS command arbiter. */
+#define PBF_REG_COS2_WEIGHT_P0					 0x15c2b0
+/* [RW 31] The weight of COS2 in port 1 ETS command arbiter. */
+#define PBF_REG_COS2_WEIGHT_P1					 0x15c2c8
+/* [RW 31] The weight of COS3 in port 0 ETS command arbiter. */
+#define PBF_REG_COS3_WEIGHT_P0					 0x15c2b4
+/* [RW 31] The weight of COS4 in port 0 ETS command arbiter. */
+#define PBF_REG_COS4_WEIGHT_P0					 0x15c2b8
+/* [RW 31] The weight of COS5 in port 0 ETS command arbiter. */
+#define PBF_REG_COS5_WEIGHT_P0					 0x15c2bc
 /* [R 11] Current credit for the LB queue in the tx port buffers in 16 byte
  * lines. */
 #define PBF_REG_CREDIT_LB_Q					 0x140338
@@ -2274,6 +2400,52 @@
    current task in process). */
 #define PBF_REG_DISABLE_NEW_TASK_PROC_P4			 0x14006c
 #define PBF_REG_DISABLE_PF					 0x1402e8
+/* [RW 18] For port 0: For each client that is subject to WFQ (the
+ * corresponding bit is 1); indicates to which of the credit registers this
+ * client is mapped. For clients which are not credit blocked; their mapping
+ * is dont care. */
+#define PBF_REG_ETS_ARB_CLIENT_CREDIT_MAP_P0			 0x15c288
+/* [RW 9] For port 1: For each client that is subject to WFQ (the
+ * corresponding bit is 1); indicates to which of the credit registers this
+ * client is mapped. For clients which are not credit blocked; their mapping
+ * is dont care. */
+#define PBF_REG_ETS_ARB_CLIENT_CREDIT_MAP_P1			 0x15c28c
+/* [RW 6] For port 0: Bit per client to indicate if the client competes in
+ * the strict priority arbiter directly (corresponding bit = 1); or first
+ * goes to the RR arbiter (corresponding bit = 0); and then competes in the
+ * lowest priority in the strict-priority arbiter. */
+#define PBF_REG_ETS_ARB_CLIENT_IS_STRICT_P0			 0x15c278
+/* [RW 3] For port 1: Bit per client to indicate if the client competes in
+ * the strict priority arbiter directly (corresponding bit = 1); or first
+ * goes to the RR arbiter (corresponding bit = 0); and then competes in the
+ * lowest priority in the strict-priority arbiter. */
+#define PBF_REG_ETS_ARB_CLIENT_IS_STRICT_P1			 0x15c27c
+/* [RW 6] For port 0: Bit per client to indicate if the client is subject to
+ * WFQ credit blocking (corresponding bit = 1). */
+#define PBF_REG_ETS_ARB_CLIENT_IS_SUBJECT2WFQ_P0		 0x15c280
+/* [RW 3] For port 0: Bit per client to indicate if the client is subject to
+ * WFQ credit blocking (corresponding bit = 1). */
+#define PBF_REG_ETS_ARB_CLIENT_IS_SUBJECT2WFQ_P1		 0x15c284
+/* [RW 16] For port 0: The number of strict priority arbitration slots
+ * between 2 RR arbitration slots. A value of 0 means no strict priority
+ * cycles; i.e. the strict-priority w/ anti-starvation arbiter is a RR
+ * arbiter. */
+#define PBF_REG_ETS_ARB_NUM_STRICT_ARB_SLOTS_P0			 0x15c2a0
+/* [RW 16] For port 1: The number of strict priority arbitration slots
+ * between 2 RR arbitration slots. A value of 0 means no strict priority
+ * cycles; i.e. the strict-priority w/ anti-starvation arbiter is a RR
+ * arbiter. */
+#define PBF_REG_ETS_ARB_NUM_STRICT_ARB_SLOTS_P1			 0x15c2a4
+/* [RW 18] For port 0: Indicates which client is connected to each priority
+ * in the strict-priority arbiter. Priority 0 is the highest priority, and
+ * priority 5 is the lowest; to which the RR output is connected to (this is
+ * not configurable). */
+#define PBF_REG_ETS_ARB_PRIORITY_CLIENT_P0			 0x15c270
+/* [RW 9] For port 1: Indicates which client is connected to each priority
+ * in the strict-priority arbiter. Priority 0 is the highest priority, and
+ * priority 5 is the lowest; to which the RR output is connected to (this is
+ * not configurable). */
+#define PBF_REG_ETS_ARB_PRIORITY_CLIENT_P1			 0x15c274
 /* [RW 1] Indicates that ETS is performed between the COSes in the command
  * arbiter. If reset strict priority w/ anti-starvation will be performed
  * w/o WFQ. */

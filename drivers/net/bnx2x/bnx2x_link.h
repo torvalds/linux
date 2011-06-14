@@ -411,6 +411,38 @@ struct bnx2x_nig_brb_pfc_port_params {
 	u32 cos1_pauseable;
 };
 
+
+/* ETS port configuration params */
+struct bnx2x_ets_bw_params {
+	u8 bw;
+};
+
+struct bnx2x_ets_sp_params {
+	/**
+	 * valid values are 0 - 5. 0 is highest strict priority.
+	 * There can't be two COS's with the same pri.
+	 */
+	u8 pri;
+};
+
+enum bnx2x_cos_state {
+	bnx2x_cos_state_strict = 0,
+	bnx2x_cos_state_bw = 1,
+};
+
+struct bnx2x_ets_cos_params {
+	enum bnx2x_cos_state state ;
+	union {
+		struct bnx2x_ets_bw_params bw_params;
+		struct bnx2x_ets_sp_params sp_params;
+	} params;
+};
+
+struct bnx2x_ets_params {
+	u8 num_of_cos; /* Number of valid COS entries*/
+	struct bnx2x_ets_cos_params cos[DCBX_MAX_NUM_COS];
+};
+
 /**
  * Used to update the PFC attributes in EMAC, BMAC, NIG and BRB
  * when link is already up
@@ -421,7 +453,8 @@ int bnx2x_update_pfc(struct link_params *params,
 
 
 /* Used to configure the ETS to disable */
-void bnx2x_ets_disabled(struct link_params *params);
+int bnx2x_ets_disabled(struct link_params *params,
+		       struct link_vars *vars);
 
 /* Used to configure the ETS to BW limited */
 void bnx2x_ets_bw_limit(const struct link_params *params, const u32 cos0_bw,
@@ -430,6 +463,11 @@ void bnx2x_ets_bw_limit(const struct link_params *params, const u32 cos0_bw,
 /* Used to configure the ETS to strict */
 int bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos);
 
+
+/*  Configure the COS to ETS according to BW and SP settings.*/
+int bnx2x_ets_e3b0_config(const struct link_params *params,
+			 const struct link_vars *vars,
+			 const struct bnx2x_ets_params *ets_params);
 /* Read pfc statistic*/
 void bnx2x_pfc_statistic(struct link_params *params, struct link_vars *vars,
 						 u32 pfc_frames_sent[2],

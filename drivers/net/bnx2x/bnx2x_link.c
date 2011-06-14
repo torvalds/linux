@@ -337,12 +337,12 @@ static void bnx2x_set_cfg_pin(struct bnx2x *bp, u32 pin_cfg, u32 val)
 /******************************************************************/
 /*				ETS section			  */
 /******************************************************************/
-void bnx2x_ets_disabled(struct link_params *params)
+static void bnx2x_ets_e2e3a0_disabled(struct link_params *params)
 {
 	/* ETS disabled configuration*/
 	struct bnx2x *bp = params->bp;
 
-	DP(NETIF_MSG_LINK, "ETS disabled configuration\n");
+	DP(NETIF_MSG_LINK, "ETS E2E3 disabled configuration\n");
 
 	/*
 	 * mapping between entry  priority to client number (0,1,2 -debug and
@@ -395,7 +395,756 @@ void bnx2x_ets_disabled(struct link_params *params)
 	/* Defines the number of consecutive slots for the strict priority */
 	REG_WR(bp, PBF_REG_NUM_STRICT_ARB_SLOTS, 0);
 }
+/******************************************************************************
+* Description:
+*	Getting min_w_val will be set according to line speed .
+*.
+******************************************************************************/
+static u32 bnx2x_ets_get_min_w_val_nig(const struct link_vars *vars)
+{
+	u32 min_w_val = 0;
+	/* Calculate min_w_val.*/
+	if (vars->link_up) {
+		if (SPEED_20000 == vars->line_speed)
+			min_w_val = ETS_E3B0_NIG_MIN_W_VAL_20GBPS;
+		else
+			min_w_val = ETS_E3B0_NIG_MIN_W_VAL_UP_TO_10GBPS;
+	} else
+		min_w_val = ETS_E3B0_NIG_MIN_W_VAL_20GBPS;
+	/**
+	 *  If the link isn't up (static configuration for example ) The
+	 *  link will be according to 20GBPS.
+	*/
+	return min_w_val;
+}
+/******************************************************************************
+* Description:
+*	Getting credit upper bound form min_w_val.
+*.
+******************************************************************************/
+static u32 bnx2x_ets_get_credit_upper_bound(const u32 min_w_val)
+{
+	const u32 credit_upper_bound = (u32)MAXVAL((150 * min_w_val),
+						MAX_PACKET_SIZE);
+	return credit_upper_bound;
+}
+/******************************************************************************
+* Description:
+*	Set credit upper bound for NIG.
+*.
+******************************************************************************/
+static void bnx2x_ets_e3b0_set_credit_upper_bound_nig(
+	const struct link_params *params,
+	const u32 min_w_val)
+{
+	struct bnx2x *bp = params->bp;
+	const u8 port = params->port;
+	const u32 credit_upper_bound =
+	    bnx2x_ets_get_credit_upper_bound(min_w_val);
 
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_0 :
+		NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_0, credit_upper_bound);
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_1 :
+		   NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_1, credit_upper_bound);
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_2 :
+		   NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_2, credit_upper_bound);
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_3 :
+		   NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_3, credit_upper_bound);
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_4 :
+		   NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_4, credit_upper_bound);
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_UPPER_BOUND_5 :
+		   NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_5, credit_upper_bound);
+
+	if (0 == port) {
+		REG_WR(bp, NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_6,
+			credit_upper_bound);
+		REG_WR(bp, NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_7,
+			credit_upper_bound);
+		REG_WR(bp, NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_8,
+			credit_upper_bound);
+	}
+}
+/******************************************************************************
+* Description:
+*	Will return the NIG ETS registers to init values.Except
+*	credit_upper_bound.
+*	That isn't used in this configuration (No WFQ is enabled) and will be
+*	configured acording to spec
+*.
+******************************************************************************/
+static void bnx2x_ets_e3b0_nig_disabled(const struct link_params *params,
+					const struct link_vars *vars)
+{
+	struct bnx2x *bp = params->bp;
+	const u8 port = params->port;
+	const u32 min_w_val = bnx2x_ets_get_min_w_val_nig(vars);
+	/**
+	 * mapping between entry  priority to client number (0,1,2 -debug and
+	 * management clients, 3 - COS0 client, 4 - COS1, ... 8 -
+	 * COS5)(HIGHEST) 4bits client num.TODO_ETS - Should be done by
+	 * reset value or init tool
+	 */
+	if (port) {
+		REG_WR(bp, NIG_REG_P1_TX_ARB_PRIORITY_CLIENT2_LSB, 0x543210);
+		REG_WR(bp, NIG_REG_P1_TX_ARB_PRIORITY_CLIENT2_MSB, 0x0);
+	} else {
+		REG_WR(bp, NIG_REG_P0_TX_ARB_PRIORITY_CLIENT2_LSB, 0x76543210);
+		REG_WR(bp, NIG_REG_P0_TX_ARB_PRIORITY_CLIENT2_MSB, 0x8);
+	}
+	/**
+	* For strict priority entries defines the number of consecutive
+	* slots for the highest priority.
+	*/
+	/* TODO_ETS - Should be done by reset value or init tool */
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_NUM_STRICT_ARB_SLOTS :
+		   NIG_REG_P1_TX_ARB_NUM_STRICT_ARB_SLOTS, 0x100);
+	/**
+	 * mapping between the CREDIT_WEIGHT registers and actual client
+	 * numbers
+	 */
+	/* TODO_ETS - Should be done by reset value or init tool */
+	if (port) {
+		/*Port 1 has 6 COS*/
+		REG_WR(bp, NIG_REG_P1_TX_ARB_CLIENT_CREDIT_MAP2_LSB, 0x210543);
+		REG_WR(bp, NIG_REG_P1_TX_ARB_CLIENT_CREDIT_MAP2_MSB, 0x0);
+	} else {
+		/*Port 0 has 9 COS*/
+		REG_WR(bp, NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP2_LSB,
+		       0x43210876);
+		REG_WR(bp, NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP2_MSB, 0x5);
+	}
+
+	/**
+	 * Bitmap of 5bits length. Each bit specifies whether the entry behaves
+	 * as strict.  Bits 0,1,2 - debug and management entries, 3 -
+	 * COS0 entry, 4 - COS1 entry.
+	 * COS1 | COS0 | DEBUG1 | DEBUG0 | MGMT
+	 * bit4   bit3	  bit2   bit1	  bit0
+	 * MCP and debug are strict
+	 */
+	if (port)
+		REG_WR(bp, NIG_REG_P1_TX_ARB_CLIENT_IS_STRICT, 0x3f);
+	else
+		REG_WR(bp, NIG_REG_P0_TX_ARB_CLIENT_IS_STRICT, 0x1ff);
+	/* defines which entries (clients) are subjected to WFQ arbitration */
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CLIENT_IS_SUBJECT2WFQ :
+		   NIG_REG_P0_TX_ARB_CLIENT_IS_SUBJECT2WFQ, 0);
+
+	/**
+	* Please notice the register address are note continuous and a
+	* for here is note appropriate.In 2 port mode port0 only COS0-5
+	* can be used. DEBUG1,DEBUG1,MGMT are never used for WFQ* In 4
+	* port mode port1 only COS0-2 can be used. DEBUG1,DEBUG1,MGMT
+	* are never used for WFQ
+	*/
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_0 :
+		   NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_0, 0x0);
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_1 :
+		   NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_1, 0x0);
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_2 :
+		   NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_2, 0x0);
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_3 :
+		   NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_3, 0x0);
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_4 :
+		   NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_4, 0x0);
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_5 :
+		   NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_5, 0x0);
+	if (0 == port) {
+		REG_WR(bp, NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_6, 0x0);
+		REG_WR(bp, NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_7, 0x0);
+		REG_WR(bp, NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_8, 0x0);
+	}
+
+	bnx2x_ets_e3b0_set_credit_upper_bound_nig(params, min_w_val);
+}
+/******************************************************************************
+* Description:
+*	Set credit upper bound for PBF.
+*.
+******************************************************************************/
+static void bnx2x_ets_e3b0_set_credit_upper_bound_pbf(
+	const struct link_params *params,
+	const u32 min_w_val)
+{
+	struct bnx2x *bp = params->bp;
+	const u32 credit_upper_bound =
+	    bnx2x_ets_get_credit_upper_bound(min_w_val);
+	const u8 port = params->port;
+	u32 base_upper_bound = 0;
+	u8 max_cos = 0;
+	u8 i = 0;
+	/**
+	* In 2 port mode port0 has COS0-5 that can be used for WFQ.In 4
+	* port mode port1 has COS0-2 that can be used for WFQ.
+	*/
+	if (0 == port) {
+		base_upper_bound = PBF_REG_COS0_UPPER_BOUND_P0;
+		max_cos = DCBX_E3B0_MAX_NUM_COS_PORT0;
+	} else {
+		base_upper_bound = PBF_REG_COS0_UPPER_BOUND_P1;
+		max_cos = DCBX_E3B0_MAX_NUM_COS_PORT1;
+	}
+
+	for (i = 0; i < max_cos; i++)
+		REG_WR(bp, base_upper_bound + (i << 2), credit_upper_bound);
+}
+
+/******************************************************************************
+* Description:
+*	Will return the PBF ETS registers to init values.Except
+*	credit_upper_bound.
+*	That isn't used in this configuration (No WFQ is enabled) and will be
+*	configured acording to spec
+*.
+******************************************************************************/
+static void bnx2x_ets_e3b0_pbf_disabled(const struct link_params *params)
+{
+	struct bnx2x *bp = params->bp;
+	const u8 port = params->port;
+	const u32 min_w_val_pbf = ETS_E3B0_PBF_MIN_W_VAL;
+	u8 i = 0;
+	u32 base_weight = 0;
+	u8 max_cos = 0;
+
+	/**
+	 * mapping between entry  priority to client number 0 - COS0
+	 * client, 2 - COS1, ... 5 - COS5)(HIGHEST) 4bits client num.
+	 * TODO_ETS - Should be done by reset value or init tool
+	 */
+	if (port)
+		/*  0x688 (|011|0 10|00 1|000) */
+		REG_WR(bp, PBF_REG_ETS_ARB_PRIORITY_CLIENT_P1 , 0x688);
+	else
+		/*  (10 1|100 |011|0 10|00 1|000) */
+		REG_WR(bp, PBF_REG_ETS_ARB_PRIORITY_CLIENT_P0 , 0x2C688);
+
+	/* TODO_ETS - Should be done by reset value or init tool */
+	if (port)
+		/* 0x688 (|011|0 10|00 1|000)*/
+		REG_WR(bp, PBF_REG_ETS_ARB_CLIENT_CREDIT_MAP_P1, 0x688);
+	else
+	/* 0x2C688 (10 1|100 |011|0 10|00 1|000) */
+	REG_WR(bp, PBF_REG_ETS_ARB_CLIENT_CREDIT_MAP_P0, 0x2C688);
+
+	REG_WR(bp, (port) ? PBF_REG_ETS_ARB_NUM_STRICT_ARB_SLOTS_P1 :
+		   PBF_REG_ETS_ARB_NUM_STRICT_ARB_SLOTS_P0 , 0x100);
+
+
+	REG_WR(bp, (port) ? PBF_REG_ETS_ARB_CLIENT_IS_STRICT_P1 :
+		   PBF_REG_ETS_ARB_CLIENT_IS_STRICT_P0 , 0);
+
+	REG_WR(bp, (port) ? PBF_REG_ETS_ARB_CLIENT_IS_SUBJECT2WFQ_P1 :
+		   PBF_REG_ETS_ARB_CLIENT_IS_SUBJECT2WFQ_P0 , 0);
+	/**
+	* In 2 port mode port0 has COS0-5 that can be used for WFQ.
+	* In 4 port mode port1 has COS0-2 that can be used for WFQ.
+	*/
+	if (0 == port) {
+		base_weight = PBF_REG_COS0_WEIGHT_P0;
+		max_cos = DCBX_E3B0_MAX_NUM_COS_PORT0;
+	} else {
+		base_weight = PBF_REG_COS0_WEIGHT_P1;
+		max_cos = DCBX_E3B0_MAX_NUM_COS_PORT1;
+	}
+
+	for (i = 0; i < max_cos; i++)
+		REG_WR(bp, base_weight + (0x4 * i), 0);
+
+	bnx2x_ets_e3b0_set_credit_upper_bound_pbf(params, min_w_val_pbf);
+}
+/******************************************************************************
+* Description:
+*	E3B0 disable will return basicly the values to init values.
+*.
+******************************************************************************/
+static int bnx2x_ets_e3b0_disabled(const struct link_params *params,
+				   const struct link_vars *vars)
+{
+	struct bnx2x *bp = params->bp;
+
+	if (!CHIP_IS_E3B0(bp)) {
+		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_disabled the chip isn't E3B0"
+				   "\n");
+		return -EINVAL;
+	}
+
+	bnx2x_ets_e3b0_nig_disabled(params, vars);
+
+	bnx2x_ets_e3b0_pbf_disabled(params);
+
+	return 0;
+}
+
+/******************************************************************************
+* Description:
+*	Disable will return basicly the values to init values.
+*.
+******************************************************************************/
+int bnx2x_ets_disabled(struct link_params *params,
+		      struct link_vars *vars)
+{
+	struct bnx2x *bp = params->bp;
+	int bnx2x_status = 0;
+
+	if ((CHIP_IS_E2(bp)) || (CHIP_IS_E3A0(bp)))
+		bnx2x_ets_e2e3a0_disabled(params);
+	else if (CHIP_IS_E3B0(bp))
+		bnx2x_status = bnx2x_ets_e3b0_disabled(params, vars);
+	else {
+		DP(NETIF_MSG_LINK, "bnx2x_ets_disabled - chip not supported\n");
+		return -EINVAL;
+	}
+
+	return bnx2x_status;
+}
+
+/******************************************************************************
+* Description
+*	Set the COS mappimg to SP and BW until this point all the COS are not
+*	set as SP or BW.
+******************************************************************************/
+static int bnx2x_ets_e3b0_cli_map(const struct link_params *params,
+				  const struct bnx2x_ets_params *ets_params,
+				  const u8 cos_sp_bitmap,
+				  const u8 cos_bw_bitmap)
+{
+	struct bnx2x *bp = params->bp;
+	const u8 port = params->port;
+	const u8 nig_cli_sp_bitmap = 0x7 | (cos_sp_bitmap << 3);
+	const u8 pbf_cli_sp_bitmap = cos_sp_bitmap;
+	const u8 nig_cli_subject2wfq_bitmap = cos_bw_bitmap << 3;
+	const u8 pbf_cli_subject2wfq_bitmap = cos_bw_bitmap;
+
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CLIENT_IS_STRICT :
+	       NIG_REG_P0_TX_ARB_CLIENT_IS_STRICT, nig_cli_sp_bitmap);
+
+	REG_WR(bp, (port) ? PBF_REG_ETS_ARB_CLIENT_IS_STRICT_P1 :
+	       PBF_REG_ETS_ARB_CLIENT_IS_STRICT_P0 , pbf_cli_sp_bitmap);
+
+	REG_WR(bp, (port) ? NIG_REG_P1_TX_ARB_CLIENT_IS_SUBJECT2WFQ :
+	       NIG_REG_P0_TX_ARB_CLIENT_IS_SUBJECT2WFQ,
+	       nig_cli_subject2wfq_bitmap);
+
+	REG_WR(bp, (port) ? PBF_REG_ETS_ARB_CLIENT_IS_SUBJECT2WFQ_P1 :
+	       PBF_REG_ETS_ARB_CLIENT_IS_SUBJECT2WFQ_P0,
+	       pbf_cli_subject2wfq_bitmap);
+
+	return 0;
+}
+
+/******************************************************************************
+* Description:
+*	This function is needed because NIG ARB_CREDIT_WEIGHT_X are
+*	not continues and ARB_CREDIT_WEIGHT_0 + offset is suitable.
+******************************************************************************/
+static int bnx2x_ets_e3b0_set_cos_bw(struct bnx2x *bp,
+				     const u8 cos_entry,
+				     const u32 min_w_val_nig,
+				     const u32 min_w_val_pbf,
+				     const u16 total_bw,
+				     const u8 bw,
+				     const u8 port)
+{
+	u32 nig_reg_adress_crd_weight = 0;
+	u32 pbf_reg_adress_crd_weight = 0;
+	/* Calculate and set BW for this COS*/
+	const u32 cos_bw_nig = (bw * min_w_val_nig) / total_bw;
+	const u32 cos_bw_pbf = (bw * min_w_val_pbf) / total_bw;
+
+	switch (cos_entry) {
+	case 0:
+	    nig_reg_adress_crd_weight =
+		 (port) ? NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_0 :
+		     NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_0;
+	     pbf_reg_adress_crd_weight = (port) ?
+		 PBF_REG_COS0_WEIGHT_P1 : PBF_REG_COS0_WEIGHT_P0;
+	     break;
+	case 1:
+	     nig_reg_adress_crd_weight = (port) ?
+		 NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_1 :
+		 NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_1;
+	     pbf_reg_adress_crd_weight = (port) ?
+		 PBF_REG_COS1_WEIGHT_P1 : PBF_REG_COS1_WEIGHT_P0;
+	     break;
+	case 2:
+	     nig_reg_adress_crd_weight = (port) ?
+		 NIG_REG_P1_TX_ARB_CREDIT_WEIGHT_2 :
+		 NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_2;
+
+		 pbf_reg_adress_crd_weight = (port) ?
+		     PBF_REG_COS2_WEIGHT_P1 : PBF_REG_COS2_WEIGHT_P0;
+	     break;
+	case 3:
+	    if (port)
+			return -EINVAL;
+	     nig_reg_adress_crd_weight =
+		 NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_3;
+	     pbf_reg_adress_crd_weight =
+		 PBF_REG_COS3_WEIGHT_P0;
+	     break;
+	case 4:
+	    if (port)
+		return -EINVAL;
+	     nig_reg_adress_crd_weight =
+		 NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_4;
+	     pbf_reg_adress_crd_weight = PBF_REG_COS4_WEIGHT_P0;
+	     break;
+	case 5:
+	    if (port)
+		return -EINVAL;
+	     nig_reg_adress_crd_weight =
+		 NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_5;
+	     pbf_reg_adress_crd_weight = PBF_REG_COS5_WEIGHT_P0;
+	     break;
+	}
+
+	REG_WR(bp, nig_reg_adress_crd_weight, cos_bw_nig);
+
+	REG_WR(bp, pbf_reg_adress_crd_weight, cos_bw_pbf);
+
+	return 0;
+}
+/******************************************************************************
+* Description:
+*	Calculate the total BW.A value of 0 isn't legal.
+*.
+******************************************************************************/
+static int bnx2x_ets_e3b0_get_total_bw(
+	const struct link_params *params,
+	const struct bnx2x_ets_params *ets_params,
+	u16 *total_bw)
+{
+	struct bnx2x *bp = params->bp;
+	u8 cos_idx = 0;
+
+	*total_bw = 0 ;
+	/* Calculate total BW requested */
+	for (cos_idx = 0; cos_idx < ets_params->num_of_cos; cos_idx++) {
+		if (bnx2x_cos_state_bw == ets_params->cos[cos_idx].state) {
+
+			if (0 == ets_params->cos[cos_idx].params.bw_params.bw) {
+				DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config BW"
+						   "was set to 0\n");
+			return -EINVAL;
+		}
+		*total_bw +=
+		    ets_params->cos[cos_idx].params.bw_params.bw;
+	    }
+	}
+
+	/*Check taotl BW is valid */
+	if ((100 != *total_bw) || (0 == *total_bw)) {
+		if (0 == *total_bw) {
+			DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config toatl BW"
+					   "shouldn't be 0\n");
+			return -EINVAL;
+		}
+		DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config toatl BW should be"
+				   "100\n");
+		/**
+		*   We can handle a case whre the BW isn't 100 this can happen
+		*   if the TC are joined.
+		*/
+	}
+	return 0;
+}
+
+/******************************************************************************
+* Description:
+*	Invalidate all the sp_pri_to_cos.
+*.
+******************************************************************************/
+static void bnx2x_ets_e3b0_sp_pri_to_cos_init(u8 *sp_pri_to_cos)
+{
+	u8 pri = 0;
+	for (pri = 0; pri < DCBX_MAX_NUM_COS; pri++)
+		sp_pri_to_cos[pri] = DCBX_INVALID_COS;
+}
+/******************************************************************************
+* Description:
+*	Calculate and set the SP (ARB_PRIORITY_CLIENT) NIG and PBF registers
+*	according to sp_pri_to_cos.
+*.
+******************************************************************************/
+static int bnx2x_ets_e3b0_sp_pri_to_cos_set(const struct link_params *params,
+					    u8 *sp_pri_to_cos, const u8 pri,
+					    const u8 cos_entry)
+{
+	struct bnx2x *bp = params->bp;
+	const u8 port = params->port;
+	const u8 max_num_of_cos = (port) ? DCBX_E3B0_MAX_NUM_COS_PORT1 :
+		DCBX_E3B0_MAX_NUM_COS_PORT0;
+
+	if (DCBX_INVALID_COS != sp_pri_to_cos[pri]) {
+		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_sp_pri_to_cos_set invalid "
+				   "parameter There can't be two COS's with"
+				   "the same strict pri\n");
+		return -EINVAL;
+	}
+
+	if (pri > max_num_of_cos) {
+		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_sp_pri_to_cos_set invalid"
+			       "parameter Illegal strict priority\n");
+	    return -EINVAL;
+	}
+
+	sp_pri_to_cos[pri] = cos_entry;
+	return 0;
+
+}
+
+/******************************************************************************
+* Description:
+*	Returns the correct value according to COS and priority in
+*	the sp_pri_cli register.
+*.
+******************************************************************************/
+static u64 bnx2x_e3b0_sp_get_pri_cli_reg(const u8 cos, const u8 cos_offset,
+					 const u8 pri_set,
+					 const u8 pri_offset,
+					 const u8 entry_size)
+{
+	u64 pri_cli_nig = 0;
+	pri_cli_nig = ((u64)(cos + cos_offset)) << (entry_size *
+						    (pri_set + pri_offset));
+
+	return pri_cli_nig;
+}
+/******************************************************************************
+* Description:
+*	Returns the correct value according to COS and priority in the
+*	sp_pri_cli register for NIG.
+*.
+******************************************************************************/
+static u64 bnx2x_e3b0_sp_get_pri_cli_reg_nig(const u8 cos, const u8 pri_set)
+{
+	/* MCP Dbg0 and dbg1 are always with higher strict pri*/
+	const u8 nig_cos_offset = 3;
+	const u8 nig_pri_offset = 3;
+
+	return bnx2x_e3b0_sp_get_pri_cli_reg(cos, nig_cos_offset, pri_set,
+		nig_pri_offset, 4);
+
+}
+/******************************************************************************
+* Description:
+*	Returns the correct value according to COS and priority in the
+*	sp_pri_cli register for PBF.
+*.
+******************************************************************************/
+static u64 bnx2x_e3b0_sp_get_pri_cli_reg_pbf(const u8 cos, const u8 pri_set)
+{
+	const u8 pbf_cos_offset = 0;
+	const u8 pbf_pri_offset = 0;
+
+	return bnx2x_e3b0_sp_get_pri_cli_reg(cos, pbf_cos_offset, pri_set,
+		pbf_pri_offset, 3);
+
+}
+
+/******************************************************************************
+* Description:
+*	Calculate and set the SP (ARB_PRIORITY_CLIENT) NIG and PBF registers
+*	according to sp_pri_to_cos.(which COS has higher priority)
+*.
+******************************************************************************/
+static int bnx2x_ets_e3b0_sp_set_pri_cli_reg(const struct link_params *params,
+					     u8 *sp_pri_to_cos)
+{
+	struct bnx2x *bp = params->bp;
+	u8 i = 0;
+	const u8 port = params->port;
+	/* MCP Dbg0 and dbg1 are always with higher strict pri*/
+	u64 pri_cli_nig = 0x210;
+	u32 pri_cli_pbf = 0x0;
+	u8 pri_set = 0;
+	u8 pri_bitmask = 0;
+	const u8 max_num_of_cos = (port) ? DCBX_E3B0_MAX_NUM_COS_PORT1 :
+		DCBX_E3B0_MAX_NUM_COS_PORT0;
+
+	u8 cos_bit_to_set = (1 << max_num_of_cos) - 1;
+
+	/* Set all the strict priority first */
+	for (i = 0; i < max_num_of_cos; i++) {
+		if (DCBX_INVALID_COS != sp_pri_to_cos[i]) {
+			if (DCBX_MAX_NUM_COS <= sp_pri_to_cos[i]) {
+				DP(NETIF_MSG_LINK,
+					   "bnx2x_ets_e3b0_sp_set_pri_cli_reg "
+					   "invalid cos entry\n");
+				return -EINVAL;
+			}
+
+			pri_cli_nig |= bnx2x_e3b0_sp_get_pri_cli_reg_nig(
+			    sp_pri_to_cos[i], pri_set);
+
+			pri_cli_pbf |= bnx2x_e3b0_sp_get_pri_cli_reg_pbf(
+			    sp_pri_to_cos[i], pri_set);
+			pri_bitmask = 1 << sp_pri_to_cos[i];
+			/* COS is used remove it from bitmap.*/
+			if (0 == (pri_bitmask & cos_bit_to_set)) {
+				DP(NETIF_MSG_LINK,
+					"bnx2x_ets_e3b0_sp_set_pri_cli_reg "
+					"invalid There can't be two COS's with"
+					" the same strict pri\n");
+				return -EINVAL;
+			}
+			cos_bit_to_set &= ~pri_bitmask;
+			pri_set++;
+		}
+	}
+
+	/* Set all the Non strict priority i= COS*/
+	for (i = 0; i < max_num_of_cos; i++) {
+		pri_bitmask = 1 << i;
+		/* Check if COS was already used for SP */
+		if (pri_bitmask & cos_bit_to_set) {
+			/* COS wasn't used for SP */
+			pri_cli_nig |= bnx2x_e3b0_sp_get_pri_cli_reg_nig(
+			    i, pri_set);
+
+			pri_cli_pbf |= bnx2x_e3b0_sp_get_pri_cli_reg_pbf(
+			    i, pri_set);
+			/* COS is used remove it from bitmap.*/
+			cos_bit_to_set &= ~pri_bitmask;
+			pri_set++;
+		}
+	}
+
+	if (pri_set != max_num_of_cos) {
+		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_sp_set_pri_cli_reg not all "
+				   "entries were set\n");
+		return -EINVAL;
+	}
+
+	if (port) {
+		/* Only 6 usable clients*/
+		REG_WR(bp, NIG_REG_P1_TX_ARB_PRIORITY_CLIENT2_LSB,
+		       (u32)pri_cli_nig);
+
+		REG_WR(bp, PBF_REG_ETS_ARB_PRIORITY_CLIENT_P1 , pri_cli_pbf);
+	} else {
+		/* Only 9 usable clients*/
+		const u32 pri_cli_nig_lsb = (u32) (pri_cli_nig);
+		const u32 pri_cli_nig_msb = (u32) ((pri_cli_nig >> 32) & 0xF);
+
+		REG_WR(bp, NIG_REG_P0_TX_ARB_PRIORITY_CLIENT2_LSB,
+		       pri_cli_nig_lsb);
+		REG_WR(bp, NIG_REG_P0_TX_ARB_PRIORITY_CLIENT2_MSB,
+		       pri_cli_nig_msb);
+
+		REG_WR(bp, PBF_REG_ETS_ARB_PRIORITY_CLIENT_P0 , pri_cli_pbf);
+	}
+	return 0;
+}
+
+/******************************************************************************
+* Description:
+*	Configure the COS to ETS according to BW and SP settings.
+******************************************************************************/
+int bnx2x_ets_e3b0_config(const struct link_params *params,
+			 const struct link_vars *vars,
+			 const struct bnx2x_ets_params *ets_params)
+{
+	struct bnx2x *bp = params->bp;
+	int bnx2x_status = 0;
+	const u8 port = params->port;
+	u16 total_bw = 0;
+	const u32 min_w_val_nig = bnx2x_ets_get_min_w_val_nig(vars);
+	const u32 min_w_val_pbf = ETS_E3B0_PBF_MIN_W_VAL;
+	u8 cos_bw_bitmap = 0;
+	u8 cos_sp_bitmap = 0;
+	u8 sp_pri_to_cos[DCBX_MAX_NUM_COS] = {0};
+	const u8 max_num_of_cos = (port) ? DCBX_E3B0_MAX_NUM_COS_PORT1 :
+		DCBX_E3B0_MAX_NUM_COS_PORT0;
+	u8 cos_entry = 0;
+
+	if (!CHIP_IS_E3B0(bp)) {
+		DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_disabled the chip isn't E3B0"
+				   "\n");
+		return -EINVAL;
+	}
+
+	if ((ets_params->num_of_cos > max_num_of_cos)) {
+		DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config the number of COS "
+				   "isn't supported\n");
+		return -EINVAL;
+	}
+
+	/* Prepare sp strict priority parameters*/
+	bnx2x_ets_e3b0_sp_pri_to_cos_init(sp_pri_to_cos);
+
+	/* Prepare BW parameters*/
+	bnx2x_status = bnx2x_ets_e3b0_get_total_bw(params, ets_params,
+						   &total_bw);
+	if (0 != bnx2x_status) {
+		DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config get_total_bw failed "
+				   "\n");
+		return -EINVAL;
+	}
+
+	/**
+	 *  Upper bound is set according to current link speed (min_w_val
+	 *  should be the same for upper bound and COS credit val).
+	 */
+	bnx2x_ets_e3b0_set_credit_upper_bound_nig(params, min_w_val_nig);
+	bnx2x_ets_e3b0_set_credit_upper_bound_pbf(params, min_w_val_pbf);
+
+
+	for (cos_entry = 0; cos_entry < ets_params->num_of_cos; cos_entry++) {
+		if (bnx2x_cos_state_bw == ets_params->cos[cos_entry].state) {
+			cos_bw_bitmap |= (1 << cos_entry);
+			/**
+			 * The function also sets the BW in HW(not the mappin
+			 * yet)
+			 */
+			bnx2x_status = bnx2x_ets_e3b0_set_cos_bw(
+				bp, cos_entry, min_w_val_nig, min_w_val_pbf,
+				total_bw,
+				ets_params->cos[cos_entry].params.bw_params.bw,
+				 port);
+		} else if (bnx2x_cos_state_strict ==
+			ets_params->cos[cos_entry].state){
+			cos_sp_bitmap |= (1 << cos_entry);
+
+			bnx2x_status = bnx2x_ets_e3b0_sp_pri_to_cos_set(
+				params,
+				sp_pri_to_cos,
+				ets_params->cos[cos_entry].params.sp_params.pri,
+				cos_entry);
+
+		} else {
+			DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_config cos state not"
+					   " valid\n");
+			return -EINVAL;
+		}
+		if (0 != bnx2x_status) {
+			DP(NETIF_MSG_LINK, "bnx2x_ets_e3b0_config set cos bw "
+					   "failed\n");
+			return bnx2x_status;
+		}
+	}
+
+	/* Set SP register (which COS has higher priority) */
+	bnx2x_status = bnx2x_ets_e3b0_sp_set_pri_cli_reg(params,
+							 sp_pri_to_cos);
+
+	if (0 != bnx2x_status) {
+		DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config set_pri_cli_reg "
+				   "failed\n");
+		return bnx2x_status;
+	}
+
+	/* Set client mapping of BW and strict */
+	bnx2x_status = bnx2x_ets_e3b0_cli_map(params, ets_params,
+					      cos_sp_bitmap,
+					      cos_bw_bitmap);
+
+	if (0 != bnx2x_status) {
+		DP(NETIF_MSG_LINK, "bnx2x_ets_E3B0_config SP failed\n");
+		return bnx2x_status;
+	}
+	return 0;
+}
 static void bnx2x_ets_bw_limit_common(const struct link_params *params)
 {
 	/* ETS disabled configuration */

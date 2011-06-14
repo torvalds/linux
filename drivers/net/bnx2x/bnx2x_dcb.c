@@ -424,7 +424,7 @@ static void bnx2x_dcbx_update_ets_params(struct bnx2x *bp)
 	struct bnx2x_dcbx_pg_params *ets = &(bp->dcbx_port_params.ets);
 	u8	status = 0;
 
-	bnx2x_ets_disabled(&bp->link_params/*, &bp->link_vars*/);
+	bnx2x_ets_disabled(&bp->link_params, &bp->link_vars);
 
 	if (!ets->enabled)
 		return;
