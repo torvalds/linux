@@ -1097,30 +1097,43 @@ void bnx2x_update_max_mf_config(struct bnx2x *bp, u32 value)
 	}
 }
 
-static void bnx2x_free_msix_irqs(struct bnx2x *bp)
+/**
+ * bnx2x_free_msix_irqs - free previously requested MSI-X IRQ vectors
+ *
+ * @bp:		driver handle
+ * @nvecs:	number of vectors to be released
+ */
+static void bnx2x_free_msix_irqs(struct bnx2x *bp, int nvecs)
 {
-	int i, offset = 1;
+	int i, offset = 0;
 
-	free_irq(bp->msix_table[0].vector, bp->dev);
+	if (nvecs == offset)
+		return;
+	free_irq(bp->msix_table[offset].vector, bp->dev);
 	DP(NETIF_MSG_IFDOWN, "released sp irq (%d)\n",
-	   bp->msix_table[0].vector);
-
+	   bp->msix_table[offset].vector);
+	offset++;
 #ifdef BCM_CNIC
+	if (nvecs == offset)
+		return;
 	offset++;
 #endif
-	for_each_eth_queue(bp, i) {
-		DP(NETIF_MSG_IFDOWN, "about to release fp #%d->%d irq  "
-		   "state %x\n", i, bp->msix_table[i + offset].vector,
-		   bnx2x_fp(bp, i, state));
 
-		free_irq(bp->msix_table[i + offset].vector, &bp->fp[i]);
+	for_each_eth_queue(bp, i) {
+		if (nvecs == offset)
+			return;
+		DP(NETIF_MSG_IFDOWN, "about to release fp #%d->%d "
+		   "irq\n", i, bp->msix_table[offset].vector);
+
+		free_irq(bp->msix_table[offset++].vector, &bp->fp[i]);
 	}
 }
 
 void bnx2x_free_irq(struct bnx2x *bp)
 {
 	if (bp->flags & USING_MSIX_FLAG)
-		bnx2x_free_msix_irqs(bp);
+		bnx2x_free_msix_irqs(bp, BNX2X_NUM_ETH_QUEUES(bp) +
+				     CNIC_CONTEXT_USE + 1);
 	else if (bp->flags & USING_MSI_FLAG)
 		free_irq(bp->pdev->irq, bp->dev);
 	else
@@ -1193,9 +1206,10 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 
 static int bnx2x_req_msix_irqs(struct bnx2x *bp)
 {
-	int i, rc, offset = 1;
+	int i, rc, offset = 0;
 
-	rc = request_irq(bp->msix_table[0].vector, bnx2x_msix_sp_int, 0,
+	rc = request_irq(bp->msix_table[offset++].vector,
+			 bnx2x_msix_sp_int, 0,
 			 bp->dev->name, bp->dev);
 	if (rc) {
 		BNX2X_ERR("request sp irq failed\n");
@@ -1213,8 +1227,9 @@ static int bnx2x_req_msix_irqs(struct bnx2x *bp)
 		rc = request_irq(bp->msix_table[offset].vector,
 				 bnx2x_msix_fp_int, 0, fp->name, fp);
 		if (rc) {
-			BNX2X_ERR("request fp #%d irq failed  rc %d\n", i, rc);
-			bnx2x_free_msix_irqs(bp);
+			BNX2X_ERR("request fp #%d irq (%d) failed  rc %d\n", i,
+			      bp->msix_table[offset].vector, rc);
+			bnx2x_free_msix_irqs(bp, offset);
 			return -EBUSY;
 		}
 
