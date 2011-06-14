@@ -200,35 +200,51 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 {
 	cmd->io_capability = conn->hcon->io_capability;
 	cmd->oob_flag = SMP_OOB_NOT_PRESENT;
-	cmd->max_key_size = 16;
+	cmd->max_key_size = SMP_MAX_ENC_KEY_SIZE;
 	cmd->init_key_dist = 0x00;
 	cmd->resp_key_dist = 0x00;
 	cmd->auth_req = authreq;
 }
 
+static u8 check_enc_key_size(struct l2cap_conn *conn, __u8 max_key_size)
+{
+	if ((max_key_size > SMP_MAX_ENC_KEY_SIZE) ||
+			(max_key_size < SMP_MIN_ENC_KEY_SIZE))
+		return SMP_ENC_KEY_SIZE;
+
+	conn->smp_key_size = max_key_size;
+
+	return 0;
+}
+
 static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 {
-	struct smp_cmd_pairing *rp = (void *) skb->data;
+	struct smp_cmd_pairing rsp, *req = (void *) skb->data;
+	u8 key_size;
 
 	BT_DBG("conn %p", conn);
 
 	conn->preq[0] = SMP_CMD_PAIRING_REQ;
-	memcpy(&conn->preq[1], rp, sizeof(*rp));
-	skb_pull(skb, sizeof(*rp));
+	memcpy(&conn->preq[1], req, sizeof(*req));
+	skb_pull(skb, sizeof(*req));
 
-	if (rp->oob_flag)
+	if (req->oob_flag)
 		return SMP_OOB_NOT_AVAIL;
 
 	/* We didn't start the pairing, so no requirements */
-	build_pairing_cmd(conn, rp, SMP_AUTH_NONE);
+	build_pairing_cmd(conn, &rsp, SMP_AUTH_NONE);
+
+	key_size = min(req->max_key_size, rsp.max_key_size);
+	if (check_enc_key_size(conn, key_size))
+		return SMP_ENC_KEY_SIZE;
 
 	/* Just works */
 	memset(conn->tk, 0, sizeof(conn->tk));
 
 	conn->prsp[0] = SMP_CMD_PAIRING_RSP;
-	memcpy(&conn->prsp[1], rp, sizeof(*rp));
+	memcpy(&conn->prsp[1], &rsp, sizeof(rsp));
 
-	smp_send_cmd(conn, SMP_CMD_PAIRING_RSP, sizeof(*rp), rp);
+	smp_send_cmd(conn, SMP_CMD_PAIRING_RSP, sizeof(rsp), &rsp);
 
 	mod_timer(&conn->security_timer, jiffies +
 					msecs_to_jiffies(SMP_TIMEOUT));
@@ -238,24 +254,30 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 
 static u8 smp_cmd_pairing_rsp(struct l2cap_conn *conn, struct sk_buff *skb)
 {
-	struct smp_cmd_pairing *rp = (void *) skb->data;
+	struct smp_cmd_pairing *req, *rsp = (void *) skb->data;
 	struct smp_cmd_pairing_confirm cp;
 	struct crypto_blkcipher *tfm = conn->hcon->hdev->tfm;
 	int ret;
-	u8 res[16];
+	u8 res[16], key_size;
 
 	BT_DBG("conn %p", conn);
 
-	skb_pull(skb, sizeof(*rp));
+	skb_pull(skb, sizeof(*rsp));
 
-	if (rp->oob_flag)
+	req = (void *) &conn->preq[1];
+
+	key_size = min(req->max_key_size, rsp->max_key_size);
+	if (check_enc_key_size(conn, key_size))
+		return SMP_ENC_KEY_SIZE;
+
+	if (rsp->oob_flag)
 		return SMP_OOB_NOT_AVAIL;
 
 	/* Just works */
 	memset(conn->tk, 0, sizeof(conn->tk));
 
 	conn->prsp[0] = SMP_CMD_PAIRING_RSP;
-	memcpy(&conn->prsp[1], rp, sizeof(*rp));
+	memcpy(&conn->prsp[1], rsp, sizeof(*rsp));
 
 	ret = smp_rand(conn->prnd);
 	if (ret)
@@ -353,6 +375,9 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 		smp_s1(tfm, conn->tk, random, conn->prnd, key);
 		swap128(key, hcon->ltk);
 
+		memset(hcon->ltk + conn->smp_key_size, 0,
+				SMP_MAX_ENC_KEY_SIZE - conn->smp_key_size);
+
 		memset(rand, 0, sizeof(rand));
 		ediv = 0;
 		hci_le_start_enc(hcon, ediv, rand, hcon->ltk);
@@ -364,6 +389,9 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 
 		smp_s1(tfm, conn->tk, conn->prnd, random, key);
 		swap128(key, hcon->ltk);
+
+		memset(hcon->ltk + conn->smp_key_size, 0,
+				SMP_MAX_ENC_KEY_SIZE - conn->smp_key_size);
 	}
 
 	return 0;
