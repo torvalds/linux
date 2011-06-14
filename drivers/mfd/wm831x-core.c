@@ -1817,6 +1817,24 @@ int wm831x_device_shutdown(struct wm831x *wm831x)
 EXPORT_SYMBOL_GPL(wm831x_device_shutdown);
 
 
+int wm831x_read_usb(struct wm831x *wm831x)
+{
+	int ret, usb_chg = 0, wall_chg = 0;
+	
+	ret = wm831x_reg_read(wm831x, WM831X_SYSTEM_STATUS);
+	if (ret < 0)
+		return ret;
+
+	if (ret & WM831X_PWR_USB)
+		usb_chg = 1;
+	if (ret & WM831X_PWR_WALL)
+		wall_chg = 1;
+
+	return ((usb_chg | wall_chg) ? 1 : 0);
+
+}
+
+
 int wm831x_device_restart(struct wm831x *wm831x)
 {
 	wm831x_reg_write(wm831x,WM831X_RESET_ID, 0xffff); 

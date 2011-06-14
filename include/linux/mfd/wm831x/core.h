@@ -346,6 +346,7 @@ void wm831x_device_exit(struct wm831x *wm831x);
 int wm831x_device_suspend(struct wm831x *wm831x);
 int wm831x_device_resume(struct wm831x *wm831x);
 int wm831x_device_shutdown(struct wm831x *wm831x);
+int wm831x_read_usb(struct wm831x *wm831x);
 int wm831x_device_restart(struct wm831x *wm831x);
 int wm831x_irq_init(struct wm831x *wm831x, int irq);
 void wm831x_irq_exit(struct wm831x *wm831x);

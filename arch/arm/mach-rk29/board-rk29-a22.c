@@ -2994,23 +2994,28 @@ static void __init machine_rk29_init_irq(void)
 }
 
 #define POWER_ON_PIN RK29_PIN4_PA4
-static void rk29_pm_power_off(void)
-{
-	printk(KERN_ERR "rk29_pm_power_off start...\n");
-	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
-#if defined(CONFIG_MFD_WM831X)
-	wm831x_device_shutdown(gWm831x);
-#endif
-	while (1);
-}
+
 static void rk29_pm_power_restart(void)
 {
-	printk("%s\n",__FUNCTION__);
+	printk("%s,line=%d\n",__FUNCTION__,__LINE__);
 	mdelay(2);
 #if defined(CONFIG_MFD_WM831X)
 	wm831x_device_restart(gWm831x);
 #endif
 
+}
+
+static void rk29_pm_power_off(void)
+{
+	printk(KERN_ERR "rk29_pm_power_off start...\n");
+	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+#if defined(CONFIG_MFD_WM831X)
+	if(wm831x_read_usb(gWm831x))
+	rk29_pm_power_restart();	//if charging then restart
+	else
+	wm831x_device_shutdown(gWm831x);//else shutdown
+#endif
+	while (1);
 }
 
 static void __init machine_rk29_board_init(void)
