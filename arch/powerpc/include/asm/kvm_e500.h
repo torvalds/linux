@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (C) 2008-2011 Freescale Semiconductor, Inc. All rights reserved.
  *
  * Author: Yu Liu, <yu.liu@freescale.com>
  *
@@ -37,6 +37,8 @@ struct tlbe_priv {
 	unsigned int flags; /* E500_TLB_* */
 };
 
+struct vcpu_id_table;
+
 struct kvmppc_vcpu_e500 {
 	/* Unmodified copy of the guest's TLB. */
 	struct tlbe *gtlb_arch[E500_TLB_NUM];
@@ -59,6 +61,10 @@ struct kvmppc_vcpu_e500 {
 	u32 mas5;
 	u32 mas6;
 	u32 mas7;
+
+	/* vcpu id table */
+	struct vcpu_id_table *idt;
+
 	u32 l1csr0;
 	u32 l1csr1;
 	u32 hid0;

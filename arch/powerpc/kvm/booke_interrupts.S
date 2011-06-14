@@ -191,6 +191,12 @@ _GLOBAL(kvmppc_resume_host)
 	lwz	r3, VCPU_HOST_PID(r4)
 	mtspr	SPRN_PID, r3
 
+#ifdef CONFIG_FSL_BOOKE
+	/* we cheat and know that Linux doesn't use PID1 which is always 0 */
+	lis	r3, 0
+	mtspr	SPRN_PID1, r3
+#endif
+
 	/* Restore host IVPR before re-enabling interrupts. We cheat and know
 	 * that Linux IVPR is always 0xc0000000. */
 	lis	r3, 0xc000
@@ -364,6 +370,11 @@ lightweight_exit:
 	stw	r3, VCPU_HOST_PID(r4)
 	lwz	r3, VCPU_SHADOW_PID(r4)
 	mtspr	SPRN_PID, r3
+
+#ifdef CONFIG_FSL_BOOKE
+	lwz	r3, VCPU_SHADOW_PID1(r4)
+	mtspr	SPRN_PID1, r3
+#endif
 
 #ifdef CONFIG_44x
 	iccci	0, 0 /* XXX hack */

@@ -53,6 +53,7 @@
 extern unsigned long kvmppc_booke_handlers;
 
 void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr);
+void kvmppc_mmu_msr_notify(struct kvm_vcpu *vcpu, u32 old_msr);
 
 int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
                             unsigned int inst, int *advance);

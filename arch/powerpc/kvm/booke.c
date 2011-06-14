@@ -113,14 +113,17 @@ static void kvmppc_vcpu_sync_spe(struct kvm_vcpu *vcpu)
 }
 #endif
 
-/* Helper function for "full" MSR writes. No need to call this if only EE is
- * changing. */
+/*
+ * Helper function for "full" MSR writes.  No need to call this if only
+ * EE/CE/ME/DE/RI are changing.
+ */
 void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 {
-	if ((new_msr & MSR_PR) != (vcpu->arch.shared->msr & MSR_PR))
-		kvmppc_mmu_priv_switch(vcpu, new_msr & MSR_PR);
+	u32 old_msr = vcpu->arch.shared->msr;
 
 	vcpu->arch.shared->msr = new_msr;
+
+	kvmppc_mmu_msr_notify(vcpu, old_msr);
 
 	if (vcpu->arch.shared->msr & MSR_WE) {
 		kvm_vcpu_block(vcpu);
