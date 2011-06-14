@@ -35,17 +35,14 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
-#include <linux/dma-mapping.h>
 #include <linux/irq.h>
 #include <linux/videodev2.h>
-#include <linux/slab.h>
 
 #include <media/videobuf-dma-contig.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
 #include <plat/dma.h>
-#include <plat/vram.h>
 #include <plat/vrfb.h>
 #include <video/omapdss.h>
 
@@ -56,7 +53,6 @@ MODULE_AUTHOR("Texas Instruments");
 MODULE_DESCRIPTION("OMAP Video for Linux Video out driver");
 MODULE_LICENSE("GPL");
 
-
 /* Driver Configuration macros */
 #define VOUT_NAME		"omap_vout"
 
@@ -64,31 +60,6 @@ enum omap_vout_channels {
 	OMAP_VIDEO1,
 	OMAP_VIDEO2,
 };
-
-enum dma_channel_state {
-	DMA_CHAN_NOT_ALLOTED,
-	DMA_CHAN_ALLOTED,
-};
-
-#define QQVGA_WIDTH		160
-#define QQVGA_HEIGHT		120
-
-/* Max Resolution supported by the driver */
-#define VID_MAX_WIDTH		1280	/* Largest width */
-#define VID_MAX_HEIGHT		720	/* Largest height */
-
-/* Mimimum requirement is 2x2 for DSS */
-#define VID_MIN_WIDTH		2
-#define VID_MIN_HEIGHT		2
-
-/* 2048 x 2048 is max res supported by OMAP display controller */
-#define MAX_PIXELS_PER_LINE     2048
-
-#define VRFB_TX_TIMEOUT         1000
-#define VRFB_NUM_BUFS		4
-
-/* Max buffer size tobe allocated during init */
-#define OMAP_VOUT_MAX_BUF_SIZE (VID_MAX_WIDTH*VID_MAX_HEIGHT*4)
 
 static struct videobuf_queue_ops video_vbq_ops;
 /* Variables configurable through module params*/
@@ -170,49 +141,6 @@ static const struct v4l2_fmtdesc omap_formats[] = {
 };
 
 #define NUM_OUTPUT_FORMATS (ARRAY_SIZE(omap_formats))
-
-/*
- * Allocate buffers
- */
-static unsigned long omap_vout_alloc_buffer(u32 buf_size, u32 *phys_addr)
-{
-	u32 order, size;
-	unsigned long virt_addr, addr;
-
-	size = PAGE_ALIGN(buf_size);
-	order = get_order(size);
-	virt_addr = __get_free_pages(GFP_KERNEL, order);
-	addr = virt_addr;
-
-	if (virt_addr) {
-		while (size > 0) {
-			SetPageReserved(virt_to_page(addr));
-			addr += PAGE_SIZE;
-			size -= PAGE_SIZE;
-		}
-	}
-	*phys_addr = (u32) virt_to_phys((void *) virt_addr);
-	return virt_addr;
-}
-
-/*
- * Free buffers
- */
-static void omap_vout_free_buffer(unsigned long virtaddr, u32 buf_size)
-{
-	u32 order, size;
-	unsigned long addr = virtaddr;
-
-	size = PAGE_ALIGN(buf_size);
-	order = get_order(size);
-
-	while (size > 0) {
-		ClearPageReserved(virt_to_page(addr));
-		addr += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-	free_pages((unsigned long) virtaddr, order);
-}
 
 /*
  * Function for allocating video buffers
@@ -365,43 +293,6 @@ static void omap_vout_release_vrfb(struct omap_vout_device *vout)
 	if (vout->vrfb_dma_tx.req_status == DMA_CHAN_ALLOTED) {
 		vout->vrfb_dma_tx.req_status = DMA_CHAN_NOT_ALLOTED;
 		omap_free_dma(vout->vrfb_dma_tx.dma_ch);
-	}
-}
-
-/*
- * Return true if rotation is 90 or 270
- */
-static inline int rotate_90_or_270(const struct omap_vout_device *vout)
-{
-	return (vout->rotation == dss_rotation_90_degree ||
-			vout->rotation == dss_rotation_270_degree);
-}
-
-/*
- * Return true if rotation is enabled
- */
-static inline int rotation_enabled(const struct omap_vout_device *vout)
-{
-	return vout->rotation || vout->mirror;
-}
-
-/*
- * Reverse the rotation degree if mirroring is enabled
- */
-static inline int calc_rotation(const struct omap_vout_device *vout)
-{
-	if (!vout->mirror)
-		return vout->rotation;
-
-	switch (vout->rotation) {
-	case dss_rotation_90_degree:
-		return dss_rotation_270_degree;
-	case dss_rotation_270_degree:
-		return dss_rotation_90_degree;
-	case dss_rotation_180_degree:
-		return dss_rotation_0_degree;
-	default:
-		return dss_rotation_180_degree;
 	}
 }
 
@@ -664,7 +555,7 @@ static int video_mode_to_dss_mode(struct omap_vout_device *vout)
 /*
  * Setup the overlay
  */
-int omapvid_setup_overlay(struct omap_vout_device *vout,
+static int omapvid_setup_overlay(struct omap_vout_device *vout,
 		struct omap_overlay *ovl, int posx, int posy, int outw,
 		int outh, u32 addr)
 {
@@ -744,7 +635,7 @@ setup_ovl_err:
 /*
  * Initialize the overlay structure
  */
-int omapvid_init(struct omap_vout_device *vout, u32 addr)
+static int omapvid_init(struct omap_vout_device *vout, u32 addr)
 {
 	int ret = 0, i;
 	struct v4l2_window *win;
@@ -809,7 +700,7 @@ omapvid_init_err:
 /*
  * Apply the changes set the go bit of DSS
  */
-int omapvid_apply_changes(struct omap_vout_device *vout)
+static int omapvid_apply_changes(struct omap_vout_device *vout)
 {
 	int i;
 	struct omap_overlay *ovl;
@@ -825,7 +716,7 @@ int omapvid_apply_changes(struct omap_vout_device *vout)
 	return 0;
 }
 
-void omap_vout_isr(void *arg, unsigned int irqstatus)
+static void omap_vout_isr(void *arg, unsigned int irqstatus)
 {
 	int ret;
 	u32 addr, fid;
