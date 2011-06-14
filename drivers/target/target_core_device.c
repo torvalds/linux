@@ -813,12 +813,13 @@ static void se_dev_stop(struct se_device *dev)
 
 int se_dev_check_online(struct se_device *dev)
 {
+	unsigned long flags;
 	int ret;
 
-	spin_lock_irq(&dev->dev_status_lock);
+	spin_lock_irqsave(&dev->dev_status_lock, flags);
 	ret = ((dev->dev_status & TRANSPORT_DEVICE_ACTIVATED) ||
 	       (dev->dev_status & TRANSPORT_DEVICE_DEACTIVATED)) ? 0 : 1;
-	spin_unlock_irq(&dev->dev_status_lock);
+	spin_unlock_irqrestore(&dev->dev_status_lock, flags);
 
 	return ret;
 }
