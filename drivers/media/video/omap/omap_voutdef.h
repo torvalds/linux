@@ -173,7 +173,7 @@ struct omap_vout_device {
 /*
  * Return true if rotation is 90 or 270
  */
-static inline int rotate_90_or_270(const struct omap_vout_device *vout)
+static inline int is_rotation_90_or_270(const struct omap_vout_device *vout)
 {
 	return (vout->rotation == dss_rotation_90_degree ||
 			vout->rotation == dss_rotation_270_degree);
@@ -182,7 +182,7 @@ static inline int rotate_90_or_270(const struct omap_vout_device *vout)
 /*
  * Return true if rotation is enabled
  */
-static inline int rotation_enabled(const struct omap_vout_device *vout)
+static inline int is_rotation_enabled(const struct omap_vout_device *vout)
 {
 	return vout->rotation || vout->mirror;
 }
