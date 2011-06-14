@@ -203,7 +203,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 	};
 	static const char * const mpeg_stream_vbi_fmt[] = {
 		"No VBI",
-		"Private packet, IVTV format",
+		"Private Packet, IVTV Format",
 		NULL
 	};
 	static const char * const camera_power_line_frequency[] = {
@@ -226,18 +226,121 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Negative",
 		"Emboss",
 		"Sketch",
-		"Sky blue",
-		"Grass green",
-		"Skin whiten",
+		"Sky Blue",
+		"Grass Green",
+		"Skin Whiten",
 		"Vivid",
 		NULL
 	};
 	static const char * const tune_preemphasis[] = {
-		"No preemphasis",
+		"No Preemphasis",
 		"50 useconds",
 		"75 useconds",
 		NULL,
 	};
+	static const char * const header_mode[] = {
+		"Separate Buffer",
+		"Joined With 1st Frame",
+		NULL,
+	};
+	static const char * const multi_slice[] = {
+		"Single",
+		"Max Macroblocks",
+		"Max Bytes",
+		NULL,
+	};
+	static const char * const entropy_mode[] = {
+		"CAVLC",
+		"CABAC",
+		NULL,
+	};
+	static const char * const mpeg_h264_level[] = {
+		"1",
+		"1b",
+		"1.1",
+		"1.2",
+		"1.3",
+		"2",
+		"2.1",
+		"2.2",
+		"3",
+		"3.1",
+		"3.2",
+		"4",
+		"4.1",
+		"4.2",
+		"5",
+		"5.1",
+		NULL,
+	};
+	static const char * const h264_loop_filter[] = {
+		"Enabled",
+		"Disabled",
+		"Disabled at Slice Boundary",
+		NULL,
+	};
+	static const char * const h264_profile[] = {
+		"Baseline",
+		"Constrained Baseline",
+		"Main",
+		"Extended",
+		"High",
+		"High 10",
+		"High 422",
+		"High 444 Predictive",
+		"High 10 Intra",
+		"High 422 Intra",
+		"High 444 Intra",
+		"CAVLC 444 Intra",
+		"Scalable Baseline",
+		"Scalable High",
+		"Scalable High Intra",
+		"Multiview High",
+		NULL,
+	};
+	static const char * const vui_sar_idc[] = {
+		"Unspecified",
+		"1:1",
+		"12:11",
+		"10:11",
+		"16:11",
+		"40:33",
+		"24:11",
+		"20:11",
+		"32:11",
+		"80:33",
+		"18:11",
+		"15:11",
+		"64:33",
+		"160:99",
+		"4:3",
+		"3:2",
+		"2:1",
+		"Extended SAR",
+		NULL,
+	};
+	static const char * const mpeg_mpeg4_level[] = {
+		"0",
+		"0b",
+		"1",
+		"2",
+		"3",
+		"3b",
+		"4",
+		"5",
+		NULL,
+	};
+	static const char * const mpeg4_profile[] = {
+		"Simple",
+		"Adcanved Simple",
+		"Core",
+		"Simple Scalable",
+		"Advanced Coding Efficency",
+		NULL,
+	};
+
+	switch (id) {
+	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
 	static const char * const flash_led_mode[] = {
 		"Off",
 		"Flash",
@@ -293,6 +396,24 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		return flash_led_mode;
 	case V4L2_CID_FLASH_STROBE_SOURCE:
 		return flash_strobe_source;
+	case V4L2_CID_MPEG_VIDEO_HEADER_MODE:
+		return header_mode;
+	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE:
+		return multi_slice;
+	case V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE:
+		return entropy_mode;
+	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
+		return mpeg_h264_level;
+	case V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE:
+		return h264_loop_filter;
+	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:
+		return h264_profile;
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC:
+		return vui_sar_idc;
+	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:
+		return mpeg_mpeg4_level;
+	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
+		return mpeg4_profile;
 	default:
 		return NULL;
 	}
@@ -344,6 +465,8 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_CHROMA_GAIN:		return "Chroma Gain";
 	case V4L2_CID_ILLUMINATORS_1:		return "Illuminator 1";
 	case V4L2_CID_ILLUMINATORS_2:		return "Illuminator 2";
+	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:	return "Minimum Number of Capture Buffers";
+	case V4L2_CID_MIN_BUFFERS_FOR_OUTPUT:	return "Minimum Number of Output Buffers";
 
 	/* MPEG controls */
 	/* Keep the order of the 'case's the same as in videodev2.h! */
@@ -380,6 +503,48 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION: return "Video Temporal Decimation";
 	case V4L2_CID_MPEG_VIDEO_MUTE:		return "Video Mute";
 	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:	return "Video Mute YUV";
+	case V4L2_CID_MPEG_VIDEO_DECODER_SLICE_INTERFACE:	return "Decoder Slice Interface";
+	case V4L2_CID_MPEG_VIDEO_DECODER_MPEG4_DEBLOCK_FILTER:	return "MPEG4 Loop Filter Enable";
+	case V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB:	return "The Number of Intra Refresh MBs";
+	case V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE:		return "Frame Level Rate Control Enable";
+	case V4L2_CID_MPEG_VIDEO_MB_RC_ENABLE:			return "H264 MB Level Rate Control";
+	case V4L2_CID_MPEG_VIDEO_HEADER_MODE:			return "Sequence Header Mode";
+	case V4L2_CID_MPEG_VIDEO_MAX_REF_PIC:			return "The Max Number of Reference Picture";
+	case V4L2_CID_MPEG_VIDEO_H263_I_FRAME_QP:		return "H263 I-Frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_H263_P_FRAME_QP:		return "H263 P frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_H263_B_FRAME_QP:		return "H263 B frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_H263_MIN_QP:			return "H263 Minimum QP Value";
+	case V4L2_CID_MPEG_VIDEO_H263_MAX_QP:			return "H263 Maximum QP Value";
+	case V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP:		return "H264 I-Frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP:		return "H264 P frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_H264_B_FRAME_QP:		return "H264 B frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_H264_MAX_QP:			return "H264 Maximum QP Value";
+	case V4L2_CID_MPEG_VIDEO_H264_MIN_QP:			return "H264 Minimum QP Value";
+	case V4L2_CID_MPEG_VIDEO_H264_8X8_TRANSFORM:		return "H264 8x8 Transform Enable";
+	case V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE:			return "H264 CPB Buffer Size";
+	case V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE:		return "H264 Entorpy Mode";
+	case V4L2_CID_MPEG_VIDEO_H264_I_PERIOD:			return "H264 I Period";
+	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:			return "H264 Level";
+	case V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_ALPHA:	return "H264 Loop Filter Alpha Offset";
+	case V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_BETA:		return "H264 Loop Filter Beta Offset";
+	case V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE:		return "H264 Loop Filter Mode";
+	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:			return "H264 Profile";
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_EXT_SAR_HEIGHT:	return "Vertical Size of SAR";
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_EXT_SAR_WIDTH:	return "Horizontal Size of SAR";
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_ENABLE:		return "Aspect Ratio VUI Enable";
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC:		return "VUI Aspect Ratio IDC";
+	case V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP:		return "MPEG4 I-Frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP:		return "MPEG4 P frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_MPEG4_B_FRAME_QP:		return "MPEG4 B frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_MPEG4_MIN_QP:			return "MPEG4 Minimum QP Value";
+	case V4L2_CID_MPEG_VIDEO_MPEG4_MAX_QP:			return "MPEG4 Maximum QP Value";
+	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:			return "MPEG4 Level";
+	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:			return "MPEG4 Profile";
+	case V4L2_CID_MPEG_VIDEO_MPEG4_QPEL:			return "Quarter Pixel Search Enable";
+	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_BYTES:		return "The Maximum Bytes Per Slice";
+	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_MB:		return "The Number of MB in a Slice";
+	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE:		return "The Slice Partitioning Method";
+	case V4L2_CID_MPEG_VIDEO_VBV_SIZE:			return "VBV Buffer Size";
 
 	/* CAMERA controls */
 	/* Keep the order of the 'case's the same as in videodev2.h! */
@@ -478,6 +643,13 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_FLASH_STROBE_STATUS:
 	case V4L2_CID_FLASH_CHARGE:
 	case V4L2_CID_FLASH_READY:
+	case V4L2_CID_MPEG_VIDEO_DECODER_MPEG4_DEBLOCK_FILTER:
+	case V4L2_CID_MPEG_VIDEO_DECODER_SLICE_INTERFACE:
+	case V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE:
+	case V4L2_CID_MPEG_VIDEO_MB_RC_ENABLE:
+	case V4L2_CID_MPEG_VIDEO_H264_8X8_TRANSFORM:
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_ENABLE:
+	case V4L2_CID_MPEG_VIDEO_MPEG4_QPEL:
 		*type = V4L2_CTRL_TYPE_BOOLEAN;
 		*min = 0;
 		*max = *step = 1;
@@ -511,6 +683,15 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_TUNE_PREEMPHASIS:
 	case V4L2_CID_FLASH_LED_MODE:
 	case V4L2_CID_FLASH_STROBE_SOURCE:
+	case V4L2_CID_MPEG_VIDEO_HEADER_MODE:
+	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE:
+	case V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE:
+	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
+	case V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE:
+	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:
+	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC:
+	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:
+	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
 		*type = V4L2_CTRL_TYPE_MENU;
 		break;
 	case V4L2_CID_RDS_TX_PS_NAME:
@@ -536,6 +717,11 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		break;
 	case V4L2_CID_FLASH_FAULT:
 		*type = V4L2_CTRL_TYPE_BITMASK;
+		break;
+	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:
+	case V4L2_CID_MIN_BUFFERS_FOR_OUTPUT:
+		*type = V4L2_CTRL_TYPE_INTEGER;
+		*flags |= V4L2_CTRL_FLAG_READ_ONLY;
 		break;
 	default:
 		*type = V4L2_CTRL_TYPE_INTEGER;
