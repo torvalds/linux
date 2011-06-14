@@ -933,6 +933,7 @@
  * clear; 1 = set. Data valid only in addresses 0-4. all the rest are zero. */
 #define IGU_REG_WRITE_DONE_PENDING				 0x130480
 #define MCP_A_REG_MCPR_SCRATCH					 0x3a0000
+#define MCP_REG_MCPR_CPU_PROGRAM_COUNTER			 0x8501c
 #define MCP_REG_MCPR_NVM_ACCESS_ENABLE				 0x86424
 #define MCP_REG_MCPR_NVM_ADDR					 0x8640c
 #define MCP_REG_MCPR_NVM_CFG4					 0x8642c

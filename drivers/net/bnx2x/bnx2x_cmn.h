@@ -363,6 +363,8 @@ int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state);
  */
 void bnx2x_update_max_mf_config(struct bnx2x *bp, u32 value);
 
+void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl);
+
 /* dev_close main block */
 int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode);
 

@@ -833,9 +833,9 @@ static int bnx2x_mc_assert(struct bnx2x *bp)
 	return rc;
 }
 
-static void bnx2x_fw_dump(struct bnx2x *bp)
+void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl)
 {
-	u32 addr;
+	u32 addr, val;
 	u32 mark, offset;
 	__be32 data[9];
 	int word;
@@ -844,6 +844,14 @@ static void bnx2x_fw_dump(struct bnx2x *bp)
 		BNX2X_ERR("NO MCP - can not dump\n");
 		return;
 	}
+	netdev_printk(lvl, bp->dev, "bc %d.%d.%d\n",
+		(bp->common.bc_ver & 0xff0000) >> 16,
+		(bp->common.bc_ver & 0xff00) >> 8,
+		(bp->common.bc_ver & 0xff));
+
+	val = REG_RD(bp, MCP_REG_MCPR_CPU_PROGRAM_COUNTER);
+	if (val == REG_RD(bp, MCP_REG_MCPR_CPU_PROGRAM_COUNTER))
+		printk("%s" "MCP PC at 0x%x\n", lvl, val);
 
 	if (BP_PATH(bp) == 0)
 		trace_shmem_base = bp->common.shmem_base;
@@ -853,9 +861,9 @@ static void bnx2x_fw_dump(struct bnx2x *bp)
 	mark = REG_RD(bp, addr);
 	mark = (CHIP_IS_E1x(bp) ? MCP_REG_MCPR_SCRATCH : MCP_A_REG_MCPR_SCRATCH)
 			+ ((mark + 0x3) & ~0x3) - 0x08000000;
-	pr_err("begin fw dump (mark 0x%x)\n", mark);
+	printk("%s" "begin fw dump (mark 0x%x)\n", lvl, mark);
 
-	pr_err("");
+	printk("%s", lvl);
 	for (offset = mark; offset <= trace_shmem_base; offset += 0x8*4) {
 		for (word = 0; word < 8; word++)
 			data[word] = htonl(REG_RD(bp, offset + 4*word));
@@ -868,7 +876,12 @@ static void bnx2x_fw_dump(struct bnx2x *bp)
 		data[8] = 0x0;
 		pr_cont("%s", (char *)data);
 	}
-	pr_err("end of fw dump\n");
+	printk("%s" "end of fw dump\n", lvl);
+}
+
+static inline void bnx2x_fw_dump(struct bnx2x *bp)
+{
+	bnx2x_fw_dump_lvl(bp, KERN_ERR);
 }
 
 void bnx2x_panic_dump(struct bnx2x *bp)

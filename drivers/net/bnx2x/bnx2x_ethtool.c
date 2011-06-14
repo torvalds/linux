@@ -704,8 +704,12 @@ static void bnx2x_set_msglevel(struct net_device *dev, u32 level)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-	if (capable(CAP_NET_ADMIN))
+	if (capable(CAP_NET_ADMIN)) {
+		/* dump MCP trace */
+		if (level & BNX2X_MSG_MCP)
+			bnx2x_fw_dump_lvl(bp, KERN_INFO);
 		bp->msg_enable = level;
+	}
 }
 
 static int bnx2x_nway_reset(struct net_device *dev)
