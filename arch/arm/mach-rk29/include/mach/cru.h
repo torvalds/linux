@@ -14,6 +14,7 @@
  */
 
 #ifndef __ASM_ARCH_RK29_CRU_H
+#define __ASM_ARCH_RK29_CRU_H
 
 enum cru_clk_gate
 {

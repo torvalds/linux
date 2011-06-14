@@ -14,6 +14,7 @@
  */
 
 #ifndef __ARCH_ARM_MACH_RK29_PMU_H
+#define __ARCH_ARM_MACH_RK29_PMU_H
 
 #include <linux/irqflags.h>
 #include <asm/io.h>

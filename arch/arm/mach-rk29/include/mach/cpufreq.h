@@ -14,6 +14,7 @@
  */
 
 #ifndef __ASM_ARCH_RK29_CPUFREQ_H
+#define __ASM_ARCH_RK29_CPUFREQ_H
 
 #include <linux/cpufreq.h>
 
