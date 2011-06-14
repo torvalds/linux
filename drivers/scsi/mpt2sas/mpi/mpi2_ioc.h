@@ -6,7 +6,7 @@
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  October 11, 2006
  *
- *  mpi2_ioc.h Version:  02.00.15
+ *  mpi2_ioc.h Version:  02.00.16
  *
  *  Version History
  *  ---------------
@@ -103,6 +103,7 @@
  *                      defines.
  *  05-12-10  02.00.15  Marked Task Set Full Event as obsolete.
  *                      Added MPI2_EVENT_SAS_TOPO_LR_UNSUPPORTED_PHY define.
+ *  11-10-10  02.00.16  Added MPI2_FW_DOWNLOAD_ITYPE_MIN_PRODUCT_SPECIFIC.
  *  --------------------------------------------------------------------------
  */
 
@@ -1032,6 +1033,7 @@ typedef struct _MPI2_FW_DOWNLOAD_REQUEST
 #define MPI2_FW_DOWNLOAD_ITYPE_MEGARAID             (0x09)
 #define MPI2_FW_DOWNLOAD_ITYPE_COMPLETE             (0x0A)
 #define MPI2_FW_DOWNLOAD_ITYPE_COMMON_BOOT_BLOCK    (0x0B)
+#define MPI2_FW_DOWNLOAD_ITYPE_MIN_PRODUCT_SPECIFIC (0xF0)
 
 /* FWDownload TransactionContext Element */
 typedef struct _MPI2_FW_DOWNLOAD_TCSGE
