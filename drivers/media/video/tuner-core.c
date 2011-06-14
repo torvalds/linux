@@ -724,19 +724,15 @@ static inline int check_mode(struct tuner *t, enum v4l2_tuner_type mode)
 }
 
 /**
- * set_mode_freq - Switch tuner to other mode.
- * @client:	struct i2c_client pointer
+ * set_mode - Switch tuner to other mode.
  * @t:		a pointer to the module's internal struct_tuner
  * @mode:	enum v4l2_type (radio or TV)
- * @freq:	frequency to set (0 means to use the previous one)
  *
  * If tuner doesn't support the needed mode (radio or TV), prints a
  * debug message and returns -EINVAL, changing its state to standby.
- * Otherwise, changes the state and sets frequency to the last value, if
- * the tuner can sleep or if it supports both Radio and TV.
+ * Otherwise, changes the mode and returns 0.
  */
-static int set_mode_freq(struct i2c_client *client, struct tuner *t,
-			 enum v4l2_tuner_type mode, unsigned int freq)
+static int set_mode(struct tuner *t, enum v4l2_tuner_type mode)
 {
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 
@@ -752,17 +748,27 @@ static int set_mode_freq(struct i2c_client *client, struct tuner *t,
 		t->mode = mode;
 		tuner_dbg("Changing to mode %d\n", mode);
 	}
-	if (t->mode == V4L2_TUNER_RADIO) {
-		if (freq)
-			t->radio_freq = freq;
-		set_radio_freq(client, t->radio_freq);
-	} else {
-		if (freq)
-			t->tv_freq = freq;
-		set_tv_freq(client, t->tv_freq);
-	}
-
 	return 0;
+}
+
+/**
+ * set_freq - Set the tuner to the desired frequency.
+ * @t:		a pointer to the module's internal struct_tuner
+ * @freq:	frequency to set (0 means to use the current frequency)
+ */
+static void set_freq(struct tuner *t, unsigned int freq)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&t->sd);
+
+	if (t->mode == V4L2_TUNER_RADIO) {
+		if (!freq)
+			freq = t->radio_freq;
+		set_radio_freq(client, freq);
+	} else {
+		if (!freq)
+			freq = t->tv_freq;
+		set_tv_freq(client, freq);
+	}
 }
 
 /*
@@ -1058,10 +1064,9 @@ static void tuner_status(struct dvb_frontend *fe)
 static int tuner_s_radio(struct v4l2_subdev *sd)
 {
 	struct tuner *t = to_tuner(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (set_mode_freq(client, t, V4L2_TUNER_RADIO, 0) == -EINVAL)
-		return 0;
+	if (set_mode(t, V4L2_TUNER_RADIO) == 0)
+		set_freq(t, 0);
 	return 0;
 }
 
@@ -1093,25 +1098,22 @@ static int tuner_s_power(struct v4l2_subdev *sd, int on)
 static int tuner_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct tuner *t = to_tuner(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (set_mode_freq(client, t, V4L2_TUNER_ANALOG_TV, 0) == -EINVAL)
+	if (set_mode(t, V4L2_TUNER_ANALOG_TV))
 		return 0;
 
 	t->std = std;
 	tuner_fixup_std(t);
-
+	set_freq(t, 0);
 	return 0;
 }
 
 static int tuner_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 {
 	struct tuner *t = to_tuner(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (set_mode_freq(client, t, f->type, f->frequency) == -EINVAL)
-		return 0;
-
+	if (set_mode(t, f->type) == 0)
+		set_freq(t, f->frequency);
 	return 0;
 }
 
@@ -1180,13 +1182,13 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 static int tuner_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 {
 	struct tuner *t = to_tuner(sd);
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (set_mode_freq(client, t, vt->type, 0) == -EINVAL)
+	if (set_mode(t, vt->type))
 		return 0;
 
 	if (t->mode == V4L2_TUNER_RADIO)
 		t->audmode = vt->audmode;
+	set_freq(t, 0);
 
 	return 0;
 }
@@ -1221,7 +1223,8 @@ static int tuner_resume(struct i2c_client *c)
 	tuner_dbg("resume\n");
 
 	if (!t->standby)
-		set_mode_freq(c, t, t->type, 0);
+		if (set_mode(t, t->type) == 0)
+			set_freq(t, 0);
 
 	return 0;
 }
