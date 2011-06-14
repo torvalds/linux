@@ -2,6 +2,17 @@
 config IOMMU_API
 	bool
 
+menuconfig IOMMU_SUPPORT
+	bool "IOMMU Hardware Support"
+	default y
+	---help---
+	  Say Y here if you want to compile device drivers for IO Memory
+	  Management Units into the kernel. These devices usually allow to
+	  remap DMA requests and/or remap interrupts from other devices on the
+	  system.
+
+if IOMMU_SUPPORT
+
 # MSM IOMMU support
 config MSM_IOMMU
 	bool "MSM IOMMU Support"
@@ -95,3 +106,5 @@ config INTR_REMAP
 	  Supports Interrupt remapping for IO-APIC and MSI devices.
 	  To use x2apic mode in the CPU's which support x2APIC enhancements or
 	  to support platforms with CPU's having > 8 bit APIC ID, say Y.
+
+endif # IOMMU_SUPPORT
