@@ -143,7 +143,7 @@ static int ct_card_resume(struct pci_dev *pci)
 #endif
 
 static struct pci_driver ct_driver = {
-	.name = "SB-XFi",
+	.name = KBUILD_MODNAME,
 	.id_table = ct_pci_dev_ids,
 	.probe = ct_card_probe,
 	.remove = __devexit_p(ct_card_remove),

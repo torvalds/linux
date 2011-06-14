@@ -1268,7 +1268,7 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 	}
 
 	if (request_irq(pci->irq, snd_mixart_interrupt, IRQF_SHARED,
-			CARD_NAME, mgr)) {
+			KBUILD_MODNAME, mgr)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_mixart_free(mgr);
 		return -EBUSY;
@@ -1381,7 +1381,7 @@ static void __devexit snd_mixart_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "Digigram miXart",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_mixart_ids,
 	.probe = snd_mixart_probe,
 	.remove = __devexit_p(snd_mixart_remove),

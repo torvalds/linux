@@ -2757,7 +2757,7 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 #endif
 
 	if (request_irq(pci->irq, snd_m3_interrupt, IRQF_SHARED,
-			card->driver, chip)) {
+			KBUILD_MODNAME, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_m3_free(chip);
 		return -ENOMEM;
@@ -2885,7 +2885,7 @@ static void __devexit snd_m3_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "Maestro3",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_m3_ids,
 	.probe = snd_m3_probe,
 	.remove = __devexit_p(snd_m3_remove),
