@@ -1316,21 +1316,18 @@ static int hw_pll_init(struct hw *hw, unsigned int rsr)
 
 	pllenb = 0xB;
 	hw_write_20kx(hw, PLL_ENB, pllenb);
-	pllctl = 0x20D00000;
-	set_field(&pllctl, PLLCTL_FD, 16 - 4);
-	hw_write_20kx(hw, PLL_CTL, pllctl);
-	mdelay(40);
-	pllctl = hw_read_20kx(hw, PLL_CTL);
+	pllctl = 0x20C00000;
 	set_field(&pllctl, PLLCTL_B, 0);
-	if (48000 == rsr) {
-		set_field(&pllctl, PLLCTL_FD, 16 - 2);
-		set_field(&pllctl, PLLCTL_RD, 1 - 1); /* 3000*16/1 = 48000 */
-	} else { /* 44100 */
-		set_field(&pllctl, PLLCTL_FD, 147 - 2);
-		set_field(&pllctl, PLLCTL_RD, 10 - 1); /* 3000*147/10 = 44100 */
-	}
+	set_field(&pllctl, PLLCTL_FD, 48000 == rsr ? 16 - 4 : 147 - 4);
+	set_field(&pllctl, PLLCTL_RD, 48000 == rsr ? 1 - 1 : 10 - 1);
 	hw_write_20kx(hw, PLL_CTL, pllctl);
 	mdelay(40);
+
+	pllctl = hw_read_20kx(hw, PLL_CTL);
+	set_field(&pllctl, PLLCTL_FD, 48000 == rsr ? 16 - 2 : 147 - 2);
+	hw_write_20kx(hw, PLL_CTL, pllctl);
+	mdelay(40);
+
 	for (i = 0; i < 1000; i++) {
 		pllstat = hw_read_20kx(hw, PLL_STAT);
 		if (get_field(pllstat, PLLSTAT_PD))
