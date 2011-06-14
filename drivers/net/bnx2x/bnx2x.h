@@ -1160,6 +1160,8 @@ struct bnx2x {
 
 	struct delayed_work	sp_task;
 	struct delayed_work	reset_task;
+
+	struct delayed_work	period_task;
 	struct timer_list	timer;
 	int			current_interval;
 
@@ -1940,4 +1942,5 @@ static const u32 dmae_reg_go_c[] = {
 };
 
 void bnx2x_set_ethtool_ops(struct net_device *netdev);
+void bnx2x_notify_link_changed(struct bnx2x *bp);
 #endif /* bnx2x.h */

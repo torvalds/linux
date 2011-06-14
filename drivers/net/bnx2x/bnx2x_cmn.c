@@ -1736,9 +1736,16 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	if ((load_code == FW_MSG_CODE_DRV_LOAD_COMMON) ||
 	    (load_code == FW_MSG_CODE_DRV_LOAD_COMMON_CHIP) ||
-	    (load_code == FW_MSG_CODE_DRV_LOAD_PORT))
+	    (load_code == FW_MSG_CODE_DRV_LOAD_PORT)) {
 		bp->port.pmf = 1;
-	else
+		/*
+		 * We need the barrier to ensure the ordering between the
+		 * writing to bp->port.pmf here and reading it from the
+		 * bnx2x_periodic_task().
+		 */
+		smp_mb();
+		queue_delayed_work(bnx2x_wq, &bp->period_task, 0);
+	} else
 		bp->port.pmf = 0;
 	DP(NETIF_MSG_LINK, "pmf %d\n", bp->port.pmf);
 

@@ -271,6 +271,10 @@ struct link_vars {
 	u8 phy_flags;
 #define PHY_XGXS_FLAG			(1<<0)
 #define PHY_SGMII_FLAG			(1<<1)
+#define PHY_PHYSICAL_LINK_FLAG		(1<<2)
+#define PHY_HALF_OPEN_CONN_FLAG		(1<<3)
+#define PHY_OVER_CURRENT_FLAG		(1<<4)
+#define PHY_TX_ERROR_CHECK_FLAG		(1<<5)
 
 	u8 mac_type;
 #define MAC_TYPE_NONE		0
@@ -292,7 +296,9 @@ struct link_vars {
 	u32 link_status;
 	u8 fault_detected;
 	u8 rsrv1;
-	u16 rsrv2;
+	u16 periodic_flags;
+#define PERIODIC_FLAGS_LINK_EVENT	0x0001
+
 	u32 aeu_int_mask;
 };
 
@@ -478,4 +484,7 @@ void bnx2x_init_mod_abs_int(struct bnx2x *bp, struct link_vars *vars,
 
 int bnx2x_sfp_module_detection(struct bnx2x_phy *phy,
 			       struct link_params *params);
+
+void bnx2x_period_func(struct link_params *params, struct link_vars *vars);
+
 #endif /* BNX2X_LINK_H */

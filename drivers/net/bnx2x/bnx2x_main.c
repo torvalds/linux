@@ -1563,6 +1563,7 @@ void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
 
 	/* make sure sp_task is not running */
 	cancel_delayed_work(&bp->sp_task);
+	cancel_delayed_work(&bp->period_task);
 	flush_workqueue(bnx2x_wq);
 }
 
@@ -2150,7 +2151,8 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 		if (CHIP_REV_IS_SLOW(bp) && bp->link_vars.link_up) {
 			bnx2x_stats_handle(bp, STATS_EVENT_LINK_UP);
 			bnx2x_link_report(bp);
-		}
+		} else
+			queue_delayed_work(bnx2x_wq, &bp->period_task, 0);
 		bp->link_params.req_line_speed[cfx_idx] = req_line_speed;
 		return rc;
 	}
@@ -2523,6 +2525,15 @@ static void bnx2x_pmf_update(struct bnx2x *bp)
 
 	bp->port.pmf = 1;
 	DP(NETIF_MSG_LINK, "pmf %d\n", bp->port.pmf);
+
+	/*
+	 * We need the mb() to ensure the ordering between the writing to
+	 * bp->port.pmf here and reading it from the bnx2x_periodic_task().
+	 */
+	smp_mb();
+
+	/* queue a periodic task */
+	queue_delayed_work(bnx2x_wq, &bp->period_task, 0);
 
 	bnx2x_dcbx_pmf_update(bp);
 
@@ -3242,8 +3253,7 @@ static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 		bnx2x_fan_failure(bp);
 	}
 
-	if (attn & (AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0 |
-		    AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1)) {
+	if ((attn & bp->link_vars.aeu_int_mask) && bp->port.pmf) {
 		bnx2x_acquire_phy_lock(bp);
 		bnx2x_handle_module_detect_int(&bp->link_params);
 		bnx2x_release_phy_lock(bp);
@@ -3360,17 +3370,27 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 			if ((bp->port.pmf == 0) && (val & DRV_STATUS_PMF))
 				bnx2x_pmf_update(bp);
 
-			/* Always call it here: bnx2x_link_report() will
-			 * prevent the link indication duplication.
-			 */
-			bnx2x__link_status_update(bp);
-
 			if (bp->port.pmf &&
 			    (val & DRV_STATUS_DCBX_NEGOTIATION_RESULTS) &&
 				bp->dcbx_enabled > 0)
 				/* start dcbx state machine */
 				bnx2x_dcbx_set_params(bp,
 					BNX2X_DCBX_STATE_NEG_RECEIVED);
+			if (bp->link_vars.periodic_flags &
+			    PERIODIC_FLAGS_LINK_EVENT) {
+				/*  sync with link */
+				bnx2x_acquire_phy_lock(bp);
+				bp->link_vars.periodic_flags &=
+					~PERIODIC_FLAGS_LINK_EVENT;
+				bnx2x_release_phy_lock(bp);
+				if (IS_MF(bp))
+					bnx2x_link_sync_notify(bp);
+				bnx2x_link_report(bp);
+			}
+			/* Always call it here: bnx2x_link_report() will
+			 * prevent the link indication duplication.
+			 */
+			bnx2x__link_status_update(bp);
 		} else if (attn & BNX2X_MC_ASSERT_BITS) {
 
 			BNX2X_ERR("MC assert!\n");
@@ -8044,6 +8064,37 @@ reset_task_exit:
 
 /* end of nic load/unload */
 
+static void bnx2x_period_task(struct work_struct *work)
+{
+	struct bnx2x *bp = container_of(work, struct bnx2x, period_task.work);
+
+	if (!netif_running(bp->dev))
+		goto period_task_exit;
+
+	if (CHIP_REV_IS_SLOW(bp)) {
+		BNX2X_ERR("period task called on emulation, ignoring\n");
+		goto period_task_exit;
+	}
+
+	bnx2x_acquire_phy_lock(bp);
+	/*
+	 * The barrier is needed to ensure the ordering between the writing to
+	 * the bp->port.pmf in the bnx2x_nic_load() or bnx2x_pmf_update() and
+	 * the reading here.
+	 */
+	smp_mb();
+	if (bp->port.pmf) {
+		bnx2x_period_func(&bp->link_params, &bp->link_vars);
+
+		/* Re-queue task in 1 sec */
+		queue_delayed_work(bnx2x_wq, &bp->period_task, 1*HZ);
+	}
+
+	bnx2x_release_phy_lock(bp);
+period_task_exit:
+	return;
+}
+
 /*
  * Init service functions
  */
@@ -9237,7 +9288,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
 	INIT_DELAYED_WORK(&bp->reset_task, bnx2x_reset_task);
-
+	INIT_DELAYED_WORK(&bp->period_task, bnx2x_period_task);
 	rc = bnx2x_get_hwinfo(bp);
 	if (rc)
 		return rc;
@@ -10513,6 +10564,11 @@ static void __exit bnx2x_cleanup(void)
 	pci_unregister_driver(&bnx2x_pci_driver);
 
 	destroy_workqueue(bnx2x_wq);
+}
+
+void bnx2x_notify_link_changed(struct bnx2x *bp)
+{
+	REG_WR(bp, MISC_REG_AEU_GENERAL_ATTN_12 + BP_FUNC(bp)*sizeof(u32), 1);
 }
 
 module_init(bnx2x_init);
