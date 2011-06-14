@@ -1908,7 +1908,7 @@ CPMAC ETHERNET DRIVER
 M:	Florian Fainelli <florian@openwrt.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/cpmac.c
+F:	drivers/net/ethernet/ti/cpmac.c
 
 CPU FREQUENCY DRIVERS
 M:	Dave Jones <davej@redhat.com>
@@ -6420,7 +6420,7 @@ L:	tlan-devel@lists.sourceforge.net (subscribers-only)
 W:	http://sourceforge.net/projects/tlan/
 S:	Maintained
 F:	Documentation/networking/tlan.txt
-F:	drivers/net/tlan.*
+F:	drivers/net/ethernet/ti/tlan.*
 
 TOMOYO SECURITY MODULE
 M:	Kentaro Takeda <takedakn@nttdata.co.jp>
