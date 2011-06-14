@@ -23,6 +23,7 @@
 #include <linux/rcupdate.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/ratelimit.h>
 #include "compat.h"
 #include "hash.h"
 #include "ctree.h"
@@ -5783,7 +5784,13 @@ use_block_rsv(struct btrfs_trans_handle *trans,
 	if (!ret)
 		return block_rsv;
 	if (ret) {
-		WARN_ON(1);
+		static DEFINE_RATELIMIT_STATE(_rs,
+				DEFAULT_RATELIMIT_INTERVAL,
+				/*DEFAULT_RATELIMIT_BURST*/ 2);
+		if (__ratelimit(&_rs)) {
+			printk(KERN_DEBUG "btrfs: block rsv returned %d\n", ret);
+			WARN_ON(1);
+		}
 		ret = reserve_metadata_bytes(root, block_rsv, blocksize, 0);
 		if (!ret) {
 			return block_rsv;
