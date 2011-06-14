@@ -407,7 +407,7 @@ typedef struct dhd_info {
 	struct wake_lock wl_rxwake; /* Wifi rx wakelock */
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && 1
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
 	struct mutex wl_start_lock; /* mutex when START called to prevent any other Linux calls */
 #endif
 	spinlock_t wakelock_spinlock;
@@ -1205,6 +1205,7 @@ _dhd_sysioc_thread(void *data)
 			break;
 		}
 
+		dhd_os_start_lock(&dhd->pub);
 
 		for (i = 0; i < DHD_MAX_IFS; i++) {
 			if (dhd->iflist[i]) {
@@ -1249,6 +1250,8 @@ _dhd_sysioc_thread(void *data)
 		}
 
 		DHD_OS_WAKE_UNLOCK(&dhd->pub);
+		dhd_os_start_unlock(&dhd->pub);
+
 	}
 	DHD_TRACE(("%s: stopped\n", __FUNCTION__));
 	complete_and_exit(&tsk->completed, 0);
@@ -2562,6 +2565,9 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 #ifdef CONFIG_HAS_WAKELOCK
 	wake_lock_init(&dhd->wl_wifi, WAKE_LOCK_SUSPEND, "wlan_wake");
 	wake_lock_init(&dhd->wl_rxwake, WAKE_LOCK_SUSPEND, "wlan_rx_wake");
+#endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
+	mutex_init(&dhd->wl_start_lock);
 #endif
 	dhd_state |= DHD_ATTACH_STATE_WAKELOCKS_INIT;
 
@@ -3961,24 +3967,26 @@ void dhd_bus_country_set(struct net_device *dev, wl_country_t *cspec)
 }
 
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && 1
 void dhd_os_start_lock(dhd_pub_t *pub)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
 	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
 
 	if (dhd)
 		mutex_lock(&dhd->wl_start_lock);
+#endif
 }
 
 void dhd_os_start_unlock(dhd_pub_t *pub)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
 	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
 
 	if (dhd)
 		mutex_unlock(&dhd->wl_start_lock);
+#endif
 }
 
-#endif 
 
 #ifdef SOFTAP
 unsigned long dhd_os_spin_lock(dhd_pub_t *pub)

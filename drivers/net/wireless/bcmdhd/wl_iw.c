@@ -130,7 +130,6 @@ wl_iw_extra_params_t	g_wl_iw_params;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && 1
 
-static struct mutex	wl_start_lock;
 static struct mutex	wl_cache_lock;
 static struct mutex	wl_softap_lock;
 
@@ -1633,6 +1632,7 @@ int
 wl_control_wl_start(struct net_device *dev)
 {
 	int ret = 0;
+	wl_iw_t *iw;
 
 	WL_TRACE(("Enter %s \n", __FUNCTION__));
 
@@ -1640,8 +1640,15 @@ wl_control_wl_start(struct net_device *dev)
 		WL_ERROR(("%s: dev is null\n", __FUNCTION__));
 		return -1;
 	}
-	
-	DHD_OS_MUTEX_LOCK(&wl_start_lock);
+
+	iw = *(wl_iw_t **)netdev_priv(dev);
+
+	if (!iw) {
+		WL_ERROR(("%s: wl is null\n", __FUNCTION__));
+		return -1;
+	}
+
+	dhd_os_start_lock(iw->pub);
 
 	if (g_onoff == G_WLAN_SET_OFF) {
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_ON);
@@ -1662,7 +1669,7 @@ wl_control_wl_start(struct net_device *dev)
 	}
 	WL_TRACE(("Exited %s\n", __FUNCTION__));
 
-	DHD_OS_MUTEX_UNLOCK(&wl_start_lock);
+	dhd_os_start_unlock(iw->pub);
 	return ret;
 }
 
@@ -1674,6 +1681,7 @@ wl_iw_control_wl_off(
 )
 {
 	int ret = 0;
+	wl_iw_t *iw;
 
 	WL_TRACE(("Enter %s\n", __FUNCTION__));
 
@@ -1682,7 +1690,14 @@ wl_iw_control_wl_off(
 		return -1;
 	}
 
-	DHD_OS_MUTEX_LOCK(&wl_start_lock);
+	iw = *(wl_iw_t **)netdev_priv(dev);
+
+	if (!iw) {
+		WL_ERROR(("%s: wl is null\n", __FUNCTION__));
+		return -1;
+	}
+
+	dhd_os_start_lock(iw->pub);
 
 #ifdef SOFTAP
 	ap_cfg_running = FALSE;
@@ -1718,7 +1733,6 @@ wl_iw_control_wl_off(
 		sdioh_stop(NULL);
 #endif
 
-		
 		net_os_set_dtim_skip(dev, 0);
 
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
@@ -1726,7 +1740,7 @@ wl_iw_control_wl_off(
 		wl_iw_send_priv_event(dev, "STOP");
 	}
 
-	DHD_OS_MUTEX_UNLOCK(&wl_start_lock);
+	dhd_os_start_unlock(iw->pub);
 
 	WL_TRACE(("Exited %s\n", __FUNCTION__));
 
@@ -8475,7 +8489,6 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 #endif
 
 	DHD_OS_MUTEX_INIT(&wl_cache_lock);
-	DHD_OS_MUTEX_INIT(&wl_start_lock);
 	DHD_OS_MUTEX_INIT(&wl_softap_lock);
 
 #if defined(WL_IW_USE_ISCAN)
