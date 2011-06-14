@@ -275,7 +275,6 @@ extern const u8 iwl_eeprom_band_1[14];
 #define EEPROM_VERSION                      (2*0x44)	/* 2  bytes */
 #define EEPROM_SKU_CAP                      (2*0x45)	/* 2  bytes */
 #define EEPROM_OEM_MODE                     (2*0x46)	/* 2  bytes */
-#define EEPROM_WOWLAN_MODE                  (2*0x47)	/* 2  bytes */
 #define EEPROM_RADIO_CONFIG                 (2*0x48)	/* 2  bytes */
 #define EEPROM_NUM_MAC_ADDRESS              (2*0x4C)	/* 2  bytes */
 
