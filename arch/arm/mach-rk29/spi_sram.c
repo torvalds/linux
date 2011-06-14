@@ -272,7 +272,7 @@ static unsigned short __sramfunc sram_spi_read(unsigned short add,unsigned short
 
 unsigned int __sramfunc rk29_suspend_voltage_set(unsigned int vol)
 {
-#if 1 //test
+#if 0 //test
 	unsigned short addr_4003=0x4003,addr_405d=0x405d,
 		addr_4059=0x4059,addr_405e=0x405e,addr_4063=0x4063;
 	unsigned short data_4003,data_405d,
