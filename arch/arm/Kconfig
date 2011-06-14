@@ -739,6 +739,7 @@ config ARCH_S5PC100
 	bool "Samsung S5PC100"
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select CLKDEV_LOOKUP
 	select CPU_V7
 	select ARM_L1_CACHE_SHIFT_6
 	select ARCH_USES_GETTIMEOFFSET
