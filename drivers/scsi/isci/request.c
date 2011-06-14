@@ -2313,7 +2313,7 @@ static void isci_request_set_open_reject_status(
  * none.
  */
 static void isci_request_handle_controller_specific_errors(
-	struct isci_remote_device *isci_device,
+	struct isci_remote_device *idev,
 	struct isci_request *request,
 	struct sas_task *task,
 	enum service_response *response_ptr,
@@ -2353,8 +2353,7 @@ static void isci_request_handle_controller_specific_errors(
 			 * that we ignore the quiesce state, since we are
 			 * concerned about the actual device state.
 			 */
-			if ((isci_device->status == isci_stopping) ||
-			    (isci_device->status == isci_stopped))
+			if (!idev)
 				*status_ptr = SAS_DEVICE_UNKNOWN;
 			else
 				*status_ptr = SAS_ABORTED_TASK;
@@ -2367,8 +2366,7 @@ static void isci_request_handle_controller_specific_errors(
 			/* Task in the target is not done. */
 			*response_ptr = SAS_TASK_UNDELIVERED;
 
-			if ((isci_device->status == isci_stopping) ||
-			    (isci_device->status == isci_stopped))
+			if (!idev)
 				*status_ptr = SAS_DEVICE_UNKNOWN;
 			else
 				*status_ptr = SAM_STAT_TASK_ABORTED;
@@ -2399,8 +2397,7 @@ static void isci_request_handle_controller_specific_errors(
 		 * that we ignore the quiesce state, since we are
 		 * concerned about the actual device state.
 		 */
-		if ((isci_device->status == isci_stopping) ||
-		    (isci_device->status == isci_stopped))
+		if (!idev)
 			*status_ptr = SAS_DEVICE_UNKNOWN;
 		else
 			*status_ptr = SAS_ABORTED_TASK;
@@ -2629,7 +2626,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 	struct ssp_response_iu *resp_iu;
 	void *resp_buf;
 	unsigned long task_flags;
-	struct isci_remote_device *isci_device   = request->isci_device;
+	struct isci_remote_device *idev = isci_lookup_device(task->dev);
 	enum service_response response       = SAS_TASK_UNDELIVERED;
 	enum exec_status status         = SAS_ABORTED_TASK;
 	enum isci_request_status request_status;
@@ -2672,9 +2669,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 		 * that we ignore the quiesce state, since we are
 		 * concerned about the actual device state.
 		 */
-		if ((isci_device->status == isci_stopping)
-		    || (isci_device->status == isci_stopped)
-		    )
+		if (!idev)
 			status = SAS_DEVICE_UNKNOWN;
 		else
 			status = SAS_ABORTED_TASK;
@@ -2697,8 +2692,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 		request->complete_in_target = true;
 		response = SAS_TASK_UNDELIVERED;
 
-		if ((isci_device->status == isci_stopping) ||
-		    (isci_device->status == isci_stopped))
+		if (!idev)
 			/* The device has been /is being stopped. Note that
 			 * we ignore the quiesce state, since we are
 			 * concerned about the actual device state.
@@ -2728,8 +2722,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 		 * that we ignore the quiesce state, since we are
 		 * concerned about the actual device state.
 		 */
-		if ((isci_device->status == isci_stopping) ||
-		    (isci_device->status == isci_stopped))
+		if (!idev)
 			status = SAS_DEVICE_UNKNOWN;
 		else
 			status = SAS_ABORTED_TASK;
@@ -2861,8 +2854,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 			 * that we ignore the quiesce state, since we are
 			 * concerned about the actual device state.
 			 */
-			if ((isci_device->status == isci_stopping) ||
-			    (isci_device->status == isci_stopped))
+			if (!idev)
 				status = SAS_DEVICE_UNKNOWN;
 			else
 				status = SAS_ABORTED_TASK;
@@ -2873,7 +2865,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 		case SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR:
 
 			isci_request_handle_controller_specific_errors(
-				isci_device, request, task, &response, &status,
+				idev, request, task, &response, &status,
 				&complete_to_host);
 
 			break;
@@ -2902,8 +2894,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 
 			/* Fail the I/O so it can be retried. */
 			response = SAS_TASK_UNDELIVERED;
-			if ((isci_device->status == isci_stopping) ||
-			    (isci_device->status == isci_stopped))
+			if (!idev)
 				status = SAS_DEVICE_UNKNOWN;
 			else
 				status = SAS_ABORTED_TASK;
@@ -2926,8 +2917,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 			 * that we ignore the quiesce state, since we are
 			 * concerned about the actual device state.
 			 */
-			if ((isci_device->status == isci_stopping) ||
-			    (isci_device->status == isci_stopped))
+			if (!idev)
 				status = SAS_DEVICE_UNKNOWN;
 			else
 				status = SAS_ABORTED_TASK;
@@ -2953,8 +2943,10 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 
 	/* complete the io request to the core. */
 	scic_controller_complete_io(&isci_host->sci,
-				    &isci_device->sci,
+				    request->sci.target_device,
 				    &request->sci);
+	isci_put_device(idev);
+
 	/* set terminated handle so it cannot be completed or
 	 * terminated again, and to cause any calls into abort
 	 * task to recognize the already completed case.
@@ -3511,7 +3503,6 @@ static enum sci_status isci_io_request_build(
 }
 
 static struct isci_request *isci_request_alloc_core(struct isci_host *ihost,
-						    struct isci_remote_device *idev,
 						    gfp_t gfp_flags)
 {
 	dma_addr_t handle;
@@ -3528,7 +3519,6 @@ static struct isci_request *isci_request_alloc_core(struct isci_host *ihost,
 	spin_lock_init(&ireq->state_lock);
 	ireq->request_daddr = handle;
 	ireq->isci_host = ihost;
-	ireq->isci_device = idev;
 	ireq->io_request_completion = NULL;
 	ireq->terminated = false;
 
@@ -3546,12 +3536,11 @@ static struct isci_request *isci_request_alloc_core(struct isci_host *ihost,
 
 static struct isci_request *isci_request_alloc_io(struct isci_host *ihost,
 						  struct sas_task *task,
-						  struct isci_remote_device *idev,
 						  gfp_t gfp_flags)
 {
 	struct isci_request *ireq;
 
-	ireq = isci_request_alloc_core(ihost, idev, gfp_flags);
+	ireq = isci_request_alloc_core(ihost, gfp_flags);
 	if (ireq) {
 		ireq->ttype_ptr.io_task_ptr = task;
 		ireq->ttype = io_task;
@@ -3562,12 +3551,11 @@ static struct isci_request *isci_request_alloc_io(struct isci_host *ihost,
 
 struct isci_request *isci_request_alloc_tmf(struct isci_host *ihost,
 					    struct isci_tmf *isci_tmf,
-					    struct isci_remote_device *idev,
 					    gfp_t gfp_flags)
 {
 	struct isci_request *ireq;
 
-	ireq = isci_request_alloc_core(ihost, idev, gfp_flags);
+	ireq = isci_request_alloc_core(ihost, gfp_flags);
 	if (ireq) {
 		ireq->ttype_ptr.tmf_task_ptr = isci_tmf;
 		ireq->ttype = tmf_task;
@@ -3575,21 +3563,16 @@ struct isci_request *isci_request_alloc_tmf(struct isci_host *ihost,
 	return ireq;
 }
 
-int isci_request_execute(struct isci_host *ihost, struct sas_task *task,
-			 gfp_t gfp_flags)
+int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *idev,
+			 struct sas_task *task, gfp_t gfp_flags)
 {
 	enum sci_status status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
-	struct scic_sds_remote_device *sci_dev;
-	struct isci_remote_device *idev;
 	struct isci_request *ireq;
 	unsigned long flags;
 	int ret = 0;
 
-	idev = task->dev->lldd_dev;
-	sci_dev = &idev->sci;
-
 	/* do common allocation and init of request object. */
-	ireq = isci_request_alloc_io(ihost, task, idev, gfp_flags);
+	ireq = isci_request_alloc_io(ihost, task, gfp_flags);
 	if (!ireq)
 		goto out;
 
@@ -3605,8 +3588,7 @@ int isci_request_execute(struct isci_host *ihost, struct sas_task *task,
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 
 	/* send the request, let the core assign the IO TAG.	*/
-	status = scic_controller_start_io(&ihost->sci, sci_dev,
-					  &ireq->sci,
+	status = scic_controller_start_io(&ihost->sci, &idev->sci, &ireq->sci,
 					  SCI_CONTROLLER_INVALID_IO_TAG);
 	if (status != SCI_SUCCESS &&
 	    status != SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {

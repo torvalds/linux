@@ -1327,8 +1327,8 @@ void isci_host_deinit(struct isci_host *ihost)
 		struct isci_remote_device *idev, *d;
 
 		list_for_each_entry_safe(idev, d, &iport->remote_dev_list, node) {
-			isci_remote_device_change_state(idev, isci_stopping);
-			isci_remote_device_stop(ihost, idev);
+			if (test_bit(IDEV_ALLOCATED, &idev->flags))
+				isci_remote_device_stop(ihost, idev);
 		}
 	}
 

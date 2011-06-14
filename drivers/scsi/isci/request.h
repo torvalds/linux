@@ -285,7 +285,6 @@ struct isci_request {
 		struct isci_tmf *tmf_task_ptr;  /* When ttype==tmf_task */
 	} ttype_ptr;
 	struct isci_host *isci_host;
-	struct isci_remote_device *isci_device;
 	/* For use in the requests_to_{complete|abort} lists: */
 	struct list_head completed_node;
 	/* For use in the reqs_in_process list: */
@@ -681,12 +680,10 @@ static inline void isci_request_free(struct isci_host *isci_host,
 
 struct isci_request *isci_request_alloc_tmf(struct isci_host *ihost,
 					    struct isci_tmf *isci_tmf,
-					    struct isci_remote_device *idev,
 					    gfp_t gfp_flags);
 
-int isci_request_execute(struct isci_host *isci_host,
-			 struct sas_task *task,
-			 gfp_t gfp_flags);
+int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *idev,
+			 struct sas_task *task, gfp_t gfp_flags);
 
 /**
  * isci_request_unmap_sgl() - This function unmaps the DMA address of a given

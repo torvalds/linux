@@ -321,8 +321,7 @@ static void isci_port_link_down(struct isci_host *isci_host,
 				dev_dbg(&isci_host->pdev->dev,
 					"%s: isci_device = %p\n",
 					__func__, isci_device);
-				isci_remote_device_change_state(isci_device,
-								isci_stopping);
+				set_bit(IDEV_GONE, &isci_device->flags);
 			}
 		}
 		isci_port_change_state(isci_port, isci_stopping);

@@ -213,11 +213,10 @@ int isci_task_send_lu_reset_sata(
 
 	/* Send the soft reset to the target */
 	#define ISCI_SRST_TIMEOUT_MS 25000 /* 25 second timeout. */
-	isci_task_build_tmf(&tmf, isci_device, isci_tmf_sata_srst_high,
-			    NULL, NULL
-			    );
+	isci_task_build_tmf(&tmf, isci_tmf_sata_srst_high, NULL, NULL);
 
-	ret = isci_task_execute_tmf(isci_host, &tmf, ISCI_SRST_TIMEOUT_MS);
+	ret = isci_task_execute_tmf(isci_host, isci_device, &tmf,
+				    ISCI_SRST_TIMEOUT_MS);
 
 	if (ret != TMF_RESP_FUNC_COMPLETE) {
 		dev_warn(&isci_host->pdev->dev,

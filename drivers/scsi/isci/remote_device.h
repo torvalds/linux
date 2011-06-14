@@ -56,6 +56,7 @@
 #ifndef _ISCI_REMOTE_DEVICE_H_
 #define _ISCI_REMOTE_DEVICE_H_
 #include <scsi/libsas.h>
+#include <linux/kref.h>
 #include "scu_remote_node_context.h"
 #include "remote_node_context.h"
 #include "port.h"
@@ -134,7 +135,9 @@ struct isci_remote_device {
 	#define IDEV_STOP_PENDING 1
 	#define IDEV_ALLOCATED 2
 	#define IDEV_EH 3
+	#define IDEV_GONE 4
 	unsigned long flags;
+	struct kref kref;
 	struct isci_port *isci_port;
 	struct domain_device *domain_dev;
 	struct list_head node;
@@ -144,6 +147,26 @@ struct isci_remote_device {
 };
 
 #define ISCI_REMOTE_DEVICE_START_TIMEOUT 5000
+
+/* device reference routines must be called under scic_lock */
+static inline struct isci_remote_device *isci_lookup_device(struct domain_device *dev)
+{
+	struct isci_remote_device *idev = dev->lldd_dev;
+
+	if (idev && !test_bit(IDEV_GONE, &idev->flags)) {
+		kref_get(&idev->kref);
+		return idev;
+	}
+
+	return NULL;
+}
+
+void isci_remote_device_release(struct kref *kref);
+static inline void isci_put_device(struct isci_remote_device *idev)
+{
+	if (idev)
+		kref_put(&idev->kref, isci_remote_device_release);
+}
 
 enum sci_status isci_remote_device_stop(struct isci_host *ihost,
 					struct isci_remote_device *idev);

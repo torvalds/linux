@@ -94,7 +94,7 @@ static void isci_remote_device_not_ready(struct isci_host *ihost,
 		"%s: isci_device = %p\n", __func__, idev);
 
 	if (reason == SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED)
-		isci_remote_device_change_state(idev, isci_stopping);
+		set_bit(IDEV_GONE, &idev->flags);
 	else
 		/* device ready is actually a "not ready for io" state. */
 		isci_remote_device_change_state(idev, isci_ready);
@@ -449,8 +449,10 @@ static void scic_sds_remote_device_start_request(struct scic_sds_remote_device *
 	/* cleanup requests that failed after starting on the port */
 	if (status != SCI_SUCCESS)
 		scic_sds_port_complete_io(sci_port, sci_dev, sci_req);
-	else
+	else {
+		kref_get(&sci_dev_to_idev(sci_dev)->kref);
 		scic_sds_remote_device_increment_request_count(sci_dev);
+	}
 }
 
 enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic,
@@ -656,6 +658,8 @@ enum sci_status scic_sds_remote_device_complete_io(struct scic_sds_controller *s
 			"%s: Port:0x%p Device:0x%p Request:0x%p Status:0x%x "
 			"could not complete\n", __func__, sci_port,
 			sci_dev, sci_req, status);
+	else
+		isci_put_device(sci_dev_to_idev(sci_dev));
 
 	return status;
 }
@@ -860,23 +864,11 @@ static void isci_remote_device_deconstruct(struct isci_host *ihost, struct isci_
 	 * here should go through isci_remote_device_nuke_requests.
 	 * If we hit this condition, we will need a way to complete
 	 * io requests in process */
-	while (!list_empty(&idev->reqs_in_process)) {
-
-		dev_err(&ihost->pdev->dev,
-			"%s: ** request list not empty! **\n", __func__);
-		BUG();
-	}
+	BUG_ON(!list_empty(&idev->reqs_in_process));
 
 	scic_remote_device_destruct(&idev->sci);
-	idev->domain_dev->lldd_dev = NULL;
-	idev->domain_dev = NULL;
-	idev->isci_port = NULL;
 	list_del_init(&idev->node);
-
-	clear_bit(IDEV_START_PENDING, &idev->flags);
-	clear_bit(IDEV_STOP_PENDING, &idev->flags);
-	clear_bit(IDEV_EH, &idev->flags);
-	wake_up(&ihost->eventq);
+	isci_put_device(idev);
 }
 
 /**
@@ -1314,6 +1306,22 @@ isci_remote_device_alloc(struct isci_host *ihost, struct isci_port *iport)
 	return idev;
 }
 
+void isci_remote_device_release(struct kref *kref)
+{
+	struct isci_remote_device *idev = container_of(kref, typeof(*idev), kref);
+	struct isci_host *ihost = idev->isci_port->isci_host;
+
+	idev->domain_dev = NULL;
+	idev->isci_port = NULL;
+	clear_bit(IDEV_START_PENDING, &idev->flags);
+	clear_bit(IDEV_STOP_PENDING, &idev->flags);
+	clear_bit(IDEV_GONE, &idev->flags);
+	clear_bit(IDEV_EH, &idev->flags);
+	smp_mb__before_clear_bit();
+	clear_bit(IDEV_ALLOCATED, &idev->flags);
+	wake_up(&ihost->eventq);
+}
+
 /**
  * isci_remote_device_stop() - This function is called internally to stop the
  *    remote device.
@@ -1330,7 +1338,11 @@ enum sci_status isci_remote_device_stop(struct isci_host *ihost, struct isci_rem
 	dev_dbg(&ihost->pdev->dev,
 		"%s: isci_device = %p\n", __func__, idev);
 
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	idev->domain_dev->lldd_dev = NULL; /* disable new lookups */
+	set_bit(IDEV_GONE, &idev->flags);
 	isci_remote_device_change_state(idev, isci_stopping);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	/* Kill all outstanding requests. */
 	isci_remote_device_nuke_requests(ihost, idev);
@@ -1342,14 +1354,10 @@ enum sci_status isci_remote_device_stop(struct isci_host *ihost, struct isci_rem
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	/* Wait for the stop complete callback. */
-	if (status == SCI_SUCCESS) {
+	if (WARN_ONCE(status != SCI_SUCCESS, "failed to stop device\n"))
+		/* nothing to wait for */;
+	else
 		wait_for_device_stop(ihost, idev);
-		clear_bit(IDEV_ALLOCATED, &idev->flags);
-	}
-
-	dev_dbg(&ihost->pdev->dev,
-		"%s: idev = %p - after completion wait\n",
-		__func__, idev);
 
 	return status;
 }
@@ -1416,39 +1424,33 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 	if (!isci_device)
 		return -ENODEV;
 
+	kref_init(&isci_device->kref);
 	INIT_LIST_HEAD(&isci_device->node);
-	domain_dev->lldd_dev = isci_device;
+
+	spin_lock_irq(&isci_host->scic_lock);
 	isci_device->domain_dev = domain_dev;
 	isci_device->isci_port = isci_port;
 	isci_remote_device_change_state(isci_device, isci_starting);
-
-
-	spin_lock_irq(&isci_host->scic_lock);
 	list_add_tail(&isci_device->node, &isci_port->remote_dev_list);
 
 	set_bit(IDEV_START_PENDING, &isci_device->flags);
 	status = isci_remote_device_construct(isci_port, isci_device);
-	spin_unlock_irq(&isci_host->scic_lock);
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_device = %p\n",
 		__func__, isci_device);
 
-	if (status != SCI_SUCCESS) {
-
-		spin_lock_irq(&isci_host->scic_lock);
-		isci_remote_device_deconstruct(
-			isci_host,
-			isci_device
-			);
-		spin_unlock_irq(&isci_host->scic_lock);
-		return -ENODEV;
-	}
+	if (status == SCI_SUCCESS) {
+		/* device came up, advertise it to the world */
+		domain_dev->lldd_dev = isci_device;
+	} else
+		isci_put_device(isci_device);
+	spin_unlock_irq(&isci_host->scic_lock);
 
 	/* wait for the device ready callback. */
 	wait_for_device_start(isci_host, isci_device);
 
-	return 0;
+	return status == SCI_SUCCESS ? 0 : -ENODEV;
 }
 /**
  * isci_device_is_reset_pending() - This function will check if there is any
