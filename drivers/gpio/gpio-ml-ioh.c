@@ -233,7 +233,7 @@ static int __devinit ioh_gpio_probe(struct pci_dev *pdev,
 	return 0;
 
 err_gpiochip_add:
-	for (; i != 0; i--) {
+	while (--i >= 0) {
 		chip--;
 		ret = gpiochip_remove(&chip->gpio);
 		if (ret)
