@@ -299,22 +299,16 @@ void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group,
 					 unsigned int flags)
 {
 	struct fsnotify_mark *lmark, *mark;
-	LIST_HEAD(free_list);
 
 	mutex_lock(&group->mark_mutex);
 	list_for_each_entry_safe(mark, lmark, &group->marks_list, g_list) {
 		if (mark->flags & flags) {
-			list_add(&mark->free_g_list, &free_list);
-			list_del_init(&mark->g_list);
 			fsnotify_get_mark(mark);
+			fsnotify_destroy_mark_locked(mark, group);
+			fsnotify_put_mark(mark);
 		}
 	}
 	mutex_unlock(&group->mark_mutex);
-
-	list_for_each_entry_safe(mark, lmark, &free_list, free_g_list) {
-		fsnotify_destroy_mark(mark, group);
-		fsnotify_put_mark(mark);
-	}
 }
 
 /*
