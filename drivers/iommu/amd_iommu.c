@@ -27,13 +27,14 @@
 #include <linux/iommu-helper.h>
 #include <linux/iommu.h>
 #include <linux/delay.h>
+#include <linux/amd-iommu.h>
 #include <asm/proto.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
 #include <asm/dma.h>
-#include <asm/amd_iommu_proto.h>
-#include <asm/amd_iommu_types.h>
-#include <asm/amd_iommu.h>
+
+#include "amd_iommu_proto.h"
+#include "amd_iommu_types.h"
 
 #define CMD_SET_TYPE(cmd, t) ((cmd)->data[1] |= ((t) << 28))
 
