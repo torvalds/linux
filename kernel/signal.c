@@ -1873,21 +1873,26 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	recalc_sigpending_tsk(current);
 }
 
-void ptrace_notify(int exit_code)
+static void ptrace_do_notify(int signr, int exit_code, int why)
 {
 	siginfo_t info;
 
-	BUG_ON((exit_code & (0x7f | ~0xffff)) != SIGTRAP);
-
 	memset(&info, 0, sizeof info);
-	info.si_signo = SIGTRAP;
+	info.si_signo = signr;
 	info.si_code = exit_code;
 	info.si_pid = task_pid_vnr(current);
 	info.si_uid = current_uid();
 
 	/* Let the debugger run.  */
+	ptrace_stop(exit_code, why, 1, &info);
+}
+
+void ptrace_notify(int exit_code)
+{
+	BUG_ON((exit_code & (0x7f | ~0xffff)) != SIGTRAP);
+
 	spin_lock_irq(&current->sighand->siglock);
-	ptrace_stop(exit_code, CLD_TRAPPED, 1, &info);
+	ptrace_do_notify(SIGTRAP, exit_code, CLD_TRAPPED);
 	spin_unlock_irq(&current->sighand->siglock);
 }
 
@@ -2017,7 +2022,13 @@ static bool do_signal_stop(int signr)
 /**
  * do_jobctl_trap - take care of ptrace jobctl traps
  *
- * It is currently used only to trap for group stop while ptraced.
+ * When PT_SEIZED, it's used for both group stop and explicit
+ * SEIZE/INTERRUPT traps.  Both generate PTRACE_EVENT_STOP trap with
+ * accompanying siginfo.  If stopped, lower eight bits of exit_code contain
+ * the stop signal; otherwise, %SIGTRAP.
+ *
+ * When !PT_SEIZED, it's used only for group stop trap with stop signal
+ * number as exit_code and no siginfo.
  *
  * CONTEXT:
  * Must be called with @current->sighand->siglock held, which may be
@@ -2025,11 +2036,21 @@ static bool do_signal_stop(int signr)
  */
 static void do_jobctl_trap(void)
 {
+	struct signal_struct *signal = current->signal;
 	int signr = current->jobctl & JOBCTL_STOP_SIGMASK;
 
-	WARN_ON_ONCE(!signr);
-	ptrace_stop(signr, CLD_STOPPED, 0, NULL);
-	current->exit_code = 0;
+	if (current->ptrace & PT_SEIZED) {
+		if (!signal->group_stop_count &&
+		    !(signal->flags & SIGNAL_STOP_STOPPED))
+			signr = SIGTRAP;
+		WARN_ON_ONCE(!signr);
+		ptrace_do_notify(signr, signr | (PTRACE_EVENT_STOP << 8),
+				 CLD_STOPPED);
+	} else {
+		WARN_ON_ONCE(!signr);
+		ptrace_stop(signr, CLD_STOPPED, 0, NULL);
+		current->exit_code = 0;
+	}
 }
 
 static int ptrace_signal(int signr, siginfo_t *info,
