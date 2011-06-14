@@ -56,7 +56,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/i2c-gpio.h>
-
+#include <linux/mpu.h>
 #include "devices.h"
 
 #if defined(CONFIG_MTK23D)
@@ -543,6 +543,45 @@ static struct mma8452_platform_data mma8452_info = {
   .swap_xy = 0,
   .init_platform_hw= mma8452_init_platform_hw,
 
+};
+#endif
+
+#if defined (CONFIG_SENSORS_MPU3050)
+/*mpu3050*/
+static struct mpu3050_platform_data mpu3050_data = {
+		.int_config = 0x10,
+		//.orientation = { 1, 0, 0,0, -1, 0,0, 0, 1 },
+		//.orientation = { 0, 1, 0,-1, 0, 0,0, 0, -1 },
+		.orientation = { 1, 0, 0,0, 1, 0, 0, 0, 1 },
+		.level_shifter = 0,
+#if defined (CONFIG_SENSORS_KXTF9)
+		.accel = {
+				.get_slave_descr = kxtf9_get_slave_descr ,
+				.adapt_num = 0, // The i2c bus to which the mpu device is
+				// connected
+				.irq = RK29_PIN6_PC4,
+				.bus = EXT_SLAVE_BUS_SECONDARY,  //The secondary I2C of MPU
+				.address = 0x0f,
+				//.orientation = { 1, 0, 0,0, 1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				//.orientation = { 0, 1, 0,1, 0, 0,0, 0, -1 },
+				.orientation = {1, 0, 0, 0, 1, 0, 0, 0, 1},
+		},
+#endif
+#if defined (CONFIG_SENSORS_AK8975)
+		.compass = {
+				.get_slave_descr = ak8975_get_slave_descr,/*ak5883_get_slave_descr,*/
+				.adapt_num = 0, // The i2c bus to which the compass device is. 
+				// It can be difference with mpu
+				// connected
+				.irq = RK29_PIN6_PC5,
+				.bus = EXT_SLAVE_BUS_PRIMARY,
+				.address = 0x0d,
+				//.orientation = { -1, 0, 0,0, -1, 0,0, 0, 1 },
+				//.orientation = { 0, -1, 0,-1, 0, 0,0, 0, -1 },
+				.orientation = {0, 1, 0, -1, 0, 0, 0, 0, 1},
+		},
+#endif
 };
 #endif
 
@@ -1761,6 +1800,15 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags          = 0,
 		.irq            = L3G4200D_INT_PIN,
 		.platform_data  = &l3g4200d_info,
+	},
+#endif
+#if defined (CONFIG_SENSORS_MPU3050) 
+	{
+		.type			= "mpu3050",
+		.addr			= 0x68,
+		.flags			= 0,
+		.irq			= RK29_PIN4_PC4,
+		.platform_data	= &mpu3050_data,
 	},
 #endif
 };
