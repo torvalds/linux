@@ -734,15 +734,11 @@ static int sci_handle_fifo_overrun(struct uart_port *port)
 {
 	struct tty_struct *tty = port->state->port.tty;
 	struct sci_port *s = to_sci_port(port);
+	struct plat_sci_reg *reg;
 	int copied = 0;
 
-	/*
-	 * XXX: Technically not limited to non-SCIFs, it's simply the
-	 * SCLSR check that is for the moment SCIF-specific. This
-	 * probably wants to be revisited for SCIFA/B as well as for
-	 * factoring in SCI overrun detection.
-	 */
-	if (port->type != PORT_SCIF)
+	reg = sci_getreg(port, SCLSR);
+	if (!reg->size)
 		return 0;
 
 	if ((sci_in(port, SCLSR) & (1 << s->cfg->overrun_bit))) {
