@@ -92,14 +92,28 @@ static const char * const bit_desc[] = {
 	"R31",			/*31*/
 };
 
-static void dump_port_status(u32 status)
+static void dump_port_status_diff(u32 prev_status, u32 new_status)
 {
 	int i = 0;
+	u32 bit = 1;
 
-	pr_debug("status %08x:", status);
-	for (i = 0; i < 32; i++) {
-		if (status & (1 << i))
-			pr_debug(" %s", bit_desc[i]);
+	pr_debug("status prev -> new: %08x -> %08x\n", prev_status, new_status);
+	while (bit) {
+		u32 prev = prev_status & bit;
+		u32 new = new_status & bit;
+		char change;
+
+		if (!prev && new)
+			change = '+';
+		else if (prev && !new)
+			change = '-';
+		else
+			change = ' ';
+
+		if (prev || new)
+			pr_debug(" %c%s\n", change, bit_desc[i]);
+		bit <<= 1;
+		i++;
 	}
 	pr_debug("\n");
 }
@@ -466,8 +480,8 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		pr_debug("port %d\n", rhport);
 		/* Only dump valid port status */
 		if (rhport >= 0) {
-			dump_port_status(prev_port_status[rhport]);
-			dump_port_status(dum->port_status[rhport]);
+			dump_port_status_diff(prev_port_status[rhport],
+					      dum->port_status[rhport]);
 		}
 	}
 	usbip_dbg_vhci_rh(" bye\n");
