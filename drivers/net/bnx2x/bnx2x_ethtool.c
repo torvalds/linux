@@ -25,6 +25,7 @@
 #include "bnx2x_cmn.h"
 #include "bnx2x_dump.h"
 #include "bnx2x_init.h"
+#include "bnx2x_sp.h"
 
 /* Note: in the format strings below %s is replaced by the queue-name which is
  * either its index or 'fcoe' for the fcoe queue. Make sure the format string

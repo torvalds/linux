@@ -292,13 +292,6 @@ int bnx2x_set_all_enode_macs(struct bnx2x *bp, int set);
  */
 void bnx2x_set_rx_mode(struct net_device *dev);
 
-/**
- * bnx2x_set_storm_rx_mode - configure MAC filtering rules in a FW.
- *
- * @bp:		driver handle
- */
-void bnx2x_set_storm_rx_mode(struct bnx2x *bp);
-
 /* Parity errors related */
 void bnx2x_inc_load_cnt(struct bnx2x *bp);
 u32 bnx2x_dec_load_cnt(struct bnx2x *bp);
@@ -1116,6 +1109,9 @@ static inline void storm_memset_cmng(struct bnx2x *bp,
 /* HW Lock for shared dual port PHYs */
 void bnx2x_acquire_phy_lock(struct bnx2x *bp);
 void bnx2x_release_phy_lock(struct bnx2x *bp);
+
+void bnx2x_update_coalesce_sb_index(struct bnx2x *bp, u16 fw_sb_id,
+					u8 sb_index, u8 disable, u16 usec);
 
 /**
  * bnx2x_extract_max_cfg - extract MAX BW part from MF configuration.

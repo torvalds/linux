@@ -1482,9 +1482,10 @@ int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 		  u32 data_hi, u32 data_lo, int common);
 
 /* Clears multicast and unicast list configuration in the chip. */
-void bnx2x_invalidate_e1_mc_list(struct bnx2x *bp);
-void bnx2x_invalidate_e1h_mc_list(struct bnx2x *bp);
 void bnx2x_invalidate_uc_list(struct bnx2x *bp);
+
+int bnx2x_wait_ramrod(struct bnx2x *bp, int state, int idx,
+			     int *state_p, int flags);
 
 void bnx2x_update_coalesce(struct bnx2x *bp);
 int bnx2x_get_cur_phy_idx(struct bnx2x *bp);
@@ -1825,6 +1826,5 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 BNX2X_EXTERN int load_count[2][3]; /* per path: 0-common, 1-port0, 2-port1 */
 
 extern void bnx2x_set_ethtool_ops(struct net_device *netdev);
-void bnx2x_push_indir_table(struct bnx2x *bp);
 
 #endif /* bnx2x.h */

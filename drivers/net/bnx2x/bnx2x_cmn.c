@@ -24,8 +24,8 @@
 #include <linux/firmware.h>
 #include <linux/prefetch.h>
 #include "bnx2x_cmn.h"
-
 #include "bnx2x_init.h"
+#include "bnx2x_sp.h"
 
 static int bnx2x_setup_irqs(struct bnx2x *bp);
 
