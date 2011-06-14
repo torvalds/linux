@@ -1918,13 +1918,23 @@ load_error0:
 int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 {
 	int i;
+	bool global = false;
 
-	if (bp->state == BNX2X_STATE_CLOSED) {
-		/* Interface has been removed - nothing to recover */
+	if ((bp->state == BNX2X_STATE_CLOSED) ||
+	    (bp->state == BNX2X_STATE_ERROR)) {
+		/* We can get here if the driver has been unloaded
+		 * during parity error recovery and is either waiting for a
+		 * leader to complete or for other functions to unload and
+		 * then ifdown has been issued. In this case we want to
+		 * unload and let other functions to complete a recovery
+		 * process.
+		 */
 		bp->recovery_state = BNX2X_RECOVERY_DONE;
 		bp->is_leader = 0;
-		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESERVED_08);
-		smp_wmb();
+		bnx2x_release_leader_lock(bp);
+		smp_mb();
+
+		DP(NETIF_MSG_HW, "Releasing a leadership...\n");
 
 		return -EINVAL;
 	}
@@ -1953,11 +1963,27 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	if (unload_mode != UNLOAD_RECOVERY)
 		bnx2x_chip_cleanup(bp, unload_mode);
 	else {
-		/* Disable HW interrupts, NAPI and Tx */
+		/* Send the UNLOAD_REQUEST to the MCP */
+		bnx2x_send_unload_req(bp, unload_mode);
+
+		/*
+		 * Prevent transactions to host from the functions on the
+		 * engine that doesn't reset global blocks in case of global
+		 * attention once gloabl blocks are reset and gates are opened
+		 * (the engine which leader will perform the recovery
+		 * last).
+		 */
+		if (!CHIP_IS_E1x(bp))
+			bnx2x_pf_disable(bp);
+
+		/* Disable HW interrupts, NAPI */
 		bnx2x_netif_stop(bp, 1);
 
 		/* Release IRQs */
 		bnx2x_free_irq(bp);
+
+		/* Report UNLOAD_DONE to MCP */
+		bnx2x_send_unload_done(bp);
 	}
 
 	/*
@@ -1977,16 +2003,23 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 	bp->state = BNX2X_STATE_CLOSED;
 
+	/* Check if there are pending parity attentions. If there are - set
+	 * RECOVERY_IN_PROGRESS.
+	 */
+	if (bnx2x_chk_parity_attn(bp, &global, false)) {
+		bnx2x_set_reset_in_progress(bp);
+
+		/* Set RESET_IS_GLOBAL if needed */
+		if (global)
+			bnx2x_set_reset_global(bp);
+	}
+
+
 	/* The last driver must disable a "close the gate" if there is no
 	 * parity attention or "process kill" pending.
 	 */
-	if ((!bnx2x_dec_load_cnt(bp)) && (!bnx2x_chk_parity_attn(bp)) &&
-	    bnx2x_reset_is_done(bp))
+	if (!bnx2x_dec_load_cnt(bp) && bnx2x_reset_is_done(bp, BP_PATH(bp)))
 		bnx2x_disable_close_the_gate(bp);
-
-	/* Reset MCP mail box sequence if there is on going recovery */
-	if (unload_mode == UNLOAD_RECOVERY)
-		bp->fw_seq = 0;
 
 	return 0;
 }

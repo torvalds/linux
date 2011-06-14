@@ -1606,6 +1606,34 @@ static bool bnx2x_trylock_hw_lock(struct bnx2x *bp, u32 resource)
 	return false;
 }
 
+/**
+ * bnx2x_get_leader_lock_resource - get the recovery leader resource id
+ *
+ * @bp:	driver handle
+ *
+ * Returns the recovery leader resource id according to the engine this function
+ * belongs to. Currently only only 2 engines is supported.
+ */
+static inline int bnx2x_get_leader_lock_resource(struct bnx2x *bp)
+{
+	if (BP_PATH(bp))
+		return HW_LOCK_RESOURCE_RECOVERY_LEADER_1;
+	else
+		return HW_LOCK_RESOURCE_RECOVERY_LEADER_0;
+}
+
+/**
+ * bnx2x_trylock_leader_lock- try to aquire a leader lock.
+ *
+ * @bp: driver handle
+ *
+ * Tries to aquire a leader lock for cuurent engine.
+ */
+static inline bool bnx2x_trylock_leader_lock(struct bnx2x *bp)
+{
+	return bnx2x_trylock_hw_lock(bp, bnx2x_get_leader_lock_resource(bp));
+}
+
 #ifdef BCM_CNIC
 static void bnx2x_cnic_cfc_comp(struct bnx2x *bp, int cid, u8 err);
 #endif
@@ -1800,6 +1828,11 @@ int bnx2x_acquire_hw_lock(struct bnx2x *bp, u32 resource)
 	}
 	DP(NETIF_MSG_HW, "Timeout\n");
 	return -EAGAIN;
+}
+
+int bnx2x_release_leader_lock(struct bnx2x *bp)
+{
+	return bnx2x_release_hw_lock(bp, bnx2x_get_leader_lock_resource(bp));
 }
 
 int bnx2x_release_hw_lock(struct bnx2x *bp, u32 resource)
@@ -3323,72 +3356,185 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 	}
 }
 
-#define BNX2X_MISC_GEN_REG      MISC_REG_GENERIC_POR_1
-#define LOAD_COUNTER_BITS	16 /* Number of bits for load counter */
-#define LOAD_COUNTER_MASK	(((u32)0x1 << LOAD_COUNTER_BITS) - 1)
-#define RESET_DONE_FLAG_MASK	(~LOAD_COUNTER_MASK)
-#define RESET_DONE_FLAG_SHIFT	LOAD_COUNTER_BITS
+/*
+ * Bits map:
+ * 0-7   - Engine0 load counter.
+ * 8-15  - Engine1 load counter.
+ * 16    - Engine0 RESET_IN_PROGRESS bit.
+ * 17    - Engine1 RESET_IN_PROGRESS bit.
+ * 18    - Engine0 ONE_IS_LOADED. Set when there is at least one active function
+ *         on the engine
+ * 19    - Engine1 ONE_IS_LOADED.
+ * 20    - Chip reset flow bit. When set none-leader must wait for both engines
+ *         leader to complete (check for both RESET_IN_PROGRESS bits and not for
+ *         just the one belonging to its engine).
+ *
+ */
+#define BNX2X_RECOVERY_GLOB_REG		MISC_REG_GENERIC_POR_1
+
+#define BNX2X_PATH0_LOAD_CNT_MASK	0x000000ff
+#define BNX2X_PATH0_LOAD_CNT_SHIFT	0
+#define BNX2X_PATH1_LOAD_CNT_MASK	0x0000ff00
+#define BNX2X_PATH1_LOAD_CNT_SHIFT	8
+#define BNX2X_PATH0_RST_IN_PROG_BIT	0x00010000
+#define BNX2X_PATH1_RST_IN_PROG_BIT	0x00020000
+#define BNX2X_GLOBAL_RESET_BIT		0x00040000
 
 /*
+ * Set the GLOBAL_RESET bit.
+ *
+ * Should be run under rtnl lock
+ */
+void bnx2x_set_reset_global(struct bnx2x *bp)
+{
+	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+
+	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val | BNX2X_GLOBAL_RESET_BIT);
+	barrier();
+	mmiowb();
+}
+
+/*
+ * Clear the GLOBAL_RESET bit.
+ *
+ * Should be run under rtnl lock
+ */
+static inline void bnx2x_clear_reset_global(struct bnx2x *bp)
+{
+	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+
+	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val & (~BNX2X_GLOBAL_RESET_BIT));
+	barrier();
+	mmiowb();
+}
+
+/*
+ * Checks the GLOBAL_RESET bit.
+ *
  * should be run under rtnl lock
+ */
+static inline bool bnx2x_reset_is_global(struct bnx2x *bp)
+{
+	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+
+	DP(NETIF_MSG_HW, "GEN_REG_VAL=0x%08x\n", val);
+	return (val & BNX2X_GLOBAL_RESET_BIT) ? true : false;
+}
+
+/*
+ * Clear RESET_IN_PROGRESS bit for the current engine.
+ *
+ * Should be run under rtnl lock
  */
 static inline void bnx2x_set_reset_done(struct bnx2x *bp)
 {
-	u32 val	= REG_RD(bp, BNX2X_MISC_GEN_REG);
-	val &= ~(1 << RESET_DONE_FLAG_SHIFT);
-	REG_WR(bp, BNX2X_MISC_GEN_REG, val);
+	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 bit = BP_PATH(bp) ?
+		BNX2X_PATH1_RST_IN_PROG_BIT : BNX2X_PATH0_RST_IN_PROG_BIT;
+
+	/* Clear the bit */
+	val &= ~bit;
+	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val);
 	barrier();
 	mmiowb();
 }
 
 /*
+ * Set RESET_IN_PROGRESS for the current engine.
+ *
  * should be run under rtnl lock
  */
-static inline void bnx2x_set_reset_in_progress(struct bnx2x *bp)
+void bnx2x_set_reset_in_progress(struct bnx2x *bp)
 {
-	u32 val	= REG_RD(bp, BNX2X_MISC_GEN_REG);
-	val |= (1 << 16);
-	REG_WR(bp, BNX2X_MISC_GEN_REG, val);
+	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 bit = BP_PATH(bp) ?
+		BNX2X_PATH1_RST_IN_PROG_BIT : BNX2X_PATH0_RST_IN_PROG_BIT;
+
+	/* Set the bit */
+	val |= bit;
+	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val);
 	barrier();
 	mmiowb();
 }
 
 /*
+ * Checks the RESET_IN_PROGRESS bit for the given engine.
  * should be run under rtnl lock
  */
-bool bnx2x_reset_is_done(struct bnx2x *bp)
+bool bnx2x_reset_is_done(struct bnx2x *bp, int engine)
 {
-	u32 val	= REG_RD(bp, BNX2X_MISC_GEN_REG);
-	DP(NETIF_MSG_HW, "GEN_REG_VAL=0x%08x\n", val);
-	return (val & RESET_DONE_FLAG_MASK) ? false : true;
+	u32 val	= REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 bit = engine ?
+		BNX2X_PATH1_RST_IN_PROG_BIT : BNX2X_PATH0_RST_IN_PROG_BIT;
+
+	/* return false if bit is set */
+	return (val & bit) ? false : true;
 }
 
 /*
+ * Increment the load counter for the current engine.
+ *
  * should be run under rtnl lock
  */
-inline void bnx2x_inc_load_cnt(struct bnx2x *bp)
+void bnx2x_inc_load_cnt(struct bnx2x *bp)
 {
-	u32 val1, val = REG_RD(bp, BNX2X_MISC_GEN_REG);
+	u32 val1, val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 mask = BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_MASK :
+			     BNX2X_PATH0_LOAD_CNT_MASK;
+	u32 shift = BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_SHIFT :
+			     BNX2X_PATH0_LOAD_CNT_SHIFT;
 
 	DP(NETIF_MSG_HW, "Old GEN_REG_VAL=0x%08x\n", val);
 
-	val1 = ((val & LOAD_COUNTER_MASK) + 1) & LOAD_COUNTER_MASK;
-	REG_WR(bp, BNX2X_MISC_GEN_REG, (val & RESET_DONE_FLAG_MASK) | val1);
+	/* get the current counter value */
+	val1 = (val & mask) >> shift;
+
+	/* increment... */
+	val1++;
+
+	/* clear the old value */
+	val &= ~mask;
+
+	/* set the new one */
+	val |= ((val1 << shift) & mask);
+
+	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val);
 	barrier();
 	mmiowb();
 }
 
-/*
- * should be run under rtnl lock
+/**
+ * bnx2x_dec_load_cnt - decrement the load counter
+ *
+ * @bp:		driver handle
+ *
+ * Should be run under rtnl lock.
+ * Decrements the load counter for the current engine. Returns
+ * the new counter value.
  */
 u32 bnx2x_dec_load_cnt(struct bnx2x *bp)
 {
-	u32 val1, val = REG_RD(bp, BNX2X_MISC_GEN_REG);
+	u32 val1, val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 mask = BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_MASK :
+			     BNX2X_PATH0_LOAD_CNT_MASK;
+	u32 shift = BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_SHIFT :
+			     BNX2X_PATH0_LOAD_CNT_SHIFT;
 
 	DP(NETIF_MSG_HW, "Old GEN_REG_VAL=0x%08x\n", val);
 
-	val1 = ((val & LOAD_COUNTER_MASK) - 1) & LOAD_COUNTER_MASK;
-	REG_WR(bp, BNX2X_MISC_GEN_REG, (val & RESET_DONE_FLAG_MASK) | val1);
+	/* get the current counter value */
+	val1 = (val & mask) >> shift;
+
+	/* decrement... */
+	val1--;
+
+	/* clear the old value */
+	val &= ~mask;
+
+	/* set the new one */
+	val |= ((val1 << shift) & mask);
+
+	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val);
 	barrier();
 	mmiowb();
 
@@ -3396,17 +3542,39 @@ u32 bnx2x_dec_load_cnt(struct bnx2x *bp)
 }
 
 /*
+ * Read the load counter for the current engine.
+ *
  * should be run under rtnl lock
  */
-static inline u32 bnx2x_get_load_cnt(struct bnx2x *bp)
+static inline u32 bnx2x_get_load_cnt(struct bnx2x *bp, int engine)
 {
-	return REG_RD(bp, BNX2X_MISC_GEN_REG) & LOAD_COUNTER_MASK;
+	u32 mask = (engine ? BNX2X_PATH1_LOAD_CNT_MASK :
+			     BNX2X_PATH0_LOAD_CNT_MASK);
+	u32 shift = (engine ? BNX2X_PATH1_LOAD_CNT_SHIFT :
+			     BNX2X_PATH0_LOAD_CNT_SHIFT);
+	u32 val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+
+	DP(NETIF_MSG_HW, "GLOB_REG=0x%08x\n", val);
+
+	val = (val & mask) >> shift;
+
+	DP(NETIF_MSG_HW, "load_cnt for engine %d = %d\n", engine, val);
+
+	return val;
 }
 
+/*
+ * Reset the load counter for the current engine.
+ *
+ * should be run under rtnl lock
+ */
 static inline void bnx2x_clear_load_cnt(struct bnx2x *bp)
 {
-	u32 val = REG_RD(bp, BNX2X_MISC_GEN_REG);
-	REG_WR(bp, BNX2X_MISC_GEN_REG, val & (~LOAD_COUNTER_MASK));
+	u32 val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
+	u32 mask = (BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_MASK :
+			     BNX2X_PATH0_LOAD_CNT_MASK);
+
+	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val & (~mask));
 }
 
 static inline void _print_next_block(int idx, const char *blk)
@@ -3416,7 +3584,8 @@ static inline void _print_next_block(int idx, const char *blk)
 	pr_cont("%s", blk);
 }
 
-static inline int bnx2x_print_blocks_with_parity0(u32 sig, int par_num)
+static inline int bnx2x_check_blocks_with_parity0(u32 sig, int par_num,
+						  bool print)
 {
 	int i = 0;
 	u32 cur_bit = 0;
@@ -3425,19 +3594,33 @@ static inline int bnx2x_print_blocks_with_parity0(u32 sig, int par_num)
 		if (sig & cur_bit) {
 			switch (cur_bit) {
 			case AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR:
-				_print_next_block(par_num++, "BRB");
+				if (print)
+					_print_next_block(par_num++, "BRB");
 				break;
 			case AEU_INPUTS_ATTN_BITS_PARSER_PARITY_ERROR:
-				_print_next_block(par_num++, "PARSER");
+				if (print)
+					_print_next_block(par_num++, "PARSER");
 				break;
 			case AEU_INPUTS_ATTN_BITS_TSDM_PARITY_ERROR:
-				_print_next_block(par_num++, "TSDM");
+				if (print)
+					_print_next_block(par_num++, "TSDM");
 				break;
 			case AEU_INPUTS_ATTN_BITS_SEARCHER_PARITY_ERROR:
-				_print_next_block(par_num++, "SEARCHER");
+				if (print)
+					_print_next_block(par_num++,
+							  "SEARCHER");
+				break;
+			case AEU_INPUTS_ATTN_BITS_TCM_PARITY_ERROR:
+				if (print)
+					_print_next_block(par_num++, "TCM");
 				break;
 			case AEU_INPUTS_ATTN_BITS_TSEMI_PARITY_ERROR:
-				_print_next_block(par_num++, "TSEMI");
+				if (print)
+					_print_next_block(par_num++, "TSEMI");
+				break;
+			case AEU_INPUTS_ATTN_BITS_PBCLIENT_PARITY_ERROR:
+				if (print)
+					_print_next_block(par_num++, "XPB");
 				break;
 			}
 
@@ -3449,7 +3632,8 @@ static inline int bnx2x_print_blocks_with_parity0(u32 sig, int par_num)
 	return par_num;
 }
 
-static inline int bnx2x_print_blocks_with_parity1(u32 sig, int par_num)
+static inline int bnx2x_check_blocks_with_parity1(u32 sig, int par_num,
+						  bool *global, bool print)
 {
 	int i = 0;
 	u32 cur_bit = 0;
@@ -3457,38 +3641,64 @@ static inline int bnx2x_print_blocks_with_parity1(u32 sig, int par_num)
 		cur_bit = ((u32)0x1 << i);
 		if (sig & cur_bit) {
 			switch (cur_bit) {
-			case AEU_INPUTS_ATTN_BITS_PBCLIENT_PARITY_ERROR:
-				_print_next_block(par_num++, "PBCLIENT");
+			case AEU_INPUTS_ATTN_BITS_PBF_PARITY_ERROR:
+				if (print)
+					_print_next_block(par_num++, "PBF");
 				break;
 			case AEU_INPUTS_ATTN_BITS_QM_PARITY_ERROR:
-				_print_next_block(par_num++, "QM");
+				if (print)
+					_print_next_block(par_num++, "QM");
+				break;
+			case AEU_INPUTS_ATTN_BITS_TIMERS_PARITY_ERROR:
+				if (print)
+					_print_next_block(par_num++, "TM");
 				break;
 			case AEU_INPUTS_ATTN_BITS_XSDM_PARITY_ERROR:
-				_print_next_block(par_num++, "XSDM");
+				if (print)
+					_print_next_block(par_num++, "XSDM");
+				break;
+			case AEU_INPUTS_ATTN_BITS_XCM_PARITY_ERROR:
+				if (print)
+					_print_next_block(par_num++, "XCM");
 				break;
 			case AEU_INPUTS_ATTN_BITS_XSEMI_PARITY_ERROR:
-				_print_next_block(par_num++, "XSEMI");
+				if (print)
+					_print_next_block(par_num++, "XSEMI");
 				break;
 			case AEU_INPUTS_ATTN_BITS_DOORBELLQ_PARITY_ERROR:
-				_print_next_block(par_num++, "DOORBELLQ");
+				if (print)
+					_print_next_block(par_num++,
+							  "DOORBELLQ");
+				break;
+			case AEU_INPUTS_ATTN_BITS_NIG_PARITY_ERROR:
+				if (print)
+					_print_next_block(par_num++, "NIG");
 				break;
 			case AEU_INPUTS_ATTN_BITS_VAUX_PCI_CORE_PARITY_ERROR:
-				_print_next_block(par_num++, "VAUX PCI CORE");
+				if (print)
+					_print_next_block(par_num++,
+							  "VAUX PCI CORE");
+				*global = true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_DEBUG_PARITY_ERROR:
-				_print_next_block(par_num++, "DEBUG");
+				if (print)
+					_print_next_block(par_num++, "DEBUG");
 				break;
 			case AEU_INPUTS_ATTN_BITS_USDM_PARITY_ERROR:
-				_print_next_block(par_num++, "USDM");
+				if (print)
+					_print_next_block(par_num++, "USDM");
 				break;
 			case AEU_INPUTS_ATTN_BITS_USEMI_PARITY_ERROR:
-				_print_next_block(par_num++, "USEMI");
+				if (print)
+					_print_next_block(par_num++, "USEMI");
 				break;
 			case AEU_INPUTS_ATTN_BITS_UPB_PARITY_ERROR:
-				_print_next_block(par_num++, "UPB");
+				if (print)
+					_print_next_block(par_num++, "UPB");
 				break;
 			case AEU_INPUTS_ATTN_BITS_CSDM_PARITY_ERROR:
-				_print_next_block(par_num++, "CSDM");
+				if (print)
+					_print_next_block(par_num++, "CSDM");
 				break;
 			}
 
@@ -3500,7 +3710,8 @@ static inline int bnx2x_print_blocks_with_parity1(u32 sig, int par_num)
 	return par_num;
 }
 
-static inline int bnx2x_print_blocks_with_parity2(u32 sig, int par_num)
+static inline int bnx2x_check_blocks_with_parity2(u32 sig, int par_num,
+						  bool print)
 {
 	int i = 0;
 	u32 cur_bit = 0;
@@ -3509,26 +3720,37 @@ static inline int bnx2x_print_blocks_with_parity2(u32 sig, int par_num)
 		if (sig & cur_bit) {
 			switch (cur_bit) {
 			case AEU_INPUTS_ATTN_BITS_CSEMI_PARITY_ERROR:
-				_print_next_block(par_num++, "CSEMI");
+				if (print)
+					_print_next_block(par_num++, "CSEMI");
 				break;
 			case AEU_INPUTS_ATTN_BITS_PXP_PARITY_ERROR:
-				_print_next_block(par_num++, "PXP");
+				if (print)
+					_print_next_block(par_num++, "PXP");
 				break;
 			case AEU_IN_ATTN_BITS_PXPPCICLOCKCLIENT_PARITY_ERROR:
-				_print_next_block(par_num++,
+				if (print)
+					_print_next_block(par_num++,
 					"PXPPCICLOCKCLIENT");
 				break;
 			case AEU_INPUTS_ATTN_BITS_CFC_PARITY_ERROR:
-				_print_next_block(par_num++, "CFC");
+				if (print)
+					_print_next_block(par_num++, "CFC");
 				break;
 			case AEU_INPUTS_ATTN_BITS_CDU_PARITY_ERROR:
-				_print_next_block(par_num++, "CDU");
+				if (print)
+					_print_next_block(par_num++, "CDU");
+				break;
+			case AEU_INPUTS_ATTN_BITS_DMAE_PARITY_ERROR:
+				if (print)
+					_print_next_block(par_num++, "DMAE");
 				break;
 			case AEU_INPUTS_ATTN_BITS_IGU_PARITY_ERROR:
-				_print_next_block(par_num++, "IGU");
+				if (print)
+					_print_next_block(par_num++, "IGU");
 				break;
 			case AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR:
-				_print_next_block(par_num++, "MISC");
+				if (print)
+					_print_next_block(par_num++, "MISC");
 				break;
 			}
 
@@ -3540,7 +3762,8 @@ static inline int bnx2x_print_blocks_with_parity2(u32 sig, int par_num)
 	return par_num;
 }
 
-static inline int bnx2x_print_blocks_with_parity3(u32 sig, int par_num)
+static inline int bnx2x_check_blocks_with_parity3(u32 sig, int par_num,
+						  bool *global, bool print)
 {
 	int i = 0;
 	u32 cur_bit = 0;
@@ -3549,16 +3772,27 @@ static inline int bnx2x_print_blocks_with_parity3(u32 sig, int par_num)
 		if (sig & cur_bit) {
 			switch (cur_bit) {
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_ROM_PARITY:
-				_print_next_block(par_num++, "MCP ROM");
+				if (print)
+					_print_next_block(par_num++, "MCP ROM");
+				*global = true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY:
-				_print_next_block(par_num++, "MCP UMP RX");
+				if (print)
+					_print_next_block(par_num++,
+							  "MCP UMP RX");
+				*global = true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY:
-				_print_next_block(par_num++, "MCP UMP TX");
+				if (print)
+					_print_next_block(par_num++,
+							  "MCP UMP TX");
+				*global = true;
 				break;
 			case AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY:
-				_print_next_block(par_num++, "MCP SCPAD");
+				if (print)
+					_print_next_block(par_num++,
+							  "MCP SCPAD");
+				*global = true;
 				break;
 			}
 
@@ -3570,8 +3804,8 @@ static inline int bnx2x_print_blocks_with_parity3(u32 sig, int par_num)
 	return par_num;
 }
 
-static inline bool bnx2x_parity_attn(struct bnx2x *bp, u32 sig0, u32 sig1,
-				     u32 sig2, u32 sig3)
+static inline bool bnx2x_parity_attn(struct bnx2x *bp, bool *global, bool print,
+				     u32 sig0, u32 sig1, u32 sig2, u32 sig3)
 {
 	if ((sig0 & HW_PRTY_ASSERT_SET_0) || (sig1 & HW_PRTY_ASSERT_SET_1) ||
 	    (sig2 & HW_PRTY_ASSERT_SET_2) || (sig3 & HW_PRTY_ASSERT_SET_3)) {
@@ -3583,23 +3817,32 @@ static inline bool bnx2x_parity_attn(struct bnx2x *bp, u32 sig0, u32 sig1,
 			  sig1 & HW_PRTY_ASSERT_SET_1,
 			  sig2 & HW_PRTY_ASSERT_SET_2,
 			  sig3 & HW_PRTY_ASSERT_SET_3);
-		printk(KERN_ERR"%s: Parity errors detected in blocks: ",
-		       bp->dev->name);
-		par_num = bnx2x_print_blocks_with_parity0(
-			sig0 & HW_PRTY_ASSERT_SET_0, par_num);
-		par_num = bnx2x_print_blocks_with_parity1(
-			sig1 & HW_PRTY_ASSERT_SET_1, par_num);
-		par_num = bnx2x_print_blocks_with_parity2(
-			sig2 & HW_PRTY_ASSERT_SET_2, par_num);
-		par_num = bnx2x_print_blocks_with_parity3(
-			sig3 & HW_PRTY_ASSERT_SET_3, par_num);
-		printk("\n");
+		if (print)
+			netdev_err(bp->dev,
+				   "Parity errors detected in blocks: ");
+		par_num = bnx2x_check_blocks_with_parity0(
+			sig0 & HW_PRTY_ASSERT_SET_0, par_num, print);
+		par_num = bnx2x_check_blocks_with_parity1(
+			sig1 & HW_PRTY_ASSERT_SET_1, par_num, global, print);
+		par_num = bnx2x_check_blocks_with_parity2(
+			sig2 & HW_PRTY_ASSERT_SET_2, par_num, print);
+		par_num = bnx2x_check_blocks_with_parity3(
+			sig3 & HW_PRTY_ASSERT_SET_3, par_num, global, print);
+		if (print)
+			pr_cont("\n");
 		return true;
 	} else
 		return false;
 }
 
-bool bnx2x_chk_parity_attn(struct bnx2x *bp)
+/**
+ * bnx2x_chk_parity_attn - checks for parity attentions.
+ *
+ * @bp:		driver handle
+ * @global:	true if there was a global attention
+ * @print:	show parity attention in syslog
+ */
+bool bnx2x_chk_parity_attn(struct bnx2x *bp, bool *global, bool print)
 {
 	struct attn_route attn;
 	int port = BP_PORT(bp);
@@ -3617,8 +3860,8 @@ bool bnx2x_chk_parity_attn(struct bnx2x *bp)
 		MISC_REG_AEU_AFTER_INVERT_4_FUNC_0 +
 			     port*4);
 
-	return bnx2x_parity_attn(bp, attn.sig[0], attn.sig[1], attn.sig[2],
-					attn.sig[3]);
+	return bnx2x_parity_attn(bp, global, print, attn.sig[0], attn.sig[1],
+				 attn.sig[2], attn.sig[3]);
 }
 
 
@@ -3697,21 +3940,25 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 	u32 reg_addr;
 	u32 val;
 	u32 aeu_mask;
+	bool global = false;
 
 	/* need to take HW lock because MCP or other port might also
 	   try to handle this event */
 	bnx2x_acquire_alr(bp);
 
-	if (CHIP_PARITY_ENABLED(bp) && bnx2x_chk_parity_attn(bp)) {
+	if (bnx2x_chk_parity_attn(bp, &global, true)) {
+#ifndef BNX2X_STOP_ON_ERROR
 		bp->recovery_state = BNX2X_RECOVERY_INIT;
-		bnx2x_set_reset_in_progress(bp);
 		schedule_delayed_work(&bp->reset_task, 0);
 		/* Disable HW interrupts */
 		bnx2x_int_disable(bp);
-		bnx2x_release_alr(bp);
 		/* In case of parity errors don't handle attentions so that
 		 * other function would "see" parity errors.
 		 */
+#else
+		bnx2x_panic();
+#endif
+		bnx2x_release_alr(bp);
 		return;
 	}
 
@@ -5289,7 +5536,7 @@ static void bnx2x_pretend_func(struct bnx2x *bp, u8 pretend_func_num)
 	DP(NETIF_MSG_HW, "Pretending to func %d\n", pretend_func_num);
 }
 
-static void bnx2x_pf_disable(struct bnx2x *bp)
+void bnx2x_pf_disable(struct bnx2x *bp)
 {
 	u32 val = REG_RD(bp, IGU_REG_PF_CONFIGURATION);
 	val &= ~IGU_PF_CONF_FUNC_EN;
@@ -5733,8 +5980,7 @@ static int bnx2x_init_hw_common(struct bnx2x *bp)
 	REG_RD(bp, PXP2_REG_PXP2_INT_STS_CLR_0);
 
 	bnx2x_enable_blocks_attention(bp);
-	if (CHIP_PARITY_ENABLED(bp))
-		bnx2x_enable_blocks_parity(bp);
+	bnx2x_enable_blocks_parity(bp);
 
 	if (!BP_NOMCP(bp)) {
 		if (CHIP_IS_E1x(bp))
@@ -7165,24 +7411,37 @@ void bnx2x_disable_close_the_gate(struct bnx2x *bp)
 /* Close gates #2, #3 and #4: */
 static void bnx2x_set_234_gates(struct bnx2x *bp, bool close)
 {
-	u32 val, addr;
+	u32 val;
 
 	/* Gates #2 and #4a are closed/opened for "not E1" only */
 	if (!CHIP_IS_E1(bp)) {
 		/* #4 */
-		val = REG_RD(bp, PXP_REG_HST_DISCARD_DOORBELLS);
-		REG_WR(bp, PXP_REG_HST_DISCARD_DOORBELLS,
-		       close ? (val | 0x1) : (val & (~(u32)1)));
+		REG_WR(bp, PXP_REG_HST_DISCARD_DOORBELLS, !!close);
 		/* #2 */
-		val = REG_RD(bp, PXP_REG_HST_DISCARD_INTERNAL_WRITES);
-		REG_WR(bp, PXP_REG_HST_DISCARD_INTERNAL_WRITES,
-		       close ? (val | 0x1) : (val & (~(u32)1)));
+		REG_WR(bp, PXP_REG_HST_DISCARD_INTERNAL_WRITES, !!close);
 	}
 
 	/* #3 */
-	addr = BP_PORT(bp) ? HC_REG_CONFIG_1 : HC_REG_CONFIG_0;
-	val = REG_RD(bp, addr);
-	REG_WR(bp, addr, (!close) ? (val | 0x1) : (val & (~(u32)1)));
+	if (CHIP_IS_E1x(bp)) {
+		/* Prevent interrupts from HC on both ports */
+		val = REG_RD(bp, HC_REG_CONFIG_1);
+		REG_WR(bp, HC_REG_CONFIG_1,
+		       (!close) ? (val | HC_CONFIG_1_REG_BLOCK_DISABLE_1) :
+		       (val & ~(u32)HC_CONFIG_1_REG_BLOCK_DISABLE_1));
+
+		val = REG_RD(bp, HC_REG_CONFIG_0);
+		REG_WR(bp, HC_REG_CONFIG_0,
+		       (!close) ? (val | HC_CONFIG_0_REG_BLOCK_DISABLE_0) :
+		       (val & ~(u32)HC_CONFIG_0_REG_BLOCK_DISABLE_0));
+	} else {
+		/* Prevent incomming interrupts in IGU */
+		val = REG_RD(bp, IGU_REG_BLOCK_CONFIGURATION);
+
+		REG_WR(bp, IGU_REG_BLOCK_CONFIGURATION,
+		       (!close) ?
+		       (val | IGU_BLOCK_CONFIGURATION_REG_BLOCK_ENABLE) :
+		       (val & ~(u32)IGU_BLOCK_CONFIGURATION_REG_BLOCK_ENABLE));
+	}
 
 	DP(NETIF_MSG_HW, "%s gates #2, #3 and #4\n",
 		close ? "closing" : "opening");
@@ -7300,7 +7559,6 @@ static void bnx2x_pxp_prep(struct bnx2x *bp)
 	if (!CHIP_IS_E1(bp)) {
 		REG_WR(bp, PXP2_REG_RD_START_INIT, 0);
 		REG_WR(bp, PXP2_REG_RQ_RBC_DONE, 0);
-		REG_WR(bp, PXP2_REG_RQ_CFG_DONE, 0);
 		mmiowb();
 	}
 }
@@ -7315,9 +7573,18 @@ static void bnx2x_pxp_prep(struct bnx2x *bp)
  *      - GRC
  *      - RBCN, RBCP
  */
-static void bnx2x_process_kill_chip_reset(struct bnx2x *bp)
+static void bnx2x_process_kill_chip_reset(struct bnx2x *bp, bool global)
 {
 	u32 not_reset_mask1, reset_mask1, not_reset_mask2, reset_mask2;
+	u32 global_bits2;
+
+	/*
+	 * Bits that have to be set in reset_mask2 if we want to reset 'global'
+	 * (per chip) blocks.
+	 */
+	global_bits2 =
+		MISC_REGISTERS_RESET_REG_2_RST_MCP_N_RESET_CMN_CPU |
+		MISC_REGISTERS_RESET_REG_2_RST_MCP_N_RESET_CMN_CORE;
 
 	not_reset_mask1 =
 		MISC_REGISTERS_RESET_REG_1_RST_HC |
@@ -7325,7 +7592,7 @@ static void bnx2x_process_kill_chip_reset(struct bnx2x *bp)
 		MISC_REGISTERS_RESET_REG_1_RST_PXP;
 
 	not_reset_mask2 =
-		MISC_REGISTERS_RESET_REG_2_RST_MDIO |
+		MISC_REGISTERS_RESET_REG_2_RST_PCI_MDIO |
 		MISC_REGISTERS_RESET_REG_2_RST_EMAC0_HARD_CORE |
 		MISC_REGISTERS_RESET_REG_2_RST_EMAC1_HARD_CORE |
 		MISC_REGISTERS_RESET_REG_2_RST_MISC_CORE |
@@ -7341,20 +7608,76 @@ static void bnx2x_process_kill_chip_reset(struct bnx2x *bp)
 	else
 		reset_mask2 = 0x1ffff;
 
-	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_CLEAR,
-	       reset_mask1 & (~not_reset_mask1));
+	if (CHIP_IS_E3(bp)) {
+		reset_mask2 |= MISC_REGISTERS_RESET_REG_2_MSTAT0;
+		reset_mask2 |= MISC_REGISTERS_RESET_REG_2_MSTAT1;
+	}
+
+	/* Don't reset global blocks unless we need to */
+	if (!global)
+		reset_mask2 &= ~global_bits2;
+
+	/*
+	 * In case of attention in the QM, we need to reset PXP
+	 * (MISC_REGISTERS_RESET_REG_2_RST_PXP_RQ_RD_WR) before QM
+	 * because otherwise QM reset would release 'close the gates' shortly
+	 * before resetting the PXP, then the PSWRQ would send a write
+	 * request to PGLUE. Then when PXP is reset, PGLUE would try to
+	 * read the payload data from PSWWR, but PSWWR would not
+	 * respond. The write queue in PGLUE would stuck, dmae commands
+	 * would not return. Therefore it's important to reset the second
+	 * reset register (containing the
+	 * MISC_REGISTERS_RESET_REG_2_RST_PXP_RQ_RD_WR bit) before the
+	 * first one (containing the MISC_REGISTERS_RESET_REG_1_RST_QM
+	 * bit).
+	 */
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR,
 	       reset_mask2 & (~not_reset_mask2));
+
+	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_CLEAR,
+	       reset_mask1 & (~not_reset_mask1));
 
 	barrier();
 	mmiowb();
 
-	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET, reset_mask1);
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET, reset_mask2);
+	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET, reset_mask1);
 	mmiowb();
 }
 
-static int bnx2x_process_kill(struct bnx2x *bp)
+/**
+ * bnx2x_er_poll_igu_vq - poll for pending writes bit.
+ * It should get cleared in no more than 1s.
+ *
+ * @bp:	driver handle
+ *
+ * It should get cleared in no more than 1s. Returns 0 if
+ * pending writes bit gets cleared.
+ */
+static int bnx2x_er_poll_igu_vq(struct bnx2x *bp)
+{
+	u32 cnt = 1000;
+	u32 pend_bits = 0;
+
+	do {
+		pend_bits  = REG_RD(bp, IGU_REG_PENDING_BITS_STATUS);
+
+		if (pend_bits == 0)
+			break;
+
+		usleep_range(1000, 1000);
+	} while (cnt-- > 0);
+
+	if (cnt <= 0) {
+		BNX2X_ERR("Still pending IGU requests pend_bits=%x!\n",
+			  pend_bits);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 {
 	int cnt = 1000;
 	u32 val = 0;
@@ -7373,7 +7696,7 @@ static int bnx2x_process_kill(struct bnx2x *bp)
 		    ((port_is_idle_1 & 0x1) == 0x1) &&
 		    (pgl_exp_rom2 == 0xffffffff))
 			break;
-		msleep(1);
+		usleep_range(1000, 1000);
 	} while (cnt-- > 0);
 
 	if (cnt <= 0) {
@@ -7393,6 +7716,11 @@ static int bnx2x_process_kill(struct bnx2x *bp)
 	/* Close gates #2, #3 and #4 */
 	bnx2x_set_234_gates(bp, true);
 
+	/* Poll for IGU VQs for 57712 and newer chips */
+	if (!CHIP_IS_E1x(bp) && bnx2x_er_poll_igu_vq(bp))
+		return -EAGAIN;
+
+
 	/* TBD: Indicate that "process kill" is in progress to MCP */
 
 	/* Clear "unprepared" bit */
@@ -7405,24 +7733,27 @@ static int bnx2x_process_kill(struct bnx2x *bp)
 	/* Wait for 1ms to empty GLUE and PCI-E core queues,
 	 * PSWHST, GRC and PSWRD Tetris buffer.
 	 */
-	msleep(1);
+	usleep_range(1000, 1000);
 
 	/* Prepare to chip reset: */
 	/* MCP */
-	bnx2x_reset_mcp_prep(bp, &val);
+	if (global)
+		bnx2x_reset_mcp_prep(bp, &val);
 
 	/* PXP */
 	bnx2x_pxp_prep(bp);
 	barrier();
 
 	/* reset the chip */
-	bnx2x_process_kill_chip_reset(bp);
+	bnx2x_process_kill_chip_reset(bp, global);
 	barrier();
 
 	/* Recover after reset: */
 	/* MCP */
-	if (bnx2x_reset_mcp_comp(bp, val))
+	if (global && bnx2x_reset_mcp_comp(bp, val))
 		return -EAGAIN;
+
+	/* TBD: Add resetting the NO_MCP mode DB here */
 
 	/* PXP */
 	bnx2x_pxp_prep(bp);
@@ -7436,43 +7767,85 @@ static int bnx2x_process_kill(struct bnx2x *bp)
 	return 0;
 }
 
-static int bnx2x_leader_reset(struct bnx2x *bp)
+int bnx2x_leader_reset(struct bnx2x *bp)
 {
 	int rc = 0;
+	bool global = bnx2x_reset_is_global(bp);
+
 	/* Try to recover after the failure */
-	if (bnx2x_process_kill(bp)) {
-		printk(KERN_ERR "%s: Something bad had happen! Aii!\n",
-		       bp->dev->name);
+	if (bnx2x_process_kill(bp, global)) {
+		netdev_err(bp->dev, "Something bad had happen on engine %d! "
+				    "Aii!\n", BP_PATH(bp));
 		rc = -EAGAIN;
 		goto exit_leader_reset;
 	}
 
-	/* Clear "reset is in progress" bit and update the driver state */
+	/*
+	 * Clear RESET_IN_PROGRES and RESET_GLOBAL bits and update the driver
+	 * state.
+	 */
 	bnx2x_set_reset_done(bp);
-	bp->recovery_state = BNX2X_RECOVERY_DONE;
+	if (global)
+		bnx2x_clear_reset_global(bp);
 
 exit_leader_reset:
 	bp->is_leader = 0;
-	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RESERVED_08);
-	smp_wmb();
+	bnx2x_release_leader_lock(bp);
+	smp_mb();
 	return rc;
 }
 
-/* Assumption: runs under rtnl lock. This together with the fact
+static inline void bnx2x_recovery_failed(struct bnx2x *bp)
+{
+	netdev_err(bp->dev, "Recovery has failed. Power cycle is needed.\n");
+
+	/* Disconnect this device */
+	netif_device_detach(bp->dev);
+
+	/*
+	 * Block ifup for all function on this engine until "process kill"
+	 * or power cycle.
+	 */
+	bnx2x_set_reset_in_progress(bp);
+
+	/* Shut down the power */
+	bnx2x_set_power_state(bp, PCI_D3hot);
+
+	bp->recovery_state = BNX2X_RECOVERY_FAILED;
+
+	smp_mb();
+}
+
+/*
+ * Assumption: runs under rtnl lock. This together with the fact
  * that it's called only from bnx2x_reset_task() ensure that it
  * will never be called when netif_running(bp->dev) is false.
  */
 static void bnx2x_parity_recover(struct bnx2x *bp)
 {
+	bool global = false;
+
 	DP(NETIF_MSG_HW, "Handling parity\n");
 	while (1) {
 		switch (bp->recovery_state) {
 		case BNX2X_RECOVERY_INIT:
 			DP(NETIF_MSG_HW, "State is BNX2X_RECOVERY_INIT\n");
+			bnx2x_chk_parity_attn(bp, &global, false);
+
 			/* Try to get a LEADER_LOCK HW lock */
-			if (bnx2x_trylock_hw_lock(bp,
-				HW_LOCK_RESOURCE_RESERVED_08))
+			if (bnx2x_trylock_leader_lock(bp)) {
+				bnx2x_set_reset_in_progress(bp);
+				/*
+				 * Check if there is a global attention and if
+				 * there was a global attention, set the global
+				 * reset bit.
+				 */
+
+				if (global)
+					bnx2x_set_reset_global(bp);
+
 				bp->is_leader = 1;
+			}
 
 			/* Stop the driver */
 			/* If interface has been removed - break */
@@ -7480,17 +7853,43 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 				return;
 
 			bp->recovery_state = BNX2X_RECOVERY_WAIT;
-			/* Ensure "is_leader" and "recovery_state"
-			 *  update values are seen on other CPUs
+
+			/*
+			 * Reset MCP command sequence number and MCP mail box
+			 * sequence as we are going to reset the MCP.
 			 */
-			smp_wmb();
+			if (global) {
+				bp->fw_seq = 0;
+				bp->fw_drv_pulse_wr_seq = 0;
+			}
+
+			/* Ensure "is_leader", MCP command sequence and
+			 * "recovery_state" update values are seen on other
+			 * CPUs.
+			 */
+			smp_mb();
 			break;
 
 		case BNX2X_RECOVERY_WAIT:
 			DP(NETIF_MSG_HW, "State is BNX2X_RECOVERY_WAIT\n");
 			if (bp->is_leader) {
-				u32 load_counter = bnx2x_get_load_cnt(bp);
-				if (load_counter) {
+				int other_engine = BP_PATH(bp) ? 0 : 1;
+				u32 other_load_counter =
+					bnx2x_get_load_cnt(bp, other_engine);
+				u32 load_counter =
+					bnx2x_get_load_cnt(bp, BP_PATH(bp));
+				global = bnx2x_reset_is_global(bp);
+
+				/*
+				 * In case of a parity in a global block, let
+				 * the first leader that performs a
+				 * leader_reset() reset the global blocks in
+				 * order to clear global attentions. Otherwise
+				 * the the gates will remain closed for that
+				 * engine.
+				 */
+				if (load_counter ||
+				    (global && other_load_counter)) {
 					/* Wait until all other functions get
 					 * down.
 					 */
@@ -7503,37 +7902,27 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 					 * normal. In any case it's an exit
 					 * point for a leader.
 					 */
-					if (bnx2x_leader_reset(bp) ||
-					bnx2x_nic_load(bp, LOAD_NORMAL)) {
-						printk(KERN_ERR"%s: Recovery "
-						"has failed. Power cycle is "
-						"needed.\n", bp->dev->name);
-						/* Disconnect this device */
-						netif_device_detach(bp->dev);
-						/* Block ifup for all function
-						 * of this ASIC until
-						 * "process kill" or power
-						 * cycle.
-						 */
-						bnx2x_set_reset_in_progress(bp);
-						/* Shut down the power */
-						bnx2x_set_power_state(bp,
-								PCI_D3hot);
+					if (bnx2x_leader_reset(bp)) {
+						bnx2x_recovery_failed(bp);
 						return;
 					}
 
-					return;
+					/* If we are here, means that the
+					 * leader has succeeded and doesn't
+					 * want to be a leader any more. Try
+					 * to continue as a none-leader.
+					 */
+					break;
 				}
 			} else { /* non-leader */
-				if (!bnx2x_reset_is_done(bp)) {
+				if (!bnx2x_reset_is_done(bp, BP_PATH(bp))) {
 					/* Try to get a LEADER_LOCK HW lock as
 					 * long as a former leader may have
 					 * been unloaded by the user or
 					 * released a leadership by another
 					 * reason.
 					 */
-					if (bnx2x_trylock_hw_lock(bp,
-					    HW_LOCK_RESOURCE_RESERVED_08)) {
+					if (bnx2x_trylock_leader_lock(bp)) {
 						/* I'm a leader now! Restart a
 						 * switch case.
 						 */
@@ -7545,14 +7934,25 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 								HZ/10);
 					return;
 
-				} else { /* A leader has completed
-					  * the "process kill". It's an exit
-					  * point for a non-leader.
-					  */
-					bnx2x_nic_load(bp, LOAD_NORMAL);
-					bp->recovery_state =
-						BNX2X_RECOVERY_DONE;
-					smp_wmb();
+				} else {
+					/*
+					 * If there was a global attention, wait
+					 * for it to be cleared.
+					 */
+					if (bnx2x_reset_is_global(bp)) {
+						schedule_delayed_work(
+							&bp->reset_task, HZ/10);
+						return;
+					}
+
+					if (bnx2x_nic_load(bp, LOAD_NORMAL))
+						bnx2x_recovery_failed(bp);
+					else {
+						bp->recovery_state =
+							BNX2X_RECOVERY_DONE;
+						smp_mb();
+					}
+
 					return;
 				}
 			}
@@ -8871,45 +9271,62 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 static int bnx2x_open(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
+	bool global = false;
+	int other_engine = BP_PATH(bp) ? 0 : 1;
+	u32 other_load_counter, load_counter;
 
 	netif_carrier_off(dev);
 
 	bnx2x_set_power_state(bp, PCI_D0);
 
-	if (!bnx2x_reset_is_done(bp)) {
-		do {
-			/* Reset MCP mail box sequence if there is on going
-			 * recovery
-			 */
-			bp->fw_seq = 0;
+	other_load_counter = bnx2x_get_load_cnt(bp, other_engine);
+	load_counter = bnx2x_get_load_cnt(bp, BP_PATH(bp));
 
-			/* If it's the first function to load and reset done
-			 * is still not cleared it may mean that. We don't
-			 * check the attention state here because it may have
-			 * already been cleared by a "common" reset but we
-			 * shell proceed with "process kill" anyway.
+	/*
+	 * If parity had happen during the unload, then attentions
+	 * and/or RECOVERY_IN_PROGRES may still be set. In this case we
+	 * want the first function loaded on the current engine to
+	 * complete the recovery.
+	 */
+	if (!bnx2x_reset_is_done(bp, BP_PATH(bp)) ||
+	    bnx2x_chk_parity_attn(bp, &global, true))
+		do {
+			/*
+			 * If there are attentions and they are in a global
+			 * blocks, set the GLOBAL_RESET bit regardless whether
+			 * it will be this function that will complete the
+			 * recovery or not.
 			 */
-			if ((bnx2x_get_load_cnt(bp) == 0) &&
-				bnx2x_trylock_hw_lock(bp,
-				HW_LOCK_RESOURCE_RESERVED_08) &&
-				(!bnx2x_leader_reset(bp))) {
-				DP(NETIF_MSG_HW, "Recovered in open\n");
+			if (global)
+				bnx2x_set_reset_global(bp);
+
+			/*
+			 * Only the first function on the current engine should
+			 * try to recover in open. In case of attentions in
+			 * global blocks only the first in the chip should try
+			 * to recover.
+			 */
+			if ((!load_counter &&
+			     (!global || !other_load_counter)) &&
+			    bnx2x_trylock_leader_lock(bp) &&
+			    !bnx2x_leader_reset(bp)) {
+				netdev_info(bp->dev, "Recovered in open\n");
 				break;
 			}
 
+			/* recovery has failed... */
 			bnx2x_set_power_state(bp, PCI_D3hot);
+			bp->recovery_state = BNX2X_RECOVERY_FAILED;
 
-			printk(KERN_ERR"%s: Recovery flow hasn't been properly"
+			netdev_err(bp->dev, "Recovery flow hasn't been properly"
 			" completed yet. Try again later. If u still see this"
 			" message after a few retries then power cycle is"
-			" required.\n", bp->dev->name);
+			" required.\n");
 
 			return -EAGAIN;
 		} while (0);
-	}
 
 	bp->recovery_state = BNX2X_RECOVERY_DONE;
-
 	return bnx2x_nic_load(bp, LOAD_OPEN);
 }
 
@@ -8920,6 +9337,8 @@ static int bnx2x_close(struct net_device *dev)
 
 	/* Unload the driver, release IRQs */
 	bnx2x_nic_unload(bp, UNLOAD_CLOSE);
+
+	/* Power off */
 	bnx2x_set_power_state(bp, PCI_D3hot);
 
 	return 0;
