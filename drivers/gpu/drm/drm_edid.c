@@ -258,6 +258,17 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 	return ret == 2 ? 0 : -1;
 }
 
+static bool drm_edid_is_zero(u8 *in_edid, int length)
+{
+	int i;
+	u32 *raw_edid = (u32 *)in_edid;
+
+	for (i = 0; i < length / 4; i++)
+		if (*(raw_edid + i) != 0)
+			return false;
+	return true;
+}
+
 static u8 *
 drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 {
@@ -273,6 +284,10 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 			goto out;
 		if (drm_edid_block_valid(block))
 			break;
+		if (i == 0 && drm_edid_is_zero(block, EDID_LENGTH)) {
+			connector->null_edid_counter++;
+			goto carp;
+		}
 	}
 	if (i == 4)
 		goto carp;

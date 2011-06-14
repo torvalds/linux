@@ -836,6 +836,13 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 		if (!radeon_connector->edid) {
 			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
 					drm_get_connector_name(connector));
+			/* rs690 seems to have a problem with connectors not existing and always
+			 * return a block of 0's. If we see this just stop polling on this output */
+			if ((rdev->family == CHIP_RS690 || rdev->family == CHIP_RS740) && radeon_connector->base.null_edid_counter) {
+				ret = connector_status_disconnected;
+				DRM_ERROR("%s: detected RS690 floating bus bug, stopping ddc detect\n", drm_get_connector_name(connector));
+				radeon_connector->ddc_bus = NULL;
+			}
 		} else {
 			radeon_connector->use_digital = !!(radeon_connector->edid->input & DRM_EDID_INPUT_DIGITAL);
 
