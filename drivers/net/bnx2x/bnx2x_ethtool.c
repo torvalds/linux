@@ -762,7 +762,7 @@ static int bnx2x_acquire_nvram_lock(struct bnx2x *bp)
 	u32 val = 0;
 
 	/* adjust timeout for emulation/FPGA */
-	count = NVRAM_TIMEOUT_COUNT;
+	count = BNX2X_NVRAM_TIMEOUT_COUNT;
 	if (CHIP_REV_IS_SLOW(bp))
 		count *= 100;
 
@@ -793,7 +793,7 @@ static int bnx2x_release_nvram_lock(struct bnx2x *bp)
 	u32 val = 0;
 
 	/* adjust timeout for emulation/FPGA */
-	count = NVRAM_TIMEOUT_COUNT;
+	count = BNX2X_NVRAM_TIMEOUT_COUNT;
 	if (CHIP_REV_IS_SLOW(bp))
 		count *= 100;
 
@@ -861,7 +861,7 @@ static int bnx2x_nvram_read_dword(struct bnx2x *bp, u32 offset, __be32 *ret_val,
 	REG_WR(bp, MCP_REG_MCPR_NVM_COMMAND, cmd_flags);
 
 	/* adjust timeout for emulation/FPGA */
-	count = NVRAM_TIMEOUT_COUNT;
+	count = BNX2X_NVRAM_TIMEOUT_COUNT;
 	if (CHIP_REV_IS_SLOW(bp))
 		count *= 100;
 
@@ -984,7 +984,7 @@ static int bnx2x_nvram_write_dword(struct bnx2x *bp, u32 offset, u32 val,
 	REG_WR(bp, MCP_REG_MCPR_NVM_COMMAND, cmd_flags);
 
 	/* adjust timeout for emulation/FPGA */
-	count = NVRAM_TIMEOUT_COUNT;
+	count = BNX2X_NVRAM_TIMEOUT_COUNT;
 	if (CHIP_REV_IS_SLOW(bp))
 		count *= 100;
 
@@ -1088,9 +1088,9 @@ static int bnx2x_nvram_write(struct bnx2x *bp, u32 offset, u8 *data_buf,
 	while ((written_so_far < buf_size) && (rc == 0)) {
 		if (written_so_far == (buf_size - sizeof(u32)))
 			cmd_flags |= MCPR_NVM_COMMAND_LAST;
-		else if (((offset + 4) % NVRAM_PAGE_SIZE) == 0)
+		else if (((offset + 4) % BNX2X_NVRAM_PAGE_SIZE) == 0)
 			cmd_flags |= MCPR_NVM_COMMAND_LAST;
-		else if ((offset % NVRAM_PAGE_SIZE) == 0)
+		else if ((offset % BNX2X_NVRAM_PAGE_SIZE) == 0)
 			cmd_flags |= MCPR_NVM_COMMAND_FIRST;
 
 		memcpy(&val, data_buf, 4);

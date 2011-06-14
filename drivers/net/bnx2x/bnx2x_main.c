@@ -1557,7 +1557,7 @@ void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
 		offset++;
 #endif
 		for_each_eth_queue(bp, i)
-			synchronize_irq(bp->msix_table[i + offset].vector);
+			synchronize_irq(bp->msix_table[offset++].vector);
 	} else
 		synchronize_irq(bp->pdev->irq);
 
@@ -2514,7 +2514,8 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command, u32 param)
 	SHMEM_WR(bp, func_mb[mb_idx].drv_mb_param, param);
 	SHMEM_WR(bp, func_mb[mb_idx].drv_mb_header, (command | seq));
 
-	DP(BNX2X_MSG_MCP, "wrote command (%x) to FW MB\n", (command | seq));
+	DP(BNX2X_MSG_MCP, "wrote command (%x) to FW MB param 0x%08x\n",
+			(command | seq), param);
 
 	do {
 		/* let the FW do it's magic ... */
@@ -8193,7 +8194,7 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 	}
 
 	val = REG_RD(bp, MCP_REG_MCPR_NVM_CFG4);
-	bp->common.flash_size = (NVRAM_1MB_SIZE <<
+	bp->common.flash_size = (BNX2X_NVRAM_1MB_SIZE <<
 				 (val & MCPR_NVM_CFG4_FLASH_SIZE));
 	BNX2X_DEV_INFO("flash_size 0x%x (%d)\n",
 		       bp->common.flash_size, bp->common.flash_size);
@@ -8466,7 +8467,7 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 					(ADVERTISED_10baseT_Full |
 					 ADVERTISED_TP);
 			} else {
-				BNX2X_ERROR("NVRAM config error. "
+				BNX2X_ERR("NVRAM config error. "
 					    "Invalid link_config 0x%x"
 					    "  speed_cap_mask 0x%x\n",
 					    link_config,
@@ -8485,7 +8486,7 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 					(ADVERTISED_10baseT_Half |
 					 ADVERTISED_TP);
 			} else {
-				BNX2X_ERROR("NVRAM config error. "
+				BNX2X_ERR("NVRAM config error. "
 					    "Invalid link_config 0x%x"
 					    "  speed_cap_mask 0x%x\n",
 					    link_config,
@@ -8503,7 +8504,7 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 					(ADVERTISED_100baseT_Full |
 					 ADVERTISED_TP);
 			} else {
-				BNX2X_ERROR("NVRAM config error. "
+				BNX2X_ERR("NVRAM config error. "
 					    "Invalid link_config 0x%x"
 					    "  speed_cap_mask 0x%x\n",
 					    link_config,
@@ -8523,7 +8524,7 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 					(ADVERTISED_100baseT_Half |
 					 ADVERTISED_TP);
 			} else {
-				BNX2X_ERROR("NVRAM config error. "
+				BNX2X_ERR("NVRAM config error. "
 				    "Invalid link_config 0x%x"
 				    "  speed_cap_mask 0x%x\n",
 				    link_config,
@@ -8541,7 +8542,7 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 					(ADVERTISED_1000baseT_Full |
 					 ADVERTISED_TP);
 			} else {
-				BNX2X_ERROR("NVRAM config error. "
+				BNX2X_ERR("NVRAM config error. "
 				    "Invalid link_config 0x%x"
 				    "  speed_cap_mask 0x%x\n",
 				    link_config,
@@ -8559,7 +8560,7 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 					(ADVERTISED_2500baseX_Full |
 						ADVERTISED_TP);
 			} else {
-				BNX2X_ERROR("NVRAM config error. "
+				BNX2X_ERR("NVRAM config error. "
 				    "Invalid link_config 0x%x"
 				    "  speed_cap_mask 0x%x\n",
 				    link_config,
@@ -8577,7 +8578,7 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 					(ADVERTISED_10000baseT_Full |
 						ADVERTISED_FIBRE);
 			} else {
-				BNX2X_ERROR("NVRAM config error. "
+				BNX2X_ERR("NVRAM config error. "
 				    "Invalid link_config 0x%x"
 				    "  speed_cap_mask 0x%x\n",
 				    link_config,
@@ -8587,9 +8588,9 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 			break;
 
 		default:
-			BNX2X_ERROR("NVRAM config error. "
-				    "BAD link speed link_config 0x%x\n",
-					  link_config);
+			BNX2X_ERR("NVRAM config error. "
+				  "BAD link speed link_config 0x%x\n",
+				  link_config);
 				bp->link_params.req_line_speed[idx] =
 							SPEED_AUTO_NEG;
 				bp->port.advertising[idx] =
@@ -8962,14 +8963,12 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 					bp->mf_config[vn] = MF_CFG_RD(bp,
 						func_mf_config[func].config);
 				} else
-					DP(NETIF_MSG_PROBE, "illegal OV for "
-							    "SD\n");
+					BNX2X_DEV_INFO("illegal OV for SD\n");
 				break;
 			default:
 				/* Unknown configuration: reset mf_config */
 				bp->mf_config[vn] = 0;
-				DP(NETIF_MSG_PROBE, "Unknown MF mode 0x%x\n",
-				   val);
+				BNX2X_DEV_INFO("unkown MF mode 0x%x\n", val);
 			}
 		}
 
@@ -10406,8 +10405,8 @@ static void bnx2x_io_resume(struct pci_dev *pdev)
 	struct bnx2x *bp = netdev_priv(dev);
 
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
-		printk(KERN_ERR "Handling parity error recovery. "
-				"Try again later\n");
+		netdev_err(bp->dev, "Handling parity error recovery. "
+				    "Try again later\n");
 		return;
 	}
 

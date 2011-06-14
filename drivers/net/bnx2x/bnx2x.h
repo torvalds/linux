@@ -26,10 +26,6 @@
 #define DRV_MODULE_RELDATE      "2011/03/20"
 #define BNX2X_BC_VER            0x040200
 
-#define BNX2X_MULTI_QUEUE
-
-#define BNX2X_NEW_NAPI
-
 #if defined(CONFIG_DCB)
 #define BCM_DCBNL
 #endif
@@ -745,9 +741,9 @@ struct bnx2x_common {
 					 (CHIP_REV(bp) == CHIP_REV_Ax))
 
 	int			flash_size;
-#define NVRAM_1MB_SIZE			0x20000	/* 1M bit in bytes */
-#define NVRAM_TIMEOUT_COUNT		30000
-#define NVRAM_PAGE_SIZE			256
+#define BNX2X_NVRAM_1MB_SIZE			0x20000	/* 1M bit in bytes */
+#define BNX2X_NVRAM_TIMEOUT_COUNT		30000
+#define BNX2X_NVRAM_PAGE_SIZE			256
 
 	u32			shmem_base;
 	u32			shmem2_base;
