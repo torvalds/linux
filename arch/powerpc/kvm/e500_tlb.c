@@ -418,11 +418,21 @@ static void kvmppc_e500_stlbe_invalidate(struct kvmppc_vcpu_e500 *vcpu_e500,
 static int kvmppc_e500_tlb_index(struct kvmppc_vcpu_e500 *vcpu_e500,
 		gva_t eaddr, int tlbsel, unsigned int pid, int as)
 {
+	int size = vcpu_e500->gtlb_size[tlbsel];
+	int set_base;
 	int i;
 
-	/* XXX Replace loop with fancy data structures. */
-	for (i = 0; i < vcpu_e500->gtlb_size[tlbsel]; i++) {
-		struct tlbe *tlbe = &vcpu_e500->gtlb_arch[tlbsel][i];
+	if (tlbsel == 0) {
+		int mask = size / KVM_E500_TLB0_WAY_NUM - 1;
+		set_base = (eaddr >> PAGE_SHIFT) & mask;
+		set_base *= KVM_E500_TLB0_WAY_NUM;
+		size = KVM_E500_TLB0_WAY_NUM;
+	} else {
+		set_base = 0;
+	}
+
+	for (i = 0; i < size; i++) {
+		struct tlbe *tlbe = &vcpu_e500->gtlb_arch[tlbsel][set_base + i];
 		unsigned int tid;
 
 		if (eaddr < get_tlb_eaddr(tlbe))
@@ -441,7 +451,7 @@ static int kvmppc_e500_tlb_index(struct kvmppc_vcpu_e500 *vcpu_e500,
 		if (get_tlb_ts(tlbe) != as && as != -1)
 			continue;
 
-		return i;
+		return set_base + i;
 	}
 
 	return -1;
