@@ -195,7 +195,6 @@ struct clk_ops clk_ops_def_setrate = {
 
 struct clk clk_xtal = {
 	.name		= "xtal",
-	.id		= -1,
 	.rate		= 0,
 	.parent		= NULL,
 	.ctrlbit	= 0,
@@ -203,30 +202,25 @@ struct clk clk_xtal = {
 
 struct clk clk_ext = {
 	.name		= "ext",
-	.id		= -1,
 };
 
 struct clk clk_epll = {
 	.name		= "epll",
-	.id		= -1,
 };
 
 struct clk clk_mpll = {
 	.name		= "mpll",
-	.id		= -1,
 	.ops		= &clk_ops_def_setrate,
 };
 
 struct clk clk_upll = {
 	.name		= "upll",
-	.id		= -1,
 	.parent		= NULL,
 	.ctrlbit	= 0,
 };
 
 struct clk clk_f = {
 	.name		= "fclk",
-	.id		= -1,
 	.rate		= 0,
 	.parent		= &clk_mpll,
 	.ctrlbit	= 0,
@@ -234,7 +228,6 @@ struct clk clk_f = {
 
 struct clk clk_h = {
 	.name		= "hclk",
-	.id		= -1,
 	.rate		= 0,
 	.parent		= NULL,
 	.ctrlbit	= 0,
@@ -243,7 +236,6 @@ struct clk clk_h = {
 
 struct clk clk_p = {
 	.name		= "pclk",
-	.id		= -1,
 	.rate		= 0,
 	.parent		= NULL,
 	.ctrlbit	= 0,
@@ -252,7 +244,6 @@ struct clk clk_p = {
 
 struct clk clk_usb_bus = {
 	.name		= "usb-bus",
-	.id		= -1,
 	.rate		= 0,
 	.parent		= &clk_upll,
 };
@@ -260,7 +251,6 @@ struct clk clk_usb_bus = {
 
 struct clk s3c24xx_uclk = {
 	.name		= "uclk",
-	.id		= -1,
 };
 
 /* initialise the clock system */
