@@ -1285,10 +1285,6 @@ void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
 	int msix = (bp->flags & USING_MSIX_FLAG) ? 1 : 0;
 	int i, offset;
 
-	/* disable interrupt handling */
-	atomic_inc(&bp->intr_sem);
-	smp_wmb(); /* Ensure that bp->intr_sem update is SMP-safe */
-
 	if (disable_hw)
 		/* prevent the HW from sending interrupts */
 		bnx2x_int_disable(bp);
@@ -1410,12 +1406,6 @@ irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 		return IRQ_NONE;
 	}
 	DP(NETIF_MSG_INTR, "got an interrupt  status 0x%x\n", status);
-
-	/* Return here if interrupt is disabled */
-	if (unlikely(atomic_read(&bp->intr_sem) != 0)) {
-		DP(NETIF_MSG_INTR, "called but intr_sem not 0, returning\n");
-		return IRQ_HANDLED;
-	}
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (unlikely(bp->panic))
@@ -3771,12 +3761,6 @@ static void bnx2x_sp_task(struct work_struct *work)
 	struct bnx2x *bp = container_of(work, struct bnx2x, sp_task.work);
 	u16 status;
 
-	/* Return here if interrupt is disabled */
-	if (unlikely(atomic_read(&bp->intr_sem) != 0)) {
-		DP(NETIF_MSG_INTR, "called but intr_sem not 0, returning\n");
-		return;
-	}
-
 	status = bnx2x_update_dsb_idx(bp);
 /*	if (status == 0)				     */
 /*		BNX2X_ERR("spurious slowpath interrupt!\n"); */
@@ -3820,12 +3804,6 @@ irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 	struct net_device *dev = dev_instance;
 	struct bnx2x *bp = netdev_priv(dev);
 
-	/* Return here if interrupt is disabled */
-	if (unlikely(atomic_read(&bp->intr_sem) != 0)) {
-		DP(NETIF_MSG_INTR, "called but intr_sem not 0, returning\n");
-		return IRQ_HANDLED;
-	}
-
 	bnx2x_ack_sb(bp, bp->igu_dsb_id, USTORM_ID, 0,
 		     IGU_INT_DISABLE, 0);
 
@@ -3858,9 +3836,6 @@ static void bnx2x_timer(unsigned long data)
 
 	if (!netif_running(bp->dev))
 		return;
-
-	if (atomic_read(&bp->intr_sem) != 0)
-		goto timer_restart;
 
 	if (poll) {
 		struct bnx2x_fastpath *fp = &bp->fp[0];
@@ -3896,7 +3871,6 @@ static void bnx2x_timer(unsigned long data)
 	if (bp->state == BNX2X_STATE_OPEN)
 		bnx2x_stats_handle(bp, STATS_EVENT_UPDATE);
 
-timer_restart:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
 
@@ -4469,9 +4443,6 @@ void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 	bnx2x_pf_init(bp);
 	bnx2x_init_ind_table(bp);
 	bnx2x_stats_init(bp);
-
-	/* At this point, we are ready for interrupts */
-	atomic_set(&bp->intr_sem, 0);
 
 	/* flush all before enabling interrupts */
 	mb();
@@ -8648,10 +8619,6 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	int timer_interval;
 	int rc;
 
-	/* Disable interrupt handling until HW is initialized */
-	atomic_set(&bp->intr_sem, 1);
-	smp_wmb(); /* Ensure that bp->intr_sem update is SMP-safe */
-
 	mutex_init(&bp->port.phy_mutex);
 	mutex_init(&bp->fw_mb_mutex);
 	spin_lock_init(&bp->stats_lock);
@@ -10168,9 +10135,6 @@ static int bnx2x_register_cnic(struct net_device *dev, struct cnic_ops *ops,
 
 	if (ops == NULL)
 		return -EINVAL;
-
-	if (atomic_read(&bp->intr_sem) != 0)
-		return -EBUSY;
 
 	bp->cnic_kwq = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!bp->cnic_kwq)

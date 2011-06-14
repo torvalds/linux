@@ -925,8 +925,6 @@ struct bnx2x {
 	struct iro		*iro_arr;
 #define IRO (bp->iro_arr)
 
-	atomic_t		intr_sem;
-
 	bnx2x_recovery_state_t	recovery_state;
 	int			is_leader;
 	struct msix_entry	*msix_table;

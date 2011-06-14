@@ -739,12 +739,6 @@ static irqreturn_t bnx2x_msix_fp_int(int irq, void *fp_cookie)
 	struct bnx2x_fastpath *fp = fp_cookie;
 	struct bnx2x *bp = fp->bp;
 
-	/* Return here if interrupt is disabled */
-	if (unlikely(atomic_read(&bp->intr_sem) != 0)) {
-		DP(NETIF_MSG_INTR, "called but intr_sem not 0, returning\n");
-		return IRQ_HANDLED;
-	}
-
 	DP(BNX2X_MSG_FP, "got an MSI-X interrupt on IDX:SB "
 			 "[fp %d fw_sd %d igusb %d]\n",
 	   fp->index, fp->fw_sb_id, fp->igu_sb_id);
@@ -1289,18 +1283,11 @@ static void bnx2x_napi_disable(struct bnx2x *bp)
 
 void bnx2x_netif_start(struct bnx2x *bp)
 {
-	int intr_sem;
-
-	intr_sem = atomic_dec_and_test(&bp->intr_sem);
-	smp_wmb(); /* Ensure that bp->intr_sem update is SMP-safe */
-
-	if (intr_sem) {
-		if (netif_running(bp->dev)) {
-			bnx2x_napi_enable(bp);
-			bnx2x_int_enable(bp);
-			if (bp->state == BNX2X_STATE_OPEN)
-				netif_tx_wake_all_queues(bp->dev);
-		}
+	if (netif_running(bp->dev)) {
+		bnx2x_napi_enable(bp);
+		bnx2x_int_enable(bp);
+		if (bp->state == BNX2X_STATE_OPEN)
+			netif_tx_wake_all_queues(bp->dev);
 	}
 }
 
