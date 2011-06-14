@@ -209,6 +209,7 @@ nfs4_insert_deviceid_node(struct nfs4_deviceid_node *new)
 
 	hlist_add_head_rcu(&new->node, &nfs4_deviceid_cache[hash]);
 	spin_unlock(&nfs4_deviceid_lock);
+	atomic_inc(&new->ref);
 
 	return new;
 }
