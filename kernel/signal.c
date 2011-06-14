@@ -817,6 +817,30 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	return security_task_kill(t, info, sig, 0);
 }
 
+/**
+ * ptrace_trap_notify - schedule trap to notify ptracer
+ * @t: tracee wanting to notify tracer
+ *
+ * This function schedules sticky ptrace trap which is cleared on the next
+ * TRAP_STOP to notify ptracer of an event.  @t must have been seized by
+ * ptracer.
+ *
+ * If @t is running, STOP trap will be taken.  If already trapped, STOP
+ * trap will be eventually taken without returning to userland after the
+ * existing traps are finished by PTRACE_CONT.
+ *
+ * CONTEXT:
+ * Must be called with @task->sighand->siglock held.
+ */
+static void ptrace_trap_notify(struct task_struct *t)
+{
+	WARN_ON_ONCE(!(t->ptrace & PT_SEIZED));
+	assert_spin_locked(&t->sighand->siglock);
+
+	task_set_jobctl_pending(t, JOBCTL_TRAP_NOTIFY);
+	signal_wake_up(t, 0);
+}
+
 /*
  * Handle magic process-wide effects of stop/continue signals. Unlike
  * the signal actions, these happen immediately at signal-generation
@@ -855,7 +879,10 @@ static int prepare_signal(int sig, struct task_struct *p, int from_ancestor_ns)
 		do {
 			task_clear_jobctl_pending(t, JOBCTL_STOP_PENDING);
 			rm_from_queue(SIG_KERNEL_STOP_MASK, &t->pending);
-			wake_up_state(t, __TASK_STOPPED);
+			if (likely(!(t->ptrace & PT_SEIZED)))
+				wake_up_state(t, __TASK_STOPPED);
+			else
+				ptrace_trap_notify(t);
 		} while_each_thread(p, t);
 
 		/*
@@ -1797,8 +1824,10 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 	if (why == CLD_STOPPED && (current->jobctl & JOBCTL_STOP_PENDING))
 		gstop_done = task_participate_group_stop(current);
 
-	/* any trap clears pending STOP trap */
+	/* any trap clears pending STOP trap, STOP trap clears NOTIFY */
 	task_clear_jobctl_pending(current, JOBCTL_TRAP_STOP);
+	if (info && info->si_code >> 8 == PTRACE_EVENT_STOP)
+		task_clear_jobctl_pending(current, JOBCTL_TRAP_NOTIFY);
 
 	/* entering a trap, clear TRAPPING */
 	task_clear_jobctl_trapping(current);
@@ -1972,7 +2001,10 @@ static bool do_signal_stop(int signr)
 			if (!task_is_stopped(t) &&
 			    task_set_jobctl_pending(t, signr | gstop)) {
 				sig->group_stop_count++;
-				signal_wake_up(t, 0);
+				if (likely(!(t->ptrace & PT_SEIZED)))
+					signal_wake_up(t, 0);
+				else
+					ptrace_trap_notify(t);
 			}
 		}
 	}

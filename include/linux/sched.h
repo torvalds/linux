@@ -1811,15 +1811,17 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
 #define JOBCTL_STOP_PENDING_BIT	17	/* task should stop for group stop */
 #define JOBCTL_STOP_CONSUME_BIT	18	/* consume group stop count */
 #define JOBCTL_TRAP_STOP_BIT	19	/* trap for STOP */
+#define JOBCTL_TRAP_NOTIFY_BIT	20	/* trap for NOTIFY */
 #define JOBCTL_TRAPPING_BIT	21	/* switching to TRACED */
 
 #define JOBCTL_STOP_DEQUEUED	(1 << JOBCTL_STOP_DEQUEUED_BIT)
 #define JOBCTL_STOP_PENDING	(1 << JOBCTL_STOP_PENDING_BIT)
 #define JOBCTL_STOP_CONSUME	(1 << JOBCTL_STOP_CONSUME_BIT)
 #define JOBCTL_TRAP_STOP	(1 << JOBCTL_TRAP_STOP_BIT)
+#define JOBCTL_TRAP_NOTIFY	(1 << JOBCTL_TRAP_NOTIFY_BIT)
 #define JOBCTL_TRAPPING		(1 << JOBCTL_TRAPPING_BIT)
 
-#define JOBCTL_TRAP_MASK	JOBCTL_TRAP_STOP
+#define JOBCTL_TRAP_MASK	(JOBCTL_TRAP_STOP | JOBCTL_TRAP_NOTIFY)
 #define JOBCTL_PENDING_MASK	(JOBCTL_STOP_PENDING | JOBCTL_TRAP_MASK)
 
 extern bool task_set_jobctl_pending(struct task_struct *task,
