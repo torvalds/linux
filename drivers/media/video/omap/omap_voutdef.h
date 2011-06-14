@@ -12,6 +12,7 @@
 #define OMAP_VOUTDEF_H
 
 #include <video/omapdss.h>
+#include <plat/vrfb.h>
 
 #define YUYV_BPP        2
 #define RGB565_BPP      2
@@ -62,6 +63,18 @@ enum dss_rotation {
 	dss_rotation_180_degree	= 2,
 	dss_rotation_270_degree = 3,
 };
+
+/* Enum for choosing rotation type for vout
+ * DSS2 doesn't understand no rotation as an
+ * option while V4L2 driver doesn't support
+ * rotation in the case where VRFB is not built in
+ * the kernel
+ */
+enum vout_rotaion_type {
+	VOUT_ROT_NONE	= 0,
+	VOUT_ROT_VRFB	= 1,
+};
+
 /*
  * This structure is used to store the DMA transfer parameters
  * for VRFB hidden buffer
@@ -78,6 +91,7 @@ struct omapvideo_info {
 	int id;
 	int num_overlays;
 	struct omap_overlay *overlays[MAX_OVLS];
+	enum vout_rotaion_type rotation_type;
 };
 
 struct omap2video_device {
@@ -206,4 +220,6 @@ static inline int calc_rotation(const struct omap_vout_device *vout)
 		return dss_rotation_180_degree;
 	}
 }
+
+void omap_vout_free_buffers(struct omap_vout_device *vout);
 #endif	/* ifndef OMAP_VOUTDEF_H */
