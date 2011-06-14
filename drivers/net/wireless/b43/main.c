@@ -123,6 +123,7 @@ static const struct bcma_device_id b43_bcma_tbl[] = {
 MODULE_DEVICE_TABLE(bcma, b43_bcma_tbl);
 #endif
 
+#ifdef CONFIG_B43_SSB
 static const struct ssb_device_id b43_ssb_tbl[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 5),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 6),
@@ -136,8 +137,8 @@ static const struct ssb_device_id b43_ssb_tbl[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 16),
 	SSB_DEVTABLE_END
 };
-
 MODULE_DEVICE_TABLE(ssb, b43_ssb_tbl);
+#endif
 
 /* Channel and ratetables are shared for all devices.
  * They can't be const, because ieee80211 puts some precalculated
@@ -5026,6 +5027,7 @@ static struct bcma_driver b43_bcma_driver = {
 };
 #endif
 
+#ifdef CONFIG_B43_SSB
 static
 int b43_ssb_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
 {
@@ -5103,6 +5105,14 @@ static void b43_ssb_remove(struct ssb_device *sdev)
 	}
 }
 
+static struct ssb_driver b43_ssb_driver = {
+	.name		= KBUILD_MODNAME,
+	.id_table	= b43_ssb_tbl,
+	.probe		= b43_ssb_probe,
+	.remove		= b43_ssb_remove,
+};
+#endif /* CONFIG_B43_SSB */
+
 /* Perform a hardware reset. This can be called from any context. */
 void b43_controller_restart(struct b43_wldev *dev, const char *reason)
 {
@@ -5112,13 +5122,6 @@ void b43_controller_restart(struct b43_wldev *dev, const char *reason)
 	b43info(dev->wl, "Controller RESET (%s) ...\n", reason);
 	ieee80211_queue_work(dev->wl->hw, &dev->restart_work);
 }
-
-static struct ssb_driver b43_ssb_driver = {
-	.name		= KBUILD_MODNAME,
-	.id_table	= b43_ssb_tbl,
-	.probe		= b43_ssb_probe,
-	.remove		= b43_ssb_remove,
-};
 
 static void b43_print_driverinfo(void)
 {
@@ -5163,14 +5166,18 @@ static int __init b43_init(void)
 	if (err)
 		goto err_sdio_exit;
 #endif
+#ifdef CONFIG_B43_SSB
 	err = ssb_driver_register(&b43_ssb_driver);
 	if (err)
 		goto err_bcma_driver_exit;
+#endif
 	b43_print_driverinfo();
 
 	return err;
 
+#ifdef CONFIG_B43_SSB
 err_bcma_driver_exit:
+#endif
 #ifdef CONFIG_B43_BCMA
 	bcma_driver_unregister(&b43_bcma_driver);
 err_sdio_exit:
@@ -5185,7 +5192,9 @@ err_dfs_exit:
 
 static void __exit b43_exit(void)
 {
+#ifdef CONFIG_B43_SSB
 	ssb_driver_unregister(&b43_ssb_driver);
+#endif
 #ifdef CONFIG_B43_BCMA
 	bcma_driver_unregister(&b43_bcma_driver);
 #endif

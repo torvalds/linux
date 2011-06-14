@@ -25,7 +25,7 @@
 
 
 /* SSB */
-
+#ifdef CONFIG_B43_SSB
 static inline int b43_bus_ssb_bus_may_powerdown(struct b43_bus_dev *dev)
 {
 	return ssb_bus_may_powerdown(dev->sdev->bus);
@@ -124,3 +124,4 @@ struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev)
 
 	return dev;
 }
+#endif /* CONFIG_B43_SSB */
