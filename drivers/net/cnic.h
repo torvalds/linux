@@ -185,6 +185,9 @@ struct kcq_info {
 	u16		sw_prod_idx;
 	u16		*status_idx_ptr;
 	u32		io_addr;
+
+	u16		(*next_idx)(u16);
+	u16		(*hw_idx)(u16);
 };
 
 struct iro {
@@ -332,8 +335,6 @@ struct cnic_local {
 	void			(*disable_int_sync)(struct cnic_dev *);
 	void			(*ack_int)(struct cnic_dev *);
 	void			(*close_conn)(struct cnic_sock *, u32 opcode);
-	u16			(*next_idx)(u16);
-	u16			(*hw_idx)(u16);
 };
 
 struct bnx2x_bd_chain_next {

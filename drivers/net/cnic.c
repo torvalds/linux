@@ -900,23 +900,55 @@ static int cnic_alloc_context(struct cnic_dev *dev)
 	return 0;
 }
 
-static int cnic_alloc_kcq(struct cnic_dev *dev, struct kcq_info *info)
+static u16 cnic_bnx2_next_idx(u16 idx)
 {
-	int err, i, is_bnx2 = 0;
+	return idx + 1;
+}
+
+static u16 cnic_bnx2_hw_idx(u16 idx)
+{
+	return idx;
+}
+
+static u16 cnic_bnx2x_next_idx(u16 idx)
+{
+	idx++;
+	if ((idx & MAX_KCQE_CNT) == MAX_KCQE_CNT)
+		idx++;
+
+	return idx;
+}
+
+static u16 cnic_bnx2x_hw_idx(u16 idx)
+{
+	if ((idx & MAX_KCQE_CNT) == MAX_KCQE_CNT)
+		idx++;
+	return idx;
+}
+
+static int cnic_alloc_kcq(struct cnic_dev *dev, struct kcq_info *info,
+			  bool use_pg_tbl)
+{
+	int err, i, use_page_tbl = 0;
 	struct kcqe **kcq;
 
-	if (test_bit(CNIC_F_BNX2_CLASS, &dev->flags))
-		is_bnx2 = 1;
+	if (use_pg_tbl)
+		use_page_tbl = 1;
 
-	err = cnic_alloc_dma(dev, &info->dma, KCQ_PAGE_CNT, is_bnx2);
+	err = cnic_alloc_dma(dev, &info->dma, KCQ_PAGE_CNT, use_page_tbl);
 	if (err)
 		return err;
 
 	kcq = (struct kcqe **) info->dma.pg_arr;
 	info->kcq = kcq;
 
-	if (is_bnx2)
+	info->next_idx = cnic_bnx2_next_idx;
+	info->hw_idx = cnic_bnx2_hw_idx;
+	if (use_pg_tbl)
 		return 0;
+
+	info->next_idx = cnic_bnx2x_next_idx;
+	info->hw_idx = cnic_bnx2x_hw_idx;
 
 	for (i = 0; i < KCQ_PAGE_CNT; i++) {
 		struct bnx2x_bd_chain_next *next =
@@ -1060,7 +1092,7 @@ static int cnic_alloc_bnx2_resc(struct cnic_dev *dev)
 		goto error;
 	cp->kwq = (struct kwqe **) cp->kwq_info.pg_arr;
 
-	ret = cnic_alloc_kcq(dev, &cp->kcq1);
+	ret = cnic_alloc_kcq(dev, &cp->kcq1, true);
 	if (ret)
 		goto error;
 
@@ -1196,12 +1228,12 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 			j++;
 	}
 
-	ret = cnic_alloc_kcq(dev, &cp->kcq1);
+	ret = cnic_alloc_kcq(dev, &cp->kcq1, false);
 	if (ret)
 		goto error;
 
 	if (BNX2X_CHIP_IS_E2(cp->chip_id)) {
-		ret = cnic_alloc_kcq(dev, &cp->kcq2);
+		ret = cnic_alloc_kcq(dev, &cp->kcq2, false);
 		if (ret)
 			goto error;
 	}
@@ -2652,32 +2684,6 @@ end:
 		cnic_spq_completion(dev, DRV_CTL_RET_L5_SPQ_CREDIT_CMD, comp);
 }
 
-static u16 cnic_bnx2_next_idx(u16 idx)
-{
-	return idx + 1;
-}
-
-static u16 cnic_bnx2_hw_idx(u16 idx)
-{
-	return idx;
-}
-
-static u16 cnic_bnx2x_next_idx(u16 idx)
-{
-	idx++;
-	if ((idx & MAX_KCQE_CNT) == MAX_KCQE_CNT)
-		idx++;
-
-	return idx;
-}
-
-static u16 cnic_bnx2x_hw_idx(u16 idx)
-{
-	if ((idx & MAX_KCQE_CNT) == MAX_KCQE_CNT)
-		idx++;
-	return idx;
-}
-
 static int cnic_get_kcqes(struct cnic_dev *dev, struct kcq_info *info)
 {
 	struct cnic_local *cp = dev->cnic_priv;
@@ -2688,12 +2694,12 @@ static int cnic_get_kcqes(struct cnic_dev *dev, struct kcq_info *info)
 	i = ri = last = info->sw_prod_idx;
 	ri &= MAX_KCQ_IDX;
 	hw_prod = *info->hw_prod_idx_ptr;
-	hw_prod = cp->hw_idx(hw_prod);
+	hw_prod = info->hw_idx(hw_prod);
 
 	while ((i != hw_prod) && (kcqe_cnt < MAX_COMPLETED_KCQE)) {
 		kcqe = &info->kcq[KCQ_PG(ri)][KCQ_IDX(ri)];
 		cp->completed_kcq[kcqe_cnt++] = kcqe;
-		i = cp->next_idx(i);
+		i = info->next_idx(i);
 		ri = i & MAX_KCQ_IDX;
 		if (likely(!(kcqe->kcqe_op_flag & KCQE_FLAGS_NEXT))) {
 			last_cnt = kcqe_cnt;
@@ -5227,8 +5233,6 @@ static struct cnic_dev *init_bnx2_cnic(struct net_device *dev)
 	cp->enable_int = cnic_enable_bnx2_int;
 	cp->disable_int_sync = cnic_disable_bnx2_int_sync;
 	cp->close_conn = cnic_close_bnx2_conn;
-	cp->next_idx = cnic_bnx2_next_idx;
-	cp->hw_idx = cnic_bnx2_hw_idx;
 	return cdev;
 
 cnic_err:
@@ -5294,8 +5298,6 @@ static struct cnic_dev *init_bnx2x_cnic(struct net_device *dev)
 	else
 		cp->ack_int = cnic_ack_bnx2x_msix;
 	cp->close_conn = cnic_close_bnx2x_conn;
-	cp->next_idx = cnic_bnx2x_next_idx;
-	cp->hw_idx = cnic_bnx2x_hw_idx;
 	return cdev;
 }
 
