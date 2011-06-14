@@ -270,28 +270,113 @@ static inline void kvmppc_e500_deliver_tlb_miss(struct kvm_vcpu *vcpu,
 static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	u64 gvaddr, gfn_t gfn, struct tlbe *gtlbe, int tlbsel, int esel)
 {
+	struct kvm_memory_slot *slot;
 	struct tlbe *stlbe;
-	unsigned long pfn;
+	unsigned long pfn, hva;
+	int pfnmap = 0;
+	int tsize = BOOK3E_PAGESZ_4K;
 
 	stlbe = &vcpu_e500->shadow_tlb[tlbsel][esel];
 
 	/*
 	 * Translate guest physical to true physical, acquiring
 	 * a page reference if it is normal, non-reserved memory.
+	 *
+	 * gfn_to_memslot() must succeed because otherwise we wouldn't
+	 * have gotten this far.  Eventually we should just pass the slot
+	 * pointer through from the first lookup.
 	 */
-	pfn = gfn_to_pfn(vcpu_e500->vcpu.kvm, gfn);
-	if (is_error_pfn(pfn)) {
-		printk(KERN_ERR "Couldn't get real page for gfn %lx!\n",
-				(long)gfn);
-		kvm_release_pfn_clean(pfn);
-		return;
+	slot = gfn_to_memslot(vcpu_e500->vcpu.kvm, gfn);
+	hva = gfn_to_hva_memslot(slot, gfn);
+
+	if (tlbsel == 1) {
+		struct vm_area_struct *vma;
+		down_read(&current->mm->mmap_sem);
+
+		vma = find_vma(current->mm, hva);
+		if (vma && hva >= vma->vm_start &&
+		    (vma->vm_flags & VM_PFNMAP)) {
+			/*
+			 * This VMA is a physically contiguous region (e.g.
+			 * /dev/mem) that bypasses normal Linux page
+			 * management.  Find the overlap between the
+			 * vma and the memslot.
+			 */
+
+			unsigned long start, end;
+			unsigned long slot_start, slot_end;
+
+			pfnmap = 1;
+
+			start = vma->vm_pgoff;
+			end = start +
+			      ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT);
+
+			pfn = start + ((hva - vma->vm_start) >> PAGE_SHIFT);
+
+			slot_start = pfn - (gfn - slot->base_gfn);
+			slot_end = slot_start + slot->npages;
+
+			if (start < slot_start)
+				start = slot_start;
+			if (end > slot_end)
+				end = slot_end;
+
+			tsize = (gtlbe->mas1 & MAS1_TSIZE_MASK) >>
+				MAS1_TSIZE_SHIFT;
+
+			/*
+			 * e500 doesn't implement the lowest tsize bit,
+			 * or 1K pages.
+			 */
+			tsize = max(BOOK3E_PAGESZ_4K, tsize & ~1);
+
+			/*
+			 * Now find the largest tsize (up to what the guest
+			 * requested) that will cover gfn, stay within the
+			 * range, and for which gfn and pfn are mutually
+			 * aligned.
+			 */
+
+			for (; tsize > BOOK3E_PAGESZ_4K; tsize -= 2) {
+				unsigned long gfn_start, gfn_end, tsize_pages;
+				tsize_pages = 1 << (tsize - 2);
+
+				gfn_start = gfn & ~(tsize_pages - 1);
+				gfn_end = gfn_start + tsize_pages;
+
+				if (gfn_start + pfn - gfn < start)
+					continue;
+				if (gfn_end + pfn - gfn > end)
+					continue;
+				if ((gfn & (tsize_pages - 1)) !=
+				    (pfn & (tsize_pages - 1)))
+					continue;
+
+				gvaddr &= ~((tsize_pages << PAGE_SHIFT) - 1);
+				pfn &= ~(tsize_pages - 1);
+				break;
+			}
+		}
+
+		up_read(&current->mm->mmap_sem);
+	}
+
+	if (likely(!pfnmap)) {
+		pfn = gfn_to_pfn_memslot(vcpu_e500->vcpu.kvm, slot, gfn);
+		if (is_error_pfn(pfn)) {
+			printk(KERN_ERR "Couldn't get real page for gfn %lx!\n",
+					(long)gfn);
+			kvm_release_pfn_clean(pfn);
+			return;
+		}
 	}
 
 	/* Drop reference to old page. */
 	kvmppc_e500_shadow_release(vcpu_e500, tlbsel, esel);
 
-	/* Force TS=1 IPROT=0 TSIZE=4KB for all guest mappings. */
-	stlbe->mas1 = MAS1_TSIZE(BOOK3E_PAGESZ_4K)
+	/* Force TS=1 IPROT=0 for all guest mappings. */
+	stlbe->mas1 = MAS1_TSIZE(tsize)
 		| MAS1_TID(get_tlb_tid(gtlbe)) | MAS1_TS | MAS1_VALID;
 	stlbe->mas2 = (gvaddr & MAS2_EPN)
 		| e500_shadow_mas2_attrib(gtlbe->mas2,
