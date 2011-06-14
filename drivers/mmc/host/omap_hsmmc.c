@@ -429,7 +429,6 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 				return -EINVAL;
 			}
 		}
-		mmc_slot(host).ocr_mask = mmc_regulator_get_ocrmask(reg);
 
 		/* Allow an aux regulator */
 		reg = regulator_get(host->dev, "vmmc_aux");
