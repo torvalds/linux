@@ -94,6 +94,8 @@ static struct drbd_config_context {
 	/* pointer into the request skb,
 	 * limited lifetime! */
 	char *resource_name;
+	struct nlattr *my_addr;
+	struct nlattr *peer_addr;
 
 	/* reply buffer */
 	struct sk_buff *reply_skb;
@@ -142,6 +144,7 @@ int drbd_msg_put_info(const char *info)
  */
 #define DRBD_ADM_NEED_MINOR	1
 #define DRBD_ADM_NEED_RESOURCE	2
+#define DRBD_ADM_NEED_CONNECTION 4
 static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 		unsigned flags)
 {
@@ -174,6 +177,7 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 	adm_ctx.reply_dh->minor = d_in->minor;
 	adm_ctx.reply_dh->ret_code = NO_ERROR;
 
+	adm_ctx.volume = VOLUME_UNSPECIFIED;
 	if (info->attrs[DRBD_NLA_CFG_CONTEXT]) {
 		struct nlattr *nla;
 		/* parse and validate only */
@@ -191,12 +195,21 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 
 		/* and assign stuff to the global adm_ctx */
 		nla = nested_attr_tb[__nla_type(T_ctx_volume)];
-		adm_ctx.volume = nla ? nla_get_u32(nla) : VOLUME_UNSPECIFIED;
+		if (nla)
+			adm_ctx.volume = nla_get_u32(nla);
 		nla = nested_attr_tb[__nla_type(T_ctx_resource_name)];
 		if (nla)
 			adm_ctx.resource_name = nla_data(nla);
-	} else
-		adm_ctx.volume = VOLUME_UNSPECIFIED;
+		adm_ctx.my_addr = nested_attr_tb[__nla_type(T_ctx_my_addr)];
+		adm_ctx.peer_addr = nested_attr_tb[__nla_type(T_ctx_peer_addr)];
+		if ((adm_ctx.my_addr &&
+		     nla_len(adm_ctx.my_addr) > sizeof(adm_ctx.tconn->my_addr)) ||
+		    (adm_ctx.peer_addr &&
+		     nla_len(adm_ctx.peer_addr) > sizeof(adm_ctx.tconn->peer_addr))) {
+			err = -EINVAL;
+			goto fail;
+		}
+	}
 
 	adm_ctx.minor = d_in->minor;
 	adm_ctx.mdev = minor_to_mdev(d_in->minor);
@@ -209,6 +222,26 @@ static int drbd_adm_prepare(struct sk_buff *skb, struct genl_info *info,
 	if (!adm_ctx.tconn && (flags & DRBD_ADM_NEED_RESOURCE)) {
 		drbd_msg_put_info("unknown resource");
 		return ERR_INVALID_REQUEST;
+	}
+
+	if (flags & DRBD_ADM_NEED_CONNECTION) {
+		if (adm_ctx.tconn && !(flags & DRBD_ADM_NEED_RESOURCE)) {
+			drbd_msg_put_info("no resource name expected");
+			return ERR_INVALID_REQUEST;
+		}
+		if (adm_ctx.mdev) {
+			drbd_msg_put_info("no minor number expected");
+			return ERR_INVALID_REQUEST;
+		}
+		if (adm_ctx.my_addr && adm_ctx.peer_addr)
+			adm_ctx.tconn = conn_get_by_addrs(nla_data(adm_ctx.my_addr),
+							  nla_len(adm_ctx.my_addr),
+							  nla_data(adm_ctx.peer_addr),
+							  nla_len(adm_ctx.peer_addr));
+		if (!adm_ctx.tconn) {
+			drbd_msg_put_info("unknown connection");
+			return ERR_INVALID_REQUEST;
+		}
 	}
 
 	/* some more paranoia, if the request was over-determined */
@@ -268,30 +301,28 @@ static int drbd_adm_finish(struct genl_info *info, int retcode)
 static void setup_khelper_env(struct drbd_tconn *tconn, char **envp)
 {
 	char *afs;
-	struct net_conf *nc;
 
-	rcu_read_lock();
-	nc = rcu_dereference(tconn->net_conf);
-	if (nc) {
-		switch (((struct sockaddr *)nc->peer_addr)->sa_family) {
-		case AF_INET6:
-			afs = "ipv6";
-			snprintf(envp[4], 60, "DRBD_PEER_ADDRESS=%pI6",
-				 &((struct sockaddr_in6 *)nc->peer_addr)->sin6_addr);
-			break;
-		case AF_INET:
-			afs = "ipv4";
-			snprintf(envp[4], 60, "DRBD_PEER_ADDRESS=%pI4",
-				 &((struct sockaddr_in *)nc->peer_addr)->sin_addr);
-			break;
-		default:
-			afs = "ssocks";
-			snprintf(envp[4], 60, "DRBD_PEER_ADDRESS=%pI4",
-				 &((struct sockaddr_in *)nc->peer_addr)->sin_addr);
-		}
-		snprintf(envp[3], 20, "DRBD_PEER_AF=%s", afs);
+	/* FIXME: A future version will not allow this case. */
+	if (tconn->my_addr_len == 0 || tconn->peer_addr_len == 0)
+		return;
+
+	switch (((struct sockaddr *)&tconn->peer_addr)->sa_family) {
+	case AF_INET6:
+		afs = "ipv6";
+		snprintf(envp[4], 60, "DRBD_PEER_ADDRESS=%pI6",
+			 &((struct sockaddr_in6 *)&tconn->peer_addr)->sin6_addr);
+		break;
+	case AF_INET:
+		afs = "ipv4";
+		snprintf(envp[4], 60, "DRBD_PEER_ADDRESS=%pI4",
+			 &((struct sockaddr_in *)&tconn->peer_addr)->sin_addr);
+		break;
+	default:
+		afs = "ssocks";
+		snprintf(envp[4], 60, "DRBD_PEER_ADDRESS=%pI4",
+			 &((struct sockaddr_in *)&tconn->peer_addr)->sin_addr);
 	}
-	rcu_read_unlock();
+	snprintf(envp[3], 20, "DRBD_PEER_AF=%s", afs);
 }
 
 int drbd_khelper(struct drbd_conf *mdev, char *cmd)
@@ -1874,7 +1905,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	int rsr; /* re-sync running */
 	struct crypto crypto = { };
 
-	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_RESOURCE);
+	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_CONNECTION);
 	if (!adm_ctx.reply_skb)
 		return retcode;
 	if (retcode != NO_ERROR)
@@ -1986,18 +2017,39 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	struct drbd_conf *mdev;
 	struct net_conf *old_conf, *new_conf = NULL;
 	struct crypto crypto = { };
-	struct drbd_tconn *oconn;
 	struct drbd_tconn *tconn;
-	struct sockaddr *new_my_addr, *new_peer_addr, *taken_addr;
 	enum drbd_ret_code retcode;
 	int i;
 	int err;
 
 	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_RESOURCE);
+
 	if (!adm_ctx.reply_skb)
 		return retcode;
 	if (retcode != NO_ERROR)
 		goto out;
+	if (!(adm_ctx.my_addr && adm_ctx.peer_addr)) {
+		drbd_msg_put_info("connection endpoint(s) missing");
+		retcode = ERR_INVALID_REQUEST;
+		goto out;
+	}
+
+	/* No need for _rcu here. All reconfiguration is
+	 * strictly serialized on genl_lock(). We are protected against
+	 * concurrent reconfiguration/addition/deletion */
+	list_for_each_entry(tconn, &drbd_tconns, all_tconn) {
+		if (nla_len(adm_ctx.my_addr) == tconn->my_addr_len &&
+		    !memcmp(nla_data(adm_ctx.my_addr), &tconn->my_addr, tconn->my_addr_len)) {
+			retcode = ERR_LOCAL_ADDR;
+			goto out;
+		}
+
+		if (nla_len(adm_ctx.peer_addr) == tconn->peer_addr_len &&
+		    !memcmp(nla_data(adm_ctx.peer_addr), &tconn->peer_addr, tconn->peer_addr_len)) {
+			retcode = ERR_PEER_ADDR;
+			goto out;
+		}
+	}
 
 	tconn = adm_ctx.tconn;
 	conn_reconfig_start(tconn);
@@ -2027,37 +2079,6 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	if (retcode != NO_ERROR)
 		goto fail;
 
-	retcode = NO_ERROR;
-
-	new_my_addr = (struct sockaddr *)&new_conf->my_addr;
-	new_peer_addr = (struct sockaddr *)&new_conf->peer_addr;
-
-	/* No need for _rcu here. All reconfiguration is
-	 * strictly serialized on genl_lock(). We are protected against
-	 * concurrent reconfiguration/addition/deletion */
-	list_for_each_entry(oconn, &drbd_tconns, all_tconn) {
-		struct net_conf *nc;
-		if (oconn == tconn)
-			continue;
-
-		rcu_read_lock();
-		nc = rcu_dereference(oconn->net_conf);
-		if (nc) {
-			taken_addr = (struct sockaddr *)&nc->my_addr;
-			if (new_conf->my_addr_len == nc->my_addr_len &&
-			    !memcmp(new_my_addr, taken_addr, new_conf->my_addr_len))
-				retcode = ERR_LOCAL_ADDR;
-
-			taken_addr = (struct sockaddr *)&nc->peer_addr;
-			if (new_conf->peer_addr_len == nc->peer_addr_len &&
-			    !memcmp(new_peer_addr, taken_addr, new_conf->peer_addr_len))
-				retcode = ERR_PEER_ADDR;
-		}
-		rcu_read_unlock();
-		if (retcode != NO_ERROR)
-			goto fail;
-	}
-
 	retcode = alloc_crypto(&crypto, new_conf);
 	if (retcode != NO_ERROR)
 		goto fail;
@@ -2082,6 +2103,11 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	tconn->integrity_tfm = crypto.integrity_tfm;
 	tconn->csums_tfm = crypto.csums_tfm;
 	tconn->verify_tfm = crypto.verify_tfm;
+
+	tconn->my_addr_len = nla_len(adm_ctx.my_addr);
+	memcpy(&tconn->my_addr, nla_data(adm_ctx.my_addr), tconn->my_addr_len);
+	tconn->peer_addr_len = nla_len(adm_ctx.peer_addr);
+	memcpy(&tconn->peer_addr, nla_data(adm_ctx.peer_addr), tconn->peer_addr_len);
 
 	mutex_unlock(&tconn->conf_update);
 
@@ -2170,7 +2196,7 @@ int drbd_adm_disconnect(struct sk_buff *skb, struct genl_info *info)
 	enum drbd_ret_code retcode;
 	int err;
 
-	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_RESOURCE);
+	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_CONNECTION);
 	if (!adm_ctx.reply_skb)
 		return retcode;
 	if (retcode != NO_ERROR)
@@ -2529,7 +2555,7 @@ int drbd_adm_outdate(struct sk_buff *skb, struct genl_info *info)
 	return drbd_adm_simple_request_state(skb, info, NS(disk, D_OUTDATED));
 }
 
-int nla_put_drbd_cfg_context(struct sk_buff *skb, const char *resource_name, unsigned vnr)
+int nla_put_drbd_cfg_context(struct sk_buff *skb, struct drbd_tconn *tconn, unsigned vnr)
 {
 	struct nlattr *nla;
 	nla = nla_nest_start(skb, DRBD_NLA_CFG_CONTEXT);
@@ -2537,7 +2563,11 @@ int nla_put_drbd_cfg_context(struct sk_buff *skb, const char *resource_name, uns
 		goto nla_put_failure;
 	if (vnr != VOLUME_UNSPECIFIED)
 		NLA_PUT_U32(skb, T_ctx_volume, vnr);
-	NLA_PUT_STRING(skb, T_ctx_resource_name, resource_name);
+	NLA_PUT_STRING(skb, T_ctx_resource_name, tconn->name);
+	if (tconn->my_addr_len)
+		NLA_PUT(skb, T_ctx_my_addr, tconn->my_addr_len, &tconn->my_addr);
+	if (tconn->peer_addr_len)
+		NLA_PUT(skb, T_ctx_peer_addr, tconn->peer_addr_len, &tconn->peer_addr);
 	nla_nest_end(skb, nla);
 	return 0;
 
@@ -2574,7 +2604,7 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 
 	/* We need to add connection name and volume number information still.
 	 * Minor number is in drbd_genlmsghdr. */
-	if (nla_put_drbd_cfg_context(skb, mdev->tconn->name, mdev->vnr))
+	if (nla_put_drbd_cfg_context(skb, mdev->tconn, mdev->vnr))
 		goto nla_put_failure;
 
 	if (res_opts_to_skb(skb, &mdev->tconn->res_opts, exclude_sensitive))
@@ -2736,7 +2766,7 @@ next_tconn:
 			/* this is a tconn without a single volume */
 			dh->minor = -1U;
 			dh->ret_code = NO_ERROR;
-			if (nla_put_drbd_cfg_context(skb, tconn->name, VOLUME_UNSPECIFIED))
+			if (nla_put_drbd_cfg_context(skb, tconn, VOLUME_UNSPECIFIED))
 				genlmsg_cancel(skb, dh);
 			else
 				genlmsg_end(skb, dh);

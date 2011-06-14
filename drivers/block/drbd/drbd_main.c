@@ -2420,6 +2420,27 @@ found:
 	return tconn;
 }
 
+struct drbd_tconn *conn_get_by_addrs(void *my_addr, int my_addr_len,
+				     void *peer_addr, int peer_addr_len)
+{
+	struct drbd_tconn *tconn;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(tconn, &drbd_tconns, all_tconn) {
+		if (tconn->my_addr_len == my_addr_len &&
+		    tconn->peer_addr_len == peer_addr_len &&
+		    !memcmp(&tconn->my_addr, my_addr, my_addr_len) &&
+		    !memcmp(&tconn->peer_addr, peer_addr, peer_addr_len)) {
+			kref_get(&tconn->kref);
+			goto found;
+		}
+	}
+	tconn = NULL;
+found:
+	rcu_read_unlock();
+	return tconn;
+}
+
 static int drbd_alloc_socket(struct drbd_socket *socket)
 {
 	socket->rbuf = (void *) __get_free_page(GFP_KERNEL);

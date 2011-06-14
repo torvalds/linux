@@ -836,6 +836,11 @@ struct drbd_tconn {			/* is a resource from the config file */
 	wait_queue_head_t ping_wait;	/* Woken upon reception of a ping, and a state change */
 	struct res_opts res_opts;
 
+	struct sockaddr_storage my_addr;
+	int my_addr_len;
+	struct sockaddr_storage peer_addr;
+	int peer_addr_len;
+
 	struct drbd_socket data;	/* data/barrier/cstate/parameter packets */
 	struct drbd_socket meta;	/* ping/ack (metadata) packets */
 	int agreed_pro_version;		/* actually used protocol version */
@@ -1377,6 +1382,8 @@ extern void drbd_minor_destroy(struct kref *kref);
 struct drbd_tconn *conn_create(const char *name);
 extern void conn_destroy(struct kref *kref);
 struct drbd_tconn *conn_get_by_name(const char *name);
+extern struct drbd_tconn *conn_get_by_addrs(void *my_addr, int my_addr_len,
+					    void *peer_addr, int peer_addr_len);
 extern void conn_free_crypto(struct drbd_tconn *tconn);
 
 extern int proc_details;

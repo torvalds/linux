@@ -626,23 +626,21 @@ static struct socket *drbd_try_connect(struct drbd_tconn *tconn)
 		rcu_read_unlock();
 		return NULL;
 	}
-
 	sndbuf_size = nc->sndbuf_size;
 	rcvbuf_size = nc->rcvbuf_size;
 	connect_int = nc->connect_int;
+	rcu_read_unlock();
 
-	my_addr_len = min_t(int, nc->my_addr_len, sizeof(src_in6));
-	memcpy(&src_in6, nc->my_addr, my_addr_len);
+	my_addr_len = min_t(int, tconn->my_addr_len, sizeof(src_in6));
+	memcpy(&src_in6, &tconn->my_addr, my_addr_len);
 
-	if (((struct sockaddr *)nc->my_addr)->sa_family == AF_INET6)
+	if (((struct sockaddr *)&tconn->my_addr)->sa_family == AF_INET6)
 		src_in6.sin6_port = 0;
 	else
 		((struct sockaddr_in *)&src_in6)->sin_port = 0; /* AF_INET & AF_SCI */
 
-	peer_addr_len = min_t(int, nc->peer_addr_len, sizeof(src_in6));
-	memcpy(&peer_in6, nc->peer_addr, peer_addr_len);
-
-	rcu_read_unlock();
+	peer_addr_len = min_t(int, tconn->peer_addr_len, sizeof(src_in6));
+	memcpy(&peer_in6, &tconn->peer_addr, peer_addr_len);
 
 	what = "sock_create_kern";
 	err = sock_create_kern(((struct sockaddr *)&src_in6)->sa_family,
@@ -714,14 +712,13 @@ static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn)
 		rcu_read_unlock();
 		return NULL;
 	}
-
 	sndbuf_size = nc->sndbuf_size;
 	rcvbuf_size = nc->rcvbuf_size;
 	connect_int = nc->connect_int;
-
-	my_addr_len = min_t(int, nc->my_addr_len, sizeof(struct sockaddr_in6));
-	memcpy(&my_addr, nc->my_addr, my_addr_len);
 	rcu_read_unlock();
+
+	my_addr_len = min_t(int, tconn->my_addr_len, sizeof(struct sockaddr_in6));
+	memcpy(&my_addr, &tconn->my_addr, my_addr_len);
 
 	what = "sock_create_kern";
 	err = sock_create_kern(((struct sockaddr *)&my_addr)->sa_family,
