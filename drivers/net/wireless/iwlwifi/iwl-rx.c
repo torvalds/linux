@@ -179,46 +179,6 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q
 	spin_unlock_irqrestore(&q->lock, flags);
 }
 
-int iwl_rx_queue_alloc(struct iwl_priv *priv)
-{
-	struct iwl_rx_queue *rxq = &priv->rxq;
-	struct device *dev = priv->bus.dev;
-	int i;
-
-	spin_lock_init(&rxq->lock);
-	INIT_LIST_HEAD(&rxq->rx_free);
-	INIT_LIST_HEAD(&rxq->rx_used);
-
-	/* Alloc the circular buffer of Read Buffer Descriptors (RBDs) */
-	rxq->bd = dma_alloc_coherent(dev, 4 * RX_QUEUE_SIZE, &rxq->bd_dma,
-				     GFP_KERNEL);
-	if (!rxq->bd)
-		goto err_bd;
-
-	rxq->rb_stts = dma_alloc_coherent(dev, sizeof(struct iwl_rb_status),
-					  &rxq->rb_stts_dma, GFP_KERNEL);
-	if (!rxq->rb_stts)
-		goto err_rb;
-
-	/* Fill the rx_used queue with _all_ of the Rx buffers */
-	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++)
-		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
-
-	/* Set us so that we have processed and used all buffers, but have
-	 * not restocked the Rx queue with fresh buffers */
-	rxq->read = rxq->write = 0;
-	rxq->write_actual = 0;
-	rxq->free_count = 0;
-	rxq->need_update = 0;
-	return 0;
-
-err_rb:
-	dma_free_coherent(dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			  rxq->bd_dma);
-err_bd:
-	return -ENOMEM;
-}
-
 /******************************************************************************
  *
  * Generic RX handler implementations

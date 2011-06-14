@@ -628,38 +628,6 @@ struct iwl_mod_params iwlagn_mod_params = {
 	/* the rest are 0 by default */
 };
 
-void iwlagn_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
-{
-	unsigned long flags;
-	int i;
-	spin_lock_irqsave(&rxq->lock, flags);
-	INIT_LIST_HEAD(&rxq->rx_free);
-	INIT_LIST_HEAD(&rxq->rx_used);
-	/* Fill the rx_used queue with _all_ of the Rx buffers */
-	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++) {
-		/* In the reset function, these buffers may have been allocated
-		 * to an SKB, so we need to unmap and free potential storage */
-		if (rxq->pool[i].page != NULL) {
-			dma_unmap_page(priv->bus.dev, rxq->pool[i].page_dma,
-				PAGE_SIZE << priv->hw_params.rx_page_order,
-				DMA_FROM_DEVICE);
-			__iwl_free_pages(priv, rxq->pool[i].page);
-			rxq->pool[i].page = NULL;
-		}
-		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
-	}
-
-	for (i = 0; i < RX_QUEUE_SIZE; i++)
-		rxq->queue[i] = NULL;
-
-	/* Set us so that we have processed and used all buffers, but have
-	 * not restocked the Rx queue with fresh buffers */
-	rxq->read = rxq->write = 0;
-	rxq->write_actual = 0;
-	rxq->free_count = 0;
-	spin_unlock_irqrestore(&rxq->lock, flags);
-}
-
 int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 {
 	u32 rb_size;
@@ -747,14 +715,7 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 	priv->cfg->ops->lib->apm_ops.config(priv);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
-	if (!rxq->bd) {
-		ret = iwl_rx_queue_alloc(priv);
-		if (ret) {
-			IWL_ERR(priv, "Unable to initialize Rx queue\n");
-			return -ENOMEM;
-		}
-	} else
-		iwlagn_rx_queue_reset(priv, rxq);
+	priv->trans.ops->rx_init(priv);
 
 	iwlagn_rx_replenish(priv);
 

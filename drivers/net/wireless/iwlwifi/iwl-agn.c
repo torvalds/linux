@@ -56,7 +56,7 @@
 #include "iwl-agn-calib.h"
 #include "iwl-agn.h"
 #include "iwl-pci.h"
-
+#include "iwl-trans.h"
 
 /******************************************************************************
  *
@@ -3516,6 +3516,8 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	priv->bus.irq = priv->bus.ops->get_irq(&priv->bus);
 	priv->bus.ops->set_drv_data(&priv->bus, priv);
 	priv->bus.dev = priv->bus.ops->get_dev(&priv->bus);
+
+	iwl_trans_register(&priv->trans);
 
 	/* At this point both hw and priv are allocated. */
 

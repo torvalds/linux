@@ -383,7 +383,6 @@ static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
 ******************************************************/
 void iwl_cmd_queue_free(struct iwl_priv *priv);
 void iwl_cmd_queue_unmap(struct iwl_priv *priv);
-int iwl_rx_queue_alloc(struct iwl_priv *priv);
 void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl_rx_queue *q);
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);

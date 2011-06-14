@@ -67,6 +67,7 @@
 #include "iwl-agn.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
+#include "iwl-trans.h"
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
