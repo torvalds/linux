@@ -67,21 +67,6 @@ static int __init pcibus_class_init(void)
 }
 postcore_initcall(pcibus_class_init);
 
-/*
- * Translate the low bits of the PCI base
- * to the resource type
- */
-static inline unsigned int pci_calc_resource_flags(unsigned int flags)
-{
-	if (flags & PCI_BASE_ADDRESS_SPACE_IO)
-		return IORESOURCE_IO;
-
-	if (flags & PCI_BASE_ADDRESS_MEM_PREFETCH)
-		return IORESOURCE_MEM | IORESOURCE_PREFETCH;
-
-	return IORESOURCE_MEM;
-}
-
 static u64 pci_size(u64 base, u64 maxbase, u64 mask)
 {
 	u64 size = mask & maxbase;	/* Find the significant bits */
@@ -100,17 +85,21 @@ static u64 pci_size(u64 base, u64 maxbase, u64 mask)
 	return size;
 }
 
-static inline enum pci_bar_type decode_bar(struct pci_dev *dev,
-					   struct resource *res, u32 bar)
+static inline unsigned long decode_bar(struct pci_dev *dev, u32 bar)
 {
 	u32 mem_type;
+	unsigned long flags;
 
 	if ((bar & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO) {
-		res->flags = bar & ~PCI_BASE_ADDRESS_IO_MASK;
-		return pci_bar_io;
+		flags = bar & ~PCI_BASE_ADDRESS_IO_MASK;
+		flags |= IORESOURCE_IO;
+		return flags;
 	}
 
-	res->flags = bar & ~PCI_BASE_ADDRESS_MEM_MASK;
+	flags = bar & ~PCI_BASE_ADDRESS_MEM_MASK;
+	flags |= IORESOURCE_MEM;
+	if (flags & PCI_BASE_ADDRESS_MEM_PREFETCH)
+		flags |= IORESOURCE_PREFETCH;
 
 	mem_type = bar & PCI_BASE_ADDRESS_MEM_TYPE_MASK;
 	switch (mem_type) {
@@ -120,14 +109,15 @@ static inline enum pci_bar_type decode_bar(struct pci_dev *dev,
 		dev_info(&dev->dev, "1M mem BAR treated as 32-bit BAR\n");
 		break;
 	case PCI_BASE_ADDRESS_MEM_TYPE_64:
-		return pci_bar_mem64;
+		flags |= IORESOURCE_MEM_64;
+		break;
 	default:
 		dev_warn(&dev->dev,
 			 "mem unknown type %x treated as 32-bit BAR\n",
 			 mem_type);
 		break;
 	}
-	return pci_bar_mem32;
+	return flags;
 }
 
 /**
@@ -180,9 +170,9 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		l = 0;
 
 	if (type == pci_bar_unknown) {
-		type = decode_bar(dev, res, l);
-		res->flags |= pci_calc_resource_flags(l) | IORESOURCE_SIZEALIGN;
-		if (type == pci_bar_io) {
+		res->flags = decode_bar(dev, l);
+		res->flags |= IORESOURCE_SIZEALIGN;
+		if (res->flags & IORESOURCE_IO) {
 			l &= PCI_BASE_ADDRESS_IO_MASK;
 			mask = PCI_BASE_ADDRESS_IO_MASK & (u32) IO_SPACE_LIMIT;
 		} else {
@@ -195,7 +185,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		mask = (u32)PCI_ROM_ADDRESS_MASK;
 	}
 
-	if (type == pci_bar_mem64) {
+	if (res->flags & IORESOURCE_MEM_64) {
 		u64 l64 = l;
 		u64 sz64 = sz;
 		u64 mask64 = mask | (u64)~0 << 32;
@@ -219,7 +209,6 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			goto fail;
 		}
 
-		res->flags |= IORESOURCE_MEM_64;
 		if ((sizeof(resource_size_t) < 8) && l) {
 			/* Address above 32-bit boundary; disable the BAR */
 			pci_write_config_dword(dev, pos, 0);
@@ -245,7 +234,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 	}
 
  out:
-	return (type == pci_bar_mem64) ? 1 : 0;
+	return (res->flags & IORESOURCE_MEM_64) ? 1 : 0;
  fail:
 	res->flags = 0;
 	goto out;
