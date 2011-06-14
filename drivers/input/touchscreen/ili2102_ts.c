@@ -285,6 +285,8 @@ static int verify_coord(struct ili2102_ts_data *ts,unsigned int *x,unsigned int 
 }
 static int ili2102_init_panel(struct ili2102_ts_data *ts)
 {	
+	gpio_set_value(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_LOW:GPIO_HIGH);
+	mdelay(1);
 	gpio_set_value(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_HIGH:GPIO_LOW);
 	return 0;
 }
@@ -786,8 +788,6 @@ static int ili2102_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	if (ret < 0) {
 	printk("%s:err\n",__FUNCTION__);
 	}
-
-	gpio_set_value(ts->gpio_reset, ts->gpio_reset_active_low? GPIO_LOW:GPIO_HIGH);
 	
 	DBG("%s\n",__FUNCTION__);
 	
