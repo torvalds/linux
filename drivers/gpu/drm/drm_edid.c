@@ -184,9 +184,9 @@ drm_edid_block_valid(u8 *raw_edid)
 
 bad:
 	if (raw_edid) {
-		DRM_ERROR("Raw EDID:\n");
+		printk(KERN_ERR "Raw EDID:\n");
 		print_hex_dump_bytes(KERN_ERR, DUMP_PREFIX_NONE, raw_edid, EDID_LENGTH);
-		printk("\n");
+		printk(KERN_ERR "\n");
 	}
 	return 0;
 }
