@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #ifdef CONFIG_OF_GPIO
 #include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #endif
 
 #define PCA953X_INPUT		0
@@ -545,6 +544,7 @@ static void pca953x_irq_teardown(struct pca953x_chip *chip)
 #ifdef CONFIG_OF_GPIO
 /*
  * Translate OpenFirmware node properties into platform_data
+ * WARNING: This is DEPRECATED and will be removed eventually!
  */
 void
 pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, int *invert)
@@ -559,6 +559,7 @@ pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, int *invert)
 
 	*gpio_base = -1;
 	val = of_get_property(node, "linux,gpio-base", &size);
+	WARN(val, "%s: device-tree property 'linux,gpio-base' is deprecated!", __func__);
 	if (val) {
 		if (size != sizeof(*val))
 			dev_warn(&client->dev, "%s: wrong linux,gpio-base\n",
@@ -568,6 +569,7 @@ pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, int *invert)
 	}
 
 	val = of_get_property(node, "polarity", NULL);
+	WARN(val, "%s: device-tree property 'polarity' is deprecated!", __func__);
 	if (val)
 		*invert = *val;
 }
@@ -636,7 +638,7 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 {
 	struct pca953x_platform_data *pdata;
 	struct pca953x_chip *chip;
-	int irq_base=-1, invert=0;
+	int irq_base=0, invert=0;
 	int ret = 0;
 
 	chip = kzalloc(sizeof(struct pca953x_chip), GFP_KERNEL);
@@ -651,6 +653,11 @@ static int __devinit pca953x_probe(struct i2c_client *client,
 		chip->names = pdata->names;
 	} else {
 		pca953x_get_alt_pdata(client, &chip->gpio_start, &invert);
+#ifdef CONFIG_OF_GPIO
+		/* If I2C node has no interrupts property, disable GPIO interrupts */
+		if (of_find_property(client->dev.of_node, "interrupts", NULL) == NULL)
+			irq_base = -1;
+#endif
 	}
 
 	chip->client = client;
