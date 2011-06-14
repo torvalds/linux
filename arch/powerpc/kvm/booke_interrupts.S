@@ -24,8 +24,6 @@
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
 
-#define KVMPPC_MSR_MASK (MSR_CE|MSR_EE|MSR_PR|MSR_DE|MSR_ME|MSR_IS|MSR_DS)
-
 #define VCPU_GPR(n)     (VCPU_GPRS + (n * 4))
 
 /* The host stack layout: */
@@ -405,20 +403,17 @@ lightweight_exit:
 
 	/* Finish loading guest volatiles and jump to guest. */
 	lwz	r3, VCPU_CTR(r4)
+	lwz	r5, VCPU_CR(r4)
+	lwz	r6, VCPU_PC(r4)
+	lwz	r7, VCPU_SHADOW_MSR(r4)
 	mtctr	r3
-	lwz	r3, VCPU_CR(r4)
-	mtcr	r3
+	mtcr	r5
+	mtsrr0	r6
+	mtsrr1	r7
 	lwz	r5, VCPU_GPR(r5)(r4)
 	lwz	r6, VCPU_GPR(r6)(r4)
 	lwz	r7, VCPU_GPR(r7)(r4)
 	lwz	r8, VCPU_GPR(r8)(r4)
-	lwz	r3, VCPU_PC(r4)
-	mtsrr0	r3
-	lwz	r3, VCPU_SHARED(r4)
-	lwz	r3, (VCPU_SHARED_MSR + 4)(r3)
-	oris	r3, r3, KVMPPC_MSR_MASK@h
-	ori	r3, r3, KVMPPC_MSR_MASK@l
-	mtsrr1	r3
 
 	/* Clear any debug events which occurred since we disabled MSR[DE].
 	 * XXX This gives us a 3-instruction window in which a breakpoint

@@ -514,6 +514,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.pc = 0;
 	vcpu->arch.shared->msr = 0;
+	vcpu->arch.shadow_msr = MSR_USER | MSR_DE | MSR_IS | MSR_DS;
 	kvmppc_set_gpr(vcpu, 1, (16<<20) - 8); /* -8 for the callee-save LR slot */
 
 	vcpu->arch.shadow_pid = 1;

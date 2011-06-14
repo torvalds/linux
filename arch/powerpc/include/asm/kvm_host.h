@@ -219,12 +219,12 @@ struct kvm_vcpu_arch {
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S
-	ulong shadow_msr;
 	ulong hflags;
 	ulong guest_owned_ext;
 #endif
 	u32 vrsave; /* also USPRG0 */
 	u32 mmucr;
+	ulong shadow_msr;
 	ulong sprg4;
 	ulong sprg5;
 	ulong sprg6;
