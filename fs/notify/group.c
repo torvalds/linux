@@ -50,7 +50,7 @@ void fsnotify_final_destroy_group(struct fsnotify_group *group)
  * situtation, the fsnotify_final_destroy_group will get called when that final
  * mark is freed.
  */
-static void fsnotify_destroy_group(struct fsnotify_group *group)
+void fsnotify_destroy_group(struct fsnotify_group *group)
 {
 	/* clear all inode marks for this group */
 	fsnotify_clear_marks_by_group(group);

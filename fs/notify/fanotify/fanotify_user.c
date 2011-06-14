@@ -415,7 +415,7 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 	wake_up(&group->fanotify_data.access_waitq);
 #endif
 	/* matches the fanotify_init->fsnotify_alloc_group */
-	fsnotify_put_group(group);
+	fsnotify_destroy_group(group);
 
 	return 0;
 }
@@ -728,13 +728,13 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		break;
 	default:
 		fd = -EINVAL;
-		goto out_put_group;
+		goto out_destroy_group;
 	}
 
 	if (flags & FAN_UNLIMITED_QUEUE) {
 		fd = -EPERM;
 		if (!capable(CAP_SYS_ADMIN))
-			goto out_put_group;
+			goto out_destroy_group;
 		group->max_events = UINT_MAX;
 	} else {
 		group->max_events = FANOTIFY_DEFAULT_MAX_EVENTS;
@@ -743,7 +743,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	if (flags & FAN_UNLIMITED_MARKS) {
 		fd = -EPERM;
 		if (!capable(CAP_SYS_ADMIN))
-			goto out_put_group;
+			goto out_destroy_group;
 		group->fanotify_data.max_marks = UINT_MAX;
 	} else {
 		group->fanotify_data.max_marks = FANOTIFY_DEFAULT_MAX_MARKS;
@@ -751,12 +751,12 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 
 	fd = anon_inode_getfd("[fanotify]", &fanotify_fops, group, f_flags);
 	if (fd < 0)
-		goto out_put_group;
+		goto out_destroy_group;
 
 	return fd;
 
-out_put_group:
-	fsnotify_put_group(group);
+out_destroy_group:
+	fsnotify_destroy_group(group);
 	return fd;
 }
 
