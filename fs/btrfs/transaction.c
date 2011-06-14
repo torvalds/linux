@@ -126,25 +126,82 @@ static noinline int join_transaction(struct btrfs_root *root, int nofail)
  * to make sure the old root from before we joined the transaction is deleted
  * when the transaction commits
  */
-int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
+static int record_root_in_trans(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root)
 {
 	if (root->ref_cows && root->last_trans < trans->transid) {
 		WARN_ON(root == root->fs_info->extent_root);
 		WARN_ON(root->commit_root != root->node);
 
+		/*
+		 * see below for in_trans_setup usage rules
+		 * we have the reloc mutex held now, so there
+		 * is only one writer in this function
+		 */
+		root->in_trans_setup = 1;
+
+		/* make sure readers find in_trans_setup before
+		 * they find our root->last_trans update
+		 */
+		smp_wmb();
+
 		spin_lock(&root->fs_info->fs_roots_radix_lock);
 		if (root->last_trans == trans->transid) {
 			spin_unlock(&root->fs_info->fs_roots_radix_lock);
 			return 0;
 		}
-		root->last_trans = trans->transid;
 		radix_tree_tag_set(&root->fs_info->fs_roots_radix,
 			   (unsigned long)root->root_key.objectid,
 			   BTRFS_ROOT_TRANS_TAG);
 		spin_unlock(&root->fs_info->fs_roots_radix_lock);
+		root->last_trans = trans->transid;
+
+		/* this is pretty tricky.  We don't want to
+		 * take the relocation lock in btrfs_record_root_in_trans
+		 * unless we're really doing the first setup for this root in
+		 * this transaction.
+		 *
+		 * Normally we'd use root->last_trans as a flag to decide
+		 * if we want to take the expensive mutex.
+		 *
+		 * But, we have to set root->last_trans before we
+		 * init the relocation root, otherwise, we trip over warnings
+		 * in ctree.c.  The solution used here is to flag ourselves
+		 * with root->in_trans_setup.  When this is 1, we're still
+		 * fixing up the reloc trees and everyone must wait.
+		 *
+		 * When this is zero, they can trust root->last_trans and fly
+		 * through btrfs_record_root_in_trans without having to take the
+		 * lock.  smp_wmb() makes sure that all the writes above are
+		 * done before we pop in the zero below
+		 */
 		btrfs_init_reloc_root(trans, root);
+		smp_wmb();
+		root->in_trans_setup = 0;
 	}
+	return 0;
+}
+
+
+int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root)
+{
+	if (!root->ref_cows)
+		return 0;
+
+	/*
+	 * see record_root_in_trans for comments about in_trans_setup usage
+	 * and barriers
+	 */
+	smp_rmb();
+	if (root->last_trans == trans->transid &&
+	    !root->in_trans_setup)
+		return 0;
+
+	mutex_lock(&root->fs_info->reloc_mutex);
+	record_root_in_trans(trans, root);
+	mutex_unlock(&root->fs_info->reloc_mutex);
+
 	return 0;
 }
 
@@ -882,7 +939,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	parent = dget_parent(dentry);
 	parent_inode = parent->d_inode;
 	parent_root = BTRFS_I(parent_inode)->root;
-	btrfs_record_root_in_trans(trans, parent_root);
+	record_root_in_trans(trans, parent_root);
 
 	/*
 	 * insert the directory item
@@ -900,7 +957,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	ret = btrfs_update_inode(trans, parent_root, parent_inode);
 	BUG_ON(ret);
 
-	btrfs_record_root_in_trans(trans, root);
+	record_root_in_trans(trans, root);
 	btrfs_set_root_last_snapshot(&root->root_item, trans->transid);
 	memcpy(new_root_item, &root->root_item, sizeof(*new_root_item));
 	btrfs_check_and_init_root_item(new_root_item);
@@ -1247,6 +1304,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	} while (atomic_read(&cur_trans->num_writers) > 1 ||
 		 (should_grow && cur_trans->num_joined != joined));
 
+	/*
+	 * the reloc mutex makes sure that we stop
+	 * the balancing code from coming in and moving
+	 * extents around in the middle of the commit
+	 */
+	mutex_lock(&root->fs_info->reloc_mutex);
+
 	ret = create_pending_snapshots(trans, root->fs_info);
 	BUG_ON(ret);
 
@@ -1312,6 +1376,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	root->fs_info->running_transaction = NULL;
 	root->fs_info->trans_no_join = 0;
 	spin_unlock(&root->fs_info->trans_lock);
+	mutex_unlock(&root->fs_info->reloc_mutex);
 
 	wake_up(&root->fs_info->transaction_wait);
 
