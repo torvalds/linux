@@ -1946,13 +1946,19 @@ static long __video_do_ioctl(struct file *file,
 	case VIDIOC_S_HW_FREQ_SEEK:
 	{
 		struct v4l2_hw_freq_seek *p = arg;
+		enum v4l2_tuner_type type;
 
 		if (!ops->vidioc_s_hw_freq_seek)
 			break;
+		type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
+			V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 		dbgarg(cmd,
-			"tuner=%d, type=%d, seek_upward=%d, wrap_around=%d\n",
-			p->tuner, p->type, p->seek_upward, p->wrap_around);
-		ret = ops->vidioc_s_hw_freq_seek(file, fh, p);
+			"tuner=%u, type=%u, seek_upward=%u, wrap_around=%u, spacing=%u\n",
+			p->tuner, p->type, p->seek_upward, p->wrap_around, p->spacing);
+		if (p->type != type)
+			ret = -EINVAL;
+		else
+			ret = ops->vidioc_s_hw_freq_seek(file, fh, p);
 		break;
 	}
 	case VIDIOC_ENUM_FRAMESIZES:
