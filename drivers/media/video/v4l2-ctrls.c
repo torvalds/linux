@@ -2033,9 +2033,11 @@ void v4l2_ctrl_add_event(struct v4l2_ctrl *ctrl,
 	if (ctrl->type != V4L2_CTRL_TYPE_CTRL_CLASS &&
 	    (sev->flags & V4L2_EVENT_SUB_FL_SEND_INITIAL)) {
 		struct v4l2_event ev;
+		u32 changes = V4L2_EVENT_CTRL_CH_FLAGS;
 
-		fill_event(&ev, ctrl, V4L2_EVENT_CTRL_CH_VALUE |
-			V4L2_EVENT_CTRL_CH_FLAGS);
+		if (!(ctrl->flags & V4L2_CTRL_FLAG_WRITE_ONLY))
+			changes |= V4L2_EVENT_CTRL_CH_VALUE;
+		fill_event(&ev, ctrl, changes);
 		v4l2_event_queue_fh(sev->fh, &ev);
 	}
 	v4l2_ctrl_unlock(ctrl);
