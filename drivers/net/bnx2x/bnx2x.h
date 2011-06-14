@@ -928,8 +928,6 @@ struct bnx2x {
 	bnx2x_recovery_state_t	recovery_state;
 	int			is_leader;
 	struct msix_entry	*msix_table;
-#define INT_MODE_INTx			1
-#define INT_MODE_MSI			2
 
 	int			tx_ring_size;
 
@@ -1092,7 +1090,6 @@ struct bnx2x {
 	int			multi_mode;
 	int			num_queues;
 	int			disable_tpa;
-	int			int_mode;
 	u32			*rx_indir_table;
 
 	struct tstorm_eth_mac_filter_config	mac_filters;

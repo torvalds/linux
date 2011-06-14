@@ -99,6 +99,8 @@ static int disable_tpa;
 module_param(disable_tpa, int, 0);
 MODULE_PARM_DESC(disable_tpa, " Disable the TPA (LRO) feature");
 
+#define INT_MODE_INTx			1
+#define INT_MODE_MSI			2
 static int int_mode;
 module_param(int_mode, int, 0);
 MODULE_PARM_DESC(int_mode, " Force interrupt mode other then MSI-X "
@@ -6606,11 +6608,10 @@ static int bnx2x_setup_fw_client(struct bnx2x *bp,
  *
  * In case of MSI-X it will also try to enable MSI-X.
  */
-static int __devinit bnx2x_set_int_mode(struct bnx2x *bp)
+static void __devinit bnx2x_set_int_mode(struct bnx2x *bp)
 {
-	int rc = 0;
 
-	switch (bp->int_mode) {
+	switch (int_mode) {
 	case INT_MODE_MSI:
 		bnx2x_enable_msi(bp);
 		/* falling through... */
@@ -6629,8 +6630,7 @@ static int __devinit bnx2x_set_int_mode(struct bnx2x *bp)
 		 * so try to enable MSI-X with the requested number of fp's
 		 * and fallback to MSI or legacy INTx with one fp
 		 */
-		rc = bnx2x_enable_msix(bp);
-		if (rc) {
+		if (bnx2x_enable_msix(bp)) {
 			/* failed to enable MSI-X */
 			if (bp->multi_mode)
 				DP(NETIF_MSG_IFUP,
@@ -6641,14 +6641,12 @@ static int __devinit bnx2x_set_int_mode(struct bnx2x *bp)
 				   1 + NONE_ETH_CONTEXT_USE);
 			bp->num_queues = 1 + NONE_ETH_CONTEXT_USE;
 
+			/* Try to enable MSI */
 			if (!(bp->flags & DISABLE_MSI_FLAG))
 				bnx2x_enable_msi(bp);
 		}
-
 		break;
 	}
-
-	return rc;
 }
 
 /* must be called prioir to any HW initializations */
@@ -8673,7 +8671,6 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 					"must load devices in order!\n");
 
 	bp->multi_mode = multi_mode;
-	bp->int_mode = int_mode;
 
 	/* Set TPA flags */
 	if (disable_tpa) {
