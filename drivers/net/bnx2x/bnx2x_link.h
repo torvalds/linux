@@ -66,17 +66,6 @@
 #define FW_PARAM_SET(phy_addr, phy_type, mdio_access) \
 	(phy_addr | phy_type | mdio_access << FW_PARAM_MDIO_CTRL_OFFSET)
 
-#define PFC_BRB_MAC_PAUSE_XOFF_THRESHOLD_PAUSEABLE		170
-#define PFC_BRB_MAC_PAUSE_XOFF_THRESHOLD_NON_PAUSEABLE		0
-
-#define PFC_BRB_MAC_PAUSE_XON_THRESHOLD_PAUSEABLE			250
-#define PFC_BRB_MAC_PAUSE_XON_THRESHOLD_NON_PAUSEABLE		0
-
-#define PFC_BRB_MAC_FULL_XOFF_THRESHOLD_PAUSEABLE			10
-#define PFC_BRB_MAC_FULL_XOFF_THRESHOLD_NON_PAUSEABLE		90
-
-#define PFC_BRB_MAC_FULL_XON_THRESHOLD_PAUSEABLE			50
-#define PFC_BRB_MAC_FULL_XON_THRESHOLD_NON_PAUSEABLE		250
 
 #define PFC_BRB_FULL_LB_XOFF_THRESHOLD				170
 #define PFC_BRB_FULL_LB_XON_THRESHOLD				250
@@ -132,6 +121,7 @@ struct bnx2x_phy {
 #define FLAGS_FAN_FAILURE_DET_REQ	(1<<2)
 	/* Initialize first the XGXS and only then the phy itself */
 #define FLAGS_INIT_XGXS_FIRST		(1<<3)
+#define FLAGS_4_PORT_MODE		(1<<5)
 #define FLAGS_REARM_LATCH_SIGNAL	(1<<6)
 #define FLAGS_SFP_NOT_APPROVED		(1<<7)
 
@@ -366,6 +356,8 @@ int bnx2x_phy_probe(struct link_params *params);
 u8 bnx2x_fan_failure_det_req(struct bnx2x *bp, u32 shmem_base,
 			     u32 shmem2_base, u8 port);
 
+
+
 /* DCBX structs */
 
 /* Number of maximum COS per chip */
@@ -400,7 +392,7 @@ struct bnx2x_nig_brb_pfc_port_params {
  * Used to update the PFC attributes in EMAC, BMAC, NIG and BRB
  * when link is already up
  */
-void bnx2x_update_pfc(struct link_params *params,
+int bnx2x_update_pfc(struct link_params *params,
 		      struct link_vars *vars,
 		      struct bnx2x_nig_brb_pfc_port_params *pfc_params);
 

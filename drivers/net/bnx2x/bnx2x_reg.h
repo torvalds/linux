@@ -54,16 +54,20 @@
 /* [RW 10] The number of free blocks below which the full signal to class 0
  * is asserted */
 #define BRB1_REG_FULL_0_XOFF_THRESHOLD_0			 0x601d0
-/* [RW 10] The number of free blocks above which the full signal to class 0
+#define BRB1_REG_FULL_0_XOFF_THRESHOLD_1			 0x60230
+/* [RW 11] The number of free blocks above which the full signal to class 0
  * is de-asserted */
 #define BRB1_REG_FULL_0_XON_THRESHOLD_0				 0x601d4
-/* [RW 10] The number of free blocks below which the full signal to class 1
+#define BRB1_REG_FULL_0_XON_THRESHOLD_1				 0x60234
+/* [RW 11] The number of free blocks below which the full signal to class 1
  * is asserted */
 #define BRB1_REG_FULL_1_XOFF_THRESHOLD_0			 0x601d8
-/* [RW 10] The number of free blocks above which the full signal to class 1
+#define BRB1_REG_FULL_1_XOFF_THRESHOLD_1			 0x60238
+/* [RW 11] The number of free blocks above which the full signal to class 1
  * is de-asserted */
 #define BRB1_REG_FULL_1_XON_THRESHOLD_0				 0x601dc
-/* [RW 10] The number of free blocks below which the full signal to the LB
+#define BRB1_REG_FULL_1_XON_THRESHOLD_1				 0x6023c
+/* [RW 11] The number of free blocks below which the full signal to the LB
  * port is asserted */
 #define BRB1_REG_FULL_LB_XOFF_THRESHOLD				 0x601e0
 /* [RW 10] The number of free blocks above which the full signal to the LB
@@ -75,15 +79,49 @@
 /* [RW 10] The number of free blocks below which the High_llfc signal to
    interface #n is asserted. */
 #define BRB1_REG_HIGH_LLFC_LOW_THRESHOLD_0			 0x6013c
-/* [RW 23] LL RAM data. */
-#define BRB1_REG_LL_RAM 					 0x61000
+/* [RW 11] The number of blocks guarantied for the LB port */
+#define BRB1_REG_LB_GUARANTIED					 0x601ec
+/* [RW 11] The hysteresis on the guarantied buffer space for the Lb port
+ * before signaling XON. */
+#define BRB1_REG_LB_GUARANTIED_HYST				 0x60264
+/* [RW 24] LL RAM data. */
+#define BRB1_REG_LL_RAM						 0x61000
 /* [RW 10] The number of free blocks above which the Low_llfc signal to
    interface #n is de-asserted. */
 #define BRB1_REG_LOW_LLFC_HIGH_THRESHOLD_0			 0x6016c
 /* [RW 10] The number of free blocks below which the Low_llfc signal to
    interface #n is asserted. */
 #define BRB1_REG_LOW_LLFC_LOW_THRESHOLD_0			 0x6015c
-/* [RW 10] The number of blocks guarantied for the MAC port */
+/* [RW 11] The number of blocks guarantied for class 0 in MAC 0. The
+ * register is applicable only when per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_0_CLASS_0_GUARANTIED			 0x60244
+/* [RW 11] The hysteresis on the guarantied buffer space for class 0 in MAC
+ * 1 before signaling XON. The register is applicable only when
+ * per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_0_CLASS_0_GUARANTIED_HYST			 0x60254
+/* [RW 11] The number of blocks guarantied for class 1 in MAC 0. The
+ * register is applicable only when per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_0_CLASS_1_GUARANTIED			 0x60248
+/* [RW 11] The hysteresis on the guarantied buffer space for class 1in MAC 0
+ * before signaling XON. The register is applicable only when
+ * per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_0_CLASS_1_GUARANTIED_HYST			 0x60258
+/* [RW 11] The number of blocks guarantied for class 0in MAC1.The register
+ * is applicable only when per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_1_CLASS_0_GUARANTIED			 0x6024c
+/* [RW 11] The hysteresis on the guarantied buffer space for class 0 in MAC
+ * 1 before signaling XON. The register is applicable only when
+ * per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_1_CLASS_0_GUARANTIED_HYST			 0x6025c
+/* [RW 11] The number of blocks guarantied for class 1 in MAC 1. The
+ * register is applicable only when per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_1_CLASS_1_GUARANTIED			 0x60250
+/* [RW 11] The hysteresis on the guarantied buffer space for class 1 in MAC
+ * 1 before signaling XON. The register is applicable only when
+ * per_class_guaranty_mode is set. */
+#define BRB1_REG_MAC_1_CLASS_1_GUARANTIED_HYST			 0x60260
+/* [RW 11] The number of blocks guarantied for the MAC port. The register is
+ * applicable only when per_class_guaranty_mode is reset. */
 #define BRB1_REG_MAC_GUARANTIED_0				 0x601e8
 #define BRB1_REG_MAC_GUARANTIED_1				 0x60240
 /* [R 24] The number of full blocks. */
@@ -100,15 +138,19 @@
 /* [RW 10] The number of free blocks below which the pause signal to class 0
  * is asserted */
 #define BRB1_REG_PAUSE_0_XOFF_THRESHOLD_0			 0x601c0
-/* [RW 10] The number of free blocks above which the pause signal to class 0
+#define BRB1_REG_PAUSE_0_XOFF_THRESHOLD_1			 0x60220
+/* [RW 11] The number of free blocks above which the pause signal to class 0
  * is de-asserted */
 #define BRB1_REG_PAUSE_0_XON_THRESHOLD_0			 0x601c4
-/* [RW 10] The number of free blocks below which the pause signal to class 1
+#define BRB1_REG_PAUSE_0_XON_THRESHOLD_1			 0x60224
+/* [RW 11] The number of free blocks below which the pause signal to class 1
  * is asserted */
 #define BRB1_REG_PAUSE_1_XOFF_THRESHOLD_0			 0x601c8
-/* [RW 10] The number of free blocks above which the pause signal to class 1
+#define BRB1_REG_PAUSE_1_XOFF_THRESHOLD_1			 0x60228
+/* [RW 11] The number of free blocks above which the pause signal to class 1
  * is de-asserted */
 #define BRB1_REG_PAUSE_1_XON_THRESHOLD_0			 0x601cc
+#define BRB1_REG_PAUSE_1_XON_THRESHOLD_1			 0x6022c
 /* [RW 10] Write client 0: De-assert pause threshold. Not Functional */
 #define BRB1_REG_PAUSE_HIGH_THRESHOLD_0 			 0x60078
 #define BRB1_REG_PAUSE_HIGH_THRESHOLD_1 			 0x6007c
@@ -1655,12 +1697,31 @@
  * is compared to the value on ctrl_md_devad. Drives output
  * misc_xgxs0_phy_addr. Global register. */
 #define MISC_REG_WC0_CTRL_PHY_ADDR				 0xa9cc
+/* [RW 2] XMAC Core port mode. Indicates the number of ports on the system
+   side. This should be less than or equal to phy_port_mode; if some of the
+   ports are not used. This enables reduction of frequency on the core side.
+   This is a strap input for the XMAC_MP core. 00 - Single Port Mode; 01 -
+   Dual Port Mode; 10 - Tri Port Mode; 11 - Quad Port Mode. This is a strap
+   input for the XMAC_MP core; and should be changed only while reset is
+   held low. Reset on Hard reset. */
+#define MISC_REG_XMAC_CORE_PORT_MODE				 0xa964
+/* [RW 2] XMAC PHY port mode. Indicates the number of ports on the Warp
+   Core. This is a strap input for the XMAC_MP core. 00 - Single Port Mode;
+   01 - Dual Port Mode; 1x - Quad Port Mode; This is a strap input for the
+   XMAC_MP core; and should be changed only while reset is held low. Reset
+   on Hard reset. */
+#define MISC_REG_XMAC_PHY_PORT_MODE				 0xa960
 /* [RW 32] 1 [47] Packet Size = 64 Write to this register write bits 31:0.
  * Reads from this register will clear bits 31:0. */
 #define MSTAT_REG_RX_STAT_GR64_LO				 0x200
 /* [RW 32] 1 [00] Tx Good Packet Count Write to this register write bits
  * 31:0. Reads from this register will clear bits 31:0. */
 #define MSTAT_REG_TX_STAT_GTXPOK_LO				 0
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_BRCST	 (0x1<<0)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_MLCST	 (0x1<<1)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_NO_VLAN	 (0x1<<4)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_UNCST	 (0x1<<2)
+#define NIG_LLH0_BRB1_DRV_MASK_REG_LLH0_BRB1_DRV_MASK_VLAN	 (0x1<<3)
 #define NIG_LLH0_XCM_MASK_REG_LLH0_XCM_MASK_BCN			 (0x1<<0)
 #define NIG_LLH1_XCM_MASK_REG_LLH1_XCM_MASK_BCN			 (0x1<<0)
 #define NIG_MASK_INTERRUPT_PORT0_REG_MASK_EMAC0_MISC_MI_INT	 (0x1<<0)
@@ -1903,6 +1964,12 @@
 #define NIG_REG_P0_HWPFC_ENABLE				 0x18078
 #define NIG_REG_P0_LLH_FUNC_MEM2				 0x18480
 #define NIG_REG_P0_LLH_FUNC_MEM2_ENABLE			 0x18440
+/* [RW 1] Input enable for RX MAC interface. */
+#define NIG_REG_P0_MAC_IN_EN					 0x185ac
+/* [RW 1] Output enable for TX MAC interface */
+#define NIG_REG_P0_MAC_OUT_EN					 0x185b0
+/* [RW 1] Output enable for TX PAUSE signal to the MAC. */
+#define NIG_REG_P0_MAC_PAUSE_OUT_EN				 0x185b4
 /* [RW 32] Eight 4-bit configurations for specifying which COS (0-15 for
  * future expansion) each priorty is to be mapped to. Bits 3:0 specify the
  * COS for priority 0. Bits 31:28 specify the COS for priority 7. The 3-bit
@@ -1939,6 +2006,7 @@
  * than one bit may be set; allowing multiple priorities to be mapped to one
  * COS. */
 #define NIG_REG_P0_RX_COS5_PRIORITY_MASK			 0x186bc
+/* [R 1] RX FIFO for receiving data from MAC is empty. */
 /* [RW 15] Specify which of the credit registers the client is to be mapped
  * to. Bits[2:0] are for client 0; bits [14:12] are for client 4. For
  * clients that are not subject to WFQ credit blocking - their
@@ -1981,6 +2049,11 @@
 #define NIG_REG_P1_HDRS_AFTER_BASIC				 0x1818c
 #define NIG_REG_P1_LLH_FUNC_MEM2				 0x184c0
 #define NIG_REG_P1_LLH_FUNC_MEM2_ENABLE			 0x18460
+#define NIG_REG_P1_MAC_IN_EN					 0x185c0
+/* [RW 1] Output enable for TX MAC interface */
+#define NIG_REG_P1_MAC_OUT_EN					 0x185c4
+/* [RW 1] Output enable for TX PAUSE signal to the MAC. */
+#define NIG_REG_P1_MAC_PAUSE_OUT_EN				 0x185c8
 /* [RW 32] Eight 4-bit configurations for specifying which COS (0-15 for
  * future expansion) each priorty is to be mapped to. Bits 3:0 specify the
  * COS for priority 0. Bits 31:28 specify the COS for priority 7. The 3-bit
@@ -2002,6 +2075,52 @@
  * than one bit may be set; allowing multiple priorities to be mapped to one
  * COS. */
 #define NIG_REG_P1_RX_COS2_PRIORITY_MASK			 0x186f8
+/* [R 1] RX FIFO for receiving data from MAC is empty. */
+#define NIG_REG_P1_RX_MACFIFO_EMPTY				 0x1858c
+/* [R 1] TLLH FIFO is empty. */
+#define NIG_REG_P1_TLLH_FIFO_EMPTY				 0x18338
+/* [RW 32] Specify which of the credit registers the client is to be mapped
+ * to. This register specifies bits 31:0 of the 36-bit value. Bits[3:0] are
+ * for client 0; bits [35:32] are for client 8. For clients that are not
+ * subject to WFQ credit blocking - their specifications here are not used.
+ * This is a new register (with 2_) added in E3 B0 to accommodate the 9
+ * input clients to ETS arbiter. The reset default is set for management and
+ * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
+ * use credit registers 0-5 respectively (0x543210876). Note that credit
+ * registers can not be shared between clients. Note also that there are
+ * only COS0-2 in port 1- there is a total of 6 clients in port 1. Only
+ * credit registers 0-5 are valid. This register should be configured
+ * appropriately before enabling WFQ. */
+#define NIG_REG_P1_TX_ARB_CLIENT_CREDIT_MAP2_LSB		 0x186e8
+/* [RW 4] Specify which of the credit registers the client is to be mapped
+ * to. This register specifies bits 35:32 of the 36-bit value. Bits[3:0] are
+ * for client 0; bits [35:32] are for client 8. For clients that are not
+ * subject to WFQ credit blocking - their specifications here are not used.
+ * This is a new register (with 2_) added in E3 B0 to accommodate the 9
+ * input clients to ETS arbiter. The reset default is set for management and
+ * debug to use credit registers 6, 7, and 8, respectively, and COSes 0-5 to
+ * use credit registers 0-5 respectively (0x543210876). Note that credit
+ * registers can not be shared between clients. Note also that there are
+ * only COS0-2 in port 1- there is a total of 6 clients in port 1. Only
+ * credit registers 0-5 are valid. This register should be configured
+ * appropriately before enabling WFQ. */
+#define NIG_REG_P1_TX_ARB_CLIENT_CREDIT_MAP2_MSB		 0x186ec
+/* [RW 9] Specify whether the client competes directly in the strict
+ * priority arbiter. The bits are mapped according to client ID (client IDs
+ * are defined in tx_arb_priority_client2): 0-management; 1-debug traffic
+ * from this port; 2-debug traffic from other port; 3-COS0 traffic; 4-COS1
+ * traffic; 5-COS2 traffic; 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic.
+ * Default value is set to enable strict priorities for all clients. */
+#define NIG_REG_P1_TX_ARB_CLIENT_IS_STRICT			 0x18234
+/* [RW 9] Specify whether the client is subject to WFQ credit blocking. The
+ * bits are mapped according to client ID (client IDs are defined in
+ * tx_arb_priority_client2): 0-management; 1-debug traffic from this port;
+ * 2-debug traffic from other port; 3-COS0 traffic; 4-COS1 traffic; 5-COS2
+ * traffic; 6-COS3 traffic; 7-COS4 traffic; 8-COS5 traffic. Default value is
+ * 0 for not using WFQ credit blocking. */
+#define NIG_REG_P1_TX_ARB_CLIENT_IS_SUBJECT2WFQ			 0x18238
+/* [RW 32] Specify the upper bound that credit register 0 is allowed to
+ * reach. */
 /* [RW 1] Pause enable for port0. This register may get 1 only when
    ~safc_enable.safc_enable = 0 and ppp_enable.ppp_enable =0 for the same
    port */
@@ -4427,6 +4546,17 @@
    The fields are: [4:0] - tail pointer; 10:5] - Link List size; 15:11] -
    header pointer. */
 #define UCM_REG_XX_TABLE					 0xe0300
+#define UMAC_COMMAND_CONFIG_REG_LOOP_ENA			 (0x1<<15)
+#define UMAC_COMMAND_CONFIG_REG_NO_LGTH_CHECK			 (0x1<<24)
+#define UMAC_COMMAND_CONFIG_REG_PAD_EN				 (0x1<<5)
+#define UMAC_COMMAND_CONFIG_REG_PROMIS_EN			 (0x1<<4)
+#define UMAC_COMMAND_CONFIG_REG_RX_ENA				 (0x1<<1)
+#define UMAC_COMMAND_CONFIG_REG_SW_RESET			 (0x1<<13)
+#define UMAC_COMMAND_CONFIG_REG_TX_ENA				 (0x1<<0)
+#define UMAC_REG_COMMAND_CONFIG					 0x8
+/* [RW 14] Defines a 14-Bit maximum frame length used by the MAC receive
+ * logic to check frames. */
+#define UMAC_REG_MAXFR						 0x14
 /* [RW 8] The event id for aggregated interrupt 0 */
 #define USDM_REG_AGG_INT_EVENT_0				 0xc4038
 #define USDM_REG_AGG_INT_EVENT_1				 0xc403c
@@ -4939,6 +5069,28 @@
 #define XCM_REG_XX_MSG_NUM					 0x20428
 /* [RW 8] The Event ID; sent to the STORM in case of XX overflow. */
 #define XCM_REG_XX_OVFL_EVNT_ID 				 0x20058
+#define XMAC_CLEAR_RX_LSS_STATUS_REG_CLEAR_LOCAL_FAULT_STATUS	 (0x1<<0)
+#define XMAC_CLEAR_RX_LSS_STATUS_REG_CLEAR_REMOTE_FAULT_STATUS	 (0x1<<1)
+#define XMAC_CTRL_REG_CORE_LOCAL_LPBK				 (0x1<<3)
+#define XMAC_CTRL_REG_RX_EN					 (0x1<<1)
+#define XMAC_CTRL_REG_SOFT_RESET				 (0x1<<6)
+#define XMAC_CTRL_REG_TX_EN					 (0x1<<0)
+#define XMAC_PAUSE_CTRL_REG_RX_PAUSE_EN				 (0x1<<18)
+#define XMAC_PAUSE_CTRL_REG_TX_PAUSE_EN				 (0x1<<17)
+#define XMAC_PFC_CTRL_HI_REG_PFC_REFRESH_EN			 (0x1<<0)
+#define XMAC_PFC_CTRL_HI_REG_PFC_STATS_EN			 (0x1<<3)
+#define XMAC_PFC_CTRL_HI_REG_RX_PFC_EN				 (0x1<<4)
+#define XMAC_PFC_CTRL_HI_REG_TX_PFC_EN				 (0x1<<5)
+#define XMAC_REG_CLEAR_RX_LSS_STATUS				 0x60
+#define XMAC_REG_CTRL						 0
+#define XMAC_REG_PAUSE_CTRL					 0x68
+#define XMAC_REG_PFC_CTRL					 0x70
+#define XMAC_REG_PFC_CTRL_HI					 0x74
+#define XMAC_REG_RX_LSS_STATUS					 0x58
+/* [RW 14] Maximum packet size in receive direction; exclusive of preamble &
+ * CRC in strip mode */
+#define XMAC_REG_RX_MAX_SIZE					 0x40
+#define XMAC_REG_TX_CTRL					 0x20
 /* [RW 16] Indirect access to the XX table of the XX protection mechanism.
    The fields are:[4:0] - tail pointer; 9:5] - Link List size; 14:10] -
    header pointer. */
@@ -5011,6 +5163,8 @@
 #define XSDM_REG_NUM_OF_Q8_CMD					 0x166264
 /* [ST 32] The number of commands received in queue 9 */
 #define XSDM_REG_NUM_OF_Q9_CMD					 0x166268
+/* [RW 13] The start address in the internal RAM for queue counters */
+#define XSDM_REG_Q_COUNTER_START_ADDR				 0x166010
 /* [W 17] Generate an operation after completion; bit-16 is
  * AggVectIdx_valid; bits 15:8 are AggVectIdx; bits 7:5 are the TRIG and
  * bits 4:0 are the T124Param[4:0] */
@@ -5312,6 +5466,9 @@
 #define MISC_REGISTERS_RESET_REG_2_RST_PCI_MDIO			 (0x1<<13)
 #define MISC_REGISTERS_RESET_REG_2_RST_RBCN			 (0x1<<9)
 #define MISC_REGISTERS_RESET_REG_2_SET				 0x594
+#define MISC_REGISTERS_RESET_REG_2_UMAC0			 (0x1<<20)
+#define MISC_REGISTERS_RESET_REG_2_XMAC				 (0x1<<22)
+#define MISC_REGISTERS_RESET_REG_2_XMAC_SOFT			 (0x1<<23)
 #define MISC_REGISTERS_RESET_REG_3_CLEAR			 0x5a8
 #define MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_SERDES0_IDDQ	 (0x1<<1)
 #define MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_SERDES0_PWRDWN	 (0x1<<2)
@@ -5503,9 +5660,13 @@
 #define GRCBASE_HC		0x108000
 #define GRCBASE_PXP2		0x120000
 #define GRCBASE_PBF		0x140000
+#define GRCBASE_UMAC0		0x160000
+#define GRCBASE_UMAC1		0x160400
 #define GRCBASE_XPB		0x161000
 #define GRCBASE_MSTAT0	    0x162000
 #define GRCBASE_MSTAT1	    0x162800
+#define GRCBASE_XMAC0		0x163000
+#define GRCBASE_XMAC1		0x163800
 #define GRCBASE_TIMERS		0x164000
 #define GRCBASE_XSDM		0x166000
 #define GRCBASE_QM		0x168000
