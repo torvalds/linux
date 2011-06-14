@@ -24,7 +24,6 @@
 #ifndef __ASM_ARCH_OMAP_MCBSP_H
 #define __ASM_ARCH_OMAP_MCBSP_H
 
-#include <linux/completion.h>
 #include <linux/spinlock.h>
 
 #include <mach/hardware.h>
@@ -340,10 +339,6 @@ typedef enum {
 	OMAP_MCBSP5
 } omap_mcbsp_id;
 
-typedef int __bitwise omap_mcbsp_io_type_t;
-#define OMAP_MCBSP_IRQ_IO ((__force omap_mcbsp_io_type_t) 1)
-#define OMAP_MCBSP_POLL_IO ((__force omap_mcbsp_io_type_t) 2)
-
 typedef enum {
 	OMAP_MCBSP_WORD_8 = 0,
 	OMAP_MCBSP_WORD_12,
@@ -393,22 +388,12 @@ struct omap_mcbsp {
 	omap_mcbsp_word_length rx_word_length;
 	omap_mcbsp_word_length tx_word_length;
 
-	omap_mcbsp_io_type_t io_type; /* IRQ or poll */
-	/* IRQ based TX/RX */
 	int rx_irq;
 	int tx_irq;
 
 	/* DMA stuff */
 	u8 dma_rx_sync;
-	short dma_rx_lch;
 	u8 dma_tx_sync;
-	short dma_tx_lch;
-
-	/* Completion queues */
-	struct completion tx_irq_completion;
-	struct completion rx_irq_completion;
-	struct completion tx_dma_completion;
-	struct completion rx_dma_completion;
 
 	/* Protect the field .free, while checking if the mcbsp is in use */
 	spinlock_t lock;
@@ -467,19 +452,9 @@ int omap_mcbsp_request(unsigned int id);
 void omap_mcbsp_free(unsigned int id);
 void omap_mcbsp_start(unsigned int id, int tx, int rx);
 void omap_mcbsp_stop(unsigned int id, int tx, int rx);
-void omap_mcbsp_xmit_word(unsigned int id, u32 word);
-u32 omap_mcbsp_recv_word(unsigned int id);
-
-int omap_mcbsp_xmit_buffer(unsigned int id, dma_addr_t buffer, unsigned int length);
-int omap_mcbsp_recv_buffer(unsigned int id, dma_addr_t buffer, unsigned int length);
 
 /* McBSP functional clock source changing function */
 extern int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id);
-
-/* Polled read/write functions */
-int omap_mcbsp_pollread(unsigned int id, u16 * buf);
-int omap_mcbsp_pollwrite(unsigned int id, u16 buf);
-int omap_mcbsp_set_io_type(unsigned int id, omap_mcbsp_io_type_t io_type);
 
 /* McBSP signal muxing API */
 void omap2_mcbsp1_mux_clkr_src(u8 mux);
