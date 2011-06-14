@@ -64,23 +64,10 @@
 static void iwl5000_nic_config(struct iwl_priv *priv)
 {
 	unsigned long flags;
-	u16 radio_cfg;
+
+	iwl_rf_config(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
-
-	radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
-
-	/* write radio config values to register */
-	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) < EEPROM_RF_CONFIG_TYPE_MAX)
-		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			    EEPROM_RF_CFG_TYPE_MSK(radio_cfg) |
-			    EEPROM_RF_CFG_STEP_MSK(radio_cfg) |
-			    EEPROM_RF_CFG_DASH_MSK(radio_cfg));
-
-	/* set CSR_HW_CONFIG_REG for uCode use */
-	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
-		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 
 	/* W/A : NIC is stuck in a reset state after Early PCIe power off
 	 * (PCIe power is lost before PERST# is asserted),
