@@ -34,8 +34,6 @@ struct kvmppc_vcpu_e500 {
 	struct tlbe *guest_tlb[E500_TLB_NUM];
 	/* TLB that's actually used when the guest is running. */
 	struct tlbe *shadow_tlb[E500_TLB_NUM];
-	/* Pages which are referenced in the shadow TLB. */
-	struct page **shadow_pages[E500_TLB_NUM];
 
 	unsigned int guest_tlb_size[E500_TLB_NUM];
 	unsigned int shadow_tlb_size[E500_TLB_NUM];
