@@ -27,6 +27,7 @@
 
 /* forward references */
 struct v4l2_ctrl_handler;
+struct v4l2_ctrl_helper;
 struct v4l2_ctrl;
 struct video_device;
 struct v4l2_subdev;
@@ -150,6 +151,7 @@ struct v4l2_ctrl {
   * @node:	List node for the sorted list.
   * @next:	Single-link list node for the hash.
   * @ctrl:	The actual control information.
+  * @helper:	Pointer to helper struct. Used internally in prepare_ext_ctrls().
   *
   * Each control handler has a list of these refs. The list_head is used to
   * keep a sorted-by-control-ID list of all controls, while the next pointer
@@ -159,6 +161,7 @@ struct v4l2_ctrl_ref {
 	struct list_head node;
 	struct v4l2_ctrl_ref *next;
 	struct v4l2_ctrl *ctrl;
+	struct v4l2_ctrl_helper *helper;
 };
 
 /** struct v4l2_ctrl_handler - The control handler keeps track of all the
