@@ -63,8 +63,8 @@ void fsnotify_destroy_inode_mark(struct fsnotify_mark *mark)
 {
 	struct inode *inode = mark->i.inode;
 
+	BUG_ON(!mutex_is_locked(&mark->group->mark_mutex));
 	assert_spin_locked(&mark->lock);
-	assert_spin_locked(&mark->group->mark_lock);
 
 	spin_lock(&inode->i_lock);
 
@@ -191,8 +191,8 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 
 	mark->flags |= FSNOTIFY_MARK_FLAG_INODE;
 
+	BUG_ON(!mutex_is_locked(&group->mark_mutex));
 	assert_spin_locked(&mark->lock);
-	assert_spin_locked(&group->mark_lock);
 
 	spin_lock(&inode->i_lock);
 

@@ -95,7 +95,7 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 	init_waitqueue_head(&group->notification_waitq);
 	group->max_events = UINT_MAX;
 
-	spin_lock_init(&group->mark_lock);
+	mutex_init(&group->mark_mutex);
 	INIT_LIST_HEAD(&group->marks_list);
 
 	group->ops = ops;

@@ -88,8 +88,8 @@ void fsnotify_destroy_vfsmount_mark(struct fsnotify_mark *mark)
 {
 	struct vfsmount *mnt = mark->m.mnt;
 
+	BUG_ON(!mutex_is_locked(&mark->group->mark_mutex));
 	assert_spin_locked(&mark->lock);
-	assert_spin_locked(&mark->group->mark_lock);
 
 	spin_lock(&mnt->mnt_root->d_lock);
 
@@ -151,8 +151,8 @@ int fsnotify_add_vfsmount_mark(struct fsnotify_mark *mark,
 
 	mark->flags |= FSNOTIFY_MARK_FLAG_VFSMOUNT;
 
+	BUG_ON(!mutex_is_locked(&group->mark_mutex));
 	assert_spin_locked(&mark->lock);
-	assert_spin_locked(&group->mark_lock);
 
 	spin_lock(&mnt->mnt_root->d_lock);
 

@@ -136,13 +136,13 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 	group = mark->group;
 	spin_unlock(&mark->lock);
 
-	spin_lock(&group->mark_lock);
+	mutex_lock(&group->mark_mutex);
 	spin_lock(&mark->lock);
 
 	/* something else already called this function on this mark */
 	if (!(mark->flags & FSNOTIFY_MARK_FLAG_ALIVE)) {
 		spin_unlock(&mark->lock);
-		spin_unlock(&group->mark_lock);
+		mutex_unlock(&group->mark_mutex);
 		goto put_group;
 	}
 
@@ -159,7 +159,7 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark)
 	list_del_init(&mark->g_list);
 
 	spin_unlock(&mark->lock);
-	spin_unlock(&group->mark_lock);
+	mutex_unlock(&group->mark_mutex);
 
 	spin_lock(&destroy_lock);
 	list_add(&mark->destroy_list, &destroy_list);
@@ -232,11 +232,11 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 
 	/*
 	 * LOCKING ORDER!!!!
-	 * group->mark_lock
+	 * group->mark_mutex
 	 * mark->lock
 	 * inode->i_lock
 	 */
-	spin_lock(&group->mark_lock);
+	mutex_lock(&group->mark_mutex);
 
 	spin_lock(&mark->lock);
 	mark->flags |= FSNOTIFY_MARK_FLAG_ALIVE;
@@ -263,7 +263,7 @@ int fsnotify_add_mark(struct fsnotify_mark *mark,
 	fsnotify_set_mark_mask_locked(mark, mark->mask);
 	spin_unlock(&mark->lock);
 
-	spin_unlock(&group->mark_lock);
+	mutex_unlock(&group->mark_mutex);
 
 	if (inode)
 		__fsnotify_update_child_dentry_flags(inode);
@@ -277,7 +277,7 @@ err:
 	atomic_dec(&group->num_marks);
 
 	spin_unlock(&mark->lock);
-	spin_unlock(&group->mark_lock);
+	mutex_unlock(&group->mark_mutex);
 
 	spin_lock(&destroy_lock);
 	list_add(&mark->destroy_list, &destroy_list);
@@ -296,7 +296,7 @@ void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group,
 	struct fsnotify_mark *lmark, *mark;
 	LIST_HEAD(free_list);
 
-	spin_lock(&group->mark_lock);
+	mutex_lock(&group->mark_mutex);
 	list_for_each_entry_safe(mark, lmark, &group->marks_list, g_list) {
 		if (mark->flags & flags) {
 			list_add(&mark->free_g_list, &free_list);
@@ -304,7 +304,7 @@ void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group,
 			fsnotify_get_mark(mark);
 		}
 	}
-	spin_unlock(&group->mark_lock);
+	mutex_unlock(&group->mark_mutex);
 
 	list_for_each_entry_safe(mark, lmark, &free_list, free_g_list) {
 		fsnotify_destroy_mark(mark);

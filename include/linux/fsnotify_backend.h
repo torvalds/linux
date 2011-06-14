@@ -141,7 +141,7 @@ struct fsnotify_group {
 	unsigned int priority;
 
 	/* stores all fastpath marks assoc with this group so they can be cleaned on unregister */
-	spinlock_t mark_lock;		/* protect marks_list */
+	struct mutex mark_mutex;	/* protect marks_list */
 	atomic_t num_marks;		/* 1 for each mark and 1 for not being
 					 * past the point of no return when freeing
 					 * a group */
