@@ -1044,8 +1044,8 @@ static bool dp83640_rxtstamp(struct phy_device *phydev,
 
 	if (is_status_frame(skb, type)) {
 		decode_status_frame(dp83640, skb);
-		/* Let the stack drop this frame. */
-		return false;
+		kfree_skb(skb);
+		return true;
 	}
 
 	SKB_PTP_TYPE(skb) = type;
