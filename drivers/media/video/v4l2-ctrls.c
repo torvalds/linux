@@ -1411,26 +1411,21 @@ int v4l2_ctrl_handler_setup(struct v4l2_ctrl_handler *hdl)
 		int i;
 
 		/* Skip if this control was already handled by a cluster. */
-		if (ctrl->done)
+		/* Skip button controls and read-only controls. */
+		if (ctrl->done || ctrl->type == V4L2_CTRL_TYPE_BUTTON ||
+		    (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY))
 			continue;
 
 		for (i = 0; i < master->ncontrols; i++) {
 			if (master->cluster[i]) {
 				cur_to_new(master->cluster[i]);
 				master->cluster[i]->is_new = 1;
+				master->cluster[i]->done = true;
 			}
 		}
-
-		/* Skip button controls and read-only controls. */
-		if (ctrl->type == V4L2_CTRL_TYPE_BUTTON ||
-		    (ctrl->flags & V4L2_CTRL_FLAG_READ_ONLY))
-			continue;
 		ret = call_op(master, s_ctrl);
 		if (ret)
 			break;
-		for (i = 0; i < master->ncontrols; i++)
-			if (master->cluster[i])
-				master->cluster[i]->done = true;
 	}
 	mutex_unlock(&hdl->lock);
 	return ret;
