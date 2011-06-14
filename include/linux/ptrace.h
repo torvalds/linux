@@ -48,6 +48,7 @@
 #define PTRACE_SETREGSET	0x4205
 
 #define PTRACE_SEIZE		0x4206
+#define PTRACE_INTERRUPT	0x4207
 
 /* flags in @data for PTRACE_SEIZE */
 #define PTRACE_SEIZE_DEVEL	0x80000000 /* temp flag for development */
