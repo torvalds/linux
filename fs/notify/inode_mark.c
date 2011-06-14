@@ -99,8 +99,16 @@ void fsnotify_clear_marks_by_inode(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 
 	list_for_each_entry_safe(mark, lmark, &free_list, i.free_i_list) {
-		fsnotify_destroy_mark(mark);
+		struct fsnotify_group *group;
+
+		spin_lock(&mark->lock);
+		fsnotify_get_group(mark->group);
+		group = mark->group;
+		spin_unlock(&mark->lock);
+
+		fsnotify_destroy_mark(mark, group);
 		fsnotify_put_mark(mark);
+		fsnotify_put_group(group);
 	}
 }
 

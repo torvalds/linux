@@ -408,8 +408,9 @@ extern void fsnotify_set_mark_mask_locked(struct fsnotify_mark *mark, __u32 mask
 /* attach the mark to both the group and the inode */
 extern int fsnotify_add_mark(struct fsnotify_mark *mark, struct fsnotify_group *group,
 			     struct inode *inode, struct vfsmount *mnt, int allow_dups);
-/* given a mark, flag it to be freed when all references are dropped */
-extern void fsnotify_destroy_mark(struct fsnotify_mark *mark);
+/* given a group and a mark, flag mark to be freed when all references are dropped */
+extern void fsnotify_destroy_mark(struct fsnotify_mark *mark,
+				  struct fsnotify_group *group);
 /* run all the marks in a group, and clear all of the vfsmount marks */
 extern void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group);
 /* run all the marks in a group, and clear all of the inode marks */

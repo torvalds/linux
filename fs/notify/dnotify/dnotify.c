@@ -201,7 +201,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 
 	/* nothing else could have found us thanks to the dnotify_mark_mutex */
 	if (dn_mark->dn == NULL)
-		fsnotify_destroy_mark(fsn_mark);
+		fsnotify_destroy_mark(fsn_mark, dnotify_group);
 
 	mutex_unlock(&dnotify_mark_mutex);
 
@@ -385,7 +385,7 @@ out:
 	spin_unlock(&fsn_mark->lock);
 
 	if (destroy)
-		fsnotify_destroy_mark(fsn_mark);
+		fsnotify_destroy_mark(fsn_mark, dnotify_group);
 
 	mutex_unlock(&dnotify_mark_mutex);
 	fsnotify_put_mark(fsn_mark);

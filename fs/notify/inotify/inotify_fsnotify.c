@@ -132,7 +132,7 @@ static int inotify_handle_event(struct fsnotify_group *group,
 	}
 
 	if (inode_mark->mask & IN_ONESHOT)
-		fsnotify_destroy_mark(inode_mark);
+		fsnotify_destroy_mark(inode_mark, group);
 
 	return ret;
 }
