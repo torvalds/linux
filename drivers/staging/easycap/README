@@ -60,8 +60,8 @@ Three module parameters are defined:
 
 debug      the easycap module is configured at diagnostic level n (0 to 9)
 gain       audio gain level n (0 to 31, default is 16)
-bars       0 =>  testcard bars when incoming video signal is lost
-           1 =>  testcard bars when incoming video signal is lost (default)
+bars       whether to display testcard bars when incoming video signal is lost
+           0 => no, 1 => yes (default)
 
 
 SUPPORTED TV STANDARDS AND RESOLUTIONS
