@@ -80,10 +80,10 @@ static void iwl2000_nic_config(struct iwl_priv *priv)
 
 	/* write radio config values to register */
 	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <= EEPROM_RF_CONFIG_TYPE_MAX)
-	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			EEPROM_RF_CFG_TYPE_MSK(radio_cfg) |
-			EEPROM_RF_CFG_STEP_MSK(radio_cfg) |
-			EEPROM_RF_CFG_DASH_MSK(radio_cfg));
+		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+			    EEPROM_RF_CFG_TYPE_MSK(radio_cfg) |
+			    EEPROM_RF_CFG_STEP_MSK(radio_cfg) |
+			    EEPROM_RF_CFG_DASH_MSK(radio_cfg));
 
 	/* set CSR_HW_CONFIG_REG for uCode use */
 	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
