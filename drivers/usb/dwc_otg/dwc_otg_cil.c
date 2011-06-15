@@ -454,7 +454,6 @@ void dwc_otg_core_init(dwc_otg_core_if_t *_core_if)
 
 	/* Reset the Controller */
 	dwc_otg_core_reset( _core_if );
-    DWC_PRINT("GINTSTS:0x%x \n",_core_if->core_global_regs->gintsts);
 
 	/* Initialize parameters from Hardware configuration registers. */
 	dev_if->num_in_eps = calc_num_in_eps(_core_if);
@@ -629,7 +628,6 @@ void dwc_otg_core_init(dwc_otg_core_if_t *_core_if)
 
 	/* Enable common interrupts */
 	dwc_otg_enable_common_interrupts( _core_if );
-    DWC_PRINT("GINTSTS:0x%x kever@rk 20110425\n",_core_if->core_global_regs->gintsts);
 	/* Do device or host intialization based on mode during PCD
 	 * and HCD initialization  */
 	if (dwc_otg_is_host_mode( _core_if )) 
@@ -2941,7 +2939,8 @@ void dwc_otg_core_reset(dwc_otg_core_if_t *_core_if)
     dwc_write_reg32( &global_regs->gusbcfg, usbcfg.d32 );
 	/* Wait for 3 PHY Clocks*/
 	//DWC_PRINT("100ms\n");
-	mdelay(100);
+	// rk29 has change the usb id debouce time to 100ms
+	mdelay(105);
 	count = 0;
 	if(usbcfg.b.force_hst_mode)
 	do 
