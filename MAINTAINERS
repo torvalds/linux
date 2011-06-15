@@ -4144,7 +4144,7 @@ F:	include/linux/mm.h
 F:	mm/
 
 MEMORY RESOURCE CONTROLLER
-M:	Balbir Singh <balbir@linux.vnet.ibm.com>
+M:	Balbir Singh <bsingharora@gmail.com>
 M:	Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 M:	KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 L:	linux-mm@kvack.org
@@ -4889,7 +4889,7 @@ F:	mm/percpu*.c
 F:	arch/*/include/asm/percpu.h
 
 PER-TASK DELAY ACCOUNTING
-M:	Balbir Singh <balbir@linux.vnet.ibm.com>
+M:	Balbir Singh <bsingharora@gmail.com>
 S:	Maintained
 F:	include/linux/delayacct.h
 F:	kernel/delayacct.c
@@ -6097,7 +6097,7 @@ F:	include/target/
 F:	Documentation/target/
 
 TASKSTATS STATISTICS INTERFACE
-M:	Balbir Singh <balbir@linux.vnet.ibm.com>
+M:	Balbir Singh <bsingharora@gmail.com>
 S:	Maintained
 F:	Documentation/accounting/taskstats*
 F:	include/linux/taskstats*
