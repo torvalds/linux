@@ -551,7 +551,6 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 	.go_lock = inode_go_lock,
 	.go_dump = inode_go_dump,
 	.go_type = LM_TYPE_INODE,
-	.go_min_hold_time = HZ / 5,
 	.go_flags = GLOF_ASPACE,
 };
 
@@ -562,7 +561,6 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_unlock = rgrp_go_unlock,
 	.go_dump = gfs2_rgrp_dump,
 	.go_type = LM_TYPE_RGRP,
-	.go_min_hold_time = HZ / 5,
 	.go_flags = GLOF_ASPACE,
 };
 
