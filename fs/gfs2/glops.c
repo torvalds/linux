@@ -26,6 +26,7 @@
 #include "rgrp.h"
 #include "util.h"
 #include "trans.h"
+#include "dir.h"
 
 /**
  * __gfs2_ail_flush - remove all buffers for a given lock from the AIL
@@ -218,6 +219,7 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 		if (ip) {
 			set_bit(GIF_INVALID, &ip->i_flags);
 			forget_all_cached_acls(&ip->i_inode);
+			gfs2_dir_hash_inval(ip);
 		}
 	}
 

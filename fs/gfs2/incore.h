@@ -285,6 +285,7 @@ struct gfs2_inode {
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
 	struct list_head i_trunc_list;
+	__be64 *i_hash_cache;
 	u32 i_entries;
 	u32 i_diskflags;
 	u8 i_height;
