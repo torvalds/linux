@@ -59,6 +59,25 @@ static void b43_phy_ht_op_free(struct b43_wldev *dev)
 	phy->ht = NULL;
 }
 
+static void b43_phy_ht_op_switch_analog(struct b43_wldev *dev, bool on)
+{
+	if (on) {
+		b43_phy_write(dev, B43_PHY_HT_AFE_CTL2, 0x00cd);
+		b43_phy_write(dev, B43_PHY_HT_AFE_CTL1, 0x0000);
+		b43_phy_write(dev, B43_PHY_HT_AFE_CTL4, 0x00cd);
+		b43_phy_write(dev, B43_PHY_HT_AFE_CTL3, 0x0000);
+		b43_phy_write(dev, B43_PHY_HT_AFE_CTL6, 0x00cd);
+		b43_phy_write(dev, B43_PHY_HT_AFE_CTL5, 0x0000);
+	} else {
+		b43_phy_write(dev, B43_PHY_HT_AFE_CTL1, 0x07ff);
+		b43_phy_write(dev, B43_PHY_HT_AFE_CTL2, 0x00fd);
+		b43_phy_write(dev, B43_PHY_HT_AFE_CTL3, 0x07ff);
+		b43_phy_write(dev, B43_PHY_HT_AFE_CTL4, 0x00fd);
+		b43_phy_write(dev, B43_PHY_HT_AFE_CTL5, 0x07ff);
+		b43_phy_write(dev, B43_PHY_HT_AFE_CTL6, 0x00fd);
+	}
+}
+
 static unsigned int b43_phy_ht_op_get_default_chan(struct b43_wldev *dev)
 {
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
@@ -124,7 +143,9 @@ const struct b43_phy_operations b43_phyops_ht = {
 	.radio_write		= b43_phy_ht_op_radio_write,
 	/*
 	.software_rfkill	= b43_phy_ht_op_software_rfkill,
+	*/
 	.switch_analog		= b43_phy_ht_op_switch_analog,
+	/*
 	.switch_channel		= b43_phy_ht_op_switch_channel,
 	*/
 	.get_default_chan	= b43_phy_ht_op_get_default_chan,
