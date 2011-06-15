@@ -602,10 +602,14 @@ static void rcu_preempt_process_callbacks(void)
 				&__get_cpu_var(rcu_preempt_data));
 }
 
+#ifdef CONFIG_RCU_BOOST
+
 static void rcu_preempt_do_callbacks(void)
 {
 	rcu_do_batch(&rcu_preempt_state, &__get_cpu_var(rcu_preempt_data));
 }
+
+#endif /* #ifdef CONFIG_RCU_BOOST */
 
 /*
  * Queue a preemptible-RCU callback for invocation after a grace period.
@@ -1002,10 +1006,6 @@ static void rcu_preempt_process_callbacks(void)
 {
 }
 
-static void rcu_preempt_do_callbacks(void)
-{
-}
-
 /*
  * Wait for an rcu-preempt grace period, but make it happen quickly.
  * But because preemptible RCU does not exist, map to rcu-sched.
@@ -1258,6 +1258,23 @@ static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 }
 
 /*
+ * Wake up the per-CPU kthread to invoke RCU callbacks.
+ */
+static void invoke_rcu_callbacks_kthread(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__this_cpu_write(rcu_cpu_has_work, 1);
+	if (__this_cpu_read(rcu_cpu_kthread_task) == NULL) {
+		local_irq_restore(flags);
+		return;
+	}
+	wake_up_process(__this_cpu_read(rcu_cpu_kthread_task));
+	local_irq_restore(flags);
+}
+
+/*
  * Set the affinity of the boost kthread.  The CPU-hotplug locks are
  * held, so no one should be messing with the existence of the boost
  * kthread.
@@ -1297,6 +1314,7 @@ static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 
 	if (&rcu_preempt_state != rsp)
 		return 0;
+	rsp->boost = 1;
 	if (rnp->boost_kthread_task != NULL)
 		return 0;
 	t = kthread_create(rcu_boost_kthread, (void *)rnp,
@@ -1319,20 +1337,13 @@ static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags)
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
 
-static void rcu_boost_kthread_setaffinity(struct rcu_node *rnp,
-					  cpumask_var_t cm)
+static void invoke_rcu_callbacks_kthread(void)
 {
+	WARN_ON_ONCE(1);
 }
 
 static void rcu_preempt_boost_start_gp(struct rcu_node *rnp)
 {
-}
-
-static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
-						 struct rcu_node *rnp,
-						 int rnp_index)
-{
-	return 0;
 }
 
 #endif /* #else #ifdef CONFIG_RCU_BOOST */
@@ -1509,7 +1520,7 @@ static DEFINE_PER_CPU(unsigned long, rcu_dyntick_holdoff);
  *
  * Because it is not legal to invoke rcu_process_callbacks() with irqs
  * disabled, we do one pass of force_quiescent_state(), then do a
- * invoke_rcu_cpu_kthread() to cause rcu_process_callbacks() to be invoked
+ * invoke_rcu_core() to cause rcu_process_callbacks() to be invoked
  * later.  The per-cpu rcu_dyntick_drain variable controls the sequencing.
  */
 int rcu_needs_cpu(int cpu)
@@ -1560,7 +1571,7 @@ int rcu_needs_cpu(int cpu)
 
 	/* If RCU callbacks are still pending, RCU still needs this CPU. */
 	if (c)
-		invoke_rcu_cpu_kthread();
+		invoke_rcu_core();
 	return c;
 }
 

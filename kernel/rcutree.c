@@ -87,6 +87,8 @@ static struct rcu_state *rcu_state;
 int rcu_scheduler_active __read_mostly;
 EXPORT_SYMBOL_GPL(rcu_scheduler_active);
 
+#ifdef CONFIG_RCU_BOOST
+
 /*
  * Control variables for per-CPU and per-rcu_node kthreads.  These
  * handle all flavors of RCU.
@@ -98,9 +100,11 @@ DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_loops);
 DEFINE_PER_CPU(char, rcu_cpu_has_work);
 static char rcu_kthreads_spawnable;
 
+#endif /* #ifdef CONFIG_RCU_BOOST */
+
 static void rcu_node_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu);
-static void invoke_rcu_cpu_kthread(void);
-static void __invoke_rcu_cpu_kthread(void);
+static void invoke_rcu_core(void);
+static void invoke_rcu_callbacks(struct rcu_state *rsp, struct rcu_data *rdp);
 
 #define RCU_KTHREAD_PRIO 1	/* RT priority for per-CPU kthreads. */
 
@@ -1089,6 +1093,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 	int need_report = 0;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp;
+#ifdef CONFIG_RCU_BOOST
 	struct task_struct *t;
 
 	/* Stop the CPU's kthread. */
@@ -1097,6 +1102,7 @@ static void __rcu_offline_cpu(int cpu, struct rcu_state *rsp)
 		per_cpu(rcu_cpu_kthread_task, cpu) = NULL;
 		kthread_stop(t);
 	}
+#endif /* #ifdef CONFIG_RCU_BOOST */
 
 	/* Exclude any attempts to start a new grace period. */
 	raw_spin_lock_irqsave(&rsp->onofflock, flags);
@@ -1232,7 +1238,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	/* Re-raise the RCU softirq if there are callbacks remaining. */
 	if (cpu_has_callbacks_ready_to_invoke(rdp))
-		invoke_rcu_cpu_kthread();
+		invoke_rcu_core();
 }
 
 /*
@@ -1278,7 +1284,7 @@ void rcu_check_callbacks(int cpu, int user)
 	}
 	rcu_preempt_check_callbacks(cpu);
 	if (rcu_pending(cpu))
-		invoke_rcu_cpu_kthread();
+		invoke_rcu_core();
 }
 
 #ifdef CONFIG_SMP
@@ -1444,8 +1450,10 @@ __rcu_process_callbacks(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	/* If there are callbacks ready, invoke them. */
 	if (cpu_has_callbacks_ready_to_invoke(rdp))
-		__invoke_rcu_cpu_kthread();
+		invoke_rcu_callbacks(rsp, rdp);
 }
+
+#ifdef CONFIG_RCU_BOOST
 
 static void rcu_kthread_do_work(void)
 {
@@ -1453,6 +1461,8 @@ static void rcu_kthread_do_work(void)
 	rcu_do_batch(&rcu_bh_state, &__get_cpu_var(rcu_bh_data));
 	rcu_preempt_do_callbacks();
 }
+
+#endif /* #ifdef CONFIG_RCU_BOOST */
 
 /*
  * Do softirq processing for the current CPU.
@@ -1474,24 +1484,21 @@ static void rcu_process_callbacks(struct softirq_action *unused)
  * the current CPU with interrupts disabled, the rcu_cpu_kthread_task
  * cannot disappear out from under us.
  */
-static void __invoke_rcu_cpu_kthread(void)
+static void invoke_rcu_callbacks(struct rcu_state *rsp, struct rcu_data *rdp)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__this_cpu_write(rcu_cpu_has_work, 1);
-	if (__this_cpu_read(rcu_cpu_kthread_task) == NULL) {
-		local_irq_restore(flags);
+	if (likely(!rsp->boost)) {
+		rcu_do_batch(rsp, rdp);
 		return;
 	}
-	wake_up_process(__this_cpu_read(rcu_cpu_kthread_task));
-	local_irq_restore(flags);
+	invoke_rcu_callbacks_kthread();
 }
 
-static void invoke_rcu_cpu_kthread(void)
+static void invoke_rcu_core(void)
 {
 	raise_softirq(RCU_SOFTIRQ);
 }
+
+#ifdef CONFIG_RCU_BOOST
 
 /*
  * Wake up the specified per-rcu_node-structure kthread.
@@ -1817,6 +1824,18 @@ static int __init rcu_spawn_kthreads(void)
 	return 0;
 }
 early_initcall(rcu_spawn_kthreads);
+
+#else /* #ifdef CONFIG_RCU_BOOST */
+
+static void rcu_node_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu)
+{
+}
+
+static void rcu_cpu_kthread_setrt(int cpu, int to_rt)
+{
+}
+
+#endif /* #else #ifdef CONFIG_RCU_BOOST */
 
 static void
 __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
@@ -2224,6 +2243,8 @@ static void __cpuinit rcu_prepare_cpu(int cpu)
 	rcu_preempt_init_percpu_data(cpu);
 }
 
+#ifdef CONFIG_RCU_BOOST
+
 static void __cpuinit rcu_prepare_kthreads(int cpu)
 {
 	struct rcu_data *rdp = per_cpu_ptr(rcu_state->rda, cpu);
@@ -2236,6 +2257,14 @@ static void __cpuinit rcu_prepare_kthreads(int cpu)
 			(void)rcu_spawn_one_node_kthread(rcu_state, rnp);
 	}
 }
+
+#else /* #ifdef CONFIG_RCU_BOOST */
+
+static void __cpuinit rcu_prepare_kthreads(int cpu)
+{
+}
+
+#endif /* #else #ifdef CONFIG_RCU_BOOST */
 
 /*
  * Handle CPU online/offline notification events.
