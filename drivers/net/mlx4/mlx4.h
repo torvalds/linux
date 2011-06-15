@@ -342,6 +342,7 @@ struct mlx4_priv {
 	struct mlx4_srq_table	srq_table;
 	struct mlx4_qp_table	qp_table;
 	struct mlx4_mcg_table	mcg_table;
+	struct mlx4_bitmap	counters_bitmap;
 
 	struct mlx4_catas_err	catas_err;
 

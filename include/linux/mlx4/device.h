@@ -78,7 +78,8 @@ enum {
 	MLX4_DEV_CAP_FLAG_WOL		= 1LL << 38,
 	MLX4_DEV_CAP_FLAG_UDP_RSS	= 1LL << 40,
 	MLX4_DEV_CAP_FLAG_VEP_UC_STEER	= 1LL << 41,
-	MLX4_DEV_CAP_FLAG_VEP_MC_STEER	= 1LL << 42
+	MLX4_DEV_CAP_FLAG_VEP_MC_STEER	= 1LL << 42,
+	MLX4_DEV_CAP_FLAG_COUNTERS	= 1LL << 48
 };
 
 enum {
@@ -274,6 +275,7 @@ struct mlx4_caps {
 	u8			supported_type[MLX4_MAX_PORTS + 1];
 	u32			port_mask;
 	enum mlx4_port_type	possible_type[MLX4_MAX_PORTS + 1];
+	u32			max_counters;
 };
 
 struct mlx4_buf_list {
@@ -438,6 +440,17 @@ union mlx4_ext_av {
 	struct mlx4_eth_av	eth;
 };
 
+struct mlx4_counter {
+	u8	reserved1[3];
+	u8	counter_mode;
+	__be32	num_ifc;
+	u32	reserved2[2];
+	__be64	rx_frames;
+	__be64	rx_bytes;
+	__be64	tx_frames;
+	__be64	tx_bytes;
+};
+
 struct mlx4_dev {
 	struct pci_dev	       *pdev;
 	unsigned long		flags;
@@ -567,5 +580,8 @@ void mlx4_release_eq(struct mlx4_dev *dev, int vec);
 
 int mlx4_wol_read(struct mlx4_dev *dev, u64 *config, int port);
 int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port);
+
+int mlx4_counter_alloc(struct mlx4_dev *dev, u32 *idx);
+void mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
 
 #endif /* MLX4_DEVICE_H */

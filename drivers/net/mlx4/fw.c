@@ -104,7 +104,8 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u64 flags)
 		[38] = "Wake On LAN support",
 		[40] = "UDP RSS support",
 		[41] = "Unicast VEP steering support",
-		[42] = "Multicast VEP steering support"
+		[42] = "Multicast VEP steering support",
+		[48] = "Counters support",
 	};
 	int i;
 
@@ -203,6 +204,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MAX_MCG_OFFSET		0x63
 #define QUERY_DEV_CAP_RSVD_PD_OFFSET		0x64
 #define QUERY_DEV_CAP_MAX_PD_OFFSET		0x65
+#define QUERY_DEV_CAP_MAX_COUNTERS_OFFSET	0x68
 #define QUERY_DEV_CAP_RDMARC_ENTRY_SZ_OFFSET	0x80
 #define QUERY_DEV_CAP_QPC_ENTRY_SZ_OFFSET	0x82
 #define QUERY_DEV_CAP_AUX_ENTRY_SZ_OFFSET	0x84
@@ -355,6 +357,9 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		 QUERY_DEV_CAP_RSVD_LKEY_OFFSET);
 	MLX4_GET(dev_cap->max_icm_sz, outbox,
 		 QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET);
+	if (dev_cap->flags & MLX4_DEV_CAP_FLAG_COUNTERS)
+		MLX4_GET(dev_cap->max_counters, outbox,
+			 QUERY_DEV_CAP_MAX_COUNTERS_OFFSET);
 
 	if (dev->flags & MLX4_FLAG_OLD_PORT_CMDS) {
 		for (i = 1; i <= dev_cap->num_ports; ++i) {
@@ -448,6 +453,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	mlx4_dbg(dev, "Max RQ desc size: %d, max RQ S/G: %d\n",
 		 dev_cap->max_rq_desc_sz, dev_cap->max_rq_sg);
 	mlx4_dbg(dev, "Max GSO size: %d\n", dev_cap->max_gso_sz);
+	mlx4_dbg(dev, "Max counters: %d\n", dev_cap->max_counters);
 
 	dump_dev_cap_flags(dev, dev_cap->flags);
 
@@ -779,6 +785,10 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 	/* Enable QoS support if module parameter set */
 	if (enable_qos)
 		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 2);
+
+	/* enable counters */
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_COUNTERS)
+		*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 4);
 
 	/* QPC/EEC/CQC/EQC/RDMARC attributes */
 
