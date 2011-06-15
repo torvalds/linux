@@ -4,6 +4,7 @@
 
 struct mnt_namespace {
 	atomic_t		count;
+	unsigned int		proc_inum;
 	struct mount *	root;
 	struct list_head	list;
 	struct user_namespace	*user_ns;
