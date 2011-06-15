@@ -600,3 +600,10 @@ Why:	Superseded by the UVCIOC_CTRL_QUERY ioctl.
 Who:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
 ----------------------------
+
+What:	g_file_storage driver
+When:	3.8
+Why:	This driver has been superseded by g_mass_storage.
+Who:	Alan Stern <stern@rowland.harvard.edu>
+
+----------------------------

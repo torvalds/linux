@@ -3486,6 +3486,8 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	}
 
 	INFO(fsg, DRIVER_DESC ", version: " DRIVER_VERSION "\n");
+	INFO(fsg, "NOTE: This driver is deprecated.  "
+			"Consider using g_mass_storage instead.\n");
 	INFO(fsg, "Number of LUNs=%d\n", fsg->nluns);
 
 	pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
