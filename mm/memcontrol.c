@@ -1670,7 +1670,13 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 		victim = mem_cgroup_select_victim(root_mem);
 		if (victim == root_mem) {
 			loop++;
-			if (loop >= 1)
+			/*
+			 * We are not draining per cpu cached charges during
+			 * soft limit reclaim  because global reclaim doesn't
+			 * care about charges. It tries to free some memory and
+			 * charges will not give any.
+			 */
+			if (!check_soft && loop >= 1)
 				drain_all_stock_async(root_mem);
 			if (loop >= 2) {
 				/*
