@@ -23,6 +23,8 @@
 #include <linux/swap.h>
 #include <linux/memcontrol.h>
 
+#include <trace/events/vmscan.h>
+
 static DEFINE_SPINLOCK(swap_token_lock);
 struct mm_struct *swap_token_mm;
 struct mem_cgroup *swap_token_memcg;
@@ -49,6 +51,7 @@ static struct mem_cgroup *swap_token_memcg_from_mm(struct mm_struct *mm)
 void grab_swap_token(struct mm_struct *mm)
 {
 	int current_interval;
+	unsigned int old_prio = mm->token_priority;
 
 	global_faults++;
 
@@ -63,7 +66,7 @@ void grab_swap_token(struct mm_struct *mm)
 
 	if (mm == swap_token_mm) {
 		mm->token_priority += 2;
-		goto out;
+		goto update_priority;
 	}
 
 	if (current_interval < mm->last_interval)
@@ -77,6 +80,9 @@ void grab_swap_token(struct mm_struct *mm)
 	if (mm->token_priority > swap_token_mm->token_priority)
 		goto replace_token;
 
+update_priority:
+	trace_update_swap_token_priority(mm, old_prio);
+
 out:
 	mm->faultstamp = global_faults;
 	mm->last_interval = current_interval;
@@ -85,6 +91,7 @@ out:
 
 replace_token:
 	mm->token_priority += 2;
+	trace_replace_swap_token(swap_token_mm, mm);
 	swap_token_mm = mm;
 	swap_token_memcg = swap_token_memcg_from_mm(mm);
 	goto out;
@@ -95,6 +102,7 @@ void __put_swap_token(struct mm_struct *mm)
 {
 	spin_lock(&swap_token_lock);
 	if (likely(mm == swap_token_mm)) {
+		trace_put_swap_token(swap_token_mm);
 		swap_token_mm = NULL;
 		swap_token_memcg = NULL;
 	}
@@ -118,6 +126,7 @@ void disable_swap_token(struct mem_cgroup *memcg)
 	if (match_memcg(memcg, swap_token_memcg)) {
 		spin_lock(&swap_token_lock);
 		if (match_memcg(memcg, swap_token_memcg)) {
+			trace_disable_swap_token(swap_token_mm);
 			swap_token_mm = NULL;
 			swap_token_memcg = NULL;
 		}
