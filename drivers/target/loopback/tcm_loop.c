@@ -1143,7 +1143,7 @@ static ssize_t tcm_loop_tpg_store_nexus(
 	 * the fabric protocol_id set in tcm_loop_make_scsi_hba(), and call
 	 * tcm_loop_make_nexus()
 	 */
-	if (strlen(page) > TL_WWN_ADDR_LEN) {
+	if (strlen(page) >= TL_WWN_ADDR_LEN) {
 		printk(KERN_ERR "Emulated NAA Sas Address: %s, exceeds"
 				" max: %d\n", page, TL_WWN_ADDR_LEN);
 		return -EINVAL;
@@ -1324,7 +1324,7 @@ struct se_wwn *tcm_loop_make_scsi_hba(
 	return ERR_PTR(-EINVAL);
 
 check_len:
-	if (strlen(name) > TL_WWN_ADDR_LEN) {
+	if (strlen(name) >= TL_WWN_ADDR_LEN) {
 		printk(KERN_ERR "Emulated NAA %s Address: %s, exceeds"
 			" max: %d\n", name, tcm_loop_dump_proto_id(tl_hba),
 			TL_WWN_ADDR_LEN);

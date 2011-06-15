@@ -1431,7 +1431,7 @@ struct se_lun_acl *core_dev_init_initiator_node_lun_acl(
 	struct se_lun_acl *lacl;
 	struct se_node_acl *nacl;
 
-	if (strlen(initiatorname) > TRANSPORT_IQN_LEN) {
+	if (strlen(initiatorname) >= TRANSPORT_IQN_LEN) {
 		printk(KERN_ERR "%s InitiatorName exceeds maximum size.\n",
 			TPG_TFO(tpg)->get_fabric_name());
 		*ret = -EOVERFLOW;
