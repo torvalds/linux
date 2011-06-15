@@ -3089,6 +3089,13 @@ alloc:
 			}
 			goto again;
 		}
+
+		/*
+		 * If we have less pinned bytes than we want to allocate then
+		 * don't bother committing the transaction, it won't help us.
+		 */
+		if (data_sinfo->bytes_pinned < bytes)
+			committed = 1;
 		spin_unlock(&data_sinfo->lock);
 
 		/* commit the current transaction and try again */
@@ -5211,9 +5218,7 @@ loop:
 	 * LOOP_NO_EMPTY_SIZE, set empty_size and empty_cluster to 0 and try
 	 *			again
 	 */
-	if (!ins->objectid && loop < LOOP_NO_EMPTY_SIZE &&
-	    (found_uncached_bg || empty_size || empty_cluster ||
-	     allowed_chunk_alloc)) {
+	if (!ins->objectid && loop < LOOP_NO_EMPTY_SIZE) {
 		index = 0;
 		if (loop == LOOP_FIND_IDEAL && found_uncached_bg) {
 			found_uncached_bg = false;
@@ -5253,32 +5258,36 @@ loop:
 			goto search;
 		}
 
-		if (loop < LOOP_CACHING_WAIT) {
-			loop++;
-			goto search;
-		}
+		loop++;
 
 		if (loop == LOOP_ALLOC_CHUNK) {
+		       if (allowed_chunk_alloc) {
+				ret = do_chunk_alloc(trans, root, num_bytes +
+						     2 * 1024 * 1024, data,
+						     CHUNK_ALLOC_LIMITED);
+				allowed_chunk_alloc = 0;
+				if (ret == 1)
+					done_chunk_alloc = 1;
+			} else if (!done_chunk_alloc &&
+				   space_info->force_alloc ==
+				   CHUNK_ALLOC_NO_FORCE) {
+				space_info->force_alloc = CHUNK_ALLOC_LIMITED;
+			}
+
+		       /*
+			* We didn't allocate a chunk, go ahead and drop the
+			* empty size and loop again.
+			*/
+		       if (!done_chunk_alloc)
+			       loop = LOOP_NO_EMPTY_SIZE;
+		}
+
+		if (loop == LOOP_NO_EMPTY_SIZE) {
 			empty_size = 0;
 			empty_cluster = 0;
 		}
 
-		if (allowed_chunk_alloc) {
-			ret = do_chunk_alloc(trans, root, num_bytes +
-					     2 * 1024 * 1024, data,
-					     CHUNK_ALLOC_LIMITED);
-			allowed_chunk_alloc = 0;
-			done_chunk_alloc = 1;
-		} else if (!done_chunk_alloc &&
-			   space_info->force_alloc == CHUNK_ALLOC_NO_FORCE) {
-			space_info->force_alloc = CHUNK_ALLOC_LIMITED;
-		}
-
-		if (loop < LOOP_NO_EMPTY_SIZE) {
-			loop++;
-			goto search;
-		}
-		ret = -ENOSPC;
+		goto search;
 	} else if (!ins->objectid) {
 		ret = -ENOSPC;
 	} else if (ins->objectid) {

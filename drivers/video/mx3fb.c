@@ -1062,15 +1062,15 @@ static int mx3fb_pan_display(struct fb_var_screeninfo *var,
 	y_bottom = var->yoffset;
 
 	if (!(var->vmode & FB_VMODE_YWRAP))
-		y_bottom += var->yres;
+		y_bottom += fbi->var.yres;
 
 	if (y_bottom > fbi->var.yres_virtual)
 		return -EINVAL;
 
 	mutex_lock(&mx3_fbi->mutex);
 
-	offset = (var->yoffset * var->xres_virtual + var->xoffset) *
-		(var->bits_per_pixel / 8);
+	offset = var->yoffset * fbi->fix.line_length
+	       + var->xoffset * (fbi->var.bits_per_pixel / 8);
 	base = fbi->fix.smem_start + offset;
 
 	dev_dbg(fbi->device, "Updating SDC BG buf %d address=0x%08lX\n",

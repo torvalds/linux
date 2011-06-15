@@ -3444,7 +3444,7 @@ restart_ih:
 			radeon_fence_process(rdev);
 			break;
 		case 233: /* GUI IDLE */
-			DRM_DEBUG("IH: CP EOP\n");
+			DRM_DEBUG("IH: GUI idle\n");
 			rdev->pm.gui_idle = true;
 			wake_up(&rdev->irq.idle_queue);
 			break;

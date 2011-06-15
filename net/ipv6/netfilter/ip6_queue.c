@@ -403,7 +403,8 @@ ipq_dev_drop(int ifindex)
 static inline void
 __ipq_rcv_skb(struct sk_buff *skb)
 {
-	int status, type, pid, flags, nlmsglen, skblen;
+	int status, type, pid, flags;
+	unsigned int nlmsglen, skblen;
 	struct nlmsghdr *nlh;
 
 	skblen = skb->len;
