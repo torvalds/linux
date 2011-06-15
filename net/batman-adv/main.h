@@ -151,7 +151,7 @@ int debug_log(struct bat_priv *bat_priv, const char *fmt, ...) __printf(2, 3);
 	while (0)
 #else /* !CONFIG_BATMAN_ADV_DEBUG */
 __printf(3, 4)
-static inline void bat_dbg(char type __always_unused,
+static inline void bat_dbg(int type __always_unused,
 			   struct bat_priv *bat_priv __always_unused,
 			   const char *fmt __always_unused, ...)
 {

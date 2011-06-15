@@ -61,9 +61,9 @@ static void kbit_to_gw_bandwidth(int down, int up, long *gw_srv_class)
 /* returns the up and downspeeds in kbit, calculated from the class */
 void gw_bandwidth_to_kbit(uint8_t gw_srv_class, int *down, int *up)
 {
-	char sbit = (gw_srv_class & 0x80) >> 7;
-	char dpart = (gw_srv_class & 0x78) >> 3;
-	char upart = (gw_srv_class & 0x07);
+	int sbit = (gw_srv_class & 0x80) >> 7;
+	int dpart = (gw_srv_class & 0x78) >> 3;
+	int upart = (gw_srv_class & 0x07);
 
 	if (!gw_srv_class) {
 		*down = 0;

@@ -360,7 +360,7 @@ void gw_node_purge(struct bat_priv *bat_priv)
 	struct gw_node *gw_node, *curr_gw;
 	struct hlist_node *node, *node_tmp;
 	unsigned long timeout = 2 * PURGE_TIMEOUT * HZ;
-	char do_deselect = 0;
+	int do_deselect = 0;
 
 	curr_gw = gw_get_selected_gw_node(bat_priv);
 

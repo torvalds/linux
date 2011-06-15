@@ -163,7 +163,7 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node;
 	struct hlist_node *node;
-	unsigned char total_count;
+	uint8_t total_count;
 	uint8_t orig_eq_count, neigh_rq_count, tq_own;
 	int tq_asym_penalty, ret = 0;
 
@@ -602,9 +602,9 @@ void receive_bat_packet(const struct ethhdr *ethhdr,
 	struct orig_node *orig_neigh_node, *orig_node;
 	struct neigh_node *router = NULL, *router_router = NULL;
 	struct neigh_node *orig_neigh_router = NULL;
-	char has_directlink_flag;
-	char is_my_addr = 0, is_my_orig = 0, is_my_oldorig = 0;
-	char is_broadcast = 0, is_bidirectional, is_single_hop_neigh;
+	int has_directlink_flag;
+	int is_my_addr = 0, is_my_orig = 0, is_my_oldorig = 0;
+	int is_broadcast = 0, is_bidirectional, is_single_hop_neigh;
 	int is_duplicate;
 	uint32_t if_incoming_seqno;
 

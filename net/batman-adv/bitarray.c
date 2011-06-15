@@ -127,8 +127,8 @@ static void bit_reset_window(unsigned long *seq_bits)
  *  1 if the window was moved (either new or very old)
  *  0 if the window was not moved/shifted.
  */
-char bit_get_packet(void *priv, unsigned long *seq_bits,
-		    int32_t seq_num_diff, int8_t set_mark)
+int bit_get_packet(void *priv, unsigned long *seq_bits,
+		    int32_t seq_num_diff, int set_mark)
 {
 	struct bat_priv *bat_priv = priv;
 

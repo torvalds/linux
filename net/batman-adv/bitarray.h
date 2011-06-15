@@ -35,8 +35,8 @@ void bit_mark(unsigned long *seq_bits, int32_t n);
 
 /* receive and process one packet, returns 1 if received seq_num is considered
  * new, 0 if old  */
-char bit_get_packet(void *priv, unsigned long *seq_bits,
-		    int32_t seq_num_diff, int8_t set_mark);
+int bit_get_packet(void *priv, unsigned long *seq_bits,
+		   int32_t seq_num_diff, int set_mark);
 
 /* count the hamming weight, how many good packets did we receive? */
 int bit_packet_count(const unsigned long *seq_bits);

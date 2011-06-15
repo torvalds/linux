@@ -195,7 +195,7 @@ static void aggregate(struct forw_packet *forw_packet_aggr,
 
 void add_bat_packet_to_list(struct bat_priv *bat_priv,
 			    unsigned char *packet_buff, int packet_len,
-			    struct hard_iface *if_incoming, char own_packet,
+			    struct hard_iface *if_incoming, int own_packet,
 			    unsigned long send_time)
 {
 	/**
