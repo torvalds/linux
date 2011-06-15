@@ -82,5 +82,6 @@ source "drivers/net/ethernet/ti/Kconfig"
 source "drivers/net/ethernet/toshiba/Kconfig"
 source "drivers/net/ethernet/tundra/Kconfig"
 source "drivers/net/ethernet/via/Kconfig"
+source "drivers/net/ethernet/xilinx/Kconfig"
 
 endif # ETHERNET

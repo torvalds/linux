@@ -33,10 +33,6 @@ obj-$(CONFIG_NET_SB1000) += sb1000.o
 obj-$(CONFIG_HP100) += hp100.o
 obj-$(CONFIG_FORCEDETH) += forcedeth.o
 
-ll_temac-objs := ll_temac_main.o ll_temac_mdio.o
-obj-$(CONFIG_XILINX_LL_TEMAC) += ll_temac.o
-obj-$(CONFIG_XILINX_EMACLITE) += xilinx_emaclite.o
-
 obj-$(CONFIG_PPP) += ppp_generic.o
 obj-$(CONFIG_PPP_ASYNC) += ppp_async.o
 obj-$(CONFIG_PPP_SYNC_TTY) += ppp_synctty.o

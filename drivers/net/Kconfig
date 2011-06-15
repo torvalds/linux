@@ -493,13 +493,6 @@ config NET_POCKET
 	  the questions about this class of network devices. If you say Y, you
 	  will be asked for your specific device in the following questions.
 
-config XILINX_EMACLITE
-	tristate "Xilinx 10/100 Ethernet Lite support"
-	depends on PPC32 || MICROBLAZE
-	select PHYLIB
-	help
-	  This driver supports the 10/100 Ethernet Lite from Xilinx.
-
 config LANTIQ_ETOP
 	tristate "Lantiq SoC ETOP driver"
 	depends on SOC_TYPE_XWAY
@@ -538,14 +531,6 @@ config IP1000
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ipg.  This is recommended.
-
-config XILINX_LL_TEMAC
-	tristate "Xilinx LL TEMAC (LocalLink Tri-mode Ethernet MAC) driver"
-	depends on PPC || MICROBLAZE
-	select PHYLIB
-	help
-	  This driver supports the Xilinx 10/100/1000 LocalLink TEMAC
-	  core used in Xilinx Spartan and Virtex FPGAs
 
 endif # NETDEV_1000
 
