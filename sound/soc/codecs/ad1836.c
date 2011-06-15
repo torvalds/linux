@@ -322,8 +322,8 @@ static int ad1836_remove(struct snd_soc_codec *codec)
 }
 
 static struct snd_soc_codec_driver soc_codec_dev_ad1836 = {
-	.probe = 	ad1836_probe,
-	.remove = 	ad1836_remove,
+	.probe = ad1836_probe,
+	.remove = ad1836_remove,
 	.suspend =      ad1836_soc_suspend,
 	.resume =       ad1836_soc_resume,
 	.reg_cache_size = AD1836_NUM_REGS,
