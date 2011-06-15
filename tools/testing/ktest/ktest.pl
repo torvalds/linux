@@ -63,6 +63,10 @@ my $output_config;
 my $test_type;
 my $build_type;
 my $build_options;
+my $pre_build;
+my $post_build;
+my $pre_build_die;
+my $post_build_die;
 my $reboot_type;
 my $reboot_script;
 my $power_cycle;
@@ -1189,6 +1193,14 @@ sub build {
 
     unlink $buildlog;
 
+    if (defined($pre_build)) {
+	my $ret = run_command $pre_build;
+	if (!$ret && defined($pre_build_die) &&
+	    $pre_build_die) {
+	    dodie "failed to pre_build\n";
+	}
+    }
+
     if ($type =~ /^useconfig:(.*)/) {
 	run_command "cp $1 $output_config" or
 	    dodie "could not copy $1 to .config";
@@ -1236,13 +1248,22 @@ sub build {
     make_oldconfig;
 
     $redirect = "$buildlog";
-    if (!run_command "$make $build_options") {
-	undef $redirect;
+    my $build_ret = run_command "$make $build_options";
+    undef $redirect;
+
+    if (defined($post_build)) {
+	my $ret = run_command $post_build;
+	if (!$ret && defined($post_build_die) &&
+	    $post_build_die) {
+	    dodie "failed to post_build\n";
+	}
+    }
+
+    if (!$build_ret) {
 	# bisect may need this to pass
 	return 0 if ($in_bisect);
 	fail "failed build" and return 0;
     }
-    undef $redirect;
 
     return 1;
 }
@@ -2244,6 +2265,10 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $test_type = set_test_option("TEST_TYPE", $i);
     $build_type = set_test_option("BUILD_TYPE", $i);
     $build_options = set_test_option("BUILD_OPTIONS", $i);
+    $pre_build = set_test_option("PRE_BUILD", $i);
+    $post_build = set_test_option("POST_BUILD", $i);
+    $pre_build_die = set_test_option("PRE_BUILD_DIE", $i);
+    $post_build_die = set_test_option("POST_BUILD_DIE", $i);
     $power_cycle = set_test_option("POWER_CYCLE", $i);
     $reboot = set_test_option("REBOOT", $i);
     $noclean = set_test_option("BUILD_NOCLEAN", $i);
