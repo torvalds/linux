@@ -37,6 +37,14 @@ static void start_purge_timer(struct bat_priv *bat_priv)
 	queue_delayed_work(bat_event_workqueue, &bat_priv->orig_work, 1 * HZ);
 }
 
+/* returns 1 if they are the same originator */
+static int compare_orig(const struct hlist_node *node, const void *data2)
+{
+	const void *data1 = container_of(node, struct orig_node, hash_entry);
+
+	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
+}
+
 int originator_init(struct bat_priv *bat_priv)
 {
 	if (bat_priv->orig_hash)

@@ -40,14 +40,6 @@ int orig_hash_add_if(struct hard_iface *hard_iface, int max_if_num);
 int orig_hash_del_if(struct hard_iface *hard_iface, int max_if_num);
 
 
-/* returns 1 if they are the same originator */
-static inline int compare_orig(const struct hlist_node *node, const void *data2)
-{
-	const void *data1 = container_of(node, struct orig_node, hash_entry);
-
-	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
-}
-
 /* hashfunction to choose an entry in a hash table of given size */
 /* hash algorithm from http://en.wikipedia.org/wiki/Hash_table */
 static inline int choose_orig(const void *data, int32_t size)
