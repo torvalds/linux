@@ -84,6 +84,7 @@
 #include "dwc_otg_regs.h"
 
 #include <linux/usb/composite.h>
+#include <mach/cru.h>
 
 /**
  * Static PCD pointer for use in usb_gadget_register_driver and
@@ -1550,15 +1551,25 @@ static void dwc_otg_pcd_gadget_release(struct device *_dev)
 
 int dwc_pcd_reset(dwc_otg_pcd_t *pcd)
 {
-        dwc_otg_core_if_t *core_if = GET_CORE_IF(pcd);
-        dwc_otg_disable_global_interrupts( core_if );
-        //
-        //rockchip_scu_reset_unit(12);
-        dwc_otg_pcd_reinit( pcd );
-        dwc_otg_core_dev_init(core_if);
-        //DWC_PRINT("%s\n" , __func__ );
-        dwc_otg_enable_global_interrupts( core_if );
-        return 0;
+    dwc_otg_core_if_t *core_if = GET_CORE_IF(pcd);
+    dwc_otg_disable_global_interrupts( core_if );
+    //
+
+    cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, true);
+    cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, true);
+    cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, true);
+    udelay(1);
+
+    cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, false);
+    cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, false);
+    cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, false);
+    
+    //rockchip_scu_reset_unit(12);
+    dwc_otg_pcd_reinit( pcd );
+    dwc_otg_core_dev_init(core_if);
+    //DWC_PRINT("%s\n" , __func__ );
+    dwc_otg_enable_global_interrupts( core_if );
+    return 0;
 }
 
 /*

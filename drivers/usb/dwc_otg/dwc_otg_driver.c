@@ -69,6 +69,8 @@
 #include "dwc_otg_pcd.h"
 #include "dwc_otg_hcd.h"
 
+#include <mach/cru.h>
+
 //#define DWC_DRIVER_VERSION	"2.60a 22-NOV-2006"
 //#define DWC_DRIVER_VERSION	"2.70 2009-12-31"
 #define DWC_DRIVER_VERSION	"3.00 2010-12-12 rockchip"
@@ -1270,6 +1272,15 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
 	dwc_otg_device->reg_offset = 0xFFFFFFFF;
 	
+	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, true);
+	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, true);
+	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, true);
+    udelay(1);
+	
+	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, false);
+	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, false);
+	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, false);
+	
     busclk = clk_get(NULL, "hclk_usb_peri");
     if (IS_ERR(busclk)) {
             retval = PTR_ERR(busclk);
@@ -1544,7 +1555,7 @@ static int dwc_otg_driver_resume(struct platform_device *_dev )
     dwc_write_reg32( &global_regs->gintsts, 0xeFFFFFFF); 
     
     dwc_otg_enable_global_interrupts(core_if);
-    mod_timer(&otg_dev->pcd->check_vbus_timer , jiffies + (HZ<<2));
+    mod_timer(&otg_dev->pcd->check_vbus_timer , jiffies + HZ);
 
 //sendwakeup:        
     if(core_if->usb_wakeup)
@@ -1703,6 +1714,11 @@ static __devinit int host11_driver_probe(struct platform_device *pdev)
 	
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
 	dwc_otg_device->reg_offset = 0xFFFFFFFF;
+	
+	cru_set_soft_reset(SOFT_RST_UHOST, true);
+    udelay(1);
+	
+	cru_set_soft_reset(SOFT_RST_UHOST, false);
 	
     phyclk = clk_get(NULL, "uhost");
     if (IS_ERR(phyclk)) {
@@ -1977,6 +1993,16 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
     #endif
 
 	dwc_otg_device = kmalloc(sizeof(dwc_otg_device_t), GFP_KERNEL);
+	
+	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_AHB_BUS, true);
+	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_PHY, true);
+	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_CONTROLLER, true);
+	
+    udelay(1);
+	
+	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_AHB_BUS, false);
+	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_PHY, false);
+	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_CONTROLLER, false);
 	
 	if (dwc_otg_device == 0) 
 	{
