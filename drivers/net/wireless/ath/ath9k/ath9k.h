@@ -54,8 +54,6 @@ struct ath_node;
 		(_l) &= ((_sz) - 1);		\
 	} while (0)
 
-#define A_MAX(a, b) ((a) > (b) ? (a) : (b))
-
 #define TSF_TO_TU(_h,_l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
