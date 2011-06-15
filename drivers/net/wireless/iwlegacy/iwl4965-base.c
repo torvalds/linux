@@ -2526,7 +2526,7 @@ void iwl4965_mac_channel_switch(struct ieee80211_hw *hw,
 	if (!iwl_legacy_is_associated_ctx(ctx))
 		goto out;
 
-	if (priv->cfg->ops->lib->set_channel_switch)
+	if (!priv->cfg->ops->lib->set_channel_switch)
 		goto out;
 
 	ch = channel->hw_value;
@@ -2539,7 +2539,7 @@ void iwl4965_mac_channel_switch(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	spin_lock(&priv->lock);
+	spin_lock_irq(&priv->lock);
 
 	priv->current_ht_config.smps = conf->smps_mode;
 
