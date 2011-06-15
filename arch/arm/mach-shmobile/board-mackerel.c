@@ -629,19 +629,6 @@ static void usbhs0_hardware_exit(struct platform_device *pdev)
 	cancel_delayed_work_sync(&priv->work);
 }
 
-static u32 usbhs0_pipe_cfg[] = {
-	USB_ENDPOINT_XFER_CONTROL,
-	USB_ENDPOINT_XFER_ISOC,
-	USB_ENDPOINT_XFER_ISOC,
-	USB_ENDPOINT_XFER_BULK,
-	USB_ENDPOINT_XFER_BULK,
-	USB_ENDPOINT_XFER_BULK,
-	USB_ENDPOINT_XFER_INT,
-	USB_ENDPOINT_XFER_INT,
-	USB_ENDPOINT_XFER_INT,
-	USB_ENDPOINT_XFER_BULK,
-};
-
 static struct usbhs_private usbhs0_private = {
 	.usbcrcaddr	= 0xe605810c,		/* USBCR2 */
 	.info = {
@@ -654,8 +641,6 @@ static struct usbhs_private usbhs0_private = {
 		},
 		.driver_param = {
 			.buswait_bwait	= 4,
-			.pipe_type	= usbhs0_pipe_cfg,
-			.pipe_size	= ARRAY_SIZE(usbhs0_pipe_cfg),
 		},
 	},
 };
@@ -786,6 +771,11 @@ static void usbhs1_hardware_exit(struct platform_device *pdev)
 	free_irq(IRQ8, pdev);
 }
 
+static int usbhs1_get_id(struct platform_device *pdev)
+{
+	return USBHS_GADGET;
+}
+
 static u32 usbhs1_pipe_cfg[] = {
 	USB_ENDPOINT_XFER_CONTROL,
 	USB_ENDPOINT_XFER_ISOC,
@@ -812,6 +802,7 @@ static struct usbhs_private usbhs1_private = {
 		.platform_callback = {
 			.hardware_init	= usbhs1_hardware_init,
 			.hardware_exit	= usbhs1_hardware_exit,
+			.get_id		= usbhs1_get_id,
 			.phy_reset	= usbhs_phy_reset,
 			.get_vbus	= usbhs_get_vbus,
 		},
