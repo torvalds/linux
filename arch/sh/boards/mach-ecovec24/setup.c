@@ -248,6 +248,10 @@ static struct renesas_usbhs_platform_info usbhs_info = {
 	.driver_param = {
 		.buswait_bwait		= 4,
 		.detection_delay	= 5,
+		.d0_tx_id = SHDMA_SLAVE_USB1D0_TX,
+		.d0_rx_id = SHDMA_SLAVE_USB1D0_RX,
+		.d1_tx_id = SHDMA_SLAVE_USB1D1_TX,
+		.d1_rx_id = SHDMA_SLAVE_USB1D1_RX,
 	},
 };
 
