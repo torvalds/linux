@@ -506,8 +506,6 @@ config LANTIQ_ETOP
 	help
 	  Support for the MII0 inside the Lantiq SoC
 
-source "drivers/net/octeon/Kconfig"
-
 endif # NET_ETHERNET
 
 #
