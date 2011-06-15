@@ -2713,8 +2713,10 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
 		/* Why not before? Because we want correct error value */
+		if (nd.last.name[nd.last.len])
+			goto slashes;
 		inode = dentry->d_inode;
-		if (nd.last.name[nd.last.len] || !inode)
+		if (!inode)
 			goto slashes;
 		ihold(inode);
 		error = mnt_want_write(nd.path.mnt);
