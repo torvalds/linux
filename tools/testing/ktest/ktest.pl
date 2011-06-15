@@ -104,6 +104,7 @@ my $monitor_cnt = 0;
 my $sleep_time;
 my $bisect_sleep_time;
 my $patchcheck_sleep_time;
+my $ignore_warnings;
 my $store_failures;
 my $test_name;
 my $timeout;
@@ -2074,6 +2075,13 @@ sub patchcheck {
     @list = reverse @list;
 
     my $save_clean = $noclean;
+    my %ignored_warnings;
+
+    if (defined($ignore_warnings)) {
+	foreach my $sha1 (split /\s+/, $ignore_warnings) {
+	    $ignored_warnings{$sha1} = 1;
+	}
+    }
 
     $in_patchcheck = 1;
     foreach my $item (@list) {
@@ -2100,7 +2108,10 @@ sub patchcheck {
 	    build "oldconfig" or return 0;
 	}
 
-	check_buildlog $sha1 or return 0;
+
+	if (!defined($ignored_warnings{$sha1})) {
+	    check_buildlog $sha1 or return 0;
+	}
 
 	next if ($type eq "build");
 
@@ -2288,6 +2299,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $sleep_time = set_test_option("SLEEP_TIME", $i);
     $bisect_sleep_time = set_test_option("BISECT_SLEEP_TIME", $i);
     $patchcheck_sleep_time = set_test_option("PATCHCHECK_SLEEP_TIME", $i);
+    $ignore_warnings = set_test_option("IGNORE_WARNINGS", $i);
     $bisect_manual = set_test_option("BISECT_MANUAL", $i);
     $bisect_skip = set_test_option("BISECT_SKIP", $i);
     $config_bisect_good = set_test_option("CONFIG_BISECT_GOOD", $i);
