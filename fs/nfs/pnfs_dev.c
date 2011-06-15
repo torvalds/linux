@@ -156,6 +156,7 @@ nfs4_init_deviceid_node(struct nfs4_deviceid_node *d,
 	INIT_HLIST_NODE(&d->tmpnode);
 	d->ld = ld;
 	d->nfs_client = nfs_client;
+	d->flags = 0;
 	d->deviceid = *id;
 	atomic_set(&d->ref, 1);
 }
@@ -252,4 +253,23 @@ nfs4_deviceid_purge_client(const struct nfs_client *clp)
 		return;
 	for (h = 0; h < NFS4_DEVICE_ID_HASH_SIZE; h++)
 		_deviceid_purge_client(clp, h);
+}
+
+/*
+ * Stop use of all deviceids associated with an nfs_client
+ */
+void
+nfs4_deviceid_mark_client_invalid(struct nfs_client *clp)
+{
+	struct nfs4_deviceid_node *d;
+	struct hlist_node *n;
+	int i;
+
+	rcu_read_lock();
+	for (i = 0; i < NFS4_DEVICE_ID_HASH_SIZE; i ++){
+		hlist_for_each_entry_rcu(d, n, &nfs4_deviceid_cache[i], node)
+			if (d->nfs_client == clp)
+				set_bit(NFS_DEVICEID_INVALID, &d->flags);
+	}
+	rcu_read_unlock();
 }

@@ -334,6 +334,9 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 		__func__, data->inode->i_ino,
 		data->args.pgbase, (size_t)data->args.count, offset);
 
+	if (test_bit(NFS_DEVICEID_INVALID, &FILELAYOUT_DEVID_NODE(lseg)->flags))
+		return PNFS_NOT_ATTEMPTED;
+
 	/* Retrieve the correct rpc_client for the byte range */
 	j = nfs4_fl_calc_j_index(lseg, offset);
 	idx = nfs4_fl_calc_ds_index(lseg, j);
@@ -372,6 +375,9 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	u32 j, idx;
 	struct nfs_fh *fh;
 	int status;
+
+	if (test_bit(NFS_DEVICEID_INVALID, &FILELAYOUT_DEVID_NODE(lseg)->flags))
+		return PNFS_NOT_ATTEMPTED;
 
 	/* Retrieve the correct rpc_client for the byte range */
 	j = nfs4_fl_calc_j_index(lseg, offset);
@@ -456,6 +462,10 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 			goto out;
 	} else
 		dsaddr = container_of(d, struct nfs4_file_layout_dsaddr, id_node);
+	/* Found deviceid is being reaped */
+	if (test_bit(NFS_DEVICEID_INVALID, &dsaddr->id_node.flags))
+			goto out_put;
+
 	fl->dsaddr = dsaddr;
 
 	if (fl->first_stripe_index < 0 ||

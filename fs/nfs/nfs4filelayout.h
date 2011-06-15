@@ -96,6 +96,12 @@ FILELAYOUT_LSEG(struct pnfs_layout_segment *lseg)
 			    generic_hdr);
 }
 
+static inline struct nfs4_deviceid_node *
+FILELAYOUT_DEVID_NODE(struct pnfs_layout_segment *lseg)
+{
+	return &FILELAYOUT_LSEG(lseg)->dsaddr->id_node;
+}
+
 extern struct nfs_fh *
 nfs4_fl_select_ds_fh(struct pnfs_layout_segment *lseg, u32 j);
 
