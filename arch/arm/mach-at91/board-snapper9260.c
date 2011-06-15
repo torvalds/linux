@@ -4,7 +4,7 @@
  *  Copyright (C) 2010 Bluewater System Ltd
  *
  * Author: Andre Renaud <andre@bluewatersys.com>
- * Author: Ryan Mallon  <ryan@bluewatersys.com>
+ * Author: Ryan Mallon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

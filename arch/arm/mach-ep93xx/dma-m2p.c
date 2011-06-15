@@ -5,7 +5,7 @@
  * Copyright (C) 2006 Lennert Buytenhek <buytenh@wantstofly.org>
  * Copyright (C) 2006 Applied Data Systems
  *
- * Copyright (C) 2009 Ryan Mallon <ryan@bluewatersys.com>
+ * Copyright (C) 2009 Ryan Mallon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

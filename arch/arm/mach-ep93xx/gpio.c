@@ -3,7 +3,7 @@
  *
  * Generic EP93xx GPIO handling
  *
- * Copyright (c) 2008 Ryan Mallon <ryan@bluewatersys.com>
+ * Copyright (c) 2008 Ryan Mallon
  *
  * Based on code originally from:
  *  linux/arch/arm/mach-ep93xx/core.c
