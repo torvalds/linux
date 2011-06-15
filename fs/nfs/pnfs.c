@@ -652,6 +652,8 @@ _pnfs_return_layout(struct inode *ino)
 	lrp = kzalloc(sizeof(*lrp), GFP_KERNEL);
 	if (unlikely(lrp == NULL)) {
 		status = -ENOMEM;
+		set_bit(NFS_LAYOUT_RW_FAILED, &lo->plh_flags);
+		set_bit(NFS_LAYOUT_RO_FAILED, &lo->plh_flags);
 		put_layout_hdr(lo);
 		goto out;
 	}
