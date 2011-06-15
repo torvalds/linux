@@ -242,7 +242,8 @@ struct omap_dss_board_info {
 	int num_devices;
 	struct omap_dss_device **devices;
 	struct omap_dss_device *default_device;
-	void (*dsi_mux_pads)(bool enable);
+	int (*dsi_enable_pads)(int dsi_id, unsigned lane_mask);
+	void (*dsi_disable_pads)(int dsi_id, unsigned lane_mask);
 };
 
 #if defined(CONFIG_OMAP2_DSS_MODULE) || defined(CONFIG_OMAP2_DSS)

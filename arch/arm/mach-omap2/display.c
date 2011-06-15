@@ -74,6 +74,15 @@ static const struct omap_dss_hwmod_data omap4_dss_hwmod_data[] __initdata = {
 	{ "dss_hdmi", "omapdss_hdmi", -1 },
 };
 
+static int omap_dsi_enable_pads(int dsi_id, unsigned lane_mask)
+{
+	return 0;
+}
+
+static void omap_dsi_disable_pads(int dsi_id, unsigned lane_mask)
+{
+}
+
 int __init omap_display_init(struct omap_dss_board_info *board_data)
 {
 	int r = 0;
@@ -95,6 +104,11 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 		curr_dss_hwmod = omap4_dss_hwmod_data;
 		oh_count = ARRAY_SIZE(omap4_dss_hwmod_data);
 	}
+
+	if (board_data->dsi_enable_pads == NULL)
+		board_data->dsi_enable_pads = omap_dsi_enable_pads;
+	if (board_data->dsi_disable_pads == NULL)
+		board_data->dsi_disable_pads = omap_dsi_disable_pads;
 
 	pdata.board_data = board_data;
 	pdata.board_data->get_context_loss_count =

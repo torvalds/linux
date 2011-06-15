@@ -274,7 +274,8 @@ struct dsi_data {
 	struct clk *dss_clk;
 	struct clk *sys_clk;
 
-	void (*dsi_mux_pads)(bool enable);
+	int (*enable_pads)(int dsi_id, unsigned lane_mask);
+	void (*disable_pads)(int dsi_id, unsigned lane_mask);
 
 	struct dsi_clock_info current_cinfo;
 
@@ -2355,6 +2356,24 @@ static int dsi_cio_wait_tx_clk_esc_reset(struct omap_dss_device *dssdev)
 	return 0;
 }
 
+static unsigned dsi_get_lane_mask(struct omap_dss_device *dssdev)
+{
+	unsigned lanes = 0;
+
+	if (dssdev->phy.dsi.clk_lane != 0)
+		lanes |= 1 << (dssdev->phy.dsi.clk_lane - 1);
+	if (dssdev->phy.dsi.data1_lane != 0)
+		lanes |= 1 << (dssdev->phy.dsi.data1_lane - 1);
+	if (dssdev->phy.dsi.data2_lane != 0)
+		lanes |= 1 << (dssdev->phy.dsi.data2_lane - 1);
+	if (dssdev->phy.dsi.data3_lane != 0)
+		lanes |= 1 << (dssdev->phy.dsi.data3_lane - 1);
+	if (dssdev->phy.dsi.data4_lane != 0)
+		lanes |= 1 << (dssdev->phy.dsi.data4_lane - 1);
+
+	return lanes;
+}
+
 static int dsi_cio_init(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
@@ -2365,8 +2384,9 @@ static int dsi_cio_init(struct omap_dss_device *dssdev)
 
 	DSSDBGF();
 
-	if (dsi->dsi_mux_pads)
-		dsi->dsi_mux_pads(true);
+	r = dsi->enable_pads(dsidev->id, dsi_get_lane_mask(dssdev));
+	if (r)
+		return r;
 
 	dsi_enable_scp_clk(dsidev);
 
@@ -2462,19 +2482,18 @@ err_cio_pwr:
 		dsi_cio_disable_lane_override(dsidev);
 err_scp_clk_dom:
 	dsi_disable_scp_clk(dsidev);
-	if (dsi->dsi_mux_pads)
-		dsi->dsi_mux_pads(false);
+	dsi->disable_pads(dsidev->id, dsi_get_lane_mask(dssdev));
 	return r;
 }
 
-static void dsi_cio_uninit(struct platform_device *dsidev)
+static void dsi_cio_uninit(struct omap_dss_device *dssdev)
 {
+	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
 	dsi_cio_power(dsidev, DSI_COMPLEXIO_POWER_OFF);
 	dsi_disable_scp_clk(dsidev);
-	if (dsi->dsi_mux_pads)
-		dsi->dsi_mux_pads(false);
+	dsi->disable_pads(dsidev->id, dsi_get_lane_mask(dssdev));
 }
 
 static void dsi_config_tx_fifo(struct platform_device *dsidev,
@@ -4161,7 +4180,7 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 
 	return 0;
 err3:
-	dsi_cio_uninit(dsidev);
+	dsi_cio_uninit(dssdev);
 err2:
 	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 	dss_select_dsi_clk_source(dsi_module, OMAP_DSS_CLK_SRC_FCK);
@@ -4190,7 +4209,7 @@ static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev,
 
 	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 	dss_select_dsi_clk_source(dsi_module, OMAP_DSS_CLK_SRC_FCK);
-	dsi_cio_uninit(dsidev);
+	dsi_cio_uninit(dssdev);
 	dsi_pll_uninit(dsidev, disconnect_lanes);
 }
 
@@ -4481,7 +4500,8 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 
 	dss_plat_data = dsidev->dev.platform_data;
 	board_info = dss_plat_data->board_data;
-	dsi->dsi_mux_pads = board_info->dsi_mux_pads;
+	dsi->enable_pads = board_info->dsi_enable_pads;
+	dsi->disable_pads = board_info->dsi_disable_pads;
 
 	spin_lock_init(&dsi->irq_lock);
 	spin_lock_init(&dsi->errors_lock);
