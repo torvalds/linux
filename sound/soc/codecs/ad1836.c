@@ -385,15 +385,7 @@ static struct spi_driver ad1836_spi_driver = {
 
 static int __init ad1836_init(void)
 {
-	int ret;
-
-	ret = spi_register_driver(&ad1836_spi_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register ad1836 SPI driver: %d\n",
-				ret);
-	}
-
-	return ret;
+	return spi_register_driver(&ad1836_spi_driver);
 }
 module_init(ad1836_init);
 
