@@ -1265,7 +1265,7 @@ static struct platform_device rk29sdk_rfkill = {
 
 #ifdef CONFIG_VIVANTE
 #define GPU_HIGH_CLOCK        552
-#define GPU_LOW_CLOCK         300
+#define GPU_LOW_CLOCK         288 /* same as general pll clock rate below */
 static struct resource resources_gpu[] = {
     [0] = {
 		.name 	= "gpu_irq",
