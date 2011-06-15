@@ -480,7 +480,8 @@ unsigned long compaction_suitable(struct zone *zone, int order)
 	 * fragmentation index determines if allocation failures are due to
 	 * low memory or external fragmentation
 	 *
-	 * index of -1 implies allocations might succeed dependingon watermarks
+	 * index of -1000 implies allocations might succeed depending on
+	 * watermarks
 	 * index towards 0 implies failure is due to lack of memory
 	 * index towards 1000 implies failure is due to fragmentation
 	 *
@@ -490,7 +491,8 @@ unsigned long compaction_suitable(struct zone *zone, int order)
 	if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
 		return COMPACT_SKIPPED;
 
-	if (fragindex == -1 && zone_watermark_ok(zone, order, watermark, 0, 0))
+	if (fragindex == -1000 && zone_watermark_ok(zone, order, watermark,
+	    0, 0))
 		return COMPACT_PARTIAL;
 
 	return COMPACT_CONTINUE;
