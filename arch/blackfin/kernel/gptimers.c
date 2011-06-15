@@ -25,49 +25,33 @@
 
 #define BFIN_TIMER_NUM_GROUP  (BFIN_TIMER_OCTET(MAX_BLACKFIN_GPTIMERS - 1) + 1)
 
-typedef struct {
-	uint16_t config;
-	uint16_t __pad;
-	uint32_t counter;
-	uint32_t period;
-	uint32_t width;
-} GPTIMER_timer_regs;
-
-typedef struct {
-	uint16_t enable;
-	uint16_t __pad0;
-	uint16_t disable;
-	uint16_t __pad1;
-	uint32_t status;
-} GPTIMER_group_regs;
-
-static volatile GPTIMER_timer_regs *const timer_regs[MAX_BLACKFIN_GPTIMERS] =
+static struct bfin_gptimer_regs * const timer_regs[MAX_BLACKFIN_GPTIMERS] =
 {
-	(GPTIMER_timer_regs *)TIMER0_CONFIG,
-	(GPTIMER_timer_regs *)TIMER1_CONFIG,
-	(GPTIMER_timer_regs *)TIMER2_CONFIG,
+	(void *)TIMER0_CONFIG,
+	(void *)TIMER1_CONFIG,
+	(void *)TIMER2_CONFIG,
 #if (MAX_BLACKFIN_GPTIMERS > 3)
-	(GPTIMER_timer_regs *)TIMER3_CONFIG,
-	(GPTIMER_timer_regs *)TIMER4_CONFIG,
-	(GPTIMER_timer_regs *)TIMER5_CONFIG,
-	(GPTIMER_timer_regs *)TIMER6_CONFIG,
-	(GPTIMER_timer_regs *)TIMER7_CONFIG,
+	(void *)TIMER3_CONFIG,
+	(void *)TIMER4_CONFIG,
+	(void *)TIMER5_CONFIG,
+	(void *)TIMER6_CONFIG,
+	(void *)TIMER7_CONFIG,
 # if (MAX_BLACKFIN_GPTIMERS > 8)
-	(GPTIMER_timer_regs *)TIMER8_CONFIG,
-	(GPTIMER_timer_regs *)TIMER9_CONFIG,
-	(GPTIMER_timer_regs *)TIMER10_CONFIG,
+	(void *)TIMER8_CONFIG,
+	(void *)TIMER9_CONFIG,
+	(void *)TIMER10_CONFIG,
 #  if (MAX_BLACKFIN_GPTIMERS > 11)
-	(GPTIMER_timer_regs *)TIMER11_CONFIG,
+	(void *)TIMER11_CONFIG,
 #  endif
 # endif
 #endif
 };
 
-static volatile GPTIMER_group_regs *const group_regs[BFIN_TIMER_NUM_GROUP] =
+static struct bfin_gptimer_group_regs * const group_regs[BFIN_TIMER_NUM_GROUP] =
 {
-	(GPTIMER_group_regs *)TIMER0_GROUP_REG,
+	(void *)TIMER0_GROUP_REG,
 #if (MAX_BLACKFIN_GPTIMERS > 8)
-	(GPTIMER_group_regs *)TIMER8_GROUP_REG,
+	(void *)TIMER8_GROUP_REG,
 #endif
 };
 
