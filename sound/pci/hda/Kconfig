@@ -171,6 +171,19 @@ config SND_HDA_CODEC_CA0110
 	  snd-hda-codec-ca0110.
 	  This module is automatically loaded at probing.
 
+config SND_HDA_CODEC_CA0132
+	bool "Build Creative CA0132 codec support"
+	depends on SND_HDA_INTEL
+	default y
+	help
+	  Say Y here to include Creative CA0132 codec support in
+	  snd-hda-intel driver.
+
+	  When the HD-audio driver is built as a module, the codec
+	  support code is also built as another module,
+	  snd-hda-codec-ca0132.
+	  This module is automatically loaded at probing.
+
 config SND_HDA_CODEC_CMEDIA
 	bool "Build C-Media HD-audio codec support"
 	default y
