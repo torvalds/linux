@@ -759,6 +759,8 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		msleep(100);
 
 	spin_lock_irq(&xhci->lock);
+	if (xhci->quirks & XHCI_RESET_ON_RESUME)
+		hibernated = true;
 
 	if (!hibernated) {
 		/* step 1: restore register */
