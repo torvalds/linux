@@ -386,7 +386,7 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 	 */
 	se_cmd->se_tmr_req = core_tmr_alloc_req(se_cmd, (void *)tl_tmr,
 				TMR_LUN_RESET);
-	if (!se_cmd->se_tmr_req)
+	if (IS_ERR(se_cmd->se_tmr_req))
 		goto release;
 	/*
 	 * Locate the underlying TCM struct se_lun from sc->device->lun
@@ -1017,6 +1017,7 @@ static int tcm_loop_make_nexus(
 	struct se_portal_group *se_tpg;
 	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
 	struct tcm_loop_nexus *tl_nexus;
+	int ret = -ENOMEM;
 
 	if (tl_tpg->tl_hba->tl_nexus) {
 		printk(KERN_INFO "tl_tpg->tl_hba->tl_nexus already exists\n");
@@ -1033,8 +1034,10 @@ static int tcm_loop_make_nexus(
 	 * Initialize the struct se_session pointer
 	 */
 	tl_nexus->se_sess = transport_init_session();
-	if (!tl_nexus->se_sess)
+	if (IS_ERR(tl_nexus->se_sess)) {
+		ret = PTR_ERR(tl_nexus->se_sess);
 		goto out;
+	}
 	/*
 	 * Since we are running in 'demo mode' this call with generate a
 	 * struct se_node_acl for the tcm_loop struct se_portal_group with the SCSI
@@ -1060,7 +1063,7 @@ static int tcm_loop_make_nexus(
 
 out:
 	kfree(tl_nexus);
-	return -ENOMEM;
+	return ret;
 }
 
 static int tcm_loop_drop_nexus(
