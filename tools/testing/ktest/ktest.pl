@@ -1087,7 +1087,7 @@ sub install {
 
     unlink "$tmpdir/$modtar";
 
-    run_ssh "'(cd / && tar xf /tmp/$modtar)'" or
+    run_ssh "'(cd / && tar xjf /tmp/$modtar)'" or
 	dodie "failed to tar modules";
 
     run_ssh "rm -f /tmp/$modtar";
