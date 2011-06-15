@@ -547,18 +547,6 @@ config XILINX_LL_TEMAC
 	  This driver supports the Xilinx 10/100/1000 LocalLink TEMAC
 	  core used in Xilinx Spartan and Virtex FPGAs
 
-config JME
-	tristate "JMicron(R) PCI-Express Gigabit Ethernet support"
-	depends on PCI
-	select CRC32
-	select MII
-	---help---
-	  This driver supports the PCI-Express gigabit ethernet adapters
-	  based on JMicron JMC250 chipset.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called jme.
-
 endif # NETDEV_1000
 
 #
