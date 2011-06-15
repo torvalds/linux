@@ -1096,6 +1096,23 @@ sub install {
     do_post_install;
 }
 
+sub get_version {
+    # get the release name
+    doprint "$make kernelrelease ... ";
+    $version = `$make kernelrelease | tail -1`;
+    chomp($version);
+    doprint "$version\n";
+}
+
+sub start_monitor_and_boot {
+    get_grub_index;
+    get_version;
+    install;
+
+    start_monitor;
+    return monitor;
+}
+
 sub check_buildlog {
     my ($patch) = @_;
 
@@ -1307,14 +1324,6 @@ sub success {
     }
 }
 
-sub get_version {
-    # get the release name
-    doprint "$make kernelrelease ... ";
-    $version = `$make kernelrelease | tail -1`;
-    chomp($version);
-    doprint "$version\n";
-}
-
 sub answer_bisect {
     for (;;) {
 	doprint "Pass or fail? [p/f]";
@@ -1479,12 +1488,7 @@ sub run_bisect_test {
 	dodie "Failed on build" if $failed;
 
 	# Now boot the box
-	get_grub_index;
-	get_version;
-	install;
-
-	start_monitor;
-	monitor or $failed = 1;
+	start_monitor_and_boot or $failed = 1;
 
 	if ($type ne "boot") {
 	    if ($failed && $bisect_skip) {
@@ -2115,14 +2119,9 @@ sub patchcheck {
 
 	next if ($type eq "build");
 
-	get_grub_index;
-	get_version;
-	install;
-
 	my $failed = 0;
 
-	start_monitor;
-	monitor or $failed = 1;
+	start_monitor_and_boot or $failed = 1;
 
 	if (!$failed && $type ne "boot"){
 	    do_run_test or $failed = 1;
@@ -2393,13 +2392,8 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     }
 
     if ($test_type ne "build") {
-	get_grub_index;
-	get_version;
-	install;
-
 	my $failed = 0;
-	start_monitor;
-	monitor or $failed = 1;;
+	start_monitor_and_boot or $failed = 1;
 
 	if (!$failed && $test_type ne "boot" && defined($run_test)) {
 	    do_run_test or $failed = 1;
