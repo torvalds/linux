@@ -1404,11 +1404,14 @@ static int __ccdc_handle_stopping(struct isp_ccdc_device *ccdc, u32 event)
 
 static void ccdc_hs_vs_isr(struct isp_ccdc_device *ccdc)
 {
+	struct isp_pipeline *pipe =
+		to_isp_pipeline(&ccdc->video_out.video.entity);
 	struct video_device *vdev = &ccdc->subdev.devnode;
 	struct v4l2_event event;
 
 	memset(&event, 0, sizeof(event));
-	event.type = V4L2_EVENT_OMAP3ISP_HS_VS;
+	event.type = V4L2_EVENT_FRAME_SYNC;
+	event.u.frame_sync.frame_sequence = atomic_read(&pipe->frame_number);
 
 	v4l2_event_queue(vdev, &event);
 }
@@ -1690,7 +1693,11 @@ static long ccdc_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 static int ccdc_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 				struct v4l2_event_subscription *sub)
 {
-	if (sub->type != V4L2_EVENT_OMAP3ISP_HS_VS)
+	if (sub->type != V4L2_EVENT_FRAME_SYNC)
+		return -EINVAL;
+
+	/* line number is zero at frame start */
+	if (sub->id != 0)
 		return -EINVAL;
 
 	return v4l2_event_subscribe(fh, sub, OMAP3ISP_CCDC_NEVENTS);
