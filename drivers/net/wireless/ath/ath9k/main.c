@@ -360,7 +360,7 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 	txctl.paprd = BIT(chain);
 
 	if (ath_tx_start(hw, skb, &txctl) != 0) {
-		ath_dbg(common, ATH_DBG_XMIT, "PAPRD TX failed\n");
+		ath_dbg(common, ATH_DBG_CALIBRATE, "PAPRD TX failed\n");
 		dev_kfree_skb_any(skb);
 		return false;
 	}
@@ -369,7 +369,7 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 			msecs_to_jiffies(ATH_PAPRD_TIMEOUT));
 
 	if (!time_left)
-		ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_CALIBRATE,
+		ath_dbg(common, ATH_DBG_CALIBRATE,
 			"Timeout waiting for paprd training on TX chain %d\n",
 			chain);
 
@@ -431,11 +431,18 @@ void ath_paprd_calibrate(struct work_struct *work)
 		if (!ath_paprd_send_frame(sc, skb, chain))
 			goto fail_paprd;
 
-		if (!ar9003_paprd_is_done(ah))
+		if (!ar9003_paprd_is_done(ah)) {
+			ath_dbg(common, ATH_DBG_CALIBRATE,
+				"PAPRD not yet done on chain %d\n", chain);
 			break;
+		}
 
-		if (ar9003_paprd_create_curve(ah, caldata, chain) != 0)
+		if (ar9003_paprd_create_curve(ah, caldata, chain)) {
+			ath_dbg(common, ATH_DBG_CALIBRATE,
+				"PAPRD create curve failed on chain %d\n",
+								   chain);
 			break;
+		}
 
 		chain_ok = 1;
 	}
