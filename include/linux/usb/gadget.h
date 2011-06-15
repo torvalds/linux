@@ -15,7 +15,12 @@
 #ifndef __LINUX_USB_GADGET_H
 #define __LINUX_USB_GADGET_H
 
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/init.h>
+#include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 #include <linux/usb/ch9.h>
 
 struct usb_ep;
