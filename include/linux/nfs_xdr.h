@@ -269,9 +269,10 @@ struct nfs4_layoutcommit_data {
 };
 
 struct nfs4_layoutreturn_args {
-	__u32   layout_type;
+	struct pnfs_layout_hdr *layout;
 	struct inode *inode;
 	nfs4_stateid stateid;
+	__u32   layout_type;
 	struct nfs4_sequence_args seq_args;
 };
 

@@ -667,6 +667,7 @@ _pnfs_return_layout(struct inode *ino)
 	lrp->args.stateid = stateid;
 	lrp->args.layout_type = NFS_SERVER(ino)->pnfs_curr_ld->id;
 	lrp->args.inode = ino;
+	lrp->args.layout = lo;
 	lrp->clp = NFS_SERVER(ino)->nfs_client;
 
 	status = nfs4_proc_layoutreturn(lrp);
