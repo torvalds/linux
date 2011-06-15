@@ -189,26 +189,6 @@ static int ad1836_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int ad1836_soc_suspend(struct snd_soc_codec *codec,
-		pm_message_t state)
-{
-	/* reset clock control mode */
-	return snd_soc_update_bits(codec, AD1836_ADC_CTRL2,
-		AD1836_ADC_SERFMT_MASK, 0);
-}
-
-static int ad1836_soc_resume(struct snd_soc_codec *codec)
-{
-	/* restore clock control mode */
-	return snd_soc_update_bits(codec, AD1836_ADC_CTRL2,
-		AD1836_ADC_SERFMT_MASK, AD1836_ADC_AUX);
-}
-#else
-#define ad1836_soc_suspend NULL
-#define ad1836_soc_resume  NULL
-#endif
-
 static struct snd_soc_dai_ops ad1836_dai_ops = {
 	.hw_params = ad1836_hw_params,
 	.set_fmt = ad1836_set_dai_fmt,
@@ -241,6 +221,25 @@ static struct snd_soc_dai_driver ad183x_dais[] = {
 	[AD1836] = AD183X_DAI("ad1836", 3, 2),
 	[AD1838] = AD183X_DAI("ad1838", 3, 1),
 };
+
+#ifdef CONFIG_PM
+static int ad1836_suspend(struct snd_soc_codec *codec, pm_message_t state)
+{
+	/* reset clock control mode */
+	return snd_soc_update_bits(codec, AD1836_ADC_CTRL2,
+		AD1836_ADC_SERFMT_MASK, 0);
+}
+
+static int ad1836_resume(struct snd_soc_codec *codec)
+{
+	/* restore clock control mode */
+	return snd_soc_update_bits(codec, AD1836_ADC_CTRL2,
+		AD1836_ADC_SERFMT_MASK, AD1836_ADC_AUX);
+}
+#else
+#define ad1836_suspend NULL
+#define ad1836_resume  NULL
+#endif
 
 static int ad1836_probe(struct snd_soc_codec *codec)
 {
@@ -324,8 +323,8 @@ static int ad1836_remove(struct snd_soc_codec *codec)
 static struct snd_soc_codec_driver soc_codec_dev_ad1836 = {
 	.probe = ad1836_probe,
 	.remove = ad1836_remove,
-	.suspend =      ad1836_soc_suspend,
-	.resume =       ad1836_soc_resume,
+	.suspend = ad1836_suspend,
+	.resume = ad1836_resume,
 	.reg_cache_size = AD1836_NUM_REGS,
 	.reg_word_size = sizeof(u16),
 
