@@ -345,6 +345,7 @@ sub read_config {
     my $num_tests_set = 0;
     my $skip = 0;
     my $rest;
+    my $test_case = 0;
 
     while (<IN>) {
 
@@ -370,6 +371,7 @@ sub read_config {
 		$rest = $1;
 		$skip = 1;
 	    } else {
+		$test_case = 1;
 		$skip = 0;
 	    }
 
@@ -473,6 +475,15 @@ sub read_config {
 
     # make sure we have all mandatory configs
     get_ktest_configs;
+
+    # was a test specified?
+    if (!$test_case) {
+	print "No test case specified.\n";
+	print "What test case would you like to run?\n";
+	my $ans = <STDIN>;
+	chomp $ans;
+	$default{"TEST_TYPE"} = $ans;
+    }
 
     # set any defaults
 
