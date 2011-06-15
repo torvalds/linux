@@ -375,19 +375,19 @@ static int ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
 static int ath5k_hw_wisoc_reset(struct ath5k_hw *ah, u32 flags)
 {
 	u32 mask = flags ? flags : ~0U;
-	volatile u32 *reg;
+	volatile __iomem u32 *reg;
 	u32 regval;
 	u32 val = 0;
 
 	/* ah->ah_mac_srev is not available at this point yet */
 	if (ah->ah_sc->devid >= AR5K_SREV_AR2315_R6) {
-		reg = (u32 *) AR5K_AR2315_RESET;
+		reg = (u32 __iomem *) AR5K_AR2315_RESET;
 		if (mask & AR5K_RESET_CTL_PCU)
 			val |= AR5K_AR2315_RESET_WMAC;
 		if (mask & AR5K_RESET_CTL_BASEBAND)
 			val |= AR5K_AR2315_RESET_BB_WARM;
 	} else {
-		reg = (u32 *) AR5K_AR5312_RESET;
+		reg = (u32 __iomem *) AR5K_AR5312_RESET;
 		if (to_platform_device(ah->ah_sc->dev)->id == 0) {
 			if (mask & AR5K_RESET_CTL_PCU)
 				val |= AR5K_AR5312_RESET_WMAC0;
