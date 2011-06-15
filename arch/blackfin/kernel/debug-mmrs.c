@@ -278,6 +278,32 @@ bfin_debug_mmrs_gptimer(struct dentry *parent, unsigned long base, int num)
 }
 #define GPTIMER(num) bfin_debug_mmrs_gptimer(parent, TIMER##num##_CONFIG, num)
 
+#define GPTIMER_GROUP_OFF(mmr) REGS_OFF(gptimer_group, mmr)
+#define __GPTIMER_GROUP(uname, lname) __REGS(gptimer_group, #uname, lname)
+static void __init __maybe_unused
+bfin_debug_mmrs_gptimer_group(struct dentry *parent, unsigned long base, int num)
+{
+	char buf[32], *_buf;
+
+	if (num == -1) {
+		_buf = buf + sprintf(buf, "TIMER_");
+		__GPTIMER_GROUP(ENABLE, enable);
+		__GPTIMER_GROUP(DISABLE, disable);
+		__GPTIMER_GROUP(STATUS, status);
+	} else {
+		/* These MMRs are a bit odd as the group # is a suffix */
+		_buf = buf + sprintf(buf, "TIMER_ENABLE%i", num);
+		d(buf, 16, base + GPTIMER_GROUP_OFF(enable));
+
+		_buf = buf + sprintf(buf, "TIMER_DISABLE%i", num);
+		d(buf, 16, base + GPTIMER_GROUP_OFF(disable));
+
+		_buf = buf + sprintf(buf, "TIMER_STATUS%i", num);
+		d(buf, 32, base + GPTIMER_GROUP_OFF(status));
+	}
+}
+#define GPTIMER_GROUP(mmr, num) bfin_debug_mmrs_gptimer_group(parent, mmr, num)
+
 /*
  * Handshake MDMA
  */
@@ -1006,29 +1032,19 @@ static int __init bfin_debug_mmrs_init(void)
 #endif
 
 	parent = debugfs_create_dir("gptimer", top);
-#ifdef TIMER_DISABLE
-	D16(TIMER_DISABLE);
-	D16(TIMER_ENABLE);
-	D32(TIMER_STATUS);
+#ifdef TIMER_ENABLE
+	GPTIMER_GROUP(TIMER_ENABLE, -1);
 #endif
-#ifdef TIMER_DISABLE0
-	D16(TIMER_DISABLE0);
-	D16(TIMER_ENABLE0);
-	D32(TIMER_STATUS0);
+#ifdef TIMER_ENABLE0
+	GPTIMER_GROUP(TIMER_ENABLE0, 0);
 #endif
-#ifdef TIMER_DISABLE1
-	D16(TIMER_DISABLE1);
-	D16(TIMER_ENABLE1);
-	D32(TIMER_STATUS1);
+#ifdef TIMER_ENABLE1
+	GPTIMER_GROUP(TIMER_ENABLE1, 1);
 #endif
 	/* XXX: Should convert BF561 MMR names */
 #ifdef TMRS4_DISABLE
-	D16(TMRS4_DISABLE);
-	D16(TMRS4_ENABLE);
-	D32(TMRS4_STATUS);
-	D16(TMRS8_DISABLE);
-	D16(TMRS8_ENABLE);
-	D32(TMRS8_STATUS);
+	GPTIMER_GROUP(TMRS4_ENABLE, 0);
+	GPTIMER_GROUP(TMRS8_ENABLE, 1);
 #endif
 	GPTIMER(0);
 	GPTIMER(1);
