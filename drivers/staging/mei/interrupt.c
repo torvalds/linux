@@ -195,7 +195,7 @@ static int mei_irq_thread_read_client_message(struct mei_io_list *complete_list,
 {
 	struct mei_cl *cl;
 	struct mei_cl_cb *cb_pos = NULL, *cb_next = NULL;
-	unsigned char *buffer;
+	unsigned char *buffer = NULL;
 
 	dev_dbg(&dev->pdev->dev, "start client msg\n");
 	if (!(dev->read_list.status == 0 &&
