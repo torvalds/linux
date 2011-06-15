@@ -517,7 +517,7 @@ irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 	if (de_iir & DE_PIPEA_VBLANK_IVB)
 		drm_handle_vblank(dev, 0);
 
-	if (de_iir & DE_PIPEB_VBLANK_IVB);
+	if (de_iir & DE_PIPEB_VBLANK_IVB)
 		drm_handle_vblank(dev, 1);
 
 	/* check event from PCH */

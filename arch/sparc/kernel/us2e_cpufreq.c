@@ -176,7 +176,7 @@ static unsigned long index_to_estar_mode(unsigned int index)
 
 	default:
 		BUG();
-	};
+	}
 }
 
 static unsigned long index_to_divisor(unsigned int index)
@@ -199,7 +199,7 @@ static unsigned long index_to_divisor(unsigned int index)
 
 	default:
 		BUG();
-	};
+	}
 }
 
 static unsigned long estar_to_divisor(unsigned long estar)
@@ -224,7 +224,7 @@ static unsigned long estar_to_divisor(unsigned long estar)
 		break;
 	default:
 		BUG();
-	};
+	}
 
 	return ret;
 }

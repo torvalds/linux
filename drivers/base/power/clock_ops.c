@@ -291,7 +291,7 @@ static int pm_runtime_clk_notify(struct notifier_block *nb,
 {
 	struct pm_clk_notifier_block *clknb;
 	struct device *dev = data;
-	char *con_id;
+	char **con_id;
 	int error;
 
 	dev_dbg(dev, "%s() %ld\n", __func__, action);
@@ -309,8 +309,8 @@ static int pm_runtime_clk_notify(struct notifier_block *nb,
 
 		dev->pwr_domain = clknb->pwr_domain;
 		if (clknb->con_ids[0]) {
-			for (con_id = clknb->con_ids[0]; *con_id; con_id++)
-				pm_runtime_clk_add(dev, con_id);
+			for (con_id = clknb->con_ids; *con_id; con_id++)
+				pm_runtime_clk_add(dev, *con_id);
 		} else {
 			pm_runtime_clk_add(dev, NULL);
 		}
@@ -380,7 +380,7 @@ static int pm_runtime_clk_notify(struct notifier_block *nb,
 {
 	struct pm_clk_notifier_block *clknb;
 	struct device *dev = data;
-	char *con_id;
+	char **con_id;
 
 	dev_dbg(dev, "%s() %ld\n", __func__, action);
 
@@ -389,16 +389,16 @@ static int pm_runtime_clk_notify(struct notifier_block *nb,
 	switch (action) {
 	case BUS_NOTIFY_ADD_DEVICE:
 		if (clknb->con_ids[0]) {
-			for (con_id = clknb->con_ids[0]; *con_id; con_id++)
-				enable_clock(dev, con_id);
+			for (con_id = clknb->con_ids; *con_id; con_id++)
+				enable_clock(dev, *con_id);
 		} else {
 			enable_clock(dev, NULL);
 		}
 		break;
 	case BUS_NOTIFY_DEL_DEVICE:
 		if (clknb->con_ids[0]) {
-			for (con_id = clknb->con_ids[0]; *con_id; con_id++)
-				disable_clock(dev, con_id);
+			for (con_id = clknb->con_ids; *con_id; con_id++)
+				disable_clock(dev, *con_id);
 		} else {
 			disable_clock(dev, NULL);
 		}

@@ -26,7 +26,7 @@ static struct gpio zoom_lcd_gpios[] __initdata = {
 	{ LCD_PANEL_QVGA_GPIO,	GPIOF_OUT_INIT_HIGH, "lcd qvga"	 },
 };
 
-static void zoom_lcd_panel_init(void)
+static void __init zoom_lcd_panel_init(void)
 {
 	zoom_lcd_gpios[0].gpio = (omap_rev() > OMAP3430_REV_ES3_0) ?
 			LCD_PANEL_RESET_GPIO_PROD :

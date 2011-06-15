@@ -460,7 +460,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 		default:
 			err = -ENOSYS;
 			goto out;
-		};
+		}
 	}
 	if (call <= MSGCTL) {
 		switch (call) {
@@ -481,7 +481,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 		default:
 			err = -ENOSYS;
 			goto out;
-		};
+		}
 	}
 	if (call <= SHMCTL) {
 		switch (call) {
@@ -507,7 +507,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 		default:
 			err = -ENOSYS;
 			goto out;
-		};
+		}
 	} else {
 		err = -ENOSYS;
 	}
