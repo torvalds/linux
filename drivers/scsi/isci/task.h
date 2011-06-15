@@ -100,7 +100,8 @@ struct isci_tmf {
 	union {
 		struct ssp_response_iu resp_iu;
 		struct dev_to_host_fis d2h_fis;
-	}                            resp;
+		u8 rsp_buf[SSP_RESP_IU_MAX_SIZE];
+	} resp;
 	unsigned char lun[8];
 	u16 io_tag;
 	struct isci_remote_device *device;
