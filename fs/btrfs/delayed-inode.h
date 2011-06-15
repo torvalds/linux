@@ -75,7 +75,6 @@ struct btrfs_delayed_item {
 	struct list_head tree_list;	/* used for batch insert/delete items */
 	struct list_head readdir_list;	/* used for readdir items */
 	u64 bytes_reserved;
-	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_delayed_node *delayed_node;
 	atomic_t refs;
 	int ins_or_del;
