@@ -70,6 +70,7 @@ Brief summary of control files.
 				 (See sysctl's vm.swappiness)
  memory.move_charge_at_immigrate # set/show controls of moving charges
  memory.oom_control		 # set/show oom controls.
+ memory.numa_stat		 # show the number of memory usage per numa node
 
 1. History
 
@@ -463,6 +464,24 @@ method and doesn't show 'exact' value of memory(and swap) usage, it's an fuzz
 value for efficient access. (Of course, when necessary, it's synchronized.)
 If you want to know more exact memory usage, you should use RSS+CACHE(+SWAP)
 value in memory.stat(see 5.2).
+
+5.6 numa_stat
+
+This is similar to numa_maps but operates on a per-memcg basis.  This is
+useful for providing visibility into the numa locality information within
+an memcg since the pages are allowed to be allocated from any physical
+node.  One of the usecases is evaluating application performance by
+combining this information with the application's cpu allocation.
+
+We export "total", "file", "anon" and "unevictable" pages per-node for
+each memcg.  The ouput format of memory.numa_stat is:
+
+total=<total pages> N0=<node 0 pages> N1=<node 1 pages> ...
+file=<total file pages> N0=<node 0 pages> N1=<node 1 pages> ...
+anon=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+unevictable=<total anon pages> N0=<node 0 pages> N1=<node 1 pages> ...
+
+And we have total = file + anon + unevictable.
 
 6. Hierarchy support
 
