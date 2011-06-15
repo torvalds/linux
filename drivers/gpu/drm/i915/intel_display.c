@@ -2699,13 +2699,17 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		I915_WRITE(PF_WIN_SZ(pipe), dev_priv->pch_pf_size);
 	}
 
+	/*
+	 * On ILK+ LUT must be loaded before the pipe is running but with
+	 * clocks enabled
+	 */
+	intel_crtc_load_lut(crtc);
+
 	intel_enable_pipe(dev_priv, pipe, is_pch_port);
 	intel_enable_plane(dev_priv, plane, pipe);
 
 	if (is_pch_port)
 		ironlake_pch_enable(crtc);
-
-	intel_crtc_load_lut(crtc);
 
 	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
