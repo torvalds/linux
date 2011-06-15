@@ -23,6 +23,7 @@
 
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
 
 #include <asm/mach/irq.h>
 
@@ -339,6 +340,15 @@ static int __init tegra_gpio_init(void)
 			__raw_writel(0x00, GPIO_INT_ENB(gpio));
 		}
 	}
+
+#ifdef CONFIG_OF_GPIO
+	/*
+	 * This isn't ideal, but it gets things hooked up until this
+	 * driver is converted into a platform_device
+	 */
+	tegra_gpio_chip.of_node = of_find_compatible_node(NULL, NULL,
+						"nvidia,tegra250-gpio");
+#endif /* CONFIG_OF_GPIO */
 
 	gpiochip_add(&tegra_gpio_chip);
 
