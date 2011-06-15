@@ -1,8 +1,8 @@
 Memory Resource Controller
 
-NOTE: The Memory Resource Controller has been generically been referred
-      to as the memory controller in this document. Do not confuse memory
-      controller used here with the memory controller that is used in hardware.
+NOTE: The Memory Resource Controller has generically been referred to as the
+      memory controller in this document. Do not confuse memory controller
+      used here with the memory controller that is used in hardware.
 
 (For editors)
 In this document:
@@ -182,7 +182,7 @@ behind this approach is that a cgroup that aggressively uses a shared
 page will eventually get charged for it (once it is uncharged from
 the cgroup that brought it in -- this will happen on memory pressure).
 
-Exception: If CONFIG_CGROUP_CGROUP_MEM_RES_CTLR_SWAP is not used..
+Exception: If CONFIG_CGROUP_CGROUP_MEM_RES_CTLR_SWAP is not used.
 When you do swapoff and make swapped-out pages of shmem(tmpfs) to
 be backed into memory in force, charges for pages are accounted against the
 caller of swapoff rather than the users of shmem.
@@ -214,7 +214,7 @@ affecting global LRU, memory+swap limit is better than just limiting swap from
 OS point of view.
 
 * What happens when a cgroup hits memory.memsw.limit_in_bytes
-When a cgroup his memory.memsw.limit_in_bytes, it's useless to do swap-out
+When a cgroup hits memory.memsw.limit_in_bytes, it's useless to do swap-out
 in this cgroup. Then, swap-out will not be done by cgroup routine and file
 caches are dropped. But as mentioned above, global LRU can do swapout memory
 from it for sanity of the system's memory management state. You can't forbid
@@ -491,13 +491,13 @@ The hierarchy is created by creating the appropriate cgroups in the
 cgroup filesystem. Consider for example, the following cgroup filesystem
 hierarchy
 
-		root
+	       root
 	     /  |   \
-           /	|    \
-	  a	b	c
-			| \
-			|  \
-			d   e
+            /	|    \
+	   a	b     c
+		      | \
+		      |  \
+		      d   e
 
 In the diagram above, with hierarchical accounting enabled, all memory
 usage of e, is accounted to its ancestors up until the root (i.e, c and root),

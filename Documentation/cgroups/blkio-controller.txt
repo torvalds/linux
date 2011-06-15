@@ -111,7 +111,7 @@ Hierarchical Cgroups
   CFQ and throttling will practically treat all groups at same level.
 
 				pivot
-			     /  |   \  \
+			     /  /   \  \
 			root  test1 test2  test3
 
   Down the line we can implement hierarchical accounting/control support

@@ -142,7 +142,7 @@ and depending on who is launching the browser he can
 
 With only a single hierarchy, he now would potentially have to create
 a separate cgroup for every browser launched and associate it with
-approp network and other resource class.  This may lead to
+appropriate network and other resource class.  This may lead to
 proliferation of such cgroups.
 
 Also lets say that the administrator would like to give enhanced network
