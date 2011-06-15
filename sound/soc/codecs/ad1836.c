@@ -1,19 +1,10 @@
-/*
- * File:         sound/soc/codecs/ad1836.c
- * Author:       Barry Song <Barry.Song@analog.com>
+ /*
+ * Audio Codec driver supporting:
+ *  AD1835A, AD1836, AD1837A, AD1838A, AD1839A
  *
- * Created:      Aug 04 2009
- * Description:  Driver for AD1836 sound chip
+ * Copyright 2009-2011 Analog Devices Inc.
  *
- * Modified:
- *               Copyright 2009 Analog Devices Inc.
- *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * Licensed under the GPL-2 or later.
  */
 
 #include <linux/init.h>
