@@ -25,10 +25,13 @@
 
 #include <trace/events/vmscan.h>
 
+#define TOKEN_AGING_INTERVAL	(0xFF)
+
 static DEFINE_SPINLOCK(swap_token_lock);
 struct mm_struct *swap_token_mm;
 struct mem_cgroup *swap_token_memcg;
 static unsigned int global_faults;
+static unsigned int last_aging;
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 static struct mem_cgroup *swap_token_memcg_from_mm(struct mm_struct *mm)
@@ -64,6 +67,11 @@ void grab_swap_token(struct mm_struct *mm)
 	if (!swap_token_mm)
 		goto replace_token;
 
+	if ((global_faults - last_aging) > TOKEN_AGING_INTERVAL) {
+		swap_token_mm->token_priority /= 2;
+		last_aging = global_faults;
+	}
+
 	if (mm == swap_token_mm) {
 		mm->token_priority += 2;
 		goto update_priority;
@@ -81,7 +89,7 @@ void grab_swap_token(struct mm_struct *mm)
 		goto replace_token;
 
 update_priority:
-	trace_update_swap_token_priority(mm, old_prio);
+	trace_update_swap_token_priority(mm, old_prio, swap_token_mm);
 
 out:
 	mm->faultstamp = global_faults;
@@ -94,6 +102,7 @@ replace_token:
 	trace_replace_swap_token(swap_token_mm, mm);
 	swap_token_mm = mm;
 	swap_token_memcg = swap_token_memcg_from_mm(mm);
+	last_aging = global_faults;
 	goto out;
 }
 
