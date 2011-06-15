@@ -209,6 +209,15 @@ struct bfin_gptimer_regs {
 	u32 width;
 };
 
+/*
+ * bfin group timer registers layout
+ */
+struct bfin_gptimer_group_regs {
+	__BFP(enable);
+	__BFP(disable);
+	u32 status;
+};
+
 #undef __BFP
 
 #endif
