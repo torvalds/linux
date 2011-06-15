@@ -4640,6 +4640,7 @@ static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "numa_stat",
 		.open = mem_control_numa_stat_open,
+		.mode = S_IRUGO,
 	},
 #endif
 };
