@@ -889,6 +889,7 @@ static int __devinit adp8870_probe(struct i2c_client *client,
 	mutex_init(&data->lock);
 
 	memset(&props, 0, sizeof(props));
+	props.type = BACKLIGHT_RAW;
 	props.max_brightness = props.brightness = ADP8870_MAX_BRIGHTNESS;
 	bl = backlight_device_register(dev_driver_string(&client->dev),
 			&client->dev, data, &adp8870_bl_ops, &props);
