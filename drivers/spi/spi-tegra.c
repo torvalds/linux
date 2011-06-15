@@ -546,6 +546,7 @@ static int __init spi_tegra_probe(struct platform_device *pdev)
 	tspi->rx_dma_req.req_sel = spi_tegra_req_sels[pdev->id];
 	tspi->rx_dma_req.dev = tspi;
 
+	master->dev.of_node = pdev->dev.of_node;
 	ret = spi_register_master(master);
 
 	if (ret < 0)
@@ -595,10 +596,21 @@ static int __devexit spi_tegra_remove(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:spi_tegra");
 
+#ifdef CONFIG_OF
+static struct of_device_id spi_tegra_of_match_table[] __devinitdata = {
+	{ .compatible = "nvidia,tegra250-spi", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, spi_tegra_of_match_table);
+#else /* CONFIG_OF */
+#define spi_tegra_of_match_table NULL
+#endif /* CONFIG_OF */
+
 static struct platform_driver spi_tegra_driver = {
 	.driver = {
 		.name =		"spi_tegra",
 		.owner =	THIS_MODULE,
+		.of_match_table = spi_tegra_of_match_table,
 	},
 	.remove =	__devexit_p(spi_tegra_remove),
 };
