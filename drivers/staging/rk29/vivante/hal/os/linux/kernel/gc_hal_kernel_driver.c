@@ -802,7 +802,6 @@ static int drv_init(void)
         printk("clk_gpu get error: %d\n", retval);
         return -ENODEV;
     }
-    clk_set_rate(clk_get(NULL, "codec_pll"), coreClock);
     /* APMU_GC_156M, APMU_GC_624M, APMU_GC_PLL2, APMU_GC_PLL2_DIV2 currently */
     if (clk_set_rate(clk_gpu, coreClock))  //designed on 500M
     {

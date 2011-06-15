@@ -267,10 +267,20 @@ int board_boot_mode(void);
 enum periph_pll {
 	periph_pll_96mhz = 96000000,
 	periph_pll_144mhz = 144000000,
-	periph_pll_288mhz = 288000000,
-	periph_pll_300mhz = 300000000,
+	periph_pll_288mhz = 288000000, /* for USB 1.1 */
+	periph_pll_300mhz = 300000000, /* for Ethernet */
 };
+
+enum codec_pll {
+	codec_pll_297mhz = 297000000, /* for HDMI */
+	codec_pll_300mhz = 300000000,
+	codec_pll_552mhz = 552000000,
+	codec_pll_594mhz = 594000000, /* for HDMI */
+	codec_pll_600mhz = 600000000,
+};
+
 void __init rk29_clock_init(enum periph_pll ppll_rate);
+void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate, bool has_xin27m);
 
 /* for USB detection */
 #ifdef CONFIG_USB_GADGET

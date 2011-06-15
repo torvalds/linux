@@ -608,7 +608,6 @@ void load_screen(struct fb_info *info, bool initscreen)
 
     if((inf->cur_screen->type == SCREEN_HDMI) || (inf->cur_screen->type == SCREEN_TVOUT)){
         inf->dclk_parent = clk_get(NULL, "codec_pll");
-		clk_set_rate(inf->dclk_parent, 594000000);
     }    else    {
         inf->dclk_parent = clk_get(NULL, "general_pll");
     }

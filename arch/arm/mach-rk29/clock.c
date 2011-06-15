@@ -81,6 +81,7 @@ static void __clk_reparent(struct clk *child, struct clk *parent);
 static void __propagate_rate(struct clk *tclk);
 static struct clk codec_pll_clk;
 static struct clk general_pll_clk;
+static bool has_xin27m = true;
 
 static unsigned long clksel_recalc_div(struct clk *clk)
 {
@@ -132,6 +133,30 @@ static int clksel_set_rate_div(struct clk *clk, unsigned long rate)
 	}
 
 	return -ENOENT;
+}
+
+static long clksel_round_rate_div(struct clk *clk, unsigned long rate)
+{
+	u32 div;
+	unsigned long prev = ULONG_MAX, actual;
+
+	for (div = 0; div <= clk->clksel_mask; div++) {
+		actual = clk->parent->rate / (div + 1);
+		if (actual > rate)
+			prev = actual;
+		if (actual && actual <= rate) {
+			if ((prev - rate) <= (rate - actual)) {
+				actual = prev;
+				div--;
+			}
+			break;
+		}
+	}
+	if (div > clk->clksel_mask)
+		div = clk->clksel_mask;
+	pr_debug("clock %s, target rate %ld, rounded rate %ld (div %d)\n", clk->name, rate, actual, div + 1);
+
+	return actual;
 }
 
 static int clksel_set_rate_shift(struct clk *clk, unsigned long rate)
@@ -538,8 +563,9 @@ static const struct codec_pll_set codec_pll[] = {
 	CODEC_PLL(108, 24,  LOW, 1, 18, 4),	// for TV
 	CODEC_PLL(648, 24, HIGH, 1, 27, 1),
 	CODEC_PLL(297, 27,  LOW, 1, 22, 2),	// for HDMI
-	CODEC_PLL(594, 27,  LOW, 1, 22, 1),
-	CODEC_PLL(360, 24,  LOW, 1, 15, 1),	// for GPU
+	CODEC_PLL(594, 27, HIGH, 1, 22, 1),
+	CODEC_PLL(300, 24,  LOW, 1, 25, 2),	// for GPU
+	CODEC_PLL(360, 24,  LOW, 1, 15, 1),
 	CODEC_PLL(408, 24,  LOW, 1, 17, 1),
 	CODEC_PLL(456, 24,  LOW, 1, 19, 1),
 	CODEC_PLL(504, 24,  LOW, 1, 21, 1),
@@ -561,7 +587,10 @@ static int codec_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 		}
 	}
 	if (!ps)
-		return  -ENOENT;
+		return -ENOENT;
+
+	if (!has_xin27m && ps->parent_con == CODEC_PLL_PARENT_XIN27M)
+		return -ENOENT;
 
 	work_mode = cru_readl(CRU_MODE_CON) & CRU_CODEC_MODE_MASK;
 
@@ -1607,12 +1636,22 @@ static struct clk hclk_vdpu = {
 	.clksel_maxdiv	= 4,
 };
 
+static int clk_gpu_set_rate(struct clk *clk, unsigned long rate)
+{
+	if (clk->parent == &codec_pll_clk && rate != codec_pll_clk.rate && rate == general_pll_clk.rate) {
+		clk_set_parent_nolock(clk, &general_pll_clk);
+	} else if (clk->parent == &general_pll_clk && rate != general_pll_clk.rate) {
+		clk_set_parent_nolock(clk, &codec_pll_clk);
+	}
+	return clksel_set_rate_div(clk, clksel_round_rate_div(clk, rate));
+}
+
 static struct clk clk_gpu = {
 	.name		= "gpu",
 	.mode		= gate_mode,
 	.gate_idx	= CLK_GATE_GPU,
 	.recalc		= clksel_recalc_div,
-	.set_rate	= clksel_set_rate_div,
+	.set_rate	= clk_gpu_set_rate,
 	.clksel_con	= CRU_CLKSEL17_CON,
 	.clksel_mask	= 0x1F,
 	.clksel_shift	= 16,
@@ -2381,12 +2420,10 @@ static int __init armclk_setup(char *str)
 }
 early_param("armclk", armclk_setup);
 
-static void __init rk29_clock_common_init(unsigned long ppll_rate)
+static void __init rk29_clock_common_init(unsigned long ppll_rate, unsigned long cpll_rate)
 {
 	unsigned long aclk_p, hclk_p, pclk_p;
 	struct clk *aclk_vepu_parent, *aclk_vdpu_parent, *aclk_gpu_parent;
-	unsigned long aclk_vepu_rate, hclk_vepu_rate, aclk_ddr_vepu_rate, aclk_gpu_rate;
-	unsigned long codec_pll = 552 * MHZ;
 
 	/* general pll */
 	switch (ppll_rate) {
@@ -2395,16 +2432,12 @@ static void __init rk29_clock_common_init(unsigned long ppll_rate)
 		hclk_p = 48 * MHZ;
 		pclk_p = 24 * MHZ;
 		aclk_gpu_parent = aclk_vdpu_parent = aclk_vepu_parent = &codec_pll_clk;
-		aclk_gpu_rate = aclk_ddr_vepu_rate = aclk_vepu_rate = codec_pll / 2;
-		hclk_vepu_rate = codec_pll / 4;
 		break;
 	case 144 * MHZ:
 		aclk_p = 144 * MHZ;
 		hclk_p = 72 * MHZ;
 		pclk_p = 36 * MHZ;
 		aclk_gpu_parent = aclk_vdpu_parent = aclk_vepu_parent = &codec_pll_clk;
-		aclk_gpu_rate = aclk_ddr_vepu_rate = aclk_vepu_rate = codec_pll / 2;
-		hclk_vepu_rate = codec_pll / 4;
 		break;
 	default:
 		ppll_rate = 288 * MHZ;
@@ -2414,8 +2447,6 @@ static void __init rk29_clock_common_init(unsigned long ppll_rate)
 		hclk_p = ppll_rate / 2;
 		pclk_p = ppll_rate / 8;
 		aclk_gpu_parent = aclk_vdpu_parent = aclk_vepu_parent = &general_pll_clk;
-		aclk_gpu_rate = aclk_ddr_vepu_rate = aclk_vepu_rate = ppll_rate;
-		hclk_vepu_rate = ppll_rate / 2;
 		break;
 	}
 
@@ -2439,7 +2470,7 @@ static void __init rk29_clock_common_init(unsigned long ppll_rate)
 	clk_set_parent_nolock(&clk_hsadc_div, &general_pll_clk);
 
 	/* codec pll */
-	clk_set_rate_nolock(&codec_pll_clk, codec_pll);
+	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
 	clk_set_parent_nolock(&clk_gpu, &codec_pll_clk);
 
 	/* arm pll */
@@ -2447,12 +2478,12 @@ static void __init rk29_clock_common_init(unsigned long ppll_rate)
 
 	/*you can choose clk parent form codec pll or periph pll for following logic*/
 	clk_set_parent_nolock(&aclk_vepu, aclk_vepu_parent);
-	clk_set_rate_nolock(&aclk_vepu, aclk_vepu_rate);
-	clk_set_rate_nolock(&clk_aclk_ddr_vepu,aclk_ddr_vepu_rate);
-	clk_set_rate_nolock(&hclk_vepu, hclk_vepu_rate);
+	clk_set_rate_nolock(&aclk_vepu, 300 * MHZ);
+	clk_set_rate_nolock(&clk_aclk_ddr_vepu, 300 * MHZ);
+	clk_set_rate_nolock(&hclk_vepu, 150 * MHZ);
 	clk_set_parent_nolock(&aclk_vdpu, aclk_vdpu_parent);
 	clk_set_parent_nolock(&aclk_gpu, aclk_gpu_parent);
-	clk_set_rate_nolock(&aclk_gpu, aclk_gpu_rate);
+	clk_set_rate_nolock(&aclk_gpu, 300 * MHZ);
 }
 
 static void __init clk_enable_init_clocks(void)
@@ -2498,9 +2529,11 @@ static int __init clk_disable_unused(void)
 	return 0;
 }
 
-void __init rk29_clock_init(enum periph_pll ppll_rate)
+void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate, bool _has_xin27m)
 {
 	struct clk_lookup *lk;
+
+	has_xin27m = _has_xin27m;
 
 	cru_clkgate3_con_mirror = cru_readl(CRU_CLKGATE3_CON);
 	cru_softrst0_con_mirror = cru_readl(CRU_SOFTRST0_CON);
@@ -2526,11 +2559,16 @@ void __init rk29_clock_init(enum periph_pll ppll_rate)
 	 */
 	clk_disable_unused();
 
-	rk29_clock_common_init(ppll_rate);
+	rk29_clock_common_init(ppll_rate, cpll_rate);
 
 	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz\n",
 	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
 	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
+}
+
+void __init rk29_clock_init(enum periph_pll ppll_rate)
+{
+	rk29_clock_init2(ppll_rate, codec_pll_594mhz, true);
 }
 
 #ifdef CONFIG_PROC_FS

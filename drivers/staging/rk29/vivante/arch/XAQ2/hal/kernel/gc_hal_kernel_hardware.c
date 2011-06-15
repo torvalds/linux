@@ -113,7 +113,7 @@ inline void get_idle_change(gceCHIPPOWERSTATE State)
             
             lasthighfreq = needhighfreq;
             
-            printk("gpu: change freq to %d \n", gpufreq); 
+            printk("gpu: change freq to %d, got %ld\n", gpufreq, clk_get_rate(clk_gpu)/1000000);
         }
     }
     lastState = State;
