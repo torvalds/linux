@@ -264,16 +264,17 @@ b. Enable CONFIG_RESOURCE_COUNTERS
 c. Enable CONFIG_CGROUP_MEM_RES_CTLR
 d. Enable CONFIG_CGROUP_MEM_RES_CTLR_SWAP (to use swap extension)
 
-1. Prepare the cgroups
-# mkdir -p /cgroups
-# mount -t cgroup none /cgroups -o memory
+1. Prepare the cgroups (see cgroups.txt, Why are cgroups needed?)
+# mount -t tmpfs none /sys/fs/cgroup
+# mkdir /sys/fs/cgroup/memory
+# mount -t cgroup none /sys/fs/cgroup/memory -o memory
 
 2. Make the new group and move bash into it
-# mkdir /cgroups/0
-# echo $$ > /cgroups/0/tasks
+# mkdir /sys/fs/cgroup/memory/0
+# echo $$ > /sys/fs/cgroup/memory/0/tasks
 
 Since now we're in the 0 cgroup, we can alter the memory limit:
-# echo 4M > /cgroups/0/memory.limit_in_bytes
+# echo 4M > /sys/fs/cgroup/memory/0/memory.limit_in_bytes
 
 NOTE: We can use a suffix (k, K, m, M, g or G) to indicate values in kilo,
 mega or gigabytes. (Here, Kilo, Mega, Giga are Kibibytes, Mebibytes, Gibibytes.)
@@ -281,11 +282,11 @@ mega or gigabytes. (Here, Kilo, Mega, Giga are Kibibytes, Mebibytes, Gibibytes.)
 NOTE: We can write "-1" to reset the *.limit_in_bytes(unlimited).
 NOTE: We cannot set limits on the root cgroup any more.
 
-# cat /cgroups/0/memory.limit_in_bytes
+# cat /sys/fs/cgroup/memory/0/memory.limit_in_bytes
 4194304
 
 We can check the usage:
-# cat /cgroups/0/memory.usage_in_bytes
+# cat /sys/fs/cgroup/memory/0/memory.usage_in_bytes
 1216512
 
 A successful write to this file does not guarantee a successful set of
