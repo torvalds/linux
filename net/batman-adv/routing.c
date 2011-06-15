@@ -361,7 +361,7 @@ static void update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 			const struct batman_packet *batman_packet,
 			struct hard_iface *if_incoming,
 			const unsigned char *tt_buff, int tt_buff_len,
-			char is_duplicate)
+			int is_duplicate)
 {
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
 	struct neigh_node *router = NULL;
@@ -528,7 +528,7 @@ static int window_protected(struct bat_priv *bat_priv,
  *  -1 the packet is old and has been received while the seqno window
  *     was protected. Caller should drop it.
  */
-static char count_real_packets(const struct ethhdr *ethhdr,
+static int count_real_packets(const struct ethhdr *ethhdr,
 			       const struct batman_packet *batman_packet,
 			       const struct hard_iface *if_incoming)
 {
@@ -536,7 +536,7 @@ static char count_real_packets(const struct ethhdr *ethhdr,
 	struct orig_node *orig_node;
 	struct neigh_node *tmp_neigh_node;
 	struct hlist_node *node;
-	char is_duplicate = 0;
+	int is_duplicate = 0;
 	int32_t seq_diff;
 	int need_update = 0;
 	int set_mark, ret = -1;
@@ -605,7 +605,7 @@ void receive_bat_packet(const struct ethhdr *ethhdr,
 	char has_directlink_flag;
 	char is_my_addr = 0, is_my_orig = 0, is_my_oldorig = 0;
 	char is_broadcast = 0, is_bidirectional, is_single_hop_neigh;
-	char is_duplicate;
+	int is_duplicate;
 	uint32_t if_incoming_seqno;
 
 	/* Silently drop when the batman packet is actually not a
