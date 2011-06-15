@@ -425,6 +425,7 @@ static const char *trace_options[] = {
 	"graph-time",
 	"record-cmd",
 	"overwrite",
+	"disable_on_free",
 	NULL
 };
 
@@ -3518,8 +3519,9 @@ tracing_free_buffer_write(struct file *filp, const char __user *ubuf,
 static int
 tracing_free_buffer_release(struct inode *inode, struct file *filp)
 {
-	/* disable tracing */
-	tracing_off();
+	/* disable tracing ? */
+	if (trace_flags & TRACE_ITER_STOP_ON_FREE)
+		tracing_off();
 	/* resize the ring buffer to 0 */
 	tracing_resize_ring_buffer(0);
 
