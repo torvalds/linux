@@ -1908,7 +1908,7 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 
 	if (pin < GMBUS_NUM_PORTS) {
 		sdvo->i2c = &dev_priv->gmbus[pin].adapter;
-		intel_gmbus_set_speed(sdvo->i2c, GMBUS_RATE_1MHZ >> 8);
+		intel_gmbus_set_speed(sdvo->i2c, GMBUS_RATE_1MHZ);
 		intel_gmbus_force_bit(sdvo->i2c, true);
 	} else {
 		sdvo->i2c = &dev_priv->gmbus[GMBUS_PORT_DPB].adapter;
