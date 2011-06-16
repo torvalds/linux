@@ -278,7 +278,7 @@ static int option_set(void *data, u64 val)
 
 DEFINE_SIMPLE_ATTRIBUTE(pm_dbg_option_fops, option_get, option_set, "%llu\n");
 
-static int pm_dbg_init(void)
+static int __init pm_dbg_init(void)
 {
 	struct dentry *d;
 
