@@ -20,7 +20,7 @@
 #include <linux/ima.h>
 #include <linux/evm.h>
 
-#define MAX_LSM_XATTR	1
+#define MAX_LSM_EVM_XATTR	2
 
 /* Boot-time LSM user choice */
 static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
@@ -346,8 +346,8 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 				 const struct qstr *qstr,
 				 const initxattrs initxattrs, void *fs_data)
 {
-	struct xattr new_xattrs[MAX_LSM_XATTR + 1];
-	struct xattr *lsm_xattr;
+	struct xattr new_xattrs[MAX_LSM_EVM_XATTR + 1];
+	struct xattr *lsm_xattr, *evm_xattr, *xattr;
 	int ret;
 
 	if (unlikely(IS_PRIVATE(inode)))
@@ -364,11 +364,17 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 						&lsm_xattr->value_len);
 	if (ret)
 		goto out;
+
+	evm_xattr = lsm_xattr + 1;
+	ret = evm_inode_init_security(inode, lsm_xattr, evm_xattr);
+	if (ret)
+		goto out;
 	ret = initxattrs(inode, new_xattrs, fs_data);
 out:
-	kfree(lsm_xattr->name);
-	kfree(lsm_xattr->value);
-
+	for (xattr = new_xattrs; xattr->name != NULL; xattr++) {
+		kfree(xattr->name);
+		kfree(xattr->value);
+	}
 	return (ret == -EOPNOTSUPP) ? 0 : ret;
 }
 EXPORT_SYMBOL(security_inode_init_security);
