@@ -1768,9 +1768,6 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		}
 	}
 
-	if ((idx == urb_priv->length - 1) && *status == -EINPROGRESS)
-		*status = 0;
-
 	return finish_td(xhci, td, event_trb, event, ep, status, false);
 }
 
@@ -1788,8 +1785,7 @@ static int skip_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	idx = urb_priv->td_cnt;
 	frame = &td->urb->iso_frame_desc[idx];
 
-	/* The transfer is partly done */
-	*status = -EXDEV;
+	/* The transfer is partly done. */
 	frame->status = -EXDEV;
 
 	/* calc actual length */
@@ -2177,6 +2173,11 @@ cleanup:
 						urb->transfer_buffer_length,
 						status);
 			spin_unlock(&xhci->lock);
+			/* EHCI, UHCI, and OHCI always unconditionally set the
+			 * urb->status of an isochronous endpoint to 0.
+			 */
+			if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
+				status = 0;
 			usb_hcd_giveback_urb(bus_to_hcd(urb->dev->bus), urb, status);
 			spin_lock(&xhci->lock);
 		}
