@@ -811,7 +811,49 @@ EXPORT_SYMBOL_GPL(pmu_wm831x_set_resume_voltage);
 
 int wm831x_last_deinit(struct wm831x *parm)
 {
+	struct regulator* ldo;
+
 	printk("%s\n", __FUNCTION__);
+
+	ldo = regulator_get(NULL, "ldo1");
+	regulator_disable(ldo);			
+	regulator_put(ldo);
+	
+	ldo = regulator_get(NULL, "ldo2");
+	regulator_disable(ldo);			
+	regulator_put(ldo);
+	
+	ldo = regulator_get(NULL, "ldo3");
+	regulator_disable(ldo);			
+	regulator_put(ldo);
+	
+	ldo = regulator_get(NULL, "ldo4");
+	//regulator_disable(ldo);	
+	regulator_put(ldo);
+
+	ldo = regulator_get(NULL, "ldo5");
+	regulator_disable(ldo);			
+	regulator_put(ldo);
+
+	ldo = regulator_get(NULL, "ldo6");
+	regulator_disable(ldo);			
+	regulator_put(ldo);
+
+	ldo = regulator_get(NULL, "ldo7");
+	regulator_disable(ldo);			
+	regulator_put(ldo);
+
+	ldo = regulator_get(NULL, "ldo8");
+	//regulator_disable(ldo);			
+	regulator_put(ldo);
+
+	ldo = regulator_get(NULL, "ldo9");
+	regulator_disable(ldo);			
+	regulator_put(ldo);
+
+	ldo = regulator_get(NULL, "ldo10");
+	regulator_disable(ldo);						
+	regulator_put(ldo);
 
 	return 0;
 }
@@ -2935,23 +2977,28 @@ static void __init machine_rk29_init_irq(void)
 }
 
 #define POWER_ON_PIN RK29_PIN4_PA4
-static void rk29_pm_power_off(void)
-{
-	printk(KERN_ERR "rk29_pm_power_off start...\n");
-	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
-#if defined(CONFIG_MFD_WM831X)
-	wm831x_device_shutdown(gWm831x);
-#endif
-	while (1);
-}
+
 static void rk29_pm_power_restart(void)
 {
-	printk("%s\n",__FUNCTION__);
+	printk("%s,line=%d\n",__FUNCTION__,__LINE__);
 	mdelay(2);
 #if defined(CONFIG_MFD_WM831X)
 	wm831x_device_restart(gWm831x);
 #endif
 
+}
+
+static void rk29_pm_power_off(void)
+{
+	printk(KERN_ERR "rk29_pm_power_off start...\n");
+	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+#if defined(CONFIG_MFD_WM831X)
+	if(wm831x_read_usb(gWm831x))
+	rk29_pm_power_restart();	//if charging then restart
+	else
+	wm831x_device_shutdown(gWm831x);//else shutdown
+#endif
+	while (1);
 }
 
 static void __init machine_rk29_board_init(void)
@@ -2962,7 +3009,7 @@ static void __init machine_rk29_board_init(void)
 	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	pm_power_off = rk29_pm_power_off;
-	arm_pm_restart = rk29_pm_power_restart;
+	//arm_pm_restart = rk29_pm_power_restart;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
