@@ -43,7 +43,7 @@ struct htable {
 	struct hbucket bucket[0]; /* hashtable buckets */
 };
 
-#define hbucket(h, i)		&((h)->bucket[i])
+#define hbucket(h, i)		(&((h)->bucket[i]))
 
 /* Book-keeping of the prefixes added to the set */
 struct ip_set_hash_nets {

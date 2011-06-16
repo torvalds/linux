@@ -2,7 +2,7 @@
 #define _PFXLEN_H
 
 #include <asm/byteorder.h>
-#include <linux/netfilter.h> 
+#include <linux/netfilter.h>
 #include <net/tcp.h>
 
 /* Prefixlen maps, by Jan Engelhardt  */

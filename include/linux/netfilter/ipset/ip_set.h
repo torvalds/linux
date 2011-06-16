@@ -331,7 +331,7 @@ struct ip_set {
 /* register and unregister set references */
 extern ip_set_id_t ip_set_get_byname(const char *name, struct ip_set **set);
 extern void ip_set_put_byindex(ip_set_id_t index);
-extern const char * ip_set_name_byindex(ip_set_id_t index);
+extern const char *ip_set_name_byindex(ip_set_id_t index);
 extern ip_set_id_t ip_set_nfnl_get(const char *name);
 extern ip_set_id_t ip_set_nfnl_get_byindex(ip_set_id_t index);
 extern void ip_set_nfnl_put(ip_set_id_t index);
@@ -349,7 +349,7 @@ extern int ip_set_test(ip_set_id_t id, const struct sk_buff *skb,
 		       const struct ip_set_adt_opt *opt);
 
 /* Utility functions */
-extern void * ip_set_alloc(size_t size);
+extern void *ip_set_alloc(size_t size);
 extern void ip_set_free(void *members);
 extern int ip_set_get_ipaddr4(struct nlattr *nla,  __be32 *ipaddr);
 extern int ip_set_get_ipaddr6(struct nlattr *nla, union nf_inet_addr *ipaddr);
@@ -359,7 +359,7 @@ ip_set_get_hostipaddr4(struct nlattr *nla, u32 *ipaddr)
 {
 	__be32 ip;
 	int ret = ip_set_get_ipaddr4(nla, &ip);
-	
+
 	if (ret)
 		return ret;
 	*ipaddr = ntohl(ip);

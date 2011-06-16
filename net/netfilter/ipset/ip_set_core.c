@@ -683,8 +683,8 @@ ip_set_create(struct sock *ctnl, struct sk_buff *skb,
 	if (attr[IPSET_ATTR_DATA] &&
 	    nla_parse_nested(tb, IPSET_ATTR_CREATE_MAX, attr[IPSET_ATTR_DATA],
 			     set->type->create_policy)) {
-	    	ret = -IPSET_ERR_PROTOCOL;
-	    	goto put_out;
+		ret = -IPSET_ERR_PROTOCOL;
+		goto put_out;
 	}
 
 	ret = set->type->create(set, tb, flags);

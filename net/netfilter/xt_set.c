@@ -37,7 +37,7 @@ match_set(ip_set_id_t index, const struct sk_buff *skb,
 	return inv;
 }
 
-#define ADT_OPT(n, f, d, fs, cfs, t) 	\
+#define ADT_OPT(n, f, d, fs, cfs, t)	\
 const struct ip_set_adt_opt n = {	\
 	.family	= f,			\
 	.dim = d,			\

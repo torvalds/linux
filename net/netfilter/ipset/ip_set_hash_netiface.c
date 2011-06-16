@@ -100,7 +100,7 @@ iface_test(struct rb_root *root, const char **iface)
 	while (n) {
 		const char *d = iface_data(n);
 		int res = ifname_compare(*iface, d);
-		
+
 		if (res < 0)
 			n = n->rb_left;
 		else if (res > 0)
@@ -118,7 +118,7 @@ iface_add(struct rb_root *root, const char **iface)
 {
 	struct rb_node **n = &(root->rb_node), *p = NULL;
 	struct iface_node *d;
-	
+
 	while (*n) {
 		char *ifname = iface_data(*n);
 		int res = ifname_compare(*iface, ifname);
@@ -296,10 +296,10 @@ hash_netiface4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	if (opt->cmdflags & IPSET_FLAG_PHYSDEV) {
 #ifdef CONFIG_BRIDGE_NETFILTER
 		const struct nf_bridge_info *nf_bridge = skb->nf_bridge;
-		
+
 		if (!nf_bridge)
 			return -EINVAL;
-		data.iface = SRCDIR ? PHYSDEV(physindev): PHYSDEV(physoutdev);
+		data.iface = SRCDIR ? PHYSDEV(physindev) : PHYSDEV(physoutdev);
 		data.physdev = 1;
 #else
 		data.iface = NULL;
@@ -350,7 +350,7 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (tb[IPSET_ATTR_CIDR]) {
 		data.cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
 		if (!data.cidr)
-			return -IPSET_ERR_INVALID_CIDR; 
+			return -IPSET_ERR_INVALID_CIDR;
 	}
 
 	if (tb[IPSET_ATTR_TIMEOUT]) {
@@ -359,7 +359,7 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 		timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 	}
 
-	strcpy(iface, nla_data(tb[IPSET_ATTR_IFACE])); 
+	strcpy(iface, nla_data(tb[IPSET_ATTR_IFACE]));
 	data.iface = iface;
 	ret = iface_test(&h->rbtree, &data.iface);
 	if (adt == IPSET_ADD) {
@@ -372,8 +372,8 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 		return ret;
 
 	if (tb[IPSET_ATTR_CADT_FLAGS]) {
-		u32 flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
-		if (flags & IPSET_FLAG_PHYSDEV)
+		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
+		if (cadt_flags & IPSET_FLAG_PHYSDEV)
 			data.physdev = 1;
 	}
 
@@ -559,10 +559,10 @@ hash_netiface6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	if (opt->cmdflags & IPSET_FLAG_PHYSDEV) {
 #ifdef CONFIG_BRIDGE_NETFILTER
 		const struct nf_bridge_info *nf_bridge = skb->nf_bridge;
-		
+
 		if (!nf_bridge)
 			return -EINVAL;
-		data.iface = SRCDIR ? PHYSDEV(physindev): PHYSDEV(physoutdev);
+		data.iface = SRCDIR ? PHYSDEV(physindev) : PHYSDEV(physoutdev);
 		data.physdev = 1;
 #else
 		data.iface = NULL;
@@ -623,7 +623,7 @@ hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
 		timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 	}
 
-	strcpy(iface, nla_data(tb[IPSET_ATTR_IFACE])); 
+	strcpy(iface, nla_data(tb[IPSET_ATTR_IFACE]));
 	data.iface = iface;
 	ret = iface_test(&h->rbtree, &data.iface);
 	if (adt == IPSET_ADD) {
@@ -636,8 +636,8 @@ hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
 		return ret;
 
 	if (tb[IPSET_ATTR_CADT_FLAGS]) {
-		u32 flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
-		if (flags & IPSET_FLAG_PHYSDEV)
+		u32 cadt_flags = ip_set_get_h32(tb[IPSET_ATTR_CADT_FLAGS]);
+		if (cadt_flags & IPSET_FLAG_PHYSDEV)
 			data.physdev = 1;
 	}
 
