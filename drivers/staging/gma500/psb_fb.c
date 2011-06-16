@@ -346,6 +346,11 @@ err:
  *	and back it with a GEM object.
  *
  *	In this case the GEM object has no handle. 
+ *
+ *	FIXME: console speed up - allocate twice the space if room and use
+ *	hardware scrolling for acceleration.
+ *	FIXME: we need to vm_map_ram  a linear mapping if the object has to
+ *	be GEM host mapped, otherwise the cfb layer's brain will fall out.
  */
 static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 {
@@ -436,7 +441,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	/* Accessed via stolen memory directly, This only works for stolem
 	   memory however. Need to address this once we start using gtt
-	   pages we allocate */
+	   pages we allocate. FIXME: vm_map_ram for that case */
 	info->screen_base = (char *)dev_priv->vram_addr + backing->offset;
 	info->screen_size = size;
 	memset(info->screen_base, 0, size);
@@ -676,6 +681,8 @@ static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	struct psb_framebuffer *psbfb = to_psb_fb(fb);
 	struct gtt_range *r = psbfb->gtt;
 
+	pr_err("user framebuffer destroy %p, fbdev %p\n",
+						psbfb, psbfb->fbdev);
 	if (psbfb->fbdev)
 		psbfb_remove(dev, fb);
 

@@ -28,11 +28,11 @@
  */
 
 /**
- *	psb_gtt_mask_pte	-	generate GART pte entry
+ *	psb_gtt_mask_pte	-	generate GTT pte entry
  *	@pfn: page number to encode
- *	@type: type of memory in the GART
+ *	@type: type of memory in the GTT
  *
- *	Set the GART entry for the appropriate memory type.
+ *	Set the GTT entry for the appropriate memory type.
  */
 static inline uint32_t psb_gtt_mask_pte(uint32_t pfn, int type)
 {
@@ -49,11 +49,11 @@ static inline uint32_t psb_gtt_mask_pte(uint32_t pfn, int type)
 }
 
 /**
- *	psb_gtt_entry		-	find the GART entries for a gtt_range
+ *	psb_gtt_entry		-	find the GTT entries for a gtt_range
  *	@dev: our DRM device
  *	@r: our GTT range
  * 
- *	Given a gtt_range object return the GART offset of the page table
+ *	Given a gtt_range object return the GTT offset of the page table
  *	entries for this gtt_range
  */
 u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
@@ -67,12 +67,12 @@ u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
 }
 
 /**
- *	psb_gtt_insert	-	put an object into the GART
+ *	psb_gtt_insert	-	put an object into the GTT
  *	@dev: our DRM device
  *	@r: our GTT range
  *
  *	Take our preallocated GTT range and insert the GEM object into
- *	the GART.
+ *	the GTT.
  *
  *	FIXME: gtt lock ?
  */
@@ -93,10 +93,10 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 	gtt_slot = psb_gtt_entry(dev, r);
 	pages = r->pages;
 
-	/* Make sure we have no alias present */
-	wbinvd();
+	/* Make sure changes are visible to the GPU */
+	set_pages_array_uc(pages, numpages);
 
-	/* Write our page entries into the GART itself */
+	/* Write our page entries into the GTT itself */
 	for (i = 0; i < numpages; i++) {
 		pte = psb_gtt_mask_pte(page_to_pfn(*pages++), 0/*type*/);
 		iowrite32(pte, gtt_slot++);
@@ -108,11 +108,11 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 }
 
 /**
- *	psb_gtt_remove	-	remove an object from the GART
+ *	psb_gtt_remove	-	remove an object from the GTT
  *	@dev: our DRM device
  *	@r: our GTT range
  *
- *	Remove a preallocated GTT range from the GART. Overwrite all the
+ *	Remove a preallocated GTT range from the GTT. Overwrite all the
  *	page table entries with the dummy page
  */
 
@@ -131,6 +131,7 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 	for (i = 0; i < numpages; i++)
 		iowrite32(pte, gtt_slot++);
 	ioread32(gtt_slot - 1);
+	set_pages_array_wb(r->pages, numpages);
 }
 
 /**
@@ -182,7 +183,7 @@ err:
  *	@gt: the gtt range
  *
  *	Undo the effect of psb_gtt_attach_pages. At this point the pages
- *	must have been removed from the GART as they could now be paged out
+ *	must have been removed from the GTT as they could now be paged out
  *	and move bus address.
  *
  *	FIXME: Do we need to cache flush when we update the GTT

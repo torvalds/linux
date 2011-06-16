@@ -40,7 +40,6 @@ int psb_gem_init_object(struct drm_gem_object *obj)
 void psb_gem_free_object(struct drm_gem_object *obj)
 {
 	struct gtt_range *gtt = container_of(obj, struct gtt_range, gem);
-	psb_gtt_free_range(obj->dev, gtt);
 	if (obj->map_list.map) {
 		/* Do things GEM should do for us */
 		struct drm_gem_mm *mm = obj->dev->mm_private;
@@ -51,6 +50,8 @@ void psb_gem_free_object(struct drm_gem_object *obj)
 		list->map = NULL;
 	}
 	drm_gem_object_release(obj);
+	/* This must occur last as it frees up the memory of the GEM object */
+	psb_gtt_free_range(obj->dev, gtt);
 }
 
 int psb_gem_get_aperture(struct drm_device *dev, void *data,
@@ -245,18 +246,12 @@ int psb_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
  *	but we need to do the actual page work.
  *
  *	This code eventually needs to handle faulting objects in and out
- *	of the GART and repacking it when we run out of space. We can put
+ *	of the GTT and repacking it when we run out of space. We can put
  *	that off for now and for our simple uses
  *
  *	The VMA was set up by GEM. In doing so it also ensured that the
  *	vma->vm_private_data points to the GEM object that is backing this
  *	mapping.
- *
- *	To avoid aliasing and cache funnies we want to map the object
- *	through the GART. For the moment this is slightly hackish. It would
- *	be nicer if GEM provided mmap opened/closed hooks for us giving
- *	the object so that we could track things nicely. That needs changes
- *	to the core GEM code so must be tackled post staging
  *
  *	FIXME
  */
@@ -289,20 +284,13 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		r->mmapping = 1;
 	}
 
-	/* FIXME: Locking. We may also need to repack the GART sometimes */
-
-	/* Page relative to the VMA start */
+	/* Page relative to the VMA start - we must calculate this ourselves
+	   because vmf->pgoff is the fake GEM offset */
 	page_offset = ((unsigned long) vmf->virtual_address - vma->vm_start)
 				>> PAGE_SHIFT;
 
-	/* Bus address of the page is gart + object offset + page offset */
-	/* Assumes gtt allocations are page aligned */
-	pfn = (r->resource.start >> PAGE_SHIFT) + page_offset;
-
-	pr_debug("Object GTT base at %p\n", (void *)(r->resource.start));
-	pr_debug("Inserting %p pfn %lx, pa %lx\n", vmf->virtual_address,
-	        pfn, pfn << PAGE_SHIFT);
-
+        /* CPU view of the page, don't go via the GART for CPU writes */
+	pfn = page_to_phys(r->pages[page_offset]) >> PAGE_SHIFT;
 	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
 
 fail:
