@@ -310,8 +310,8 @@ list_set_uadt(struct ip_set *set, struct nlattr *tb[],
 				     !id_eq(map, i + 1, refid)) ||
 				    (before < 0 &&
 				     (i == 0 || !id_eq(map, i - 1, refid)))) {
-				     	ret = -IPSET_ERR_EXIST;
-				     	goto finish;
+					ret = -IPSET_ERR_EXIST;
+					goto finish;
 				}
 				e->timeout = ip_set_timeout_set(timeout);
 				ip_set_put_byindex(id);
