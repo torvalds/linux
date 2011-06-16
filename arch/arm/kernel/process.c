@@ -184,6 +184,7 @@ void cpu_idle(void)
 	while (1) {
 		tick_nohz_stop_sched_tick(1);
 		leds_event(led_idle_start);
+		idle_notifier_call_chain(IDLE_START);
 		while (!need_resched()) {
 #ifdef CONFIG_HOTPLUG_CPU
 			if (cpu_is_offline(smp_processor_id()))
@@ -208,6 +209,7 @@ void cpu_idle(void)
 			}
 		}
 		leds_event(led_idle_end);
+		idle_notifier_call_chain(IDLE_END);
 		tick_nohz_restart_sched_tick();
 		preempt_enable_no_resched();
 		schedule();
