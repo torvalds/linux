@@ -135,7 +135,7 @@ int adc_sync_read(struct adc_client *client)
 		dev_dbg(client->adc->dev, "system enter sleep\n");
 		return -1;
 	}
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req){
 		dev_err(client->adc->dev, "no memory for adc request\n");
 		return -ENOMEM;
@@ -179,7 +179,7 @@ int adc_async_read(struct adc_client *client)
 		dev_dbg(client->adc->dev, "system enter sleep\n");
 		return -1;
 	}
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req) {
 		dev_err(client->adc->dev, "no memory for adc request\n");
 		return -ENOMEM;
