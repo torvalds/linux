@@ -766,10 +766,8 @@ static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan)
 
 	spin_lock_bh(&sh_chan->desc_lock);
 	/* DMA work check */
-	if (dmae_is_busy(sh_chan)) {
-		spin_unlock_bh(&sh_chan->desc_lock);
-		return;
-	}
+	if (dmae_is_busy(sh_chan))
+		goto sh_chan_xfer_ld_queue_end;
 
 	/* Find the first not transferred descriptor */
 	list_for_each_entry(desc, &sh_chan->ld_queue, node)
@@ -783,6 +781,7 @@ static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan)
 			break;
 		}
 
+sh_chan_xfer_ld_queue_end:
 	spin_unlock_bh(&sh_chan->desc_lock);
 }
 
