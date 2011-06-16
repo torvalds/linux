@@ -63,6 +63,9 @@ struct ip_set_hash {
 #ifdef IP_SET_HASH_WITH_NETMASK
 	u8 netmask;		/* netmask value for subnets to store */
 #endif
+#ifdef IP_SET_HASH_WITH_RBTREE
+	struct rb_root rbtree;
+#endif
 #ifdef IP_SET_HASH_WITH_NETS
 	struct ip_set_hash_nets nets[0]; /* book-keeping of prefixes */
 #endif
@@ -200,6 +203,9 @@ ip_set_hash_destroy(struct ip_set *set)
 		del_timer_sync(&h->gc);
 
 	ahash_destroy(h->table);
+#ifdef IP_SET_HASH_WITH_RBTREE
+	rbtree_destroy(&h->rbtree);
+#endif
 	kfree(h);
 
 	set->data = NULL;

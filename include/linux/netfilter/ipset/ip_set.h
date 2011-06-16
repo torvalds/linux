@@ -105,6 +105,7 @@ enum {
 	IPSET_ATTR_IP2,
 	IPSET_ATTR_CIDR2,
 	IPSET_ATTR_IP2_TO,
+	IPSET_ATTR_IFACE,
 	__IPSET_ATTR_ADT_MAX,
 };
 #define IPSET_ATTR_ADT_MAX	(__IPSET_ATTR_ADT_MAX - 1)
@@ -153,6 +154,8 @@ enum ipset_cmd_flags {
 enum ipset_cadt_flags {
 	IPSET_FLAG_BIT_BEFORE	= 0,
 	IPSET_FLAG_BEFORE	= (1 << IPSET_FLAG_BIT_BEFORE),
+	IPSET_FLAG_BIT_PHYSDEV	= 1,
+	IPSET_FLAG_PHYSDEV	= (1 << IPSET_FLAG_BIT_PHYSDEV),
 };
 
 /* Commands with settype-specific attributes */
@@ -212,6 +215,8 @@ enum ip_set_feature {
 	IPSET_TYPE_IP2 = (1 << IPSET_TYPE_IP2_FLAG),
 	IPSET_TYPE_NAME_FLAG = 4,
 	IPSET_TYPE_NAME = (1 << IPSET_TYPE_NAME_FLAG),
+	IPSET_TYPE_IFACE_FLAG = 5,
+	IPSET_TYPE_IFACE = (1 << IPSET_TYPE_IFACE_FLAG),
 	/* Strictly speaking not a feature, but a flag for dumping:
 	 * this settype must be dumped last */
 	IPSET_DUMP_LAST_FLAG = 7,
