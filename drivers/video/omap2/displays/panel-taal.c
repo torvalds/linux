@@ -1247,11 +1247,8 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 	int r;
 
 	r = taal_dcs_write_0(td, DCS_DISPLAY_OFF);
-	if (!r) {
+	if (!r)
 		r = taal_sleep_in(td);
-		/* HACK: wait a bit so that the message goes through */
-		msleep(10);
-	}
 
 	if (r) {
 		dev_err(&dssdev->dev,
