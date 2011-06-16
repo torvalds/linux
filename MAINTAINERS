@@ -3443,7 +3443,7 @@ M:	Francois Romieu <romieu@fr.zoreil.com>
 M:	Sorbica Shieh <sorbica@icplus.com.tw>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/ipg.*
+F:	drivers/net/ethernet/icplus/ipg.*
 
 IPATH DRIVER
 M:	Mike Marciniszyn <infinipath@qlogic.com>

@@ -522,16 +522,6 @@ menuconfig NETDEV_1000
 
 if NETDEV_1000
 
-config IP1000
-	tristate "IP1000 Gigabit Ethernet support"
-	depends on PCI && EXPERIMENTAL
-	select MII
-	---help---
-	  This driver supports IP1000 gigabit Ethernet cards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called ipg.  This is recommended.
-
 endif # NETDEV_1000
 
 #
