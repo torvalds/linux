@@ -409,7 +409,7 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_channel *evo = dispc->sync;
 	int ret;
 
-	ret = RING_SPACE(evo, 24);
+	ret = RING_SPACE(evo, chan ? 25 : 27);
 	if (unlikely(ret))
 		return ret;
 
@@ -458,8 +458,19 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* queue the flip on the crtc's "display sync" channel */
 	BEGIN_RING(evo, 0, 0x0100, 1);
 	OUT_RING  (evo, 0xfffe0000);
-	BEGIN_RING(evo, 0, 0x0084, 5);
-	OUT_RING  (evo, chan ? 0x00000100 : 0x00000010);
+	if (chan) {
+		BEGIN_RING(evo, 0, 0x0084, 1);
+		OUT_RING  (evo, 0x00000100);
+	} else {
+		BEGIN_RING(evo, 0, 0x0084, 1);
+		OUT_RING  (evo, 0x00000010);
+		/* allows gamma somehow, PDISP will bitch at you if
+		 * you don't wait for vblank before changing this..
+		 */
+		BEGIN_RING(evo, 0, 0x00e0, 1);
+		OUT_RING  (evo, 0x40000000);
+	}
+	BEGIN_RING(evo, 0, 0x0088, 4);
 	OUT_RING  (evo, dispc->sem.offset);
 	OUT_RING  (evo, 0xf00d0000 | dispc->sem.value);
 	OUT_RING  (evo, 0x74b1e000);
