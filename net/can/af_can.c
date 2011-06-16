@@ -58,6 +58,7 @@
 #include <linux/skbuff.h>
 #include <linux/can.h>
 #include <linux/can/core.h>
+#include <linux/ratelimit.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 
@@ -161,8 +162,8 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 		 * return the error code immediately.  Below we will
 		 * return -EPROTONOSUPPORT
 		 */
-		if (err && printk_ratelimit())
-			printk(KERN_ERR "can: request_module "
+		if (err)
+			printk_ratelimited(KERN_ERR "can: request_module "
 			       "(can-proto-%d) failed.\n", protocol);
 
 		cp = can_get_proto(protocol);
