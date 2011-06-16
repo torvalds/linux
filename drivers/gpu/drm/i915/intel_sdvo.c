@@ -1896,7 +1896,7 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 			  struct intel_sdvo *sdvo, u32 reg)
 {
 	struct sdvo_device_mapping *mapping;
-	u8 pin, speed;
+	u8 pin;
 
 	if (IS_SDVOB(reg))
 		mapping = &dev_priv->sdvo_mappings[0];
@@ -1904,18 +1904,16 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 		mapping = &dev_priv->sdvo_mappings[1];
 
 	pin = GMBUS_PORT_DPB;
-	speed = GMBUS_RATE_1MHZ >> 8;
-	if (mapping->initialized) {
+	if (mapping->initialized)
 		pin = mapping->i2c_pin;
-		speed = mapping->i2c_speed;
-	}
 
 	if (pin < GMBUS_NUM_PORTS) {
 		sdvo->i2c = &dev_priv->gmbus[pin].adapter;
-		intel_gmbus_set_speed(sdvo->i2c, speed);
+		intel_gmbus_set_speed(sdvo->i2c, GMBUS_RATE_1MHZ >> 8);
 		intel_gmbus_force_bit(sdvo->i2c, true);
-	} else
+	} else {
 		sdvo->i2c = &dev_priv->gmbus[GMBUS_PORT_DPB].adapter;
+	}
 }
 
 static bool

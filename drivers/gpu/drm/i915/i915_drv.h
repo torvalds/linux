@@ -139,7 +139,6 @@ struct sdvo_device_mapping {
 	u8 slave_addr;
 	u8 dvo_wiring;
 	u8 i2c_pin;
-	u8 i2c_speed;
 	u8 ddc_pin;
 };
 
