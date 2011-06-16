@@ -184,9 +184,13 @@ o	"kt" is the per-CPU kernel-thread state.  The digit preceding
 	The number after the final slash is the CPU that the kthread
 	is actually running on.
 
+	This field is displayed only for CONFIG_RCU_BOOST kernels.
+
 o	"ktl" is the low-order 16 bits (in hexadecimal) of the count of
 	the number of times that this CPU's per-CPU kthread has gone
 	through its loop servicing invoke_rcu_cpu_kthread() requests.
+
+	This field is displayed only for CONFIG_RCU_BOOST kernels.
 
 o	"b" is the batch limit for this CPU.  If more than this number
 	of RCU callbacks is ready to invoke, then the remainder will
