@@ -917,6 +917,8 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 		 * current cwnd).
 		 */
 		if (!list_empty(&q->retransmit)) {
+			if (asoc->peer.retran_path->state == SCTP_UNCONFIRMED)
+				goto sctp_flush_out;
 			if (transport == asoc->peer.retran_path)
 				goto retran;
 
@@ -989,6 +991,8 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			    ((new_transport->state == SCTP_INACTIVE) ||
 			     (new_transport->state == SCTP_UNCONFIRMED)))
 				new_transport = asoc->peer.active_path;
+			if (new_transport->state == SCTP_UNCONFIRMED)
+				continue;
 
 			/* Change packets if necessary.  */
 			if (new_transport != transport) {
