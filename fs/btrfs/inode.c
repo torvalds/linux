@@ -1915,7 +1915,7 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 	bio->bi_private = state;
 	bio->bi_end_io = failed_bio->bi_end_io;
 	bio->bi_sector = failrec->logical >> 9;
-	bio->bi_bdev = failed_bio->bi_bdev;
+	bio->bi_bdev = BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev;
 	bio->bi_size = 0;
 
 	bio_add_page(bio, page, failrec->len, start - page_offset(page));
