@@ -1664,7 +1664,7 @@ static void sm501fb_stop(struct sm501fb_info *info)
 			   resource_size(info->regs_res));
 }
 
-static int sm501fb_init_fb(struct fb_info *fb,
+static int __devinit sm501fb_init_fb(struct fb_info *fb,
 			   enum sm501_controller head,
 			   const char *fbname)
 {
