@@ -976,16 +976,6 @@ static int dummy_udc_stop(struct usb_gadget_driver *driver)
 
 #undef is_enabled
 
-/* just declare this in any driver that really need it */
-extern int net2280_set_fifo_mode (struct usb_gadget *gadget, int mode);
-
-int net2280_set_fifo_mode (struct usb_gadget *gadget, int mode)
-{
-	return -ENOSYS;
-}
-EXPORT_SYMBOL (net2280_set_fifo_mode);
-
-
 /* The gadget structure is stored inside the hcd structure and will be
  * released along with it. */
 static void
