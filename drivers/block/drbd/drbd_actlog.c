@@ -104,14 +104,6 @@ struct update_al_work {
 	int err;
 };
 
-struct drbd_atodb_wait {
-	atomic_t           count;
-	struct completion  io_done;
-	struct drbd_conf   *mdev;
-	int                error;
-};
-
-
 static int al_write_transaction(struct drbd_conf *mdev);
 
 void *drbd_md_get_buffer(struct drbd_conf *mdev)
