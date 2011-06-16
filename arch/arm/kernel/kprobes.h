@@ -21,7 +21,7 @@
  * These undefined instructions must be unique and
  * reserved solely for kprobes' use.
  */
-#define KPROBE_ARM_BREAKPOINT_INSTRUCTION	0xe7f001f8
+#define KPROBE_ARM_BREAKPOINT_INSTRUCTION	0x07f001f8
 #define KPROBE_THUMB16_BREAKPOINT_INSTRUCTION	0xde18
 #define KPROBE_THUMB32_BREAKPOINT_INSTRUCTION	0xf7f0a018
 

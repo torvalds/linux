@@ -138,7 +138,13 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 
 void __kprobes arch_arm_kprobe(struct kprobe *p)
 {
-	*p->addr = KPROBE_ARM_BREAKPOINT_INSTRUCTION;
+	kprobe_opcode_t insn = p->opcode;
+	kprobe_opcode_t brkp = KPROBE_ARM_BREAKPOINT_INSTRUCTION;
+	if (insn >= 0xe0000000)
+		brkp |= 0xe0000000;  /* Unconditional instruction */
+	else
+		brkp |= insn & 0xf0000000;  /* Copy condition from insn */
+	*p->addr = brkp;
 	flush_insns(p->addr, sizeof(p->addr[0]));
 }
 
@@ -625,7 +631,7 @@ static struct undef_hook kprobes_thumb32_break_hook = {
 #else  /* !CONFIG_THUMB2_KERNEL */
 
 static struct undef_hook kprobes_arm_break_hook = {
-	.instr_mask	= 0xffffffff,
+	.instr_mask	= 0x0fffffff,
 	.instr_val	= KPROBE_ARM_BREAKPOINT_INSTRUCTION,
 	.cpsr_mask	= MODE_MASK,
 	.cpsr_val	= SVC_MODE,
