@@ -835,7 +835,7 @@ type_pf_tadd(struct ip_set *set, void *value, u32 timeout, u32 flags)
 	}
 	ret = type_pf_elem_tadd(n, d, timeout);
 	if (ret != 0) {
-		if (ret == -EEXIST)
+		if (ret == -EAGAIN)
 			type_pf_data_next(h, d);
 		goto out;
 	}
