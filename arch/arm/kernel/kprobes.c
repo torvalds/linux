@@ -207,6 +207,20 @@ static void __kprobes set_current_kprobe(struct kprobe *p)
 	__get_cpu_var(current_kprobe) = p;
 }
 
+static void __kprobes
+singlestep_skip(struct kprobe *p, struct pt_regs *regs)
+{
+#ifdef CONFIG_THUMB2_KERNEL
+	regs->ARM_cpsr = it_advance(regs->ARM_cpsr);
+	if (is_wide_instruction(p->opcode))
+		regs->ARM_pc += 4;
+	else
+		regs->ARM_pc += 2;
+#else
+	regs->ARM_pc += 4;
+#endif
+}
+
 static void __kprobes singlestep(struct kprobe *p, struct pt_regs *regs,
 				 struct kprobe_ctlblk *kcb)
 {
@@ -262,7 +276,8 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 				/* impossible cases */
 				BUG();
 			}
-		} else {
+		} else if (p->ainsn.insn_check_cc(regs->ARM_cpsr)) {
+			/* Probe hit and conditional execution check ok. */
 			set_current_kprobe(p);
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
@@ -282,6 +297,13 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 				}
 				reset_current_kprobe();
 			}
+		} else {
+			/*
+			 * Probe hit but conditional execution check failed,
+			 * so just skip the instruction and continue as if
+			 * nothing had happened.
+			 */
+			singlestep_skip(p, regs);
 		}
 	} else if (cur) {
 		/* We probably hit a jprobe.  Call its break handler. */
