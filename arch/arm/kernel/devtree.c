@@ -76,6 +76,9 @@ struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 	unsigned long dt_root;
 	const char *model;
 
+	if (!dt_phys)
+		return NULL;
+
 	devtree = phys_to_virt(dt_phys);
 
 	/* check device tree validity */
