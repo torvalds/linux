@@ -25,7 +25,8 @@ MODULE_LICENSE("GPL");
 static inline bool match_ip(const struct sk_buff *skb,
 			    const struct ipt_ecn_info *einfo)
 {
-	return (ip_hdr(skb)->tos & IPT_ECN_IP_MASK) == einfo->ip_ect;
+	return ((ip_hdr(skb)->tos & IPT_ECN_IP_MASK) == einfo->ip_ect) ^
+	       !!(einfo->invert & IPT_ECN_OP_MATCH_IP);
 }
 
 static inline bool match_tcp(const struct sk_buff *skb,
