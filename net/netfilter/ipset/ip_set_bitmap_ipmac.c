@@ -338,17 +338,17 @@ nla_put_failure:
 
 static int
 bitmap_ipmac_kadt(struct ip_set *set, const struct sk_buff *skb,
-		  enum ipset_adt adt, u8 pf, u8 dim, u8 flags)
+		  enum ipset_adt adt, const struct ip_set_adt_opt *opt)
 {
 	struct bitmap_ipmac *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct ipmac data;
 
 	/* MAC can be src only */
-	if (!(flags & IPSET_DIM_TWO_SRC))
+	if (!(opt->flags & IPSET_DIM_TWO_SRC))
 		return 0;
 
-	data.id = ntohl(ip4addr(skb, flags & IPSET_DIM_ONE_SRC));
+	data.id = ntohl(ip4addr(skb, opt->flags & IPSET_DIM_ONE_SRC));
 	if (data.id < map->first_ip || data.id > map->last_ip)
 		return -IPSET_ERR_BITMAP_RANGE;
 
@@ -360,7 +360,7 @@ bitmap_ipmac_kadt(struct ip_set *set, const struct sk_buff *skb,
 	data.id -= map->first_ip;
 	data.ether = eth_hdr(skb)->h_source;
 
-	return adtfn(set, &data, map->timeout, flags);
+	return adtfn(set, &data, opt_timeout(opt, map), opt->cmdflags);
 }
 
 static int

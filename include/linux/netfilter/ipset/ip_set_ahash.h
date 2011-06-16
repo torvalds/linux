@@ -586,7 +586,7 @@ nla_put_failure:
 
 static int
 type_pf_kadt(struct ip_set *set, const struct sk_buff * skb,
-	     enum ipset_adt adt, u8 pf, u8 dim, u8 flags);
+	     enum ipset_adt adt, const struct ip_set_adt_opt *opt);
 static int
 type_pf_uadt(struct ip_set *set, struct nlattr *tb[],
 	     enum ipset_adt adt, u32 *lineno, u32 flags);

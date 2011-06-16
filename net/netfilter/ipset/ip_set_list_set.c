@@ -72,7 +72,7 @@ list_set_expired(const struct list_set *map, u32 id)
 
 static int
 list_set_kadt(struct ip_set *set, const struct sk_buff *skb,
-	      enum ipset_adt adt, u8 pf, u8 dim, u8 flags)
+	      enum ipset_adt adt, const struct ip_set_adt_opt *opt)
 {
 	struct list_set *map = set->data;
 	struct set_elem *elem;
@@ -87,17 +87,17 @@ list_set_kadt(struct ip_set *set, const struct sk_buff *skb,
 			continue;
 		switch (adt) {
 		case IPSET_TEST:
-			ret = ip_set_test(elem->id, skb, pf, dim, flags);
+			ret = ip_set_test(elem->id, skb, opt);
 			if (ret > 0)
 				return ret;
 			break;
 		case IPSET_ADD:
-			ret = ip_set_add(elem->id, skb, pf, dim, flags);
+			ret = ip_set_add(elem->id, skb, opt);
 			if (ret == 0)
 				return ret;
 			break;
 		case IPSET_DEL:
-			ret = ip_set_del(elem->id, skb, pf, dim, flags);
+			ret = ip_set_del(elem->id, skb, opt);
 			if (ret == 0)
 				return ret;
 			break;

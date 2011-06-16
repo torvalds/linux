@@ -325,7 +325,7 @@ __ip_set_put(ip_set_id_t index)
 
 int
 ip_set_test(ip_set_id_t index, const struct sk_buff *skb,
-	    u8 family, u8 dim, u8 flags)
+	    const struct ip_set_adt_opt *opt)
 {
 	struct ip_set *set = ip_set_list[index];
 	int ret = 0;
@@ -333,19 +333,19 @@ ip_set_test(ip_set_id_t index, const struct sk_buff *skb,
 	BUG_ON(set == NULL);
 	pr_debug("set %s, index %u\n", set->name, index);
 
-	if (dim < set->type->dimension ||
-	    !(family == set->family || set->family == AF_UNSPEC))
+	if (opt->dim < set->type->dimension ||
+	    !(opt->family == set->family || set->family == AF_UNSPEC))
 		return 0;
 
 	read_lock_bh(&set->lock);
-	ret = set->variant->kadt(set, skb, IPSET_TEST, family, dim, flags);
+	ret = set->variant->kadt(set, skb, IPSET_TEST, opt);
 	read_unlock_bh(&set->lock);
 
 	if (ret == -EAGAIN) {
 		/* Type requests element to be completed */
 		pr_debug("element must be competed, ADD is triggered\n");
 		write_lock_bh(&set->lock);
-		set->variant->kadt(set, skb, IPSET_ADD, family, dim, flags);
+		set->variant->kadt(set, skb, IPSET_ADD, opt);
 		write_unlock_bh(&set->lock);
 		ret = 1;
 	}
@@ -357,7 +357,7 @@ EXPORT_SYMBOL_GPL(ip_set_test);
 
 int
 ip_set_add(ip_set_id_t index, const struct sk_buff *skb,
-	   u8 family, u8 dim, u8 flags)
+	   const struct ip_set_adt_opt *opt)
 {
 	struct ip_set *set = ip_set_list[index];
 	int ret;
@@ -365,12 +365,12 @@ ip_set_add(ip_set_id_t index, const struct sk_buff *skb,
 	BUG_ON(set == NULL);
 	pr_debug("set %s, index %u\n", set->name, index);
 
-	if (dim < set->type->dimension ||
-	    !(family == set->family || set->family == AF_UNSPEC))
+	if (opt->dim < set->type->dimension ||
+	    !(opt->family == set->family || set->family == AF_UNSPEC))
 		return 0;
 
 	write_lock_bh(&set->lock);
-	ret = set->variant->kadt(set, skb, IPSET_ADD, family, dim, flags);
+	ret = set->variant->kadt(set, skb, IPSET_ADD, opt);
 	write_unlock_bh(&set->lock);
 
 	return ret;
@@ -379,7 +379,7 @@ EXPORT_SYMBOL_GPL(ip_set_add);
 
 int
 ip_set_del(ip_set_id_t index, const struct sk_buff *skb,
-	   u8 family, u8 dim, u8 flags)
+	   const struct ip_set_adt_opt *opt)
 {
 	struct ip_set *set = ip_set_list[index];
 	int ret = 0;
@@ -387,12 +387,12 @@ ip_set_del(ip_set_id_t index, const struct sk_buff *skb,
 	BUG_ON(set == NULL);
 	pr_debug("set %s, index %u\n", set->name, index);
 
-	if (dim < set->type->dimension ||
-	    !(family == set->family || set->family == AF_UNSPEC))
+	if (opt->dim < set->type->dimension ||
+	    !(opt->family == set->family || set->family == AF_UNSPEC))
 		return 0;
 
 	write_lock_bh(&set->lock);
-	ret = set->variant->kadt(set, skb, IPSET_DEL, family, dim, flags);
+	ret = set->variant->kadt(set, skb, IPSET_DEL, opt);
 	write_unlock_bh(&set->lock);
 
 	return ret;

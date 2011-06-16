@@ -219,19 +219,19 @@ nla_put_failure:
 
 static int
 bitmap_ip_kadt(struct ip_set *set, const struct sk_buff *skb,
-	       enum ipset_adt adt, u8 pf, u8 dim, u8 flags)
+	       enum ipset_adt adt, const struct ip_set_adt_opt *opt)
 {
 	struct bitmap_ip *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	u32 ip;
 
-	ip = ntohl(ip4addr(skb, flags & IPSET_DIM_ONE_SRC));
+	ip = ntohl(ip4addr(skb, opt->flags & IPSET_DIM_ONE_SRC));
 	if (ip < map->first_ip || ip > map->last_ip)
 		return -IPSET_ERR_BITMAP_RANGE;
 
 	ip = ip_to_id(map, ip);
 
-	return adtfn(set, &ip, map->timeout, flags);
+	return adtfn(set, &ip, opt_timeout(opt, map), opt->cmdflags);
 }
 
 static int

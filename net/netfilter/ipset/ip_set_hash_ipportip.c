@@ -129,20 +129,20 @@ nla_put_failure:
 
 static int
 hash_ipportip4_kadt(struct ip_set *set, const struct sk_buff *skb,
-		    enum ipset_adt adt, u8 pf, u8 dim, u8 flags)
+		    enum ipset_adt adt, const struct ip_set_adt_opt *opt)
 {
 	const struct ip_set_hash *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportip4_elem data = { };
 
-	if (!ip_set_get_ip4_port(skb, flags & IPSET_DIM_TWO_SRC,
+	if (!ip_set_get_ip4_port(skb, opt->flags & IPSET_DIM_TWO_SRC,
 				 &data.port, &data.proto))
 		return -EINVAL;
 
-	ip4addrptr(skb, flags & IPSET_DIM_ONE_SRC, &data.ip);
-	ip4addrptr(skb, flags & IPSET_DIM_THREE_SRC, &data.ip2);
+	ip4addrptr(skb, opt->flags & IPSET_DIM_ONE_SRC, &data.ip);
+	ip4addrptr(skb, opt->flags & IPSET_DIM_THREE_SRC, &data.ip2);
 
-	return adtfn(set, &data, h->timeout, flags);
+	return adtfn(set, &data, opt_timeout(opt, h), opt->cmdflags);
 }
 
 static int
@@ -343,20 +343,20 @@ nla_put_failure:
 
 static int
 hash_ipportip6_kadt(struct ip_set *set, const struct sk_buff *skb,
-		    enum ipset_adt adt, u8 pf, u8 dim, u8 flags)
+		    enum ipset_adt adt, const struct ip_set_adt_opt *opt)
 {
 	const struct ip_set_hash *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportip6_elem data = { };
 
-	if (!ip_set_get_ip6_port(skb, flags & IPSET_DIM_TWO_SRC,
+	if (!ip_set_get_ip6_port(skb, opt->flags & IPSET_DIM_TWO_SRC,
 				 &data.port, &data.proto))
 		return -EINVAL;
 
-	ip6addrptr(skb, flags & IPSET_DIM_ONE_SRC, &data.ip.in6);
-	ip6addrptr(skb, flags & IPSET_DIM_THREE_SRC, &data.ip2.in6);
+	ip6addrptr(skb, opt->flags & IPSET_DIM_ONE_SRC, &data.ip.in6);
+	ip6addrptr(skb, opt->flags & IPSET_DIM_THREE_SRC, &data.ip2.in6);
 
-	return adtfn(set, &data, h->timeout, flags);
+	return adtfn(set, &data, opt_timeout(opt, h), opt->cmdflags);
 }
 
 static int

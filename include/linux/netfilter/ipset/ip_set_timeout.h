@@ -22,6 +22,9 @@
 
 #define with_timeout(timeout)	((timeout) != IPSET_NO_TIMEOUT)
 
+#define opt_timeout(opt, map)	\
+	(with_timeout((opt)->timeout) ? (opt)->timeout : (map)->timeout)
+
 static inline unsigned int
 ip_set_timeout_uget(struct nlattr *tb)
 {

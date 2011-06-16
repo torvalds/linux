@@ -217,6 +217,15 @@ struct ip_set;
 typedef int (*ipset_adtfn)(struct ip_set *set, void *value,
 			   u32 timeout, u32 flags);
 
+/* Kernel API function options */
+struct ip_set_adt_opt {
+	u8 family;		/* Actual protocol family */
+	u8 dim;			/* Dimension of match/target */
+	u8 flags;		/* Direction and negation flags */
+	u32 cmdflags;		/* Command-like flags */
+	u32 timeout;		/* Timeout value */
+};
+
 /* Set type, variant-specific part */
 struct ip_set_type_variant {
 	/* Kernelspace: test/add/del entries
@@ -224,7 +233,7 @@ struct ip_set_type_variant {
 	 *			zero for no match/success to add/delete
 	 *			positive for matching element */
 	int (*kadt)(struct ip_set *set, const struct sk_buff * skb,
-		    enum ipset_adt adt, u8 pf, u8 dim, u8 flags);
+		    enum ipset_adt adt, const struct ip_set_adt_opt *opt);
 
 	/* Userspace: test/add/del entries
 	 *		returns negative error code,
@@ -314,12 +323,13 @@ extern ip_set_id_t ip_set_nfnl_get_byindex(ip_set_id_t index);
 extern void ip_set_nfnl_put(ip_set_id_t index);
 
 /* API for iptables set match, and SET target */
+
 extern int ip_set_add(ip_set_id_t id, const struct sk_buff *skb,
-		      u8 family, u8 dim, u8 flags);
+		      const struct ip_set_adt_opt *opt);
 extern int ip_set_del(ip_set_id_t id, const struct sk_buff *skb,
-		      u8 family, u8 dim, u8 flags);
+		      const struct ip_set_adt_opt *opt);
 extern int ip_set_test(ip_set_id_t id, const struct sk_buff *skb,
-		       u8 family, u8 dim, u8 flags);
+		       const struct ip_set_adt_opt *opt);
 
 /* Utility functions */
 extern void * ip_set_alloc(size_t size);

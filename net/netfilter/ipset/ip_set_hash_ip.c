@@ -110,18 +110,18 @@ nla_put_failure:
 
 static int
 hash_ip4_kadt(struct ip_set *set, const struct sk_buff *skb,
-	      enum ipset_adt adt, u8 pf, u8 dim, u8 flags)
+	      enum ipset_adt adt, const struct ip_set_adt_opt *opt)
 {
 	const struct ip_set_hash *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	__be32 ip;
 
-	ip4addrptr(skb, flags & IPSET_DIM_ONE_SRC, &ip);
+	ip4addrptr(skb, opt->flags & IPSET_DIM_ONE_SRC, &ip);
 	ip &= ip_set_netmask(h->netmask);
 	if (ip == 0)
 		return -EINVAL;
 
-	return adtfn(set, &ip, h->timeout, flags);
+	return adtfn(set, &ip, opt_timeout(opt, h), opt->cmdflags);
 }
 
 static int
@@ -283,18 +283,18 @@ nla_put_failure:
 
 static int
 hash_ip6_kadt(struct ip_set *set, const struct sk_buff *skb,
-	      enum ipset_adt adt, u8 pf, u8 dim, u8 flags)
+	      enum ipset_adt adt, const struct ip_set_adt_opt *opt)
 {
 	const struct ip_set_hash *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	union nf_inet_addr ip;
 
-	ip6addrptr(skb, flags & IPSET_DIM_ONE_SRC, &ip.in6);
+	ip6addrptr(skb, opt->flags & IPSET_DIM_ONE_SRC, &ip.in6);
 	ip6_netmask(&ip, h->netmask);
 	if (ipv6_addr_any(&ip.in6))
 		return -EINVAL;
 
-	return adtfn(set, &ip, h->timeout, flags);
+	return adtfn(set, &ip, opt_timeout(opt, h), opt->cmdflags);
 }
 
 static const struct nla_policy hash_ip6_adt_policy[IPSET_ATTR_ADT_MAX + 1] = {
