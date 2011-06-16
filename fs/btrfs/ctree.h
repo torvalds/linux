@@ -1195,7 +1195,6 @@ struct btrfs_root {
 	struct btrfs_key defrag_max;
 	int defrag_running;
 	char *name;
-	int in_sysfs;
 
 	/* the dirty list is only used by non-reference counted roots */
 	struct list_head dirty_list;

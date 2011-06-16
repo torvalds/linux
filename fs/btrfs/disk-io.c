@@ -1044,7 +1044,6 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->last_trans = 0;
 	root->highest_objectid = 0;
 	root->name = NULL;
-	root->in_sysfs = 0;
 	root->inode_tree = RB_ROOT;
 	INIT_RADIX_TREE(&root->delayed_nodes_tree, GFP_ATOMIC);
 	root->block_rsv = NULL;
