@@ -35,6 +35,7 @@
 #include <linux/mfd/wm831x/auxadc.h>
 #include <linux/mfd/wm831x/pmu.h>
 #include <linux/mfd/wm831x/pdata.h>
+#include <linux/mfd/wm831x/irq.h>
 #include <linux/power_supply.h>
 
 
@@ -388,9 +389,9 @@ static int __devinit wm831x_chg_probe(struct platform_device *pdev)
 	wm831x_chg->flag_suspend = 0;
 	
 	platform_set_drvdata(pdev, wm831x_chg);
-
+	disable_irq_nosync(wm831x_chg->wm831x->irq_base + WM831X_IRQ_ON);
 	ret = rk29_charger_display(wm831x_chg);
-
+	enable_irq(wm831x_chg->wm831x->irq_base + WM831X_IRQ_ON);
 	wm831x_chg->flag_chg = 0;
 	wm831x_chg->flag_bl = 1;
 	wm831x_chg->cnt_on = 0;

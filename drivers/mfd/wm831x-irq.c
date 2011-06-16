@@ -396,6 +396,15 @@ static void wm831x_irq_mask(unsigned int irq)
 	//printk("%s:irq=%d\n",__FUNCTION__,irq);
 }
 
+static void wm831x_irq_disable(unsigned int irq)
+{
+	struct wm831x *wm831x = get_irq_chip_data(irq);
+	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x, irq);
+
+	wm831x->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
+	//printk("%s:irq=%d\n",__FUNCTION__,irq);
+}
+
 static int wm831x_irq_set_type(unsigned int irq, unsigned int type)
 {
 	struct wm831x *wm831x = get_irq_chip_data(irq);
@@ -454,6 +463,7 @@ static struct irq_chip wm831x_irq_chip = {
 	.name = "wm831x",
 	.bus_lock = wm831x_irq_lock,
 	.bus_sync_unlock = wm831x_irq_sync_unlock,
+	.disable = wm831x_irq_disable,
 	.mask = wm831x_irq_mask,
 	.unmask = wm831x_irq_unmask,
 	.set_type = wm831x_irq_set_type,
