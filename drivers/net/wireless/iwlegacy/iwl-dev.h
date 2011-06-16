@@ -32,6 +32,7 @@
 #ifndef __iwl_legacy_dev_h__
 #define __iwl_legacy_dev_h__
 
+#include <linux/interrupt.h>
 #include <linux/pci.h> /* for struct pci_device_id */
 #include <linux/kernel.h>
 #include <linux/leds.h>
@@ -134,7 +135,7 @@ struct iwl_queue {
 				* space more than this */
 	int high_mark;         /* high watermark, stop queue if free
 				* space less than this */
-} __packed;
+};
 
 /* One for each TFD */
 struct iwl_tx_info {
@@ -290,6 +291,7 @@ enum {
 	CMD_SIZE_HUGE = (1 << 0),
 	CMD_ASYNC = (1 << 1),
 	CMD_WANT_SKB = (1 << 2),
+	CMD_MAPPED = (1 << 3),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -1076,7 +1078,6 @@ struct iwl_priv {
 	spinlock_t hcmd_lock;	/* protect hcmd */
 	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
-	struct mutex sync_cmd_mutex; /* enable serialization of sync commands */
 
 	/* basic pci-network driver stuff */
 	struct pci_dev *pci_dev;
@@ -1409,6 +1410,12 @@ static inline int
 iwl_legacy_is_channel_passive(const struct iwl_channel_info *ch)
 {
 	return (!(ch->flags & EEPROM_CHANNEL_ACTIVE)) ? 1 : 0;
+}
+
+static inline int
+iwl_legacy_is_channel_ibss(const struct iwl_channel_info *ch)
+{
+	return (ch->flags & EEPROM_CHANNEL_IBSS) ? 1 : 0;
 }
 
 static inline void

@@ -44,6 +44,7 @@
 #include <linux/mii.h>
 #include <linux/slab.h>
 #include <linux/dmi.h>
+#include <linux/prefetch.h>
 #include <asm/irq.h>
 
 #include "skge.h"
@@ -303,7 +304,7 @@ static int skge_get_settings(struct net_device *dev,
 
 	ecmd->advertising = skge->advertising;
 	ecmd->autoneg = skge->autoneg;
-	ecmd->speed = skge->speed;
+	ethtool_cmd_speed_set(ecmd, skge->speed);
 	ecmd->duplex = skge->duplex;
 	return 0;
 }
@@ -321,8 +322,9 @@ static int skge_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		skge->speed = -1;
 	} else {
 		u32 setting;
+		u32 speed = ethtool_cmd_speed(ecmd);
 
-		switch (ecmd->speed) {
+		switch (speed) {
 		case SPEED_1000:
 			if (ecmd->duplex == DUPLEX_FULL)
 				setting = SUPPORTED_1000baseT_Full;
@@ -355,7 +357,7 @@ static int skge_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if ((setting & supported) == 0)
 			return -EINVAL;
 
-		skge->speed = ecmd->speed;
+		skge->speed = speed;
 		skge->duplex = ecmd->duplex;
 	}
 

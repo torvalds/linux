@@ -5,12 +5,14 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/hw_random.h>
+#include <linux/bcma/bcma.h>
 #include <linux/ssb/ssb.h>
 #include <net/mac80211.h>
 
 #include "debugfs.h"
 #include "leds.h"
 #include "rfkill.h"
+#include "bus.h"
 #include "lo.h"
 #include "phy_common.h"
 
@@ -414,6 +416,17 @@ enum {
 #define B43_MACCMD_CCA			0x00000008	/* Clear channel assessment */
 #define B43_MACCMD_BGNOISE		0x00000010	/* Background noise */
 
+/* BCMA 802.11 core specific IO Control (BCMA_IOCTL) flags */
+#define B43_BCMA_IOCTL_PHY_CLKEN	0x00000004	/* PHY Clock Enable */
+#define B43_BCMA_IOCTL_PHY_RESET	0x00000008	/* PHY Reset */
+#define B43_BCMA_IOCTL_MACPHYCLKEN	0x00000010	/* MAC PHY Clock Control Enable */
+#define B43_BCMA_IOCTL_PLLREFSEL	0x00000020	/* PLL Frequency Reference Select */
+#define B43_BCMA_IOCTL_PHY_BW		0x000000C0	/* PHY band width and clock speed mask (N-PHY+ only?) */
+#define  B43_BCMA_IOCTL_PHY_BW_10MHZ	0x00000000	/* 10 MHz bandwidth, 40 MHz PHY */
+#define  B43_BCMA_IOCTL_PHY_BW_20MHZ	0x00000040	/* 20 MHz bandwidth, 80 MHz PHY */
+#define  B43_BCMA_IOCTL_PHY_BW_40MHZ	0x00000080	/* 40 MHz bandwidth, 160 MHz PHY */
+#define B43_BCMA_IOCTL_GMODE		0x00002000	/* G Mode Enable */
+
 /* 802.11 core specific TM State Low (SSB_TMSLOW) flags */
 #define B43_TMSLOW_GMODE		0x20000000	/* G Mode Enable */
 #define B43_TMSLOW_PHY_BANDWIDTH	0x00C00000	/* PHY band width and clock speed mask (N-PHY only) */
@@ -567,6 +580,8 @@ struct b43_dma {
 	struct b43_dmaring *tx_ring_mcast; /* Multicast */
 
 	struct b43_dmaring *rx_ring;
+
+	u32 translation; /* Routing bits */
 };
 
 struct b43_pio_txqueue;
@@ -648,8 +663,8 @@ struct b43_request_fw_context {
 	char errors[B43_NR_FWTYPES][128];
 	/* Temporary buffer for storing the firmware name. */
 	char fwname[64];
-	/* A fatal error occurred while requesting. Firmware reqest
-	 * can not continue, as any other reqest will also fail. */
+	/* A fatal error occurred while requesting. Firmware request
+	 * can not continue, as any other request will also fail. */
 	int fatal_failure;
 };
 
@@ -705,7 +720,8 @@ enum {
 
 /* Data structure for one wireless device (802.11 core) */
 struct b43_wldev {
-	struct ssb_device *dev;
+	struct ssb_device *sdev; /* TODO: remove when b43_bus_dev is ready */
+	struct b43_bus_dev *dev;
 	struct b43_wl *wl;
 
 	/* The device initialization status.
@@ -877,24 +893,59 @@ static inline enum ieee80211_band b43_current_band(struct b43_wl *wl)
 	return wl->hw->conf.channel->band;
 }
 
+static inline int b43_bus_may_powerdown(struct b43_wldev *wldev)
+{
+	return wldev->dev->bus_may_powerdown(wldev->dev);
+}
+static inline int b43_bus_powerup(struct b43_wldev *wldev, bool dynamic_pctl)
+{
+	return wldev->dev->bus_powerup(wldev->dev, dynamic_pctl);
+}
+static inline int b43_device_is_enabled(struct b43_wldev *wldev)
+{
+	return wldev->dev->device_is_enabled(wldev->dev);
+}
+static inline void b43_device_enable(struct b43_wldev *wldev,
+				     u32 core_specific_flags)
+{
+	wldev->dev->device_enable(wldev->dev, core_specific_flags);
+}
+static inline void b43_device_disable(struct b43_wldev *wldev,
+				      u32 core_specific_flags)
+{
+	wldev->dev->device_disable(wldev->dev, core_specific_flags);
+}
+
 static inline u16 b43_read16(struct b43_wldev *dev, u16 offset)
 {
-	return ssb_read16(dev->dev, offset);
+	return dev->dev->read16(dev->dev, offset);
 }
 
 static inline void b43_write16(struct b43_wldev *dev, u16 offset, u16 value)
 {
-	ssb_write16(dev->dev, offset, value);
+	dev->dev->write16(dev->dev, offset, value);
 }
 
 static inline u32 b43_read32(struct b43_wldev *dev, u16 offset)
 {
-	return ssb_read32(dev->dev, offset);
+	return dev->dev->read32(dev->dev, offset);
 }
 
 static inline void b43_write32(struct b43_wldev *dev, u16 offset, u32 value)
 {
-	ssb_write32(dev->dev, offset, value);
+	dev->dev->write32(dev->dev, offset, value);
+}
+
+static inline void b43_block_read(struct b43_wldev *dev, void *buffer,
+				 size_t count, u16 offset, u8 reg_width)
+{
+	dev->dev->block_read(dev->dev, buffer, count, offset, reg_width);
+}
+
+static inline void b43_block_write(struct b43_wldev *dev, const void *buffer,
+				   size_t count, u16 offset, u8 reg_width)
+{
+	dev->dev->block_write(dev->dev, buffer, count, offset, reg_width);
 }
 
 static inline bool b43_using_pio_transfers(struct b43_wldev *dev)

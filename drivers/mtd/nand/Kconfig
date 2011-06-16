@@ -92,7 +92,7 @@ config MTD_NAND_EDB7312
 
 config MTD_NAND_H1900
 	tristate "iPAQ H1900 flash"
-	depends on ARCH_PXA && MTD_PARTITIONS
+	depends on ARCH_PXA
 	help
 	  This enables the driver for the iPAQ h1900 flash.
 
@@ -419,7 +419,6 @@ config MTD_NAND_TMIO
 
 config MTD_NAND_NANDSIM
 	tristate "Support for NAND Flash Simulator"
-	depends on MTD_PARTITIONS
 	help
 	  The simulator may simulate various NAND flash chips for the
 	  MTD nand layer.
@@ -513,7 +512,7 @@ config MTD_NAND_SOCRATES
 
 config MTD_NAND_NUC900
 	tristate "Support for NAND on Nuvoton NUC9xx/w90p910 evaluation boards."
-	depends on ARCH_W90X900 && MTD_PARTITIONS
+	depends on ARCH_W90X900
 	help
 	  This enables the driver for the NAND Flash on evaluation board based
 	  on w90p910 / NUC9xx.

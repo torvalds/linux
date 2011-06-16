@@ -225,7 +225,7 @@ typedef volatile struct {
 
 #endif				/* _LANGUAGE_ASSEMBLY */
 
-#if	defined(IL_BIGENDIAN) && defined(BCMHND74K)
+#if	defined(__BIG_ENDIAN) && defined(BCMHND74K)
 /* Selective swapped defines for those registers we need in
  * big-endian code.
  */
@@ -234,14 +234,14 @@ typedef volatile struct {
 #define	CC_CHIPST		0x28
 #define	CC_EROMPTR		0xf8
 
-#else				/* !IL_BIGENDIAN || !BCMHND74K */
+#else				/* !__BIG_ENDIAN || !BCMHND74K */
 
 #define	CC_CHIPID		0
 #define	CC_CAPABILITIES		4
 #define	CC_CHIPST		0x2c
 #define	CC_EROMPTR		0xfc
 
-#endif				/* IL_BIGENDIAN && BCMHND74K */
+#endif				/* __BIG_ENDIAN && BCMHND74K */
 
 #define CC_OTPST		0x10
 #define	CC_JTAGCMD		0x30

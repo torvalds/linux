@@ -268,6 +268,8 @@ struct the_nilfs *alloc_nilfs(struct block_device *bdev);
 void destroy_nilfs(struct the_nilfs *nilfs);
 int init_nilfs(struct the_nilfs *nilfs, struct super_block *sb, char *data);
 int load_nilfs(struct the_nilfs *nilfs, struct super_block *sb);
+unsigned long nilfs_nrsvsegs(struct the_nilfs *nilfs, unsigned long nsegs);
+void nilfs_set_nsegments(struct the_nilfs *nilfs, unsigned long nsegs);
 int nilfs_discard_segments(struct the_nilfs *, __u64 *, size_t);
 int nilfs_count_free_blocks(struct the_nilfs *, sector_t *);
 struct nilfs_root *nilfs_lookup_root(struct the_nilfs *nilfs, __u64 cno);

@@ -107,17 +107,7 @@
  * device.  A queue maps to only one (selectable by driver) Tx DMA channel,
  * but one DMA channel may take input from several queues.
  *
- * Tx DMA FIFOs have dedicated purposes.  For 4965, they are used as follows
- * (cf. default_queue_to_tx_fifo in iwl-4965.c):
- *
- * 0 -- EDCA BK (background) frames, lowest priority
- * 1 -- EDCA BE (best effort) frames, normal priority
- * 2 -- EDCA VI (video) frames, higher priority
- * 3 -- EDCA VO (voice) and management frames, highest priority
- * 4 -- Commands (e.g. RXON, etc.)
- * 5 -- unused (HCCA)
- * 6 -- unused (HCCA)
- * 7 -- not used by driver (device-internal only)
+ * Tx DMA FIFOs have dedicated purposes.
  *
  * For 5000 series and up, they are used differently
  * (cf. iwl5000_default_queue_to_tx_fifo in iwl-5000.c):
@@ -151,7 +141,7 @@
  *     Tx completion may end up being out-of-order).
  *
  *     The driver must maintain the queue's Byte Count table in host DRAM
- *     (struct iwl4965_sched_queue_byte_cnt_tbl) for this mode.
+ *     for this mode.
  *     This mode does not support fragmentation.
  *
  * 2)  FIFO (a.k.a. non-Scheduler-ACK), in which each TFD is processed in order.
@@ -164,7 +154,7 @@
  *
  * Driver controls scheduler operation via 3 means:
  * 1)  Scheduler registers
- * 2)  Shared scheduler data base in internal 4956 SRAM
+ * 2)  Shared scheduler data base in internal SRAM
  * 3)  Shared data in host DRAM
  *
  * Initialization:

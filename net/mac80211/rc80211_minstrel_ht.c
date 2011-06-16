@@ -464,6 +464,7 @@ minstrel_calc_retransmit(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	const struct mcs_group *group;
 	unsigned int tx_time, tx_time_rtscts, tx_time_data;
 	unsigned int cw = mp->cw_min;
+	unsigned int ctime = 0;
 	unsigned int t_slot = 9; /* FIXME */
 	unsigned int ampdu_len = MINSTREL_TRUNC(mi->avg_ampdu_len);
 
@@ -480,13 +481,27 @@ minstrel_calc_retransmit(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 
 	group = &minstrel_mcs_groups[index / MCS_GROUP_RATES];
 	tx_time_data = group->duration[index % MCS_GROUP_RATES] * ampdu_len;
-	tx_time = 2 * (t_slot + mi->overhead + tx_time_data);
-	tx_time_rtscts = 2 * (t_slot + mi->overhead_rtscts + tx_time_data);
+
+	/* Contention time for first 2 tries */
+	ctime = (t_slot * cw) >> 1;
+	cw = min((cw << 1) | 1, mp->cw_max);
+	ctime += (t_slot * cw) >> 1;
+	cw = min((cw << 1) | 1, mp->cw_max);
+
+	/* Total TX time for data and Contention after first 2 tries */
+	tx_time = ctime + 2 * (mi->overhead + tx_time_data);
+	tx_time_rtscts = ctime + 2 * (mi->overhead_rtscts + tx_time_data);
+
+	/* See how many more tries we can fit inside segment size */
 	do {
-		cw = (cw << 1) | 1;
-		cw = min(cw, mp->cw_max);
-		tx_time += cw + t_slot + mi->overhead;
-		tx_time_rtscts += cw + t_slot + mi->overhead_rtscts;
+		/* Contention time for this try */
+		ctime = (t_slot * cw) >> 1;
+		cw = min((cw << 1) | 1, mp->cw_max);
+
+		/* Total TX time after this try */
+		tx_time += ctime + mi->overhead + tx_time_data;
+		tx_time_rtscts += ctime + mi->overhead_rtscts + tx_time_data;
+
 		if (tx_time_rtscts < mp->segment_size)
 			mr->retry_count_rtscts++;
 	} while ((tx_time < mp->segment_size) &&
@@ -594,6 +609,13 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 
 	info->flags |= mi->tx_flags;
 	sample_idx = minstrel_get_sample_rate(mp, mi);
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/* use fixed index if set */
+	if (mp->fixed_rate_idx != -1)
+		sample_idx = mp->fixed_rate_idx;
+#endif
+
 	if (sample_idx >= 0) {
 		sample = true;
 		minstrel_ht_set_rate(mp, mi, &ar[0], sample_idx,

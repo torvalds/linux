@@ -16,9 +16,6 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/fsl_devices.h>
-#include <linux/fec.h>
-#include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
@@ -26,7 +23,6 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx51.h>
-#include <mach/mxc_ehci.h>
 
 #include <asm/irq.h>
 #include <asm/setup.h>
@@ -208,18 +204,16 @@ static inline void babbage_usbhub_reset(void)
 {
 	int ret;
 
-	/* Bring USB hub out of reset */
-	ret = gpio_request(BABBAGE_USB_HUB_RESET, "GPIO1_7");
+	/* Reset USB hub */
+	ret = gpio_request_one(BABBAGE_USB_HUB_RESET,
+					GPIOF_OUT_INIT_LOW, "GPIO1_7");
 	if (ret) {
 		printk(KERN_ERR"failed to get GPIO_USB_HUB_RESET: %d\n", ret);
 		return;
 	}
-	gpio_direction_output(BABBAGE_USB_HUB_RESET, 0);
 
-	/* USB HUB RESET - De-assert USB HUB RESET_N */
-	msleep(1);
-	gpio_set_value(BABBAGE_USB_HUB_RESET, 0);
-	msleep(1);
+	msleep(2);
+	/* Deassert reset */
 	gpio_set_value(BABBAGE_USB_HUB_RESET, 1);
 }
 
@@ -361,7 +355,7 @@ static void __init mx51_babbage_init(void)
 
 	/* Set the PAD settings for the pwr key. */
 	mxc_iomux_v3_setup_pad(power_key);
-	imx51_add_gpio_keys(&imx_button_data);
+	imx_add_gpio_keys(&imx_button_data);
 
 	imx51_add_imx_i2c(0, &babbage_i2c_data);
 	imx51_add_imx_i2c(1, &babbage_i2c_data);

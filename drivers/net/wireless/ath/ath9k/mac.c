@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -430,8 +430,13 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 		  SM(qi->tqi_shretry, AR_D_RETRY_LIMIT_FR_SH));
 
 	REG_WRITE(ah, AR_QMISC(q), AR_Q_MISC_DCU_EARLY_TERM_REQ);
-	REG_WRITE(ah, AR_DMISC(q),
-		  AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x2);
+
+	if (AR_SREV_9340(ah))
+		REG_WRITE(ah, AR_DMISC(q),
+			  AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x1);
+	else
+		REG_WRITE(ah, AR_DMISC(q),
+			  AR_D_MISC_CW_BKOFF_EN | AR_D_MISC_FRAG_WAIT_EN | 0x2);
 
 	if (qi->tqi_cbrPeriod) {
 		REG_WRITE(ah, AR_QCBRCFG(q),
@@ -812,9 +817,13 @@ EXPORT_SYMBOL(ath9k_hw_disable_interrupts);
 void ath9k_hw_enable_interrupts(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
+	u32 sync_default = AR_INTR_SYNC_DEFAULT;
 
 	if (!(ah->imask & ATH9K_INT_GLOBAL))
 		return;
+
+	if (AR_SREV_9340(ah))
+		sync_default &= ~AR_INTR_SYNC_HOST1_FATAL;
 
 	ath_dbg(common, ATH_DBG_INTERRUPT, "enable IER\n");
 	REG_WRITE(ah, AR_IER, AR_IER_ENABLE);
@@ -824,10 +833,8 @@ void ath9k_hw_enable_interrupts(struct ath_hw *ah)
 		REG_WRITE(ah, AR_INTR_ASYNC_MASK, AR_INTR_MAC_IRQ);
 
 
-		REG_WRITE(ah, AR_INTR_SYNC_ENABLE,
-			  AR_INTR_SYNC_DEFAULT);
-		REG_WRITE(ah, AR_INTR_SYNC_MASK,
-			  AR_INTR_SYNC_DEFAULT);
+		REG_WRITE(ah, AR_INTR_SYNC_ENABLE, sync_default);
+		REG_WRITE(ah, AR_INTR_SYNC_MASK, sync_default);
 	}
 	ath_dbg(common, ATH_DBG_INTERRUPT, "AR_IMR 0x%x IER 0x%x\n",
 		REG_READ(ah, AR_IMR), REG_READ(ah, AR_IER));
@@ -882,6 +889,9 @@ void ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 		if (!(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
 			mask |= AR_IMR_GENTMR;
 	}
+
+	if (ints & ATH9K_INT_GENTIMER)
+		mask |= AR_IMR_GENTMR;
 
 	if (ints & (ATH9K_INT_BMISC)) {
 		mask |= AR_IMR_BCNMISC;

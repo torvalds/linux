@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2010 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -43,6 +43,7 @@
 #define AR9287_DEVID_PCI	0x002d
 #define AR9287_DEVID_PCIE	0x002e
 #define AR9300_DEVID_PCIE	0x0030
+#define AR9300_DEVID_AR9340	0x0031
 #define AR9300_DEVID_AR9485_PCIE 0x0032
 
 #define AR5416_AR9100_DEVID	0x000b
@@ -54,6 +55,9 @@
 #define AR9280_COEX2WIRE_SUBSYSID	0x309b
 #define AT9285_COEX3WIRE_SA_SUBSYSID	0x30aa
 #define AT9285_COEX3WIRE_DA_SUBSYSID	0x30ab
+
+#define AR9300_NUM_BT_WEIGHTS   4
+#define AR9300_NUM_WLAN_WEIGHTS 4
 
 #define ATH_AMPDU_LIMIT_MAX        (64 * 1024 - 1)
 
@@ -121,7 +125,7 @@
 #define AR_GPIO_BIT(_gpio)          (1 << (_gpio))
 
 #define BASE_ACTIVATE_DELAY         100
-#define RTC_PLL_SETTLE_DELAY        100
+#define RTC_PLL_SETTLE_DELAY        (AR_SREV_9340(ah) ? 1000 : 100)
 #define COEF_SCALE_S                24
 #define HT40_CHANNEL_CENTER_SHIFT   10
 
@@ -399,7 +403,6 @@ struct ath9k_beacon_state {
 	u32 bs_nexttbtt;
 	u32 bs_nextdtim;
 	u32 bs_intval;
-#define ATH9K_BEACON_PERIOD       0x0000ffff
 #define ATH9K_TSFOOR_THRESHOLD    0x00004240 /* 16k us */
 	u32 bs_dtimperiod;
 	u16 bs_cfpperiod;
@@ -475,6 +478,10 @@ struct ath_hw_antcomb_conf {
 	u8 main_lna_conf;
 	u8 alt_lna_conf;
 	u8 fast_div_bias;
+	u8 main_gaintb;
+	u8 alt_gaintb;
+	int lna1_lna2_delta;
+	u8 div_group;
 };
 
 /**
@@ -595,7 +602,6 @@ struct ath_hw_ops {
 				     int power_off);
 	void (*rx_enable)(struct ath_hw *ah);
 	void (*set_desc_link)(void *ds, u32 link);
-	void (*get_desc_link)(void *ds, u32 **link);
 	bool (*calibrate)(struct ath_hw *ah,
 			  struct ath9k_channel *chan,
 			  u8 rxchainmask,
@@ -624,8 +630,12 @@ struct ath_hw_ops {
 				   u32 numDelims);
 	void (*set11n_aggr_last)(struct ath_hw *ah, void *ds);
 	void (*clr11n_aggr)(struct ath_hw *ah, void *ds);
-	void (*set11n_burstduration)(struct ath_hw *ah, void *ds,
-				     u32 burstDuration);
+	void (*set_clrdmask)(struct ath_hw *ah, void *ds, bool val);
+	void (*antdiv_comb_conf_get)(struct ath_hw *ah,
+			struct ath_hw_antcomb_conf *antconf);
+	void (*antdiv_comb_conf_set)(struct ath_hw *ah,
+			struct ath_hw_antcomb_conf *antconf);
+
 };
 
 struct ath_nf_limits {
@@ -770,6 +780,8 @@ struct ath_hw {
 
 	/* Bluetooth coexistance */
 	struct ath_btcoex_hw btcoex_hw;
+	u32 bt_coex_bt_weight[AR9300_NUM_BT_WEIGHTS];
+	u32 bt_coex_wlan_weight[AR9300_NUM_WLAN_WEIGHTS];
 
 	u32 intr_txqs;
 	u8 txchainmask;
@@ -798,6 +810,7 @@ struct ath_hw {
 	struct ar5416IniArray iniPcieSerdes;
 	struct ar5416IniArray iniPcieSerdesLowPower;
 	struct ar5416IniArray iniModesAdditional;
+	struct ar5416IniArray iniModesAdditional_40M;
 	struct ar5416IniArray iniModesRxGain;
 	struct ar5416IniArray iniModesTxGain;
 	struct ar5416IniArray iniModes_9271_1_0_only;
@@ -827,6 +840,7 @@ struct ath_hw {
 
 	u32 bb_watchdog_last_status;
 	u32 bb_watchdog_timeout_ms; /* in ms, 0 to disable */
+	u8 bb_hang_rx_ofdm; /* true if bb hang due to rx_ofdm */
 
 	unsigned int paprd_target_power;
 	unsigned int paprd_training_power;
@@ -844,6 +858,16 @@ struct ath_hw {
 
 	/* Enterprise mode cap */
 	u32 ent_mode;
+
+	bool is_clk_25mhz;
+};
+
+struct ath_bus_ops {
+	enum ath_bus_type ath_bus_type;
+	void (*read_cachesize)(struct ath_common *common, int *csz);
+	bool (*eeprom_read)(struct ath_common *common, u32 off, u16 *data);
+	void (*bt_coex_prep)(struct ath_common *common);
+	void (*extn_synch_en)(struct ath_common *common);
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
@@ -888,10 +912,6 @@ void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
 u32 ath9k_hw_getdefantenna(struct ath_hw *ah);
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
-void ath9k_hw_antdiv_comb_conf_get(struct ath_hw *ah,
-				   struct ath_hw_antcomb_conf *antconf);
-void ath9k_hw_antdiv_comb_conf_set(struct ath_hw *ah,
-				   struct ath_hw_antcomb_conf *antconf);
 
 /* General Operation */
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
@@ -919,7 +939,7 @@ void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64);
 void ath9k_hw_reset_tsf(struct ath_hw *ah);
 void ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting);
 void ath9k_hw_init_global_settings(struct ath_hw *ah);
-unsigned long ar9003_get_pll_sqsum_dvc(struct ath_hw *ah);
+u32 ar9003_get_pll_sqsum_dvc(struct ath_hw *ah);
 void ath9k_hw_set11nmac2040(struct ath_hw *ah);
 void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period);
 void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
@@ -969,6 +989,7 @@ void ar9002_hw_enable_wep_aggregation(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_config(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_read(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah);
+void ar9003_hw_disable_phy_restart(struct ath_hw *ah);
 void ar9003_paprd_enable(struct ath_hw *ah, bool val);
 void ar9003_paprd_populate_single_table(struct ath_hw *ah,
 					struct ath9k_hw_cal_data *caldata,

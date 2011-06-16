@@ -1284,7 +1284,7 @@ static inline int bfin_spi_stop_queue(struct bfin_spi_master_data *drv_data)
 	 * friends on every SPI message. Do this instead
 	 */
 	drv_data->running = false;
-	while (!list_empty(&drv_data->queue) && drv_data->busy && limit--) {
+	while ((!list_empty(&drv_data->queue) || drv_data->busy) && limit--) {
 		spin_unlock_irqrestore(&drv_data->lock, flags);
 		msleep(10);
 		spin_lock_irqsave(&drv_data->lock, flags);

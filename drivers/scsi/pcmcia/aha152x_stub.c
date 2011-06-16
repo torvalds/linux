@@ -202,7 +202,7 @@ static int aha152x_resume(struct pcmcia_device *link)
 	return 0;
 }
 
-static struct pcmcia_device_id aha152x_ids[] = {
+static const struct pcmcia_device_id aha152x_ids[] = {
 	PCMCIA_DEVICE_PROD_ID123("New Media", "SCSI", "Bus Toaster", 0xcdf7e4cc, 0x35f26476, 0xa8851d6e),
 	PCMCIA_DEVICE_PROD_ID123("NOTEWORTHY", "SCSI", "Bus Toaster", 0xad89c6e8, 0x35f26476, 0xa8851d6e),
 	PCMCIA_DEVICE_PROD_ID12("Adaptec, Inc.", "APA-1460 SCSI Host Adapter", 0x24ba9738, 0x3a3c3d20),

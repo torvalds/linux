@@ -412,8 +412,7 @@ static int __devinit maxiradio_init_one(struct pci_dev *pdev, const struct pci_d
 		goto err_out_free_region;
 	}
 
-	v4l2_info(v4l2_dev, "version " DRIVER_VERSION
-			" time " __TIME__ "  " __DATE__ "\n");
+	v4l2_info(v4l2_dev, "version " DRIVER_VERSION "\n");
 
 	v4l2_info(v4l2_dev, "found Guillemot MAXI Radio device (io = 0x%x)\n",
 	       dev->io);

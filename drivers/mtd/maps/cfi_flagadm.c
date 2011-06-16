@@ -107,7 +107,7 @@ static int __init init_flagadm(void)
 	mymtd = do_map_probe("cfi_probe", &flagadm_map);
 	if (mymtd) {
 		mymtd->owner = THIS_MODULE;
-		add_mtd_partitions(mymtd, flagadm_parts, PARTITION_COUNT);
+		mtd_device_register(mymtd, flagadm_parts, PARTITION_COUNT);
 		printk(KERN_NOTICE "FlagaDM flash device initialized\n");
 		return 0;
 	}
@@ -119,7 +119,7 @@ static int __init init_flagadm(void)
 static void __exit cleanup_flagadm(void)
 {
 	if (mymtd) {
-		del_mtd_partitions(mymtd);
+		mtd_device_unregister(mymtd);
 		map_destroy(mymtd);
 	}
 	if (flagadm_map.virt) {

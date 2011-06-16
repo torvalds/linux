@@ -3,8 +3,7 @@ Overview of IIO
 The Industrial I/O subsystem is intended to provide support for devices
 that in some sense are analog to digital converters (ADCs). As many
 actual devices combine some ADCs with digital to analog converters
-(DACs) the intention is to add that functionality at a future date
-(hence the name).
+(DACs) that functionality is also supported.
 
 The aim is to fill the gap between the somewhat similar hwmon and
 input subsystems.  Hwmon is very much directed at low sample rate
@@ -31,32 +30,28 @@ event must be accessed via polling.
 Note: A given device may have one or more event channel.  These events are
 turned on or off (if possible) via sysfs interfaces.
 
-* Hardware ring buffer support.  Some recent sensors have included
+* Hardware buffer support.  Some recent sensors have included
 fifo / ring buffers on the sensor chip.  These greatly reduce the load
 on the host CPU by buffering relatively large numbers of data samples
 based on an internal sampling clock. Examples include VTI SCA3000
-series and Analog Device ADXL345 accelerometers.  Each ring buffer
-typically has an event chrdev (similar to the more general ones above)
-to pass on events such as buffer 50% full and an access chrdev via
-which the raw data it self may be read back.
+series and Analog Device ADXL345 accelerometers.  Each buffer supports
+polling to establish when data is available.
 
-* Trigger and software ring buffer support. In many data analysis
+* Trigger and software buffer support. In many data analysis
 applications it it useful to be able to capture data based on some
 external signal (trigger).  These triggers might be a data ready
 signal, a gpio line connected to some external system or an on
 processor periodic interrupt.  A single trigger may initialize data
 capture or reading from a number of sensors.  These triggers are
-used in IIO to fill software ring buffers acting in a very similar
+used in IIO to fill software buffers acting in a very similar
 fashion to the hardware buffers described above.
 
 Other documentation:
-
-userspace.txt - overview of ring buffer reading from userspace.
 
 device.txt - elements of a typical device driver.
 
 trigger.txt - elements of a typical trigger driver.
 
-ring.txt - additional elements required for ring buffer support.
+ring.txt - additional elements required for buffer support.
 
 sysfs-bus-iio - abi documentation file.

@@ -449,11 +449,9 @@ enum nic_state {
 struct efx_nic;
 
 /* Pseudo bit-mask flow control field */
-enum efx_fc_type {
-	EFX_FC_RX = FLOW_CTRL_RX,
-	EFX_FC_TX = FLOW_CTRL_TX,
-	EFX_FC_AUTO = 4,
-};
+#define EFX_FC_RX	FLOW_CTRL_RX
+#define EFX_FC_TX	FLOW_CTRL_TX
+#define EFX_FC_AUTO	4
 
 /**
  * struct efx_link_state - Current state of the link
@@ -465,7 +463,7 @@ enum efx_fc_type {
 struct efx_link_state {
 	bool up;
 	bool fd;
-	enum efx_fc_type fc;
+	u8 fc;
 	unsigned int speed;
 };
 
@@ -670,13 +668,12 @@ struct efx_filter_state;
  * @mtd_list: List of MTDs attached to the NIC
  * @nic_data: Hardware dependent state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
- *	@port_inhibited, efx_monitor() and efx_reconfigure_port()
+ *	efx_monitor() and efx_reconfigure_port()
  * @port_enabled: Port enabled indicator.
  *	Serialises efx_stop_all(), efx_start_all(), efx_monitor() and
  *	efx_mac_work() with kernel interfaces. Safe to read under any
  *	one of the rtnl_lock, mac_lock, or netif_tx_lock, but all three must
  *	be held to modify it.
- * @port_inhibited: If set, the netif_carrier is always off. Hold the mac_lock
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
  * @stats_buffer: DMA buffer for statistics
@@ -764,7 +761,6 @@ struct efx_nic {
 	struct mutex mac_lock;
 	struct work_struct mac_work;
 	bool port_enabled;
-	bool port_inhibited;
 
 	bool port_initialized;
 	struct net_device *net_dev;
@@ -786,7 +782,7 @@ struct efx_nic {
 
 	bool promiscuous;
 	union efx_multicast_hash multicast_hash;
-	enum efx_fc_type wanted_fc;
+	u8 wanted_fc;
 
 	atomic_t rx_reset;
 	enum efx_loopback_mode loopback_mode;

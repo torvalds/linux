@@ -547,6 +547,21 @@ static inline int cpumask_parse_user(const char __user *buf, int len,
 }
 
 /**
+ * cpumask_parselist_user - extract a cpumask from a user string
+ * @buf: the buffer to extract from
+ * @len: the length of the buffer
+ * @dstp: the cpumask to set.
+ *
+ * Returns -errno, or 0 for success.
+ */
+static inline int cpumask_parselist_user(const char __user *buf, int len,
+				     struct cpumask *dstp)
+{
+	return bitmap_parselist_user(buf, len, cpumask_bits(dstp),
+							nr_cpumask_bits);
+}
+
+/**
  * cpulist_scnprintf - print a cpumask into a string as comma-separated list
  * @buf: the buffer to sprintf into
  * @len: the length of the buffer

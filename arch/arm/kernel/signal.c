@@ -597,44 +597,18 @@ setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 	return err;
 }
 
-static inline void setup_syscall_restart(struct pt_regs *regs)
-{
-	regs->ARM_r0 = regs->ARM_ORIG_r0;
-	regs->ARM_pc -= thumb_mode(regs) ? 2 : 4;
-}
-
 /*
  * OK, we're invoking a handler
  */	
 static int
 handle_signal(unsigned long sig, struct k_sigaction *ka,
 	      siginfo_t *info, sigset_t *oldset,
-	      struct pt_regs * regs, int syscall)
+	      struct pt_regs * regs)
 {
 	struct thread_info *thread = current_thread_info();
 	struct task_struct *tsk = current;
 	int usig = sig;
 	int ret;
-
-	/*
-	 * If we were from a system call, check for system call restarting...
-	 */
-	if (syscall) {
-		switch (regs->ARM_r0) {
-		case -ERESTART_RESTARTBLOCK:
-		case -ERESTARTNOHAND:
-			regs->ARM_r0 = -EINTR;
-			break;
-		case -ERESTARTSYS:
-			if (!(ka->sa.sa_flags & SA_RESTART)) {
-				regs->ARM_r0 = -EINTR;
-				break;
-			}
-			/* fallthrough */
-		case -ERESTARTNOINTR:
-			setup_syscall_restart(regs);
-		}
-	}
 
 	/*
 	 * translate the signal
@@ -685,6 +659,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
  */
 static void do_signal(struct pt_regs *regs, int syscall)
 {
+	unsigned int retval = 0, continue_addr = 0, restart_addr = 0;
 	struct k_sigaction ka;
 	siginfo_t info;
 	int signr;
@@ -698,18 +673,61 @@ static void do_signal(struct pt_regs *regs, int syscall)
 	if (!user_mode(regs))
 		return;
 
+	/*
+	 * If we were from a system call, check for system call restarting...
+	 */
+	if (syscall) {
+		continue_addr = regs->ARM_pc;
+		restart_addr = continue_addr - (thumb_mode(regs) ? 2 : 4);
+		retval = regs->ARM_r0;
+
+		/*
+		 * Prepare for system call restart.  We do this here so that a
+		 * debugger will see the already changed PSW.
+		 */
+		switch (retval) {
+		case -ERESTARTNOHAND:
+		case -ERESTARTSYS:
+		case -ERESTARTNOINTR:
+			regs->ARM_r0 = regs->ARM_ORIG_r0;
+			regs->ARM_pc = restart_addr;
+			break;
+		case -ERESTART_RESTARTBLOCK:
+			regs->ARM_r0 = -EINTR;
+			break;
+		}
+	}
+
 	if (try_to_freeze())
 		goto no_signal;
 
+	/*
+	 * Get the signal to deliver.  When running under ptrace, at this
+	 * point the debugger may change all our registers ...
+	 */
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		sigset_t *oldset;
+
+		/*
+		 * Depending on the signal settings we may need to revert the
+		 * decision to restart the system call.  But skip this if a
+		 * debugger has chosen to restart at a different PC.
+		 */
+		if (regs->ARM_pc == restart_addr) {
+			if (retval == -ERESTARTNOHAND
+			    || (retval == -ERESTARTSYS
+				&& !(ka.sa.sa_flags & SA_RESTART))) {
+				regs->ARM_r0 = -EINTR;
+				regs->ARM_pc = continue_addr;
+			}
+		}
 
 		if (test_thread_flag(TIF_RESTORE_SIGMASK))
 			oldset = &current->saved_sigmask;
 		else
 			oldset = &current->blocked;
-		if (handle_signal(signr, &ka, &info, oldset, regs, syscall) == 0) {
+		if (handle_signal(signr, &ka, &info, oldset, regs) == 0) {
 			/*
 			 * A signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,
@@ -723,11 +741,14 @@ static void do_signal(struct pt_regs *regs, int syscall)
 	}
 
  no_signal:
-	/*
-	 * No signal to deliver to the process - restart the syscall.
-	 */
 	if (syscall) {
-		if (regs->ARM_r0 == -ERESTART_RESTARTBLOCK) {
+		/*
+		 * Handle restarting a different system call.  As above,
+		 * if a debugger has chosen to restart at a different PC,
+		 * ignore the restart.
+		 */
+		if (retval == -ERESTART_RESTARTBLOCK
+		    && regs->ARM_pc == continue_addr) {
 			if (thumb_mode(regs)) {
 				regs->ARM_r7 = __NR_restart_syscall - __NR_SYSCALL_BASE;
 				regs->ARM_pc -= 2;
@@ -749,11 +770,6 @@ static void do_signal(struct pt_regs *regs, int syscall)
 				}
 #endif
 			}
-		}
-		if (regs->ARM_r0 == -ERESTARTNOHAND ||
-		    regs->ARM_r0 == -ERESTARTSYS ||
-		    regs->ARM_r0 == -ERESTARTNOINTR) {
-			setup_syscall_restart(regs);
 		}
 
 		/* If there's no signal to deliver, we just put the saved sigmask

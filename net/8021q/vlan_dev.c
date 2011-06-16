@@ -20,6 +20,8 @@
  *		2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
@@ -55,7 +57,7 @@ static int vlan_dev_rebuild_header(struct sk_buff *skb)
 		return arp_find(veth->h_dest, skb);
 #endif
 	default:
-		pr_debug("%s: unable to resolve type %X addresses.\n",
+		pr_debug("%s: unable to resolve type %X addresses\n",
 			 dev->name, ntohs(veth->h_vlan_encapsulated_proto));
 
 		memcpy(veth->h_source, dev->dev_addr, ETH_ALEN);
@@ -165,7 +167,7 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 		u64_stats_update_begin(&stats->syncp);
 		stats->tx_packets++;
 		stats->tx_bytes += len;
-		u64_stats_update_begin(&stats->syncp);
+		u64_stats_update_end(&stats->syncp);
 	} else {
 		this_cpu_inc(vlan_dev_info(dev)->vlan_pcpu_stats->tx_dropped);
 	}
@@ -313,9 +315,6 @@ static int vlan_dev_stop(struct net_device *dev)
 {
 	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	struct net_device *real_dev = vlan->real_dev;
-
-	if (vlan->flags & VLAN_FLAG_GVRP)
-		vlan_gvrp_request_leave(dev);
 
 	dev_mc_unsync(real_dev, dev);
 	dev_uc_unsync(real_dev, dev);
@@ -531,7 +530,7 @@ static int vlan_dev_init(struct net_device *dev)
 					  (1<<__LINK_STATE_DORMANT))) |
 		      (1<<__LINK_STATE_PRESENT);
 
-	dev->hw_features = real_dev->vlan_features & NETIF_F_ALL_TX_OFFLOADS;
+	dev->hw_features = NETIF_F_ALL_TX_OFFLOADS;
 	dev->features |= real_dev->vlan_features | NETIF_F_LLTX;
 	dev->gso_max_size = real_dev->gso_max_size;
 
@@ -590,9 +589,11 @@ static u32 vlan_dev_fix_features(struct net_device *dev, u32 features)
 {
 	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 
-	features &= (real_dev->features | NETIF_F_LLTX);
+	features &= real_dev->features;
+	features &= real_dev->vlan_features;
 	if (dev_ethtool_get_rx_csum(real_dev))
 		features |= NETIF_F_RXCSUM;
+	features |= NETIF_F_LLTX;
 
 	return features;
 }

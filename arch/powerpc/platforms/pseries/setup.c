@@ -53,9 +53,9 @@
 #include <asm/irq.h>
 #include <asm/time.h>
 #include <asm/nvram.h>
-#include "xics.h"
 #include <asm/pmc.h>
 #include <asm/mpic.h>
+#include <asm/xics.h>
 #include <asm/ppc-pci.h>
 #include <asm/i8259.h>
 #include <asm/udbg.h>
@@ -205,6 +205,9 @@ static void __init pseries_mpic_init_IRQ(void)
 		mpic_assign_isu(mpic, n, isuaddr);
 	}
 
+	/* Setup top-level get_irq */
+	ppc_md.get_irq = mpic_get_irq;
+
 	/* All ISUs are setup, complete initialization */
 	mpic_init(mpic);
 
@@ -214,7 +217,7 @@ static void __init pseries_mpic_init_IRQ(void)
 
 static void __init pseries_xics_init_IRQ(void)
 {
-	xics_init_IRQ();
+	xics_init();
 	pseries_setup_i8259_cascade();
 }
 
@@ -238,7 +241,6 @@ static void __init pseries_discover_pic(void)
 		if (strstr(typep, "open-pic")) {
 			pSeries_mpic_node = of_node_get(np);
 			ppc_md.init_IRQ       = pseries_mpic_init_IRQ;
-			ppc_md.get_irq        = mpic_get_irq;
 			setup_kexec_cpu_down_mpic();
 			smp_init_pseries_mpic();
 			return;
@@ -276,6 +278,8 @@ static struct notifier_block pci_dn_reconfig_nb = {
 	.notifier_call = pci_dn_reconfig_notifier,
 };
 
+struct kmem_cache *dtl_cache;
+
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 /*
  * Allocate space for the dispatch trace log for all possible cpus
@@ -291,10 +295,12 @@ static int alloc_dispatch_logs(void)
 	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
 		return 0;
 
+	if (!dtl_cache)
+		return 0;
+
 	for_each_possible_cpu(cpu) {
 		pp = &paca[cpu];
-		dtl = kmalloc_node(DISPATCH_LOG_BYTES, GFP_KERNEL,
-				   cpu_to_node(cpu));
+		dtl = kmem_cache_alloc(dtl_cache, GFP_KERNEL);
 		if (!dtl) {
 			pr_warn("Failed to allocate dispatch trace log for cpu %d\n",
 				cpu);
@@ -324,9 +330,26 @@ static int alloc_dispatch_logs(void)
 
 	return 0;
 }
-
-early_initcall(alloc_dispatch_logs);
+#else /* !CONFIG_VIRT_CPU_ACCOUNTING */
+static inline int alloc_dispatch_logs(void)
+{
+	return 0;
+}
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING */
+
+static int alloc_dispatch_log_kmem_cache(void)
+{
+	dtl_cache = kmem_cache_create("dtl", DISPATCH_LOG_BYTES,
+						DISPATCH_LOG_BYTES, 0, NULL);
+	if (!dtl_cache) {
+		pr_warn("Failed to create dispatch trace log buffer cache\n");
+		pr_warn("Stolen time statistics will be unreliable\n");
+		return 0;
+	}
+
+	return alloc_dispatch_logs();
+}
+early_initcall(alloc_dispatch_log_kmem_cache);
 
 static void __init pSeries_setup_arch(void)
 {
@@ -394,6 +417,16 @@ static int pseries_set_xdabr(unsigned long dabr)
 
 #define CMO_CHARACTERISTICS_TOKEN 44
 #define CMO_MAXLENGTH 1026
+
+void pSeries_coalesce_init(void)
+{
+	struct hvcall_mpp_x_data mpp_x_data;
+
+	if (firmware_has_feature(FW_FEATURE_CMO) && !h_get_mpp_x(&mpp_x_data))
+		powerpc_firmware_features |= FW_FEATURE_XCMO;
+	else
+		powerpc_firmware_features &= ~FW_FEATURE_XCMO;
+}
 
 /**
  * fw_cmo_feature_init - FW_FEATURE_CMO is not stored in ibm,hypertas-functions,
@@ -464,6 +497,7 @@ void pSeries_cmo_feature_init(void)
 		pr_debug("CMO enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
 		         CMO_SecPSP);
 		powerpc_firmware_features |= FW_FEATURE_CMO;
+		pSeries_coalesce_init();
 	} else
 		pr_debug("CMO not enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
 		         CMO_SecPSP);

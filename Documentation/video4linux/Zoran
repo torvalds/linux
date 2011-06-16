@@ -130,7 +130,6 @@ Card number: 4
 
 Note: No module for the mse3000 is available yet
 Note: No module for the vpx3224 is available yet
-Note: use encoder=X or decoder=X for non-default i2c chips
 
 ===========================
 

@@ -313,14 +313,12 @@ xfs_qm_scall_quotaon(
 {
 	int		error;
 	uint		qf;
-	uint		accflags;
 	__int64_t	sbflags;
 
 	flags &= (XFS_ALL_QUOTA_ACCT | XFS_ALL_QUOTA_ENFD);
 	/*
 	 * Switching on quota accounting must be done at mount time.
 	 */
-	accflags = flags & XFS_ALL_QUOTA_ACCT;
 	flags &= ~(XFS_ALL_QUOTA_ACCT);
 
 	sbflags = 0;

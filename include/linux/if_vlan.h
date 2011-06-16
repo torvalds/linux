@@ -86,7 +86,6 @@ struct vlan_group {
 					    * the vlan is attached to.
 					    */
 	unsigned int		nr_vlans;
-	int			killall;
 	struct hlist_node	hlist;	/* linked list */
 	struct net_device **vlan_devices_arrays[VLAN_GROUP_ARRAY_SPLIT_PARTS];
 	struct rcu_head		rcu;
@@ -109,6 +108,11 @@ static inline void vlan_group_set_device(struct vlan_group *vg,
 		return;
 	array = vg->vlan_devices_arrays[vlan_id / VLAN_GROUP_ARRAY_PART_LEN];
 	array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN] = dev;
+}
+
+static inline int is_vlan_dev(struct net_device *dev)
+{
+        return dev->priv_flags & IFF_802_1Q_VLAN;
 }
 
 #define vlan_tx_tag_present(__skb)	((__skb)->vlan_tci & VLAN_TAG_PRESENT)

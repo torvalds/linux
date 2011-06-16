@@ -229,6 +229,9 @@ static u64 scan_dispatch_log(u64 stop_tb)
 	u64 stolen = 0;
 	u64 dtb;
 
+	if (!dtl)
+		return 0;
+
 	if (i == vpa->dtl_idx)
 		return 0;
 	while (i < vpa->dtl_idx) {

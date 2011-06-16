@@ -586,10 +586,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	hci_req_cancel(hdev, ENODEV);
 	hci_req_lock(hdev);
 
-	/* Stop timer, it might be running */
-	del_timer_sync(&hdev->cmd_timer);
-
 	if (!test_and_clear_bit(HCI_UP, &hdev->flags)) {
+		del_timer_sync(&hdev->cmd_timer);
 		hci_req_unlock(hdev);
 		return 0;
 	}
@@ -628,6 +626,7 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 
 	/* Drop last sent command */
 	if (hdev->sent_cmd) {
+		del_timer_sync(&hdev->cmd_timer);
 		kfree_skb(hdev->sent_cmd);
 		hdev->sent_cmd = NULL;
 	}
@@ -1021,18 +1020,54 @@ struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	return NULL;
 }
 
-int hci_add_link_key(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
-						u8 *val, u8 type, u8 pin_len)
+static int hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
+						u8 key_type, u8 old_key_type)
+{
+	/* Legacy key */
+	if (key_type < 0x03)
+		return 1;
+
+	/* Debug keys are insecure so don't store them persistently */
+	if (key_type == HCI_LK_DEBUG_COMBINATION)
+		return 0;
+
+	/* Changed combination key and there's no previous one */
+	if (key_type == HCI_LK_CHANGED_COMBINATION && old_key_type == 0xff)
+		return 0;
+
+	/* Security mode 3 case */
+	if (!conn)
+		return 1;
+
+	/* Neither local nor remote side had no-bonding as requirement */
+	if (conn->auth_type > 0x01 && conn->remote_auth > 0x01)
+		return 1;
+
+	/* Local side had dedicated bonding as requirement */
+	if (conn->auth_type == 0x02 || conn->auth_type == 0x03)
+		return 1;
+
+	/* Remote side had dedicated bonding as requirement */
+	if (conn->remote_auth == 0x02 || conn->remote_auth == 0x03)
+		return 1;
+
+	/* If none of the above criteria match, then don't store the key
+	 * persistently */
+	return 0;
+}
+
+int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
+				bdaddr_t *bdaddr, u8 *val, u8 type, u8 pin_len)
 {
 	struct link_key *key, *old_key;
-	u8 old_key_type;
+	u8 old_key_type, persistent;
 
 	old_key = hci_find_link_key(hdev, bdaddr);
 	if (old_key) {
 		old_key_type = old_key->type;
 		key = old_key;
 	} else {
-		old_key_type = 0xff;
+		old_key_type = conn ? conn->key_type : 0xff;
 		key = kzalloc(sizeof(*key), GFP_ATOMIC);
 		if (!key)
 			return -ENOMEM;
@@ -1041,16 +1076,37 @@ int hci_add_link_key(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
 
 	BT_DBG("%s key for %s type %u", hdev->name, batostr(bdaddr), type);
 
+	/* Some buggy controller combinations generate a changed
+	 * combination key for legacy pairing even when there's no
+	 * previous key */
+	if (type == HCI_LK_CHANGED_COMBINATION &&
+					(!conn || conn->remote_auth == 0xff) &&
+					old_key_type == 0xff) {
+		type = HCI_LK_COMBINATION;
+		if (conn)
+			conn->key_type = type;
+	}
+
 	bacpy(&key->bdaddr, bdaddr);
 	memcpy(key->val, val, 16);
-	key->type = type;
 	key->pin_len = pin_len;
 
-	if (new_key)
-		mgmt_new_key(hdev->id, key, old_key_type);
-
-	if (type == 0x06)
+	if (type == HCI_LK_CHANGED_COMBINATION)
 		key->type = old_key_type;
+	else
+		key->type = type;
+
+	if (!new_key)
+		return 0;
+
+	persistent = hci_persistent_key(hdev, conn, type, old_key_type);
+
+	mgmt_new_key(hdev->id, key, persistent);
+
+	if (!persistent) {
+		list_del(&key->list);
+		kfree(key);
+	}
 
 	return 0;
 }
@@ -1463,7 +1519,7 @@ int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count)
 
 		data += (count - rem);
 		count = rem;
-	};
+	}
 
 	return rem;
 }
@@ -1498,7 +1554,7 @@ int hci_recv_stream_fragment(struct hci_dev *hdev, void *data, int count)
 
 		data += (count - rem);
 		count = rem;
-	};
+	}
 
 	return rem;
 }

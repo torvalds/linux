@@ -68,10 +68,10 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.0.25.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.1.9.0-k"
 
 /* a 32-bit int, each byte encode a verion number in VMXNET3_DRIVER_VERSION */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01001900
+#define VMXNET3_DRIVER_VERSION_NUM      0x01010900
 
 #if defined(CONFIG_PCI_MSI)
 	/* RSS only makes sense if MSI-X is supported. */
@@ -323,7 +323,6 @@ struct vmxnet3_adapter {
 	struct Vmxnet3_TxQueueDesc	*tqd_start;     /* all tx queue desc */
 	struct Vmxnet3_RxQueueDesc	*rqd_start;	/* all rx queue desc */
 	struct net_device		*netdev;
-	struct net_device_stats		net_stats;
 	struct pci_dev			*pdev;
 
 	u8			__iomem *hw_addr0; /* for BAR 0 */
@@ -407,7 +406,9 @@ vmxnet3_create_queues(struct vmxnet3_adapter *adapter,
 		      u32 tx_ring_size, u32 rx_ring_size, u32 rx_ring2_size);
 
 extern void vmxnet3_set_ethtool_ops(struct net_device *netdev);
-extern struct net_device_stats *vmxnet3_get_stats(struct net_device *netdev);
+
+extern struct rtnl_link_stats64 *
+vmxnet3_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats);
 
 extern char vmxnet3_driver_name[];
 #endif

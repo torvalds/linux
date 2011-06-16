@@ -316,15 +316,16 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	ireq->wscale_ok		= tcp_opt.wscale_ok;
 	ireq->tstamp_ok		= tcp_opt.saw_tstamp;
 	req->ts_recent		= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsval : 0;
+	treq->snt_synack	= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsecr : 0;
 
 	/* We throwed the options of the initial SYN away, so we hope
 	 * the ACK carries the same options again (see RFC1122 4.2.3.8)
 	 */
 	if (opt && opt->optlen) {
-		int opt_size = sizeof(struct ip_options) + opt->optlen;
+		int opt_size = sizeof(struct ip_options_rcu) + opt->optlen;
 
 		ireq->opt = kmalloc(opt_size, GFP_ATOMIC);
-		if (ireq->opt != NULL && ip_options_echo(ireq->opt, skb)) {
+		if (ireq->opt != NULL && ip_options_echo(&ireq->opt->opt, skb)) {
 			kfree(ireq->opt);
 			ireq->opt = NULL;
 		}

@@ -55,6 +55,19 @@ int mfd_cell_disable(struct platform_device *pdev)
 }
 EXPORT_SYMBOL(mfd_cell_disable);
 
+static int mfd_platform_add_cell(struct platform_device *pdev,
+				 const struct mfd_cell *cell)
+{
+	if (!cell)
+		return 0;
+
+	pdev->mfd_cell = kmemdup(cell, sizeof(*cell), GFP_KERNEL);
+	if (!pdev->mfd_cell)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int mfd_add_device(struct device *parent, int id,
 			  const struct mfd_cell *cell,
 			  struct resource *mem_base,
@@ -75,7 +88,14 @@ static int mfd_add_device(struct device *parent, int id,
 
 	pdev->dev.parent = parent;
 
-	ret = platform_device_add_data(pdev, cell, sizeof(*cell));
+	if (cell->pdata_size) {
+		ret = platform_device_add_data(pdev,
+					cell->platform_data, cell->pdata_size);
+		if (ret)
+			goto fail_res;
+	}
+
+	ret = mfd_platform_add_cell(pdev, cell);
 	if (ret)
 		goto fail_res;
 
@@ -123,7 +143,6 @@ static int mfd_add_device(struct device *parent, int id,
 
 	return 0;
 
-/*	platform_device_del(pdev); */
 fail_res:
 	kfree(res);
 fail_device:

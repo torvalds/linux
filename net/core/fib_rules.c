@@ -590,7 +590,8 @@ static int dump_rules(struct sk_buff *skb, struct netlink_callback *cb,
 	int idx = 0;
 	struct fib_rule *rule;
 
-	list_for_each_entry(rule, &ops->rules_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(rule, &ops->rules_list, list) {
 		if (idx < cb->args[1])
 			goto skip;
 
@@ -601,6 +602,7 @@ static int dump_rules(struct sk_buff *skb, struct netlink_callback *cb,
 skip:
 		idx++;
 	}
+	rcu_read_unlock();
 	cb->args[1] = idx;
 	rules_ops_put(ops);
 
@@ -738,9 +740,9 @@ static struct pernet_operations fib_rules_net_ops = {
 static int __init fib_rules_init(void)
 {
 	int err;
-	rtnl_register(PF_UNSPEC, RTM_NEWRULE, fib_nl_newrule, NULL);
-	rtnl_register(PF_UNSPEC, RTM_DELRULE, fib_nl_delrule, NULL);
-	rtnl_register(PF_UNSPEC, RTM_GETRULE, NULL, fib_nl_dumprule);
+	rtnl_register(PF_UNSPEC, RTM_NEWRULE, fib_nl_newrule, NULL, NULL);
+	rtnl_register(PF_UNSPEC, RTM_DELRULE, fib_nl_delrule, NULL, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETRULE, NULL, fib_nl_dumprule, NULL);
 
 	err = register_pernet_subsys(&fib_rules_net_ops);
 	if (err < 0)

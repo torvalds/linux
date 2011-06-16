@@ -316,7 +316,7 @@ ip_vs_tcpudp_debug_packet(int af, struct ip_vs_protocol *pp,
 /*
  * per network name-space init
  */
-static int __net_init __ip_vs_protocol_init(struct net *net)
+int __net_init __ip_vs_protocol_init(struct net *net)
 {
 #ifdef CONFIG_IP_VS_PROTO_TCP
 	register_ip_vs_proto_netns(net, &ip_vs_protocol_tcp);
@@ -336,7 +336,7 @@ static int __net_init __ip_vs_protocol_init(struct net *net)
 	return 0;
 }
 
-static void __net_exit __ip_vs_protocol_cleanup(struct net *net)
+void __net_exit __ip_vs_protocol_cleanup(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_proto_data *pd;
@@ -348,11 +348,6 @@ static void __net_exit __ip_vs_protocol_cleanup(struct net *net)
 			unregister_ip_vs_proto_netns(net, pd);
 	}
 }
-
-static struct pernet_operations ipvs_proto_ops = {
-	.init = __ip_vs_protocol_init,
-	.exit = __ip_vs_protocol_cleanup,
-};
 
 int __init ip_vs_protocol_init(void)
 {
@@ -382,7 +377,6 @@ int __init ip_vs_protocol_init(void)
 	REGISTER_PROTOCOL(&ip_vs_protocol_esp);
 #endif
 	pr_info("Registered protocols (%s)\n", &protocols[2]);
-	return register_pernet_subsys(&ipvs_proto_ops);
 
 	return 0;
 }
@@ -393,7 +387,6 @@ void ip_vs_protocol_cleanup(void)
 	struct ip_vs_protocol *pp;
 	int i;
 
-	unregister_pernet_subsys(&ipvs_proto_ops);
 	/* unregister all the ipvs protocols */
 	for (i = 0; i < IP_VS_PROTO_TAB_SIZE; i++) {
 		while ((pp = ip_vs_proto_table[i]) != NULL)

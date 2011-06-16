@@ -30,9 +30,7 @@ int __init init_r4k_clocksource(void)
 	/* Calculate a somewhat reasonable rating value */
 	clocksource_mips.rating = 200 + mips_hpt_frequency / 10000000;
 
-	clocksource_set_clock(&clocksource_mips, mips_hpt_frequency);
-
-	clocksource_register(&clocksource_mips);
+	clocksource_register_hz(&clocksource_mips, mips_hpt_frequency);
 
 	return 0;
 }

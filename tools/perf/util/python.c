@@ -498,11 +498,11 @@ static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 	struct cpu_map *cpus = NULL;
 	struct thread_map *threads = NULL;
 	PyObject *pcpus = NULL, *pthreads = NULL;
-	int group = 0, overwrite = 0;
-	static char *kwlist[] = {"cpus", "threads", "group", "overwrite", NULL, NULL};
+	int group = 0, inherit = 0;
+	static char *kwlist[] = {"cpus", "threads", "group", "inherit", NULL, NULL};
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOii", kwlist,
-					 &pcpus, &pthreads, &group, &overwrite))
+					 &pcpus, &pthreads, &group, &inherit))
 		return NULL;
 
 	if (pthreads != NULL)
@@ -511,7 +511,8 @@ static PyObject *pyrf_evsel__open(struct pyrf_evsel *pevsel,
 	if (pcpus != NULL)
 		cpus = ((struct pyrf_cpu_map *)pcpus)->cpus;
 
-	if (perf_evsel__open(evsel, cpus, threads, group, overwrite) < 0) {
+	evsel->attr.inherit = inherit;
+	if (perf_evsel__open(evsel, cpus, threads, group) < 0) {
 		PyErr_SetFromErrno(PyExc_OSError);
 		return NULL;
 	}
@@ -674,12 +675,13 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 	union perf_event *event;
 	int sample_id_all = 1, cpu;
 	static char *kwlist[] = {"sample_id_all", NULL, NULL};
+	int err;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i|i", kwlist,
 					 &cpu, &sample_id_all))
 		return NULL;
 
-	event = perf_evlist__read_on_cpu(evlist, cpu);
+	event = perf_evlist__mmap_read(evlist, cpu);
 	if (event != NULL) {
 		struct perf_evsel *first;
 		PyObject *pyevent = pyrf_event__new(event);
@@ -689,11 +691,17 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 			return PyErr_NoMemory();
 
 		first = list_entry(evlist->entries.next, struct perf_evsel, node);
-		perf_event__parse_sample(event, first->attr.sample_type, sample_id_all,
-					 &pevent->sample);
+		err = perf_event__parse_sample(event, first->attr.sample_type,
+					       perf_sample_size(first->attr.sample_type),
+					       sample_id_all, &pevent->sample);
+		if (err) {
+			pr_err("Can't parse sample, err = %d\n", err);
+			goto end;
+		}
+
 		return pyevent;
 	}
-
+end:
 	Py_INCREF(Py_None);
 	return Py_None;
 }
@@ -808,6 +816,9 @@ static struct {
 	{ "COUNT_HW_CACHE_OP_PREFETCH",	  PERF_COUNT_HW_CACHE_OP_PREFETCH },
 	{ "COUNT_HW_CACHE_RESULT_ACCESS", PERF_COUNT_HW_CACHE_RESULT_ACCESS },
 	{ "COUNT_HW_CACHE_RESULT_MISS",   PERF_COUNT_HW_CACHE_RESULT_MISS },
+
+	{ "COUNT_HW_STALLED_CYCLES_FRONTEND",	  PERF_COUNT_HW_STALLED_CYCLES_FRONTEND },
+	{ "COUNT_HW_STALLED_CYCLES_BACKEND",	  PERF_COUNT_HW_STALLED_CYCLES_BACKEND },
 
 	{ "COUNT_SW_CPU_CLOCK",	       PERF_COUNT_SW_CPU_CLOCK },
 	{ "COUNT_SW_TASK_CLOCK",       PERF_COUNT_SW_TASK_CLOCK },

@@ -45,8 +45,6 @@
 #include "iwl-agn.h"
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
-#include "iwl-agn-led.h"
-#include "iwl-agn-debugfs.h"
 
 /* Highest firmware API version supported */
 #define IWL1000_UCODE_API_MAX 5
@@ -57,12 +55,10 @@
 #define IWL100_UCODE_API_MIN 5
 
 #define IWL1000_FW_PRE "iwlwifi-1000-"
-#define _IWL1000_MODULE_FIRMWARE(api) IWL1000_FW_PRE #api ".ucode"
-#define IWL1000_MODULE_FIRMWARE(api) _IWL1000_MODULE_FIRMWARE(api)
+#define IWL1000_MODULE_FIRMWARE(api) IWL1000_FW_PRE #api ".ucode"
 
 #define IWL100_FW_PRE "iwlwifi-100-"
-#define _IWL100_MODULE_FIRMWARE(api) IWL100_FW_PRE #api ".ucode"
-#define IWL100_MODULE_FIRMWARE(api) _IWL100_MODULE_FIRMWARE(api)
+#define IWL100_MODULE_FIRMWARE(api) IWL100_FW_PRE #api ".ucode"
 
 
 /*
@@ -124,10 +120,10 @@ static struct iwl_sensitivity_ranges iwl1000_sensitivity = {
 
 static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
+	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
+	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
 		priv->cfg->base_params->num_of_queues =
-			priv->cfg->mod_params->num_of_queues;
+			iwlagn_mod_params.num_of_queues;
 
 	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
@@ -175,20 +171,9 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 
 static struct iwl_lib_ops iwl1000_lib = {
 	.set_hw_params = iwl1000_hw_set_hw_params,
-	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
-	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
-	.txq_set_sched = iwlagn_txq_set_sched,
-	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
-	.txq_free_tfd = iwl_hw_txq_free_tfd,
-	.txq_init = iwl_hw_tx_queue_init,
 	.rx_handler_setup = iwlagn_rx_handler_setup,
 	.setup_deferred_work = iwlagn_setup_deferred_work,
 	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
-	.dump_nic_event_log = iwl_dump_nic_event_log,
-	.dump_nic_error_log = iwl_dump_nic_error_log,
-	.dump_csr = iwl_dump_csr,
-	.dump_fh = iwl_dump_fh,
-	.send_tx_power = iwlagn_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
 	.apm_ops = {
 		.init = iwl_apm_init,
@@ -202,38 +187,21 @@ static struct iwl_lib_ops iwl1000_lib = {
 			EEPROM_REG_BAND_4_CHANNELS,
 			EEPROM_REG_BAND_5_CHANNELS,
 			EEPROM_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_REG_BAND_52_HT40_CHANNELS
+			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
-		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
-		.release_semaphore = iwlcore_eeprom_release_semaphore,
-		.calib_version	= iwlagn_eeprom_calib_version,
 		.query_addr = iwlagn_eeprom_query_addr,
 	},
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 	 },
-	.debugfs_ops = {
-		.rx_stats_read = iwl_ucode_rx_stats_read,
-		.tx_stats_read = iwl_ucode_tx_stats_read,
-		.general_stats_read = iwl_ucode_general_stats_read,
-		.bt_stats_read = iwl_ucode_bt_stats_read,
-		.reply_tx_error = iwl_reply_tx_error_read,
-	},
 	.txfifo_flush = iwlagn_txfifo_flush,
 	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
-	.tt_ops = {
-		.lower_power_detection = iwl_tt_is_low_power_state,
-		.tt_power_mode = iwl_tt_current_power_mode,
-		.ct_kill_check = iwl_check_for_ct_kill,
-	}
 };
 
 static const struct iwl_ops iwl1000_ops = {
 	.lib = &iwl1000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
-	.led = &iwlagn_led_ops,
-	.ieee80211_ops = &iwlagn_hw_ops,
 };
 
 static struct iwl_base_params iwl1000_base_params = {
@@ -241,7 +209,6 @@ static struct iwl_base_params iwl1000_base_params = {
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
-	.set_l0s = true,
 	.max_ll_items = OTP_MAX_LL_ITEMS_1000,
 	.shadow_ram_support = false,
 	.led_compensation = 51,
@@ -251,13 +218,11 @@ static struct iwl_base_params iwl1000_base_params = {
 	.chain_noise_scale = 1000,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 128,
-	.ucode_tracing = true,
-	.sensitivity_calib_by_driver = true,
-	.chain_noise_calib_by_driver = true,
 };
 static struct iwl_ht_params iwl1000_ht_params = {
 	.ht_greenfield_support = true,
 	.use_rts_for_aggregation = true, /* use rts/cts protection */
+	.smps_mode = IEEE80211_SMPS_STATIC,
 };
 
 #define IWL_DEVICE_1000						\
@@ -267,7 +232,6 @@ static struct iwl_ht_params iwl1000_ht_params = {
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
 	.ops = &iwl1000_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl1000_base_params,			\
 	.led_mode = IWL_LED_BLINK
 
@@ -289,7 +253,6 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
 	.ops = &iwl1000_ops,					\
-	.mod_params = &iwlagn_mod_params,			\
 	.base_params = &iwl1000_base_params,			\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true

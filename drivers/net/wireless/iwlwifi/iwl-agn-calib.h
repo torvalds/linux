@@ -66,8 +66,8 @@
 #include "iwl-core.h"
 #include "iwl-commands.h"
 
-void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp);
-void iwl_sensitivity_calibration(struct iwl_priv *priv, void *resp);
+void iwl_chain_noise_calibration(struct iwl_priv *priv);
+void iwl_sensitivity_calibration(struct iwl_priv *priv);
 
 void iwl_init_sensitivity(struct iwl_priv *priv);
 void iwl_reset_run_time_calib(struct iwl_priv *priv);

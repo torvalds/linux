@@ -227,12 +227,6 @@ static ssize_t bonding_store_slaves(struct device *d,
 	struct net_device *dev;
 	struct bonding *bond = to_bond(d);
 
-	/* Quick sanity check -- is the bond interface up? */
-	if (!(bond->dev->flags & IFF_UP)) {
-		pr_warning("%s: doing slave updates when interface is down.\n",
-			   bond->dev->name);
-	}
-
 	if (!rtnl_trylock())
 		return restart_syscall();
 
@@ -421,11 +415,6 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 	pr_info("%s: setting arp_validate to %s (%d).\n",
 		bond->dev->name, arp_validate_tbl[new_value].modename,
 		new_value);
-
-	if (!bond->params.arp_validate && new_value)
-		bond_register_arp(bond);
-	else if (bond->params.arp_validate && !new_value)
-		bond_unregister_arp(bond);
 
 	bond->params.arp_validate = new_value;
 
@@ -815,6 +804,7 @@ static ssize_t bonding_store_lacp(struct device *d,
 
 	if ((new_value == 1) || (new_value == 0)) {
 		bond->params.lacp_fast = new_value;
+		bond_3ad_update_lacp_rate(bond);
 		pr_info("%s: Setting LACP rate to %s (%d).\n",
 			bond->dev->name, bond_lacp_tbl[new_value].modename,
 			new_value);
@@ -874,6 +864,30 @@ static DEVICE_ATTR(ad_select, S_IRUGO | S_IWUSR,
 		   bonding_show_ad_select, bonding_store_ad_select);
 
 /*
+ * Show and set the number of peer notifications to send after a failover event.
+ */
+static ssize_t bonding_show_num_peer_notif(struct device *d,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct bonding *bond = to_bond(d);
+	return sprintf(buf, "%d\n", bond->params.num_peer_notif);
+}
+
+static ssize_t bonding_store_num_peer_notif(struct device *d,
+					    struct device_attribute *attr,
+					    const char *buf, size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int err = kstrtou8(buf, 10, &bond->params.num_peer_notif);
+	return err ? err : count;
+}
+static DEVICE_ATTR(num_grat_arp, S_IRUGO | S_IWUSR,
+		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
+static DEVICE_ATTR(num_unsol_na, S_IRUGO | S_IWUSR,
+		   bonding_show_num_peer_notif, bonding_store_num_peer_notif);
+
+/*
  * Show and set the MII monitor interval.  There are two tricky bits
  * here.  First, if MII monitoring is activated, then we must disable
  * ARP monitoring.  Second, if the timer isn't running, we must
@@ -923,7 +937,6 @@ static ssize_t bonding_store_miimon(struct device *d,
 				bond->dev->name);
 			bond->params.arp_interval = 0;
 			if (bond->params.arp_validate) {
-				bond_unregister_arp(bond);
 				bond->params.arp_validate =
 					BOND_ARP_VALIDATE_NONE;
 			}
@@ -1521,8 +1534,8 @@ static DEVICE_ATTR(all_slaves_active, S_IRUGO | S_IWUSR,
  * Show and set the number of IGMP membership reports to send on link failure
  */
 static ssize_t bonding_show_resend_igmp(struct device *d,
-					 struct device_attribute *attr,
-					 char *buf)
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct bonding *bond = to_bond(d);
 
@@ -1530,8 +1543,8 @@ static ssize_t bonding_show_resend_igmp(struct device *d,
 }
 
 static ssize_t bonding_store_resend_igmp(struct device *d,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
 {
 	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
@@ -1543,7 +1556,7 @@ static ssize_t bonding_store_resend_igmp(struct device *d,
 		goto out;
 	}
 
-	if (new_value < 0) {
+	if (new_value < 0 || new_value > 255) {
 		pr_err("%s: Invalid resend_igmp value %d not in range 0-255; rejected.\n",
 		       bond->dev->name, new_value);
 		ret = -EINVAL;
@@ -1572,6 +1585,8 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_lacp_rate.attr,
 	&dev_attr_ad_select.attr,
 	&dev_attr_xmit_hash_policy.attr,
+	&dev_attr_num_grat_arp.attr,
+	&dev_attr_num_unsol_na.attr,
 	&dev_attr_miimon.attr,
 	&dev_attr_primary.attr,
 	&dev_attr_primary_reselect.attr,

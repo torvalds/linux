@@ -1590,7 +1590,6 @@ void fc_lport_enter_flogi(struct fc_lport *lport)
  */
 int fc_lport_config(struct fc_lport *lport)
 {
-	INIT_LIST_HEAD(&lport->ema_list);
 	INIT_DELAYED_WORK(&lport->retry_work, fc_lport_timeout);
 	mutex_init(&lport->lp_mutex);
 

@@ -83,11 +83,6 @@ s16 rssi_compensation_reverse_calc(struct ar6_softc *ar, s16 rssi, bool Above);
 
 void ar6000_dbglog_init_done(struct ar6_softc *ar);
 
-#ifdef SEND_EVENT_TO_APP
-void ar6000_send_event_to_app(struct ar6_softc *ar, u16 eventId, u8 *datap, int len);
-void ar6000_send_generic_event_to_app(struct ar6_softc *ar, u16 eventId, u8 *datap, int len);
-#endif
-
 #ifdef CONFIG_HOST_TCMD_SUPPORT
 void ar6000_tcmd_rx_report_event(void *devt, u8 *results, int len);
 #endif
@@ -182,9 +177,6 @@ int ar6000_resume_ev(void *context);
 int ar6000_power_change_ev(void *context, u32 config);
 void ar6000_check_wow_status(struct ar6_softc *ar, struct sk_buff *skb, bool isEvent);
 #endif
-
-void ar6000_pm_init(void);
-void ar6000_pm_exit(void);
 
 #ifdef CONFIG_AP_VIRTUAL_ADAPTER_SUPPORT
 int ar6000_add_ap_interface(struct ar6_softc *ar, char *ifname);

@@ -45,6 +45,7 @@
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 #include "stmmac.h"
 
 #define STMMAC_RESOURCE_NAME	"stmmaceth"
@@ -115,9 +116,6 @@ MODULE_PARM_DESC(pause, "Flow Control Pause Time");
 static int tc = TC_DEFAULT;
 module_param(tc, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(tc, "DMA threshold control value");
-
-#define RX_NO_COALESCE	1	/* Always interrupt on completion */
-#define TX_NO_COALESCE	-1	/* No moderation by default */
 
 /* Pay attention to tune this parameter; take care of both
  * hardware capability and network stabitily/performance impact.
@@ -1082,6 +1080,8 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_bytes += skb->len;
 
 	priv->hw->dma->enable_dma_transmission(priv->ioaddr);
+
+	skb_tx_timestamp(skb);
 
 	return NETDEV_TX_OK;
 }

@@ -672,11 +672,9 @@ static int freq_reg_info_regd(struct wiphy *wiphy,
 	for (i = 0; i < regd->n_reg_rules; i++) {
 		const struct ieee80211_reg_rule *rr;
 		const struct ieee80211_freq_range *fr = NULL;
-		const struct ieee80211_power_rule *pr = NULL;
 
 		rr = &regd->reg_rules[i];
 		fr = &rr->freq_range;
-		pr = &rr->power_rule;
 
 		/*
 		 * We only need to know if one frequency rule was
@@ -1455,7 +1453,8 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	 * We only time out user hints, given that they should be the only
 	 * source of bogus requests.
 	 */
-	if (reg_request->initiator == NL80211_REGDOM_SET_BY_USER)
+	if (r != -EALREADY &&
+	    reg_request->initiator == NL80211_REGDOM_SET_BY_USER)
 		schedule_delayed_work(&reg_timeout, msecs_to_jiffies(3142));
 }
 

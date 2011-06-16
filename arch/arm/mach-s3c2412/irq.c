@@ -202,8 +202,6 @@ static int s3c2412_irq_add(struct sys_device *sysdev)
 
 static struct sysdev_driver s3c2412_irq_driver = {
 	.add		= s3c2412_irq_add,
-	.suspend	= s3c24xx_irq_suspend,
-	.resume		= s3c24xx_irq_resume,
 };
 
 static int s3c2412_irq_init(void)

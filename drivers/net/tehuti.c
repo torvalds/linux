@@ -2151,7 +2151,7 @@ static int bdx_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
 	ecmd->advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_FIBRE);
-	ecmd->speed = SPEED_10000;
+	ethtool_cmd_speed_set(ecmd, SPEED_10000);
 	ecmd->duplex = DUPLEX_FULL;
 	ecmd->port = PORT_FIBRE;
 	ecmd->transceiver = XCVR_EXTERNAL;	/* what does it mean? */

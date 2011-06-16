@@ -326,6 +326,8 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	spin_unlock_irqrestore(&fep->hw_lock, flags);
 
+	skb_tx_timestamp(skb);
+
 	return NETDEV_TX_OK;
 }
 
@@ -650,7 +652,8 @@ fec_enet_rx(struct net_device *ndev)
 			skb_put(skb, pkt_len - 4);	/* Make room */
 			skb_copy_to_linear_data(skb, data, pkt_len - 4);
 			skb->protocol = eth_type_trans(skb, ndev);
-			netif_rx(skb);
+			if (!skb_defer_rx_timestamp(skb))
+				netif_rx(skb);
 		}
 
 		bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, data,

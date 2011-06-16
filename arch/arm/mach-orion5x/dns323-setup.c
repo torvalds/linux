@@ -385,76 +385,76 @@ static struct mv_sata_platform_data dns323_sata_data = {
 /****************************************************************************
  * General Setup
  */
-static struct orion5x_mpp_mode dns323a_mpp_modes[] __initdata = {
-	{  0, MPP_PCIE_RST_OUTn },
-	{  1, MPP_GPIO },		/* right amber LED (sata ch0) */
-	{  2, MPP_GPIO },		/* left amber LED (sata ch1) */
-	{  3, MPP_UNUSED },
-	{  4, MPP_GPIO },		/* power button LED */
-	{  5, MPP_GPIO },		/* power button LED */
-	{  6, MPP_GPIO },		/* GMT G751-2f overtemp */
-	{  7, MPP_GPIO },		/* M41T80 nIRQ/OUT/SQW */
-	{  8, MPP_GPIO },		/* triggers power off */
-	{  9, MPP_GPIO },		/* power button switch */
-	{ 10, MPP_GPIO },		/* reset button switch */
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_UNUSED },
-	{ 13, MPP_UNUSED },
-	{ 14, MPP_UNUSED },
-	{ 15, MPP_UNUSED },
-	{ 16, MPP_UNUSED },
-	{ 17, MPP_UNUSED },
-	{ 18, MPP_UNUSED },
-	{ 19, MPP_UNUSED },
-	{ -1 },
+static unsigned int dns323a_mpp_modes[] __initdata = {
+	MPP0_PCIE_RST_OUTn,
+	MPP1_GPIO,		/* right amber LED (sata ch0) */
+	MPP2_GPIO,		/* left amber LED (sata ch1) */
+	MPP3_UNUSED,
+	MPP4_GPIO,		/* power button LED */
+	MPP5_GPIO,		/* power button LED */
+	MPP6_GPIO,		/* GMT G751-2f overtemp */
+	MPP7_GPIO,		/* M41T80 nIRQ/OUT/SQW */
+	MPP8_GPIO,		/* triggers power off */
+	MPP9_GPIO,		/* power button switch */
+	MPP10_GPIO,		/* reset button switch */
+	MPP11_UNUSED,
+	MPP12_UNUSED,
+	MPP13_UNUSED,
+	MPP14_UNUSED,
+	MPP15_UNUSED,
+	MPP16_UNUSED,
+	MPP17_UNUSED,
+	MPP18_UNUSED,
+	MPP19_UNUSED,
+	0,
 };
 
-static struct orion5x_mpp_mode dns323b_mpp_modes[] __initdata = {
-	{  0, MPP_UNUSED },
-	{  1, MPP_GPIO },		/* right amber LED (sata ch0) */
-	{  2, MPP_GPIO },		/* left amber LED (sata ch1) */
-	{  3, MPP_GPIO },		/* system up flag */
-	{  4, MPP_GPIO },		/* power button LED */
-	{  5, MPP_GPIO },		/* power button LED */
-	{  6, MPP_GPIO },		/* GMT G751-2f overtemp */
-	{  7, MPP_GPIO },		/* M41T80 nIRQ/OUT/SQW */
-	{  8, MPP_GPIO },		/* triggers power off */
-	{  9, MPP_GPIO },		/* power button switch */
-	{ 10, MPP_GPIO },		/* reset button switch */
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_SATA_LED },
-	{ 13, MPP_SATA_LED },
-	{ 14, MPP_SATA_LED },
-	{ 15, MPP_SATA_LED },
-	{ 16, MPP_UNUSED },
-	{ 17, MPP_UNUSED },
-	{ 18, MPP_UNUSED },
-	{ 19, MPP_UNUSED },
-	{ -1 },
+static unsigned int dns323b_mpp_modes[] __initdata = {
+	MPP0_UNUSED,
+	MPP1_GPIO,		/* right amber LED (sata ch0) */
+	MPP2_GPIO,		/* left amber LED (sata ch1) */
+	MPP3_GPIO,		/* system up flag */
+	MPP4_GPIO,		/* power button LED */
+	MPP5_GPIO,		/* power button LED */
+	MPP6_GPIO,		/* GMT G751-2f overtemp */
+	MPP7_GPIO,		/* M41T80 nIRQ/OUT/SQW */
+	MPP8_GPIO,		/* triggers power off */
+	MPP9_GPIO,		/* power button switch */
+	MPP10_GPIO,		/* reset button switch */
+	MPP11_UNUSED,
+	MPP12_SATA_LED,
+	MPP13_SATA_LED,
+	MPP14_SATA_LED,
+	MPP15_SATA_LED,
+	MPP16_UNUSED,
+	MPP17_UNUSED,
+	MPP18_UNUSED,
+	MPP19_UNUSED,
+	0,
 };
 
-static struct orion5x_mpp_mode dns323c_mpp_modes[] __initdata = {
-	{  0, MPP_GPIO },		/* ? input */
-	{  1, MPP_GPIO },		/* input power switch (0 = pressed) */
-	{  2, MPP_GPIO },		/* output power off */
-	{  3, MPP_UNUSED },		/* ? output */
-	{  4, MPP_UNUSED },		/* ? output */
-	{  5, MPP_UNUSED },		/* ? output */
-	{  6, MPP_UNUSED },		/* ? output */
-	{  7, MPP_UNUSED },		/* ? output */
-	{  8, MPP_GPIO },		/* i/o right amber LED */
-	{  9, MPP_GPIO },		/* i/o left amber LED */
-	{ 10, MPP_GPIO },		/* input */
-	{ 11, MPP_UNUSED },
-	{ 12, MPP_SATA_LED },
-	{ 13, MPP_SATA_LED },
-	{ 14, MPP_SATA_LED },
-	{ 15, MPP_SATA_LED },
-	{ 16, MPP_UNUSED },
-	{ 17, MPP_GPIO },		/* power button LED */
-	{ 18, MPP_GPIO },		/* fan speed bit 0 */
-	{ 19, MPP_GPIO },		/* fan speed bit 1 */
-	{ -1 },
+static unsigned int dns323c_mpp_modes[] __initdata = {
+	MPP0_GPIO,		/* ? input */
+	MPP1_GPIO,		/* input power switch (0 = pressed) */
+	MPP2_GPIO,		/* output power off */
+	MPP3_UNUSED,		/* ? output */
+	MPP4_UNUSED,		/* ? output */
+	MPP5_UNUSED,		/* ? output */
+	MPP6_UNUSED,		/* ? output */
+	MPP7_UNUSED,		/* ? output */
+	MPP8_GPIO,		/* i/o right amber LED */
+	MPP9_GPIO,		/* i/o left amber LED */
+	MPP10_GPIO,		/* input */
+	MPP11_UNUSED,
+	MPP12_SATA_LED,
+	MPP13_SATA_LED,
+	MPP14_SATA_LED,
+	MPP15_SATA_LED,
+	MPP16_UNUSED,
+	MPP17_GPIO,		/* power button LED */
+	MPP18_GPIO,		/* fan speed bit 0 */
+	MPP19_GPIO,		/* fan speed bit 1 */
+	0,
 };
 
 /* Rev C1 Fan speed notes:

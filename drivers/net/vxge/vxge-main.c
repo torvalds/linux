@@ -44,6 +44,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/if_vlan.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/tcp.h>
@@ -52,6 +53,7 @@
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
 #include <linux/net_tstamp.h>
+#include <linux/prefetch.h>
 #include "vxge-main.h"
 #include "vxge-reg.h"
 

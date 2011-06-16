@@ -56,7 +56,7 @@ struct uart_max3110 {
 	wait_queue_head_t wq;
 	struct task_struct *main_thread;
 	struct task_struct *read_thread;
-	struct mutex thread_mutex;;
+	struct mutex thread_mutex;
 
 	u32 baud;
 	u16 cur_conf;

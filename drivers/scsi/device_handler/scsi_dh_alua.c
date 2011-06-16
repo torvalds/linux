@@ -782,7 +782,7 @@ static int alua_bus_attach(struct scsi_device *sdev)
 	h->sdev = sdev;
 
 	err = alua_initialize(sdev, h);
-	if (err != SCSI_DH_OK)
+	if ((err != SCSI_DH_OK) && (err != SCSI_DH_DEV_OFFLINED))
 		goto failed;
 
 	if (!try_module_get(THIS_MODULE))

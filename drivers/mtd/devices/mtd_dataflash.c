@@ -637,6 +637,8 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 	struct flash_platform_data	*pdata = spi->dev.platform_data;
 	char				*otp_tag = "";
 	int				err = 0;
+	struct mtd_partition		*parts;
+	int				nr_parts = 0;
 
 	priv = kzalloc(sizeof *priv, GFP_KERNEL);
 	if (!priv)
@@ -675,33 +677,25 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 			pagesize, otp_tag);
 	dev_set_drvdata(&spi->dev, priv);
 
-	if (mtd_has_partitions()) {
-		struct mtd_partition	*parts;
-		int			nr_parts = 0;
+	if (mtd_has_cmdlinepart()) {
+		static const char *part_probes[] = { "cmdlinepart", NULL, };
 
-		if (mtd_has_cmdlinepart()) {
-			static const char *part_probes[]
-					= { "cmdlinepart", NULL, };
+		nr_parts = parse_mtd_partitions(device, part_probes, &parts,
+						0);
+	}
 
-			nr_parts = parse_mtd_partitions(device,
-					part_probes, &parts, 0);
-		}
+	if (nr_parts <= 0 && pdata && pdata->parts) {
+		parts = pdata->parts;
+		nr_parts = pdata->nr_parts;
+	}
 
-		if (nr_parts <= 0 && pdata && pdata->parts) {
-			parts = pdata->parts;
-			nr_parts = pdata->nr_parts;
-		}
+	if (nr_parts > 0) {
+		priv->partitioned = 1;
+		err = mtd_device_register(device, parts, nr_parts);
+		goto out;
+	}
 
-		if (nr_parts > 0) {
-			priv->partitioned = 1;
-			err = add_mtd_partitions(device, parts, nr_parts);
-			goto out;
-		}
-	} else if (pdata && pdata->nr_parts)
-		dev_warn(&spi->dev, "ignoring %d default partitions on %s\n",
-				pdata->nr_parts, device->name);
-
-	if (add_mtd_device(device) == 1)
+	if (mtd_device_register(device, NULL, 0) == 1)
 		err = -ENODEV;
 
 out:
@@ -939,10 +933,7 @@ static int __devexit dataflash_remove(struct spi_device *spi)
 
 	DEBUG(MTD_DEBUG_LEVEL1, "%s: remove\n", dev_name(&spi->dev));
 
-	if (mtd_has_partitions() && flash->partitioned)
-		status = del_mtd_partitions(&flash->mtd);
-	else
-		status = del_mtd_device(&flash->mtd);
+	status = mtd_device_unregister(&flash->mtd);
 	if (status == 0) {
 		dev_set_drvdata(&spi->dev, NULL);
 		kfree(flash);

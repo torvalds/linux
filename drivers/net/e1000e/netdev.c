@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
@@ -49,12 +50,13 @@
 #include <linux/pm_qos_params.h>
 #include <linux/pm_runtime.h>
 #include <linux/aer.h>
+#include <linux/prefetch.h>
 
 #include "e1000.h"
 
-#define DRV_EXTRAVERSION "-k2"
+#define DRV_EXTRAVERSION "-k"
 
-#define DRV_VERSION "1.3.10" DRV_EXTRAVERSION
+#define DRV_VERSION "1.3.16" DRV_EXTRAVERSION
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
@@ -3345,7 +3347,7 @@ int e1000e_up(struct e1000_adapter *adapter)
 		e1000_configure_msix(adapter);
 	e1000_irq_enable(adapter);
 
-	netif_wake_queue(adapter->netdev);
+	netif_start_queue(adapter->netdev);
 
 	/* fire a link change interrupt to start the watchdog */
 	if (adapter->msix_entries)
@@ -3412,16 +3414,15 @@ void e1000e_down(struct e1000_adapter *adapter)
 	e1000e_update_stats(adapter);
 	spin_unlock(&adapter->stats64_lock);
 
+	e1000e_flush_descriptors(adapter);
+	e1000_clean_tx_ring(adapter);
+	e1000_clean_rx_ring(adapter);
+
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
 
 	if (!pci_channel_offline(adapter->pdev))
 		e1000e_reset(adapter);
-
-	e1000e_flush_descriptors(adapter);
-
-	e1000_clean_tx_ring(adapter);
-	e1000_clean_rx_ring(adapter);
 
 	/*
 	 * TODO: for power management, we could drop the link and
@@ -3832,6 +3833,8 @@ static void e1000_update_phy_info(unsigned long data)
 /**
  * e1000e_update_phy_stats - Update the PHY statistics counters
  * @adapter: board private structure
+ *
+ * Read/clear the upper 16-bit PHY registers and read/accumulate lower
  **/
 static void e1000e_update_phy_stats(struct e1000_adapter *adapter)
 {
@@ -3843,89 +3846,61 @@ static void e1000e_update_phy_stats(struct e1000_adapter *adapter)
 	if (ret_val)
 		return;
 
-	hw->phy.addr = 1;
-
-#define HV_PHY_STATS_PAGE	778
 	/*
 	 * A page set is expensive so check if already on desired page.
 	 * If not, set to the page with the PHY status registers.
 	 */
+	hw->phy.addr = 1;
 	ret_val = e1000e_read_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
 					   &phy_data);
 	if (ret_val)
 		goto release;
-	if (phy_data != (HV_PHY_STATS_PAGE << IGP_PAGE_SHIFT)) {
-		ret_val = e1000e_write_phy_reg_mdic(hw,
-						    IGP01E1000_PHY_PAGE_SELECT,
-						    (HV_PHY_STATS_PAGE <<
-						     IGP_PAGE_SHIFT));
+	if (phy_data != (HV_STATS_PAGE << IGP_PAGE_SHIFT)) {
+		ret_val = hw->phy.ops.set_page(hw,
+					       HV_STATS_PAGE << IGP_PAGE_SHIFT);
 		if (ret_val)
 			goto release;
 	}
 
-	/* Read/clear the upper 16-bit registers and read/accumulate lower */
-
 	/* Single Collision Count */
-	e1000e_read_phy_reg_mdic(hw, HV_SCC_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_SCC_LOWER & MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_SCC_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_SCC_LOWER, &phy_data);
 	if (!ret_val)
 		adapter->stats.scc += phy_data;
 
 	/* Excessive Collision Count */
-	e1000e_read_phy_reg_mdic(hw, HV_ECOL_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_ECOL_LOWER & MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_ECOL_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_ECOL_LOWER, &phy_data);
 	if (!ret_val)
 		adapter->stats.ecol += phy_data;
 
 	/* Multiple Collision Count */
-	e1000e_read_phy_reg_mdic(hw, HV_MCC_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_MCC_LOWER & MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_MCC_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_MCC_LOWER, &phy_data);
 	if (!ret_val)
 		adapter->stats.mcc += phy_data;
 
 	/* Late Collision Count */
-	e1000e_read_phy_reg_mdic(hw, HV_LATECOL_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_LATECOL_LOWER &
-					   MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_LATECOL_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_LATECOL_LOWER, &phy_data);
 	if (!ret_val)
 		adapter->stats.latecol += phy_data;
 
 	/* Collision Count - also used for adaptive IFS */
-	e1000e_read_phy_reg_mdic(hw, HV_COLC_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_COLC_LOWER & MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_COLC_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_COLC_LOWER, &phy_data);
 	if (!ret_val)
 		hw->mac.collision_delta = phy_data;
 
 	/* Defer Count */
-	e1000e_read_phy_reg_mdic(hw, HV_DC_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_DC_LOWER & MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_DC_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_DC_LOWER, &phy_data);
 	if (!ret_val)
 		adapter->stats.dc += phy_data;
 
 	/* Transmit with no CRS */
-	e1000e_read_phy_reg_mdic(hw, HV_TNCRS_UPPER & MAX_PHY_REG_ADDRESS,
-				 &phy_data);
-	ret_val = e1000e_read_phy_reg_mdic(hw,
-					   HV_TNCRS_LOWER & MAX_PHY_REG_ADDRESS,
-					   &phy_data);
+	hw->phy.ops.read_reg_page(hw, HV_TNCRS_UPPER, &phy_data);
+	ret_val = hw->phy.ops.read_reg_page(hw, HV_TNCRS_LOWER, &phy_data);
 	if (!ret_val)
 		adapter->stats.tncrs += phy_data;
 
@@ -5153,21 +5128,34 @@ static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 i, mac_reg;
-	u16 phy_reg;
+	u16 phy_reg, wuc_enable;
 	int retval = 0;
 
 	/* copy MAC RARs to PHY RARs */
 	e1000_copy_rx_addrs_to_phy_ich8lan(hw);
 
-	/* copy MAC MTA to PHY MTA */
+	retval = hw->phy.ops.acquire(hw);
+	if (retval) {
+		e_err("Could not acquire PHY\n");
+		return retval;
+	}
+
+	/* Enable access to wakeup registers on and set page to BM_WUC_PAGE */
+	retval = e1000_enable_phy_wakeup_reg_access_bm(hw, &wuc_enable);
+	if (retval)
+		goto out;
+
+	/* copy MAC MTA to PHY MTA - only needed for pchlan */
 	for (i = 0; i < adapter->hw.mac.mta_reg_count; i++) {
 		mac_reg = E1000_READ_REG_ARRAY(hw, E1000_MTA, i);
-		e1e_wphy(hw, BM_MTA(i), (u16)(mac_reg & 0xFFFF));
-		e1e_wphy(hw, BM_MTA(i) + 1, (u16)((mac_reg >> 16) & 0xFFFF));
+		hw->phy.ops.write_reg_page(hw, BM_MTA(i),
+					   (u16)(mac_reg & 0xFFFF));
+		hw->phy.ops.write_reg_page(hw, BM_MTA(i) + 1,
+					   (u16)((mac_reg >> 16) & 0xFFFF));
 	}
 
 	/* configure PHY Rx Control register */
-	e1e_rphy(&adapter->hw, BM_RCTL, &phy_reg);
+	hw->phy.ops.read_reg_page(&adapter->hw, BM_RCTL, &phy_reg);
 	mac_reg = er32(RCTL);
 	if (mac_reg & E1000_RCTL_UPE)
 		phy_reg |= BM_RCTL_UPE;
@@ -5184,31 +5172,19 @@ static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 	mac_reg = er32(CTRL);
 	if (mac_reg & E1000_CTRL_RFCE)
 		phy_reg |= BM_RCTL_RFCE;
-	e1e_wphy(&adapter->hw, BM_RCTL, phy_reg);
+	hw->phy.ops.write_reg_page(&adapter->hw, BM_RCTL, phy_reg);
 
 	/* enable PHY wakeup in MAC register */
 	ew32(WUFC, wufc);
 	ew32(WUC, E1000_WUC_PHY_WAKE | E1000_WUC_PME_EN);
 
 	/* configure and enable PHY wakeup in PHY registers */
-	e1e_wphy(&adapter->hw, BM_WUFC, wufc);
-	e1e_wphy(&adapter->hw, BM_WUC, E1000_WUC_PME_EN);
+	hw->phy.ops.write_reg_page(&adapter->hw, BM_WUFC, wufc);
+	hw->phy.ops.write_reg_page(&adapter->hw, BM_WUC, E1000_WUC_PME_EN);
 
 	/* activate PHY wakeup */
-	retval = hw->phy.ops.acquire(hw);
-	if (retval) {
-		e_err("Could not acquire PHY\n");
-		return retval;
-	}
-	e1000e_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
-	                         (BM_WUC_ENABLE_PAGE << IGP_PAGE_SHIFT));
-	retval = e1000e_read_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, &phy_reg);
-	if (retval) {
-		e_err("Could not read PHY page 769\n");
-		goto out;
-	}
-	phy_reg |= BM_WUC_ENABLE_BIT | BM_WUC_HOST_WU_BIT;
-	retval = e1000e_write_phy_reg_mdic(hw, BM_WUC_ENABLE_REG, phy_reg);
+	wuc_enable |= BM_WUC_ENABLE_BIT | BM_WUC_HOST_WU_BIT;
+	retval = e1000_disable_phy_wakeup_reg_access_bm(hw, &wuc_enable);
 	if (retval)
 		e_err("Could not set PHY Host Wakeup bit\n");
 out:
@@ -5276,7 +5252,7 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake,
 		}
 
 		if (adapter->flags & FLAG_IS_ICH)
-			e1000e_disable_gig_wol_ich8lan(&adapter->hw);
+			e1000_suspend_workarounds_ich8lan(&adapter->hw);
 
 		/* Allow time for pending master requests to run */
 		e1000e_disable_pcie_master(&adapter->hw);
@@ -5360,7 +5336,7 @@ static void e1000_complete_shutdown(struct pci_dev *pdev, bool sleep,
 #ifdef CONFIG_PCIEASPM
 static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 {
-	pci_disable_link_state(pdev, state);
+	pci_disable_link_state_locked(pdev, state);
 }
 #else
 static void __e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
@@ -5426,6 +5402,9 @@ static int __e1000_resume(struct pci_dev *pdev)
 		if (err)
 			return err;
 	}
+
+	if (hw->mac.type == e1000_pch2lan)
+		e1000_resume_workarounds_pchlan(&adapter->hw);
 
 	e1000e_power_up_phy(adapter);
 
@@ -6020,7 +5999,6 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	INIT_WORK(&adapter->downshift_task, e1000e_downshift_workaround);
 	INIT_WORK(&adapter->update_phy_task, e1000e_update_phy_task);
 	INIT_WORK(&adapter->print_hang_task, e1000_print_hw_hang);
-	INIT_WORK(&adapter->led_blink_task, e1000e_led_blink_task);
 
 	/* Initialize link parameters. User can change them with ethtool */
 	adapter->hw.mac.autoneg = 1;
@@ -6153,7 +6131,6 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	cancel_work_sync(&adapter->watchdog_task);
 	cancel_work_sync(&adapter->downshift_task);
 	cancel_work_sync(&adapter->update_phy_task);
-	cancel_work_sync(&adapter->led_blink_task);
 	cancel_work_sync(&adapter->print_hang_task);
 
 	if (!(netdev->flags & IFF_UP))

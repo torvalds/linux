@@ -32,6 +32,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/moduleparam.h>
 #include <net/pkt_sched.h>
 #include <net/net_namespace.h>
@@ -232,10 +233,6 @@ static int __init ifb_init_one(int index)
 
 	if (!dev_ifb)
 		return -ENOMEM;
-
-	err = dev_alloc_name(dev_ifb, dev_ifb->name);
-	if (err < 0)
-		goto err;
 
 	dev_ifb->rtnl_link_ops = &ifb_link_ops;
 	err = register_netdevice(dev_ifb);

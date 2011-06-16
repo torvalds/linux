@@ -143,33 +143,41 @@ static noinline void pci_wait_ucfg(struct pci_dev *dev)
 	__remove_wait_queue(&pci_ucfg_wait, &wait);
 }
 
+/* Returns 0 on success, negative values indicate error. */
 #define PCI_USER_READ_CONFIG(size,type)					\
 int pci_user_read_config_##size						\
 	(struct pci_dev *dev, int pos, type *val)			\
 {									\
 	int ret = 0;							\
 	u32 data = -1;							\
-	if (PCI_##size##_BAD) return PCIBIOS_BAD_REGISTER_NUMBER;	\
+	if (PCI_##size##_BAD)						\
+		return -EINVAL;						\
 	raw_spin_lock_irq(&pci_lock);				\
 	if (unlikely(dev->block_ucfg_access)) pci_wait_ucfg(dev);	\
 	ret = dev->bus->ops->read(dev->bus, dev->devfn,			\
 					pos, sizeof(type), &data);	\
 	raw_spin_unlock_irq(&pci_lock);				\
 	*val = (type)data;						\
+	if (ret > 0)							\
+		ret = -EINVAL;						\
 	return ret;							\
 }
 
+/* Returns 0 on success, negative values indicate error. */
 #define PCI_USER_WRITE_CONFIG(size,type)				\
 int pci_user_write_config_##size					\
 	(struct pci_dev *dev, int pos, type val)			\
 {									\
 	int ret = -EIO;							\
-	if (PCI_##size##_BAD) return PCIBIOS_BAD_REGISTER_NUMBER;	\
+	if (PCI_##size##_BAD)						\
+		return -EINVAL;						\
 	raw_spin_lock_irq(&pci_lock);				\
 	if (unlikely(dev->block_ucfg_access)) pci_wait_ucfg(dev);	\
 	ret = dev->bus->ops->write(dev->bus, dev->devfn,		\
 					pos, sizeof(type), val);	\
 	raw_spin_unlock_irq(&pci_lock);				\
+	if (ret > 0)							\
+		ret = -EINVAL;						\
 	return ret;							\
 }
 
@@ -197,6 +205,8 @@ struct pci_vpd_pci22 {
  * This code has to spin since there is no other notification from the PCI
  * hardware. Since the VPD is often implemented by serial attachment to an
  * EEPROM, it may take many milliseconds to complete.
+ *
+ * Returns 0 on success, negative values indicate error.
  */
 static int pci_vpd_pci22_wait(struct pci_dev *dev)
 {
@@ -212,7 +222,7 @@ static int pci_vpd_pci22_wait(struct pci_dev *dev)
 	for (;;) {
 		ret = pci_user_read_config_word(dev, vpd->cap + PCI_VPD_ADDR,
 						&status);
-		if (ret)
+		if (ret < 0)
 			return ret;
 
 		if ((status & PCI_VPD_ADDR_F) == vpd->flag) {
@@ -324,6 +334,8 @@ static ssize_t pci_vpd_pci22_write(struct pci_dev *dev, loff_t pos, size_t count
 		vpd->busy = true;
 		vpd->flag = 0;
 		ret = pci_vpd_pci22_wait(dev);
+		if (ret < 0)
+			break;
 
 		pos += sizeof(u32);
 	}

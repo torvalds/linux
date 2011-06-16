@@ -46,7 +46,7 @@ static struct semaphore add_remove_card_sem;
 static int
 mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 {
-	int ret = 0;
+	int ret;
 	struct sdio_mmc_card *card = NULL;
 
 	pr_debug("info: vendor=0x%4.04X device=0x%4.04X class=%d function=%d\n",
@@ -68,6 +68,7 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 
 	if (ret) {
 		pr_err("%s: failed to enable function\n", __func__);
+		kfree(card);
 		return -EIO;
 	}
 
@@ -119,7 +120,7 @@ static int mwifiex_sdio_suspend(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	struct sdio_mmc_card *card;
-	struct mwifiex_adapter *adapter = NULL;
+	struct mwifiex_adapter *adapter;
 	mmc_pm_flag_t pm_flag = 0;
 	int hs_actived = 0;
 	int i;
@@ -177,7 +178,7 @@ static int mwifiex_sdio_resume(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	struct sdio_mmc_card *card;
-	struct mwifiex_adapter *adapter = NULL;
+	struct mwifiex_adapter *adapter;
 	mmc_pm_flag_t pm_flag = 0;
 	int i;
 
@@ -208,7 +209,7 @@ static int mwifiex_sdio_resume(struct device *dev)
 
 	/* Disable Host Sleep */
 	mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
-			      MWIFIEX_NO_WAIT);
+			  MWIFIEX_ASYNC_CMD);
 
 	return 0;
 }
@@ -282,7 +283,7 @@ mwifiex_read_reg(struct mwifiex_adapter *adapter, u32 reg, u32 *data)
  */
 static int
 mwifiex_write_data_sync(struct mwifiex_adapter *adapter,
-			u8 *buffer, u32 pkt_len, u32 port, u32 timeout)
+			u8 *buffer, u32 pkt_len, u32 port)
 {
 	struct sdio_mmc_card *card = adapter->card;
 	int ret = -1;
@@ -314,9 +315,8 @@ mwifiex_write_data_sync(struct mwifiex_adapter *adapter,
 /*
  * This function reads multiple data from SDIO card memory.
  */
-static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter,
-				  u8 *buffer, u32 len,
-		       u32 port, u32 timeout, u8 claim)
+static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter, u8 *buffer,
+				  u32 len, u32 port, u8 claim)
 {
 	struct sdio_mmc_card *card = adapter->card;
 	int ret = -1;
@@ -348,12 +348,9 @@ static int mwifiex_read_data_sync(struct mwifiex_adapter *adapter,
  */
 static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 {
-	int ret;
-
 	dev_dbg(adapter->dev, "event: wakeup device...\n");
-	ret = mwifiex_write_reg(adapter, CONFIGURATION_REG, HOST_POWER_UP);
 
-	return ret;
+	return mwifiex_write_reg(adapter, CONFIGURATION_REG, HOST_POWER_UP);
 }
 
 /*
@@ -363,12 +360,9 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
  */
 static int mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
 {
-	int ret;
-
 	dev_dbg(adapter->dev, "cmd: wakeup device completed\n");
-	ret = mwifiex_write_reg(adapter, CONFIGURATION_REG, 0);
 
-	return ret;
+	return mwifiex_write_reg(adapter, CONFIGURATION_REG, 0);
 }
 
 /*
@@ -427,11 +421,10 @@ static int mwifiex_write_data_to_card(struct mwifiex_adapter *adapter,
 				      u8 *payload, u32 pkt_len, u32 port)
 {
 	u32 i = 0;
-	int ret = 0;
+	int ret;
 
 	do {
-		ret = mwifiex_write_data_sync(adapter, payload, pkt_len,
-								port, 0);
+		ret = mwifiex_write_data_sync(adapter, payload, pkt_len, port);
 		if (ret) {
 			i++;
 			dev_err(adapter->dev, "host_to_card, write iomem"
@@ -539,7 +532,7 @@ static int
 mwifiex_sdio_poll_card_status(struct mwifiex_adapter *adapter, u8 bits)
 {
 	u32 tries;
-	u32 cs = 0;
+	u32 cs;
 
 	for (tries = 0; tries < MAX_POLL_TRIES; tries++) {
 		if (mwifiex_read_reg(adapter, CARD_STATUS_REG, &cs))
@@ -561,7 +554,7 @@ mwifiex_sdio_poll_card_status(struct mwifiex_adapter *adapter, u8 bits)
 static int
 mwifiex_sdio_read_fw_status(struct mwifiex_adapter *adapter, u16 *dat)
 {
-	u32 fws0 = 0, fws1 = 0;
+	u32 fws0, fws1;
 
 	if (mwifiex_read_reg(adapter, CARD_FW_STATUS0_REG, &fws0))
 		return -1;
@@ -582,7 +575,7 @@ mwifiex_sdio_read_fw_status(struct mwifiex_adapter *adapter, u16 *dat)
  */
 static int mwifiex_sdio_disable_host_int(struct mwifiex_adapter *adapter)
 {
-	u32 host_int_mask = 0;
+	u32 host_int_mask;
 
 	/* Read back the host_int_mask register */
 	if (mwifiex_read_reg(adapter, HOST_INT_MASK_REG, &host_int_mask))
@@ -622,7 +615,7 @@ static int mwifiex_sdio_card_to_host(struct mwifiex_adapter *adapter,
 				     u32 *type, u8 *buffer,
 				     u32 npayload, u32 ioport)
 {
-	int ret = 0;
+	int ret;
 	u32 nb;
 
 	if (!buffer) {
@@ -630,7 +623,7 @@ static int mwifiex_sdio_card_to_host(struct mwifiex_adapter *adapter,
 		return -1;
 	}
 
-	ret = mwifiex_read_data_sync(adapter, buffer, npayload, ioport, 0, 1);
+	ret = mwifiex_read_data_sync(adapter, buffer, npayload, ioport, 1);
 
 	if (ret) {
 		dev_err(adapter->dev, "%s: read iomem failed: %d\n", __func__,
@@ -660,14 +653,14 @@ static int mwifiex_sdio_card_to_host(struct mwifiex_adapter *adapter,
 static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 				    struct mwifiex_fw_image *fw)
 {
-	int ret = 0;
+	int ret;
 	u8 *firmware = fw->fw_buf;
 	u32 firmware_len = fw->fw_len;
 	u32 offset = 0;
 	u32 base0, base1;
 	u8 *fwbuf;
 	u16 len = 0;
-	u32 txlen = 0, tx_blocks = 0, tries = 0;
+	u32 txlen, tx_blocks = 0, tries;
 	u32 i = 0;
 
 	if (!firmware_len) {
@@ -684,7 +677,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 	if (!fwbuf) {
 		dev_err(adapter->dev, "unable to alloc buffer for firmware."
 				" Terminating download\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	/* Perform firmware data transfer */
@@ -769,7 +762,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 
 		ret = mwifiex_write_data_sync(adapter, fwbuf, tx_blocks *
 					      MWIFIEX_SDIO_BLOCK_SIZE,
-					      adapter->ioport, 0);
+					      adapter->ioport);
 		if (ret) {
 			dev_err(adapter->dev, "FW download, write iomem (%d)"
 					" failed @ %d\n", i, offset);
@@ -838,11 +831,11 @@ static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
 static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
-	u32 sdio_ireg = 0;
+	u32 sdio_ireg;
 	unsigned long flags;
 
 	if (mwifiex_read_data_sync(adapter, card->mp_regs, MAX_MP_REGS,
-				   REG_PORT | MWIFIEX_SDIO_BYTE_MODE_MASK, 0,
+				   REG_PORT | MWIFIEX_SDIO_BYTE_MODE_MASK,
 				   0)) {
 		dev_err(adapter->dev, "read mp_regs failed\n");
 		return;
@@ -859,8 +852,6 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 		adapter->int_status |= sdio_ireg;
 		spin_unlock_irqrestore(&adapter->int_lock, flags);
 	}
-
-	return;
 }
 
 /*
@@ -891,8 +882,6 @@ mwifiex_sdio_interrupt(struct sdio_func *func)
 
 	mwifiex_interrupt_status(adapter);
 	queue_work(adapter->workqueue, &adapter->main_work);
-
-	return;
 }
 
 /*
@@ -976,7 +965,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 	s32 f_do_rx_cur = 0;
 	s32 f_aggr_cur = 0;
 	struct sk_buff *skb_deaggr;
-	u32 pind = 0;
+	u32 pind;
 	u32 pkt_len, pkt_type = 0;
 	u8 *curr_ptr;
 	u32 rx_len = skb->len;
@@ -1054,7 +1043,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 					   card->mpa_rx.buf_len,
 					   (adapter->ioport | 0x1000 |
 					    (card->mpa_rx.ports << 4)) +
-					   card->mpa_rx.start_port, 0, 1))
+					   card->mpa_rx.start_port, 1))
 			return -1;
 
 		curr_ptr = card->mpa_rx.buf;
@@ -1126,7 +1115,7 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 	struct sdio_mmc_card *card = adapter->card;
 	int ret = 0;
 	u8 sdio_ireg;
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 	u8 port = CTRL_PORT;
 	u32 len_reg_l, len_reg_u;
 	u32 rx_blocks;
@@ -1389,7 +1378,7 @@ static int mwifiex_sdio_host_to_card(struct mwifiex_adapter *adapter,
 				     struct mwifiex_tx_param *tx_param)
 {
 	struct sdio_mmc_card *card = adapter->card;
-	int ret = 0;
+	int ret;
 	u32 buf_block_len;
 	u32 blk_size;
 	u8 port = CTRL_PORT;
@@ -1542,6 +1531,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 	sdio_set_drvdata(func, card);
 
 	adapter->dev = &func->dev;
+	strcpy(adapter->fw_name, SD8787_DEFAULT_FW_NAME);
 
 	return 0;
 
@@ -1563,7 +1553,6 @@ disable_func:
  *        the first interrupt got from bootloader
  *      - Disable host interrupt mask register
  *      - Get SDIO port
- *      - Get revision ID
  *      - Initialize SDIO variables in card
  *      - Allocate MP registers
  *      - Allocate MPA Tx and Rx buffers
@@ -1572,7 +1561,7 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
 	int ret;
-	u32 sdio_ireg = 0;
+	u32 sdio_ireg;
 
 	/*
 	 * Read the HOST_INT_STATUS_REG for ACK the first interrupt got
@@ -1586,10 +1575,6 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 
 	/* Get SDIO ioport */
 	mwifiex_init_sdio_ioport(adapter);
-
-	/* Get revision ID */
-#define REV_ID_REG	0x5c
-	mwifiex_read_reg(adapter, REV_ID_REG, &adapter->revision_id);
 
 	/* Initialize SDIO variables in card */
 	card->mp_rd_bitmap = 0;
@@ -1617,7 +1602,7 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	card->mp_regs = kzalloc(MAX_MP_REGS, GFP_KERNEL);
 	if (!card->mp_regs) {
 		dev_err(adapter->dev, "failed to alloc mp_regs\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	ret = mwifiex_alloc_sdio_mpa_buffers(adapter,
@@ -1709,13 +1694,9 @@ static struct mwifiex_if_ops sdio_ops = {
 static int
 mwifiex_sdio_init_module(void)
 {
-	int ret;
-
 	sema_init(&add_remove_card_sem, 1);
 
-	ret = sdio_register_driver(&mwifiex_sdio);
-
-	return ret;
+	return sdio_register_driver(&mwifiex_sdio);
 }
 
 /*
@@ -1745,13 +1726,12 @@ mwifiex_sdio_cleanup_module(void)
 	for (i = 0; i < adapter->priv_num; i++)
 		if ((GET_BSS_ROLE(adapter->priv[i]) == MWIFIEX_BSS_ROLE_STA) &&
 		    adapter->priv[i]->media_connected)
-			mwifiex_disconnect(adapter->priv[i], MWIFIEX_CMD_WAIT,
-					   NULL);
+			mwifiex_deauthenticate(adapter->priv[i], NULL);
 
 	if (!adapter->surprise_removed)
-		mwifiex_shutdown_fw(mwifiex_get_priv
-				    (adapter, MWIFIEX_BSS_ROLE_ANY),
-				    MWIFIEX_CMD_WAIT);
+		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
+							  MWIFIEX_BSS_ROLE_ANY),
+					 MWIFIEX_FUNC_SHUTDOWN);
 
 exit:
 	up(&add_remove_card_sem);
@@ -1767,4 +1747,4 @@ MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex SDIO Driver version " SDIO_VERSION);
 MODULE_VERSION(SDIO_VERSION);
 MODULE_LICENSE("GPL v2");
-MODULE_FIRMWARE("sd8787.bin");
+MODULE_FIRMWARE("mrvl/sd8787_uapsta.bin");

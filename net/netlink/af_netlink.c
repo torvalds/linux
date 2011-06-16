@@ -1566,12 +1566,6 @@ netlink_kernel_release(struct sock *sk)
 }
 EXPORT_SYMBOL(netlink_kernel_release);
 
-
-static void listeners_free_rcu(struct rcu_head *head)
-{
-	kfree(container_of(head, struct listeners, rcu));
-}
-
 int __netlink_change_ngroups(struct sock *sk, unsigned int groups)
 {
 	struct listeners *new, *old;
@@ -1588,7 +1582,7 @@ int __netlink_change_ngroups(struct sock *sk, unsigned int groups)
 		memcpy(new->masks, old->masks, NLGRPSZ(tbl->groups));
 		rcu_assign_pointer(tbl->listeners, new);
 
-		call_rcu(&old->rcu, listeners_free_rcu);
+		kfree_rcu(old, rcu);
 	}
 	tbl->groups = groups;
 
@@ -1665,13 +1659,10 @@ static int netlink_dump(struct sock *sk)
 {
 	struct netlink_sock *nlk = nlk_sk(sk);
 	struct netlink_callback *cb;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct nlmsghdr *nlh;
 	int len, err = -ENOBUFS;
-
-	skb = sock_rmalloc(sk, NLMSG_GOODSIZE, 0, GFP_KERNEL);
-	if (!skb)
-		goto errout;
+	int alloc_size;
 
 	mutex_lock(nlk->cb_mutex);
 
@@ -1680,6 +1671,12 @@ static int netlink_dump(struct sock *sk)
 		err = -EINVAL;
 		goto errout_skb;
 	}
+
+	alloc_size = max_t(int, cb->min_dump_alloc, NLMSG_GOODSIZE);
+
+	skb = sock_rmalloc(sk, alloc_size, 0, GFP_KERNEL);
+	if (!skb)
+		goto errout;
 
 	len = cb->dump(skb, cb);
 
@@ -1727,7 +1724,8 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 		       const struct nlmsghdr *nlh,
 		       int (*dump)(struct sk_buff *skb,
 				   struct netlink_callback *),
-		       int (*done)(struct netlink_callback *))
+		       int (*done)(struct netlink_callback *),
+		       u16 min_dump_alloc)
 {
 	struct netlink_callback *cb;
 	struct sock *sk;
@@ -1741,6 +1739,7 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	cb->dump = dump;
 	cb->done = done;
 	cb->nlh = nlh;
+	cb->min_dump_alloc = min_dump_alloc;
 	atomic_inc(&skb->users);
 	cb->skb = skb;
 
@@ -1991,7 +1990,7 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 		struct sock *s = v;
 		struct netlink_sock *nlk = nlk_sk(s);
 
-		seq_printf(seq, "%p %-3d %-6d %08x %-8d %-8d %p %-8d %-8d %-8lu\n",
+		seq_printf(seq, "%pK %-3d %-6d %08x %-8d %-8d %pK %-8d %-8d %-8lu\n",
 			   s,
 			   s->sk_protocol,
 			   nlk->pid,

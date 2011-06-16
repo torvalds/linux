@@ -27,19 +27,6 @@
 #include "11n_rxreorder.h"
 
 /*
- * This function processes a received packet and forwards
- * it to the kernel/upper layer.
- */
-static int mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv, void *payload)
-{
-	int ret = 0;
-	struct mwifiex_adapter *adapter = priv->adapter;
-
-	ret = mwifiex_process_rx_packet(adapter, (struct sk_buff *) payload);
-	return ret;
-}
-
-/*
  * This function dispatches all packets in the Rx reorder table.
  *
  * There could be holes in the buffer, which are skipped by the function.
@@ -51,8 +38,8 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 					 struct mwifiex_rx_reorder_tbl
 					 *rx_reor_tbl_ptr, int start_win)
 {
-	int no_pkt_to_send, i, xchg;
-	void *rx_tmp_ptr = NULL;
+	int no_pkt_to_send, i;
+	void *rx_tmp_ptr;
 	unsigned long flags;
 
 	no_pkt_to_send = (start_win > rx_reor_tbl_ptr->start_win) ?
@@ -68,7 +55,7 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 		}
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
 		if (rx_tmp_ptr)
-			mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
+			mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -76,8 +63,7 @@ mwifiex_11n_dispatch_pkt_until_start_win(struct mwifiex_private *priv,
 	 * We don't have a circular buffer, hence use rotation to simulate
 	 * circular buffer
 	 */
-	xchg = rx_reor_tbl_ptr->win_size - no_pkt_to_send;
-	for (i = 0; i < xchg; ++i) {
+	for (i = 0; i < rx_reor_tbl_ptr->win_size - no_pkt_to_send; ++i) {
 		rx_reor_tbl_ptr->rx_reorder_ptr[i] =
 			rx_reor_tbl_ptr->rx_reorder_ptr[no_pkt_to_send + i];
 		rx_reor_tbl_ptr->rx_reorder_ptr[no_pkt_to_send + i] = NULL;
@@ -102,7 +88,7 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 			      struct mwifiex_rx_reorder_tbl *rx_reor_tbl_ptr)
 {
 	int i, j, xchg;
-	void *rx_tmp_ptr = NULL;
+	void *rx_tmp_ptr;
 	unsigned long flags;
 
 	for (i = 0; i < rx_reor_tbl_ptr->win_size; ++i) {
@@ -114,7 +100,7 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 		rx_tmp_ptr = rx_reor_tbl_ptr->rx_reorder_ptr[i];
 		rx_reor_tbl_ptr->rx_reorder_ptr[i] = NULL;
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-		mwifiex_11n_dispatch_pkt(priv, rx_tmp_ptr);
+		mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -309,8 +295,6 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	spin_lock_irqsave(&priv->rx_reorder_tbl_lock, flags);
 	list_add_tail(&new_node->list, &priv->rx_reorder_tbl_ptr);
 	spin_unlock_irqrestore(&priv->rx_reorder_tbl_lock, flags);
-
-	return;
 }
 
 /*
@@ -321,8 +305,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
  *      - Setting add BA request buffer
  *      - Ensuring correct endian-ness
  */
-int mwifiex_cmd_11n_addba_req(struct mwifiex_private *priv,
-			      struct host_cmd_ds_command *cmd, void *data_buf)
+int mwifiex_cmd_11n_addba_req(struct host_cmd_ds_command *cmd, void *data_buf)
 {
 	struct host_cmd_ds_11n_addba_req *add_ba_req =
 		(struct host_cmd_ds_11n_addba_req *)
@@ -352,8 +335,8 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
 		&cmd->params.add_ba_rsp;
 	struct host_cmd_ds_11n_addba_req *cmd_addba_req =
 		(struct host_cmd_ds_11n_addba_req *) data_buf;
-	u8 tid = 0;
-	int win_size = 0;
+	u8 tid;
+	int win_size;
 	uint16_t block_ack_param_set;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_11N_ADDBA_RSP);
@@ -393,8 +376,7 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
  *      - Setting del BA request buffer
  *      - Ensuring correct endian-ness
  */
-int mwifiex_cmd_11n_delba(struct mwifiex_private *priv,
-			  struct host_cmd_ds_command *cmd, void *data_buf)
+int mwifiex_cmd_11n_delba(struct host_cmd_ds_command *cmd, void *data_buf)
 {
 	struct host_cmd_ds_11n_delba *del_ba = (struct host_cmd_ds_11n_delba *)
 		&cmd->params.del_ba;
@@ -424,16 +406,15 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 				u8 *ta, u8 pkt_type, void *payload)
 {
 	struct mwifiex_rx_reorder_tbl *rx_reor_tbl_ptr;
-	int start_win, end_win, win_size;
-	int ret = 0;
-	u16 pkt_index = 0;
+	int start_win, end_win, win_size, ret;
+	u16 pkt_index;
 
 	rx_reor_tbl_ptr =
 		mwifiex_11n_get_rx_reorder_tbl((struct mwifiex_private *) priv,
 						tid, ta);
 	if (!rx_reor_tbl_ptr) {
 		if (pkt_type != PKT_TYPE_BAR)
-			mwifiex_11n_dispatch_pkt(priv, payload);
+			mwifiex_process_rx_packet(priv->adapter, payload);
 		return 0;
 	}
 	start_win = rx_reor_tbl_ptr->start_win;
@@ -558,7 +539,7 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 		(struct host_cmd_ds_11n_addba_rsp *)
 		&resp->params.add_ba_rsp;
 	int tid, win_size;
-	struct mwifiex_rx_reorder_tbl *rx_reor_tbl_ptr = NULL;
+	struct mwifiex_rx_reorder_tbl *rx_reor_tbl_ptr;
 	uint16_t block_ack_param_set;
 
 	block_ack_param_set = le16_to_cpu(add_ba_rsp->block_ack_param_set);
@@ -609,9 +590,7 @@ void mwifiex_11n_ba_stream_timeout(struct mwifiex_private *priv,
 	delba.del_ba_param_set |= cpu_to_le16(
 		(u16) event->origninator << DELBA_INITIATOR_POS);
 	delba.reason_code = cpu_to_le16(WLAN_REASON_QSTA_TIMEOUT);
-	mwifiex_prepare_cmd(priv, HostCmd_CMD_11N_DELBA, 0, 0, NULL, &delba);
-
-	return;
+	mwifiex_send_cmd_async(priv, HostCmd_CMD_11N_DELBA, 0, 0, &delba);
 }
 
 /*

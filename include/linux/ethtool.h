@@ -24,7 +24,10 @@ struct ethtool_cmd {
 	__u32	cmd;
 	__u32	supported;	/* Features this interface supports */
 	__u32	advertising;	/* Features this interface advertises */
-	__u16	speed;		/* The forced speed, 10Mb, 100Mb, gigabit */
+	__u16	speed;	        /* The forced speed (lower bits) in
+				 * Mbps. Please use
+				 * ethtool_cmd_speed()/_set() to
+				 * access it */
 	__u8	duplex;		/* Duplex, half or full */
 	__u8	port;		/* Which connector port */
 	__u8	phy_address;
@@ -33,7 +36,10 @@ struct ethtool_cmd {
 	__u8	mdio_support;
 	__u32	maxtxpkt;	/* Tx pkts before generating tx int */
 	__u32	maxrxpkt;	/* Rx pkts before generating rx int */
-	__u16	speed_hi;
+	__u16	speed_hi;       /* The forced speed (upper
+				 * bits) in Mbps. Please use
+				 * ethtool_cmd_speed()/_set() to
+				 * access it */
 	__u8	eth_tp_mdix;
 	__u8	reserved2;
 	__u32	lp_advertising;	/* Features the link partner advertises */
@@ -41,14 +47,14 @@ struct ethtool_cmd {
 };
 
 static inline void ethtool_cmd_speed_set(struct ethtool_cmd *ep,
-						__u32 speed)
+					 __u32 speed)
 {
 
 	ep->speed = (__u16)speed;
 	ep->speed_hi = (__u16)(speed >> 16);
 }
 
-static inline __u32 ethtool_cmd_speed(struct ethtool_cmd *ep)
+static inline __u32 ethtool_cmd_speed(const struct ethtool_cmd *ep)
 {
 	return (ep->speed_hi << 16) | ep->speed;
 }
@@ -281,7 +287,7 @@ enum ethtool_stringset {
 	ETH_SS_TEST		= 0,
 	ETH_SS_STATS,
 	ETH_SS_PRIV_FLAGS,
-	ETH_SS_NTUPLE_FILTERS,
+	ETH_SS_NTUPLE_FILTERS,	/* Do not use, GRXNTUPLE is now deprecated */
 	ETH_SS_FEATURES,
 };
 
@@ -595,6 +601,26 @@ struct ethtool_flash {
 	char	data[ETHTOOL_FLASH_MAX_FILENAME];
 };
 
+/**
+ * struct ethtool_dump - used for retrieving, setting device dump
+ * @cmd: Command number - %ETHTOOL_GET_DUMP_FLAG, %ETHTOOL_GET_DUMP_DATA, or
+ * 	%ETHTOOL_SET_DUMP
+ * @version: FW version of the dump, filled in by driver
+ * @flag: driver dependent flag for dump setting, filled in by driver during
+ * 	  get and filled in by ethtool for set operation
+ * @len: length of dump data, used as the length of the user buffer on entry to
+ * 	 %ETHTOOL_GET_DUMP_DATA and this is returned as dump length by driver
+ * 	 for %ETHTOOL_GET_DUMP_FLAG command
+ * @data: data collected for get dump data operation
+ */
+struct ethtool_dump {
+	__u32	cmd;
+	__u32	version;
+	__u32	flag;
+	__u32	len;
+	__u8	data[0];
+};
+
 /* for returning and changing feature sets */
 
 /**
@@ -688,18 +714,6 @@ enum ethtool_sfeatures_retval_bits {
 /* needed by dev_disable_lro() */
 extern int __ethtool_set_flags(struct net_device *dev, u32 flags);
 
-struct ethtool_rx_ntuple_flow_spec_container {
-	struct ethtool_rx_ntuple_flow_spec fs;
-	struct list_head list;
-};
-
-struct ethtool_rx_ntuple_list {
-#define ETHTOOL_MAX_NTUPLE_LIST_ENTRY 1024
-#define ETHTOOL_MAX_NTUPLE_STRING_PER_ENTRY 14
-	struct list_head	list;
-	unsigned int		count;
-};
-
 /**
  * enum ethtool_phys_id_state - indicator state for physical identification
  * @ETHTOOL_ID_INACTIVE: Physical ID indicator should be deactivated
@@ -732,13 +746,14 @@ u32 ethtool_op_get_ufo(struct net_device *dev);
 int ethtool_op_set_ufo(struct net_device *dev, u32 data);
 u32 ethtool_op_get_flags(struct net_device *dev);
 int ethtool_op_set_flags(struct net_device *dev, u32 data, u32 supported);
-void ethtool_ntuple_flush(struct net_device *dev);
 bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported);
 
 /**
  * struct ethtool_ops - optional netdev operations
  * @get_settings: Get various device settings including Ethernet link
- *	settings.  Returns a negative error code or zero.
+ *	settings. The @cmd parameter is expected to have been cleared
+ *	before get_settings is called. Returns a negative error code or
+ *	zero.
  * @set_settings: Set various device settings including Ethernet link
  *	settings.  Returns a negative error code or zero.
  * @get_drvinfo: Report driver/device information.  Should only set the
@@ -806,12 +821,6 @@ bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported);
  *	the indicator accordingly.  Finally, it is called with the argument
  *	%ETHTOOL_ID_INACTIVE and must deactivate the indicator.  Returns a
  *	negative error code or zero.
- * @phys_id: Deprecated in favour of @set_phys_id.
- *	Identify the physical device, e.g. by flashing an LED
- *	attached to it until interrupted by a signal or the given time
- *	(in seconds) elapses.  If the given time is zero, use a default
- *	time limit.  Returns a negative error code or zero.  Being
- *	interrupted by a signal is not an error.
  * @get_ethtool_stats: Return extended statistics about the device.
  *	This is only useful if the device maintains statistics not
  *	included in &struct rtnl_link_stats64.
@@ -843,7 +852,6 @@ bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported);
  *	error code or zero.
  * @set_rx_ntuple: Set an RX n-tuple rule.  Returns a negative error code
  *	or zero.
- * @get_rx_ntuple: Deprecated.
  * @get_rxfh_indir: Get the contents of the RX flow hash indirection table.
  *	Returns a negative error code or zero.
  * @set_rxfh_indir: Set the contents of the RX flow hash indirection table.
@@ -851,6 +859,10 @@ bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported);
  * @get_channels: Get number of channels.
  * @set_channels: Set number of channels.  Returns a negative error code or
  *	zero.
+ * @get_dump_flag: Get dump flag indicating current dump length, version,
+ * 		   and flag of the device.
+ * @get_dump_data: Get dump data.
+ * @set_dump: Set dump specific flags to the device.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -900,7 +912,6 @@ struct ethtool_ops {
 	void	(*self_test)(struct net_device *, struct ethtool_test *, u64 *);
 	void	(*get_strings)(struct net_device *, u32 stringset, u8 *);
 	int	(*set_phys_id)(struct net_device *, enum ethtool_phys_id_state);
-	int	(*phys_id)(struct net_device *, u32);
 	void	(*get_ethtool_stats)(struct net_device *,
 				     struct ethtool_stats *, u64 *);
 	int	(*begin)(struct net_device *);
@@ -919,13 +930,16 @@ struct ethtool_ops {
 	int	(*reset)(struct net_device *, u32 *);
 	int	(*set_rx_ntuple)(struct net_device *,
 				 struct ethtool_rx_ntuple *);
-	int	(*get_rx_ntuple)(struct net_device *, u32 stringset, void *);
 	int	(*get_rxfh_indir)(struct net_device *,
 				  struct ethtool_rxfh_indir *);
 	int	(*set_rxfh_indir)(struct net_device *,
 				  const struct ethtool_rxfh_indir *);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*set_channels)(struct net_device *, struct ethtool_channels *);
+	int	(*get_dump_flag)(struct net_device *, struct ethtool_dump *);
+	int	(*get_dump_data)(struct net_device *,
+				 struct ethtool_dump *, void *);
+	int	(*set_dump)(struct net_device *, struct ethtool_dump *);
 
 };
 #endif /* __KERNEL__ */
@@ -988,7 +1002,7 @@ struct ethtool_ops {
 #define ETHTOOL_FLASHDEV	0x00000033 /* Flash firmware to device */
 #define ETHTOOL_RESET		0x00000034 /* Reset hardware */
 #define ETHTOOL_SRXNTUPLE	0x00000035 /* Add an n-tuple filter to device */
-#define ETHTOOL_GRXNTUPLE	0x00000036 /* Get n-tuple filters from device */
+#define ETHTOOL_GRXNTUPLE	0x00000036 /* deprecated */
 #define ETHTOOL_GSSET_INFO	0x00000037 /* Get string set info */
 #define ETHTOOL_GRXFHINDIR	0x00000038 /* Get RX flow hash indir'n table */
 #define ETHTOOL_SRXFHINDIR	0x00000039 /* Set RX flow hash indir'n table */
@@ -997,6 +1011,9 @@ struct ethtool_ops {
 #define ETHTOOL_SFEATURES	0x0000003b /* Change device offload settings */
 #define ETHTOOL_GCHANNELS	0x0000003c /* Get no of channels */
 #define ETHTOOL_SCHANNELS	0x0000003d /* Set no of channels */
+#define ETHTOOL_SET_DUMP	0x0000003e /* Set dump settings */
+#define ETHTOOL_GET_DUMP_FLAG	0x0000003f /* Get dump settings */
+#define ETHTOOL_GET_DUMP_DATA	0x00000040 /* Get dump data */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET
@@ -1024,6 +1041,8 @@ struct ethtool_ops {
 #define SUPPORTED_10000baseKX4_Full	(1 << 18)
 #define SUPPORTED_10000baseKR_Full	(1 << 19)
 #define SUPPORTED_10000baseR_FEC	(1 << 20)
+#define SUPPORTED_20000baseMLD2_Full	(1 << 21)
+#define SUPPORTED_20000baseKR2_Full	(1 << 22)
 
 /* Indicates what features are advertised by the interface. */
 #define ADVERTISED_10baseT_Half		(1 << 0)
@@ -1047,6 +1066,8 @@ struct ethtool_ops {
 #define ADVERTISED_10000baseKX4_Full	(1 << 18)
 #define ADVERTISED_10000baseKR_Full	(1 << 19)
 #define ADVERTISED_10000baseR_FEC	(1 << 20)
+#define ADVERTISED_20000baseMLD2_Full	(1 << 21)
+#define ADVERTISED_20000baseKR2_Full	(1 << 22)
 
 /* The following are all involved in forcing a particular link
  * mode for the device for setting things.  When getting the

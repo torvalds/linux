@@ -215,8 +215,8 @@ struct compat_sigaction;
 struct compat_siginfo;
 struct compat_sigaltstack;
 long compat_sys_execve(const char __user *path,
-		       const compat_uptr_t __user *argv,
-		       const compat_uptr_t __user *envp, struct pt_regs *);
+		       compat_uptr_t __user *argv,
+		       compat_uptr_t __user *envp, struct pt_regs *);
 long compat_sys_rt_sigaction(int sig, struct compat_sigaction __user *act,
 			     struct compat_sigaction __user *oact,
 			     size_t sigsetsize);

@@ -2889,8 +2889,7 @@ static struct usb_driver ftdi_elan_driver = {
 static int __init ftdi_elan_init(void)
 {
         int result;
-        printk(KERN_INFO "driver %s built at %s on %s\n", ftdi_elan_driver.name,
-	       __TIME__, __DATE__);
+        printk(KERN_INFO "driver %s\n", ftdi_elan_driver.name);
         mutex_init(&ftdi_module_lock);
         INIT_LIST_HEAD(&ftdi_static_list);
         status_queue = create_singlethread_workqueue("ftdi-status-control");

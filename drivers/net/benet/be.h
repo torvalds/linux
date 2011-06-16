@@ -49,6 +49,7 @@
 #define OC_DEVICE_ID1		0x700	/* Device Id for BE2 cards */
 #define OC_DEVICE_ID2		0x710	/* Device Id for BE3 cards */
 #define OC_DEVICE_ID3		0xe220	/* Device id for Lancer cards */
+#define OC_DEVICE_ID4           0xe228   /* Device id for VF in Lancer */
 
 static inline char *nic_name(struct pci_dev *pdev)
 {
@@ -58,6 +59,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 	case OC_DEVICE_ID2:
 		return OC_NAME_BE;
 	case OC_DEVICE_ID3:
+	case OC_DEVICE_ID4:
 		return OC_NAME_LANCER;
 	case BE_DEVICE_ID2:
 		return BE3_NAME;
@@ -212,7 +214,7 @@ struct be_rx_stats {
 
 struct be_rx_compl_info {
 	u32 rss_hash;
-	u16 vid;
+	u16 vlan_tag;
 	u16 pkt_size;
 	u16 rxq_idx;
 	u16 mac_id;
@@ -244,6 +246,43 @@ struct be_rx_obj {
 
 struct be_drv_stats {
 	u8 be_on_die_temperature;
+	u64 be_tx_events;
+	u64 eth_red_drops;
+	u64 rx_drops_no_pbuf;
+	u64 rx_drops_no_txpb;
+	u64 rx_drops_no_erx_descr;
+	u64 rx_drops_no_tpre_descr;
+	u64 rx_drops_too_many_frags;
+	u64 rx_drops_invalid_ring;
+	u64 forwarded_packets;
+	u64 rx_drops_mtu;
+	u64 rx_crc_errors;
+	u64 rx_alignment_symbol_errors;
+	u64 rx_pause_frames;
+	u64 rx_priority_pause_frames;
+	u64 rx_control_frames;
+	u64 rx_in_range_errors;
+	u64 rx_out_range_errors;
+	u64 rx_frame_too_long;
+	u64 rx_address_match_errors;
+	u64 rx_dropped_too_small;
+	u64 rx_dropped_too_short;
+	u64 rx_dropped_header_too_small;
+	u64 rx_dropped_tcp_length;
+	u64 rx_dropped_runt;
+	u64 rx_ip_checksum_errs;
+	u64 rx_tcp_checksum_errs;
+	u64 rx_udp_checksum_errs;
+	u64 rx_switched_unicast_packets;
+	u64 rx_switched_multicast_packets;
+	u64 rx_switched_broadcast_packets;
+	u64 tx_pauseframes;
+	u64 tx_priority_pauseframes;
+	u64 tx_controlframes;
+	u64 rxpp_fifo_overflow_drop;
+	u64 rx_input_fifo_overflow_drop;
+	u64 pmem_fifo_overflow_drop;
+	u64 jabber_events;
 };
 
 struct be_vf_cfg {
@@ -346,7 +385,8 @@ struct be_adapter {
 #define BE_GEN2 2
 #define BE_GEN3 3
 
-#define lancer_chip(adapter)		(adapter->pdev->device == OC_DEVICE_ID3)
+#define lancer_chip(adapter)	((adapter->pdev->device == OC_DEVICE_ID3) || \
+				 (adapter->pdev->device == OC_DEVICE_ID4))
 
 extern const struct ethtool_ops be_ethtool_ops;
 
@@ -483,5 +523,6 @@ extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
 extern void be_link_status_update(struct be_adapter *adapter, bool link_up);
 extern void netdev_stats_update(struct be_adapter *adapter);
+extern void be_parse_stats(struct be_adapter *adapter);
 extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 #endif				/* BE_H */

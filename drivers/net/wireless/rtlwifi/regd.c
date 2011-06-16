@@ -66,31 +66,83 @@ static struct country_code_to_enum_rd allCountries[] = {
 	NL80211_RRF_PASSIVE_SCAN | \
 	NL80211_RRF_NO_OFDM)
 
+/* 5G chan 36 - chan 64*/
+#define RTL819x_5GHZ_5150_5350	\
+	REG_RULE(5150-10, 5350+10, 40, 0, 30, \
+	NL80211_RRF_PASSIVE_SCAN | \
+	NL80211_RRF_NO_IBSS)
+
+/* 5G chan 100 - chan 165*/
+#define RTL819x_5GHZ_5470_5850	\
+	REG_RULE(5470-10, 5850+10, 40, 0, 30, \
+	NL80211_RRF_PASSIVE_SCAN | \
+	NL80211_RRF_NO_IBSS)
+
+/* 5G chan 149 - chan 165*/
+#define RTL819x_5GHZ_5725_5850	\
+	REG_RULE(5725-10, 5850+10, 40, 0, 30, \
+	NL80211_RRF_PASSIVE_SCAN | \
+	NL80211_RRF_NO_IBSS)
+
+#define RTL819x_5GHZ_ALL	\
+	(RTL819x_5GHZ_5150_5350, RTL819x_5GHZ_5470_5850)
+
 static const struct ieee80211_regdomain rtl_regdom_11 = {
 	.n_reg_rules = 1,
 	.alpha2 = "99",
 	.reg_rules = {
 		      RTL819x_2GHZ_CH01_11,
-	}
+		      }
 };
 
-static const struct ieee80211_regdomain rtl_regdom_global = {
-	.n_reg_rules = 3,
-	.alpha2 = "99",
-	.reg_rules = {
-		      RTL819x_2GHZ_CH01_11,
-		      RTL819x_2GHZ_CH12_13,
-		      RTL819x_2GHZ_CH14,
-	}
-};
-
-static const struct ieee80211_regdomain rtl_regdom_world = {
+static const struct ieee80211_regdomain rtl_regdom_12_13 = {
 	.n_reg_rules = 2,
 	.alpha2 = "99",
 	.reg_rules = {
 		      RTL819x_2GHZ_CH01_11,
-		      RTL819x_2GHZ_CH12_13,
-	}
+			  RTL819x_2GHZ_CH12_13,
+		      }
+};
+
+static const struct ieee80211_regdomain rtl_regdom_no_midband = {
+	.n_reg_rules = 3,
+	.alpha2 = "99",
+	.reg_rules = {
+		      RTL819x_2GHZ_CH01_11,
+			  RTL819x_5GHZ_5150_5350,
+			  RTL819x_5GHZ_5725_5850,
+		      }
+};
+
+static const struct ieee80211_regdomain rtl_regdom_60_64 = {
+	.n_reg_rules = 3,
+	.alpha2 = "99",
+	.reg_rules = {
+		      RTL819x_2GHZ_CH01_11,
+			  RTL819x_2GHZ_CH12_13,
+			  RTL819x_5GHZ_5725_5850,
+		      }
+};
+
+static const struct ieee80211_regdomain rtl_regdom_14_60_64 = {
+	.n_reg_rules = 4,
+	.alpha2 = "99",
+	.reg_rules = {
+		      RTL819x_2GHZ_CH01_11,
+			  RTL819x_2GHZ_CH12_13,
+			  RTL819x_2GHZ_CH14,
+			  RTL819x_5GHZ_5725_5850,
+		      }
+};
+
+static const struct ieee80211_regdomain rtl_regdom_14 = {
+	.n_reg_rules = 3,
+	.alpha2 = "99",
+	.reg_rules = {
+		      RTL819x_2GHZ_CH01_11,
+			  RTL819x_2GHZ_CH12_13,
+			  RTL819x_2GHZ_CH14,
+		      }
 };
 
 static bool _rtl_is_radar_freq(u16 center_freq)
@@ -162,6 +214,8 @@ static void _rtl_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	u32 bandwidth = 0;
 	int r;
 
+	if (!wiphy->bands[IEEE80211_BAND_2GHZ])
+		return;
 	sband = wiphy->bands[IEEE80211_BAND_2GHZ];
 
 	/*
@@ -249,22 +303,6 @@ static void _rtl_reg_apply_world_flags(struct wiphy *wiphy,
 	return;
 }
 
-static void _rtl_dump_channel_map(struct wiphy *wiphy)
-{
-	enum ieee80211_band band;
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_channel *ch;
-	unsigned int i;
-
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
-		if (!wiphy->bands[band])
-			continue;
-		sband = wiphy->bands[band];
-		for (i = 0; i < sband->n_channels; i++)
-			ch = &sband->channels[i];
-	}
-}
-
 static int _rtl_reg_notifier_apply(struct wiphy *wiphy,
 				   struct regulatory_request *request,
 				   struct rtl_regulatory *reg)
@@ -282,8 +320,6 @@ static int _rtl_reg_notifier_apply(struct wiphy *wiphy,
 		break;
 	}
 
-	_rtl_dump_channel_map(wiphy);
-
 	return 0;
 }
 
@@ -292,25 +328,26 @@ static const struct ieee80211_regdomain *_rtl_regdomain_select(
 {
 	switch (reg->country_code) {
 	case COUNTRY_CODE_FCC:
+		return &rtl_regdom_no_midband;
 	case COUNTRY_CODE_IC:
 		return &rtl_regdom_11;
 	case COUNTRY_CODE_ETSI:
+	case COUNTRY_CODE_TELEC_NETGEAR:
+		return &rtl_regdom_60_64;
 	case COUNTRY_CODE_SPAIN:
 	case COUNTRY_CODE_FRANCE:
 	case COUNTRY_CODE_ISRAEL:
-	case COUNTRY_CODE_TELEC_NETGEAR:
-		return &rtl_regdom_world;
+	case COUNTRY_CODE_WORLD_WIDE_13:
+		return &rtl_regdom_12_13;
 	case COUNTRY_CODE_MKK:
 	case COUNTRY_CODE_MKK1:
 	case COUNTRY_CODE_TELEC:
 	case COUNTRY_CODE_MIC:
-		return &rtl_regdom_global;
+		return &rtl_regdom_14_60_64;
 	case COUNTRY_CODE_GLOBAL_DOMAIN:
-		return &rtl_regdom_global;
-	case COUNTRY_CODE_WORLD_WIDE_13:
-		return &rtl_regdom_world;
+		return &rtl_regdom_14;
 	default:
-		return &rtl_regdom_world;
+		return &rtl_regdom_no_midband;
 	}
 }
 
@@ -323,9 +360,11 @@ static int _rtl_regd_init_wiphy(struct rtl_regulatory *reg,
 	const struct ieee80211_regdomain *regd;
 
 	wiphy->reg_notifier = reg_notifier;
+
 	wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 	wiphy->flags &= ~WIPHY_FLAG_STRICT_REGULATORY;
 	wiphy->flags &= ~WIPHY_FLAG_DISABLE_BEACON_HINTS;
+
 	regd = _rtl_regdomain_select(reg);
 	wiphy_apply_custom_regulatory(wiphy, regd);
 	_rtl_reg_apply_radar_flags(wiphy);
@@ -355,8 +394,8 @@ int rtl_regd_init(struct ieee80211_hw *hw,
 	if (wiphy == NULL || &rtlpriv->regd == NULL)
 		return -EINVAL;
 
-	/* force the channel plan to world wide 13 */
-	rtlpriv->regd.country_code = COUNTRY_CODE_WORLD_WIDE_13;
+	/* init country_code from efuse channel plan */
+	rtlpriv->regd.country_code = rtlpriv->efuse.channel_plan;
 
 	RT_TRACE(rtlpriv, COMP_REGD, DBG_TRACE,
 		 (KERN_DEBUG "rtl: EEPROM regdomain: 0x%0x\n",
@@ -373,8 +412,8 @@ int rtl_regd_init(struct ieee80211_hw *hw,
 	country = _rtl_regd_find_country(rtlpriv->regd.country_code);
 
 	if (country) {
-		rtlpriv->regd.alpha2[0] = country->isoName[0];
-		rtlpriv->regd.alpha2[1] = country->isoName[1];
+		rtlpriv->regd.alpha2[0] = country->iso_name[0];
+		rtlpriv->regd.alpha2[1] = country->iso_name[1];
 	} else {
 		rtlpriv->regd.alpha2[0] = '0';
 		rtlpriv->regd.alpha2[1] = '0';

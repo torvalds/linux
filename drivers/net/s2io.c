@@ -78,6 +78,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/prefetch.h>
 #include <net/tcp.h>
 
 #include <asm/system.h>
@@ -5380,7 +5381,7 @@ static int s2io_ethtool_sset(struct net_device *dev,
 {
 	struct s2io_nic *sp = netdev_priv(dev);
 	if ((info->autoneg == AUTONEG_ENABLE) ||
-	    (info->speed != SPEED_10000) ||
+	    (ethtool_cmd_speed(info) != SPEED_10000) ||
 	    (info->duplex != DUPLEX_FULL))
 		return -EINVAL;
 	else {
@@ -5414,10 +5415,10 @@ static int s2io_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
 	info->transceiver = XCVR_EXTERNAL;
 
 	if (netif_carrier_ok(sp->dev)) {
-		info->speed = 10000;
+		ethtool_cmd_speed_set(info, SPEED_10000);
 		info->duplex = DUPLEX_FULL;
 	} else {
-		info->speed = -1;
+		ethtool_cmd_speed_set(info, -1);
 		info->duplex = -1;
 	}
 
@@ -7162,7 +7163,7 @@ static void do_s2io_card_down(struct s2io_nic *sp, int do_io)
 		/* As per the HW requirement we need to replenish the
 		 * receive buffer to avoid the ring bump. Since there is
 		 * no intention of processing the Rx frame at this pointwe are
-		 * just settting the ownership bit of rxd in Each Rx
+		 * just setting the ownership bit of rxd in Each Rx
 		 * ring to HW and set the appropriate buffer size
 		 * based on the ring mode
 		 */

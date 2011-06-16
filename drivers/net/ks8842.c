@@ -23,10 +23,10 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/core.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -662,7 +662,7 @@ static void ks8842_rx_frame(struct net_device *netdev,
 
 	/* check the status */
 	if ((status & RXSR_VALID) && !(status & RXSR_ERROR)) {
-		struct sk_buff *skb = netdev_alloc_skb_ip_align(netdev, len);
+		struct sk_buff *skb = netdev_alloc_skb_ip_align(netdev, len + 3);
 
 		if (skb) {
 
@@ -1146,7 +1146,7 @@ static int __devinit ks8842_probe(struct platform_device *pdev)
 	struct resource *iomem;
 	struct net_device *netdev;
 	struct ks8842_adapter *adapter;
-	struct ks8842_platform_data *pdata = mfd_get_data(pdev);
+	struct ks8842_platform_data *pdata = pdev->dev.platform_data;
 	u16 id;
 	unsigned i;
 

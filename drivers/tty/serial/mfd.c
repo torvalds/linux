@@ -49,8 +49,8 @@
 
 static int hsu_dma_enable;
 module_param(hsu_dma_enable, int, 0);
-MODULE_PARM_DESC(hsu_dma_enable, "It is a bitmap to set working mode, if \
-bit[x] is 1, then port[x] will work in DMA mode, otherwise in PIO mode.");
+MODULE_PARM_DESC(hsu_dma_enable,
+		 "It is a bitmap to set working mode, if bit[x] is 1, then port[x] will work in DMA mode, otherwise in PIO mode.");
 
 struct hsu_dma_buffer {
 	u8		*buf;

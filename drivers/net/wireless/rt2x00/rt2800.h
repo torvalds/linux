@@ -51,6 +51,7 @@
  * RF3320 2.4G 1T1R(RT3350/RT3370/RT3390)
  * RF3322 2.4G 2T2R(RT3352/RT3371/RT3372/RT3391/RT3392)
  * RF3853 2.4G/5G 3T3R(RT3883/RT3563/RT3573/RT3593/RT3662)
+ * RF5370 2.4G 1T1R
  * RF5390 2.4G 1T1R
  */
 #define RF2820				0x0001
@@ -66,6 +67,7 @@
 #define RF3320				0x000b
 #define RF3322				0x000c
 #define RF3853				0x000d
+#define RF5370				0x5370
 #define RF5390				0x5390
 
 /*
@@ -1738,6 +1740,7 @@ struct mac_iveiv_entry {
 /*
  * BBP 3: RX Antenna
  */
+#define BBP3_RX_ADC				FIELD8(0x03)
 #define BBP3_RX_ANTENNA			FIELD8(0x18)
 #define BBP3_HT40_MINUS			FIELD8(0x20)
 
@@ -1781,6 +1784,8 @@ struct mac_iveiv_entry {
 #define RFCSR1_TX0_PD			FIELD8(0x08)
 #define RFCSR1_RX1_PD			FIELD8(0x10)
 #define RFCSR1_TX1_PD			FIELD8(0x20)
+#define RFCSR1_RX2_PD			FIELD8(0x40)
+#define RFCSR1_TX2_PD			FIELD8(0x80)
 
 /*
  * RFCSR 2:
@@ -1788,15 +1793,25 @@ struct mac_iveiv_entry {
 #define RFCSR2_RESCAL_EN		FIELD8(0x80)
 
 /*
+ * FRCSR 5:
+ */
+#define RFCSR5_R1			FIELD8(0x0c)
+
+/*
  * RFCSR 6:
  */
 #define RFCSR6_R1			FIELD8(0x03)
 #define RFCSR6_R2			FIELD8(0x40)
+#define RFCSR6_TXDIV		FIELD8(0x0c)
 
 /*
  * RFCSR 7:
  */
 #define RFCSR7_RF_TUNING		FIELD8(0x01)
+#define RFCSR7_R02				FIELD8(0x07)
+#define RFCSR7_R3				FIELD8(0x08)
+#define RFCSR7_R45				FIELD8(0x30)
+#define RFCSR7_R67				FIELD8(0xc0)
 
 /*
  * RFCSR 11:
@@ -1807,11 +1822,13 @@ struct mac_iveiv_entry {
  * RFCSR 12:
  */
 #define RFCSR12_TX_POWER		FIELD8(0x1f)
+#define RFCSR12_DR0				FIELD8(0xe0)
 
 /*
  * RFCSR 13:
  */
 #define RFCSR13_TX_POWER		FIELD8(0x1f)
+#define RFCSR13_DR0				FIELD8(0xe0)
 
 /*
  * RFCSR 15:
@@ -2254,6 +2271,7 @@ struct mac_iveiv_entry {
 #define MCU_ANT_SELECT			0X73
 #define MCU_BBP_SIGNAL			0x80
 #define MCU_POWER_SAVE			0x83
+#define MCU_BAND_SELECT		0x91
 
 /*
  * MCU mailbox tokens

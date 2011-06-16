@@ -30,6 +30,7 @@
 #define DRV_VERSION	"2.1"
 #define DRV_RELDATE	"July  6, 2008"
 
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>

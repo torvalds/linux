@@ -95,6 +95,9 @@ nv04_instmem_takedown(struct drm_device *dev)
 	nouveau_ramht_ref(NULL, &dev_priv->ramht, NULL);
 	nouveau_gpuobj_ref(NULL, &dev_priv->ramro);
 	nouveau_gpuobj_ref(NULL, &dev_priv->ramfc);
+
+	if (drm_mm_initialized(&dev_priv->ramin_heap))
+		drm_mm_takedown(&dev_priv->ramin_heap);
 }
 
 int

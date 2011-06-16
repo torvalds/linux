@@ -46,9 +46,15 @@ errors=panic		Panic and halt the machine if an error occurs.
 intr		(*)	Allow signals to interrupt cluster operations.
 nointr			Do not allow signals to interrupt cluster
 			operations.
+noatime			Do not update access time.
+relatime(*)		Update atime if the previous atime is older than
+			mtime or ctime
+strictatime		Always update atime, but the minimum update interval
+			is specified by atime_quantum.
 atime_quantum=60(*)	OCFS2 will not update atime unless this number
 			of seconds has passed since the last update.
-			Set to zero to always update atime.
+			Set to zero to always update atime. This option need
+			work with strictatime.
 data=ordered	(*)	All data are forced directly out to the main file
 			system prior to its metadata being committed to the
 			journal.

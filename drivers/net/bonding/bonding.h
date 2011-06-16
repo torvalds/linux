@@ -24,8 +24,8 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
-#define DRV_VERSION	"3.7.0"
-#define DRV_RELDATE	"June 2, 2010"
+#define DRV_VERSION	"3.7.1"
+#define DRV_RELDATE	"April 27, 2011"
 #define DRV_NAME	"bonding"
 #define DRV_DESCRIPTION	"Ethernet Channel Bonding Driver"
 
@@ -37,16 +37,6 @@
 	      ((((dev)->flags & IFF_UP) == IFF_UP)	&& \
 	       netif_running(dev)			&& \
 	       netif_carrier_ok(dev))
-
-/*
- * Checks whether bond is ready for transmit.
- *
- * Caller must hold bond->lock
- */
-#define BOND_IS_OK(bond)			     \
-		   (((bond)->dev->flags & IFF_UP) && \
-		    netif_running((bond)->dev)	  && \
-		    ((bond)->slave_cnt > 0))
 
 /*
  * Checks whether slave is ready for transmit.
@@ -149,6 +139,7 @@ struct bond_params {
 	int mode;
 	int xmit_policy;
 	int miimon;
+	u8 num_peer_notif;
 	int arp_interval;
 	int arp_validate;
 	int use_carrier;
@@ -226,9 +217,12 @@ struct bonding {
 	struct   slave *primary_slave;
 	bool     force_primary;
 	s32      slave_cnt; /* never change this value outside the attach/detach wrappers */
+	void     (*recv_probe)(struct sk_buff *, struct bonding *,
+			       struct slave *);
 	rwlock_t lock;
 	rwlock_t curr_slave_lock;
 	s8       kill_timers;
+	u8	 send_peer_notif;
 	s8	 setup_by_slave;
 	s8       igmp_retrans;
 #ifdef CONFIG_PROC_FS
@@ -246,7 +240,6 @@ struct bonding {
 	struct   bond_params params;
 	struct   list_head vlan_list;
 	struct   vlan_group *vlgrp;
-	struct   packet_type arp_mon_pt;
 	struct   workqueue_struct *wq;
 	struct   delayed_work mii_work;
 	struct   delayed_work arp_work;
@@ -399,8 +392,6 @@ void bond_set_mode_ops(struct bonding *bond, int mode);
 int bond_parse_parm(const char *mode_arg, const struct bond_parm_tbl *tbl);
 void bond_select_active_slave(struct bonding *bond);
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
-void bond_register_arp(struct bonding *);
-void bond_unregister_arp(struct bonding *);
 void bond_create_debugfs(void);
 void bond_destroy_debugfs(void);
 void bond_debug_register(struct bonding *bond);

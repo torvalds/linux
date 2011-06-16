@@ -41,10 +41,11 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
+#include <linux/prefetch.h>
 
 #include "igbvf.h"
 
-#define DRV_VERSION "1.0.8-k0"
+#define DRV_VERSION "2.0.0-k"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
 static const char igbvf_driver_string[] =

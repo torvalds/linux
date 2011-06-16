@@ -44,8 +44,7 @@
  * MSDU => |DA|SA|Length|SNAP|......   ..|
  */
 static int
-mwifiex_11n_form_amsdu_pkt(struct mwifiex_adapter *adapter,
-			   struct sk_buff *skb_aggr,
+mwifiex_11n_form_amsdu_pkt(struct sk_buff *skb_aggr,
 			   struct sk_buff *skb_src, int *pad)
 
 {
@@ -61,7 +60,7 @@ mwifiex_11n_form_amsdu_pkt(struct mwifiex_adapter *adapter,
 			 * later with ethertype
 			 */
 	};
-	struct tx_packet_hdr *tx_header = NULL;
+	struct tx_packet_hdr *tx_header;
 
 	skb_put(skb_aggr, sizeof(*tx_header));
 
@@ -137,131 +136,6 @@ mwifiex_11n_form_amsdu_txpd(struct mwifiex_private *priv,
 }
 
 /*
- * Counts the number of subframes in an aggregate packet.
- *
- * This function parses an aggregate packet buffer, looking for
- * subframes and counting the number of such subframe found. The
- * function automatically skips the DA/SA fields at the beginning
- * of each subframe and padding at the end.
- */
-static int
-mwifiex_11n_get_num_aggr_pkts(u8 *data, int total_pkt_len)
-{
-	int pkt_count = 0, pkt_len, pad;
-
-	while (total_pkt_len > 0) {
-		/* Length will be in network format, change it to host */
-		pkt_len = ntohs((*(__be16 *)(data + 2 * ETH_ALEN)));
-		pad = (((pkt_len + sizeof(struct ethhdr)) & 3)) ?
-			(4 - ((pkt_len + sizeof(struct ethhdr)) & 3)) : 0;
-		data += pkt_len + pad + sizeof(struct ethhdr);
-		total_pkt_len -= pkt_len + pad + sizeof(struct ethhdr);
-		++pkt_count;
-	}
-
-	return pkt_count;
-}
-
-/*
- * De-aggregate received packets.
- *
- * This function parses the received aggregate buffer, extracts each subframe,
- * strips off the SNAP header from them and sends the data portion for further
- * processing.
- *
- * Each subframe body is copied onto a separate buffer, which are freed by
- * upper layer after processing. The function also performs sanity tests on
- * the received buffer.
- */
-int mwifiex_11n_deaggregate_pkt(struct mwifiex_private *priv,
-				struct sk_buff *skb)
-{
-	u16 pkt_len;
-	int total_pkt_len;
-	u8 *data;
-	int pad;
-	struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
-	struct rxpd *local_rx_pd = (struct rxpd *) skb->data;
-	struct sk_buff *skb_daggr;
-	struct mwifiex_rxinfo *rx_info_daggr = NULL;
-	int ret = -1;
-	struct rx_packet_hdr *rx_pkt_hdr;
-	struct mwifiex_adapter *adapter = priv->adapter;
-	u8 rfc1042_eth_hdr[ETH_ALEN] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
-
-	data = (u8 *) (local_rx_pd + local_rx_pd->rx_pkt_offset);
-	total_pkt_len = local_rx_pd->rx_pkt_length;
-
-	/* Sanity test */
-	if (total_pkt_len > MWIFIEX_RX_DATA_BUF_SIZE) {
-		dev_err(adapter->dev, "total pkt len greater than buffer"
-		       " size %d\n", total_pkt_len);
-		return -1;
-	}
-
-	rx_info->use_count = mwifiex_11n_get_num_aggr_pkts(data, total_pkt_len);
-
-	while (total_pkt_len > 0) {
-		rx_pkt_hdr = (struct rx_packet_hdr *) data;
-		/* Length will be in network format, change it to host */
-		pkt_len = ntohs((*(__be16 *) (data + 2 * ETH_ALEN)));
-		if (pkt_len > total_pkt_len) {
-			dev_err(adapter->dev, "pkt_len %d > total_pkt_len %d\n",
-			       total_pkt_len, pkt_len);
-			break;
-		}
-
-		pad = (((pkt_len + sizeof(struct ethhdr)) & 3)) ?
-			(4 - ((pkt_len + sizeof(struct ethhdr)) & 3)) : 0;
-
-		total_pkt_len -= pkt_len + pad + sizeof(struct ethhdr);
-
-		if (memcmp(&rx_pkt_hdr->rfc1042_hdr,
-			   rfc1042_eth_hdr, sizeof(rfc1042_eth_hdr)) == 0) {
-			memmove(data + LLC_SNAP_LEN, data, 2 * ETH_ALEN);
-			data += LLC_SNAP_LEN;
-			pkt_len += sizeof(struct ethhdr) - LLC_SNAP_LEN;
-		} else {
-			*(u16 *) (data + 2 * ETH_ALEN) = (u16) 0;
-			pkt_len += sizeof(struct ethhdr);
-		}
-
-		skb_daggr = dev_alloc_skb(pkt_len);
-		if (!skb_daggr) {
-			dev_err(adapter->dev, "%s: failed to alloc skb_daggr\n",
-			       __func__);
-			return -1;
-		}
-		rx_info_daggr = MWIFIEX_SKB_RXCB(skb_daggr);
-
-		rx_info_daggr->bss_index = rx_info->bss_index;
-		skb_daggr->tstamp = skb->tstamp;
-		rx_info_daggr->parent = skb;
-		skb_daggr->priority = skb->priority;
-		skb_put(skb_daggr, pkt_len);
-		memcpy(skb_daggr->data, data, pkt_len);
-
-		ret = mwifiex_recv_packet(adapter, skb_daggr);
-
-		switch (ret) {
-		case -EINPROGRESS:
-			break;
-		case -1:
-			dev_err(adapter->dev, "deaggr: host_to_card failed\n");
-		case 0:
-			mwifiex_recv_packet_complete(adapter, skb_daggr, ret);
-			break;
-		default:
-			break;
-		}
-
-		data += pkt_len + pad;
-	}
-
-	return ret;
-}
-
-/*
  * Create aggregated packet.
  *
  * This function creates an aggregated MSDU packet, by combining buffers
@@ -286,17 +160,17 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct sk_buff *skb_aggr, *skb_src;
 	struct mwifiex_txinfo *tx_info_aggr, *tx_info_src;
-	int pad = 0;
-	int ret = 0;
+	int pad = 0, ret;
 	struct mwifiex_tx_param tx_param;
 	struct txpd *ptx_pd = NULL;
 
-	if (skb_queue_empty(&pra_list->skb_head)) {
+	skb_src = skb_peek(&pra_list->skb_head);
+	if (!skb_src) {
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
 		return 0;
 	}
-	skb_src = skb_peek(&pra_list->skb_head);
+
 	tx_info_src = MWIFIEX_SKB_TXCB(skb_src);
 	skb_aggr = dev_alloc_skb(adapter->tx_buf_size);
 	if (!skb_aggr) {
@@ -311,20 +185,21 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	tx_info_aggr->bss_index = tx_info_src->bss_index;
 	skb_aggr->priority = skb_src->priority;
 
-	while (skb_src && ((skb_headroom(skb_aggr) + skb_src->len
-					+ LLC_SNAP_LEN)
-				<= adapter->tx_buf_size)) {
+	do {
+		/* Check if AMSDU can accommodate this MSDU */
+		if (skb_tailroom(skb_aggr) < (skb_src->len + LLC_SNAP_LEN))
+			break;
 
-		if (!skb_queue_empty(&pra_list->skb_head))
-			skb_src = skb_dequeue(&pra_list->skb_head);
-		else
-			skb_src = NULL;
+		skb_src = skb_dequeue(&pra_list->skb_head);
 
 		pra_list->total_pkts_size -= skb_src->len;
+		pra_list->total_pkts--;
+
+		atomic_dec(&priv->wmm.tx_pkts_queued);
 
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
 				       ra_list_flags);
-		mwifiex_11n_form_amsdu_pkt(adapter, skb_aggr, skb_src, &pad);
+		mwifiex_11n_form_amsdu_pkt(skb_aggr, skb_src, &pad);
 
 		mwifiex_write_data_complete(adapter, skb_src, 0);
 
@@ -336,11 +211,15 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 			return -1;
 		}
 
-		if (!skb_queue_empty(&pra_list->skb_head))
-			skb_src = skb_peek(&pra_list->skb_head);
-		else
-			skb_src = NULL;
-	}
+		if (skb_tailroom(skb_aggr) < pad) {
+			pad = 0;
+			break;
+		}
+		skb_put(skb_aggr, pad);
+
+		skb_src = skb_peek(&pra_list->skb_head);
+
+	} while (skb_src);
 
 	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, ra_list_flags);
 
@@ -354,11 +233,19 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 
 	skb_push(skb_aggr, headroom);
 
-	tx_param.next_pkt_len = ((pra_list->total_pkts_size) ?
-				 (((pra_list->total_pkts_size) >
-				   adapter->tx_buf_size) ? adapter->
-				  tx_buf_size : pra_list->total_pkts_size +
-				  LLC_SNAP_LEN + sizeof(struct txpd)) : 0);
+	/*
+	 * Padding per MSDU will affect the length of next
+	 * packet and hence the exact length of next packet
+	 * is uncertain here.
+	 *
+	 * Also, aggregation of transmission buffer, while
+	 * downloading the data to the card, wont gain much
+	 * on the AMSDU packets as the AMSDU packets utilizes
+	 * the transmission buffer space to the maximum
+	 * (adapter->tx_buf_size).
+	 */
+	tx_param.next_pkt_len = 0;
+
 	ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
 					     skb_aggr->data,
 					     skb_aggr->len, &tx_param);
@@ -375,12 +262,16 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 			(adapter->pps_uapsd_mode) &&
 			(adapter->tx_lock_flag)) {
 				priv->adapter->tx_lock_flag = false;
-				ptx_pd->flags = 0;
+				if (ptx_pd)
+					ptx_pd->flags = 0;
 		}
 
 		skb_queue_tail(&pra_list->skb_head, skb_aggr);
 
 		pra_list->total_pkts_size += skb_aggr->len;
+		pra_list->total_pkts++;
+
+		atomic_inc(&priv->wmm.tx_pkts_queued);
 
 		tx_info_aggr->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
 		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,

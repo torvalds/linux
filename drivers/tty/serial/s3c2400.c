@@ -1,5 +1,4 @@
-/* linux/drivers/serial/s3c240.c
- *
+/*
  * Driver for Samsung SoC onboard UARTs.
  *
  * Ben Dooks, Copyright (c) 2003-2005 Simtec Electronics

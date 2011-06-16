@@ -82,40 +82,6 @@ static struct pci_driver otg_pci_driver = {
 	.resume =	langwell_otg_resume,
 };
 
-static const char *state_string(enum usb_otg_state state)
-{
-	switch (state) {
-	case OTG_STATE_A_IDLE:
-		return "a_idle";
-	case OTG_STATE_A_WAIT_VRISE:
-		return "a_wait_vrise";
-	case OTG_STATE_A_WAIT_BCON:
-		return "a_wait_bcon";
-	case OTG_STATE_A_HOST:
-		return "a_host";
-	case OTG_STATE_A_SUSPEND:
-		return "a_suspend";
-	case OTG_STATE_A_PERIPHERAL:
-		return "a_peripheral";
-	case OTG_STATE_A_WAIT_VFALL:
-		return "a_wait_vfall";
-	case OTG_STATE_A_VBUS_ERR:
-		return "a_vbus_err";
-	case OTG_STATE_B_IDLE:
-		return "b_idle";
-	case OTG_STATE_B_SRP_INIT:
-		return "b_srp_init";
-	case OTG_STATE_B_PERIPHERAL:
-		return "b_peripheral";
-	case OTG_STATE_B_WAIT_ACON:
-		return "b_wait_acon";
-	case OTG_STATE_B_HOST:
-		return "b_host";
-	default:
-		return "UNDEFINED";
-	}
-}
-
 /* HSM timers */
 static inline struct langwell_otg_timer *otg_timer_initializer
 (void (*function)(unsigned long), unsigned long expires, unsigned long data)
@@ -968,7 +934,7 @@ static void langwell_otg_work(struct work_struct *work)
 	pdev = to_pci_dev(lnw->dev);
 
 	dev_dbg(lnw->dev, "%s: old state = %s\n", __func__,
-			state_string(iotg->otg.state));
+			otg_state_string(iotg->otg.state));
 
 	switch (iotg->otg.state) {
 	case OTG_STATE_UNDEFINED:
@@ -1703,7 +1669,7 @@ static void langwell_otg_work(struct work_struct *work)
 	}
 
 	dev_dbg(lnw->dev, "%s: new state = %s\n", __func__,
-			state_string(iotg->otg.state));
+			otg_state_string(iotg->otg.state));
 }
 
 static ssize_t
@@ -1789,7 +1755,7 @@ show_hsm(struct device *_dev, struct device_attribute *attr, char *buf)
 		"b_bus_req = \t%d\n"
 		"b_bus_suspend_tmout = \t%d\n"
 		"b_bus_suspend_vld = \t%d\n",
-		state_string(iotg->otg.state),
+		otg_state_string(iotg->otg.state),
 		iotg->hsm.a_bus_resume,
 		iotg->hsm.a_bus_suspend,
 		iotg->hsm.a_conn,

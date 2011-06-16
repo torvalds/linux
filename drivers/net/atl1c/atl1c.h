@@ -24,6 +24,7 @@
 
 #include <linux/version.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/module.h>
@@ -566,9 +567,9 @@ struct atl1c_adapter {
 #define __AT_TESTING        0x0001
 #define __AT_RESETTING      0x0002
 #define __AT_DOWN           0x0003
-	u8 work_event;
-#define ATL1C_WORK_EVENT_RESET 		0x01
-#define ATL1C_WORK_EVENT_LINK_CHANGE	0x02
+	unsigned long work_event;
+#define	ATL1C_WORK_EVENT_RESET		0
+#define	ATL1C_WORK_EVENT_LINK_CHANGE	1
 	u32 msg_enable;
 
 	bool have_msi;

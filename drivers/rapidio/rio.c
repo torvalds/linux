@@ -1171,16 +1171,17 @@ static int rio_hdid_setup(char *str)
 
 __setup("riohdid=", rio_hdid_setup);
 
-void rio_register_mport(struct rio_mport *port)
+int rio_register_mport(struct rio_mport *port)
 {
 	if (next_portid >= RIO_MAX_MPORTS) {
 		pr_err("RIO: reached specified max number of mports\n");
-		return;
+		return 1;
 	}
 
 	port->id = next_portid++;
 	port->host_deviceid = rio_get_hdid(port->id);
 	list_add_tail(&port->node, &rio_mports);
+	return 0;
 }
 
 EXPORT_SYMBOL_GPL(rio_local_get_device_id);

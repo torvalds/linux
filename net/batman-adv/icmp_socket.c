@@ -46,7 +46,7 @@ static int bat_socket_open(struct inode *inode, struct file *file)
 
 	nonseekable_open(inode, file);
 
-	socket_client = kmalloc(sizeof(struct socket_client), GFP_KERNEL);
+	socket_client = kmalloc(sizeof(*socket_client), GFP_KERNEL);
 
 	if (!socket_client)
 		return -ENOMEM;
@@ -153,6 +153,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 {
 	struct socket_client *socket_client = file->private_data;
 	struct bat_priv *bat_priv = socket_client->bat_priv;
+	struct hard_iface *primary_if = NULL;
 	struct sk_buff *skb;
 	struct icmp_packet_rr *icmp_packet;
 
@@ -167,15 +168,21 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 		return -EINVAL;
 	}
 
-	if (!bat_priv->primary_if)
-		return -EFAULT;
+	primary_if = primary_if_get_selected(bat_priv);
+
+	if (!primary_if) {
+		len = -EFAULT;
+		goto out;
+	}
 
 	if (len >= sizeof(struct icmp_packet_rr))
 		packet_len = sizeof(struct icmp_packet_rr);
 
 	skb = dev_alloc_skb(packet_len + sizeof(struct ethhdr));
-	if (!skb)
-		return -ENOMEM;
+	if (!skb) {
+		len = -ENOMEM;
+		goto out;
+	}
 
 	skb_reserve(skb, sizeof(struct ethhdr));
 	icmp_packet = (struct icmp_packet_rr *)skb_put(skb, packet_len);
@@ -233,7 +240,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 		goto dst_unreach;
 
 	memcpy(icmp_packet->orig,
-	       bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN);
+	       primary_if->net_dev->dev_addr, ETH_ALEN);
 
 	if (packet_len == sizeof(struct icmp_packet_rr))
 		memcpy(icmp_packet->rr,
@@ -248,6 +255,8 @@ dst_unreach:
 free_skb:
 	kfree_skb(skb);
 out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
 	if (neigh_node)
 		neigh_node_free_ref(neigh_node);
 	if (orig_node)
@@ -301,7 +310,7 @@ static void bat_socket_add_packet(struct socket_client *socket_client,
 {
 	struct socket_packet *socket_packet;
 
-	socket_packet = kmalloc(sizeof(struct socket_packet), GFP_ATOMIC);
+	socket_packet = kmalloc(sizeof(*socket_packet), GFP_ATOMIC);
 
 	if (!socket_packet)
 		return;

@@ -324,7 +324,7 @@ static inline u8 *ndisc_opt_addr_data(struct nd_opt_hdr *p,
 	return lladdr + prepad;
 }
 
-int ndisc_mc_map(struct in6_addr *addr, char *buf, struct net_device *dev, int dir)
+int ndisc_mc_map(const struct in6_addr *addr, char *buf, struct net_device *dev, int dir)
 {
 	switch (dev->type) {
 	case ARPHRD_ETHER:
@@ -748,8 +748,8 @@ static int pndisc_is_router(const void *pkey,
 static void ndisc_recv_ns(struct sk_buff *skb)
 {
 	struct nd_msg *msg = (struct nd_msg *)skb_transport_header(skb);
-	struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
-	struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
+	const struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
+	const struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
 	u8 *lladdr = NULL;
 	u32 ndoptlen = skb->tail - (skb->transport_header +
 				    offsetof(struct nd_msg, opt));
@@ -924,8 +924,8 @@ out:
 static void ndisc_recv_na(struct sk_buff *skb)
 {
 	struct nd_msg *msg = (struct nd_msg *)skb_transport_header(skb);
-	struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
-	struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
+	const struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
+	const struct in6_addr *daddr = &ipv6_hdr(skb)->daddr;
 	u8 *lladdr = NULL;
 	u32 ndoptlen = skb->tail - (skb->transport_header +
 				    offsetof(struct nd_msg, opt));
@@ -1038,7 +1038,7 @@ static void ndisc_recv_rs(struct sk_buff *skb)
 	unsigned long ndoptlen = skb->len - sizeof(*rs_msg);
 	struct neighbour *neigh;
 	struct inet6_dev *idev;
-	struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
+	const struct in6_addr *saddr = &ipv6_hdr(skb)->saddr;
 	struct ndisc_options ndopts;
 	u8 *lladdr = NULL;
 
@@ -1435,8 +1435,8 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 {
 	struct inet6_dev *in6_dev;
 	struct icmp6hdr *icmph;
-	struct in6_addr *dest;
-	struct in6_addr *target;	/* new first hop to destination */
+	const struct in6_addr *dest;
+	const struct in6_addr *target;	/* new first hop to destination */
 	struct neighbour *neigh;
 	int on_link = 0;
 	struct ndisc_options ndopts;
@@ -1469,7 +1469,7 @@ static void ndisc_redirect_rcv(struct sk_buff *skb)
 	}
 
 	icmph = icmp6_hdr(skb);
-	target = (struct in6_addr *) (icmph + 1);
+	target = (const struct in6_addr *) (icmph + 1);
 	dest = target + 1;
 
 	if (ipv6_addr_is_multicast(dest)) {
@@ -1747,7 +1747,6 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 		fib6_run_gc(~0UL, net);
 		break;
 	case NETDEV_NOTIFY_PEERS:
-	case NETDEV_BONDING_FAILOVER:
 		ndisc_send_unsol_na(dev);
 		break;
 	default:

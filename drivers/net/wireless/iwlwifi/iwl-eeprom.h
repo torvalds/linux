@@ -294,9 +294,6 @@ extern const u8 iwl_eeprom_band_1[14];
 
 struct iwl_eeprom_ops {
 	const u32 regulatory_bands[7];
-	int (*acquire_semaphore) (struct iwl_priv *priv);
-	void (*release_semaphore) (struct iwl_priv *priv);
-	u16 (*calib_version) (struct iwl_priv *priv);
 	const u8* (*query_addr) (const struct iwl_priv *priv, size_t offset);
 	void (*update_enhanced_txpower) (struct iwl_priv *priv);
 };
@@ -309,7 +306,6 @@ int  iwl_eeprom_check_sku(struct iwl_priv *priv);
 const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset);
 int iwlcore_eeprom_verify_signature(struct iwl_priv *priv);
 u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset);
-const u8 *iwlcore_eeprom_query_addr(const struct iwl_priv *priv, size_t offset);
 int iwl_init_channel_map(struct iwl_priv *priv);
 void iwl_free_channel_map(struct iwl_priv *priv);
 const struct iwl_channel_info *iwl_get_channel_info(

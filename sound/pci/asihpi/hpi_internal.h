@@ -294,7 +294,7 @@ enum HPI_CONTROL_ATTRIBUTES {
 
 /* These defines are used to fill in protocol information for an Ethernet packet
     sent using HMI on CS18102 */
-/** ID supplied by Cirrius for ASI packets. */
+/** ID supplied by Cirrus for ASI packets. */
 #define HPI_ETHERNET_PACKET_ID                  0x85
 /** Simple packet - no special routing required */
 #define HPI_ETHERNET_PACKET_V1                  0x01
@@ -307,7 +307,7 @@ enum HPI_CONTROL_ATTRIBUTES {
 /** This packet must make its way to the host across the HPI interface */
 #define HPI_ETHERNET_PACKET_HOSTED_VIA_HPI_V1   0x41
 
-#define HPI_ETHERNET_UDP_PORT (44600)	/*!< UDP messaging port */
+#define HPI_ETHERNET_UDP_PORT 44600 /**< HPI UDP service */
 
 /** Default network timeout in milli-seconds. */
 #define HPI_ETHERNET_TIMEOUT_MS 500
@@ -397,14 +397,14 @@ enum HPI_FUNCTION_IDS {
 	HPI_SUBSYS_OPEN = HPI_FUNC_ID(SUBSYSTEM, 1),
 	HPI_SUBSYS_GET_VERSION = HPI_FUNC_ID(SUBSYSTEM, 2),
 	HPI_SUBSYS_GET_INFO = HPI_FUNC_ID(SUBSYSTEM, 3),
-	HPI_SUBSYS_FIND_ADAPTERS = HPI_FUNC_ID(SUBSYSTEM, 4),
+	/* HPI_SUBSYS_FIND_ADAPTERS     = HPI_FUNC_ID(SUBSYSTEM, 4), */
 	HPI_SUBSYS_CREATE_ADAPTER = HPI_FUNC_ID(SUBSYSTEM, 5),
 	HPI_SUBSYS_CLOSE = HPI_FUNC_ID(SUBSYSTEM, 6),
-	HPI_SUBSYS_DELETE_ADAPTER = HPI_FUNC_ID(SUBSYSTEM, 7),
+	/* HPI_SUBSYS_DELETE_ADAPTER    = HPI_FUNC_ID(SUBSYSTEM, 7), */
 	HPI_SUBSYS_DRIVER_LOAD = HPI_FUNC_ID(SUBSYSTEM, 8),
 	HPI_SUBSYS_DRIVER_UNLOAD = HPI_FUNC_ID(SUBSYSTEM, 9),
-	HPI_SUBSYS_READ_PORT_8 = HPI_FUNC_ID(SUBSYSTEM, 10),
-	HPI_SUBSYS_WRITE_PORT_8 = HPI_FUNC_ID(SUBSYSTEM, 11),
+	/* HPI_SUBSYS_READ_PORT_8               = HPI_FUNC_ID(SUBSYSTEM, 10), */
+	/* HPI_SUBSYS_WRITE_PORT_8              = HPI_FUNC_ID(SUBSYSTEM, 11), */
 	HPI_SUBSYS_GET_NUM_ADAPTERS = HPI_FUNC_ID(SUBSYSTEM, 12),
 	HPI_SUBSYS_GET_ADAPTER = HPI_FUNC_ID(SUBSYSTEM, 13),
 	HPI_SUBSYS_SET_NETWORK_INTERFACE = HPI_FUNC_ID(SUBSYSTEM, 14),
@@ -433,7 +433,8 @@ enum HPI_FUNCTION_IDS {
 	HPI_ADAPTER_DEBUG_READ = HPI_FUNC_ID(ADAPTER, 18),
 	HPI_ADAPTER_IRQ_QUERY_AND_CLEAR = HPI_FUNC_ID(ADAPTER, 19),
 	HPI_ADAPTER_IRQ_CALLBACK = HPI_FUNC_ID(ADAPTER, 20),
-#define HPI_ADAPTER_FUNCTION_COUNT 20
+	HPI_ADAPTER_DELETE = HPI_FUNC_ID(ADAPTER, 21),
+#define HPI_ADAPTER_FUNCTION_COUNT 21
 
 	HPI_OSTREAM_OPEN = HPI_FUNC_ID(OSTREAM, 1),
 	HPI_OSTREAM_CLOSE = HPI_FUNC_ID(OSTREAM, 2),
@@ -1561,8 +1562,6 @@ void hpi_send_recv(struct hpi_message *phm, struct hpi_response *phr);
 u16 hpi_subsys_create_adapter(const struct hpi_resource *p_resource,
 	u16 *pw_adapter_index);
 
-u16 hpi_subsys_delete_adapter(u16 adapter_index);
-
 u16 hpi_outstream_host_buffer_get_info(u32 h_outstream, u8 **pp_buffer,
 	struct hpi_hostbuffer_status **pp_status);
 
@@ -1584,9 +1583,7 @@ void hpi_stream_response_to_legacy(struct hpi_stream_res *pSR);
 
 /*////////////////////////////////////////////////////////////////////////// */
 /* declarations for individual HPI entry points */
-hpi_handler_func HPI_1000;
 hpi_handler_func HPI_6000;
 hpi_handler_func HPI_6205;
-hpi_handler_func HPI_COMMON;
 
 #endif				/* _HPI_INTERNAL_H_ */

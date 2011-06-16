@@ -393,16 +393,6 @@ static int __devinit ieee802154fake_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 	priv->phy = phy;
 
-	/*
-	 * If the name is a format string the caller wants us to do a
-	 * name allocation.
-	 */
-	if (strchr(dev->name, '%')) {
-		err = dev_alloc_name(dev, dev->name);
-		if (err < 0)
-			goto out;
-	}
-
 	wpan_phy_set_dev(phy, &pdev->dev);
 	SET_NETDEV_DEV(dev, &phy->dev);
 

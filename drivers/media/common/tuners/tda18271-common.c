@@ -533,16 +533,7 @@ int tda18271_calc_main_pll(struct dvb_frontend *fe, u32 freq)
 	if (tda_fail(ret))
 		goto fail;
 
-	regs[R_MPD]   = (0x77 & pd);
-
-	switch (priv->mode) {
-	case TDA18271_ANALOG:
-		regs[R_MPD]  &= ~0x08;
-		break;
-	case TDA18271_DIGITAL:
-		regs[R_MPD]  |=  0x08;
-		break;
-	}
+	regs[R_MPD]   = (0x7f & pd);
 
 	div =  ((d * (freq / 1000)) << 7) / 125;
 

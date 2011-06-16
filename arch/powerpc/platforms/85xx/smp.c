@@ -41,7 +41,7 @@ extern void __early_start(void);
 #define NUM_BOOT_ENTRY		8
 #define SIZE_BOOT_ENTRY		(NUM_BOOT_ENTRY * sizeof(u32))
 
-static void __init
+static int __init
 smp_85xx_kick_cpu(int nr)
 {
 	unsigned long flags;
@@ -60,7 +60,7 @@ smp_85xx_kick_cpu(int nr)
 
 	if (cpu_rel_addr == NULL) {
 		printk(KERN_ERR "No cpu-release-addr for cpu %d\n", nr);
-		return;
+		return -ENOENT;
 	}
 
 	/*
@@ -107,6 +107,8 @@ smp_85xx_kick_cpu(int nr)
 		iounmap(bptr_vaddr);
 
 	pr_debug("waited %d msecs for CPU #%d.\n", n, nr);
+
+	return 0;
 }
 
 static void __init
@@ -233,8 +235,10 @@ void __init mpc85xx_smp_init(void)
 		smp_85xx_ops.message_pass = smp_mpic_message_pass;
 	}
 
-	if (cpu_has_feature(CPU_FTR_DBELL))
-		smp_85xx_ops.message_pass = doorbell_message_pass;
+	if (cpu_has_feature(CPU_FTR_DBELL)) {
+		smp_85xx_ops.message_pass = smp_muxed_ipi_message_pass;
+		smp_85xx_ops.cause_ipi = doorbell_cause_ipi;
+	}
 
 	BUG_ON(!smp_85xx_ops.message_pass);
 

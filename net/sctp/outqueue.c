@@ -320,7 +320,6 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk)
 		 * chunk.
 		 */
 		switch (q->asoc->state) {
-		case SCTP_STATE_EMPTY:
 		case SCTP_STATE_CLOSED:
 		case SCTP_STATE_SHUTDOWN_PENDING:
 		case SCTP_STATE_SHUTDOWN_SENT:
@@ -578,6 +577,13 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 	 * try to send as much as possible.
 	 */
 	list_for_each_entry_safe(chunk, chunk1, lqueue, transmitted_list) {
+		/* If the chunk is abandoned, move it to abandoned list. */
+		if (sctp_chunk_abandoned(chunk)) {
+			list_del_init(&chunk->transmitted_list);
+			sctp_insert_list(&q->abandoned,
+					 &chunk->transmitted_list);
+			continue;
+		}
 
 		/* Make sure that Gap Acked TSNs are not retransmitted.  A
 		 * simple approach is just to move such TSNs out of the
@@ -748,6 +754,16 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 	 */
 
 	list_for_each_entry_safe(chunk, tmp, &q->control_chunk_list, list) {
+		/* RFC 5061, 5.3
+		 * F1) This means that until such time as the ASCONF
+		 * containing the add is acknowledged, the sender MUST
+		 * NOT use the new IP address as a source for ANY SCTP
+		 * packet except on carrying an ASCONF Chunk.
+		 */
+		if (asoc->src_out_of_asoc_ok &&
+		    chunk->chunk_hdr->type != SCTP_CID_ASCONF)
+			continue;
+
 		list_del_init(&chunk->list);
 
 		/* Pick the right transport to use. */
@@ -874,6 +890,9 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			BUG();
 		}
 	}
+
+	if (q->asoc->src_out_of_asoc_ok)
+		goto sctp_flush_out;
 
 	/* Is it OK to send data chunks?  */
 	switch (asoc->state) {

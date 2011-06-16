@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -230,6 +230,10 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 			for (i = 0; i < AR5416_MAX_CHAINS; i++) {
 				integer = swab32(pModal->antCtrlChain[i]);
 				pModal->antCtrlChain[i] = integer;
+			}
+			for (i = 0; i < 3; i++) {
+				word = swab16(pModal->xpaBiasLvlFreq[i]);
+				pModal->xpaBiasLvlFreq[i] = word;
 			}
 
 			for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {

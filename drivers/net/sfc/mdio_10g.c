@@ -232,12 +232,12 @@ void efx_mdio_set_mmds_lpower(struct efx_nic *efx,
  */
 int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	struct ethtool_cmd prev;
+	struct ethtool_cmd prev = { .cmd = ETHTOOL_GSET };
 
 	efx->phy_op->get_settings(efx, &prev);
 
 	if (ecmd->advertising == prev.advertising &&
-	    ecmd->speed == prev.speed &&
+	    ethtool_cmd_speed(ecmd) == ethtool_cmd_speed(&prev) &&
 	    ecmd->duplex == prev.duplex &&
 	    ecmd->port == prev.port &&
 	    ecmd->autoneg == prev.autoneg)
@@ -284,7 +284,7 @@ void efx_mdio_an_reconfigure(struct efx_nic *efx)
 	efx_mdio_write(efx, MDIO_MMD_AN, MDIO_CTRL1, reg);
 }
 
-enum efx_fc_type efx_mdio_get_pause(struct efx_nic *efx)
+u8 efx_mdio_get_pause(struct efx_nic *efx)
 {
 	BUILD_BUG_ON(EFX_FC_AUTO & (EFX_FC_RX | EFX_FC_TX));
 

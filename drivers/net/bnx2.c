@@ -416,6 +416,9 @@ struct cnic_eth_dev *bnx2_cnic_probe(struct net_device *dev)
 	struct bnx2 *bp = netdev_priv(dev);
 	struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
 
+	if (!cp->max_iscsi_conn)
+		return NULL;
+
 	cp->drv_owner = THIS_MODULE;
 	cp->chip_id = bp->chip_id;
 	cp->pdev = bp->pdev;
@@ -6696,17 +6699,16 @@ bnx2_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	if (bp->autoneg & AUTONEG_SPEED) {
 		cmd->autoneg = AUTONEG_ENABLE;
-	}
-	else {
+	} else {
 		cmd->autoneg = AUTONEG_DISABLE;
 	}
 
 	if (netif_carrier_ok(dev)) {
-		cmd->speed = bp->line_speed;
+		ethtool_cmd_speed_set(cmd, bp->line_speed);
 		cmd->duplex = bp->duplex;
 	}
 	else {
-		cmd->speed = -1;
+		ethtool_cmd_speed_set(cmd, -1);
 		cmd->duplex = -1;
 	}
 	spin_unlock_bh(&bp->phy_lock);
@@ -6758,21 +6760,21 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		advertising |= ADVERTISED_Autoneg;
 	}
 	else {
+		u32 speed = ethtool_cmd_speed(cmd);
 		if (cmd->port == PORT_FIBRE) {
-			if ((cmd->speed != SPEED_1000 &&
-			     cmd->speed != SPEED_2500) ||
+			if ((speed != SPEED_1000 &&
+			     speed != SPEED_2500) ||
 			    (cmd->duplex != DUPLEX_FULL))
 				goto err_out_unlock;
 
-			if (cmd->speed == SPEED_2500 &&
+			if (speed == SPEED_2500 &&
 			    !(bp->phy_flags & BNX2_PHY_FLAG_2_5G_CAPABLE))
 				goto err_out_unlock;
-		}
-		else if (cmd->speed == SPEED_1000 || cmd->speed == SPEED_2500)
+		} else if (speed == SPEED_1000 || speed == SPEED_2500)
 			goto err_out_unlock;
 
 		autoneg &= ~AUTONEG_SPEED;
-		req_line_speed = cmd->speed;
+		req_line_speed = speed;
 		req_duplex = cmd->duplex;
 		advertising = 0;
 	}
@@ -8178,6 +8180,10 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->timer.data = (unsigned long) bp;
 	bp->timer.function = bnx2_timer;
 
+#ifdef BCM_CNIC
+	bp->cnic_eth_dev.max_iscsi_conn =
+		bnx2_reg_rd_ind(bp, BNX2_FW_MAX_ISCSI_CONN);
+#endif
 	pci_save_state(pdev);
 
 	return 0;
@@ -8357,6 +8363,8 @@ bnx2_remove_one(struct pci_dev *pdev)
 	struct bnx2 *bp = netdev_priv(dev);
 
 	unregister_netdev(dev);
+
+	del_timer_sync(&bp->timer);
 
 	if (bp->mips_firmware)
 		release_firmware(bp->mips_firmware);

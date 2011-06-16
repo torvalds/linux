@@ -41,6 +41,7 @@
 #include "iwl-power.h"
 #include "iwl-sta.h"
 #include "iwl-helpers.h"
+#include "iwl-agn.h"
 
 
 /*
@@ -66,30 +67,6 @@ MODULE_PARM_DESC(bt_coex_active, "enable wifi/bluetooth co-exist");
 u32 iwl_debug_level;
 
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-
-
-/* This function both allocates and initializes hw and priv. */
-struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg)
-{
-	struct iwl_priv *priv;
-	/* mac80211 allocates memory for this device instance, including
-	 *   space for this driver's private structure */
-	struct ieee80211_hw *hw;
-
-	hw = ieee80211_alloc_hw(sizeof(struct iwl_priv),
-				cfg->ops->ieee80211_ops);
-	if (hw == NULL) {
-		pr_err("%s: Can not allocate network device\n",
-		       cfg->name);
-		goto out;
-	}
-
-	priv = hw->priv;
-	priv->hw = hw;
-
-out:
-	return hw;
-}
 
 #define MAX_BIT_RATE_40_MHZ 150 /* Mbps */
 #define MAX_BIT_RATE_20_MHZ 72 /* Mbps */
@@ -118,7 +95,7 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 		max_bit_rate = MAX_BIT_RATE_40_MHZ;
 	}
 
-	if (priv->cfg->mod_params->amsdu_size_8K)
+	if (iwlagn_mod_params.amsdu_size_8K)
 		ht_info->cap |= IEEE80211_HT_CAP_MAX_AMSDU;
 
 	ht_info->ampdu_factor = CFG_HT_RX_AMPDU_FACTOR_DEF;
@@ -159,6 +136,7 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 	struct ieee80211_channel *geo_ch;
 	struct ieee80211_rate *rates;
 	int i = 0;
+	s8 max_tx_power = IWLAGN_TX_POWER_TARGET_POWER_MIN;
 
 	if (priv->bands[IEEE80211_BAND_2GHZ].n_bitrates ||
 	    priv->bands[IEEE80211_BAND_5GHZ].n_bitrates) {
@@ -232,8 +210,8 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 
 			geo_ch->flags |= ch->ht40_extension_channel;
 
-			if (ch->max_power_avg > priv->tx_power_device_lmt)
-				priv->tx_power_device_lmt = ch->max_power_avg;
+			if (ch->max_power_avg > max_tx_power)
+				max_tx_power = ch->max_power_avg;
 		} else {
 			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
 		}
@@ -245,6 +223,10 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 				"restricted" : "valid",
 				 geo_ch->flags);
 	}
+
+	priv->tx_power_device_lmt = max_tx_power;
+	priv->tx_power_user_lmt = max_tx_power;
+	priv->tx_power_next = max_tx_power;
 
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     priv->cfg->sku & IWL_SKU_A) {
@@ -434,72 +416,72 @@ void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 int iwl_check_rxon_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	struct iwl_rxon_cmd *rxon = &ctx->staging;
-	bool error = false;
+	u32 errors = 0;
 
 	if (rxon->flags & RXON_FLG_BAND_24G_MSK) {
 		if (rxon->flags & RXON_FLG_TGJ_NARROW_BAND_MSK) {
 			IWL_WARN(priv, "check 2.4G: wrong narrow\n");
-			error = true;
+			errors |= BIT(0);
 		}
 		if (rxon->flags & RXON_FLG_RADAR_DETECT_MSK) {
 			IWL_WARN(priv, "check 2.4G: wrong radar\n");
-			error = true;
+			errors |= BIT(1);
 		}
 	} else {
 		if (!(rxon->flags & RXON_FLG_SHORT_SLOT_MSK)) {
 			IWL_WARN(priv, "check 5.2G: not short slot!\n");
-			error = true;
+			errors |= BIT(2);
 		}
 		if (rxon->flags & RXON_FLG_CCK_MSK) {
 			IWL_WARN(priv, "check 5.2G: CCK!\n");
-			error = true;
+			errors |= BIT(3);
 		}
 	}
 	if ((rxon->node_addr[0] | rxon->bssid_addr[0]) & 0x1) {
 		IWL_WARN(priv, "mac/bssid mcast!\n");
-		error = true;
+		errors |= BIT(4);
 	}
 
 	/* make sure basic rates 6Mbps and 1Mbps are supported */
 	if ((rxon->ofdm_basic_rates & IWL_RATE_6M_MASK) == 0 &&
 	    (rxon->cck_basic_rates & IWL_RATE_1M_MASK) == 0) {
 		IWL_WARN(priv, "neither 1 nor 6 are basic\n");
-		error = true;
+		errors |= BIT(5);
 	}
 
 	if (le16_to_cpu(rxon->assoc_id) > 2007) {
 		IWL_WARN(priv, "aid > 2007\n");
-		error = true;
+		errors |= BIT(6);
 	}
 
 	if ((rxon->flags & (RXON_FLG_CCK_MSK | RXON_FLG_SHORT_SLOT_MSK))
 			== (RXON_FLG_CCK_MSK | RXON_FLG_SHORT_SLOT_MSK)) {
 		IWL_WARN(priv, "CCK and short slot\n");
-		error = true;
+		errors |= BIT(7);
 	}
 
 	if ((rxon->flags & (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK))
 			== (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK)) {
 		IWL_WARN(priv, "CCK and auto detect");
-		error = true;
+		errors |= BIT(8);
 	}
 
 	if ((rxon->flags & (RXON_FLG_AUTO_DETECT_MSK |
 			    RXON_FLG_TGG_PROTECT_MSK)) ==
 			    RXON_FLG_TGG_PROTECT_MSK) {
 		IWL_WARN(priv, "TGg but no auto-detect\n");
-		error = true;
+		errors |= BIT(9);
 	}
 
-	if (error)
-		IWL_WARN(priv, "Tuning to channel %d\n",
-			    le16_to_cpu(rxon->channel));
-
-	if (error) {
-		IWL_ERR(priv, "Invalid RXON\n");
-		return -EINVAL;
+	if (rxon->channel == 0) {
+		IWL_WARN(priv, "zero channel is invalid\n");
+		errors |= BIT(10);
 	}
-	return 0;
+
+	WARN(errors, "Invalid RXON (%#x), channel %d",
+	     errors, le16_to_cpu(rxon->channel));
+
+	return errors ? -EINVAL : 0;
 }
 
 /**
@@ -861,12 +843,8 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	if (priv->switch_rxon.switch_in_progress) {
+	if (test_and_clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status))
 		ieee80211_chswitch_done(ctx->vif, is_success);
-		mutex_lock(&priv->mutex);
-		priv->switch_rxon.switch_in_progress = false;
-		mutex_unlock(&priv->mutex);
-	}
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -891,6 +869,19 @@ void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 }
 #endif
 
+static void iwlagn_abort_notification_waits(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	struct iwl_notification_wait *wait_entry;
+
+	spin_lock_irqsave(&priv->_agn.notif_wait_lock, flags);
+	list_for_each_entry(wait_entry, &priv->_agn.notif_waits, list)
+		wait_entry->aborted = true;
+	spin_unlock_irqrestore(&priv->_agn.notif_wait_lock, flags);
+
+	wake_up_all(&priv->_agn.notif_waitq);
+}
+
 void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 {
 	unsigned int reload_msec;
@@ -901,6 +892,8 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
+
+	iwlagn_abort_notification_waits(priv);
 
 	/* Keep the restart process from trying to send host
 	 * commands by clearing the ready bit */
@@ -930,7 +923,7 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	}
 
 	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
-		if (priv->cfg->mod_params->restart_fw) {
+		if (iwlagn_mod_params.restart_fw) {
 			IWL_DEBUG(priv, IWL_DL_FW_ERRORS,
 				  "Restarting adapter due to uCode error.\n");
 			queue_work(priv->workqueue, &priv->restart);
@@ -965,12 +958,10 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 	IWL_ERR(priv, "Loaded firmware version: %s\n",
 		priv->hw->wiphy->fw_version);
 
-	priv->cfg->ops->lib->dump_nic_error_log(priv);
-	if (priv->cfg->ops->lib->dump_csr)
-		priv->cfg->ops->lib->dump_csr(priv);
-	if (priv->cfg->ops->lib->dump_fh)
-		priv->cfg->ops->lib->dump_fh(priv, NULL, false);
-	priv->cfg->ops->lib->dump_nic_event_log(priv, false, NULL, false);
+	iwl_dump_nic_error_log(priv);
+	iwl_dump_csr(priv);
+	iwl_dump_fh(priv, NULL, false);
+	iwl_dump_nic_event_log(priv, false, NULL, false);
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS)
 		iwl_print_rx_config_cmd(priv,
@@ -1000,6 +991,8 @@ static int iwl_apm_stop_master(struct iwl_priv *priv)
 void iwl_apm_stop(struct iwl_priv *priv)
 {
 	IWL_DEBUG_INFO(priv, "Stop card, put in low power state\n");
+
+	clear_bit(STATUS_DEVICE_ENABLED, &priv->status);
 
 	/* Stop device's DMA activity */
 	iwl_apm_stop_master(priv);
@@ -1051,7 +1044,6 @@ int iwl_apm_init(struct iwl_priv *priv)
 	/*
 	 * Enable HAP INTA (interrupt from management bus) to
 	 * wake device's PCI Express link L1a -> L0s
-	 * NOTE:  This is no-op for 3945 (non-existent bit)
 	 */
 	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
@@ -1064,20 +1056,18 @@ int iwl_apm_init(struct iwl_priv *priv)
 	 * If not (unlikely), enable L0S, so there is at least some
 	 *    power savings, even without L1.
 	 */
-	if (priv->cfg->base_params->set_l0s) {
-		lctl = iwl_pcie_link_ctl(priv);
-		if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
-					PCI_CFG_LINK_CTRL_VAL_L1_EN) {
-			/* L1-ASPM enabled; disable(!) L0S  */
-			iwl_set_bit(priv, CSR_GIO_REG,
-					CSR_GIO_REG_VAL_L0S_ENABLED);
-			IWL_DEBUG_POWER(priv, "L1 Enabled; Disabling L0S\n");
-		} else {
-			/* L1-ASPM disabled; enable(!) L0S */
-			iwl_clear_bit(priv, CSR_GIO_REG,
-					CSR_GIO_REG_VAL_L0S_ENABLED);
-			IWL_DEBUG_POWER(priv, "L1 Disabled; Enabling L0S\n");
-		}
+	lctl = iwl_pcie_link_ctl(priv);
+	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
+				PCI_CFG_LINK_CTRL_VAL_L1_EN) {
+		/* L1-ASPM enabled; disable(!) L0S  */
+		iwl_set_bit(priv, CSR_GIO_REG,
+				CSR_GIO_REG_VAL_L0S_ENABLED);
+		IWL_DEBUG_POWER(priv, "L1 Enabled; Disabling L0S\n");
+	} else {
+		/* L1-ASPM disabled; enable(!) L0S */
+		iwl_clear_bit(priv, CSR_GIO_REG,
+				CSR_GIO_REG_VAL_L0S_ENABLED);
+		IWL_DEBUG_POWER(priv, "L1 Disabled; Enabling L0S\n");
 	}
 
 	/* Configure analog phase-lock-loop before activating to D0A */
@@ -1118,6 +1108,8 @@ int iwl_apm_init(struct iwl_priv *priv)
 	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
+	set_bit(STATUS_DEVICE_ENABLED, &priv->status);
+
 out:
 	return ret;
 }
@@ -1134,9 +1126,6 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 
 	if (priv->tx_power_user_lmt == tx_power && !force)
 		return 0;
-
-	if (!priv->cfg->ops->lib->send_tx_power)
-		return -EOPNOTSUPP;
 
 	if (tx_power < IWLAGN_TX_POWER_TARGET_POWER_MIN) {
 		IWL_WARN(priv,
@@ -1171,7 +1160,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	prev_tx_power = priv->tx_power_user_lmt;
 	priv->tx_power_user_lmt = tx_power;
 
-	ret = priv->cfg->ops->lib->send_tx_power(priv);
+	ret = iwlagn_send_tx_power(priv);
 
 	/* if fail to set tx_power, restore the orig. tx power */
 	if (ret) {
@@ -1286,7 +1275,7 @@ static int iwl_set_mode(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
 		priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
 
-	return iwlcore_commit_rxon(priv, ctx);
+	return iwlagn_commit_rxon(priv, ctx);
 }
 
 static int iwl_setup_interface(struct iwl_priv *priv,
@@ -1752,7 +1741,7 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 		 * detect failure), then fw_restart module parameter
 		 * need to be check before performing firmware reload
 		 */
-		if (!external && !priv->cfg->mod_params->restart_fw) {
+		if (!external && !iwlagn_mod_params.restart_fw) {
 			IWL_DEBUG_INFO(priv, "Cancel firmware reload based on "
 				       "module parameter setting\n");
 			break;
@@ -1769,6 +1758,7 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct iwl_priv *priv = hw->priv;
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
+	struct iwl_rxon_context *bss_ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl_rxon_context *tmp;
 	u32 interface_modes;
 	int err;
@@ -1777,9 +1767,31 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&priv->mutex);
 
+	if (!ctx->vif || !iwl_is_ready_rf(priv)) {
+		/*
+		 * Huh? But wait ... this can maybe happen when
+		 * we're in the middle of a firmware restart!
+		 */
+		err = -EBUSY;
+		goto out;
+	}
+
 	interface_modes = ctx->interface_modes | ctx->exclusive_interface_modes;
 
 	if (!(interface_modes & BIT(newtype))) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	/*
+	 * Refuse a change that should be done by moving from the PAN
+	 * context to the BSS context instead, if the BSS context is
+	 * available and can support the new interface type.
+	 */
+	if (ctx->ctxid == IWL_RXON_CTX_PAN && !bss_ctx->vif &&
+	    (bss_ctx->interface_modes & BIT(newtype) ||
+	     bss_ctx->exclusive_interface_modes & BIT(newtype))) {
+		BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 		err = -EBUSY;
 		goto out;
 	}
@@ -1804,6 +1816,7 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	/* success */
 	iwl_teardown_interface(priv, vif, true);
 	vif->type = newtype;
+	vif->p2p = newp2p;
 	err = iwl_setup_interface(priv, ctx);
 	WARN_ON(err);
 	/*

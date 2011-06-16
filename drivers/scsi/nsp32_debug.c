@@ -13,7 +13,7 @@ static const char unknown[] = "UNKNOWN";
 
 static const char * group_0_commands[] = {
 /* 00-03 */ "Test Unit Ready", "Rezero Unit", unknown, "Request Sense",
-/* 04-07 */ "Format Unit", "Read Block Limits", unknown, "Reasssign Blocks",
+/* 04-07 */ "Format Unit", "Read Block Limits", unknown, "Reassign Blocks",
 /* 08-0d */ "Read (6)", unknown, "Write (6)", "Seek (6)", unknown, unknown,
 /* 0e-12 */ unknown, "Read Reverse", "Write Filemarks", "Space", "Inquiry",  
 /* 13-16 */ unknown, "Recover Buffered Data", "Mode Select", "Reserve",

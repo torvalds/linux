@@ -143,10 +143,12 @@ static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	int ret;
 
-	BUG_ON(!(cmd->flags & CMD_ASYNC));
+	if (WARN_ON(!(cmd->flags & CMD_ASYNC)))
+		return -EINVAL;
 
 	/* An asynchronous command can not expect an SKB to be set. */
-	BUG_ON(cmd->flags & CMD_WANT_SKB);
+	if (WARN_ON(cmd->flags & CMD_WANT_SKB))
+		return -EINVAL;
 
 	/* Assign a generic callback if one is not provided */
 	if (!cmd->callback)
@@ -169,10 +171,12 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	int cmd_idx;
 	int ret;
 
-	lockdep_assert_held(&priv->mutex);
+	if (WARN_ON(cmd->flags & CMD_ASYNC))
+		return -EINVAL;
 
 	 /* A synchronous command can not have a callback set. */
-	BUG_ON((cmd->flags & CMD_ASYNC) || cmd->callback);
+	if (WARN_ON(cmd->callback))
+		return -EINVAL;
 
 	IWL_DEBUG_INFO(priv, "Attempting to send sync command %s\n",
 			get_cmd_string(cmd->id));
@@ -184,6 +188,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	cmd_idx = iwl_enqueue_hcmd(priv, cmd);
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
+		clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 		IWL_ERR(priv, "Error sending %s: enqueue_hcmd failed: %d\n",
 			  get_cmd_string(cmd->id), ret);
 		return ret;
@@ -260,8 +265,8 @@ int iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len, const void *data)
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,
-		.len = len,
-		.data = data,
+		.len = { len, },
+		.data = { data, },
 	};
 
 	return iwl_send_cmd_sync(priv, &cmd);
@@ -275,8 +280,8 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv,
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,
-		.len = len,
-		.data = data,
+		.len = { len, },
+		.data = { data, },
 	};
 
 	cmd.flags |= CMD_ASYNC;

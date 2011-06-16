@@ -945,7 +945,7 @@ static int load_keys(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_key_info *key = &cp->keys[i];
 
-		hci_add_link_key(hdev, 0, &key->bdaddr, key->val, key->type,
+		hci_add_link_key(hdev, NULL, 0, &key->bdaddr, key->val, key->type,
 								key->pin_len);
 	}
 
@@ -1033,6 +1033,9 @@ static int disconnect(struct sock *sk, u16 index, unsigned char *data, u16 len)
 	}
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
+	if (!conn)
+		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &cp->bdaddr);
+
 	if (!conn) {
 		err = cmd_status(sk, index, MGMT_OP_DISCONNECT, ENOTCONN);
 		goto failed;
@@ -1569,6 +1572,75 @@ static int remove_remote_oob_data(struct sock *sk, u16 index,
 	return err;
 }
 
+static int start_discovery(struct sock *sk, u16 index)
+{
+	u8 lap[3] = { 0x33, 0x8b, 0x9e };
+	struct hci_cp_inquiry cp;
+	struct pending_cmd *cmd;
+	struct hci_dev *hdev;
+	int err;
+
+	BT_DBG("hci%u", index);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_START_DISCOVERY, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_START_DISCOVERY, index, NULL, 0);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto failed;
+	}
+
+	memset(&cp, 0, sizeof(cp));
+	memcpy(&cp.lap, lap, 3);
+	cp.length  = 0x08;
+	cp.num_rsp = 0x00;
+
+	err = hci_send_cmd(hdev, HCI_OP_INQUIRY, sizeof(cp), &cp);
+	if (err < 0)
+		mgmt_pending_remove(cmd);
+
+failed:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
+static int stop_discovery(struct sock *sk, u16 index)
+{
+	struct hci_dev *hdev;
+	struct pending_cmd *cmd;
+	int err;
+
+	BT_DBG("hci%u", index);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_STOP_DISCOVERY, ENODEV);
+
+	hci_dev_lock_bh(hdev);
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_STOP_DISCOVERY, index, NULL, 0);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto failed;
+	}
+
+	err = hci_send_cmd(hdev, HCI_OP_INQUIRY_CANCEL, 0, NULL);
+	if (err < 0)
+		mgmt_pending_remove(cmd);
+
+failed:
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -1677,7 +1749,12 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		err = remove_remote_oob_data(sk, index, buf + sizeof(*hdr),
 									len);
 		break;
-
+	case MGMT_OP_START_DISCOVERY:
+		err = start_discovery(sk, index);
+		break;
+	case MGMT_OP_STOP_DISCOVERY:
+		err = stop_discovery(sk, index);
+		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
 		err = cmd_status(sk, index, opcode, 0x01);
@@ -1784,17 +1861,17 @@ int mgmt_connectable(u16 index, u8 connectable)
 	return ret;
 }
 
-int mgmt_new_key(u16 index, struct link_key *key, u8 old_key_type)
+int mgmt_new_key(u16 index, struct link_key *key, u8 persistent)
 {
 	struct mgmt_ev_new_key ev;
 
 	memset(&ev, 0, sizeof(ev));
 
+	ev.store_hint = persistent;
 	bacpy(&ev.key.bdaddr, &key->bdaddr);
 	ev.key.type = key->type;
 	memcpy(ev.key.val, key->val, 16);
 	ev.key.pin_len = key->pin_len;
-	ev.old_key_type = old_key_type;
 
 	return mgmt_event(MGMT_EV_NEW_KEY, index, &ev, sizeof(ev), NULL);
 }
@@ -1868,11 +1945,12 @@ int mgmt_connect_failed(u16 index, bdaddr_t *bdaddr, u8 status)
 	return mgmt_event(MGMT_EV_CONNECT_FAILED, index, &ev, sizeof(ev), NULL);
 }
 
-int mgmt_pin_code_request(u16 index, bdaddr_t *bdaddr)
+int mgmt_pin_code_request(u16 index, bdaddr_t *bdaddr, u8 secure)
 {
 	struct mgmt_ev_pin_code_request ev;
 
 	bacpy(&ev.bdaddr, bdaddr);
+	ev.secure = secure;
 
 	return mgmt_event(MGMT_EV_PIN_CODE_REQUEST, index, &ev, sizeof(ev),
 									NULL);
@@ -1920,13 +1998,15 @@ int mgmt_pin_code_neg_reply_complete(u16 index, bdaddr_t *bdaddr, u8 status)
 	return err;
 }
 
-int mgmt_user_confirm_request(u16 index, bdaddr_t *bdaddr, __le32 value)
+int mgmt_user_confirm_request(u16 index, bdaddr_t *bdaddr, __le32 value,
+							u8 confirm_hint)
 {
 	struct mgmt_ev_user_confirm_request ev;
 
 	BT_DBG("hci%u", index);
 
 	bacpy(&ev.bdaddr, bdaddr);
+	ev.confirm_hint = confirm_hint;
 	put_unaligned_le32(value, &ev.value);
 
 	return mgmt_event(MGMT_EV_USER_CONFIRM_REQUEST, index, &ev, sizeof(ev),
@@ -2074,4 +2154,10 @@ int mgmt_remote_name(u16 index, bdaddr_t *bdaddr, u8 *name)
 	memcpy(ev.name, name, HCI_MAX_NAME_LENGTH);
 
 	return mgmt_event(MGMT_EV_REMOTE_NAME, index, &ev, sizeof(ev), NULL);
+}
+
+int mgmt_discovering(u16 index, u8 discovering)
+{
+	return mgmt_event(MGMT_EV_DISCOVERING, index, &discovering,
+						sizeof(discovering), NULL);
 }

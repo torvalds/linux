@@ -73,10 +73,9 @@ int iwl_poll_bit(struct iwl_priv *priv, u32 addr,
 	return -ETIMEDOUT;
 }
 
-int iwl_grab_nic_access(struct iwl_priv *priv)
+int iwl_grab_nic_access_silent(struct iwl_priv *priv)
 {
 	int ret;
-	u32 val;
 
 	lockdep_assert_held(&priv->reg_lock);
 
@@ -107,14 +106,23 @@ int iwl_grab_nic_access(struct iwl_priv *priv)
 			   (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
 			    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000);
 	if (ret < 0) {
-		val = iwl_read32(priv, CSR_GP_CNTRL);
-		IWL_ERR(priv,
-			"MAC is in deep sleep!. CSR_GP_CNTRL = 0x%08X\n", val);
 		iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_FORCE_NMI);
 		return -EIO;
 	}
 
 	return 0;
+}
+
+int iwl_grab_nic_access(struct iwl_priv *priv)
+{
+	int ret = iwl_grab_nic_access_silent(priv);
+	if (ret) {
+		u32 val = iwl_read32(priv, CSR_GP_CNTRL);
+		IWL_ERR(priv,
+			"MAC is in deep sleep!. CSR_GP_CNTRL = 0x%08X\n", val);
+	}
+
+	return ret;
 }
 
 void iwl_release_nic_access(struct iwl_priv *priv)
@@ -242,20 +250,32 @@ void iwl_clear_bits_prph(struct iwl_priv *priv, u32 reg, u32 mask)
 	spin_unlock_irqrestore(&priv->reg_lock, flags);
 }
 
-u32 iwl_read_targ_mem(struct iwl_priv *priv, u32 addr)
+void _iwl_read_targ_mem_words(struct iwl_priv *priv, u32 addr,
+			      void *buf, int words)
 {
 	unsigned long flags;
-	u32 value;
+	int offs;
+	u32 *vals = buf;
 
 	spin_lock_irqsave(&priv->reg_lock, flags);
 	iwl_grab_nic_access(priv);
 
 	iwl_write32(priv, HBUS_TARG_MEM_RADDR, addr);
 	rmb();
-	value = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
+
+	for (offs = 0; offs < words; offs++)
+		vals[offs] = iwl_read32(priv, HBUS_TARG_MEM_RDAT);
 
 	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->reg_lock, flags);
+}
+
+u32 iwl_read_targ_mem(struct iwl_priv *priv, u32 addr)
+{
+	u32 value;
+
+	_iwl_read_targ_mem_words(priv, addr, &value, 1);
+
 	return value;
 }
 

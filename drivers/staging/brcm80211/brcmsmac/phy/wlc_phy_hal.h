@@ -18,9 +18,10 @@
 #define _wlc_phy_h_
 
 #include <wlioctl.h>
-#include <siutils.h>
+#include <aiutils.h>
 #include <d11.h>
 #include <wlc_phy_shim.h>
+#include <net/mac80211.h>	/* struct wiphy */
 
 #define	IDCODE_VER_MASK		0x0000000f
 #define	IDCODE_VER_SHIFT	0
@@ -149,7 +150,7 @@ typedef struct shared_phy_params {
 extern shared_phy_t *wlc_phy_shared_attach(shared_phy_params_t *shp);
 extern void wlc_phy_shared_detach(shared_phy_t *phy_sh);
 extern wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype,
-				 char *vars);
+				 char *vars, struct wiphy *wiphy);
 extern void wlc_phy_detach(wlc_phy_t *ppi);
 
 extern bool wlc_phy_get_phyversion(wlc_phy_t *pih, u16 *phytype,

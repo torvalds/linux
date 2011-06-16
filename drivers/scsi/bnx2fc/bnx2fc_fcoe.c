@@ -21,7 +21,7 @@ DEFINE_PER_CPU(struct bnx2fc_percpu_s, bnx2fc_percpu);
 
 #define DRV_MODULE_NAME		"bnx2fc"
 #define DRV_MODULE_VERSION	BNX2FC_VERSION
-#define DRV_MODULE_RELDATE	"Mar 17, 2011"
+#define DRV_MODULE_RELDATE	"Jun 10, 2011"
 
 
 static char version[] __devinitdata =
@@ -612,7 +612,7 @@ static struct fc_host_statistics *bnx2fc_get_host_stats(struct Scsi_Host *shost)
 		BNX2FC_HBA_DBG(lport, "FW stat req timed out\n");
 		return bnx2fc_stats;
 	}
-	bnx2fc_stats->invalid_crc_count += fw_stats->rx_stat1.fc_crc_cnt;
+	bnx2fc_stats->invalid_crc_count += fw_stats->rx_stat2.fc_crc_cnt;
 	bnx2fc_stats->tx_frames += fw_stats->tx_stat.fcoe_tx_pkt_cnt;
 	bnx2fc_stats->tx_words += (fw_stats->tx_stat.fcoe_tx_byte_cnt) / 4;
 	bnx2fc_stats->rx_frames += fw_stats->rx_stat0.fcoe_rx_pkt_cnt;
@@ -664,7 +664,7 @@ static void bnx2fc_link_speed_update(struct fc_lport *lport)
 	struct fcoe_port *port = lport_priv(lport);
 	struct bnx2fc_hba *hba = port->priv;
 	struct net_device *netdev = hba->netdev;
-	struct ethtool_cmd ecmd = { ETHTOOL_GSET };
+	struct ethtool_cmd ecmd;
 
 	if (!dev_ethtool_get_settings(netdev, &ecmd)) {
 		lport->link_supported_speeds &=
@@ -675,12 +675,15 @@ static void bnx2fc_link_speed_update(struct fc_lport *lport)
 		if (ecmd.supported & SUPPORTED_10000baseT_Full)
 			lport->link_supported_speeds |= FC_PORTSPEED_10GBIT;
 
-		if (ecmd.speed == SPEED_1000)
+		switch (ethtool_cmd_speed(&ecmd)) {
+		case SPEED_1000:
 			lport->link_speed = FC_PORTSPEED_1GBIT;
-		if (ecmd.speed == SPEED_10000)
+			break;
+		case SPEED_10000:
 			lport->link_speed = FC_PORTSPEED_10GBIT;
+			break;
+		}
 	}
-	return;
 }
 static int bnx2fc_link_ok(struct fc_lport *lport)
 {
@@ -1130,7 +1133,7 @@ static void bnx2fc_interface_release(struct kref *kref)
 	struct net_device *phys_dev;
 
 	hba = container_of(kref, struct bnx2fc_hba, kref);
-	BNX2FC_HBA_DBG(hba->ctlr.lp, "Interface is being released\n");
+	BNX2FC_MISC_DBG("Interface is being released\n");
 
 	netdev = hba->netdev;
 	phys_dev = hba->phys_dev;
@@ -1254,20 +1257,17 @@ setup_err:
 static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 				  struct device *parent, int npiv)
 {
-	struct fc_lport		*lport = NULL;
+	struct fc_lport		*lport, *n_port;
 	struct fcoe_port	*port;
 	struct Scsi_Host	*shost;
 	struct fc_vport		*vport = dev_to_vport(parent);
 	int			rc = 0;
 
 	/* Allocate Scsi_Host structure */
-	if (!npiv) {
-		lport = libfc_host_alloc(&bnx2fc_shost_template,
-					  sizeof(struct fcoe_port));
-	} else {
-		lport = libfc_vport_create(vport,
-					   sizeof(struct fcoe_port));
-	}
+	if (!npiv)
+		lport = libfc_host_alloc(&bnx2fc_shost_template, sizeof(*port));
+	else
+		lport = libfc_vport_create(vport, sizeof(*port));
 
 	if (!lport) {
 		printk(KERN_ERR PFX "could not allocate scsi host structure\n");
@@ -1285,7 +1285,6 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 		goto lp_config_err;
 
 	if (npiv) {
-		vport = dev_to_vport(parent);
 		printk(KERN_ERR PFX "Setting vport names, 0x%llX 0x%llX\n",
 			vport->node_name, vport->port_name);
 		fc_set_wwnn(lport, vport->node_name);
@@ -1314,12 +1313,17 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 	fc_host_port_type(lport->host) = FC_PORTTYPE_UNKNOWN;
 
 	/* Allocate exchange manager */
-	if (!npiv) {
+	if (!npiv)
 		rc = bnx2fc_em_config(lport);
-		if (rc) {
-			printk(KERN_ERR PFX "Error on bnx2fc_em_config\n");
-			goto shost_err;
-		}
+	else {
+		shost = vport_to_shost(vport);
+		n_port = shost_priv(shost);
+		rc = fc_exch_mgr_list_clone(n_port, lport);
+	}
+
+	if (rc) {
+		printk(KERN_ERR PFX "Error on bnx2fc_em_config\n");
+		goto shost_err;
 	}
 
 	bnx2fc_interface_get(hba);
@@ -1352,8 +1356,6 @@ static void bnx2fc_if_destroy(struct fc_lport *lport)
 	/* Free existing transmit skbs */
 	fcoe_clean_pending_queue(lport);
 
-	bnx2fc_interface_put(hba);
-
 	/* Free queued packets for the receive thread */
 	bnx2fc_clean_rx_queue(lport);
 
@@ -1372,6 +1374,8 @@ static void bnx2fc_if_destroy(struct fc_lport *lport)
 
 	/* Release Scsi_Host */
 	scsi_host_put(lport->host);
+
+	bnx2fc_interface_put(hba);
 }
 
 /**

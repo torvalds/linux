@@ -294,7 +294,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 	dev->mtd.priv = dev;
 	dev->mtd.owner = THIS_MODULE;
 
-	if (add_mtd_device(&dev->mtd)) {
+	if (mtd_device_register(&dev->mtd, NULL, 0)) {
 		/* Device didn't get added, so free the entry */
 		goto devinit_err;
 	}
@@ -465,7 +465,7 @@ static void __devexit block2mtd_exit(void)
 	list_for_each_safe(pos, next, &blkmtd_device_list) {
 		struct block2mtd_dev *dev = list_entry(pos, typeof(*dev), list);
 		block2mtd_sync(&dev->mtd);
-		del_mtd_device(&dev->mtd);
+		mtd_device_unregister(&dev->mtd);
 		INFO("mtd%d: [%s] removed", dev->mtd.index,
 				dev->mtd.name + strlen("block2mtd: "));
 		list_del(&dev->list);

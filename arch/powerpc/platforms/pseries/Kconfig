@@ -3,7 +3,10 @@ config PPC_PSERIES
 	bool "IBM pSeries & new (POWER5-based) iSeries"
 	select MPIC
 	select PCI_MSI
-	select XICS
+	select PPC_XICS
+	select PPC_ICP_NATIVE
+	select PPC_ICP_HV
+	select PPC_ICS_RTAS
 	select PPC_I8259
 	select PPC_RTAS
 	select PPC_RTAS_DAEMON
@@ -46,6 +49,24 @@ config PSERIES_ENERGY
 config SCANLOG
 	tristate "Scanlog dump interface"
 	depends on RTAS_PROC && PPC_PSERIES
+
+config IO_EVENT_IRQ
+	bool "IO Event Interrupt support"
+	depends on PPC_PSERIES
+	default y
+	help
+	  Select this option, if you want to enable support for IO Event
+	  interrupts. IO event interrupt is a mechanism provided by RTAS
+	  to return information about hardware error and non-error events
+	  which may need OS attention. RTAS returns events for multiple
+	  event types and scopes. Device drivers can register their handlers
+	  to receive events.
+
+	  This option will only enable the IO event platform code. You
+	  will still need to enable or compile the actual drivers
+	  that use this infrastruture to handle IO event interrupts.
+
+	  Say Y if you are unsure.
 
 config LPARCFG
 	bool "LPAR Configuration Data"

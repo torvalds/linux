@@ -24,6 +24,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/interrupt.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
 
@@ -234,20 +235,11 @@ stmmac_set_pauseparam(struct net_device *netdev,
 		new_pause |= FLOW_TX;
 
 	priv->flow_ctrl = new_pause;
+	phy->autoneg = pause->autoneg;
 
 	if (phy->autoneg) {
-		if (netif_running(netdev)) {
-			struct ethtool_cmd cmd;
-			/* auto-negotiation automatically restarted */
-			cmd.cmd = ETHTOOL_NWAY_RST;
-			cmd.supported = phy->supported;
-			cmd.advertising = phy->advertising;
-			cmd.autoneg = phy->autoneg;
-			cmd.speed = phy->speed;
-			cmd.duplex = phy->duplex;
-			cmd.phy_address = phy->addr;
-			ret = phy_ethtool_sset(phy, &cmd);
-		}
+		if (netif_running(netdev))
+			ret = phy_start_aneg(phy);
 	} else
 		priv->hw->mac->flow_ctrl(priv->ioaddr, phy->duplex,
 					 priv->flow_ctrl, priv->pause);

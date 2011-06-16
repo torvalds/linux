@@ -2288,7 +2288,3 @@ err_dev:
 	free_netdev(dev);
 	return NULL;
 }
-
-EXPORT_SYMBOL(init_ft1000_card);
-EXPORT_SYMBOL(stop_ft1000_card);
-EXPORT_SYMBOL(flarion_ft1000_cnt);

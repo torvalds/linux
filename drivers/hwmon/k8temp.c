@@ -252,7 +252,7 @@ static int __devinit k8temp_probe(struct pci_dev *pdev,
 
 	data->name = "k8temp";
 	mutex_init(&data->update_lock);
-	dev_set_drvdata(&pdev->dev, data);
+	pci_set_drvdata(pdev, data);
 
 	/* Register sysfs hooks */
 	err = device_create_file(&pdev->dev,
@@ -307,7 +307,7 @@ exit_remove:
 			   &sensor_dev_attr_temp4_input.dev_attr);
 	device_remove_file(&pdev->dev, &dev_attr_name);
 exit_free:
-	dev_set_drvdata(&pdev->dev, NULL);
+	pci_set_drvdata(pdev, NULL);
 	kfree(data);
 exit:
 	return err;
@@ -315,7 +315,7 @@ exit:
 
 static void __devexit k8temp_remove(struct pci_dev *pdev)
 {
-	struct k8temp_data *data = dev_get_drvdata(&pdev->dev);
+	struct k8temp_data *data = pci_get_drvdata(pdev);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	device_remove_file(&pdev->dev,
@@ -327,7 +327,7 @@ static void __devexit k8temp_remove(struct pci_dev *pdev)
 	device_remove_file(&pdev->dev,
 			   &sensor_dev_attr_temp4_input.dev_attr);
 	device_remove_file(&pdev->dev, &dev_attr_name);
-	dev_set_drvdata(&pdev->dev, NULL);
+	pci_set_drvdata(pdev, NULL);
 	kfree(data);
 }
 

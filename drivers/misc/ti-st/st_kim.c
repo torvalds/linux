@@ -30,6 +30,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/sched.h>
+#include <linux/sysfs.h>
 #include <linux/tty.h>
 
 #include <linux/skbuff.h>

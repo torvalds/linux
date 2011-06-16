@@ -81,52 +81,13 @@
  *
 ******************************************************************************/
 
-/*
- * The device's EEPROM semaphore prevents conflicts between driver and uCode
- * when accessing the EEPROM; each access is a series of pulses to/from the
- * EEPROM chip, not a single event, so even reads could conflict if they
- * weren't arbitrated by the semaphore.
- */
-int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv)
-{
-	u16 count;
-	int ret;
-
-	for (count = 0; count < EEPROM_SEM_RETRY_LIMIT; count++) {
-		/* Request semaphore */
-		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
-
-		/* See if we got it */
-		ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
-				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-				EEPROM_SEM_TIMEOUT);
-		if (ret >= 0) {
-			IWL_DEBUG_EEPROM(priv,
-				"Acquired semaphore after %d tries.\n",
-				count+1);
-			return ret;
-		}
-	}
-
-	return ret;
-}
-
-void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv)
-{
-	iwl_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
-		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
-
-}
-
 int iwl_eeprom_check_version(struct iwl_priv *priv)
 {
 	u16 eeprom_ver;
 	u16 calib_ver;
 
 	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
-	calib_ver = priv->cfg->ops->lib->eeprom_ops.calib_version(priv);
+	calib_ver = iwlagn_eeprom_calib_version(priv);
 
 	if (eeprom_ver < priv->cfg->eeprom_ver ||
 	    calib_ver < priv->cfg->eeprom_calib_ver)

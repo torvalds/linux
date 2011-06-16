@@ -1484,7 +1484,7 @@ static int nes_destroy_qp(struct ib_qp *ibqp)
 			(nesqp->ibqp_state == IB_QPS_RTR)) && (nesqp->cm_id)) {
 		cm_id = nesqp->cm_id;
 		cm_event.event = IW_CM_EVENT_CONNECT_REPLY;
-		cm_event.status = IW_CM_EVENT_STATUS_TIMEOUT;
+		cm_event.status = -ETIMEDOUT;
 		cm_event.local_addr = cm_id->local_addr;
 		cm_event.remote_addr = cm_id->remote_addr;
 		cm_event.private_data = NULL;

@@ -38,7 +38,7 @@ MODULE_PARM_DESC(debug,
 	DEBSTATUS);
 
 #define DRIVER_VERSION "0.1"
-#define DRIVER_NAME "Technisat/B2C2 FlexCop II/IIb/III Digital TV PCI Driver"
+#define DRIVER_NAME "flexcop-pci"
 #define DRIVER_AUTHOR "Patrick Boettcher <patrick.boettcher@desy.de>"
 
 struct flexcop_pci {
@@ -290,10 +290,8 @@ static void flexcop_pci_dma_exit(struct flexcop_pci *fc_pci)
 static int flexcop_pci_init(struct flexcop_pci *fc_pci)
 {
 	int ret;
-	u8 card_rev;
 
-	pci_read_config_byte(fc_pci->pdev, PCI_CLASS_REVISION, &card_rev);
-	info("card revision %x", card_rev);
+	info("card revision %x", fc_pci->pdev->revision);
 
 	if ((ret = pci_enable_device(fc_pci->pdev)) != 0)
 		return ret;

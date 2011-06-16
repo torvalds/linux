@@ -38,30 +38,29 @@
 int drm_psb_debug;
 static int drm_psb_trap_pagefaults;
 
-int drm_psb_disable_vsync = 1;
 int drm_psb_no_fb;
-int gfxrtdelay = 2 * 1000;
 
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 
 MODULE_PARM_DESC(debug, "Enable debug output");
 MODULE_PARM_DESC(no_fb, "Disable FBdev");
 MODULE_PARM_DESC(trap_pagefaults, "Error and reset on MMU pagefaults");
-MODULE_PARM_DESC(disable_vsync, "Disable vsync interrupts");
-MODULE_PARM_DESC(force_pipeb, "Forces PIPEB to become primary fb");
-MODULE_PARM_DESC(ta_mem_size, "TA memory size in kiB");
-MODULE_PARM_DESC(ospm, "switch for ospm support");
-MODULE_PARM_DESC(rtpm, "Specifies Runtime PM delay for GFX");
-MODULE_PARM_DESC(hdmi_edid, "EDID info for HDMI monitor");
 module_param_named(debug, drm_psb_debug, int, 0600);
 module_param_named(no_fb, drm_psb_no_fb, int, 0600);
 module_param_named(trap_pagefaults, drm_psb_trap_pagefaults, int, 0600);
-module_param_named(rtpm, gfxrtdelay, int, 0600);
 
 
 static struct pci_device_id pciidlist[] = {
 	{ 0x8086, 0x8108, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_PSB_8108 },
 	{ 0x8086, 0x8109, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_PSB_8109 },
+	{ 0x8086, 0x4100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MRST_4100},
+	{ 0x8086, 0x4101, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MRST_4100},
+	{ 0x8086, 0x4102, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MRST_4100},
+	{ 0x8086, 0x4103, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MRST_4100},
+	{ 0x8086, 0x4104, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MRST_4100},
+	{ 0x8086, 0x4105, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MRST_4100},
+	{ 0x8086, 0x4106, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MRST_4100},
+	{ 0x8086, 0x4107, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MRST_4100},
 	{ 0, 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
@@ -74,10 +73,6 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 		DRM_IO(DRM_PSB_KMS_OFF + DRM_COMMAND_BASE)
 #define DRM_IOCTL_PSB_KMS_ON	\
 		DRM_IO(DRM_PSB_KMS_ON + DRM_COMMAND_BASE)
-#define DRM_IOCTL_PSB_VT_LEAVE	\
-		DRM_IO(DRM_PSB_VT_LEAVE + DRM_COMMAND_BASE)
-#define DRM_IOCTL_PSB_VT_ENTER	\
-		DRM_IO(DRM_PSB_VT_ENTER + DRM_COMMAND_BASE)
 #define DRM_IOCTL_PSB_SIZES	\
 		DRM_IOR(DRM_PSB_SIZES + DRM_COMMAND_BASE, \
 			struct drm_psb_sizes_arg)
@@ -97,18 +92,6 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define DRM_IOCTL_PSB_REGISTER_RW	\
 		DRM_IOWR(DRM_PSB_REGISTER_RW + DRM_COMMAND_BASE, \
 			 struct drm_psb_register_rw_arg)
-#define DRM_IOCTL_PSB_GTT_MAP	\
-		DRM_IOWR(DRM_PSB_GTT_MAP + DRM_COMMAND_BASE, \
-			 struct psb_gtt_mapping_arg)
-#define DRM_IOCTL_PSB_GTT_UNMAP	\
-		DRM_IOW(DRM_PSB_GTT_UNMAP + DRM_COMMAND_BASE, \
-			struct psb_gtt_mapping_arg)
-#define DRM_IOCTL_PSB_GETPAGEADDRS	\
-		DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_GETPAGEADDRS,\
-			 struct drm_psb_getpageaddrs_arg)
-#define DRM_IOCTL_PSB_UPDATE_GUARD	\
-		DRM_IOWR(DRM_PSB_UPDATE_GUARD + DRM_COMMAND_BASE, \
-			 uint32_t)
 #define DRM_IOCTL_PSB_DPST	\
 		DRM_IOWR(DRM_PSB_DPST + DRM_COMMAND_BASE, \
 			 uint32_t)
@@ -122,74 +105,6 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 		DRM_IOWR(DRM_PSB_GET_PIPE_FROM_CRTC_ID + DRM_COMMAND_BASE, \
 			 struct drm_psb_get_pipe_from_crtc_id_arg)
 
-/*
- * TTM execbuf extension.
- */
-
-#define DRM_PSB_CMDBUF		  0x23
-#define DRM_PSB_SCENE_UNREF	  0x24
-#define DRM_IOCTL_PSB_KMS_OFF	  DRM_IO(DRM_PSB_KMS_OFF + DRM_COMMAND_BASE)
-#define DRM_IOCTL_PSB_KMS_ON	  DRM_IO(DRM_PSB_KMS_ON + DRM_COMMAND_BASE)
-/*
- * TTM placement user extension.
- */
-
-#define DRM_PSB_PLACEMENT_OFFSET   (DRM_PSB_SCENE_UNREF + 1)
-
-#define DRM_PSB_TTM_PL_CREATE	 (TTM_PL_CREATE + DRM_PSB_PLACEMENT_OFFSET)
-#define DRM_PSB_TTM_PL_REFERENCE (TTM_PL_REFERENCE + DRM_PSB_PLACEMENT_OFFSET)
-#define DRM_PSB_TTM_PL_UNREF	 (TTM_PL_UNREF + DRM_PSB_PLACEMENT_OFFSET)
-#define DRM_PSB_TTM_PL_SYNCCPU	 (TTM_PL_SYNCCPU + DRM_PSB_PLACEMENT_OFFSET)
-#define DRM_PSB_TTM_PL_WAITIDLE  (TTM_PL_WAITIDLE + DRM_PSB_PLACEMENT_OFFSET)
-#define DRM_PSB_TTM_PL_SETSTATUS (TTM_PL_SETSTATUS + DRM_PSB_PLACEMENT_OFFSET)
-#define DRM_PSB_TTM_PL_CREATE_UB (TTM_PL_CREATE_UB + DRM_PSB_PLACEMENT_OFFSET)
-
-/*
- * TTM fence extension.
- */
-
-#define DRM_PSB_FENCE_OFFSET	   (DRM_PSB_TTM_PL_CREATE_UB + 1)
-#define DRM_PSB_TTM_FENCE_SIGNALED (TTM_FENCE_SIGNALED + DRM_PSB_FENCE_OFFSET)
-#define DRM_PSB_TTM_FENCE_FINISH   (TTM_FENCE_FINISH + DRM_PSB_FENCE_OFFSET)
-#define DRM_PSB_TTM_FENCE_UNREF    (TTM_FENCE_UNREF + DRM_PSB_FENCE_OFFSET)
-
-#define DRM_PSB_FLIP	   (DRM_PSB_TTM_FENCE_UNREF + 1)	/*20*/
-
-#define DRM_IOCTL_PSB_TTM_PL_CREATE    \
-	DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_TTM_PL_CREATE,\
-		 union ttm_pl_create_arg)
-#define DRM_IOCTL_PSB_TTM_PL_REFERENCE \
-	DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_TTM_PL_REFERENCE,\
-		 union ttm_pl_reference_arg)
-#define DRM_IOCTL_PSB_TTM_PL_UNREF    \
-	DRM_IOW(DRM_COMMAND_BASE + DRM_PSB_TTM_PL_UNREF,\
-		struct ttm_pl_reference_req)
-#define DRM_IOCTL_PSB_TTM_PL_SYNCCPU	\
-	DRM_IOW(DRM_COMMAND_BASE + DRM_PSB_TTM_PL_SYNCCPU,\
-		struct ttm_pl_synccpu_arg)
-#define DRM_IOCTL_PSB_TTM_PL_WAITIDLE	 \
-	DRM_IOW(DRM_COMMAND_BASE + DRM_PSB_TTM_PL_WAITIDLE,\
-		struct ttm_pl_waitidle_arg)
-#define DRM_IOCTL_PSB_TTM_PL_SETSTATUS \
-	DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_TTM_PL_SETSTATUS,\
-		 union ttm_pl_setstatus_arg)
-#define DRM_IOCTL_PSB_TTM_PL_CREATE_UB    \
-	DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_TTM_PL_CREATE_UB,\
-		 union ttm_pl_create_ub_arg)
-#define DRM_IOCTL_PSB_TTM_FENCE_SIGNALED \
-	DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_TTM_FENCE_SIGNALED,	\
-		  union ttm_fence_signaled_arg)
-#define DRM_IOCTL_PSB_TTM_FENCE_FINISH \
-	DRM_IOWR(DRM_COMMAND_BASE + DRM_PSB_TTM_FENCE_FINISH,	\
-		 union ttm_fence_finish_arg)
-#define DRM_IOCTL_PSB_TTM_FENCE_UNREF \
-	DRM_IOW(DRM_COMMAND_BASE + DRM_PSB_TTM_FENCE_UNREF,	\
-		 struct ttm_fence_unref_arg)
-
-static int psb_vt_leave_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv);
-static int psb_vt_enter_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv);
 static int psb_sizes_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
 static int psb_dc_state_ioctl(struct drm_device *dev, void * data,
@@ -218,11 +133,6 @@ static struct drm_ioctl_desc psb_ioctls[] = {
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_KMS_ON,
 			psbfb_kms_on_ioctl,
 			DRM_ROOT_ONLY),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_VT_LEAVE, psb_vt_leave_ioctl,
-		      DRM_ROOT_ONLY),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_VT_ENTER,
-			psb_vt_enter_ioctl,
-			DRM_ROOT_ONLY),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_SIZES, psb_sizes_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_DC_STATE, psb_dc_state_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_ADB, psb_adb_ioctl, DRM_AUTH),
@@ -232,92 +142,226 @@ static struct drm_ioctl_desc psb_ioctls[] = {
 		      DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_REGISTER_RW, psb_register_rw_ioctl,
 		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GTT_MAP,
-			psb_gtt_map_meminfo_ioctl,
-			DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GTT_UNMAP,
-			psb_gtt_unmap_meminfo_ioctl,
-			DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GETPAGEADDRS,
-			psb_getpageaddrs_ioctl,
-			DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_DPST, psb_dpst_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GAMMA, psb_gamma_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_DPST_BL, psb_dpst_bl_ioctl, DRM_AUTH),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GET_PIPE_FROM_CRTC_ID,
 					psb_intel_get_pipe_from_crtc_id, 0),
 
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_PL_CREATE, psb_pl_create_ioctl,
-		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_PL_REFERENCE, psb_pl_reference_ioctl,
-		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_PL_UNREF, psb_pl_unref_ioctl,
-		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_PL_SYNCCPU, psb_pl_synccpu_ioctl,
-		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_PL_WAITIDLE, psb_pl_waitidle_ioctl,
-		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_PL_SETSTATUS, psb_pl_setstatus_ioctl,
-		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_PL_CREATE_UB, psb_pl_ub_create_ioctl,
-		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_FENCE_SIGNALED,
-		      psb_fence_signaled_ioctl, DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_FENCE_FINISH, psb_fence_finish_ioctl,
-		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_TTM_FENCE_UNREF, psb_fence_unref_ioctl,
-		      DRM_AUTH),
 };
-
-static void psb_set_uopt(struct drm_psb_uopt *uopt)
-{
-	return;
-}
 
 static void psb_lastclose(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv =
-	    (struct drm_psb_private *) dev->dev_private;
-
 	return;
-
-	if (!dev->dev_private)
-		return;
-
-	mutex_lock(&dev_priv->cmdbuf_mutex);
-	if (dev_priv->context.buffers) {
-		vfree(dev_priv->context.buffers);
-		dev_priv->context.buffers = NULL;
-	}
-	mutex_unlock(&dev_priv->cmdbuf_mutex);
 }
 
 static void psb_do_takedown(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv =
-	    (struct drm_psb_private *) dev->dev_private;
-	struct ttm_bo_device *bdev = &dev_priv->bdev;
+	/* FIXME: do we need to clean up the gtt here ? */
+}
 
+void mrst_get_fuse_settings(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	uint32_t fuse_value = 0;
+	uint32_t fuse_value_tmp = 0;
 
-	if (dev_priv->have_mem_mmu) {
-		ttm_bo_clean_mm(bdev, DRM_PSB_MEM_MMU);
-		dev_priv->have_mem_mmu = 0;
+#define FB_REG06 0xD0810600
+#define FB_MIPI_DISABLE  (1 << 11)
+#define FB_REG09 0xD0810900
+#define FB_REG09 0xD0810900
+#define FB_SKU_MASK  0x7000
+#define FB_SKU_SHIFT 12
+#define FB_SKU_100 0
+#define FB_SKU_100L 1
+#define FB_SKU_83 2
+	pci_write_config_dword(pci_root, 0xD0, FB_REG06);
+	pci_read_config_dword(pci_root, 0xD4, &fuse_value);
+
+	dev_priv->iLVDS_enable = fuse_value & FB_MIPI_DISABLE;
+
+	DRM_INFO("internal display is %s\n",
+		 dev_priv->iLVDS_enable ? "LVDS display" : "MIPI display");
+
+	 /*prevent Runtime suspend at start*/
+	 if (dev_priv->iLVDS_enable) {
+		dev_priv->is_lvds_on = true;
+		dev_priv->is_mipi_on = false;
+	}
+	else {
+		dev_priv->is_mipi_on = true;
+		dev_priv->is_lvds_on = false;
 	}
 
-	if (dev_priv->have_tt) {
-		ttm_bo_clean_mm(bdev, TTM_PL_TT);
-		dev_priv->have_tt = 0;
+	dev_priv->video_device_fuse = fuse_value;
+
+	pci_write_config_dword(pci_root, 0xD0, FB_REG09);
+	pci_read_config_dword(pci_root, 0xD4, &fuse_value);
+
+	DRM_INFO("SKU values is 0x%x. \n", fuse_value);
+	fuse_value_tmp = (fuse_value & FB_SKU_MASK) >> FB_SKU_SHIFT;
+
+	dev_priv->fuse_reg_value = fuse_value;
+
+	switch (fuse_value_tmp) {
+	case FB_SKU_100:
+		dev_priv->core_freq = 200;
+		break;
+	case FB_SKU_100L:
+		dev_priv->core_freq = 100;
+		break;
+	case FB_SKU_83:
+		dev_priv->core_freq = 166;
+		break;
+	default:
+		DRM_ERROR("Invalid SKU values, SKU value = 0x%08x\n", fuse_value_tmp);
+		dev_priv->core_freq = 0;
+	}
+	DRM_INFO("LNC core clk is %dMHz.\n", dev_priv->core_freq);
+	pci_dev_put(pci_root);
+}
+
+void mid_get_pci_revID (struct drm_psb_private *dev_priv)
+{
+	uint32_t platform_rev_id = 0;
+	struct pci_dev *pci_gfx_root = pci_get_bus_and_slot(0, PCI_DEVFN(2, 0));
+
+	/*get the revison ID, B0:D2:F0;0x08 */
+	pci_read_config_dword(pci_gfx_root, 0x08, &platform_rev_id);
+	dev_priv->platform_rev_id = (uint8_t) platform_rev_id;
+	pci_dev_put(pci_gfx_root);
+	PSB_DEBUG_ENTRY("platform_rev_id is %x\n",	dev_priv->platform_rev_id);
+}
+
+void mrst_get_vbt_data(struct drm_psb_private *dev_priv)
+{
+	struct mrst_vbt *vbt = &dev_priv->vbt_data;
+	u32 platform_config_address;
+	u16 new_size;
+	u8 *vbt_virtual;
+	u8 bpi;
+	u8 number_desc = 0;
+	struct mrst_timing_info *dp_ti = &dev_priv->gct_data.DTD;
+	struct gct_r10_timing_info ti;
+	void *pGCT;
+	struct pci_dev *pci_gfx_root = pci_get_bus_and_slot(0, PCI_DEVFN(2, 0));
+
+	/*get the address of the platform config vbt, B0:D2:F0;0xFC */
+	pci_read_config_dword(pci_gfx_root, 0xFC, &platform_config_address);
+	pci_dev_put(pci_gfx_root);
+	DRM_INFO("drm platform config address is %x\n",
+			platform_config_address);
+
+	/* check for platform config address == 0. */
+	/* this means fw doesn't support vbt */
+
+	if (platform_config_address == 0) {
+		vbt->size = 0;
+		return;
 	}
 
-	if (dev_priv->have_camera) {
-		ttm_bo_clean_mm(bdev, TTM_PL_CI);
-		dev_priv->have_camera = 0;
-	}
-	if (dev_priv->have_rar) {
-		ttm_bo_clean_mm(bdev, TTM_PL_RAR);
-		dev_priv->have_rar = 0;
-	}
+	/* get the virtual address of the vbt */
+	vbt_virtual = ioremap(platform_config_address, sizeof(*vbt));
 
+	memcpy(vbt, vbt_virtual, sizeof(*vbt));
+	iounmap(vbt_virtual); /* Free virtual address space */
+
+	printk(KERN_ALERT "GCT revision is %x\n", vbt->revision);
+
+	switch (vbt->revision) {
+	case 0:
+		vbt->mrst_gct = NULL;
+		vbt->mrst_gct = \
+			ioremap(platform_config_address + sizeof(*vbt) - 4,
+					vbt->size - sizeof(*vbt) + 4);
+		pGCT = vbt->mrst_gct;
+		bpi = ((struct mrst_gct_v1 *)pGCT)->PD.BootPanelIndex;
+		dev_priv->gct_data.bpi = bpi;
+		dev_priv->gct_data.pt =
+			((struct mrst_gct_v1 *)pGCT)->PD.PanelType;
+		memcpy(&dev_priv->gct_data.DTD,
+			&((struct mrst_gct_v1 *)pGCT)->panel[bpi].DTD,
+				sizeof(struct mrst_timing_info));
+		dev_priv->gct_data.Panel_Port_Control =
+		  ((struct mrst_gct_v1 *)pGCT)->panel[bpi].Panel_Port_Control;
+		dev_priv->gct_data.Panel_MIPI_Display_Descriptor =
+		  ((struct mrst_gct_v1 *)pGCT)->panel[bpi].Panel_MIPI_Display_Descriptor;
+		break;
+	case 1:
+		vbt->mrst_gct = NULL;
+		vbt->mrst_gct = \
+			ioremap(platform_config_address + sizeof(*vbt) - 4,
+					vbt->size - sizeof(*vbt) + 4);
+		pGCT = vbt->mrst_gct;
+		bpi = ((struct mrst_gct_v2 *)pGCT)->PD.BootPanelIndex;
+		dev_priv->gct_data.bpi = bpi;
+		dev_priv->gct_data.pt =
+			((struct mrst_gct_v2 *)pGCT)->PD.PanelType;
+		memcpy(&dev_priv->gct_data.DTD,
+			&((struct mrst_gct_v2 *)pGCT)->panel[bpi].DTD,
+				sizeof(struct mrst_timing_info));
+		dev_priv->gct_data.Panel_Port_Control =
+		  ((struct mrst_gct_v2 *)pGCT)->panel[bpi].Panel_Port_Control;
+		dev_priv->gct_data.Panel_MIPI_Display_Descriptor =
+		  ((struct mrst_gct_v2 *)pGCT)->panel[bpi].Panel_MIPI_Display_Descriptor;
+		break;
+	case 0x10:
+		/*header definition changed from rev 01 (v2) to rev 10h. */
+		/*so, some values have changed location*/
+		new_size = vbt->checksum; /*checksum contains lo size byte*/
+		/*LSB of mrst_gct contains hi size byte*/
+		new_size |= ((0xff & (unsigned int)vbt->mrst_gct)) << 8;
+
+		vbt->checksum = vbt->size; /*size contains the checksum*/
+		if (new_size > 0xff)
+			vbt->size = 0xff; /*restrict size to 255*/
+		else
+			vbt->size = new_size;
+
+		/* number of descriptors defined in the GCT */
+		number_desc = ((0xff00 & (unsigned int)vbt->mrst_gct)) >> 8;
+		bpi = ((0xff0000 & (unsigned int)vbt->mrst_gct)) >> 16;
+		vbt->mrst_gct = NULL;
+		vbt->mrst_gct = \
+			ioremap(platform_config_address + GCT_R10_HEADER_SIZE,
+				GCT_R10_DISPLAY_DESC_SIZE * number_desc);
+		pGCT = vbt->mrst_gct;
+		pGCT = (u8 *)pGCT + (bpi*GCT_R10_DISPLAY_DESC_SIZE);
+		dev_priv->gct_data.bpi = bpi; /*save boot panel id*/
+
+		/*copy the GCT display timings into a temp structure*/
+		memcpy(&ti, pGCT, sizeof(struct gct_r10_timing_info));
+
+		/*now copy the temp struct into the dev_priv->gct_data*/
+		dp_ti->pixel_clock = ti.pixel_clock;
+		dp_ti->hactive_hi = ti.hactive_hi;
+		dp_ti->hactive_lo = ti.hactive_lo;
+		dp_ti->hblank_hi = ti.hblank_hi;
+		dp_ti->hblank_lo = ti.hblank_lo;
+		dp_ti->hsync_offset_hi = ti.hsync_offset_hi;
+		dp_ti->hsync_offset_lo = ti.hsync_offset_lo;
+		dp_ti->hsync_pulse_width_hi = ti.hsync_pulse_width_hi;
+		dp_ti->hsync_pulse_width_lo = ti.hsync_pulse_width_lo;
+		dp_ti->vactive_hi = ti.vactive_hi;
+		dp_ti->vactive_lo = ti.vactive_lo;
+		dp_ti->vblank_hi = ti.vblank_hi;
+		dp_ti->vblank_lo = ti.vblank_lo;
+		dp_ti->vsync_offset_hi = ti.vsync_offset_hi;
+		dp_ti->vsync_offset_lo = ti.vsync_offset_lo;
+		dp_ti->vsync_pulse_width_hi = ti.vsync_pulse_width_hi;
+		dp_ti->vsync_pulse_width_lo = ti.vsync_pulse_width_lo;
+
+		/*mov the MIPI_Display_Descriptor data from GCT to dev priv*/
+		dev_priv->gct_data.Panel_MIPI_Display_Descriptor =
+							*((u8 *)pGCT + 0x0d);
+		dev_priv->gct_data.Panel_MIPI_Display_Descriptor |=
+						(*((u8 *)pGCT + 0x0e)) << 8;
+		break;
+	default:
+		printk(KERN_ERR "Unknown revision of GCT!\n");
+		vbt->size = 0;
+	}
 }
 
 static void psb_get_core_freq(struct drm_device *dev)
@@ -358,36 +402,10 @@ static void psb_get_core_freq(struct drm_device *dev)
 	}
 }
 
-#define FB_REG06 0xD0810600
-#define FB_TOPAZ_DISABLE BIT0
-#define FB_MIPI_DISABLE  BIT11
-#define FB_REG09 0xD0810900
-#define FB_SKU_MASK  (BIT12|BIT13|BIT14)
-#define FB_SKU_SHIFT 12
-#define FB_SKU_100 0
-#define FB_SKU_100L 1
-#define FB_SKU_83 2
-
-bool mid_get_pci_revID(struct drm_psb_private *dev_priv)
-{
-	uint32_t platform_rev_id = 0;
-	struct pci_dev *pci_gfx_root = pci_get_bus_and_slot(0, PCI_DEVFN(2, 0));
-
-	/*get the revison ID, B0:D2:F0;0x08 */
-	pci_read_config_dword(pci_gfx_root, 0x08, &platform_rev_id);
-	dev_priv->platform_rev_id = (uint8_t) platform_rev_id;
-	pci_dev_put(pci_gfx_root);
-	PSB_DEBUG_ENTRY("platform_rev_id is %x\n",
-					dev_priv->platform_rev_id);
-
-	return true;
-}
-
 static int psb_do_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv =
 	    (struct drm_psb_private *) dev->dev_private;
-	struct ttm_bo_device *bdev = &dev_priv->bdev;
 	struct psb_gtt *pg = dev_priv->pg;
 
 	uint32_t stolen_gtt;
@@ -395,16 +413,6 @@ static int psb_do_init(struct drm_device *dev)
 	uint32_t tt_pages;
 
 	int ret = -ENOMEM;
-
-
-	/*
-	 * Initialize sequence numbers for the different command
-	 * submission mechanisms.
-	 */
-
-	dev_priv->sequence[PSB_ENGINE_2D] = 0;
-	dev_priv->sequence[PSB_ENGINE_VIDEO] = 0;
-	dev_priv->sequence[LNC_ENGINE_ENCODE] = 0;
 
 	if (pg->mmu_gatt_start & 0x0FFFFFFF) {
 		DRM_ERROR("Gatt must be 256M aligned. This is a bug.\n");
@@ -445,6 +453,7 @@ static int psb_do_init(struct drm_device *dev)
 	    pg->gatt_pages : PSB_TT_PRIV0_PLIMIT;
 	tt_start = dev_priv->gatt_free_offset - pg->mmu_gatt_start;
 	tt_pages -= tt_start >> PAGE_SHIFT;
+	/* FIXME: can we kill ta_mem_size ? */
 	dev_priv->sizes.ta_mem_size = 0;
 
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK0);
@@ -453,30 +462,10 @@ static int psb_do_init(struct drm_device *dev)
         PSB_WSGX32(PSB_RSGX32(PSB_CR_BIF_CTRL) | _PSB_MMU_ER_MASK,
 							PSB_CR_BIF_CTRL);
 	psb_spank(dev_priv);
-       
-      	PSB_WSGX32(pg->mmu_gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
 
-	/* TT region managed by TTM. */
-	if (!ttm_bo_init_mm(bdev, TTM_PL_TT,
-			pg->gatt_pages -
-			(pg->ci_start >> PAGE_SHIFT) -
-			((dev_priv->ci_region_size + dev_priv->rar_region_size)
-			 >> PAGE_SHIFT))) {
+	/* mmu_gatt ?? */
+      	PSB_WSGX32(pg->gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
 
-		dev_priv->have_tt = 1;
-		dev_priv->sizes.tt_size =
-			(tt_pages << PAGE_SHIFT) / (1024 * 1024) / 2;
-	}
-
-	if (!ttm_bo_init_mm(bdev,
-			DRM_PSB_MEM_MMU,
-			PSB_MEM_TT_START >> PAGE_SHIFT)) {
-		dev_priv->have_mem_mmu = 1;
-		dev_priv->sizes.mmu_size =
-			PSB_MEM_TT_START / (1024*1024);
-	}
-
-	PSB_DEBUG_INIT("Init MSVDX\n");
 	return 0;
 out_err:
 	psb_do_takedown(dev);
@@ -510,38 +499,18 @@ static int psb_driver_unload(struct drm_device *dev)
 
 			down_read(&pg->sem);
 			psb_mmu_remove_pfn_sequence(
-					psb_mmu_get_default_pd
-					(dev_priv->mmu),
-					pg->mmu_gatt_start,
-					pg->vram_stolen_size >> PAGE_SHIFT);
-			if (pg->ci_stolen_size != 0)
-				psb_mmu_remove_pfn_sequence(
-					psb_mmu_get_default_pd
-					(dev_priv->mmu),
-					pg->ci_start,
-					pg->ci_stolen_size >> PAGE_SHIFT);
-			if (pg->rar_stolen_size != 0)
-				psb_mmu_remove_pfn_sequence(
-					psb_mmu_get_default_pd
-					(dev_priv->mmu),
-					pg->rar_start,
-					pg->rar_stolen_size >> PAGE_SHIFT);
+				psb_mmu_get_default_pd
+				(dev_priv->mmu),
+				pg->mmu_gatt_start,
+				dev_priv->vram_stolen_size >> PAGE_SHIFT);
 			up_read(&pg->sem);
 			psb_mmu_driver_takedown(dev_priv->mmu);
 			dev_priv->mmu = NULL;
 		}
-		psb_gtt_takedown(dev_priv->pg, 1);
+		psb_gtt_takedown(dev);
 		if (dev_priv->scratch_page) {
 			__free_page(dev_priv->scratch_page);
 			dev_priv->scratch_page = NULL;
-		}
-		if (dev_priv->has_bo_device) {
-			ttm_bo_device_release(&dev_priv->bdev);
-			dev_priv->has_bo_device = 0;
-		}
-		if (dev_priv->has_fence_device) {
-			ttm_fence_device_release(&dev_priv->fdev);
-			dev_priv->has_fence_device = 0;
 		}
 		if (dev_priv->vdc_reg) {
 			iounmap(dev_priv->vdc_reg);
@@ -552,12 +521,6 @@ static int psb_driver_unload(struct drm_device *dev)
 			dev_priv->sgx_reg = NULL;
 		}
 
-		if (dev_priv->tdev)
-			ttm_object_device_release(&dev_priv->tdev);
-
-		if (dev_priv->has_global)
-			psb_ttm_global_release(dev_priv);
-
 		kfree(dev_priv);
 		dev->dev_private = NULL;
 
@@ -565,7 +528,7 @@ static int psb_driver_unload(struct drm_device *dev)
 		psb_intel_destroy_bios(dev);
 	}
 
-	ospm_power_uninit();
+	gma_power_uninit(dev);
 
 	return 0;
 }
@@ -574,7 +537,6 @@ static int psb_driver_unload(struct drm_device *dev)
 static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct drm_psb_private *dev_priv;
-	struct ttm_bo_device *bdev;
 	unsigned long resource_start;
 	struct psb_gtt *pg;
 	unsigned long irqflags;
@@ -584,39 +546,16 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;
-	INIT_LIST_HEAD(&dev_priv->video_ctx);
 
-	dev_priv->num_pipe = 2;
-
+	if (IS_MRST(dev))
+		dev_priv->num_pipe = 1;
+	else
+		dev_priv->num_pipe = 2;
 
 	dev_priv->dev = dev;
-	bdev = &dev_priv->bdev;
-
-	ret = psb_ttm_global_init(dev_priv);
-	if (unlikely(ret != 0))
-		goto out_err;
-	dev_priv->has_global = 1;
-
-	dev_priv->tdev = ttm_object_device_init
-		(dev_priv->mem_global_ref.object, PSB_OBJECT_HASH_ORDER);
-	if (unlikely(dev_priv->tdev == NULL))
-		goto out_err;
-
-	mutex_init(&dev_priv->temp_mem);
-	mutex_init(&dev_priv->cmdbuf_mutex);
-	mutex_init(&dev_priv->reset_mutex);
-	INIT_LIST_HEAD(&dev_priv->context.validate_list);
-	INIT_LIST_HEAD(&dev_priv->context.kern_validate_list);
-
-/*	mutex_init(&dev_priv->dsr_mutex); */
-
-	spin_lock_init(&dev_priv->reloc_lock);
-
-	DRM_INIT_WAITQUEUE(&dev_priv->rel_mapped_queue);
 
 	dev->dev_private = (void *) dev_priv;
 	dev_priv->chipset = chipset;
-	psb_set_uopt(&dev_priv->uopt);
 
 	PSB_DEBUG_INIT("Mapping MMIO\n");
 	resource_start = pci_resource_start(dev->pdev, PSB_MMIO_RESOURCE);
@@ -626,34 +565,28 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (!dev_priv->vdc_reg)
 		goto out_err;
 
-	dev_priv->sgx_reg = ioremap(resource_start + PSB_SGX_OFFSET,
+	if (IS_MRST(dev))
+		dev_priv->sgx_reg = ioremap(resource_start + MRST_SGX_OFFSET,
+							PSB_SGX_SIZE);
+	else
+		dev_priv->sgx_reg = ioremap(resource_start + PSB_SGX_OFFSET,
 							PSB_SGX_SIZE);
 
 	if (!dev_priv->sgx_reg)
 		goto out_err;
 
-	psb_get_core_freq(dev);
-	psb_intel_opregion_init(dev);
-	psb_intel_init_bios(dev);
-
-	PSB_DEBUG_INIT("Init TTM fence and BO driver\n");
+	if (IS_MRST(dev)) {
+		mrst_get_fuse_settings(dev);
+		mrst_get_vbt_data(dev_priv);
+		mid_get_pci_revID(dev_priv);
+	} else {
+		psb_get_core_freq(dev);
+		psb_intel_opregion_init(dev);
+		psb_intel_init_bios(dev);
+	}
 
 	/* Init OSPM support */
-	ospm_power_init(dev);
-
-	ret = psb_ttm_fence_device_init(&dev_priv->fdev);
-	if (unlikely(ret != 0))
-		goto out_err;
-
-	dev_priv->has_fence_device = 1;
-	ret = ttm_bo_device_init(bdev,
-				 dev_priv->bo_global_ref.ref.object,
-				 &psb_ttm_bo_driver,
-				 DRM_PSB_FILE_PAGE_OFFSET, false);
-	if (unlikely(ret != 0))
-		goto out_err;
-	dev_priv->has_bo_device = 1;
-	ttm_lock_init(&dev_priv->ttm_lock);
+	gma_power_init(dev);
 
 	ret = -ENOMEM;
 
@@ -663,15 +596,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	set_pages_uc(dev_priv->scratch_page, 1);
 
-	dev_priv->pg = psb_gtt_alloc(dev);
-	if (!dev_priv->pg)
-		goto out_err;
-
-	ret = psb_gtt_init(dev_priv->pg, 0);
-	if (ret)
-		goto out_err;
-
-	ret = psb_gtt_mm_init(dev_priv->pg);
+	ret = psb_gtt_init(dev, 0);
 	if (ret)
 		goto out_err;
 
@@ -686,40 +611,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	tt_pages = (pg->gatt_pages < PSB_TT_PRIV0_PLIMIT) ?
 		(pg->gatt_pages) : PSB_TT_PRIV0_PLIMIT;
 
-	/* CI/RAR use the lower half of TT. */
-	pg->ci_start = (tt_pages / 2) << PAGE_SHIFT;
-	pg->rar_start = pg->ci_start + pg->ci_stolen_size;
-
-
-	/*
-	 * Make MSVDX/TOPAZ MMU aware of the CI stolen memory area.
-	 */
-	if (dev_priv->pg->ci_stolen_size != 0) {
-		down_read(&pg->sem);
-		ret = psb_mmu_insert_pfn_sequence(psb_mmu_get_default_pd
-				(dev_priv->mmu),
-				dev_priv->ci_region_start >> PAGE_SHIFT,
-				pg->mmu_gatt_start + pg->ci_start,
-				pg->ci_stolen_size >> PAGE_SHIFT, 0);
-		up_read(&pg->sem);
-		if (ret)
-			goto out_err;
-	}
-
-	/*
-	 * Make MSVDX/TOPAZ MMU aware of the rar stolen memory area.
-	 */
-	if (dev_priv->pg->rar_stolen_size != 0) {
-		down_read(&pg->sem);
-		ret = psb_mmu_insert_pfn_sequence(
-				psb_mmu_get_default_pd(dev_priv->mmu),
-				dev_priv->rar_region_start >> PAGE_SHIFT,
-				pg->mmu_gatt_start + pg->rar_start,
-				pg->rar_stolen_size >> PAGE_SHIFT, 0);
-		up_read(&pg->sem);
-		if (ret)
-			goto out_err;
-	}
 
 	dev_priv->pf_pd = psb_mmu_alloc_pd(dev_priv->mmu, 1, 0);
 	if (!dev_priv->pf_pd)
@@ -728,13 +619,12 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	psb_mmu_set_pd_context(psb_mmu_get_default_pd(dev_priv->mmu), 0);
 	psb_mmu_set_pd_context(dev_priv->pf_pd, 1);
 
-	spin_lock_init(&dev_priv->sequence_lock);
-
-	PSB_DEBUG_INIT("Begin to init MSVDX/Topaz\n");
-
 	ret = psb_do_init(dev);
 	if (ret)
 		return ret;
+
+	PSB_WSGX32(0x20000000, PSB_CR_PDS_EXEC_BASE);
+	PSB_WSGX32(0x30000000, PSB_CR_BIF_3D_REQ_BASE);
 
 /*	igd_opregion_init(&dev_priv->opregion_dev); */
 	acpi_video_register();
@@ -783,11 +673,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 #endif
 	/*Intel drm driver load is done, continue doing pvr load*/
 	DRM_DEBUG("Pvr driver load\n");
-
-/*	if (PVRCore_Init() < 0)
-		goto out_err; */
-/*	if (MRSTLFBInit(dev) < 0)
-		goto out_err;*/
 	return 0;
 out_err:
 	psb_driver_unload(dev);
@@ -799,45 +684,6 @@ int psb_driver_device_is_agp(struct drm_device *dev)
 	return 0;
 }
 
-
-static int psb_vt_leave_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv)
-{
-	struct drm_psb_private *dev_priv = psb_priv(dev);
-	struct ttm_bo_device *bdev = &dev_priv->bdev;
-	struct ttm_mem_type_manager *man;
-	int ret;
-
-	ret = ttm_vt_lock(&dev_priv->ttm_lock, 1,
-			     psb_fpriv(file_priv)->tfile);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = ttm_bo_evict_mm(&dev_priv->bdev, TTM_PL_TT);
-	if (unlikely(ret != 0))
-		goto out_unlock;
-
-	man = &bdev->man[TTM_PL_TT];
-
-#if 0		/* What to do with this ? */
-	if (unlikely(!drm_mm_clean(&man->manager)))
-		DRM_INFO("Warning: GATT was not clean after VT switch.\n");
-#endif
-
-	ttm_bo_swapout_all(&dev_priv->bdev);
-
-	return 0;
-out_unlock:
-	(void) ttm_vt_unlock(&dev_priv->ttm_lock);
-	return ret;
-}
-
-static int psb_vt_enter_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv)
-{
-	struct drm_psb_private *dev_priv = psb_priv(dev);
-	return ttm_vt_unlock(&dev_priv->ttm_lock);
-}
 
 static int psb_sizes_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
@@ -945,13 +791,12 @@ static int psb_dpst_ioctl(struct drm_device *dev, void *data,
 	uint32_t y;
 	uint32_t reg;
 
-	if (!ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-							OSPM_UHB_ONLY_IF_ON))
-		return 0;
+	if (!gma_power_begin(dev, 0))
+		return -EIO;
 
 	reg = PSB_RVDC32(PIPEASRC);
 
-	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+	gma_power_end(dev);
 
 	/* horizontal is the left 16 bits */
 	x = reg >> 16;
@@ -1028,13 +873,12 @@ static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 		drm_fb = obj_to_fb(obj);
 		psb_fb = to_psb_fb(drm_fb);
 
-		if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND,
-					      OSPM_UHB_ONLY_IF_ON)) {
-			REG_WRITE(DSPASURF, psb_fb->offset);
+		if (gma_power_begin(dev, 0)) {
+			REG_WRITE(DSPASURF, psb_fb->gtt->offset);
 			REG_READ(DSPASURF);
-			ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+			gma_power_end(dev);
 		} else {
-			dev_priv->saveDSPASURF = psb_fb->offset;
+			dev_priv->saveDSPASURF = psb_fb->gtt->offset;
 		}
 
 		return 0;
@@ -1107,8 +951,8 @@ static int psb_stolen_memory_ioctl(struct drm_device *dev, void *data,
 	struct drm_psb_private *dev_priv = psb_priv(dev);
 	struct drm_psb_stolen_memory_arg *arg = data;
 
-	arg->base = dev_priv->pg->stolen_base;
-	arg->size = dev_priv->pg->vram_stolen_size;
+	arg->base = dev_priv->stolen_base;
+	arg->size = dev_priv->vram_stolen_size;
 
 	return 0;
 }
@@ -1118,11 +962,10 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_psb_private *dev_priv = psb_priv(dev);
 	struct drm_psb_register_rw_arg *arg = data;
-	UHBUsage usage =
-	  arg->b_force_hw_on ? OSPM_UHB_FORCE_POWER_ON : OSPM_UHB_ONLY_IF_ON;
+	bool usage = arg->b_force_hw_on ? true : false;
 
 	if (arg->display_write_mask != 0) {
-		if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND, usage)) {
+		if (gma_power_begin(dev, usage)) {
 			if (arg->display_write_mask & REGRWBITS_PFIT_CONTROLS)
 				PSB_WVDC32(arg->display.pfit_controls,
 					   PFIT_CONTROL);
@@ -1147,7 +990,7 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 			if (arg->display_write_mask & REGRWBITS_VTOTAL_B)
 				PSB_WVDC32(arg->display.vtotal_b,
 					   VTOTAL_B);
-			ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+			gma_power_end(dev);
 		} else {
 			if (arg->display_write_mask & REGRWBITS_PFIT_CONTROLS)
 				dev_priv->savePFIT_CONTROL =
@@ -1172,7 +1015,7 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (arg->display_read_mask != 0) {
-		if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND, usage)) {
+		if (gma_power_begin(dev, usage)) {
 			if (arg->display_read_mask &
 			    REGRWBITS_PFIT_CONTROLS)
 				arg->display.pfit_controls =
@@ -1193,7 +1036,7 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 				arg->display.vtotal_a = PSB_RVDC32(VTOTAL_A);
 			if (arg->display_read_mask & REGRWBITS_VTOTAL_B)
 				arg->display.vtotal_b = PSB_RVDC32(VTOTAL_B);
-			ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+			gma_power_end(dev);
 		} else {
 			if (arg->display_read_mask &
 			    REGRWBITS_PFIT_CONTROLS)
@@ -1219,7 +1062,7 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (arg->overlay_write_mask != 0) {
-		if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND, usage)) {
+		if (gma_power_begin(dev, usage)) {
 			if (arg->overlay_write_mask & OV_REGRWBITS_OGAM_ALL) {
 				PSB_WVDC32(arg->overlay.OGAMC5, OV_OGAMC5);
 				PSB_WVDC32(arg->overlay.OGAMC4, OV_OGAMC4);
@@ -1270,7 +1113,7 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 					}
 				}
 			}
-			ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+			gma_power_end(dev);
 		} else {
 			if (arg->overlay_write_mask & OV_REGRWBITS_OGAM_ALL) {
 				dev_priv->saveOV_OGAMC5 = arg->overlay.OGAMC5;
@@ -1296,7 +1139,7 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (arg->overlay_read_mask != 0) {
-		if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND, usage)) {
+		if (gma_power_begin(dev, usage)) {
 			if (arg->overlay_read_mask & OV_REGRWBITS_OGAM_ALL) {
 				arg->overlay.OGAMC5 = PSB_RVDC32(OV_OGAMC5);
 				arg->overlay.OGAMC4 = PSB_RVDC32(OV_OGAMC4);
@@ -1317,7 +1160,7 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 				arg->overlay.OVADD = PSB_RVDC32(OV_OVADD);
 			if (arg->overlay_read_mask & OVC_REGRWBITS_OVADD)
 				arg->overlay.OVADD = PSB_RVDC32(OVC_OVADD);
-			ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+			gma_power_end(dev);
 		} else {
 			if (arg->overlay_read_mask & OV_REGRWBITS_OGAM_ALL) {
 				arg->overlay.OGAMC5 = dev_priv->saveOV_OGAMC5;
@@ -1343,7 +1186,7 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (arg->sprite_enable_mask != 0) {
-		if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND, usage)) {
+		if (gma_power_begin(dev, usage)) {
 			PSB_WVDC32(0x1F3E, DSPARB);
 			PSB_WVDC32(arg->sprite.dspa_control
 					| PSB_RVDC32(DSPACNTR), DSPACNTR);
@@ -1358,22 +1201,22 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 			PSB_WVDC32(arg->sprite.dspc_size, DSPCSIZE);
 			PSB_WVDC32(arg->sprite.dspc_surface, DSPCSURF);
 			PSB_RVDC32(DSPCSURF);
-			ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+			gma_power_end(dev);
 		}
 	}
 
 	if (arg->sprite_disable_mask != 0) {
-		if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND, usage)) {
+		if (gma_power_begin(dev, usage)) {
 			PSB_WVDC32(0x3F3E, DSPARB);
 			PSB_WVDC32(0x0, DSPCCNTR);
 			PSB_WVDC32(arg->sprite.dspc_surface, DSPCSURF);
 			PSB_RVDC32(DSPCSURF);
-			ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+			gma_power_end(dev);
 		}
 	}
 
 	if (arg->subpicture_enable_mask != 0) {
-		if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND, usage)) {
+		if (gma_power_begin(dev, usage)) {
 			uint32_t temp;
 			if (arg->subpicture_enable_mask & REGRWBITS_DSPACNTR) {
 				temp =  PSB_RVDC32(DSPACNTR);
@@ -1417,12 +1260,12 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 				PSB_WVDC32(temp, DSPCSURF);
 				PSB_RVDC32(DSPCSURF);
 			}
-			ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+			gma_power_end(dev);
 		}
 	}
 
 	if (arg->subpicture_disable_mask != 0) {
-		if (ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND, usage)) {
+		if (gma_power_begin(dev, usage)) {
 			uint32_t temp;
 			if (arg->subpicture_disable_mask & REGRWBITS_DSPACNTR) {
 				temp =  PSB_RVDC32(DSPACNTR);
@@ -1463,42 +1306,20 @@ static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 				PSB_WVDC32(temp, DSPCSURF);
 				PSB_RVDC32(DSPCSURF);
 			}
-			ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+			gma_power_end(dev);
 		}
 	}
 
 	return 0;
 }
 
-/* always available as we are SIGIO'd */
-static unsigned int psb_poll(struct file *filp,
-			     struct poll_table_struct *wait)
-{
-	return POLLIN | POLLRDNORM;
-}
-
-/* Not sure what we will need yet - in the PVR driver this disappears into
-   a tangle of abstracted handlers and per process crap */
-
-struct psb_priv {
-	int dummy;
-};
-
 static int psb_driver_open(struct drm_device *dev, struct drm_file *priv)
 {
-	struct psb_priv *psb = kzalloc(sizeof(struct psb_priv), GFP_KERNEL);
-	if (psb == NULL)
-		return -ENOMEM;
-	priv->driver_priv = psb;
-	DRM_DEBUG("\n");
-	/*return PVRSRVOpen(dev, priv);*/
 	return 0;
 }
 
 static void psb_driver_close(struct drm_device *dev, struct drm_file *priv)
 {
-	kfree(priv->driver_priv);
-	priv->driver_priv = NULL;
 }
 
 static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
@@ -1517,30 +1338,9 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		pm_runtime_allow(&dev->pdev->dev);
 		dev_priv->rpm_enabled = 1;
 	}
-	/*
-	 * The driver private ioctls and TTM ioctls should be
-	 * thread-safe.
-	 */
-
-	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END)
-	     && (nr < DRM_COMMAND_BASE + dev->driver->num_ioctls)) {
-		struct drm_ioctl_desc *ioctl =
-					&psb_ioctls[nr - DRM_COMMAND_BASE];
-
-		if (unlikely(ioctl->cmd != cmd)) {
-			DRM_ERROR(
-				"Invalid drm cmnd %d ioctl->cmd %x, cmd %x\n",
-				nr - DRM_COMMAND_BASE, ioctl->cmd, cmd);
-			return -EINVAL;
-		}
-
-		return drm_ioctl(filp, cmd, arg);
-	}
-	/*
-	 * Not all old drm ioctls are thread-safe.
-	 */
-
 	return drm_ioctl(filp, cmd, arg);
+	
+	/* FIXME: do we need to wrap the other side of this */
 }
 
 
@@ -1557,16 +1357,21 @@ static void psb_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-
 static const struct dev_pm_ops psb_pm_ops = {
 	.runtime_suspend = psb_runtime_suspend,
 	.runtime_resume = psb_runtime_resume,
 	.runtime_idle = psb_runtime_idle,
 };
 
+static struct vm_operations_struct psb_gem_vm_ops = {
+	.fault = psb_gem_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
+
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | \
-			   DRIVER_IRQ_VBL | DRIVER_MODESET,
+			   DRIVER_IRQ_VBL | DRIVER_MODESET| DRIVER_GEM ,
 	.load = psb_driver_load,
 	.unload = psb_driver_unload,
 
@@ -1580,27 +1385,29 @@ static struct drm_driver driver = {
 	.enable_vblank = psb_enable_vblank,
 	.disable_vblank = psb_disable_vblank,
 	.get_vblank_counter = psb_get_vblank_counter,
-	.firstopen = NULL,
 	.lastclose = psb_lastclose,
 	.open = psb_driver_open,
-	.postclose = psb_driver_close,
-#if 0	/* ACFIXME */
-	.get_map_ofs = drm_core_get_map_ofs,
-	.get_reg_ofs = drm_core_get_reg_ofs,
-	.proc_init = psb_proc_init,
-	.proc_cleanup = psb_proc_cleanup,
-#endif
 	.preclose = psb_driver_preclose,
+	.postclose = psb_driver_close,
+	.reclaim_buffers = drm_core_reclaim_buffers,
+
+	.gem_init_object = psb_gem_init_object,
+	.gem_free_object = psb_gem_free_object,
+	.gem_vm_ops = &psb_gem_vm_ops,
+	.dumb_create = psb_gem_dumb_create,
+	.dumb_map_offset = psb_gem_dumb_map_gtt,
+	.dumb_destroy = psb_gem_dumb_destroy,
+
 	.fops = {
 		 .owner = THIS_MODULE,
-		 .open = psb_open,
-		 .release = psb_release,
+		 .open = drm_open,
+		 .release = drm_release,
 		 .unlocked_ioctl = psb_unlocked_ioctl,
-		 .mmap = psb_mmap,
-		 .poll = psb_poll,
+		 .mmap = drm_gem_mmap,
+		 .poll = drm_poll,
 		 .fasync = drm_fasync,
 		 .read = drm_read,
-		 },
+	 },
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = PSB_DRM_DRIVER_DATE,
@@ -1612,8 +1419,8 @@ static struct drm_driver driver = {
 static struct pci_driver psb_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pciidlist,
-	.resume = ospm_power_resume,
-	.suspend = ospm_power_suspend,
+	.resume = gma_power_resume,
+	.suspend = gma_power_suspend,
 	.probe = psb_probe,
 	.remove = psb_remove,
 #ifdef CONFIG_PM

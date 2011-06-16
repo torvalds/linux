@@ -989,8 +989,8 @@ static int mif6_add(struct net *net, struct mr6_table *mrt,
 }
 
 static struct mfc6_cache *ip6mr_cache_find(struct mr6_table *mrt,
-					   struct in6_addr *origin,
-					   struct in6_addr *mcastgrp)
+					   const struct in6_addr *origin,
+					   const struct in6_addr *mcastgrp)
 {
 	int line = MFC6_HASH(mcastgrp, origin);
 	struct mfc6_cache *c;
@@ -1354,7 +1354,8 @@ int __init ip6_mr_init(void)
 		goto add_proto_fail;
 	}
 #endif
-	rtnl_register(RTNL_FAMILY_IP6MR, RTM_GETROUTE, NULL, ip6mr_rtm_dumproute);
+	rtnl_register(RTNL_FAMILY_IP6MR, RTM_GETROUTE, NULL,
+		      ip6mr_rtm_dumproute, NULL);
 	return 0;
 #ifdef CONFIG_IPV6_PIMSM_V2
 add_proto_fail:

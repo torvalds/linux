@@ -50,13 +50,13 @@ static int atl1c_get_settings(struct net_device *netdev,
 	ecmd->transceiver = XCVR_INTERNAL;
 
 	if (adapter->link_speed != SPEED_0) {
-		ecmd->speed = adapter->link_speed;
+		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 		if (adapter->link_duplex == FULL_DUPLEX)
 			ecmd->duplex = DUPLEX_FULL;
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 
@@ -77,7 +77,8 @@ static int atl1c_set_settings(struct net_device *netdev,
 	if (ecmd->autoneg == AUTONEG_ENABLE) {
 		autoneg_advertised = ADVERTISED_Autoneg;
 	} else {
-		if (ecmd->speed == SPEED_1000) {
+		u32 speed = ethtool_cmd_speed(ecmd);
+		if (speed == SPEED_1000) {
 			if (ecmd->duplex != DUPLEX_FULL) {
 				if (netif_msg_link(adapter))
 					dev_warn(&adapter->pdev->dev,
@@ -86,7 +87,7 @@ static int atl1c_set_settings(struct net_device *netdev,
 				return -EINVAL;
 			}
 			autoneg_advertised = ADVERTISED_1000baseT_Full;
-		} else if (ecmd->speed == SPEED_100) {
+		} else if (speed == SPEED_100) {
 			if (ecmd->duplex == DUPLEX_FULL)
 				autoneg_advertised = ADVERTISED_100baseT_Full;
 			else

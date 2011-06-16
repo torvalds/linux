@@ -385,7 +385,7 @@ vCommandTimer (
                 spin_unlock_irq(&pDevice->lock);
                 vCommandTimerWait((void *)pDevice, 10);
                 return;
-            };
+            }
 
             if (pMgmt->uScanChannel == 0 ) {
                 pMgmt->uScanChannel = pDevice->byMinChannel;
@@ -519,7 +519,7 @@ vCommandTimer (
                 vCommandTimerWait((void *)pDevice, 10);
                 spin_unlock_irq(&pDevice->lock);
                 return;
-            };
+            }
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" CARDbRadioPowerOff\n");
 	//2008-09-02  <mark>	by chester
            // CARDbRadioPowerOff(pDevice);
@@ -532,7 +532,7 @@ vCommandTimer (
                 vCommandTimerWait((void *)pDevice, 10);
                 spin_unlock_irq(&pDevice->lock);
                 return;
-            };
+            }
 //2008-09-02  <mark> by chester
            // CARDbRadioPowerOff(pDevice);
             s_bCommandComplete(pDevice);
@@ -619,7 +619,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                     vMgrCreateOwnIBSS((void *)pDevice, &Status);
                     if (Status != CMD_STATUS_SUCCESS){
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " WLAN_CMD_IBSS_CREATE fail ! \n");
-                    };
+                    }
                     BSSvAddMulticastNode(pDevice);
                 }
             }
@@ -631,7 +631,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                     vMgrCreateOwnIBSS((void *)pDevice, &Status);
                     if (Status != CMD_STATUS_SUCCESS){
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" WLAN_CMD_IBSS_CREATE fail ! \n");
-                    };
+                    }
                     BSSvAddMulticastNode(pDevice);
                     if (netif_queue_stopped(pDevice->dev)){
                         netif_wake_queue(pDevice->dev);
@@ -783,7 +783,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                 vMgrCreateOwnIBSS((void *)pDevice, &Status);
                 if (Status != CMD_STATUS_SUCCESS){
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " vMgrCreateOwnIBSS fail ! \n");
-                };
+                }
                 // alway turn off unicast bit
                 MACvRegBitsOff(pDevice->PortOffset, MAC_REG_RCR, RCR_UNICAST);
                 pDevice->byRxMode &= ~RCR_UNICAST;
@@ -814,7 +814,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                     }
                     pMgmt->sNodeDBTable[0].wEnQueueCnt--;
                 }
-            };
+            }
 
             // PS nodes tx
             for (ii = 1; ii < (MAX_NODE_NUM + 1); ii++) {

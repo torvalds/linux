@@ -423,7 +423,16 @@ static void cx18_process_eeprom(struct cx18 *cx)
 		return;
 
 	/* autodetect tuner standard */
-	if (tv.tuner_formats & V4L2_STD_PAL) {
+#define TVEEPROM_TUNER_FORMAT_ALL (V4L2_STD_B  | V4L2_STD_GH | \
+				   V4L2_STD_MN | \
+				   V4L2_STD_PAL_I | \
+				   V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC | \
+				   V4L2_STD_DK)
+	if ((tv.tuner_formats & TVEEPROM_TUNER_FORMAT_ALL)
+					== TVEEPROM_TUNER_FORMAT_ALL) {
+		CX18_DEBUG_INFO("Worldwide tuner detected\n");
+		cx->std = V4L2_STD_ALL;
+	} else if (tv.tuner_formats & V4L2_STD_PAL) {
 		CX18_DEBUG_INFO("PAL tuner detected\n");
 		cx->std |= V4L2_STD_PAL_BG | V4L2_STD_PAL_H;
 	} else if (tv.tuner_formats & V4L2_STD_NTSC) {
@@ -818,7 +827,7 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *pci_dev,
 	cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
 	pci_write_config_word(pci_dev, PCI_COMMAND, cmd);
 
-	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &cx->card_rev);
+	cx->card_rev = pci_dev->revision;
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER, &pci_latency);
 
 	if (pci_latency < 64 && cx18_pci_latency) {
@@ -1001,7 +1010,15 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	if (cx->card->hw_all & CX18_HW_TVEEPROM) {
 		/* Based on the model number the cardtype may be changed.
 		   The PCI IDs are not always reliable. */
+		const struct cx18_card *orig_card = cx->card;
 		cx18_process_eeprom(cx);
+
+		if (cx->card != orig_card) {
+			/* Changed the cardtype; re-reset the I2C chips */
+			cx18_gpio_init(cx);
+			cx18_call_hw(cx, CX18_HW_GPIO_RESET_CTRL,
+					core, reset, (u32) CX18_GPIO_RESET_I2C);
+		}
 	}
 	if (cx->card->comment)
 		CX18_INFO("%s", cx->card->comment);
@@ -1087,6 +1104,8 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	/* The tuner is fixed to the standard. The other inputs (e.g. S-Video)
 	   are not. */
 	cx->tuner_std = cx->std;
+	if (cx->std == V4L2_STD_ALL)
+		cx->std = V4L2_STD_NTSC_M;
 
 	retval = cx18_streams_setup(cx);
 	if (retval) {
@@ -1133,6 +1152,7 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	int fw_retry_count = 3;
 	struct v4l2_frequency vf;
 	struct cx18_open_id fh;
+	v4l2_std_id std;
 
 	fh.cx = cx;
 
@@ -1220,7 +1240,8 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	/* Let the VIDIOC_S_STD ioctl do all the work, keeps the code
 	   in one place. */
 	cx->std++;		/* Force full standard initialization */
-	cx18_s_std(NULL, &fh, &cx->tuner_std);
+	std = (cx->tuner_std == V4L2_STD_ALL) ? V4L2_STD_NTSC_M : cx->tuner_std;
+	cx18_s_std(NULL, &fh, &std);
 	cx18_s_frequency(NULL, &fh, &vf);
 	return 0;
 }

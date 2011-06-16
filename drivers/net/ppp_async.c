@@ -30,6 +30,7 @@
 #include <linux/ppp_channel.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>

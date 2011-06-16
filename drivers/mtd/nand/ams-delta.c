@@ -235,8 +235,8 @@ static int __devinit ams_delta_init(struct platform_device *pdev)
 	}
 
 	/* Register the partitions */
-	add_mtd_partitions(ams_delta_mtd, partition_info,
-			   ARRAY_SIZE(partition_info));
+	mtd_device_register(ams_delta_mtd, partition_info,
+			    ARRAY_SIZE(partition_info));
 
 	goto out;
 

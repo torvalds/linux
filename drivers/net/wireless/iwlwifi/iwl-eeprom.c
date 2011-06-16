@@ -142,6 +142,45 @@ static const u8 iwl_eeprom_band_7[] = {       /* 5.2 ht40 channel */
  *
 ******************************************************************************/
 
+/*
+ * The device's EEPROM semaphore prevents conflicts between driver and uCode
+ * when accessing the EEPROM; each access is a series of pulses to/from the
+ * EEPROM chip, not a single event, so even reads could conflict if they
+ * weren't arbitrated by the semaphore.
+ */
+static int iwl_eeprom_acquire_semaphore(struct iwl_priv *priv)
+{
+	u16 count;
+	int ret;
+
+	for (count = 0; count < EEPROM_SEM_RETRY_LIMIT; count++) {
+		/* Request semaphore */
+		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+
+		/* See if we got it */
+		ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				EEPROM_SEM_TIMEOUT);
+		if (ret >= 0) {
+			IWL_DEBUG_EEPROM(priv,
+				"Acquired semaphore after %d tries.\n",
+				count+1);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+static void iwl_eeprom_release_semaphore(struct iwl_priv *priv)
+{
+	iwl_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
+		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+
+}
+
 static int iwl_eeprom_verify_signature(struct iwl_priv *priv)
 {
 	u32 gp = iwl_read32(priv, CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
@@ -177,15 +216,14 @@ static int iwl_eeprom_verify_signature(struct iwl_priv *priv)
 
 static void iwl_set_otp_access(struct iwl_priv *priv, enum iwl_access_mode mode)
 {
-	u32 otpgp;
+	iwl_read32(priv, CSR_OTP_GP_REG);
 
-	otpgp = iwl_read32(priv, CSR_OTP_GP_REG);
 	if (mode == IWL_OTP_ACCESS_ABSOLUTE)
 		iwl_clear_bit(priv, CSR_OTP_GP_REG,
-				CSR_OTP_GP_REG_OTP_ACCESS_MODE);
+			      CSR_OTP_GP_REG_OTP_ACCESS_MODE);
 	else
 		iwl_set_bit(priv, CSR_OTP_GP_REG,
-				CSR_OTP_GP_REG_OTP_ACCESS_MODE);
+			    CSR_OTP_GP_REG_OTP_ACCESS_MODE);
 }
 
 static int iwlcore_get_nvm_type(struct iwl_priv *priv, u32 hw_rev)
@@ -213,12 +251,6 @@ static int iwlcore_get_nvm_type(struct iwl_priv *priv, u32 hw_rev)
 		break;
 	}
 	return  nvm_type;
-}
-
-const u8 *iwlcore_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
-{
-	BUG_ON(offset >= priv->cfg->base_params->eeprom_size);
-	return &priv->eeprom[offset];
 }
 
 static int iwl_init_otp_access(struct iwl_priv *priv)
@@ -427,7 +459,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 	}
 
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
-	ret = priv->cfg->ops->lib->eeprom_ops.acquire_semaphore(priv);
+	ret = iwl_eeprom_acquire_semaphore(priv);
 	if (ret < 0) {
 		IWL_ERR(priv, "Failed to acquire EEPROM semaphore.\n");
 		ret = -ENOENT;
@@ -494,7 +526,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 
 	ret = 0;
 done:
-	priv->cfg->ops->lib->eeprom_ops.release_semaphore(priv);
+	iwl_eeprom_release_semaphore(priv);
 
 err:
 	if (ret)
@@ -716,13 +748,6 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 					&& !(eeprom_ch_info[ch].
 					     flags & EEPROM_CHANNEL_RADAR))
 				       ? "" : "not ");
-
-			/* Set the tx_power_user_lmt to the highest power
-			 * supported by any channel */
-			if (eeprom_ch_info[ch].max_power_avg >
-						priv->tx_power_user_lmt)
-				priv->tx_power_user_lmt =
-				    eeprom_ch_info[ch].max_power_avg;
 
 			ch_info++;
 		}

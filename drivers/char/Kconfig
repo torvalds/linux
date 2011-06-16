@@ -523,7 +523,7 @@ config RAW_DRIVER
           with the O_DIRECT flag.
 
 config MAX_RAW_DEVS
-	int "Maximum number of RAW devices to support (1-8192)"
+	int "Maximum number of RAW devices to support (1-65536)"
 	depends on RAW_DRIVER
 	default "256"
 	help

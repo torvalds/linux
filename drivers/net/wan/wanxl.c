@@ -22,6 +22,7 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/netdevice.h>
 #include <linux/hdlc.h>

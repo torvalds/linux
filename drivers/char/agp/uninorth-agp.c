@@ -80,7 +80,7 @@ static void uninorth_tlbflush(struct agp_memory *mem)
 			       ctrl | UNI_N_CFG_GART_INVAL);
 	pci_write_config_dword(agp_bridge->dev, UNI_N_CFG_GART_CTRL, ctrl);
 
-	if (uninorth_rev <= 0x30) {
+	if (!mem && uninorth_rev <= 0x30) {
 		pci_write_config_dword(agp_bridge->dev, UNI_N_CFG_GART_CTRL,
 				       ctrl | UNI_N_CFG_GART_2xRESET);
 		pci_write_config_dword(agp_bridge->dev, UNI_N_CFG_GART_CTRL,

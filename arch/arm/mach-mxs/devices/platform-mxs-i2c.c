@@ -22,13 +22,14 @@
 	[_id] = mxs_i2c_data_entry_single(soc, _id)
 
 #ifdef CONFIG_SOC_IMX28
-const struct mxs_i2c_data mx28_mxs_i2c_data[] __initconst = {
+const struct mxs_mxs_i2c_data mx28_mxs_i2c_data[] __initconst = {
 	mxs_i2c_data_entry(MX28, 0),
 	mxs_i2c_data_entry(MX28, 1),
 };
 #endif
 
-struct platform_device *__init mxs_add_mxs_i2c(const struct mxs_i2c_data *data)
+struct platform_device *__init mxs_add_mxs_i2c(
+		const struct mxs_mxs_i2c_data *data)
 {
 	struct resource res[] = {
 		{

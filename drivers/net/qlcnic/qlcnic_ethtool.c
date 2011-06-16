@@ -166,7 +166,7 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 				     ADVERTISED_1000baseT_Half |
 				     ADVERTISED_1000baseT_Full);
 
-		ecmd->speed = adapter->link_speed;
+		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 		ecmd->duplex = adapter->link_duplex;
 		ecmd->autoneg = adapter->link_autoneg;
 
@@ -183,15 +183,15 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		}
 
 		if (netif_running(dev) && adapter->has_link_events) {
-			ecmd->speed = adapter->link_speed;
+			ethtool_cmd_speed_set(ecmd, adapter->link_speed);
 			ecmd->autoneg = adapter->link_autoneg;
 			ecmd->duplex = adapter->link_duplex;
 			goto skip;
 		}
 
 		val = QLCRD32(adapter, P3P_LINK_SPEED_REG(pcifn));
-		ecmd->speed = P3P_LINK_SPEED_MHZ *
-			P3P_LINK_SPEED_VAL(pcifn, val);
+		ethtool_cmd_speed_set(ecmd, P3P_LINK_SPEED_MHZ *
+				      P3P_LINK_SPEED_VAL(pcifn, val));
 		ecmd->duplex = DUPLEX_FULL;
 		ecmd->autoneg = AUTONEG_DISABLE;
 	} else
@@ -284,50 +284,44 @@ skip:
 static int
 qlcnic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
+	u32 config = 0;
+	u32 ret = 0;
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	__u32 status;
+
+	if (adapter->ahw->port_type != QLCNIC_GBE)
+		return -EOPNOTSUPP;
 
 	/* read which mode */
-	if (adapter->ahw->port_type == QLCNIC_GBE) {
-		/* autonegotiation */
-		if (qlcnic_fw_cmd_set_phy(adapter,
-			       QLCNIC_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-			       ecmd->autoneg) != 0)
-			return -EIO;
-		else
-			adapter->link_autoneg = ecmd->autoneg;
+	if (ecmd->duplex)
+		config |= 0x1;
 
-		if (qlcnic_fw_cmd_query_phy(adapter,
-			      QLCNIC_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-			      &status) != 0)
-			return -EIO;
+	if (ecmd->autoneg)
+		config |= 0x2;
 
-		switch (ecmd->speed) {
-		case SPEED_10:
-			qlcnic_set_phy_speed(status, 0);
-			break;
-		case SPEED_100:
-			qlcnic_set_phy_speed(status, 1);
-			break;
-		case SPEED_1000:
-			qlcnic_set_phy_speed(status, 2);
-			break;
-		}
+	switch (ethtool_cmd_speed(ecmd)) {
+	case SPEED_10:
+		config |= (0 << 8);
+		break;
+	case SPEED_100:
+		config |= (1 << 8);
+		break;
+	case SPEED_1000:
+		config |= (10 << 8);
+		break;
+	default:
+		return -EIO;
+	}
 
-		if (ecmd->duplex == DUPLEX_HALF)
-			qlcnic_clear_phy_duplex(status);
-		if (ecmd->duplex == DUPLEX_FULL)
-			qlcnic_set_phy_duplex(status);
-		if (qlcnic_fw_cmd_set_phy(adapter,
-			       QLCNIC_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-			       *((int *)&status)) != 0)
-			return -EIO;
-		else {
-			adapter->link_speed = ecmd->speed;
-			adapter->link_duplex = ecmd->duplex;
-		}
-	} else
+	ret = qlcnic_fw_cmd_set_port(adapter, config);
+
+	if (ret == QLCNIC_RCODE_NOT_SUPPORTED)
 		return -EOPNOTSUPP;
+	else if (ret)
+		return -EIO;
+
+	adapter->link_speed = ethtool_cmd_speed(ecmd);
+	adapter->link_duplex = ecmd->duplex;
+	adapter->link_autoneg = ecmd->autoneg;
 
 	if (!netif_running(dev))
 		return 0;
@@ -472,6 +466,39 @@ qlcnic_set_ringparam(struct net_device *dev,
 	adapter->num_txd = num_txd;
 
 	return qlcnic_reset_context(adapter);
+}
+
+static void qlcnic_get_channels(struct net_device *dev,
+		struct ethtool_channels *channel)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(dev);
+
+	channel->max_rx = rounddown_pow_of_two(min_t(int,
+			adapter->max_rx_ques, num_online_cpus()));
+	channel->max_tx = adapter->max_tx_ques;
+
+	channel->rx_count = adapter->max_sds_rings;
+	channel->tx_count = adapter->max_tx_ques;
+}
+
+static int qlcnic_set_channels(struct net_device *dev,
+		struct ethtool_channels *channel)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(dev);
+	int err;
+
+	if (channel->other_count || channel->combined_count ||
+	    channel->tx_count != channel->max_tx)
+		return -EINVAL;
+
+	err = qlcnic_validate_max_rss(dev, channel->max_rx, channel->rx_count);
+	if (err)
+		return err;
+
+	err = qlcnic_set_max_rss(adapter, channel->rx_count);
+	netdev_info(dev, "allocated 0x%x sds rings\n",
+				 adapter->max_sds_rings);
+	return err;
 }
 
 static void
@@ -764,73 +791,6 @@ qlcnic_get_ethtool_stats(struct net_device *dev,
 	qlcnic_fill_device_stats(&index, data, &port_stats.tx);
 }
 
-static int qlcnic_set_tx_csum(struct net_device *dev, u32 data)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(dev);
-
-	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED))
-		return -EOPNOTSUPP;
-	if (data)
-		dev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-	else
-		dev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-
-	return 0;
-
-}
-static u32 qlcnic_get_tx_csum(struct net_device *dev)
-{
-	return dev->features & NETIF_F_IP_CSUM;
-}
-
-static u32 qlcnic_get_rx_csum(struct net_device *dev)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	return adapter->rx_csum;
-}
-
-static int qlcnic_set_rx_csum(struct net_device *dev, u32 data)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(dev);
-
-	if ((adapter->flags & QLCNIC_ESWITCH_ENABLED))
-		return -EOPNOTSUPP;
-	if (!!data) {
-		adapter->rx_csum = !!data;
-		return 0;
-	}
-
-	if (dev->features & NETIF_F_LRO) {
-		if (qlcnic_config_hw_lro(adapter, QLCNIC_LRO_DISABLED))
-			return -EIO;
-
-		dev->features &= ~NETIF_F_LRO;
-		qlcnic_send_lro_cleanup(adapter);
-		dev_info(&adapter->pdev->dev,
-					"disabling LRO as rx_csum is off\n");
-	}
-	adapter->rx_csum = !!data;
-	return 0;
-}
-
-static u32 qlcnic_get_tso(struct net_device *dev)
-{
-	return (dev->features & (NETIF_F_TSO | NETIF_F_TSO6)) != 0;
-}
-
-static int qlcnic_set_tso(struct net_device *dev, u32 data)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_TSO))
-		return -EOPNOTSUPP;
-	if (data)
-		dev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
-	else
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-
-	return 0;
-}
-
 static int qlcnic_set_led(struct net_device *dev,
 			  enum ethtool_phys_id_state state)
 {
@@ -839,7 +799,6 @@ static int qlcnic_set_led(struct net_device *dev,
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
-		adapter->blink_was_down = false;
 		if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 			if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 				return -EIO;
@@ -848,7 +807,7 @@ static int qlcnic_set_led(struct net_device *dev,
 				clear_bit(__QLCNIC_RESETTING, &adapter->state);
 				return -EIO;
 			}
-			adapter->blink_was_down = true;
+			set_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state);
 		}
 
 		if (adapter->nic_ops->config_led(adapter, 1, 0xf) == 0)
@@ -859,18 +818,17 @@ static int qlcnic_set_led(struct net_device *dev,
 		break;
 
 	case ETHTOOL_ID_INACTIVE:
-		if (adapter->nic_ops->config_led(adapter, 0, 0xf) == 0)
-			return 0;
+		if (adapter->nic_ops->config_led(adapter, 0, 0xf))
+			dev_err(&adapter->pdev->dev,
+				"Failed to reset LED blink state.\n");
 
-		dev_err(&adapter->pdev->dev,
-			"Failed to reset LED blink state.\n");
 		break;
 
 	default:
 		return -EINVAL;
 	}
 
-	if (adapter->blink_was_down) {
+	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state)) {
 		qlcnic_diag_free_res(dev, max_sds_rings);
 		clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	}
@@ -993,50 +951,6 @@ static int qlcnic_get_intr_coalesce(struct net_device *netdev,
 	return 0;
 }
 
-static int qlcnic_set_flags(struct net_device *netdev, u32 data)
-{
-	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	int hw_lro;
-
-	if (ethtool_invalid_flags(netdev, data, ETH_FLAG_LRO))
-		return -EINVAL;
-
-	if (data & ETH_FLAG_LRO) {
-
-		if (netdev->features & NETIF_F_LRO)
-			return 0;
-
-		if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO))
-			return -EINVAL;
-
-		if (!adapter->rx_csum) {
-			dev_info(&adapter->pdev->dev, "rx csum is off, "
-				"cannot toggle lro\n");
-			return -EINVAL;
-		}
-
-		hw_lro = QLCNIC_LRO_ENABLED;
-		netdev->features |= NETIF_F_LRO;
-
-	} else {
-
-		if (!(netdev->features & NETIF_F_LRO))
-			return 0;
-
-		hw_lro = 0;
-		netdev->features &= ~NETIF_F_LRO;
-	}
-
-	if (qlcnic_config_hw_lro(adapter, hw_lro))
-		return -EIO;
-
-	if ((hw_lro == 0) && qlcnic_send_lro_cleanup(adapter))
-		return -EIO;
-
-
-	return 0;
-}
-
 static u32 qlcnic_get_msglevel(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
@@ -1051,6 +965,84 @@ static void qlcnic_set_msglevel(struct net_device *netdev, u32 msglvl)
 	adapter->msg_enable = msglvl;
 }
 
+static int
+qlcnic_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
+
+	dump->len = fw_dump->tmpl_hdr->size + fw_dump->size;
+	dump->flag = fw_dump->tmpl_hdr->drv_cap_mask;
+	dump->version = adapter->fw_version;
+	return 0;
+}
+
+static int
+qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
+			void *buffer)
+{
+	int i, copy_sz;
+	u32 *hdr_ptr, *data;
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
+
+	if (qlcnic_api_lock(adapter))
+		return -EIO;
+	if (!fw_dump->clr) {
+		netdev_info(netdev, "Dump not available\n");
+		qlcnic_api_unlock(adapter);
+		return -EINVAL;
+	}
+	/* Copy template header first */
+	copy_sz = fw_dump->tmpl_hdr->size;
+	hdr_ptr = (u32 *) fw_dump->tmpl_hdr;
+	data = (u32 *) buffer;
+	for (i = 0; i < copy_sz/sizeof(u32); i++)
+		*data++ = cpu_to_le32(*hdr_ptr++);
+
+	/* Copy captured dump data */
+	memcpy(buffer + copy_sz, fw_dump->data, fw_dump->size);
+	dump->len = copy_sz + fw_dump->size;
+	dump->flag = fw_dump->tmpl_hdr->drv_cap_mask;
+
+	/* Free dump area once data has been captured */
+	vfree(fw_dump->data);
+	fw_dump->data = NULL;
+	fw_dump->clr = 0;
+	qlcnic_api_unlock(adapter);
+
+	return 0;
+}
+
+static int
+qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
+{
+	int ret = 0;
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
+
+	if (val->flag == QLCNIC_FORCE_FW_DUMP_KEY) {
+		netdev_info(netdev, "Forcing a FW dump\n");
+		qlcnic_dev_request_reset(adapter);
+	} else {
+		if (val->flag > QLCNIC_DUMP_MASK_MAX ||
+			val->flag < QLCNIC_DUMP_MASK_MIN) {
+				netdev_info(netdev,
+				"Invalid dump level: 0x%x\n", val->flag);
+				ret = -EINVAL;
+				goto out;
+		}
+		if (qlcnic_api_lock(adapter))
+			return -EIO;
+		fw_dump->tmpl_hdr->drv_cap_mask = val->flag & 0xff;
+		qlcnic_api_unlock(adapter);
+		netdev_info(netdev, "Driver mask changed to: 0x%x\n",
+			fw_dump->tmpl_hdr->drv_cap_mask);
+	}
+out:
+	return ret;
+}
+
 const struct ethtool_ops qlcnic_ethtool_ops = {
 	.get_settings = qlcnic_get_settings,
 	.set_settings = qlcnic_set_settings,
@@ -1062,26 +1054,22 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 	.get_eeprom = qlcnic_get_eeprom,
 	.get_ringparam = qlcnic_get_ringparam,
 	.set_ringparam = qlcnic_set_ringparam,
+	.get_channels = qlcnic_get_channels,
+	.set_channels = qlcnic_set_channels,
 	.get_pauseparam = qlcnic_get_pauseparam,
 	.set_pauseparam = qlcnic_set_pauseparam,
-	.get_tx_csum = qlcnic_get_tx_csum,
-	.set_tx_csum = qlcnic_set_tx_csum,
-	.set_sg = ethtool_op_set_sg,
-	.get_tso = qlcnic_get_tso,
-	.set_tso = qlcnic_set_tso,
 	.get_wol = qlcnic_get_wol,
 	.set_wol = qlcnic_set_wol,
 	.self_test = qlcnic_diag_test,
 	.get_strings = qlcnic_get_strings,
 	.get_ethtool_stats = qlcnic_get_ethtool_stats,
 	.get_sset_count = qlcnic_get_sset_count,
-	.get_rx_csum = qlcnic_get_rx_csum,
-	.set_rx_csum = qlcnic_set_rx_csum,
 	.get_coalesce = qlcnic_get_intr_coalesce,
 	.set_coalesce = qlcnic_set_intr_coalesce,
-	.get_flags = ethtool_op_get_flags,
-	.set_flags = qlcnic_set_flags,
 	.set_phys_id = qlcnic_set_led,
 	.set_msglevel = qlcnic_set_msglevel,
 	.get_msglevel = qlcnic_get_msglevel,
+	.get_dump_flag = qlcnic_get_dump_flag,
+	.get_dump_data = qlcnic_get_dump_data,
+	.set_dump = qlcnic_set_dump,
 };

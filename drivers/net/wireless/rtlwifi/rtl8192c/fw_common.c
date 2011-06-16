@@ -223,29 +223,15 @@ int rtl92c_download_fw(struct ieee80211_hw *hw)
 	u8 *pfwdata;
 	u32 fwsize;
 	enum version_8192c version = rtlhal->version;
-	const struct firmware *firmware;
 
 	printk(KERN_INFO "rtl8192c: Loading firmware file %s\n",
 	       rtlpriv->cfg->fw_name);
-	if (request_firmware(&firmware, rtlpriv->cfg->fw_name,
-			    rtlpriv->io.dev)) {
-		printk(KERN_ERR "rtl8192c: Firmware loading failed\n");
+	if (!rtlhal->pfirmware)
 		return 1;
-	}
-
-	if (firmware->size > 0x4000) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 ("Firmware is too big!\n"));
-		release_firmware(firmware);
-		return 1;
-	}
-
-	memcpy(rtlhal->pfirmware, firmware->data, firmware->size);
-	fwsize = firmware->size;
-	release_firmware(firmware);
 
 	pfwheader = (struct rtl92c_firmware_header *)rtlhal->pfirmware;
 	pfwdata = (u8 *) rtlhal->pfirmware;
+	fwsize = rtlhal->fwsize;
 
 	if (IS_FW_HEADER_EXIST(pfwheader)) {
 		RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG,
@@ -293,7 +279,7 @@ static void _rtl92c_fill_h2c_command(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	u8 boxnum;
-	u16 box_reg, box_extreg;
+	u16 box_reg = 0, box_extreg = 0;
 	u8 u1b_tmp;
 	bool isfw_read = false;
 	bool bwrite_sucess = false;
@@ -553,6 +539,37 @@ void rtl92c_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode)
 }
 EXPORT_SYMBOL(rtl92c_set_fw_pwrmode_cmd);
 
+static bool _rtl92c_cmd_send_packet(struct ieee80211_hw *hw,
+				struct sk_buff *skb)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
+	struct rtl8192_tx_ring *ring;
+	struct rtl_tx_desc *pdesc;
+	unsigned long flags;
+	struct sk_buff *pskb = NULL;
+
+	ring = &rtlpci->tx_ring[BEACON_QUEUE];
+
+	pskb = __skb_dequeue(&ring->queue);
+	if (pskb)
+		kfree_skb(pskb);
+
+	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
+
+	pdesc = &ring->desc[0];
+
+	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, (u8 *) pdesc, 1, 1, skb);
+
+	__skb_queue_tail(&ring->queue, skb);
+
+	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);
+
+	rtlpriv->cfg->ops->tx_polling(hw, BEACON_QUEUE);
+
+	return true;
+}
+
 #define BEACON_PG		0 /*->1*/
 #define PSPOLL_PG		2
 #define NULL_PG			3
@@ -670,7 +687,7 @@ static u8 reserved_page_packet[TOTAL_RESERVED_PKT_LEN] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-void rtl92c_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
+void rtl92c_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool dl_finished)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
@@ -679,12 +696,12 @@ void rtl92c_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 	u32 totalpacketlen;
 	bool rtstatus;
 	u8 u1RsvdPageLoc[3] = {0};
-	bool b_dlok = false;
+	bool dlok = false;
 
 	u8 *beacon;
-	u8 *p_pspoll;
+	u8 *pspoll;
 	u8 *nullfunc;
-	u8 *p_probersp;
+	u8 *probersp;
 	/*---------------------------------------------------------
 				(1) beacon
 	---------------------------------------------------------*/
@@ -695,10 +712,10 @@ void rtl92c_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 	/*-------------------------------------------------------
 				(2) ps-poll
 	--------------------------------------------------------*/
-	p_pspoll = &reserved_page_packet[PSPOLL_PG * 128];
-	SET_80211_PS_POLL_AID(p_pspoll, (mac->assoc_id | 0xc000));
-	SET_80211_PS_POLL_BSSID(p_pspoll, mac->bssid);
-	SET_80211_PS_POLL_TA(p_pspoll, mac->mac_addr);
+	pspoll = &reserved_page_packet[PSPOLL_PG * 128];
+	SET_80211_PS_POLL_AID(pspoll, (mac->assoc_id | 0xc000));
+	SET_80211_PS_POLL_BSSID(pspoll, mac->bssid);
+	SET_80211_PS_POLL_TA(pspoll, mac->mac_addr);
 
 	SET_H2CCMD_RSVDPAGE_LOC_PSPOLL(u1RsvdPageLoc, PSPOLL_PG);
 
@@ -715,10 +732,10 @@ void rtl92c_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 	/*---------------------------------------------------------
 				(4) probe response
 	----------------------------------------------------------*/
-	p_probersp = &reserved_page_packet[PROBERSP_PG * 128];
-	SET_80211_HDR_ADDRESS1(p_probersp, mac->bssid);
-	SET_80211_HDR_ADDRESS2(p_probersp, mac->mac_addr);
-	SET_80211_HDR_ADDRESS3(p_probersp, mac->bssid);
+	probersp = &reserved_page_packet[PROBERSP_PG * 128];
+	SET_80211_HDR_ADDRESS1(probersp, mac->bssid);
+	SET_80211_HDR_ADDRESS2(probersp, mac->mac_addr);
+	SET_80211_HDR_ADDRESS3(probersp, mac->bssid);
 
 	SET_H2CCMD_RSVDPAGE_LOC_PROBE_RSP(u1RsvdPageLoc, PROBERSP_PG);
 
@@ -736,12 +753,12 @@ void rtl92c_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 	memcpy((u8 *) skb_put(skb, totalpacketlen),
 	       &reserved_page_packet, totalpacketlen);
 
-	rtstatus = rtlpriv->cfg->ops->cmd_send_packet(hw, skb);
+	rtstatus = _rtl92c_cmd_send_packet(hw, skb);
 
 	if (rtstatus)
-		b_dlok = true;
+		dlok = true;
 
-	if (b_dlok) {
+	if (dlok) {
 		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
 			 ("Set RSVD page location to Fw.\n"));
 		RT_PRINT_DATA(rtlpriv, COMP_CMD, DBG_DMESG,

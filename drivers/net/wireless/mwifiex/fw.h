@@ -72,32 +72,11 @@ enum KEY_TYPE_ID {
 	KEY_TYPE_ID_AES,
 	KEY_TYPE_ID_WAPI,
 };
-
-enum KEY_INFO_WEP {
-	KEY_INFO_WEP_MCAST = 0x01,
-	KEY_INFO_WEP_UNICAST = 0x02,
-	KEY_INFO_WEP_ENABLED = 0x04
-};
-
-enum KEY_INFO_TKIP {
-	KEY_INFO_TKIP_MCAST = 0x01,
-	KEY_INFO_TKIP_UNICAST = 0x02,
-	KEY_INFO_TKIP_ENABLED = 0x04
-};
-
-enum KEY_INFO_AES {
-	KEY_INFO_AES_MCAST = 0x01,
-	KEY_INFO_AES_UNICAST = 0x02,
-	KEY_INFO_AES_ENABLED = 0x04
-};
+#define KEY_MCAST	BIT(0)
+#define KEY_UNICAST	BIT(1)
+#define KEY_ENABLED	BIT(2)
 
 #define WAPI_KEY_LEN			50
-
-enum KEY_INFO_WAPI {
-	KEY_INFO_WAPI_MCAST = 0x01,
-	KEY_INFO_WAPI_UNICAST = 0x02,
-	KEY_INFO_WAPI_ENABLED = 0x04
-};
 
 #define MAX_POLL_TRIES			100
 
@@ -155,7 +134,6 @@ enum MWIFIEX_802_11_WEP_STATUS {
 
 #define MWIFIEX_TX_DATA_BUF_SIZE_4K        4096
 #define MWIFIEX_TX_DATA_BUF_SIZE_8K        8192
-#define NON_GREENFIELD_STAS     0x04
 
 #define ISSUPP_11NENABLED(FwCapInfo) (FwCapInfo & BIT(11))
 
@@ -180,7 +158,6 @@ enum MWIFIEX_802_11_WEP_STATUS {
 #define ISSUPP_GREENFIELD(Dot11nDevCap) (Dot11nDevCap & BIT(29))
 
 #define GET_RXMCSSUPP(DevMCSSupported) (DevMCSSupported & 0x0f)
-#define RESETHT_EXTCAP_RDG(HTExtCap) (HTExtCap &= ~BIT(11))
 #define SETHT_MCS32(x) (x[4] |= 1)
 
 #define SET_SECONDARYCHAN(RadioType, SECCHAN) (RadioType |= (SECCHAN << 4))
@@ -839,14 +816,7 @@ struct host_cmd_ds_txpwr_cfg {
 
 struct mwifiex_scan_cmd_config {
 	/*
-	 *  BSS Type to be sent in the firmware command
-	 *
-	 *  Field can be used to restrict the types of networks returned in the
-	 *    scan.  Valid settings are:
-	 *
-	 *   - MWIFIEX_SCAN_MODE_BSS  (infrastructure)
-	 *   - MWIFIEX_SCAN_MODE_IBSS (adhoc)
-	 *   - MWIFIEX_SCAN_MODE_ANY  (unrestricted, adhoc and infrastructure)
+	 *  BSS mode to be sent in the firmware command
 	 */
 	u8 bss_mode;
 
@@ -889,13 +859,6 @@ struct mwifiex_user_scan_cfg {
 	u8 keep_previous_scan;
 	/*
 	 *  BSS mode to be sent in the firmware command
-	 *
-	 *  Field can be used to restrict the types of networks returned in the
-	 *    scan.  Valid settings are:
-	 *
-	 *   - MWIFIEX_SCAN_MODE_BSS  (infrastructure)
-	 *   - MWIFIEX_SCAN_MODE_IBSS (adhoc)
-	 *   - MWIFIEX_SCAN_MODE_ANY  (unrestricted, adhoc and infrastructure)
 	 */
 	u8 bss_mode;
 	/* Configure the number of probe requests for active chan scans */
@@ -1220,10 +1183,5 @@ struct mwifiex_opt_sleep_confirm {
 	__le16 result;
 	__le16 action;
 	__le16 resp_ctrl;
-} __packed;
-
-struct mwifiex_opt_sleep_confirm_buffer {
-	u8 hdr[4];
-	struct mwifiex_opt_sleep_confirm ps_cfm_sleep;
 } __packed;
 #endif /* !_MWIFIEX_FW_H_ */

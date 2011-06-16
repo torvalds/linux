@@ -215,20 +215,21 @@ static u32 isp_set_xclk(struct isp_device *isp, u32 xclk, u8 xclksel)
 	}
 
 	switch (xclksel) {
-	case 0:
+	case ISP_XCLK_A:
 		isp_reg_clr_set(isp, OMAP3_ISP_IOMEM_MAIN, ISP_TCTRL_CTRL,
 				ISPTCTRL_CTRL_DIVA_MASK,
 				divisor << ISPTCTRL_CTRL_DIVA_SHIFT);
 		dev_dbg(isp->dev, "isp_set_xclk(): cam_xclka set to %d Hz\n",
 			currentxclk);
 		break;
-	case 1:
+	case ISP_XCLK_B:
 		isp_reg_clr_set(isp, OMAP3_ISP_IOMEM_MAIN, ISP_TCTRL_CTRL,
 				ISPTCTRL_CTRL_DIVB_MASK,
 				divisor << ISPTCTRL_CTRL_DIVB_SHIFT);
 		dev_dbg(isp->dev, "isp_set_xclk(): cam_xclkb set to %d Hz\n",
 			currentxclk);
 		break;
+	case ISP_XCLK_NONE:
 	default:
 		omap3isp_put(isp);
 		dev_dbg(isp->dev, "ISP_ERR: isp_set_xclk(): Invalid requested "
@@ -237,13 +238,13 @@ static u32 isp_set_xclk(struct isp_device *isp, u32 xclk, u8 xclksel)
 	}
 
 	/* Do we go from stable whatever to clock? */
-	if (divisor >= 2 && isp->xclk_divisor[xclksel] < 2)
+	if (divisor >= 2 && isp->xclk_divisor[xclksel - 1] < 2)
 		omap3isp_get(isp);
 	/* Stopping the clock. */
-	else if (divisor < 2 && isp->xclk_divisor[xclksel] >= 2)
+	else if (divisor < 2 && isp->xclk_divisor[xclksel - 1] >= 2)
 		omap3isp_put(isp);
 
-	isp->xclk_divisor[xclksel] = divisor;
+	isp->xclk_divisor[xclksel - 1] = divisor;
 
 	omap3isp_put(isp);
 
@@ -285,7 +286,8 @@ static void isp_power_settings(struct isp_device *isp, int idle)
  */
 void omap3isp_configure_bridge(struct isp_device *isp,
 			       enum ccdc_input_entity input,
-			       const struct isp_parallel_platform_data *pdata)
+			       const struct isp_parallel_platform_data *pdata,
+			       unsigned int shift)
 {
 	u32 ispctrl_val;
 
@@ -298,9 +300,9 @@ void omap3isp_configure_bridge(struct isp_device *isp,
 	switch (input) {
 	case CCDC_INPUT_PARALLEL:
 		ispctrl_val |= ISPCTRL_PAR_SER_CLK_SEL_PARALLEL;
-		ispctrl_val |= pdata->data_lane_shift << ISPCTRL_SHIFT_SHIFT;
 		ispctrl_val |= pdata->clk_pol << ISPCTRL_PAR_CLK_POL_SHIFT;
 		ispctrl_val |= pdata->bridge << ISPCTRL_PAR_BRIDGE_SHIFT;
+		shift += pdata->data_lane_shift * 2;
 		break;
 
 	case CCDC_INPUT_CSI2A:
@@ -318,6 +320,8 @@ void omap3isp_configure_bridge(struct isp_device *isp,
 	default:
 		return;
 	}
+
+	ispctrl_val |= ((shift/2) << ISPCTRL_SHIFT_SHIFT) & ISPCTRL_SHIFT_MASK;
 
 	ispctrl_val &= ~ISPCTRL_SYNC_DETECT_MASK;
 	ispctrl_val |= ISPCTRL_SYNC_DETECT_VSRISE;
@@ -658,6 +662,8 @@ int omap3isp_pipeline_pm_use(struct media_entity *entity, int use)
 
 	/* Apply power change to connected non-nodes. */
 	ret = isp_pipeline_pm_power(entity, change);
+	if (ret < 0)
+		entity->use_count -= change;
 
 	mutex_unlock(&entity->parent->graph_mutex);
 
@@ -872,6 +878,9 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 		}
 	}
 
+	if (failure < 0)
+		isp->needs_reset = true;
+
 	return failure;
 }
 
@@ -884,7 +893,8 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
  * single-shot or continuous mode.
  *
  * Return 0 if successful, or the return value of the failed video::s_stream
- * operation otherwise.
+ * operation otherwise. The pipeline state is not updated when the operation
+ * fails, except when stopping the pipeline.
  */
 int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,
 				 enum isp_pipeline_stream_state state)
@@ -895,7 +905,9 @@ int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,
 		ret = isp_pipeline_disable(pipe);
 	else
 		ret = isp_pipeline_enable(pipe, state);
-	pipe->stream_state = state;
+
+	if (ret == 0 || state == ISP_PIPELINE_STREAM_STOPPED)
+		pipe->stream_state = state;
 
 	return ret;
 }
@@ -1481,6 +1493,10 @@ void omap3isp_put(struct isp_device *isp)
 	if (--isp->ref_count == 0) {
 		isp_disable_interrupts(isp);
 		isp_save_ctx(isp);
+		if (isp->needs_reset) {
+			isp_reset(isp);
+			isp->needs_reset = false;
+		}
 		isp_disable_clocks(isp);
 	}
 	mutex_unlock(&isp->isp_mutex);

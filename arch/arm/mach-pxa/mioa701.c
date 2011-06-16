@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
@@ -488,7 +488,7 @@ static void install_bootstrap(void)
 }
 
 
-static int mioa701_sys_suspend(struct sys_device *sysdev, pm_message_t state)
+static int mioa701_sys_suspend(void)
 {
 	int i = 0, is_bt_on;
 	u32 *mem_resume_vector	= phys_to_virt(RESUME_VECTOR_ADDR);
@@ -514,7 +514,7 @@ static int mioa701_sys_suspend(struct sys_device *sysdev, pm_message_t state)
 	return 0;
 }
 
-static int mioa701_sys_resume(struct sys_device *sysdev)
+static void mioa701_sys_resume(void)
 {
 	int i = 0;
 	u32 *mem_resume_vector	= phys_to_virt(RESUME_VECTOR_ADDR);
@@ -527,43 +527,18 @@ static int mioa701_sys_resume(struct sys_device *sysdev)
 	*mem_resume_enabler = save_buffer[i++];
 	*mem_resume_bt	    = save_buffer[i++];
 	*mem_resume_unknown = save_buffer[i++];
-
-	return 0;
 }
 
-static struct sysdev_class mioa701_sysclass = {
-	.name = "mioa701",
-};
-
-static struct sys_device sysdev_bootstrap = {
-	.cls		= &mioa701_sysclass,
-};
-
-static struct sysdev_driver driver_bootstrap = {
-	.suspend	= &mioa701_sys_suspend,
-	.resume		= &mioa701_sys_resume,
+static struct syscore_ops mioa701_syscore_ops = {
+	.suspend	= mioa701_sys_suspend,
+	.resume		= mioa701_sys_resume,
 };
 
 static int __init bootstrap_init(void)
 {
-	int rc;
 	int save_size = mioa701_bootstrap_lg + (sizeof(u32) * 3);
 
-	rc = sysdev_class_register(&mioa701_sysclass);
-	if (rc) {
-		printk(KERN_ERR "Failed registering mioa701 sys class\n");
-		return -ENODEV;
-	}
-	rc = sysdev_register(&sysdev_bootstrap);
-	if (rc) {
-		printk(KERN_ERR "Failed registering mioa701 sys device\n");
-		return -ENODEV;
-	}
-	rc = sysdev_driver_register(&mioa701_sysclass, &driver_bootstrap);
-	if (rc) {
-		printk(KERN_ERR "Failed registering PMU sys driver\n");
-		return -ENODEV;
-	}
+	register_syscore_ops(&mioa701_syscore_ops);
 
 	save_buffer = kmalloc(save_size, GFP_KERNEL);
 	if (!save_buffer)
@@ -576,9 +551,7 @@ static int __init bootstrap_init(void)
 static void bootstrap_exit(void)
 {
 	kfree(save_buffer);
-	sysdev_driver_unregister(&mioa701_sysclass, &driver_bootstrap);
-	sysdev_unregister(&sysdev_bootstrap);
-	sysdev_class_unregister(&mioa701_sysclass);
+	unregister_syscore_ops(&mioa701_syscore_ops);
 
 	printk(KERN_CRIT "Unregistering mioa701 suspend will hang next"
 	       "resume !!!\n");

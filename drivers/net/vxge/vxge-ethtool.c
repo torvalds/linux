@@ -33,7 +33,8 @@ static int vxge_ethtool_sset(struct net_device *dev, struct ethtool_cmd *info)
 {
 	/* We currently only support 10Gb/FULL */
 	if ((info->autoneg == AUTONEG_ENABLE) ||
-	    (info->speed != SPEED_10000) || (info->duplex != DUPLEX_FULL))
+	    (ethtool_cmd_speed(info) != SPEED_10000) ||
+	    (info->duplex != DUPLEX_FULL))
 		return -EINVAL;
 
 	return 0;
@@ -58,10 +59,10 @@ static int vxge_ethtool_gset(struct net_device *dev, struct ethtool_cmd *info)
 	info->transceiver = XCVR_EXTERNAL;
 
 	if (netif_carrier_ok(dev)) {
-		info->speed = SPEED_10000;
+		ethtool_cmd_speed_set(info, SPEED_10000);
 		info->duplex = DUPLEX_FULL;
 	} else {
-		info->speed = -1;
+		ethtool_cmd_speed_set(info, -1);
 		info->duplex = -1;
 	}
 

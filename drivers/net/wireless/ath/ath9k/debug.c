@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -176,6 +176,56 @@ static const struct file_operations fops_rx_chainmask = {
 	.llseek = default_llseek,
 };
 
+static ssize_t read_file_disable_ani(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	char buf[32];
+	unsigned int len;
+
+	len = sprintf(buf, "%d\n", common->disable_ani);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_disable_ani(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	unsigned long disable_ani;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &disable_ani))
+		return -EINVAL;
+
+	common->disable_ani = !!disable_ani;
+
+	if (disable_ani) {
+		sc->sc_flags &= ~SC_OP_ANI_RUN;
+		del_timer_sync(&common->ani.timer);
+	} else {
+		sc->sc_flags |= SC_OP_ANI_RUN;
+		ath_start_ani(common);
+	}
+
+	return count;
+}
+
+static const struct file_operations fops_disable_ani = {
+	.read = read_file_disable_ani,
+	.write = write_file_disable_ani,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
 
 static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
@@ -326,6 +376,8 @@ void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status)
 		sc->debug.stats.istats.dtimsync++;
 	if (status & ATH9K_INT_DTIM)
 		sc->debug.stats.istats.dtim++;
+	if (status & ATH9K_INT_TSFOOR)
+		sc->debug.stats.istats.tsfoor++;
 }
 
 static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
@@ -380,7 +432,10 @@ static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, sizeof(buf) - len,
 		"%8s: %10u\n", "DTIM", sc->debug.stats.istats.dtim);
 	len += snprintf(buf + len, sizeof(buf) - len,
+		"%8s: %10u\n", "TSFOOR", sc->debug.stats.istats.tsfoor);
+	len += snprintf(buf + len, sizeof(buf) - len,
 		"%8s: %10u\n", "TOTAL", sc->debug.stats.istats.total);
+
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -430,6 +485,7 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 			conf->channel_type,
 			channel_type_str(conf->channel_type));
 
+	ath9k_ps_wakeup(sc);
 	put_unaligned_le32(REG_READ_D(sc->sc_ah, AR_STA_ID0), addr);
 	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_STA_ID1) & 0xffff, addr + 4);
 	len += snprintf(buf + len, sizeof(buf) - len,
@@ -439,6 +495,7 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"addrmask: %pM\n", addr);
 	tmp = ath9k_hw_getrxfilter(sc->sc_ah);
+	ath9k_ps_restore(sc);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"rfilt: 0x%x", tmp);
 	if (tmp & ATH9K_RX_FILTER_UCAST)
@@ -543,6 +600,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 
 	PR("MPDUs Queued:    ", queued);
 	PR("MPDUs Completed: ", completed);
+	PR("MPDUs XRetried:  ", xretries);
 	PR("Aggregates:      ", a_aggr);
 	PR("AMPDUs Queued HW:", a_queued_hw);
 	PR("AMPDUs Queued SW:", a_queued_sw);
@@ -580,7 +638,6 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 
 	PRQLE("axq_q empty:       ", axq_q);
 	PRQLE("axq_acq empty:     ", axq_acq);
-	PRQLE("txq_fifo_pending:  ", txq_fifo_pending);
 	for (i = 0; i < ATH_TXFIFO_DEPTH; i++) {
 		snprintf(tmp, sizeof(tmp) - 1, "txq_fifo[%i] empty: ", i);
 		PRQLE(tmp, txq_fifo[i]);
@@ -720,6 +777,7 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 		break;
 	}
 
+	ath9k_ps_wakeup(sc);
 	len += snprintf(buf + len, size - len,
 			"curbssid: %pM\n"
 			"OP-Mode: %s(%i)\n"
@@ -729,6 +787,7 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 			REG_READ(ah, AR_BEACON_PERIOD));
 
 	reg = REG_READ(ah, AR_TIMER_MODE);
+	ath9k_ps_restore(sc);
 	len += snprintf(buf + len, size - len, "Timer-Mode-Register: 0x%x (",
 			reg);
 	if (reg & AR_TBTT_TIMER_EN)
@@ -798,7 +857,10 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		else
 			TX_STAT_INC(qnum, a_completed);
 	} else {
-		TX_STAT_INC(qnum, completed);
+		if (bf_isxretried(bf))
+			TX_STAT_INC(qnum, xretries);
+		else
+			TX_STAT_INC(qnum, completed);
 	}
 
 	if (ts->ts_status & ATH9K_TXERR_FIFO)
@@ -845,7 +907,7 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 
 	struct ath_softc *sc = file->private_data;
 	char *buf;
-	unsigned int len = 0, size = 1152;
+	unsigned int len = 0, size = 1400;
 	ssize_t retval = 0;
 
 	buf = kzalloc(size, GFP_KERNEL);
@@ -873,6 +935,34 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, size - len,
 			"%18s : %10u\n", "DECRYPT BUSY ERR",
 			sc->debug.stats.rxstats.decrypt_busy_err);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "RSSI-CTL0",
+			sc->debug.stats.rxstats.rs_rssi_ctl0);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "RSSI-CTL1",
+			sc->debug.stats.rxstats.rs_rssi_ctl1);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "RSSI-CTL2",
+			sc->debug.stats.rxstats.rs_rssi_ctl2);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "RSSI-EXT0",
+			sc->debug.stats.rxstats.rs_rssi_ext0);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "RSSI-EXT1",
+			sc->debug.stats.rxstats.rs_rssi_ext1);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "RSSI-EXT2",
+			sc->debug.stats.rxstats.rs_rssi_ext2);
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10d\n", "Rx Antenna",
+			sc->debug.stats.rxstats.rs_antenna);
 
 	PHY_ERR("UNDERRUN", ATH9K_PHYERR_UNDERRUN);
 	PHY_ERR("TIMING", ATH9K_PHYERR_TIMING);
@@ -948,6 +1038,16 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 		RX_PHY_ERR_INC(phyerr);
 	}
 
+	sc->debug.stats.rxstats.rs_rssi_ctl0 = rs->rs_rssi_ctl0;
+	sc->debug.stats.rxstats.rs_rssi_ctl1 = rs->rs_rssi_ctl1;
+	sc->debug.stats.rxstats.rs_rssi_ctl2 = rs->rs_rssi_ctl2;
+
+	sc->debug.stats.rxstats.rs_rssi_ext0 = rs->rs_rssi_ext0;
+	sc->debug.stats.rxstats.rs_rssi_ext1 = rs->rs_rssi_ext1;
+	sc->debug.stats.rxstats.rs_rssi_ext2 = rs->rs_rssi_ext2;
+
+	sc->debug.stats.rxstats.rs_antenna = rs->rs_antenna;
+
 #undef RX_STAT_INC
 #undef RX_PHY_ERR_INC
 }
@@ -1007,7 +1107,9 @@ static ssize_t read_file_regval(struct file *file, char __user *user_buf,
 	unsigned int len;
 	u32 regval;
 
+	ath9k_ps_wakeup(sc);
 	regval = REG_READ_D(ah, sc->debug.regidx);
+	ath9k_ps_restore(sc);
 	len = sprintf(buf, "0x%08x\n", regval);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -1029,7 +1131,9 @@ static ssize_t write_file_regval(struct file *file, const char __user *user_buf,
 	if (strict_strtoul(buf, 0, &regval))
 		return -EINVAL;
 
+	ath9k_ps_wakeup(sc);
 	REG_WRITE_D(ah, sc->debug.regidx, regval);
+	ath9k_ps_restore(sc);
 	return count;
 }
 
@@ -1109,6 +1213,8 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    sc->debug.debugfs_phy, sc, &fops_rx_chainmask);
 	debugfs_create_file("tx_chainmask", S_IRUSR | S_IWUSR,
 			    sc->debug.debugfs_phy, sc, &fops_tx_chainmask);
+	debugfs_create_file("disable_ani", S_IRUSR | S_IWUSR,
+			    sc->debug.debugfs_phy, sc, &fops_disable_ani);
 	debugfs_create_file("regidx", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
 			    sc, &fops_regidx);
 	debugfs_create_file("regval", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,

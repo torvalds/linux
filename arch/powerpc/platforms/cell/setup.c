@@ -51,11 +51,11 @@
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/cell-regs.h>
+#include <asm/io-workarounds.h>
 
 #include "interrupt.h"
 #include "pervasive.h"
 #include "ras.h"
-#include "io-workarounds.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -136,8 +136,6 @@ static int __devinit cell_setup_phb(struct pci_controller *phb)
 
 	iowa_register_bus(phb, &spiderpci_ops, &spiderpci_iowa_init,
 				  (void *)SPIDER_PCI_REG_BASE);
-	io_workaround_init();
-
 	return 0;
 }
 

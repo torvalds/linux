@@ -19,33 +19,34 @@
 
 /* Heavily inspired by the ppc64 code.  */
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
+static DEFINE_PER_CPU(struct tlb_batch, tlb_batch);
 
 void flush_tlb_pending(void)
 {
-	struct mmu_gather *mp = &get_cpu_var(mmu_gathers);
+	struct tlb_batch *tb = &get_cpu_var(tlb_batch);
 
-	if (mp->tlb_nr) {
-		flush_tsb_user(mp);
+	if (tb->tlb_nr) {
+		flush_tsb_user(tb);
 
-		if (CTX_VALID(mp->mm->context)) {
+		if (CTX_VALID(tb->mm->context)) {
 #ifdef CONFIG_SMP
-			smp_flush_tlb_pending(mp->mm, mp->tlb_nr,
-					      &mp->vaddrs[0]);
+			smp_flush_tlb_pending(tb->mm, tb->tlb_nr,
+					      &tb->vaddrs[0]);
 #else
-			__flush_tlb_pending(CTX_HWBITS(mp->mm->context),
-					    mp->tlb_nr, &mp->vaddrs[0]);
+			__flush_tlb_pending(CTX_HWBITS(tb->mm->context),
+					    tb->tlb_nr, &tb->vaddrs[0]);
 #endif
 		}
-		mp->tlb_nr = 0;
+		tb->tlb_nr = 0;
 	}
 
-	put_cpu_var(mmu_gathers);
+	put_cpu_var(tlb_batch);
 }
 
-void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr, pte_t *ptep, pte_t orig)
+void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
+		   pte_t *ptep, pte_t orig, int fullmm)
 {
-	struct mmu_gather *mp = &__get_cpu_var(mmu_gathers);
+	struct tlb_batch *tb = &get_cpu_var(tlb_batch);
 	unsigned long nr;
 
 	vaddr &= PAGE_MASK;
@@ -77,21 +78,25 @@ void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr, pte_t *ptep, pte_t
 
 no_cache_flush:
 
-	if (mp->fullmm)
+	if (fullmm) {
+		put_cpu_var(tlb_batch);
 		return;
+	}
 
-	nr = mp->tlb_nr;
+	nr = tb->tlb_nr;
 
-	if (unlikely(nr != 0 && mm != mp->mm)) {
+	if (unlikely(nr != 0 && mm != tb->mm)) {
 		flush_tlb_pending();
 		nr = 0;
 	}
 
 	if (nr == 0)
-		mp->mm = mm;
+		tb->mm = mm;
 
-	mp->vaddrs[nr] = vaddr;
-	mp->tlb_nr = ++nr;
+	tb->vaddrs[nr] = vaddr;
+	tb->tlb_nr = ++nr;
 	if (nr >= TLB_BATCH_NR)
 		flush_tlb_pending();
+
+	put_cpu_var(tlb_batch);
 }

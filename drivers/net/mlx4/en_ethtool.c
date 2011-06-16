@@ -265,10 +265,10 @@ static int mlx4_en_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	trans_type = priv->port_state.transciver;
 	if (netif_carrier_ok(dev)) {
-		cmd->speed = priv->port_state.link_speed;
+		ethtool_cmd_speed_set(cmd, priv->port_state.link_speed);
 		cmd->duplex = DUPLEX_FULL;
 	} else {
-		cmd->speed = -1;
+		ethtool_cmd_speed_set(cmd, -1);
 		cmd->duplex = -1;
 	}
 
@@ -292,7 +292,8 @@ static int mlx4_en_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int mlx4_en_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	if ((cmd->autoneg == AUTONEG_ENABLE) ||
-	    (cmd->speed != SPEED_10000) || (cmd->duplex != DUPLEX_FULL))
+	    (ethtool_cmd_speed(cmd) != SPEED_10000) ||
+	    (cmd->duplex != DUPLEX_FULL))
 		return -EINVAL;
 
 	/* Nothing to change */

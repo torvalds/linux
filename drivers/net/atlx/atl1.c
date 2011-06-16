@@ -83,8 +83,9 @@
 #include "atl1.h"
 
 #define ATLX_DRIVER_VERSION "2.1.3"
-MODULE_AUTHOR("Xiong Huang <xiong.huang@atheros.com>, \
-Chris Snook <csnook@redhat.com>, Jay Cliburn <jcliburn@gmail.com>");
+MODULE_AUTHOR("Xiong Huang <xiong.huang@atheros.com>, "
+	      "Chris Snook <csnook@redhat.com>, "
+	      "Jay Cliburn <jcliburn@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ATLX_DRIVER_VERSION);
 
@@ -3231,13 +3232,13 @@ static int atl1_get_settings(struct net_device *netdev,
 	if (netif_carrier_ok(adapter->netdev)) {
 		u16 link_speed, link_duplex;
 		atl1_get_speed_and_duplex(hw, &link_speed, &link_duplex);
-		ecmd->speed = link_speed;
+		ethtool_cmd_speed_set(ecmd, link_speed);
 		if (link_duplex == FULL_DUPLEX)
 			ecmd->duplex = DUPLEX_FULL;
 		else
 			ecmd->duplex = DUPLEX_HALF;
 	} else {
-		ecmd->speed = -1;
+		ethtool_cmd_speed_set(ecmd, -1);
 		ecmd->duplex = -1;
 	}
 	if (hw->media_type == MEDIA_TYPE_AUTO_SENSOR ||
@@ -3268,7 +3269,8 @@ static int atl1_set_settings(struct net_device *netdev,
 	if (ecmd->autoneg == AUTONEG_ENABLE)
 		hw->media_type = MEDIA_TYPE_AUTO_SENSOR;
 	else {
-		if (ecmd->speed == SPEED_1000) {
+		u32 speed = ethtool_cmd_speed(ecmd);
+		if (speed == SPEED_1000) {
 			if (ecmd->duplex != DUPLEX_FULL) {
 				if (netif_msg_link(adapter))
 					dev_warn(&adapter->pdev->dev,
@@ -3277,7 +3279,7 @@ static int atl1_set_settings(struct net_device *netdev,
 				goto exit_sset;
 			}
 			hw->media_type = MEDIA_TYPE_1000M_FULL;
-		} else if (ecmd->speed == SPEED_100) {
+		} else if (speed == SPEED_100) {
 			if (ecmd->duplex == DUPLEX_FULL)
 				hw->media_type = MEDIA_TYPE_100M_FULL;
 			else

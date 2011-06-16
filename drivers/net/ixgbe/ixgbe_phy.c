@@ -657,7 +657,8 @@ s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw)
 				     MDIO_MMD_AN,
 				     &autoneg_reg);
 
-		autoneg_reg &= ~ADVERTISE_100FULL;
+		autoneg_reg &= ~(ADVERTISE_100FULL |
+				 ADVERTISE_100HALF);
 		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_100_FULL)
 			autoneg_reg |= ADVERTISE_100FULL;
 
@@ -1221,7 +1222,7 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 		swfw_mask = IXGBE_GSSR_PHY0_SM;
 
 	do {
-		if (ixgbe_acquire_swfw_sync(hw, swfw_mask) != 0) {
+		if (hw->mac.ops.acquire_swfw_sync(hw, swfw_mask) != 0) {
 			status = IXGBE_ERR_SWFW_SYNC;
 			goto read_byte_out;
 		}
@@ -1268,7 +1269,7 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 		break;
 
 fail:
-		ixgbe_release_swfw_sync(hw, swfw_mask);
+		hw->mac.ops.release_swfw_sync(hw, swfw_mask);
 		msleep(100);
 		ixgbe_i2c_bus_clear(hw);
 		retry++;
@@ -1279,7 +1280,7 @@ fail:
 
 	} while (retry < max_retry);
 
-	ixgbe_release_swfw_sync(hw, swfw_mask);
+	hw->mac.ops.release_swfw_sync(hw, swfw_mask);
 
 read_byte_out:
 	return status;
@@ -1307,7 +1308,7 @@ s32 ixgbe_write_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 	else
 		swfw_mask = IXGBE_GSSR_PHY0_SM;
 
-	if (ixgbe_acquire_swfw_sync(hw, swfw_mask) != 0) {
+	if (hw->mac.ops.acquire_swfw_sync(hw, swfw_mask) != 0) {
 		status = IXGBE_ERR_SWFW_SYNC;
 		goto write_byte_out;
 	}
@@ -1351,7 +1352,7 @@ fail:
 			hw_dbg(hw, "I2C byte write error.\n");
 	} while (retry < max_retry);
 
-	ixgbe_release_swfw_sync(hw, swfw_mask);
+	hw->mac.ops.release_swfw_sync(hw, swfw_mask);
 
 write_byte_out:
 	return status;

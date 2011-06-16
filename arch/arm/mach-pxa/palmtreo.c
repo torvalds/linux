@@ -25,7 +25,6 @@
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
 #include <linux/power_supply.h>
-#include <linux/sysdev.h>
 #include <linux/w1-gpio.h>
 
 #include <asm/mach-types.h>

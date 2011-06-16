@@ -1,6 +1,6 @@
 config 9P_FS
-	tristate "Plan 9 Resource Sharing Support (9P2000) (Experimental)"
-	depends on INET && NET_9P && EXPERIMENTAL
+	tristate "Plan 9 Resource Sharing Support (9P2000)"
+	depends on INET && NET_9P
 	help
 	  If you say Y here, you will get experimental support for
 	  Plan 9 resource sharing via the 9P2000 protocol.
@@ -10,7 +10,6 @@ config 9P_FS
 	  If unsure, say N.
 
 if 9P_FS
-
 config 9P_FSCACHE
 	bool "Enable 9P client caching support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL

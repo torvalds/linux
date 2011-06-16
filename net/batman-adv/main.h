@@ -34,20 +34,24 @@
 
 #define TQ_MAX_VALUE 255
 #define JITTER 20
-#define TTL 50			  /* Time To Live of broadcast messages */
 
-#define PURGE_TIMEOUT 200	/* purge originators after time in seconds if no
-				   * valid packet comes in -> TODO: check
-				   * influence on TQ_LOCAL_WINDOW_SIZE */
-#define LOCAL_HNA_TIMEOUT 3600 /* in seconds */
+ /* Time To Live of broadcast messages */
+#define TTL 50
 
-#define TQ_LOCAL_WINDOW_SIZE 64	  /* sliding packet range of received originator
-				   * messages in squence numbers (should be a
-				   * multiple of our word size) */
+/* purge originators after time in seconds if no valid packet comes in
+ * -> TODO: check influence on TQ_LOCAL_WINDOW_SIZE */
+#define PURGE_TIMEOUT 200
+#define TT_LOCAL_TIMEOUT 3600 /* in seconds */
+
+/* sliding packet range of received originator messages in squence numbers
+ * (should be a multiple of our word size) */
+#define TQ_LOCAL_WINDOW_SIZE 64
 #define TQ_GLOBAL_WINDOW_SIZE 5
 #define TQ_LOCAL_BIDRECT_SEND_MINIMUM 1
 #define TQ_LOCAL_BIDRECT_RECV_MINIMUM 1
 #define TQ_TOTAL_BIDRECT_LIMIT 1
+
+#define NO_FLAGS 0
 
 #define NUM_WORDS (TQ_LOCAL_WINDOW_SIZE / WORD_BIT_SIZE)
 
@@ -55,25 +59,26 @@
 
 #define VIS_INTERVAL 5000	/* 5 seconds */
 
-/* how much worse secondary interfaces may be to
- * to be considered as bonding candidates */
-
+/* how much worse secondary interfaces may be to be considered as bonding
+ * candidates */
 #define BONDING_TQ_THRESHOLD	50
 
-#define MAX_AGGREGATION_BYTES 512 /* should not be bigger than 512 bytes or
-				   * change the size of
-				   * forw_packet->direct_link_flags */
+/* should not be bigger than 512 bytes or change the size of
+ * forw_packet->direct_link_flags */
+#define MAX_AGGREGATION_BYTES 512
 #define MAX_AGGREGATION_MS 100
 
 #define SOFTIF_NEIGH_TIMEOUT 180000 /* 3 minutes */
 
+/* don't reset again within 30 seconds */
 #define RESET_PROTECTION_MS 30000
 #define EXPECTED_SEQNO_RANGE	65536
-/* don't reset again within 30 seconds */
 
-#define MESH_INACTIVE 0
-#define MESH_ACTIVE 1
-#define MESH_DEACTIVATING 2
+enum mesh_state {
+	MESH_INACTIVE,
+	MESH_ACTIVE,
+	MESH_DEACTIVATING
+};
 
 #define BCAST_QUEUE_LEN		256
 #define BATMAN_QUEUE_LEN	256
@@ -84,13 +89,15 @@
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt /* Append 'batman-adv: ' before
-					     * kernel messages */
+/* Append 'batman-adv: ' before kernel messages */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define DBG_BATMAN 1	/* all messages related to routing / flooding /
-			 * broadcasting / etc */
-#define DBG_ROUTES 2	/* route or hna added / changed / deleted */
-#define DBG_ALL 3
+/* all messages related to routing / flooding / broadcasting / etc */
+enum dbg_level {
+	DBG_BATMAN = 1 << 0,
+	DBG_ROUTES = 1 << 1, /* route added / changed / deleted */
+	DBG_ALL    = 3
+};
 
 
 /*
@@ -131,10 +138,10 @@ int mesh_init(struct net_device *soft_iface);
 void mesh_free(struct net_device *soft_iface);
 void inc_module_count(void);
 void dec_module_count(void);
-int is_my_mac(uint8_t *addr);
+int is_my_mac(const uint8_t *addr);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-int debug_log(struct bat_priv *bat_priv, char *fmt, ...);
+int debug_log(struct bat_priv *bat_priv, const char *fmt, ...) __printf(2, 3);
 
 #define bat_dbg(type, bat_priv, fmt, arg...)			\
 	do {							\
@@ -143,9 +150,10 @@ int debug_log(struct bat_priv *bat_priv, char *fmt, ...);
 	}							\
 	while (0)
 #else /* !CONFIG_BATMAN_ADV_DEBUG */
+__printf(3, 4)
 static inline void bat_dbg(char type __always_unused,
 			   struct bat_priv *bat_priv __always_unused,
-			   char *fmt __always_unused, ...)
+			   const char *fmt __always_unused, ...)
 {
 }
 #endif
@@ -170,9 +178,32 @@ static inline void bat_dbg(char type __always_unused,
  *
  * note: can't use compare_ether_addr() as it requires aligned memory
  */
-static inline int compare_eth(void *data1, void *data2)
+
+static inline int compare_eth(const void *data1, const void *data2)
 {
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
+
+
+#define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
+
+/* Returns the smallest signed integer in two's complement with the sizeof x */
+#define smallest_signed_int(x) (1u << (7u + 8u * (sizeof(x) - 1u)))
+
+/* Checks if a sequence number x is a predecessor/successor of y.
+ * they handle overflows/underflows and can correctly check for a
+ * predecessor/successor unless the variable sequence number has grown by
+ * more then 2**(bitwidth(x)-1)-1.
+ * This means that for a uint8_t with the maximum value 255, it would think:
+ *  - when adding nothing - it is neither a predecessor nor a successor
+ *  - before adding more than 127 to the starting value - it is a predecessor,
+ *  - when adding 128 - it is neither a predecessor nor a successor,
+ *  - after adding more than 127 to the starting value - it is a successor */
+#define seq_before(x, y) ({typeof(x) _d1 = (x); \
+			  typeof(y) _d2 = (y); \
+			  typeof(x) _dummy = (_d1 - _d2); \
+			  (void) (&_d1 == &_d2); \
+			  _dummy > smallest_signed_int(_dummy); })
+#define seq_after(x, y) seq_before(y, x)
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

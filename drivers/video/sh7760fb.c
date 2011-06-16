@@ -551,8 +551,7 @@ out_unmap:
 		free_irq(par->irq, &par->vsync);
 	iounmap(par->base);
 out_res:
-	release_resource(par->ioarea);
-	kfree(par->ioarea);
+	release_mem_region(res->start, resource_size(res));
 out_fb:
 	framebuffer_release(info);
 	return ret;
@@ -570,8 +569,7 @@ static int __devexit sh7760fb_remove(struct platform_device *dev)
 	if (par->irq >= 0)
 		free_irq(par->irq, par);
 	iounmap(par->base);
-	release_resource(par->ioarea);
-	kfree(par->ioarea);
+	release_mem_region(par->ioarea->start, resource_size(par->ioarea));
 	framebuffer_release(info);
 	platform_set_drvdata(dev, NULL);
 

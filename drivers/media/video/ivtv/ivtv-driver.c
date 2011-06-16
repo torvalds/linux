@@ -810,7 +810,6 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 			  const struct pci_device_id *pci_id)
 {
 	u16 cmd;
-	u8 card_rev;
 	unsigned char pci_latency;
 
 	IVTV_DEBUG_INFO("Enabling pci device\n");
@@ -857,7 +856,6 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 	}
 	IVTV_DEBUG_INFO("Bus Mastering Enabled.\n");
 
-	pci_read_config_byte(pdev, PCI_CLASS_REVISION, &card_rev);
 	pci_read_config_byte(pdev, PCI_LATENCY_TIMER, &pci_latency);
 
 	if (pci_latency < 64 && ivtv_pci_latency) {
@@ -874,7 +872,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 
 	IVTV_DEBUG_INFO("%d (rev %d) at %02x:%02x.%x, "
 		   "irq: %d, latency: %d, memory: 0x%lx\n",
-		   pdev->device, card_rev, pdev->bus->number,
+		   pdev->device, pdev->revision, pdev->bus->number,
 		   PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
 		   pdev->irq, pci_latency, (unsigned long)itv->base_addr);
 

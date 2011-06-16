@@ -47,6 +47,7 @@
  *  o buffer memory
  */
 
+#include <linux/interrupt.h>
 #include <linux/pci.h>	/* for Tavor hack below */
 #include <linux/slab.h>
 
@@ -387,7 +388,7 @@ rpcrdma_create_id(struct rpcrdma_xprt *xprt,
 
 	init_completion(&ia->ri_done);
 
-	id = rdma_create_id(rpcrdma_conn_upcall, xprt, RDMA_PS_TCP);
+	id = rdma_create_id(rpcrdma_conn_upcall, xprt, RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(id)) {
 		rc = PTR_ERR(id);
 		dprintk("RPC:       %s: rdma_create_id() failed %i\n",

@@ -94,7 +94,7 @@ static void radeon_register_accessor_init(struct radeon_device *rdev)
 		rdev->mc_rreg = &rs600_mc_rreg;
 		rdev->mc_wreg = &rs600_mc_wreg;
 	}
-	if ((rdev->family >= CHIP_R600) && (rdev->family <= CHIP_HEMLOCK)) {
+	if (rdev->family >= CHIP_R600) {
 		rdev->pciep_rreg = &r600_pciep_rreg;
 		rdev->pciep_wreg = &r600_pciep_wreg;
 	}
@@ -782,6 +782,7 @@ static struct radeon_asic evergreen_asic = {
 	.hpd_fini = &evergreen_hpd_fini,
 	.hpd_sense = &evergreen_hpd_sense,
 	.hpd_set_polarity = &evergreen_hpd_set_polarity,
+	.ioctl_wait_idle = r600_ioctl_wait_idle,
 	.gui_idle = &r600_gui_idle,
 	.pm_misc = &evergreen_pm_misc,
 	.pm_prepare = &evergreen_pm_prepare,
@@ -828,6 +829,7 @@ static struct radeon_asic sumo_asic = {
 	.hpd_fini = &evergreen_hpd_fini,
 	.hpd_sense = &evergreen_hpd_sense,
 	.hpd_set_polarity = &evergreen_hpd_set_polarity,
+	.ioctl_wait_idle = r600_ioctl_wait_idle,
 	.gui_idle = &r600_gui_idle,
 	.pm_misc = &evergreen_pm_misc,
 	.pm_prepare = &evergreen_pm_prepare,
@@ -874,6 +876,7 @@ static struct radeon_asic btc_asic = {
 	.hpd_fini = &evergreen_hpd_fini,
 	.hpd_sense = &evergreen_hpd_sense,
 	.hpd_set_polarity = &evergreen_hpd_set_polarity,
+	.ioctl_wait_idle = r600_ioctl_wait_idle,
 	.gui_idle = &r600_gui_idle,
 	.pm_misc = &evergreen_pm_misc,
 	.pm_prepare = &evergreen_pm_prepare,
@@ -920,6 +923,7 @@ static struct radeon_asic cayman_asic = {
 	.hpd_fini = &evergreen_hpd_fini,
 	.hpd_sense = &evergreen_hpd_sense,
 	.hpd_set_polarity = &evergreen_hpd_set_polarity,
+	.ioctl_wait_idle = r600_ioctl_wait_idle,
 	.gui_idle = &r600_gui_idle,
 	.pm_misc = &evergreen_pm_misc,
 	.pm_prepare = &evergreen_pm_prepare,

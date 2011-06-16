@@ -18,6 +18,8 @@
  *		2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -46,8 +48,6 @@ int vlan_net_id __read_mostly;
 
 const char vlan_fullname[] = "802.1Q VLAN Support";
 const char vlan_version[] = DRV_VERSION;
-static const char vlan_copyright[] = "Ben Greear <greearb@candelatech.com>";
-static const char vlan_buggyright[] = "David S. Miller <davem@redhat.com>";
 
 /* End of global variables definitions. */
 
@@ -119,10 +119,14 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 
 	grp->nr_vlans--;
 
-	vlan_group_set_device(grp, vlan_id, NULL);
-	if (!grp->killall)
-		synchronize_net();
+	if (vlan->flags & VLAN_FLAG_GVRP)
+		vlan_gvrp_request_leave(dev);
 
+	vlan_group_set_device(grp, vlan_id, NULL);
+	/* Because unregister_netdevice_queue() makes sure at least one rcu
+	 * grace period is respected before device freeing,
+	 * we dont need to call synchronize_net() here.
+	 */
 	unregister_netdevice_queue(dev, head);
 
 	/* If the group is now empty, kill off the group. */
@@ -147,13 +151,13 @@ int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id)
 	const struct net_device_ops *ops = real_dev->netdev_ops;
 
 	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
-		pr_info("8021q: VLANs not supported on %s\n", name);
+		pr_info("VLANs not supported on %s\n", name);
 		return -EOPNOTSUPP;
 	}
 
 	if ((real_dev->features & NETIF_F_HW_VLAN_FILTER) &&
 	    (!ops->ndo_vlan_rx_add_vid || !ops->ndo_vlan_rx_kill_vid)) {
-		pr_info("8021q: Device %s has buggy VLAN hw accel\n", name);
+		pr_info("Device %s has buggy VLAN hw accel\n", name);
 		return -EOPNOTSUPP;
 	}
 
@@ -342,13 +346,12 @@ static void __vlan_device_event(struct net_device *dev, unsigned long event)
 	case NETDEV_CHANGENAME:
 		vlan_proc_rem_dev(dev);
 		if (vlan_proc_add_dev(dev) < 0)
-			pr_warning("8021q: failed to change proc name for %s\n",
-					dev->name);
+			pr_warn("failed to change proc name for %s\n",
+				dev->name);
 		break;
 	case NETDEV_REGISTER:
 		if (vlan_proc_add_dev(dev) < 0)
-			pr_warning("8021q: failed to add proc entry for %s\n",
-					dev->name);
+			pr_warn("failed to add proc entry for %s\n", dev->name);
 		break;
 	case NETDEV_UNREGISTER:
 		vlan_proc_rem_dev(dev);
@@ -372,7 +375,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	if ((event == NETDEV_UP) &&
 	    (dev->features & NETIF_F_HW_VLAN_FILTER) &&
 	    dev->netdev_ops->ndo_vlan_rx_add_vid) {
-		pr_info("8021q: adding VLAN 0 to HW filter on device %s\n",
+		pr_info("adding VLAN 0 to HW filter on device %s\n",
 			dev->name);
 		dev->netdev_ops->ndo_vlan_rx_add_vid(dev, 0);
 	}
@@ -477,9 +480,6 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		/* twiddle thumbs on netns device moves */
 		if (dev->reg_state != NETREG_UNREGISTERING)
 			break;
-
-		/* Delete all VLANs for this dev. */
-		grp->killall = 1;
 
 		for (i = 0; i < VLAN_N_VID; i++) {
 			vlandev = vlan_group_get_device(grp, i);
@@ -672,8 +672,7 @@ static int __init vlan_proto_init(void)
 {
 	int err;
 
-	pr_info("%s v%s %s\n", vlan_fullname, vlan_version, vlan_copyright);
-	pr_info("All bugs added by %s\n", vlan_buggyright);
+	pr_info("%s v%s\n", vlan_fullname, vlan_version);
 
 	err = register_pernet_subsys(&vlan_net_ops);
 	if (err < 0)

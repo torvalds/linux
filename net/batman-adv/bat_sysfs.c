@@ -28,9 +28,17 @@
 #include "gateway_client.h"
 #include "vis.h"
 
-#define to_dev(obj)		container_of(obj, struct device, kobj)
-#define kobj_to_netdev(obj)	to_net_dev(to_dev(obj->parent))
-#define kobj_to_batpriv(obj)	netdev_priv(kobj_to_netdev(obj))
+static struct net_device *kobj_to_netdev(struct kobject *obj)
+{
+	struct device *dev = container_of(obj->parent, struct device, kobj);
+	return to_net_dev(dev);
+}
+
+static struct bat_priv *kobj_to_batpriv(struct kobject *obj)
+{
+	struct net_device *net_dev = kobj_to_netdev(obj);
+	return netdev_priv(net_dev);
+}
 
 /* Use this, if you have customized show and store functions */
 #define BAT_ATTR(_name, _mode, _show, _store)	\
@@ -96,7 +104,7 @@ ssize_t show_##_name(struct kobject *kobj, struct attribute *attr,	\
 
 static int store_bool_attr(char *buff, size_t count,
 			   struct net_device *net_dev,
-			   char *attr_name, atomic_t *attr)
+			   const char *attr_name, atomic_t *attr)
 {
 	int enabled = -1;
 
@@ -138,16 +146,15 @@ static inline ssize_t __store_bool_attr(char *buff, size_t count,
 {
 	int ret;
 
-	ret = store_bool_attr(buff, count, net_dev, (char *)attr->name,
-			      attr_store);
+	ret = store_bool_attr(buff, count, net_dev, attr->name, attr_store);
 	if (post_func && ret)
 		post_func(net_dev);
 
 	return ret;
 }
 
-static int store_uint_attr(char *buff, size_t count,
-			   struct net_device *net_dev, char *attr_name,
+static int store_uint_attr(const char *buff, size_t count,
+			   struct net_device *net_dev, const char *attr_name,
 			   unsigned int min, unsigned int max, atomic_t *attr)
 {
 	unsigned long uint_val;
@@ -183,15 +190,15 @@ static int store_uint_attr(char *buff, size_t count,
 	return count;
 }
 
-static inline ssize_t __store_uint_attr(char *buff, size_t count,
+static inline ssize_t __store_uint_attr(const char *buff, size_t count,
 			int min, int max,
 			void (*post_func)(struct net_device *),
-			struct attribute *attr,
+			const struct attribute *attr,
 			atomic_t *attr_store, struct net_device *net_dev)
 {
 	int ret;
 
-	ret = store_uint_attr(buff, count, net_dev, (char *)attr->name,
+	ret = store_uint_attr(buff, count, net_dev, attr->name,
 			      min, max, attr_store);
 	if (post_func && ret)
 		post_func(net_dev);
@@ -488,22 +495,24 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	    (strncmp(hard_iface->soft_iface->name, buff, IFNAMSIZ) == 0))
 		goto out;
 
-	if (status_tmp == IF_NOT_IN_USE) {
-		rtnl_lock();
-		hardif_disable_interface(hard_iface);
-		rtnl_unlock();
+	if (!rtnl_trylock()) {
+		ret = -ERESTARTSYS;
 		goto out;
 	}
 
-	/* if the interface already is in use */
-	if (hard_iface->if_status != IF_NOT_IN_USE) {
-		rtnl_lock();
+	if (status_tmp == IF_NOT_IN_USE) {
 		hardif_disable_interface(hard_iface);
-		rtnl_unlock();
+		goto unlock;
 	}
+
+	/* if the interface already is in use */
+	if (hard_iface->if_status != IF_NOT_IN_USE)
+		hardif_disable_interface(hard_iface);
 
 	ret = hardif_enable_interface(hard_iface, buff);
 
+unlock:
+	rtnl_unlock();
 out:
 	hardif_free_ref(hard_iface);
 	return ret;

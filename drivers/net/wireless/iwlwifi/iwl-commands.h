@@ -205,7 +205,6 @@ enum {
 #define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
 #define SEQ_TO_INDEX(s)	((s) & 0xff)
 #define INDEX_TO_SEQ(i)	((i) & 0xff)
-#define SEQ_HUGE_FRAME	cpu_to_le16(0x4000)
 #define SEQ_RX_FRAME	cpu_to_le16(0x8000)
 
 /**
@@ -234,9 +233,7 @@ struct iwl_cmd_header {
 	 *
 	 *  0:7		tfd index - position within TX queue
 	 *  8:12	TX queue id
-	 *  13		reserved
-	 *  14		huge - driver sets this to indicate command is in the
-	 *  		'huge' storage at the end of the command buffers
+	 *  13:14	reserved
 	 *  15		unsolicited RX or uCode-originated notification
 	 */
 	__le16 sequence;
@@ -386,7 +383,18 @@ struct iwl_tx_ant_config_cmd {
  *****************************************************************************/
 
 #define UCODE_VALID_OK	cpu_to_le32(0x1)
-#define INITIALIZE_SUBTYPE    (9)
+
+enum iwlagn_ucode_subtype {
+	UCODE_SUBTYPE_REGULAR	= 0,
+	UCODE_SUBTYPE_REGULAR_NEW = 1,
+	UCODE_SUBTYPE_INIT	= 9,
+
+	/*
+	 * Not a valid subtype, the ucode has just a u8, so
+	 * we can use something > 0xff for this value.
+	 */
+	UCODE_SUBTYPE_NONE_LOADED = 0x100,
+};
 
 /**
  * REPLY_ALIVE = 0x1 (response only, not a command)
@@ -422,49 +430,61 @@ struct iwl_tx_ant_config_cmd {
  *
  * 2)  error_event_table_ptr indicates base of the error log.  This contains
  *     information about any uCode error that occurs.  For agn, the format
- *     of the error log is:
- *
- *	__le32 valid;        (nonzero) valid, (0) log is empty
- *	__le32 error_id;     type of error
- *	__le32 pc;           program counter
- *	__le32 blink1;       branch link
- *	__le32 blink2;       branch link
- *	__le32 ilink1;       interrupt link
- *	__le32 ilink2;       interrupt link
- *	__le32 data1;        error-specific data
- *	__le32 data2;        error-specific data
- *	__le32 line;         source code line of error
- *	__le32 bcon_time;    beacon timer
- *	__le32 tsf_low;      network timestamp function timer
- *	__le32 tsf_hi;       network timestamp function timer
- *	__le32 gp1;          GP1 timer register
- *	__le32 gp2;          GP2 timer register
- *	__le32 gp3;          GP3 timer register
- *	__le32 ucode_ver;    uCode version
- *	__le32 hw_ver;       HW Silicon version
- *	__le32 brd_ver;      HW board version
- *	__le32 log_pc;       log program counter
- *	__le32 frame_ptr;    frame pointer
- *	__le32 stack_ptr;    stack pointer
- *	__le32 hcmd;         last host command
- *	__le32 isr0;         isr status register LMPM_NIC_ISR0: rxtx_flag
- *	__le32 isr1;         isr status register LMPM_NIC_ISR1: host_flag
- *	__le32 isr2;         isr status register LMPM_NIC_ISR2: enc_flag
- *	__le32 isr3;         isr status register LMPM_NIC_ISR3: time_flag
- *	__le32 isr4;         isr status register LMPM_NIC_ISR4: wico interrupt
- *	__le32 isr_pref;     isr status register LMPM_NIC_PREF_STAT
- *	__le32 wait_event;   wait event() caller address
- *	__le32 l2p_control;  L2pControlField
- *	__le32 l2p_duration; L2pDurationField
- *	__le32 l2p_mhvalid;  L2pMhValidBits
- *	__le32 l2p_addr_match; L2pAddrMatchStat
- *	__le32 lmpm_pmg_sel; indicate which clocks are turned on (LMPM_PMG_SEL)
- *	__le32 u_timestamp;  indicate when the date and time of the compilation
- *	__le32 reserved;
+ *     of the error log is defined by struct iwl_error_event_table.
  *
  * The Linux driver can print both logs to the system log when a uCode error
  * occurs.
  */
+
+/*
+ * Note: This structure is read from the device with IO accesses,
+ * and the reading already does the endian conversion. As it is
+ * read with u32-sized accesses, any members with a different size
+ * need to be ordered correctly though!
+ */
+struct iwl_error_event_table {
+	u32 valid;		/* (nonzero) valid, (0) log is empty */
+	u32 error_id;		/* type of error */
+	u32 pc;			/* program counter */
+	u32 blink1;		/* branch link */
+	u32 blink2;		/* branch link */
+	u32 ilink1;		/* interrupt link */
+	u32 ilink2;		/* interrupt link */
+	u32 data1;		/* error-specific data */
+	u32 data2;		/* error-specific data */
+	u32 line;		/* source code line of error */
+	u32 bcon_time;		/* beacon timer */
+	u32 tsf_low;		/* network timestamp function timer */
+	u32 tsf_hi;		/* network timestamp function timer */
+	u32 gp1;		/* GP1 timer register */
+	u32 gp2;		/* GP2 timer register */
+	u32 gp3;		/* GP3 timer register */
+	u32 ucode_ver;		/* uCode version */
+	u32 hw_ver;		/* HW Silicon version */
+	u32 brd_ver;		/* HW board version */
+	u32 log_pc;		/* log program counter */
+	u32 frame_ptr;		/* frame pointer */
+	u32 stack_ptr;		/* stack pointer */
+	u32 hcmd;		/* last host command header */
+#if 0
+	/* no need to read the remainder, we don't use the values */
+	u32 isr0;		/* isr status register LMPM_NIC_ISR0: rxtx_flag */
+	u32 isr1;		/* isr status register LMPM_NIC_ISR1: host_flag */
+	u32 isr2;		/* isr status register LMPM_NIC_ISR2: enc_flag */
+	u32 isr3;		/* isr status register LMPM_NIC_ISR3: time_flag */
+	u32 isr4;		/* isr status register LMPM_NIC_ISR4: wico interrupt */
+	u32 isr_pref;		/* isr status register LMPM_NIC_PREF_STAT */
+	u32 wait_event;		/* wait event() caller address */
+	u32 l2p_control;	/* L2pControlField */
+	u32 l2p_duration;	/* L2pDurationField */
+	u32 l2p_mhvalid;	/* L2pMhValidBits */
+	u32 l2p_addr_match;	/* L2pAddrMatchStat */
+	u32 lmpm_pmg_sel;	/* indicate which clocks are turned on (LMPM_PMG_SEL) */
+	u32 u_timestamp;	/* indicate when the date and time of the compilation */
+	u32 flow_handler;	/* FH read/write pointers, RX credit */
+#endif
+} __packed;
+
 struct iwl_alive_resp {
 	u8 ucode_minor;
 	u8 ucode_major;
@@ -638,7 +658,7 @@ struct iwl_rxon_cmd {
 /*
  * REPLY_RXON_ASSOC = 0x11 (command, has simple generic response)
  */
-struct iwl5000_rxon_assoc_cmd {
+struct iwl_rxon_assoc_cmd {
 	__le32 flags;
 	__le32 filter_flags;
 	u8 ofdm_basic_rates;
@@ -2535,75 +2555,11 @@ struct rate_histogram {
 
 /* statistics command response */
 
-struct iwl39_statistics_rx_phy {
-	__le32 ina_cnt;
-	__le32 fina_cnt;
-	__le32 plcp_err;
-	__le32 crc32_err;
-	__le32 overrun_err;
-	__le32 early_overrun_err;
-	__le32 crc32_good;
-	__le32 false_alarm_cnt;
-	__le32 fina_sync_err_cnt;
-	__le32 sfd_timeout;
-	__le32 fina_timeout;
-	__le32 unresponded_rts;
-	__le32 rxe_frame_limit_overrun;
-	__le32 sent_ack_cnt;
-	__le32 sent_cts_cnt;
-} __packed;
-
-struct iwl39_statistics_rx_non_phy {
-	__le32 bogus_cts;	/* CTS received when not expecting CTS */
-	__le32 bogus_ack;	/* ACK received when not expecting ACK */
-	__le32 non_bssid_frames;	/* number of frames with BSSID that
-					 * doesn't belong to the STA BSSID */
-	__le32 filtered_frames;	/* count frames that were dumped in the
-				 * filtering process */
-	__le32 non_channel_beacons;	/* beacons with our bss id but not on
-					 * our serving channel */
-} __packed;
-
-struct iwl39_statistics_rx {
-	struct iwl39_statistics_rx_phy ofdm;
-	struct iwl39_statistics_rx_phy cck;
-	struct iwl39_statistics_rx_non_phy general;
-} __packed;
-
-struct iwl39_statistics_tx {
-	__le32 preamble_cnt;
-	__le32 rx_detected_cnt;
-	__le32 bt_prio_defer_cnt;
-	__le32 bt_prio_kill_cnt;
-	__le32 few_bytes_cnt;
-	__le32 cts_timeout;
-	__le32 ack_timeout;
-	__le32 expected_ack_cnt;
-	__le32 actual_ack_cnt;
-} __packed;
-
 struct statistics_dbg {
 	__le32 burst_check;
 	__le32 burst_count;
 	__le32 wait_for_silence_timeout_cnt;
 	__le32 reserved[3];
-} __packed;
-
-struct iwl39_statistics_div {
-	__le32 tx_on_a;
-	__le32 tx_on_b;
-	__le32 exec_time;
-	__le32 probe_time;
-} __packed;
-
-struct iwl39_statistics_general {
-	__le32 temperature;
-	struct statistics_dbg dbg;
-	__le32 sleep_time;
-	__le32 slots_out;
-	__le32 slots_idle;
-	__le32 ttl_timestamp;
-	struct iwl39_statistics_div div;
 } __packed;
 
 struct statistics_rx_phy {

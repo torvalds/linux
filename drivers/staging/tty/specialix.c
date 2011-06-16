@@ -978,7 +978,7 @@ static void sx_change_speed(struct specialix_board *bp,
 	spin_lock_irqsave(&bp->lock, flags);
 	sx_out(bp, CD186x_CAR, port_No(port));
 
-	/* The Specialix board does't implement the RTS lines.
+	/* The Specialix board doesn't implement the RTS lines.
 	   They are used to set the IRQ level. Don't touch them. */
 	if (sx_crtscts(tty))
 		port->MSVR = MSVR_DTR | (sx_in(bp, CD186x_MSVR) & MSVR_RTS);

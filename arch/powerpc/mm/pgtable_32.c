@@ -133,7 +133,15 @@ ioremap(phys_addr_t addr, unsigned long size)
 EXPORT_SYMBOL(ioremap);
 
 void __iomem *
-ioremap_flags(phys_addr_t addr, unsigned long size, unsigned long flags)
+ioremap_wc(phys_addr_t addr, unsigned long size)
+{
+	return __ioremap_caller(addr, size, _PAGE_NO_CACHE,
+				__builtin_return_address(0));
+}
+EXPORT_SYMBOL(ioremap_wc);
+
+void __iomem *
+ioremap_prot(phys_addr_t addr, unsigned long size, unsigned long flags)
 {
 	/* writeable implies dirty for kernel addresses */
 	if (flags & _PAGE_RW)
@@ -152,7 +160,7 @@ ioremap_flags(phys_addr_t addr, unsigned long size, unsigned long flags)
 
 	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
 }
-EXPORT_SYMBOL(ioremap_flags);
+EXPORT_SYMBOL(ioremap_prot);
 
 void __iomem *
 __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)

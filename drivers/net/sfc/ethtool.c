@@ -219,7 +219,7 @@ static int efx_ethtool_get_settings(struct net_device *net_dev,
 	ecmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
 
 	if (LOOPBACK_INTERNAL(efx)) {
-		ecmd->speed = link_state->speed;
+		ethtool_cmd_speed_set(ecmd, link_state->speed);
 		ecmd->duplex = link_state->fd ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 
@@ -234,7 +234,8 @@ static int efx_ethtool_set_settings(struct net_device *net_dev,
 	int rc;
 
 	/* GMAC does not support 1000Mbps HD */
-	if (ecmd->speed == SPEED_1000 && ecmd->duplex != DUPLEX_FULL) {
+	if ((ethtool_cmd_speed(ecmd) == SPEED_1000) &&
+	    (ecmd->duplex != DUPLEX_FULL)) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "rejecting unsupported 1000Mbps HD setting\n");
 		return -EINVAL;
@@ -697,7 +698,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 				      struct ethtool_pauseparam *pause)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	enum efx_fc_type wanted_fc, old_fc;
+	u8 wanted_fc, old_fc;
 	u32 old_adv;
 	bool reset;
 	int rc = 0;
@@ -954,8 +955,9 @@ static int efx_ethtool_set_rx_ntuple(struct net_device *net_dev,
 
 	if (ntuple->fs.action == ETHTOOL_RXNTUPLE_ACTION_CLEAR)
 		return efx_filter_remove_filter(efx, &filter);
-	else
-		return efx_filter_insert_filter(efx, &filter, true);
+
+	rc = efx_filter_insert_filter(efx, &filter, true);
+	return rc < 0 ? rc : 0;
 }
 
 static int efx_ethtool_get_rxfh_indir(struct net_device *net_dev,

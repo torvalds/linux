@@ -345,7 +345,7 @@ static int qlcnic_wait_rom_done(struct qlcnic_adapter *adapter)
 }
 
 static int do_rom_fast_read(struct qlcnic_adapter *adapter,
-			    int addr, int *valp)
+			    u32 addr, u32 *valp)
 {
 	QLCWR32(adapter, QLCNIC_ROMUSB_ROM_ADDRESS, addr);
 	QLCWR32(adapter, QLCNIC_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
@@ -398,7 +398,7 @@ qlcnic_rom_fast_read_words(struct qlcnic_adapter *adapter, int addr,
 	return ret;
 }
 
-int qlcnic_rom_fast_read(struct qlcnic_adapter *adapter, int addr, int *valp)
+int qlcnic_rom_fast_read(struct qlcnic_adapter *adapter, u32 addr, u32 *valp)
 {
 	int ret;
 
@@ -1390,8 +1390,8 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 
 	skb = buffer->skb;
 
-	if (likely(adapter->rx_csum && (cksum == STATUS_CKSUM_OK ||
-						cksum == STATUS_CKSUM_LOOP))) {
+	if (likely((adapter->netdev->features & NETIF_F_RXCSUM) &&
+	    (cksum == STATUS_CKSUM_OK || cksum == STATUS_CKSUM_LOOP))) {
 		adapter->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else {

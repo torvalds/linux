@@ -25,6 +25,7 @@
 #ifndef __IO_H__
 #define __IO_H__
 
+#include <linux/irqreturn.h>
 #include "reg.h"
 
 #define HW_ACCESS_MEMORY_MAX_RANGE	0x1FFC0
@@ -169,5 +170,8 @@ int wl1271_init_ieee80211(struct wl1271 *wl);
 struct ieee80211_hw *wl1271_alloc_hw(void);
 int wl1271_free_hw(struct wl1271 *wl);
 irqreturn_t wl1271_irq(int irq, void *data);
+bool wl1271_set_block_size(struct wl1271 *wl);
+int wl1271_tx_dummy_packet(struct wl1271 *wl);
+void wl1271_configure_filters(struct wl1271 *wl, unsigned int filters);
 
 #endif

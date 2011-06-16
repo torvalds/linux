@@ -52,6 +52,7 @@ extern void iounmap(volatile void __iomem *addr);
 #endif
 
 #define ioremap_nocache(physaddr, size)		ioremap(physaddr, size)
+#define ioremap_wc(physaddr, size)		ioremap(physaddr, size)
 #define ioremap_writethrough(physaddr, size)	ioremap(physaddr, size)
 #define ioremap_fullcache(physaddr, size)	ioremap(physaddr, size)
 
@@ -161,6 +162,15 @@ static inline void _tile_writeq(u64 val, unsigned long addr)
 #define iowrite32 writel
 #define iowrite64 writeq
 
+static inline void memset_io(void *dst, int val, size_t len)
+{
+	int x;
+	BUG_ON((unsigned long)dst & 0x3);
+	val = (val & 0xff) * 0x01010101;
+	for (x = 0; x < len; x += 4)
+		writel(val, dst + x);
+}
+
 static inline void memcpy_fromio(void *dst, const volatile void __iomem *src,
 				 size_t len)
 {
@@ -269,6 +279,11 @@ static inline void outsl(unsigned long addr, const void *buffer, int count)
 	ioport_panic();
 }
 
+#define ioread16be(addr)	be16_to_cpu(ioread16(addr))
+#define ioread32be(addr)	be32_to_cpu(ioread32(addr))
+#define iowrite16be(v, addr)	iowrite16(be16_to_cpu(v), (addr))
+#define iowrite32be(v, addr)	iowrite32(be32_to_cpu(v), (addr))
+
 #define ioread8_rep(p, dst, count) \
 	insb((unsigned long) (p), (dst), (count))
 #define ioread16_rep(p, dst, count) \
@@ -282,5 +297,8 @@ static inline void outsl(unsigned long addr, const void *buffer, int count)
 	outsw((unsigned long) (p), (src), (count))
 #define iowrite32_rep(p, src, count) \
 	outsl((unsigned long) (p), (src), (count))
+
+#define virt_to_bus     virt_to_phys
+#define bus_to_virt     phys_to_virt
 
 #endif /* _ASM_TILE_IO_H */

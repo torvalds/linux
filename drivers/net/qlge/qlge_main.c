@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/prefetch.h>
 #include <net/ip6_checksum.h>
 
 #include "qlge.h"

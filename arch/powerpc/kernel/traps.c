@@ -55,6 +55,7 @@
 #endif
 #include <asm/kexec.h>
 #include <asm/ppc-opcode.h>
+#include <asm/rio.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 int (*__debugger)(struct pt_regs *regs) __read_mostly;
@@ -143,7 +144,6 @@ int die(const char *str, struct pt_regs *regs, long err)
 #endif
 		printk("%s\n", ppc_md.name ? ppc_md.name : "");
 
-		sysfs_printk_last_file();
 		if (notify_die(DIE_OOPS, str, regs, err, 255,
 			       SIGSEGV) == NOTIFY_STOP)
 			return 1;
@@ -199,7 +199,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 	} else if (show_unhandled_signals &&
 		    unhandled_signal(current, signr) &&
 		    printk_ratelimit()) {
-			printk(regs->msr & MSR_SF ? fmt64 : fmt32,
+			printk(regs->msr & MSR_64BIT ? fmt64 : fmt32,
 				current->comm, current->pid, signr,
 				addr, regs->nip, regs->link, code);
 		}
@@ -221,7 +221,7 @@ void system_reset_exception(struct pt_regs *regs)
 	}
 
 #ifdef CONFIG_KEXEC
-	cpu_set(smp_processor_id(), cpus_in_sr);
+	cpumask_set_cpu(smp_processor_id(), &cpus_in_sr);
 #endif
 
 	die("System Reset", regs, SIGABRT);
@@ -425,6 +425,12 @@ int machine_check_e500mc(struct pt_regs *regs)
 	unsigned long reason = mcsr;
 	int recoverable = 1;
 
+	if (reason & MCSR_BUS_RBERR) {
+		recoverable = fsl_rio_mcheck_exception(regs);
+		if (recoverable == 1)
+			goto silent_out;
+	}
+
 	printk("Machine check in kernel mode.\n");
 	printk("Caused by (from MCSR=%lx): ", reason);
 
@@ -500,6 +506,7 @@ int machine_check_e500mc(struct pt_regs *regs)
 		       reason & MCSR_MEA ? "Effective" : "Physical", addr);
 	}
 
+silent_out:
 	mtspr(SPRN_MCSR, mcsr);
 	return mfspr(SPRN_MCSR) == 0 && recoverable;
 }
@@ -507,6 +514,11 @@ int machine_check_e500mc(struct pt_regs *regs)
 int machine_check_e500(struct pt_regs *regs)
 {
 	unsigned long reason = get_mc_reason(regs);
+
+	if (reason & MCSR_BUS_RBERR) {
+		if (fsl_rio_mcheck_exception(regs))
+			return 1;
+	}
 
 	printk("Machine check in kernel mode.\n");
 	printk("Caused by (from MCSR=%lx): ", reason);
@@ -908,6 +920,26 @@ static int emulate_instruction(struct pt_regs *regs)
 		PPC_WARN_EMULATED(isel, regs);
 		return emulate_isel(regs, instword);
 	}
+
+#ifdef CONFIG_PPC64
+	/* Emulate the mfspr rD, DSCR. */
+	if (((instword & PPC_INST_MFSPR_DSCR_MASK) == PPC_INST_MFSPR_DSCR) &&
+			cpu_has_feature(CPU_FTR_DSCR)) {
+		PPC_WARN_EMULATED(mfdscr, regs);
+		rd = (instword >> 21) & 0x1f;
+		regs->gpr[rd] = mfspr(SPRN_DSCR);
+		return 0;
+	}
+	/* Emulate the mtspr DSCR, rD. */
+	if (((instword & PPC_INST_MTSPR_DSCR_MASK) == PPC_INST_MTSPR_DSCR) &&
+			cpu_has_feature(CPU_FTR_DSCR)) {
+		PPC_WARN_EMULATED(mtdscr, regs);
+		rd = (instword >> 21) & 0x1f;
+		mtspr(SPRN_DSCR, regs->gpr[rd]);
+		current->thread.dscr_inherit = 1;
+		return 0;
+	}
+#endif
 
 	return -EINVAL;
 }
@@ -1505,6 +1537,10 @@ struct ppc_emulated ppc_emulated = {
 #endif
 #ifdef CONFIG_VSX
 	WARN_EMULATED_SETUP(vsx),
+#endif
+#ifdef CONFIG_PPC64
+	WARN_EMULATED_SETUP(mfdscr),
+	WARN_EMULATED_SETUP(mtdscr),
 #endif
 };
 

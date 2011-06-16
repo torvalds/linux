@@ -232,6 +232,9 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 		WARN_ON(!ieee80211_set_channel_type(local, sdata, channel_type));
 	}
 
+	ieee80211_stop_queues_by_reason(&sdata->local->hw,
+					IEEE80211_QUEUE_STOP_REASON_CSA);
+
 	/* channel_type change automatically detected */
 	ieee80211_hw_config(local, 0);
 
@@ -244,6 +247,9 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 						 channel_type);
 		rcu_read_unlock();
 	}
+
+	ieee80211_wake_queues_by_reason(&sdata->local->hw,
+					IEEE80211_QUEUE_STOP_REASON_CSA);
 
 	ht_opmode = le16_to_cpu(hti->operation_mode);
 
@@ -750,6 +756,8 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 			     dynamic_ps_enable_work);
 	struct ieee80211_sub_if_data *sdata = local->ps_sdata;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	unsigned long flags;
+	int q;
 
 	/* can only happen when PS was just disabled anyway */
 	if (!sdata)
@@ -758,18 +766,37 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	if (local->hw.conf.flags & IEEE80211_CONF_PS)
 		return;
 
+	/*
+	 * transmission can be stopped by others which leads to
+	 * dynamic_ps_timer expiry. Postpond the ps timer if it
+	 * is not the actual idle state.
+	 */
+	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+	for (q = 0; q < local->hw.queues; q++) {
+		if (local->queue_stop_reasons[q]) {
+			spin_unlock_irqrestore(&local->queue_stop_reason_lock,
+					       flags);
+			mod_timer(&local->dynamic_ps_timer, jiffies +
+				  msecs_to_jiffies(
+				  local->hw.conf.dynamic_ps_timeout));
+			return;
+		}
+	}
+	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+
 	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
 	    (!(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED))) {
 		netif_tx_stop_all_queues(sdata->dev);
-		/*
-		 * Flush all the frames queued in the driver before
-		 * going to power save
-		 */
-		drv_flush(local, false);
-		ieee80211_send_nullfunc(local, sdata, 1);
 
-		/* Flush once again to get the tx status of nullfunc frame */
-		drv_flush(local, false);
+		if (drv_tx_frames_pending(local))
+			mod_timer(&local->dynamic_ps_timer, jiffies +
+				  msecs_to_jiffies(
+				  local->hw.conf.dynamic_ps_timeout));
+		else {
+			ieee80211_send_nullfunc(local, sdata, 1);
+			/* Flush to get the tx status of nullfunc frame */
+			drv_flush(local, false);
+		}
 	}
 
 	if (!((local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) &&
@@ -780,7 +807,7 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 
-	netif_tx_start_all_queues(sdata->dev);
+	netif_tx_wake_all_queues(sdata->dev);
 }
 
 void ieee80211_dynamic_ps_timer(unsigned long data)
@@ -1068,6 +1095,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 		local->hw.conf.flags &= ~IEEE80211_CONF_PS;
 		config_changed |= IEEE80211_CONF_CHANGE_PS;
 	}
+	local->ps_sdata = NULL;
 
 	ieee80211_hw_config(local, config_changed);
 

@@ -6,8 +6,10 @@
 /*
  * This is the maximum virtual address which can be DMA'd from.
  */
-#ifndef MAX_DMA_ADDRESS
+#ifndef ARM_DMA_ZONE_SIZE
 #define MAX_DMA_ADDRESS	0xffffffff
+#else
+#define MAX_DMA_ADDRESS	(PAGE_OFFSET + ARM_DMA_ZONE_SIZE)
 #endif
 
 #ifdef CONFIG_ISA_DMA_API

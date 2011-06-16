@@ -12,8 +12,8 @@
 #ifndef CNIC_IF_H
 #define CNIC_IF_H
 
-#define CNIC_MODULE_VERSION	"2.2.14"
-#define CNIC_MODULE_RELDATE	"Mar 30, 2011"
+#define CNIC_MODULE_VERSION	"2.5.3"
+#define CNIC_MODULE_RELDATE	"June 6, 2011"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1
@@ -99,6 +99,8 @@ struct kcqe {
 
 struct cnic_ctl_completion {
 	u32	cid;
+	u8	opcode;
+	u8	error;
 };
 
 struct cnic_ctl_info {
@@ -169,7 +171,7 @@ struct cnic_eth_dev {
 	struct pci_dev	*pdev;
 	void __iomem	*io_base;
 	void __iomem	*io_base2;
-	void		*iro_arr;
+	const void	*iro_arr;
 
 	u32		ctx_tbl_offset;
 	u32		ctx_tbl_len;

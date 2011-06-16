@@ -1113,7 +1113,6 @@ void rtl92c_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr;
 	u8 *tmp_buf;
 	u8 *praddr;
-	u8 *psaddr;
 	__le16 fc;
 	u16 type, cpu_fc;
 	bool packet_matchbssid, packet_toself, packet_beacon;
@@ -1124,7 +1123,6 @@ void rtl92c_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	cpu_fc = le16_to_cpu(fc);
 	type = WLAN_FC_GET_TYPE(fc);
 	praddr = hdr->addr1;
-	psaddr = hdr->addr2;
 	packet_matchbssid =
 	    ((IEEE80211_FTYPE_CTL != type) &&
 	     (!compare_ether_addr(mac->bssid,

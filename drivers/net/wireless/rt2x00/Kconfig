@@ -59,7 +59,6 @@ config RT2800PCI
 	select RT2800_LIB
 	select RT2X00_LIB_PCI if PCI
 	select RT2X00_LIB_SOC if RALINK_RT288X || RALINK_RT305X
-	select RT2X00_LIB_HT
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
 	select CRC_CCITT
@@ -74,40 +73,31 @@ config RT2800PCI
 if RT2800PCI
 
 config RT2800PCI_RT33XX
-	bool "rt2800pci - Include support for rt33xx devices (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	default n
+	bool "rt2800pci - Include support for rt33xx devices"
+	default y
 	---help---
 	  This adds support for rt33xx wireless chipset family to the
 	  rt2800pci driver.
 	  Supported chips: RT3390
 
-	  Support for these devices is non-functional at the moment and is
-	  intended for testers and developers.
-
 config RT2800PCI_RT35XX
 	bool "rt2800pci - Include support for rt35xx devices (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	default n
+	default y
 	---help---
 	  This adds support for rt35xx wireless chipset family to the
 	  rt2800pci driver.
 	  Supported chips: RT3060, RT3062, RT3562, RT3592
 
-	  Support for these devices is non-functional at the moment and is
-	  intended for testers and developers.
 
 config RT2800PCI_RT53XX
-       bool "rt2800-pci - Include support for rt53xx devices (EXPERIMENTAL)"
+       bool "rt2800pci - Include support for rt53xx devices (EXPERIMENTAL)"
        depends on EXPERIMENTAL
-       default n
+       default y
        ---help---
          This adds support for rt53xx wireless chipset family to the
          rt2800pci driver.
          Supported chips: RT5390
-
-         Support for these devices is non-functional at the moment and is
-         intended for testers and developers.
 
 endif
 
@@ -140,7 +130,6 @@ config RT2800USB
 	depends on USB
 	select RT2800_LIB
 	select RT2X00_LIB_USB
-	select RT2X00_LIB_HT
 	select RT2X00_LIB_FIRMWARE
 	select RT2X00_LIB_CRYPTO
 	select CRC_CCITT
@@ -153,28 +142,29 @@ config RT2800USB
 if RT2800USB
 
 config RT2800USB_RT33XX
-	bool "rt2800usb - Include support for rt33xx devices (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
-	default n
+	bool "rt2800usb - Include support for rt33xx devices"
+	default y
 	---help---
 	  This adds support for rt33xx wireless chipset family to the
 	  rt2800usb driver.
 	  Supported chips: RT3370
 
-	  Support for these devices is non-functional at the moment and is
-	  intended for testers and developers.
-
 config RT2800USB_RT35XX
 	bool "rt2800usb - Include support for rt35xx devices (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	default n
+	default y
 	---help---
 	  This adds support for rt35xx wireless chipset family to the
 	  rt2800usb driver.
 	  Supported chips: RT3572
 
-	  Support for these devices is non-functional at the moment and is
-	  intended for testers and developers.
+config RT2800USB_RT53XX
+       bool "rt2800usb - Include support for rt53xx devices (EXPERIMENTAL)"
+       depends on EXPERIMENTAL
+       ---help---
+         This adds support for rt53xx wireless chipset family to the
+         rt2800pci driver.
+         Supported chips: RT5370
 
 config RT2800USB_UNKNOWN
 	bool "rt2800usb - Include support for unknown (USB) devices"
@@ -206,9 +196,6 @@ config RT2X00_LIB_USB
 
 config RT2X00_LIB
 	tristate
-
-config RT2X00_LIB_HT
-	boolean
 
 config RT2X00_LIB_FIRMWARE
 	boolean

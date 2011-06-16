@@ -18,6 +18,7 @@
 #include <linux/inetdevice.h>
 #include <linux/sysfs.h>
 #include <linux/aer.h>
+#include <linux/log2.h>
 
 MODULE_DESCRIPTION("QLogic 1/10 GbE Converged/Intelligent Ethernet Driver");
 MODULE_LICENSE("GPL");
@@ -328,6 +329,8 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_set_multicast_list = qlcnic_set_multi,
 	.ndo_set_mac_address    = qlcnic_set_mac,
 	.ndo_change_mtu	   = qlcnic_change_mtu,
+	.ndo_fix_features  = qlcnic_fix_features,
+	.ndo_set_features  = qlcnic_set_features,
 	.ndo_tx_timeout	   = qlcnic_tx_timeout,
 	.ndo_vlan_rx_add_vid	= qlcnic_vlan_rx_add,
 	.ndo_vlan_rx_kill_vid	= qlcnic_vlan_rx_del,
@@ -348,22 +351,51 @@ static struct qlcnic_nic_template qlcnic_vf_ops = {
 	.start_firmware = qlcnicvf_start_firmware
 };
 
-static void
-qlcnic_setup_intr(struct qlcnic_adapter *adapter)
+static int qlcnic_enable_msix(struct qlcnic_adapter *adapter, u32 num_msix)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	int err = -1;
+
+	adapter->max_sds_rings = 1;
+	adapter->flags &= ~(QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED);
+	qlcnic_set_msix_bit(pdev, 0);
+
+	if (adapter->msix_supported) {
+ enable_msix:
+		qlcnic_init_msix_entries(adapter, num_msix);
+		err = pci_enable_msix(pdev, adapter->msix_entries, num_msix);
+		if (err == 0) {
+			adapter->flags |= QLCNIC_MSIX_ENABLED;
+			qlcnic_set_msix_bit(pdev, 1);
+
+			adapter->max_sds_rings = num_msix;
+
+			dev_info(&pdev->dev, "using msi-x interrupts\n");
+			return err;
+		}
+		if (err > 0) {
+			num_msix = rounddown_pow_of_two(err);
+			if (num_msix)
+				goto enable_msix;
+		}
+	}
+	return err;
+}
+
+
+static void qlcnic_enable_msi_legacy(struct qlcnic_adapter *adapter)
 {
 	const struct qlcnic_legacy_intr_set *legacy_intrp;
 	struct pci_dev *pdev = adapter->pdev;
-	int err, num_msix;
 
-	if (adapter->msix_supported) {
-		num_msix = (num_online_cpus() >= MSIX_ENTRIES_PER_ADAPTER) ?
-			MSIX_ENTRIES_PER_ADAPTER : 2;
-	} else
-		num_msix = 1;
-
-	adapter->max_sds_rings = 1;
-
-	adapter->flags &= ~(QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED);
+	if (use_msi && !pci_enable_msi(pdev)) {
+		adapter->flags |= QLCNIC_MSI_ENABLED;
+		adapter->tgt_status_reg = qlcnic_get_ioaddr(adapter,
+				msi_tgt_status[adapter->ahw->pci_func]);
+		dev_info(&pdev->dev, "using msi interrupts\n");
+		adapter->msix_entries[0].vector = pdev->irq;
+		return;
+	}
 
 	legacy_intrp = &legacy_intr[adapter->ahw->pci_func];
 
@@ -376,40 +408,27 @@ qlcnic_setup_intr(struct qlcnic_adapter *adapter)
 
 	adapter->crb_int_state_reg = qlcnic_get_ioaddr(adapter,
 			ISR_INT_STATE_REG);
-
-	qlcnic_set_msix_bit(pdev, 0);
-
-	if (adapter->msix_supported) {
-
-		qlcnic_init_msix_entries(adapter, num_msix);
-		err = pci_enable_msix(pdev, adapter->msix_entries, num_msix);
-		if (err == 0) {
-			adapter->flags |= QLCNIC_MSIX_ENABLED;
-			qlcnic_set_msix_bit(pdev, 1);
-
-			adapter->max_sds_rings = num_msix;
-
-			dev_info(&pdev->dev, "using msi-x interrupts\n");
-			return;
-		}
-
-		if (err > 0)
-			pci_disable_msix(pdev);
-
-		/* fall through for msi */
-	}
-
-	if (use_msi && !pci_enable_msi(pdev)) {
-		adapter->flags |= QLCNIC_MSI_ENABLED;
-		adapter->tgt_status_reg = qlcnic_get_ioaddr(adapter,
-				msi_tgt_status[adapter->ahw->pci_func]);
-		dev_info(&pdev->dev, "using msi interrupts\n");
-		adapter->msix_entries[0].vector = pdev->irq;
-		return;
-	}
-
 	dev_info(&pdev->dev, "using legacy interrupts\n");
 	adapter->msix_entries[0].vector = pdev->irq;
+}
+
+static void
+qlcnic_setup_intr(struct qlcnic_adapter *adapter)
+{
+	int num_msix;
+
+	if (adapter->msix_supported) {
+		num_msix = (num_online_cpus() >=
+			QLCNIC_DEF_NUM_STS_DESC_RINGS) ?
+			QLCNIC_DEF_NUM_STS_DESC_RINGS :
+			QLCNIC_MIN_NUM_RSS_RINGS;
+	} else
+		num_msix = 1;
+
+	if (!qlcnic_enable_msix(adapter, num_msix))
+		return;
+
+	qlcnic_enable_msi_legacy(adapter);
 }
 
 static void
@@ -764,7 +783,7 @@ qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
 	struct net_device *netdev = adapter->netdev;
 	unsigned long features, vlan_features;
 
-	features = (NETIF_F_SG | NETIF_F_IP_CSUM |
+	features = (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
 			NETIF_F_IPV6_CSUM | NETIF_F_GRO);
 	vlan_features = (NETIF_F_SG | NETIF_F_IP_CSUM |
 			NETIF_F_IPV6_CSUM | NETIF_F_HW_VLAN_FILTER);
@@ -779,14 +798,12 @@ qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
 
 	if (esw_cfg->offload_flags & BIT_0) {
 		netdev->features |= features;
-		adapter->rx_csum = 1;
 		if (!(esw_cfg->offload_flags & BIT_1))
 			netdev->features &= ~NETIF_F_TSO;
 		if (!(esw_cfg->offload_flags & BIT_2))
 			netdev->features &= ~NETIF_F_TSO6;
 	} else {
 		netdev->features &= ~features;
-		adapter->rx_csum = 0;
 	}
 
 	netdev->vlan_features = (features & vlan_features);
@@ -1326,6 +1343,10 @@ static void qlcnic_free_adapter_resources(struct qlcnic_adapter *adapter)
 	kfree(adapter->recv_ctx);
 	adapter->recv_ctx = NULL;
 
+	if (adapter->ahw->fw_dump.tmpl_hdr) {
+		vfree(adapter->ahw->fw_dump.tmpl_hdr);
+		adapter->ahw->fw_dump.tmpl_hdr = NULL;
+	}
 	kfree(adapter->ahw);
 	adapter->ahw = NULL;
 }
@@ -1436,7 +1457,6 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 	int err;
 	struct pci_dev *pdev = adapter->pdev;
 
-	adapter->rx_csum = 1;
 	adapter->mc_enabled = 0;
 	adapter->max_mc_count = 38;
 
@@ -1447,26 +1467,24 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 
 	SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_ops);
 
-	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM | NETIF_F_GRO | NETIF_F_HW_VLAN_RX);
-	netdev->vlan_features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM | NETIF_F_HW_VLAN_FILTER);
+	netdev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM |
+		NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM;
 
-	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_TSO) {
-		netdev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
-		netdev->vlan_features |= (NETIF_F_TSO | NETIF_F_TSO6);
-	}
+	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_TSO)
+		netdev->hw_features |= NETIF_F_TSO | NETIF_F_TSO6;
+	if (pci_using_dac)
+		netdev->hw_features |= NETIF_F_HIGHDMA;
 
-	if (pci_using_dac) {
-		netdev->features |= NETIF_F_HIGHDMA;
-		netdev->vlan_features |= NETIF_F_HIGHDMA;
-	}
+	netdev->vlan_features = netdev->hw_features;
 
 	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_FVLANTX)
-		netdev->features |= (NETIF_F_HW_VLAN_TX);
-
+		netdev->hw_features |= NETIF_F_HW_VLAN_TX;
 	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO)
-		netdev->features |= NETIF_F_LRO;
+		netdev->hw_features |= NETIF_F_LRO;
+
+	netdev->features |= netdev->hw_features |
+		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
+
 	netdev->irq = adapter->msix_entries[0].vector;
 
 	netif_carrier_off(netdev);
@@ -1494,6 +1512,19 @@ static int qlcnic_set_dma_mask(struct pci_dev *pdev, u8 *pci_using_dac)
 	}
 
 	return 0;
+}
+
+static int
+qlcnic_alloc_msix_entries(struct qlcnic_adapter *adapter, u16 count)
+{
+	adapter->msix_entries = kcalloc(count, sizeof(struct msix_entry),
+					GFP_KERNEL);
+
+	if (adapter->msix_entries)
+		return 0;
+
+	dev_err(&adapter->pdev->dev, "failed allocating msix_entries\n");
+	return -ENOMEM;
 }
 
 static int __devinit
@@ -1559,6 +1590,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* This will be reset for mezz cards  */
 	adapter->portnum = adapter->ahw->pci_func;
 
+	/* Get FW dump template and store it */
+	if (adapter->op_mode != QLCNIC_NON_PRIV_FUNC)
+		qlcnic_fw_cmd_get_minidump_temp(adapter);
+
 	err = qlcnic_get_board_info(adapter);
 	if (err) {
 		dev_err(&pdev->dev, "Error getting board config info.\n");
@@ -1590,6 +1625,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	qlcnic_clear_stats(adapter);
 
+	err = qlcnic_alloc_msix_entries(adapter, adapter->max_rx_ques);
+	if (err)
+		goto err_out_decr_ref;
+
 	qlcnic_setup_intr(adapter);
 
 	err = qlcnic_setup_netdev(adapter, netdev, pci_using_dac);
@@ -1618,6 +1657,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_out_disable_msi:
 	qlcnic_teardown_intr(adapter);
+	kfree(adapter->msix_entries);
 
 err_out_decr_ref:
 	qlcnic_clr_all_drv_state(adapter, 0);
@@ -1669,6 +1709,7 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev)
 	qlcnic_free_lb_filters_mem(adapter);
 
 	qlcnic_teardown_intr(adapter);
+	kfree(adapter->msix_entries);
 
 	qlcnic_remove_diag_entries(adapter);
 
@@ -2792,6 +2833,8 @@ skip_ack_check:
 			set_bit(__QLCNIC_START_FW, &adapter->state);
 			QLCDB(adapter, DRV, "Restarting fw\n");
 			qlcnic_idc_debug_info(adapter, 0);
+			QLCDB(adapter, DRV, "Take FW dump\n");
+			qlcnic_dump_fw(adapter);
 		}
 
 		qlcnic_api_unlock(adapter);
@@ -2890,7 +2933,7 @@ qlcnic_set_npar_non_operational(struct qlcnic_adapter *adapter)
 }
 
 /*Transit to RESET state from READY state only */
-static void
+void
 qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
 {
 	u32 state;
@@ -3302,6 +3345,56 @@ static struct device_attribute dev_attr_diag_mode = {
 	.store = qlcnic_store_diag_mode,
 };
 
+int qlcnic_validate_max_rss(struct net_device *netdev, u8 max_hw, u8 val)
+{
+	if (!use_msi_x && !use_msi) {
+		netdev_info(netdev, "no msix or msi support, hence no rss\n");
+		return -EINVAL;
+	}
+
+	if ((val > max_hw) || (val <  2) || !is_power_of_2(val)) {
+		netdev_info(netdev, "rss_ring valid range [2 - %x] in "
+			" powers of 2\n", max_hw);
+		return -EINVAL;
+	}
+	return 0;
+
+}
+
+int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data)
+{
+	struct net_device *netdev = adapter->netdev;
+	int err = 0;
+
+	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+		return -EBUSY;
+
+	netif_device_detach(netdev);
+	if (netif_running(netdev))
+		__qlcnic_down(adapter, netdev);
+	qlcnic_detach(adapter);
+	qlcnic_teardown_intr(adapter);
+
+	if (qlcnic_enable_msix(adapter, data)) {
+		netdev_info(netdev, "failed setting max_rss; rss disabled\n");
+		qlcnic_enable_msi_legacy(adapter);
+	}
+
+	if (netif_running(netdev)) {
+		err = qlcnic_attach(adapter);
+		if (err)
+			goto done;
+		err = __qlcnic_up(adapter, netdev);
+		if (err)
+			goto done;
+		qlcnic_restore_indev_addr(netdev, NETDEV_UP);
+	}
+ done:
+	netif_device_attach(netdev);
+	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	return err;
+}
+
 static int
 qlcnic_sysfs_validate_crb(struct qlcnic_adapter *adapter,
 		loff_t offset, size_t size)
@@ -3431,7 +3524,6 @@ qlcnic_sysfs_write_mem(struct file *filp, struct kobject *kobj,
 
 	return size;
 }
-
 
 static struct bin_attribute bin_attr_crb = {
 	.attr = {.name = "crb", .mode = (S_IRUGO | S_IWUSR)},

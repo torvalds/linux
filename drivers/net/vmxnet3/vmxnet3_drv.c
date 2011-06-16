@@ -178,6 +178,7 @@ static void
 vmxnet3_process_events(struct vmxnet3_adapter *adapter)
 {
 	int i;
+	unsigned long flags;
 	u32 events = le32_to_cpu(adapter->shared->ecr);
 	if (!events)
 		return;
@@ -190,10 +191,10 @@ vmxnet3_process_events(struct vmxnet3_adapter *adapter)
 
 	/* Check if there is an error on xmit/recv queues */
 	if (events & (VMXNET3_ECR_TQERR | VMXNET3_ECR_RQERR)) {
-		spin_lock(&adapter->cmd_lock);
+		spin_lock_irqsave(&adapter->cmd_lock, flags);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 				       VMXNET3_CMD_GET_QUEUE_STATUS);
-		spin_unlock(&adapter->cmd_lock);
+		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
 		for (i = 0; i < adapter->num_tx_queues; i++)
 			if (adapter->tqd_start[i].status.stopped)
@@ -404,10 +405,8 @@ vmxnet3_tq_cleanup(struct vmxnet3_tx_queue *tq,
 
 	while (tq->tx_ring.next2comp != tq->tx_ring.next2fill) {
 		struct vmxnet3_tx_buf_info *tbi;
-		union Vmxnet3_GenericDesc *gdesc;
 
 		tbi = tq->buf_info + tq->tx_ring.next2comp;
-		gdesc = tq->tx_ring.base + tq->tx_ring.next2comp;
 
 		vmxnet3_unmap_tx_buf(tbi, adapter->pdev);
 		if (tbi->skb) {
@@ -2720,13 +2719,14 @@ static void
 vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 {
 	u32 cfg;
+	unsigned long flags;
 
 	/* intr settings */
-	spin_lock(&adapter->cmd_lock);
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_GET_CONF_INTR);
 	cfg = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
-	spin_unlock(&adapter->cmd_lock);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 	adapter->intr.type = cfg & 0x3;
 	adapter->intr.mask_mode = (cfg >> 2) & 0x3;
 
@@ -2862,7 +2862,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 		.ndo_set_mac_address = vmxnet3_set_mac_addr,
 		.ndo_change_mtu = vmxnet3_change_mtu,
 		.ndo_set_features = vmxnet3_set_features,
-		.ndo_get_stats = vmxnet3_get_stats,
+		.ndo_get_stats64 = vmxnet3_get_stats64,
 		.ndo_tx_timeout = vmxnet3_tx_timeout,
 		.ndo_set_multicast_list = vmxnet3_set_mc,
 		.ndo_vlan_rx_register = vmxnet3_vlan_rx_register,
@@ -2881,6 +2881,9 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	int size;
 	int num_tx_queues;
 	int num_rx_queues;
+
+	if (!pci_msi_enabled())
+		enable_mq = 0;
 
 #ifdef VMXNET3_RSS
 	if (enable_mq)

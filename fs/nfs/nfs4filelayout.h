@@ -59,9 +59,7 @@ struct nfs4_pnfs_ds {
 #define NFS4_DEVICE_ID_NEG_ENTRY	0x00000001
 
 struct nfs4_file_layout_dsaddr {
-	struct hlist_node		node;
-	struct nfs4_deviceid		deviceid;
-	atomic_t			ref;
+	struct nfs4_deviceid_node	id_node;
 	unsigned long			flags;
 	u32				stripe_count;
 	u8				*stripe_indices;
@@ -95,15 +93,13 @@ extern struct nfs_fh *
 nfs4_fl_select_ds_fh(struct pnfs_layout_segment *lseg, u32 j);
 
 extern void print_ds(struct nfs4_pnfs_ds *ds);
-extern void print_deviceid(struct nfs4_deviceid *dev_id);
 u32 nfs4_fl_calc_j_index(struct pnfs_layout_segment *lseg, loff_t offset);
 u32 nfs4_fl_calc_ds_index(struct pnfs_layout_segment *lseg, u32 j);
 struct nfs4_pnfs_ds *nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg,
 					u32 ds_idx);
-extern struct nfs4_file_layout_dsaddr *
-nfs4_fl_find_get_deviceid(struct nfs4_deviceid *dev_id);
 extern void nfs4_fl_put_deviceid(struct nfs4_file_layout_dsaddr *dsaddr);
+extern void nfs4_fl_free_deviceid(struct nfs4_file_layout_dsaddr *dsaddr);
 struct nfs4_file_layout_dsaddr *
-get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id);
+get_device_info(struct inode *inode, struct nfs4_deviceid *dev_id, gfp_t gfp_flags);
 
 #endif /* FS_NFS_NFS4FILELAYOUT_H */

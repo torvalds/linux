@@ -6,8 +6,14 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
+#include <linux/irq.h>
+
 #ifndef _IIO_TRIGGER_H_
 #define _IIO_TRIGGER_H_
+
+struct iio_subirq {
+	bool enabled;
+};
 
 /**
  * struct iio_trigger - industrial I/O trigger device
@@ -18,14 +24,16 @@
  * @private_data:	[DRIVER] device specific data
  * @list:		[INTERN] used in maintenance of global trigger list
  * @alloc_list:		[DRIVER] used for driver specific trigger list
- * @pollfunc_list_lock:	[INTERN] protection of the polling function list
- * @pollfunc_list:	[INTERN] list of functions to run on trigger.
- * @control_attrs:	[DRIVER] sysfs attributes relevant to trigger type
  * @owner:		[DRIVER] used to monitor usage count of the trigger.
  * @use_count:		use count for the trigger
  * @set_trigger_state:	[DRIVER] switch on/off the trigger on demand
  * @try_reenable:	function to reenable the trigger when the
  *			use count is zero (may be NULL)
+ * @subirq_chip:	[INTERN] associate 'virtual' irq chip.
+ * @subirq_base:	[INTERN] base number for irqs provided by trigger.
+ * @subirqs:		[INTERN] information about the 'child' irqs.
+ * @pool:		[INTERN] bitmap of irqs currently in use.
+ * @pool_lock:		[INTERN] protection of the irq pool.
  **/
 struct iio_trigger {
 	int				id;
@@ -35,14 +43,18 @@ struct iio_trigger {
 	void				*private_data;
 	struct list_head		list;
 	struct list_head		alloc_list;
-	spinlock_t			pollfunc_list_lock;
-	struct list_head		pollfunc_list;
-	const struct attribute_group	*control_attrs;
 	struct module			*owner;
 	int use_count;
 
 	int (*set_trigger_state)(struct iio_trigger *trig, bool state);
 	int (*try_reenable)(struct iio_trigger *trig);
+
+	struct irq_chip			subirq_chip;
+	int				subirq_base;
+
+	struct iio_subirq subirqs[CONFIG_IIO_CONSUMERS_PER_TRIGGER];
+	unsigned long pool[BITS_TO_LONGS(CONFIG_IIO_CONSUMERS_PER_TRIGGER)];
+	struct mutex			pool_lock;
 };
 
 static inline struct iio_trigger *to_iio_trigger(struct device *d)
@@ -61,27 +73,6 @@ static inline void iio_get_trigger(struct iio_trigger *trig)
 	__module_get(trig->owner);
 	get_device(&trig->dev);
 };
-
-/**
- * iio_trigger_read_name() - sysfs access function to get the trigger name
- * @dev: the system device
- * @attr: device attributes for the device
- * @buf: output buffer to store the trigger name
- **/
-ssize_t iio_trigger_read_name(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf);
-
-#define IIO_TRIGGER_NAME_ATTR DEVICE_ATTR(name, S_IRUGO,		\
-					  iio_trigger_read_name,	\
-					  NULL);
-
-/**
- * iio_trigger_find_by_name() - search global trigger list
- * @name: trigger name to search for
- * @len: trigger name string length to compare
- **/
-struct iio_trigger *iio_trigger_find_by_name(const char *name, size_t len);
 
 /**
  * iio_trigger_register() - register a trigger with the IIO core
@@ -119,36 +110,65 @@ int iio_trigger_dettach_poll_func(struct iio_trigger *trig,
  * Typically called in relevant hardware interrupt handler.
  **/
 void iio_trigger_poll(struct iio_trigger *trig, s64 time);
+void iio_trigger_poll_chained(struct iio_trigger *trig, s64 time);
 void iio_trigger_notify_done(struct iio_trigger *trig);
+
+irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private);
+
+static inline int iio_trigger_get_irq(struct iio_trigger *trig)
+{
+	int ret;
+	mutex_lock(&trig->pool_lock);
+	ret = bitmap_find_free_region(trig->pool,
+				      CONFIG_IIO_CONSUMERS_PER_TRIGGER,
+				      ilog2(1));
+	mutex_unlock(&trig->pool_lock);
+	if (ret >= 0)
+		ret += trig->subirq_base;
+
+	return ret;
+};
+
+static inline void iio_trigger_put_irq(struct iio_trigger *trig, int irq)
+{
+	mutex_lock(&trig->pool_lock);
+	clear_bit(irq - trig->subirq_base, trig->pool);
+	mutex_unlock(&trig->pool_lock);
+};
 
 /**
  * struct iio_poll_func - poll function pair
  *
- * @list:			associate this with a triggers pollfunc_list
  * @private_data:		data specific to device (passed into poll func)
- * @poll_func_immediate:	function in here is run first. They should be
- *				extremely lightweight.  Typically used for latch
- *				control on sensor supporting it.
- * @poll_func_main:		function in here is run after all immediates.
- *				Reading from sensor etc typically involves
- *				scheduling from here.
- *
- * The two stage approach used here is only important when multiple sensors are
- * being triggered by a single trigger. This really comes into its own with
- * simultaneous sampling devices where a simple latch command can be used to
- * make the device store the values on all inputs.
+ * @h:				the function that is actually run on trigger
+ * @thread:			threaded interrupt part
+ * @type:			the type of interrupt (basically if oneshot)
+ * @name:			name used to identify the trigger consumer.
+ * @irq:			the corresponding irq as allocated from the
+ *				trigger pool
+ * @timestamp:			some devices need a timestamp grabbed as soon
+ *				as possible after the trigger - hence handler
+ *				passes it via here.
  **/
 struct iio_poll_func {
-	struct				list_head list;
 	void				*private_data;
-	void (*poll_func_immediate)(struct iio_dev *indio_dev);
-	void (*poll_func_main)(struct iio_dev *private_data, s64 time);
-
+	irqreturn_t (*h)(int irq, void *p);
+	irqreturn_t (*thread)(int irq, void *p);
+	int type;
+	char *name;
+	int irq;
+	s64 timestamp;
 };
 
-int iio_alloc_pollfunc(struct iio_dev *indio_dev,
-		       void (*immediate)(struct iio_dev *indio_dev),
-		       void (*main)(struct iio_dev *private_data, s64 time));
+struct iio_poll_func
+*iio_alloc_pollfunc(irqreturn_t (*h)(int irq, void *p),
+		    irqreturn_t (*thread)(int irq, void *p),
+		    int type,
+		    void *private,
+		    const char *fmt,
+		    ...);
+void iio_dealloc_pollfunc(struct iio_poll_func *pf);
+irqreturn_t iio_pollfunc_store_time(int irq, void *p);
 
 /*
  * Two functions for common case where all that happens is a pollfunc
@@ -157,8 +177,8 @@ int iio_alloc_pollfunc(struct iio_dev *indio_dev,
 int iio_triggered_ring_postenable(struct iio_dev *indio_dev);
 int iio_triggered_ring_predisable(struct iio_dev *indio_dev);
 
-struct iio_trigger *iio_allocate_trigger(void);
-
+struct iio_trigger *iio_allocate_trigger(const char *fmt, ...)
+	__attribute__((format(printf, 1, 2)));
 void iio_free_trigger(struct iio_trigger *trig);
 
 #endif /* _IIO_TRIGGER_H_ */

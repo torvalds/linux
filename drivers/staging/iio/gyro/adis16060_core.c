@@ -133,6 +133,11 @@ static const struct attribute_group adis16060_attribute_group = {
 	.attrs = adis16060_attributes,
 };
 
+static const struct iio_info adis16060_info = {
+	.attrs = &adis16060_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
 static int __devinit adis16060_r_probe(struct spi_device *spi)
 {
 	int ret, regdone = 0;
@@ -147,16 +152,15 @@ static int __devinit adis16060_r_probe(struct spi_device *spi)
 	st->us_r = spi;
 	mutex_init(&st->buf_lock);
 	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_st;
 	}
 
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &adis16060_attribute_group;
+	st->indio_dev->info = &adis16060_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->indio_dev);

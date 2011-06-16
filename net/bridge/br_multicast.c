@@ -413,7 +413,7 @@ out:
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static struct sk_buff *br_ip6_multicast_alloc_query(struct net_bridge *br,
-						    struct in6_addr *group)
+						    const struct in6_addr *group)
 {
 	struct sk_buff *skb;
 	struct ipv6hdr *ip6h;
@@ -1115,7 +1115,7 @@ static int br_ip4_multicast_query(struct net_bridge *br,
 				  struct net_bridge_port *port,
 				  struct sk_buff *skb)
 {
-	struct iphdr *iph = ip_hdr(skb);
+	const struct iphdr *iph = ip_hdr(skb);
 	struct igmphdr *ih = igmp_hdr(skb);
 	struct net_bridge_mdb_entry *mp;
 	struct igmpv3_query *ih3;
@@ -1190,7 +1190,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 				  struct net_bridge_port *port,
 				  struct sk_buff *skb)
 {
-	struct ipv6hdr *ip6h = ipv6_hdr(skb);
+	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	struct mld_msg *mld = (struct mld_msg *) icmp6_hdr(skb);
 	struct net_bridge_mdb_entry *mp;
 	struct mld2_query *mld2q;
@@ -1198,7 +1198,7 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 	struct net_bridge_port_group __rcu **pp;
 	unsigned long max_delay;
 	unsigned long now = jiffies;
-	struct in6_addr *group = NULL;
+	const struct in6_addr *group = NULL;
 	int err = 0;
 
 	spin_lock(&br->multicast_lock);
@@ -1356,7 +1356,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 				 struct sk_buff *skb)
 {
 	struct sk_buff *skb2 = skb;
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	struct igmphdr *ih;
 	unsigned len;
 	unsigned offset;
@@ -1452,7 +1452,7 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 				 struct sk_buff *skb)
 {
 	struct sk_buff *skb2;
-	struct ipv6hdr *ip6h;
+	const struct ipv6hdr *ip6h;
 	struct icmp6hdr *icmp6h;
 	u8 nexthdr;
 	unsigned len;

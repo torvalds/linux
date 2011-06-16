@@ -17,6 +17,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -5998,6 +5999,7 @@ static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
 	struct ksz_port *port = &priv->port;
+	u32 speed = ethtool_cmd_speed(cmd);
 	int rc;
 
 	/*
@@ -6006,11 +6008,11 @@ static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	 */
 	if (cmd->autoneg && priv->advertising == cmd->advertising) {
 		cmd->advertising |= ADVERTISED_ALL;
-		if (10 == cmd->speed)
+		if (10 == speed)
 			cmd->advertising &=
 				~(ADVERTISED_100baseT_Full |
 				ADVERTISED_100baseT_Half);
-		else if (100 == cmd->speed)
+		else if (100 == speed)
 			cmd->advertising &=
 				~(ADVERTISED_10baseT_Full |
 				ADVERTISED_10baseT_Half);
@@ -6032,8 +6034,8 @@ static int netdev_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		port->force_link = 0;
 	} else {
 		port->duplex = cmd->duplex + 1;
-		if (cmd->speed != 1000)
-			port->speed = cmd->speed;
+		if (1000 != speed)
+			port->speed = speed;
 		if (cmd->autoneg)
 			port->force_link = 0;
 		else

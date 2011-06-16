@@ -89,6 +89,7 @@ extern struct iwl_cfg iwl6000_3agn_cfg;
 extern struct iwl_cfg iwl6050_2agn_cfg;
 extern struct iwl_cfg iwl6050_2abg_cfg;
 extern struct iwl_cfg iwl6150_bgn_cfg;
+extern struct iwl_cfg iwl6150_bg_cfg;
 extern struct iwl_cfg iwl1000_bgn_cfg;
 extern struct iwl_cfg iwl1000_bg_cfg;
 extern struct iwl_cfg iwl100_bgn_cfg;
@@ -102,10 +103,10 @@ extern struct iwl_cfg iwl2030_2bg_cfg;
 extern struct iwl_cfg iwl6035_2agn_cfg;
 extern struct iwl_cfg iwl6035_2abg_cfg;
 extern struct iwl_cfg iwl6035_2bg_cfg;
-extern struct iwl_cfg iwl200_bg_cfg;
-extern struct iwl_cfg iwl200_bgn_cfg;
-extern struct iwl_cfg iwl230_bg_cfg;
-extern struct iwl_cfg iwl230_bgn_cfg;
+extern struct iwl_cfg iwl105_bg_cfg;
+extern struct iwl_cfg iwl105_bgn_cfg;
+extern struct iwl_cfg iwl135_bg_cfg;
+extern struct iwl_cfg iwl135_bgn_cfg;
 
 extern struct iwl_mod_params iwlagn_mod_params;
 extern struct iwl_hcmd_ops iwlagn_hcmd;
@@ -120,17 +121,25 @@ int iwl_alloc_isr_ict(struct iwl_priv *priv);
 void iwl_free_isr_ict(struct iwl_priv *priv);
 irqreturn_t iwl_isr_ict(int irq, void *data);
 
+/* call this function to flush any scheduled tasklet */
+static inline void iwl_synchronize_irq(struct iwl_priv *priv)
+{
+	/* wait to make sure we flush pending tasklet*/
+	synchronize_irq(priv->pci_dev->irq);
+	tasklet_kill(&priv->irq_tasklet);
+}
+
+int iwl_prepare_card_hw(struct iwl_priv *priv);
+
+int iwlagn_start_device(struct iwl_priv *priv);
+void iwlagn_stop_device(struct iwl_priv *priv);
+
 /* tx queue */
 void iwlagn_set_wr_ptrs(struct iwl_priv *priv,
 		     int txq_id, u32 index);
 void iwlagn_tx_queue_set_status(struct iwl_priv *priv,
 			     struct iwl_tx_queue *txq,
 			     int tx_fifo_id, int scd_retry);
-void iwlagn_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
-				    struct iwl_tx_queue *txq,
-				    u16 byte_cnt);
-void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
-				   struct iwl_tx_queue *txq);
 void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask);
 void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 			    int sta_id, int tid, int freed);
@@ -145,16 +154,14 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     u32 changes);
 
 /* uCode */
-int iwlagn_load_ucode(struct iwl_priv *priv);
 void iwlagn_rx_calib_result(struct iwl_priv *priv,
 			 struct iwl_rx_mem_buffer *rxb);
-void iwlagn_rx_calib_complete(struct iwl_priv *priv,
-			   struct iwl_rx_mem_buffer *rxb);
-void iwlagn_init_alive_start(struct iwl_priv *priv);
-int iwlagn_alive_notify(struct iwl_priv *priv);
-int iwl_verify_ucode(struct iwl_priv *priv, struct fw_desc *fw_desc);
-void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
+int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
 void iwlagn_send_prio_tbl(struct iwl_priv *priv);
+int iwlagn_run_init_ucode(struct iwl_priv *priv);
+int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
+				 struct fw_img *image,
+				 int subtype, int alternate_subtype);
 
 /* lib */
 void iwl_check_abort_status(struct iwl_priv *priv,
@@ -173,8 +180,6 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv);
 int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv);
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
-void iwl_dump_csr(struct iwl_priv *priv);
-int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display);
 
 /* rx */
 void iwlagn_rx_queue_restock(struct iwl_priv *priv);
@@ -187,12 +192,10 @@ int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
 void iwl_setup_rx_handlers(struct iwl_priv *priv);
 
 /* tx */
-void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
-int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
+void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
+int iwlagn_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 				 struct iwl_tx_queue *txq,
-				 dma_addr_t addr, u16 len, u8 reset, u8 pad);
-int iwl_hw_tx_queue_init(struct iwl_priv *priv,
-			 struct iwl_tx_queue *txq);
+				 dma_addr_t addr, u16 len, u8 reset);
 void iwlagn_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 			      struct ieee80211_tx_info *info);
 int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
@@ -222,6 +225,7 @@ static inline u32 iwl_tx_status_to_mac80211(u32 status)
 	case TX_STATUS_DIRECT_DONE:
 		return IEEE80211_TX_STAT_ACK;
 	case TX_STATUS_FAIL_DEST_PS:
+	case TX_STATUS_FAIL_PASSIVE_NO_RX:
 		return IEEE80211_TX_STAT_TX_FILTERED;
 	default:
 		return 0;
@@ -246,8 +250,6 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 			       struct ieee80211_vif *vif, bool add);
 
 /* hcmd */
-int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
-			   struct iwl_rxon_context *ctx);
 int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
 
@@ -319,22 +321,44 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 /* eeprom */
 void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv);
 void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac);
-int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv);
-void iwlcore_eeprom_release_semaphore(struct iwl_priv *priv);
 
 /* notification wait support */
 void __acquires(wait_entry)
 iwlagn_init_notification_wait(struct iwl_priv *priv,
 			      struct iwl_notification_wait *wait_entry,
+			      u8 cmd,
 			      void (*fn)(struct iwl_priv *priv,
-					 struct iwl_rx_packet *pkt),
-			      u8 cmd);
-signed long __releases(wait_entry)
+					 struct iwl_rx_packet *pkt,
+					 void *data),
+			      void *fn_data);
+int __must_check __releases(wait_entry)
 iwlagn_wait_notification(struct iwl_priv *priv,
 			 struct iwl_notification_wait *wait_entry,
 			 unsigned long timeout);
 void __releases(wait_entry)
 iwlagn_remove_notification(struct iwl_priv *priv,
 			   struct iwl_notification_wait *wait_entry);
+extern int iwlagn_init_alive_start(struct iwl_priv *priv);
+extern int iwl_alive_start(struct iwl_priv *priv);
+/* svtool */
+#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+extern int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len);
+extern void iwl_testmode_init(struct iwl_priv *priv);
+extern void iwl_testmode_cleanup(struct iwl_priv *priv);
+#else
+static inline
+int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
+{
+	return -ENOSYS;
+}
+static inline
+void iwl_testmode_init(struct iwl_priv *priv)
+{
+}
+static inline
+void iwl_testmode_cleanup(struct iwl_priv *priv)
+{
+}
+#endif
 
 #endif /* __iwl_agn_h__ */

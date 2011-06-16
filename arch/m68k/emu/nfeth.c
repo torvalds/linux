@@ -16,6 +16,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <asm/natfeat.h>
 #include <asm/virtconvert.h>

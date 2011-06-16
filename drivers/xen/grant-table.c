@@ -466,13 +466,30 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		if (map_ops[i].status)
 			continue;
 
-		/* m2p override only supported for GNTMAP_contains_pte mappings */
-		if (!(map_ops[i].flags & GNTMAP_contains_pte))
-			continue;
-		pte = (pte_t *) (mfn_to_virt(PFN_DOWN(map_ops[i].host_addr)) +
+		if (map_ops[i].flags & GNTMAP_contains_pte) {
+			pte = (pte_t *) (mfn_to_virt(PFN_DOWN(map_ops[i].host_addr)) +
 				(map_ops[i].host_addr & ~PAGE_MASK));
-		mfn = pte_mfn(*pte);
-		ret = m2p_add_override(mfn, pages[i]);
+			mfn = pte_mfn(*pte);
+		} else {
+			/* If you really wanted to do this:
+			 * mfn = PFN_DOWN(map_ops[i].dev_bus_addr);
+			 *
+			 * The reason we do not implement it is b/c on the
+			 * unmap path (gnttab_unmap_refs) we have no means of
+			 * checking whether the page is !GNTMAP_contains_pte.
+			 *
+			 * That is without some extra data-structure to carry
+			 * the struct page, bool clear_pte, and list_head next
+			 * tuples and deal with allocation/delallocation, etc.
+			 *
+			 * The users of this API set the GNTMAP_contains_pte
+			 * flag so lets just return not supported until it
+			 * becomes neccessary to implement.
+			 */
+			return -EOPNOTSUPP;
+		}
+		ret = m2p_add_override(mfn, pages[i],
+				       map_ops[i].flags & GNTMAP_contains_pte);
 		if (ret)
 			return ret;
 	}
@@ -494,7 +511,7 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 		return ret;
 
 	for (i = 0; i < count; i++) {
-		ret = m2p_remove_override(pages[i]);
+		ret = m2p_remove_override(pages[i], true /* clear the PTE */);
 		if (ret)
 			return ret;
 	}

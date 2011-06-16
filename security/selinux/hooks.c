@@ -990,6 +990,7 @@ static void selinux_write_opts(struct seq_file *m,
 			continue;
 		default:
 			BUG();
+			return;
 		};
 		/* we need a comma before each option */
 		seq_putc(m, ',');
@@ -1443,11 +1444,15 @@ static int task_has_capability(struct task_struct *tsk,
 		printk(KERN_ERR
 		       "SELinux:  out of range capability %d\n", cap);
 		BUG();
+		return -EINVAL;
 	}
 
 	rc = avc_has_perm_noaudit(sid, sid, sclass, av, 0, &avd);
-	if (audit == SECURITY_CAP_AUDIT)
-		avc_audit(sid, sid, sclass, av, &avd, rc, &ad);
+	if (audit == SECURITY_CAP_AUDIT) {
+		int rc2 = avc_audit(sid, sid, sclass, av, &avd, rc, &ad, 0);
+		if (rc2)
+			return rc2;
+	}
 	return rc;
 }
 
@@ -1467,7 +1472,8 @@ static int task_has_system(struct task_struct *tsk,
 static int inode_has_perm(const struct cred *cred,
 			  struct inode *inode,
 			  u32 perms,
-			  struct common_audit_data *adp)
+			  struct common_audit_data *adp,
+			  unsigned flags)
 {
 	struct inode_security_struct *isec;
 	struct common_audit_data ad;
@@ -1483,28 +1489,41 @@ static int inode_has_perm(const struct cred *cred,
 
 	if (!adp) {
 		adp = &ad;
-		COMMON_AUDIT_DATA_INIT(&ad, FS);
-		ad.u.fs.inode = inode;
+		COMMON_AUDIT_DATA_INIT(&ad, INODE);
+		ad.u.inode = inode;
 	}
 
-	return avc_has_perm(sid, isec->sid, isec->sclass, perms, adp);
+	return avc_has_perm_flags(sid, isec->sid, isec->sclass, perms, adp, flags);
 }
 
 /* Same as inode_has_perm, but pass explicit audit data containing
    the dentry to help the auditing code to more easily generate the
    pathname if needed. */
 static inline int dentry_has_perm(const struct cred *cred,
-				  struct vfsmount *mnt,
 				  struct dentry *dentry,
 				  u32 av)
 {
 	struct inode *inode = dentry->d_inode;
 	struct common_audit_data ad;
 
-	COMMON_AUDIT_DATA_INIT(&ad, FS);
-	ad.u.fs.path.mnt = mnt;
-	ad.u.fs.path.dentry = dentry;
-	return inode_has_perm(cred, inode, av, &ad);
+	COMMON_AUDIT_DATA_INIT(&ad, DENTRY);
+	ad.u.dentry = dentry;
+	return inode_has_perm(cred, inode, av, &ad, 0);
+}
+
+/* Same as inode_has_perm, but pass explicit audit data containing
+   the path to help the auditing code to more easily generate the
+   pathname if needed. */
+static inline int path_has_perm(const struct cred *cred,
+				struct path *path,
+				u32 av)
+{
+	struct inode *inode = path->dentry->d_inode;
+	struct common_audit_data ad;
+
+	COMMON_AUDIT_DATA_INIT(&ad, PATH);
+	ad.u.path = *path;
+	return inode_has_perm(cred, inode, av, &ad, 0);
 }
 
 /* Check whether a task can use an open file descriptor to
@@ -1525,8 +1544,8 @@ static int file_has_perm(const struct cred *cred,
 	u32 sid = cred_sid(cred);
 	int rc;
 
-	COMMON_AUDIT_DATA_INIT(&ad, FS);
-	ad.u.fs.path = file->f_path;
+	COMMON_AUDIT_DATA_INIT(&ad, PATH);
+	ad.u.path = file->f_path;
 
 	if (sid != fsec->sid) {
 		rc = avc_has_perm(sid, fsec->sid,
@@ -1540,7 +1559,7 @@ static int file_has_perm(const struct cred *cred,
 	/* av is zero if only checking access to the descriptor. */
 	rc = 0;
 	if (av)
-		rc = inode_has_perm(cred, inode, av, &ad);
+		rc = inode_has_perm(cred, inode, av, &ad, 0);
 
 out:
 	return rc;
@@ -1564,8 +1583,8 @@ static int may_create(struct inode *dir,
 	sid = tsec->sid;
 	newsid = tsec->create_sid;
 
-	COMMON_AUDIT_DATA_INIT(&ad, FS);
-	ad.u.fs.path.dentry = dentry;
+	COMMON_AUDIT_DATA_INIT(&ad, DENTRY);
+	ad.u.dentry = dentry;
 
 	rc = avc_has_perm(sid, dsec->sid, SECCLASS_DIR,
 			  DIR__ADD_NAME | DIR__SEARCH,
@@ -1574,7 +1593,8 @@ static int may_create(struct inode *dir,
 		return rc;
 
 	if (!newsid || !(sbsec->flags & SE_SBLABELSUPP)) {
-		rc = security_transition_sid(sid, dsec->sid, tclass, NULL, &newsid);
+		rc = security_transition_sid(sid, dsec->sid, tclass,
+					     &dentry->d_name, &newsid);
 		if (rc)
 			return rc;
 	}
@@ -1616,8 +1636,8 @@ static int may_link(struct inode *dir,
 	dsec = dir->i_security;
 	isec = dentry->d_inode->i_security;
 
-	COMMON_AUDIT_DATA_INIT(&ad, FS);
-	ad.u.fs.path.dentry = dentry;
+	COMMON_AUDIT_DATA_INIT(&ad, DENTRY);
+	ad.u.dentry = dentry;
 
 	av = DIR__SEARCH;
 	av |= (kind ? DIR__REMOVE_NAME : DIR__ADD_NAME);
@@ -1662,9 +1682,9 @@ static inline int may_rename(struct inode *old_dir,
 	old_is_dir = S_ISDIR(old_dentry->d_inode->i_mode);
 	new_dsec = new_dir->i_security;
 
-	COMMON_AUDIT_DATA_INIT(&ad, FS);
+	COMMON_AUDIT_DATA_INIT(&ad, DENTRY);
 
-	ad.u.fs.path.dentry = old_dentry;
+	ad.u.dentry = old_dentry;
 	rc = avc_has_perm(sid, old_dsec->sid, SECCLASS_DIR,
 			  DIR__REMOVE_NAME | DIR__SEARCH, &ad);
 	if (rc)
@@ -1680,7 +1700,7 @@ static inline int may_rename(struct inode *old_dir,
 			return rc;
 	}
 
-	ad.u.fs.path.dentry = new_dentry;
+	ad.u.dentry = new_dentry;
 	av = DIR__ADD_NAME | DIR__SEARCH;
 	if (new_dentry->d_inode)
 		av |= DIR__REMOVE_NAME;
@@ -1890,7 +1910,7 @@ static int selinux_quota_on(struct dentry *dentry)
 {
 	const struct cred *cred = current_cred();
 
-	return dentry_has_perm(cred, NULL, dentry, FILE__QUOTAON);
+	return dentry_has_perm(cred, dentry, FILE__QUOTAON);
 }
 
 static int selinux_syslog(int type)
@@ -1987,8 +2007,8 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 			return rc;
 	}
 
-	COMMON_AUDIT_DATA_INIT(&ad, FS);
-	ad.u.fs.path = bprm->file->f_path;
+	COMMON_AUDIT_DATA_INIT(&ad, PATH);
+	ad.u.path = bprm->file->f_path;
 
 	if (bprm->file->f_path.mnt->mnt_flags & MNT_NOSUID)
 		new_tsec->sid = old_tsec->sid;
@@ -2103,7 +2123,7 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 			file = file_priv->file;
 			inode = file->f_path.dentry->d_inode;
 			if (inode_has_perm(cred, inode,
-					   FILE__READ | FILE__WRITE, NULL)) {
+					   FILE__READ | FILE__WRITE, NULL, 0)) {
 				drop_tty = 1;
 			}
 		}
@@ -2116,7 +2136,7 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 
 	/* Revalidate access to inherited open files. */
 
-	COMMON_AUDIT_DATA_INIT(&ad, FS);
+	COMMON_AUDIT_DATA_INIT(&ad, INODE);
 
 	spin_lock(&files->file_lock);
 	for (;;) {
@@ -2464,8 +2484,8 @@ static int selinux_sb_kern_mount(struct super_block *sb, int flags, void *data)
 	if (flags & MS_KERNMOUNT)
 		return 0;
 
-	COMMON_AUDIT_DATA_INIT(&ad, FS);
-	ad.u.fs.path.dentry = sb->s_root;
+	COMMON_AUDIT_DATA_INIT(&ad, DENTRY);
+	ad.u.dentry = sb->s_root;
 	return superblock_has_perm(cred, sb, FILESYSTEM__MOUNT, &ad);
 }
 
@@ -2474,8 +2494,8 @@ static int selinux_sb_statfs(struct dentry *dentry)
 	const struct cred *cred = current_cred();
 	struct common_audit_data ad;
 
-	COMMON_AUDIT_DATA_INIT(&ad, FS);
-	ad.u.fs.path.dentry = dentry->d_sb->s_root;
+	COMMON_AUDIT_DATA_INIT(&ad, DENTRY);
+	ad.u.dentry = dentry->d_sb->s_root;
 	return superblock_has_perm(cred, dentry->d_sb, FILESYSTEM__GETATTR, &ad);
 }
 
@@ -2491,8 +2511,7 @@ static int selinux_mount(char *dev_name,
 		return superblock_has_perm(cred, path->mnt->mnt_sb,
 					   FILESYSTEM__REMOUNT, NULL);
 	else
-		return dentry_has_perm(cred, path->mnt, path->dentry,
-				       FILE__MOUNTON);
+		return path_has_perm(cred, path, FILE__MOUNTON);
 }
 
 static int selinux_umount(struct vfsmount *mnt, int flags)
@@ -2625,17 +2644,17 @@ static int selinux_inode_readlink(struct dentry *dentry)
 {
 	const struct cred *cred = current_cred();
 
-	return dentry_has_perm(cred, NULL, dentry, FILE__READ);
+	return dentry_has_perm(cred, dentry, FILE__READ);
 }
 
 static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *nameidata)
 {
 	const struct cred *cred = current_cred();
 
-	return dentry_has_perm(cred, NULL, dentry, FILE__READ);
+	return dentry_has_perm(cred, dentry, FILE__READ);
 }
 
-static int selinux_inode_permission(struct inode *inode, int mask)
+static int selinux_inode_permission(struct inode *inode, int mask, unsigned flags)
 {
 	const struct cred *cred = current_cred();
 	struct common_audit_data ad;
@@ -2649,15 +2668,15 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 	if (!mask)
 		return 0;
 
-	COMMON_AUDIT_DATA_INIT(&ad, FS);
-	ad.u.fs.inode = inode;
+	COMMON_AUDIT_DATA_INIT(&ad, INODE);
+	ad.u.inode = inode;
 
 	if (from_access)
 		ad.selinux_audit_data.auditdeny |= FILE__AUDIT_ACCESS;
 
 	perms = file_mask_to_av(inode->i_mode, mask);
 
-	return inode_has_perm(cred, inode, perms, &ad);
+	return inode_has_perm(cred, inode, perms, &ad, flags);
 }
 
 static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
@@ -2675,16 +2694,20 @@ static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 
 	if (ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID |
 			ATTR_ATIME_SET | ATTR_MTIME_SET | ATTR_TIMES_SET))
-		return dentry_has_perm(cred, NULL, dentry, FILE__SETATTR);
+		return dentry_has_perm(cred, dentry, FILE__SETATTR);
 
-	return dentry_has_perm(cred, NULL, dentry, FILE__WRITE);
+	return dentry_has_perm(cred, dentry, FILE__WRITE);
 }
 
 static int selinux_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 {
 	const struct cred *cred = current_cred();
+	struct path path;
 
-	return dentry_has_perm(cred, mnt, dentry, FILE__GETATTR);
+	path.dentry = dentry;
+	path.mnt = mnt;
+
+	return path_has_perm(cred, &path, FILE__GETATTR);
 }
 
 static int selinux_inode_setotherxattr(struct dentry *dentry, const char *name)
@@ -2705,7 +2728,7 @@ static int selinux_inode_setotherxattr(struct dentry *dentry, const char *name)
 
 	/* Not an attribute we recognize, so just check the
 	   ordinary setattr permission. */
-	return dentry_has_perm(cred, NULL, dentry, FILE__SETATTR);
+	return dentry_has_perm(cred, dentry, FILE__SETATTR);
 }
 
 static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
@@ -2728,8 +2751,8 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 	if (!inode_owner_or_capable(inode))
 		return -EPERM;
 
-	COMMON_AUDIT_DATA_INIT(&ad, FS);
-	ad.u.fs.path.dentry = dentry;
+	COMMON_AUDIT_DATA_INIT(&ad, DENTRY);
+	ad.u.dentry = dentry;
 
 	rc = avc_has_perm(sid, isec->sid, isec->sclass,
 			  FILE__RELABELFROM, &ad);
@@ -2792,14 +2815,14 @@ static int selinux_inode_getxattr(struct dentry *dentry, const char *name)
 {
 	const struct cred *cred = current_cred();
 
-	return dentry_has_perm(cred, NULL, dentry, FILE__GETATTR);
+	return dentry_has_perm(cred, dentry, FILE__GETATTR);
 }
 
 static int selinux_inode_listxattr(struct dentry *dentry)
 {
 	const struct cred *cred = current_cred();
 
-	return dentry_has_perm(cred, NULL, dentry, FILE__GETATTR);
+	return dentry_has_perm(cred, dentry, FILE__GETATTR);
 }
 
 static int selinux_inode_removexattr(struct dentry *dentry, const char *name)
@@ -3205,7 +3228,7 @@ static int selinux_dentry_open(struct file *file, const struct cred *cred)
 	 * new inode label or new policy.
 	 * This check is not redundant - do not remove.
 	 */
-	return inode_has_perm(cred, inode, open_file_to_av(file), NULL);
+	return inode_has_perm(cred, inode, open_file_to_av(file), NULL, 0);
 }
 
 /* task security operations */

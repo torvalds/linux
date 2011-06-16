@@ -271,8 +271,9 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_HS_ACT_REQ:
 		dev_dbg(adapter->dev, "event: HS_ACT_REQ\n");
-		ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_802_11_HS_CFG_ENH,
-					  0, 0, NULL, NULL);
+		ret = mwifiex_send_cmd_async(priv,
+					     HostCmd_CMD_802_11_HS_CFG_ENH,
+					     0, 0, NULL);
 		break;
 
 	case EVENT_MIC_ERR_UNICAST:
@@ -303,9 +304,9 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		       sizeof(struct mwifiex_bssdescriptor) * IW_MAX_AP);
 		adapter->num_in_scan_table = 0;
 		adapter->bcn_buf_end = adapter->bcn_buf;
-		ret = mwifiex_prepare_cmd(priv,
-					  HostCmd_CMD_802_11_BG_SCAN_QUERY,
-					  HostCmd_ACT_GEN_GET, 0, NULL, NULL);
+		ret = mwifiex_send_cmd_async(priv,
+					     HostCmd_CMD_802_11_BG_SCAN_QUERY,
+					     HostCmd_ACT_GEN_GET, 0, NULL);
 		break;
 
 	case EVENT_PORT_RELEASE:
@@ -314,8 +315,8 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_WMM_STATUS_CHANGE:
 		dev_dbg(adapter->dev, "event: WMM status changed\n");
-		ret = mwifiex_prepare_cmd(priv, HostCmd_CMD_WMM_GET_STATUS,
-					  0, 0, NULL, NULL);
+		ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_WMM_GET_STATUS,
+					     0, 0, NULL);
 		break;
 
 	case EVENT_RSSI_LOW:
@@ -353,15 +354,15 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 	case EVENT_IBSS_COALESCED:
 		dev_dbg(adapter->dev, "event: IBSS_COALESCED\n");
-		ret = mwifiex_prepare_cmd(priv,
+		ret = mwifiex_send_cmd_async(priv,
 				HostCmd_CMD_802_11_IBSS_COALESCING_STATUS,
-				HostCmd_ACT_GEN_GET, 0, NULL, NULL);
+				HostCmd_ACT_GEN_GET, 0, NULL);
 		break;
 	case EVENT_ADDBA:
 		dev_dbg(adapter->dev, "event: ADDBA Request\n");
-		mwifiex_prepare_cmd(priv, HostCmd_CMD_11N_ADDBA_RSP,
-				    HostCmd_ACT_GEN_SET, 0, NULL,
-				    adapter->event_body);
+		mwifiex_send_cmd_async(priv, HostCmd_CMD_11N_ADDBA_RSP,
+				       HostCmd_ACT_GEN_SET, 0,
+				       adapter->event_body);
 		break;
 	case EVENT_DELBA:
 		dev_dbg(adapter->dev, "event: DELBA Request\n");

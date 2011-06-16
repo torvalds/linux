@@ -521,8 +521,6 @@ static IIO_DEV_ATTR_CAPTURE_COUNT(S_IWUSR | S_IRUGO,
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("100200");
 
-static IIO_CONST_ATTR_NAME("adis16220");
-
 static struct attribute *adis16220_attributes[] = {
 	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
 	&iio_const_attr_in0_supply_scale.dev_attr.attr,
@@ -539,7 +537,6 @@ static struct attribute *adis16220_attributes[] = {
 	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_capture.dev_attr.attr,
 	&iio_dev_attr_capture_count.dev_attr.attr,
-	&iio_const_attr_name.dev_attr.attr,
 	NULL
 };
 
@@ -547,6 +544,10 @@ static const struct attribute_group adis16220_attribute_group = {
 	.attrs = adis16220_attributes,
 };
 
+static const struct iio_info adis16220_info = {
+	.attrs = &adis16220_attribute_group,
+	.driver_module = THIS_MODULE,
+};
 static int __devinit adis16220_probe(struct spi_device *spi)
 {
 	int ret, regdone = 0;
@@ -572,16 +573,16 @@ static int __devinit adis16220_probe(struct spi_device *spi)
 	st->us = spi;
 	mutex_init(&st->buf_lock);
 	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_tx;
 	}
 
+	st->indio_dev->name = spi->dev.driver->name;
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &adis16220_attribute_group;
+	st->indio_dev->info = &adis16220_info;
 	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = iio_device_register(st->indio_dev);

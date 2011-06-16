@@ -2555,7 +2555,8 @@ jme_set_settings(struct net_device *netdev,
 	struct jme_adapter *jme = netdev_priv(netdev);
 	int rc, fdc = 0;
 
-	if (ecmd->speed == SPEED_1000 && ecmd->autoneg != AUTONEG_ENABLE)
+	if (ethtool_cmd_speed(ecmd) == SPEED_1000
+	    && ecmd->autoneg != AUTONEG_ENABLE)
 		return -EINVAL;
 
 	/*

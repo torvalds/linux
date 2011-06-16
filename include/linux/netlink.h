@@ -24,6 +24,7 @@
 /* leave room for NETLINK_DM (DM Events) */
 #define NETLINK_SCSITRANSPORT	18	/* SCSI Transports */
 #define NETLINK_ECRYPTFS	19
+#define NETLINK_RDMA		20
 
 #define MAX_LINKS 32		
 
@@ -220,7 +221,8 @@ struct netlink_callback {
 	int			(*dump)(struct sk_buff * skb,
 					struct netlink_callback *cb);
 	int			(*done)(struct netlink_callback *cb);
-	int			family;
+	u16			family;
+	u16			min_dump_alloc;
 	long			args[6];
 };
 
@@ -258,7 +260,8 @@ __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
 extern int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 			      const struct nlmsghdr *nlh,
 			      int (*dump)(struct sk_buff *skb, struct netlink_callback*),
-			      int (*done)(struct netlink_callback*));
+			      int (*done)(struct netlink_callback*),
+			      u16 min_dump_alloc);
 
 
 #define NL_NONROOT_RECV 0x1

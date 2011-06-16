@@ -628,11 +628,11 @@ void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 
 	/* rx_status carries information about the packet to mac80211 */
 	rx_status.mactime = le64_to_cpu(phy_res->timestamp);
+	rx_status.band = (phy_res->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
+				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
 	rx_status.freq =
 		ieee80211_channel_to_frequency(le16_to_cpu(phy_res->channel),
 							rx_status.band);
-	rx_status.band = (phy_res->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
-				IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ;
 	rx_status.rate_idx =
 		iwl4965_hwrate_to_mac80211_idx(rate_n_flags, rx_status.band);
 	rx_status.flag = 0;
@@ -954,9 +954,6 @@ int iwl4965_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	if (priv->cfg->scan_rx_antennas[band])
 		rx_ant = priv->cfg->scan_rx_antennas[band];
-
-	if (priv->cfg->scan_tx_antennas[band])
-		scan_tx_antennas = priv->cfg->scan_tx_antennas[band];
 
 	priv->scan_tx_ant[band] = iwl4965_toggle_tx_ant(priv,
 						priv->scan_tx_ant[band],

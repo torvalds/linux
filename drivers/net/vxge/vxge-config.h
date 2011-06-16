@@ -13,6 +13,7 @@
  ******************************************************************************/
 #ifndef VXGE_CONFIG_H
 #define VXGE_CONFIG_H
+#include <linux/hardirq.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Atheros Communications Inc.
+ * Copyright (c) 2010-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -41,13 +41,6 @@ static void ar9003_hw_set_desc_link(void *ds, u32 ds_link)
 	ads->link = ds_link;
 	ads->ctl10 &= ~AR_TxPtrChkSum;
 	ads->ctl10 |= ar9003_calc_ptr_chksum(ads);
-}
-
-static void ar9003_hw_get_desc_link(void *ds, u32 **ds_link)
-{
-	struct ar9003_txc *ads = ds;
-
-	*ds_link = &ads->link;
 }
 
 static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
@@ -329,7 +322,6 @@ static void ar9003_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 		| (flags & ATH9K_TXDESC_VMF ? AR_VirtMoreFrag : 0)
 		| SM(txpower, AR_XmitPower)
 		| (flags & ATH9K_TXDESC_VEOL ? AR_VEOL : 0)
-		| (flags & ATH9K_TXDESC_CLRDMASK ? AR_ClrDestMask : 0)
 		| (keyIx != ATH9K_TXKEYIX_INVALID ? AR_DestIdxValid : 0)
 		| (flags & ATH9K_TXDESC_LOWRXCHAIN ? AR_LowRxChain : 0);
 
@@ -348,6 +340,16 @@ static void ar9003_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 	ads->ctl20 = 0;
 	ads->ctl21 = 0;
 	ads->ctl22 = 0;
+}
+
+static void ar9003_hw_set_clrdmask(struct ath_hw *ah, void *ds, bool val)
+{
+	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
+
+	if (val)
+		ads->ctl11 |= AR_ClrDestMask;
+	else
+		ads->ctl11 &= ~AR_ClrDestMask;
 }
 
 static void ar9003_hw_set11n_ratescenario(struct ath_hw *ah, void *ds,
@@ -475,16 +477,6 @@ static void ar9003_hw_clr11n_aggr(struct ath_hw *ah, void *ds)
 	ads->ctl12 &= (~AR_IsAggr & ~AR_MoreAggr);
 }
 
-static void ar9003_hw_set11n_burstduration(struct ath_hw *ah, void *ds,
-					   u32 burstDuration)
-{
-	struct ar9003_txc *ads = (struct ar9003_txc *) ds;
-
-	ads->ctl13 &= ~AR_BurstDur;
-	ads->ctl13 |= SM(burstDuration, AR_BurstDur);
-
-}
-
 void ar9003_hw_set_paprd_txdesc(struct ath_hw *ah, void *ds, u8 chains)
 {
 	struct ar9003_txc *ads = ds;
@@ -499,7 +491,6 @@ void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 
 	ops->rx_enable = ar9003_hw_rx_enable;
 	ops->set_desc_link = ar9003_hw_set_desc_link;
-	ops->get_desc_link = ar9003_hw_get_desc_link;
 	ops->get_isr = ar9003_hw_get_isr;
 	ops->fill_txdesc = ar9003_hw_fill_txdesc;
 	ops->proc_txdesc = ar9003_hw_proc_txdesc;
@@ -509,7 +500,7 @@ void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 	ops->set11n_aggr_middle = ar9003_hw_set11n_aggr_middle;
 	ops->set11n_aggr_last = ar9003_hw_set11n_aggr_last;
 	ops->clr11n_aggr = ar9003_hw_clr11n_aggr;
-	ops->set11n_burstduration = ar9003_hw_set11n_burstduration;
+	ops->set_clrdmask = ar9003_hw_set_clrdmask;
 }
 
 void ath9k_hw_set_rx_bufsize(struct ath_hw *ah, u16 buf_size)

@@ -1545,7 +1545,7 @@ static int ewrk3_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	}
 
 	ecmd->supported |= SUPPORTED_10baseT_Half;
-	ecmd->speed = SPEED_10;
+	ethtool_cmd_speed_set(ecmd, SPEED_10);
 	ecmd->duplex = DUPLEX_HALF;
 	return 0;
 }

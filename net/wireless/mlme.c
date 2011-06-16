@@ -963,6 +963,16 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			if (memcmp(mgmt->bssid, dev->dev_addr, ETH_ALEN))
 				err = -EINVAL;
 			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			if (memcmp(mgmt->sa, mgmt->bssid, ETH_ALEN)) {
+				err = -EINVAL;
+				break;
+			}
+			/*
+			 * check for mesh DA must be done by driver as
+			 * cfg80211 doesn't track the stations
+			 */
+			break;
 		default:
 			err = -EOPNOTSUPP;
 			break;

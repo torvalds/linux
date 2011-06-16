@@ -34,6 +34,7 @@
 static int ehea_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct ehea_port *port = netdev_priv(dev);
+	u32 speed;
 	int ret;
 
 	ret = ehea_sense_port_attr(port);
@@ -43,27 +44,44 @@ static int ehea_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	if (netif_carrier_ok(dev)) {
 		switch (port->port_speed) {
-		case EHEA_SPEED_10M: cmd->speed = SPEED_10; break;
-		case EHEA_SPEED_100M: cmd->speed = SPEED_100; break;
-		case EHEA_SPEED_1G: cmd->speed = SPEED_1000; break;
-		case EHEA_SPEED_10G: cmd->speed = SPEED_10000; break;
+		case EHEA_SPEED_10M:
+			speed = SPEED_10;
+			break;
+		case EHEA_SPEED_100M:
+			speed = SPEED_100;
+			break;
+		case EHEA_SPEED_1G:
+			speed = SPEED_1000;
+			break;
+		case EHEA_SPEED_10G:
+			speed = SPEED_10000;
+			break;
+		default:
+			speed = -1;
+			break; /* BUG */
 		}
 		cmd->duplex = port->full_duplex == 1 ?
 						     DUPLEX_FULL : DUPLEX_HALF;
 	} else {
-		cmd->speed = -1;
+		speed = ~0;
 		cmd->duplex = -1;
 	}
+	ethtool_cmd_speed_set(cmd, speed);
 
-	cmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_1000baseT_Full
-		       | SUPPORTED_100baseT_Full |  SUPPORTED_100baseT_Half
-		       | SUPPORTED_10baseT_Full | SUPPORTED_10baseT_Half
-		       | SUPPORTED_Autoneg | SUPPORTED_FIBRE);
+	if (cmd->speed == SPEED_10000) {
+		cmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
+		cmd->advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_FIBRE);
+		cmd->port = PORT_FIBRE;
+	} else {
+		cmd->supported = (SUPPORTED_1000baseT_Full | SUPPORTED_100baseT_Full
+			       | SUPPORTED_100baseT_Half | SUPPORTED_10baseT_Full
+			       | SUPPORTED_10baseT_Half | SUPPORTED_Autoneg
+			       | SUPPORTED_TP);
+		cmd->advertising = (ADVERTISED_1000baseT_Full | ADVERTISED_Autoneg
+				 | ADVERTISED_TP);
+		cmd->port = PORT_TP;
+	}
 
-	cmd->advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_Autoneg
-			 | ADVERTISED_FIBRE);
-
-	cmd->port = PORT_FIBRE;
 	cmd->autoneg = port->autoneg == 1 ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 
 	return 0;

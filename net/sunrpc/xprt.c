@@ -906,6 +906,7 @@ void xprt_transmit(struct rpc_task *task)
 	}
 
 	dprintk("RPC: %5u xmit complete\n", task->tk_pid);
+	task->tk_flags |= RPC_TASK_SENT;
 	spin_lock_bh(&xprt->transport_lock);
 
 	xprt->ops->set_retrans_timeout(task);

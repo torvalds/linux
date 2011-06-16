@@ -1050,7 +1050,7 @@ typhoon_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	/* need to get stats to make these link speed/duplex valid */
 	typhoon_do_get_stats(tp);
-	cmd->speed = tp->speed;
+	ethtool_cmd_speed_set(cmd, tp->speed);
 	cmd->duplex = tp->duplex;
 	cmd->phy_address = 0;
 	cmd->transceiver = XCVR_INTERNAL;
@@ -1068,25 +1068,26 @@ static int
 typhoon_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct typhoon *tp = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(cmd);
 	struct cmd_desc xp_cmd;
 	__le16 xcvr;
 	int err;
 
 	err = -EINVAL;
-	if(cmd->autoneg == AUTONEG_ENABLE) {
+	if (cmd->autoneg == AUTONEG_ENABLE) {
 		xcvr = TYPHOON_XCVR_AUTONEG;
 	} else {
-		if(cmd->duplex == DUPLEX_HALF) {
-			if(cmd->speed == SPEED_10)
+		if (cmd->duplex == DUPLEX_HALF) {
+			if (speed == SPEED_10)
 				xcvr = TYPHOON_XCVR_10HALF;
-			else if(cmd->speed == SPEED_100)
+			else if (speed == SPEED_100)
 				xcvr = TYPHOON_XCVR_100HALF;
 			else
 				goto out;
-		} else if(cmd->duplex == DUPLEX_FULL) {
-			if(cmd->speed == SPEED_10)
+		} else if (cmd->duplex == DUPLEX_FULL) {
+			if (speed == SPEED_10)
 				xcvr = TYPHOON_XCVR_10FULL;
-			else if(cmd->speed == SPEED_100)
+			else if (speed == SPEED_100)
 				xcvr = TYPHOON_XCVR_100FULL;
 			else
 				goto out;
@@ -1105,7 +1106,7 @@ typhoon_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		tp->speed = 0xff;	/* invalid */
 		tp->duplex = 0xff;	/* invalid */
 	} else {
-		tp->speed = cmd->speed;
+		tp->speed = speed;
 		tp->duplex = cmd->duplex;
 	}
 

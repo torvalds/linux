@@ -1,6 +1,4 @@
 /*
- * linux/drivers/char/synclink.c
- *
  * $Id: synclink.c,v 4.38 2005/11/07 16:30:34 paulkf Exp $
  *
  * Device driver for Microgate SyncLink ISA and PCI

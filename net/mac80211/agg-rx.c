@@ -63,7 +63,8 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 
 	lockdep_assert_held(&sta->ampdu_mlme.mtx);
 
-	tid_rx = sta->ampdu_mlme.tid_rx[tid];
+	tid_rx = rcu_dereference_protected(sta->ampdu_mlme.tid_rx[tid],
+					lockdep_is_held(&sta->ampdu_mlme.mtx));
 
 	if (!tid_rx)
 		return;
@@ -98,6 +99,21 @@ void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	___ieee80211_stop_rx_ba_session(sta, tid, initiator, reason, tx);
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
+
+void ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, u16 ba_rx_bitmap,
+				  const u8 *addr)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct sta_info *sta = sta_info_get(sdata, addr);
+	int i;
+
+	for (i = 0; i < STA_TID_NUM; i++)
+		if (ba_rx_bitmap & BIT(i))
+			set_bit(i, sta->ampdu_mlme.tid_rx_stop_requested);
+
+	ieee80211_queue_work(&sta->local->hw, &sta->ampdu_mlme.work);
+}
+EXPORT_SYMBOL(ieee80211_stop_rx_ba_session);
 
 /*
  * After accepting the AddBA Request we activated a timer,

@@ -356,7 +356,7 @@ static int ql_get_settings(struct net_device *ndev,
 		ecmd->port = PORT_FIBRE;
 	}
 
-	ecmd->speed = SPEED_10000;
+	ethtool_cmd_speed_set(ecmd, SPEED_10000);
 	ecmd->duplex = DUPLEX_FULL;
 
 	return 0;
@@ -650,8 +650,6 @@ static int ql_set_pauseparam(struct net_device *netdev,
 		return -EINVAL;
 
 	status = ql_mb_set_port_cfg(qdev);
-	if (status)
-		return status;
 	return status;
 }
 

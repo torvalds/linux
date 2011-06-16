@@ -214,7 +214,7 @@ static int amba_pm_resume_noirq(struct device *dev)
 
 #endif /* !CONFIG_SUSPEND */
 
-#ifdef CONFIG_HIBERNATION
+#ifdef CONFIG_HIBERNATE_CALLBACKS
 
 static int amba_pm_freeze(struct device *dev)
 {
@@ -352,7 +352,7 @@ static int amba_pm_restore_noirq(struct device *dev)
 	return ret;
 }
 
-#else /* !CONFIG_HIBERNATION */
+#else /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #define amba_pm_freeze		NULL
 #define amba_pm_thaw		NULL
@@ -363,7 +363,7 @@ static int amba_pm_restore_noirq(struct device *dev)
 #define amba_pm_poweroff_noirq	NULL
 #define amba_pm_restore_noirq	NULL
 
-#endif /* !CONFIG_HIBERNATION */
+#endif /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #ifdef CONFIG_PM
 
@@ -603,6 +603,10 @@ int amba_device_register(struct amba_device *dev, struct resource *parent)
 	if (ret)
 		goto err_out;
 
+	/* Hard-coded primecell ID instead of plug-n-play */
+	if (dev->periphid != 0)
+		goto skip_probe;
+
 	/*
 	 * Dynamically calculate the size of the resource
 	 * and use this for iomap
@@ -643,6 +647,7 @@ int amba_device_register(struct amba_device *dev, struct resource *parent)
 	if (ret)
 		goto err_release;
 
+ skip_probe:
 	ret = device_add(&dev->dev);
 	if (ret)
 		goto err_release;

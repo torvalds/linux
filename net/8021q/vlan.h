@@ -118,11 +118,6 @@ extern void vlan_netlink_fini(void);
 
 extern struct rtnl_link_ops vlan_link_ops;
 
-static inline int is_vlan_dev(struct net_device *dev)
-{
-	return dev->priv_flags & IFF_802_1Q_VLAN;
-}
-
 extern int vlan_net_id;
 
 struct proc_dir_entry;

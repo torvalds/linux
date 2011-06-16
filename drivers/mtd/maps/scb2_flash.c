@@ -180,7 +180,7 @@ scb2_flash_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	scb2_mtd->owner = THIS_MODULE;
 	if (scb2_fixup_mtd(scb2_mtd) < 0) {
-		del_mtd_device(scb2_mtd);
+		mtd_device_unregister(scb2_mtd);
 		map_destroy(scb2_mtd);
 		iounmap(scb2_ioaddr);
 		if (!region_fail)
@@ -192,7 +192,7 @@ scb2_flash_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	       (unsigned long long)scb2_mtd->size,
 	       (unsigned long long)(SCB2_WINDOW - scb2_mtd->size));
 
-	add_mtd_device(scb2_mtd);
+	mtd_device_register(scb2_mtd, NULL, 0);
 
 	return 0;
 }
@@ -207,7 +207,7 @@ scb2_flash_remove(struct pci_dev *dev)
 	if (scb2_mtd->lock)
 		scb2_mtd->lock(scb2_mtd, 0, scb2_mtd->size);
 
-	del_mtd_device(scb2_mtd);
+	mtd_device_unregister(scb2_mtd);
 	map_destroy(scb2_mtd);
 
 	iounmap(scb2_ioaddr);

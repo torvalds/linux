@@ -44,6 +44,8 @@
 	* Wake-On-LAN
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define DRV_NAME	"winbond-840"
 #define DRV_VERSION	"1.01-e"
 #define DRV_RELDATE	"Sep-11-2006"
@@ -139,7 +141,7 @@ static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 
 /* These identify the driver base version and may not be removed. */
 static const char version[] __initconst =
-	KERN_INFO DRV_NAME ".c:v" DRV_VERSION " (2.4 port) "
+	"v" DRV_VERSION " (2.4 port) "
 	DRV_RELDATE "  Donald Becker <becker@scyld.com>\n"
 	"  http://www.scyld.com/network/drivers.html\n";
 
@@ -375,8 +377,8 @@ static int __devinit w840_probe1 (struct pci_dev *pdev,
 	irq = pdev->irq;
 
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
-		pr_warning("Winbond-840: Device %s disabled due to DMA limitations\n",
-			   pci_name(pdev));
+		pr_warn("Device %s disabled due to DMA limitations\n",
+			pci_name(pdev));
 		return -EIO;
 	}
 	dev = alloc_etherdev(sizeof(*np));
@@ -643,8 +645,7 @@ static int netdev_open(struct net_device *dev)
 		goto out_err;
 
 	if (debug > 1)
-		printk(KERN_DEBUG "%s: w89c840_open() irq %d\n",
-		       dev->name, dev->irq);
+		netdev_dbg(dev, "w89c840_open() irq %d\n", dev->irq);
 
 	if((i=alloc_ringdesc(dev)))
 		goto out_err;
@@ -656,7 +657,7 @@ static int netdev_open(struct net_device *dev)
 
 	netif_start_queue(dev);
 	if (debug > 2)
-		printk(KERN_DEBUG "%s: Done netdev_open()\n", dev->name);
+		netdev_dbg(dev, "Done netdev_open()\n");
 
 	/* Set the timer to check for link beat. */
 	init_timer(&np->timer);
@@ -785,9 +786,9 @@ static void netdev_timer(unsigned long data)
 	void __iomem *ioaddr = np->base_addr;
 
 	if (debug > 2)
-		printk(KERN_DEBUG "%s: Media selection timer tick, status %08x config %08x\n",
-		       dev->name, ioread32(ioaddr + IntrStatus),
-		       ioread32(ioaddr + NetworkConfig));
+		netdev_dbg(dev, "Media selection timer tick, status %08x config %08x\n",
+			   ioread32(ioaddr + IntrStatus),
+			   ioread32(ioaddr + NetworkConfig));
 	spin_lock_irq(&np->lock);
 	update_csr6(dev, update_link(dev));
 	spin_unlock_irq(&np->lock);
@@ -1054,8 +1055,8 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irq(&np->lock);
 
 	if (debug > 4) {
-		printk(KERN_DEBUG "%s: Transmit frame #%d queued in slot %d\n",
-		       dev->name, np->cur_tx, entry);
+		netdev_dbg(dev, "Transmit frame #%d queued in slot %d\n",
+			   np->cur_tx, entry);
 	}
 	return NETDEV_TX_OK;
 }
@@ -1072,8 +1073,8 @@ static void netdev_tx_done(struct net_device *dev)
 		if (tx_status & 0x8000) { 	/* There was an error, log it. */
 #ifndef final_version
 			if (debug > 1)
-				printk(KERN_DEBUG "%s: Transmit error, Tx status %08x\n",
-				       dev->name, tx_status);
+				netdev_dbg(dev, "Transmit error, Tx status %08x\n",
+					   tx_status);
 #endif
 			np->stats.tx_errors++;
 			if (tx_status & 0x0104) np->stats.tx_aborted_errors++;
@@ -1085,8 +1086,8 @@ static void netdev_tx_done(struct net_device *dev)
 		} else {
 #ifndef final_version
 			if (debug > 3)
-				printk(KERN_DEBUG "%s: Transmit slot %d ok, Tx status %08x\n",
-				       dev->name, entry, tx_status);
+				netdev_dbg(dev, "Transmit slot %d ok, Tx status %08x\n",
+					   entry, tx_status);
 #endif
 			np->stats.tx_bytes += np->tx_skbuff[entry]->len;
 			np->stats.collisions += (tx_status >> 3) & 15;
@@ -1129,8 +1130,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 		iowrite32(intr_status & 0x001ffff, ioaddr + IntrStatus);
 
 		if (debug > 4)
-			printk(KERN_DEBUG "%s: Interrupt, status %04x\n",
-			       dev->name, intr_status);
+			netdev_dbg(dev, "Interrupt, status %04x\n", intr_status);
 
 		if ((intr_status & (NormalIntr|AbnormalIntr)) == 0)
 			break;
@@ -1171,8 +1171,8 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 	} while (1);
 
 	if (debug > 3)
-		printk(KERN_DEBUG "%s: exiting interrupt, status=%#4.4x\n",
-		       dev->name, ioread32(ioaddr + IntrStatus));
+		netdev_dbg(dev, "exiting interrupt, status=%#4.4x\n",
+			   ioread32(ioaddr + IntrStatus));
 	return IRQ_RETVAL(handled);
 }
 
@@ -1185,8 +1185,8 @@ static int netdev_rx(struct net_device *dev)
 	int work_limit = np->dirty_rx + RX_RING_SIZE - np->cur_rx;
 
 	if (debug > 4) {
-		printk(KERN_DEBUG " In netdev_rx(), entry %d status %04x\n",
-		       entry, np->rx_ring[entry].status);
+		netdev_dbg(dev, " In netdev_rx(), entry %d status %04x\n",
+			   entry, np->rx_ring[entry].status);
 	}
 
 	/* If EOP is set on the next entry, it's a new packet. Send it up. */
@@ -1195,8 +1195,8 @@ static int netdev_rx(struct net_device *dev)
 		s32 status = desc->status;
 
 		if (debug > 4)
-			printk(KERN_DEBUG "  netdev_rx() status was %08x\n",
-			       status);
+			netdev_dbg(dev, "  netdev_rx() status was %08x\n",
+				   status);
 		if (status < 0)
 			break;
 		if ((status & 0x38008300) != 0x0300) {
@@ -1211,8 +1211,8 @@ static int netdev_rx(struct net_device *dev)
 			} else if (status & 0x8000) {
 				/* There was a fatal error. */
 				if (debug > 2)
-					printk(KERN_DEBUG "%s: Receive error, Rx status %08x\n",
-					       dev->name, status);
+					netdev_dbg(dev, "Receive error, Rx status %08x\n",
+						   status);
 				np->stats.rx_errors++; /* end of a packet.*/
 				if (status & 0x0890) np->stats.rx_length_errors++;
 				if (status & 0x004C) np->stats.rx_frame_errors++;
@@ -1225,8 +1225,8 @@ static int netdev_rx(struct net_device *dev)
 
 #ifndef final_version
 			if (debug > 4)
-				printk(KERN_DEBUG "  netdev_rx() normal Rx pkt length %d status %x\n",
-				       pkt_len, status);
+				netdev_dbg(dev, "  netdev_rx() normal Rx pkt length %d status %x\n",
+					   pkt_len, status);
 #endif
 			/* Check if the packet is long enough to accept without copying
 			   to a minimally-sized skbuff. */
@@ -1251,10 +1251,10 @@ static int netdev_rx(struct net_device *dev)
 #ifndef final_version				/* Remove after testing. */
 			/* You will want this info for the initial debug. */
 			if (debug > 5)
-				printk(KERN_DEBUG "  Rx data %pM %pM %02x%02x %pI4\n",
-				       &skb->data[0], &skb->data[6],
-				       skb->data[12], skb->data[13],
-				       &skb->data[14]);
+				netdev_dbg(dev, "  Rx data %pM %pM %02x%02x %pI4\n",
+					   &skb->data[0], &skb->data[6],
+					   skb->data[12], skb->data[13],
+					   &skb->data[14]);
 #endif
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
@@ -1292,8 +1292,7 @@ static void netdev_error(struct net_device *dev, int intr_status)
 	void __iomem *ioaddr = np->base_addr;
 
 	if (debug > 2)
-		printk(KERN_DEBUG "%s: Abnormal event, %08x\n",
-		       dev->name, intr_status);
+		netdev_dbg(dev, "Abnormal event, %08x\n", intr_status);
 	if (intr_status == 0xffffffff)
 		return;
 	spin_lock(&np->lock);
@@ -1313,8 +1312,7 @@ static void netdev_error(struct net_device *dev, int intr_status)
 		 	new = 127; /* load full packet before starting */
 		new = (np->csr6 & ~(0x7F << 14)) | (new<<14);
 #endif
-		printk(KERN_DEBUG "%s: Tx underflow, new csr6 %08x\n",
-		       dev->name, new);
+		netdev_dbg(dev, "Tx underflow, new csr6 %08x\n", new);
 		update_csr6(dev, new);
 	}
 	if (intr_status & RxDied) {		/* Missed a Rx frame. */
@@ -1487,13 +1485,12 @@ static int netdev_close(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	if (debug > 1) {
-		printk(KERN_DEBUG "%s: Shutting down ethercard, status was %08x Config %08x\n",
-		       dev->name, ioread32(ioaddr + IntrStatus),
-		       ioread32(ioaddr + NetworkConfig));
-		printk(KERN_DEBUG "%s: Queue pointers were Tx %d / %d,  Rx %d / %d\n",
-		       dev->name,
-		       np->cur_tx, np->dirty_tx,
-		       np->cur_rx, np->dirty_rx);
+		netdev_dbg(dev, "Shutting down ethercard, status was %08x Config %08x\n",
+			   ioread32(ioaddr + IntrStatus),
+			   ioread32(ioaddr + NetworkConfig));
+		netdev_dbg(dev, "Queue pointers were Tx %d / %d,  Rx %d / %d\n",
+			   np->cur_tx, np->dirty_tx,
+			   np->cur_rx, np->dirty_rx);
 	}
 
  	/* Stop the chip's Tx and Rx processes. */

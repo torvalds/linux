@@ -395,7 +395,7 @@ ENTRY(xscale_dma_a0_map_area)
 	teq	r2, #DMA_TO_DEVICE
 	beq	xscale_dma_clean_range
 	b	xscale_dma_flush_range
-ENDPROC(xscsale_dma_a0_map_area)
+ENDPROC(xscale_dma_a0_map_area)
 
 /*
  *	dma_unmap_area(start, size, dir)
@@ -518,7 +518,7 @@ ENTRY(cpu_xscale_set_pte_ext)
 
 .globl	cpu_xscale_suspend_size
 .equ	cpu_xscale_suspend_size, 4 * 7
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 ENTRY(cpu_xscale_do_suspend)
 	stmfd	sp!, {r4 - r10, lr}
 	mrc	p14, 0, r4, c6, c0, 0	@ clock configuration, for turbo mode

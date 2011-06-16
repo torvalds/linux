@@ -32,6 +32,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/pci.h>
+#include <linux/interrupt.h>
 #include <linux/ip.h>
 #include <linux/slab.h>
 #include <net/ip.h>
@@ -3413,10 +3414,10 @@ static int sky2_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	ecmd->phy_address = PHY_ADDR_MARV;
 	if (sky2_is_copper(hw)) {
 		ecmd->port = PORT_TP;
-		ecmd->speed = sky2->speed;
+		ethtool_cmd_speed_set(ecmd, sky2->speed);
 		ecmd->supported |=  SUPPORTED_Autoneg | SUPPORTED_TP;
 	} else {
-		ecmd->speed = SPEED_1000;
+		ethtool_cmd_speed_set(ecmd, SPEED_1000);
 		ecmd->port = PORT_FIBRE;
 		ecmd->supported |=  SUPPORTED_Autoneg | SUPPORTED_FIBRE;
 	}
@@ -3452,8 +3453,9 @@ static int sky2_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		sky2->speed = -1;
 	} else {
 		u32 setting;
+		u32 speed = ethtool_cmd_speed(ecmd);
 
-		switch (ecmd->speed) {
+		switch (speed) {
 		case SPEED_1000:
 			if (ecmd->duplex == DUPLEX_FULL)
 				setting = SUPPORTED_1000baseT_Full;
@@ -3486,7 +3488,7 @@ static int sky2_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if ((setting & supported) == 0)
 			return -EINVAL;
 
-		sky2->speed = ecmd->speed;
+		sky2->speed = speed;
 		sky2->duplex = ecmd->duplex;
 		sky2->flags &= ~SKY2_FLAG_AUTO_SPEED;
 	}

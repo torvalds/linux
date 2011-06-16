@@ -220,6 +220,7 @@ __switch_to:
 	lctl	%c4,%c4,__TASK_pid(%r3)		# load pid to control reg. 4
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	stg	%r3,__LC_CURRENT		# store task struct of next
+	mvc	__LC_CURRENT_PID+4(4,%r0),__TASK_pid(%r3) # store pid of next
 	stg	%r5,__LC_THREAD_INFO		# store thread info of next
 	aghi	%r5,STACK_SIZE			# end of kernel stack of next
 	stg	%r5,__LC_KERNEL_STACK		# store end of kernel stack
@@ -841,7 +842,7 @@ restart_base:
 	mvc	__LC_SYSTEM_TIMER(8),__TI_system_timer(%r1)
 	xc	__LC_STEAL_TIMER(8),__LC_STEAL_TIMER
 	stosm	__SF_EMPTY(%r15),0x04	# now we can turn dat on
-	jg	start_secondary
+	brasl	%r14,start_secondary
 	.align	8
 restart_vtime:
 	.long	0x7fffffff,0xffffffff

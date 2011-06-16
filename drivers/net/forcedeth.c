@@ -64,6 +64,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/prefetch.h>
 #include  <linux/io.h>
 
 #include <asm/irq.h>
@@ -3955,6 +3956,7 @@ static int nv_set_wol(struct net_device *dev, struct ethtool_wolinfo *wolinfo)
 static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct fe_priv *np = netdev_priv(dev);
+	u32 speed;
 	int adv;
 
 	spin_lock_irq(&np->lock);
@@ -3974,23 +3976,26 @@ static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	if (netif_carrier_ok(dev)) {
 		switch (np->linkspeed & (NVREG_LINKSPEED_MASK)) {
 		case NVREG_LINKSPEED_10:
-			ecmd->speed = SPEED_10;
+			speed = SPEED_10;
 			break;
 		case NVREG_LINKSPEED_100:
-			ecmd->speed = SPEED_100;
+			speed = SPEED_100;
 			break;
 		case NVREG_LINKSPEED_1000:
-			ecmd->speed = SPEED_1000;
+			speed = SPEED_1000;
+			break;
+		default:
+			speed = -1;
 			break;
 		}
 		ecmd->duplex = DUPLEX_HALF;
 		if (np->duplex)
 			ecmd->duplex = DUPLEX_FULL;
 	} else {
-		ecmd->speed = -1;
+		speed = -1;
 		ecmd->duplex = -1;
 	}
-
+	ethtool_cmd_speed_set(ecmd, speed);
 	ecmd->autoneg = np->autoneg;
 
 	ecmd->advertising = ADVERTISED_MII;
@@ -4029,6 +4034,7 @@ static int nv_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct fe_priv *np = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(ecmd);
 
 	if (ecmd->port != PORT_MII)
 		return -EINVAL;
@@ -4054,7 +4060,7 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		/* Note: autonegotiation disable, speed 1000 intentionally
 		 * forbidden - no one should need that. */
 
-		if (ecmd->speed != SPEED_10 && ecmd->speed != SPEED_100)
+		if (speed != SPEED_10 && speed != SPEED_100)
 			return -EINVAL;
 		if (ecmd->duplex != DUPLEX_HALF && ecmd->duplex != DUPLEX_FULL)
 			return -EINVAL;
@@ -4138,13 +4144,13 @@ static int nv_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 		adv = mii_rw(dev, np->phyaddr, MII_ADVERTISE, MII_READ);
 		adv &= ~(ADVERTISE_ALL | ADVERTISE_100BASE4 | ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
-		if (ecmd->speed == SPEED_10 && ecmd->duplex == DUPLEX_HALF)
+		if (speed == SPEED_10 && ecmd->duplex == DUPLEX_HALF)
 			adv |= ADVERTISE_10HALF;
-		if (ecmd->speed == SPEED_10 && ecmd->duplex == DUPLEX_FULL)
+		if (speed == SPEED_10 && ecmd->duplex == DUPLEX_FULL)
 			adv |= ADVERTISE_10FULL;
-		if (ecmd->speed == SPEED_100 && ecmd->duplex == DUPLEX_HALF)
+		if (speed == SPEED_100 && ecmd->duplex == DUPLEX_HALF)
 			adv |= ADVERTISE_100HALF;
-		if (ecmd->speed == SPEED_100 && ecmd->duplex == DUPLEX_FULL)
+		if (speed == SPEED_100 && ecmd->duplex == DUPLEX_FULL)
 			adv |= ADVERTISE_100FULL;
 		np->pause_flags &= ~(NV_PAUSEFRAME_AUTONEG|NV_PAUSEFRAME_RX_ENABLE|NV_PAUSEFRAME_TX_ENABLE);
 		if (np->pause_flags & NV_PAUSEFRAME_RX_REQ) {/* for rx we set both advertisements but disable tx pause */

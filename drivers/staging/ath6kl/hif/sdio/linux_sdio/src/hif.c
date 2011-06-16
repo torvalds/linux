@@ -37,7 +37,7 @@
 #include "hif_internal.h"
 #define ATH_MODULE_NAME hif
 #include "a_debug.h"
-#include "AR6002/hw2.0/hw/mbox_host_reg.h"
+#include "hw/mbox_host_reg.h"
 
 #if HIF_USE_DMA_BOUNCE_BUFFER
 /* macro to check if DMA buffer is WORD-aligned and DMA-able.  Most host controllers assume the
@@ -53,62 +53,189 @@
 #if defined(CONFIG_PM)
 #define dev_to_sdio_func(d)	container_of(d, struct sdio_func, dev)
 #define to_sdio_driver(d)      container_of(d, struct sdio_driver, drv)
-static int hifDeviceSuspend(struct device *dev);
-static int hifDeviceResume(struct device *dev);
 #endif /* CONFIG_PM */
-static int hifDeviceInserted(struct sdio_func *func, const struct sdio_device_id *id);
-static void hifDeviceRemoved(struct sdio_func *func);
-static struct hif_device *addHifDevice(struct sdio_func *func);
-static struct hif_device *getHifDevice(struct sdio_func *func);
 static void delHifDevice(struct hif_device * device);
 static int Func0_CMD52WriteByte(struct mmc_card *card, unsigned int address, unsigned char byte);
 static int Func0_CMD52ReadByte(struct mmc_card *card, unsigned int address, unsigned char *byte);
+
+static int hifEnableFunc(struct hif_device *device, struct sdio_func *func);
+static int hifDisableFunc(struct hif_device *device, struct sdio_func *func);
+OSDRV_CALLBACKS osdrvCallbacks;
 
 int reset_sdio_on_unload = 0;
 module_param(reset_sdio_on_unload, int, 0644);
 
 extern u32 nohifscattersupport;
 
+static struct hif_device *ath6kl_alloc_hifdev(struct sdio_func *func)
+{
+	struct hif_device *hifdevice;
 
-/* ------ Static Variables ------ */
-static const struct sdio_device_id ar6k_id_table[] = {
-    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6002_BASE | 0x0))  },
-    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6002_BASE | 0x1))  },
-    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6003_BASE | 0x0))  },
-    {  SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6003_BASE | 0x1))  },
-    { /* null */                                         },
-};
-MODULE_DEVICE_TABLE(sdio, ar6k_id_table);
+	hifdevice = kzalloc(sizeof(struct hif_device), GFP_KERNEL);
 
-static struct sdio_driver ar6k_driver = {
-	.name = "ar6k_wlan",
-	.id_table = ar6k_id_table,
-	.probe = hifDeviceInserted,
-	.remove = hifDeviceRemoved,
+#if HIF_USE_DMA_BOUNCE_BUFFER
+	hifdevice->dma_buffer = kmalloc(HIF_DMA_BUFFER_SIZE, GFP_KERNEL);
+#endif
+	hifdevice->func = func;
+	hifdevice->powerConfig = HIF_DEVICE_POWER_UP;
+	sdio_set_drvdata(func, hifdevice);
+
+	return hifdevice;
+}
+
+static struct hif_device *ath6kl_get_hifdev(struct sdio_func *func)
+{
+	return (struct hif_device *) sdio_get_drvdata(func);
+}
+
+static const struct sdio_device_id ath6kl_hifdev_ids[] = {
+	{ SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6002_BASE | 0x0)) },
+	{ SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6002_BASE | 0x1)) },
+	{ SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6003_BASE | 0x0)) },
+	{ SDIO_DEVICE(MANUFACTURER_CODE, (MANUFACTURER_ID_AR6003_BASE | 0x1)) },
+	{ /* null */                                         },
 };
+
+MODULE_DEVICE_TABLE(sdio, ath6kl_hifdev_ids);
+
+static int ath6kl_hifdev_probe(struct sdio_func *func,
+			       const struct sdio_device_id *id)
+{
+	int ret;
+	struct hif_device *device;
+	int count;
+
+	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
+			("ath6kl: Function: 0x%X, Vendor ID: 0x%X, "
+			 "Device ID: 0x%X, block size: 0x%X/0x%X\n",
+			func->num, func->vendor, func->device,
+			func->max_blksize, func->cur_blksize));
+
+	ath6kl_alloc_hifdev(func);
+	device = ath6kl_get_hifdev(func);
+
+	device->id = id;
+	device->is_disabled = true;
+
+	spin_lock_init(&device->lock);
+	spin_lock_init(&device->asynclock);
+
+	DL_LIST_INIT(&device->ScatterReqHead);
+
+	/* Try to allow scatter unless globally overridden */
+	if (!nohifscattersupport)
+		device->scatter_enabled = true;
+
+	A_MEMZERO(device->busRequest, sizeof(device->busRequest));
+
+	for (count = 0; count < BUS_REQUEST_MAX_NUM; count++) {
+		sema_init(&device->busRequest[count].sem_req, 0);
+		hifFreeBusRequest(device, &device->busRequest[count]);
+	}
+
+	sema_init(&device->sem_async, 0);
+
+	ret = hifEnableFunc(device, func);
+
+	return ret;
+}
+
+static void ath6kl_hifdev_remove(struct sdio_func *func)
+{
+	int status = 0;
+	struct hif_device *device;
+
+	device = ath6kl_get_hifdev(func);
+	if (device->claimedContext != NULL)
+		status = osdrvCallbacks.
+			deviceRemovedHandler(device->claimedContext, device);
+
+	if (device->is_disabled)
+		device->is_disabled = false;
+	else
+		status = hifDisableFunc(device, func);
+
+	CleanupHIFScatterResources(device);
+
+	delHifDevice(device);
+}
 
 #if defined(CONFIG_PM)
-/* New suspend/resume based on linux-2.6.32
- * Need to patch linux-2.6.32 with mmc2.6.32_suspend.patch
- * Need to patch with msmsdcc2.6.29_suspend.patch for msm_sdcc host
-     */
-static struct dev_pm_ops ar6k_device_pm_ops = {
-	.suspend = hifDeviceSuspend,
-	.resume = hifDeviceResume,
+static int ath6kl_hifdev_suspend(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	int status = 0;
+	struct hif_device *device;
+
+	device = ath6kl_get_hifdev(func);
+
+	if (device && device->claimedContext &&
+	    osdrvCallbacks.deviceSuspendHandler) {
+		/* set true first for PowerStateChangeNotify(..) */
+		device->is_suspend = true;
+		status = osdrvCallbacks.
+			deviceSuspendHandler(device->claimedContext);
+		if (status)
+			device->is_suspend = false;
+	}
+
+	CleanupHIFScatterResources(device);
+
+	switch (status) {
+	case 0:
+		return 0;
+	case A_EBUSY:
+		/* Hack for kernel in order to support deep sleep and wow */
+		return -EBUSY;
+	default:
+		return -1;
+	}
+}
+
+static int ath6kl_hifdev_resume(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	int status = 0;
+	struct hif_device *device;
+
+	device = ath6kl_get_hifdev(func);
+	if (device && device->claimedContext &&
+	    osdrvCallbacks.deviceSuspendHandler) {
+		status = osdrvCallbacks.
+			deviceResumeHandler(device->claimedContext);
+		if (status == 0)
+			device->is_suspend = false;
+	}
+
+	return status;
+}
+
+static const struct dev_pm_ops ath6kl_hifdev_pmops = {
+	.suspend = ath6kl_hifdev_suspend,
+	.resume = ath6kl_hifdev_resume,
 };
 #endif /* CONFIG_PM */
+
+static struct sdio_driver ath6kl_hifdev_driver = {
+	.name = "ath6kl_hifdev",
+	.id_table = ath6kl_hifdev_ids,
+	.probe = ath6kl_hifdev_probe,
+	.remove = ath6kl_hifdev_remove,
+#if defined(CONFIG_PM)
+	.drv = {
+		.pm = &ath6kl_hifdev_pmops,
+	},
+#endif
+};
 
 /* make sure we only unregister when registered. */
 static int registered = 0;
 
-OSDRV_CALLBACKS osdrvCallbacks;
 extern u32 onebitmode;
 extern u32 busspeedlow;
 extern u32 debughif;
 
 static void ResetAllCards(void);
-static int hifDisableFunc(struct hif_device *device, struct sdio_func *func);
-static int hifEnableFunc(struct hif_device *device, struct sdio_func *func);
 
 #ifdef DEBUG
 
@@ -125,31 +252,22 @@ ATH_DEBUG_INSTANTIATE_MODULE_VAR(hif,
 /* ------ Functions ------ */
 int HIFInit(OSDRV_CALLBACKS *callbacks)
 {
-    int status;
-    AR_DEBUG_ASSERT(callbacks != NULL);
+	int r;
+	AR_DEBUG_ASSERT(callbacks != NULL);
 
-    A_REGISTER_MODULE_DEBUG_INFO(hif);
+	A_REGISTER_MODULE_DEBUG_INFO(hif);
 
-    /* store the callback handlers */
-    osdrvCallbacks = *callbacks;
+	/* store the callback handlers */
+	osdrvCallbacks = *callbacks;
 
-    /* Register with bus driver core */
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: HIFInit registering\n"));
-    registered = 1;
-#if defined(CONFIG_PM)
-    if (callbacks->deviceSuspendHandler && callbacks->deviceResumeHandler) {
-        ar6k_driver.drv.pm = &ar6k_device_pm_ops;
-    }
-#endif /* CONFIG_PM */
-    status = sdio_register_driver(&ar6k_driver);
-    AR_DEBUG_ASSERT(status==0);
+	/* Register with bus driver core */
+	registered = 1;
 
-    if (status != 0) {
-        return A_ERROR;
-    }
+	r = sdio_register_driver(&ath6kl_hifdev_driver);
+	if (r < 0)
+		return r;
 
-    return 0;
-
+	return 0;
 }
 
 static int
@@ -763,7 +881,7 @@ HIFShutDownDevice(struct hif_device *device)
             registered = 0;
             AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
                             ("AR6000: Unregistering with the bus driver\n"));
-            sdio_unregister_driver(&ar6k_driver);
+            sdio_unregister_driver(&ath6kl_hifdev_driver);
             AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
                             ("AR6000: Unregistered\n"));
         }
@@ -778,7 +896,7 @@ hifIRQHandler(struct sdio_func *func)
     struct hif_device *device;
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hifIRQHandler\n"));
 
-    device = getHifDevice(func);
+    device = ath6kl_get_hifdev(func);
     atomic_set(&device->irqHandling, 1);
     /* release the host during ints so we can pick it back up when we process cmds */
     sdio_release_host(device->func);
@@ -822,48 +940,6 @@ static int enable_task(void *param)
     return 0;
 }
 #endif
-
-static int hifDeviceInserted(struct sdio_func *func, const struct sdio_device_id *id)
-{
-    int ret;
-    struct hif_device * device;
-    int count;
-
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
-		    ("AR6000: hifDeviceInserted, Function: 0x%X, Vendor ID: 0x%X, Device ID: 0x%X, block size: 0x%X/0x%X\n",
-		     func->num, func->vendor, func->device, func->max_blksize, func->cur_blksize));
-
-    addHifDevice(func);
-    device = getHifDevice(func);
-
-    device->id = id;
-    device->is_disabled = true;
-
-    spin_lock_init(&device->lock);
-
-    spin_lock_init(&device->asynclock);
-    
-    DL_LIST_INIT(&device->ScatterReqHead);
-    
-    if (!nohifscattersupport) {
-            /* try to allow scatter operation on all instances,
-             * unless globally overridden */
-        device->scatter_enabled = true;
-    }
-
-    /* Initialize the bus requests to be used later */
-    A_MEMZERO(device->busRequest, sizeof(device->busRequest));
-    for (count = 0; count < BUS_REQUEST_MAX_NUM; count ++) {
-        sema_init(&device->busRequest[count].sem_req, 0);
-        hifFreeBusRequest(device, &device->busRequest[count]);
-    }
-    sema_init(&device->sem_async, 0);
-    
-    ret  = hifEnableFunc(device, func);
-
-    return ret;
-}
-
 
 void
 HIFAckInterrupt(struct hif_device *device)
@@ -955,7 +1031,7 @@ static int hifDisableFunc(struct hif_device *device, struct sdio_func *func)
     int status = 0;
 
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hifDisableFunc\n"));
-    device = getHifDevice(func);
+    device = ath6kl_get_hifdev(func);
     if (!IS_ERR(device->async_task)) {
         init_completion(&device->async_completion);
         device->async_shutdown = 1;
@@ -1004,7 +1080,7 @@ static int hifEnableFunc(struct hif_device *device, struct sdio_func *func)
     int ret = 0;
     
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hifEnableFunc\n"));
-    device = getHifDevice(func);
+    device = ath6kl_get_hifdev(func);
 
     if (device->is_disabled) {
        /* enable the SDIO function */
@@ -1016,7 +1092,7 @@ static int hifEnableFunc(struct hif_device *device, struct sdio_func *func)
             if (ret) {
                 AR_DEBUG_PRINTF(ATH_DEBUG_ERR, ("AR6000: failed to enable 4-bit ASYNC IRQ mode %d \n",ret));
                 sdio_release_host(func);
-                return A_ERROR;
+                return ret;
             }
             AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: 4-bit ASYNC IRQ mode enabled\n"));
         }
@@ -1027,14 +1103,14 @@ static int hifEnableFunc(struct hif_device *device, struct sdio_func *func)
             AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("AR6000: %s(), Unable to enable AR6K: 0x%X\n",
 					  __FUNCTION__, ret));
             sdio_release_host(func);
-            return A_ERROR;
+            return ret;
         }
         ret = sdio_set_block_size(func, HIF_MBOX_BLOCK_SIZE);
         sdio_release_host(func);
         if (ret) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("AR6000: %s(), Unable to set block size 0x%x  AR6K: 0x%X\n",
 					  __FUNCTION__, HIF_MBOX_BLOCK_SIZE, ret));
-            return A_ERROR;
+            return ret;
         }
         device->is_disabled = false;
         /* create async I/O thread */
@@ -1045,7 +1121,7 @@ static int hifEnableFunc(struct hif_device *device, struct sdio_func *func)
                                            "AR6K Async");
            if (IS_ERR(device->async_task)) {
                AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("AR6000: %s(), to create async task\n", __FUNCTION__));
-                return A_ERROR;
+                return -ENOMEM;
            }
            AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: start async task\n"));
            wake_up_process(device->async_task );    
@@ -1060,93 +1136,20 @@ static int hifEnableFunc(struct hif_device *device, struct sdio_func *func)
     } else {
         taskFunc = enable_task;
         taskName = "AR6K enable";
-        ret = A_PENDING;
+        ret = -ENOMEM;
 #endif /* CONFIG_PM */
     }
     /* create resume thread */
     pTask = kthread_create(taskFunc, (void *)device, taskName);
     if (IS_ERR(pTask)) {
         AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("AR6000: %s(), to create enabel task\n", __FUNCTION__));
-        return A_ERROR;
+        return -ENOMEM;
     }
     wake_up_process(pTask);
     AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifEnableFunc\n"));
 
     /* task will call the enable func, indicate pending */
     return ret;
-}
-
-#if defined(CONFIG_PM)
-static int hifDeviceSuspend(struct device *dev)
-{
-    struct sdio_func *func=dev_to_sdio_func(dev);
-    int status = 0;
-    struct hif_device *device;   
-
-    device = getHifDevice(func);
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hifDeviceSuspend\n"));
-    if (device && device->claimedContext && osdrvCallbacks.deviceSuspendHandler) {
-        device->is_suspend = true; /* set true first for PowerStateChangeNotify(..) */
-        status = osdrvCallbacks.deviceSuspendHandler(device->claimedContext);
-        if (status) {
-            device->is_suspend = false;
-        }
-    }
-    CleanupHIFScatterResources(device);
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifDeviceSuspend\n"));
-
-    switch (status) {
-    case 0:
-        return 0;
-    case A_EBUSY:
-        return -EBUSY; /* Hack for kernel in order to support deep sleep and wow */
-    default:
-        return -1;
-    }
-}
-
-static int hifDeviceResume(struct device *dev)
-{
-    struct sdio_func *func=dev_to_sdio_func(dev);
-    int status = 0;
-    struct hif_device *device;   
-
-    device = getHifDevice(func);
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hifDeviceResume\n"));
-    if (device && device->claimedContext && osdrvCallbacks.deviceSuspendHandler) {
-        status = osdrvCallbacks.deviceResumeHandler(device->claimedContext);
-        if (status == 0) {
-            device->is_suspend = false;
-        }
-    }
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifDeviceResume\n"));
-
-    return status;
-}
-#endif /* CONFIG_PM */
-
-static void hifDeviceRemoved(struct sdio_func *func)
-{
-    int status = 0;
-    struct hif_device *device;
-    AR_DEBUG_ASSERT(func != NULL);
-
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: +hifDeviceRemoved\n"));
-    device = getHifDevice(func);
-    if (device->claimedContext != NULL) {
-        status = osdrvCallbacks.deviceRemovedHandler(device->claimedContext, device);
-    }
-
-    if (device->is_disabled) {
-        device->is_disabled = false;
-    } else {
-        status = hifDisableFunc(device, func);
-    }
-    CleanupHIFScatterResources(device);
-     
-    delHifDevice(device);
-    AR_DEBUG_ASSERT(status == 0);
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: -hifDeviceRemoved\n"));
 }
 
 /*
@@ -1182,33 +1185,6 @@ int hifWaitForPendingRecv(struct hif_device *device)
     return 0;
 }
     
-
-static struct hif_device *
-addHifDevice(struct sdio_func *func)
-{
-    struct hif_device *hifdevice;
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: addHifDevice\n"));
-    AR_DEBUG_ASSERT(func != NULL);
-    hifdevice = kzalloc(sizeof(struct hif_device), GFP_KERNEL);
-    AR_DEBUG_ASSERT(hifdevice != NULL);
-#if HIF_USE_DMA_BOUNCE_BUFFER
-    hifdevice->dma_buffer = kmalloc(HIF_DMA_BUFFER_SIZE, GFP_KERNEL);
-    AR_DEBUG_ASSERT(hifdevice->dma_buffer != NULL);
-#endif
-    hifdevice->func = func;
-    hifdevice->powerConfig = HIF_DEVICE_POWER_UP;
-    sdio_set_drvdata(func, hifdevice);
-    AR_DEBUG_PRINTF(ATH_DEBUG_TRACE, ("AR6000: addHifDevice; 0x%p\n", hifdevice));
-    return hifdevice;
-}
-
-static struct hif_device *
-getHifDevice(struct sdio_func *func)
-{
-    AR_DEBUG_ASSERT(func != NULL);
-    return (struct hif_device *)sdio_get_drvdata(func);
-}
-
 static void
 delHifDevice(struct hif_device * device)
 {

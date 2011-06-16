@@ -41,7 +41,6 @@
 #include <linux/kprobes.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
-#include <asm/s390_ext.h>
 #include <asm/div64.h>
 #include <asm/vdso.h>
 #include <asm/irq.h>
@@ -810,7 +809,7 @@ static int etr_sync_clock_stop(struct etr_aib *aib, int port)
 	etr_sync.etr_port = port;
 	get_online_cpus();
 	atomic_set(&etr_sync.cpus, num_online_cpus() - 1);
-	rc = stop_machine(etr_sync_clock, &etr_sync, &cpu_online_map);
+	rc = stop_machine(etr_sync_clock, &etr_sync, cpu_online_mask);
 	put_online_cpus();
 	return rc;
 }
@@ -1579,7 +1578,7 @@ static void stp_work_fn(struct work_struct *work)
 	memset(&stp_sync, 0, sizeof(stp_sync));
 	get_online_cpus();
 	atomic_set(&stp_sync.cpus, num_online_cpus() - 1);
-	stop_machine(stp_sync_clock, &stp_sync, &cpu_online_map);
+	stop_machine(stp_sync_clock, &stp_sync, cpu_online_mask);
 	put_online_cpus();
 
 	if (!check_sync_clock())

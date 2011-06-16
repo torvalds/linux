@@ -29,18 +29,10 @@
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
 
-static void gw_node_free_rcu(struct rcu_head *rcu)
-{
-	struct gw_node *gw_node;
-
-	gw_node = container_of(rcu, struct gw_node, rcu);
-	kfree(gw_node);
-}
-
 static void gw_node_free_ref(struct gw_node *gw_node)
 {
 	if (atomic_dec_and_test(&gw_node->refcount))
-		call_rcu(&gw_node->rcu, gw_node_free_rcu);
+		kfree_rcu(gw_node, rcu);
 }
 
 static struct gw_node *gw_get_selected_gw_node(struct bat_priv *bat_priv)
@@ -94,7 +86,7 @@ static void gw_select(struct bat_priv *bat_priv, struct gw_node *new_gw_node)
 	if (new_gw_node && !atomic_inc_not_zero(&new_gw_node->refcount))
 		new_gw_node = NULL;
 
-	curr_gw_node = bat_priv->curr_gw;
+	curr_gw_node = rcu_dereference_protected(bat_priv->curr_gw, 1);
 	rcu_assign_pointer(bat_priv->curr_gw, new_gw_node);
 
 	if (curr_gw_node)
@@ -127,7 +119,7 @@ void gw_election(struct bat_priv *bat_priv)
 		return;
 
 	curr_gw = gw_get_selected_gw_node(bat_priv);
-	if (!curr_gw)
+	if (curr_gw)
 		goto out;
 
 	rcu_read_lock();
@@ -281,11 +273,10 @@ static void gw_node_add(struct bat_priv *bat_priv,
 	struct gw_node *gw_node;
 	int down, up;
 
-	gw_node = kmalloc(sizeof(struct gw_node), GFP_ATOMIC);
+	gw_node = kzalloc(sizeof(*gw_node), GFP_ATOMIC);
 	if (!gw_node)
 		return;
 
-	memset(gw_node, 0, sizeof(struct gw_node));
 	INIT_HLIST_NODE(&gw_node->list);
 	gw_node->orig_node = orig_node;
 	atomic_set(&gw_node->refcount, 1);
@@ -310,9 +301,13 @@ void gw_node_update(struct bat_priv *bat_priv,
 	struct hlist_node *node;
 	struct gw_node *gw_node, *curr_gw;
 
+	/**
+	 * Note: We don't need a NULL check here, since curr_gw never gets
+	 * dereferenced. If curr_gw is NULL we also should not exit as we may
+	 * have this gateway in our list (duplication check!) even though we
+	 * have no currently selected gateway.
+	 */
 	curr_gw = gw_get_selected_gw_node(bat_priv);
-	if (!curr_gw)
-		goto out;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
@@ -327,7 +322,7 @@ void gw_node_update(struct bat_priv *bat_priv,
 
 		gw_node->deleted = 0;
 
-		if (new_gwflags == 0) {
+		if (new_gwflags == NO_FLAGS) {
 			gw_node->deleted = jiffies;
 			bat_dbg(DBG_BATMAN, bat_priv,
 				"Gateway %pM removed from gateway list\n",
@@ -340,7 +335,7 @@ void gw_node_update(struct bat_priv *bat_priv,
 		goto unlock;
 	}
 
-	if (new_gwflags == 0)
+	if (new_gwflags == NO_FLAGS)
 		goto unlock;
 
 	gw_node_add(bat_priv, orig_node, new_gwflags);
@@ -350,14 +345,14 @@ deselect:
 	gw_deselect(bat_priv);
 unlock:
 	rcu_read_unlock();
-out:
+
 	if (curr_gw)
 		gw_node_free_ref(curr_gw);
 }
 
 void gw_node_delete(struct bat_priv *bat_priv, struct orig_node *orig_node)
 {
-	return gw_node_update(bat_priv, orig_node, 0);
+	gw_node_update(bat_priv, orig_node, 0);
 }
 
 void gw_node_purge(struct bat_priv *bat_priv)
@@ -398,8 +393,8 @@ void gw_node_purge(struct bat_priv *bat_priv)
 /**
  * fails if orig_node has no router
  */
-static int _write_buffer_text(struct bat_priv *bat_priv,
-			      struct seq_file *seq, struct gw_node *gw_node)
+static int _write_buffer_text(struct bat_priv *bat_priv, struct seq_file *seq,
+			      const struct gw_node *gw_node)
 {
 	struct gw_node *curr_gw;
 	struct neigh_node *router;
@@ -435,30 +430,32 @@ int gw_client_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	struct hard_iface *primary_if;
 	struct gw_node *gw_node;
 	struct hlist_node *node;
-	int gw_count = 0;
+	int gw_count = 0, ret = 0;
 
-	if (!bat_priv->primary_if) {
-
-		return seq_printf(seq, "BATMAN mesh %s disabled - please "
-				  "specify interfaces to enable it\n",
-				  net_dev->name);
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if) {
+		ret = seq_printf(seq, "BATMAN mesh %s disabled - please "
+				 "specify interfaces to enable it\n",
+				 net_dev->name);
+		goto out;
 	}
 
-	if (bat_priv->primary_if->if_status != IF_ACTIVE) {
-
-		return seq_printf(seq, "BATMAN mesh %s disabled - "
-				       "primary interface not active\n",
-				       net_dev->name);
+	if (primary_if->if_status != IF_ACTIVE) {
+		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
+				 "primary interface not active\n",
+				 net_dev->name);
+		goto out;
 	}
 
 	seq_printf(seq, "      %-12s (%s/%i) %17s [%10s]: gw_class ... "
 		   "[B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%pM (%s)]\n",
 		   "Gateway", "#", TQ_MAX_VALUE, "Nexthop",
 		   "outgoingIF", SOURCE_VERSION, REVISION_VERSION_STR,
-		   bat_priv->primary_if->net_dev->name,
-		   bat_priv->primary_if->net_dev->dev_addr, net_dev->name);
+		   primary_if->net_dev->name,
+		   primary_if->net_dev->dev_addr, net_dev->name);
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
@@ -476,7 +473,10 @@ int gw_client_seq_print_text(struct seq_file *seq, void *offset)
 	if (gw_count == 0)
 		seq_printf(seq, "No gateways in range ...\n");
 
-	return 0;
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
+	return ret;
 }
 
 int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
@@ -508,7 +508,7 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 	/* check for ip header */
 	switch (ntohs(ethhdr->h_proto)) {
 	case ETH_P_IP:
-		if (!pskb_may_pull(skb, header_len + sizeof(struct iphdr)))
+		if (!pskb_may_pull(skb, header_len + sizeof(*iphdr)))
 			return 0;
 		iphdr = (struct iphdr *)(skb->data + header_len);
 		header_len += iphdr->ihl * 4;
@@ -519,10 +519,10 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 
 		break;
 	case ETH_P_IPV6:
-		if (!pskb_may_pull(skb, header_len + sizeof(struct ipv6hdr)))
+		if (!pskb_may_pull(skb, header_len + sizeof(*ipv6hdr)))
 			return 0;
 		ipv6hdr = (struct ipv6hdr *)(skb->data + header_len);
-		header_len += sizeof(struct ipv6hdr);
+		header_len += sizeof(*ipv6hdr);
 
 		/* check for udp header */
 		if (ipv6hdr->nexthdr != IPPROTO_UDP)
@@ -533,10 +533,10 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 		return 0;
 	}
 
-	if (!pskb_may_pull(skb, header_len + sizeof(struct udphdr)))
+	if (!pskb_may_pull(skb, header_len + sizeof(*udphdr)))
 		return 0;
 	udphdr = (struct udphdr *)(skb->data + header_len);
-	header_len += sizeof(struct udphdr);
+	header_len += sizeof(*udphdr);
 
 	/* check for bootp port */
 	if ((ntohs(ethhdr->h_proto) == ETH_P_IP) &&

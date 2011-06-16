@@ -129,8 +129,8 @@ static struct mwifiex_debug_data items[] = {
 	 item_addr(event_received), 1},
 
 	/* variables defined in struct mwifiex_adapter */
-	{"ioctl_pending", adapter_item_size(ioctl_pending),
-	 adapter_item_addr(ioctl_pending), 1},
+	{"cmd_pending", adapter_item_size(cmd_pending),
+	 adapter_item_addr(cmd_pending), 1},
 	{"tx_pending", adapter_item_size(tx_pending),
 	 adapter_item_addr(tx_pending), 1},
 	{"rx_pending", adapter_item_size(rx_pending),
@@ -193,7 +193,7 @@ mwifiex_info_read(struct file *file, char __user *ubuf,
 	unsigned long page = get_zeroed_page(GFP_KERNEL);
 	char *p = (char *) page, fmt[64];
 	struct mwifiex_bss_info info;
-	ssize_t ret = 0;
+	ssize_t ret;
 	int i = 0;
 
 	if (!p)
@@ -288,7 +288,7 @@ mwifiex_getlog_read(struct file *file, char __user *ubuf,
 		(struct mwifiex_private *) file->private_data;
 	unsigned long page = get_zeroed_page(GFP_KERNEL);
 	char *p = (char *) page;
-	ssize_t ret = 0;
+	ssize_t ret;
 	struct mwifiex_ds_get_stats stats;
 
 	if (!p)
@@ -400,7 +400,7 @@ mwifiex_debug_read(struct file *file, char __user *ubuf,
 	struct mwifiex_debug_data *d = &items[0];
 	unsigned long page = get_zeroed_page(GFP_KERNEL);
 	char *p = (char *) page;
-	ssize_t ret = 0;
+	ssize_t ret;
 	size_t size, addr;
 	long val;
 	int i, j;
@@ -507,7 +507,7 @@ mwifiex_regrdwr_write(struct file *file,
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *) addr;
 	size_t buf_size = min(count, (size_t) (PAGE_SIZE - 1));
-	int ret = 0;
+	int ret;
 	u32 reg_type = 0, reg_offset = 0, reg_value = UINT_MAX;
 
 	if (!buf)
@@ -650,7 +650,7 @@ mwifiex_rdeeprom_read(struct file *file, char __user *ubuf,
 		(struct mwifiex_private *) file->private_data;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *) addr;
-	int pos = 0, ret = 0, i = 0;
+	int pos = 0, ret = 0, i;
 	u8 value[MAX_EEPROM_DATA];
 
 	if (!buf)
@@ -735,8 +735,6 @@ mwifiex_dev_debugfs_init(struct mwifiex_private *priv)
 	MWIFIEX_DFS_ADD_FILE(getlog);
 	MWIFIEX_DFS_ADD_FILE(regrdwr);
 	MWIFIEX_DFS_ADD_FILE(rdeeprom);
-
-	return;
 }
 
 /*
@@ -749,7 +747,6 @@ mwifiex_dev_debugfs_remove(struct mwifiex_private *priv)
 		return;
 
 	debugfs_remove_recursive(priv->dfs_dev_dir);
-	return;
 }
 
 /*

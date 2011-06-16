@@ -50,7 +50,8 @@ static void emit_log_char(struct debug_log *debug_log, char c)
 		debug_log->log_start = debug_log->log_end - log_buff_len;
 }
 
-static int fdebug_log(struct debug_log *debug_log, char *fmt, ...)
+__printf(2, 3)
+static int fdebug_log(struct debug_log *debug_log, const char *fmt, ...)
 {
 	va_list args;
 	static char debug_log_buf[256];
@@ -74,14 +75,14 @@ static int fdebug_log(struct debug_log *debug_log, char *fmt, ...)
 	return 0;
 }
 
-int debug_log(struct bat_priv *bat_priv, char *fmt, ...)
+int debug_log(struct bat_priv *bat_priv, const char *fmt, ...)
 {
 	va_list args;
 	char tmp_log_buf[256];
 
 	va_start(args, fmt);
 	vscnprintf(tmp_log_buf, sizeof(tmp_log_buf), fmt, args);
-	fdebug_log(bat_priv->debug_log, "[%10u] %s",
+	fdebug_log(bat_priv->debug_log, "[%10lu] %s",
 		   (jiffies / HZ), tmp_log_buf);
 	va_end(args);
 
@@ -114,7 +115,7 @@ static ssize_t log_read(struct file *file, char __user *buf,
 	    !(debug_log->log_end - debug_log->log_start))
 		return -EAGAIN;
 
-	if ((!buf) || (count < 0))
+	if (!buf)
 		return -EINVAL;
 
 	if (count == 0)
@@ -184,7 +185,7 @@ static int debug_log_setup(struct bat_priv *bat_priv)
 	if (!bat_priv->debug_dir)
 		goto err;
 
-	bat_priv->debug_log = kzalloc(sizeof(struct debug_log), GFP_ATOMIC);
+	bat_priv->debug_log = kzalloc(sizeof(*bat_priv->debug_log), GFP_ATOMIC);
 	if (!bat_priv->debug_log)
 		goto err;
 
@@ -241,13 +242,13 @@ static int softif_neigh_open(struct inode *inode, struct file *file)
 static int transtable_global_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
-	return single_open(file, hna_global_seq_print_text, net_dev);
+	return single_open(file, tt_global_seq_print_text, net_dev);
 }
 
 static int transtable_local_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
-	return single_open(file, hna_local_seq_print_text, net_dev);
+	return single_open(file, tt_local_seq_print_text, net_dev);
 }
 
 static int vis_data_open(struct inode *inode, struct file *file)

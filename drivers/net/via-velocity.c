@@ -1887,7 +1887,7 @@ static void velocity_error(struct velocity_info *vptr, int status)
 		else
 			netif_wake_queue(vptr->dev);
 
-	};
+	}
 	if (status & ISR_MIBFI)
 		velocity_update_hw_mibs(vptr);
 	if (status & ISR_LSTEI)
@@ -3182,7 +3182,8 @@ static void velocity_ethtool_down(struct net_device *dev)
 		pci_set_power_state(vptr->pdev, PCI_D3hot);
 }
 
-static int velocity_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int velocity_get_settings(struct net_device *dev,
+				 struct ethtool_cmd *cmd)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 	struct mac_regs __iomem *regs = vptr->mac_regs;
@@ -3228,12 +3229,14 @@ static int velocity_get_settings(struct net_device *dev, struct ethtool_cmd *cmd
 			break;
 		}
 	}
+
 	if (status & VELOCITY_SPEED_1000)
-		cmd->speed = SPEED_1000;
+		ethtool_cmd_speed_set(cmd, SPEED_1000);
 	else if (status & VELOCITY_SPEED_100)
-		cmd->speed = SPEED_100;
+		ethtool_cmd_speed_set(cmd, SPEED_100);
 	else
-		cmd->speed = SPEED_10;
+		ethtool_cmd_speed_set(cmd, SPEED_10);
+
 	cmd->autoneg = (status & VELOCITY_AUTONEG_ENABLE) ? AUTONEG_ENABLE : AUTONEG_DISABLE;
 	cmd->port = PORT_TP;
 	cmd->transceiver = XCVR_INTERNAL;
@@ -3247,9 +3250,11 @@ static int velocity_get_settings(struct net_device *dev, struct ethtool_cmd *cmd
 	return 0;
 }
 
-static int velocity_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int velocity_set_settings(struct net_device *dev,
+				 struct ethtool_cmd *cmd)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(cmd);
 	u32 curr_status;
 	u32 new_status = 0;
 	int ret = 0;
@@ -3258,9 +3263,9 @@ static int velocity_set_settings(struct net_device *dev, struct ethtool_cmd *cmd
 	curr_status &= (~VELOCITY_LINK_FAIL);
 
 	new_status |= ((cmd->autoneg) ? VELOCITY_AUTONEG_ENABLE : 0);
-	new_status |= ((cmd->speed == SPEED_1000) ? VELOCITY_SPEED_1000 : 0);
-	new_status |= ((cmd->speed == SPEED_100) ? VELOCITY_SPEED_100 : 0);
-	new_status |= ((cmd->speed == SPEED_10) ? VELOCITY_SPEED_10 : 0);
+	new_status |= ((speed == SPEED_1000) ? VELOCITY_SPEED_1000 : 0);
+	new_status |= ((speed == SPEED_100) ? VELOCITY_SPEED_100 : 0);
+	new_status |= ((speed == SPEED_10) ? VELOCITY_SPEED_10 : 0);
 	new_status |= ((cmd->duplex == DUPLEX_FULL) ? VELOCITY_DUPLEX_FULL : 0);
 
 	if ((new_status & VELOCITY_AUTONEG_ENABLE) &&

@@ -790,8 +790,7 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	if (atomic) {
 		drm_fb = passed_fb;
 		fb = nouveau_framebuffer(passed_fb);
-	}
-	else {
+	} else {
 		/* If not atomic, we can go ahead and pin, and unpin the
 		 * old fb we were passed.
 		 */
@@ -944,13 +943,13 @@ nv04_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	struct drm_gem_object *gem;
 	int ret = 0;
 
-	if (width != 64 || height != 64)
-		return -EINVAL;
-
 	if (!buffer_handle) {
 		nv_crtc->cursor.hide(nv_crtc, true);
 		return 0;
 	}
+
+	if (width != 64 || height != 64)
+		return -EINVAL;
 
 	gem = drm_gem_object_lookup(dev, file_priv, buffer_handle);
 	if (!gem)

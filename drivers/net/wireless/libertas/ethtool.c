@@ -1,3 +1,4 @@
+#include <linux/hardirq.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
@@ -20,7 +21,8 @@ static void lbs_ethtool_get_drvinfo(struct net_device *dev,
 	strcpy(info->version, lbs_driver_version);
 }
 
-/* All 8388 parts have 16KiB EEPROM size at the time of writing.
+/*
+ * All 8388 parts have 16KiB EEPROM size at the time of writing.
  * In case that changes this needs fixing.
  */
 #define LBS_EEPROM_LEN 16384

@@ -1753,6 +1753,8 @@ ENTRY(_sys_call_table)
 	.long _sys_open_by_handle_at
 	.long _sys_clock_adjtime
 	.long _sys_syncfs
+	.long _sys_setns
+	.long _sys_sendmmsg		/* 380 */
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall

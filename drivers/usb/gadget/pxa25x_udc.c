@@ -46,6 +46,7 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/io.h>
+#include <linux/prefetch.h>
 
 #include <asm/byteorder.h>
 #include <asm/dma.h>

@@ -19,16 +19,6 @@ config RATIONAL
 config GENERIC_FIND_FIRST_BIT
 	bool
 
-config GENERIC_FIND_NEXT_BIT
-	bool
-
-config GENERIC_FIND_BIT_LE
-	bool
-
-config GENERIC_FIND_LAST_BIT
-	bool
-	default y
-
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -88,6 +78,13 @@ config LIBCRC32C
 	  kernel tree does. Such modules that use library CRC32c functions
 	  require M here.  See Castagnoli93.
 	  Module will be libcrc32c.
+
+config CRC8
+	tristate "CRC8 function"
+	help
+	  This option provides CRC8 function. Drivers may select this
+	  when they need to do cyclic redundancy check according CRC8
+	  algorithm. Module will be called crc8.
 
 config AUDIT_GENERIC
 	bool
@@ -271,5 +268,12 @@ config AVERAGE
 	  functions require Y here.
 
 	  If unsure, say N.
+
+config CORDIC
+	tristate "Cordic function"
+	help
+	  The option provides arithmetic function using cordic algorithm
+	  so its calculations are in fixed point. Modules can select this
+	  when they require this function. Module will be called cordic.
 
 endmenu

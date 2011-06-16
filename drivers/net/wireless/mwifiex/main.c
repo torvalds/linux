@@ -35,19 +35,13 @@ static struct mwifiex_bss_attr mwifiex_bss_sta[] = {
 
 static int drv_mode = DRV_MODE_STA;
 
-static char fw_name[32] = DEFAULT_FW_NAME;
-
 /* Supported drv_mode table */
 static struct mwifiex_drv_mode mwifiex_drv_mode_tbl[] = {
 	{
-	 /* drv_mode */
-	 .drv_mode = DRV_MODE_STA,
-	 /* intf number */
-	 .intf_num = ARRAY_SIZE(mwifiex_bss_sta),
-	 /* bss_attr */
-	 .bss_attr = mwifiex_bss_sta,
-	 }
-	,
+		.drv_mode = DRV_MODE_STA,
+		.intf_num = ARRAY_SIZE(mwifiex_bss_sta),
+		.bss_attr = mwifiex_bss_sta,
+	},
 };
 
 /*
@@ -66,16 +60,14 @@ static struct mwifiex_drv_mode mwifiex_drv_mode_tbl[] = {
  * proper cleanup before exiting.
  */
 static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
-			    struct mwifiex_device *mdevice, void **padapter)
+			    struct mwifiex_drv_mode *drv_mode_ptr)
 {
-	int ret = 0;
-	struct mwifiex_adapter *adapter = NULL;
-	u8 i = 0;
+	struct mwifiex_adapter *adapter;
+	int i;
 
 	adapter = kzalloc(sizeof(struct mwifiex_adapter), GFP_KERNEL);
-	/* Allocate memory for adapter structure */
 	if (!adapter)
-		return -1;
+		return -ENOMEM;
 
 	g_adapter = adapter;
 	adapter->card = card;
@@ -84,19 +76,17 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 	memmove(&adapter->if_ops, if_ops, sizeof(struct mwifiex_if_ops));
 
 	/* card specific initialization has been deferred until now .. */
-	ret = adapter->if_ops.init_if(adapter);
-	if (ret)
+	if (adapter->if_ops.init_if(adapter))
 		goto error;
 
 	adapter->priv_num = 0;
-	for (i = 0; i < MWIFIEX_MAX_BSS_NUM; i++) {
+	for (i = 0; i < drv_mode_ptr->intf_num; i++) {
 		adapter->priv[i] = NULL;
 
-		if (!mdevice->bss_attr[i].active)
+		if (!drv_mode_ptr->bss_attr[i].active)
 			continue;
 
-		/* For valid bss_attr,
-		   allocate memory for private structure */
+		/* Allocate memory for private structure */
 		adapter->priv[i] = kzalloc(sizeof(struct mwifiex_private),
 				GFP_KERNEL);
 		if (!adapter->priv[i]) {
@@ -106,26 +96,26 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 		}
 
 		adapter->priv_num++;
-		memset(adapter->priv[i], 0,
-		       sizeof(struct mwifiex_private));
 		adapter->priv[i]->adapter = adapter;
 		/* Save bss_type, frame_type & bss_priority */
-		adapter->priv[i]->bss_type = (u8) mdevice->bss_attr[i].bss_type;
+		adapter->priv[i]->bss_type = drv_mode_ptr->bss_attr[i].bss_type;
 		adapter->priv[i]->frame_type =
-			(u8) mdevice->bss_attr[i].frame_type;
+					drv_mode_ptr->bss_attr[i].frame_type;
 		adapter->priv[i]->bss_priority =
-			(u8) mdevice->bss_attr[i].bss_priority;
-		if (mdevice->bss_attr[i].bss_type == MWIFIEX_BSS_TYPE_STA)
+					drv_mode_ptr->bss_attr[i].bss_priority;
+
+		if (drv_mode_ptr->bss_attr[i].bss_type == MWIFIEX_BSS_TYPE_STA)
 			adapter->priv[i]->bss_role = MWIFIEX_BSS_ROLE_STA;
-		else if (mdevice->bss_attr[i].bss_type == MWIFIEX_BSS_TYPE_UAP)
+		else if (drv_mode_ptr->bss_attr[i].bss_type ==
+							MWIFIEX_BSS_TYPE_UAP)
 			adapter->priv[i]->bss_role = MWIFIEX_BSS_ROLE_UAP;
 
 		/* Save bss_index & bss_num */
 		adapter->priv[i]->bss_index = i;
-		adapter->priv[i]->bss_num = mdevice->bss_attr[i].bss_num;
+		adapter->priv[i]->bss_num = drv_mode_ptr->bss_attr[i].bss_num;
 	}
+	adapter->drv_mode = drv_mode_ptr;
 
-	/* Initialize lock variables */
 	if (mwifiex_init_lock_list(adapter))
 		goto error;
 
@@ -133,16 +123,13 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 	adapter->cmd_timer.function = mwifiex_cmd_timeout_func;
 	adapter->cmd_timer.data = (unsigned long) adapter;
 
-	/* Return pointer of struct mwifiex_adapter */
-	*padapter = adapter;
 	return 0;
 
 error:
 	dev_dbg(adapter->dev, "info: leave mwifiex_register with error\n");
 
-	/* Free lock variables */
 	mwifiex_free_lock_list(adapter);
-	for (i = 0; i < MWIFIEX_MAX_BSS_NUM; i++)
+	for (i = 0; i < drv_mode_ptr->intf_num; i++)
 		kfree(adapter->priv[i]);
 	kfree(adapter);
 
@@ -161,7 +148,7 @@ error:
  */
 static int mwifiex_unregister(struct mwifiex_adapter *adapter)
 {
-	s32 i = 0;
+	s32 i;
 
 	del_timer(&adapter->cmd_timer);
 
@@ -337,10 +324,9 @@ exit_main_proc:
  * and initializing the private structures.
  */
 static int
-mwifiex_init_sw(void *card, struct mwifiex_if_ops *if_ops, void **pmwifiex)
+mwifiex_init_sw(void *card, struct mwifiex_if_ops *if_ops)
 {
 	int i;
-	struct mwifiex_device device;
 	struct mwifiex_drv_mode *drv_mode_ptr;
 
 	/* find mwifiex_drv_mode entry from mwifiex_drv_mode_tbl */
@@ -357,20 +343,7 @@ mwifiex_init_sw(void *card, struct mwifiex_if_ops *if_ops, void **pmwifiex)
 		return -1;
 	}
 
-	memset(&device, 0, sizeof(struct mwifiex_device));
-
-	for (i = 0; i < drv_mode_ptr->intf_num; i++) {
-		device.bss_attr[i].bss_type =
-			drv_mode_ptr->bss_attr[i].bss_type;
-		device.bss_attr[i].frame_type =
-			drv_mode_ptr->bss_attr[i].frame_type;
-		device.bss_attr[i].active = drv_mode_ptr->bss_attr[i].active;
-		device.bss_attr[i].bss_priority =
-			drv_mode_ptr->bss_attr[i].bss_priority;
-		device.bss_attr[i].bss_num = drv_mode_ptr->bss_attr[i].bss_num;
-	}
-
-	if (mwifiex_register(card, if_ops, &device, pmwifiex))
+	if (mwifiex_register(card, if_ops, drv_mode_ptr))
 		return -1;
 
 	return 0;
@@ -404,26 +377,13 @@ static void mwifiex_free_adapter(struct mwifiex_adapter *adapter)
  */
 static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter)
 {
-	int ret = 0;
-	int err;
+	int ret, err;
 	struct mwifiex_fw_image fw;
 
 	memset(&fw, 0, sizeof(struct mwifiex_fw_image));
 
-	switch (adapter->revision_id) {
-	case SD8787_W0:
-	case SD8787_W1:
-		strcpy(fw_name, SD8787_W1_FW_NAME);
-		break;
-	case SD8787_A0:
-	case SD8787_A1:
-		strcpy(fw_name, SD8787_AX_FW_NAME);
-		break;
-	default:
-		break;
-	}
-
-	err = request_firmware(&adapter->firmware, fw_name, adapter->dev);
+	err = request_firmware(&adapter->firmware, adapter->fw_name,
+			       adapter->dev);
 	if (err < 0) {
 		dev_err(adapter->dev, "request_firmware() returned"
 				" error code %#x\n", err);
@@ -474,7 +434,7 @@ done:
 static void
 mwifiex_fill_buffer(struct sk_buff *skb)
 {
-	struct ethhdr *eth = NULL;
+	struct ethhdr *eth;
 	struct iphdr *iph;
 	struct timeval tv;
 	u8 tid = 0;
@@ -505,7 +465,6 @@ mwifiex_fill_buffer(struct sk_buff *skb)
 	 */
 	do_gettimeofday(&tv);
 	skb->tstamp = timeval_to_ktime(tv);
-	return;
 }
 
 /*
@@ -536,20 +495,20 @@ static int
 mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	struct sk_buff *new_skb = NULL;
+	struct sk_buff *new_skb;
 	struct mwifiex_txinfo *tx_info;
 
 	dev_dbg(priv->adapter->dev, "data: %lu BSS(%d): Data <= kernel\n",
 				jiffies, priv->bss_index);
 
 	if (priv->adapter->surprise_removed) {
-		kfree(skb);
+		kfree_skb(skb);
 		priv->stats.tx_dropped++;
 		return 0;
 	}
 	if (!skb->len || (skb->len > ETH_FRAME_LEN)) {
 		dev_err(priv->adapter->dev, "Tx: bad skb len %d\n", skb->len);
-		kfree(skb);
+		kfree_skb(skb);
 		priv->stats.tx_dropped++;
 		return 0;
 	}
@@ -562,7 +521,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_realloc_headroom(skb, MWIFIEX_MIN_DATA_HEADER_LEN);
 		if (unlikely(!new_skb)) {
 			dev_err(priv->adapter->dev, "Tx: cannot alloca new_skb\n");
-			kfree(skb);
+			kfree_skb(skb);
 			priv->stats.tx_dropped++;
 			return 0;
 		}
@@ -597,16 +556,23 @@ mwifiex_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct sockaddr *hw_addr = (struct sockaddr *) addr;
+	int ret;
 
 	memcpy(priv->curr_addr, hw_addr->sa_data, ETH_ALEN);
 
-	if (mwifiex_request_set_mac_address(priv)) {
-		dev_err(priv->adapter->dev, "set MAC address failed\n");
-		return -EFAULT;
-	}
+	/* Send request to firmware */
+	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_MAC_ADDRESS,
+				    HostCmd_ACT_GEN_SET, 0, NULL);
+
+	if (!ret)
+		memcpy(priv->netdev->dev_addr, priv->curr_addr, ETH_ALEN);
+	else
+		dev_err(priv->adapter->dev, "set mac address failed: ret=%d"
+					    "\n", ret);
+
 	memcpy(dev->dev_addr, priv->curr_addr, ETH_ALEN);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -615,7 +581,20 @@ mwifiex_set_mac_address(struct net_device *dev, void *addr)
 static void mwifiex_set_multicast_list(struct net_device *dev)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	mwifiex_request_set_multicast_list(priv, dev);
+	struct mwifiex_multicast_list mcast_list;
+
+	if (dev->flags & IFF_PROMISC) {
+		mcast_list.mode = MWIFIEX_PROMISC_MODE;
+	} else if (dev->flags & IFF_ALLMULTI ||
+		   netdev_mc_count(dev) > MWIFIEX_MAX_MULTICAST_LIST_SIZE) {
+		mcast_list.mode = MWIFIEX_ALL_MULTI_MODE;
+	} else {
+		mcast_list.mode = MWIFIEX_MULTICAST_MODE;
+		if (netdev_mc_count(dev))
+			mcast_list.num_multicast_addr =
+				mwifiex_copy_mcast_addr(&mcast_list, dev);
+	}
+	mwifiex_request_set_multicast_list(priv, &mcast_list);
 }
 
 /*
@@ -677,9 +656,6 @@ mwifiex_init_priv_params(struct mwifiex_private *priv, struct net_device *dev)
 {
 	dev->netdev_ops = &mwifiex_netdev_ops;
 	/* Initialize private structure */
-	init_waitqueue_head(&priv->ioctl_wait_q);
-	init_waitqueue_head(&priv->cmd_wait_q);
-	init_waitqueue_head(&priv->w_stats_wait_q);
 	priv->current_key_index = 0;
 	priv->media_connected = false;
 	memset(&priv->nick_name, 0, sizeof(priv->nick_name));
@@ -705,18 +681,14 @@ static struct mwifiex_private *mwifiex_add_interface(
 			struct mwifiex_adapter *adapter,
 			u8 bss_index, u8 bss_type)
 {
-	struct net_device *dev = NULL;
-	struct mwifiex_private *priv = NULL;
-	void *mdev_priv = NULL;
+	struct net_device *dev;
+	struct mwifiex_private *priv;
+	void *mdev_priv;
 
 	dev = alloc_netdev_mq(sizeof(struct mwifiex_private *), "mlan%d",
 			      ether_setup, 1);
 	if (!dev) {
 		dev_err(adapter->dev, "no memory available for netdevice\n");
-		goto error;
-	}
-	if (dev_alloc_name(dev, dev->name)) {
-		dev_err(adapter->dev, "unable to alloc name for netdevice\n");
 		goto error;
 	}
 
@@ -772,7 +744,7 @@ error:
 static void
 mwifiex_remove_interface(struct mwifiex_adapter *adapter, u8 bss_index)
 {
-	struct net_device *dev = NULL;
+	struct net_device *dev;
 	struct mwifiex_private *priv = adapter->priv[bss_index];
 
 	if (!priv)
@@ -803,35 +775,7 @@ mwifiex_remove_interface(struct mwifiex_adapter *adapter, u8 bss_index)
 	wiphy_unregister(priv->wdev->wiphy);
 	wiphy_free(priv->wdev->wiphy);
 	kfree(priv->wdev);
-
-	return;
 }
-
-/*
- * Sends IOCTL request to shutdown firmware.
- *
- * This function allocates the IOCTL request buffer, fills it
- * with requisite parameters and calls the IOCTL handler.
- */
-int mwifiex_shutdown_fw(struct mwifiex_private *priv, u8 wait_option)
-{
-	struct mwifiex_wait_queue *wait = NULL;
-	int status = 0;
-
-	/* Allocate an IOCTL request buffer */
-	wait = mwifiex_alloc_fill_wait_queue(priv, wait_option);
-	if (!wait)
-		return -ENOMEM;
-
-	status = mwifiex_misc_ioctl_init_shutdown(priv->adapter, wait,
-						  MWIFIEX_FUNC_SHUTDOWN);
-
-	status = mwifiex_request_ioctl(priv, wait, status, wait_option);
-
-	kfree(wait);
-	return status;
-}
-EXPORT_SYMBOL_GPL(mwifiex_shutdown_fw);
 
 /*
  * This function check if command is pending.
@@ -905,30 +849,30 @@ int
 mwifiex_add_card(void *card, struct semaphore *sem,
 		 struct mwifiex_if_ops *if_ops)
 {
-	int status = 0;
 	int i;
-	struct mwifiex_adapter *adapter = NULL;
-	struct mwifiex_drv_mode *drv_mode_info = &mwifiex_drv_mode_tbl[0];
+	struct mwifiex_adapter *adapter;
 
 	if (down_interruptible(sem))
 		goto exit_sem_err;
 
-	if (mwifiex_init_sw(card, if_ops, (void **) &adapter)) {
+	if (mwifiex_init_sw(card, if_ops)) {
 		pr_err("%s: software init failed\n", __func__);
 		goto err_init_sw;
 	}
 
-	adapter->drv_mode = drv_mode_info;
+	adapter = g_adapter;
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
-	/* PnP and power profile */
 	adapter->surprise_removed = false;
 	init_waitqueue_head(&adapter->init_wait_q);
 	adapter->is_suspended = false;
 	adapter->hs_activated = false;
 	init_waitqueue_head(&adapter->hs_activate_wait_q);
+	adapter->cmd_wait_q_required = false;
+	init_waitqueue_head(&adapter->cmd_wait_q.wait);
+	adapter->cmd_wait_q.condition = false;
+	adapter->cmd_wait_q.status = 0;
 
-	/* Create workqueue */
 	adapter->workqueue = create_workqueue("MWIFIEX_WORK_QUEUE");
 	if (!adapter->workqueue)
 		goto err_kmalloc;
@@ -942,21 +886,18 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 		goto err_registerdev;
 	}
 
-	/* Init FW and HW */
 	if (mwifiex_init_hw_fw(adapter)) {
 		pr_err("%s: firmware init failed\n", __func__);
 		goto err_init_fw;
 	}
+
 	/* Add interfaces */
-	for (i = 0; i < drv_mode_info->intf_num; i++) {
+	for (i = 0; i < adapter->drv_mode->intf_num; i++) {
 		if (!mwifiex_add_interface(adapter, i,
 				adapter->drv_mode->bss_attr[i].bss_type)) {
-			status = -1;
-			break;
+			goto err_add_intf;
 		}
 	}
-	if (status)
-		goto err_add_intf;
 
 	up(sem);
 
@@ -966,7 +907,6 @@ err_add_intf:
 	for (i = 0; i < adapter->priv_num; i++)
 		mwifiex_remove_interface(adapter, i);
 err_init_fw:
-	/* Unregister device */
 	pr_debug("info: %s: unregister device\n", __func__);
 	adapter->if_ops.unregister_dev(adapter);
 err_registerdev:
@@ -977,8 +917,8 @@ err_kmalloc:
 	    (adapter->hw_status == MWIFIEX_HW_STATUS_READY)) {
 		pr_debug("info: %s: shutdown mwifiex\n", __func__);
 		adapter->init_wait_q_woken = false;
-		status = mwifiex_shutdown_drv(adapter);
-		if (status == -EINPROGRESS)
+
+		if (mwifiex_shutdown_drv(adapter) == -EINPROGRESS)
 			wait_event_interruptible(adapter->init_wait_q,
 						 adapter->init_wait_q_woken);
 	}
@@ -1007,7 +947,6 @@ EXPORT_SYMBOL_GPL(mwifiex_add_card);
 int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 {
 	struct mwifiex_private *priv = NULL;
-	int status;
 	int i;
 
 	if (down_interruptible(sem))
@@ -1031,19 +970,19 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 
 	dev_dbg(adapter->dev, "cmd: calling mwifiex_shutdown_drv...\n");
 	adapter->init_wait_q_woken = false;
-	status = mwifiex_shutdown_drv(adapter);
-	if (status == -EINPROGRESS)
+
+	if (mwifiex_shutdown_drv(adapter) == -EINPROGRESS)
 		wait_event_interruptible(adapter->init_wait_q,
 					 adapter->init_wait_q_woken);
 	dev_dbg(adapter->dev, "cmd: mwifiex_shutdown_drv done\n");
 	if (atomic_read(&adapter->rx_pending) ||
 	    atomic_read(&adapter->tx_pending) ||
-	    atomic_read(&adapter->ioctl_pending)) {
+	    atomic_read(&adapter->cmd_pending)) {
 		dev_err(adapter->dev, "rx_pending=%d, tx_pending=%d, "
-		       "ioctl_pending=%d\n",
+		       "cmd_pending=%d\n",
 		       atomic_read(&adapter->rx_pending),
 		       atomic_read(&adapter->tx_pending),
-		       atomic_read(&adapter->ioctl_pending));
+		       atomic_read(&adapter->cmd_pending));
 	}
 
 	/* Remove interface */

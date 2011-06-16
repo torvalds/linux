@@ -2099,7 +2099,7 @@ static int pcnet32_open(struct net_device *dev)
 		int first_phy = -1;
 		u16 bmcr;
 		u32 bcr9;
-		struct ethtool_cmd ecmd;
+		struct ethtool_cmd ecmd = { .cmd = ETHTOOL_GSET };
 
 		/*
 		 * There is really no good other way to handle multiple PHYs
@@ -2115,9 +2115,9 @@ static int pcnet32_open(struct net_device *dev)
 			ecmd.port = PORT_MII;
 			ecmd.transceiver = XCVR_INTERNAL;
 			ecmd.autoneg = AUTONEG_DISABLE;
-			ecmd.speed =
-			    lp->
-			    options & PCNET32_PORT_100 ? SPEED_100 : SPEED_10;
+			ethtool_cmd_speed_set(&ecmd,
+					      (lp->options & PCNET32_PORT_100) ?
+					      SPEED_100 : SPEED_10);
 			bcr9 = lp->a.read_bcr(ioaddr, 9);
 
 			if (lp->options & PCNET32_PORT_FD) {
@@ -2763,11 +2763,11 @@ static void pcnet32_check_media(struct net_device *dev, int verbose)
 		netif_carrier_on(dev);
 		if (lp->mii) {
 			if (netif_msg_link(lp)) {
-				struct ethtool_cmd ecmd;
+				struct ethtool_cmd ecmd = {
+					.cmd = ETHTOOL_GSET };
 				mii_ethtool_gset(&lp->mii_if, &ecmd);
-				netdev_info(dev, "link up, %sMbps, %s-duplex\n",
-					    (ecmd.speed == SPEED_100)
-					    ? "100" : "10",
+				netdev_info(dev, "link up, %uMbps, %s-duplex\n",
+					    ethtool_cmd_speed(&ecmd),
 					    (ecmd.duplex == DUPLEX_FULL)
 					    ? "full" : "half");
 			}

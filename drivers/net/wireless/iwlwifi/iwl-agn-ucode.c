@@ -161,45 +161,17 @@ static int iwlagn_load_section(struct iwl_priv *priv, const char *name,
 }
 
 static int iwlagn_load_given_ucode(struct iwl_priv *priv,
-		struct fw_desc *inst_image,
-		struct fw_desc *data_image)
+				   struct fw_img *image)
 {
 	int ret = 0;
 
-	ret = iwlagn_load_section(priv, "INST", inst_image,
+	ret = iwlagn_load_section(priv, "INST", &image->code,
 				   IWLAGN_RTC_INST_LOWER_BOUND);
 	if (ret)
 		return ret;
 
-	return iwlagn_load_section(priv, "DATA", data_image,
+	return iwlagn_load_section(priv, "DATA", &image->data,
 				    IWLAGN_RTC_DATA_LOWER_BOUND);
-}
-
-int iwlagn_load_ucode(struct iwl_priv *priv)
-{
-	int ret = 0;
-
-	/* check whether init ucode should be loaded, or rather runtime ucode */
-	if (priv->ucode_init.len && (priv->ucode_type == UCODE_NONE)) {
-		IWL_DEBUG_INFO(priv, "Init ucode found. Loading init ucode...\n");
-		ret = iwlagn_load_given_ucode(priv,
-			&priv->ucode_init, &priv->ucode_init_data);
-		if (!ret) {
-			IWL_DEBUG_INFO(priv, "Init ucode load complete.\n");
-			priv->ucode_type = UCODE_INIT;
-		}
-	} else {
-		IWL_DEBUG_INFO(priv, "Init ucode not found, or already loaded. "
-			"Loading runtime ucode...\n");
-		ret = iwlagn_load_given_ucode(priv,
-			&priv->ucode_code, &priv->ucode_data);
-		if (!ret) {
-			IWL_DEBUG_INFO(priv, "Runtime ucode load complete.\n");
-			priv->ucode_type = UCODE_RT;
-		}
-	}
-
-	return ret;
 }
 
 /*
@@ -245,8 +217,8 @@ static int iwlagn_send_calib_cfg(struct iwl_priv *priv)
 	struct iwl_calib_cfg_cmd calib_cfg_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = CALIBRATION_CFG_CMD,
-		.len = sizeof(struct iwl_calib_cfg_cmd),
-		.data = &calib_cfg_cmd,
+		.len = { sizeof(struct iwl_calib_cfg_cmd), },
+		.data = { &calib_cfg_cmd, },
 	};
 
 	memset(&calib_cfg_cmd, 0, sizeof(calib_cfg_cmd));
@@ -297,33 +269,9 @@ void iwlagn_rx_calib_result(struct iwl_priv *priv,
 	iwl_calib_set(&priv->calib_results[index], pkt->u.raw, len);
 }
 
-void iwlagn_rx_calib_complete(struct iwl_priv *priv,
-			       struct iwl_rx_mem_buffer *rxb)
+int iwlagn_init_alive_start(struct iwl_priv *priv)
 {
-	IWL_DEBUG_INFO(priv, "Init. calibration is completed, restarting fw.\n");
-	queue_work(priv->workqueue, &priv->restart);
-}
-
-void iwlagn_init_alive_start(struct iwl_priv *priv)
-{
-	int ret = 0;
-
-	/* initialize uCode was loaded... verify inst image.
-	 * This is a paranoid check, because we would not have gotten the
-	 * "initialize" alive if code weren't properly loaded.  */
-	if (iwl_verify_ucode(priv, &priv->ucode_init)) {
-		/* Runtime instruction load was bad;
-		 * take it all the way back down so we can try again */
-		IWL_DEBUG_INFO(priv, "Bad \"initialize\" uCode load.\n");
-		goto restart;
-	}
-
-	ret = iwlagn_alive_notify(priv);
-	if (ret) {
-		IWL_WARN(priv,
-			"Could not complete ALIVE transition: %d\n", ret);
-		goto restart;
-	}
+	int ret;
 
 	if (priv->cfg->bt_params &&
 	    priv->cfg->bt_params->advanced_bt_coexist) {
@@ -333,24 +281,25 @@ void iwlagn_init_alive_start(struct iwl_priv *priv)
 		 * no need to close the envlope since we are going
 		 * to load the runtime uCode later.
 		 */
-		iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
+		ret = iwlagn_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
 			BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
+		if (ret)
+			return ret;
 
 	}
-	iwlagn_send_calib_cfg(priv);
+
+	ret = iwlagn_send_calib_cfg(priv);
+	if (ret)
+		return ret;
 
 	/**
 	 * temperature offset calibration is only needed for runtime ucode,
 	 * so prepare the value now.
 	 */
 	if (priv->cfg->need_temp_offset_calib)
-		iwlagn_set_temperature_offset_calib(priv);
+		return iwlagn_set_temperature_offset_calib(priv);
 
-	return;
-
-restart:
-	/* real restart (first load init_ucode) */
-	queue_work(priv->workqueue, &priv->restart);
+	return 0;
 }
 
 static int iwlagn_send_wimax_coex(struct iwl_priv *priv)
@@ -413,21 +362,25 @@ void iwlagn_send_prio_tbl(struct iwl_priv *priv)
 		IWL_ERR(priv, "failed to send BT prio tbl command\n");
 }
 
-void iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
+int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 {
 	struct iwl_bt_coex_prot_env_cmd env_cmd;
+	int ret;
 
 	env_cmd.action = action;
 	env_cmd.type = type;
-	if (iwl_send_cmd_pdu(priv, REPLY_BT_COEX_PROT_ENV,
-			     sizeof(env_cmd), &env_cmd))
+	ret = iwl_send_cmd_pdu(priv, REPLY_BT_COEX_PROT_ENV,
+			       sizeof(env_cmd), &env_cmd);
+	if (ret)
 		IWL_ERR(priv, "failed to send BT env command\n");
+	return ret;
 }
 
 
-int iwlagn_alive_notify(struct iwl_priv *priv)
+static int iwlagn_alive_notify(struct iwl_priv *priv)
 {
 	const struct queue_to_fifo_ac *queue_to_fifo;
+	struct iwl_rxon_context *ctx;
 	u32 a;
 	unsigned long flags;
 	int i, chan;
@@ -487,7 +440,7 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 			IWL_MASK(0, priv->hw_params.max_txq_num));
 
 	/* Activate all Tx DMA/FIFO channels */
-	priv->cfg->ops->lib->txq_set_sched(priv, IWL_MASK(0, 7));
+	iwlagn_txq_set_sched(priv, IWL_MASK(0, 7));
 
 	/* map queues to FIFOs */
 	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
@@ -501,6 +454,8 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 	memset(&priv->queue_stopped[0], 0, sizeof(priv->queue_stopped));
 	for (i = 0; i < 4; i++)
 		atomic_set(&priv->queue_stop_count[i], 0);
+	for_each_context(priv, ctx)
+		ctx->last_tx_rejected = false;
 
 	/* reset to 0 to enable all the queue first */
 	priv->txq_ctx_active_msk = 0;
@@ -601,15 +556,164 @@ static void iwl_print_mismatch_inst(struct iwl_priv *priv,
  * iwl_verify_ucode - determine which instruction image is in SRAM,
  *    and verify its contents
  */
-int iwl_verify_ucode(struct iwl_priv *priv, struct fw_desc *fw_desc)
+static int iwl_verify_ucode(struct iwl_priv *priv, struct fw_img *img)
 {
-	if (!iwlcore_verify_inst_sparse(priv, fw_desc)) {
+	if (!iwlcore_verify_inst_sparse(priv, &img->code)) {
 		IWL_DEBUG_INFO(priv, "uCode is good in inst SRAM\n");
 		return 0;
 	}
 
 	IWL_ERR(priv, "UCODE IMAGE IN INSTRUCTION SRAM NOT VALID!!\n");
 
-	iwl_print_mismatch_inst(priv, fw_desc);
+	iwl_print_mismatch_inst(priv, &img->code);
 	return -EIO;
+}
+
+struct iwlagn_alive_data {
+	bool valid;
+	u8 subtype;
+};
+
+static void iwlagn_alive_fn(struct iwl_priv *priv,
+			    struct iwl_rx_packet *pkt,
+			    void *data)
+{
+	struct iwlagn_alive_data *alive_data = data;
+	struct iwl_alive_resp *palive;
+
+	palive = &pkt->u.alive_frame;
+
+	IWL_DEBUG_INFO(priv, "Alive ucode status 0x%08X revision "
+		       "0x%01X 0x%01X\n",
+		       palive->is_valid, palive->ver_type,
+		       palive->ver_subtype);
+
+	priv->device_pointers.error_event_table =
+		le32_to_cpu(palive->error_event_table_ptr);
+	priv->device_pointers.log_event_table =
+		le32_to_cpu(palive->log_event_table_ptr);
+
+	alive_data->subtype = palive->ver_subtype;
+	alive_data->valid = palive->is_valid == UCODE_VALID_OK;
+}
+
+#define UCODE_ALIVE_TIMEOUT	HZ
+#define UCODE_CALIB_TIMEOUT	(2*HZ)
+
+int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
+				 struct fw_img *image,
+				 int subtype, int alternate_subtype)
+{
+	struct iwl_notification_wait alive_wait;
+	struct iwlagn_alive_data alive_data;
+	int ret;
+	enum iwlagn_ucode_subtype old_type;
+
+	ret = iwlagn_start_device(priv);
+	if (ret)
+		return ret;
+
+	iwlagn_init_notification_wait(priv, &alive_wait, REPLY_ALIVE,
+				      iwlagn_alive_fn, &alive_data);
+
+	old_type = priv->ucode_type;
+	priv->ucode_type = subtype;
+
+	ret = iwlagn_load_given_ucode(priv, image);
+	if (ret) {
+		priv->ucode_type = old_type;
+		iwlagn_remove_notification(priv, &alive_wait);
+		return ret;
+	}
+
+	/* Remove all resets to allow NIC to operate */
+	iwl_write32(priv, CSR_RESET, 0);
+
+	/*
+	 * Some things may run in the background now, but we
+	 * just wait for the ALIVE notification here.
+	 */
+	ret = iwlagn_wait_notification(priv, &alive_wait, UCODE_ALIVE_TIMEOUT);
+	if (ret) {
+		priv->ucode_type = old_type;
+		return ret;
+	}
+
+	if (!alive_data.valid) {
+		IWL_ERR(priv, "Loaded ucode is not valid!\n");
+		priv->ucode_type = old_type;
+		return -EIO;
+	}
+
+	if (alive_data.subtype != subtype &&
+	    alive_data.subtype != alternate_subtype) {
+		IWL_ERR(priv,
+			"Loaded ucode is not expected type (got %d, expected %d)!\n",
+			alive_data.subtype, subtype);
+		priv->ucode_type = old_type;
+		return -EIO;
+	}
+
+	ret = iwl_verify_ucode(priv, image);
+	if (ret) {
+		priv->ucode_type = old_type;
+		return ret;
+	}
+
+	/* delay a bit to give rfkill time to run */
+	msleep(5);
+
+	ret = iwlagn_alive_notify(priv);
+	if (ret) {
+		IWL_WARN(priv,
+			"Could not complete ALIVE transition: %d\n", ret);
+		priv->ucode_type = old_type;
+		return ret;
+	}
+
+	return 0;
+}
+
+int iwlagn_run_init_ucode(struct iwl_priv *priv)
+{
+	struct iwl_notification_wait calib_wait;
+	int ret;
+
+	lockdep_assert_held(&priv->mutex);
+
+	/* No init ucode required? Curious, but maybe ok */
+	if (!priv->ucode_init.code.len)
+		return 0;
+
+	if (priv->ucode_type != UCODE_SUBTYPE_NONE_LOADED)
+		return 0;
+
+	iwlagn_init_notification_wait(priv, &calib_wait,
+				      CALIBRATION_COMPLETE_NOTIFICATION,
+				      NULL, NULL);
+
+	/* Will also start the device */
+	ret = iwlagn_load_ucode_wait_alive(priv, &priv->ucode_init,
+					   UCODE_SUBTYPE_INIT, -1);
+	if (ret)
+		goto error;
+
+	ret = iwlagn_init_alive_start(priv);
+	if (ret)
+		goto error;
+
+	/*
+	 * Some things may run in the background now, but we
+	 * just wait for the calibration complete notification.
+	 */
+	ret = iwlagn_wait_notification(priv, &calib_wait, UCODE_CALIB_TIMEOUT);
+
+	goto out;
+
+ error:
+	iwlagn_remove_notification(priv, &calib_wait);
+ out:
+	/* Whatever happened, stop the device */
+	iwlagn_stop_device(priv);
+	return ret;
 }

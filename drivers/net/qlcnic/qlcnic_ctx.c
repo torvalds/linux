@@ -64,6 +64,97 @@ qlcnic_issue_cmd(struct qlcnic_adapter *adapter,
 	return rcode;
 }
 
+static uint32_t qlcnic_temp_checksum(uint32_t *temp_buffer, u16 temp_size)
+{
+	uint64_t sum = 0;
+	int count = temp_size / sizeof(uint32_t);
+	while (count-- > 0)
+		sum += *temp_buffer++;
+	while (sum >> 32)
+		sum = (sum & 0xFFFFFFFF) + (sum >> 32);
+	return ~sum;
+}
+
+int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
+{
+	int err, i;
+	u16 temp_size;
+	void *tmp_addr;
+	u32 version, csum, *template, *tmp_buf;
+	struct qlcnic_hardware_context *ahw;
+	struct qlcnic_dump_template_hdr *tmpl_hdr, *tmp_tmpl;
+	dma_addr_t tmp_addr_t = 0;
+
+	ahw = adapter->ahw;
+	err = qlcnic_issue_cmd(adapter,
+			adapter->ahw->pci_func,
+			adapter->fw_hal_version,
+			0,
+			0,
+			0,
+			QLCNIC_CDRP_CMD_TEMP_SIZE);
+	if (err != QLCNIC_RCODE_SUCCESS) {
+		err = QLCRD32(adapter, QLCNIC_ARG1_CRB_OFFSET);
+		dev_err(&adapter->pdev->dev,
+			"Failed to get template size %d\n", err);
+		err = -EIO;
+		return err;
+	}
+	version = QLCRD32(adapter, QLCNIC_ARG3_CRB_OFFSET);
+	temp_size = QLCRD32(adapter, QLCNIC_ARG2_CRB_OFFSET);
+	if (!temp_size)
+		return -EIO;
+
+	tmp_addr = dma_alloc_coherent(&adapter->pdev->dev, temp_size,
+			&tmp_addr_t, GFP_KERNEL);
+	if (!tmp_addr) {
+		dev_err(&adapter->pdev->dev,
+			"Can't get memory for FW dump template\n");
+		return -ENOMEM;
+	}
+	err = qlcnic_issue_cmd(adapter,
+		adapter->ahw->pci_func,
+		adapter->fw_hal_version,
+		LSD(tmp_addr_t),
+		MSD(tmp_addr_t),
+		temp_size,
+		QLCNIC_CDRP_CMD_GET_TEMP_HDR);
+
+	if (err != QLCNIC_RCODE_SUCCESS) {
+		dev_err(&adapter->pdev->dev,
+			"Failed to get mini dump template header %d\n", err);
+		err = -EIO;
+		goto error;
+	}
+	tmp_tmpl = (struct qlcnic_dump_template_hdr *) tmp_addr;
+	csum = qlcnic_temp_checksum((uint32_t *) tmp_addr, temp_size);
+	if (csum) {
+		dev_err(&adapter->pdev->dev,
+			"Template header checksum validation failed\n");
+		err = -EIO;
+		goto error;
+	}
+	ahw->fw_dump.tmpl_hdr = vzalloc(temp_size);
+	if (!ahw->fw_dump.tmpl_hdr) {
+		err = -EIO;
+		goto error;
+	}
+	tmp_buf = (u32 *) tmp_addr;
+	template = (u32 *) ahw->fw_dump.tmpl_hdr;
+	for (i = 0; i < temp_size/sizeof(u32); i++)
+		*template++ = __le32_to_cpu(*tmp_buf++);
+
+	tmpl_hdr = ahw->fw_dump.tmpl_hdr;
+	if (tmpl_hdr->cap_mask > QLCNIC_DUMP_MASK_DEF &&
+		tmpl_hdr->cap_mask <= QLCNIC_DUMP_MASK_MAX)
+		tmpl_hdr->drv_cap_mask = tmpl_hdr->cap_mask;
+	else
+		tmpl_hdr->drv_cap_mask = QLCNIC_DUMP_MASK_DEF;
+error:
+	dma_free_coherent(&adapter->pdev->dev, temp_size, tmp_addr, tmp_addr_t);
+	return err;
+}
+
 int
 qlcnic_fw_cmd_set_mtu(struct qlcnic_adapter *adapter, int mtu)
 {
@@ -359,33 +450,15 @@ qlcnic_fw_cmd_destroy_tx_ctx(struct qlcnic_adapter *adapter)
 }
 
 int
-qlcnic_fw_cmd_query_phy(struct qlcnic_adapter *adapter, u32 reg, u32 *val)
-{
-
-	if (qlcnic_issue_cmd(adapter,
-			adapter->ahw->pci_func,
-			adapter->fw_hal_version,
-			reg,
-			0,
-			0,
-			QLCNIC_CDRP_CMD_READ_PHY)) {
-
-		return -EIO;
-	}
-
-	return QLCRD32(adapter, QLCNIC_ARG1_CRB_OFFSET);
-}
-
-int
-qlcnic_fw_cmd_set_phy(struct qlcnic_adapter *adapter, u32 reg, u32 val)
+qlcnic_fw_cmd_set_port(struct qlcnic_adapter *adapter, u32 config)
 {
 	return qlcnic_issue_cmd(adapter,
 			adapter->ahw->pci_func,
 			adapter->fw_hal_version,
-			reg,
-			val,
+			config,
 			0,
-			QLCNIC_CDRP_CMD_WRITE_PHY);
+			0,
+			QLCNIC_CDRP_CMD_CONFIG_PORT);
 }
 
 int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)

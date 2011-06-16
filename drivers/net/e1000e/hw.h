@@ -246,6 +246,7 @@ enum e1e_registers {
 #define BM_WUC_ENABLE_REG		17
 #define BM_WUC_ENABLE_BIT		(1 << 2)
 #define BM_WUC_HOST_WU_BIT		(1 << 4)
+#define BM_WUC_ME_WU_BIT		(1 << 5)
 
 #define BM_WUC	PHY_REG(BM_WUC_PAGE, 1)
 #define BM_WUFC PHY_REG(BM_WUC_PAGE, 2)
@@ -312,6 +313,7 @@ enum e1e_registers {
 #define E1000_KMRNCTRLSTA_DIAG_OFFSET	0x3    /* Kumeran Diagnostic */
 #define E1000_KMRNCTRLSTA_TIMEOUTS	0x4    /* Kumeran Timeouts */
 #define E1000_KMRNCTRLSTA_INBAND_PARAM	0x9    /* Kumeran InBand Parameters */
+#define E1000_KMRNCTRLSTA_IBIST_DISABLE	0x0200 /* Kumeran IBIST Disable */
 #define E1000_KMRNCTRLSTA_DIAG_NELPBK	0x1000 /* Nearend Loopback mode */
 #define E1000_KMRNCTRLSTA_K1_CONFIG	0x7
 #define E1000_KMRNCTRLSTA_K1_ENABLE	0x0002
@@ -756,6 +758,7 @@ struct e1000_host_mng_command_info {
 /* Function pointers and static data for the MAC. */
 struct e1000_mac_operations {
 	s32  (*id_led_init)(struct e1000_hw *);
+	s32  (*blink_led)(struct e1000_hw *);
 	bool (*check_mng_mode)(struct e1000_hw *);
 	s32  (*check_for_link)(struct e1000_hw *);
 	s32  (*cleanup_led)(struct e1000_hw *);
@@ -776,7 +779,21 @@ struct e1000_mac_operations {
 	s32  (*read_mac_addr)(struct e1000_hw *);
 };
 
-/* Function pointers for the PHY. */
+/*
+ * When to use various PHY register access functions:
+ *
+ *                 Func   Caller
+ *   Function      Does   Does    When to use
+ *   ~~~~~~~~~~~~  ~~~~~  ~~~~~~  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *   X_reg         L,P,A  n/a     for simple PHY reg accesses
+ *   X_reg_locked  P,A    L       for multiple accesses of different regs
+ *                                on different pages
+ *   X_reg_page    A      L,P     for multiple accesses of different regs
+ *                                on the same page
+ *
+ * Where X=[read|write], L=locking, P=sets page, A=register access
+ *
+ */
 struct e1000_phy_operations {
 	s32  (*acquire)(struct e1000_hw *);
 	s32  (*cfg_on_link_up)(struct e1000_hw *);
@@ -787,14 +804,17 @@ struct e1000_phy_operations {
 	s32  (*get_cfg_done)(struct e1000_hw *hw);
 	s32  (*get_cable_length)(struct e1000_hw *);
 	s32  (*get_info)(struct e1000_hw *);
+	s32  (*set_page)(struct e1000_hw *, u16);
 	s32  (*read_reg)(struct e1000_hw *, u32, u16 *);
 	s32  (*read_reg_locked)(struct e1000_hw *, u32, u16 *);
+	s32  (*read_reg_page)(struct e1000_hw *, u32, u16 *);
 	void (*release)(struct e1000_hw *);
 	s32  (*reset)(struct e1000_hw *);
 	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
 	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
 	s32  (*write_reg)(struct e1000_hw *, u32, u16);
 	s32  (*write_reg_locked)(struct e1000_hw *, u32, u16);
+	s32  (*write_reg_page)(struct e1000_hw *, u32, u16);
 	void (*power_up)(struct e1000_hw *);
 	void (*power_down)(struct e1000_hw *);
 };

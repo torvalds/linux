@@ -45,6 +45,7 @@
 #include <linux/interrupt.h>
 #include <linux/if_ether.h>
 #include <linux/aer.h>
+#include <linux/prefetch.h>
 #ifdef CONFIG_IGB_DCA
 #include <linux/dca.h>
 #endif
@@ -53,9 +54,8 @@
 #define MAJ 3
 #define MIN 0
 #define BUILD 6
-#define KFIX 2
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
-__stringify(BUILD) "-k" __stringify(KFIX)
+__stringify(BUILD) "-k"
 char igb_driver_name[] = "igb";
 char igb_driver_version[] = DRV_VERSION;
 static const char igb_driver_string[] =
@@ -6349,21 +6349,25 @@ static void igb_restore_vlan(struct igb_adapter *adapter)
 	}
 }
 
-int igb_set_spd_dplx(struct igb_adapter *adapter, u16 spddplx)
+int igb_set_spd_dplx(struct igb_adapter *adapter, u32 spd, u8 dplx)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 
 	mac->autoneg = 0;
 
+	/* Make sure dplx is at most 1 bit and lsb of speed is not set
+	 * for the switch() below to work */
+	if ((spd & 1) || (dplx & ~1))
+		goto err_inval;
+
 	/* Fiber NIC's only allow 1000 Gbps Full duplex */
 	if ((adapter->hw.phy.media_type == e1000_media_type_internal_serdes) &&
-		spddplx != (SPEED_1000 + DUPLEX_FULL)) {
-		dev_err(&pdev->dev, "Unsupported Speed/Duplex configuration\n");
-		return -EINVAL;
-	}
+	    spd != SPEED_1000 &&
+	    dplx != DUPLEX_FULL)
+		goto err_inval;
 
-	switch (spddplx) {
+	switch (spd + dplx) {
 	case SPEED_10 + DUPLEX_HALF:
 		mac->forced_speed_duplex = ADVERTISE_10_HALF;
 		break;
@@ -6382,10 +6386,13 @@ int igb_set_spd_dplx(struct igb_adapter *adapter, u16 spddplx)
 		break;
 	case SPEED_1000 + DUPLEX_HALF: /* not supported */
 	default:
-		dev_err(&pdev->dev, "Unsupported Speed/Duplex configuration\n");
-		return -EINVAL;
+		goto err_inval;
 	}
 	return 0;
+
+err_inval:
+	dev_err(&pdev->dev, "Unsupported Speed/Duplex configuration\n");
+	return -EINVAL;
 }
 
 static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake)

@@ -46,8 +46,9 @@ struct dib0700_state {
 	u8 is_dib7000pc;
 	u8 fw_use_new_i2c_api;
 	u8 disable_streaming_master_mode;
-    u32 fw_version;
-    u32 nb_packet_buffer_size;
+	u32 fw_version;
+	u32 nb_packet_buffer_size;
+	u8 buf[255];
 };
 
 extern int dib0700_get_version(struct dvb_usb_device *d, u32 *hwversion,

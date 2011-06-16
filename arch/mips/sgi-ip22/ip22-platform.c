@@ -132,7 +132,7 @@ static struct platform_device eth1_device = {
  */
 static int __init sgiseeq_devinit(void)
 {
-	unsigned int tmp;
+	unsigned int pbdma __maybe_unused;
 	int res, i;
 
 	eth0_pd.hpc = hpc3c0;
@@ -151,7 +151,7 @@ static int __init sgiseeq_devinit(void)
 
 	/* Second HPC is missing? */
 	if (ip22_is_fullhouse() ||
-	    get_dbe(tmp, (unsigned int *)&hpc3c1->pbdma[1]))
+	    get_dbe(pbdma, (unsigned int *)&hpc3c1->pbdma[1]))
 		return 0;
 
 	sgimc->giopar |= SGIMC_GIOPAR_MASTEREXP1 | SGIMC_GIOPAR_EXP164 |

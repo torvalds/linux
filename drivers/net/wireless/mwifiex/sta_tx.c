@@ -51,7 +51,7 @@ void *mwifiex_process_sta_txpd(struct mwifiex_private *priv,
 	if (!skb->len) {
 		dev_err(adapter->dev, "Tx: bad packet length: %d\n",
 		       skb->len);
-		tx_info->status_code = MWIFIEX_ERROR_PKT_SIZE_INVALID;
+		tx_info->status_code = -1;
 		return skb->data;
 	}
 
@@ -113,8 +113,8 @@ int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags)
 /* sizeof(struct txpd) + Interface specific header */
 #define NULL_PACKET_HDR 64
 	u32 data_len = NULL_PACKET_HDR;
-	struct sk_buff *skb = NULL;
-	int ret = 0;
+	struct sk_buff *skb;
+	int ret;
 	struct mwifiex_txinfo *tx_info = NULL;
 
 	if (adapter->surprise_removed)
@@ -180,15 +180,11 @@ mwifiex_check_last_packet_indication(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	u8 ret = false;
-	u8 prop_ps = true;
 
 	if (!adapter->sleep_period.period)
 		return ret;
-	if (mwifiex_wmm_lists_empty(adapter)) {
-		if ((priv->curr_bss_params.wmm_uapsd_enabled &&
-		     priv->wmm_qosinfo) || prop_ps)
+	if (mwifiex_wmm_lists_empty(adapter))
 			ret = true;
-	}
 
 	if (ret && !adapter->cmd_sent && !adapter->curr_cmd
 	    && !is_command_pending(adapter)) {

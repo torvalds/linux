@@ -1090,6 +1090,7 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 			dev_err(emac_dev, "DaVinci EMAC: desc submit failed");
 		goto fail_tx;
 	}
+	skb_tx_timestamp(skb);
 
 	return NETDEV_TX_OK;
 
@@ -1489,14 +1490,14 @@ static void emac_adjust_link(struct net_device *ndev)
  */
 static int emac_devioctl(struct net_device *ndev, struct ifreq *ifrq, int cmd)
 {
-	dev_warn(&ndev->dev, "DaVinci EMAC: ioctl not supported\n");
+	struct emac_priv *priv = netdev_priv(ndev);
 
 	if (!(netif_running(ndev)))
 		return -EINVAL;
 
 	/* TODO: Add phy read and write and private statistics get feature */
 
-	return -EOPNOTSUPP;
+	return phy_mii_ioctl(priv->phydev, ifrq, cmd);
 }
 
 static int match_first_device(struct device *dev, void *data)
@@ -1772,7 +1773,7 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	/* obtain emac clock from kernel */
 	emac_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(emac_clk)) {
-		printk(KERN_ERR "DaVinci EMAC: Failed to get EMAC clock\n");
+		dev_err(&pdev->dev, "failed to get EMAC clock\n");
 		return -EBUSY;
 	}
 	emac_bus_frequency = clk_get_rate(emac_clk);
@@ -1780,9 +1781,9 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(struct emac_priv));
 	if (!ndev) {
-		printk(KERN_ERR "DaVinci EMAC: Error allocating net_device\n");
-		clk_put(emac_clk);
-		return -ENOMEM;
+		dev_err(&pdev->dev, "error allocating net_device\n");
+		rc = -ENOMEM;
+		goto free_clk;
 	}
 
 	platform_set_drvdata(pdev, ndev);
@@ -1795,8 +1796,9 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
-		printk(KERN_ERR "DaVinci EMAC: No platform data\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "no platform data\n");
+		rc = -ENODEV;
+		goto probe_quit;
 	}
 
 	/* MAC addr and PHY mask , RMII enable info from platform_data */
@@ -1814,7 +1816,7 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	/* Get EMAC platform data */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(emac_dev, "DaVinci EMAC: Error getting res\n");
+		dev_err(&pdev->dev,"error getting res\n");
 		rc = -ENOENT;
 		goto probe_quit;
 	}
@@ -1822,14 +1824,14 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	priv->emac_base_phys = res->start + pdata->ctrl_reg_offset;
 	size = res->end - res->start + 1;
 	if (!request_mem_region(res->start, size, ndev->name)) {
-		dev_err(emac_dev, "DaVinci EMAC: failed request_mem_region() for regs\n");
+		dev_err(&pdev->dev, "failed request_mem_region() for regs\n");
 		rc = -ENXIO;
 		goto probe_quit;
 	}
 
 	priv->remap_addr = ioremap(res->start, size);
 	if (!priv->remap_addr) {
-		dev_err(emac_dev, "Unable to map IO\n");
+		dev_err(&pdev->dev, "unable to map IO\n");
 		rc = -ENOMEM;
 		release_mem_region(res->start, size);
 		goto probe_quit;
@@ -1863,7 +1865,7 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 
 	priv->dma = cpdma_ctlr_create(&dma_params);
 	if (!priv->dma) {
-		dev_err(emac_dev, "DaVinci EMAC: Error initializing DMA\n");
+		dev_err(&pdev->dev, "error initializing DMA\n");
 		rc = -ENOMEM;
 		goto no_dma;
 	}
@@ -1879,7 +1881,7 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
-		dev_err(emac_dev, "DaVinci EMAC: Error getting irq res\n");
+		dev_err(&pdev->dev, "error getting irq res\n");
 		rc = -ENOENT;
 		goto no_irq_res;
 	}
@@ -1888,8 +1890,8 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	if (!is_valid_ether_addr(priv->mac_addr)) {
 		/* Use random MAC if none passed */
 		random_ether_addr(priv->mac_addr);
-		printk(KERN_WARNING "%s: using random MAC addr: %pM\n",
-				__func__, priv->mac_addr);
+		dev_warn(&pdev->dev, "using random MAC addr: %pM\n",
+							priv->mac_addr);
 	}
 
 	ndev->netdev_ops = &emac_netdev_ops;
@@ -1902,7 +1904,7 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	rc = register_netdev(ndev);
 	if (rc) {
-		dev_err(emac_dev, "DaVinci EMAC: Error in register_netdev\n");
+		dev_err(&pdev->dev, "error in register_netdev\n");
 		rc = -ENODEV;
 		goto netdev_reg_err;
 	}
@@ -1929,8 +1931,9 @@ no_dma:
 	iounmap(priv->remap_addr);
 
 probe_quit:
-	clk_put(emac_clk);
 	free_netdev(ndev);
+free_clk:
+	clk_put(emac_clk);
 	return rc;
 }
 
