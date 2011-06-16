@@ -623,7 +623,8 @@ static struct ip_set_type bitmap_ipmac_type = {
 	.features	= IPSET_TYPE_IP | IPSET_TYPE_MAC,
 	.dimension	= IPSET_DIM_TWO,
 	.family		= AF_INET,
-	.revision	= 0,
+	.revision_min	= 0,
+	.revision_max	= 0,
 	.create		= bitmap_ipmac_create,
 	.create_policy	= {
 		[IPSET_ATTR_IP]		= { .type = NLA_NESTED },

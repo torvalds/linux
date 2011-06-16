@@ -70,7 +70,8 @@ find_set_type(const char *name, u8 family, u8 revision)
 	list_for_each_entry_rcu(type, &ip_set_type_list, list)
 		if (STREQ(type->name, name) &&
 		    (type->family == family || type->family == AF_UNSPEC) &&
-		    type->revision == revision)
+		    revision >= type->revision_min &&
+		    revision <= type->revision_max)
 			return type;
 	return NULL;
 }
@@ -135,10 +136,10 @@ find_set_type_minmax(const char *name, u8 family, u8 *min, u8 *max)
 		if (STREQ(type->name, name) &&
 		    (type->family == family || type->family == AF_UNSPEC)) {
 			found = true;
-			if (type->revision < *min)
-				*min = type->revision;
-			if (type->revision > *max)
-				*max = type->revision;
+			if (type->revision_min < *min)
+				*min = type->revision_min;
+			if (type->revision_max > *max)
+				*max = type->revision_max;
 		}
 	rcu_read_unlock();
 	if (found)
@@ -159,25 +160,27 @@ ip_set_type_register(struct ip_set_type *type)
 	int ret = 0;
 
 	if (type->protocol != IPSET_PROTOCOL) {
-		pr_warning("ip_set type %s, family %s, revision %u uses "
+		pr_warning("ip_set type %s, family %s, revision %u:%u uses "
 			   "wrong protocol version %u (want %u)\n",
 			   type->name, family_name(type->family),
-			   type->revision, type->protocol, IPSET_PROTOCOL);
+			   type->revision_min, type->revision_max,
+			   type->protocol, IPSET_PROTOCOL);
 		return -EINVAL;
 	}
 
 	ip_set_type_lock();
-	if (find_set_type(type->name, type->family, type->revision)) {
+	if (find_set_type(type->name, type->family, type->revision_min)) {
 		/* Duplicate! */
-		pr_warning("ip_set type %s, family %s, revision %u "
+		pr_warning("ip_set type %s, family %s with revision min %u "
 			   "already registered!\n", type->name,
-			   family_name(type->family), type->revision);
+			   family_name(type->family), type->revision_min);
 		ret = -EINVAL;
 		goto unlock;
 	}
 	list_add_rcu(&type->list, &ip_set_type_list);
-	pr_debug("type %s, family %s, revision %u registered.\n",
-		 type->name, family_name(type->family), type->revision);
+	pr_debug("type %s, family %s, revision %u:%u registered.\n",
+		 type->name, family_name(type->family),
+		 type->revision_min, type->revision_max);
 unlock:
 	ip_set_type_unlock();
 	return ret;
@@ -189,15 +192,15 @@ void
 ip_set_type_unregister(struct ip_set_type *type)
 {
 	ip_set_type_lock();
-	if (!find_set_type(type->name, type->family, type->revision)) {
-		pr_warning("ip_set type %s, family %s, revision %u "
+	if (!find_set_type(type->name, type->family, type->revision_min)) {
+		pr_warning("ip_set type %s, family %s with revision min %u "
 			   "not registered\n", type->name,
-			   family_name(type->family), type->revision);
+			   family_name(type->family), type->revision_min);
 		goto unlock;
 	}
 	list_del_rcu(&type->list);
-	pr_debug("type %s, family %s, revision %u unregistered.\n",
-		 type->name, family_name(type->family), type->revision);
+	pr_debug("type %s, family %s with revision min %u unregistered.\n",
+		 type->name, family_name(type->family), type->revision_min);
 unlock:
 	ip_set_type_unlock();
 
@@ -656,6 +659,7 @@ ip_set_create(struct sock *ctnl, struct sk_buff *skb,
 	rwlock_init(&set->lock);
 	strlcpy(set->name, name, IPSET_MAXNAMELEN);
 	set->family = family;
+	set->revision = revision;
 
 	/*
 	 * Next, check that we know the type, and take
@@ -696,7 +700,8 @@ ip_set_create(struct sock *ctnl, struct sk_buff *skb,
 		    (flags & IPSET_FLAG_EXIST) &&
 		    STREQ(set->type->name, clash->type->name) &&
 		    set->type->family == clash->type->family &&
-		    set->type->revision == clash->type->revision &&
+		    set->type->revision_min == clash->type->revision_min &&
+		    set->type->revision_max == clash->type->revision_max &&
 		    set->variant->same_set(set, clash))
 			ret = 0;
 		goto cleanup;
@@ -1080,7 +1085,7 @@ dump_last:
 			NLA_PUT_U8(skb, IPSET_ATTR_FAMILY,
 				   set->family);
 			NLA_PUT_U8(skb, IPSET_ATTR_REVISION,
-				   set->type->revision);
+				   set->revision);
 			ret = set->variant->head(set, skb);
 			if (ret < 0)
 				goto release_refcount;
@@ -1385,7 +1390,7 @@ ip_set_header(struct sock *ctnl, struct sk_buff *skb,
 	NLA_PUT_STRING(skb2, IPSET_ATTR_SETNAME, set->name);
 	NLA_PUT_STRING(skb2, IPSET_ATTR_TYPENAME, set->type->name);
 	NLA_PUT_U8(skb2, IPSET_ATTR_FAMILY, set->family);
-	NLA_PUT_U8(skb2, IPSET_ATTR_REVISION, set->type->revision);
+	NLA_PUT_U8(skb2, IPSET_ATTR_REVISION, set->revision);
 	nlmsg_end(skb2, nlh2);
 
 	ret = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);

@@ -437,7 +437,8 @@ static struct ip_set_type hash_net_type __read_mostly = {
 	.features	= IPSET_TYPE_IP,
 	.dimension	= IPSET_DIM_ONE,
 	.family		= AF_UNSPEC,
-	.revision	= 0,
+	.revision_min	= 0,
+	.revision_max	= 0,
 	.create		= hash_net_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },

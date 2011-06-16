@@ -282,8 +282,8 @@ struct ip_set_type {
 	u8 dimension;
 	/* Supported family: may be AF_UNSPEC for both AF_INET/AF_INET6 */
 	u8 family;
-	/* Type revision */
-	u8 revision;
+	/* Type revisions */
+	u8 revision_min, revision_max;
 
 	/* Create set */
 	int (*create)(struct ip_set *set, struct nlattr *tb[], u32 flags);
@@ -314,6 +314,8 @@ struct ip_set {
 	const struct ip_set_type_variant *variant;
 	/* The actual INET family of the set */
 	u8 family;
+	/* The type revision */
+	u8 revision;
 	/* The type specific data */
 	void *data;
 };
