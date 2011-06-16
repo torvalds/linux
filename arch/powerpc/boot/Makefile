@@ -364,7 +364,7 @@ INSTALL := install
 extra-installed		:= $(patsubst $(obj)/%, $(DESTDIR)$(WRAPPER_OBJDIR)/%, $(extra-y))
 hostprogs-installed	:= $(patsubst %, $(DESTDIR)$(WRAPPER_BINDIR)/%, $(hostprogs-y))
 wrapper-installed	:= $(DESTDIR)$(WRAPPER_BINDIR)/wrapper
-dts-installed		:= $(patsubst $(obj)/dts/%, $(DESTDIR)$(WRAPPER_DTSDIR)/%, $(wildcard $(obj)/dts/*.dts))
+dts-installed		:= $(patsubst $(dtstree)/%, $(DESTDIR)$(WRAPPER_DTSDIR)/%, $(wildcard $(dtstree)/*.dts))
 
 all-installed		:= $(extra-installed) $(hostprogs-installed) $(wrapper-installed) $(dts-installed)
 

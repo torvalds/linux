@@ -74,7 +74,8 @@ static inline u64 scale_delta(u64 delta, u32 mul_frac, int shift)
 static u64 pvclock_get_nsec_offset(struct pvclock_shadow_time *shadow)
 {
 	u64 delta = native_read_tsc() - shadow->tsc_timestamp;
-	return scale_delta(delta, shadow->tsc_to_nsec_mul, shadow->tsc_shift);
+	return pvclock_scale_delta(delta, shadow->tsc_to_nsec_mul,
+				   shadow->tsc_shift);
 }
 
 /*
@@ -110,6 +111,11 @@ unsigned long pvclock_tsc_khz(struct pvclock_vcpu_time_info *src)
 }
 
 static atomic64_t last_value = ATOMIC64_INIT(0);
+
+void pvclock_resume(void)
+{
+	atomic64_set(&last_value, 0);
+}
 
 cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 {

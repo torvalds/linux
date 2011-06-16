@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/user_namespace.h>
-#include "cred-internals.h"
 
 struct user_namespace init_user_ns = {
 	.kref = {
@@ -56,9 +55,6 @@ struct user_struct root_user = {
 	.sigpending	= ATOMIC_INIT(0),
 	.locked_shm     = 0,
 	.user_ns	= &init_user_ns,
-#ifdef CONFIG_USER_SCHED
-	.tg		= &init_task_group,
-#endif
 };
 
 /*
@@ -75,268 +71,6 @@ static void uid_hash_remove(struct user_struct *up)
 	put_user_ns(up->user_ns);
 }
 
-#ifdef CONFIG_USER_SCHED
-
-static void sched_destroy_user(struct user_struct *up)
-{
-	sched_destroy_group(up->tg);
-}
-
-static int sched_create_user(struct user_struct *up)
-{
-	int rc = 0;
-
-	up->tg = sched_create_group(&root_task_group);
-	if (IS_ERR(up->tg))
-		rc = -ENOMEM;
-
-	set_tg_uid(up);
-
-	return rc;
-}
-
-#else	/* CONFIG_USER_SCHED */
-
-static void sched_destroy_user(struct user_struct *up) { }
-static int sched_create_user(struct user_struct *up) { return 0; }
-
-#endif	/* CONFIG_USER_SCHED */
-
-#if defined(CONFIG_USER_SCHED) && defined(CONFIG_SYSFS)
-
-static struct user_struct *uid_hash_find(uid_t uid, struct hlist_head *hashent)
-{
-	struct user_struct *user;
-	struct hlist_node *h;
-
-	hlist_for_each_entry(user, h, hashent, uidhash_node) {
-		if (user->uid == uid) {
-			/* possibly resurrect an "almost deleted" object */
-			if (atomic_inc_return(&user->__count) == 1)
-				cancel_delayed_work(&user->work);
-			return user;
-		}
-	}
-
-	return NULL;
-}
-
-static struct kset *uids_kset; /* represents the /sys/kernel/uids/ directory */
-static DEFINE_MUTEX(uids_mutex);
-
-static inline void uids_mutex_lock(void)
-{
-	mutex_lock(&uids_mutex);
-}
-
-static inline void uids_mutex_unlock(void)
-{
-	mutex_unlock(&uids_mutex);
-}
-
-/* uid directory attributes */
-#ifdef CONFIG_FAIR_GROUP_SCHED
-static ssize_t cpu_shares_show(struct kobject *kobj,
-			       struct kobj_attribute *attr,
-			       char *buf)
-{
-	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
-
-	return sprintf(buf, "%lu\n", sched_group_shares(up->tg));
-}
-
-static ssize_t cpu_shares_store(struct kobject *kobj,
-				struct kobj_attribute *attr,
-				const char *buf, size_t size)
-{
-	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
-	unsigned long shares;
-	int rc;
-
-	sscanf(buf, "%lu", &shares);
-
-	rc = sched_group_set_shares(up->tg, shares);
-
-	return (rc ? rc : size);
-}
-
-static struct kobj_attribute cpu_share_attr =
-	__ATTR(cpu_share, 0644, cpu_shares_show, cpu_shares_store);
-#endif
-
-#ifdef CONFIG_RT_GROUP_SCHED
-static ssize_t cpu_rt_runtime_show(struct kobject *kobj,
-				   struct kobj_attribute *attr,
-				   char *buf)
-{
-	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
-
-	return sprintf(buf, "%ld\n", sched_group_rt_runtime(up->tg));
-}
-
-static ssize_t cpu_rt_runtime_store(struct kobject *kobj,
-				    struct kobj_attribute *attr,
-				    const char *buf, size_t size)
-{
-	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
-	unsigned long rt_runtime;
-	int rc;
-
-	sscanf(buf, "%ld", &rt_runtime);
-
-	rc = sched_group_set_rt_runtime(up->tg, rt_runtime);
-
-	return (rc ? rc : size);
-}
-
-static struct kobj_attribute cpu_rt_runtime_attr =
-	__ATTR(cpu_rt_runtime, 0644, cpu_rt_runtime_show, cpu_rt_runtime_store);
-
-static ssize_t cpu_rt_period_show(struct kobject *kobj,
-				   struct kobj_attribute *attr,
-				   char *buf)
-{
-	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
-
-	return sprintf(buf, "%lu\n", sched_group_rt_period(up->tg));
-}
-
-static ssize_t cpu_rt_period_store(struct kobject *kobj,
-				    struct kobj_attribute *attr,
-				    const char *buf, size_t size)
-{
-	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
-	unsigned long rt_period;
-	int rc;
-
-	sscanf(buf, "%lu", &rt_period);
-
-	rc = sched_group_set_rt_period(up->tg, rt_period);
-
-	return (rc ? rc : size);
-}
-
-static struct kobj_attribute cpu_rt_period_attr =
-	__ATTR(cpu_rt_period, 0644, cpu_rt_period_show, cpu_rt_period_store);
-#endif
-
-/* default attributes per uid directory */
-static struct attribute *uids_attributes[] = {
-#ifdef CONFIG_FAIR_GROUP_SCHED
-	&cpu_share_attr.attr,
-#endif
-#ifdef CONFIG_RT_GROUP_SCHED
-	&cpu_rt_runtime_attr.attr,
-	&cpu_rt_period_attr.attr,
-#endif
-	NULL
-};
-
-/* the lifetime of user_struct is not managed by the core (now) */
-static void uids_release(struct kobject *kobj)
-{
-	return;
-}
-
-static struct kobj_type uids_ktype = {
-	.sysfs_ops = &kobj_sysfs_ops,
-	.default_attrs = uids_attributes,
-	.release = uids_release,
-};
-
-/*
- * Create /sys/kernel/uids/<uid>/cpu_share file for this user
- * We do not create this file for users in a user namespace (until
- * sysfs tagging is implemented).
- *
- * See Documentation/scheduler/sched-design-CFS.txt for ramifications.
- */
-static int uids_user_create(struct user_struct *up)
-{
-	struct kobject *kobj = &up->kobj;
-	int error;
-
-	memset(kobj, 0, sizeof(struct kobject));
-	if (up->user_ns != &init_user_ns)
-		return 0;
-	kobj->kset = uids_kset;
-	error = kobject_init_and_add(kobj, &uids_ktype, NULL, "%d", up->uid);
-	if (error) {
-		kobject_put(kobj);
-		goto done;
-	}
-
-	kobject_uevent(kobj, KOBJ_ADD);
-done:
-	return error;
-}
-
-/* create these entries in sysfs:
- * 	"/sys/kernel/uids" directory
- * 	"/sys/kernel/uids/0" directory (for root user)
- * 	"/sys/kernel/uids/0/cpu_share" file (for root user)
- */
-int __init uids_sysfs_init(void)
-{
-	uids_kset = kset_create_and_add("uids", NULL, kernel_kobj);
-	if (!uids_kset)
-		return -ENOMEM;
-
-	return uids_user_create(&root_user);
-}
-
-/* delayed work function to remove sysfs directory for a user and free up
- * corresponding structures.
- */
-static void cleanup_user_struct(struct work_struct *w)
-{
-	struct user_struct *up = container_of(w, struct user_struct, work.work);
-	unsigned long flags;
-	int remove_user = 0;
-
-	/* Make uid_hash_remove() + sysfs_remove_file() + kobject_del()
-	 * atomic.
-	 */
-	uids_mutex_lock();
-
-	spin_lock_irqsave(&uidhash_lock, flags);
-	if (atomic_read(&up->__count) == 0) {
-		uid_hash_remove(up);
-		remove_user = 1;
-	}
-	spin_unlock_irqrestore(&uidhash_lock, flags);
-
-	if (!remove_user)
-		goto done;
-
-	if (up->user_ns == &init_user_ns) {
-		kobject_uevent(&up->kobj, KOBJ_REMOVE);
-		kobject_del(&up->kobj);
-		kobject_put(&up->kobj);
-	}
-
-	sched_destroy_user(up);
-	key_put(up->uid_keyring);
-	key_put(up->session_keyring);
-	kmem_cache_free(uid_cachep, up);
-
-done:
-	uids_mutex_unlock();
-}
-
-/* IRQs are disabled and uidhash_lock is held upon function entry.
- * IRQ state (as stored in flags) is restored and uidhash_lock released
- * upon function exit.
- */
-static void free_user(struct user_struct *up, unsigned long flags)
-{
-	INIT_DELAYED_WORK(&up->work, cleanup_user_struct);
-	schedule_delayed_work(&up->work, msecs_to_jiffies(1000));
-	spin_unlock_irqrestore(&uidhash_lock, flags);
-}
-
-#else	/* CONFIG_USER_SCHED && CONFIG_SYSFS */
-
 static struct user_struct *uid_hash_find(uid_t uid, struct hlist_head *hashent)
 {
 	struct user_struct *user;
@@ -352,44 +86,19 @@ static struct user_struct *uid_hash_find(uid_t uid, struct hlist_head *hashent)
 	return NULL;
 }
 
-int uids_sysfs_init(void) { return 0; }
-static inline int uids_user_create(struct user_struct *up) { return 0; }
-static inline void uids_mutex_lock(void) { }
-static inline void uids_mutex_unlock(void) { }
-
 /* IRQs are disabled and uidhash_lock is held upon function entry.
  * IRQ state (as stored in flags) is restored and uidhash_lock released
  * upon function exit.
  */
 static void free_user(struct user_struct *up, unsigned long flags)
+	__releases(&uidhash_lock)
 {
 	uid_hash_remove(up);
 	spin_unlock_irqrestore(&uidhash_lock, flags);
-	sched_destroy_user(up);
 	key_put(up->uid_keyring);
 	key_put(up->session_keyring);
 	kmem_cache_free(uid_cachep, up);
 }
-
-#endif
-
-#if defined(CONFIG_RT_GROUP_SCHED) && defined(CONFIG_USER_SCHED)
-/*
- * We need to check if a setuid can take place. This function should be called
- * before successfully completing the setuid.
- */
-int task_can_switch_user(struct user_struct *up, struct task_struct *tsk)
-{
-
-	return sched_rt_can_attach(up->tg, tsk);
-
-}
-#else
-int task_can_switch_user(struct user_struct *up, struct task_struct *tsk)
-{
-	return 1;
-}
-#endif
 
 /*
  * Locate the user_struct for the passed UID.  If found, take a ref on it.  The
@@ -428,11 +137,7 @@ struct user_struct *alloc_uid(struct user_namespace *ns, uid_t uid)
 	struct hlist_head *hashent = uidhashentry(ns, uid);
 	struct user_struct *up, *new;
 
-	/* Make uid_hash_find() + uids_user_create() + uid_hash_insert()
-	 * atomic.
-	 */
-	uids_mutex_lock();
-
+	/* Make uid_hash_find() + uid_hash_insert() atomic. */
 	spin_lock_irq(&uidhash_lock);
 	up = uid_hash_find(uid, hashent);
 	spin_unlock_irq(&uidhash_lock);
@@ -445,13 +150,7 @@ struct user_struct *alloc_uid(struct user_namespace *ns, uid_t uid)
 		new->uid = uid;
 		atomic_set(&new->__count, 1);
 
-		if (sched_create_user(new) < 0)
-			goto out_free_user;
-
 		new->user_ns = get_user_ns(ns);
-
-		if (uids_user_create(new))
-			goto out_destoy_sched;
 
 		/*
 		 * Before adding this, check whether we raced
@@ -460,11 +159,6 @@ struct user_struct *alloc_uid(struct user_namespace *ns, uid_t uid)
 		spin_lock_irq(&uidhash_lock);
 		up = uid_hash_find(uid, hashent);
 		if (up) {
-			/* This case is not possible when CONFIG_USER_SCHED
-			 * is defined, since we serialize alloc_uid() using
-			 * uids_mutex. Hence no need to call
-			 * sched_destroy_user() or remove_user_sysfs_dir().
-			 */
 			key_put(new->uid_keyring);
 			key_put(new->session_keyring);
 			kmem_cache_free(uid_cachep, new);
@@ -475,17 +169,9 @@ struct user_struct *alloc_uid(struct user_namespace *ns, uid_t uid)
 		spin_unlock_irq(&uidhash_lock);
 	}
 
-	uids_mutex_unlock();
-
 	return up;
 
-out_destoy_sched:
-	sched_destroy_user(new);
-	put_user_ns(new->user_ns);
-out_free_user:
-	kmem_cache_free(uid_cachep, new);
 out_unlock:
-	uids_mutex_unlock();
 	return NULL;
 }
 

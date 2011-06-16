@@ -30,6 +30,7 @@
 #include <linux/wireless.h>
 #include <linux/skbuff.h>
 #include <linux/udp.h>
+#include <linux/vmalloc.h>
 #include <net/sock.h>
 #include <net/inet_common.h>
 #include <linux/stat.h>
@@ -275,12 +276,12 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 #endif
 #ifdef CONFIG_ECONET_AUNUDP
 	struct msghdr udpmsg;
-	struct iovec iov[msg->msg_iovlen+1];
+	struct iovec iov[2];
 	struct aunhdr ah;
 	struct sockaddr_in udpdest;
 	__kernel_size_t size;
-	int i;
 	mm_segment_t oldfs;
+	char *userbuf;
 #endif
 
 	/*
@@ -318,16 +319,16 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		}
 	}
 
-	if (len + 15 > dev->mtu) {
-		mutex_unlock(&econet_mutex);
-		return -EMSGSIZE;
-	}
-
 	if (dev->type == ARPHRD_ECONET) {
 		/* Real hardware Econet.  We're not worthy etc. */
 #ifdef CONFIG_ECONET_NATIVE
 		unsigned short proto = 0;
 		int res;
+
+		if (len + 15 > dev->mtu) {
+			mutex_unlock(&econet_mutex);
+			return -EMSGSIZE;
+		}
 
 		dev_hold(dev);
 
@@ -404,6 +405,11 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		return -ENETDOWN;		/* No socket - can't send */
 	}
 
+	if (len > 32768) {
+		err = -E2BIG;
+		goto error;
+	}
+
 	/* Make up a UDP datagram and hand it off to some higher intellect. */
 
 	memset(&udpdest, 0, sizeof(udpdest));
@@ -428,43 +434,33 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		udpdest.sin_addr.s_addr = htonl(network | addr.station);
 	}
 
+	memset(&ah, 0, sizeof(ah));
 	ah.port = port;
 	ah.cb = cb & 0x7f;
 	ah.code = 2;		/* magic */
-	ah.pad = 0;
 
 	/* tack our header on the front of the iovec */
 	size = sizeof(struct aunhdr);
-	/*
-	 * XXX: that is b0rken.  We can't mix userland and kernel pointers
-	 * in iovec, since on a lot of platforms copy_from_user() will
-	 * *not* work with the kernel and userland ones at the same time,
-	 * regardless of what we do with set_fs().  And we are talking about
-	 * econet-over-ethernet here, so "it's only ARM anyway" doesn't
-	 * apply.  Any suggestions on fixing that code?		-- AV
-	 */
 	iov[0].iov_base = (void *)&ah;
 	iov[0].iov_len = size;
-	for (i = 0; i < msg->msg_iovlen; i++) {
-		void __user *base = msg->msg_iov[i].iov_base;
-		size_t len = msg->msg_iov[i].iov_len;
-		/* Check it now since we switch to KERNEL_DS later. */
-		if (!access_ok(VERIFY_READ, base, len)) {
-			mutex_unlock(&econet_mutex);
-			return -EFAULT;
-		}
-		iov[i+1].iov_base = base;
-		iov[i+1].iov_len = len;
-		size += len;
+
+	userbuf = vmalloc(len);
+	if (userbuf == NULL) {
+		err = -ENOMEM;
+		goto error;
 	}
+
+	iov[1].iov_base = userbuf;
+	iov[1].iov_len = len;
+	err = memcpy_fromiovec(userbuf, msg->msg_iov, len);
+	if (err)
+		goto error_free_buf;
 
 	/* Get a skbuff (no data, just holds our cb information) */
 	if ((skb = sock_alloc_send_skb(sk, 0,
 				       msg->msg_flags & MSG_DONTWAIT,
-				       &err)) == NULL) {
-		mutex_unlock(&econet_mutex);
-		return err;
-	}
+				       &err)) == NULL)
+		goto error_free_buf;
 
 	eb = (struct ec_cb *)&skb->cb;
 
@@ -480,7 +476,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	udpmsg.msg_name = (void *)&udpdest;
 	udpmsg.msg_namelen = sizeof(udpdest);
 	udpmsg.msg_iov = &iov[0];
-	udpmsg.msg_iovlen = msg->msg_iovlen + 1;
+	udpmsg.msg_iovlen = 2;
 	udpmsg.msg_control = NULL;
 	udpmsg.msg_controllen = 0;
 	udpmsg.msg_flags=0;
@@ -488,9 +484,13 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 	oldfs = get_fs(); set_fs(KERNEL_DS);	/* More privs :-) */
 	err = sock_sendmsg(udpsock, &udpmsg, size);
 	set_fs(oldfs);
+
+error_free_buf:
+	vfree(userbuf);
 #else
 	err = -EPROTOTYPE;
 #endif
+	error:
 	mutex_unlock(&econet_mutex);
 
 	return err;
@@ -843,9 +843,13 @@ static void aun_incoming(struct sk_buff *skb, struct aunhdr *ah, size_t len)
 {
 	struct iphdr *ip = ip_hdr(skb);
 	unsigned char stn = ntohl(ip->saddr) & 0xff;
+	struct dst_entry *dst = skb_dst(skb);
+	struct ec_device *edev = NULL;
 	struct sock *sk;
 	struct sk_buff *newskb;
-	struct ec_device *edev = skb->dev->ec_ptr;
+
+	if (dst)
+		edev = dst->dev->ec_ptr;
 
 	if (! edev)
 		goto bad;

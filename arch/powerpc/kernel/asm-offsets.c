@@ -183,6 +183,7 @@ int main(void)
 #endif /* CONFIG_PPC_STD_MMU_64 */
 	DEFINE(PACAEMERGSP, offsetof(struct paca_struct, emergency_sp));
 	DEFINE(PACAHWCPUID, offsetof(struct paca_struct, hw_cpu_id));
+	DEFINE(PACAKEXECSTATE, offsetof(struct paca_struct, kexec_state));
 	DEFINE(PACA_STARTPURR, offsetof(struct paca_struct, startpurr));
 	DEFINE(PACA_STARTSPURR, offsetof(struct paca_struct, startspurr));
 	DEFINE(PACA_USER_TIME, offsetof(struct paca_struct, user_time));

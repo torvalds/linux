@@ -56,6 +56,7 @@
 MODULE_AUTHOR("Ville Nuorvala");
 MODULE_DESCRIPTION("IPv6 tunneling device");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_NETDEV("ip6tnl0");
 
 #define IPV6_TLV_TEL_DST_SIZE 8
 

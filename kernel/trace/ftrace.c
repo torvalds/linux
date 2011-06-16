@@ -3172,7 +3172,7 @@ static int start_graph_tracing(void)
 	/* The cpu_boot init_task->ret_stack will never be freed */
 	for_each_online_cpu(cpu) {
 		if (!idle_task(cpu)->ret_stack)
-			ftrace_graph_init_task(idle_task(cpu));
+			ftrace_graph_init_idle_task(idle_task(cpu), cpu);
 	}
 
 	do {
@@ -3262,6 +3262,49 @@ void unregister_ftrace_graph(void)
 	mutex_unlock(&ftrace_lock);
 }
 
+static DEFINE_PER_CPU(struct ftrace_ret_stack *, idle_ret_stack);
+
+static void
+graph_init_task(struct task_struct *t, struct ftrace_ret_stack *ret_stack)
+{
+	atomic_set(&t->tracing_graph_pause, 0);
+	atomic_set(&t->trace_overrun, 0);
+	t->ftrace_timestamp = 0;
+	/* make curr_ret_stack visable before we add the ret_stack */
+	smp_wmb();
+	t->ret_stack = ret_stack;
+}
+
+/*
+ * Allocate a return stack for the idle task. May be the first
+ * time through, or it may be done by CPU hotplug online.
+ */
+void ftrace_graph_init_idle_task(struct task_struct *t, int cpu)
+{
+	t->curr_ret_stack = -1;
+	/*
+	 * The idle task has no parent, it either has its own
+	 * stack or no stack at all.
+	 */
+	if (t->ret_stack)
+		WARN_ON(t->ret_stack != per_cpu(idle_ret_stack, cpu));
+
+	if (ftrace_graph_active) {
+		struct ftrace_ret_stack *ret_stack;
+
+		ret_stack = per_cpu(idle_ret_stack, cpu);
+		if (!ret_stack) {
+			ret_stack = kmalloc(FTRACE_RETFUNC_DEPTH
+					    * sizeof(struct ftrace_ret_stack),
+					    GFP_KERNEL);
+			if (!ret_stack)
+				return;
+			per_cpu(idle_ret_stack, cpu) = ret_stack;
+		}
+		graph_init_task(t, ret_stack);
+	}
+}
+
 /* Allocate a return stack for newly created task */
 void ftrace_graph_init_task(struct task_struct *t)
 {
@@ -3277,12 +3320,7 @@ void ftrace_graph_init_task(struct task_struct *t)
 				GFP_KERNEL);
 		if (!ret_stack)
 			return;
-		atomic_set(&t->tracing_graph_pause, 0);
-		atomic_set(&t->trace_overrun, 0);
-		t->ftrace_timestamp = 0;
-		/* make curr_ret_stack visable before we add the ret_stack */
-		smp_wmb();
-		t->ret_stack = ret_stack;
+		graph_init_task(t, ret_stack);
 	}
 }
 

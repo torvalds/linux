@@ -88,7 +88,6 @@ static const char *ipg_brand_name[] = {
 	"Sundance Technology ST2021 based NIC",
 	"Tamarack Microelectronics TC9020/9021 based NIC",
 	"Tamarack Microelectronics TC9020/9021 based NIC",
-	"D-Link NIC",
 	"D-Link NIC IP1000A"
 };
 
@@ -97,8 +96,7 @@ static struct pci_device_id ipg_pci_tbl[] __devinitdata = {
 	{ PCI_VDEVICE(SUNDANCE,	0x2021), 1 },
 	{ PCI_VDEVICE(SUNDANCE,	0x1021), 2 },
 	{ PCI_VDEVICE(DLINK,	0x9021), 3 },
-	{ PCI_VDEVICE(DLINK,	0x4000), 4 },
-	{ PCI_VDEVICE(DLINK,	0x4020), 5 },
+	{ PCI_VDEVICE(DLINK,	0x4020), 4 },
 	{ 0, }
 };
 

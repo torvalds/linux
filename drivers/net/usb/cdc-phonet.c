@@ -325,13 +325,13 @@ int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	static const char ifname[] = "usbpn%d";
 	const struct usb_cdc_union_desc *union_header = NULL;
-	const struct usb_cdc_header_desc *phonet_header = NULL;
 	const struct usb_host_interface *data_desc;
 	struct usb_interface *data_intf;
 	struct usb_device *usbdev = interface_to_usbdev(intf);
 	struct net_device *dev;
 	struct usbpn_dev *pnd;
 	u8 *data;
+	int phonet = 0;
 	int len, err;
 
 	data = intf->altsetting->extra;
@@ -352,10 +352,7 @@ int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
 					(struct usb_cdc_union_desc *)data;
 				break;
 			case 0xAB:
-				if (phonet_header || dlen < 5)
-					break;
-				phonet_header =
-					(struct usb_cdc_header_desc *)data;
+				phonet = 1;
 				break;
 			}
 		}
@@ -363,7 +360,7 @@ int usbpn_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		len -= dlen;
 	}
 
-	if (!union_header || !phonet_header)
+	if (!union_header || !phonet)
 		return -EINVAL;
 
 	data_intf = usb_ifnum_to_if(usbdev, union_header->bSlaveInterface0);

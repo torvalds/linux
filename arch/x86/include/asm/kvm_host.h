@@ -357,6 +357,9 @@ struct kvm_vcpu_arch {
 	struct page *time_page;
 
 	bool singlestep; /* guest is single stepped by KVM */
+	u64 last_guest_tsc;
+	u64 last_kernel_ns;
+
 	bool nmi_pending;
 	bool nmi_injected;
 

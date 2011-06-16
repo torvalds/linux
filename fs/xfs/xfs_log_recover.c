@@ -3209,7 +3209,7 @@ xlog_recover_process_one_iunlink(
 	int				error;
 
 	ino = XFS_AGINO_TO_INO(mp, agno, agino);
-	error = xfs_iget(mp, NULL, ino, 0, 0, &ip, 0);
+	error = xfs_iget(mp, NULL, ino, 0, 0, &ip);
 	if (error)
 		goto fail;
 

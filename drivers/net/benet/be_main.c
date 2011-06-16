@@ -146,13 +146,10 @@ void netdev_stats_update(struct be_adapter *adapter)
 	struct net_device_stats *dev_stats = &adapter->stats.net_stats;
 	struct be_erx_stats *erx_stats = &hw_stats->erx;
 
-	dev_stats->rx_packets = port_stats->rx_total_frames;
-	dev_stats->tx_packets = port_stats->tx_unicastframes +
-		port_stats->tx_multicastframes + port_stats->tx_broadcastframes;
-	dev_stats->rx_bytes = (u64) port_stats->rx_bytes_msd << 32 |
-				(u64) port_stats->rx_bytes_lsd;
-	dev_stats->tx_bytes = (u64) port_stats->tx_bytes_msd << 32 |
-				(u64) port_stats->tx_bytes_lsd;
+	dev_stats->rx_packets = drvr_stats(adapter)->be_rx_pkts;
+	dev_stats->tx_packets = drvr_stats(adapter)->be_tx_pkts;
+	dev_stats->rx_bytes = drvr_stats(adapter)->be_rx_bytes;
+	dev_stats->tx_bytes = drvr_stats(adapter)->be_tx_bytes;
 
 	/* bad pkts received */
 	dev_stats->rx_errors = port_stats->rx_crc_errors +
@@ -309,12 +306,13 @@ static void be_tx_rate_update(struct be_adapter *adapter)
 }
 
 static void be_tx_stats_update(struct be_adapter *adapter,
-			u32 wrb_cnt, u32 copied, bool stopped)
+			u32 wrb_cnt, u32 copied, u32 gso_segs, bool stopped)
 {
 	struct be_drvr_stats *stats = drvr_stats(adapter);
 	stats->be_tx_reqs++;
 	stats->be_tx_wrbs += wrb_cnt;
 	stats->be_tx_bytes += copied;
+	stats->be_tx_pkts += (gso_segs ? gso_segs : 1);
 	if (stopped)
 		stats->be_tx_stops++;
 }
@@ -462,7 +460,8 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 
 		be_txq_notify(adapter, txq->id, wrb_cnt);
 
-		be_tx_stats_update(adapter, wrb_cnt, copied, stopped);
+		be_tx_stats_update(adapter, wrb_cnt, copied,
+				skb_shinfo(skb)->gso_segs, stopped);
 	} else {
 		txq->head = start;
 		dev_kfree_skb_any(skb);
@@ -605,6 +604,7 @@ static void be_rx_stats_update(struct be_adapter *adapter,
 	stats->be_rx_compl++;
 	stats->be_rx_frags += numfrags;
 	stats->be_rx_bytes += pktsize;
+	stats->be_rx_pkts++;
 }
 
 static inline bool do_pkt_csum(struct be_eth_rx_compl *rxcp, bool cso)

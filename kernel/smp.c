@@ -193,6 +193,24 @@ void generic_smp_call_function_interrupt(void)
 	list_for_each_entry_rcu(data, &call_function.queue, csd.list) {
 		int refs;
 
+		/*
+		 * Since we walk the list without any locks, we might
+		 * see an entry that was completed, removed from the
+		 * list and is in the process of being reused.
+		 *
+		 * We must check that the cpu is in the cpumask before
+		 * checking the refs, and both must be set before
+		 * executing the callback on this cpu.
+		 */
+
+		if (!cpumask_test_cpu(cpu, data->cpumask))
+			continue;
+
+		smp_rmb();
+
+		if (atomic_read(&data->refs) == 0)
+			continue;
+
 		if (!cpumask_test_and_clear_cpu(cpu, data->cpumask))
 			continue;
 
@@ -201,6 +219,8 @@ void generic_smp_call_function_interrupt(void)
 		refs = atomic_dec_return(&data->refs);
 		WARN_ON(refs < 0);
 		if (!refs) {
+			WARN_ON(!cpumask_empty(data->cpumask));
+
 			spin_lock(&call_function.lock);
 			list_del_rcu(&data->csd.list);
 			spin_unlock(&call_function.lock);
@@ -368,7 +388,7 @@ void smp_call_function_many(const struct cpumask *mask,
 {
 	struct call_function_data *data;
 	unsigned long flags;
-	int cpu, next_cpu, this_cpu = smp_processor_id();
+	int refs, cpu, next_cpu, this_cpu = smp_processor_id();
 
 	/*
 	 * Can deadlock when called with interrupts disabled.
@@ -379,7 +399,7 @@ void smp_call_function_many(const struct cpumask *mask,
 	WARN_ON_ONCE(cpu_online(this_cpu) && irqs_disabled()
 		     && !oops_in_progress);
 
-	/* So, what's a CPU they want? Ignoring this one. */
+	/* Try to fastpath.  So, what's a CPU they want? Ignoring this one. */
 	cpu = cpumask_first_and(mask, cpu_online_mask);
 	if (cpu == this_cpu)
 		cpu = cpumask_next_and(cpu, mask, cpu_online_mask);
@@ -402,11 +422,48 @@ void smp_call_function_many(const struct cpumask *mask,
 	data = &__get_cpu_var(cfd_data);
 	csd_lock(&data->csd);
 
+	/* This BUG_ON verifies our reuse assertions and can be removed */
+	BUG_ON(atomic_read(&data->refs) || !cpumask_empty(data->cpumask));
+
+	/*
+	 * The global call function queue list add and delete are protected
+	 * by a lock, but the list is traversed without any lock, relying
+	 * on the rcu list add and delete to allow safe concurrent traversal.
+	 * We reuse the call function data without waiting for any grace
+	 * period after some other cpu removes it from the global queue.
+	 * This means a cpu might find our data block as it is being
+	 * filled out.
+	 *
+	 * We hold off the interrupt handler on the other cpu by
+	 * ordering our writes to the cpu mask vs our setting of the
+	 * refs counter.  We assert only the cpu owning the data block
+	 * will set a bit in cpumask, and each bit will only be cleared
+	 * by the subject cpu.  Each cpu must first find its bit is
+	 * set and then check that refs is set indicating the element is
+	 * ready to be processed, otherwise it must skip the entry.
+	 *
+	 * On the previous iteration refs was set to 0 by another cpu.
+	 * To avoid the use of transitivity, set the counter to 0 here
+	 * so the wmb will pair with the rmb in the interrupt handler.
+	 */
+	atomic_set(&data->refs, 0);	/* convert 3rd to 1st party write */
+
 	data->csd.func = func;
 	data->csd.info = info;
+
+	/* Ensure 0 refs is visible before mask.  Also orders func and info */
+	smp_wmb();
+
+	/* We rely on the "and" being processed before the store */
 	cpumask_and(data->cpumask, mask, cpu_online_mask);
 	cpumask_clear_cpu(this_cpu, data->cpumask);
-	atomic_set(&data->refs, cpumask_weight(data->cpumask));
+	refs = cpumask_weight(data->cpumask);
+
+	/* Some callers race with other cpus changing the passed mask */
+	if (unlikely(!refs)) {
+		csd_unlock(&data->csd);
+		return;
+	}
 
 	spin_lock_irqsave(&call_function.lock, flags);
 	/*
@@ -415,6 +472,12 @@ void smp_call_function_many(const struct cpumask *mask,
 	 * will not miss any other list entries:
 	 */
 	list_add_rcu(&data->csd.list, &call_function.queue);
+	/*
+	 * We rely on the wmb() in list_add_rcu to complete our writes
+	 * to the cpumask before this write to refs, which indicates
+	 * data is on the list and is ready to be processed.
+	 */
+	atomic_set(&data->refs, refs);
 	spin_unlock_irqrestore(&call_function.lock, flags);
 
 	/*

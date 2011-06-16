@@ -1138,6 +1138,11 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	cm_id->context = conn_id;
 	cm_id->cm_handler = cma_ib_handler;
 
+	/*
+	 * Protect against the user destroying conn_id from another thread
+	 * until we're done accessing it.
+	 */
+	atomic_inc(&conn_id->refcount);
 	ret = conn_id->id.event_handler(&conn_id->id, &event);
 	if (!ret) {
 		/*
@@ -1150,8 +1155,10 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 			ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
 		mutex_unlock(&lock);
 		mutex_unlock(&conn_id->handler_mutex);
+		cma_deref_id(conn_id);
 		goto out;
 	}
+	cma_deref_id(conn_id);
 
 	/* Destroy the CM ID by returning a non-zero value. */
 	conn_id->cm_id.ib = NULL;
@@ -1353,17 +1360,25 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	event.param.conn.private_data_len = iw_event->private_data_len;
 	event.param.conn.initiator_depth = attr.max_qp_init_rd_atom;
 	event.param.conn.responder_resources = attr.max_qp_rd_atom;
+
+	/*
+	 * Protect against the user destroying conn_id from another thread
+	 * until we're done accessing it.
+	 */
+	atomic_inc(&conn_id->refcount);
 	ret = conn_id->id.event_handler(&conn_id->id, &event);
 	if (ret) {
 		/* User wants to destroy the CM ID */
 		conn_id->cm_id.iw = NULL;
 		cma_exch(conn_id, CMA_DESTROYING);
 		mutex_unlock(&conn_id->handler_mutex);
+		cma_deref_id(conn_id);
 		rdma_destroy_id(&conn_id->id);
 		goto out;
 	}
 
 	mutex_unlock(&conn_id->handler_mutex);
+	cma_deref_id(conn_id);
 
 out:
 	if (dev)

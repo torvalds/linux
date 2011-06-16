@@ -68,6 +68,11 @@ bool FirmwareDownloadCode(struct net_device *dev, u8 *	code_virtual_address,u32 
 
 		/* Allocate skb buffer to contain firmware info and tx descriptor info. */
 		skb  = dev_alloc_skb(frag_length);
+		if (skb == NULL) {
+			RT_TRACE(COMP_ERR, "(%s): unable to alloc skb buffer\n",
+								__func__);
+			goto cmdsend_downloadcode_fail;
+		}
 		memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
 
 		tcb_desc = (cb_desc*)(skb->cb + MAX_DEV_ADDR_SIZE);
