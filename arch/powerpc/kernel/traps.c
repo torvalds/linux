@@ -425,7 +425,7 @@ int machine_check_e500mc(struct pt_regs *regs)
 	unsigned long reason = mcsr;
 	int recoverable = 1;
 
-	if (reason & MCSR_BUS_RBERR) {
+	if (reason & MCSR_LD) {
 		recoverable = fsl_rio_mcheck_exception(regs);
 		if (recoverable == 1)
 			goto silent_out;

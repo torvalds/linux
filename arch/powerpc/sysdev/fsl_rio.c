@@ -283,23 +283,24 @@ static void __iomem *rio_regs_win;
 #ifdef CONFIG_E500
 int fsl_rio_mcheck_exception(struct pt_regs *regs)
 {
-	const struct exception_table_entry *entry = NULL;
-	unsigned long reason = mfspr(SPRN_MCSR);
+	const struct exception_table_entry *entry;
+	unsigned long reason;
 
-	if (reason & MCSR_BUS_RBERR) {
-		reason = in_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR));
-		if (reason & (RIO_LTLEDCSR_IER | RIO_LTLEDCSR_PRT)) {
-			/* Check if we are prepared to handle this fault */
-			entry = search_exception_tables(regs->nip);
-			if (entry) {
-				pr_debug("RIO: %s - MC Exception handled\n",
-					 __func__);
-				out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR),
-					 0);
-				regs->msr |= MSR_RI;
-				regs->nip = entry->fixup;
-				return 1;
-			}
+	if (!rio_regs_win)
+		return 0;
+
+	reason = in_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR));
+	if (reason & (RIO_LTLEDCSR_IER | RIO_LTLEDCSR_PRT)) {
+		/* Check if we are prepared to handle this fault */
+		entry = search_exception_tables(regs->nip);
+		if (entry) {
+			pr_debug("RIO: %s - MC Exception handled\n",
+				 __func__);
+			out_be32((u32 *)(rio_regs_win + RIO_LTLEDCSR),
+				 0);
+			regs->msr |= MSR_RI;
+			regs->nip = entry->fixup;
+			return 1;
 		}
 	}
 
