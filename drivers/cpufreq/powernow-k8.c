@@ -1104,7 +1104,8 @@ static int transition_frequency_pstate(struct powernow_k8_data *data,
 	/* get MSR index for hardware pstate transition */
 	pstate = index & HW_PSTATE_MASK;
 	if (pstate > data->max_hw_pstate)
-		return 0;
+		return -EINVAL;
+
 	freqs.old = find_khz_freq_from_pstate(data->powernow_table,
 			data->currpstate);
 	freqs.new = find_khz_freq_from_pstate(data->powernow_table, pstate);
