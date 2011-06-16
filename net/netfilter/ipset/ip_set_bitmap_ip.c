@@ -54,7 +54,7 @@ ip_to_id(const struct bitmap_ip *m, u32 ip)
 }
 
 static int
-bitmap_ip_test(struct ip_set *set, void *value, u32 timeout)
+bitmap_ip_test(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	const struct bitmap_ip *map = set->data;
 	u16 id = *(u16 *)value;
@@ -63,7 +63,7 @@ bitmap_ip_test(struct ip_set *set, void *value, u32 timeout)
 }
 
 static int
-bitmap_ip_add(struct ip_set *set, void *value, u32 timeout)
+bitmap_ip_add(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct bitmap_ip *map = set->data;
 	u16 id = *(u16 *)value;
@@ -75,7 +75,7 @@ bitmap_ip_add(struct ip_set *set, void *value, u32 timeout)
 }
 
 static int
-bitmap_ip_del(struct ip_set *set, void *value, u32 timeout)
+bitmap_ip_del(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct bitmap_ip *map = set->data;
 	u16 id = *(u16 *)value;
@@ -131,7 +131,7 @@ nla_put_failure:
 /* Timeout variant */
 
 static int
-bitmap_ip_ttest(struct ip_set *set, void *value, u32 timeout)
+bitmap_ip_ttest(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	const struct bitmap_ip *map = set->data;
 	const unsigned long *members = map->members;
@@ -141,13 +141,13 @@ bitmap_ip_ttest(struct ip_set *set, void *value, u32 timeout)
 }
 
 static int
-bitmap_ip_tadd(struct ip_set *set, void *value, u32 timeout)
+bitmap_ip_tadd(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct bitmap_ip *map = set->data;
 	unsigned long *members = map->members;
 	u16 id = *(u16 *)value;
 
-	if (ip_set_timeout_test(members[id]))
+	if (ip_set_timeout_test(members[id]) && !(flags & IPSET_FLAG_EXIST))
 		return -IPSET_ERR_EXIST;
 
 	members[id] = ip_set_timeout_set(timeout);
@@ -156,7 +156,7 @@ bitmap_ip_tadd(struct ip_set *set, void *value, u32 timeout)
 }
 
 static int
-bitmap_ip_tdel(struct ip_set *set, void *value, u32 timeout)
+bitmap_ip_tdel(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct bitmap_ip *map = set->data;
 	unsigned long *members = map->members;
@@ -231,7 +231,7 @@ bitmap_ip_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 	ip = ip_to_id(map, ip);
 
-	return adtfn(set, &ip, map->timeout);
+	return adtfn(set, &ip, map->timeout, flags);
 }
 
 static int
@@ -266,7 +266,7 @@ bitmap_ip_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	if (adt == IPSET_TEST) {
 		id = ip_to_id(map, ip);
-		return adtfn(set, &id, timeout);
+		return adtfn(set, &id, timeout, flags);
 	}
 
 	if (tb[IPSET_ATTR_IP_TO]) {
@@ -293,7 +293,7 @@ bitmap_ip_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	for (; !before(ip_to, ip); ip += map->hosts) {
 		id = ip_to_id(map, ip);
-		ret = adtfn(set, &id, timeout);
+		ret = adtfn(set, &id, timeout, flags);
 
 		if (ret && !ip_set_eexist(ret, flags))
 			return ret;

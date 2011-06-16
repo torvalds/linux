@@ -142,7 +142,7 @@ hash_ipportip4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	ip4addrptr(skb, flags & IPSET_DIM_ONE_SRC, &data.ip);
 	ip4addrptr(skb, flags & IPSET_DIM_THREE_SRC, &data.ip2);
 
-	return adtfn(set, &data, h->timeout);
+	return adtfn(set, &data, h->timeout, flags);
 }
 
 static int
@@ -200,7 +200,7 @@ hash_ipportip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (adt == IPSET_TEST ||
 	    !(tb[IPSET_ATTR_IP_TO] || tb[IPSET_ATTR_CIDR] ||
 	      tb[IPSET_ATTR_PORT_TO])) {
-		ret = adtfn(set, &data, timeout);
+		ret = adtfn(set, &data, timeout, flags);
 		return ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
@@ -232,7 +232,7 @@ hash_ipportip4_uadt(struct ip_set *set, struct nlattr *tb[],
 		for (p = port; p <= port_to; p++) {
 			data.ip = htonl(ip);
 			data.port = htons(p);
-			ret = adtfn(set, &data, timeout);
+			ret = adtfn(set, &data, timeout, flags);
 
 			if (ret && !ip_set_eexist(ret, flags))
 				return ret;
@@ -356,7 +356,7 @@ hash_ipportip6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	ip6addrptr(skb, flags & IPSET_DIM_ONE_SRC, &data.ip.in6);
 	ip6addrptr(skb, flags & IPSET_DIM_THREE_SRC, &data.ip2.in6);
 
-	return adtfn(set, &data, h->timeout);
+	return adtfn(set, &data, h->timeout, flags);
 }
 
 static int
@@ -414,7 +414,7 @@ hash_ipportip6_uadt(struct ip_set *set, struct nlattr *tb[],
 	}
 
 	if (adt == IPSET_TEST || !with_ports || !tb[IPSET_ATTR_PORT_TO]) {
-		ret = adtfn(set, &data, timeout);
+		ret = adtfn(set, &data, timeout, flags);
 		return ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
@@ -425,7 +425,7 @@ hash_ipportip6_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	for (; port <= port_to; port++) {
 		data.port = htons(port);
-		ret = adtfn(set, &data, timeout);
+		ret = adtfn(set, &data, timeout, flags);
 
 		if (ret && !ip_set_eexist(ret, flags))
 			return ret;

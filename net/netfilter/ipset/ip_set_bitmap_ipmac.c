@@ -99,7 +99,7 @@ bitmap_ipmac_exist(const struct ipmac_telem *elem)
 /* Base variant */
 
 static int
-bitmap_ipmac_test(struct ip_set *set, void *value, u32 timeout)
+bitmap_ipmac_test(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	const struct bitmap_ipmac *map = set->data;
 	const struct ipmac *data = value;
@@ -117,7 +117,7 @@ bitmap_ipmac_test(struct ip_set *set, void *value, u32 timeout)
 }
 
 static int
-bitmap_ipmac_add(struct ip_set *set, void *value, u32 timeout)
+bitmap_ipmac_add(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct bitmap_ipmac *map = set->data;
 	const struct ipmac *data = value;
@@ -146,7 +146,7 @@ bitmap_ipmac_add(struct ip_set *set, void *value, u32 timeout)
 }
 
 static int
-bitmap_ipmac_del(struct ip_set *set, void *value, u32 timeout)
+bitmap_ipmac_del(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct bitmap_ipmac *map = set->data;
 	const struct ipmac *data = value;
@@ -212,7 +212,7 @@ nla_put_failure:
 /* Timeout variant */
 
 static int
-bitmap_ipmac_ttest(struct ip_set *set, void *value, u32 timeout)
+bitmap_ipmac_ttest(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	const struct bitmap_ipmac *map = set->data;
 	const struct ipmac *data = value;
@@ -231,15 +231,16 @@ bitmap_ipmac_ttest(struct ip_set *set, void *value, u32 timeout)
 }
 
 static int
-bitmap_ipmac_tadd(struct ip_set *set, void *value, u32 timeout)
+bitmap_ipmac_tadd(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct bitmap_ipmac *map = set->data;
 	const struct ipmac *data = value;
 	struct ipmac_telem *elem = bitmap_ipmac_elem(map, data->id);
+	bool flag_exist = flags & IPSET_FLAG_EXIST;
 
 	switch (elem->match) {
 	case MAC_UNSET:
-		if (!data->ether)
+		if (!(data->ether || flag_exist))
 			/* Already added without ethernet address */
 			return -IPSET_ERR_EXIST;
 		/* Fill the MAC address and activate the timer */
@@ -251,7 +252,7 @@ bitmap_ipmac_tadd(struct ip_set *set, void *value, u32 timeout)
 		elem->timeout = ip_set_timeout_set(timeout);
 		break;
 	case MAC_FILLED:
-		if (!bitmap_expired(map, data->id))
+		if (!(bitmap_expired(map, data->id) || flag_exist))
 			return -IPSET_ERR_EXIST;
 		/* Fall through */
 	case MAC_EMPTY:
@@ -273,7 +274,7 @@ bitmap_ipmac_tadd(struct ip_set *set, void *value, u32 timeout)
 }
 
 static int
-bitmap_ipmac_tdel(struct ip_set *set, void *value, u32 timeout)
+bitmap_ipmac_tdel(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct bitmap_ipmac *map = set->data;
 	const struct ipmac *data = value;
@@ -359,7 +360,7 @@ bitmap_ipmac_kadt(struct ip_set *set, const struct sk_buff *skb,
 	data.id -= map->first_ip;
 	data.ether = eth_hdr(skb)->h_source;
 
-	return adtfn(set, &data, map->timeout);
+	return adtfn(set, &data, map->timeout, flags);
 }
 
 static int
@@ -399,7 +400,7 @@ bitmap_ipmac_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	data.id -= map->first_ip;
 
-	ret = adtfn(set, &data, timeout);
+	ret = adtfn(set, &data, timeout, flags);
 
 	return ip_set_eexist(ret, flags) ? 0 : ret;
 }

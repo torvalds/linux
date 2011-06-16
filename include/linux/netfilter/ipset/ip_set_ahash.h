@@ -349,7 +349,7 @@ retry:
 /* Add an element to a hash and update the internal counters when succeeded,
  * otherwise report the proper error code. */
 static int
-type_pf_add(struct ip_set *set, void *value, u32 timeout)
+type_pf_add(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct ip_set_hash *h = set->data;
 	struct htable *t;
@@ -388,7 +388,7 @@ out:
  * and free up space if possible.
  */
 static int
-type_pf_del(struct ip_set *set, void *value, u32 timeout)
+type_pf_del(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct ip_set_hash *h = set->data;
 	struct htable *t = h->table;
@@ -463,7 +463,7 @@ type_pf_test_cidrs(struct ip_set *set, struct type_pf_elem *d, u32 timeout)
 
 /* Test whether the element is added to the set */
 static int
-type_pf_test(struct ip_set *set, void *value, u32 timeout)
+type_pf_test(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct ip_set_hash *h = set->data;
 	struct htable *t = h->table;
@@ -776,7 +776,7 @@ retry:
 }
 
 static int
-type_pf_tadd(struct ip_set *set, void *value, u32 timeout)
+type_pf_tadd(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct ip_set_hash *h = set->data;
 	struct htable *t = h->table;
@@ -784,6 +784,7 @@ type_pf_tadd(struct ip_set *set, void *value, u32 timeout)
 	struct hbucket *n;
 	struct type_pf_elem *data;
 	int ret = 0, i, j = AHASH_MAX_SIZE + 1;
+	bool flag_exist = flags & IPSET_FLAG_EXIST;
 	u32 key;
 
 	if (h->elements >= h->maxelem)
@@ -799,7 +800,7 @@ type_pf_tadd(struct ip_set *set, void *value, u32 timeout)
 	for (i = 0; i < n->pos; i++) {
 		data = ahash_tdata(n, i);
 		if (type_pf_data_equal(data, d)) {
-			if (type_pf_data_expired(data))
+			if (type_pf_data_expired(data) || flag_exist)
 				j = i;
 			else {
 				ret = -IPSET_ERR_EXIST;
@@ -833,7 +834,7 @@ out:
 }
 
 static int
-type_pf_tdel(struct ip_set *set, void *value, u32 timeout)
+type_pf_tdel(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct ip_set_hash *h = set->data;
 	struct htable *t = h->table;
@@ -905,7 +906,7 @@ type_pf_ttest_cidrs(struct ip_set *set, struct type_pf_elem *d, u32 timeout)
 #endif
 
 static int
-type_pf_ttest(struct ip_set *set, void *value, u32 timeout)
+type_pf_ttest(struct ip_set *set, void *value, u32 timeout, u32 flags)
 {
 	struct ip_set_hash *h = set->data;
 	struct htable *t = h->table;
