@@ -1253,7 +1253,7 @@ intel_sdvo_get_analog_edid(struct drm_connector *connector)
 }
 
 enum drm_connector_status
-intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
+intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
 	enum drm_connector_status status;
@@ -1348,7 +1348,7 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	if ((intel_sdvo_connector->output_flag & response) == 0)
 		ret = connector_status_disconnected;
 	else if (IS_TMDS(intel_sdvo_connector))
-		ret = intel_sdvo_hdmi_sink_detect(connector);
+		ret = intel_sdvo_tmds_sink_detect(connector);
 	else {
 		struct edid *edid;
 
