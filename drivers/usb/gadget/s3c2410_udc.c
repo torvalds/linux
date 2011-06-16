@@ -1573,7 +1573,7 @@ static void s3c2410_udc_command(enum s3c2410_udc_cmd_e cmd)
 		return;
 
 	if (udc_info->udc_command) {
-		udc_info->udc_command(S3C2410_UDC_P_DISABLE);
+		udc_info->udc_command(cmd);
 	} else if (gpio_is_valid(udc_info->pullup_pin)) {
 		int value;
 
