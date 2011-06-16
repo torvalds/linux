@@ -3612,6 +3612,11 @@ sctp_disposition_t sctp_sf_do_asconf(const struct sctp_endpoint *ep,
 	 */
 	asconf_ack->dest = chunk->source;
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(asconf_ack));
+	if (asoc->new_transport) {
+	        sctp_sf_heartbeat(ep, asoc, type, asoc->new_transport,
+                    commands);
+		((struct sctp_association *)asoc)->new_transport = NULL;
+	}
 
 	return SCTP_DISPOSITION_CONSUME;
 }
