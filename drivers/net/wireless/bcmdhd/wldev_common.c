@@ -236,3 +236,19 @@ s32 wldev_iovar_getint_bsscfg(
 	}
 	return err;
 }
+
+int
+wldev_get_link_speed(
+	struct net_device *dev)
+{
+	int error;
+	int link_speed;
+
+	error = wldev_ioctl(dev, WLC_GET_RATE, &link_speed, sizeof(link_speed), 0);
+	if (error < 0)
+		return error;
+	/* Convert internal 500Kbps to Kbps */
+	link_speed *= 500;
+
+	return link_speed;
+}

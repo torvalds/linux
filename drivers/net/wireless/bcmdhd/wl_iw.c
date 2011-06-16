@@ -1631,8 +1631,8 @@ wl_iw_send_priv_event(
 int
 wl_control_wl_start(struct net_device *dev)
 {
-	int ret = 0;
 	wl_iw_t *iw;
+	int ret = 0;
 
 	WL_TRACE(("Enter %s \n", __FUNCTION__));
 
@@ -1680,8 +1680,8 @@ wl_iw_control_wl_off(
 	struct iw_request_info *info
 )
 {
-	int ret = 0;
 	wl_iw_t *iw;
+	int ret = 0;
 
 	WL_TRACE(("Enter %s\n", __FUNCTION__));
 
@@ -1769,7 +1769,7 @@ wl_iw_control_wl_on(
 	wl_iw_iscan_set_scan_broadcast_prep(dev, 0);
 #endif
 
-	WL_TRACE(("Exited %s \n", __FUNCTION__));
+	WL_TRACE(("Exited %s\n", __FUNCTION__));
 
 	return ret;
 }
@@ -1787,8 +1787,6 @@ static int set_ap_mac_list(struct net_device *dev, void *buf);
 
 static int get_parameter_from_string(
 	char **str_ptr, const char *token, int param_type, void  *dst, int param_max_len);
-
-#endif 
 
 static int
 hex2num(char c)
@@ -1826,7 +1824,6 @@ hstr_2_buf(const char *txt, u8 *buf, int len)
 
 
 
-#ifdef SOFTAP
 static int
 init_ap_profile_from_string(char *param_str, struct ap_profile *ap_cfg)
 {
@@ -4322,10 +4319,6 @@ wl_iw_iscan_get_scan(
 #endif 
 
 	WL_TRACE(("%s return to WE %d bytes APs=%d\n", __FUNCTION__, dwrq->length, counter));
-
-	
-	if (!dwrq->length)
-		return -EAGAIN;
 
 	return 0;
 }

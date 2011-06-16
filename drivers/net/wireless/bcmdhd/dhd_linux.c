@@ -90,7 +90,7 @@ static histo_t vi_d1, vi_d2, vi_d3, vi_d4;
 #endif /* WLMEDIA_HTSF */
 
 #if defined(SOFTAP)
-extern bool	ap_cfg_running;
+extern bool ap_cfg_running;
 #endif
 
 /* enable HOSTIP cache update from the host side when an eth0:N is up */
@@ -171,6 +171,7 @@ int wifi_get_mac_addr(unsigned char *buf)
 }
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
 void *wifi_get_country_code(char *ccode)
 {
 	DHD_TRACE(("%s\n", __FUNCTION__));
@@ -181,6 +182,7 @@ void *wifi_get_country_code(char *ccode)
 	}
 	return NULL;
 }
+#endif
 
 static int wifi_probe(struct platform_device *pdev)
 {
@@ -437,6 +439,7 @@ char nvram_path[MOD_PARAM_PATHLEN];
 
 extern int wl_control_wl_start(struct net_device *dev);
 extern int net_os_send_hang_message(struct net_device *dev);
+extern int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 struct semaphore dhd_registration_sem;
 #define DHD_REGISTRATION_TIMEOUT  12000  /* msec : allowed time to finished dhd registration */
@@ -459,7 +462,7 @@ module_param(dhd_watchdog_ms, uint, 0);
 
 #if defined(DHD_DEBUG)
 /* Console poll interval */
-uint dhd_console_ms = 250;
+uint dhd_console_ms = 0;
 module_param(dhd_console_ms, uint, 0);
 #endif /* defined(DHD_DEBUG) */
 
@@ -1206,6 +1209,7 @@ _dhd_sysioc_thread(void *data)
 		}
 
 		dhd_os_start_lock(&dhd->pub);
+		DHD_OS_WAKE_LOCK(&dhd->pub);
 
 		for (i = 0; i < DHD_MAX_IFS; i++) {
 			if (dhd->iflist[i]) {
@@ -1251,7 +1255,6 @@ _dhd_sysioc_thread(void *data)
 
 		DHD_OS_WAKE_UNLOCK(&dhd->pub);
 		dhd_os_start_unlock(&dhd->pub);
-
 	}
 	DHD_TRACE(("%s: stopped\n", __FUNCTION__));
 	complete_and_exit(&tsk->completed, 0);
@@ -1762,10 +1765,9 @@ dhd_watchdog_thread(void *data)
 				break;
 			}
 
+			dhd_os_sdlock(&dhd->pub);
 			if (dhd->pub.dongle_reset == FALSE) {
 				DHD_TIMER(("%s:\n", __FUNCTION__));
-
-				DHD_OS_WAKE_LOCK(&dhd->pub);
 
 				/* Call the bus module watchdog */
 				dhd_bus_watchdog(&dhd->pub);
@@ -1776,11 +1778,12 @@ dhd_watchdog_thread(void *data)
 				if (dhd->wd_timer_valid)
 					mod_timer(&dhd->timer,
 					jiffies + dhd_watchdog_ms * HZ / 1000);
-				DHD_OS_WAKE_UNLOCK(&dhd->pub);
 			}
+			dhd_os_sdunlock(&dhd->pub);
+			DHD_OS_WAKE_UNLOCK(&dhd->pub);
 		} else {
 			break;
-	}
+		}
 
 	complete_and_exit(&tsk->completed, 0);
 }
@@ -1790,11 +1793,12 @@ static void dhd_watchdog(ulong data)
 {
 	dhd_info_t *dhd = (dhd_info_t *)data;
 
+	DHD_OS_WAKE_LOCK(&dhd->pub);
 	if (dhd->pub.dongle_reset) {
+		DHD_OS_WAKE_UNLOCK(&dhd->pub);
 		return;
 	}
 
-	DHD_OS_WAKE_LOCK(&dhd->pub);
 #ifdef DHDTHREAD
 	if (dhd->thr_wdt_ctl.thr_pid >= 0) {
 		up(&dhd->thr_wdt_ctl.sema);
@@ -1802,6 +1806,7 @@ static void dhd_watchdog(ulong data)
 	}
 #endif /* DHDTHREAD */
 
+	dhd_os_sdlock(&dhd->pub);
 	/* Call the bus module watchdog */
 	dhd_bus_watchdog(&dhd->pub);
 
@@ -1811,6 +1816,7 @@ static void dhd_watchdog(ulong data)
 	/* Reschedule the watchdog */
 	if (dhd->wd_timer_valid)
 		mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
+	dhd_os_sdunlock(&dhd->pub);
 	DHD_OS_WAKE_UNLOCK(&dhd->pub);
 }
 
@@ -1852,7 +1858,6 @@ dhd_dpc_thread(void *data)
 			if (dhd->pub.busstate != DHD_BUS_DOWN) {
 				if (dhd_bus_dpc(dhd->pub.bus)) {
 					up(&tsk->sema);
-					DHD_OS_WAKE_LOCK_TIMEOUT(&dhd->pub);
 				}
 				else {
 					DHD_OS_WAKE_UNLOCK(&dhd->pub);
@@ -2150,6 +2155,12 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 		return ret;
 	}
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2, 4, 2) */
+
+	if (cmd == SIOCDEVPRIVATE+1) {
+		ret = wl_android_priv_cmd(net, ifr, cmd);
+		DHD_OS_WAKE_UNLOCK(&dhd->pub);
+		return ret;
+	}
 
 	if (cmd != SIOCDEVPRIVATE) {
 		DHD_OS_WAKE_UNLOCK(&dhd->pub);
@@ -2695,6 +2706,8 @@ dhd_bus_start(dhd_pub_t *dhdp)
 
 	DHD_TRACE(("%s: \n", __FUNCTION__));
 
+	dhd_os_sdlock(dhdp);
+
 	/* try to download image and nvram to the dongle */
 	if  ((dhd->pub.busstate == DHD_BUS_DOWN) &&
 		(fw_path != NULL) && (fw_path[0] != '\0') &&
@@ -2704,24 +2717,23 @@ dhd_bus_start(dhd_pub_t *dhdp)
 		                                fw_path, nv_path))) {
 			DHD_ERROR(("%s: dhdsdio_probe_download failed. firmware = %s nvram = %s\n",
 			           __FUNCTION__, fw_path, nv_path));
+			dhd_os_sdunlock(dhdp);
 			return -1;
 		}
 	}
-	if (dhd->pub.busstate != DHD_BUS_LOAD)
+	if (dhd->pub.busstate != DHD_BUS_LOAD) {
+		dhd_os_sdunlock(dhdp);
 		return -ENETDOWN;
+	}
 
 	/* Start the watchdog timer */
 	dhd->pub.tickcnt = 0;
 	dhd_os_wd_timer(&dhd->pub, dhd_watchdog_ms);
 
 	/* Bring up the bus */
-#ifdef DHDTHREAD
-	if ((ret = dhd_bus_init(&dhd->pub, TRUE)) != 0) {
-#else
 	if ((ret = dhd_bus_init(&dhd->pub, FALSE)) != 0) {
-#endif
-
 		DHD_ERROR(("%s, dhd_bus_init failed %d\n", __FUNCTION__, ret));
+		dhd_os_sdunlock(dhdp);
 		return ret;
 	}
 #if defined(OOB_INTR_ONLY)
@@ -2732,6 +2744,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 		del_timer_sync(&dhd->timer);
 
 		DHD_ERROR(("%s Host failed to register for OOB\n", __FUNCTION__));
+		dhd_os_sdunlock(dhdp);
 		return -ENODEV;
 	}
 
@@ -2744,8 +2757,11 @@ dhd_bus_start(dhd_pub_t *dhdp)
 		del_timer_sync(&dhd->timer);
 		dhd->wd_timer_valid = FALSE;
 		DHD_ERROR(("%s failed bus is not ready\n", __FUNCTION__));
+		dhd_os_sdunlock(dhdp);
 		return -ENODEV;
 	}
+
+	dhd_os_sdunlock(dhdp);
 
 #ifdef EMBEDDED_PLATFORM
 	bcm_mkiovar("event_msgs", dhdp->eventmask, WL_EVENTING_MASK_LEN, iovbuf, sizeof(iovbuf));
@@ -3432,53 +3448,38 @@ void
 dhd_os_wd_timer(void *bus, uint wdtick)
 {
 	dhd_pub_t *pub = bus;
-	static uint save_dhd_watchdog_ms = 0;
 	dhd_info_t *dhd = (dhd_info_t *)pub->info;
+	unsigned long flags;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
+	flags = dhd_os_spin_lock(pub);
+
 	/* don't start the wd until fw is loaded */
-	if (pub->busstate == DHD_BUS_DOWN)
+	if (pub->busstate == DHD_BUS_DOWN) {
+		dhd_os_spin_unlock(pub, flags);
 		return;
+	}
 
 	/* Totally stop the timer */
 	if (!wdtick && dhd->wd_timer_valid == TRUE) {
+		dhd->wd_timer_valid = FALSE;
+		dhd_os_spin_unlock(pub, flags);
 #ifdef DHDTHREAD
 		del_timer_sync(&dhd->timer);
 #else
 		del_timer(&dhd->timer);
 #endif /* DHDTHREAD */
-		dhd->wd_timer_valid = FALSE;
-		save_dhd_watchdog_ms = wdtick;
 		return;
 	}
 
 	if (wdtick) {
-	dhd_watchdog_ms = (uint)wdtick;
-		if (save_dhd_watchdog_ms != dhd_watchdog_ms) {
-
-			if (dhd->wd_timer_valid == TRUE)
-				/* Stop timer and restart at new value */
-#ifdef DHDTHREAD
-				del_timer_sync(&dhd->timer);
-#else
-				del_timer(&dhd->timer);
-#endif /* DHDTHREAD */
-
-			/* Create timer again when watchdog period is
-			   dynamically changed or in the first instance
-			*/
-	dhd->timer.expires = jiffies + dhd_watchdog_ms * HZ / 1000;
-	add_timer(&dhd->timer);
-		} else {
-			/* Re arm the timer, at last watchdog period */
-			mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
-		}
-
-	dhd->wd_timer_valid = TRUE;
-
-		save_dhd_watchdog_ms = wdtick;
+		dhd_watchdog_ms = (uint)wdtick;
+		/* Re arm the timer, at last watchdog period */
+		mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
+		dhd->wd_timer_valid = TRUE;
 	}
+	dhd_os_spin_unlock(pub, flags);
 }
 
 void *
@@ -3820,19 +3821,12 @@ dhd_dev_reset(struct net_device *dev, uint8 flag)
 
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 
-	/* Turning off watchdog */
-	if (flag)
-		dhd_os_wd_timer(&dhd->pub, 0);
-
 	ret = dhd_bus_devreset(&dhd->pub, flag);
 	if (ret) {
 		DHD_ERROR(("%s: dhd_bus_devreset: %d\n", __FUNCTION__, ret));
 		return ret;
 	}
-	/* Turning on watchdog back */
-	if (!flag)
-		dhd_os_wd_timer(&dhd->pub, dhd_watchdog_ms);
-	DHD_ERROR(("%s:  WLAN OFF DONE\n", __FUNCTION__));
+	DHD_ERROR(("%s: WLAN %s DONE\n", __FUNCTION__, flag ? "OFF" : "ON"));
 
 	return ret;
 }
@@ -3987,8 +3981,6 @@ void dhd_os_start_unlock(dhd_pub_t *pub)
 #endif
 }
 
-
-#ifdef SOFTAP
 unsigned long dhd_os_spin_lock(dhd_pub_t *pub)
 {
 	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
@@ -4007,7 +3999,6 @@ void dhd_os_spin_unlock(dhd_pub_t *pub, unsigned long flags)
 	if (dhd)
 		spin_unlock_irqrestore(&dhd->dhd_lock, flags);
 }
-#endif /* SOFTAP */
 
 static int
 dhd_get_pend_8021x_cnt(dhd_info_t *dhd)

@@ -248,9 +248,13 @@ osl_detach(osl_t *osh)
 
 struct sk_buff *osl_alloc_skb(unsigned int len)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)
 	gfp_t flags = (in_atomic()) ? GFP_ATOMIC : GFP_KERNEL;
 
 	return __dev_alloc_skb(len, flags);
+#else
+	return dev_alloc_skb(len);
+#endif
 }
 
 #ifdef CTFPOOL

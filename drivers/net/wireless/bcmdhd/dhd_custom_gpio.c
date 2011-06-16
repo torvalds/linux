@@ -41,7 +41,7 @@
 extern  void bcm_wlan_power_off(int);
 extern  void bcm_wlan_power_on(int);
 #endif /* CUSTOMER_HW */
-#if  defined(CUSTOMER_HW2)
+#if defined(CUSTOMER_HW2)
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 int wifi_set_carddetect(int on);
 int wifi_set_power(int on, unsigned long msec);
@@ -54,8 +54,8 @@ int wifi_set_power(int on, unsigned long msec) { return -1; }
 int wifi_get_irq_number(unsigned long *irq_flags_ptr) { return -1; }
 int wifi_get_mac_addr(unsigned char *buf) { return -1; }
 void *wifi_get_country_code(char *ccode) { return NULL; }
-#endif
-#endif
+#endif /* CONFIG_WIFI_CONTROL_FUNC */
+#endif /* CUSTOMER_HW2 */
 
 #if defined(OOB_INTR_ONLY)
 
@@ -253,7 +253,7 @@ const struct cntry_locales_custom translate_custom_table[] = {
 */
 void get_customized_country_code(char *country_iso_code, wl_country_t *cspec)
 {
-#ifdef CUSTOMER_HW2
+#if defined(CUSTOMER_HW2) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
 	struct cntry_locales_custom *cloc_ptr;
 
 	if (!cspec)
@@ -290,5 +290,5 @@ void get_customized_country_code(char *country_iso_code, wl_country_t *cspec)
 	cspec->rev = translate_custom_table[0].custom_locale_rev;
 #endif /* EXMAPLE_TABLE */
 	return;
-#endif
+#endif /* defined(CUSTOMER_HW2) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39)) */
 }

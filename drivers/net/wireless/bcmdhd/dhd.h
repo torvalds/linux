@@ -268,12 +268,12 @@ inline static void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t * dhdp)
 #define DHD_OS_WAKE_LOCK_TIMEOUT(pub)		dhd_os_wake_lock_timeout(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(pub)	dhd_os_wake_lock_timeout_enable(pub)
 
-extern void dhd_os_start_lock(dhd_pub_t *pub);
-extern void dhd_os_start_unlock(dhd_pub_t *pub);
-
 extern unsigned long dhd_os_spin_lock(dhd_pub_t *pub);
 extern void dhd_os_spin_unlock(dhd_pub_t *pub, unsigned long flags);
 
+
+extern void dhd_os_start_lock(dhd_pub_t *pub);
+extern void dhd_os_start_unlock(dhd_pub_t *pub);
 
 typedef struct dhd_if_event {
 	uint8 ifidx;
@@ -363,6 +363,18 @@ extern int	   dhd_custom_get_mac_address(unsigned char *buf);
 extern void dhd_os_sdunlock_sndup_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_eventq(dhd_pub_t * pub);
 extern void dhd_os_sdunlock_eventq(dhd_pub_t * pub);
+extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
+extern int dhd_pno_clean(dhd_pub_t *dhd);
+extern int dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid,
+                       ushort  scan_fr, int pno_repeat, int pno_freq_expo_max);
+extern int dhd_pno_get_status(dhd_pub_t *dhd);
+extern int dhd_dev_pno_reset(struct net_device *dev);
+extern int dhd_dev_pno_set(struct net_device *dev, wlc_ssid_t* ssids_local,
+                           int nssid, ushort  scan_fr, int pno_repeat, int pno_freq_expo_max);
+extern int dhd_dev_pno_enable(struct net_device *dev,  int pfn_enabled);
+extern int dhd_dev_get_pno_status(struct net_device *dev);
+extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
+
 #ifdef DHD_DEBUG
 extern int write_to_file(dhd_pub_t *dhd, uint8 *buf, int size);
 #endif /* DHD_DEBUG */
