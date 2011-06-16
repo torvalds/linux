@@ -478,6 +478,7 @@ bitmap_ip_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 
 		if (cidr >= 32)
 			return -IPSET_ERR_INVALID_CIDR;
+		first_ip &= ip_set_hostmask(cidr);
 		last_ip = first_ip | ~ip_set_hostmask(cidr);
 	} else
 		return -IPSET_ERR_PROTOCOL;
