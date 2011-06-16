@@ -788,7 +788,10 @@ static int __init hv_acpi_init(void)
 		return -ENODEV;
 	}
 
-	return vmbus_bus_init(irq);
+	ret = vmbus_bus_init(irq);
+	if (ret)
+		acpi_bus_unregister_driver(&vmbus_acpi_driver);
+	return ret;
 }
 
 
