@@ -189,7 +189,7 @@ static int __devinit m41t93_probe(struct spi_device *spi)
 
 static int __devexit m41t93_remove(struct spi_device *spi)
 {
-	struct rtc_device *rtc = platform_get_drvdata(spi);
+	struct rtc_device *rtc = spi_get_drvdata(spi);
 
 	if (rtc)
 		rtc_device_unregister(rtc);

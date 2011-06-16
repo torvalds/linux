@@ -1141,6 +1141,13 @@ static void update_speakers(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int on;
 
+	/* Control HP pins/amps depending on master_mute state;
+	 * in general, HP pins/amps control should be enabled in all cases,
+	 * but currently set only for master_mute, just to be safe
+	 */
+	do_automute(codec, ARRAY_SIZE(spec->autocfg.hp_pins),
+		    spec->autocfg.hp_pins, spec->master_mute, true);
+
 	if (!spec->automute)
 		on = 0;
 	else
@@ -6201,11 +6208,6 @@ static const struct snd_kcontrol_new alc260_input_mixer[] = {
 /* update HP, line and mono out pins according to the master switch */
 static void alc260_hp_master_update(struct hda_codec *codec)
 {
-	struct alc_spec *spec = codec->spec;
-
-	/* change HP pins */
-	do_automute(codec, ARRAY_SIZE(spec->autocfg.hp_pins),
-		    spec->autocfg.hp_pins, spec->master_mute, true);
 	update_speakers(codec);
 }
 
@@ -11924,7 +11926,7 @@ static const struct hda_verb alc262_nec_verbs[] = {
  *  0x1b = port replicator headphone out
  */
 
-#define ALC_HP_EVENT	0x37
+#define ALC_HP_EVENT	ALC880_HP_EVENT
 
 static const struct hda_verb alc262_fujitsu_unsol_verbs[] = {
 	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
@@ -13860,6 +13862,7 @@ static const struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x015b, "Acer Aspire One",
 						ALC268_ACER_ASPIRE_ONE),
 	SND_PCI_QUIRK(0x1028, 0x0253, "Dell OEM", ALC268_DELL),
+	SND_PCI_QUIRK(0x1028, 0x02b0, "Dell Inspiron 910", ALC268_AUTO),
 	SND_PCI_QUIRK_MASK(0x1028, 0xfff0, 0x02b0,
 			"Dell Inspiron Mini9/Vostro A90", ALC268_DELL),
 	/* almost compatible with toshiba but with optional digital outs;

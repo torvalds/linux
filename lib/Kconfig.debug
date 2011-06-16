@@ -697,7 +697,7 @@ config DEBUG_BUGVERBOSE
 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL && EXPERT
 	depends on BUG
 	depends on ARM || AVR32 || M32R || M68K || SPARC32 || SPARC64 || \
-		   FRV || SUPERH || GENERIC_BUG || BLACKFIN || MN10300
+		   FRV || SUPERH || GENERIC_BUG || BLACKFIN || MN10300 || TILE
 	default y
 	help
 	  Say Y here to make BUG() panics output the file name and line number

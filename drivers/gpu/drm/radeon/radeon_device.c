@@ -82,6 +82,8 @@ static const char radeon_family_name[][16] = {
 	"CYPRESS",
 	"HEMLOCK",
 	"PALM",
+	"SUMO",
+	"SUMO2",
 	"BARTS",
 	"TURKS",
 	"CAICOS",
@@ -752,6 +754,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	dma_bits = rdev->need_dma32 ? 32 : 40;
 	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
 	if (r) {
+		rdev->need_dma32 = true;
 		printk(KERN_WARNING "radeon: No suitable DMA available.\n");
 	}
 

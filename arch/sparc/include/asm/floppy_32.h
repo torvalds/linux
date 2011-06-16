@@ -138,7 +138,7 @@ static unsigned char sun_82072_fd_inb(int port)
 		return sun_fdc->data_82072;
 	case 7: /* FD_DIR */
 		return sun_read_dir();
-	};
+	}
 	panic("sun_82072_fd_inb: How did I get here?");
 }
 
@@ -161,7 +161,7 @@ static void sun_82072_fd_outb(unsigned char value, int port)
 	case 4: /* FD_STATUS */
 		sun_fdc->status_82072 = value;
 		break;
-	};
+	}
 	return;
 }
 
@@ -186,7 +186,7 @@ static unsigned char sun_82077_fd_inb(int port)
 		return sun_fdc->data_82077;
 	case 7: /* FD_DIR */
 		return sun_read_dir();
-	};
+	}
 	panic("sun_82077_fd_inb: How did I get here?");
 }
 
@@ -212,7 +212,7 @@ static void sun_82077_fd_outb(unsigned char value, int port)
 	case 3: /* FD_TDR */
 		sun_fdc->tapectl_82077 = value;
 		break;
-	};
+	}
 	return;
 }
 
