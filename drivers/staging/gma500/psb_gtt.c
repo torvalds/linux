@@ -58,7 +58,7 @@ static inline uint32_t psb_gtt_mask_pte(uint32_t pfn, int type)
  */
 u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
 {
-        struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long offset;
 
 	offset = r->resource.start - dev_priv->gtt_mem->start;
@@ -126,7 +126,7 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 	WARN_ON(r->stolen);
 
 	gtt_slot = psb_gtt_entry(dev, r);
-	pte = psb_gtt_mask_pte(page_to_pfn(dev_priv->scratch_page), 0);;
+	pte = psb_gtt_mask_pte(page_to_pfn(dev_priv->scratch_page), 0);
 
 	for (i = 0; i < numpages; i++)
 		iowrite32(pte, gtt_slot++);
@@ -215,7 +215,7 @@ static void psb_gtt_detach_pages(struct gtt_range *gt)
  */
 int psb_gtt_pin(struct gtt_range *gt)
 {
-	int ret;
+	int ret = 0;
 	struct drm_device *dev = gt->gem.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
@@ -291,33 +291,33 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 	struct resource *r = dev_priv->gtt_mem;
 	int ret;
 	unsigned long start, end;
-	
+
 	if (backed) {
-	        /* The start of the GTT is the stolen pages */
-	        start = r->start;
-	        end = r->start + dev_priv->pg->stolen_size - 1;
+		/* The start of the GTT is the stolen pages */
+		start = r->start;
+		end = r->start + dev_priv->pg->stolen_size - 1;
         } else {
-                /* The rest we will use for GEM backed objects */
-                start = r->start + dev_priv->pg->stolen_size;
-                end = r->end;
+        	/* The rest we will use for GEM backed objects */
+        	start = r->start + dev_priv->pg->stolen_size;
+        	end = r->end;
         }
 
 	gt = kzalloc(sizeof(struct gtt_range), GFP_KERNEL);
 	if (gt == NULL)
 		return NULL;
-        gt->resource.name = name;
-        gt->stolen = backed;
-        gt->in_gart = backed;
-        /* Ensure this is set for non GEM objects */
-        gt->gem.dev = dev;
+	gt->resource.name = name;
+	gt->stolen = backed;
+	gt->in_gart = backed;
+	/* Ensure this is set for non GEM objects */
+	gt->gem.dev = dev;
 	kref_init(&gt->kref);
 
 	ret = allocate_resource(dev_priv->gtt_mem, &gt->resource,
 				len, start, end, PAGE_SIZE, NULL, NULL);
 	if (ret == 0) {
-	        gt->offset = gt->resource.start - r->start;
+		gt->offset = gt->resource.start - r->start;
 		return gt;
-        }
+	}
 	kfree(gt);
 	return NULL;
 }
@@ -421,7 +421,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 
 	dev_priv->pg = pg = psb_gtt_alloc(dev);
 	if (pg == NULL)
-	        return -ENOMEM;
+		return -ENOMEM;
 
 	pci_read_config_word(dev->pdev, PSB_GMCH_CTRL, &dev_priv->gmch_ctrl);
 	pci_write_config_word(dev->pdev, PSB_GMCH_CTRL,
