@@ -429,10 +429,8 @@ dummy_enable (struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	dum = ep_to_dummy (ep);
 	if (!dum->driver)
 		return -ESHUTDOWN;
-	if (dum->gadget.speed == USB_SPEED_SUPER)
-		dum_hcd = dum->ss_hcd;
-	else
-		dum_hcd = dum->hs_hcd;
+
+	dum_hcd = gadget_to_dummy_hcd(&dum->gadget);
 	if (!is_enabled(dum_hcd))
 		return -ESHUTDOWN;
 
@@ -631,10 +629,7 @@ dummy_queue (struct usb_ep *_ep, struct usb_request *_req,
 		return -EINVAL;
 
 	dum = ep_to_dummy (ep);
-	if (dum->gadget.speed == USB_SPEED_SUPER)
-		dum_hcd = dum->ss_hcd;
-	else
-		dum_hcd = dum->hs_hcd;
+	dum_hcd = gadget_to_dummy_hcd(&dum->gadget);
 	if (!dum->driver || !is_enabled(dum_hcd))
 		return -ESHUTDOWN;
 
