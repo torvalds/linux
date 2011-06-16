@@ -141,6 +141,7 @@ static inline void
 hash_netport4_data_next(struct ip_set_hash *h,
 			const struct hash_netport4_elem *d)
 {
+	h->next.ip = ntohl(d->ip);
 	h->next.port = ntohs(d->port);
 }
 
@@ -175,7 +176,7 @@ hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct ip_set_hash *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netport4_elem data = { .cidr = HOST_MASK };
-	u32 port, port_to;
+	u32 port, port_to, p = 0, ip = 0, ip_to, last;
 	u32 timeout = h->timeout;
 	bool with_ports = false;
 	int ret;
@@ -189,15 +190,15 @@ hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (tb[IPSET_ATTR_LINENO])
 		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
-	ret = ip_set_get_ipaddr4(tb[IPSET_ATTR_IP], &data.ip);
+	ret = ip_set_get_hostipaddr4(tb[IPSET_ATTR_IP], &ip);
 	if (ret)
 		return ret;
 
-	if (tb[IPSET_ATTR_CIDR])
+	if (tb[IPSET_ATTR_CIDR]) {
 		data.cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
-	if (!data.cidr)
-		return -IPSET_ERR_INVALID_CIDR;
-	data.ip &= ip_set_netmask(data.cidr);
+		if (!data.cidr)
+			return -IPSET_ERR_INVALID_CIDR; 
+	}
 
 	if (tb[IPSET_ATTR_PORT])
 		data.port = nla_get_be16(tb[IPSET_ATTR_PORT]);
@@ -222,26 +223,48 @@ hash_netport4_uadt(struct ip_set *set, struct nlattr *tb[],
 		timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 	}
 
-	if (adt == IPSET_TEST || !with_ports || !tb[IPSET_ATTR_PORT_TO]) {
+	with_ports = with_ports && tb[IPSET_ATTR_PORT_TO];
+	if (adt == IPSET_TEST || !(with_ports || tb[IPSET_ATTR_IP_TO])) {
+		data.ip = htonl(ip & ip_set_hostmask(data.cidr));
 		ret = adtfn(set, &data, timeout, flags);
 		return ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
-	port = ntohs(data.port);
-	port_to = ip_set_get_h16(tb[IPSET_ATTR_PORT_TO]);
-	if (port > port_to)
-		swap(port, port_to);
+	port = port_to = ntohs(data.port);
+	if (tb[IPSET_ATTR_PORT_TO]) {
+		port_to = ip_set_get_h16(tb[IPSET_ATTR_PORT_TO]);
+		if (port_to < port)
+			swap(port, port_to);
+	}
+	if (tb[IPSET_ATTR_IP_TO]) {
+		ret = ip_set_get_hostipaddr4(tb[IPSET_ATTR_IP_TO], &ip_to);
+		if (ret)
+			return ret;
+		if (ip_to < ip)
+			swap(ip, ip_to);
+		if (ip + UINT_MAX == ip_to)
+			return -IPSET_ERR_HASH_RANGE;
+	} else {
+		ip &= ip_set_hostmask(data.cidr);
+		ip_to = ip | ~ip_set_hostmask(data.cidr);
+	}
 
 	if (retried)
-		port = h->next.port;
-	for (; port <= port_to; port++) {
-		data.port = htons(port);
-		ret = adtfn(set, &data, timeout, flags);
+		ip = h->next.ip;
+	while (!after(ip, ip_to)) {
+		data.ip = htonl(ip);
+		last = ip_set_range_to_cidr(ip, ip_to, &data.cidr);
+		p = retried && ip == h->next.ip ? h->next.port : port;
+		for (; p <= port_to; p++) {
+			data.port = htons(p);
+			ret = adtfn(set, &data, timeout, flags);
 
-		if (ret && !ip_set_eexist(ret, flags))
-			return ret;
-		else
-			ret = 0;
+			if (ret && !ip_set_eexist(ret, flags))
+				return ret;
+			else
+				ret = 0;
+		}
+		ip = last + 1;
 	}
 	return ret;
 }
@@ -407,6 +430,8 @@ hash_netport6_uadt(struct ip_set *set, struct nlattr *tb[],
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_PORT_TO) ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_TIMEOUT)))
 		return -IPSET_ERR_PROTOCOL;
+	if (unlikely(tb[IPSET_ATTR_IP_TO]))
+		return -IPSET_ERR_HASH_RANGE_UNSUPPORTED;
 
 	if (tb[IPSET_ATTR_LINENO])
 		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
@@ -545,7 +570,8 @@ static struct ip_set_type hash_netport_type __read_mostly = {
 	.dimension	= IPSET_DIM_TWO,
 	.family		= AF_UNSPEC,
 	.revision_min	= 0,
-	.revision_max	= 1,	/* SCTP and UDPLITE support added */
+	/*		  1	   SCTP and UDPLITE support added */
+	.revision_max	= 2,	/* Range as input support for IPv4 added */
 	.create		= hash_netport_create,
 	.create_policy	= {
 		[IPSET_ATTR_HASHSIZE]	= { .type = NLA_U32 },
@@ -557,6 +583,7 @@ static struct ip_set_type hash_netport_type __read_mostly = {
 	},
 	.adt_policy	= {
 		[IPSET_ATTR_IP]		= { .type = NLA_NESTED },
+		[IPSET_ATTR_IP_TO]	= { .type = NLA_NESTED },
 		[IPSET_ATTR_PORT]	= { .type = NLA_U16 },
 		[IPSET_ATTR_PORT_TO]	= { .type = NLA_U16 },
 		[IPSET_ATTR_PROTO]	= { .type = NLA_U8 },

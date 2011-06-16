@@ -353,7 +353,7 @@ retry:
 	return 0;
 }
 
-static inline void
+static void
 type_pf_data_next(struct ip_set_hash *h, const struct type_pf_elem *d);
 
 /* Add an element to a hash and update the internal counters when succeeded,
