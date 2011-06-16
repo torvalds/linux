@@ -6411,6 +6411,39 @@ out:
 	return ret;
 }
 
+/*
+ * On gen7 we currently use the blit ring because (in early silicon at least)
+ * the render ring doesn't give us interrpts for page flip completion, which
+ * means clients will hang after the first flip is queued.  Fortunately the
+ * blit ring generates interrupts properly, so use it instead.
+ */
+static int intel_gen7_queue_flip(struct drm_device *dev,
+				 struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_ring_buffer *ring = &dev_priv->ring[BCS];
+	int ret;
+
+	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
+	if (ret)
+		goto out;
+
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		goto out;
+
+	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | (intel_crtc->plane << 19));
+	intel_ring_emit(ring, (fb->pitch | obj->tiling_mode));
+	intel_ring_emit(ring, (obj->gtt_offset));
+	intel_ring_emit(ring, (MI_NOOP));
+	intel_ring_advance(ring);
+out:
+	return ret;
+}
+
 static int intel_default_queue_flip(struct drm_device *dev,
 				    struct drm_crtc *crtc,
 				    struct drm_framebuffer *fb,
@@ -7757,6 +7790,9 @@ static void intel_init_display(struct drm_device *dev)
 
 	case 6:
 		dev_priv->display.queue_flip = intel_gen6_queue_flip;
+		break;
+	case 7:
+		dev_priv->display.queue_flip = intel_gen7_queue_flip;
 		break;
 	}
 }
