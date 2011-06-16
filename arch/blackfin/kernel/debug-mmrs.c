@@ -27,7 +27,7 @@
 #define PORT_MUX BFIN_PORT_MUX
 #endif
 
-#define _d(name, bits, addr, perms) debugfs_create_x##bits(name, perms, parent, (u##bits *)addr)
+#define _d(name, bits, addr, perms) debugfs_create_x##bits(name, perms, parent, (u##bits *)(addr))
 #define d(name, bits, addr)         _d(name, bits, addr, S_IRUSR|S_IWUSR)
 #define d_RO(name, bits, addr)      _d(name, bits, addr, S_IRUSR)
 #define d_WO(name, bits, addr)      _d(name, bits, addr, S_IWUSR)
