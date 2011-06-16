@@ -40,6 +40,7 @@
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
+#include <linux/pm_runtime.h>
 
 /*
  * This macro is used to define some register default values.
@@ -517,6 +518,7 @@ static void giveback(struct pl022 *pl022)
 	clk_disable(pl022->clk);
 	amba_pclk_disable(pl022->adev);
 	amba_vcore_disable(pl022->adev);
+	pm_runtime_put(&pl022->adev->dev);
 }
 
 /**
@@ -1542,6 +1544,7 @@ static void pump_messages(struct work_struct *work)
 	 * and core will be disabled when giveback() is called in each method
 	 * (poll/interrupt/DMA)
 	 */
+	pm_runtime_get_sync(&pl022->adev->dev);
 	amba_vcore_enable(pl022->adev);
 	amba_pclk_enable(pl022->adev);
 	clk_enable(pl022->clk);
@@ -2142,6 +2145,8 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 	printk(KERN_INFO "pl022: mapped registers from 0x%08x to %p\n",
 	       adev->res.start, pl022->virtbase);
+	pm_runtime_enable(dev);
+	pm_runtime_resume(dev);
 
 	pl022->clk = clk_get(&adev->dev, NULL);
 	if (IS_ERR(pl022->clk)) {
@@ -2203,6 +2208,7 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	destroy_queue(pl022);
 	pl022_dma_remove(pl022);
 	free_irq(adev->irq[0], pl022);
+	pm_runtime_disable(&adev->dev);
  err_no_irq:
 	clk_put(pl022->clk);
  err_no_clk:
