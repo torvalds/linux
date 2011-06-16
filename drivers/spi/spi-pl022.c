@@ -1678,17 +1678,57 @@ static int verify_controller_parameters(struct pl022 *pl022,
 			"Communication mode is configured incorrectly\n");
 		return -EINVAL;
 	}
-	if ((chip_info->rx_lev_trig < SSP_RX_1_OR_MORE_ELEM)
-	    || (chip_info->rx_lev_trig > SSP_RX_32_OR_MORE_ELEM)) {
+	switch (chip_info->rx_lev_trig) {
+	case SSP_RX_1_OR_MORE_ELEM:
+	case SSP_RX_4_OR_MORE_ELEM:
+	case SSP_RX_8_OR_MORE_ELEM:
+		/* These are always OK, all variants can handle this */
+		break;
+	case SSP_RX_16_OR_MORE_ELEM:
+		if (pl022->vendor->fifodepth < 16) {
+			dev_err(&pl022->adev->dev,
+			"RX FIFO Trigger Level is configured incorrectly\n");
+			return -EINVAL;
+		}
+		break;
+	case SSP_RX_32_OR_MORE_ELEM:
+		if (pl022->vendor->fifodepth < 32) {
+			dev_err(&pl022->adev->dev,
+			"RX FIFO Trigger Level is configured incorrectly\n");
+			return -EINVAL;
+		}
+		break;
+	default:
 		dev_err(&pl022->adev->dev,
 			"RX FIFO Trigger Level is configured incorrectly\n");
 		return -EINVAL;
+		break;
 	}
-	if ((chip_info->tx_lev_trig < SSP_TX_1_OR_MORE_EMPTY_LOC)
-	    || (chip_info->tx_lev_trig > SSP_TX_32_OR_MORE_EMPTY_LOC)) {
+	switch (chip_info->tx_lev_trig) {
+	case SSP_TX_1_OR_MORE_EMPTY_LOC:
+	case SSP_TX_4_OR_MORE_EMPTY_LOC:
+	case SSP_TX_8_OR_MORE_EMPTY_LOC:
+		/* These are always OK, all variants can handle this */
+		break;
+	case SSP_TX_16_OR_MORE_EMPTY_LOC:
+		if (pl022->vendor->fifodepth < 16) {
+			dev_err(&pl022->adev->dev,
+			"TX FIFO Trigger Level is configured incorrectly\n");
+			return -EINVAL;
+		}
+		break;
+	case SSP_TX_32_OR_MORE_EMPTY_LOC:
+		if (pl022->vendor->fifodepth < 32) {
+			dev_err(&pl022->adev->dev,
+			"TX FIFO Trigger Level is configured incorrectly\n");
+			return -EINVAL;
+		}
+		break;
+	default:
 		dev_err(&pl022->adev->dev,
 			"TX FIFO Trigger Level is configured incorrectly\n");
 		return -EINVAL;
+		break;
 	}
 	if (chip_info->iface == SSP_INTERFACE_NATIONAL_MICROWIRE) {
 		if ((chip_info->ctrl_len < SSP_BITS_4)
