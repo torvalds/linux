@@ -73,23 +73,23 @@ extern void kernel_restart_prepare(char *cmd);
 extern int dwc_vbus_status( void );
 extern int dwc_otg_pcd_check_vbus_detech( unsigned long pdata );
 
-#if defined(CONFIG_LOGO_A22_CLUT224)
-extern struct linux_logo logo_a22_charger01_clut224;
-extern struct linux_logo logo_a22_charger02_clut224;
-extern struct linux_logo logo_a22_charger03_clut224;
-extern struct linux_logo logo_a22_charger04_clut224;
-extern struct linux_logo logo_a22_charger05_clut224;
-extern struct linux_logo logo_a22_charger06_clut224;
-extern struct linux_logo logo_a22_charger07_clut224;
-extern struct linux_logo logo_a22_charger08_clut224;
+#if defined(CONFIG_LOGO_CHARGER_CLUT224)
+extern struct linux_logo logo_charger01_clut224;
+extern struct linux_logo logo_charger02_clut224;
+extern struct linux_logo logo_charger03_clut224;
+extern struct linux_logo logo_charger04_clut224;
+extern struct linux_logo logo_charger05_clut224;
+extern struct linux_logo logo_charger06_clut224;
+extern struct linux_logo logo_charger07_clut224;
+extern struct linux_logo logo_charger08_clut224;
 #endif
 
 extern struct fb_info *g_fb0_inf;
 
 static struct linux_logo* g_chargerlogo[8]= {
-#if defined(CONFIG_LOGO_A22_CLUT224)
-	&logo_a22_charger01_clut224,&logo_a22_charger02_clut224,&logo_a22_charger03_clut224,&logo_a22_charger04_clut224,
-		&logo_a22_charger05_clut224,&logo_a22_charger06_clut224,&logo_a22_charger07_clut224,&logo_a22_charger08_clut224
+#if defined(CONFIG_LOGO_CHARGER_CLUT224)
+	&logo_charger01_clut224,&logo_charger02_clut224,&logo_charger03_clut224,&logo_charger04_clut224,
+		&logo_charger05_clut224,&logo_charger06_clut224,&logo_charger07_clut224,&logo_charger08_clut224
 #endif
 };
 
