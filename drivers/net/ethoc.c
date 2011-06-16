@@ -11,6 +11,7 @@
  * Written by Thierry Reding <thierry.reding@avionic-design.de>
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
 #include <linux/interrupt.h>

@@ -22,6 +22,7 @@
  *               Marko Isomaki
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/init.h>

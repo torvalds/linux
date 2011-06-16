@@ -35,6 +35,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <asm/io.h>
 
 #define	DRV_NAME	"ks8851_mll"
 

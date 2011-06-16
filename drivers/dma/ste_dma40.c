@@ -6,6 +6,7 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/dmaengine.h>

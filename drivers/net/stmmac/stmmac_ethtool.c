@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
+#include <asm/io.h>
 
 #include "stmmac.h"
 #include "dwmac_dma.h"

@@ -42,6 +42,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/hardirq.h>
 #include <linux/if.h>
 #include <linux/io.h>

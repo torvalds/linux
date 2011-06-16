@@ -16,6 +16,7 @@
  *		  Vincent Sanders <vince@simtec.co.uk>
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/netdevice.h>
