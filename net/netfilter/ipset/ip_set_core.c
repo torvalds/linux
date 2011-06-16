@@ -21,6 +21,7 @@
 #include <net/netlink.h>
 
 #include <linux/netfilter.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/ipset/ip_set.h>
 
@@ -328,6 +329,7 @@ __ip_set_put(ip_set_id_t index)
 
 int
 ip_set_test(ip_set_id_t index, const struct sk_buff *skb,
+	    const struct xt_action_param *par,
 	    const struct ip_set_adt_opt *opt)
 {
 	struct ip_set *set = ip_set_list[index];
@@ -341,14 +343,14 @@ ip_set_test(ip_set_id_t index, const struct sk_buff *skb,
 		return 0;
 
 	read_lock_bh(&set->lock);
-	ret = set->variant->kadt(set, skb, IPSET_TEST, opt);
+	ret = set->variant->kadt(set, skb, par, IPSET_TEST, opt);
 	read_unlock_bh(&set->lock);
 
 	if (ret == -EAGAIN) {
 		/* Type requests element to be completed */
 		pr_debug("element must be competed, ADD is triggered\n");
 		write_lock_bh(&set->lock);
-		set->variant->kadt(set, skb, IPSET_ADD, opt);
+		set->variant->kadt(set, skb, par, IPSET_ADD, opt);
 		write_unlock_bh(&set->lock);
 		ret = 1;
 	}
@@ -360,6 +362,7 @@ EXPORT_SYMBOL_GPL(ip_set_test);
 
 int
 ip_set_add(ip_set_id_t index, const struct sk_buff *skb,
+	   const struct xt_action_param *par,
 	   const struct ip_set_adt_opt *opt)
 {
 	struct ip_set *set = ip_set_list[index];
@@ -373,7 +376,7 @@ ip_set_add(ip_set_id_t index, const struct sk_buff *skb,
 		return 0;
 
 	write_lock_bh(&set->lock);
-	ret = set->variant->kadt(set, skb, IPSET_ADD, opt);
+	ret = set->variant->kadt(set, skb, par, IPSET_ADD, opt);
 	write_unlock_bh(&set->lock);
 
 	return ret;
@@ -382,6 +385,7 @@ EXPORT_SYMBOL_GPL(ip_set_add);
 
 int
 ip_set_del(ip_set_id_t index, const struct sk_buff *skb,
+	   const struct xt_action_param *par,
 	   const struct ip_set_adt_opt *opt)
 {
 	struct ip_set *set = ip_set_list[index];
@@ -395,7 +399,7 @@ ip_set_del(ip_set_id_t index, const struct sk_buff *skb,
 		return 0;
 
 	write_lock_bh(&set->lock);
-	ret = set->variant->kadt(set, skb, IPSET_DEL, opt);
+	ret = set->variant->kadt(set, skb, par, IPSET_DEL, opt);
 	write_unlock_bh(&set->lock);
 
 	return ret;

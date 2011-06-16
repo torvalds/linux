@@ -170,6 +170,7 @@ enum ipset_adt {
 #include <linux/ipv6.h>
 #include <linux/netlink.h>
 #include <linux/netfilter.h>
+#include <linux/netfilter/x_tables.h>
 #include <linux/vmalloc.h>
 #include <net/netlink.h>
 
@@ -238,6 +239,7 @@ struct ip_set_type_variant {
 	 *			zero for no match/success to add/delete
 	 *			positive for matching element */
 	int (*kadt)(struct ip_set *set, const struct sk_buff * skb,
+		    const struct xt_action_param *par,
 		    enum ipset_adt adt, const struct ip_set_adt_opt *opt);
 
 	/* Userspace: test/add/del entries
@@ -332,10 +334,13 @@ extern void ip_set_nfnl_put(ip_set_id_t index);
 /* API for iptables set match, and SET target */
 
 extern int ip_set_add(ip_set_id_t id, const struct sk_buff *skb,
+		      const struct xt_action_param *par,
 		      const struct ip_set_adt_opt *opt);
 extern int ip_set_del(ip_set_id_t id, const struct sk_buff *skb,
+		      const struct xt_action_param *par,
 		      const struct ip_set_adt_opt *opt);
 extern int ip_set_test(ip_set_id_t id, const struct sk_buff *skb,
+		       const struct xt_action_param *par,
 		       const struct ip_set_adt_opt *opt);
 
 /* Utility functions */

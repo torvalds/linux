@@ -134,6 +134,7 @@ hash_net4_data_next(struct ip_set_hash *h,
 
 static int
 hash_net4_kadt(struct ip_set *set, const struct sk_buff *skb,
+	       const struct xt_action_param *par,
 	       enum ipset_adt adt, const struct ip_set_adt_opt *opt)
 {
 	const struct ip_set_hash *h = set->data;
@@ -330,6 +331,7 @@ hash_net6_data_next(struct ip_set_hash *h,
 
 static int
 hash_net6_kadt(struct ip_set *set, const struct sk_buff *skb,
+	       const struct xt_action_param *par,
 	       enum ipset_adt adt, const struct ip_set_adt_opt *opt)
 {
 	const struct ip_set_hash *h = set->data;

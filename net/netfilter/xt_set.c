@@ -29,9 +29,10 @@ MODULE_ALIAS("ip6t_SET");
 
 static inline int
 match_set(ip_set_id_t index, const struct sk_buff *skb,
+	  const struct xt_action_param *par,
 	  const struct ip_set_adt_opt *opt, int inv)
 {
-	if (ip_set_test(index, skb, opt))
+	if (ip_set_test(index, skb, par, opt))
 		inv = !inv;
 	return inv;
 }
@@ -54,7 +55,7 @@ set_match_v0(const struct sk_buff *skb, struct xt_action_param *par)
 	ADT_OPT(opt, par->family, info->match_set.u.compat.dim,
 		info->match_set.u.compat.flags, 0, UINT_MAX);
 
-	return match_set(info->match_set.index, skb, &opt,
+	return match_set(info->match_set.index, skb, par, &opt,
 			 info->match_set.u.compat.flags & IPSET_INV_MATCH);
 }
 
@@ -118,9 +119,9 @@ set_target_v0(struct sk_buff *skb, const struct xt_action_param *par)
 		info->del_set.u.compat.flags, 0, UINT_MAX);
 
 	if (info->add_set.index != IPSET_INVALID_ID)
-		ip_set_add(info->add_set.index, skb, &add_opt);
+		ip_set_add(info->add_set.index, skb, par, &add_opt);
 	if (info->del_set.index != IPSET_INVALID_ID)
-		ip_set_del(info->del_set.index, skb, &del_opt);
+		ip_set_del(info->del_set.index, skb, par, &del_opt);
 
 	return XT_CONTINUE;
 }
@@ -188,7 +189,7 @@ set_match_v1(const struct sk_buff *skb, struct xt_action_param *par)
 	ADT_OPT(opt, par->family, info->match_set.dim,
 		info->match_set.flags, 0, UINT_MAX);
 
-	return match_set(info->match_set.index, skb, &opt,
+	return match_set(info->match_set.index, skb, par, &opt,
 			 info->match_set.flags & IPSET_INV_MATCH);
 }
 
@@ -233,9 +234,9 @@ set_target_v1(struct sk_buff *skb, const struct xt_action_param *par)
 		info->del_set.flags, 0, UINT_MAX);
 
 	if (info->add_set.index != IPSET_INVALID_ID)
-		ip_set_add(info->add_set.index, skb, &add_opt);
+		ip_set_add(info->add_set.index, skb, par, &add_opt);
 	if (info->del_set.index != IPSET_INVALID_ID)
-		ip_set_del(info->del_set.index, skb, &del_opt);
+		ip_set_del(info->del_set.index, skb, par, &del_opt);
 
 	return XT_CONTINUE;
 }
@@ -302,9 +303,9 @@ set_target_v2(struct sk_buff *skb, const struct xt_action_param *par)
 		info->del_set.flags, 0, UINT_MAX);
 
 	if (info->add_set.index != IPSET_INVALID_ID)
-		ip_set_add(info->add_set.index, skb, &add_opt);
+		ip_set_add(info->add_set.index, skb, par, &add_opt);
 	if (info->del_set.index != IPSET_INVALID_ID)
-		ip_set_del(info->del_set.index, skb, &del_opt);
+		ip_set_del(info->del_set.index, skb, par, &del_opt);
 
 	return XT_CONTINUE;
 }
