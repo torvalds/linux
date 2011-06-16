@@ -626,8 +626,14 @@ static int radeon_vga_get_modes(struct drm_connector *connector)
 static int radeon_vga_mode_valid(struct drm_connector *connector,
 				  struct drm_display_mode *mode)
 {
+	struct drm_device *dev = connector->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
 	/* XXX check mode bandwidth */
-	/* XXX verify against max DAC output frequency */
+
+	if ((mode->clock / 10) > rdev->clock.max_pixel_clock)
+		return MODE_CLOCK_HIGH;
+
 	return MODE_OK;
 }
 
@@ -1015,6 +1021,11 @@ static int radeon_dvi_mode_valid(struct drm_connector *connector,
 		} else
 			return MODE_CLOCK_HIGH;
 	}
+
+	/* check against the max pixel clock */
+	if ((mode->clock / 10) > rdev->clock.max_pixel_clock)
+		return MODE_CLOCK_HIGH;
+
 	return MODE_OK;
 }
 
