@@ -244,7 +244,6 @@ struct scic_sds_request {
 		} ssp;
 
 		struct {
-			struct smp_req cmd;
 			struct smp_resp rsp;
 		} smp;
 

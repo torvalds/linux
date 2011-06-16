@@ -190,8 +190,6 @@ struct smp_req_phycntl {
 	u8 _r_h[3];			/* bytes 37-39 */
 }  __packed;
 
-#define SMP_REQ_VENDOR_SPECIFIC_MAX_LEN 1016
-
 /*
  * struct smp_req - This structure simply unionizes the existing request
  *    structures into a common request type.
@@ -203,14 +201,7 @@ struct smp_req {
 	u8 func;		/* byte 1 */
 	u8 alloc_resp_len;	/* byte 2 */
 	u8 req_len;		/* byte 3 */
-
-	union { /* bytes 4-N */
-		u32 smp_req_gen;
-		struct smp_req_phy_id phy_id;
-		struct smp_req_phycntl phy_cntl;
-		struct smp_req_conf_rtinfo conf_rt_info;
-		u8 vendor[SMP_REQ_VENDOR_SPECIFIC_MAX_LEN];
-	};
+	u8 req_data[0];
 }  __packed;
 
 #define SMP_RESP_HDR_SZ	4

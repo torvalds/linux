@@ -2943,6 +2943,20 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 			dma_unmap_sg(&isci_host->pdev->dev, task->scatter,
 				     request->num_sg_entries, task->data_dir);
 		break;
+	case SAS_PROTOCOL_SMP: {
+		struct scatterlist *sg = &task->smp_task.smp_req;
+		struct smp_req *smp_req;
+		void *kaddr;
+
+		dma_unmap_sg(&isci_host->pdev->dev, sg, 1, DMA_TO_DEVICE);
+
+		/* need to swab it back in case the command buffer is re-used */
+		kaddr = kmap_atomic(sg_page(sg), KM_IRQ0);
+		smp_req = kaddr + sg->offset;
+		sci_swab32_cpy(smp_req, smp_req, sg->length / sizeof(u32));
+		kunmap_atomic(kaddr, KM_IRQ0);
+		break;
+	}
 	default:
 		break;
 	}
@@ -3160,7 +3174,7 @@ scic_io_request_construct(struct scic_sds_controller *scic,
 	else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))
 		memset(&sci_req->stp.cmd, 0, sizeof(sci_req->stp.cmd));
 	else if (dev_is_expander(dev))
-		memset(&sci_req->smp.cmd, 0, sizeof(sci_req->smp.cmd));
+		/* pass */;
 	else
 		return SCI_FAILURE_UNSUPPORTED_PROTOCOL;
 
@@ -3236,30 +3250,54 @@ static enum sci_status isci_request_stp_request_construct(
 	return status;
 }
 
-/*
- * This function will fill in the SCU Task Context for a SMP request. The
- *    following important settings are utilized: -# task_type ==
- *    SCU_TASK_TYPE_SMP.  This simply indicates that a normal request type
- *    (i.e. non-raw frame) is being utilized to perform task management. -#
- *    control_frame == 1.  This ensures that the proper endianess is set so
- *    that the bytes are transmitted in the right order for a smp request frame.
- * @sci_req: This parameter specifies the smp request object being
- *    constructed.
- *
- */
-static void
-scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
-				       ssize_t req_len)
+static enum sci_status
+scic_io_request_construct_smp(struct device *dev,
+			      struct scic_sds_request *sci_req,
+			      struct sas_task *task)
 {
-	dma_addr_t dma_addr;
+	struct scatterlist *sg = &task->smp_task.smp_req;
 	struct scic_sds_remote_device *sci_dev;
-	struct scic_sds_port *sci_port;
 	struct scu_task_context *task_context;
-	ssize_t word_cnt = sizeof(struct smp_req) / sizeof(u32);
+	struct scic_sds_port *sci_port;
+	struct smp_req *smp_req;
+	void *kaddr;
+	u8 req_len;
+	u32 cmd;
+
+	kaddr = kmap_atomic(sg_page(sg), KM_IRQ0);
+	smp_req = kaddr + sg->offset;
+	/*
+	 * Look at the SMP requests' header fields; for certain SAS 1.x SMP
+	 * functions under SAS 2.0, a zero request length really indicates
+	 * a non-zero default length.
+	 */
+	if (smp_req->req_len == 0) {
+		switch (smp_req->func) {
+		case SMP_DISCOVER:
+		case SMP_REPORT_PHY_ERR_LOG:
+		case SMP_REPORT_PHY_SATA:
+		case SMP_REPORT_ROUTE_INFO:
+			smp_req->req_len = 2;
+			break;
+		case SMP_CONF_ROUTE_INFO:
+		case SMP_PHY_CONTROL:
+		case SMP_PHY_TEST_FUNCTION:
+			smp_req->req_len = 9;
+			break;
+			/* Default - zero is a valid default for 2.0. */
+		}
+	}
+	req_len = smp_req->req_len;
+	sci_swab32_cpy(smp_req, smp_req, sg->length / sizeof(u32));
+	cmd = *(u32 *) smp_req;
+	kunmap_atomic(kaddr, KM_IRQ0);
+
+	if (!dma_map_sg(dev, sg, 1, DMA_TO_DEVICE))
+		return SCI_FAILURE;
+
+	sci_req->protocol = SCIC_SMP_PROTOCOL;
 
 	/* byte swap the smp request. */
-	sci_swab32_cpy(&sci_req->smp.cmd, &sci_req->smp.cmd,
-		       word_cnt);
 
 	task_context = scic_sds_request_get_task_context(sci_req);
 
@@ -3307,7 +3345,7 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 	 * 18h ~ 30h, protocol specific
 	 * since commandIU has been build by framework at this point, we just
 	 * copy the frist DWord from command IU to this location. */
-	memcpy(&task_context->type.smp, &sci_req->smp.cmd, sizeof(u32));
+	memcpy(&task_context->type.smp, &cmd, sizeof(u32));
 
 	/*
 	 * 40h
@@ -3347,48 +3385,12 @@ scu_smp_request_construct_task_context(struct scic_sds_request *sci_req,
 	 * Copy the physical address for the command buffer to the SCU Task
 	 * Context command buffer should not contain command header.
 	 */
-	dma_addr = scic_io_request_get_dma_addr(sci_req,
-						((char *) &sci_req->smp.cmd) +
-						sizeof(u32));
-
-	task_context->command_iu_upper = upper_32_bits(dma_addr);
-	task_context->command_iu_lower = lower_32_bits(dma_addr);
+	task_context->command_iu_upper = upper_32_bits(sg_dma_address(sg));
+	task_context->command_iu_lower = lower_32_bits(sg_dma_address(sg) + sizeof(u32));
 
 	/* SMP response comes as UF, so no need to set response IU address. */
 	task_context->response_iu_upper = 0;
 	task_context->response_iu_lower = 0;
-}
-
-static enum sci_status
-scic_io_request_construct_smp(struct scic_sds_request *sci_req)
-{
-	struct smp_req *smp_req = &sci_req->smp.cmd;
-
-	sci_req->protocol = SCIC_SMP_PROTOCOL;
-
-	/*
-	 * Look at the SMP requests' header fields; for certain SAS 1.x SMP
-	 * functions under SAS 2.0, a zero request length really indicates
-	 * a non-zero default length.
-	 */
-	if (smp_req->req_len == 0) {
-		switch (smp_req->func) {
-		case SMP_DISCOVER:
-		case SMP_REPORT_PHY_ERR_LOG:
-		case SMP_REPORT_PHY_SATA:
-		case SMP_REPORT_ROUTE_INFO:
-			smp_req->req_len = 2;
-			break;
-		case SMP_CONF_ROUTE_INFO:
-		case SMP_PHY_CONTROL:
-		case SMP_PHY_TEST_FUNCTION:
-			smp_req->req_len = 9;
-			break;
-			/* Default - zero is a valid default for 2.0. */
-		}
-	}
-
-	scu_smp_request_construct_task_context(sci_req, smp_req->req_len);
 
 	sci_change_state(&sci_req->sm, SCI_REQ_CONSTRUCTED);
 
@@ -3404,24 +3406,12 @@ scic_io_request_construct_smp(struct scic_sds_request *sci_req)
  */
 static enum sci_status isci_smp_request_build(struct isci_request *ireq)
 {
-	enum sci_status status = SCI_FAILURE;
 	struct sas_task *task = isci_request_access_task(ireq);
+	struct device *dev = &ireq->isci_host->pdev->dev;
 	struct scic_sds_request *sci_req = &ireq->sci;
+	enum sci_status status = SCI_FAILURE;
 
-	dev_dbg(&ireq->isci_host->pdev->dev,
-		"%s: request = %p\n", __func__, ireq);
-
-	dev_dbg(&ireq->isci_host->pdev->dev,
-		"%s: smp_req len = %d\n",
-		__func__,
-		task->smp_task.smp_req.length);
-
-	/* copy the smp_command to the address; */
-	sg_copy_to_buffer(&task->smp_task.smp_req, 1,
-			  &sci_req->smp.cmd,
-			  sizeof(struct smp_req));
-
-	status = scic_io_request_construct_smp(sci_req);
+	status = scic_io_request_construct_smp(dev, sci_req, task);
 	if (status != SCI_SUCCESS)
 		dev_warn(&ireq->isci_host->pdev->dev,
 			 "%s: failed with status = %d\n",
