@@ -143,7 +143,7 @@ static int wm831x_gp_ldo_set_voltage(struct regulator_dev *rdev,
 {
 	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
 	int reg = ldo->base + WM831X_LDO_ON_CONTROL;
-	printk("%s base=%x,%d,%d\n", __FUNCTION__,ldo->base,min_uV,max_uV);
+	//printk("%s base=%x,%d,%d\n", __FUNCTION__,ldo->base,min_uV,max_uV);
 	return wm831x_gp_ldo_set_voltage_int(rdev, reg, min_uV, max_uV);
 }
 
@@ -166,7 +166,7 @@ static int wm831x_gp_ldo_get_voltage(struct regulator_dev *rdev)
 	ret = wm831x_reg_read(wm831x, reg);
 	if (ret < 0)
 		return ret;
-	printk("%s base=%x,ret=%x\n", __FUNCTION__,ldo->base,ret);
+	//printk("%s base=%x,ret=%x\n", __FUNCTION__,ldo->base,ret);
 	ret &= WM831X_LDO1_ON_VSEL_MASK;
 
 	return wm831x_gp_ldo_list_voltage(rdev, ret);

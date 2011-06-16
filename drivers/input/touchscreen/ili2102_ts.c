@@ -810,7 +810,7 @@ static void ili2102_ts_resume_work_func(struct work_struct *work)
 	printk("%s:request irq=%d failed,ret=%d\n",__FUNCTION__,ts->client->irq,ret);
 
 	PREPARE_DELAYED_WORK(&ts->work, ili2102_ts_work_func);
-	printk("%s,irq=%d\n",__FUNCTION__,ts->client->irq);
+	DBG("%s,irq=%d\n",__FUNCTION__,ts->client->irq);
 }
 
 
