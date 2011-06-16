@@ -240,9 +240,7 @@ static void __sramfunc rk29_sram_suspend(void)
 
 	printch('6');
 	vol=rk29_suspend_voltage_set(1000000);
-	pm_spi_gpio_suspend();
 
-	
 	printch('7');
 	clksel0 = cru_readl(CRU_CLKSEL0_CON);
 	/* set arm clk 24MHz/32 = 750KHz */
@@ -257,10 +255,7 @@ static void __sramfunc rk29_sram_suspend(void)
 	cru_writel(clksel0, CRU_CLKSEL0_CON);
 	printch('7');
 	
-	pm_spi_gpio_resume();
 	rk29_suspend_voltage_resume(vol);
-
-
 	printch('6');
 
 	ddr_resume();
@@ -357,8 +352,8 @@ static int rk29_pm_enter(suspend_state_t state)
 #endif
 
 	printch('0');
+	flush_tlb_all();
 	interface_ctr_reg_pread();
-
 
 	/* disable clock */
 	clkgate[0] = cru_readl(CRU_CLKGATE0_CON);
@@ -431,7 +426,6 @@ static int rk29_pm_enter(suspend_state_t state)
 	cru_writel(clksel0 & ~0x7FC000, CRU_CLKSEL0_CON);
 
 	printch('4');
-	
 	rk29_suspend();
 	printch('4');
 	
