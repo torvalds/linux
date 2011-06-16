@@ -1079,6 +1079,9 @@ static int transition_frequency_fidvid(struct powernow_k8_data *data,
 	}
 
 	res = transition_fid_vid(data, fid, vid);
+	if (res)
+		return res;
+
 	freqs.new = find_khz_freq_from_fid(data->currfid);
 
 	for_each_cpu(i, data->available_cores) {
