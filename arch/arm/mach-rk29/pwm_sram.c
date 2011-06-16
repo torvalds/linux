@@ -3,7 +3,6 @@
 #include <mach/board.h>
 #include <mach/sram.h>
 #include <asm/io.h>
-#include <asm/tlbflush.h>
 #include <mach/cru.h>
 #include <linux/regulator/rk29-pwm-regulator.h>
 
@@ -14,7 +13,6 @@
 
 void interface_ctr_reg_pread(void)
 {
-	flush_tlb_all();
 	readl(RK29_PWM_BASE);
 	readl(RK29_GRF_BASE);
 }
@@ -46,7 +44,7 @@ static void __sramfunc rk29_pwm_set_core_voltage(unsigned int uV)
 	pwm_write_reg(PWM_REG_CNTR, 0);
 	pwm_write_reg(PWM_REG_CTRL, PWM_DIV|PWM_ENABLE|PWM_TimeEN);
 
-	LOOP(5 * 1000 * LOOPS_PER_USEC); /* delay 5ms */
+	LOOP(10 * 1000 * LOOPS_PER_USEC); /* delay 10ms */
 
 	cru_writel(gate1, CRU_CLKGATE1_CON);
 }
@@ -61,24 +59,5 @@ unsigned int __sramfunc rk29_suspend_voltage_set(unsigned int vol)
 void __sramfunc rk29_suspend_voltage_resume(unsigned int vol)
 {
 	rk29_pwm_set_core_voltage(0);
-	return 0;
 }
-
-/*
-void interface_ctr_reg_pread(void)
-{
-}
-unsigned int __sramfunc rk29_suspend_voltage_set(unsigned int vol)
-{
-}
-void __sramfunc rk29_suspend_voltage_resume(unsigned int vol)
-{
-}
-*/
-
-
-
-
-
-
 
