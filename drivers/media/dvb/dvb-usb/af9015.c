@@ -306,12 +306,12 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 			ret = af9015_ctrl_msg(d, &req);
 			i += 2;
 		} else if (msg[i].flags & I2C_M_RD) {
-			ret = -EINVAL;
 			if (msg[i].addr ==
-				af9015_af9013_config[0].demod_address)
+				af9015_af9013_config[0].demod_address) {
+				ret = -EINVAL;
 				goto error;
-			else
-				req.cmd = READ_I2C;
+			}
+			req.cmd = READ_I2C;
 			req.i2c_addr = msg[i].addr;
 			req.addr = addr;
 			req.mbox = mbox;
