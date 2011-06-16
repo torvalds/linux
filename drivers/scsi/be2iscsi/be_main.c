@@ -3963,11 +3963,10 @@ static int beiscsi_iotask(struct iscsi_task *task, struct scatterlist *sg,
 	}
 	memcpy(&io_task->cmd_bhs->iscsi_data_pdu.
 	       dw[offsetof(struct amap_pdu_data_out, lun) / 32],
-	       io_task->cmd_bhs->iscsi_hdr.lun, sizeof(struct scsi_lun));
+	       &io_task->cmd_bhs->iscsi_hdr.lun, sizeof(struct scsi_lun));
 
 	AMAP_SET_BITS(struct amap_iscsi_wrb, lun, pwrb,
-		      cpu_to_be16((unsigned short)io_task->cmd_bhs->iscsi_hdr.
-				  lun[0]));
+		      cpu_to_be16(*(unsigned short *)&io_task->cmd_bhs->iscsi_hdr.lun));
 	AMAP_SET_BITS(struct amap_iscsi_wrb, r2t_exp_dtl, pwrb, xferlen);
 	AMAP_SET_BITS(struct amap_iscsi_wrb, wrb_idx, pwrb,
 		      io_task->pwrb_handle->wrb_index);
