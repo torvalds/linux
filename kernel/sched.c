@@ -2544,11 +2544,11 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 
 	/* Look for allowed, online CPU in same node. */
 	for_each_cpu_and(dest_cpu, nodemask, cpu_active_mask)
-		if (cpumask_test_cpu(dest_cpu, &p->cpus_allowed))
+		if (cpumask_test_cpu(dest_cpu, tsk_cpus_allowed(p)))
 			return dest_cpu;
 
 	/* Any allowed, online CPU? */
-	dest_cpu = cpumask_any_and(&p->cpus_allowed, cpu_active_mask);
+	dest_cpu = cpumask_any_and(tsk_cpus_allowed(p), cpu_active_mask);
 	if (dest_cpu < nr_cpu_ids)
 		return dest_cpu;
 
@@ -2585,7 +2585,7 @@ int select_task_rq(struct task_struct *p, int sd_flags, int wake_flags)
 	 * [ this allows ->select_task() to simply return task_cpu(p) and
 	 *   not worry about this generic constraint ]
 	 */
-	if (unlikely(!cpumask_test_cpu(cpu, &p->cpus_allowed) ||
+	if (unlikely(!cpumask_test_cpu(cpu, tsk_cpus_allowed(p)) ||
 		     !cpu_online(cpu)))
 		cpu = select_fallback_rq(task_cpu(p), p);
 
@@ -6262,7 +6262,7 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 	if (task_cpu(p) != src_cpu)
 		goto done;
 	/* Affinity changed (again). */
-	if (!cpumask_test_cpu(dest_cpu, &p->cpus_allowed))
+	if (!cpumask_test_cpu(dest_cpu, tsk_cpus_allowed(p)))
 		goto fail;
 
 	/*

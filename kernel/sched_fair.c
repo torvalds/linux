@@ -2183,7 +2183,7 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p,
 
 		/* Skip over this group if it has no CPUs allowed */
 		if (!cpumask_intersects(sched_group_cpus(group),
-					&p->cpus_allowed))
+					tsk_cpus_allowed(p)))
 			continue;
 
 		local_group = cpumask_test_cpu(this_cpu,
@@ -2229,7 +2229,7 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 	int i;
 
 	/* Traverse only the allowed CPUs */
-	for_each_cpu_and(i, sched_group_cpus(group), &p->cpus_allowed) {
+	for_each_cpu_and(i, sched_group_cpus(group), tsk_cpus_allowed(p)) {
 		load = weighted_cpuload(i);
 
 		if (load < min_load || (load == min_load && i == this_cpu)) {
@@ -2273,7 +2273,7 @@ static int select_idle_sibling(struct task_struct *p, int target)
 		if (!(sd->flags & SD_SHARE_PKG_RESOURCES))
 			break;
 
-		for_each_cpu_and(i, sched_domain_span(sd), &p->cpus_allowed) {
+		for_each_cpu_and(i, sched_domain_span(sd), tsk_cpus_allowed(p)) {
 			if (idle_cpu(i)) {
 				target = i;
 				break;
@@ -2316,7 +2316,7 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 	int sync = wake_flags & WF_SYNC;
 
 	if (sd_flag & SD_BALANCE_WAKE) {
-		if (cpumask_test_cpu(cpu, &p->cpus_allowed))
+		if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
 			want_affine = 1;
 		new_cpu = prev_cpu;
 	}
@@ -2697,7 +2697,7 @@ int can_migrate_task(struct task_struct *p, struct rq *rq, int this_cpu,
 	 * 2) cannot be migrated to this CPU due to cpus_allowed, or
 	 * 3) are cache-hot on their current CPU.
 	 */
-	if (!cpumask_test_cpu(this_cpu, &p->cpus_allowed)) {
+	if (!cpumask_test_cpu(this_cpu, tsk_cpus_allowed(p))) {
 		schedstat_inc(p, se.statistics.nr_failed_migrations_affine);
 		return 0;
 	}
@@ -4087,7 +4087,7 @@ redo:
 			 * moved to this_cpu
 			 */
 			if (!cpumask_test_cpu(this_cpu,
-					      &busiest->curr->cpus_allowed)) {
+					tsk_cpus_allowed(busiest->curr))) {
 				raw_spin_unlock_irqrestore(&busiest->lock,
 							    flags);
 				all_pinned = 1;
