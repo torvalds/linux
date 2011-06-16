@@ -944,31 +944,21 @@ static int dummy_udc_start(struct usb_gadget_driver *driver,
 		return retval;
 	}
 
-	/* khubd will enumerate this in a while */
-	spin_lock_irq (&dum->lock);
-	dum->pullup = 1;
-	if (dum->gadget.speed == USB_SPEED_SUPER) {
+	if (dum->gadget.speed == USB_SPEED_SUPER)
 		dum->gadget.is_otg =
 			(dummy_hcd_to_hcd(dum->ss_hcd)->self.otg_port != 0);
-		set_link_state(dum->ss_hcd);
-	} else {
+	else
 		dum->gadget.is_otg =
 			(dummy_hcd_to_hcd(dum->hs_hcd)->self.otg_port != 0);
-		set_link_state(dum->hs_hcd);
-	}
 
-	spin_unlock_irq (&dum->lock);
-
-	usb_hcd_poll_rh_status((dum->gadget.speed == USB_SPEED_SUPER ?
-				dummy_hcd_to_hcd(dum->ss_hcd) :
-				dummy_hcd_to_hcd(dum->hs_hcd)));
+	/* khubd will enumerate this in a while */
+	dummy_pullup(&dum->gadget, 1);
 	return 0;
 }
 
 static int dummy_udc_stop(struct usb_gadget_driver *driver)
 {
 	struct dummy	*dum = &the_controller;
-	unsigned long	flags;
 
 	if (!dum)
 		return -ENODEV;
@@ -978,23 +968,13 @@ static int dummy_udc_stop(struct usb_gadget_driver *driver)
 	dev_dbg (udc_dev(dum), "unregister gadget driver '%s'\n",
 			driver->driver.name);
 
-	spin_lock_irqsave (&dum->lock, flags);
-	dum->pullup = 0;
-	set_link_state((dum->gadget.speed == USB_SPEED_SUPER ?
-			dum->ss_hcd : dum->hs_hcd));
-	spin_unlock_irqrestore (&dum->lock, flags);
+	dummy_pullup(&dum->gadget, 0);
 
 	driver->unbind (&dum->gadget);
 	dum->gadget.dev.driver = NULL;
 	dum->driver = NULL;
-	spin_lock_irqsave (&dum->lock, flags);
-	dum->pullup = 0;
-	set_link_state((dum->gadget.speed == USB_SPEED_SUPER ?
-			dum->ss_hcd : dum->hs_hcd));
-	spin_unlock_irqrestore (&dum->lock, flags);
-	usb_hcd_poll_rh_status((dum->gadget.speed == USB_SPEED_SUPER ?
-				dummy_hcd_to_hcd(dum->ss_hcd) :
-				dummy_hcd_to_hcd(dum->hs_hcd)));
+
+	dummy_pullup(&dum->gadget, 0);
 	return 0;
 }
 
