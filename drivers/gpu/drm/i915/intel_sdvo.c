@@ -1232,8 +1232,7 @@ static bool
 intel_sdvo_multifunc_encoder(struct intel_sdvo *intel_sdvo)
 {
 	/* Is there more than one type of output? */
-	int caps = intel_sdvo->caps.output_flags & 0xf;
-	return caps & -caps;
+	return hweight16(intel_sdvo->caps.output_flags) > 1;
 }
 
 static struct edid *
