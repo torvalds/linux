@@ -421,15 +421,10 @@ static int lance_tx (struct net_device *dev)
 
 static irqreturn_t lance_interrupt (int irq, void *dev_id)
 {
-	struct net_device *dev;
-	struct lance_private *lp;
-	volatile struct lance_regs *ll;
+	struct net_device *dev = dev_id;
+	struct lance_private *lp = netdev_priv(dev);
+	volatile struct lance_regs *ll = lp->ll;
 	int csr0;
-
-	dev = (struct net_device *) dev_id;
-
-	lp = netdev_priv(dev);
-	ll = lp->ll;
 
 	ll->rap = LE_CSR0;		/* LANCE Controller Status */
 	csr0 = ll->rdp;

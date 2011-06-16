@@ -408,7 +408,7 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		}
 		status = be_cmd_get_phy_info(adapter, &phy_cmd);
 		if (!status) {
-			resp = (struct be_cmd_resp_get_phy_info *) phy_cmd.va;
+			resp = phy_cmd.va;
 			intf_type = le16_to_cpu(resp->interface_type);
 
 			switch (intf_type) {
@@ -712,7 +712,7 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 	status = be_cmd_get_seeprom_data(adapter, &eeprom_cmd);
 
 	if (!status) {
-		resp = (struct be_cmd_resp_seeprom_read *) eeprom_cmd.va;
+		resp = eeprom_cmd.va;
 		memcpy(data, resp->seeprom_data + eeprom->offset, eeprom->len);
 	}
 	dma_free_coherent(&adapter->pdev->dev, eeprom_cmd.size, eeprom_cmd.va,

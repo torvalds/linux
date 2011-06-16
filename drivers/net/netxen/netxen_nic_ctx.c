@@ -163,7 +163,7 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 				rq_size, &hostrq_phys_addr);
 	if (addr == NULL)
 		return -ENOMEM;
-	prq = (nx_hostrq_rx_ctx_t *)addr;
+	prq = addr;
 
 	addr = pci_alloc_consistent(adapter->pdev,
 			rsp_size, &cardrsp_phys_addr);
@@ -171,7 +171,7 @@ nx_fw_cmd_create_rx_ctx(struct netxen_adapter *adapter)
 		err = -ENOMEM;
 		goto out_free_rq;
 	}
-	prsp = (nx_cardrsp_rx_ctx_t *)addr;
+	prsp = addr;
 
 	prq->host_rsp_dma_addr = cpu_to_le64(cardrsp_phys_addr);
 
@@ -318,10 +318,10 @@ nx_fw_cmd_create_tx_ctx(struct netxen_adapter *adapter)
 	}
 
 	memset(rq_addr, 0, rq_size);
-	prq = (nx_hostrq_tx_ctx_t *)rq_addr;
+	prq = rq_addr;
 
 	memset(rsp_addr, 0, rsp_size);
-	prsp = (nx_cardrsp_tx_ctx_t *)rsp_addr;
+	prsp = rsp_addr;
 
 	prq->host_rsp_dma_addr = cpu_to_le64(rsp_phys_addr);
 
@@ -629,7 +629,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	}
 
 	memset(addr, 0, sizeof(struct netxen_ring_ctx));
-	recv_ctx->hwctx = (struct netxen_ring_ctx *)addr;
+	recv_ctx->hwctx = addr;
 	recv_ctx->hwctx->ctx_id = cpu_to_le32(port);
 	recv_ctx->hwctx->cmd_consumer_offset =
 		cpu_to_le64(recv_ctx->phys_addr +
@@ -648,7 +648,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 		goto err_out_free;
 	}
 
-	tx_ring->desc_head = (struct cmd_desc_type0 *)addr;
+	tx_ring->desc_head = addr;
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
@@ -662,7 +662,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 			err = -ENOMEM;
 			goto err_out_free;
 		}
-		rds_ring->desc_head = (struct rcv_desc *)addr;
+		rds_ring->desc_head = addr;
 
 		if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
 			rds_ring->crb_rcv_producer =
@@ -683,7 +683,7 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 			err = -ENOMEM;
 			goto err_out_free;
 		}
-		sds_ring->desc_head = (struct status_desc *)addr;
+		sds_ring->desc_head = addr;
 
 		if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 			sds_ring->crb_sts_consumer =

@@ -326,15 +326,18 @@ static void load_csrs(struct lance_private *lp)
  */
 static void cp_to_buf(const int type, void *to, const void *from, int len)
 {
-	unsigned short *tp, *fp, clen;
-	unsigned char *rtp, *rfp;
+	unsigned short *tp;
+	const unsigned short *fp;
+	unsigned short clen;
+	unsigned char *rtp;
+	const unsigned char *rfp;
 
 	if (type == PMAD_LANCE) {
 		memcpy(to, from, len);
 	} else if (type == PMAX_LANCE) {
 		clen = len >> 1;
-		tp = (unsigned short *) to;
-		fp = (unsigned short *) from;
+		tp = to;
+		fp = from;
 
 		while (clen--) {
 			*tp++ = *fp++;
@@ -342,8 +345,8 @@ static void cp_to_buf(const int type, void *to, const void *from, int len)
 		}
 
 		clen = len & 1;
-		rtp = (unsigned char *) tp;
-		rfp = (unsigned char *) fp;
+		rtp = tp;
+		rfp = fp;
 		while (clen--) {
 			*rtp++ = *rfp++;
 		}
@@ -352,8 +355,8 @@ static void cp_to_buf(const int type, void *to, const void *from, int len)
 		 * copy 16 Byte chunks
 		 */
 		clen = len >> 4;
-		tp = (unsigned short *) to;
-		fp = (unsigned short *) from;
+		tp = to;
+		fp = from;
 		while (clen--) {
 			*tp++ = *fp++;
 			*tp++ = *fp++;
@@ -382,15 +385,18 @@ static void cp_to_buf(const int type, void *to, const void *from, int len)
 
 static void cp_from_buf(const int type, void *to, const void *from, int len)
 {
-	unsigned short *tp, *fp, clen;
-	unsigned char *rtp, *rfp;
+	unsigned short *tp;
+	const unsigned short *fp;
+	unsigned short clen;
+	unsigned char *rtp;
+	const unsigned char *rfp;
 
 	if (type == PMAD_LANCE) {
 		memcpy(to, from, len);
 	} else if (type == PMAX_LANCE) {
 		clen = len >> 1;
-		tp = (unsigned short *) to;
-		fp = (unsigned short *) from;
+		tp = to;
+		fp = from;
 		while (clen--) {
 			*tp++ = *fp++;
 			fp++;
@@ -398,8 +404,8 @@ static void cp_from_buf(const int type, void *to, const void *from, int len)
 
 		clen = len & 1;
 
-		rtp = (unsigned char *) tp;
-		rfp = (unsigned char *) fp;
+		rtp = tp;
+		rfp = fp;
 
 		while (clen--) {
 			*rtp++ = *rfp++;
@@ -410,8 +416,8 @@ static void cp_from_buf(const int type, void *to, const void *from, int len)
 		 * copy 16 Byte chunks
 		 */
 		clen = len >> 4;
-		tp = (unsigned short *) to;
-		fp = (unsigned short *) from;
+		tp = to;
+		fp = from;
 		while (clen--) {
 			*tp++ = *fp++;
 			*tp++ = *fp++;

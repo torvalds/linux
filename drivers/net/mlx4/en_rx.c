@@ -859,7 +859,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 				priv->rx_ring[0].cqn, &context);
 
 	ptr = ((void *) &context) + 0x3c;
-	rss_context = (struct mlx4_en_rss_context *) ptr;
+	rss_context = ptr;
 	rss_context->base_qpn = cpu_to_be32(ilog2(priv->rx_ring_num) << 24 |
 					    (rss_map->base_qpn));
 	rss_context->default_qpn = cpu_to_be32(rss_map->base_qpn);

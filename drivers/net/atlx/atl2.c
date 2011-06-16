@@ -311,8 +311,7 @@ static s32 atl2_setup_ring_resources(struct atl2_adapter *adapter)
 	adapter->txd_dma = adapter->ring_dma ;
 	offset = (adapter->txd_dma & 0x7) ? (8 - (adapter->txd_dma & 0x7)) : 0;
 	adapter->txd_dma += offset;
-	adapter->txd_ring = (struct tx_pkt_header *) (adapter->ring_vir_addr +
-		offset);
+	adapter->txd_ring = adapter->ring_vir_addr + offset;
 
 	/* Init TXS Ring */
 	adapter->txs_dma = adapter->txd_dma + adapter->txd_ring_size;

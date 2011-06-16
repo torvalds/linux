@@ -800,8 +800,7 @@ static int atl1e_setup_ring_resources(struct atl1e_adapter *adapter)
 	/* Init TPD Ring */
 	tx_ring->dma = roundup(adapter->ring_dma, 8);
 	offset = tx_ring->dma - adapter->ring_dma;
-	tx_ring->desc = (struct atl1e_tpd_desc *)
-			(adapter->ring_vir_addr + offset);
+	tx_ring->desc = adapter->ring_vir_addr + offset;
 	size = sizeof(struct atl1e_tx_buffer) * (tx_ring->count);
 	tx_ring->tx_buffer = kzalloc(size, GFP_KERNEL);
 	if (tx_ring->tx_buffer == NULL) {
@@ -827,7 +826,7 @@ static int atl1e_setup_ring_resources(struct atl1e_adapter *adapter)
 
 	/* Init CMB dma address */
 	tx_ring->cmb_dma = adapter->ring_dma + offset;
-	tx_ring->cmb     = (u32 *)(adapter->ring_vir_addr + offset);
+	tx_ring->cmb = adapter->ring_vir_addr + offset;
 	offset += sizeof(u32);
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {

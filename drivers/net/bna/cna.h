@@ -74,7 +74,7 @@ typedef struct mac { u8 mac[MAC_ADDRLEN]; } mac_t;
 		bfa_q_next(_q) = bfa_q_next(*((struct list_head **) _qe)); \
 		bfa_q_qe_init(*((struct list_head **) _qe));		\
 	} else {							\
-		*((struct list_head **) (_qe)) = (struct list_head *) NULL; \
+		*((struct list_head **)(_qe)) = NULL;			\
 	}								\
 }
 

@@ -267,7 +267,7 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
 		tx_queue = priv->tx_queue[i];
-		tx_queue->tx_bd_base = (struct txbd8 *) vaddr;
+		tx_queue->tx_bd_base = vaddr;
 		tx_queue->tx_bd_dma_base = addr;
 		tx_queue->dev = ndev;
 		/* enet DMA only understands physical addresses */
@@ -278,7 +278,7 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 	/* Start the rx descriptor ring where the tx ring leaves off */
 	for (i = 0; i < priv->num_rx_queues; i++) {
 		rx_queue = priv->rx_queue[i];
-		rx_queue->rx_bd_base = (struct rxbd8 *) vaddr;
+		rx_queue->rx_bd_base = vaddr;
 		rx_queue->rx_bd_dma_base = addr;
 		rx_queue->dev = ndev;
 		addr    += sizeof (struct rxbd8) * rx_queue->rx_ring_size;

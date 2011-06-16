@@ -252,11 +252,11 @@ static void xemaclite_aligned_write(void *src_ptr, u32 *dest_ptr,
 	u16 *from_u16_ptr, *to_u16_ptr;
 
 	to_u32_ptr = dest_ptr;
-	from_u16_ptr = (u16 *) src_ptr;
+	from_u16_ptr = src_ptr;
 	align_buffer = 0;
 
 	for (; length > 3; length -= 4) {
-		to_u16_ptr = (u16 *) ((void *) &align_buffer);
+		to_u16_ptr = (u16 *)&align_buffer;
 		*to_u16_ptr++ = *from_u16_ptr++;
 		*to_u16_ptr++ = *from_u16_ptr++;
 

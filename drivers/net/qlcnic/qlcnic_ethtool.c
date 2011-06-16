@@ -996,7 +996,7 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 	/* Copy template header first */
 	copy_sz = fw_dump->tmpl_hdr->size;
 	hdr_ptr = (u32 *) fw_dump->tmpl_hdr;
-	data = (u32 *) buffer;
+	data = buffer;
 	for (i = 0; i < copy_sz/sizeof(u32); i++)
 		*data++ = cpu_to_le32(*hdr_ptr++);
 

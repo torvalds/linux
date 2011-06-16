@@ -502,7 +502,7 @@ static int add_del_hash_entry(struct pxa168_eth_private *pep,
 	 * Pick the appropriate table, start scanning for free/reusable
 	 * entries at the index obtained by hashing the specified MAC address
 	 */
-	start = (struct addr_table_entry *)(pep->htpr);
+	start = pep->htpr;
 	entry = start + hash_function(mac_addr);
 	for (i = 0; i < HOP_NUMBER; i++) {
 		if (!(le32_to_cpu(entry->lo) & HASH_ENTRY_VALID)) {

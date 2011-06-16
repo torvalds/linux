@@ -582,7 +582,7 @@ __vxge_hw_device_toc_get(void __iomem *bar0)
 		goto exit;
 
 	val64 =	readq(&legacy_reg->toc_first_pointer);
-	toc = (struct vxge_hw_toc_reg __iomem *)(bar0+val64);
+	toc = bar0 + val64;
 exit:
 	return toc;
 }
@@ -600,7 +600,7 @@ __vxge_hw_device_reg_addr_get(struct __vxge_hw_device *hldev)
 	u32 i;
 	enum vxge_hw_status status = VXGE_HW_OK;
 
-	hldev->legacy_reg = (struct vxge_hw_legacy_reg __iomem *)hldev->bar0;
+	hldev->legacy_reg = hldev->bar0;
 
 	hldev->toc_reg = __vxge_hw_device_toc_get(hldev->bar0);
 	if (hldev->toc_reg  == NULL) {
@@ -609,39 +609,31 @@ __vxge_hw_device_reg_addr_get(struct __vxge_hw_device *hldev)
 	}
 
 	val64 = readq(&hldev->toc_reg->toc_common_pointer);
-	hldev->common_reg =
-	(struct vxge_hw_common_reg __iomem *)(hldev->bar0 + val64);
+	hldev->common_reg = hldev->bar0 + val64;
 
 	val64 = readq(&hldev->toc_reg->toc_mrpcim_pointer);
-	hldev->mrpcim_reg =
-		(struct vxge_hw_mrpcim_reg __iomem *)(hldev->bar0 + val64);
+	hldev->mrpcim_reg = hldev->bar0 + val64;
 
 	for (i = 0; i < VXGE_HW_TITAN_SRPCIM_REG_SPACES; i++) {
 		val64 = readq(&hldev->toc_reg->toc_srpcim_pointer[i]);
-		hldev->srpcim_reg[i] =
-			(struct vxge_hw_srpcim_reg __iomem *)
-				(hldev->bar0 + val64);
+		hldev->srpcim_reg[i] = hldev->bar0 + val64;
 	}
 
 	for (i = 0; i < VXGE_HW_TITAN_VPMGMT_REG_SPACES; i++) {
 		val64 = readq(&hldev->toc_reg->toc_vpmgmt_pointer[i]);
-		hldev->vpmgmt_reg[i] =
-		(struct vxge_hw_vpmgmt_reg __iomem *)(hldev->bar0 + val64);
+		hldev->vpmgmt_reg[i] = hldev->bar0 + val64;
 	}
 
 	for (i = 0; i < VXGE_HW_TITAN_VPATH_REG_SPACES; i++) {
 		val64 = readq(&hldev->toc_reg->toc_vpath_pointer[i]);
-		hldev->vpath_reg[i] =
-			(struct vxge_hw_vpath_reg __iomem *)
-				(hldev->bar0 + val64);
+		hldev->vpath_reg[i] = hldev->bar0 + val64;
 	}
 
 	val64 = readq(&hldev->toc_reg->toc_kdfc);
 
 	switch (VXGE_HW_TOC_GET_KDFC_INITIAL_BIR(val64)) {
 	case 0:
-		hldev->kdfc = (u8 __iomem *)(hldev->bar0 +
-			VXGE_HW_TOC_GET_KDFC_INITIAL_OFFSET(val64));
+		hldev->kdfc = hldev->bar0 + VXGE_HW_TOC_GET_KDFC_INITIAL_OFFSET(val64) ;
 		break;
 	default:
 		break;
@@ -1024,7 +1016,7 @@ vxge_hw_device_hw_info_get(void __iomem *bar0,
 	}
 
 	val64 = readq(&toc->toc_common_pointer);
-	common_reg = (struct vxge_hw_common_reg __iomem *)(bar0 + val64);
+	common_reg = bar0 + val64;
 
 	status = __vxge_hw_device_vpath_reset_in_prog_check(
 		(u64 __iomem *)&common_reg->vpath_rst_in_prog);
@@ -1044,8 +1036,7 @@ vxge_hw_device_hw_info_get(void __iomem *bar0,
 
 		val64 = readq(&toc->toc_vpmgmt_pointer[i]);
 
-		vpmgmt_reg = (struct vxge_hw_vpmgmt_reg __iomem *)
-				(bar0 + val64);
+		vpmgmt_reg = bar0 + val64;
 
 		hw_info->func_id = __vxge_hw_vpath_func_id_get(vpmgmt_reg);
 		if (__vxge_hw_device_access_rights_get(hw_info->host_type,
@@ -1054,8 +1045,7 @@ vxge_hw_device_hw_info_get(void __iomem *bar0,
 
 			val64 = readq(&toc->toc_mrpcim_pointer);
 
-			mrpcim_reg = (struct vxge_hw_mrpcim_reg __iomem *)
-					(bar0 + val64);
+			mrpcim_reg = bar0 + val64;
 
 			writeq(0, &mrpcim_reg->xgmac_gen_fw_memo_mask);
 			wmb();
@@ -1064,8 +1054,7 @@ vxge_hw_device_hw_info_get(void __iomem *bar0,
 		val64 = readq(&toc->toc_vpath_pointer[i]);
 
 		spin_lock_init(&vpath.lock);
-		vpath.vp_reg = (struct vxge_hw_vpath_reg __iomem *)
-			       (bar0 + val64);
+		vpath.vp_reg = bar0 + val64;
 		vpath.vp_open = VXGE_HW_VP_NOT_OPEN;
 
 		status = __vxge_hw_vpath_pci_func_mode_get(&vpath, hw_info);
@@ -1088,8 +1077,7 @@ vxge_hw_device_hw_info_get(void __iomem *bar0,
 			continue;
 
 		val64 = readq(&toc->toc_vpath_pointer[i]);
-		vpath.vp_reg = (struct vxge_hw_vpath_reg __iomem *)
-			       (bar0 + val64);
+		vpath.vp_reg = bar0 + val64;
 		vpath.vp_open = VXGE_HW_VP_NOT_OPEN;
 
 		status =  __vxge_hw_vpath_addr_get(&vpath,
@@ -2140,8 +2128,7 @@ __vxge_hw_ring_mempool_item_alloc(struct vxge_hw_mempool *mempoolh,
 					memblock_index, item,
 					&memblock_item_idx);
 
-		rxdp = (struct vxge_hw_ring_rxd_1 *)
-				ring->channel.reserve_arr[reserve_index];
+		rxdp = ring->channel.reserve_arr[reserve_index];
 
 		uld_priv = ((u8 *)rxdblock_priv + ring->rxd_priv_size * i);
 
@@ -4880,8 +4867,7 @@ vxge_hw_vpath_open(struct __vxge_hw_device *hldev,
 		goto vpath_open_exit8;
 	}
 
-	vpath->hw_stats = (struct vxge_hw_vpath_stats_hw_info *)vpath->
-			stats_block->memblock;
+	vpath->hw_stats = vpath->stats_block->memblock;
 	memset(vpath->hw_stats, 0,
 		sizeof(struct vxge_hw_vpath_stats_hw_info));
 

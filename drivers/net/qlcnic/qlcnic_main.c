@@ -1861,7 +1861,7 @@ qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
 		return;
 
 	adapter->fhash.fmax = QLCNIC_LB_MAX_FILTERS;
-	adapter->fhash.fhead = (struct hlist_head *)head;
+	adapter->fhash.fhead = head;
 
 	for (i = 0; i < adapter->fhash.fmax; i++)
 		INIT_HLIST_HEAD(&adapter->fhash.fhead[i]);

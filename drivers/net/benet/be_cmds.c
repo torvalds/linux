@@ -2334,8 +2334,7 @@ int be_cmd_get_cntl_attributes(struct be_adapter *adapter)
 
 	status = be_mbox_notify_wait(adapter);
 	if (!status) {
-		attribs = (struct mgmt_controller_attrib *)( attribs_cmd.va +
-					sizeof(struct be_cmd_resp_hdr));
+		attribs = attribs_cmd.va + sizeof(struct be_cmd_resp_hdr);
 		adapter->hba_port_num = attribs->hba_attribs.phy_port;
 	}
 

@@ -841,7 +841,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 			tmp_p_addr = ring->rx_blocks[j].block_dma_addr;
 			tmp_p_addr_next = ring->rx_blocks[next].block_dma_addr;
 
-			pre_rxd_blk = (struct RxD_block *)tmp_v_addr;
+			pre_rxd_blk = tmp_v_addr;
 			pre_rxd_blk->reserved_2_pNext_RxD_block =
 				(unsigned long)tmp_v_addr_next;
 			pre_rxd_blk->pNext_RxD_Blk_physical =
@@ -918,7 +918,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 	mac_control->stats_mem_sz = size;
 
 	tmp_v_addr = mac_control->stats_mem;
-	mac_control->stats_info = (struct stat_block *)tmp_v_addr;
+	mac_control->stats_info = tmp_v_addr;
 	memset(tmp_v_addr, 0, size);
 	DBG_PRINT(INIT_DBG, "%s: Ring Mem PHY: 0x%llx\n",
 		dev_name(&nic->pdev->dev), (unsigned long long)tmp_p_addr);
@@ -2439,7 +2439,7 @@ static void free_tx_buffers(struct s2io_nic *nic)
 
 		spin_lock_irqsave(&fifo->tx_lock, flags);
 		for (j = 0; j < tx_cfg->fifo_len; j++) {
-			txdp = (struct TxD *)fifo->list_info[j].list_virt_addr;
+			txdp = fifo->list_info[j].list_virt_addr;
 			skb = s2io_txdl_getskb(&mac_control->fifos[i], txdp, j);
 			if (skb) {
 				swstats->mem_freed += skb->truesize;
@@ -3075,8 +3075,7 @@ static void tx_intr_handler(struct fifo_info *fifo_data)
 
 	get_info = fifo_data->tx_curr_get_info;
 	memcpy(&put_info, &fifo_data->tx_curr_put_info, sizeof(put_info));
-	txdlp = (struct TxD *)
-		fifo_data->list_info[get_info.offset].list_virt_addr;
+	txdlp = fifo_data->list_info[get_info.offset].list_virt_addr;
 	while ((!(txdlp->Control_1 & TXD_LIST_OWN_XENA)) &&
 	       (get_info.offset != put_info.offset) &&
 	       (txdlp->Host_Control)) {
@@ -3129,8 +3128,7 @@ static void tx_intr_handler(struct fifo_info *fifo_data)
 		get_info.offset++;
 		if (get_info.offset == get_info.fifo_len + 1)
 			get_info.offset = 0;
-		txdlp = (struct TxD *)
-			fifo_data->list_info[get_info.offset].list_virt_addr;
+		txdlp = fifo_data->list_info[get_info.offset].list_virt_addr;
 		fifo_data->tx_curr_get_info.offset = get_info.offset;
 	}
 
@@ -4163,7 +4161,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	put_off = (u16)fifo->tx_curr_put_info.offset;
 	get_off = (u16)fifo->tx_curr_get_info.offset;
-	txdp = (struct TxD *)fifo->list_info[put_off].list_virt_addr;
+	txdp = fifo->list_info[put_off].list_virt_addr;
 
 	queue_len = fifo->tx_curr_put_info.fifo_len + 1;
 	/* Avoid "put" pointer going beyond "get" pointer */
@@ -7972,9 +7970,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	/* Initializing the BAR1 address as the start of the FIFO pointer. */
 	for (j = 0; j < MAX_TX_FIFOS; j++) {
-		mac_control->tx_FIFO_start[j] =
-			(struct TxFIFO_element __iomem *)
-			(sp->bar1 + (j * 0x00020000));
+		mac_control->tx_FIFO_start[j] = sp->bar1 + (j * 0x00020000);
 	}
 
 	/*  Driver entry points */

@@ -1673,8 +1673,7 @@ int qlcnic_dump_fw(struct qlcnic_adapter *adapter)
 	tmpl_hdr->sys_info[1] = adapter->fw_version;
 
 	for (i = 0; i < no_entries; i++) {
-		entry = (struct qlcnic_dump_entry *) ((void *) tmpl_hdr +
-			entry_offset);
+		entry = (void *)tmpl_hdr + entry_offset;
 		if (!(entry->hdr.mask & tmpl_hdr->drv_cap_mask)) {
 			entry->hdr.flags |= QLCNIC_DUMP_SKIP;
 			entry_offset += entry->hdr.offset;
