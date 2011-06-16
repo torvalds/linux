@@ -29,16 +29,12 @@ struct hvsi_header {
 } __attribute__((packed));
 
 struct hvsi_data {
-	uint8_t  type;
-	uint8_t  len;
-	uint16_t seqno;
+	struct hvsi_header hdr;
 	uint8_t  data[HVSI_MAX_OUTGOING_DATA];
 } __attribute__((packed));
 
 struct hvsi_control {
-	uint8_t  type;
-	uint8_t  len;
-	uint16_t seqno;
+	struct hvsi_header hdr;
 	uint16_t verb;
 	/* optional depending on verb: */
 	uint32_t word;
@@ -46,16 +42,12 @@ struct hvsi_control {
 } __attribute__((packed));
 
 struct hvsi_query {
-	uint8_t  type;
-	uint8_t  len;
-	uint16_t seqno;
+	struct hvsi_header hdr;
 	uint16_t verb;
 } __attribute__((packed));
 
 struct hvsi_query_response {
-	uint8_t  type;
-	uint8_t  len;
-	uint16_t seqno;
+	struct hvsi_header hdr;
 	uint16_t verb;
 	uint16_t query_seqno;
 	union {
