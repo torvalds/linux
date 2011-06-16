@@ -1379,7 +1379,8 @@ extern int conn_lowest_minor(struct drbd_tconn *tconn);
 enum drbd_ret_code conn_new_minor(struct drbd_tconn *tconn, unsigned int minor, int vnr);
 extern void drbd_minor_destroy(struct kref *kref);
 
-struct drbd_tconn *conn_create(const char *name);
+extern int set_resource_options(struct drbd_tconn *tconn, struct res_opts *res_opts);
+extern struct drbd_tconn *conn_create(const char *name, struct res_opts *res_opts);
 extern void conn_destroy(struct kref *kref);
 struct drbd_tconn *conn_get_by_name(const char *name);
 extern struct drbd_tconn *conn_get_by_addrs(void *my_addr, int my_addr_len,
@@ -1397,7 +1398,6 @@ extern int is_valid_ar_handle(struct drbd_request *, sector_t);
 
 
 /* drbd_nl.c */
-extern void drbd_set_res_opts_defaults(struct res_opts *r);
 extern int drbd_msg_put_info(const char *info);
 extern void drbd_suspend_io(struct drbd_conf *mdev);
 extern void drbd_resume_io(struct drbd_conf *mdev);

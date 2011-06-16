@@ -2335,15 +2335,9 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-void drbd_set_res_opts_defaults(struct res_opts *r)
-{
-	return set_res_opts_defaults(r);
-}
-
 int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 {
 	enum drbd_ret_code retcode;
-	cpumask_var_t new_cpu_mask;
 	struct drbd_tconn *tconn;
 	struct res_opts res_opts;
 	int err;
@@ -2354,12 +2348,6 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 	if (retcode != NO_ERROR)
 		goto fail;
 	tconn = adm_ctx.tconn;
-
-	if (!zalloc_cpumask_var(&new_cpu_mask, GFP_KERNEL)) {
-		retcode = ERR_NOMEM;
-		drbd_msg_put_info("unable to allocate cpumask");
-		goto fail;
-	}
 
 	res_opts = tconn->res_opts;
 	if (should_set_defaults(info))
@@ -2372,31 +2360,14 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	/* silently ignore cpu mask on UP kernel */
-	if (nr_cpu_ids > 1 && res_opts.cpu_mask[0] != 0) {
-		err = __bitmap_parse(res_opts.cpu_mask, 32, 0,
-				cpumask_bits(new_cpu_mask), nr_cpu_ids);
-		if (err) {
-			conn_warn(tconn, "__bitmap_parse() failed with %d\n", err);
-			retcode = ERR_CPU_MASK_PARSE;
-			goto fail;
-		}
-	}
-
-
-	tconn->res_opts = res_opts;
-
-	if (!cpumask_equal(tconn->cpu_mask, new_cpu_mask)) {
-		cpumask_copy(tconn->cpu_mask, new_cpu_mask);
-		drbd_calc_cpu_mask(tconn);
-		tconn->receiver.reset_cpu_mask = 1;
-		tconn->asender.reset_cpu_mask = 1;
-		tconn->worker.reset_cpu_mask = 1;
+	err = set_resource_options(tconn, &res_opts);
+	if (err) {
+		retcode = ERR_INVALID_REQUEST;
+		if (err == -ENOMEM)
+			retcode = ERR_NOMEM;
 	}
 
 fail:
-	free_cpumask_var(new_cpu_mask);
-
 	drbd_adm_finish(info, retcode);
 	return 0;
 }
@@ -3012,12 +2983,22 @@ drbd_check_resource_name(const char *name)
 int drbd_adm_new_resource(struct sk_buff *skb, struct genl_info *info)
 {
 	enum drbd_ret_code retcode;
+	struct res_opts res_opts;
+	int err;
 
 	retcode = drbd_adm_prepare(skb, info, 0);
 	if (!adm_ctx.reply_skb)
 		return retcode;
 	if (retcode != NO_ERROR)
 		goto out;
+
+	set_res_opts_defaults(&res_opts);
+	err = res_opts_from_attrs(&res_opts, info);
+	if (err && err != -ENOMSG) {
+		retcode = ERR_MANDATORY_TAG;
+		drbd_msg_put_info(from_attrs_err_to_txt(err));
+		goto out;
+	}
 
 	retcode = drbd_check_resource_name(adm_ctx.resource_name);
 	if (retcode != NO_ERROR)
@@ -3032,7 +3013,7 @@ int drbd_adm_new_resource(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (!conn_create(adm_ctx.resource_name))
+	if (!conn_create(adm_ctx.resource_name, &res_opts))
 		retcode = ERR_NOMEM;
 out:
 	drbd_adm_finish(info, retcode);

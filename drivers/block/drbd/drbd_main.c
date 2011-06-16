@@ -2479,8 +2479,47 @@ void conn_free_crypto(struct drbd_tconn *tconn)
 	tconn->int_dig_vv = NULL;
 }
 
+int set_resource_options(struct drbd_tconn *tconn, struct res_opts *res_opts)
+{
+	cpumask_var_t new_cpu_mask;
+	int err;
+
+	if (!zalloc_cpumask_var(&new_cpu_mask, GFP_KERNEL))
+		return -ENOMEM;
+		/*
+		retcode = ERR_NOMEM;
+		drbd_msg_put_info("unable to allocate cpumask");
+		*/
+
+	/* silently ignore cpu mask on UP kernel */
+	if (nr_cpu_ids > 1 && res_opts->cpu_mask[0] != 0) {
+		/* FIXME: Get rid of constant 32 here */
+		err = __bitmap_parse(res_opts->cpu_mask, 32, 0,
+				cpumask_bits(new_cpu_mask), nr_cpu_ids);
+		if (err) {
+			conn_warn(tconn, "__bitmap_parse() failed with %d\n", err);
+			/* retcode = ERR_CPU_MASK_PARSE; */
+			goto fail;
+		}
+	}
+	tconn->res_opts = *res_opts;
+	if (!cpumask_equal(tconn->cpu_mask, new_cpu_mask)) {
+		cpumask_copy(tconn->cpu_mask, new_cpu_mask);
+		drbd_calc_cpu_mask(tconn);
+		tconn->receiver.reset_cpu_mask = 1;
+		tconn->asender.reset_cpu_mask = 1;
+		tconn->worker.reset_cpu_mask = 1;
+	}
+	err = 0;
+
+fail:
+	free_cpumask_var(new_cpu_mask);
+	return err;
+
+}
+
 /* caller must be under genl_lock() */
-struct drbd_tconn *conn_create(const char *name)
+struct drbd_tconn *conn_create(const char *name, struct res_opts *res_opts)
 {
 	struct drbd_tconn *tconn;
 
@@ -2498,6 +2537,9 @@ struct drbd_tconn *conn_create(const char *name)
 		goto fail;
 
 	if (!zalloc_cpumask_var(&tconn->cpu_mask, GFP_KERNEL))
+		goto fail;
+
+	if (set_resource_options(tconn, res_opts))
 		goto fail;
 
 	if (!tl_init(tconn))
@@ -2519,8 +2561,6 @@ struct drbd_tconn *conn_create(const char *name)
 	drbd_thread_init(tconn, &tconn->receiver, drbdd_init, "receiver");
 	drbd_thread_init(tconn, &tconn->worker, drbd_worker, "worker");
 	drbd_thread_init(tconn, &tconn->asender, drbd_asender, "asender");
-
-	drbd_set_res_opts_defaults(&tconn->res_opts);
 
 	kref_init(&tconn->kref);
 	list_add_tail_rcu(&tconn->all_tconn, &drbd_tconns);
