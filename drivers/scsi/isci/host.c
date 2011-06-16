@@ -2504,7 +2504,6 @@ int isci_host_init(struct isci_host *isci_host)
 
 		INIT_LIST_HEAD(&idev->reqs_in_process);
 		INIT_LIST_HEAD(&idev->node);
-		spin_lock_init(&idev->state_lock);
 	}
 
 	return 0;

@@ -147,10 +147,10 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 {
 	struct isci_host *ihost = dev_to_ihost(task->dev);
 	struct isci_remote_device *idev;
-	unsigned long flags;
-	int ret;
 	enum sci_status status;
-	enum isci_status device_status;
+	unsigned long flags;
+	bool io_ready;
+	int ret;
 
 	dev_dbg(&ihost->pdev->dev, "%s: num=%d\n", __func__, num);
 
@@ -163,64 +163,40 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 	}
 
 	for_each_sas_task(num, task) {
-		dev_dbg(&ihost->pdev->dev,
-			"task = %p, num = %d; dev = %p; cmd = %p\n",
-			    task, num, task->dev, task->uldd_task);
 		spin_lock_irqsave(&ihost->scic_lock, flags);
 		idev = isci_lookup_device(task->dev);
+		io_ready = idev ? test_bit(IDEV_IO_READY, &idev->flags) : 0;
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
-		if (idev)
-			device_status = idev->status;
-		else
-			device_status = isci_freed;
+		dev_dbg(&ihost->pdev->dev,
+			"task: %p, num: %d dev: %p idev: %p:%#lx cmd = %p\n",
+			task, num, task->dev, idev, idev ? idev->flags : 0,
+			task->uldd_task);
 
-		/* From this point onward, any process that needs to guarantee
-		 * that there is no kernel I/O being started will have to wait
-		 * for the quiesce spinlock.
-		 */
-
-		if (device_status != isci_ready_for_io) {
-
-			/* Forces a retry from scsi mid layer. */
-			dev_dbg(&ihost->pdev->dev,
-				"%s: task %p: isci_host->status = %d, "
-				"device = %p; device_status = 0x%x\n\n",
-				__func__,
-				task,
-				isci_host_get_state(ihost),
-				idev,
-				device_status);
-
-			if (device_status == isci_ready) {
-				/* Indicate QUEUE_FULL so that the scsi midlayer
-				* retries.
-				*/
-				isci_task_refuse(ihost, task,
-						 SAS_TASK_COMPLETE,
-						 SAS_QUEUE_FULL);
-			} else {
-				/* Else, the device is going down. */
-				isci_task_refuse(ihost, task,
-						 SAS_TASK_UNDELIVERED,
-						 SAS_DEVICE_UNKNOWN);
-			}
+		if (!idev) {
+			isci_task_refuse(ihost, task, SAS_TASK_UNDELIVERED,
+					 SAS_DEVICE_UNKNOWN);
+			isci_host_can_dequeue(ihost, 1);
+		} else if (!io_ready) {
+			/* Indicate QUEUE_FULL so that the scsi midlayer
+			 * retries.
+			  */
+			isci_task_refuse(ihost, task, SAS_TASK_COMPLETE,
+					 SAS_QUEUE_FULL);
 			isci_host_can_dequeue(ihost, 1);
 		} else {
 			/* There is a device and it's ready for I/O. */
 			spin_lock_irqsave(&task->task_state_lock, flags);
 
 			if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
-
+				/* The I/O was aborted. */
 				spin_unlock_irqrestore(&task->task_state_lock,
 						       flags);
 
 				isci_task_refuse(ihost, task,
 						 SAS_TASK_UNDELIVERED,
 						 SAM_STAT_TASK_ABORTED);
-
-				/* The I/O was aborted. */
-
+				isci_host_can_dequeue(ihost, 1);
 			} else {
 				task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 				spin_unlock_irqrestore(&task->task_state_lock, flags);
@@ -323,11 +299,11 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 	/* sanity check, return TMF_RESP_FUNC_FAILED
 	 * if the device is not there and ready.
 	 */
-	if (!isci_device || isci_device->status != isci_ready_for_io) {
+	if (!isci_device || !test_bit(IDEV_IO_READY, &isci_device->flags)) {
 		dev_dbg(&ihost->pdev->dev,
-			"%s: isci_device = %p not ready (%d)\n",
+			"%s: isci_device = %p not ready (%#lx)\n",
 			__func__,
-			isci_device, isci_device->status);
+			isci_device, isci_device ? isci_device->flags : 0);
 		return TMF_RESP_FUNC_FAILED;
 	} else
 		dev_dbg(&ihost->pdev->dev,

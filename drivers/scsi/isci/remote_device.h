@@ -130,19 +130,18 @@ struct scic_sds_remote_device {
 };
 
 struct isci_remote_device {
-	enum isci_status status;
 	#define IDEV_START_PENDING 0
 	#define IDEV_STOP_PENDING 1
 	#define IDEV_ALLOCATED 2
 	#define IDEV_EH 3
 	#define IDEV_GONE 4
+	#define IDEV_IO_READY 5
 	unsigned long flags;
 	struct kref kref;
 	struct isci_port *isci_port;
 	struct domain_device *domain_dev;
 	struct list_head node;
 	struct list_head reqs_in_process;
-	spinlock_t state_lock;
 	struct scic_sds_remote_device sci;
 };
 
@@ -178,8 +177,6 @@ bool isci_device_is_reset_pending(struct isci_host *ihost,
 				  struct isci_remote_device *idev);
 void isci_device_clear_reset_pending(struct isci_host *ihost,
 				     struct isci_remote_device *idev);
-void isci_remote_device_change_state(struct isci_remote_device *idev,
-				     enum isci_status status);
 /**
  * scic_remote_device_stop() - This method will stop both transmission and
  *    reception of link activity for the supplied remote device.  This method
