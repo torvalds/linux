@@ -3216,6 +3216,8 @@ static void btrfs_end_bio(struct bio *bio, int err)
 		}
 		bio->bi_private = bbio->private;
 		bio->bi_end_io = bbio->end_io;
+		bio->bi_bdev = (struct block_device *)
+					(unsigned long)bbio->mirror_num;
 		/* only send an error to the higher layers if it is
 		 * beyond the tolerance of the multi-bio
 		 */
