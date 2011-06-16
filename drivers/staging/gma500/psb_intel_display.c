@@ -723,17 +723,18 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	if (is_lvds) {
 		u32 lvds = REG_READ(LVDS);
 
-		lvds |=
-		    LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP |
-		    LVDS_PIPEB_SELECT;
+		lvds &= ~LVDS_PIPEB_SELECT;
+                if (pipe == 1)
+                        lvds |= LVDS_PIPEB_SELECT;
+
+		lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
 		/* Set the B0-B3 data pairs corresponding to
 		 * whether we're going to
 		 * set the DPLLs for dual-channel mode or not.
 		 */
+		lvds &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
 		if (clock.p2 == 7)
 			lvds |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
-		else
-			lvds &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
 
 		/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
 		 * appropriately here, but we need to look more
