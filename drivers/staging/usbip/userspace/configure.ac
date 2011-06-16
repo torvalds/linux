@@ -85,25 +85,11 @@ AC_ARG_WITH([tcp-wrappers],
 	       [AC_MSG_RESULT([no]); LIBS="$saved_LIBS"])])
 
 # Sets directory containing usb.ids.
-USBIDS_DIR='${datadir}/usbip'
 AC_ARG_WITH([usbids-dir],
 	    [AS_HELP_STRING([--with-usbids-dir=DIR],
-	       [where usb.ids is found (default ${datadir}/usbip)])],
-	    [USBIDS_DIR=$withval])
+	       [where usb.ids is found (default /usr/share/hwdata/)])],
+	    [USBIDS_DIR=$withval], [USBIDS_DIR="/usr/share/hwdata/"])
 AC_SUBST([USBIDS_DIR])
-
-dnl FIXME: when disabled, empty directry is created
-usbids=install
-AC_ARG_ENABLE([usbids-install],
-	      [AS_HELP_STRING([--enable-usbids-install],
-			      [install usb.ids (default)])],
-	      [AS_CASE([$enableval],
-		       [yes], [usbids=install],
-		       [no], [usbids=notinstall],
-		       [AC_MSG_ERROR(
-			  [bad value ${enableval} for --enable-usbids-install])]
-		      )])
-AM_CONDITIONAL([INSTALL_USBIDS], [test x$usbids = xinstall])
 
 GLIB2_REQUIRED=2.6.0
 PKG_CHECK_MODULES([PACKAGE], [glib-2.0 >= $GLIB2_REQUIRED])
