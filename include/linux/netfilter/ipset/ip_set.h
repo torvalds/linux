@@ -244,7 +244,7 @@ struct ip_set_type_variant {
 	 *			zero for no match/success to add/delete
 	 *			positive for matching element */
 	int (*uadt)(struct ip_set *set, struct nlattr *tb[],
-		    enum ipset_adt adt, u32 *lineno, u32 flags);
+		    enum ipset_adt adt, u32 *lineno, u32 flags, bool retried);
 
 	/* Low level add/del/test functions */
 	ipset_adtfn adt[IPSET_ADT_MAX];

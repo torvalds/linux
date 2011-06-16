@@ -231,7 +231,7 @@ bitmap_port_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 bitmap_port_uadt(struct ip_set *set, struct nlattr *tb[],
-		 enum ipset_adt adt, u32 *lineno, u32 flags)
+		 enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
 	struct bitmap_port *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];

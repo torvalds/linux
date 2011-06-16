@@ -125,6 +125,12 @@ nla_put_failure:
 #define HOST_MASK	32
 #include <linux/netfilter/ipset/ip_set_ahash.h>
 
+static inline void
+hash_net4_data_next(struct ip_set_hash *h,
+		    const struct hash_net4_elem *d)
+{
+}
+
 static int
 hash_net4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	       enum ipset_adt adt, const struct ip_set_adt_opt *opt)
@@ -146,7 +152,7 @@ hash_net4_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_net4_uadt(struct ip_set *set, struct nlattr *tb[],
-	       enum ipset_adt adt, u32 *lineno, u32 flags)
+	       enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
 	const struct ip_set_hash *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -290,6 +296,12 @@ nla_put_failure:
 #define HOST_MASK	128
 #include <linux/netfilter/ipset/ip_set_ahash.h>
 
+static inline void
+hash_net6_data_next(struct ip_set_hash *h,
+		    const struct hash_net6_elem *d)
+{
+}
+
 static int
 hash_net6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	       enum ipset_adt adt, const struct ip_set_adt_opt *opt)
@@ -311,7 +323,7 @@ hash_net6_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_net6_uadt(struct ip_set *set, struct nlattr *tb[],
-	       enum ipset_adt adt, u32 *lineno, u32 flags)
+	       enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
 	const struct ip_set_hash *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];

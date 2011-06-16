@@ -1158,17 +1158,18 @@ call_ad(struct sock *ctnl, struct sk_buff *skb, struct ip_set *set,
 	struct nlattr *tb[], enum ipset_adt adt,
 	u32 flags, bool use_lineno)
 {
-	int ret, retried = 0;
+	int ret;
 	u32 lineno = 0;
-	bool eexist = flags & IPSET_FLAG_EXIST;
+	bool eexist = flags & IPSET_FLAG_EXIST, retried = false;
 
 	do {
 		write_lock_bh(&set->lock);
-		ret = set->variant->uadt(set, tb, adt, &lineno, flags);
+		ret = set->variant->uadt(set, tb, adt, &lineno, flags, retried);
 		write_unlock_bh(&set->lock);
+		retried = true;
 	} while (ret == -EAGAIN &&
 		 set->variant->resize &&
-		 (ret = set->variant->resize(set, retried++)) == 0);
+		 (ret = set->variant->resize(set, retried)) == 0);
 
 	if (!ret || (ret == -IPSET_ERR_EXIST && eexist))
 		return 0;
@@ -1341,7 +1342,7 @@ ip_set_utest(struct sock *ctnl, struct sk_buff *skb,
 		return -IPSET_ERR_PROTOCOL;
 
 	read_lock_bh(&set->lock);
-	ret = set->variant->uadt(set, tb, IPSET_TEST, NULL, 0);
+	ret = set->variant->uadt(set, tb, IPSET_TEST, NULL, 0, 0);
 	read_unlock_bh(&set->lock);
 	/* Userspace can't trigger element to be re-added */
 	if (ret == -EAGAIN)
