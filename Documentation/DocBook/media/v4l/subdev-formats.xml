@@ -380,9 +380,6 @@
 	<title>Bayer Patterns</title>
 	<mediaobject>
 	  <imageobject>
-	    <imagedata fileref="bayer.pdf" format="PS" />
-	  </imageobject>
-	  <imageobject>
 	    <imagedata fileref="bayer.png" format="PNG" />
 	  </imageobject>
 	  <textobject>

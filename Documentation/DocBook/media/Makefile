@@ -18,13 +18,14 @@ MEDIA_TEMP =  media-entities.tmpl \
 	      net.h.xml \
 	      video.h.xml \
 
-IMGFILES := $(addprefix $(MEDIA_OBJ_DIR)/media/, $(notdir $(shell ls $(MEDIA_SRC_DIR)/*/*.gif $(MEDIA_SRC_DIR)/*/*.png)))
+IMGFILES := $(patsubst %.b64,%, $(notdir $(shell ls $(MEDIA_SRC_DIR)/*.b64)))
+OBJIMGFILES := $(addprefix $(MEDIA_OBJ_DIR)/, $(IMGFILES))
 GENFILES := $(addprefix $(MEDIA_OBJ_DIR)/, $(MEDIA_TEMP))
 
 PHONY += cleanmediadocs
 
 cleanmediadocs:
-	-@rm `find $(MEDIA_OBJ_DIR) -type l` $(GENFILES) $(IMGFILES) 2>/dev/null
+	-@rm `find $(MEDIA_OBJ_DIR) -type l` $(GENFILES) $(OBJIMGFILES) 2>/dev/null
 
 $(obj)/media_api.xml: $(GENFILES) FORCE
 
@@ -155,10 +156,14 @@ DVB_DOCUMENTED = \
 # Media targets and dependencies
 #
 
-$(MEDIA_OBJ_DIR)/v4l2.xml:
+install_media_images = \
+	$(Q)cp $(OBJIMGFILES) $(MEDIA_OBJ_DIR)/media_api
+
+$(MEDIA_OBJ_DIR)/%: $(MEDIA_SRC_DIR)/%.b64
+	$(Q)base64 -d $< >$@
+
+$(MEDIA_OBJ_DIR)/v4l2.xml: $(OBJIMGFILES)
 	@$($(quiet)gen_xml)
-	@(mkdir -p $(MEDIA_OBJ_DIR)/media)
-	@(cp $(MEDIA_SRC_DIR)/dvb/*.png $(MEDIA_SRC_DIR)/v4l/*.gif $(MEDIA_OBJ_DIR)/media/)
 	@(ln -sf $(MEDIA_SRC_DIR)/v4l/*xml $(MEDIA_OBJ_DIR)/)
 	@(ln -sf $(MEDIA_SRC_DIR)/dvb/*xml $(MEDIA_OBJ_DIR)/)
 

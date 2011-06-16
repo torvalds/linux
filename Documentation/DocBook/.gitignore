@@ -8,13 +8,5 @@
 *.dvi
 *.log
 *.out
-crop.gif
-dvbstb.png
-fieldseq_bt.gif
-fieldseq_tb.gif
 media-indices.tmpl
-nv12mt.gif
-nv12mt_example.gif
-vbi_525.gif
-vbi_625.gif
-vbi_hsync.gif
+media-entities.tmpl
