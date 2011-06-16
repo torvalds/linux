@@ -133,6 +133,7 @@ struct gsm_dlci {
 #define DLCI_OPENING		1	/* Sending SABM not seen UA */
 #define DLCI_OPEN		2	/* SABM/UA complete */
 #define DLCI_CLOSING		3	/* Sending DISC not seen UA/DM */
+	struct kref ref;		/* freed from port or mux close */
 	struct mutex mutex;
 
 	/* Link layer */
@@ -194,6 +195,7 @@ struct gsm_mux {
 	struct tty_struct *tty;		/* The tty our ldisc is bound to */
 	spinlock_t lock;
 	unsigned int num;
+	struct kref ref;
 
 	/* Events on the GSM channel */
 	wait_queue_head_t event;
@@ -1606,6 +1608,7 @@ static struct gsm_dlci *gsm_dlci_alloc(struct gsm_mux *gsm, int addr)
 	if (dlci == NULL)
 		return NULL;
 	spin_lock_init(&dlci->lock);
+	kref_init(&dlci->ref);
 	mutex_init(&dlci->mutex);
 	dlci->fifo = &dlci->_fifo;
 	if (kfifo_alloc(&dlci->_fifo, 4096, GFP_KERNEL) < 0) {
@@ -1632,26 +1635,52 @@ static struct gsm_dlci *gsm_dlci_alloc(struct gsm_mux *gsm, int addr)
 }
 
 /**
- *	gsm_dlci_free		-	release DLCI
- *	@dlci: DLCI to destroy
+ *	gsm_dlci_free		-	free DLCI
+ *	@dlci: DLCI to free
  *
- *	Free up a DLCI. Currently to keep the lifetime rules sane we only
- *	clean up DLCI objects when the MUX closes rather than as the port
- *	is closed down on both the tty and mux levels.
+ *	Free up a DLCI.
  *
  *	Can sleep.
  */
-static void gsm_dlci_free(struct gsm_dlci *dlci)
+static void gsm_dlci_free(struct kref *ref)
+{
+	struct gsm_dlci *dlci = container_of(ref, struct gsm_dlci, ref);
+
+	del_timer_sync(&dlci->t1);
+	dlci->gsm->dlci[dlci->addr] = NULL;
+	kfifo_free(dlci->fifo);
+	while ((dlci->skb = skb_dequeue(&dlci->skb_list)))
+		kfree_skb(dlci->skb);
+	kfree(dlci);
+}
+
+static inline void dlci_get(struct gsm_dlci *dlci)
+{
+	kref_get(&dlci->ref);
+}
+
+static inline void dlci_put(struct gsm_dlci *dlci)
+{
+	kref_put(&dlci->ref, gsm_dlci_free);
+}
+
+/**
+ *	gsm_dlci_release		-	release DLCI
+ *	@dlci: DLCI to destroy
+ *
+ *	Release a DLCI. Actual free is deferred until either
+ *	mux is closed or tty is closed - whichever is last.
+ *
+ *	Can sleep.
+ */
+static void gsm_dlci_release(struct gsm_dlci *dlci)
 {
 	struct tty_struct *tty = tty_port_tty_get(&dlci->port);
 	if (tty) {
 		tty_vhangup(tty);
 		tty_kref_put(tty);
 	}
-	del_timer_sync(&dlci->t1);
-	dlci->gsm->dlci[dlci->addr] = NULL;
-	kfifo_free(dlci->fifo);
-	kfree(dlci);
+	dlci_put(dlci);
 }
 
 /*
@@ -1989,7 +2018,7 @@ void gsm_cleanup_mux(struct gsm_mux *gsm)
 	/* Free up any link layer users */
 	for (i = 0; i < NUM_DLCI; i++)
 		if (gsm->dlci[i])
-			gsm_dlci_free(gsm->dlci[i]);
+			gsm_dlci_release(gsm->dlci[i]);
 	/* Now wipe the queues */
 	for (txq = gsm->tx_head; txq != NULL; txq = gsm->tx_head) {
 		gsm->tx_head = txq->next;
@@ -2050,8 +2079,7 @@ EXPORT_SYMBOL_GPL(gsm_activate_mux);
  *	gsm_free_mux		-	free up a mux
  *	@mux: mux to free
  *
- *	Dispose of allocated resources for a dead mux. No refcounting
- *	at present so the mux must be truly dead.
+ *	Dispose of allocated resources for a dead mux
  */
 void gsm_free_mux(struct gsm_mux *gsm)
 {
@@ -2060,6 +2088,28 @@ void gsm_free_mux(struct gsm_mux *gsm)
 	kfree(gsm);
 }
 EXPORT_SYMBOL_GPL(gsm_free_mux);
+
+/**
+ *	gsm_free_muxr		-	free up a mux
+ *	@mux: mux to free
+ *
+ *	Dispose of allocated resources for a dead mux
+ */
+static void gsm_free_muxr(struct kref *ref)
+{
+	struct gsm_mux *gsm = container_of(ref, struct gsm_mux, ref);
+	gsm_free_mux(gsm);
+}
+
+static inline void mux_get(struct gsm_mux *gsm)
+{
+	kref_get(&gsm->ref);
+}
+
+static inline void mux_put(struct gsm_mux *gsm)
+{
+	kref_put(&gsm->ref, gsm_free_muxr);
+}
 
 /**
  *	gsm_alloc_mux		-	allocate a mux
@@ -2084,6 +2134,7 @@ struct gsm_mux *gsm_alloc_mux(void)
 		return NULL;
 	}
 	spin_lock_init(&gsm->lock);
+	kref_init(&gsm->ref);
 
 	gsm->t1 = T1;
 	gsm->t2 = T2;
@@ -2255,7 +2306,7 @@ static void gsmld_close(struct tty_struct *tty)
 
 	gsmld_flush_buffer(tty);
 	/* Do other clean up here */
-	gsm_free_mux(gsm);
+	mux_put(gsm);
 }
 
 /**
@@ -2554,12 +2605,22 @@ static void net_free(struct kref *ref)
 	}
 }
 
+static inline void muxnet_get(struct gsm_mux_net *mux_net)
+{
+	kref_get(&mux_net->ref);
+}
+
+static inline void muxnet_put(struct gsm_mux_net *mux_net)
+{
+	kref_put(&mux_net->ref, net_free);
+}
+
 static int gsm_mux_net_start_xmit(struct sk_buff *skb,
 				      struct net_device *net)
 {
 	struct gsm_mux_net *mux_net = (struct gsm_mux_net *)netdev_priv(net);
 	struct gsm_dlci *dlci = mux_net->dlci;
-	kref_get(&mux_net->ref);
+	muxnet_get(mux_net);
 
 	skb_queue_head(&dlci->skb_list, skb);
 	STATS(net).tx_packets++;
@@ -2567,7 +2628,7 @@ static int gsm_mux_net_start_xmit(struct sk_buff *skb,
 	gsm_dlci_data_kick(dlci);
 	/* And tell the kernel when the last transmit started. */
 	net->trans_start = jiffies;
-	kref_put(&mux_net->ref, net_free);
+	muxnet_put(mux_net);
 	return NETDEV_TX_OK;
 }
 
@@ -2587,14 +2648,14 @@ static void gsm_mux_rx_netchar(struct gsm_dlci *dlci,
 	struct net_device *net = dlci->net;
 	struct sk_buff *skb;
 	struct gsm_mux_net *mux_net = (struct gsm_mux_net *)netdev_priv(net);
-	kref_get(&mux_net->ref);
+	muxnet_get(mux_net);
 
 	/* Allocate an sk_buff */
 	skb = dev_alloc_skb(size + NET_IP_ALIGN);
 	if (!skb) {
 		/* We got no receive buffer. */
 		STATS(net).rx_dropped++;
-		kref_put(&mux_net->ref, net_free);
+		muxnet_put(mux_net);
 		return;
 	}
 	skb_reserve(skb, NET_IP_ALIGN);
@@ -2609,7 +2670,7 @@ static void gsm_mux_rx_netchar(struct gsm_dlci *dlci,
 	/* update out statistics */
 	STATS(net).rx_packets++;
 	STATS(net).rx_bytes += size;
-	kref_put(&mux_net->ref, net_free);
+	muxnet_put(mux_net);
 	return;
 }
 
@@ -2652,7 +2713,7 @@ static void gsm_destroy_network(struct gsm_dlci *dlci)
 	if (!dlci->net)
 		return;
 	mux_net = (struct gsm_mux_net *)netdev_priv(dlci->net);
-	kref_put(&mux_net->ref, net_free);
+	muxnet_put(mux_net);
 }
 
 
@@ -2814,6 +2875,9 @@ static int gsmtty_open(struct tty_struct *tty, struct file *filp)
 	port = &dlci->port;
 	port->count++;
 	tty->driver_data = dlci;
+	dlci_get(dlci);
+	dlci_get(dlci->gsm->dlci[0]);
+	mux_get(dlci->gsm);
 	tty_port_tty_set(port, tty);
 
 	dlci->modem_rx = 0;
@@ -2829,16 +2893,23 @@ static int gsmtty_open(struct tty_struct *tty, struct file *filp)
 static void gsmtty_close(struct tty_struct *tty, struct file *filp)
 {
 	struct gsm_dlci *dlci = tty->driver_data;
+	struct gsm_mux *gsm;
+
 	if (dlci == NULL)
 		return;
 	mutex_lock(&dlci->mutex);
 	gsm_destroy_network(dlci);
 	mutex_unlock(&dlci->mutex);
+	gsm = dlci->gsm;
 	if (tty_port_close_start(&dlci->port, tty, filp) == 0)
-		return;
+		goto out;
 	gsm_dlci_begin_close(dlci);
 	tty_port_close_end(&dlci->port, tty);
 	tty_port_tty_set(&dlci->port, NULL);
+out:
+	dlci_put(dlci);
+	dlci_put(gsm->dlci[0]);
+	mux_put(gsm);
 }
 
 static void gsmtty_hangup(struct tty_struct *tty)
