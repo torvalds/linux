@@ -635,7 +635,7 @@ static void clks_core_resume(void)
 	struct clk *clkp;
 
 	list_for_each_entry(clkp, &clock_list, node) {
-		if (likely(clkp->ops)) {
+		if (likely(clkp->usecount && clkp->ops)) {
 			unsigned long rate = clkp->rate;
 
 			if (likely(clkp->ops->set_parent))
