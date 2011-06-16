@@ -1291,11 +1291,9 @@ static void invoke_rcu_callbacks_kthread(void)
 
 	local_irq_save(flags);
 	__this_cpu_write(rcu_cpu_has_work, 1);
-	if (__this_cpu_read(rcu_cpu_kthread_task) == NULL) {
-		local_irq_restore(flags);
-		return;
-	}
-	wake_up_process(__this_cpu_read(rcu_cpu_kthread_task));
+	if (__this_cpu_read(rcu_cpu_kthread_task) != NULL &&
+	    current != __this_cpu_read(rcu_cpu_kthread_task))
+		wake_up_process(__this_cpu_read(rcu_cpu_kthread_task));
 	local_irq_restore(flags);
 }
 
