@@ -3098,7 +3098,7 @@ out_overflow:
 	return -EIO;
 }
 
-static int decode_attr_error(struct xdr_stream *xdr, uint32_t *bitmap)
+static int decode_attr_error(struct xdr_stream *xdr, uint32_t *bitmap, int32_t *res)
 {
 	__be32 *p;
 
@@ -3109,7 +3109,7 @@ static int decode_attr_error(struct xdr_stream *xdr, uint32_t *bitmap)
 		if (unlikely(!p))
 			goto out_overflow;
 		bitmap[0] &= ~FATTR4_WORD0_RDATTR_ERROR;
-		return -be32_to_cpup(p);
+		*res = -be32_to_cpup(p);
 	}
 	return 0;
 out_overflow:
@@ -4070,6 +4070,7 @@ static int decode_getfattr_attrs(struct xdr_stream *xdr, uint32_t *bitmap,
 	int status;
 	umode_t fmode = 0;
 	uint32_t type;
+	int32_t err;
 
 	status = decode_attr_type(xdr, bitmap, &type);
 	if (status < 0)
@@ -4095,13 +4096,12 @@ static int decode_getfattr_attrs(struct xdr_stream *xdr, uint32_t *bitmap,
 		goto xdr_error;
 	fattr->valid |= status;
 
-	status = decode_attr_error(xdr, bitmap);
-	if (status == -NFS4ERR_WRONGSEC) {
-		nfs_fixup_secinfo_attributes(fattr, fh);
-		status = 0;
-	}
+	err = 0;
+	status = decode_attr_error(xdr, bitmap, &err);
 	if (status < 0)
 		goto xdr_error;
+	if (err == -NFS4ERR_WRONGSEC)
+		nfs_fixup_secinfo_attributes(fattr, fh);
 
 	status = decode_attr_filehandle(xdr, bitmap, fh);
 	if (status < 0)
