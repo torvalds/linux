@@ -131,6 +131,7 @@ struct via_spec {
 	unsigned int num_adc_nids;
 	hda_nid_t adc_nids[3];
 	hda_nid_t mux_nids[3];
+	hda_nid_t aa_mix_nid;
 	hda_nid_t dig_in_nid;
 	hda_nid_t dig_in_pin;
 
@@ -873,20 +874,17 @@ static void notify_aa_path_ctls(struct hda_codec *codec)
 static void mute_aa_path(struct hda_codec *codec, int mute)
 {
 	struct via_spec *spec = codec->spec;
-	hda_nid_t  nid_mixer;
 	int start_idx;
 	int end_idx;
 	int i;
 	/* get nid of MW0 and start & end index */
 	switch (spec->codec_type) {
 	case VT1708:
-		nid_mixer = 0x17;
 		start_idx = 2;
 		end_idx = 4;
 		break;
 	case VT1709_10CH:
 	case VT1709_6CH:
-		nid_mixer = 0x18;
 		start_idx = 2;
 		end_idx = 4;
 		break;
@@ -894,12 +892,10 @@ static void mute_aa_path(struct hda_codec *codec, int mute)
 	case VT1708B_4CH:
 	case VT1708S:
 	case VT1716S:
-		nid_mixer = 0x16;
 		start_idx = 2;
 		end_idx = 4;
 		break;
 	case VT1718S:
-		nid_mixer = 0x21;
 		start_idx = 1;
 		end_idx = 3;
 		break;
@@ -909,7 +905,7 @@ static void mute_aa_path(struct hda_codec *codec, int mute)
 	/* check AA path's mute status */
 	for (i = start_idx; i <= end_idx; i++) {
 		int val = mute ? HDA_AMP_MUTE : HDA_AMP_UNMUTE;
-		snd_hda_codec_amp_stereo(codec, nid_mixer, HDA_INPUT, i,
+		snd_hda_codec_amp_stereo(codec, spec->aa_mix_nid, HDA_INPUT, i,
 					 HDA_AMP_MUTE, val);
 	}
 }
@@ -1075,7 +1071,6 @@ static const struct snd_kcontrol_new vt1708_capture_mixer[] = {
 static int is_aa_path_mute(struct hda_codec *codec)
 {
 	int mute = 1;
-	hda_nid_t  nid_mixer;
 	int start_idx;
 	int end_idx;
 	int i;
@@ -1086,24 +1081,20 @@ static int is_aa_path_mute(struct hda_codec *codec)
 	case VT1708B_4CH:
 	case VT1708S:
 	case VT1716S:
-		nid_mixer = 0x16;
 		start_idx = 2;
 		end_idx = 4;
 		break;
 	case VT1702:
-		nid_mixer = 0x1a;
 		start_idx = 1;
 		end_idx = 3;
 		break;
 	case VT1718S:
-		nid_mixer = 0x21;
 		start_idx = 1;
 		end_idx = 3;
 		break;
 	case VT2002P:
 	case VT1812:
 	case VT1802:
-		nid_mixer = 0x21;
 		start_idx = 0;
 		end_idx = 2;
 		break;
@@ -1113,15 +1104,15 @@ static int is_aa_path_mute(struct hda_codec *codec)
 	/* check AA path's mute status */
 	for (i = start_idx; i <= end_idx; i++) {
 		unsigned int con_list = snd_hda_codec_read(
-			codec, nid_mixer, 0, AC_VERB_GET_CONNECT_LIST, i/4*4);
+			codec, spec->aa_mix_nid, 0, AC_VERB_GET_CONNECT_LIST, i/4*4);
 		int shift = 8 * (i % 4);
 		hda_nid_t nid_pin = (con_list & (0xff << shift)) >> shift;
 		unsigned int defconf = snd_hda_codec_get_pincfg(codec, nid_pin);
 		if (get_defcfg_connect(defconf) == AC_JACK_PORT_COMPLEX) {
 			/* check mute status while the pin is connected */
-			int mute_l = snd_hda_codec_amp_read(codec, nid_mixer, 0,
+			int mute_l = snd_hda_codec_amp_read(codec, spec->aa_mix_nid, 0,
 							    HDA_INPUT, i) >> 7;
-			int mute_r = snd_hda_codec_amp_read(codec, nid_mixer, 1,
+			int mute_r = snd_hda_codec_amp_read(codec, spec->aa_mix_nid, 1,
 							    HDA_INPUT, i) >> 7;
 			if (!mute_l || !mute_r) {
 				mute = 0;
@@ -2035,9 +2026,8 @@ static int via_fill_adcs(struct hda_codec *codec)
 static int get_mux_nids(struct hda_codec *codec);
 
 /* create playback/capture controls for input pins */
-static int vt_auto_create_analog_input_ctls(struct hda_codec *codec,
-					    const struct auto_pin_cfg *cfg,
-					    hda_nid_t mix_nid)
+static int via_auto_create_analog_input_ctls(struct hda_codec *codec,
+					     const struct auto_pin_cfg *cfg)
 {
 	struct via_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux[0];
@@ -2061,7 +2051,7 @@ static int vt_auto_create_analog_input_ctls(struct hda_codec *codec,
 
 	/* for internal loopback recording select */
 	for (idx = 0; idx < num_idxs; idx++) {
-		if (pin_idxs[idx] == mix_nid) {
+		if (pin_idxs[idx] == spec->aa_mix_nid) {
 			snd_hda_add_imux_item(imux, "Stereo Mixer", idx, NULL);
 			break;
 		}
@@ -2080,22 +2070,16 @@ static int vt_auto_create_analog_input_ctls(struct hda_codec *codec,
 		else
 			type_idx = 0;
 		label = hda_get_autocfg_input_label(codec, cfg, i);
-		idx2 = get_connection_index(codec, mix_nid, pin_idxs[idx]);
+		idx2 = get_connection_index(codec, spec->aa_mix_nid,
+					    pin_idxs[idx]);
 		if (idx2 >= 0)
 			err = via_new_analog_input(spec, label, type_idx,
-						   idx2, mix_nid);
+						   idx2, spec->aa_mix_nid);
 		if (err < 0)
 			return err;
 		snd_hda_add_imux_item(imux, label, idx, NULL);
 	}
 	return 0;
-}
-
-/* create playback/capture controls for input pins */
-static int vt1708_auto_create_analog_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x17);
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -2191,7 +2175,7 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 	err = vt1708_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1708_auto_create_analog_input_ctls(codec, &spec->autocfg);
+	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 	/* add jack detect on/off control */
@@ -2291,6 +2275,8 @@ static int patch_vt1708(struct hda_codec *codec)
 	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
+
+	spec->aa_mix_nid = 0x17;
 
 	/* automatic parse from the BIOS config */
 	err = vt1708_parse_auto_config(codec);
@@ -2653,13 +2639,6 @@ static int vt1709_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 	return 0;
 }
 
-/* create playback/capture controls for input pins */
-static int vt1709_auto_create_analog_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x18);
-}
-
 static int vt1709_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -2680,7 +2659,7 @@ static int vt1709_parse_auto_config(struct hda_codec *codec)
 	err = vt1709_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1709_auto_create_analog_input_ctls(codec, &spec->autocfg);
+	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -2723,6 +2702,8 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
+
+	spec->aa_mix_nid = 0x18;
 
 	err = vt1709_parse_auto_config(codec);
 	if (err < 0) {
@@ -2809,6 +2790,8 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
+
+	spec->aa_mix_nid = 0x18;
 
 	err = vt1709_parse_auto_config(codec);
 	if (err < 0) {
@@ -3171,13 +3154,6 @@ static int vt1708B_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 	return 0;
 }
 
-/* create playback/capture controls for input pins */
-static int vt1708B_auto_create_analog_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16);
-}
-
 static int vt1708B_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -3198,7 +3174,7 @@ static int vt1708B_parse_auto_config(struct hda_codec *codec)
 	err = vt1708B_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1708B_auto_create_analog_input_ctls(codec, &spec->autocfg);
+	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -3324,6 +3300,8 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
+
+	spec->aa_mix_nid = 0x16;
 
 	/* automatic parse from the BIOS config */
 	err = vt1708B_parse_auto_config(codec);
@@ -3723,13 +3701,6 @@ static int vt1708S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 	return 0;
 }
 
-/* create playback/capture controls for input pins */
-static int vt1708S_auto_create_analog_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16);
-}
-
 /* fill out digital output widgets; one for master and one for slave outputs */
 static void fill_dig_outs(struct hda_codec *codec)
 {
@@ -3775,7 +3746,7 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 	err = vt1708S_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1708S_auto_create_analog_input_ctls(codec, &spec->autocfg);
+	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -3824,6 +3795,8 @@ static int patch_vt1708S(struct hda_codec *codec)
 	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
+
+	spec->aa_mix_nid = 0x16;
 
 	/* automatic parse from the BIOS config */
 	err = vt1708S_parse_auto_config(codec);
@@ -4076,13 +4049,6 @@ static int vt1702_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 	return 0;
 }
 
-/* create playback/capture controls for input pins */
-static int vt1702_auto_create_analog_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x1a);
-}
-
 static int vt1702_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -4109,7 +4075,7 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 				  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
 				  (0x5 << AC_AMPCAP_STEP_SIZE_SHIFT) |
 				  (1 << AC_AMPCAP_MUTE_SHIFT));
-	err = vt1702_auto_create_analog_input_ctls(codec, &spec->autocfg);
+	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -4178,6 +4144,8 @@ static int patch_vt1702(struct hda_codec *codec)
 	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
+
+	spec->aa_mix_nid = 0x1a;
 
 	/* automatic parse from the BIOS config */
 	err = vt1702_parse_auto_config(codec);
@@ -4489,13 +4457,6 @@ static int vt1718S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 	return 0;
 }
 
-/* create playback/capture controls for input pins */
-static int vt1718S_auto_create_analog_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x21);
-}
-
 static int vt1718S_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -4517,7 +4478,7 @@ static int vt1718S_parse_auto_config(struct hda_codec *codec)
 	err = vt1718S_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1718S_auto_create_analog_input_ctls(codec, &spec->autocfg);
+	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -4626,6 +4587,8 @@ static int patch_vt1718S(struct hda_codec *codec)
 	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
+
+	spec->aa_mix_nid = 0x21;
 
 	/* automatic parse from the BIOS config */
 	err = vt1718S_parse_auto_config(codec);
@@ -5003,13 +4966,6 @@ static int vt1716S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 	return 0;
 }
 
-/* create playback/capture controls for input pins */
-static int vt1716S_auto_create_analog_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16);
-}
-
 static int vt1716S_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -5030,7 +4986,7 @@ static int vt1716S_parse_auto_config(struct hda_codec *codec)
 	err = vt1716S_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1716S_auto_create_analog_input_ctls(codec, &spec->autocfg);
+	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -5163,6 +5119,8 @@ static int patch_vt1716S(struct hda_codec *codec)
 	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
+
+	spec->aa_mix_nid = 0x16;
 
 	/* automatic parse from the BIOS config */
 	err = vt1716S_parse_auto_config(codec);
@@ -5469,13 +5427,6 @@ static int vt2002P_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 	return 0;
 }
 
-/* create playback/capture controls for input pins */
-static int vt2002P_auto_create_analog_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x21);
-}
-
 static int vt2002P_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -5499,7 +5450,7 @@ static int vt2002P_parse_auto_config(struct hda_codec *codec)
 	err = vt2002P_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt2002P_auto_create_analog_input_ctls(codec, &spec->autocfg);
+	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -5648,6 +5599,8 @@ static int patch_vt2002P(struct hda_codec *codec)
 	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
+
+	spec->aa_mix_nid = 0x21;
 
 	/* automatic parse from the BIOS config */
 	err = vt2002P_parse_auto_config(codec);
@@ -5890,13 +5843,6 @@ static int vt1812_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 	return 0;
 }
 
-/* create playback/capture controls for input pins */
-static int vt1812_auto_create_analog_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x21);
-}
-
 static int vt1812_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -5920,7 +5866,7 @@ static int vt1812_parse_auto_config(struct hda_codec *codec)
 	err = vt1812_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = vt1812_auto_create_analog_input_ctls(codec, &spec->autocfg);
+	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
 
@@ -6050,6 +5996,8 @@ static int patch_vt1812(struct hda_codec *codec)
 	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
+
+	spec->aa_mix_nid = 0x21;
 
 	/* automatic parse from the BIOS config */
 	err = vt1812_parse_auto_config(codec);
