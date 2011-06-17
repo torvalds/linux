@@ -27,11 +27,59 @@
 #include "nouveau_bios.h"
 #include "nouveau_pm.h"
 
-/* This is actually a lot more complex than it appears here, but hopefully
- * this should be able to deal with what the VBIOS leaves for us..
- *
- * If not, well, I'll jump off that bridge when I come to it.
- */
+static u32 read_pll(struct drm_device *dev, u32 pll, int clk);
+static u32 read_clk(struct drm_device *dev, int clk);
+
+static u32
+read_clk(struct drm_device *dev, int clk)
+{
+	u32 sctl, sdiv, sclk;
+
+	if (clk >= 0x40)
+		return 27000;
+
+	sctl = nv_rd32(dev, 0x4120 + (clk * 4));
+	switch (sctl & 0x00003100) {
+	case 0x00000100:
+		return 27000;
+	case 0x00002100:
+		if (sctl & 0x00000040)
+			return 108000;
+		return 100000;
+	case 0x00003100:
+		sdiv = ((sctl & 0x003f0000) >> 16) + 2;
+		if ((sctl & 0x00000030) != 0x00000030)
+			sclk = read_pll(dev, 0x00e820, 0x41);
+		else
+			sclk = read_pll(dev, 0x00e8a0, 0x42);
+
+		return (sclk * 2) / sdiv;
+	default:
+		return 0;
+	}
+}
+
+static u32
+read_pll(struct drm_device *dev, u32 pll, int clk)
+{
+	u32 ctrl = nv_rd32(dev, pll + 0);
+	u32 sclk, P = 1, N = 1, M = 1;
+
+	if (!(ctrl & 0x00000008)) {
+		u32 coef = nv_rd32(dev, pll + 4);
+		M = (coef & 0x000000ff) >> 0;
+		N = (coef & 0x0000ff00) >> 8;
+		P = (coef & 0x003f0000) >> 16;
+		if ((pll & 0x00ff00) == 0x00e800)
+			P = 1;
+
+		sclk = read_clk(dev, 0x00 + clk);
+	} else {
+		sclk = read_clk(dev, 0x10 + clk);
+	}
+
+	return sclk * N / (M * P);
+}
 
 struct nva3_pm_state {
 	enum pll_types type;
@@ -67,35 +115,16 @@ nva3_pm_pll_offset(u32 id)
 int
 nva3_pm_clock_get(struct drm_device *dev, u32 id)
 {
-	u32 src0, src1, ctrl, coef;
-	struct pll_lims pll;
-	int ret, off;
-	int P, N, M;
-
-	ret = get_pll_limits(dev, id, &pll);
-	if (ret)
-		return ret;
-
-	off = nva3_pm_pll_offset(id);
-	if (off < 0)
-		return off;
-
-	src0 = nv_rd32(dev, 0x4120 + (off * 4));
-	src1 = nv_rd32(dev, 0x4160 + (off * 4));
-	ctrl = nv_rd32(dev, pll.reg + 0);
-	coef = nv_rd32(dev, pll.reg + 4);
-	NV_DEBUG(dev, "PLL %02x: 0x%08x 0x%08x 0x%08x 0x%08x\n",
-		      id, src0, src1, ctrl, coef);
-
-	if (ctrl & 0x00000008) {
-		u32 div = ((src1 & 0x003c0000) >> 18) + 1;
-		return (pll.refclk * 2) / div;
+	switch (id) {
+	case PLL_CORE:
+		return read_pll(dev, 0x4200, 0);
+	case PLL_SHADER:
+		return read_pll(dev, 0x4220, 1);
+	case PLL_MEMORY:
+		return read_pll(dev, 0x4000, 2);
+	default:
+		return -ENOENT;
 	}
-
-	P = (coef & 0x003f0000) >> 16;
-	N = (coef & 0x0000ff00) >> 8;
-	M = (coef & 0x000000ff);
-	return pll.refclk * N / M / P;
 }
 
 void *
