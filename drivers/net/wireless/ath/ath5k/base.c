@@ -2960,6 +2960,7 @@ ath5k_deinit_softc(struct ath5k_softc *sc)
 	 * state and potentially want to use them.
 	 */
 	ath5k_hw_deinit(sc->ah);
+	kfree(sc->ah);
 	free_irq(sc->irq, sc);
 }
 
