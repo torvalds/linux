@@ -1030,34 +1030,33 @@ static int dummy_udc_remove (struct platform_device *pdev)
 	return 0;
 }
 
-static int dummy_udc_suspend (struct platform_device *pdev, pm_message_t state)
+static void dummy_udc_pm(struct dummy *dum, struct dummy_hcd *dum_hcd,
+		int suspend)
 {
-	struct dummy	*dum = platform_get_drvdata(pdev);
-	struct dummy_hcd *dum_hcd;
-
-	dev_dbg (&pdev->dev, "%s\n", __func__);
-	dum_hcd = gadget_to_dummy_hcd(&dum->gadget);
-	spin_lock_irq (&dum->lock);
-	dum->udc_suspended = 1;
+	spin_lock_irq(&dum->lock);
+	dum->udc_suspended = suspend;
 	set_link_state(dum_hcd);
-	spin_unlock_irq (&dum->lock);
+	spin_unlock_irq(&dum->lock);
+}
 
+static int dummy_udc_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct dummy		*dum = platform_get_drvdata(pdev);
+	struct dummy_hcd	*dum_hcd = gadget_to_dummy_hcd(&dum->gadget);
+
+	dev_dbg(&pdev->dev, "%s\n", __func__);
+	dummy_udc_pm(dum, dum_hcd, 1);
 	usb_hcd_poll_rh_status(dummy_hcd_to_hcd(dum_hcd));
 	return 0;
 }
 
-static int dummy_udc_resume (struct platform_device *pdev)
+static int dummy_udc_resume(struct platform_device *pdev)
 {
-	struct dummy	*dum = platform_get_drvdata(pdev);
-	struct dummy_hcd *dum_hcd;
+	struct dummy		*dum = platform_get_drvdata(pdev);
+	struct dummy_hcd	*dum_hcd = gadget_to_dummy_hcd(&dum->gadget);
 
-	dev_dbg (&pdev->dev, "%s\n", __func__);
-	dum_hcd = gadget_to_dummy_hcd(&dum->gadget);
-	spin_lock_irq (&dum->lock);
-	dum->udc_suspended = 0;
-	set_link_state(dum_hcd);
-	spin_unlock_irq (&dum->lock);
-
+	dev_dbg(&pdev->dev, "%s\n", __func__);
+	dummy_udc_pm(dum, dum_hcd, 0);
 	usb_hcd_poll_rh_status(dummy_hcd_to_hcd(dum_hcd));
 	return 0;
 }
