@@ -159,7 +159,7 @@ struct via_spec {
 	/* work to check hp jack state */
 	struct hda_codec *codec;
 	struct delayed_work vt1708_hp_work;
-	int vt1708_jack_detectect;
+	int vt1708_jack_detect;
 	int vt1708_hp_present;
 
 	void (*set_widgets_power_state)(struct hda_codec *codec);
@@ -264,7 +264,7 @@ static void vt1708_start_hp_work(struct via_spec *spec)
 	if (spec->codec_type != VT1708 || spec->autocfg.hp_pins[0] == 0)
 		return;
 	snd_hda_codec_write(spec->codec, 0x1, 0, 0xf81,
-			    !spec->vt1708_jack_detectect);
+			    !spec->vt1708_jack_detect);
 	if (!delayed_work_pending(&spec->vt1708_hp_work))
 		schedule_delayed_work(&spec->vt1708_hp_work,
 				      msecs_to_jiffies(100));
@@ -278,7 +278,7 @@ static void vt1708_stop_hp_work(struct via_spec *spec)
 	    && !is_aa_path_mute(spec->codec))
 		return;
 	snd_hda_codec_write(spec->codec, 0x1, 0, 0xf81,
-			    !spec->vt1708_jack_detectect);
+			    !spec->vt1708_jack_detect);
 	cancel_delayed_work_sync(&spec->vt1708_hp_work);
 }
 
@@ -2133,7 +2133,7 @@ static void vt1708_set_pinconfig_connect(struct hda_codec *codec, hda_nid_t nid)
 	return;
 }
 
-static int vt1708_jack_detectect_get(struct snd_kcontrol *kcontrol,
+static int vt1708_jack_detect_get(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
@@ -2141,13 +2141,13 @@ static int vt1708_jack_detectect_get(struct snd_kcontrol *kcontrol,
 
 	if (spec->codec_type != VT1708)
 		return 0;
-	spec->vt1708_jack_detectect =
+	spec->vt1708_jack_detect =
 		!((snd_hda_codec_read(codec, 0x1, 0, 0xf84, 0) >> 8) & 0x1);
-	ucontrol->value.integer.value[0] = spec->vt1708_jack_detectect;
+	ucontrol->value.integer.value[0] = spec->vt1708_jack_detect;
 	return 0;
 }
 
-static int vt1708_jack_detectect_put(struct snd_kcontrol *kcontrol,
+static int vt1708_jack_detect_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
@@ -2156,26 +2156,23 @@ static int vt1708_jack_detectect_put(struct snd_kcontrol *kcontrol,
 
 	if (spec->codec_type != VT1708)
 		return 0;
-	spec->vt1708_jack_detectect = ucontrol->value.integer.value[0];
+	spec->vt1708_jack_detect = ucontrol->value.integer.value[0];
 	change = (0x1 & (snd_hda_codec_read(codec, 0x1, 0, 0xf84, 0) >> 8))
-		== !spec->vt1708_jack_detectect;
-	if (spec->vt1708_jack_detectect) {
+		== !spec->vt1708_jack_detect;
+	if (spec->vt1708_jack_detect) {
 		mute_aa_path(codec, 1);
 		notify_aa_path_ctls(codec);
 	}
 	return change;
 }
 
-static const struct snd_kcontrol_new vt1708_jack_detectect[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Jack Detect",
-		.count = 1,
-		.info = snd_ctl_boolean_mono_info,
-		.get = vt1708_jack_detectect_get,
-		.put = vt1708_jack_detectect_put,
-	},
-	{} /* end */
+static const struct snd_kcontrol_new vt1708_jack_detect_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Jack Detect",
+	.count = 1,
+	.info = snd_ctl_boolean_mono_info,
+	.get = vt1708_jack_detect_get,
+	.put = vt1708_jack_detect_put,
 };
 
 static int vt1708_parse_auto_config(struct hda_codec *codec)
@@ -2206,9 +2203,8 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 	/* add jack detect on/off control */
-	err = snd_hda_add_new_ctls(codec, vt1708_jack_detectect);
-	if (err < 0)
-		return err;
+	if (!via_clone_control(spec, &vt1708_jack_detect_ctl))
+		return -ENOMEM;
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
