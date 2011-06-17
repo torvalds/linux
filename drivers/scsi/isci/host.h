@@ -188,15 +188,6 @@ struct scic_sds_controller {
 	u8 io_request_sequence[SCI_MAX_IO_REQUESTS];
 
 	/**
-	 * This field in the array of sequence values for the RNi.  These are used
-	 * to control io request build to io request start operations.  The sequence
-	 * value is recorded into an io request when it is built and is checked on
-	 * the io request start operation to make sure that there was not a device
-	 * hot plug between the build and start operation.
-	 */
-	u8 remote_device_sequence[SCI_MAX_REMOTE_DEVICES];
-
-	/**
 	 * This field is a pointer to the memory allocated by the driver for the task
 	 * context table.  This data is shared between the hardware and software.
 	 */

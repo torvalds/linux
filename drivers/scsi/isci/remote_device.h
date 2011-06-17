@@ -411,17 +411,6 @@ static inline bool dev_is_expander(struct domain_device *dev)
 	((sci_dev)->owning_port)
 
 /**
- * scic_sds_remote_device_get_sequence() -
- *
- * This macro returns the remote device sequence value
- */
-#define scic_sds_remote_device_get_sequence(sci_dev) \
-	(\
-		scic_sds_remote_device_get_controller(sci_dev)-> \
-		remote_device_sequence[(sci_dev)->rnc.remote_node_index] \
-	)
-
-/**
  * scic_sds_remote_device_get_controller_peg() -
  *
  * This macro returns the controllers protocol engine group

@@ -753,10 +753,6 @@ enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req)
 	struct scu_task_context *task_context;
 	enum sci_base_request_states state;
 
-	if (sci_req->device_sequence !=
-	    scic_sds_remote_device_get_sequence(sci_req->target_device))
-		return SCI_FAILURE;
-
 	state = sci_req->sm.current_state_id;
 	if (state != SCI_REQ_CONSTRUCTED) {
 		dev_warn(scic_to_dev(scic),
@@ -3112,7 +3108,6 @@ scic_sds_general_request_construct(struct scic_sds_controller *scic,
 	sci_req->target_device = sci_dev;
 	sci_req->protocol = SCIC_NO_PROTOCOL;
 	sci_req->saved_rx_frame_index = SCU_INVALID_FRAME_INDEX;
-	sci_req->device_sequence = scic_sds_remote_device_get_sequence(sci_dev);
 
 	sci_req->sci_status   = SCI_SUCCESS;
 	sci_req->scu_status   = 0;

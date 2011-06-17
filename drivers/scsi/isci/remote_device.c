@@ -887,8 +887,6 @@ static void scic_sds_remote_device_ready_state_enter(struct sci_base_state_machi
 	struct isci_remote_device *idev = sci_dev_to_idev(sci_dev);
 	struct domain_device *dev = idev->domain_dev;
 
-	scic->remote_device_sequence[sci_dev->rnc.remote_node_index]++;
-
 	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_SATA)) {
 		sci_change_state(&sci_dev->sm, SCI_STP_DEV_IDLE);
 	} else if (dev_is_expander(dev)) {

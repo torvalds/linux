@@ -231,14 +231,6 @@ struct scic_sds_request {
 	 */
 	u32 saved_rx_frame_index;
 
-	/*
-	 * This field in the recorded device sequence for the io request.
-	 * This is recorded during the build operation and is compared in the
-	 * start operation.  If the sequence is different then there was a
-	 * change of devices from the build to start operations.
-	 */
-	u8 device_sequence;
-
 	union {
 		struct {
 			union {
@@ -262,7 +254,6 @@ struct scic_sds_request {
 			struct dev_to_host_fis rsp;
 		} stp;
 	};
-
 };
 
 static inline struct scic_sds_request *to_sci_req(struct scic_sds_stp_request *stp_req)
