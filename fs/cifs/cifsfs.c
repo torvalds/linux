@@ -672,6 +672,7 @@ cifs_do_mount(struct file_system_type *fs_type,
 	cifs_sb = kzalloc(sizeof(struct cifs_sb_info), GFP_KERNEL);
 	if (cifs_sb == NULL) {
 		root = ERR_PTR(-ENOMEM);
+		unload_nls(volume_info->local_nls);
 		goto out;
 	}
 
