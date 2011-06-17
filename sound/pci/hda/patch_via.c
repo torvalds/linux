@@ -153,6 +153,7 @@ struct via_spec {
 	unsigned int hp_independent_mode_index;
 	unsigned int smart51_enabled;
 	unsigned int dmic_enabled;
+	unsigned int no_pin_power_ctl;
 	enum VIA_HDA_CODEC codec_type;
 
 	/* work to check hp jack state */
@@ -605,8 +606,12 @@ static void set_pin_power_state(struct hda_codec *codec, hda_nid_t nid,
 	unsigned no_presence = (def_conf & AC_DEFCFG_MISC)
 		>> AC_DEFCFG_MISC_SHIFT
 		& AC_DEFCFG_MISC_NO_PRESENCE; /* do not support pin sense */
-	unsigned present = snd_hda_jack_detect(codec, nid);
 	struct via_spec *spec = codec->spec;
+	unsigned present = 0;
+
+	no_presence |= spec->no_pin_power_ctl;
+	if (!no_presence)
+		present = snd_hda_jack_detect(codec, nid);
 	if ((spec->smart51_enabled && is_smart51_pins(spec, nid))
 	    || ((no_presence || present)
 		&& get_defcfg_connect(def_conf) != AC_JACK_PORT_NONE)) {
@@ -617,6 +622,55 @@ static void set_pin_power_state(struct hda_codec *codec, hda_nid_t nid,
 
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_POWER_STATE, parm);
 }
+
+static int via_pin_power_ctl_info(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_info *uinfo)
+{
+	static const char * const texts[] = {
+		"Disabled", "Enabled"
+	};
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 2;
+	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
+		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
+	strcpy(uinfo->value.enumerated.name,
+	       texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int via_pin_power_ctl_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct via_spec *spec = codec->spec;
+	ucontrol->value.enumerated.item[0] = !spec->no_pin_power_ctl;
+	return 0;
+}
+
+static int via_pin_power_ctl_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct via_spec *spec = codec->spec;
+	unsigned int val = !ucontrol->value.enumerated.item[0];
+
+	if (val == spec->no_pin_power_ctl)
+		return 0;
+	spec->no_pin_power_ctl = val;
+	set_widgets_power_state(codec);
+	return 1;
+}
+
+static const struct snd_kcontrol_new via_pin_power_ctl_enum = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Dynamic Power-Control",
+	.info = via_pin_power_ctl_info,
+	.get = via_pin_power_ctl_get,
+	.put = via_pin_power_ctl_put,
+};
+
 
 /*
  * input MUX handling
@@ -1479,6 +1533,10 @@ static int via_build_controls(struct hda_codec *codec)
 	struct snd_kcontrol *kctl;
 	const struct snd_kcontrol_new *knew;
 	int err, i;
+
+	if (spec->set_widgets_power_state)
+		if (!via_clone_control(spec, &via_pin_power_ctl_enum))
+			return -ENOMEM;
 
 	for (i = 0; i < spec->num_mixers; i++) {
 		err = snd_hda_add_new_ctls(codec, spec->mixers[i]);
