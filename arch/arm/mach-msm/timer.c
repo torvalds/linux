@@ -102,7 +102,11 @@ static cycle_t msm_read_timer_count(struct clocksource *cs)
 {
 	struct msm_clock *clk = container_of(cs, struct msm_clock, clocksource);
 
-	return readl(clk->global_counter);
+	/*
+	 * Shift timer count down by a constant due to unreliable lower bits
+	 * on some targets.
+	 */
+	return readl(clk->global_counter) >> clk->shift;
 }
 
 static struct msm_clock *clockevent_to_clock(struct clock_event_device *evt)
