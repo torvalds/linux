@@ -98,7 +98,7 @@ void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 		if (bus->chipinfo.rev == 0) {
 			pr_err("Workarounds for 43224 rev 0 not fully "
 				"implemented\n");
-			bcma_chipco_chipctl_maskset(cc, 0, ~0, 0xF0);
+			bcma_chipco_chipctl_maskset(cc, 0, ~0, 0x00F000F0);
 		} else {
 			bcma_chipco_chipctl_maskset(cc, 0, ~0, 0xF0);
 		}
