@@ -20,6 +20,8 @@
 #define TS72XX_MODEL_TS7200		0x00
 #define TS72XX_MODEL_TS7250		0x01
 #define TS72XX_MODEL_TS7260		0x02
+#define TS72XX_MODEL_TS7300		0x03
+#define TS72XX_MODEL_TS7400		0x04
 
 
 #define TS72XX_OPTIONS_PHYS_BASE	0x22400000
@@ -64,6 +66,16 @@ static inline int board_is_ts7250(void)
 static inline int board_is_ts7260(void)
 {
 	return __raw_readb(TS72XX_MODEL_VIRT_BASE) == TS72XX_MODEL_TS7260;
+}
+
+static inline int board_is_ts7300(void)
+{
+	return __raw_readb(TS72XX_MODEL_VIRT_BASE) == TS72XX_MODEL_TS7300;
+}
+
+static inline int board_is_ts7400(void)
+{
+	return __raw_readb(TS72XX_MODEL_VIRT_BASE) == TS72XX_MODEL_TS7400;
 }
 
 static inline int is_max197_installed(void)
