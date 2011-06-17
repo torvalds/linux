@@ -176,6 +176,8 @@ extern struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
 extern struct file *proc_ns_fget(int fd);
 extern bool proc_ns_inode(struct inode *inode);
 
+extern int proc_alloc_inum(unsigned int *pino);
+extern void proc_free_inum(unsigned int inum);
 #else
 
 #define proc_net_fops_create(net, name, mode, fops)  ({ (void)(mode), NULL; })
@@ -235,6 +237,14 @@ static inline bool proc_ns_inode(struct inode *inode)
 	return false;
 }
 
+static inline int proc_alloc_inum(unsigned int *inum)
+{
+	*inum = 1;
+	return 0;
+}
+static inline void proc_free_inum(unsigned int inum)
+{
+}
 #endif /* CONFIG_PROC_FS */
 
 #if !defined(CONFIG_PROC_KCORE)
