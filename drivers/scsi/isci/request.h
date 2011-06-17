@@ -672,97 +672,10 @@ static inline void isci_request_free(struct isci_host *isci_host,
 struct isci_request *isci_request_alloc_tmf(struct isci_host *ihost,
 					    struct isci_tmf *isci_tmf,
 					    gfp_t gfp_flags);
-
 int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *idev,
 			 struct sas_task *task, gfp_t gfp_flags);
-
-/**
- * isci_request_unmap_sgl() - This function unmaps the DMA address of a given
- *    sgl
- * @request: This parameter points to the isci_request object
- * @*pdev: This Parameter is the pci_device struct for the controller
- *
- */
-static inline void
-isci_request_unmap_sgl(struct isci_request *request, struct pci_dev *pdev)
-{
-	struct sas_task *task = isci_request_access_task(request);
-
-	dev_dbg(&request->isci_host->pdev->dev,
-		"%s: request = %p, task = %p,\n"
-		"task->data_dir = %d, is_sata = %d\n ",
-		__func__,
-		request,
-		task,
-		task->data_dir,
-		sas_protocol_ata(task->task_proto));
-
-	if ((task->data_dir != PCI_DMA_NONE) &&
-	    !sas_protocol_ata(task->task_proto)) {
-		if (task->num_scatter == 0)
-			/* 0 indicates a single dma address */
-			dma_unmap_single(
-				&pdev->dev,
-				request->zero_scatter_daddr,
-				task->total_xfer_len,
-				task->data_dir
-				);
-
-		else  /* unmap the sgl dma addresses */
-			dma_unmap_sg(
-				&pdev->dev,
-				task->scatter,
-				request->num_sg_entries,
-				task->data_dir
-				);
-	}
-}
-
-/**
- * isci_request_io_request_get_next_sge() - This function is called by the sci
- *    core to retrieve the next sge for a given request.
- * @request: This parameter is the isci_request object.
- * @current_sge_address: This parameter is the last sge retrieved by the sci
- *    core for this request.
- *
- * pointer to the next sge for specified request.
- */
-static inline void *
-isci_request_io_request_get_next_sge(struct isci_request *request,
-				     void *current_sge_address)
-{
-	struct sas_task *task = isci_request_access_task(request);
-	void *ret = NULL;
-
-	dev_dbg(&request->isci_host->pdev->dev,
-		"%s: request = %p, "
-		"current_sge_address = %p, "
-		"num_scatter = %d\n",
-		__func__,
-		request,
-		current_sge_address,
-		task->num_scatter);
-
-	if (!current_sge_address)	/* First time through.. */
-		ret = task->scatter;    /* always task->scatter */
-	else if (task->num_scatter == 0) /* Next element, if num_scatter == 0 */
-		ret = NULL;              /* there is only one element. */
-	else
-		ret = sg_next(current_sge_address);     /* sg_next returns NULL
-							 * for the last element
-							 */
-
-	dev_dbg(&request->isci_host->pdev->dev,
-		"%s: next sge address = %p\n",
-		__func__,
-		ret);
-
-	return ret;
-}
-
-void
-isci_terminate_pending_requests(struct isci_host *ihost,
-				struct isci_remote_device *idev);
+void isci_terminate_pending_requests(struct isci_host *ihost,
+				     struct isci_remote_device *idev);
 enum sci_status
 scic_task_request_construct(struct scic_sds_controller *scic,
 			    struct scic_sds_remote_device *sci_dev,

@@ -2930,7 +2930,22 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 		break;
 	}
 
-	isci_request_unmap_sgl(request, isci_host->pdev);
+	switch (task->task_proto) {
+	case SAS_PROTOCOL_SSP:
+		if (task->data_dir == DMA_NONE)
+			break;
+		if (task->num_scatter == 0)
+			/* 0 indicates a single dma address */
+			dma_unmap_single(&isci_host->pdev->dev,
+					 request->zero_scatter_daddr,
+					 task->total_xfer_len, task->data_dir);
+		else  /* unmap the sgl dma addresses */
+			dma_unmap_sg(&isci_host->pdev->dev, task->scatter,
+				     request->num_sg_entries, task->data_dir);
+		break;
+	default:
+		break;
+	}
 
 	/* Put the completed request on the correct list */
 	isci_task_save_for_upper_layer_completion(isci_host, request, response,
