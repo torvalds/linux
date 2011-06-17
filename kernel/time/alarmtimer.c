@@ -107,6 +107,9 @@ static struct rtc_device *alarmtimer_get_rtcdev(void)
 
 	return ret;
 }
+#else
+#define alarmtimer_get_rtcdev() (0)
+#define rtcdev (0)
 #endif
 
 
@@ -231,7 +234,7 @@ static int alarmtimer_suspend(struct device *dev)
 	freezer_delta = ktime_set(0, 0);
 	spin_unlock_irqrestore(&freezer_delta_lock, flags);
 
-	rtc = alarmtimer_get_rtcdev();
+	rtc = rtcdev;
 	/* If we have no rtcdev, just return */
 	if (!rtc)
 		return 0;
@@ -381,6 +384,9 @@ static int alarm_clock_getres(const clockid_t which_clock, struct timespec *tp)
 {
 	clockid_t baseid = alarm_bases[clock2alarm(which_clock)].base_clockid;
 
+	if (!alarmtimer_get_rtcdev())
+		return -ENOTSUPP;
+
 	return hrtimer_get_res(baseid, tp);
 }
 
@@ -394,6 +400,9 @@ static int alarm_clock_getres(const clockid_t which_clock, struct timespec *tp)
 static int alarm_clock_get(clockid_t which_clock, struct timespec *tp)
 {
 	struct alarm_base *base = &alarm_bases[clock2alarm(which_clock)];
+
+	if (!alarmtimer_get_rtcdev())
+		return -ENOTSUPP;
 
 	*tp = ktime_to_timespec(base->gettime());
 	return 0;
@@ -409,6 +418,9 @@ static int alarm_timer_create(struct k_itimer *new_timer)
 {
 	enum  alarmtimer_type type;
 	struct alarm_base *base;
+
+	if (!alarmtimer_get_rtcdev())
+		return -ENOTSUPP;
 
 	if (!capable(CAP_WAKE_ALARM))
 		return -EPERM;
@@ -444,6 +456,9 @@ static void alarm_timer_get(struct k_itimer *timr,
  */
 static int alarm_timer_del(struct k_itimer *timr)
 {
+	if (!rtcdev)
+		return -ENOTSUPP;
+
 	alarm_cancel(&timr->it.alarmtimer);
 	return 0;
 }
@@ -461,6 +476,9 @@ static int alarm_timer_set(struct k_itimer *timr, int flags,
 				struct itimerspec *new_setting,
 				struct itimerspec *old_setting)
 {
+	if (!rtcdev)
+		return -ENOTSUPP;
+
 	/* Save old values */
 	old_setting->it_interval =
 			ktime_to_timespec(timr->it.alarmtimer.period);
@@ -599,6 +617,9 @@ static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
 	ktime_t exp;
 	int ret = 0;
 	struct restart_block *restart;
+
+	if (!alarmtimer_get_rtcdev())
+		return -ENOTSUPP;
 
 	if (!capable(CAP_WAKE_ALARM))
 		return -EPERM;
