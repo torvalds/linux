@@ -362,12 +362,8 @@ static void hci_conn_auto_accept(unsigned long arg)
 	struct hci_conn *conn = (void *) arg;
 	struct hci_dev *hdev = conn->hdev;
 
-	hci_dev_lock(hdev);
-
 	hci_send_cmd(hdev, HCI_OP_USER_CONFIRM_REPLY, sizeof(conn->dst),
 								&conn->dst);
-
-	hci_dev_unlock(hdev);
 }
 
 struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
