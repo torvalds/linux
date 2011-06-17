@@ -957,6 +957,15 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	ret = btrfs_update_inode(trans, parent_root, parent_inode);
 	BUG_ON(ret);
 
+	/*
+	 * pull in the delayed directory update
+	 * and the delayed inode item
+	 * otherwise we corrupt the FS during
+	 * snapshot
+	 */
+	ret = btrfs_run_delayed_items(trans, root);
+	BUG_ON(ret);
+
 	record_root_in_trans(trans, root);
 	btrfs_set_root_last_snapshot(&root->root_item, trans->transid);
 	memcpy(new_root_item, &root->root_item, sizeof(*new_root_item));
@@ -1018,14 +1027,6 @@ static noinline int create_pending_snapshots(struct btrfs_trans_handle *trans,
 	int ret;
 
 	list_for_each_entry(pending, head, list) {
-		/*
-		 * We must deal with the delayed items before creating
-		 * snapshots, or we will create a snapthot with inconsistent
-		 * information.
-		*/
-		ret = btrfs_run_delayed_items(trans, fs_info->fs_root);
-		BUG_ON(ret);
-
 		ret = create_pending_snapshot(trans, fs_info, pending);
 		BUG_ON(ret);
 	}
@@ -1319,14 +1320,20 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	 */
 	mutex_lock(&root->fs_info->reloc_mutex);
 
-	ret = create_pending_snapshots(trans, root->fs_info);
+	ret = btrfs_run_delayed_items(trans, root);
 	BUG_ON(ret);
 
-	ret = btrfs_run_delayed_items(trans, root);
+	ret = create_pending_snapshots(trans, root->fs_info);
 	BUG_ON(ret);
 
 	ret = btrfs_run_delayed_refs(trans, root, (unsigned long)-1);
 	BUG_ON(ret);
+
+	/*
+	 * make sure none of the code above managed to slip in a
+	 * delayed item
+	 */
+	btrfs_assert_delayed_root_empty(root);
 
 	WARN_ON(cur_trans != trans->transaction);
 

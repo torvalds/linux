@@ -1237,6 +1237,13 @@ again:
 	return 0;
 }
 
+void btrfs_assert_delayed_root_empty(struct btrfs_root *root)
+{
+	struct btrfs_delayed_root *delayed_root;
+	delayed_root = btrfs_get_delayed_root(root);
+	WARN_ON(btrfs_first_delayed_node(delayed_root));
+}
+
 void btrfs_balance_delayed_items(struct btrfs_root *root)
 {
 	struct btrfs_delayed_root *delayed_root;
