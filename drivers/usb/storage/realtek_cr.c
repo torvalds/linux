@@ -119,15 +119,6 @@ struct rts51x_chip {
 #define CHECK_ID(chip, pid, fw_ver)	\
 		(CHECK_PID((chip), (pid)) && CHECK_FW_VER((chip), (fw_ver)))
 
-#define wait_timeout_x(task_state, msecs)	\
-do {						\
-	set_current_state((task_state));	\
-	schedule_timeout((msecs) * HZ / 1000);	\
-} while (0)
-
-#define wait_timeout(msecs)		\
-		wait_timeout_x(TASK_INTERRUPTIBLE, (msecs))
-
 static int init_realtek_cr(struct us_data *us);
 
 /*
