@@ -151,6 +151,8 @@ nva3_pm_clocks_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	perflvl->core   = read_pll(dev, 0x4200, 0);
 	perflvl->shader = read_pll(dev, 0x4220, 1);
 	perflvl->memory = read_pll(dev, 0x4000, 2);
+	perflvl->unka0  = read_clk(dev, 0x20, false);
+	perflvl->vdec   = read_clk(dev, 0x21, false);
 	return 0;
 }
 
@@ -158,6 +160,8 @@ struct nva3_pm_state {
 	struct creg nclk;
 	struct creg sclk;
 	struct creg mclk;
+	struct creg vdec;
+	struct creg unka0;
 };
 
 void *
@@ -179,6 +183,14 @@ nva3_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		goto out;
 
 	ret = calc_clk(dev, 0x4000, 0x12, perflvl->memory, &info->mclk);
+	if (ret < 0)
+		goto out;
+
+	ret = calc_clk(dev, 0x0000, 0x20, perflvl->unka0, &info->unka0);
+	if (ret < 0)
+		goto out;
+
+	ret = calc_clk(dev, 0x0000, 0x21, perflvl->vdec, &info->vdec);
 	if (ret < 0)
 		goto out;
 
@@ -215,6 +227,12 @@ prog_pll(struct drm_device *dev, u32 pll, int clk, struct creg *reg)
 	}
 }
 
+static void
+prog_clk(struct drm_device *dev, int clk, struct creg *reg)
+{
+	nv_mask(dev, 0x004120 + (clk * 4), 0x003f3141, 0x00000101 | reg->clk);
+}
+
 void
 nva3_pm_clocks_set(struct drm_device *dev, void *pre_state)
 {
@@ -222,6 +240,8 @@ nva3_pm_clocks_set(struct drm_device *dev, void *pre_state)
 
 	prog_pll(dev, 0x004200, 0, &info->nclk);
 	prog_pll(dev, 0x004220, 1, &info->sclk);
+	prog_clk(dev, 0x20, &info->unka0);
+	prog_clk(dev, 0x21, &info->vdec);
 
 	nv_wr32(dev, 0x100210, 0);
 	nv_wr32(dev, 0x1002dc, 1);
