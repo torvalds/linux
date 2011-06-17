@@ -47,6 +47,7 @@ struct sh_dmae_device {
 	struct list_head node;
 	u32 __iomem *chan_reg;
 	u16 __iomem *dmars;
+	unsigned int chcr_offset;
 };
 
 #define to_sh_chan(chan) container_of(chan, struct sh_dmae_chan, common)

@@ -78,6 +78,20 @@ static void dmaor_write(struct sh_dmae_device *shdev, u16 data)
 	__raw_writew(data, shdev->chan_reg + DMAOR / sizeof(u32));
 }
 
+static void chcr_write(struct sh_dmae_chan *sh_dc, u32 data)
+{
+	struct sh_dmae_device *shdev = to_sh_dev(sh_dc);
+
+	__raw_writel(data, sh_dc->base + shdev->chcr_offset / sizeof(u32));
+}
+
+static u32 chcr_read(struct sh_dmae_chan *sh_dc)
+{
+	struct sh_dmae_device *shdev = to_sh_dev(sh_dc);
+
+	return __raw_readl(sh_dc->base + shdev->chcr_offset / sizeof(u32));
+}
+
 /*
  * Reset DMA controller
  *
@@ -120,7 +134,7 @@ static int sh_dmae_rst(struct sh_dmae_device *shdev)
 
 static bool dmae_is_busy(struct sh_dmae_chan *sh_chan)
 {
-	u32 chcr = sh_dmae_readl(sh_chan, CHCR);
+	u32 chcr = chcr_read(sh_chan);
 
 	if ((chcr & (CHCR_DE | CHCR_TE)) == CHCR_DE)
 		return true; /* working */
@@ -167,18 +181,18 @@ static void dmae_set_reg(struct sh_dmae_chan *sh_chan, struct sh_dmae_regs *hw)
 
 static void dmae_start(struct sh_dmae_chan *sh_chan)
 {
-	u32 chcr = sh_dmae_readl(sh_chan, CHCR);
+	u32 chcr = chcr_read(sh_chan);
 
 	chcr |= CHCR_DE | CHCR_IE;
-	sh_dmae_writel(sh_chan, chcr & ~CHCR_TE, CHCR);
+	chcr_write(sh_chan, chcr & ~CHCR_TE);
 }
 
 static void dmae_halt(struct sh_dmae_chan *sh_chan)
 {
-	u32 chcr = sh_dmae_readl(sh_chan, CHCR);
+	u32 chcr = chcr_read(sh_chan);
 
 	chcr &= ~(CHCR_DE | CHCR_TE | CHCR_IE);
-	sh_dmae_writel(sh_chan, chcr, CHCR);
+	chcr_write(sh_chan, chcr);
 }
 
 static void dmae_init(struct sh_dmae_chan *sh_chan)
@@ -190,7 +204,7 @@ static void dmae_init(struct sh_dmae_chan *sh_chan)
 	u32 chcr = DM_INC | SM_INC | 0x400 | log2size_to_chcr(sh_chan,
 						   LOG2_DEFAULT_XFER_SIZE);
 	sh_chan->xmit_shift = calc_xmit_shift(sh_chan, chcr);
-	sh_dmae_writel(sh_chan, chcr, CHCR);
+	chcr_write(sh_chan, chcr);
 }
 
 static int dmae_set_chcr(struct sh_dmae_chan *sh_chan, u32 val)
@@ -200,7 +214,7 @@ static int dmae_set_chcr(struct sh_dmae_chan *sh_chan, u32 val)
 		return -EBUSY;
 
 	sh_chan->xmit_shift = calc_xmit_shift(sh_chan, val);
-	sh_dmae_writel(sh_chan, val, CHCR);
+	chcr_write(sh_chan, val);
 
 	return 0;
 }
@@ -840,7 +854,7 @@ static irqreturn_t sh_dmae_interrupt(int irq, void *data)
 
 	spin_lock(&sh_chan->desc_lock);
 
-	chcr = sh_dmae_readl(sh_chan, CHCR);
+	chcr = chcr_read(sh_chan);
 
 	if (chcr & CHCR_TE) {
 		/* DMA stop */
@@ -1137,6 +1151,11 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 
 	/* platform data */
 	shdev->pdata = pdata;
+
+	if (pdata->chcr_offset)
+		shdev->chcr_offset = pdata->chcr_offset;
+	else
+		shdev->chcr_offset = CHCR;
 
 	platform_set_drvdata(pdev, shdev);
 
