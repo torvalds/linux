@@ -130,24 +130,6 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 }
 
 /**
- * tracehook_tracer_task - return the task that is tracing the given task
- * @tsk:		task to consider
- *
- * Returns NULL if no one is tracing @task, or the &struct task_struct
- * pointer to its tracer.
- *
- * Must called under rcu_read_lock().  The pointer returned might be kept
- * live only by RCU.  During exec, this may be called with task_lock()
- * held on @task, still held from when tracehook_unsafe_exec() was called.
- */
-static inline struct task_struct *tracehook_tracer_task(struct task_struct *tsk)
-{
-	if (tsk->ptrace & PT_PTRACED)
-		return rcu_dereference(tsk->parent);
-	return NULL;
-}
-
-/**
  * tracehook_signal_handler - signal handler setup is complete
  * @sig:		number of signal being delivered
  * @info:		siginfo_t of signal being delivered

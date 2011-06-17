@@ -151,6 +151,24 @@ int generic_ptrace_pokedata(struct task_struct *tsk, unsigned long addr,
 			    unsigned long data);
 
 /**
+ * ptrace_parent - return the task that is tracing the given task
+ * @task: task to consider
+ *
+ * Returns %NULL if no one is tracing @task, or the &struct task_struct
+ * pointer to its tracer.
+ *
+ * Must called under rcu_read_lock().  The pointer returned might be kept
+ * live only by RCU.  During exec, this may be called with task_lock() held
+ * on @task, still held from when check_unsafe_exec() was called.
+ */
+static inline struct task_struct *ptrace_parent(struct task_struct *task)
+{
+	if (unlikely(task->ptrace))
+		return rcu_dereference(task->parent);
+	return NULL;
+}
+
+/**
  * ptrace_event_enabled - test whether a ptrace event is enabled
  * @task: ptracee of interest
  * @event: %PTRACE_EVENT_* to test
