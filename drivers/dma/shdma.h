@@ -48,6 +48,7 @@ struct sh_dmae_device {
 	u32 __iomem *chan_reg;
 	u16 __iomem *dmars;
 	unsigned int chcr_offset;
+	u32 chcr_ie_bit;
 };
 
 #define to_sh_chan(chan) container_of(chan, struct sh_dmae_chan, common)

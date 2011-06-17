@@ -181,17 +181,19 @@ static void dmae_set_reg(struct sh_dmae_chan *sh_chan, struct sh_dmae_regs *hw)
 
 static void dmae_start(struct sh_dmae_chan *sh_chan)
 {
+	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
 	u32 chcr = chcr_read(sh_chan);
 
-	chcr |= CHCR_DE | CHCR_IE;
+	chcr |= CHCR_DE | shdev->chcr_ie_bit;
 	chcr_write(sh_chan, chcr & ~CHCR_TE);
 }
 
 static void dmae_halt(struct sh_dmae_chan *sh_chan)
 {
+	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
 	u32 chcr = chcr_read(sh_chan);
 
-	chcr &= ~(CHCR_DE | CHCR_TE | CHCR_IE);
+	chcr &= ~(CHCR_DE | CHCR_TE | shdev->chcr_ie_bit);
 	chcr_write(sh_chan, chcr);
 }
 
@@ -1156,6 +1158,11 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 		shdev->chcr_offset = pdata->chcr_offset;
 	else
 		shdev->chcr_offset = CHCR;
+
+	if (pdata->chcr_ie_bit)
+		shdev->chcr_ie_bit = pdata->chcr_ie_bit;
+	else
+		shdev->chcr_ie_bit = CHCR_IE;
 
 	platform_set_drvdata(pdev, shdev);
 

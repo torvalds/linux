@@ -63,6 +63,7 @@ struct sh_dmae_pdata {
 	int ts_shift_num;
 	u16 dmaor_init;
 	unsigned int chcr_offset;
+	u32 chcr_ie_bit;
 };
 
 /* DMA register */
