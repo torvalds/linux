@@ -115,11 +115,11 @@ struct via_spec {
 	const struct hda_verb *init_verbs[5];
 	unsigned int num_iverbs;
 
-	char *stream_name_analog;
+	char stream_name_analog[32];
 	const struct hda_pcm_stream *stream_analog_playback;
 	const struct hda_pcm_stream *stream_analog_capture;
 
-	char *stream_name_digital;
+	char stream_name_digital[32];
 	const struct hda_pcm_stream *stream_digital_playback;
 	const struct hda_pcm_stream *stream_digital_capture;
 
@@ -1556,6 +1556,8 @@ static int via_build_pcms(struct hda_codec *codec)
 	codec->num_pcms = 1;
 	codec->pcm_info = info;
 
+	snprintf(spec->stream_name_analog, sizeof(spec->stream_name_analog),
+		 "%s Analog", codec->chip_name);
 	info->name = spec->stream_name_analog;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
 		*(spec->stream_analog_playback);
@@ -1570,6 +1572,9 @@ static int via_build_pcms(struct hda_codec *codec)
 	if (spec->multiout.dig_out_nid || spec->dig_in_nid) {
 		codec->num_pcms++;
 		info++;
+		snprintf(spec->stream_name_digital,
+			 sizeof(spec->stream_name_digital),
+			 "%s Digital", codec->chip_name);
 		info->name = spec->stream_name_digital;
 		info->pcm_type = HDA_PCM_TYPE_SPDIF;
 		if (spec->multiout.dig_out_nid) {
@@ -2313,14 +2318,12 @@ static int patch_vt1708(struct hda_codec *codec)
 	}
 
 
-	spec->stream_name_analog = "VT1708 Analog";
 	spec->stream_analog_playback = &vt1708_pcm_analog_playback;
 	/* disable 32bit format on VT1708 */
 	if (codec->vendor_id == 0x11061708)
 		spec->stream_analog_playback = &vt1708_pcm_analog_s16_playback;
 	spec->stream_analog_capture = &vt1708_pcm_analog_capture;
 
-	spec->stream_name_digital = "VT1708 Digital";
 	spec->stream_digital_playback = &vt1708_pcm_digital_playback;
 	spec->stream_digital_capture = &vt1708_pcm_digital_capture;
 
@@ -2748,11 +2751,9 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1709_10ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1709_uniwill_init_verbs;
 
-	spec->stream_name_analog = "VT1709 Analog";
 	spec->stream_analog_playback = &vt1709_10ch_pcm_analog_playback;
 	spec->stream_analog_capture = &vt1709_pcm_analog_capture;
 
-	spec->stream_name_digital = "VT1709 Digital";
 	spec->stream_digital_playback = &vt1709_pcm_digital_playback;
 	spec->stream_digital_capture = &vt1709_pcm_digital_capture;
 
@@ -2836,11 +2837,9 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1709_6ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1709_uniwill_init_verbs;
 
-	spec->stream_name_analog = "VT1709 Analog";
 	spec->stream_analog_playback = &vt1709_6ch_pcm_analog_playback;
 	spec->stream_analog_capture = &vt1709_pcm_analog_capture;
 
-	spec->stream_name_digital = "VT1709 Digital";
 	spec->stream_digital_playback = &vt1709_pcm_digital_playback;
 	spec->stream_digital_capture = &vt1709_pcm_digital_capture;
 
@@ -3354,11 +3353,9 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_8ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_uniwill_init_verbs;
 
-	spec->stream_name_analog = "VT1708B Analog";
 	spec->stream_analog_playback = &vt1708B_8ch_pcm_analog_playback;
 	spec->stream_analog_capture = &vt1708B_pcm_analog_capture;
 
-	spec->stream_name_digital = "VT1708B Digital";
 	spec->stream_digital_playback = &vt1708B_pcm_digital_playback;
 	spec->stream_digital_capture = &vt1708B_pcm_digital_capture;
 
@@ -3403,11 +3400,9 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_4ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_uniwill_init_verbs;
 
-	spec->stream_name_analog = "VT1708B Analog";
 	spec->stream_analog_playback = &vt1708B_4ch_pcm_analog_playback;
 	spec->stream_analog_capture = &vt1708B_pcm_analog_capture;
 
-	spec->stream_name_digital = "VT1708B Digital";
 	spec->stream_digital_playback = &vt1708B_pcm_digital_playback;
 	spec->stream_digital_capture = &vt1708B_pcm_digital_capture;
 
@@ -3863,24 +3858,12 @@ static int patch_vt1708S(struct hda_codec *codec)
 		spec->init_verbs[spec->num_iverbs++] =
 			vt1708S_uniwill_init_verbs;
 
-	if (codec->vendor_id == 0x11060440)
-		spec->stream_name_analog = "VT1818S Analog";
-	else if (codec->vendor_id == 0x11064397)
-		spec->stream_name_analog = "VT1705 Analog";
-	else
-		spec->stream_name_analog = "VT1708S Analog";
 	if (codec->vendor_id == 0x11064397)
 		spec->stream_analog_playback = &vt1705_pcm_analog_playback;
 	else
 		spec->stream_analog_playback = &vt1708S_pcm_analog_playback;
 	spec->stream_analog_capture = &vt1708S_pcm_analog_capture;
 
-	if (codec->vendor_id == 0x11060440)
-		spec->stream_name_digital = "VT1818S Digital";
-	else if (codec->vendor_id == 0x11064397)
-		spec->stream_name_digital = "VT1705 Digital";
-	else
-		spec->stream_name_digital = "VT1708S Digital";
 	spec->stream_digital_playback = &vt1708S_pcm_digital_playback;
 
 	if (spec->adc_nids && spec->input_mux) {
@@ -3905,13 +3888,6 @@ static int patch_vt1708S(struct hda_codec *codec)
 		snprintf(codec->bus->card->mixername,
 			 sizeof(codec->bus->card->mixername),
 			 "%s %s", codec->vendor_name, codec->chip_name);
-		spec->stream_name_analog = "VT1708BCE Analog";
-		spec->stream_name_digital = "VT1708BCE Digital";
-	}
-	/* correct names for VT1818S */
-	if (codec->vendor_id == 0x11060440) {
-		spec->stream_name_analog = "VT1818S Analog";
-		spec->stream_name_digital = "VT1818S Digital";
 	}
 	/* correct names for VT1705 */
 	if (codec->vendor_id == 0x11064397)	{
@@ -4231,11 +4207,9 @@ static int patch_vt1702(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1702_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1702_uniwill_init_verbs;
 
-	spec->stream_name_analog = "VT1702 Analog";
 	spec->stream_analog_playback = &vt1702_pcm_analog_playback;
 	spec->stream_analog_capture = &vt1702_pcm_analog_capture;
 
-	spec->stream_name_digital = "VT1702 Digital";
 	spec->stream_digital_playback = &vt1702_pcm_digital_playback;
 
 	if (spec->adc_nids && spec->input_mux) {
@@ -4681,21 +4655,9 @@ static int patch_vt1718S(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1718S_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1718S_uniwill_init_verbs;
 
-	if (codec->vendor_id == 0x11060441)
-		spec->stream_name_analog = "VT2020 Analog";
-	else if (codec->vendor_id == 0x11064441)
-		spec->stream_name_analog = "VT1828S Analog";
-	else
-		spec->stream_name_analog = "VT1718S Analog";
 	spec->stream_analog_playback = &vt1718S_pcm_analog_playback;
 	spec->stream_analog_capture = &vt1718S_pcm_analog_capture;
 
-	if (codec->vendor_id == 0x11060441)
-		spec->stream_name_digital = "VT2020 Digital";
-	else if (codec->vendor_id == 0x11064441)
-		spec->stream_name_digital = "VT1828S Digital";
-	else
-		spec->stream_name_digital = "VT1718S Digital";
 	spec->stream_digital_playback = &vt1718S_pcm_digital_playback;
 	if (codec->vendor_id == 0x11060428 || codec->vendor_id == 0x11060441)
 		spec->stream_digital_capture = &vt1718S_pcm_digital_capture;
@@ -5230,11 +5192,9 @@ static int patch_vt1716S(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++]  = vt1716S_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1716S_uniwill_init_verbs;
 
-	spec->stream_name_analog = "VT1716S Analog";
 	spec->stream_analog_playback = &vt1716S_pcm_analog_playback;
 	spec->stream_analog_capture = &vt1716S_pcm_analog_capture;
 
-	spec->stream_name_digital = "VT1716S Digital";
 	spec->stream_digital_playback = &vt1716S_pcm_digital_playback;
 
 	if (spec->adc_nids && spec->input_mux) {
@@ -5728,17 +5688,9 @@ static int patch_vt2002P(struct hda_codec *codec)
 		spec->init_verbs[spec->num_iverbs++] =
 			vt2002P_uniwill_init_verbs;
 
-	if (spec->codec_type == VT1802)
-		spec->stream_name_analog = "VT1802 Analog";
-	else
-		spec->stream_name_analog = "VT2002P Analog";
 	spec->stream_analog_playback = &vt2002P_pcm_analog_playback;
 	spec->stream_analog_capture = &vt2002P_pcm_analog_capture;
 
-	if (spec->codec_type == VT1802)
-		spec->stream_name_digital = "VT1802 Digital";
-	else
-		spec->stream_name_digital = "VT2002P Digital";
 	spec->stream_digital_playback = &vt2002P_pcm_digital_playback;
 
 	if (spec->adc_nids && spec->input_mux) {
@@ -6128,11 +6080,9 @@ static int patch_vt1812(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++]  = vt1812_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1812_uniwill_init_verbs;
 
-	spec->stream_name_analog = "VT1812 Analog";
 	spec->stream_analog_playback = &vt1812_pcm_analog_playback;
 	spec->stream_analog_capture = &vt1812_pcm_analog_capture;
 
-	spec->stream_name_digital = "VT1812 Digital";
 	spec->stream_digital_playback = &vt1812_pcm_digital_playback;
 
 	if (spec->adc_nids && spec->input_mux) {
