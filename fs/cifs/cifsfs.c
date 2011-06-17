@@ -656,16 +656,13 @@ cifs_do_mount(struct file_system_type *fs_type,
 	cifs_sb = kzalloc(sizeof(struct cifs_sb_info), GFP_KERNEL);
 	if (cifs_sb == NULL) {
 		root = ERR_PTR(-ENOMEM);
-		unload_nls(volume_info->local_nls);
-		goto out;
+		goto out_nls;
 	}
 
 	cifs_sb->mountdata = kstrndup(data, PAGE_SIZE, GFP_KERNEL);
 	if (cifs_sb->mountdata == NULL) {
 		root = ERR_PTR(-ENOMEM);
-		unload_nls(volume_info->local_nls);
-		kfree(cifs_sb);
-		goto out;
+		goto out_cifs_sb;
 	}
 
 	cifs_setup_cifs_sb(volume_info, cifs_sb);
@@ -675,10 +672,7 @@ cifs_do_mount(struct file_system_type *fs_type,
 		if (!(flags & MS_SILENT))
 			cERROR(1, "cifs_mount failed w/return code = %d", rc);
 		root = ERR_PTR(rc);
-		unload_nls(volume_info->local_nls);
-		kfree(cifs_sb->mountdata);
-		kfree(cifs_sb);
-		goto out;
+		goto out_mountdata;
 	}
 
 	mnt_data.vol = volume_info;
@@ -695,22 +689,20 @@ cifs_do_mount(struct file_system_type *fs_type,
 	if (sb->s_root) {
 		cFYI(1, "Use existing superblock");
 		cifs_umount(cifs_sb);
-		goto out_shared;
+	} else {
+		sb->s_flags = flags;
+		/* BB should we make this contingent on mount parm? */
+		sb->s_flags |= MS_NODIRATIME | MS_NOATIME;
+
+		rc = cifs_read_super(sb);
+		if (rc) {
+			root = ERR_PTR(rc);
+			goto out_super;
+		}
+
+		sb->s_flags |= MS_ACTIVE;
 	}
 
-	sb->s_flags = flags;
-	/* BB should we make this contingent on mount parm? */
-	sb->s_flags |= MS_NODIRATIME | MS_NOATIME;
-
-	rc = cifs_read_super(sb);
-	if (rc) {
-		root = ERR_PTR(rc);
-		goto out_super;
-	}
-
-	sb->s_flags |= MS_ACTIVE;
-
-out_shared:
 	root = cifs_get_root(volume_info, sb);
 	if (root == NULL) {
 		root = ERR_PTR(-EINVAL); /* XXX */
@@ -725,6 +717,14 @@ out_super:
 out:
 	cifs_cleanup_volume_info(&volume_info);
 	return root;
+
+out_mountdata:
+	kfree(cifs_sb->mountdata);
+out_cifs_sb:
+	kfree(cifs_sb);
+out_nls:
+	unload_nls(volume_info->local_nls);
+	goto out;
 }
 
 static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
