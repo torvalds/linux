@@ -136,16 +136,19 @@ static void rnc_destruct_done(void *_dev)
 static enum sci_status scic_sds_remote_device_terminate_requests(struct scic_sds_remote_device *sci_dev)
 {
 	struct scic_sds_controller *scic = sci_dev->owning_port->owning_controller;
+	struct isci_host *ihost = scic_to_ihost(scic);
 	u32 i, request_count = sci_dev->started_request_count;
 	enum sci_status status  = SCI_SUCCESS;
 
 	for (i = 0; i < SCI_MAX_IO_REQUESTS && i < request_count; i++) {
-		struct scic_sds_request *sci_req;
+		struct isci_request *ireq = ihost->reqs[i];
+		struct scic_sds_request *sci_req = &ireq->sci;
 		enum sci_status s;
 
-		sci_req = scic->io_request_table[i];
-		if (!sci_req || sci_req->target_device != sci_dev)
+		if (!test_bit(IREQ_ACTIVE, &ireq->flags) ||
+		    sci_req->target_device != sci_dev)
 			continue;
+
 		s = scic_controller_terminate_request(scic, sci_dev, sci_req);
 		if (s != SCI_SUCCESS)
 			status = s;

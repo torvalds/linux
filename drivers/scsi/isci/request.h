@@ -257,6 +257,7 @@ struct isci_request {
 	#define IREQ_COMPLETE_IN_TARGET 0
 	#define IREQ_TERMINATED 1
 	#define IREQ_TMF 2
+	#define IREQ_ACTIVE 3
 	unsigned long flags;
 
 	union ttype_ptr_union {
@@ -590,33 +591,16 @@ isci_request_change_started_to_aborted(struct isci_request *isci_request,
 						       completion_ptr,
 						       aborted);
 }
-/**
- * isci_request_free() - This function frees the request object.
- * @isci_host: This parameter specifies the ISCI host object
- * @isci_request: This parameter points to the isci_request object
- *
- */
-static inline void isci_request_free(struct isci_host *isci_host,
-				     struct isci_request *isci_request)
-{
-	if (!isci_request)
-		return;
-
-	/* release the dma memory if we fail. */
-	dma_pool_free(isci_host->dma_pool,
-		      isci_request,
-		      isci_request->request_daddr);
-}
 
 #define isci_request_access_task(req) ((req)->ttype_ptr.io_task_ptr)
 
 #define isci_request_access_tmf(req) ((req)->ttype_ptr.tmf_task_ptr)
 
-struct isci_request *isci_request_alloc_tmf(struct isci_host *ihost,
-					    struct isci_tmf *isci_tmf,
-					    gfp_t gfp_flags);
+struct isci_request *isci_tmf_request_from_tag(struct isci_host *ihost,
+					       struct isci_tmf *isci_tmf,
+					       u16 tag);
 int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *idev,
-			 struct sas_task *task, u16 tag, gfp_t gfp_flags);
+			 struct sas_task *task, u16 tag);
 void isci_terminate_pending_requests(struct isci_host *ihost,
 				     struct isci_remote_device *idev);
 enum sci_status

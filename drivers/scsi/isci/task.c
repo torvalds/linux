@@ -203,7 +203,7 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 				spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 				/* build and send the request. */
-				status = isci_request_execute(ihost, idev, task, tag, gfp_flags);
+				status = isci_request_execute(ihost, idev, task, tag);
 
 				if (status != SCI_SUCCESS) {
 
@@ -252,7 +252,7 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 	dev = idev->domain_dev;
 
 	/* do common allocation and init of request object. */
-	ireq = isci_request_alloc_tmf(ihost, isci_tmf, GFP_ATOMIC);
+	ireq = isci_tmf_request_from_tag(ihost, isci_tmf, tag);
 	if (!ireq)
 		return NULL;
 
@@ -266,7 +266,7 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 			 "status = 0x%x\n",
 			 __func__,
 			 status);
-		goto errout;
+		return NULL;
 	}
 
 	/* XXX convert to get this from task->tproto like other drivers */
@@ -274,7 +274,7 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 		isci_tmf->proto = SAS_PROTOCOL_SSP;
 		status = scic_task_request_construct_ssp(&ireq->sci);
 		if (status != SCI_SUCCESS)
-			goto errout;
+			return NULL;
 	}
 
 	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
@@ -282,12 +282,9 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 		status = isci_sata_management_task_request_build(ireq);
 
 		if (status != SCI_SUCCESS)
-			goto errout;
+			return NULL;
 	}
 	return ireq;
- errout:
-	isci_request_free(ihost, ireq);
-	return NULL;
 }
 
 int isci_task_execute_tmf(struct isci_host *ihost,
@@ -349,7 +346,7 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 			 status,
 			 ireq);
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
-		goto err_ireq;
+		goto err_tci;
 	}
 
 	if (tmf->cb_state_func != NULL)
@@ -401,8 +398,6 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 
 	return ret;
 
- err_ireq:
-	isci_request_free(ihost, ireq);
  err_tci:
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 	isci_tci_free(ihost, ISCI_TAG_TCI(tag));
@@ -516,8 +511,6 @@ static void isci_request_cleanup_completed_loiterer(
 		spin_lock_irqsave(&isci_host->scic_lock, flags);
 		list_del_init(&isci_request->dev_node);
 		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
-
-		isci_request_free(isci_host, isci_request);
 	}
 }
 

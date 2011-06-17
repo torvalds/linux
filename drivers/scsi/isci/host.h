@@ -166,14 +166,6 @@ struct scic_sds_controller {
 	struct scic_sds_remote_device *device_table[SCI_MAX_REMOTE_DEVICES];
 
 	/**
-	 * This field is the array of IO request objects that are currently active for
-	 * this controller object.  This table is used as a fast lookup of the io
-	 * request object that need to handle completion queue notifications.  The
-	 * table is TCi based.
-	 */
-	struct scic_sds_request *io_request_table[SCI_MAX_IO_REQUESTS];
-
-	/**
 	 * This field is the free RNi data structure
 	 */
 	struct scic_remote_node_table available_remote_nodes;
@@ -298,7 +290,6 @@ struct isci_host {
 	union scic_oem_parameters oem_parameters;
 
 	int id; /* unique within a given pci device */
-	struct dma_pool *dma_pool;
 	struct isci_phy phys[SCI_MAX_PHYS];
 	struct isci_port ports[SCI_MAX_PORTS + 1]; /* includes dummy port */
 	struct sas_ha_struct sas_ha;
@@ -315,7 +306,7 @@ struct isci_host {
 	struct list_head requests_to_complete;
 	struct list_head requests_to_errorback;
 	spinlock_t scic_lock;
-
+	struct isci_request *reqs[SCI_MAX_IO_REQUESTS];
 	struct isci_remote_device devices[SCI_MAX_REMOTE_DEVICES];
 };
 
