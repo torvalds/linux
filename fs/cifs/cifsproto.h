@@ -158,7 +158,7 @@ extern void cifs_cleanup_volume_info(struct smb_vol **pvolume_info);
 extern int cifs_setup_volume_info(struct smb_vol **pvolume_info,
 				  char *mount_data, const char *devname);
 extern int cifs_mount(struct cifs_sb_info *, struct smb_vol *);
-extern int cifs_umount(struct super_block *, struct cifs_sb_info *);
+extern void cifs_umount(struct cifs_sb_info *);
 extern void cifs_dfs_release_automount_timer(void);
 void cifs_proc_init(void);
 void cifs_proc_clean(void);

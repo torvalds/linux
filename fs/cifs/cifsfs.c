@@ -172,7 +172,7 @@ out_no_root:
 	if (inode)
 		iput(inode);
 
-	cifs_umount(sb, cifs_sb);
+	cifs_umount(cifs_sb);
 	return rc;
 }
 
@@ -189,9 +189,7 @@ cifs_put_super(struct super_block *sb)
 		return;
 	}
 
-	rc = cifs_umount(sb, cifs_sb);
-	if (rc)
-		cERROR(1, "cifs_umount failed with return code %d", rc);
+	cifs_umount(cifs_sb);
 }
 
 static void cifs_kill_sb(struct super_block *sb)
