@@ -710,17 +710,14 @@ cifs_do_mount(struct file_system_type *fs_type,
 
 	sb->s_flags |= MS_ACTIVE;
 
-	root = cifs_get_root(volume_info, sb);
-	if (root == NULL)
-		goto out_super;
-
-	cFYI(1, "dentry root is: %p", root);
-	goto out;
-
 out_shared:
 	root = cifs_get_root(volume_info, sb);
-	if (root)
-		cFYI(1, "dentry root is: %p", root);
+	if (root == NULL) {
+		root = ERR_PTR(-EINVAL); /* XXX */
+		goto out_super;
+	}
+
+	cFYI(1, "dentry root is: %p", root);
 	goto out;
 
 out_super:
