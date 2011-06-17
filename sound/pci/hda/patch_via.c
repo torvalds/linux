@@ -832,10 +832,13 @@ static int via_hp_build(struct hda_codec *codec)
 	knew->subdevice = HDA_SUBDEV_NID_FLAG | nid;
 	knew->private_value = nid;
 
-	knew = via_clone_control(spec, &via_hp_mixer[1]);
-	if (knew == NULL)
-		return -ENOMEM;
-	knew->subdevice = side_mute_channel(spec);
+	nid = side_mute_channel(spec);
+	if (nid) {
+		knew = via_clone_control(spec, &via_hp_mixer[1]);
+		if (knew == NULL)
+			return -ENOMEM;
+		knew->subdevice = nid;
+	}
 
 	return 0;
 }
