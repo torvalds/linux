@@ -809,18 +809,18 @@ static int dummy_set_selfpowered (struct usb_gadget *_gadget, int value)
 
 static int dummy_pullup (struct usb_gadget *_gadget, int value)
 {
+	struct dummy_hcd *dum_hcd;
 	struct dummy	*dum;
 	unsigned long	flags;
 
-	dum = gadget_to_dummy_hcd(_gadget)->dum;
+	dum_hcd = gadget_to_dummy_hcd(_gadget);
+	dum = dum_hcd->dum;
+
 	spin_lock_irqsave (&dum->lock, flags);
 	dum->pullup = (value != 0);
-	set_link_state((dum->gadget.speed == USB_SPEED_SUPER ?
-			dum->ss_hcd : dum->hs_hcd));
+	set_link_state(dum_hcd);
 	spin_unlock_irqrestore (&dum->lock, flags);
-	usb_hcd_poll_rh_status((dum->gadget.speed == USB_SPEED_SUPER ?
-				dummy_hcd_to_hcd(dum->ss_hcd) :
-				dummy_hcd_to_hcd(dum->hs_hcd)));
+	usb_hcd_poll_rh_status(dummy_hcd_to_hcd(dum_hcd));
 	return 0;
 }
 
@@ -1043,34 +1043,32 @@ static int dummy_udc_remove (struct platform_device *pdev)
 static int dummy_udc_suspend (struct platform_device *pdev, pm_message_t state)
 {
 	struct dummy	*dum = platform_get_drvdata(pdev);
+	struct dummy_hcd *dum_hcd;
 
 	dev_dbg (&pdev->dev, "%s\n", __func__);
+	dum_hcd = gadget_to_dummy_hcd(&dum->gadget);
 	spin_lock_irq (&dum->lock);
 	dum->udc_suspended = 1;
-	set_link_state((dum->gadget.speed == USB_SPEED_SUPER ?
-			dum->ss_hcd : dum->hs_hcd));
+	set_link_state(dum_hcd);
 	spin_unlock_irq (&dum->lock);
 
-	usb_hcd_poll_rh_status((dum->gadget.speed == USB_SPEED_SUPER ?
-				dummy_hcd_to_hcd(dum->ss_hcd) :
-				dummy_hcd_to_hcd(dum->hs_hcd)));
+	usb_hcd_poll_rh_status(dummy_hcd_to_hcd(dum_hcd));
 	return 0;
 }
 
 static int dummy_udc_resume (struct platform_device *pdev)
 {
 	struct dummy	*dum = platform_get_drvdata(pdev);
+	struct dummy_hcd *dum_hcd;
 
 	dev_dbg (&pdev->dev, "%s\n", __func__);
+	dum_hcd = gadget_to_dummy_hcd(&dum->gadget);
 	spin_lock_irq (&dum->lock);
 	dum->udc_suspended = 0;
-	set_link_state((dum->gadget.speed == USB_SPEED_SUPER ?
-			dum->ss_hcd : dum->hs_hcd));
+	set_link_state(dum_hcd);
 	spin_unlock_irq (&dum->lock);
 
-	usb_hcd_poll_rh_status((dum->gadget.speed == USB_SPEED_SUPER ?
-				dummy_hcd_to_hcd(dum->ss_hcd) :
-				dummy_hcd_to_hcd(dum->hs_hcd)));
+	usb_hcd_poll_rh_status(dummy_hcd_to_hcd(dum_hcd));
 	return 0;
 }
 
