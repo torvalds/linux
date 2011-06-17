@@ -833,6 +833,8 @@ static __devexit int wm831x_alive_ldo_remove(struct platform_device *pdev)
 static __devexit int wm831x_alive_ldo_shutdown(struct platform_device *pdev)	/*ZMF*/
 {
 	//struct wm831x_ldo *ldo = platform_get_drvdata(pdev);
+#if 0
+	//close ldo in wm831x_last_deinit()
 	struct regulator* ldo;
 
 	//if (reboot_cmd_get())
@@ -878,7 +880,7 @@ static __devexit int wm831x_alive_ldo_shutdown(struct platform_device *pdev)	/*Z
 	ldo = regulator_get(NULL, "ldo10");
 	regulator_disable(ldo);						
 	regulator_put(ldo);
-
+#endif
 	return 0;
 }
 
