@@ -704,7 +704,7 @@ static inline int next_prio(struct rq *rq)
 {
 	struct task_struct *next = pick_next_highest_task_rt(rq, rq->cpu);
 
-	if (next && rt_prio(next->prio))
+	if (next)
 		return next->prio;
 	else
 		return MAX_RT_PRIO;
