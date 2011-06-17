@@ -87,7 +87,7 @@ static int sig_ignored(struct task_struct *t, int sig, int from_ancestor_ns)
 	/*
 	 * Tracers may want to know about even ignored signals.
 	 */
-	return !tracehook_consider_ignored_signal(t, sig);
+	return !t->ptrace;
 }
 
 /*
@@ -493,7 +493,8 @@ int unhandled_signal(struct task_struct *tsk, int sig)
 		return 1;
 	if (handler != SIG_IGN && handler != SIG_DFL)
 		return 0;
-	return !tracehook_consider_fatal_signal(tsk, sig);
+	/* if ptraced, let the tracer determine */
+	return !tsk->ptrace;
 }
 
 /*
@@ -981,8 +982,7 @@ static void complete_signal(int sig, struct task_struct *p, int group)
 	if (sig_fatal(p, sig) &&
 	    !(signal->flags & (SIGNAL_UNKILLABLE | SIGNAL_GROUP_EXIT)) &&
 	    !sigismember(&t->real_blocked, sig) &&
-	    (sig == SIGKILL ||
-	     !tracehook_consider_fatal_signal(t, sig))) {
+	    (sig == SIGKILL || !t->ptrace)) {
 		/*
 		 * This signal will be fatal to the whole group.
 		 */

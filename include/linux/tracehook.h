@@ -51,21 +51,6 @@
 #include <linux/security.h>
 struct linux_binprm;
 
-/**
- * tracehook_expect_breakpoints - guess if task memory might be touched
- * @task:		current task, making a new mapping
- *
- * Return nonzero if @task is expected to want breakpoint insertion in
- * its memory at some point.  A zero return is no guarantee it won't
- * be done, but this is a hint that it's known to be likely.
- *
- * May be called with @task->mm->mmap_sem held for writing.
- */
-static inline int tracehook_expect_breakpoints(struct task_struct *task)
-{
-	return (task->ptrace & PT_PTRACED) != 0;
-}
-
 /*
  * ptrace report for syscall entry and exit looks identical.
  */
@@ -184,42 +169,6 @@ static inline struct task_struct *tracehook_tracer_task(struct task_struct *tsk)
 }
 
 /**
- * tracehook_report_exec - a successful exec was completed
- * @fmt:		&struct linux_binfmt that performed the exec
- * @bprm:		&struct linux_binprm containing exec details
- * @regs:		user-mode register state
- *
- * An exec just completed, we are shortly going to return to user mode.
- * The freshly initialized register state can be seen and changed in @regs.
- * The name, file and other pointers in @bprm are still on hand to be
- * inspected, but will be freed as soon as this returns.
- *
- * Called with no locks, but with some kernel resources held live
- * and a reference on @fmt->module.
- */
-static inline void tracehook_report_exec(struct linux_binfmt *fmt,
-					 struct linux_binprm *bprm,
-					 struct pt_regs *regs)
-{
-	ptrace_event(PTRACE_EVENT_EXEC, 0);
-}
-
-/**
- * tracehook_report_exit - task has begun to exit
- * @exit_code:		pointer to value destined for @current->exit_code
- *
- * @exit_code points to the value passed to do_exit(), which tracing
- * might change here.  This is almost the first thing in do_exit(),
- * before freeing any resources or setting the %PF_EXITING flag.
- *
- * Called with no locks held.
- */
-static inline void tracehook_report_exit(long *exit_code)
-{
-	ptrace_event(PTRACE_EVENT_EXIT, *exit_code);
-}
-
-/**
  * tracehook_prepare_clone - prepare for new child to be cloned
  * @clone_flags:	%CLONE_* flags from clone/fork/vfork system call
  *
@@ -320,52 +269,6 @@ static inline void tracehook_report_clone_complete(int trace,
 }
 
 /**
- * tracehook_report_vfork_done - vfork parent's child has exited or exec'd
- * @child:		child task, already running
- * @pid:		new child's PID in the parent's namespace
- *
- * Called after a %CLONE_VFORK parent has waited for the child to complete.
- * The clone/vfork system call will return immediately after this.
- * The @child pointer may be invalid if a self-reaping child died and
- * tracehook_report_clone() took no action to prevent it from self-reaping.
- *
- * Called with no locks held.
- */
-static inline void tracehook_report_vfork_done(struct task_struct *child,
-					       pid_t pid)
-{
-	ptrace_event(PTRACE_EVENT_VFORK_DONE, pid);
-}
-
-/**
- * tracehook_prepare_release_task - task is being reaped, clean up tracing
- * @task:		task in %EXIT_DEAD state
- *
- * This is called in release_task() just before @task gets finally reaped
- * and freed.  This would be the ideal place to remove and clean up any
- * tracing-related state for @task.
- *
- * Called with no locks held.
- */
-static inline void tracehook_prepare_release_task(struct task_struct *task)
-{
-}
-
-/**
- * tracehook_finish_release_task - final tracing clean-up
- * @task:		task in %EXIT_DEAD state
- *
- * This is called in release_task() when @task is being in the middle of
- * being reaped.  After this, there must be no tracing entanglements.
- *
- * Called with write_lock_irq(&tasklist_lock) held.
- */
-static inline void tracehook_finish_release_task(struct task_struct *task)
-{
-	ptrace_release_task(task);
-}
-
-/**
  * tracehook_signal_handler - signal handler setup is complete
  * @sig:		number of signal being delivered
  * @info:		siginfo_t of signal being delivered
@@ -386,41 +289,6 @@ static inline void tracehook_signal_handler(int sig, siginfo_t *info,
 {
 	if (stepping)
 		ptrace_notify(SIGTRAP);
-}
-
-/**
- * tracehook_consider_ignored_signal - suppress short-circuit of ignored signal
- * @task:		task receiving the signal
- * @sig:		signal number being sent
- *
- * Return zero iff tracing doesn't care to examine this ignored signal,
- * so it can short-circuit normal delivery and never even get queued.
- *
- * Called with @task->sighand->siglock held.
- */
-static inline int tracehook_consider_ignored_signal(struct task_struct *task,
-						    int sig)
-{
-	return (task->ptrace & PT_PTRACED) != 0;
-}
-
-/**
- * tracehook_consider_fatal_signal - suppress special handling of fatal signal
- * @task:		task receiving the signal
- * @sig:		signal number being sent
- *
- * Return nonzero to prevent special handling of this termination signal.
- * Normally handler for signal is %SIG_DFL.  It can be %SIG_IGN if @sig is
- * ignored, in which case force_sig() is about to reset it to %SIG_DFL.
- * When this returns zero, this signal might cause a quick termination
- * that does not give the debugger a chance to intercept the signal.
- *
- * Called with or without @task->sighand->siglock held.
- */
-static inline int tracehook_consider_fatal_signal(struct task_struct *task,
-						  int sig)
-{
-	return (task->ptrace & PT_PTRACED) != 0;
 }
 
 #define DEATH_REAP			-1
@@ -455,30 +323,6 @@ static inline int tracehook_notify_death(struct task_struct *task,
 		return task->exit_signal;
 
 	return task->ptrace ? SIGCHLD : DEATH_DELAYED_GROUP_LEADER;
-}
-
-/**
- * tracehook_report_death - task is dead and ready to be reaped
- * @task:		@current task now exiting
- * @signal:		return value from tracheook_notify_death()
- * @death_cookie:	value passed back from tracehook_notify_death()
- * @group_dead:		nonzero if this was the last thread in the group to die
- *
- * Thread has just become a zombie or is about to self-reap.  If positive,
- * @signal is the signal number just sent to the parent (usually %SIGCHLD).
- * If @signal is %DEATH_REAP, this thread will self-reap.  If @signal is
- * %DEATH_DELAYED_GROUP_LEADER, this is a delayed_group_leader() zombie.
- * The @death_cookie was passed back by tracehook_notify_death().
- *
- * If normal reaping is not inhibited, @task->exit_state might be changing
- * in parallel.
- *
- * Called without locks.
- */
-static inline void tracehook_report_death(struct task_struct *task,
-					  int signal, void *death_cookie,
-					  int group_dead)
-{
 }
 
 #ifdef TIF_NOTIFY_RESUME
