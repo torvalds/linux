@@ -76,11 +76,6 @@ static inline void atomic_set_mask(int mask, atomic_t *v)
 	__raw_atomic_set_asm(&v->counter, mask);
 }
 
-static inline int atomic_test_mask(int mask, atomic_t *v)
-{
-	return __raw_atomic_test_asm(&v->counter, mask);
-}
-
 /* Atomic operations are already serializing */
 #define smp_mb__before_atomic_dec()    barrier()
 #define smp_mb__after_atomic_dec() barrier()
