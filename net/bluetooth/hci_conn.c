@@ -275,9 +275,10 @@ void hci_sco_setup(struct hci_conn *conn, __u8 status)
 	}
 }
 
-static void hci_conn_timeout(unsigned long arg)
+static void hci_conn_timeout(struct work_struct *work)
 {
-	struct hci_conn *conn = (void *) arg;
+	struct hci_conn *conn = container_of(work, struct hci_conn,
+							disc_work.work);
 	struct hci_dev *hdev = conn->hdev;
 	__u8 reason;
 
@@ -412,7 +413,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 
 	INIT_LIST_HEAD(&conn->chan_list);;
 
-	setup_timer(&conn->disc_timer, hci_conn_timeout, (unsigned long)conn);
+	INIT_DELAYED_WORK(&conn->disc_work, hci_conn_timeout);
 	setup_timer(&conn->idle_timer, hci_conn_idle, (unsigned long)conn);
 	setup_timer(&conn->auto_accept_timer, hci_conn_auto_accept,
 							(unsigned long) conn);
@@ -444,7 +445,7 @@ int hci_conn_del(struct hci_conn *conn)
 
 	del_timer(&conn->idle_timer);
 
-	del_timer(&conn->disc_timer);
+	cancel_delayed_work_sync(&conn->disc_work);
 
 	del_timer(&conn->auto_accept_timer);
 

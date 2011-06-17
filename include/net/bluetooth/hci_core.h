@@ -297,7 +297,7 @@ struct hci_conn {
 	struct sk_buff_head data_q;
 	struct list_head chan_list;
 
-	struct timer_list disc_timer;
+	struct delayed_work disc_work;
 	struct timer_list idle_timer;
 	struct timer_list auto_accept_timer;
 
@@ -517,7 +517,7 @@ void hci_conn_put_device(struct hci_conn *conn);
 static inline void hci_conn_hold(struct hci_conn *conn)
 {
 	atomic_inc(&conn->refcnt);
-	del_timer(&conn->disc_timer);
+	cancel_delayed_work_sync(&conn->disc_work);
 }
 
 static inline void hci_conn_put(struct hci_conn *conn)
@@ -536,7 +536,9 @@ static inline void hci_conn_put(struct hci_conn *conn)
 		} else {
 			timeo = msecs_to_jiffies(10);
 		}
-		mod_timer(&conn->disc_timer, jiffies + timeo);
+		cancel_delayed_work_sync(&conn->disc_work);
+		queue_delayed_work(conn->hdev->workqueue,
+					&conn->disc_work, jiffies + timeo);
 	}
 }
 
