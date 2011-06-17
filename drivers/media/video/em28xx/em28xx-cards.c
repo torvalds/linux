@@ -2846,6 +2846,16 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		}
 	}
 
+	if (dev->is_audio_only) {
+		errCode = em28xx_audio_setup(dev);
+		if (errCode)
+			return -ENODEV;
+		em28xx_add_into_devlist(dev);
+		em28xx_init_extension(dev);
+
+		return 0;
+	}
+
 	/* Prepopulate cached GPO register content */
 	retval = em28xx_read_reg(dev, dev->reg_gpo_num);
 	if (retval >= 0)
@@ -2946,6 +2956,9 @@ fail_reg_devices:
 	return retval;
 }
 
+/* high bandwidth multiplier, as encoded in highspeed endpoint descriptors */
+#define hb_mult(wMaxPacketSize) (1 + (((wMaxPacketSize) >> 11) & 0x03))
+
 /*
  * em28xx_usb_probe()
  * checks for supported devices
@@ -2955,15 +2968,15 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 {
 	const struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *udev;
-	struct usb_interface *uif;
 	struct em28xx *dev = NULL;
 	int retval;
-	int i, nr, ifnum, isoc_pipe;
+	bool is_audio_only = false, has_audio = false;
+	int i, nr, isoc_pipe;
+	const int ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 	char *speed;
 	char descr[255] = "";
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
-	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 
 	/* Check to see next free device and mark as used */
 	nr = find_first_zero_bit(&em28xx_devused, EM28XX_MAXBOARDS);
@@ -2981,6 +2994,19 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		em28xx_devused &= ~(1<<nr);
 		retval = -ENODEV;
 		goto err;
+	}
+
+	/* Get endpoints */
+	for (i = 0; i < interface->num_altsetting; i++) {
+		int ep;
+
+		for (ep = 0; ep < interface->altsetting[i].desc.bNumEndpoints; ep++) {
+			struct usb_host_endpoint	*e;
+			e = &interface->altsetting[i].endpoint[ep];
+
+			if (e->desc.bEndpointAddress == 0x83)
+				has_audio = true;
+		}
 	}
 
 	endpoint = &interface->cur_altsetting->endpoint[0].desc;
@@ -3002,19 +3028,22 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			check_interface = 0;
 
 		if (!check_interface) {
-			em28xx_err(DRIVER_NAME " video device (%04x:%04x): "
-				"interface %i, class %i found.\n",
-				le16_to_cpu(udev->descriptor.idVendor),
-				le16_to_cpu(udev->descriptor.idProduct),
-				ifnum,
-				interface->altsetting[0].desc.bInterfaceClass);
+			if (has_audio) {
+				is_audio_only = true;
+			} else {
+				em28xx_err(DRIVER_NAME " video device (%04x:%04x): "
+					"interface %i, class %i found.\n",
+					le16_to_cpu(udev->descriptor.idVendor),
+					le16_to_cpu(udev->descriptor.idProduct),
+					ifnum,
+					interface->altsetting[0].desc.bInterfaceClass);
+				em28xx_err(DRIVER_NAME " This is an anciliary "
+					"interface not used by the driver\n");
 
-			em28xx_err(DRIVER_NAME " This is an anciliary "
-				"interface not used by the driver\n");
-
-			em28xx_devused &= ~(1<<nr);
-			retval = -ENODEV;
-			goto err;
+				em28xx_devused &= ~(1<<nr);
+				retval = -ENODEV;
+				goto err;
+			}
 		}
 	}
 
@@ -3044,14 +3073,19 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	if (*descr)
 		strlcat(descr, " ", sizeof(descr));
 
-	printk(DRIVER_NAME ": New device %s@ %s Mbps "
-		"(%04x:%04x, interface %d, class %d)\n",
+	printk(KERN_INFO DRIVER_NAME
+		": New device %s@ %s Mbps (%04x:%04x, interface %d, class %d)\n",
 		descr,
 		speed,
 		le16_to_cpu(udev->descriptor.idVendor),
 		le16_to_cpu(udev->descriptor.idProduct),
 		ifnum,
 		interface->altsetting->desc.bInterfaceNumber);
+
+	if (has_audio)
+		printk(KERN_INFO DRIVER_NAME
+		       ": Audio Vendor Class interface %i found\n",
+		       ifnum);
 
 	/*
 	 * Make sure we have 480 Mbps of bandwidth, otherwise things like
@@ -3088,10 +3122,13 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	dev->devno = nr;
 	dev->model = id->driver_info;
 	dev->alt   = -1;
+	dev->is_audio_only = is_audio_only;
+	dev->has_alsa_audio = has_audio;
+	dev->audio_ifnum = ifnum;
 
 	/* Checks if audio is provided by some interface */
 	for (i = 0; i < udev->config->desc.bNumInterfaces; i++) {
-		uif = udev->config->interface[i];
+		struct usb_interface *uif = udev->config->interface[i];
 		if (uif->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
 			dev->has_audio_class = 1;
 			break;
@@ -3099,9 +3136,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	/* compute alternate max packet sizes */
-	uif = udev->actconfig->interface[0];
-
-	dev->num_alt = uif->num_altsetting;
+	dev->num_alt = interface->num_altsetting;
 	dev->alt_max_pkt_size = kmalloc(32 * dev->num_alt, GFP_KERNEL);
 
 	if (dev->alt_max_pkt_size == NULL) {
@@ -3113,13 +3148,20 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	for (i = 0; i < dev->num_alt ; i++) {
-		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[isoc_pipe].desc.wMaxPacketSize);
-		dev->alt_max_pkt_size[i] =
-		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+		u16 tmp = le16_to_cpu(interface->altsetting[i].endpoint[isoc_pipe].desc.wMaxPacketSize);
+		unsigned int size = tmp & 0x7ff;
+
+		if (udev->speed == USB_SPEED_HIGH)
+			size = size * hb_mult(tmp);
+
+		dev->alt_max_pkt_size[i] = size;
 	}
 
 	if ((card[nr] >= 0) && (card[nr] < em28xx_bcount))
 		dev->model = card[nr];
+
+	/* save our data pointer in this interface device */
+	usb_set_intfdata(interface, dev);
 
 	/* allocate device struct */
 	mutex_init(&dev->lock);
@@ -3131,9 +3173,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		kfree(dev);
 		goto err;
 	}
-
-	/* save our data pointer in this interface device */
-	usb_set_intfdata(interface, dev);
 
 	request_modules(dev);
 
@@ -3162,6 +3201,13 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	if (!dev)
 		return;
+
+	if (dev->is_audio_only) {
+		mutex_lock(&dev->lock);
+		em28xx_close_extension(dev);
+		mutex_unlock(&dev->lock);
+		return;
+	}
 
 	em28xx_info("disconnecting %s\n", dev->vdev->name);
 

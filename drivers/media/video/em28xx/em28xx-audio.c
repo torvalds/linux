@@ -3,9 +3,9 @@
  *
  *  Copyright (C) 2006 Markus Rechberger <mrechberger@gmail.com>
  *
- *  Copyright (C) 2007 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *  Copyright (C) 2007-2011 Mauro Carvalho Chehab <mchehab@redhat.com>
  *	- Port to work with the in-kernel driver
- *	- Several cleanups
+ *	- Cleanups, fixes, alsa-controls, etc.
  *
  *  This driver is based on my previous au600 usb pstn audio driver
  *  and inherits all the copyrights
@@ -281,23 +281,27 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 		return -ENODEV;
 	}
 
-	/* Sets volume, mute, etc */
-
-	dev->mute = 0;
-	mutex_lock(&dev->lock);
-	ret = em28xx_audio_analog_set(dev);
-	if (ret < 0)
-		goto err;
-
 	runtime->hw = snd_em28xx_hw_capture;
-	if (dev->alt == 0 && dev->adev.users == 0) {
-		dev->alt = 7;
-		dprintk("changing alternate number to 7\n");
-		usb_set_interface(dev->udev, 0, 7);
-	}
+	if ((dev->alt == 0 || dev->audio_ifnum) && dev->adev.users == 0) {
+		if (dev->audio_ifnum)
+			dev->alt = 1;
+		else
+			dev->alt = 7;
 
-	dev->adev.users++;
-	mutex_unlock(&dev->lock);
+		dprintk("changing alternate number on interface %d to %d\n",
+			dev->audio_ifnum, dev->alt);
+		usb_set_interface(dev->udev, dev->audio_ifnum, dev->alt);
+
+		/* Sets volume, mute, etc */
+		dev->mute = 0;
+		mutex_lock(&dev->lock);
+		ret = em28xx_audio_analog_set(dev);
+		if (ret < 0)
+			goto err;
+
+		dev->adev.users++;
+		mutex_unlock(&dev->lock);
+	}
 
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	dev->adev.capture_pcm_substream = substream;
@@ -635,17 +639,17 @@ static int em28xx_audio_init(struct em28xx *dev)
 	static int          devnr;
 	int                 err;
 
-	if (dev->has_alsa_audio != 1) {
+	if (!dev->has_alsa_audio || dev->audio_ifnum < 0) {
 		/* This device does not support the extension (in this case
 		   the device is expecting the snd-usb-audio module or
 		   doesn't have analog audio support at all) */
 		return 0;
 	}
 
-	printk(KERN_INFO "em28xx-audio.c: probing for em28x1 "
-			 "non standard usbaudio\n");
+	printk(KERN_INFO "em28xx-audio.c: probing for em28xx Audio Vendor Class\n");
 	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus "
 			 "Rechberger\n");
+	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2007-2011 Mauro Carvalho Chehab\n");
 
 	err = snd_card_create(index[devnr], "Em28xx Audio", THIS_MODULE, 0,
 			      &card);
@@ -737,7 +741,7 @@ static void __exit em28xx_alsa_unregister(void)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Markus Rechberger <mrechberger@gmail.com>");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
 MODULE_DESCRIPTION("Em28xx Audio driver");
 
 module_init(em28xx_alsa_register);

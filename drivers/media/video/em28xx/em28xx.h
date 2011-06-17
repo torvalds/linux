@@ -487,6 +487,8 @@ struct em28xx {
 	int devno;		/* marks the number of this device */
 	enum em28xx_chip_id chip_id;
 
+	int audio_ifnum;
+
 	struct v4l2_device v4l2_dev;
 	struct em28xx_board board;
 
@@ -503,6 +505,7 @@ struct em28xx {
 
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
+	unsigned int is_audio_only:1;
 
 	/* Controls audio streaming */
 	struct work_struct wq_trigger;              /* Trigger to start/stop audio for alsa module */

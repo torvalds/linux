@@ -499,17 +499,13 @@ int em28xx_audio_setup(struct em28xx *dev)
 	if (dev->chip_id == CHIP_ID_EM2870 || dev->chip_id == CHIP_ID_EM2874
 		|| dev->chip_id == CHIP_ID_EM28174) {
 		/* Digital only device - don't load any alsa module */
-		dev->audio_mode.has_audio = 0;
-		dev->has_audio_class = 0;
-		dev->has_alsa_audio = 0;
+		dev->audio_mode.has_audio = false;
+		dev->has_audio_class = false;
+		dev->has_alsa_audio = false;
 		return 0;
 	}
 
-	/* If device doesn't support Usb Audio Class, use vendor class */
-	if (!dev->has_audio_class)
-		dev->has_alsa_audio = 1;
-
-	dev->audio_mode.has_audio = 1;
+	dev->audio_mode.has_audio = true;
 
 	/* See how this device is configured */
 	cfg = em28xx_read_reg(dev, EM28XX_R00_CHIPCFG);
@@ -519,8 +515,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 		cfg = EM28XX_CHIPCFG_AC97; /* Be conservative */
 	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) == 0x00) {
 		/* The device doesn't have vendor audio at all */
-		dev->has_alsa_audio = 0;
-		dev->audio_mode.has_audio = 0;
+		dev->has_alsa_audio = false;
+		dev->audio_mode.has_audio = false;
 		return 0;
 	} else if ((cfg & EM28XX_CHIPCFG_AUDIOMASK) ==
 		   EM28XX_CHIPCFG_I2S_3_SAMPRATES) {
@@ -549,8 +545,8 @@ int em28xx_audio_setup(struct em28xx *dev)
 		 */
 		em28xx_warn("AC97 chip type couldn't be determined\n");
 		dev->audio_mode.ac97 = EM28XX_NO_AC97;
-		dev->has_alsa_audio = 0;
-		dev->audio_mode.has_audio = 0;
+		dev->has_alsa_audio = false;
+		dev->audio_mode.has_audio = false;
 		goto init_audio;
 	}
 
