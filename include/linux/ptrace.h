@@ -172,17 +172,17 @@ static inline bool ptrace_event_enabled(struct task_struct *task, int event)
  * Check whether @event is enabled and, if so, report @event and @message
  * to the ptrace parent.
  *
- * Returns nonzero if we did a ptrace notification, zero if not.
- *
  * Called without locks.
  */
-static inline int ptrace_event(int event, unsigned long message)
+static inline void ptrace_event(int event, unsigned long message)
 {
-	if (likely(!ptrace_event_enabled(current, event)))
-		return false;
-	current->ptrace_message = message;
-	ptrace_notify((event << 8) | SIGTRAP);
-	return true;
+	if (unlikely(ptrace_event_enabled(current, event))) {
+		current->ptrace_message = message;
+		ptrace_notify((event << 8) | SIGTRAP);
+	} else if (event == PTRACE_EVENT_EXEC && unlikely(current->ptrace)) {
+		/* legacy EXEC report via SIGTRAP */
+		send_sig(SIGTRAP, current, 0);
+	}
 }
 
 /**

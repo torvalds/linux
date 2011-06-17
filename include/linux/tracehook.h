@@ -201,9 +201,7 @@ static inline void tracehook_report_exec(struct linux_binfmt *fmt,
 					 struct linux_binprm *bprm,
 					 struct pt_regs *regs)
 {
-	if (!ptrace_event(PTRACE_EVENT_EXEC, 0) &&
-	    unlikely(current->ptrace & PT_PTRACED))
-		send_sig(SIGTRAP, current, 0);
+	ptrace_event(PTRACE_EVENT_EXEC, 0);
 }
 
 /**
