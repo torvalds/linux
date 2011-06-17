@@ -284,12 +284,10 @@ static int enic_set_coalesce(struct net_device *netdev,
 	u32 rx_coalesce_usecs;
 	unsigned int i, intr;
 
-	tx_coalesce_usecs = min_t(u32,
-		INTR_COALESCE_HW_TO_USEC(VNIC_INTR_TIMER_MAX),
-		ecmd->tx_coalesce_usecs);
-	rx_coalesce_usecs = min_t(u32,
-		INTR_COALESCE_HW_TO_USEC(VNIC_INTR_TIMER_MAX),
-		ecmd->rx_coalesce_usecs);
+	tx_coalesce_usecs = min_t(u32, ecmd->tx_coalesce_usecs,
+		vnic_dev_get_intr_coal_timer_max(enic->vdev));
+	rx_coalesce_usecs = min_t(u32, ecmd->rx_coalesce_usecs,
+		vnic_dev_get_intr_coal_timer_max(enic->vdev));
 
 	switch (vnic_dev_get_intr_mode(enic->vdev)) {
 	case VNIC_DEV_INTR_MODE_INTX:
@@ -298,26 +296,26 @@ static int enic_set_coalesce(struct net_device *netdev,
 
 		intr = enic_legacy_io_intr();
 		vnic_intr_coalescing_timer_set(&enic->intr[intr],
-			INTR_COALESCE_USEC_TO_HW(tx_coalesce_usecs));
+			tx_coalesce_usecs);
 		break;
 	case VNIC_DEV_INTR_MODE_MSI:
 		if (tx_coalesce_usecs != rx_coalesce_usecs)
 			return -EINVAL;
 
 		vnic_intr_coalescing_timer_set(&enic->intr[0],
-			INTR_COALESCE_USEC_TO_HW(tx_coalesce_usecs));
+			tx_coalesce_usecs);
 		break;
 	case VNIC_DEV_INTR_MODE_MSIX:
 		for (i = 0; i < enic->wq_count; i++) {
 			intr = enic_msix_wq_intr(enic, i);
 			vnic_intr_coalescing_timer_set(&enic->intr[intr],
-				INTR_COALESCE_USEC_TO_HW(tx_coalesce_usecs));
+				tx_coalesce_usecs);
 		}
 
 		for (i = 0; i < enic->rq_count; i++) {
 			intr = enic_msix_rq_intr(enic, i);
 			vnic_intr_coalescing_timer_set(&enic->intr[intr],
-				INTR_COALESCE_USEC_TO_HW(rx_coalesce_usecs));
+				rx_coalesce_usecs);
 		}
 
 		break;
@@ -2174,6 +2172,14 @@ static int enic_dev_init(struct enic *enic)
 	struct net_device *netdev = enic->netdev;
 	unsigned int i;
 	int err;
+
+	/* Get interrupt coalesce timer info */
+	err = enic_dev_intr_coal_timer_info(enic);
+	if (err) {
+		dev_warn(dev, "Using default conversion factor for "
+			"interrupt coalesce timer\n");
+		vnic_dev_intr_coal_timer_info_default(enic->vdev);
+	}
 
 	/* Get vNIC configuration
 	 */

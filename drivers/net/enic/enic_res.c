@@ -90,9 +90,8 @@ int enic_get_vnic_config(struct enic *enic)
 		max_t(u16, ENIC_MIN_MTU,
 		c->mtu));
 
-	c->intr_timer_usec = min_t(u32,
-		INTR_COALESCE_HW_TO_USEC(VNIC_INTR_TIMER_MAX),
-		c->intr_timer_usec);
+	c->intr_timer_usec = min_t(u32, c->intr_timer_usec,
+		vnic_dev_get_intr_coal_timer_max(enic->vdev));
 
 	dev_info(enic_get_dev(enic),
 		"vNIC MAC addr %pM wq/rq %d/%d mtu %d\n",
@@ -303,7 +302,7 @@ void enic_init_vnic_resources(struct enic *enic)
 
 	for (i = 0; i < enic->intr_count; i++) {
 		vnic_intr_init(&enic->intr[i],
-			INTR_COALESCE_USEC_TO_HW(enic->config.intr_timer_usec),
+			enic->config.intr_timer_usec,
 			enic->config.intr_timer_type,
 			mask_on_assertion);
 	}
