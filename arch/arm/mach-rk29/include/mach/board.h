@@ -274,12 +274,14 @@ enum periph_pll {
 enum codec_pll {
 	codec_pll_297mhz = 297000000, /* for HDMI */
 	codec_pll_300mhz = 300000000,
+	codec_pll_445mhz = 445500000, /* for HDMI */
+	codec_pll_504mhz = 504000000,
 	codec_pll_552mhz = 552000000,
 	codec_pll_594mhz = 594000000, /* for HDMI */
 	codec_pll_600mhz = 600000000,
 };
 
-void __init rk29_clock_init(enum periph_pll ppll_rate);
+void __init rk29_clock_init(enum periph_pll ppll_rate); /* codec pll is 445.5MHz, has xin27m */
 void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate, bool has_xin27m);
 
 /* for USB detection */
