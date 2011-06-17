@@ -1107,7 +1107,7 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 			 */
 			DEBUG_AUTOCONF("Xscale ");
 			up->port.type = PORT_XSCALE;
-			up->capabilities |= UART_CAP_UUE;
+			up->capabilities |= UART_CAP_UUE | UART_CAP_RTOIE;
 			return;
 		}
 	} else {
