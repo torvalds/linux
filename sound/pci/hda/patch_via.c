@@ -1003,19 +1003,13 @@ static int via_smart51_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static const struct snd_kcontrol_new via_smart51_mixer[2] = {
-	{
-	 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	 .name = "Smart 5.1",
-	 .count = 1,
-	 .info = via_smart51_info,
-	 .get = via_smart51_get,
-	 .put = via_smart51_put,
-	 },
-	{
-	 .iface = NID_MAPPING,
-	 .name = "Smart 5.1",
-	}
+static const struct snd_kcontrol_new via_smart51_mixer = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Smart 5.1",
+	.count = 1,
+	.info = via_smart51_info,
+	.get = via_smart51_get,
+	.put = via_smart51_put,
 };
 
 static int via_smart51_build(struct via_spec *spec)
@@ -1030,17 +1024,14 @@ static int via_smart51_build(struct via_spec *spec)
 	if (cfg->line_outs > 2)
 		return 0;
 
-	knew = via_clone_control(spec, &via_smart51_mixer[0]);
+	knew = via_clone_control(spec, &via_smart51_mixer);
 	if (knew == NULL)
 		return -ENOMEM;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		nid = cfg->inputs[i].pin;
 		if (cfg->inputs[i].type <= AUTO_PIN_LINE_IN) {
-			knew = via_clone_control(spec, &via_smart51_mixer[1]);
-			if (knew == NULL)
-				return -ENOMEM;
-			knew->subdevice = nid;
+			knew->subdevice = HDA_SUBDEV_NID_FLAG | nid;
 			break;
 		}
 	}
