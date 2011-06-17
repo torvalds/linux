@@ -200,6 +200,32 @@ int anon_vma_prepare(struct vm_area_struct *vma)
 	return -ENOMEM;
 }
 
+/*
+ * This is a useful helper function for locking the anon_vma root as
+ * we traverse the vma->anon_vma_chain, looping over anon_vma's that
+ * have the same vma.
+ *
+ * Such anon_vma's should have the same root, so you'd expect to see
+ * just a single mutex_lock for the whole traversal.
+ */
+static inline struct anon_vma *lock_anon_vma_root(struct anon_vma *root, struct anon_vma *anon_vma)
+{
+	struct anon_vma *new_root = anon_vma->root;
+	if (new_root != root) {
+		if (WARN_ON_ONCE(root))
+			mutex_unlock(&root->mutex);
+		root = new_root;
+		mutex_lock(&root->mutex);
+	}
+	return root;
+}
+
+static inline void unlock_anon_vma_root(struct anon_vma *root)
+{
+	if (root)
+		mutex_unlock(&root->mutex);
+}
+
 static void anon_vma_chain_link(struct vm_area_struct *vma,
 				struct anon_vma_chain *avc,
 				struct anon_vma *anon_vma)
@@ -208,13 +234,11 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
 	avc->anon_vma = anon_vma;
 	list_add(&avc->same_vma, &vma->anon_vma_chain);
 
-	anon_vma_lock(anon_vma);
 	/*
 	 * It's critical to add new vmas to the tail of the anon_vma,
 	 * see comment in huge_memory.c:__split_huge_page().
 	 */
 	list_add_tail(&avc->same_anon_vma, &anon_vma->head);
-	anon_vma_unlock(anon_vma);
 }
 
 /*
@@ -224,16 +248,23 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
 int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
 {
 	struct anon_vma_chain *avc, *pavc;
+	struct anon_vma *root = NULL;
 
 	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
+		struct anon_vma *anon_vma;
+
 		avc = anon_vma_chain_alloc();
 		if (!avc)
 			goto enomem_failure;
-		anon_vma_chain_link(dst, avc, pavc->anon_vma);
+		anon_vma = pavc->anon_vma;
+		root = lock_anon_vma_root(root, anon_vma);
+		anon_vma_chain_link(dst, avc, anon_vma);
 	}
+	unlock_anon_vma_root(root);
 	return 0;
 
  enomem_failure:
+	unlock_anon_vma_root(root);
 	unlink_anon_vmas(dst);
 	return -ENOMEM;
 }
@@ -280,7 +311,9 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 	get_anon_vma(anon_vma->root);
 	/* Mark this anon_vma as the one where our new (COWed) pages go. */
 	vma->anon_vma = anon_vma;
+	anon_vma_lock(anon_vma);
 	anon_vma_chain_link(vma, avc, anon_vma);
+	anon_vma_unlock(anon_vma);
 
 	return 0;
 
