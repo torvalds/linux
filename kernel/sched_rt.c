@@ -124,21 +124,33 @@ static void dec_rt_migration(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
 	update_rt_migration(rt_rq);
 }
 
+static inline int has_pushable_tasks(struct rq *rq)
+{
+	return !plist_head_empty(&rq->rt.pushable_tasks);
+}
+
 static void enqueue_pushable_task(struct rq *rq, struct task_struct *p)
 {
 	plist_del(&p->pushable_tasks, &rq->rt.pushable_tasks);
 	plist_node_init(&p->pushable_tasks, p->prio);
 	plist_add(&p->pushable_tasks, &rq->rt.pushable_tasks);
+
+	/* Update the highest prio pushable task */
+	if (p->prio < rq->rt.highest_prio.next)
+		rq->rt.highest_prio.next = p->prio;
 }
 
 static void dequeue_pushable_task(struct rq *rq, struct task_struct *p)
 {
 	plist_del(&p->pushable_tasks, &rq->rt.pushable_tasks);
-}
 
-static inline int has_pushable_tasks(struct rq *rq)
-{
-	return !plist_head_empty(&rq->rt.pushable_tasks);
+	/* Update the new highest prio pushable task */
+	if (has_pushable_tasks(rq)) {
+		p = plist_first_entry(&rq->rt.pushable_tasks,
+				      struct task_struct, pushable_tasks);
+		rq->rt.highest_prio.next = p->prio;
+	} else
+		rq->rt.highest_prio.next = MAX_RT_PRIO;
 }
 
 #else
@@ -698,56 +710,19 @@ static void update_curr_rt(struct rq *rq)
 
 #if defined CONFIG_SMP
 
-static struct task_struct *pick_next_highest_task_rt(struct rq *rq, int cpu);
-
-static inline int next_prio(struct rq *rq)
-{
-	struct task_struct *next = pick_next_highest_task_rt(rq, rq->cpu);
-
-	if (next)
-		return next->prio;
-	else
-		return MAX_RT_PRIO;
-}
-
 static void
 inc_rt_prio_smp(struct rt_rq *rt_rq, int prio, int prev_prio)
 {
 	struct rq *rq = rq_of_rt_rq(rt_rq);
 
-	if (prio < prev_prio) {
-
-		/*
-		 * If the new task is higher in priority than anything on the
-		 * run-queue, we know that the previous high becomes our
-		 * next-highest.
-		 */
-		rt_rq->highest_prio.next = prev_prio;
-
-		if (rq->online)
-			cpupri_set(&rq->rd->cpupri, rq->cpu, prio);
-
-	} else if (prio == rt_rq->highest_prio.curr)
-		/*
-		 * If the next task is equal in priority to the highest on
-		 * the run-queue, then we implicitly know that the next highest
-		 * task cannot be any lower than current
-		 */
-		rt_rq->highest_prio.next = prio;
-	else if (prio < rt_rq->highest_prio.next)
-		/*
-		 * Otherwise, we need to recompute next-highest
-		 */
-		rt_rq->highest_prio.next = next_prio(rq);
+	if (rq->online && prio < prev_prio)
+		cpupri_set(&rq->rd->cpupri, rq->cpu, prio);
 }
 
 static void
 dec_rt_prio_smp(struct rt_rq *rt_rq, int prio, int prev_prio)
 {
 	struct rq *rq = rq_of_rt_rq(rt_rq);
-
-	if (rt_rq->rt_nr_running && (prio <= rt_rq->highest_prio.next))
-		rt_rq->highest_prio.next = next_prio(rq);
 
 	if (rq->online && rt_rq->highest_prio.curr != prev_prio)
 		cpupri_set(&rq->rd->cpupri, rq->cpu, rt_rq->highest_prio.curr);
