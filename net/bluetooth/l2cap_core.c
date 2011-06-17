@@ -741,9 +741,9 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 					&chan->conf_state)) {
 				/* l2cap_chan_close() calls list_del(chan)
 				 * so release the lock */
-				read_unlock_bh(&conn->chan_lock);
+				read_unlock(&conn->chan_lock);
 				l2cap_chan_close(chan, ECONNRESET);
-				read_lock_bh(&conn->chan_lock);
+				read_lock(&conn->chan_lock);
 				bh_unlock_sock(sk);
 				continue;
 			}
