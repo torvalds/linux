@@ -72,6 +72,12 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		}
 	}
 
+	if (pm->clocks_pre) {
+		void *state = pm->clocks_pre(dev, perflvl);
+		if (IS_ERR(state))
+			return PTR_ERR(state);
+		pm->clocks_set(dev, state);
+	} else
 	if (pm->clock_set) {
 		nouveau_pm_clock_set(dev, perflvl, PLL_CORE, perflvl->core);
 		nouveau_pm_clock_set(dev, perflvl, PLL_SHADER, perflvl->shader);
@@ -124,6 +130,11 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 
 	memset(perflvl, 0, sizeof(*perflvl));
 
+	if (pm->clocks_get) {
+		ret = pm->clocks_get(dev, perflvl);
+		if (ret)
+			return ret;
+	} else
 	if (pm->clock_get) {
 		ret = pm->clock_get(dev, PLL_CORE);
 		if (ret > 0)

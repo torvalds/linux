@@ -498,6 +498,11 @@ struct nouveau_pm_engine {
 	void *(*clock_pre)(struct drm_device *, struct nouveau_pm_level *,
 			   u32 id, int khz);
 	void (*clock_set)(struct drm_device *, void *);
+
+	int  (*clocks_get)(struct drm_device *, struct nouveau_pm_level *);
+	void *(*clocks_pre)(struct drm_device *, struct nouveau_pm_level *);
+	void (*clocks_set)(struct drm_device *, void *);
+
 	int (*voltage_get)(struct drm_device *);
 	int (*voltage_set)(struct drm_device *, int voltage);
 	int (*fanspeed_get)(struct drm_device *);
