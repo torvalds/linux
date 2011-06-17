@@ -687,6 +687,14 @@ cifs_do_mount(struct file_system_type *fs_type,
 		goto out;
 	}
 
+	cifs_sb->mountdata = kstrndup(data, PAGE_SIZE, GFP_KERNEL);
+	if (cifs_sb->mountdata == NULL) {
+		root = ERR_PTR(-ENOMEM);
+		unload_nls(volume_info->local_nls);
+		kfree(cifs_sb);
+		goto out;
+	}
+
 	cifs_setup_cifs_sb(volume_info, cifs_sb);
 
 	mnt_data.vol = volume_info;
@@ -701,20 +709,10 @@ cifs_do_mount(struct file_system_type *fs_type,
 
 	if (sb->s_fs_info) {
 		cFYI(1, "Use existing superblock");
+		kfree(cifs_sb->mountdata);
 		unload_nls(cifs_sb->local_nls);
 		kfree(cifs_sb);
 		goto out_shared;
-	}
-
-	/*
-	 * Copy mount params for use in submounts. Better to do
-	 * the copy here and deal with the error before cleanup gets
-	 * complicated post-mount.
-	 */
-	cifs_sb->mountdata = kstrndup(data, PAGE_SIZE, GFP_KERNEL);
-	if (cifs_sb->mountdata == NULL) {
-		root = ERR_PTR(-ENOMEM);
-		goto out_super;
 	}
 
 	sb->s_flags = flags;
@@ -749,6 +747,7 @@ out_super:
 	goto out;
 
 out_cifs_sb:
+	kfree(cifs_sb->mountdata);
 	unload_nls(cifs_sb->local_nls);
 	kfree(cifs_sb);
 
