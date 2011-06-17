@@ -2546,7 +2546,7 @@ ip_connect(struct TCP_Server_Info *server)
 }
 
 void reset_cifs_unix_caps(int xid, struct cifs_tcon *tcon,
-			  struct super_block *sb, struct smb_vol *vol_info)
+			  struct cifs_sb_info *cifs_sb, struct smb_vol *vol_info)
 {
 	/* if we are reconnecting then should we check to see if
 	 * any requested capabilities changed locally e.g. via
@@ -2600,22 +2600,23 @@ void reset_cifs_unix_caps(int xid, struct cifs_tcon *tcon,
 			cap &= ~CIFS_UNIX_POSIX_ACL_CAP;
 		else if (CIFS_UNIX_POSIX_ACL_CAP & cap) {
 			cFYI(1, "negotiated posix acl support");
-			if (sb)
-				sb->s_flags |= MS_POSIXACL;
+			if (cifs_sb)
+				cifs_sb->mnt_cifs_flags |=
+					CIFS_MOUNT_POSIXACL;
 		}
 
 		if (vol_info && vol_info->posix_paths == 0)
 			cap &= ~CIFS_UNIX_POSIX_PATHNAMES_CAP;
 		else if (cap & CIFS_UNIX_POSIX_PATHNAMES_CAP) {
 			cFYI(1, "negotiate posix pathnames");
-			if (sb)
-				CIFS_SB(sb)->mnt_cifs_flags |=
+			if (cifs_sb)
+				cifs_sb->mnt_cifs_flags |=
 					CIFS_MOUNT_POSIX_PATHS;
 		}
 
-		if (sb && (CIFS_SB(sb)->rsize > 127 * 1024)) {
+		if (cifs_sb && (cifs_sb->rsize > 127 * 1024)) {
 			if ((cap & CIFS_UNIX_LARGE_READ_CAP) == 0) {
-				CIFS_SB(sb)->rsize = 127 * 1024;
+				cifs_sb->rsize = 127 * 1024;
 				cFYI(DBG2, "larger reads not supported by srv");
 			}
 		}
@@ -2971,8 +2972,7 @@ out:
 }
 
 int
-cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
-	   struct smb_vol *volume_info, const char *devname)
+cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 {
 	int rc = 0;
 	int xid;
@@ -3026,14 +3026,6 @@ try_mount_again:
 		goto mount_fail_check;
 	}
 
-	if (pSesInfo->capabilities & CAP_LARGE_FILES)
-		sb->s_maxbytes = MAX_LFS_FILESIZE;
-	else
-		sb->s_maxbytes = MAX_NON_LFS;
-
-	/* BB FIXME fix time_gran to be larger for LANMAN sessions */
-	sb->s_time_gran = 100;
-
 	/* search for existing tcon to this server share */
 	tcon = cifs_get_tcon(pSesInfo, volume_info);
 	if (IS_ERR(tcon)) {
@@ -3046,7 +3038,7 @@ try_mount_again:
 	if (tcon->ses->capabilities & CAP_UNIX) {
 		/* reset of caps checks mount to see if unix extensions
 		   disabled for just this mount */
-		reset_cifs_unix_caps(xid, tcon, sb, volume_info);
+		reset_cifs_unix_caps(xid, tcon, cifs_sb, volume_info);
 		if ((tcon->ses->server->tcpStatus == CifsNeedReconnect) &&
 		    (le64_to_cpu(tcon->fsUnixInfo.Capability) &
 		     CIFS_UNIX_TRANSPORT_ENCRYPTION_MANDATORY_CAP)) {

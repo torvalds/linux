@@ -116,13 +116,24 @@ cifs_read_super(struct super_block *sb, struct smb_vol *volume_info,
 	spin_lock_init(&cifs_sb->tlink_tree_lock);
 	cifs_sb->tlink_tree = RB_ROOT;
 
-	rc = cifs_mount(sb, cifs_sb, volume_info, devname);
+	rc = cifs_mount(cifs_sb, volume_info);
 
 	if (rc) {
 		if (!silent)
 			cERROR(1, "cifs_mount failed w/return code = %d", rc);
 		return rc;
 	}
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIXACL)
+		sb->s_flags |= MS_POSIXACL;
+
+	if (cifs_sb_master_tcon(cifs_sb)->ses->capabilities & CAP_LARGE_FILES)
+		sb->s_maxbytes = MAX_LFS_FILESIZE;
+	else
+		sb->s_maxbytes = MAX_NON_LFS;
+
+	/* BB FIXME fix time_gran to be larger for LANMAN sessions */
+	sb->s_time_gran = 100;
 
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
