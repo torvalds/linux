@@ -539,10 +539,10 @@ int netvsc_send(struct hv_device *device,
 						  (unsigned long)packet);
 	} else {
 		ret = vmbus_sendpacket(device->channel, &sendMessage,
-				       sizeof(struct nvsp_message),
-				       (unsigned long)packet,
-				       VM_PKT_DATA_INBAND,
-				       VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
+				sizeof(struct nvsp_message),
+				(unsigned long)packet,
+				VM_PKT_DATA_INBAND,
+				VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED);
 
 	}
 

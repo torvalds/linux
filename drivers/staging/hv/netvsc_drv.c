@@ -122,7 +122,7 @@ static void netvsc_xmit_completion(void *context)
 		atomic_add(num_pages, &net_device_ctx->avail);
 		if (atomic_read(&net_device_ctx->avail) >=
 				PACKET_PAGES_HIWATER)
- 			netif_wake_queue(net);
+			netif_wake_queue(net);
 	}
 }
 
