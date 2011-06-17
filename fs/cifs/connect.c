@@ -3362,6 +3362,9 @@ cifs_umount(struct cifs_sb_info *cifs_sb)
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 
 	bdi_destroy(&cifs_sb->bdi);
+	kfree(cifs_sb->mountdata);
+	unload_nls(cifs_sb->local_nls);
+	kfree(cifs_sb);
 }
 
 int cifs_negotiate_protocol(unsigned int xid, struct cifs_ses *ses)

@@ -171,9 +171,6 @@ static void cifs_kill_sb(struct super_block *sb)
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	kill_anon_super(sb);
 	cifs_umount(cifs_sb);
-	kfree(cifs_sb->mountdata);
-	unload_nls(cifs_sb->local_nls);
-	kfree(cifs_sb);
 }
 
 static int
@@ -685,15 +682,12 @@ cifs_do_mount(struct file_system_type *fs_type,
 	if (IS_ERR(sb)) {
 		root = ERR_CAST(sb);
 		cifs_umount(cifs_sb);
-		goto out_cifs_sb;
+		goto out;
 	}
 
 	if (sb->s_fs_info) {
 		cFYI(1, "Use existing superblock");
 		cifs_umount(cifs_sb);
-		kfree(cifs_sb->mountdata);
-		unload_nls(cifs_sb->local_nls);
-		kfree(cifs_sb);
 		goto out_shared;
 	}
 
@@ -725,13 +719,6 @@ out_shared:
 
 out_super:
 	deactivate_locked_super(sb);
-	goto out;
-
-out_cifs_sb:
-	kfree(cifs_sb->mountdata);
-	unload_nls(cifs_sb->local_nls);
-	kfree(cifs_sb);
-
 out:
 	cifs_cleanup_volume_info(&volume_info);
 	return root;
