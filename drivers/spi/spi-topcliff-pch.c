@@ -95,11 +95,13 @@
 /* Definition for ML7213 by OKI SEMICONDUCTOR */
 #define PCI_VENDOR_ID_ROHM		0x10DB
 #define PCI_DEVICE_ID_ML7213_SPI	0x802c
+#define PCI_DEVICE_ID_ML7223_SPI	0x800F
 
 /*
  * Set the number of SPI instance max
  * Intel EG20T PCH :		1ch
  * OKI SEMICONDUCTOR ML7213 IOH :	2ch
+ * OKI SEMICONDUCTOR ML7223 IOH :	1ch
 */
 #define PCH_SPI_MAX_DEV			2
 
@@ -212,6 +214,7 @@ struct pch_pd_dev_save {
 static struct pci_device_id pch_spi_pcidev_id[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_GE_SPI),    1, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_SPI), 2, },
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_SPI), 1, },
 	{ }
 };
 
@@ -1711,4 +1714,4 @@ MODULE_PARM_DESC(use_dma,
 		 "to use DMA for data transfers pass 1 else 0; default 1");
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Intel EG20T PCH/OKI SEMICONDUCTOR ML7213 IOH SPI Driver");
+MODULE_DESCRIPTION("Intel EG20T PCH/OKI SEMICONDUCTOR ML7xxx IOH SPI Driver");
