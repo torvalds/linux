@@ -105,4 +105,11 @@ config SWIOTLB_XEN
 	depends on PCI
 	select SWIOTLB
 
+config XEN_TMEM
+	bool
+	default y if (CLEANCACHE || FRONTSWAP)
+	help
+	  Shim to interface in-kernel Transcendent Memory hooks
+	  (e.g. cleancache and frontswap) to Xen tmem hypercalls.
+
 endmenu
