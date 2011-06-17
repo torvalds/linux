@@ -163,30 +163,14 @@ out_no_root:
 	if (inode)
 		iput(inode);
 
-	cifs_umount(cifs_sb);
 	return rc;
-}
-
-static void
-cifs_put_super(struct super_block *sb)
-{
-	int rc = 0;
-	struct cifs_sb_info *cifs_sb;
-
-	cFYI(1, "In cifs_put_super");
-	cifs_sb = CIFS_SB(sb);
-	if (cifs_sb == NULL) {
-		cFYI(1, "Empty cifs superblock info passed to unmount");
-		return;
-	}
-
-	cifs_umount(cifs_sb);
 }
 
 static void cifs_kill_sb(struct super_block *sb)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	kill_anon_super(sb);
+	cifs_umount(cifs_sb);
 	kfree(cifs_sb->mountdata);
 	unload_nls(cifs_sb->local_nls);
 	kfree(cifs_sb);
@@ -537,7 +521,6 @@ static int cifs_drop_inode(struct inode *inode)
 }
 
 static const struct super_operations cifs_super_ops = {
-	.put_super = cifs_put_super,
 	.statfs = cifs_statfs,
 	.alloc_inode = cifs_alloc_inode,
 	.destroy_inode = cifs_destroy_inode,
