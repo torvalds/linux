@@ -65,7 +65,7 @@ static void scrub_fixup(struct scrub_bio *sbio, int ix);
 struct scrub_page {
 	u64			flags;  /* extent flags */
 	u64			generation;
-	u64			mirror_num;
+	int			mirror_num;
 	int			have_csum;
 	u8			csum[BTRFS_CSUM_SIZE];
 };
@@ -776,7 +776,7 @@ nomem:
 }
 
 static int scrub_page(struct scrub_dev *sdev, u64 logical, u64 len,
-		      u64 physical, u64 flags, u64 gen, u64 mirror_num,
+		      u64 physical, u64 flags, u64 gen, int mirror_num,
 		      u8 *csum, int force)
 {
 	struct scrub_bio *sbio;
@@ -873,7 +873,7 @@ static int scrub_find_csum(struct scrub_dev *sdev, u64 logical, u64 len,
 
 /* scrub extent tries to collect up to 64 kB for each bio */
 static int scrub_extent(struct scrub_dev *sdev, u64 logical, u64 len,
-			u64 physical, u64 flags, u64 gen, u64 mirror_num)
+			u64 physical, u64 flags, u64 gen, int mirror_num)
 {
 	int ret;
 	u8 csum[BTRFS_CSUM_SIZE];
@@ -919,7 +919,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_dev *sdev,
 	u64 physical;
 	u64 logical;
 	u64 generation;
-	u64 mirror_num;
+	int mirror_num;
 
 	u64 increment = map->stripe_len;
 	u64 offset;
