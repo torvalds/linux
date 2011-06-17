@@ -10,10 +10,9 @@ config SND_BF5XX_I2S
 
 config SND_BF5XX_SOC_SSM2602
 	tristate "SoC SSM2602 Audio support for BF52x ezkit"
-	depends on SND_BF5XX_I2S
+	depends on SND_BF5XX_I2S && (SPI_MASTER || I2C)
 	select SND_BF5XX_SOC_I2S
 	select SND_SOC_SSM2602
-	select I2C
 	help
 	  Say Y if you want to add support for SoC audio on BF527-EZKIT.
 
