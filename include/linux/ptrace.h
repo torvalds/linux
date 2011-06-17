@@ -146,17 +146,6 @@ int generic_ptrace_pokedata(struct task_struct *tsk, unsigned long addr,
 			    unsigned long data);
 
 /**
- * task_ptrace - return %PT_* flags that apply to a task
- * @task:	pointer to &task_struct in question
- *
- * Returns the %PT_* flags that apply to @task.
- */
-static inline int task_ptrace(struct task_struct *task)
-{
-	return task->ptrace;
-}
-
-/**
  * ptrace_event - possibly stop for a ptrace event notification
  * @mask:	%PT_* bit to check in @current->ptrace
  * @event:	%PTRACE_EVENT_* value to report if @mask is set

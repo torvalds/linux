@@ -63,7 +63,7 @@ struct linux_binprm;
  */
 static inline int tracehook_expect_breakpoints(struct task_struct *task)
 {
-	return (task_ptrace(task) & PT_PTRACED) != 0;
+	return (task->ptrace & PT_PTRACED) != 0;
 }
 
 /*
@@ -71,7 +71,7 @@ static inline int tracehook_expect_breakpoints(struct task_struct *task)
  */
 static inline void ptrace_report_syscall(struct pt_regs *regs)
 {
-	int ptrace = task_ptrace(current);
+	int ptrace = current->ptrace;
 
 	if (!(ptrace & PT_PTRACED))
 		return;
@@ -155,7 +155,7 @@ static inline void tracehook_report_syscall_exit(struct pt_regs *regs, int step)
 static inline int tracehook_unsafe_exec(struct task_struct *task)
 {
 	int unsafe = 0;
-	int ptrace = task_ptrace(task);
+	int ptrace = task->ptrace;
 	if (ptrace & PT_PTRACED) {
 		if (ptrace & PT_PTRACE_CAP)
 			unsafe |= LSM_UNSAFE_PTRACE_CAP;
@@ -178,7 +178,7 @@ static inline int tracehook_unsafe_exec(struct task_struct *task)
  */
 static inline struct task_struct *tracehook_tracer_task(struct task_struct *tsk)
 {
-	if (task_ptrace(tsk) & PT_PTRACED)
+	if (tsk->ptrace & PT_PTRACED)
 		return rcu_dereference(tsk->parent);
 	return NULL;
 }
@@ -202,7 +202,7 @@ static inline void tracehook_report_exec(struct linux_binfmt *fmt,
 					 struct pt_regs *regs)
 {
 	if (!ptrace_event(PT_TRACE_EXEC, PTRACE_EVENT_EXEC, 0) &&
-	    unlikely(task_ptrace(current) & PT_PTRACED))
+	    unlikely(current->ptrace & PT_PTRACED))
 		send_sig(SIGTRAP, current, 0);
 }
 
@@ -285,7 +285,7 @@ static inline void tracehook_report_clone(struct pt_regs *regs,
 					  unsigned long clone_flags,
 					  pid_t pid, struct task_struct *child)
 {
-	if (unlikely(task_ptrace(child))) {
+	if (unlikely(child->ptrace)) {
 		/*
 		 * It doesn't matter who attached/attaching to this
 		 * task, the pending SIGSTOP is right in any case.
@@ -403,7 +403,7 @@ static inline void tracehook_signal_handler(int sig, siginfo_t *info,
 static inline int tracehook_consider_ignored_signal(struct task_struct *task,
 						    int sig)
 {
-	return (task_ptrace(task) & PT_PTRACED) != 0;
+	return (task->ptrace & PT_PTRACED) != 0;
 }
 
 /**
@@ -422,7 +422,7 @@ static inline int tracehook_consider_ignored_signal(struct task_struct *task,
 static inline int tracehook_consider_fatal_signal(struct task_struct *task,
 						  int sig)
 {
-	return (task_ptrace(task) & PT_PTRACED) != 0;
+	return (task->ptrace & PT_PTRACED) != 0;
 }
 
 #define DEATH_REAP			-1
