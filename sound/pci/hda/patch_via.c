@@ -129,7 +129,7 @@ struct via_spec {
 
 	/* capture */
 	unsigned int num_adc_nids;
-	const hda_nid_t *adc_nids;
+	hda_nid_t adc_nids[3];
 	hda_nid_t mux_nids[3];
 	hda_nid_t dig_in_nid;
 	hda_nid_t dig_in_pin;
@@ -416,51 +416,6 @@ static const struct snd_kcontrol_new via_control_templates[] = {
 	HDA_CODEC_MUTE(NULL, 0, 0, 0),
 	ANALOG_INPUT_MUTE,
 	BIND_PIN_MUTE,
-};
-
-static const hda_nid_t vt1708_adc_nids[2] = {
-	/* ADC1-2 */
-	0x15, 0x27
-};
-
-static const hda_nid_t vt1709_adc_nids[3] = {
-	/* ADC1-2 */
-	0x14, 0x15, 0x16
-};
-
-static const hda_nid_t vt1708B_adc_nids[2] = {
-	/* ADC1-2 */
-	0x13, 0x14
-};
-
-static const hda_nid_t vt1708S_adc_nids[2] = {
-	/* ADC1-2 */
-	0x13, 0x14
-};
-
-static const hda_nid_t vt1702_adc_nids[3] = {
-	/* ADC1-2 */
-	0x12, 0x20, 0x1F
-};
-
-static const hda_nid_t vt1718S_adc_nids[2] = {
-	/* ADC1-2 */
-	0x10, 0x11
-};
-
-static const hda_nid_t vt1716S_adc_nids[2] = {
-	/* ADC1-2 */
-	0x13, 0x14
-};
-
-static const hda_nid_t vt2002P_adc_nids[2] = {
-	/* ADC1-2 */
-	0x10, 0x11
-};
-
-static const hda_nid_t vt1812_adc_nids[2] = {
-	/* ADC1-2 */
-	0x10, 0x11
 };
 
 
@@ -2050,20 +2005,71 @@ static int vt1708_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 	return 0;
 }
 
+static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
+				hda_nid_t nid)
+{
+	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
+	int i, nums;
+
+	nums = snd_hda_get_connections(codec, mux, conn, ARRAY_SIZE(conn));
+	for (i = 0; i < nums; i++)
+		if (conn[i] == nid)
+			return i;
+	return -1;
+}
+
+/* look for ADCs */
+static int via_fill_adcs(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	hda_nid_t nid = codec->start_nid;
+	int i;
+
+	for (i = 0; i < codec->num_nodes; i++, nid++) {
+		unsigned int wcaps = get_wcaps(codec, nid);
+		if (get_wcaps_type(wcaps) != AC_WID_AUD_IN)
+			continue;
+		if (wcaps & AC_WCAP_DIGITAL)
+			continue;
+		if (!(wcaps & AC_WCAP_CONN_LIST))
+			continue;
+		if (spec->num_adc_nids >= ARRAY_SIZE(spec->adc_nids))
+			return -ENOMEM;
+		spec->adc_nids[spec->num_adc_nids++] = nid;
+	}
+	return 0;
+}
+
+static int get_mux_nids(struct hda_codec *codec);
+
 /* create playback/capture controls for input pins */
 static int vt_auto_create_analog_input_ctls(struct hda_codec *codec,
 					    const struct auto_pin_cfg *cfg,
-					    hda_nid_t cap_nid,
-					    const hda_nid_t pin_idxs[],
-					    int num_idxs)
+					    hda_nid_t mix_nid)
 {
 	struct via_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx, type, type_idx = 0;
+	int i, err, idx, idx2, type, type_idx = 0;
+	hda_nid_t cap_nid;
+	hda_nid_t pin_idxs[8];
+	int num_idxs;
+
+	err = via_fill_adcs(codec);
+	if (err < 0)
+		return err;
+	err = get_mux_nids(codec);
+	if (err < 0)
+		return err;
+	cap_nid = spec->mux_nids[0];
+
+	num_idxs = snd_hda_get_connections(codec, cap_nid, pin_idxs,
+					   ARRAY_SIZE(pin_idxs));
+	if (num_idxs <= 0)
+		return 0;
 
 	/* for internal loopback recording select */
 	for (idx = 0; idx < num_idxs; idx++) {
-		if (pin_idxs[idx] == 0xff) {
+		if (pin_idxs[idx] == mix_nid) {
 			snd_hda_add_imux_item(imux, "Stereo Mixer", idx, NULL);
 			break;
 		}
@@ -2082,14 +2088,10 @@ static int vt_auto_create_analog_input_ctls(struct hda_codec *codec,
 		else
 			type_idx = 0;
 		label = hda_get_autocfg_input_label(codec, cfg, i);
-		if (spec->codec_type == VT1708S ||
-		    spec->codec_type == VT1702 ||
-		    spec->codec_type == VT1716S)
+		idx2 = get_connection_index(codec, mix_nid, pin_idxs[idx]);
+		if (idx2 >= 0)
 			err = via_new_analog_input(spec, label, type_idx,
-						   idx+1, cap_nid);
-		else
-			err = via_new_analog_input(spec, label, type_idx,
-						   idx, cap_nid);
+						   idx2, mix_nid);
 		if (err < 0)
 			return err;
 		snd_hda_add_imux_item(imux, label, idx, NULL);
@@ -2101,9 +2103,7 @@ static int vt_auto_create_analog_input_ctls(struct hda_codec *codec,
 static int vt1708_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static const hda_nid_t pin_idxs[] = { 0xff, 0x24, 0x1d, 0x1e, 0x21 };
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x17, pin_idxs,
-						ARRAY_SIZE(pin_idxs));
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x17);
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -2326,11 +2326,7 @@ static int patch_vt1708(struct hda_codec *codec)
 	spec->stream_digital_playback = &vt1708_pcm_digital_playback;
 	spec->stream_digital_capture = &vt1708_pcm_digital_capture;
 
-
-	if (!spec->adc_nids && spec->input_mux) {
-		spec->adc_nids = vt1708_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(vt1708_adc_nids);
-		get_mux_nids(codec);
+	if (spec->adc_nids && spec->input_mux) {
 		spec->mixers[spec->num_mixers] = vt1708_capture_mixer;
 		spec->num_mixers++;
 	}
@@ -2675,9 +2671,7 @@ static int vt1709_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1709_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static const hda_nid_t pin_idxs[] = { 0xff, 0x23, 0x1d, 0x1e, 0x21 };
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x18, pin_idxs,
-						ARRAY_SIZE(pin_idxs));
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x18);
 }
 
 static int vt1709_parse_auto_config(struct hda_codec *codec)
@@ -2764,11 +2758,7 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 	spec->stream_digital_playback = &vt1709_pcm_digital_playback;
 	spec->stream_digital_capture = &vt1709_pcm_digital_capture;
 
-
-	if (!spec->adc_nids && spec->input_mux) {
-		spec->adc_nids = vt1709_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(vt1709_adc_nids);
-		get_mux_nids(codec);
+	if (spec->adc_nids && spec->input_mux) {
 		spec->mixers[spec->num_mixers] = vt1709_capture_mixer;
 		spec->num_mixers++;
 	}
@@ -2856,11 +2846,7 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 	spec->stream_digital_playback = &vt1709_pcm_digital_playback;
 	spec->stream_digital_capture = &vt1709_pcm_digital_capture;
 
-
-	if (!spec->adc_nids && spec->input_mux) {
-		spec->adc_nids = vt1709_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(vt1709_adc_nids);
-		get_mux_nids(codec);
+	if (spec->adc_nids && spec->input_mux) {
 		spec->mixers[spec->num_mixers] = vt1709_capture_mixer;
 		spec->num_mixers++;
 	}
@@ -3207,9 +3193,7 @@ static int vt1708B_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1708B_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static const hda_nid_t pin_idxs[] = { 0xff, 0x1f, 0x1a, 0x1b, 0x1e };
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16, pin_idxs,
-						ARRAY_SIZE(pin_idxs));
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16);
 }
 
 static int vt1708B_parse_auto_config(struct hda_codec *codec)
@@ -3380,10 +3364,7 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 	spec->stream_digital_playback = &vt1708B_pcm_digital_playback;
 	spec->stream_digital_capture = &vt1708B_pcm_digital_capture;
 
-	if (!spec->adc_nids && spec->input_mux) {
-		spec->adc_nids = vt1708B_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(vt1708B_adc_nids);
-		get_mux_nids(codec);
+	if (spec->adc_nids && spec->input_mux) {
 		spec->mixers[spec->num_mixers] = vt1708B_capture_mixer;
 		spec->num_mixers++;
 	}
@@ -3432,10 +3413,7 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 	spec->stream_digital_playback = &vt1708B_pcm_digital_playback;
 	spec->stream_digital_capture = &vt1708B_pcm_digital_capture;
 
-	if (!spec->adc_nids && spec->input_mux) {
-		spec->adc_nids = vt1708B_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(vt1708B_adc_nids);
-		get_mux_nids(codec);
+	if (spec->adc_nids && spec->input_mux) {
 		spec->mixers[spec->num_mixers] = vt1708B_capture_mixer;
 		spec->num_mixers++;
 	}
@@ -3771,9 +3749,7 @@ static int vt1708S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1708S_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static const hda_nid_t pin_idxs[] = { 0x1f, 0x1a, 0x1b, 0x1e, 0, 0xff };
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16, pin_idxs,
-						ARRAY_SIZE(pin_idxs));
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16);
 }
 
 /* fill out digital output widgets; one for master and one for slave outputs */
@@ -3909,10 +3885,7 @@ static int patch_vt1708S(struct hda_codec *codec)
 		spec->stream_name_digital = "VT1708S Digital";
 	spec->stream_digital_playback = &vt1708S_pcm_digital_playback;
 
-	if (!spec->adc_nids && spec->input_mux) {
-		spec->adc_nids = vt1708S_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(vt1708S_adc_nids);
-		get_mux_nids(codec);
+	if (spec->adc_nids && spec->input_mux) {
 		override_mic_boost(codec, 0x1a, 0, 3, 40);
 		override_mic_boost(codec, 0x1e, 0, 3, 40);
 		spec->mixers[spec->num_mixers] = vt1708S_capture_mixer;
@@ -4148,9 +4121,7 @@ static int vt1702_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1702_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static const hda_nid_t pin_idxs[] = { 0x14, 0x15, 0x18, 0xff };
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x1a, pin_idxs,
-						ARRAY_SIZE(pin_idxs));
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x1a);
 }
 
 static int vt1702_parse_auto_config(struct hda_codec *codec)
@@ -4269,10 +4240,7 @@ static int patch_vt1702(struct hda_codec *codec)
 	spec->stream_name_digital = "VT1702 Digital";
 	spec->stream_digital_playback = &vt1702_pcm_digital_playback;
 
-	if (!spec->adc_nids && spec->input_mux) {
-		spec->adc_nids = vt1702_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(vt1702_adc_nids);
-		get_mux_nids(codec);
+	if (spec->adc_nids && spec->input_mux) {
 		spec->mixers[spec->num_mixers] = vt1702_capture_mixer;
 		spec->num_mixers++;
 	}
@@ -4568,9 +4536,7 @@ static int vt1718S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1718S_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static const hda_nid_t pin_idxs[] = { 0x2c, 0x2b, 0x2a, 0x29, 0, 0xff };
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x21, pin_idxs,
-						ARRAY_SIZE(pin_idxs));
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x21);
 }
 
 static int vt1718S_parse_auto_config(struct hda_codec *codec)
@@ -4736,10 +4702,7 @@ static int patch_vt1718S(struct hda_codec *codec)
 	if (codec->vendor_id == 0x11060428 || codec->vendor_id == 0x11060441)
 		spec->stream_digital_capture = &vt1718S_pcm_digital_capture;
 
-	if (!spec->adc_nids && spec->input_mux) {
-		spec->adc_nids = vt1718S_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(vt1718S_adc_nids);
-		get_mux_nids(codec);
+	if (spec->adc_nids && spec->input_mux) {
 		override_mic_boost(codec, 0x2b, 0, 3, 40);
 		override_mic_boost(codec, 0x29, 0, 3, 40);
 		spec->mixers[spec->num_mixers] = vt1718S_capture_mixer;
@@ -5099,9 +5062,7 @@ static int vt1716S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1716S_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	static const hda_nid_t pin_idxs[] = { 0x1f, 0x1a, 0x1b, 0x1e, 0, 0xff };
-	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16, pin_idxs,
-						ARRAY_SIZE(pin_idxs));
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x16);
 }
 
 static int vt1716S_parse_auto_config(struct hda_codec *codec)
@@ -5278,10 +5239,7 @@ static int patch_vt1716S(struct hda_codec *codec)
 	spec->stream_name_digital = "VT1716S Digital";
 	spec->stream_digital_playback = &vt1716S_pcm_digital_playback;
 
-	if (!spec->adc_nids && spec->input_mux) {
-		spec->adc_nids = vt1716S_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(vt1716S_adc_nids);
-		get_mux_nids(codec);
+	if (spec->adc_nids && spec->input_mux) {
 		override_mic_boost(codec, 0x1a, 0, 3, 40);
 		override_mic_boost(codec, 0x1e, 0, 3, 40);
 		spec->mixers[spec->num_mixers] = vt1716S_capture_mixer;
@@ -5572,24 +5530,7 @@ static int vt2002P_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt2002P_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	struct via_spec *spec = codec->spec;
-	struct hda_input_mux *imux = &spec->private_imux[0];
-	static const hda_nid_t pin_idxs[] = { 0x2b, 0x2a, 0x29, 0xff };
-	int err;
-
-	err = vt_auto_create_analog_input_ctls(codec, cfg, 0x21, pin_idxs,
-					       ARRAY_SIZE(pin_idxs));
-	if (err < 0)
-		return err;
-	/* build volume/mute control of loopback */
-	err = via_new_analog_input(spec, "Stereo Mixer", 0, 3, 0x21);
-	if (err < 0)
-		return err;
-
-	/* for digital mic select */
-	snd_hda_add_imux_item(imux, "Digital Mic", 4, NULL);
-
-	return 0;
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x21);
 }
 
 static int vt2002P_parse_auto_config(struct hda_codec *codec)
@@ -5802,10 +5743,7 @@ static int patch_vt2002P(struct hda_codec *codec)
 		spec->stream_name_digital = "VT2002P Digital";
 	spec->stream_digital_playback = &vt2002P_pcm_digital_playback;
 
-	if (!spec->adc_nids && spec->input_mux) {
-		spec->adc_nids = vt2002P_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(vt2002P_adc_nids);
-		get_mux_nids(codec);
+	if (spec->adc_nids && spec->input_mux) {
 		override_mic_boost(codec, 0x2b, 0, 3, 40);
 		override_mic_boost(codec, 0x29, 0, 3, 40);
 		spec->mixers[spec->num_mixers] = vt2002P_capture_mixer;
@@ -6021,25 +5959,7 @@ static int vt1812_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
 static int vt1812_auto_create_analog_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	struct via_spec *spec = codec->spec;
-	struct hda_input_mux *imux = &spec->private_imux[0];
-	static const hda_nid_t pin_idxs[] = { 0x2b, 0x2a, 0x29, 0, 0, 0xff };
-	int err;
-
-	err = vt_auto_create_analog_input_ctls(codec, cfg, 0x21, pin_idxs,
-					       ARRAY_SIZE(pin_idxs));
-	if (err < 0)
-		return err;
-
-	/* build volume/mute control of loopback */
-	err = via_new_analog_input(spec, "Stereo Mixer", 0, 5, 0x21);
-	if (err < 0)
-		return err;
-
-	/* for digital mic select */
-	snd_hda_add_imux_item(imux, "Digital Mic", 6, NULL);
-
-	return 0;
+	return vt_auto_create_analog_input_ctls(codec, cfg, 0x21);
 }
 
 static int vt1812_parse_auto_config(struct hda_codec *codec)
@@ -6217,11 +6137,7 @@ static int patch_vt1812(struct hda_codec *codec)
 	spec->stream_name_digital = "VT1812 Digital";
 	spec->stream_digital_playback = &vt1812_pcm_digital_playback;
 
-
-	if (!spec->adc_nids && spec->input_mux) {
-		spec->adc_nids = vt1812_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(vt1812_adc_nids);
-		get_mux_nids(codec);
+	if (spec->adc_nids && spec->input_mux) {
 		override_mic_boost(codec, 0x2b, 0, 3, 40);
 		override_mic_boost(codec, 0x29, 0, 3, 40);
 		spec->mixers[spec->num_mixers] = vt1812_capture_mixer;
