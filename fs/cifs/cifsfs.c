@@ -116,18 +116,12 @@ cifs_read_super(struct super_block *sb, struct smb_vol *volume_info,
 	spin_lock_init(&cifs_sb->tlink_tree_lock);
 	cifs_sb->tlink_tree = RB_ROOT;
 
-	rc = bdi_setup_and_register(&cifs_sb->bdi, "cifs", BDI_CAP_MAP_COPY);
-	if (rc)
-		return rc;
-
-	cifs_sb->bdi.ra_pages = default_backing_dev_info.ra_pages;
-
 	rc = cifs_mount(sb, cifs_sb, volume_info, devname);
 
 	if (rc) {
 		if (!silent)
 			cERROR(1, "cifs_mount failed w/return code = %d", rc);
-		goto out_mount_failed;
+		return rc;
 	}
 
 	sb->s_magic = CIFS_MAGIC_NUMBER;
@@ -171,9 +165,6 @@ out_no_root:
 		iput(inode);
 
 	cifs_umount(sb, cifs_sb);
-
-out_mount_failed:
-	bdi_destroy(&cifs_sb->bdi);
 	return rc;
 }
 
@@ -199,7 +190,6 @@ cifs_put_super(struct super_block *sb)
 	}
 
 	unload_nls(cifs_sb->local_nls);
-	bdi_destroy(&cifs_sb->bdi);
 	kfree(cifs_sb);
 }
 
