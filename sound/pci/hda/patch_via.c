@@ -1606,6 +1606,17 @@ static void via_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
+/* mute/unmute outputs */
+static void toggle_output_mutes(struct hda_codec *codec, int num_pins,
+				hda_nid_t *pins, bool mute)
+{
+	int i;
+	for (i = 0; i < num_pins; i++)
+		snd_hda_codec_write(codec, pins[i], 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    mute ? 0 : PIN_OUT);
+}
+
 /* mute internal speaker if HP is plugged */
 static void via_hp_automute(struct hda_codec *codec)
 {
@@ -1614,12 +1625,10 @@ static void via_hp_automute(struct hda_codec *codec)
 
 	present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
 
-	if (!spec->hp_independent_mode) {
-		/* auto mute */
-		snd_hda_codec_write(codec, spec->autocfg.line_out_pins[0], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    present ? 0 : PIN_OUT);
-	}
+	if (!spec->hp_independent_mode)
+		toggle_output_mutes(codec, spec->autocfg.line_outs,
+				    spec->autocfg.line_out_pins,
+				    present);
 }
 
 /* mute mono out if HP or Line out is plugged */
@@ -1708,45 +1717,35 @@ static void via_speaker_automute(struct hda_codec *codec)
 
 	hp_present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
 
-	if (!spec->hp_independent_mode) {
-		snd_hda_codec_write(codec, spec->autocfg.speaker_pins[0], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    hp_present ? 0 : PIN_OUT);
-	}
+	if (!spec->hp_independent_mode)
+		toggle_output_mutes(codec, spec->autocfg.speaker_outs,
+				    spec->autocfg.speaker_pins,
+				    hp_present);
 }
 
 /* mute line-out and internal speaker if HP is plugged */
 static void via_hp_bind_automute(struct hda_codec *codec)
 {
-	/* use long instead of int below just to avoid an internal compiler
-	 * error with gcc 4.0.x
-	 */
-	unsigned long hp_present, present = 0;
+	int present;
 	struct via_spec *spec = codec->spec;
-	int i;
 
 	if (!spec->autocfg.hp_pins[0] || !spec->autocfg.line_out_pins[0])
 		return;
 
-	hp_present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
+	present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
+	if (!spec->hp_independent_mode)
+		toggle_output_mutes(codec, spec->autocfg.line_outs,
+				    spec->autocfg.line_out_pins,
+				    present);
 
-	present = snd_hda_jack_detect(codec, spec->autocfg.line_out_pins[0]);
+	if (!present)
+		present = snd_hda_jack_detect(codec,
+					      spec->autocfg.line_out_pins[0]);
 
-	if (!spec->hp_independent_mode) {
-		/* Mute Line-Outs */
-		for (i = 0; i < spec->autocfg.line_outs; i++)
-			snd_hda_codec_write(codec,
-					    spec->autocfg.line_out_pins[i], 0,
-					    AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    hp_present ? 0 : PIN_OUT);
-		if (hp_present)
-			present = hp_present;
-	}
 	/* Speakers */
-	for (i = 0; i < spec->autocfg.speaker_outs; i++)
-		snd_hda_codec_write(codec, spec->autocfg.speaker_pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    present ? 0 : PIN_OUT);
+	toggle_output_mutes(codec, spec->autocfg.speaker_outs,
+			    spec->autocfg.speaker_pins,
+			    present);
 }
 
 
