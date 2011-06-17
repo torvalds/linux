@@ -184,11 +184,13 @@ cifs_put_super(struct super_block *sb)
 	rc = cifs_umount(sb, cifs_sb);
 	if (rc)
 		cERROR(1, "cifs_umount failed with return code %d", rc);
-	if (cifs_sb->mountdata) {
-		kfree(cifs_sb->mountdata);
-		cifs_sb->mountdata = NULL;
-	}
+}
 
+static void cifs_kill_sb(struct super_block *sb)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	kill_anon_super(sb);
+	kfree(cifs_sb->mountdata);
 	unload_nls(cifs_sb->local_nls);
 	kfree(cifs_sb);
 }
@@ -729,8 +731,8 @@ out_shared:
 	goto out;
 
 out_super:
-	kfree(cifs_sb->mountdata);
 	deactivate_locked_super(sb);
+	goto out;
 
 out_cifs_sb:
 	unload_nls(cifs_sb->local_nls);
@@ -827,7 +829,7 @@ struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "cifs",
 	.mount = cifs_do_mount,
-	.kill_sb = kill_anon_super,
+	.kill_sb = cifs_kill_sb,
 	/*  .fs_flags */
 };
 const struct inode_operations cifs_dir_inode_ops = {
