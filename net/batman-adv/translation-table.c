@@ -211,13 +211,12 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr)
 
 	memcpy(tt_local_entry->addr, addr, ETH_ALEN);
 	tt_local_entry->last_seen = jiffies;
+	tt_local_entry->flags = NO_FLAGS;
 	atomic_set(&tt_local_entry->refcount, 2);
 
 	/* the batman interface mac address should never be purged */
 	if (compare_eth(addr, soft_iface->dev_addr))
-		tt_local_entry->never_purge = 1;
-	else
-		tt_local_entry->never_purge = 0;
+		tt_local_entry->flags |= TT_CLIENT_NOPURGE;
 
 	hash_add(bat_priv->tt_local_hash, compare_ltt, choose_orig,
 		 tt_local_entry, &tt_local_entry->hash_entry);
@@ -387,7 +386,7 @@ void tt_local_remove(struct bat_priv *bat_priv, const uint8_t *addr,
 	if (!tt_local_entry)
 		goto out;
 
-	tt_local_event(bat_priv, TT_CHANGE_DEL, tt_local_entry->addr, roaming);
+	tt_local_event(bat_priv, TT_CLIENT_DEL, tt_local_entry->addr, roaming);
 	tt_local_del(bat_priv, tt_local_entry, message);
 out:
 	if (tt_local_entry)
@@ -410,14 +409,14 @@ static void tt_local_purge(struct bat_priv *bat_priv)
 		spin_lock_bh(list_lock);
 		hlist_for_each_entry_safe(tt_local_entry, node, node_tmp,
 					  head, hash_entry) {
-			if (tt_local_entry->never_purge)
+			if (tt_local_entry->flags & TT_CLIENT_NOPURGE)
 				continue;
 
 			if (!is_out_of_time(tt_local_entry->last_seen,
 					    TT_LOCAL_TIMEOUT * 1000))
 				continue;
 
-			tt_local_event(bat_priv, TT_CHANGE_DEL,
+			tt_local_event(bat_priv, TT_CLIENT_DEL,
 				       tt_local_entry->addr, false);
 			atomic_dec(&bat_priv->num_local_tt);
 			bat_dbg(DBG_TT, bat_priv, "Deleting local "
@@ -1335,7 +1334,7 @@ static void _tt_update_changes(struct bat_priv *bat_priv,
 	int i;
 
 	for (i = 0; i < tt_num_changes; i++) {
-		if ((tt_change + i)->flags & TT_CHANGE_DEL)
+		if ((tt_change + i)->flags & TT_CLIENT_DEL)
 			tt_global_del(bat_priv, orig_node,
 				      (tt_change + i)->addr,
 				      "tt removed by changes",
