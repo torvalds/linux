@@ -554,7 +554,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 	full_path = cifs_build_path_to_root(vol, cifs_sb,
 					    cifs_sb_master_tcon(cifs_sb));
 	if (full_path == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	cFYI(1, "Get root dentry for %s", full_path);
 
@@ -583,7 +583,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 			dchild = d_alloc(dparent, &name);
 			if (dchild == NULL) {
 				dput(dparent);
-				dparent = NULL;
+				dparent = ERR_PTR(-ENOMEM);
 				goto out;
 			}
 		}
@@ -601,7 +601,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 			if (rc) {
 				dput(dchild);
 				dput(dparent);
-				dparent = NULL;
+				dparent = ERR_PTR(rc);
 				goto out;
 			}
 			alias = d_materialise_unique(dchild, inode);
@@ -609,7 +609,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 				dput(dchild);
 				if (IS_ERR(alias)) {
 					dput(dparent);
-					dparent = NULL;
+					dparent = ERR_PTR(-EINVAL); /* XXX */
 					goto out;
 				}
 				dchild = alias;
@@ -704,10 +704,8 @@ cifs_do_mount(struct file_system_type *fs_type,
 	}
 
 	root = cifs_get_root(volume_info, sb);
-	if (root == NULL) {
-		root = ERR_PTR(-EINVAL); /* XXX */
+	if (IS_ERR(root))
 		goto out_super;
-	}
 
 	cFYI(1, "dentry root is: %p", root);
 	goto out;
