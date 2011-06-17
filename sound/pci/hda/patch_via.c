@@ -1615,17 +1615,10 @@ static void via_hp_automute(struct hda_codec *codec)
 	present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
 
 	if (!spec->hp_independent_mode) {
-		struct snd_ctl_elem_id id;
 		/* auto mute */
-		snd_hda_codec_amp_stereo(
-			codec, spec->autocfg.line_out_pins[0], HDA_OUTPUT, 0,
-			HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
-		/* notify change */
-		memset(&id, 0, sizeof(id));
-		id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		strcpy(id.name, "Front Playback Switch");
-		snd_ctl_notify(codec->bus->card, SNDRV_CTL_EVENT_MASK_VALUE,
-			       &id);
+		snd_hda_codec_write(codec, spec->autocfg.line_out_pins[0], 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    present ? 0 : PIN_OUT);
 	}
 }
 
@@ -1643,17 +1636,18 @@ static void via_mono_automute(struct hda_codec *codec)
 
 	/* Mute Mono Out if Line Out is plugged */
 	if (lineout_present) {
-		snd_hda_codec_amp_stereo(
-			codec, 0x2A, HDA_OUTPUT, 0, HDA_AMP_MUTE, HDA_AMP_MUTE);
+		snd_hda_codec_write(codec, 0x2A, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    lineout_present ? 0 : PIN_OUT);
 		return;
 	}
 
 	hp_present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
 
 	if (!spec->hp_independent_mode)
-		snd_hda_codec_amp_stereo(
-			codec, 0x2A, HDA_OUTPUT, 0, HDA_AMP_MUTE,
-			hp_present ? HDA_AMP_MUTE : 0);
+		snd_hda_codec_write(codec, 0x2A, 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    hp_present ? 0 : PIN_OUT);
 }
 
 static void via_gpio_control(struct hda_codec *codec)
@@ -1678,9 +1672,9 @@ static void via_gpio_control(struct hda_codec *codec)
 
 	if (gpio_data == 0x02) {
 		/* unmute line out */
-		snd_hda_codec_amp_stereo(codec, spec->autocfg.line_out_pins[0],
-					 HDA_OUTPUT, 0, HDA_AMP_MUTE, 0);
-
+		snd_hda_codec_write(codec, spec->autocfg.line_out_pins[0], 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    PIN_OUT);
 		if (vol_counter & 0x20) {
 			/* decrease volume */
 			if (vol > master_vol)
@@ -1697,10 +1691,9 @@ static void via_gpio_control(struct hda_codec *codec)
 		}
 	} else if (!(gpio_data & 0x02)) {
 		/* mute line out */
-		snd_hda_codec_amp_stereo(codec,
-					 spec->autocfg.line_out_pins[0],
-					 HDA_OUTPUT, 0, HDA_AMP_MUTE,
-					 HDA_AMP_MUTE);
+		snd_hda_codec_write(codec, spec->autocfg.line_out_pins[0], 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    0);
 	}
 }
 
@@ -1716,16 +1709,9 @@ static void via_speaker_automute(struct hda_codec *codec)
 	hp_present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
 
 	if (!spec->hp_independent_mode) {
-		struct snd_ctl_elem_id id;
-		snd_hda_codec_amp_stereo(
-			codec, spec->autocfg.speaker_pins[0], HDA_OUTPUT, 0,
-			HDA_AMP_MUTE, hp_present ? HDA_AMP_MUTE : 0);
-		/* notify change */
-		memset(&id, 0, sizeof(id));
-		id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-		strcpy(id.name, "Speaker Playback Switch");
-		snd_ctl_notify(codec->bus->card, SNDRV_CTL_EVENT_MASK_VALUE,
-			       &id);
+		snd_hda_codec_write(codec, spec->autocfg.speaker_pins[0], 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    hp_present ? 0 : PIN_OUT);
 	}
 }
 
@@ -1749,18 +1735,18 @@ static void via_hp_bind_automute(struct hda_codec *codec)
 	if (!spec->hp_independent_mode) {
 		/* Mute Line-Outs */
 		for (i = 0; i < spec->autocfg.line_outs; i++)
-			snd_hda_codec_amp_stereo(
-				codec, spec->autocfg.line_out_pins[i],
-				HDA_OUTPUT, 0,
-				HDA_AMP_MUTE, hp_present ? HDA_AMP_MUTE : 0);
+			snd_hda_codec_write(codec,
+					    spec->autocfg.line_out_pins[i], 0,
+					    AC_VERB_SET_PIN_WIDGET_CONTROL,
+					    hp_present ? 0 : PIN_OUT);
 		if (hp_present)
 			present = hp_present;
 	}
 	/* Speakers */
 	for (i = 0; i < spec->autocfg.speaker_outs; i++)
-		snd_hda_codec_amp_stereo(
-			codec, spec->autocfg.speaker_pins[i], HDA_OUTPUT, 0,
-			HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
+		snd_hda_codec_write(codec, spec->autocfg.speaker_pins[i], 0,
+				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+				    present ? 0 : PIN_OUT);
 }
 
 
