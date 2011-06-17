@@ -66,6 +66,8 @@ struct sh_dmae_pdata {
 	u32 chcr_ie_bit;
 
 	unsigned int dmaor_is_32bit:1;
+	unsigned int needs_tend_set:1;
+	unsigned int no_dmars:1;
 };
 
 /* DMA register */
@@ -74,6 +76,8 @@ struct sh_dmae_pdata {
 #define TCR	0x08
 #define CHCR	0x0C
 #define DMAOR	0x40
+
+#define TEND	0x18 /* USB-DMAC */
 
 /* DMAOR definitions */
 #define DMAOR_AE	0x00000004

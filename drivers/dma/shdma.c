@@ -194,6 +194,9 @@ static void dmae_start(struct sh_dmae_chan *sh_chan)
 	struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
 	u32 chcr = chcr_read(sh_chan);
 
+	if (shdev->pdata->needs_tend_set)
+		sh_dmae_writel(sh_chan, 0xFFFFFFFF, TEND);
+
 	chcr |= CHCR_DE | shdev->chcr_ie_bit;
 	chcr_write(sh_chan, chcr & ~CHCR_TE);
 }
@@ -241,6 +244,9 @@ static int dmae_set_dmars(struct sh_dmae_chan *sh_chan, u16 val)
 
 	if (dmae_is_busy(sh_chan))
 		return -EBUSY;
+
+	if (pdata->no_dmars)
+		return 0;
 
 	/* in the case of a missing DMARS resource use first memory window */
 	if (!addr)
