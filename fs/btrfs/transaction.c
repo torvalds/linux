@@ -1298,11 +1298,19 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			schedule_timeout(1);
 
 		finish_wait(&cur_trans->writer_wait, &wait);
-		spin_lock(&root->fs_info->trans_lock);
-		root->fs_info->trans_no_join = 1;
-		spin_unlock(&root->fs_info->trans_lock);
 	} while (atomic_read(&cur_trans->num_writers) > 1 ||
 		 (should_grow && cur_trans->num_joined != joined));
+
+	/*
+	 * Ok now we need to make sure to block out any other joins while we
+	 * commit the transaction.  We could have started a join before setting
+	 * no_join so make sure to wait for num_writers to == 1 again.
+	 */
+	spin_lock(&root->fs_info->trans_lock);
+	root->fs_info->trans_no_join = 1;
+	spin_unlock(&root->fs_info->trans_lock);
+	wait_event(cur_trans->writer_wait,
+		   atomic_read(&cur_trans->num_writers) == 1);
 
 	/*
 	 * the reloc mutex makes sure that we stop
