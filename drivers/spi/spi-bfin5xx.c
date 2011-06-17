@@ -1186,7 +1186,7 @@ static void bfin_spi_cleanup(struct spi_device *spi)
 	spi_set_ctldata(spi, NULL);
 }
 
-static inline int bfin_spi_init_queue(struct bfin_spi_master_data *drv_data)
+static int bfin_spi_init_queue(struct bfin_spi_master_data *drv_data)
 {
 	INIT_LIST_HEAD(&drv_data->queue);
 	spin_lock_init(&drv_data->lock);
@@ -1208,7 +1208,7 @@ static inline int bfin_spi_init_queue(struct bfin_spi_master_data *drv_data)
 	return 0;
 }
 
-static inline int bfin_spi_start_queue(struct bfin_spi_master_data *drv_data)
+static int bfin_spi_start_queue(struct bfin_spi_master_data *drv_data)
 {
 	unsigned long flags;
 
@@ -1230,7 +1230,7 @@ static inline int bfin_spi_start_queue(struct bfin_spi_master_data *drv_data)
 	return 0;
 }
 
-static inline int bfin_spi_stop_queue(struct bfin_spi_master_data *drv_data)
+static int bfin_spi_stop_queue(struct bfin_spi_master_data *drv_data)
 {
 	unsigned long flags;
 	unsigned limit = 500;
@@ -1259,7 +1259,7 @@ static inline int bfin_spi_stop_queue(struct bfin_spi_master_data *drv_data)
 	return status;
 }
 
-static inline int bfin_spi_destroy_queue(struct bfin_spi_master_data *drv_data)
+static int bfin_spi_destroy_queue(struct bfin_spi_master_data *drv_data)
 {
 	int status;
 
