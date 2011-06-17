@@ -223,7 +223,6 @@ struct hci_conn {
 	struct list_head list;
 
 	atomic_t	refcnt;
-	spinlock_t	lock;
 
 	bdaddr_t	dst;
 	__u8		dst_type;
@@ -272,7 +271,6 @@ struct hci_conn {
 	struct hci_dev	*hdev;
 	void		*l2cap_data;
 	void		*sco_data;
-	void		*priv;
 
 	struct hci_conn	*link;
 
