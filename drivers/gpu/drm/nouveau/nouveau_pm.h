@@ -59,10 +59,9 @@ void *nv50_pm_clock_pre(struct drm_device *, struct nouveau_pm_level *,
 void nv50_pm_clock_set(struct drm_device *, void *);
 
 /* nva3_pm.c */
-int nva3_pm_clock_get(struct drm_device *, u32 id);
-void *nva3_pm_clock_pre(struct drm_device *, struct nouveau_pm_level *,
-			u32 id, int khz);
-void nva3_pm_clock_set(struct drm_device *, void *);
+int nva3_pm_clocks_get(struct drm_device *, struct nouveau_pm_level *);
+void *nva3_pm_clocks_pre(struct drm_device *, struct nouveau_pm_level *);
+void nva3_pm_clocks_set(struct drm_device *, void *);
 
 /* nouveau_temp.c */
 void nouveau_temp_init(struct drm_device *dev);

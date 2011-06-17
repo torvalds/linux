@@ -359,9 +359,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 			engine->pm.clock_set	= nv50_pm_clock_set;
 			break;
 		default:
-			engine->pm.clock_get	= nva3_pm_clock_get;
-			engine->pm.clock_pre	= nva3_pm_clock_pre;
-			engine->pm.clock_set	= nva3_pm_clock_set;
+			engine->pm.clocks_get	= nva3_pm_clocks_get;
+			engine->pm.clocks_pre	= nva3_pm_clocks_pre;
+			engine->pm.clocks_set	= nva3_pm_clocks_set;
 			break;
 		}
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;

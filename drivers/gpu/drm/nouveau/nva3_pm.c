@@ -27,11 +27,20 @@
 #include "nouveau_bios.h"
 #include "nouveau_pm.h"
 
-static u32 read_pll(struct drm_device *dev, u32 pll, int clk);
-static u32 read_clk(struct drm_device *dev, int clk);
+static u32 read_clk(struct drm_device *, int, bool);
+static u32 read_pll(struct drm_device *, u32, int);
 
 static u32
-read_clk(struct drm_device *dev, int clk)
+read_vco(struct drm_device *dev, int clk)
+{
+	u32 sctl = nv_rd32(dev, 0x4120 + (clk * 4));
+	if ((sctl & 0x00000030) != 0x00000030)
+		return read_pll(dev, 0x00e820, 0x41);
+	return read_pll(dev, 0x00e8a0, 0x42);
+}
+
+static u32
+read_clk(struct drm_device *dev, int clk, bool ignore_en)
 {
 	u32 sctl, sdiv, sclk;
 
@@ -39,20 +48,19 @@ read_clk(struct drm_device *dev, int clk)
 		return 27000;
 
 	sctl = nv_rd32(dev, 0x4120 + (clk * 4));
-	switch (sctl & 0x00003100) {
-	case 0x00000100:
+	if (!ignore_en && !(sctl & 0x00000100))
+		return 0;
+
+	switch (sctl & 0x00003000) {
+	case 0x00000000:
 		return 27000;
-	case 0x00002100:
+	case 0x00002000:
 		if (sctl & 0x00000040)
 			return 108000;
 		return 100000;
-	case 0x00003100:
+	case 0x00003000:
+		sclk = read_vco(dev, clk);
 		sdiv = ((sctl & 0x003f0000) >> 16) + 2;
-		if ((sctl & 0x00000030) != 0x00000030)
-			sclk = read_pll(dev, 0x00e820, 0x41);
-		else
-			sclk = read_pll(dev, 0x00e8a0, 0x42);
-
 		return (sclk * 2) / sdiv;
 	default:
 		return 0;
@@ -73,161 +81,158 @@ read_pll(struct drm_device *dev, u32 pll, int clk)
 		if ((pll & 0x00ff00) == 0x00e800)
 			P = 1;
 
-		sclk = read_clk(dev, 0x00 + clk);
+		sclk = read_clk(dev, 0x00 + clk, false);
 	} else {
-		sclk = read_clk(dev, 0x10 + clk);
+		sclk = read_clk(dev, 0x10 + clk, false);
 	}
 
 	return sclk * N / (M * P);
 }
 
-struct nva3_pm_state {
-	enum pll_types type;
-	u32 src0;
-	u32 src1;
-	u32 ctrl;
-	u32 coef;
-	u32 old_pnm;
-	u32 new_pnm;
-	u32 new_div;
+struct creg {
+	u32 clk;
+	u32 pll;
 };
 
 static int
-nva3_pm_pll_offset(u32 id)
+calc_clk(struct drm_device *dev, u32 pll, int clk, u32 khz, struct creg *reg)
 {
-	static const u32 pll_map[] = {
-		0x00, PLL_CORE,
-		0x01, PLL_SHADER,
-		0x02, PLL_MEMORY,
-		0x00, 0x00
-	};
-	const u32 *map = pll_map;
+	struct pll_lims limits;
+	u32 oclk, sclk, sdiv;
+	int P, N, M, diff;
+	int ret;
 
-	while (map[1]) {
-		if (id == map[1])
-			return map[0];
-		map += 2;
+	reg->pll = 0;
+	reg->clk = 0;
+
+	switch (khz) {
+	case 27000:
+		reg->clk = 0x00000100;
+		return khz;
+	case 100000:
+		reg->clk = 0x00002100;
+		return khz;
+	case 108000:
+		reg->clk = 0x00002140;
+		return khz;
+	default:
+		sclk = read_vco(dev, clk);
+		sdiv = min((sclk * 2) / (khz - 2999), (u32)65);
+		if (sdiv > 4) {
+			oclk = (sclk * 2) / sdiv;
+			diff = khz - oclk;
+			if (!pll || (diff >= -2000 && diff < 3000)) {
+				reg->clk = (((sdiv - 2) << 16) | 0x00003100);
+				return oclk;
+			}
+		}
+		break;
 	}
 
-	return -ENOENT;
+	ret = get_pll_limits(dev, pll, &limits);
+	if (ret)
+		return ret;
+
+	limits.refclk = read_clk(dev, clk - 0x10, true);
+	if (!limits.refclk)
+		return -EINVAL;
+
+	ret = nva3_calc_pll(dev, &limits, khz, &N, NULL, &M, &P);
+	if (ret >= 0) {
+		reg->clk = nv_rd32(dev, 0x4120 + (clk * 4));
+		reg->pll = (P << 16) | (N << 8) | M;
+	}
+	return ret;
 }
 
 int
-nva3_pm_clock_get(struct drm_device *dev, u32 id)
+nva3_pm_clocks_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 {
-	switch (id) {
-	case PLL_CORE:
-		return read_pll(dev, 0x4200, 0);
-	case PLL_SHADER:
-		return read_pll(dev, 0x4220, 1);
-	case PLL_MEMORY:
-		return read_pll(dev, 0x4000, 2);
-	default:
-		return -ENOENT;
-	}
+	perflvl->core   = read_pll(dev, 0x4200, 0);
+	perflvl->shader = read_pll(dev, 0x4220, 1);
+	perflvl->memory = read_pll(dev, 0x4000, 2);
+	return 0;
 }
 
+struct nva3_pm_state {
+	struct creg nclk;
+	struct creg sclk;
+	struct creg mclk;
+};
+
 void *
-nva3_pm_clock_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl,
-		  u32 id, int khz)
+nva3_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 {
-	struct nva3_pm_state *pll;
-	struct pll_lims limits;
-	int N, M, P, diff;
-	int ret, off;
+	struct nva3_pm_state *info;
+	int ret;
 
-	ret = get_pll_limits(dev, id, &limits);
-	if (ret < 0)
-		return (ret == -ENOENT) ? NULL : ERR_PTR(ret);
-
-	off = nva3_pm_pll_offset(id);
-	if (id < 0)
-		return ERR_PTR(-EINVAL);
-
-
-	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
-	if (!pll)
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
 		return ERR_PTR(-ENOMEM);
-	pll->type = id;
-	pll->src0 = 0x004120 + (off * 4);
-	pll->src1 = 0x004160 + (off * 4);
-	pll->ctrl = limits.reg + 0;
-	pll->coef = limits.reg + 4;
 
-	/* If target clock is within [-2, 3) MHz of a divisor, we'll
-	 * use that instead of calculating MNP values
-	 */
-	pll->new_div = min((limits.refclk * 2) / (khz - 2999), 16);
-	if (pll->new_div) {
-		diff = khz - ((limits.refclk * 2) / pll->new_div);
-		if (diff < -2000 || diff >= 3000)
-			pll->new_div = 0;
+	ret = calc_clk(dev, 0x4200, 0x10, perflvl->core, &info->nclk);
+	if (ret < 0)
+		goto out;
+
+	ret = calc_clk(dev, 0x4220, 0x11, perflvl->shader, &info->sclk);
+	if (ret < 0)
+		goto out;
+
+	ret = calc_clk(dev, 0x4000, 0x12, perflvl->memory, &info->mclk);
+	if (ret < 0)
+		goto out;
+
+out:
+	if (ret < 0) {
+		kfree(info);
+		info = ERR_PTR(ret);
 	}
+	return info;
+}
 
-	if (!pll->new_div) {
-		ret = nva3_calc_pll(dev, &limits, khz, &N, NULL, &M, &P);
-		if (ret < 0)
-			return ERR_PTR(ret);
+static void
+prog_pll(struct drm_device *dev, u32 pll, int clk, struct creg *reg)
+{
+	const u32 src0 = 0x004120 + (clk * 4);
+	const u32 src1 = 0x004160 + (clk * 4);
+	const u32 ctrl = pll + 0;
+	const u32 coef = pll + 4;
+	u32 cntl;
 
-		pll->new_pnm = (P << 16) | (N << 8) | M;
-		pll->new_div = 2 - 1;
+	cntl = nv_rd32(dev, ctrl) & 0xfffffff2;
+	if (reg->pll) {
+		nv_mask(dev, src0, 0x00000101, 0x00000101);
+		nv_wr32(dev, coef, reg->pll);
+		nv_wr32(dev, ctrl, cntl | 0x00000015);
+		nv_mask(dev, src1, 0x00000100, 0x00000000);
+		nv_mask(dev, src1, 0x00000001, 0x00000000);
 	} else {
-		pll->new_pnm = 0;
-		pll->new_div--;
+		nv_mask(dev, src1, 0x003f3141, 0x00000101 | reg->clk);
+		nv_wr32(dev, ctrl, cntl | 0x0000001d);
+		nv_mask(dev, ctrl, 0x00000001, 0x00000000);
+		nv_mask(dev, src0, 0x00000100, 0x00000000);
+		nv_mask(dev, src0, 0x00000001, 0x00000000);
 	}
-
-	if ((nv_rd32(dev, pll->src1) & 0x00000101) != 0x00000101)
-		pll->old_pnm = nv_rd32(dev, pll->coef);
-	return pll;
 }
 
 void
-nva3_pm_clock_set(struct drm_device *dev, void *pre_state)
+nva3_pm_clocks_set(struct drm_device *dev, void *pre_state)
 {
-	struct nva3_pm_state *pll = pre_state;
-	u32 ctrl = 0;
+	struct nva3_pm_state *info = pre_state;
 
-	/* For the memory clock, NVIDIA will build a "script" describing
-	 * the reclocking process and ask PDAEMON to execute it.
-	 */
-	if (pll->type == PLL_MEMORY) {
-		nv_wr32(dev, 0x100210, 0);
-		nv_wr32(dev, 0x1002dc, 1);
-		nv_wr32(dev, 0x004018, 0x00001000);
-		ctrl = 0x18000100;
-	}
+	prog_pll(dev, 0x004200, 0, &info->nclk);
+	prog_pll(dev, 0x004220, 1, &info->sclk);
 
-	if (pll->old_pnm || !pll->new_pnm) {
-		nv_mask(dev, pll->src1, 0x003c0101, 0x00000101 |
-						    (pll->new_div << 18));
-		nv_wr32(dev, pll->ctrl, 0x0001001d | ctrl);
-		nv_mask(dev, pll->ctrl, 0x00000001, 0x00000000);
-	}
+	nv_wr32(dev, 0x100210, 0);
+	nv_wr32(dev, 0x1002dc, 1);
+	nv_wr32(dev, 0x004018, 0x00001000);
+	prog_pll(dev, 0x004000, 2, &info->mclk);
+	if (nv_rd32(dev, 0x4000) & 0x00000008)
+		nv_wr32(dev, 0x004018, 0x1000d000);
+	else
+		nv_wr32(dev, 0x004018, 0x10005000);
+	nv_wr32(dev, 0x1002dc, 0);
+	nv_wr32(dev, 0x100210, 0x80000000);
 
-	if (pll->new_pnm) {
-		nv_mask(dev, pll->src0, 0x00000101, 0x00000101);
-		nv_wr32(dev, pll->coef, pll->new_pnm);
-		nv_wr32(dev, pll->ctrl, 0x0001001d | ctrl);
-		nv_mask(dev, pll->ctrl, 0x00000010, 0x00000000);
-		nv_mask(dev, pll->ctrl, 0x00020010, 0x00020010);
-		nv_wr32(dev, pll->ctrl, 0x00010015 | ctrl);
-		nv_mask(dev, pll->src1, 0x00000100, 0x00000000);
-		nv_mask(dev, pll->src1, 0x00000001, 0x00000000);
-		if (pll->type == PLL_MEMORY)
-			nv_wr32(dev, 0x4018, 0x10005000);
-	} else {
-		nv_mask(dev, pll->ctrl, 0x00000001, 0x00000000);
-		nv_mask(dev, pll->src0, 0x00000100, 0x00000000);
-		nv_mask(dev, pll->src0, 0x00000001, 0x00000000);
-		if (pll->type == PLL_MEMORY)
-			nv_wr32(dev, 0x4018, 0x1000d000);
-	}
-
-	if (pll->type == PLL_MEMORY) {
-		nv_wr32(dev, 0x1002dc, 0);
-		nv_wr32(dev, 0x100210, 0x80000000);
-	}
-
-	kfree(pll);
+	kfree(info);
 }
-
