@@ -13,8 +13,8 @@
 struct bcma_bus;
 
 /* main.c */
-extern int bcma_bus_register(struct bcma_bus *bus);
-extern void bcma_bus_unregister(struct bcma_bus *bus);
+int bcma_bus_register(struct bcma_bus *bus);
+void bcma_bus_unregister(struct bcma_bus *bus);
 
 /* scan.c */
 int bcma_bus_scan(struct bcma_bus *bus);
