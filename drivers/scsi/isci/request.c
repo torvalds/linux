@@ -1694,7 +1694,7 @@ scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
 								      frame_index,
 								      &smp_resp);
 
-			word_cnt = (sizeof(struct smp_req) - SMP_RESP_HDR_SZ) /
+			word_cnt = (sizeof(struct smp_resp) - SMP_RESP_HDR_SZ) /
 				sizeof(u32);
 
 			sci_swab32_cpy(((u8 *) rsp_hdr) + SMP_RESP_HDR_SZ,
