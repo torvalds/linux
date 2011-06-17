@@ -108,7 +108,6 @@ _dev_list_add(const struct nfs_server *nfss,
 		de = n;
 	}
 
-	atomic_inc(&de->id_node.ref);
 	return de;
 }
 
