@@ -701,6 +701,8 @@ cifs_do_mount(struct file_system_type *fs_type,
 
 	if (sb->s_fs_info) {
 		cFYI(1, "Use existing superblock");
+		unload_nls(cifs_sb->local_nls);
+		kfree(cifs_sb);
 		goto out_shared;
 	}
 
