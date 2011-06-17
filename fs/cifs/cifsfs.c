@@ -629,6 +629,13 @@ out:
 	return dparent;
 }
 
+static int cifs_set_super(struct super_block *sb, void *data)
+{
+	struct cifs_mnt_data *mnt_data = data;
+	sb->s_fs_info = mnt_data->cifs_sb;
+	return set_anon_super(sb, NULL);
+}
+
 static struct dentry *
 cifs_do_mount(struct file_system_type *fs_type,
 	      int flags, const char *dev_name, void *data)
@@ -678,14 +685,14 @@ cifs_do_mount(struct file_system_type *fs_type,
 	mnt_data.cifs_sb = cifs_sb;
 	mnt_data.flags = flags;
 
-	sb = sget(fs_type, cifs_match_super, set_anon_super, &mnt_data);
+	sb = sget(fs_type, cifs_match_super, cifs_set_super, &mnt_data);
 	if (IS_ERR(sb)) {
 		root = ERR_CAST(sb);
 		cifs_umount(cifs_sb);
 		goto out;
 	}
 
-	if (sb->s_fs_info) {
+	if (sb->s_root) {
 		cFYI(1, "Use existing superblock");
 		cifs_umount(cifs_sb);
 		goto out_shared;
@@ -694,7 +701,6 @@ cifs_do_mount(struct file_system_type *fs_type,
 	sb->s_flags = flags;
 	/* BB should we make this contingent on mount parm? */
 	sb->s_flags |= MS_NODIRATIME | MS_NOATIME;
-	sb->s_fs_info = cifs_sb;
 
 	rc = cifs_read_super(sb);
 	if (rc) {
