@@ -420,18 +420,34 @@ static const struct snd_kcontrol_new via_control_templates[] = {
 
 
 /* add dynamic controls */
-static int __via_add_control(struct via_spec *spec, int type, const char *name,
-			     int idx, unsigned long val)
+static struct snd_kcontrol_new *__via_clone_ctl(struct via_spec *spec,
+				const struct snd_kcontrol_new *tmpl,
+				const char *name)
 {
 	struct snd_kcontrol_new *knew;
 
 	snd_array_init(&spec->kctls, sizeof(*knew), 32);
 	knew = snd_array_new(&spec->kctls);
 	if (!knew)
-		return -ENOMEM;
-	*knew = via_control_templates[type];
-	knew->name = kstrdup(name, GFP_KERNEL);
-	if (!knew->name)
+		return NULL;
+	*knew = *tmpl;
+	if (!name)
+		name = tmpl->name;
+	if (name) {
+		knew->name = kstrdup(name, GFP_KERNEL);
+		if (!knew->name)
+			return NULL;
+	}
+	return knew;
+}
+
+static int __via_add_control(struct via_spec *spec, int type, const char *name,
+			     int idx, unsigned long val)
+{
+	struct snd_kcontrol_new *knew;
+
+	knew = __via_clone_ctl(spec, &via_control_templates[type], name);
+	if (!knew)
 		return -ENOMEM;
 	if (get_amp_nid_(val))
 		knew->subdevice = HDA_SUBDEV_AMP_FLAG;
@@ -442,21 +458,7 @@ static int __via_add_control(struct via_spec *spec, int type, const char *name,
 #define via_add_control(spec, type, name, val) \
 	__via_add_control(spec, type, name, 0, val)
 
-static struct snd_kcontrol_new *via_clone_control(struct via_spec *spec,
-				const struct snd_kcontrol_new *tmpl)
-{
-	struct snd_kcontrol_new *knew;
-
-	snd_array_init(&spec->kctls, sizeof(*knew), 32);
-	knew = snd_array_new(&spec->kctls);
-	if (!knew)
-		return NULL;
-	*knew = *tmpl;
-	knew->name = kstrdup(tmpl->name, GFP_KERNEL);
-	if (!knew->name)
-		return NULL;
-	return knew;
-}
+#define via_clone_control(spec, tmpl) __via_clone_ctl(spec, tmpl, NULL)
 
 static void via_free_kctls(struct hda_codec *codec)
 {
