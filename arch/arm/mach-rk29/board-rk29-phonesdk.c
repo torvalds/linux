@@ -1562,7 +1562,8 @@ struct wm8994_pdata wm8994_platdata = {
 	.jd_scthr = 0,
 	.jd_thr = 0,
 
-	.PA_control =0,
+	.PA_control_pin = 0,	
+	.Power_EN_Pin = RK29_PIN5_PA1,
 
 	.speaker_incall_vol = 0,
 	.speaker_incall_mic_vol = -9,
@@ -1580,17 +1581,17 @@ struct wm8994_pdata wm8994_platdata = {
 
 #ifdef CONFIG_RK_HEADSET_DET
 #define HEADSET_GPIO RK29_PIN4_PD2
-struct rk2818_headset_data rk2818_headset_info = {
-	.gpio		= HEADSET_GPIO,
-	.irq_type	= IRQF_TRIGGER_RISING,//IRQF_TRIGGER_RISING -- ??????	IRQF_TRIGGER_FALLING -- ?½???
+struct rk_headset_pdata rk_headset_info = {
+	.Headset_gpio		= RK29_PIN4_PD2,
 	.headset_in_type= HEADSET_IN_HIGH,
+	.Hook_gpio = RK29_PIN4_PD1,//Detection Headset--Must be set
 };
 
-struct platform_device rk28_device_headset = {
-		.name	= "rk2818_headsetdet",
+struct platform_device rk_device_headset = {
+		.name	= "rk_headsetdet",
 		.id 	= 0,
 		.dev    = {
-		    .platform_data = &rk2818_headset_info,
+		    .platform_data = &rk_headset_info,
 		}
 };
 #endif
@@ -2603,7 +2604,7 @@ static struct platform_device *devices[] __initdata = {
 	&rk29_v4l2_output_devce,
 #endif
 #ifdef CONFIG_RK_HEADSET_DET
-    &rk28_device_headset,
+    &rk_device_headset,
 #endif
 #ifdef CONFIG_RK29_GPS
 	&rk29_device_gps,

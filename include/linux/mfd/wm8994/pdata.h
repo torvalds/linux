@@ -93,8 +93,11 @@ struct wm8994_pdata {
         unsigned int jd_scthr:2;
         unsigned int jd_thr:2;
 
-		//If an external amplifier speakers wm8994		enable=1 disable=0
-		unsigned int PA_control:1;
+		//If an external amplifier speakers wm8994		enable>0 disable=0
+		unsigned int PA_control_pin;
+
+		//wm8994 LDO1_ENA and LDO2_ENA
+		unsigned int Power_EN_Pin;
 
 	//volume
 	int speaker_incall_vol;			//max = 6, min = -21
