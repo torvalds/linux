@@ -143,9 +143,9 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 	ct = nf_ct_get(skb, &ctinfo);
 	if (ct && !nf_ct_is_untracked(ct) &&
 	    ((iph->protocol != IPPROTO_ICMP &&
-	      ctinfo == IP_CT_IS_REPLY + IP_CT_ESTABLISHED) ||
+	      ctinfo == IP_CT_ESTABLISHED_REPLY) ||
 	     (iph->protocol == IPPROTO_ICMP &&
-	      ctinfo == IP_CT_IS_REPLY + IP_CT_RELATED)) &&
+	      ctinfo == IP_CT_RELATED_REPLY)) &&
 	    (ct->status & IPS_SRC_NAT_DONE)) {
 
 		daddr = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip;

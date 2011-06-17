@@ -56,8 +56,10 @@ int omap4430_phy_init(struct device *dev)
 	/* Power down the phy */
 	__raw_writel(PHY_PD, ctrl_base + CONTROL_DEV_CONF);
 
-	if (!dev)
+	if (!dev) {
+		iounmap(ctrl_base);
 		return 0;
+	}
 
 	phyclk = clk_get(dev, "ocp2scp_usb_phy_ick");
 	if (IS_ERR(phyclk)) {

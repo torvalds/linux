@@ -310,19 +310,17 @@ struct net *get_net_ns_by_fd(int fd)
 	struct file *file;
 	struct net *net;
 
-	net = ERR_PTR(-EINVAL);
 	file = proc_ns_fget(fd);
-	if (!file)
-		goto out;
+	if (IS_ERR(file))
+		return ERR_CAST(file);
 
 	ei = PROC_I(file->f_dentry->d_inode);
-	if (ei->ns_ops != &netns_operations)
-		goto out;
+	if (ei->ns_ops == &netns_operations)
+		net = get_net(ei->ns);
+	else
+		net = ERR_PTR(-EINVAL);
 
-	net = get_net(ei->ns);
-out:
-	if (file)
-		fput(file);
+	fput(file);
 	return net;
 }
 

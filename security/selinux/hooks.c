@@ -1476,7 +1476,6 @@ static int inode_has_perm(const struct cred *cred,
 			  unsigned flags)
 {
 	struct inode_security_struct *isec;
-	struct common_audit_data ad;
 	u32 sid;
 
 	validate_creds(cred);
@@ -1487,13 +1486,19 @@ static int inode_has_perm(const struct cred *cred,
 	sid = cred_sid(cred);
 	isec = inode->i_security;
 
-	if (!adp) {
-		adp = &ad;
-		COMMON_AUDIT_DATA_INIT(&ad, INODE);
-		ad.u.inode = inode;
-	}
-
 	return avc_has_perm_flags(sid, isec->sid, isec->sclass, perms, adp, flags);
+}
+
+static int inode_has_perm_noadp(const struct cred *cred,
+				struct inode *inode,
+				u32 perms,
+				unsigned flags)
+{
+	struct common_audit_data ad;
+
+	COMMON_AUDIT_DATA_INIT(&ad, INODE);
+	ad.u.inode = inode;
+	return inode_has_perm(cred, inode, perms, &ad, flags);
 }
 
 /* Same as inode_has_perm, but pass explicit audit data containing
@@ -2122,8 +2127,8 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 						struct tty_file_private, list);
 			file = file_priv->file;
 			inode = file->f_path.dentry->d_inode;
-			if (inode_has_perm(cred, inode,
-					   FILE__READ | FILE__WRITE, NULL, 0)) {
+			if (inode_has_perm_noadp(cred, inode,
+					   FILE__READ | FILE__WRITE, 0)) {
 				drop_tty = 1;
 			}
 		}
@@ -3228,7 +3233,7 @@ static int selinux_dentry_open(struct file *file, const struct cred *cred)
 	 * new inode label or new policy.
 	 * This check is not redundant - do not remove.
 	 */
-	return inode_has_perm(cred, inode, open_file_to_av(file), NULL, 0);
+	return inode_has_perm_noadp(cred, inode, open_file_to_av(file), 0);
 }
 
 /* task security operations */

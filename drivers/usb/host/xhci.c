@@ -430,12 +430,19 @@ int xhci_run(struct usb_hcd *hcd)
 		free_irq(hcd->irq, hcd);
 	hcd->irq = -1;
 
+	/* Some Fresco Logic host controllers advertise MSI, but fail to
+	 * generate interrupts.  Don't even try to enable MSI.
+	 */
+	if (xhci->quirks & XHCI_BROKEN_MSI)
+		goto legacy_irq;
+
 	ret = xhci_setup_msix(xhci);
 	if (ret)
 		/* fall back to msi*/
 		ret = xhci_setup_msi(xhci);
 
 	if (ret) {
+legacy_irq:
 		/* fall back to legacy interrupt*/
 		ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
 					hcd->irq_descr, hcd);
@@ -1849,8 +1856,8 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 
 	/* Free any rings that were dropped, but not changed. */
 	for (i = 1; i < 31; ++i) {
-		if ((ctrl_ctx->drop_flags & (1 << (i + 1))) &&
-				!(ctrl_ctx->add_flags & (1 << (i + 1))))
+		if ((le32_to_cpu(ctrl_ctx->drop_flags) & (1 << (i + 1))) &&
+		    !(le32_to_cpu(ctrl_ctx->add_flags) & (1 << (i + 1))))
 			xhci_free_or_cache_endpoint_ring(xhci, virt_dev, i);
 	}
 	xhci_zero_in_ctx(xhci, virt_dev);
@@ -2467,6 +2474,7 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 	struct xhci_command *reset_device_cmd;
 	int timeleft;
 	int last_freed_endpoint;
+	struct xhci_slot_ctx *slot_ctx;
 
 	ret = xhci_check_args(hcd, udev, NULL, 0, false, __func__);
 	if (ret <= 0)
@@ -2498,6 +2506,12 @@ int xhci_discover_or_reset_device(struct usb_hcd *hcd, struct usb_device *udev)
 		else
 			return -EINVAL;
 	}
+
+	/* If device is not setup, there is no point in resetting it */
+	slot_ctx = xhci_get_slot_ctx(xhci, virt_dev->out_ctx);
+	if (GET_SLOT_STATE(le32_to_cpu(slot_ctx->dev_state)) ==
+						SLOT_STATE_DISABLED)
+		return 0;
 
 	xhci_dbg(xhci, "Resetting device with slot ID %u\n", slot_id);
 	/* Allocate the command structure that holds the struct completion.

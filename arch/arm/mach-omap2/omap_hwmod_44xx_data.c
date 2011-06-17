@@ -5109,7 +5109,7 @@ static __initdata struct omap_hwmod *omap44xx_hwmods[] = {
 	&omap44xx_iva_seq1_hwmod,
 
 	/* kbd class */
-/*	&omap44xx_kbd_hwmod, */
+	&omap44xx_kbd_hwmod,
 
 	/* mailbox class */
 	&omap44xx_mailbox_hwmod,
