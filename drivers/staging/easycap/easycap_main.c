@@ -913,8 +913,6 @@ static void easycap_delete(struct kref *pkref)
 	allocation_audio_struct = peasycap->allocation_audio_struct;
 	registered_audio        = peasycap->registered_audio;
 
-	kfree(peasycap);
-
 	if (0 <= kd && DONGLE_MANY > kd) {
 		if (mutex_lock_interruptible(&mutex_dongle)) {
 			SAY("ERROR: cannot down mutex_dongle\n");
@@ -929,6 +927,9 @@ static void easycap_delete(struct kref *pkref)
 	} else {
 		SAY("ERROR: cannot purge dongle[].peasycap");
 	}
+
+	kfree(peasycap);
+
 /*---------------------------------------------------------------------------*/
 	SAY("%8i=video urbs    after all deletions\n", allocation_video_urb);
 	SAY("%8i=video pages   after all deletions\n", allocation_video_page);
