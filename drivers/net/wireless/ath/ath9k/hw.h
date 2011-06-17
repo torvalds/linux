@@ -157,8 +157,9 @@
 #define ATH9K_HW_RX_HP_QDEPTH	16
 #define ATH9K_HW_RX_LP_QDEPTH	128
 
-#define PAPRD_GAIN_TABLE_ENTRIES    32
-#define PAPRD_TABLE_SZ              24
+#define PAPRD_GAIN_TABLE_ENTRIES	32
+#define PAPRD_TABLE_SZ			24
+#define PAPRD_IDEAL_AGC2_PWR_RANGE	0xe0
 
 enum ath_hw_txq_subtype {
 	ATH_TXQ_AC_BE = 0,
