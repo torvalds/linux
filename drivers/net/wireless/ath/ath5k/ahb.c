@@ -219,6 +219,7 @@ static int ath_ahb_remove(struct platform_device *pdev)
 
 	ath5k_deinit_softc(sc);
 	platform_set_drvdata(pdev, NULL);
+	ieee80211_free_hw(hw);
 
 	return 0;
 }
