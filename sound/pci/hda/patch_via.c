@@ -107,6 +107,12 @@ enum VIA_HDA_CODEC {
 	 (spec)->codec_type == VT1812 ||\
 	 (spec)->codec_type == VT1802)
 
+struct nid_path {
+	int depth;
+	hda_nid_t path[5];
+	short idx[5];
+};
+
 struct via_spec {
 	/* codec parameterization */
 	const struct snd_kcontrol_new *mixers[6];
@@ -126,6 +132,10 @@ struct via_spec {
 	/* playback */
 	struct hda_multi_out multiout;
 	hda_nid_t slave_dig_outs[2];
+
+	struct nid_path out_path[4];
+	struct nid_path hp_path;
+	struct nid_path hp_dep_path;
 
 	/* capture */
 	unsigned int num_adc_nids;
@@ -1822,128 +1832,163 @@ static const struct hda_codec_ops via_patch_ops = {
 #endif
 };
 
-/* fill in the dac_nids table from the parsed pin configuration */
-static int vt1708_auto_fill_dac_nids(struct via_spec *spec,
-				     const struct auto_pin_cfg *cfg)
+static bool is_empty_dac(struct hda_codec *codec, hda_nid_t dac)
 {
+	struct via_spec *spec = codec->spec;
+	int i;
+
+	for (i = 0; i < spec->multiout.num_dacs; i++) {
+		if (spec->multiout.dac_nids[i] == dac)
+			return false;
+	}
+	if (spec->multiout.hp_nid == dac)
+		return false;
+	return true;
+}
+
+static bool parse_output_path(struct hda_codec *codec, hda_nid_t nid,
+			      hda_nid_t target_dac, struct nid_path *path,
+			      int depth, int wid_type)
+{
+	hda_nid_t conn[8];
+	int i, nums;
+
+	nums = snd_hda_get_connections(codec, nid, conn, ARRAY_SIZE(conn));
+	for (i = 0; i < nums; i++) {
+		if (get_wcaps_type(get_wcaps(codec, conn[i])) != AC_WID_AUD_OUT)
+			continue;
+		if (conn[i] == target_dac || is_empty_dac(codec, conn[i])) {
+			path->path[depth] = conn[i];
+			path->idx[depth] = i;
+			path->depth = ++depth;
+			return true;
+		}
+	}
+	if (depth > 4)
+		return false;
+	for (i = 0; i < nums; i++) {
+		unsigned int type;
+		type = get_wcaps_type(get_wcaps(codec, conn[i]));
+		if (type == AC_WID_AUD_OUT ||
+		    (wid_type != -1 && type != wid_type))
+			continue;
+		if (parse_output_path(codec, conn[i], target_dac,
+				      path, depth + 1, AC_WID_AUD_SEL)) {
+			path->path[depth] = conn[i];
+			path->idx[depth] = i;
+			return true;
+		}
+	}
+	return false;
+}
+
+static int via_auto_fill_dac_nids(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 	hda_nid_t nid;
 
-	spec->multiout.num_dacs = cfg->line_outs;
-
 	spec->multiout.dac_nids = spec->private_dac_nids;
-
-	for (i = 0; i < 4; i++) {
+	spec->multiout.num_dacs = cfg->line_outs;
+	for (i = 0; i < cfg->line_outs; i++) {
 		nid = cfg->line_out_pins[i];
-		if (nid) {
-			/* config dac list */
-			switch (i) {
-			case AUTO_SEQ_FRONT:
-				spec->private_dac_nids[i] = 0x10;
-				break;
-			case AUTO_SEQ_CENLFE:
-				spec->private_dac_nids[i] = 0x12;
-				break;
-			case AUTO_SEQ_SURROUND:
-				spec->private_dac_nids[i] = 0x11;
-				break;
-			case AUTO_SEQ_SIDE:
-				spec->private_dac_nids[i] = 0x13;
-				break;
-			}
-		}
+		if (!nid)
+			continue;
+		if (parse_output_path(codec, nid, 0, &spec->out_path[i], 0, -1))
+			spec->private_dac_nids[i] =
+				spec->out_path[i].path[spec->out_path[i].depth - 1];
 	}
-
 	return 0;
 }
 
-/* add playback controls from the parsed DAC table */
-static int vt1708_auto_create_multi_out_ctls(struct via_spec *spec,
-					     const struct auto_pin_cfg *cfg)
+static int create_ch_ctls(struct hda_codec *codec, const char *pfx,
+			  hda_nid_t pin, hda_nid_t dac, int chs)
 {
+	struct via_spec *spec = codec->spec;
 	char name[32];
+	hda_nid_t nid;
+	int err;
+
+	if (dac && query_amp_caps(codec, dac, HDA_OUTPUT) & AC_AMPCAP_NUM_STEPS)
+		nid = dac;
+	else if (query_amp_caps(codec, pin, HDA_OUTPUT) & AC_AMPCAP_NUM_STEPS)
+		nid = pin;
+	else
+		nid = 0;
+	if (nid) {
+		sprintf(name, "%s Playback Volume", pfx);
+		err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
+			      HDA_COMPOSE_AMP_VAL(dac, chs, 0, HDA_OUTPUT));
+		if (err < 0)
+			return err;
+	}
+
+	if (dac && query_amp_caps(codec, dac, HDA_OUTPUT) & AC_AMPCAP_MUTE)
+		nid = dac;
+	else if (query_amp_caps(codec, pin, HDA_OUTPUT) & AC_AMPCAP_MUTE)
+		nid = pin;
+	else
+		nid = 0;
+	if (nid) {
+		sprintf(name, "%s Playback Switch", pfx);
+		err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
+			      HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT));
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+
+static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
+				hda_nid_t nid);
+
+/* add playback controls from the parsed DAC table */
+static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	static const char * const chname[4] = {
 		"Front", "Surround", "C/LFE", "Side"
 	};
-	hda_nid_t nid, nid_vol, nid_vols[] = {0x17, 0x19, 0x1a, 0x1b};
-	int i, err;
+	int i, idx, err;
 
-	for (i = 0; i <= AUTO_SEQ_SIDE; i++) {
-		nid = cfg->line_out_pins[i];
-
-		if (!nid)
+	for (i = 0; i < cfg->line_outs; i++) {
+		hda_nid_t pin, dac;
+		pin = cfg->line_out_pins[i];
+		dac = spec->multiout.dac_nids[i];
+		if (!pin || !dac)
 			continue;
-
-		nid_vol = nid_vols[i];
-
 		if (i == AUTO_SEQ_CENLFE) {
-			/* Center/LFE */
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					"Center Playback Volume",
-					HDA_COMPOSE_AMP_VAL(nid_vol, 1, 0,
-							    HDA_OUTPUT));
+			err = create_ch_ctls(codec, "Center", pin, dac, 1);
 			if (err < 0)
 				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "LFE Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 2, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-					      "Center Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 1, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-					      "LFE Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 2, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else if (i == AUTO_SEQ_FRONT) {
-			/* add control to mixer index 0 */
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "Master Front Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_INPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-					      "Master Front Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_INPUT));
-			if (err < 0)
-				return err;
-
-			/* add control to PW3 */
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(nid, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(nid, 3, 0,
-								  HDA_OUTPUT));
+			err = create_ch_ctls(codec, "LFE", pin, dac, 2);
 			if (err < 0)
 				return err;
 		} else {
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_OUTPUT));
+			err = create_ch_ctls(codec, chname[i], pin, dac, 3);
 			if (err < 0)
 				return err;
 		}
+	}
+
+	idx = get_connection_index(codec, spec->aa_mix_nid,
+				   spec->multiout.dac_nids[0]);
+	if (idx >= 0) {
+		/* add control to mixer */
+		err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
+				      "PCM Playback Volume",
+				      HDA_COMPOSE_AMP_VAL(spec->aa_mix_nid, 3,
+							  idx, HDA_INPUT));
+		if (err < 0)
+			return err;
+		err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
+				      "PCM Playback Switch",
+				      HDA_COMPOSE_AMP_VAL(spec->aa_mix_nid, 3,
+							  idx, HDA_INPUT));
+		if (err < 0)
+			return err;
 	}
 
 	return 0;
@@ -1962,28 +2007,29 @@ static void create_hp_imux(struct via_spec *spec)
 	spec->hp_mux = &spec->private_imux[1];
 }
 
-static int vt1708_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
+static int via_auto_create_hp_ctls(struct hda_codec *codec, hda_nid_t pin)
 {
+	struct via_spec *spec = codec->spec;
+	hda_nid_t dac = 0;
 	int err;
 
 	if (!pin)
 		return 0;
 
-	spec->multiout.hp_nid = VT1708_HP_NID; /* AOW3 */
-	spec->hp_independent_mode_index = 1;
+	if (!parse_output_path(codec, pin, spec->multiout.dac_nids[HDA_FRONT],
+			       &spec->hp_dep_path, 0, -1))
+		return 0;
+	if (parse_output_path(codec, pin, 0, &spec->hp_path, 0, -1)) {
+		dac = spec->hp_path.path[spec->hp_path.depth - 1];
+		spec->multiout.hp_nid = dac;
+		spec->hp_independent_mode_index =
+			spec->hp_path.idx[spec->hp_path.depth - 1];
+		create_hp_imux(spec);
+	}
 
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Headphone Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
+	err = create_ch_ctls(codec, "Headphone", pin, dac, 3);
 	if (err < 0)
 		return err;
-	err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-			      "Headphone Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	create_hp_imux(spec);
 
 	return 0;
 }
@@ -2163,16 +2209,16 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
 		return err;
-	err = vt1708_auto_fill_dac_nids(spec, &spec->autocfg);
+	err = via_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
 	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
 		return 0; /* can't find valid BIOS pin config */
 
-	err = vt1708_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	err = via_auto_create_multi_out_ctls(codec);
 	if (err < 0)
 		return err;
-	err = vt1708_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
+	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
 	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
@@ -2437,208 +2483,6 @@ static const struct hda_pcm_stream vt1709_pcm_digital_capture = {
 	.channels_max = 2,
 };
 
-static int vt1709_auto_fill_dac_nids(struct via_spec *spec,
-				     const struct auto_pin_cfg *cfg)
-{
-	int i;
-	hda_nid_t nid;
-
-	if (cfg->line_outs == 4)  /* 10 channels */
-		spec->multiout.num_dacs = cfg->line_outs+1; /* AOW0~AOW4 */
-	else if (cfg->line_outs == 3) /* 6 channels */
-		spec->multiout.num_dacs = cfg->line_outs; /* AOW0~AOW2 */
-
-	spec->multiout.dac_nids = spec->private_dac_nids;
-
-	if (cfg->line_outs == 4) { /* 10 channels */
-		for (i = 0; i < cfg->line_outs; i++) {
-			nid = cfg->line_out_pins[i];
-			if (nid) {
-				/* config dac list */
-				switch (i) {
-				case AUTO_SEQ_FRONT:
-					/* AOW0 */
-					spec->private_dac_nids[i] = 0x10;
-					break;
-				case AUTO_SEQ_CENLFE:
-					/* AOW2 */
-					spec->private_dac_nids[i] = 0x12;
-					break;
-				case AUTO_SEQ_SURROUND:
-					/* AOW3 */
-					spec->private_dac_nids[i] = 0x11;
-					break;
-				case AUTO_SEQ_SIDE:
-					/* AOW1 */
-					spec->private_dac_nids[i] = 0x27;
-					break;
-				default:
-					break;
-				}
-			}
-		}
-		spec->private_dac_nids[cfg->line_outs] = 0x28; /* AOW4 */
-
-	} else if (cfg->line_outs == 3) { /* 6 channels */
-		for (i = 0; i < cfg->line_outs; i++) {
-			nid = cfg->line_out_pins[i];
-			if (nid) {
-				/* config dac list */
-				switch (i) {
-				case AUTO_SEQ_FRONT:
-					/* AOW0 */
-					spec->private_dac_nids[i] = 0x10;
-					break;
-				case AUTO_SEQ_CENLFE:
-					/* AOW2 */
-					spec->private_dac_nids[i] = 0x12;
-					break;
-				case AUTO_SEQ_SURROUND:
-					/* AOW1 */
-					spec->private_dac_nids[i] = 0x11;
-					break;
-				default:
-					break;
-				}
-			}
-		}
-	}
-
-	return 0;
-}
-
-/* add playback controls from the parsed DAC table */
-static int vt1709_auto_create_multi_out_ctls(struct via_spec *spec,
-					     const struct auto_pin_cfg *cfg)
-{
-	char name[32];
-	static const char * const chname[4] = {
-		"Front", "Surround", "C/LFE", "Side"
-	};
-	hda_nid_t nid, nid_vol, nid_vols[] = {0x18, 0x1a, 0x1b, 0x29};
-	int i, err;
-
-	for (i = 0; i <= AUTO_SEQ_SIDE; i++) {
-		nid = cfg->line_out_pins[i];
-
-		if (!nid)
-			continue;
-
-		nid_vol = nid_vols[i];
-
-		if (i == AUTO_SEQ_CENLFE) {
-			/* Center/LFE */
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "Center Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 1, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "LFE Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 2, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-					      "Center Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 1, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-					      "LFE Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 2, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else if (i == AUTO_SEQ_FRONT) {
-			/* ADD control to mixer index 0 */
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "Master Front Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_INPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-					      "Master Front Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_INPUT));
-			if (err < 0)
-				return err;
-
-			/* add control to PW3 */
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(nid, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(nid, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else if (i == AUTO_SEQ_SURROUND) {
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else if (i == AUTO_SEQ_SIDE) {
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		}
-	}
-
-	return 0;
-}
-
-static int vt1709_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
-{
-	int err;
-
-	if (!pin)
-		return 0;
-
-	if (spec->multiout.num_dacs == 5) /* 10 channels */
-		spec->multiout.hp_nid = VT1709_HP_DAC_NID;
-	else if (spec->multiout.num_dacs == 3) /* 6 channels */
-		spec->multiout.hp_nid = 0;
-	spec->hp_independent_mode_index = 1;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Headphone Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-	err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-			      "Headphone Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-
 static int vt1709_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -2647,16 +2491,16 @@ static int vt1709_parse_auto_config(struct hda_codec *codec)
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
 		return err;
-	err = vt1709_auto_fill_dac_nids(spec, &spec->autocfg);
+	err = via_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
 	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
 		return 0; /* can't find valid BIOS pin config */
 
-	err = vt1709_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	err = via_auto_create_multi_out_ctls(codec);
 	if (err < 0)
 		return err;
-	err = vt1709_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
+	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
 	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
@@ -3000,160 +2844,6 @@ static const struct hda_pcm_stream vt1708B_pcm_digital_capture = {
 	.channels_max = 2,
 };
 
-/* fill in the dac_nids table from the parsed pin configuration */
-static int vt1708B_auto_fill_dac_nids(struct via_spec *spec,
-				     const struct auto_pin_cfg *cfg)
-{
-	int i;
-	hda_nid_t nid;
-
-	spec->multiout.num_dacs = cfg->line_outs;
-
-	spec->multiout.dac_nids = spec->private_dac_nids;
-
-	for (i = 0; i < 4; i++) {
-		nid = cfg->line_out_pins[i];
-		if (nid) {
-			/* config dac list */
-			switch (i) {
-			case AUTO_SEQ_FRONT:
-				spec->private_dac_nids[i] = 0x10;
-				break;
-			case AUTO_SEQ_CENLFE:
-				spec->private_dac_nids[i] = 0x24;
-				break;
-			case AUTO_SEQ_SURROUND:
-				spec->private_dac_nids[i] = 0x11;
-				break;
-			case AUTO_SEQ_SIDE:
-				spec->private_dac_nids[i] = 0x25;
-				break;
-			}
-		}
-	}
-
-	return 0;
-}
-
-/* add playback controls from the parsed DAC table */
-static int vt1708B_auto_create_multi_out_ctls(struct via_spec *spec,
-					     const struct auto_pin_cfg *cfg)
-{
-	char name[32];
-	static const char * const chname[4] = {
-		"Front", "Surround", "C/LFE", "Side"
-	};
-	hda_nid_t nid_vols[] = {0x16, 0x18, 0x26, 0x27};
-	hda_nid_t nid, nid_vol = 0;
-	int i, err;
-
-	for (i = 0; i <= AUTO_SEQ_SIDE; i++) {
-		nid = cfg->line_out_pins[i];
-
-		if (!nid)
-			continue;
-
-		nid_vol = nid_vols[i];
-
-		if (i == AUTO_SEQ_CENLFE) {
-			/* Center/LFE */
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "Center Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 1, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "LFE Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 2, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-					      "Center Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 1, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-					      "LFE Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 2, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else if (i == AUTO_SEQ_FRONT) {
-			/* add control to mixer index 0 */
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "Master Front Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_INPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-					      "Master Front Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_INPUT));
-			if (err < 0)
-				return err;
-
-			/* add control to PW3 */
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(nid, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(nid, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else {
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		}
-	}
-
-	return 0;
-}
-
-static int vt1708B_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
-{
-	int err;
-
-	if (!pin)
-		return 0;
-
-	spec->multiout.hp_nid = VT1708B_HP_NID; /* AOW3 */
-	spec->hp_independent_mode_index = 1;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Headphone Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-	err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-			      "Headphone Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	create_hp_imux(spec);
-
-	return 0;
-}
-
 static int vt1708B_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -3162,16 +2852,16 @@ static int vt1708B_parse_auto_config(struct hda_codec *codec)
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
 		return err;
-	err = vt1708B_auto_fill_dac_nids(spec, &spec->autocfg);
+	err = via_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
 	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
 		return 0; /* can't find valid BIOS pin config */
 
-	err = vt1708B_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	err = via_auto_create_multi_out_ctls(codec);
 	if (err < 0)
 		return err;
-	err = vt1708B_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
+	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
 	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
@@ -3516,191 +3206,6 @@ static const struct hda_pcm_stream vt1708S_pcm_digital_playback = {
 	},
 };
 
-/* fill in the dac_nids table from the parsed pin configuration */
-static int vt1708S_auto_fill_dac_nids(struct via_spec *spec,
-				     const struct auto_pin_cfg *cfg)
-{
-	int i;
-	hda_nid_t nid;
-
-	spec->multiout.num_dacs = cfg->line_outs;
-
-	spec->multiout.dac_nids = spec->private_dac_nids;
-
-	for (i = 0; i < 4; i++) {
-		nid = cfg->line_out_pins[i];
-		if (nid) {
-			/* config dac list */
-			switch (i) {
-			case AUTO_SEQ_FRONT:
-				spec->private_dac_nids[i] = 0x10;
-				break;
-			case AUTO_SEQ_CENLFE:
-				if (spec->codec->vendor_id == 0x11064397)
-					spec->private_dac_nids[i] = 0x25;
-				else
-					spec->private_dac_nids[i] = 0x24;
-				break;
-			case AUTO_SEQ_SURROUND:
-				spec->private_dac_nids[i] = 0x11;
-				break;
-			case AUTO_SEQ_SIDE:
-				spec->private_dac_nids[i] = 0x25;
-				break;
-			}
-		}
-	}
-
-	/* for Smart 5.1, line/mic inputs double as output pins */
-	if (cfg->line_outs == 1) {
-		spec->multiout.num_dacs = 3;
-		spec->private_dac_nids[AUTO_SEQ_SURROUND] = 0x11;
-		if (spec->codec->vendor_id == 0x11064397)
-			spec->private_dac_nids[AUTO_SEQ_CENLFE] = 0x25;
-		else
-			spec->private_dac_nids[AUTO_SEQ_CENLFE] = 0x24;
-	}
-
-	return 0;
-}
-
-/* add playback controls from the parsed DAC table */
-static int vt1708S_auto_create_multi_out_ctls(struct hda_codec *codec,
-					     const struct auto_pin_cfg *cfg)
-{
-	struct via_spec *spec = codec->spec;
-	char name[32];
-	static const char * const chname[4] = {
-		"Front", "Surround", "C/LFE", "Side"
-	};
-	hda_nid_t nid_vols[2][4] = { {0x10, 0x11, 0x24, 0x25},
-				     {0x10, 0x11, 0x25, 0} };
-	hda_nid_t nid_mutes[2][4] = { {0x1C, 0x18, 0x26, 0x27},
-				      {0x1C, 0x18, 0x27, 0} };
-	hda_nid_t nid, nid_vol, nid_mute;
-	int i, err;
-
-	for (i = 0; i <= AUTO_SEQ_SIDE; i++) {
-		nid = cfg->line_out_pins[i];
-
-		/* for Smart 5.1, there are always at least six channels */
-		if (!nid && i > AUTO_SEQ_CENLFE)
-			continue;
-
-		if (codec->vendor_id == 0x11064397) {
-			nid_vol = nid_vols[1][i];
-			nid_mute = nid_mutes[1][i];
-		} else {
-			nid_vol = nid_vols[0][i];
-			nid_mute = nid_mutes[0][i];
-		}
-		if (!nid_vol && !nid_mute)
-			continue;
-
-		if (i == AUTO_SEQ_CENLFE) {
-			/* Center/LFE */
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "Center Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 1, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "LFE Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 2, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-					      "Center Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(nid_mute,
-								  1, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-					      "LFE Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(nid_mute,
-								  2, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else if (i == AUTO_SEQ_FRONT) {
-			/* add control to mixer index 0 */
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "Master Front Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(0x16, 3, 0,
-								  HDA_INPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-					      "Master Front Playback Switch",
-					      HDA_COMPOSE_AMP_VAL(0x16, 3, 0,
-								  HDA_INPUT));
-			if (err < 0)
-				return err;
-
-			/* Front */
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(nid_mute,
-								  3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else {
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(nid_mute,
-								  3, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		}
-	}
-
-	return 0;
-}
-
-static int vt1708S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
-{
-	int err;
-
-	if (!pin)
-		return 0;
-
-	spec->multiout.hp_nid = VT1708S_HP_NID; /* AOW3 */
-	spec->hp_independent_mode_index = 1;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Headphone Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(0x25, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-			      "Headphone Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	create_hp_imux(spec);
-
-	return 0;
-}
-
 /* fill out digital output widgets; one for master and one for slave outputs */
 static void fill_dig_outs(struct hda_codec *codec)
 {
@@ -3734,16 +3239,16 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
 		return err;
-	err = vt1708S_auto_fill_dac_nids(spec, &spec->autocfg);
+	err = via_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
 	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
 		return 0; /* can't find valid BIOS pin config */
 
-	err = vt1708S_auto_create_multi_out_ctls(codec, &spec->autocfg);
+	err = via_auto_create_multi_out_ctls(codec);
 	if (err < 0)
 		return err;
-	err = vt1708S_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
+	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
 	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
@@ -3966,89 +3471,6 @@ static const struct hda_pcm_stream vt1702_pcm_digital_playback = {
 	},
 };
 
-/* fill in the dac_nids table from the parsed pin configuration */
-static int vt1702_auto_fill_dac_nids(struct via_spec *spec,
-				     const struct auto_pin_cfg *cfg)
-{
-	spec->multiout.num_dacs = 1;
-	spec->multiout.dac_nids = spec->private_dac_nids;
-
-	if (cfg->line_out_pins[0]) {
-		/* config dac list */
-		spec->private_dac_nids[0] = 0x10;
-	}
-
-	return 0;
-}
-
-/* add playback controls from the parsed DAC table */
-static int vt1702_auto_create_line_out_ctls(struct via_spec *spec,
-					     const struct auto_pin_cfg *cfg)
-{
-	int err;
-
-	if (!cfg->line_out_pins[0])
-		return -1;
-
-	/* add control to mixer index 0 */
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Master Front Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(0x1A, 3, 0, HDA_INPUT));
-	if (err < 0)
-		return err;
-	err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-			      "Master Front Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(0x1A, 3, 0, HDA_INPUT));
-	if (err < 0)
-		return err;
-
-	/* Front */
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Front Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(0x10, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-	err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-			      "Front Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(0x16, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-
-static int vt1702_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
-{
-	int err, i;
-	struct hda_input_mux *imux;
-	static const char * const texts[] = { "ON", "OFF", NULL};
-	if (!pin)
-		return 0;
-	spec->multiout.hp_nid = 0x1D;
-	spec->hp_independent_mode_index = 0;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Headphone Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(0x1D, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-			      "Headphone Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	imux = &spec->private_imux[1];
-
-	/* for hp mode select */
-	for (i = 0; texts[i]; i++)
-		snd_hda_add_imux_item(imux, texts[i], i, NULL);
-
-	spec->hp_mux = &spec->private_imux[1];
-	return 0;
-}
-
 static int vt1702_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -4057,16 +3479,16 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
 		return err;
-	err = vt1702_auto_fill_dac_nids(spec, &spec->autocfg);
+	err = via_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
 	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
 		return 0; /* can't find valid BIOS pin config */
 
-	err = vt1702_auto_create_line_out_ctls(spec, &spec->autocfg);
+	err = via_auto_create_multi_out_ctls(codec);
 	if (err < 0)
 		return err;
-	err = vt1702_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
+	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
 	/* limit AA path volume to 0 dB */
@@ -4313,150 +3735,6 @@ static const struct hda_pcm_stream vt1718S_pcm_digital_capture = {
 	.channels_max = 2,
 };
 
-/* fill in the dac_nids table from the parsed pin configuration */
-static int vt1718S_auto_fill_dac_nids(struct via_spec *spec,
-				     const struct auto_pin_cfg *cfg)
-{
-	int i;
-	hda_nid_t nid;
-
-	spec->multiout.num_dacs = cfg->line_outs;
-
-	spec->multiout.dac_nids = spec->private_dac_nids;
-
-	for (i = 0; i < 4; i++) {
-		nid = cfg->line_out_pins[i];
-		if (nid) {
-			/* config dac list */
-			switch (i) {
-			case AUTO_SEQ_FRONT:
-				spec->private_dac_nids[i] = 0x8;
-				break;
-			case AUTO_SEQ_CENLFE:
-				spec->private_dac_nids[i] = 0xa;
-				break;
-			case AUTO_SEQ_SURROUND:
-				spec->private_dac_nids[i] = 0x9;
-				break;
-			case AUTO_SEQ_SIDE:
-				spec->private_dac_nids[i] = 0xb;
-				break;
-			}
-		}
-	}
-
-	return 0;
-}
-
-/* add playback controls from the parsed DAC table */
-static int vt1718S_auto_create_multi_out_ctls(struct via_spec *spec,
-					     const struct auto_pin_cfg *cfg)
-{
-	char name[32];
-	static const char * const chname[4] = {
-		"Front", "Surround", "C/LFE", "Side"
-	};
-	hda_nid_t nid_vols[] = {0x8, 0x9, 0xa, 0xb};
-	hda_nid_t nid_mutes[] = {0x24, 0x25, 0x26, 0x27};
-	hda_nid_t nid, nid_vol, nid_mute = 0;
-	int i, err;
-
-	for (i = 0; i <= AUTO_SEQ_SIDE; i++) {
-		nid = cfg->line_out_pins[i];
-
-		if (!nid)
-			continue;
-		nid_vol = nid_vols[i];
-		nid_mute = nid_mutes[i];
-
-		if (i == AUTO_SEQ_CENLFE) {
-			/* Center/LFE */
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "Center Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 1, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-					      "LFE Playback Volume",
-					      HDA_COMPOSE_AMP_VAL(nid_vol, 2, 0,
-								  HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_MUTE,
-				"Center Playback Switch",
-				HDA_COMPOSE_AMP_VAL(nid_mute, 1, 0,
-						    HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_MUTE,
-				"LFE Playback Switch",
-				HDA_COMPOSE_AMP_VAL(nid_mute, 2, 0,
-						    HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else if (i == AUTO_SEQ_FRONT) {
-			/* Front */
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_VOL, name,
-				HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0, HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_MUTE, name,
-				HDA_COMPOSE_AMP_VAL(nid_mute, 3, 0,
-						    HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else {
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_VOL, name,
-				HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0, HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_MUTE, name,
-				HDA_COMPOSE_AMP_VAL(nid_mute, 3, 0,
-						    HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		}
-	}
-	return 0;
-}
-
-static int vt1718S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
-{
-	int err;
-
-	if (!pin)
-		return 0;
-
-	spec->multiout.hp_nid = 0xc; /* AOW4 */
-	spec->hp_independent_mode_index = 1;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Headphone Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(0xc, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-			      "Headphone Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	create_hp_imux(spec);
-	return 0;
-}
-
 static int vt1718S_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -4466,16 +3744,16 @@ static int vt1718S_parse_auto_config(struct hda_codec *codec)
 
 	if (err < 0)
 		return err;
-	err = vt1718S_auto_fill_dac_nids(spec, &spec->autocfg);
+	err = via_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
 	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
 		return 0; /* can't find valid BIOS pin config */
 
-	err = vt1718S_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	err = via_auto_create_multi_out_ctls(codec);
 	if (err < 0)
 		return err;
-	err = vt1718S_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
+	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
 	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
@@ -4813,159 +4091,6 @@ static const struct hda_pcm_stream vt1716S_pcm_digital_playback = {
 	},
 };
 
-/* fill in the dac_nids table from the parsed pin configuration */
-static int vt1716S_auto_fill_dac_nids(struct via_spec *spec,
-				      const struct auto_pin_cfg *cfg)
-{	int i;
-	hda_nid_t nid;
-
-	spec->multiout.num_dacs = cfg->line_outs;
-
-	spec->multiout.dac_nids = spec->private_dac_nids;
-
-	for (i = 0; i < 3; i++) {
-		nid = cfg->line_out_pins[i];
-		if (nid) {
-			/* config dac list */
-			switch (i) {
-			case AUTO_SEQ_FRONT:
-				spec->private_dac_nids[i] = 0x10;
-				break;
-			case AUTO_SEQ_CENLFE:
-				spec->private_dac_nids[i] = 0x25;
-				break;
-			case AUTO_SEQ_SURROUND:
-				spec->private_dac_nids[i] = 0x11;
-				break;
-			}
-		}
-	}
-
-	return 0;
-}
-
-/* add playback controls from the parsed DAC table */
-static int vt1716S_auto_create_multi_out_ctls(struct via_spec *spec,
-					      const struct auto_pin_cfg *cfg)
-{
-	char name[32];
-	static const char * const chname[3] = {
-		"Front", "Surround", "C/LFE"
-	};
-	hda_nid_t nid_vols[] = {0x10, 0x11, 0x25};
-	hda_nid_t nid_mutes[] = {0x1C, 0x18, 0x27};
-	hda_nid_t nid, nid_vol, nid_mute;
-	int i, err;
-
-	for (i = 0; i <= AUTO_SEQ_CENLFE; i++) {
-		nid = cfg->line_out_pins[i];
-
-		if (!nid)
-			continue;
-
-		nid_vol = nid_vols[i];
-		nid_mute = nid_mutes[i];
-
-		if (i == AUTO_SEQ_CENLFE) {
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_VOL,
-				"Center Playback Volume",
-				HDA_COMPOSE_AMP_VAL(nid_vol, 1, 0, HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_VOL,
-				"LFE Playback Volume",
-				HDA_COMPOSE_AMP_VAL(nid_vol, 2, 0, HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_MUTE,
-				"Center Playback Switch",
-				HDA_COMPOSE_AMP_VAL(nid_mute, 1, 0,
-						    HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_MUTE,
-				"LFE Playback Switch",
-				HDA_COMPOSE_AMP_VAL(nid_mute, 2, 0,
-						    HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else if (i == AUTO_SEQ_FRONT) {
-
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_VOL,
-				"Master Front Playback Volume",
-				HDA_COMPOSE_AMP_VAL(0x16, 3, 0, HDA_INPUT));
-			if (err < 0)
-				return err;
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_MUTE,
-				"Master Front Playback Switch",
-				HDA_COMPOSE_AMP_VAL(0x16, 3, 0, HDA_INPUT));
-			if (err < 0)
-				return err;
-
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_VOL, name,
-				HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0, HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_MUTE, name,
-				HDA_COMPOSE_AMP_VAL(nid_mute, 3, 0,
-						    HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		} else {
-			sprintf(name, "%s Playback Volume", chname[i]);
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_VOL, name,
-				HDA_COMPOSE_AMP_VAL(nid_vol, 3, 0, HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			sprintf(name, "%s Playback Switch", chname[i]);
-			err = via_add_control(
-				spec, VIA_CTL_WIDGET_MUTE, name,
-				HDA_COMPOSE_AMP_VAL(nid_mute, 3, 0,
-						    HDA_OUTPUT));
-			if (err < 0)
-				return err;
-		}
-	}
-	return 0;
-}
-
-static int vt1716S_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
-{
-	int err;
-
-	if (!pin)
-		return 0;
-
-	spec->multiout.hp_nid = 0x25; /* AOW3 */
-	spec->hp_independent_mode_index = 1;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Headphone Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(0x25, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-			      "Headphone Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	create_hp_imux(spec);
-	return 0;
-}
-
 static int vt1716S_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -4974,16 +4099,16 @@ static int vt1716S_parse_auto_config(struct hda_codec *codec)
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
 		return err;
-	err = vt1716S_auto_fill_dac_nids(spec, &spec->autocfg);
+	err = via_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
 	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
 		return 0; /* can't find valid BIOS pin config */
 
-	err = vt1716S_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	err = via_auto_create_multi_out_ctls(codec);
 	if (err < 0)
 		return err;
-	err = vt1716S_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
+	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
 	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
@@ -5359,74 +4484,6 @@ static const struct hda_pcm_stream vt2002P_pcm_digital_playback = {
 	},
 };
 
-/* fill in the dac_nids table from the parsed pin configuration */
-static int vt2002P_auto_fill_dac_nids(struct via_spec *spec,
-				      const struct auto_pin_cfg *cfg)
-{
-	spec->multiout.num_dacs = 1;
-	spec->multiout.dac_nids = spec->private_dac_nids;
-	if (cfg->line_out_pins[0])
-		spec->private_dac_nids[0] = 0x8;
-	return 0;
-}
-
-/* add playback controls from the parsed DAC table */
-static int vt2002P_auto_create_multi_out_ctls(struct via_spec *spec,
-					     const struct auto_pin_cfg *cfg)
-{
-	int err;
-	hda_nid_t sw_nid;
-
-	if (!cfg->line_out_pins[0])
-		return -1;
-
-	if (spec->codec_type == VT1802)
-		sw_nid = 0x28;
-	else
-		sw_nid = 0x26;
-
-	/* Line-Out: PortE */
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Master Front Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(0x8, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-	err = via_add_control(spec, VIA_CTL_WIDGET_BIND_PIN_MUTE,
-			      "Master Front Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(sw_nid, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-
-static int vt2002P_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
-{
-	int err;
-
-	if (!pin)
-		return 0;
-
-	spec->multiout.hp_nid = 0x9;
-	spec->hp_independent_mode_index = 1;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Headphone Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(
-				      spec->multiout.hp_nid, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-			      "Headphone Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(0x25, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	create_hp_imux(spec);
-	return 0;
-}
-
 static int vt2002P_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -5437,17 +4494,17 @@ static int vt2002P_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	err = vt2002P_auto_fill_dac_nids(spec, &spec->autocfg);
+	err = via_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
 
 	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
 		return 0; /* can't find valid BIOS pin config */
 
-	err = vt2002P_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	err = via_auto_create_multi_out_ctls(codec);
 	if (err < 0)
 		return err;
-	err = vt2002P_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
+	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
 	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
@@ -5779,69 +4836,6 @@ static const struct hda_pcm_stream vt1812_pcm_digital_playback = {
 		.cleanup = via_dig_playback_pcm_cleanup
 	},
 };
-/* fill in the dac_nids table from the parsed pin configuration */
-static int vt1812_auto_fill_dac_nids(struct via_spec *spec,
-				     const struct auto_pin_cfg *cfg)
-{
-	spec->multiout.num_dacs = 1;
-	spec->multiout.dac_nids = spec->private_dac_nids;
-	if (cfg->line_out_pins[0])
-		spec->private_dac_nids[0] = 0x8;
-	return 0;
-}
-
-
-/* add playback controls from the parsed DAC table */
-static int vt1812_auto_create_multi_out_ctls(struct via_spec *spec,
-					     const struct auto_pin_cfg *cfg)
-{
-	int err;
-
-	if (!cfg->line_out_pins[0])
-		return -1;
-
-	/* Line-Out: PortE */
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Front Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(0x8, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-	err = via_add_control(spec, VIA_CTL_WIDGET_BIND_PIN_MUTE,
-			      "Front Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(0x28, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-
-static int vt1812_auto_create_hp_ctls(struct via_spec *spec, hda_nid_t pin)
-{
-	int err;
-
-	if (!pin)
-		return 0;
-
-	spec->multiout.hp_nid = 0x9;
-	spec->hp_independent_mode_index = 1;
-
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-			      "Headphone Playback Volume",
-			      HDA_COMPOSE_AMP_VAL(
-				      spec->multiout.hp_nid, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-			      "Headphone Playback Switch",
-			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
-	if (err < 0)
-		return err;
-
-	create_hp_imux(spec);
-	return 0;
-}
 
 static int vt1812_parse_auto_config(struct hda_codec *codec)
 {
@@ -5853,17 +4847,17 @@ static int vt1812_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 	fill_dig_outs(codec);
-	err = vt1812_auto_fill_dac_nids(spec, &spec->autocfg);
+	err = via_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
 
 	if (!spec->autocfg.line_outs && !spec->autocfg.hp_outs)
 		return 0; /* can't find valid BIOS pin config */
 
-	err = vt1812_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	err = via_auto_create_multi_out_ctls(codec);
 	if (err < 0)
 		return err;
-	err = vt1812_auto_create_hp_ctls(spec, spec->autocfg.hp_pins[0]);
+	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
 	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
