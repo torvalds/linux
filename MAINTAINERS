@@ -533,6 +533,7 @@ L:	device-drivers-devel@blackfin.uclinux.org
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://wiki.analog.com/
 S:	Supported
+F:	sound/soc/codecs/adau*
 F:	sound/soc/codecs/ad1*
 F:	sound/soc/codecs/ssm*
 
