@@ -2660,10 +2660,9 @@ void em28xx_card_setup(struct em28xx *dev)
 			.addr = 0xba >> 1,
 			.platform_data = &pdata,
 		};
-		struct v4l2_subdev *sd;
 
 		pdata.xtal = dev->sensor_xtal;
-		sd = v4l2_i2c_new_subdev_board(&dev->v4l2_dev, &dev->i2c_adap,
+		v4l2_i2c_new_subdev_board(&dev->v4l2_dev, &dev->i2c_adap,
 				&mt9v011_info, NULL);
 	}
 

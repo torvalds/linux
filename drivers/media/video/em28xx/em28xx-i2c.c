@@ -218,9 +218,7 @@ static int em28xx_i2c_recv_bytes(struct em28xx *dev, unsigned char addr,
  */
 static int em28xx_i2c_check_for_device(struct em28xx *dev, unsigned char addr)
 {
-	char msg;
 	int ret;
-	msg = addr;
 
 	ret = dev->em28xx_read_reg_req(dev, 2, addr);
 	if (ret < 0) {

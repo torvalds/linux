@@ -286,10 +286,9 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 
 	runtime->hw = snd_em28xx_hw_capture;
 	if (dev->alt == 0 && dev->adev.users == 0) {
-		int errCode;
 		dev->alt = 7;
 		dprintk("changing alternate number to 7\n");
-		errCode = usb_set_interface(dev->udev, 0, 7);
+		usb_set_interface(dev->udev, 0, 7);
 	}
 
 	dev->adev.users++;
@@ -342,6 +341,8 @@ static int snd_em28xx_hw_capture_params(struct snd_pcm_substream *substream,
 
 	ret = snd_pcm_alloc_vmalloc_buffer(substream,
 				params_buffer_bytes(hw_params));
+	if (ret < 0)
+		return ret;
 	format = params_format(hw_params);
 	rate = params_rate(hw_params);
 	channels = params_channels(hw_params);
@@ -393,7 +394,7 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 				      int cmd)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
-	int retval;
+	int retval = 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -406,7 +407,7 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 		retval = -EINVAL;
 	}
 	schedule_work(&dev->wq_trigger);
-	return 0;
+	return retval;
 }
 
 static snd_pcm_uframes_t snd_em28xx_capture_pointer(struct snd_pcm_substream
