@@ -201,7 +201,7 @@ static inline void tracehook_report_exec(struct linux_binfmt *fmt,
 					 struct linux_binprm *bprm,
 					 struct pt_regs *regs)
 {
-	if (!ptrace_event(PT_TRACE_EXEC, PTRACE_EVENT_EXEC, 0) &&
+	if (!ptrace_event(PTRACE_EVENT_EXEC, 0) &&
 	    unlikely(current->ptrace & PT_PTRACED))
 		send_sig(SIGTRAP, current, 0);
 }
@@ -218,7 +218,7 @@ static inline void tracehook_report_exec(struct linux_binfmt *fmt,
  */
 static inline void tracehook_report_exit(long *exit_code)
 {
-	ptrace_event(PT_TRACE_EXIT, PTRACE_EVENT_EXIT, *exit_code);
+	ptrace_event(PTRACE_EVENT_EXIT, *exit_code);
 }
 
 /**
@@ -232,19 +232,19 @@ static inline void tracehook_report_exit(long *exit_code)
  */
 static inline int tracehook_prepare_clone(unsigned clone_flags)
 {
+	int event = 0;
+
 	if (clone_flags & CLONE_UNTRACED)
 		return 0;
 
-	if (clone_flags & CLONE_VFORK) {
-		if (current->ptrace & PT_TRACE_VFORK)
-			return PTRACE_EVENT_VFORK;
-	} else if ((clone_flags & CSIGNAL) != SIGCHLD) {
-		if (current->ptrace & PT_TRACE_CLONE)
-			return PTRACE_EVENT_CLONE;
-	} else if (current->ptrace & PT_TRACE_FORK)
-		return PTRACE_EVENT_FORK;
+	if (clone_flags & CLONE_VFORK)
+		event = PTRACE_EVENT_VFORK;
+	else if ((clone_flags & CSIGNAL) != SIGCHLD)
+		event = PTRACE_EVENT_CLONE;
+	else
+		event = PTRACE_EVENT_FORK;
 
-	return 0;
+	return ptrace_event_enabled(current, event) ? event : 0;
 }
 
 /**
@@ -318,7 +318,7 @@ static inline void tracehook_report_clone_complete(int trace,
 						   struct task_struct *child)
 {
 	if (unlikely(trace))
-		ptrace_event(0, trace, pid);
+		ptrace_event(trace, pid);
 }
 
 /**
@@ -336,7 +336,7 @@ static inline void tracehook_report_clone_complete(int trace,
 static inline void tracehook_report_vfork_done(struct task_struct *child,
 					       pid_t pid)
 {
-	ptrace_event(PT_TRACE_VFORK_DONE, PTRACE_EVENT_VFORK_DONE, pid);
+	ptrace_event(PTRACE_EVENT_VFORK_DONE, pid);
 }
 
 /**
