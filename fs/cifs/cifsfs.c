@@ -113,9 +113,6 @@ cifs_read_super(struct super_block *sb, struct smb_vol *volume_info,
 
 	cifs_sb = CIFS_SB(sb);
 
-	spin_lock_init(&cifs_sb->tlink_tree_lock);
-	cifs_sb->tlink_tree = RB_ROOT;
-
 	rc = cifs_mount(cifs_sb, volume_info);
 
 	if (rc) {

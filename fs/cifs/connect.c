@@ -2663,6 +2663,9 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 {
 	INIT_DELAYED_WORK(&cifs_sb->prune_tlinks, cifs_prune_tlinks);
 
+	spin_lock_init(&cifs_sb->tlink_tree_lock);
+	cifs_sb->tlink_tree = RB_ROOT;
+
 	if (pvolume_info->rsize > CIFSMaxBufSize) {
 		cERROR(1, "rsize %d too large, using MaxBufSize",
 			pvolume_info->rsize);
