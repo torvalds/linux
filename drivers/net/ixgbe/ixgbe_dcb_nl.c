@@ -330,23 +330,19 @@ static void ixgbe_dcbnl_get_pfc_cfg(struct net_device *netdev, int priority,
 static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	int ret;
+#ifdef IXGBE_FCOE
 	struct dcb_app app = {
 			      .selector = DCB_APP_IDTYPE_ETHTYPE,
 			      .protocol = ETH_P_FCOE,
 			     };
 	u8 up = dcb_getapp(netdev, &app);
-	int ret;
+#endif
 
 	ret = ixgbe_copy_dcb_cfg(&adapter->temp_dcb_cfg, &adapter->dcb_cfg,
 				 MAX_TRAFFIC_CLASS);
 	if (ret)
 		return DCB_NO_HW_CHG;
-
-	/* In IEEE mode app data must be parsed into DCBX format for
-	 * hardware routines.
-	 */
-	if (adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE)
-		up = (1 << up);
 
 #ifdef IXGBE_FCOE
 	if (up && (up != (1 << adapter->fcoe.up)))
@@ -678,18 +674,34 @@ static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
 				   struct dcb_app *app)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	int err = -EINVAL;
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
-		return -EINVAL;
+		return err;
 
-	dcb_setapp(dev, app);
+	err = dcb_ieee_setapp(dev, app);
 
 #ifdef IXGBE_FCOE
-	if (app->selector == 1 && app->protocol == ETH_P_FCOE &&
-	    adapter->fcoe.tc == app->priority)
-		ixgbe_dcbnl_set_all(dev);
+	if (!err && app->selector == IEEE_8021QAZ_APP_SEL_ETHERTYPE &&
+	    app->protocol == ETH_P_FCOE) {
+		u8 app_mask = dcb_ieee_getapp_mask(dev, app);
+
+		if (app_mask & (1 << adapter->fcoe.up))
+			return err;
+
+		adapter->fcoe.up = app->priority;
+
+		if (netif_running(dev))
+			dev->netdev_ops->ndo_stop(dev);
+
+		ixgbe_clear_interrupt_scheme(adapter);
+		ixgbe_init_interrupt_scheme(adapter);
+
+		if (netif_running(dev))
+			dev->netdev_ops->ndo_open(dev);
+	}
 #endif
-	return 0;
+	return err;
 }
 
 static u8 ixgbe_dcbnl_getdcbx(struct net_device *dev)
