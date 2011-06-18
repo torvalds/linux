@@ -462,6 +462,7 @@ static int __via_add_control(struct via_spec *spec, int type, const char *name,
 	knew = __via_clone_ctl(spec, &via_control_templates[type], name);
 	if (!knew)
 		return -ENOMEM;
+	knew->index = idx;
 	if (get_amp_nid_(val))
 		knew->subdevice = HDA_SUBDEV_AMP_FLAG;
 	knew->private_value = val;
@@ -1049,27 +1050,6 @@ static int via_smart51_build(struct hda_codec *codec)
 
 	return 0;
 }
-
-/* capture mixer elements */
-static const struct snd_kcontrol_new vt1708_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x15, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x15, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x27, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x27, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 1,
-		.info = via_mux_enum_info,
-		.get = via_mux_enum_get,
-		.put = via_mux_enum_put,
-	},
-	{ } /* end */
-};
 
 /* check AA path's mute statue */
 static int is_aa_path_mute(struct hda_codec *codec)
@@ -2157,6 +2137,18 @@ static int via_fill_adcs(struct hda_codec *codec)
 
 static int get_mux_nids(struct hda_codec *codec);
 
+static const struct snd_kcontrol_new via_input_src_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	/* The multiple "Capture Source" controls confuse alsamixer
+	 * So call somewhat different..
+	 */
+	/* .name = "Capture Source", */
+	.name = "Input Source",
+	.info = via_mux_enum_info,
+	.get = via_mux_enum_get,
+	.put = via_mux_enum_put,
+};
+
 /* create playback/capture controls for input pins */
 static int via_auto_create_analog_input_ctls(struct hda_codec *codec,
 					     const struct auto_pin_cfg *cfg)
@@ -2211,6 +2203,56 @@ static int via_auto_create_analog_input_ctls(struct hda_codec *codec,
 			return err;
 		snd_hda_add_imux_item(imux, label, idx, NULL);
 	}
+
+	/* create capture mixer elements */
+	for (i = 0; i < spec->num_adc_nids; i++) {
+		hda_nid_t adc = spec->adc_nids[i];
+		err = __via_add_control(spec, VIA_CTL_WIDGET_VOL,
+					"Capture Volume", i,
+					HDA_COMPOSE_AMP_VAL(adc, 3, 0,
+							    HDA_INPUT));
+		if (err < 0)
+			return err;
+		err = __via_add_control(spec, VIA_CTL_WIDGET_MUTE,
+					"Capture Switch", i,
+					HDA_COMPOSE_AMP_VAL(adc, 3, 0,
+							    HDA_INPUT));
+		if (err < 0)
+			return err;
+	}
+
+	/* input-source control */
+	for (i = 0; i < spec->num_adc_nids; i++)
+		if (!spec->mux_nids[i])
+			break;
+	if (i) {
+		struct snd_kcontrol_new *knew;
+		knew = via_clone_control(spec, &via_input_src_ctl);
+		if (!knew)
+			return -ENOMEM;
+		knew->count = i;
+	}
+
+	/* mic-boosts */
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t pin = cfg->inputs[i].pin;
+		unsigned int caps;
+		const char *label;
+		char name[32];
+
+		if (cfg->inputs[i].type != AUTO_PIN_MIC)
+			continue;
+		caps = query_amp_caps(codec, pin, HDA_INPUT);
+		if (caps == -1 || !(caps & AC_AMPCAP_NUM_STEPS))
+			continue;
+		label = hda_get_autocfg_input_label(codec, cfg, i);
+		snprintf(name, sizeof(name), "%s Boost Capture Volume", label);
+		err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
+			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_INPUT));
+		if (err < 0)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -2428,11 +2470,6 @@ static int patch_vt1708(struct hda_codec *codec)
 	if (codec->vendor_id == 0x11061708)
 		spec->stream_analog_playback = &vt1708_pcm_analog_s16_playback;
 
-	if (spec->adc_nids && spec->input_mux) {
-		spec->mixers[spec->num_mixers] = vt1708_capture_mixer;
-		spec->num_mixers++;
-	}
-
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
@@ -2442,29 +2479,6 @@ static int patch_vt1708(struct hda_codec *codec)
 	INIT_DELAYED_WORK(&spec->vt1708_hp_work, vt1708_update_hp_jack_state);
 	return 0;
 }
-
-/* capture mixer elements */
-static const struct snd_kcontrol_new vt1709_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x14, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x14, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x15, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x15, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 2, 0x16, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 2, 0x16, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 1,
-		.info = via_mux_enum_info,
-		.get = via_mux_enum_get,
-		.put = via_mux_enum_put,
-	},
-	{ } /* end */
-};
 
 static const struct hda_verb vt1709_uniwill_init_verbs[] = {
 	{0x20, AC_VERB_SET_UNSOLICITED_ENABLE,
@@ -2596,11 +2610,6 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1709_10ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1709_uniwill_init_verbs;
 
-	if (spec->adc_nids && spec->input_mux) {
-		spec->mixers[spec->num_mixers] = vt1709_capture_mixer;
-		spec->num_mixers++;
-	}
-
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
@@ -2678,11 +2687,6 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1709_6ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1709_uniwill_init_verbs;
 
-	if (spec->adc_nids && spec->input_mux) {
-		spec->mixers[spec->num_mixers] = vt1709_capture_mixer;
-		spec->num_mixers++;
-	}
-
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
@@ -2693,26 +2697,6 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 	return 0;
 }
 
-/* capture mixer elements */
-static const struct snd_kcontrol_new vt1708B_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x13, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x13, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x14, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x14, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 1,
-		.info = via_mux_enum_info,
-		.get = via_mux_enum_get,
-		.put = via_mux_enum_put,
-	},
-	{ } /* end */
-};
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -2964,11 +2948,6 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_8ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_uniwill_init_verbs;
 
-	if (spec->adc_nids && spec->input_mux) {
-		spec->mixers[spec->num_mixers] = vt1708B_capture_mixer;
-		spec->num_mixers++;
-	}
-
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
@@ -3005,11 +2984,6 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_4ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_uniwill_init_verbs;
 
-	if (spec->adc_nids && spec->input_mux) {
-		spec->mixers[spec->num_mixers] = vt1708B_capture_mixer;
-		spec->num_mixers++;
-	}
-
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
@@ -3024,30 +2998,6 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 }
 
 /* Patch for VT1708S */
-
-/* capture mixer elements */
-static const struct snd_kcontrol_new vt1708S_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x13, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x13, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x14, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x14, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Capture Volume", 0x1A, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost Capture Volume", 0x1E, 0x0,
-			 HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 1,
-		.info = via_mux_enum_info,
-		.get = via_mux_enum_get,
-		.put = via_mux_enum_put,
-	},
-	{ } /* end */
-};
 
 static const struct hda_verb vt1708S_volume_init_verbs[] = {
 	/* Unmute ADC0-1 and set the default input to mic-in */
@@ -3199,6 +3149,8 @@ static int patch_vt1708S(struct hda_codec *codec)
 		return -ENOMEM;
 
 	spec->aa_mix_nid = 0x16;
+	override_mic_boost(codec, 0x1a, 0, 3, 40);
+	override_mic_boost(codec, 0x1e, 0, 3, 40);
 
 	/* automatic parse from the BIOS config */
 	err = vt1708S_parse_auto_config(codec);
@@ -3217,13 +3169,6 @@ static int patch_vt1708S(struct hda_codec *codec)
 	else
 		spec->init_verbs[spec->num_iverbs++] =
 			vt1708S_uniwill_init_verbs;
-
-	if (spec->adc_nids && spec->input_mux) {
-		override_mic_boost(codec, 0x1a, 0, 3, 40);
-		override_mic_boost(codec, 0x1e, 0, 3, 40);
-		spec->mixers[spec->num_mixers] = vt1708S_capture_mixer;
-		spec->num_mixers++;
-	}
 
 	codec->patch_ops = via_patch_ops;
 
@@ -3254,31 +3199,6 @@ static int patch_vt1708S(struct hda_codec *codec)
 }
 
 /* Patch for VT1702 */
-
-/* capture mixer elements */
-static const struct snd_kcontrol_new vt1702_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x12, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x12, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x20, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x20, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Digital Mic Capture Volume", 0x1F, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Digital Mic Capture Switch", 0x1F, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Digital Mic Boost Capture Volume", 0x1E, 0x0,
-			 HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 1,
-		.info = via_mux_enum_info,
-		.get = via_mux_enum_get,
-		.put = via_mux_enum_put,
-	},
-	{ } /* end */
-};
 
 static const struct hda_verb vt1702_volume_init_verbs[] = {
 	/*
@@ -3432,11 +3352,6 @@ static int patch_vt1702(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1702_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1702_uniwill_init_verbs;
 
-	if (spec->adc_nids && spec->input_mux) {
-		spec->mixers[spec->num_mixers] = vt1702_capture_mixer;
-		spec->num_mixers++;
-	}
-
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
@@ -3450,29 +3365,6 @@ static int patch_vt1702(struct hda_codec *codec)
 }
 
 /* Patch for VT1718S */
-
-/* capture mixer elements */
-static const struct snd_kcontrol_new vt1718S_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x10, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x10, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x11, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x11, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Capture Volume", 0x2b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost Capture Volume", 0x29, 0x0,
-			 HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		.name = "Input Source",
-		.count = 2,
-		.info = via_mux_enum_info,
-		.get = via_mux_enum_get,
-		.put = via_mux_enum_put,
-	},
-	{ } /* end */
-};
 
 static const struct hda_verb vt1718S_volume_init_verbs[] = {
 	/*
@@ -3669,6 +3561,8 @@ static int patch_vt1718S(struct hda_codec *codec)
 		return -ENOMEM;
 
 	spec->aa_mix_nid = 0x21;
+	override_mic_boost(codec, 0x2b, 0, 3, 40);
+	override_mic_boost(codec, 0x29, 0, 3, 40);
 
 	/* automatic parse from the BIOS config */
 	err = vt1718S_parse_auto_config(codec);
@@ -3682,13 +3576,6 @@ static int patch_vt1718S(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++] = vt1718S_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1718S_uniwill_init_verbs;
-
-	if (spec->adc_nids && spec->input_mux) {
-		override_mic_boost(codec, 0x2b, 0, 3, 40);
-		override_mic_boost(codec, 0x29, 0, 3, 40);
-		spec->mixers[spec->num_mixers] = vt1718S_capture_mixer;
-		spec->num_mixers++;
-	}
 
 	codec->patch_ops = via_patch_ops;
 
@@ -3743,26 +3630,6 @@ static int vt1716s_dmic_put(struct snd_kcontrol *kcontrol,
 	set_widgets_power_state(codec);
 	return 1;
 }
-
-/* capture mixer elements */
-static const struct snd_kcontrol_new vt1716S_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x13, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x13, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x14, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x14, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Capture Volume", 0x1A, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost Capture Volume", 0x1E, 0x0,
-			 HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Input Source",
-		.count = 1,
-		.info = via_mux_enum_info,
-		.get = via_mux_enum_get,
-		.put = via_mux_enum_put,
-	},
-	{ } /* end */
-};
 
 static const struct snd_kcontrol_new vt1716s_dmic_mixer[] = {
 	HDA_CODEC_VOLUME("Digital Mic Capture Volume", 0x22, 0x0, HDA_INPUT),
@@ -4004,6 +3871,8 @@ static int patch_vt1716S(struct hda_codec *codec)
 		return -ENOMEM;
 
 	spec->aa_mix_nid = 0x16;
+	override_mic_boost(codec, 0x1a, 0, 3, 40);
+	override_mic_boost(codec, 0x1e, 0, 3, 40);
 
 	/* automatic parse from the BIOS config */
 	err = vt1716S_parse_auto_config(codec);
@@ -4017,13 +3886,6 @@ static int patch_vt1716S(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++]  = vt1716S_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1716S_uniwill_init_verbs;
-
-	if (spec->adc_nids && spec->input_mux) {
-		override_mic_boost(codec, 0x1a, 0, 3, 40);
-		override_mic_boost(codec, 0x1e, 0, 3, 40);
-		spec->mixers[spec->num_mixers] = vt1716S_capture_mixer;
-		spec->num_mixers++;
-	}
 
 	spec->mixers[spec->num_mixers] = vt1716s_dmic_mixer;
 	spec->num_mixers++;
@@ -4044,30 +3906,6 @@ static int patch_vt1716S(struct hda_codec *codec)
 }
 
 /* for vt2002P */
-
-/* capture mixer elements */
-static const struct snd_kcontrol_new vt2002P_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x10, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x10, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x11, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x11, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Boost Capture Volume", 0x2b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Front Mic Boost Capture Volume", 0x29, 0x0,
-			 HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 2,
-		.info = via_mux_enum_info,
-		.get = via_mux_enum_get,
-		.put = via_mux_enum_put,
-	},
-	{ } /* end */
-};
 
 static const struct hda_verb vt2002P_volume_init_verbs[] = {
 	/* Class-D speaker related verbs */
@@ -4372,6 +4210,8 @@ static int patch_vt2002P(struct hda_codec *codec)
 		return -ENOMEM;
 
 	spec->aa_mix_nid = 0x21;
+	override_mic_boost(codec, 0x2b, 0, 3, 40);
+	override_mic_boost(codec, 0x29, 0, 3, 40);
 
 	/* automatic parse from the BIOS config */
 	err = vt2002P_parse_auto_config(codec);
@@ -4397,13 +4237,6 @@ static int patch_vt2002P(struct hda_codec *codec)
 		spec->init_verbs[spec->num_iverbs++] =
 			vt2002P_uniwill_init_verbs;
 
-	if (spec->adc_nids && spec->input_mux) {
-		override_mic_boost(codec, 0x2b, 0, 3, 40);
-		override_mic_boost(codec, 0x29, 0, 3, 40);
-		spec->mixers[spec->num_mixers] = vt2002P_capture_mixer;
-		spec->num_mixers++;
-	}
-
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
@@ -4418,29 +4251,6 @@ static int patch_vt2002P(struct hda_codec *codec)
 }
 
 /* for vt1812 */
-
-/* capture mixer elements */
-static const struct snd_kcontrol_new vt1812_capture_mixer[] = {
-	HDA_CODEC_VOLUME("Capture Volume", 0x10, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x10, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x11, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x11, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Boost Capture Volume", 0x2b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Front Mic Boost Capture Volume", 0x29, 0x0,
-		       HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* The multiple "Capture Source" controls confuse alsamixer
-		 * So call somewhat different..
-		 */
-		.name = "Input Source",
-		.count = 2,
-		.info = via_mux_enum_info,
-		.get = via_mux_enum_get,
-		.put = via_mux_enum_put,
-	},
-	{ } /* end */
-};
 
 static const struct hda_verb vt1812_volume_init_verbs[] = {
 	/*
@@ -4662,6 +4472,8 @@ static int patch_vt1812(struct hda_codec *codec)
 		return -ENOMEM;
 
 	spec->aa_mix_nid = 0x21;
+	override_mic_boost(codec, 0x2b, 0, 3, 40);
+	override_mic_boost(codec, 0x29, 0, 3, 40);
 
 	/* automatic parse from the BIOS config */
 	err = vt1812_parse_auto_config(codec);
@@ -4676,13 +4488,6 @@ static int patch_vt1812(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++]  = vt1812_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1812_uniwill_init_verbs;
-
-	if (spec->adc_nids && spec->input_mux) {
-		override_mic_boost(codec, 0x2b, 0, 3, 40);
-		override_mic_boost(codec, 0x29, 0, 3, 40);
-		spec->mixers[spec->num_mixers] = vt1812_capture_mixer;
-		spec->num_mixers++;
-	}
 
 	codec->patch_ops = via_patch_ops;
 
