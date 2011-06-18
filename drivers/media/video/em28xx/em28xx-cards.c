@@ -1319,7 +1319,6 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2880_BOARD_KWORLD_DVB_305U] = {
 		.name	      = "KWorld DVB-T 305U",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
 		.decoder      = EM28XX_TVP5150,
