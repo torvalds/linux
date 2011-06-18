@@ -264,10 +264,40 @@ out:
 	return info;
 }
 
+static bool
+nva3_pm_grcp_idle(void *data)
+{
+	struct drm_device *dev = data;
+
+	if (!(nv_rd32(dev, 0x400304) & 0x00000001))
+		return true;
+	if (nv_rd32(dev, 0x400308) == 0x0050001c)
+		return true;
+	return false;
+}
+
 void
 nva3_pm_clocks_set(struct drm_device *dev, void *pre_state)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nva3_pm_state *info = pre_state;
+	unsigned long flags;
+
+	/* prevent any new grctx switches from starting */
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	nv_wr32(dev, 0x400324, 0x00000000);
+	nv_wr32(dev, 0x400328, 0x0050001c); /* wait flag 0x1c */
+	/* wait for any pending grctx switches to complete */
+	if (!nv_wait_cb(dev, nva3_pm_grcp_idle, dev)) {
+		NV_ERROR(dev, "pm: ctxprog didn't go idle\n");
+		goto cleanup;
+	}
+	/* freeze PFIFO */
+	nv_mask(dev, 0x002504, 0x00000001, 0x00000001);
+	if (!nv_wait(dev, 0x002504, 0x00000010, 0x00000010)) {
+		NV_ERROR(dev, "pm: fifo didn't go idle\n");
+		goto cleanup;
+	}
 
 	prog_pll(dev, 0x00, 0x004200, &info->nclk);
 	prog_pll(dev, 0x01, 0x004220, &info->sclk);
@@ -285,5 +315,15 @@ nva3_pm_clocks_set(struct drm_device *dev, void *pre_state)
 	nv_wr32(dev, 0x1002dc, 0);
 	nv_wr32(dev, 0x100210, 0x80000000);
 
+cleanup:
+	/* unfreeze PFIFO */
+	nv_mask(dev, 0x002504, 0x00000001, 0x00000000);
+	/* restore ctxprog to normal */
+	nv_wr32(dev, 0x400324, 0x00000000);
+	nv_wr32(dev, 0x400328, 0x0070009c); /* set flag 0x1c */
+	/* unblock it if necessary */
+	if (nv_rd32(dev, 0x400308) == 0x0050001c)
+		nv_mask(dev, 0x400824, 0x10000000, 0x10000000);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 	kfree(info);
 }
