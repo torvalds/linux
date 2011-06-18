@@ -74,7 +74,6 @@ struct ixgbe_fcoe {
 	dma_addr_t extra_ddp_buffer_dma;
 	unsigned long mode;
 #ifdef CONFIG_IXGBE_DCB
-	u8 tc;
 	u8 up;
 #endif
 };

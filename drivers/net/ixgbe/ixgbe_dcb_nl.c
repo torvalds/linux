@@ -357,7 +357,7 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
 			usleep_range(1000, 2000);
 
-		ixgbe_fcoe_setapp(adapter, up);
+		adapter->fcoe.up = ffs(up) - 1;
 
 		if (netif_running(netdev))
 			netdev->netdev_ops->ndo_stop(netdev);

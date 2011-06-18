@@ -5169,7 +5169,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->ring_feature[RING_F_FCOE].indices = 0;
 #ifdef CONFIG_IXGBE_DCB
 		/* Default traffic class to use for FCoE */
-		adapter->fcoe.tc = IXGBE_FCOE_DEFTC;
 		adapter->fcoe.up = IXGBE_FCOE_DEFTC;
 #endif
 #endif /* IXGBE_FCOE */
