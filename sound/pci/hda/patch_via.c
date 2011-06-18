@@ -1557,6 +1557,8 @@ static int via_build_pcms(struct hda_codec *codec)
 		*(spec->stream_analog_playback);
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid =
 		spec->multiout.dac_nids[0];
+	if (!spec->multiout.hp_nid)
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK].substreams = 1;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = *(spec->stream_analog_capture);
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[0];
 
