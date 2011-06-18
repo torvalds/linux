@@ -1222,6 +1222,17 @@ static int via_playback_pcm_open(struct hda_pcm_stream *hinfo,
 					     hinfo);
 }
 
+static int via_playback_pcm_close(struct hda_pcm_stream *hinfo,
+				  struct hda_codec *codec,
+				  struct snd_pcm_substream *substream)
+{
+	int idle = substream->pstr->substream_opened == 1
+		&& substream->ref_count == 0;
+
+	analog_low_current_mode(codec, idle);
+	return 0;
+}
+
 static void playback_multi_pcm_prep_0(struct hda_codec *codec,
 				      unsigned int stream_tag,
 				      unsigned int format,
@@ -1419,23 +1430,24 @@ static int via_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	return 0;
 }
 
-static const struct hda_pcm_stream vt1708_pcm_analog_playback = {
-	.substreams = 2,
+static const struct hda_pcm_stream via_pcm_analog_playback = {
+	.substreams = 2, /* will be changed in via_build_pcms() */
 	.channels_min = 2,
 	.channels_max = 8,
-	.nid = 0x10, /* NID to query formats and rates */
+	/* NID is set in via_build_pcms */
 	.ops = {
 		.open = via_playback_pcm_open,
+		.close = via_playback_pcm_close,
 		.prepare = via_playback_multi_pcm_prepare,
 		.cleanup = via_playback_multi_pcm_cleanup
 	},
 };
 
 static const struct hda_pcm_stream vt1708_pcm_analog_s16_playback = {
-	.substreams = 2,
+	.substreams = 2, /* will be changed in via_build_pcms() */
 	.channels_min = 2,
 	.channels_max = 8,
-	.nid = 0x10, /* NID to query formats and rates */
+	/* NID is set in via_build_pcms */
 	/* We got noisy outputs on the right channel on VT1708 when
 	 * 24bit samples are used.  Until any workaround is found,
 	 * disable the 24bit format, so far.
@@ -1443,23 +1455,26 @@ static const struct hda_pcm_stream vt1708_pcm_analog_s16_playback = {
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	.ops = {
 		.open = via_playback_pcm_open,
+		.close = via_playback_pcm_close,
 		.prepare = via_playback_multi_pcm_prepare,
 		.cleanup = via_playback_multi_pcm_cleanup
 	},
 };
 
-static const struct hda_pcm_stream vt1708_pcm_analog_capture = {
-	.substreams = 2,
+static const struct hda_pcm_stream via_pcm_analog_capture = {
+	.substreams = 2, /* will be changed in via_build_pcms() */
 	.channels_min = 2,
 	.channels_max = 2,
-	.nid = 0x15, /* NID to query formats and rates */
+	/* NID is set in via_build_pcms */
 	.ops = {
+		.open = via_playback_pcm_open,
+		.close = via_playback_pcm_close,
 		.prepare = via_capture_pcm_prepare,
 		.cleanup = via_capture_pcm_cleanup
 	},
 };
 
-static const struct hda_pcm_stream vt1708_pcm_digital_playback = {
+static const struct hda_pcm_stream via_pcm_digital_playback = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -1472,7 +1487,7 @@ static const struct hda_pcm_stream vt1708_pcm_digital_playback = {
 	},
 };
 
-static const struct hda_pcm_stream vt1708_pcm_digital_capture = {
+static const struct hda_pcm_stream via_pcm_digital_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -1553,17 +1568,25 @@ static int via_build_pcms(struct hda_codec *codec)
 	snprintf(spec->stream_name_analog, sizeof(spec->stream_name_analog),
 		 "%s Analog", codec->chip_name);
 	info->name = spec->stream_name_analog;
+
+	if (!spec->stream_analog_playback)
+		spec->stream_analog_playback = &via_pcm_analog_playback;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
-		*(spec->stream_analog_playback);
+		*spec->stream_analog_playback;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid =
 		spec->multiout.dac_nids[0];
-	if (!spec->multiout.hp_nid)
-		info->stream[SNDRV_PCM_STREAM_PLAYBACK].substreams = 1;
-	info->stream[SNDRV_PCM_STREAM_CAPTURE] = *(spec->stream_analog_capture);
-	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[0];
-
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
 		spec->multiout.max_channels;
+	if (!spec->multiout.hp_nid)
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK].substreams = 1;
+
+	if (!spec->stream_analog_capture)
+		spec->stream_analog_capture = &via_pcm_analog_capture;
+	info->stream[SNDRV_PCM_STREAM_CAPTURE] =
+		*spec->stream_analog_capture;
+	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[0];
+	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams =
+		spec->num_adc_nids;
 
 	if (spec->multiout.dig_out_nid || spec->dig_in_nid) {
 		codec->num_pcms++;
@@ -1574,14 +1597,20 @@ static int via_build_pcms(struct hda_codec *codec)
 		info->name = spec->stream_name_digital;
 		info->pcm_type = HDA_PCM_TYPE_SPDIF;
 		if (spec->multiout.dig_out_nid) {
+			if (!spec->stream_digital_playback)
+				spec->stream_digital_playback =
+					&via_pcm_digital_playback;
 			info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
-				*(spec->stream_digital_playback);
+				*spec->stream_digital_playback;
 			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid =
 				spec->multiout.dig_out_nid;
 		}
 		if (spec->dig_in_nid) {
+			if (!spec->stream_digital_capture)
+				spec->stream_digital_capture =
+					&via_pcm_digital_capture;
 			info->stream[SNDRV_PCM_STREAM_CAPTURE] =
-				*(spec->stream_digital_capture);
+				*spec->stream_digital_capture;
 			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid =
 				spec->dig_in_nid;
 		}
@@ -2357,14 +2386,9 @@ static int patch_vt1708(struct hda_codec *codec)
 	}
 
 
-	spec->stream_analog_playback = &vt1708_pcm_analog_playback;
 	/* disable 32bit format on VT1708 */
 	if (codec->vendor_id == 0x11061708)
 		spec->stream_analog_playback = &vt1708_pcm_analog_s16_playback;
-	spec->stream_analog_capture = &vt1708_pcm_analog_capture;
-
-	spec->stream_digital_playback = &vt1708_pcm_digital_playback;
-	spec->stream_digital_capture = &vt1708_pcm_digital_capture;
 
 	if (spec->adc_nids && spec->input_mux) {
 		spec->mixers[spec->num_mixers] = vt1708_capture_mixer;
@@ -2453,58 +2477,6 @@ static const struct hda_verb vt1709_10ch_volume_init_verbs[] = {
 	{ }
 };
 
-static const struct hda_pcm_stream vt1709_10ch_pcm_analog_playback = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 10,
-	.nid = 0x10, /* NID to query formats and rates */
-	.ops = {
-		.open = via_playback_pcm_open,
-		.prepare = via_playback_multi_pcm_prepare,
-		.cleanup = via_playback_multi_pcm_cleanup,
-	},
-};
-
-static const struct hda_pcm_stream vt1709_6ch_pcm_analog_playback = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 6,
-	.nid = 0x10, /* NID to query formats and rates */
-	.ops = {
-		.open = via_playback_pcm_open,
-		.prepare = via_playback_multi_pcm_prepare,
-		.cleanup = via_playback_multi_pcm_cleanup,
-	},
-};
-
-static const struct hda_pcm_stream vt1709_pcm_analog_capture = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	.nid = 0x14, /* NID to query formats and rates */
-	.ops = {
-		.prepare = via_capture_pcm_prepare,
-		.cleanup = via_capture_pcm_cleanup
-	},
-};
-
-static const struct hda_pcm_stream vt1709_pcm_digital_playback = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 2,
-	/* NID is set in via_build_pcms */
-	.ops = {
-		.open = via_dig_playback_pcm_open,
-		.close = via_dig_playback_pcm_close
-	},
-};
-
-static const struct hda_pcm_stream vt1709_pcm_digital_capture = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 2,
-};
-
 static int vt1709_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -2585,12 +2557,6 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++] = vt1709_10ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1709_uniwill_init_verbs;
-
-	spec->stream_analog_playback = &vt1709_10ch_pcm_analog_playback;
-	spec->stream_analog_capture = &vt1709_pcm_analog_capture;
-
-	spec->stream_digital_playback = &vt1709_pcm_digital_playback;
-	spec->stream_digital_capture = &vt1709_pcm_digital_capture;
 
 	if (spec->adc_nids && spec->input_mux) {
 		spec->mixers[spec->num_mixers] = vt1709_capture_mixer;
@@ -2673,12 +2639,6 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++] = vt1709_6ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1709_uniwill_init_verbs;
-
-	spec->stream_analog_playback = &vt1709_6ch_pcm_analog_playback;
-	spec->stream_analog_capture = &vt1709_pcm_analog_capture;
-
-	spec->stream_digital_playback = &vt1709_pcm_digital_playback;
-	spec->stream_digital_capture = &vt1709_pcm_digital_capture;
 
 	if (spec->adc_nids && spec->input_mux) {
 		spec->mixers[spec->num_mixers] = vt1709_capture_mixer;
@@ -2799,74 +2759,6 @@ static const struct hda_verb vt1708B_uniwill_init_verbs[] = {
 	{0x22, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{0x23, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
-};
-
-static int via_pcm_open_close(struct hda_pcm_stream *hinfo,
-			      struct hda_codec *codec,
-			      struct snd_pcm_substream *substream)
-{
-	int idle = substream->pstr->substream_opened == 1
-		&& substream->ref_count == 0;
-
-	analog_low_current_mode(codec, idle);
-	return 0;
-}
-
-static const struct hda_pcm_stream vt1708B_8ch_pcm_analog_playback = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 8,
-	.nid = 0x10, /* NID to query formats and rates */
-	.ops = {
-		.open = via_playback_pcm_open,
-		.prepare = via_playback_multi_pcm_prepare,
-		.cleanup = via_playback_multi_pcm_cleanup,
-		.close = via_pcm_open_close
-	},
-};
-
-static const struct hda_pcm_stream vt1708B_4ch_pcm_analog_playback = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 4,
-	.nid = 0x10, /* NID to query formats and rates */
-	.ops = {
-		.open = via_playback_pcm_open,
-		.prepare = via_playback_multi_pcm_prepare,
-		.cleanup = via_playback_multi_pcm_cleanup
-	},
-};
-
-static const struct hda_pcm_stream vt1708B_pcm_analog_capture = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	.nid = 0x13, /* NID to query formats and rates */
-	.ops = {
-		.open = via_pcm_open_close,
-		.prepare = via_capture_pcm_prepare,
-		.cleanup = via_capture_pcm_cleanup,
-		.close = via_pcm_open_close
-	},
-};
-
-static const struct hda_pcm_stream vt1708B_pcm_digital_playback = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 2,
-	/* NID is set in via_build_pcms */
-	.ops = {
-		.open = via_dig_playback_pcm_open,
-		.close = via_dig_playback_pcm_close,
-		.prepare = via_dig_playback_pcm_prepare,
-		.cleanup = via_dig_playback_pcm_cleanup
-	},
-};
-
-static const struct hda_pcm_stream vt1708B_pcm_digital_capture = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 2,
 };
 
 static int vt1708B_parse_auto_config(struct hda_codec *codec)
@@ -3034,12 +2926,6 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_8ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_uniwill_init_verbs;
 
-	spec->stream_analog_playback = &vt1708B_8ch_pcm_analog_playback;
-	spec->stream_analog_capture = &vt1708B_pcm_analog_capture;
-
-	spec->stream_digital_playback = &vt1708B_pcm_digital_playback;
-	spec->stream_digital_capture = &vt1708B_pcm_digital_capture;
-
 	if (spec->adc_nids && spec->input_mux) {
 		spec->mixers[spec->num_mixers] = vt1708B_capture_mixer;
 		spec->num_mixers++;
@@ -3080,12 +2966,6 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_4ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_uniwill_init_verbs;
-
-	spec->stream_analog_playback = &vt1708B_4ch_pcm_analog_playback;
-	spec->stream_analog_capture = &vt1708B_pcm_analog_capture;
-
-	spec->stream_digital_playback = &vt1708B_pcm_digital_playback;
-	spec->stream_digital_capture = &vt1708B_pcm_digital_capture;
 
 	if (spec->adc_nids && spec->input_mux) {
 		spec->mixers[spec->num_mixers] = vt1708B_capture_mixer;
@@ -3180,58 +3060,6 @@ static const struct hda_verb vt1705_uniwill_init_verbs[] = {
 	{0x1e, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{0x23, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
-};
-
-static const struct hda_pcm_stream vt1708S_pcm_analog_playback = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 8,
-	.nid = 0x10, /* NID to query formats and rates */
-	.ops = {
-		.open = via_playback_pcm_open,
-		.prepare = via_playback_multi_pcm_prepare,
-		.cleanup = via_playback_multi_pcm_cleanup,
-		.close = via_pcm_open_close
-	},
-};
-
-static const struct hda_pcm_stream vt1705_pcm_analog_playback = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 6,
-	.nid = 0x10, /* NID to query formats and rates */
-	.ops = {
-		.open = via_playback_pcm_open,
-		.prepare = via_playback_multi_pcm_prepare,
-		.cleanup = via_playback_multi_pcm_cleanup,
-		.close = via_pcm_open_close
-	},
-};
-
-static const struct hda_pcm_stream vt1708S_pcm_analog_capture = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	.nid = 0x13, /* NID to query formats and rates */
-	.ops = {
-		.open = via_pcm_open_close,
-		.prepare = via_capture_pcm_prepare,
-		.cleanup = via_capture_pcm_cleanup,
-		.close = via_pcm_open_close
-	},
-};
-
-static const struct hda_pcm_stream vt1708S_pcm_digital_playback = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 2,
-	/* NID is set in via_build_pcms */
-	.ops = {
-		.open = via_dig_playback_pcm_open,
-		.close = via_dig_playback_pcm_close,
-		.prepare = via_dig_playback_pcm_prepare,
-		.cleanup = via_dig_playback_pcm_cleanup
-	},
 };
 
 /* fill out digital output widgets; one for master and one for slave outputs */
@@ -3352,14 +3180,6 @@ static int patch_vt1708S(struct hda_codec *codec)
 		spec->init_verbs[spec->num_iverbs++] =
 			vt1708S_uniwill_init_verbs;
 
-	if (codec->vendor_id == 0x11064397)
-		spec->stream_analog_playback = &vt1705_pcm_analog_playback;
-	else
-		spec->stream_analog_playback = &vt1708S_pcm_analog_playback;
-	spec->stream_analog_capture = &vt1708S_pcm_analog_capture;
-
-	spec->stream_digital_playback = &vt1708S_pcm_digital_playback;
-
 	if (spec->adc_nids && spec->input_mux) {
 		override_mic_boost(codec, 0x1a, 0, 3, 40);
 		override_mic_boost(codec, 0x1e, 0, 3, 40);
@@ -3461,45 +3281,6 @@ static const struct hda_verb vt1702_uniwill_init_verbs[] = {
 	{0x16, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
-};
-
-static const struct hda_pcm_stream vt1702_pcm_analog_playback = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	.nid = 0x10, /* NID to query formats and rates */
-	.ops = {
-		.open = via_playback_pcm_open,
-		.prepare = via_playback_multi_pcm_prepare,
-		.cleanup = via_playback_multi_pcm_cleanup,
-		.close = via_pcm_open_close
-	},
-};
-
-static const struct hda_pcm_stream vt1702_pcm_analog_capture = {
-	.substreams = 3,
-	.channels_min = 2,
-	.channels_max = 2,
-	.nid = 0x12, /* NID to query formats and rates */
-	.ops = {
-		.open = via_pcm_open_close,
-		.prepare = via_capture_pcm_prepare,
-		.cleanup = via_capture_pcm_cleanup,
-		.close = via_pcm_open_close
-	},
-};
-
-static const struct hda_pcm_stream vt1702_pcm_digital_playback = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	/* NID is set in via_build_pcms */
-	.ops = {
-		.open = via_dig_playback_pcm_open,
-		.close = via_dig_playback_pcm_close,
-		.prepare = via_dig_playback_pcm_prepare,
-		.cleanup = via_dig_playback_pcm_cleanup
-	},
 };
 
 static int vt1702_parse_auto_config(struct hda_codec *codec)
@@ -3613,11 +3394,6 @@ static int patch_vt1702(struct hda_codec *codec)
 	spec->init_verbs[spec->num_iverbs++] = vt1702_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1702_uniwill_init_verbs;
 
-	spec->stream_analog_playback = &vt1702_pcm_analog_playback;
-	spec->stream_analog_capture = &vt1702_pcm_analog_capture;
-
-	spec->stream_digital_playback = &vt1702_pcm_digital_playback;
-
 	if (spec->adc_nids && spec->input_mux) {
 		spec->mixers[spec->num_mixers] = vt1702_capture_mixer;
 		spec->num_mixers++;
@@ -3719,51 +3495,6 @@ static const struct hda_verb vt1718S_uniwill_init_verbs[] = {
 	{0x2a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{0x2b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
-};
-
-static const struct hda_pcm_stream vt1718S_pcm_analog_playback = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 10,
-	.nid = 0x8, /* NID to query formats and rates */
-	.ops = {
-		.open = via_playback_pcm_open,
-		.prepare = via_playback_multi_pcm_prepare,
-		.cleanup = via_playback_multi_pcm_cleanup,
-		.close = via_pcm_open_close,
-	},
-};
-
-static const struct hda_pcm_stream vt1718S_pcm_analog_capture = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	.nid = 0x10, /* NID to query formats and rates */
-	.ops = {
-		.open = via_pcm_open_close,
-		.prepare = via_capture_pcm_prepare,
-		.cleanup = via_capture_pcm_cleanup,
-		.close = via_pcm_open_close,
-	},
-};
-
-static const struct hda_pcm_stream vt1718S_pcm_digital_playback = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	/* NID is set in via_build_pcms */
-	.ops = {
-		.open = via_dig_playback_pcm_open,
-		.close = via_dig_playback_pcm_close,
-		.prepare = via_dig_playback_pcm_prepare,
-		.cleanup = via_dig_playback_pcm_cleanup
-	},
-};
-
-static const struct hda_pcm_stream vt1718S_pcm_digital_capture = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 2,
 };
 
 static int vt1718S_parse_auto_config(struct hda_codec *codec)
@@ -3913,13 +3644,6 @@ static int patch_vt1718S(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++] = vt1718S_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1718S_uniwill_init_verbs;
-
-	spec->stream_analog_playback = &vt1718S_pcm_analog_playback;
-	spec->stream_analog_capture = &vt1718S_pcm_analog_capture;
-
-	spec->stream_digital_playback = &vt1718S_pcm_digital_playback;
-	if (codec->vendor_id == 0x11060428 || codec->vendor_id == 0x11060441)
-		spec->stream_digital_capture = &vt1718S_pcm_digital_capture;
 
 	if (spec->adc_nids && spec->input_mux) {
 		override_mic_boost(codec, 0x2b, 0, 3, 40);
@@ -4083,45 +3807,6 @@ static const struct hda_verb vt1716S_uniwill_init_verbs[] = {
 	{0x1e, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{0x23, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
-};
-
-static const struct hda_pcm_stream vt1716S_pcm_analog_playback = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 6,
-	.nid = 0x10, /* NID to query formats and rates */
-	.ops = {
-		.open = via_playback_pcm_open,
-		.prepare = via_playback_multi_pcm_prepare,
-		.cleanup = via_playback_multi_pcm_cleanup,
-		.close = via_pcm_open_close,
-	},
-};
-
-static const struct hda_pcm_stream vt1716S_pcm_analog_capture = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	.nid = 0x13, /* NID to query formats and rates */
-	.ops = {
-		.open = via_pcm_open_close,
-		.prepare = via_capture_pcm_prepare,
-		.cleanup = via_capture_pcm_cleanup,
-		.close = via_pcm_open_close,
-	},
-};
-
-static const struct hda_pcm_stream vt1716S_pcm_digital_playback = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	/* NID is set in via_build_pcms */
-	.ops = {
-		.open = via_dig_playback_pcm_open,
-		.close = via_dig_playback_pcm_close,
-		.prepare = via_dig_playback_pcm_prepare,
-		.cleanup = via_dig_playback_pcm_cleanup
-	},
 };
 
 static int vt1716S_parse_auto_config(struct hda_codec *codec)
@@ -4294,11 +3979,6 @@ static int patch_vt1716S(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++]  = vt1716S_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1716S_uniwill_init_verbs;
-
-	spec->stream_analog_playback = &vt1716S_pcm_analog_playback;
-	spec->stream_analog_capture = &vt1716S_pcm_analog_capture;
-
-	spec->stream_digital_playback = &vt1716S_pcm_digital_playback;
 
 	if (spec->adc_nids && spec->input_mux) {
 		override_mic_boost(codec, 0x1a, 0, 3, 40);
@@ -4478,45 +4158,6 @@ static const struct hda_verb vt1802_uniwill_init_verbs[] = {
 	{0x2a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{0x2b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
-};
-
-static const struct hda_pcm_stream vt2002P_pcm_analog_playback = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	.nid = 0x8, /* NID to query formats and rates */
-	.ops = {
-		.open = via_playback_pcm_open,
-		.prepare = via_playback_multi_pcm_prepare,
-		.cleanup = via_playback_multi_pcm_cleanup,
-		.close = via_pcm_open_close,
-	},
-};
-
-static const struct hda_pcm_stream vt2002P_pcm_analog_capture = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	.nid = 0x10, /* NID to query formats and rates */
-	.ops = {
-		.open = via_pcm_open_close,
-		.prepare = via_capture_pcm_prepare,
-		.cleanup = via_capture_pcm_cleanup,
-		.close = via_pcm_open_close,
-	},
-};
-
-static const struct hda_pcm_stream vt2002P_pcm_digital_playback = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 2,
-	/* NID is set in via_build_pcms */
-	.ops = {
-		.open = via_dig_playback_pcm_open,
-		.close = via_dig_playback_pcm_close,
-		.prepare = via_dig_playback_pcm_prepare,
-		.cleanup = via_dig_playback_pcm_cleanup
-	},
 };
 
 static int vt2002P_parse_auto_config(struct hda_codec *codec)
@@ -4718,11 +4359,6 @@ static int patch_vt2002P(struct hda_codec *codec)
 		spec->init_verbs[spec->num_iverbs++] =
 			vt2002P_uniwill_init_verbs;
 
-	spec->stream_analog_playback = &vt2002P_pcm_analog_playback;
-	spec->stream_analog_capture = &vt2002P_pcm_analog_capture;
-
-	spec->stream_digital_playback = &vt2002P_pcm_digital_playback;
-
 	if (spec->adc_nids && spec->input_mux) {
 		override_mic_boost(codec, 0x2b, 0, 3, 40);
 		override_mic_boost(codec, 0x29, 0, 3, 40);
@@ -4831,45 +4467,6 @@ static const struct hda_verb vt1812_uniwill_init_verbs[] = {
 	{0x2a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{0x2b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
-};
-
-static const struct hda_pcm_stream vt1812_pcm_analog_playback = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	.nid = 0x8, /* NID to query formats and rates */
-	.ops = {
-		.open = via_playback_pcm_open,
-		.prepare = via_playback_multi_pcm_prepare,
-		.cleanup = via_playback_multi_pcm_cleanup,
-		.close = via_pcm_open_close,
-	},
-};
-
-static const struct hda_pcm_stream vt1812_pcm_analog_capture = {
-	.substreams = 2,
-	.channels_min = 2,
-	.channels_max = 2,
-	.nid = 0x10, /* NID to query formats and rates */
-	.ops = {
-		.open = via_pcm_open_close,
-		.prepare = via_capture_pcm_prepare,
-		.cleanup = via_capture_pcm_cleanup,
-		.close = via_pcm_open_close,
-	},
-};
-
-static const struct hda_pcm_stream vt1812_pcm_digital_playback = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 2,
-	/* NID is set in via_build_pcms */
-	.ops = {
-		.open = via_dig_playback_pcm_open,
-		.close = via_dig_playback_pcm_close,
-		.prepare = via_dig_playback_pcm_prepare,
-		.cleanup = via_dig_playback_pcm_cleanup
-	},
 };
 
 static int vt1812_parse_auto_config(struct hda_codec *codec)
@@ -5041,11 +4638,6 @@ static int patch_vt1812(struct hda_codec *codec)
 
 	spec->init_verbs[spec->num_iverbs++]  = vt1812_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1812_uniwill_init_verbs;
-
-	spec->stream_analog_playback = &vt1812_pcm_analog_playback;
-	spec->stream_analog_capture = &vt1812_pcm_analog_capture;
-
-	spec->stream_digital_playback = &vt1812_pcm_digital_playback;
 
 	if (spec->adc_nids && spec->input_mux) {
 		override_mic_boost(codec, 0x2b, 0, 3, 40);
