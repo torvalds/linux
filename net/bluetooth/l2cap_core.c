@@ -3966,7 +3966,7 @@ static inline int l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm, str
 	if (chan->state != BT_BOUND && chan->state != BT_CONNECTED)
 		goto drop;
 
-	if (l2cap_pi(sk)->chan->imtu < skb->len)
+	if (chan->imtu < skb->len)
 		goto drop;
 
 	if (!chan->ops->recv(chan->data, skb))
@@ -3999,7 +3999,7 @@ static inline int l2cap_att_channel(struct l2cap_conn *conn, __le16 cid, struct 
 	if (chan->state != BT_BOUND && chan->state != BT_CONNECTED)
 		goto drop;
 
-	if (l2cap_pi(sk)->chan->imtu < skb->len)
+	if (chan->imtu < skb->len)
 		goto drop;
 
 	if (!chan->ops->recv(chan->data, skb))
