@@ -2695,28 +2695,25 @@ static inline u32 evergreen_get_ih_wptr(struct radeon_device *rdev)
 
 int evergreen_irq_process(struct radeon_device *rdev)
 {
-	u32 wptr = evergreen_get_ih_wptr(rdev);
-	u32 rptr = rdev->ih.rptr;
+	u32 wptr;
+	u32 rptr;
 	u32 src_id, src_data;
 	u32 ring_index;
 	unsigned long flags;
 	bool queue_hotplug = false;
 
-	DRM_DEBUG("r600_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
-	if (!rdev->ih.enabled)
+	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
 
-	spin_lock_irqsave(&rdev->ih.lock, flags);
+	wptr = evergreen_get_ih_wptr(rdev);
+	rptr = rdev->ih.rptr;
+	DRM_DEBUG("r600_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
 
+	spin_lock_irqsave(&rdev->ih.lock, flags);
 	if (rptr == wptr) {
 		spin_unlock_irqrestore(&rdev->ih.lock, flags);
 		return IRQ_NONE;
 	}
-	if (rdev->shutdown) {
-		spin_unlock_irqrestore(&rdev->ih.lock, flags);
-		return IRQ_NONE;
-	}
-
 restart_ih:
 	/* display interrupts */
 	evergreen_irq_ack(rdev);
