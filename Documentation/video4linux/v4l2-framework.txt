@@ -817,11 +817,7 @@ int my_open(struct file *file)
 
 	...
 
-	ret = v4l2_fh_init(&my_fh->fh, vfd);
-	if (ret) {
-		kfree(my_fh);
-		return ret;
-	}
+	v4l2_fh_init(&my_fh->fh, vfd);
 
 	...
 
@@ -844,7 +840,7 @@ int my_release(struct file *file)
 
 Below is a short description of the v4l2_fh functions used:
 
-int v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev)
+void v4l2_fh_init(struct v4l2_fh *fh, struct video_device *vdev)
 
   Initialise the file handle. This *MUST* be performed in the driver's
   v4l2_file_operations->open() handler.
