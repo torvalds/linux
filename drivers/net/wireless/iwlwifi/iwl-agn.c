@@ -3496,6 +3496,7 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	priv->bus.priv = priv;
 	priv->bus.bus_specific = bus_specific;
 	priv->bus.ops = bus_ops;
+	priv->bus.irq = priv->bus.ops->get_irq(&priv->bus);
 	priv->bus.ops->set_drv_data(&priv->bus, priv);
 	priv->bus.dev = priv->bus.ops->get_dev(&priv->bus);
 
@@ -3603,11 +3604,10 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	 ********************/
 	iwl_alloc_isr_ict(priv);
 
-	err = request_irq(priv->bus.ops->get_irq(&priv->bus), iwl_isr_ict,
-			  IRQF_SHARED, DRV_NAME, priv);
+	err = request_irq(priv->bus.irq, iwl_isr_ict, IRQF_SHARED,
+			  DRV_NAME, priv);
 	if (err) {
-		IWL_ERR(priv, "Error allocating IRQ %d\n",
-			priv->bus.ops->get_irq(&priv->bus));
+		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->bus.irq);
 		goto out_uninit_drv;
 	}
 
@@ -3644,7 +3644,7 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
  out_destroy_workqueue:
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
-	free_irq(priv->bus.ops->get_irq(&priv->bus), priv);
+	free_irq(priv->bus.irq, priv);
 	iwl_free_isr_ict(priv);
  out_uninit_drv:
 	iwl_uninit_drv(priv);
@@ -3716,7 +3716,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	priv->workqueue = NULL;
 	iwl_free_traffic_mem(priv);
 
-	free_irq(priv->bus.ops->get_irq(&priv->bus), priv);
+	free_irq(priv->bus.irq, priv);
 	priv->bus.ops->set_drv_data(&priv->bus, NULL);
 
 	iwl_uninit_drv(priv);

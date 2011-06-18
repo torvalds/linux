@@ -1224,6 +1224,7 @@ struct iwl_bus {
 	struct iwl_priv *priv; /* driver's context */
 	struct device *dev;
 	struct iwl_bus_ops *ops;
+	unsigned int irq;
 };
 
 struct iwl_priv {
