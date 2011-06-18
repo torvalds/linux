@@ -370,15 +370,6 @@ config FORCEDETH
 	  To compile this driver as a module, choose M here. The module
 	  will be called forcedeth.
 
-config FEALNX
-	tristate "Myson MTD-8xx PCI Ethernet support"
-	depends on NET_PCI && PCI
-	select CRC32
-	select MII
-	help
-	  Say Y here to support the Myson MTD-800 family of PCI-based Ethernet 
-	  cards. <http://www.myson.com.tw/>
-
 config NET_POCKET
 	bool "Pocket and portable adapters"
 	depends on PARPORT

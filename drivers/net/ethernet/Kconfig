@@ -73,6 +73,16 @@ config MIPS_SIM_NET
 	  If you are not using a MIPSsim or are unsure, say N.
 
 source "drivers/net/ethernet/myricom/Kconfig"
+
+config FEALNX
+	tristate "Myson MTD-8xx PCI Ethernet support"
+	depends on PCI
+	select CRC32
+	select MII
+	---help---
+	  Say Y here to support the Myson MTD-800 family of PCI-based Ethernet
+	  cards. <http://www.myson.com.tw/>
+
 source "drivers/net/ethernet/natsemi/Kconfig"
 source "drivers/net/ethernet/8390/Kconfig"
 source "drivers/net/ethernet/nuvoton/Kconfig"
