@@ -113,6 +113,7 @@ static void __v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *e
 {
 	struct v4l2_subscribed_event *sev;
 	struct v4l2_kevent *kev;
+	bool copy_payload = true;
 
 	/* Are we subscribed? */
 	sev = v4l2_event_subscribed(fh, ev->type, ev->id);
@@ -130,12 +131,23 @@ static void __v4l2_event_queue_fh(struct v4l2_fh *fh, const struct v4l2_event *e
 		sev->in_use--;
 		sev->first = sev_pos(sev, 1);
 		fh->navailable--;
+		if (sev->elems == 1) {
+			if (sev->replace) {
+				sev->replace(&kev->event, ev);
+				copy_payload = false;
+			}
+		} else if (sev->merge) {
+			struct v4l2_kevent *second_oldest =
+				sev->events + sev_pos(sev, 0);
+			sev->merge(&kev->event, &second_oldest->event);
+		}
 	}
 
 	/* Take one and fill it. */
 	kev = sev->events + sev_pos(sev, sev->in_use);
 	kev->event.type = ev->type;
-	kev->event.u = ev->u;
+	if (copy_payload)
+		kev->event.u = ev->u;
 	kev->event.id = ev->id;
 	kev->event.timestamp = *ts;
 	kev->event.sequence = fh->sequence;
@@ -184,6 +196,19 @@ int v4l2_event_pending(struct v4l2_fh *fh)
 }
 EXPORT_SYMBOL_GPL(v4l2_event_pending);
 
+static void ctrls_replace(struct v4l2_event *old, const struct v4l2_event *new)
+{
+	u32 old_changes = old->u.ctrl.changes;
+
+	old->u.ctrl = new->u.ctrl;
+	old->u.ctrl.changes |= old_changes;
+}
+
+static void ctrls_merge(const struct v4l2_event *old, struct v4l2_event *new)
+{
+	new->u.ctrl.changes |= old->u.ctrl.changes;
+}
+
 int v4l2_event_subscribe(struct v4l2_fh *fh,
 			 struct v4l2_event_subscription *sub, unsigned elems)
 {
@@ -210,6 +235,10 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 	sev->flags = sub->flags;
 	sev->fh = fh;
 	sev->elems = elems;
+	if (ctrl) {
+		sev->replace = ctrls_replace;
+		sev->merge = ctrls_merge;
+	}
 
 	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
 	found_ev = v4l2_event_subscribed(fh, sub->type, sub->id);

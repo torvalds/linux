@@ -55,6 +55,12 @@ struct v4l2_subscribed_event {
 	struct v4l2_fh		*fh;
 	/* list node that hooks into the object's event list (if there is one) */
 	struct list_head	node;
+	/* Optional callback that can replace event 'old' with event 'new'. */
+	void			(*replace)(struct v4l2_event *old,
+					   const struct v4l2_event *new);
+	/* Optional callback that can merge event 'old' into event 'new'. */
+	void			(*merge)(const struct v4l2_event *old,
+					 struct v4l2_event *new);
 	/* the number of elements in the events array */
 	unsigned		elems;
 	/* the index of the events containing the oldest available event */
