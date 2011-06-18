@@ -40,6 +40,9 @@
 #define CP_FLAG_UNK0B                 ((0 * 32) + 0xb)
 #define CP_FLAG_UNK0B_CLEAR           0
 #define CP_FLAG_UNK0B_SET             1
+#define CP_FLAG_STATE                 ((0 * 32) + 0x1c)
+#define CP_FLAG_STATE_STOPPED         0
+#define CP_FLAG_STATE_RUNNING         1
 #define CP_FLAG_UNK1D                 ((0 * 32) + 0x1d)
 #define CP_FLAG_UNK1D_CLEAR           0
 #define CP_FLAG_UNK1D_SET             1
@@ -194,6 +197,8 @@ nv50_grctx_init(struct nouveau_grctx *ctx)
 				   "the devs.\n");
 		return -ENOSYS;
 	}
+
+	cp_set (ctx, STATE, RUNNING);
 	/* decide whether we're loading/unloading the context */
 	cp_bra (ctx, AUTO_SAVE, PENDING, cp_setup_save);
 	cp_bra (ctx, USER_SAVE, PENDING, cp_setup_save);
@@ -260,6 +265,7 @@ nv50_grctx_init(struct nouveau_grctx *ctx)
 	cp_name(ctx, cp_exit);
 	cp_set (ctx, USER_SAVE, NOT_PENDING);
 	cp_set (ctx, USER_LOAD, NOT_PENDING);
+	cp_set (ctx, STATE, STOPPED);
 	cp_out (ctx, CP_END);
 	ctx->ctxvals_pos += 0x400; /* padding... no idea why you need it */
 
