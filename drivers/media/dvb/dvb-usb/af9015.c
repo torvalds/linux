@@ -1089,44 +1089,11 @@ error:
 	return ret;
 }
 
-/* init 2nd I2C adapter */
-static int af9015_i2c_init(struct dvb_usb_device *d)
-{
-	int ret;
-	struct af9015_state *state = d->priv;
-	deb_info("%s:\n", __func__);
-
-	strncpy(state->i2c_adap.name, d->desc->name,
-		sizeof(state->i2c_adap.name));
-	state->i2c_adap.algo      = d->props.i2c_algo;
-	state->i2c_adap.algo_data = NULL;
-	state->i2c_adap.dev.parent = &d->udev->dev;
-
-	i2c_set_adapdata(&state->i2c_adap, d);
-
-	ret = i2c_add_adapter(&state->i2c_adap);
-	if (ret < 0)
-		err("could not add i2c adapter");
-
-	return ret;
-}
-
 static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
-	struct af9015_state *state = adap->dev->priv;
-	struct i2c_adapter *i2c_adap;
 
-	if (adap->id == 0) {
-		/* select I2C adapter */
-		i2c_adap = &adap->dev->i2c_adap;
-
-		deb_info("%s: init I2C\n", __func__);
-		ret = af9015_i2c_init(adap->dev);
-	} else {
-		/* select I2C adapter */
-		i2c_adap = &state->i2c_adap;
-
+	if (adap->id == 1) {
 		/* copy firmware to 2nd demodulator */
 		if (af9015_config.dual_mode) {
 			ret = af9015_copy_firmware(adap->dev);
@@ -1143,7 +1110,7 @@ static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 
 	/* attach demodulator */
 	adap->fe = dvb_attach(af9013_attach, &af9015_af9013_config[adap->id],
-		i2c_adap);
+		&adap->dev->i2c_adap);
 
 	return adap->fe == NULL ? -ENODEV : 0;
 }
@@ -1213,57 +1180,56 @@ static struct mxl5007t_config af9015_mxl5007t_config = {
 
 static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	struct af9015_state *state = adap->dev->priv;
-	struct i2c_adapter *i2c_adap;
 	int ret;
 	deb_info("%s:\n", __func__);
-
-	/* select I2C adapter */
-	if (adap->id == 0)
-		i2c_adap = &adap->dev->i2c_adap;
-	else
-		i2c_adap = &state->i2c_adap;
 
 	switch (af9015_af9013_config[adap->id].tuner) {
 	case AF9013_TUNER_MT2060:
 	case AF9013_TUNER_MT2060_2:
-		ret = dvb_attach(mt2060_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(mt2060_attach, adap->fe, &adap->dev->i2c_adap,
 			&af9015_mt2060_config,
 			af9015_config.mt2060_if1[adap->id])
 			== NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_QT1010:
 	case AF9013_TUNER_QT1010A:
-		ret = dvb_attach(qt1010_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap,
 			&af9015_qt1010_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_TDA18271:
-		ret = dvb_attach(tda18271_attach, adap->fe, 0xc0, i2c_adap,
+		ret = dvb_attach(tda18271_attach, adap->fe, 0xc0,
+			&adap->dev->i2c_adap,
 			&af9015_tda18271_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_TDA18218:
-		ret = dvb_attach(tda18218_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(tda18218_attach, adap->fe,
+			&adap->dev->i2c_adap,
 			&af9015_tda18218_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MXL5003D:
-		ret = dvb_attach(mxl5005s_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(mxl5005s_attach, adap->fe,
+			&adap->dev->i2c_adap,
 			&af9015_mxl5003_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MXL5005D:
 	case AF9013_TUNER_MXL5005R:
-		ret = dvb_attach(mxl5005s_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(mxl5005s_attach, adap->fe,
+			&adap->dev->i2c_adap,
 			&af9015_mxl5005_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_ENV77H11D5:
-		ret = dvb_attach(dvb_pll_attach, adap->fe, 0xc0, i2c_adap,
+		ret = dvb_attach(dvb_pll_attach, adap->fe, 0xc0,
+			&adap->dev->i2c_adap,
 			DVB_PLL_TDA665X) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MC44S803:
-		ret = dvb_attach(mc44s803_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(mc44s803_attach, adap->fe,
+			&adap->dev->i2c_adap,
 			&af9015_mc44s803_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MXL5007T:
-		ret = dvb_attach(mxl5007t_attach, adap->fe, i2c_adap,
+		ret = dvb_attach(mxl5007t_attach, adap->fe,
+			&adap->dev->i2c_adap,
 			0xc0, &af9015_mxl5007t_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_UNKNOWN:
@@ -1711,33 +1677,11 @@ static int af9015_usb_probe(struct usb_interface *intf,
 	return ret;
 }
 
-static void af9015_i2c_exit(struct dvb_usb_device *d)
-{
-	struct af9015_state *state = d->priv;
-	deb_info("%s:\n", __func__);
-
-	/* remove 2nd I2C adapter */
-	if (d->state & DVB_USB_STATE_I2C)
-		i2c_del_adapter(&state->i2c_adap);
-}
-
-static void af9015_usb_device_exit(struct usb_interface *intf)
-{
-	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	deb_info("%s:\n", __func__);
-
-	/* remove 2nd I2C adapter */
-	if (d != NULL && d->desc != NULL)
-		af9015_i2c_exit(d);
-
-	dvb_usb_device_exit(intf);
-}
-
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver af9015_usb_driver = {
 	.name = "dvb_usb_af9015",
 	.probe = af9015_usb_probe,
-	.disconnect = af9015_usb_device_exit,
+	.disconnect = dvb_usb_device_exit,
 	.id_table = af9015_usb_table,
 };
 
