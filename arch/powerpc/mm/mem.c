@@ -383,6 +383,25 @@ void __init mem_init(void)
 	mem_init_done = 1;
 }
 
+void free_initmem(void)
+{
+	unsigned long addr;
+
+	ppc_md.progress = NULL;
+
+	addr = (unsigned long)__init_begin;
+	for (; addr < (unsigned long)__init_end; addr += PAGE_SIZE) {
+		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
+		ClearPageReserved(virt_to_page(addr));
+		init_page_count(virt_to_page(addr));
+		free_page(addr);
+		totalram_pages++;
+	}
+	pr_info("Freeing unused kernel memory: %luk freed\n",
+		((unsigned long)__init_end -
+		(unsigned long)__init_begin) >> 10);
+}
+
 #ifdef CONFIG_BLK_DEV_INITRD
 void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
