@@ -716,10 +716,10 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* Physical address of this Tx command's header (not MAC header!),
 	 * within command buffer array. */
-	txcmd_phys = pci_map_single(priv->pci_dev,
+	txcmd_phys = dma_map_single(priv->bus.dev,
 				    &out_cmd->hdr, firstlen,
-				    PCI_DMA_BIDIRECTIONAL);
-	if (unlikely(pci_dma_mapping_error(priv->pci_dev, txcmd_phys)))
+				    DMA_BIDIRECTIONAL);
+	if (unlikely(dma_mapping_error(priv->bus.dev, txcmd_phys)))
 		goto drop_unlock_sta;
 	dma_unmap_addr_set(out_meta, mapping, txcmd_phys);
 	dma_unmap_len_set(out_meta, len, firstlen);
@@ -735,13 +735,13 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	 * if any (802.11 null frames have no payload). */
 	secondlen = skb->len - hdr_len;
 	if (secondlen > 0) {
-		phys_addr = pci_map_single(priv->pci_dev, skb->data + hdr_len,
-					   secondlen, PCI_DMA_TODEVICE);
-		if (unlikely(pci_dma_mapping_error(priv->pci_dev, phys_addr))) {
-			pci_unmap_single(priv->pci_dev,
+		phys_addr = dma_map_single(priv->bus.dev, skb->data + hdr_len,
+					   secondlen, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(priv->bus.dev, phys_addr))) {
+			dma_unmap_single(priv->bus.dev,
 					 dma_unmap_addr(out_meta, mapping),
 					 dma_unmap_len(out_meta, len),
-					 PCI_DMA_BIDIRECTIONAL);
+					 DMA_BIDIRECTIONAL);
 			goto drop_unlock_sta;
 		}
 	}
@@ -764,8 +764,8 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 				offsetof(struct iwl_tx_cmd, scratch);
 
 	/* take back ownership of DMA buffer to enable update */
-	pci_dma_sync_single_for_cpu(priv->pci_dev, txcmd_phys,
-				    firstlen, PCI_DMA_BIDIRECTIONAL);
+	dma_sync_single_for_cpu(priv->bus.dev, txcmd_phys, firstlen,
+			DMA_BIDIRECTIONAL);
 	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
 	tx_cmd->dram_msb_ptr = iwl_get_dma_hi_addr(scratch_phys);
 
@@ -780,8 +780,8 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		iwlagn_txq_update_byte_cnt_tbl(priv, txq,
 					       le16_to_cpu(tx_cmd->len));
 
-	pci_dma_sync_single_for_device(priv->pci_dev, txcmd_phys,
-				       firstlen, PCI_DMA_BIDIRECTIONAL);
+	dma_sync_single_for_device(priv->bus.dev, txcmd_phys, firstlen,
+			DMA_BIDIRECTIONAL);
 
 	trace_iwlwifi_dev_tx(priv,
 			     &((struct iwl_tfd *)txq->tfds)[txq->q.write_ptr],
@@ -848,8 +848,7 @@ static inline void iwlagn_free_dma_ptr(struct iwl_priv *priv,
 	if (unlikely(!ptr->addr))
 		return;
 
-	dma_free_coherent(priv->bus.dev,
-			  ptr->size, ptr->addr, ptr->dma);
+	dma_free_coherent(priv->bus.dev, ptr->size, ptr->addr, ptr->dma);
 	memset(ptr, 0, sizeof(*ptr));
 }
 
