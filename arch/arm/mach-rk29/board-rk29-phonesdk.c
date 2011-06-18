@@ -772,10 +772,11 @@ int wm831x_post_init(struct wm831x *parm)
 	regulator_put(ldo);
 
 	ldo = regulator_get(NULL, "ldo3");		//sram
-	regulator_set_voltage(ldo,1800000,1800000);
-	regulator_set_suspend_voltage(ldo,1800000);
-	regulator_enable(ldo);			
-	printk("%s set ldo3=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+        regulator_disable(ldo);
+//	regulator_set_voltage(ldo,1800000,1800000);
+//	regulator_set_suspend_voltage(ldo,1800000);
+//	regulator_enable(ldo);			
+//	printk("%s set ldo3=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
 	regulator_put(ldo);	
 
 	ldo = regulator_get(NULL, "ldo5");		//tf
@@ -793,17 +794,19 @@ int wm831x_post_init(struct wm831x *parm)
 	regulator_put(ldo);
 
 	ldo = regulator_get(NULL, "ldo8");		//cmmb
-	regulator_set_voltage(ldo,1200000,1200000);
-	regulator_set_suspend_voltage(ldo,1200000);
-	regulator_enable(ldo);			
-	printk("%s set ldo8=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+        regulator_disable(ldo);
+//	regulator_set_voltage(ldo,1200000,1200000);
+//	regulator_set_suspend_voltage(ldo,1200000);
+//	regulator_enable(ldo);			
+//	printk("%s set ldo8=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 
 	ldo = regulator_get(NULL, "ldo9");		//cmmb
-	regulator_set_voltage(ldo,3000000,3000000);
-	regulator_set_suspend_voltage(ldo,3000000);
-	regulator_enable(ldo);			
-	printk("%s set ldo9=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+        regulator_disable(ldo);
+//	regulator_set_voltage(ldo,3000000,3000000);
+//	regulator_set_suspend_voltage(ldo,3000000);
+//	regulator_enable(ldo);			
+//	printk("%s set ldo9=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	
 #endif
