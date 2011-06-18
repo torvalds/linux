@@ -30,7 +30,7 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nv04_fbcon.o nv50_fbcon.o nvc0_fbcon.o \
              nv10_gpio.o nv50_gpio.o \
 	     nv50_calc.o \
-	     nv04_pm.o nv50_pm.o nva3_pm.o \
+	     nv04_pm.o nv50_pm.o nva3_pm.o nvc0_pm.o \
 	     nv50_vram.o nvc0_vram.o \
 	     nv50_vm.o nvc0_vm.o
 
