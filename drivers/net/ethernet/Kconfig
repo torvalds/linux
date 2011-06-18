@@ -45,6 +45,13 @@ config JME
 	  To compile this driver as a module, choose M here. The module
 	  will be called jme.
 
+config KORINA
+	tristate "Korina (IDT RC32434) Ethernet support"
+	depends on MIKROTIK_RB532
+	---help---
+	  If you have a Mikrotik RouterBoard 500 or IDT RC32434
+	  based system say Y. Otherwise say N.
+
 source "drivers/net/ethernet/marvell/Kconfig"
 source "drivers/net/ethernet/mellanox/Kconfig"
 source "drivers/net/ethernet/micrel/Kconfig"
