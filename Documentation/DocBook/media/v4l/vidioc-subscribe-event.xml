@@ -100,7 +100,7 @@
 	    <entry><constant>V4L2_EVENT_VSYNC</constant></entry>
 	    <entry>1</entry>
 	    <entry>This event is triggered on the vertical sync.
-	    This event has &v4l2-event-vsync; associated with it.
+	    This event has a &v4l2-event-vsync; associated with it.
 	    </entry>
 	  </row>
 	  <row>
@@ -118,7 +118,7 @@
 		matches the control ID from which you want to receive events.
 		This event is triggered if the control's value changes, if a
 		button control is pressed or if the control's flags change.
-	    	This event has &v4l2-event-ctrl; associated with it. This struct
+	    	This event has a &v4l2-event-ctrl; associated with it. This struct
 		contains much of the same information as &v4l2-queryctrl; and
 		&v4l2-control;.
 
@@ -126,6 +126,13 @@
 		&VIDIOC-S-EXT-CTRLS;, then the event will not be sent to
 		the file handle that called the ioctl function. This prevents
 		nasty feedback loops.
+
+		This event type will ensure that no information is lost when
+		more events are raised than there is room internally. In that
+		case the &v4l2-event-ctrl; of the second-oldest event is kept,
+		but the <structfield>changes</structfield> field of the
+		second-oldest event is ORed with the <structfield>changes</structfield>
+		field of the oldest event.
 	    </entry>
 	  </row>
 	  <row>
@@ -147,8 +154,8 @@
 	    <entry>0x0001</entry>
 	    <entry>When this event is subscribed an initial event will be sent
 		containing the current status. This only makes sense for events
-		that are triggered by a status change. Other events will ignore
-		this flag.</entry>
+		that are triggered by a status change such as <constant>V4L2_EVENT_CTRL</constant>.
+		Other events will ignore this flag.</entry>
 	  </row>
 	</tbody>
       </tgroup>
