@@ -443,6 +443,7 @@ struct p1003_platform_data p1003_info = {
 };
 #endif
 
+
 #if defined(CONFIG_TOUCHSCREEN_GT801_IIC) 
 #include "../../../drivers/input/touchscreen/gt801_ts.h"
 #define GT801_GPIO_INT      RK29_PIN4_PD5
@@ -457,6 +458,28 @@ static struct gt801_platform_data gt801_info = {
 	.gpio_reset     = GT801_GPIO_RESET,
 	.gpio_reset_active_low = 0,
 	.gpio_pendown		= GT801_GPIO_INT,
+    .pendown_iomux_name = GPIO4D5_CPUTRACECTL_NAME,
+    .resetpin_iomux_name = NULL,
+    .pendown_iomux_mode = GPIO4H_GPIO4D5,
+    .resetpin_iomux_mode = 0,
+};
+#endif
+
+
+#if defined(CONFIG_TOUCHSCREEN_GT818_IIC)
+#include "../../../drivers/input/touchscreen/gt818_ts.h"
+#define GT818_GPIO_INT      RK29_PIN4_PD5
+#define GT818_GPIO_RESET    RK29_PIN6_PC3
+static struct gt818_platform_data gt818_info = {
+	.model			= 818,
+	.swap_xy		= 0,
+	.x_min			= 0,
+	.x_max			= 480,
+	.y_min			= 0,
+	.y_max			= 800,
+	.gpio_reset     = GT818_GPIO_RESET,
+	.gpio_reset_active_low = 0,
+	.gpio_pendown		= GT818_GPIO_INT,
     .pendown_iomux_name = GPIO4D5_CPUTRACECTL_NAME,
     .resetpin_iomux_name = NULL,
     .pendown_iomux_mode = GPIO4H_GPIO4D5,
@@ -1896,6 +1919,16 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 },	
 #endif
 
+#if defined (CONFIG_TOUCHSCREEN_GT818_IIC)
+{
+	.type           = "gt818_ts",
+	.addr           = 0x5d,
+	.flags          = 0,
+	.irq            = RK29_PIN4_PD5,
+	.platform_data = &gt818_info,
+},
+#endif
+
 #if defined (CONFIG_TOUCHSCREEN_ILI2102_IIC)
 {
 	.type           = "ili2102_ts",
@@ -2932,9 +2965,9 @@ static struct kobj_attribute rk29xx_virtual_keys_attr = {
 		.name = "virtualkeys.gt801-touchscreen",
 #elif defined(CONFIG_TOUCHSCREEN_ILI2102_IIC)
 		.name = "virtualkeys.ili2102-touchscreen",		
+#else
+		.name = "virtualkeys",
 #endif
-
-
 		.mode = S_IRUGO,
 	},
 	.show = &rk29xx_virtual_keys_show,
@@ -3037,7 +3070,7 @@ static void __init machine_rk29_board_init(void)
 	rk29sdk_init_wifi_mem();
 #endif
 
-	rk29xx_virtual_keys_init();
+//	rk29xx_virtual_keys_init();
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
