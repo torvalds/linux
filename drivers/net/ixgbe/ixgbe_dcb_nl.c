@@ -670,6 +670,22 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 	return err;
 }
 
+#ifdef IXGBE_FCOE
+static void ixgbe_dcbnl_devreset(struct net_device *dev)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+
+	if (netif_running(dev))
+		dev->netdev_ops->ndo_stop(dev);
+
+	ixgbe_clear_interrupt_scheme(adapter);
+	ixgbe_init_interrupt_scheme(adapter);
+
+	if (netif_running(dev))
+		dev->netdev_ops->ndo_open(dev);
+}
+#endif
+
 static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
 				   struct dcb_app *app)
 {
@@ -690,15 +706,34 @@ static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,
 			return err;
 
 		adapter->fcoe.up = app->priority;
+		ixgbe_dcbnl_devreset(dev);
+	}
+#endif
+	return 0;
+}
 
-		if (netif_running(dev))
-			dev->netdev_ops->ndo_stop(dev);
+static int ixgbe_dcbnl_ieee_delapp(struct net_device *dev,
+				   struct dcb_app *app)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	int err;
 
-		ixgbe_clear_interrupt_scheme(adapter);
-		ixgbe_init_interrupt_scheme(adapter);
+	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
+		return -EINVAL;
 
-		if (netif_running(dev))
-			dev->netdev_ops->ndo_open(dev);
+	err = dcb_ieee_delapp(dev, app);
+
+#ifdef IXGBE_FCOE
+	if (!err && app->selector == IEEE_8021QAZ_APP_SEL_ETHERTYPE &&
+	    app->protocol == ETH_P_FCOE) {
+		u8 app_mask = dcb_ieee_getapp_mask(dev, app);
+
+		if (app_mask & (1 << adapter->fcoe.up))
+			return err;
+
+		adapter->fcoe.up = app_mask ?
+				   ffs(app_mask) - 1 : IXGBE_FCOE_DEFTC;
+		ixgbe_dcbnl_devreset(dev);
 	}
 #endif
 	return err;
@@ -755,6 +790,7 @@ const struct dcbnl_rtnl_ops dcbnl_ops = {
 	.ieee_getpfc	= ixgbe_dcbnl_ieee_getpfc,
 	.ieee_setpfc	= ixgbe_dcbnl_ieee_setpfc,
 	.ieee_setapp	= ixgbe_dcbnl_ieee_setapp,
+	.ieee_delapp	= ixgbe_dcbnl_ieee_delapp,
 	.getstate	= ixgbe_dcbnl_get_state,
 	.setstate	= ixgbe_dcbnl_set_state,
 	.getpermhwaddr	= ixgbe_dcbnl_get_perm_hw_addr,
