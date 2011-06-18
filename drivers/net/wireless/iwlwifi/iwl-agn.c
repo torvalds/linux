@@ -440,10 +440,8 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 	if (!iwl_is_ready_rf(priv))
 		return;
 
-	if (priv->cfg->ops->lib->txfifo_flush) {
-		IWL_DEBUG_INFO(priv, "device request: flush all tx frames\n");
-		iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
-	}
+	IWL_DEBUG_INFO(priv, "device request: flush all tx frames\n");
+	iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
 }
 
 /**
@@ -3052,10 +3050,6 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	/* do not support "flush" */
-	if (!priv->cfg->ops->lib->txfifo_flush)
-		goto done;
-
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		IWL_DEBUG_TX(priv, "Aborting flush due to device shutdown\n");
 		goto done;
@@ -3071,7 +3065,7 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 	 */
 	if (drop) {
 		IWL_DEBUG_MAC80211(priv, "send flush command\n");
-		if (priv->cfg->ops->lib->txfifo_flush(priv, IWL_DROP_ALL)) {
+		if (iwlagn_txfifo_flush(priv, IWL_DROP_ALL)) {
 			IWL_ERR(priv, "flush request fail\n");
 			goto done;
 		}

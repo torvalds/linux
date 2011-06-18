@@ -142,10 +142,6 @@ struct iwl_lib_ops {
 
 	/* temperature */
 	struct iwl_temp_ops temp_ops;
-
-	int (*txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
-	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
-
 };
 
 /* NIC specific ops */

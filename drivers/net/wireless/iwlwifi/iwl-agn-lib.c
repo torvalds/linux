@@ -1546,7 +1546,7 @@ void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 {
 	mutex_lock(&priv->mutex);
 	ieee80211_stop_queues(priv->hw);
-	if (priv->cfg->ops->lib->txfifo_flush(priv, IWL_DROP_ALL)) {
+	if (iwlagn_txfifo_flush(priv, IWL_DROP_ALL)) {
 		IWL_ERR(priv, "flush request fail\n");
 		goto done;
 	}

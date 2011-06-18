@@ -361,8 +361,6 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.temp_ops = {
 		.temperature = iwlagn_temperature,
 	 },
-	.txfifo_flush = iwlagn_txfifo_flush,
-	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
 };
 
 static struct iwl_lib_ops iwl5150_lib = {
@@ -391,8 +389,6 @@ static struct iwl_lib_ops iwl5150_lib = {
 	.temp_ops = {
 		.temperature = iwl5150_temperature,
 	 },
-	.txfifo_flush = iwlagn_txfifo_flush,
-	.dev_txfifo_flush = iwlagn_dev_txfifo_flush,
 };
 
 static const struct iwl_ops iwl5000_ops = {
