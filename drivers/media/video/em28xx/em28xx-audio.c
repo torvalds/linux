@@ -464,6 +464,13 @@ static int em28xx_vol_put(struct snd_kcontrol *kcontrol,
 	val |= rc & 0x8000;	/* Preserve the mute flag */
 
 	rc = em28xx_write_ac97(dev, kcontrol->private_value, val);
+	if (rc < 0)
+		goto err;
+
+	dprintk("%sleft vol %d, right vol %d (0x%04x) to ac97 volume control 0x%04x\n",
+		(val & 0x8000) ? "muted " : "",
+		0x1f - ((val >> 8) & 0x1f), 0x1f - (val & 0x1f),
+		val, (int)kcontrol->private_value);
 
 err:
 	mutex_unlock(&dev->lock);
@@ -481,6 +488,11 @@ static int em28xx_vol_get(struct snd_kcontrol *kcontrol,
 	mutex_unlock(&dev->lock);
 	if (val < 0)
 		return val;
+
+	dprintk("%sleft vol %d, right vol %d (0x%04x) from ac97 volume control 0x%04x\n",
+		(val & 0x8000) ? "muted " : "",
+		0x1f - ((val >> 8) & 0x1f), 0x1f - (val & 0x1f),
+		val, (int)kcontrol->private_value);
 
 	value->value.integer.value[0] = 0x1f - (val & 0x1f);
 	value->value.integer.value[1] = 0x1f - ((val << 8) & 0x1f);
@@ -506,6 +518,13 @@ static int em28xx_vol_put_mute(struct snd_kcontrol *kcontrol,
 		rc |= 0x8000;
 
 	rc = em28xx_write_ac97(dev, kcontrol->private_value, rc);
+	if (rc < 0)
+		goto err;
+
+	dprintk("%sleft vol %d, right vol %d (0x%04x) to ac97 volume control 0x%04x\n",
+		(val & 0x8000) ? "muted " : "",
+		0x1f - ((val >> 8) & 0x1f), 0x1f - (val & 0x1f),
+		val, (int)kcontrol->private_value);
 
 err:
 	mutex_unlock(&dev->lock);
@@ -528,6 +547,11 @@ static int em28xx_vol_get_mute(struct snd_kcontrol *kcontrol,
 		value->value.integer.value[0] = 0;
 	else
 		value->value.integer.value[0] = 1;
+
+	dprintk("%sleft vol %d, right vol %d (0x%04x) from ac97 volume control 0x%04x\n",
+		(val & 0x8000) ? "muted " : "",
+		0x1f - ((val >> 8) & 0x1f), 0x1f - (val & 0x1f),
+		val, (int)kcontrol->private_value);
 
 	return 0;
 }
@@ -556,6 +580,8 @@ static int em28xx_cvol_new(struct snd_card *card, struct em28xx *dev,
 	err = snd_ctl_add(card, kctl);
 	if (err < 0)
 		return err;
+	dprintk("Added control %s for ac97 volume control 0x%04x\n",
+		ctl_name, id);
 
 	memset (&tmp, 0, sizeof(tmp));
 	tmp.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -572,6 +598,8 @@ static int em28xx_cvol_new(struct snd_card *card, struct em28xx *dev,
 	err = snd_ctl_add(card, kctl);
 	if (err < 0)
 		return err;
+	dprintk("Added control %s for ac97 volume control 0x%04x\n",
+		ctl_name, id);
 
 	return 0;
 }
