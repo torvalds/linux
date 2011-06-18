@@ -139,7 +139,7 @@
     </table>
 
     <table pgwide="1" frame="none" id="media-link-desc">
-      <title>struct <structname>media_links_desc</structname></title>
+      <title>struct <structname>media_link_desc</structname></title>
       <tgroup cols="3">
         &cs-str;
 	<tbody valign="top">

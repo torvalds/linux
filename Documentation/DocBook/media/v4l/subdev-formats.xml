@@ -2525,7 +2525,7 @@
 
       <para>Those data formats consist of an ordered sequence of 8-bit bytes
 	obtained from JPEG compression process. Additionally to the
-	<constant>_JPEG</constant> prefix the format code is made of
+	<constant>_JPEG</constant> postfix the format code is made of
 	the following information.
 	<itemizedlist>
 	  <listitem><para>The number of bus samples per entropy encoded byte.</para></listitem>
