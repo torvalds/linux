@@ -314,12 +314,12 @@ int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val)
 	return 0;
 }
 
-struct em28xx_vol_table {
+struct em28xx_vol_itable {
 	enum em28xx_amux mux;
 	u8		 reg;
 };
 
-static struct em28xx_vol_table inputs[] = {
+static struct em28xx_vol_itable inputs[] = {
 	{ EM28XX_AMUX_VIDEO, 	AC97_VIDEO_VOL   },
 	{ EM28XX_AMUX_LINE_IN,	AC97_LINEIN_VOL  },
 	{ EM28XX_AMUX_PHONE,	AC97_PHONE_VOL   },
@@ -403,7 +403,12 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 	return ret;
 }
 
-static const struct em28xx_vol_table outputs[] = {
+struct em28xx_vol_otable {
+	enum em28xx_aout mux;
+	u8		 reg;
+};
+
+static const struct em28xx_vol_otable outputs[] = {
 	{ EM28XX_AOUT_MASTER, AC97_MASTER_VOL      },
 	{ EM28XX_AOUT_LINE,   AC97_LINE_LEVEL_VOL  },
 	{ EM28XX_AOUT_MONO,   AC97_MASTER_MONO_VOL },
