@@ -1323,7 +1323,7 @@ F:	include/video/atmel_lcdc.h
 ATMEL MACB ETHERNET DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
-F:	drivers/net/macb.*
+F:	drivers/net/ethernet/cadence/
 
 ATMEL SPI DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>

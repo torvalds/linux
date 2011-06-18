@@ -63,9 +63,6 @@ obj-$(CONFIG_ETHOC) += ethoc.o
 obj-$(CONFIG_GRETH) += greth.o
 
 obj-$(CONFIG_DNET) += dnet.o
-obj-$(CONFIG_MACB) += macb.o
-
-obj-$(CONFIG_ARM) += arm/
 obj-$(CONFIG_DEV_APPLETALK) += appletalk/
 obj-$(CONFIG_ETHERNET) += ethernet/
 obj-$(CONFIG_TR) += tokenring/
