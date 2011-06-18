@@ -58,6 +58,7 @@ static int async_error;
 void device_pm_init(struct device *dev)
 {
 	dev->power.is_prepared = false;
+	dev->power.is_suspended = false;
 	init_completion(&dev->power.completion);
 	complete_all(&dev->power.completion);
 	dev->power.wakeup = NULL;
@@ -517,6 +518,9 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 	 */
 	dev->power.is_prepared = false;
 
+	if (!dev->power.is_suspended)
+		goto Unlock;
+
 	if (dev->pwr_domain) {
 		pm_dev_dbg(dev, state, "power domain ");
 		error = pm_op(dev, &dev->pwr_domain->ops, state);
@@ -552,6 +556,9 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 	}
 
  End:
+	dev->power.is_suspended = false;
+
+ Unlock:
 	device_unlock(dev);
 	complete_all(&dev->power.completion);
 
@@ -839,11 +846,11 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	device_lock(dev);
 
 	if (async_error)
-		goto End;
+		goto Unlock;
 
 	if (pm_wakeup_pending()) {
 		async_error = -EBUSY;
-		goto End;
+		goto Unlock;
 	}
 
 	if (dev->pwr_domain) {
@@ -881,6 +888,9 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	}
 
  End:
+	dev->power.is_suspended = !error;
+
+ Unlock:
 	device_unlock(dev);
 	complete_all(&dev->power.completion);
 
