@@ -918,11 +918,11 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 
 		bh_lock_sock(sk);
 
-		if (conn->hcon->type == LE_LINK)
+		if (conn->hcon->type == LE_LINK) {
 			if (smp_conn_security(conn, chan->sec_level))
 				l2cap_chan_ready(sk);
 
-		if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
+		} else if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
 			__clear_chan_timer(chan);
 			l2cap_state_change(chan, BT_CONNECTED);
 			sk->sk_state_change(sk);
