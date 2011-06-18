@@ -1074,6 +1074,7 @@ static const struct oxygen_model model_xonar_st = {
 	.device_config = PLAYBACK_0_TO_I2S |
 			 PLAYBACK_1_TO_SPDIF |
 			 CAPTURE_0_FROM_I2S_2 |
+			 CAPTURE_1_FROM_SPDIF |
 			 AC97_FMIC_SWITCH,
 	.dac_channels_pcm = 2,
 	.dac_channels_mixer = 2,
