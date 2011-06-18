@@ -292,6 +292,10 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 		}
 
 		if (num > i + 1 && (msg[i+1].flags & I2C_M_RD)) {
+			if (msg[i].len > 3 || msg[i+1].len > 61) {
+				ret = -EOPNOTSUPP;
+				goto error;
+			}
 			if (msg[i].addr ==
 				af9015_af9013_config[0].demod_address)
 				req.cmd = READ_MEMORY;
@@ -306,6 +310,10 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 			ret = af9015_ctrl_msg(d, &req);
 			i += 2;
 		} else if (msg[i].flags & I2C_M_RD) {
+			if (msg[i].len > 61) {
+				ret = -EOPNOTSUPP;
+				goto error;
+			}
 			if (msg[i].addr ==
 				af9015_af9013_config[0].demod_address) {
 				ret = -EINVAL;
@@ -321,6 +329,10 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 			ret = af9015_ctrl_msg(d, &req);
 			i += 1;
 		} else {
+			if (msg[i].len > 21) {
+				ret = -EOPNOTSUPP;
+				goto error;
+			}
 			if (msg[i].addr ==
 				af9015_af9013_config[0].demod_address)
 				req.cmd = WRITE_MEMORY;
