@@ -3,7 +3,6 @@ config VIDEO_EM28XX
 	depends on VIDEO_DEV && I2C
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
-	depends on RC_CORE
 	select VIDEOBUF_VMALLOC
 	select VIDEO_SAA711X if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TVP5150 if VIDEO_HELPER_CHIPS_AUTO
@@ -44,3 +43,12 @@ config VIDEO_EM28XX_DVB
 	---help---
 	  This adds support for DVB cards based on the
 	  Empiatech em28xx chips.
+
+config VIDEO_EM28XX_RC
+        bool "EM28XX Remote Controller support"
+        depends on RC_CORE
+        depends on VIDEO_EM28XX
+        depends on !(RC_CORE=m && VIDEO_EM28XX=y)
+        default y
+        ---help---
+          Enables Remote Controller support on em28xx driver.
