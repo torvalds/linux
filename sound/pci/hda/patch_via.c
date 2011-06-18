@@ -122,6 +122,7 @@ struct via_spec {
 	unsigned int num_iverbs;
 
 	char stream_name_analog[32];
+	char stream_name_hp[32];
 	const struct hda_pcm_stream *stream_analog_playback;
 	const struct hda_pcm_stream *stream_analog_capture;
 
@@ -1210,14 +1211,20 @@ static const struct hda_verb vt1708_volume_init_verbs[] = {
 	{ }
 };
 
+static void substream_set_idle(struct hda_codec *codec,
+			       struct snd_pcm_substream *substream)
+{
+	int idle = substream->pstr->substream_opened == 1
+		&& substream->ref_count == 0;
+	analog_low_current_mode(codec, idle);
+}
+
 static int via_playback_pcm_open(struct hda_pcm_stream *hinfo,
 				 struct hda_codec *codec,
 				 struct snd_pcm_substream *substream)
 {
 	struct via_spec *spec = codec->spec;
-	int idle = substream->pstr->substream_opened == 1
-		&& substream->ref_count == 0;
-	analog_low_current_mode(codec, idle);
+	substream_set_idle(codec, substream);
 	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream,
 					     hinfo);
 }
@@ -1226,17 +1233,29 @@ static int via_playback_pcm_close(struct hda_pcm_stream *hinfo,
 				  struct hda_codec *codec,
 				  struct snd_pcm_substream *substream)
 {
-	int idle = substream->pstr->substream_opened == 1
-		&& substream->ref_count == 0;
-
-	analog_low_current_mode(codec, idle);
+	substream_set_idle(codec, substream);
 	return 0;
 }
 
-static void playback_multi_pcm_prep_0(struct hda_codec *codec,
-				      unsigned int stream_tag,
-				      unsigned int format,
-				      struct snd_pcm_substream *substream)
+static int via_playback_hp_pcm_open(struct hda_pcm_stream *hinfo,
+				    struct hda_codec *codec,
+				    struct snd_pcm_substream *substream)
+{
+	struct via_spec *spec = codec->spec;
+	struct hda_multi_out *mout = &spec->multiout;
+
+	if (!mout->hp_nid || mout->hp_nid == mout->dac_nids[HDA_FRONT] ||
+	    !spec->hp_independent_mode)
+		return -EINVAL;
+	substream_set_idle(codec, substream);
+	return 0;
+}
+
+static int via_playback_multi_pcm_prepare(struct hda_pcm_stream *hinfo,
+					  struct hda_codec *codec,
+					  unsigned int stream_tag,
+					  unsigned int format,
+					  struct snd_pcm_substream *substream)
 {
 	struct via_spec *spec = codec->spec;
 	struct hda_multi_out *mout = &spec->multiout;
@@ -1301,27 +1320,20 @@ static void playback_multi_pcm_prep_0(struct hda_codec *codec,
 			snd_hda_codec_setup_stream(codec, nids[i], stream_tag,
 						   0, format);
 	}
+	vt1708_start_hp_work(spec);
+	return 0;
 }
 
-static int via_playback_multi_pcm_prepare(struct hda_pcm_stream *hinfo,
-					  struct hda_codec *codec,
-					  unsigned int stream_tag,
-					  unsigned int format,
-					  struct snd_pcm_substream *substream)
+static int via_playback_hp_pcm_prepare(struct hda_pcm_stream *hinfo,
+				       struct hda_codec *codec,
+				       unsigned int stream_tag,
+				       unsigned int format,
+				       struct snd_pcm_substream *substream)
 {
 	struct via_spec *spec = codec->spec;
 	struct hda_multi_out *mout = &spec->multiout;
-	const hda_nid_t *nids = mout->dac_nids;
 
-	if (substream->number == 0)
-		playback_multi_pcm_prep_0(codec, stream_tag, format,
-					  substream);
-	else {
-		if (mout->hp_nid && mout->hp_nid != nids[HDA_FRONT] &&
-		    spec->hp_independent_mode)
-			snd_hda_codec_setup_stream(codec, mout->hp_nid,
-						   stream_tag, 0, format);
-	}
+	snd_hda_codec_setup_stream(codec, mout->hp_nid, stream_tag, 0, format);
 	vt1708_start_hp_work(spec);
 	return 0;
 }
@@ -1335,33 +1347,38 @@ static int via_playback_multi_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	const hda_nid_t *nids = mout->dac_nids;
 	int i;
 
-	if (substream->number == 0) {
-		for (i = 0; i < mout->num_dacs; i++)
-			snd_hda_codec_setup_stream(codec, nids[i], 0, 0, 0);
+	for (i = 0; i < mout->num_dacs; i++)
+		snd_hda_codec_setup_stream(codec, nids[i], 0, 0, 0);
 
-		if (mout->hp_nid && !spec->hp_independent_mode)
-			snd_hda_codec_setup_stream(codec, mout->hp_nid,
-						   0, 0, 0);
+	if (mout->hp_nid && !spec->hp_independent_mode)
+		snd_hda_codec_setup_stream(codec, mout->hp_nid,
+					   0, 0, 0);
 
-		for (i = 0; i < ARRAY_SIZE(mout->extra_out_nid); i++)
-			if (mout->extra_out_nid[i])
-				snd_hda_codec_setup_stream(codec,
-							mout->extra_out_nid[i],
-							0, 0, 0);
-		mutex_lock(&codec->spdif_mutex);
-		if (mout->dig_out_nid &&
-		    mout->dig_out_used == HDA_DIG_ANALOG_DUP) {
-			snd_hda_codec_setup_stream(codec, mout->dig_out_nid,
+	for (i = 0; i < ARRAY_SIZE(mout->extra_out_nid); i++)
+		if (mout->extra_out_nid[i])
+			snd_hda_codec_setup_stream(codec,
+						   mout->extra_out_nid[i],
 						   0, 0, 0);
-			mout->dig_out_used = 0;
-		}
-		mutex_unlock(&codec->spdif_mutex);
-	} else {
-		if (mout->hp_nid && mout->hp_nid != nids[HDA_FRONT] &&
-		    spec->hp_independent_mode)
-			snd_hda_codec_setup_stream(codec, mout->hp_nid,
-						   0, 0, 0);
+	mutex_lock(&codec->spdif_mutex);
+	if (mout->dig_out_nid &&
+	    mout->dig_out_used == HDA_DIG_ANALOG_DUP) {
+		snd_hda_codec_setup_stream(codec, mout->dig_out_nid,
+					   0, 0, 0);
+		mout->dig_out_used = 0;
 	}
+	mutex_unlock(&codec->spdif_mutex);
+	vt1708_stop_hp_work(spec);
+	return 0;
+}
+
+static int via_playback_hp_pcm_cleanup(struct hda_pcm_stream *hinfo,
+				       struct hda_codec *codec,
+				       struct snd_pcm_substream *substream)
+{
+	struct via_spec *spec = codec->spec;
+	struct hda_multi_out *mout = &spec->multiout;
+
+	snd_hda_codec_setup_stream(codec, mout->hp_nid, 0, 0, 0);
 	vt1708_stop_hp_work(spec);
 	return 0;
 }
@@ -1431,7 +1448,7 @@ static int via_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 }
 
 static const struct hda_pcm_stream via_pcm_analog_playback = {
-	.substreams = 2, /* will be changed in via_build_pcms() */
+	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 8,
 	/* NID is set in via_build_pcms */
@@ -1443,8 +1460,21 @@ static const struct hda_pcm_stream via_pcm_analog_playback = {
 	},
 };
 
+static const struct hda_pcm_stream via_pcm_hp_playback = {
+	.substreams = 1,
+	.channels_min = 2,
+	.channels_max = 2,
+	/* NID is set in via_build_pcms */
+	.ops = {
+		.open = via_playback_hp_pcm_open,
+		.close = via_playback_pcm_close,
+		.prepare = via_playback_hp_pcm_prepare,
+		.cleanup = via_playback_hp_pcm_cleanup
+	},
+};
+
 static const struct hda_pcm_stream vt1708_pcm_analog_s16_playback = {
-	.substreams = 2, /* will be changed in via_build_pcms() */
+	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 8,
 	/* NID is set in via_build_pcms */
@@ -1462,7 +1492,7 @@ static const struct hda_pcm_stream vt1708_pcm_analog_s16_playback = {
 };
 
 static const struct hda_pcm_stream via_pcm_analog_capture = {
-	.substreams = 2, /* will be changed in via_build_pcms() */
+	.substreams = 1, /* will be changed in via_build_pcms() */
 	.channels_min = 2,
 	.channels_max = 2,
 	/* NID is set in via_build_pcms */
@@ -1577,8 +1607,6 @@ static int via_build_pcms(struct hda_codec *codec)
 		spec->multiout.dac_nids[0];
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
 		spec->multiout.max_channels;
-	if (!spec->multiout.hp_nid)
-		info->stream[SNDRV_PCM_STREAM_PLAYBACK].substreams = 1;
 
 	if (!spec->stream_analog_capture)
 		spec->stream_analog_capture = &via_pcm_analog_capture;
@@ -1616,6 +1644,16 @@ static int via_build_pcms(struct hda_codec *codec)
 		}
 	}
 
+	if (spec->multiout.hp_nid) {
+		codec->num_pcms++;
+		info++;
+		snprintf(spec->stream_name_hp, sizeof(spec->stream_name_hp),
+			 "%s HP", codec->chip_name);
+		info->name = spec->stream_name_hp;
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK] = via_pcm_hp_playback;
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid =
+			spec->multiout.hp_nid;
+	}
 	return 0;
 }
 
