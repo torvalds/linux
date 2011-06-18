@@ -387,7 +387,7 @@ void free_initmem(void)
 {
 	unsigned long addr;
 
-	ppc_md.progress = NULL;
+	ppc_md.progress = ppc_printk_progress;
 
 	addr = (unsigned long)__init_begin;
 	for (; addr < (unsigned long)__init_end; addr += PAGE_SIZE) {
