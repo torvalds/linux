@@ -833,6 +833,8 @@ extern bool nouveau_wait_eq(struct drm_device *, uint64_t timeout,
 			    uint32_t reg, uint32_t mask, uint32_t val);
 extern bool nouveau_wait_ne(struct drm_device *, uint64_t timeout,
 			    uint32_t reg, uint32_t mask, uint32_t val);
+extern bool nouveau_wait_cb(struct drm_device *, u64 timeout,
+			    bool (*cond)(void *), void *);
 extern bool nouveau_wait_for_idle(struct drm_device *);
 extern int  nouveau_card_init(struct drm_device *);
 
@@ -1457,6 +1459,8 @@ static inline void nv_wr08(struct drm_device *dev, unsigned reg, u8 val)
 	nouveau_wait_eq(dev, 2000000000ULL, (reg), (mask), (val))
 #define nv_wait_ne(dev, reg, mask, val) \
 	nouveau_wait_ne(dev, 2000000000ULL, (reg), (mask), (val))
+#define nv_wait_cb(dev, func, data) \
+	nouveau_wait_cb(dev, 2000000000ULL, (func), (data))
 
 /* PRAMIN access */
 static inline u32 nv_ri32(struct drm_device *dev, unsigned offset)

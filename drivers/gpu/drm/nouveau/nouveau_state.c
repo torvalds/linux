@@ -1200,6 +1200,23 @@ nouveau_wait_ne(struct drm_device *dev, uint64_t timeout,
 	return false;
 }
 
+/* Wait until cond(data) == true, up until timeout has hit */
+bool
+nouveau_wait_cb(struct drm_device *dev, u64 timeout,
+		bool (*cond)(void *), void *data)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
+	u64 start = ptimer->read(dev);
+
+	do {
+		if (cond(data) == true)
+			return true;
+	} while (ptimer->read(dev) - start < timeout);
+
+	return false;
+}
+
 /* Waits for PGRAPH to go completely idle */
 bool nouveau_wait_for_idle(struct drm_device *dev)
 {
