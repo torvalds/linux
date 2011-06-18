@@ -2325,14 +2325,13 @@ static const struct snd_kcontrol_new vt1708_jack_detect_ctl = {
 	.put = vt1708_jack_detect_put,
 };
 
-static int vt1708_parse_auto_config(struct hda_codec *codec)
+static void fill_dig_outs(struct hda_codec *codec);
+static void fill_dig_in(struct hda_codec *codec);
+
+static int via_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	int err;
-
-	/* Add HP and CD pin config connect bit re-config action */
-	vt1708_set_pinconfig_connect(codec, VT1708_HP_PIN_NID);
-	vt1708_set_pinconfig_connect(codec, VT1708_CD_PIN_NID);
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
@@ -2352,17 +2351,11 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
-	/* add jack detect on/off control */
-	if (!via_clone_control(spec, &vt1708_jack_detect_ctl))
-		return -ENOMEM;
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_outs)
-		spec->multiout.dig_out_nid = VT1708_DIGOUT_NID;
-	spec->dig_in_pin = VT1708_DIGIN_PIN;
-	if (spec->autocfg.dig_in_pin)
-		spec->dig_in_nid = VT1708_DIGIN_NID;
+	fill_dig_outs(codec);
+	fill_dig_in(codec);
 
 	if (spec->kctls.list)
 		spec->mixers[spec->num_mixers++] = spec->kctls.list;
@@ -2455,12 +2448,20 @@ static int patch_vt1708(struct hda_codec *codec)
 
 	spec->aa_mix_nid = 0x17;
 
+	/* Add HP and CD pin config connect bit re-config action */
+	vt1708_set_pinconfig_connect(codec, VT1708_HP_PIN_NID);
+	vt1708_set_pinconfig_connect(codec, VT1708_CD_PIN_NID);
+
 	/* automatic parse from the BIOS config */
-	err = vt1708_parse_auto_config(codec);
+	err = via_parse_auto_config(codec);
 	if (err < 0) {
 		via_free(codec);
 		return err;
 	}
+
+	/* add jack detect on/off control */
+	if (!via_clone_control(spec, &vt1708_jack_detect_ctl))
+		return -ENOMEM;
 
 	/* disable 32bit format on VT1708 */
 	if (codec->vendor_id == 0x11061708)
@@ -2525,53 +2526,6 @@ static const struct hda_verb vt1709_10ch_volume_init_verbs[] = {
 	{ }
 };
 
-static int vt1709_parse_auto_config(struct hda_codec *codec)
-{
-	struct via_spec *spec = codec->spec;
-	int err;
-
-	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
-	if (err < 0)
-		return err;
-	err = via_auto_fill_dac_nids(codec);
-	if (err < 0)
-		return err;
-	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
-		return -EINVAL;
-
-	err = via_auto_create_multi_out_ctls(codec);
-	if (err < 0)
-		return err;
-	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
-	if (err < 0)
-		return err;
-	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
-	if (err < 0)
-		return err;
-
-	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
-
-	if (spec->autocfg.dig_outs)
-		spec->multiout.dig_out_nid = VT1709_DIGOUT_NID;
-	spec->dig_in_pin = VT1709_DIGIN_PIN;
-	if (spec->autocfg.dig_in_pin)
-		spec->dig_in_nid = VT1709_DIGIN_NID;
-
-	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
-
-	spec->input_mux = &spec->private_imux[0];
-
-	if (spec->hp_mux)
-		via_hp_build(codec);
-
-	err = via_smart51_build(codec);
-	if (err < 0)
-		return err;
-
-	return 1;
-}
-
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static const struct hda_amp_list vt1709_loopbacks[] = {
 	{ 0x18, HDA_INPUT, 1 },
@@ -2594,7 +2548,7 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 
 	spec->aa_mix_nid = 0x18;
 
-	err = vt1709_parse_auto_config(codec);
+	err = via_parse_auto_config(codec);
 	if (err < 0) {
 		via_free(codec);
 		return err;
@@ -2668,7 +2622,7 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 
 	spec->aa_mix_nid = 0x18;
 
-	err = vt1709_parse_auto_config(codec);
+	err = via_parse_auto_config(codec);
 	if (err < 0) {
 		via_free(codec);
 		return err;
@@ -2772,53 +2726,6 @@ static const struct hda_verb vt1708B_uniwill_init_verbs[] = {
 	{0x23, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
-
-static int vt1708B_parse_auto_config(struct hda_codec *codec)
-{
-	struct via_spec *spec = codec->spec;
-	int err;
-
-	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
-	if (err < 0)
-		return err;
-	err = via_auto_fill_dac_nids(codec);
-	if (err < 0)
-		return err;
-	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
-		return -EINVAL;
-
-	err = via_auto_create_multi_out_ctls(codec);
-	if (err < 0)
-		return err;
-	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
-	if (err < 0)
-		return err;
-	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
-	if (err < 0)
-		return err;
-
-	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
-
-	if (spec->autocfg.dig_outs)
-		spec->multiout.dig_out_nid = VT1708B_DIGOUT_NID;
-	spec->dig_in_pin = VT1708B_DIGIN_PIN;
-	if (spec->autocfg.dig_in_pin)
-		spec->dig_in_nid = VT1708B_DIGIN_NID;
-
-	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
-
-	spec->input_mux = &spec->private_imux[0];
-
-	if (spec->hp_mux)
-		via_hp_build(codec);
-
-	err = via_smart51_build(codec);
-	if (err < 0)
-		return err;
-
-	return 1;
-}
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static const struct hda_amp_list vt1708B_loopbacks[] = {
@@ -2926,7 +2833,7 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 	spec->aa_mix_nid = 0x16;
 
 	/* automatic parse from the BIOS config */
-	err = vt1708B_parse_auto_config(codec);
+	err = via_parse_auto_config(codec);
 	if (err < 0) {
 		via_free(codec);
 		return err;
@@ -2959,7 +2866,7 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 		return -ENOMEM;
 
 	/* automatic parse from the BIOS config */
-	err = vt1708B_parse_auto_config(codec);
+	err = via_parse_auto_config(codec);
 	if (err < 0) {
 		via_free(codec);
 		return err;
@@ -3059,47 +2966,31 @@ static void fill_dig_outs(struct hda_codec *codec)
 	}
 }
 
-static int vt1708S_parse_auto_config(struct hda_codec *codec)
+static void fill_dig_in(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
-	int err;
+	hda_nid_t dig_nid;
+	int i, err;
 
-	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
-	if (err < 0)
-		return err;
-	err = via_auto_fill_dac_nids(codec);
-	if (err < 0)
-		return err;
-	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
-		return -EINVAL;
+	if (!spec->autocfg.dig_in_pin)
+		return;
 
-	err = via_auto_create_multi_out_ctls(codec);
-	if (err < 0)
-		return err;
-	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
-	if (err < 0)
-		return err;
-	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
-	if (err < 0)
-		return err;
-
-	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
-
-	fill_dig_outs(codec);
-
-	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
-
-	spec->input_mux = &spec->private_imux[0];
-
-	if (spec->hp_mux)
-		via_hp_build(codec);
-
-	err = via_smart51_build(codec);
-	if (err < 0)
-		return err;
-
-	return 1;
+	dig_nid = codec->start_nid;
+	for (i = 0; i < codec->num_nodes; i++, dig_nid++) {
+		unsigned int wcaps = get_wcaps(codec, dig_nid);
+		if (get_wcaps_type(wcaps) != AC_WID_AUD_IN)
+			continue;
+		if (!(wcaps & AC_WCAP_DIGITAL))
+			continue;
+		if (!(wcaps & AC_WCAP_CONN_LIST))
+			continue;
+		err = get_connection_index(codec, dig_nid,
+					   spec->autocfg.dig_in_pin);
+		if (err >= 0) {
+			spec->dig_in_nid = dig_nid;
+			break;
+		}
+	}
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -3137,7 +3028,7 @@ static int patch_vt1708S(struct hda_codec *codec)
 	override_mic_boost(codec, 0x1e, 0, 3, 40);
 
 	/* automatic parse from the BIOS config */
-	err = vt1708S_parse_auto_config(codec);
+	err = via_parse_auto_config(codec);
 	if (err < 0) {
 		via_free(codec);
 		return err;
@@ -3222,51 +3113,6 @@ static const struct hda_verb vt1702_uniwill_init_verbs[] = {
 	{ }
 };
 
-static int vt1702_parse_auto_config(struct hda_codec *codec)
-{
-	struct via_spec *spec = codec->spec;
-	int err;
-
-	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
-	if (err < 0)
-		return err;
-	err = via_auto_fill_dac_nids(codec);
-	if (err < 0)
-		return err;
-	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
-		return -EINVAL;
-
-	err = via_auto_create_multi_out_ctls(codec);
-	if (err < 0)
-		return err;
-	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
-	if (err < 0)
-		return err;
-	/* limit AA path volume to 0 dB */
-	snd_hda_override_amp_caps(codec, 0x1A, HDA_INPUT,
-				  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
-				  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
-				  (0x5 << AC_AMPCAP_STEP_SIZE_SHIFT) |
-				  (1 << AC_AMPCAP_MUTE_SHIFT));
-	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
-	if (err < 0)
-		return err;
-
-	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
-
-	fill_dig_outs(codec);
-
-	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
-
-	spec->input_mux = &spec->private_imux[0];
-
-	if (spec->hp_mux)
-		via_hp_build(codec);
-
-	return 1;
-}
-
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static const struct hda_amp_list vt1702_loopbacks[] = {
 	{ 0x1A, HDA_INPUT, 1 },
@@ -3320,8 +3166,15 @@ static int patch_vt1702(struct hda_codec *codec)
 
 	spec->aa_mix_nid = 0x1a;
 
+	/* limit AA path volume to 0 dB */
+	snd_hda_override_amp_caps(codec, 0x1A, HDA_INPUT,
+				  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+				  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+				  (0x5 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+				  (1 << AC_AMPCAP_MUTE_SHIFT));
+
 	/* automatic parse from the BIOS config */
-	err = vt1702_parse_auto_config(codec);
+	err = via_parse_auto_config(codec);
 	if (err < 0) {
 		via_free(codec);
 		return err;
@@ -3404,53 +3257,6 @@ static const struct hda_verb vt1718S_uniwill_init_verbs[] = {
 	{0x2b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
-
-static int vt1718S_parse_auto_config(struct hda_codec *codec)
-{
-	struct via_spec *spec = codec->spec;
-	int err;
-
-	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
-
-	if (err < 0)
-		return err;
-	err = via_auto_fill_dac_nids(codec);
-	if (err < 0)
-		return err;
-	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
-		return -EINVAL;
-
-	err = via_auto_create_multi_out_ctls(codec);
-	if (err < 0)
-		return err;
-	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
-	if (err < 0)
-		return err;
-	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
-	if (err < 0)
-		return err;
-
-	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
-
-	fill_dig_outs(codec);
-
-	if (spec->autocfg.dig_in_pin && codec->vendor_id == 0x11060428)
-		spec->dig_in_nid = 0x13;
-
-	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
-
-	spec->input_mux = &spec->private_imux[0];
-
-	if (spec->hp_mux)
-		via_hp_build(codec);
-
-	err = via_smart51_build(codec);
-	if (err < 0)
-		return err;
-
-	return 1;
-}
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static const struct hda_amp_list vt1718S_loopbacks[] = {
@@ -3543,7 +3349,7 @@ static int patch_vt1718S(struct hda_codec *codec)
 	override_mic_boost(codec, 0x29, 0, 3, 40);
 
 	/* automatic parse from the BIOS config */
-	err = vt1718S_parse_auto_config(codec);
+	err = via_parse_auto_config(codec);
 	if (err < 0) {
 		via_free(codec);
 		return err;
@@ -3689,49 +3495,6 @@ static const struct hda_verb vt1716S_uniwill_init_verbs[] = {
 	{ }
 };
 
-static int vt1716S_parse_auto_config(struct hda_codec *codec)
-{
-	struct via_spec *spec = codec->spec;
-	int err;
-
-	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
-	if (err < 0)
-		return err;
-	err = via_auto_fill_dac_nids(codec);
-	if (err < 0)
-		return err;
-	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
-		return -EINVAL;
-
-	err = via_auto_create_multi_out_ctls(codec);
-	if (err < 0)
-		return err;
-	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
-	if (err < 0)
-		return err;
-	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
-	if (err < 0)
-		return err;
-
-	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
-
-	fill_dig_outs(codec);
-
-	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
-
-	spec->input_mux = &spec->private_imux[0];
-
-	if (spec->hp_mux)
-		via_hp_build(codec);
-
-	err = via_smart51_build(codec);
-	if (err < 0)
-		return err;
-
-	return 1;
-}
-
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static const struct hda_amp_list vt1716S_loopbacks[] = {
 	{ 0x16, HDA_INPUT, 1 },
@@ -3850,7 +3613,7 @@ static int patch_vt1716S(struct hda_codec *codec)
 	override_mic_boost(codec, 0x1e, 0, 3, 40);
 
 	/* automatic parse from the BIOS config */
-	err = vt1716S_parse_auto_config(codec);
+	err = via_parse_auto_config(codec);
 	if (err < 0) {
 		via_free(codec);
 		return err;
@@ -4008,48 +3771,6 @@ static const struct hda_verb vt1802_uniwill_init_verbs[] = {
 	{ }
 };
 
-static int vt2002P_parse_auto_config(struct hda_codec *codec)
-{
-	struct via_spec *spec = codec->spec;
-	int err;
-
-
-	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
-	if (err < 0)
-		return err;
-
-	err = via_auto_fill_dac_nids(codec);
-	if (err < 0)
-		return err;
-
-	if (!spec->autocfg.line_outs && !spec->autocfg.hp_pins[0])
-		return -EINVAL;
-
-	err = via_auto_create_multi_out_ctls(codec);
-	if (err < 0)
-		return err;
-	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
-	if (err < 0)
-		return err;
-	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
-	if (err < 0)
-		return err;
-
-	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
-
-	fill_dig_outs(codec);
-
-	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
-
-	spec->input_mux = &spec->private_imux[0];
-
-	if (spec->hp_mux)
-		via_hp_build(codec);
-
-	return 1;
-}
-
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static const struct hda_amp_list vt2002P_loopbacks[] = {
 	{ 0x21, HDA_INPUT, 0 },
@@ -4186,7 +3907,7 @@ static int patch_vt2002P(struct hda_codec *codec)
 	override_mic_boost(codec, 0x29, 0, 3, 40);
 
 	/* automatic parse from the BIOS config */
-	err = vt2002P_parse_auto_config(codec);
+	err = via_parse_auto_config(codec);
 	if (err < 0) {
 		via_free(codec);
 		return err;
@@ -4285,48 +4006,6 @@ static const struct hda_verb vt1812_uniwill_init_verbs[] = {
 	{0x2b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
-
-static int vt1812_parse_auto_config(struct hda_codec *codec)
-{
-	struct via_spec *spec = codec->spec;
-	int err;
-
-
-	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
-	if (err < 0)
-		return err;
-	fill_dig_outs(codec);
-	err = via_auto_fill_dac_nids(codec);
-	if (err < 0)
-		return err;
-
-	if (!spec->autocfg.line_outs && !spec->autocfg.hp_outs)
-		return -EINVAL;
-
-	err = via_auto_create_multi_out_ctls(codec);
-	if (err < 0)
-		return err;
-	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
-	if (err < 0)
-		return err;
-	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
-	if (err < 0)
-		return err;
-
-	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
-
-	fill_dig_outs(codec);
-
-	if (spec->kctls.list)
-		spec->mixers[spec->num_mixers++] = spec->kctls.list;
-
-	spec->input_mux = &spec->private_imux[0];
-
-	if (spec->hp_mux)
-		via_hp_build(codec);
-
-	return 1;
-}
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static const struct hda_amp_list vt1812_loopbacks[] = {
@@ -4445,7 +4124,7 @@ static int patch_vt1812(struct hda_codec *codec)
 	override_mic_boost(codec, 0x29, 0, 3, 40);
 
 	/* automatic parse from the BIOS config */
-	err = vt1812_parse_auto_config(codec);
+	err = via_parse_auto_config(codec);
 	if (err < 0) {
 		via_free(codec);
 		return err;
