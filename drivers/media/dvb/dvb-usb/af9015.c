@@ -91,7 +91,6 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 	case GET_CONFIG:
 	case READ_MEMORY:
 	case RECONNECT_USB:
-	case GET_IR_CODE:
 		write = 0;
 		break;
 	case READ_I2C:
@@ -163,13 +162,6 @@ static int af9015_rw_udev(struct usb_device *udev, struct req_t *req)
 
 	deb_xfer("<<< ");
 	debug_dump(buf, act_len, deb_xfer);
-
-	/* remote controller query status is 1 if remote code is not received */
-	if (req->cmd == GET_IR_CODE && buf[1] == 1) {
-		buf[1] = 0; /* clear command "error" status */
-		memset(&buf[2], 0, req->data_len);
-		buf[3] = 1; /* no remote code received mark */
-	}
 
 	/* check status */
 	if (buf[1]) {
