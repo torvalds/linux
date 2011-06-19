@@ -728,6 +728,8 @@ static int temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (lp->tx_bd_tail >= TX_BD_NUM)
 		lp->tx_bd_tail = 0;
 
+	skb_tx_timestamp(skb);
+
 	/* Kick off the transfer */
 	lp->dma_out(lp, TX_TAILDESC_PTR, tail_p); /* DMA start */
 
@@ -773,7 +775,8 @@ static void ll_temac_recv(struct net_device *ndev)
 			skb->ip_summed = CHECKSUM_COMPLETE;
 		}
 
-		netif_rx(skb);
+		if (!skb_defer_rx_timestamp(skb))
+			netif_rx(skb);
 
 		ndev->stats.rx_packets++;
 		ndev->stats.rx_bytes += length;
