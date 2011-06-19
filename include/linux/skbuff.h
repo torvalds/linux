@@ -2023,8 +2023,7 @@ static inline void sw_tx_timestamp(struct sk_buff *skb)
  * skb_tx_timestamp() - Driver hook for transmit timestamping
  *
  * Ethernet MAC Drivers should call this function in their hard_xmit()
- * function as soon as possible after giving the sk_buff to the MAC
- * hardware, but before freeing the sk_buff.
+ * function immediately before giving the sk_buff to the MAC hardware.
  *
  * @skb: A socket buffer.
  */
