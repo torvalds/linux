@@ -1031,11 +1031,11 @@ static netdev_tx_t smsc9420_hard_start_xmit(struct sk_buff *skb,
 	pd->tx_ring[index].status = TDES0_OWN_;
 	wmb();
 
+	skb_tx_timestamp(skb);
+
 	/* kick the DMA */
 	smsc9420_reg_write(pd, TX_POLL_DEMAND, 1);
 	smsc9420_pci_flush_write(pd);
-
-	skb_tx_timestamp(skb);
 
 	return NETDEV_TX_OK;
 }
