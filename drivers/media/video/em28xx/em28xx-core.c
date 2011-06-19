@@ -286,6 +286,7 @@ int em28xx_read_ac97(struct em28xx *dev, u8 reg)
 		return ret;
 	return le16_to_cpu(val);
 }
+EXPORT_SYMBOL_GPL(em28xx_read_ac97);
 
 /*
  * em28xx_write_ac97()
@@ -313,6 +314,7 @@ int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(em28xx_write_ac97);
 
 struct em28xx_vol_itable {
 	enum em28xx_amux mux;
