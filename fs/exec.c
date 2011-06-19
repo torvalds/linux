@@ -1105,6 +1105,13 @@ out:
 }
 EXPORT_SYMBOL(flush_old_exec);
 
+void would_dump(struct linux_binprm *bprm, struct file *file)
+{
+	if (inode_permission(file->f_path.dentry->d_inode, MAY_READ) < 0)
+		bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
+}
+EXPORT_SYMBOL(would_dump);
+
 void setup_new_exec(struct linux_binprm * bprm)
 {
 	int i, ch;
@@ -1144,9 +1151,10 @@ void setup_new_exec(struct linux_binprm * bprm)
 	if (bprm->cred->uid != current_euid() ||
 	    bprm->cred->gid != current_egid()) {
 		current->pdeath_signal = 0;
-	} else if (file_permission(bprm->file, MAY_READ) ||
-		   bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP) {
-		set_dumpable(current->mm, suid_dumpable);
+	} else {
+		would_dump(bprm, bprm->file);
+		if (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP)
+			set_dumpable(current->mm, suid_dumpable);
 	}
 
 	/*
