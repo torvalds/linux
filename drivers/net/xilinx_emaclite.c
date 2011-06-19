@@ -648,7 +648,8 @@ static void xemaclite_rx_handler(struct net_device *dev)
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += len;
 
-	netif_rx(skb);		/* Send the packet upstream */
+	if (!skb_defer_rx_timestamp(skb))
+		netif_rx(skb);	/* Send the packet upstream */
 }
 
 /**
@@ -1030,14 +1031,18 @@ static int xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
 	spin_lock_irqsave(&lp->reset_lock, flags);
 	if (xemaclite_send_data(lp, (u8 *) new_skb->data, len) != 0) {
 		/* If the Emaclite Tx buffer is busy, stop the Tx queue and
-		 * defer the skb for transmission at a later point when the
+		 * defer the skb for transmission during the ISR, after the
 		 * current transmission is complete */
 		netif_stop_queue(dev);
 		lp->deferred_skb = new_skb;
+		/* Take the time stamp now, since we can't do this in an ISR. */
+		skb_tx_timestamp(new_skb);
 		spin_unlock_irqrestore(&lp->reset_lock, flags);
 		return 0;
 	}
 	spin_unlock_irqrestore(&lp->reset_lock, flags);
+
+	skb_tx_timestamp(new_skb);
 
 	dev->stats.tx_bytes += len;
 	dev_kfree_skb(new_skb);
