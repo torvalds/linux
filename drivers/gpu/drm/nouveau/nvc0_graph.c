@@ -709,7 +709,7 @@ nvc0_runk140_isr(struct drm_device *dev)
 		u32 st0 = nv_mask(dev, reg + 0x1020, 0, 0);
 		u32 st1 = nv_mask(dev, reg + 0x1420, 0, 0);
 
-		NV_INFO(dev, "PRUNK140: %d 0x%08x 0x%08x\n", unit, st0, st1);
+		NV_DEBUG(dev, "PRUNK140: %d 0x%08x 0x%08x\n", unit, st0, st1);
 		units &= ~(1 << unit);
 	}
 }
