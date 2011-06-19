@@ -35,11 +35,9 @@
 #if defined(MACH_ATARI_ONLY)
 	/* block out HSYNC on the atari */
 #define ALLOWINT	(~0x400)
-#define	MAX_NOINT_IPL	3
 #else
 	/* portable version */
 #define ALLOWINT	(~0x700)
-#define	MAX_NOINT_IPL	0
 #endif /* machine compilation types */
 
 #ifdef __ASSEMBLY__
