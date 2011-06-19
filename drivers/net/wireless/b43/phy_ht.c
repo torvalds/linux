@@ -59,6 +59,19 @@ static void b43_phy_ht_op_free(struct b43_wldev *dev)
 	phy->ht = NULL;
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/Radio/Switch%20Radio */
+static void b43_phy_ht_op_software_rfkill(struct b43_wldev *dev,
+					bool blocked)
+{
+	if (b43_read32(dev, B43_MMIO_MACCTL) & B43_MACCTL_ENABLED)
+		b43err(dev->wl, "MAC not suspended\n");
+
+	if (blocked) {
+		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, ~0);
+	} else {
+	}
+}
+
 static void b43_phy_ht_op_switch_analog(struct b43_wldev *dev, bool on)
 {
 	if (on) {
@@ -141,9 +154,7 @@ const struct b43_phy_operations b43_phyops_ht = {
 	.phy_maskset		= b43_phy_ht_op_maskset,
 	.radio_read		= b43_phy_ht_op_radio_read,
 	.radio_write		= b43_phy_ht_op_radio_write,
-	/*
 	.software_rfkill	= b43_phy_ht_op_software_rfkill,
-	*/
 	.switch_analog		= b43_phy_ht_op_switch_analog,
 	/*
 	.switch_channel		= b43_phy_ht_op_switch_channel,
