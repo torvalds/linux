@@ -210,7 +210,6 @@ struct myri10ge_priv {
 	int big_bytes;
 	int max_intr_slots;
 	struct net_device *dev;
-	spinlock_t stats_lock;
 	u8 __iomem *sram;
 	int sram_size;
 	unsigned long board_span;
@@ -1837,6 +1836,7 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	int i;
 
 	/* force stats update */
+	memset(&link_stats, 0, sizeof(link_stats));
 	(void)myri10ge_get_stats(netdev, &link_stats);
 	for (i = 0; i < MYRI10GE_NET_STATS_LEN; i++)
 		data[i] = ((u64 *)&link_stats)[i];
@@ -2981,12 +2981,10 @@ drop:
 static struct rtnl_link_stats64 *myri10ge_get_stats(struct net_device *dev,
 						    struct rtnl_link_stats64 *stats)
 {
-	struct myri10ge_priv *mgp = netdev_priv(dev);
-	struct myri10ge_slice_netstats *slice_stats;
+	const struct myri10ge_priv *mgp = netdev_priv(dev);
+	const struct myri10ge_slice_netstats *slice_stats;
 	int i;
 
-	spin_lock(&mgp->stats_lock);
-	memset(stats, 0, sizeof(*stats));
 	for (i = 0; i < mgp->num_slices; i++) {
 		slice_stats = &mgp->ss[i].stats;
 		stats->rx_packets += slice_stats->rx_packets;
@@ -2996,7 +2994,6 @@ static struct rtnl_link_stats64 *myri10ge_get_stats(struct net_device *dev,
 		stats->rx_dropped += slice_stats->rx_dropped;
 		stats->tx_dropped += slice_stats->tx_dropped;
 	}
-	spin_unlock(&mgp->stats_lock);
 	return stats;
 }
 
@@ -3966,7 +3963,6 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	setup_timer(&mgp->watchdog_timer, myri10ge_watchdog_timer,
 		    (unsigned long)mgp);
 
-	spin_lock_init(&mgp->stats_lock);
 	SET_ETHTOOL_OPS(netdev, &myri10ge_ethtool_ops);
 	INIT_WORK(&mgp->watchdog_work, myri10ge_watchdog);
 	status = register_netdev(netdev);
