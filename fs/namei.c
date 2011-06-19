@@ -303,6 +303,44 @@ int inode_permission(struct inode *inode, int mask)
 	return security_inode_permission(inode, mask);
 }
 
+/**
+ * exec_permission  -  check for right to do lookups in a given directory
+ * @inode:	inode to check permission on
+ * @flags:	IPERM_FLAG_ flags.
+ *
+ * Short-cut version of inode_permission(), for calling on directories
+ * during pathname resolution.  Combines parts of inode_permission()
+ * and generic_permission(), and tests ONLY for MAY_EXEC permission.
+ *
+ * If appropriate, check DAC only.  If not appropriate, or
+ * short-cut DAC fails, then call ->permission() to do more
+ * complete permission check.
+ */
+static inline int exec_permission(struct inode *inode, unsigned int flags)
+{
+	int ret;
+	struct user_namespace *ns = inode_userns(inode);
+
+	if (inode->i_op->permission) {
+		ret = inode->i_op->permission(inode, MAY_EXEC, flags);
+		if (likely(!ret))
+			goto ok;
+	} else {
+		ret = acl_permission_check(inode, MAY_EXEC, flags,
+				inode->i_op->check_acl);
+		if (likely(!ret))
+			goto ok;
+		if (ret != -EACCES)
+			return ret;
+		if (ns_capable(ns, CAP_DAC_OVERRIDE) ||
+				ns_capable(ns, CAP_DAC_READ_SEARCH))
+			goto ok;
+	}
+	return ret;
+ok:
+	return security_inode_exec_permission(inode, flags);
+}
+
 /*
  * get_write_access() gets write permission for a file.
  * put_write_access() releases this write permission.
@@ -549,40 +587,6 @@ static int complete_walk(struct nameidata *nd)
 
 	path_put(&nd->path);
 	return status;
-}
-
-/*
- * Short-cut version of permission(), for calling on directories
- * during pathname resolution.  Combines parts of permission()
- * and generic_permission(), and tests ONLY for MAY_EXEC permission.
- *
- * If appropriate, check DAC only.  If not appropriate, or
- * short-cut DAC fails, then call ->permission() to do more
- * complete permission check.
- */
-static inline int exec_permission(struct inode *inode, unsigned int flags)
-{
-	int ret;
-	struct user_namespace *ns = inode_userns(inode);
-
-	if (inode->i_op->permission) {
-		ret = inode->i_op->permission(inode, MAY_EXEC, flags);
-		if (likely(!ret))
-			goto ok;
-	} else {
-		ret = acl_permission_check(inode, MAY_EXEC, flags,
-				inode->i_op->check_acl);
-		if (likely(!ret))
-			goto ok;
-		if (ret != -EACCES)
-			return ret;
-		if (ns_capable(ns, CAP_DAC_OVERRIDE) ||
-				ns_capable(ns, CAP_DAC_READ_SEARCH))
-			goto ok;
-	}
-	return ret;
-ok:
-	return security_inode_exec_permission(inode, flags);
 }
 
 static __always_inline void set_root(struct nameidata *nd)
