@@ -263,13 +263,6 @@ enum {
 	VIA_CTL_WIDGET_BIND_PIN_MUTE,
 };
 
-enum {
-	AUTO_SEQ_FRONT = 0,
-	AUTO_SEQ_SURROUND,
-	AUTO_SEQ_CENLFE,
-	AUTO_SEQ_SIDE
-};
-
 static void analog_low_current_mode(struct hda_codec *codec, int stream_idle);
 static int is_aa_path_mute(struct hda_codec *codec);
 
@@ -528,7 +521,7 @@ static void via_auto_init_multi_out(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	int i;
 
-	for (i = 0; i <= AUTO_SEQ_SIDE; i++) {
+	for (i = 0; i <= HDA_SIDE; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
 		if (nid)
 			via_auto_set_output_and_unmute(codec, nid, PIN_OUT, i);
@@ -1839,7 +1832,7 @@ static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
 		dac = spec->multiout.dac_nids[i];
 		if (!pin || !dac)
 			continue;
-		if (i == AUTO_SEQ_CENLFE) {
+		if (i == HDA_CLFE) {
 			err = create_ch_ctls(codec, "Center", pin, dac, 1);
 			if (err < 0)
 				return err;
