@@ -24,6 +24,7 @@
 
 #include "b43.h"
 #include "phy_ht.h"
+#include "radio_2059.h"
 #include "main.h"
 
 /**************************************************

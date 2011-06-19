@@ -18,6 +18,12 @@
 #define B43_PHY_HT_AFE_CTL6			B43_PHY_EXTG(0x119)
 
 
+/* Values for PHY registers used on channel switching */
+struct b43_phy_ht_channeltab_e_phy {
+	/* TODO */
+};
+
+
 struct b43_phy_ht {
 };
 
