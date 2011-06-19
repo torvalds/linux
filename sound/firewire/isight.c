@@ -51,7 +51,6 @@ struct isight {
 	struct fw_unit *unit;
 	struct fw_device *device;
 	u64 audio_base;
-	struct fw_address_handler iris_handler;
 	struct snd_pcm_substream *pcm;
 	struct mutex mutex;
 	struct iso_packets_buffer buffer;
