@@ -336,6 +336,7 @@ static int mpc52xx_fec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	bd->skb_pa = dma_map_single(dev->dev.parent, skb->data, skb->len,
 				    DMA_TO_DEVICE);
 
+	skb_tx_timestamp(skb);
 	bcom_submit_next_buffer(priv->tx_dmatsk, skb);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -435,7 +436,8 @@ static irqreturn_t mpc52xx_fec_rx_interrupt(int irq, void *dev_id)
 		length = status & BCOM_FEC_RX_BD_LEN_MASK;
 		skb_put(rskb, length - 4);	/* length without CRC32 */
 		rskb->protocol = eth_type_trans(rskb, dev);
-		netif_rx(rskb);
+		if (!skb_defer_rx_timestamp(skb))
+			netif_rx(rskb);
 
 		spin_lock(&priv->lock);
 	}
