@@ -27,6 +27,49 @@
 #include "radio_2059.h"
 #include "main.h"
 
+static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
+			const struct b43_phy_ht_channeltab_e_radio2059 *e)
+{
+	/* TODO */
+}
+
+static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
+				const struct b43_phy_ht_channeltab_e_phy *e,
+				struct ieee80211_channel *new_channel)
+{
+	/* TODO */
+}
+
+static int b43_phy_ht_set_channel(struct b43_wldev *dev,
+				  struct ieee80211_channel *channel,
+				  enum nl80211_channel_type channel_type)
+{
+	struct b43_phy *phy = &dev->phy;
+
+	const struct b43_phy_ht_channeltab_e_radio2059 *chent_r2059 = NULL;
+
+	if (phy->radio_ver == 0x2059) {
+		chent_r2059 = b43_phy_ht_get_channeltab_e_r2059(dev,
+							channel->center_freq);
+		if (!chent_r2059)
+			return -ESRCH;
+	} else {
+		return -ESRCH;
+	}
+
+	/* TODO: In case of N-PHY some bandwidth switching goes here */
+
+	if (phy->radio_ver == 0x2059) {
+		b43_radio_2059_channel_setup(dev, chent_r2059);
+		b43_phy_ht_channel_setup(dev, &(chent_r2059->phy_regs),
+					 channel);
+	} else {
+		return -ESRCH;
+	}
+
+	return 0;
+}
+
 /**************************************************
  * Basic PHY ops.
  **************************************************/
@@ -96,6 +139,22 @@ static void b43_phy_ht_op_switch_analog(struct b43_wldev *dev, bool on)
 	}
 }
 
+static int b43_phy_ht_op_switch_channel(struct b43_wldev *dev,
+					unsigned int new_channel)
+{
+	struct ieee80211_channel *channel = dev->wl->hw->conf.channel;
+	enum nl80211_channel_type channel_type = dev->wl->hw->conf.channel_type;
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		if ((new_channel < 1) || (new_channel > 14))
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
+
+	return b43_phy_ht_set_channel(dev, channel, channel_type);
+}
+
 static unsigned int b43_phy_ht_op_get_default_chan(struct b43_wldev *dev)
 {
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
@@ -161,9 +220,7 @@ const struct b43_phy_operations b43_phyops_ht = {
 	.radio_write		= b43_phy_ht_op_radio_write,
 	.software_rfkill	= b43_phy_ht_op_software_rfkill,
 	.switch_analog		= b43_phy_ht_op_switch_analog,
-	/*
 	.switch_channel		= b43_phy_ht_op_switch_channel,
-	*/
 	.get_default_chan	= b43_phy_ht_op_get_default_chan,
 	/*
 	.recalc_txpower		= b43_phy_ht_op_recalc_txpower,
