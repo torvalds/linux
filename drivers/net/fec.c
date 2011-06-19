@@ -324,9 +324,9 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	fep->cur_tx = bdp;
 
-	spin_unlock_irqrestore(&fep->hw_lock, flags);
-
 	skb_tx_timestamp(skb);
+
+	spin_unlock_irqrestore(&fep->hw_lock, flags);
 
 	return NETDEV_TX_OK;
 }
