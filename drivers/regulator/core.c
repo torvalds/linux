@@ -81,6 +81,9 @@ struct regulator {
 	char *supply_name;
 	struct device_attribute dev_attr;
 	struct regulator_dev *rdev;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs;
+#endif
 };
 
 static int _regulator_is_enabled(struct regulator_dev *rdev);
@@ -1093,7 +1096,28 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 				  dev->kobj.name, err);
 			goto link_name_err;
 		}
+	} else {
+		regulator->supply_name = kstrdup(supply_name, GFP_KERNEL);
+		if (regulator->supply_name == NULL)
+			goto attr_err;
 	}
+
+#ifdef CONFIG_DEBUG_FS
+	regulator->debugfs = debugfs_create_dir(regulator->supply_name,
+						rdev->debugfs);
+	if (IS_ERR_OR_NULL(regulator->debugfs)) {
+		rdev_warn(rdev, "Failed to create debugfs directory\n");
+		regulator->debugfs = NULL;
+	} else {
+		debugfs_create_u32("uA_load", 0444, regulator->debugfs,
+				   &regulator->uA_load);
+		debugfs_create_u32("min_uV", 0444, regulator->debugfs,
+				   &regulator->min_uV);
+		debugfs_create_u32("max_uV", 0444, regulator->debugfs,
+				   &regulator->max_uV);
+	}
+#endif
+
 	mutex_unlock(&rdev->mutex);
 	return regulator;
 link_name_err:
@@ -1272,13 +1296,17 @@ void regulator_put(struct regulator *regulator)
 	mutex_lock(&regulator_list_mutex);
 	rdev = regulator->rdev;
 
+#ifdef CONFIG_DEBUG_FS
+	debugfs_remove_recursive(regulator->debugfs);
+#endif
+
 	/* remove any sysfs entries */
 	if (regulator->dev) {
 		sysfs_remove_link(&rdev->dev.kobj, regulator->supply_name);
-		kfree(regulator->supply_name);
 		device_remove_file(regulator->dev, &regulator->dev_attr);
 		kfree(regulator->dev_attr.attr.name);
 	}
+	kfree(regulator->supply_name);
 	list_del(&regulator->list);
 	kfree(regulator);
 
