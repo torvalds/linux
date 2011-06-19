@@ -16,6 +16,11 @@ config UEVENT_HELPER_PATH
 	  that it creates a high system load, or on smaller systems
 	  it is known to create out-of-memory situations during bootup.
 
+	  To disable user space helper program execution at early boot
+	  time specify an empty string here. This setting can be altered
+	  via /proc/sys/kernel/hotplug or via /sys/kernel/uevent_helper
+	  later at runtime.
+
 config DEVTMPFS
 	bool "Maintain a devtmpfs filesystem to mount at /dev"
 	depends on HOTPLUG
