@@ -2852,11 +2852,7 @@ static void rtl8192_init_priv_task(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-#ifdef PF_SYNCTHREAD
-	priv->priv_wq = create_workqueue(DRV_NAME,0);
-#else
 	priv->priv_wq = create_workqueue(DRV_NAME);
-#endif
 
 	INIT_WORK(&priv->reset_wq, rtl8192_restart);
 
