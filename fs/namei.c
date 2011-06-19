@@ -1554,7 +1554,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 			if (!S_ISDIR(dentry->d_inode->i_mode))
 				goto fput_fail;
 
-			retval = file_permission(file, MAY_EXEC);
+			retval = exec_permission(dentry->d_inode, 0);
 			if (retval)
 				goto fput_fail;
 		}
