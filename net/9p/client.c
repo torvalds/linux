@@ -750,7 +750,7 @@ static int p9_client_version(struct p9_client *c)
 	err = p9pdu_readf(req->rc, c->proto_version, "ds", &msize, &version);
 	if (err) {
 		P9_DPRINTK(P9_DEBUG_9P, "version error %d\n", err);
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto error;
 	}
 
@@ -912,7 +912,7 @@ struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", &qid);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		p9_free_req(clnt, req);
 		goto error;
 	}
@@ -972,7 +972,7 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, uint16_t nwname,
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "R", &nwqids, &wqids);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		p9_free_req(clnt, req);
 		goto clunk_fid;
 	}
@@ -1039,7 +1039,7 @@ int p9_client_open(struct p9_fid *fid, int mode)
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "Qd", &qid, &iounit);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto free_and_error;
 	}
 
@@ -1082,7 +1082,7 @@ int p9_client_create_dotl(struct p9_fid *ofid, char *name, u32 flags, u32 mode,
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "Qd", qid, &iounit);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto free_and_error;
 	}
 
@@ -1127,7 +1127,7 @@ int p9_client_fcreate(struct p9_fid *fid, char *name, u32 perm, int mode,
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "Qd", &qid, &iounit);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto free_and_error;
 	}
 
@@ -1166,7 +1166,7 @@ int p9_client_symlink(struct p9_fid *dfid, char *name, char *symtgt, gid_t gid,
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", qid);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto free_and_error;
 	}
 
@@ -1319,11 +1319,12 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "D", &count, &dataptr);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto free_and_error;
 	}
 
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RREAD count %d\n", count);
+	P9_DUMP_PKT(1, req->rc);
 
 	if (!req->tc->pbuf_size) {
 		if (data) {
@@ -1387,7 +1388,7 @@ p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "d", &count);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto free_and_error;
 	}
 
@@ -1427,7 +1428,7 @@ struct p9_wstat *p9_client_stat(struct p9_fid *fid)
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "wS", &ignored, ret);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		p9_free_req(clnt, req);
 		goto error;
 	}
@@ -1478,7 +1479,7 @@ struct p9_stat_dotl *p9_client_getattr_dotl(struct p9_fid *fid,
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "A", ret);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		p9_free_req(clnt, req);
 		goto error;
 	}
@@ -1626,7 +1627,7 @@ int p9_client_statfs(struct p9_fid *fid, struct p9_rstatfs *sb)
 		&sb->bsize, &sb->blocks, &sb->bfree, &sb->bavail,
 		&sb->files, &sb->ffree, &sb->fsid, &sb->namelen);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		p9_free_req(clnt, req);
 		goto error;
 	}
@@ -1702,7 +1703,7 @@ struct p9_fid *p9_client_xattrwalk(struct p9_fid *file_fid,
 	}
 	err = p9pdu_readf(req->rc, clnt->proto_version, "q", attr_size);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		p9_free_req(clnt, req);
 		goto clunk_fid;
 	}
@@ -1781,7 +1782,7 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "D", &count, &dataptr);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto free_and_error;
 	}
 
@@ -1818,7 +1819,7 @@ int p9_client_mknod_dotl(struct p9_fid *fid, char *name, int mode,
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", qid);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto error;
 	}
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RMKNOD qid %x.%llx.%x\n", qid->type,
@@ -1849,7 +1850,7 @@ int p9_client_mkdir_dotl(struct p9_fid *fid, char *name, int mode,
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", qid);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto error;
 	}
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RMKDIR qid %x.%llx.%x\n", qid->type,
@@ -1884,7 +1885,7 @@ int p9_client_lock_dotl(struct p9_fid *fid, struct p9_flock *flock, u8 *status)
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "b", status);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto error;
 	}
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RLOCK status %i\n", *status);
@@ -1917,7 +1918,7 @@ int p9_client_getlock_dotl(struct p9_fid *fid, struct p9_getlock *glock)
 			&glock->start, &glock->length, &glock->proc_id,
 			&glock->client_id);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto error;
 	}
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RGETLOCK type %i start %lld length %lld "
@@ -1945,7 +1946,7 @@ int p9_client_readlink(struct p9_fid *fid, char **target)
 
 	err = p9pdu_readf(req->rc, clnt->proto_version, "s", target);
 	if (err) {
-		p9pdu_dump(1, req->rc);
+		P9_DUMP_PKT(1, req->rc);
 		goto error;
 	}
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RREADLINK target %s\n", *target);

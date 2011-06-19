@@ -40,6 +40,7 @@
  * @P9_DEBUG_FID: fid allocation/deallocation tracking
  * @P9_DEBUG_PKT: packet marshalling/unmarshalling
  * @P9_DEBUG_FSC: FS-cache tracing
+ * @P9_DEBUG_VPKT: Verbose packet debugging (full packet dump)
  *
  * These flags are passed at mount time to turn on various levels of
  * verbosity and tracing which will be output to the system logs.
@@ -57,6 +58,7 @@ enum p9_debug_flags {
 	P9_DEBUG_FID =		(1<<9),
 	P9_DEBUG_PKT =		(1<<10),
 	P9_DEBUG_FSC =		(1<<11),
+	P9_DEBUG_VPKT =		(1<<12),
 };
 
 #ifdef CONFIG_NET_9P_DEBUG
@@ -74,9 +76,13 @@ do {  \
 	} \
 } while (0)
 
+#define P9_DUMP_PKT(way, pdu) p9pdu_dump(way, pdu)
+
 #else
 #define P9_DPRINTK(level, format, arg...)  do { } while (0)
+#define P9_DUMP_PKT(way, pdu) do { } while (0)
 #endif
+
 
 #define P9_EPRINTK(level, format, arg...) \
 do { \
