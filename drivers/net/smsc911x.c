@@ -1474,6 +1474,7 @@ static int smsc911x_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	pdata->ops->tx_writefifo(pdata, (unsigned int *)bufp, wrsz);
 	freespace -= (skb->len + 32);
+	skb_tx_timestamp(skb);
 	dev_kfree_skb(skb);
 
 	if (unlikely(smsc911x_tx_get_txstatcount(pdata) >= 30))
