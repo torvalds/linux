@@ -69,6 +69,10 @@ static void b43_phy_ht_op_software_rfkill(struct b43_wldev *dev,
 	if (blocked) {
 		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, ~0);
 	} else {
+		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, ~0);
+		b43_phy_maskset(dev, B43_PHY_HT_RF_CTL1, ~0, 0x1);
+		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, ~0);
+		b43_phy_maskset(dev, B43_PHY_HT_RF_CTL1, ~0, 0x2);
 	}
 }
 
