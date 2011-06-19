@@ -74,7 +74,7 @@ static struct notifier_block __cpuinitdata hotplug_cfd_notifier = {
 	.notifier_call		= hotplug_cfd,
 };
 
-static int __cpuinit init_call_single_data(void)
+void __init call_function_init(void)
 {
 	void *cpu = (void *)(long)smp_processor_id();
 	int i;
@@ -88,10 +88,7 @@ static int __cpuinit init_call_single_data(void)
 
 	hotplug_cfd(&hotplug_cfd_notifier, CPU_UP_PREPARE, cpu);
 	register_cpu_notifier(&hotplug_cfd_notifier);
-
-	return 0;
 }
-early_initcall(init_call_single_data);
 
 /*
  * csd_lock/csd_unlock used to serialize access to per-cpu csd resources
