@@ -452,8 +452,8 @@ static int em28xx_vol_put(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *value)
 {
 	struct em28xx *dev = snd_kcontrol_chip(kcontrol);
-	u16 val = (value->value.integer.value[0] & 0x1f) |
-		  (value->value.integer.value[1] & 0x1f) << 8;
+	u16 val = (0x1f - (value->value.integer.value[0] & 0x1f)) |
+		  (0x1f - (value->value.integer.value[1] & 0x1f)) << 8;
 	int rc;
 
 	mutex_lock(&dev->lock);
@@ -482,8 +482,8 @@ static int em28xx_vol_get(struct snd_kcontrol *kcontrol,
 	if (val < 0)
 		return val;
 
-	value->value.integer.value[0] = val & 0x1f;
-	value->value.integer.value[1] = (val << 8) & 0x1f;
+	value->value.integer.value[0] = 0x1f - (val & 0x1f);
+	value->value.integer.value[1] = 0x1f - ((val << 8) & 0x1f);
 
 	return 0;
 }
@@ -501,9 +501,9 @@ static int em28xx_vol_put_mute(struct snd_kcontrol *kcontrol,
 		goto err;
 
 	if (val)
-		rc |= 0x8000;
+		rc &= 0x1f1f;
 	else
-		rc &= 0x7f7f;
+		rc |= 0x8000;
 
 	rc = em28xx_write_ac97(dev, kcontrol->private_value, rc);
 
@@ -525,9 +525,9 @@ static int em28xx_vol_get_mute(struct snd_kcontrol *kcontrol,
 		return val;
 
 	if (val & 0x8000)
-		value->value.integer.value[0] = 1;
-	else
 		value->value.integer.value[0] = 0;
+	else
+		value->value.integer.value[0] = 1;
 
 	return 0;
 }
