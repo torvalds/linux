@@ -640,8 +640,7 @@ static int eucr_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	/* Start up the thread for delayed SCSI-device scanning */
 	th = kthread_create(usb_stor_scan_thread, us, "eucr-stor-scan");
-	if (IS_ERR(th))
-	{
+	if (IS_ERR(th)) {
 		pr_info("Unable to start the device-scanning thread\n");
 		complete(&us->scanning_done);
 		quiesce_and_remove_host(us);
