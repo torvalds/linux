@@ -122,6 +122,7 @@ bool skb_defer_rx_timestamp(struct sk_buff *skb)
 
 	return false;
 }
+EXPORT_SYMBOL_GPL(skb_defer_rx_timestamp);
 
 void __init skb_timestamping_init(void)
 {
