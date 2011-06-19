@@ -697,6 +697,8 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		sc |= BD_ENET_TX_PAD;
 	CBDS_SC(bdp, sc);
 
+	skb_tx_timestamp(skb);
+
 	(*fep->ops->tx_kickstart)(dev);
 
 	spin_unlock_irqrestore(&fep->tx_lock, flags);
