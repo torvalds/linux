@@ -3372,7 +3372,7 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 	int def_op_bytes, def_ad_bytes, goffset, simd_prefix;
 	bool op_prefix = false;
 	struct opcode opcode;
-	struct operand memop = { .type = OP_NONE };
+	struct operand memop = { .type = OP_NONE }, *memopp = NULL;
 
 	c->eip = ctxt->eip;
 	c->fetch.start = c->eip;
@@ -3547,9 +3547,6 @@ done_prefixes:
 	if (memop.type == OP_MEM && c->ad_bytes != 8)
 		memop.addr.mem.ea = (u32)memop.addr.mem.ea;
 
-	if (memop.type == OP_MEM && c->rip_relative)
-		memop.addr.mem.ea += c->eip;
-
 	/*
 	 * Decode and fetch the source operand: register, memory
 	 * or immediate.
@@ -3571,6 +3568,7 @@ done_prefixes:
 							   c->op_bytes;
 	srcmem_common:
 		c->src = memop;
+		memopp = &c->src;
 		break;
 	case SrcImmU16:
 		rc = decode_imm(ctxt, &c->src, 2, false);
@@ -3667,6 +3665,7 @@ done_prefixes:
 	case DstMem:
 	case DstMem64:
 		c->dst = memop;
+		memopp = &c->dst;
 		if ((c->d & DstMask) == DstMem64)
 			c->dst.bytes = 8;
 		else
@@ -3700,10 +3699,13 @@ done_prefixes:
 		/* Special instructions do their own operand decoding. */
 	default:
 		c->dst.type = OP_NONE; /* Disable writeback. */
-		return 0;
+		break;
 	}
 
 done:
+	if (memopp && memopp->type == OP_MEM && c->rip_relative)
+		memopp->addr.mem.ea += c->eip;
+
 	return (rc == X86EMUL_UNHANDLEABLE) ? EMULATION_FAILED : EMULATION_OK;
 }
 
