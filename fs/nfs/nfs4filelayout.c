@@ -30,6 +30,7 @@
  */
 
 #include <linux/nfs_fs.h>
+#include <linux/nfs_page.h>
 
 #include "internal.h"
 #include "nfs4filelayout.h"
@@ -666,8 +667,9 @@ filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 	u64 p_stripe, r_stripe;
 	u32 stripe_unit;
 
-	if (!pnfs_generic_pg_test(pgio, prev, req))
-		return 0;
+	if (!pnfs_generic_pg_test(pgio, prev, req) ||
+	    !nfs_generic_pg_test(pgio, prev, req))
+		return false;
 
 	if (!pgio->pg_lseg)
 		return 1;
