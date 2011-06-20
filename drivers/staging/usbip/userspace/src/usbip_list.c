@@ -45,7 +45,7 @@ void usbip_list_usage(void)
 	printf("usage: %s", usbip_list_usage_string);
 }
 
-static int get_exported_devices(int sockfd)
+static int get_exported_devices(char *host, int sockfd)
 {
 	char product_name[100];
 	char class_name[100];
@@ -76,6 +76,15 @@ static int get_exported_devices(int sockfd)
 	}
 	PACK_OP_DEVLIST_REPLY(0, &reply);
 	dbg("exportable devices: %d\n", reply.ndev);
+
+	if (reply.ndev == 0) {
+		info("no exportable devices found on %s", host);
+		return 0;
+	}
+
+	printf("Exportable USB devices\n");
+	printf("======================\n");
+	printf(" - %s\n", host);
 
 	for (i = 0; i < reply.ndev; i++) {
 		memset(&udev, 0, sizeof(udev));
@@ -128,11 +137,7 @@ static int list_exported_devices(char *host)
 	}
 	dbg("connected to %s:%s", host, USBIP_PORT_STRING);
 
-	printf("Exportable USB devices\n");
-	printf("======================\n");
-	printf(" - %s\n", host);
-
-	rc = get_exported_devices(sockfd);
+	rc = get_exported_devices(host, sockfd);
 	if (rc < 0) {
 		err("failed to get device list from %s", host);
 		return -1;
