@@ -14,6 +14,7 @@ config VIDEO_MMP_CAMERA
 	select VIDEO_OV7670
 	select I2C_GPIO
 	select VIDEOBUF2_VMALLOC
+	select VIDEOBUF2_DMA_CONTIG
 	---help---
 	  This is a Video4Linux2 driver for the integrated camera
 	  controller found on Marvell Armada 610 application

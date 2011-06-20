@@ -180,6 +180,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	mcam->dev = &pdev->dev;
 	mcam->use_smbus = 0;
 	mcam->chip_id = V4L2_IDENT_ARMADA610;
+	mcam->buffer_mode = B_vmalloc;  /* Switch to dma */
 	spin_lock_init(&mcam->dev_lock);
 	/*
 	 * Get our I/O memory.

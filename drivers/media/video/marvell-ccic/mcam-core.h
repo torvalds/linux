@@ -27,9 +27,19 @@ enum mcam_state {
 	S_NOTREADY,	/* Not yet initialized */
 	S_IDLE,		/* Just hanging around */
 	S_FLAKED,	/* Some sort of problem */
-	S_STREAMING	/* Streaming data */
+	S_STREAMING,	/* Streaming data */
+	S_BUFWAIT	/* streaming requested but no buffers yet */
 };
 #define MAX_DMA_BUFS 3
+
+/*
+ * Different platforms work best with different buffer modes, so we
+ * let the platform pick.
+ */
+enum mcam_buffer_mode {
+	B_vmalloc = 0,
+	B_DMA_contig
+};
 
 /*
  * A description of one of our devices.
@@ -49,7 +59,7 @@ struct mcam_camera {
 	unsigned int chip_id;
 	short int clock_speed;	/* Sensor clock speed, default 30 */
 	short int use_smbus;	/* SMBUS or straight I2c? */
-
+	enum mcam_buffer_mode buffer_mode;
 	/*
 	 * Callbacks from the core to the platform code.
 	 */
@@ -79,7 +89,7 @@ struct mcam_camera {
 	struct vb2_queue vb_queue;
 	struct list_head buffers;	/* Available frames */
 
-	/* DMA buffers */
+	/* DMA buffers - vmalloc mode */
 	unsigned int nbufs;		/* How many are alloc'd */
 	int next_buf;			/* Next to consume (dev_lock) */
 	unsigned int dma_buf_size;	/* allocated size */
@@ -87,6 +97,11 @@ struct mcam_camera {
 	dma_addr_t dma_handles[MAX_DMA_BUFS]; /* Buffer bus addresses */
 	unsigned int sequence;		/* Frame sequence number */
 	unsigned int buf_seq[MAX_DMA_BUFS]; /* Sequence for individual bufs */
+
+	/* DMA buffers - contiguous DMA mode */
+	struct mcam_vb_buffer *vb_bufs[MAX_DMA_BUFS];
+	struct vb2_alloc_ctx *vb_alloc_ctx;
+	unsigned short last_delivered;
 
 	struct tasklet_struct s_tasklet;
 

@@ -482,6 +482,12 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	mcam->clock_speed = 45;
 	mcam->use_smbus = 1;
 	/*
+	 * Vmalloc mode for buffers is traditional with this driver.
+	 * We *might* be able to run DMA_contig, especially on a system
+	 * with CMA in it.
+	 */
+	mcam->buffer_mode = B_vmalloc;
+	/*
 	 * Get set up on the PCI bus.
 	 */
 	ret = pci_enable_device(pdev);
