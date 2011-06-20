@@ -24,7 +24,7 @@
 #include <linux/gpio.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
-#include <plat/sdhci.h>
+#include <linux/platform_data/pxa_sdhci.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include "sdhci.h"

@@ -1,4 +1,5 @@
-/* linux/arch/arm/plat-pxa/include/plat/sdhci.h
+/*
+ * include/linux/platform_data/pxa_sdhci.h
  *
  * Copyright 2010 Marvell
  *	Zhangfei Gao <zhangfei.gao@marvell.com>
@@ -10,8 +11,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __PLAT_PXA_SDHCI_H
-#define __PLAT_PXA_SDHCI_H
+#ifndef _PXA_SDHCI_H_
+#define _PXA_SDHCI_H_
 
 /* pxa specific flag */
 /* Require clock free running */
@@ -56,5 +57,4 @@ struct sdhci_pxa {
 	u8	clk_enable;
 	u8	power_mode;
 };
-
-#endif /* __PLAT_PXA_SDHCI_H */
+#endif /* _PXA_SDHCI_H_ */
