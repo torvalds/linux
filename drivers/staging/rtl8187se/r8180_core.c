@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/syscalls.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/interrupt.h>
 
 #include "r8180_hw.h"
 #include "r8180.h"

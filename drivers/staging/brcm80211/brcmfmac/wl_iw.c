@@ -18,6 +18,7 @@
 #include <linux/semaphore.h>
 #include <bcmdefs.h>
 #include <linux/netdevice.h>
+#include <linux/hardirq.h>
 #include <wlioctl.h>
 
 #include <bcmutils.h>

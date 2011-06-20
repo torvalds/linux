@@ -31,6 +31,8 @@
 #include <linux/fcntl.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
+#include <linux/interrupt.h>
+#include <linux/hardirq.h>
 #include <bcmdefs.h>
 #include <bcmutils.h>
 
