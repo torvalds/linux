@@ -4462,6 +4462,19 @@ static int vt1718S_auto_create_multi_out_ctls(struct via_spec *spec,
 			if (err < 0)
 				return err;
 		} else if (i == AUTO_SEQ_FRONT) {
+			/* add control to mixer index 0 */
+			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
+					      "Master Front Playback Volume",
+					      HDA_COMPOSE_AMP_VAL(0x21, 3, 5,
+								  HDA_INPUT));
+			if (err < 0)
+				return err;
+			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
+					      "Master Front Playback Switch",
+					      HDA_COMPOSE_AMP_VAL(0x21, 3, 5,
+								  HDA_INPUT));
+			if (err < 0)
+				return err;
 			/* Front */
 			sprintf(name, "%s Playback Volume", chname[i]);
 			err = via_add_control(
