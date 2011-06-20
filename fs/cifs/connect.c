@@ -2937,7 +2937,11 @@ int cifs_setup_volume_info(struct smb_vol **pvolume_info, char *mount_data,
 
 	if (volume_info->nullauth) {
 		cFYI(1, "null user");
-		volume_info->username = "";
+		volume_info->username = kzalloc(1, GFP_KERNEL);
+		if (volume_info->username == NULL) {
+			rc = -ENOMEM;
+			goto out;
+		}
 	} else if (volume_info->username) {
 		/* BB fixme parse for domain name here */
 		cFYI(1, "Username: %s", volume_info->username);
