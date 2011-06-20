@@ -501,18 +501,103 @@ static int via_new_analog_input(struct via_spec *spec, const char *ctlname,
 	return 0;
 }
 
-static void via_auto_set_output_and_unmute(struct hda_codec *codec,
-					   hda_nid_t nid, int pin_type,
-					   int dac_idx)
+/* return the index of the given widget nid as the source of mux;
+ * return -1 if not found;
+ * if num_conns is non-NULL, set the total number of connections
+ */
+static int __get_connection_index(struct hda_codec *codec, hda_nid_t mux,
+				  hda_nid_t nid, int *num_conns)
 {
-	/* set as output */
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    pin_type);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_OUT_UNMUTE);
-	if (snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_EAPD)
+	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
+	int i, nums;
+
+	nums = snd_hda_get_connections(codec, mux, conn, ARRAY_SIZE(conn));
+	if (num_conns)
+		*num_conns = nums;
+	for (i = 0; i < nums; i++)
+		if (conn[i] == nid)
+			return i;
+	return -1;
+}
+
+#define get_connection_index(codec, mux, nid) \
+	__get_connection_index(codec, mux, nid, NULL)
+
+/* unmute input amp and select the specificed source */
+static void unmute_and_select(struct hda_codec *codec, hda_nid_t nid,
+			      hda_nid_t src, hda_nid_t mix)
+{
+	int idx, num_conns;
+
+	idx = __get_connection_index(codec, nid, src, &num_conns);
+	if (idx < 0)
+		return;
+
+	/* select the route explicitly when multiple connections exist */
+	if (num_conns > 1)
 		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_CONNECT_SEL, idx);
+	/* unmute if the input amp is present */
+	if (!(query_amp_caps(codec, nid, HDA_INPUT) &
+	      (AC_AMPCAP_NUM_STEPS | AC_AMPCAP_MUTE)))
+		return;
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    AMP_IN_UNMUTE(idx));
+
+	/* unmute AA-path if present */
+	if (!mix)
+		return;
+	idx = __get_connection_index(codec, nid, mix, NULL);
+	if (idx >= 0)
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_IN_UNMUTE(idx));
+}
+
+/* set the given pin as output */
+static void init_output_pin(struct hda_codec *codec, hda_nid_t pin,
+			    int pin_type)
+{
+	if (!pin)
+		return;
+	snd_hda_codec_write(codec, pin, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    pin_type);
+	if (snd_hda_query_pin_caps(codec, pin) & AC_PINCAP_EAPD)
+		snd_hda_codec_write(codec, pin, 0,
 				    AC_VERB_SET_EAPD_BTLENABLE, 0x02);
+}
+
+static void via_auto_init_output(struct hda_codec *codec, hda_nid_t pin,
+				 int pin_type, struct nid_path *path)
+{
+	struct via_spec *spec = codec->spec;
+	unsigned int caps;
+	hda_nid_t nid;
+	int i;
+
+	if (!pin)
+		return;
+
+	init_output_pin(codec, pin, pin_type);
+	caps = query_amp_caps(codec, pin, HDA_OUTPUT);
+	if (caps & AC_AMPCAP_MUTE) {
+		unsigned int val;
+		val = (caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT;
+		snd_hda_codec_write(codec, pin, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_OUT_MUTE | val);
+	}
+
+	/* initialize the output path */
+	nid = pin;
+	for (i = 0; i < path->depth; i++) {
+		unmute_and_select(codec, nid, path->idx[i], spec->aa_mix_nid);
+		nid = path->path[i];
+		if (query_amp_caps(codec, nid, HDA_OUTPUT) &
+		    (AC_AMPCAP_NUM_STEPS | AC_AMPCAP_MUTE))
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AMP_OUT_UNMUTE);
+	}
 }
 
 
@@ -521,24 +606,21 @@ static void via_auto_init_multi_out(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	int i;
 
-	for (i = 0; i <= HDA_SIDE; i++) {
-		hda_nid_t nid = spec->autocfg.line_out_pins[i];
-		if (nid)
-			via_auto_set_output_and_unmute(codec, nid, PIN_OUT, i);
-	}
+	for (i = 0; i < spec->autocfg.line_outs; i++)
+		via_auto_init_output(codec, spec->autocfg.line_out_pins[i],
+				     PIN_OUT, &spec->out_path[i]);
 }
 
 static void via_auto_init_hp_out(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
-	hda_nid_t pin;
-	int i;
 
-	for (i = 0; i < spec->autocfg.hp_outs; i++) {
-		pin = spec->autocfg.hp_pins[i];
-		if (pin) /* connect to front */
-			via_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
-	}
+	if (spec->hp_dac_nid)
+		via_auto_init_output(codec, spec->autocfg.hp_pins[0], PIN_HP,
+				     &spec->hp_path);
+	else
+		via_auto_init_output(codec, spec->autocfg.hp_pins[0], PIN_HP,
+				     &spec->hp_dep_path);
 }
 
 static bool is_smart51_pins(struct hda_codec *codec, hda_nid_t pin);
@@ -1053,18 +1135,6 @@ static const struct hda_verb vt1708_volume_init_verbs[] = {
 	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
 	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
 
-	/*
-	 * Set up output mixers (0x19 - 0x1b)
-	 */
-	/* set vol=0 to output mixers */
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-
-	/* Setup default input MW0 to PW4 */
-	{0x20, AC_VERB_SET_CONNECT_SEL, 0},
-	/* PW9 Output enable */
-	{0x25, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	/* power down jack detect function */
 	{0x1, 0xf81, 0x1},
 	{ }
@@ -1624,33 +1694,6 @@ static void via_unsol_event(struct hda_codec *codec,
 		via_hp_bind_automute(codec);
 }
 
-static int via_init(struct hda_codec *codec)
-{
-	struct via_spec *spec = codec->spec;
-	int i;
-	for (i = 0; i < spec->num_iverbs; i++)
-		snd_hda_sequence_write(codec, spec->init_verbs[i]);
-
-	/* Lydia Add for EAPD enable */
-	if (!spec->dig_in_nid) { /* No Digital In connection */
-		if (spec->dig_in_pin) {
-			snd_hda_codec_write(codec, spec->dig_in_pin, 0,
-					    AC_VERB_SET_PIN_WIDGET_CONTROL,
-					    PIN_OUT);
-			snd_hda_codec_write(codec, spec->dig_in_pin, 0,
-					    AC_VERB_SET_EAPD_BTLENABLE, 0x02);
-		}
-	} else /* enable SPDIF-input pin */
-		snd_hda_codec_write(codec, spec->autocfg.dig_in_pin, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN);
-
-	/* assign slave outs */
-	if (spec->slave_dig_outs[0])
-		codec->slave_dig_outs = spec->slave_dig_outs;
-
-	return 0;
-}
-
 #ifdef SND_HDA_NEEDS_RESUME
 static int via_suspend(struct hda_codec *codec, pm_message_t state)
 {
@@ -1670,6 +1713,9 @@ static int via_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 
 /*
  */
+
+static int via_init(struct hda_codec *codec);
+
 static const struct hda_codec_ops via_patch_ops = {
 	.build_controls = via_build_controls,
 	.build_pcms = via_build_pcms,
@@ -1791,9 +1837,6 @@ static int create_ch_ctls(struct hda_codec *codec, const char *pfx,
 	return 0;
 }
 
-static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
-				hda_nid_t nid);
-
 static void mangle_smart51(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -1908,19 +1951,6 @@ static int via_auto_create_hp_ctls(struct hda_codec *codec, hda_nid_t pin)
 		return err;
 
 	return 0;
-}
-
-static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
-				hda_nid_t nid)
-{
-	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
-	int i, nums;
-
-	nums = snd_hda_get_connections(codec, mux, conn, ARRAY_SIZE(conn));
-	for (i = 0; i < nums; i++)
-		if (conn[i] == nid)
-			return i;
-	return -1;
 }
 
 /* look for ADCs */
@@ -2184,18 +2214,44 @@ static int via_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
+	/* assign slave outs */
+	if (spec->slave_dig_outs[0])
+		codec->slave_dig_outs = spec->slave_dig_outs;
+
 	return 1;
 }
 
-/* init callback for auto-configuration model -- overriding the default init */
-static int via_auto_init(struct hda_codec *codec)
+static void via_auto_init_dig_outs(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
+	if (spec->multiout.dig_out_nid)
+		init_output_pin(codec, spec->autocfg.dig_out_pins[0], PIN_OUT);
+	if (spec->slave_dig_outs[0])
+		init_output_pin(codec, spec->autocfg.dig_out_pins[1], PIN_OUT);
+}
 
-	via_init(codec);
+static void via_auto_init_dig_in(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	if (!spec->dig_in_nid)
+		return;
+	snd_hda_codec_write(codec, spec->autocfg.dig_in_pin, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN);
+}
+
+static int via_init(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	int i;
+
+	for (i = 0; i < spec->num_iverbs; i++)
+		snd_hda_sequence_write(codec, spec->init_verbs[i]);
+
 	via_auto_init_multi_out(codec);
 	via_auto_init_hp_out(codec);
 	via_auto_init_analog_input(codec);
+	via_auto_init_dig_outs(codec);
+	via_auto_init_dig_in(codec);
 
 	if (VT2002P_COMPATIBLE(spec)) {
 		via_hp_bind_automute(codec);
@@ -2282,7 +2338,6 @@ static int patch_vt1708(struct hda_codec *codec)
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.init = via_auto_init;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1708_loopbacks;
 #endif
@@ -2318,24 +2373,8 @@ static const struct hda_verb vt1709_10ch_volume_init_verbs[] = {
 	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
 	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
 
-	/*
-	 * Set up output selector (0x1a, 0x1b, 0x29)
-	 */
-	/* set vol=0 to output mixers */
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x29, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-
-	/*
-	 *  Unmute PW3 and PW4
-	 */
-	{0x1f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-
 	/* Set input of PW4 as MW0 */
 	{0x20, AC_VERB_SET_CONNECT_SEL, 0},
-	/* PW9 Output enable */
-	{0x24, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	{ }
 };
 
@@ -2372,7 +2411,6 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.init = via_auto_init;
 	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1709_loopbacks;
@@ -2446,7 +2484,6 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.init = via_auto_init;
 	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1709_loopbacks;
@@ -2483,8 +2520,6 @@ static const struct hda_verb vt1708B_8ch_volume_init_verbs[] = {
 	{0x26, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 	{0x27, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 
-	/* Setup default input to PW4 */
-	{0x1d, AC_VERB_SET_CONNECT_SEL, 0},
 	/* PW9 Output enable */
 	{0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	/* PW10 Input enable */
@@ -2510,18 +2545,6 @@ static const struct hda_verb vt1708B_4ch_volume_init_verbs[] = {
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
 
-	/*
-	 * Set up output mixers
-	 */
-	/* set vol=0 to output mixers */
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x26, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x27, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-
-	/* Setup default input of PW4 to MW0 */
-	{0x1d, AC_VERB_SET_CONNECT_SEL, 0x0},
-	/* PW9 Output enable */
-	{0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	/* PW10 Input enable */
 	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
 	{ }
@@ -2657,7 +2680,6 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.init = via_auto_init;
 	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1708B_loopbacks;
@@ -2690,7 +2712,6 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.init = via_auto_init;
 	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1708B_loopbacks;
@@ -2717,11 +2738,6 @@ static const struct hda_verb vt1708S_volume_init_verbs[] = {
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
 	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
 
-	/* Setup default input of PW4 to MW0 */
-	{0x1d, AC_VERB_SET_CONNECT_SEL, 0x0},
-	/* PW9, PW10  Output enable */
-	{0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	/* Enable Mic Boost Volume backdoor */
 	{0x1, 0xf98, 0x1},
 	/* don't bybass mixer */
@@ -2857,7 +2873,6 @@ static int patch_vt1708S(struct hda_codec *codec)
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.init = via_auto_init;
 	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1708S_loopbacks;
@@ -2904,11 +2919,6 @@ static const struct hda_verb vt1702_volume_init_verbs[] = {
 	{0x1A, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
 	{0x1A, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 
-	/* Setup default input of PW4 to MW0 */
-	{0x17, AC_VERB_SET_CONNECT_SEL, 0x1},
-	/* PW6 PW7 Output enable */
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	{0x1C, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	/* mixer enable */
 	{0x1, 0xF88, 0x3},
 	/* GPIO 0~2 */
@@ -2998,7 +3008,6 @@ static int patch_vt1702(struct hda_codec *codec)
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.init = via_auto_init;
 	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1702_loopbacks;
@@ -3029,31 +3038,9 @@ static const struct hda_verb vt1718S_volume_init_verbs[] = {
 	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
 	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(5)},
 
-	/* Setup default input of Front HP to MW9 */
-	{0x28, AC_VERB_SET_CONNECT_SEL, 0x1},
-	/* PW9 PW10 Output enable */
-	{0x2d, AC_VERB_SET_PIN_WIDGET_CONTROL, AC_PINCTL_OUT_EN},
-	{0x2e, AC_VERB_SET_PIN_WIDGET_CONTROL, AC_PINCTL_OUT_EN},
-	/* PW11 Input enable */
-	{0x2f, AC_VERB_SET_PIN_WIDGET_CONTROL, AC_PINCTL_IN_EN},
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xf88, 0x8},
-	/* MW0/1/2/3/4: un-mute index 0 (AOWx), mute index 1 (MW9) */
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	/* set MUX1 = 2 (AOW4), MUX2 = 1 (AOW3) */
-	{0x34, AC_VERB_SET_CONNECT_SEL, 0x2},
-	{0x35, AC_VERB_SET_CONNECT_SEL, 0x1},
-	/* Unmute MW4's index 0 */
-	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+
 	{ }
 };
 
@@ -3173,7 +3160,6 @@ static int patch_vt1718S(struct hda_codec *codec)
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.init = via_auto_init;
 	codec->patch_ops.unsol_event = via_unsol_event;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -3267,24 +3253,6 @@ static const struct hda_verb vt1716S_volume_init_verbs[] = {
 	/* MUX Indices: Stereo Mixer = 5 */
 	{0x17, AC_VERB_SET_CONNECT_SEL, 0x5},
 
-	/* Setup default input of PW4 to MW0 */
-	{0x1d, AC_VERB_SET_CONNECT_SEL, 0x0},
-
-	/* Setup default input of SW1 as MW0 */
-	{0x18, AC_VERB_SET_CONNECT_SEL, 0x1},
-
-	/* Setup default input of SW4 as AOW0 */
-	{0x28, AC_VERB_SET_CONNECT_SEL, 0x1},
-
-	/* PW9 PW10 Output enable */
-	{0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-
-	/* Unmute SW1, PW12 */
-	{0x29, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x2a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* PW12 Output enable */
-	{0x2a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xf8a, 0x80},
 	/* don't bybass mixer */
@@ -3442,7 +3410,6 @@ static int patch_vt1716S(struct hda_codec *codec)
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.init = via_auto_init;
 	codec->patch_ops.unsol_event = via_unsol_event;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -3481,30 +3448,8 @@ static const struct hda_verb vt2002P_volume_init_verbs[] = {
 	{0x1e, AC_VERB_SET_CONNECT_SEL, 0},
 	{0x1f, AC_VERB_SET_CONNECT_SEL, 0},
 
-	/* PW9 Output enable */
-	{0x2d, AC_VERB_SET_PIN_WIDGET_CONTROL, AC_PINCTL_OUT_EN},
-
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xfb9, 0x24},
-
-	/* MW0/1/4/8: un-mute index 0 (MUXx), un-mute index 1 (MW9) */
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-
-	/* set MUX0/1/4/8 = 0 (AOW0) */
-	{0x34, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x35, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x37, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x3b, AC_VERB_SET_CONNECT_SEL, 0},
-
-	/* set PW0 index=0 (MW0) */
-	{0x24, AC_VERB_SET_CONNECT_SEL, 0},
 
 	/* Enable AOW0 to MW9 */
 	{0x1, 0xfb8, 0x88},
@@ -3742,7 +3687,6 @@ static int patch_vt2002P(struct hda_codec *codec)
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.init = via_auto_init;
 	codec->patch_ops.unsol_event = via_unsol_event;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -3777,30 +3721,8 @@ static const struct hda_verb vt1812_volume_init_verbs[] = {
 	{0x1e, AC_VERB_SET_CONNECT_SEL, 0},
 	{0x1f, AC_VERB_SET_CONNECT_SEL, 0},
 
-	/* PW9 Output enable */
-	{0x2d, AC_VERB_SET_PIN_WIDGET_CONTROL, AC_PINCTL_OUT_EN},
-
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xfb9, 0x24},
-
-	/* MW0/1/4/13/15: un-mute index 0 (MUXx), un-mute index 1 (MW9) */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x1d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x1d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-
-	/* set MUX0/1/4/13/15 = 0 (AOW0) */
-	{0x34, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x35, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x38, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x3c, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x3d, AC_VERB_SET_CONNECT_SEL, 0},
 
 	/* Enable AOW0 to MW9 */
 	{0x1, 0xfb8, 0xa8},
@@ -3948,7 +3870,6 @@ static int patch_vt1812(struct hda_codec *codec)
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.init = via_auto_init;
 	codec->patch_ops.unsol_event = via_unsol_event;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
