@@ -11,7 +11,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
 #include <linux/net.h>

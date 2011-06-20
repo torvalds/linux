@@ -17,7 +17,6 @@
 #include <linux/spinlock.h>
 #include <linux/netlink.h>
 #include <linux/rculist.h>
-#include <linux/version.h>
 #include <net/netlink.h>
 
 #include <linux/netfilter.h>
