@@ -30,30 +30,6 @@
 #define USBIP_HOST_DRV_NAME	"usbip-host"
 #define USBIP_VHCI_DRV_NAME	"vhci_hcd"
 
-enum usb_device_speed {
-	USB_SPEED_UNKNOWN = 0,                  /* enumerating */
-	USB_SPEED_LOW, USB_SPEED_FULL,          /* usb 1.1 */
-	USB_SPEED_HIGH,                         /* usb 2.0 */
-	USB_SPEED_VARIABLE                      /* wireless (usb 2.5) */
-};
-
-/* FIXME: how to sync with drivers/usbip_common.h ? */
-enum usbip_device_status{
-	/* sdev is available. */
-	SDEV_ST_AVAILABLE = 0x01,
-	/* sdev is now used. */
-	SDEV_ST_USED,
-	/* sdev is unusable because of a fatal error. */
-	SDEV_ST_ERROR,
-
-	/* vdev does not connect a remote device. */
-	VDEV_ST_NULL,
-	/* vdev is used, but the USB address is not assigned yet */
-	VDEV_ST_NOTASSIGNED,
-	VDEV_ST_USED,
-	VDEV_ST_ERROR
-};
-
 extern int usbip_use_syslog;
 extern int usbip_use_stderr;
 extern int usbip_use_debug ;
@@ -102,14 +78,36 @@ extern int usbip_use_debug ;
 		abort();				\
 	} while (0)
 
+enum usb_device_speed {
+	USB_SPEED_UNKNOWN = 0,                  /* enumerating */
+	USB_SPEED_LOW, USB_SPEED_FULL,          /* usb 1.1 */
+	USB_SPEED_HIGH,                         /* usb 2.0 */
+	USB_SPEED_VARIABLE                      /* wireless (usb 2.5) */
+};
+
+/* FIXME: how to sync with drivers/usbip_common.h ? */
+enum usbip_device_status{
+	/* sdev is available. */
+	SDEV_ST_AVAILABLE = 0x01,
+	/* sdev is now used. */
+	SDEV_ST_USED,
+	/* sdev is unusable because of a fatal error. */
+	SDEV_ST_ERROR,
+
+	/* vdev does not connect a remote device. */
+	VDEV_ST_NULL,
+	/* vdev is used, but the USB address is not assigned yet */
+	VDEV_ST_NOTASSIGNED,
+	VDEV_ST_USED,
+	VDEV_ST_ERROR
+};
+
 struct usbip_usb_interface {
 	uint8_t bInterfaceClass;
 	uint8_t bInterfaceSubClass;
 	uint8_t bInterfaceProtocol;
 	uint8_t padding;	/* alignment */
 } __attribute__((packed));
-
-
 
 struct usbip_usb_device {
 	char path[SYSFS_PATH_MAX];
