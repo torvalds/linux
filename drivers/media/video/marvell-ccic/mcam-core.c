@@ -499,8 +499,6 @@ static int mcam_alloc_dma_bufs(struct mcam_camera *cam, int loadtime)
 			cam_warn(cam, "Failed to allocate DMA buffer\n");
 			break;
 		}
-		/* For debug, remove eventually */
-		memset(cam->dma_bufs[i], 0xcc, cam->dma_buf_size);
 		(cam->nbufs)++;
 	}
 
