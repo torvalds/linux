@@ -84,6 +84,7 @@ void uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type)
 	spin_lock_init(&queue->irqlock);
 	INIT_LIST_HEAD(&queue->mainqueue);
 	INIT_LIST_HEAD(&queue->irqqueue);
+    init_waitqueue_head(&queue->wait);  /* ddl@rock-chips.com : This design copied from video-buf */
 	queue->type = type;
 }
 
@@ -286,6 +287,8 @@ int uvc_queue_buffer(struct uvc_video_queue *queue,
 	list_add_tail(&buf->queue, &queue->irqqueue);
 	spin_unlock_irqrestore(&queue->irqlock, flags);
 
+    wake_up_interruptible_sync(&queue->wait);     /* ddl@rock-chips.com : This design copied from video-buf */
+
 done:
 	mutex_unlock(&queue->mutex);
 	return ret;
@@ -323,10 +326,31 @@ int uvc_dequeue_buffer(struct uvc_video_queue *queue,
 	}
 
 	mutex_lock(&queue->mutex);
+    /* ddl@rock-chips.com : This design copied from video-buf */
+checks:    
 	if (list_empty(&queue->mainqueue)) {
-		uvc_trace(UVC_TRACE_CAPTURE, "[E] Empty buffer queue.\n");
-		ret = -EINVAL;
-		goto done;
+        if (nonblocking) {
+			uvc_trace(UVC_TRACE_CAPTURE, "[E] Empty buffer queue.\n");
+    		ret = -EINVAL;
+    		goto done;
+		} else {
+		    //uvc_trace(UVC_TRACE_CAPTURE, "dequeue_buffer: waiting on buffer\n");
+            printk("dequeue_buffer: waiting on buffer\n");
+			/* Drop lock to avoid deadlock with qbuf */
+			mutex_unlock(&queue->mutex);
+
+			/* Checking list_empty and streaming is safe without
+			 * locks because we goto checks to validate while
+			 * holding locks before proceeding */
+			ret = wait_event_interruptible(queue->wait,
+				((!list_empty(&queue->mainqueue)) || (!(queue->flags & UVC_QUEUE_STREAMING))));
+			mutex_lock(&queue->mutex);
+
+			if (ret)
+				goto done;
+
+			goto checks;
+		}	
 	}
 
 	buf = list_first_entry(&queue->mainqueue, struct uvc_buffer, stream);
@@ -454,6 +478,8 @@ void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect)
 {
 	struct uvc_buffer *buf;
 	unsigned long flags;
+
+    wake_up_interruptible_sync(&queue->wait);           /* ddl@rock-chips.com : This design copied from video-buf */
 
 	spin_lock_irqsave(&queue->irqlock, flags);
 	while (!list_empty(&queue->irqqueue)) {

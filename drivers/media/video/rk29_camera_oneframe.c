@@ -130,7 +130,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CAM_IPPWORK_IS_EN()     ((pcdev->host_width != pcdev->icd->user_width) || (pcdev->host_height != pcdev->icd->user_height))                                  
 
 //Configure Macro
-#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 0, 1)
+#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 0, 2)
 
 /* limit to rk29 hardware capabilities */
 #define RK29_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -240,7 +240,6 @@ struct rk29_camera_dev
     spinlock_t		lock;
 
     struct videobuf_buffer	*active;
-	struct videobuf_queue *vb_vidq_ptr;
 	struct rk29_camera_reg reginfo_suspend;
 	struct workqueue_struct *camera_wq;
 	struct rk29_camera_work *camera_work;
@@ -266,12 +265,12 @@ static int rk29_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
     struct soc_camera_device *icd = vq->priv_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk29_camera_dev *pcdev = ici->priv;
-    int bytes_per_pixel = (icd->current_fmt->depth + 7) >> 3;
 
     dev_dbg(&icd->dev, "count=%d, size=%d\n", *count, *size);
 
 	/* planar capture requires Y, U and V buffers to be page aligned */
 	#if 0
+    int bytes_per_pixel = (icd->current_fmt->depth + 7) >> 3;
     *size = PAGE_ALIGN(icd->user_width* icd->user_height * bytes_per_pixel);                               /* Y pages UV pages, yuv422*/
 	pcdev->vipmem_bsize = PAGE_ALIGN(pcdev->host_width * pcdev->host_height * bytes_per_pixel);
 	#else
@@ -435,12 +434,14 @@ static int rk29_pixfmt2ippfmt(unsigned int pixfmt, int *ippfmt)
 {
 	switch (pixfmt)
 	{
-		case V4L2_PIX_FMT_YUV422P:
+		case V4L2_PIX_FMT_NV16:
+        case V4L2_PIX_FMT_YUV422P:
 		{
 			*ippfmt = IPP_Y_CBCR_H2V1;
 			break;
 		}
-		case V4L2_PIX_FMT_YUV420:
+		case V4L2_PIX_FMT_NV12:
+        case V4L2_PIX_FMT_YUV420:
 		{
 			*ippfmt = IPP_Y_CBCR_H2V2;
 			break;
@@ -622,7 +623,6 @@ static void rk29_camera_init_videobuf(struct videobuf_queue *q,
                                    V4L2_FIELD_NONE,
                                    sizeof(struct rk29_buffer),
                                    icd);
-	pcdev->vb_vidq_ptr = q;		/* ddl@rock-chips.com */
 }
 static int rk29_camera_activate(struct rk29_camera_dev *pcdev, struct soc_camera_device *icd)
 {
@@ -771,9 +771,11 @@ static int rk29_camera_add_device(struct soc_camera_device *icd)
     if (control) {
         sd = dev_get_drvdata(control);
 		v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_IOREQUEST,(void*)pcdev->pdata);
+        #if 0
         ret = v4l2_subdev_call(sd,core, init, 0);
         if (ret)
             goto ebusy;
+        #endif
         v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_CB_REGISTER,(void*)(&pcdev->icd_cb));
     }
 
@@ -804,16 +806,6 @@ static void rk29_camera_remove_device(struct soc_camera_device *icd)
 
     v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_DEACTIVATE,NULL);
 	rk29_camera_deactivate(pcdev);
-
-	/* ddl@rock-chips.com: Call videobuf_mmap_free here for free the struct video_buffer which malloc in videobuf_alloc */
-	#if 0
-	if (pcdev->vb_vidq_ptr) {
-		videobuf_mmap_free(pcdev->vb_vidq_ptr);
-		pcdev->vb_vidq_ptr = NULL;
-	}
-	#else
-	pcdev->vb_vidq_ptr = NULL;
-	#endif
 
 	if (pcdev->camera_work) {
 		kfree(pcdev->camera_work);
@@ -917,16 +909,16 @@ static int rk29_camera_try_bus_param(struct soc_camera_device *icd, __u32 pixfmt
 }
 static const struct soc_camera_data_format rk29_camera_formats[] = {
 	{
-		.name		= "Planar YUV420 12 bit",
+		.name		= "YUV420 NV12",
 		.depth		= 12,
-		.fourcc		= V4L2_PIX_FMT_YUV420,
+		.fourcc		= V4L2_PIX_FMT_NV12,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
 	},{
-		.name		= "Planar YUV422 16 bit",
+		.name		= "YUV422 NV16",
 		.depth		= 16,
-		.fourcc		= V4L2_PIX_FMT_YUV422P,
+		.fourcc		= V4L2_PIX_FMT_NV16,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
-	},{
+	},{ 
 		.name		= "Raw Bayer RGB 10 bit",
 		.depth		= 16,
 		.fourcc		= V4L2_PIX_FMT_SGRBG10,
@@ -943,12 +935,14 @@ static void rk29_camera_setup_format(struct soc_camera_device *icd, __u32 host_p
 
     switch (host_pixfmt)
     {
-        case V4L2_PIX_FMT_YUV422P:
+        case V4L2_PIX_FMT_NV16:
+        case V4L2_PIX_FMT_YUV422P:  /* ddl@rock-chips.com: V4L2_PIX_FMT_YUV422P is V4L2_PIX_FMT_NV16 actually in 0.0.1 driver */
             vip_ctrl_val |= VIPREGYUV422;
 			pcdev->frame_inval = RK29_CAM_FRAME_INVAL_DC;
 			pcdev->pixfmt = host_pixfmt;
             break;
-        case V4L2_PIX_FMT_YUV420:
+        case V4L2_PIX_FMT_NV12:
+        case V4L2_PIX_FMT_YUV420:   /* ddl@rock-chips.com: V4L2_PIX_FMT_YUV420 is V4L2_PIX_FMT_NV12 actually in 0.0.1 driver */
             vip_ctrl_val |= VIPREGYUV420;
 			if (pcdev->frame_inval != RK29_CAM_FRAME_INVAL_INIT)
 				pcdev->frame_inval = RK29_CAM_FRAME_INVAL_INIT;
@@ -1082,7 +1076,7 @@ static int rk29_camera_set_crop(struct soc_camera_device *icd,
 
         v4l_bound_align_image(&pix->width, RK29_CAM_W_MIN, RK29_CAM_W_MAX, 1,
             &pix->height, RK29_CAM_H_MIN, RK29_CAM_H_MAX, 0,
-            icd->current_fmt->fourcc == V4L2_PIX_FMT_YUV422P ?4 : 0);
+            icd->current_fmt->fourcc == V4L2_PIX_FMT_NV16 ?4 : 0);
 
         ret = v4l2_subdev_call(sd, video, s_fmt, &f);
         if (ret < 0)
@@ -1110,6 +1104,7 @@ static int rk29_camera_set_fmt(struct soc_camera_device *icd,
     struct v4l2_format cam_f = *f;
     struct v4l2_rect rect;
     int ret,usr_w,usr_h;
+    int stream_on = 0;
 
 	usr_w = pix->width;
 	usr_h = pix->height;
@@ -1123,13 +1118,31 @@ static int rk29_camera_set_fmt(struct soc_camera_device *icd,
     }
 
     cam_fmt = xlate->cam_fmt;
+    /* ddl@rock-chips.com: sensor init code transmit in here after open */
+    if ((pcdev->frame_inval == RK29_CAM_FRAME_INVAL_INIT) && (pcdev->active == NULL)
+        && list_empty(&pcdev->capture)) {
+        v4l2_subdev_call(sd,core, init, 0);        
+    }
 
+    stream_on = read_vip_reg(RK29_VIP_CTRL);
+    if (stream_on & ENABLE_CAPTURE)
+        write_vip_reg(RK29_VIP_CTRL, (stream_on & (~ENABLE_CAPTURE)));
     cam_f.fmt.pix.pixelformat = cam_fmt->fourcc;
     ret = v4l2_subdev_call(sd, video, s_fmt, &cam_f);
     cam_f.fmt.pix.pixelformat = pix->pixelformat;
     *pix = cam_f.fmt.pix;
 	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
 	if ((pix->width != usr_w) || (pix->height != usr_h)) {
+        if (unlikely((pix->width <16) || (pix->width > 8190) || (pix->height < 16) || (pix->height > 8190))) {
+    		RK29CAMERA_TR("Senor and IPP both invalid source resolution(%dx%d)\n",pix->width,pix->height);
+    		ret = -EINVAL;
+    		goto RK29_CAMERA_SET_FMT_END;
+    	}    	
+    	if (unlikely((usr_w <16) || (usr_w > 2047) || (usr_h < 16) || (usr_h > 2047))) {
+    		RK29CAMERA_TR("Senor and IPP both invalid destination resolution(%dx%d)\n",usr_w,usr_h);
+    		ret = -EINVAL;
+            goto RK29_CAMERA_SET_FMT_END;
+    	}
 		pix->width = usr_w;
 		pix->height = usr_h;
 	}
@@ -1154,6 +1167,8 @@ static int rk29_camera_set_fmt(struct soc_camera_device *icd,
     }
 
 RK29_CAMERA_SET_FMT_END:
+    if (stream_on & ENABLE_CAPTURE)
+        write_vip_reg(RK29_VIP_CTRL, (read_vip_reg(RK29_VIP_CTRL) | ENABLE_CAPTURE));
 	if (ret)
     	RK29CAMERA_TR("\n%s..%d.. ret = %d  \n",__FUNCTION__,__LINE__, ret);
     return ret;
@@ -1205,7 +1220,7 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
    /* limit to rk29 hardware capabilities */
     v4l_bound_align_image(&pix->width, RK29_CAM_W_MIN, RK29_CAM_W_MAX, 1,
     	      &pix->height, RK29_CAM_H_MIN, RK29_CAM_H_MAX, 0,
-    	      pixfmt == V4L2_PIX_FMT_YUV422P ? 4 : 0);
+    	      pixfmt == V4L2_PIX_FMT_NV16 ? 4 : 0);
 
     pix->bytesperline = pix->width * DIV_ROUND_UP(xlate->host_fmt->depth, 8);
     pix->sizeimage = pix->height * pix->bytesperline;
@@ -1215,7 +1230,7 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
     /* limit to sensor capabilities */
     ret = v4l2_subdev_call(sd, video, try_fmt, f);
     pix->pixelformat = pixfmt;
-	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+	#ifdef CONFIG_VIDEO_RK29_WORK_IPP       
 	if ((pix->width > usr_w) && (pix->height > usr_h)) {
 		if (is_capture) {
 			vipmem_is_overflow = (PAGE_ALIGN((pix->width*pix->height*icd->current_fmt->depth+7)>>3) > pcdev->vipmem_size);
