@@ -22,6 +22,7 @@
 
 #include <cpu/dma-register.h>
 #include <cpu/sh7722.h>
+#include <cpu/serial.h>
 
 static const struct sh_dmae_slave_config sh7722_dmae_slaves[] = {
 	{
