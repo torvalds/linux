@@ -46,40 +46,6 @@
 
 #include "tmio_mmc.h"
 
-static u16 sd_ctrl_read16(struct tmio_mmc_host *host, int addr)
-{
-	return readw(host->ctl + (addr << host->bus_shift));
-}
-
-static void sd_ctrl_read16_rep(struct tmio_mmc_host *host, int addr,
-		u16 *buf, int count)
-{
-	readsw(host->ctl + (addr << host->bus_shift), buf, count);
-}
-
-static u32 sd_ctrl_read32(struct tmio_mmc_host *host, int addr)
-{
-	return readw(host->ctl + (addr << host->bus_shift)) |
-	       readw(host->ctl + ((addr + 2) << host->bus_shift)) << 16;
-}
-
-static void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val)
-{
-	writew(val, host->ctl + (addr << host->bus_shift));
-}
-
-static void sd_ctrl_write16_rep(struct tmio_mmc_host *host, int addr,
-		u16 *buf, int count)
-{
-	writesw(host->ctl + (addr << host->bus_shift), buf, count);
-}
-
-static void sd_ctrl_write32(struct tmio_mmc_host *host, int addr, u32 val)
-{
-	writew(val, host->ctl + (addr << host->bus_shift));
-	writew(val >> 16, host->ctl + ((addr + 2) << host->bus_shift));
-}
-
 void tmio_mmc_enable_mmc_irqs(struct tmio_mmc_host *host, u32 i)
 {
 	u32 mask = sd_ctrl_read32(host, CTL_IRQ_MASK) & ~(i & TMIO_MASK_IRQ);
