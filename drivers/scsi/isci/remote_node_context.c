@@ -603,12 +603,23 @@ enum sci_status scic_sds_remote_node_context_start_io(struct scic_sds_remote_nod
 	enum scis_sds_remote_node_context_states state;
 
 	state = sci_rnc->sm.current_state_id;
-	if (state != SCI_RNC_READY) {
+
+	switch (state) {
+	case SCI_RNC_READY:
+		return SCI_SUCCESS;
+	case SCI_RNC_TX_SUSPENDED:
+	case SCI_RNC_TX_RX_SUSPENDED:
+	case SCI_RNC_AWAIT_SUSPENSION:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 			 "%s: invalid state %d\n", __func__, state);
 		return SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED;
+	default:
+		break;
 	}
-	return SCI_SUCCESS;
+	dev_dbg(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+		"%s: requested to start IO while still resuming, %d\n",
+		__func__, state);
+	return SCI_FAILURE_INVALID_STATE;
 }
 
 enum sci_status scic_sds_remote_node_context_start_task(struct scic_sds_remote_node_context *sci_rnc,
