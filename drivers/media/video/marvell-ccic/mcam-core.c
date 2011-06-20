@@ -1263,8 +1263,6 @@ static void mcam_frame_complete(struct mcam_camera *cam, int frame)
 	/*
 	 * Basic frame housekeeping.
 	 */
-	if (test_bit(frame, &cam->flags) && printk_ratelimit())
-		cam_err(cam, "Frame overrun on %d, frames lost\n", frame);
 	set_bit(frame, &cam->flags);
 	clear_bit(CF_DMA_ACTIVE, &cam->flags);
 	if (cam->next_buf < 0)
