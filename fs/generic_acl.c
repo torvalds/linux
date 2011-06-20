@@ -190,7 +190,7 @@ generic_acl_chmod(struct inode *inode)
 }
 
 int
-generic_check_acl(struct inode *inode, int mask, unsigned int flags)
+generic_check_acl(struct inode *inode, int mask)
 {
 	if (mask & MAY_NOT_BLOCK) {
 		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))

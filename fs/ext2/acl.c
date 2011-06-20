@@ -232,7 +232,7 @@ ext2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 }
 
 int
-ext2_check_acl(struct inode *inode, int mask, unsigned int flags)
+ext2_check_acl(struct inode *inode, int mask)
 {
 	struct posix_acl *acl;
 

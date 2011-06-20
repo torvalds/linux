@@ -868,7 +868,7 @@ out:
 	return err;
 }
 
-int reiserfs_check_acl(struct inode *inode, int mask, unsigned int flags)
+int reiserfs_check_acl(struct inode *inode, int mask)
 {
 	struct posix_acl *acl;
 	int error = -EAGAIN; /* do regular unix permission checks by default */

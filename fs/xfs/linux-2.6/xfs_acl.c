@@ -219,7 +219,7 @@ xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 }
 
 int
-xfs_check_acl(struct inode *inode, int mask, unsigned int flags)
+xfs_check_acl(struct inode *inode, int mask)
 {
 	struct xfs_inode *ip;
 	struct posix_acl *acl;

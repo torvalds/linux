@@ -290,7 +290,7 @@ static int ocfs2_set_acl(handle_t *handle,
 	return ret;
 }
 
-int ocfs2_check_acl(struct inode *inode, int mask, unsigned int flags)
+int ocfs2_check_acl(struct inode *inode, int mask)
 {
 	struct ocfs2_super *osb;
 	struct buffer_head *di_bh = NULL;

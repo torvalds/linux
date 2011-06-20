@@ -259,7 +259,7 @@ static int jffs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	return rc;
 }
 
-int jffs2_check_acl(struct inode *inode, int mask, unsigned int flags)
+int jffs2_check_acl(struct inode *inode, int mask)
 {
 	struct posix_acl *acl;
 	int rc;

@@ -176,9 +176,9 @@ EXPORT_SYMBOL(putname);
 /*
  * This does basic POSIX ACL permission checking
  */
-static int acl_permission_check(struct inode *inode, int mask, unsigned int flags)
+static int acl_permission_check(struct inode *inode, int mask)
 {
-	int (*check_acl)(struct inode *inode, int mask, unsigned int flags);
+	int (*check_acl)(struct inode *inode, int mask);
 	unsigned int mode = inode->i_mode;
 
 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC | MAY_NOT_BLOCK;
@@ -191,7 +191,7 @@ static int acl_permission_check(struct inode *inode, int mask, unsigned int flag
 	else {
 		check_acl = inode->i_op->check_acl;
 		if (IS_POSIXACL(inode) && (mode & S_IRWXG) && check_acl) {
-			int error = check_acl(inode, mask, flags);
+			int error = check_acl(inode, mask);
 			if (error != -EAGAIN)
 				return error;
 		}
@@ -231,7 +231,7 @@ int generic_permission(struct inode *inode, int mask, unsigned int flags)
 	/*
 	 * Do the basic POSIX ACL permission checks.
 	 */
-	ret = acl_permission_check(inode, mask, flags);
+	ret = acl_permission_check(inode, mask);
 	if (ret != -EACCES)
 		return ret;
 
@@ -327,7 +327,7 @@ static inline int exec_permission(struct inode *inode, unsigned int flags)
 		if (likely(!ret))
 			goto ok;
 	} else {
-		ret = acl_permission_check(inode, mask, flags);
+		ret = acl_permission_check(inode, mask);
 		if (likely(!ret))
 			goto ok;
 		if (ret != -EACCES)

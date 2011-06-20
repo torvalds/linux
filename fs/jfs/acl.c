@@ -114,7 +114,7 @@ out:
 	return rc;
 }
 
-int jfs_check_acl(struct inode *inode, int mask, unsigned int flags)
+int jfs_check_acl(struct inode *inode, int mask)
 {
 	struct posix_acl *acl;
 
