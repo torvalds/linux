@@ -629,9 +629,18 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	hda_nid_t conn[HDA_MAX_CONNECTIONS];
 	unsigned int ctl;
-	int i;
+	int i, num_conns;
 
+	/* init ADCs */
+	for (i = 0; i < spec->num_adc_nids; i++) {
+		snd_hda_codec_write(codec, spec->adc_nids[i], 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_IN_UNMUTE(0));
+	}
+
+	/* init pins */
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t nid = cfg->inputs[i].pin;
 		if (spec->smart51_enabled && is_smart51_pins(codec, nid))
@@ -642,6 +651,29 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 			ctl = PIN_IN;
 		snd_hda_codec_write(codec, nid, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL, ctl);
+	}
+
+	/* init input-src */
+	for (i = 0; i < spec->num_adc_nids; i++) {
+		const struct hda_input_mux *imux = spec->input_mux;
+		if (!imux || !spec->mux_nids[i])
+			continue;
+		snd_hda_codec_write(codec, spec->mux_nids[i], 0,
+				    AC_VERB_SET_CONNECT_SEL,
+				    imux->items[spec->cur_mux[i]].index);
+	}
+
+	/* init aa-mixer */
+	if (!spec->aa_mix_nid)
+		return;
+	num_conns = snd_hda_get_connections(codec, spec->aa_mix_nid, conn,
+					    ARRAY_SIZE(conn));
+	for (i = 0; i < num_conns; i++) {
+		unsigned int caps = get_wcaps(codec, conn[i]);
+		if (get_wcaps_type(caps) == AC_WID_PIN)
+			snd_hda_codec_write(codec, spec->aa_mix_nid, 0,
+					    AC_VERB_SET_AMP_GAIN_MUTE,
+					    AMP_IN_MUTE(i));
 	}
 }
 
@@ -1117,24 +1149,7 @@ static void analog_low_current_mode(struct hda_codec *codec, int stream_idle)
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
-static const struct hda_verb vt1708_volume_init_verbs[] = {
-	/*
-	 * Unmute ADC0-1 and set the default input to mic-in
-	 */
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x27, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-
-	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
-	 * mixer widget
-	 */
-	/* Amp Indices: CD = 1, Mic1 = 2, Line = 3, Mic2 = 4 */
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
-
+static const struct hda_verb vt1708_init_verbs[] = {
 	/* power down jack detect function */
 	{0x1, 0xf81, 0x1},
 	{ }
@@ -2200,7 +2215,7 @@ static int via_parse_auto_config(struct hda_codec *codec)
 	if (spec->kctls.list)
 		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
-	spec->init_verbs[spec->num_iverbs++] = vt1708_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1708_init_verbs;
 
 	spec->input_mux = &spec->private_imux[0];
 
@@ -2354,30 +2369,6 @@ static const struct hda_verb vt1709_uniwill_init_verbs[] = {
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
-static const struct hda_verb vt1709_10ch_volume_init_verbs[] = {
-	/*
-	 * Unmute ADC0-2 and set the default input to mic-in
-	 */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-
-	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
-	 * mixer widget
-	 */
-	/* Amp Indices: AOW0=0, CD = 1, Mic1 = 2, Line = 3, Mic2 = 4 */
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
-
-	/* Set input of PW4 as MW0 */
-	{0x20, AC_VERB_SET_CONNECT_SEL, 0},
-	{ }
-};
-
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static const struct hda_amp_list vt1709_loopbacks[] = {
 	{ 0x18, HDA_INPUT, 1 },
@@ -2406,7 +2397,6 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++] = vt1709_10ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1709_uniwill_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
@@ -2421,46 +2411,6 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
-static const struct hda_verb vt1709_6ch_volume_init_verbs[] = {
-	/*
-	 * Unmute ADC0-2 and set the default input to mic-in
-	 */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-
-	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
-	 * mixer widget
-	 */
-	/* Amp Indices: AOW0=0, CD = 1, Mic1 = 2, Line = 3, Mic2 = 4 */
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
-
-	/*
-	 * Set up output selector (0x1a, 0x1b, 0x29)
-	 */
-	/* set vol=0 to output mixers */
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x29, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-
-	/*
-	 *  Unmute PW3 and PW4
-	 */
-	{0x1f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-
-	/* Set input of PW4 as MW0 */
-	{0x20, AC_VERB_SET_CONNECT_SEL, 0},
-	/* PW9 Output enable */
-	{0x24, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	{ }
-};
-
 static int patch_vt1709_6ch(struct hda_codec *codec)
 {
 	struct via_spec *spec;
@@ -2479,7 +2429,6 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++] = vt1709_6ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1709_uniwill_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
@@ -2494,62 +2443,6 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
-static const struct hda_verb vt1708B_8ch_volume_init_verbs[] = {
-	/*
-	 * Unmute ADC0-1 and set the default input to mic-in
-	 */
-	{0x13, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-
-	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
-	 * mixer widget
-	 */
-	/* Amp Indices: CD = 1, Mic1 = 2, Line = 3, Mic2 = 4 */
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
-
-	/*
-	 * Set up output mixers
-	 */
-	/* set vol=0 to output mixers */
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x26, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x27, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-
-	/* PW9 Output enable */
-	{0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
-	/* PW10 Input enable */
-	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
-	{ }
-};
-
-static const struct hda_verb vt1708B_4ch_volume_init_verbs[] = {
-	/*
-	 * Unmute ADC0-1 and set the default input to mic-in
-	 */
-	{0x13, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-
-	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
-	 * mixer widget
-	 */
-	/* Amp Indices: CD = 1, Mic1 = 2, Line = 3, Mic2 = 4 */
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
-
-	/* PW10 Input enable */
-	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
-	{ }
-};
-
 static const struct hda_verb vt1708B_uniwill_init_verbs[] = {
 	{0x1d, AC_VERB_SET_UNSOLICITED_ENABLE,
 	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
@@ -2675,7 +2568,6 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++] = vt1708B_8ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_uniwill_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
@@ -2707,7 +2599,6 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++] = vt1708B_4ch_volume_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1708B_uniwill_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
@@ -2723,21 +2614,7 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 }
 
 /* Patch for VT1708S */
-
-static const struct hda_verb vt1708S_volume_init_verbs[] = {
-	/* Unmute ADC0-1 and set the default input to mic-in */
-	{0x13, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the
-	 * analog-loopback mixer widget */
-	/* Amp Indices: CD = 1, Mic1 = 2, Line = 3, Mic2 = 4 */
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
-
+static const struct hda_verb vt1708S_init_verbs[] = {
 	/* Enable Mic Boost Volume backdoor */
 	{0x1, 0xf98, 0x1},
 	/* don't bybass mixer */
@@ -2863,7 +2740,7 @@ static int patch_vt1708S(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++] = vt1708S_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1708S_init_verbs;
 	if (codec->vendor_id == 0x11064397)
 		spec->init_verbs[spec->num_iverbs++] =
 			vt1705_uniwill_init_verbs;
@@ -2900,25 +2777,7 @@ static int patch_vt1708S(struct hda_codec *codec)
 
 /* Patch for VT1702 */
 
-static const struct hda_verb vt1702_volume_init_verbs[] = {
-	/*
-	 * Unmute ADC0-1 and set the default input to mic-in
-	 */
-	{0x12, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x1F, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-
-	/* Unmute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
-	 * mixer widget
-	 */
-	/* Amp Indices: Mic1 = 1, Line = 1, Mic2 = 3 */
-	{0x1A, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x1A, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x1A, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x1A, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},
-	{0x1A, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
-
+static const struct hda_verb vt1702_init_verbs[] = {
 	/* mixer enable */
 	{0x1, 0xF88, 0x3},
 	/* GPIO 0~2 */
@@ -3003,7 +2862,7 @@ static int patch_vt1702(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++] = vt1702_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1702_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1702_uniwill_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
@@ -3019,25 +2878,9 @@ static int patch_vt1702(struct hda_codec *codec)
 
 /* Patch for VT1718S */
 
-static const struct hda_verb vt1718S_volume_init_verbs[] = {
-	/*
-	 * Unmute ADC0-1 and set the default input to mic-in
-	 */
-	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
+static const struct hda_verb vt1718S_init_verbs[] = {
 	/* Enable MW0 adjust Gain 5 */
 	{0x1, 0xfb2, 0x10},
-	/* Mute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
-	 * mixer widget
-	 */
-	/* Amp Indices: CD = 1, Mic1 = 2, Line = 3, Mic2 = 4 */
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(5)},
-
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xf88, 0x8},
 
@@ -3155,7 +2998,7 @@ static int patch_vt1718S(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++] = vt1718S_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1718S_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1718S_uniwill_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
@@ -3232,27 +3075,7 @@ static const struct snd_kcontrol_new vt1716S_mono_out_mixer[] = {
 	{ } /* end */
 };
 
-static const struct hda_verb vt1716S_volume_init_verbs[] = {
-	/*
-	 * Unmute ADC0-1 and set the default input to mic-in
-	 */
-	{0x13, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-
-	/* Mute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
-	 * mixer widget
-	 */
-	/* Amp Indices: CD = 1, Mic1 = 2, Line = 3, Mic2 = 4 */
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
-
-	/* MUX Indices: Stereo Mixer = 5 */
-	{0x17, AC_VERB_SET_CONNECT_SEL, 0x5},
-
+static const struct hda_verb vt1716S_init_verbs[] = {
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xf8a, 0x80},
 	/* don't bybass mixer */
@@ -3400,7 +3223,7 @@ static int patch_vt1716S(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++]  = vt1716S_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++]  = vt1716S_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1716S_uniwill_init_verbs;
 
 	spec->mixers[spec->num_mixers] = vt1716s_dmic_mixer;
@@ -3422,86 +3245,20 @@ static int patch_vt1716S(struct hda_codec *codec)
 
 /* for vt2002P */
 
-static const struct hda_verb vt2002P_volume_init_verbs[] = {
+static const struct hda_verb vt2002P_init_verbs[] = {
 	/* Class-D speaker related verbs */
 	{0x1, 0xfe0, 0x4},
 	{0x1, 0xfe9, 0x80},
 	{0x1, 0xfe2, 0x22},
-	/*
-	 * Unmute ADC0-1 and set the default input to mic-in
-	 */
-	{0x8, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x9, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-
-	/* Mute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
-	 * mixer widget
-	 */
-	/* Amp Indices: CD = 1, Mic1 = 2, Line = 3, Mic2 = 4 */
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
-
-	/* MUX Indices: Mic = 0 */
-	{0x1e, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x1f, AC_VERB_SET_CONNECT_SEL, 0},
-
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xfb9, 0x24},
-
 	/* Enable AOW0 to MW9 */
 	{0x1, 0xfb8, 0x88},
 	{ }
 };
-static const struct hda_verb vt1802_volume_init_verbs[] = {
-	/*
-	 * Unmute ADC0-1 and set the default input to mic-in
-	 */
-	{0x8, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x9, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-
-	/* Mute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
-	 * mixer widget
-	 */
-	/* Amp Indices: CD = 1, Mic1 = 2, Line = 3, Mic2 = 4 */
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
-
-	/* MUX Indices: Mic = 0 */
-	{0x1e, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x1f, AC_VERB_SET_CONNECT_SEL, 0},
-
-	/* PW9 Output enable */
-	{0x2d, AC_VERB_SET_PIN_WIDGET_CONTROL, AC_PINCTL_OUT_EN},
-
+static const struct hda_verb vt1802_init_verbs[] = {
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xfb9, 0x24},
-
-	/* MW0/1/4/8: un-mute index 0 (MUXx), un-mute index 1 (MW9) */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-
-	/* set MUX0/1/4/8 = 0 (AOW0) */
-	{0x34, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x35, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x38, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x3c, AC_VERB_SET_CONNECT_SEL, 0},
-
-	/* set PW0 index=0 (MW0) */
-	{0x24, AC_VERB_SET_CONNECT_SEL, 0},
-
 	/* Enable AOW0 to MW9 */
 	{0x1, 0xfb8, 0x88},
 	{ }
@@ -3673,10 +3430,10 @@ static int patch_vt2002P(struct hda_codec *codec)
 
 	if (spec->codec_type == VT1802)
 		spec->init_verbs[spec->num_iverbs++]  =
-			vt1802_volume_init_verbs;
+			vt1802_init_verbs;
 	else
 		spec->init_verbs[spec->num_iverbs++]  =
-			vt2002P_volume_init_verbs;
+			vt2002P_init_verbs;
 
 	if (spec->codec_type == VT1802)
 		spec->init_verbs[spec->num_iverbs++] =
@@ -3699,31 +3456,9 @@ static int patch_vt2002P(struct hda_codec *codec)
 
 /* for vt1812 */
 
-static const struct hda_verb vt1812_volume_init_verbs[] = {
-	/*
-	 * Unmute ADC0-1 and set the default input to mic-in
-	 */
-	{0x8, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x9, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-
-	/* Mute input amps (CD, Line In, Mic 1 & Mic 2) of the analog-loopback
-	 * mixer widget
-	 */
-	/* Amp Indices: CD = 1, Mic1 = 2, Line = 3, Mic2 = 4 */
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
-	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
-
-	/* MUX Indices: Mic = 0 */
-	{0x1e, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x1f, AC_VERB_SET_CONNECT_SEL, 0},
-
+static const struct hda_verb vt1812_init_verbs[] = {
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xfb9, 0x24},
-
 	/* Enable AOW0 to MW9 */
 	{0x1, 0xfb8, 0xa8},
 	{ }
@@ -3865,7 +3600,7 @@ static int patch_vt1812(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++]  = vt1812_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++]  = vt1812_init_verbs;
 	spec->init_verbs[spec->num_iverbs++] = vt1812_uniwill_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
