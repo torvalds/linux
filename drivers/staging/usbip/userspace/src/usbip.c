@@ -23,6 +23,7 @@
 #include <stdlib.h>
 
 #include <getopt.h>
+#include <syslog.h>
 
 #include "usbip_common.h"
 #include "usbip.h"
@@ -33,7 +34,7 @@ static int usbip_version(int argc, char *argv[]);
 static const char usbip_version_string[] = PACKAGE_STRING;
 
 static const char usbip_usage_string[] =
-	"usbip [--debug] [version]\n"
+	"usbip [--debug] [--log] [version]\n"
 	"             [help] <command> <args>\n";
 
 static void usbip_usage(void)
@@ -138,12 +139,15 @@ int main(int argc, char *argv[])
 {
 	static const struct option opts[] = {
 		{ "debug", no_argument, NULL, 'd' },
-		{ NULL, 0, NULL, 0 }
+		{ "log",   no_argument, NULL, 'l' },
+		{ NULL,    0,           NULL,  0  }
 	};
+
 	char *cmd;
 	int opt;
 	int i, rc = -1;
 
+	usbip_use_stderr = 1;
 	opterr = 0;
 	for (;;) {
 		opt = getopt_long(argc, argv, "+d", opts, NULL);
@@ -154,7 +158,10 @@ int main(int argc, char *argv[])
 		switch (opt) {
 		case 'd':
 			usbip_use_debug = 1;
-			usbip_use_stderr = 1;
+			break;
+		case 'l':
+			usbip_use_syslog = 1;
+			openlog("", LOG_PID, LOG_USER);
 			break;
 		default:
 			goto err_out;
