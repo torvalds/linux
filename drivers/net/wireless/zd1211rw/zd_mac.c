@@ -1429,7 +1429,8 @@ static void beacon_watchdog_handler(struct work_struct *work)
 	spin_lock_irq(&mac->lock);
 	interval = mac->beacon.interval;
 	period = mac->beacon.period;
-	timeout = mac->beacon.last_update + msecs_to_jiffies(interval) + HZ;
+	timeout = mac->beacon.last_update +
+			msecs_to_jiffies(interval * 1024 / 1000) * 3;
 	spin_unlock_irq(&mac->lock);
 
 	if (interval > 0 && time_is_before_jiffies(timeout)) {
