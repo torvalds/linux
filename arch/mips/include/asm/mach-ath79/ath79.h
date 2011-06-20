@@ -68,6 +68,12 @@ static inline int soc_is_ar913x(void)
 		ath79_soc == ATH79_SOC_AR9132);
 }
 
+static inline int soc_is_ar933x(void)
+{
+	return (ath79_soc == ATH79_SOC_AR9330 ||
+		ath79_soc == ATH79_SOC_AR9331);
+}
+
 extern void __iomem *ath79_ddr_base;
 extern void __iomem *ath79_pll_base;
 extern void __iomem *ath79_reset_base;
