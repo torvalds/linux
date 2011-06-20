@@ -143,7 +143,7 @@ static void beacon_enable(struct zd_mac *mac);
 static void beacon_disable(struct zd_mac *mac);
 static void set_rts_cts(struct zd_mac *mac, unsigned int short_preamble);
 static int zd_mac_config_beacon(struct ieee80211_hw *hw,
-				struct sk_buff *beacon);
+				struct sk_buff *beacon, bool in_intr);
 
 static int zd_reg2alpha2(u8 regdomain, char *alpha2)
 {
@@ -404,7 +404,7 @@ int zd_restore_settings(struct zd_mac *mac)
 		if (mac->vif != NULL) {
 			beacon = ieee80211_beacon_get(mac->hw, mac->vif);
 			if (beacon)
-				zd_mac_config_beacon(mac->hw, beacon);
+				zd_mac_config_beacon(mac->hw, beacon, false);
 		}
 
 		zd_set_beacon_interval(&mac->chip, beacon_interval,
@@ -704,7 +704,8 @@ static void zd_mac_free_cur_beacon(struct zd_mac *mac)
 	mutex_unlock(&mac->chip.mutex);
 }
 
-static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon)
+static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon,
+				bool in_intr)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	int r, ret, num_cmds, req_pos = 0;
@@ -736,6 +737,10 @@ static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon)
 	r = zd_ioread32_locked(&mac->chip, &tmp, CR_BCN_FIFO_SEMAPHORE);
 	if (r < 0)
 		goto release_sema;
+	if (in_intr && tmp & 0x2) {
+		r = -EBUSY;
+		goto release_sema;
+	}
 
 	end_jiffies = jiffies + HZ / 2; /*~500ms*/
 	message_jiffies = jiffies + HZ / 10; /*~100ms*/
@@ -790,7 +795,7 @@ release_sema:
 	end_jiffies = jiffies + HZ / 2; /*~500ms*/
 	ret = zd_iowrite32_locked(&mac->chip, 1, CR_BCN_FIFO_SEMAPHORE);
 	while (ret < 0) {
-		if (time_is_before_eq_jiffies(end_jiffies)) {
+		if (in_intr || time_is_before_eq_jiffies(end_jiffies)) {
 			ret = -ETIMEDOUT;
 			break;
 		}
@@ -1161,7 +1166,7 @@ static void zd_beacon_done(struct zd_mac *mac)
 	 */
 	beacon = ieee80211_beacon_get(mac->hw, mac->vif);
 	if (beacon)
-		zd_mac_config_beacon(mac->hw, beacon);
+		zd_mac_config_beacon(mac->hw, beacon, true);
 
 	spin_lock_irq(&mac->lock);
 	mac->beacon.last_update = jiffies;
@@ -1286,7 +1291,7 @@ static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			if (beacon) {
 				zd_chip_disable_hwint(&mac->chip);
-				zd_mac_config_beacon(hw, beacon);
+				zd_mac_config_beacon(hw, beacon, false);
 				zd_chip_enable_hwint(&mac->chip);
 			}
 		}
@@ -1439,7 +1444,7 @@ static void beacon_watchdog_handler(struct work_struct *work)
 		if (beacon) {
 			zd_mac_free_cur_beacon(mac);
 
-			zd_mac_config_beacon(mac->hw, beacon);
+			zd_mac_config_beacon(mac->hw, beacon, false);
 		}
 
 		zd_set_beacon_interval(&mac->chip, interval, period, mac->type);
