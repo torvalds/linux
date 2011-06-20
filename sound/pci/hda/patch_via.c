@@ -108,6 +108,7 @@ struct via_spec {
 	struct hda_multi_out multiout;
 	hda_nid_t slave_dig_outs[2];
 	hda_nid_t hp_dac_nid;
+	int num_active_streams;
 
 	struct nid_path out_path[4];
 	struct nid_path hp_path;
@@ -157,11 +158,9 @@ struct via_spec {
 
 	void (*set_widgets_power_state)(struct hda_codec *codec);
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_loopback_check loopback;
 	int num_loopbacks;
 	struct hda_amp_list loopback_list[8];
-#endif
 };
 
 static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec);
@@ -241,8 +240,8 @@ enum {
 	VIA_CTL_WIDGET_ANALOG_MUTE,
 };
 
-static void analog_low_current_mode(struct hda_codec *codec, int stream_idle);
-static int is_aa_path_mute(struct hda_codec *codec);
+static void analog_low_current_mode(struct hda_codec *codec);
+static bool is_aa_path_mute(struct hda_codec *codec);
 
 static void vt1708_start_hp_work(struct via_spec *spec)
 {
@@ -281,7 +280,7 @@ static int analog_input_switch_put(struct snd_kcontrol *kcontrol,
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 
 	set_widgets_power_state(codec);
-	analog_low_current_mode(snd_kcontrol_chip(kcontrol), -1);
+	analog_low_current_mode(snd_kcontrol_chip(kcontrol));
 	if (snd_hda_get_bool_hint(codec, "analog_loopback_hp_detect") == 1) {
 		if (is_aa_path_mute(codec))
 			vt1708_start_hp_work(codec->spec);
@@ -895,77 +894,33 @@ static int via_smart51_build(struct hda_codec *codec)
 	return 0;
 }
 
-/* check AA path's mute statue */
-static int is_aa_path_mute(struct hda_codec *codec)
+/* check AA path's mute status */
+static bool is_aa_path_mute(struct hda_codec *codec)
 {
-	int mute = 1;
-	int start_idx;
-	int end_idx;
-	int i;
 	struct via_spec *spec = codec->spec;
-	/* get nid of MW0 and start & end index */
-	switch (spec->codec_type) {
-	case VT1708B_8CH:
-	case VT1708B_4CH:
-	case VT1708S:
-	case VT1716S:
-		start_idx = 2;
-		end_idx = 4;
-		break;
-	case VT1702:
-		start_idx = 1;
-		end_idx = 3;
-		break;
-	case VT1718S:
-		start_idx = 1;
-		end_idx = 3;
-		break;
-	case VT2002P:
-	case VT1812:
-	case VT1802:
-		start_idx = 0;
-		end_idx = 2;
-		break;
-	default:
-		return 0;
-	}
-	/* check AA path's mute status */
-	for (i = start_idx; i <= end_idx; i++) {
-		unsigned int con_list = snd_hda_codec_read(
-			codec, spec->aa_mix_nid, 0, AC_VERB_GET_CONNECT_LIST, i/4*4);
-		int shift = 8 * (i % 4);
-		hda_nid_t nid_pin = (con_list & (0xff << shift)) >> shift;
-		unsigned int defconf = snd_hda_codec_get_pincfg(codec, nid_pin);
-		if (get_defcfg_connect(defconf) == AC_JACK_PORT_COMPLEX) {
-			/* check mute status while the pin is connected */
-			int mute_l = snd_hda_codec_amp_read(codec, spec->aa_mix_nid, 0,
-							    HDA_INPUT, i) >> 7;
-			int mute_r = snd_hda_codec_amp_read(codec, spec->aa_mix_nid, 1,
-							    HDA_INPUT, i) >> 7;
-			if (!mute_l || !mute_r) {
-				mute = 0;
-				break;
-			}
+	const struct hda_amp_list *p;
+	int i, ch, v;
+
+	for (i = 0; i < spec->num_loopbacks; i++) {
+		p = &spec->loopback_list[i];
+		for (ch = 0; ch < 2; ch++) {
+			v = snd_hda_codec_amp_read(codec, p->nid, ch, p->dir,
+						   p->idx);
+			if (!(v & HDA_AMP_MUTE) && v > 0)
+				return false;
 		}
 	}
-	return mute;
+	return true;
 }
 
 /* enter/exit analog low-current mode */
-static void analog_low_current_mode(struct hda_codec *codec, int stream_idle)
+static void analog_low_current_mode(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
-	static int saved_stream_idle = 1; /* saved stream idle status */
-	int enable = is_aa_path_mute(codec);
-	unsigned int verb = 0;
-	unsigned int parm = 0;
+	bool enable;
+	unsigned int verb, parm;
 
-	if (stream_idle == -1)	/* stream status did not change */
-		enable = enable && saved_stream_idle;
-	else {
-		enable = enable && stream_idle;
-		saved_stream_idle = stream_idle;
-	}
+	enable = is_aa_path_mute(codec) && (spec->num_active_streams > 0);
 
 	/* decide low current mode's verb & parameter */
 	switch (spec->codec_type) {
@@ -1006,12 +961,15 @@ static const struct hda_verb vt1708_init_verbs[] = {
 	{ }
 };
 
-static void substream_set_idle(struct hda_codec *codec,
-			       struct snd_pcm_substream *substream)
+static void set_stream_active(struct hda_codec *codec, bool active)
 {
-	int idle = substream->pstr->substream_opened == 1
-		&& substream->ref_count == 0;
-	analog_low_current_mode(codec, idle);
+	struct via_spec *spec = codec->spec;
+
+	if (active)
+		spec->num_active_streams++;
+	else
+		spec->num_active_streams--;
+	analog_low_current_mode(codec);
 }
 
 static int via_playback_multi_pcm_open(struct hda_pcm_stream *hinfo,
@@ -1019,12 +977,19 @@ static int via_playback_multi_pcm_open(struct hda_pcm_stream *hinfo,
 				 struct snd_pcm_substream *substream)
 {
 	struct via_spec *spec = codec->spec;
+	int err;
 
 	if (!spec->hp_independent_mode)
 		spec->multiout.hp_nid = spec->hp_dac_nid;
-	substream_set_idle(codec, substream);
-	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream,
-					     hinfo);
+	set_stream_active(codec, true);
+	err = snd_hda_multi_out_analog_open(codec, &spec->multiout, substream,
+					    hinfo);
+	if (err < 0) {
+		spec->multiout.hp_nid = 0;
+		set_stream_active(codec, false);
+		return err;
+	}
+	return 0;
 }
 
 static int via_playback_multi_pcm_close(struct hda_pcm_stream *hinfo,
@@ -1034,7 +999,7 @@ static int via_playback_multi_pcm_close(struct hda_pcm_stream *hinfo,
 	struct via_spec *spec = codec->spec;
 
 	spec->multiout.hp_nid = 0;
-	substream_set_idle(codec, substream);
+	set_stream_active(codec, false);
 	return 0;
 }
 
@@ -1048,7 +1013,7 @@ static int via_playback_hp_pcm_open(struct hda_pcm_stream *hinfo,
 		return -EINVAL;
 	if (!spec->hp_independent_mode || spec->multiout.hp_nid)
 		return -EBUSY;
-	substream_set_idle(codec, substream);
+	set_stream_active(codec, true);
 	return 0;
 }
 
@@ -1056,7 +1021,7 @@ static int via_playback_hp_pcm_close(struct hda_pcm_stream *hinfo,
 				     struct hda_codec *codec,
 				     struct snd_pcm_substream *substream)
 {
-	substream_set_idle(codec, substream);
+	set_stream_active(codec, false);
 	return 0;
 }
 
@@ -1334,7 +1299,7 @@ static int via_build_controls(struct hda_codec *codec)
 
 	/* init power states */
 	set_widgets_power_state(codec);
-	analog_low_current_mode(codec, 1);
+	analog_low_current_mode(codec);
 
 	via_free_kctls(codec); /* no longer needed */
 	return 0;
@@ -1860,7 +1825,6 @@ static const struct snd_kcontrol_new via_input_src_ctl = {
 	.put = via_mux_enum_put,
 };
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 static void add_loopback_list(struct via_spec *spec, hda_nid_t mix, int idx)
 {
 	struct hda_amp_list *list;
@@ -1874,9 +1838,6 @@ static void add_loopback_list(struct via_spec *spec, hda_nid_t mix, int idx)
 	spec->num_loopbacks++;
 	spec->loopback.amplist = spec->loopback_list;
 }
-#else
-#define add_loopback_list(spec, mix, idx) /* NOP */
-#endif
 
 /* create playback/capture controls for input pins */
 static int via_auto_create_analog_input_ctls(struct hda_codec *codec,
