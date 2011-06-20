@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
+#include <linux/u64_stats_sync.h>
 
 #include <net/dst.h>
 #include <net/xfrm.h>
@@ -24,12 +25,13 @@
 #define MAX_MTU 65535		/* Max L3 MTU (arbitrary) */
 
 struct veth_net_stats {
-	u64	rx_packets;
-	u64	tx_packets;
-	u64	rx_bytes;
-	u64	tx_bytes;
-	u64	tx_dropped;
-	u64	rx_dropped;
+	u64			rx_packets;
+	u64			tx_packets;
+	u64			rx_bytes;
+	u64			tx_bytes;
+	u64			rx_dropped;
+	u64			tx_dropped;
+	struct u64_stats_sync	syncp;
 };
 
 struct veth_priv {
@@ -137,21 +139,29 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (dev_forward_skb(rcv, skb) != NET_RX_SUCCESS)
 		goto rx_drop;
 
+	u64_stats_update_begin(&stats->syncp);
 	stats->tx_bytes += length;
 	stats->tx_packets++;
+	u64_stats_update_end(&stats->syncp);
 
+	u64_stats_update_begin(&rcv_stats->syncp);
 	rcv_stats->rx_bytes += length;
 	rcv_stats->rx_packets++;
+	u64_stats_update_end(&rcv_stats->syncp);
 
 	return NETDEV_TX_OK;
 
 tx_drop:
 	kfree_skb(skb);
+	u64_stats_update_begin(&stats->syncp);
 	stats->tx_dropped++;
+	u64_stats_update_end(&stats->syncp);
 	return NETDEV_TX_OK;
 
 rx_drop:
+	u64_stats_update_begin(&rcv_stats->syncp);
 	rcv_stats->rx_dropped++;
+	u64_stats_update_end(&rcv_stats->syncp);
 	return NETDEV_TX_OK;
 }
 
@@ -162,21 +172,30 @@ rx_drop:
 static struct rtnl_link_stats64 *veth_get_stats64(struct net_device *dev,
 						  struct rtnl_link_stats64 *tot)
 {
-	struct veth_priv *priv;
+	struct veth_priv *priv = netdev_priv(dev);
 	int cpu;
-	struct veth_net_stats *stats;
-
-	priv = netdev_priv(dev);
 
 	for_each_possible_cpu(cpu) {
-		stats = per_cpu_ptr(priv->stats, cpu);
+		struct veth_net_stats *stats = per_cpu_ptr(priv->stats, cpu);
+		u64 rx_packets, rx_bytes, rx_dropped;
+		u64 tx_packets, tx_bytes, tx_dropped;
+		unsigned int start;
 
-		tot->rx_packets += stats->rx_packets;
-		tot->tx_packets += stats->tx_packets;
-		tot->rx_bytes   += stats->rx_bytes;
-		tot->tx_bytes   += stats->tx_bytes;
-		tot->tx_dropped += stats->tx_dropped;
-		tot->rx_dropped += stats->rx_dropped;
+		do {
+			start = u64_stats_fetch_begin_bh(&stats->syncp);
+			rx_packets = stats->rx_packets;
+			tx_packets = stats->tx_packets;
+			rx_bytes = stats->rx_bytes;
+			tx_bytes = stats->tx_bytes;
+			rx_dropped = stats->rx_dropped;
+			tx_dropped = stats->tx_dropped;
+		} while (u64_stats_fetch_retry_bh(&stats->syncp, start));
+		tot->rx_packets += rx_packets;
+		tot->tx_packets += tx_packets;
+		tot->rx_bytes   += rx_bytes;
+		tot->tx_bytes   += tx_bytes;
+		tot->rx_dropped += rx_dropped;
+		tot->tx_dropped += tx_dropped;
 	}
 
 	return tot;
