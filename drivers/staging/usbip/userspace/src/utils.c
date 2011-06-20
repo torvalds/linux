@@ -6,6 +6,7 @@
 #include <sysfs/libsysfs.h>
 
 #include <limits.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 

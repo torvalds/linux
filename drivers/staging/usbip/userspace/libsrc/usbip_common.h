@@ -2,20 +2,18 @@
  * Copyright (C) 2005-2007 Takahiro Hirofuchi
  */
 
-#ifndef _USBIP_COMMON_H
-#define _USBIP_COMMON_H
-
-#include <unistd.h>
-#include <stdint.h>
-#include <syslog.h>
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#ifndef __USBIP_COMMON_H
+#define __USBIP_COMMON_H
 
 #include <sysfs/libsysfs.h>
-#include <netdb.h>
-#include <sys/socket.h>
+
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <syslog.h>
+#include <unistd.h>
 
 #ifndef USBIDS_FILE
 #define USBIDS_FILE "/usr/share/hwdata/usb.ids"
@@ -146,4 +144,4 @@ void usbip_names_free(void);
 void usbip_names_get_product(char *buff, size_t size, uint16_t vendor, uint16_t product);
 void usbip_names_get_class(char *buff, size_t size, uint8_t class, uint8_t subclass, uint8_t protocol);
 
-#endif
+#endif /* __USBIP_COMMON_H */
