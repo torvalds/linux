@@ -799,7 +799,7 @@ out_err:
 	return err;
 }
 
-int nilfs_permission(struct inode *inode, int mask, unsigned int flags)
+int nilfs_permission(struct inode *inode, int mask)
 {
 	struct nilfs_root *root = NILFS_I(inode)->i_root;
 	if ((mask & MAY_WRITE) && root &&

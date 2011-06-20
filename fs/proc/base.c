@@ -2167,7 +2167,7 @@ static const struct file_operations proc_fd_operations = {
  * /proc/pid/fd needs a special permission handler so that a process can still
  * access /proc/self/fd after it has executed a setuid().
  */
-static int proc_fd_permission(struct inode *inode, int mask, unsigned int flags)
+static int proc_fd_permission(struct inode *inode, int mask)
 {
 	int rv = generic_permission(inode, mask);
 	if (rv == 0)

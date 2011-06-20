@@ -7331,7 +7331,7 @@ static int btrfs_set_page_dirty(struct page *page)
 	return __set_page_dirty_nobuffers(page);
 }
 
-static int btrfs_permission(struct inode *inode, int mask, unsigned int flags)
+static int btrfs_permission(struct inode *inode, int mask)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 

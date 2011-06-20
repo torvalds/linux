@@ -958,7 +958,7 @@ static int xattr_mount_check(struct super_block *s)
 	return 0;
 }
 
-int reiserfs_permission(struct inode *inode, int mask, unsigned int flags)
+int reiserfs_permission(struct inode *inode, int mask)
 {
 	/*
 	 * We don't do permission checks on the internal objects.

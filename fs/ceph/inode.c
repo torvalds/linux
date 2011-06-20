@@ -1795,11 +1795,11 @@ int ceph_do_getattr(struct inode *inode, int mask)
  * Check inode permissions.  We verify we have a valid value for
  * the AUTH cap, then call the generic handler.
  */
-int ceph_permission(struct inode *inode, int mask, unsigned int flags)
+int ceph_permission(struct inode *inode, int mask)
 {
 	int err;
 
-	if (flags & IPERM_FLAG_RCU)
+	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	err = ceph_do_getattr(inode, CEPH_CAP_AUTH_SHARED);

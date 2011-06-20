@@ -349,11 +349,11 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns, const cha
 		return -ENOENT;
 }
 
-int sysfs_permission(struct inode *inode, int mask, unsigned int flags)
+int sysfs_permission(struct inode *inode, int mask)
 {
 	struct sysfs_dirent *sd;
 
-	if (flags & IPERM_FLAG_RCU)
+	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	sd = inode->i_private;

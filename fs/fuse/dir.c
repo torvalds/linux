@@ -971,9 +971,9 @@ static int fuse_access(struct inode *inode, int mask)
 	return err;
 }
 
-static int fuse_perm_getattr(struct inode *inode, int flags)
+static int fuse_perm_getattr(struct inode *inode, int mask)
 {
-	if (flags & IPERM_FLAG_RCU)
+	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	return fuse_do_getattr(inode, NULL, NULL);
@@ -992,7 +992,7 @@ static int fuse_perm_getattr(struct inode *inode, int flags)
  * access request is sent.  Execute permission is still checked
  * locally based on file mode.
  */
-static int fuse_permission(struct inode *inode, int mask, unsigned int flags)
+static int fuse_permission(struct inode *inode, int mask)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	bool refreshed = false;
@@ -1011,7 +1011,7 @@ static int fuse_permission(struct inode *inode, int mask, unsigned int flags)
 		if (fi->i_time < get_jiffies_64()) {
 			refreshed = true;
 
-			err = fuse_perm_getattr(inode, flags);
+			err = fuse_perm_getattr(inode, mask);
 			if (err)
 				return err;
 		}
@@ -1024,7 +1024,7 @@ static int fuse_permission(struct inode *inode, int mask, unsigned int flags)
 		   attributes.  This is also needed, because the root
 		   node will at first have no permissions */
 		if (err == -EACCES && !refreshed) {
-			err = fuse_perm_getattr(inode, flags);
+			err = fuse_perm_getattr(inode, mask);
 			if (!err)
 				err = generic_permission(inode, mask);
 		}
@@ -1034,7 +1034,7 @@ static int fuse_permission(struct inode *inode, int mask, unsigned int flags)
 		   noticed immediately, only after the attribute
 		   timeout has expired */
 	} else if (mask & (MAY_ACCESS | MAY_CHDIR)) {
-		if (flags & IPERM_FLAG_RCU)
+		if (mask & MAY_NOT_BLOCK)
 			return -ECHILD;
 
 		err = fuse_access(inode, mask);
@@ -1043,7 +1043,7 @@ static int fuse_permission(struct inode *inode, int mask, unsigned int flags)
 			if (refreshed)
 				return -EACCES;
 
-			err = fuse_perm_getattr(inode, flags);
+			err = fuse_perm_getattr(inode, mask);
 			if (!err && !(inode->i_mode & S_IXUGO))
 				return -EACCES;
 		}

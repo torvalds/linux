@@ -132,11 +132,11 @@ exit:
 }
 
 
-int coda_permission(struct inode *inode, int mask, unsigned int flags)
+int coda_permission(struct inode *inode, int mask)
 {
 	int error;
 
-	if (flags & IPERM_FLAG_RCU)
+	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;

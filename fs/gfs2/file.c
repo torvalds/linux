@@ -243,7 +243,7 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	    !capable(CAP_LINUX_IMMUTABLE))
 		goto out;
 	if (!IS_IMMUTABLE(inode)) {
-		error = gfs2_permission(inode, MAY_WRITE, 0);
+		error = gfs2_permission(inode, MAY_WRITE);
 		if (error)
 			goto out;
 	}
