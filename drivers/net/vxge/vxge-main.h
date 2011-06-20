@@ -201,30 +201,14 @@ struct vxge_msix_entry {
 /* Software Statistics */
 
 struct vxge_sw_stats {
-	/* Network Stats (interface stats) */
-
-	/* Tx */
-	u64 tx_frms;
-	u64 tx_errors;
-	u64 tx_bytes;
-	u64 txd_not_free;
-	u64 txd_out_of_desc;
 
 	/* Virtual Path */
-	u64 vpaths_open;
-	u64 vpath_open_fail;
-
-	/* Rx */
-	u64 rx_frms;
-	u64 rx_errors;
-	u64 rx_bytes;
-	u64 rx_mcast;
+	unsigned long vpaths_open;
+	unsigned long vpath_open_fail;
 
 	/* Misc. */
-	u64 link_up;
-	u64 link_down;
-	u64 pci_map_fail;
-	u64 skb_alloc_fail;
+	unsigned long link_up;
+	unsigned long link_down;
 };
 
 struct vxge_mac_addrs {
@@ -237,12 +221,14 @@ struct vxge_mac_addrs {
 struct vxgedev;
 
 struct vxge_fifo_stats {
+	struct u64_stats_sync	syncp;
 	u64 tx_frms;
-	u64 tx_errors;
 	u64 tx_bytes;
-	u64 txd_not_free;
-	u64 txd_out_of_desc;
-	u64 pci_map_fail;
+
+	unsigned long tx_errors;
+	unsigned long txd_not_free;
+	unsigned long txd_out_of_desc;
+	unsigned long pci_map_fail;
 };
 
 struct vxge_fifo {
@@ -264,14 +250,16 @@ struct vxge_fifo {
 } ____cacheline_aligned;
 
 struct vxge_ring_stats {
-	u64 prev_rx_frms;
+	struct u64_stats_sync syncp;
 	u64 rx_frms;
-	u64 rx_errors;
-	u64 rx_dropped;
-	u64 rx_bytes;
 	u64 rx_mcast;
-	u64 pci_map_fail;
-	u64 skb_alloc_fail;
+	u64 rx_bytes;
+
+	unsigned long rx_errors;
+	unsigned long rx_dropped;
+	unsigned long prev_rx_frms;
+	unsigned long pci_map_fail;
+	unsigned long skb_alloc_fail;
 };
 
 struct vxge_ring {

@@ -296,11 +296,13 @@ vxge_rx_complete(struct vxge_ring *ring, struct sk_buff *skb, u16 vlan,
 	skb_record_rx_queue(skb, ring->driver_id);
 	skb->protocol = eth_type_trans(skb, ring->ndev);
 
+	u64_stats_update_begin(&ring->stats.syncp);
 	ring->stats.rx_frms++;
 	ring->stats.rx_bytes += pkt_length;
 
 	if (skb->pkt_type == PACKET_MULTICAST)
 		ring->stats.rx_mcast++;
+	u64_stats_update_end(&ring->stats.syncp);
 
 	vxge_debug_rx(VXGE_TRACE,
 		"%s: %s:%d  skb protocol = %d",
@@ -592,8 +594,10 @@ vxge_xmit_compl(struct __vxge_hw_fifo *fifo_hw, void *dtr,
 		vxge_hw_fifo_txdl_free(fifo_hw, dtr);
 
 		/* Updating the statistics block */
+		u64_stats_update_begin(&fifo->stats.syncp);
 		fifo->stats.tx_frms++;
 		fifo->stats.tx_bytes += skb->len;
+		u64_stats_update_end(&fifo->stats.syncp);
 
 		*done_skb++ = skb;
 
@@ -2630,11 +2634,16 @@ static void vxge_poll_vp_lockup(unsigned long data)
 	struct vxge_vpath *vpath;
 	struct vxge_ring *ring;
 	int i;
+	unsigned long rx_frms;
 
 	for (i = 0; i < vdev->no_of_vpath; i++) {
 		ring = &vdev->vpaths[i].ring;
+
+		/* Truncated to machine word size number of frames */
+		rx_frms = ACCESS_ONCE(ring->stats.rx_frms);
+
 		/* Did this vpath received any packets */
-		if (ring->stats.prev_rx_frms == ring->stats.rx_frms) {
+		if (ring->stats.prev_rx_frms == rx_frms) {
 			status = vxge_hw_vpath_check_leak(ring->handle);
 
 			/* Did it received any packets last time */
@@ -2654,7 +2663,7 @@ static void vxge_poll_vp_lockup(unsigned long data)
 				}
 			}
 		}
-		ring->stats.prev_rx_frms = ring->stats.rx_frms;
+		ring->stats.prev_rx_frms = rx_frms;
 		ring->last_status = status;
 	}
 
@@ -3125,14 +3134,36 @@ vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 
 	/* net_stats already zeroed by caller */
 	for (k = 0; k < vdev->no_of_vpath; k++) {
-		net_stats->rx_packets += vdev->vpaths[k].ring.stats.rx_frms;
-		net_stats->rx_bytes += vdev->vpaths[k].ring.stats.rx_bytes;
-		net_stats->rx_errors += vdev->vpaths[k].ring.stats.rx_errors;
-		net_stats->multicast += vdev->vpaths[k].ring.stats.rx_mcast;
-		net_stats->rx_dropped += vdev->vpaths[k].ring.stats.rx_dropped;
-		net_stats->tx_packets += vdev->vpaths[k].fifo.stats.tx_frms;
-		net_stats->tx_bytes += vdev->vpaths[k].fifo.stats.tx_bytes;
-		net_stats->tx_errors += vdev->vpaths[k].fifo.stats.tx_errors;
+		struct vxge_ring_stats *rxstats = &vdev->vpaths[k].ring.stats;
+		struct vxge_fifo_stats *txstats = &vdev->vpaths[k].fifo.stats;
+		unsigned int start;
+		u64 packets, bytes, multicast;
+
+		do {
+			start = u64_stats_fetch_begin(&rxstats->syncp);
+
+			packets   = rxstats->rx_frms;
+			multicast = rxstats->rx_mcast;
+			bytes     = rxstats->rx_bytes;
+		} while (u64_stats_fetch_retry(&rxstats->syncp, start));
+
+		net_stats->rx_packets += packets;
+		net_stats->rx_bytes += bytes;
+		net_stats->multicast += multicast;
+
+		net_stats->rx_errors += rxstats->rx_errors;
+		net_stats->rx_dropped += rxstats->rx_dropped;
+
+		do {
+			start = u64_stats_fetch_begin(&txstats->syncp);
+
+			packets = txstats->tx_frms;
+			bytes   = txstats->tx_bytes;
+		} while (u64_stats_fetch_retry(&txstats->syncp, start));
+
+		net_stats->tx_packets += packets;
+		net_stats->tx_bytes += bytes;
+		net_stats->tx_errors += txstats->tx_errors;
 	}
 
 	return net_stats;
