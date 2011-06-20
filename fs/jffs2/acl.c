@@ -264,7 +264,7 @@ int jffs2_check_acl(struct inode *inode, int mask, unsigned int flags)
 	struct posix_acl *acl;
 	int rc;
 
-	if (flags & IPERM_FLAG_RCU)
+	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	acl = jffs2_get_acl(inode, ACL_TYPE_ACCESS);

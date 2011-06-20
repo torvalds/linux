@@ -297,7 +297,7 @@ int ocfs2_check_acl(struct inode *inode, int mask, unsigned int flags)
 	struct posix_acl *acl;
 	int ret = -EAGAIN;
 
-	if (flags & IPERM_FLAG_RCU)
+	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	osb = OCFS2_SB(inode->i_sb);

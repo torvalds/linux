@@ -101,7 +101,7 @@ int v9fs_check_acl(struct inode *inode, int mask, unsigned int flags)
 	struct posix_acl *acl;
 	struct v9fs_session_info *v9ses;
 
-	if (flags & IPERM_FLAG_RCU)
+	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	v9ses = v9fs_inode2v9ses(inode);

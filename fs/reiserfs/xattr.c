@@ -879,7 +879,7 @@ int reiserfs_check_acl(struct inode *inode, int mask, unsigned int flags)
 	if (get_inode_sd_version(inode) == STAT_DATA_V1)
 		return -EAGAIN;
 
-	if (flags & IPERM_FLAG_RCU)
+	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
 
 	acl = reiserfs_get_acl(inode, ACL_TYPE_ACCESS);
