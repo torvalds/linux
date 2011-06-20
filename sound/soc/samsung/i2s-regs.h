@@ -23,6 +23,14 @@
 #define I2SRXD		0x14
 #define I2SFICS		0x18
 #define I2STXDS		0x1c
+#define I2SAHB		0x20
+#define I2SSTR0		0x24
+#define I2SSIZE		0x28
+#define I2STRNCNT	0x2c
+#define I2SLVL0ADDR	0x30
+#define I2SLVL1ADDR	0x34
+#define I2SLVL2ADDR	0x38
+#define I2SLVL3ADDR	0x3c
 
 #define CON_RSTCLR		(1 << 31)
 #define CON_FRXOFSTATUS		(1 << 26)
@@ -114,9 +122,21 @@
 
 #define FIC_TXFLUSH		(1 << 15)
 #define FIC_RXFLUSH		(1 << 7)
+
 #define FIC_TXCOUNT(x)		(((x) >>  8) & 0xf)
 #define FIC_RXCOUNT(x)		(((x) >>  0) & 0xf)
 #define FICS_TXCOUNT(x)		(((x) >>  8) & 0x7f)
+
+#define AHB_INTENLVL0		(1 << 24)
+#define AHB_LVL0INT		(1 << 20)
+#define AHB_CLRLVL0INT		(1 << 16)
+#define AHB_DMARLD		(1 << 5)
+#define AHB_INTMASK		(1 << 3)
+#define AHB_DMAEN		(1 << 0)
+#define AHB_LVLINTMASK		(0xf << 20)
+
+#define I2SSIZE_TRNMSK		(0xffff)
+#define I2SSIZE_SHIFT		(16)
 
 #endif /* __SND_SOC_SAMSUNG_I2S_REGS_H */
 
