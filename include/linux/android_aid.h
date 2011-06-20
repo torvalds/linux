@@ -22,5 +22,7 @@
 #define AID_INET         KGIDT_INIT(3003)
 #define AID_NET_RAW      KGIDT_INIT(3004)
 #define AID_NET_ADMIN    KGIDT_INIT(3005)
+#define AID_NET_BW_STATS KGIDT_INIT(3006)  /* read bandwidth statistics */
+#define AID_NET_BW_ACCT  KGIDT_INIT(3007)  /* change bandwidth statistics accounting */
 
 #endif
