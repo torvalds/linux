@@ -1433,14 +1433,16 @@ static int isci_reset_device(struct domain_device *dev, int hard_reset)
 	isci_device_clear_reset_pending(ihost, idev);
 
 	rc = sas_phy_reset(phy, hard_reset);
-	msleep(2000); /* just like mvsas */
 
 	/* Terminate in-progress I/O now. */
 	isci_remote_device_nuke_requests(ihost, idev);
 
+	/* Since all pending TCs have been cleaned, resume the RNC. */
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 	status = scic_remote_device_reset_complete(&idev->sci);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
+
+	msleep(2000); /* just like mvsas */
 
 	if (status != SCI_SUCCESS) {
 		dev_warn(&ihost->pdev->dev,
