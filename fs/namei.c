@@ -436,28 +436,6 @@ static inline int d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	return dentry->d_op->d_revalidate(dentry, nd);
 }
 
-static struct dentry *
-do_revalidate(struct dentry *dentry, struct nameidata *nd)
-{
-	int status = d_revalidate(dentry, nd);
-	if (unlikely(status <= 0)) {
-		/*
-		 * The dentry failed validation.
-		 * If d_revalidate returned 0 attempt to invalidate
-		 * the dentry otherwise d_revalidate is asking us
-		 * to return a fail status.
-		 */
-		if (status < 0) {
-			dput(dentry);
-			dentry = ERR_PTR(status);
-		} else if (!d_invalidate(dentry)) {
-			dput(dentry);
-			dentry = NULL;
-		}
-	}
-	return dentry;
-}
-
 /**
  * complete_walk - successful completion of path walk
  * @nd:  pointer nameidata
@@ -1642,8 +1620,24 @@ static struct dentry *__lookup_hash(struct qstr *name,
 			return dentry;
 	}
 
-	if (dentry && (dentry->d_flags & DCACHE_OP_REVALIDATE))
-		dentry = do_revalidate(dentry, nd);
+	if (dentry && (dentry->d_flags & DCACHE_OP_REVALIDATE)) {
+		int status = d_revalidate(dentry, nd);
+		if (unlikely(status <= 0)) {
+			/*
+			 * The dentry failed validation.
+			 * If d_revalidate returned 0 attempt to invalidate
+			 * the dentry otherwise d_revalidate is asking us
+			 * to return a fail status.
+			 */
+			if (status < 0) {
+				dput(dentry);
+				return ERR_PTR(status);
+			} else if (!d_invalidate(dentry)) {
+				dput(dentry);
+				dentry = NULL;
+			}
+		}
+	}
 
 	if (!dentry)
 		dentry = d_alloc_and_lookup(base, name, nd);
