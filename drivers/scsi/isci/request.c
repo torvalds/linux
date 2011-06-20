@@ -2508,9 +2508,16 @@ static void isci_request_handle_controller_specific_errors(
 		/* Task in the target is not done. */
 		*response_ptr = SAS_TASK_UNDELIVERED;
 		*status_ptr = SAM_STAT_TASK_ABORTED;
-		request->complete_in_target = false;
 
-		*complete_to_host_ptr = isci_perform_error_io_completion;
+		if (task->task_proto == SAS_PROTOCOL_SMP) {
+			request->complete_in_target = true;
+
+			*complete_to_host_ptr = isci_perform_normal_io_completion;
+		} else {
+			request->complete_in_target = false;
+
+			*complete_to_host_ptr = isci_perform_error_io_completion;
+		}
 		break;
 	}
 }
@@ -2882,6 +2889,21 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 			request->complete_in_target = false;
 			break;
 
+		case SCI_FAILURE_RETRY_REQUIRED:
+
+			/* Fail the I/O so it can be retried. */
+			response = SAS_TASK_UNDELIVERED;
+			if ((isci_device->status == isci_stopping) ||
+			    (isci_device->status == isci_stopped))
+				status = SAS_DEVICE_UNKNOWN;
+			else
+				status = SAS_ABORTED_TASK;
+
+			complete_to_host = isci_perform_normal_io_completion;
+			request->complete_in_target = true;
+			break;
+
+
 		default:
 			/* Catch any otherwise unhandled error codes here. */
 			dev_warn(&isci_host->pdev->dev,
@@ -2901,8 +2923,13 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 			else
 				status = SAS_ABORTED_TASK;
 
-			complete_to_host = isci_perform_error_io_completion;
-			request->complete_in_target = false;
+			if (SAS_PROTOCOL_SMP == task->task_proto) {
+				request->complete_in_target = true;
+				complete_to_host = isci_perform_normal_io_completion;
+			} else {
+				request->complete_in_target = false;
+				complete_to_host = isci_perform_error_io_completion;
+			}
 			break;
 		}
 		break;

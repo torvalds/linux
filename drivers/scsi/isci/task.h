@@ -301,6 +301,27 @@ isci_task_set_completion_status(
 	task->task_status.stat = status;
 
 	switch (task_notification_selection) {
+
+	case isci_perform_error_io_completion:
+
+		if (task->task_proto == SAS_PROTOCOL_SMP) {
+			/* There is no error escalation in the SMP case.
+			 * Convert to a normal completion to avoid the
+			 * timeout in the discovery path and to let the
+			 * next action take place quickly.
+			 */
+			task_notification_selection
+				= isci_perform_normal_io_completion;
+
+			/* Fall through to the normal case... */
+		} else {
+			/* Use sas_task_abort */
+			/* Leave SAS_TASK_STATE_DONE clear
+			 * Leave SAS_TASK_AT_INITIATOR set.
+			 */
+			break;
+		}
+
 	case isci_perform_aborted_io_completion:
 		/* This path can occur with task-managed requests as well as
 		 * requests terminated because of LUN or device resets.
@@ -313,12 +334,6 @@ isci_task_set_completion_status(
 	default:
 		WARN_ONCE(1, "unknown task_notification_selection: %d\n",
 			 task_notification_selection);
-		/* Fall through to the error case... */
-	case isci_perform_error_io_completion:
-		/* Use sas_task_abort */
-		/* Leave SAS_TASK_STATE_DONE clear
-		 * Leave SAS_TASK_AT_INITIATOR set.
-		 */
 		break;
 	}
 
