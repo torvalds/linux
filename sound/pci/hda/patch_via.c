@@ -4283,9 +4283,6 @@ static const struct hda_verb vt1718S_volume_init_verbs[] = {
 	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
 	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
 	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(5)},
-
-	/* Setup default input of Front HP to MW9 */
-	{0x28, AC_VERB_SET_CONNECT_SEL, 0x1},
 	/* PW9 PW10 Output enable */
 	{0x2d, AC_VERB_SET_PIN_WIDGET_CONTROL, AC_PINCTL_OUT_EN},
 	{0x2e, AC_VERB_SET_PIN_WIDGET_CONTROL, AC_PINCTL_OUT_EN},
@@ -4294,10 +4291,10 @@ static const struct hda_verb vt1718S_volume_init_verbs[] = {
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xf88, 0x8},
 	/* MW0/1/2/3/4: un-mute index 0 (AOWx), mute index 1 (MW9) */
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
@@ -4307,8 +4304,6 @@ static const struct hda_verb vt1718S_volume_init_verbs[] = {
 	/* set MUX1 = 2 (AOW4), MUX2 = 1 (AOW3) */
 	{0x34, AC_VERB_SET_CONNECT_SEL, 0x2},
 	{0x35, AC_VERB_SET_CONNECT_SEL, 0x1},
-	/* Unmute MW4's index 0 */
-	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{ }
 };
 
