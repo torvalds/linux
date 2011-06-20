@@ -69,7 +69,13 @@ static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 
 	udelay(50);
 
-	/* TODO */
+	/* Calibration */
+	b43_radio_mask(dev, 0x2b, ~0x1);
+	b43_radio_mask(dev, 0x2e, ~0x4);
+	b43_radio_set(dev, 0x2e, 0x4);
+	b43_radio_set(dev, 0x2b, 0x1);
+
+	udelay(300);
 }
 
 static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
