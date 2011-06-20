@@ -684,7 +684,7 @@ static unsigned long fsl_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
 	struct device_node *np = dev->of_node;
 	const u32 *iprop;
 	int size;
-	unsigned long spi_base_ofs;
+	void __iomem *spi_base;
 	unsigned long pram_ofs = -ENOMEM;
 
 	/* Can't use of_address_to_resource(), QE muram isn't at 0. */
@@ -702,33 +702,27 @@ static unsigned long fsl_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
 		return pram_ofs;
 	}
 
-	/* CPM1 and CPM2 pram must be at a fixed addr. */
-	if (!iprop || size != sizeof(*iprop) * 4)
-		return -ENOMEM;
-
-	spi_base_ofs = cpm_muram_alloc_fixed(iprop[2], 2);
-	if (IS_ERR_VALUE(spi_base_ofs))
-		return -ENOMEM;
+	spi_base = of_iomap(np, 1);
+	if (spi_base == NULL)
+		return -EINVAL;
 
 	if (mspi->flags & SPI_CPM2) {
 		pram_ofs = cpm_muram_alloc(SPI_PRAM_SIZE, 64);
-		if (!IS_ERR_VALUE(pram_ofs)) {
-			u16 __iomem *spi_base = cpm_muram_addr(spi_base_ofs);
-
-			out_be16(spi_base, pram_ofs);
-		}
+		out_be16(spi_base, pram_ofs);
 	} else {
-		struct spi_pram __iomem *pram = cpm_muram_addr(spi_base_ofs);
+		struct spi_pram __iomem *pram = spi_base;
 		u16 rpbase = in_be16(&pram->rpbase);
 
 		/* Microcode relocation patch applied? */
 		if (rpbase)
 			pram_ofs = rpbase;
-		else
-			return spi_base_ofs;
+		else {
+			pram_ofs = cpm_muram_alloc(SPI_PRAM_SIZE, 64);
+			out_be16(spi_base, pram_ofs);
+		}
 	}
 
-	cpm_muram_free(spi_base_ofs);
+	iounmap(spi_base);
 	return pram_ofs;
 }
 
