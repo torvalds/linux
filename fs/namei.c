@@ -235,12 +235,21 @@ int generic_permission(struct inode *inode, int mask)
 	if (ret != -EACCES)
 		return ret;
 
+	if (S_ISDIR(inode->i_mode)) {
+		/* DACs are overridable for directories */
+		if (ns_capable(inode_userns(inode), CAP_DAC_OVERRIDE))
+			return 0;
+		if (!(mask & MAY_WRITE))
+			if (ns_capable(inode_userns(inode), CAP_DAC_READ_SEARCH))
+				return 0;
+		return -EACCES;
+	}
 	/*
 	 * Read/write DACs are always overridable.
-	 * Executable DACs are overridable for all directories and
-	 * for non-directories that have least one exec bit set.
+	 * Executable DACs are overridable when there is
+	 * at least one exec bit set.
 	 */
-	if (!(mask & MAY_EXEC) || execute_ok(inode))
+	if (!(mask & MAY_EXEC) || (inode->i_mode & S_IXUGO))
 		if (ns_capable(inode_userns(inode), CAP_DAC_OVERRIDE))
 			return 0;
 
@@ -248,7 +257,7 @@ int generic_permission(struct inode *inode, int mask)
 	 * Searching includes executable on directories, else just read.
 	 */
 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
-	if (mask == MAY_READ || (S_ISDIR(inode->i_mode) && !(mask & MAY_WRITE)))
+	if (mask == MAY_READ)
 		if (ns_capable(inode_userns(inode), CAP_DAC_READ_SEARCH))
 			return 0;
 
