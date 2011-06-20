@@ -35,7 +35,6 @@
 #include <arpa/inet.h>
 #include <linux/connector.h>
 #include <linux/netlink.h>
-#include <sys/socket.h>
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <syslog.h>

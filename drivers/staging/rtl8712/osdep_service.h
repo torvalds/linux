@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kref.h>
-#include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>

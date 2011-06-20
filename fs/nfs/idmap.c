@@ -36,6 +36,8 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
+#include <linux/nfs_idmap.h>
 
 static int nfs_map_string_to_numeric(const char *name, size_t namelen, __u32 *res)
 {
@@ -59,12 +61,10 @@ static int nfs_map_numeric_to_string(__u32 id, char *buf, size_t buflen)
 
 #ifdef CONFIG_NFS_USE_NEW_IDMAPPER
 
-#include <linux/slab.h>
 #include <linux/cred.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs_sb.h>
-#include <linux/nfs_idmap.h>
 #include <linux/keyctl.h>
 #include <linux/key-type.h>
 #include <linux/rcupdate.h>
@@ -284,18 +284,15 @@ int nfs_map_gid_to_group(const struct nfs_server *server, __u32 gid, char *buf, 
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/sched.h>
-
 #include <linux/sunrpc/clnt.h>
 #include <linux/workqueue.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
 
 #include <linux/nfs_fs.h>
 
-#include <linux/nfs_idmap.h>
 #include "nfs4_fs.h"
 
 #define IDMAP_HASH_SZ          128

@@ -66,15 +66,14 @@
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
+#include <asm/prom.h>
 
 #ifdef CONFIG_SPARC
 #include <asm/idprom.h>
-#include <asm/prom.h>
 #endif
 
 #ifdef CONFIG_PPC_PMAC
 #include <asm/pci-bridge.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #endif

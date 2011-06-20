@@ -18,7 +18,6 @@
 #define _wl_cfg80211_h_
 
 #include <linux/wireless.h>
-#include <linux/wireless.h>
 #include <net/cfg80211.h>
 #include <wlioctl.h>
 

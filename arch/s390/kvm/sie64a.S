@@ -14,7 +14,6 @@
 #include <linux/errno.h>
 #include <asm/asm-offsets.h>
 #include <asm/setup.h>
-#include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
 

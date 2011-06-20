@@ -44,7 +44,6 @@
 #include <asm/mpic.h>
 #include <asm/vdso_datapage.h>
 #include <asm/cputhreads.h>
-#include <asm/mpic.h>
 #include <asm/xics.h>
 
 #include "plpar_wrappers.h"

@@ -19,21 +19,16 @@
 #include <bcmdefs.h>
 #include <linux/netdevice.h>
 #include <wlioctl.h>
-
 #include <bcmutils.h>
-
 #include <linux/if_arp.h>
 #include <asm/uaccess.h>
+#include <linux/ieee80211.h>
 
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhdioctl.h>
-#include <linux/ieee80211.h>
-typedef const struct si_pub si_t;
-#include <wlioctl.h>
 
-#include <dngl_stats.h>
-#include <dhd.h>
+typedef const struct si_pub si_t;
 
 #define WL_ERROR(fmt, args...)	printk(fmt, ##args)
 #define WL_TRACE(fmt, args...)	no_printk(fmt, ##args)

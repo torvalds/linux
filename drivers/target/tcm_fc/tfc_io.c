@@ -53,7 +53,6 @@
 #include <target/target_core_device.h>
 #include <target/target_core_tpg.h>
 #include <target/target_core_configfs.h>
-#include <target/target_core_base.h>
 #include <target/configfs_macros.h>
 
 #include "tcm_fc.h"

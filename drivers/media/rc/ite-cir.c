@@ -42,7 +42,6 @@
 #include <linux/bitops.h>
 #include <media/rc-core.h>
 #include <linux/pci_ids.h>
-#include <linux/delay.h>
 
 #include "ite-cir.h"
 

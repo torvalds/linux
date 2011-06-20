@@ -24,7 +24,6 @@
 #include "debug.h"
 #include "base.h"
 #include "reg.h"
-#include "debug.h"
 
 /* return bus cachesize in 4B word units */
 static void ath5k_ahb_read_cachesize(struct ath_common *common, int *csz)

@@ -315,5 +315,5 @@ void cy_as_hal_set_ep_dma_mode(uint8_t ep, bool sg_xfer_enabled);
 /* moved to staging location
 #include <linux/westbridge/cyas_cplus_end.h>
 */
-#include "../../../../../../../include/linux/westbridge/cyas_cplus_start.h"
+#include "../../../../../../../include/linux/westbridge/cyas_cplus_end.h"
 #endif
