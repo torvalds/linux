@@ -3073,7 +3073,11 @@ static void __init machine_rk29_board_init(void)
 	rk29sdk_init_wifi_mem();
 #endif
 
-//	rk29xx_virtual_keys_init();
+#if (defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) && defined(CONFIG_TOUCHSCREEN_480X800)) \
+	|| defined(CONFIG_TOUCHSCREEN_HX8520_IIC) || defined(CONFIG_TOUCHSCREEN_GT801_IIC)
+	rk29xx_virtual_keys_init();
+#endif
+
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
