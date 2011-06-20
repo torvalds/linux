@@ -11,22 +11,20 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
-#include <linux/videodev2.h>
 #include <linux/slab.h>
-#include <media/v4l2-device.h>
-#include <media/v4l2-ioctl.h>
-#include <media/v4l2-chip-ident.h>
-#include <media/ov7670.h>
-#include <media/videobuf2-vmalloc.h>
 #include <linux/device.h>
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
-#include <linux/jiffies.h>
 #include <linux/vmalloc.h>
-#include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-ioctl.h>
+#include <media/v4l2-chip-ident.h>
+#include <media/ov7670.h>
+#include <media/videobuf2-vmalloc.h>
 
 #include "mcam-core.h"
 
