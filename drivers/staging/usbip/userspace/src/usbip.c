@@ -125,13 +125,13 @@ static int usbip_version(int argc, char *argv[])
 	(void) argc;
 	(void) argv;
 
-	printf("%s\n", usbip_version_string);
+	printf(PROGNAME " (%s)\n", usbip_version_string);
 	return 0;
 }
 
 static int run_command(const struct command *cmd, int argc, char *argv[])
 {
-	dbg("running command: `%s'\n", cmd->name);
+	dbg("running command: `%s'", cmd->name);
 	return cmd->fn(argc, argv);
 }
 
@@ -163,8 +163,11 @@ int main(int argc, char *argv[])
 			usbip_use_syslog = 1;
 			openlog("", LOG_PID, LOG_USER);
 			break;
+		case '?':
+			printf("usbip: invalid option\n");
 		default:
-			goto err_out;
+			usbip_usage();
+			goto out;
 		}
 	}
 
@@ -180,8 +183,8 @@ int main(int argc, char *argv[])
 			}
 	}
 
-err_out:
-	usbip_usage();
+	/* invalid command */
+	usbip_help(0, NULL);
 out:
 	return (rc > -1 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
