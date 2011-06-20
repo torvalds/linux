@@ -994,7 +994,8 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 
 		rtlpriv->psc.rfoff_reason = RF_CHANGE_BY_INIT;
 		rtlpriv->psc.rfpwr_state = ERFON;
-		rtl_ps_set_rf_state(hw, ERFOFF, rfoffreason, true);
+		/* FIXME: check spinlocks if this block is uncommented */
+		rtl_ps_set_rf_state(hw, ERFOFF, rfoffreason);
 	} else {
 		/* gpio radio on/off is out of adapter start */
 		if (rtlpriv->psc.hwradiooff == false) {
