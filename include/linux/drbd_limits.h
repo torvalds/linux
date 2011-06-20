@@ -60,7 +60,7 @@
 
  /* timeout for the ping packets.*/
 #define DRBD_PING_TIMEO_MIN  1
-#define DRBD_PING_TIMEO_MAX  100
+#define DRBD_PING_TIMEO_MAX  300
 #define DRBD_PING_TIMEO_DEF  5
 
   /* max number of write requests between write barriers */
