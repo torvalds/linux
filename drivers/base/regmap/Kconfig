@@ -3,4 +3,8 @@
 # subsystems should select the appropriate symbols.
 
 config REGMAP
+	default y if REGMAP_I2C
 	bool
+
+config REGMAP_I2C
+	tristate
