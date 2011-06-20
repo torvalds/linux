@@ -242,11 +242,8 @@ scic_sds_phy_link_layer_initialization(struct scic_sds_phy *sci_phy,
 			&sci_phy->link_layer_registers->maximum_arbitration_wait_timer_timeout);
 	}
 
-	/*
-	 * Set the link layer hang detection to 500ms (0x1F4) from its default
-	 * value of 128ms.  Max value is 511 ms.
-	 */
-	writel(0x1F4, &sci_phy->link_layer_registers->link_layer_hang_detection_timeout);
+	/* Disable link layer hang detection, rely on the OS timeout for I/O timeouts. */
+	writel(0, &sci_phy->link_layer_registers->link_layer_hang_detection_timeout);
 
 	/* We can exit the initial state to the stopped state */
 	sci_change_state(&sci_phy->sm, SCI_PHY_STOPPED);
