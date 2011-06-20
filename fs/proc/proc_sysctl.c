@@ -316,7 +316,7 @@ static int proc_sys_permission(struct inode *inode, int mask,unsigned int flags)
 	if (!table) /* global root - r-xr-xr-x */
 		error = mask & MAY_WRITE ? -EACCES : 0;
 	else /* Use the permissions on the sysctl table entry */
-		error = sysctl_perm(head->root, table, mask);
+		error = sysctl_perm(head->root, table, mask & ~MAY_NOT_BLOCK);
 
 	sysctl_head_finish(head);
 	return error;
