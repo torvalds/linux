@@ -33,41 +33,45 @@ struct v4l2_fh;
 struct v4l2_subscribed_event;
 struct video_device;
 
+/** struct v4l2_kevent - Internal kernel event struct.
+  * @list:	List node for the v4l2_fh->available list.
+  * @sev:	Pointer to parent v4l2_subscribed_event.
+  * @event:	The event itself.
+  */
 struct v4l2_kevent {
-	/* list node for the v4l2_fh->available list */
 	struct list_head	list;
-	/* pointer to parent v4l2_subscribed_event */
 	struct v4l2_subscribed_event *sev;
-	/* event itself */
 	struct v4l2_event	event;
 };
 
+/** struct v4l2_subscribed_event - Internal struct representing a subscribed event.
+  * @list:	List node for the v4l2_fh->subscribed list.
+  * @type:	Event type.
+  * @id:	Associated object ID (e.g. control ID). 0 if there isn't any.
+  * @flags:	Copy of v4l2_event_subscription->flags.
+  * @fh:	Filehandle that subscribed to this event.
+  * @node:	List node that hooks into the object's event list (if there is one).
+  * @replace:	Optional callback that can replace event 'old' with event 'new'.
+  * @merge:	Optional callback that can merge event 'old' into event 'new'.
+  * @elems:	The number of elements in the events array.
+  * @first:	The index of the events containing the oldest available event.
+  * @in_use:	The number of queued events.
+  * @events:	An array of @elems events.
+  */
 struct v4l2_subscribed_event {
-	/* list node for the v4l2_fh->subscribed list */
 	struct list_head	list;
-	/* event type */
 	u32			type;
-	/* associated object ID (e.g. control ID) */
 	u32			id;
-	/* copy of v4l2_event_subscription->flags */
 	u32			flags;
-	/* filehandle that subscribed to this event */
 	struct v4l2_fh		*fh;
-	/* list node that hooks into the object's event list (if there is one) */
 	struct list_head	node;
-	/* Optional callback that can replace event 'old' with event 'new'. */
 	void			(*replace)(struct v4l2_event *old,
 					   const struct v4l2_event *new);
-	/* Optional callback that can merge event 'old' into event 'new'. */
 	void			(*merge)(const struct v4l2_event *old,
 					 struct v4l2_event *new);
-	/* the number of elements in the events array */
 	unsigned		elems;
-	/* the index of the events containing the oldest available event */
 	unsigned		first;
-	/* the number of queued events */
 	unsigned		in_use;
-	/* an array of elems events */
 	struct v4l2_kevent	events[];
 };
 

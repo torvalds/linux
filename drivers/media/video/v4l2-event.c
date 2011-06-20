@@ -100,10 +100,9 @@ static struct v4l2_subscribed_event *v4l2_event_subscribed(
 
 	assert_spin_locked(&fh->vdev->fh_lock);
 
-	list_for_each_entry(sev, &fh->subscribed, list) {
+	list_for_each_entry(sev, &fh->subscribed, list)
 		if (sev->type == type && sev->id == id)
 			return sev;
-	}
 
 	return NULL;
 }
@@ -169,9 +168,8 @@ void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev)
 
 	spin_lock_irqsave(&vdev->fh_lock, flags);
 
-	list_for_each_entry(fh, &vdev->fh_list, list) {
+	list_for_each_entry(fh, &vdev->fh_list, list)
 		__v4l2_event_queue_fh(fh, ev, &timestamp);
-	}
 
 	spin_unlock_irqrestore(&vdev->fh_lock, flags);
 }

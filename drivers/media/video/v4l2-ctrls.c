@@ -586,7 +586,7 @@ static void send_event(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 changes)
 	struct v4l2_subscribed_event *sev;
 
 	if (list_empty(&ctrl->ev_subs))
-			return;
+		return;
 	fill_event(&ev, ctrl, changes);
 
 	list_for_each_entry(sev, &ctrl->ev_subs, node)

@@ -31,7 +31,6 @@ struct v4l2_ctrl_helper;
 struct v4l2_ctrl;
 struct video_device;
 struct v4l2_subdev;
-struct v4l2_event_subscription;
 struct v4l2_subscribed_event;
 struct v4l2_fh;
 
