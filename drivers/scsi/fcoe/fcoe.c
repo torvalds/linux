@@ -1245,6 +1245,36 @@ static int fcoe_cpu_callback(struct notifier_block *nfb,
 }
 
 /**
+ * fcoe_select_cpu() - Selects CPU to handle post-processing of incoming
+ *			command.
+ * @curr_cpu:   CPU which received request
+ *
+ * This routine selects next CPU based on cpumask.
+ *
+ * Returns: int (CPU number). Caller to verify if returned CPU is online or not.
+ */
+static unsigned int fcoe_select_cpu(unsigned int curr_cpu)
+{
+	static unsigned int selected_cpu;
+
+	if (num_online_cpus() == 1)
+		return curr_cpu;
+	/*
+	 * Doing following check, to skip "curr_cpu (smp_processor_id)"
+	 * from selection of CPU is intentional. This is to avoid same CPU
+	 * doing post-processing of command. "curr_cpu" to just receive
+	 * incoming request in case where rx_id is UNKNOWN and all other
+	 * CPU to actually process the command(s)
+	 */
+	do {
+		selected_cpu = cpumask_next(selected_cpu, cpu_online_mask);
+		if (selected_cpu >= nr_cpu_ids)
+			selected_cpu = cpumask_first(cpu_online_mask);
+	} while (selected_cpu == curr_cpu);
+	return selected_cpu;
+}
+
+/**
  * fcoe_rcv() - Receive packets from a net device
  * @skb:    The received packet
  * @netdev: The net device that the packet was received on
@@ -1320,9 +1350,16 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 	 */
 	if (ntoh24(fh->fh_f_ctl) & FC_FC_EX_CTX)
 		cpu = ntohs(fh->fh_ox_id) & fc_cpu_mask;
-	else
+	else {
 		cpu = smp_processor_id();
 
+		if ((fh->fh_type == FC_TYPE_FCP) &&
+		    (ntohs(fh->fh_rx_id) == FC_XID_UNKNOWN)) {
+			do {
+				cpu = fcoe_select_cpu(cpu);
+			} while (!cpu_online(cpu));
+		}
+	}
 	fps = &per_cpu(fcoe_percpu, cpu);
 	spin_lock_bh(&fps->fcoe_rx_list.lock);
 	if (unlikely(!fps->thread)) {
