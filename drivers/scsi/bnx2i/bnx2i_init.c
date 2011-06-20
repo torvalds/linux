@@ -30,7 +30,7 @@ MODULE_AUTHOR("Anil Veerabhadrappa <anilgv@broadcom.com> and "
 	      "Eddie Wai <eddie.wai@broadcom.com>");
 
 MODULE_DESCRIPTION("Broadcom NetXtreme II BCM5706/5708/5709/57710/57711/57712"
-		   " iSCSI Driver");
+		   "/57800/57810/57840 iSCSI Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
@@ -88,11 +88,20 @@ void bnx2i_identify_device(struct bnx2i_hba *hba)
 	    (hba->pci_did == PCI_DEVICE_ID_NX2_5709S)) {
 		set_bit(BNX2I_NX2_DEV_5709, &hba->cnic_dev_type);
 		hba->mail_queue_access = BNX2I_MQ_BIN_MODE;
-	} else if (hba->pci_did == PCI_DEVICE_ID_NX2_57710  ||
-		   hba->pci_did == PCI_DEVICE_ID_NX2_57711  ||
-		   hba->pci_did == PCI_DEVICE_ID_NX2_57711E ||
-		   hba->pci_did == PCI_DEVICE_ID_NX2_57712  ||
-		   hba->pci_did == PCI_DEVICE_ID_NX2_57712E)
+	} else if (hba->pci_did == PCI_DEVICE_ID_NX2_57710    ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57711    ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57711E   ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57712    ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57712E   ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57800    ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57800_MF ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57800_VF ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57810    ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57810_MF ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57810_VF ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57840    ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57840_MF ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57840_VF)
 		set_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type);
 	else
 		printk(KERN_ALERT "bnx2i: unknown device, 0x%x\n",
