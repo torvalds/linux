@@ -311,43 +311,6 @@ int inode_permission(struct inode *inode, int mask)
 }
 
 /**
- * exec_permission  -  check for right to do lookups in a given directory
- * @inode:	inode to check permission on
- * @mask:	MAY_EXEC and possibly MAY_NOT_BLOCK flags.
- *
- * Short-cut version of inode_permission(), for calling on directories
- * during pathname resolution.  Combines parts of inode_permission()
- * and generic_permission(), and tests ONLY for MAY_EXEC permission.
- *
- * If appropriate, check DAC only.  If not appropriate, or
- * short-cut DAC fails, then call ->permission() to do more
- * complete permission check.
- */
-static inline int exec_permission(struct inode *inode, int mask)
-{
-	int ret;
-	struct user_namespace *ns = inode_userns(inode);
-
-	if (inode->i_op->permission) {
-		ret = inode->i_op->permission(inode, mask);
-		if (likely(!ret))
-			goto ok;
-	} else {
-		ret = acl_permission_check(inode, mask);
-		if (likely(!ret))
-			goto ok;
-		if (ret != -EACCES)
-			return ret;
-		if (ns_capable(ns, CAP_DAC_OVERRIDE) ||
-				ns_capable(ns, CAP_DAC_READ_SEARCH))
-			goto ok;
-	}
-	return ret;
-ok:
-	return security_inode_permission(inode, mask);
-}
-
-/**
  * path_get - get a reference to a path
  * @path: path to get the reference to
  *
@@ -1220,13 +1183,13 @@ retry:
 static inline int may_lookup(struct nameidata *nd)
 {
 	if (nd->flags & LOOKUP_RCU) {
-		int err = exec_permission(nd->inode, MAY_EXEC|MAY_NOT_BLOCK);
+		int err = inode_permission(nd->inode, MAY_EXEC|MAY_NOT_BLOCK);
 		if (err != -ECHILD)
 			return err;
 		if (unlazy_walk(nd, NULL))
 			return -ECHILD;
 	}
-	return exec_permission(nd->inode, MAY_EXEC);
+	return inode_permission(nd->inode, MAY_EXEC);
 }
 
 static inline int handle_dots(struct nameidata *nd, int type)
@@ -1501,7 +1464,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 			if (!S_ISDIR(dentry->d_inode->i_mode))
 				goto fput_fail;
 
-			retval = exec_permission(dentry->d_inode, MAY_EXEC);
+			retval = inode_permission(dentry->d_inode, MAY_EXEC);
 			if (retval)
 				goto fput_fail;
 		}
@@ -1658,7 +1621,7 @@ static struct dentry *__lookup_hash(struct qstr *name,
 	struct dentry *dentry;
 	int err;
 
-	err = exec_permission(inode, MAY_EXEC);
+	err = inode_permission(inode, MAY_EXEC);
 	if (err)
 		return ERR_PTR(err);
 
