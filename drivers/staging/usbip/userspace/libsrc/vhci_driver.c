@@ -5,6 +5,9 @@
 
 #include "usbip.h"
 
+#undef  PROGNAME
+#define PROGNAME "libusbip"
+
 struct usbip_vhci_driver *vhci_driver;
 
 static struct usbip_imported_device *imported_device_init(struct usbip_imported_device *idev, char *busid)

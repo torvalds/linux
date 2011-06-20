@@ -10,6 +10,9 @@
 
 #include "usbip.h"
 
+#undef  PROGNAME
+#define PROGNAME "libusbip"
+
 struct usbip_stub_driver *stub_driver;
 
 static struct sysfs_driver *open_sysfs_stub_driver(void)

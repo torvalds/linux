@@ -5,6 +5,9 @@
 #include "usbip.h"
 #include "names.h"
 
+#undef  PROGNAME
+#define PROGNAME "libusbip"
+
 int usbip_use_syslog = 0;
 int usbip_use_stderr = 0;
 int usbip_use_debug  = 0;
