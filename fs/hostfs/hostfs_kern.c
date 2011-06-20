@@ -770,7 +770,7 @@ int hostfs_permission(struct inode *ino, int desired, unsigned int flags)
 		err = access_file(name, r, w, x);
 	__putname(name);
 	if (!err)
-		err = generic_permission(ino, desired, flags, NULL);
+		err = generic_permission(ino, desired, flags);
 	return err;
 }
 

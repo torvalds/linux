@@ -1293,7 +1293,7 @@ int ocfs2_permission(struct inode *inode, int mask, unsigned int flags)
 		goto out;
 	}
 
-	ret = generic_permission(inode, mask, flags, ocfs2_check_acl);
+	ret = generic_permission(inode, mask, flags);
 
 	ocfs2_inode_unlock(inode, 0);
 out:
@@ -2593,12 +2593,14 @@ const struct inode_operations ocfs2_file_iops = {
 	.listxattr	= ocfs2_listxattr,
 	.removexattr	= generic_removexattr,
 	.fiemap		= ocfs2_fiemap,
+	.check_acl	= ocfs2_check_acl,
 };
 
 const struct inode_operations ocfs2_special_file_iops = {
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
 	.permission	= ocfs2_permission,
+	.check_acl	= ocfs2_check_acl,
 };
 
 /*

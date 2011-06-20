@@ -362,5 +362,5 @@ int sysfs_permission(struct inode *inode, int mask, unsigned int flags)
 	sysfs_refresh_inode(sd, inode);
 	mutex_unlock(&sysfs_mutex);
 
-	return generic_permission(inode, mask, flags, NULL);
+	return generic_permission(inode, mask, flags);
 }

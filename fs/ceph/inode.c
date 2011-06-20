@@ -1805,7 +1805,7 @@ int ceph_permission(struct inode *inode, int mask, unsigned int flags)
 	err = ceph_do_getattr(inode, CEPH_CAP_AUTH_SHARED);
 
 	if (!err)
-		err = generic_permission(inode, mask, flags, NULL);
+		err = generic_permission(inode, mask, flags);
 	return err;
 }
 

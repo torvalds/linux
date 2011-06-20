@@ -176,9 +176,9 @@ EXPORT_SYMBOL(putname);
 /*
  * This does basic POSIX ACL permission checking
  */
-static int acl_permission_check(struct inode *inode, int mask, unsigned int flags,
-		int (*check_acl)(struct inode *inode, int mask, unsigned int flags))
+static int acl_permission_check(struct inode *inode, int mask, unsigned int flags)
 {
+	int (*check_acl)(struct inode *inode, int mask, unsigned int flags);
 	unsigned int mode = inode->i_mode;
 
 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
@@ -189,6 +189,7 @@ static int acl_permission_check(struct inode *inode, int mask, unsigned int flag
 	if (current_fsuid() == inode->i_uid)
 		mode >>= 6;
 	else {
+		check_acl = inode->i_op->check_acl;
 		if (IS_POSIXACL(inode) && (mode & S_IRWXG) && check_acl) {
 			int error = check_acl(inode, mask, flags);
 			if (error != -EAGAIN)
@@ -212,7 +213,6 @@ other_perms:
  * generic_permission -  check for access rights on a Posix-like filesystem
  * @inode:	inode to check access rights for
  * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC)
- * @check_acl:	optional callback to check for Posix ACLs
  * @flags:	IPERM_FLAG_ flags.
  *
  * Used to check for read/write/execute permissions on a file.
@@ -224,15 +224,14 @@ other_perms:
  * request cannot be satisfied (eg. requires blocking or too much complexity).
  * It would then be called again in ref-walk mode.
  */
-int generic_permission(struct inode *inode, int mask, unsigned int flags,
-	int (*check_acl)(struct inode *inode, int mask, unsigned int flags))
+int generic_permission(struct inode *inode, int mask, unsigned int flags)
 {
 	int ret;
 
 	/*
 	 * Do the basic POSIX ACL permission checks.
 	 */
-	ret = acl_permission_check(inode, mask, flags, check_acl);
+	ret = acl_permission_check(inode, mask, flags);
 	if (ret != -EACCES)
 		return ret;
 
@@ -290,8 +289,7 @@ int inode_permission(struct inode *inode, int mask)
 	if (inode->i_op->permission)
 		retval = inode->i_op->permission(inode, mask, 0);
 	else
-		retval = generic_permission(inode, mask, 0,
-				inode->i_op->check_acl);
+		retval = generic_permission(inode, mask, 0);
 
 	if (retval)
 		return retval;
@@ -326,8 +324,7 @@ static inline int exec_permission(struct inode *inode, unsigned int flags)
 		if (likely(!ret))
 			goto ok;
 	} else {
-		ret = acl_permission_check(inode, MAY_EXEC, flags,
-				inode->i_op->check_acl);
+		ret = acl_permission_check(inode, MAY_EXEC, flags);
 		if (likely(!ret))
 			goto ok;
 		if (ret != -EACCES)

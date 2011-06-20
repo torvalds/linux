@@ -1564,7 +1564,7 @@ int gfs2_permission(struct inode *inode, int mask, unsigned int flags)
 	if ((mask & MAY_WRITE) && IS_IMMUTABLE(inode))
 		error = -EACCES;
 	else
-		error = generic_permission(inode, mask, flags, gfs2_check_acl);
+		error = generic_permission(inode, mask, flags);
 	if (unlock)
 		gfs2_glock_dq_uninit(&i_gh);
 
@@ -1854,6 +1854,7 @@ const struct inode_operations gfs2_file_iops = {
 	.listxattr = gfs2_listxattr,
 	.removexattr = gfs2_removexattr,
 	.fiemap = gfs2_fiemap,
+	.check_acl = gfs2_check_acl,
 };
 
 const struct inode_operations gfs2_dir_iops = {
@@ -1874,6 +1875,7 @@ const struct inode_operations gfs2_dir_iops = {
 	.listxattr = gfs2_listxattr,
 	.removexattr = gfs2_removexattr,
 	.fiemap = gfs2_fiemap,
+	.check_acl = gfs2_check_acl,
 };
 
 const struct inode_operations gfs2_symlink_iops = {
@@ -1888,5 +1890,6 @@ const struct inode_operations gfs2_symlink_iops = {
 	.listxattr = gfs2_listxattr,
 	.removexattr = gfs2_removexattr,
 	.fiemap = gfs2_fiemap,
+	.check_acl = gfs2_check_acl,
 };
 
