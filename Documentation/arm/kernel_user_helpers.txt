@@ -201,3 +201,67 @@ typedef void (__kuser_dmb_t)(void);
 Notes:
 
   - Valid only if __kuser_helper_version >= 3 (from kernel version 2.6.15).
+
+kuser_cmpxchg64
+---------------
+
+Location:	0xffff0f60
+
+Reference prototype:
+
+  int __kuser_cmpxchg64(const int64_t *oldval,
+                        const int64_t *newval,
+                        volatile int64_t *ptr);
+
+Input:
+
+  r0 = pointer to oldval
+  r1 = pointer to newval
+  r2 = pointer to target value
+  lr = return address
+
+Output:
+
+  r0 = success code (zero or non-zero)
+  C flag = set if r0 == 0, clear if r0 != 0
+
+Clobbered registers:
+
+  r3, lr, flags
+
+Definition:
+
+  Atomically store the 64-bit value pointed by *newval in *ptr only if *ptr
+  is equal to the 64-bit value pointed by *oldval.  Return zero if *ptr was
+  changed or non-zero if no exchange happened.
+
+  The C flag is also set if *ptr was changed to allow for assembly
+  optimization in the calling code.
+
+Usage example:
+
+typedef int (__kuser_cmpxchg64_t)(const int64_t *oldval,
+                                  const int64_t *newval,
+                                  volatile int64_t *ptr);
+#define __kuser_cmpxchg64 (*(__kuser_cmpxchg64_t *)0xffff0f60)
+
+int64_t atomic_add64(volatile int64_t *ptr, int64_t val)
+{
+	int64_t old, new;
+
+	do {
+		old = *ptr;
+		new = old + val;
+	} while(__kuser_cmpxchg64(&old, &new, ptr));
+
+	return new;
+}
+
+Notes:
+
+  - This routine already includes memory barriers as needed.
+
+  - Due to the length of this sequence, this spans 2 conventional kuser
+    "slots", therefore 0xffff0f80 is not used as a valid entry point.
+
+  - Valid only if __kuser_helper_version >= 5 (from kernel version 3.1).
