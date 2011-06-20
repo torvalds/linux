@@ -2741,6 +2741,15 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 		spin_unlock(&request->state_lock);
 		break;
 
+	case dead:
+		/* This was a terminated request that timed-out during the
+		 * termination process.  There is no task to complete to
+		 * libsas.
+		 */
+		complete_to_host = isci_perform_normal_io_completion;
+		spin_unlock(&request->state_lock);
+		break;
+
 	default:
 
 		/* The request is done from an SCU HW perspective. */
