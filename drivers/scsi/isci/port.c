@@ -1916,7 +1916,7 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 {
 	unsigned long flags;
 	enum sci_status status;
-	int ret = TMF_RESP_FUNC_COMPLETE;
+	int idx, ret = TMF_RESP_FUNC_COMPLETE;
 
 	dev_dbg(&ihost->pdev->dev, "%s: iport = %p\n",
 		__func__, iport);
@@ -1953,14 +1953,26 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 	 * the same as link failures on all phys in the port.
 	 */
 	if (ret != TMF_RESP_FUNC_COMPLETE) {
+
 		dev_err(&ihost->pdev->dev,
 			"%s: iport = %p; hard reset failed "
-			"(0x%x) - sending link down to libsas for phy %p\n",
-			__func__, iport, iport->hard_reset_status, iphy);
+			"(0x%x) - driving explicit link fail for all phys\n",
+			__func__, iport, iport->hard_reset_status);
 
-		isci_port_link_down(ihost, iphy, iport);
+		/* Down all phys in the port. */
+		spin_lock_irqsave(&ihost->scic_lock, flags);
+		for (idx = 0; idx < SCI_MAX_PHYS; ++idx) {
+
+			if (iport->sci.phy_table[idx] != NULL) {
+
+				scic_sds_phy_stop(
+					iport->sci.phy_table[idx]);
+				scic_sds_phy_start(
+					iport->sci.phy_table[idx]);
+			}
+		}
+		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 	}
-
 	return ret;
 }
 
