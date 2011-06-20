@@ -1272,7 +1272,7 @@ void isci_remote_device_nuke_requests(struct isci_host *ihost, struct isci_remot
 		"%s: idev = %p\n", __func__, idev);
 
 	/* Cleanup all requests pending for this device. */
-	isci_terminate_pending_requests(ihost, idev, terminating);
+	isci_terminate_pending_requests(ihost, idev);
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: idev = %p, done\n", __func__, idev);

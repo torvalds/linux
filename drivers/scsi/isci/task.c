@@ -796,81 +796,79 @@ static void isci_terminate_request_core(
  * @isci_host: This parameter specifies SCU.
  * @isci_device: This parameter specifies the target.
  *
- *
  */
-void isci_terminate_pending_requests(
-	struct isci_host *isci_host,
-	struct isci_remote_device *isci_device,
-	enum isci_request_status new_request_state)
+void isci_terminate_pending_requests(struct isci_host *ihost,
+				     struct isci_remote_device *idev)
 {
-	struct isci_request *request;
-	struct isci_request *next_request;
-	unsigned long       flags;
+	struct completion request_completion;
 	enum isci_request_status old_state;
-	DECLARE_COMPLETION_ONSTACK(request_completion);
+	unsigned long flags;
+	LIST_HEAD(list);
 
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_device = %p (new request state = %d)\n",
-		__func__, isci_device, new_request_state);
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	list_splice_init(&idev->reqs_in_process, &list);
 
-	spin_lock_irqsave(&isci_host->scic_lock, flags);
+	/* assumes that isci_terminate_request_core deletes from the list */
+	while (!list_empty(&list)) {
+		struct isci_request *ireq = list_entry(list.next, typeof(*ireq), dev_node);
 
-	/* Iterate through the list. */
-	list_for_each_entry_safe(request, next_request,
-				 &isci_device->reqs_in_process, dev_node) {
+		/* Change state to "terminating" if it is currently
+		 * "started".
+		 */
+		old_state = isci_request_change_started_to_newstate(ireq,
+								    &request_completion,
+								    terminating);
+		switch (old_state) {
+		case started:
+		case completed:
+		case aborting:
+			break;
+		default:
+			/* termination in progress, or otherwise dispositioned.
+			 * We know the request was on 'list' so should be safe
+			 * to move it back to reqs_in_process
+			 */
+			list_move(&ireq->dev_node, &idev->reqs_in_process);
+			ireq = NULL;
+			break;
+		}
+
+		if (!ireq)
+			continue;
+		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 		init_completion(&request_completion);
 
-		/* Change state to "new_request_state" if it is currently
-		* "started".
-		*/
-		old_state = isci_request_change_started_to_newstate(
-					request,
-					&request_completion,
-					new_request_state);
+		dev_dbg(&ihost->pdev->dev,
+			 "%s: idev=%p request=%p; task=%p old_state=%d\n",
+			 __func__, idev, ireq,
+			ireq->ttype == io_task ? isci_request_access_task(ireq) : NULL,
+			old_state);
 
-		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
-
-		if ((old_state == started) ||
-		    (old_state == completed) ||
-		    (old_state == aborting)) {
-
-			dev_warn(&isci_host->pdev->dev,
-				 "%s: isci_device=%p request=%p; task=%p "
-				 "old_state=%d\n",
-				 __func__,
-				 isci_device, request,
-				 ((request->ttype == io_task)
-					? isci_request_access_task(request)
-					: NULL),
-				 old_state);
-
-			/* If the old_state is started:
-			 * This request was not already being aborted. If it had been,
-			 * then the aborting I/O (ie. the TMF request) would not be in
-			 * the aborting state, and thus would be terminated here.  Note
-			 * that since the TMF completion's call to the kernel function
-			 * "complete()" does not happen until the pending I/O request
-			 * terminate fully completes, we do not have to implement a
-			 * special wait here for already aborting requests - the
-			 * termination of the TMF request will force the request
-			 * to finish it's already started terminate.
-			 *
-			 * If old_state == completed:
-			 * This request completed from the SCU hardware perspective
-			 * and now just needs cleaning up in terms of freeing the
-			 * request and potentially calling up to libsas.
-			 *
-			 * If old_state == aborting:
-			 * This request has already gone through a TMF timeout, but may
-			 * not have been terminated; needs cleaning up at least.
-			 */
-			isci_terminate_request_core(isci_host, isci_device,
-						    request);
-		}
-		spin_lock_irqsave(&isci_host->scic_lock, flags);
+		/* If the old_state is started:
+		 * This request was not already being aborted. If it had been,
+		 * then the aborting I/O (ie. the TMF request) would not be in
+		 * the aborting state, and thus would be terminated here.  Note
+		 * that since the TMF completion's call to the kernel function
+		 * "complete()" does not happen until the pending I/O request
+		 * terminate fully completes, we do not have to implement a
+		 * special wait here for already aborting requests - the
+		 * termination of the TMF request will force the request
+		 * to finish it's already started terminate.
+		 *
+		 * If old_state == completed:
+		 * This request completed from the SCU hardware perspective
+		 * and now just needs cleaning up in terms of freeing the
+		 * request and potentially calling up to libsas.
+		 *
+		 * If old_state == aborting:
+		 * This request has already gone through a TMF timeout, but may
+		 * not have been terminated; needs cleaning up at least.
+		 */
+		isci_terminate_request_core(ihost, idev, ireq);
+		spin_lock_irqsave(&ihost->scic_lock, flags);
 	}
-	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 }
 
 /**
@@ -965,8 +963,7 @@ int isci_task_lu_reset(struct domain_device *domain_device, u8 *lun)
 	if (ret == TMF_RESP_FUNC_COMPLETE)
 		/* Terminate all I/O now. */
 		isci_terminate_pending_requests(isci_host,
-						isci_device,
-						terminating);
+						isci_device);
 
 	return ret;
 }

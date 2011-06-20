@@ -776,9 +776,8 @@ isci_request_io_request_get_next_sge(struct isci_request *request,
 }
 
 void
-isci_terminate_pending_requests(struct isci_host *isci_host,
-				struct isci_remote_device *isci_device,
-				enum isci_request_status new_request_state);
+isci_terminate_pending_requests(struct isci_host *ihost,
+				struct isci_remote_device *idev);
 enum sci_status
 scic_task_request_construct(struct scic_sds_controller *scic,
 			    struct scic_sds_remote_device *sci_dev,
