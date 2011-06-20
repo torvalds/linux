@@ -99,7 +99,8 @@ static void fcoe_destroy_work(struct work_struct *);
 static int fcoe_ddp_setup(struct fc_lport *, u16, struct scatterlist *,
 			  unsigned int);
 static int fcoe_ddp_done(struct fc_lport *, u16);
-
+static int fcoe_ddp_target(struct fc_lport *, u16, struct scatterlist *,
+			   unsigned int);
 static int fcoe_cpu_callback(struct notifier_block *, unsigned long, void *);
 
 static bool fcoe_match(struct net_device *netdev);
@@ -143,6 +144,7 @@ static struct libfc_function_template fcoe_libfc_fcn_templ = {
 	.frame_send = fcoe_xmit,
 	.ddp_setup = fcoe_ddp_setup,
 	.ddp_done = fcoe_ddp_done,
+	.ddp_target = fcoe_ddp_target,
 	.elsct_send = fcoe_elsct_send,
 	.get_lesb = fcoe_get_lesb,
 	.lport_set_port_id = fcoe_set_port_id,
@@ -885,6 +887,28 @@ static int fcoe_ddp_setup(struct fc_lport *lport, u16 xid,
 
 	return 0;
 }
+
+/**
+ * fcoe_ddp_target() - Call a LLD's ddp_target through the net device
+ * @lport: The local port to setup DDP for
+ * @xid:   The exchange ID for this DDP transfer
+ * @sgl:   The scatterlist describing this transfer
+ * @sgc:   The number of sg items
+ *
+ * Returns: 0 if the DDP context was not configured
+ */
+static int fcoe_ddp_target(struct fc_lport *lport, u16 xid,
+			   struct scatterlist *sgl, unsigned int sgc)
+{
+	struct net_device *netdev = fcoe_netdev(lport);
+
+	if (netdev->netdev_ops->ndo_fcoe_ddp_target)
+		return netdev->netdev_ops->ndo_fcoe_ddp_target(netdev, xid,
+							       sgl, sgc);
+
+	return 0;
+}
+
 
 /**
  * fcoe_ddp_done() - Call a LLD's ddp_done through the net device
