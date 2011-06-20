@@ -42,6 +42,7 @@ config SOC_AR913X
 	def_bool n
 
 config SOC_AR933X
+	select USB_ARCH_HAS_EHCI
 	def_bool n
 
 config ATH79_DEV_AR913X_WMAC
