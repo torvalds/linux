@@ -553,7 +553,7 @@ static int
 mwifiex_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	struct sockaddr *hw_addr = (struct sockaddr *) addr;
+	struct sockaddr *hw_addr = addr;
 	int ret;
 
 	memcpy(priv->curr_addr, hw_addr->sa_data, ETH_ALEN);
