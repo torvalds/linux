@@ -525,7 +525,7 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 	return result;
 }
 
-static u32 get_card_status(struct mmc_card *card, struct request *req)
+static int get_card_status(struct mmc_card *card, u32 *status, int retries)
 {
 	struct mmc_command cmd = {0};
 	int err;
@@ -534,11 +534,10 @@ static u32 get_card_status(struct mmc_card *card, struct request *req)
 	if (!mmc_host_is_spi(card->host))
 		cmd.arg = card->rca << 16;
 	cmd.flags = MMC_RSP_SPI_R2 | MMC_RSP_R1 | MMC_CMD_AC;
-	err = mmc_wait_for_cmd(card->host, &cmd, 0);
-	if (err)
-		printk(KERN_ERR "%s: error %d sending status command",
-		       req->rq_disk->disk_name, err);
-	return cmd.resp[0];
+	err = mmc_wait_for_cmd(card->host, &cmd, retries);
+	if (err == 0)
+		*status = cmd.resp[0];
+	return err;
 }
 
 static int mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
@@ -686,7 +685,6 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 		(md->flags & MMC_BLK_REL_WR);
 
 	do {
-		struct mmc_command cmd = {0};
 		u32 readcmd, writecmd, status = 0;
 
 		memset(&brq, 0, sizeof(struct mmc_blk_request));
@@ -817,7 +815,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 				disable_multi = 1;
 				continue;
 			}
-			status = get_card_status(card, req);
+			get_card_status(card, &status, 0);
 		}
 
 		if (brq.sbc.error) {
@@ -854,12 +852,7 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 
 		if (!mmc_host_is_spi(card->host) && rq_data_dir(req) != READ) {
 			do {
-				int err;
-
-				cmd.opcode = MMC_SEND_STATUS;
-				cmd.arg = card->rca << 16;
-				cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-				err = mmc_wait_for_cmd(card->host, &cmd, 5);
+				int err = get_card_status(card, &status, 5);
 				if (err) {
 					printk(KERN_ERR "%s: error %d requesting status\n",
 					       req->rq_disk->disk_name, err);
@@ -870,16 +863,8 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 				 * so make sure to check both the busy
 				 * indication and the card state.
 				 */
-			} while (!(cmd.resp[0] & R1_READY_FOR_DATA) ||
-				(R1_CURRENT_STATE(cmd.resp[0]) == 7));
-
-#if 0
-			if (cmd.resp[0] & ~0x00000900)
-				printk(KERN_ERR "%s: status = %08x\n",
-				       req->rq_disk->disk_name, cmd.resp[0]);
-			if (mmc_decode_status(cmd.resp))
-				goto cmd_err;
-#endif
+			} while (!(status & R1_READY_FOR_DATA) ||
+				 (R1_CURRENT_STATE(status) == R1_STATE_PRG));
 		}
 
 		if (brq.cmd.error || brq.stop.error || brq.data.error) {
