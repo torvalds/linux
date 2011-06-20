@@ -1530,9 +1530,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 				drbd_disk_str(mdev->state.disk));
 
 		if (drbd_send_state(mdev))
-			dev_warn(DEV, "Notified peer that I am detaching my disk\n");
-		else
-			dev_err(DEV, "Sending state for detaching disk failed\n");
+			dev_info(DEV, "Notified peer that I am detaching my disk\n");
 
 		drbd_rs_cancel_all(mdev);
 
@@ -1562,7 +1560,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
                 atomic_set(&mdev->rs_pending_cnt, 0);
 
 		if (drbd_send_state(mdev))
-			dev_warn(DEV, "Notified peer that I'm now diskless.\n");
+			dev_info(DEV, "Notified peer that I'm now diskless.\n");
 		/* corresponding get_ldev in __drbd_set_state
 		 * this may finally trigger drbd_ldev_destroy. */
 		put_ldev(mdev);
