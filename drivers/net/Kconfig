@@ -2196,15 +2196,6 @@ config IGBVF
 
 source "drivers/net/ixp2000/Kconfig"
 
-config MYRI_SBUS
-	tristate "MyriCOM Gigabit Ethernet support"
-	depends on SBUS
-	help
-	  This driver supports MyriCOM Sbus gigabit Ethernet cards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called myri_sbus.  This is recommended.
-
 config NS83820
 	tristate "National Semiconductor DP83820 support"
 	depends on PCI
