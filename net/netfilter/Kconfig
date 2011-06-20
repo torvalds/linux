@@ -1231,6 +1231,8 @@ config NETFILTER_XT_MATCH_OWNER
 	based on who created the socket: the user or group. It is also
 	possible to check whether a socket actually exists.
 
+	Conflicts with '"quota, tag, uid" match'
+
 config NETFILTER_XT_MATCH_POLICY
 	tristate 'IPsec "policy" match support'
 	depends on XFRM
@@ -1263,6 +1265,22 @@ config NETFILTER_XT_MATCH_PKTTYPE
 	  iptables -A INPUT -m pkttype --pkt-type broadcast -j LOG
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_QTAGUID
+	bool '"quota, tag, owner" match and stats support'
+        depends on NETFILTER_XT_MATCH_SOCKET
+	depends on NETFILTER_XT_MATCH_OWNER=n
+	help
+	  This option replaces the `owner' match. In addition to matching
+	  on uid, it keeps stats based on a tag assigned to a socket.
+	  The full tag is comprised of a UID and an accounting tag.
+	  The tags are assignable to sockets from user space (e.g. a download
+	  manager can assign the socket to another UID for accounting).
+	  Stats and control are done via /proc/net/xt_qtaguid/.
+	  It replaces owner as it takes the same arguments, but should
+	  really be recognized by the iptables tool.
+
+	  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_QUOTA
 	tristate '"quota" match support'
