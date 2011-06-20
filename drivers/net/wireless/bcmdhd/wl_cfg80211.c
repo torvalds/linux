@@ -178,7 +178,11 @@ static s32 wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 static s32 wl_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
 	struct net_device *dev,	u8 key_idx);
 static s32 wl_cfg80211_resume(struct wiphy *wiphy);
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)
+static s32 wl_cfg80211_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
+#else
 static s32 wl_cfg80211_suspend(struct wiphy *wiphy);
+#endif
 static s32 wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	struct cfg80211_pmksa *pmksa);
 static s32 wl_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
@@ -2599,7 +2603,11 @@ static s32 wl_cfg80211_resume(struct wiphy *wiphy)
 	return err;
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)
+static s32 wl_cfg80211_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wow)
+#else
 static s32 wl_cfg80211_suspend(struct wiphy *wiphy)
+#endif
 {
 	struct wl_priv *wl = WL_PRIV_GET();
 	s32 err = 0;
@@ -3399,8 +3407,10 @@ static struct wireless_dev *wl_alloc_wdev(s32 sizeof_iface,
 #endif				/* !WL_POWERSAVE_DISABLED */
 	wdev->wiphy->flags |= WIPHY_FLAG_NETNS_OK |
 		WIPHY_FLAG_4ADDR_AP |
-		WIPHY_FLAG_4ADDR_STATION |
-		WIPHY_FLAG_SUPPORTS_SEPARATE_DEFAULT_KEYS;
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)
+		WIPHY_FLAG_SUPPORTS_SEPARATE_DEFAULT_KEYS |
+#endif
+		WIPHY_FLAG_4ADDR_STATION;
 	err = wiphy_register(wdev->wiphy);
 	if (unlikely(err < 0)) {
 		WL_ERR(("Couldn not register wiphy device (%d)\n", err));
@@ -3938,6 +3948,9 @@ wl_bss_roaming_done(struct wl_priv *wl, struct net_device *ndev,
 	memcpy(&wl->bssid, &e->addr, ETHER_ADDR_LEN);
 	wl_update_bss_info(wl, ndev);
 	cfg80211_roamed(ndev,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)
+		NULL,
+#endif
 		(u8 *)&wl->bssid,
 		conn_info->req_ie, conn_info->req_ie_len,
 		conn_info->resp_ie, conn_info->resp_ie_len, GFP_KERNEL);
@@ -3972,6 +3985,9 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 			completed ? "succeeded" : "failed"));
 	} else {
 		cfg80211_roamed(ndev,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)
+			NULL,
+#endif
 			(u8 *)&wl->bssid,
 			conn_info->req_ie, conn_info->req_ie_len,
 			conn_info->resp_ie, conn_info->resp_ie_len,
@@ -5857,7 +5873,11 @@ static __used void wl_dongle_poweroff(struct wl_priv *wl)
 
 
 	WL_DBG(("Enter \n"));
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)
+	wl_cfg80211_suspend(wl_to_wiphy(wl), NULL);
+#else
 	wl_cfg80211_suspend(wl_to_wiphy(wl));
+#endif
 
 #if defined(BCMLXSDMMC)
 	sdioh_stop(NULL);
