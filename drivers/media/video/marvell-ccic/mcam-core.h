@@ -3,6 +3,13 @@
  *
  * Copyright 2011 Jonathan Corbet corbet@lwn.net
  */
+#ifndef _MCAM_CORE_H
+#define _MCAM_CORE_H
+
+#include <linux/list.h>
+#include <media/v4l2-common.h>
+#include <media/v4l2-dev.h>
+#include <media/videobuf2-core.h>
 
 /*
  * Tracking of streaming I/O buffers.
@@ -20,8 +27,6 @@ enum mcam_state {
 	S_NOTREADY,	/* Not yet initialized */
 	S_IDLE,		/* Just hanging around */
 	S_FLAKED,	/* Some sort of problem */
-	S_SINGLEREAD,	/* In read() */
-	S_SPECREAD,	/* Speculative read (for future read()) */
 	S_STREAMING	/* Streaming data */
 };
 #define MAX_DMA_BUFS 3
@@ -70,21 +75,19 @@ struct mcam_camera {
 
 	struct list_head dev_list;	/* link to other devices */
 
+	/* Videobuf2 stuff */
+	struct vb2_queue vb_queue;
+	struct list_head buffers;	/* Available frames */
+
 	/* DMA buffers */
 	unsigned int nbufs;		/* How many are alloc'd */
 	int next_buf;			/* Next to consume (dev_lock) */
 	unsigned int dma_buf_size;	/* allocated size */
 	void *dma_bufs[MAX_DMA_BUFS];	/* Internal buffer addresses */
 	dma_addr_t dma_handles[MAX_DMA_BUFS]; /* Buffer bus addresses */
-	unsigned int specframes;	/* Unconsumed spec frames (dev_lock) */
 	unsigned int sequence;		/* Frame sequence number */
-	unsigned int buf_seq[MAX_DMA_BUFS]; /* Sequence for individual buffers */
+	unsigned int buf_seq[MAX_DMA_BUFS]; /* Sequence for individual bufs */
 
-	/* Streaming buffers */
-	unsigned int n_sbufs;		/* How many we have */
-	struct mcam_sio_buffer *sb_bufs; /* The array of housekeeping structs */
-	struct list_head sb_avail;	/* Available for data (we own) (dev_lock) */
-	struct list_head sb_full;	/* With data (user space owns) (dev_lock) */
 	struct tasklet_struct s_tasklet;
 
 	/* Current operating parameters */
@@ -94,9 +97,6 @@ struct mcam_camera {
 
 	/* Locks */
 	struct mutex s_mutex; /* Access to this structure */
-
-	/* Misc */
-	wait_queue_head_t iowait;	/* Waiting on frame data */
 };
 
 
@@ -257,3 +257,5 @@ int mccic_resume(struct mcam_camera *cam);
  */
 #define VGA_WIDTH	640
 #define VGA_HEIGHT	480
+
+#endif /* _MCAM_CORE_H */

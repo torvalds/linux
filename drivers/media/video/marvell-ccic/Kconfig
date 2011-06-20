@@ -2,6 +2,7 @@ config VIDEO_CAFE_CCIC
 	tristate "Marvell 88ALP01 (Cafe) CMOS Camera Controller support"
 	depends on PCI && I2C && VIDEO_V4L2
 	select VIDEO_OV7670
+	select VIDEOBUF2_VMALLOC
 	---help---
 	  This is a video4linux2 driver for the Marvell 88ALP01 integrated
 	  CMOS camera controller.  This is the controller found on first-
@@ -12,6 +13,7 @@ config VIDEO_MMP_CAMERA
 	depends on ARCH_MMP && I2C && VIDEO_V4L2
 	select VIDEO_OV7670
 	select I2C_GPIO
+	select VIDEOBUF2_VMALLOC
 	---help---
 	  This is a Video4Linux2 driver for the integrated camera
 	  controller found on Marvell Armada 610 application
