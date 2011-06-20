@@ -37,6 +37,11 @@
 #include <trace/events/writeback.h>
 
 /*
+ * Sleep at most 200ms at a time in balance_dirty_pages().
+ */
+#define MAX_PAUSE		max(HZ/5, 1)
+
+/*
  * Estimate write bandwidth at 200ms intervals.
  */
 #define BANDWIDTH_INTERVAL	max(HZ/5, 1)
@@ -399,6 +404,11 @@ unsigned long determine_dirtyable_memory(void)
 	return x + 1;	/* Ensure that we never return 0 */
 }
 
+static unsigned long hard_dirty_limit(unsigned long thresh)
+{
+	return max(thresh, global_dirty_limit);
+}
+
 /*
  * global_dirty_limits - background-writeback and dirty-throttling thresholds
  *
@@ -722,6 +732,29 @@ static void balance_dirty_pages(struct address_space *mapping,
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		io_schedule_timeout(pause);
 		trace_balance_dirty_wait(bdi);
+
+		dirty_thresh = hard_dirty_limit(dirty_thresh);
+		/*
+		 * max-pause area. If dirty exceeded but still within this
+		 * area, no need to sleep for more than 200ms: (a) 8 pages per
+		 * 200ms is typically more than enough to curb heavy dirtiers;
+		 * (b) the pause time limit makes the dirtiers more responsive.
+		 */
+		if (nr_dirty < dirty_thresh +
+			       dirty_thresh / DIRTY_MAXPAUSE_AREA &&
+		    time_after(jiffies, start_time + MAX_PAUSE))
+			break;
+		/*
+		 * pass-good area. When some bdi gets blocked (eg. NFS server
+		 * not responding), or write bandwidth dropped dramatically due
+		 * to concurrent reads, or dirty threshold suddenly dropped and
+		 * the dirty pages cannot be brought down anytime soon (eg. on
+		 * slow USB stick), at least let go of the good bdi's.
+		 */
+		if (nr_dirty < dirty_thresh +
+			       dirty_thresh / DIRTY_PASSGOOD_AREA &&
+		    bdi_dirty < bdi_thresh)
+			break;
 
 		/*
 		 * Increase the delay for each loop, up to our previous
