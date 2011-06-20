@@ -226,7 +226,7 @@ struct hci_dev {
 	struct list_head	remote_oob_data;
 
 	struct list_head	adv_entries;
-	struct timer_list	adv_timer;
+	struct delayed_work	adv_work;
 
 	struct hci_dev_stats	stat;
 

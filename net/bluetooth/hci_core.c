@@ -1340,9 +1340,10 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	return mgmt_device_unblocked(hdev, bdaddr);
 }
 
-static void hci_clear_adv_cache(unsigned long arg)
+static void hci_clear_adv_cache(struct work_struct *work)
 {
-	struct hci_dev *hdev = (void *) arg;
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+							adv_work.work);
 
 	hci_dev_lock(hdev);
 
@@ -1488,9 +1489,8 @@ int hci_register_dev(struct hci_dev *hdev)
 	INIT_LIST_HEAD(&hdev->remote_oob_data);
 
 	INIT_LIST_HEAD(&hdev->adv_entries);
-	setup_timer(&hdev->adv_timer, hci_clear_adv_cache,
-						(unsigned long) hdev);
 
+	INIT_DELAYED_WORK(&hdev->adv_work, hci_clear_adv_cache);
 	INIT_WORK(&hdev->power_on, hci_power_on);
 	INIT_DELAYED_WORK(&hdev->power_off, hci_power_off);
 
@@ -1576,7 +1576,7 @@ void hci_unregister_dev(struct hci_dev *hdev)
 
 	hci_del_sysfs(hdev);
 
-	del_timer(&hdev->adv_timer);
+	cancel_delayed_work_sync(&hdev->adv_work);
 
 	destroy_workqueue(hdev->workqueue);
 

@@ -1017,7 +1017,7 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	if (cp->enable == 0x01) {
 		set_bit(HCI_LE_SCAN, &hdev->dev_flags);
 
-		del_timer(&hdev->adv_timer);
+		cancel_delayed_work_sync(&hdev->adv_work);
 
 		hci_dev_lock(hdev);
 		hci_adv_entries_clear(hdev);
@@ -1025,7 +1025,9 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	} else if (cp->enable == 0x00) {
 		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
 
-		mod_timer(&hdev->adv_timer, jiffies + ADV_CLEAR_TIMEOUT);
+		cancel_delayed_work_sync(&hdev->adv_work);
+		queue_delayed_work(hdev->workqueue, &hdev->adv_work,
+						 jiffies + ADV_CLEAR_TIMEOUT);
 	}
 }
 
