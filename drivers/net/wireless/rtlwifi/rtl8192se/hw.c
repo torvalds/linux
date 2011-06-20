@@ -1106,7 +1106,7 @@ void rtl92se_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 	if (rtlpriv->psc.rfpwr_state != ERFON)
 		return;
 
-	if (check_bssid == true) {
+	if (check_bssid) {
 		reg_rcr |= (RCR_CBSSID);
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
 	} else if (check_bssid == false) {
@@ -1652,7 +1652,7 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 		rtlefuse->autoload_failflag = false;
 	}
 
-	if (rtlefuse->autoload_failflag == true)
+	if (rtlefuse->autoload_failflag)
 		return;
 
 	_rtl8192se_get_IC_Inferiority(hw);
@@ -2302,7 +2302,7 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 
 	rfpwr_toset = _rtl92se_rf_onoff_detect(hw);
 
-	if ((ppsc->hwradiooff == true) && (rfpwr_toset == ERFON)) {
+	if ((ppsc->hwradiooff) && (rfpwr_toset == ERFON)) {
 		RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
 			 ("RFKILL-HW Radio ON, RF ON\n"));
 

@@ -90,7 +90,7 @@ bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 		ppsc->rfoff_reason &= (~changesource);
 
 		if ((changesource == RF_CHANGE_BY_HW) &&
-		    (ppsc->hwradiooff == true)) {
+		    (ppsc->hwradiooff)) {
 			ppsc->hwradiooff = false;
 		}
 

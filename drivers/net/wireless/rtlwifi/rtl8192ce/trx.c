@@ -678,7 +678,7 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 						    GET_RX_DESC_PAGGR(pdesc));
 
 	rx_status->mactime = GET_RX_DESC_TSFL(pdesc);
-	if (phystatus == true) {
+	if (phystatus) {
 		p_drvinfo = (struct rx_fwinfo_92c *)(skb->data +
 						     stats->rx_bufshift);
 
@@ -927,7 +927,7 @@ void rtl92ce_tx_fill_cmddesc(struct ieee80211_hw *hw,
 
 void rtl92ce_set_desc(u8 *pdesc, bool istx, u8 desc_name, u8 *val)
 {
-	if (istx == true) {
+	if (istx) {
 		switch (desc_name) {
 		case HW_DESC_OWN:
 			wmb();
@@ -968,7 +968,7 @@ u32 rtl92ce_get_desc(u8 *p_desc, bool istx, u8 desc_name)
 {
 	u32 ret = 0;
 
-	if (istx == true) {
+	if (istx) {
 		switch (desc_name) {
 		case HW_DESC_OWN:
 			ret = GET_TX_DESC_OWN(p_desc);

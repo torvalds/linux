@@ -452,7 +452,7 @@ static void _rtl92s_dm_initial_gain_sta_beforeconnect(struct ieee80211_hw *hw)
 			if (rtlpriv->psc.rfpwr_state != ERFON)
 				return;
 
-			if (digtable.backoff_enable_flag == true)
+			if (digtable.backoff_enable_flag)
 				rtl92s_backoff_enable_flag(hw);
 			else
 				digtable.backoff_val = DM_DIG_BACKOFF;
