@@ -7,11 +7,6 @@
  * Author: 
  * hcy@rock-chips.com
  * yk@rock-chips.com
- * v2.02 
- * enable DFTCMP, 
- * add 90-degree phase to dqs gating window
- * dpll use high-band if frequence between 150 and 500;
-
  * v2.01 
  * disable DFTCMP
  */
@@ -1024,17 +1019,22 @@ static uint32_t __sramlocalfunc ddr_set_pll(uint32_t nMHz, uint32_t set)
             clkr = 2;
             clkod = 2;
         }
-        else if(nMHz <= 500)
+        else if (nMHz <= 300)
         {
             clkr = 2;
             clkod = 1;
+        }
+        else if(nMHz <= 600)
+        {
+            clkr = 2;
+            clkod = 0;
         }
         else
         {
             clkr = 2;
             clkod = 0;
-        }
             pllband = (0x01u<<16);
+        }
         temp = nMHz*clkr*(1<<clkod);
         clkf = temp/24;
         //if(temp%24)
@@ -1120,7 +1120,7 @@ void __sramlocalfunc ddr_selfrefresh_exit(void)
     ddr_update_mr();
     delayus(1);
 
-refresh:
+//refresh:
     pDDR_Reg->CSR = 0x0;
     pDDR_Reg->DRR |= RD;
     delayus(1);
@@ -1131,35 +1131,6 @@ refresh:
     {
         delayus(1);
     }while(pGRF_Reg->GRF_MEM_STATUS[2] & 0x1);  //wait init ok
-    
-    if(pDDR_Reg->CSR & 0x100000)
-    {
-        pDDR_Reg->CSR &= ~0x100000;
-        goto refresh;
-    }
-    {        unsigned int bl0,bl1,bl2,bl3;
-        bl0 =(((pDDR_Reg->RSLR[0]>>0)&0x7) <<2) +((pDDR_Reg->RDGR[0]>>0) &3);
-        bl1 =(((pDDR_Reg->RSLR[0]>>3)&0x7) <<2) +((pDDR_Reg->RDGR[0]>>2) &3);
-        bl2 =(((pDDR_Reg->RSLR[0]>>6)&0x7) <<2) +((pDDR_Reg->RDGR[0]>>4) &3);
-        bl3 =(((pDDR_Reg->RSLR[0]>>9)&0x7) <<2) +((pDDR_Reg->RDGR[0]>>6) &3);
-        if((bl0==bl1) &&(bl1==bl2) &&(bl2==bl3))
-            bl0 =bl0+1;
-        else
-        {
-            if(bl0<bl1)
-                bl0 =bl1;
-            if(bl0<bl2)
-                bl0 =bl2;
-            if(bl0<bl3)
-                bl0 =bl3;
-         }
-         bl1 =bl0 &3;
-         bl1 =bl1 *0x55;
-         bl0 =bl0 >>2;
-         bl0 =bl0 *0x249;
-         (pDDR_Reg->RDGR[0] =bl1);
-         (pDDR_Reg->RSLR[0] =bl0);
-    }
     pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(8);
     delayus(10);
     pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(1);
@@ -1408,7 +1379,7 @@ int ddr_init(uint32_t dram_type, uint32_t freq)
     uint32_t          bank = 0;
     uint32_t          n;
 
-    ddr_print("version 2.02 20110511 \n");
+    ddr_print("version 2.01 20110504 \n");
 
     mem_type = (pDDR_Reg->DCR & 0x3);
     ddr_type = dram_type;//DDR3_TYPE;//
@@ -1474,7 +1445,7 @@ int ddr_init(uint32_t dram_type, uint32_t freq)
             break;
     }
     pDDR_Reg->DTAR = value;
-//    pDDR_Reg->CCR  &= ~(DFTCMP);
+    pDDR_Reg->CCR  &= ~(DFTCMP);
     //pDDR_Reg->CCR |= DQSCFG;// passive windowing mode
 
     if((mem_type == DDRII) || (mem_type == DDR3))
