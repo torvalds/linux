@@ -54,8 +54,6 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 
-#define NID_MAPPING		(-1)
-
 /* Pin Widget NID */
 #define VT1708_HP_PIN_NID	0x20
 #define VT1708_CD_PIN_NID	0x24
@@ -1279,7 +1277,6 @@ static int via_build_controls(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	struct snd_kcontrol *kctl;
-	const struct snd_kcontrol_new *knew;
 	int err, i;
 
 	if (spec->set_widgets_power_state)
@@ -1333,19 +1330,6 @@ static int via_build_controls(struct hda_codec *codec)
 		err = snd_hda_add_nid(codec, kctl, i, spec->mux_nids[i]);
 		if (err < 0)
 			return err;
-	}
-
-	/* other nid->control mapping */
-	for (i = 0; i < spec->num_mixers; i++) {
-		for (knew = spec->mixers[i]; knew->name; knew++) {
-			if (knew->iface != NID_MAPPING)
-				continue;
-			kctl = snd_hda_find_mixer_ctl(codec, knew->name);
-			if (kctl == NULL)
-				continue;
-			err = snd_hda_add_nid(codec, kctl, 0,
-					      knew->subdevice);
-		}
 	}
 
 	/* init power states */
