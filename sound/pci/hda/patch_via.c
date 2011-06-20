@@ -1770,7 +1770,11 @@ static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
 			if (err < 0)
 				return err;
 		} else {
-			err = create_ch_ctls(codec, chname[i], pin, dac, 3);
+			const char *pfx = chname[i];
+			if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT &&
+			    cfg->line_outs == 1)
+				pfx = "Speaker";
+			err = create_ch_ctls(codec, pfx, pin, dac, 3);
 			if (err < 0)
 				return err;
 		}
