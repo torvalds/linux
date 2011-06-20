@@ -236,7 +236,5 @@ static inline u32 _RND512(u32 sz)
 	return ((sz >> 9) + ((sz & 511) ? 1 : 0)) << 9;
 }
 
-#define STRUCT_PACKED __attribute__ ((packed))
-
 #endif
 
