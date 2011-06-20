@@ -56,33 +56,9 @@
 
 #define NID_MAPPING		(-1)
 
-/* amp values */
-#define AMP_VAL_IDX_SHIFT	19
-#define AMP_VAL_IDX_MASK	(0x0f<<19)
-
 /* Pin Widget NID */
-#define VT1708_HP_NID		0x13
-#define VT1708_DIGOUT_NID	0x14
-#define VT1708_DIGIN_NID	0x16
-#define VT1708_DIGIN_PIN	0x26
 #define VT1708_HP_PIN_NID	0x20
 #define VT1708_CD_PIN_NID	0x24
-
-#define VT1709_HP_DAC_NID	0x28
-#define VT1709_DIGOUT_NID	0x13
-#define VT1709_DIGIN_NID	0x17
-#define VT1709_DIGIN_PIN	0x25
-
-#define VT1708B_HP_NID		0x25
-#define VT1708B_DIGOUT_NID	0x12
-#define VT1708B_DIGIN_NID	0x15
-#define VT1708B_DIGIN_PIN	0x21
-
-#define VT1708S_HP_NID		0x25
-#define VT1708S_DIGOUT_NID	0x12
-
-#define VT1702_HP_NID		0x17
-#define VT1702_DIGOUT_NID	0x11
 
 enum VIA_HDA_CODEC {
 	UNKNOWN = -1,
@@ -146,7 +122,6 @@ struct via_spec {
 	hda_nid_t mux_nids[3];
 	hda_nid_t aa_mix_nid;
 	hda_nid_t dig_in_nid;
-	hda_nid_t dig_in_pin;
 
 	/* capture source */
 	const struct hda_input_mux *input_mux;
