@@ -938,7 +938,7 @@ struct rtl_mac {
 	int n_channels;
 	int n_bitrates;
 
-	bool offchan_deley;
+	bool offchan_delay;
 
 	/*filters */
 	u32 rx_conf;

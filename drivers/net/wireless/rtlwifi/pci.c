@@ -581,7 +581,7 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 		fc = rtl_get_fc(skb);
 		if (ieee80211_is_nullfunc(fc)) {
 			if (ieee80211_has_pm(fc)) {
-				rtlpriv->mac80211.offchan_deley = true;
+				rtlpriv->mac80211.offchan_delay = true;
 				rtlpriv->psc.state_inap = 1;
 			} else {
 				rtlpriv->psc.state_inap = 0;

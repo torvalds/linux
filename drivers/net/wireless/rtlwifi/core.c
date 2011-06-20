@@ -335,8 +335,8 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 		 * before going offchannel, or dis-association or delete BA will
 		 * happen by AP
 		 */
-		if (rtlpriv->mac80211.offchan_deley) {
-			rtlpriv->mac80211.offchan_deley = false;
+		if (rtlpriv->mac80211.offchan_delay) {
+			rtlpriv->mac80211.offchan_delay = false;
 			mdelay(50);
 		}
 		rtlphy->current_channel = wide_chan;
