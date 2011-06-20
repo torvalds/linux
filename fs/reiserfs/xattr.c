@@ -967,7 +967,7 @@ int reiserfs_permission(struct inode *inode, int mask, unsigned int flags)
 	if (IS_PRIVATE(inode))
 		return 0;
 
-	return generic_permission(inode, mask, flags);
+	return generic_permission(inode, mask);
 }
 
 static int xattr_hide_revalidate(struct dentry *dentry, struct nameidata *nd)

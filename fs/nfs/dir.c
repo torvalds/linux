@@ -2328,7 +2328,7 @@ out:
 out_notsup:
 	res = nfs_revalidate_inode(NFS_SERVER(inode), inode);
 	if (res == 0)
-		res = generic_permission(inode, mask, flags);
+		res = generic_permission(inode, mask);
 	goto out;
 }
 

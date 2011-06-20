@@ -350,7 +350,7 @@ int afs_permission(struct inode *inode, int mask, unsigned int flags)
 	}
 
 	key_put(key);
-	ret = generic_permission(inode, mask, flags);
+	ret = generic_permission(inode, mask);
 	_leave(" = %d", ret);
 	return ret;
 

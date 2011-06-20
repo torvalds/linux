@@ -7339,7 +7339,7 @@ static int btrfs_permission(struct inode *inode, int mask, unsigned int flags)
 		return -EROFS;
 	if ((BTRFS_I(inode)->flags & BTRFS_INODE_READONLY) && (mask & MAY_WRITE))
 		return -EACCES;
-	return generic_permission(inode, mask, flags);
+	return generic_permission(inode, mask);
 }
 
 static const struct inode_operations btrfs_dir_inode_operations = {
