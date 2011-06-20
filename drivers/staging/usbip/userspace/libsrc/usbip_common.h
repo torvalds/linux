@@ -58,51 +58,49 @@ extern int usbip_use_syslog;
 extern int usbip_use_stderr;
 extern int usbip_use_debug ;
 
-#define err(fmt, args...)	do { \
-	if (usbip_use_syslog) { \
-		syslog(LOG_ERR, "usbip err: %13s:%4d (%-12s) " fmt "\n", \
-			__FILE__, __LINE__, __FUNCTION__,  ##args); \
-	} \
-	if (usbip_use_stderr) { \
-		fprintf(stderr, "usbip err: %13s:%4d (%-12s) " fmt "\n", \
-			__FILE__, __LINE__, __FUNCTION__,  ##args); \
-	} \
-} while (0)
+#define PROGNAME "usbip"
 
-#define notice(fmt, args...)	do { \
-	if (usbip_use_syslog) { \
-		syslog(LOG_DEBUG, "usbip: " fmt, ##args); \
-	} \
-	if (usbip_use_stderr) { \
-		fprintf(stderr, "usbip: " fmt "\n",  ##args); \
-	} \
-} while (0)
+#define pr_fmt(fmt)	"%s: %s: " fmt "\n", PROGNAME
+#define dbg_fmt(fmt)	pr_fmt("%s:%d:[%s] " fmt), "debug",	\
+		        __FILE__, __LINE__, __FUNCTION__
 
-#define info(fmt, args...)	do { \
-	if (usbip_use_syslog) { \
-		syslog(LOG_DEBUG, fmt, ##args); \
-	} \
-	if (usbip_use_stderr) { \
-		fprintf(stderr, fmt "\n",  ##args); \
-	} \
-} while (0)
+#define err(fmt, args...)						\
+	do {								\
+		if (usbip_use_syslog) {					\
+			syslog(LOG_ERR, pr_fmt(fmt), "error", ##args);	\
+		}							\
+		if (usbip_use_stderr) {					\
+			fprintf(stderr, pr_fmt(fmt), "error", ##args);	\
+		}							\
+	} while (0)
 
-#define dbg(fmt, args...)	do { \
-	if (usbip_use_debug) { \
-		if (usbip_use_syslog) { \
-			syslog(LOG_DEBUG, "usbip dbg: %13s:%4d (%-12s) " fmt, \
-				__FILE__, __LINE__, __FUNCTION__,  ##args); \
-		} \
-		if (usbip_use_stderr) { \
-			fprintf(stderr, "usbip dbg: %13s:%4d (%-12s) " fmt "\n", \
-				__FILE__, __LINE__, __FUNCTION__,  ##args); \
-		} \
-	} \
-} while (0)
+#define info(fmt, args...)						\
+	do {								\
+		if (usbip_use_syslog) {					\
+			syslog(LOG_INFO, pr_fmt(fmt), "info", ##args);	\
+		}							\
+		if (usbip_use_stderr) {					\
+			fprintf(stderr, pr_fmt(fmt), "info", ##args);	\
+		}							\
+	} while (0)
 
+#define dbg(fmt, args...)						\
+	do {								\
+	if (usbip_use_debug) {						\
+		if (usbip_use_syslog) {					\
+			syslog(LOG_DEBUG, dbg_fmt(fmt), ##args);	\
+		}							\
+		if (usbip_use_stderr) {					\
+			fprintf(stderr, dbg_fmt(fmt), ##args);		\
+		}							\
+	}								\
+	} while (0)
 
-#define BUG()	do { err("sorry, it's a bug"); abort(); } while (0)
-
+#define BUG()						\
+	do {						\
+		err("sorry, it's a bug!");		\
+		abort();				\
+	} while (0)
 
 struct usbip_usb_interface {
 	uint8_t bInterfaceClass;
