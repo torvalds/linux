@@ -657,6 +657,11 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	priv->num_rx_queues = num_rx_qs;
 	priv->num_grps = 0x0;
 
+	/* Init Rx queue filer rule set linked list*/
+	INIT_LIST_HEAD(&priv->rx_list.list);
+	priv->rx_list.count = 0;
+	mutex_init(&priv->rx_queue_access);
+
 	model = of_get_property(np, "model", NULL);
 
 	for (i = 0; i < MAXGROUPS; i++)
@@ -1150,9 +1155,8 @@ static int gfar_probe(struct platform_device *ofdev)
 		priv->rx_queue[i]->rxic = DEFAULT_RXIC;
 	}
 
-	/* enable filer if using multiple RX queues*/
-	if(priv->num_rx_queues > 1)
-		priv->rx_filer_enable = 1;
+	/* always enable rx filer*/
+	priv->rx_filer_enable = 1;
 	/* Enable most messages by default */
 	priv->msg_enable = (NETIF_MSG_IFUP << 1 ) - 1;
 

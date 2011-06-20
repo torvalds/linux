@@ -47,6 +47,16 @@
 #include <linux/workqueue.h>
 #include <linux/ethtool.h>
 
+struct ethtool_flow_spec_container {
+	struct ethtool_rx_flow_spec fs;
+	struct list_head list;
+};
+
+struct ethtool_rx_list {
+	struct list_head list;
+	unsigned int count;
+};
+
 /* The maximum number of packets to be handled in one call of gfar_poll */
 #define GFAR_DEV_WEIGHT 64
 
@@ -168,6 +178,7 @@ extern const char gfar_driver_version[];
 #define MACCFG2_LENGTHCHECK	0x00000010
 #define MACCFG2_MPEN		0x00000008
 
+#define ECNTRL_FIFM		0x00008000
 #define ECNTRL_INIT_SETTINGS	0x00001000
 #define ECNTRL_TBI_MODE         0x00000020
 #define ECNTRL_REDUCED_MODE	0x00000010
@@ -271,6 +282,7 @@ extern const char gfar_driver_version[];
 #define RCTRL_TUCSEN		0x00000100
 #define RCTRL_PRSDEP_MASK	0x000000c0
 #define RCTRL_PRSDEP_INIT	0x000000c0
+#define RCTRL_PRSFM		0x00000020
 #define RCTRL_PROM		0x00000008
 #define RCTRL_EMEN		0x00000002
 #define RCTRL_REQ_PARSER	(RCTRL_VLEX | RCTRL_IPCSEN | \
@@ -1066,6 +1078,9 @@ struct gfar_private {
 
 	struct vlan_group *vlgrp;
 
+	/* RX queue filer rule set*/
+	struct ethtool_rx_list rx_list;
+	struct mutex rx_queue_access;
 
 	/* Hash registers and their width */
 	u32 __iomem *hash_regs[16];
@@ -1140,6 +1155,16 @@ static inline void gfar_write_filer(struct gfar_private *priv,
 	gfar_write(&regs->rqfpr, fpr);
 }
 
+static inline void gfar_read_filer(struct gfar_private *priv,
+		unsigned int far, unsigned int *fcr, unsigned int *fpr)
+{
+	struct gfar __iomem *regs = priv->gfargrp[0].regs;
+
+	gfar_write(&regs->rqfar, far);
+	*fcr = gfar_read(&regs->rqfcr);
+	*fpr = gfar_read(&regs->rqfpr);
+}
+
 extern void lock_rx_qs(struct gfar_private *priv);
 extern void lock_tx_qs(struct gfar_private *priv);
 extern void unlock_rx_qs(struct gfar_private *priv);
@@ -1156,5 +1181,33 @@ void gfar_init_sysfs(struct net_device *dev);
 int gfar_set_features(struct net_device *dev, u32 features);
 
 extern const struct ethtool_ops gfar_ethtool_ops;
+
+#define MAX_FILER_CACHE_IDX (2*(MAX_FILER_IDX))
+
+#define RQFCR_PID_PRI_MASK 0xFFFFFFF8
+#define RQFCR_PID_L4P_MASK 0xFFFFFF00
+#define RQFCR_PID_VID_MASK 0xFFFFF000
+#define RQFCR_PID_PORT_MASK 0xFFFF0000
+#define RQFCR_PID_MAC_MASK 0xFF000000
+
+struct gfar_mask_entry {
+	unsigned int mask; /* The mask value which is valid form start to end */
+	unsigned int start;
+	unsigned int end;
+	unsigned int block; /* Same block values indicate depended entries */
+};
+
+/* Represents a receive filer table entry */
+struct gfar_filer_entry {
+	u32 ctrl;
+	u32 prop;
+};
+
+
+/* The 20 additional entries are a shadow for one extra element */
+struct filer_table {
+	u32 index;
+	struct gfar_filer_entry fe[MAX_FILER_CACHE_IDX + 20];
+};
 
 #endif /* __GIANFAR_H */
