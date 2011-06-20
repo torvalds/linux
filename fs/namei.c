@@ -304,7 +304,7 @@ int inode_permission(struct inode *inode, int mask)
 /**
  * exec_permission  -  check for right to do lookups in a given directory
  * @inode:	inode to check permission on
- * @flags:	IPERM_FLAG_ flags.
+ * @mask:	MAY_EXEC and possibly MAY_NOT_BLOCK flags.
  *
  * Short-cut version of inode_permission(), for calling on directories
  * during pathname resolution.  Combines parts of inode_permission()
@@ -314,13 +314,10 @@ int inode_permission(struct inode *inode, int mask)
  * short-cut DAC fails, then call ->permission() to do more
  * complete permission check.
  */
-static inline int exec_permission(struct inode *inode, unsigned int flags)
+static inline int exec_permission(struct inode *inode, int mask)
 {
 	int ret;
 	struct user_namespace *ns = inode_userns(inode);
-	int mask = MAY_EXEC;
-	if (flags & IPERM_FLAG_RCU)
-		mask |= MAY_NOT_BLOCK;
 
 	if (inode->i_op->permission) {
 		ret = inode->i_op->permission(inode, mask);
@@ -338,7 +335,7 @@ static inline int exec_permission(struct inode *inode, unsigned int flags)
 	}
 	return ret;
 ok:
-	return security_inode_exec_permission(inode, flags);
+	return security_inode_permission(inode, mask);
 }
 
 /**
@@ -1214,13 +1211,13 @@ retry:
 static inline int may_lookup(struct nameidata *nd)
 {
 	if (nd->flags & LOOKUP_RCU) {
-		int err = exec_permission(nd->inode, IPERM_FLAG_RCU);
+		int err = exec_permission(nd->inode, MAY_EXEC|MAY_NOT_BLOCK);
 		if (err != -ECHILD)
 			return err;
 		if (unlazy_walk(nd, NULL))
 			return -ECHILD;
 	}
-	return exec_permission(nd->inode, 0);
+	return exec_permission(nd->inode, MAY_EXEC);
 }
 
 static inline int handle_dots(struct nameidata *nd, int type)
@@ -1495,7 +1492,7 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 			if (!S_ISDIR(dentry->d_inode->i_mode))
 				goto fput_fail;
 
-			retval = exec_permission(dentry->d_inode, 0);
+			retval = exec_permission(dentry->d_inode, MAY_EXEC);
 			if (retval)
 				goto fput_fail;
 		}
@@ -1652,7 +1649,7 @@ static struct dentry *__lookup_hash(struct qstr *name,
 	struct dentry *dentry;
 	int err;
 
-	err = exec_permission(inode, 0);
+	err = exec_permission(inode, MAY_EXEC);
 	if (err)
 		return ERR_PTR(err);
 
