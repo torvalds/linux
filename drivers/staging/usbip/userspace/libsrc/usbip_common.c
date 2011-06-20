@@ -2,7 +2,7 @@
  * Copyright (C) 2005-2007 Takahiro Hirofuchi
  */
 
-#include "usbip.h"
+#include "usbip_common.h"
 #include "names.h"
 
 #undef  PROGNAME

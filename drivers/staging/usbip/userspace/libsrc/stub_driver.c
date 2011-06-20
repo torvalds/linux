@@ -8,7 +8,8 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "usbip.h"
+#include "usbip_common.h"
+#include "stub_driver.h"
 
 #undef  PROGNAME
 #define PROGNAME "libusbip"

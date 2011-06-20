@@ -2,13 +2,15 @@
  * Copyright (C) 2005-2007 Takahiro Hirofuchi
  */
 
-#ifndef _VHCI_DRIVER_H
-#define _VHCI_DRIVER_H
+#ifndef __VHCI_DRIVER_H
+#define __VHCI_DRIVER_H
 
-#include "usbip.h"
+#include <sysfs/libsysfs.h>
+#include <stdint.h>
+
+#include "usbip_common.h"
 
 #define USBIP_VHCI_BUS_TYPE "platform"
-
 #define MAXNPORT 128
 
 struct usbip_class_device {
@@ -61,4 +63,5 @@ int usbip_vhci_attach_device(uint8_t port, int sockfd, uint8_t busnum,
 		uint8_t devnum, uint32_t speed);
 
 int usbip_vhci_detach_device(uint8_t port);
-#endif
+
+#endif /* __VHCI_DRIVER_H */
