@@ -157,8 +157,14 @@ mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
 		cERROR(1, "%s: Could not init md4 shash\n", __func__);
 		goto mdfour_err;
 	}
-	crypto_shash_update(&sdescmd4->shash, link_str, link_len);
+	rc = crypto_shash_update(&sdescmd4->shash, link_str, link_len);
+	if (rc) {
+		cERROR(1, "%s: Could not update with link_str\n", __func__);
+		goto mdfour_err;
+	}
 	rc = crypto_shash_final(&sdescmd4->shash, md4_hash);
+	if (rc)
+		cERROR(1, "%s: Could not genereate md4 hash\n", __func__);
 
 mdfour_err:
 	crypto_free_shash(md4);
