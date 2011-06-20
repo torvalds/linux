@@ -380,12 +380,23 @@ static void ft_send_resp_status(struct fc_lport *lport,
 
 /*
  * Send error or task management response.
- * Always frees the cmd and associated state.
  */
-static void ft_send_resp_code(struct ft_cmd *cmd, enum fcp_resp_rsp_codes code)
+static void ft_send_resp_code(struct ft_cmd *cmd,
+			      enum fcp_resp_rsp_codes code)
 {
 	ft_send_resp_status(cmd->sess->tport->lport,
 			    cmd->req_frame, SAM_STAT_GOOD, code);
+}
+
+
+/*
+ * Send error or task management response.
+ * Always frees the cmd and associated state.
+ */
+static void ft_send_resp_code_and_free(struct ft_cmd *cmd,
+				      enum fcp_resp_rsp_codes code)
+{
+	ft_send_resp_code(cmd, code);
 	ft_free_cmd(cmd);
 }
 
@@ -423,7 +434,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 		 * tm_flags set is invalid.
 		 */
 		FT_TM_DBG("invalid FCP tm_flags %x\n", fcp->fc_tm_flags);
-		ft_send_resp_code(cmd, FCP_CMND_FIELDS_INVALID);
+		ft_send_resp_code_and_free(cmd, FCP_CMND_FIELDS_INVALID);
 		return;
 	}
 
@@ -431,7 +442,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 	tmr = core_tmr_alloc_req(&cmd->se_cmd, cmd, tm_func);
 	if (!tmr) {
 		FT_TM_DBG("alloc failed\n");
-		ft_send_resp_code(cmd, FCP_TMF_FAILED);
+		ft_send_resp_code_and_free(cmd, FCP_TMF_FAILED);
 		return;
 	}
 	cmd->se_cmd.se_tmr_req = tmr;
@@ -670,7 +681,7 @@ static void ft_send_cmd(struct ft_cmd *cmd)
 	return;
 
 err:
-	ft_send_resp_code(cmd, FCP_CMND_FIELDS_INVALID);
+	ft_send_resp_code_and_free(cmd, FCP_CMND_FIELDS_INVALID);
 	return;
 }
 
