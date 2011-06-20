@@ -279,11 +279,10 @@ static int merge_state(struct extent_io_tree *tree,
 		if (other->start == state->end + 1 &&
 		    other->state == state->state) {
 			merge_cb(tree, state, other);
-			other->start = state->start;
-			state->tree = NULL;
-			rb_erase(&state->rb_node, &tree->state);
-			free_extent_state(state);
-			state = NULL;
+			state->end = other->end;
+			other->tree = NULL;
+			rb_erase(&other->rb_node, &tree->state);
+			free_extent_state(other);
 		}
 	}
 
@@ -349,7 +348,6 @@ static int insert_state(struct extent_io_tree *tree,
 		       "%llu %llu\n", (unsigned long long)found->start,
 		       (unsigned long long)found->end,
 		       (unsigned long long)start, (unsigned long long)end);
-		free_extent_state(state);
 		return -EEXIST;
 	}
 	state->tree = tree;
@@ -498,7 +496,8 @@ again:
 			cached_state = NULL;
 		}
 
-		if (cached && cached->tree && cached->start == start) {
+		if (cached && cached->tree && cached->start <= start &&
+		    cached->end > start) {
 			if (clear)
 				atomic_dec(&cached->refs);
 			state = cached;
@@ -740,7 +739,8 @@ again:
 	spin_lock(&tree->lock);
 	if (cached_state && *cached_state) {
 		state = *cached_state;
-		if (state->start == start && state->tree) {
+		if (state->start <= start && state->end > start &&
+		    state->tree) {
 			node = &state->rb_node;
 			goto hit_next;
 		}
@@ -781,13 +781,13 @@ hit_next:
 		if (err)
 			goto out;
 
-		next_node = rb_next(node);
 		cache_state(state, cached_state);
 		merge_state(tree, state);
 		if (last_end == (u64)-1)
 			goto out;
 
 		start = last_end + 1;
+		next_node = rb_next(&state->rb_node);
 		if (next_node && start < end && prealloc && !need_resched()) {
 			state = rb_entry(next_node, struct extent_state,
 					 rb_node);
@@ -860,7 +860,6 @@ hit_next:
 		 * Avoid to free 'prealloc' if it can be merged with
 		 * the later extent.
 		 */
-		atomic_inc(&prealloc->refs);
 		err = insert_state(tree, prealloc, start, this_end,
 				   &bits);
 		BUG_ON(err == -EEXIST);
@@ -870,7 +869,6 @@ hit_next:
 			goto out;
 		}
 		cache_state(prealloc, cached_state);
-		free_extent_state(prealloc);
 		prealloc = NULL;
 		start = this_end + 1;
 		goto search_again;
@@ -1562,7 +1560,8 @@ int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 	int bitset = 0;
 
 	spin_lock(&tree->lock);
-	if (cached && cached->tree && cached->start == start)
+	if (cached && cached->tree && cached->start <= start &&
+	    cached->end > start)
 		node = &cached->rb_node;
 	else
 		node = tree_search(tree, start);
