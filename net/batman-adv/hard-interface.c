@@ -152,12 +152,6 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	batman_packet->ttl = TTL;
 
 	primary_if_update_addr(bat_priv);
-
-	/***
-	 * hacky trick to make sure that we send the TT information via
-	 * our new primary interface
-	 */
-	atomic_set(&bat_priv->tt_local_changed, 1);
 }
 
 static bool hardif_is_iface_up(const struct hard_iface *hard_iface)
@@ -340,7 +334,8 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	batman_packet->flags = NO_FLAGS;
 	batman_packet->ttl = 2;
 	batman_packet->tq = TQ_MAX_VALUE;
-	batman_packet->num_tt = 0;
+	batman_packet->tt_num_changes = 0;
+	batman_packet->ttvn = 0;
 
 	hard_iface->if_num = bat_priv->num_ifaces;
 	bat_priv->num_ifaces++;
@@ -658,6 +653,14 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		/* vis packet */
 	case BAT_VIS:
 		ret = recv_vis_packet(skb, hard_iface);
+		break;
+		/* Translation table query (request or response) */
+	case BAT_TT_QUERY:
+		ret = recv_tt_query(skb, hard_iface);
+		break;
+		/* Roaming advertisement */
+	case BAT_ROAM_ADV:
+		ret = recv_roam_adv(skb, hard_iface);
 		break;
 	default:
 		ret = NET_RX_DROP;

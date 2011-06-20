@@ -42,14 +42,22 @@
  * -> TODO: check influence on TQ_LOCAL_WINDOW_SIZE */
 #define PURGE_TIMEOUT 200
 #define TT_LOCAL_TIMEOUT 3600 /* in seconds */
-
+#define TT_CLIENT_ROAM_TIMEOUT 600
 /* sliding packet range of received originator messages in squence numbers
  * (should be a multiple of our word size) */
 #define TQ_LOCAL_WINDOW_SIZE 64
+#define TT_REQUEST_TIMEOUT 3 /* seconds we have to keep pending tt_req */
+
 #define TQ_GLOBAL_WINDOW_SIZE 5
 #define TQ_LOCAL_BIDRECT_SEND_MINIMUM 1
 #define TQ_LOCAL_BIDRECT_RECV_MINIMUM 1
 #define TQ_TOTAL_BIDRECT_LIMIT 1
+
+#define TT_OGM_APPEND_MAX 3 /* number of OGMs sent with the last tt diff */
+
+#define ROAMING_MAX_TIME 20 /* Time in which a client can roam at most
+			     * ROAMING_MAX_COUNT times */
+#define ROAMING_MAX_COUNT 5
 
 #define NO_FLAGS 0
 
@@ -83,6 +91,18 @@ enum mesh_state {
 #define BCAST_QUEUE_LEN		256
 #define BATMAN_QUEUE_LEN	256
 
+enum uev_action {
+	UEV_ADD = 0,
+	UEV_DEL,
+	UEV_CHANGE
+};
+
+enum uev_type {
+	UEV_GW = 0
+};
+
+#define GW_THRESHOLD	50
+
 /*
  * Debug Messages
  */
@@ -96,7 +116,8 @@ enum mesh_state {
 enum dbg_level {
 	DBG_BATMAN = 1 << 0,
 	DBG_ROUTES = 1 << 1, /* route added / changed / deleted */
-	DBG_ALL    = 3
+	DBG_TT	   = 1 << 2, /* translation table operations */
+	DBG_ALL    = 7
 };
 
 
@@ -151,7 +172,7 @@ int debug_log(struct bat_priv *bat_priv, const char *fmt, ...) __printf(2, 3);
 	while (0)
 #else /* !CONFIG_BATMAN_ADV_DEBUG */
 __printf(3, 4)
-static inline void bat_dbg(char type __always_unused,
+static inline void bat_dbg(int type __always_unused,
 			   struct bat_priv *bat_priv __always_unused,
 			   const char *fmt __always_unused, ...)
 {

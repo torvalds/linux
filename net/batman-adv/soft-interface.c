@@ -30,6 +30,7 @@
 #include "gateway_common.h"
 #include "gateway_client.h"
 #include "bat_sysfs.h"
+#include "originator.h"
 #include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
@@ -380,7 +381,7 @@ void softif_neigh_purge(struct bat_priv *bat_priv)
 	struct softif_neigh *softif_neigh, *curr_softif_neigh;
 	struct softif_neigh_vid *softif_neigh_vid;
 	struct hlist_node *node, *node_tmp, *node_tmp2;
-	char do_deselect;
+	int do_deselect;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(softif_neigh_vid, node,
@@ -534,7 +535,7 @@ static int interface_set_mac_addr(struct net_device *dev, void *p)
 	/* only modify transtable if it has been initialised before */
 	if (atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE) {
 		tt_local_remove(bat_priv, dev->dev_addr,
-				 "mac address changed");
+				"mac address changed", false);
 		tt_local_add(dev, addr->sa_data);
 	}
 
@@ -553,7 +554,7 @@ static int interface_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
+static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 {
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
@@ -561,6 +562,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 	struct bcast_packet *bcast_packet;
 	struct vlan_ethhdr *vhdr;
 	struct softif_neigh *curr_softif_neigh = NULL;
+	struct orig_node *orig_node = NULL;
 	int data_len = skb->len, ret;
 	short vid = -1;
 	bool do_bcast = false;
@@ -592,11 +594,13 @@ int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 	if (curr_softif_neigh)
 		goto dropped;
 
-	/* TODO: check this for locks */
+	/* Register the client MAC in the transtable */
 	tt_local_add(soft_iface, ethhdr->h_source);
 
-	if (is_multicast_ether_addr(ethhdr->h_dest)) {
-		ret = gw_is_target(bat_priv, skb);
+	orig_node = transtable_search(bat_priv, ethhdr->h_dest);
+	if (is_multicast_ether_addr(ethhdr->h_dest) ||
+				(orig_node && orig_node->gw_flags)) {
+		ret = gw_is_target(bat_priv, skb, orig_node);
 
 		if (ret < 0)
 			goto dropped;
@@ -656,6 +660,8 @@ end:
 		softif_neigh_free_ref(curr_softif_neigh);
 	if (primary_if)
 		hardif_free_ref(primary_if);
+	if (orig_node)
+		orig_node_free_ref(orig_node);
 	return NETDEV_TX_OK;
 }
 
@@ -830,7 +836,13 @@ struct net_device *softif_create(const char *name)
 
 	atomic_set(&bat_priv->mesh_state, MESH_INACTIVE);
 	atomic_set(&bat_priv->bcast_seqno, 1);
-	atomic_set(&bat_priv->tt_local_changed, 0);
+	atomic_set(&bat_priv->ttvn, 0);
+	atomic_set(&bat_priv->tt_local_changes, 0);
+	atomic_set(&bat_priv->tt_ogm_append_cnt, 0);
+
+	bat_priv->tt_buff = NULL;
+	bat_priv->tt_buff_len = 0;
+	bat_priv->tt_poss_change = false;
 
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;

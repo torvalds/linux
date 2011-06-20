@@ -20,16 +20,11 @@
  */
 
 #include "main.h"
+#include "translation-table.h"
 #include "aggregation.h"
 #include "send.h"
 #include "routing.h"
 #include "hard-interface.h"
-
-/* calculate the size of the tt information for a given packet */
-static int tt_len(const struct batman_packet *batman_packet)
-{
-	return batman_packet->num_tt * ETH_ALEN;
-}
 
 /* return true if new_packet can be aggregated with forw_packet */
 static bool can_aggregate_with(const struct batman_packet *new_batman_packet,
@@ -195,7 +190,7 @@ static void aggregate(struct forw_packet *forw_packet_aggr,
 
 void add_bat_packet_to_list(struct bat_priv *bat_priv,
 			    unsigned char *packet_buff, int packet_len,
-			    struct hard_iface *if_incoming, char own_packet,
+			    struct hard_iface *if_incoming, int own_packet,
 			    unsigned long send_time)
 {
 	/**
@@ -264,18 +259,20 @@ void receive_aggr_bat_packet(const struct ethhdr *ethhdr,
 	batman_packet = (struct batman_packet *)packet_buff;
 
 	do {
-		/* network to host order for our 32bit seqno, and the
-		   orig_interval. */
+		/* network to host order for our 32bit seqno and the
+		   orig_interval */
 		batman_packet->seqno = ntohl(batman_packet->seqno);
+		batman_packet->tt_crc = ntohs(batman_packet->tt_crc);
 
 		tt_buff = packet_buff + buff_pos + BAT_PACKET_LEN;
-		receive_bat_packet(ethhdr, batman_packet,
-				   tt_buff, tt_len(batman_packet),
-				   if_incoming);
 
-		buff_pos += BAT_PACKET_LEN + tt_len(batman_packet);
+		receive_bat_packet(ethhdr, batman_packet, tt_buff, if_incoming);
+
+		buff_pos += BAT_PACKET_LEN +
+			tt_len(batman_packet->tt_num_changes);
+
 		batman_packet = (struct batman_packet *)
 			(packet_buff + buff_pos);
 	} while (aggregated_packet(buff_pos, packet_len,
-				   batman_packet->num_tt));
+				   batman_packet->tt_num_changes));
 }
