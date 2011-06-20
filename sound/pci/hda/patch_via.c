@@ -745,12 +745,23 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 	struct via_spec *spec = codec->spec;
 	hda_nid_t nid = kcontrol->private_value;
 	unsigned int pinsel = ucontrol->value.enumerated.item[0];
+	unsigned int parm0, parm1;
 	/* Get Independent Mode index of headphone pin widget */
 	spec->hp_independent_mode = spec->hp_independent_mode_index == pinsel
 		? 1 : 0;
-	if (spec->codec_type == VT1718S)
+	if (spec->codec_type == VT1718S) {
 		snd_hda_codec_write(codec, nid, 0,
 				    AC_VERB_SET_CONNECT_SEL, pinsel ? 2 : 0);
+		/* Set correct mute switch for MW3 */
+		parm0 = spec->hp_independent_mode ?
+			       AMP_IN_UNMUTE(0) : AMP_IN_MUTE(0);
+		parm1 = spec->hp_independent_mode ?
+			       AMP_IN_MUTE(1) : AMP_IN_UNMUTE(1);
+		snd_hda_codec_write(codec, 0x1b, 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE, parm0);
+		snd_hda_codec_write(codec, 0x1b, 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE, parm1);
+	}
 	else
 		snd_hda_codec_write(codec, nid, 0,
 				    AC_VERB_SET_CONNECT_SEL, pinsel);
