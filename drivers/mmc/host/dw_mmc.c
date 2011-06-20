@@ -574,7 +574,7 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot)
 	}
 
 	/* Set the current slot bus width */
-	mci_writel(host, CTYPE, slot->ctype);
+	mci_writel(host, CTYPE, (slot->ctype << slot->id));
 }
 
 static void dw_mci_start_request(struct dw_mci *host,
