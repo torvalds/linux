@@ -266,8 +266,9 @@ int ft_write_pending(struct se_cmd *se_cmd)
 				cmd->sg_cnt =
 					T_TASK(se_cmd)->t_tasks_sg_chained_no;
 			}
-			if (cmd->sg && lport->tt.ddp_setup(lport, ep->xid,
-						    cmd->sg, cmd->sg_cnt))
+			if (cmd->sg && lport->tt.ddp_target(lport, ep->xid,
+							    cmd->sg,
+							    cmd->sg_cnt))
 				cmd->was_ddp_setup = 1;
 		}
 	}
