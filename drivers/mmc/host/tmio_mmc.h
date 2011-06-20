@@ -153,6 +153,11 @@ static inline u32 sd_ctrl_read32(struct tmio_mmc_host *host, int addr)
 
 static inline void sd_ctrl_write16(struct tmio_mmc_host *host, int addr, u16 val)
 {
+	/* If there is a hook and it returns non-zero then there
+	 * is an error and the write should be skipped
+	 */
+	if (host->pdata->write16_hook && host->pdata->write16_hook(host, addr))
+		return;
 	writew(val, host->ctl + (addr << host->bus_shift));
 }
 

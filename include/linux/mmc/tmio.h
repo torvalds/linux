@@ -21,6 +21,7 @@
 #define CTL_XFER_BLK_COUNT 0xa
 #define CTL_RESPONSE 0x0c
 #define CTL_STATUS 0x1c
+#define CTL_STATUS2 0x1e
 #define CTL_IRQ_MASK 0x20
 #define CTL_SD_CARD_CLK_CTL 0x24
 #define CTL_SD_XFER_LEN 0x26
