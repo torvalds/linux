@@ -209,10 +209,10 @@ int iwlcore_init_geos(struct iwl_priv *priv)
 
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     priv->cfg->sku & EEPROM_SKU_CAP_BAND_52GHZ) {
+		char buf[32];
+		priv->bus.ops->get_hw_id(&priv->bus, buf, sizeof(buf));
 		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
-			"Please send your PCI ID 0x%04X:0x%04X to maintainer.\n",
-			   priv->pci_dev->device,
-			   priv->pci_dev->subsystem_device);
+			"Please send your %s to maintainer.\n", buf);
 		priv->cfg->sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
 	}
 
@@ -997,8 +997,6 @@ void iwl_apm_stop(struct iwl_priv *priv)
 int iwl_apm_init(struct iwl_priv *priv)
 {
 	int ret = 0;
-	u16 lctl;
-
 	IWL_DEBUG_INFO(priv, "Init card's basic functions\n");
 
 	/*
@@ -1027,27 +1025,7 @@ int iwl_apm_init(struct iwl_priv *priv)
 	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
 
-	/*
-	 * HW bug W/A for instability in PCIe bus L0->L0S->L1 transition.
-	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
-	 * If so (likely), disable L0S, so device moves directly L0->L1;
-	 *    costs negligible amount of power savings.
-	 * If not (unlikely), enable L0S, so there is at least some
-	 *    power savings, even without L1.
-	 */
-	lctl = iwl_pcie_link_ctl(priv);
-	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
-				PCI_CFG_LINK_CTRL_VAL_L1_EN) {
-		/* L1-ASPM enabled; disable(!) L0S  */
-		iwl_set_bit(priv, CSR_GIO_REG,
-				CSR_GIO_REG_VAL_L0S_ENABLED);
-		IWL_DEBUG_POWER(priv, "L1 Enabled; Disabling L0S\n");
-	} else {
-		/* L1-ASPM disabled; enable(!) L0S */
-		iwl_clear_bit(priv, CSR_GIO_REG,
-				CSR_GIO_REG_VAL_L0S_ENABLED);
-		IWL_DEBUG_POWER(priv, "L1 Disabled; Enabling L0S\n");
-	}
+	priv->bus.ops->apm_config(&priv->bus);
 
 	/* Configure analog phase-lock-loop before activating to D0A */
 	if (priv->cfg->base_params->pll_cfg_val)
@@ -1948,11 +1926,8 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 
 #ifdef CONFIG_PM
 
-int iwl_pci_suspend(struct device *device)
+int iwl_suspend(struct iwl_priv *priv)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_priv *priv = pci_get_drvdata(pdev);
-
 	/*
 	 * This function is called when system goes into suspend state
 	 * mac80211 will call iwl_mac_stop() from the mac80211 suspend function
@@ -1965,17 +1940,9 @@ int iwl_pci_suspend(struct device *device)
 	return 0;
 }
 
-int iwl_pci_resume(struct device *device)
+int iwl_resume(struct iwl_priv *priv)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_priv *priv = pci_get_drvdata(pdev);
 	bool hw_rfkill = false;
-
-	/*
-	 * We disable the RETRY_TIMEOUT register (0x41) to keep
-	 * PCI Tx retries from interfering with C3 CPU state.
-	 */
-	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
 	iwl_enable_interrupts(priv);
 
@@ -1992,14 +1959,5 @@ int iwl_pci_resume(struct device *device)
 
 	return 0;
 }
-
-const struct dev_pm_ops iwl_pm_ops = {
-	.suspend = iwl_pci_suspend,
-	.resume = iwl_pci_resume,
-	.freeze = iwl_pci_suspend,
-	.thaw = iwl_pci_resume,
-	.poweroff = iwl_pci_suspend,
-	.restore = iwl_pci_resume,
-};
 
 #endif /* CONFIG_PM */

@@ -180,7 +180,7 @@ void iwl_testmode_init(struct iwl_priv *priv)
 
 static void iwl_trace_cleanup(struct iwl_priv *priv)
 {
-	struct device *dev = &priv->pci_dev->dev;
+	struct device *dev = priv->bus.dev;
 
 	if (priv->testmode_trace.trace_enabled) {
 		if (priv->testmode_trace.cpu_addr &&
@@ -484,7 +484,7 @@ static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
 	struct iwl_priv *priv = hw->priv;
 	struct sk_buff *skb;
 	int status = 0;
-	struct device *dev = &priv->pci_dev->dev;
+	struct device *dev = priv->bus.dev;
 
 	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
 	case IWL_TM_CMD_APP2DEV_BEGIN_TRACE:

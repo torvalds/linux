@@ -28,8 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/pci.h>
-#include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -204,7 +202,8 @@ void iwl_leds_init(struct iwl_priv *priv)
 		break;
 	}
 
-	ret = led_classdev_register(&priv->pci_dev->dev, &priv->led);
+	ret = led_classdev_register(priv->bus.dev,
+				    &priv->led);
 	if (ret) {
 		kfree(priv->led.name);
 		return;

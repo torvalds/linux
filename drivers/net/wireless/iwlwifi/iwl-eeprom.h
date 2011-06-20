@@ -268,13 +268,13 @@ extern const u8 iwl_eeprom_band_1[14];
 
 /* General */
 #define EEPROM_DEVICE_ID                    (2*0x08)	/* 2 bytes */
+#define EEPROM_SUBSYSTEM_ID		    (2*0x0A)	/* 2 bytes */
 #define EEPROM_MAC_ADDRESS                  (2*0x15)	/* 6  bytes */
 #define EEPROM_BOARD_REVISION               (2*0x35)	/* 2  bytes */
 #define EEPROM_BOARD_PBA_NUMBER             (2*0x3B+1)	/* 9  bytes */
 #define EEPROM_VERSION                      (2*0x44)	/* 2  bytes */
 #define EEPROM_SKU_CAP                      (2*0x45)	/* 2  bytes */
 #define EEPROM_OEM_MODE                     (2*0x46)	/* 2  bytes */
-#define EEPROM_WOWLAN_MODE                  (2*0x47)	/* 2  bytes */
 #define EEPROM_RADIO_CONFIG                 (2*0x48)	/* 2  bytes */
 #define EEPROM_NUM_MAC_ADDRESS              (2*0x4C)	/* 2  bytes */
 
@@ -309,5 +309,6 @@ void iwl_free_channel_map(struct iwl_priv *priv);
 const struct iwl_channel_info *iwl_get_channel_info(
 		const struct iwl_priv *priv,
 		enum ieee80211_band band, u16 channel);
+void iwl_rf_config(struct iwl_priv *priv);
 
 #endif  /* __iwl_eeprom_h__ */

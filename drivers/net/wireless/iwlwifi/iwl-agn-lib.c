@@ -624,6 +624,7 @@ struct iwl_mod_params iwlagn_mod_params = {
 	.plcp_check = true,
 	.bt_coex_active = true,
 	.no_sleep_autoadjust = true,
+	.power_level = IWL_POWER_INDEX_1,
 	/* the rest are 0 by default */
 };
 
@@ -639,9 +640,9 @@ void iwlagn_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 		/* In the reset function, these buffers may have been allocated
 		 * to an SKB, so we need to unmap and free potential storage */
 		if (rxq->pool[i].page != NULL) {
-			pci_unmap_page(priv->pci_dev, rxq->pool[i].page_dma,
+			dma_unmap_page(priv->bus.dev, rxq->pool[i].page_dma,
 				PAGE_SIZE << priv->hw_params.rx_page_order,
-				PCI_DMA_FROMDEVICE);
+				DMA_FROM_DEVICE);
 			__iwl_free_pages(priv, rxq->pool[i].page);
 			rxq->pool[i].page = NULL;
 		}
@@ -913,9 +914,9 @@ void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 		BUG_ON(rxb->page);
 		rxb->page = page;
 		/* Get physical address of the RB */
-		rxb->page_dma = pci_map_page(priv->pci_dev, page, 0,
+		rxb->page_dma = dma_map_page(priv->bus.dev, page, 0,
 				PAGE_SIZE << priv->hw_params.rx_page_order,
-				PCI_DMA_FROMDEVICE);
+				DMA_FROM_DEVICE);
 		/* dma address must be no more than 36 bits */
 		BUG_ON(rxb->page_dma & ~DMA_BIT_MASK(36));
 		/* and also 256 byte aligned! */
@@ -958,17 +959,18 @@ void iwlagn_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	int i;
 	for (i = 0; i < RX_QUEUE_SIZE + RX_FREE_BUFFERS; i++) {
 		if (rxq->pool[i].page != NULL) {
-			pci_unmap_page(priv->pci_dev, rxq->pool[i].page_dma,
+			dma_unmap_page(priv->bus.dev, rxq->pool[i].page_dma,
 				PAGE_SIZE << priv->hw_params.rx_page_order,
-				PCI_DMA_FROMDEVICE);
+				DMA_FROM_DEVICE);
 			__iwl_free_pages(priv, rxq->pool[i].page);
 			rxq->pool[i].page = NULL;
 		}
 	}
 
-	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			  rxq->bd_dma);
-	dma_free_coherent(&priv->pci_dev->dev, sizeof(struct iwl_rb_status),
+	dma_free_coherent(priv->bus.dev, 4 * RX_QUEUE_SIZE,
+			  rxq->bd, rxq->bd_dma);
+	dma_free_coherent(priv->bus.dev,
+			  sizeof(struct iwl_rb_status),
 			  rxq->rb_stts, rxq->rb_stts_dma);
 	rxq->bd = NULL;
 	rxq->rb_stts  = NULL;
@@ -1530,8 +1532,17 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 	might_sleep();
 
 	memset(&flush_cmd, 0, sizeof(flush_cmd));
-	flush_cmd.fifo_control = IWL_TX_FIFO_VO_MSK | IWL_TX_FIFO_VI_MSK |
-				 IWL_TX_FIFO_BE_MSK | IWL_TX_FIFO_BK_MSK;
+	if (flush_control & BIT(IWL_RXON_CTX_BSS))
+		flush_cmd.fifo_control = IWL_SCD_VO_MSK | IWL_SCD_VI_MSK |
+				 IWL_SCD_BE_MSK | IWL_SCD_BK_MSK |
+				 IWL_SCD_MGMT_MSK;
+	if ((flush_control & BIT(IWL_RXON_CTX_PAN)) &&
+	    (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
+		flush_cmd.fifo_control |= IWL_PAN_SCD_VO_MSK |
+				IWL_PAN_SCD_VI_MSK | IWL_PAN_SCD_BE_MSK |
+				IWL_PAN_SCD_BK_MSK | IWL_PAN_SCD_MGMT_MSK |
+				IWL_PAN_SCD_MULTICAST_MSK;
+
 	if (priv->cfg->sku & EEPROM_SKU_CAP_11N_ENABLE)
 		flush_cmd.fifo_control |= IWL_AGG_TX_QUEUE_MSK;
 
@@ -1546,7 +1557,7 @@ void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 {
 	mutex_lock(&priv->mutex);
 	ieee80211_stop_queues(priv->hw);
-	if (priv->cfg->ops->lib->txfifo_flush(priv, IWL_DROP_ALL)) {
+	if (iwlagn_txfifo_flush(priv, IWL_DROP_ALL)) {
 		IWL_ERR(priv, "flush request fail\n");
 		goto done;
 	}

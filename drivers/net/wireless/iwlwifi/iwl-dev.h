@@ -48,6 +48,8 @@
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
 
+#define DRV_NAME        "iwlagn"
+
 struct iwl_tx_queue;
 
 /* CT-KILL constants */
@@ -1186,6 +1188,45 @@ struct iwl_testmode_trace {
 	bool trace_enabled;
 };
 #endif
+
+struct iwl_bus;
+
+/**
+ * struct iwl_bus_ops - bus specific operations
+
+ * @get_pm_support: must returns true if the bus can go to sleep
+ * @apm_config: will be called during the config of the APM configuration
+ * @set_drv_data: set the priv pointer to the bus layer
+ * @get_dev: returns the device struct
+ * @get_irq: returns the irq number
+ * @get_hw_id: prints the hw_id in the provided buffer
+ * @write8: write a byte to register at offset ofs
+ * @write32: write a dword to register at offset ofs
+ * @wread32: read a dword at register at offset ofs
+ */
+struct iwl_bus_ops {
+	bool (*get_pm_support)(struct iwl_bus *bus);
+	void (*apm_config)(struct iwl_bus *bus);
+	void (*set_drv_data)(struct iwl_bus *bus, void *priv);
+	struct device *(*get_dev)(const struct iwl_bus *bus);
+	unsigned int (*get_irq)(const struct iwl_bus *bus);
+	void (*get_hw_id)(struct iwl_bus *bus, char buf[], int buf_len);
+	void (*write8)(struct iwl_bus *bus, u32 ofs, u8 val);
+	void (*write32)(struct iwl_bus *bus, u32 ofs, u32 val);
+	u32 (*read32)(struct iwl_bus *bus, u32 ofs);
+};
+
+struct iwl_bus {
+	/* pointer to bus specific struct */
+	void *bus_specific;
+
+	/* Common data to all buses */
+	struct iwl_priv *priv; /* driver's context */
+	struct device *dev;
+	struct iwl_bus_ops *ops;
+	unsigned int irq;
+};
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1253,17 +1294,14 @@ struct iwl_priv {
 	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
 
-	/* basic pci-network driver stuff */
-	struct pci_dev *pci_dev;
-
-	/* pci hardware address support */
-	void __iomem *hw_base;
+	struct iwl_bus bus;	/* bus specific data */
 
 	/* microcode/device supports multiple contexts */
 	u8 valid_contexts;
 
 	/* command queue number */
 	u8 cmd_queue;
+	u8 last_sync_cmd_id;
 
 	/* max number of station keys */
 	u8 sta_key_max_num;

@@ -182,7 +182,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q
 int iwl_rx_queue_alloc(struct iwl_priv *priv)
 {
 	struct iwl_rx_queue *rxq = &priv->rxq;
-	struct device *dev = &priv->pci_dev->dev;
+	struct device *dev = priv->bus.dev;
 	int i;
 
 	spin_lock_init(&rxq->lock);
@@ -213,7 +213,7 @@ int iwl_rx_queue_alloc(struct iwl_priv *priv)
 	return 0;
 
 err_rb:
-	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
+	dma_free_coherent(dev, 4 * RX_QUEUE_SIZE, rxq->bd,
 			  rxq->bd_dma);
 err_bd:
 	return -ENOMEM;
