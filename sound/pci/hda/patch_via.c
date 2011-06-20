@@ -138,6 +138,7 @@ struct via_spec {
 	struct nid_path out_path[4];
 	struct nid_path hp_path;
 	struct nid_path hp_dep_path;
+	struct nid_path speaker_path;
 
 	/* capture */
 	unsigned int num_adc_nids;
@@ -252,15 +253,12 @@ static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 #define VIA_JACK_EVENT		0x20
 #define VIA_HP_EVENT		0x01
 #define VIA_GPIO_EVENT		0x02
-#define VIA_MONO_EVENT		0x03
-#define VIA_SPEAKER_EVENT	0x04
-#define VIA_BIND_HP_EVENT	0x05
+#define VIA_LINE_EVENT		0x03
 
 enum {
 	VIA_CTL_WIDGET_VOL,
 	VIA_CTL_WIDGET_MUTE,
 	VIA_CTL_WIDGET_ANALOG_MUTE,
-	VIA_CTL_WIDGET_BIND_PIN_MUTE,
 };
 
 static void analog_low_current_mode(struct hda_codec *codec, int stream_idle);
@@ -323,106 +321,10 @@ static int analog_input_switch_put(struct snd_kcontrol *kcontrol,
 			.put = analog_input_switch_put,			\
 			.private_value = HDA_COMPOSE_AMP_VAL(0, 3, 0, 0) }
 
-static void via_hp_bind_automute(struct hda_codec *codec);
-
-static int bind_pin_switch_put(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct via_spec *spec = codec->spec;
-	int i;
-	int change = 0;
-
-	long *valp = ucontrol->value.integer.value;
-	int lmute, rmute;
-	if (strstr(kcontrol->id.name, "Switch") == NULL) {
-		snd_printd("Invalid control!\n");
-		return change;
-	}
-	change = snd_hda_mixer_amp_switch_put(kcontrol,
-					      ucontrol);
-	/* Get mute value */
-	lmute = *valp ? 0 : HDA_AMP_MUTE;
-	valp++;
-	rmute = *valp ? 0 : HDA_AMP_MUTE;
-
-	/* Set hp pins */
-	if (!spec->hp_independent_mode) {
-		for (i = 0; i < spec->autocfg.hp_outs; i++) {
-			snd_hda_codec_amp_update(
-				codec, spec->autocfg.hp_pins[i],
-				0, HDA_OUTPUT, 0, HDA_AMP_MUTE,
-				lmute);
-			snd_hda_codec_amp_update(
-				codec, spec->autocfg.hp_pins[i],
-				1, HDA_OUTPUT, 0, HDA_AMP_MUTE,
-				rmute);
-		}
-	}
-
-	if (!lmute && !rmute) {
-		/* Line Outs */
-		for (i = 0; i < spec->autocfg.line_outs; i++)
-			snd_hda_codec_amp_stereo(
-				codec, spec->autocfg.line_out_pins[i],
-				HDA_OUTPUT, 0, HDA_AMP_MUTE, 0);
-		/* Speakers */
-		for (i = 0; i < spec->autocfg.speaker_outs; i++)
-			snd_hda_codec_amp_stereo(
-				codec, spec->autocfg.speaker_pins[i],
-				HDA_OUTPUT, 0, HDA_AMP_MUTE, 0);
-		/* unmute */
-		via_hp_bind_automute(codec);
-
-	} else {
-		if (lmute) {
-			/* Mute all left channels */
-			for (i = 1; i < spec->autocfg.line_outs; i++)
-				snd_hda_codec_amp_update(
-					codec,
-					spec->autocfg.line_out_pins[i],
-					0, HDA_OUTPUT, 0, HDA_AMP_MUTE,
-					lmute);
-			for (i = 0; i < spec->autocfg.speaker_outs; i++)
-				snd_hda_codec_amp_update(
-					codec,
-					spec->autocfg.speaker_pins[i],
-					0, HDA_OUTPUT, 0, HDA_AMP_MUTE,
-					lmute);
-		}
-		if (rmute) {
-			/* mute all right channels */
-			for (i = 1; i < spec->autocfg.line_outs; i++)
-				snd_hda_codec_amp_update(
-					codec,
-					spec->autocfg.line_out_pins[i],
-					1, HDA_OUTPUT, 0, HDA_AMP_MUTE,
-					rmute);
-			for (i = 0; i < spec->autocfg.speaker_outs; i++)
-				snd_hda_codec_amp_update(
-					codec,
-					spec->autocfg.speaker_pins[i],
-					1, HDA_OUTPUT, 0, HDA_AMP_MUTE,
-					rmute);
-		}
-	}
-	return change;
-}
-
-#define BIND_PIN_MUTE							\
-	{		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,		\
-			.name = NULL,					\
-			.index = 0,					\
-			.info = snd_hda_mixer_amp_switch_info,		\
-			.get = snd_hda_mixer_amp_switch_get,		\
-			.put = bind_pin_switch_put,			\
-			.private_value = HDA_COMPOSE_AMP_VAL(0, 3, 0, 0) }
-
 static const struct snd_kcontrol_new via_control_templates[] = {
 	HDA_CODEC_VOLUME(NULL, 0, 0, 0),
 	HDA_CODEC_MUTE(NULL, 0, 0, 0),
 	ANALOG_INPUT_MUTE,
-	BIND_PIN_MUTE,
 };
 
 
@@ -621,6 +523,15 @@ static void via_auto_init_hp_out(struct hda_codec *codec)
 	else
 		via_auto_init_output(codec, spec->autocfg.hp_pins[0], PIN_HP,
 				     &spec->hp_dep_path);
+}
+
+static void via_auto_init_speaker_out(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+
+	if (spec->autocfg.speaker_outs)
+		via_auto_init_output(codec, spec->autocfg.speaker_pins[0],
+				     PIN_OUT, &spec->speaker_path);
 }
 
 static bool is_smart51_pins(struct hda_codec *codec, hda_nid_t pin);
@@ -1554,46 +1465,34 @@ static void toggle_output_mutes(struct hda_codec *codec, int num_pins,
 				    mute ? 0 : PIN_OUT);
 }
 
+/* mute internal speaker if line-out is plugged */
+static void via_line_automute(struct hda_codec *codec, int present)
+{
+	struct via_spec *spec = codec->spec;
+
+	if (!spec->autocfg.speaker_outs)
+		return;
+	if (!present)
+		present = snd_hda_jack_detect(codec,
+					      spec->autocfg.line_out_pins[0]);
+	toggle_output_mutes(codec, spec->autocfg.speaker_outs,
+			    spec->autocfg.speaker_pins,
+			    present);
+}
+
 /* mute internal speaker if HP is plugged */
 static void via_hp_automute(struct hda_codec *codec)
 {
-	unsigned int present = 0;
+	int present = 0;
 	struct via_spec *spec = codec->spec;
 
-	present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
-
-	if (!spec->hp_independent_mode)
+	if (!spec->hp_independent_mode && spec->autocfg.hp_pins[0]) {
+		present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
 		toggle_output_mutes(codec, spec->autocfg.line_outs,
 				    spec->autocfg.line_out_pins,
 				    present);
-}
-
-/* mute mono out if HP or Line out is plugged */
-static void via_mono_automute(struct hda_codec *codec)
-{
-	unsigned int hp_present, lineout_present;
-	struct via_spec *spec = codec->spec;
-
-	if (spec->codec_type != VT1716S)
-		return;
-
-	lineout_present = snd_hda_jack_detect(codec,
-					      spec->autocfg.line_out_pins[0]);
-
-	/* Mute Mono Out if Line Out is plugged */
-	if (lineout_present) {
-		snd_hda_codec_write(codec, 0x2A, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    lineout_present ? 0 : PIN_OUT);
-		return;
 	}
-
-	hp_present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
-
-	if (!spec->hp_independent_mode)
-		snd_hda_codec_write(codec, 0x2A, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    hp_present ? 0 : PIN_OUT);
+	via_line_automute(codec, present);
 }
 
 static void via_gpio_control(struct hda_codec *codec)
@@ -1643,49 +1542,6 @@ static void via_gpio_control(struct hda_codec *codec)
 	}
 }
 
-/* mute Internal-Speaker if HP is plugged */
-static void via_speaker_automute(struct hda_codec *codec)
-{
-	unsigned int hp_present;
-	struct via_spec *spec = codec->spec;
-
-	if (!VT2002P_COMPATIBLE(spec))
-		return;
-
-	hp_present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
-
-	if (!spec->hp_independent_mode)
-		toggle_output_mutes(codec, spec->autocfg.speaker_outs,
-				    spec->autocfg.speaker_pins,
-				    hp_present);
-}
-
-/* mute line-out and internal speaker if HP is plugged */
-static void via_hp_bind_automute(struct hda_codec *codec)
-{
-	int present;
-	struct via_spec *spec = codec->spec;
-
-	if (!spec->autocfg.hp_pins[0] || !spec->autocfg.line_out_pins[0])
-		return;
-
-	present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
-	if (!spec->hp_independent_mode)
-		toggle_output_mutes(codec, spec->autocfg.line_outs,
-				    spec->autocfg.line_out_pins,
-				    present);
-
-	if (!present)
-		present = snd_hda_jack_detect(codec,
-					      spec->autocfg.line_out_pins[0]);
-
-	/* Speakers */
-	toggle_output_mutes(codec, spec->autocfg.speaker_outs,
-			    spec->autocfg.speaker_pins,
-			    present);
-}
-
-
 /* unsolicited event for jack sensing */
 static void via_unsol_event(struct hda_codec *codec,
 				  unsigned int res)
@@ -1701,12 +1557,8 @@ static void via_unsol_event(struct hda_codec *codec,
 		via_hp_automute(codec);
 	else if (res == VIA_GPIO_EVENT)
 		via_gpio_control(codec);
-	else if (res == VIA_MONO_EVENT)
-		via_mono_automute(codec);
-	else if (res == VIA_SPEAKER_EVENT)
-		via_speaker_automute(codec);
-	else if (res == VIA_BIND_HP_EVENT)
-		via_hp_bind_automute(codec);
+	else if (res == VIA_LINE_EVENT)
+		via_line_automute(codec, false);
 }
 
 #ifdef SND_HDA_NEEDS_RESUME
@@ -1736,6 +1588,7 @@ static const struct hda_codec_ops via_patch_ops = {
 	.build_pcms = via_build_pcms,
 	.init = via_init,
 	.free = via_free,
+	.unsol_event = via_unsol_event,
 #ifdef SND_HDA_NEEDS_RESUME
 	.suspend = via_suspend,
 #endif
@@ -1964,6 +1817,27 @@ static int via_auto_create_hp_ctls(struct hda_codec *codec, hda_nid_t pin)
 	err = create_ch_ctls(codec, "Headphone", pin, spec->hp_dac_nid, 3);
 	if (err < 0)
 		return err;
+
+	return 0;
+}
+
+static int via_auto_create_speaker_ctls(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	hda_nid_t pin, dac;
+
+	pin = spec->autocfg.speaker_pins[0];
+	if (!spec->autocfg.speaker_outs || !pin)
+		return 0;
+
+	if (parse_output_path(codec, pin, 0, &spec->speaker_path, 0, -1)) {
+		dac = spec->speaker_path.path[spec->speaker_path.depth - 1];
+		spec->multiout.extra_out_nid[0] = dac;
+		return create_ch_ctls(codec, "Speaker", pin, dac, 3);
+	}
+	if (parse_output_path(codec, pin, spec->multiout.dac_nids[HDA_FRONT],
+			      &spec->speaker_path, 0, -1))
+		return create_ch_ctls(codec, "Headphone", pin, 0, 3);
 
 	return 0;
 }
@@ -2203,6 +2077,9 @@ static int via_parse_auto_config(struct hda_codec *codec)
 	err = via_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
+	err = via_auto_create_speaker_ctls(codec);
+	if (err < 0)
+		return err;
 	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
@@ -2254,6 +2131,39 @@ static void via_auto_init_dig_in(struct hda_codec *codec)
 			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN);
 }
 
+/* initialize the unsolicited events */
+static void via_auto_init_unsol_event(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	unsigned int ev;
+	int i;
+
+	if (cfg->hp_pins[0] && is_jack_detectable(codec, cfg->hp_pins[0]))
+		snd_hda_codec_write(codec, cfg->hp_pins[0], 0,
+				AC_VERB_SET_UNSOLICITED_ENABLE,
+				AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT);
+
+	if (cfg->speaker_pins[0])
+		ev = VIA_LINE_EVENT;
+	else
+		ev = 0;
+	for (i = 0; i < cfg->line_outs; i++) {
+		if (cfg->line_out_pins[i] &&
+		    is_jack_detectable(codec, cfg->line_out_pins[i]))
+			snd_hda_codec_write(codec, cfg->line_out_pins[0], 0,
+				AC_VERB_SET_UNSOLICITED_ENABLE,
+				AC_USRSP_EN | ev | VIA_JACK_EVENT);
+	}
+
+	for (i = 0; i < cfg->num_inputs; i++) {
+		if (is_jack_detectable(codec, cfg->inputs[i].pin))
+			snd_hda_codec_write(codec, cfg->inputs[i].pin, 0,
+				AC_VERB_SET_UNSOLICITED_ENABLE,
+				AC_USRSP_EN | VIA_JACK_EVENT);
+	}
+}
+
 static int via_init(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
@@ -2264,16 +2174,15 @@ static int via_init(struct hda_codec *codec)
 
 	via_auto_init_multi_out(codec);
 	via_auto_init_hp_out(codec);
+	via_auto_init_speaker_out(codec);
 	via_auto_init_analog_input(codec);
 	via_auto_init_dig_outs(codec);
 	via_auto_init_dig_in(codec);
 
-	if (VT2002P_COMPATIBLE(spec)) {
-		via_hp_bind_automute(codec);
-	} else {
-		via_hp_automute(codec);
-		via_speaker_automute(codec);
-	}
+	via_auto_init_unsol_event(codec);
+
+	via_hp_automute(codec);
+	via_line_automute(codec, false);
 
 	return 0;
 }
@@ -2360,12 +2269,6 @@ static int patch_vt1708(struct hda_codec *codec)
 	return 0;
 }
 
-static const struct hda_verb vt1709_uniwill_init_verbs[] = {
-	{0x20, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
-	{ }
-};
-
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -2397,11 +2300,8 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++] = vt1709_uniwill_init_verbs;
-
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1709_loopbacks;
 #endif
@@ -2429,11 +2329,8 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++] = vt1709_uniwill_init_verbs;
-
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1709_loopbacks;
 #endif
@@ -2443,19 +2340,6 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
-static const struct hda_verb vt1708B_uniwill_init_verbs[] = {
-	{0x1d, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
-	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1c, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1e, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x22, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x23, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{ }
-};
-
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static const struct hda_amp_list vt1708B_loopbacks[] = {
 	{ 0x16, HDA_INPUT, 1 },
@@ -2568,11 +2452,8 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++] = vt1708B_uniwill_init_verbs;
-
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1708B_loopbacks;
 #endif
@@ -2599,11 +2480,8 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 		return err;
 	}
 
-	spec->init_verbs[spec->num_iverbs++] = vt1708B_uniwill_init_verbs;
-
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1708B_loopbacks;
 #endif
@@ -2619,31 +2497,6 @@ static const struct hda_verb vt1708S_init_verbs[] = {
 	{0x1, 0xf98, 0x1},
 	/* don't bybass mixer */
 	{0x1, 0xf88, 0xc0},
-	{ }
-};
-
-static const struct hda_verb vt1708S_uniwill_init_verbs[] = {
-	{0x1d, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
-	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1c, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1e, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x22, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x23, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{ }
-};
-
-static const struct hda_verb vt1705_uniwill_init_verbs[] = {
-	{0x1d, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
-	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1c, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1e, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x23, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
 
@@ -2741,16 +2594,9 @@ static int patch_vt1708S(struct hda_codec *codec)
 	}
 
 	spec->init_verbs[spec->num_iverbs++] = vt1708S_init_verbs;
-	if (codec->vendor_id == 0x11064397)
-		spec->init_verbs[spec->num_iverbs++] =
-			vt1705_uniwill_init_verbs;
-	else
-		spec->init_verbs[spec->num_iverbs++] =
-			vt1708S_uniwill_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1708S_loopbacks;
 #endif
@@ -2782,16 +2628,6 @@ static const struct hda_verb vt1702_init_verbs[] = {
 	{0x1, 0xF88, 0x3},
 	/* GPIO 0~2 */
 	{0x1, 0xF82, 0x3F},
-	{ }
-};
-
-static const struct hda_verb vt1702_uniwill_init_verbs[] = {
-	{0x17, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
-	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x16, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
 
@@ -2863,11 +2699,9 @@ static int patch_vt1702(struct hda_codec *codec)
 	}
 
 	spec->init_verbs[spec->num_iverbs++] = vt1702_init_verbs;
-	spec->init_verbs[spec->num_iverbs++] = vt1702_uniwill_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
 
-	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1702_loopbacks;
 #endif
@@ -2884,20 +2718,6 @@ static const struct hda_verb vt1718S_init_verbs[] = {
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xf88, 0x8},
 
-	{ }
-};
-
-
-static const struct hda_verb vt1718S_uniwill_init_verbs[] = {
-	{0x28, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
-	{0x24, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x25, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x26, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x27, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x29, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x2a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x2b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
 
@@ -2999,11 +2819,8 @@ static int patch_vt1718S(struct hda_codec *codec)
 	}
 
 	spec->init_verbs[spec->num_iverbs++] = vt1718S_init_verbs;
-	spec->init_verbs[spec->num_iverbs++] = vt1718S_uniwill_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
-
-	codec->patch_ops.unsol_event = via_unsol_event;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1718S_loopbacks;
@@ -3082,20 +2899,6 @@ static const struct hda_verb vt1716S_init_verbs[] = {
 	{0x1, 0xf88, 0xc0},
 	/* Enable mono output */
 	{0x1, 0xf90, 0x08},
-	{ }
-};
-
-
-static const struct hda_verb vt1716S_uniwill_init_verbs[] = {
-	{0x1d, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_HP_EVENT | VIA_JACK_EVENT},
-	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x1c, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_MONO_EVENT | VIA_JACK_EVENT},
-	{0x1e, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x23, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
 
@@ -3224,7 +3027,6 @@ static int patch_vt1716S(struct hda_codec *codec)
 	}
 
 	spec->init_verbs[spec->num_iverbs++]  = vt1716S_init_verbs;
-	spec->init_verbs[spec->num_iverbs++] = vt1716S_uniwill_init_verbs;
 
 	spec->mixers[spec->num_mixers] = vt1716s_dmic_mixer;
 	spec->num_mixers++;
@@ -3232,8 +3034,6 @@ static int patch_vt1716S(struct hda_codec *codec)
 	spec->mixers[spec->num_mixers++] = vt1716S_mono_out_mixer;
 
 	codec->patch_ops = via_patch_ops;
-
-	codec->patch_ops.unsol_event = via_unsol_event;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1716S_loopbacks;
@@ -3256,33 +3056,12 @@ static const struct hda_verb vt2002P_init_verbs[] = {
 	{0x1, 0xfb8, 0x88},
 	{ }
 };
+
 static const struct hda_verb vt1802_init_verbs[] = {
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xfb9, 0x24},
 	/* Enable AOW0 to MW9 */
 	{0x1, 0xfb8, 0x88},
-	{ }
-};
-
-
-static const struct hda_verb vt2002P_uniwill_init_verbs[] = {
-	{0x25, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_JACK_EVENT | VIA_BIND_HP_EVENT},
-	{0x26, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_JACK_EVENT | VIA_BIND_HP_EVENT},
-	{0x29, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x2a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x2b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{ }
-};
-static const struct hda_verb vt1802_uniwill_init_verbs[] = {
-	{0x25, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_JACK_EVENT | VIA_BIND_HP_EVENT},
-	{0x28, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_JACK_EVENT | VIA_BIND_HP_EVENT},
-	{0x29, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x2a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x2b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
 
@@ -3429,22 +3208,11 @@ static int patch_vt2002P(struct hda_codec *codec)
 	}
 
 	if (spec->codec_type == VT1802)
-		spec->init_verbs[spec->num_iverbs++]  =
-			vt1802_init_verbs;
+		spec->init_verbs[spec->num_iverbs++] = vt1802_init_verbs;
 	else
-		spec->init_verbs[spec->num_iverbs++]  =
-			vt2002P_init_verbs;
-
-	if (spec->codec_type == VT1802)
-		spec->init_verbs[spec->num_iverbs++] =
-			vt1802_uniwill_init_verbs;
-	else
-		spec->init_verbs[spec->num_iverbs++] =
-			vt2002P_uniwill_init_verbs;
+		spec->init_verbs[spec->num_iverbs++] = vt2002P_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
-
-	codec->patch_ops.unsol_event = via_unsol_event;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt2002P_loopbacks;
@@ -3461,19 +3229,6 @@ static const struct hda_verb vt1812_init_verbs[] = {
 	{0x1, 0xfb9, 0x24},
 	/* Enable AOW0 to MW9 */
 	{0x1, 0xfb8, 0xa8},
-	{ }
-};
-
-
-static const struct hda_verb vt1812_uniwill_init_verbs[] = {
-	{0x33, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_JACK_EVENT | VIA_BIND_HP_EVENT},
-	{0x25, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT },
-	{0x28, AC_VERB_SET_UNSOLICITED_ENABLE,
-	 AC_USRSP_EN | VIA_JACK_EVENT | VIA_BIND_HP_EVENT},
-	{0x29, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x2a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
-	{0x2b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_JACK_EVENT},
 	{ }
 };
 
@@ -3601,11 +3356,8 @@ static int patch_vt1812(struct hda_codec *codec)
 	}
 
 	spec->init_verbs[spec->num_iverbs++]  = vt1812_init_verbs;
-	spec->init_verbs[spec->num_iverbs++] = vt1812_uniwill_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
-
-	codec->patch_ops.unsol_event = via_unsol_event;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1812_loopbacks;
