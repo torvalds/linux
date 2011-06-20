@@ -295,7 +295,7 @@ int wm831x_set_bits(struct wm831x *wm831x, unsigned short reg,
 		goto out;
 
 	r &= ~mask;
-	r |= val;
+	r |= val & mask;
 
 	ret = wm831x_write(wm831x, reg, 2, &r);
 
