@@ -30,7 +30,7 @@
 #include <linux/circ_buf.h>
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/wireless.h>
 #include <linux/rtnetlink.h>
 #include "ethernet.h"
