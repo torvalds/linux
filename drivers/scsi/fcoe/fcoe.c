@@ -1358,7 +1358,11 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 			do {
 				cpu = fcoe_select_cpu(cpu);
 			} while (!cpu_online(cpu));
-		}
+		} else  if ((fh->fh_type == FC_TYPE_FCP) &&
+			    (ntohs(fh->fh_rx_id) != FC_XID_UNKNOWN)) {
+			cpu = ntohs(fh->fh_rx_id) & fc_cpu_mask;
+		} else
+			cpu = smp_processor_id();
 	}
 	fps = &per_cpu(fcoe_percpu, cpu);
 	spin_lock_bh(&fps->fcoe_rx_list.lock);
