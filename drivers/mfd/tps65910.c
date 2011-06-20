@@ -187,6 +187,7 @@ static int tps65910_i2c_remove(struct i2c_client *i2c)
 	struct tps65910 *tps65910 = i2c_get_clientdata(i2c);
 
 	mfd_remove_devices(tps65910->dev);
+	tps65910_irq_exit(tps65910);
 	kfree(tps65910);
 
 	return 0;
