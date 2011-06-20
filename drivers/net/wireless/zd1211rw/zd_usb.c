@@ -579,8 +579,8 @@ static void handle_rx_packet(struct zd_usb *usb, const u8 *buffer,
 
 	if (length < sizeof(struct rx_length_info)) {
 		/* It's not a complete packet anyhow. */
-		printk("%s: invalid, small RX packet : %d\n",
-		       __func__, length);
+		dev_dbg_f(zd_usb_dev(usb), "invalid, small RX packet : %d\n",
+					   length);
 		return;
 	}
 	length_info = (struct rx_length_info *)
