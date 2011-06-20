@@ -3678,18 +3678,19 @@ int isci_request_execute(
 	 * Update it's status and add it to the list in the
 	 * remote device object.
 	 */
-	isci_request_change_state(request, started);
 	list_add(&request->dev_node, &isci_device->reqs_in_process);
 
 	if (status == SCI_SUCCESS) {
 		/* Save the tag for possible task mgmt later. */
 		request->io_tag = request->sci.io_tag;
+		isci_request_change_state(request, started);
 	} else {
 		/* The request did not really start in the
 		 * hardware, so clear the request handle
 		 * here so no terminations will be done.
 		 */
 		request->terminated = true;
+		isci_request_change_state(request, completed);
 	}
 	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
