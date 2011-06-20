@@ -160,6 +160,22 @@ static int zd_reg2alpha2(u8 regdomain, char *alpha2)
 	return 1;
 }
 
+static int zd_check_signal(struct ieee80211_hw *hw, int signal)
+{
+	struct zd_mac *mac = zd_hw_mac(hw);
+
+	dev_dbg_f_cond(zd_mac_dev(mac), signal < 0 || signal > 100,
+			"%s: signal value from device not in range 0..100, "
+			"but %d.\n", __func__, signal);
+
+	if (signal < 0)
+		signal = 0;
+	else if (signal > 100)
+		signal = 100;
+
+	return signal;
+}
+
 int zd_mac_preinit_hw(struct ieee80211_hw *hw)
 {
 	int r;
@@ -461,7 +477,7 @@ static void zd_mac_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (i<IEEE80211_TX_MAX_RATES)
 		info->status.rates[i].idx = -1; /* terminate */
 
-	info->status.ack_signal = ackssi;
+	info->status.ack_signal = zd_check_signal(hw, ackssi);
 	ieee80211_tx_status_irqsafe(hw, skb);
 }
 
@@ -982,7 +998,7 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 
 	stats.freq = zd_channels[_zd_chip_get_channel(&mac->chip) - 1].center_freq;
 	stats.band = IEEE80211_BAND_2GHZ;
-	stats.signal = status->signal_strength;
+	stats.signal = zd_check_signal(hw, status->signal_strength);
 
 	rate = zd_rx_rate(buffer, status);
 
