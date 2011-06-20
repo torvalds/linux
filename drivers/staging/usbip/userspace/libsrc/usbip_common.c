@@ -120,19 +120,19 @@ int read_attr_value(struct sysfs_device *dev, const char *name, const char *form
 
 	attr = sysfs_open_attribute(attrpath);
 	if (!attr) {
-		err("open attr %s", attrpath);
+		dbg("sysfs_open_attribute failed: %s", attrpath);
 		return 0;
 	}
 
 	ret = sysfs_read_attribute(attr);
 	if (ret < 0) {
-		err("read attr");
+		dbg("sysfs_read_attribute failed");
 		goto err;
 	}
 
 	ret = sscanf(attr->value, format, &num);
 	if (ret < 1) {
-		err("sscanf");
+		dbg("sscanf failed");
 		goto err;
 	}
 
@@ -154,19 +154,19 @@ int read_attr_speed(struct sysfs_device *dev)
 
 	attr = sysfs_open_attribute(attrpath);
 	if (!attr) {
-		err("open attr");
+		dbg("sysfs_open_attribute failed: %s", attrpath);
 		return 0;
 	}
 
 	ret = sysfs_read_attribute(attr);
 	if (ret < 0) {
-		err("read attr");
+		dbg("sysfs_read_attribute failed");
 		goto err;
 	}
 
 	ret = sscanf(attr->value, "%s\n", speed);
 	if (ret < 1) {
-		err("sscanf");
+		dbg("sscanf failed");
 		goto err;
 	}
 err:
@@ -222,7 +222,7 @@ int read_usb_interface(struct usbip_usb_device *udev, int i,
 
 	sif = sysfs_open_device("usb", busid);
 	if (!sif) {
-		err("open sif of %s", busid);
+		dbg("sysfs_open_device(\"usb\", \"%s\") failed", busid);
 		return -1;
 	}
 
