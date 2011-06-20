@@ -2659,12 +2659,13 @@ static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *na
 	return dentry_has_perm(cred, dentry, FILE__READ);
 }
 
-static int selinux_inode_permission(struct inode *inode, int mask, unsigned flags)
+static int selinux_inode_permission(struct inode *inode, int mask)
 {
 	const struct cred *cred = current_cred();
 	struct common_audit_data ad;
 	u32 perms;
 	bool from_access;
+	unsigned __flags = mask & MAY_NOT_BLOCK ? IPERM_FLAG_RCU : 0;
 
 	from_access = mask & MAY_ACCESS;
 	mask &= (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND);
@@ -2681,7 +2682,7 @@ static int selinux_inode_permission(struct inode *inode, int mask, unsigned flag
 
 	perms = file_mask_to_av(inode->i_mode, mask);
 
-	return inode_has_perm(cred, inode, perms, &ad, flags);
+	return inode_has_perm(cred, inode, perms, &ad, __flags);
 }
 
 static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
