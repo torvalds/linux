@@ -431,21 +431,6 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	struct fcoe_ctlr *fip = &fcoe->ctlr;
 	u8 flogi_maddr[ETH_ALEN];
 	const struct net_device_ops *ops;
-	struct fcoe_port *port = lport_priv(fcoe->ctlr.lp);
-
-	FCOE_NETDEV_DBG(netdev, "Destroying interface\n");
-
-	/* Logout of the fabric */
-	fc_fabric_logoff(fcoe->ctlr.lp);
-
-	/* Cleanup the fc_lport */
-	fc_lport_destroy(fcoe->ctlr.lp);
-
-	/* Stop the transmit retry timer */
-	del_timer_sync(&port->timer);
-
-	/* Free existing transmit skbs */
-	fcoe_clean_pending_queue(fcoe->ctlr.lp);
 
 	/*
 	 * Don't listen for Ethernet packets anymore.
@@ -468,9 +453,6 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	} else
 		dev_mc_del(netdev, FIP_ALL_ENODE_MACS);
 
-	if (!is_zero_ether_addr(port->data_src_addr))
-		dev_uc_del(netdev, port->data_src_addr);
-
 	/* Tell the LLD we are done w/ FCoE */
 	ops = netdev->netdev_ops;
 	if (ops->ndo_fcoe_disable) {
@@ -478,6 +460,8 @@ void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 			FCOE_NETDEV_DBG(netdev, "Failed to disable FCoE"
 					" specific feature for LLD.\n");
 	}
+
+	/* Release the self-reference taken during fcoe_interface_create() */
 	fcoe_interface_put(fcoe);
 }
 
@@ -861,6 +845,32 @@ skip_oem:
  */
 static void fcoe_if_destroy(struct fc_lport *lport)
 {
+	struct fcoe_port *port = lport_priv(lport);
+	struct fcoe_interface *fcoe = port->priv;
+	struct net_device *netdev = fcoe->netdev;
+
+	FCOE_NETDEV_DBG(netdev, "Destroying interface\n");
+
+	/* Logout of the fabric */
+	fc_fabric_logoff(lport);
+
+	/* Cleanup the fc_lport */
+	fc_lport_destroy(lport);
+
+	/* Stop the transmit retry timer */
+	del_timer_sync(&port->timer);
+
+	/* Free existing transmit skbs */
+	fcoe_clean_pending_queue(lport);
+
+	rtnl_lock();
+	if (!is_zero_ether_addr(port->data_src_addr))
+		dev_uc_del(netdev, port->data_src_addr);
+	rtnl_unlock();
+
+	/* Release reference held in fcoe_if_create() */
+	fcoe_interface_put(fcoe);
+
 	/* Free queued packets for the per-CPU receive threads */
 	fcoe_percpu_clean(lport);
 
@@ -1813,7 +1823,6 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 	case NETDEV_UNREGISTER:
 		list_del(&fcoe->list);
 		port = lport_priv(fcoe->ctlr.lp);
-		fcoe_interface_cleanup(fcoe);
 		queue_work(fcoe_wq, &port->destroy_work);
 		goto out;
 		break;
@@ -1907,22 +1916,22 @@ static int fcoe_destroy(struct net_device *netdev)
 {
 	struct fcoe_interface *fcoe;
 	struct fc_lport *lport;
+	struct fcoe_port *port;
 	int rc = 0;
 
 	mutex_lock(&fcoe_config_mutex);
 	rtnl_lock();
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	if (!fcoe) {
-		rtnl_unlock();
 		rc = -ENODEV;
 		goto out_nodev;
 	}
 	lport = fcoe->ctlr.lp;
+	port = lport_priv(lport);
 	list_del(&fcoe->list);
-	fcoe_interface_cleanup(fcoe);
-	rtnl_unlock();
-	fcoe_if_destroy(lport);
+	queue_work(fcoe_wq, &port->destroy_work);
 out_nodev:
+	rtnl_unlock();
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }
@@ -1934,10 +1943,25 @@ out_nodev:
 static void fcoe_destroy_work(struct work_struct *work)
 {
 	struct fcoe_port *port;
+	struct fcoe_interface *fcoe;
+	int npiv = 0;
 
 	port = container_of(work, struct fcoe_port, destroy_work);
 	mutex_lock(&fcoe_config_mutex);
+
+	/* set if this is an NPIV port */
+	npiv = port->lport->vport ? 1 : 0;
+
+	fcoe = port->priv;
 	fcoe_if_destroy(port->lport);
+
+	/* Do not tear down the fcoe interface for NPIV port */
+	if (!npiv) {
+		rtnl_lock();
+		fcoe_interface_cleanup(fcoe);
+		rtnl_unlock();
+	}
+
 	mutex_unlock(&fcoe_config_mutex);
 }
 
@@ -1966,7 +1990,7 @@ static bool fcoe_match(struct net_device *netdev)
  */
 static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 {
-	int rc;
+	int rc = 0;
 	struct fcoe_interface *fcoe;
 	struct fc_lport *lport;
 
@@ -1991,7 +2015,7 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 		       netdev->name);
 		rc = -EIO;
 		fcoe_interface_cleanup(fcoe);
-		goto out_free;
+		goto out_nodev;
 	}
 
 	/* Make this the "master" N_Port */
@@ -2006,17 +2030,6 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 	if (!fcoe_link_ok(lport))
 		fcoe_ctlr_link_up(&fcoe->ctlr);
 
-	/*
-	 * Release from init in fcoe_interface_create(), on success lport
-	 * should be holding a reference taken in fcoe_if_create().
-	 */
-	fcoe_interface_put(fcoe);
-	rtnl_unlock();
-	mutex_unlock(&fcoe_config_mutex);
-
-	return 0;
-out_free:
-	fcoe_interface_put(fcoe);
 out_nodev:
 	rtnl_unlock();
 	mutex_unlock(&fcoe_config_mutex);
@@ -2298,7 +2311,6 @@ static void __exit fcoe_exit(void)
 	list_for_each_entry_safe(fcoe, tmp, &fcoe_hostlist, list) {
 		list_del(&fcoe->list);
 		port = lport_priv(fcoe->ctlr.lp);
-		fcoe_interface_cleanup(fcoe);
 		queue_work(fcoe_wq, &port->destroy_work);
 	}
 	rtnl_unlock();
