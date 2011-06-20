@@ -895,7 +895,7 @@ static void l2cap_chan_ready(struct sock *sk)
 	chan->conf_state = 0;
 	__clear_chan_timer(chan);
 
-	sk->sk_state = BT_CONNECTED;
+	l2cap_state_change(chan, BT_CONNECTED);
 	sk->sk_state_change(sk);
 
 	if (parent)
