@@ -1451,6 +1451,52 @@ static int dcbnl_ieee_get(struct net_device *netdev, struct nlattr **tb,
 
 	return err;
 }
+
+static int dcbnl_ieee_del(struct net_device *netdev, struct nlattr **tb,
+			  u32 pid, u32 seq, u16 flags)
+{
+	const struct dcbnl_rtnl_ops *ops = netdev->dcbnl_ops;
+	struct nlattr *ieee[DCB_ATTR_IEEE_MAX + 1];
+	int err = -EOPNOTSUPP;
+
+	if (!ops)
+		return -EOPNOTSUPP;
+
+	if (!tb[DCB_ATTR_IEEE])
+		return -EINVAL;
+
+	err = nla_parse_nested(ieee, DCB_ATTR_IEEE_MAX,
+			       tb[DCB_ATTR_IEEE], dcbnl_ieee_policy);
+	if (err)
+		return err;
+
+	if (ieee[DCB_ATTR_IEEE_APP_TABLE]) {
+		struct nlattr *attr;
+		int rem;
+
+		nla_for_each_nested(attr, ieee[DCB_ATTR_IEEE_APP_TABLE], rem) {
+			struct dcb_app *app_data;
+
+			if (nla_type(attr) != DCB_ATTR_IEEE_APP)
+				continue;
+			app_data = nla_data(attr);
+			if (ops->ieee_delapp)
+				err = ops->ieee_delapp(netdev, app_data);
+			else
+				err = dcb_ieee_delapp(netdev, app_data);
+			if (err)
+				goto err;
+		}
+	}
+
+err:
+	dcbnl_reply(err, RTM_SETDCB, DCB_CMD_IEEE_DEL, DCB_ATTR_IEEE,
+		    pid, seq, flags);
+	dcbnl_notify(netdev, RTM_SETDCB, DCB_CMD_IEEE_DEL, seq, 0);
+	return err;
+}
+
+
 /* DCBX configuration */
 static int dcbnl_getdcbx(struct net_device *netdev, struct nlattr **tb,
 			 u32 pid, u32 seq, u16 flags)
@@ -1765,11 +1811,15 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		goto out;
 	case DCB_CMD_IEEE_SET:
 		ret = dcbnl_ieee_set(netdev, tb, pid, nlh->nlmsg_seq,
-				 nlh->nlmsg_flags);
+				     nlh->nlmsg_flags);
 		goto out;
 	case DCB_CMD_IEEE_GET:
 		ret = dcbnl_ieee_get(netdev, tb, pid, nlh->nlmsg_seq,
-				 nlh->nlmsg_flags);
+				     nlh->nlmsg_flags);
+		goto out;
+	case DCB_CMD_IEEE_DEL:
+		ret = dcbnl_ieee_del(netdev, tb, pid, nlh->nlmsg_seq,
+				     nlh->nlmsg_flags);
 		goto out;
 	case DCB_CMD_GDCBX:
 		ret = dcbnl_getdcbx(netdev, tb, pid, nlh->nlmsg_seq,
@@ -1923,6 +1973,42 @@ out:
 	return err;
 }
 EXPORT_SYMBOL(dcb_ieee_setapp);
+
+/**
+ * dcb_ieee_delapp - delete IEEE dcb application data from list
+ *
+ * This removes a matching APP data from the APP list
+ */
+int dcb_ieee_delapp(struct net_device *dev, struct dcb_app *del)
+{
+	struct dcb_app_type *itr;
+	struct dcb_app_type event;
+	int err = -ENOENT;
+
+	memcpy(&event.name, dev->name, sizeof(event.name));
+	memcpy(&event.app, del, sizeof(event.app));
+
+	spin_lock(&dcb_lock);
+	/* Search for existing match and remove it. */
+	list_for_each_entry(itr, &dcb_app_list, list) {
+		if (itr->app.selector == del->selector &&
+		    itr->app.protocol == del->protocol &&
+		    itr->app.priority == del->priority &&
+		    (strncmp(itr->name, dev->name, IFNAMSIZ) == 0)) {
+			list_del(&itr->list);
+			kfree(itr);
+			err = 0;
+			goto out;
+		}
+	}
+
+out:
+	spin_unlock(&dcb_lock);
+	if (!err)
+		call_dcbevent_notifiers(DCB_APP_EVENT, &event);
+	return err;
+}
+EXPORT_SYMBOL(dcb_ieee_delapp);
 
 static void dcb_flushapp(void)
 {

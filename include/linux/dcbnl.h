@@ -203,6 +203,7 @@ struct dcbmsg {
  * @DCB_CMD_GFEATCFG: get DCBX features flags
  * @DCB_CMD_SFEATCFG: set DCBX features negotiation flags
  * @DCB_CMD_CEE_GET: get CEE aggregated configuration
+ * @DCB_CMD_IEEE_DEL: delete IEEE 802.1Qaz configuration
  */
 enum dcbnl_commands {
 	DCB_CMD_UNDEFINED,
@@ -246,6 +247,7 @@ enum dcbnl_commands {
 	DCB_CMD_SFEATCFG,
 
 	DCB_CMD_CEE_GET,
+	DCB_CMD_IEEE_DEL,
 
 	__DCB_CMD_ENUM_MAX,
 	DCB_CMD_MAX = __DCB_CMD_ENUM_MAX - 1,
