@@ -1929,6 +1929,32 @@ out:
 EXPORT_SYMBOL(dcb_setapp);
 
 /**
+ * dcb_ieee_getapp_mask - retrieve the IEEE DCB application priority
+ *
+ * Helper routine which on success returns a non-zero 802.1Qaz user
+ * priority bitmap otherwise returns 0 to indicate the dcb_app was
+ * not found in APP list.
+ */
+u8 dcb_ieee_getapp_mask(struct net_device *dev, struct dcb_app *app)
+{
+	struct dcb_app_type *itr;
+	u8 prio = 0;
+
+	spin_lock(&dcb_lock);
+	list_for_each_entry(itr, &dcb_app_list, list) {
+		if (itr->app.selector == app->selector &&
+		    itr->app.protocol == app->protocol &&
+		    (strncmp(itr->name, dev->name, IFNAMSIZ) == 0)) {
+			prio |= 1 << itr->app.priority;
+		}
+	}
+	spin_unlock(&dcb_lock);
+
+	return prio;
+}
+EXPORT_SYMBOL(dcb_ieee_getapp_mask);
+
+/**
  * dcb_ieee_setapp - add IEEE dcb application data to app list
  *
  * This adds Application data to the list. Multiple application
