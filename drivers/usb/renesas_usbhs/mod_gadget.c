@@ -474,9 +474,9 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 		pipe->mod_private	= uep;
 
 		if (usb_endpoint_dir_in(desc))
-			uep->handler = &usbhs_fifo_pio_push_handler;
+			uep->handler = &usbhs_fifo_dma_push_handler;
 		else
-			uep->handler = &usbhs_fifo_pio_pop_handler;
+			uep->handler = &usbhs_fifo_dma_pop_handler;
 
 		ret = 0;
 	}
