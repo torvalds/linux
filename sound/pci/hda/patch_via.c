@@ -1875,6 +1875,7 @@ static int via_auto_create_analog_input_ctls(struct hda_codec *codec,
 	struct via_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux[0];
 	int i, j, err, idx, idx2, type, type_idx = 0;
+	const char *prev_label = NULL;
 	hda_nid_t cap_nid;
 	hda_nid_t pin_idxs[8];
 	int num_idxs;
@@ -1908,11 +1909,12 @@ static int via_auto_create_analog_input_ctls(struct hda_codec *codec,
 				break;
 		if (idx >= num_idxs)
 			continue;
-		if (i > 0 && type == cfg->inputs[i - 1].type)
+		label = hda_get_autocfg_input_label(codec, cfg, i);
+		if (prev_label && !strcmp(label, prev_label))
 			type_idx++;
 		else
 			type_idx = 0;
-		label = hda_get_autocfg_input_label(codec, cfg, i);
+		prev_label = label;
 		idx2 = get_connection_index(codec, spec->aa_mix_nid,
 					    pin_idxs[idx]);
 		if (idx2 >= 0) {
