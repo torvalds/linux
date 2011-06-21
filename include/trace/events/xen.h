@@ -9,8 +9,7 @@
 #include <asm/xen/trace_types.h>
 
 /* Multicalls */
-
-TRACE_EVENT(xen_mc_batch,
+DECLARE_EVENT_CLASS(xen_mc__batch,
 	    TP_PROTO(enum paravirt_lazy_mode mode),
 	    TP_ARGS(mode),
 	    TP_STRUCT__entry(
@@ -21,18 +20,13 @@ TRACE_EVENT(xen_mc_batch,
 		      (__entry->mode == PARAVIRT_LAZY_MMU) ? "MMU" :
 		      (__entry->mode == PARAVIRT_LAZY_CPU) ? "CPU" : "NONE")
 	);
+#define DEFINE_XEN_MC_BATCH(name)			\
+	DEFINE_EVENT(xen_mc__batch, name,		\
+		TP_PROTO(enum paravirt_lazy_mode mode),	\
+		     TP_ARGS(mode))
 
-TRACE_EVENT(xen_mc_issue,
-	    TP_PROTO(enum paravirt_lazy_mode mode),
-	    TP_ARGS(mode),
-	    TP_STRUCT__entry(
-		    __field(enum paravirt_lazy_mode, mode)
-		    ),
-	    TP_fast_assign(__entry->mode = mode),
-	    TP_printk("issue mode LAZY_%s",
-		      (__entry->mode == PARAVIRT_LAZY_MMU) ? "MMU" :
-		      (__entry->mode == PARAVIRT_LAZY_CPU) ? "CPU" : "NONE")
-	);
+DEFINE_XEN_MC_BATCH(xen_mc_batch);
+DEFINE_XEN_MC_BATCH(xen_mc_issue);
 
 TRACE_EVENT(xen_mc_entry,
 	    TP_PROTO(struct multicall_entry *mc, unsigned nargs),
