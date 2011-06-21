@@ -332,6 +332,8 @@
 #define AR_PHY_CCA_MAX_GOOD_VAL_9300_2GHZ     -95
 #define AR_PHY_CCA_MAX_GOOD_VAL_9300_5GHZ     -100
 
+#define AR_PHY_CCA_NOM_VAL_9330_2GHZ          -118
+
 /*
  * AGC Field Definitions
  */
