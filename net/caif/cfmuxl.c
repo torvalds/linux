@@ -255,7 +255,7 @@ static void cfmuxl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 
 		if (cfsrvl_phyid_match(layer, phyid) && layer->ctrlcmd) {
 
-			if ((ctrl == _CAIF_CTRLCMD_PHYIF_FLOW_OFF_IND ||
+			if ((ctrl == _CAIF_CTRLCMD_PHYIF_DOWN_IND ||
 				ctrl == CAIF_CTRLCMD_REMOTE_SHUTDOWN_IND) &&
 					layer->id != 0) {
 

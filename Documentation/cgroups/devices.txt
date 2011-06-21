@@ -22,16 +22,16 @@ removed from the child(ren).
 An entry is added using devices.allow, and removed using
 devices.deny.  For instance
 
-	echo 'c 1:3 mr' > /cgroups/1/devices.allow
+	echo 'c 1:3 mr' > /sys/fs/cgroup/1/devices.allow
 
 allows cgroup 1 to read and mknod the device usually known as
 /dev/null.  Doing
 
-	echo a > /cgroups/1/devices.deny
+	echo a > /sys/fs/cgroup/1/devices.deny
 
 will remove the default 'a *:* rwm' entry. Doing
 
-	echo a > /cgroups/1/devices.allow
+	echo a > /sys/fs/cgroup/1/devices.allow
 
 will add the 'a *:* rwm' entry to the whitelist.
 

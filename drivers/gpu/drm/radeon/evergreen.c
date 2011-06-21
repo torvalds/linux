@@ -88,7 +88,8 @@ u32 evergreen_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 /* get temperature in millidegrees */
 int evergreen_get_temp(struct radeon_device *rdev)
 {
-	u32 temp, toffset, actual_temp = 0;
+	u32 temp, toffset;
+	int actual_temp = 0;
 
 	if (rdev->family == CHIP_JUNIPER) {
 		toffset = (RREG32(CG_THERMAL_CTRL) & TOFFSET_MASK) >>
@@ -139,11 +140,17 @@ void evergreen_pm_misc(struct radeon_device *rdev)
 	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
 
 	if (voltage->type == VOLTAGE_SW) {
+		/* 0xff01 is a flag rather then an actual voltage */
+		if (voltage->voltage == 0xff01)
+			return;
 		if (voltage->voltage && (voltage->voltage != rdev->pm.current_vddc)) {
 			radeon_atom_set_voltage(rdev, voltage->voltage, SET_VOLTAGE_TYPE_ASIC_VDDC);
 			rdev->pm.current_vddc = voltage->voltage;
 			DRM_DEBUG("Setting: vddc: %d\n", voltage->voltage);
 		}
+		/* 0xff01 is a flag rather then an actual voltage */
+		if (voltage->vddci == 0xff01)
+			return;
 		if (voltage->vddci && (voltage->vddci != rdev->pm.current_vddci)) {
 			radeon_atom_set_voltage(rdev, voltage->vddci, SET_VOLTAGE_TYPE_ASIC_VDDCI);
 			rdev->pm.current_vddci = voltage->vddci;
@@ -2694,28 +2701,25 @@ static inline u32 evergreen_get_ih_wptr(struct radeon_device *rdev)
 
 int evergreen_irq_process(struct radeon_device *rdev)
 {
-	u32 wptr = evergreen_get_ih_wptr(rdev);
-	u32 rptr = rdev->ih.rptr;
+	u32 wptr;
+	u32 rptr;
 	u32 src_id, src_data;
 	u32 ring_index;
 	unsigned long flags;
 	bool queue_hotplug = false;
 
-	DRM_DEBUG("r600_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
-	if (!rdev->ih.enabled)
+	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
 
-	spin_lock_irqsave(&rdev->ih.lock, flags);
+	wptr = evergreen_get_ih_wptr(rdev);
+	rptr = rdev->ih.rptr;
+	DRM_DEBUG("r600_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
 
+	spin_lock_irqsave(&rdev->ih.lock, flags);
 	if (rptr == wptr) {
 		spin_unlock_irqrestore(&rdev->ih.lock, flags);
 		return IRQ_NONE;
 	}
-	if (rdev->shutdown) {
-		spin_unlock_irqrestore(&rdev->ih.lock, flags);
-		return IRQ_NONE;
-	}
-
 restart_ih:
 	/* display interrupts */
 	evergreen_irq_ack(rdev);
@@ -2944,7 +2948,7 @@ restart_ih:
 			radeon_fence_process(rdev);
 			break;
 		case 233: /* GUI IDLE */
-			DRM_DEBUG("IH: CP EOP\n");
+			DRM_DEBUG("IH: GUI idle\n");
 			rdev->pm.gui_idle = true;
 			wake_up(&rdev->irq.idle_queue);
 			break;

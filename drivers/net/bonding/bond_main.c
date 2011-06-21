@@ -388,6 +388,8 @@ struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr)
 	return next;
 }
 
+#define bond_queue_mapping(skb) (*(u16 *)((skb)->cb))
+
 /**
  * bond_dev_queue_xmit - Prepare skb for xmit.
  *
@@ -400,6 +402,9 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 {
 	skb->dev = slave_dev;
 	skb->priority = 1;
+
+	skb->queue_mapping = bond_queue_mapping(skb);
+
 	if (unlikely(netpoll_tx_running(slave_dev)))
 		bond_netpoll_send_skb(bond_get_slave_by_dev(bond, slave_dev), skb);
 	else
@@ -1292,6 +1297,7 @@ static inline int slave_enable_netpoll(struct slave *slave)
 		goto out;
 
 	np->dev = slave->dev;
+	strlcpy(np->dev_name, slave->dev->name, IFNAMSIZ);
 	err = __netpoll_setup(np);
 	if (err) {
 		kfree(np);
@@ -4206,6 +4212,7 @@ static inline int bond_slave_override(struct bonding *bond,
 	return res;
 }
 
+
 static u16 bond_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
 	/*
@@ -4215,6 +4222,11 @@ static u16 bond_select_queue(struct net_device *dev, struct sk_buff *skb)
 	 * way down to the bonding driver.
 	 */
 	u16 txq = skb_rx_queue_recorded(skb) ? skb_get_rx_queue(skb) : 0;
+
+	/*
+	 * Save the original txq to restore before passing to the driver
+	 */
+	bond_queue_mapping(skb) = skb->queue_mapping;
 
 	if (unlikely(txq >= dev->real_num_tx_queues)) {
 		do {

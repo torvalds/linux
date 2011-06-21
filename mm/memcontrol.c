@@ -359,7 +359,7 @@ enum charge_type {
 static void mem_cgroup_get(struct mem_cgroup *mem);
 static void mem_cgroup_put(struct mem_cgroup *mem);
 static struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *mem);
-static void drain_all_stock_async(void);
+static void drain_all_stock_async(struct mem_cgroup *mem);
 
 static struct mem_cgroup_per_zone *
 mem_cgroup_zoneinfo(struct mem_cgroup *mem, int nid, int zid)
@@ -735,7 +735,7 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
 				struct mem_cgroup, css);
 }
 
-static struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
+struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
 {
 	struct mem_cgroup *mem = NULL;
 
@@ -1663,15 +1663,21 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 	excess = res_counter_soft_limit_excess(&root_mem->res) >> PAGE_SHIFT;
 
 	/* If memsw_is_minimum==1, swap-out is of-no-use. */
-	if (root_mem->memsw_is_minimum)
+	if (!check_soft && root_mem->memsw_is_minimum)
 		noswap = true;
 
 	while (1) {
 		victim = mem_cgroup_select_victim(root_mem);
 		if (victim == root_mem) {
 			loop++;
-			if (loop >= 1)
-				drain_all_stock_async();
+			/*
+			 * We are not draining per cpu cached charges during
+			 * soft limit reclaim  because global reclaim doesn't
+			 * care about charges. It tries to free some memory and
+			 * charges will not give any.
+			 */
+			if (!check_soft && loop >= 1)
+				drain_all_stock_async(root_mem);
 			if (loop >= 2) {
 				/*
 				 * If we have not been able to reclaim
@@ -1934,9 +1940,11 @@ struct memcg_stock_pcp {
 	struct mem_cgroup *cached; /* this never be root cgroup */
 	unsigned int nr_pages;
 	struct work_struct work;
+	unsigned long flags;
+#define FLUSHING_CACHED_CHARGE	(0)
 };
 static DEFINE_PER_CPU(struct memcg_stock_pcp, memcg_stock);
-static atomic_t memcg_drain_count;
+static DEFINE_MUTEX(percpu_charge_mutex);
 
 /*
  * Try to consume stocked charge on this cpu. If success, one page is consumed
@@ -1984,6 +1992,7 @@ static void drain_local_stock(struct work_struct *dummy)
 {
 	struct memcg_stock_pcp *stock = &__get_cpu_var(memcg_stock);
 	drain_stock(stock);
+	clear_bit(FLUSHING_CACHED_CHARGE, &stock->flags);
 }
 
 /*
@@ -2008,26 +2017,45 @@ static void refill_stock(struct mem_cgroup *mem, unsigned int nr_pages)
  * expects some charges will be back to res_counter later but cannot wait for
  * it.
  */
-static void drain_all_stock_async(void)
+static void drain_all_stock_async(struct mem_cgroup *root_mem)
 {
-	int cpu;
-	/* This function is for scheduling "drain" in asynchronous way.
-	 * The result of "drain" is not directly handled by callers. Then,
-	 * if someone is calling drain, we don't have to call drain more.
-	 * Anyway, WORK_STRUCT_PENDING check in queue_work_on() will catch if
-	 * there is a race. We just do loose check here.
+	int cpu, curcpu;
+	/*
+	 * If someone calls draining, avoid adding more kworker runs.
 	 */
-	if (atomic_read(&memcg_drain_count))
+	if (!mutex_trylock(&percpu_charge_mutex))
 		return;
 	/* Notify other cpus that system-wide "drain" is running */
-	atomic_inc(&memcg_drain_count);
 	get_online_cpus();
+	/*
+	 * Get a hint for avoiding draining charges on the current cpu,
+	 * which must be exhausted by our charging.  It is not required that
+	 * this be a precise check, so we use raw_smp_processor_id() instead of
+	 * getcpu()/putcpu().
+	 */
+	curcpu = raw_smp_processor_id();
 	for_each_online_cpu(cpu) {
 		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
-		schedule_work_on(cpu, &stock->work);
+		struct mem_cgroup *mem;
+
+		if (cpu == curcpu)
+			continue;
+
+		mem = stock->cached;
+		if (!mem)
+			continue;
+		if (mem != root_mem) {
+			if (!root_mem->use_hierarchy)
+				continue;
+			/* check whether "mem" is under tree of "root_mem" */
+			if (!css_is_ancestor(&mem->css, &root_mem->css))
+				continue;
+		}
+		if (!test_and_set_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
+			schedule_work_on(cpu, &stock->work);
 	}
  	put_online_cpus();
-	atomic_dec(&memcg_drain_count);
+	mutex_unlock(&percpu_charge_mutex);
 	/* We don't wait for flush_work */
 }
 
@@ -2035,9 +2063,9 @@ static void drain_all_stock_async(void)
 static void drain_all_stock_sync(void)
 {
 	/* called when force_empty is called */
-	atomic_inc(&memcg_drain_count);
+	mutex_lock(&percpu_charge_mutex);
 	schedule_on_each_cpu(drain_local_stock);
-	atomic_dec(&memcg_drain_count);
+	mutex_unlock(&percpu_charge_mutex);
 }
 
 /*
@@ -4640,6 +4668,7 @@ static struct cftype mem_cgroup_files[] = {
 	{
 		.name = "numa_stat",
 		.open = mem_control_numa_stat_open,
+		.mode = S_IRUGO,
 	},
 #endif
 };
@@ -5414,18 +5443,16 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 				struct cgroup *old_cont,
 				struct task_struct *p)
 {
-	struct mm_struct *mm;
+	struct mm_struct *mm = get_task_mm(p);
 
-	if (!mc.to)
-		/* no need to move charge */
-		return;
-
-	mm = get_task_mm(p);
 	if (mm) {
-		mem_cgroup_move_charge(mm);
+		if (mc.to)
+			mem_cgroup_move_charge(mm);
+		put_swap_token(mm);
 		mmput(mm);
 	}
-	mem_cgroup_clear_mc();
+	if (mc.to)
+		mem_cgroup_clear_mc();
 }
 #else	/* !CONFIG_MMU */
 static int mem_cgroup_can_attach(struct cgroup_subsys *ss,

@@ -542,6 +542,7 @@ asmlinkage void __init start_kernel(void)
 	timekeeping_init();
 	time_init();
 	profile_init();
+	call_function_init();
 	if (!irqs_disabled())
 		printk(KERN_CRIT "start_kernel(): bug: interrupts were "
 				 "enabled early\n");

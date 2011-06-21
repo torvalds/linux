@@ -967,6 +967,12 @@ struct btrfs_fs_info {
 	struct srcu_struct subvol_srcu;
 
 	spinlock_t trans_lock;
+	/*
+	 * the reloc mutex goes with the trans lock, it is taken
+	 * during commit to protect us from the relocation code
+	 */
+	struct mutex reloc_mutex;
+
 	struct list_head trans_list;
 	struct list_head hashers;
 	struct list_head dead_roots;
@@ -1172,6 +1178,14 @@ struct btrfs_root {
 	u32 type;
 
 	u64 highest_objectid;
+
+	/* btrfs_record_root_in_trans is a multi-step process,
+	 * and it can race with the balancing code.   But the
+	 * race is very small, and only the first time the root
+	 * is added to each transaction.  So in_trans_setup
+	 * is used to tell us when more checks are required
+	 */
+	unsigned long in_trans_setup;
 	int ref_cows;
 	int track_dirty;
 	int in_radix;
@@ -1181,7 +1195,6 @@ struct btrfs_root {
 	struct btrfs_key defrag_max;
 	int defrag_running;
 	char *name;
-	int in_sysfs;
 
 	/* the dirty list is only used by non-reference counted roots */
 	struct list_head dirty_list;

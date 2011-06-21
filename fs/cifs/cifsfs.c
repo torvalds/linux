@@ -257,9 +257,6 @@ static int cifs_permission(struct inode *inode, int mask, unsigned int flags)
 {
 	struct cifs_sb_info *cifs_sb;
 
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
-
 	cifs_sb = CIFS_SB(inode->i_sb);
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) {
@@ -352,6 +349,37 @@ cifs_show_address(struct seq_file *s, struct TCP_Server_Info *server)
 	}
 }
 
+static void
+cifs_show_security(struct seq_file *s, struct TCP_Server_Info *server)
+{
+	seq_printf(s, ",sec=");
+
+	switch (server->secType) {
+	case LANMAN:
+		seq_printf(s, "lanman");
+		break;
+	case NTLMv2:
+		seq_printf(s, "ntlmv2");
+		break;
+	case NTLM:
+		seq_printf(s, "ntlm");
+		break;
+	case Kerberos:
+		seq_printf(s, "krb5");
+		break;
+	case RawNTLMSSP:
+		seq_printf(s, "ntlmssp");
+		break;
+	default:
+		/* shouldn't ever happen */
+		seq_printf(s, "unknown");
+		break;
+	}
+
+	if (server->sec_mode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
+		seq_printf(s, "i");
+}
+
 /*
  * cifs_show_options() is for displaying mount options in /proc/mounts.
  * Not all settable options are displayed but most of the important
@@ -364,6 +392,8 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 	struct sockaddr *srcaddr;
 	srcaddr = (struct sockaddr *)&tcon->ses->server->srcaddr;
+
+	cifs_show_security(s, tcon->ses->server);
 
 	seq_printf(s, ",unc=%s", tcon->treeName);
 

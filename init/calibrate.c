@@ -93,9 +93,6 @@ static unsigned long __cpuinit calibrate_delay_direct(void)
 		 * If the upper limit and lower limit of the timer_rate is
 		 * >= 12.5% apart, redo calibration.
 		 */
-		printk(KERN_DEBUG "calibrate_delay_direct() timer_rate_max=%lu "
-			    "timer_rate_min=%lu pre_start=%lu pre_end=%lu\n",
-			  timer_rate_max, timer_rate_min, pre_start, pre_end);
 		if (start >= post_end)
 			printk(KERN_NOTICE "calibrate_delay_direct() ignoring "
 					"timer_rate as we had a TSC wrap around"

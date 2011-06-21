@@ -2373,6 +2373,9 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 	}
 #endif /* CONFIG_PCI_IOV */
 	adapter->rss_queues = min_t(u32, IGB_MAX_RX_QUEUES, num_online_cpus());
+	/* i350 cannot do RSS and SR-IOV at the same time */
+	if (hw->mac.type == e1000_i350 && adapter->vfs_allocated_count)
+		adapter->rss_queues = 1;
 
 	/*
 	 * if rss_queues > 4 or vfs are going to be allocated with rss_queues

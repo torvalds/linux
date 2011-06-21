@@ -250,7 +250,7 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 	pgoff_t index = 0;
 	unsigned long first_page_offset;
 	int num_checksums;
-	int ret = 0, ret2;
+	int ret = 0;
 
 	INIT_LIST_HEAD(&bitmaps);
 
@@ -421,11 +421,10 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 					goto free_cache;
 				}
 				spin_lock(&ctl->tree_lock);
-				ret2 = link_free_space(ctl, e);
+				ret = link_free_space(ctl, e);
 				ctl->total_bitmaps++;
 				ctl->op->recalc_thresholds(ctl);
 				spin_unlock(&ctl->tree_lock);
-				list_add_tail(&e->list, &bitmaps);
 				if (ret) {
 					printk(KERN_ERR "Duplicate entries in "
 					       "free space cache, dumping\n");
@@ -434,6 +433,7 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 					page_cache_release(page);
 					goto free_cache;
 				}
+				list_add_tail(&e->list, &bitmaps);
 			}
 
 			num_entries--;
@@ -1417,6 +1417,23 @@ again:
 	return 0;
 }
 
+static u64 add_bytes_to_bitmap(struct btrfs_free_space_ctl *ctl,
+			       struct btrfs_free_space *info, u64 offset,
+			       u64 bytes)
+{
+	u64 bytes_to_set = 0;
+	u64 end;
+
+	end = info->offset + (u64)(BITS_PER_BITMAP * ctl->unit);
+
+	bytes_to_set = min(end - offset, bytes);
+
+	bitmap_set_bits(ctl, info, offset, bytes_to_set);
+
+	return bytes_to_set;
+
+}
+
 static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 		      struct btrfs_free_space *info)
 {
@@ -1453,12 +1470,18 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 	return true;
 }
 
+static struct btrfs_free_space_op free_space_op = {
+	.recalc_thresholds	= recalculate_thresholds,
+	.use_bitmap		= use_bitmap,
+};
+
 static int insert_into_bitmap(struct btrfs_free_space_ctl *ctl,
 			      struct btrfs_free_space *info)
 {
 	struct btrfs_free_space *bitmap_info;
+	struct btrfs_block_group_cache *block_group = NULL;
 	int added = 0;
-	u64 bytes, offset, end;
+	u64 bytes, offset, bytes_added;
 	int ret;
 
 	bytes = info->bytes;
@@ -1467,7 +1490,49 @@ static int insert_into_bitmap(struct btrfs_free_space_ctl *ctl,
 	if (!ctl->op->use_bitmap(ctl, info))
 		return 0;
 
+	if (ctl->op == &free_space_op)
+		block_group = ctl->private;
 again:
+	/*
+	 * Since we link bitmaps right into the cluster we need to see if we
+	 * have a cluster here, and if so and it has our bitmap we need to add
+	 * the free space to that bitmap.
+	 */
+	if (block_group && !list_empty(&block_group->cluster_list)) {
+		struct btrfs_free_cluster *cluster;
+		struct rb_node *node;
+		struct btrfs_free_space *entry;
+
+		cluster = list_entry(block_group->cluster_list.next,
+				     struct btrfs_free_cluster,
+				     block_group_list);
+		spin_lock(&cluster->lock);
+		node = rb_first(&cluster->root);
+		if (!node) {
+			spin_unlock(&cluster->lock);
+			goto no_cluster_bitmap;
+		}
+
+		entry = rb_entry(node, struct btrfs_free_space, offset_index);
+		if (!entry->bitmap) {
+			spin_unlock(&cluster->lock);
+			goto no_cluster_bitmap;
+		}
+
+		if (entry->offset == offset_to_bitmap(ctl, offset)) {
+			bytes_added = add_bytes_to_bitmap(ctl, entry,
+							  offset, bytes);
+			bytes -= bytes_added;
+			offset += bytes_added;
+		}
+		spin_unlock(&cluster->lock);
+		if (!bytes) {
+			ret = 1;
+			goto out;
+		}
+	}
+
+no_cluster_bitmap:
 	bitmap_info = tree_search_offset(ctl, offset_to_bitmap(ctl, offset),
 					 1, 0);
 	if (!bitmap_info) {
@@ -1475,19 +1540,10 @@ again:
 		goto new_bitmap;
 	}
 
-	end = bitmap_info->offset + (u64)(BITS_PER_BITMAP * ctl->unit);
-
-	if (offset >= bitmap_info->offset && offset + bytes > end) {
-		bitmap_set_bits(ctl, bitmap_info, offset, end - offset);
-		bytes -= end - offset;
-		offset = end;
-		added = 0;
-	} else if (offset >= bitmap_info->offset && offset + bytes <= end) {
-		bitmap_set_bits(ctl, bitmap_info, offset, bytes);
-		bytes = 0;
-	} else {
-		BUG();
-	}
+	bytes_added = add_bytes_to_bitmap(ctl, bitmap_info, offset, bytes);
+	bytes -= bytes_added;
+	offset += bytes_added;
+	added = 0;
 
 	if (!bytes) {
 		ret = 1;
@@ -1765,11 +1821,6 @@ void btrfs_dump_free_space(struct btrfs_block_group_cache *block_group,
 	printk(KERN_INFO "%d blocks of free space at or bigger than bytes is"
 	       "\n", count);
 }
-
-static struct btrfs_free_space_op free_space_op = {
-	.recalc_thresholds	= recalculate_thresholds,
-	.use_bitmap		= use_bitmap,
-};
 
 void btrfs_init_free_space_ctl(struct btrfs_block_group_cache *block_group)
 {
@@ -2142,9 +2193,11 @@ again:
 /*
  * This searches the block group for just extents to fill the cluster with.
  */
-static int setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
-				   struct btrfs_free_cluster *cluster,
-				   u64 offset, u64 bytes, u64 min_bytes)
+static noinline int
+setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
+			struct btrfs_free_cluster *cluster,
+			struct list_head *bitmaps, u64 offset, u64 bytes,
+			u64 min_bytes)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct btrfs_free_space *first = NULL;
@@ -2166,6 +2219,8 @@ static int setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
 	 * extent entry.
 	 */
 	while (entry->bitmap) {
+		if (list_empty(&entry->list))
+			list_add_tail(&entry->list, bitmaps);
 		node = rb_next(&entry->offset_index);
 		if (!node)
 			return -ENOSPC;
@@ -2185,8 +2240,12 @@ static int setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
 			return -ENOSPC;
 		entry = rb_entry(node, struct btrfs_free_space, offset_index);
 
-		if (entry->bitmap)
+		if (entry->bitmap) {
+			if (list_empty(&entry->list))
+				list_add_tail(&entry->list, bitmaps);
 			continue;
+		}
+
 		/*
 		 * we haven't filled the empty size and the window is
 		 * very large.  reset and try again
@@ -2238,9 +2297,11 @@ static int setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
  * This specifically looks for bitmaps that may work in the cluster, we assume
  * that we have already failed to find extents that will work.
  */
-static int setup_cluster_bitmap(struct btrfs_block_group_cache *block_group,
-				struct btrfs_free_cluster *cluster,
-				u64 offset, u64 bytes, u64 min_bytes)
+static noinline int
+setup_cluster_bitmap(struct btrfs_block_group_cache *block_group,
+		     struct btrfs_free_cluster *cluster,
+		     struct list_head *bitmaps, u64 offset, u64 bytes,
+		     u64 min_bytes)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	struct btrfs_free_space *entry;
@@ -2250,10 +2311,39 @@ static int setup_cluster_bitmap(struct btrfs_block_group_cache *block_group,
 	if (ctl->total_bitmaps == 0)
 		return -ENOSPC;
 
+	/*
+	 * First check our cached list of bitmaps and see if there is an entry
+	 * here that will work.
+	 */
+	list_for_each_entry(entry, bitmaps, list) {
+		if (entry->bytes < min_bytes)
+			continue;
+		ret = btrfs_bitmap_cluster(block_group, entry, cluster, offset,
+					   bytes, min_bytes);
+		if (!ret)
+			return 0;
+	}
+
+	/*
+	 * If we do have entries on our list and we are here then we didn't find
+	 * anything, so go ahead and get the next entry after the last entry in
+	 * this list and start the search from there.
+	 */
+	if (!list_empty(bitmaps)) {
+		entry = list_entry(bitmaps->prev, struct btrfs_free_space,
+				   list);
+		node = rb_next(&entry->offset_index);
+		if (!node)
+			return -ENOSPC;
+		entry = rb_entry(node, struct btrfs_free_space, offset_index);
+		goto search;
+	}
+
 	entry = tree_search_offset(ctl, offset_to_bitmap(ctl, offset), 0, 1);
 	if (!entry)
 		return -ENOSPC;
 
+search:
 	node = &entry->offset_index;
 	do {
 		entry = rb_entry(node, struct btrfs_free_space, offset_index);
@@ -2284,6 +2374,8 @@ int btrfs_find_space_cluster(struct btrfs_trans_handle *trans,
 			     u64 offset, u64 bytes, u64 empty_size)
 {
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
+	struct list_head bitmaps;
+	struct btrfs_free_space *entry, *tmp;
 	u64 min_bytes;
 	int ret;
 
@@ -2322,11 +2414,16 @@ int btrfs_find_space_cluster(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	ret = setup_cluster_no_bitmap(block_group, cluster, offset, bytes,
-				      min_bytes);
+	INIT_LIST_HEAD(&bitmaps);
+	ret = setup_cluster_no_bitmap(block_group, cluster, &bitmaps, offset,
+				      bytes, min_bytes);
 	if (ret)
-		ret = setup_cluster_bitmap(block_group, cluster, offset,
-					   bytes, min_bytes);
+		ret = setup_cluster_bitmap(block_group, cluster, &bitmaps,
+					   offset, bytes, min_bytes);
+
+	/* Clear our temporary list */
+	list_for_each_entry_safe(entry, tmp, &bitmaps, list)
+		list_del_init(&entry->list);
 
 	if (!ret) {
 		atomic_inc(&block_group->count);

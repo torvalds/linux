@@ -1246,6 +1246,10 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		}
 		*dcpll = *p1pll;
 
+		rdev->clock.max_pixel_clock = le16_to_cpu(firmware_info->info.usMaxPixelClock);
+		if (rdev->clock.max_pixel_clock == 0)
+			rdev->clock.max_pixel_clock = 40000;
+
 		return true;
 	}
 
@@ -2601,6 +2605,10 @@ void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 v
 	u8 frev, crev, volt_index = voltage_level;
 
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return;
+
+	/* 0xff01 is a flag rather then an actual voltage */
+	if (voltage_level == 0xff01)
 		return;
 
 	switch (crev) {
