@@ -407,7 +407,10 @@ static int __get_connection_index(struct hda_codec *codec, hda_nid_t mux,
 static bool check_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			   unsigned int mask)
 {
-	unsigned int caps = get_wcaps(codec, nid);
+	unsigned int caps;
+	if (!nid)
+		return false;
+	caps = get_wcaps(codec, nid);
 	if (dir == HDA_INPUT)
 		caps &= AC_WCAP_IN_AMP;
 	else
@@ -1635,13 +1638,21 @@ static int create_ch_ctls(struct hda_codec *codec, const char *pfx,
 {
 	struct via_spec *spec = codec->spec;
 	char name[32];
-	hda_nid_t nid;
-	int err;
+	hda_nid_t nid, sel, conn[8];
+	int nums, err;
+
+	/* check selector widget connected to the pin */
+	sel = 0;
+	nums = snd_hda_get_connections(codec, pin, conn, ARRAY_SIZE(conn));
+	if (nums == 1 && conn[0] != pin)
+		sel = conn[0];
 
 	if (dac && check_amp_caps(codec, dac, HDA_OUTPUT, AC_AMPCAP_NUM_STEPS))
 		nid = dac;
 	else if (check_amp_caps(codec, pin, HDA_OUTPUT, AC_AMPCAP_NUM_STEPS))
 		nid = pin;
+	else if (check_amp_caps(codec, sel, HDA_OUTPUT, AC_AMPCAP_NUM_STEPS))
+		nid = sel;
 	else
 		nid = 0;
 	if (nid) {
@@ -1656,6 +1667,8 @@ static int create_ch_ctls(struct hda_codec *codec, const char *pfx,
 		nid = dac;
 	else if (check_amp_caps(codec, pin, HDA_OUTPUT, AC_AMPCAP_MUTE))
 		nid = pin;
+	else if (check_amp_caps(codec, sel, HDA_OUTPUT, AC_AMPCAP_MUTE))
+		nid = sel;
 	else
 		nid = 0;
 	if (nid) {
