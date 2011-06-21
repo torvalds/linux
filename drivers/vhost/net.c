@@ -703,6 +703,10 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 		vhost_net_disable_vq(n, vq);
 		rcu_assign_pointer(vq->private_data, sock);
 		vhost_net_enable_vq(n, vq);
+
+		r = vhost_init_used(vq);
+		if (r)
+			goto err_vq;
 	}
 
 	mutex_unlock(&vq->mutex);

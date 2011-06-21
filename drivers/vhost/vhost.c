@@ -629,15 +629,17 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 	return 0;
 }
 
-static int init_used(struct vhost_virtqueue *vq,
-		     struct vring_used __user *used)
+int vhost_init_used(struct vhost_virtqueue *vq)
 {
-	int r = put_user(vq->used_flags, &used->flags);
+	int r;
+	if (!vq->private_data)
+		return 0;
 
+	r = put_user(vq->used_flags, &vq->used->flags);
 	if (r)
 		return r;
 	vq->signalled_used_valid = false;
-	return get_user(vq->last_used_idx, &used->idx);
+	return get_user(vq->last_used_idx, &vq->used->idx);
 }
 
 static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
@@ -752,10 +754,6 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 			}
 		}
 
-		r = init_used(vq, (struct vring_used __user *)(unsigned long)
-			      a.used_user_addr);
-		if (r)
-			break;
 		vq->log_used = !!(a.flags & (0x1 << VHOST_VRING_F_LOG));
 		vq->desc = (void __user *)(unsigned long)a.desc_user_addr;
 		vq->avail = (void __user *)(unsigned long)a.avail_user_addr;
