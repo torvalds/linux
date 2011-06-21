@@ -6,6 +6,7 @@
 /* Non-existant functions to indicate usage errors at link time. */
 extern void __xchg_wrong_size(void);
 extern void __cmpxchg_wrong_size(void);
+extern void __xadd_wrong_size(void);
 
 /*
  * Constants for operation sizes. On 32-bit, the 64-bit size it set to
@@ -156,5 +157,47 @@ extern void __cmpxchg_wrong_size(void);
 #define cmpxchg_local(ptr, old, new)					\
 	__cmpxchg_local((ptr), (old), (new), sizeof(*ptr))
 #endif
+
+#define __xadd(ptr, inc, lock)						\
+	({								\
+	        __typeof__ (*(ptr)) __ret = (inc);			\
+		switch (sizeof(*(ptr))) {				\
+		case __X86_CASE_B:					\
+			asm volatile (lock "xaddb %b0, %1\n"		\
+				      : "+r" (__ret), "+m" (*(ptr))	\
+				      : : "memory", "cc");		\
+			break;						\
+		case __X86_CASE_W:					\
+			asm volatile (lock "xaddw %w0, %1\n"		\
+				      : "+r" (__ret), "+m" (*(ptr))	\
+				      : : "memory", "cc");		\
+			break;						\
+		case __X86_CASE_L:					\
+			asm volatile (lock "xaddl %0, %1\n"		\
+				      : "+r" (__ret), "+m" (*(ptr))	\
+				      : : "memory", "cc");		\
+			break;						\
+		case __X86_CASE_Q:					\
+			asm volatile (lock "xaddq %q0, %1\n"		\
+				      : "+r" (__ret), "+m" (*(ptr))	\
+				      : : "memory", "cc");		\
+			break;						\
+		default:						\
+			__xadd_wrong_size();				\
+		}							\
+		__ret;							\
+	})
+
+/*
+ * xadd() adds "inc" to "*ptr" and atomically returns the previous
+ * value of "*ptr".
+ *
+ * xadd() is locked when multiple CPUs are online
+ * xadd_sync() is always locked
+ * xadd_local() is never locked
+ */
+#define xadd(ptr, inc)		__xadd((ptr), (inc), LOCK_PREFIX)
+#define xadd_sync(ptr, inc)	__xadd((ptr), (inc), "lock; ")
+#define xadd_local(ptr, inc)	__xadd((ptr), (inc), "")
 
 #endif	/* ASM_X86_CMPXCHG_H */
