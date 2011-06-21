@@ -615,7 +615,10 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	else
 		ah->tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
 
-	ah->bb_watchdog_timeout_ms = 25;
+	if (AR_SREV_9330(ah))
+		ah->bb_watchdog_timeout_ms = 85;
+	else
+		ah->bb_watchdog_timeout_ms = 25;
 
 	common->state = ATH_HW_INITIALIZED;
 
