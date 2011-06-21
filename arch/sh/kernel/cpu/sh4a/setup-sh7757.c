@@ -659,6 +659,54 @@ static struct platform_device spi0_device = {
 	.resource	= spi0_resources,
 };
 
+static struct resource usb_ehci_resources[] = {
+	[0] = {
+		.start	= 0xfe4f1000,
+		.end	= 0xfe4f10ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 57,
+		.end	= 57,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usb_ehci_device = {
+	.name		= "sh_ehci",
+	.id		= -1,
+	.dev = {
+		.dma_mask = &usb_ehci_device.dev.coherent_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(usb_ehci_resources),
+	.resource	= usb_ehci_resources,
+};
+
+static struct resource usb_ohci_resources[] = {
+	[0] = {
+		.start	= 0xfe4f1800,
+		.end	= 0xfe4f18ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 57,
+		.end	= 57,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usb_ohci_device = {
+	.name		= "sh_ohci",
+	.id		= -1,
+	.dev = {
+		.dma_mask = &usb_ohci_device.dev.coherent_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(usb_ohci_resources),
+	.resource	= usb_ohci_resources,
+};
+
 static struct platform_device *sh7757_devices[] __initdata = {
 	&scif2_device,
 	&scif3_device,
@@ -670,6 +718,8 @@ static struct platform_device *sh7757_devices[] __initdata = {
 	&dma2_device,
 	&dma3_device,
 	&spi0_device,
+	&usb_ehci_device,
+	&usb_ohci_device,
 };
 
 static int __init sh7757_devices_setup(void)
