@@ -244,7 +244,8 @@ static void pxa25x_cpu_pm_enter(suspend_state_t state)
 
 	switch (state) {
 	case PM_SUSPEND_MEM:
-		pxa25x_cpu_suspend(PWRMODE_SLEEP, PLAT_PHYS_OFFSET - PAGE_OFFSET);
+		cpu_suspend(0, PHYS_OFFSET - PAGE_OFFSET, PWRMODE_SLEEP,
+			    pxa25x_finish_suspend);
 		break;
 	}
 }

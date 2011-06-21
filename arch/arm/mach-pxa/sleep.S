@@ -24,22 +24,9 @@
 
 #ifdef CONFIG_PXA3xx
 /*
- * pxa3xx_cpu_suspend() - forces CPU into sleep state (S2D3C4)
- *
- * r0 = v:p offset
+ * pxa3xx_finish_suspend() - forces CPU into sleep state (S2D3C4)
  */
-ENTRY(pxa3xx_cpu_suspend)
-
-#ifndef CONFIG_IWMMXT
-	mra	r2, r3, acc0
-#endif
-	stmfd	sp!, {r2 - r12, lr}	@ save registers on stack
-	mov	r1, r0
-	adr	r3, BSYM(pxa3xx_finish_suspend)
-	bl	cpu_suspend
-	b	pxa_cpu_resume
-
-pxa3xx_finish_suspend:
+ENTRY(pxa3xx_finish_suspend)
 	mov	r0, #0x06		@ S2D3C4 mode
 	mcr	p14, 0, r0, c7, c0, 0	@ enter sleep
 
@@ -48,25 +35,13 @@ pxa3xx_finish_suspend:
 
 #ifdef CONFIG_PXA27x
 /*
- * pxa27x_cpu_suspend()
+ * pxa27x_finish_suspend()
  *
  * Forces CPU into sleep state.
  *
  * r0 = value for PWRMODE M field for desired sleep state
- * r1 = v:p offset
  */
-ENTRY(pxa27x_cpu_suspend)
-
-#ifndef CONFIG_IWMMXT
-	mra	r2, r3, acc0
-#endif
-	stmfd	sp!, {r2 - r12, lr}		@ save registers on stack
-	mov	r2, r0				@ save sleep mode
-	adr	r3, BSYM(pxa27x_finish_suspend)
-	bl	cpu_suspend
-	b	pxa_cpu_resume
-
-pxa27x_finish_suspend:
+ENTRY(pxa27x_finish_suspend)
 	@ Put the processor to sleep
 	@ (also workaround for sighting 28071)
 
@@ -103,22 +78,14 @@ pxa27x_finish_suspend:
 
 #ifdef CONFIG_PXA25x
 /*
- * pxa25x_cpu_suspend()
+ * pxa25x_finish_suspend()
  *
  * Forces CPU into sleep state.
  *
  * r0 = value for PWRMODE M field for desired sleep state
- * r1 = v:p offset
  */
 
-ENTRY(pxa25x_cpu_suspend)
-	stmfd	sp!, {r2 - r12, lr}		@ save registers on stack
-	mov	r2, r0				@ save sleep mode
-	adr	r3, BSYM(pxa25x_finish_suspend)
-	bl	cpu_suspend
-	b	pxa_cpu_resume
-
-pxa25x_finish_suspend:
+ENTRY(pxa25x_finish_suspend)
 	@ prepare value for sleep mode
 	mov	r1, r0				@ sleep mode
 
@@ -202,16 +169,3 @@ pxa_cpu_do_suspend:
 	mcr	p14, 0, r1, c7, c0, 0		@ PWRMODE
 
 20:	b	20b				@ loop waiting for sleep
-
-/*
- * pxa_cpu_resume()
- *
- * entry point from bootloader into kernel during resume
- */
-	.align 5
-pxa_cpu_resume:
-	ldmfd	sp!, {r2, r3}
-#ifndef CONFIG_IWMMXT
-	mar	acc0, r2, r3
-#endif
-	ldmfd	sp!, {r4 - r12, pc}		@ return to caller
