@@ -29,7 +29,7 @@
 #define SDHCI_VENDOR_SPEC		0xC0
 #define  SDHCI_VENDOR_SPEC_SDIO_QUIRK	0x00000002
 
-#define ESDHC_FLAG_GPIO_FOR_CD_WP	(1 << 0)
+#define ESDHC_FLAG_GPIO_FOR_CD		(1 << 0)
 /*
  * The CMDTYPE of the CMD register (offset 0xE) should be set to
  * "11" when the STOP CMD12 is issued on imx53 to abort one
@@ -65,7 +65,7 @@ static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 	u32 val = readl(host->ioaddr + reg);
 
 	if (unlikely((reg == SDHCI_PRESENT_STATE)
-			&& (imx_data->flags & ESDHC_FLAG_GPIO_FOR_CD_WP))) {
+			&& (imx_data->flags & ESDHC_FLAG_GPIO_FOR_CD))) {
 		struct esdhc_platform_data *boarddata =
 				host->mmc->parent->platform_data;
 
@@ -87,7 +87,7 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 	struct pltfm_imx_data *imx_data = pltfm_host->priv;
 
 	if (unlikely((reg == SDHCI_INT_ENABLE || reg == SDHCI_SIGNAL_ENABLE)
-			&& (imx_data->flags & ESDHC_FLAG_GPIO_FOR_CD_WP)))
+			&& (imx_data->flags & ESDHC_FLAG_GPIO_FOR_CD)))
 		/*
 		 * these interrupts won't work with a custom card_detect gpio
 		 * (only applied to mx25/35)
@@ -296,7 +296,7 @@ static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
 			goto no_card_detect_irq;
 		}
 
-		imx_data->flags |= ESDHC_FLAG_GPIO_FOR_CD_WP;
+		imx_data->flags |= ESDHC_FLAG_GPIO_FOR_CD;
 		/* Now we have a working card_detect again */
 		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 	}
