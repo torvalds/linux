@@ -29,7 +29,6 @@
 #define SDHCI_VENDOR_SPEC		0xC0
 #define  SDHCI_VENDOR_SPEC_SDIO_QUIRK	0x00000002
 
-#define ESDHC_FLAG_GPIO_FOR_CD		(1 << 0)
 /*
  * The CMDTYPE of the CMD register (offset 0xE) should be set to
  * "11" when the STOP CMD12 is issued on imx53 to abort one
@@ -58,19 +57,15 @@ static inline void esdhc_clrset_le(struct sdhci_host *host, u32 mask, u32 val, i
 
 static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 {
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+	struct esdhc_platform_data *boarddata =
+			host->mmc->parent->platform_data;
 
-	/* fake CARD_PRESENT flag on mx25/35 */
+	/* fake CARD_PRESENT flag */
 	u32 val = readl(host->ioaddr + reg);
 
 	if (unlikely((reg == SDHCI_PRESENT_STATE)
-			&& (imx_data->flags & ESDHC_FLAG_GPIO_FOR_CD))) {
-		struct esdhc_platform_data *boarddata =
-				host->mmc->parent->platform_data;
-
-		if (boarddata && gpio_is_valid(boarddata->cd_gpio)
-				&& gpio_get_value(boarddata->cd_gpio))
+			&& gpio_is_valid(boarddata->cd_gpio))) {
+		if (gpio_get_value(boarddata->cd_gpio))
 			/* no card, if a valid gpio says so... */
 			val &= ~SDHCI_CARD_PRESENT;
 		else
@@ -85,12 +80,13 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+	struct esdhc_platform_data *boarddata =
+			host->mmc->parent->platform_data;
 
 	if (unlikely((reg == SDHCI_INT_ENABLE || reg == SDHCI_SIGNAL_ENABLE)
-			&& (imx_data->flags & ESDHC_FLAG_GPIO_FOR_CD)))
+			&& (boarddata->cd_type == ESDHC_CD_GPIO)))
 		/*
 		 * these interrupts won't work with a custom card_detect gpio
-		 * (only applied to mx25/35)
 		 */
 		val &= ~(SDHCI_INT_CARD_REMOVE | SDHCI_INT_CARD_INSERT);
 
@@ -173,6 +169,17 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 		return;
 	}
 	esdhc_clrset_le(host, 0xff, val, reg);
+
+	/*
+	 * The esdhc has a design violation to SDHC spec which tells
+	 * that software reset should not affect card detection circuit.
+	 * But esdhc clears its SYSCTL register bits [0..2] during the
+	 * software reset.  This will stop those clocks that card detection
+	 * circuit relies on.  To work around it, we turn the clocks on back
+	 * to keep card detection circuit functional.
+	 */
+	if ((reg == SDHCI_SOFTWARE_RESET) && (val & 1))
+		esdhc_clrset_le(host, 0x7, 0x7, ESDHC_SYSTEM_CONTROL);
 }
 
 static unsigned int esdhc_pltfm_get_max_clock(struct sdhci_host *host)
@@ -189,6 +196,25 @@ static unsigned int esdhc_pltfm_get_min_clock(struct sdhci_host *host)
 	return clk_get_rate(pltfm_host->clk) / 256 / 16;
 }
 
+static unsigned int esdhc_pltfm_get_ro(struct sdhci_host *host)
+{
+	struct esdhc_platform_data *boarddata =
+			host->mmc->parent->platform_data;
+
+	switch (boarddata->wp_type) {
+	case ESDHC_WP_GPIO:
+		if (gpio_is_valid(boarddata->wp_gpio))
+			return gpio_get_value(boarddata->wp_gpio);
+	case ESDHC_WP_CONTROLLER:
+		return !(readl(host->ioaddr + SDHCI_PRESENT_STATE) &
+			       SDHCI_WRITE_PROTECT);
+	case ESDHC_WP_NONE:
+		break;
+	}
+
+	return -ENOSYS;
+}
+
 static struct sdhci_ops sdhci_esdhc_ops = {
 	.read_l = esdhc_readl_le,
 	.read_w = esdhc_readw_le,
@@ -198,6 +224,7 @@ static struct sdhci_ops sdhci_esdhc_ops = {
 	.set_clock = esdhc_set_clock,
 	.get_max_clock = esdhc_pltfm_get_max_clock,
 	.get_min_clock = esdhc_pltfm_get_min_clock,
+	.get_ro = esdhc_pltfm_get_ro,
 };
 
 static struct sdhci_pltfm_data sdhci_esdhc_imx_pdata = {
@@ -206,17 +233,6 @@ static struct sdhci_pltfm_data sdhci_esdhc_imx_pdata = {
 	/* ADMA has issues. Might be fixable */
 	.ops = &sdhci_esdhc_ops,
 };
-
-static unsigned int esdhc_pltfm_get_ro(struct sdhci_host *host)
-{
-	struct esdhc_platform_data *boarddata =
-			host->mmc->parent->platform_data;
-
-	if (boarddata && gpio_is_valid(boarddata->wp_gpio))
-		return gpio_get_value(boarddata->wp_gpio);
-	else
-		return -ENOSYS;
-}
 
 static irqreturn_t cd_irq(int irq, void *data)
 {
@@ -258,47 +274,65 @@ static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	if (!cpu_is_mx25())
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 
-	if (cpu_is_mx25() || cpu_is_mx35()) {
+	if (cpu_is_mx25() || cpu_is_mx35())
 		/* Fix errata ENGcm07207 present on i.MX25 and i.MX35 */
 		host->quirks |= SDHCI_QUIRK_NO_MULTIBLOCK;
-		/* write_protect can't be routed to controller, use gpio */
-		sdhci_esdhc_ops.get_ro = esdhc_pltfm_get_ro;
-	}
 
 	if (!(cpu_is_mx25() || cpu_is_mx35() || cpu_is_mx51()))
 		imx_data->flags |= ESDHC_FLAG_MULTIBLK_NO_INT;
 
 	boarddata = host->mmc->parent->platform_data;
-	if (boarddata) {
+	if (!boarddata) {
+		dev_err(mmc_dev(host->mmc), "no board data!\n");
+		err = -EINVAL;
+		goto no_board_data;
+	}
+
+	/* write_protect */
+	if (boarddata->wp_type == ESDHC_WP_GPIO) {
 		err = gpio_request_one(boarddata->wp_gpio, GPIOF_IN, "ESDHC_WP");
 		if (err) {
 			dev_warn(mmc_dev(host->mmc),
-				"no write-protect pin available!\n");
-			boarddata->wp_gpio = err;
+				 "no write-protect pin available!\n");
+			boarddata->wp_gpio = -EINVAL;
 		}
+	} else {
+		boarddata->wp_gpio = -EINVAL;
+	}
 
+	/* card_detect */
+	if (boarddata->cd_type != ESDHC_CD_GPIO)
+		boarddata->cd_gpio = -EINVAL;
+
+	switch (boarddata->cd_type) {
+	case ESDHC_CD_GPIO:
 		err = gpio_request_one(boarddata->cd_gpio, GPIOF_IN, "ESDHC_CD");
 		if (err) {
-			dev_warn(mmc_dev(host->mmc),
+			dev_err(mmc_dev(host->mmc),
 				"no card-detect pin available!\n");
 			goto no_card_detect_pin;
 		}
-
-		/* i.MX5x has issues to be researched */
-		if (!cpu_is_mx25() && !cpu_is_mx35())
-			goto not_supported;
 
 		err = request_irq(gpio_to_irq(boarddata->cd_gpio), cd_irq,
 				 IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 				 mmc_hostname(host->mmc), host);
 		if (err) {
-			dev_warn(mmc_dev(host->mmc), "request irq error\n");
+			dev_err(mmc_dev(host->mmc), "request irq error\n");
 			goto no_card_detect_irq;
 		}
+		/* fall through */
 
-		imx_data->flags |= ESDHC_FLAG_GPIO_FOR_CD;
-		/* Now we have a working card_detect again */
+	case ESDHC_CD_CONTROLLER:
+		/* we have a working card_detect back */
 		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
+		break;
+
+	case ESDHC_CD_PERMANENT:
+		host->mmc->caps = MMC_CAP_NONREMOVABLE;
+		break;
+
+	case ESDHC_CD_NONE:
+		break;
 	}
 
 	err = sdhci_add_host(host);
@@ -307,16 +341,20 @@ static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
 
 	return 0;
 
- no_card_detect_irq:
-	gpio_free(boarddata->cd_gpio);
- no_card_detect_pin:
-	boarddata->cd_gpio = err;
- not_supported:
-	kfree(imx_data);
- err_add_host:
+err_add_host:
+	if (gpio_is_valid(boarddata->cd_gpio))
+		free_irq(gpio_to_irq(boarddata->cd_gpio), host);
+no_card_detect_irq:
+	if (gpio_is_valid(boarddata->cd_gpio))
+		gpio_free(boarddata->cd_gpio);
+	if (gpio_is_valid(boarddata->wp_gpio))
+		gpio_free(boarddata->wp_gpio);
+no_card_detect_pin:
+no_board_data:
 	clk_disable(pltfm_host->clk);
 	clk_put(pltfm_host->clk);
- err_clk_get:
+err_clk_get:
+	kfree(imx_data);
 	sdhci_pltfm_free(pdev);
 	return err;
 }
@@ -331,14 +369,12 @@ static int __devexit sdhci_esdhc_imx_remove(struct platform_device *pdev)
 
 	sdhci_remove_host(host, dead);
 
-	if (boarddata && gpio_is_valid(boarddata->wp_gpio))
+	if (gpio_is_valid(boarddata->wp_gpio))
 		gpio_free(boarddata->wp_gpio);
 
-	if (boarddata && gpio_is_valid(boarddata->cd_gpio)) {
+	if (gpio_is_valid(boarddata->cd_gpio)) {
+		free_irq(gpio_to_irq(boarddata->cd_gpio), host);
 		gpio_free(boarddata->cd_gpio);
-
-		if (!(host->quirks & SDHCI_QUIRK_BROKEN_CARD_DETECTION))
-			free_irq(gpio_to_irq(boarddata->cd_gpio), host);
 	}
 
 	clk_disable(pltfm_host->clk);

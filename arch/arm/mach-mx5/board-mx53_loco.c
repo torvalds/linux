@@ -210,11 +210,15 @@ static const struct gpio_keys_platform_data loco_button_data __initconst = {
 
 static const struct esdhc_platform_data mx53_loco_sd1_data __initconst = {
 	.cd_gpio = LOCO_SD1_CD,
+	.cd_type = ESDHC_CD_GPIO,
+	.wp_type = ESDHC_WP_NONE,
 };
 
 static const struct esdhc_platform_data mx53_loco_sd3_data __initconst = {
 	.cd_gpio = LOCO_SD3_CD,
 	.wp_gpio = LOCO_SD3_WP,
+	.cd_type = ESDHC_CD_GPIO,
+	.wp_type = ESDHC_WP_GPIO,
 };
 
 static inline void mx53_loco_fec_reset(void)

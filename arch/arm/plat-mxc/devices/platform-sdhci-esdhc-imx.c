@@ -65,6 +65,11 @@ imx53_sdhci_esdhc_imx_data[] __initconst = {
 };
 #endif /* ifdef CONFIG_SOC_IMX53 */
 
+static const struct esdhc_platform_data default_esdhc_pdata __initconst = {
+	.wp_type = ESDHC_WP_NONE,
+	.cd_type = ESDHC_CD_NONE,
+};
+
 struct platform_device *__init imx_add_sdhci_esdhc_imx(
 		const struct imx_sdhci_esdhc_imx_data *data,
 		const struct esdhc_platform_data *pdata)
@@ -80,6 +85,13 @@ struct platform_device *__init imx_add_sdhci_esdhc_imx(
 			.flags = IORESOURCE_IRQ,
 		},
 	};
+
+	/*
+	 * If machine does not provide pdata, use the default one
+	 * which means no WP/CD support
+	 */
+	if (!pdata)
+		pdata = &default_esdhc_pdata;
 
 	return imx_add_platform_device("sdhci-esdhc-imx", data->id, res,
 			ARRAY_SIZE(res), pdata, sizeof(*pdata));
