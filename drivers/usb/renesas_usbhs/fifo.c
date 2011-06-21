@@ -831,7 +831,7 @@ static void usbhsf_dma_init(struct usbhs_priv *priv,
 					    &fifo->rx_slave);
 
 	if (fifo->tx_chan || fifo->rx_chan)
-		dev_info(dev, "enable DMAEngine (%s%s%s)\n",
+		dev_dbg(dev, "enable DMAEngine (%s%s%s)\n",
 			 fifo->name,
 			 fifo->tx_chan ? "[TX]" : "    ",
 			 fifo->rx_chan ? "[RX]" : "    ");
