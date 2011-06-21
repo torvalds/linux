@@ -400,10 +400,14 @@ a file off.
 
 --
 [mandatory]
-
---
-[mandatory]
 	->get_sb() is gone.  Switch to use of ->mount().  Typically it's just
 a matter of switching from calling get_sb_... to mount_... and changing the
 function type.  If you were doing it manually, just switch from setting ->mnt_root
 to some pointer to returning that pointer.  On errors return ERR_PTR(...).
+
+--
+[mandatory]
+	->permission(), generic_permission() and ->check_acl() have lost flags
+argument; instead of passing IPERM_FLAG_RCU we add MAY_NOT_BLOCK into mask.
+	generic_permission() has also lost the check_acl argument; if you want
+non-NULL to be used for that inode, put it into ->i_op->check_acl.
