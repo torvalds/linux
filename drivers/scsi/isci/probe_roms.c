@@ -125,7 +125,7 @@ enum sci_status isci_parse_oem_parameters(union scic_oem_parameters *oem_params,
 					  struct isci_orom *orom, int scu_index)
 {
 	/* check for valid inputs */
-	if (scu_index < 0 || scu_index > SCI_MAX_CONTROLLERS ||
+	if (scu_index < 0 || scu_index >= SCI_MAX_CONTROLLERS ||
 	    scu_index > orom->hdr.num_elements || !oem_params)
 		return -EINVAL;
 
