@@ -862,6 +862,7 @@ struct ath_hw {
 	u32 ent_mode;
 
 	bool is_clk_25mhz;
+	int (*get_mac_revision)(void);
 };
 
 struct ath_bus_ops {
