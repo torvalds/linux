@@ -491,16 +491,6 @@ Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 
 ----------------------------
 
-What:   access to nfsd auth cache through sys_nfsservctl or '.' files
-        in the 'nfsd' filesystem.
-When:   2.6.40
-Why:    This is a legacy interface which have been replaced by a more
-        dynamic cache.  Continuing to maintain this interface is an
-        unnecessary burden.
-Who:    NeilBrown <neilb@suse.de>
-
-----------------------------
-
 What:	cancel_rearming_delayed_work[queue]()
 When:	2.6.39
 

@@ -528,16 +528,9 @@ nfsd(void *vrqstp)
 			continue;
 		}
 
-
-		/* Lock the export hash tables for reading. */
-		exp_readlock();
-
 		validate_process_creds();
 		svc_process(rqstp);
 		validate_process_creds();
-
-		/* Unlock export hash tables */
-		exp_readunlock();
 	}
 
 	/* Clear signals before calling svc_exit_thread() */
