@@ -26,8 +26,6 @@ extern void s3c2412_sleep_enter(void);
 
 static void s3c2416_cpu_suspend(unsigned long arg)
 {
-	flush_cache_all();
-
 	/* enable wakeup sources regardless of battery state */
 	__raw_writel(S3C2443_PWRCFG_SLEEP, S3C2443_PWRCFG);
 

@@ -41,8 +41,6 @@ static void s3c2412_cpu_suspend(unsigned long arg)
 {
 	unsigned long tmp;
 
-	flush_cache_all();
-
 	/* set our standby method to sleep */
 
 	tmp = __raw_readl(S3C2412_PWRCFG);
