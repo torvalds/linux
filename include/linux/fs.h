@@ -744,7 +744,7 @@ struct inode {
 
 	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
 	unsigned int		i_flags;
-	unsigned int		i_state;
+	unsigned long		i_state;
 #ifdef CONFIG_SECURITY
 	void			*i_security;
 #endif

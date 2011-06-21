@@ -304,9 +304,6 @@ static int proc_sys_permission(struct inode *inode, int mask,unsigned int flags)
 	struct ctl_table *table;
 	int error;
 
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
-
 	/* Executable files are not allowed under /proc/sys/ */
 	if ((mask & MAY_EXEC) && S_ISREG(inode->i_mode))
 		return -EACCES;

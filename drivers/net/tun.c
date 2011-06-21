@@ -460,7 +460,23 @@ static u32 tun_net_fix_features(struct net_device *dev, u32 features)
 
 	return (features & tun->set_features) | (features & ~TUN_USER_FEATURES);
 }
-
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void tun_poll_controller(struct net_device *dev)
+{
+	/*
+	 * Tun only receives frames when:
+	 * 1) the char device endpoint gets data from user space
+	 * 2) the tun socket gets a sendmsg call from user space
+	 * Since both of those are syncronous operations, we are guaranteed
+	 * never to have pending data when we poll for it
+	 * so theres nothing to do here but return.
+	 * We need this though so netpoll recognizes us as an interface that
+	 * supports polling, which enables bridge devices in virt setups to
+	 * still use netconsole
+	 */
+	return;
+}
+#endif
 static const struct net_device_ops tun_netdev_ops = {
 	.ndo_uninit		= tun_net_uninit,
 	.ndo_open		= tun_net_open,
@@ -468,6 +484,9 @@ static const struct net_device_ops tun_netdev_ops = {
 	.ndo_start_xmit		= tun_net_xmit,
 	.ndo_change_mtu		= tun_net_change_mtu,
 	.ndo_fix_features	= tun_net_fix_features,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= tun_poll_controller,
+#endif
 };
 
 static const struct net_device_ops tap_netdev_ops = {
@@ -480,6 +499,9 @@ static const struct net_device_ops tap_netdev_ops = {
 	.ndo_set_multicast_list	= tun_net_mclist,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= tun_poll_controller,
+#endif
 };
 
 /* Initialize net device. */

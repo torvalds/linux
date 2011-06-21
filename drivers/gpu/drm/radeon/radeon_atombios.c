@@ -2607,6 +2607,10 @@ void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 v
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
 		return;
 
+	/* 0xff01 is a flag rather then an actual voltage */
+	if (voltage_level == 0xff01)
+		return;
+
 	switch (crev) {
 	case 1:
 		args.v1.ucVoltageType = voltage_type;
