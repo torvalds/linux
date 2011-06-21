@@ -910,33 +910,6 @@ void iwlagn_rx_replenish_now(struct iwl_priv *priv)
 	iwlagn_rx_queue_restock(priv);
 }
 
-/* Assumes that the skb field of the buffers in 'pool' is kept accurate.
- * If an SKB has been detached, the POOL needs to have its SKB set to NULL
- * This free routine walks the list of POOL entries and if SKB is set to
- * non NULL it is unmapped and freed
- */
-void iwlagn_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
-{
-	int i;
-	for (i = 0; i < RX_QUEUE_SIZE + RX_FREE_BUFFERS; i++) {
-		if (rxq->pool[i].page != NULL) {
-			dma_unmap_page(priv->bus.dev, rxq->pool[i].page_dma,
-				PAGE_SIZE << priv->hw_params.rx_page_order,
-				DMA_FROM_DEVICE);
-			__iwl_free_pages(priv, rxq->pool[i].page);
-			rxq->pool[i].page = NULL;
-		}
-	}
-
-	dma_free_coherent(priv->bus.dev, 4 * RX_QUEUE_SIZE,
-			  rxq->bd, rxq->bd_dma);
-	dma_free_coherent(priv->bus.dev,
-			  sizeof(struct iwl_rb_status),
-			  rxq->rb_stts, rxq->rb_stts_dma);
-	rxq->bd = NULL;
-	rxq->rb_stts  = NULL;
-}
-
 int iwlagn_rxq_stop(struct iwl_priv *priv)
 {
 

@@ -193,7 +193,6 @@ void iwlagn_rx_queue_restock(struct iwl_priv *priv);
 void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority);
 void iwlagn_rx_replenish(struct iwl_priv *priv);
 void iwlagn_rx_replenish_now(struct iwl_priv *priv);
-void iwlagn_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_rxq_stop(struct iwl_priv *priv);
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
 void iwl_setup_rx_handlers(struct iwl_priv *priv);

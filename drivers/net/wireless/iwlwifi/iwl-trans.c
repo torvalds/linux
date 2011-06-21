@@ -60,7 +60,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
- #include "iwl-dev.h"
+#include "iwl-dev.h"
 #include "iwl-trans.h"
 
 static int iwl_trans_rx_alloc(struct iwl_priv *priv)
@@ -78,12 +78,11 @@ static int iwl_trans_rx_alloc(struct iwl_priv *priv)
 		return -EINVAL;
 
 	/* Allocate the circular buffer of Read Buffer Descriptors (RBDs) */
-	/*Every descriptor is an __le32, hence its */
-	rxq->bd = dma_alloc_coherent(dev, 4 * RX_QUEUE_SIZE, &rxq->bd_dma,
-				     GFP_KERNEL);
+	rxq->bd = dma_alloc_coherent(dev, sizeof(__le32) * RX_QUEUE_SIZE,
+				     &rxq->bd_dma, GFP_KERNEL);
 	if (!rxq->bd)
 		goto err_bd;
-	memset(rxq->bd, 0, 4 * RX_QUEUE_SIZE);
+	memset(rxq->bd, 0, sizeof(__le32) * RX_QUEUE_SIZE);
 
 	/*Allocate the driver's pointer to receive buffer status */
 	rxq->rb_stts = dma_alloc_coherent(dev, sizeof(*rxq->rb_stts),
@@ -95,11 +94,32 @@ static int iwl_trans_rx_alloc(struct iwl_priv *priv)
 	return 0;
 
 err_rb_stts:
-	dma_free_coherent(dev, 4 * RX_QUEUE_SIZE, rxq->bd, rxq->bd_dma);
+	dma_free_coherent(dev, sizeof(__le32) * RX_QUEUE_SIZE,
+			rxq->bd, rxq->bd_dma);
 	memset(&rxq->bd_dma, 0, sizeof(rxq->bd_dma));
 	rxq->bd = NULL;
 err_bd:
 	return -ENOMEM;
+}
+
+static void iwl_trans_rxq_free_rx_bufs(struct iwl_priv *priv)
+{
+	struct iwl_rx_queue *rxq = &priv->rxq;
+	int i;
+
+	/* Fill the rx_used queue with _all_ of the Rx buffers */
+	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++) {
+		/* In the reset function, these buffers may have been allocated
+		 * to an SKB, so we need to unmap and free potential storage */
+		if (rxq->pool[i].page != NULL) {
+			dma_unmap_page(priv->bus.dev, rxq->pool[i].page_dma,
+				PAGE_SIZE << priv->hw_params.rx_page_order,
+				DMA_FROM_DEVICE);
+			__iwl_free_pages(priv, rxq->pool[i].page);
+			rxq->pool[i].page = NULL;
+		}
+		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
+	}
 }
 
 static int iwl_trans_rx_init(struct iwl_priv *priv)
@@ -118,19 +138,7 @@ static int iwl_trans_rx_init(struct iwl_priv *priv)
 	INIT_LIST_HEAD(&rxq->rx_free);
 	INIT_LIST_HEAD(&rxq->rx_used);
 
-	/* Fill the rx_used queue with _all_ of the Rx buffers */
-	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++) {
-		/* In the reset function, these buffers may have been allocated
-		 * to an SKB, so we need to unmap and free potential storage */
-		if (rxq->pool[i].page != NULL) {
-			dma_unmap_page(priv->bus.dev, rxq->pool[i].page_dma,
-				PAGE_SIZE << priv->hw_params.rx_page_order,
-				DMA_FROM_DEVICE);
-			__iwl_free_pages(priv, rxq->pool[i].page);
-			rxq->pool[i].page = NULL;
-		}
-		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
-	}
+	iwl_trans_rxq_free_rx_bufs(priv);
 
 	for (i = 0; i < RX_QUEUE_SIZE; i++)
 		rxq->queue[i] = NULL;
@@ -145,8 +153,40 @@ static int iwl_trans_rx_init(struct iwl_priv *priv)
 	return 0;
 }
 
+static void iwl_trans_rx_free(struct iwl_priv *priv)
+{
+	struct iwl_rx_queue *rxq = &priv->rxq;
+	unsigned long flags;
+
+	/*if rxq->bd is NULL, it means that nothing has been allocated,
+	 * exit now */
+	if (!rxq->bd) {
+		IWL_DEBUG_INFO(priv, "Free NULL rx context\n");
+		return;
+	}
+
+	spin_lock_irqsave(&rxq->lock, flags);
+	iwl_trans_rxq_free_rx_bufs(priv);
+	spin_unlock_irqrestore(&rxq->lock, flags);
+
+	dma_free_coherent(priv->bus.dev, sizeof(__le32) * RX_QUEUE_SIZE,
+			  rxq->bd, rxq->bd_dma);
+	memset(&rxq->bd_dma, 0, sizeof(rxq->bd_dma));
+	rxq->bd = NULL;
+
+	if (rxq->rb_stts)
+		dma_free_coherent(priv->bus.dev,
+				  sizeof(struct iwl_rb_status),
+				  rxq->rb_stts, rxq->rb_stts_dma);
+	else
+		IWL_DEBUG_INFO(priv, "Free rxq->rb_stts which is NULL\n");
+	memset(&rxq->rb_stts_dma, 0, sizeof(rxq->rb_stts_dma));
+	rxq->rb_stts = NULL;
+}
+
 static const struct iwl_trans_ops trans_ops = {
 	.rx_init = iwl_trans_rx_init,
+	.rx_free = iwl_trans_rx_free,
 };
 
 void iwl_trans_register(struct iwl_trans *trans)
