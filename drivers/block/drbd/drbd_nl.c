@@ -2317,7 +2317,7 @@ static enum drbd_state_rv conn_try_disconnect(struct drbd_connection *connection
 		 * The state handling only uses drbd_thread_stop_nowait(),
 		 * we want to really wait here until the receiver is no more.
 		 */
-		drbd_thread_stop(&adm_ctx.connection->receiver);
+		drbd_thread_stop(&connection->receiver);
 
 		/* Race breaker.  This additional state change request may be
 		 * necessary, if this was a forced disconnect during a receiver
