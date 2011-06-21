@@ -859,7 +859,7 @@ no_csum:
 static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	int queue;
+	int length, queue;
 	struct tx_queue *txq;
 	struct netdev_queue *nq;
 
@@ -881,10 +881,12 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
+	length = skb->len;
+
 	if (!txq_submit_skb(txq, skb)) {
 		int entries_left;
 
-		txq->tx_bytes += skb->len;
+		txq->tx_bytes += length;
 		txq->tx_packets++;
 
 		entries_left = txq->tx_ring_size - txq->tx_desc_count;
