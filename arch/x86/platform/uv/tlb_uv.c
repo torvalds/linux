@@ -370,8 +370,7 @@ static void do_reset(void *ptr)
  * Use IPI to get all target uvhubs to release resources held by
  * a given sending cpu number.
  */
-static void reset_with_ipi(struct bau_targ_hubmask *distribution,
-						struct bau_control *bcp)
+static void reset_with_ipi(struct pnmask *distribution, struct bau_control *bcp)
 {
 	int pnode;
 	int apnode;
@@ -384,7 +383,7 @@ static void reset_with_ipi(struct bau_targ_hubmask *distribution,
 	reset_args.sender = sender;
 	cpus_clear(mask);
 	/* find a single cpu for each uvhub in this distribution mask */
-	maskbits = sizeof(struct bau_targ_hubmask) * BITSPERBYTE;
+	maskbits = sizeof(struct pnmask) * BITSPERBYTE;
 	/* each bit is a pnode relative to the partition base pnode */
 	for (pnode = 0; pnode < maskbits; pnode++) {
 		int cpu;
