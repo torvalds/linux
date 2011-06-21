@@ -1135,7 +1135,7 @@ void __init at91_set_serial_console(unsigned portnr)
 {
 	if (portnr < ATMEL_MAX_UART) {
 		atmel_default_console_device = at91_uarts[portnr];
-		at91rm9200_set_console_clock(portnr);
+		at91rm9200_set_console_clock(at91_uarts[portnr]->id);
 	}
 }
 
