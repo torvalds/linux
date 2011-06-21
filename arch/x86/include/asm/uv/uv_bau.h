@@ -526,72 +526,72 @@ struct bau_control {
 	struct hub_and_pnode	*thp;
 };
 
-static unsigned long read_mmr_uv2_status(void)
+static inline unsigned long read_mmr_uv2_status(void)
 {
 	return read_lmmr(UV2H_LB_BAU_SB_ACTIVATION_STATUS_2);
 }
 
-static void write_mmr_data_broadcast(int pnode, unsigned long mmr_image)
+static inline void write_mmr_data_broadcast(int pnode, unsigned long mmr_image)
 {
 	write_gmmr(pnode, UVH_BAU_DATA_BROADCAST, mmr_image);
 }
 
-static void write_mmr_descriptor_base(int pnode, unsigned long mmr_image)
+static inline void write_mmr_descriptor_base(int pnode, unsigned long mmr_image)
 {
 	write_gmmr(pnode, UVH_LB_BAU_SB_DESCRIPTOR_BASE, mmr_image);
 }
 
-static void write_mmr_activation(unsigned long index)
+static inline void write_mmr_activation(unsigned long index)
 {
 	write_lmmr(UVH_LB_BAU_SB_ACTIVATION_CONTROL, index);
 }
 
-static void write_gmmr_activation(int pnode, unsigned long mmr_image)
+static inline void write_gmmr_activation(int pnode, unsigned long mmr_image)
 {
 	write_gmmr(pnode, UVH_LB_BAU_SB_ACTIVATION_CONTROL, mmr_image);
 }
 
-static void write_mmr_payload_first(int pnode, unsigned long mmr_image)
+static inline void write_mmr_payload_first(int pnode, unsigned long mmr_image)
 {
 	write_gmmr(pnode, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_FIRST, mmr_image);
 }
 
-static void write_mmr_payload_tail(int pnode, unsigned long mmr_image)
+static inline void write_mmr_payload_tail(int pnode, unsigned long mmr_image)
 {
 	write_gmmr(pnode, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_TAIL, mmr_image);
 }
 
-static void write_mmr_payload_last(int pnode, unsigned long mmr_image)
+static inline void write_mmr_payload_last(int pnode, unsigned long mmr_image)
 {
 	write_gmmr(pnode, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_LAST, mmr_image);
 }
 
-static void write_mmr_misc_control(int pnode, unsigned long mmr_image)
+static inline void write_mmr_misc_control(int pnode, unsigned long mmr_image)
 {
 	write_gmmr(pnode, UVH_LB_BAU_MISC_CONTROL, mmr_image);
 }
 
-static unsigned long read_mmr_misc_control(int pnode)
+static inline unsigned long read_mmr_misc_control(int pnode)
 {
 	return read_gmmr(pnode, UVH_LB_BAU_MISC_CONTROL);
 }
 
-static void write_mmr_sw_ack(unsigned long mr)
+static inline void write_mmr_sw_ack(unsigned long mr)
 {
 	uv_write_local_mmr(UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE_ALIAS, mr);
 }
 
-static unsigned long read_mmr_sw_ack(void)
+static inline unsigned long read_mmr_sw_ack(void)
 {
 	return read_lmmr(UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE);
 }
 
-static unsigned long read_gmmr_sw_ack(int pnode)
+static inline unsigned long read_gmmr_sw_ack(int pnode)
 {
 	return read_gmmr(pnode, UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE);
 }
 
-static void write_mmr_data_config(int pnode, unsigned long mr)
+static inline void write_mmr_data_config(int pnode, unsigned long mr)
 {
 	uv_write_global_mmr64(pnode, UVH_BAU_DATA_CONFIG, mr);
 }
