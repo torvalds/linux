@@ -275,6 +275,108 @@ static ssize_t manager_alpha_blending_enabled_store(
 	return size;
 }
 
+static ssize_t manager_cpr_enable_show(struct omap_overlay_manager *mgr,
+		char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", mgr->info.cpr_enable);
+}
+
+static ssize_t manager_cpr_enable_store(struct omap_overlay_manager *mgr,
+		const char *buf, size_t size)
+{
+	struct omap_overlay_manager_info info;
+	int v;
+	int r;
+	bool enable;
+
+	if (!dss_has_feature(FEAT_CPR))
+		return -ENODEV;
+
+	r = kstrtoint(buf, 0, &v);
+	if (r)
+		return r;
+
+	enable = !!v;
+
+	mgr->get_manager_info(mgr, &info);
+
+	if (info.cpr_enable == enable)
+		return size;
+
+	info.cpr_enable = enable;
+
+	r = mgr->set_manager_info(mgr, &info);
+	if (r)
+		return r;
+
+	r = mgr->apply(mgr);
+	if (r)
+		return r;
+
+	return size;
+}
+
+static ssize_t manager_cpr_coef_show(struct omap_overlay_manager *mgr,
+		char *buf)
+{
+	struct omap_overlay_manager_info info;
+
+	mgr->get_manager_info(mgr, &info);
+
+	return snprintf(buf, PAGE_SIZE,
+			"%d %d %d %d %d %d %d %d %d\n",
+			info.cpr_coefs.rr,
+			info.cpr_coefs.rg,
+			info.cpr_coefs.rb,
+			info.cpr_coefs.gr,
+			info.cpr_coefs.gg,
+			info.cpr_coefs.gb,
+			info.cpr_coefs.br,
+			info.cpr_coefs.bg,
+			info.cpr_coefs.bb);
+}
+
+static ssize_t manager_cpr_coef_store(struct omap_overlay_manager *mgr,
+		const char *buf, size_t size)
+{
+	struct omap_overlay_manager_info info;
+	struct omap_dss_cpr_coefs coefs;
+	int r, i;
+	s16 *arr;
+
+	if (!dss_has_feature(FEAT_CPR))
+		return -ENODEV;
+
+	if (sscanf(buf, "%hd %hd %hd %hd %hd %hd %hd %hd %hd",
+				&coefs.rr, &coefs.rg, &coefs.rb,
+				&coefs.gr, &coefs.gg, &coefs.gb,
+				&coefs.br, &coefs.bg, &coefs.bb) != 9)
+		return -EINVAL;
+
+	arr = (s16[]){ coefs.rr, coefs.rg, coefs.rb,
+		coefs.gr, coefs.gg, coefs.gb,
+		coefs.br, coefs.bg, coefs.bb };
+
+	for (i = 0; i < 9; ++i) {
+		if (arr[i] < -512 || arr[i] > 511)
+			return -EINVAL;
+	}
+
+	mgr->get_manager_info(mgr, &info);
+
+	info.cpr_coefs = coefs;
+
+	r = mgr->set_manager_info(mgr, &info);
+	if (r)
+		return r;
+
+	r = mgr->apply(mgr);
+	if (r)
+		return r;
+
+	return size;
+}
+
 struct manager_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct omap_overlay_manager *, char *);
@@ -300,6 +402,12 @@ static MANAGER_ATTR(trans_key_enabled, S_IRUGO|S_IWUSR,
 static MANAGER_ATTR(alpha_blending_enabled, S_IRUGO|S_IWUSR,
 		manager_alpha_blending_enabled_show,
 		manager_alpha_blending_enabled_store);
+static MANAGER_ATTR(cpr_enable, S_IRUGO|S_IWUSR,
+		manager_cpr_enable_show,
+		manager_cpr_enable_store);
+static MANAGER_ATTR(cpr_coef, S_IRUGO|S_IWUSR,
+		manager_cpr_coef_show,
+		manager_cpr_coef_store);
 
 
 static struct attribute *manager_sysfs_attrs[] = {
@@ -310,6 +418,8 @@ static struct attribute *manager_sysfs_attrs[] = {
 	&manager_attr_trans_key_value.attr,
 	&manager_attr_trans_key_enabled.attr,
 	&manager_attr_alpha_blending_enabled.attr,
+	&manager_attr_cpr_enable.attr,
+	&manager_attr_cpr_coef.attr,
 	NULL
 };
 
@@ -858,6 +968,10 @@ static void configure_manager(enum omap_channel channel)
 	dispc_set_trans_key(channel, mi->trans_key_type, mi->trans_key);
 	dispc_enable_trans_key(channel, mi->trans_enabled);
 	dispc_enable_alpha_blending(channel, mi->alpha_enabled);
+	if (dss_has_feature(FEAT_CPR)) {
+		dispc_enable_cpr(channel, mi->cpr_enable);
+		dispc_set_cpr_coef(channel, &mi->cpr_coefs);
+	}
 }
 
 /* configure_dispc() tries to write values from cache to shadow registers.

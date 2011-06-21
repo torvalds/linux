@@ -402,6 +402,9 @@ void dispc_setup_plane_fifo(enum omap_plane plane, u32 low, u32 high);
 void dispc_enable_fifomerge(bool enable);
 void dispc_set_burst_size(enum omap_plane plane,
 		enum omap_burst_size burst_size);
+void dispc_enable_cpr(enum omap_channel channel, bool enable);
+void dispc_set_cpr_coef(enum omap_channel channel,
+		struct omap_dss_cpr_coefs *coefs);
 
 void dispc_set_plane_ba0(enum omap_plane plane, u32 paddr);
 void dispc_set_plane_ba1(enum omap_plane plane, u32 paddr);

@@ -292,6 +292,12 @@ extern const struct omap_video_timings omap_dss_pal_timings;
 extern const struct omap_video_timings omap_dss_ntsc_timings;
 #endif
 
+struct omap_dss_cpr_coefs {
+	s16 rr, rg, rb;
+	s16 gr, gg, gb;
+	s16 br, bg, bb;
+};
+
 struct omap_overlay_info {
 	bool enabled;
 
@@ -351,6 +357,9 @@ struct omap_overlay_manager_info {
 	bool trans_enabled;
 
 	bool alpha_enabled;
+
+	bool cpr_enable;
+	struct omap_dss_cpr_coefs cpr_coefs;
 };
 
 struct omap_overlay_manager {
