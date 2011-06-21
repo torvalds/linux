@@ -571,10 +571,9 @@ static int h245_help(struct sk_buff *skb, unsigned int protoff,
 	int ret;
 
 	/* Until there's been traffic both ways, don't look in packets. */
-	if (ctinfo != IP_CT_ESTABLISHED &&
-	    ctinfo != IP_CT_ESTABLISHED + IP_CT_IS_REPLY) {
+	if (ctinfo != IP_CT_ESTABLISHED && ctinfo != IP_CT_ESTABLISHED_REPLY)
 		return NF_ACCEPT;
-	}
+
 	pr_debug("nf_ct_h245: skblen = %u\n", skb->len);
 
 	spin_lock_bh(&nf_h323_lock);
@@ -1125,10 +1124,9 @@ static int q931_help(struct sk_buff *skb, unsigned int protoff,
 	int ret;
 
 	/* Until there's been traffic both ways, don't look in packets. */
-	if (ctinfo != IP_CT_ESTABLISHED &&
-	    ctinfo != IP_CT_ESTABLISHED + IP_CT_IS_REPLY) {
+	if (ctinfo != IP_CT_ESTABLISHED && ctinfo != IP_CT_ESTABLISHED_REPLY)
 		return NF_ACCEPT;
-	}
+
 	pr_debug("nf_ct_q931: skblen = %u\n", skb->len);
 
 	spin_lock_bh(&nf_h323_lock);

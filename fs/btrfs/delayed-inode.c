@@ -297,7 +297,6 @@ struct btrfs_delayed_item *btrfs_alloc_delayed_item(u32 data_len)
 		item->data_len = data_len;
 		item->ins_or_del = 0;
 		item->bytes_reserved = 0;
-		item->block_rsv = NULL;
 		item->delayed_node = NULL;
 		atomic_set(&item->refs, 1);
 	}
@@ -593,10 +592,8 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 
 	num_bytes = btrfs_calc_trans_metadata_size(root, 1);
 	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes);
-	if (!ret) {
+	if (!ret)
 		item->bytes_reserved = num_bytes;
-		item->block_rsv = dst_rsv;
-	}
 
 	return ret;
 }
@@ -604,10 +601,13 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 static void btrfs_delayed_item_release_metadata(struct btrfs_root *root,
 						struct btrfs_delayed_item *item)
 {
+	struct btrfs_block_rsv *rsv;
+
 	if (!item->bytes_reserved)
 		return;
 
-	btrfs_block_rsv_release(root, item->block_rsv,
+	rsv = &root->fs_info->global_block_rsv;
+	btrfs_block_rsv_release(root, rsv,
 				item->bytes_reserved);
 }
 
@@ -678,6 +678,7 @@ static int btrfs_batch_insert_items(struct btrfs_trans_handle *trans,
 	INIT_LIST_HEAD(&head);
 
 	next = item;
+	nitems = 0;
 
 	/*
 	 * count the number of the continuous items that we can insert in batch
@@ -1013,12 +1014,16 @@ int btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_root *delayed_root;
 	struct btrfs_delayed_node *curr_node, *prev_node;
 	struct btrfs_path *path;
+	struct btrfs_block_rsv *block_rsv;
 	int ret = 0;
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 	path->leave_spinning = 1;
+
+	block_rsv = trans->block_rsv;
+	trans->block_rsv = &root->fs_info->global_block_rsv;
 
 	delayed_root = btrfs_get_delayed_root(root);
 
@@ -1044,6 +1049,7 @@ int btrfs_run_delayed_items(struct btrfs_trans_handle *trans,
 	}
 
 	btrfs_free_path(path);
+	trans->block_rsv = block_rsv;
 	return ret;
 }
 
@@ -1051,12 +1057,16 @@ static int __btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 					      struct btrfs_delayed_node *node)
 {
 	struct btrfs_path *path;
+	struct btrfs_block_rsv *block_rsv;
 	int ret;
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 	path->leave_spinning = 1;
+
+	block_rsv = trans->block_rsv;
+	trans->block_rsv = &node->root->fs_info->global_block_rsv;
 
 	ret = btrfs_insert_delayed_items(trans, path, node->root, node);
 	if (!ret)
@@ -1065,6 +1075,7 @@ static int __btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 		ret = btrfs_update_delayed_inode(trans, node->root, path, node);
 	btrfs_free_path(path);
 
+	trans->block_rsv = block_rsv;
 	return ret;
 }
 
@@ -1115,6 +1126,7 @@ static void btrfs_async_run_delayed_node_done(struct btrfs_work *work)
 	struct btrfs_path *path;
 	struct btrfs_delayed_node *delayed_node = NULL;
 	struct btrfs_root *root;
+	struct btrfs_block_rsv *block_rsv;
 	unsigned long nr = 0;
 	int need_requeue = 0;
 	int ret;
@@ -1129,9 +1141,12 @@ static void btrfs_async_run_delayed_node_done(struct btrfs_work *work)
 	delayed_node = async_node->delayed_node;
 	root = delayed_node->root;
 
-	trans = btrfs_join_transaction(root, 0);
+	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		goto free_path;
+
+	block_rsv = trans->block_rsv;
+	trans->block_rsv = &root->fs_info->global_block_rsv;
 
 	ret = btrfs_insert_delayed_items(trans, path, root, delayed_node);
 	if (!ret)
@@ -1175,6 +1190,7 @@ static void btrfs_async_run_delayed_node_done(struct btrfs_work *work)
 
 	nr = trans->blocks_used;
 
+	trans->block_rsv = block_rsv;
 	btrfs_end_transaction_dmeta(trans, root);
 	__btrfs_btree_balance_dirty(root, nr);
 free_path:
@@ -1219,6 +1235,13 @@ again:
 		goto again;
 
 	return 0;
+}
+
+void btrfs_assert_delayed_root_empty(struct btrfs_root *root)
+{
+	struct btrfs_delayed_root *delayed_root;
+	delayed_root = btrfs_get_delayed_root(root);
+	WARN_ON(btrfs_first_delayed_node(delayed_root));
 }
 
 void btrfs_balance_delayed_items(struct btrfs_root *root)
@@ -1572,8 +1595,7 @@ static void fill_stack_inode_item(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_inode_transid(inode_item, trans->transid);
 	btrfs_set_stack_inode_rdev(inode_item, inode->i_rdev);
 	btrfs_set_stack_inode_flags(inode_item, BTRFS_I(inode)->flags);
-	btrfs_set_stack_inode_block_group(inode_item,
-					  BTRFS_I(inode)->block_group);
+	btrfs_set_stack_inode_block_group(inode_item, 0);
 
 	btrfs_set_stack_timespec_sec(btrfs_inode_atime(inode_item),
 				     inode->i_atime.tv_sec);
@@ -1595,7 +1617,7 @@ int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root, struct inode *inode)
 {
 	struct btrfs_delayed_node *delayed_node;
-	int ret;
+	int ret = 0;
 
 	delayed_node = btrfs_get_or_create_delayed_node(inode);
 	if (IS_ERR(delayed_node))

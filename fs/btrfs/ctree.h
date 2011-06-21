@@ -930,7 +930,6 @@ struct btrfs_fs_info {
 	 * is required instead of the faster short fsync log commits
 	 */
 	u64 last_trans_log_full_commit;
-	u64 open_ioctl_trans;
 	unsigned long mount_opt:20;
 	unsigned long compress_type:4;
 	u64 max_inline;
@@ -947,7 +946,6 @@ struct btrfs_fs_info {
 	struct super_block *sb;
 	struct inode *btree_inode;
 	struct backing_dev_info bdi;
-	struct mutex trans_mutex;
 	struct mutex tree_log_mutex;
 	struct mutex transaction_kthread_mutex;
 	struct mutex cleaner_mutex;
@@ -968,6 +966,13 @@ struct btrfs_fs_info {
 	struct rw_semaphore subvol_sem;
 	struct srcu_struct subvol_srcu;
 
+	spinlock_t trans_lock;
+	/*
+	 * the reloc mutex goes with the trans lock, it is taken
+	 * during commit to protect us from the relocation code
+	 */
+	struct mutex reloc_mutex;
+
 	struct list_head trans_list;
 	struct list_head hashers;
 	struct list_head dead_roots;
@@ -980,6 +985,7 @@ struct btrfs_fs_info {
 	atomic_t async_submit_draining;
 	atomic_t nr_async_bios;
 	atomic_t async_delalloc_pages;
+	atomic_t open_ioctl_trans;
 
 	/*
 	 * this is used by the balancing code to wait for all the pending
@@ -1044,6 +1050,7 @@ struct btrfs_fs_info {
 	int closing;
 	int log_root_recovering;
 	int enospc_unlink;
+	int trans_no_join;
 
 	u64 total_pinned;
 
@@ -1065,7 +1072,6 @@ struct btrfs_fs_info {
 	struct reloc_control *reloc_ctl;
 
 	spinlock_t delalloc_lock;
-	spinlock_t new_trans_lock;
 	u64 delalloc_bytes;
 
 	/* data_alloc_cluster is only used in ssd mode */
@@ -1172,6 +1178,14 @@ struct btrfs_root {
 	u32 type;
 
 	u64 highest_objectid;
+
+	/* btrfs_record_root_in_trans is a multi-step process,
+	 * and it can race with the balancing code.   But the
+	 * race is very small, and only the first time the root
+	 * is added to each transaction.  So in_trans_setup
+	 * is used to tell us when more checks are required
+	 */
+	unsigned long in_trans_setup;
 	int ref_cows;
 	int track_dirty;
 	int in_radix;
@@ -1181,7 +1195,6 @@ struct btrfs_root {
 	struct btrfs_key defrag_max;
 	int defrag_running;
 	char *name;
-	int in_sysfs;
 
 	/* the dirty list is only used by non-reference counted roots */
 	struct list_head dirty_list;
@@ -1340,6 +1353,7 @@ struct btrfs_ioctl_defrag_range_args {
 #define BTRFS_MOUNT_USER_SUBVOL_RM_ALLOWED (1 << 14)
 #define BTRFS_MOUNT_ENOSPC_DEBUG	 (1 << 15)
 #define BTRFS_MOUNT_AUTO_DEFRAG		(1 << 16)
+#define BTRFS_MOUNT_INODE_MAP_CACHE	(1 << 17)
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
@@ -2238,6 +2252,9 @@ int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src_rsv,
 void btrfs_block_rsv_release(struct btrfs_root *root,
 			     struct btrfs_block_rsv *block_rsv,
 			     u64 num_bytes);
+int btrfs_truncate_reserve_metadata(struct btrfs_trans_handle *trans,
+				    struct btrfs_root *root,
+				    struct btrfs_block_rsv *rsv);
 int btrfs_set_block_group_ro(struct btrfs_root *root,
 			     struct btrfs_block_group_cache *cache);
 int btrfs_set_block_group_rw(struct btrfs_root *root,
@@ -2350,6 +2367,15 @@ int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,
 			struct extent_buffer *node,
 			struct extent_buffer *parent);
+static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
+{
+	/*
+	 * Get synced with close_ctree()
+	 */
+	smp_mb();
+	return fs_info->closing;
+}
+
 /* root-item.c */
 int btrfs_find_root_ref(struct btrfs_root *tree_root,
 			struct btrfs_path *path,
@@ -2512,8 +2538,7 @@ int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end,
 int btrfs_writepages(struct address_space *mapping,
 		     struct writeback_control *wbc);
 int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *new_root,
-			     u64 new_dirid, u64 alloc_hint);
+			     struct btrfs_root *new_root, u64 new_dirid);
 int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 			 size_t size, struct bio *bio, unsigned long bio_flags);
 

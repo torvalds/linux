@@ -517,7 +517,7 @@ irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 	if (de_iir & DE_PIPEA_VBLANK_IVB)
 		drm_handle_vblank(dev, 0);
 
-	if (de_iir & DE_PIPEB_VBLANK_IVB);
+	if (de_iir & DE_PIPEB_VBLANK_IVB)
 		drm_handle_vblank(dev, 1);
 
 	/* check event from PCH */
@@ -1740,6 +1740,16 @@ void ironlake_irq_preinstall(struct drm_device *dev)
 		INIT_WORK(&dev_priv->rps_work, gen6_pm_rps_work);
 
 	I915_WRITE(HWSTAM, 0xeffe);
+	if (IS_GEN6(dev)) {
+		/* Workaround stalls observed on Sandy Bridge GPUs by
+		 * making the blitter command streamer generate a
+		 * write to the Hardware Status Page for
+		 * MI_USER_INTERRUPT.  This appears to serialize the
+		 * previous seqno write out before the interrupt
+		 * happens.
+		 */
+		I915_WRITE(GEN6_BLITTER_HWSTAM, ~GEN6_BLITTER_USER_INTERRUPT);
+	}
 
 	/* XXX hotplug from PCH */
 

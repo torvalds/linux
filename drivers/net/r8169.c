@@ -1635,7 +1635,7 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 	 *
 	 * (RTL_R32(TxConfig) & 0x700000) == 0x200000 ? 8101Eb : 8101Ec
 	 */
-	static const struct {
+	static const struct rtl_mac_info {
 		u32 mask;
 		u32 val;
 		int mac_version;
@@ -1703,7 +1703,8 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 
 		/* Catch-all */
 		{ 0x00000000, 0x00000000,	RTL_GIGA_MAC_NONE   }
-	}, *p = mac_info;
+	};
+	const struct rtl_mac_info *p = mac_info;
 	u32 reg;
 
 	reg = RTL_R32(TxConfig);
@@ -3799,7 +3800,7 @@ static void rtl_set_rx_max_size(void __iomem *ioaddr, unsigned int rx_buf_sz)
 
 static void rtl8169_set_magic_reg(void __iomem *ioaddr, unsigned mac_version)
 {
-	static const struct {
+	static const struct rtl_cfg2_info {
 		u32 mac_version;
 		u32 clk;
 		u32 val;
@@ -3808,7 +3809,8 @@ static void rtl8169_set_magic_reg(void __iomem *ioaddr, unsigned mac_version)
 		{ RTL_GIGA_MAC_VER_05, PCI_Clock_66MHz, 0x000fffff },
 		{ RTL_GIGA_MAC_VER_06, PCI_Clock_33MHz, 0x00ffff00 }, // 8110SCe
 		{ RTL_GIGA_MAC_VER_06, PCI_Clock_66MHz, 0x00ffffff }
-	}, *p = cfg2_info;
+	};
+	const struct rtl_cfg2_info *p = cfg2_info;
 	unsigned int i;
 	u32 clk;
 

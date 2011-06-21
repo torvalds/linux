@@ -1739,7 +1739,7 @@ S:	Supported
 F:	drivers/net/enic/
 
 CIRRUS LOGIC EP93XX ETHERNET DRIVER
-M:	Lennert Buytenhek <kernel@wantstofly.org>
+M:	Hartley Sweeten <hsweeten@visionengravers.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/arm/ep93xx_eth.c
@@ -1889,7 +1889,6 @@ L:	cpufreq@vger.kernel.org
 W:	http://www.codemonkey.org.uk/projects/cpufreq/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davej/cpufreq.git
 S:	Maintained
-F:	arch/x86/kernel/cpu/cpufreq/
 F:	drivers/cpufreq/
 F:	include/linux/cpufreq.h
 
@@ -2292,8 +2291,7 @@ F:	drivers/scsi/eata_pio.*
 
 EBTABLES
 M:	Bart De Schuymer <bart.de.schuymer@pandora.be>
-L:	ebtables-user@lists.sourceforge.net
-L:	ebtables-devel@lists.sourceforge.net
+L:	netfilter-devel@vger.kernel.org
 W:	http://ebtables.sourceforge.net/
 S:	Maintained
 F:	include/linux/netfilter_bridge/ebt_*.h
@@ -3820,6 +3818,12 @@ S:	Maintained
 F:	drivers/leds/
 F:	include/linux/leds.h
 
+LEGACY EEPROM DRIVER
+M:	Jean Delvare <khali@linux-fr.org>
+S:	Maintained
+F:	Documentation/misc-devices/eeprom
+F:	drivers/misc/eeprom/eeprom.c
+
 LEGO USB Tower driver
 M:	Juergen Stuber <starblue@users.sourceforge.net>
 L:	legousb-devel@lists.sourceforge.net
@@ -4145,7 +4149,7 @@ F:	include/linux/mm.h
 F:	mm/
 
 MEMORY RESOURCE CONTROLLER
-M:	Balbir Singh <balbir@linux.vnet.ibm.com>
+M:	Balbir Singh <bsingharora@gmail.com>
 M:	Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 M:	KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 L:	linux-mm@kvack.org
@@ -4252,8 +4256,7 @@ F:	drivers/mmc/
 F:	include/linux/mmc/
 
 MULTIMEDIA CARD (MMC) ETC. OVER SPI
-M:	David Brownell <dbrownell@users.sourceforge.net>
-S:	Odd Fixes
+S:	Orphan
 F:	drivers/mmc/host/mmc_spi.c
 F:	include/linux/spi/mmc_spi.h
 
@@ -4603,7 +4606,6 @@ F:	drivers/media/video/omap3isp/*
 
 OMAP USB SUPPORT
 M:	Felipe Balbi <balbi@ti.com>
-M:	David Brownell <dbrownell@users.sourceforge.net>
 L:	linux-usb@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
@@ -4892,7 +4894,7 @@ F:	mm/percpu*.c
 F:	arch/*/include/asm/percpu.h
 
 PER-TASK DELAY ACCOUNTING
-M:	Balbir Singh <balbir@linux.vnet.ibm.com>
+M:	Balbir Singh <bsingharora@gmail.com>
 S:	Maintained
 F:	include/linux/delayacct.h
 F:	kernel/delayacct.c
@@ -4947,6 +4949,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/epip/linux-2.6-unicore32.gi
 F:	drivers/input/serio/i8042-unicore32io.h
 F:	drivers/i2c/busses/i2c-puv3.c
 F:	drivers/video/fb-puv3.c
+F:	drivers/rtc/rtc-puv3.c
 
 PMC SIERRA MaxRAID DRIVER
 M:	Anil Ravindranath <anil_ravindranath@pmc-sierra.com>
@@ -5984,7 +5987,6 @@ F:	Documentation/serial/specialix.txt
 F:	drivers/staging/tty/specialix*
 
 SPI SUBSYSTEM
-M:	David Brownell <dbrownell@users.sourceforge.net>
 M:	Grant Likely <grant.likely@secretlab.ca>
 L:	spi-devel-general@lists.sourceforge.net
 Q:	http://patchwork.kernel.org/project/spi-devel-general/list/
@@ -6100,7 +6102,7 @@ F:	include/target/
 F:	Documentation/target/
 
 TASKSTATS STATISTICS INTERFACE
-M:	Balbir Singh <balbir@linux.vnet.ibm.com>
+M:	Balbir Singh <bsingharora@gmail.com>
 S:	Maintained
 F:	Documentation/accounting/taskstats*
 F:	include/linux/taskstats*
@@ -6432,9 +6434,8 @@ S:	Maintained
 F:	drivers/usb/misc/rio500*
 
 USB EHCI DRIVER
-M:	David Brownell <dbrownell@users.sourceforge.net>
 L:	linux-usb@vger.kernel.org
-S:	Odd Fixes
+S:	Orphan
 F:	Documentation/usb/ehci.txt
 F:	drivers/usb/host/ehci*
 
@@ -6448,9 +6449,10 @@ S:	Maintained
 F:	drivers/media/video/et61x251/
 
 USB GADGET/PERIPHERAL SUBSYSTEM
-M:	David Brownell <dbrownell@users.sourceforge.net>
+M:	Felipe Balbi <balbi@ti.com>
 L:	linux-usb@vger.kernel.org
 W:	http://www.linux-usb.org/gadget
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 S:	Maintained
 F:	drivers/usb/gadget/
 F:	include/linux/usb/gadget*
@@ -6460,7 +6462,7 @@ M:	Jiri Kosina <jkosina@suse.cz>
 L:	linux-usb@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/hid.git
 S:	Maintained
-F:	Documentation/usb/hiddev.txt
+F:	Documentation/hid/hiddev.txt
 F:	drivers/hid/usbhid/
 
 USB ISP116X DRIVER
@@ -6492,9 +6494,8 @@ S:	Maintained
 F:	sound/usb/midi.*
 
 USB OHCI DRIVER
-M:	David Brownell <dbrownell@users.sourceforge.net>
 L:	linux-usb@vger.kernel.org
-S:	Odd Fixes
+S:	Orphan
 F:	Documentation/usb/ohci.txt
 F:	drivers/usb/host/ohci*
 
@@ -6719,6 +6720,14 @@ M:	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 S:	Maintained
 F:	Documentation/filesystems/vfat.txt
 F:	fs/fat/
+
+VIDEOBUF2 FRAMEWORK
+M:	Pawel Osciak <pawel@osciak.com>
+M:	Marek Szyprowski <m.szyprowski@samsung.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/video/videobuf2-*
+F:	include/media/videobuf2-*
 
 VIRTIO CONSOLE DRIVER
 M:	Amit Shah <amit.shah@redhat.com>
@@ -6996,6 +7005,13 @@ L:	platform-driver-x86@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mjg59/platform-drivers-x86.git
 S:	Maintained
 F:	drivers/platform/x86
+
+X86 MCE INFRASTRUCTURE
+M:	Tony Luck <tony.luck@intel.com>
+M:	Borislav Petkov <bp@amd64.org>
+L:	linux-edac@vger.kernel.org
+S:	Maintained
+F:	arch/x86/kernel/cpu/mcheck/*
 
 XEN HYPERVISOR INTERFACE
 M:	Jeremy Fitzhardinge <jeremy.fitzhardinge@citrix.com>

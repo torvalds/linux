@@ -161,7 +161,8 @@ enum {
 	Opt_compress_type, Opt_compress_force, Opt_compress_force_type,
 	Opt_notreelog, Opt_ratio, Opt_flushoncommit, Opt_discard,
 	Opt_space_cache, Opt_clear_cache, Opt_user_subvol_rm_allowed,
-	Opt_enospc_debug, Opt_subvolrootid, Opt_defrag, Opt_err,
+	Opt_enospc_debug, Opt_subvolrootid, Opt_defrag,
+	Opt_inode_cache, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -193,6 +194,7 @@ static match_table_t tokens = {
 	{Opt_enospc_debug, "enospc_debug"},
 	{Opt_subvolrootid, "subvolrootid=%d"},
 	{Opt_defrag, "autodefrag"},
+	{Opt_inode_cache, "inode_cache"},
 	{Opt_err, NULL},
 };
 
@@ -360,6 +362,10 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_space_cache:
 			printk(KERN_INFO "btrfs: enabling disk space caching\n");
 			btrfs_set_opt(info->mount_opt, SPACE_CACHE);
+			break;
+		case Opt_inode_cache:
+			printk(KERN_INFO "btrfs: enabling inode map caching\n");
+			btrfs_set_opt(info->mount_opt, INODE_MAP_CACHE);
 			break;
 		case Opt_clear_cache:
 			printk(KERN_INFO "btrfs: force clearing of disk cache\n");
@@ -819,7 +825,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	} else {
 		char b[BDEVNAME_SIZE];
 
-		s->s_flags = flags;
+		s->s_flags = flags | MS_NOSEC;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
 		error = btrfs_fill_super(s, fs_devices, data,
 					 flags & MS_SILENT ? 1 : 0);

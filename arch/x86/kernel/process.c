@@ -337,7 +337,7 @@ EXPORT_SYMBOL(boot_option_idle_override);
  * Powermanagement idle function, if any..
  */
 void (*pm_idle)(void);
-#if defined(CONFIG_APM_MODULE) && defined(CONFIG_APM_CPU_IDLE)
+#ifdef CONFIG_APM_MODULE
 EXPORT_SYMBOL(pm_idle);
 #endif
 
@@ -399,7 +399,7 @@ void default_idle(void)
 		cpu_relax();
 	}
 }
-#if defined(CONFIG_APM_MODULE) && defined(CONFIG_APM_CPU_IDLE)
+#ifdef CONFIG_APM_MODULE
 EXPORT_SYMBOL(default_idle);
 #endif
 

@@ -2598,6 +2598,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					unlock ejectable media);
 				m = MAX_SECTORS_64 (don't transfer more
 					than 64 sectors = 32 KB at a time);
+				n = INITIAL_READ10 (force a retry of the
+					initial READ(10) command);
 				o = CAPACITY_OK (accept the capacity
 					reported by the device);
 				r = IGNORE_RESIDUE (the device reports

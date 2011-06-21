@@ -64,6 +64,7 @@ work_resched:
 ENTRY(ret_to_user)
 ret_slow_syscall:
 	disable_irq				@ disable interrupts
+ENTRY(ret_to_user_from_irq)
 	ldr	r1, [tsk, #TI_FLAGS]
 	tst	r1, #_TIF_WORK_MASK
 	bne	work_pending
@@ -75,6 +76,7 @@ no_work_pending:
 	arch_ret_to_user r1, lr
 
 	restore_user_regs fast = 0, offset = 0
+ENDPROC(ret_to_user_from_irq)
 ENDPROC(ret_to_user)
 
 /*

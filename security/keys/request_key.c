@@ -71,9 +71,8 @@ EXPORT_SYMBOL(complete_request_key);
  * This is called in context of freshly forked kthread before kernel_execve(),
  * so we can simply install the desired session_keyring at this point.
  */
-static int umh_keys_init(struct subprocess_info *info)
+static int umh_keys_init(struct subprocess_info *info, struct cred *cred)
 {
-	struct cred *cred = (struct cred*)current_cred();
 	struct key *keyring = info->data;
 
 	return install_session_keyring_to_cred(cred, keyring);

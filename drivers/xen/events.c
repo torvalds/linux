@@ -395,9 +395,9 @@ static void unmask_evtchn(int port)
 static void xen_irq_init(unsigned irq)
 {
 	struct irq_info *info;
+#ifdef CONFIG_SMP
 	struct irq_desc *desc = irq_to_desc(irq);
 
-#ifdef CONFIG_SMP
 	/* By default all event channels notify CPU#0. */
 	cpumask_copy(desc->irq_data.affinity, cpumask_of(0));
 #endif
@@ -626,6 +626,9 @@ int xen_allocate_pirq_gsi(unsigned gsi)
  *
  * Note: We don't assign an event channel until the irq actually started
  * up.  Return an existing irq if we've already got one for the gsi.
+ *
+ * Shareable implies level triggered, not shareable implies edge
+ * triggered here.
  */
 int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 			     unsigned pirq, int shareable, char *name)
@@ -664,16 +667,13 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 
 	pirq_query_unmask(irq);
 	/* We try to use the handler with the appropriate semantic for the
-	 * type of interrupt: if the interrupt doesn't need an eoi
-	 * (pirq_needs_eoi returns false), we treat it like an edge
-	 * triggered interrupt so we use handle_edge_irq.
-	 * As a matter of fact this only happens when the corresponding
-	 * physical interrupt is edge triggered or an msi.
+	 * type of interrupt: if the interrupt is an edge triggered
+	 * interrupt we use handle_edge_irq.
 	 *
-	 * On the other hand if the interrupt needs an eoi (pirq_needs_eoi
-	 * returns true) we treat it like a level triggered interrupt so we
-	 * use handle_fasteoi_irq like the native code does for this kind of
+	 * On the other hand if the interrupt is level triggered we use
+	 * handle_fasteoi_irq like the native code does for this kind of
 	 * interrupts.
+	 *
 	 * Depending on the Xen version, pirq_needs_eoi might return true
 	 * not only for level triggered interrupts but for edge triggered
 	 * interrupts too. In any case Xen always honors the eoi mechanism,
@@ -681,7 +681,7 @@ int xen_bind_pirq_gsi_to_irq(unsigned gsi,
 	 * hasn't received an eoi yet. Therefore using the fasteoi handler
 	 * is the right choice either way.
 	 */
-	if (pirq_needs_eoi(irq))
+	if (shareable)
 		irq_set_chip_and_handler_name(irq, &xen_pirq_chip,
 				handle_fasteoi_irq, name);
 	else

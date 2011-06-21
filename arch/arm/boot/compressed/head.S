@@ -691,9 +691,9 @@ proc_types:
 
 		.word	0x41069260		@ ARM926EJ-S (v5TEJ)
 		.word	0xff0ffff0
-		b	__arm926ejs_mmu_cache_on
-		b	__armv4_mmu_cache_off
-		b	__armv5tej_mmu_cache_flush
+		W(b)	__arm926ejs_mmu_cache_on
+		W(b)	__armv4_mmu_cache_off
+		W(b)	__armv5tej_mmu_cache_flush
 
 		.word	0x00007000		@ ARM7 IDs
 		.word	0x0000f000

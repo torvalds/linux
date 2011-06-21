@@ -152,7 +152,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		mid_entry->callback(mid_entry);
 	}
 
-	while (server->tcpStatus == CifsNeedReconnect) {
+	do {
 		try_to_freeze();
 
 		/* we should try only the port we connected to before */
@@ -167,7 +167,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 				server->tcpStatus = CifsNeedNegotiate;
 			spin_unlock(&GlobalMid_Lock);
 		}
-	}
+	} while (server->tcpStatus == CifsNeedReconnect);
 
 	return rc;
 }
@@ -784,7 +784,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			 struct smb_vol *vol)
 {
 	char *value, *data, *end;
-	char *mountdata_copy, *options;
+	char *mountdata_copy = NULL, *options;
 	unsigned int  temp_len, i, j;
 	char separator[2];
 	short int override_uid = -1;
@@ -1391,7 +1391,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				"/proc/fs/cifs/LookupCacheEnabled to 0\n");
 		} else if (strnicmp(data, "fsc", 3) == 0) {
 #ifndef CONFIG_CIFS_FSCACHE
-			cERROR(1, "FS-Cache support needs CONFIG_CIFS_FSCACHE"
+			cERROR(1, "FS-Cache support needs CONFIG_CIFS_FSCACHE "
 				  "kernel config option set");
 			goto cifs_parse_mount_err;
 #endif
@@ -1976,7 +1976,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 		warned_on_ntlm = true;
 		cERROR(1, "default security mechanism requested.  The default "
 			"security mechanism will be upgraded from ntlm to "
-			"ntlmv2 in kernel release 2.6.41");
+			"ntlmv2 in kernel release 3.1");
 	}
 	ses->overrideSecFlg = volume_info->secFlg;
 
@@ -2149,7 +2149,10 @@ cifs_put_tlink(struct tcon_link *tlink)
 }
 
 static inline struct tcon_link *
-cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb);
+cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb)
+{
+	return cifs_sb->master_tlink;
+}
 
 static int
 compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
@@ -3171,6 +3174,10 @@ out:
 	return rc;
 }
 
+/*
+ * Issue a TREE_CONNECT request. Note that for IPC$ shares, that the tcon
+ * pointer may be NULL.
+ */
 int
 CIFSTCon(unsigned int xid, struct cifs_ses *ses,
 	 const char *tree, struct cifs_tcon *tcon,
@@ -3205,7 +3212,7 @@ CIFSTCon(unsigned int xid, struct cifs_ses *ses,
 	pSMB->AndXCommand = 0xFF;
 	pSMB->Flags = cpu_to_le16(TCON_EXTENDED_SECINFO);
 	bcc_ptr = &pSMB->Password[0];
-	if ((ses->server->sec_mode) & SECMODE_USER) {
+	if (!tcon || (ses->server->sec_mode & SECMODE_USER)) {
 		pSMB->PasswordLength = cpu_to_le16(1);	/* minimum */
 		*bcc_ptr = 0; /* password is null byte */
 		bcc_ptr++;              /* skip password */
@@ -3371,7 +3378,7 @@ int cifs_negotiate_protocol(unsigned int xid, struct cifs_ses *ses)
 	}
 	if (rc == 0) {
 		spin_lock(&GlobalMid_Lock);
-		if (server->tcpStatus != CifsExiting)
+		if (server->tcpStatus == CifsNeedNegotiate)
 			server->tcpStatus = CifsGood;
 		else
 			rc = -EHOSTDOWN;
@@ -3482,12 +3489,6 @@ out:
 	kfree(vol_info);
 
 	return tcon;
-}
-
-static inline struct tcon_link *
-cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb)
-{
-	return cifs_sb->master_tlink;
 }
 
 struct cifs_tcon *

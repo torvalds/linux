@@ -288,6 +288,8 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 		 * This may be a DVI-I connector with a shared DDC
 		 * link between analog and digital outputs, so we
 		 * have to check the EDID input spec of the attached device.
+		 *
+		 * On the other hand, what should we do if it is a broken EDID?
 		 */
 		if (edid != NULL) {
 			is_digital = edid->input & DRM_EDID_INPUT_DIGITAL;
@@ -298,6 +300,8 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 		if (!is_digital) {
 			DRM_DEBUG_KMS("CRT detected via DDC:0x50 [EDID]\n");
 			return true;
+		} else {
+			DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
 		}
 	}
 

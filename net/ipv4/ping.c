@@ -41,7 +41,6 @@
 #include <linux/proc_fs.h>
 #include <net/sock.h>
 #include <net/ping.h>
-#include <net/icmp.h>
 #include <net/udp.h>
 #include <net/route.h>
 #include <net/inet_common.h>

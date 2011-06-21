@@ -371,6 +371,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->vram.flags_valid	= nv50_vram_flags_valid;
 		break;
 	case 0xC0:
+	case 0xD0:
 		engine->instmem.init		= nvc0_instmem_init;
 		engine->instmem.takedown	= nvc0_instmem_takedown;
 		engine->instmem.suspend		= nvc0_instmem_suspend;
@@ -563,68 +564,68 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_timer;
 
-	switch (dev_priv->card_type) {
-	case NV_04:
-		nv04_graph_create(dev);
-		break;
-	case NV_10:
-		nv10_graph_create(dev);
-		break;
-	case NV_20:
-	case NV_30:
-		nv20_graph_create(dev);
-		break;
-	case NV_40:
-		nv40_graph_create(dev);
-		break;
-	case NV_50:
-		nv50_graph_create(dev);
-		break;
-	case NV_C0:
-		nvc0_graph_create(dev);
-		break;
-	default:
-		break;
-	}
-
-	switch (dev_priv->chipset) {
-	case 0x84:
-	case 0x86:
-	case 0x92:
-	case 0x94:
-	case 0x96:
-	case 0xa0:
-		nv84_crypt_create(dev);
-		break;
-	}
-
-	switch (dev_priv->card_type) {
-	case NV_50:
-		switch (dev_priv->chipset) {
-		case 0xa3:
-		case 0xa5:
-		case 0xa8:
-		case 0xaf:
-			nva3_copy_create(dev);
+	if (!nouveau_noaccel) {
+		switch (dev_priv->card_type) {
+		case NV_04:
+			nv04_graph_create(dev);
+			break;
+		case NV_10:
+			nv10_graph_create(dev);
+			break;
+		case NV_20:
+		case NV_30:
+			nv20_graph_create(dev);
+			break;
+		case NV_40:
+			nv40_graph_create(dev);
+			break;
+		case NV_50:
+			nv50_graph_create(dev);
+			break;
+		case NV_C0:
+			nvc0_graph_create(dev);
+			break;
+		default:
 			break;
 		}
-		break;
-	case NV_C0:
-		nvc0_copy_create(dev, 0);
-		nvc0_copy_create(dev, 1);
-		break;
-	default:
-		break;
-	}
 
-	if (dev_priv->card_type == NV_40)
-		nv40_mpeg_create(dev);
-	else
-	if (dev_priv->card_type == NV_50 &&
-	    (dev_priv->chipset < 0x98 || dev_priv->chipset == 0xa0))
-		nv50_mpeg_create(dev);
+		switch (dev_priv->chipset) {
+		case 0x84:
+		case 0x86:
+		case 0x92:
+		case 0x94:
+		case 0x96:
+		case 0xa0:
+			nv84_crypt_create(dev);
+			break;
+		}
 
-	if (!nouveau_noaccel) {
+		switch (dev_priv->card_type) {
+		case NV_50:
+			switch (dev_priv->chipset) {
+			case 0xa3:
+			case 0xa5:
+			case 0xa8:
+			case 0xaf:
+				nva3_copy_create(dev);
+				break;
+			}
+			break;
+		case NV_C0:
+			nvc0_copy_create(dev, 0);
+			nvc0_copy_create(dev, 1);
+			break;
+		default:
+			break;
+		}
+
+		if (dev_priv->card_type == NV_40)
+			nv40_mpeg_create(dev);
+		else
+		if (dev_priv->card_type == NV_50 &&
+		    (dev_priv->chipset < 0x98 || dev_priv->chipset == 0xa0))
+			nv50_mpeg_create(dev);
+
 		for (e = 0; e < NVOBJ_ENGINE_NR; e++) {
 			if (dev_priv->eng[e]) {
 				ret = dev_priv->eng[e]->init(dev, e);
@@ -880,8 +881,8 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 
 #ifdef __BIG_ENDIAN
 	/* Put the card in BE mode if it's not */
-	if (nv_rd32(dev, NV03_PMC_BOOT_1))
-		nv_wr32(dev, NV03_PMC_BOOT_1, 0x00000001);
+	if (nv_rd32(dev, NV03_PMC_BOOT_1) != 0x01000001)
+		nv_wr32(dev, NV03_PMC_BOOT_1, 0x01000001);
 
 	DRM_MEMORYBARRIER();
 #endif
@@ -922,6 +923,7 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 		dev_priv->card_type = NV_50;
 		break;
 	case 0xc0:
+	case 0xd0:
 		dev_priv->card_type = NV_C0;
 		break;
 	default:
