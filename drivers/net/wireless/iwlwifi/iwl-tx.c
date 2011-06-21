@@ -535,12 +535,7 @@ out_free_arrays:
 void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 			int slots_num, u32 txq_id)
 {
-	int actual_slots = slots_num;
-
-	if (txq_id == priv->cmd_queue)
-		actual_slots++;
-
-	memset(txq->meta, 0, sizeof(struct iwl_cmd_meta) * actual_slots);
+	memset(txq->meta, 0, sizeof(struct iwl_cmd_meta) * slots_num);
 
 	txq->need_update = 0;
 
