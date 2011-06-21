@@ -1161,6 +1161,41 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 			rst_flags |= AR_RTC_RC_MAC_COLD;
 	}
 
+	if (AR_SREV_9330(ah)) {
+		int npend = 0;
+		int i;
+
+		/* AR9330 WAR:
+		 * call external reset function to reset WMAC if:
+		 * - doing a cold reset
+		 * - we have pending frames in the TX queues
+		 */
+
+		for (i = 0; i < AR_NUM_QCU; i++) {
+			npend = ath9k_hw_numtxpending(ah, i);
+			if (npend)
+				break;
+		}
+
+		if (ah->external_reset &&
+		    (npend || type == ATH9K_RESET_COLD)) {
+			int reset_err = 0;
+
+			ath_dbg(ath9k_hw_common(ah), ATH_DBG_RESET,
+				"reset MAC via external reset\n");
+
+			reset_err = ah->external_reset();
+			if (reset_err) {
+				ath_err(ath9k_hw_common(ah),
+					"External reset failed, err=%d\n",
+					reset_err);
+				return false;
+			}
+
+			REG_WRITE(ah, AR_RTC_RESET, 1);
+		}
+	}
+
 	REG_WRITE(ah, AR_RTC_RC, rst_flags);
 
 	REGWRITE_BUFFER_FLUSH(ah);

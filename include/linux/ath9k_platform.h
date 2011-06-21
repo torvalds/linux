@@ -31,6 +31,7 @@ struct ath9k_platform_data {
 
 	bool is_clk_25mhz;
 	int (*get_mac_revision)(void);
+	int (*external_reset)(void);
 };
 
 #endif /* _LINUX_ATH9K_PLATFORM_H */

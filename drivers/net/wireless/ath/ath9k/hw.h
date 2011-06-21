@@ -863,6 +863,7 @@ struct ath_hw {
 
 	bool is_clk_25mhz;
 	int (*get_mac_revision)(void);
+	int (*external_reset)(void);
 };
 
 struct ath_bus_ops {
