@@ -114,9 +114,7 @@ int pSeries_reconfig_notify(unsigned long action, void *p)
 	int err = blocking_notifier_call_chain(&pSeries_reconfig_chain,
 						action, p);
 
-	if (err == NOTIFY_BAD)
-		return -ENOMEM; /* For now, safe to assume kmalloc failure */
-	return 0;
+	return notifier_to_errno(err);
 }
 
 static int pSeries_reconfig_add_node(const char *path, struct property *proplist)

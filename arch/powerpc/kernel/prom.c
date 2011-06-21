@@ -849,16 +849,14 @@ static int prom_reconfig_notifier(struct notifier_block *nb,
 	switch (action) {
 	case PSERIES_RECONFIG_ADD:
 		err = of_finish_dynamic_node(node);
-		if (err < 0) {
+		if (err < 0)
 			printk(KERN_ERR "finish_node returned %d\n", err);
-			err = NOTIFY_BAD;
-		}
 		break;
 	default:
-		err = NOTIFY_DONE;
+		err = 0;
 		break;
 	}
-	return err;
+	return notifier_from_errno(err);
 }
 
 static struct notifier_block prom_reconfig_nb = {
