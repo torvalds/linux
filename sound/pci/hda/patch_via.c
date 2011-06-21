@@ -1631,7 +1631,7 @@ static int create_ch_ctls(struct hda_codec *codec, const char *pfx,
 	if (nid) {
 		sprintf(name, "%s Playback Volume", pfx);
 		err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-			      HDA_COMPOSE_AMP_VAL(dac, chs, 0, HDA_OUTPUT));
+			      HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT));
 		if (err < 0)
 			return err;
 	}
