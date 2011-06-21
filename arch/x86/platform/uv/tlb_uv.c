@@ -1334,9 +1334,10 @@ static ssize_t tunables_write(struct file *file, const char __user *user,
 
 	instr[count] = '\0';
 
-	bcp = &per_cpu(bau_control, smp_processor_id());
-
+	cpu = get_cpu();
+	bcp = &per_cpu(bau_control, cpu);
 	ret = parse_tunables_write(bcp, instr, count);
+	put_cpu();
 	if (ret)
 		return ret;
 
