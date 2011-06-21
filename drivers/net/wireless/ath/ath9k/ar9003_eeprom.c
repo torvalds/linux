@@ -3324,6 +3324,8 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 	read = ar9300_read_eeprom;
 	if (AR_SREV_9485(ah))
 		cptr = AR9300_BASE_ADDR_4K;
+	else if (AR_SREV_9330(ah))
+		cptr = AR9300_BASE_ADDR_512;
 	else
 		cptr = AR9300_BASE_ADDR;
 	ath_dbg(common, ATH_DBG_EEPROM,
