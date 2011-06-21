@@ -1368,6 +1368,9 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlattr **tb,
 	if (!ops)
 		return err;
 
+	if (!tb[DCB_ATTR_IEEE])
+		return -EINVAL;
+
 	err = nla_parse_nested(ieee, DCB_ATTR_IEEE_MAX,
 			       tb[DCB_ATTR_IEEE], dcbnl_ieee_policy);
 	if (err)
