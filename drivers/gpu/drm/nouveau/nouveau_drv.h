@@ -449,10 +449,15 @@ struct nouveau_pm_level {
 	u32 core;
 	u32 memory;
 	u32 shader;
+	u32 rop;
+	u32 copy;
+	u32 daemon;
 	u32 vdec;
-	u32 unk05;
-	u32 unk0a;
-	u32 unka0;
+	u32 unk05;	/* nv50:nva3, roughly.. */
+	u32 unka0;	/* nva3:nvc0 */
+	u32 hub01;	/* nvc0- */
+	u32 hub06;	/* nvc0- */
+	u32 hub07;	/* nvc0- */
 
 	u32 volt_min; /* microvolts */
 	u32 volt_max;

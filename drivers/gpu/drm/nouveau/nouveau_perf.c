@@ -284,28 +284,27 @@ nouveau_perf_init(struct drm_device *dev)
 			perflvl->unk05 = ROM16(entry[16]) * 1000;
 			break;
 		case 0x40:
-#define subent(n) entry[perf[2] + ((n) * perf[3])]
+#define subent(n) (ROM16(entry[perf[2] + ((n) * perf[3])]) & 0xfff) * 1000
 			perflvl->fanspeed = 0; /*XXX*/
 			perflvl->volt_min = entry[2];
 			if (dev_priv->card_type == NV_50) {
-				perflvl->core = ROM16(subent(0)) & 0xfff;
-				perflvl->shader = ROM16(subent(1)) & 0xfff;
-				perflvl->memory = ROM16(subent(2)) & 0xfff;
-				perflvl->vdec   = ROM16(subent(3)) & 0xfff;
-				perflvl->unka0  = ROM16(subent(4)) & 0xfff;
+				perflvl->core   = subent(0);
+				perflvl->shader = subent(1);
+				perflvl->memory = subent(2);
+				perflvl->vdec   = subent(3);
+				perflvl->unka0  = subent(4);
 			} else {
-				perflvl->shader = ROM16(subent(3)) & 0xfff;
+				perflvl->hub06  = subent(0);
+				perflvl->hub01  = subent(1);
+				perflvl->copy   = subent(2);
+				perflvl->shader = subent(3);
+				perflvl->rop    = subent(4);
+				perflvl->memory = subent(5);
+				perflvl->vdec   = subent(6);
+				perflvl->daemon = subent(10);
+				perflvl->hub07  = subent(11);
 				perflvl->core   = perflvl->shader / 2;
-				perflvl->unk0a  = ROM16(subent(4)) & 0xfff;
-				perflvl->memory = ROM16(subent(5)) & 0xfff;
 			}
-
-			perflvl->core *= 1000;
-			perflvl->shader *= 1000;
-			perflvl->memory *= 1000;
-			perflvl->unk0a *= 1000;
-			perflvl->vdec *= 1000;
-			perflvl->unka0 *= 1000;
 			break;
 		}
 

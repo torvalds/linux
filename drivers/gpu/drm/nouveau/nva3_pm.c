@@ -215,6 +215,8 @@ nva3_pm_clocks_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	perflvl->memory = read_pll(dev, 0x02, 0x4000);
 	perflvl->unka0  = read_clk(dev, 0x20, false);
 	perflvl->vdec   = read_clk(dev, 0x21, false);
+	perflvl->daemon = read_clk(dev, 0x25, false);
+	perflvl->copy   = perflvl->core;
 	return 0;
 }
 
