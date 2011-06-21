@@ -733,6 +733,39 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2,
 			      AR_CH0_BB_DPLL2_PLL_PWD, 0x0);
 		udelay(1000);
+	} else if (AR_SREV_9330(ah)) {
+		u32 ddr_dpll2, pll_control2, kd;
+
+		if (ah->is_clk_25mhz) {
+			ddr_dpll2 = 0x18e82f01;
+			pll_control2 = 0xe04a3d;
+			kd = 0x1d;
+		} else {
+			ddr_dpll2 = 0x19e82f01;
+			pll_control2 = 0x886666;
+			kd = 0x3d;
+		}
+
+		/* program DDR PLL ki and kd value */
+		REG_WRITE(ah, AR_CH0_DDR_DPLL2, ddr_dpll2);
+
+		/* program DDR PLL phase_shift */
+		REG_RMW_FIELD(ah, AR_CH0_DDR_DPLL3,
+			      AR_CH0_DPLL3_PHASE_SHIFT, 0x1);
+
+		REG_WRITE(ah, AR_RTC_PLL_CONTROL, 0x1142c);
+		udelay(1000);
+
+		/* program refdiv, nint, frac to RTC register */
+		REG_WRITE(ah, AR_RTC_PLL_CONTROL2, pll_control2);
+
+		/* program BB PLL kd and ki value */
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2, AR_CH0_DPLL2_KD, kd);
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL2, AR_CH0_DPLL2_KI, 0x06);
+
+		/* program BB PLL phase_shift */
+		REG_RMW_FIELD(ah, AR_CH0_BB_DPLL3,
+			      AR_CH0_BB_DPLL3_PHASE_SHIFT, 0x1);
 	} else if (AR_SREV_9340(ah)) {
 		u32 regval, pll2_divint, pll2_divfrac, refdiv;
 
@@ -774,7 +807,7 @@ static void ath9k_hw_init_pll(struct ath_hw *ah,
 
 	REG_WRITE(ah, AR_RTC_PLL_CONTROL, pll);
 
-	if (AR_SREV_9485(ah) || AR_SREV_9340(ah))
+	if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah))
 		udelay(1000);
 
 	/* Switch the core clock for ar9271 to 117Mhz */
