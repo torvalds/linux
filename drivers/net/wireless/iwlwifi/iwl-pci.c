@@ -530,14 +530,7 @@ static int iwl_pci_resume(struct device *device)
 	return iwl_resume(priv);
 }
 
-static const struct dev_pm_ops iwl_dev_pm_ops = {
-	.suspend = iwl_pci_suspend,
-	.resume = iwl_pci_resume,
-	.freeze = iwl_pci_suspend,
-	.thaw = iwl_pci_resume,
-	.poweroff = iwl_pci_suspend,
-	.restore = iwl_pci_resume,
-};
+static SIMPLE_DEV_PM_OPS(iwl_dev_pm_ops, iwl_pci_suspend, iwl_pci_resume);
 
 #define IWL_PM_OPS	(&iwl_dev_pm_ops)
 
