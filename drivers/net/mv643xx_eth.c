@@ -840,6 +840,8 @@ no_csum:
 
 	__skb_queue_tail(&txq->tx_skb, skb);
 
+	skb_tx_timestamp(skb);
+
 	/* ensure all other descriptors are written before first cmd_sts */
 	wmb();
 	desc->cmd_sts = cmd_sts;
