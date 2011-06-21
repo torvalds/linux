@@ -1947,7 +1947,7 @@ static int via_auto_create_analog_input_ctls(struct hda_codec *codec,
 		if (caps == -1 || !(caps & AC_AMPCAP_NUM_STEPS))
 			continue;
 		label = hda_get_autocfg_input_label(codec, cfg, i);
-		snprintf(name, sizeof(name), "%s Boost Capture Volume", label);
+		snprintf(name, sizeof(name), "%s Boost Volume", label);
 		err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
 			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_INPUT));
 		if (err < 0)
