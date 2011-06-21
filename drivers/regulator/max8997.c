@@ -1124,6 +1124,10 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 				0x3f);
 	}
 
+	/* Misc Settings */
+	max8997->ramp_delay = 10; /* set 10mV/us, which is the default */
+	max8997_write_reg(i2c, MAX8997_REG_BUCKRAMP, (0xf << 4) | 0x9);
+
 	for (i = 0; i < pdata->num_regulators; i++) {
 		const struct voltage_map_desc *desc;
 		int id = pdata->regulators[i].id;
@@ -1147,10 +1151,6 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 			goto err;
 		}
 	}
-
-	/* Misc Settings */
-	max8997->ramp_delay = 10; /* set 10mV/us, which is the default */
-	max8997_write_reg(i2c, MAX8997_REG_BUCKRAMP, (0xf << 4) | 0x9);
 
 	return 0;
 err:
