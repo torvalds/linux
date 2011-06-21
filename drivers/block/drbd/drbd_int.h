@@ -542,6 +542,7 @@ struct drbd_resource {
 	struct idr devices;		/* volume number to device mapping */
 	struct list_head connections;
 	struct list_head resources;
+	struct res_opts res_opts;
 };
 
 struct drbd_connection {
@@ -560,7 +561,6 @@ struct drbd_connection {
 	struct net_conf *net_conf;	/* content protected by rcu */
 	struct mutex conf_update;	/* mutex for ready-copy-update of net_conf and disk_conf */
 	wait_queue_head_t ping_wait;	/* Woken upon reception of a ping, and a state change */
-	struct res_opts res_opts;
 
 	struct sockaddr_storage my_addr;
 	int my_addr_len;
@@ -1208,7 +1208,7 @@ extern void drbd_delete_minor(struct drbd_device *mdev);
 extern struct drbd_resource *drbd_create_resource(const char *name);
 extern void drbd_free_resource(struct drbd_resource *resource);
 
-extern int set_resource_options(struct drbd_connection *connection, struct res_opts *res_opts);
+extern int set_resource_options(struct drbd_resource *resource, struct res_opts *res_opts);
 extern struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts);
 extern void drbd_destroy_connection(struct kref *kref);
 extern struct drbd_connection *conn_get_by_addrs(void *my_addr, int my_addr_len,

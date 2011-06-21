@@ -2487,8 +2487,9 @@ void conn_free_crypto(struct drbd_connection *connection)
 	connection->int_dig_vv = NULL;
 }
 
-int set_resource_options(struct drbd_connection *connection, struct res_opts *res_opts)
+int set_resource_options(struct drbd_resource *resource, struct res_opts *res_opts)
 {
+	struct drbd_connection *connection;
 	cpumask_var_t new_cpu_mask;
 	int err;
 
@@ -2510,13 +2511,15 @@ int set_resource_options(struct drbd_connection *connection, struct res_opts *re
 			goto fail;
 		}
 	}
-	connection->res_opts = *res_opts;
-	if (!cpumask_equal(connection->cpu_mask, new_cpu_mask)) {
-		cpumask_copy(connection->cpu_mask, new_cpu_mask);
-		drbd_calc_cpu_mask(connection);
-		connection->receiver.reset_cpu_mask = 1;
-		connection->asender.reset_cpu_mask = 1;
-		connection->worker.reset_cpu_mask = 1;
+	resource->res_opts = *res_opts;
+	for_each_connection_rcu(connection, resource) {
+		if (!cpumask_equal(connection->cpu_mask, new_cpu_mask)) {
+			cpumask_copy(connection->cpu_mask, new_cpu_mask);
+			drbd_calc_cpu_mask(connection);
+			connection->receiver.reset_cpu_mask = 1;
+			connection->asender.reset_cpu_mask = 1;
+			connection->worker.reset_cpu_mask = 1;
+		}
 	}
 	err = 0;
 
@@ -2563,9 +2566,6 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 	if (!zalloc_cpumask_var(&connection->cpu_mask, GFP_KERNEL))
 		goto fail;
 
-	if (set_resource_options(connection, res_opts))
-		goto fail;
-
 	connection->current_epoch = kzalloc(sizeof(struct drbd_epoch), GFP_KERNEL);
 	if (!connection->current_epoch)
 		goto fail;
@@ -2602,19 +2602,24 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 
 	kref_init(&connection->kref);
 
-	kref_get(&resource->kref);
 	connection->resource = resource;
-	list_add_tail_rcu(&connection->connections, &resource->connections);
 
+	if (set_resource_options(resource, res_opts))
+		goto fail_resource;
+
+	kref_get(&resource->kref);
+	list_add_tail_rcu(&connection->connections, &resource->connections);
 	return connection;
 
+fail_resource:
+	list_del(&resource->resources);
+	drbd_free_resource(resource);
 fail:
 	kfree(connection->current_epoch);
 	free_cpumask_var(connection->cpu_mask);
 	drbd_free_socket(&connection->meta);
 	drbd_free_socket(&connection->data);
 	kfree(connection);
-
 	return NULL;
 }
 

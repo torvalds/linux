@@ -2520,7 +2520,6 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 {
 	enum drbd_ret_code retcode;
-	struct drbd_connection *connection;
 	struct res_opts res_opts;
 	int err;
 
@@ -2529,9 +2528,8 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 		return retcode;
 	if (retcode != NO_ERROR)
 		goto fail;
-	connection = adm_ctx.connection;
 
-	res_opts = connection->res_opts;
+	res_opts = adm_ctx.resource->res_opts;
 	if (should_set_defaults(info))
 		set_res_opts_defaults(&res_opts);
 
@@ -2542,7 +2540,7 @@ int drbd_adm_resource_opts(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	err = set_resource_options(connection, &res_opts);
+	err = set_resource_options(adm_ctx.resource, &res_opts);
 	if (err) {
 		retcode = ERR_INVALID_REQUEST;
 		if (err == -ENOMEM)
@@ -2802,7 +2800,7 @@ static int nla_put_status_info(struct sk_buff *skb, struct drbd_device *device,
 	if (nla_put_drbd_cfg_context(skb, first_peer_device(device)->connection, device->vnr))
 		goto nla_put_failure;
 
-	if (res_opts_to_skb(skb, &first_peer_device(device)->connection->res_opts, exclude_sensitive))
+	if (res_opts_to_skb(skb, &device->resource->res_opts, exclude_sensitive))
 		goto nla_put_failure;
 
 	rcu_read_lock();
