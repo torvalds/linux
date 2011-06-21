@@ -28,7 +28,7 @@ struct dcb_app_type {
 	struct list_head  list;
 };
 
-u8 dcb_setapp(struct net_device *, struct dcb_app *);
+int dcb_setapp(struct net_device *, struct dcb_app *);
 u8 dcb_getapp(struct net_device *, struct dcb_app *);
 int dcb_ieee_setapp(struct net_device *, struct dcb_app *);
 int dcb_ieee_delapp(struct net_device *, struct dcb_app *);

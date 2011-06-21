@@ -1885,7 +1885,7 @@ EXPORT_SYMBOL(dcb_getapp);
  * removes applications from the app list if the priority is
  * set to zero.
  */
-u8 dcb_setapp(struct net_device *dev, struct dcb_app *new)
+int dcb_setapp(struct net_device *dev, struct dcb_app *new)
 {
 	struct dcb_app_type *itr;
 	struct dcb_app_type event;
