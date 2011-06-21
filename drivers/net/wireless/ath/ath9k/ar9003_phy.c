@@ -1215,7 +1215,10 @@ static void ar9003_hw_antdiv_comb_conf_get(struct ath_hw *ah,
 	antconf->fast_div_bias = (regval & AR_PHY_9485_ANT_FAST_DIV_BIAS) >>
 				  AR_PHY_9485_ANT_FAST_DIV_BIAS_S;
 
-	if (AR_SREV_9485(ah)) {
+	if (AR_SREV_9330_11(ah)) {
+		antconf->lna1_lna2_delta = -9;
+		antconf->div_group = 1;
+	} else if (AR_SREV_9485(ah)) {
 		antconf->lna1_lna2_delta = -9;
 		antconf->div_group = 2;
 	} else {
