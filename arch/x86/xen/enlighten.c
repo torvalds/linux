@@ -1248,6 +1248,14 @@ asmlinkage void __init xen_start_kernel(void)
 		if (pci_xen)
 			x86_init.pci.arch_init = pci_xen_init;
 	} else {
+		const struct dom0_vga_console_info *info =
+			(void *)((char *)xen_start_info +
+				 xen_start_info->console.dom0.info_off);
+
+		xen_init_vga(info, xen_start_info->console.dom0.info_size);
+		xen_start_info->console.domU.mfn = 0;
+		xen_start_info->console.domU.evtchn = 0;
+
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
 	}
