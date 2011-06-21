@@ -75,7 +75,19 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 	freq = centers.synth_center;
 
 	if (freq < 4800) {     /* 2 GHz, fractional mode */
-		if (AR_SREV_9485(ah)) {
+		if (AR_SREV_9330(ah)) {
+			u32 chan_frac;
+			u32 div;
+
+			if (ah->is_clk_25mhz)
+				div = 75;
+			else
+				div = 120;
+
+			channelSel = (freq * 4) / div;
+			chan_frac = (((freq * 4) % div) * 0x20000) / div;
+			channelSel = (channelSel << 17) | chan_frac;
+		} else if (AR_SREV_9485(ah)) {
 			u32 chan_frac;
 
 			/*
