@@ -453,7 +453,7 @@ csum_copy_err:
 	}
 	unlock_sock_fast(sk, slow);
 
-	if (flags & MSG_DONTWAIT)
+	if (noblock)
 		return -EAGAIN;
 	goto try_again;
 }
