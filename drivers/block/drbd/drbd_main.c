@@ -496,15 +496,16 @@ char *drbd_task_to_thread_name(struct drbd_connection *connection, struct task_s
 
 int conn_lowest_minor(struct drbd_connection *connection)
 {
-	struct drbd_device *device;
-	int vnr = 0, m;
+	struct drbd_peer_device *peer_device;
+	int vnr = 0, minor = -1;
 
 	rcu_read_lock();
-	device = idr_get_next(&connection->volumes, &vnr);
-	m = device ? device_to_minor(device) : -1;
+	peer_device = idr_get_next(&connection->peer_devices, &vnr);
+	if (peer_device)
+		minor = device_to_minor(peer_device->device);
 	rcu_read_unlock();
 
-	return m;
+	return minor;
 }
 
 #ifdef CONFIG_SMP
@@ -2590,7 +2591,7 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 	spin_lock_init(&connection->req_lock);
 	mutex_init(&connection->conf_update);
 	init_waitqueue_head(&connection->ping_wait);
-	idr_init(&connection->volumes);
+	idr_init(&connection->peer_devices);
 
 	drbd_init_workqueue(&connection->sender_work);
 	mutex_init(&connection->data.mutex);
@@ -2632,7 +2633,7 @@ void drbd_destroy_connection(struct kref *kref)
 		conn_err(connection, "epoch_size:%d\n", atomic_read(&connection->current_epoch->epoch_size));
 	kfree(connection->current_epoch);
 
-	idr_destroy(&connection->volumes);
+	idr_destroy(&connection->peer_devices);
 
 	free_cpumask_var(connection->cpu_mask);
 	drbd_free_socket(&connection->meta);
@@ -2760,7 +2761,7 @@ enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigne
 	}
 	kref_get(&device->kref);
 
-	id = idr_alloc(&connection->volumes, device, vnr, vnr + 1, GFP_KERNEL);
+	id = idr_alloc(&connection->peer_devices, peer_device, vnr, vnr + 1, GFP_KERNEL);
 	if (id < 0) {
 		if (id == -ENOSPC) {
 			err = ERR_INVALID_REQUEST;
@@ -2786,7 +2787,7 @@ enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigne
 	return NO_ERROR;
 
 out_idr_remove_vol:
-	idr_remove(&connection->volumes, vnr);
+	idr_remove(&connection->peer_devices, vnr);
 out_idr_remove_from_resource:
 	idr_remove(&resource->devices, vnr);
 out_idr_remove_minor:
@@ -2815,7 +2816,7 @@ void drbd_delete_minor(struct drbd_device *device)
 	int refs = 3;
 
 	for_each_connection(connection, resource) {
-		idr_remove(&connection->volumes, device->vnr);
+		idr_remove(&connection->peer_devices, device->vnr);
 		refs++;
 	}
 	idr_remove(&resource->devices, device->vnr);
@@ -2938,11 +2939,13 @@ void drbd_free_sock(struct drbd_connection *connection)
 
 void conn_md_sync(struct drbd_connection *connection)
 {
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	int vnr;
 
 	rcu_read_lock();
-	idr_for_each_entry(&connection->volumes, device, vnr) {
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
+
 		kref_get(&device->kref);
 		rcu_read_unlock();
 		drbd_md_sync(device);

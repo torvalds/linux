@@ -63,12 +63,13 @@ static inline bool is_susp(union drbd_state s)
 
 bool conn_all_vols_unconf(struct drbd_connection *connection)
 {
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	bool rv = true;
 	int vnr;
 
 	rcu_read_lock();
-	idr_for_each_entry(&connection->volumes, device, vnr) {
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
 		if (device->state.disk != D_DISKLESS ||
 		    device->state.conn != C_STANDALONE ||
 		    device->state.role != R_SECONDARY) {
@@ -103,12 +104,14 @@ static enum drbd_role min_role(enum drbd_role role1, enum drbd_role role2)
 enum drbd_role conn_highest_role(struct drbd_connection *connection)
 {
 	enum drbd_role role = R_UNKNOWN;
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	int vnr;
 
 	rcu_read_lock();
-	idr_for_each_entry(&connection->volumes, device, vnr)
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
 		role = max_role(role, device->state.role);
+	}
 	rcu_read_unlock();
 
 	return role;
@@ -117,12 +120,14 @@ enum drbd_role conn_highest_role(struct drbd_connection *connection)
 enum drbd_role conn_highest_peer(struct drbd_connection *connection)
 {
 	enum drbd_role peer = R_UNKNOWN;
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	int vnr;
 
 	rcu_read_lock();
-	idr_for_each_entry(&connection->volumes, device, vnr)
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
 		peer = max_role(peer, device->state.peer);
+	}
 	rcu_read_unlock();
 
 	return peer;
@@ -131,12 +136,14 @@ enum drbd_role conn_highest_peer(struct drbd_connection *connection)
 enum drbd_disk_state conn_highest_disk(struct drbd_connection *connection)
 {
 	enum drbd_disk_state ds = D_DISKLESS;
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	int vnr;
 
 	rcu_read_lock();
-	idr_for_each_entry(&connection->volumes, device, vnr)
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
 		ds = max_t(enum drbd_disk_state, ds, device->state.disk);
+	}
 	rcu_read_unlock();
 
 	return ds;
@@ -145,12 +152,14 @@ enum drbd_disk_state conn_highest_disk(struct drbd_connection *connection)
 enum drbd_disk_state conn_lowest_disk(struct drbd_connection *connection)
 {
 	enum drbd_disk_state ds = D_MASK;
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	int vnr;
 
 	rcu_read_lock();
-	idr_for_each_entry(&connection->volumes, device, vnr)
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
 		ds = min_t(enum drbd_disk_state, ds, device->state.disk);
+	}
 	rcu_read_unlock();
 
 	return ds;
@@ -159,12 +168,14 @@ enum drbd_disk_state conn_lowest_disk(struct drbd_connection *connection)
 enum drbd_disk_state conn_highest_pdsk(struct drbd_connection *connection)
 {
 	enum drbd_disk_state ds = D_DISKLESS;
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	int vnr;
 
 	rcu_read_lock();
-	idr_for_each_entry(&connection->volumes, device, vnr)
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
 		ds = max_t(enum drbd_disk_state, ds, device->state.pdsk);
+	}
 	rcu_read_unlock();
 
 	return ds;
@@ -173,12 +184,14 @@ enum drbd_disk_state conn_highest_pdsk(struct drbd_connection *connection)
 enum drbd_conns conn_lowest_conn(struct drbd_connection *connection)
 {
 	enum drbd_conns conn = C_MASK;
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	int vnr;
 
 	rcu_read_lock();
-	idr_for_each_entry(&connection->volumes, device, vnr)
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
 		conn = min_t(enum drbd_conns, conn, device->state.conn);
+	}
 	rcu_read_unlock();
 
 	return conn;
@@ -186,13 +199,13 @@ enum drbd_conns conn_lowest_conn(struct drbd_connection *connection)
 
 static bool no_peer_wf_report_params(struct drbd_connection *connection)
 {
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	int vnr;
 	bool rv = true;
 
 	rcu_read_lock();
-	idr_for_each_entry(&connection->volumes, device, vnr)
-		if (device->state.conn == C_WF_REPORT_PARAMS) {
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
+		if (peer_device->device->state.conn == C_WF_REPORT_PARAMS) {
 			rv = false;
 			break;
 		}
@@ -1256,12 +1269,12 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		spin_lock_irq(&connection->req_lock);
 		if (connection->susp_fen && conn_lowest_conn(connection) >= C_CONNECTED) {
 			/* case2: The connection was established again: */
-			struct drbd_device *odev;
+			struct drbd_peer_device *peer_device;
 			int vnr;
 
 			rcu_read_lock();
-			idr_for_each_entry(&connection->volumes, odev, vnr)
-				clear_bit(NEW_CUR_UUID, &odev->flags);
+			idr_for_each_entry(&connection->peer_devices, peer_device, vnr)
+				clear_bit(NEW_CUR_UUID, &peer_device->device->flags);
 			rcu_read_unlock();
 			_tl_restart(connection, RESEND);
 			_conn_request_state(connection,
@@ -1530,7 +1543,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 	struct drbd_connection *connection = w->connection;
 	enum drbd_conns oc = acscw->oc;
 	union drbd_state ns_max = acscw->ns_max;
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	int vnr;
 
 	kfree(acscw);
@@ -1558,7 +1571,8 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 		/* case1: The outdate peer handler is successful: */
 		if (ns_max.pdsk <= D_OUTDATED) {
 			rcu_read_lock();
-			idr_for_each_entry(&connection->volumes, device, vnr) {
+			idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+				struct drbd_device *device = peer_device->device;
 				if (test_bit(NEW_CUR_UUID, &device->flags)) {
 					drbd_uuid_new_current(device);
 					clear_bit(NEW_CUR_UUID, &device->flags);
@@ -1584,7 +1598,7 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 void conn_old_common_state(struct drbd_connection *connection, union drbd_state *pcs, enum chg_state_flags *pf)
 {
 	enum chg_state_flags flags = ~0;
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	int vnr, first_vol = 1;
 	union drbd_dev_state os, cs = {
 		{ .role = R_SECONDARY,
@@ -1595,7 +1609,8 @@ void conn_old_common_state(struct drbd_connection *connection, union drbd_state 
 		} };
 
 	rcu_read_lock();
-	idr_for_each_entry(&connection->volumes, device, vnr) {
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
 		os = device->state;
 
 		if (first_vol) {
@@ -1632,11 +1647,12 @@ conn_is_valid_transition(struct drbd_connection *connection, union drbd_state ma
 {
 	enum drbd_state_rv rv = SS_SUCCESS;
 	union drbd_state ns, os;
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	int vnr;
 
 	rcu_read_lock();
-	idr_for_each_entry(&connection->volumes, device, vnr) {
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
 		os = drbd_read_state(device);
 		ns = sanitize_state(device, apply_mask_val(os, mask, val), NULL);
 
@@ -1647,10 +1663,8 @@ conn_is_valid_transition(struct drbd_connection *connection, union drbd_state ma
 			continue;
 
 		rv = is_valid_transition(os, ns);
-		if (rv < SS_SUCCESS)
-			break;
 
-		if (!(flags & CS_HARD)) {
+		if (rv >= SS_SUCCESS && !(flags & CS_HARD)) {
 			rv = is_valid_state(device, ns);
 			if (rv < SS_SUCCESS) {
 				if (is_valid_state(device, os) == rv)
@@ -1658,13 +1672,14 @@ conn_is_valid_transition(struct drbd_connection *connection, union drbd_state ma
 			} else
 				rv = is_valid_soft_transition(os, ns, connection);
 		}
-		if (rv < SS_SUCCESS)
+
+		if (rv < SS_SUCCESS) {
+			if (flags & CS_VERBOSE)
+				print_st_err(device, os, ns, rv);
 			break;
+		}
 	}
 	rcu_read_unlock();
-
-	if (rv < SS_SUCCESS && flags & CS_VERBOSE)
-		print_st_err(device, os, ns, rv);
 
 	return rv;
 }
@@ -1681,7 +1696,7 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union 
 		  .disk = D_MASK,
 		  .pdsk = D_MASK
 		} };
-	struct drbd_device *device;
+	struct drbd_peer_device *peer_device;
 	enum drbd_state_rv rv;
 	int vnr, number_of_volumes = 0;
 
@@ -1696,7 +1711,8 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union 
 	}
 
 	rcu_read_lock();
-	idr_for_each_entry(&connection->volumes, device, vnr) {
+	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
+		struct drbd_device *device = peer_device->device;
 		number_of_volumes++;
 		os = drbd_read_state(device);
 		ns = apply_mask_val(os, mask, val);

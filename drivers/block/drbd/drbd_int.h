@@ -549,7 +549,7 @@ struct drbd_connection {
 	struct list_head connections;
 	struct drbd_resource *resource;
 	struct kref kref;
-	struct idr volumes;		/* <connection, vnr> to device mapping */
+	struct idr peer_devices;	/* volume number to peer device mapping */
 	enum drbd_conns cstate;		/* Only C_STANDALONE to C_WF_REPORT_PARAMS */
 	unsigned susp:1;		/* IO suspended by user */
 	unsigned susp_nod:1;		/* IO suspended because no data */
@@ -822,7 +822,10 @@ static inline unsigned int device_to_minor(struct drbd_device *device)
 
 static inline struct drbd_device *vnr_to_device(struct drbd_connection *connection, int vnr)
 {
-	return (struct drbd_device *)idr_find(&connection->volumes, vnr);
+	struct drbd_peer_device *peer_device;
+
+	peer_device = idr_find(&connection->peer_devices, vnr);
+	return peer_device ? peer_device->device : NULL;
 }
 
 /*
