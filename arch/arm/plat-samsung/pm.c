@@ -300,10 +300,6 @@ static int s3c_pm_enter(suspend_state_t state)
 
 	s3c_cpu_save(0, PLAT_PHYS_OFFSET - PAGE_OFFSET);
 
-	/* restore the cpu state using the kernel's cpu init code. */
-
-	cpu_init();
-
 	/* restore the system state */
 
 	s3c_pm_restore_core();
