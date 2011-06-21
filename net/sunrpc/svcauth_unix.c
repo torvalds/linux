@@ -33,6 +33,7 @@ struct unix_domain {
 	/* other stuff later */
 };
 
+extern struct auth_ops svcauth_null;
 extern struct auth_ops svcauth_unix;
 
 static void svcauth_unix_domain_release(struct auth_domain *dom)
