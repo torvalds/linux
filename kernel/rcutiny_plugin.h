@@ -26,29 +26,26 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
-#ifdef CONFIG_RCU_TRACE
-#define RCU_TRACE(stmt)	stmt
-#else /* #ifdef CONFIG_RCU_TRACE */
-#define RCU_TRACE(stmt)
-#endif /* #else #ifdef CONFIG_RCU_TRACE */
-
 /* Global control variables for rcupdate callback mechanism. */
 struct rcu_ctrlblk {
 	struct rcu_head *rcucblist;	/* List of pending callbacks (CBs). */
 	struct rcu_head **donetail;	/* ->next pointer of last "done" CB. */
 	struct rcu_head **curtail;	/* ->next pointer of last CB. */
 	RCU_TRACE(long qlen);		/* Number of pending CBs. */
+	RCU_TRACE(char *name);		/* Name of RCU type. */
 };
 
 /* Definition for rcupdate control block. */
 static struct rcu_ctrlblk rcu_sched_ctrlblk = {
 	.donetail	= &rcu_sched_ctrlblk.rcucblist,
 	.curtail	= &rcu_sched_ctrlblk.rcucblist,
+	RCU_TRACE(.name = "rcu_sched")
 };
 
 static struct rcu_ctrlblk rcu_bh_ctrlblk = {
 	.donetail	= &rcu_bh_ctrlblk.rcucblist,
 	.curtail	= &rcu_bh_ctrlblk.rcucblist,
+	RCU_TRACE(.name = "rcu_bh")
 };
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -131,6 +128,7 @@ static struct rcu_preempt_ctrlblk rcu_preempt_ctrlblk = {
 	.rcb.curtail = &rcu_preempt_ctrlblk.rcb.rcucblist,
 	.nexttail = &rcu_preempt_ctrlblk.rcb.rcucblist,
 	.blkd_tasks = LIST_HEAD_INIT(rcu_preempt_ctrlblk.blkd_tasks),
+	RCU_TRACE(.rcb.name = "rcu_preempt")
 };
 
 static int rcu_preempted_readers_exp(void);

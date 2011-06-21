@@ -61,7 +61,7 @@
 static struct lock_class_key rcu_node_class[NUM_RCU_LVLS];
 
 #define RCU_STATE_INITIALIZER(structname) { \
-	.level = { &structname.node[0] }, \
+	.level = { &structname##_state.node[0] }, \
 	.levelcnt = { \
 		NUM_RCU_LVL_0,  /* root of hierarchy. */ \
 		NUM_RCU_LVL_1, \
@@ -72,17 +72,17 @@ static struct lock_class_key rcu_node_class[NUM_RCU_LVLS];
 	.signaled = RCU_GP_IDLE, \
 	.gpnum = -300, \
 	.completed = -300, \
-	.onofflock = __RAW_SPIN_LOCK_UNLOCKED(&structname.onofflock), \
-	.fqslock = __RAW_SPIN_LOCK_UNLOCKED(&structname.fqslock), \
+	.onofflock = __RAW_SPIN_LOCK_UNLOCKED(&structname##_state.onofflock), \
+	.fqslock = __RAW_SPIN_LOCK_UNLOCKED(&structname##_state.fqslock), \
 	.n_force_qs = 0, \
 	.n_force_qs_ngp = 0, \
 	.name = #structname, \
 }
 
-struct rcu_state rcu_sched_state = RCU_STATE_INITIALIZER(rcu_sched_state);
+struct rcu_state rcu_sched_state = RCU_STATE_INITIALIZER(rcu_sched);
 DEFINE_PER_CPU(struct rcu_data, rcu_sched_data);
 
-struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh_state);
+struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh);
 DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
 static struct rcu_state *rcu_state;

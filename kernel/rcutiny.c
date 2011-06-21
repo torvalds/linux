@@ -38,20 +38,7 @@
 #include <linux/prefetch.h>
 
 #ifdef CONFIG_RCU_TRACE
-
 #include <trace/events/rcu.h>
-
-#else /* #ifdef CONFIG_RCU_TRACE */
-
-/* No by-default tracing in TINY_RCU: Keep TINY_RCU tiny! */
-static void trace_rcu_invoke_kfree_callback(struct rcu_head *rhp,
-					    unsigned long offset)
-{
-}
-static void trace_rcu_invoke_callback(struct rcu_head *head)
-{
-}
-
 #endif /* #else #ifdef CONFIG_RCU_TRACE */
 
 #include "rcu.h"
