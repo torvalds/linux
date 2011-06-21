@@ -38,7 +38,7 @@ static void  pwm2gpiodefault(void)
 
 
 extern void __rb( void*  );
-void rb( void )
+static void rb( void )
 {
     void(*cb)(void* ) ;
     
@@ -52,9 +52,11 @@ void rb( void )
     cb( uart_base );
 }
 
+static volatile u32 __sramdata reboot_reason = 0;
 static void __sramfunc __noreturn rk29_rb_with_softreset(void)
 {
 	u32 reg;
+	u32 reason = __raw_readl((u32)&reboot_reason - SRAM_CODE_OFFSET + 0x10130000);
 
 	asm volatile (
 	    "mrc	p15, 0, %0, c1, c0, 0\n\t"
@@ -95,6 +97,11 @@ static void __sramfunc __noreturn rk29_rb_with_softreset(void)
 	dsb();
 	LOOP(10 * LOOPS_PER_USEC);
 
+	if (reason) {
+		__raw_writel(0, RK29_TIMER0_PHYS + 0x8);
+		__raw_writel(reason, RK29_TIMER0_PHYS + 0x0);
+	}
+
 	asm volatile (
 	    "b 1f\n\t"
 	    ".align 5\n\t"
@@ -106,9 +113,14 @@ static void __sramfunc __noreturn rk29_rb_with_softreset(void)
 	while (1);
 }
 
-void  rk29_arch_reset(int mode, const char *cmd)
+void rk29_arch_reset(int mode, const char *cmd)
 {
 	void (*rb2)(void);
+
+	if (cmd) {
+		if (!strcmp(cmd, "loader"))
+			reboot_reason = 0x1888AAFF;
+	}
 
 	rb2 = (void(*)(void))((u32)rk29_rb_with_softreset - SRAM_CODE_OFFSET + 0x10130000);
 
