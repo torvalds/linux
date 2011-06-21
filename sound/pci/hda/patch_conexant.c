@@ -3074,6 +3074,7 @@ static const char * const cxt5066_models[CXT5066_MODELS] = {
 };
 
 static const struct snd_pci_quirk cxt5066_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1025, 0x054c, "Acer Aspire 3830TG", CXT5066_AUTO),
 	SND_PCI_QUIRK_MASK(0x1025, 0xff00, 0x0400, "Acer", CXT5066_IDEAPAD),
 	SND_PCI_QUIRK(0x1028, 0x02d8, "Dell Vostro", CXT5066_DELL_VOSTRO),
 	SND_PCI_QUIRK(0x1028, 0x02f5, "Dell Vostro 320", CXT5066_IDEAPAD),
