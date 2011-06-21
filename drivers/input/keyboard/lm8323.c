@@ -734,7 +734,7 @@ static int __devinit lm8323_probe(struct i2c_client *client,
 	}
 
 	err = request_threaded_irq(client->irq, NULL, lm8323_irq,
-			  IRQF_TRIGGER_FALLING, "lm8323", lm);
+			  IRQF_TRIGGER_LOW|IRQF_ONESHOT, "lm8323", lm);
 	if (err) {
 		dev_err(&client->dev, "could not get IRQ %d\n", client->irq);
 		goto fail4;
