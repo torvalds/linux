@@ -191,7 +191,7 @@ struct plat_smp_ops nlm_smp_ops = {
 
 unsigned long secondary_entry_point;
 
-int nlm_wakeup_secondary_cpus(u32 wakeup_mask)
+int __cpuinit nlm_wakeup_secondary_cpus(u32 wakeup_mask)
 {
 	unsigned int tid, pid, ipi, i, boot_cpu;
 	void *reset_vec;
