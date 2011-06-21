@@ -548,15 +548,16 @@ error_ret:
 	return ret;
 }
 
+#define INFO_MASK (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE)
+#define EVENT_MASK (IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) | \
+		    IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
+#define IIO_CHAN_2563(type, mod, proc, chan, imask, emask) \
+	IIO_CHAN(type, mod, 1, proc, NULL, chan, 0, imask, 0, 0, {}, emask)
+
 static const struct iio_chan_spec tsl2563_channels[] = {
-	IIO_CHAN(IIO_LIGHT, 0, 1, 1, NULL, 0, 0, 0, 0, 0, {}, 0),
-	IIO_CHAN(IIO_INTENSITY, 1, 1, 0, "both", 0,
-		 (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE), 0, 0, 0, {},
-		 IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING) |
-		 IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING)),
-	IIO_CHAN(IIO_INTENSITY, 1, 1, 0, "ir", 1,
-		 (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE), 0, 0, 0, {},
-		 0)
+	IIO_CHAN_2563(IIO_LIGHT,     0, 1, 0, 0, 0),
+	IIO_CHAN_2563(IIO_INTENSITY, 1, 0, 0, INFO_MASK, EVENT_MASK),
+	IIO_CHAN_2563(IIO_INTENSITY, 1, 0, 1, INFO_MASK, 0),
 };
 
 static int tsl2563_read_thresh(struct iio_dev *indio_dev,
