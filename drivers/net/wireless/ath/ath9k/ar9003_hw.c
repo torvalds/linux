@@ -443,7 +443,17 @@ static void ar9003_rx_gain_table_apply(struct ath_hw *ah)
 	switch (ar9003_hw_get_rx_gain_idx(ah)) {
 	case 0:
 	default:
-		if (AR_SREV_9340(ah))
+		if (AR_SREV_9330_12(ah))
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
+					ar9331_common_rx_gain_1p2,
+					ARRAY_SIZE(ar9331_common_rx_gain_1p2),
+					2);
+		else if (AR_SREV_9330_11(ah))
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
+					ar9331_common_rx_gain_1p1,
+					ARRAY_SIZE(ar9331_common_rx_gain_1p1),
+					2);
+		else if (AR_SREV_9340(ah))
 			INIT_INI_ARRAY(&ah->iniModesRxGain,
 				       ar9340Common_rx_gain_table_1p0,
 				       ARRAY_SIZE(ar9340Common_rx_gain_table_1p0),
@@ -460,7 +470,17 @@ static void ar9003_rx_gain_table_apply(struct ath_hw *ah)
 				       2);
 		break;
 	case 1:
-		if (AR_SREV_9340(ah))
+		if (AR_SREV_9330_12(ah))
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
+				ar9331_common_wo_xlna_rx_gain_1p2,
+				ARRAY_SIZE(ar9331_common_wo_xlna_rx_gain_1p2),
+				2);
+		else if (AR_SREV_9330_11(ah))
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
+				ar9331_common_wo_xlna_rx_gain_1p1,
+				ARRAY_SIZE(ar9331_common_wo_xlna_rx_gain_1p1),
+				2);
+		else if (AR_SREV_9340(ah))
 			INIT_INI_ARRAY(&ah->iniModesRxGain,
 				       ar9340Common_wo_xlna_rx_gain_table_1p0,
 				       ARRAY_SIZE(ar9340Common_wo_xlna_rx_gain_table_1p0),
