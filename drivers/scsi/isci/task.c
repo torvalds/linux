@@ -339,7 +339,8 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 			 status,
 			 ireq);
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
-		goto cleanup_request;
+		isci_request_free(ihost, ireq);
+		return ret;
 	}
 
 	if (tmf->cb_state_func != NULL)
@@ -354,7 +355,7 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 
 	/* Wait for the TMF to complete, or a timeout. */
 	timeleft = wait_for_completion_timeout(&completion,
-				       jiffies + msecs_to_jiffies(timeout_ms));
+					       msecs_to_jiffies(timeout_ms));
 
 	if (timeleft == 0) {
 		spin_lock_irqsave(&ihost->scic_lock, flags);
@@ -362,11 +363,13 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 		if (tmf->cb_state_func != NULL)
 			tmf->cb_state_func(isci_tmf_timed_out, tmf, tmf->cb_data);
 
-		status = scic_controller_terminate_request(&ihost->sci,
-							   &isci_device->sci,
-							   &ireq->sci);
+		scic_controller_terminate_request(&ihost->sci,
+						  &isci_device->sci,
+						  &ireq->sci);
 
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
+
+		wait_for_completion(tmf->complete);
 	}
 
 	isci_print_tmf(tmf);
@@ -387,13 +390,6 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 		__func__,
 		ireq);
 
-	if (ireq->io_request_completion != NULL) {
-		/* A thread is waiting for this TMF to finish. */
-		complete(ireq->io_request_completion);
-	}
-
- cleanup_request:
-	isci_request_free(ihost, ireq);
 	return ret;
 }
 
