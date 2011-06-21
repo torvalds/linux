@@ -3712,7 +3712,7 @@ static void ar9003_hw_internal_regulator_apply(struct ath_hw *ah)
 		ath9k_hw_ar9300_get_eeprom(ah, EEP_INTERNAL_REGULATOR);
 
 	if (internal_regulator) {
-		if (AR_SREV_9485(ah)) {
+		if (AR_SREV_9330(ah) || AR_SREV_9485(ah)) {
 			int reg_pmu_set;
 
 			reg_pmu_set = REG_READ(ah, AR_PHY_PMU2) & ~AR_PHY_PMU2_PGM;
@@ -3720,9 +3720,24 @@ static void ar9003_hw_internal_regulator_apply(struct ath_hw *ah)
 			if (!is_pmu_set(ah, AR_PHY_PMU2, reg_pmu_set))
 				return;
 
-			reg_pmu_set = (5 << 1) | (7 << 4) | (1 << 8) |
-				      (2 << 14) | (6 << 17) | (1 << 20) |
-				      (3 << 24) | (1 << 28);
+			if (AR_SREV_9330(ah)) {
+				if (ah->is_clk_25mhz) {
+					reg_pmu_set = (3 << 1) | (8 << 4) |
+						      (3 << 8) | (1 << 14) |
+						      (6 << 17) | (1 << 20) |
+						      (3 << 24);
+				} else {
+					reg_pmu_set = (4 << 1)  | (7 << 4) |
+						      (3 << 8)  | (1 << 14) |
+						      (6 << 17) | (1 << 20) |
+						      (3 << 24);
+				}
+			} else {
+				reg_pmu_set = (5 << 1) | (7 << 4) |
+					      (1 << 8) | (2 << 14) |
+					      (6 << 17) | (1 << 20) |
+					      (3 << 24) | (1 << 28);
+			}
 
 			REG_WRITE(ah, AR_PHY_PMU1, reg_pmu_set);
 			if (!is_pmu_set(ah, AR_PHY_PMU1, reg_pmu_set))
@@ -3753,7 +3768,7 @@ static void ar9003_hw_internal_regulator_apply(struct ath_hw *ah)
 					   AR_RTC_REG_CONTROL1_SWREG_PROGRAM);
 		}
 	} else {
-		if (AR_SREV_9485(ah)) {
+		if (AR_SREV_9330(ah) || AR_SREV_9485(ah)) {
 			REG_RMW_FIELD(ah, AR_PHY_PMU2, AR_PHY_PMU2_PGM, 0);
 			while (REG_READ_FIELD(ah, AR_PHY_PMU2,
 					      AR_PHY_PMU2_PGM))
