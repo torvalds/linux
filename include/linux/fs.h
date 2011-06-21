@@ -1573,8 +1573,6 @@ struct file_operations {
 			  loff_t len);
 };
 
-#define IPERM_FLAG_RCU	0x0001
-
 struct inode_operations {
 	struct dentry * (*lookup) (struct inode *,struct dentry *, struct nameidata *);
 	void * (*follow_link) (struct dentry *, struct nameidata *);
