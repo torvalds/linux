@@ -691,6 +691,8 @@ static struct i2c_driver tsl2563_i2c_driver;
 
 static const struct iio_info tsl2563_info_no_irq = {
 	.driver_module = THIS_MODULE,
+	.read_raw = &tsl2563_read_raw,
+	.write_raw = &tsl2563_write_raw,
 };
 
 static const struct iio_info tsl2563_info = {
