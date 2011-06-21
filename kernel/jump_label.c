@@ -375,15 +375,19 @@ int jump_label_text_reserved(void *start, void *end)
 
 static void jump_label_update(struct jump_label_key *key, int enable)
 {
-	struct jump_entry *entry = key->entries;
-
-	/* if there are no users, entry can be NULL */
-	if (entry)
-		__jump_label_update(key, entry, __stop___jump_table, enable);
+	struct jump_entry *entry = key->entries, *stop = __stop___jump_table;
 
 #ifdef CONFIG_MODULES
+	struct module *mod = __module_address((jump_label_t)key);
+
 	__jump_label_mod_update(key, enable);
+
+	if (mod)
+		stop = mod->jump_entries + mod->num_jump_entries;
 #endif
+	/* if there are no users, entry can be NULL */
+	if (entry)
+		__jump_label_update(key, entry, stop, enable);
 }
 
 #endif
