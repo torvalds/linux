@@ -280,7 +280,7 @@ static struct sleep_save exynos4_l2cc_save[] = {
 	SAVE_ITEM(S5P_VA_L2CC + L2X0_AUX_CTRL),
 };
 
-void exynos4_cpu_suspend(void)
+void exynos4_cpu_suspend(unsigned long arg)
 {
 	unsigned long tmp;
 	unsigned long mask = 0xFFFFFFFF;

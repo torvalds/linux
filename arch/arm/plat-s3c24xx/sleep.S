@@ -41,25 +41,6 @@
 
 	.text
 
-	/* s3c_cpu_save
-	 *
-	 * entry:
-	 *	r1 = v:p offset
-	*/
-
-ENTRY(s3c_cpu_save)
-	adr	r3, BSYM(s3c24xx_finish_suspend)
-	b	cpu_suspend
-
-s3c24xx_finish_suspend:
-	@@ jump to final code to send system to sleep
-	ldr	r0, =pm_cpu_sleep
-	@@ldr	pc, [ r0 ]
-	ldr	r0, [ r0 ]
-	mov	pc, r0
-	
-	.ltorg
-
 	/* sleep magic, to allow the bootloader to check for an valid
 	 * image to resume to. Must be the first word before the
 	 * s3c_cpu_resume entry.

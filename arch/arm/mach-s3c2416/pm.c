@@ -24,7 +24,7 @@
 
 extern void s3c2412_sleep_enter(void);
 
-static void s3c2416_cpu_suspend(void)
+static void s3c2416_cpu_suspend(unsigned long arg)
 {
 	flush_cache_all();
 

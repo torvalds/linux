@@ -25,24 +25,6 @@
 
 	.text
 
-	/* s3c_cpu_save
-	 *
-	 * Save enough processor state to allow the restart of the pm.c
-	 * code after resume.
-	 *
-	 * entry:
-	 *	r1 = v:p offset
-	*/
-
-ENTRY(s3c_cpu_save)
-	adr	r3, BSYM(s3c64xx_finish_suspend)
-	b	cpu_suspend
-
-s3c64xx_finish_suspend:
-	@@ call final suspend code
-	ldr	r0, =pm_cpu_sleep
-	ldr	pc, [r0]
-	
 	/* Sleep magic, the word before the resume entry point so that the
 	 * bootloader can check for a resumeable image. */
 

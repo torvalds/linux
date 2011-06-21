@@ -37,7 +37,7 @@
 
 extern void s3c2412_sleep_enter(void);
 
-static void s3c2412_cpu_suspend(void)
+static void s3c2412_cpu_suspend(unsigned long arg)
 {
 	unsigned long tmp;
 
