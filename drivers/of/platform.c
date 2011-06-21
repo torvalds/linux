@@ -13,6 +13,7 @@
  */
 #include <linux/errno.h>
 #include <linux/module.h>
+#include <linux/amba/bus.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -217,6 +218,71 @@ struct platform_device *of_platform_device_create(struct device_node *np,
 }
 EXPORT_SYMBOL(of_platform_device_create);
 
+#ifdef CONFIG_ARM_AMBA
+static struct amba_device *of_amba_device_create(struct device_node *node,
+						 const char *bus_id,
+						 void *platform_data,
+						 struct device *parent)
+{
+	struct amba_device *dev;
+	const void *prop;
+	int i, ret;
+
+	pr_debug("Creating amba device %s\n", node->full_name);
+
+	if (!of_device_is_available(node))
+		return NULL;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return NULL;
+
+	/* setup generic device info */
+	dev->dev.coherent_dma_mask = ~0;
+	dev->dev.of_node = of_node_get(node);
+	dev->dev.parent = parent;
+	dev->dev.platform_data = platform_data;
+	if (bus_id)
+		dev_set_name(&dev->dev, "%s", bus_id);
+	else
+		of_device_make_bus_id(&dev->dev);
+
+	/* setup amba-specific device info */
+	dev->dma_mask = ~0;
+
+	/* Allow the HW Peripheral ID to be overridden */
+	prop = of_get_property(node, "arm,primecell-periphid", NULL);
+	if (prop)
+		dev->periphid = of_read_ulong(prop, 1);
+
+	/* Decode the IRQs and address ranges */
+	for (i = 0; i < AMBA_NR_IRQS; i++)
+		dev->irq[i] = irq_of_parse_and_map(node, i);
+
+	ret = of_address_to_resource(node, 0, &dev->res);
+	if (ret)
+		goto err_free;
+
+	ret = amba_device_register(dev, &iomem_resource);
+	if (ret)
+		goto err_free;
+
+	return dev;
+
+err_free:
+	kfree(dev);
+	return NULL;
+}
+#else /* CONFIG_ARM_AMBA */
+static struct amba_device *of_amba_device_create(struct device_node *node,
+						 const char *bus_id,
+						 void *platform_data,
+						 struct device *parent)
+{
+	return NULL;
+}
+#endif /* CONFIG_ARM_AMBA */
+
 /**
  * of_platform_bus_create() - Create a device for a node and its children.
  * @bus: device node of the bus to instantiate
@@ -239,6 +305,11 @@ static int of_platform_bus_create(struct device_node *bus,
 	if (strict && (!of_get_property(bus, "compatible", NULL))) {
 		pr_debug("%s() - skipping %s, no compatible prop\n",
 			 __func__, bus->full_name);
+		return 0;
+	}
+
+	if (of_device_is_compatible(bus, "arm,primecell")) {
+		of_amba_device_create(bus, NULL, NULL, parent);
 		return 0;
 	}
 
