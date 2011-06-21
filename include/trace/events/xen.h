@@ -127,7 +127,7 @@ TRACE_EVENT(xen_mc_extend_args,
 	);
 
 /* mmu */
-TRACE_EVENT(xen_mmu_set_pte,
+DECLARE_EVENT_CLASS(xen_mmu__set_pte,
 	    TP_PROTO(pte_t *ptep, pte_t pteval),
 	    TP_ARGS(ptep, pteval),
 	    TP_STRUCT__entry(
@@ -142,20 +142,13 @@ TRACE_EVENT(xen_mmu_set_pte,
 		      (int)sizeof(pteval_t) * 2, (unsigned long long)__entry->pteval)
 	);
 
-TRACE_EVENT(xen_mmu_set_pte_atomic,
-	    TP_PROTO(pte_t *ptep, pte_t pteval),
-	    TP_ARGS(ptep, pteval),
-	    TP_STRUCT__entry(
-		    __field(pte_t *, ptep)
-		    __field(pteval_t, pteval)
-		    ),
-	    TP_fast_assign(__entry->ptep = ptep;
-			   __entry->pteval = pteval.pte),
-	    TP_printk("ptep %p pteval %0*llx (raw %0*llx)",
-		      __entry->ptep,
-		      (int)sizeof(pteval_t) * 2, (unsigned long long)pte_val(native_make_pte(__entry->pteval)),
-		      (int)sizeof(pteval_t) * 2, (unsigned long long)__entry->pteval)
-	);
+#define DEFINE_XEN_MMU_SET_PTE(name)				\
+	DEFINE_EVENT(xen_mmu__set_pte, name,			\
+		     TP_PROTO(pte_t *ptep, pte_t pteval),	\
+		     TP_ARGS(ptep, pteval))
+
+DEFINE_XEN_MMU_SET_PTE(xen_mmu_set_pte);
+DEFINE_XEN_MMU_SET_PTE(xen_mmu_set_pte_atomic);
 
 TRACE_EVENT(xen_mmu_set_domain_pte,
 	    TP_PROTO(pte_t *ptep, pte_t pteval, unsigned domid),
@@ -307,7 +300,7 @@ TRACE_EVENT(xen_mmu_pgd_clear,
 	    TP_printk("pgdp %p", __entry->pgdp)
 	);
 
-TRACE_EVENT(xen_mmu_ptep_modify_prot_start,
+DECLARE_EVENT_CLASS(xen_mmu_ptep_modify_prot,
 	    TP_PROTO(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t pteval),
 	    TP_ARGS(mm, addr, ptep, pteval),
@@ -326,26 +319,14 @@ TRACE_EVENT(xen_mmu_ptep_modify_prot_start,
 		      (int)sizeof(pteval_t) * 2, (unsigned long long)pte_val(native_make_pte(__entry->pteval)),
 		      (int)sizeof(pteval_t) * 2, (unsigned long long)__entry->pteval)
 	);
+#define DEFINE_XEN_MMU_PTEP_MODIFY_PROT(name)				\
+	DEFINE_EVENT(xen_mmu_ptep_modify_prot, name,			\
+		     TP_PROTO(struct mm_struct *mm, unsigned long addr,	\
+			      pte_t *ptep, pte_t pteval),		\
+		     TP_ARGS(mm, addr, ptep, pteval))
 
-TRACE_EVENT(xen_mmu_ptep_modify_prot_commit,
-	    TP_PROTO(struct mm_struct *mm, unsigned long addr,
-		     pte_t *ptep, pte_t pteval),
-	    TP_ARGS(mm, addr, ptep, pteval),
-	    TP_STRUCT__entry(
-		    __field(struct mm_struct *, mm)
-		    __field(unsigned long, addr)
-		    __field(pte_t *, ptep)
-		    __field(pteval_t, pteval)
-		    ),
-	    TP_fast_assign(__entry->mm = mm;
-			   __entry->addr = addr;
-			   __entry->ptep = ptep;
-			   __entry->pteval = pteval.pte),
-	    TP_printk("mm %p addr %lx ptep %p pteval %0*llx (raw %0*llx)",
-		      __entry->mm, __entry->addr, __entry->ptep,
-		      (int)sizeof(pteval_t) * 2, (unsigned long long)pte_val(native_make_pte(__entry->pteval)),
-		      (int)sizeof(pteval_t) * 2, (unsigned long long)__entry->pteval)
-	);
+DEFINE_XEN_MMU_PTEP_MODIFY_PROT(xen_mmu_ptep_modify_prot_start);
+DEFINE_XEN_MMU_PTEP_MODIFY_PROT(xen_mmu_ptep_modify_prot_commit);
 
 TRACE_EVENT(xen_mmu_alloc_ptpage,
 	    TP_PROTO(struct mm_struct *mm, unsigned long pfn, unsigned level, bool pinned),
@@ -381,7 +362,7 @@ TRACE_EVENT(xen_mmu_release_ptpage,
 		      __entry->pinned ? "" : "un")
 	);
 
-TRACE_EVENT(xen_mmu_pgd_pin,
+DECLARE_EVENT_CLASS(xen_mmu_pgd,
 	    TP_PROTO(struct mm_struct *mm, pgd_t *pgd),
 	    TP_ARGS(mm, pgd),
 	    TP_STRUCT__entry(
@@ -392,18 +373,13 @@ TRACE_EVENT(xen_mmu_pgd_pin,
 			   __entry->pgd = pgd),
 	    TP_printk("mm %p pgd %p", __entry->mm, __entry->pgd)
 	);
+#define DEFINE_XEN_MMU_PGD_EVENT(name)				\
+	DEFINE_EVENT(xen_mmu_pgd, name,				\
+		TP_PROTO(struct mm_struct *mm, pgd_t *pgd),	\
+		     TP_ARGS(mm, pgd))
 
-TRACE_EVENT(xen_mmu_pgd_unpin,
-	    TP_PROTO(struct mm_struct *mm, pgd_t *pgd),
-	    TP_ARGS(mm, pgd),
-	    TP_STRUCT__entry(
-		    __field(struct mm_struct *, mm)
-		    __field(pgd_t *, pgd)
-		    ),
-	    TP_fast_assign(__entry->mm = mm;
-			   __entry->pgd = pgd),
-	    TP_printk("mm %p pgd %p", __entry->mm, __entry->pgd)
-	);
+DEFINE_XEN_MMU_PGD_EVENT(xen_mmu_pgd_pin);
+DEFINE_XEN_MMU_PGD_EVENT(xen_mmu_pgd_unpin);
 
 TRACE_EVENT(xen_mmu_flush_tlb,
 	    TP_PROTO(int x),
