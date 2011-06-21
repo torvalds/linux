@@ -39,6 +39,7 @@ static inline bool ath_ant_div_comb_alt_check(u8 div_group, int alt_ratio,
 			result = true;
 		break;
 	case 1:
+	case 2:
 		if ((((curr_main_set == ATH_ANT_DIV_COMB_LNA2) &&
 			(curr_alt_set == ATH_ANT_DIV_COMB_LNA1) &&
 				(alt_rssi_avg >= (main_rssi_avg - 5))) ||
