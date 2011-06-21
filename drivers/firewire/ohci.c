@@ -513,6 +513,12 @@ static inline void flush_writes(const struct fw_ohci *ohci)
 	reg_read(ohci, OHCI1394_Version);
 }
 
+/*
+ * Beware!  read_phy_reg(), write_phy_reg(), update_phy_reg(), and
+ * read_paged_phy_reg() require the caller to hold ohci->phy_reg_mutex.
+ * In other words, only use ohci_read_phy_reg() and ohci_update_phy_reg()
+ * directly.  Exceptions are intrinsically serialized contexts like pci_probe.
+ */
 static int read_phy_reg(struct fw_ohci *ohci, int addr)
 {
 	u32 val;
