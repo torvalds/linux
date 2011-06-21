@@ -56,6 +56,7 @@
 #include <linux/completion.h>
 #include <linux/irqflags.h>
 #include "sas.h"
+#include <scsi/libsas.h>
 #include "remote_device.h"
 #include "remote_node_context.h"
 #include "isci.h"
@@ -1397,11 +1398,250 @@ isci_task_request_complete(struct isci_host *ihost,
 	complete(tmf_complete);
 }
 
+static void isci_smp_task_timedout(unsigned long _task)
+{
+	struct sas_task *task = (void *) _task;
+	unsigned long flags;
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE))
+		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	complete(&task->completion);
+}
+
+static void isci_smp_task_done(struct sas_task *task)
+{
+	if (!del_timer(&task->timer))
+		return;
+	complete(&task->completion);
+}
+
+static struct sas_task *isci_alloc_task(void)
+{
+	struct sas_task *task = kzalloc(sizeof(*task), GFP_KERNEL);
+
+	if (task) {
+		INIT_LIST_HEAD(&task->list);
+		spin_lock_init(&task->task_state_lock);
+		task->task_state_flags = SAS_TASK_STATE_PENDING;
+		init_timer(&task->timer);
+		init_completion(&task->completion);
+	}
+
+	return task;
+}
+
+static void isci_free_task(struct isci_host *ihost, struct sas_task  *task)
+{
+	if (task) {
+		BUG_ON(!list_empty(&task->list));
+		kfree(task);
+	}
+}
+
+static int isci_smp_execute_task(struct isci_host *ihost,
+				 struct domain_device *dev, void *req,
+				 int req_size, void *resp, int resp_size)
+{
+	int res, retry;
+	struct sas_task *task = NULL;
+
+	for (retry = 0; retry < 3; retry++) {
+		task = isci_alloc_task();
+		if (!task)
+			return -ENOMEM;
+
+		task->dev = dev;
+		task->task_proto = dev->tproto;
+		sg_init_one(&task->smp_task.smp_req, req, req_size);
+		sg_init_one(&task->smp_task.smp_resp, resp, resp_size);
+
+		task->task_done = isci_smp_task_done;
+
+		task->timer.data = (unsigned long) task;
+		task->timer.function = isci_smp_task_timedout;
+		task->timer.expires = jiffies + 10*HZ;
+		add_timer(&task->timer);
+
+		res = isci_task_execute_task(task, 1, GFP_KERNEL);
+
+		if (res) {
+			del_timer(&task->timer);
+			dev_err(&ihost->pdev->dev,
+				"%s: executing SMP task failed:%d\n",
+				__func__, res);
+			goto ex_err;
+		}
+
+		wait_for_completion(&task->completion);
+		res = -ECOMM;
+		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+			dev_err(&ihost->pdev->dev,
+				"%s: smp task timed out or aborted\n",
+				__func__);
+			isci_task_abort_task(task);
+			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+				dev_err(&ihost->pdev->dev,
+					"%s: SMP task aborted and not done\n",
+					__func__);
+				goto ex_err;
+			}
+		}
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		    task->task_status.stat == SAM_STAT_GOOD) {
+			res = 0;
+			break;
+		}
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		      task->task_status.stat == SAS_DATA_UNDERRUN) {
+			/* no error, but return the number of bytes of
+			* underrun */
+			res = task->task_status.residual;
+			break;
+		}
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		      task->task_status.stat == SAS_DATA_OVERRUN) {
+			res = -EMSGSIZE;
+			break;
+		} else {
+			dev_err(&ihost->pdev->dev,
+				"%s: task to dev %016llx response: 0x%x "
+				"status 0x%x\n", __func__,
+				SAS_ADDR(dev->sas_addr),
+				task->task_status.resp,
+				task->task_status.stat);
+			isci_free_task(ihost, task);
+			task = NULL;
+		}
+	}
+ex_err:
+	BUG_ON(retry == 3 && task != NULL);
+	isci_free_task(ihost, task);
+	return res;
+}
+
+#define DISCOVER_REQ_SIZE  16
+#define DISCOVER_RESP_SIZE 56
+
+int isci_smp_get_phy_attached_dev_type(struct isci_host *ihost,
+				       struct domain_device *dev,
+				       int phy_id, int *adt)
+{
+	struct smp_resp *disc_resp;
+	u8 *disc_req;
+	int res;
+
+	disc_resp = kzalloc(DISCOVER_RESP_SIZE, GFP_KERNEL);
+	if (!disc_resp)
+		return -ENOMEM;
+
+	disc_req = kzalloc(DISCOVER_REQ_SIZE, GFP_KERNEL);
+	if (disc_req) {
+		disc_req[0] = SMP_REQUEST;
+		disc_req[1] = SMP_DISCOVER;
+		disc_req[9] = phy_id;
+	} else {
+		kfree(disc_resp);
+		return -ENOMEM;
+	}
+	res = isci_smp_execute_task(ihost, dev, disc_req, DISCOVER_REQ_SIZE,
+				    disc_resp, DISCOVER_RESP_SIZE);
+	if (!res) {
+		if (disc_resp->result != SMP_RESP_FUNC_ACC)
+			res = disc_resp->result;
+		else
+			*adt = disc_resp->disc.attached_dev_type;
+	}
+	kfree(disc_req);
+	kfree(disc_resp);
+
+	return res;
+}
+
+static void isci_wait_for_smp_phy_reset(struct isci_remote_device *idev, int phy_num)
+{
+	struct domain_device *dev = idev->domain_dev;
+	struct isci_port *iport = idev->isci_port;
+	struct isci_host *ihost = iport->isci_host;
+	int res, iteration = 0, attached_device_type;
+	#define STP_WAIT_MSECS 25000
+	unsigned long tmo = msecs_to_jiffies(STP_WAIT_MSECS);
+	unsigned long deadline = jiffies + tmo;
+	enum {
+		SMP_PHYWAIT_PHYDOWN,
+		SMP_PHYWAIT_PHYUP,
+		SMP_PHYWAIT_DONE
+	} phy_state = SMP_PHYWAIT_PHYDOWN;
+
+	/* While there is time, wait for the phy to go away and come back */
+	while (time_is_after_jiffies(deadline) && phy_state != SMP_PHYWAIT_DONE) {
+		int event = atomic_read(&iport->event);
+
+		++iteration;
+
+		tmo = wait_event_timeout(ihost->eventq,
+					 event != atomic_read(&iport->event) ||
+					 !test_bit(IPORT_BCN_BLOCKED, &iport->flags),
+					 tmo);
+		/* link down, stop polling */
+		if (!test_bit(IPORT_BCN_BLOCKED, &iport->flags))
+			break;
+
+		dev_dbg(&ihost->pdev->dev,
+			"%s: iport %p, iteration %d,"
+			" phase %d: time_remaining %lu, bcns = %d\n",
+			__func__, iport, iteration, phy_state,
+			tmo, test_bit(IPORT_BCN_PENDING, &iport->flags));
+
+		res = isci_smp_get_phy_attached_dev_type(ihost, dev, phy_num,
+							 &attached_device_type);
+		tmo = deadline - jiffies;
+
+		if (res) {
+			dev_warn(&ihost->pdev->dev,
+				 "%s: iteration %d, phase %d:"
+				 " SMP error=%d, time_remaining=%lu\n",
+				 __func__, iteration, phy_state, res, tmo);
+			break;
+		}
+		dev_dbg(&ihost->pdev->dev,
+			"%s: iport %p, iteration %d,"
+			" phase %d: time_remaining %lu, bcns = %d, "
+			"attdevtype = %x\n",
+			__func__, iport, iteration, phy_state,
+			tmo, test_bit(IPORT_BCN_PENDING, &iport->flags),
+			attached_device_type);
+
+		switch (phy_state) {
+		case SMP_PHYWAIT_PHYDOWN:
+			/* Has the device gone away? */
+			if (!attached_device_type)
+				phy_state = SMP_PHYWAIT_PHYUP;
+
+			break;
+
+		case SMP_PHYWAIT_PHYUP:
+			/* Has the device come back? */
+			if (attached_device_type)
+				phy_state = SMP_PHYWAIT_DONE;
+			break;
+
+		case SMP_PHYWAIT_DONE:
+			break;
+		}
+
+	}
+	dev_dbg(&ihost->pdev->dev, "%s: done\n",  __func__);
+}
+
 static int isci_reset_device(struct domain_device *dev, int hard_reset)
 {
 	struct isci_remote_device *idev = dev->lldd_dev;
 	struct sas_phy *phy = sas_find_local_phy(dev);
 	struct isci_host *ihost = dev_to_ihost(dev);
+	struct isci_port *iport = idev->isci_port;
 	enum sci_status status;
 	unsigned long flags;
 	int rc;
@@ -1432,6 +1672,10 @@ static int isci_reset_device(struct domain_device *dev, int hard_reset)
 	/* Make sure all pending requests are able to be fully terminated. */
 	isci_device_clear_reset_pending(ihost, idev);
 
+	/* If this is a device on an expander, disable BCN processing. */
+	if (!scsi_is_sas_phy_local(phy))
+		set_bit(IPORT_BCN_BLOCKED, &iport->flags);
+
 	rc = sas_phy_reset(phy, hard_reset);
 
 	/* Terminate in-progress I/O now. */
@@ -1442,7 +1686,20 @@ static int isci_reset_device(struct domain_device *dev, int hard_reset)
 	status = scic_remote_device_reset_complete(&idev->sci);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
-	msleep(2000); /* just like mvsas */
+	/* If this is a device on an expander, bring the phy back up. */
+	if (!scsi_is_sas_phy_local(phy)) {
+		/* A phy reset will cause the device to go away then reappear.
+		 * Since libsas will take action on incoming BCNs (eg. remove
+		 * a device going through an SMP phy-control driven reset),
+		 * we need to wait until the phy comes back up before letting
+		 * discovery proceed in libsas.
+		 */
+		isci_wait_for_smp_phy_reset(idev, phy->number);
+
+		spin_lock_irqsave(&ihost->scic_lock, flags);
+		isci_port_bcn_enable(ihost, idev->isci_port);
+		spin_unlock_irqrestore(&ihost->scic_lock, flags);
+	}
 
 	if (status != SCI_SUCCESS) {
 		dev_warn(&ihost->pdev->dev,

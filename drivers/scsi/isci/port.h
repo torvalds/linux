@@ -173,6 +173,10 @@ struct scic_sds_port {
  */
 struct isci_port {
 	enum isci_status status;
+	#define IPORT_BCN_BLOCKED 0
+	#define IPORT_BCN_PENDING 1
+	unsigned long flags;
+	atomic_t event;
 	struct isci_host *isci_host;
 	struct asd_sas_port sas_port;
 	struct list_head remote_dev_list;
@@ -334,6 +338,7 @@ void scic_sds_port_setup_transports(
 	struct scic_sds_port *sci_port,
 	u32 device_id);
 
+void isci_port_bcn_enable(struct isci_host *, struct isci_port *);
 
 void scic_sds_port_deactivate_phy(
 	struct scic_sds_port *sci_port,

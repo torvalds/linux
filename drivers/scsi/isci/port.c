@@ -152,6 +152,71 @@ static enum sci_status scic_port_get_properties(struct scic_sds_port *port,
 	return SCI_SUCCESS;
 }
 
+static void scic_port_bcn_enable(struct scic_sds_port *sci_port)
+{
+	struct scic_sds_phy *sci_phy;
+	u32 val;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sci_port->phy_table); i++) {
+		sci_phy = sci_port->phy_table[i];
+		if (!sci_phy)
+			continue;
+		val = readl(&sci_phy->link_layer_registers->link_layer_control);
+		/* clear the bit by writing 1. */
+		writel(val, &sci_phy->link_layer_registers->link_layer_control);
+	}
+}
+
+/* called under scic_lock to stabilize phy:port associations */
+void isci_port_bcn_enable(struct isci_host *ihost, struct isci_port *iport)
+{
+	int i;
+
+	clear_bit(IPORT_BCN_BLOCKED, &iport->flags);
+	wake_up(&ihost->eventq);
+
+	if (!test_and_clear_bit(IPORT_BCN_PENDING, &iport->flags))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(iport->sci.phy_table); i++) {
+		struct scic_sds_phy *sci_phy = iport->sci.phy_table[i];
+		struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
+
+		if (!sci_phy)
+			continue;
+
+		ihost->sas_ha.notify_port_event(&iphy->sas_phy,
+						PORTE_BROADCAST_RCVD);
+		break;
+	}
+}
+
+void isci_port_bc_change_received(struct isci_host *ihost,
+				  struct scic_sds_port *sci_port,
+				  struct scic_sds_phy *sci_phy)
+{
+	struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
+	struct isci_port *iport = iphy->isci_port;
+
+	if (iport && test_bit(IPORT_BCN_BLOCKED, &iport->flags)) {
+		dev_dbg(&ihost->pdev->dev,
+			"%s: disabled BCN; isci_phy = %p, sas_phy = %p\n",
+			__func__, iphy, &iphy->sas_phy);
+		set_bit(IPORT_BCN_PENDING, &iport->flags);
+		atomic_inc(&iport->event);
+		wake_up(&ihost->eventq);
+	} else {
+		dev_dbg(&ihost->pdev->dev,
+			"%s: isci_phy = %p, sas_phy = %p\n",
+			__func__, iphy, &iphy->sas_phy);
+
+		ihost->sas_ha.notify_port_event(&iphy->sas_phy,
+						PORTE_BROADCAST_RCVD);
+	}
+	scic_port_bcn_enable(sci_port);
+}
+
 static void isci_port_link_up(struct isci_host *isci_host,
 			      struct scic_sds_port *port,
 			      struct scic_sds_phy *phy)
@@ -240,13 +305,15 @@ static void isci_port_link_down(struct isci_host *isci_host,
 	if (isci_port) {
 
 		/* check to see if this is the last phy on this port. */
-		if (isci_phy->sas_phy.port
-		    && isci_phy->sas_phy.port->num_phys == 1) {
+		if (isci_phy->sas_phy.port &&
+		    isci_phy->sas_phy.port->num_phys == 1) {
+			atomic_inc(&isci_port->event);
+			isci_port_bcn_enable(isci_host, isci_port);
 
-			/* change the state for all devices on this port.
-			 * The next task sent to this device will be returned
-			 * as SAS_TASK_UNDELIVERED, and the scsi mid layer
-			 * will remove the target
+			/* change the state for all devices on this port.  The
+			 * next task sent to this device will be returned as
+			 * SAS_TASK_UNDELIVERED, and the scsi mid layer will
+			 * remove the target
 			 */
 			list_for_each_entry(isci_device,
 					    &isci_port->remote_dev_list,
@@ -1031,26 +1098,6 @@ enum sas_linkrate scic_sds_port_get_max_allowed_speed(
 	}
 
 	return max_allowed_speed;
-}
-
-static void scic_port_enable_broadcast_change_notification(struct scic_sds_port *port)
-{
-	struct scic_sds_phy *phy;
-	u32 register_value;
-	u8 index;
-
-	/* Loop through all of the phys to enable BCN. */
-	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		phy = port->phy_table[index];
-		if (phy != NULL) {
-			register_value =
-				readl(&phy->link_layer_registers->link_layer_control);
-
-			/* clear the bit by writing 1. */
-			writel(register_value,
-				&phy->link_layer_registers->link_layer_control);
-		}
-	}
 }
 
 /**
@@ -1838,6 +1885,7 @@ void isci_port_init(struct isci_port *iport, struct isci_host *ihost, int index)
 	init_completion(&iport->start_complete);
 	iport->isci_host = ihost;
 	isci_port_change_state(iport, isci_freed);
+	atomic_set(&iport->event, 0);
 }
 
 /**
@@ -1850,19 +1898,6 @@ enum isci_status isci_port_get_state(
 	struct isci_port *isci_port)
 {
 	return isci_port->status;
-}
-
-static void isci_port_bc_change_received(struct isci_host *ihost,
-					 struct scic_sds_port *sci_port,
-					 struct scic_sds_phy *sci_phy)
-{
-	struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
-
-	dev_dbg(&ihost->pdev->dev, "%s: iphy = %p, sas_phy = %p\n",
-		__func__, iphy, &iphy->sas_phy);
-
-	ihost->sas_ha.notify_port_event(&iphy->sas_phy, PORTE_BROADCAST_RCVD);
-	scic_port_enable_broadcast_change_notification(sci_port);
 }
 
 void scic_sds_port_broadcast_change_received(
