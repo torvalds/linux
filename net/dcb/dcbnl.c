@@ -1399,7 +1399,7 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlattr **tb,
 			if (ops->ieee_setapp)
 				err = ops->ieee_setapp(netdev, app_data);
 			else
-				err = dcb_setapp(netdev, app_data);
+				err = dcb_ieee_setapp(netdev, app_data);
 			if (err)
 				goto err;
 		}
@@ -1829,10 +1829,11 @@ u8 dcb_getapp(struct net_device *dev, struct dcb_app *app)
 EXPORT_SYMBOL(dcb_getapp);
 
 /**
- * ixgbe_dcbnl_setapp - add dcb application data to app list
+ * dcb_setapp - add CEE dcb application data to app list
  *
- * Priority 0 is the default priority this removes applications
- * from the app list if the priority is set to zero.
+ * Priority 0 is an invalid priority in CEE spec. This routine
+ * removes applications from the app list if the priority is
+ * set to zero.
  */
 u8 dcb_setapp(struct net_device *dev, struct dcb_app *new)
 {
@@ -1876,6 +1877,52 @@ out:
 	return 0;
 }
 EXPORT_SYMBOL(dcb_setapp);
+
+/**
+ * dcb_ieee_setapp - add IEEE dcb application data to app list
+ *
+ * This adds Application data to the list. Multiple application
+ * entries may exists for the same selector and protocol as long
+ * as the priorities are different.
+ */
+int dcb_ieee_setapp(struct net_device *dev, struct dcb_app *new)
+{
+	struct dcb_app_type *itr, *entry;
+	struct dcb_app_type event;
+	int err = 0;
+
+	memcpy(&event.name, dev->name, sizeof(event.name));
+	memcpy(&event.app, new, sizeof(event.app));
+
+	spin_lock(&dcb_lock);
+	/* Search for existing match and abort if found */
+	list_for_each_entry(itr, &dcb_app_list, list) {
+		if (itr->app.selector == new->selector &&
+		    itr->app.protocol == new->protocol &&
+		    itr->app.priority == new->priority &&
+		    (strncmp(itr->name, dev->name, IFNAMSIZ) == 0)) {
+			err = -EEXIST;
+			goto out;
+		}
+	}
+
+	/* App entry does not exist add new entry */
+	entry = kmalloc(sizeof(struct dcb_app_type), GFP_ATOMIC);
+	if (!entry) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	memcpy(&entry->app, new, sizeof(*new));
+	strncpy(entry->name, dev->name, IFNAMSIZ);
+	list_add(&entry->list, &dcb_app_list);
+out:
+	spin_unlock(&dcb_lock);
+	if (!err)
+		call_dcbevent_notifiers(DCB_APP_EVENT, &event);
+	return err;
+}
+EXPORT_SYMBOL(dcb_ieee_setapp);
 
 static void dcb_flushapp(void)
 {
