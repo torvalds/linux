@@ -629,19 +629,6 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 	return 0;
 }
 
-int vhost_init_used(struct vhost_virtqueue *vq)
-{
-	int r;
-	if (!vq->private_data)
-		return 0;
-
-	r = put_user(vq->used_flags, &vq->used->flags);
-	if (r)
-		return r;
-	vq->signalled_used_valid = false;
-	return get_user(vq->last_used_idx, &vq->used->idx);
-}
-
 static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 {
 	struct file *eventfp, *filep = NULL,
@@ -1006,6 +993,57 @@ int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 	/* Length written exceeds what we have stored. This is a bug. */
 	BUG();
 	return 0;
+}
+
+static int vhost_update_used_flags(struct vhost_virtqueue *vq)
+{
+	void __user *used;
+	if (put_user(vq->used_flags, &vq->used->flags) < 0)
+		return -EFAULT;
+	if (unlikely(vq->log_used)) {
+		/* Make sure the flag is seen before log. */
+		smp_wmb();
+		/* Log used flag write. */
+		used = &vq->used->flags;
+		log_write(vq->log_base, vq->log_addr +
+			  (used - (void __user *)vq->used),
+			  sizeof vq->used->flags);
+		if (vq->log_ctx)
+			eventfd_signal(vq->log_ctx, 1);
+	}
+	return 0;
+}
+
+static int vhost_update_avail_event(struct vhost_virtqueue *vq, u16 avail_event)
+{
+	if (put_user(vq->avail_idx, vhost_avail_event(vq)))
+		return -EFAULT;
+	if (unlikely(vq->log_used)) {
+		void __user *used;
+		/* Make sure the event is seen before log. */
+		smp_wmb();
+		/* Log avail event write */
+		used = vhost_avail_event(vq);
+		log_write(vq->log_base, vq->log_addr +
+			  (used - (void __user *)vq->used),
+			  sizeof *vhost_avail_event(vq));
+		if (vq->log_ctx)
+			eventfd_signal(vq->log_ctx, 1);
+	}
+	return 0;
+}
+
+int vhost_init_used(struct vhost_virtqueue *vq)
+{
+	int r;
+	if (!vq->private_data)
+		return 0;
+
+	r = vhost_update_used_flags(vq);
+	if (r)
+		return r;
+	vq->signalled_used_valid = false;
+	return get_user(vq->last_used_idx, &vq->used->idx);
 }
 
 static int translate_desc(struct vhost_dev *dev, u64 addr, u32 len,
@@ -1479,33 +1517,19 @@ bool vhost_enable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 		return false;
 	vq->used_flags &= ~VRING_USED_F_NO_NOTIFY;
 	if (!vhost_has_feature(dev, VIRTIO_RING_F_EVENT_IDX)) {
-		r = put_user(vq->used_flags, &vq->used->flags);
+		r = vhost_update_used_flags(vq);
 		if (r) {
 			vq_err(vq, "Failed to enable notification at %p: %d\n",
 			       &vq->used->flags, r);
 			return false;
 		}
 	} else {
-		r = put_user(vq->avail_idx, vhost_avail_event(vq));
+		r = vhost_update_avail_event(vq, vq->avail_idx);
 		if (r) {
 			vq_err(vq, "Failed to update avail event index at %p: %d\n",
 			       vhost_avail_event(vq), r);
 			return false;
 		}
-	}
-	if (unlikely(vq->log_used)) {
-		void __user *used;
-		/* Make sure data is seen before log. */
-		smp_wmb();
-		used = vhost_has_feature(dev, VIRTIO_RING_F_EVENT_IDX) ?
-			&vq->used->flags : vhost_avail_event(vq);
-		/* Log used flags or event index entry write. Both are 16 bit
-		 * fields. */
-		log_write(vq->log_base, vq->log_addr +
-			   (used - (void __user *)vq->used),
-			  sizeof(u16));
-		if (vq->log_ctx)
-			eventfd_signal(vq->log_ctx, 1);
 	}
 	/* They could have slipped one in as we were doing that: make
 	 * sure it's written, then check again. */
@@ -1529,7 +1553,7 @@ void vhost_disable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 		return;
 	vq->used_flags |= VRING_USED_F_NO_NOTIFY;
 	if (!vhost_has_feature(dev, VIRTIO_RING_F_EVENT_IDX)) {
-		r = put_user(vq->used_flags, &vq->used->flags);
+		r = vhost_update_used_flags(vq);
 		if (r)
 			vq_err(vq, "Failed to enable notification at %p: %d\n",
 			       &vq->used->flags, r);
