@@ -22,20 +22,13 @@
 
 		.text
 /*
- * sa1100_cpu_suspend()
+ * sa1100_finish_suspend()
  *
  * Causes sa11x0 to enter sleep state
  *
  */
 
-ENTRY(sa1100_cpu_suspend)
-	stmfd	sp!, {r4 - r12, lr}		@ save registers on stack
-	mov	r1, r0
-	adr	r3, BSYM(sa1100_finish_suspend)
-	bl	cpu_suspend
-	ldmfd	sp!, {r4 - r12, pc}		@ return to caller
-
-sa1100_finish_suspend:
+ENTRY(sa1100_finish_suspend)
 	@ disable clock switching
 	mcr	p15, 0, r1, c15, c2, 2
 
