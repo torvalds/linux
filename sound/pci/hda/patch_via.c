@@ -844,33 +844,13 @@ static bool is_smart51_pins(struct hda_codec *codec, hda_nid_t pin)
 	return false;
 }
 
-static int via_smart51_info(struct snd_kcontrol *kcontrol,
-			    struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
-
 static int via_smart51_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct via_spec *spec = codec->spec;
-	int on = 1;
-	int i;
 
-	for (i = 0; i < spec->smart51_nums; i++) {
-		hda_nid_t nid = spec->smart51_pins[i];
-		unsigned int ctl;
-		ctl = snd_hda_codec_read(codec, nid, 0,
-					 AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
-		if ((ctl & AC_PINCTL_IN_EN) && !(ctl & AC_PINCTL_OUT_EN))
-			on = 0;
-	}
-	*ucontrol->value.integer.value = on;
+	*ucontrol->value.integer.value = spec->smart51_enabled;
 	return 0;
 }
 
@@ -908,7 +888,7 @@ static const struct snd_kcontrol_new via_smart51_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Smart 5.1",
 	.count = 1,
-	.info = via_smart51_info,
+	.info = snd_ctl_boolean_mono_info,
 	.get = via_smart51_get,
 	.put = via_smart51_put,
 };
@@ -1450,8 +1430,13 @@ static void via_hp_automute(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 
 	if (!spec->hp_independent_mode && spec->autocfg.hp_pins[0]) {
+		int nums;
 		present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
-		toggle_output_mutes(codec, spec->autocfg.line_outs,
+		if (spec->smart51_enabled)
+			nums = spec->autocfg.line_outs + spec->smart51_nums;
+		else
+			nums = spec->autocfg.line_outs;
+		toggle_output_mutes(codec, nums,
 				    spec->autocfg.line_out_pins,
 				    present);
 	}
