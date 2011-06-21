@@ -147,5 +147,4 @@ sa1110_sdram_controller_fix:
  */
 	.align 5
 sa1100_cpu_resume:
-	mcr	p15, 0, r1, c15, c1, 2		@ enable clock switching
 	ldmfd	sp!, {r4 - r12, pc}		@ return to caller
