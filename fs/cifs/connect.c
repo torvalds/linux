@@ -320,9 +320,10 @@ requeue_echo:
 }
 
 static int
-cifs_demultiplex_thread(struct TCP_Server_Info *server)
+cifs_demultiplex_thread(void *p)
 {
 	int length;
+	struct TCP_Server_Info *server = p;
 	unsigned int pdu_length, total_read;
 	struct smb_hdr *smb_buffer = NULL;
 	struct smb_hdr *bigbuf = NULL;
@@ -1791,7 +1792,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	 * this will succeed. No need for try_module_get().
 	 */
 	__module_get(THIS_MODULE);
-	tcp_ses->tsk = kthread_run((void *)(void *)cifs_demultiplex_thread,
+	tcp_ses->tsk = kthread_run(cifs_demultiplex_thread,
 				  tcp_ses, "cifsd");
 	if (IS_ERR(tcp_ses->tsk)) {
 		rc = PTR_ERR(tcp_ses->tsk);
