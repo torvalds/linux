@@ -33,27 +33,31 @@ TRACE_EVENT(rcu_utilization,
 
 /*
  * Tracepoint for marking the beginning rcu_do_batch, performed to start
- * RCU callback invocation.  The first argument is the total number of
- * callbacks (including those that are not yet ready to be invoked),
- * and the second argument is the current RCU-callback batch limit.
+ * RCU callback invocation.  The first argument is the RCU flavor,
+ * the second is the total number of callbacks (including those that
+ * are not yet ready to be invoked), and the third argument is the
+ * current RCU-callback batch limit.
  */
 TRACE_EVENT(rcu_batch_start,
 
-	TP_PROTO(long qlen, int blimit),
+	TP_PROTO(char *rcuname, long qlen, int blimit),
 
-	TP_ARGS(qlen, blimit),
+	TP_ARGS(rcuname, qlen, blimit),
 
 	TP_STRUCT__entry(
+		__field(char *, rcuname)
 		__field(long, qlen)
 		__field(int, blimit)
 	),
 
 	TP_fast_assign(
+		__entry->rcuname = rcuname;
 		__entry->qlen = qlen;
 		__entry->blimit = blimit;
 	),
 
-	TP_printk("CBs=%ld bl=%d", __entry->qlen, __entry->blimit)
+	TP_printk("%s CBs=%ld bl=%d",
+		  __entry->rcuname, __entry->qlen, __entry->blimit)
 );
 
 /*
@@ -106,23 +110,27 @@ TRACE_EVENT(rcu_invoke_kfree_callback,
 
 /*
  * Tracepoint for exiting rcu_do_batch after RCU callbacks have been
- * invoked.  The first argument is the number of callbacks actually invoked.
+ * invoked.  The first argument is the name of the RCU flavor and
+ * the second argument is number of callbacks actually invoked.
  */
 TRACE_EVENT(rcu_batch_end,
 
-	TP_PROTO(int callbacks_invoked),
+	TP_PROTO(char *rcuname, int callbacks_invoked),
 
-	TP_ARGS(callbacks_invoked),
+	TP_ARGS(rcuname, callbacks_invoked),
 
 	TP_STRUCT__entry(
+		__field(char *, rcuname)
 		__field(int, callbacks_invoked)
 	),
 
 	TP_fast_assign(
+		__entry->rcuname = rcuname;
 		__entry->callbacks_invoked = callbacks_invoked;
 	),
 
-	TP_printk("CBs-invoked=%d", __entry->callbacks_invoked)
+	TP_printk("%s CBs-invoked=%d",
+		  __entry->rcuname, __entry->callbacks_invoked)
 );
 
 #endif /* _TRACE_RCU_H */

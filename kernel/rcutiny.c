@@ -168,14 +168,14 @@ static void rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 
 	/* If no RCU callbacks ready to invoke, just return. */
 	if (&rcp->rcucblist == rcp->donetail) {
-		RCU_TRACE(trace_rcu_batch_start(0, -1));
-		RCU_TRACE(trace_rcu_batch_end(0));
+		RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, -1));
+		RCU_TRACE(trace_rcu_batch_end(rcp->name, 0));
 		return;
 	}
 
 	/* Move the ready-to-invoke callbacks to a local list. */
 	local_irq_save(flags);
-	RCU_TRACE(trace_rcu_batch_start(0, -1));
+	RCU_TRACE(trace_rcu_batch_start(rcp->name, 0, -1));
 	list = rcp->rcucblist;
 	rcp->rcucblist = *rcp->donetail;
 	*rcp->donetail = NULL;
@@ -197,7 +197,7 @@ static void rcu_process_callbacks(struct rcu_ctrlblk *rcp)
 		RCU_TRACE(cb_count++);
 	}
 	RCU_TRACE(rcu_trace_sub_qlen(rcp, cb_count));
-	RCU_TRACE(trace_rcu_batch_end(cb_count));
+	RCU_TRACE(trace_rcu_batch_end(rcp->name, cb_count));
 }
 
 /*
