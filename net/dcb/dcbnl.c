@@ -1288,6 +1288,7 @@ static int dcbnl_ieee_get(struct net_device *netdev, struct nlattr **tb,
 	struct nlattr *ieee, *app;
 	struct dcb_app_type *itr;
 	const struct dcbnl_rtnl_ops *ops = netdev->dcbnl_ops;
+	int dcbx;
 	int err;
 
 	if (!ops)
@@ -1338,6 +1339,12 @@ static int dcbnl_ieee_get(struct net_device *netdev, struct nlattr **tb,
 			}
 		}
 	}
+
+	if (netdev->dcbnl_ops->getdcbx)
+		dcbx = netdev->dcbnl_ops->getdcbx(netdev);
+	else
+		dcbx = -EOPNOTSUPP;
+
 	spin_unlock(&dcb_lock);
 	nla_nest_end(skb, app);
 
@@ -1366,6 +1373,11 @@ static int dcbnl_ieee_get(struct net_device *netdev, struct nlattr **tb,
 	}
 
 	nla_nest_end(skb, ieee);
+	if (dcbx >= 0) {
+		err = nla_put_u8(skb, DCB_ATTR_DCBX, dcbx);
+		if (err)
+			goto nla_put_failure;
+	}
 	nlmsg_end(skb, nlh);
 
 	return rtnl_unicast(skb, &init_net, pid);
