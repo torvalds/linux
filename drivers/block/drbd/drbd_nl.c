@@ -273,9 +273,6 @@ fail:
 
 static int drbd_adm_finish(struct genl_info *info, int retcode)
 {
-	struct nlattr *nla;
-	const char *resource_name = NULL;
-
 	if (adm_ctx.tconn) {
 		kref_put(&adm_ctx.tconn->kref, &conn_destroy);
 		adm_ctx.tconn = NULL;
@@ -285,15 +282,6 @@ static int drbd_adm_finish(struct genl_info *info, int retcode)
 		return -ENOMEM;
 
 	adm_ctx.reply_dh->ret_code = retcode;
-
-	nla = info->attrs[DRBD_NLA_CFG_CONTEXT];
-	if (nla) {
-		int maxtype = ARRAY_SIZE(drbd_cfg_context_nl_policy) - 1;
-		nla = drbd_nla_find_nested(maxtype, nla, __nla_type(T_ctx_resource_name));
-		if (nla && !IS_ERR(nla))
-			resource_name = nla_data(nla);
-	}
-
 	drbd_adm_send_reply(adm_ctx.reply_skb, info);
 	return 0;
 }
