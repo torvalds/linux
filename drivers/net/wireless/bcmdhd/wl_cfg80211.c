@@ -113,7 +113,7 @@ static ctl_table wl_sysctl_table[] = {
 	.maxlen = 0,
 	.mode =  0555,
 	.child = wl_sysctl_child,
-	.proc_handler = proc_dostring,
+	.proc_handler = NULL,
 	},
 	{0}
 };
