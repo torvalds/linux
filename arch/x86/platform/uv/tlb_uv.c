@@ -296,14 +296,18 @@ static void bau_process_message(struct msg_desc *mdp,
 }
 
 /*
- * Determine the first cpu on a uvhub.
+ * Determine the first cpu on a pnode.
  */
-static int uvhub_to_first_cpu(int uvhub)
+static int pnode_to_first_cpu(int pnode, struct bau_control *smaster)
 {
 	int cpu;
-	for_each_present_cpu(cpu)
-		if (uvhub == uv_cpu_to_blade_id(cpu))
+	struct hub_and_pnode *hpp;
+
+	for_each_present_cpu(cpu) {
+		hpp = &smaster->thp[cpu];
+		if (pnode == hpp->pnode)
 			return cpu;
+	}
 	return -1;
 }
 
@@ -366,23 +370,28 @@ static void do_reset(void *ptr)
  * Use IPI to get all target uvhubs to release resources held by
  * a given sending cpu number.
  */
-static void reset_with_ipi(struct bau_targ_hubmask *distribution, int sender)
+static void reset_with_ipi(struct bau_targ_hubmask *distribution,
+						struct bau_control *bcp)
 {
-	int uvhub;
+	int pnode;
+	int apnode;
 	int maskbits;
 	cpumask_t mask;
+	int sender = bcp->cpu;
+	struct bau_control *smaster = bcp->socket_master;
 	struct reset_args reset_args;
 
 	reset_args.sender = sender;
 	cpus_clear(mask);
 	/* find a single cpu for each uvhub in this distribution mask */
 	maskbits = sizeof(struct bau_targ_hubmask) * BITSPERBYTE;
-	for (uvhub = 0; uvhub < maskbits; uvhub++) {
+	/* each bit is a pnode relative to the partition base pnode */
+	for (pnode = 0; pnode < maskbits; pnode++) {
 		int cpu;
-		if (!bau_uvhub_isset(uvhub, distribution))
+		if (!bau_uvhub_isset(pnode, distribution))
 			continue;
-		/* find a cpu for this uvhub */
-		cpu = uvhub_to_first_cpu(uvhub);
+		apnode = pnode + bcp->partition_base_pnode;
+		cpu = pnode_to_first_cpu(apnode, smaster);
 		cpu_set(cpu, mask);
 	}
 
@@ -604,7 +613,7 @@ static void destination_plugged(struct bau_desc *bau_desc,
 		quiesce_local_uvhub(hmaster);
 
 		spin_lock(&hmaster->queue_lock);
-		reset_with_ipi(&bau_desc->distribution, bcp->cpu);
+		reset_with_ipi(&bau_desc->distribution, bcp);
 		spin_unlock(&hmaster->queue_lock);
 
 		end_uvhub_quiesce(hmaster);
@@ -626,7 +635,7 @@ static void destination_timeout(struct bau_desc *bau_desc,
 		quiesce_local_uvhub(hmaster);
 
 		spin_lock(&hmaster->queue_lock);
-		reset_with_ipi(&bau_desc->distribution, bcp->cpu);
+		reset_with_ipi(&bau_desc->distribution, bcp);
 		spin_unlock(&hmaster->queue_lock);
 
 		end_uvhub_quiesce(hmaster);
