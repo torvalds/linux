@@ -138,9 +138,7 @@ struct via_spec {
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
 	/* HP mode source */
-	const struct hda_input_mux *hp_mux;
 	unsigned int hp_independent_mode;
-	unsigned int hp_independent_mode_index;
 	unsigned int dmic_enabled;
 	unsigned int no_pin_power_ctl;
 	enum VIA_HDA_CODEC codec_type;
@@ -406,6 +404,24 @@ static int __get_connection_index(struct hda_codec *codec, hda_nid_t mux,
 #define get_connection_index(codec, mux, nid) \
 	__get_connection_index(codec, mux, nid, NULL)
 
+static bool check_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
+			   unsigned int mask)
+{
+	unsigned int caps = get_wcaps(codec, nid);
+	if (dir == HDA_INPUT)
+		caps &= AC_WCAP_IN_AMP;
+	else
+		caps &= AC_WCAP_OUT_AMP;
+	if (!caps)
+		return false;
+	if (query_amp_caps(codec, nid, dir) & mask)
+		return true;
+	return false;
+}
+
+#define have_vol_or_mute(codec, nid, dir) \
+	check_amp_caps(codec, nid, dir, AC_AMPCAP_NUM_STEPS | AC_AMPCAP_MUTE)
+
 /* unmute input amp and select the specificed source */
 static void unmute_and_select(struct hda_codec *codec, hda_nid_t nid,
 			      hda_nid_t src, hda_nid_t mix)
@@ -423,22 +439,20 @@ static void unmute_and_select(struct hda_codec *codec, hda_nid_t nid,
 				    AC_VERB_SET_CONNECT_SEL, idx);
 
 	/* unmute if the input amp is present */
-	if (query_amp_caps(codec, nid, HDA_INPUT) &
-	    (AC_AMPCAP_NUM_STEPS | AC_AMPCAP_MUTE))
+	if (have_vol_or_mute(codec, nid, HDA_INPUT))
 		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_UNMUTE(idx));
 
 	/* unmute the src output */
-	if (query_amp_caps(codec, src, HDA_OUTPUT) &
-	    (AC_AMPCAP_NUM_STEPS | AC_AMPCAP_MUTE))
+	if (have_vol_or_mute(codec, src, HDA_OUTPUT))
 		snd_hda_codec_write(codec, src, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_OUT_UNMUTE);
 
 	/* unmute AA-path if present */
-	if (!mix)
+	if (!mix || mix == src)
 		return;
 	idx = __get_connection_index(codec, nid, mix, NULL);
-	if (idx >= 0)
+	if (idx >= 0 && have_vol_or_mute(codec, nid, HDA_INPUT))
 		snd_hda_codec_write(codec, nid, 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_UNMUTE(idx));
@@ -694,9 +708,16 @@ static int via_mux_enum_put(struct snd_kcontrol *kcontrol,
 static int via_independent_hp_info(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_info *uinfo)
 {
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct via_spec *spec = codec->spec;
-	return snd_hda_input_mux_info(spec->hp_mux, uinfo);
+	static const char * const texts[] = { "OFF", "ON" };
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 2;
+	if (uinfo->value.enumerated.item >= 2)
+		uinfo->value.enumerated.item = 1;
+	strcpy(uinfo->value.enumerated.name,
+	       texts[uinfo->value.enumerated.item]);
+	return 0;
 }
 
 static int via_independent_hp_get(struct snd_kcontrol *kcontrol,
@@ -714,12 +735,28 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct via_spec *spec = codec->spec;
-	hda_nid_t nid = kcontrol->private_value;
-	unsigned int pinsel = ucontrol->value.enumerated.item[0];
-	/* Get Independent Mode index of headphone pin widget */
-	spec->hp_independent_mode = spec->hp_independent_mode_index == pinsel
-		? 1 : 0;
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, pinsel);
+	hda_nid_t nid, src;
+	int i, idx, num_conns;
+	struct nid_path *path;
+
+	spec->hp_independent_mode = !!ucontrol->value.enumerated.item[0];
+	if (spec->hp_independent_mode)
+		path = &spec->hp_path;
+	else
+		path = &spec->hp_dep_path;
+
+	/* re-route the output path */
+	for (i = path->depth - 1; i > 0; i--) {
+		nid = path->path[i];
+		src = path->path[i - 1];
+		idx = __get_connection_index(codec, nid, src, &num_conns);
+		if (idx < 0)
+			continue;
+		if (num_conns > 1 &&
+		    get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_AUD_MIX)
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_CONNECT_SEL, idx);
+	}
 
 	/* update jack power state */
 	set_widgets_power_state(codec);
@@ -746,7 +783,6 @@ static int via_hp_build(struct hda_codec *codec)
 		return -ENOMEM;
 
 	knew->subdevice = HDA_SUBDEV_NID_FLAG | nid;
-	knew->private_value = nid;
 
 	return 0;
 }
@@ -1622,9 +1658,9 @@ static int create_ch_ctls(struct hda_codec *codec, const char *pfx,
 	hda_nid_t nid;
 	int err;
 
-	if (dac && query_amp_caps(codec, dac, HDA_OUTPUT) & AC_AMPCAP_NUM_STEPS)
+	if (dac && check_amp_caps(codec, dac, HDA_OUTPUT, AC_AMPCAP_NUM_STEPS))
 		nid = dac;
-	else if (query_amp_caps(codec, pin, HDA_OUTPUT) & AC_AMPCAP_NUM_STEPS)
+	else if (check_amp_caps(codec, pin, HDA_OUTPUT, AC_AMPCAP_NUM_STEPS))
 		nid = pin;
 	else
 		nid = 0;
@@ -1636,9 +1672,9 @@ static int create_ch_ctls(struct hda_codec *codec, const char *pfx,
 			return err;
 	}
 
-	if (dac && query_amp_caps(codec, dac, HDA_OUTPUT) & AC_AMPCAP_MUTE)
+	if (dac && check_amp_caps(codec, dac, HDA_OUTPUT, AC_AMPCAP_MUTE))
 		nid = dac;
-	else if (query_amp_caps(codec, pin, HDA_OUTPUT) & AC_AMPCAP_MUTE)
+	else if (check_amp_caps(codec, pin, HDA_OUTPUT, AC_AMPCAP_MUTE))
 		nid = pin;
 	else
 		nid = 0;
@@ -1741,19 +1777,6 @@ static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
 	return 0;
 }
 
-static void create_hp_imux(struct via_spec *spec)
-{
-	int i;
-	struct hda_input_mux *imux = &spec->private_imux[1];
-	static const char * const texts[] = { "OFF", "ON", NULL};
-
-	/* for hp mode select */
-	for (i = 0; texts[i]; i++)
-		snd_hda_add_imux_item(imux, texts[i], i, NULL);
-
-	spec->hp_mux = &spec->private_imux[1];
-}
-
 static int via_auto_create_hp_ctls(struct hda_codec *codec, hda_nid_t pin)
 {
 	struct via_spec *spec = codec->spec;
@@ -1762,17 +1785,13 @@ static int via_auto_create_hp_ctls(struct hda_codec *codec, hda_nid_t pin)
 	if (!pin)
 		return 0;
 
-	if (parse_output_path(codec, pin, 0, &spec->hp_path)) {
+	if (parse_output_path(codec, pin, 0, &spec->hp_path))
 		spec->hp_dac_nid = spec->hp_path.path[0];
-		spec->hp_independent_mode_index = spec->hp_path.idx[0];
-		create_hp_imux(spec);
-	}
 
 	if (!parse_output_path(codec, pin, spec->multiout.dac_nids[HDA_FRONT],
 			       &spec->hp_dep_path) &&
 	    !spec->hp_dac_nid)
 		return 0;
-
 
 	err = create_ch_ctls(codec, "Headphone", pin, spec->hp_dac_nid, 3);
 	if (err < 0)
@@ -2068,7 +2087,7 @@ static int via_parse_auto_config(struct hda_codec *codec)
 
 	spec->input_mux = &spec->private_imux[0];
 
-	if (spec->hp_mux) {
+	if (spec->hp_dac_nid && spec->hp_dep_path.depth) {
 		err = via_hp_build(codec);
 		if (err < 0)
 			return err;
