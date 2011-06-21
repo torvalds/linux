@@ -78,6 +78,12 @@ struct dispc_v_coef {
 	s8 vc00;
 };
 
+enum omap_burst_size {
+	BURST_SIZE_X2 = 0,
+	BURST_SIZE_X4 = 1,
+	BURST_SIZE_X8 = 2,
+};
+
 #define REG_GET(idx, start, end) \
 	FLD_GET(dispc_read_reg(idx), start, end)
 
@@ -992,11 +998,10 @@ static void _dispc_set_channel_out(enum omap_plane plane,
 	dispc_write_reg(DISPC_OVL_ATTRIBUTES(plane), val);
 }
 
-void dispc_set_burst_size(enum omap_plane plane,
+static void dispc_set_burst_size(enum omap_plane plane,
 		enum omap_burst_size burst_size)
 {
 	int shift;
-	u32 val;
 
 	enable_clocks(1);
 
@@ -1013,11 +1018,26 @@ void dispc_set_burst_size(enum omap_plane plane,
 		return;
 	}
 
-	val = dispc_read_reg(DISPC_OVL_ATTRIBUTES(plane));
-	val = FLD_MOD(val, burst_size, shift+1, shift);
-	dispc_write_reg(DISPC_OVL_ATTRIBUTES(plane), val);
+	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), burst_size, shift + 1, shift);
 
 	enable_clocks(0);
+}
+
+static void dispc_configure_burst_sizes(void)
+{
+	int i;
+	const int burst_size = BURST_SIZE_X8;
+
+	/* Configure burst size always to maximum size */
+	for (i = 0; i < omap_dss_get_num_overlays(); ++i)
+		dispc_set_burst_size(i, burst_size);
+}
+
+u32 dispc_get_burst_size(enum omap_plane plane)
+{
+	unsigned unit = dss_feat_get_burst_size_unit();
+	/* burst multiplier is always x8 (see dispc_configure_burst_sizes()) */
+	return unit * 8;
 }
 
 void dispc_enable_gamma_table(bool enable)
@@ -1118,14 +1138,17 @@ static void dispc_read_plane_fifo_sizes(void)
 	u32 size;
 	int plane;
 	u8 start, end;
+	u32 unit;
+
+	unit = dss_feat_get_buffer_size_unit();
 
 	enable_clocks(1);
 
 	dss_feat_get_reg_field(FEAT_REG_FIFOSIZE, &start, &end);
 
 	for (plane = 0; plane < ARRAY_SIZE(dispc.fifo_size); ++plane) {
-		size = FLD_GET(dispc_read_reg(DISPC_OVL_FIFO_SIZE_STATUS(plane)),
-			start, end);
+		size = REG_GET(DISPC_OVL_FIFO_SIZE_STATUS(plane), start, end);
+		size *= unit;
 		dispc.fifo_size[plane] = size;
 	}
 
@@ -1137,9 +1160,18 @@ u32 dispc_get_plane_fifo_size(enum omap_plane plane)
 	return dispc.fifo_size[plane];
 }
 
-void dispc_setup_plane_fifo(enum omap_plane plane, u32 low, u32 high)
+void dispc_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 {
 	u8 hi_start, hi_end, lo_start, lo_end;
+	u32 unit;
+
+	unit = dss_feat_get_buffer_size_unit();
+
+	WARN_ON(low % unit != 0);
+	WARN_ON(high % unit != 0);
+
+	low /= unit;
+	high /= unit;
 
 	dss_feat_get_reg_field(FEAT_REG_FIFOHIGHTHRESHOLD, &hi_start, &hi_end);
 	dss_feat_get_reg_field(FEAT_REG_FIFOLOWTHRESHOLD, &lo_start, &lo_end);
@@ -3624,6 +3656,8 @@ static void _omap_dispc_initial_config(void)
 	dispc_set_loadmode(OMAP_DSS_LOAD_FRAME_ONLY);
 
 	dispc_read_plane_fifo_sizes();
+
+	dispc_configure_burst_sizes();
 }
 
 int dispc_enable_plane(enum omap_plane plane, bool enable)

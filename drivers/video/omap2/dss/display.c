@@ -29,6 +29,7 @@
 
 #include <video/omapdss.h>
 #include "dss.h"
+#include "dss_features.h"
 
 static ssize_t display_enabled_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -282,16 +283,13 @@ void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
 EXPORT_SYMBOL(omapdss_default_get_resolution);
 
 void default_get_overlay_fifo_thresholds(enum omap_plane plane,
-		u32 fifo_size, enum omap_burst_size *burst_size,
+		u32 fifo_size, u32 burst_size,
 		u32 *fifo_low, u32 *fifo_high)
 {
-	unsigned burst_size_bytes;
+	unsigned buf_unit = dss_feat_get_buffer_size_unit();
 
-	*burst_size = OMAP_DSS_BURST_16x32;
-	burst_size_bytes = 16 * 32 / 8;
-
-	*fifo_high = fifo_size - 1;
-	*fifo_low = fifo_size - burst_size_bytes;
+	*fifo_high = fifo_size - buf_unit;
+	*fifo_low = fifo_size - burst_size;
 }
 
 int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
