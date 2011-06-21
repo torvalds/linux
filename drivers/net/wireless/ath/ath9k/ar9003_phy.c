@@ -104,7 +104,7 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			u32 chan_frac;
 
 			channelSel = (freq * 2) / 75;
-			chan_frac = ((freq % 75) * 0x20000) / 75;
+			chan_frac = (((freq * 2) % 75) * 0x20000) / 75;
 			channelSel = (channelSel << 17) | chan_frac;
 		} else {
 			channelSel = CHANSEL_5G(freq);
