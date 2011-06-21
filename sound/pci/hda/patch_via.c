@@ -822,26 +822,6 @@ static void mute_aa_path(struct hda_codec *codec, int mute)
 	}
 }
 
-static bool is_smart51_candidate(struct hda_codec *codec, hda_nid_t pin)
-{
-	struct via_spec *spec = codec->spec;
-	const struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i;
-
-	for (i = 0; i < cfg->num_inputs; i++) {
-		unsigned int defcfg;
-		if (pin != cfg->inputs[i].pin)
-			continue;
-		if (cfg->inputs[i].type > AUTO_PIN_LINE_IN)
-			return false;
-		defcfg = snd_hda_codec_get_pincfg(codec, pin);
-		if (snd_hda_get_input_pin_attr(defcfg) < INPUT_PIN_ATTR_NORMAL)
-			return false;
-		return true;
-	}
-	return false;
-}
-
 static bool is_smart51_pins(struct hda_codec *codec, hda_nid_t pin)
 {
 	struct via_spec *spec = codec->spec;
@@ -1692,21 +1672,38 @@ static void mangle_smart51(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, nums = 0;
+	struct auto_pin_cfg_item *ins = cfg->inputs;
+	int i, j, nums, attr;
+	int pins[AUTO_CFG_MAX_INS];
 
-	for (i = 0; i < cfg->num_inputs; i++) {
-		if (is_smart51_candidate(codec, cfg->inputs[i].pin))
+	for (attr = INPUT_PIN_ATTR_REAR; attr >= INPUT_PIN_ATTR_NORMAL; attr--) {
+		nums = 0;
+		for (i = 0; i < cfg->num_inputs; i++) {
+			unsigned int def;
+			if (ins[i].type > AUTO_PIN_LINE_IN)
+				continue;
+			def = snd_hda_codec_get_pincfg(codec, ins[i].pin);
+			if (snd_hda_get_input_pin_attr(def) != attr)
+				continue;
+			for (j = 0; j < nums; j++)
+				if (ins[pins[j]].type < ins[i].type) {
+					memmove(pins + j + 1, pins + j,
+						(nums - j - 1) * sizeof(int));
+					break;
+				}
+			pins[j] = i;
 			nums++;
-	}
-	if (cfg->line_outs + nums < 3)
-		return;
-	for (i = 0; i < cfg->num_inputs; i++) {
-		if (!is_smart51_candidate(codec, cfg->inputs[i].pin))
+		}
+		if (cfg->line_outs + nums < 3)
 			continue;
-		spec->smart51_pins[spec->smart51_nums++] = cfg->inputs[i].pin;
-		cfg->line_out_pins[cfg->line_outs++] = cfg->inputs[i].pin;
-		if (cfg->line_outs == 3)
-			break;
+		for (i = 0; i < nums; i++) {
+			hda_nid_t pin = ins[pins[i]].pin;
+			spec->smart51_pins[spec->smart51_nums++] = pin;
+			cfg->line_out_pins[cfg->line_outs++] = pin;
+			if (cfg->line_outs == 3)
+				break;
+		}
+		return;
 	}
 }
 
