@@ -408,6 +408,11 @@ static int wm831x_irq_set_type(struct irq_data *data, unsigned int type)
 			return -EINVAL;
 	}
 
+	/* Rebase the IRQ into the GPIO range so we've got a sensible array
+	 * index.
+	 */
+	irq -= WM831X_IRQ_GPIO_1;
+
 	/* We set the high bit to flag that we need an update; don't
 	 * do the update here as we can be called with the bus lock
 	 * held.
