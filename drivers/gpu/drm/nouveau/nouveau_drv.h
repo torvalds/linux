@@ -461,9 +461,9 @@ struct nouveau_pm_level {
 struct nouveau_pm_temp_sensor_constants {
 	u16 offset_constant;
 	s16 offset_mult;
-	u16 offset_div;
-	u16 slope_mult;
-	u16 slope_div;
+	s16 offset_div;
+	s16 slope_mult;
+	s16 slope_div;
 };
 
 struct nouveau_pm_threshold_temp {
