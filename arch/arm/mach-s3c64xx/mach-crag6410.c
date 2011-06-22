@@ -634,7 +634,7 @@ static struct wm8915_pdata wm8915_pdata __initdata = {
 	.inl_mode = WM8915_DIFFERRENTIAL_1,
 	.inr_mode = WM8915_DIFFERRENTIAL_1,
 
-	.irq_flags = IRQF_TRIGGER_FALLING,
+	.irq_flags = IRQF_TRIGGER_RISING,
 
 	.gpio_default = {
 		0x8001, /* GPIO1 == ADCLRCLK1 */
