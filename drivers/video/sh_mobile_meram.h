@@ -17,14 +17,6 @@
 #define SH_MOBILE_MERAM_CACHE_OFFSET(p)	((p) >> 16)
 #define SH_MOBILE_MERAM_CACHE_SIZE(p)	((p) & 0xffff)
 
-struct sh_mobile_meram_priv {
-	void __iomem	*base;
-	struct mutex	lock;
-	unsigned long	used_icb;
-	int		used_meram_cache_regions;
-	unsigned long	used_meram_cache[SH_MOBILE_MERAM_ICB_NUM];
-};
-
 int sh_mobile_meram_alloc_icb(const struct sh_mobile_meram_cfg *cfg,
 		   int xres,
 		   int yres,

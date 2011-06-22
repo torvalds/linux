@@ -37,6 +37,14 @@
 #define MEQSEL1 0x40
 #define MEQSEL2 0x44
 
+struct sh_mobile_meram_priv {
+	void __iomem	*base;
+	struct mutex	lock;
+	unsigned long	used_icb;
+	int		used_meram_cache_regions;
+	unsigned long	used_meram_cache[SH_MOBILE_MERAM_ICB_NUM];
+};
+
 /* settings */
 #define MERAM_SEC_LINE 15
 #define MERAM_LINE_WIDTH 2048
