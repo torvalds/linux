@@ -20,6 +20,7 @@
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
+#include <asm/suspend.h>
 #include <mach/hardware.h>
 #include <mach/map.h>
 
@@ -298,7 +299,7 @@ static int s3c_pm_enter(suspend_state_t state)
 	 * we resume as it saves its own register state and restores it
 	 * during the resume.  */
 
-	cpu_suspend(0, PHYS_OFFSET - PAGE_OFFSET, 0, pm_cpu_sleep);
+	cpu_suspend(0, pm_cpu_sleep);
 
 	/* restore the system state */
 

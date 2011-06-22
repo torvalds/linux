@@ -24,6 +24,7 @@
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
+#include <asm/suspend.h>
 #include <mach/irqs.h>
 #include <mach/gpio.h>
 #include <mach/pxa27x.h>
@@ -304,8 +305,7 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 		pxa_cpu_standby();
 		break;
 	case PM_SUSPEND_MEM:
-		cpu_suspend(0, PHYS_OFFSET - PAGE_OFFSET, pwrmode,
-			    pxa27x_finish_suspend);
+		cpu_suspend(pwrmode, pxa27x_finish_suspend);
 #ifndef CONFIG_IWMMXT
 		asm volatile("mar acc0, %Q0, %R0" : "=r" (acc0));
 #endif

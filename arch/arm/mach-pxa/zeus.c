@@ -31,6 +31,7 @@
 #include <linux/can/platform/mcp251x.h>
 
 #include <asm/mach-types.h>
+#include <asm/suspend.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
@@ -676,8 +677,7 @@ static struct pxa2xx_udc_mach_info zeus_udc_info = {
 static void zeus_power_off(void)
 {
 	local_irq_disable();
-	cpu_suspend(0, PHYS_OFFSET - PAGE_OFFSET, PWRMODE_DEEPSLEEP,
-		    pxa27x_finish_suspend);
+	cpu_suspend(PWRMODE_DEEPSLEEP, pxa27x_finish_suspend);
 }
 #else
 #define zeus_power_off   NULL

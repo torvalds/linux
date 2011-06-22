@@ -29,6 +29,7 @@
 
 #include <mach/hardware.h>
 #include <asm/memory.h>
+#include <asm/suspend.h>
 #include <asm/system.h>
 #include <asm/mach/time.h>
 
@@ -75,7 +76,7 @@ static int sa11x0_pm_enter(suspend_state_t state)
 	PSPR = virt_to_phys(cpu_resume);
 
 	/* go zzz */
-	cpu_suspend(0, PHYS_OFFSET - PAGE_OFFSET, 0, sa1100_finish_suspend);
+	cpu_suspend(0, sa1100_finish_suspend);
 
 	/*
 	 * Ensure not to come back here if it wasn't intended
