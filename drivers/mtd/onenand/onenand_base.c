@@ -3429,6 +3429,19 @@ static void onenand_check_features(struct mtd_info *mtd)
 		else if (numbufs == 1) {
 			this->options |= ONENAND_HAS_4KB_PAGE;
 			this->options |= ONENAND_HAS_CACHE_PROGRAM;
+			/*
+			 * There are two different 4KiB pagesize chips
+			 * and no way to detect it by H/W config values.
+			 *
+			 * To detect the correct NOP for each chips,
+			 * It should check the version ID as workaround.
+			 *
+			 * Now it has as following
+			 * KFM4G16Q4M has NOP 4 with version ID 0x0131
+			 * KFM4G16Q5M has NOP 1 with versoin ID 0x013e
+			 */
+			if ((this->version_id & 0xf) == 0xe)
+				this->options |= ONENAND_HAS_NOP_1;
 		}
 
 	case ONENAND_DEVICE_DENSITY_2Gb:
@@ -4054,6 +4067,8 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 			this->ecclayout = &onenand_oob_128;
 			mtd->subpage_sft = 2;
 		}
+		if (ONENAND_IS_NOP_1(this))
+			mtd->subpage_sft = 0;
 		break;
 	case 64:
 		this->ecclayout = &onenand_oob_64;
