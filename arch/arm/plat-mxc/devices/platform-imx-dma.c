@@ -33,22 +33,22 @@ struct imx_imx_sdma_data {
 
 #ifdef CONFIG_SOC_IMX25
 struct imx_imx_sdma_data imx25_imx_sdma_data __initconst =
-	imx_imx_sdma_data_entry_single(MX25, 2, "imx25", 0);
+	imx_imx_sdma_data_entry_single(MX25, 2, "imx25", 1);
 #endif /* ifdef CONFIG_SOC_IMX25 */
 
 #ifdef CONFIG_SOC_IMX31
 struct imx_imx_sdma_data imx31_imx_sdma_data __initdata =
-	imx_imx_sdma_data_entry_single(MX31, 1, "imx31", 0);
+	imx_imx_sdma_data_entry_single(MX31, 1, "imx31", 1);
 #endif /* ifdef CONFIG_SOC_IMX31 */
 
 #ifdef CONFIG_SOC_IMX35
 struct imx_imx_sdma_data imx35_imx_sdma_data __initdata =
-	imx_imx_sdma_data_entry_single(MX35, 2, "imx35", 0);
+	imx_imx_sdma_data_entry_single(MX35, 2, "imx35", 1);
 #endif /* ifdef CONFIG_SOC_IMX35 */
 
 #ifdef CONFIG_SOC_IMX51
 struct imx_imx_sdma_data imx51_imx_sdma_data __initconst =
-	imx_imx_sdma_data_entry_single(MX51, 2, "imx51", 0);
+	imx_imx_sdma_data_entry_single(MX51, 2, "imx51", 1);
 #endif /* ifdef CONFIG_SOC_IMX51 */
 
 static struct platform_device __init __maybe_unused *imx_add_imx_sdma(
