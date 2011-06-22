@@ -922,15 +922,6 @@ config XILINX_EMACLITE
 	help
 	  This driver supports the 10/100 Ethernet Lite from Xilinx.
 
-config FTMAC100
-	tristate "Faraday FTMAC100 10/100 Ethernet support"
-	depends on ARM
-	select MII
-	help
-	  This driver supports the FTMAC100 10/100 Ethernet controller
-	  from Faraday. It is used on Faraday A320, Andes AG101 and some
-	  other ARM/NDS32 SoC's.
-
 config LANTIQ_ETOP
 	tristate "Lantiq SoC ETOP driver"
 	depends on SOC_TYPE_XWAY
@@ -1285,15 +1276,6 @@ config PCH_GBE
 	  ML7223 IOH is for MP(Media Phone) use.
 	  ML7223 is companion chip for Intel Atom E6xx series.
 	  ML7223 is completely compatible for Intel EG20T PCH.
-
-config FTGMAC100
-	tristate "Faraday FTGMAC100 Gigabit Ethernet support"
-	depends on ARM
-	select PHYLIB
-	help
-	  This driver supports the FTGMAC100 Gigabit Ethernet controller
-	  from Faraday. It is used on Faraday A369, Andes AG102 and some
-	  other ARM/NDS32 SoC's.
 
 endif # NETDEV_1000
 

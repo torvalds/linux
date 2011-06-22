@@ -79,8 +79,6 @@ ifeq ($(CONFIG_FEC_MPC52xx_MDIO),y)
 	obj-$(CONFIG_FEC_MPC52xx) += fec_mpc52xx_phy.o
 endif
 obj-$(CONFIG_FORCEDETH) += forcedeth.o
-obj-$(CONFIG_FTGMAC100) += ftgmac100.o
-obj-$(CONFIG_FTMAC100) += ftmac100.o
 
 obj-$(CONFIG_TSI108_ETH) += tsi108_eth.o
 obj-$(CONFIG_MV643XX_ETH) += mv643xx_eth.o
