@@ -435,7 +435,7 @@ armpmu_reserve_hardware(void)
 			if (irq >= 0)
 				free_irq(irq, NULL);
 		}
-		release_pmu(pmu_device);
+		release_pmu(ARM_PMU_DEVICE_CPU);
 		pmu_device = NULL;
 	}
 
@@ -454,7 +454,7 @@ armpmu_release_hardware(void)
 	}
 	armpmu->stop();
 
-	release_pmu(pmu_device);
+	release_pmu(ARM_PMU_DEVICE_CPU);
 	pmu_device = NULL;
 }
 
