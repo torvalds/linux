@@ -1485,8 +1485,6 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 
 	netdev->irq = adapter->msix_entries[0].vector;
 
-	netif_carrier_off(netdev);
-
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to register net device\n");
@@ -1815,6 +1813,8 @@ static int qlcnic_open(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	int err;
+
+	netif_carrier_off(netdev);
 
 	err = qlcnic_attach(adapter);
 	if (err)
