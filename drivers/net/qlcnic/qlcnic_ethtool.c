@@ -1019,8 +1019,27 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 
 	if (val->flag == QLCNIC_FORCE_FW_DUMP_KEY) {
+		if (!fw_dump->enable) {
+			netdev_info(netdev, "FW dump not enabled\n");
+			return ret;
+		}
+		if (fw_dump->clr) {
+			dev_info(&adapter->pdev->dev,
+			"Previous dump not cleared, not forcing dump\n");
+			return ret;
+		}
 		netdev_info(netdev, "Forcing a FW dump\n");
 		qlcnic_dev_request_reset(adapter);
+	} else if (val->flag == QLCNIC_DISABLE_FW_DUMP) {
+		if (fw_dump->enable) {
+			netdev_info(netdev, "Disabling FW dump\n");
+			fw_dump->enable = 0;
+		}
+	} else if (val->flag == QLCNIC_ENABLE_FW_DUMP) {
+		if (!fw_dump->enable && fw_dump->tmpl_hdr) {
+			netdev_info(netdev, "Enabling FW dump\n");
+			fw_dump->enable = 1;
+		}
 	} else {
 		if (val->flag > QLCNIC_DUMP_MASK_MAX ||
 			val->flag < QLCNIC_DUMP_MASK_MIN) {

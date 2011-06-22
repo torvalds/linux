@@ -429,6 +429,7 @@ struct qlcnic_dump_template_hdr {
 
 struct qlcnic_fw_dump {
 	u8	clr;	/* flag to indicate if dump is cleared */
+	u8	enable; /* enable/disable dump */
 	u32	size;	/* total size of the dump */
 	void	*data;	/* dump data area */
 	struct	qlcnic_dump_template_hdr *tmpl_hdr;
@@ -1320,6 +1321,8 @@ enum op_codes {
 #define QLCNIC_DUMP_MASK_DEF		0x7f
 #define QLCNIC_DUMP_MASK_MAX		0xff
 #define QLCNIC_FORCE_FW_DUMP_KEY	0xdeadfeed
+#define QLCNIC_ENABLE_FW_DUMP		0xaddfeed
+#define QLCNIC_DISABLE_FW_DUMP		0xbadfeed
 
 struct qlcnic_dump_operations {
 	enum op_codes opcode;

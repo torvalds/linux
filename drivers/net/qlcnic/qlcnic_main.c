@@ -2849,9 +2849,11 @@ skip_ack_check:
 		qlcnic_api_unlock(adapter);
 
 		rtnl_lock();
-		QLCDB(adapter, DRV, "Take FW dump\n");
-		qlcnic_dump_fw(adapter);
-		adapter->flags &= ~QLCNIC_FW_RESET_OWNER;
+		if (adapter->ahw->fw_dump.enable) {
+			QLCDB(adapter, DRV, "Take FW dump\n");
+			qlcnic_dump_fw(adapter);
+			adapter->flags &= ~QLCNIC_FW_RESET_OWNER;
+		}
 		rtnl_unlock();
 		if (!adapter->nic_ops->start_firmware(adapter)) {
 			qlcnic_schedule_work(adapter, qlcnic_attach_work, 0);
