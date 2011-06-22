@@ -521,11 +521,11 @@ static int pd_alloc_chan_resources(struct dma_chan *chan)
 		list_add_tail(&desc->desc_node, &tmp_list);
 	}
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irq(&pd_chan->lock);
 	list_splice(&tmp_list, &pd_chan->free_list);
 	pd_chan->descs_allocated = i;
 	pd_chan->completed_cookie = chan->cookie = 1;
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock_irq(&pd_chan->lock);
 
 	pdc_enable_irq(chan, 1);
 
@@ -543,10 +543,10 @@ static void pd_free_chan_resources(struct dma_chan *chan)
 	BUG_ON(!list_empty(&pd_chan->active_list));
 	BUG_ON(!list_empty(&pd_chan->queue));
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irq(&pd_chan->lock);
 	list_splice_init(&pd_chan->free_list, &tmp_list);
 	pd_chan->descs_allocated = 0;
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock_irq(&pd_chan->lock);
 
 	list_for_each_entry_safe(desc, _d, &tmp_list, desc_node)
 		pci_pool_free(pd->pool, desc, desc->txd.phys);
@@ -562,10 +562,10 @@ static enum dma_status pd_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	dma_cookie_t last_completed;
 	int ret;
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irq(&pd_chan->lock);
 	last_completed = pd_chan->completed_cookie;
 	last_used = chan->cookie;
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock_irq(&pd_chan->lock);
 
 	ret = dma_async_is_complete(cookie, last_completed, last_used);
 
@@ -680,7 +680,7 @@ static int pd_device_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	if (cmd != DMA_TERMINATE_ALL)
 		return -ENXIO;
 
-	spin_lock_bh(&pd_chan->lock);
+	spin_lock_irq(&pd_chan->lock);
 
 	pdc_set_mode(&pd_chan->chan, DMA_CTL0_DISABLE);
 
@@ -690,7 +690,7 @@ static int pd_device_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	list_for_each_entry_safe(desc, _d, &list, desc_node)
 		pdc_chain_complete(pd_chan, desc);
 
-	spin_unlock_bh(&pd_chan->lock);
+	spin_unlock_irq(&pd_chan->lock);
 
 	return 0;
 }
