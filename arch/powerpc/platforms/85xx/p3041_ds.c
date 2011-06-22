@@ -69,6 +69,7 @@ define_machine(p3041_ds) {
 	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
+	.power_save		= e500_idle,
 };
 
 machine_device_initcall(p3041_ds, corenet_ds_publish_devices);

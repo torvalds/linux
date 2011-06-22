@@ -74,6 +74,11 @@ define_machine(p5020_ds) {
 	.restart		= fsl_rstcr_restart,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
+#ifdef CONFIG_PPC64
+	.power_save		= book3e_idle,
+#else
+	.power_save		= e500_idle,
+#endif
 };
 
 machine_device_initcall(p5020_ds, corenet_ds_publish_devices);
