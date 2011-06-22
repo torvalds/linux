@@ -13,6 +13,9 @@
  * "Start <activity>" -- Mark the start of the specified activity,
  *			 such as "context switch".  Nesting is permitted.
  * "End <activity>" -- Mark the end of the specified activity.
+ *
+ * An "@" character within "<activity>" is a comment character: Data
+ * reduction scripts will ignore the "@" and the remainder of the line.
  */
 TRACE_EVENT(rcu_utilization,
 
