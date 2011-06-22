@@ -409,7 +409,7 @@ out:
  */
 static void nfs_inode_remove_request(struct nfs_page *req)
 {
-	struct inode *inode = req->wb_context->path.dentry->d_inode;
+	struct inode *inode = req->wb_context->dentry->d_inode;
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	BUG_ON (!NFS_WBACK_BUSY(req));
@@ -438,7 +438,7 @@ nfs_mark_request_dirty(struct nfs_page *req)
 static void
 nfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg)
 {
-	struct inode *inode = req->wb_context->path.dentry->d_inode;
+	struct inode *inode = req->wb_context->dentry->d_inode;
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	spin_lock(&inode->i_lock);
@@ -852,13 +852,13 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
 		struct pnfs_layout_segment *lseg,
 		int how)
 {
-	struct inode *inode = req->wb_context->path.dentry->d_inode;
+	struct inode *inode = req->wb_context->dentry->d_inode;
 
 	/* Set up the RPC argument and reply structs
 	 * NB: take care not to mess about with data->commit et al. */
 
 	data->req = req;
-	data->inode = inode = req->wb_context->path.dentry->d_inode;
+	data->inode = inode = req->wb_context->dentry->d_inode;
 	data->cred = req->wb_context->cred;
 	data->lseg = get_lseg(lseg);
 
@@ -1053,9 +1053,9 @@ static void nfs_writeback_done_partial(struct rpc_task *task, void *calldata)
 
 	dprintk("NFS: %5u write(%s/%lld %d@%lld)",
 		task->tk_pid,
-		data->req->wb_context->path.dentry->d_inode->i_sb->s_id,
+		data->req->wb_context->dentry->d_inode->i_sb->s_id,
 		(long long)
-		  NFS_FILEID(data->req->wb_context->path.dentry->d_inode),
+		  NFS_FILEID(data->req->wb_context->dentry->d_inode),
 		data->req->wb_bytes, (long long)req_offset(data->req));
 
 	nfs_writeback_done(task, data);
@@ -1148,8 +1148,8 @@ static void nfs_writeback_release_full(void *calldata)
 
 		dprintk("NFS: %5u write (%s/%lld %d@%lld)",
 			data->task.tk_pid,
-			req->wb_context->path.dentry->d_inode->i_sb->s_id,
-			(long long)NFS_FILEID(req->wb_context->path.dentry->d_inode),
+			req->wb_context->dentry->d_inode->i_sb->s_id,
+			(long long)NFS_FILEID(req->wb_context->dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
 
@@ -1347,7 +1347,7 @@ void nfs_init_commit(struct nfs_write_data *data,
 			    struct pnfs_layout_segment *lseg)
 {
 	struct nfs_page *first = nfs_list_entry(head->next);
-	struct inode *inode = first->wb_context->path.dentry->d_inode;
+	struct inode *inode = first->wb_context->dentry->d_inode;
 
 	/* Set up the RPC argument and reply structs
 	 * NB: take care not to mess about with data->commit et al. */
@@ -1435,8 +1435,8 @@ void nfs_commit_release_pages(struct nfs_write_data *data)
 		nfs_clear_request_commit(req);
 
 		dprintk("NFS:       commit (%s/%lld %d@%lld)",
-			req->wb_context->path.dentry->d_inode->i_sb->s_id,
-			(long long)NFS_FILEID(req->wb_context->path.dentry->d_inode),
+			req->wb_context->dentry->d_sb->s_id,
+			(long long)NFS_FILEID(req->wb_context->dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
 		if (status < 0) {
