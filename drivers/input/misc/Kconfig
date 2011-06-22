@@ -100,6 +100,17 @@ config INPUT_MAX8925_ONKEY
 	  To compile this driver as a module, choose M here: the module
 	  will be called max8925_onkey.
 
+config INPUT_MMA8450
+	tristate "MMA8450 - Freescale's 3-Axis, 8/12-bit Digital Accelerometer"
+	depends on I2C
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you want to support Freescale's MMA8450 Accelerometer
+	  through I2C interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mma8450.
+
 config INPUT_APANEL
 	tristate "Fujitsu Lifebook Application Panel buttons"
 	depends on X86 && I2C && LEDS_CLASS
