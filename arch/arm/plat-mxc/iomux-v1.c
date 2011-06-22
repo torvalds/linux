@@ -157,7 +157,7 @@ EXPORT_SYMBOL(mxc_gpio_mode);
 static int imx_iomuxv1_setup_multiple(const int *list, unsigned count)
 {
 	size_t i;
-	int ret;
+	int ret = 0;
 
 	for (i = 0; i < count; ++i) {
 		ret = mxc_gpio_mode(list[i]);
