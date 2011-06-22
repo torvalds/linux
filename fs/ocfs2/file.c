@@ -2038,6 +2038,23 @@ out:
 	return ret;
 }
 
+static void ocfs2_aiodio_wait(struct inode *inode)
+{
+	wait_queue_head_t *wq = ocfs2_ioend_wq(inode);
+
+	wait_event(*wq, (atomic_read(&OCFS2_I(inode)->ip_unaligned_aio) == 0));
+}
+
+static int ocfs2_is_io_unaligned(struct inode *inode, size_t count, loff_t pos)
+{
+	int blockmask = inode->i_sb->s_blocksize - 1;
+	loff_t final_size = pos + count;
+
+	if ((pos & blockmask) || (final_size & blockmask))
+		return 1;
+	return 0;
+}
+
 static int ocfs2_prepare_inode_for_refcount(struct inode *inode,
 					    struct file *file,
 					    loff_t pos, size_t count,
@@ -2216,6 +2233,7 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int full_coherency = !(osb->s_mount_opt &
 			       OCFS2_MOUNT_COHERENCY_BUFFERED);
+	int unaligned_dio = 0;
 
 	trace_ocfs2_file_aio_write(inode, file, file->f_path.dentry,
 		(unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -2284,6 +2302,10 @@ relock:
 		goto out;
 	}
 
+	if (direct_io && !is_sync_kiocb(iocb))
+		unaligned_dio = ocfs2_is_io_unaligned(inode, iocb->ki_left,
+						      *ppos);
+
 	/*
 	 * We can't complete the direct I/O as requested, fall back to
 	 * buffered I/O.
@@ -2297,6 +2319,18 @@ relock:
 
 		direct_io = 0;
 		goto relock;
+	}
+
+	if (unaligned_dio) {
+		/*
+		 * Wait on previous unaligned aio to complete before
+		 * proceeding.
+		 */
+		ocfs2_aiodio_wait(inode);
+
+		/* Mark the iocb as needing a decrement in ocfs2_dio_end_io */
+		atomic_inc(&OCFS2_I(inode)->ip_unaligned_aio);
+		ocfs2_iocb_set_unaligned_aio(iocb);
 	}
 
 	/*
@@ -2371,7 +2405,11 @@ out_dio:
 	if ((ret == -EIOCBQUEUED) || (!ocfs2_iocb_is_rw_locked(iocb))) {
 		rw_level = -1;
 		have_alloc_sem = 0;
+		unaligned_dio = 0;
 	}
+
+	if (unaligned_dio)
+		atomic_dec(&OCFS2_I(inode)->ip_unaligned_aio);
 
 out:
 	if (rw_level != -1)
