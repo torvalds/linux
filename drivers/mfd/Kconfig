@@ -172,7 +172,7 @@ config MFD_TPS6586X
 	  will be called tps6586x.
 
 config MFD_TPS65912
-	bool "TPS65912 PMIC"
+	bool
 	depends on GPIOLIB
 
 config MFD_TPS65912_I2C
