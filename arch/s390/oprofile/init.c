@@ -151,6 +151,12 @@ static int oprofile_hwsampler_init(struct oprofile_operations *ops)
 	if (oprofile_max_interval == 0)
 		return -ENODEV;
 
+	/* The initial value should be sane */
+	if (oprofile_hw_interval < oprofile_min_interval)
+		oprofile_hw_interval = oprofile_min_interval;
+	if (oprofile_hw_interval > oprofile_max_interval)
+		oprofile_hw_interval = oprofile_max_interval;
+
 	if (oprofile_timer_init(ops))
 		return -ENODEV;
 
