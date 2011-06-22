@@ -20,6 +20,7 @@
 #include <linux/mmc/host.h>
 #include <linux/i2c-gpio.h>
 #include <linux/i2c/mcs.h>
+#include <linux/i2c/atmel_mxt_ts.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -29,6 +30,7 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/iic.h>
+#include <plat/gpio-cfg.h>
 #include <plat/sdhci.h>
 
 #include <mach/map.h>
@@ -479,6 +481,46 @@ static struct i2c_board_info i2c5_devs[] __initdata = {
 	},
 };
 
+/* I2C3 (TSP) */
+static struct mxt_platform_data qt602240_platform_data = {
+	.x_line		= 19,
+	.y_line		= 11,
+	.x_size		= 800,
+	.y_size		= 480,
+	.blen		= 0x11,
+	.threshold	= 0x28,
+	.voltage	= 2800000,		/* 2.8V */
+	.orient		= MXT_DIAGONAL,
+};
+
+static struct i2c_board_info i2c3_devs[] __initdata = {
+	{
+		I2C_BOARD_INFO("qt602240_ts", 0x4a),
+		.platform_data = &qt602240_platform_data,
+	},
+};
+
+static void __init universal_tsp_init(void)
+{
+	int gpio;
+
+	/* TSP_LDO_ON: XMDMADDR_11 */
+	gpio = EXYNOS4_GPE2(3);
+	gpio_request(gpio, "TSP_LDO_ON");
+	gpio_direction_output(gpio, 1);
+	gpio_export(gpio, 0);
+
+	/* TSP_INT: XMDMADDR_7 */
+	gpio = EXYNOS4_GPE1(7);
+	gpio_request(gpio, "TSP_INT");
+
+	s5p_register_gpio_interrupt(gpio);
+	s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(0xf));
+	s3c_gpio_setpull(gpio, S3C_GPIO_PULL_UP);
+	i2c3_devs[0].irq = gpio_to_irq(gpio);
+}
+
+
 /* GPIO I2C 12 (3 Touchkey) */
 static uint32_t touchkey_keymap[] = {
 	/* MCS_KEY_MAP(value, keycode) */
@@ -668,6 +710,7 @@ static struct platform_device *universal_devices[] __initdata = {
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc3,
+	&s3c_device_i2c3,
 	&s3c_device_i2c5,
 
 	/* Universal Devices */
@@ -689,6 +732,10 @@ static void __init universal_machine_init(void)
 
 	i2c_register_board_info(0, i2c0_devs, ARRAY_SIZE(i2c0_devs));
 	i2c_register_board_info(1, i2c1_devs, ARRAY_SIZE(i2c1_devs));
+
+	universal_tsp_init();
+	s3c_i2c3_set_platdata(NULL);
+	i2c_register_board_info(3, i2c3_devs, ARRAY_SIZE(i2c3_devs));
 
 	s3c_i2c5_set_platdata(NULL);
 	i2c_register_board_info(5, i2c5_devs, ARRAY_SIZE(i2c5_devs));
