@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #include <asm/pmu.h>
@@ -45,14 +46,45 @@ static int __devinit pmu_register(struct platform_device *pdev,
 	return 0;
 }
 
+#define OF_MATCH_PMU(_name, _type) {	\
+	.compatible = _name,		\
+	.data = (void *)_type,		\
+}
+
+#define OF_MATCH_CPU(name)	OF_MATCH_PMU(name, ARM_PMU_DEVICE_CPU)
+
+static struct of_device_id armpmu_of_device_ids[] = {
+	OF_MATCH_CPU("arm,cortex-a9-pmu"),
+	OF_MATCH_CPU("arm,cortex-a8-pmu"),
+	OF_MATCH_CPU("arm,arm1136-pmu"),
+	OF_MATCH_CPU("arm,arm1176-pmu"),
+	{},
+};
+
+enum arm_pmu_type armpmu_device_type(struct platform_device *pdev)
+{
+	const struct of_device_id	*of_id;
+
+	/* provided by of_device_id table */
+	if (pdev->dev.of_node) {
+		of_id = of_match_device(armpmu_of_device_ids, &pdev->dev);
+		BUG_ON(!of_id);
+		return (enum arm_pmu_type)of_id->data;
+	}
+
+	/* Provided by a 'legacy' platform_device */
+	return ARM_PMU_DEVICE_CPU;
+}
+
 static int __devinit armpmu_device_probe(struct platform_device *pdev)
 {
-	return pmu_register(pdev, ARM_PMU_DEVICE_CPU);
+	return pmu_register(pdev, armpmu_device_type(pdev));
 }
 
 static struct platform_driver armpmu_driver = {
 	.driver		= {
 		.name	= "arm-pmu",
+		.of_match_table = armpmu_of_device_ids,
 	},
 	.probe		= armpmu_device_probe,
 };
