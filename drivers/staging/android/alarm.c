@@ -65,7 +65,6 @@ struct alarm_queue {
 	struct rb_root alarms;
 	struct rb_node *first;
 	struct hrtimer timer;
-	ktime_t delta;
 	bool stopped;
 	ktime_t stopped_time;
 };
@@ -107,8 +106,8 @@ static void update_timer_locked(struct alarm_queue *base, bool head_removed)
 	}
 
 	hrtimer_try_to_cancel(&base->timer);
-	base->timer.node.expires = ktime_add(base->delta, alarm->expires);
-	base->timer._softexpires = ktime_add(base->delta, alarm->softexpires);
+	base->timer.node.expires = alarm->expires;
+	base->timer._softexpires = alarm->softexpires;
 	hrtimer_start_expires(&base->timer, HRTIMER_MODE_ABS);
 }
 
@@ -279,10 +278,6 @@ int android_alarm_set_rtc(struct timespec new_time)
 		alarms[i].stopped = true;
 		alarms[i].stopped_time = timespec_to_ktime(tmp_time);
 	}
-	alarms[ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP].delta =
-		alarms[ANDROID_ALARM_ELAPSED_REALTIME].delta =
-		ktime_sub(alarms[ANDROID_ALARM_ELAPSED_REALTIME].delta,
-			timespec_to_ktime(timespec_sub(tmp_time, new_time)));
 	spin_unlock_irqrestore(&alarm_slock, flags);
 	ret = do_settimeofday(&new_time);
 	spin_lock_irqsave(&alarm_slock, flags);
@@ -310,24 +305,6 @@ err:
 	return ret;
 }
 
-/**
- * alarm_get_elapsed_realtime - get the elapsed real time in ktime_t format
- *
- * returns the time in ktime_t format
- */
-ktime_t alarm_get_elapsed_realtime(void)
-{
-	ktime_t now;
-	unsigned long flags;
-	struct alarm_queue *base = &alarms[ANDROID_ALARM_ELAPSED_REALTIME];
-
-	spin_lock_irqsave(&alarm_slock, flags);
-	now = base->stopped ? base->stopped_time : ktime_get_real();
-	now = ktime_sub(now, base->delta);
-	spin_unlock_irqrestore(&alarm_slock, flags);
-	return now;
-}
-
 static enum hrtimer_restart alarm_timer_triggered(struct hrtimer *timer)
 {
 	struct alarm_queue *base;
@@ -339,7 +316,6 @@ static enum hrtimer_restart alarm_timer_triggered(struct hrtimer *timer)
 
 	base = container_of(timer, struct alarm_queue, timer);
 	now = base->stopped ? base->stopped_time : hrtimer_cb_get_time(timer);
-	now = ktime_sub(now, base->delta);
 
 	pr_alarm(INT, "alarm_timer_triggered type %ld at %lld\n",
 		base - alarms, ktime_to_ns(now));
@@ -536,40 +512,25 @@ static struct platform_driver alarm_driver = {
 	}
 };
 
-static int __init alarm_late_init(void)
-{
-	unsigned long   flags;
-	struct timespec tmp_time, system_time;
-
-	/* this needs to run after the rtc is read at boot */
-	spin_lock_irqsave(&alarm_slock, flags);
-	/* We read the current rtc and system time so we can later calulate
-	 * elasped realtime to be (boot_systemtime + rtc - boot_rtc) ==
-	 * (rtc - (boot_rtc - boot_systemtime))
-	 */
-	getnstimeofday(&tmp_time);
-	ktime_get_ts(&system_time);
-	alarms[ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP].delta =
-		alarms[ANDROID_ALARM_ELAPSED_REALTIME].delta =
-			timespec_to_ktime(timespec_sub(tmp_time, system_time));
-
-	spin_unlock_irqrestore(&alarm_slock, flags);
-	return 0;
-}
-
 static int __init alarm_driver_init(void)
 {
 	int err;
 	int i;
 
-	for (i = 0; i < ANDROID_ALARM_SYSTEMTIME; i++) {
-		hrtimer_init(&alarms[i].timer,
-				CLOCK_REALTIME, HRTIMER_MODE_ABS);
-		alarms[i].timer.function = alarm_timer_triggered;
-	}
+	hrtimer_init(&alarms[ANDROID_ALARM_RTC_WAKEUP].timer,
+			CLOCK_REALTIME, HRTIMER_MODE_ABS);
+	hrtimer_init(&alarms[ANDROID_ALARM_RTC].timer,
+			CLOCK_REALTIME, HRTIMER_MODE_ABS);
+	hrtimer_init(&alarms[ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP].timer,
+			CLOCK_BOOTTIME, HRTIMER_MODE_ABS);
+	hrtimer_init(&alarms[ANDROID_ALARM_ELAPSED_REALTIME].timer,
+			CLOCK_BOOTTIME, HRTIMER_MODE_ABS);
 	hrtimer_init(&alarms[ANDROID_ALARM_SYSTEMTIME].timer,
-		     CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	alarms[ANDROID_ALARM_SYSTEMTIME].timer.function = alarm_timer_triggered;
+			CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
+
+	for (i = 0; i < ANDROID_ALARM_TYPE_COUNT; i++)
+		alarms[i].timer.function = alarm_timer_triggered;
+
 	err = platform_driver_register(&alarm_driver);
 	if (err < 0)
 		goto err1;
@@ -595,7 +556,6 @@ static void  __exit alarm_exit(void)
 	platform_driver_unregister(&alarm_driver);
 }
 
-late_initcall(alarm_late_init);
 module_init(alarm_driver_init);
 module_exit(alarm_exit);
 
