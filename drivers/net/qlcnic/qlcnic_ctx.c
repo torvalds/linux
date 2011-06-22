@@ -95,8 +95,8 @@ int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 			QLCNIC_CDRP_CMD_TEMP_SIZE);
 	if (err != QLCNIC_RCODE_SUCCESS) {
 		err = QLCRD32(adapter, QLCNIC_ARG1_CRB_OFFSET);
-		dev_err(&adapter->pdev->dev,
-			"Failed to get template size %d\n", err);
+		dev_info(&adapter->pdev->dev,
+			"Can't get template size %d\n", err);
 		err = -EIO;
 		return err;
 	}

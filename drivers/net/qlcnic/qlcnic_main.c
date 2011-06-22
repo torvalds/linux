@@ -1590,10 +1590,6 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* This will be reset for mezz cards  */
 	adapter->portnum = adapter->ahw->pci_func;
 
-	/* Get FW dump template and store it */
-	if (adapter->op_mode != QLCNIC_NON_PRIV_FUNC)
-		qlcnic_fw_cmd_get_minidump_temp(adapter);
-
 	err = qlcnic_get_board_info(adapter);
 	if (err) {
 		dev_err(&pdev->dev, "Error getting board config info.\n");
@@ -1611,6 +1607,12 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Loading fw failed.Please Reboot\n");
 		goto err_out_decr_ref;
 	}
+
+	/* Get FW dump template and store it */
+	if (adapter->op_mode != QLCNIC_NON_PRIV_FUNC)
+		if (!qlcnic_fw_cmd_get_minidump_temp(adapter))
+			dev_info(&pdev->dev,
+				"Supports FW dump capability\n");
 
 	if (qlcnic_read_mac_addr(adapter))
 		dev_warn(&pdev->dev, "failed to read mac addr\n");
@@ -2683,10 +2685,15 @@ err:
 static int
 qlcnic_check_drv_state(struct qlcnic_adapter *adapter)
 {
-	int act, state;
+	int act, state, active_mask;
 
 	state = QLCRD32(adapter, QLCNIC_CRB_DRV_STATE);
 	act = QLCRD32(adapter, QLCNIC_CRB_DRV_ACTIVE);
+
+	if (adapter->flags & QLCNIC_FW_RESET_OWNER) {
+		active_mask = (~(1 << (adapter->ahw->pci_func * 4)));
+		act = act & active_mask;
+	}
 
 	if (((state & 0x11111111) == (act & 0x11111111)) ||
 			((act & 0x11111111) == ((state >> 1) & 0x11111111)))
@@ -2826,6 +2833,11 @@ qlcnic_fwinit_work(struct work_struct *work)
 
 	if (!qlcnic_check_drv_state(adapter)) {
 skip_ack_check:
+		if (!(adapter->flags & QLCNIC_FW_RESET_OWNER)) {
+			qlcnic_api_unlock(adapter);
+			goto wait_npar;
+		}
+
 		dev_state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
 
 		if (dev_state == QLCNIC_DEV_NEED_RESET) {
@@ -2836,6 +2848,7 @@ skip_ack_check:
 			qlcnic_idc_debug_info(adapter, 0);
 			QLCDB(adapter, DRV, "Take FW dump\n");
 			qlcnic_dump_fw(adapter);
+			adapter->flags &= ~QLCNIC_FW_RESET_OWNER;
 		}
 
 		qlcnic_api_unlock(adapter);
@@ -2900,9 +2913,11 @@ qlcnic_detach_work(struct work_struct *work)
 
 	if (adapter->temp == QLCNIC_TEMP_PANIC)
 		goto err_ret;
-
-	if (qlcnic_set_drv_state(adapter, adapter->dev_state))
-		goto err_ret;
+	/* Dont ack if this instance is the reset owner */
+	if (!(adapter->flags & QLCNIC_FW_RESET_OWNER)) {
+		if (qlcnic_set_drv_state(adapter, adapter->dev_state))
+			goto err_ret;
+	}
 
 	adapter->fw_wait_cnt = 0;
 
@@ -2947,6 +2962,7 @@ qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
 
 	if (state == QLCNIC_DEV_READY) {
 		QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_NEED_RESET);
+		adapter->flags |= QLCNIC_FW_RESET_OWNER;
 		QLCDB(adapter, DRV, "NEED_RESET state set\n");
 		qlcnic_idc_debug_info(adapter, 0);
 	}
