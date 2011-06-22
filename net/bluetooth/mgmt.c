@@ -990,7 +990,7 @@ static int remove_key(struct sock *sk, u16 index, unsigned char *data, u16 len)
 
 		put_unaligned_le16(conn->handle, &dc.handle);
 		dc.reason = 0x13; /* Remote User Terminated Connection */
-		err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, 0, NULL);
+		err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, sizeof(dc), &dc);
 	}
 
 unlock:
@@ -1666,6 +1666,70 @@ failed:
 	return err;
 }
 
+static int block_device(struct sock *sk, u16 index, unsigned char *data,
+								u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_block_device *cp;
+	int err;
+
+	BT_DBG("hci%u", index);
+
+	cp = (void *) data;
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_BLOCK_DEVICE,
+							EINVAL);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_BLOCK_DEVICE,
+							ENODEV);
+
+	err = hci_blacklist_add(hdev, &cp->bdaddr);
+
+	if (err < 0)
+		err = cmd_status(sk, index, MGMT_OP_BLOCK_DEVICE, -err);
+	else
+		err = cmd_complete(sk, index, MGMT_OP_BLOCK_DEVICE,
+							NULL, 0);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
+static int unblock_device(struct sock *sk, u16 index, unsigned char *data,
+								u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_unblock_device *cp;
+	int err;
+
+	BT_DBG("hci%u", index);
+
+	cp = (void *) data;
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_UNBLOCK_DEVICE,
+								EINVAL);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_UNBLOCK_DEVICE,
+								ENODEV);
+
+	err = hci_blacklist_del(hdev, &cp->bdaddr);
+
+	if (err < 0)
+		err = cmd_status(sk, index, MGMT_OP_UNBLOCK_DEVICE, -err);
+	else
+		err = cmd_complete(sk, index, MGMT_OP_UNBLOCK_DEVICE,
+								NULL, 0);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -1779,6 +1843,12 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_STOP_DISCOVERY:
 		err = stop_discovery(sk, index);
+		break;
+	case MGMT_OP_BLOCK_DEVICE:
+		err = block_device(sk, index, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_UNBLOCK_DEVICE:
+		err = unblock_device(sk, index, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);

@@ -42,6 +42,7 @@
 #include <linux/notifier.h>
 #include <linux/rfkill.h>
 #include <linux/timer.h>
+#include <linux/crypto.h>
 #include <net/sock.h>
 
 #include <asm/system.h>
@@ -58,6 +59,8 @@ static void hci_rx_task(unsigned long arg);
 static void hci_tx_task(unsigned long arg);
 
 static DEFINE_RWLOCK(hci_task_lock);
+
+static int enable_smp;
 
 /* HCI device list */
 LIST_HEAD(hci_dev_list);
@@ -1202,6 +1205,97 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
 	return 0;
 }
 
+struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev,
+						bdaddr_t *bdaddr)
+{
+	struct list_head *p;
+
+	list_for_each(p, &hdev->blacklist) {
+		struct bdaddr_list *b;
+
+		b = list_entry(p, struct bdaddr_list, list);
+
+		if (bacmp(bdaddr, &b->bdaddr) == 0)
+			return b;
+	}
+
+	return NULL;
+}
+
+int hci_blacklist_clear(struct hci_dev *hdev)
+{
+	struct list_head *p, *n;
+
+	list_for_each_safe(p, n, &hdev->blacklist) {
+		struct bdaddr_list *b;
+
+		b = list_entry(p, struct bdaddr_list, list);
+
+		list_del(p);
+		kfree(b);
+	}
+
+	return 0;
+}
+
+int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct bdaddr_list *entry;
+	int err;
+
+	if (bacmp(bdaddr, BDADDR_ANY) == 0)
+		return -EBADF;
+
+	hci_dev_lock(hdev);
+
+	if (hci_blacklist_lookup(hdev, bdaddr)) {
+		err = -EEXIST;
+		goto err;
+	}
+
+	entry = kzalloc(sizeof(struct bdaddr_list), GFP_KERNEL);
+	if (!entry) {
+		return -ENOMEM;
+		goto err;
+	}
+
+	bacpy(&entry->bdaddr, bdaddr);
+
+	list_add(&entry->list, &hdev->blacklist);
+
+	err = 0;
+
+err:
+	hci_dev_unlock(hdev);
+	return err;
+}
+
+int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr)
+{
+	struct bdaddr_list *entry;
+	int err = 0;
+
+	hci_dev_lock(hdev);
+
+	if (bacmp(bdaddr, BDADDR_ANY) == 0) {
+		hci_blacklist_clear(hdev);
+		goto done;
+	}
+
+	entry = hci_blacklist_lookup(hdev, bdaddr);
+	if (!entry) {
+		err = -ENOENT;
+		goto done;
+	}
+
+	list_del(&entry->list);
+	kfree(entry);
+
+done:
+	hci_dev_unlock(hdev);
+	return err;
+}
+
 static void hci_clear_adv_cache(unsigned long arg)
 {
 	struct hci_dev *hdev = (void *) arg;
@@ -1272,6 +1366,14 @@ int hci_add_adv_entry(struct hci_dev *hdev,
 				batostr(&entry->bdaddr), entry->bdaddr_type);
 
 	return 0;
+}
+
+static struct crypto_blkcipher *alloc_cypher(void)
+{
+	if (enable_smp)
+		return crypto_alloc_blkcipher("ecb(aes)", 0, CRYPTO_ALG_ASYNC);
+
+	return ERR_PTR(-ENOTSUPP);
 }
 
 /* Register HCI device */
@@ -1358,6 +1460,11 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (!hdev->workqueue)
 		goto nomem;
 
+	hdev->tfm = alloc_cypher();
+	if (IS_ERR(hdev->tfm))
+		BT_INFO("Failed to load transform for ecb(aes): %ld",
+							PTR_ERR(hdev->tfm));
+
 	hci_register_sysfs(hdev);
 
 	hdev->rfkill = rfkill_alloc(hdev->name, &hdev->dev,
@@ -1405,6 +1512,9 @@ int hci_unregister_dev(struct hci_dev *hdev)
 	if (!test_bit(HCI_INIT, &hdev->flags) &&
 					!test_bit(HCI_SETUP, &hdev->flags))
 		mgmt_index_removed(hdev->id);
+
+	if (!IS_ERR(hdev->tfm))
+		crypto_free_blkcipher(hdev->tfm);
 
 	hci_notify(hdev, HCI_DEV_UNREG);
 
@@ -2242,3 +2352,6 @@ static void hci_cmd_task(unsigned long arg)
 		}
 	}
 }
+
+module_param(enable_smp, bool, 0644);
+MODULE_PARM_DESC(enable_smp, "Enable SMP support (LE only)");

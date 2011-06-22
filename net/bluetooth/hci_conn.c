@@ -53,6 +53,7 @@ static void hci_le_connect(struct hci_conn *conn)
 	conn->state = BT_CONNECT;
 	conn->out = 1;
 	conn->link_mode |= HCI_LM_MASTER;
+	conn->sec_level = BT_SECURITY_LOW;
 
 	memset(&cp, 0, sizeof(cp));
 	cp.scan_interval = cpu_to_le16(0x0004);
@@ -203,6 +204,55 @@ void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max,
 	hci_send_cmd(hdev, HCI_OP_LE_CONN_UPDATE, sizeof(cp), &cp);
 }
 EXPORT_SYMBOL(hci_le_conn_update);
+
+void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __u8 rand[8],
+							__u8 ltk[16])
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct hci_cp_le_start_enc cp;
+
+	BT_DBG("%p", conn);
+
+	memset(&cp, 0, sizeof(cp));
+
+	cp.handle = cpu_to_le16(conn->handle);
+	memcpy(cp.ltk, ltk, sizeof(cp.ltk));
+	cp.ediv = ediv;
+	memcpy(cp.rand, rand, sizeof(rand));
+
+	hci_send_cmd(hdev, HCI_OP_LE_START_ENC, sizeof(cp), &cp);
+}
+EXPORT_SYMBOL(hci_le_start_enc);
+
+void hci_le_ltk_reply(struct hci_conn *conn, u8 ltk[16])
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct hci_cp_le_ltk_reply cp;
+
+	BT_DBG("%p", conn);
+
+	memset(&cp, 0, sizeof(cp));
+
+	cp.handle = cpu_to_le16(conn->handle);
+	memcpy(cp.ltk, ltk, sizeof(ltk));
+
+	hci_send_cmd(hdev, HCI_OP_LE_LTK_REPLY, sizeof(cp), &cp);
+}
+EXPORT_SYMBOL(hci_le_ltk_reply);
+
+void hci_le_ltk_neg_reply(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct hci_cp_le_ltk_neg_reply cp;
+
+	BT_DBG("%p", conn);
+
+	memset(&cp, 0, sizeof(cp));
+
+	cp.handle = cpu_to_le16(conn->handle);
+
+	hci_send_cmd(hdev, HCI_OP_LE_LTK_NEG_REPLY, sizeof(cp), &cp);
+}
 
 /* Device _must_ be locked */
 void hci_sco_setup(struct hci_conn *conn, __u8 status)
@@ -620,11 +670,11 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 		goto encrypt;
 
 auth:
-	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend))
+	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend))
 		return 0;
 
-	hci_conn_auth(conn, sec_level, auth_type);
-	return 0;
+	if (!hci_conn_auth(conn, sec_level, auth_type))
+		return 0;
 
 encrypt:
 	if (conn->link_mode & HCI_LM_ENCRYPT)

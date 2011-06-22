@@ -29,8 +29,11 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
+#include <net/bluetooth/smp.h>
 
 static const struct proto_ops l2cap_sock_ops;
+static void l2cap_sock_init(struct sock *sk, struct sock *parent);
+static struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int proto, gfp_t prio);
 
 static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 {
@@ -87,6 +90,8 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 		chan->sec_level = BT_SECURITY_SDP;
 
 	bacpy(&bt_sk(sk)->src, &la.l2_bdaddr);
+
+	chan->state = BT_BOUND;
 	sk->sk_state = BT_BOUND;
 
 done:
@@ -212,6 +217,8 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 
 	sk->sk_max_ack_backlog = backlog;
 	sk->sk_ack_backlog = 0;
+
+	chan->state = BT_LISTEN;
 	sk->sk_state = BT_LISTEN;
 
 done:
@@ -505,7 +512,7 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 		chan->mode = opts.mode;
 		switch (chan->mode) {
 		case L2CAP_MODE_BASIC:
-			chan->conf_state &= ~L2CAP_CONF_STATE2_DEVICE;
+			clear_bit(CONF_STATE2_DEVICE, &chan->conf_state);
 			break;
 		case L2CAP_MODE_ERTM:
 		case L2CAP_MODE_STREAMING:
@@ -556,6 +563,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	struct bt_security sec;
 	struct bt_power pwr;
+	struct l2cap_conn *conn;
 	int len, err = 0;
 	u32 opt;
 
@@ -592,6 +600,20 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 		}
 
 		chan->sec_level = sec.level;
+
+		conn = chan->conn;
+		if (conn && chan->scid == L2CAP_CID_LE_DATA) {
+			if (!conn->hcon->out) {
+				err = -EINVAL;
+				break;
+			}
+
+			if (smp_conn_security(conn, sec.level))
+				break;
+
+			err = 0;
+			sk->sk_state = BT_CONFIG;
+		}
 		break;
 
 	case BT_DEFER_SETUP:
@@ -711,7 +733,7 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 /* Kill socket (only if zapped and orphan)
  * Must be called on unlocked socket.
  */
-void l2cap_sock_kill(struct sock *sk)
+static void l2cap_sock_kill(struct sock *sk)
 {
 	if (!sock_flag(sk, SOCK_ZAPPED) || sk->sk_socket)
 		return;
@@ -773,6 +795,49 @@ static int l2cap_sock_release(struct socket *sock)
 	return err;
 }
 
+static struct l2cap_chan *l2cap_sock_new_connection_cb(void *data)
+{
+	struct sock *sk, *parent = data;
+
+	sk = l2cap_sock_alloc(sock_net(parent), NULL, BTPROTO_L2CAP,
+								GFP_ATOMIC);
+	if (!sk)
+		return NULL;
+
+	l2cap_sock_init(sk, parent);
+
+	return l2cap_pi(sk)->chan;
+}
+
+static int l2cap_sock_recv_cb(void *data, struct sk_buff *skb)
+{
+	struct sock *sk = data;
+
+	return sock_queue_rcv_skb(sk, skb);
+}
+
+static void l2cap_sock_close_cb(void *data)
+{
+	struct sock *sk = data;
+
+	l2cap_sock_kill(sk);
+}
+
+static void l2cap_sock_state_change_cb(void *data, int state)
+{
+	struct sock *sk = data;
+
+	sk->sk_state = state;
+}
+
+static struct l2cap_ops l2cap_chan_ops = {
+	.name		= "L2CAP Socket Interface",
+	.new_connection	= l2cap_sock_new_connection_cb,
+	.recv		= l2cap_sock_recv_cb,
+	.close		= l2cap_sock_close_cb,
+	.state_change	= l2cap_sock_state_change_cb,
+};
+
 static void l2cap_sock_destruct(struct sock *sk)
 {
 	BT_DBG("sk %p", sk);
@@ -781,7 +846,7 @@ static void l2cap_sock_destruct(struct sock *sk)
 	skb_queue_purge(&sk->sk_write_queue);
 }
 
-void l2cap_sock_init(struct sock *sk, struct sock *parent)
+static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 {
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	struct l2cap_chan *chan = pi->chan;
@@ -826,7 +891,7 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->omtu = 0;
 		if (!disable_ertm && sk->sk_type == SOCK_STREAM) {
 			chan->mode = L2CAP_MODE_ERTM;
-			chan->conf_state |= L2CAP_CONF_STATE2_DEVICE;
+			set_bit(CONF_STATE2_DEVICE, &chan->conf_state);
 		} else {
 			chan->mode = L2CAP_MODE_BASIC;
 		}
@@ -838,10 +903,14 @@ void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->force_reliable = 0;
 		chan->flushable = BT_FLUSHABLE_OFF;
 		chan->force_active = BT_POWER_FORCE_ACTIVE_ON;
+
 	}
 
 	/* Default config options */
 	chan->flush_to = L2CAP_DEFAULT_FLUSH_TO;
+
+	chan->data = sk;
+	chan->ops = &l2cap_chan_ops;
 }
 
 static struct proto l2cap_proto = {
@@ -850,9 +919,10 @@ static struct proto l2cap_proto = {
 	.obj_size	= sizeof(struct l2cap_pinfo)
 };
 
-struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int proto, gfp_t prio)
+static struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int proto, gfp_t prio)
 {
 	struct sock *sk;
+	struct l2cap_chan *chan;
 
 	sk = sk_alloc(net, PF_BLUETOOTH, prio, &l2cap_proto);
 	if (!sk)
@@ -869,6 +939,14 @@ struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int proto, g
 	sk->sk_protocol = proto;
 	sk->sk_state = BT_OPEN;
 
+	chan = l2cap_chan_create(sk);
+	if (!chan) {
+		l2cap_sock_kill(sk);
+		return NULL;
+	}
+
+	l2cap_pi(sk)->chan = chan;
+
 	return sk;
 }
 
@@ -876,7 +954,6 @@ static int l2cap_sock_create(struct net *net, struct socket *sock, int protocol,
 			     int kern)
 {
 	struct sock *sk;
-	struct l2cap_chan *chan;
 
 	BT_DBG("sock %p", sock);
 
@@ -894,14 +971,6 @@ static int l2cap_sock_create(struct net *net, struct socket *sock, int protocol,
 	sk = l2cap_sock_alloc(net, sock, protocol, GFP_ATOMIC);
 	if (!sk)
 		return -ENOMEM;
-
-	chan = l2cap_chan_create(sk);
-	if (!chan) {
-		l2cap_sock_kill(sk);
-		return -ENOMEM;
-	}
-
-	l2cap_pi(sk)->chan = chan;
 
 	l2cap_sock_init(sk, NULL);
 	return 0;
