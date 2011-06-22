@@ -98,6 +98,7 @@ static char *mode;
 static char *primary;
 static char *primary_reselect;
 static char *lacp_rate;
+static int min_links;
 static char *ad_select;
 static char *xmit_hash_policy;
 static int arp_interval = BOND_LINK_ARP_INTERV;
@@ -150,6 +151,9 @@ module_param(ad_select, charp, 0);
 MODULE_PARM_DESC(ad_select, "803.ad aggregation selection logic; "
 			    "0 for stable (default), 1 for bandwidth, "
 			    "2 for count");
+module_param(min_links, int, 0);
+MODULE_PARM_DESC(min_links, "Minimum number of available links before turning on carrier");
+
 module_param(xmit_hash_policy, charp, 0);
 MODULE_PARM_DESC(xmit_hash_policy, "balance-xor and 802.3ad hashing method; "
 				   "0 for layer 2 (default), 1 for layer 3+4, "
@@ -4798,6 +4802,7 @@ static int bond_check_params(struct bond_params *params)
 	params->tx_queues = tx_queues;
 	params->all_slaves_active = all_slaves_active;
 	params->resend_igmp = resend_igmp;
+	params->min_links = min_links;
 
 	if (primary) {
 		strncpy(params->primary, primary, IFNAMSIZ);

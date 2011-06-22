@@ -819,6 +819,38 @@ out:
 static DEVICE_ATTR(lacp_rate, S_IRUGO | S_IWUSR,
 		   bonding_show_lacp, bonding_store_lacp);
 
+static ssize_t bonding_show_min_links(struct device *d,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n", bond->params.min_links);
+}
+
+static ssize_t bonding_store_min_links(struct device *d,
+				       struct device_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct bonding *bond = to_bond(d);
+	int ret;
+	unsigned int new_value;
+
+	ret = kstrtouint(buf, 0, &new_value);
+	if (ret < 0) {
+		pr_err("%s: Ignoring invalid min links value %s.\n",
+		       bond->dev->name, buf);
+		return ret;
+	}
+
+	pr_info("%s: Setting min links value to %u\n",
+		bond->dev->name, new_value);
+	bond->params.min_links = new_value;
+	return count;
+}
+static DEVICE_ATTR(min_links, S_IRUGO | S_IWUSR,
+		   bonding_show_min_links, bonding_store_min_links);
+
 static ssize_t bonding_show_ad_select(struct device *d,
 				      struct device_attribute *attr,
 				      char *buf)
@@ -1601,6 +1633,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_queue_id.attr,
 	&dev_attr_all_slaves_active.attr,
 	&dev_attr_resend_igmp.attr,
+	&dev_attr_min_links.attr,
 	NULL,
 };
 

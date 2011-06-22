@@ -2342,8 +2342,17 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
  */
 int bond_3ad_set_carrier(struct bonding *bond)
 {
-	if (__get_active_agg(&(SLAVE_AD_INFO(bond->first_slave).aggregator))) {
-		if (!netif_carrier_ok(bond->dev)) {
+	struct aggregator *active;
+
+	active = __get_active_agg(&(SLAVE_AD_INFO(bond->first_slave).aggregator));
+	if (active) {
+		/* are enough slaves available to consider link up? */
+		if (active->num_of_ports < bond->params.min_links) {
+			if (netif_carrier_ok(bond->dev)) {
+				netif_carrier_off(bond->dev);
+				return 1;
+			}
+		} else if (!netif_carrier_ok(bond->dev)) {
 			netif_carrier_on(bond->dev);
 			return 1;
 		}
