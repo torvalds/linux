@@ -133,7 +133,7 @@ ENDPROC(enable_omap3630_toggle_l2_on_restore)
 /* Function to call rom code to save secure ram context */
 	.align	3
 ENTRY(save_secure_ram_context)
-	stmfd	sp!, {r1-r12, lr}	@ save registers on stack
+	stmfd	sp!, {r4 - r11, lr}	@ save registers on stack
 	adr	r3, api_params		@ r3 points to parameters
 	str	r0, [r3,#0x4]		@ r0 has sdram address
 	ldr	r12, high_mask
@@ -152,7 +152,7 @@ ENTRY(save_secure_ram_context)
 	nop
 	nop
 	nop
-	ldmfd	sp!, {r1-r12, pc}
+	ldmfd	sp!, {r4 - r11, pc}
 	.align
 sram_phy_addr_mask:
 	.word	SRAM_BASE_P
@@ -187,7 +187,7 @@ ENTRY(save_secure_ram_context_sz)
  */
 	.align	3
 ENTRY(omap34xx_cpu_suspend)
-	stmfd	sp!, {r0-r12, lr}	@ save registers on stack
+	stmfd	sp!, {r4 - r11, lr}	@ save registers on stack
 
 	/*
 	 * r0 contains CPU context save/restore pointer in sdram
@@ -329,7 +329,7 @@ omap3_do_wfi:
  * == Exit point from non-OFF modes ==
  * ===================================
  */
-	ldmfd	sp!, {r0-r12, pc}	@ restore regs and return
+	ldmfd	sp!, {r4 - r11, pc}	@ restore regs and return
 
 
 /*
@@ -572,7 +572,7 @@ usettbr0:
  * ==============================
  */
 restoremmu_on:
-	ldmfd	sp!, {r0-r12, pc}	@ restore regs and return
+	ldmfd	sp!, {r4 - r11, pc}	@ restore regs and return
 
 
 /*
