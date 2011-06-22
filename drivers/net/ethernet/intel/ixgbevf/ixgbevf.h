@@ -34,6 +34,7 @@
 #include <linux/io.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/u64_stats_sync.h>
 
 #include "vf.h"
 
@@ -71,11 +72,12 @@ struct ixgbevf_ring {
 		struct ixgbevf_rx_buffer *rx_buffer_info;
 	};
 
+	u64			total_bytes;
+	u64			total_packets;
+	struct u64_stats_sync	syncp;
+
 	u16 head;
 	u16 tail;
-
-	unsigned int total_bytes;
-	unsigned int total_packets;
 
 	u16 reg_idx; /* holds the special value that gets the hardware register
 		      * offset associated with this ring, which is different

@@ -270,11 +270,10 @@ cont_loop:
 		IXGBE_WRITE_REG(hw, IXGBE_VTEICS, tx_ring->v_idx);
 	}
 
+	u64_stats_update_begin(&tx_ring->syncp);
 	tx_ring->total_bytes += total_bytes;
 	tx_ring->total_packets += total_packets;
-
-	netdev->stats.tx_bytes += total_bytes;
-	netdev->stats.tx_packets += total_packets;
+	u64_stats_update_end(&tx_ring->syncp);
 
 	return count < tx_ring->work_limit;
 }
@@ -597,10 +596,10 @@ next_desc:
 	if (cleaned_count)
 		ixgbevf_alloc_rx_buffers(adapter, rx_ring, cleaned_count);
 
+	u64_stats_update_begin(&rx_ring->syncp);
 	rx_ring->total_packets += total_rx_packets;
 	rx_ring->total_bytes += total_rx_bytes;
-	adapter->netdev->stats.rx_bytes += total_rx_bytes;
-	adapter->netdev->stats.rx_packets += total_rx_packets;
+	u64_stats_update_end(&rx_ring->syncp);
 
 	return cleaned;
 }
@@ -2260,10 +2259,6 @@ void ixgbevf_update_stats(struct ixgbevf_adapter *adapter)
 				adapter->stats.vfgotc);
 	UPDATE_VF_COUNTER_32bit(IXGBE_VFMPRC, adapter->stats.last_vfmprc,
 				adapter->stats.vfmprc);
-
-	/* Fill out the OS statistics structure */
-	adapter->netdev->stats.multicast = adapter->stats.vfmprc -
-		adapter->stats.base_vfmprc;
 }
 
 /**
@@ -3220,11 +3215,50 @@ static void ixgbevf_shutdown(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+static struct rtnl_link_stats64 *ixgbevf_get_stats(struct net_device *netdev,
+						struct rtnl_link_stats64 *stats)
+{
+	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+	unsigned int start;
+	u64 bytes, packets;
+	const struct ixgbevf_ring *ring;
+	int i;
+
+	ixgbevf_update_stats(adapter);
+
+	stats->multicast = adapter->stats.vfmprc - adapter->stats.base_vfmprc;
+
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		ring = &adapter->rx_ring[i];
+		do {
+			start = u64_stats_fetch_begin_bh(&ring->syncp);
+			bytes = ring->total_bytes;
+			packets = ring->total_packets;
+		} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
+		stats->rx_bytes += bytes;
+		stats->rx_packets += packets;
+	}
+
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		ring = &adapter->tx_ring[i];
+		do {
+			start = u64_stats_fetch_begin_bh(&ring->syncp);
+			bytes = ring->total_bytes;
+			packets = ring->total_packets;
+		} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
+		stats->tx_bytes += bytes;
+		stats->tx_packets += packets;
+	}
+
+	return stats;
+}
+
 static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= ixgbevf_open,
 	.ndo_stop		= ixgbevf_close,
 	.ndo_start_xmit		= ixgbevf_xmit_frame,
 	.ndo_set_rx_mode	= ixgbevf_set_rx_mode,
+	.ndo_get_stats64	= ixgbevf_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= ixgbevf_set_mac,
 	.ndo_change_mtu		= ixgbevf_change_mtu,
