@@ -40,8 +40,6 @@
 #include <plat/gpmc.h>
 #include <plat/dma.h>
 
-#include <asm/tlbflush.h>
-
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
@@ -63,11 +61,6 @@ static inline bool is_suspending(void)
 	return false;
 }
 #endif
-
-/* Scratchpad offsets */
-#define OMAP343X_TABLE_ADDRESS_OFFSET	   0xc4
-#define OMAP343X_TABLE_VALUE_OFFSET	   0xc0
-#define OMAP343X_CONTROL_REG_VALUE_OFFSET  0xc8
 
 /* pm34xx errata defined in pm.h */
 u16 pm34xx_errata;
@@ -312,28 +305,9 @@ static irqreturn_t prcm_interrupt_handler (int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* Function to restore the table entry that was modified for enabling MMU */
-static void restore_table_entry(void)
+static void omap34xx_do_sram_idle(unsigned long save_state)
 {
-	void __iomem *scratchpad_address;
-	u32 previous_value, control_reg_value;
-	u32 *address;
-
-	scratchpad_address = OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD);
-
-	/* Get address of entry that was modified */
-	address = (u32 *)__raw_readl(scratchpad_address +
-				     OMAP343X_TABLE_ADDRESS_OFFSET);
-	/* Get the previous value which needs to be restored */
-	previous_value = __raw_readl(scratchpad_address +
-				     OMAP343X_TABLE_VALUE_OFFSET);
-	address = __va(address);
-	*address = previous_value;
-	flush_tlb_all();
-	control_reg_value = __raw_readl(scratchpad_address
-					+ OMAP343X_CONTROL_REG_VALUE_OFFSET);
-	/* This will enable caches and prediction */
-	set_cr(control_reg_value);
+	_omap_sram_idle(omap3_arm_context, save_state);
 }
 
 void omap_sram_idle(void)
@@ -432,22 +406,21 @@ void omap_sram_idle(void)
 		sdrc_pwr = sdrc_read_reg(SDRC_POWER);
 
 	/*
-	 * omap3_arm_context is the location where ARM registers
-	 * get saved. The restore path then reads from this
-	 * location and restores them back.
+	 * omap3_arm_context is the location where some ARM context
+	 * get saved. The rest is placed on the stack, and restored
+	 * from there before resuming.
 	 */
-	_omap_sram_idle(omap3_arm_context, save_state);
-	cpu_init();
+	if (save_state == 1 || save_state == 3)
+		cpu_suspend(0, PHYS_OFFSET - PAGE_OFFSET, save_state,
+			    omap34xx_do_sram_idle);
+	else
+		omap34xx_do_sram_idle(save_state);
 
 	/* Restore normal SDRC POWER settings */
 	if (omap_rev() >= OMAP3430_REV_ES3_0 &&
 	    omap_type() != OMAP2_DEVICE_TYPE_GP &&
 	    core_next_state == PWRDM_POWER_OFF)
 		sdrc_write_reg(sdrc_pwr, SDRC_POWER);
-
-	/* Restore table entry modified during MMU restoration */
-	if (pwrdm_read_prev_pwrst(mpu_pwrdm) == PWRDM_POWER_OFF)
-		restore_table_entry();
 
 	/* CORE */
 	if (core_next_state < PWRDM_POWER_ON) {
