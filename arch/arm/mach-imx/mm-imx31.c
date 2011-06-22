@@ -70,7 +70,7 @@ static struct sdma_script_start_addrs imx31_to2_sdma_script __initdata = {
 
 static struct sdma_platform_data imx31_sdma_pdata __initdata = {
 	.sdma_version = 1,
-	.cpu_name = "imx31",
+	.fw_name = "sdma-imx31-to2.bin",
 	.script_addrs = &imx31_to2_sdma_script,
 };
 
@@ -82,8 +82,11 @@ void __init imx31_soc_init(void)
 	mxc_register_gpio(1, MX31_GPIO2_BASE_ADDR, SZ_16K, MX31_INT_GPIO2, 0);
 	mxc_register_gpio(2, MX31_GPIO3_BASE_ADDR, SZ_16K, MX31_INT_GPIO3, 0);
 
-	imx31_sdma_pdata.to_version = to_version;
-	if (to_version == 1)
+	if (to_version == 1) {
+		strncpy(imx31_sdma_pdata.fw_name, "sdma-imx31-to1.bin",
+			strlen(imx31_sdma_pdata.fw_name));
 		imx31_sdma_pdata.script_addrs = &imx31_to1_sdma_script;
+	}
+
 	imx_add_imx_sdma(MX31_SDMA_BASE_ADDR, MX31_INT_SDMA, &imx31_sdma_pdata);
 }

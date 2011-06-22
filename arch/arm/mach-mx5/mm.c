@@ -116,8 +116,7 @@ static struct sdma_script_start_addrs imx51_sdma_script __initdata = {
 
 static struct sdma_platform_data imx51_sdma_pdata __initdata = {
 	.sdma_version = 2,
-	.cpu_name = "imx51",
-	.to_version = 1,
+	.fw_name = "sdma-imx51.bin",
 	.script_addrs = &imx51_sdma_script,
 };
 
@@ -137,21 +136,17 @@ static struct sdma_script_start_addrs imx53_sdma_script __initdata = {
 
 static struct sdma_platform_data imx53_sdma_pdata __initdata = {
 	.sdma_version = 2,
-	.cpu_name = "imx53",
-	.to_version = 1,
+	.fw_name = "sdma-imx53.bin",
 	.script_addrs = &imx53_sdma_script,
 };
 
 void __init imx51_soc_init(void)
 {
-	int to_version = mx51_revision() >> 4;
-
 	mxc_register_gpio(0, MX51_GPIO1_BASE_ADDR, SZ_16K, MX51_MXC_INT_GPIO1_LOW, MX51_MXC_INT_GPIO1_HIGH);
 	mxc_register_gpio(1, MX51_GPIO2_BASE_ADDR, SZ_16K, MX51_MXC_INT_GPIO2_LOW, MX51_MXC_INT_GPIO2_HIGH);
 	mxc_register_gpio(2, MX51_GPIO3_BASE_ADDR, SZ_16K, MX51_MXC_INT_GPIO3_LOW, MX51_MXC_INT_GPIO3_HIGH);
 	mxc_register_gpio(3, MX51_GPIO4_BASE_ADDR, SZ_16K, MX51_MXC_INT_GPIO4_LOW, MX51_MXC_INT_GPIO4_HIGH);
 
-	imx51_sdma_pdata.to_version = to_version;
 	imx_add_imx_sdma(MX51_SDMA_BASE_ADDR, MX51_INT_SDMA, &imx51_sdma_pdata);
 }
 

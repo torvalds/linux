@@ -80,8 +80,7 @@ static struct sdma_script_start_addrs imx25_sdma_script __initdata = {
 
 static struct sdma_platform_data imx25_sdma_pdata __initdata = {
 	.sdma_version = 2,
-	.cpu_name = "imx25",
-	.to_version = 1,
+	.fw_name = "sdma-imx25.bin",
 	.script_addrs = &imx25_sdma_script,
 };
 
