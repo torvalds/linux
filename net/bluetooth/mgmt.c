@@ -1760,6 +1760,62 @@ static int unblock_device(struct sock *sk, u16 index, unsigned char *data,
 	return err;
 }
 
+static int set_fast_connectable(struct sock *sk, u16 index,
+					unsigned char *data, u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_set_fast_connectable *cp = (void *) data;
+	struct hci_cp_write_page_scan_activity acp;
+	u8 type;
+	int err;
+
+	BT_DBG("hci%u", index);
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_SET_FAST_CONNECTABLE,
+								EINVAL);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_SET_FAST_CONNECTABLE,
+								ENODEV);
+
+	hci_dev_lock(hdev);
+
+	if (cp->enable) {
+		type = PAGE_SCAN_TYPE_INTERLACED;
+		acp.interval = 0x0024;	/* 22.5 msec page scan interval */
+	} else {
+		type = PAGE_SCAN_TYPE_STANDARD;	/* default */
+		acp.interval = 0x0800;	/* default 1.28 sec page scan */
+	}
+
+	acp.window = 0x0012;	/* default 11.25 msec page scan window */
+
+	err = hci_send_cmd(hdev, HCI_OP_WRITE_PAGE_SCAN_ACTIVITY,
+						sizeof(acp), &acp);
+	if (err < 0) {
+		err = cmd_status(sk, index, MGMT_OP_SET_FAST_CONNECTABLE,
+								-err);
+		goto done;
+	}
+
+	err = hci_send_cmd(hdev, HCI_OP_WRITE_PAGE_SCAN_TYPE, 1, &type);
+	if (err < 0) {
+		err = cmd_status(sk, index, MGMT_OP_SET_FAST_CONNECTABLE,
+								-err);
+		goto done;
+	}
+
+	err = cmd_complete(sk, index, MGMT_OP_SET_FAST_CONNECTABLE,
+							NULL, 0);
+done:
+	hci_dev_unlock(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -1879,6 +1935,10 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_UNBLOCK_DEVICE:
 		err = unblock_device(sk, index, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_SET_FAST_CONNECTABLE:
+		err = set_fast_connectable(sk, index, buf + sizeof(*hdr),
+								len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);

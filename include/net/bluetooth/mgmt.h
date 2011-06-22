@@ -211,6 +211,11 @@ struct mgmt_cp_unblock_device {
 	bdaddr_t bdaddr;
 } __packed;
 
+#define MGMT_OP_SET_FAST_CONNECTABLE	0x001F
+struct mgmt_cp_set_fast_connectable {
+	__u8 enable;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;
