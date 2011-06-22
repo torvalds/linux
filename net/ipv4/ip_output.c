@@ -802,8 +802,6 @@ static int __ip_append_data(struct sock *sk,
 	skb = skb_peek_tail(queue);
 
 	exthdrlen = !skb ? rt->dst.header_len : 0;
-	length += exthdrlen;
-	transhdrlen += exthdrlen;
 	mtu = cork->fragsize;
 
 	hh_len = LL_RESERVED_SPACE(rt->dst.dev);
@@ -883,6 +881,8 @@ alloc_new_skb:
 			else
 				alloclen = fraglen;
 
+			alloclen += exthdrlen;
+
 			/* The last fragment gets additional space at tail.
 			 * Note, with MSG_MORE we overallocate on fragments,
 			 * because we have no idea what fragment will be
@@ -923,11 +923,11 @@ alloc_new_skb:
 			/*
 			 *	Find where to start putting bytes.
 			 */
-			data = skb_put(skb, fraglen);
+			data = skb_put(skb, fraglen + exthdrlen);
 			skb_set_network_header(skb, exthdrlen);
 			skb->transport_header = (skb->network_header +
 						 fragheaderlen);
-			data += fragheaderlen;
+			data += fragheaderlen + exthdrlen;
 
 			if (fraggap) {
 				skb->csum = skb_copy_and_csum_bits(
@@ -1061,7 +1061,7 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 	 */
 	*rtp = NULL;
 	cork->fragsize = inet->pmtudisc == IP_PMTUDISC_PROBE ?
-			 rt->dst.dev->mtu : dst_mtu(rt->dst.path);
+			 rt->dst.dev->mtu : dst_mtu(&rt->dst);
 	cork->dst = &rt->dst;
 	cork->length = 0;
 	cork->tx_flags = ipc->tx_flags;
