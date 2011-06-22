@@ -34,13 +34,13 @@ static int __devinit pmu_register(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	if (pmu_devices[type])
-		pr_warning("registering new PMU device type %d overwrites "
-				"previous registration!\n", type);
-	else
-		pr_info("registered new PMU device of type %d\n",
-				type);
+	if (pmu_devices[type]) {
+		pr_warning("rejecting duplicate registration of PMU device "
+			"type %d.", type);
+		return -ENOSPC;
+	}
 
+	pr_info("registered new PMU device of type %d\n", type);
 	pmu_devices[type] = pdev;
 	return 0;
 }
