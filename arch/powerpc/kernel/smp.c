@@ -202,14 +202,6 @@ void smp_muxed_ipi_message_pass(int cpu, int msg)
 	smp_ops->cause_ipi(cpu, info->data);
 }
 
-void smp_muxed_ipi_resend(void)
-{
-	struct cpu_messages *info = &__get_cpu_var(ipi_message);
-
-	if (info->messages)
-		smp_ops->cause_ipi(smp_processor_id(), info->data);
-}
-
 irqreturn_t smp_ipi_demux(void)
 {
 	struct cpu_messages *info = &__get_cpu_var(ipi_message);

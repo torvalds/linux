@@ -119,7 +119,6 @@ extern const char *smp_ipi_name[];
 /* for irq controllers with only a single ipi */
 extern void smp_muxed_ipi_set_data(int cpu, unsigned long data);
 extern void smp_muxed_ipi_message_pass(int cpu, int msg);
-extern void smp_muxed_ipi_resend(void);
 extern irqreturn_t smp_ipi_demux(void);
 
 void smp_init_iSeries(void);

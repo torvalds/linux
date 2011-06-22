@@ -157,12 +157,6 @@ notrace void arch_local_irq_restore(unsigned long en)
 	if (get_hard_enabled())
 		return;
 
-#if defined(CONFIG_BOOKE) && defined(CONFIG_SMP)
-	/* Check for pending doorbell interrupts and resend to ourself */
-	if (cpu_has_feature(CPU_FTR_DBELL))
-		smp_muxed_ipi_resend();
-#endif
-
 	/*
 	 * Need to hard-enable interrupts here.  Since currently disabled,
 	 * no need to take further asm precautions against preemption; but
