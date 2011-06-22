@@ -443,14 +443,27 @@ static void setup_page_sizes(void)
 	}
 }
 
-static void setup_mmu_htw(void)
+static void __patch_exception(int exc, unsigned long addr)
 {
 	extern unsigned int interrupt_base_book3e;
-	extern unsigned int exc_data_tlb_miss_htw_book3e;
-	extern unsigned int exc_instruction_tlb_miss_htw_book3e;
+ 	unsigned int *ibase = &interrupt_base_book3e;
+ 
+	/* Our exceptions vectors start with a NOP and -then- a branch
+	 * to deal with single stepping from userspace which stops on
+	 * the second instruction. Thus we need to patch the second
+	 * instruction of the exception, not the first one
+	 */
 
-	unsigned int *ibase = &interrupt_base_book3e;
+	patch_branch(ibase + (exc / 4) + 1, addr, 0);
+}
 
+#define patch_exception(exc, name) do { \
+	extern unsigned int name; \
+	__patch_exception((exc), (unsigned long)&name); \
+} while (0)
+
+static void setup_mmu_htw(void)
+{
 	/* Check if HW tablewalk is present, and if yes, enable it by:
 	 *
 	 * - patching the TLB miss handlers to branch to the
@@ -462,15 +475,8 @@ static void setup_mmu_htw(void)
 
 	if ((tlb0cfg & TLBnCFG_IND) &&
 	    (tlb0cfg & TLBnCFG_PT)) {
-		/* Our exceptions vectors start with a NOP and -then- a branch
-		 * to deal with single stepping from userspace which stops on
-		 * the second instruction. Thus we need to patch the second
-		 * instruction of the exception, not the first one
-		 */
-		patch_branch(ibase + (0x1c0 / 4) + 1,
-			     (unsigned long)&exc_data_tlb_miss_htw_book3e, 0);
-		patch_branch(ibase + (0x1e0 / 4) + 1,
-			     (unsigned long)&exc_instruction_tlb_miss_htw_book3e, 0);
+		patch_exception(0x1c0, exc_data_tlb_miss_htw_book3e);
+		patch_exception(0x1e0, exc_instruction_tlb_miss_htw_book3e);
 		book3e_htw_enabled = 1;
 	}
 	pr_info("MMU: Book3E HW tablewalk %s\n",
@@ -549,6 +555,9 @@ static void __early_init_mmu(int boot_cpu)
 		/* limit memory so we dont have linear faults */
 		memblock_enforce_memory_limit(linear_map_top);
 		memblock_analyze();
+
+		patch_exception(0x1c0, exc_data_tlb_miss_bolted_book3e);
+		patch_exception(0x1e0, exc_instruction_tlb_miss_bolted_book3e);
 	}
 #endif
 

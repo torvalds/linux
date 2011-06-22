@@ -103,11 +103,12 @@ struct paca_struct {
 #endif /* CONFIG_PPC_STD_MMU_64 */
 
 #ifdef CONFIG_PPC_BOOK3E
-	pgd_t *pgd;			/* Current PGD */
-	pgd_t *kernel_pgd;		/* Kernel PGD */
 	u64 exgen[8] __attribute__((aligned(0x80)));
+	/* Keep pgd in the same cacheline as the start of extlb */
+	pgd_t *pgd __attribute__((aligned(0x80))); /* Current PGD */
+	pgd_t *kernel_pgd;		/* Kernel PGD */
 	/* We can have up to 3 levels of reentrancy in the TLB miss handler */
-	u64 extlb[3][EX_TLB_SIZE / sizeof(u64)] __attribute__((aligned(0x80)));
+	u64 extlb[3][EX_TLB_SIZE / sizeof(u64)];
 	u64 exmc[8];		/* used for machine checks */
 	u64 excrit[8];		/* used for crit interrupts */
 	u64 exdbg[8];		/* used for debug interrupts */
