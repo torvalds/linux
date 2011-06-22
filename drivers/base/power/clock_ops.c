@@ -278,11 +278,11 @@ int pm_runtime_clk_resume(struct device *dev)
  *
  * For this function to work, @nb must be a member of an object of type
  * struct pm_clk_notifier_block containing all of the requisite data.
- * Specifically, the pwr_domain member of that object is copied to the device's
- * pwr_domain field and its con_ids member is used to populate the device's list
+ * Specifically, the pm_domain member of that object is copied to the device's
+ * pm_domain field and its con_ids member is used to populate the device's list
  * of runtime PM clocks, depending on @action.
  *
- * If the device's pwr_domain field is already populated with a value different
+ * If the device's pm_domain field is already populated with a value different
  * from the one stored in the struct pm_clk_notifier_block object, the function
  * does nothing.
  */
@@ -300,14 +300,14 @@ static int pm_runtime_clk_notify(struct notifier_block *nb,
 
 	switch (action) {
 	case BUS_NOTIFY_ADD_DEVICE:
-		if (dev->pwr_domain)
+		if (dev->pm_domain)
 			break;
 
 		error = pm_runtime_clk_init(dev);
 		if (error)
 			break;
 
-		dev->pwr_domain = clknb->pwr_domain;
+		dev->pm_domain = clknb->pm_domain;
 		if (clknb->con_ids[0]) {
 			for (con_id = clknb->con_ids; *con_id; con_id++)
 				pm_runtime_clk_add(dev, *con_id);
@@ -317,10 +317,10 @@ static int pm_runtime_clk_notify(struct notifier_block *nb,
 
 		break;
 	case BUS_NOTIFY_DEL_DEVICE:
-		if (dev->pwr_domain != clknb->pwr_domain)
+		if (dev->pm_domain != clknb->pm_domain)
 			break;
 
-		dev->pwr_domain = NULL;
+		dev->pm_domain = NULL;
 		pm_runtime_clk_destroy(dev);
 		break;
 	}

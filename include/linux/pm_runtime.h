@@ -247,7 +247,7 @@ static inline void pm_runtime_dont_use_autosuspend(struct device *dev)
 
 struct pm_clk_notifier_block {
 	struct notifier_block nb;
-	struct dev_power_domain *pwr_domain;
+	struct dev_pm_domain *pm_domain;
 	char *con_ids[];
 };
 

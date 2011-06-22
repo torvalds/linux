@@ -28,7 +28,7 @@ static int default_platform_runtime_idle(struct device *dev)
 	return pm_runtime_suspend(dev);
 }
 
-static struct dev_power_domain default_power_domain = {
+static struct dev_pm_domain default_pm_domain = {
 	.ops = {
 		.runtime_suspend = pm_runtime_clk_suspend,
 		.runtime_resume = pm_runtime_clk_resume,
@@ -37,16 +37,16 @@ static struct dev_power_domain default_power_domain = {
 	},
 };
 
-#define DEFAULT_PWR_DOMAIN_PTR	(&default_power_domain)
+#define DEFAULT_PM_DOMAIN_PTR	(&default_pm_domain)
 
 #else
 
-#define DEFAULT_PWR_DOMAIN_PTR	NULL
+#define DEFAULT_PM_DOMAIN_PTR	NULL
 
 #endif /* CONFIG_PM_RUNTIME */
 
 static struct pm_clk_notifier_block platform_bus_notifier = {
-	.pwr_domain = DEFAULT_PWR_DOMAIN_PTR,
+	.pm_domain = DEFAULT_PM_DOMAIN_PTR,
 	.con_ids = { NULL, },
 };
 

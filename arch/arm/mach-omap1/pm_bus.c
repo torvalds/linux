@@ -49,20 +49,20 @@ static int omap1_pm_runtime_resume(struct device *dev)
 	return pm_generic_runtime_resume(dev);
 }
 
-static struct dev_power_domain default_power_domain = {
+static struct dev_pm_domain default_pm_domain = {
 	.ops = {
 		.runtime_suspend = omap1_pm_runtime_suspend,
 		.runtime_resume = omap1_pm_runtime_resume,
 		USE_PLATFORM_PM_SLEEP_OPS
 	},
 };
-#define OMAP1_PWR_DOMAIN (&default_power_domain)
+#define OMAP1_PM_DOMAIN (&default_pm_domain)
 #else
-#define OMAP1_PWR_DOMAIN NULL
+#define OMAP1_PM_DOMAIN NULL
 #endif /* CONFIG_PM_RUNTIME */
 
 static struct pm_clk_notifier_block platform_bus_notifier = {
-	.pwr_domain = OMAP1_PWR_DOMAIN,
+	.pm_domain = OMAP1_PM_DOMAIN,
 	.con_ids = { "ick", "fck", NULL, },
 };
 

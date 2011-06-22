@@ -472,7 +472,7 @@ extern void update_pm_runtime_accounting(struct device *dev);
  * hibernation, system resume and during runtime PM transitions along with
  * subsystem-level and driver-level callbacks.
  */
-struct dev_power_domain {
+struct dev_pm_domain {
 	struct dev_pm_ops	ops;
 };
 
