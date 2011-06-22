@@ -418,10 +418,8 @@ qlcnic_setup_intr(struct qlcnic_adapter *adapter)
 	int num_msix;
 
 	if (adapter->msix_supported) {
-		num_msix = (num_online_cpus() >=
-			QLCNIC_DEF_NUM_STS_DESC_RINGS) ?
-			QLCNIC_DEF_NUM_STS_DESC_RINGS :
-			QLCNIC_MIN_NUM_RSS_RINGS;
+		num_msix = rounddown_pow_of_two(min_t(int, num_online_cpus(),
+				QLCNIC_DEF_NUM_STS_DESC_RINGS));
 	} else
 		num_msix = 1;
 
