@@ -12599,6 +12599,7 @@ static const struct hda_verb alc262_toshiba_rx1_unsol_verbs[] = {
  */
 enum {
 	PINFIX_FSC_H270,
+	PINFIX_HP_Z200,
 };
 
 static const struct alc_fixup alc262_fixups[] = {
@@ -12611,9 +12612,17 @@ static const struct alc_fixup alc262_fixups[] = {
 			{ }
 		}
 	},
+	[PINFIX_HP_Z200] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x16, 0x99130120 }, /* internal speaker */
+			{ }
+		}
+	},
 };
 
 static const struct snd_pci_quirk alc262_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x103c, 0x170b, "HP Z200", PINFIX_HP_Z200),
 	SND_PCI_QUIRK(0x1734, 0x1147, "FSC Celsius H270", PINFIX_FSC_H270),
 	{}
 };
@@ -12730,6 +12739,8 @@ static const struct snd_pci_quirk alc262_cfg_tbl[] = {
 			   ALC262_HP_BPC),
 	SND_PCI_QUIRK_MASK(0x103c, 0xff00, 0x1500, "HP z series",
 			   ALC262_HP_BPC),
+	SND_PCI_QUIRK(0x103c, 0x170b, "HP Z200",
+			   ALC262_AUTO),
 	SND_PCI_QUIRK_MASK(0x103c, 0xff00, 0x1700, "HP xw series",
 			   ALC262_HP_BPC),
 	SND_PCI_QUIRK(0x103c, 0x2800, "HP D7000", ALC262_HP_BPC_D7000_WL),
