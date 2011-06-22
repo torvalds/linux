@@ -99,6 +99,13 @@ nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 			sensor->slope_mult = 431;
 			sensor->slope_div = 10000;
 			break;
+
+		case 0x67:
+			sensor->offset_mult = -26149;
+			sensor->offset_div = 100;
+			sensor->slope_mult = 484;
+			sensor->slope_div = 10000;
+			break;
 		}
 	}
 
