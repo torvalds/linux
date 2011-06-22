@@ -1583,6 +1583,7 @@ static void __init mackerel_init(void)
 
 	sh7372_add_device_to_domain(&sh7372_a4lc, &lcdc_device);
 	sh7372_add_device_to_domain(&sh7372_a4lc, &hdmi_lcdc_device);
+	sh7372_add_device_to_domain(&sh7372_a4lc, &meram_device);
 	sh7372_add_device_to_domain(&sh7372_a4mp, &fsi_device);
 
 	hdmi_init_pm_clock();
