@@ -370,25 +370,28 @@ static int ignoring_children(struct sighand_struct *sigh)
  */
 static bool __ptrace_detach(struct task_struct *tracer, struct task_struct *p)
 {
+	bool dead;
+
 	__ptrace_unlink(p);
 
-	if (p->exit_state == EXIT_ZOMBIE) {
-		if (!task_detached(p) && thread_group_empty(p)) {
-			if (!same_thread_group(p->real_parent, tracer))
-				do_notify_parent(p, p->exit_signal);
-			else if (ignoring_children(tracer->sighand)) {
-				__wake_up_parent(p, tracer);
-				p->exit_signal = -1;
-			}
-		}
-		if (task_detached(p)) {
-			/* Mark it as in the process of being reaped. */
-			p->exit_state = EXIT_DEAD;
-			return true;
+	if (p->exit_state != EXIT_ZOMBIE)
+		return false;
+
+	dead = !thread_group_leader(p);
+
+	if (!dead && thread_group_empty(p)) {
+		if (!same_thread_group(p->real_parent, tracer))
+			dead = do_notify_parent(p, p->exit_signal);
+		else if (ignoring_children(tracer->sighand)) {
+			__wake_up_parent(p, tracer);
+			p->exit_signal = -1;
+			dead = true;
 		}
 	}
-
-	return false;
+	/* Mark it as in the process of being reaped. */
+	if (dead)
+		p->exit_state = EXIT_DEAD;
+	return dead;
 }
 
 static int ptrace_detach(struct task_struct *child, unsigned int data)
