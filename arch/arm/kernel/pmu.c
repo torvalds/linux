@@ -61,9 +61,22 @@ static struct of_device_id armpmu_of_device_ids[] = {
 	{},
 };
 
+#define PLAT_MATCH_PMU(_name, _type) {	\
+	.name		= _name,	\
+	.driver_data	= _type,	\
+}
+
+#define PLAT_MATCH_CPU(_name)	PLAT_MATCH_PMU(_name, ARM_PMU_DEVICE_CPU)
+
+static struct platform_device_id armpmu_plat_device_ids[] = {
+	PLAT_MATCH_CPU("arm-pmu"),
+	{},
+};
+
 enum arm_pmu_type armpmu_device_type(struct platform_device *pdev)
 {
 	const struct of_device_id	*of_id;
+	const struct platform_device_id *pdev_id;
 
 	/* provided by of_device_id table */
 	if (pdev->dev.of_node) {
@@ -72,8 +85,10 @@ enum arm_pmu_type armpmu_device_type(struct platform_device *pdev)
 		return (enum arm_pmu_type)of_id->data;
 	}
 
-	/* Provided by a 'legacy' platform_device */
-	return ARM_PMU_DEVICE_CPU;
+	/* Provided by platform_device_id table */
+	pdev_id = platform_get_device_id(pdev);
+	BUG_ON(!pdev_id);
+	return pdev_id->driver_data;
 }
 
 static int __devinit armpmu_device_probe(struct platform_device *pdev)
@@ -87,6 +102,7 @@ static struct platform_driver armpmu_driver = {
 		.of_match_table = armpmu_of_device_ids,
 	},
 	.probe		= armpmu_device_probe,
+	.id_table	= armpmu_plat_device_ids,
 };
 
 static int __init register_pmu_driver(void)
