@@ -852,7 +852,7 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related,
 	*related = 1;
 
 	/* reassemble IP fragments */
-	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
+	if (ip_is_fragment(ip_hdr(skb))) {
 		if (ip_vs_gather_frags(skb, ip_vs_defrag_user(hooknum)))
 			return NF_STOLEN;
 	}
@@ -1156,8 +1156,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb, int af)
 		ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 	} else
 #endif
-		if (unlikely(ip_hdr(skb)->frag_off & htons(IP_MF|IP_OFFSET) &&
-			     !pp->dont_defrag)) {
+		if (unlikely(ip_is_fragment(ip_hdr(skb)) && !pp->dont_defrag)) {
 			if (ip_vs_gather_frags(skb,
 					       ip_vs_defrag_user(hooknum)))
 				return NF_STOLEN;
@@ -1310,7 +1309,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	*related = 1;
 
 	/* reassemble IP fragments */
-	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
+	if (ip_is_fragment(ip_hdr(skb))) {
 		if (ip_vs_gather_frags(skb, ip_vs_defrag_user(hooknum)))
 			return NF_STOLEN;
 	}

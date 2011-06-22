@@ -88,7 +88,7 @@ nf_nat_fn(unsigned int hooknum,
 
 	/* We never see fragments: conntrack defrags on pre-routing
 	   and local-out, and nf_nat_out protects post-routing. */
-	NF_CT_ASSERT(!(ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)));
+	NF_CT_ASSERT(!ip_is_fragment(ip_hdr(skb)));
 
 	ct = nf_ct_get(skb, &ctinfo);
 	/* Can't track?  It's not due to stress, or conntrack would

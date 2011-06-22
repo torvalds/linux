@@ -633,7 +633,7 @@ static u32 vxge_get_vpath_no(struct vxgedev *vdev, struct sk_buff *skb)
 
 		ip = ip_hdr(skb);
 
-		if ((ip->frag_off & htons(IP_OFFSET|IP_MF)) == 0) {
+		if (!ip_is_fragment(ip)) {
 			th = (struct tcphdr *)(((unsigned char *)ip) +
 					ip->ihl*4);
 

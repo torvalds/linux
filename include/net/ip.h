@@ -250,6 +250,11 @@ int ip_decrease_ttl(struct iphdr *iph)
 	return --iph->ttl;
 }
 
+static inline bool ip_is_fragment(const struct iphdr *iph)
+{
+	return (iph->frag_off & htons(IP_MF | IP_OFFSET)) != 0;
+}
+
 static inline
 int ip_dont_fragment(struct sock *sk, struct dst_entry *dst)
 {

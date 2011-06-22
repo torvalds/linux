@@ -532,7 +532,7 @@ static void ioc3_tcpudp_checksum(struct sk_buff *skb, uint32_t hwsum, int len)
 		return;
 
 	ih = (struct iphdr *) ((char *)eh + ETH_HLEN);
-	if (ih->frag_off & htons(IP_MF | IP_OFFSET))
+	if (ip_is_fragment(ih))
 		return;
 
 	proto = ih->protocol;

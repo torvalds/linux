@@ -167,7 +167,7 @@ restart:
 	dst = &nhptr->daddr;
 	protocol = nhptr->protocol;
 	xprt = ((u8 *)nhptr) + (nhptr->ihl<<2);
-	if (nhptr->frag_off & htons(IP_MF | IP_OFFSET))
+	if (ip_is_fragment(nhptr))
 		return -1;
 #endif
 

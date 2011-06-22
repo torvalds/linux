@@ -932,7 +932,7 @@ static int __init ic_bootp_recv(struct sk_buff *skb, struct net_device *dev, str
 		goto drop;
 
 	/* Fragments are not supported */
-	if (h->frag_off & htons(IP_OFFSET | IP_MF)) {
+	if (ip_is_fragment(h)) {
 		if (net_ratelimit())
 			printk(KERN_ERR "DHCP/BOOTP: Ignoring fragmented "
 			       "reply.\n");

@@ -2257,7 +2257,7 @@ myri10ge_get_frag_header(struct skb_frag_struct *frag, void **mac_hdr,
 	*ip_hdr = iph;
 	if (iph->protocol != IPPROTO_TCP)
 		return -1;
-	if (iph->frag_off & htons(IP_MF | IP_OFFSET))
+	if (ip_is_fragment(iph))
 		return -1;
 	*hdr_flags |= LRO_TCP;
 	*tcpudp_hdr = (u8 *) (*ip_hdr) + (iph->ihl << 2);

@@ -652,7 +652,7 @@ int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 	/* RFS must validate the IP header length before calling us */
 	EFX_BUG_ON_PARANOID(!pskb_may_pull(skb, nhoff + sizeof(*ip)));
 	ip = (const struct iphdr *)(skb->data + nhoff);
-	if (ip->frag_off & htons(IP_MF | IP_OFFSET))
+	if (ip_is_fragment(ip))
 		return -EPROTONOSUPPORT;
 	EFX_BUG_ON_PARANOID(!pskb_may_pull(skb, nhoff + 4 * ip->ihl + 4));
 	ports = (const __be16 *)(skb->data + nhoff + 4 * ip->ihl);

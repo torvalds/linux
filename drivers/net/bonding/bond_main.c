@@ -3438,7 +3438,7 @@ static int bond_xmit_hash_policy_l34(struct sk_buff *skb, int count)
 	int layer4_xor = 0;
 
 	if (skb->protocol == htons(ETH_P_IP)) {
-		if (!(iph->frag_off & htons(IP_MF|IP_OFFSET)) &&
+		if (!ip_is_fragment(iph) &&
 		    (iph->protocol == IPPROTO_TCP ||
 		     iph->protocol == IPPROTO_UDP)) {
 			layer4_xor = ntohs((*layer4hdr ^ *(layer4hdr + 1)));
