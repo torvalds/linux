@@ -25,7 +25,7 @@ extern void s390_backtrace(struct pt_regs * const regs, unsigned int depth);
 
 #include "hwsampler.h"
 
-#define DEFAULT_INTERVAL	4096
+#define DEFAULT_INTERVAL	4127518
 
 #define DEFAULT_SDBT_BLOCKS	1
 #define DEFAULT_SDB_BLOCKS	511
