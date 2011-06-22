@@ -40,7 +40,7 @@ struct clk *clk_gpu = NULL;
 
 void get_run_idle(u32 *run, u32 *idle)
 {
-    if(gcvPOWER_IDLE==lastState)
+    if(gcvPOWER_ON!=lastState)
     {
         do_gettimeofday(&tv_on);
         usec_idle += (1000000*(tv_on.tv_sec-tv_idle.tv_sec)+(tv_on.tv_usec-tv_idle.tv_usec));
@@ -67,12 +67,12 @@ inline void cal_run_idle(gceCHIPPOWERSTATE State)
 {
     int freq = 0;
     
-    if(gcvPOWER_IDLE==lastState && gcvPOWER_ON==State)  //gcvPOWER_IDLE->gcvPOWER_ON
+    if(gcvPOWER_ON!=lastState && gcvPOWER_ON==State)  //NotON -> ON
     {
         do_gettimeofday(&tv_on);
         usec_idle += (1000000*(tv_on.tv_sec-tv_idle.tv_sec)+(tv_on.tv_usec-tv_idle.tv_usec));
-    }
-    if(gcvPOWER_ON==lastState && gcvPOWER_IDLE==State)  //gcvPOWER_ON->gcvPOWER_IDLE
+    } 
+    else if(gcvPOWER_ON==lastState && gcvPOWER_ON!=State)  //ON -> NotON
     {
         do_gettimeofday(&tv_idle);
         usec_run += (1000000*(tv_idle.tv_sec-tv_on.tv_sec)+(tv_idle.tv_usec-tv_on.tv_usec));
@@ -80,12 +80,11 @@ inline void cal_run_idle(gceCHIPPOWERSTATE State)
         freq = nextfreq;
         nextfreq = 0;
         if(freq) {
+            if(freq<24)      freq = 24;
+            if(freq>600)     freq = 600;
             clk_gpu = clk_get(NULL, "gpu");
-            clk_set_parent(clk_gpu, clk_get(NULL, "general_pll"));
-            clk_set_rate(clk_get(NULL, "codec_pll"), freq*1000000);
             clk_set_rate(clk_gpu, freq*1000000);
-            clk_set_parent(clk_gpu, clk_get(NULL, "codec_pll"));
-            //printk("                                           == > gpu change freq to %d \n", freq); 
+            printk("           == > gpu change freq to %d \n", freq); 
         }
     }
     
