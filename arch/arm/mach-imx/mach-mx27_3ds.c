@@ -262,11 +262,11 @@ static struct mc13xxx_platform_data mc13783_pdata = {
 };
 
 /* SPI */
-static int spi2_internal_chipselect[] = {SPI2_SS0};
+static int spi2_chipselect[] = {SPI2_SS0};
 
 static const struct spi_imx_master spi2_pdata __initconst = {
-	.chipselect	= spi2_internal_chipselect,
-	.num_chipselect	= ARRAY_SIZE(spi2_internal_chipselect),
+	.chipselect	= spi2_chipselect,
+	.num_chipselect	= ARRAY_SIZE(spi2_chipselect),
 };
 
 static struct spi_board_info mx27_3ds_spi_devs[] __initdata = {
