@@ -2846,13 +2846,15 @@ skip_ack_check:
 			set_bit(__QLCNIC_START_FW, &adapter->state);
 			QLCDB(adapter, DRV, "Restarting fw\n");
 			qlcnic_idc_debug_info(adapter, 0);
-			QLCDB(adapter, DRV, "Take FW dump\n");
-			qlcnic_dump_fw(adapter);
-			adapter->flags &= ~QLCNIC_FW_RESET_OWNER;
 		}
 
 		qlcnic_api_unlock(adapter);
 
+		rtnl_lock();
+		QLCDB(adapter, DRV, "Take FW dump\n");
+		qlcnic_dump_fw(adapter);
+		adapter->flags &= ~QLCNIC_FW_RESET_OWNER;
+		rtnl_unlock();
 		if (!adapter->nic_ops->start_firmware(adapter)) {
 			qlcnic_schedule_work(adapter, qlcnic_attach_work, 0);
 			adapter->fw_wait_cnt = 0;

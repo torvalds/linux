@@ -986,8 +986,6 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 
-	if (qlcnic_api_lock(adapter))
-		return -EIO;
 	if (!fw_dump->clr) {
 		netdev_info(netdev, "Dump not available\n");
 		qlcnic_api_unlock(adapter);
@@ -1009,7 +1007,6 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 	vfree(fw_dump->data);
 	fw_dump->data = NULL;
 	fw_dump->clr = 0;
-	qlcnic_api_unlock(adapter);
 
 	return 0;
 }
@@ -1032,10 +1029,7 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 				ret = -EINVAL;
 				goto out;
 		}
-		if (qlcnic_api_lock(adapter))
-			return -EIO;
 		fw_dump->tmpl_hdr->drv_cap_mask = val->flag & 0xff;
-		qlcnic_api_unlock(adapter);
 		netdev_info(netdev, "Driver mask changed to: 0x%x\n",
 			fw_dump->tmpl_hdr->drv_cap_mask);
 	}
