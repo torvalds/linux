@@ -99,6 +99,14 @@ struct nid_path {
 	unsigned int mute_ctl;
 };
 
+/* input-path */
+struct via_input {
+	hda_nid_t pin;	/* input-pin or aa-mix */
+	int adc_idx;	/* ADC index to be used */
+	int mux_idx;	/* MUX index (if any) */
+	const char *label;	/* input-source label */
+};
+
 struct via_spec {
 	/* codec parameterization */
 	const struct snd_kcontrol_new *mixers[6];
@@ -135,8 +143,15 @@ struct via_spec {
 	hda_nid_t dig_in_nid;
 
 	/* capture source */
-	const struct hda_input_mux *input_mux;
+	bool dyn_adc_switch;
+	int num_inputs;
+	struct via_input inputs[AUTO_CFG_MAX_INS + 1];
 	unsigned int cur_mux[3];
+
+	/* dynamic ADC switching */
+	hda_nid_t cur_adc;
+	unsigned int cur_adc_stream_tag;
+	unsigned int cur_adc_format;
 
 	/* PCM information */
 	struct hda_pcm pcm_rec[3];
@@ -144,7 +159,6 @@ struct via_spec {
 	/* dynamic controls, init_verbs and input_mux */
 	struct auto_pin_cfg autocfg;
 	struct snd_array kctls;
-	struct hda_input_mux private_imux[2];
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
 	/* HP mode source */
@@ -171,6 +185,10 @@ struct via_spec {
 	struct hda_loopback_check loopback;
 	int num_loopbacks;
 	struct hda_amp_list loopback_list[8];
+
+	/* bind capture-volume */
+	struct hda_bind_ctls *bind_cap_vol;
+	struct hda_bind_ctls *bind_cap_sw;
 };
 
 static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec);
@@ -586,12 +604,15 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 
 	/* init input-src */
 	for (i = 0; i < spec->num_adc_nids; i++) {
-		const struct hda_input_mux *imux = spec->input_mux;
-		if (!imux || !spec->mux_nids[i])
-			continue;
-		snd_hda_codec_write(codec, spec->mux_nids[i], 0,
-				    AC_VERB_SET_CONNECT_SEL,
-				    imux->items[spec->cur_mux[i]].index);
+		int adc_idx = spec->inputs[spec->cur_mux[i]].adc_idx;
+		if (spec->mux_nids[adc_idx]) {
+			int mux_idx = spec->inputs[spec->cur_mux[i]].mux_idx;
+			snd_hda_codec_write(codec, spec->mux_nids[adc_idx], 0,
+					    AC_VERB_SET_CONNECT_SEL,
+					    mux_idx);
+		}
+		if (spec->dyn_adc_switch)
+			break; /* only one input-src */
 	}
 
 	/* init aa-mixer */
@@ -681,53 +702,6 @@ static const struct snd_kcontrol_new via_pin_power_ctl_enum = {
 	.put = via_pin_power_ctl_put,
 };
 
-
-/*
- * input MUX handling
- */
-static int via_mux_enum_info(struct snd_kcontrol *kcontrol,
-			     struct snd_ctl_elem_info *uinfo)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct via_spec *spec = codec->spec;
-	return snd_hda_input_mux_info(spec->input_mux, uinfo);
-}
-
-static int via_mux_enum_get(struct snd_kcontrol *kcontrol,
-			    struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct via_spec *spec = codec->spec;
-	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-
-	ucontrol->value.enumerated.item[0] = spec->cur_mux[adc_idx];
-	return 0;
-}
-
-static int via_mux_enum_put(struct snd_kcontrol *kcontrol,
-			    struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct via_spec *spec = codec->spec;
-	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	int ret;
-
-	if (!spec->mux_nids[adc_idx])
-		return -EINVAL;
-	/* switch to D0 beofre change index */
-	if (snd_hda_codec_read(codec, spec->mux_nids[adc_idx], 0,
-			       AC_VERB_GET_POWER_STATE, 0x00) != AC_PWRST_D0)
-		snd_hda_codec_write(codec, spec->mux_nids[adc_idx], 0,
-				    AC_VERB_SET_POWER_STATE, AC_PWRST_D0);
-
-	ret = snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
-				     spec->mux_nids[adc_idx],
-				     &spec->cur_mux[adc_idx]);
-	/* update jack power state */
-	set_widgets_power_state(codec);
-
-	return ret;
-}
 
 static int via_independent_hp_info(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_info *uinfo)
@@ -1149,6 +1123,53 @@ static int via_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 	return 0;
 }
 
+/* analog capture with dynamic ADC switching */
+static int via_dyn_adc_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
+					   struct hda_codec *codec,
+					   unsigned int stream_tag,
+					   unsigned int format,
+					   struct snd_pcm_substream *substream)
+{
+	struct via_spec *spec = codec->spec;
+	int adc_idx = spec->inputs[spec->cur_mux[0]].adc_idx;
+
+	spec->cur_adc = spec->adc_nids[adc_idx];
+	spec->cur_adc_stream_tag = stream_tag;
+	spec->cur_adc_format = format;
+	snd_hda_codec_setup_stream(codec, spec->cur_adc, stream_tag, 0, format);
+	return 0;
+}
+
+static int via_dyn_adc_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
+					   struct hda_codec *codec,
+					   struct snd_pcm_substream *substream)
+{
+	struct via_spec *spec = codec->spec;
+
+	snd_hda_codec_cleanup_stream(codec, spec->cur_adc);
+	spec->cur_adc = 0;
+	return 0;
+}
+
+/* re-setup the stream if running; called from input-src put */
+static bool via_dyn_adc_pcm_resetup(struct hda_codec *codec, int cur)
+{
+	struct via_spec *spec = codec->spec;
+	int adc_idx = spec->inputs[cur].adc_idx;
+	hda_nid_t adc = spec->adc_nids[adc_idx];
+
+	if (spec->cur_adc && spec->cur_adc != adc) {
+		/* stream is running, let's swap the current ADC */
+		__snd_hda_codec_cleanup_stream(codec, spec->cur_adc, 1);
+		spec->cur_adc = adc;
+		snd_hda_codec_setup_stream(codec, adc,
+					   spec->cur_adc_stream_tag, 0,
+					   spec->cur_adc_format);
+		return true;
+	}
+	return false;
+}
+
 static const struct hda_pcm_stream via_pcm_analog_playback = {
 	.substreams = 1,
 	.channels_min = 2,
@@ -1201,6 +1222,17 @@ static const struct hda_pcm_stream via_pcm_analog_capture = {
 	.ops = {
 		.prepare = via_capture_pcm_prepare,
 		.cleanup = via_capture_pcm_cleanup
+	},
+};
+
+static const struct hda_pcm_stream via_pcm_dyn_adc_analog_capture = {
+	.substreams = 1,
+	.channels_min = 2,
+	.channels_max = 2,
+	/* NID is set in via_build_pcms */
+	.ops = {
+		.prepare = via_dyn_adc_capture_pcm_prepare,
+		.cleanup = via_dyn_adc_capture_pcm_cleanup,
 	},
 };
 
@@ -1336,13 +1368,19 @@ static int via_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
 		spec->multiout.max_channels;
 
-	if (!spec->stream_analog_capture)
-		spec->stream_analog_capture = &via_pcm_analog_capture;
+	if (!spec->stream_analog_capture) {
+		if (spec->dyn_adc_switch)
+			spec->stream_analog_capture =
+				&via_pcm_dyn_adc_analog_capture;
+		else
+			spec->stream_analog_capture = &via_pcm_analog_capture;
+	}
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] =
 		*spec->stream_analog_capture;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[0];
-	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams =
-		spec->num_adc_nids;
+	if (!spec->dyn_adc_switch)
+		info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams =
+			spec->num_adc_nids;
 
 	if (spec->multiout.dig_out_nid || spec->dig_in_nid) {
 		codec->num_pcms++;
@@ -1394,7 +1432,9 @@ static void via_free(struct hda_codec *codec)
 
 	via_free_kctls(codec);
 	vt1708_stop_hp_work(spec);
-	kfree(codec->spec);
+	kfree(spec->bind_cap_vol);
+	kfree(spec->bind_cap_sw);
+	kfree(spec);
 }
 
 /* mute/unmute outputs */
@@ -1860,7 +1900,74 @@ static int via_fill_adcs(struct hda_codec *codec)
 	return 0;
 }
 
-static int get_mux_nids(struct hda_codec *codec);
+/* input-src control */
+static int via_mux_enum_info(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_info *uinfo)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct via_spec *spec = codec->spec;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = spec->num_inputs;
+	if (uinfo->value.enumerated.item >= spec->num_inputs)
+		uinfo->value.enumerated.item = spec->num_inputs - 1;
+	strcpy(uinfo->value.enumerated.name,
+	       spec->inputs[uinfo->value.enumerated.item].label);
+	return 0;
+}
+
+static int via_mux_enum_get(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct via_spec *spec = codec->spec;
+	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+
+	ucontrol->value.enumerated.item[0] = spec->cur_mux[idx];
+	return 0;
+}
+
+static int via_mux_enum_put(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct via_spec *spec = codec->spec;
+	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+	hda_nid_t mux;
+	int cur;
+
+	cur = ucontrol->value.enumerated.item[0];
+	if (cur < 0 || cur >= spec->num_inputs)
+		return -EINVAL;
+	if (spec->cur_mux[idx] == cur)
+		return 0;
+	spec->cur_mux[idx] = cur;
+	if (spec->dyn_adc_switch) {
+		int adc_idx = spec->inputs[cur].adc_idx;
+		mux = spec->mux_nids[adc_idx];
+		via_dyn_adc_pcm_resetup(codec, cur);
+	} else {
+		mux = spec->mux_nids[idx];
+		if (snd_BUG_ON(!mux))
+			return -EINVAL;
+	}
+
+	if (mux) {
+		/* switch to D0 beofre change index */
+		if (snd_hda_codec_read(codec, mux, 0,
+			       AC_VERB_GET_POWER_STATE, 0x00) != AC_PWRST_D0)
+			snd_hda_codec_write(codec, mux, 0,
+				    AC_VERB_SET_POWER_STATE, AC_PWRST_D0);
+		snd_hda_codec_write(codec, mux, 0,
+				    AC_VERB_SET_CONNECT_SEL,
+				    spec->inputs[cur].mux_idx);
+	}
+
+	/* update jack power state */
+	set_widgets_power_state(codec);
+	return 0;
+}
 
 static const struct snd_kcontrol_new via_input_src_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1874,6 +1981,22 @@ static const struct snd_kcontrol_new via_input_src_ctl = {
 	.put = via_mux_enum_put,
 };
 
+static int create_input_src_ctls(struct hda_codec *codec, int count)
+{
+	struct via_spec *spec = codec->spec;
+	struct snd_kcontrol_new *knew;
+
+	if (spec->num_inputs <= 1 || !count)
+		return 0; /* no need for single src */
+
+	knew = via_clone_control(spec, &via_input_src_ctl);
+	if (!knew)
+		return -ENOMEM;
+	knew->count = count;
+	return 0;
+}
+
+/* add the powersave loopback-list entry */
 static void add_loopback_list(struct via_spec *spec, hda_nid_t mix, int idx)
 {
 	struct hda_amp_list *list;
@@ -1888,17 +2011,65 @@ static void add_loopback_list(struct via_spec *spec, hda_nid_t mix, int idx)
 	spec->loopback.amplist = spec->loopback_list;
 }
 
-/* create playback/capture controls for input pins */
-static int via_auto_create_analog_input_ctls(struct hda_codec *codec,
-					     const struct auto_pin_cfg *cfg)
+/* check whether the path from src to dst is reachable */
+static bool is_reachable_nid(struct hda_codec *codec, hda_nid_t src,
+			     hda_nid_t dst, int depth)
+{
+	hda_nid_t conn[8];
+	int i, nums;
+
+	nums = snd_hda_get_connections(codec, src, conn, ARRAY_SIZE(conn));
+	for (i = 0; i < nums; i++)
+		if (conn[i] == dst)
+			return true;
+	if (++depth > MAX_NID_PATH_DEPTH)
+		return false;
+	for (i = 0; i < nums; i++)
+		if (is_reachable_nid(codec, conn[i], dst, depth))
+			return true;
+	return false;
+}
+
+/* add the input-route to the given pin */
+static bool add_input_route(struct hda_codec *codec, hda_nid_t pin)
 {
 	struct via_spec *spec = codec->spec;
-	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, j, err, idx, idx2, type, type_idx = 0;
-	const char *prev_label = NULL;
-	hda_nid_t cap_nid;
-	hda_nid_t pin_idxs[8];
-	int num_idxs;
+	int c, idx;
+
+	spec->inputs[spec->num_inputs].adc_idx = -1;
+	spec->inputs[spec->num_inputs].pin = pin;
+	for (c = 0; c < spec->num_adc_nids; c++) {
+		if (spec->mux_nids[c]) {
+			idx = get_connection_index(codec, spec->mux_nids[c],
+						   pin);
+			if (idx < 0)
+				continue;
+			spec->inputs[spec->num_inputs].mux_idx = idx;
+		} else {
+			if (!is_reachable_nid(codec, spec->adc_nids[c], pin, 0))
+				continue;
+		}
+		spec->inputs[spec->num_inputs].adc_idx = c;
+		/* Can primary ADC satisfy all inputs? */
+		if (!spec->dyn_adc_switch &&
+		    spec->num_inputs > 0 && spec->inputs[0].adc_idx != c) {
+			snd_printd(KERN_INFO
+				   "via: dynamic ADC switching enabled\n");
+			spec->dyn_adc_switch = 1;
+		}
+		return true;
+	}
+	return false;
+}
+
+static int get_mux_nids(struct hda_codec *codec);
+
+/* parse input-routes; fill ADCs, MUXs and input-src entries */
+static int parse_analog_inputs(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i, err;
 
 	err = via_fill_adcs(codec);
 	if (err < 0)
@@ -1906,55 +2077,97 @@ static int via_auto_create_analog_input_ctls(struct hda_codec *codec,
 	err = get_mux_nids(codec);
 	if (err < 0)
 		return err;
-	cap_nid = spec->mux_nids[0];
 
-	num_idxs = snd_hda_get_connections(codec, cap_nid, pin_idxs,
-					   ARRAY_SIZE(pin_idxs));
-	if (num_idxs <= 0)
-		return 0;
-
-	/* for internal loopback recording select */
-	for (idx = 0; idx < num_idxs; idx++) {
-		if (pin_idxs[idx] == spec->aa_mix_nid) {
-			snd_hda_add_imux_item(imux, "Stereo Mixer", idx, NULL);
-			break;
-		}
+	/* fill all input-routes */
+	for (i = 0; i < cfg->num_inputs; i++) {
+		if (add_input_route(codec, cfg->inputs[i].pin))
+			spec->inputs[spec->num_inputs++].label =
+				hda_get_autocfg_input_label(codec, cfg, i);
 	}
 
+	/* check for internal loopback recording */
+	if (spec->aa_mix_nid &&
+	    add_input_route(codec, spec->aa_mix_nid))
+		spec->inputs[spec->num_inputs++].label = "Stereo Mixer";
+
+	return 0;
+}
+
+/* create analog-loopback volume/switch controls */
+static int create_loopback_ctls(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	const char *prev_label = NULL;
+	int type_idx = 0;
+	int i, j, err, idx;
+
+	if (!spec->aa_mix_nid)
+		return 0;
+
 	for (i = 0; i < cfg->num_inputs; i++) {
-		const char *label;
-		type = cfg->inputs[i].type;
-		for (idx = 0; idx < num_idxs; idx++)
-			if (pin_idxs[idx] == cfg->inputs[i].pin)
-				break;
-		if (idx >= num_idxs)
-			continue;
-		label = hda_get_autocfg_input_label(codec, cfg, i);
+		hda_nid_t pin = cfg->inputs[i].pin;
+		const char *label = hda_get_autocfg_input_label(codec, cfg, i);
+
 		if (prev_label && !strcmp(label, prev_label))
 			type_idx++;
 		else
 			type_idx = 0;
 		prev_label = label;
-		idx2 = get_connection_index(codec, spec->aa_mix_nid,
-					    pin_idxs[idx]);
-		if (idx2 >= 0) {
+		idx = get_connection_index(codec, spec->aa_mix_nid, pin);
+		if (idx >= 0) {
 			err = via_new_analog_input(spec, label, type_idx,
-						   idx2, spec->aa_mix_nid);
+						   idx, spec->aa_mix_nid);
 			if (err < 0)
 				return err;
-			add_loopback_list(spec, spec->aa_mix_nid, idx2);
+			add_loopback_list(spec, spec->aa_mix_nid, idx);
 		}
-		snd_hda_add_imux_item(imux, label, idx, NULL);
 
 		/* remember the label for smart51 control */
 		for (j = 0; j < spec->smart51_nums; j++) {
-			if (spec->smart51_pins[j] == cfg->inputs[i].pin) {
+			if (spec->smart51_pins[j] == pin) {
 				spec->smart51_idxs[j] = idx;
 				spec->smart51_labels[j] = label;
 				break;
 			}
 		}
 	}
+	return 0;
+}
+
+/* create mic-boost controls (if present) */
+static int create_mic_boost_ctls(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i, err;
+
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t pin = cfg->inputs[i].pin;
+		unsigned int caps;
+		const char *label;
+		char name[32];
+
+		if (cfg->inputs[i].type != AUTO_PIN_MIC)
+			continue;
+		caps = query_amp_caps(codec, pin, HDA_INPUT);
+		if (caps == -1 || !(caps & AC_AMPCAP_NUM_STEPS))
+			continue;
+		label = hda_get_autocfg_input_label(codec, cfg, i);
+		snprintf(name, sizeof(name), "%s Boost Volume", label);
+		err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
+			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_INPUT));
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+
+/* create capture and input-src controls for multiple streams */
+static int create_multi_adc_ctls(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	int i, err;
 
 	/* create capture mixer elements */
 	for (i = 0; i < spec->num_adc_nids; i++) {
@@ -1977,34 +2190,89 @@ static int via_auto_create_analog_input_ctls(struct hda_codec *codec,
 	for (i = 0; i < spec->num_adc_nids; i++)
 		if (!spec->mux_nids[i])
 			break;
-	if (i) {
-		struct snd_kcontrol_new *knew;
-		knew = via_clone_control(spec, &via_input_src_ctl);
-		if (!knew)
-			return -ENOMEM;
-		knew->count = i;
-	}
+	err = create_input_src_ctls(codec, i);
+	if (err < 0)
+		return err;
+	return 0;
+}
 
-	/* mic-boosts */
-	for (i = 0; i < cfg->num_inputs; i++) {
-		hda_nid_t pin = cfg->inputs[i].pin;
-		unsigned int caps;
-		const char *label;
-		char name[32];
+/* bind capture volume/switch */
+static struct snd_kcontrol_new via_bind_cap_vol_ctl =
+	HDA_BIND_VOL("Capture Volume", 0);
+static struct snd_kcontrol_new via_bind_cap_sw_ctl =
+	HDA_BIND_SW("Capture Switch", 0);
 
-		if (cfg->inputs[i].type != AUTO_PIN_MIC)
-			continue;
-		caps = query_amp_caps(codec, pin, HDA_INPUT);
-		if (caps == -1 || !(caps & AC_AMPCAP_NUM_STEPS))
-			continue;
-		label = hda_get_autocfg_input_label(codec, cfg, i);
-		snprintf(name, sizeof(name), "%s Boost Volume", label);
-		err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_INPUT));
-		if (err < 0)
-			return err;
-	}
+static int init_bind_ctl(struct via_spec *spec, struct hda_bind_ctls **ctl_ret,
+			 struct hda_ctl_ops *ops)
+{
+	struct hda_bind_ctls *ctl;
+	int i;
 
+	ctl = kzalloc(sizeof(*ctl) + sizeof(long) * 4, GFP_KERNEL);
+	if (!ctl)
+		return -ENOMEM;
+	ctl->ops = ops;
+	for (i = 0; i < spec->num_adc_nids; i++)
+		ctl->values[i] =
+			HDA_COMPOSE_AMP_VAL(spec->adc_nids[i], 3, 0, HDA_INPUT);
+	*ctl_ret = ctl;
+	return 0;
+}
+
+/* create capture and input-src controls for dynamic ADC-switch case */
+static int create_dyn_adc_ctls(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	struct snd_kcontrol_new *knew;
+	int err;
+
+	/* set up the bind capture ctls */
+	err = init_bind_ctl(spec, &spec->bind_cap_vol, &snd_hda_bind_vol);
+	if (err < 0)
+		return err;
+	err = init_bind_ctl(spec, &spec->bind_cap_sw, &snd_hda_bind_sw);
+	if (err < 0)
+		return err;
+
+	/* create capture mixer elements */
+	knew = via_clone_control(spec, &via_bind_cap_vol_ctl);
+	if (!knew)
+		return -ENOMEM;
+	knew->private_value = (long)spec->bind_cap_vol;
+
+	knew = via_clone_control(spec, &via_bind_cap_sw_ctl);
+	if (!knew)
+		return -ENOMEM;
+	knew->private_value = (long)spec->bind_cap_sw;
+
+	/* input-source control */
+	err = create_input_src_ctls(codec, 1);
+	if (err < 0)
+		return err;
+	return 0;
+}
+
+/* parse and create capture-related stuff */
+static int via_auto_create_analog_input_ctls(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	int err;
+
+	err = parse_analog_inputs(codec);
+	if (err < 0)
+		return err;
+	if (spec->dyn_adc_switch)
+		err = create_dyn_adc_ctls(codec);
+	else
+		err = create_multi_adc_ctls(codec);
+	if (err < 0)
+		return err;
+	err = create_loopback_ctls(codec);
+	if (err < 0)
+		return err;
+	err = create_mic_boost_ctls(codec);
+	if (err < 0)
+		return err;
 	return 0;
 }
 
@@ -2090,7 +2358,7 @@ static int via_parse_auto_config(struct hda_codec *codec)
 	err = via_auto_create_speaker_ctls(codec);
 	if (err < 0)
 		return err;
-	err = via_auto_create_analog_input_ctls(codec, &spec->autocfg);
+	err = via_auto_create_analog_input_ctls(codec);
 	if (err < 0)
 		return err;
 
@@ -2103,8 +2371,6 @@ static int via_parse_auto_config(struct hda_codec *codec)
 		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	spec->init_verbs[spec->num_iverbs++] = vt1708_init_verbs;
-
-	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_dac_nid && spec->hp_dep_path.depth) {
 		err = via_hp_build(codec);
