@@ -1917,7 +1917,7 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 
 #ifdef CONFIG_SMP
 	/* Only handle if it is the right mc controller */
-	if (cpu_data(mce->cpu).phys_proc_id != pvt->i7core_dev->socket)
+	if (mce->socketid != pvt->i7core_dev->socket)
 		return 0;
 #endif
 
