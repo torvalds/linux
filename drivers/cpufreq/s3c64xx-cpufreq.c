@@ -112,6 +112,8 @@ static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 		goto err;
 	}
 
+	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+
 #ifdef CONFIG_REGULATOR
 	if (vddarm && freqs.new < freqs.old) {
 		ret = regulator_set_voltage(vddarm,
@@ -124,8 +126,6 @@ static int s3c64xx_cpufreq_set_target(struct cpufreq_policy *policy,
 		}
 	}
 #endif
-
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 	pr_debug("cpufreq: Set actual frequency %lukHz\n",
 		 clk_get_rate(armclk) / 1000);
