@@ -9,8 +9,10 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
+#include <mach/sdma.h>
 
 extern struct device mxc_aips_bus;
+extern struct device mxc_ahb_bus;
 
 struct platform_device *imx_add_platform_device_dmamask(
 		const char *name, int id,
@@ -293,3 +295,7 @@ struct imx_spi_imx_data {
 struct platform_device *__init imx_add_spi_imx(
 		const struct imx_spi_imx_data *data,
 		const struct spi_imx_master *pdata);
+
+struct platform_device *imx_add_imx_dma(void);
+struct platform_device *imx_add_imx_sdma(
+	resource_size_t iobase, int irq, struct sdma_platform_data *pdata);

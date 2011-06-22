@@ -24,6 +24,7 @@
 #include <asm/mach/map.h>
 
 #include <mach/common.h>
+#include <mach/devices-common.h>
 #include <mach/hardware.h>
 #include <mach/mx25.h>
 #include <mach/iomux-v3.h>
@@ -61,10 +62,35 @@ void __init mx25_init_irq(void)
 	mxc_init_irq(MX25_IO_ADDRESS(MX25_AVIC_BASE_ADDR));
 }
 
+static struct sdma_script_start_addrs imx25_sdma_script __initdata = {
+	.ap_2_ap_addr = 729,
+	.uart_2_mcu_addr = 904,
+	.per_2_app_addr = 1255,
+	.mcu_2_app_addr = 834,
+	.uartsh_2_mcu_addr = 1120,
+	.per_2_shp_addr = 1329,
+	.mcu_2_shp_addr = 1048,
+	.ata_2_mcu_addr = 1560,
+	.mcu_2_ata_addr = 1479,
+	.app_2_per_addr = 1189,
+	.app_2_mcu_addr = 770,
+	.shp_2_per_addr = 1407,
+	.shp_2_mcu_addr = 979,
+};
+
+static struct sdma_platform_data imx25_sdma_pdata __initdata = {
+	.sdma_version = 2,
+	.cpu_name = "imx25",
+	.to_version = 1,
+	.script_addrs = &imx25_sdma_script,
+};
+
 void __init imx25_soc_init(void)
 {
 	mxc_register_gpio(0, MX25_GPIO1_BASE_ADDR, SZ_16K, MX25_INT_GPIO1, 0);
 	mxc_register_gpio(1, MX25_GPIO2_BASE_ADDR, SZ_16K, MX25_INT_GPIO2, 0);
 	mxc_register_gpio(2, MX25_GPIO3_BASE_ADDR, SZ_16K, MX25_INT_GPIO3, 0);
 	mxc_register_gpio(3, MX25_GPIO4_BASE_ADDR, SZ_16K, MX25_INT_GPIO4, 0);
+
+	imx_add_imx_sdma(MX25_SDMA_BASE_ADDR, MX25_INT_SDMA, &imx25_sdma_pdata);
 }

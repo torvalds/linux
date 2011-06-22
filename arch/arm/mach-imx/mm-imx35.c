@@ -25,6 +25,7 @@
 #include <asm/hardware/cache-l2x0.h>
 
 #include <mach/common.h>
+#include <mach/devices-common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-v3.h>
 #include <mach/irqs.h>
@@ -54,9 +55,52 @@ void __init mx35_init_irq(void)
 	mxc_init_irq(MX35_IO_ADDRESS(MX35_AVIC_BASE_ADDR));
 }
 
+static struct sdma_script_start_addrs imx35_to1_sdma_script __initdata = {
+	.ap_2_ap_addr = 642,
+	.uart_2_mcu_addr = 817,
+	.mcu_2_app_addr = 747,
+	.uartsh_2_mcu_addr = 1183,
+	.per_2_shp_addr = 1033,
+	.mcu_2_shp_addr = 961,
+	.ata_2_mcu_addr = 1333,
+	.mcu_2_ata_addr = 1252,
+	.app_2_mcu_addr = 683,
+	.shp_2_per_addr = 1111,
+	.shp_2_mcu_addr = 892,
+};
+
+static struct sdma_script_start_addrs imx35_to2_sdma_script __initdata = {
+	.ap_2_ap_addr = 729,
+	.uart_2_mcu_addr = 904,
+	.per_2_app_addr = 1597,
+	.mcu_2_app_addr = 834,
+	.uartsh_2_mcu_addr = 1270,
+	.per_2_shp_addr = 1120,
+	.mcu_2_shp_addr = 1048,
+	.ata_2_mcu_addr = 1429,
+	.mcu_2_ata_addr = 1339,
+	.app_2_per_addr = 1531,
+	.app_2_mcu_addr = 770,
+	.shp_2_per_addr = 1198,
+	.shp_2_mcu_addr = 979,
+};
+
+static struct sdma_platform_data imx35_sdma_pdata __initdata = {
+	.sdma_version = 2,
+	.cpu_name = "imx35",
+	.script_addrs = &imx35_to2_sdma_script,
+};
+
 void __init imx35_soc_init(void)
 {
+	int to_version = mx35_revision() >> 4;
+
 	mxc_register_gpio(0, MX35_GPIO1_BASE_ADDR, SZ_16K, MX35_INT_GPIO1, 0);
 	mxc_register_gpio(1, MX35_GPIO2_BASE_ADDR, SZ_16K, MX35_INT_GPIO2, 0);
 	mxc_register_gpio(2, MX35_GPIO3_BASE_ADDR, SZ_16K, MX35_INT_GPIO3, 0);
+
+	imx35_sdma_pdata.to_version = to_version;
+	if (to_version == 1)
+		imx35_sdma_pdata.script_addrs = &imx35_to1_sdma_script;
+	imx_add_imx_sdma(MX35_SDMA_BASE_ADDR, MX35_INT_SDMA, &imx35_sdma_pdata);
 }
