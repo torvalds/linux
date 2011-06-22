@@ -2108,7 +2108,7 @@ int ext3_trim_fs(struct super_block *sb, struct fstrim_range *range)
 	if (unlikely(minlen > EXT3_BLOCKS_PER_GROUP(sb)))
 		return -EINVAL;
 	if (start >= max_blks)
-		goto out;
+		return -EINVAL;
 	if (start + len > max_blks)
 		len = max_blks - start;
 
@@ -2156,8 +2156,6 @@ int ext3_trim_fs(struct super_block *sb, struct fstrim_range *range)
 
 	if (ret >= 0)
 		ret = 0;
-
-out:
 	range->len = trimmed * sb->s_blocksize;
 
 	return ret;
