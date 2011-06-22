@@ -57,10 +57,6 @@ static struct proc_dir_entry *goodix_proc_entry;
 static void goodix_ts_early_suspend(struct early_suspend *h);
 static void goodix_ts_late_resume(struct early_suspend *h);
 #endif
-//used by firmware update CRC
-unsigned int oldcrc32 = 0xFFFFFFFF;
-unsigned int crc32_table[256];
-unsigned int ulPolynomial = 0x04c11db7;
 
 #ifdef HAVE_TOUCH_KEY
 	const uint16_t gt818_key_array[]={
@@ -73,37 +69,25 @@ unsigned int ulPolynomial = 0x04c11db7;
 #endif
 
 
-
-
-/*******************************************************	
-鍔熻兘锛�
-	璇诲彇浠庢満鏁版嵁
-	姣忎釜璇绘搷浣滅敤涓ゆ潯i2c_msg缁勬垚锛岀1鏉℃秷鎭敤浜庡彂閫佷粠鏈哄湴鍧�紝
-	绗�鏉＄敤浜庡彂閫佽鍙栧湴鍧�拰鍙栧洖鏁版嵁锛涙瘡鏉℃秷鎭墠鍙戦�璧峰淇″彿
-鍙傛暟锛�	client:	i2c璁惧锛屽寘鍚澶囧湴鍧�	buf[0]锛�棣栧瓧鑺備负璇诲彇鍦板潃
-	buf[1]~buf[len]锛氭暟鎹紦鍐插尯
-	len锛�璇诲彇鏁版嵁闀垮害
-return锛�	鎵ц娑堟伅鏁�*********************************************************/
 /*Function as i2c_master_send */
 static int i2c_read_bytes(struct i2c_client *client, u8 *buf, int len)
 {
 	struct i2c_msg msgs[2];
 	int ret = -1;
-	//鍙戦�鍐欏湴鍧�
+
 	msgs[0].addr = client->addr;
-	msgs[0].flags = client->flags;  //鍐欐秷鎭�
+	msgs[0].flags = client->flags;
 	msgs[0].len = 2;
 	msgs[0].buf = &buf[0];
-	msgs[0].scl_rate = 400*1000;
+	msgs[0].scl_rate = 600*1000;
 	msgs[0].udelay = client->udelay;
 
-	//鎺ユ敹鏁版嵁
 	msgs[1].addr = client->addr;
-	msgs[1].flags = client->flags | I2C_M_RD;//璇绘秷鎭�
+	msgs[1].flags = client->flags | I2C_M_RD;
 	msgs[1].len = len-2;
 	msgs[1].buf = &buf[2];
-	msgs[1].scl_rate = 400*1000;
-	msgs[1].udelay = client->udelay;
+	msgs[1].scl_rate = 600*1000;
+	//msgs[1].udelay = client->udelay;
 
 	ret = i2c_transfer(client->adapter, msgs, 2);
 	if(ret < 0)
@@ -126,8 +110,8 @@ static int i2c_write_bytes(struct i2c_client *client,u8 *data,int len)
 	msg.flags = client->flags;   //鍐欐秷鎭�
 	msg.len = len;
 	msg.buf = data;
-	msg.scl_rate = 400*1000;
-	msg.udelay = client->udelay;
+	msg.scl_rate = 600*1000;
+	//msg.udelay = client->udelay;
 	ret = i2c_transfer(client->adapter, &msg, 1);
 	if(ret < 0)
 		printk("%s:i2c_transfer fail =%d\n",__func__, ret);
@@ -147,7 +131,7 @@ static int i2c_pre_cmd(struct gt818_ts_data *ts)
 	pre_cmd_data[0] = 0x0f;
 	pre_cmd_data[1] = 0xff;
 	ret = i2c_write_bytes(ts->client,pre_cmd_data,2);
-	msleep(2);
+	udelay(20);
 	return ret;
 }
 
@@ -164,7 +148,7 @@ static int i2c_end_cmd(struct gt818_ts_data *ts)
 	end_cmd_data[0] = 0x80;
 	end_cmd_data[1] = 0x00;
 	ret = i2c_write_bytes(ts->client,end_cmd_data,2);
-	msleep(2);
+	//msleep(2);
 	return ret;
 }
 
@@ -175,6 +159,8 @@ static int i2c_end_cmd(struct gt818_ts_data *ts)
 static int goodix_init_panel(struct gt818_ts_data *ts)
 {
 	int ret = -1;
+//	unsigned char i2c_control_buf[3] = {0x06,0x92,0x03};
+
 	#if 1
 	u8 config_info[] = {		//Touch key devlop board
 	0x06,0xA2,
@@ -184,12 +170,12 @@ static int goodix_init_panel(struct gt818_ts_data *ts)
 	0xE0,0x00,0xD0,0x00,0xC0,0x00,0xB0,0x00,
 	0xA0,0x00,0x90,0x00,0x80,0x00,0x70,0x00,
 	0x00,0x00,0x01,0x13,0x90,0x90,0x90,0x38,
-	0x38,0x38,0x0F,0x0E,0x0A,0x42,0x30,0x08,
-	0x03,0x00,MAX_FINGER_NUM,0x00,0x14,0x00,0x1C,0x01,
+	0x38,0x38,0x0F,0x0E,0x0A,0x40   ,0x30,0x00,
+	0x3f,00,MAX_FINGER_NUM,0x00,0x14,0x00,0x1C,0x01,
 	0x01,0x3E,0x35,0x68,0x58,0x00,0x00,0x06,
 	0x19,0x05,0x00,0x00,0x00,0x00,0x00,0x00,
 	0x14,0x10,0x51,0x02,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x20,0x40,0x60,0x90,0x08,0x42,
+	0x00,0x00,0x20,0x40,0x60,0x90,0x08,0x40,
 	0x30,0x32,0x20,0x00,0x00,0x00,0x00,0x00,
 	0x00,0x01
 	};
@@ -199,22 +185,23 @@ static int goodix_init_panel(struct gt818_ts_data *ts)
 	u8 config_info[] = {
 	0x06,0xA2,
 	0x00,0x02,0x04,0x06,0x08,0x0A,0x0C,0x0E,
-	0x10,0x12,0x70,0x00,0x60,0x00,0x80,0x00,
-	0x50,0x00,0x90,0x00,0x40,0x00,0xA0,0x00,
-	0x30,0x00,0xB0,0x00,0x20,0x00,0xC0,0x00,
-	0x10,0x00,0xD0,0x00,0x00,0x00,0xE0,0x00,
-	0x00,0x00,0x01,0x13,0x80,0x88,0x90,0x30,
-	0x15,0x40,0x0F,0x0F,0x0A,0x60,0x3C,(0x00|((~(INT_TRIGGER<<3))&0x08)),
-	0x03,0x60,MAX_FINGER_NUM,(TOUCH_MAX_WIDTH&0xff),(TOUCH_MAX_WIDTH>>8),(TOUCH_MAX_HEIGHT&0xff),(TOUCH_MAX_HEIGHT>>8),0x00,
-	0x00,0x46,0x5A,0x5C,0x5E,0x00,0x00,0x03,
-	0x19,0x05,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x14,0x10,0x00,0x04,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x10,0x38,
+	0x10,0x12,0x00,0x00,0x10,0x00,0x20,0x00,
+	0x30,0x00,0x40,0x00,0x50,0x00,0x60,0x00,
+	0xE0,0x00,0xD0,0x00,0xC0,0x00,0xB0,0x00,
+	0xA0,0x00,0x90,0x00,0x80,0x00,0x70,0x00,
+	0x00,0x00,0x11,0x13,0x80,0x80,0x80,0x12,
+	0x12,0x12,0x0F,0x0F,0x0A,0x50,0x3C,0x49,
+	0x03,0x00,0x05,0x00,0x14,0xFA,0x1B,0x00,
+	0x00,0x4D,0x3D,0x81,0x65,0x00,0x00,0x06,
+	0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+	0x14,0x10,0xAB,0x02,0x00,0x00,0x00,0x00,
+	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x38,
 	0x00,0x3C,0x28,0x00,0x00,0x00,0x00,0x00,
 	0x00,0x01
+
 	};								
 	#endif
-
+//	ret = i2c_write_bytes(ts->client, i2c_control_buf, (sizeof(i2c_control_buf)/sizeof(i2c_control_buf[0])));
 	ret = i2c_write_bytes(ts->client, config_info, (sizeof(config_info)/sizeof(config_info[0])));
 	if (ret < 0) 
 		return ret;
@@ -245,175 +232,188 @@ static int  goodix_read_version(struct gt818_ts_data *ts)
 }
 
 
-/*******************************************************	
-鍔熻兘锛�	瑙︽懜灞忓伐浣滃嚱鏁�	鐢变腑鏂Е鍙戯紝鎺ュ彈1缁勫潗鏍囨暟鎹紝鏍￠獙鍚庡啀鍒嗘瀽杈撳嚭
-鍙傛暟锛�	ts:	client绉佹湁鏁版嵁缁撴瀯浣�return锛�	鎵ц缁撴灉鐮侊紝0琛ㄧず姝ｅ父鎵ц
-********************************************************/
+
 static void goodix_ts_work_func(struct work_struct *work)
 {	
-	u8  touch_data[3] = {READ_TOUCH_ADDR_H, READ_TOUCH_ADDR_L, 0};
-	u8  key_data[3] ={READ_KEY_ADDR_H, READ_KEY_ADDR_L,0};
-	u8  point_data[8*MAX_FINGER_NUM+2]={ 0 };
-	static u8   finger_last[MAX_FINGER_NUM+1]={0};		//涓婃瑙︽懜鎸夐敭鐨勬墜鎸囩储寮�
-	u8  finger_current[MAX_FINGER_NUM+1] = {0};		//褰撳墠瑙︽懜鎸夐敭鐨勬墜鎸囩储寮�
-	u8  coor_data[6*MAX_FINGER_NUM] = {0};				//瀵瑰簲鎵嬫寚鐨勬暟鎹�
+	u8  touch_status[8*MAX_FINGER_NUM + 18] = {READ_TOUCH_ADDR_H, READ_TOUCH_ADDR_L, 0};
+	u8  *key_value = NULL;
+	u8  *point_data = NULL;
+	static u8 finger_last[MAX_FINGER_NUM + 1]={0};
+	u8  finger_current[MAX_FINGER_NUM + 1] = {0};
+	u8  coor_data[6*MAX_FINGER_NUM] = {0};
 	static u8  last_key = 0;
+
 	u8  finger = 0;
 	u8  key = 0;
+	u8 retry = 0;
 	unsigned int  count = 0;
 	unsigned int position = 0;	
-	int ret=-1;
-	int tmp = 0;
+	int ret = -1;
 	int temp = 0;
-	int x = 0, y = 0;
+	int x = 0, y = 0 , pressure;
+
 	u16 *coor_point;
+
 	int syn_flag = 0;
-	
+
 	struct gt818_ts_data *ts = container_of(work, struct gt818_ts_data, work);
 
-	i2c_pre_cmd(ts);
+	ret = i2c_read_bytes(ts->client, touch_status, sizeof(touch_status)/sizeof(touch_status[0]));
 
-COORDINATE_POLL:
-	if( tmp > 9) {
-		dev_info(&(ts->client->dev), "Because of transfer error,touchscreen stop working.\n");
-		goto XFER_ERROR ;
-	}
-
-	ret = i2c_read_bytes(ts->client, touch_data, sizeof(touch_data)/sizeof(touch_data[0]));  //璇�x712锛岃Е鎽�
 	if(ret <= 0) {
-		dev_err(&(ts->client->dev),"I2C transfer error. Number:%d\n ", ret);
-		ts->bad_data = 1;
-		tmp ++;
-		ts->retry++;
-	#ifndef INT_PORT
-		goto COORDINATE_POLL;
-	#else
-		goto XFER_ERROR;
-	#endif
-	}
-	
-#ifdef HAVE_TOUCH_KEY	
-	ret = i2c_read_bytes(ts->client, key_data, sizeof(key_data)/sizeof(key_data[0]));  //璇�x721锛屾寜閿�
-	if(ret <= 0) {
-		dev_err(&(ts->client->dev),"I2C transfer error. Number:%d\n ", ret);
-		ts->bad_data = 1;
-		tmp ++;
-		ts->retry++;
-	#ifndef INT_PORT
-		goto COORDINATE_POLL;
-	#else
-		goto XFER_ERROR;
-	#endif
-	}
-	key = key_data[2] & 0x0f;
-#endif
 
-	if(ts->bad_data)
-		//TODO:Is sending config once again (to reset the chip) useful?	
-		msleep(20);
-		
-	if((touch_data[2] & 0x30) != 0x20)
-	{
-		printk("%s:DATA_NO_READY\n", __func__);
-		goto DATA_NO_READY;		
-	}	
-
-	ts->bad_data = 0;
-	
-	finger = touch_data[2] & 0x0f;
-
-	if(finger != 0)
-	{
-		point_data[0] = READ_COOR_ADDR_H;		//read coor high address
-		point_data[1] = READ_COOR_ADDR_L;		//read coor low address
-		ret = i2c_read_bytes(ts->client, point_data, finger*8+2);
-		if(ret <= 0)	
+		for(retry = 0; retry < 3; retry++)
 		{
+			ret = i2c_pre_cmd(ts);
+			if(ret <= 0)
+				continue;
+			else
+				break;
+		}
+		if(ret <= 0) {
 			dev_err(&(ts->client->dev),"I2C transfer error. Number:%d\n ", ret);
 			ts->bad_data = 1;
-			tmp ++;
 			ts->retry++;
-		#ifndef INT_PORT
-			goto COORDINATE_POLL;
-		#else
 			goto XFER_ERROR;
-		#endif
-		}		
-		for(position=2; position<((finger-1)*8+2+1); position += 8)
+		}
+		else{
+			i2c_read_bytes(ts->client, touch_status, sizeof(touch_status)/sizeof(touch_status[0]));
+		}
+	}
+
+	if((touch_status[2] & 0x30) != 0x20)
+	{
+		printk("%s:DATA_NO_READY\n", __func__);
+		goto DATA_NO_READY;
+	}
+
+	if(touch_status[13] & 0x0f)
+	{
+		//printk("%s:touch area is too large\n", __func__);
+		goto DATA_NO_READY;
+	}
+
+	ts->bad_data = 0;
+	finger = touch_status[2] & 0x07;
+	key_value = touch_status + 15;
+	key = key_value[2] & 0x0f;
+
+//	printk("finger:%d\n", finger);
+	if(finger > 0)
+	{
+		//printk("e\n");
+		point_data = key_value + 3;
+
+		for(position = 0; position < (finger*8); position += 8)
 		{
 			temp = point_data[position];
-			if(temp<(MAX_FINGER_NUM+1))
+			//printk("track:%d\n", temp);
+			if(temp < (MAX_FINGER_NUM + 1))
 			{
 				finger_current[temp] = 1;
-				for(count=0; count<6; count++)
+				for(count = 0; count < 6; count++)
 				{
-					coor_data[(temp-1)*6+count] = point_data[position+1+count];		//璁板綍褰撳墠鎵嬫寚绱㈠紩锛屽苟瑁呰浇鍧愭爣鏁版嵁
+					coor_data[(temp - 1) * 6 + count] = point_data[position+1+count];
 				}
 			}
 			else
 			{
 				//dev_err(&(ts->client->dev),"Track Id error:%d\n ",);
 				ts->bad_data = 1;
-				tmp ++;
 				ts->retry++;
-				#ifndef INT_PORT
-					goto COORDINATE_POLL;
-				#else
-					goto XFER_ERROR;
-				#endif
+				goto XFER_ERROR;
 			}		
 		}
-		//coor_point = (u16 *)coor_data;
 	
 	}
 	
 	else
 	{
-		for(position=1;position < MAX_FINGER_NUM+1; position++)		
+		for(position = 1; position < MAX_FINGER_NUM+1; position++)
 		{
 			finger_current[position] = 0;
 		}
 	}
+
 	coor_point = (u16 *)coor_data;
+
+	//printk("%\n");
 	for(position = 1; position < MAX_FINGER_NUM + 1; position++)
 	{
 		//printk("%s:positon:%d\n", __func__, position);
-		if((finger_current[position] == 0)&&(finger_last[position] != 0))
+		if((finger_current[position] == 0) && (finger_last[position] != 0))
 		{
 			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, 0);
 			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, 0);
 			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
 			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0);
 			input_mt_sync(ts->input_dev);
-			syn_flag =1;
+			syn_flag = 1;
 		}
 		else if(finger_current[position])
 		{
 
 			x = (*(coor_point+3*(position-1)))*SCREEN_MAX_WIDTH/(TOUCH_MAX_WIDTH);
 			y = (*(coor_point+3*(position-1)+1))*SCREEN_MAX_HEIGHT/(TOUCH_MAX_HEIGHT);
+			pressure = (*(coor_point+3*(position-1)+2));
+			//printk("pressure:%d\n", pressure);
 
 			if(x < SCREEN_MAX_WIDTH){
-				x = SCREEN_MAX_WIDTH-x;
+				x = SCREEN_MAX_WIDTH - x;
 			}
 
 			if(y < SCREEN_MAX_HEIGHT){
 			//	y = SCREEN_MAX_HEIGHT-y;
 			}
-
+			input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID, position - 1);
 			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 1);
 			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, x);
 			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, y);
-			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 5);
+			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, pressure);
 			input_mt_sync(ts->input_dev);
 			syn_flag = 1;
-			//printk("x:%d  ", x);
-			//printk("y:%d  ", y);
-			//printk("\n");
+			//printk("position%d: x:%d   y:%d\n",position, x, y);
+			//printk("$\n");
 		}
-			
 	}
 
+
+#ifdef HAVE_TOUCH_KEY
+	if((last_key == 0) && (key == 0))
+		goto NO_KEY_PRESS;
+	else
+	{
+		syn_flag = 1;
+		switch(key){
+			case 1:
+				key = 4;
+				break;
+			case 2:
+				key = 3;
+				break;
+			case 4:
+				key = 2;
+				break;
+			case 8:
+				key = 1;
+				break;
+			default:
+				key = 0;
+				break;
+		}
+		if(key != 0){
+			input_report_key(ts->input_dev, gt818_key_array[key - 1], 1);
+		}
+		else{
+			input_report_key(ts->input_dev, gt818_key_array[last_key - 1], 0);
+		}
+		last_key = key;
+	}		
+
+#endif
+
+
+NO_KEY_PRESS:
 	if(syn_flag){
 		input_sync(ts->input_dev);
 	}
@@ -423,22 +423,9 @@ COORDINATE_POLL:
 		finger_last[position] = finger_current[position];
 	}
 
-#ifdef HAVE_TOUCH_KEY
-	if((last_key == 0)&&(key == 0))
-		goto DATA_NO_READY;
-	else
-	{
-		for(count = 0; count < 4; count++)
-		{
-			input_report_key(ts->input_dev, gt818_key_array[count], (key & (0x08 >> count)));
-		}
-	}		
-	last_key = key;	
-#endif
-
 DATA_NO_READY:
 XFER_ERROR:
-	i2c_end_cmd(ts);
+//	i2c_end_cmd(ts);
 	if(ts->use_irq)
 		enable_irq(ts->client->irq);
 
@@ -488,30 +475,32 @@ static int goodix_ts_power(struct gt818_ts_data * ts, int on)
 		case 0:
 			i2c_pre_cmd(ts);
 			ret = i2c_write_bytes(ts->client, i2c_control_buf, 3);
-			printk(KERN_INFO"Send suspend cmd\n");
-			if(ret > 0)						//failed
+			if(ret < 0)
+			{
+				printk(KERN_INFO"**gt818 suspend fail**\n");
+			}
+			else
+			{
+				printk(KERN_INFO"**gt818 suspend**\n");
 				ret = 0;
+			}
 //			i2c_end_cmd(ts);
 			return ret;
 			
 		case 1:
-		//	#ifdef INT_PORT	
-		//		gpio_direction_output(INT_PORT, 0);
-		//		msleep(20);
-		//		gpio_free(INT_PORT);
-		//		s3c_gpio_setpull(INT_PORT, S3C_GPIO_PULL_NONE);
-		//		if(ts->use_irq) 
-		//			s3c_gpio_cfgpin(INT_PORT, INT_CFG);	//Set IO port as interrupt port	
-		//		else 
-		//			gpio_direction_input(INT_PORT);
-		//	#else
-				gpio_direction_output(pdata->gpio_reset, 0);
-				msleep(1);
-				gpio_direction_input(pdata->gpio_reset);
-		//	#endif					
-				msleep(40);
-				ret = 0;
-				return ret;
+			gpio_direction_output(pdata->gpio_reset, 0);
+			msleep(2);
+			gpio_direction_input(pdata->gpio_reset);
+			msleep(30);
+
+			ret = i2c_pre_cmd(ts);
+			if(ret >0){
+				printk(KERN_INFO"**gt818 resume**\n");
+			}
+			else{
+				printk(KERN_INFO"**gt818 resume fail**\n");
+			}
+			return ret;
 				
 		default:
 			printk(KERN_DEBUG "%s: Cant't support this command.", gt818_ts_name);
@@ -527,7 +516,6 @@ return锛�	鎵ц缁撴灉鐮侊紝0琛ㄧず姝ｅ父鎵ц
 ********************************************************/
 static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	//TODO:鍦ㄦ祴璇曞け璐ュ悗闇�閲婃斁ts
 	int ret = 0;
 	int retry=0;
 	u8 goodix_id[3] = {0,0xff,0};
@@ -551,12 +539,12 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	}
 
 	i2c_connect_client = client;	//used by Guitar_Update
-
 	pdata = client->dev.platform_data;
+	ts->client = client;
+	i2c_set_clientdata(client, ts);
 
 	//init int and reset ports
 #ifdef INT_PORT
-
 	ret = gpio_request(INT_PORT, "TS_INT");	//Request IO
 	if (ret){
 		dev_err(&client->dev, "Failed to request GPIO:%d, ERRNO:%d\n",(int)INT_PORT, ret);
@@ -565,7 +553,6 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	rk29_mux_api_set(pdata->pendown_iomux_name, pdata->pendown_iomux_mode);
 	gpio_direction_input(INT_PORT);
 	gpio_pull_updown(INT_PORT, 0);
-	//gpio_set_value(INT_PORT, GPIO_HIGH);
 #endif
 
 	ret = gpio_request(pdata->gpio_reset, "gt818_resetPin");
@@ -574,42 +561,45 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		goto err_gpio_request_failed;
 	}
 	rk29_mux_api_set(pdata->resetpin_iomux_name, pdata->resetpin_iomux_mode);
-
-	gpio_direction_output(pdata->gpio_reset, 0);
-	msleep(1);
-	gpio_direction_input(pdata->gpio_reset);
-	gpio_pull_updown(pdata->gpio_reset, 0);
-	msleep(20);
-
-
-	while(0){
-
-		for(retry = 0; retry < 3; retry++)
-		{
-			gpio_direction_output(pdata->gpio_reset, 0);
-			msleep(1);
-			gpio_direction_input(pdata->gpio_reset);
-			gpio_pull_updown(pdata->gpio_reset, 0);
-			msleep(20);
-			ret = i2c_write_bytes(client, "hhb", 3);	 //Test I2C connection.
-			if (ret > 0)
-				break;
-			msleep(500);
-		}
-	gpio_direction_output(pdata->gpio_reset, 1);
-
+#if 1
+	for(retry = 0; retry < 3; retry++)
+	{
+		gpio_direction_output(pdata->gpio_reset, 0);
+		msleep(2);
+		gpio_direction_input(pdata->gpio_reset);
+		gpio_pull_updown(pdata->gpio_reset, 0);
+		msleep(30);
+		ret = i2c_pre_cmd(ts);
+		if (ret > 0)
+			break;
+		msleep(50);
 	}
 
 	if(ret <= 0)
 	{
-//		dev_err(&client->dev, "Warnning: I2C communication might be ERROR!\n");
-		//goto err_i2c_failed;
+		dev_err(&client->dev, "Warnning: I2C communication might be ERROR!\n");
+		goto err_i2c_failed;
 	}	
-	
+
+#endif
+	for(retry = 0; retry < 3; retry++)
+	{
+		ret = goodix_init_panel(ts);
+		dev_info(&client->dev,"the config ret is :%d\n", ret);
+		msleep(20);
+		if(ret != 0)	//Initiall failed
+			continue;
+		else
+			break;
+	}
+
+	if(ret != 0) {
+		ts->bad_data = 1;
+		goto err_init_godix_ts;
+	}
+	goodix_read_version(ts);
+//	i2c_end_cmd(ts);
 	INIT_WORK(&ts->work, goodix_ts_work_func);		//init work_struct
-	ts->client = client;
-	i2c_set_clientdata(client, ts);
-	
 	ts->input_dev = input_allocate_device();
 	if (ts->input_dev == NULL) {
 		ret = -ENOMEM;
@@ -619,9 +609,9 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
 	ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) ;
 	ts->input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
-	//ts->input_dev->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE); 						// absolute coor (x,y)
 //	ts->input_dev->absbit[0] = BIT(ABS_MT_POSITION_X) | BIT(ABS_MT_POSITION_Y) |
 //			BIT(ABS_MT_TOUCH_MAJOR) | BIT(ABS_MT_WIDTH_MAJOR);  // for android
+
 
 #ifdef HAVE_TOUCH_KEY
 	for(retry = 0; retry < MAX_KEY_NUM; retry++)
@@ -632,7 +622,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(&client->dev));
 	snprintf(ts->name, sizeof(ts->name), "gt818-touchscreen");
-//	sprintf(ts->phys, "input/ts");
+
 	ts->input_dev->name = "gt818_ts";//ts->name;
 	ts->input_dev->phys = ts->phys;
 	ts->input_dev->dev.parent = &client->dev;
@@ -642,17 +632,18 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	ts->input_dev->id.version = 10427;	//screen firmware version
 
 #ifdef GOODIX_MULTI_TOUCH
+
 	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, SCREEN_MAX_WIDTH, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, SCREEN_MAX_HEIGHT, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_TRACKING_ID, 0, MAX_FINGER_NUM, 0, 0);
 #else
 	input_set_abs_params(ts->input_dev, ABS_X, 0, SCREEN_MAX_HEIGHT, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_Y, 0, SCREEN_MAX_WIDTH, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_PRESSURE, 0, 255, 0, 0);
 #endif	
 	
-
 	ret = input_register_device(ts->input_dev);
 	if (ret) {
 		dev_err(&client->dev,"Probe: Unable to register %s input device\n", ts->input_dev->name);
@@ -677,7 +668,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		#define GT801_PLUS_IRQ_TYPE IRQ_TYPE_LEVEL_HIGH
 	#endif
 
-		ret  = request_irq(client->irq, goodix_ts_irq_handler ,  GT801_PLUS_IRQ_TYPE,
+		ret  = request_irq(client->irq, goodix_ts_irq_handler, GT801_PLUS_IRQ_TYPE,
 			client->name, ts);
 		if (ret != 0) {
 			dev_err(&client->dev,"Cannot allocate ts INT!ERRNO:%d\n", ret);
@@ -693,58 +684,32 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		}	
 	}
 #endif	
+
 err_gpio_request_failed:
-	
-	if (!ts->use_irq) 
-	{
-		hrtimer_init(&ts->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		ts->timer.function = goodix_ts_timer_func;
-		hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
-	}
-
-	i2c_pre_cmd(ts);
-	msleep(2);
-	
-	for(retry = 0; retry < 3; retry++)
-	{
-		ret = goodix_init_panel(ts);
-		dev_info(&client->dev,"the config ret is :%d\n",ret);
-		msleep(2);
-		if(ret != 0)	//Initiall failed
-			continue;
-		else
-			break;
-	}
-	if(ret != 0) {
-		ts->bad_data = 1;
-		goto err_init_godix_ts;
-	}
-
-
-//	gpio_direction_output(INT_PORT, 1);
-//	msleep(1);
-
-	if(ts->use_irq)
-		enable_irq(client->irq);
-		
 	ts->power = goodix_ts_power;
-
-	goodix_read_version(ts);
-	
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	ts->early_suspend.suspend = goodix_ts_early_suspend;
 	ts->early_suspend.resume = goodix_ts_late_resume;
 	register_early_suspend(&ts->early_suspend);
 #endif
-
-	i2c_end_cmd(ts);
 	dev_info(&client->dev,"Start %s in %s mode\n", 
 		ts->input_dev->name, ts->use_irq ? "interrupt" : "polling");
+
+	if (ts->use_irq)
+	{
+		enable_irq(client->irq);
+	}
+	else
+	{
+		hrtimer_init(&ts->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		ts->timer.function = goodix_ts_timer_func;
+		hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
+	}
 	return 0;
 
 err_init_godix_ts:
-	i2c_end_cmd(ts);
+//	i2c_end_cmd(ts);
 	if(ts->use_irq)
 	{
 		ts->use_irq = 0;
@@ -913,8 +878,9 @@ static void __exit goodix_ts_exit(void)
 		destroy_workqueue(goodix_wq);		//release our work queue
 }
 
-late_initcall(goodix_ts_init);				//鏈�悗鍒濆鍖栭┍鍔╢elix
+late_initcall(goodix_ts_init);
 module_exit(goodix_ts_exit);
 
 MODULE_DESCRIPTION("Goodix Touchscreen Driver");
 MODULE_LICENSE("GPL");
+

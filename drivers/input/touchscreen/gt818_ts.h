@@ -49,7 +49,7 @@
 #define FLAG_UP		0
 #define FLAG_DOWN	1
 //set GT801 PLUS trigger mode,只能设置0或1 
-#define INT_TRIGGER		0
+#define INT_TRIGGER		1
 #define POLL_TIME		10	//actual query spacing interval:POLL_TIME+6
 
 #define GOODIX_MULTI_TOUCH
