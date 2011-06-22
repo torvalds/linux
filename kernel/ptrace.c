@@ -384,7 +384,6 @@ static bool __ptrace_detach(struct task_struct *tracer, struct task_struct *p)
 			dead = do_notify_parent(p, p->exit_signal);
 		else if (ignoring_children(tracer->sighand)) {
 			__wake_up_parent(p, tracer);
-			p->exit_signal = -1;
 			dead = true;
 		}
 	}
