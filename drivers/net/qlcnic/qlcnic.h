@@ -1220,8 +1220,7 @@ struct __ctrl {
 
 struct __cache {
 	__le32	addr;
-	u8	stride;
-	u8	rsvd;
+	__le16	stride;
 	__le16	init_tag_val;
 	__le32	size;
 	__le32	no_ops;
@@ -1319,7 +1318,7 @@ enum op_codes {
 #define QLCNIC_DUMP_SKIP	BIT_7
 
 #define QLCNIC_DUMP_MASK_MIN		3
-#define QLCNIC_DUMP_MASK_DEF		0x0f
+#define QLCNIC_DUMP_MASK_DEF		0x7f
 #define QLCNIC_DUMP_MASK_MAX		0xff
 #define QLCNIC_FORCE_FW_DUMP_KEY	0xdeadfeed
 

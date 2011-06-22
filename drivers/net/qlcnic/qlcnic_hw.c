@@ -1509,18 +1509,26 @@ qlcnic_dump_l2_cache(struct qlcnic_adapter *adapter,
 
 	for (i = 0; i < l2->no_ops; i++) {
 		QLCNIC_WR_DUMP_REG(l2->addr, base, val);
-		do {
+		if (LSW(l2->ctrl_val))
 			QLCNIC_WR_DUMP_REG(l2->ctrl_addr, base,
 				LSW(l2->ctrl_val));
+		if (!poll_mask)
+			goto skip_poll;
+		do {
 			QLCNIC_RD_DUMP_REG(l2->ctrl_addr, base, &data);
 			if (!(data & poll_mask))
 				break;
 			msleep(1);
 			time_out++;
 		} while (time_out <= poll_to);
-		if (time_out > poll_to)
-			return -EINVAL;
 
+		if (time_out > poll_to) {
+			dev_err(&adapter->pdev->dev,
+				"Timeout exceeded in %s, aborting dump\n",
+				__func__);
+			return -EINVAL;
+		}
+skip_poll:
 		addr = l2->read_addr;
 		cnt = l2->read_addr_num;
 		while (cnt) {
