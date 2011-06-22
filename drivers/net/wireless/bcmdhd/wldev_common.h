@@ -87,7 +87,11 @@ s32 wldev_iovar_getint_bsscfg(
 s32 wldev_iovar_setint_bsscfg(
 	struct net_device *dev, s8 *iovar, s32 val, s32 bssidx);
 
-/* Get the link speed from dongle, a minus number indicating an error, speed is in kpbs */ 
-int wldev_get_link_speed(struct net_device *dev);
+/* Get the link speed from dongle, speed is in kpbs */
+int wldev_get_link_speed(struct net_device *dev, int *plink_speed);
+
+int wldev_get_rssi(struct net_device *dev, int *prssi);
+
+int wldev_get_ssid(struct net_device *dev, wlc_ssid_t *pssid);
 
 #endif /* __WLDEV_COMMON_H__ */

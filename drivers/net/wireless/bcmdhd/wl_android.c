@@ -26,7 +26,8 @@
 
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <wldev_common.h>
+#include "wlioctl.h"
+#include "wldev_common.h"
 
 /*
  * Android private command strings, PLEASE define new private commands here
@@ -44,6 +45,7 @@
 #define CMD_BTCOEXSCAN_START	"BTCOEXSCAN-START"
 #define CMD_BTCOEXSCAN_STOP	"BTCOEXSCAN-STOP"
 #define CMD_BTCOEXMODE		"BTCOEXMODE"
+#define CMD_SETSUSPENDOPT	"SETSUSPENDOPT"
 
 typedef struct android_wifi_priv_cmd {
 	char *buf;
@@ -51,8 +53,13 @@ typedef struct android_wifi_priv_cmd {
 	int total_len;
 } android_wifi_priv_cmd;
 
+int net_os_set_suspend_disable(struct net_device *dev, int val);
+int net_os_set_suspend(struct net_device *dev, int val);
+
 static int g_wifi_on = 0;
 static int wl_android_get_link_speed(struct net_device *net, char *command, int total_len);
+static int wl_android_get_rssi(struct net_device *net, char *command, int total_len);
+static int wl_android_set_suspendopt(struct net_device *dev, char *command, int total_len);
 
 int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 {
@@ -105,7 +112,7 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		/* TBD: SCAN-PASSIVE */
 	}
 	else if (strnicmp(command, CMD_RSSI, strlen(CMD_RSSI)) == 0) {
-		/* TBD: RSSI */
+		bytes_written = wl_android_get_rssi(net, command, priv_cmd->total_len);
 	}
 	else if (strnicmp(command, CMD_LINKSPEED, strlen(CMD_LINKSPEED)) == 0) {
 		bytes_written = wl_android_get_link_speed(net, command, priv_cmd->total_len);
@@ -125,15 +132,22 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	else if (strnicmp(command, CMD_BTCOEXMODE, strlen(CMD_BTCOEXMODE)) == 0) {
 		/* TBD: BTCOEXMODE */
 	}
+	else if (strnicmp(command, CMD_SETSUSPENDOPT, strlen(CMD_SETSUSPENDOPT)) == 0) {
+		bytes_written = wl_android_set_suspendopt(net, command, priv_cmd->total_len);
+	}
 	else {
 		printk("Unknown PRIVATE command %s - ignored\n", command);
 		snprintf(command, 3, "OK");
 		bytes_written = strlen("OK") + 1;
 	}
 
-	priv_cmd->used_len = bytes_written;
-	if (copy_to_user(priv_cmd->buf, command, bytes_written)) {
-		printk("%s: failed to copy data to user buffer\n", __FUNCTION__);
+	if (bytes_written > 0) {
+		priv_cmd->used_len = bytes_written;
+		if (copy_to_user(priv_cmd->buf, command, bytes_written)) {
+			printk("%s: failed to copy data to user buffer\n", __FUNCTION__);
+		}
+	} else {
+		ret = bytes_written;
 	}
 
 exit:
@@ -149,12 +163,58 @@ static int wl_android_get_link_speed(struct net_device *net, char *command, int 
 {
 	int link_speed;
 	int bytes_written;
+	int error;
 
-	link_speed = wldev_get_link_speed(net);
+	error = wldev_get_link_speed(net, &link_speed);
+	if (error)
+		return -1;
 
 	/* Convert Kbps to Android Mbps */
 	link_speed = link_speed / 1000;
 	bytes_written = snprintf(command, total_len, "LinkSpeed %d", link_speed);
 	printk("%s: command result is %s \n", __FUNCTION__, command);
 	return bytes_written;
+}
+
+static int wl_android_get_rssi(struct net_device *net, char *command, int total_len)
+{
+	wlc_ssid_t ssid;
+	int rssi;
+	int bytes_written;
+	int error;
+
+	error = wldev_get_rssi(net, &rssi);
+	if (error)
+		return -1;
+
+	error = wldev_get_ssid(net, &ssid);
+	if (error)
+		return -1;
+	memcpy(command, ssid.SSID, ssid.SSID_len);
+	bytes_written = ssid.SSID_len;
+	bytes_written += snprintf(&command[bytes_written], total_len, " rssi %d", rssi);
+	printk("%s: command result is %s \n", __FUNCTION__, command);
+	return bytes_written;
+}
+
+static int wl_android_set_suspendopt(struct net_device *dev, char *command, int total_len)
+{
+	int suspend_flag;
+	int ret_now;
+	int ret = 0;
+
+	suspend_flag = *(command + strlen(CMD_SETSUSPENDOPT) + 1) - '0';
+
+	if (suspend_flag != 0)
+		suspend_flag = 1;
+	ret_now = net_os_set_suspend_disable(dev, suspend_flag);
+
+	if (ret_now != suspend_flag) {
+		if (!(ret = net_os_set_suspend(dev, ret_now)))
+			printk("%s: Suspend Flag %d -> %d\n",
+				__FUNCTION__, ret_now, suspend_flag);
+		else
+			printk("%s: failed %d\n", __FUNCTION__, ret);
+	}
+	return ret;
 }

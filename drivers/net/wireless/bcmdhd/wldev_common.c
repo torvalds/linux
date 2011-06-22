@@ -237,18 +237,50 @@ s32 wldev_iovar_getint_bsscfg(
 	return err;
 }
 
-int
-wldev_get_link_speed(
-	struct net_device *dev)
+int wldev_get_link_speed(
+	struct net_device *dev, int *plink_speed)
 {
 	int error;
-	int link_speed;
 
-	error = wldev_ioctl(dev, WLC_GET_RATE, &link_speed, sizeof(link_speed), 0);
-	if (error < 0)
+	if (!plink_speed)
+		return -ENOMEM;
+	error = wldev_ioctl(dev, WLC_GET_RATE, plink_speed, sizeof(int), 0);
+	if (unlikely(error))
 		return error;
-	/* Convert internal 500Kbps to Kbps */
-	link_speed *= 500;
 
-	return link_speed;
+	/* Convert internal 500Kbps to Kbps */
+	*plink_speed *= 500;
+	return error;
+}
+
+int wldev_get_rssi(
+	struct net_device *dev, int *prssi)
+{
+	scb_val_t scb_val;
+	int error;
+
+	if (!prssi)
+		return -ENOMEM;
+	bzero(&scb_val, sizeof(scb_val_t));
+
+	error = wldev_ioctl(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t), 0);
+	if (unlikely(error))
+		return error;
+
+	*prssi = dtoh32(scb_val.val);
+	return error;
+}
+
+int wldev_get_ssid(
+	struct net_device *dev, wlc_ssid_t *pssid)
+{
+	int error;
+
+	if (!pssid)
+		return -ENOMEM;
+	error = wldev_ioctl(dev, WLC_GET_SSID, pssid, sizeof(wlc_ssid_t), 0);
+	if (unlikely(error))
+		return error;
+	pssid->SSID_len = dtoh32(pssid->SSID_len);
+	return error;
 }
