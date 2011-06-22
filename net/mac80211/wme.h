@@ -13,11 +13,6 @@
 #include <linux/netdevice.h>
 #include "ieee80211_i.h"
 
-#define QOS_CONTROL_ACK_POLICY_NORMAL 0
-#define QOS_CONTROL_ACK_POLICY_NOACK 1
-
-#define QOS_CONTROL_ACK_POLICY_SHIFT 5
-
 extern const int ieee802_1d_to_ac[8];
 
 u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
