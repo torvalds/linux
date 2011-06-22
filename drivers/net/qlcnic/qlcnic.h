@@ -36,8 +36,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 18
-#define QLCNIC_LINUX_VERSIONID  "5.0.18"
+#define _QLCNIC_LINUX_SUBVERSION 19
+#define QLCNIC_LINUX_VERSIONID  "5.0.19"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -451,6 +451,7 @@ struct qlcnic_hardware_context {
 	u8 revision_id;
 	u8 pci_func;
 	u8 linkup;
+	u8 loopback_state;
 	u16 port_type;
 	u16 board_type;
 
@@ -780,6 +781,13 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_IP_UP		2
 #define QLCNIC_IP_DOWN		3
 
+#define QLCNIC_ILB_MODE		0x1
+
+#define QLCNIC_LINKEVENT	0x1
+#define QLCNIC_LB_RESPONSE	0x2
+#define QLCNIC_IS_LB_CONFIGURED(VAL)	\
+		(VAL == (QLCNIC_LINKEVENT | QLCNIC_LB_RESPONSE))
+
 /*
  * Driver --> Firmware
  */
@@ -789,13 +797,17 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_H2C_OPCODE_LRO_REQUEST			0x7
 #define QLCNIC_H2C_OPCODE_SET_MAC_RECEIVE_MODE		0xc
 #define QLCNIC_H2C_OPCODE_CONFIG_IPADDR		0x12
+
 #define QLCNIC_H2C_OPCODE_GET_LINKEVENT		0x15
 #define QLCNIC_H2C_OPCODE_CONFIG_BRIDGING		0x17
 #define QLCNIC_H2C_OPCODE_CONFIG_HW_LRO		0x18
+#define QLCNIC_H2C_OPCODE_CONFIG_LOOPBACK		0x13
+
 /*
  * Firmware --> Driver
  */
 
+#define QLCNIC_C2H_OPCODE_CONFIG_LOOPBACK		0x8f
 #define QLCNIC_C2H_OPCODE_GET_LINKEVENT_RESPONSE	141
 
 #define VPORT_MISS_MODE_DROP		0 /* drop all unmatched */
@@ -1430,6 +1442,12 @@ int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter);
 void qlcnic_update_cmd_producer(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_tx_ring *tx_ring);
 void qlcnic_fetch_mac(struct qlcnic_adapter *, u32, u32, u8, u8 *);
+void qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring);
+void qlcnic_clear_lb_mode(struct qlcnic_adapter *adapter);
+int qlcnic_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode);
+
+/* Functions from qlcnic_ethtool.c */
+int qlcnic_check_loopback_buff(unsigned char *data, u8 mac[]);
 
 /* Functions from qlcnic_main.c */
 int qlcnic_reset_context(struct qlcnic_adapter *);

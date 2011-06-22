@@ -533,6 +533,56 @@ void qlcnic_delete_lb_filters(struct qlcnic_adapter *adapter)
 	}
 }
 
+int qlcnic_set_fw_loopback(struct qlcnic_adapter *adapter, u8 flag)
+{
+	struct qlcnic_nic_req req;
+	int rv;
+
+	memset(&req, 0, sizeof(struct qlcnic_nic_req));
+
+	req.qhdr = cpu_to_le64(QLCNIC_HOST_REQUEST << 23);
+	req.req_hdr = cpu_to_le64(QLCNIC_H2C_OPCODE_CONFIG_LOOPBACK |
+		((u64) adapter->portnum << 16) | ((u64) 0x1 << 32));
+
+	req.words[0] = cpu_to_le64(flag);
+
+	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv != 0)
+		dev_err(&adapter->pdev->dev, "%sting loopback mode failed\n",
+				flag ? "Set" : "Reset");
+	return rv;
+}
+
+int qlcnic_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode)
+{
+	if (qlcnic_set_fw_loopback(adapter, mode))
+		return -EIO;
+
+	if (qlcnic_nic_set_promisc(adapter, VPORT_MISS_MODE_ACCEPT_ALL)) {
+		qlcnic_set_fw_loopback(adapter, mode);
+		return -EIO;
+	}
+
+	msleep(1000);
+	return 0;
+}
+
+void qlcnic_clear_lb_mode(struct qlcnic_adapter *adapter)
+{
+	int mode = VPORT_MISS_MODE_DROP;
+	struct net_device *netdev = adapter->netdev;
+
+	qlcnic_set_fw_loopback(adapter, 0);
+
+	if (netdev->flags & IFF_PROMISC)
+		mode = VPORT_MISS_MODE_ACCEPT_ALL;
+	else if (netdev->flags & IFF_ALLMULTI)
+		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
+
+	qlcnic_nic_set_promisc(adapter, mode);
+	msleep(1000);
+}
+
 /*
  * Send the interrupt coalescing parameter set by ethtool to the card.
  */

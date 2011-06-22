@@ -1391,6 +1391,12 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 			qlcnic_enable_int(sds_ring);
 		}
 	}
+
+	if (adapter->diag_test == QLCNIC_LOOPBACK_TEST) {
+		adapter->ahw->loopback_state = 0;
+		qlcnic_linkevent_request(adapter, 1);
+	}
+
 	set_bit(__QLCNIC_DEV_UP, &adapter->state);
 
 	return 0;
