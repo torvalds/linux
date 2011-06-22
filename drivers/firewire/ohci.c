@@ -527,6 +527,9 @@ static int read_phy_reg(struct fw_ohci *ohci, int addr)
 	reg_write(ohci, OHCI1394_PhyControl, OHCI1394_PhyControl_Read(addr));
 	for (i = 0; i < 3 + 100; i++) {
 		val = reg_read(ohci, OHCI1394_PhyControl);
+		if (!~val)
+			return -ENODEV; /* Card was ejected. */
+
 		if (val & OHCI1394_PhyControl_ReadDone)
 			return OHCI1394_PhyControl_ReadData(val);
 
@@ -550,6 +553,9 @@ static int write_phy_reg(const struct fw_ohci *ohci, int addr, u32 val)
 		  OHCI1394_PhyControl_Write(addr, val));
 	for (i = 0; i < 3 + 100; i++) {
 		val = reg_read(ohci, OHCI1394_PhyControl);
+		if (!~val)
+			return -ENODEV; /* Card was ejected. */
+
 		if (!(val & OHCI1394_PhyControl_WritePending))
 			return 0;
 
