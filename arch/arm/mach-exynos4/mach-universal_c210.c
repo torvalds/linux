@@ -18,6 +18,8 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/max8952.h>
 #include <linux/mmc/host.h>
+#include <linux/i2c-gpio.h>
+#include <linux/i2c/mcs.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -477,6 +479,56 @@ static struct i2c_board_info i2c5_devs[] __initdata = {
 	},
 };
 
+/* GPIO I2C 12 (3 Touchkey) */
+static uint32_t touchkey_keymap[] = {
+	/* MCS_KEY_MAP(value, keycode) */
+	MCS_KEY_MAP(0, KEY_MENU),		/* KEY_SEND */
+	MCS_KEY_MAP(1, KEY_BACK),		/* KEY_END */
+};
+
+static struct mcs_platform_data touchkey_data = {
+	.keymap		= touchkey_keymap,
+	.keymap_size	= ARRAY_SIZE(touchkey_keymap),
+	.key_maxval	= 2,
+};
+
+/* GPIO I2C 3_TOUCH 2.8V */
+#define I2C_GPIO_BUS_12		12
+static struct i2c_gpio_platform_data i2c_gpio12_data = {
+	.sda_pin	= EXYNOS4_GPE4(0),	/* XMDMDATA_8 */
+	.scl_pin	= EXYNOS4_GPE4(1),	/* XMDMDATA_9 */
+};
+
+static struct platform_device i2c_gpio12 = {
+	.name		= "i2c-gpio",
+	.id		= I2C_GPIO_BUS_12,
+	.dev		= {
+		.platform_data	= &i2c_gpio12_data,
+	},
+};
+
+static struct i2c_board_info i2c_gpio12_devs[] __initdata = {
+	{
+		I2C_BOARD_INFO("mcs5080_touchkey", 0x20),
+		.platform_data = &touchkey_data,
+	},
+};
+
+static void __init universal_touchkey_init(void)
+{
+	int gpio;
+
+	gpio = EXYNOS4_GPE3(7);			/* XMDMDATA_7 */
+	gpio_request(gpio, "3_TOUCH_INT");
+	s5p_register_gpio_interrupt(gpio);
+	s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(0xf));
+	i2c_gpio12_devs[0].irq = gpio_to_irq(gpio);
+
+	gpio = EXYNOS4_GPE3(3);			/* XMDMDATA_3 */
+	gpio_request(gpio, "3_TOUCH_EN");
+	gpio_direction_output(gpio, 1);
+}
+
 /* GPIO KEYS */
 static struct gpio_keys_button universal_gpio_keys_tables[] = {
 	{
@@ -619,6 +671,7 @@ static struct platform_device *universal_devices[] __initdata = {
 	&s3c_device_i2c5,
 
 	/* Universal Devices */
+	&i2c_gpio12,
 	&universal_gpio_keys,
 	&s5p_device_onenand,
 };
@@ -639,6 +692,10 @@ static void __init universal_machine_init(void)
 
 	s3c_i2c5_set_platdata(NULL);
 	i2c_register_board_info(5, i2c5_devs, ARRAY_SIZE(i2c5_devs));
+
+	universal_touchkey_init();
+	i2c_register_board_info(I2C_GPIO_BUS_12, i2c_gpio12_devs,
+			ARRAY_SIZE(i2c_gpio12_devs));
 
 	/* Last */
 	platform_add_devices(universal_devices, ARRAY_SIZE(universal_devices));
