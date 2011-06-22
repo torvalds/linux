@@ -1343,11 +1343,11 @@ static int is_atomic_open(struct nameidata *nd)
 	return 1;
 }
 
-static struct nfs_open_context *nameidata_to_nfs_open_context(struct dentry *dentry, struct nameidata *nd)
+static struct nfs_open_context *create_nfs_open_context(struct dentry *dentry, int open_flags)
 {
 	struct nfs_open_context *ctx;
 	struct rpc_cred *cred;
-	fmode_t fmode = nd->intent.open.flags & (FMODE_READ | FMODE_WRITE | FMODE_EXEC);
+	fmode_t fmode = open_flags & (FMODE_READ | FMODE_WRITE | FMODE_EXEC);
 
 	cred = rpc_lookup_cred();
 	if (IS_ERR(cred))
@@ -1416,12 +1416,13 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 		goto out;
 	}
 
-	ctx = nameidata_to_nfs_open_context(dentry, nd);
+	open_flags = nd->intent.open.flags;
+
+	ctx = create_nfs_open_context(dentry, open_flags);
 	res = ERR_CAST(ctx);
 	if (IS_ERR(ctx))
 		goto out;
 
-	open_flags = nd->intent.open.flags;
 	if (nd->flags & LOOKUP_CREATE) {
 		attr.ia_mode = nd->intent.open.create_mode;
 		attr.ia_valid = ATTR_MODE;
@@ -1513,7 +1514,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	/* We can't create new files, or truncate existing ones here */
 	openflags &= ~(O_CREAT|O_EXCL|O_TRUNC);
 
-	ctx = nameidata_to_nfs_open_context(dentry, nd);
+	ctx = create_nfs_open_context(dentry, openflags);
 	ret = PTR_ERR(ctx);
 	if (IS_ERR(ctx))
 		goto out;
@@ -1577,7 +1578,7 @@ static int nfs_open_create(struct inode *dir, struct dentry *dentry, int mode,
 	if ((nd->flags & LOOKUP_CREATE) != 0) {
 		open_flags = nd->intent.open.flags;
 
-		ctx = nameidata_to_nfs_open_context(dentry, nd);
+		ctx = create_nfs_open_context(dentry, open_flags);
 		error = PTR_ERR(ctx);
 		if (IS_ERR(ctx))
 			goto out_err_drop;
