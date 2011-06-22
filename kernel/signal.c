@@ -1577,15 +1577,15 @@ ret:
  * Let a parent know about the death of a child.
  * For a stopped/continued status change, use do_notify_parent_cldstop instead.
  *
- * Returns -1 if our parent ignored us and so we've switched to
- * self-reaping, or else @sig.
+ * Returns true if our parent ignored us and so we've switched to
+ * self-reaping.
  */
-int do_notify_parent(struct task_struct *tsk, int sig)
+bool do_notify_parent(struct task_struct *tsk, int sig)
 {
 	struct siginfo info;
 	unsigned long flags;
 	struct sighand_struct *psig;
-	int ret = sig;
+	bool autoreap = false;
 
 	BUG_ON(sig == -1);
 
@@ -1649,16 +1649,17 @@ int do_notify_parent(struct task_struct *tsk, int sig)
 		 * is implementation-defined: we do (if you don't want
 		 * it, just use SIG_IGN instead).
 		 */
-		ret = tsk->exit_signal = -1;
+		autoreap = true;
+		tsk->exit_signal = -1;
 		if (psig->action[SIGCHLD-1].sa.sa_handler == SIG_IGN)
-			sig = -1;
+			sig = 0;
 	}
-	if (valid_signal(sig) && sig > 0)
+	if (valid_signal(sig) && sig)
 		__group_send_sig_info(sig, &info, tsk->parent);
 	__wake_up_parent(tsk, tsk->parent);
 	spin_unlock_irqrestore(&psig->siglock, flags);
 
-	return ret;
+	return autoreap;
 }
 
 /**

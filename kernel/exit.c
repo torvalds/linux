@@ -820,6 +820,7 @@ static void forget_original_parent(struct task_struct *father)
 static void exit_notify(struct task_struct *tsk, int group_dead)
 {
 	int signal;
+	bool autoreap;
 	void *cookie;
 
 	/*
@@ -858,9 +859,11 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 
 	signal = tracehook_notify_death(tsk, &cookie, group_dead);
 	if (signal >= 0)
-		signal = do_notify_parent(tsk, signal);
+		autoreap = do_notify_parent(tsk, signal);
+	else
+		autoreap = (signal == DEATH_REAP);
 
-	tsk->exit_state = signal == DEATH_REAP ? EXIT_DEAD : EXIT_ZOMBIE;
+	tsk->exit_state = autoreap ? EXIT_DEAD : EXIT_ZOMBIE;
 
 	/* mt-exec, de_thread() is waiting for group leader */
 	if (unlikely(tsk->signal->notify_count < 0))
@@ -868,7 +871,7 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	write_unlock_irq(&tasklist_lock);
 
 	/* If the process is dead, release it - nobody will wait for it */
-	if (signal == DEATH_REAP)
+	if (autoreap)
 		release_task(tsk);
 }
 
