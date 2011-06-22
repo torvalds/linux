@@ -1154,7 +1154,7 @@ static int nfs4_open_recover_helper(struct nfs4_opendata *opendata, fmode_t fmod
 	newstate = nfs4_opendata_to_nfs4_state(opendata);
 	if (IS_ERR(newstate))
 		return PTR_ERR(newstate);
-	nfs4_close_state(&opendata->path, newstate, fmode);
+	nfs4_close_state(newstate, fmode);
 	*res = newstate;
 	return 0;
 }
@@ -1352,7 +1352,7 @@ static void nfs4_open_confirm_release(void *calldata)
 		goto out_free;
 	state = nfs4_opendata_to_nfs4_state(data);
 	if (!IS_ERR(state))
-		nfs4_close_state(&data->path, state, data->o_arg.fmode);
+		nfs4_close_state(state, data->o_arg.fmode);
 out_free:
 	nfs4_opendata_put(data);
 }
@@ -1497,7 +1497,7 @@ static void nfs4_open_release(void *calldata)
 		goto out_free;
 	state = nfs4_opendata_to_nfs4_state(data);
 	if (!IS_ERR(state))
-		nfs4_close_state(&data->path, state, data->o_arg.fmode);
+		nfs4_close_state(state, data->o_arg.fmode);
 out_free:
 	nfs4_opendata_put(data);
 }
@@ -1873,7 +1873,6 @@ static int nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 }
 
 struct nfs4_closedata {
-	struct path path;
 	struct inode *inode;
 	struct nfs4_state *state;
 	struct nfs_closeargs arg;
@@ -1888,13 +1887,14 @@ static void nfs4_free_closedata(void *data)
 {
 	struct nfs4_closedata *calldata = data;
 	struct nfs4_state_owner *sp = calldata->state->owner;
+	struct super_block *sb = calldata->state->inode->i_sb;
 
 	if (calldata->roc)
 		pnfs_roc_release(calldata->state->inode);
 	nfs4_put_open_state(calldata->state);
 	nfs_free_seqid(calldata->arg.seqid);
 	nfs4_put_state_owner(sp);
-	path_put(&calldata->path);
+	nfs_sb_deactive(sb);
 	kfree(calldata);
 }
 
@@ -2014,7 +2014,7 @@ static const struct rpc_call_ops nfs4_close_ops = {
  *
  * NOTE: Caller must be holding the sp->so_owner semaphore!
  */
-int nfs4_do_close(struct path *path, struct nfs4_state *state, gfp_t gfp_mask, int wait, bool roc)
+int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait, bool roc)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
 	struct nfs4_closedata *calldata;
@@ -2050,8 +2050,7 @@ int nfs4_do_close(struct path *path, struct nfs4_state *state, gfp_t gfp_mask, i
 	calldata->res.seqid = calldata->arg.seqid;
 	calldata->res.server = server;
 	calldata->roc = roc;
-	path_get(path);
-	calldata->path = *path;
+	nfs_sb_active(calldata->inode->i_sb);
 
 	msg.rpc_argp = &calldata->arg;
 	msg.rpc_resp = &calldata->res;
@@ -2092,9 +2091,9 @@ static void nfs4_close_context(struct nfs_open_context *ctx, int is_sync)
 	if (ctx->state == NULL)
 		return;
 	if (is_sync)
-		nfs4_close_sync(&ctx->path, ctx->state, ctx->mode);
+		nfs4_close_sync(ctx->state, ctx->mode);
 	else
-		nfs4_close_state(&ctx->path, ctx->state, ctx->mode);
+		nfs4_close_state(ctx->state, ctx->mode);
 }
 
 static int _nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fhandle)
@@ -2642,7 +2641,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	if (ctx != NULL)
 		ctx->state = state;
 	else
-		nfs4_close_sync(path, state, fmode);
+		nfs4_close_sync(state, fmode);
 out:
 	return status;
 }
