@@ -888,12 +888,9 @@ alloc_new_skb:
 			 * because we have no idea what fragment will be
 			 * the last.
 			 */
-			if (datalen == length + fraggap) {
+			if (datalen == length + fraggap)
 				alloclen += rt->dst.trailer_len;
-				/* make sure mtu is not reached */
-				if (datalen > mtu - fragheaderlen - rt->dst.trailer_len)
-					datalen -= ALIGN(rt->dst.trailer_len, 8);
-			}
+
 			if (transhdrlen) {
 				skb = sock_alloc_send_skb(sk,
 						alloclen + hh_len + 15,
