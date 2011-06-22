@@ -77,7 +77,7 @@ static struct platform_device __init __maybe_unused *imx_add_imx_dma(void)
 }
 
 #ifdef CONFIG_ARCH_MX25
-static struct sdma_script_start_addrs addr_imx25_to1 = {
+static struct sdma_script_start_addrs addr_imx25 = {
 	.ap_2_ap_addr = 729,
 	.uart_2_mcu_addr = 904,
 	.per_2_app_addr = 1255,
@@ -165,7 +165,7 @@ static int __init imxXX_add_imx_dma(void)
 
 #if defined(CONFIG_SOC_IMX25)
 	if (cpu_is_mx25()) {
-		imx25_imx_sdma_data.pdata.script_addrs = &addr_imx25_to1;
+		imx25_imx_sdma_data.pdata.script_addrs = &addr_imx25;
 		ret = imx_add_imx_sdma(&imx25_imx_sdma_data);
 	} else
 #endif
