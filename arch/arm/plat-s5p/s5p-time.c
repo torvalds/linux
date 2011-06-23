@@ -370,10 +370,10 @@ static void __init s5p_clocksource_init(void)
 
 	clock_rate = clk_get_rate(tin_source);
 
-	init_sched_clock(&cd, s5p_update_sched_clock, 32, clock_rate);
-
 	s5p_time_setup(timer_source.source_id, TCNT_MAX);
 	s5p_time_start(timer_source.source_id, PERIODIC);
+
+	init_sched_clock(&cd, s5p_update_sched_clock, 32, clock_rate);
 
 	if (clocksource_register_hz(&time_clocksource, clock_rate))
 		panic("%s: can't register clocksource\n", time_clocksource.name);
