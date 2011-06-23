@@ -3928,11 +3928,12 @@ expected:
 			l2cap_retransmit_frames(chan);
 	}
 
-	__set_ack_timer(chan);
 
 	chan->num_acked = (chan->num_acked + 1) % num_to_ack;
 	if (chan->num_acked == num_to_ack - 1)
 		l2cap_send_ack(chan);
+	else
+		__set_ack_timer(chan);
 
 	return 0;
 
