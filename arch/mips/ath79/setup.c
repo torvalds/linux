@@ -116,6 +116,18 @@ static void __init ath79_detect_sys_type(void)
 		rev = id & AR724X_REV_ID_REVISION_MASK;
 		break;
 
+	case REV_ID_MAJOR_AR9330:
+		ath79_soc = ATH79_SOC_AR9330;
+		chip = "9330";
+		rev = id & AR933X_REV_ID_REVISION_MASK;
+		break;
+
+	case REV_ID_MAJOR_AR9331:
+		ath79_soc = ATH79_SOC_AR9331;
+		chip = "9331";
+		rev = id & AR933X_REV_ID_REVISION_MASK;
+		break;
+
 	case REV_ID_MAJOR_AR913X:
 		minor = id & AR913X_REV_ID_MINOR_MASK;
 		rev = id >> AR913X_REV_ID_REVISION_SHIFT;

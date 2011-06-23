@@ -26,7 +26,9 @@ enum ath79_soc_type {
 	ATH79_SOC_AR7241,
 	ATH79_SOC_AR7242,
 	ATH79_SOC_AR9130,
-	ATH79_SOC_AR9132
+	ATH79_SOC_AR9132,
+	ATH79_SOC_AR9330,
+	ATH79_SOC_AR9331,
 };
 
 extern enum ath79_soc_type ath79_soc;
