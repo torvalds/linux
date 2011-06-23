@@ -83,13 +83,6 @@ config MTD_NAND_DENALI_SCRATCH_REG_ADDR
           scratch register here to enable this feature. On Intel Moorestown
           boards, the scratch register is at 0xFF108018.
 
-config MTD_NAND_EDB7312
-	tristate "Support for Cirrus Logic EBD7312 evaluation board"
-	depends on ARCH_EDB7312
-	help
-	  This enables the driver for the Cirrus Logic EBD7312 evaluation
-	  board to access the onboard NAND Flash.
-
 config MTD_NAND_H1900
 	tristate "iPAQ H1900 flash"
 	depends on ARCH_PXA
