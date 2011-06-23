@@ -846,8 +846,8 @@ nouveau_gart_manager_del(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	nouveau_mem_node_cleanup(mem->mm_node);
-	mem->mm_node = NULL;
 	kfree(mem->mm_node);
+	mem->mm_node = NULL;
 }
 
 static int
