@@ -706,6 +706,8 @@ static struct mtd_part_parser *get_partition_parser(const char *name)
 	return ret;
 }
 
+#define put_partition_parser(p) do { module_put((p)->owner); } while (0)
+
 int register_mtd_parser(struct mtd_part_parser *p)
 {
 	spin_lock(&part_parser_lock);
