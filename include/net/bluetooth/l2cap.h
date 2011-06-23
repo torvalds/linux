@@ -482,10 +482,11 @@ struct l2cap_chan {
 	__u32		remote_acc_lat;
 	__u32		remote_flush_to;
 
-	struct timer_list	chan_timer;
-	struct timer_list	retrans_timer;
-	struct timer_list	monitor_timer;
-	struct timer_list	ack_timer;
+	struct delayed_work	chan_timer;
+	struct delayed_work	retrans_timer;
+	struct delayed_work	monitor_timer;
+	struct delayed_work	ack_timer;
+
 	struct sk_buff		*tx_send_head;
 	struct sk_buff_head	tx_q;
 	struct sk_buff_head	srej_q;
@@ -595,16 +596,16 @@ enum {
 };
 
 #define __set_chan_timer(c, t) l2cap_set_timer(c, &c->chan_timer, (t))
-#define __clear_chan_timer(c) l2cap_clear_timer(c, &c->chan_timer)
+#define __clear_chan_timer(c) l2cap_clear_timer(&c->chan_timer)
 #define __set_retrans_timer(c) l2cap_set_timer(c, &c->retrans_timer, \
 		L2CAP_DEFAULT_RETRANS_TO);
-#define __clear_retrans_timer(c) l2cap_clear_timer(c, &c->retrans_timer)
+#define __clear_retrans_timer(c) l2cap_clear_timer(&c->retrans_timer)
 #define __set_monitor_timer(c) l2cap_set_timer(c, &c->monitor_timer, \
 		L2CAP_DEFAULT_MONITOR_TO);
-#define __clear_monitor_timer(c) l2cap_clear_timer(c, &c->monitor_timer)
+#define __clear_monitor_timer(c) l2cap_clear_timer(&c->monitor_timer)
 #define __set_ack_timer(c) l2cap_set_timer(c, &chan->ack_timer, \
 		L2CAP_DEFAULT_ACK_TO);
-#define __clear_ack_timer(c) l2cap_clear_timer(c, &c->ack_timer)
+#define __clear_ack_timer(c) l2cap_clear_timer(&c->ack_timer)
 
 static inline int __seq_offset(struct l2cap_chan *chan, __u16 seq1, __u16 seq2)
 {
