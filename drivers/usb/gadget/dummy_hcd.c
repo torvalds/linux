@@ -887,25 +887,6 @@ static int dummy_udc_start(struct usb_gadget_driver *driver,
 
 	dum->devstatus = 0;
 
-	INIT_LIST_HEAD (&dum->gadget.ep_list);
-	for (i = 0; i < DUMMY_ENDPOINTS; i++) {
-		struct dummy_ep	*ep = &dum->ep [i];
-
-		if (!ep_name [i])
-			break;
-		ep->ep.name = ep_name [i];
-		ep->ep.ops = &dummy_ep_ops;
-		list_add_tail (&ep->ep.ep_list, &dum->gadget.ep_list);
-		ep->halted = ep->wedged = ep->already_seen =
-				ep->setup_stage = 0;
-		ep->ep.maxpacket = ~0;
-		ep->last_io = jiffies;
-		ep->gadget = &dum->gadget;
-		ep->desc = NULL;
-		INIT_LIST_HEAD (&ep->queue);
-	}
-
-	dum->gadget.ep0 = &dum->ep [0].ep;
 	if (mod_data.is_super_speed)
 		dum->gadget.speed = driver->speed;
 	else if (mod_data.is_high_speed)
@@ -922,8 +903,11 @@ static int dummy_udc_start(struct usb_gadget_driver *driver,
 		for (i = 0; i < DUMMY_ENDPOINTS; i++)
 			dum->ep[i].ep.max_streams = 0x10;
 		dum->ep[0].ep.maxpacket = 9;
-	} else
+	} else {
+		for (i = 0; i < DUMMY_ENDPOINTS; i++)
+			dum->ep[i].ep.max_streams = 0;
 		dum->ep[0].ep.maxpacket = 64;
+	}
 
 	if (dum->gadget.speed == USB_SPEED_SUPER)
 		dum->gadget.is_otg =
@@ -931,9 +915,6 @@ static int dummy_udc_start(struct usb_gadget_driver *driver,
 	else
 		dum->gadget.is_otg =
 			(dummy_hcd_to_hcd(dum->hs_hcd)->self.otg_port != 0);
-
-	list_del_init (&dum->ep [0].ep.ep_list);
-	INIT_LIST_HEAD(&dum->fifo_req.queue);
 
 	driver->driver.bus = NULL;
 	dum->driver = driver;
@@ -984,6 +965,33 @@ dummy_gadget_release (struct device *dev)
 	return;
 }
 
+static void init_dummy_udc_hw(struct dummy *dum)
+{
+	int i;
+
+	INIT_LIST_HEAD(&dum->gadget.ep_list);
+	for (i = 0; i < DUMMY_ENDPOINTS; i++) {
+		struct dummy_ep	*ep = &dum->ep[i];
+
+		if (!ep_name[i])
+			break;
+		ep->ep.name = ep_name[i];
+		ep->ep.ops = &dummy_ep_ops;
+		list_add_tail(&ep->ep.ep_list, &dum->gadget.ep_list);
+		ep->halted = ep->wedged = ep->already_seen =
+				ep->setup_stage = 0;
+		ep->ep.maxpacket = ~0;
+		ep->last_io = jiffies;
+		ep->gadget = &dum->gadget;
+		ep->desc = NULL;
+		INIT_LIST_HEAD(&ep->queue);
+	}
+
+	dum->gadget.ep0 = &dum->ep[0].ep;
+	list_del_init(&dum->ep[0].ep.ep_list);
+	INIT_LIST_HEAD(&dum->fifo_req.queue);
+}
+
 static int dummy_udc_probe (struct platform_device *pdev)
 {
 	struct dummy	*dum = &the_controller;
@@ -1001,6 +1009,8 @@ static int dummy_udc_probe (struct platform_device *pdev)
 		put_device(&dum->gadget.dev);
 		return rc;
 	}
+
+	init_dummy_udc_hw(dum);
 
 	rc = usb_add_gadget_udc(&pdev->dev, &dum->gadget);
 	if (rc < 0)
