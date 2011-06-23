@@ -857,17 +857,18 @@ static int dummy_pullup (struct usb_gadget *_gadget, int value)
 	return 0;
 }
 
-static int dummy_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
-static int dummy_udc_stop(struct usb_gadget_driver *driver);
+static int dummy_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+static int dummy_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops dummy_ops = {
 	.get_frame	= dummy_g_get_frame,
 	.wakeup		= dummy_wakeup,
 	.set_selfpowered = dummy_set_selfpowered,
 	.pullup		= dummy_pullup,
-	.start		= dummy_udc_start,
-	.stop		= dummy_udc_stop,
+	.udc_start	= dummy_udc_start,
+	.udc_stop	= dummy_udc_stop,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -900,17 +901,13 @@ static DEVICE_ATTR (function, S_IRUGO, show_function, NULL);
  * for each driver that registers:  just add to a big root hub.
  */
 
-static int dummy_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+static int dummy_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct dummy	*dum = &the_controller;
-	int		retval;
+	struct dummy_hcd	*dum_hcd = gadget_to_dummy_hcd(g);
+	struct dummy		*dum = dum_hcd->dum;
 
-	if (!dum)
-		return -EINVAL;
-	if (dum->driver)
-		return -EBUSY;
-	if (!bind || !driver->setup || driver->speed == USB_SPEED_UNKNOWN)
+	if (driver->speed == USB_SPEED_UNKNOWN)
 		return -EINVAL;
 
 	/*
@@ -921,37 +918,20 @@ static int dummy_udc_start(struct usb_gadget_driver *driver,
 	dum->devstatus = 0;
 
 	dum->driver = driver;
-	dum->gadget.dev.driver = &driver->driver;
 	dev_dbg (udc_dev(dum), "binding gadget driver '%s'\n",
 			driver->driver.name);
-	retval = bind(&dum->gadget);
-	if (retval) {
-		dum->driver = NULL;
-		dum->gadget.dev.driver = NULL;
-		return retval;
-	}
-
-	/* khubd will enumerate this in a while */
-	dummy_pullup(&dum->gadget, 1);
 	return 0;
 }
 
-static int dummy_udc_stop(struct usb_gadget_driver *driver)
+static int dummy_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct dummy	*dum = &the_controller;
-
-	if (!dum)
-		return -ENODEV;
-	if (!driver || driver != dum->driver || !driver->unbind)
-		return -EINVAL;
+	struct dummy_hcd	*dum_hcd = gadget_to_dummy_hcd(g);
+	struct dummy		*dum = dum_hcd->dum;
 
 	dev_dbg (udc_dev(dum), "unregister gadget driver '%s'\n",
 			driver->driver.name);
 
-	dummy_pullup(&dum->gadget, 0);
-
-	driver->unbind (&dum->gadget);
-	dum->gadget.dev.driver = NULL;
 	dum->driver = NULL;
 
 	dummy_pullup(&dum->gadget, 0);
