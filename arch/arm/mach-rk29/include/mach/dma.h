@@ -100,7 +100,7 @@ extern int rk29_dma_enqueue(unsigned int channel, void *id,
  * configure the dma channel
 */
 
-extern int rk29_dma_config(unsigned int channel, int xferunit);
+extern int rk29_dma_config(unsigned int channel, int xferunit, int brst_len);
 
 /* rk29_dma_devconfig
  *

@@ -455,11 +455,11 @@ static inline int rk29_pl330_submit(struct rk29_pl330_chan *ch,
 			}
 
 			ch->rqcfg.brst_len = bl;
-		} else {
+		}else {
 		    if(ch->id == DMACH_EMMC)
 		        ch->rqcfg.brst_len = 16;  //yk
-		    else
-			    ch->rqcfg.brst_len = 1;
+		    //else
+			//    ch->rqcfg.brst_len = 1;
 		}
 
 		ret = pl330_submit_req(ch->pl330_chan_id, r);
@@ -668,7 +668,7 @@ int rk29_dma_enqueue(enum dma_ch id, void *token,
 	struct rk29_pl330_xfer *xfer;
 	unsigned long flags;
 	int idx, ret = 0;
-
+	
 	spin_lock_irqsave(&res_lock, flags);
 
 	ch = id_to_chan(id);
@@ -737,7 +737,7 @@ int rk29_dma_request(enum dma_ch id,
 	struct rk29_pl330_chan *ch;
 	unsigned long flags;
 	int ret = 0;
-
+	
 	spin_lock_irqsave(&res_lock, flags);
 
 	ch = chan_acquire(id);
@@ -871,7 +871,17 @@ free_exit:
 }
 EXPORT_SYMBOL(rk29_dma_free);
 
-int rk29_dma_config(enum dma_ch id, int xferunit)
+/**
+*   yk@rk 20110622
+*   config the burst length when dma init or brst_len change
+*   every peripher has to determine burst width and length by its FIFO
+*
+*   param:
+*           id: dma request id 
+*           xferunit: burst width in byte
+*           brst_len: burst length every transfer
+*/
+int rk29_dma_config(enum dma_ch id, int xferunit, int brst_len)
 {
 	struct rk29_pl330_chan *ch;
 	struct pl330_info *pi;
@@ -886,7 +896,7 @@ int rk29_dma_config(enum dma_ch id, int xferunit)
 		ret = -EINVAL;
 		goto cfg_exit;
 	}
-
+#if 0
 	pi = ch->dmac->pi;
 	dbwidth = pi->pcfg.data_bus_width / 8;
 
@@ -905,7 +915,21 @@ int rk29_dma_config(enum dma_ch id, int xferunit)
 		ch->rqcfg.brst_size = i;
 	else
 		ret = -EINVAL;
-
+#else
+	i = 0;
+	while (xferunit != (1 << i))
+		i++;
+		
+    if(xferunit > 8)
+        goto cfg_exit;
+    else
+		ch->rqcfg.brst_size = i;
+		
+    if(brst_len > 16)
+        goto cfg_exit;
+    else
+        ch->rqcfg.brst_len = brst_len;
+#endif
 cfg_exit:
 	spin_unlock_irqrestore(&res_lock, flags);
 

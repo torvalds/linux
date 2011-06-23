@@ -1322,7 +1322,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "rk29_dma_request error\n");
 	    goto err_iounmap; 
 	}
-	ret = rk29_dma_config(host->dma_info.chn, 4);
+	ret = rk29_dma_config(host->dma_info.chn, 4, 1);
 
 	if (ret < 0){
 		dev_err(&pdev->dev, "rk29_dma_config error\n");
