@@ -62,7 +62,6 @@
 #include <linux/uaccess.h>
 
 #include <linux/i2c.h>
-#include <linux/version.h>
 #include <linux/workqueue.h>
 #include <linux/poll.h>
 #include <linux/mm.h>
