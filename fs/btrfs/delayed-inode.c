@@ -82,6 +82,39 @@ static inline struct btrfs_delayed_root *btrfs_get_delayed_root(
 	return root->fs_info->delayed_root;
 }
 
+static struct btrfs_delayed_node *btrfs_get_delayed_node(struct inode *inode)
+{
+	struct btrfs_inode *btrfs_inode = BTRFS_I(inode);
+	struct btrfs_root *root = btrfs_inode->root;
+	u64 ino = btrfs_ino(inode);
+	struct btrfs_delayed_node *node;
+
+	node = ACCESS_ONCE(btrfs_inode->delayed_node);
+	if (node) {
+		atomic_inc(&node->refs);
+		return node;
+	}
+
+	spin_lock(&root->inode_lock);
+	node = radix_tree_lookup(&root->delayed_nodes_tree, ino);
+	if (node) {
+		if (btrfs_inode->delayed_node) {
+			atomic_inc(&node->refs);	/* can be accessed */
+			BUG_ON(btrfs_inode->delayed_node != node);
+			spin_unlock(&root->inode_lock);
+			return node;
+		}
+		btrfs_inode->delayed_node = node;
+		atomic_inc(&node->refs);	/* can be accessed */
+		atomic_inc(&node->refs);	/* cached in the inode */
+		spin_unlock(&root->inode_lock);
+		return node;
+	}
+	spin_unlock(&root->inode_lock);
+
+	return NULL;
+}
+
 static struct btrfs_delayed_node *btrfs_get_or_create_delayed_node(
 							struct inode *inode)
 {
@@ -92,26 +125,9 @@ static struct btrfs_delayed_node *btrfs_get_or_create_delayed_node(
 	int ret;
 
 again:
-	node = ACCESS_ONCE(btrfs_inode->delayed_node);
-	if (node) {
-		atomic_inc(&node->refs);	/* can be accessed */
+	node = btrfs_get_delayed_node(inode);
+	if (node)
 		return node;
-	}
-
-	spin_lock(&root->inode_lock);
-	node = radix_tree_lookup(&root->delayed_nodes_tree, ino);
-	if (node) {
-		if (btrfs_inode->delayed_node) {
-			spin_unlock(&root->inode_lock);
-			goto again;
-		}
-		btrfs_inode->delayed_node = node;
-		atomic_inc(&node->refs);	/* can be accessed */
-		atomic_inc(&node->refs);	/* cached in the inode */
-		spin_unlock(&root->inode_lock);
-		return node;
-	}
-	spin_unlock(&root->inode_lock);
 
 	node = kmem_cache_alloc(delayed_node_cache, GFP_NOFS);
 	if (!node)
@@ -546,19 +562,6 @@ struct btrfs_delayed_item *__btrfs_next_delayed_item(
 		next = rb_entry(p, struct btrfs_delayed_item, rb_node);
 
 	return next;
-}
-
-static inline struct btrfs_delayed_node *btrfs_get_delayed_node(
-							struct inode *inode)
-{
-	struct btrfs_inode *btrfs_inode = BTRFS_I(inode);
-	struct btrfs_delayed_node *delayed_node;
-
-	delayed_node = btrfs_inode->delayed_node;
-	if (delayed_node)
-		atomic_inc(&delayed_node->refs);
-
-	return delayed_node;
 }
 
 static inline struct btrfs_root *btrfs_get_fs_root(struct btrfs_root *root,
@@ -1404,8 +1407,7 @@ end:
 
 int btrfs_inode_delayed_dir_index_count(struct inode *inode)
 {
-	struct btrfs_delayed_node *delayed_node = BTRFS_I(inode)->delayed_node;
-	int ret = 0;
+	struct btrfs_delayed_node *delayed_node = btrfs_get_delayed_node(inode);
 
 	if (!delayed_node)
 		return -ENOENT;
@@ -1415,11 +1417,14 @@ int btrfs_inode_delayed_dir_index_count(struct inode *inode)
 	 * a new directory index is added into the delayed node and index_cnt
 	 * is updated now. So we needn't lock the delayed node.
 	 */
-	if (!delayed_node->index_cnt)
+	if (!delayed_node->index_cnt) {
+		btrfs_release_delayed_node(delayed_node);
 		return -EINVAL;
+	}
 
 	BTRFS_I(inode)->index_cnt = delayed_node->index_cnt;
-	return ret;
+	btrfs_release_delayed_node(delayed_node);
+	return 0;
 }
 
 void btrfs_get_delayed_items(struct inode *inode, struct list_head *ins_list,
@@ -1611,6 +1616,57 @@ static void fill_stack_inode_item(struct btrfs_trans_handle *trans,
 				     inode->i_ctime.tv_sec);
 	btrfs_set_stack_timespec_nsec(btrfs_inode_ctime(inode_item),
 				      inode->i_ctime.tv_nsec);
+}
+
+int btrfs_fill_inode(struct inode *inode, u32 *rdev)
+{
+	struct btrfs_delayed_node *delayed_node;
+	struct btrfs_inode_item *inode_item;
+	struct btrfs_timespec *tspec;
+
+	delayed_node = btrfs_get_delayed_node(inode);
+	if (!delayed_node)
+		return -ENOENT;
+
+	mutex_lock(&delayed_node->mutex);
+	if (!delayed_node->inode_dirty) {
+		mutex_unlock(&delayed_node->mutex);
+		btrfs_release_delayed_node(delayed_node);
+		return -ENOENT;
+	}
+
+	inode_item = &delayed_node->inode_item;
+
+	inode->i_uid = btrfs_stack_inode_uid(inode_item);
+	inode->i_gid = btrfs_stack_inode_gid(inode_item);
+	btrfs_i_size_write(inode, btrfs_stack_inode_size(inode_item));
+	inode->i_mode = btrfs_stack_inode_mode(inode_item);
+	inode->i_nlink = btrfs_stack_inode_nlink(inode_item);
+	inode_set_bytes(inode, btrfs_stack_inode_nbytes(inode_item));
+	BTRFS_I(inode)->generation = btrfs_stack_inode_generation(inode_item);
+	BTRFS_I(inode)->sequence = btrfs_stack_inode_sequence(inode_item);
+	inode->i_rdev = 0;
+	*rdev = btrfs_stack_inode_rdev(inode_item);
+	BTRFS_I(inode)->flags = btrfs_stack_inode_flags(inode_item);
+
+	tspec = btrfs_inode_atime(inode_item);
+	inode->i_atime.tv_sec = btrfs_stack_timespec_sec(tspec);
+	inode->i_atime.tv_nsec = btrfs_stack_timespec_nsec(tspec);
+
+	tspec = btrfs_inode_mtime(inode_item);
+	inode->i_mtime.tv_sec = btrfs_stack_timespec_sec(tspec);
+	inode->i_mtime.tv_nsec = btrfs_stack_timespec_nsec(tspec);
+
+	tspec = btrfs_inode_ctime(inode_item);
+	inode->i_ctime.tv_sec = btrfs_stack_timespec_sec(tspec);
+	inode->i_ctime.tv_nsec = btrfs_stack_timespec_nsec(tspec);
+
+	inode->i_generation = BTRFS_I(inode)->generation;
+	BTRFS_I(inode)->index_cnt = (u64)-1;
+
+	mutex_unlock(&delayed_node->mutex);
+	btrfs_release_delayed_node(delayed_node);
+	return 0;
 }
 
 int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
