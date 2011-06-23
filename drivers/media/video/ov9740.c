@@ -573,90 +573,6 @@ static unsigned long ov9740_query_bus_param(struct soc_camera_device *icd)
 	return soc_camera_apply_sensor_flags(icl, flags);
 }
 
-/* Get status of additional camera capabilities */
-static int ov9740_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct ov9740_priv *priv = to_ov9740(sd);
-
-	switch (ctrl->id) {
-	case V4L2_CID_VFLIP:
-		ctrl->value = priv->flag_vflip;
-		break;
-	case V4L2_CID_HFLIP:
-		ctrl->value = priv->flag_hflip;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/* Set status of additional camera capabilities */
-static int ov9740_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
-{
-	struct ov9740_priv *priv = to_ov9740(sd);
-
-	switch (ctrl->id) {
-	case V4L2_CID_VFLIP:
-		priv->flag_vflip = ctrl->value;
-		break;
-	case V4L2_CID_HFLIP:
-		priv->flag_hflip = ctrl->value;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/* Get chip identification */
-static int ov9740_g_chip_ident(struct v4l2_subdev *sd,
-			       struct v4l2_dbg_chip_ident *id)
-{
-	struct ov9740_priv *priv = to_ov9740(sd);
-
-	id->ident = priv->ident;
-	id->revision = priv->revision;
-
-	return 0;
-}
-
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-static int ov9740_get_register(struct v4l2_subdev *sd,
-			       struct v4l2_dbg_register *reg)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
-	u8 val;
-
-	if (reg->reg & ~0xffff)
-		return -EINVAL;
-
-	reg->size = 2;
-
-	ret = ov9740_reg_read(client, reg->reg, &val);
-	if (ret)
-		return ret;
-
-	reg->val = (__u64)val;
-
-	return ret;
-}
-
-static int ov9740_set_register(struct v4l2_subdev *sd,
-			       struct v4l2_dbg_register *reg)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	if (reg->reg & ~0xffff || reg->val & ~0xff)
-		return -EINVAL;
-
-	return ov9740_reg_write(client, reg->reg, reg->val);
-}
-#endif
-
 /* select nearest higher resolution for capture */
 static void ov9740_res_roundup(u32 *width, u32 *height)
 {
@@ -863,6 +779,90 @@ static int ov9740_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	return 0;
 }
 
+/* Get status of additional camera capabilities */
+static int ov9740_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct ov9740_priv *priv = to_ov9740(sd);
+
+	switch (ctrl->id) {
+	case V4L2_CID_VFLIP:
+		ctrl->value = priv->flag_vflip;
+		break;
+	case V4L2_CID_HFLIP:
+		ctrl->value = priv->flag_hflip;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* Set status of additional camera capabilities */
+static int ov9740_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct ov9740_priv *priv = to_ov9740(sd);
+
+	switch (ctrl->id) {
+	case V4L2_CID_VFLIP:
+		priv->flag_vflip = ctrl->value;
+		break;
+	case V4L2_CID_HFLIP:
+		priv->flag_hflip = ctrl->value;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* Get chip identification */
+static int ov9740_g_chip_ident(struct v4l2_subdev *sd,
+			       struct v4l2_dbg_chip_ident *id)
+{
+	struct ov9740_priv *priv = to_ov9740(sd);
+
+	id->ident = priv->ident;
+	id->revision = priv->revision;
+
+	return 0;
+}
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int ov9740_get_register(struct v4l2_subdev *sd,
+			       struct v4l2_dbg_register *reg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret;
+	u8 val;
+
+	if (reg->reg & ~0xffff)
+		return -EINVAL;
+
+	reg->size = 2;
+
+	ret = ov9740_reg_read(client, reg->reg, &val);
+	if (ret)
+		return ret;
+
+	reg->val = (__u64)val;
+
+	return ret;
+}
+
+static int ov9740_set_register(struct v4l2_subdev *sd,
+			       struct v4l2_dbg_register *reg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	if (reg->reg & ~0xffff || reg->val & ~0xff)
+		return -EINVAL;
+
+	return ov9740_reg_write(client, reg->reg, reg->val);
+}
+#endif
+
 static int ov9740_video_probe(struct soc_camera_device *icd,
 			      struct i2c_client *client)
 {
@@ -929,6 +929,15 @@ static struct soc_camera_ops ov9740_ops = {
 	.num_controls		= ARRAY_SIZE(ov9740_controls),
 };
 
+static struct v4l2_subdev_video_ops ov9740_video_ops = {
+	.s_stream		= ov9740_s_stream,
+	.s_mbus_fmt		= ov9740_s_fmt,
+	.try_mbus_fmt		= ov9740_try_fmt,
+	.enum_mbus_fmt		= ov9740_enum_fmt,
+	.cropcap		= ov9740_cropcap,
+	.g_crop			= ov9740_g_crop,
+};
+
 static struct v4l2_subdev_core_ops ov9740_core_ops = {
 	.g_ctrl			= ov9740_g_ctrl,
 	.s_ctrl			= ov9740_s_ctrl,
@@ -937,15 +946,6 @@ static struct v4l2_subdev_core_ops ov9740_core_ops = {
 	.g_register		= ov9740_get_register,
 	.s_register		= ov9740_set_register,
 #endif
-};
-
-static struct v4l2_subdev_video_ops ov9740_video_ops = {
-	.s_stream		= ov9740_s_stream,
-	.s_mbus_fmt		= ov9740_s_fmt,
-	.try_mbus_fmt		= ov9740_try_fmt,
-	.enum_mbus_fmt		= ov9740_enum_fmt,
-	.cropcap		= ov9740_cropcap,
-	.g_crop			= ov9740_g_crop,
 };
 
 static struct v4l2_subdev_ops ov9740_subdev_ops = {
