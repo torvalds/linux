@@ -152,40 +152,6 @@ static inline void tracehook_signal_handler(int sig, siginfo_t *info,
 		ptrace_notify(SIGTRAP);
 }
 
-#define DEATH_REAP			-1
-#define DEATH_DELAYED_GROUP_LEADER	-2
-
-/**
- * tracehook_notify_death - task is dead, ready to notify parent
- * @task:		@current task now exiting
- * @death_cookie:	value to pass to tracehook_report_death()
- * @group_dead:		nonzero if this was the last thread in the group to die
- *
- * A return value >= 0 means call do_notify_parent() with that signal
- * number.  Negative return value can be %DEATH_REAP to self-reap right
- * now, or %DEATH_DELAYED_GROUP_LEADER to a zombie without notifying our
- * parent.  Note that a return value of 0 means a do_notify_parent() call
- * that sends no signal, but still wakes up a parent blocked in wait*().
- *
- * Called with write_lock_irq(&tasklist_lock) held.
- */
-static inline int tracehook_notify_death(struct task_struct *task,
-					 void **death_cookie, int group_dead)
-{
-	if (task_detached(task))
-		return task->ptrace ? SIGCHLD : DEATH_REAP;
-
-	/*
-	 * If something other than our normal parent is ptracing us, then
-	 * send it a SIGCHLD instead of honoring exit_signal.  exit_signal
-	 * only has special meaning to our real parent.
-	 */
-	if (thread_group_empty(task) && !ptrace_reparented(task))
-		return task->exit_signal;
-
-	return task->ptrace ? SIGCHLD : DEATH_DELAYED_GROUP_LEADER;
-}
-
 #ifdef TIF_NOTIFY_RESUME
 /**
  * set_notify_resume - cause tracehook_notify_resume() to be called
