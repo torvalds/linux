@@ -229,6 +229,7 @@ static void ar9003_hw_fill_txdesc(struct ath_hw *ah, void *ds, u32 seglen,
 static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 				 struct ath_tx_status *ts)
 {
+	struct ar9003_txc *txc = (struct ar9003_txc *) ds;
 	struct ar9003_txs *ads;
 	u32 status;
 
@@ -238,7 +239,11 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	if ((status & AR_TxDone) == 0)
 		return -EINPROGRESS;
 
-	ah->ts_tail = (ah->ts_tail + 1) % ah->ts_size;
+	ts->qid = MS(ads->ds_info, AR_TxQcuNum);
+	if (!txc || (MS(txc->info, AR_TxQcuNum) == ts->qid))
+		ah->ts_tail = (ah->ts_tail + 1) % ah->ts_size;
+	else
+		return -ENOENT;
 
 	if ((MS(ads->ds_info, AR_DescId) != ATHEROS_VENDOR_ID) ||
 	    (MS(ads->ds_info, AR_TxRxDesc) != 1)) {
@@ -254,7 +259,6 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	ts->ts_seqnum = MS(status, AR_SeqNum);
 	ts->tid = MS(status, AR_TxTid);
 
-	ts->qid = MS(ads->ds_info, AR_TxQcuNum);
 	ts->desc_id = MS(ads->status1, AR_TxDescId);
 	ts->ts_tstamp = ads->status4;
 	ts->ts_status = 0;

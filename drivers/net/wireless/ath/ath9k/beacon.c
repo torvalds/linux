@@ -360,6 +360,7 @@ void ath_beacon_tasklet(unsigned long data)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_buf *bf = NULL;
 	struct ieee80211_vif *vif;
+	struct ath_tx_status ts;
 	int slot;
 	u32 bfaddr, bc = 0;
 
@@ -464,6 +465,11 @@ void ath_beacon_tasklet(unsigned long data)
 		ath9k_hw_txstart(ah, sc->beacon.beaconq);
 
 		sc->beacon.ast_be_xmit += bc;     /* XXX per-vif? */
+		if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
+			spin_lock_bh(&sc->sc_pcu_lock);
+			ath9k_hw_txprocdesc(ah, bf->bf_desc, (void *)&ts);
+			spin_unlock_bh(&sc->sc_pcu_lock);
+		}
 	}
 }
 
