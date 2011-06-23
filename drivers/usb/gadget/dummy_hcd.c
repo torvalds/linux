@@ -807,19 +807,52 @@ static int dummy_set_selfpowered (struct usb_gadget *_gadget, int value)
 	return 0;
 }
 
+static void dummy_udc_udpate_ep0(struct dummy *dum)
+{
+	u32 i;
+
+	if (dum->gadget.speed == USB_SPEED_SUPER) {
+		for (i = 0; i < DUMMY_ENDPOINTS; i++)
+			dum->ep[i].ep.max_streams = 0x10;
+		dum->ep[0].ep.maxpacket = 9;
+	} else {
+		for (i = 0; i < DUMMY_ENDPOINTS; i++)
+			dum->ep[i].ep.max_streams = 0;
+		dum->ep[0].ep.maxpacket = 64;
+	}
+}
+
 static int dummy_pullup (struct usb_gadget *_gadget, int value)
 {
 	struct dummy_hcd *dum_hcd;
 	struct dummy	*dum;
 	unsigned long	flags;
 
+	dum = gadget_dev_to_dummy(&_gadget->dev);
+
+	if (value && dum->driver) {
+		if (mod_data.is_super_speed)
+			dum->gadget.speed = dum->driver->speed;
+		else if (mod_data.is_high_speed)
+			dum->gadget.speed = min_t(u8, USB_SPEED_HIGH,
+					dum->driver->speed);
+		else
+			dum->gadget.speed = USB_SPEED_FULL;
+		dummy_udc_udpate_ep0(dum);
+
+		if (dum->gadget.speed < dum->driver->speed)
+			dev_dbg(udc_dev(dum), "This device can perform faster"
+					" if you connect it to a %s port...\n",
+					(dum->driver->speed == USB_SPEED_SUPER ?
+					 "SuperSpeed" : "HighSpeed"));
+	}
 	dum_hcd = gadget_to_dummy_hcd(_gadget);
-	dum = dum_hcd->dum;
 
 	spin_lock_irqsave (&dum->lock, flags);
 	dum->pullup = (value != 0);
 	set_link_state(dum_hcd);
 	spin_unlock_irqrestore (&dum->lock, flags);
+
 	usb_hcd_poll_rh_status(dummy_hcd_to_hcd(dum_hcd));
 	return 0;
 }
@@ -871,7 +904,7 @@ static int dummy_udc_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct dummy	*dum = &the_controller;
-	int		retval, i;
+	int		retval;
 
 	if (!dum)
 		return -EINVAL;
@@ -887,29 +920,6 @@ static int dummy_udc_start(struct usb_gadget_driver *driver,
 
 	dum->devstatus = 0;
 
-	if (mod_data.is_super_speed)
-		dum->gadget.speed = driver->speed;
-	else if (mod_data.is_high_speed)
-		dum->gadget.speed = min_t(u8, USB_SPEED_HIGH, driver->speed);
-	else
-		dum->gadget.speed = USB_SPEED_FULL;
-	if (dum->gadget.speed < driver->speed)
-		dev_dbg(udc_dev(dum), "This device can perform faster"
-				" if you connect it to a %s port...\n",
-			(driver->speed == USB_SPEED_SUPER ?
-			 "SuperSpeed" : "HighSpeed"));
-
-	if (dum->gadget.speed == USB_SPEED_SUPER) {
-		for (i = 0; i < DUMMY_ENDPOINTS; i++)
-			dum->ep[i].ep.max_streams = 0x10;
-		dum->ep[0].ep.maxpacket = 9;
-	} else {
-		for (i = 0; i < DUMMY_ENDPOINTS; i++)
-			dum->ep[i].ep.max_streams = 0;
-		dum->ep[0].ep.maxpacket = 64;
-	}
-
-	driver->driver.bus = NULL;
 	dum->driver = driver;
 	dum->gadget.dev.driver = &driver->driver;
 	dev_dbg (udc_dev(dum), "binding gadget driver '%s'\n",
