@@ -5,9 +5,7 @@
 #define _FAIL		0
 
 #include "basic_types.h"
-#include <linux/version.h>
 #include <linux/spinlock.h>
-
 #include <linux/semaphore.h>
 #include <linux/sem.h>
 #include <linux/netdevice.h>

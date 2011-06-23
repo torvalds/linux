@@ -19,7 +19,6 @@
 #include <linux/random.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <asm/uaccess.h>
 #ifdef ENABLE_DOT11D
 #include "dot11d.h"
