@@ -421,7 +421,6 @@ static int max3110_main_thread(void *_max)
 	int ret = 0;
 	struct circ_buf *xmit = &max->con_xmit;
 
-	init_waitqueue_head(wq);
 	pr_info(PR_FMT "start main thread\n");
 
 	do {
@@ -837,6 +836,8 @@ static int __devinit serial_m3110_probe(struct spi_device *spi)
 	max->con_xmit.buf = buffer;
 	max->con_xmit.head = 0;
 	max->con_xmit.tail = 0;
+
+	init_waitqueue_head(&max->wq);
 
 	max->main_thread = kthread_run(max3110_main_thread,
 					max, "max3110_main");
