@@ -22,7 +22,6 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
-#include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
