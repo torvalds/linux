@@ -26,6 +26,7 @@
 
 #include <wlioctl.h>
 #include <bcmutils.h>
+#include <dhd_dbg.h>
 
 #define htod32(i) i
 #define htod16(i) i
@@ -156,7 +157,7 @@ s32 wldev_mkiovar_bsscfg(
 
 	if (buflen < 0 || iolen > (u32)buflen)
 	{
-		printk("wldev_mkiovar_bsscfg buffer is too short\n");
+		DHD_ERROR(("%s: buffer is too short\n", __FUNCTION__));
 		return BCME_BUFTOOSHORT;
 	}
 

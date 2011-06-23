@@ -26,8 +26,11 @@
 
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include "wlioctl.h"
-#include "wldev_common.h"
+#include <wlioctl.h>
+#include <wldev_common.h>
+#include <bcmutils.h>
+#include <dhd_dbg.h>
+
 
 /*
  * Android private command strings, PLEASE define new private commands here
@@ -79,7 +82,7 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	command = kmalloc(priv_cmd->total_len, GFP_KERNEL);
 	if (!command)
 	{
-		printk("%s: failed to allocate memory\n", __FUNCTION__);
+		DHD_ERROR(("%s: failed to allocate memory\n", __FUNCTION__));
 		ret = -ENOMEM;
 		goto exit;
 	}
@@ -88,11 +91,11 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		goto exit;
 	}
 
-	printk("%s: Android private command \"%s\" on %s\n", __FUNCTION__, command, ifr->ifr_name);
+	DHD_TRACE(("%s: Android private command \"%s\" on %s\n", __FUNCTION__, command, ifr->ifr_name));
 
 	if (strnicmp(command, CMD_START, strlen(CMD_START)) == 0) {
 		/* TBD: START */
-		printk("%s, Received regular START command\n", __FUNCTION__);
+		DHD_INFO(("%s, Received regular START command\n", __FUNCTION__));
 		g_wifi_on = 1;
 	}
 	if (!g_wifi_on) {
@@ -136,7 +139,7 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		bytes_written = wl_android_set_suspendopt(net, command, priv_cmd->total_len);
 	}
 	else {
-		printk("Unknown PRIVATE command %s - ignored\n", command);
+		DHD_ERROR(("Unknown PRIVATE command %s - ignored\n", command));
 		snprintf(command, 3, "OK");
 		bytes_written = strlen("OK") + 1;
 	}
@@ -144,7 +147,8 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	if (bytes_written > 0) {
 		priv_cmd->used_len = bytes_written;
 		if (copy_to_user(priv_cmd->buf, command, bytes_written)) {
-			printk("%s: failed to copy data to user buffer\n", __FUNCTION__);
+			DHD_ERROR(("%s: failed to copy data to user buffer\n", __FUNCTION__));
+			ret = -EFAULT;
 		}
 	} else {
 		ret = bytes_written;
@@ -172,7 +176,7 @@ static int wl_android_get_link_speed(struct net_device *net, char *command, int 
 	/* Convert Kbps to Android Mbps */
 	link_speed = link_speed / 1000;
 	bytes_written = snprintf(command, total_len, "LinkSpeed %d", link_speed);
-	printk("%s: command result is %s \n", __FUNCTION__, command);
+	DHD_INFO(("%s: command result is %s\n", __FUNCTION__, command));
 	return bytes_written;
 }
 
@@ -193,7 +197,7 @@ static int wl_android_get_rssi(struct net_device *net, char *command, int total_
 	memcpy(command, ssid.SSID, ssid.SSID_len);
 	bytes_written = ssid.SSID_len;
 	bytes_written += snprintf(&command[bytes_written], total_len, " rssi %d", rssi);
-	printk("%s: command result is %s \n", __FUNCTION__, command);
+	DHD_INFO(("%s: command result is %s \n", __FUNCTION__, command));
 	return bytes_written;
 }
 
@@ -211,10 +215,10 @@ static int wl_android_set_suspendopt(struct net_device *dev, char *command, int 
 
 	if (ret_now != suspend_flag) {
 		if (!(ret = net_os_set_suspend(dev, ret_now)))
-			printk("%s: Suspend Flag %d -> %d\n",
-				__FUNCTION__, ret_now, suspend_flag);
+			DHD_INFO(("%s: Suspend Flag %d -> %d\n",
+					__FUNCTION__, ret_now, suspend_flag));
 		else
-			printk("%s: failed %d\n", __FUNCTION__, ret);
+			DHD_ERROR(("%s: failed %d\n", __FUNCTION__, ret));
 	}
 	return ret;
 }
