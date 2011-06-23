@@ -195,8 +195,13 @@ void p1022ds_set_pixel_clock(unsigned int pixclock)
 	do_div(temp, pixclock);
 	freq = temp;
 
-	/* pixclk is the ratio of the platform clock to the pixel clock */
+	/*
+	 * 'pxclk' is the ratio of the platform clock to the pixel clock.
+	 * This number is programmed into the CLKDVDR register, and the valid
+	 * range of values is 2-255.
+	 */
 	pxclk = DIV_ROUND_CLOSEST(fsl_get_sys_freq(), freq);
+	pxclk = clamp_t(u32, pxclk, 2, 255);
 
 	/* Disable the pixel clock, and set it to non-inverted and no delay */
 	clrbits32(&guts->clkdvdr,
