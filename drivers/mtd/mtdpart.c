@@ -778,7 +778,6 @@ int parse_mtd_partitions(struct mtd_info *master, const char **types,
 	}
 	return ret;
 }
-EXPORT_SYMBOL_GPL(parse_mtd_partitions);
 
 int mtd_is_partition(struct mtd_info *mtd)
 {
