@@ -25,6 +25,7 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/smp.h>
 #include <linux/crypto.h>
+#include <linux/scatterlist.h>
 #include <crypto/b128ops.h>
 
 #define SMP_TIMEOUT 30000 /* 30 seconds */
