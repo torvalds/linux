@@ -42,11 +42,15 @@ read_vco(struct drm_device *dev, u32 dsrc)
 static u32
 read_pll(struct drm_device *dev, u32 pll)
 {
+	u32 ctrl = nv_rd32(dev, pll + 0);
 	u32 coef = nv_rd32(dev, pll + 4);
 	u32 P = (coef & 0x003f0000) >> 16;
 	u32 N = (coef & 0x0000ff00) >> 8;
 	u32 M = (coef & 0x000000ff) >> 0;
 	u32 sclk, doff;
+
+	if (!(ctrl & 0x00000001))
+		return 0;
 
 	switch (pll & 0xfff000) {
 	case 0x00e000:
@@ -91,12 +95,12 @@ read_div(struct drm_device *dev, int doff, u32 dsrc, u32 dctl)
 		return 100000;
 	case 3:
 		if (sctl & 0x80000000) {
-			u32 sclk = read_vco(dev, dsrc);
+			u32 sclk = read_vco(dev, dsrc + (doff * 4));
 			u32 sdiv = (sctl & 0x0000003f) + 2;
 			return (sclk * 2) / sdiv;
 		}
 
-		return read_vco(dev, dsrc);
+		return read_vco(dev, dsrc + (doff * 4));
 	default:
 		return 0;
 	}
