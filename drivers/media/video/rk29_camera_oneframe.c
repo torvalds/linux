@@ -246,7 +246,7 @@ struct rk29_camera_dev
 	unsigned int camera_work_count;
 	struct hrtimer fps_timer;
 	struct work_struct camera_reinit_work;
-
+    int icd_init;
     rk29_camera_sensor_cb_s icd_cb;
 };
 static DEFINE_MUTEX(camera_lock);
@@ -778,9 +778,9 @@ static int rk29_camera_add_device(struct soc_camera_device *icd)
         #endif
         v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_CB_REGISTER,(void*)(&pcdev->icd_cb));
     }
-
+    
     pcdev->icd = icd;
-
+    pcdev->icd_init = 0;
 ebusy:
     mutex_unlock(&camera_lock);
 
@@ -918,6 +918,16 @@ static const struct soc_camera_data_format rk29_camera_formats[] = {
 		.depth		= 16,
 		.fourcc		= V4L2_PIX_FMT_NV16,
 		.colorspace	= V4L2_COLORSPACE_JPEG,
+	},{
+		.name		= "NV12(v0.0.1)",           /* ddl@rock-chips.com: 0.0.1 driver */
+		.depth		= 12,
+		.fourcc		= V4L2_PIX_FMT_YUV420,
+		.colorspace	= V4L2_COLORSPACE_JPEG,
+	},{
+		.name		= "NV16(v0.0.1)",
+		.depth		= 16,
+		.fourcc		= V4L2_PIX_FMT_YUV422P,
+		.colorspace	= V4L2_COLORSPACE_JPEG,
 	},{ 
 		.name		= "Raw Bayer RGB 10 bit",
 		.depth		= 16,
@@ -1030,11 +1040,33 @@ static int rk29_camera_get_formats(struct soc_camera_device *icd, int idx,
                 	rk29_camera_formats[1].name,
                 	icd->formats[idx].name);
             }
+
+            formats++;
+            if (xlate) {
+                xlate->host_fmt = &rk29_camera_formats[2];
+                xlate->cam_fmt = icd->formats + idx;
+                xlate->buswidth = buswidth;
+                xlate++;
+                dev_dbg(dev, "Providing format %s using %s\n",
+                	rk29_camera_formats[2].name,
+                	icd->formats[idx].name);
+            } 
+
+            formats++;
+            if (xlate) {
+                xlate->host_fmt = &rk29_camera_formats[3];
+                xlate->cam_fmt = icd->formats + idx;
+                xlate->buswidth = buswidth;
+                xlate++;
+                dev_dbg(dev, "Providing format %s using %s\n",
+                	rk29_camera_formats[3].name,
+                	icd->formats[idx].name);
+            }
 			break;
 		case V4L2_PIX_FMT_SGRBG10:
 			formats++;
             if (xlate) {
-                xlate->host_fmt = &rk29_camera_formats[2];
+                xlate->host_fmt = &rk29_camera_formats[4];
                 xlate->cam_fmt = icd->formats + idx;
                 xlate->buswidth = 10;
                 xlate++;
@@ -1119,9 +1151,9 @@ static int rk29_camera_set_fmt(struct soc_camera_device *icd,
 
     cam_fmt = xlate->cam_fmt;
     /* ddl@rock-chips.com: sensor init code transmit in here after open */
-    if ((pcdev->frame_inval == RK29_CAM_FRAME_INVAL_INIT) && (pcdev->active == NULL)
-        && list_empty(&pcdev->capture)) {
+    if (pcdev->icd_init == 0) {
         v4l2_subdev_call(sd,core, init, 0);        
+        pcdev->icd_init = 1;
     }
 
     stream_on = read_vip_reg(RK29_VIP_CTRL);
@@ -1203,7 +1235,7 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
     struct v4l2_pix_format *pix = &f->fmt.pix;
     __u32 pixfmt = pix->pixelformat;
     enum v4l2_field field;
-    int ret,usr_w,usr_h;
+    int ret,usr_w,usr_h,i;
 	bool is_capture = rk29_camera_fmt_capturechk(f);
 	bool vipmem_is_overflow = false;
 
@@ -1213,8 +1245,16 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
 
     xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
     if (!xlate) {
-        dev_err(ici->v4l2_dev.dev, "Format %x not found\n", pixfmt);
+        dev_err(ici->v4l2_dev.dev, "Format (%c%c%c%c) not found\n", pixfmt & 0xFF, (pixfmt >> 8) & 0xFF,
+			(pixfmt >> 16) & 0xFF, (pixfmt >> 24) & 0xFF);
         ret = -EINVAL;
+        RK29CAMERA_TR("%s(version:%c%c%c) support format:\n",rk29_cam_driver_description,(RK29_CAM_VERSION_CODE&0xff0000)>>16,
+            (RK29_CAM_VERSION_CODE&0xff00)>>8,(RK29_CAM_VERSION_CODE&0xff));
+        for (i = 0; i < icd->num_user_formats; i++)
+		    RK29CAMERA_TR("(%c%c%c%c)-%s\n",
+		    icd->user_formats[i].host_fmt->fourcc & 0xFF, (icd->user_formats[i].host_fmt->fourcc >> 8) & 0xFF,
+			(icd->user_formats[i].host_fmt->fourcc >> 16) & 0xFF, (icd->user_formats[i].host_fmt->fourcc >> 24) & 0xFF,
+			icd->user_formats[i].host_fmt->name);
         goto RK29_CAMERA_TRY_FMT_END;
     }
    /* limit to rk29 hardware capabilities */
