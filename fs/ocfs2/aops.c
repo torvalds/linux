@@ -290,7 +290,15 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 	}
 
 	if (down_read_trylock(&oi->ip_alloc_sem) == 0) {
+		/*
+		 * Unlock the page and cycle ip_alloc_sem so that we don't
+		 * busyloop waiting for ip_alloc_sem to unlock
+		 */
 		ret = AOP_TRUNCATED_PAGE;
+		unlock_page(page);
+		unlock = 0;
+		down_read(&oi->ip_alloc_sem);
+		up_read(&oi->ip_alloc_sem);
 		goto out_inode_unlock;
 	}
 
