@@ -370,7 +370,7 @@ static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	return 1;
 }
 /**
- * cafe_nand_read_page_syndrome - {REPLACABLE] hardware ecc syndrom based page read
+ * cafe_nand_read_page_syndrome - [REPLACEABLE] hardware ecc syndrome based page read
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @buf:	buffer to store read data

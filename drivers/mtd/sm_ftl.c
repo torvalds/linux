@@ -138,7 +138,7 @@ static int sm_get_lba(uint8_t *lba)
 	if ((lba[0] & 0xF8) != 0x10)
 		return -2;
 
-	/* check parity - endianess doesn't matter */
+	/* check parity - endianness doesn't matter */
 	if (hweight16(*(uint16_t *)lba) & 1)
 		return -2;
 

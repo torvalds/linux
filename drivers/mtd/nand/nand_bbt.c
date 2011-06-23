@@ -149,7 +149,7 @@ static int check_short_pattern(uint8_t *buf, struct nand_bbt_descr *td)
  * add_marker_len - compute the length of the marker in data area
  * @td: BBT descriptor used for computation
  *
- * The length will be 0 if the markeris located in OOB area.
+ * The length will be 0 if the marker is located in OOB area.
  */
 static u32 add_marker_len(struct nand_bbt_descr *td)
 {
@@ -170,7 +170,7 @@ static u32 add_marker_len(struct nand_bbt_descr *td)
  * @buf: temporary buffer
  * @page: the starting page
  * @num: the number of bbt descriptors to read
- * @td:	 the bbt describtion table
+ * @td: the bbt describtion table
  * @offs: offset in the memory table
  *
  * Read the bad block table starting from page.
@@ -1241,7 +1241,7 @@ static struct nand_bbt_descr agand_flashbased = {
 	.pattern = scan_agand_pattern
 };
 
-/* Generic flash bbt decriptors */
+/* Generic flash bbt descriptors */
 static uint8_t bbt_pattern[] = {'B', 'b', 't', '0' };
 static uint8_t mirror_pattern[] = {'1', 't', 'b', 'B' };
 
@@ -1286,7 +1286,7 @@ static struct nand_bbt_descr bbt_mirror_no_bbt_descr = {
 };
 
 /**
- * nand_create_default_bbt_descr - [Internal] Creates a BBT descriptor structure
+ * nand_create_default_bbt_descr - [INTERN] Creates a BBT descriptor structure
  * @this: NAND chip to create descriptor for
  *
  * This function allocates and initializes a nand_bbt_descr for BBM detection

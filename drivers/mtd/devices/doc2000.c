@@ -699,7 +699,7 @@ static int doc_read(struct mtd_info *mtd, loff_t from, size_t len,
 #ifdef ECC_DEBUG
 			printk(KERN_ERR "DiskOnChip ECC Error: Read at %lx\n", (long)from);
 #endif
-			/* Read the ECC syndrom through the DiskOnChip ECC
+			/* Read the ECC syndrome through the DiskOnChip ECC
 			   logic.  These syndrome will be all ZERO when there
 			   is no error */
 			for (i = 0; i < 6; i++) {

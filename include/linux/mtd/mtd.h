@@ -172,7 +172,7 @@ struct mtd_info {
 	const char *name;
 	int index;
 
-	/* ecc layout structure pointer - read only ! */
+	/* ECC layout structure pointer - read only! */
 	struct nand_ecclayout *ecclayout;
 
 	/* Data for variable erase regions. If numeraseregions is zero,

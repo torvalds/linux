@@ -1914,7 +1914,7 @@ static void jedec_reset(u32 base, struct map_info *map, struct cfi_private *cfi)
 	 * (oh and incidentaly the jedec spec - 3.5.3.3) the reset
 	 * sequence is *supposed* to be 0xaa at 0x5555, 0x55 at
 	 * 0x2aaa, 0xF0 at 0x5555 this will not affect the AMD chips
-	 * as they will ignore the writes and dont care what address
+	 * as they will ignore the writes and don't care what address
 	 * the F0 is written to */
 	if (cfi->addr_unlock1) {
 		DEBUG( MTD_DEBUG_LEVEL3,

@@ -233,9 +233,9 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		default:
 			ret = mtd->read(mtd, *ppos, len, &retlen, kbuf);
 		}
-		/* Nand returns -EBADMSG on ecc errors, but it returns
+		/* Nand returns -EBADMSG on ECC errors, but it returns
 		 * the data. For our userspace tools it is important
-		 * to dump areas with ecc errors !
+		 * to dump areas with ECC errors!
 		 * For kernel internal usage it also might return -EUCLEAN
 		 * to signal the caller that a bitflip has occurred and has
 		 * been corrected by the ECC algorithm.
@@ -883,7 +883,7 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 	}
 #endif
 
-	/* This ioctl is being deprecated - it truncates the ecc layout */
+	/* This ioctl is being deprecated - it truncates the ECC layout */
 	case ECCGETLAYOUT:
 	{
 		struct nand_ecclayout_user *usrlay;

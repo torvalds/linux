@@ -132,7 +132,7 @@ static struct rs_control *rs_decoder;
 
 /*
  * The HW decoder in the DoC ASIC's provides us a error syndrome,
- * which we must convert to a standard syndrom usable by the generic
+ * which we must convert to a standard syndrome usable by the generic
  * Reed-Solomon library code.
  *
  * Fabrice Bellard figured this out in the old docecc code. I added
@@ -153,7 +153,7 @@ static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
 	ds[3] = ((ecc[3] & 0xc0) >> 6) | ((ecc[0] & 0xff) << 2);
 	parity = ecc[1];
 
-	/* Initialize the syndrom buffer */
+	/* Initialize the syndrome buffer */
 	for (i = 0; i < NROOTS; i++)
 		s[i] = ds[0];
 	/*

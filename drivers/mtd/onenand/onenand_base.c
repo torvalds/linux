@@ -1015,7 +1015,7 @@ static void onenand_release_device(struct mtd_info *mtd)
 }
 
 /**
- * onenand_transfer_auto_oob - [Internal] oob auto-placement transfer
+ * onenand_transfer_auto_oob - [INTERN] oob auto-placement transfer
  * @param mtd		MTD device structure
  * @param buf		destination address
  * @param column	oob offset to read from
@@ -1821,7 +1821,7 @@ static int onenand_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 }
 
 /**
- * onenand_fill_auto_oob - [Internal] oob auto-placement transfer
+ * onenand_fill_auto_oob - [INTERN] oob auto-placement transfer
  * @param mtd		MTD device structure
  * @param oob_buf	oob buffer
  * @param buf		source address
@@ -2055,7 +2055,7 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 
 
 /**
- * onenand_write_oob_nolock - [Internal] OneNAND write out-of-band
+ * onenand_write_oob_nolock - [INTERN] OneNAND write out-of-band
  * @param mtd		MTD device structure
  * @param to		offset to write to
  * @param len		number of bytes to write
@@ -2281,7 +2281,7 @@ static int onenand_multiblock_erase_verify(struct mtd_info *mtd,
 }
 
 /**
- * onenand_multiblock_erase - [Internal] erase block(s) using multiblock erase
+ * onenand_multiblock_erase - [INTERN] erase block(s) using multiblock erase
  * @param mtd		MTD device structure
  * @param instr		erase instruction
  * @param region	erase region
@@ -2397,7 +2397,7 @@ static int onenand_multiblock_erase(struct mtd_info *mtd,
 
 
 /**
- * onenand_block_by_block_erase - [Internal] erase block(s) using regular erase
+ * onenand_block_by_block_erase - [INTERN] erase block(s) using regular erase
  * @param mtd		MTD device structure
  * @param instr		erase instruction
  * @param region	erase region
@@ -2922,7 +2922,7 @@ static int onenand_otp_command(struct mtd_info *mtd, int cmd, loff_t addr,
 }
 
 /**
- * onenand_otp_write_oob_nolock - [Internal] OneNAND write out-of-band, specific to OTP
+ * onenand_otp_write_oob_nolock - [INTERN] OneNAND write out-of-band, specific to OTP
  * @param mtd		MTD device structure
  * @param to		offset to write to
  * @param len		number of bytes to write
