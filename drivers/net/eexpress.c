@@ -365,7 +365,7 @@ static int __init do_express_probe(struct net_device *dev)
 			dev->irq = mca_irqmap[(pos1>>4)&0x7];
 
 			/*
-			 * XXX: Transciever selection is done
+			 * XXX: Transceiver selection is done
 			 * differently on the MCA version.
 			 * How to get it to select something
 			 * other than external/AUI is currently

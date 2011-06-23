@@ -2919,7 +2919,7 @@ static int netdev_set_ecmd(struct net_device *dev, struct ethtool_cmd *ecmd)
 
 	/*
 	 * If we're ignoring the PHY then autoneg and the internal
-	 * transciever are really not going to work so don't let the
+	 * transceiver are really not going to work so don't let the
 	 * user select them.
 	 */
 	if (np->ignore_phy && (ecmd->autoneg == AUTONEG_ENABLE ||
