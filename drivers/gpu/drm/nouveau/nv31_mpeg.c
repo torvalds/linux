@@ -28,7 +28,29 @@
 
 struct nv31_mpeg_engine {
 	struct nouveau_exec_engine base;
+	atomic_t refcount;
 };
+
+
+static int
+nv31_mpeg_context_new(struct nouveau_channel *chan, int engine)
+{
+	struct nv31_mpeg_engine *pmpeg = nv_engine(chan->dev, engine);
+
+	if (!atomic_add_unless(&pmpeg->refcount, 1, 1))
+		return -EBUSY;
+
+	chan->engctx[engine] = (void *)0xdeadcafe;
+	return 0;
+}
+
+static void
+nv31_mpeg_context_del(struct nouveau_channel *chan, int engine)
+{
+	struct nv31_mpeg_engine *pmpeg = nv_engine(chan->dev, engine);
+	atomic_dec(&pmpeg->refcount);
+	chan->engctx[engine] = NULL;
+}
 
 static int
 nv40_mpeg_context_new(struct nouveau_channel *chan, int engine)
@@ -121,7 +143,7 @@ nv31_mpeg_init(struct drm_device *dev, int engine)
 	/* PMPEG init */
 	nv_wr32(dev, 0x00b32c, 0x00000000);
 	nv_wr32(dev, 0x00b314, 0x00000100);
-	nv_wr32(dev, 0x00b220, 0x00000044);
+	nv_wr32(dev, 0x00b220, nv44_graph_class(dev) ? 0x00000044 : 0x00000031);
 	nv_wr32(dev, 0x00b300, 0x02001ec1);
 	nv_mask(dev, 0x00b32c, 0x00000001, 0x00000001);
 
@@ -190,6 +212,10 @@ nv31_mpeg_isr_chid(struct drm_device *dev, u32 inst)
 	struct nouveau_gpuobj *ctx;
 	unsigned long flags;
 	int i;
+
+	/* hardcode drm channel id on nv3x, so swmthd lookup works */
+	if (dev_priv->card_type < NV_40)
+		return 0;
 
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
@@ -275,17 +301,24 @@ nv31_mpeg_destroy(struct drm_device *dev, int engine)
 int
 nv31_mpeg_create(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv31_mpeg_engine *pmpeg;
 
 	pmpeg = kzalloc(sizeof(*pmpeg), GFP_KERNEL);
 	if (!pmpeg)
 		return -ENOMEM;
+	atomic_set(&pmpeg->refcount, 0);
 
 	pmpeg->base.destroy = nv31_mpeg_destroy;
 	pmpeg->base.init = nv31_mpeg_init;
 	pmpeg->base.fini = nv31_mpeg_fini;
-	pmpeg->base.context_new = nv40_mpeg_context_new;
-	pmpeg->base.context_del = nv40_mpeg_context_del;
+	if (dev_priv->card_type < NV_40) {
+		pmpeg->base.context_new = nv31_mpeg_context_new;
+		pmpeg->base.context_del = nv31_mpeg_context_del;
+	} else {
+		pmpeg->base.context_new = nv40_mpeg_context_new;
+		pmpeg->base.context_del = nv40_mpeg_context_del;
+	}
 	pmpeg->base.object_new = nv31_mpeg_object_new;
 
 	/* ISR vector, PMC_ENABLE bit,  and TILE regs are shared between
