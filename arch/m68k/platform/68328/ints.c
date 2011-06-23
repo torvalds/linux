@@ -155,7 +155,7 @@ static struct irq_chip intc_irq_chip = {
  * This function should be called during kernel startup to initialize
  * the machine vector table.
  */
-void __init init_IRQ(void)
+void __init trap_init(void)
 {
 	int i;
 
@@ -172,6 +172,11 @@ void __init init_IRQ(void)
 	_ramvec[69] = (e_vector) inthandler5;
 	_ramvec[70] = (e_vector) inthandler6;
 	_ramvec[71] = (e_vector) inthandler7;
+}
+
+void __init init_IRQ(void)
+{
+	int i;
 
 	IVR = 0x40; /* Set DragonBall IVR (interrupt base) to 64 */
 
