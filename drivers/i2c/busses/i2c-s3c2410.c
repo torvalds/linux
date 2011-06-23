@@ -248,12 +248,12 @@ static inline int is_msgend(struct s3c24xx_i2c *i2c)
 	return i2c->msg_ptr >= i2c->msg->len;
 }
 
-/* i2s_s3c_irq_nextbyte
+/* i2c_s3c_irq_nextbyte
  *
  * process an interrupt and work out what to do
  */
 
-static int i2s_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
+static int i2c_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 {
 	unsigned long tmp;
 	unsigned char byte;
@@ -444,7 +444,7 @@ static irqreturn_t s3c24xx_i2c_irq(int irqno, void *dev_id)
 	/* pretty much this leaves us with the fact that we've
 	 * transmitted or received whatever byte we last sent */
 
-	i2s_s3c_irq_nextbyte(i2c, status);
+	i2c_s3c_irq_nextbyte(i2c, status);
 
  out:
 	return IRQ_HANDLED;
