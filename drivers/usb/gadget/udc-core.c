@@ -44,7 +44,6 @@ struct usb_udc {
 };
 
 static struct class *udc_class;
-static struct device_type udc_device_type;
 static LIST_HEAD(udc_list);
 static DEFINE_MUTEX(udc_lock);
 
@@ -144,6 +143,7 @@ static void usb_udc_release(struct device *dev)
 	kfree(udc);
 }
 
+static const struct attribute_group *usb_udc_attr_groups[];
 /**
  * usb_add_gadget_udc - adds a new gadget to the udc class driver list
  * @parent: the parent device to this udc. Usually the controller
@@ -164,6 +164,7 @@ int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget)
 	device_initialize(&udc->dev);
 	udc->dev.release = usb_udc_release;
 	udc->dev.class = udc_class;
+	udc->dev.groups = usb_udc_attr_groups;
 	udc->dev.parent = parent;
 	ret = dev_set_name(&udc->dev, "%s", kobject_name(&parent->kobj));
 	if (ret)
@@ -373,7 +374,7 @@ static DEVICE_ATTR(soft_connect, S_IWUSR, NULL, usb_udc_softconn_store);
 static ssize_t usb_udc_speed_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct usb_udc		*udc = dev_get_drvdata(dev);
+	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
 	struct usb_gadget	*gadget = udc->gadget;
 
 	switch (gadget->speed) {
@@ -398,7 +399,7 @@ static DEVICE_ATTR(speed, S_IRUSR, usb_udc_speed_show, NULL);
 ssize_t usb_udc_##name##_show(struct device *dev,		\
 		struct device_attribute *attr, char *buf)	\
 {								\
-	struct usb_udc		*udc = dev_get_drvdata(dev);	\
+	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev); \
 	struct usb_gadget	*gadget = udc->gadget;		\
 								\
 	return snprintf(buf, PAGE_SIZE, "%d\n", gadget->name);	\
@@ -468,8 +469,6 @@ static int __init usb_udc_init(void)
 	}
 
 	udc_class->dev_uevent = usb_udc_uevent;
-	udc_device_type.groups = usb_udc_attr_groups;
-
 	return 0;
 }
 subsys_initcall(usb_udc_init);
