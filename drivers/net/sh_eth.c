@@ -1770,7 +1770,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	int ret, devno = 0;
 	struct resource *res;
 	struct net_device *ndev = NULL;
-	struct sh_eth_private *mdp;
+	struct sh_eth_private *mdp = NULL;
 	struct sh_eth_plat_data *pd;
 
 	/* get base addr */
@@ -1888,7 +1888,7 @@ out_unregister:
 
 out_release:
 	/* net_dev free */
-	if (mdp->tsu_addr)
+	if (mdp && mdp->tsu_addr)
 		iounmap(mdp->tsu_addr);
 	if (ndev)
 		free_netdev(ndev);
