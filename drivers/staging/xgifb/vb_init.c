@@ -1,6 +1,5 @@
 #include "vgatypes.h"
 
-#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/delay.h> /* udelay */
 #include "XGIfb.h"
