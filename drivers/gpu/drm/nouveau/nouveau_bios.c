@@ -5186,7 +5186,7 @@ static int parse_bit_A_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	load_table_ptr = ROM16(bios->data[bitentry->offset]);
 
 	if (load_table_ptr == 0x0) {
-		NV_ERROR(dev, "Pointer to BIT loadval table invalid\n");
+		NV_DEBUG(dev, "Pointer to BIT loadval table invalid\n");
 		return -EINVAL;
 	}
 
@@ -6370,6 +6370,37 @@ apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 		} else
 		if (idx == 3) {
 			*conn = 0x02022362; /* HDMI, connector 2 */
+			*conf = 0x00020010;
+		} else {
+			*conn = 0x0000000e; /* EOL */
+			*conf = 0x00000000;
+		}
+	}
+
+	/* Some other twisted XFX board (rhbz#694914)
+	 *
+	 * The DVI/VGA encoder combo that's supposed to represent the
+	 * DVI-I connector actually point at two different ones, and
+	 * the HDMI connector ends up paired with the VGA instead.
+	 *
+	 * Connector table is missing anything for VGA at all, pointing it
+	 * an invalid conntab entry 2 so we figure it out ourself.
+	 */
+	if (nv_match_device(dev, 0x0615, 0x1682, 0x2605)) {
+		if (idx == 0) {
+			*conn = 0x02002300; /* VGA, connector 2 */
+			*conf = 0x00000028;
+		} else
+		if (idx == 1) {
+			*conn = 0x01010312; /* DVI, connector 0 */
+			*conf = 0x00020030;
+		} else
+		if (idx == 2) {
+			*conn = 0x04020310; /* VGA, connector 0 */
+			*conf = 0x00000028;
+		} else
+		if (idx == 3) {
+			*conn = 0x02021322; /* HDMI, connector 1 */
 			*conf = 0x00020010;
 		} else {
 			*conn = 0x0000000e; /* EOL */

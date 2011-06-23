@@ -48,14 +48,14 @@ nvc0_copy_context_new(struct nouveau_channel *chan, int engine)
 	struct nouveau_gpuobj *ctx = NULL;
 	int ret;
 
-	ret = nouveau_gpuobj_new(dev, NULL, 256, 256,
+	ret = nouveau_gpuobj_new(dev, chan, 256, 256,
 				 NVOBJ_FLAG_VM | NVOBJ_FLAG_VM_USER |
 				 NVOBJ_FLAG_ZERO_ALLOC, &ctx);
 	if (ret)
 		return ret;
 
-	nv_wo32(ramin, pcopy->ctx + 0, lower_32_bits(ctx->vinst));
-	nv_wo32(ramin, pcopy->ctx + 4, upper_32_bits(ctx->vinst));
+	nv_wo32(ramin, pcopy->ctx + 0, lower_32_bits(ctx->linst));
+	nv_wo32(ramin, pcopy->ctx + 4, upper_32_bits(ctx->linst));
 	dev_priv->engine.instmem.flush(dev);
 
 	chan->engctx[engine] = ctx;

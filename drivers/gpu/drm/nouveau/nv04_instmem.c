@@ -112,7 +112,8 @@ nv04_instmem_resume(struct drm_device *dev)
 }
 
 int
-nv04_instmem_get(struct nouveau_gpuobj *gpuobj, u32 size, u32 align)
+nv04_instmem_get(struct nouveau_gpuobj *gpuobj, struct nouveau_channel *chan,
+		 u32 size, u32 align)
 {
 	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
 	struct drm_mm_node *ramin = NULL;

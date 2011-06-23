@@ -156,7 +156,7 @@ nv50_vm_flush(struct nouveau_vm *vm)
 	pinstmem->flush(vm->dev);
 
 	/* BAR */
-	if (vm != dev_priv->chan_vm) {
+	if (vm == dev_priv->bar1_vm || vm == dev_priv->bar3_vm) {
 		nv50_vm_flush_engine(vm->dev, 6);
 		return;
 	}
