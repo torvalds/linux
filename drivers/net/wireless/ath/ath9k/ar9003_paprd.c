@@ -236,7 +236,7 @@ static void ar9003_paprd_get_gain_table(struct ath_hw *ah)
 	memset(entry, 0, sizeof(ah->paprd_gain_table_entries));
 	memset(index, 0, sizeof(ah->paprd_gain_table_index));
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < PAPRD_GAIN_TABLE_ENTRIES; i++) {
 		entry[i] = REG_READ(ah, reg);
 		index[i] = (entry[i] >> 24) & 0xff;
 		reg += 4;
@@ -741,7 +741,7 @@ int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain)
 	desired_gain = ar9003_get_desired_gain(ah, chain, train_power);
 
 	gain_index = 0;
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < PAPRD_GAIN_TABLE_ENTRIES; i++) {
 		if (ah->paprd_gain_table_index[i] >= desired_gain)
 			break;
 		gain_index++;
