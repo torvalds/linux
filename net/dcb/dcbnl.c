@@ -1329,7 +1329,7 @@ int dcbnl_notify(struct net_device *dev, int event, int cmd,
 
 	nlh = nlmsg_put(skb, pid, 0, event, sizeof(*dcb), 0);
 	if (nlh == NULL) {
-		kfree(skb);
+		nlmsg_free(skb);
 		return -EMSGSIZE;
 	}
 
@@ -1434,7 +1434,7 @@ static int dcbnl_ieee_get(struct net_device *netdev, struct nlattr **tb,
 
 	nlh = nlmsg_put(skb, pid, seq, RTM_GETDCB, sizeof(*dcb), flags);
 	if (nlh == NULL) {
-		kfree(skb);
+		nlmsg_free(skb);
 		return -EMSGSIZE;
 	}
 
