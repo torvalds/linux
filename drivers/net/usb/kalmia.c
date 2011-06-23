@@ -135,7 +135,7 @@ kalmia_init_and_get_ethernet_addr(struct usbnet *dev, u8 *ethernet_addr)
 static int
 kalmia_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	u8 status;
+	int status;
 	u8 ethernet_addr[ETH_ALEN];
 
 	/* Don't bind to AT command interface */
