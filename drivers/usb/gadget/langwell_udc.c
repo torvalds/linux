@@ -2969,7 +2969,7 @@ static irqreturn_t langwell_irq(int irq, void *_dev)
 		handle_port_change(dev);
 	}
 
-	/* suspend interrrupt */
+	/* suspend interrupt */
 	if (irq_sts & STS_SLI) {
 		dev_vdbg(&dev->pdev->dev, "suspend interrupt\n");
 		handle_bus_suspend(dev);

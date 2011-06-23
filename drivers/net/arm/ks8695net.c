@@ -414,7 +414,7 @@ ks8695_tx_irq(int irq, void *dev_id)
  *    Interrupt Status Register (Offset 0xF208)
  *        Bit29: WAN MAC Receive Status
  *        Bit16: LAN MAC Receive Status
- *    So, this Rx interrrupt enable/status bit number is equal
+ *    So, this Rx interrupt enable/status bit number is equal
  *    as Rx IRQ number.
  */
 static inline u32 ks8695_get_rx_enable_bit(struct ks8695_priv *ksp)

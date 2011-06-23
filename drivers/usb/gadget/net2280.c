@@ -2481,7 +2481,7 @@ static void handle_stat1_irqs (struct net2280 *dev, u32 stat)
 	mask = (1 << HIGH_SPEED) | (1 << FULL_SPEED);
 
 	/* VBUS disconnect is indicated by VBUS_PIN and VBUS_INTERRUPT set.
-	 * Root Port Reset is indicated by ROOT_PORT_RESET_INTERRRUPT set and
+	 * Root Port Reset is indicated by ROOT_PORT_RESET_INTERRUPT set and
 	 * both HIGH_SPEED and FULL_SPEED clear (as ROOT_PORT_RESET_INTERRUPT
 	 * only indicates a change in the reset state).
 	 */
