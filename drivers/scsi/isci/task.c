@@ -558,15 +558,15 @@ static void isci_terminate_request_core(
 		: NULL;
 
 	/* Note that we are not going to control
-	* the target to abort the request.
-	*/
-	isci_request->complete_in_target = true;
+	 * the target to abort the request.
+	 */
+	set_bit(IREQ_COMPLETE_IN_TARGET, &isci_request->flags);
 
 	/* Make sure the request wasn't just sitting around signalling
 	 * device condition (if the request handle is NULL, then the
 	 * request completed but needed additional handling here).
 	 */
-	if (!isci_request->terminated) {
+	if (!test_bit(IREQ_TERMINATED, &isci_request->flags)) {
 		was_terminated = true;
 		needs_cleanup_handling = true;
 		status = scic_controller_terminate_request(
@@ -609,7 +609,7 @@ static void isci_terminate_request_core(
 						  flags);
 
 				/* Check for state changes. */
-				if (!isci_request->terminated) {
+				if (!test_bit(IREQ_TERMINATED, &isci_request->flags)) {
 
 					/* The best we can do is to have the
 					 * request die a silent death if it
@@ -1098,9 +1098,8 @@ int isci_task_abort_task(struct sas_task *task)
 		ret = TMF_RESP_FUNC_COMPLETE;
 		goto out;
 	}
-	if ((task->task_proto == SAS_PROTOCOL_SMP)
-	    || old_request->complete_in_target
-	    ) {
+	if (task->task_proto == SAS_PROTOCOL_SMP ||
+	    test_bit(IREQ_COMPLETE_IN_TARGET, &old_request->flags)) {
 
 		spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
@@ -1108,7 +1107,7 @@ int isci_task_abort_task(struct sas_task *task)
 			"%s: SMP request (%d)"
 			" or complete_in_target (%d), thus no TMF\n",
 			__func__, (task->task_proto == SAS_PROTOCOL_SMP),
-			old_request->complete_in_target);
+			test_bit(IREQ_COMPLETE_IN_TARGET, &old_request->flags));
 
 		/* Set the state on the task. */
 		isci_task_all_done(task);
@@ -1136,7 +1135,7 @@ int isci_task_abort_task(struct sas_task *task)
 				__func__);
 	}
 	if (ret == TMF_RESP_FUNC_COMPLETE) {
-		old_request->complete_in_target = true;
+		set_bit(IREQ_COMPLETE_IN_TARGET, &old_request->flags);
 
 		/* Clean up the request on our side, and wait for the aborted
 		 * I/O to complete.
@@ -1252,7 +1251,7 @@ isci_task_request_complete(struct isci_host *ihost,
 	isci_request_change_state(ireq, completed);
 
 	tmf->status = completion_status;
-	ireq->complete_in_target = true;
+	set_bit(IREQ_COMPLETE_IN_TARGET, &ireq->flags);
 
 	if (tmf->proto == SAS_PROTOCOL_SSP) {
 		memcpy(&tmf->resp.resp_iu,
@@ -1271,7 +1270,7 @@ isci_task_request_complete(struct isci_host *ihost,
 	/* set the 'terminated' flag handle to make sure it cannot be terminated
 	 *  or completed again.
 	 */
-	ireq->terminated = true;;
+	set_bit(IREQ_TERMINATED, &ireq->flags);
 
 	isci_request_change_state(ireq, unallocated);
 	list_del_init(&ireq->dev_node);

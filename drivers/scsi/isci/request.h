@@ -210,12 +210,6 @@ struct scic_sds_request {
 	struct scu_sgl_element_pair sg_table[SCU_SGL_SIZE] __attribute__ ((aligned(32)));
 
 	/*
-	 * This field indicates if this request is a task management request or
-	 * normal IO request.
-	 */
-	bool is_task_management_request;
-
-	/*
 	 * This field is a pointer to the stored rx frame data.  It is used in
 	 * STP internal requests and SMP response frames.  If this field is
 	 * non-NULL the saved frame must be released on IO request completion.
@@ -260,8 +254,10 @@ struct isci_request {
 	enum isci_request_status status;
 	enum task_type ttype;
 	unsigned short io_tag;
-	bool complete_in_target;
-	bool terminated;
+	#define IREQ_COMPLETE_IN_TARGET 0
+	#define IREQ_TERMINATED 1
+	#define IREQ_TMF 2
+	unsigned long flags;
 
 	union ttype_ptr_union {
 		struct sas_task *io_task_ptr;   /* When ttype==io_task  */
