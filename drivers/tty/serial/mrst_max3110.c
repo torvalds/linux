@@ -823,7 +823,7 @@ static int __devinit serial_m3110_probe(struct spi_device *spi)
 	res = RC_TAG;
 	ret = max3110_write_then_read(max, (u8 *)&res, (u8 *)&res, 2, 0);
 	if (ret < 0 || res == 0 || res == 0xffff) {
-		printk(KERN_ERR "MAX3111 deemed not present (conf reg %04x)",
+		dev_dbg(&spi->dev, "MAX3111 deemed not present (conf reg %04x)",
 									res);
 		ret = -ENODEV;
 		goto err_get_page;
