@@ -1750,6 +1750,7 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 {
 	int page, realpage, chipnr, sndcmd = 1;
 	struct nand_chip *chip = mtd->priv;
+	struct mtd_ecc_stats stats;
 	int blkcheck = (1 << (chip->phys_erase_shift - chip->page_shift)) - 1;
 	int readlen = ops->ooblen;
 	int len;
@@ -1757,6 +1758,8 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 
 	DEBUG(MTD_DEBUG_LEVEL3, "%s: from = 0x%08Lx, len = %i\n",
 			__func__, (unsigned long long)from, readlen);
+
+	stats = mtd->ecc_stats;
 
 	if (ops->mode == MTD_OOB_AUTO)
 		len = chip->ecc.layout->oobavail;
@@ -1828,7 +1831,11 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	}
 
 	ops->oobretlen = ops->ooblen;
-	return 0;
+
+	if (mtd->ecc_stats.failed - stats.failed)
+		return -EBADMSG;
+
+	return  mtd->ecc_stats.corrected - stats.corrected ? -EUCLEAN : 0;
 }
 
 /**

@@ -473,6 +473,21 @@ static int mtd_do_readoob(struct mtd_info *mtd, uint64_t start,
 		ret = -EFAULT;
 
 	kfree(ops.oobbuf);
+
+	/*
+	 * NAND returns -EBADMSG on ECC errors, but it returns the OOB
+	 * data. For our userspace tools it is important to dump areas
+	 * with ECC errors!
+	 * For kernel internal usage it also might return -EUCLEAN
+	 * to signal the caller that a bitflip has occured and has
+	 * been corrected by the ECC algorithm.
+	 *
+	 * Note: most NAND ECC algorithms do not calculate ECC
+	 * for the OOB area.
+	 */
+	if (ret == -EUCLEAN || ret == -EBADMSG)
+		return 0;
+
 	return ret;
 }
 
