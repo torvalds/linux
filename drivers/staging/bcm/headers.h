@@ -25,7 +25,6 @@
 #include <linux/proc_fs.h>
 #include <linux/interrupt.h>
 
-#include <linux/version.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/stat.h>
