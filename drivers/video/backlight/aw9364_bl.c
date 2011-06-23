@@ -124,7 +124,7 @@ static int aw9364_backlight_update_status(struct backlight_device *bl)
 	if (bl->props.state & BL_CORE_SUSPENDED)
 		brightness = 0;
 
-	printk("backlight brightness=%d\n", brightness);
+	DBG("backlight brightness=%d\n", brightness);
 
 	return aw9364_backlight_set(bl, brightness);
 }

@@ -551,26 +551,27 @@ struct codec_pll_set {
 	u32 parent_con;
 };
 
-#define CODEC_PLL(_mhz, _parent, band, nr, nf, no) \
+#define CODEC_PLL(_khz, _parent, band, nr, nf, no) \
 { \
-	.rate		= _mhz * MHZ, \
+	.rate		= _khz * KHZ, \
 	.pll_con	= PLL_##band##_BAND | PLL_CLKR(nr) | PLL_CLKF(nf) | PLL_NO_##no, \
 	.parent_con	= CODEC_PLL_PARENT_XIN##_parent##M, \
 }
 
 static const struct codec_pll_set codec_pll[] = {
-	//      rate parent band NR NF NO
-	CODEC_PLL(108, 24,  LOW, 1, 18, 4),	// for TV
-	CODEC_PLL(648, 24, HIGH, 1, 27, 1),
-	CODEC_PLL(297, 27,  LOW, 1, 22, 2),	// for HDMI
-	CODEC_PLL(594, 27, HIGH, 1, 22, 1),
-	CODEC_PLL(300, 24,  LOW, 1, 25, 2),	// for GPU
-	CODEC_PLL(360, 24,  LOW, 1, 15, 1),
-	CODEC_PLL(408, 24,  LOW, 1, 17, 1),
-	CODEC_PLL(456, 24,  LOW, 1, 19, 1),
-	CODEC_PLL(504, 24,  LOW, 1, 21, 1),
-	CODEC_PLL(552, 24,  LOW, 1, 23, 1),
-	CODEC_PLL(600, 24, HIGH, 1, 25, 1),
+	//        rate parent band NR  NF NO
+	CODEC_PLL(108000, 24,  LOW, 1, 18, 4),	// for TV
+	CODEC_PLL(648000, 24, HIGH, 1, 27, 1),
+	CODEC_PLL(297000, 27,  LOW, 1, 22, 2),	// for HDMI
+	CODEC_PLL(445500, 27,  LOW, 2, 33, 1),
+	CODEC_PLL(594000, 27, HIGH, 1, 22, 1),
+	CODEC_PLL(300000, 24,  LOW, 1, 25, 2),	// for GPU
+	CODEC_PLL(360000, 24,  LOW, 1, 15, 1),
+	CODEC_PLL(408000, 24,  LOW, 1, 17, 1),
+	CODEC_PLL(456000, 24,  LOW, 1, 19, 1),
+	CODEC_PLL(504000, 24,  LOW, 1, 21, 1),
+	CODEC_PLL(552000, 24,  LOW, 1, 23, 1),
+	CODEC_PLL(600000, 24, HIGH, 1, 25, 1),
 };
 
 static int codec_pll_clk_set_rate(struct clk *clk, unsigned long rate)
@@ -1013,7 +1014,7 @@ static struct clk clk_spdif_frac_div = {
 
 static int i2s_set_rate(struct clk *clk, unsigned long rate)
 {
-	int ret;
+	int ret = 0;
 	struct clk *parent;
 
 	if (rate == 12 * MHZ) {
@@ -1025,7 +1026,7 @@ static int i2s_set_rate(struct clk *clk, unsigned long rate)
 			return ret;
 	}
 	if (clk->parent != parent)
-		clk_set_parent_nolock(clk, parent);
+		ret = clk_set_parent_nolock(clk, parent);
 
 	return ret;
 }
@@ -1227,7 +1228,7 @@ static struct clk clk_ddr = {
 
 static int clk_uart_set_rate(struct clk *clk, unsigned long rate)
 {
-	int ret;
+	int ret = 0;
 	struct clk *parent;
 	struct clk *clk_div = clk->parents[0];
 
@@ -1260,9 +1261,9 @@ static int clk_uart_set_rate(struct clk *clk, unsigned long rate)
 	}
 
 	if (clk->parent != parent)
-		clk_set_parent_nolock(clk, parent);
+		ret = clk_set_parent_nolock(clk, parent);
 
-	return 0;
+	return ret;
 }
 
 static int clk_uart_frac_div_set_rate(struct clk *clk, unsigned long rate)
@@ -1510,12 +1511,34 @@ static struct clk clk_hsadc_out = {
 };
 
 
+static int dclk_lcdc_div_set_rate(struct clk *clk, unsigned long rate)
+{
+	struct clk *parent;
+
+	switch (rate) {
+	case 27000 * KHZ:
+	case 74250 * KHZ:
+	case 148500 * KHZ:
+	case 297 * MHZ:
+	case 594 * MHZ:
+		parent = &codec_pll_clk;
+		break;
+	default:
+		parent = &general_pll_clk;
+		break;
+	}
+	if (clk->parent != parent)
+		clk_set_parent_nolock(clk, parent);
+
+	return clksel_set_rate_div(clk, rate);
+}
+
 static struct clk *dclk_lcdc_div_parents[4] = { &codec_pll_clk, &ddr_pll_clk, &general_pll_clk, &arm_pll_clk };
 
 static struct clk dclk_lcdc_div = {
 	.name		= "dclk_lcdc_div",
 	.recalc		= clksel_recalc_div,
-	.set_rate	= clksel_set_rate_div,
+	.set_rate	= dclk_lcdc_div_set_rate,
 	.clksel_con	= CRU_CLKSEL16_CON,
 	.clksel_mask	= 0xFF,
 	.clksel_shift	= 2,
@@ -1524,11 +1547,31 @@ static struct clk dclk_lcdc_div = {
 	.parents	= dclk_lcdc_div_parents,
 };
 
+static int dclk_lcdc_set_rate(struct clk *clk, unsigned long rate)
+{
+	int ret = 0;
+	struct clk *parent;
+
+	if (rate == 27 * MHZ && has_xin27m) {
+		parent = &xin27m;
+	} else {
+		parent = &dclk_lcdc_div;
+		ret = clk_set_rate_nolock(parent, rate);
+		if (ret)
+			return ret;
+	}
+	if (clk->parent != parent)
+		ret = clk_set_parent_nolock(clk, parent);
+
+	return ret;
+}
+
 static struct clk *dclk_lcdc_parents[2] = { &dclk_lcdc_div, &xin27m };
 
 static struct clk dclk_lcdc = {
 	.name		= "dclk_lcdc",
 	.mode		= gate_mode,
+	.set_rate	= dclk_lcdc_set_rate,
 	.gate_idx	= CLK_GATE_DCLK_LCDC,
 	.clksel_con	= CRU_CLKSEL16_CON,
 	.clksel_parent_mask	= 1,
@@ -2461,6 +2504,8 @@ static void __init rk29_clock_common_init(unsigned long ppll_rate, unsigned long
 	clk_set_parent_nolock(&clk_i2s1_div, &general_pll_clk);
 	clk_set_parent_nolock(&clk_spdif_div, &general_pll_clk);
 	clk_set_parent_nolock(&clk_spi_src, &general_pll_clk);
+	clk_set_rate_nolock(&clk_spi0, 40 * MHZ);
+	clk_set_rate_nolock(&clk_spi1, 40 * MHZ);
 	clk_set_parent_nolock(&clk_mmc_src, &general_pll_clk);
 	clk_set_parent_nolock(&clk_uart01_src, &general_pll_clk);
 	clk_set_parent_nolock(&clk_uart23_src, &general_pll_clk);
@@ -2561,14 +2606,14 @@ void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate
 
 	rk29_clock_common_init(ppll_rate, cpll_rate);
 
-	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz\n",
+	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz (20110617)\n",
 	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
 	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
 }
 
 void __init rk29_clock_init(enum periph_pll ppll_rate)
 {
-	rk29_clock_init2(ppll_rate, codec_pll_594mhz, true);
+	rk29_clock_init2(ppll_rate, codec_pll_445mhz, true);
 }
 
 #ifdef CONFIG_PROC_FS

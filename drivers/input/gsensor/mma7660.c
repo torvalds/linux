@@ -118,18 +118,27 @@ static int mma7660_set_rate(struct i2c_client *client, char rate)
 {
 	char buffer[2];
 	int ret = 0;
-	int i;
 	
 	if (rate > 128)
         return -EINVAL;
+	rk28printk("[ZWP]%s,rate = %d\n",__FUNCTION__,rate);
+	//因为增加了滤波功能,即每RawDataLength次才上报一次,所以提升gsensor两个档级
+	if(rate > 2)
+		rate -= 2;
+	rk28printk("[ZWP]%s,new rate = %d\n",__FUNCTION__,rate);
 
+/*	
     for (i = 0; i < 7; i++) {
         if (rate & (0x1 << i))
             break;
     }   
+    
 
 	buffer[0] = MMA7660_REG_SR;
 	buffer[1] = 0xf8 | (0x07 & (~i));
+*/
+	buffer[0] = MMA7660_REG_SR;
+	buffer[1] = 0xf8 | (0x07 & rate);
 
 	ret = mma7660_tx_data(client, &(buffer[0]), 2);
 	ret = mma7660_rx_data(client, &(buffer[0]), 1);
@@ -230,12 +239,16 @@ static void mma7660_report_value(struct i2c_client *client, struct mma7660_axis 
     rk28printk("Gsensor x==%d  y==%d z==%d\n",axis->x,axis->y,axis->z);
 }
 
+#define RawDataLength 4
+int RawDataNum;
+int Xaverage, Yaverage, Zaverage;
+
 static int mma7660_get_data(struct i2c_client *client)
 {
 	char buffer[3];
 	int ret;
     struct mma7660_axis axis;
-    struct rk2818_gs_platform_data *pdata = client->dev.platform_data;
+    //struct rk2818_gs_platform_data *pdata = client->dev.platform_data;
     do {
         memset(buffer, 0, 3);
         buffer[0] = MMA7660_REG_X_OUT;
@@ -247,13 +260,29 @@ static int mma7660_get_data(struct i2c_client *client)
 	axis.x = mma7660_convert_to_int(buffer[MMA7660_REG_X_OUT]);
 	axis.y = -mma7660_convert_to_int(buffer[MMA7660_REG_Y_OUT]);
 	axis.z = -mma7660_convert_to_int(buffer[MMA7660_REG_Z_OUT]);
-
+/*
 	if(pdata->swap_xy)
 	{
 		axis.y = -axis.y;
 		swap(axis.x,axis.y);		
 	}
+*/
+	//计算RawDataLength次值的平均值
+	Xaverage += axis.x;
+	Yaverage += axis.y;
+	Zaverage += axis.z;
+    rk28printk( "%s: ------------------mma7660_GetData axis = %d  %d  %d,average=%d %d %d--------------\n",
+           __func__, axis.x, axis.y, axis.z,Xaverage,Yaverage,Zaverage); 
 	
+	if((++RawDataNum)>=RawDataLength){
+		RawDataNum = 0;
+		axis.x = Xaverage/RawDataLength;
+		axis.y = Yaverage/RawDataLength;
+		axis.z = Zaverage/RawDataLength;
+	    mma7660_report_value(client, &axis);
+		Xaverage = Yaverage = Zaverage = 0;
+	}
+#if 0	
   //  rk28printk( "%s: ------------------mma7660_GetData axis = %d  %d  %d--------------\n",
   //         __func__, axis.x, axis.y, axis.z); 
      
@@ -261,7 +290,7 @@ static int mma7660_get_data(struct i2c_client *client)
     mma7660_report_value(client, &axis);
 	//atomic_set(&data_ready, 0);
 	//wake_up(&data_ready_wq);
-
+#endif
 	return 0;
 }
 
@@ -496,6 +525,8 @@ static int  mma7660_probe(struct i2c_client *client, const struct i2c_device_id 
 {
 	struct mma7660_data *mma7660;
 	int err;
+	
+	Xaverage = Yaverage = Zaverage = RawDataNum = 0;
 
 	mma7660 = kzalloc(sizeof(struct mma7660_data), GFP_KERNEL);
 	if (!mma7660) {

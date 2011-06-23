@@ -188,8 +188,6 @@ struct rk29fb_inf {
 
     struct clk      *clk;
     struct clk      *dclk;            //lcdc dclk
-    struct clk      *dclk_parent;     //lcdc dclk divider frequency source
-    struct clk      *dclk_divider;    //lcdc demodulator divider frequency
     struct clk      *aclk;   //lcdc share memory frequency
     struct clk      *aclk_parent;     //lcdc aclk divider frequency source
     struct clk      *aclk_ddr_lcdc;   //DDR LCDC AXI clock disable.
@@ -599,24 +597,6 @@ void load_screen(struct fb_info *info, bool initscreen)
         printk(KERN_ERR "failed to get lcd dclock source\n");
         return ;
     }
-    inf->dclk_divider= clk_get(NULL, "dclk_lcdc_div");
-    if (IS_ERR(inf->dclk_divider))
-    {
-        printk(KERN_ERR "failed to get lcd clock lcdc_divider source \n");
-		return ;
-    }
-
-    if((inf->cur_screen->type == SCREEN_HDMI) || (inf->cur_screen->type == SCREEN_TVOUT)){
-        inf->dclk_parent = clk_get(NULL, "codec_pll");
-    }    else    {
-        inf->dclk_parent = clk_get(NULL, "general_pll");
-    }
-
-    if (IS_ERR(inf->dclk_parent))
-    {
-        printk(KERN_ERR "failed to get lcd dclock parent source\n");
-        return;
-    }
 
     inf->aclk = clk_get(NULL, "aclk_lcdc");
     if (IS_ERR(inf->aclk))
@@ -625,9 +605,9 @@ void load_screen(struct fb_info *info, bool initscreen)
         return;
     }
     inf->aclk_parent = clk_get(NULL, "ddr_pll");//general_pll //ddr_pll
-    if (IS_ERR(inf->dclk_parent))
+    if (IS_ERR(inf->aclk_parent))
     {
-        printk(KERN_ERR "failed to get lcd dclock parent source\n");
+        printk(KERN_ERR "failed to get lcd clock parent source\n");
         return ;
     }
 
@@ -645,16 +625,14 @@ void load_screen(struct fb_info *info, bool initscreen)
     clk_disable(inf->hclk_cpu_display);
 
     clk_disable(inf->clk);
-    clk_set_parent(inf->dclk_divider, inf->dclk_parent);
-    clk_set_parent(inf->dclk, inf->dclk_divider);
     ret = clk_set_parent(inf->aclk, inf->aclk_parent);
 
     fbprintk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz ret =%d\n ", screen->pixclock, screen->lcdc_aclk, ret);
 
-    ret = clk_set_rate(inf->dclk_divider, screen->pixclock);
+    ret = clk_set_rate(inf->dclk, screen->pixclock);
     if(ret)
     {
-        printk(KERN_ERR ">>>>>> set lcdc dclk_divider faild \n ");
+        printk(KERN_ERR ">>>>>> set lcdc dclk failed\n");
     }
 
     if(screen->lcdc_aclk){
@@ -662,7 +640,7 @@ void load_screen(struct fb_info *info, bool initscreen)
     }
     ret = clk_set_rate(inf->aclk, aclk_rate);
     if(ret){
-        printk(KERN_ERR ">>>>>> set lcdc dclk_divider faild \n ");
+        printk(KERN_ERR ">>>>>> set lcdc aclk failed\n");
     }
 
     clk_enable(inf->aclk_ddr_lcdc);
@@ -1793,7 +1771,7 @@ static int fb1_set_par(struct fb_info *info)
 	CHK_SUSPEND(inf);
     if((var->rotate == 270)||(var->rotate == 90))
     {
-        #if CONFIG_FB_ROTATE_VIDEO
+        #ifdef CONFIG_FB_ROTATE_VIDEO
         xpos = (var->nonstd>>20) & 0xfff;      //visiable pos in panel
         ypos = (var->nonstd>>8) & 0xfff;
         xsize = (var->grayscale>>20) & 0xfff;  //visiable size in panel
@@ -1885,7 +1863,7 @@ static int fb1_set_par(struct fb_info *info)
     }
     wq_condition2 = 0;
 
-#if CONFIG_FB_ROTATE_VIDEO
+#ifdef CONFIG_FB_ROTATE_VIDEO
 //need refresh	,zyc add		
 	if((has_set_rotate == true) && (last_yuv_phy[0] != 0) && (last_yuv_phy[1] != 0))
 	{
@@ -1986,7 +1964,7 @@ int fb1_open(struct fb_info *info, int user)
     par->addr_seted = 0;
     inf->video_mode = 1;
     wq_condition2 = 1;
-#if CONFIG_FB_ROTATE_VIDEO
+#ifdef CONFIG_FB_ROTATE_VIDEO
    //reinitialize  the var when open,zyc
     last_yuv_phy[0] = 0;
     last_yuv_phy[1] = 0;

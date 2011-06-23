@@ -15,16 +15,15 @@
 #include <linux/irq.h>
 #include <linux/cdev.h>
 #include <asm/uaccess.h>
+#include <linux/proc_fs.h>
 
 #include "ili2102_ts.h"
 
+static int  ts_dbg_enable = 0;
 
-#if 0
-	#define DBG(msg...)	printk(msg);
-#else
-	#define DBG(msg...)
-#endif
-
+#define DBG(msg...) \
+	({if(ts_dbg_enable == 1) printk(msg);})
+		
 #define TOUCH_NUMBER 2
 
 static int touch_state[TOUCH_NUMBER] = {TOUCH_UP,TOUCH_UP};
@@ -109,6 +108,30 @@ static struct dev_data g_dev;
 #define ILITEK_IOCTL_I2C_UPDATE                 _IOWR(ILITEK_IOCTL_BASE, 11, int)
 #define ILITEK_IOCTL_STOP_READ_DATA             _IOWR(ILITEK_IOCTL_BASE, 12, int)
 #define ILITEK_IOCTL_START_READ_DATA            _IOWR(ILITEK_IOCTL_BASE, 13, int)
+
+
+static ssize_t ili2102_proc_write(struct file *file, const char __user *buffer,
+			   unsigned long count, void *data)
+{
+	char c;
+	int rc;
+	
+	rc = get_user(c, buffer);
+	if (rc)
+		return rc; 
+	
+	if (c == '1')
+		ts_dbg_enable = 1; 
+	else if (c == '0')
+		ts_dbg_enable = 0; 
+
+	return count; 
+}
+
+static const struct file_operations ili2102_proc_fops = {
+	.owner		= THIS_MODULE, 
+	.write		= ili2102_proc_write,
+}; 
 
 static int ilitek_file_open(struct inode *inode, struct file *filp)
 {
@@ -311,7 +334,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 	msg[0].len = 1;
 	msg[0].buf = &start_reg;
 	msg[0].scl_rate = 400*1000;
-	msg[0].udelay = 200;
+	msg[0].udelay = 250;
 	
 	msg[1].addr = ts->client->addr;
 	msg[1].flags = ts->client->flags | I2C_M_RD;
@@ -340,7 +363,7 @@ static void ili2102_ts_work_func(struct work_struct *work)
 				input_mt_sync(ts->input_dev);
 				syn_flag = 1;
 				touch_state[i] = TOUCH_UP;
-				DBG("touch_up \n");
+				DBG("i=%d,touch_up \n",i);
 			}
 
 		}
@@ -712,6 +735,9 @@ static int ili2102_ts_probe(struct i2c_client *client, const struct i2c_device_i
 	ts->early_suspend.resume = ili2102_ts_late_resume;
 	register_early_suspend(&ts->early_suspend);
 #endif
+		
+	struct proc_dir_entry *ili2102_proc_entry;	
+	ili2102_proc_entry = proc_create("driver/ili2102", 0777, NULL, &ili2102_proc_fops); 
 
 	printk(KERN_INFO "ili2102_ts_probe: Start touchscreen %s in %s mode\n", ts->input_dev->name, ts->use_irq ? "interrupt" : "polling");
 
@@ -758,6 +784,21 @@ static int ili2102_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	struct ili2102_ts_data *ts = i2c_get_clientdata(client);
 	uint8_t buf[1] = {0x30};
 	struct i2c_msg msg[1];
+
+	//to do suspend
+	msg[0].addr =client->addr;
+	msg[0].flags = 0;
+	msg[0].len = 1;
+	msg[0].buf = buf;
+
+	ret = i2c_transfer(client->adapter, msg, 1);
+	if (ret < 0) {
+	printk("%s:err\n",__FUNCTION__);
+	}
+
+	ret = cancel_delayed_work_sync(&ts->work);
+	if (ret && ts->use_irq) /* if work was pending disable-count is now 2 */
+	enable_irq(client->irq);
 	
 	if (ts->use_irq)
 	{
@@ -774,21 +815,6 @@ static int ili2102_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	else
 	hrtimer_cancel(&ts->timer);
 
-	ret = cancel_delayed_work_sync(&ts->work);
-	//if (ret && ts->use_irq) /* if work was pending disable-count is now 2 */
-	//enable_irq(client->irq);
-
-	//to do suspend
-	msg[0].addr =client->addr;
-	msg[0].flags = 0;
-	msg[0].len = 1;
-	msg[0].buf = buf;
-
-	ret = i2c_transfer(client->adapter, msg, 1);
-	if (ret < 0) {
-	printk("%s:err\n",__FUNCTION__);
-	}
-	
 	DBG("%s\n",__FUNCTION__);
 	
 	return 0;
@@ -799,7 +825,16 @@ static void ili2102_ts_resume_work_func(struct work_struct *work)
 {
 	struct ili2102_ts_data *ts = container_of(work, struct ili2102_ts_data, work);
 	int ret;
+
+	//report touch up to android
+	input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0); //Finger Size
+	input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0); //Touch Size
+	input_mt_sync(ts->input_dev);
+	input_sync(ts->input_dev);
+	
+	PREPARE_DELAYED_WORK(&ts->work, ili2102_ts_work_func);
 	mdelay(100); //wait for 100ms before i2c operation
+	
 	free_irq(ts->client->irq, ts);
 	ret = request_irq(ts->client->irq, ili2102_ts_irq_handler, IRQF_DISABLED | IRQF_TRIGGER_LOW, ts->client->name, ts);
 	if (ret == 0) {
@@ -809,8 +844,7 @@ static void ili2102_ts_resume_work_func(struct work_struct *work)
 	else 
 	printk("%s:request irq=%d failed,ret=%d\n",__FUNCTION__,ts->client->irq,ret);
 
-	PREPARE_DELAYED_WORK(&ts->work, ili2102_ts_work_func);
-	printk("%s,irq=%d\n",__FUNCTION__,ts->client->irq);
+	DBG("%s,irq=%d\n",__FUNCTION__,ts->client->irq);
 }
 
 

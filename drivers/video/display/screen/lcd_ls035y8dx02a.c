@@ -33,18 +33,18 @@
 #define LCDC_ACLK       150000000     //29 lcdc axi DMA Ƶ��
 
 /* Timing */
-#define H_PW			16//8 //16
-#define H_BP			24//6//24
+#define H_PW			8 //16
+#define H_BP			6//24
 #define H_VD			480//320
-#define H_FP			16//60//16
+#define H_FP			60//16
 
-#define V_PW			12//2
-#define V_BP			4// 2
+#define V_PW			2
+#define V_BP			2
 #define V_VD			800//480
-#define V_FP			50//4
+#define V_FP			4
 
-#define LCD_WIDTH       800    //need modify
-#define LCD_HEIGHT      480
+#define LCD_WIDTH       480    //need modify
+#define LCD_HEIGHT      800
 
 /* Other */
 #define DCLK_POL		1             //0 

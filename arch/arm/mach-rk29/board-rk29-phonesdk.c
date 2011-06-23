@@ -443,6 +443,7 @@ struct p1003_platform_data p1003_info = {
 };
 #endif
 
+
 #if defined(CONFIG_TOUCHSCREEN_GT801_IIC) 
 #include "../../../drivers/input/touchscreen/gt801_ts.h"
 #define GT801_GPIO_INT      RK29_PIN4_PD5
@@ -457,6 +458,28 @@ static struct gt801_platform_data gt801_info = {
 	.gpio_reset     = GT801_GPIO_RESET,
 	.gpio_reset_active_low = 0,
 	.gpio_pendown		= GT801_GPIO_INT,
+    .pendown_iomux_name = GPIO4D5_CPUTRACECTL_NAME,
+    .resetpin_iomux_name = NULL,
+    .pendown_iomux_mode = GPIO4H_GPIO4D5,
+    .resetpin_iomux_mode = 0,
+};
+#endif
+
+
+#if defined(CONFIG_TOUCHSCREEN_GT818_IIC)
+#include "../../../drivers/input/touchscreen/gt818_ts.h"
+#define GT818_GPIO_INT      RK29_PIN4_PD5
+#define GT818_GPIO_RESET    RK29_PIN6_PC3
+static struct gt818_platform_data gt818_info = {
+	.model			= 818,
+	.swap_xy		= 0,
+	.x_min			= 0,
+	.x_max			= 480,
+	.y_min			= 0,
+	.y_max			= 800,
+	.gpio_reset     = GT818_GPIO_RESET,
+	.gpio_reset_active_low = 0,
+	.gpio_pendown		= GT818_GPIO_INT,
     .pendown_iomux_name = GPIO4D5_CPUTRACECTL_NAME,
     .resetpin_iomux_name = NULL,
     .pendown_iomux_mode = GPIO4H_GPIO4D5,
@@ -749,10 +772,11 @@ int wm831x_post_init(struct wm831x *parm)
 	regulator_put(ldo);
 
 	ldo = regulator_get(NULL, "ldo3");		//sram
-	regulator_set_voltage(ldo,1800000,1800000);
-	regulator_set_suspend_voltage(ldo,1800000);
-	regulator_enable(ldo);			
-	printk("%s set ldo3=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+        regulator_disable(ldo);
+//	regulator_set_voltage(ldo,1800000,1800000);
+//	regulator_set_suspend_voltage(ldo,1800000);
+//	regulator_enable(ldo);			
+//	printk("%s set ldo3=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
 	regulator_put(ldo);	
 
 	ldo = regulator_get(NULL, "ldo5");		//tf
@@ -770,17 +794,19 @@ int wm831x_post_init(struct wm831x *parm)
 	regulator_put(ldo);
 
 	ldo = regulator_get(NULL, "ldo8");		//cmmb
-	regulator_set_voltage(ldo,1200000,1200000);
-	regulator_set_suspend_voltage(ldo,1200000);
-	regulator_enable(ldo);			
-	printk("%s set ldo8=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+        regulator_disable(ldo);
+//	regulator_set_voltage(ldo,1200000,1200000);
+//	regulator_set_suspend_voltage(ldo,1200000);
+//	regulator_enable(ldo);			
+//	printk("%s set ldo8=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 
 	ldo = regulator_get(NULL, "ldo9");		//cmmb
-	regulator_set_voltage(ldo,3000000,3000000);
-	regulator_set_suspend_voltage(ldo,3000000);
-	regulator_enable(ldo);			
-	printk("%s set ldo9=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+        regulator_disable(ldo);
+//	regulator_set_voltage(ldo,3000000,3000000);
+//	regulator_set_suspend_voltage(ldo,3000000);
+//	regulator_enable(ldo);			
+//	printk("%s set ldo9=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	
 #endif
@@ -1562,7 +1588,8 @@ struct wm8994_pdata wm8994_platdata = {
 	.jd_scthr = 0,
 	.jd_thr = 0,
 
-	.PA_control =0,
+	.PA_control_pin = 0,	
+	.Power_EN_Pin = RK29_PIN5_PA1,
 
 	.speaker_incall_vol = 0,
 	.speaker_incall_mic_vol = -9,
@@ -1580,17 +1607,17 @@ struct wm8994_pdata wm8994_platdata = {
 
 #ifdef CONFIG_RK_HEADSET_DET
 #define HEADSET_GPIO RK29_PIN4_PD2
-struct rk2818_headset_data rk2818_headset_info = {
-	.gpio		= HEADSET_GPIO,
-	.irq_type	= IRQF_TRIGGER_RISING,//IRQF_TRIGGER_RISING -- ??????	IRQF_TRIGGER_FALLING -- ?½???
+struct rk_headset_pdata rk_headset_info = {
+	.Headset_gpio		= RK29_PIN4_PD2,
 	.headset_in_type= HEADSET_IN_HIGH,
+	.Hook_gpio = RK29_PIN4_PD1,//Detection Headset--Must be set
 };
 
-struct platform_device rk28_device_headset = {
-		.name	= "rk2818_headsetdet",
+struct platform_device rk_device_headset = {
+		.name	= "rk_headsetdet",
 		.id 	= 0,
 		.dev    = {
-		    .platform_data = &rk2818_headset_info,
+		    .platform_data = &rk_headset_info,
 		}
 };
 #endif
@@ -1893,6 +1920,16 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
 	.irq            = RK29_PIN4_PD5,
 	.platform_data = &gt801_info,
 },	
+#endif
+
+#if defined (CONFIG_TOUCHSCREEN_GT818_IIC)
+{
+	.type           = "gt818_ts",
+	.addr           = 0x5d,
+	.flags          = 0,
+	.irq            = RK29_PIN4_PD5,
+	.platform_data = &gt818_info,
+},
 #endif
 
 #if defined (CONFIG_TOUCHSCREEN_ILI2102_IIC)
@@ -2603,7 +2640,7 @@ static struct platform_device *devices[] __initdata = {
 	&rk29_v4l2_output_devce,
 #endif
 #ifdef CONFIG_RK_HEADSET_DET
-    &rk28_device_headset,
+    &rk_device_headset,
 #endif
 #ifdef CONFIG_RK29_GPS
 	&rk29_device_gps,
@@ -2931,9 +2968,9 @@ static struct kobj_attribute rk29xx_virtual_keys_attr = {
 		.name = "virtualkeys.gt801-touchscreen",
 #elif defined(CONFIG_TOUCHSCREEN_ILI2102_IIC)
 		.name = "virtualkeys.ili2102-touchscreen",		
+#else
+		.name = "virtualkeys",
 #endif
-
-
 		.mode = S_IRUGO,
 	},
 	.show = &rk29xx_virtual_keys_show,
@@ -3036,7 +3073,11 @@ static void __init machine_rk29_board_init(void)
 	rk29sdk_init_wifi_mem();
 #endif
 
+#if (defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) && defined(CONFIG_TOUCHSCREEN_480X800)) \
+	|| defined(CONFIG_TOUCHSCREEN_HX8520_IIC) || defined(CONFIG_TOUCHSCREEN_GT801_IIC)
 	rk29xx_virtual_keys_init();
+#endif
+
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,
@@ -3053,7 +3094,7 @@ static void __init machine_rk29_mapio(void)
 	rk29_map_common_io();
 	rk29_setup_early_printk();
 	rk29_sram_init();
-	rk29_clock_init2(periph_pll_288mhz, codec_pll_300mhz, false);
+	rk29_clock_init2(periph_pll_96mhz, codec_pll_300mhz, false);
 	rk29_iomux_init();
 	ddr_init(DDR_TYPE, DDR_FREQ);
 }

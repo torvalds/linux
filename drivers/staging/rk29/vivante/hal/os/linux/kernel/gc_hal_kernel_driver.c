@@ -207,7 +207,7 @@ void gputimer_callback(unsigned long arg)
     u32 run, idle;
     int precent, freq, diff;
     
-	mod_timer(&gpu_timer, jiffies + HZ/10);
+	mod_timer(&gpu_timer, jiffies + HZ/4);
 
     get_run_idle(&run, &idle);
     precent = (int)((run*100)/(run+idle));
@@ -237,8 +237,9 @@ void gputimer_callback(unsigned long arg)
         last_freq = freq;
         //set_nextfreq(freq);
     }
-    
-    printk("%8d /%8d = %3d %%, needfreq = %dM (%d)\n", (int)run, (int)(run+idle), precent, freq, power_cnt);
+
+    printk("gpu load : %3d %%\n", precent);
+    //printk("%8d /%8d = %3d %%, needfreq = %dM (%d)\n", (int)run, (int)(run+idle), precent, freq, power_cnt);
 }
 #elif(2==gcdENABLE_AUTO_FREQ)
 #include <linux/timer.h>
