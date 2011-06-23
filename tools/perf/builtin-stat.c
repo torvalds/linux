@@ -517,7 +517,10 @@ static void print_noise_pct(double total, double avg)
 	if (avg)
 		pct = 100.0*total/avg;
 
-	fprintf(stderr, "  ( +-%6.2f%% )", pct);
+	if (csv_output)
+		fprintf(stderr, "%s%.2f%%", csv_sep, pct);
+	else
+		fprintf(stderr, "  ( +-%6.2f%% )", pct);
 }
 
 static void print_noise(struct perf_evsel *evsel, double avg)
@@ -882,12 +885,12 @@ static void print_counter_aggr(struct perf_evsel *counter)
 	else
 		abs_printout(-1, counter, avg);
 
+	print_noise(counter, avg);
+
 	if (csv_output) {
 		fputc('\n', stderr);
 		return;
 	}
-
-	print_noise(counter, avg);
 
 	if (scaled) {
 		double avg_enabled, avg_running;
