@@ -392,13 +392,6 @@ config MTD_AUTCPU12
 	  This enables access to the NV-RAM on autronix autcpu12 board.
 	  If you have such a board, say 'Y'.
 
-config MTD_EDB7312
-	tristate "CFI Flash device mapped on EDB7312"
-	depends on ARCH_EDB7312 && MTD_CFI
-	help
-	  This enables access to the CFI Flash on the Cogent EDB7312 board.
-	  If you have such a board, say 'Y' here.
-
 config MTD_IMPA7
 	tristate "JEDEC Flash device mapped on impA7"
 	depends on ARM && MTD_JEDECPROBE
