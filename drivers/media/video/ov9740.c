@@ -201,6 +201,10 @@ struct ov9740_priv {
 
 	bool				flag_vflip;
 	bool				flag_hflip;
+
+	/* For suspend/resume. */
+	struct v4l2_mbus_framefmt	current_mf;
+	bool				current_enable;
 };
 
 static const struct ov9740_reg ov9740_defaults[] = {
@@ -551,6 +555,8 @@ static int ov9740_s_stream(struct v4l2_subdev *sd, int enable)
 					       0x00);
 	}
 
+	priv->current_enable = enable;
+
 	return ret;
 }
 
@@ -702,6 +708,7 @@ static int ov9740_s_fmt(struct v4l2_subdev *sd,
 			struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct ov9740_priv *priv = to_ov9740(sd);
 	enum v4l2_colorspace cspace;
 	enum v4l2_mbus_pixelcode code = mf->code;
 	int ret;
@@ -727,6 +734,8 @@ static int ov9740_s_fmt(struct v4l2_subdev *sd,
 
 	mf->code	= code;
 	mf->colorspace	= cspace;
+
+	memcpy(&priv->current_mf, mf, sizeof(struct v4l2_mbus_framefmt));
 
 	return ret;
 }
@@ -825,6 +834,24 @@ static int ov9740_g_chip_ident(struct v4l2_subdev *sd,
 
 	id->ident = priv->ident;
 	id->revision = priv->revision;
+
+	return 0;
+}
+
+static int ov9740_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct ov9740_priv *priv = to_ov9740(sd);
+
+	if (!priv->current_enable)
+		return 0;
+
+	if (on) {
+		ov9740_s_fmt(sd, &priv->current_mf);
+		ov9740_s_stream(sd, priv->current_enable);
+	} else {
+		ov9740_s_stream(sd, 0);
+		priv->current_enable = true;
+	}
 
 	return 0;
 }
@@ -942,6 +969,7 @@ static struct v4l2_subdev_core_ops ov9740_core_ops = {
 	.g_ctrl			= ov9740_g_ctrl,
 	.s_ctrl			= ov9740_s_ctrl,
 	.g_chip_ident		= ov9740_g_chip_ident,
+	.s_power		= ov9740_s_power,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register		= ov9740_get_register,
 	.s_register		= ov9740_set_register,
