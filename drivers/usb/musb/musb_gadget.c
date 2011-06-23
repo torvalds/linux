@@ -1657,8 +1657,8 @@ static void musb_pullup(struct musb *musb, int is_on)
 
 	/* FIXME if on, HdrcStart; if off, HdrcStop */
 
-	dev_dbg(musb->controller, "gadget %s D+ pullup %s\n",
-		musb->gadget_driver->function, is_on ? "on" : "off");
+	dev_dbg(musb->controller, "gadget D+ pullup %s\n",
+		is_on ? "on" : "off");
 	musb_writeb(musb->mregs, MUSB_POWER, power);
 }
 
@@ -1704,9 +1704,10 @@ static int musb_gadget_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-static int musb_gadget_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
-static int musb_gadget_stop(struct usb_gadget_driver *driver);
+static int musb_gadget_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+static int musb_gadget_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
 
 static const struct usb_gadget_ops musb_gadget_operations = {
 	.get_frame		= musb_gadget_get_frame,
@@ -1715,8 +1716,8 @@ static const struct usb_gadget_ops musb_gadget_operations = {
 	/* .vbus_session		= musb_gadget_vbus_session, */
 	.vbus_draw		= musb_gadget_vbus_draw,
 	.pullup			= musb_gadget_pullup,
-	.start			= musb_gadget_start,
-	.stop			= musb_gadget_stop,
+	.udc_start		= musb_gadget_start,
+	.udc_stop		= musb_gadget_stop,
 };
 
 /* ----------------------------------------------------------------------- */
@@ -1727,7 +1728,6 @@ static const struct usb_gadget_ops musb_gadget_operations = {
  * about there being only one external upstream port.  It assumes
  * all peripheral ports are external...
  */
-static struct musb *the_gadget;
 
 static void musb_gadget_release(struct device *dev)
 {
@@ -1814,9 +1814,6 @@ int __init musb_gadget_setup(struct musb *musb)
 	 * musb peripherals at the same time, only the bus lock
 	 * is probably held.
 	 */
-	if (the_gadget)
-		return -EBUSY;
-	the_gadget = musb;
 
 	musb->g.ops = &musb_gadget_operations;
 	musb->g.is_dualspeed = 1;
@@ -1840,7 +1837,6 @@ int __init musb_gadget_setup(struct musb *musb)
 	status = device_register(&musb->g.dev);
 	if (status != 0) {
 		put_device(&musb->g.dev);
-		the_gadget = NULL;
 		return status;
 	}
 	status = usb_add_gadget_udc(musb->controller, &musb->g);
@@ -1850,18 +1846,13 @@ int __init musb_gadget_setup(struct musb *musb)
 	return 0;
 err:
 	device_unregister(&musb->g.dev);
-	the_gadget = NULL;
 	return status;
 }
 
 void musb_gadget_cleanup(struct musb *musb)
 {
-	if (musb != the_gadget)
-		return;
-
 	usb_del_gadget_udc(&musb->g);
 	device_unregister(&musb->g.dev);
-	the_gadget = NULL;
 }
 
 /*
@@ -1873,59 +1864,30 @@ void musb_gadget_cleanup(struct musb *musb)
  * -ENOMEM no memory to perform the operation
  *
  * @param driver the gadget driver
- * @param bind the driver's bind function
  * @return <0 if error, 0 if everything is fine
  */
-static int musb_gadget_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+static int musb_gadget_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct musb		*musb = the_gadget;
+	struct musb		*musb = gadget_to_musb(g);
 	unsigned long		flags;
 	int			retval = -EINVAL;
 
-	if (!driver
-			|| driver->speed != USB_SPEED_HIGH
-			|| !bind || !driver->setup)
+	if (driver->speed != USB_SPEED_HIGH)
 		goto err0;
-
-	/* driver must be initialized to support peripheral mode */
-	if (!musb) {
-		dev_dbg(musb->controller, "no dev??\n");
-		retval = -ENODEV;
-		goto err0;
-	}
 
 	pm_runtime_get_sync(musb->controller);
 
 	dev_dbg(musb->controller, "registering driver %s\n", driver->function);
 
-	if (musb->gadget_driver) {
-		dev_dbg(musb->controller, "%s is already bound to %s\n",
-				musb_driver_name,
-				musb->gadget_driver->driver.name);
-		retval = -EBUSY;
-		goto err0;
-	}
-
-	spin_lock_irqsave(&musb->lock, flags);
+	musb->softconnect = 0;
 	musb->gadget_driver = driver;
-	musb->g.dev.driver = &driver->driver;
-	driver->driver.bus = NULL;
-	musb->softconnect = 1;
-	spin_unlock_irqrestore(&musb->lock, flags);
-
-	retval = bind(&musb->g);
-	if (retval) {
-		dev_dbg(musb->controller, "bind to driver %s failed --> %d\n",
-				driver->driver.name, retval);
-		goto err1;
-	}
 
 	spin_lock_irqsave(&musb->lock, flags);
+	musb->is_active = 1;
 
 	otg_set_peripheral(musb->xceiv, &musb->g);
 	musb->xceiv->state = OTG_STATE_B_IDLE;
-	musb->is_active = 1;
 
 	/*
 	 * FIXME this ignores the softconnect flag.  Drivers are
@@ -1936,8 +1898,6 @@ static int musb_gadget_start(struct usb_gadget_driver *driver,
 
 	if (!is_otg_enabled(musb))
 		musb_start(musb);
-
-	otg_set_peripheral(musb->xceiv, &musb->g);
 
 	spin_unlock_irqrestore(&musb->lock, flags);
 
@@ -1970,11 +1930,6 @@ static int musb_gadget_start(struct usb_gadget_driver *driver,
 err2:
 	if (!is_otg_enabled(musb))
 		musb_stop(musb);
-
-err1:
-	musb->gadget_driver = NULL;
-	musb->g.dev.driver = NULL;
-
 err0:
 	return retval;
 }
@@ -2027,16 +1982,11 @@ static void stop_activity(struct musb *musb, struct usb_gadget_driver *driver)
  *
  * @param driver the gadget driver to unregister
  */
-static int musb_gadget_stop(struct usb_gadget_driver *driver)
+static int musb_gadget_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct musb	*musb = the_gadget;
+	struct musb	*musb = gadget_to_musb(g);
 	unsigned long	flags;
-
-	if (!driver || !driver->unbind || !musb)
-		return -EINVAL;
-
-	if (!musb->gadget_driver)
-		return -EINVAL;
 
 	if (musb->xceiv->last_event == USB_EVENT_NONE)
 		pm_runtime_get_sync(musb->controller);
@@ -2057,13 +2007,6 @@ static int musb_gadget_stop(struct usb_gadget_driver *driver)
 	otg_set_peripheral(musb->xceiv, NULL);
 
 	dev_dbg(musb->controller, "unregistering driver %s\n", driver->function);
-
-	spin_unlock_irqrestore(&musb->lock, flags);
-	driver->unbind(&musb->g);
-	spin_lock_irqsave(&musb->lock, flags);
-
-	musb->gadget_driver = NULL;
-	musb->g.dev.driver = NULL;
 
 	musb->is_active = 0;
 	musb_platform_try_idle(musb, 0);

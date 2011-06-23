@@ -899,7 +899,6 @@ void musb_start(struct musb *musb)
 
 	/* put into basic highspeed mode and start session */
 	musb_writeb(regs, MUSB_POWER, MUSB_POWER_ISOUPDATE
-						| MUSB_POWER_SOFTCONN
 						| MUSB_POWER_HSENAB
 						/* ENSUSPEND wedges tusb */
 						/* | MUSB_POWER_ENSUSPEND */
@@ -1525,12 +1524,6 @@ irqreturn_t musb_interrupt(struct musb *musb)
 	dev_dbg(musb->controller, "** IRQ %s usb%04x tx%04x rx%04x\n",
 		(devctl & MUSB_DEVCTL_HM) ? "host" : "peripheral",
 		musb->int_usb, musb->int_tx, musb->int_rx);
-
-	if (is_otg_enabled(musb) || is_peripheral_enabled(musb))
-		if (!musb->gadget_driver) {
-			dev_dbg(musb->controller, "No gadget driver loaded\n");
-			return IRQ_HANDLED;
-		}
 
 	/* the core can interrupt us for multiple reasons; docs have
 	 * a generic interrupt flowchart to follow
