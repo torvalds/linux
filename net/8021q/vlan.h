@@ -75,8 +75,6 @@ static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
 }
 
 /* found in vlan_dev.c */
-int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
-		  struct packet_type *ptype, struct net_device *orig_dev);
 void vlan_dev_set_ingress_priority(const struct net_device *dev,
 				   u32 skb_prio, u16 vlan_prio);
 int vlan_dev_set_egress_priority(const struct net_device *dev,
@@ -119,11 +117,6 @@ extern int vlan_netlink_init(void);
 extern void vlan_netlink_fini(void);
 
 extern struct rtnl_link_ops vlan_link_ops;
-
-static inline int is_vlan_dev(struct net_device *dev)
-{
-	return dev->priv_flags & IFF_802_1Q_VLAN;
-}
 
 extern int vlan_net_id;
 

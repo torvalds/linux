@@ -134,7 +134,7 @@ struct iwl_queue {
 				* space more than this */
 	int high_mark;         /* high watermark, stop queue if free
 				* space less than this */
-} __packed;
+};
 
 /* One for each TFD */
 struct iwl_tx_info {
@@ -290,6 +290,7 @@ enum {
 	CMD_SIZE_HUGE = (1 << 0),
 	CMD_ASYNC = (1 << 1),
 	CMD_WANT_SKB = (1 << 2),
+	CMD_MAPPED = (1 << 3),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -854,17 +855,6 @@ struct traffic_stats {
 };
 
 /*
- * iwl_switch_rxon: "channel switch" structure
- *
- * @ switch_in_progress: channel switch in progress
- * @ channel: new channel
- */
-struct iwl_switch_rxon {
-	bool switch_in_progress;
-	__le16 channel;
-};
-
-/*
  * schedule the timer to wake up every UCODE_TRACE_PERIOD milliseconds
  * to perform continuous uCode event logging operation if enabled
  */
@@ -1076,7 +1066,6 @@ struct iwl_priv {
 	spinlock_t hcmd_lock;	/* protect hcmd */
 	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
-	struct mutex sync_cmd_mutex; /* enable serialization of sync commands */
 
 	/* basic pci-network driver stuff */
 	struct pci_dev *pci_dev;
@@ -1115,7 +1104,7 @@ struct iwl_priv {
 
 	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];
 
-	struct iwl_switch_rxon switch_rxon;
+	__le16 switch_channel;
 
 	/* 1st responses from initialize and runtime uCode images.
 	 * _4965's initialize alive response contains some calibration data. */
@@ -1409,6 +1398,12 @@ static inline int
 iwl_legacy_is_channel_passive(const struct iwl_channel_info *ch)
 {
 	return (!(ch->flags & EEPROM_CHANNEL_ACTIVE)) ? 1 : 0;
+}
+
+static inline int
+iwl_legacy_is_channel_ibss(const struct iwl_channel_info *ch)
+{
+	return (ch->flags & EEPROM_CHANNEL_IBSS) ? 1 : 0;
 }
 
 static inline void

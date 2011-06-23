@@ -8,7 +8,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  *
- * See Documentation/keys-request-key.txt
+ * See Documentation/security/keys-request-key.txt
  */
 
 #include <linux/module.h>
@@ -71,9 +71,8 @@ EXPORT_SYMBOL(complete_request_key);
  * This is called in context of freshly forked kthread before kernel_execve(),
  * so we can simply install the desired session_keyring at this point.
  */
-static int umh_keys_init(struct subprocess_info *info)
+static int umh_keys_init(struct subprocess_info *info, struct cred *cred)
 {
-	struct cred *cred = (struct cred*)current_cred();
 	struct key *keyring = info->data;
 
 	return install_session_keyring_to_cred(cred, keyring);
@@ -530,8 +529,7 @@ struct key *request_key_and_link(struct key_type *type,
 	       dest_keyring, flags);
 
 	/* search all the process keyrings for a key */
-	key_ref = search_process_keyrings(type, description, type->match,
-					  cred);
+	key_ref = search_process_keyrings(type, description, type->match, cred);
 
 	if (!IS_ERR(key_ref)) {
 		key = key_ref_to_ptr(key_ref);

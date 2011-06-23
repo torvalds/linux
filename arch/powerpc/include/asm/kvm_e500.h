@@ -43,6 +43,7 @@ struct kvmppc_vcpu_e500 {
 
 	u32 host_pid[E500_PID_NUM];
 	u32 pid[E500_PID_NUM];
+	u32 svr;
 
 	u32 mas0;
 	u32 mas1;
@@ -58,6 +59,7 @@ struct kvmppc_vcpu_e500 {
 	u32 hid1;
 	u32 tlb0cfg;
 	u32 tlb1cfg;
+	u64 mcar;
 
 	struct kvm_vcpu vcpu;
 };

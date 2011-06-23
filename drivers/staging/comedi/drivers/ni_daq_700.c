@@ -552,7 +552,7 @@ static int dio700_cs_resume(struct pcmcia_device *link)
 
 /*====================================================================*/
 
-static struct pcmcia_device_id dio700_cs_ids[] = {
+static const struct pcmcia_device_id dio700_cs_ids[] = {
 	/* N.B. These IDs should match those in dio700_boards */
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x4743),	/* daqcard-700 */
 	PCMCIA_DEVICE_NULL

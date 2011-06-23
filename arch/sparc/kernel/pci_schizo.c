@@ -264,7 +264,7 @@ static void schizo_check_iommu_error_pbm(struct pci_pbm_info *pbm,
 		default:
 			type_string = "ECC Error";
 			break;
-		};
+		}
 		printk("%s: IOMMU Error, type[%s]\n",
 		       pbm->name, type_string);
 
@@ -319,7 +319,7 @@ static void schizo_check_iommu_error_pbm(struct pci_pbm_info *pbm,
 			default:
 				type_string = "ECC Error";
 				break;
-			};
+			}
 			printk("%s: IOMMU TAG(%d)[error(%s) ctx(%x) wr(%d) str(%d) "
 			       "sz(%dK) vpg(%08lx)]\n",
 			       pbm->name, i, type_string,
@@ -1328,7 +1328,7 @@ static int __devinit schizo_pbm_init(struct pci_pbm_info *pbm,
 	default:
 		chipset_name = "SCHIZO";
 		break;
-	};
+	}
 
 	/* For SCHIZO, three OBP regs:
 	 * 1) PBM controller regs
@@ -1458,11 +1458,15 @@ out_err:
 	return err;
 }
 
+static const struct of_device_id schizo_match[];
 static int __devinit schizo_probe(struct platform_device *op)
 {
-	if (!op->dev.of_match)
+	const struct of_device_id *match;
+
+	match = of_match_device(schizo_match, &op->dev);
+	if (!match)
 		return -EINVAL;
-	return __schizo_init(op, (unsigned long) op->dev.of_match->data);
+	return __schizo_init(op, (unsigned long)match->data);
 }
 
 /* The ordering of this table is very important.  Some Tomatillo

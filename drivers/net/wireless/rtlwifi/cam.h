@@ -23,12 +23,13 @@
  * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
  * Hsinchu 300, Taiwan.
  *
+ * Larry Finger <Larry.Finger@lwfinger.net>
+ *
  *****************************************************************************/
 
 #ifndef __RTL_CAM_H_
 #define __RTL_CAM_H_
 
-#define TOTAL_CAM_ENTRY					32
 #define CAM_CONTENT_COUNT				8
 
 #define CFG_DEFAULT_KEY					BIT(5)
@@ -49,5 +50,7 @@ int rtl_cam_delete_one_entry(struct ieee80211_hw *hw, u8 *mac_addr,
 void rtl_cam_mark_invalid(struct ieee80211_hw *hw, u8 uc_index);
 void rtl_cam_empty_entry(struct ieee80211_hw *hw, u8 uc_index);
 void rtl_cam_reset_sec_info(struct ieee80211_hw *hw);
+u8 rtl_cam_get_free_entry(struct ieee80211_hw *hw, u8 *sta_addr);
+void rtl_cam_del_entry(struct ieee80211_hw *hw, u8 *sta_addr);
 
 #endif

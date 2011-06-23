@@ -146,6 +146,8 @@ static inline uint xlog_get_client_id(__be32 i)
 					   shutdown */
 #define XLOG_TAIL_WARN		0x10	/* log tail verify warning issued */
 
+typedef __uint32_t xlog_tid_t;
+
 #ifdef __KERNEL__
 /*
  * Below are states for covering allocation transactions.

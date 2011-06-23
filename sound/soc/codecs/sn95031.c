@@ -827,8 +827,6 @@ EXPORT_SYMBOL_GPL(sn95031_jack_detection);
 /* codec registration */
 static int sn95031_codec_probe(struct snd_soc_codec *codec)
 {
-	int ret;
-
 	pr_debug("codec_probe called\n");
 
 	codec->dapm.bias_level = SND_SOC_BIAS_OFF;
@@ -879,16 +877,7 @@ static int sn95031_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_add_controls(codec, sn95031_snd_controls,
 			     ARRAY_SIZE(sn95031_snd_controls));
 
-	ret = snd_soc_dapm_new_controls(&codec->dapm, sn95031_dapm_widgets,
-				ARRAY_SIZE(sn95031_dapm_widgets));
-	if (ret)
-		pr_err("soc_dapm_new_control failed %d", ret);
-	ret = snd_soc_dapm_add_routes(&codec->dapm, sn95031_audio_map,
-				ARRAY_SIZE(sn95031_audio_map));
-	if (ret)
-		pr_err("soc_dapm_add_routes failed %d", ret);
-
-	return ret;
+	return 0;
 }
 
 static int sn95031_codec_remove(struct snd_soc_codec *codec)
@@ -905,6 +894,10 @@ struct snd_soc_codec_driver sn95031_codec = {
 	.read		= sn95031_read,
 	.write		= sn95031_write,
 	.set_bias_level	= sn95031_set_vaud_bias,
+	.dapm_widgets	= sn95031_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(sn95031_dapm_widgets),
+	.dapm_routes	= sn95031_audio_map,
+	.num_dapm_routes	= ARRAY_SIZE(sn95031_audio_map),
 };
 
 static int __devinit sn95031_device_probe(struct platform_device *pdev)

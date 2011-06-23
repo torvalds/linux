@@ -23,6 +23,7 @@
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/writeback.h>
+#include <linux/backing-dev.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -700,11 +701,47 @@ void gfs2_unfreeze_fs(struct gfs2_sbd *sdp)
 	mutex_unlock(&sdp->sd_freeze_lock);
 }
 
+void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
+{
+	struct gfs2_dinode *str = buf;
+
+	str->di_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
+	str->di_header.mh_type = cpu_to_be32(GFS2_METATYPE_DI);
+	str->di_header.mh_format = cpu_to_be32(GFS2_FORMAT_DI);
+	str->di_num.no_addr = cpu_to_be64(ip->i_no_addr);
+	str->di_num.no_formal_ino = cpu_to_be64(ip->i_no_formal_ino);
+	str->di_mode = cpu_to_be32(ip->i_inode.i_mode);
+	str->di_uid = cpu_to_be32(ip->i_inode.i_uid);
+	str->di_gid = cpu_to_be32(ip->i_inode.i_gid);
+	str->di_nlink = cpu_to_be32(ip->i_inode.i_nlink);
+	str->di_size = cpu_to_be64(i_size_read(&ip->i_inode));
+	str->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(&ip->i_inode));
+	str->di_atime = cpu_to_be64(ip->i_inode.i_atime.tv_sec);
+	str->di_mtime = cpu_to_be64(ip->i_inode.i_mtime.tv_sec);
+	str->di_ctime = cpu_to_be64(ip->i_inode.i_ctime.tv_sec);
+
+	str->di_goal_meta = cpu_to_be64(ip->i_goal);
+	str->di_goal_data = cpu_to_be64(ip->i_goal);
+	str->di_generation = cpu_to_be64(ip->i_generation);
+
+	str->di_flags = cpu_to_be32(ip->i_diskflags);
+	str->di_height = cpu_to_be16(ip->i_height);
+	str->di_payload_format = cpu_to_be32(S_ISDIR(ip->i_inode.i_mode) &&
+					     !(ip->i_diskflags & GFS2_DIF_EXHASH) ?
+					     GFS2_FORMAT_DE : 0);
+	str->di_depth = cpu_to_be16(ip->i_depth);
+	str->di_entries = cpu_to_be32(ip->i_entries);
+
+	str->di_eattr = cpu_to_be64(ip->i_eattr);
+	str->di_atime_nsec = cpu_to_be32(ip->i_inode.i_atime.tv_nsec);
+	str->di_mtime_nsec = cpu_to_be32(ip->i_inode.i_mtime.tv_nsec);
+	str->di_ctime_nsec = cpu_to_be32(ip->i_inode.i_ctime.tv_nsec);
+}
 
 /**
  * gfs2_write_inode - Make sure the inode is stable on the disk
  * @inode: The inode
- * @sync: synchronous write flag
+ * @wbc: The writeback control structure
  *
  * Returns: errno
  */
@@ -713,15 +750,17 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct address_space *metamapping = gfs2_glock2aspace(ip->i_gl);
+	struct backing_dev_info *bdi = metamapping->backing_dev_info;
 	struct gfs2_holder gh;
 	struct buffer_head *bh;
 	struct timespec atime;
 	struct gfs2_dinode *di;
-	int ret = 0;
+	int ret = -EAGAIN;
 
-	/* Check this is a "normal" inode, etc */
+	/* Skip timestamp update, if this is from a memalloc */
 	if (current->flags & PF_MEMALLOC)
-		return 0;
+		goto do_flush;
 	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	if (ret)
 		goto do_flush;
@@ -745,6 +784,13 @@ do_unlock:
 do_flush:
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		gfs2_log_flush(GFS2_SB(inode), ip->i_gl);
+	filemap_fdatawrite(metamapping);
+	if (bdi->dirty_exceeded)
+		gfs2_ail1_flush(sdp, wbc);
+	if (!ret && (wbc->sync_mode == WB_SYNC_ALL))
+		ret = filemap_fdatawait(metamapping);
+	if (ret)
+		mark_inode_dirty_sync(inode);
 	return ret;
 }
 
@@ -874,8 +920,9 @@ restart:
 
 static int gfs2_sync_fs(struct super_block *sb, int wait)
 {
-	if (wait && sb->s_fs_info)
-		gfs2_log_flush(sb->s_fs_info, NULL);
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+	if (wait && sdp)
+		gfs2_log_flush(sdp, NULL);
 	return 0;
 }
 
@@ -1308,6 +1355,78 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	return 0;
 }
 
+static void gfs2_final_release_pages(struct gfs2_inode *ip)
+{
+	struct inode *inode = &ip->i_inode;
+	struct gfs2_glock *gl = ip->i_gl;
+
+	truncate_inode_pages(gfs2_glock2aspace(ip->i_gl), 0);
+	truncate_inode_pages(&inode->i_data, 0);
+
+	if (atomic_read(&gl->gl_revokes) == 0) {
+		clear_bit(GLF_LFLUSH, &gl->gl_flags);
+		clear_bit(GLF_DIRTY, &gl->gl_flags);
+	}
+}
+
+static int gfs2_dinode_dealloc(struct gfs2_inode *ip)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_alloc *al;
+	struct gfs2_rgrpd *rgd;
+	int error;
+
+	if (gfs2_get_inode_blocks(&ip->i_inode) != 1) {
+		gfs2_consist_inode(ip);
+		return -EIO;
+	}
+
+	al = gfs2_alloc_get(ip);
+	if (!al)
+		return -ENOMEM;
+
+	error = gfs2_quota_hold(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
+	if (error)
+		goto out;
+
+	error = gfs2_rindex_hold(sdp, &al->al_ri_gh);
+	if (error)
+		goto out_qs;
+
+	rgd = gfs2_blk2rgrpd(sdp, ip->i_no_addr);
+	if (!rgd) {
+		gfs2_consist_inode(ip);
+		error = -EIO;
+		goto out_rindex_relse;
+	}
+
+	error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0,
+				   &al->al_rgd_gh);
+	if (error)
+		goto out_rindex_relse;
+
+	error = gfs2_trans_begin(sdp, RES_RG_BIT + RES_STATFS + RES_QUOTA,
+				 sdp->sd_jdesc->jd_blocks);
+	if (error)
+		goto out_rg_gunlock;
+
+	gfs2_free_di(rgd, ip);
+
+	gfs2_final_release_pages(ip);
+
+	gfs2_trans_end(sdp);
+
+out_rg_gunlock:
+	gfs2_glock_dq_uninit(&al->al_rgd_gh);
+out_rindex_relse:
+	gfs2_glock_dq_uninit(&al->al_ri_gh);
+out_qs:
+	gfs2_quota_unhold(ip);
+out:
+	gfs2_alloc_put(ip);
+	return error;
+}
+
 /*
  * We have to (at the moment) hold the inodes main lock to cover
  * the gap between unlocking the shared lock on the iopen lock and
@@ -1371,15 +1490,13 @@ static void gfs2_evict_inode(struct inode *inode)
 	}
 
 	error = gfs2_dinode_dealloc(ip);
-	if (error)
-		goto out_unlock;
+	goto out_unlock;
 
 out_truncate:
 	error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
 	if (error)
 		goto out_unlock;
-	/* Needs to be done before glock release & also in a transaction */
-	truncate_inode_pages(&inode->i_data, 0);
+	gfs2_final_release_pages(ip);
 	gfs2_trans_end(sdp);
 
 out_unlock:
@@ -1394,6 +1511,7 @@ out:
 	end_writeback(inode);
 
 	ip->i_gl->gl_object = NULL;
+	gfs2_glock_add_to_lru(ip->i_gl);
 	gfs2_glock_put(ip->i_gl);
 	ip->i_gl = NULL;
 	if (ip->i_iopen_gh.gh_gl) {

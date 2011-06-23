@@ -79,33 +79,10 @@
 #define A_MEMZERO(addr, len)            memset(addr, 0, len)
 #define A_MALLOC(size)                  kmalloc((size), GFP_KERNEL)
 #define A_MALLOC_NOWAIT(size)           kmalloc((size), GFP_ATOMIC)
-#define A_FREE(addr)                    kfree(addr)
 
-#if defined(ANDROID_ENV) && defined(CONFIG_ANDROID_LOGGER)
-extern unsigned int enablelogcat;
-extern int android_logger_lv(void* module, int mask);
-enum logidx { LOG_MAIN_IDX = 0 };
-extern int logger_write(const enum logidx idx, 
-                const unsigned char prio,
-                const char __kernel * const tag,
-                const char __kernel * const fmt,
-                ...);
-#define A_ANDROID_PRINTF(mask, module, tags, args...) do {  \
-    if (enablelogcat) \
-        logger_write(LOG_MAIN_IDX, android_logger_lv(module, mask), tags, args); \
-    else \
-        printk(KERN_ALERT args); \
-} while (0)
-#ifdef DEBUG
-#define A_LOGGER_MODULE_NAME(x) #x
-#define A_LOGGER(mask, mod, args...) \
-    A_ANDROID_PRINTF(mask, &GET_ATH_MODULE_DEBUG_VAR_NAME(mod), "ar6k_" A_LOGGER_MODULE_NAME(mod), args);
-#endif 
-#define A_PRINTF(args...) A_ANDROID_PRINTF(ATH_DEBUG_INFO, NULL, "ar6k_driver", args)
-#else
 #define A_LOGGER(mask, mod, args...)    printk(KERN_ALERT args)
 #define A_PRINTF(args...)               printk(KERN_ALERT args)
-#endif /* ANDROID */
+
 #define A_PRINTF_LOG(args...)           printk(args)
 #define A_SPRINTF(buf, args...)			sprintf (buf, args)
 
@@ -211,17 +188,8 @@ extern unsigned int panic_on_assert;
 #define A_ASSERT(expr)
 #endif /* DEBUG */
 
-#ifdef ANDROID_ENV
-struct firmware;
-int android_request_firmware(const struct firmware **firmware_p, const char *filename,
-                     struct device *device);
-void android_release_firmware(const struct firmware *firmware);
-#define A_REQUEST_FIRMWARE(_ppf, _pfile, _dev) android_request_firmware(_ppf, _pfile, _dev)
-#define A_RELEASE_FIRMWARE(_pf) android_release_firmware(_pf)
-#else
 #define A_REQUEST_FIRMWARE(_ppf, _pfile, _dev) request_firmware(_ppf, _pfile, _dev)
 #define A_RELEASE_FIRMWARE(_pf) release_firmware(_pf)
-#endif 
 
 /*
  * Initialization of the network buffer subsystem
@@ -364,19 +332,8 @@ static inline void *A_ALIGN_TO_CACHE_LINE(void *ptr) {
 
 #define A_MEMZERO(addr, len)            memset((addr), 0, (len))
 #define A_MALLOC(size)                  malloc(size)
-#define A_FREE(addr)                    free(addr)
 
-#ifdef ANDROID
-#ifndef err
-#include <errno.h>
-#define err(_s, args...) do { \
-    fprintf(stderr, "%s: line %d ", __FILE__, __LINE__); \
-    fprintf(stderr, args); fprintf(stderr, ": %d\n", errno); \
-    exit(_s); } while (0)
-#endif
-#else
 #include <err.h>
-#endif
 
 #endif /* __KERNEL__ */
 

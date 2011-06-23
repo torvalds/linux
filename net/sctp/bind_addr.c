@@ -140,14 +140,12 @@ void sctp_bind_addr_init(struct sctp_bind_addr *bp, __u16 port)
 /* Dispose of the address list. */
 static void sctp_bind_addr_clean(struct sctp_bind_addr *bp)
 {
-	struct sctp_sockaddr_entry *addr;
-	struct list_head *pos, *temp;
+	struct sctp_sockaddr_entry *addr, *temp;
 
 	/* Empty the bind address list. */
-	list_for_each_safe(pos, temp, &bp->address_list) {
-		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-		list_del(pos);
-		kfree(addr);
+	list_for_each_entry_safe(addr, temp, &bp->address_list, list) {
+		list_del_rcu(&addr->list);
+		kfree_rcu(addr, rcu);
 		SCTP_DBG_OBJCNT_DEC(addr);
 	}
 }
@@ -219,7 +217,7 @@ int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr)
 	}
 
 	if (found) {
-		call_rcu(&addr->rcu, sctp_local_addr_free);
+		kfree_rcu(addr, rcu);
 		SCTP_DBG_OBJCNT_DEC(addr);
 		return 0;
 	}

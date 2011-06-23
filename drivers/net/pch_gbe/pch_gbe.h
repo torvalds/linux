@@ -597,8 +597,6 @@ struct pch_gbe_hw_stats {
  * @rx_ring:		Pointer of Rx descriptor ring structure
  * @rx_buffer_len:	Receive buffer length
  * @tx_queue_len:	Transmit queue length
- * @rx_csum:		Receive TCP/IP checksum enable/disable
- * @tx_csum:		Transmit TCP/IP checksum enable/disable
  * @have_msi:		PCI MSI mode flag
  */
 
@@ -623,8 +621,6 @@ struct pch_gbe_adapter {
 	struct pch_gbe_rx_ring *rx_ring;
 	unsigned long rx_buffer_len;
 	unsigned long tx_queue_len;
-	bool rx_csum;
-	bool tx_csum;
 	bool have_msi;
 };
 

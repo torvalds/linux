@@ -15,6 +15,22 @@
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 
+int __perf_evsel__sample_size(u64 sample_type)
+{
+	u64 mask = sample_type & PERF_SAMPLE_MASK;
+	int size = 0;
+	int i;
+
+	for (i = 0; i < 64; i++) {
+		if (mask & (1ULL << i))
+			size++;
+	}
+
+	size *= sizeof(u64);
+
+	return size;
+}
+
 void perf_evsel__init(struct perf_evsel *evsel,
 		      struct perf_event_attr *attr, int idx)
 {
@@ -35,7 +51,17 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 
 int perf_evsel__alloc_fd(struct perf_evsel *evsel, int ncpus, int nthreads)
 {
+	int cpu, thread;
 	evsel->fd = xyarray__new(ncpus, nthreads, sizeof(int));
+
+	if (evsel->fd) {
+		for (cpu = 0; cpu < ncpus; cpu++) {
+			for (thread = 0; thread < nthreads; thread++) {
+				FD(evsel, cpu, thread) = -1;
+			}
+		}
+	}
+
 	return evsel->fd != NULL ? 0 : -ENOMEM;
 }
 
@@ -303,8 +329,20 @@ static int perf_event__parse_id_sample(const union perf_event *event, u64 type,
 	return 0;
 }
 
+static bool sample_overlap(const union perf_event *event,
+			   const void *offset, u64 size)
+{
+	const void *base = event;
+
+	if (offset + size > base + event->header.size)
+		return true;
+
+	return false;
+}
+
 int perf_event__parse_sample(const union perf_event *event, u64 type,
-			     bool sample_id_all, struct perf_sample *data)
+			     int sample_size, bool sample_id_all,
+			     struct perf_sample *data)
 {
 	const u64 *array;
 
@@ -318,6 +356,9 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	array = event->sample.array;
+
+	if (sample_size + sizeof(event->header) > event->header.size)
+		return -EFAULT;
 
 	if (type & PERF_SAMPLE_IP) {
 		data->ip = event->ip.ip;
@@ -369,14 +410,29 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_CALLCHAIN) {
+		if (sample_overlap(event, array, sizeof(data->callchain->nr)))
+			return -EFAULT;
+
 		data->callchain = (struct ip_callchain *)array;
+
+		if (sample_overlap(event, array, data->callchain->nr))
+			return -EFAULT;
+
 		array += 1 + data->callchain->nr;
 	}
 
 	if (type & PERF_SAMPLE_RAW) {
 		u32 *p = (u32 *)array;
+
+		if (sample_overlap(event, array, sizeof(u32)))
+			return -EFAULT;
+
 		data->raw_size = *p;
 		p++;
+
+		if (sample_overlap(event, p, data->raw_size))
+			return -EFAULT;
+
 		data->raw_data = p;
 	}
 

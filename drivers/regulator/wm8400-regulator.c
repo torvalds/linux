@@ -55,7 +55,7 @@ static int wm8400_ldo_list_voltage(struct regulator_dev *dev,
 		return 1600000 + ((selector - 14) * 100000);
 }
 
-static int wm8400_ldo_get_voltage(struct regulator_dev *dev)
+static int wm8400_ldo_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct wm8400 *wm8400 = rdev_get_drvdata(dev);
 	u16 val;
@@ -63,7 +63,7 @@ static int wm8400_ldo_get_voltage(struct regulator_dev *dev)
 	val = wm8400_reg_read(wm8400, WM8400_LDO1_CONTROL + rdev_get_id(dev));
 	val &= WM8400_LDO1_VSEL_MASK;
 
-	return wm8400_ldo_list_voltage(dev, val);
+	return val;
 }
 
 static int wm8400_ldo_set_voltage(struct regulator_dev *dev,
@@ -104,7 +104,7 @@ static struct regulator_ops wm8400_ldo_ops = {
 	.enable = wm8400_ldo_enable,
 	.disable = wm8400_ldo_disable,
 	.list_voltage = wm8400_ldo_list_voltage,
-	.get_voltage = wm8400_ldo_get_voltage,
+	.get_voltage_sel = wm8400_ldo_get_voltage_sel,
 	.set_voltage = wm8400_ldo_set_voltage,
 };
 
@@ -145,7 +145,7 @@ static int wm8400_dcdc_list_voltage(struct regulator_dev *dev,
 	return 850000 + (selector * 25000);
 }
 
-static int wm8400_dcdc_get_voltage(struct regulator_dev *dev)
+static int wm8400_dcdc_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct wm8400 *wm8400 = rdev_get_drvdata(dev);
 	u16 val;
@@ -154,7 +154,7 @@ static int wm8400_dcdc_get_voltage(struct regulator_dev *dev)
 	val = wm8400_reg_read(wm8400, WM8400_DCDC1_CONTROL_1 + offset);
 	val &= WM8400_DC1_VSEL_MASK;
 
-	return 850000 + (25000 * val);
+	return val;
 }
 
 static int wm8400_dcdc_set_voltage(struct regulator_dev *dev,
@@ -261,7 +261,7 @@ static struct regulator_ops wm8400_dcdc_ops = {
 	.enable = wm8400_dcdc_enable,
 	.disable = wm8400_dcdc_disable,
 	.list_voltage = wm8400_dcdc_list_voltage,
-	.get_voltage = wm8400_dcdc_get_voltage,
+	.get_voltage_sel = wm8400_dcdc_get_voltage_sel,
 	.set_voltage = wm8400_dcdc_set_voltage,
 	.get_mode = wm8400_dcdc_get_mode,
 	.set_mode = wm8400_dcdc_set_mode,

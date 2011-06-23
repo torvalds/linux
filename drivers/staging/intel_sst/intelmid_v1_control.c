@@ -32,7 +32,6 @@
 #include <linux/file.h>
 #include <asm/mrst.h>
 #include <sound/pcm.h>
-#include "jack.h"
 #include <sound/pcm_params.h>
 #include <sound/control.h>
 #include <sound/initval.h>
@@ -212,7 +211,7 @@ static int mx_power_up_pb(unsigned int port)
 	return mx_enable_audiodac(UNMUTE);
 }
 
-static int mx_power_down_pb(void)
+static int mx_power_down_pb(unsigned int device)
 {
 	struct sc_reg_access sc_access[3];
 	int retval = 0;
@@ -255,7 +254,7 @@ static int mx_power_up_cp(unsigned int port)
 	return sst_sc_reg_access(sc_access, PMIC_READ_MODIFY, 2);
 }
 
-static int mx_power_down_cp(void)
+static int mx_power_down_cp(unsigned int device)
 {
 	struct sc_reg_access sc_access[] = {
 		{ENABLE_OPDEV_CTRL, 0x00, MASK1|MASK0},
@@ -832,6 +831,129 @@ static int mx_get_vol(int dev_id, int *value)
 	return retval;
 }
 
+static u8 mx_get_jack_status(void)
+{
+	struct sc_reg_access sc_access_read = {0,};
+
+	sc_access_read.reg_addr = 0x201;
+	sst_sc_reg_access(&sc_access_read, PMIC_READ, 1);
+	pr_debug("value returned = 0x%x\n", sc_access_read.value);
+	return sc_access_read.value;
+}
+
+static void mx_pmic_irq_enable(void *data)
+{
+	struct snd_intelmad *intelmaddata = data;
+
+	intelmaddata->jack_prev_state = 0xc0;
+	return;
+}
+
+static void mx_pmic_irq_cb(void *cb_data, u8 intsts)
+{
+	u8 jack_cur_status, jack_prev_state = 0;
+	struct mad_jack *mjack = NULL;
+	unsigned int present = 0, jack_event_flag = 0, buttonpressflag = 0;
+	time_t  timediff;
+	struct snd_intelmad *intelmaddata = cb_data;
+
+	mjack = &intelmaddata->jack[0];
+	if (intsts & 0x2) {
+		jack_cur_status = mx_get_jack_status();
+		jack_prev_state = intelmaddata->jack_prev_state;
+		if ((jack_prev_state == 0xc0) && (jack_cur_status == 0x40)) {
+			/*headset insert detected. */
+			pr_debug("MAD headset inserted\n");
+			present = 1;
+			jack_event_flag = 1;
+			mjack->jack_status = 1;
+			mjack->jack.type = SND_JACK_HEADSET;
+		}
+
+		if ((jack_prev_state == 0xc0) && (jack_cur_status == 0x00)) {
+			/* headphone insert detected. */
+			pr_debug("MAD headphone inserted\n");
+			present = 1;
+			jack_event_flag = 1;
+			mjack->jack.type = SND_JACK_HEADPHONE;
+		}
+
+		if ((jack_prev_state == 0x40) && (jack_cur_status == 0xc0)) {
+			/* headset remove detected. */
+			pr_debug("MAD headset removed\n");
+
+			present = 0;
+			jack_event_flag = 1;
+			mjack->jack_status = 0;
+			mjack->jack.type = SND_JACK_HEADSET;
+		}
+
+		if ((jack_prev_state == 0x00) && (jack_cur_status == 0xc0)) {
+			/* headphone remove detected. */
+			pr_debug("MAD headphone removed\n");
+			present = 0;
+			jack_event_flag = 1;
+			mjack->jack.type = SND_JACK_HEADPHONE;
+		}
+
+		if ((jack_prev_state == 0x40) && (jack_cur_status == 0x00)) {
+			/* button pressed */
+			do_gettimeofday(&mjack->buttonpressed);
+			pr_debug("MAD button press detected\n");
+		}
+
+		if ((jack_prev_state == 0x00) && (jack_cur_status == 0x40)) {
+			if (mjack->jack_status) {
+				/*button pressed */
+				do_gettimeofday(
+					&mjack->buttonreleased);
+				/*button pressed */
+				pr_debug("MAD Button Released detected\n");
+				timediff = mjack->buttonreleased.tv_sec -
+					mjack->buttonpressed.tv_sec;
+				buttonpressflag = 1;
+
+				if (timediff > 1) {
+					pr_debug("MAD long press dtd\n");
+					/* send headphone detect/undetect */
+					present = 1;
+					jack_event_flag = 1;
+					mjack->jack.type =
+							MID_JACK_HS_LONG_PRESS;
+				} else {
+					pr_debug("MAD short press dtd\n");
+					/* send headphone detect/undetect */
+					present = 1;
+					jack_event_flag = 1;
+					mjack->jack.type =
+						MID_JACK_HS_SHORT_PRESS;
+				}
+			} else {
+				/***workaround for maxim
+				hw issue,0x00 t 0x40 is not
+				a valid transiton for Headset insertion */
+				/*headset insert detected. */
+				pr_debug("MAD headset inserted\n");
+				present = 1;
+				jack_event_flag = 1;
+				mjack->jack_status = 1;
+				mjack->jack.type = SND_JACK_HEADSET;
+			}
+		}
+		intelmaddata->jack_prev_state  = jack_cur_status;
+		pr_debug("mx_pmic_irq_cb prv_state= 0x%x\n",
+					intelmaddata->jack_prev_state);
+	}
+
+	if (jack_event_flag)
+		sst_mad_send_jack_report(&mjack->jack,
+						buttonpressflag, present);
+}
+static int mx_jack_enable(void)
+{
+	return 0;
+}
+
 struct snd_pmic_ops snd_pmic_ops_mx = {
 	.set_input_dev = mx_set_selected_input_dev,
 	.set_output_dev = mx_set_selected_output_dev,
@@ -844,10 +966,13 @@ struct snd_pmic_ops snd_pmic_ops_mx = {
 	.set_pcm_voice_params = mx_set_pcm_voice_params,
 	.set_voice_port = mx_set_voice_port,
 	.set_audio_port = mx_set_audio_port,
-	.power_up_pmic_pb = mx_power_up_pb,
-	.power_up_pmic_cp = mx_power_up_cp,
-	.power_down_pmic_pb = mx_power_down_pb,
-	.power_down_pmic_cp = mx_power_down_cp,
-	.power_down_pmic =  mx_power_down,
+	.power_up_pmic_pb =	mx_power_up_pb,
+	.power_up_pmic_cp =	mx_power_up_cp,
+	.power_down_pmic_pb =	mx_power_down_pb,
+	.power_down_pmic_cp =	mx_power_down_cp,
+	.power_down_pmic =	mx_power_down,
+	.pmic_irq_cb	 =	mx_pmic_irq_cb,
+	.pmic_irq_enable =	mx_pmic_irq_enable,
+	.pmic_jack_enable =	mx_jack_enable,
 };
 

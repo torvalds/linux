@@ -20,19 +20,19 @@
 #define SPEAR300_TELECOM_BASE		UL(0x50000000)
 
 /* Interrupt registers offsets and masks */
-#define INT_ENB_MASK_REG		0x54
-#define INT_STS_MASK_REG		0x58
-#define IT_PERS_S_IRQ_MASK		(1 << 0)
-#define IT_CHANGE_S_IRQ_MASK		(1 << 1)
-#define I2S_IRQ_MASK			(1 << 2)
-#define TDM_IRQ_MASK			(1 << 3)
-#define CAMERA_L_IRQ_MASK		(1 << 4)
-#define CAMERA_F_IRQ_MASK		(1 << 5)
-#define CAMERA_V_IRQ_MASK		(1 << 6)
-#define KEYBOARD_IRQ_MASK		(1 << 7)
-#define GPIO1_IRQ_MASK			(1 << 8)
+#define SPEAR300_INT_ENB_MASK_REG	0x54
+#define SPEAR300_INT_STS_MASK_REG	0x58
+#define SPEAR300_IT_PERS_S_IRQ_MASK	(1 << 0)
+#define SPEAR300_IT_CHANGE_S_IRQ_MASK	(1 << 1)
+#define SPEAR300_I2S_IRQ_MASK		(1 << 2)
+#define SPEAR300_TDM_IRQ_MASK		(1 << 3)
+#define SPEAR300_CAMERA_L_IRQ_MASK	(1 << 4)
+#define SPEAR300_CAMERA_F_IRQ_MASK	(1 << 5)
+#define SPEAR300_CAMERA_V_IRQ_MASK	(1 << 6)
+#define SPEAR300_KEYBOARD_IRQ_MASK	(1 << 7)
+#define SPEAR300_GPIO1_IRQ_MASK		(1 << 8)
 
-#define SHIRQ_RAS1_MASK			0x1FF
+#define SPEAR300_SHIRQ_RAS1_MASK	0x1FF
 
 #define SPEAR300_CLCD_BASE		UL(0x60000000)
 #define SPEAR300_SDHCI_BASE		UL(0x70000000)

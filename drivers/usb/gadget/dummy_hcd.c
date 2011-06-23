@@ -892,10 +892,11 @@ static int dummy_udc_probe (struct platform_device *pdev)
 		return rc;
 	}
 
-	platform_set_drvdata (pdev, dum);
 	rc = device_create_file (&dum->gadget.dev, &dev_attr_function);
 	if (rc < 0)
 		device_unregister (&dum->gadget.dev);
+	else
+		platform_set_drvdata(pdev, dum);
 	return rc;
 }
 
@@ -1905,6 +1906,7 @@ static int dummy_hcd_probe(struct platform_device *pdev)
 	if (!hcd)
 		return -ENOMEM;
 	the_controller = hcd_to_dummy (hcd);
+	hcd->has_tt = 1;
 
 	retval = usb_add_hcd(hcd, 0, 0);
 	if (retval != 0) {
@@ -1995,11 +1997,29 @@ static int __init init (void)
 	retval = platform_device_add(the_hcd_pdev);
 	if (retval < 0)
 		goto err_add_hcd;
+	if (!the_controller) {
+		/*
+		 * The hcd was added successfully but its probe function failed
+		 * for some reason.
+		 */
+		retval = -EINVAL;
+		goto err_add_udc;
+	}
 	retval = platform_device_add(the_udc_pdev);
 	if (retval < 0)
 		goto err_add_udc;
+	if (!platform_get_drvdata(the_udc_pdev)) {
+		/*
+		 * The udc was added successfully but its probe function failed
+		 * for some reason.
+		 */
+		retval = -EINVAL;
+		goto err_probe_udc;
+	}
 	return retval;
 
+err_probe_udc:
+	platform_device_del(the_udc_pdev);
 err_add_udc:
 	platform_device_del(the_hcd_pdev);
 err_add_hcd:

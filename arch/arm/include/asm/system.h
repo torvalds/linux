@@ -159,7 +159,7 @@ extern unsigned int user_debug;
 #include <mach/barriers.h>
 #elif defined(CONFIG_ARM_DMA_MEM_BUFFERABLE) || defined(CONFIG_SMP)
 #define mb()		do { dsb(); outer_sync(); } while (0)
-#define rmb()		dmb()
+#define rmb()		dsb()
 #define wmb()		mb()
 #else
 #include <asm/memory.h>

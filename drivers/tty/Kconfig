@@ -319,3 +319,34 @@ config N_GSM
 	  This line discipline provides support for the GSM MUX protocol and
 	  presents the mux as a set of 61 individual tty devices.
 
+config TRACE_ROUTER
+	tristate "Trace data router for MIPI P1149.7 cJTAG standard"
+	depends on TRACE_SINK
+	default n
+	help
+	  The trace router uses the Linux tty line discipline framework to
+	  route trace data coming from a tty port (say UART for example) to
+	  the trace sink line discipline driver and to another tty port (say
+	  USB). This is part of a solution for the MIPI P1149.7, compact JTAG,
+	  standard, which is for debugging mobile devices. The PTI driver in
+	  drivers/misc/pti.c defines the majority of this MIPI solution.
+
+	  You should select this driver if the target kernel is meant for
+	  a mobile device containing a modem.  Then you will need to select
+	  "Trace data sink for MIPI P1149.7 cJTAG standard" line discipline
+	  driver.
+
+config TRACE_SINK
+	tristate "Trace data sink for MIPI P1149.7 cJTAG standard"
+	default n
+	help
+	  The trace sink uses the Linux line discipline framework to receive
+	  trace data coming from the trace router line discipline driver
+	  to a user-defined tty port target, like USB.
+	  This is to provide a way to extract modem trace data on
+	  devices that do not have a PTI HW module, or just need modem
+	  trace data to come out of a different HW output port.
+	  This is part of a solution for the P1149.7, compact JTAG, standard.
+
+	  If you select this option, you need to select
+	  "Trace data router for MIPI P1149.7 cJTAG standard".

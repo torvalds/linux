@@ -53,11 +53,11 @@ static struct regulator_init_data regulator1_data = {
 
 Regulator-1 supplies power to Regulator-2. This relationship must be registered
 with the core so that Regulator-1 is also enabled when Consumer A enables its
-supply (Regulator-2). The supply regulator is set by the supply_regulator_dev
+supply (Regulator-2). The supply regulator is set by the supply_regulator
 field below:-
 
 static struct regulator_init_data regulator2_data = {
-	.supply_regulator_dev = &platform_regulator1_device.dev,
+	.supply_regulator = "regulator_name",
 	.constraints = {
 		.min_uV = 1800000,
 		.max_uV = 2000000,

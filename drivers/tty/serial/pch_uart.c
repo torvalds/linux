@@ -15,6 +15,7 @@
  *Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
  */
 #include <linux/serial_reg.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/serial_core.h>
@@ -253,6 +254,8 @@ enum pch_uart_num_t {
 	pch_ml7213_uart0,
 	pch_ml7213_uart1,
 	pch_ml7213_uart2,
+	pch_ml7223_uart0,
+	pch_ml7223_uart1,
 };
 
 static struct pch_uart_driver_data drv_dat[] = {
@@ -263,6 +266,8 @@ static struct pch_uart_driver_data drv_dat[] = {
 	[pch_ml7213_uart0] = {PCH_UART_8LINE, 0},
 	[pch_ml7213_uart1] = {PCH_UART_2LINE, 1},
 	[pch_ml7213_uart2] = {PCH_UART_2LINE, 2},
+	[pch_ml7223_uart0] = {PCH_UART_8LINE, 0},
+	[pch_ml7223_uart1] = {PCH_UART_2LINE, 1},
 };
 
 static unsigned int default_baud = 9600;
@@ -1392,6 +1397,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	int fifosize, base_baud;
 	int port_type;
 	struct pch_uart_driver_data *board;
+	const char *board_name;
 
 	board = &drv_dat[id->driver_data];
 	port_type = board->port_type;
@@ -1407,7 +1413,8 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	base_baud = 1843200; /* 1.8432MHz */
 
 	/* quirk for CM-iTC board */
-	if (strstr(dmi_get_system_info(DMI_BOARD_NAME), "CM-iTC"))
+	board_name = dmi_get_system_info(DMI_BOARD_NAME);
+	if (board_name && strstr(board_name, "CM-iTC"))
 		base_baud = 192000000; /* 192.0MHz */
 
 	switch (port_type) {
@@ -1534,6 +1541,10 @@ static DEFINE_PCI_DEVICE_TABLE(pch_uart_pci_id) = {
 	 .driver_data = pch_ml7213_uart1},
 	{PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8029),
 	 .driver_data = pch_ml7213_uart2},
+	{PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x800C),
+	 .driver_data = pch_ml7223_uart0},
+	{PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x800D),
+	 .driver_data = pch_ml7223_uart1},
 	{0,},
 };
 

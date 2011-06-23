@@ -166,7 +166,7 @@ static int __init prng_init(void)
 	int ret;
 
 	/* check if the CPU has a PRNG */
-	if (!crypt_s390_func_available(KMC_PRNG))
+	if (!crypt_s390_func_available(KMC_PRNG, CRYPT_S390_MSA))
 		return -EOPNOTSUPP;
 
 	if (prng_chunk_size < 8)

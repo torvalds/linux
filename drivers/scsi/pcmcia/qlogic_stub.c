@@ -270,7 +270,7 @@ static int qlogic_resume(struct pcmcia_device *link)
 	return 0;
 }
 
-static struct pcmcia_device_id qlogic_ids[] = {
+static const struct pcmcia_device_id qlogic_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("EIger Labs", "PCMCIA-to-SCSI Adapter", 0x88395fa7, 0x33b7a5e6),
 	PCMCIA_DEVICE_PROD_ID12("EPSON", "SCSI-2 PC Card SC200", 0xd361772f, 0x299d1751),
 	PCMCIA_DEVICE_PROD_ID12("MACNICA", "MIRACLE SCSI-II mPS110", 0x20841b68, 0xab3c3b6d),

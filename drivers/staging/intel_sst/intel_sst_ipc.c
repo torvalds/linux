@@ -154,6 +154,37 @@ void sst_clear_interrupt(void)
 	sst_shim_write(sst_drv_ctx->shim, SST_IMRX, imr.full);
 }
 
+void sst_restore_fw_context(void)
+{
+	struct snd_sst_ctxt_params fw_context;
+	struct ipc_post *msg = NULL;
+
+	pr_debug("restore_fw_context\n");
+	/*check cpu type*/
+	if (sst_drv_ctx->pci_id != SST_MFLD_PCI_ID)
+		return;
+		/*not supported for rest*/
+	if (!sst_drv_ctx->fw_cntx_size)
+		return;
+		/*nothing to restore*/
+	pr_debug("restoring context......\n");
+	/*send msg to fw*/
+	if (sst_create_large_msg(&msg))
+		return;
+
+	sst_fill_header(&msg->header, IPC_IA_SET_FW_CTXT, 1, 0);
+	msg->header.part.data = sizeof(fw_context) + sizeof(u32);
+	fw_context.address = virt_to_phys((void *)sst_drv_ctx->fw_cntx);
+	fw_context.size = sst_drv_ctx->fw_cntx_size;
+	memcpy(msg->mailbox_data, &msg->header, sizeof(u32));
+	memcpy(msg->mailbox_data + sizeof(u32),
+				&fw_context, sizeof(fw_context));
+	spin_lock(&sst_drv_ctx->list_spin_lock);
+	list_add_tail(&msg->node, &sst_drv_ctx->ipc_dispatch_list);
+	spin_unlock(&sst_drv_ctx->list_spin_lock);
+	sst_post_message(&sst_drv_ctx->ipc_post_msg_wq);
+	return;
+}
 /*
  * process_fw_init - process the FW init msg
  *
@@ -184,13 +215,13 @@ int process_fw_init(struct sst_ipc_msg_wq *msg)
 	sst_drv_ctx->sst_state = SST_FW_RUNNING;
 	sst_drv_ctx->lpe_stalled = 0;
 	mutex_unlock(&sst_drv_ctx->sst_lock);
-	pr_debug("FW Version %x.%x\n",
-			init->fw_version.major, init->fw_version.minor);
-	pr_debug("Build No %x Type %x\n",
-			init->fw_version.build, init->fw_version.type);
+	pr_debug("FW Version %02x.%02x.%02x\n", init->fw_version.major,
+			init->fw_version.minor, init->fw_version.build);
+	pr_debug("Build Type %x\n", init->fw_version.type);
 	pr_debug(" Build date %s Time %s\n",
 			init->build_info.date, init->build_info.time);
 	sst_wake_up_alloc_block(sst_drv_ctx, FW_DWNL_ID, retval, NULL);
+	sst_restore_fw_context();
 	return retval;
 }
 /**
@@ -385,6 +416,24 @@ void sst_process_reply(struct work_struct *work)
 		}
 		break;
 	}
+
+	case IPC_IA_TUNING_PARAMS: {
+		pr_debug("sst:IPC_TUNING_PARAMS resp: %x\n", msg->header.full);
+		pr_debug("data value %x\n", msg->header.part.data);
+		if (msg->header.part.large) {
+			pr_debug("alg set failed\n");
+			sst_drv_ctx->ppp_params_blk.ret_code =
+							-msg->header.part.data;
+		} else {
+			pr_debug("alg set success\n");
+			sst_drv_ctx->ppp_params_blk.ret_code = 0;
+		}
+		if (sst_drv_ctx->ppp_params_blk.on == true) {
+			sst_drv_ctx->ppp_params_blk.condition = true;
+			wake_up(&sst_drv_ctx->wait_queue);
+		}
+	}
+
 	case IPC_IA_GET_FW_INFO: {
 		struct snd_sst_fw_info *fw_info =
 			(struct snd_sst_fw_info *)msg->mailbox;
@@ -615,11 +664,17 @@ void sst_process_reply(struct work_struct *work)
 		break;
 
 	case IPC_IA_FREE_STREAM:
+		str_info = &sst_drv_ctx->streams[str_id];
 		if (!msg->header.part.data) {
 			pr_debug("Stream %d freed\n", str_id);
 		} else {
 			pr_err("Free for %d ret error %x\n",
 				       str_id, msg->header.part.data);
+		}
+		if (str_info->ctrl_blk.on == true) {
+			str_info->ctrl_blk.on = false;
+			str_info->ctrl_blk.condition = true;
+			wake_up(&sst_drv_ctx->wait_queue);
 		}
 		break;
 	case IPC_IA_ALLOC_STREAM: {
@@ -698,6 +753,17 @@ void sst_process_reply(struct work_struct *work)
 		break;
 	case IPC_IA_START_STREAM:
 		pr_debug("reply for START STREAM %x\n", msg->header.full);
+		break;
+
+	case IPC_IA_GET_FW_CTXT:
+		pr_debug("reply for get fw ctxt  %x\n", msg->header.full);
+		if (msg->header.part.data)
+			sst_drv_ctx->fw_cntx_size = 0;
+		else
+			sst_drv_ctx->fw_cntx_size = *sst_drv_ctx->fw_cntx;
+		pr_debug("fw copied data %x\n", sst_drv_ctx->fw_cntx_size);
+		sst_wake_up_alloc_block(
+			sst_drv_ctx, str_id, msg->header.part.data, NULL);
 		break;
 	default:
 		/* Illegal case */

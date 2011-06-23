@@ -54,7 +54,7 @@
 #define MX2_TSTAT_CAPT		(1 << 1)
 #define MX2_TSTAT_COMP		(1 << 0)
 
-/* MX31, MX35, MX25, MXC91231, MX5 */
+/* MX31, MX35, MX25, MX5 */
 #define V2_TCTL_WAITEN		(1 << 3) /* Wait enable mode */
 #define V2_TCTL_CLK_IPG		(1 << 6)
 #define V2_TCTL_FRR		(1 << 9)
@@ -106,56 +106,32 @@ static void gpt_irq_acknowledge(void)
 		__raw_writel(V2_TSTAT_OF1, timer_base + V2_TSTAT);
 }
 
-static cycle_t dummy_get_cycles(struct clocksource *cs)
-{
-	return 0;
-}
-
-static cycle_t mx1_2_get_cycles(struct clocksource *cs)
-{
-	return __raw_readl(timer_base + MX1_2_TCN);
-}
-
-static cycle_t v2_get_cycles(struct clocksource *cs)
-{
-	return __raw_readl(timer_base + V2_TCN);
-}
-
-static struct clocksource clocksource_mxc = {
-	.name 		= "mxc_timer1",
-	.rating		= 200,
-	.read		= dummy_get_cycles,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
+static void __iomem *sched_clock_reg;
 
 static DEFINE_CLOCK_DATA(cd);
 unsigned long long notrace sched_clock(void)
 {
-	cycle_t cyc = clocksource_mxc.read(&clocksource_mxc);
+	cycle_t cyc = sched_clock_reg ? __raw_readl(sched_clock_reg) : 0;
 
 	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
 }
 
 static void notrace mxc_update_sched_clock(void)
 {
-	cycle_t cyc = clocksource_mxc.read(&clocksource_mxc);
+	cycle_t cyc = sched_clock_reg ? __raw_readl(sched_clock_reg) : 0;
 	update_sched_clock(&cd, cyc, (u32)~0);
 }
 
 static int __init mxc_clocksource_init(struct clk *timer_clk)
 {
 	unsigned int c = clk_get_rate(timer_clk);
+	void __iomem *reg = timer_base + (timer_is_v2() ? V2_TCN : MX1_2_TCN);
 
-	if (timer_is_v2())
-		clocksource_mxc.read = v2_get_cycles;
-	else
-		clocksource_mxc.read = mx1_2_get_cycles;
+	sched_clock_reg = reg;
 
 	init_sched_clock(&cd, mxc_update_sched_clock, 32, c);
-	clocksource_register_hz(&clocksource_mxc, c);
-
-	return 0;
+	return clocksource_mmio_init(reg, "mxc_timer1", c, 200, 32,
+			clocksource_mmio_readl_up);
 }
 
 /* clock event */

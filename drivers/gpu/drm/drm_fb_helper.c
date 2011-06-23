@@ -70,174 +70,50 @@ fail:
 }
 EXPORT_SYMBOL(drm_fb_helper_single_add_all_connectors);
 
-/**
- * drm_fb_helper_connector_parse_command_line - parse command line for connector
- * @connector - connector to parse line for
- * @mode_option - per connector mode option
- *
- * This parses the connector specific then generic command lines for
- * modes and options to configure the connector.
- *
- * This uses the same parameters as the fb modedb.c, except for extra
- *	<xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
- *
- * enable/enable Digital/disable bit at the end
- */
-static bool drm_fb_helper_connector_parse_command_line(struct drm_fb_helper_connector *fb_helper_conn,
-						       const char *mode_option)
-{
-	const char *name;
-	unsigned int namelen;
-	int res_specified = 0, bpp_specified = 0, refresh_specified = 0;
-	unsigned int xres = 0, yres = 0, bpp = 32, refresh = 0;
-	int yres_specified = 0, cvt = 0, rb = 0, interlace = 0, margins = 0;
-	int i;
-	enum drm_connector_force force = DRM_FORCE_UNSPECIFIED;
-	struct drm_fb_helper_cmdline_mode *cmdline_mode;
-	struct drm_connector *connector;
-
-	if (!fb_helper_conn)
-		return false;
-	connector = fb_helper_conn->connector;
-
-	cmdline_mode = &fb_helper_conn->cmdline_mode;
-	if (!mode_option)
-		mode_option = fb_mode_option;
-
-	if (!mode_option) {
-		cmdline_mode->specified = false;
-		return false;
-	}
-
-	name = mode_option;
-	namelen = strlen(name);
-	for (i = namelen-1; i >= 0; i--) {
-		switch (name[i]) {
-		case '@':
-			namelen = i;
-			if (!refresh_specified && !bpp_specified &&
-			    !yres_specified) {
-				refresh = simple_strtol(&name[i+1], NULL, 10);
-				refresh_specified = 1;
-				if (cvt || rb)
-					cvt = 0;
-			} else
-				goto done;
-			break;
-		case '-':
-			namelen = i;
-			if (!bpp_specified && !yres_specified) {
-				bpp = simple_strtol(&name[i+1], NULL, 10);
-				bpp_specified = 1;
-				if (cvt || rb)
-					cvt = 0;
-			} else
-				goto done;
-			break;
-		case 'x':
-			if (!yres_specified) {
-				yres = simple_strtol(&name[i+1], NULL, 10);
-				yres_specified = 1;
-			} else
-				goto done;
-		case '0' ... '9':
-			break;
-		case 'M':
-			if (!yres_specified)
-				cvt = 1;
-			break;
-		case 'R':
-			if (cvt)
-				rb = 1;
-			break;
-		case 'm':
-			if (!cvt)
-				margins = 1;
-			break;
-		case 'i':
-			if (!cvt)
-				interlace = 1;
-			break;
-		case 'e':
-			force = DRM_FORCE_ON;
-			break;
-		case 'D':
-			if ((connector->connector_type != DRM_MODE_CONNECTOR_DVII) &&
-			    (connector->connector_type != DRM_MODE_CONNECTOR_HDMIB))
-				force = DRM_FORCE_ON;
-			else
-				force = DRM_FORCE_ON_DIGITAL;
-			break;
-		case 'd':
-			force = DRM_FORCE_OFF;
-			break;
-		default:
-			goto done;
-		}
-	}
-	if (i < 0 && yres_specified) {
-		xres = simple_strtol(name, NULL, 10);
-		res_specified = 1;
-	}
-done:
-
-	DRM_DEBUG_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
-		drm_get_connector_name(connector), xres, yres,
-		(refresh) ? refresh : 60, (rb) ? " reduced blanking" :
-		"", (margins) ? " with margins" : "", (interlace) ?
-		" interlaced" : "");
-
-	if (force) {
-		const char *s;
-		switch (force) {
-		case DRM_FORCE_OFF: s = "OFF"; break;
-		case DRM_FORCE_ON_DIGITAL: s = "ON - dig"; break;
-		default:
-		case DRM_FORCE_ON: s = "ON"; break;
-		}
-
-		DRM_INFO("forcing %s connector %s\n",
-			 drm_get_connector_name(connector), s);
-		connector->force = force;
-	}
-
-	if (res_specified) {
-		cmdline_mode->specified = true;
-		cmdline_mode->xres = xres;
-		cmdline_mode->yres = yres;
-	}
-
-	if (refresh_specified) {
-		cmdline_mode->refresh_specified = true;
-		cmdline_mode->refresh = refresh;
-	}
-
-	if (bpp_specified) {
-		cmdline_mode->bpp_specified = true;
-		cmdline_mode->bpp = bpp;
-	}
-	cmdline_mode->rb = rb ? true : false;
-	cmdline_mode->cvt = cvt  ? true : false;
-	cmdline_mode->interlace = interlace ? true : false;
-
-	return true;
-}
-
 static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
 {
 	struct drm_fb_helper_connector *fb_helper_conn;
 	int i;
 
 	for (i = 0; i < fb_helper->connector_count; i++) {
+		struct drm_cmdline_mode *mode;
+		struct drm_connector *connector;
 		char *option = NULL;
 
 		fb_helper_conn = fb_helper->connector_info[i];
+		connector = fb_helper_conn->connector;
+		mode = &fb_helper_conn->cmdline_mode;
 
 		/* do something on return - turn off connector maybe */
-		if (fb_get_options(drm_get_connector_name(fb_helper_conn->connector), &option))
+		if (fb_get_options(drm_get_connector_name(connector), &option))
 			continue;
 
-		drm_fb_helper_connector_parse_command_line(fb_helper_conn, option);
+		if (drm_mode_parse_command_line_for_connector(option,
+							      connector,
+							      mode)) {
+			if (mode->force) {
+				const char *s;
+				switch (mode->force) {
+				case DRM_FORCE_OFF: s = "OFF"; break;
+				case DRM_FORCE_ON_DIGITAL: s = "ON - dig"; break;
+				default:
+				case DRM_FORCE_ON: s = "ON"; break;
+				}
+
+				DRM_INFO("forcing %s connector %s\n",
+					 drm_get_connector_name(connector), s);
+				connector->force = mode->force;
+			}
+
+			DRM_DEBUG_KMS("cmdline mode for connector %s %dx%d@%dHz%s%s%s\n",
+				      drm_get_connector_name(connector),
+				      mode->xres, mode->yres,
+				      mode->refresh_specified ? mode->refresh : 60,
+				      mode->rb ? " reduced blanking" : "",
+				      mode->margins ? " with margins" : "",
+				      mode->interlace ?  " interlaced" : "");
+		}
+
 	}
 	return 0;
 }
@@ -901,7 +777,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	/* first up get a count of crtcs now in use and new min/maxes width/heights */
 	for (i = 0; i < fb_helper->connector_count; i++) {
 		struct drm_fb_helper_connector *fb_helper_conn = fb_helper->connector_info[i];
-		struct drm_fb_helper_cmdline_mode *cmdline_mode;
+		struct drm_cmdline_mode *cmdline_mode;
 
 		cmdline_mode = &fb_helper_conn->cmdline_mode;
 
@@ -1123,7 +999,7 @@ static struct drm_display_mode *drm_has_preferred_mode(struct drm_fb_helper_conn
 
 static bool drm_has_cmdline_mode(struct drm_fb_helper_connector *fb_connector)
 {
-	struct drm_fb_helper_cmdline_mode *cmdline_mode;
+	struct drm_cmdline_mode *cmdline_mode;
 	cmdline_mode = &fb_connector->cmdline_mode;
 	return cmdline_mode->specified;
 }
@@ -1131,7 +1007,7 @@ static bool drm_has_cmdline_mode(struct drm_fb_helper_connector *fb_connector)
 static struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
 						      int width, int height)
 {
-	struct drm_fb_helper_cmdline_mode *cmdline_mode;
+	struct drm_cmdline_mode *cmdline_mode;
 	struct drm_display_mode *mode = NULL;
 
 	cmdline_mode = &fb_helper_conn->cmdline_mode;
@@ -1163,19 +1039,8 @@ static struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_conne
 	}
 
 create_mode:
-	if (cmdline_mode->cvt)
-		mode = drm_cvt_mode(fb_helper_conn->connector->dev,
-				    cmdline_mode->xres, cmdline_mode->yres,
-				    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
-				    cmdline_mode->rb, cmdline_mode->interlace,
-				    cmdline_mode->margins);
-	else
-		mode = drm_gtf_mode(fb_helper_conn->connector->dev,
-				    cmdline_mode->xres, cmdline_mode->yres,
-				    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
-				    cmdline_mode->interlace,
-				    cmdline_mode->margins);
-	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
+	mode = drm_mode_create_from_cmdline_mode(fb_helper_conn->connector->dev,
+						 cmdline_mode);
 	list_add(&mode->head, &fb_helper_conn->connector->modes);
 	return mode;
 }
@@ -1516,17 +1381,33 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 }
 EXPORT_SYMBOL(drm_fb_helper_initial_config);
 
-bool drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
+/**
+ * drm_fb_helper_hotplug_event - respond to a hotplug notification by
+ *                               probing all the outputs attached to the fb.
+ * @fb_helper: the drm_fb_helper
+ *
+ * LOCKING:
+ * Called at runtime, must take mode config lock.
+ *
+ * Scan the connectors attached to the fb_helper and try to put together a
+ * setup after *notification of a change in output configuration.
+ *
+ * RETURNS:
+ * 0 on success and a non-zero error code otherwise.
+ */
+int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 {
+	struct drm_device *dev = fb_helper->dev;
 	int count = 0;
 	u32 max_width, max_height, bpp_sel;
 	bool bound = false, crtcs_bound = false;
 	struct drm_crtc *crtc;
 
 	if (!fb_helper->fb)
-		return false;
+		return 0;
 
-	list_for_each_entry(crtc, &fb_helper->dev->mode_config.crtc_list, head) {
+	mutex_lock(&dev->mode_config.mutex);
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (crtc->fb)
 			crtcs_bound = true;
 		if (crtc->fb == fb_helper->fb)
@@ -1535,7 +1416,8 @@ bool drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 
 	if (!bound && crtcs_bound) {
 		fb_helper->delayed_hotplug = true;
-		return false;
+		mutex_unlock(&dev->mode_config.mutex);
+		return 0;
 	}
 	DRM_DEBUG_KMS("\n");
 
@@ -1546,6 +1428,7 @@ bool drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	count = drm_fb_helper_probe_connector_modes(fb_helper, max_width,
 						    max_height);
 	drm_setup_crtcs(fb_helper);
+	mutex_unlock(&dev->mode_config.mutex);
 
 	return drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
 }

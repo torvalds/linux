@@ -333,20 +333,6 @@ static struct irqaction u300_timer_irq = {
 	.handler        = u300_timer_interrupt,
 };
 
-/* Use general purpose timer 2 as clock source */
-static cycle_t u300_get_cycles(struct clocksource *cs)
-{
-	return (cycles_t) readl(U300_TIMER_APP_VBASE + U300_TIMER_APP_GPT2CC);
-}
-
-static struct clocksource clocksource_u300_1mhz = {
-	.name           = "GPT2",
-	.rating         = 300, /* Reasonably fast and accurate clock source */
-	.read           = u300_get_cycles,
-	.mask           = CLOCKSOURCE_MASK(32), /* 32 bits */
-	.flags          = CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 /*
  * Override the global weak sched_clock symbol with this
  * local implementation which uses the clocksource to get some
@@ -422,9 +408,10 @@ static void __init u300_timer_init(void)
 	writel(U300_TIMER_APP_EGPT2_TIMER_ENABLE,
 		U300_TIMER_APP_VBASE + U300_TIMER_APP_EGPT2);
 
-	if (clocksource_register_hz(&clocksource_u300_1mhz, rate))
-		printk(KERN_ERR "timer: failed to initialize clock "
-		       "source %s\n", clocksource_u300_1mhz.name);
+	/* Use general purpose timer 2 as clock source */
+	if (clocksource_mmio_init(U300_TIMER_APP_VBASE + U300_TIMER_APP_GPT2CC,
+			"GPT2", rate, 300, 32, clocksource_mmio_readl_up))
+		pr_err("timer: failed to initialize U300 clock source\n");
 
 	clockevents_calc_mult_shift(&clockevent_u300_1mhz,
 				    rate, APPTIMER_MIN_RANGE);

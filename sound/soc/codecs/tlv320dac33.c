@@ -1,7 +1,7 @@
 /*
  * ALSA SoC Texas Instruments TLV320DAC33 codec driver
  *
- * Author:	Peter Ujfalusi <peter.ujfalusi@nokia.com>
+ * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
  * Copyright:   (C) 2009 Nokia Corporation
  *
@@ -587,6 +587,9 @@ static const struct snd_soc_dapm_widget dac33_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Right DAC Power",
 			    DAC33_RDAC_PWR_CTRL, 2, 0, NULL, 0),
 
+	SND_SOC_DAPM_SUPPLY("Codec Power",
+			    DAC33_PWR_CTRL, 4, 0, NULL, 0),
+
 	SND_SOC_DAPM_PRE("Pre Playback", dac33_playback_event),
 	SND_SOC_DAPM_POST("Post Playback", dac33_playback_event),
 };
@@ -619,6 +622,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	/* output */
 	{"LEFT_LO", NULL, "Output Left Amplifier"},
 	{"RIGHT_LO", NULL, "Output Right Amplifier"},
+
+	{"LEFT_LO", NULL, "Codec Power"},
+	{"RIGHT_LO", NULL, "Codec Power"},
 };
 
 static int dac33_add_widgets(struct snd_soc_codec *codec)
@@ -636,13 +642,10 @@ static int dac33_add_widgets(struct snd_soc_codec *codec)
 static int dac33_set_bias_level(struct snd_soc_codec *codec,
 				enum snd_soc_bias_level level)
 {
-	struct tlv320dac33_priv *dac33 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		if (!dac33->substream)
-			dac33_soft_power(codec, 1);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
@@ -943,8 +946,8 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 	/* Write registers 0x08 and 0x09 (MSB, LSB) */
 	dac33_write16(codec, DAC33_INT_OSC_FREQ_RAT_A, oscset);
 
-	/* calib time: 128 is a nice number ;) */
-	dac33_write(codec, DAC33_CALIB_TIME, 128);
+	/* OSC calibration time */
+	dac33_write(codec, DAC33_CALIB_TIME, 96);
 
 	/* adjustment treshold & step */
 	dac33_write(codec, DAC33_INT_OSC_CTRL_B, DAC33_ADJTHRSHLD(2) |
@@ -1655,5 +1658,5 @@ module_exit(dac33_module_exit);
 
 
 MODULE_DESCRIPTION("ASoC TLV320DAC33 codec driver");
-MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@nokia.com>");
+MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@ti.com>");
 MODULE_LICENSE("GPL");

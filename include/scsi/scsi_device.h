@@ -169,6 +169,7 @@ struct scsi_device {
 				sdev_dev;
 
 	struct execute_work	ew; /* used to get process context on put */
+	struct work_struct	requeue_work;
 
 	struct scsi_dh_data	*scsi_dh_data;
 	enum scsi_device_state sdev_state;

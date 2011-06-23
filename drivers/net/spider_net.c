@@ -994,15 +994,13 @@ spider_net_pass_skb_up(struct spider_net_descr *descr,
 	skb->protocol = eth_type_trans(skb, netdev);
 
 	/* checksum offload */
-	if (card->options.rx_csum) {
+	skb_checksum_none_assert(skb);
+	if (netdev->features & NETIF_F_RXCSUM) {
 		if ( ( (data_status & SPIDER_NET_DATA_STATUS_CKSUM_MASK) ==
 		       SPIDER_NET_DATA_STATUS_CKSUM_MASK) &&
 		     !(data_error & SPIDER_NET_DATA_ERR_CKSUM_MASK))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
-		else
-			skb_checksum_none_assert(skb);
-	} else
-		skb_checksum_none_assert(skb);
+	}
 
 	if (data_status & SPIDER_NET_VLAN_PACKET) {
 		/* further enhancements: HW-accel VLAN
@@ -2322,14 +2320,15 @@ spider_net_setup_netdev(struct spider_net_card *card)
 	card->aneg_timer.function = spider_net_link_phy;
 	card->aneg_timer.data = (unsigned long) card;
 
-	card->options.rx_csum = SPIDER_NET_RX_CSUM_DEFAULT;
-
 	netif_napi_add(netdev, &card->napi,
 		       spider_net_poll, SPIDER_NET_NAPI_WEIGHT);
 
 	spider_net_setup_netdev_ops(netdev);
 
-	netdev->features = NETIF_F_IP_CSUM | NETIF_F_LLTX;
+	netdev->hw_features = NETIF_F_RXCSUM | NETIF_F_IP_CSUM;
+	if (SPIDER_NET_RX_CSUM_DEFAULT)
+		netdev->features |= NETIF_F_RXCSUM;
+	netdev->features |= NETIF_F_IP_CSUM | NETIF_F_LLTX;
 	/* some time: NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
 	 *		NETIF_F_HW_VLAN_FILTER */
 

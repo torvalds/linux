@@ -59,25 +59,16 @@
 /*OFFSET 20*/
 #define DISFB BIT(15)
 
-struct tx_desc{
-
+struct tx_desc {
 	/*DWORD 0*/
 	unsigned int txdw0;
-
 	unsigned int txdw1;
-
 	unsigned int txdw2;
-
 	unsigned int txdw3;
-
 	unsigned int txdw4;
-
 	unsigned int txdw5;
-
 	unsigned int txdw6;
-
 	unsigned int txdw7;
-
 };
 
 

@@ -77,15 +77,13 @@ static struct platform_device *pdev;
 #define	DEVID	0x20	/* Register: Device ID */
 #define	DEVREV	0x22	/* Register: Device Revision */
 
-static inline int
-superio_inb(int reg)
+static inline int superio_inb(int reg)
 {
 	outb(reg, REG);
 	return inb(VAL);
 }
 
-static inline void
-superio_outb(int reg, int val)
+static inline void superio_outb(int reg, int val)
 {
 	outb(reg, REG);
 	outb(val, VAL);
@@ -101,27 +99,32 @@ static int superio_inw(int reg)
 	return val;
 }
 
-static inline void
-superio_select(int ldn)
+static inline void superio_select(int ldn)
 {
 	outb(DEV, REG);
 	outb(ldn, VAL);
 }
 
-static inline void
-superio_enter(void)
+static inline int superio_enter(void)
 {
+	/*
+	 * Try to reserve REG and REG + 1 for exclusive access.
+	 */
+	if (!request_muxed_region(REG, 2, DRVNAME))
+		return -EBUSY;
+
 	outb(0x87, REG);
 	outb(0x01, REG);
 	outb(0x55, REG);
 	outb(0x55, REG);
+	return 0;
 }
 
-static inline void
-superio_exit(void)
+static inline void superio_exit(void)
 {
 	outb(0x02, REG);
 	outb(0x02, VAL);
+	release_region(REG, 2);
 }
 
 /* Logical device 4 registers */
@@ -1542,11 +1545,15 @@ static const struct attribute_group it87_group_label = {
 static int __init it87_find(unsigned short *address,
 	struct it87_sio_data *sio_data)
 {
-	int err = -ENODEV;
+	int err;
 	u16 chip_type;
 	const char *board_vendor, *board_name;
 
-	superio_enter();
+	err = superio_enter();
+	if (err)
+		return err;
+
+	err = -ENODEV;
 	chip_type = force_id ? force_id : superio_inw(DEVID);
 
 	switch (chip_type) {

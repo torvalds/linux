@@ -619,15 +619,18 @@ static void __devinit n2rng_driver_version(void)
 		pr_info("%s", version);
 }
 
+static const struct of_device_id n2rng_match[];
 static int __devinit n2rng_probe(struct platform_device *op)
 {
+	const struct of_device_id *match;
 	int victoria_falls;
 	int err = -ENOMEM;
 	struct n2rng *np;
 
-	if (!op->dev.of_match)
+	match = of_match_device(n2rng_match, &op->dev);
+	if (!match)
 		return -EINVAL;
-	victoria_falls = (op->dev.of_match->data != NULL);
+	victoria_falls = (match->data != NULL);
 
 	n2rng_driver_version();
 	np = kzalloc(sizeof(*np), GFP_KERNEL);

@@ -74,8 +74,6 @@ struct kmem_cache *scsi_sdb_cache;
  */
 #define SCSI_QUEUE_DELAY	3
 
-static void scsi_run_queue(struct request_queue *q);
-
 /*
  * Function:	scsi_unprep_request()
  *
@@ -161,7 +159,7 @@ static int __scsi_queue_insert(struct scsi_cmnd *cmd, int reason, int unbusy)
 	blk_requeue_request(q, cmd->request);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
-	scsi_run_queue(q);
+	kblockd_schedule_work(q, &device->requeue_work);
 
 	return 0;
 }
@@ -438,13 +436,27 @@ static void scsi_run_queue(struct request_queue *q)
 			continue;
 		}
 
-		blk_run_queue_async(sdev->request_queue);
+		spin_unlock(shost->host_lock);
+		spin_lock(sdev->request_queue->queue_lock);
+		__blk_run_queue(sdev->request_queue);
+		spin_unlock(sdev->request_queue->queue_lock);
+		spin_lock(shost->host_lock);
 	}
 	/* put any unprocessed entries back */
 	list_splice(&starved_list, &shost->starved_list);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	blk_run_queue(q);
+}
+
+void scsi_requeue_run_queue(struct work_struct *work)
+{
+	struct scsi_device *sdev;
+	struct request_queue *q;
+
+	sdev = container_of(work, struct scsi_device, requeue_work);
+	q = sdev->request_queue;
+	scsi_run_queue(q);
 }
 
 /*

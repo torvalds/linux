@@ -25,6 +25,9 @@ config SPARC
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_GENERIC_HARDIRQS
+	select GENERIC_IRQ_SHOW
+	select USE_GENERIC_SMP_HELPERS if SMP
 
 config SPARC32
 	def_bool !64BIT
@@ -43,15 +46,12 @@ config SPARC64
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_SYSCALL_TRACEPOINTS
-	select USE_GENERIC_SMP_HELPERS if SMP
 	select RTC_DRV_CMOS
 	select RTC_DRV_BQ4802
 	select RTC_DRV_SUN4V
 	select RTC_DRV_STARFIRE
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
-	select HAVE_GENERIC_HARDIRQS
-	select GENERIC_IRQ_SHOW
 	select IRQ_PREFLOW_FASTEOI
 
 config ARCH_DEFCONFIG
@@ -188,14 +188,6 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y if SPARC64
-
-config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
-
-config GENERIC_FIND_BIT_LE
-	bool
-	default y
 
 config GENERIC_HWEIGHT
 	bool
@@ -534,6 +526,23 @@ config PCI_DOMAINS
 
 config PCI_SYSCALL
 	def_bool PCI
+
+config PCIC_PCI
+	bool
+	depends on PCI && SPARC32 && !SPARC_LEON
+	default y
+
+config LEON_PCI
+	bool
+	depends on PCI && SPARC_LEON
+	default y
+
+config GRPCI2
+	bool "GRPCI2 Host Bridge Support"
+	depends on LEON_PCI
+	default y
+	help
+	  Say Y here to include the GRPCI2 Host Bridge Driver.
 
 source "drivers/pci/Kconfig"
 

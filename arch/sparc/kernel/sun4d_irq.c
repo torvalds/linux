@@ -14,6 +14,7 @@
 #include <asm/io.h>
 #include <asm/sbi.h>
 #include <asm/cacheflush.h>
+#include <asm/setup.h>
 
 #include "kernel.h"
 #include "irq.h"
@@ -22,21 +23,19 @@
  * cpu local.  CPU local interrupts cover the timer interrupts
  * and whatnot, and we encode those as normal PILs between
  * 0 and 15.
- *
- * SBUS interrupts are encoded integers including the board number
- * (plus one), the SBUS level, and the SBUS slot number.  Sun4D
- * IRQ dispatch is done by:
- *
- * 1) Reading the BW local interrupt table in order to get the bus
- *    interrupt mask.
- *
- *    This table is indexed by SBUS interrupt level which can be
- *    derived from the PIL we got interrupted on.
- *
- * 2) For each bus showing interrupt pending from #1, read the
- *    SBI interrupt state register.  This will indicate which slots
- *    have interrupts pending for that SBUS interrupt level.
+ * SBUS interrupts are encodes as a combination of board, level and slot.
  */
+
+struct sun4d_handler_data {
+	unsigned int cpuid;    /* target cpu */
+	unsigned int real_irq; /* interrupt level */
+};
+
+
+static unsigned int sun4d_encode_irq(int board, int lvl, int slot)
+{
+	return (board + 1) << 5 | (lvl << 2) | slot;
+}
 
 struct sun4d_timer_regs {
 	u32	l10_timer_limit;
@@ -48,17 +47,12 @@ struct sun4d_timer_regs {
 
 static struct sun4d_timer_regs __iomem *sun4d_timers;
 
-#define TIMER_IRQ	10
+#define SUN4D_TIMER_IRQ        10
 
-#define MAX_STATIC_ALLOC	4
-static unsigned char sbus_tid[32];
-
-static struct irqaction *irq_action[NR_IRQS];
-
-static struct sbus_action {
-	struct irqaction *action;
-	/* For SMP this needs to be extended */
-} *sbus_actions;
+/* Specify which cpu handle interrupts from which board.
+ * Index is board - value is cpu.
+ */
+static unsigned char board_to_cpu[32];
 
 static int pil_to_sbus[] = {
 	0,
@@ -79,152 +73,77 @@ static int pil_to_sbus[] = {
 	0,
 };
 
-static int sbus_to_pil[] = {
-	0,
-	2,
-	3,
-	5,
-	7,
-	9,
-	11,
-	13,
-};
-
-static int nsbi;
-
 /* Exported for sun4d_smp.c */
 DEFINE_SPINLOCK(sun4d_imsk_lock);
 
-int show_sun4d_interrupts(struct seq_file *p, void *v)
+/* SBUS interrupts are encoded integers including the board number
+ * (plus one), the SBUS level, and the SBUS slot number.  Sun4D
+ * IRQ dispatch is done by:
+ *
+ * 1) Reading the BW local interrupt table in order to get the bus
+ *    interrupt mask.
+ *
+ *    This table is indexed by SBUS interrupt level which can be
+ *    derived from the PIL we got interrupted on.
+ *
+ * 2) For each bus showing interrupt pending from #1, read the
+ *    SBI interrupt state register.  This will indicate which slots
+ *    have interrupts pending for that SBUS interrupt level.
+ *
+ * 3) Call the genreric IRQ support.
+ */
+static void sun4d_sbus_handler_irq(int sbusl)
 {
-	int i = *(loff_t *) v, j = 0, k = 0, sbusl;
-	struct irqaction *action;
-	unsigned long flags;
-#ifdef CONFIG_SMP
-	int x;
-#endif
+	unsigned int bus_mask;
+	unsigned int sbino, slot;
+	unsigned int sbil;
 
-	spin_lock_irqsave(&irq_action_lock, flags);
-	if (i < NR_IRQS) {
-		sbusl = pil_to_sbus[i];
-		if (!sbusl) {
-			action = *(i + irq_action);
-			if (!action)
-				goto out_unlock;
-		} else {
-			for (j = 0; j < nsbi; j++) {
-				for (k = 0; k < 4; k++)
-					action = sbus_actions[(j << 5) + (sbusl << 2) + k].action;
-					if (action)
-						goto found_it;
-			}
-			goto out_unlock;
-		}
-found_it:	seq_printf(p, "%3d: ", i);
-#ifndef CONFIG_SMP
-		seq_printf(p, "%10u ", kstat_irqs(i));
-#else
-		for_each_online_cpu(x)
-			seq_printf(p, "%10u ",
-			       kstat_cpu(cpu_logical_map(x)).irqs[i]);
-#endif
-		seq_printf(p, "%c %s",
-			(action->flags & IRQF_DISABLED) ? '+' : ' ',
-			action->name);
-		action = action->next;
-		for (;;) {
-			for (; action; action = action->next) {
-				seq_printf(p, ",%s %s",
-					(action->flags & IRQF_DISABLED) ? " +" : "",
-					action->name);
-			}
-			if (!sbusl)
-				break;
-			k++;
-			if (k < 4) {
-				action = sbus_actions[(j << 5) + (sbusl << 2) + k].action;
-			} else {
-				j++;
-				if (j == nsbi)
-					break;
-				k = 0;
-				action = sbus_actions[(j << 5) + (sbusl << 2)].action;
-			}
-		}
-		seq_putc(p, '\n');
-	}
-out_unlock:
-	spin_unlock_irqrestore(&irq_action_lock, flags);
-	return 0;
-}
+	bus_mask = bw_get_intr_mask(sbusl) & 0x3ffff;
+	bw_clear_intr_mask(sbusl, bus_mask);
 
-void sun4d_free_irq(unsigned int irq, void *dev_id)
-{
-	struct irqaction *action, **actionp;
-	struct irqaction *tmp = NULL;
-	unsigned long flags;
+	sbil = (sbusl << 2);
+	/* Loop for each pending SBI */
+	for (sbino = 0; bus_mask; sbino++, bus_mask >>= 1) {
+		unsigned int idx, mask;
 
-	spin_lock_irqsave(&irq_action_lock, flags);
-	if (irq < 15)
-		actionp = irq + irq_action;
-	else
-		actionp = &(sbus_actions[irq - (1 << 5)].action);
-	action = *actionp;
-	if (!action) {
-		printk(KERN_ERR "Trying to free free IRQ%d\n", irq);
-		goto out_unlock;
-	}
-	if (dev_id) {
-		for (; action; action = action->next) {
-			if (action->dev_id == dev_id)
-				break;
-			tmp = action;
-		}
-		if (!action) {
-			printk(KERN_ERR "Trying to free free shared IRQ%d\n",
-			       irq);
-			goto out_unlock;
-		}
-	} else if (action->flags & IRQF_SHARED) {
-		printk(KERN_ERR "Trying to free shared IRQ%d with NULL device ID\n",
-		       irq);
-		goto out_unlock;
-	}
-	if (action->flags & SA_STATIC_ALLOC) {
-		/*
-		 * This interrupt is marked as specially allocated
-		 * so it is a bad idea to free it.
+		if (!(bus_mask & 1))
+			continue;
+		/* XXX This seems to ACK the irq twice.  acquire_sbi()
+		 * XXX uses swap, therefore this writes 0xf << sbil,
+		 * XXX then later release_sbi() will write the individual
+		 * XXX bits which were set again.
 		 */
-		printk(KERN_ERR "Attempt to free statically allocated IRQ%d (%s)\n",
-		       irq, action->name);
-		goto out_unlock;
+		mask = acquire_sbi(SBI2DEVID(sbino), 0xf << sbil);
+		mask &= (0xf << sbil);
+
+		/* Loop for each pending SBI slot */
+		slot = (1 << sbil);
+		for (idx = 0; mask != 0; idx++, slot <<= 1) {
+			unsigned int pil;
+			struct irq_bucket *p;
+
+			if (!(mask & slot))
+				continue;
+
+			mask &= ~slot;
+			pil = sun4d_encode_irq(sbino, sbusl, idx);
+
+			p = irq_map[pil];
+			while (p) {
+				struct irq_bucket *next;
+
+				next = p->next;
+				generic_handle_irq(p->irq);
+				p = next;
+			}
+			release_sbi(SBI2DEVID(sbino), slot);
+		}
 	}
-
-	if (tmp)
-		tmp->next = action->next;
-	else
-		*actionp = action->next;
-
-	spin_unlock_irqrestore(&irq_action_lock, flags);
-
-	synchronize_irq(irq);
-
-	spin_lock_irqsave(&irq_action_lock, flags);
-
-	kfree(action);
-
-	if (!(*actionp))
-		__disable_irq(irq);
-
-out_unlock:
-	spin_unlock_irqrestore(&irq_action_lock, flags);
 }
 
 void sun4d_handler_irq(int pil, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
-	struct irqaction *action;
-	int cpu = smp_processor_id();
 	/* SBUS IRQ level (1 - 7) */
 	int sbusl = pil_to_sbus[pil];
 
@@ -233,159 +152,95 @@ void sun4d_handler_irq(int pil, struct pt_regs *regs)
 
 	cc_set_iclr(1 << pil);
 
+#ifdef CONFIG_SMP
+	/*
+	 * Check IPI data structures after IRQ has been cleared. Hard and Soft
+	 * IRQ can happen at the same time, so both cases are always handled.
+	 */
+	if (pil == SUN4D_IPI_IRQ)
+		sun4d_ipi_interrupt();
+#endif
+
 	old_regs = set_irq_regs(regs);
 	irq_enter();
-	kstat_cpu(cpu).irqs[pil]++;
-	if (!sbusl) {
-		action = *(pil + irq_action);
-		if (!action)
-			unexpected_irq(pil, NULL, regs);
-		do {
-			action->handler(pil, action->dev_id);
-			action = action->next;
-		} while (action);
+	if (sbusl == 0) {
+		/* cpu interrupt */
+		struct irq_bucket *p;
+
+		p = irq_map[pil];
+		while (p) {
+			struct irq_bucket *next;
+
+			next = p->next;
+			generic_handle_irq(p->irq);
+			p = next;
+		}
 	} else {
-		int bus_mask = bw_get_intr_mask(sbusl) & 0x3ffff;
-		int sbino;
-		struct sbus_action *actionp;
-		unsigned mask, slot;
-		int sbil = (sbusl << 2);
-
-		bw_clear_intr_mask(sbusl, bus_mask);
-
-		/* Loop for each pending SBI */
-		for (sbino = 0; bus_mask; sbino++, bus_mask >>= 1)
-			if (bus_mask & 1) {
-				mask = acquire_sbi(SBI2DEVID(sbino), 0xf << sbil);
-				mask &= (0xf << sbil);
-				actionp = sbus_actions + (sbino << 5) + (sbil);
-				/* Loop for each pending SBI slot */
-				for (slot = (1 << sbil); mask; slot <<= 1, actionp++)
-					if (mask & slot) {
-						mask &= ~slot;
-						action = actionp->action;
-
-						if (!action)
-							unexpected_irq(pil, NULL, regs);
-						do {
-							action->handler(pil, action->dev_id);
-							action = action->next;
-						} while (action);
-						release_sbi(SBI2DEVID(sbino), slot);
-					}
-			}
+		/* SBUS interrupt */
+		sun4d_sbus_handler_irq(sbusl);
 	}
 	irq_exit();
 	set_irq_regs(old_regs);
 }
 
-int sun4d_request_irq(unsigned int irq,
-		irq_handler_t handler,
-		unsigned long irqflags, const char *devname, void *dev_id)
+
+static void sun4d_mask_irq(struct irq_data *data)
 {
-	struct irqaction *action, *tmp = NULL, **actionp;
+	struct sun4d_handler_data *handler_data = data->handler_data;
+	unsigned int real_irq;
+#ifdef CONFIG_SMP
+	int cpuid = handler_data->cpuid;
 	unsigned long flags;
-	int ret;
-
-	if (irq > 14 && irq < (1 << 5)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (!handler) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	spin_lock_irqsave(&irq_action_lock, flags);
-
-	if (irq >= (1 << 5))
-		actionp = &(sbus_actions[irq - (1 << 5)].action);
-	else
-		actionp = irq + irq_action;
-	action = *actionp;
-
-	if (action) {
-		if ((action->flags & IRQF_SHARED) && (irqflags & IRQF_SHARED)) {
-			for (tmp = action; tmp->next; tmp = tmp->next)
-				/* find last entry - tmp used below */;
-		} else {
-			ret = -EBUSY;
-			goto out_unlock;
-		}
-		if ((action->flags & IRQF_DISABLED) ^ (irqflags & IRQF_DISABLED)) {
-			printk(KERN_ERR "Attempt to mix fast and slow interrupts on IRQ%d denied\n",
-			       irq);
-			ret = -EBUSY;
-			goto out_unlock;
-		}
-		action = NULL;		/* Or else! */
-	}
-
-	/* If this is flagged as statically allocated then we use our
-	 * private struct which is never freed.
-	 */
-	if (irqflags & SA_STATIC_ALLOC) {
-		if (static_irq_count < MAX_STATIC_ALLOC)
-			action = &static_irqaction[static_irq_count++];
-		else
-			printk(KERN_ERR "Request for IRQ%d (%s) SA_STATIC_ALLOC failed using kmalloc\n",
-			       irq, devname);
-	}
-
-	if (action == NULL)
-		action = kmalloc(sizeof(struct irqaction), GFP_ATOMIC);
-
-	if (!action) {
-		ret = -ENOMEM;
-		goto out_unlock;
-	}
-
-	action->handler = handler;
-	action->flags = irqflags;
-	action->name = devname;
-	action->next = NULL;
-	action->dev_id = dev_id;
-
-	if (tmp)
-		tmp->next = action;
-	else
-		*actionp = action;
-
-	__enable_irq(irq);
-
-	ret = 0;
-out_unlock:
-	spin_unlock_irqrestore(&irq_action_lock, flags);
-out:
-	return ret;
-}
-
-static void sun4d_disable_irq(unsigned int irq)
-{
-	int tid = sbus_tid[(irq >> 5) - 1];
-	unsigned long flags;
-
-	if (irq < NR_IRQS)
-		return;
-
+#endif
+	real_irq = handler_data->real_irq;
+#ifdef CONFIG_SMP
 	spin_lock_irqsave(&sun4d_imsk_lock, flags);
-	cc_set_imsk_other(tid, cc_get_imsk_other(tid) | (1 << sbus_to_pil[(irq >> 2) & 7]));
+	cc_set_imsk_other(cpuid, cc_get_imsk_other(cpuid) | (1 << real_irq));
 	spin_unlock_irqrestore(&sun4d_imsk_lock, flags);
+#else
+	cc_set_imsk(cc_get_imsk() | (1 << real_irq));
+#endif
 }
 
-static void sun4d_enable_irq(unsigned int irq)
+static void sun4d_unmask_irq(struct irq_data *data)
 {
-	int tid = sbus_tid[(irq >> 5) - 1];
+	struct sun4d_handler_data *handler_data = data->handler_data;
+	unsigned int real_irq;
+#ifdef CONFIG_SMP
+	int cpuid = handler_data->cpuid;
 	unsigned long flags;
+#endif
+	real_irq = handler_data->real_irq;
 
-	if (irq < NR_IRQS)
-		return;
-
+#ifdef CONFIG_SMP
 	spin_lock_irqsave(&sun4d_imsk_lock, flags);
-	cc_set_imsk_other(tid, cc_get_imsk_other(tid) & ~(1 << sbus_to_pil[(irq >> 2) & 7]));
+	cc_set_imsk_other(cpuid, cc_get_imsk_other(cpuid) & ~(1 << real_irq));
 	spin_unlock_irqrestore(&sun4d_imsk_lock, flags);
+#else
+	cc_set_imsk(cc_get_imsk() & ~(1 << real_irq));
+#endif
 }
+
+static unsigned int sun4d_startup_irq(struct irq_data *data)
+{
+	irq_link(data->irq);
+	sun4d_unmask_irq(data);
+	return 0;
+}
+
+static void sun4d_shutdown_irq(struct irq_data *data)
+{
+	sun4d_mask_irq(data);
+	irq_unlink(data->irq);
+}
+
+struct irq_chip sun4d_irq = {
+	.name		= "sun4d",
+	.irq_startup	= sun4d_startup_irq,
+	.irq_shutdown	= sun4d_shutdown_irq,
+	.irq_unmask	= sun4d_unmask_irq,
+	.irq_mask	= sun4d_mask_irq,
+};
 
 #ifdef CONFIG_SMP
 static void sun4d_set_cpu_int(int cpu, int level)
@@ -413,7 +268,7 @@ void __init sun4d_distribute_irqs(void)
 	for_each_node_by_name(dp, "sbi") {
 		int devid = of_getintprop_default(dp, "device-id", 0);
 		int board = of_getintprop_default(dp, "board#", 0);
-		sbus_tid[board] = cpuid;
+		board_to_cpu[board] = cpuid;
 		set_sbi_tid(devid, cpuid << 3);
 	}
 	printk(KERN_ERR "All sbus IRQs directed to CPU%d\n", cpuid);
@@ -440,25 +295,68 @@ static void __init sun4d_load_profile_irqs(void)
 	}
 }
 
+unsigned int _sun4d_build_device_irq(unsigned int real_irq,
+                                     unsigned int pil,
+                                     unsigned int board)
+{
+	struct sun4d_handler_data *handler_data;
+	unsigned int irq;
+
+	irq = irq_alloc(real_irq, pil);
+	if (irq == 0) {
+		prom_printf("IRQ: allocate for %d %d %d failed\n",
+			real_irq, pil, board);
+		goto err_out;
+	}
+
+	handler_data = irq_get_handler_data(irq);
+	if (unlikely(handler_data))
+		goto err_out;
+
+	handler_data = kzalloc(sizeof(struct sun4d_handler_data), GFP_ATOMIC);
+	if (unlikely(!handler_data)) {
+		prom_printf("IRQ: kzalloc(sun4d_handler_data) failed.\n");
+		prom_halt();
+	}
+	handler_data->cpuid    = board_to_cpu[board];
+	handler_data->real_irq = real_irq;
+	irq_set_chip_and_handler_name(irq, &sun4d_irq,
+	                              handle_level_irq, "level");
+	irq_set_handler_data(irq, handler_data);
+
+err_out:
+	return irq;
+}
+
+
+
 unsigned int sun4d_build_device_irq(struct platform_device *op,
                                     unsigned int real_irq)
 {
-	static int pil_to_sbus[] = {
-		0, 0, 1, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 0,
-	};
 	struct device_node *dp = op->dev.of_node;
-	struct device_node *io_unit, *sbi = dp->parent;
+	struct device_node *board_parent, *bus = dp->parent;
+	char *bus_connection;
 	const struct linux_prom_registers *regs;
+	unsigned int pil;
+	unsigned int irq;
 	int board, slot;
 	int sbusl;
 
-	while (sbi) {
-		if (!strcmp(sbi->name, "sbi"))
+	irq = real_irq;
+	while (bus) {
+		if (!strcmp(bus->name, "sbi")) {
+			bus_connection = "io-unit";
 			break;
+		}
 
-		sbi = sbi->parent;
+		if (!strcmp(bus->name, "bootbus")) {
+			bus_connection = "cpu-unit";
+			break;
+		}
+
+		bus = bus->parent;
 	}
-	if (!sbi)
+	if (!bus)
 		goto err_out;
 
 	regs = of_get_property(dp, "reg", NULL);
@@ -468,27 +366,38 @@ unsigned int sun4d_build_device_irq(struct platform_device *op,
 	slot = regs->which_io;
 
 	/*
-	 *  If SBI's parent is not io-unit or the io-unit lacks
-	 * a "board#" property, something is very wrong.
+	 * If Bus nodes parent is not io-unit/cpu-unit or the io-unit/cpu-unit
+	 * lacks a "board#" property, something is very wrong.
 	 */
-	if (!sbi->parent || strcmp(sbi->parent->name, "io-unit")) {
-		printk("%s: Error, parent is not io-unit.\n", sbi->full_name);
+	if (!bus->parent || strcmp(bus->parent->name, bus_connection)) {
+		printk(KERN_ERR "%s: Error, parent is not %s.\n",
+			bus->full_name, bus_connection);
 		goto err_out;
 	}
-	io_unit = sbi->parent;
-	board = of_getintprop_default(io_unit, "board#", -1);
+	board_parent = bus->parent;
+	board = of_getintprop_default(board_parent, "board#", -1);
 	if (board == -1) {
-		printk("%s: Error, lacks board# property.\n", io_unit->full_name);
+		printk(KERN_ERR "%s: Error, lacks board# property.\n",
+			board_parent->full_name);
 		goto err_out;
 	}
 
 	sbusl = pil_to_sbus[real_irq];
 	if (sbusl)
-		return (((board + 1) << 5) + (sbusl << 2) + slot);
+		pil = sun4d_encode_irq(board, sbusl, slot);
+	else
+		pil = real_irq;
 
+	irq = _sun4d_build_device_irq(real_irq, pil, board);
 err_out:
-	return real_irq;
+	return irq;
 }
+
+unsigned int sun4d_build_timer_irq(unsigned int board, unsigned int real_irq)
+{
+	return _sun4d_build_device_irq(real_irq, real_irq, board);
+}
+
 
 static void __init sun4d_fixup_trap_table(void)
 {
@@ -518,8 +427,10 @@ static void __init sun4d_init_timers(irq_handler_t counter_fn)
 {
 	struct device_node *dp;
 	struct resource res;
+	unsigned int irq;
 	const u32 *reg;
 	int err;
+	int board;
 
 	dp = of_find_node_by_name(NULL, "cpu-unit");
 	if (!dp) {
@@ -532,11 +443,18 @@ static void __init sun4d_init_timers(irq_handler_t counter_fn)
 	 * bootbus.
 	 */
 	reg = of_get_property(dp, "reg", NULL);
-	of_node_put(dp);
 	if (!reg) {
 		prom_printf("sun4d_init_timers: No reg property\n");
 		prom_halt();
 	}
+
+	board = of_getintprop_default(dp, "board#", -1);
+	if (board == -1) {
+		prom_printf("sun4d_init_timers: No board# property on cpu-unit\n");
+		prom_halt();
+	}
+
+	of_node_put(dp);
 
 	res.start = reg[1];
 	res.end = reg[2] - 1;
@@ -552,9 +470,8 @@ static void __init sun4d_init_timers(irq_handler_t counter_fn)
 
 	master_l10_counter = &sun4d_timers->l10_cur_count;
 
-	err = request_irq(TIMER_IRQ, counter_fn,
-			  (IRQF_DISABLED | SA_STATIC_ALLOC),
-			  "timer", NULL);
+	irq = sun4d_build_timer_irq(board, SUN4D_TIMER_IRQ);
+	err = request_irq(irq, counter_fn, IRQF_TIMER, "timer", NULL);
 	if (err) {
 		prom_printf("sun4d_init_timers: request_irq() failed with %d\n",
 		             err);
@@ -567,27 +484,16 @@ static void __init sun4d_init_timers(irq_handler_t counter_fn)
 void __init sun4d_init_sbi_irq(void)
 {
 	struct device_node *dp;
-	int target_cpu = 0;
+	int target_cpu;
 
-#ifdef CONFIG_SMP
 	target_cpu = boot_cpu_id;
-#endif
-
-	nsbi = 0;
-	for_each_node_by_name(dp, "sbi")
-		nsbi++;
-	sbus_actions = kzalloc(nsbi * 8 * 4 * sizeof(struct sbus_action), GFP_ATOMIC);
-	if (!sbus_actions) {
-		prom_printf("SUN4D: Cannot allocate sbus_actions, halting.\n");
-		prom_halt();
-	}
 	for_each_node_by_name(dp, "sbi") {
 		int devid = of_getintprop_default(dp, "device-id", 0);
 		int board = of_getintprop_default(dp, "board#", 0);
 		unsigned int mask;
 
 		set_sbi_tid(devid, target_cpu << 3);
-		sbus_tid[board] = target_cpu;
+		board_to_cpu[board] = target_cpu;
 
 		/* Get rid of pending irqs from PROM */
 		mask = acquire_sbi(devid, 0xffffffff);
@@ -603,12 +509,10 @@ void __init sun4d_init_IRQ(void)
 {
 	local_irq_disable();
 
-	BTFIXUPSET_CALL(enable_irq, sun4d_enable_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(disable_irq, sun4d_disable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(clear_clock_irq, sun4d_clear_clock_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(load_profile_irq, sun4d_load_profile_irq, BTFIXUPCALL_NORM);
 
-	sparc_irq_config.init_timers = sun4d_init_timers;
+	sparc_irq_config.init_timers      = sun4d_init_timers;
 	sparc_irq_config.build_device_irq = sun4d_build_device_irq;
 
 #ifdef CONFIG_SMP

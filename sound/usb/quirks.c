@@ -19,6 +19,7 @@
 #include <linux/usb.h>
 #include <linux/usb/audio.h>
 
+#include <sound/control.h>
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/pcm.h>
@@ -263,6 +264,20 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 }
 
 /*
+ * Create a standard mixer for the specified interface.
+ */
+static int create_standard_mixer_quirk(struct snd_usb_audio *chip,
+				       struct usb_interface *iface,
+				       struct usb_driver *driver,
+				       const struct snd_usb_audio_quirk *quirk)
+{
+	if (quirk->ifnum < 0)
+		return 0;
+
+	return snd_usb_create_mixer(chip, quirk->ifnum, 0);
+}
+
+/*
  * audio-interface quirks
  *
  * returns zero if no standard audio/MIDI parsing is needed.
@@ -294,7 +309,8 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_audio_quirk,
 		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
 		[QUIRK_AUDIO_EDIROL_UAXX] = create_uaxx_quirk,
-		[QUIRK_AUDIO_ALIGN_TRANSFER] = create_align_transfer_quirk
+		[QUIRK_AUDIO_ALIGN_TRANSFER] = create_align_transfer_quirk,
+		[QUIRK_AUDIO_STANDARD_MIXER] = create_standard_mixer_quirk,
 	};
 
 	if (quirk->type < QUIRK_TYPE_COUNT) {
@@ -387,7 +403,7 @@ static int snd_usb_cm106_boot_quirk(struct usb_device *dev)
 static int snd_usb_cm6206_boot_quirk(struct usb_device *dev)
 {
 	int err, reg;
-	int val[] = {0x200c, 0x3000, 0xf800, 0x143f, 0x0000, 0x3000};
+	int val[] = {0x2004, 0x3000, 0xf800, 0x143f, 0x0000, 0x3000};
 
 	for (reg = 0; reg < ARRAY_SIZE(val); reg++) {
 		err = snd_usb_cm106_write_int_reg(dev, reg, val[reg]);
@@ -540,6 +556,7 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 		/* Access Music VirusTI Desktop */
 		return snd_usb_accessmusic_boot_quirk(dev);
 
+	case USB_ID(0x17cc, 0x1000): /* Komplete Audio 6 */
 	case USB_ID(0x17cc, 0x1010): /* Traktor Audio 6 */
 	case USB_ID(0x17cc, 0x1020): /* Traktor Audio 10 */
 		return snd_usb_nativeinstruments_boot_quirk(dev);

@@ -62,6 +62,9 @@ static u32 mii_get_an(struct mii_if_info *mii, u16 addr)
  * @mii: MII interface
  * @ecmd: requested ethtool_cmd
  *
+ * The @ecmd parameter is expected to have been cleared before calling
+ * mii_ethtool_gset().
+ *
  * Returns 0 for success, negative on error.
  */
 int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
@@ -122,22 +125,25 @@ int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 
 		if (nego & (ADVERTISED_1000baseT_Full |
 			    ADVERTISED_1000baseT_Half)) {
-			ecmd->speed = SPEED_1000;
+			ethtool_cmd_speed_set(ecmd, SPEED_1000);
 			ecmd->duplex = !!(nego & ADVERTISED_1000baseT_Full);
 		} else if (nego & (ADVERTISED_100baseT_Full |
 				   ADVERTISED_100baseT_Half)) {
-			ecmd->speed = SPEED_100;
+			ethtool_cmd_speed_set(ecmd, SPEED_100);
 			ecmd->duplex = !!(nego & ADVERTISED_100baseT_Full);
 		} else {
-			ecmd->speed = SPEED_10;
+			ethtool_cmd_speed_set(ecmd, SPEED_10);
 			ecmd->duplex = !!(nego & ADVERTISED_10baseT_Full);
 		}
 	} else {
 		ecmd->autoneg = AUTONEG_DISABLE;
 
-		ecmd->speed = ((bmcr & BMCR_SPEED1000 &&
-				(bmcr & BMCR_SPEED100) == 0) ? SPEED_1000 :
-			       (bmcr & BMCR_SPEED100) ? SPEED_100 : SPEED_10);
+		ethtool_cmd_speed_set(ecmd,
+				      ((bmcr & BMCR_SPEED1000 &&
+					(bmcr & BMCR_SPEED100) == 0) ?
+				       SPEED_1000 :
+				       ((bmcr & BMCR_SPEED100) ?
+					SPEED_100 : SPEED_10)));
 		ecmd->duplex = (bmcr & BMCR_FULLDPLX) ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 
@@ -158,10 +164,11 @@ int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 {
 	struct net_device *dev = mii->dev;
+	u32 speed = ethtool_cmd_speed(ecmd);
 
-	if (ecmd->speed != SPEED_10 &&
-	    ecmd->speed != SPEED_100 &&
-	    ecmd->speed != SPEED_1000)
+	if (speed != SPEED_10 &&
+	    speed != SPEED_100 &&
+	    speed != SPEED_1000)
 		return -EINVAL;
 	if (ecmd->duplex != DUPLEX_HALF && ecmd->duplex != DUPLEX_FULL)
 		return -EINVAL;
@@ -173,7 +180,7 @@ int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 		return -EINVAL;
 	if (ecmd->autoneg != AUTONEG_DISABLE && ecmd->autoneg != AUTONEG_ENABLE)
 		return -EINVAL;
-	if ((ecmd->speed == SPEED_1000) && (!mii->supports_gmii))
+	if ((speed == SPEED_1000) && (!mii->supports_gmii))
 		return -EINVAL;
 
 	/* ignore supported, maxtxpkt, maxrxpkt */
@@ -231,9 +238,9 @@ int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 		bmcr = mii->mdio_read(dev, mii->phy_id, MII_BMCR);
 		tmp = bmcr & ~(BMCR_ANENABLE | BMCR_SPEED100 |
 			       BMCR_SPEED1000 | BMCR_FULLDPLX);
-		if (ecmd->speed == SPEED_1000)
+		if (speed == SPEED_1000)
 			tmp |= BMCR_SPEED1000;
-		else if (ecmd->speed == SPEED_100)
+		else if (speed == SPEED_100)
 			tmp |= BMCR_SPEED100;
 		if (ecmd->duplex == DUPLEX_FULL) {
 			tmp |= BMCR_FULLDPLX;

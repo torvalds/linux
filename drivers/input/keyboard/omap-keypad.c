@@ -209,6 +209,7 @@ static void omap_kp_tasklet(unsigned long data)
 #endif
 		}
 	}
+	input_sync(omap_kp_data->input);
 	memcpy(keypad_state, new_state, sizeof(keypad_state));
 
 	if (key_down) {
@@ -413,7 +414,7 @@ static int __devinit omap_kp_probe(struct platform_device *pdev)
 	return 0;
 err5:
 	for (i = irq_idx - 1; i >=0; i--)
-		free_irq(row_gpios[i], NULL);
+		free_irq(row_gpios[i], omap_kp);
 err4:
 	input_unregister_device(omap_kp->input);
 	input_dev = NULL;
@@ -444,11 +445,11 @@ static int __devexit omap_kp_remove(struct platform_device *pdev)
 			gpio_free(col_gpios[i]);
 		for (i = 0; i < omap_kp->rows; i++) {
 			gpio_free(row_gpios[i]);
-			free_irq(gpio_to_irq(row_gpios[i]), NULL);
+			free_irq(gpio_to_irq(row_gpios[i]), omap_kp);
 		}
 	} else {
 		omap_writew(1, OMAP1_MPUIO_BASE + OMAP_MPUIO_KBD_MASKIT);
-		free_irq(omap_kp->irq, NULL);
+		free_irq(omap_kp->irq, omap_kp);
 	}
 
 	del_timer_sync(&omap_kp->timer);

@@ -427,7 +427,7 @@ static void mmap_read_all(void)
 {
 	int i;
 
-	for (i = 0; i < evsel_list->cpus->nr; i++) {
+	for (i = 0; i < evsel_list->nr_mmaps; i++) {
 		if (evsel_list->mmap[i].base)
 			mmap_read(&evsel_list->mmap[i]);
 	}
@@ -822,6 +822,16 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	}
 
 	symbol__init();
+
+	if (symbol_conf.kptr_restrict)
+		pr_warning(
+"WARNING: Kernel address maps (/proc/{kallsyms,modules}) are restricted,\n"
+"check /proc/sys/kernel/kptr_restrict.\n\n"
+"Samples in kernel functions may not be resolved if a suitable vmlinux\n"
+"file is not found in the buildid cache or in the vmlinux path.\n\n"
+"Samples in kernel modules won't be resolved at all.\n\n"
+"If some relocation was applied (e.g. kexec) symbols may be misresolved\n"
+"even with a suitable vmlinux or kallsyms file.\n\n");
 
 	if (no_buildid_cache || no_buildid)
 		disable_buildid_cache();

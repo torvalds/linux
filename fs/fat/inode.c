@@ -581,7 +581,8 @@ static int fat_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bavail = sbi->free_clusters;
 	buf->f_fsid.val[0] = (u32)id;
 	buf->f_fsid.val[1] = (u32)(id >> 32);
-	buf->f_namelen = sbi->options.isvfat ? FAT_LFN_LEN : 12;
+	buf->f_namelen =
+		(sbi->options.isvfat ? FAT_LFN_LEN : 12) * NLS_MAX_CHARSET_SIZE;
 
 	return 0;
 }
@@ -619,8 +620,8 @@ retry:
 
 	bh = sb_bread(sb, i_pos >> sbi->dir_per_block_bits);
 	if (!bh) {
-		printk(KERN_ERR "FAT: unable to read inode block "
-		       "for updating (i_pos %lld)\n", i_pos);
+		fat_msg(sb, KERN_ERR, "unable to read inode block "
+		       "for updating (i_pos %lld)", i_pos);
 		return -EIO;
 	}
 	spin_lock(&sbi->inode_hash_lock);
@@ -976,8 +977,8 @@ static const match_table_t vfat_tokens = {
 	{Opt_err, NULL}
 };
 
-static int parse_options(char *options, int is_vfat, int silent, int *debug,
-			 struct fat_mount_options *opts)
+static int parse_options(struct super_block *sb, char *options, int is_vfat,
+			 int silent, int *debug, struct fat_mount_options *opts)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
@@ -1168,15 +1169,15 @@ static int parse_options(char *options, int is_vfat, int silent, int *debug,
 
 		/* obsolete mount options */
 		case Opt_obsolate:
-			printk(KERN_INFO "FAT: \"%s\" option is obsolete, "
-			       "not supported now\n", p);
+			fat_msg(sb, KERN_INFO, "\"%s\" option is obsolete, "
+			       "not supported now", p);
 			break;
 		/* unknown option */
 		default:
 			if (!silent) {
-				printk(KERN_ERR
-				       "FAT: Unrecognized mount option \"%s\" "
-				       "or missing value\n", p);
+				fat_msg(sb, KERN_ERR,
+				       "Unrecognized mount option \"%s\" "
+				       "or missing value", p);
 			}
 			return -EINVAL;
 		}
@@ -1185,7 +1186,7 @@ static int parse_options(char *options, int is_vfat, int silent, int *debug,
 out:
 	/* UTF-8 doesn't provide FAT semantics */
 	if (!strcmp(opts->iocharset, "utf8")) {
-		printk(KERN_ERR "FAT: utf8 is not a recommended IO charset"
+		fat_msg(sb, KERN_ERR, "utf8 is not a recommended IO charset"
 		       " for FAT filesystems, filesystem will be "
 		       "case sensitive!\n");
 	}
@@ -1238,8 +1239,7 @@ static int fat_read_root(struct inode *inode)
 /*
  * Read the super block of an MS-DOS FS.
  */
-int fat_fill_super(struct super_block *sb, void *data, int silent,
-		   const struct inode_operations *fs_dir_inode_ops, int isvfat,
+int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 		   void (*setup)(struct super_block *))
 {
 	struct inode *root_inode = NULL, *fat_inode = NULL;
@@ -1268,11 +1268,10 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	sb->s_magic = MSDOS_SUPER_MAGIC;
 	sb->s_op = &fat_sops;
 	sb->s_export_op = &fat_export_ops;
-	sbi->dir_ops = fs_dir_inode_ops;
 	ratelimit_state_init(&sbi->ratelimit, DEFAULT_RATELIMIT_INTERVAL,
 			     DEFAULT_RATELIMIT_BURST);
 
-	error = parse_options(data, isvfat, silent, &debug, &sbi->options);
+	error = parse_options(sb, data, isvfat, silent, &debug, &sbi->options);
 	if (error)
 		goto out_fail;
 
@@ -1282,20 +1281,20 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	sb_min_blocksize(sb, 512);
 	bh = sb_bread(sb, 0);
 	if (bh == NULL) {
-		printk(KERN_ERR "FAT: unable to read boot sector\n");
+		fat_msg(sb, KERN_ERR, "unable to read boot sector");
 		goto out_fail;
 	}
 
 	b = (struct fat_boot_sector *) bh->b_data;
 	if (!b->reserved) {
 		if (!silent)
-			printk(KERN_ERR "FAT: bogus number of reserved sectors\n");
+			fat_msg(sb, KERN_ERR, "bogus number of reserved sectors");
 		brelse(bh);
 		goto out_invalid;
 	}
 	if (!b->fats) {
 		if (!silent)
-			printk(KERN_ERR "FAT: bogus number of FAT structure\n");
+			fat_msg(sb, KERN_ERR, "bogus number of FAT structure");
 		brelse(bh);
 		goto out_invalid;
 	}
@@ -1308,7 +1307,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	media = b->media;
 	if (!fat_valid_media(media)) {
 		if (!silent)
-			printk(KERN_ERR "FAT: invalid media value (0x%02x)\n",
+			fat_msg(sb, KERN_ERR, "invalid media value (0x%02x)",
 			       media);
 		brelse(bh);
 		goto out_invalid;
@@ -1318,7 +1317,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	    || (logical_sector_size < 512)
 	    || (logical_sector_size > 4096)) {
 		if (!silent)
-			printk(KERN_ERR "FAT: bogus logical sector size %u\n",
+			fat_msg(sb, KERN_ERR, "bogus logical sector size %u",
 			       logical_sector_size);
 		brelse(bh);
 		goto out_invalid;
@@ -1326,15 +1325,15 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	sbi->sec_per_clus = b->sec_per_clus;
 	if (!is_power_of_2(sbi->sec_per_clus)) {
 		if (!silent)
-			printk(KERN_ERR "FAT: bogus sectors per cluster %u\n",
+			fat_msg(sb, KERN_ERR, "bogus sectors per cluster %u",
 			       sbi->sec_per_clus);
 		brelse(bh);
 		goto out_invalid;
 	}
 
 	if (logical_sector_size < sb->s_blocksize) {
-		printk(KERN_ERR "FAT: logical sector size too small for device"
-		       " (logical sector size = %u)\n", logical_sector_size);
+		fat_msg(sb, KERN_ERR, "logical sector size too small for device"
+		       " (logical sector size = %u)", logical_sector_size);
 		brelse(bh);
 		goto out_fail;
 	}
@@ -1342,14 +1341,14 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 		brelse(bh);
 
 		if (!sb_set_blocksize(sb, logical_sector_size)) {
-			printk(KERN_ERR "FAT: unable to set blocksize %u\n",
+			fat_msg(sb, KERN_ERR, "unable to set blocksize %u",
 			       logical_sector_size);
 			goto out_fail;
 		}
 		bh = sb_bread(sb, 0);
 		if (bh == NULL) {
-			printk(KERN_ERR "FAT: unable to read boot sector"
-			       " (logical sector size = %lu)\n",
+			fat_msg(sb, KERN_ERR, "unable to read boot sector"
+			       " (logical sector size = %lu)",
 			       sb->s_blocksize);
 			goto out_fail;
 		}
@@ -1385,16 +1384,16 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 
 		fsinfo_bh = sb_bread(sb, sbi->fsinfo_sector);
 		if (fsinfo_bh == NULL) {
-			printk(KERN_ERR "FAT: bread failed, FSINFO block"
-			       " (sector = %lu)\n", sbi->fsinfo_sector);
+			fat_msg(sb, KERN_ERR, "bread failed, FSINFO block"
+			       " (sector = %lu)", sbi->fsinfo_sector);
 			brelse(bh);
 			goto out_fail;
 		}
 
 		fsinfo = (struct fat_boot_fsinfo *)fsinfo_bh->b_data;
 		if (!IS_FSINFO(fsinfo)) {
-			printk(KERN_WARNING "FAT: Invalid FSINFO signature: "
-			       "0x%08x, 0x%08x (sector = %lu)\n",
+			fat_msg(sb, KERN_WARNING, "Invalid FSINFO signature: "
+			       "0x%08x, 0x%08x (sector = %lu)",
 			       le32_to_cpu(fsinfo->signature1),
 			       le32_to_cpu(fsinfo->signature2),
 			       sbi->fsinfo_sector);
@@ -1415,8 +1414,8 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	sbi->dir_entries = get_unaligned_le16(&b->dir_entries);
 	if (sbi->dir_entries & (sbi->dir_per_block - 1)) {
 		if (!silent)
-			printk(KERN_ERR "FAT: bogus directroy-entries per block"
-			       " (%u)\n", sbi->dir_entries);
+			fat_msg(sb, KERN_ERR, "bogus directroy-entries per block"
+			       " (%u)", sbi->dir_entries);
 		brelse(bh);
 		goto out_invalid;
 	}
@@ -1438,7 +1437,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	total_clusters = min(total_clusters, fat_clusters - FAT_START_ENT);
 	if (total_clusters > MAX_FAT(sb)) {
 		if (!silent)
-			printk(KERN_ERR "FAT: count of clusters too big (%u)\n",
+			fat_msg(sb, KERN_ERR, "count of clusters too big (%u)",
 			       total_clusters);
 		brelse(bh);
 		goto out_invalid;
@@ -1471,7 +1470,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	sprintf(buf, "cp%d", sbi->options.codepage);
 	sbi->nls_disk = load_nls(buf);
 	if (!sbi->nls_disk) {
-		printk(KERN_ERR "FAT: codepage %s not found\n", buf);
+		fat_msg(sb, KERN_ERR, "codepage %s not found", buf);
 		goto out_fail;
 	}
 
@@ -1479,7 +1478,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	if (sbi->options.isvfat) {
 		sbi->nls_io = load_nls(sbi->options.iocharset);
 		if (!sbi->nls_io) {
-			printk(KERN_ERR "FAT: IO charset %s not found\n",
+			fat_msg(sb, KERN_ERR, "IO charset %s not found",
 			       sbi->options.iocharset);
 			goto out_fail;
 		}
@@ -1503,7 +1502,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	insert_inode_hash(root_inode);
 	sb->s_root = d_alloc_root(root_inode);
 	if (!sb->s_root) {
-		printk(KERN_ERR "FAT: get root inode failed\n");
+		fat_msg(sb, KERN_ERR, "get root inode failed");
 		goto out_fail;
 	}
 
@@ -1512,8 +1511,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 out_invalid:
 	error = -EINVAL;
 	if (!silent)
-		printk(KERN_INFO "VFS: Can't find a valid FAT filesystem"
-		       " on dev %s.\n", sb->s_id);
+		fat_msg(sb, KERN_INFO, "Can't find a valid FAT filesystem");
 
 out_fail:
 	if (fat_inode)

@@ -24,7 +24,7 @@
 #include <linux/edac.h>
 #include "edac_core.h"
 
-#define E752X_REVISION	" Ver: 2.0.2 " __DATE__
+#define E752X_REVISION	" Ver: 2.0.2"
 #define EDAC_MOD_STR	"e752x_edac"
 
 static int report_non_memory_errors;

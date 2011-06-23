@@ -257,7 +257,7 @@ struct queue_limits {
 	unsigned char		misaligned;
 	unsigned char		discard_misaligned;
 	unsigned char		cluster;
-	signed char		discard_zeroes_data;
+	unsigned char		discard_zeroes_data;
 };
 
 struct request_queue
@@ -364,6 +364,8 @@ struct request_queue
 	 * for flush operations
 	 */
 	unsigned int		flush_flags;
+	unsigned int		flush_not_queueable:1;
+	unsigned int		flush_queue_delayed:1;
 	unsigned int		flush_pending_idx:1;
 	unsigned int		flush_running_idx:1;
 	unsigned long		flush_pending_since;
@@ -843,6 +845,7 @@ extern void blk_queue_softirq_done(struct request_queue *, softirq_done_fn *);
 extern void blk_queue_rq_timed_out(struct request_queue *, rq_timed_out_fn *);
 extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
 extern void blk_queue_flush(struct request_queue *q, unsigned int flush);
+extern void blk_queue_flush_queueable(struct request_queue *q, bool queueable);
 extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
 
 extern int blk_rq_map_sg(struct request_queue *, struct request *, struct scatterlist *);
@@ -1066,13 +1069,16 @@ static inline int queue_limit_discard_alignment(struct queue_limits *lim, sector
 {
 	unsigned int alignment = (sector << 9) & (lim->discard_granularity - 1);
 
+	if (!lim->max_discard_sectors)
+		return 0;
+
 	return (lim->discard_granularity + lim->discard_alignment - alignment)
 		& (lim->discard_granularity - 1);
 }
 
 static inline unsigned int queue_discard_zeroes_data(struct request_queue *q)
 {
-	if (q->limits.discard_zeroes_data == 1)
+	if (q->limits.max_discard_sectors && q->limits.discard_zeroes_data == 1)
 		return 1;
 
 	return 0;
@@ -1109,6 +1115,11 @@ static inline unsigned int blksize_bits(unsigned int size)
 static inline unsigned int block_size(struct block_device *bdev)
 {
 	return bdev->bd_block_size;
+}
+
+static inline bool queue_flush_queueable(struct request_queue *q)
+{
+	return !q->flush_not_queueable;
 }
 
 typedef struct {struct page *v;} Sector;
@@ -1271,8 +1282,8 @@ queue_max_integrity_segments(struct request_queue *q)
 #define blk_get_integrity(a)			(0)
 #define blk_integrity_compare(a, b)		(0)
 #define blk_integrity_register(a, b)		(0)
-#define blk_integrity_unregister(a)		do { } while (0);
-#define blk_queue_max_integrity_segments(a, b)	do { } while (0);
+#define blk_integrity_unregister(a)		do { } while (0)
+#define blk_queue_max_integrity_segments(a, b)	do { } while (0)
 #define queue_max_integrity_segments(a)		(0)
 #define blk_integrity_merge_rq(a, b, c)		(0)
 #define blk_integrity_merge_bio(a, b, c)	(0)

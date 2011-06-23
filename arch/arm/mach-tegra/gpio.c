@@ -24,6 +24,8 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
+#include <asm/mach/irq.h>
+
 #include <mach/iomap.h>
 #include <mach/suspend.h>
 
@@ -221,8 +223,9 @@ static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	int port;
 	int pin;
 	int unmasked = 0;
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 
-	desc->irq_data.chip->irq_ack(&desc->irq_data);
+	chained_irq_enter(chip, desc);
 
 	bank = irq_get_handler_data(irq);
 
@@ -241,7 +244,7 @@ static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 			 */
 			if (lvl & (0x100 << pin)) {
 				unmasked = 1;
-				desc->irq_data.chip->irq_unmask(&desc->irq_data);
+				chained_irq_exit(chip, desc);
 			}
 
 			generic_handle_irq(gpio_to_irq(gpio + pin));
@@ -249,7 +252,7 @@ static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	}
 
 	if (!unmasked)
-		desc->irq_data.chip->irq_unmask(&desc->irq_data);
+		chained_irq_exit(chip, desc);
 
 }
 

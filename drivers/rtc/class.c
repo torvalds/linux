@@ -41,25 +41,20 @@ static void rtc_device_release(struct device *dev)
  * system's wall clock; restore it on resume().
  */
 
-static struct timespec	delta;
 static time_t		oldtime;
+static struct timespec	oldts;
 
 static int rtc_suspend(struct device *dev, pm_message_t mesg)
 {
 	struct rtc_device	*rtc = to_rtc_device(dev);
 	struct rtc_time		tm;
-	struct timespec		ts = current_kernel_time();
 
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
 
 	rtc_read_time(rtc, &tm);
+	ktime_get_ts(&oldts);
 	rtc_tm_to_time(&tm, &oldtime);
-
-	/* RTC precision is 1 second; adjust delta for avg 1/2 sec err */
-	set_normalized_timespec(&delta,
-				ts.tv_sec - oldtime,
-				ts.tv_nsec - (NSEC_PER_SEC >> 1));
 
 	return 0;
 }
@@ -70,10 +65,12 @@ static int rtc_resume(struct device *dev)
 	struct rtc_time		tm;
 	time_t			newtime;
 	struct timespec		time;
+	struct timespec		newts;
 
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
 
+	ktime_get_ts(&newts);
 	rtc_read_time(rtc, &tm);
 	if (rtc_valid_tm(&tm) != 0) {
 		pr_debug("%s:  bogus resume time\n", dev_name(&rtc->dev));
@@ -85,15 +82,13 @@ static int rtc_resume(struct device *dev)
 			pr_debug("%s:  time travel!\n", dev_name(&rtc->dev));
 		return 0;
 	}
+	/* calculate the RTC time delta */
+	set_normalized_timespec(&time, newtime - oldtime, 0);
 
-	/* restore wall clock using delta against this RTC;
-	 * adjust again for avg 1/2 second RTC sampling error
-	 */
-	set_normalized_timespec(&time,
-				newtime + delta.tv_sec,
-				(NSEC_PER_SEC >> 1) + delta.tv_nsec);
-	do_settimeofday(&time);
+	/* subtract kernel time between rtc_suspend to rtc_resume */
+	time = timespec_sub(time, timespec_sub(newts, oldts));
 
+	timekeeping_inject_sleeptime(&time);
 	return 0;
 }
 

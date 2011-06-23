@@ -33,7 +33,7 @@ EXPORT_SYMBOL(inet_csk_timer_bug_msg);
  * This struct holds the first and last local port number.
  */
 struct local_ports sysctl_local_ports __read_mostly = {
-	.lock = SEQLOCK_UNLOCKED,
+	.lock = __SEQLOCK_UNLOCKED(sysctl_local_ports.lock),
 	.range = { 32768, 61000 },
 };
 
@@ -350,30 +350,24 @@ void inet_csk_reset_keepalive_timer(struct sock *sk, unsigned long len)
 EXPORT_SYMBOL(inet_csk_reset_keepalive_timer);
 
 struct dst_entry *inet_csk_route_req(struct sock *sk,
+				     struct flowi4 *fl4,
 				     const struct request_sock *req)
 {
 	struct rtable *rt;
 	const struct inet_request_sock *ireq = inet_rsk(req);
-	struct ip_options *opt = inet_rsk(req)->opt;
-	struct flowi4 fl4 = {
-		.flowi4_oif = sk->sk_bound_dev_if,
-		.flowi4_mark = sk->sk_mark,
-		.daddr = ((opt && opt->srr) ?
-			  opt->faddr : ireq->rmt_addr),
-		.saddr = ireq->loc_addr,
-		.flowi4_tos = RT_CONN_FLAGS(sk),
-		.flowi4_proto = sk->sk_protocol,
-		.flowi4_flags = inet_sk_flowi_flags(sk),
-		.fl4_sport = inet_sk(sk)->inet_sport,
-		.fl4_dport = ireq->rmt_port,
-	};
+	struct ip_options_rcu *opt = inet_rsk(req)->opt;
 	struct net *net = sock_net(sk);
 
-	security_req_classify_flow(req, flowi4_to_flowi(&fl4));
-	rt = ip_route_output_flow(net, &fl4, sk);
+	flowi4_init_output(fl4, sk->sk_bound_dev_if, sk->sk_mark,
+			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
+			   sk->sk_protocol, inet_sk_flowi_flags(sk),
+			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->rmt_addr,
+			   ireq->loc_addr, ireq->rmt_port, inet_sk(sk)->inet_sport);
+	security_req_classify_flow(req, flowi4_to_flowi(fl4));
+	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
 		goto no_route;
-	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway)
+	if (opt && opt->opt.is_strictroute && fl4->daddr != rt->rt_gateway)
 		goto route_err;
 	return &rt->dst;
 
@@ -384,6 +378,39 @@ no_route:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(inet_csk_route_req);
+
+struct dst_entry *inet_csk_route_child_sock(struct sock *sk,
+					    struct sock *newsk,
+					    const struct request_sock *req)
+{
+	const struct inet_request_sock *ireq = inet_rsk(req);
+	struct inet_sock *newinet = inet_sk(newsk);
+	struct ip_options_rcu *opt = ireq->opt;
+	struct net *net = sock_net(sk);
+	struct flowi4 *fl4;
+	struct rtable *rt;
+
+	fl4 = &newinet->cork.fl.u.ip4;
+	flowi4_init_output(fl4, sk->sk_bound_dev_if, sk->sk_mark,
+			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
+			   sk->sk_protocol, inet_sk_flowi_flags(sk),
+			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->rmt_addr,
+			   ireq->loc_addr, ireq->rmt_port, inet_sk(sk)->inet_sport);
+	security_req_classify_flow(req, flowi4_to_flowi(fl4));
+	rt = ip_route_output_flow(net, fl4, sk);
+	if (IS_ERR(rt))
+		goto no_route;
+	if (opt && opt->opt.is_strictroute && fl4->daddr != rt->rt_gateway)
+		goto route_err;
+	return &rt->dst;
+
+route_err:
+	ip_rt_put(rt);
+no_route:
+	IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(inet_csk_route_child_sock);
 
 static inline u32 inet_synq_hash(const __be32 raddr, const __be16 rport,
 				 const u32 rnd, const u32 synq_hsize)

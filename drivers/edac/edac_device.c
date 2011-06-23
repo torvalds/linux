@@ -346,30 +346,18 @@ fail1:
 }
 
 /*
- * complete_edac_device_list_del
- *
- *	callback function when reference count is zero
- */
-static void complete_edac_device_list_del(struct rcu_head *head)
-{
-	struct edac_device_ctl_info *edac_dev;
-
-	edac_dev = container_of(head, struct edac_device_ctl_info, rcu);
-	INIT_LIST_HEAD(&edac_dev->link);
-}
-
-/*
  * del_edac_device_from_global_list
- *
- *	remove the RCU, setup for a callback call,
- *	then wait for the callback to occur
  */
 static void del_edac_device_from_global_list(struct edac_device_ctl_info
 						*edac_device)
 {
 	list_del_rcu(&edac_device->link);
-	call_rcu(&edac_device->rcu, complete_edac_device_list_del);
-	rcu_barrier();
+
+	/* these are for safe removal of devices from global list while
+	 * NMI handlers may be traversing list
+	 */
+	synchronize_rcu();
+	INIT_LIST_HEAD(&edac_device->link);
 }
 
 /*

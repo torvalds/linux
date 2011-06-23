@@ -64,7 +64,7 @@ void smp_flush_tlb(void *unused)
 
 	cpu_id = get_cpu();
 
-	if (!cpu_isset(cpu_id, flush_cpumask))
+	if (!cpumask_test_cpu(cpu_id, &flush_cpumask))
 		/* This was a BUG() but until someone can quote me the line
 		 * from the intel manual that guarantees an IPI to multiple
 		 * CPUs is retried _only_ on the erroring CPUs its staying as a
@@ -80,7 +80,7 @@ void smp_flush_tlb(void *unused)
 		local_flush_tlb_page(flush_mm, flush_va);
 
 	smp_mb__before_clear_bit();
-	cpu_clear(cpu_id, flush_cpumask);
+	cpumask_clear_cpu(cpu_id, &flush_cpumask);
 	smp_mb__after_clear_bit();
 out:
 	put_cpu();
@@ -103,11 +103,11 @@ static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 	 * - we do not send IPIs to as-yet unbooted CPUs.
 	 */
 	BUG_ON(!mm);
-	BUG_ON(cpus_empty(cpumask));
-	BUG_ON(cpu_isset(smp_processor_id(), cpumask));
+	BUG_ON(cpumask_empty(&cpumask));
+	BUG_ON(cpumask_test_cpu(smp_processor_id(), &cpumask));
 
-	cpus_and(tmp, cpumask, cpu_online_map);
-	BUG_ON(!cpus_equal(cpumask, tmp));
+	cpumask_and(&tmp, &cpumask, cpu_online_mask);
+	BUG_ON(!cpumask_equal(&cpumask, &tmp));
 
 	/* I'm not happy about this global shared spinlock in the MM hot path,
 	 * but we'll see how contended it is.
@@ -128,7 +128,7 @@ static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 	/* FIXME: if NR_CPUS>=3, change send_IPI_mask */
 	smp_call_function(smp_flush_tlb, NULL, 1);
 
-	while (!cpus_empty(flush_cpumask))
+	while (!cpumask_empty(&flush_cpumask))
 		/* Lockup detection does not belong here */
 		smp_mb();
 
@@ -146,11 +146,11 @@ void flush_tlb_mm(struct mm_struct *mm)
 	cpumask_t cpu_mask;
 
 	preempt_disable();
-	cpu_mask = mm->cpu_vm_mask;
-	cpu_clear(smp_processor_id(), cpu_mask);
+	cpumask_copy(&cpu_mask, mm_cpumask(mm));
+	cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
 
 	local_flush_tlb();
-	if (!cpus_empty(cpu_mask))
+	if (!cpumask_empty(&cpu_mask))
 		flush_tlb_others(cpu_mask, mm, FLUSH_ALL);
 
 	preempt_enable();
@@ -165,11 +165,11 @@ void flush_tlb_current_task(void)
 	cpumask_t cpu_mask;
 
 	preempt_disable();
-	cpu_mask = mm->cpu_vm_mask;
-	cpu_clear(smp_processor_id(), cpu_mask);
+	cpumask_copy(&cpu_mask, mm_cpumask(mm));
+	cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
 
 	local_flush_tlb();
-	if (!cpus_empty(cpu_mask))
+	if (!cpumask_empty(&cpu_mask))
 		flush_tlb_others(cpu_mask, mm, FLUSH_ALL);
 
 	preempt_enable();
@@ -186,11 +186,11 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
 	cpumask_t cpu_mask;
 
 	preempt_disable();
-	cpu_mask = mm->cpu_vm_mask;
-	cpu_clear(smp_processor_id(), cpu_mask);
+	cpumask_copy(&cpu_mask, mm_cpumask(mm));
+	cpumask_clear_cpu(smp_processor_id(), &cpu_mask);
 
 	local_flush_tlb_page(mm, va);
-	if (!cpus_empty(cpu_mask))
+	if (!cpumask_empty(&cpu_mask))
 		flush_tlb_others(cpu_mask, mm, va);
 
 	preempt_enable();

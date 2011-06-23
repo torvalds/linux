@@ -37,13 +37,15 @@ static irqreturn_t mailbox_interrupt(int irq, void *dev_id)
 	uint64_t action;
 
 	/* Load the mailbox register to figure out what we're supposed to do */
-	action = cvmx_read_csr(CVMX_CIU_MBOX_CLRX(coreid));
+	action = cvmx_read_csr(CVMX_CIU_MBOX_CLRX(coreid)) & 0xffff;
 
 	/* Clear the mailbox to clear the interrupt */
 	cvmx_write_csr(CVMX_CIU_MBOX_CLRX(coreid), action);
 
 	if (action & SMP_CALL_FUNCTION)
 		smp_call_function_interrupt();
+	if (action & SMP_RESCHEDULE_YOURSELF)
+		scheduler_ipi();
 
 	/* Check if we've been told to flush the icache */
 	if (action & SMP_ICACHE_FLUSH)
@@ -200,15 +202,14 @@ void octeon_prepare_cpus(unsigned int max_cpus)
 	if (labi->labi_signature != LABI_SIGNATURE)
 		panic("The bootloader version on this board is incorrect.");
 #endif
-
-	cvmx_write_csr(CVMX_CIU_MBOX_CLRX(cvmx_get_core_num()), 0xffffffff);
+	/*
+	 * Only the low order mailbox bits are used for IPIs, leave
+	 * the other bits alone.
+	 */
+	cvmx_write_csr(CVMX_CIU_MBOX_CLRX(cvmx_get_core_num()), 0xffff);
 	if (request_irq(OCTEON_IRQ_MBOX0, mailbox_interrupt, IRQF_DISABLED,
-			"mailbox0", mailbox_interrupt)) {
+			"SMP-IPI", mailbox_interrupt)) {
 		panic("Cannot request_irq(OCTEON_IRQ_MBOX0)\n");
-	}
-	if (request_irq(OCTEON_IRQ_MBOX1, mailbox_interrupt, IRQF_DISABLED,
-			"mailbox1", mailbox_interrupt)) {
-		panic("Cannot request_irq(OCTEON_IRQ_MBOX1)\n");
 	}
 }
 

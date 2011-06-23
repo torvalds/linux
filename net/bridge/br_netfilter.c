@@ -104,10 +104,16 @@ static void fake_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
 }
 
+static u32 *fake_cow_metrics(struct dst_entry *dst, unsigned long old)
+{
+	return NULL;
+}
+
 static struct dst_ops fake_dst_ops = {
 	.family =		AF_INET,
 	.protocol =		cpu_to_be16(ETH_P_IP),
 	.update_pmtu =		fake_update_pmtu,
+	.cow_metrics =		fake_cow_metrics,
 };
 
 /*
@@ -117,6 +123,10 @@ static struct dst_ops fake_dst_ops = {
  * ipt_REJECT needs it.  Future netfilter modules might
  * require us to fill additional fields.
  */
+static const u32 br_dst_default_metrics[RTAX_MAX] = {
+	[RTAX_MTU - 1] = 1500,
+};
+
 void br_netfilter_rtable_init(struct net_bridge *br)
 {
 	struct rtable *rt = &br->fake_rtable;
@@ -124,7 +134,7 @@ void br_netfilter_rtable_init(struct net_bridge *br)
 	atomic_set(&rt->dst.__refcnt, 1);
 	rt->dst.dev = br->dev;
 	rt->dst.path = &rt->dst;
-	dst_metric_set(&rt->dst, RTAX_MTU, 1500);
+	dst_init_metrics(&rt->dst, br_dst_default_metrics, true);
 	rt->dst.flags	= DST_NOXFRM;
 	rt->dst.ops = &fake_dst_ops;
 }
@@ -219,7 +229,7 @@ static inline void nf_bridge_update_protocol(struct sk_buff *skb)
 static int br_parse_ip_options(struct sk_buff *skb)
 {
 	struct ip_options *opt;
-	struct iphdr *iph;
+	const struct iphdr *iph;
 	struct net_device *dev = skb->dev;
 	u32 len;
 
@@ -554,7 +564,7 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 					   const struct net_device *out,
 					   int (*okfn)(struct sk_buff *))
 {
-	struct ipv6hdr *hdr;
+	const struct ipv6hdr *hdr;
 	u32 pkt_len;
 
 	if (skb->len < sizeof(struct ipv6hdr))
@@ -737,7 +747,7 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 		nf_bridge->mask |= BRNF_PKT_TYPE;
 	}
 
-	if (br_parse_ip_options(skb))
+	if (pf == PF_INET && br_parse_ip_options(skb))
 		return NF_DROP;
 
 	/* The physdev module checks on this */

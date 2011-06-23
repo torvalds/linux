@@ -1,7 +1,7 @@
 /*
  * P4080DS Device Tree Source
  *
- * Copyright 2009 Freescale Semiconductor Inc.
+ * Copyright 2009-2011 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute	it and/or modify it
  * under  the terms of	the GNU General	 Public License as published by the
@@ -32,6 +32,17 @@
 		dma0 = &dma0;
 		dma1 = &dma1;
 		sdhc = &sdhc;
+
+		crypto = &crypto;
+		sec_jr0 = &sec_jr0;
+		sec_jr1 = &sec_jr1;
+		sec_jr2 = &sec_jr2;
+		sec_jr3 = &sec_jr3;
+		rtic_a = &rtic_a;
+		rtic_b = &rtic_b;
+		rtic_c = &rtic_c;
+		rtic_d = &rtic_d;
+		sec_mon = &sec_mon;
 
 		rio0 = &rapidio0;
 	};
@@ -409,6 +420,79 @@
 			interrupts = <45 0x2>;
 			dr_mode = "host";
 			phy_type = "ulpi";
+		};
+
+		crypto: crypto@300000 {
+			compatible = "fsl,sec-v4.0";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x300000 0x10000>;
+			ranges = <0 0x300000 0x10000>;
+			interrupt-parent = <&mpic>;
+			interrupts = <92 2>;
+
+			sec_jr0: jr@1000 {
+				compatible = "fsl,sec-v4.0-job-ring";
+				reg = <0x1000 0x1000>;
+				interrupt-parent = <&mpic>;
+				interrupts = <88 2>;
+			};
+
+			sec_jr1: jr@2000 {
+				compatible = "fsl,sec-v4.0-job-ring";
+				reg = <0x2000 0x1000>;
+				interrupt-parent = <&mpic>;
+				interrupts = <89 2>;
+			};
+
+			sec_jr2: jr@3000 {
+				compatible = "fsl,sec-v4.0-job-ring";
+				reg = <0x3000 0x1000>;
+				interrupt-parent = <&mpic>;
+				interrupts = <90 2>;
+			};
+
+			sec_jr3: jr@4000 {
+				compatible = "fsl,sec-v4.0-job-ring";
+				reg = <0x4000 0x1000>;
+				interrupt-parent = <&mpic>;
+				interrupts = <91 2>;
+			};
+
+			rtic@6000 {
+				compatible = "fsl,sec-v4.0-rtic";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x6000 0x100>;
+				ranges = <0x0 0x6100 0xe00>;
+
+				rtic_a: rtic-a@0 {
+					compatible = "fsl,sec-v4.0-rtic-memory";
+					reg = <0x00 0x20 0x100 0x80>;
+				};
+
+				rtic_b: rtic-b@20 {
+					compatible = "fsl,sec-v4.0-rtic-memory";
+					reg = <0x20 0x20 0x200 0x80>;
+				};
+
+				rtic_c: rtic-c@40 {
+					compatible = "fsl,sec-v4.0-rtic-memory";
+					reg = <0x40 0x20 0x300 0x80>;
+				};
+
+				rtic_d: rtic-d@60 {
+					compatible = "fsl,sec-v4.0-rtic-memory";
+					reg = <0x60 0x20 0x500 0x80>;
+				};
+			};
+		};
+
+		sec_mon: sec_mon@314000 {
+			compatible = "fsl,sec-v4.0-mon";
+			reg = <0x314000 0x1000>;
+			interrupt-parent = <&mpic>;
+			interrupts = <93 2>;
 		};
 	};
 

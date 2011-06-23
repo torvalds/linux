@@ -4,7 +4,7 @@
 #include <linux/netpoll.h>
 #include "vlan.h"
 
-bool vlan_hwaccel_do_receive(struct sk_buff **skbp)
+bool vlan_do_receive(struct sk_buff **skbp)
 {
 	struct sk_buff *skb = *skbp;
 	u16 vlan_id = skb->vlan_tci & VLAN_VID_MASK;
@@ -23,6 +23,31 @@ bool vlan_hwaccel_do_receive(struct sk_buff **skbp)
 		return false;
 
 	skb->dev = vlan_dev;
+	if (skb->pkt_type == PACKET_OTHERHOST) {
+		/* Our lower layer thinks this is not local, let's make sure.
+		 * This allows the VLAN to have a different MAC than the
+		 * underlying device, and still route correctly. */
+		if (!compare_ether_addr(eth_hdr(skb)->h_dest,
+					vlan_dev->dev_addr))
+			skb->pkt_type = PACKET_HOST;
+	}
+
+	if (!(vlan_dev_info(vlan_dev)->flags & VLAN_FLAG_REORDER_HDR)) {
+		unsigned int offset = skb->data - skb_mac_header(skb);
+
+		/*
+		 * vlan_insert_tag expect skb->data pointing to mac header.
+		 * So change skb->data before calling it and change back to
+		 * original position later
+		 */
+		skb_push(skb, offset);
+		skb = *skbp = vlan_insert_tag(skb, skb->vlan_tci);
+		if (!skb)
+			return false;
+		skb_pull(skb, offset + VLAN_HLEN);
+		skb_reset_mac_len(skb);
+	}
+
 	skb->priority = vlan_get_ingress_priority(vlan_dev, skb->vlan_tci);
 	skb->vlan_tci = 0;
 
@@ -31,22 +56,8 @@ bool vlan_hwaccel_do_receive(struct sk_buff **skbp)
 	u64_stats_update_begin(&rx_stats->syncp);
 	rx_stats->rx_packets++;
 	rx_stats->rx_bytes += skb->len;
-
-	switch (skb->pkt_type) {
-	case PACKET_BROADCAST:
-		break;
-	case PACKET_MULTICAST:
+	if (skb->pkt_type == PACKET_MULTICAST)
 		rx_stats->rx_multicast++;
-		break;
-	case PACKET_OTHERHOST:
-		/* Our lower layer thinks this is not local, let's make sure.
-		 * This allows the VLAN to have a different MAC than the
-		 * underlying device, and still route correctly. */
-		if (!compare_ether_addr(eth_hdr(skb)->h_dest,
-					vlan_dev->dev_addr))
-			skb->pkt_type = PACKET_HOST;
-		break;
-	}
 	u64_stats_update_end(&rx_stats->syncp);
 
 	return true;
@@ -88,3 +99,81 @@ gro_result_t vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
 	return napi_gro_frags(napi);
 }
 EXPORT_SYMBOL(vlan_gro_frags);
+
+static struct sk_buff *vlan_reorder_header(struct sk_buff *skb)
+{
+	if (skb_cow(skb, skb_headroom(skb)) < 0)
+		return NULL;
+	memmove(skb->data - ETH_HLEN, skb->data - VLAN_ETH_HLEN, 2 * ETH_ALEN);
+	skb->mac_header += VLAN_HLEN;
+	skb_reset_mac_len(skb);
+	return skb;
+}
+
+static void vlan_set_encap_proto(struct sk_buff *skb, struct vlan_hdr *vhdr)
+{
+	__be16 proto;
+	unsigned char *rawp;
+
+	/*
+	 * Was a VLAN packet, grab the encapsulated protocol, which the layer
+	 * three protocols care about.
+	 */
+
+	proto = vhdr->h_vlan_encapsulated_proto;
+	if (ntohs(proto) >= 1536) {
+		skb->protocol = proto;
+		return;
+	}
+
+	rawp = skb->data;
+	if (*(unsigned short *) rawp == 0xFFFF)
+		/*
+		 * This is a magic hack to spot IPX packets. Older Novell
+		 * breaks the protocol design and runs IPX over 802.3 without
+		 * an 802.2 LLC layer. We look for FFFF which isn't a used
+		 * 802.2 SSAP/DSAP. This won't work for fault tolerant netware
+		 * but does for the rest.
+		 */
+		skb->protocol = htons(ETH_P_802_3);
+	else
+		/*
+		 * Real 802.2 LLC
+		 */
+		skb->protocol = htons(ETH_P_802_2);
+}
+
+struct sk_buff *vlan_untag(struct sk_buff *skb)
+{
+	struct vlan_hdr *vhdr;
+	u16 vlan_tci;
+
+	if (unlikely(vlan_tx_tag_present(skb))) {
+		/* vlan_tci is already set-up so leave this for another time */
+		return skb;
+	}
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (unlikely(!skb))
+		goto err_free;
+
+	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN)))
+		goto err_free;
+
+	vhdr = (struct vlan_hdr *) skb->data;
+	vlan_tci = ntohs(vhdr->h_vlan_TCI);
+	__vlan_hwaccel_put_tag(skb, vlan_tci);
+
+	skb_pull_rcsum(skb, VLAN_HLEN);
+	vlan_set_encap_proto(skb, vhdr);
+
+	skb = vlan_reorder_header(skb);
+	if (unlikely(!skb))
+		goto err_free;
+
+	return skb;
+
+err_free:
+	kfree_skb(skb);
+	return NULL;
+}

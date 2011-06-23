@@ -125,12 +125,6 @@ config PM_DEBUG
 	code. This is helpful when debugging and reporting PM bugs, like
 	suspend support.
 
-config PM_VERBOSE
-	bool "Verbose Power Management debugging"
-	depends on PM_DEBUG
-	---help---
-	This option enables verbose messages from the Power Management code.
-
 config PM_ADVANCED_DEBUG
 	bool "Extra PM attributes in sysfs for low-level debugging/testing"
 	depends on PM_DEBUG
@@ -229,3 +223,7 @@ config PM_OPP
 	  representing individual voltage domains and provides SOC
 	  implementations a ready to use framework to manage OPPs.
 	  For more information, read <file:Documentation/power/opp.txt>
+
+config PM_RUNTIME_CLK
+	def_bool y
+	depends on PM_RUNTIME && HAVE_CLK

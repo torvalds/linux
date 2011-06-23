@@ -37,6 +37,13 @@
 #include <asm/smp.h>
 #include <asm/x86_init.h>
 #include <asm/emergency-restart.h>
+#include <asm/nmi.h>
+
+/* BMC sets a bit this MMR non-zero before sending an NMI */
+#define UVH_NMI_MMR				UVH_SCRATCH5
+#define UVH_NMI_MMR_CLEAR			(UVH_NMI_MMR + 8)
+#define UV_NMI_PENDING_MASK			(1UL << 63)
+DEFINE_PER_CPU(unsigned long, cpu_last_nmi_count);
 
 DEFINE_PER_CPU(int, x2apic_extra_bits);
 
@@ -50,6 +57,8 @@ EXPORT_SYMBOL_GPL(uv_min_hub_revision_id);
 unsigned int uv_apicid_hibits;
 EXPORT_SYMBOL_GPL(uv_apicid_hibits);
 static DEFINE_SPINLOCK(uv_nmi_lock);
+
+static struct apic apic_x2apic_uv_x;
 
 static unsigned long __init uv_early_read_mmr(unsigned long addr)
 {
@@ -82,6 +91,10 @@ static int __init early_get_pnodeid(void)
 	m_n_config.v = uv_early_read_mmr(UVH_RH_GAM_CONFIG_MMR);
 	uv_min_hub_revision_id = node_id.s.revision;
 
+	if (node_id.s.part_number == UV2_HUB_PART_NUMBER)
+		uv_min_hub_revision_id += UV2_HUB_REVISION_BASE - 1;
+
+	uv_hub_info->hub_revision = uv_min_hub_revision_id;
 	pnode = (node_id.s.node_id >> 1) & ((1 << m_n_config.s.n_skt) - 1);
 	return pnode;
 }
@@ -103,17 +116,25 @@ static void __init early_get_apic_pnode_shift(void)
  */
 static void __init uv_set_apicid_hibit(void)
 {
-	union uvh_lb_target_physical_apic_id_mask_u apicid_mask;
+	union uv1h_lb_target_physical_apic_id_mask_u apicid_mask;
 
-	apicid_mask.v = uv_early_read_mmr(UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK);
-	uv_apicid_hibits = apicid_mask.s.bit_enables & UV_APICID_HIBIT_MASK;
+	if (is_uv1_hub()) {
+		apicid_mask.v =
+			uv_early_read_mmr(UV1H_LB_TARGET_PHYSICAL_APIC_ID_MASK);
+		uv_apicid_hibits =
+			apicid_mask.s1.bit_enables & UV_APICID_HIBIT_MASK;
+	}
 }
 
 static int __init uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
-	int pnodeid;
+	int pnodeid, is_uv1, is_uv2;
 
-	if (!strcmp(oem_id, "SGI")) {
+	is_uv1 = !strcmp(oem_id, "SGI");
+	is_uv2 = !strcmp(oem_id, "SGI2");
+	if (is_uv1 || is_uv2) {
+		uv_hub_info->hub_revision =
+			is_uv1 ? UV1_HUB_REVISION_BASE : UV2_HUB_REVISION_BASE;
 		pnodeid = early_get_pnodeid();
 		early_get_apic_pnode_shift();
 		x86_platform.is_untracked_pat_range =  uv_is_untracked_pat_range;
@@ -319,10 +340,15 @@ static void uv_send_IPI_self(int vector)
 	apic_write(APIC_SELF_IPI, vector);
 }
 
-struct apic __refdata apic_x2apic_uv_x = {
+static int uv_probe(void)
+{
+	return apic == &apic_x2apic_uv_x;
+}
+
+static struct apic __refdata apic_x2apic_uv_x = {
 
 	.name				= "UV large system",
-	.probe				= NULL,
+	.probe				= uv_probe,
 	.acpi_madt_oem_check		= uv_acpi_madt_oem_check,
 	.apic_id_registered		= uv_apic_id_registered,
 
@@ -470,12 +496,19 @@ static __init void map_mmr_high(int max_pnode)
 static __init void map_mmioh_high(int max_pnode)
 {
 	union uvh_rh_gam_mmioh_overlay_config_mmr_u mmioh;
-	int shift = UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_BASE_SHFT;
+	int shift;
 
 	mmioh.v = uv_read_local_mmr(UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR);
-	if (mmioh.s.enable)
-		map_high("MMIOH", mmioh.s.base, shift, mmioh.s.m_io,
+	if (is_uv1_hub() && mmioh.s1.enable) {
+		shift = UV1H_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_BASE_SHFT;
+		map_high("MMIOH", mmioh.s1.base, shift, mmioh.s1.m_io,
 			max_pnode, map_uc);
+	}
+	if (is_uv2_hub() && mmioh.s2.enable) {
+		shift = UV2H_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR_BASE_SHFT;
+		map_high("MMIOH", mmioh.s2.base, shift, mmioh.s2.m_io,
+			max_pnode, map_uc);
+	}
 }
 
 static __init void map_low_mmrs(void)
@@ -599,14 +632,14 @@ late_initcall(uv_init_heartbeat);
 
 /* Direct Legacy VGA I/O traffic to designated IOH */
 int uv_set_vga_state(struct pci_dev *pdev, bool decode,
-		      unsigned int command_bits, bool change_bridge)
+		      unsigned int command_bits, u32 flags)
 {
 	int domain, bus, rc;
 
-	PR_DEVEL("devfn %x decode %d cmd %x chg_brdg %d\n",
-			pdev->devfn, decode, command_bits, change_bridge);
+	PR_DEVEL("devfn %x decode %d cmd %x flags %d\n",
+			pdev->devfn, decode, command_bits, flags);
 
-	if (!change_bridge)
+	if (!(flags & PCI_VGA_STATE_CHANGE_BRIDGE))
 		return 0;
 
 	if ((command_bits & PCI_COMMAND_IO) == 0)
@@ -642,18 +675,46 @@ void __cpuinit uv_cpu_init(void)
  */
 int uv_handle_nmi(struct notifier_block *self, unsigned long reason, void *data)
 {
+	unsigned long real_uv_nmi;
+	int bid;
+
 	if (reason != DIE_NMIUNKNOWN)
 		return NOTIFY_OK;
 
 	if (in_crash_kexec)
 		/* do nothing if entering the crash kernel */
 		return NOTIFY_OK;
+
 	/*
-	 * Use a lock so only one cpu prints at a time
-	 * to prevent intermixed output.
+	 * Each blade has an MMR that indicates when an NMI has been sent
+	 * to cpus on the blade. If an NMI is detected, atomically
+	 * clear the MMR and update a per-blade NMI count used to
+	 * cause each cpu on the blade to notice a new NMI.
+	 */
+	bid = uv_numa_blade_id();
+	real_uv_nmi = (uv_read_local_mmr(UVH_NMI_MMR) & UV_NMI_PENDING_MASK);
+
+	if (unlikely(real_uv_nmi)) {
+		spin_lock(&uv_blade_info[bid].nmi_lock);
+		real_uv_nmi = (uv_read_local_mmr(UVH_NMI_MMR) & UV_NMI_PENDING_MASK);
+		if (real_uv_nmi) {
+			uv_blade_info[bid].nmi_count++;
+			uv_write_local_mmr(UVH_NMI_MMR_CLEAR, UV_NMI_PENDING_MASK);
+		}
+		spin_unlock(&uv_blade_info[bid].nmi_lock);
+	}
+
+	if (likely(__get_cpu_var(cpu_last_nmi_count) == uv_blade_info[bid].nmi_count))
+		return NOTIFY_DONE;
+
+	__get_cpu_var(cpu_last_nmi_count) = uv_blade_info[bid].nmi_count;
+
+	/*
+	 * Use a lock so only one cpu prints at a time.
+	 * This prevents intermixed output.
 	 */
 	spin_lock(&uv_nmi_lock);
-	pr_info("NMI stack dump cpu %u:\n", smp_processor_id());
+	pr_info("UV NMI stack dump cpu %u:\n", smp_processor_id());
 	dump_stack();
 	spin_unlock(&uv_nmi_lock);
 
@@ -661,7 +722,8 @@ int uv_handle_nmi(struct notifier_block *self, unsigned long reason, void *data)
 }
 
 static struct notifier_block uv_dump_stack_nmi_nb = {
-	.notifier_call	= uv_handle_nmi
+	.notifier_call	= uv_handle_nmi,
+	.priority = NMI_LOCAL_LOW_PRIOR - 1,
 };
 
 void uv_register_nmi_notifier(void)
@@ -693,13 +755,14 @@ void __init uv_system_init(void)
 	unsigned long mmr_base, present, paddr;
 	unsigned short pnode_mask, pnode_io_mask;
 
+	printk(KERN_INFO "UV: Found %s hub\n", is_uv1_hub() ? "UV1" : "UV2");
 	map_low_mmrs();
 
 	m_n_config.v = uv_read_local_mmr(UVH_RH_GAM_CONFIG_MMR );
 	m_val = m_n_config.s.m_skt;
 	n_val = m_n_config.s.n_skt;
 	mmioh.v = uv_read_local_mmr(UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR);
-	n_io = mmioh.s.n_io;
+	n_io = is_uv1_hub() ? mmioh.s1.n_io : mmioh.s2.n_io;
 	mmr_base =
 	    uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR) &
 	    ~UV_MMR_ENABLE;
@@ -720,8 +783,9 @@ void __init uv_system_init(void)
 	printk(KERN_DEBUG "UV: Found %d blades\n", uv_num_possible_blades());
 
 	bytes = sizeof(struct uv_blade_info) * uv_num_possible_blades();
-	uv_blade_info = kmalloc(bytes, GFP_KERNEL);
+	uv_blade_info = kzalloc(bytes, GFP_KERNEL);
 	BUG_ON(!uv_blade_info);
+
 	for (blade = 0; blade < uv_num_possible_blades(); blade++)
 		uv_blade_info[blade].memory_nid = -1;
 
@@ -747,6 +811,7 @@ void __init uv_system_init(void)
 			uv_blade_info[blade].pnode = pnode;
 			uv_blade_info[blade].nr_possible_cpus = 0;
 			uv_blade_info[blade].nr_online_cpus = 0;
+			spin_lock_init(&uv_blade_info[blade].nmi_lock);
 			max_pnode = max(pnode, max_pnode);
 			blade++;
 		}
@@ -766,6 +831,8 @@ void __init uv_system_init(void)
 		 */
 		uv_cpu_hub_info(cpu)->pnode_mask = pnode_mask;
 		uv_cpu_hub_info(cpu)->apic_pnode_shift = uvh_apicid.s.pnode_shift;
+		uv_cpu_hub_info(cpu)->hub_revision = uv_hub_info->hub_revision;
+
 		pnode = uv_apicid_to_pnode(apicid);
 		blade = boot_pnode_to_blade(pnode);
 		lcpu = uv_blade_info[blade].nr_possible_cpus;
@@ -821,3 +888,5 @@ void __init uv_system_init(void)
 	if (is_kdump_kernel())
 		reboot_type = BOOT_ACPI;
 }
+
+apic_driver(apic_x2apic_uv_x);

@@ -1,6 +1,7 @@
 config ATH6K_LEGACY
 	tristate "Atheros AR6003 support (non mac80211)"
         depends on MMC && WLAN
+	depends on CFG80211
         select WIRELESS_EXT
         select WEXT_PRIV
 	help
@@ -99,12 +100,6 @@ config AR600x_BT_RESET_PIN
 	default 22
 	help
 	WLAN GPIO to be used for resetting BT
-
-config ATH6KL_CFG80211
-	bool "CFG80211 support"
-	depends on ATH6K_LEGACY && CFG80211
-	help
-	Enables support for CFG80211 APIs. The default option is to use WEXT. Even with this option enabled, WEXT is not explicitly disabled and the onus of not exercising WEXT lies on the application(s) running in the user space.
 
 config ATH6KL_HTC_RAW_INTERFACE
 	bool "RAW HTC support"

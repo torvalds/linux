@@ -24,4 +24,4 @@
 	.align  12
 ENTRY(shmobile_secondary_vector)
 	ldr     pc, 1f
-1:	.long   secondary_startup - PAGE_OFFSET + PHYS_OFFSET
+1:	.long   secondary_startup - PAGE_OFFSET + PLAT_PHYS_OFFSET

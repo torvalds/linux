@@ -175,11 +175,6 @@ cpu_v6_name:
 	.asciz	"ARMv6-compatible processor"
 	.size	cpu_v6_name, . - cpu_v6_name
 
-	.type	cpu_pj4_name, #object
-cpu_pj4_name:
-	.asciz	"Marvell PJ4 processor"
-	.size	cpu_pj4_name, . - cpu_pj4_name
-
 	.align
 
 	__CPUINIT
@@ -218,7 +213,9 @@ __v6_setup:
 	mcr	p15, 0, r0, c2, c0, 2		@ TTB control register
 	ALT_SMP(orr	r4, r4, #TTB_FLAGS_SMP)
 	ALT_UP(orr	r4, r4, #TTB_FLAGS_UP)
-	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
+	ALT_SMP(orr	r8, r8, #TTB_FLAGS_SMP)
+	ALT_UP(orr	r8, r8, #TTB_FLAGS_UP)
+	mcr	p15, 0, r8, c2, c0, 1		@ load TTB1
 #endif /* CONFIG_MMU */
 	adr	r5, v6_crval
 	ldmia	r5, {r5, r6}
@@ -305,32 +302,3 @@ __v6_proc_info:
 	.long	v6_user_fns
 	.long	v6_cache_fns
 	.size	__v6_proc_info, . - __v6_proc_info
-
-	.type	__pj4_v6_proc_info, #object
-__pj4_v6_proc_info:
-	.long	0x560f5810
-	.long	0xff0ffff0
-	ALT_SMP(.long \
-		PMD_TYPE_SECT | \
-		PMD_SECT_AP_WRITE | \
-		PMD_SECT_AP_READ | \
-		PMD_FLAGS_SMP)
-	ALT_UP(.long \
-		PMD_TYPE_SECT | \
-		PMD_SECT_AP_WRITE | \
-		PMD_SECT_AP_READ | \
-		PMD_FLAGS_UP)
-	.long   PMD_TYPE_SECT | \
-		PMD_SECT_XN | \
-		PMD_SECT_AP_WRITE | \
-		PMD_SECT_AP_READ
-	b	__v6_setup
-	.long	cpu_arch_name
-	.long	cpu_elf_name
-	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP|HWCAP_TLS
-	.long	cpu_pj4_name
-	.long	v6_processor_functions
-	.long	v6wbi_tlb_fns
-	.long	v6_user_fns
-	.long	v6_cache_fns
-	.size	__pj4_v6_proc_info, . - __pj4_v6_proc_info

@@ -469,33 +469,6 @@ static inline int tracehook_get_signal(struct task_struct *task,
 }
 
 /**
- * tracehook_notify_jctl - report about job control stop/continue
- * @notify:		zero, %CLD_STOPPED or %CLD_CONTINUED
- * @why:		%CLD_STOPPED or %CLD_CONTINUED
- *
- * This is called when we might call do_notify_parent_cldstop().
- *
- * @notify is zero if we would not ordinarily send a %SIGCHLD,
- * or is the %CLD_STOPPED or %CLD_CONTINUED .si_code for %SIGCHLD.
- *
- * @why is %CLD_STOPPED when about to stop for job control;
- * we are already in %TASK_STOPPED state, about to call schedule().
- * It might also be that we have just exited (check %PF_EXITING),
- * but need to report that a group-wide stop is complete.
- *
- * @why is %CLD_CONTINUED when waking up after job control stop and
- * ready to make a delayed @notify report.
- *
- * Return the %CLD_* value for %SIGCHLD, or zero to generate no signal.
- *
- * Called with the siglock held.
- */
-static inline int tracehook_notify_jctl(int notify, int why)
-{
-	return notify ?: (current->ptrace & PT_PTRACED) ? why : 0;
-}
-
-/**
  * tracehook_finish_jctl - report about return from job control stop
  *
  * This is called by do_signal_stop() after wakeup.

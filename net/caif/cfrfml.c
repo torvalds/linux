@@ -31,9 +31,9 @@ struct cfrfml {
 	spinlock_t sync;
 };
 
-static void cfrfml_release(struct kref *kref)
+static void cfrfml_release(struct cflayer *layer)
 {
-	struct cfsrvl *srvl = container_of(kref, struct cfsrvl, ref);
+	struct cfsrvl *srvl = container_of(layer, struct cfsrvl, layer);
 	struct cfrfml *rfml = container_obj(&srvl->layer);
 
 	if (rfml->incomplete_frm)

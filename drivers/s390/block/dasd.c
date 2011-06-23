@@ -1742,11 +1742,20 @@ int dasd_sleep_on_interruptible(struct dasd_ccw_req *cqr)
 static inline int _dasd_term_running_cqr(struct dasd_device *device)
 {
 	struct dasd_ccw_req *cqr;
+	int rc;
 
 	if (list_empty(&device->ccw_queue))
 		return 0;
 	cqr = list_entry(device->ccw_queue.next, struct dasd_ccw_req, devlist);
-	return device->discipline->term_IO(cqr);
+	rc = device->discipline->term_IO(cqr);
+	if (!rc)
+		/*
+		 * CQR terminated because a more important request is pending.
+		 * Undo decreasing of retry counter because this is
+		 * not an error case.
+		 */
+		cqr->retries++;
+	return rc;
 }
 
 int dasd_sleep_on_immediatly(struct dasd_ccw_req *cqr)

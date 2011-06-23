@@ -114,7 +114,7 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_fattr fattr;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 
 	cFYI(1, "posix open %s", full_path);
 
@@ -168,7 +168,7 @@ posix_open_ret:
 
 static int
 cifs_nt_open(char *full_path, struct inode *inode, struct cifs_sb_info *cifs_sb,
-	     struct cifsTconInfo *tcon, unsigned int f_flags, __u32 *poplock,
+	     struct cifs_tcon *tcon, unsigned int f_flags, __u32 *poplock,
 	     __u16 *pnetfid, int xid)
 {
 	int rc;
@@ -285,7 +285,7 @@ cifs_new_fileinfo(__u16 fileHandle, struct file *file,
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 {
 	struct inode *inode = cifs_file->dentry->d_inode;
-	struct cifsTconInfo *tcon = tlink_tcon(cifs_file->tlink);
+	struct cifs_tcon *tcon = tlink_tcon(cifs_file->tlink);
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsLockInfo *li, *tmp;
@@ -343,7 +343,7 @@ int cifs_open(struct inode *inode, struct file *file)
 	int xid;
 	__u32 oplock;
 	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
 	struct cifsFileInfo *pCifsFile = NULL;
 	char *full_path = NULL;
@@ -457,7 +457,7 @@ static int cifs_reopen_file(struct cifsFileInfo *pCifsFile, bool can_flush)
 	int xid;
 	__u32 oplock;
 	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	struct cifsInodeInfo *pCifsInode;
 	struct inode *inode;
 	char *full_path = NULL;
@@ -596,7 +596,7 @@ int cifs_closedir(struct inode *inode, struct file *file)
 	xid = GetXid();
 
 	if (pCFileStruct) {
-		struct cifsTconInfo *pTcon = tlink_tcon(pCFileStruct->tlink);
+		struct cifs_tcon *pTcon = tlink_tcon(pCFileStruct->tlink);
 
 		cFYI(1, "Freeing private data in close dir");
 		spin_lock(&cifs_file_list_lock);
@@ -653,7 +653,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 	__u64 length;
 	bool wait_flag = false;
 	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	__u16 netfid;
 	__u8 lockType = LOCKING_ANDX_LARGE_FILES;
 	bool posix_locking = 0;
@@ -725,8 +725,8 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			else
 				posix_lock_type = CIFS_WRLCK;
 			rc = CIFSSMBPosixLock(xid, tcon, netfid, 1 /* get */,
-					length,	pfLock,
-					posix_lock_type, wait_flag);
+					length, pfLock, posix_lock_type,
+					wait_flag);
 			FreeXid(xid);
 			return rc;
 		}
@@ -797,8 +797,8 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			posix_lock_type = CIFS_UNLCK;
 
 		rc = CIFSSMBPosixLock(xid, tcon, netfid, 0 /* set */,
-				      length, pfLock,
-				      posix_lock_type, wait_flag);
+				      length, pfLock, posix_lock_type,
+				      wait_flag);
 	} else {
 		struct cifsFileInfo *fid = file->private_data;
 
@@ -857,96 +857,7 @@ cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
 		cifsi->server_eof = end_of_write;
 }
 
-ssize_t cifs_user_write(struct file *file, const char __user *write_data,
-	size_t write_size, loff_t *poffset)
-{
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int rc = 0;
-	unsigned int bytes_written = 0;
-	unsigned int total_written;
-	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
-	int xid;
-	struct cifsFileInfo *open_file;
-	struct cifsInodeInfo *cifsi = CIFS_I(inode);
-
-	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
-
-	/* cFYI(1, " write %d bytes to offset %lld of %s", write_size,
-	   *poffset, file->f_path.dentry->d_name.name); */
-
-	if (file->private_data == NULL)
-		return -EBADF;
-
-	open_file = file->private_data;
-	pTcon = tlink_tcon(open_file->tlink);
-
-	rc = generic_write_checks(file, poffset, &write_size, 0);
-	if (rc)
-		return rc;
-
-	xid = GetXid();
-
-	for (total_written = 0; write_size > total_written;
-	     total_written += bytes_written) {
-		rc = -EAGAIN;
-		while (rc == -EAGAIN) {
-			if (file->private_data == NULL) {
-				/* file has been closed on us */
-				FreeXid(xid);
-			/* if we have gotten here we have written some data
-			   and blocked, and the file has been freed on us while
-			   we blocked so return what we managed to write */
-				return total_written;
-			}
-			if (open_file->invalidHandle) {
-				/* we could deadlock if we called
-				   filemap_fdatawait from here so tell
-				   reopen_file not to flush data to server
-				   now */
-				rc = cifs_reopen_file(open_file, false);
-				if (rc != 0)
-					break;
-			}
-
-			rc = CIFSSMBWrite(xid, pTcon,
-				open_file->netfid,
-				min_t(const int, cifs_sb->wsize,
-				      write_size - total_written),
-				*poffset, &bytes_written,
-				NULL, write_data + total_written, 0);
-		}
-		if (rc || (bytes_written == 0)) {
-			if (total_written)
-				break;
-			else {
-				FreeXid(xid);
-				return rc;
-			}
-		} else {
-			cifs_update_eof(cifsi, *poffset, bytes_written);
-			*poffset += bytes_written;
-		}
-	}
-
-	cifs_stats_bytes_written(pTcon, total_written);
-
-/* Do not update local mtime - server will set its actual value on write
- *	inode->i_ctime = inode->i_mtime =
- * 		current_fs_time(inode->i_sb);*/
-	if (total_written > 0) {
-		spin_lock(&inode->i_lock);
-		if (*poffset > inode->i_size)
-			i_size_write(inode, *poffset);
-		spin_unlock(&inode->i_lock);
-	}
-	mark_inode_dirty_sync(inode);
-
-	FreeXid(xid);
-	return total_written;
-}
-
-static ssize_t cifs_write(struct cifsFileInfo *open_file,
+static ssize_t cifs_write(struct cifsFileInfo *open_file, __u32 pid,
 			  const char *write_data, size_t write_size,
 			  loff_t *poffset)
 {
@@ -954,10 +865,11 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 	unsigned int bytes_written = 0;
 	unsigned int total_written;
 	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	int xid;
 	struct dentry *dentry = open_file->dentry;
 	struct cifsInodeInfo *cifsi = CIFS_I(dentry->d_inode);
+	struct cifs_io_parms io_parms;
 
 	cifs_sb = CIFS_SB(dentry->d_sb);
 
@@ -990,8 +902,13 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file,
 			/* iov[0] is reserved for smb header */
 			iov[1].iov_base = (char *)write_data + total_written;
 			iov[1].iov_len = len;
-			rc = CIFSSMBWrite2(xid, pTcon, open_file->netfid, len,
-					   *poffset, &bytes_written, iov, 1, 0);
+			io_parms.netfid = open_file->netfid;
+			io_parms.pid = pid;
+			io_parms.tcon = pTcon;
+			io_parms.offset = *poffset;
+			io_parms.length = len;
+			rc = CIFSSMBWrite2(xid, &io_parms, &bytes_written, iov,
+					   1, 0);
 		}
 		if (rc || (bytes_written == 0)) {
 			if (total_written)
@@ -1160,8 +1077,8 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 
 	open_file = find_writable_file(CIFS_I(mapping->host), false);
 	if (open_file) {
-		bytes_written = cifs_write(open_file, write_data,
-					   to - from, &offset);
+		bytes_written = cifs_write(open_file, open_file->pid,
+					   write_data, to - from, &offset);
 		cifsFileInfo_put(open_file);
 		/* Does mm or vfs already set times? */
 		inode->i_atime = inode->i_mtime = current_fs_time(inode->i_sb);
@@ -1181,58 +1098,20 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 static int cifs_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
-	unsigned int bytes_to_write;
-	unsigned int bytes_written;
-	struct cifs_sb_info *cifs_sb;
-	int done = 0;
-	pgoff_t end;
-	pgoff_t index;
-	int range_whole = 0;
-	struct kvec *iov;
-	int len;
-	int n_iov = 0;
-	pgoff_t next;
-	int nr_pages;
-	__u64 offset = 0;
-	struct cifsFileInfo *open_file;
-	struct cifsTconInfo *tcon;
-	struct cifsInodeInfo *cifsi = CIFS_I(mapping->host);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(mapping->host->i_sb);
+	bool done = false, scanned = false, range_whole = false;
+	pgoff_t end, index;
+	struct cifs_writedata *wdata;
 	struct page *page;
-	struct pagevec pvec;
 	int rc = 0;
-	int scanned = 0;
-	int xid;
-
-	cifs_sb = CIFS_SB(mapping->host->i_sb);
 
 	/*
-	 * If wsize is smaller that the page cache size, default to writing
+	 * If wsize is smaller than the page cache size, default to writing
 	 * one page at a time via cifs_writepage
 	 */
 	if (cifs_sb->wsize < PAGE_CACHE_SIZE)
 		return generic_writepages(mapping, wbc);
 
-	iov = kmalloc(32 * sizeof(struct kvec), GFP_KERNEL);
-	if (iov == NULL)
-		return generic_writepages(mapping, wbc);
-
-	/*
-	 * if there's no open file, then this is likely to fail too,
-	 * but it'll at least handle the return. Maybe it should be
-	 * a BUG() instead?
-	 */
-	open_file = find_writable_file(CIFS_I(mapping->host), false);
-	if (!open_file) {
-		kfree(iov);
-		return generic_writepages(mapping, wbc);
-	}
-
-	tcon = tlink_tcon(open_file->tlink);
-	cifsFileInfo_put(open_file);
-
-	xid = GetXid();
-
-	pagevec_init(&pvec, 0);
 	if (wbc->range_cyclic) {
 		index = mapping->writeback_index; /* Start from prev offset */
 		end = -1;
@@ -1240,24 +1119,49 @@ static int cifs_writepages(struct address_space *mapping,
 		index = wbc->range_start >> PAGE_CACHE_SHIFT;
 		end = wbc->range_end >> PAGE_CACHE_SHIFT;
 		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
-			range_whole = 1;
-		scanned = 1;
+			range_whole = true;
+		scanned = true;
 	}
 retry:
-	while (!done && (index <= end) &&
-	       (nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
-			PAGECACHE_TAG_DIRTY,
-			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1))) {
-		int first;
-		unsigned int i;
+	while (!done && index <= end) {
+		unsigned int i, nr_pages, found_pages;
+		pgoff_t next = 0, tofind;
+		struct page **pages;
 
-		first = -1;
-		next = 0;
-		n_iov = 0;
-		bytes_to_write = 0;
+		tofind = min((cifs_sb->wsize / PAGE_CACHE_SIZE) - 1,
+				end - index) + 1;
 
-		for (i = 0; i < nr_pages; i++) {
-			page = pvec.pages[i];
+		wdata = cifs_writedata_alloc((unsigned int)tofind);
+		if (!wdata) {
+			rc = -ENOMEM;
+			break;
+		}
+
+		/*
+		 * find_get_pages_tag seems to return a max of 256 on each
+		 * iteration, so we must call it several times in order to
+		 * fill the array or the wsize is effectively limited to
+		 * 256 * PAGE_CACHE_SIZE.
+		 */
+		found_pages = 0;
+		pages = wdata->pages;
+		do {
+			nr_pages = find_get_pages_tag(mapping, &index,
+							PAGECACHE_TAG_DIRTY,
+							tofind, pages);
+			found_pages += nr_pages;
+			tofind -= nr_pages;
+			pages += nr_pages;
+		} while (nr_pages && tofind && index <= end);
+
+		if (found_pages == 0) {
+			kref_put(&wdata->refcount, cifs_writedata_release);
+			break;
+		}
+
+		nr_pages = 0;
+		for (i = 0; i < found_pages; i++) {
+			page = wdata->pages[i];
 			/*
 			 * At this point we hold neither mapping->tree_lock nor
 			 * lock on the page itself: the page may be truncated or
@@ -1266,7 +1170,7 @@ retry:
 			 * mapping
 			 */
 
-			if (first < 0)
+			if (nr_pages == 0)
 				lock_page(page);
 			else if (!trylock_page(page))
 				break;
@@ -1277,7 +1181,7 @@ retry:
 			}
 
 			if (!wbc->range_cyclic && page->index > end) {
-				done = 1;
+				done = true;
 				unlock_page(page);
 				break;
 			}
@@ -1304,125 +1208,96 @@ retry:
 			set_page_writeback(page);
 
 			if (page_offset(page) >= mapping->host->i_size) {
-				done = 1;
+				done = true;
 				unlock_page(page);
 				end_page_writeback(page);
 				break;
 			}
 
-			/*
-			 * BB can we get rid of this?  pages are held by pvec
-			 */
-			page_cache_get(page);
-
-			len = min(mapping->host->i_size - page_offset(page),
-				  (loff_t)PAGE_CACHE_SIZE);
-
-			/* reserve iov[0] for the smb header */
-			n_iov++;
-			iov[n_iov].iov_base = kmap(page);
-			iov[n_iov].iov_len = len;
-			bytes_to_write += len;
-
-			if (first < 0) {
-				first = i;
-				offset = page_offset(page);
-			}
+			wdata->pages[i] = page;
 			next = page->index + 1;
-			if (bytes_to_write + PAGE_CACHE_SIZE > cifs_sb->wsize)
-				break;
+			++nr_pages;
 		}
-		if (n_iov) {
-retry_write:
-			open_file = find_writable_file(CIFS_I(mapping->host),
-							false);
-			if (!open_file) {
+
+		/* reset index to refind any pages skipped */
+		if (nr_pages == 0)
+			index = wdata->pages[0]->index + 1;
+
+		/* put any pages we aren't going to use */
+		for (i = nr_pages; i < found_pages; i++) {
+			page_cache_release(wdata->pages[i]);
+			wdata->pages[i] = NULL;
+		}
+
+		/* nothing to write? */
+		if (nr_pages == 0) {
+			kref_put(&wdata->refcount, cifs_writedata_release);
+			continue;
+		}
+
+		wdata->sync_mode = wbc->sync_mode;
+		wdata->nr_pages = nr_pages;
+		wdata->offset = page_offset(wdata->pages[0]);
+
+		do {
+			if (wdata->cfile != NULL)
+				cifsFileInfo_put(wdata->cfile);
+			wdata->cfile = find_writable_file(CIFS_I(mapping->host),
+							  false);
+			if (!wdata->cfile) {
 				cERROR(1, "No writable handles for inode");
 				rc = -EBADF;
-			} else {
-				rc = CIFSSMBWrite2(xid, tcon, open_file->netfid,
-						   bytes_to_write, offset,
-						   &bytes_written, iov, n_iov,
-						   0);
-				cifsFileInfo_put(open_file);
+				break;
 			}
+			rc = cifs_async_writev(wdata);
+		} while (wbc->sync_mode == WB_SYNC_ALL && rc == -EAGAIN);
 
-			cFYI(1, "Write2 rc=%d, wrote=%u", rc, bytes_written);
+		for (i = 0; i < nr_pages; ++i)
+			unlock_page(wdata->pages[i]);
 
-			/*
-			 * For now, treat a short write as if nothing got
-			 * written. A zero length write however indicates
-			 * ENOSPC or EFBIG. We have no way to know which
-			 * though, so call it ENOSPC for now. EFBIG would
-			 * get translated to AS_EIO anyway.
-			 *
-			 * FIXME: make it take into account the data that did
-			 *	  get written
-			 */
-			if (rc == 0) {
-				if (bytes_written == 0)
-					rc = -ENOSPC;
-				else if (bytes_written < bytes_to_write)
-					rc = -EAGAIN;
-			}
-
-			/* retry on data-integrity flush */
-			if (wbc->sync_mode == WB_SYNC_ALL && rc == -EAGAIN)
-				goto retry_write;
-
-			/* fix the stats and EOF */
-			if (bytes_written > 0) {
-				cifs_stats_bytes_written(tcon, bytes_written);
-				cifs_update_eof(cifsi, offset, bytes_written);
-			}
-
-			for (i = 0; i < n_iov; i++) {
-				page = pvec.pages[first + i];
-				/* on retryable write error, redirty page */
+		/* send failure -- clean up the mess */
+		if (rc != 0) {
+			for (i = 0; i < nr_pages; ++i) {
 				if (rc == -EAGAIN)
-					redirty_page_for_writepage(wbc, page);
-				else if (rc != 0)
-					SetPageError(page);
-				kunmap(page);
-				unlock_page(page);
-				end_page_writeback(page);
-				page_cache_release(page);
+					redirty_page_for_writepage(wbc,
+							   wdata->pages[i]);
+				else
+					SetPageError(wdata->pages[i]);
+				end_page_writeback(wdata->pages[i]);
+				page_cache_release(wdata->pages[i]);
 			}
-
 			if (rc != -EAGAIN)
 				mapping_set_error(mapping, rc);
-			else
-				rc = 0;
+		}
+		kref_put(&wdata->refcount, cifs_writedata_release);
 
-			if ((wbc->nr_to_write -= n_iov) <= 0)
-				done = 1;
-			index = next;
-		} else
-			/* Need to re-find the pages we skipped */
-			index = pvec.pages[0]->index + 1;
+		wbc->nr_to_write -= nr_pages;
+		if (wbc->nr_to_write <= 0)
+			done = true;
 
-		pagevec_release(&pvec);
+		index = next;
 	}
+
 	if (!scanned && !done) {
 		/*
 		 * We hit the last page and there is more work to be done: wrap
 		 * back to the start of the file
 		 */
-		scanned = 1;
+		scanned = true;
 		index = 0;
 		goto retry;
 	}
+
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
 		mapping->writeback_index = index;
 
-	FreeXid(xid);
-	kfree(iov);
 	return rc;
 }
 
-static int cifs_writepage(struct page *page, struct writeback_control *wbc)
+static int
+cifs_writepage_locked(struct page *page, struct writeback_control *wbc)
 {
-	int rc = -EFAULT;
+	int rc;
 	int xid;
 
 	xid = GetXid();
@@ -1442,12 +1317,26 @@ static int cifs_writepage(struct page *page, struct writeback_control *wbc)
 	 * to fail to update with the state of the page correctly.
 	 */
 	set_page_writeback(page);
+retry_write:
 	rc = cifs_partialpagewrite(page, 0, PAGE_CACHE_SIZE);
-	SetPageUptodate(page); /* BB add check for error and Clearuptodate? */
-	unlock_page(page);
+	if (rc == -EAGAIN && wbc->sync_mode == WB_SYNC_ALL)
+		goto retry_write;
+	else if (rc == -EAGAIN)
+		redirty_page_for_writepage(wbc, page);
+	else if (rc != 0)
+		SetPageError(page);
+	else
+		SetPageUptodate(page);
 	end_page_writeback(page);
 	page_cache_release(page);
 	FreeXid(xid);
+	return rc;
+}
+
+static int cifs_writepage(struct page *page, struct writeback_control *wbc)
+{
+	int rc = cifs_writepage_locked(page, wbc);
+	unlock_page(page);
 	return rc;
 }
 
@@ -1457,6 +1346,14 @@ static int cifs_write_end(struct file *file, struct address_space *mapping,
 {
 	int rc;
 	struct inode *inode = mapping->host;
+	struct cifsFileInfo *cfile = file->private_data;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(cfile->dentry->d_sb);
+	__u32 pid;
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
+		pid = cfile->pid;
+	else
+		pid = current->tgid;
 
 	cFYI(1, "write_end for page %p from pos %lld with %d bytes",
 		 page, pos, copied);
@@ -1480,8 +1377,7 @@ static int cifs_write_end(struct file *file, struct address_space *mapping,
 		/* BB check if anything else missing out of ppw
 		   such as updating last write time */
 		page_data = kmap(page);
-		rc = cifs_write(file->private_data, page_data + offset,
-				copied, &pos);
+		rc = cifs_write(cfile, pid, page_data + offset, copied, &pos);
 		/* if (rc < 0) should we set writebehind rc? */
 		kunmap(page);
 
@@ -1509,7 +1405,7 @@ int cifs_strict_fsync(struct file *file, int datasync)
 {
 	int xid;
 	int rc = 0;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	struct cifsFileInfo *smbfile = file->private_data;
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
@@ -1519,8 +1415,13 @@ int cifs_strict_fsync(struct file *file, int datasync)
 	cFYI(1, "Sync file - name: %s datasync: 0x%x",
 		file->f_path.dentry->d_name.name, datasync);
 
-	if (!CIFS_I(inode)->clientCanCacheRead)
-		cifs_invalidate_mapping(inode);
+	if (!CIFS_I(inode)->clientCanCacheRead) {
+		rc = cifs_invalidate_mapping(inode);
+		if (rc) {
+			cFYI(1, "rc: %d during invalidate phase", rc);
+			rc = 0; /* don't care about it in fsync */
+		}
+	}
 
 	tcon = tlink_tcon(smbfile->tlink);
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOSSYNC))
@@ -1534,7 +1435,7 @@ int cifs_fsync(struct file *file, int datasync)
 {
 	int xid;
 	int rc = 0;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	struct cifsFileInfo *smbfile = file->private_data;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 
@@ -1625,9 +1526,11 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 	struct iov_iter it;
 	struct inode *inode;
 	struct cifsFileInfo *open_file;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	struct cifs_sb_info *cifs_sb;
+	struct cifs_io_parms io_parms;
 	int xid, rc;
+	__u32 pid;
 
 	len = iov_length(iov, nr_segs);
 	if (!len)
@@ -1659,6 +1562,12 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 
 	xid = GetXid();
 	open_file = file->private_data;
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
+		pid = open_file->pid;
+	else
+		pid = current->tgid;
+
 	pTcon = tlink_tcon(open_file->tlink);
 	inode = file->f_path.dentry->d_inode;
 
@@ -1685,9 +1594,13 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 				if (rc != 0)
 					break;
 			}
-			rc = CIFSSMBWrite2(xid, pTcon, open_file->netfid,
-					   cur_len, *poffset, &written,
-					   to_send, npages, 0);
+			io_parms.netfid = open_file->netfid;
+			io_parms.pid = pid;
+			io_parms.tcon = pTcon;
+			io_parms.offset = *poffset;
+			io_parms.length = cur_len;
+			rc = CIFSSMBWrite2(xid, &io_parms, &written, to_send,
+					   npages, 0);
 		} while (rc == -EAGAIN);
 
 		for (i = 0; i < npages; i++)
@@ -1726,7 +1639,7 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 	return total_written;
 }
 
-static ssize_t cifs_user_writev(struct kiocb *iocb, const struct iovec *iov,
+ssize_t cifs_user_writev(struct kiocb *iocb, const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos)
 {
 	ssize_t written;
@@ -1780,10 +1693,12 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 	size_t len, cur_len;
 	int iov_offset = 0;
 	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	struct cifsFileInfo *open_file;
 	struct smb_com_read_rsp *pSMBr;
+	struct cifs_io_parms io_parms;
 	char *read_data;
+	__u32 pid;
 
 	if (!nr_segs)
 		return 0;
@@ -1797,6 +1712,11 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 
 	open_file = file->private_data;
 	pTcon = tlink_tcon(open_file->tlink);
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
+		pid = open_file->pid;
+	else
+		pid = current->tgid;
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, "attempting read on write only file instance");
@@ -1813,8 +1733,12 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 				if (rc != 0)
 					break;
 			}
-			rc = CIFSSMBRead(xid, pTcon, open_file->netfid,
-					 cur_len, *poffset, &bytes_read,
+			io_parms.netfid = open_file->netfid;
+			io_parms.pid = pid;
+			io_parms.tcon = pTcon;
+			io_parms.offset = *poffset;
+			io_parms.length = len;
+			rc = CIFSSMBRead(xid, &io_parms, &bytes_read,
 					 &read_data, &buf_type);
 			pSMBr = (struct smb_com_read_rsp *)read_data;
 			if (read_data) {
@@ -1849,17 +1773,7 @@ cifs_iovec_read(struct file *file, const struct iovec *iov,
 	return total_read;
 }
 
-ssize_t cifs_user_read(struct file *file, char __user *read_data,
-		       size_t read_size, loff_t *poffset)
-{
-	struct iovec iov;
-	iov.iov_base = read_data;
-	iov.iov_len = read_size;
-
-	return cifs_iovec_read(file, &iov, 1, poffset);
-}
-
-static ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
+ssize_t cifs_user_readv(struct kiocb *iocb, const struct iovec *iov,
 			       unsigned long nr_segs, loff_t pos)
 {
 	ssize_t read;
@@ -1901,11 +1815,13 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	unsigned int total_read;
 	unsigned int current_read_size;
 	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	int xid;
 	char *current_offset;
 	struct cifsFileInfo *open_file;
+	struct cifs_io_parms io_parms;
 	int buf_type = CIFS_NO_BUFFER;
+	__u32 pid;
 
 	xid = GetXid();
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
@@ -1917,6 +1833,11 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	}
 	open_file = file->private_data;
 	pTcon = tlink_tcon(open_file->tlink);
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
+		pid = open_file->pid;
+	else
+		pid = current->tgid;
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, "attempting read on write only file instance");
@@ -1940,11 +1861,13 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 				if (rc != 0)
 					break;
 			}
-			rc = CIFSSMBRead(xid, pTcon,
-					 open_file->netfid,
-					 current_read_size, *poffset,
-					 &bytes_read, &current_offset,
-					 &buf_type);
+			io_parms.netfid = open_file->netfid;
+			io_parms.pid = pid;
+			io_parms.tcon = pTcon;
+			io_parms.offset = *poffset;
+			io_parms.length = current_read_size;
+			rc = CIFSSMBRead(xid, &io_parms, &bytes_read,
+					 &current_offset, &buf_type);
 		}
 		if (rc || (bytes_read == 0)) {
 			if (total_read) {
@@ -1987,8 +1910,11 @@ int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma)
 
 	xid = GetXid();
 
-	if (!CIFS_I(inode)->clientCanCacheRead)
-		cifs_invalidate_mapping(inode);
+	if (!CIFS_I(inode)->clientCanCacheRead) {
+		rc = cifs_invalidate_mapping(inode);
+		if (rc)
+			return rc;
+	}
 
 	rc = generic_file_mmap(file, vma);
 	if (rc == 0)
@@ -2072,13 +1998,15 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	loff_t offset;
 	struct page *page;
 	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	unsigned int bytes_read = 0;
 	unsigned int read_size, i;
 	char *smb_read_data = NULL;
 	struct smb_com_read_rsp *pSMBr;
 	struct cifsFileInfo *open_file;
+	struct cifs_io_parms io_parms;
 	int buf_type = CIFS_NO_BUFFER;
+	__u32 pid;
 
 	xid = GetXid();
 	if (file->private_data == NULL) {
@@ -2100,6 +2028,11 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		goto read_complete;
 
 	cFYI(DBG2, "rpages: num pages %d", num_pages);
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
+		pid = open_file->pid;
+	else
+		pid = current->tgid;
+
 	for (i = 0; i < num_pages; ) {
 		unsigned contig_pages;
 		struct page *tmp_page;
@@ -2141,12 +2074,13 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 				if (rc != 0)
 					break;
 			}
-
-			rc = CIFSSMBRead(xid, pTcon,
-					 open_file->netfid,
-					 read_size, offset,
-					 &bytes_read, &smb_read_data,
-					 &buf_type);
+			io_parms.netfid = open_file->netfid;
+			io_parms.pid = pid;
+			io_parms.tcon = pTcon;
+			io_parms.offset = offset;
+			io_parms.length = read_size;
+			rc = CIFSSMBRead(xid, &io_parms, &bytes_read,
+					 &smb_read_data, &buf_type);
 			/* BB more RC checks ? */
 			if (rc == -EAGAIN) {
 				if (smb_read_data) {
@@ -2415,6 +2349,27 @@ static void cifs_invalidate_page(struct page *page, unsigned long offset)
 		cifs_fscache_invalidate_page(page, &cifsi->vfs_inode);
 }
 
+static int cifs_launder_page(struct page *page)
+{
+	int rc = 0;
+	loff_t range_start = page_offset(page);
+	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = 0,
+		.range_start = range_start,
+		.range_end = range_end,
+	};
+
+	cFYI(1, "Launder page: %p", page);
+
+	if (clear_page_dirty_for_io(page))
+		rc = cifs_writepage_locked(page, &wbc);
+
+	cifs_fscache_invalidate_page(page, page->mapping->host);
+	return rc;
+}
+
 void cifs_oplock_break(struct work_struct *work)
 {
 	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
@@ -2486,7 +2441,7 @@ const struct address_space_operations cifs_addr_ops = {
 	.set_page_dirty = __set_page_dirty_nobuffers,
 	.releasepage = cifs_release_page,
 	.invalidatepage = cifs_invalidate_page,
-	/* .direct_IO = */
+	.launder_page = cifs_launder_page,
 };
 
 /*
@@ -2503,5 +2458,5 @@ const struct address_space_operations cifs_addr_ops_smallbuf = {
 	.set_page_dirty = __set_page_dirty_nobuffers,
 	.releasepage = cifs_release_page,
 	.invalidatepage = cifs_invalidate_page,
-	/* .direct_IO = */
+	.launder_page = cifs_launder_page,
 };

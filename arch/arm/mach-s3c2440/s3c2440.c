@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/sysdev.h>
+#include <linux/syscore_ops.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -33,6 +34,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/s3c244x.h>
+#include <plat/pm.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
@@ -50,6 +52,12 @@ int __init s3c2440_init(void)
 
 	s3c_device_wdt.resource[1].start = IRQ_S3C2440_WDT;
 	s3c_device_wdt.resource[1].end   = IRQ_S3C2440_WDT;
+
+	/* register suspend/resume handlers */
+
+	register_syscore_ops(&s3c2410_pm_syscore_ops);
+	register_syscore_ops(&s3c244x_pm_syscore_ops);
+	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
 	/* register our system device for everything else */
 

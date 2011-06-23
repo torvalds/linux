@@ -426,11 +426,11 @@ static struct snd_pcm_ops snd_vortex_playback_ops = {
 */
 
 static char *vortex_pcm_prettyname[VORTEX_PCM_LAST] = {
-	"AU88x0 ADB",
-	"AU88x0 SPDIF",
-	"AU88x0 A3D",
-	"AU88x0 WT",
-	"AU88x0 I2S",
+	CARD_NAME " ADB",
+	CARD_NAME " SPDIF",
+	CARD_NAME " A3D",
+	CARD_NAME " WT",
+	CARD_NAME " I2S",
 };
 static char *vortex_pcm_name[VORTEX_PCM_LAST] = {
 	"adb",
@@ -527,7 +527,8 @@ static int __devinit snd_vortex_new_pcm(vortex_t *chip, int idx, int nr)
 			  nr_capt, &pcm);
 	if (err < 0)
 		return err;
-	strcpy(pcm->name, vortex_pcm_name[idx]);
+	snprintf(pcm->name, sizeof(pcm->name),
+		"%s %s", CARD_NAME_SHORT, vortex_pcm_name[idx]);
 	chip->pcm[idx] = pcm;
 	// This is an evil hack, but it saves a lot of duplicated code.
 	VORTEX_PCM_TYPE(pcm) = idx;

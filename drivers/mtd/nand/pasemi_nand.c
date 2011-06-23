@@ -163,7 +163,7 @@ static int __devinit pasemi_nand_probe(struct platform_device *ofdev)
 		goto out_lpc;
 	}
 
-	if (add_mtd_device(pasemi_nand_mtd)) {
+	if (mtd_device_register(pasemi_nand_mtd, NULL, 0)) {
 		printk(KERN_ERR "pasemi_nand: Unable to register MTD device\n");
 		err = -ENODEV;
 		goto out_lpc;

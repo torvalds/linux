@@ -110,16 +110,6 @@ static inline void atomic_set(atomic_t *v, int n)
 	_atomic_xchg(v, n);
 }
 
-#define xchg(ptr, x) ((typeof(*(ptr))) \
-  ((sizeof(*(ptr)) == sizeof(atomic_t)) ? \
-   atomic_xchg((atomic_t *)(ptr), (long)(x)) : \
-   __xchg_called_with_bad_pointer()))
-
-#define cmpxchg(ptr, o, n) ((typeof(*(ptr))) \
-  ((sizeof(*(ptr)) == sizeof(atomic_t)) ? \
-   atomic_cmpxchg((atomic_t *)(ptr), (long)(o), (long)(n)) : \
-   __cmpxchg_called_with_bad_pointer()))
-
 /* A 64bit atomic type */
 
 typedef struct {

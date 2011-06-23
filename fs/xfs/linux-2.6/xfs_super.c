@@ -110,8 +110,10 @@ mempool_t *xfs_ioend_pool;
 #define MNTOPT_GQUOTANOENF "gqnoenforce"/* group quota limit enforcement */
 #define MNTOPT_PQUOTANOENF "pqnoenforce"/* project quota limit enforcement */
 #define MNTOPT_QUOTANOENF  "qnoenforce"	/* same as uqnoenforce */
-#define MNTOPT_DELAYLOG   "delaylog"	/* Delayed loging enabled */
-#define MNTOPT_NODELAYLOG "nodelaylog"	/* Delayed loging disabled */
+#define MNTOPT_DELAYLOG    "delaylog"	/* Delayed logging enabled */
+#define MNTOPT_NODELAYLOG  "nodelaylog"	/* Delayed logging disabled */
+#define MNTOPT_DISCARD	   "discard"	/* Discard unused blocks */
+#define MNTOPT_NODISCARD   "nodiscard"	/* Do not discard unused blocks */
 
 /*
  * Table driven mount option parser.
@@ -355,6 +357,10 @@ xfs_parseargs(
 			mp->m_flags |= XFS_MOUNT_DELAYLOG;
 		} else if (!strcmp(this_char, MNTOPT_NODELAYLOG)) {
 			mp->m_flags &= ~XFS_MOUNT_DELAYLOG;
+		} else if (!strcmp(this_char, MNTOPT_DISCARD)) {
+			mp->m_flags |= XFS_MOUNT_DISCARD;
+		} else if (!strcmp(this_char, MNTOPT_NODISCARD)) {
+			mp->m_flags &= ~XFS_MOUNT_DISCARD;
 		} else if (!strcmp(this_char, "ihashsize")) {
 			xfs_warn(mp,
 	"ihashsize no longer used, option is deprecated.");
@@ -385,6 +391,13 @@ xfs_parseargs(
 	if ((mp->m_flags & XFS_MOUNT_NOALIGN) && (dsunit || dswidth)) {
 		xfs_warn(mp,
 	"sunit and swidth options incompatible with the noalign option");
+		return EINVAL;
+	}
+
+	if ((mp->m_flags & XFS_MOUNT_DISCARD) &&
+	    !(mp->m_flags & XFS_MOUNT_DELAYLOG)) {
+		xfs_warn(mp,
+	"the discard option is incompatible with the nodelaylog option");
 		return EINVAL;
 	}
 
@@ -488,6 +501,7 @@ xfs_showargs(
 		{ XFS_MOUNT_FILESTREAMS,	"," MNTOPT_FILESTREAM },
 		{ XFS_MOUNT_GRPID,		"," MNTOPT_GRPID },
 		{ XFS_MOUNT_DELAYLOG,		"," MNTOPT_DELAYLOG },
+		{ XFS_MOUNT_DISCARD,		"," MNTOPT_DISCARD },
 		{ 0, NULL }
 	};
 	static struct proc_xfs_info xfs_info_unset[] = {
@@ -611,68 +625,6 @@ xfs_blkdev_put(
 {
 	if (bdev)
 		blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
-}
-
-/*
- * Try to write out the superblock using barriers.
- */
-STATIC int
-xfs_barrier_test(
-	xfs_mount_t	*mp)
-{
-	xfs_buf_t	*sbp = xfs_getsb(mp, 0);
-	int		error;
-
-	XFS_BUF_UNDONE(sbp);
-	XFS_BUF_UNREAD(sbp);
-	XFS_BUF_UNDELAYWRITE(sbp);
-	XFS_BUF_WRITE(sbp);
-	XFS_BUF_UNASYNC(sbp);
-	XFS_BUF_ORDERED(sbp);
-
-	xfsbdstrat(mp, sbp);
-	error = xfs_buf_iowait(sbp);
-
-	/*
-	 * Clear all the flags we set and possible error state in the
-	 * buffer.  We only did the write to try out whether barriers
-	 * worked and shouldn't leave any traces in the superblock
-	 * buffer.
-	 */
-	XFS_BUF_DONE(sbp);
-	XFS_BUF_ERROR(sbp, 0);
-	XFS_BUF_UNORDERED(sbp);
-
-	xfs_buf_relse(sbp);
-	return error;
-}
-
-STATIC void
-xfs_mountfs_check_barriers(xfs_mount_t *mp)
-{
-	int error;
-
-	if (mp->m_logdev_targp != mp->m_ddev_targp) {
-		xfs_notice(mp,
-		  "Disabling barriers, not supported with external log device");
-		mp->m_flags &= ~XFS_MOUNT_BARRIER;
-		return;
-	}
-
-	if (xfs_readonly_buftarg(mp->m_ddev_targp)) {
-		xfs_notice(mp,
-			"Disabling barriers, underlying device is readonly");
-		mp->m_flags &= ~XFS_MOUNT_BARRIER;
-		return;
-	}
-
-	error = xfs_barrier_test(mp);
-	if (error) {
-		xfs_notice(mp,
-			"Disabling barriers, trial barrier write failed");
-		mp->m_flags &= ~XFS_MOUNT_BARRIER;
-		return;
-	}
 }
 
 void
@@ -911,7 +863,8 @@ xfs_fs_inode_init_once(
  */
 STATIC void
 xfs_fs_dirty_inode(
-	struct inode	*inode)
+	struct inode	*inode,
+	int		flags)
 {
 	barrier();
 	XFS_I(inode)->i_update_core = 1;
@@ -1225,14 +1178,6 @@ xfs_fs_remount(
 		switch (token) {
 		case Opt_barrier:
 			mp->m_flags |= XFS_MOUNT_BARRIER;
-
-			/*
-			 * Test if barriers are actually working if we can,
-			 * else delay this check until the filesystem is
-			 * marked writeable.
-			 */
-			if (!(mp->m_flags & XFS_MOUNT_RDONLY))
-				xfs_mountfs_check_barriers(mp);
 			break;
 		case Opt_nobarrier:
 			mp->m_flags &= ~XFS_MOUNT_BARRIER;
@@ -1267,8 +1212,6 @@ xfs_fs_remount(
 	/* ro -> rw */
 	if ((mp->m_flags & XFS_MOUNT_RDONLY) && !(*flags & MS_RDONLY)) {
 		mp->m_flags &= ~XFS_MOUNT_RDONLY;
-		if (mp->m_flags & XFS_MOUNT_BARRIER)
-			xfs_mountfs_check_barriers(mp);
 
 		/*
 		 * If this is the first remount to writeable state we
@@ -1449,9 +1392,6 @@ xfs_fs_fill_super(
 	error = xfs_setup_devices(mp);
 	if (error)
 		goto out_free_sb;
-
-	if (mp->m_flags & XFS_MOUNT_BARRIER)
-		xfs_mountfs_check_barriers(mp);
 
 	error = xfs_filestream_mount(mp);
 	if (error)
@@ -1786,10 +1726,6 @@ init_xfs_fs(void)
 	error = xfs_sysctl_register();
 	if (error)
 		goto out_cleanup_procfs;
-
-	error = xfs_init_workqueues();
-	if (error)
-		goto out_sysctl_unregister;
 
 	vfs_initquota();
 

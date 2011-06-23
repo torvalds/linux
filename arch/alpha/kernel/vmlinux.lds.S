@@ -39,13 +39,14 @@ SECTIONS
 	__init_begin = ALIGN(PAGE_SIZE);
 	INIT_TEXT_SECTION(PAGE_SIZE)
 	INIT_DATA_SECTION(16)
-	PERCPU(L1_CACHE_BYTES, PAGE_SIZE)
+	PERCPU_SECTION(L1_CACHE_BYTES)
 	/* Align to THREAD_SIZE rather than PAGE_SIZE here so any padding page
 	   needed for the THREAD_SIZE aligned init_task gets freed after init */
 	. = ALIGN(THREAD_SIZE);
 	__init_end = .;
 	/* Freed after init ends here */
 
+	_sdata = .;	/* Start of rw data section */
 	_data = .;
 	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 

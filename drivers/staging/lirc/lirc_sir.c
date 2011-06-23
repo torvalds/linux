@@ -143,9 +143,9 @@ static unsigned int duty_cycle = 50;   /* duty cycle of 50% */
 #endif
 #ifndef LIRC_PORT
 /* for external dongles, default to com1 */
-#if defined(LIRC_SIR_ACTISYS_ACT200L) || \
-    defined(LIRC_SIR_ACTISYS_ACT220L) || \
-    defined(LIRC_SIR_TEKRAM)
+#if defined(LIRC_SIR_ACTISYS_ACT200L)         || \
+	    defined(LIRC_SIR_ACTISYS_ACT220L) || \
+	    defined(LIRC_SIR_TEKRAM)
 #define LIRC_PORT 0x3f8
 #else
 /* onboard sir ports are typically com3 */
@@ -467,7 +467,7 @@ static const struct file_operations lirc_fops = {
 
 static int set_use_inc(void *data)
 {
-       return 0;
+	return 0;
 }
 
 static void set_use_dec(void *data)
@@ -475,17 +475,17 @@ static void set_use_dec(void *data)
 }
 
 static struct lirc_driver driver = {
-       .name		= LIRC_DRIVER_NAME,
-       .minor		= -1,
-       .code_length	= 1,
-       .sample_rate	= 0,
-       .data		= NULL,
-       .add_to_buf	= NULL,
-       .set_use_inc	= set_use_inc,
-       .set_use_dec	= set_use_dec,
-       .fops		= &lirc_fops,
-       .dev		= NULL,
-       .owner		= THIS_MODULE,
+	.name		= LIRC_DRIVER_NAME,
+	.minor		= -1,
+	.code_length	= 1,
+	.sample_rate	= 0,
+	.data		= NULL,
+	.add_to_buf	= NULL,
+	.set_use_inc	= set_use_inc,
+	.set_use_dec	= set_use_dec,
+	.fops		= &lirc_fops,
+	.dev		= NULL,
+	.owner		= THIS_MODULE,
 };
 
 

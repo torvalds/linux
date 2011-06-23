@@ -158,3 +158,17 @@ Description:
 		successful, will make the kernel abort a subsequent transition
 		to a sleep state if any wakeup events are reported after the
 		write has returned.
+
+What:		/sys/power/reserved_size
+Date:		May 2011
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/reserved_size file allows user space to control
+		the amount of memory reserved for allocations made by device
+		drivers during the "device freeze" stage of hibernation.  It can
+		be written a string representing a non-negative integer that
+		will be used as the amount of memory to reserve for allocations
+		made by device drivers' "freeze" callbacks, in bytes.
+
+		Reading from this file will display the current value, which is
+		set to 1 MB by default.

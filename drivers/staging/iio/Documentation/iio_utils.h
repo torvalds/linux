@@ -16,24 +16,10 @@
 
 #define IIO_MAX_NAME_LENGTH 30
 
-#define IIO_EV_CLASS_BUFFER		0
-#define IIO_BUFFER_EVENT_CODE(code)		\
-	(IIO_EV_CLASS_BUFFER | (code << 8))
-
-#define IIO_EVENT_CODE_RING_50_FULL	IIO_BUFFER_EVENT_CODE(0)
-#define IIO_EVENT_CODE_RING_75_FULL	IIO_BUFFER_EVENT_CODE(1)
-#define IIO_EVENT_CODE_RING_100_FULL	IIO_BUFFER_EVENT_CODE(2)
-
-
 #define FORMAT_SCAN_ELEMENTS_DIR "%s:buffer0/scan_elements"
 #define FORMAT_TYPE_FILE "%s_type"
 
 const char *iio_dir = "/sys/bus/iio/devices/";
-
-struct iio_event_data {
-	int id;
-	__s64 timestamp;
-};
 
 /**
  * iioutils_break_up_name() - extract generic name from full channel name
@@ -85,6 +71,7 @@ struct iio_channel_info {
 	unsigned index;
 	unsigned bytes;
 	unsigned bits_used;
+	unsigned shift;
 	uint64_t mask;
 	unsigned is_signed;
 	unsigned enabled;
@@ -103,6 +90,7 @@ struct iio_channel_info {
 inline int iioutils_get_type(unsigned *is_signed,
 			     unsigned *bytes,
 			     unsigned *bits_used,
+			     unsigned *shift,
 			     uint64_t *mask,
 			     const char *device_dir,
 			     const char *name,
@@ -157,7 +145,8 @@ inline int iioutils_get_type(unsigned *is_signed,
 				goto error_free_filename;
 			}
 			fscanf(sysfsfp,
-			       "%c%u/%u", &signchar, bits_used, &padint);
+			       "%c%u/%u>>%u", &signchar, bits_used,
+			       &padint, shift);
 			*bytes = padint / 8;
 			if (*bits_used == 64)
 				*mask = ~0;
@@ -395,6 +384,7 @@ inline int build_channel_array(const char *device_dir,
 			ret = iioutils_get_type(&current->is_signed,
 						&current->bytes,
 						&current->bits_used,
+						&current->shift,
 						&current->mask,
 						device_dir,
 						current->name,

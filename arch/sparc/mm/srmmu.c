@@ -1665,7 +1665,7 @@ static void __init init_swift(void)
 	default:
 		srmmu_modtype = Swift_ok;
 		break;
-	};
+	}
 
 	BTFIXUPSET_CALL(flush_cache_all, swift_flush_cache_all, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_cache_mm, swift_flush_cache_mm, BTFIXUPCALL_NORM);
@@ -2069,7 +2069,7 @@ static void __init get_srmmu_type(void)
 			/* Some other Cypress revision, assume a 605. */
 			init_cypress_605(mod_rev);
 			break;
-		};
+		}
 		return;
 	}
 	

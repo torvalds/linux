@@ -264,11 +264,6 @@ config CRYPTO_XTS
 	  key size 256, 384 or 512 bits. This implementation currently
 	  can't handle a sectorsize which is not a multiple of 16 bytes.
 
-config CRYPTO_FPU
-	tristate
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_MANAGER
-
 comment "Hash modes"
 
 config CRYPTO_HMAC
@@ -543,7 +538,6 @@ config CRYPTO_AES_NI_INTEL
 	select CRYPTO_AES_586 if !64BIT
 	select CRYPTO_CRYPTD
 	select CRYPTO_ALGAPI
-	select CRYPTO_FPU
 	help
 	  Use Intel AES-NI instructions for AES algorithm.
 

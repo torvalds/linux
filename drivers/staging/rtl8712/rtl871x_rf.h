@@ -22,7 +22,7 @@ struct	regulatory_class {
 	u8	modem;
 };
 
-enum	_REG_PREAMBLE_MODE{
+enum	_REG_PREAMBLE_MODE {
 	PREAMBLE_LONG	= 1,
 	PREAMBLE_AUTO	= 2,
 	PREAMBLE_SHORT	= 3,

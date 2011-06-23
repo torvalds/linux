@@ -28,11 +28,11 @@ void tulip_media_task(struct work_struct *work)
 	unsigned long flags;
 
 	if (tulip_debug > 2) {
-		printk(KERN_DEBUG "%s: Media selection tick, %s, status %08x mode %08x SIA %08x %08x %08x %08x\n",
-		       dev->name, medianame[dev->if_port],
-		       ioread32(ioaddr + CSR5), ioread32(ioaddr + CSR6),
-		       csr12, ioread32(ioaddr + CSR13),
-		       ioread32(ioaddr + CSR14), ioread32(ioaddr + CSR15));
+		netdev_dbg(dev, "Media selection tick, %s, status %08x mode %08x SIA %08x %08x %08x %08x\n",
+			   medianame[dev->if_port],
+			   ioread32(ioaddr + CSR5), ioread32(ioaddr + CSR6),
+			   csr12, ioread32(ioaddr + CSR13),
+			   ioread32(ioaddr + CSR14), ioread32(ioaddr + CSR15));
 	}
 	switch (tp->chip_id) {
 	case DC21140:
@@ -48,9 +48,9 @@ void tulip_media_task(struct work_struct *work)
 			   Assume this a generic MII or SYM transceiver. */
 			next_tick = 60*HZ;
 			if (tulip_debug > 2)
-				printk(KERN_DEBUG "%s: network media monitor CSR6 %08x CSR12 0x%02x\n",
-				       dev->name,
-				       ioread32(ioaddr + CSR6), csr12 & 0xff);
+				netdev_dbg(dev, "network media monitor CSR6 %08x CSR12 0x%02x\n",
+					   ioread32(ioaddr + CSR6),
+					   csr12 & 0xff);
 			break;
 		}
 		mleaf = &tp->mtable->mleaf[tp->cur_index];
@@ -62,8 +62,8 @@ void tulip_media_task(struct work_struct *work)
 			s8 bitnum = p[offset];
 			if (p[offset+1] & 0x80) {
 				if (tulip_debug > 1)
-					printk(KERN_DEBUG "%s: Transceiver monitor tick CSR12=%#02x, no media sense\n",
-					       dev->name, csr12);
+					netdev_dbg(dev, "Transceiver monitor tick CSR12=%#02x, no media sense\n",
+						   csr12);
 				if (mleaf->type == 4) {
 					if (mleaf->media == 3 && (csr12 & 0x02))
 						goto select_next_media;
@@ -71,17 +71,16 @@ void tulip_media_task(struct work_struct *work)
 				break;
 			}
 			if (tulip_debug > 2)
-				printk(KERN_DEBUG "%s: Transceiver monitor tick: CSR12=%#02x bit %d is %d, expecting %d\n",
-				       dev->name, csr12, (bitnum >> 1) & 7,
-				       (csr12 & (1 << ((bitnum >> 1) & 7))) != 0,
-				       (bitnum >= 0));
+				netdev_dbg(dev, "Transceiver monitor tick: CSR12=%#02x bit %d is %d, expecting %d\n",
+					   csr12, (bitnum >> 1) & 7,
+					   (csr12 & (1 << ((bitnum >> 1) & 7))) != 0,
+					   (bitnum >= 0));
 			/* Check that the specified bit has the proper value. */
 			if ((bitnum < 0) !=
 				((csr12 & (1 << ((bitnum >> 1) & 7))) != 0)) {
 				if (tulip_debug > 2)
-					printk(KERN_DEBUG "%s: Link beat detected for %s\n",
-					       dev->name,
-					       medianame[mleaf->media & MEDIA_MASK]);
+					netdev_dbg(dev, "Link beat detected for %s\n",
+						   medianame[mleaf->media & MEDIA_MASK]);
 				if ((p[2] & 0x61) == 0x01)	/* Bogus Znyx board. */
 					goto actually_mii;
 				netif_carrier_on(dev);
@@ -99,10 +98,9 @@ void tulip_media_task(struct work_struct *work)
 			if (tulip_media_cap[dev->if_port] & MediaIsFD)
 				goto select_next_media; /* Skip FD entries. */
 			if (tulip_debug > 1)
-				printk(KERN_DEBUG "%s: No link beat on media %s, trying transceiver type %s\n",
-				       dev->name,
-				       medianame[mleaf->media & MEDIA_MASK],
-				       medianame[tp->mtable->mleaf[tp->cur_index].media]);
+				netdev_dbg(dev, "No link beat on media %s, trying transceiver type %s\n",
+					   medianame[mleaf->media & MEDIA_MASK],
+					   medianame[tp->mtable->mleaf[tp->cur_index].media]);
 			tulip_select_media(dev, 0);
 			/* Restart the transmit process. */
 			tulip_restart_rxtx(tp);
@@ -166,10 +164,9 @@ void comet_timer(unsigned long data)
 	int next_tick = 60*HZ;
 
 	if (tulip_debug > 1)
-		printk(KERN_DEBUG "%s: Comet link status %04x partner capability %04x\n",
-		       dev->name,
-		       tulip_mdio_read(dev, tp->phys[0], 1),
-		       tulip_mdio_read(dev, tp->phys[0], 5));
+		netdev_dbg(dev, "Comet link status %04x partner capability %04x\n",
+			   tulip_mdio_read(dev, tp->phys[0], 1),
+			   tulip_mdio_read(dev, tp->phys[0], 5));
 	/* mod_timer synchronizes us with potential add_timer calls
 	 * from interrupts.
 	 */

@@ -20,7 +20,6 @@
 #include <linux/caif/if_caif.h>
 #include <net/rtnetlink.h>
 #include <net/caif/caif_layer.h>
-#include <net/caif/cfcnfg.h>
 #include <net/caif/cfpkt.h>
 #include <net/caif/caif_dev.h>
 
@@ -84,10 +83,11 @@ static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 	if (!priv)
 		return -EINVAL;
 
-	/* Get length of CAIF packet. */
-	pktlen = cfpkt_getlen(pkt);
-
 	skb = (struct sk_buff *) cfpkt_tonative(pkt);
+
+	/* Get length of CAIF packet. */
+	pktlen = skb->len;
+
 	/* Pass some minimum information and
 	 * send the packet to the net stack.
 	 */
@@ -139,19 +139,28 @@ static void close_work(struct work_struct *work)
 	struct chnl_net *dev = NULL;
 	struct list_head *list_node;
 	struct list_head *_tmp;
-	/* May be called with or without RTNL lock held */
-	int islocked = rtnl_is_locked();
-	if (!islocked)
-		rtnl_lock();
+
+	rtnl_lock();
 	list_for_each_safe(list_node, _tmp, &chnl_net_list) {
 		dev = list_entry(list_node, struct chnl_net, list_field);
 		if (dev->state == CAIF_SHUTDOWN)
 			dev_close(dev->netdev);
 	}
-	if (!islocked)
-		rtnl_unlock();
+	rtnl_unlock();
 }
 static DECLARE_WORK(close_worker, close_work);
+
+static void chnl_hold(struct cflayer *lyr)
+{
+	struct chnl_net *priv = container_of(lyr, struct chnl_net, chnl);
+	dev_hold(priv->netdev);
+}
+
+static void chnl_put(struct cflayer *lyr)
+{
+	struct chnl_net *priv = container_of(lyr, struct chnl_net, chnl);
+	dev_put(priv->netdev);
+}
 
 static void chnl_flowctrl_cb(struct cflayer *layr, enum caif_ctrlcmd flow,
 				int phyid)
@@ -190,6 +199,7 @@ static void chnl_flowctrl_cb(struct cflayer *layr, enum caif_ctrlcmd flow,
 		netif_wake_queue(priv->netdev);
 		break;
 	case CAIF_CTRLCMD_INIT_RSP:
+		caif_client_register_refcnt(&priv->chnl, chnl_hold, chnl_put);
 		priv->state = CAIF_CONNECTED;
 		priv->flowenabled = true;
 		netif_wake_queue(priv->netdev);
@@ -257,8 +267,9 @@ static int chnl_net_open(struct net_device *dev)
 
 	if (priv->state != CAIF_CONNECTING) {
 		priv->state = CAIF_CONNECTING;
-		result = caif_connect_client(&priv->conn_req, &priv->chnl,
-					&llifindex, &headroom, &tailroom);
+		result = caif_connect_client(dev_net(dev), &priv->conn_req,
+						&priv->chnl, &llifindex,
+						&headroom, &tailroom);
 		if (result != 0) {
 				pr_debug("err: "
 					 "Unable to register and open device,"
@@ -314,7 +325,7 @@ static int chnl_net_open(struct net_device *dev)
 
 	if (result == 0) {
 		pr_debug("connect timeout\n");
-		caif_disconnect_client(&priv->chnl);
+		caif_disconnect_client(dev_net(dev), &priv->chnl);
 		priv->state = CAIF_DISCONNECTED;
 		pr_debug("state disconnected\n");
 		result = -ETIMEDOUT;
@@ -330,7 +341,7 @@ static int chnl_net_open(struct net_device *dev)
 	return 0;
 
 error:
-	caif_disconnect_client(&priv->chnl);
+	caif_disconnect_client(dev_net(dev), &priv->chnl);
 	priv->state = CAIF_DISCONNECTED;
 	pr_debug("state disconnected\n");
 	return result;
@@ -344,7 +355,7 @@ static int chnl_net_stop(struct net_device *dev)
 	ASSERT_RTNL();
 	priv = netdev_priv(dev);
 	priv->state = CAIF_DISCONNECTED;
-	caif_disconnect_client(&priv->chnl);
+	caif_disconnect_client(dev_net(dev), &priv->chnl);
 	return 0;
 }
 
@@ -373,11 +384,18 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_start_xmit = chnl_net_start_xmit,
 };
 
+static void chnl_net_destructor(struct net_device *dev)
+{
+	struct chnl_net *priv = netdev_priv(dev);
+	caif_free_client(&priv->chnl);
+	free_netdev(dev);
+}
+
 static void ipcaif_net_setup(struct net_device *dev)
 {
 	struct chnl_net *priv;
 	dev->netdev_ops = &netdev_ops;
-	dev->destructor = free_netdev;
+	dev->destructor = chnl_net_destructor;
 	dev->flags |= IFF_NOARP;
 	dev->flags |= IFF_POINTOPOINT;
 	dev->mtu = GPRS_PDP_MTU;
@@ -391,7 +409,7 @@ static void ipcaif_net_setup(struct net_device *dev)
 	priv->conn_req.link_selector = CAIF_LINK_HIGH_BANDW;
 	priv->conn_req.priority = CAIF_PRIO_LOW;
 	/* Insert illegal value */
-	priv->conn_req.sockaddr.u.dgm.connection_id = -1;
+	priv->conn_req.sockaddr.u.dgm.connection_id = 0;
 	priv->flowenabled = false;
 
 	init_waitqueue_head(&priv->netmgmt_wq);
@@ -453,6 +471,10 @@ static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
 		pr_warn("device rtml registration failed\n");
 	else
 		list_add(&caifdev->list_field, &chnl_net_list);
+
+	/* Take ifindex as connection-id if null */
+	if (caifdev->conn_req.sockaddr.u.dgm.connection_id == 0)
+		caifdev->conn_req.sockaddr.u.dgm.connection_id = dev->ifindex;
 	return ret;
 }
 

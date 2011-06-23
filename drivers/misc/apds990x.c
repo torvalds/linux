@@ -609,6 +609,7 @@ static int apds990x_detect(struct apds990x_chip *chip)
 	return ret;
 }
 
+#if defined(CONFIG_PM) || defined(CONFIG_PM_RUNTIME)
 static int apds990x_chip_on(struct apds990x_chip *chip)
 {
 	int err	 = regulator_bulk_enable(ARRAY_SIZE(chip->regs),
@@ -624,6 +625,7 @@ static int apds990x_chip_on(struct apds990x_chip *chip)
 	apds990x_mode_on(chip);
 	return 0;
 }
+#endif
 
 static int apds990x_chip_off(struct apds990x_chip *chip)
 {

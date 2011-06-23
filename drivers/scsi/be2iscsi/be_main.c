@@ -619,7 +619,7 @@ static void beiscsi_get_params(struct beiscsi_hba *phba)
 				    + BE2_NOPOUT_REQ));
 	phba->params.cxns_per_ctrl = phba->fw_config.iscsi_cid_count;
 	phba->params.asyncpdus_per_ctrl = phba->fw_config.iscsi_cid_count * 2;
-	phba->params.icds_per_ctrl = phba->fw_config.iscsi_icd_count;;
+	phba->params.icds_per_ctrl = phba->fw_config.iscsi_icd_count;
 	phba->params.num_sge_per_io = BE2_SGE;
 	phba->params.defpdu_hdr_sz = BE2_DEFPDU_HDR_SZ;
 	phba->params.defpdu_data_sz = BE2_DEFPDU_DATA_SZ;
@@ -782,7 +782,7 @@ static irqreturn_t be_isr(int irq, void *dev_id)
 	int isr;
 
 	phba = dev_id;
-	ctrl = &phba->ctrl;;
+	ctrl = &phba->ctrl;
 	isr = ioread32(ctrl->csr + CEV_ISR0_OFFSET +
 		       (PCI_FUNC(ctrl->pdev->devfn) * CEV_ISR_SIZE));
 	if (!isr)

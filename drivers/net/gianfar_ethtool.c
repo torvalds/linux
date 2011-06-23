@@ -9,7 +9,7 @@
  *  Maintainer: Kumar Gala
  *  Modifier: Sandeep Gopalpet <sandeep.kumar@freescale.com>
  *
- *  Copyright 2003-2006, 2008-2009 Freescale Semiconductor, Inc.
+ *  Copyright 2003-2006, 2008-2009, 2011 Freescale Semiconductor, Inc.
  *
  *  This software may be used and distributed according to
  *  the terms of the GNU Public License, Version 2, incorporated herein
@@ -517,15 +517,15 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 	return err;
 }
 
-static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
+int gfar_set_features(struct net_device *dev, u32 features)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	unsigned long flags;
 	int err = 0, i = 0;
+	u32 changed = dev->features ^ features;
 
-	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
-		return -EOPNOTSUPP;
-
+	if (!(changed & NETIF_F_RXCSUM))
+		return 0;
 
 	if (dev->flags & IFF_UP) {
 		/* Halt TX and RX, and process the frames which
@@ -546,56 +546,13 @@ static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
-	}
 
-	spin_lock_irqsave(&priv->bflock, flags);
-	priv->rx_csum_enable = data;
-	spin_unlock_irqrestore(&priv->bflock, flags);
+		dev->features = features;
 
-	if (dev->flags & IFF_UP) {
 		err = startup_gfar(dev);
 		netif_tx_wake_all_queues(dev);
 	}
 	return err;
-}
-
-static uint32_t gfar_get_rx_csum(struct net_device *dev)
-{
-	struct gfar_private *priv = netdev_priv(dev);
-
-	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
-		return 0;
-
-	return priv->rx_csum_enable;
-}
-
-static int gfar_set_tx_csum(struct net_device *dev, uint32_t data)
-{
-	struct gfar_private *priv = netdev_priv(dev);
-
-	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
-		return -EOPNOTSUPP;
-
-	netif_tx_lock_bh(dev);
-
-	if (data)
-		dev->features |= NETIF_F_IP_CSUM;
-	else
-		dev->features &= ~NETIF_F_IP_CSUM;
-
-	netif_tx_unlock_bh(dev);
-
-	return 0;
-}
-
-static uint32_t gfar_get_tx_csum(struct net_device *dev)
-{
-	struct gfar_private *priv = netdev_priv(dev);
-
-	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
-		return 0;
-
-	return (dev->features & NETIF_F_IP_CSUM) != 0;
 }
 
 static uint32_t gfar_get_msglevel(struct net_device *dev)
@@ -645,42 +602,6 @@ static int gfar_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 }
 #endif
 
-static int gfar_ethflow_to_class(int flow_type, u64 *class)
-{
-	switch (flow_type) {
-	case TCP_V4_FLOW:
-		*class = CLASS_CODE_TCP_IPV4;
-		break;
-	case UDP_V4_FLOW:
-		*class = CLASS_CODE_UDP_IPV4;
-		break;
-	case AH_V4_FLOW:
-	case ESP_V4_FLOW:
-		*class = CLASS_CODE_AH_ESP_IPV4;
-		break;
-	case SCTP_V4_FLOW:
-		*class = CLASS_CODE_SCTP_IPV4;
-		break;
-	case TCP_V6_FLOW:
-		*class = CLASS_CODE_TCP_IPV6;
-		break;
-	case UDP_V6_FLOW:
-		*class = CLASS_CODE_UDP_IPV6;
-		break;
-	case AH_V6_FLOW:
-	case ESP_V6_FLOW:
-		*class = CLASS_CODE_AH_ESP_IPV6;
-		break;
-	case SCTP_V6_FLOW:
-		*class = CLASS_CODE_SCTP_IPV6;
-		break;
-	default:
-		return 0;
-	}
-
-	return 1;
-}
-
 static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 {
 	u32 fcr = 0x0, fpr = FPR_FILER_MASK;
@@ -688,15 +609,15 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	if (ethflow & RXH_L2DA) {
 		fcr = RQFCR_PID_DAH |RQFCR_CMP_NOMATCH |
 			RQFCR_HASH | RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 
 		fcr = RQFCR_PID_DAL | RQFCR_AND | RQFCR_CMP_NOMATCH |
 				RQFCR_HASH | RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
@@ -705,16 +626,16 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 		fcr = RQFCR_PID_VID | RQFCR_CMP_NOMATCH | RQFCR_HASH |
 				RQFCR_AND | RQFCR_HASHTBL_0;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
 
 	if (ethflow & RXH_IP_SRC) {
 		fcr = RQFCR_PID_SIA | RQFCR_CMP_NOMATCH | RQFCR_HASH |
 			RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
@@ -722,8 +643,8 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	if (ethflow & (RXH_IP_DST)) {
 		fcr = RQFCR_PID_DIA | RQFCR_CMP_NOMATCH | RQFCR_HASH |
 			RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
@@ -731,8 +652,8 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	if (ethflow & RXH_L3_PROTO) {
 		fcr = RQFCR_PID_L4P | RQFCR_CMP_NOMATCH | RQFCR_HASH |
 			RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
@@ -740,8 +661,8 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	if (ethflow & RXH_L4_B_0_1) {
 		fcr = RQFCR_PID_SPT | RQFCR_CMP_NOMATCH | RQFCR_HASH |
 			RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
@@ -749,8 +670,8 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	if (ethflow & RXH_L4_B_2_3) {
 		fcr = RQFCR_PID_DPT | RQFCR_CMP_NOMATCH | RQFCR_HASH |
 			RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
@@ -778,23 +699,18 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow, u
 	case UDP_V6_FLOW:
 		cmp_rqfpr = RQFPR_IPV6 |RQFPR_UDP;
 		break;
-	case IPV4_FLOW:
-		cmp_rqfpr = RQFPR_IPV4;
-	case IPV6_FLOW:
-		cmp_rqfpr = RQFPR_IPV6;
-		break;
 	default:
 		printk(KERN_ERR "Right now this class is not supported\n");
 		return 0;
 	}
 
 	for (i = 0; i < MAX_FILER_IDX + 1; i++) {
-		local_rqfpr[j] = ftp_rqfpr[i];
-		local_rqfcr[j] = ftp_rqfcr[i];
+		local_rqfpr[j] = priv->ftp_rqfpr[i];
+		local_rqfcr[j] = priv->ftp_rqfcr[i];
 		j--;
-		if ((ftp_rqfcr[i] == (RQFCR_PID_PARSE |
+		if ((priv->ftp_rqfcr[i] == (RQFCR_PID_PARSE |
 			RQFCR_CLE |RQFCR_AND)) &&
-			(ftp_rqfpr[i] == cmp_rqfpr))
+			(priv->ftp_rqfpr[i] == cmp_rqfpr))
 			break;
 	}
 
@@ -808,20 +724,22 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow, u
 	 * if it was already programmed, we need to overwrite these rules
 	 */
 	for (l = i+1; l < MAX_FILER_IDX; l++) {
-		if ((ftp_rqfcr[l] & RQFCR_CLE) &&
-			!(ftp_rqfcr[l] & RQFCR_AND)) {
-			ftp_rqfcr[l] = RQFCR_CLE | RQFCR_CMP_EXACT |
+		if ((priv->ftp_rqfcr[l] & RQFCR_CLE) &&
+			!(priv->ftp_rqfcr[l] & RQFCR_AND)) {
+			priv->ftp_rqfcr[l] = RQFCR_CLE | RQFCR_CMP_EXACT |
 				RQFCR_HASHTBL_0 | RQFCR_PID_MASK;
-			ftp_rqfpr[l] = FPR_FILER_MASK;
-			gfar_write_filer(priv, l, ftp_rqfcr[l], ftp_rqfpr[l]);
+			priv->ftp_rqfpr[l] = FPR_FILER_MASK;
+			gfar_write_filer(priv, l, priv->ftp_rqfcr[l],
+				priv->ftp_rqfpr[l]);
 			break;
 		}
 
-		if (!(ftp_rqfcr[l] & RQFCR_CLE) && (ftp_rqfcr[l] & RQFCR_AND))
+		if (!(priv->ftp_rqfcr[l] & RQFCR_CLE) &&
+			(priv->ftp_rqfcr[l] & RQFCR_AND))
 			continue;
 		else {
-			local_rqfpr[j] = ftp_rqfpr[l];
-			local_rqfcr[j] = ftp_rqfcr[l];
+			local_rqfpr[j] = priv->ftp_rqfpr[l];
+			local_rqfcr[j] = priv->ftp_rqfcr[l];
 			j--;
 		}
 	}
@@ -834,8 +752,8 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow, u
 
 	/* Write back the popped out rules again */
 	for (k = j+1; k < MAX_FILER_IDX; k++) {
-		ftp_rqfpr[priv->cur_filer_idx] = local_rqfpr[k];
-		ftp_rqfcr[priv->cur_filer_idx] = local_rqfcr[k];
+		priv->ftp_rqfpr[priv->cur_filer_idx] = local_rqfpr[k];
+		priv->ftp_rqfcr[priv->cur_filer_idx] = local_rqfcr[k];
 		gfar_write_filer(priv, priv->cur_filer_idx,
 				local_rqfcr[k], local_rqfpr[k]);
 		if (!priv->cur_filer_idx)
@@ -848,18 +766,9 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow, u
 
 static int gfar_set_hash_opts(struct gfar_private *priv, struct ethtool_rxnfc *cmd)
 {
-	u64 class;
-
-	if (!gfar_ethflow_to_class(cmd->flow_type, &class))
-		return -EINVAL;
-
-	if (class < CLASS_CODE_USER_PROG1 ||
-			class > CLASS_CODE_SCTP_IPV6)
-		return -EINVAL;
-
 	/* write the filer rules here */
 	if (!gfar_ethflow_to_filer_table(priv, cmd->data, cmd->flow_type))
-		return -1;
+		return -EINVAL;
 
 	return 0;
 }
@@ -894,11 +803,6 @@ const struct ethtool_ops gfar_ethtool_ops = {
 	.get_strings = gfar_gstrings,
 	.get_sset_count = gfar_sset_count,
 	.get_ethtool_stats = gfar_fill_stats,
-	.get_rx_csum = gfar_get_rx_csum,
-	.get_tx_csum = gfar_get_tx_csum,
-	.set_rx_csum = gfar_set_rx_csum,
-	.set_tx_csum = gfar_set_tx_csum,
-	.set_sg = ethtool_op_set_sg,
 	.get_msglevel = gfar_get_msglevel,
 	.set_msglevel = gfar_set_msglevel,
 #ifdef CONFIG_PM

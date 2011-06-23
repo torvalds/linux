@@ -89,47 +89,6 @@ void set_fiq_handler(void *start, unsigned int length)
 		flush_icache_range(0x1c, 0x1c + length);
 }
 
-/*
- * Taking an interrupt in FIQ mode is death, so both these functions
- * disable irqs for the duration.  Note - these functions are almost
- * entirely coded in assembly.
- */
-void __naked set_fiq_regs(struct pt_regs *regs)
-{
-	register unsigned long tmp;
-	asm volatile (
-	"mov	ip, sp\n\
-	stmfd	sp!, {fp, ip, lr, pc}\n\
-	sub	fp, ip, #4\n\
-	mrs	%0, cpsr\n\
-	msr	cpsr_c, %2	@ select FIQ mode\n\
-	mov	r0, r0\n\
-	ldmia	%1, {r8 - r14}\n\
-	msr	cpsr_c, %0	@ return to SVC mode\n\
-	mov	r0, r0\n\
-	ldmfd	sp, {fp, sp, pc}"
-	: "=&r" (tmp)
-	: "r" (&regs->ARM_r8), "I" (PSR_I_BIT | PSR_F_BIT | FIQ_MODE));
-}
-
-void __naked get_fiq_regs(struct pt_regs *regs)
-{
-	register unsigned long tmp;
-	asm volatile (
-	"mov	ip, sp\n\
-	stmfd	sp!, {fp, ip, lr, pc}\n\
-	sub	fp, ip, #4\n\
-	mrs	%0, cpsr\n\
-	msr	cpsr_c, %2	@ select FIQ mode\n\
-	mov	r0, r0\n\
-	stmia	%1, {r8 - r14}\n\
-	msr	cpsr_c, %0	@ return to SVC mode\n\
-	mov	r0, r0\n\
-	ldmfd	sp, {fp, sp, pc}"
-	: "=&r" (tmp)
-	: "r" (&regs->ARM_r8), "I" (PSR_I_BIT | PSR_F_BIT | FIQ_MODE));
-}
-
 int claim_fiq(struct fiq_handler *f)
 {
 	int ret = 0;
@@ -174,8 +133,8 @@ void disable_fiq(int fiq)
 }
 
 EXPORT_SYMBOL(set_fiq_handler);
-EXPORT_SYMBOL(set_fiq_regs);
-EXPORT_SYMBOL(get_fiq_regs);
+EXPORT_SYMBOL(__set_fiq_regs);	/* defined in fiqasm.S */
+EXPORT_SYMBOL(__get_fiq_regs);	/* defined in fiqasm.S */
 EXPORT_SYMBOL(claim_fiq);
 EXPORT_SYMBOL(release_fiq);
 EXPORT_SYMBOL(enable_fiq);

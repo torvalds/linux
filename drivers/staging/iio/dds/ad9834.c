@@ -1,9 +1,9 @@
 /*
- * AD9834 SPI DAC driver
+ * AD9833/AD9834/AD9837/AD9838 SPI DDS driver
  *
- * Copyright 2010 Analog Devices Inc.
+ * Copyright 2010-2011 Analog Devices Inc.
  *
- * Licensed under the GPL-2 or later.
+ * Licensed under the GPL-2.
  */
 
 #include <linux/interrupt.h>
@@ -47,7 +47,7 @@ static int ad9834_write_frequency(struct ad9834_state *st,
 				       (AD9834_FREQ_BITS / 2)) &
 				       RES_MASK(AD9834_FREQ_BITS / 2)));
 
-	return spi_sync(st->spi, &st->freq_msg);;
+	return spi_sync(st->spi, &st->freq_msg);
 }
 
 static int ad9834_write_phase(struct ad9834_state *st,
@@ -148,7 +148,7 @@ static ssize_t ad9834_store_wavetype(struct device *dev,
 	struct ad9834_state *st = dev_info->dev_data;
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret = 0;
-	bool is_ad9833 = st->devid == ID_AD9833;
+	bool is_ad9833_7 = (st->devid == ID_AD9833) || (st->devid == ID_AD9837);
 
 	mutex_lock(&dev_info->mlock);
 
@@ -156,10 +156,10 @@ static ssize_t ad9834_store_wavetype(struct device *dev,
 	case 0:
 		if (sysfs_streq(buf, "sine")) {
 			st->control &= ~AD9834_MODE;
-			if (is_ad9833)
+			if (is_ad9833_7)
 				st->control &= ~AD9834_OPBITEN;
 		} else if (sysfs_streq(buf, "triangle")) {
-			if (is_ad9833) {
+			if (is_ad9833_7) {
 				st->control &= ~AD9834_OPBITEN;
 				st->control |= AD9834_MODE;
 			} else if (st->control & AD9834_OPBITEN) {
@@ -167,7 +167,7 @@ static ssize_t ad9834_store_wavetype(struct device *dev,
 			} else {
 				st->control |= AD9834_MODE;
 			}
-		} else if (is_ad9833 && sysfs_streq(buf, "square")) {
+		} else if (is_ad9833_7 && sysfs_streq(buf, "square")) {
 			st->control &= ~AD9834_MODE;
 			st->control |= AD9834_OPBITEN;
 		} else {
@@ -198,17 +198,6 @@ static ssize_t ad9834_store_wavetype(struct device *dev,
 	return ret ? ret : len;
 }
 
-static ssize_t ad9834_show_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
-	struct ad9834_state *st = iio_dev_get_devdata(dev_info);
-
-	return sprintf(buf, "%s\n", spi_get_device_id(st->spi)->name);
-}
-static IIO_DEVICE_ATTR(name, S_IRUGO, ad9834_show_name, NULL, 0);
-
 static ssize_t ad9834_show_out0_wavetype_available(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
@@ -217,7 +206,7 @@ static ssize_t ad9834_show_out0_wavetype_available(struct device *dev,
 	struct ad9834_state *st = iio_dev_get_devdata(dev_info);
 	char *str;
 
-	if (st->devid == ID_AD9833)
+	if ((st->devid == ID_AD9833) || (st->devid == ID_AD9837))
 		str = "sine triangle square";
 	else if (st->control & AD9834_OPBITEN)
 		str = "sine";
@@ -288,7 +277,6 @@ static struct attribute *ad9834_attributes[] = {
 	&iio_dev_attr_dds0_out1_wavetype.dev_attr.attr,
 	&iio_dev_attr_dds0_out0_wavetype_available.dev_attr.attr,
 	&iio_dev_attr_dds0_out1_wavetype_available.dev_attr.attr,
-	&iio_dev_attr_name.dev_attr.attr,
 	NULL,
 };
 
@@ -301,13 +289,12 @@ static mode_t ad9834_attr_is_visible(struct kobject *kobj,
 
 	mode_t mode = attr->mode;
 
-	if (st->devid == ID_AD9834)
-		return mode;
-
-	if ((attr == &iio_dev_attr_dds0_out1_enable.dev_attr.attr) ||
+	if (((st->devid == ID_AD9833) || (st->devid == ID_AD9837)) &&
+		((attr == &iio_dev_attr_dds0_out1_enable.dev_attr.attr) ||
 		(attr == &iio_dev_attr_dds0_out1_wavetype.dev_attr.attr) ||
 		(attr ==
-		&iio_dev_attr_dds0_out1_wavetype_available.dev_attr.attr))
+		&iio_dev_attr_dds0_out1_wavetype_available.dev_attr.attr) ||
+		(attr == &iio_dev_attr_dds0_pincontrol_en.dev_attr.attr)))
 		mode = 0;
 
 	return mode;
@@ -316,6 +303,11 @@ static mode_t ad9834_attr_is_visible(struct kobject *kobj,
 static const struct attribute_group ad9834_attribute_group = {
 	.attrs = ad9834_attributes,
 	.is_visible = ad9834_attr_is_visible,
+};
+
+static const struct iio_info ad9834_info = {
+	.attrs = &ad9834_attribute_group,
+	.driver_module = THIS_MODULE,
 };
 
 static int __devinit ad9834_probe(struct spi_device *spi)
@@ -349,16 +341,16 @@ static int __devinit ad9834_probe(struct spi_device *spi)
 	st->spi = spi;
 	st->devid = spi_get_device_id(spi)->driver_data;
 
-	st->indio_dev = iio_allocate_device();
+	st->indio_dev = iio_allocate_device(0);
 	if (st->indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_disable_reg;
 	}
 
 	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->attrs = &ad9834_attribute_group;
+	st->indio_dev->name = spi_get_device_id(spi)->name;
+	st->indio_dev->info = &ad9834_info;
 	st->indio_dev->dev_data = (void *) st;
-	st->indio_dev->driver_module = THIS_MODULE;
 	st->indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/* Setup default messages */
@@ -445,6 +437,8 @@ static int __devexit ad9834_remove(struct spi_device *spi)
 static const struct spi_device_id ad9834_id[] = {
 	{"ad9833", ID_AD9833},
 	{"ad9834", ID_AD9834},
+	{"ad9837", ID_AD9837},
+	{"ad9838", ID_AD9838},
 	{}
 };
 
@@ -472,6 +466,6 @@ static void __exit ad9834_exit(void)
 module_exit(ad9834_exit);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
-MODULE_DESCRIPTION("Analog Devices AD9833/AD9834 DDS");
+MODULE_DESCRIPTION("Analog Devices AD9833/AD9834/AD9837/AD9838 DDS");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("spi:ad9834");

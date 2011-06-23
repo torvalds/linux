@@ -13,12 +13,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 #include <linux/serial_8250.h>
 #include <linux/mbus.h>
-#include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <linux/ata_platform.h>
-#include <linux/spi/orion_spi.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/setup.h>
@@ -29,11 +28,9 @@
 #include <mach/bridge-regs.h>
 #include <mach/hardware.h>
 #include <mach/orion5x.h>
-#include <plat/ehci-orion.h>
-#include <plat/mv_xor.h>
 #include <plat/orion_nand.h>
-#include <plat/orion_wdt.h>
 #include <plat/time.h>
+#include <plat/common.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -70,530 +67,124 @@ void __init orion5x_map_io(void)
 
 
 /*****************************************************************************
- * EHCI
- ****************************************************************************/
-static struct orion_ehci_data orion5x_ehci_data = {
-	.dram		= &orion5x_mbus_dram_info,
-	.phy_version	= EHCI_PHY_ORION,
-};
-
-static u64 ehci_dmamask = 0xffffffffUL;
-
-
-/*****************************************************************************
  * EHCI0
  ****************************************************************************/
-static struct resource orion5x_ehci0_resources[] = {
-	{
-		.start	= ORION5X_USB0_PHYS_BASE,
-		.end	= ORION5X_USB0_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_ORION5X_USB0_CTRL,
-		.end	= IRQ_ORION5X_USB0_CTRL,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_ehci0 = {
-	.name		= "orion-ehci",
-	.id		= 0,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
-		.platform_data		= &orion5x_ehci_data,
-	},
-	.resource	= orion5x_ehci0_resources,
-	.num_resources	= ARRAY_SIZE(orion5x_ehci0_resources),
-};
-
 void __init orion5x_ehci0_init(void)
 {
-	platform_device_register(&orion5x_ehci0);
+	orion_ehci_init(&orion5x_mbus_dram_info,
+			ORION5X_USB0_PHYS_BASE, IRQ_ORION5X_USB0_CTRL);
 }
 
 
 /*****************************************************************************
  * EHCI1
  ****************************************************************************/
-static struct resource orion5x_ehci1_resources[] = {
-	{
-		.start	= ORION5X_USB1_PHYS_BASE,
-		.end	= ORION5X_USB1_PHYS_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_ORION5X_USB1_CTRL,
-		.end	= IRQ_ORION5X_USB1_CTRL,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_ehci1 = {
-	.name		= "orion-ehci",
-	.id		= 1,
-	.dev		= {
-		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= 0xffffffff,
-		.platform_data		= &orion5x_ehci_data,
-	},
-	.resource	= orion5x_ehci1_resources,
-	.num_resources	= ARRAY_SIZE(orion5x_ehci1_resources),
-};
-
 void __init orion5x_ehci1_init(void)
 {
-	platform_device_register(&orion5x_ehci1);
+	orion_ehci_1_init(&orion5x_mbus_dram_info,
+			  ORION5X_USB1_PHYS_BASE, IRQ_ORION5X_USB1_CTRL);
 }
 
 
 /*****************************************************************************
- * GigE
+ * GE00
  ****************************************************************************/
-struct mv643xx_eth_shared_platform_data orion5x_eth_shared_data = {
-	.dram		= &orion5x_mbus_dram_info,
-};
-
-static struct resource orion5x_eth_shared_resources[] = {
-	{
-		.start	= ORION5X_ETH_PHYS_BASE + 0x2000,
-		.end	= ORION5X_ETH_PHYS_BASE + 0x3fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_ORION5X_ETH_ERR,
-		.end	= IRQ_ORION5X_ETH_ERR,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_eth_shared = {
-	.name		= MV643XX_ETH_SHARED_NAME,
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &orion5x_eth_shared_data,
-	},
-	.num_resources	= ARRAY_SIZE(orion5x_eth_shared_resources),
-	.resource	= orion5x_eth_shared_resources,
-};
-
-static struct resource orion5x_eth_resources[] = {
-	{
-		.name	= "eth irq",
-		.start	= IRQ_ORION5X_ETH_SUM,
-		.end	= IRQ_ORION5X_ETH_SUM,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_eth = {
-	.name		= MV643XX_ETH_NAME,
-	.id		= 0,
-	.num_resources	= 1,
-	.resource	= orion5x_eth_resources,
-	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
-	},
-};
-
 void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	eth_data->shared = &orion5x_eth_shared;
-	orion5x_eth.dev.platform_data = eth_data;
-
-	platform_device_register(&orion5x_eth_shared);
-	platform_device_register(&orion5x_eth);
+	orion_ge00_init(eth_data, &orion5x_mbus_dram_info,
+			ORION5X_ETH_PHYS_BASE, IRQ_ORION5X_ETH_SUM,
+			IRQ_ORION5X_ETH_ERR, orion5x_tclk);
 }
 
 
 /*****************************************************************************
  * Ethernet switch
  ****************************************************************************/
-static struct resource orion5x_switch_resources[] = {
-	{
-		.start	= 0,
-		.end	= 0,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_switch_device = {
-	.name		= "dsa",
-	.id		= 0,
-	.num_resources	= 0,
-	.resource	= orion5x_switch_resources,
-};
-
 void __init orion5x_eth_switch_init(struct dsa_platform_data *d, int irq)
 {
-	int i;
-
-	if (irq != NO_IRQ) {
-		orion5x_switch_resources[0].start = irq;
-		orion5x_switch_resources[0].end = irq;
-		orion5x_switch_device.num_resources = 1;
-	}
-
-	d->netdev = &orion5x_eth.dev;
-	for (i = 0; i < d->nr_chips; i++)
-		d->chip[i].mii_bus = &orion5x_eth_shared.dev;
-	orion5x_switch_device.dev.platform_data = d;
-
-	platform_device_register(&orion5x_switch_device);
+	orion_ge00_switch_init(d, irq);
 }
 
 
 /*****************************************************************************
  * I2C
  ****************************************************************************/
-static struct mv64xxx_i2c_pdata orion5x_i2c_pdata = {
-	.freq_m		= 8, /* assumes 166 MHz TCLK */
-	.freq_n		= 3,
-	.timeout	= 1000, /* Default timeout of 1 second */
-};
-
-static struct resource orion5x_i2c_resources[] = {
-	{
-		.start	= I2C_PHYS_BASE,
-		.end	= I2C_PHYS_BASE + 0x1f,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= IRQ_ORION5X_I2C,
-		.end	= IRQ_ORION5X_I2C,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_i2c = {
-	.name		= MV64XXX_I2C_CTLR_NAME,
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(orion5x_i2c_resources),
-	.resource	= orion5x_i2c_resources,
-	.dev		= {
-		.platform_data	= &orion5x_i2c_pdata,
-	},
-};
-
 void __init orion5x_i2c_init(void)
 {
-	platform_device_register(&orion5x_i2c);
+	orion_i2c_init(I2C_PHYS_BASE, IRQ_ORION5X_I2C, 8);
+
 }
 
 
 /*****************************************************************************
  * SATA
  ****************************************************************************/
-static struct resource orion5x_sata_resources[] = {
-	{
-		.name	= "sata base",
-		.start	= ORION5X_SATA_PHYS_BASE,
-		.end	= ORION5X_SATA_PHYS_BASE + 0x5000 - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "sata irq",
-		.start	= IRQ_ORION5X_SATA,
-		.end	= IRQ_ORION5X_SATA,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_sata = {
-	.name		= "sata_mv",
-	.id		= 0,
-	.dev		= {
-		.coherent_dma_mask	= 0xffffffff,
-	},
-	.num_resources	= ARRAY_SIZE(orion5x_sata_resources),
-	.resource	= orion5x_sata_resources,
-};
-
 void __init orion5x_sata_init(struct mv_sata_platform_data *sata_data)
 {
-	sata_data->dram = &orion5x_mbus_dram_info;
-	orion5x_sata.dev.platform_data = sata_data;
-	platform_device_register(&orion5x_sata);
+	orion_sata_init(sata_data, &orion5x_mbus_dram_info,
+			ORION5X_SATA_PHYS_BASE, IRQ_ORION5X_SATA);
 }
 
 
 /*****************************************************************************
  * SPI
  ****************************************************************************/
-static struct orion_spi_info orion5x_spi_plat_data = {
-	.tclk			= 0,
-	.enable_clock_fix	= 1,
-};
-
-static struct resource orion5x_spi_resources[] = {
-	{
-		.name	= "spi base",
-		.start	= SPI_PHYS_BASE,
-		.end	= SPI_PHYS_BASE + 0x1f,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device orion5x_spi = {
-	.name		= "orion_spi",
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &orion5x_spi_plat_data,
-	},
-	.num_resources	= ARRAY_SIZE(orion5x_spi_resources),
-	.resource	= orion5x_spi_resources,
-};
-
 void __init orion5x_spi_init()
 {
-	platform_device_register(&orion5x_spi);
+	orion_spi_init(SPI_PHYS_BASE, orion5x_tclk);
 }
 
 
 /*****************************************************************************
  * UART0
  ****************************************************************************/
-static struct plat_serial8250_port orion5x_uart0_data[] = {
-	{
-		.mapbase	= UART0_PHYS_BASE,
-		.membase	= (char *)UART0_VIRT_BASE,
-		.irq		= IRQ_ORION5X_UART0,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource orion5x_uart0_resources[] = {
-	{
-		.start		= UART0_PHYS_BASE,
-		.end		= UART0_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_ORION5X_UART0,
-		.end		= IRQ_ORION5X_UART0,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_uart0 = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM,
-	.dev			= {
-		.platform_data	= orion5x_uart0_data,
-	},
-	.resource		= orion5x_uart0_resources,
-	.num_resources		= ARRAY_SIZE(orion5x_uart0_resources),
-};
-
 void __init orion5x_uart0_init(void)
 {
-	platform_device_register(&orion5x_uart0);
+	orion_uart0_init(UART0_VIRT_BASE, UART0_PHYS_BASE,
+			 IRQ_ORION5X_UART0, orion5x_tclk);
 }
-
 
 /*****************************************************************************
  * UART1
  ****************************************************************************/
-static struct plat_serial8250_port orion5x_uart1_data[] = {
-	{
-		.mapbase	= UART1_PHYS_BASE,
-		.membase	= (char *)UART1_VIRT_BASE,
-		.irq		= IRQ_ORION5X_UART1,
-		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0,
-	}, {
-	},
-};
-
-static struct resource orion5x_uart1_resources[] = {
-	{
-		.start		= UART1_PHYS_BASE,
-		.end		= UART1_PHYS_BASE + 0xff,
-		.flags		= IORESOURCE_MEM,
-	}, {
-		.start		= IRQ_ORION5X_UART1,
-		.end		= IRQ_ORION5X_UART1,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_uart1 = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM1,
-	.dev			= {
-		.platform_data	= orion5x_uart1_data,
-	},
-	.resource		= orion5x_uart1_resources,
-	.num_resources		= ARRAY_SIZE(orion5x_uart1_resources),
-};
-
 void __init orion5x_uart1_init(void)
 {
-	platform_device_register(&orion5x_uart1);
+	orion_uart1_init(UART1_VIRT_BASE, UART1_PHYS_BASE,
+			 IRQ_ORION5X_UART1, orion5x_tclk);
 }
-
 
 /*****************************************************************************
  * XOR engine
  ****************************************************************************/
-struct mv_xor_platform_shared_data orion5x_xor_shared_data = {
-	.dram		= &orion5x_mbus_dram_info,
-};
-
-static struct resource orion5x_xor_shared_resources[] = {
-	{
-		.name	= "xor low",
-		.start	= ORION5X_XOR_PHYS_BASE,
-		.end	= ORION5X_XOR_PHYS_BASE + 0xff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "xor high",
-		.start	= ORION5X_XOR_PHYS_BASE + 0x200,
-		.end	= ORION5X_XOR_PHYS_BASE + 0x2ff,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device orion5x_xor_shared = {
-	.name		= MV_XOR_SHARED_NAME,
-	.id		= 0,
-	.dev		= {
-		.platform_data	= &orion5x_xor_shared_data,
-	},
-	.num_resources	= ARRAY_SIZE(orion5x_xor_shared_resources),
-	.resource	= orion5x_xor_shared_resources,
-};
-
-static u64 orion5x_xor_dmamask = DMA_BIT_MASK(32);
-
-static struct resource orion5x_xor0_resources[] = {
-	[0] = {
-		.start	= IRQ_ORION5X_XOR0,
-		.end	= IRQ_ORION5X_XOR0,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct mv_xor_platform_data orion5x_xor0_data = {
-	.shared		= &orion5x_xor_shared,
-	.hw_id		= 0,
-	.pool_size	= PAGE_SIZE,
-};
-
-static struct platform_device orion5x_xor0_channel = {
-	.name		= MV_XOR_NAME,
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(orion5x_xor0_resources),
-	.resource	= orion5x_xor0_resources,
-	.dev		= {
-		.dma_mask		= &orion5x_xor_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= &orion5x_xor0_data,
-	},
-};
-
-static struct resource orion5x_xor1_resources[] = {
-	[0] = {
-		.start	= IRQ_ORION5X_XOR1,
-		.end	= IRQ_ORION5X_XOR1,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct mv_xor_platform_data orion5x_xor1_data = {
-	.shared		= &orion5x_xor_shared,
-	.hw_id		= 1,
-	.pool_size	= PAGE_SIZE,
-};
-
-static struct platform_device orion5x_xor1_channel = {
-	.name		= MV_XOR_NAME,
-	.id		= 1,
-	.num_resources	= ARRAY_SIZE(orion5x_xor1_resources),
-	.resource	= orion5x_xor1_resources,
-	.dev		= {
-		.dma_mask		= &orion5x_xor_dmamask,
-		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= &orion5x_xor1_data,
-	},
-};
-
 void __init orion5x_xor_init(void)
 {
-	platform_device_register(&orion5x_xor_shared);
-
-	/*
-	 * two engines can't do memset simultaneously, this limitation
-	 * satisfied by removing memset support from one of the engines.
-	 */
-	dma_cap_set(DMA_MEMCPY, orion5x_xor0_data.cap_mask);
-	dma_cap_set(DMA_XOR, orion5x_xor0_data.cap_mask);
-	platform_device_register(&orion5x_xor0_channel);
-
-	dma_cap_set(DMA_MEMCPY, orion5x_xor1_data.cap_mask);
-	dma_cap_set(DMA_MEMSET, orion5x_xor1_data.cap_mask);
-	dma_cap_set(DMA_XOR, orion5x_xor1_data.cap_mask);
-	platform_device_register(&orion5x_xor1_channel);
+	orion_xor0_init(&orion5x_mbus_dram_info,
+			ORION5X_XOR_PHYS_BASE,
+			ORION5X_XOR_PHYS_BASE + 0x200,
+			IRQ_ORION5X_XOR0, IRQ_ORION5X_XOR1);
 }
 
-static struct resource orion5x_crypto_res[] = {
-	{
-		.name   = "regs",
-		.start  = ORION5X_CRYPTO_PHYS_BASE,
-		.end    = ORION5X_CRYPTO_PHYS_BASE + 0xffff,
-		.flags  = IORESOURCE_MEM,
-	}, {
-		.name   = "sram",
-		.start  = ORION5X_SRAM_PHYS_BASE,
-		.end    = ORION5X_SRAM_PHYS_BASE + SZ_8K - 1,
-		.flags  = IORESOURCE_MEM,
-	}, {
-		.name   = "crypto interrupt",
-		.start  = IRQ_ORION5X_CESA,
-		.end    = IRQ_ORION5X_CESA,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device orion5x_crypto_device = {
-	.name           = "mv_crypto",
-	.id             = -1,
-	.num_resources  = ARRAY_SIZE(orion5x_crypto_res),
-	.resource       = orion5x_crypto_res,
-};
-
-static int __init orion5x_crypto_init(void)
+/*****************************************************************************
+ * Cryptographic Engines and Security Accelerator (CESA)
+ ****************************************************************************/
+static void __init orion5x_crypto_init(void)
 {
 	int ret;
 
 	ret = orion5x_setup_sram_win();
 	if (ret)
-		return ret;
+		return;
 
-	return platform_device_register(&orion5x_crypto_device);
+	orion_crypto_init(ORION5X_CRYPTO_PHYS_BASE, ORION5X_SRAM_PHYS_BASE,
+			  SZ_8K, IRQ_ORION5X_CESA);
 }
 
 /*****************************************************************************
  * Watchdog
  ****************************************************************************/
-static struct orion_wdt_platform_data orion5x_wdt_data = {
-	.tclk			= 0,
-};
-
-static struct platform_device orion5x_wdt_device = {
-	.name		= "orion_wdt",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &orion5x_wdt_data,
-	},
-	.num_resources	= 0,
-};
-
 void __init orion5x_wdt_init(void)
 {
-	orion5x_wdt_data.tclk = orion5x_tclk;
-	platform_device_register(&orion5x_wdt_device);
+	orion_wdt_init(orion5x_tclk);
 }
 
 
@@ -684,11 +275,6 @@ void __init orion5x_init(void)
 
 	orion5x_id(&dev, &rev, &dev_name);
 	printk(KERN_INFO "Orion ID: %s. TCLK=%d.\n", dev_name, orion5x_tclk);
-
-	orion5x_eth_shared_data.t_clk = orion5x_tclk;
-	orion5x_spi_plat_data.tclk = orion5x_tclk;
-	orion5x_uart0_data[0].uartclk = orion5x_tclk;
-	orion5x_uart1_data[0].uartclk = orion5x_tclk;
 
 	/*
 	 * Setup Orion address map

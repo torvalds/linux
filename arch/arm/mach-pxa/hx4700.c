@@ -735,7 +735,7 @@ static struct platform_device bq24022 = {
  * StrataFlash
  */
 
-static void hx4700_set_vpp(struct map_info *map, int vpp)
+static void hx4700_set_vpp(struct platform_device *pdev, int vpp)
 {
 	gpio_set_value(GPIO91_HX4700_FLASH_VPEN, vpp);
 }

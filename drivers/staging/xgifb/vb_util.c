@@ -3,7 +3,7 @@
 #include "vb_struct.h"
 
 #include "XGIfb.h"
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/types.h>
 
 #include "vb_util.h"

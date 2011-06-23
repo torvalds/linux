@@ -54,13 +54,13 @@
 #include <linux/usb/usbnet.h>
 #include <linux/usb/cdc.h>
 
-#define	DRIVER_VERSION				"23-Apr-2011"
+#define	DRIVER_VERSION				"01-June-2011"
 
 /* CDC NCM subclass 3.2.1 */
 #define USB_CDC_NCM_NDP16_LENGTH_MIN		0x10
 
 /* Maximum NTB length */
-#define	CDC_NCM_NTB_MAX_SIZE_TX			(16384 + 4) /* bytes, must be short terminated */
+#define	CDC_NCM_NTB_MAX_SIZE_TX			16384	/* bytes */
 #define	CDC_NCM_NTB_MAX_SIZE_RX			16384	/* bytes */
 
 /* Minimum value for MaxDatagramSize, ch. 6.2.9 */
@@ -134,8 +134,6 @@ struct cdc_ncm_ctx {
 	u16 tx_ndp_modulus;
 	u16 tx_seq;
 	u16 connected;
-	u8 data_claimed;
-	u8 control_claimed;
 };
 
 static void cdc_ncm_tx_timeout(unsigned long arg);
@@ -460,17 +458,6 @@ static void cdc_ncm_free(struct cdc_ncm_ctx *ctx)
 
 	del_timer_sync(&ctx->tx_timer);
 
-	if (ctx->data_claimed) {
-		usb_set_intfdata(ctx->data, NULL);
-		usb_driver_release_interface(driver_of(ctx->intf), ctx->data);
-	}
-
-	if (ctx->control_claimed) {
-		usb_set_intfdata(ctx->control, NULL);
-		usb_driver_release_interface(driver_of(ctx->intf),
-								ctx->control);
-	}
-
 	if (ctx->tx_rem_skb != NULL) {
 		dev_kfree_skb_any(ctx->tx_rem_skb);
 		ctx->tx_rem_skb = NULL;
@@ -495,7 +482,7 @@ static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx == NULL)
-		goto error;
+		return -ENODEV;
 
 	memset(ctx, 0, sizeof(*ctx));
 
@@ -568,46 +555,36 @@ advance:
 
 	/* check if we got everything */
 	if ((ctx->control == NULL) || (ctx->data == NULL) ||
-	    (ctx->ether_desc == NULL))
+	    (ctx->ether_desc == NULL) || (ctx->control != intf))
 		goto error;
 
 	/* claim interfaces, if any */
-	if (ctx->data != intf) {
-		temp = usb_driver_claim_interface(driver, ctx->data, dev);
-		if (temp)
-			goto error;
-		ctx->data_claimed = 1;
-	}
-
-	if (ctx->control != intf) {
-		temp = usb_driver_claim_interface(driver, ctx->control, dev);
-		if (temp)
-			goto error;
-		ctx->control_claimed = 1;
-	}
+	temp = usb_driver_claim_interface(driver, ctx->data, dev);
+	if (temp)
+		goto error;
 
 	iface_no = ctx->data->cur_altsetting->desc.bInterfaceNumber;
 
 	/* reset data interface */
 	temp = usb_set_interface(dev->udev, iface_no, 0);
 	if (temp)
-		goto error;
+		goto error2;
 
 	/* initialize data interface */
 	if (cdc_ncm_setup(ctx))
-		goto error;
+		goto error2;
 
 	/* configure data interface */
 	temp = usb_set_interface(dev->udev, iface_no, 1);
 	if (temp)
-		goto error;
+		goto error2;
 
 	cdc_ncm_find_endpoints(ctx, ctx->data);
 	cdc_ncm_find_endpoints(ctx, ctx->control);
 
 	if ((ctx->in_ep == NULL) || (ctx->out_ep == NULL) ||
 	    (ctx->status_ep == NULL))
-		goto error;
+		goto error2;
 
 	dev->net->ethtool_ops = &cdc_ncm_ethtool_ops;
 
@@ -617,7 +594,7 @@ advance:
 
 	temp = usbnet_get_ethernet_addr(dev, ctx->ether_desc->iMACAddress);
 	if (temp)
-		goto error;
+		goto error2;
 
 	dev_info(&dev->udev->dev, "MAC-Address: "
 				"0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n",
@@ -642,38 +619,38 @@ advance:
 	ctx->tx_speed = ctx->rx_speed = 0;
 	return 0;
 
+error2:
+	usb_set_intfdata(ctx->control, NULL);
+	usb_set_intfdata(ctx->data, NULL);
+	usb_driver_release_interface(driver, ctx->data);
 error:
 	cdc_ncm_free((struct cdc_ncm_ctx *)dev->data[0]);
 	dev->data[0] = 0;
-	dev_info(&dev->udev->dev, "Descriptor failure\n");
+	dev_info(&dev->udev->dev, "bind() failure\n");
 	return -ENODEV;
 }
 
 static void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
-	struct usb_driver *driver;
+	struct usb_driver *driver = driver_of(intf);
 
 	if (ctx == NULL)
 		return;		/* no setup */
 
-	driver = driver_of(intf);
-
-	usb_set_intfdata(ctx->data, NULL);
-	usb_set_intfdata(ctx->control, NULL);
-	usb_set_intfdata(ctx->intf, NULL);
-
-	/* release interfaces, if any */
-	if (ctx->data_claimed) {
+	/* disconnect master --> disconnect slave */
+	if (intf == ctx->control && ctx->data) {
+		usb_set_intfdata(ctx->data, NULL);
 		usb_driver_release_interface(driver, ctx->data);
-		ctx->data_claimed = 0;
-	}
+		ctx->data = NULL;
 
-	if (ctx->control_claimed) {
+	} else if (intf == ctx->data && ctx->control) {
+		usb_set_intfdata(ctx->control, NULL);
 		usb_driver_release_interface(driver, ctx->control);
-		ctx->control_claimed = 0;
+		ctx->control = NULL;
 	}
 
+	usb_set_intfdata(ctx->intf, NULL);
 	cdc_ncm_free(ctx);
 }
 
@@ -722,7 +699,7 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb)
 
 	} else {
 		/* reset variables */
-		skb_out = alloc_skb(ctx->tx_max, GFP_ATOMIC);
+		skb_out = alloc_skb((ctx->tx_max + 1), GFP_ATOMIC);
 		if (skb_out == NULL) {
 			if (skb != NULL) {
 				dev_kfree_skb_any(skb);
@@ -861,8 +838,11 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb)
 	/* store last offset */
 	last_offset = offset;
 
-	if ((last_offset < ctx->tx_max) && ((last_offset %
-			le16_to_cpu(ctx->out_ep->desc.wMaxPacketSize)) == 0)) {
+	if (((last_offset < ctx->tx_max) && ((last_offset %
+			le16_to_cpu(ctx->out_ep->desc.wMaxPacketSize)) == 0)) ||
+	    (((last_offset == ctx->tx_max) && ((ctx->tx_max %
+		le16_to_cpu(ctx->out_ep->desc.wMaxPacketSize)) == 0)) &&
+		(ctx->tx_max < le32_to_cpu(ctx->ncm_parm.dwNtbOutMaxSize)))) {
 		/* force short packet */
 		*(((u8 *)skb_out->data) + last_offset) = 0;
 		last_offset++;
@@ -1254,6 +1234,7 @@ static struct usb_driver cdc_ncm_driver = {
 	.disconnect = cdc_ncm_disconnect,
 	.suspend = usbnet_suspend,
 	.resume = usbnet_resume,
+	.reset_resume =	usbnet_resume,
 	.supports_autosuspend = 1,
 };
 

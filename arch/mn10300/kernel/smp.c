@@ -309,7 +309,7 @@ static void send_IPI_mask(const cpumask_t *cpumask, int irq)
 	u16 tmp;
 
 	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_isset(i, *cpumask)) {
+		if (cpumask_test_cpu(i, cpumask)) {
 			/* send IPI */
 			tmp = CROSS_GxICR(irq, i);
 			CROSS_GxICR(irq, i) =
@@ -342,8 +342,8 @@ void send_IPI_allbutself(int irq)
 {
 	cpumask_t cpumask;
 
-	cpumask = cpu_online_map;
-	cpu_clear(smp_processor_id(), cpumask);
+	cpumask_copy(&cpumask, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &cpumask);
 	send_IPI_mask(&cpumask, irq);
 }
 
@@ -393,8 +393,8 @@ int smp_nmi_call_function(smp_call_func_t func, void *info, int wait)
 
 	data.func = func;
 	data.info = info;
-	data.started = cpu_online_map;
-	cpu_clear(smp_processor_id(), data.started);
+	cpumask_copy(&data.started, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &data.started);
 	data.wait = wait;
 	if (wait)
 		data.finished = data.started;
@@ -410,14 +410,14 @@ int smp_nmi_call_function(smp_call_func_t func, void *info, int wait)
 	if (CALL_FUNCTION_NMI_IPI_TIMEOUT > 0) {
 		for (cnt = 0;
 		     cnt < CALL_FUNCTION_NMI_IPI_TIMEOUT &&
-			     !cpus_empty(data.started);
+			     !cpumask_empty(&data.started);
 		     cnt++)
 			mdelay(1);
 
 		if (wait && cnt < CALL_FUNCTION_NMI_IPI_TIMEOUT) {
 			for (cnt = 0;
 			     cnt < CALL_FUNCTION_NMI_IPI_TIMEOUT &&
-				     !cpus_empty(data.finished);
+				     !cpumask_empty(&data.finished);
 			     cnt++)
 				mdelay(1);
 		}
@@ -428,10 +428,10 @@ int smp_nmi_call_function(smp_call_func_t func, void *info, int wait)
 	} else {
 		/* If timeout value is zero, wait until cpumask has been
 		 * cleared */
-		while (!cpus_empty(data.started))
+		while (!cpumask_empty(&data.started))
 			barrier();
 		if (wait)
-			while (!cpus_empty(data.finished))
+			while (!cpumask_empty(&data.finished))
 				barrier();
 	}
 
@@ -472,12 +472,12 @@ void stop_this_cpu(void *unused)
 #endif	/* CONFIG_GDBSTUB */
 
 	flags = arch_local_cli_save();
-	cpu_clear(smp_processor_id(), cpu_online_map);
+	set_cpu_online(smp_processor_id(), false);
 
 	while (!stopflag)
 		cpu_relax();
 
-	cpu_set(smp_processor_id(), cpu_online_map);
+	set_cpu_online(smp_processor_id(), true);
 	arch_local_irq_restore(flags);
 }
 
@@ -494,14 +494,11 @@ void smp_send_stop(void)
  * @irq: The interrupt number.
  * @dev_id: The device ID.
  *
- * We need do nothing here, since the scheduling will be effected on our way
- * back through entry.S.
- *
  * Returns IRQ_HANDLED to indicate we handled the interrupt successfully.
  */
 static irqreturn_t smp_reschedule_interrupt(int irq, void *dev_id)
 {
-	/* do nothing */
+	scheduler_ipi();
 	return IRQ_HANDLED;
 }
 
@@ -532,12 +529,13 @@ void smp_nmi_call_function_interrupt(void)
 	 * execute the function
 	 */
 	smp_mb();
-	cpu_clear(smp_processor_id(), nmi_call_data->started);
+	cpumask_clear_cpu(smp_processor_id(), &nmi_call_data->started);
 	(*func)(info);
 
 	if (wait) {
 		smp_mb();
-		cpu_clear(smp_processor_id(), nmi_call_data->finished);
+		cpumask_clear_cpu(smp_processor_id(),
+				  &nmi_call_data->finished);
 	}
 }
 
@@ -660,7 +658,7 @@ int __init start_secondary(void *unused)
 {
 	smp_cpu_init();
 	smp_callin();
-	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
+	while (!cpumask_test_cpu(smp_processor_id(), &smp_commenced_mask))
 		cpu_relax();
 
 	local_flush_tlb();
@@ -783,13 +781,14 @@ static int __init do_boot_cpu(int phy_id)
 
 	if (send_status == 0) {
 		/* Allow AP to start initializing */
-		cpu_set(cpu_id, cpu_callout_map);
+		cpumask_set_cpu(cpu_id, &cpu_callout_map);
 
 		/* Wait for setting cpu_callin_map */
 		timeout = 0;
 		do {
 			udelay(1000);
-			callin_status = cpu_isset(cpu_id, cpu_callin_map);
+			callin_status = cpumask_test_cpu(cpu_id,
+							 &cpu_callin_map);
 		} while (callin_status == 0 && timeout++ < 5000);
 
 		if (callin_status == 0)
@@ -799,9 +798,9 @@ static int __init do_boot_cpu(int phy_id)
 	}
 
 	if (send_status == GxICR_REQUEST || callin_status == 0) {
-		cpu_clear(cpu_id, cpu_callout_map);
-		cpu_clear(cpu_id, cpu_callin_map);
-		cpu_clear(cpu_id, cpu_initialized);
+		cpumask_clear_cpu(cpu_id, &cpu_callout_map);
+		cpumask_clear_cpu(cpu_id, &cpu_callin_map);
+		cpumask_clear_cpu(cpu_id, &cpu_initialized);
 		cpucount--;
 		return 1;
 	}
@@ -836,7 +835,7 @@ static void __init smp_callin(void)
 	cpu = smp_processor_id();
 	timeout = jiffies + (2 * HZ);
 
-	if (cpu_isset(cpu, cpu_callin_map)) {
+	if (cpumask_test_cpu(cpu, &cpu_callin_map)) {
 		printk(KERN_ERR "CPU#%d already present.\n", cpu);
 		BUG();
 	}
@@ -844,7 +843,7 @@ static void __init smp_callin(void)
 
 	/* Wait for AP startup 2s total */
 	while (time_before(jiffies, timeout)) {
-		if (cpu_isset(cpu, cpu_callout_map))
+		if (cpumask_test_cpu(cpu, &cpu_callout_map))
 			break;
 		cpu_relax();
 	}
@@ -864,11 +863,11 @@ static void __init smp_callin(void)
 	smp_store_cpu_info(cpu);
 
 	/* Allow the boot processor to continue */
-	cpu_set(cpu, cpu_callin_map);
+	cpumask_set_cpu(cpu, &cpu_callin_map);
 }
 
 /**
- * smp_online - Set cpu_online_map
+ * smp_online - Set cpu_online_mask
  */
 static void __init smp_online(void)
 {
@@ -878,7 +877,7 @@ static void __init smp_online(void)
 
 	local_irq_enable();
 
-	cpu_set(cpu, cpu_online_map);
+	set_cpu_online(cpu, true);
 	smp_wmb();
 }
 
@@ -895,13 +894,13 @@ void __init smp_cpus_done(unsigned int max_cpus)
 /*
  * smp_prepare_boot_cpu - Set up stuff for the boot processor.
  *
- * Set up the cpu_online_map, cpu_callout_map and cpu_callin_map of the boot
+ * Set up the cpu_online_mask, cpu_callout_map and cpu_callin_map of the boot
  * processor (CPU 0).
  */
 void __devinit smp_prepare_boot_cpu(void)
 {
-	cpu_set(0, cpu_callout_map);
-	cpu_set(0, cpu_callin_map);
+	cpumask_set_cpu(0, &cpu_callout_map);
+	cpumask_set_cpu(0, &cpu_callin_map);
 	current_thread_info()->cpu = 0;
 }
 
@@ -934,16 +933,16 @@ int __devinit __cpu_up(unsigned int cpu)
 		run_wakeup_cpu(cpu);
 #endif /* CONFIG_HOTPLUG_CPU */
 
-	cpu_set(cpu, smp_commenced_mask);
+	cpumask_set_cpu(cpu, &smp_commenced_mask);
 
 	/* Wait 5s total for a response */
 	for (timeout = 0 ; timeout < 5000 ; timeout++) {
-		if (cpu_isset(cpu, cpu_online_map))
+		if (cpu_online(cpu))
 			break;
 		udelay(1000);
 	}
 
-	BUG_ON(!cpu_isset(cpu, cpu_online_map));
+	BUG_ON(!cpu_online(cpu));
 	return 0;
 }
 
@@ -989,7 +988,7 @@ int __cpu_disable(void)
 		return -EBUSY;
 
 	migrate_irqs();
-	cpu_clear(cpu, current->active_mm->cpu_vm_mask);
+	cpumask_clear_cpu(cpu, &mm_cpumask(current->active_mm));
 	return 0;
 }
 
@@ -1094,13 +1093,13 @@ static int hotplug_cpu_nmi_call_function(cpumask_t cpumask,
 	do {
 		mn10300_local_dcache_inv_range(start, end);
 		barrier();
-	} while (!cpus_empty(nmi_call_func_mask_data.started));
+	} while (!cpumask_empty(&nmi_call_func_mask_data.started));
 
 	if (wait) {
 		do {
 			mn10300_local_dcache_inv_range(start, end);
 			barrier();
-		} while (!cpus_empty(nmi_call_func_mask_data.finished));
+		} while (!cpumask_empty(&nmi_call_func_mask_data.finished));
 	}
 
 	spin_unlock(&smp_nmi_call_lock);
@@ -1111,9 +1110,9 @@ static void restart_wakeup_cpu(void)
 {
 	unsigned int cpu = smp_processor_id();
 
-	cpu_set(cpu, cpu_callin_map);
+	cpumask_set_cpu(cpu, &cpu_callin_map);
 	local_flush_tlb();
-	cpu_set(cpu, cpu_online_map);
+	set_cpu_online(cpu, true);
 	smp_wmb();
 }
 
@@ -1144,8 +1143,9 @@ static void sleep_cpu(void *unused)
 static void run_sleep_cpu(unsigned int cpu)
 {
 	unsigned long flags;
-	cpumask_t cpumask = cpumask_of(cpu);
+	cpumask_t cpumask;
 
+	cpumask_copy(&cpumask, &cpumask_of(cpu));
 	flags = arch_local_cli_save();
 	hotplug_cpu_nmi_call_function(cpumask, prepare_sleep_cpu, NULL, 1);
 	hotplug_cpu_nmi_call_function(cpumask, sleep_cpu, NULL, 0);

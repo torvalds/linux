@@ -61,6 +61,7 @@ extern int kvmppc_emulate_instruction(struct kvm_run *run,
                                       struct kvm_vcpu *vcpu);
 extern int kvmppc_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu);
 extern void kvmppc_emulate_dec(struct kvm_vcpu *vcpu);
+extern u32 kvmppc_get_dec(struct kvm_vcpu *vcpu, u64 tb);
 
 /* Core-specific hooks */
 
@@ -141,5 +142,13 @@ static inline u32 kvmppc_set_field(u64 inst, int msb, int lsb, int value)
 
 	return r;
 }
+
+void kvmppc_core_get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
+int kvmppc_core_set_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
+
+void kvmppc_get_sregs_ivor(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
+int kvmppc_set_sregs_ivor(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
+
+void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid);
 
 #endif /* __POWERPC_KVM_PPC_H__ */

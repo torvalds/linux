@@ -277,6 +277,7 @@ cifsConvertToUCS(__le16 *target, const char *source, int srclen,
 
 	for (i = 0, j = 0; i < srclen; j++) {
 		src_char = source[i];
+		charlen = 1;
 		switch (src_char) {
 		case 0:
 			put_unaligned(0, &target[j]);
@@ -316,16 +317,13 @@ cifsConvertToUCS(__le16 *target, const char *source, int srclen,
 				dst_char = cpu_to_le16(0x003f);
 				charlen = 1;
 			}
-			/*
-			 * character may take more than one byte in the source
-			 * string, but will take exactly two bytes in the
-			 * target string
-			 */
-			i += charlen;
-			continue;
 		}
+		/*
+		 * character may take more than one byte in the source string,
+		 * but will take exactly two bytes in the target string
+		 */
+		i += charlen;
 		put_unaligned(dst_char, &target[j]);
-		i++; /* move to next char in source string */
 	}
 
 ctoUCS_out:

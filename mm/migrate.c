@@ -288,7 +288,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	 */
 	__dec_zone_page_state(page, NR_FILE_PAGES);
 	__inc_zone_page_state(newpage, NR_FILE_PAGES);
-	if (PageSwapBacked(page)) {
+	if (!PageSwapCache(page) && PageSwapBacked(page)) {
 		__dec_zone_page_state(page, NR_SHMEM);
 		__inc_zone_page_state(newpage, NR_SHMEM);
 	}
@@ -721,15 +721,11 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 		 * Only page_lock_anon_vma() understands the subtleties of
 		 * getting a hold on an anon_vma from outside one of its mms.
 		 */
-		anon_vma = page_lock_anon_vma(page);
+		anon_vma = page_get_anon_vma(page);
 		if (anon_vma) {
 			/*
-			 * Take a reference count on the anon_vma if the
-			 * page is mapped so that it is guaranteed to
-			 * exist when the page is remapped later
+			 * Anon page
 			 */
-			get_anon_vma(anon_vma);
-			page_unlock_anon_vma(anon_vma);
 		} else if (PageSwapCache(page)) {
 			/*
 			 * We cannot be sure that the anon_vma of an unmapped
@@ -857,13 +853,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 		lock_page(hpage);
 	}
 
-	if (PageAnon(hpage)) {
-		anon_vma = page_lock_anon_vma(hpage);
-		if (anon_vma) {
-			get_anon_vma(anon_vma);
-			page_unlock_anon_vma(anon_vma);
-		}
-	}
+	if (PageAnon(hpage))
+		anon_vma = page_get_anon_vma(hpage);
 
 	try_to_unmap(hpage, TTU_MIGRATION|TTU_IGNORE_MLOCK|TTU_IGNORE_ACCESS);
 

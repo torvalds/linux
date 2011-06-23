@@ -2017,9 +2017,11 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ndev->irq = pdev->irq;
 		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO
 		    | NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-		    NETIF_F_HW_VLAN_FILTER
+		    NETIF_F_HW_VLAN_FILTER | NETIF_F_RXCSUM
 		    /*| NETIF_F_FRAGLIST */
 		    ;
+		ndev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
+			NETIF_F_TSO | NETIF_F_HW_VLAN_TX;
 
 		if (pci_using_dac)
 			ndev->features |= NETIF_F_HIGHDMA;
@@ -2149,7 +2151,7 @@ static int bdx_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 	ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
 	ecmd->advertising = (ADVERTISED_10000baseT_Full | ADVERTISED_FIBRE);
-	ecmd->speed = SPEED_10000;
+	ethtool_cmd_speed_set(ecmd, SPEED_10000);
 	ecmd->duplex = DUPLEX_FULL;
 	ecmd->port = PORT_FIBRE;
 	ecmd->transceiver = XCVR_EXTERNAL;	/* what does it mean? */
@@ -2185,24 +2187,6 @@ bdx_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	drvinfo->testinfo_len = 0;
 	drvinfo->regdump_len = 0;
 	drvinfo->eedump_len = 0;
-}
-
-/*
- * bdx_get_rx_csum - report whether receive checksums are turned on or off
- * @netdev
- */
-static u32 bdx_get_rx_csum(struct net_device *netdev)
-{
-	return 1;		/* always on */
-}
-
-/*
- * bdx_get_tx_csum - report whether transmit checksums are turned on or off
- * @netdev
- */
-static u32 bdx_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_IP_CSUM) != 0;
 }
 
 /*
@@ -2424,10 +2408,6 @@ static void bdx_set_ethtool_ops(struct net_device *netdev)
 		.set_coalesce = bdx_set_coalesce,
 		.get_ringparam = bdx_get_ringparam,
 		.set_ringparam = bdx_set_ringparam,
-		.get_rx_csum = bdx_get_rx_csum,
-		.get_tx_csum = bdx_get_tx_csum,
-		.get_sg = ethtool_op_get_sg,
-		.get_tso = ethtool_op_get_tso,
 		.get_strings = bdx_get_strings,
 		.get_sset_count = bdx_get_sset_count,
 		.get_ethtool_stats = bdx_get_ethtool_stats,

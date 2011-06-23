@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <asm/udbg.h>
 #include <asm/io.h>
+#include <asm/reg_a2.h>
 
 extern u8 real_readb(volatile u8 __iomem  *addr);
 extern void real_writeb(u8 data, volatile u8 __iomem *addr);
@@ -298,3 +299,53 @@ void __init udbg_init_40x_realmode(void)
 	udbg_getc_poll = NULL;
 }
 #endif /* CONFIG_PPC_EARLY_DEBUG_40x */
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_WSP
+static void udbg_wsp_flush(void)
+{
+	if (udbg_comport) {
+		while ((readb(&udbg_comport->lsr) & LSR_THRE) == 0)
+			/* wait for idle */;
+	}
+}
+
+static void udbg_wsp_putc(char c)
+{
+	if (udbg_comport) {
+		if (c == '\n')
+			udbg_wsp_putc('\r');
+		udbg_wsp_flush();
+		writeb(c, &udbg_comport->thr); eieio();
+	}
+}
+
+static int udbg_wsp_getc(void)
+{
+	if (udbg_comport) {
+		while ((readb(&udbg_comport->lsr) & LSR_DR) == 0)
+			; /* wait for char */
+		return readb(&udbg_comport->rbr);
+	}
+	return -1;
+}
+
+static int udbg_wsp_getc_poll(void)
+{
+	if (udbg_comport)
+		if (readb(&udbg_comport->lsr) & LSR_DR)
+			return readb(&udbg_comport->rbr);
+	return -1;
+}
+
+void __init udbg_init_wsp(void)
+{
+	udbg_comport = (struct NS16550 __iomem *)WSP_UART_VIRT;
+
+	udbg_init_uart(udbg_comport, 57600, 50000000);
+
+	udbg_putc = udbg_wsp_putc;
+	udbg_flush = udbg_wsp_flush;
+	udbg_getc = udbg_wsp_getc;
+	udbg_getc_poll = udbg_wsp_getc_poll;
+}
+#endif /* CONFIG_PPC_EARLY_DEBUG_WSP */

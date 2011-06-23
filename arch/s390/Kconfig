@@ -2,7 +2,7 @@ config MMU
 	def_bool y
 
 config ZONE_DMA
-	def_bool y if 64BIT
+	def_bool y
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -88,6 +88,8 @@ config S390
 	select HAVE_KERNEL_XZ
 	select HAVE_GET_USER_PAGES_FAST
 	select HAVE_ARCH_MUTEX_CPU_RELAX
+	select HAVE_ARCH_JUMP_LABEL if !MARCH_G5
+	select HAVE_RCU_TABLE_FREE if SMP
 	select ARCH_INLINE_SPIN_TRYLOCK
 	select ARCH_INLINE_SPIN_TRYLOCK_BH
 	select ARCH_INLINE_SPIN_LOCK
@@ -228,17 +230,6 @@ config SYSVIPC_COMPAT
 
 config AUDIT_ARCH
 	def_bool y
-
-config S390_EXEC_PROTECT
-	def_bool y
-	prompt "Data execute protection"
-	help
-	  This option allows to enable a buffer overflow protection for user
-	  space programs and it also selects the addressing mode option above.
-	  The kernel parameter noexec=on will enable this feature and also
-	  switch the addressing modes, default is disabled. Enabling this (via
-	  kernel parameter) on machines earlier than IBM System z9 this will
-	  reduce system performance.
 
 comment "Code generation options"
 

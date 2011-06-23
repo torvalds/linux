@@ -91,14 +91,6 @@ config GENERIC_HWEIGHT
 	bool
 	default y
 
-config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
-
-config GENERIC_FIND_BIT_LE
-	bool
-	default y
-
 config GENERIC_GPIO
 	bool
 	help
@@ -140,6 +132,8 @@ config PPC
 	select IRQ_PER_CPU
 	select GENERIC_IRQ_SHOW
 	select GENERIC_IRQ_SHOW_LEVEL
+	select HAVE_RCU_TABLE_FREE if SMP
+	select HAVE_SYSCALL_TRACEPOINTS
 
 config EARLY_PRINTK
 	bool
@@ -192,6 +186,12 @@ config GENERIC_BUG
 config SYS_SUPPORTS_APM_EMULATION
 	default y if PMAC_APM_EMU
 	bool
+
+config EPAPR_BOOT
+	bool
+	help
+	  Used to allow a board to specify it wants an ePAPR compliant wrapper.
+	default n
 
 config DEFAULT_UIMAGE
 	bool

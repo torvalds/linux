@@ -3619,8 +3619,14 @@ int sata_link_scr_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 		scontrol |= (0x2 << 8);
 		break;
 	case ATA_LPM_MIN_POWER:
-		/* no restrictions on LPM transitions */
-		scontrol &= ~(0x3 << 8);
+		if (ata_link_nr_enabled(link) > 0)
+			/* no restrictions on LPM transitions */
+			scontrol &= ~(0x3 << 8);
+		else {
+			/* empty port, power off */
+			scontrol &= ~0xf;
+			scontrol |= (0x1 << 2);
+		}
 		break;
 	default:
 		WARN_ON(1);

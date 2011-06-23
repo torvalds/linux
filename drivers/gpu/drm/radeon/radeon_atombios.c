@@ -1246,6 +1246,10 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		}
 		*dcpll = *p1pll;
 
+		rdev->clock.max_pixel_clock = le16_to_cpu(firmware_info->info.usMaxPixelClock);
+		if (rdev->clock.max_pixel_clock == 0)
+			rdev->clock.max_pixel_clock = 40000;
+
 		return true;
 	}
 
@@ -1574,9 +1578,17 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 			ATOM_FAKE_EDID_PATCH_RECORD *fake_edid_record;
 			ATOM_PANEL_RESOLUTION_PATCH_RECORD *panel_res_record;
 			bool bad_record = false;
-			u8 *record = (u8 *)(mode_info->atom_context->bios +
-					    data_offset +
-					    le16_to_cpu(lvds_info->info.usModePatchTableOffset));
+			u8 *record;
+
+			if ((frev == 1) && (crev < 2))
+				/* absolute */
+				record = (u8 *)(mode_info->atom_context->bios +
+						le16_to_cpu(lvds_info->info.usModePatchTableOffset));
+			else
+				/* relative */
+				record = (u8 *)(mode_info->atom_context->bios +
+						data_offset +
+						le16_to_cpu(lvds_info->info.usModePatchTableOffset));
 			while (*record != ATOM_RECORD_END_TYPE) {
 				switch (*record) {
 				case LCD_MODE_PATCH_RECORD_MODE_TYPE:
@@ -2593,6 +2605,10 @@ void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 v
 	u8 frev, crev, volt_index = voltage_level;
 
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return;
+
+	/* 0xff01 is a flag rather then an actual voltage */
+	if (voltage_level == 0xff01)
 		return;
 
 	switch (crev) {

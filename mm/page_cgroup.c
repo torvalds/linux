@@ -130,11 +130,11 @@ struct page *lookup_cgroup_page(struct page_cgroup *pc)
 	return page;
 }
 
-static void *__init_refok alloc_page_cgroup(size_t size, int nid)
+static void *__meminit alloc_page_cgroup(size_t size, int nid)
 {
 	void *addr = NULL;
 
-	addr = alloc_pages_exact(size, GFP_KERNEL | __GFP_NOWARN);
+	addr = alloc_pages_exact_nid(nid, size, GFP_KERNEL | __GFP_NOWARN);
 	if (addr)
 		return addr;
 
@@ -162,13 +162,13 @@ static void free_page_cgroup(void *addr)
 }
 #endif
 
-static int __init_refok init_section_page_cgroup(unsigned long pfn)
+static int __meminit init_section_page_cgroup(unsigned long pfn, int nid)
 {
 	struct page_cgroup *base, *pc;
 	struct mem_section *section;
 	unsigned long table_size;
 	unsigned long nr;
-	int nid, index;
+	int index;
 
 	nr = pfn_to_section_nr(pfn);
 	section = __nr_to_section(nr);
@@ -176,7 +176,6 @@ static int __init_refok init_section_page_cgroup(unsigned long pfn)
 	if (section->page_cgroup)
 		return 0;
 
-	nid = page_to_nid(pfn_to_page(pfn));
 	table_size = sizeof(struct page_cgroup) * PAGES_PER_SECTION;
 	base = alloc_page_cgroup(table_size, nid);
 
@@ -196,7 +195,11 @@ static int __init_refok init_section_page_cgroup(unsigned long pfn)
 		pc = base + index;
 		init_page_cgroup(pc, nr);
 	}
-
+	/*
+	 * The passed "pfn" may not be aligned to SECTION.  For the calculation
+	 * we need to apply a mask.
+	 */
+	pfn &= PAGE_SECTION_MASK;
 	section->page_cgroup = base - pfn;
 	total_usage += table_size;
 	return 0;
@@ -225,10 +228,20 @@ int __meminit online_page_cgroup(unsigned long start_pfn,
 	start = start_pfn & ~(PAGES_PER_SECTION - 1);
 	end = ALIGN(start_pfn + nr_pages, PAGES_PER_SECTION);
 
+	if (nid == -1) {
+		/*
+		 * In this case, "nid" already exists and contains valid memory.
+		 * "start_pfn" passed to us is a pfn which is an arg for
+		 * online__pages(), and start_pfn should exist.
+		 */
+		nid = pfn_to_nid(start_pfn);
+		VM_BUG_ON(!node_state(nid, N_ONLINE));
+	}
+
 	for (pfn = start; !fail && pfn < end; pfn += PAGES_PER_SECTION) {
 		if (!pfn_present(pfn))
 			continue;
-		fail = init_section_page_cgroup(pfn);
+		fail = init_section_page_cgroup(pfn, nid);
 	}
 	if (!fail)
 		return 0;
@@ -284,25 +297,47 @@ static int __meminit page_cgroup_callback(struct notifier_block *self,
 void __init page_cgroup_init(void)
 {
 	unsigned long pfn;
-	int fail = 0;
+	int nid;
 
 	if (mem_cgroup_disabled())
 		return;
 
-	for (pfn = 0; !fail && pfn < max_pfn; pfn += PAGES_PER_SECTION) {
-		if (!pfn_present(pfn))
-			continue;
-		fail = init_section_page_cgroup(pfn);
+	for_each_node_state(nid, N_HIGH_MEMORY) {
+		unsigned long start_pfn, end_pfn;
+
+		start_pfn = node_start_pfn(nid);
+		end_pfn = node_end_pfn(nid);
+		/*
+		 * start_pfn and end_pfn may not be aligned to SECTION and the
+		 * page->flags of out of node pages are not initialized.  So we
+		 * scan [start_pfn, the biggest section's pfn < end_pfn) here.
+		 */
+		for (pfn = start_pfn;
+		     pfn < end_pfn;
+                     pfn = ALIGN(pfn + 1, PAGES_PER_SECTION)) {
+
+			if (!pfn_valid(pfn))
+				continue;
+			/*
+			 * Nodes's pfns can be overlapping.
+			 * We know some arch can have a nodes layout such as
+			 * -------------pfn-------------->
+			 * N0 | N1 | N2 | N0 | N1 | N2|....
+			 */
+			if (pfn_to_nid(pfn) != nid)
+				continue;
+			if (init_section_page_cgroup(pfn, nid))
+				goto oom;
+		}
 	}
-	if (fail) {
-		printk(KERN_CRIT "try 'cgroup_disable=memory' boot option\n");
-		panic("Out of memory");
-	} else {
-		hotplug_memory_notifier(page_cgroup_callback, 0);
-	}
+	hotplug_memory_notifier(page_cgroup_callback, 0);
 	printk(KERN_INFO "allocated %ld bytes of page_cgroup\n", total_usage);
-	printk(KERN_INFO "please try 'cgroup_disable=memory' option if you don't"
-	" want memory cgroups\n");
+	printk(KERN_INFO "please try 'cgroup_disable=memory' option if you "
+			 "don't want memory cgroups\n");
+	return;
+oom:
+	printk(KERN_CRIT "try 'cgroup_disable=memory' boot option\n");
+	panic("Out of memory");
 }
 
 void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
@@ -475,7 +510,7 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
 	if (!do_swap_account)
 		return 0;
 
-	length = ((max_pages/SC_PER_PAGE) + 1);
+	length = DIV_ROUND_UP(max_pages, SC_PER_PAGE);
 	array_size = length * sizeof(void *);
 
 	array = vmalloc(array_size);
@@ -492,8 +527,8 @@ int swap_cgroup_swapon(int type, unsigned long max_pages)
 		/* memory shortage */
 		ctrl->map = NULL;
 		ctrl->length = 0;
-		vfree(array);
 		mutex_unlock(&swap_cgroup_mutex);
+		vfree(array);
 		goto nomem;
 	}
 	mutex_unlock(&swap_cgroup_mutex);
@@ -508,7 +543,8 @@ nomem:
 
 void swap_cgroup_swapoff(int type)
 {
-	int i;
+	struct page **map;
+	unsigned long i, length;
 	struct swap_cgroup_ctrl *ctrl;
 
 	if (!do_swap_account)
@@ -516,17 +552,20 @@ void swap_cgroup_swapoff(int type)
 
 	mutex_lock(&swap_cgroup_mutex);
 	ctrl = &swap_cgroup_ctrl[type];
-	if (ctrl->map) {
-		for (i = 0; i < ctrl->length; i++) {
-			struct page *page = ctrl->map[i];
+	map = ctrl->map;
+	length = ctrl->length;
+	ctrl->map = NULL;
+	ctrl->length = 0;
+	mutex_unlock(&swap_cgroup_mutex);
+
+	if (map) {
+		for (i = 0; i < length; i++) {
+			struct page *page = map[i];
 			if (page)
 				__free_page(page);
 		}
-		vfree(ctrl->map);
-		ctrl->map = NULL;
-		ctrl->length = 0;
+		vfree(map);
 	}
-	mutex_unlock(&swap_cgroup_mutex);
 }
 
 #endif

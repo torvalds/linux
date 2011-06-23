@@ -1369,7 +1369,7 @@ errout:
 
 static size_t inet_get_link_af_size(const struct net_device *dev)
 {
-	struct in_device *in_dev = __in_dev_get_rtnl(dev);
+	struct in_device *in_dev = rcu_dereference_rtnl(dev->ip_ptr);
 
 	if (!in_dev)
 		return 0;
@@ -1379,7 +1379,7 @@ static size_t inet_get_link_af_size(const struct net_device *dev)
 
 static int inet_fill_link_af(struct sk_buff *skb, const struct net_device *dev)
 {
-	struct in_device *in_dev = __in_dev_get_rtnl(dev);
+	struct in_device *in_dev = rcu_dereference_rtnl(dev->ip_ptr);
 	struct nlattr *nla;
 	int i;
 

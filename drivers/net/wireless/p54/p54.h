@@ -211,8 +211,10 @@ struct p54_common {
 	/* BBP/MAC state */
 	u8 mac_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
+	u8 mc_maclist[4][ETH_ALEN];
 	u16 wakeup_timer;
 	unsigned int filter_flags;
+	int mc_maclist_num;
 	int mode;
 	u32 tsf_low32, tsf_high32;
 	u32 basic_rate_mask;

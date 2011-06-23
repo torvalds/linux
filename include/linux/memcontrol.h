@@ -20,6 +20,8 @@
 #ifndef _LINUX_MEMCONTROL_H
 #define _LINUX_MEMCONTROL_H
 #include <linux/cgroup.h>
+#include <linux/vm_event_item.h>
+
 struct mem_cgroup;
 struct page_cgroup;
 struct page;
@@ -82,6 +84,7 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
 
 extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
 extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+extern struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm);
 
 static inline
 int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
@@ -106,9 +109,10 @@ extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
  */
 int mem_cgroup_inactive_anon_is_low(struct mem_cgroup *memcg);
 int mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg);
-unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
-				       struct zone *zone,
-				       enum lru_list lru);
+int mem_cgroup_select_victim_node(struct mem_cgroup *memcg);
+unsigned long mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg,
+						struct zone *zone,
+						enum lru_list lru);
 struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
 						      struct zone *zone);
 struct zone_reclaim_stat*
@@ -144,9 +148,11 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
 }
 
 unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
-						gfp_t gfp_mask);
+						gfp_t gfp_mask,
+						unsigned long *total_scanned);
 u64 mem_cgroup_get_limit(struct mem_cgroup *mem);
 
+void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail);
 #endif
@@ -241,6 +247,11 @@ static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
 	return NULL;
 }
 
+static inline struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
+{
+	return NULL;
+}
+
 static inline int mm_match_cgroup(struct mm_struct *mm, struct mem_cgroup *mem)
 {
 	return 1;
@@ -302,8 +313,8 @@ mem_cgroup_inactive_file_is_low(struct mem_cgroup *memcg)
 }
 
 static inline unsigned long
-mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg, struct zone *zone,
-			 enum lru_list lru)
+mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, struct zone *zone,
+			     enum lru_list lru)
 {
 	return 0;
 }
@@ -338,7 +349,8 @@ static inline void mem_cgroup_dec_page_stat(struct page *page,
 
 static inline
 unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
-					    gfp_t gfp_mask)
+					    gfp_t gfp_mask,
+					    unsigned long *total_scanned)
 {
 	return 0;
 }
@@ -354,6 +366,10 @@ static inline void mem_cgroup_split_huge_fixup(struct page *head,
 {
 }
 
+static inline
+void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
+{
+}
 #endif /* CONFIG_CGROUP_MEM_CONT */
 
 #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)

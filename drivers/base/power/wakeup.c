@@ -110,7 +110,6 @@ void wakeup_source_add(struct wakeup_source *ws)
 	spin_lock_irq(&events_lock);
 	list_add_rcu(&ws->entry, &wakeup_sources);
 	spin_unlock_irq(&events_lock);
-	synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(wakeup_source_add);
 

@@ -35,6 +35,7 @@
 #include <linux/ioctl.h>
 #include <linux/file.h>
 #include <linux/wait.h>
+#include <linux/kthread.h>
 #include <net/sock.h>
 
 #include <linux/isdn/capilli.h>
@@ -143,7 +144,7 @@ static void cmtp_send_capimsg(struct cmtp_session *session, struct sk_buff *skb)
 
 	skb_queue_tail(&session->transmit, skb);
 
-	cmtp_schedule(session);
+	wake_up_interruptible(sk_sleep(session->sock->sk));
 }
 
 static void cmtp_send_interopmsg(struct cmtp_session *session,
@@ -386,8 +387,7 @@ static void cmtp_reset_ctr(struct capi_ctr *ctrl)
 
 	capi_ctr_down(ctrl);
 
-	atomic_inc(&session->terminate);
-	cmtp_schedule(session);
+	kthread_stop(session->task);
 }
 
 static void cmtp_register_appl(struct capi_ctr *ctrl, __u16 appl, capi_register_params *rp)

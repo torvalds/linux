@@ -1673,10 +1673,8 @@ int tc_classify(struct sk_buff *skb, struct tcf_proto *tp,
 {
 	int err = 0;
 #ifdef CONFIG_NET_CLS_ACT
-	__be16 protocol;
 	struct tcf_proto *otp = tp;
 reclassify:
-	protocol = skb->protocol;
 #endif
 
 	err = tc_classify_compat(skb, tp, res);

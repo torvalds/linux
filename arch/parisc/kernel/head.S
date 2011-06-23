@@ -106,8 +106,9 @@ $bss_loop:
 #endif
 
 
-	/* Now initialize the PTEs themselves */
-	ldo		0+_PAGE_KERNEL(%r0),%r3 /* Hardwired 0 phys addr start */
+	/* Now initialize the PTEs themselves.  We use RWX for
+	 * everything ... it will get remapped correctly later */
+	ldo		0+_PAGE_KERNEL_RWX(%r0),%r3 /* Hardwired 0 phys addr start */
 	ldi		(1<<(KERNEL_INITIAL_ORDER-PAGE_SHIFT)),%r11 /* PFN count */
 	load32		PA(pg0),%r1
 

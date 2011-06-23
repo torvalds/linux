@@ -87,7 +87,7 @@ static void __cpuinit smp_iss4xx_setup_cpu(int cpu)
 	mpic_setup_this_cpu();
 }
 
-static void __cpuinit smp_iss4xx_kick_cpu(int cpu)
+static int __cpuinit smp_iss4xx_kick_cpu(int cpu)
 {
 	struct device_node *cpunode = of_get_cpu_node(cpu, NULL);
 	const u64 *spin_table_addr_prop;
@@ -104,7 +104,7 @@ static void __cpuinit smp_iss4xx_kick_cpu(int cpu)
 					       NULL);
 	if (spin_table_addr_prop == NULL) {
 		pr_err("CPU%d: Can't start, missing cpu-release-addr !\n", cpu);
-		return;
+		return -ENOENT;
 	}
 
 	/* Assume it's mapped as part of the linear mapping. This is a bit
@@ -117,6 +117,8 @@ static void __cpuinit smp_iss4xx_kick_cpu(int cpu)
 	smp_wmb();
 	spin_table[1] = __pa(start_secondary_47x);
 	mb();
+
+	return 0;
 }
 
 static struct smp_ops_t iss_smp_ops = {

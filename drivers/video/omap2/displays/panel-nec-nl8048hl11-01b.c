@@ -22,7 +22,7 @@
 #include <linux/backlight.h>
 #include <linux/fb.h>
 
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 #define LCD_XRES		800
 #define LCD_YRES		480

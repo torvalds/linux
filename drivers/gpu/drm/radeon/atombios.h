@@ -726,6 +726,7 @@ typedef struct _DIG_ENCODER_CONTROL_PARAMETERS_V2
 #define ATOM_ENCODER_CMD_DP_VIDEO_ON                  0x0d
 #define ATOM_ENCODER_CMD_QUERY_DP_LINK_TRAINING_STATUS    0x0e
 #define ATOM_ENCODER_CMD_SETUP                        0x0f
+#define ATOM_ENCODER_CMD_SETUP_PANEL_MODE             0x10
 
 // ucStatus
 #define ATOM_ENCODER_STATUS_LINK_TRAINING_COMPLETE    0x10
@@ -765,13 +766,19 @@ typedef struct _DIG_ENCODER_CONTROL_PARAMETERS_V3
   USHORT usPixelClock;      // in 10KHz; for bios convenient
   ATOM_DIG_ENCODER_CONFIG_V3 acConfig;
   UCHAR ucAction;                              
-  UCHAR ucEncoderMode;
+  union {
+    UCHAR ucEncoderMode;
                             // =0: DP   encoder      
                             // =1: LVDS encoder          
                             // =2: DVI  encoder  
                             // =3: HDMI encoder
                             // =4: SDVO encoder
                             // =5: DP audio
+    UCHAR ucPanelMode;      // only valid when ucAction == ATOM_ENCODER_CMD_SETUP_PANEL_MODE
+	                    // =0:     external DP
+	                    // =1:     internal DP2
+	                    // =0x11:  internal DP1 for NutMeg/Travis DP translator
+  };
   UCHAR ucLaneNum;          // how many lanes to enable
   UCHAR ucBitPerColor;      // only valid for DP mode when ucAction = ATOM_ENCODER_CMD_SETUP
   UCHAR ucReserved;
@@ -816,13 +823,19 @@ typedef struct _DIG_ENCODER_CONTROL_PARAMETERS_V4
   UCHAR ucConfig;
   };
   UCHAR ucAction;                              
-  UCHAR ucEncoderMode;
+  union {
+    UCHAR ucEncoderMode;
                             // =0: DP   encoder      
                             // =1: LVDS encoder          
                             // =2: DVI  encoder  
                             // =3: HDMI encoder
                             // =4: SDVO encoder
                             // =5: DP audio
+    UCHAR ucPanelMode;      // only valid when ucAction == ATOM_ENCODER_CMD_SETUP_PANEL_MODE
+	                    // =0:     external DP
+	                    // =1:     internal DP2
+	                    // =0x11:  internal DP1 for NutMeg/Travis DP translator
+  };
   UCHAR ucLaneNum;          // how many lanes to enable
   UCHAR ucBitPerColor;      // only valid for DP mode when ucAction = ATOM_ENCODER_CMD_SETUP
   UCHAR ucHPD_ID;           // HPD ID (1-6). =0 means to skip HDP programming. New comparing to previous version
@@ -835,6 +848,11 @@ typedef struct _DIG_ENCODER_CONTROL_PARAMETERS_V4
 #define PANEL_10BIT_PER_COLOR                            0x03
 #define PANEL_12BIT_PER_COLOR                            0x04
 #define PANEL_16BIT_PER_COLOR                            0x05
+
+//define ucPanelMode
+#define DP_PANEL_MODE_EXTERNAL_DP_MODE                   0x00
+#define DP_PANEL_MODE_INTERNAL_DP2_MODE                  0x01
+#define DP_PANEL_MODE_INTERNAL_DP1_MODE                  0x11
 
 /****************************************************************************/	
 // Structures used by UNIPHYTransmitterControlTable
@@ -1182,6 +1200,7 @@ typedef struct _EXTERNAL_ENCODER_CONTROL_PARAMETERS_V3
 #define EXTERNAL_ENCODER_ACTION_V3_ENCODER_BLANKING_OFF   0x10
 #define EXTERNAL_ENCODER_ACTION_V3_ENCODER_BLANKING       0x11
 #define EXTERNAL_ENCODER_ACTION_V3_DACLOAD_DETECTION      0x12
+#define EXTERNAL_ENCODER_ACTION_V3_DDC_SETUP              0x14
 
 // ucConfig
 #define EXTERNAL_ENCODER_CONFIG_V3_DPLINKRATE_MASK				0x03

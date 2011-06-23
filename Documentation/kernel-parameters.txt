@@ -245,7 +245,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	acpi_sleep=	[HW,ACPI] Sleep options
 			Format: { s3_bios, s3_mode, s3_beep, s4_nohwsig,
-				  old_ordering, s4_nonvs, sci_force_enable }
+				  old_ordering, nonvs, sci_force_enable }
 			See Documentation/power/video.txt for information on
 			s3_bios and s3_mode.
 			s3_beep is for debugging; it makes the PC's speaker beep
@@ -999,7 +999,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			With this option on every unmap_single operation will
 			result in a hardware IOTLB flush operation as opposed
 			to batching them for performance.
-
+		sp_off [Default Off]
+			By default, super page will be supported if Intel IOMMU
+			has the capability. With this option, super page will
+			not be supported.
 	intremap=	[X86-64, Intel-IOMMU]
 			Format: { on (default) | off | nosid }
 			on	enable Interrupt Remapping (default)
@@ -1664,6 +1667,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			noexec=on: enable non-executable mappings (default)
 			noexec=off: disable non-executable mappings
 
+	nosmep		[X86]
+			Disable SMEP (Supervisor Mode Execution Protection)
+			even if it is supported by processor.
+
 	noexec32	[X86-64]
 			This affects only 32-bit executables.
 			noexec32=on: enable non-executable mappings (default)
@@ -1772,9 +1779,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			and disable the IO APIC.  legacy for "maxcpus=0".
 
 	nosoftlockup	[KNL] Disable the soft-lockup detector.
-
-	noswapaccount	[KNL] Disable accounting of swap in memory resource
-			controller. (See Documentation/cgroups/memory.txt)
 
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
 
@@ -2581,6 +2585,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					bytes of sense data);
 				c = FIX_CAPACITY (decrease the reported
 					device capacity by one sector);
+				d = NO_READ_DISC_INFO (don't use
+					READ_DISC_INFO command);
+				e = NO_READ_CAPACITY_16 (don't use
+					READ_CAPACITY_16 command);
 				h = CAPACITY_HEURISTICS (decrease the
 					reported device capacity by one
 					sector if the number is odd);
@@ -2590,6 +2598,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 					unlock ejectable media);
 				m = MAX_SECTORS_64 (don't transfer more
 					than 64 sectors = 32 KB at a time);
+				n = INITIAL_READ10 (force a retry of the
+					initial READ(10) command);
 				o = CAPACITY_OK (accept the capacity
 					reported by the device);
 				r = IGNORE_RESIDUE (the device reports

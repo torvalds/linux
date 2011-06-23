@@ -2547,7 +2547,6 @@ static bool DAC960_RegisterBlockDevice(DAC960_Controller_T *Controller)
 	disk->major = MajorNumber;
 	disk->first_minor = n << DAC960_MaxPartitionsBits;
 	disk->fops = &DAC960_BlockDeviceOperations;
-	disk->events = DISK_EVENT_MEDIA_CHANGE;
    }
   /*
     Indicate the Block Device Registration completed successfully,

@@ -14,11 +14,10 @@ the legacy VGA arbitration task (besides other bus management tasks) when more
 than one legacy device co-exists on the same machine. But the problem happens
 when these devices are trying to be accessed by different userspace clients
 (e.g. two server in parallel). Their address assignments conflict. Moreover,
-ideally, being an userspace application, it is not the role of the the X
-server to control bus resources. Therefore an arbitration scheme outside of
-the X server is needed to control the sharing of these resources. This
-document introduces the operation of the VGA arbiter implemented for Linux
-kernel.
+ideally, being a userspace application, it is not the role of the X server to
+control bus resources. Therefore an arbitration scheme outside of the X server
+is needed to control the sharing of these resources. This document introduces
+the operation of the VGA arbiter implemented for the Linux kernel.
 
 ----------------------------------------------------------------------------
 
@@ -39,7 +38,7 @@ I.1 vgaarb
 The vgaarb is a module of the Linux Kernel. When it is initially loaded, it
 scans all PCI devices and adds the VGA ones inside the arbitration. The
 arbiter then enables/disables the decoding on different devices of the VGA
-legacy instructions. Device which do not want/need to use the arbiter may
+legacy instructions. Devices which do not want/need to use the arbiter may
 explicitly tell it by calling vga_set_legacy_decoding().
 
 The kernel exports a char device interface (/dev/vga_arbiter) to the clients,
@@ -95,8 +94,8 @@ In the case of devices hot-{un,}plugged, there is a hook - pci_notify() - to
 notify them being added/removed in the system and automatically added/removed
 in the arbiter.
 
-There's also a in-kernel API of the arbiter in the case of DRM, vgacon and
-others which may use the arbiter.
+There is also an in-kernel API of the arbiter in case DRM, vgacon, or other
+drivers want to use it.
 
 
 I.2 libpciaccess
@@ -117,9 +116,8 @@ Besides it, in pci_system were added:
     struct pci_device *vga_default_dev;
 
 
-The vga_count is usually need to keep informed how many cards are being
-arbitrated, so for instance if there's only one then it can totally escape the
-scheme.
+The vga_count is used to track how many cards are being arbitrated, so for
+instance, if there is only one card, then it can completely escape arbitration.
 
 
 These functions below acquire VGA resources for the given card and mark those

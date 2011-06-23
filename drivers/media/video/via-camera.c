@@ -29,6 +29,7 @@
 
 #include "via-camera.h"
 
+MODULE_ALIAS("platform:viafb-camera");
 MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
 MODULE_DESCRIPTION("VIA framebuffer-based camera controller driver");
 MODULE_LICENSE("GPL");

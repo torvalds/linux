@@ -687,7 +687,7 @@ static void block_output(struct net_device *dev, int count,
     outsw(nic_base + AXNET_DATAPORT, buf, count>>1);
 }
 
-static struct pcmcia_device_id axnet_ids[] = {
+static const struct pcmcia_device_id axnet_ids[] = {
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x016c, 0x0081),
 	PCMCIA_DEVICE_MANF_CARD(0x018a, 0x0301),
 	PCMCIA_DEVICE_MANF_CARD(0x01bf, 0x2328),

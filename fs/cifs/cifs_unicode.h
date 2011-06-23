@@ -82,6 +82,9 @@ int cifs_strtoUCS(__le16 *, const char *, int, const struct nls_table *);
 char *cifs_strndup_from_ucs(const char *src, const int maxlen,
 			    const bool is_unicode,
 			    const struct nls_table *codepage);
+extern int cifsConvertToUCS(__le16 *target, const char *source, int maxlen,
+			const struct nls_table *cp, int mapChars);
+
 #endif
 
 /*

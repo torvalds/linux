@@ -197,7 +197,7 @@ static void spu_unmap(struct spu *spu)
  * The current HV requires the spu shadow regs to be mapped with the
  * PTE page protection bits set as read-only (PP=3).  This implementation
  * uses the low level __ioremap() to bypass the page protection settings
- * inforced by ioremap_flags() to get the needed PTE bits set for the
+ * inforced by ioremap_prot() to get the needed PTE bits set for the
  * shadow regs.
  */
 
@@ -214,7 +214,7 @@ static int __init setup_areas(struct spu *spu)
 		goto fail_ioremap;
 	}
 
-	spu->local_store = (__force void *)ioremap_flags(spu->local_store_phys,
+	spu->local_store = (__force void *)ioremap_prot(spu->local_store_phys,
 		LS_SIZE, _PAGE_NO_CACHE);
 
 	if (!spu->local_store) {

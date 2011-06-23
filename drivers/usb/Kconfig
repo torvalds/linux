@@ -65,8 +65,10 @@ config USB_ARCH_HAS_EHCI
 	default y if ARCH_CNS3XXX
 	default y if ARCH_VT8500
 	default y if PLAT_SPEAR
+	default y if PLAT_S5P
 	default y if ARCH_MSM
 	default y if MICROBLAZE
+	default y if SPARC_LEON
 	default PCI
 
 # ARM SA1111 chips have a non-PCI based "OHCI-compatible" USB host interface.
@@ -115,6 +117,8 @@ source "drivers/usb/wusbcore/Kconfig"
 source "drivers/usb/host/Kconfig"
 
 source "drivers/usb/musb/Kconfig"
+
+source "drivers/usb/renesas_usbhs/Kconfig"
 
 source "drivers/usb/class/Kconfig"
 

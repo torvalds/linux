@@ -458,7 +458,7 @@ static void b43_wa_rssi_adc(struct b43_wldev *dev)
 
 static void b43_wa_boards_a(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 
 	if (bus->boardinfo.vendor == SSB_BOARDVENDOR_BCM &&
 	    bus->boardinfo.type == SSB_BOARD_BU4306 &&
@@ -486,7 +486,7 @@ static void b43_wa_boards_a(struct b43_wldev *dev)
 
 static void b43_wa_boards_g(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->dev->bus;
+	struct ssb_bus *bus = dev->sdev->bus;
 	struct b43_phy *phy = &dev->phy;
 
 	if (bus->boardinfo.vendor != SSB_BOARDVENDOR_BCM ||

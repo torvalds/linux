@@ -667,7 +667,7 @@ static int fmvj18x_resume(struct pcmcia_device *link)
 
 /*====================================================================*/
 
-static struct pcmcia_device_id fmvj18x_ids[] = {
+static const struct pcmcia_device_id fmvj18x_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0004, 0x0004),
 	PCMCIA_DEVICE_PROD_ID12("EAGLE Technology", "NE200 ETHERNET LAN MBH10302 04", 0x528c88c4, 0x74f91e59),
 	PCMCIA_DEVICE_PROD_ID12("Eiger Labs,Inc", "EPX-10BT PC Card Ethernet 10BT", 0x53af556e, 0x877f9922),

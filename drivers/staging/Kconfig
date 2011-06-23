@@ -24,23 +24,6 @@ menuconfig STAGING
 
 if STAGING
 
-config STAGING_EXCLUDE_BUILD
-	bool "Exclude Staging drivers from being built" if STAGING
-	default y
-	---help---
-	  Are you sure you really want to build the staging drivers?
-	  They taint your kernel, don't live up to the normal Linux
-	  kernel quality standards, are a bit crufty around the edges,
-	  and might go off and kick your dog when you aren't paying
-	  attention.
-
-	  Say N here to be able to select and build the Staging drivers.
-	  This option is primarily here to prevent them from being built
-	  when selecting 'make allyesconfg' and 'make allmodconfig' so
-	  don't be all that put off, your dog will be just fine.
-
-if !STAGING_EXCLUDE_BUILD
-
 source "drivers/staging/tty/Kconfig"
 
 source "drivers/staging/generic_serial/Kconfig"
@@ -66,10 +49,6 @@ source "drivers/staging/wlan-ng/Kconfig"
 source "drivers/staging/echo/Kconfig"
 
 source "drivers/staging/brcm80211/Kconfig"
-
-source "drivers/staging/rt2860/Kconfig"
-
-source "drivers/staging/rt2870/Kconfig"
 
 source "drivers/staging/comedi/Kconfig"
 
@@ -177,5 +156,8 @@ source "drivers/staging/gma500/Kconfig"
 
 source "drivers/staging/altera-stapl/Kconfig"
 
-endif # !STAGING_EXCLUDE_BUILD
+source "drivers/staging/mei/Kconfig"
+
+source "drivers/staging/nvec/Kconfig"
+
 endif # STAGING

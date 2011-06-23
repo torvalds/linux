@@ -236,7 +236,7 @@ init_pipe_control(struct intel_ring_buffer *ring)
 		ret = -ENOMEM;
 		goto err;
 	}
-	obj->agp_type = AGP_USER_CACHED_MEMORY;
+	obj->cache_level = I915_CACHE_LLC;
 
 	ret = i915_gem_object_pin(obj, 4096, true);
 	if (ret)
@@ -286,7 +286,7 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 
 	if (INTEL_INFO(dev)->gen > 3) {
 		int mode = VS_TIMER_DISPATCH << 16 | VS_TIMER_DISPATCH;
-		if (IS_GEN6(dev))
+		if (IS_GEN6(dev) || IS_GEN7(dev))
 			mode |= MI_FLUSH_ENABLE << 16 | MI_FLUSH_ENABLE;
 		I915_WRITE(MI_MODE, mode);
 	}
@@ -551,10 +551,31 @@ render_ring_put_irq(struct intel_ring_buffer *ring)
 
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 {
+	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	u32 mmio = IS_GEN6(ring->dev) ?
-		RING_HWS_PGA_GEN6(ring->mmio_base) :
-		RING_HWS_PGA(ring->mmio_base);
+	u32 mmio = 0;
+
+	/* The ring status page addresses are no longer next to the rest of
+	 * the ring registers as of gen7.
+	 */
+	if (IS_GEN7(dev)) {
+		switch (ring->id) {
+		case RING_RENDER:
+			mmio = RENDER_HWS_PGA_GEN7;
+			break;
+		case RING_BLT:
+			mmio = BLT_HWS_PGA_GEN7;
+			break;
+		case RING_BSD:
+			mmio = BSD_HWS_PGA_GEN7;
+			break;
+		}
+	} else if (IS_GEN6(ring->dev)) {
+		mmio = RING_HWS_PGA_GEN6(ring->mmio_base);
+	} else {
+		mmio = RING_HWS_PGA(ring->mmio_base);
+	}
+
 	I915_WRITE(mmio, (u32)ring->status_page.gfx_addr);
 	POSTING_READ(mmio);
 }
@@ -600,35 +621,6 @@ ring_add_request(struct intel_ring_buffer *ring,
 }
 
 static bool
-ring_get_irq(struct intel_ring_buffer *ring, u32 flag)
-{
-	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	if (!dev->irq_enabled)
-	       return false;
-
-	spin_lock(&ring->irq_lock);
-	if (ring->irq_refcount++ == 0)
-		ironlake_enable_irq(dev_priv, flag);
-	spin_unlock(&ring->irq_lock);
-
-	return true;
-}
-
-static void
-ring_put_irq(struct intel_ring_buffer *ring, u32 flag)
-{
-	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	spin_lock(&ring->irq_lock);
-	if (--ring->irq_refcount == 0)
-		ironlake_disable_irq(dev_priv, flag);
-	spin_unlock(&ring->irq_lock);
-}
-
-static bool
 gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 {
 	struct drm_device *dev = ring->dev;
@@ -666,12 +658,37 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 static bool
 bsd_ring_get_irq(struct intel_ring_buffer *ring)
 {
-	return ring_get_irq(ring, GT_BSD_USER_INTERRUPT);
+	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	if (!dev->irq_enabled)
+		return false;
+
+	spin_lock(&ring->irq_lock);
+	if (ring->irq_refcount++ == 0) {
+		if (IS_G4X(dev))
+			i915_enable_irq(dev_priv, I915_BSD_USER_INTERRUPT);
+		else
+			ironlake_enable_irq(dev_priv, GT_BSD_USER_INTERRUPT);
+	}
+	spin_unlock(&ring->irq_lock);
+
+	return true;
 }
 static void
 bsd_ring_put_irq(struct intel_ring_buffer *ring)
 {
-	ring_put_irq(ring, GT_BSD_USER_INTERRUPT);
+	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	spin_lock(&ring->irq_lock);
+	if (--ring->irq_refcount == 0) {
+		if (IS_G4X(dev))
+			i915_disable_irq(dev_priv, I915_BSD_USER_INTERRUPT);
+		else
+			ironlake_disable_irq(dev_priv, GT_BSD_USER_INTERRUPT);
+	}
+	spin_unlock(&ring->irq_lock);
 }
 
 static int
@@ -759,7 +776,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 		ret = -ENOMEM;
 		goto err;
 	}
-	obj->agp_type = AGP_USER_CACHED_MEMORY;
+	obj->cache_level = I915_CACHE_LLC;
 
 	ret = i915_gem_object_pin(obj, 4096, true);
 	if (ret != 0) {
@@ -800,6 +817,7 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&ring->request_list);
 	INIT_LIST_HEAD(&ring->gpu_write_list);
 
+	init_waitqueue_head(&ring->irq_queue);
 	spin_lock_init(&ring->irq_lock);
 	ring->irq_mask = ~0;
 
@@ -872,7 +890,7 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 
 	/* Disable the ring buffer. The ring must be idle at this point */
 	dev_priv = ring->dev->dev_private;
-	ret = intel_wait_ring_buffer(ring, ring->size - 8);
+	ret = intel_wait_ring_idle(ring);
 	if (ret)
 		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
 			  ring->name, ret);
@@ -1333,7 +1351,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = &dev_priv->ring[VCS];
 
-	if (IS_GEN6(dev))
+	if (IS_GEN6(dev) || IS_GEN7(dev))
 		*ring = gen6_bsd_ring;
 	else
 		*ring = bsd_ring;

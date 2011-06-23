@@ -5,8 +5,10 @@ config LGUEST
 	---help---
 	  This is a very simple module which allows you to run
 	  multiple instances of the same Linux kernel, using the
-	  "lguest" command found in the Documentation/lguest directory.
+	  "lguest" command found in the Documentation/virtual/lguest
+	  directory.
+
 	  Note that "lguest" is pronounced to rhyme with "fell quest",
-	  not "rustyvisor".  See Documentation/lguest/lguest.txt.
+	  not "rustyvisor". See Documentation/virtual/lguest/lguest.txt.
 
 	  If unsure, say N.  If curious, say M.  If masochistic, say Y.

@@ -287,7 +287,6 @@ struct iwl_cfg {
 	struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
-	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
 	enum iwl_led_mode led_mode;
 };
 
@@ -561,7 +560,7 @@ void iwl_legacy_free_geos(struct iwl_priv *priv);
 #define STATUS_SCAN_HW		15
 #define STATUS_POWER_PMI	16
 #define STATUS_FW_ERROR		17
-
+#define STATUS_CHANNEL_SWITCH_PENDING 18
 
 static inline int iwl_legacy_is_ready(struct iwl_priv *priv)
 {

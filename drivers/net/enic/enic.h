@@ -32,7 +32,7 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"2.1.1.12"
+#define DRV_VERSION		"2.1.1.13"
 #define DRV_COPYRIGHT		"Copyright 2008-2011 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
@@ -84,7 +84,6 @@ struct enic {
 	unsigned int flags;
 	unsigned int mc_count;
 	unsigned int uc_count;
-	int csum_rx_enabled;
 	u32 port_mtu;
 	u32 rx_coalesce_usecs;
 	u32 tx_coalesce_usecs;
@@ -119,5 +118,7 @@ static inline struct device *enic_get_dev(struct enic *enic)
 {
 	return &(enic->pdev->dev);
 }
+
+void enic_reset_addr_lists(struct enic *enic);
 
 #endif /* _ENIC_H_ */

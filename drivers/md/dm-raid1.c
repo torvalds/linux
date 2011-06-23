@@ -22,8 +22,6 @@
 #define DM_MSG_PREFIX "raid1"
 
 #define MAX_RECOVERY 1	/* Maximum number of regions recovered in parallel. */
-#define DM_IO_PAGES 64
-#define DM_KCOPYD_PAGES 64
 
 #define DM_RAID1_HANDLE_ERRORS 0x01
 #define errors_handled(p)	((p)->features & DM_RAID1_HANDLE_ERRORS)
@@ -887,7 +885,7 @@ static struct mirror_set *alloc_context(unsigned int nr_mirrors,
 		return NULL;
 	}
 
-	ms->io_client = dm_io_client_create(DM_IO_PAGES);
+	ms->io_client = dm_io_client_create();
 	if (IS_ERR(ms->io_client)) {
 		ti->error = "Error creating dm_io client";
 		mempool_destroy(ms->read_record_pool);
@@ -1117,9 +1115,11 @@ static int mirror_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto err_destroy_wq;
 	}
 
-	r = dm_kcopyd_client_create(DM_KCOPYD_PAGES, &ms->kcopyd_client);
-	if (r)
+	ms->kcopyd_client = dm_kcopyd_client_create();
+	if (IS_ERR(ms->kcopyd_client)) {
+		r = PTR_ERR(ms->kcopyd_client);
 		goto err_destroy_wq;
+	}
 
 	wakeup_mirrord(ms);
 	return 0;

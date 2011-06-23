@@ -132,6 +132,9 @@ struct sctp_ulpevent *sctp_ulpevent_make_authkey(
 	const struct sctp_association *asoc, __u16 key_id,
 	__u32 indication, gfp_t gfp);
 
+struct sctp_ulpevent *sctp_ulpevent_make_sender_dry_event(
+	const struct sctp_association *asoc, gfp_t gfp);
+
 void sctp_ulpevent_read_sndrcvinfo(const struct sctp_ulpevent *event,
 	struct msghdr *);
 __u16 sctp_ulpevent_get_notification_type(const struct sctp_ulpevent *event);

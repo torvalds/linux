@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Michael Hennerich, Analog Devices Inc.
+ * Copyright (C) 2010-2011 Michael Hennerich, Analog Devices Inc.
  * Copyright (C) 2008-2010 Jonathan Cameron
  *
  * This program is free software; you can redistribute it and/or modify
@@ -67,6 +67,8 @@
 
 #define AD7997_8_READ_SINGLE			0x80
 #define AD7997_8_READ_SEQUENCE			0x70
+/* TODO: move this into a common header */
+#define RES_MASK(bits)	((1 << (bits)) - 1)
 
 enum {
 	ad7991,
@@ -83,43 +85,28 @@ struct ad799x_state;
 
 /**
  * struct ad799x_chip_info - chip specifc information
- * @num_inputs:		number of physical inputs on chip
- * @bits:		accuracy of the adc in bits
+ * @channel:		channel specification
+ * @num_channels:	number of channels
  * @int_vref_mv:	the internal reference voltage
  * @monitor_mode:	whether the chip supports monitor interrupts
  * @default_config:	device default configuration
- * @dev_attrs:		pointer to the device attribute group
- * @scan_attrs:		pointer to the scan element attribute group
  * @event_attrs:	pointer to the monitor event attribute group
- * @ad799x_set_scan_mode: function pointer to the device specific mode function
-
  */
+
 struct ad799x_chip_info {
-	u8				num_inputs;
-	u8				bits;
-	u8				storagebits;
-	char				sign;
+	struct iio_chan_spec		channel[9];
+	int				num_channels;
 	u16				int_vref_mv;
-	bool				monitor_mode;
 	u16				default_config;
-	struct attribute_group		*dev_attrs;
-	struct attribute_group		*scan_attrs;
-	struct attribute_group		*event_attrs;
-	int (*ad799x_set_scan_mode)	(struct ad799x_state *st,
-					unsigned mask);
+	const struct iio_info		*info;
 };
 
 struct ad799x_state {
-	struct iio_dev			*indio_dev;
 	struct i2c_client		*client;
 	const struct ad799x_chip_info	*chip_info;
-	struct work_struct		poll_work;
-	struct work_struct		work_thresh;
-	atomic_t			protect_ring;
 	size_t				d_size;
 	struct iio_trigger		*trig;
 	struct regulator		*reg;
-	s64				last_timestamp;
 	u16				int_vref_mv;
 	unsigned			id;
 	char				*name;
@@ -134,7 +121,7 @@ struct ad799x_platform_data {
 	u16				vref_mv;
 };
 
-int ad799x_set_scan_mode(struct ad799x_state *st, unsigned mask);
+int ad7997_8_set_scan_mode(struct ad799x_state *st, unsigned mask);
 
 #ifdef CONFIG_AD799X_RING_BUFFER
 int ad799x_single_channel_from_ring(struct ad799x_state *st, long mask);

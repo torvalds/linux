@@ -17,7 +17,6 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
 #include <linux/ucb1400.h>
 
 #include <asm/mach/arch.h>

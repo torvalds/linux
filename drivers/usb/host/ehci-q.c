@@ -826,6 +826,7 @@ qh_make (
 				is_input, 0,
 				hb_mult(maxp) * max_packet(maxp)));
 		qh->start = NO_FRAME;
+		qh->stamp = ehci->periodic_stamp;
 
 		if (urb->dev->speed == USB_SPEED_HIGH) {
 			qh->c_usecs = 0;
@@ -1183,6 +1184,10 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 		ehci->reclaim = NULL;
 		start_unlink_async (ehci, next);
 	}
+
+	if (ehci->has_synopsys_hc_bug)
+		ehci_writel(ehci, (u32) ehci->async->qh_dma,
+			    &ehci->regs->async_next);
 }
 
 /* makes sure the async qh will become idle */

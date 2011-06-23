@@ -28,7 +28,7 @@
 #include "drbd_int.h"
 #include "drbd_wrappers.h"
 
-/* We maintain a trivial check sum in our on disk activity log.
+/* We maintain a trivial checksum in our on disk activity log.
  * With that we can ensure correct operation even when the storage
  * device might do a partial (last) sector write while losing power.
  */

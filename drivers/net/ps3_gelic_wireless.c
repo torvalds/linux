@@ -2581,10 +2581,6 @@ static const struct net_device_ops gelic_wl_netdevice_ops = {
 static const struct ethtool_ops gelic_wl_ethtool_ops = {
 	.get_drvinfo	= gelic_net_get_drvinfo,
 	.get_link	= gelic_wl_get_link,
-	.get_tx_csum	= ethtool_op_get_tx_csum,
-	.set_tx_csum	= ethtool_op_set_tx_csum,
-	.get_rx_csum	= gelic_net_get_rx_csum,
-	.set_rx_csum	= gelic_net_set_rx_csum,
 };
 
 static void __devinit gelic_wl_setup_netdev_ops(struct net_device *netdev)

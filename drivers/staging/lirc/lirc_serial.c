@@ -919,7 +919,7 @@ static int set_use_inc(void *data)
 	default:
 		dprintk("Interrupt %d, port %04x obtained\n", irq, io);
 		break;
-	};
+	}
 
 	spin_lock_irqsave(&hardware[type].lock, flags);
 

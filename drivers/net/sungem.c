@@ -1294,7 +1294,7 @@ static void gem_begin_auto_negotiation(struct gem *gp, struct ethtool_cmd *ep)
 		autoneg = 1;
 	} else {
 		autoneg = 0;
-		speed = ep->speed;
+		speed = ethtool_cmd_speed(ep);
 		duplex = ep->duplex;
 	}
 
@@ -2642,7 +2642,7 @@ static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		/* Return current PHY settings */
 		spin_lock_irq(&gp->lock);
 		cmd->autoneg = gp->want_autoneg;
-		cmd->speed = gp->phy_mii.speed;
+		ethtool_cmd_speed_set(cmd, gp->phy_mii.speed);
 		cmd->duplex = gp->phy_mii.duplex;
 		cmd->advertising = gp->phy_mii.advertising;
 
@@ -2659,7 +2659,7 @@ static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			 SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full |
 			 SUPPORTED_Autoneg);
 		cmd->advertising = cmd->supported;
-		cmd->speed = 0;
+		ethtool_cmd_speed_set(cmd, 0);
 		cmd->duplex = cmd->port = cmd->phy_address =
 			cmd->transceiver = cmd->autoneg = 0;
 
@@ -2673,7 +2673,7 @@ static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			cmd->advertising = cmd->supported;
 			cmd->transceiver = XCVR_INTERNAL;
 			if (gp->lstate == link_up)
-				cmd->speed = SPEED_1000;
+				ethtool_cmd_speed_set(cmd, SPEED_1000);
 			cmd->duplex = DUPLEX_FULL;
 			cmd->autoneg = 1;
 		}
@@ -2686,6 +2686,7 @@ static int gem_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static int gem_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct gem *gp = netdev_priv(dev);
+	u32 speed = ethtool_cmd_speed(cmd);
 
 	/* Verify the settings we care about. */
 	if (cmd->autoneg != AUTONEG_ENABLE &&
@@ -2697,9 +2698,9 @@ static int gem_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		return -EINVAL;
 
 	if (cmd->autoneg == AUTONEG_DISABLE &&
-	    ((cmd->speed != SPEED_1000 &&
-	      cmd->speed != SPEED_100 &&
-	      cmd->speed != SPEED_10) ||
+	    ((speed != SPEED_1000 &&
+	      speed != SPEED_100 &&
+	      speed != SPEED_10) ||
 	     (cmd->duplex != DUPLEX_HALF &&
 	      cmd->duplex != DUPLEX_FULL)))
 		return -EINVAL;
@@ -3146,7 +3147,8 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 			    gp->phy_mii.def ? gp->phy_mii.def->name : "no");
 
 	/* GEM can do it all... */
-	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_LLTX;
+	dev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM;
+	dev->features |= dev->hw_features | NETIF_F_RXCSUM | NETIF_F_LLTX;
 	if (pci_using_dac)
 		dev->features |= NETIF_F_HIGHDMA;
 

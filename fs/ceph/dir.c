@@ -308,7 +308,8 @@ more:
 		req = ceph_mdsc_create_request(mdsc, op, USE_AUTH_MDS);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
-		req->r_inode = igrab(inode);
+		req->r_inode = inode;
+		ihold(inode);
 		req->r_dentry = dget(filp->f_dentry);
 		/* hints to request -> mds selection code */
 		req->r_direct_mode = USE_AUTH_MDS;
@@ -360,7 +361,7 @@ more:
 	rinfo = &fi->last_readdir->r_reply_info;
 	dout("readdir frag %x num %d off %d chunkoff %d\n", frag,
 	     rinfo->dir_nr, off, fi->offset);
-	while (off - fi->offset >= 0 && off - fi->offset < rinfo->dir_nr) {
+	while (off >= fi->offset && off - fi->offset < rinfo->dir_nr) {
 		u64 pos = ceph_make_fpos(frag, off);
 		struct ceph_mds_reply_inode *in =
 			rinfo->dir_in[off - fi->offset].in;
@@ -787,10 +788,12 @@ static int ceph_link(struct dentry *old_dentry, struct inode *dir,
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
 	err = ceph_mdsc_do_request(mdsc, dir, req);
-	if (err)
+	if (err) {
 		d_drop(dentry);
-	else if (!req->r_reply_info.head->is_dentry)
-		d_instantiate(dentry, igrab(old_dentry->d_inode));
+	} else if (!req->r_reply_info.head->is_dentry) {
+		ihold(old_dentry->d_inode);
+		d_instantiate(dentry, old_dentry->d_inode);
+	}
 	ceph_mdsc_put_request(req);
 	return err;
 }
@@ -1066,16 +1069,17 @@ static ssize_t ceph_read_dir(struct file *file, char __user *buf, size_t size,
 	struct inode *inode = file->f_dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int left;
+	const int bufsize = 1024;
 
 	if (!ceph_test_mount_opt(ceph_sb_to_client(inode->i_sb), DIRSTAT))
 		return -EISDIR;
 
 	if (!cf->dir_info) {
-		cf->dir_info = kmalloc(1024, GFP_NOFS);
+		cf->dir_info = kmalloc(bufsize, GFP_NOFS);
 		if (!cf->dir_info)
 			return -ENOMEM;
 		cf->dir_info_len =
-			sprintf(cf->dir_info,
+			snprintf(cf->dir_info, bufsize,
 				"entries:   %20lld\n"
 				" files:    %20lld\n"
 				" subdirs:  %20lld\n"

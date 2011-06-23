@@ -1251,7 +1251,7 @@ static int ns83820_get_settings(struct net_device *ndev,
 	/*
 	 * Here's the list of available ethtool commands from other drivers:
 	 *	cmd->advertising =
-	 *	cmd->speed =
+	 *	ethtool_cmd_speed_set(cmd, ...)
 	 *	cmd->duplex =
 	 *	cmd->port = 0;
 	 *	cmd->phy_address =
@@ -1289,13 +1289,13 @@ static int ns83820_get_settings(struct net_device *ndev,
 	cmd->duplex = fullduplex ? DUPLEX_FULL : DUPLEX_HALF;
 	switch (cfg / CFG_SPDSTS0 & 3) {
 	case 2:
-		cmd->speed = SPEED_1000;
+		ethtool_cmd_speed_set(cmd, SPEED_1000);
 		break;
 	case 1:
-		cmd->speed = SPEED_100;
+		ethtool_cmd_speed_set(cmd, SPEED_100);
 		break;
 	default:
-		cmd->speed = SPEED_10;
+		ethtool_cmd_speed_set(cmd, SPEED_10);
 		break;
 	}
 	cmd->autoneg = (tbicr & TBICR_MR_AN_ENABLE)

@@ -99,6 +99,13 @@ static struct vfsmount *shm_mnt;
 /* Pretend that each entry is of this size in directory's i_size */
 #define BOGO_DIRENT_SIZE 20
 
+struct shmem_xattr {
+	struct list_head list;	/* anchored by shmem_inode_info->xattr_list */
+	char *name;		/* xattr name */
+	size_t size;
+	char value[0];
+};
+
 /* Flag allocation requirements to shmem_getpage and shmem_swp_alloc */
 enum sgp_type {
 	SGP_READ,	/* don't exceed i_size, don't allocate page */
@@ -822,6 +829,7 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 static void shmem_evict_inode(struct inode *inode)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct shmem_xattr *xattr, *nxattr;
 
 	if (inode->i_mapping->a_ops == &shmem_aops) {
 		truncate_inode_pages(inode->i_mapping, 0);
@@ -833,6 +841,11 @@ static void shmem_evict_inode(struct inode *inode)
 			list_del_init(&info->swaplist);
 			mutex_unlock(&shmem_swaplist_mutex);
 		}
+	}
+
+	list_for_each_entry_safe(xattr, nxattr, &info->xattr_list, list) {
+		kfree(xattr->name);
+		kfree(xattr);
 	}
 	BUG_ON(inode->i_blocks);
 	shmem_free_inode(inode->i_sb);
@@ -852,7 +865,7 @@ static inline int shmem_find_swp(swp_entry_t entry, swp_entry_t *dir, swp_entry_
 
 static int shmem_unuse_inode(struct shmem_inode_info *info, swp_entry_t entry, struct page *page)
 {
-	struct inode *inode;
+	struct address_space *mapping;
 	unsigned long idx;
 	unsigned long size;
 	unsigned long limit;
@@ -875,8 +888,10 @@ static int shmem_unuse_inode(struct shmem_inode_info *info, swp_entry_t entry, s
 	if (size > SHMEM_NR_DIRECT)
 		size = SHMEM_NR_DIRECT;
 	offset = shmem_find_swp(entry, ptr, ptr+size);
-	if (offset >= 0)
+	if (offset >= 0) {
+		shmem_swp_balance_unmap();
 		goto found;
+	}
 	if (!info->i_indirect)
 		goto lost2;
 
@@ -917,6 +932,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info, swp_entry_t entry, s
 			shmem_swp_unmap(ptr);
 			if (offset >= 0) {
 				shmem_dir_unmap(dir);
+				ptr = shmem_swp_map(subdir);
 				goto found;
 			}
 		}
@@ -928,8 +944,7 @@ lost2:
 	return 0;
 found:
 	idx += offset;
-	inode = igrab(&info->vfs_inode);
-	spin_unlock(&info->lock);
+	ptr += offset;
 
 	/*
 	 * Move _head_ to start search for next from here.
@@ -940,37 +955,18 @@ found:
 	 */
 	if (shmem_swaplist.next != &info->swaplist)
 		list_move_tail(&shmem_swaplist, &info->swaplist);
-	mutex_unlock(&shmem_swaplist_mutex);
 
-	error = 1;
-	if (!inode)
-		goto out;
 	/*
-	 * Charge page using GFP_KERNEL while we can wait.
-	 * Charged back to the user(not to caller) when swap account is used.
-	 * add_to_page_cache() will be called with GFP_NOWAIT.
+	 * We rely on shmem_swaplist_mutex, not only to protect the swaplist,
+	 * but also to hold up shmem_evict_inode(): so inode cannot be freed
+	 * beneath us (pagelock doesn't help until the page is in pagecache).
 	 */
-	error = mem_cgroup_cache_charge(page, current->mm, GFP_KERNEL);
-	if (error)
-		goto out;
-	error = radix_tree_preload(GFP_KERNEL);
-	if (error) {
-		mem_cgroup_uncharge_cache_page(page);
-		goto out;
-	}
-	error = 1;
-
-	spin_lock(&info->lock);
-	ptr = shmem_swp_entry(info, idx, NULL);
-	if (ptr && ptr->val == entry.val) {
-		error = add_to_page_cache_locked(page, inode->i_mapping,
-						idx, GFP_NOWAIT);
-		/* does mem_cgroup_uncharge_cache_page on error */
-	} else	/* we must compensate for our precharge above */
-		mem_cgroup_uncharge_cache_page(page);
+	mapping = info->vfs_inode.i_mapping;
+	error = add_to_page_cache_locked(page, mapping, idx, GFP_NOWAIT);
+	/* which does mem_cgroup_uncharge_cache_page on error */
 
 	if (error == -EEXIST) {
-		struct page *filepage = find_get_page(inode->i_mapping, idx);
+		struct page *filepage = find_get_page(mapping, idx);
 		error = 1;
 		if (filepage) {
 			/*
@@ -990,14 +986,8 @@ found:
 		swap_free(entry);
 		error = 1;	/* not an error, but entry was found */
 	}
-	if (ptr)
-		shmem_swp_unmap(ptr);
+	shmem_swp_unmap(ptr);
 	spin_unlock(&info->lock);
-	radix_tree_preload_end();
-out:
-	unlock_page(page);
-	page_cache_release(page);
-	iput(inode);		/* allows for NULL */
 	return error;
 }
 
@@ -1009,6 +999,26 @@ int shmem_unuse(swp_entry_t entry, struct page *page)
 	struct list_head *p, *next;
 	struct shmem_inode_info *info;
 	int found = 0;
+	int error;
+
+	/*
+	 * Charge page using GFP_KERNEL while we can wait, before taking
+	 * the shmem_swaplist_mutex which might hold up shmem_writepage().
+	 * Charged back to the user (not to caller) when swap account is used.
+	 * add_to_page_cache() will be called with GFP_NOWAIT.
+	 */
+	error = mem_cgroup_cache_charge(page, current->mm, GFP_KERNEL);
+	if (error)
+		goto out;
+	/*
+	 * Try to preload while we can wait, to not make a habit of
+	 * draining atomic reserves; but don't latch on to this cpu,
+	 * it's okay if sometimes we get rescheduled after this.
+	 */
+	error = radix_tree_preload(GFP_KERNEL);
+	if (error)
+		goto uncharge;
+	radix_tree_preload_end();
 
 	mutex_lock(&shmem_swaplist_mutex);
 	list_for_each_safe(p, next, &shmem_swaplist) {
@@ -1016,17 +1026,19 @@ int shmem_unuse(swp_entry_t entry, struct page *page)
 		found = shmem_unuse_inode(info, entry, page);
 		cond_resched();
 		if (found)
-			goto out;
+			break;
 	}
 	mutex_unlock(&shmem_swaplist_mutex);
-	/*
-	 * Can some race bring us here?  We've been holding page lock,
-	 * so I think not; but would rather try again later than BUG()
-	 */
+
+uncharge:
+	if (!found)
+		mem_cgroup_uncharge_cache_page(page);
+	if (found < 0)
+		error = found;
+out:
 	unlock_page(page);
 	page_cache_release(page);
-out:
-	return (found < 0) ? found : 0;
+	return error;
 }
 
 /*
@@ -1064,7 +1076,25 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	else
 		swap.val = 0;
 
+	/*
+	 * Add inode to shmem_unuse()'s list of swapped-out inodes,
+	 * if it's not already there.  Do it now because we cannot take
+	 * mutex while holding spinlock, and must do so before the page
+	 * is moved to swap cache, when its pagelock no longer protects
+	 * the inode from eviction.  But don't unlock the mutex until
+	 * we've taken the spinlock, because shmem_unuse_inode() will
+	 * prune a !swapped inode from the swaplist under both locks.
+	 */
+	if (swap.val) {
+		mutex_lock(&shmem_swaplist_mutex);
+		if (list_empty(&info->swaplist))
+			list_add_tail(&info->swaplist, &shmem_swaplist);
+	}
+
 	spin_lock(&info->lock);
+	if (swap.val)
+		mutex_unlock(&shmem_swaplist_mutex);
+
 	if (index >= info->next_index) {
 		BUG_ON(!(info->flags & SHMEM_TRUNCATE));
 		goto unlock;
@@ -1084,21 +1114,10 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		delete_from_page_cache(page);
 		shmem_swp_set(info, entry, swap.val);
 		shmem_swp_unmap(entry);
-		if (list_empty(&info->swaplist))
-			inode = igrab(inode);
-		else
-			inode = NULL;
-		spin_unlock(&info->lock);
 		swap_shmem_alloc(swap);
+		spin_unlock(&info->lock);
 		BUG_ON(page_mapped(page));
 		swap_writepage(page, wbc);
-		if (inode) {
-			mutex_lock(&shmem_swaplist_mutex);
-			/* move instead of add in case we're racing */
-			list_move_tail(&info->swaplist, &shmem_swaplist);
-			mutex_unlock(&shmem_swaplist_mutex);
-			iput(inode);
-		}
 		return 0;
 	}
 
@@ -1286,12 +1305,10 @@ repeat:
 		swappage = lookup_swap_cache(swap);
 		if (!swappage) {
 			shmem_swp_unmap(entry);
-			/* here we actually do the io */
-			if (type && !(*type & VM_FAULT_MAJOR)) {
-				__count_vm_event(PGMAJFAULT);
-				*type |= VM_FAULT_MAJOR;
-			}
 			spin_unlock(&info->lock);
+			/* here we actually do the io */
+			if (type)
+				*type |= VM_FAULT_MAJOR;
 			swappage = shmem_swapin(swap, gfp, info, idx);
 			if (!swappage) {
 				spin_lock(&info->lock);
@@ -1400,20 +1417,14 @@ repeat:
 		if (sbinfo->max_blocks) {
 			if (percpu_counter_compare(&sbinfo->used_blocks,
 						sbinfo->max_blocks) >= 0 ||
-			    shmem_acct_block(info->flags)) {
-				spin_unlock(&info->lock);
-				error = -ENOSPC;
-				goto failed;
-			}
+			    shmem_acct_block(info->flags))
+				goto nospace;
 			percpu_counter_inc(&sbinfo->used_blocks);
 			spin_lock(&inode->i_lock);
 			inode->i_blocks += BLOCKS_PER_PAGE;
 			spin_unlock(&inode->i_lock);
-		} else if (shmem_acct_block(info->flags)) {
-			spin_unlock(&info->lock);
-			error = -ENOSPC;
-			goto failed;
-		}
+		} else if (shmem_acct_block(info->flags))
+			goto nospace;
 
 		if (!filepage) {
 			int ret;
@@ -1493,6 +1504,24 @@ done:
 	error = 0;
 	goto out;
 
+nospace:
+	/*
+	 * Perhaps the page was brought in from swap between find_lock_page
+	 * and taking info->lock?  We allow for that at add_to_page_cache_lru,
+	 * but must also avoid reporting a spurious ENOSPC while working on a
+	 * full tmpfs.  (When filepage has been passed in to shmem_getpage, it
+	 * is already in page cache, which prevents this race from occurring.)
+	 */
+	if (!filepage) {
+		struct page *page = find_get_page(mapping, idx);
+		if (page) {
+			spin_unlock(&info->lock);
+			page_cache_release(page);
+			goto repeat;
+		}
+	}
+	spin_unlock(&info->lock);
+	error = -ENOSPC;
 failed:
 	if (*pagep != filepage) {
 		unlock_page(filepage);
@@ -1518,7 +1547,10 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_CACHE, &ret);
 	if (error)
 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
-
+	if (ret & VM_FAULT_MAJOR) {
+		count_vm_event(PGMAJFAULT);
+		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
+	}
 	return ret | VM_FAULT_LOCKED;
 }
 
@@ -1597,6 +1629,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 		spin_lock_init(&info->lock);
 		info->flags = flags & VM_NORESERVE;
 		INIT_LIST_HEAD(&info->swaplist);
+		INIT_LIST_HEAD(&info->xattr_list);
 		cache_no_acl(inode);
 
 		switch (mode & S_IFMT) {
@@ -1996,9 +2029,9 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 
 	info = SHMEM_I(inode);
 	inode->i_size = len-1;
-	if (len <= (char *)inode - (char *)info) {
+	if (len <= SHMEM_SYMLINK_INLINE_LEN) {
 		/* do it inline */
-		memcpy(info, symname, len);
+		memcpy(info->inline_symlink, symname, len);
 		inode->i_op = &shmem_symlink_inline_operations;
 	} else {
 		error = shmem_getpage(inode, 0, &page, SGP_WRITE, NULL);
@@ -2024,7 +2057,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 
 static void *shmem_follow_link_inline(struct dentry *dentry, struct nameidata *nd)
 {
-	nd_set_link(nd, (char *)SHMEM_I(dentry->d_inode));
+	nd_set_link(nd, SHMEM_I(dentry->d_inode)->inline_symlink);
 	return NULL;
 }
 
@@ -2048,63 +2081,253 @@ static void shmem_put_link(struct dentry *dentry, struct nameidata *nd, void *co
 	}
 }
 
+#ifdef CONFIG_TMPFS_XATTR
+/*
+ * Superblocks without xattr inode operations may get some security.* xattr
+ * support from the LSM "for free". As soon as we have any other xattrs
+ * like ACLs, we also need to implement the security.* handlers at
+ * filesystem level, though.
+ */
+
+static int shmem_xattr_get(struct dentry *dentry, const char *name,
+			   void *buffer, size_t size)
+{
+	struct shmem_inode_info *info;
+	struct shmem_xattr *xattr;
+	int ret = -ENODATA;
+
+	info = SHMEM_I(dentry->d_inode);
+
+	spin_lock(&info->lock);
+	list_for_each_entry(xattr, &info->xattr_list, list) {
+		if (strcmp(name, xattr->name))
+			continue;
+
+		ret = xattr->size;
+		if (buffer) {
+			if (size < xattr->size)
+				ret = -ERANGE;
+			else
+				memcpy(buffer, xattr->value, xattr->size);
+		}
+		break;
+	}
+	spin_unlock(&info->lock);
+	return ret;
+}
+
+static int shmem_xattr_set(struct dentry *dentry, const char *name,
+			   const void *value, size_t size, int flags)
+{
+	struct inode *inode = dentry->d_inode;
+	struct shmem_inode_info *info = SHMEM_I(inode);
+	struct shmem_xattr *xattr;
+	struct shmem_xattr *new_xattr = NULL;
+	size_t len;
+	int err = 0;
+
+	/* value == NULL means remove */
+	if (value) {
+		/* wrap around? */
+		len = sizeof(*new_xattr) + size;
+		if (len <= sizeof(*new_xattr))
+			return -ENOMEM;
+
+		new_xattr = kmalloc(len, GFP_KERNEL);
+		if (!new_xattr)
+			return -ENOMEM;
+
+		new_xattr->name = kstrdup(name, GFP_KERNEL);
+		if (!new_xattr->name) {
+			kfree(new_xattr);
+			return -ENOMEM;
+		}
+
+		new_xattr->size = size;
+		memcpy(new_xattr->value, value, size);
+	}
+
+	spin_lock(&info->lock);
+	list_for_each_entry(xattr, &info->xattr_list, list) {
+		if (!strcmp(name, xattr->name)) {
+			if (flags & XATTR_CREATE) {
+				xattr = new_xattr;
+				err = -EEXIST;
+			} else if (new_xattr) {
+				list_replace(&xattr->list, &new_xattr->list);
+			} else {
+				list_del(&xattr->list);
+			}
+			goto out;
+		}
+	}
+	if (flags & XATTR_REPLACE) {
+		xattr = new_xattr;
+		err = -ENODATA;
+	} else {
+		list_add(&new_xattr->list, &info->xattr_list);
+		xattr = NULL;
+	}
+out:
+	spin_unlock(&info->lock);
+	if (xattr)
+		kfree(xattr->name);
+	kfree(xattr);
+	return err;
+}
+
+
+static const struct xattr_handler *shmem_xattr_handlers[] = {
+#ifdef CONFIG_TMPFS_POSIX_ACL
+	&generic_acl_access_handler,
+	&generic_acl_default_handler,
+#endif
+	NULL
+};
+
+static int shmem_xattr_validate(const char *name)
+{
+	struct { const char *prefix; size_t len; } arr[] = {
+		{ XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN },
+		{ XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN }
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(arr); i++) {
+		size_t preflen = arr[i].len;
+		if (strncmp(name, arr[i].prefix, preflen) == 0) {
+			if (!name[preflen])
+				return -EINVAL;
+			return 0;
+		}
+	}
+	return -EOPNOTSUPP;
+}
+
+static ssize_t shmem_getxattr(struct dentry *dentry, const char *name,
+			      void *buffer, size_t size)
+{
+	int err;
+
+	/*
+	 * If this is a request for a synthetic attribute in the system.*
+	 * namespace use the generic infrastructure to resolve a handler
+	 * for it via sb->s_xattr.
+	 */
+	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
+		return generic_getxattr(dentry, name, buffer, size);
+
+	err = shmem_xattr_validate(name);
+	if (err)
+		return err;
+
+	return shmem_xattr_get(dentry, name, buffer, size);
+}
+
+static int shmem_setxattr(struct dentry *dentry, const char *name,
+			  const void *value, size_t size, int flags)
+{
+	int err;
+
+	/*
+	 * If this is a request for a synthetic attribute in the system.*
+	 * namespace use the generic infrastructure to resolve a handler
+	 * for it via sb->s_xattr.
+	 */
+	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
+		return generic_setxattr(dentry, name, value, size, flags);
+
+	err = shmem_xattr_validate(name);
+	if (err)
+		return err;
+
+	if (size == 0)
+		value = "";  /* empty EA, do not remove */
+
+	return shmem_xattr_set(dentry, name, value, size, flags);
+
+}
+
+static int shmem_removexattr(struct dentry *dentry, const char *name)
+{
+	int err;
+
+	/*
+	 * If this is a request for a synthetic attribute in the system.*
+	 * namespace use the generic infrastructure to resolve a handler
+	 * for it via sb->s_xattr.
+	 */
+	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
+		return generic_removexattr(dentry, name);
+
+	err = shmem_xattr_validate(name);
+	if (err)
+		return err;
+
+	return shmem_xattr_set(dentry, name, NULL, 0, XATTR_REPLACE);
+}
+
+static bool xattr_is_trusted(const char *name)
+{
+	return !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
+}
+
+static ssize_t shmem_listxattr(struct dentry *dentry, char *buffer, size_t size)
+{
+	bool trusted = capable(CAP_SYS_ADMIN);
+	struct shmem_xattr *xattr;
+	struct shmem_inode_info *info;
+	size_t used = 0;
+
+	info = SHMEM_I(dentry->d_inode);
+
+	spin_lock(&info->lock);
+	list_for_each_entry(xattr, &info->xattr_list, list) {
+		size_t len;
+
+		/* skip "trusted." attributes for unprivileged callers */
+		if (!trusted && xattr_is_trusted(xattr->name))
+			continue;
+
+		len = strlen(xattr->name) + 1;
+		used += len;
+		if (buffer) {
+			if (size < used) {
+				used = -ERANGE;
+				break;
+			}
+			memcpy(buffer, xattr->name, len);
+			buffer += len;
+		}
+	}
+	spin_unlock(&info->lock);
+
+	return used;
+}
+#endif /* CONFIG_TMPFS_XATTR */
+
 static const struct inode_operations shmem_symlink_inline_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= shmem_follow_link_inline,
+#ifdef CONFIG_TMPFS_XATTR
+	.setxattr	= shmem_setxattr,
+	.getxattr	= shmem_getxattr,
+	.listxattr	= shmem_listxattr,
+	.removexattr	= shmem_removexattr,
+#endif
 };
 
 static const struct inode_operations shmem_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= shmem_follow_link,
 	.put_link	= shmem_put_link,
-};
-
-#ifdef CONFIG_TMPFS_POSIX_ACL
-/*
- * Superblocks without xattr inode operations will get security.* xattr
- * support from the VFS "for free". As soon as we have any other xattrs
- * like ACLs, we also need to implement the security.* handlers at
- * filesystem level, though.
- */
-
-static size_t shmem_xattr_security_list(struct dentry *dentry, char *list,
-					size_t list_len, const char *name,
-					size_t name_len, int handler_flags)
-{
-	return security_inode_listsecurity(dentry->d_inode, list, list_len);
-}
-
-static int shmem_xattr_security_get(struct dentry *dentry, const char *name,
-		void *buffer, size_t size, int handler_flags)
-{
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-	return xattr_getsecurity(dentry->d_inode, name, buffer, size);
-}
-
-static int shmem_xattr_security_set(struct dentry *dentry, const char *name,
-		const void *value, size_t size, int flags, int handler_flags)
-{
-	if (strcmp(name, "") == 0)
-		return -EINVAL;
-	return security_inode_setsecurity(dentry->d_inode, name, value,
-					  size, flags);
-}
-
-static const struct xattr_handler shmem_xattr_security_handler = {
-	.prefix = XATTR_SECURITY_PREFIX,
-	.list   = shmem_xattr_security_list,
-	.get    = shmem_xattr_security_get,
-	.set    = shmem_xattr_security_set,
-};
-
-static const struct xattr_handler *shmem_xattr_handlers[] = {
-	&generic_acl_access_handler,
-	&generic_acl_default_handler,
-	&shmem_xattr_security_handler,
-	NULL
-};
+#ifdef CONFIG_TMPFS_XATTR
+	.setxattr	= shmem_setxattr,
+	.getxattr	= shmem_getxattr,
+	.listxattr	= shmem_listxattr,
+	.removexattr	= shmem_removexattr,
 #endif
+};
 
 static struct dentry *shmem_get_parent(struct dentry *child)
 {
@@ -2384,8 +2607,10 @@ int shmem_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = TMPFS_MAGIC;
 	sb->s_op = &shmem_ops;
 	sb->s_time_gran = 1;
-#ifdef CONFIG_TMPFS_POSIX_ACL
+#ifdef CONFIG_TMPFS_XATTR
 	sb->s_xattr = shmem_xattr_handlers;
+#endif
+#ifdef CONFIG_TMPFS_POSIX_ACL
 	sb->s_flags |= MS_POSIXACL;
 #endif
 
@@ -2483,11 +2708,13 @@ static const struct file_operations shmem_file_operations = {
 static const struct inode_operations shmem_inode_operations = {
 	.setattr	= shmem_notify_change,
 	.truncate_range	= shmem_truncate_range,
+#ifdef CONFIG_TMPFS_XATTR
+	.setxattr	= shmem_setxattr,
+	.getxattr	= shmem_getxattr,
+	.listxattr	= shmem_listxattr,
+	.removexattr	= shmem_removexattr,
+#endif
 #ifdef CONFIG_TMPFS_POSIX_ACL
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
-	.listxattr	= generic_listxattr,
-	.removexattr	= generic_removexattr,
 	.check_acl	= generic_check_acl,
 #endif
 
@@ -2505,23 +2732,27 @@ static const struct inode_operations shmem_dir_inode_operations = {
 	.mknod		= shmem_mknod,
 	.rename		= shmem_rename,
 #endif
+#ifdef CONFIG_TMPFS_XATTR
+	.setxattr	= shmem_setxattr,
+	.getxattr	= shmem_getxattr,
+	.listxattr	= shmem_listxattr,
+	.removexattr	= shmem_removexattr,
+#endif
 #ifdef CONFIG_TMPFS_POSIX_ACL
 	.setattr	= shmem_notify_change,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
-	.listxattr	= generic_listxattr,
-	.removexattr	= generic_removexattr,
 	.check_acl	= generic_check_acl,
 #endif
 };
 
 static const struct inode_operations shmem_special_inode_operations = {
+#ifdef CONFIG_TMPFS_XATTR
+	.setxattr	= shmem_setxattr,
+	.getxattr	= shmem_getxattr,
+	.listxattr	= shmem_listxattr,
+	.removexattr	= shmem_removexattr,
+#endif
 #ifdef CONFIG_TMPFS_POSIX_ACL
 	.setattr	= shmem_notify_change,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
-	.listxattr	= generic_listxattr,
-	.removexattr	= generic_removexattr,
 	.check_acl	= generic_check_acl,
 #endif
 };

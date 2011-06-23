@@ -355,6 +355,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_rd_ref = 0;
 	ci->i_rdcache_ref = 0;
 	ci->i_wr_ref = 0;
+	ci->i_wb_ref = 0;
 	ci->i_wrbuffer_ref = 0;
 	ci->i_wrbuffer_ref_head = 0;
 	ci->i_shared_gen = 0;
@@ -1100,10 +1101,10 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 				goto done;
 			}
 			req->r_dentry = dn;  /* may have spliced */
-			igrab(in);
+			ihold(in);
 		} else if (ceph_ino(in) == vino.ino &&
 			   ceph_snap(in) == vino.snap) {
-			igrab(in);
+			ihold(in);
 		} else {
 			dout(" %p links to %p %llx.%llx, not %llx.%llx\n",
 			     dn, in, ceph_ino(in), ceph_snap(in),
@@ -1143,7 +1144,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			goto done;
 		}
 		req->r_dentry = dn;  /* may have spliced */
-		igrab(in);
+		ihold(in);
 		rinfo->head->is_dentry = 1;  /* fool notrace handlers */
 	}
 
@@ -1327,7 +1328,7 @@ void ceph_queue_writeback(struct inode *inode)
 	if (queue_work(ceph_inode_to_client(inode)->wb_wq,
 		       &ceph_inode(inode)->i_wb_work)) {
 		dout("ceph_queue_writeback %p\n", inode);
-		igrab(inode);
+		ihold(inode);
 	} else {
 		dout("ceph_queue_writeback %p failed\n", inode);
 	}
@@ -1352,7 +1353,7 @@ void ceph_queue_invalidate(struct inode *inode)
 	if (queue_work(ceph_inode_to_client(inode)->pg_inv_wq,
 		       &ceph_inode(inode)->i_pg_inv_work)) {
 		dout("ceph_queue_invalidate %p\n", inode);
-		igrab(inode);
+		ihold(inode);
 	} else {
 		dout("ceph_queue_invalidate %p failed\n", inode);
 	}
@@ -1476,7 +1477,7 @@ void ceph_queue_vmtruncate(struct inode *inode)
 	if (queue_work(ceph_sb_to_client(inode->i_sb)->trunc_wq,
 		       &ci->i_vmtruncate_work)) {
 		dout("ceph_queue_vmtruncate %p\n", inode);
-		igrab(inode);
+		ihold(inode);
 	} else {
 		dout("ceph_queue_vmtruncate %p failed, pending=%d\n",
 		     inode, ci->i_truncate_pending);
@@ -1737,7 +1738,8 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 		__mark_inode_dirty(inode, inode_dirty_flags);
 
 	if (mask) {
-		req->r_inode = igrab(inode);
+		req->r_inode = inode;
+		ihold(inode);
 		req->r_inode_drop = release;
 		req->r_args.setattr.mask = cpu_to_le32(mask);
 		req->r_num_caps = 1;
@@ -1778,7 +1780,8 @@ int ceph_do_getattr(struct inode *inode, int mask)
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, USE_ANY_MDS);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
-	req->r_inode = igrab(inode);
+	req->r_inode = inode;
+	ihold(inode);
 	req->r_num_caps = 1;
 	req->r_args.getattr.mask = cpu_to_le32(mask);
 	err = ceph_mdsc_do_request(mdsc, NULL, req);

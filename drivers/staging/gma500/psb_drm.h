@@ -28,9 +28,6 @@
 #include "drm_mode.h"
 #endif
 
-#include "psb_ttm_fence_user.h"
-#include "psb_ttm_placement_user.h"
-
 #define DRM_PSB_SAREA_MAJOR 0
 #define DRM_PSB_SAREA_MINOR 2
 #define PSB_FIXED_SHIFT 16
@@ -40,15 +37,6 @@
 /*
  * Public memory types.
  */
-
-#define DRM_PSB_MEM_MMU 	TTM_PL_PRIV1
-#define DRM_PSB_FLAG_MEM_MMU	TTM_PL_FLAG_PRIV1
-
-#define TTM_PL_CI               TTM_PL_PRIV0
-#define TTM_PL_FLAG_CI          TTM_PL_FLAG_PRIV0
-
-#define TTM_PL_RAR              TTM_PL_PRIV2
-#define TTM_PL_FLAG_RAR         TTM_PL_FLAG_PRIV2
 
 typedef s32 psb_fixed;
 typedef u32 psb_ufixed;
@@ -112,110 +100,11 @@ struct drm_psb_sarea {
 	u32 num_active_scanouts;
 };
 
-#define PSB_RELOC_MAGIC         0x67676767
-#define PSB_RELOC_SHIFT_MASK    0x0000FFFF
-#define PSB_RELOC_SHIFT_SHIFT   0
-#define PSB_RELOC_ALSHIFT_MASK  0xFFFF0000
-#define PSB_RELOC_ALSHIFT_SHIFT 16
-
-#define PSB_RELOC_OP_OFFSET     0	/* Offset of the indicated
-					 * buffer
-					 */
-
-struct drm_psb_reloc {
-	u32 reloc_op;
-	u32 where;		/* offset in destination buffer */
-	u32 buffer;	/* Buffer reloc applies to */
-	u32 mask;		/* Destination format: */
-	u32 shift;		/* Destination format: */
-	u32 pre_add;	/* Destination format: */
-	u32 background;	/* Destination add */
-	u32 dst_buffer;	/* Destination buffer. Index into buffer_list */
-	u32 arg0;		/* Reloc-op dependent */
-	u32 arg1;
-};
-
-
 #define PSB_GPU_ACCESS_READ         (1ULL << 32)
 #define PSB_GPU_ACCESS_WRITE        (1ULL << 33)
 #define PSB_GPU_ACCESS_MASK         (PSB_GPU_ACCESS_READ | PSB_GPU_ACCESS_WRITE)
 
 #define PSB_BO_FLAG_COMMAND         (1ULL << 52)
-
-#define PSB_ENGINE_2D 0
-#define PSB_ENGINE_VIDEO 1
-#define LNC_ENGINE_ENCODE 5
-
-/*
- * For this fence class we have a couple of
- * fence types.
- */
-
-#define _PSB_FENCE_EXE_SHIFT           0
-#define _PSB_FENCE_FEEDBACK_SHIFT      4
-
-#define _PSB_FENCE_TYPE_EXE         (1 << _PSB_FENCE_EXE_SHIFT)
-#define _PSB_FENCE_TYPE_FEEDBACK    (1 << _PSB_FENCE_FEEDBACK_SHIFT)
-
-#define PSB_NUM_ENGINES 6
-
-
-#define PSB_FEEDBACK_OP_VISTEST (1 << 0)
-
-struct drm_psb_extension_rep {
-	s32 exists;
-	u32 driver_ioctl_offset;
-	u32 sarea_offset;
-	u32 major;
-	u32 minor;
-	u32 pl;
-};
-
-#define DRM_PSB_EXT_NAME_LEN 128
-
-union drm_psb_extension_arg {
-	char extension[DRM_PSB_EXT_NAME_LEN];
-	struct drm_psb_extension_rep rep;
-};
-
-struct psb_validate_req {
-	u64 set_flags;
-	u64 clear_flags;
-	u64 next;
-	u64 presumed_gpu_offset;
-	u32 buffer_handle;
-	u32 presumed_flags;
-	u32 group;
-	u32 pad64;
-};
-
-struct psb_validate_rep {
-	u64 gpu_offset;
-	u32 placement;
-	u32 fence_type_mask;
-};
-
-#define PSB_USE_PRESUMED     (1 << 0)
-
-struct psb_validate_arg {
-	int handled;
-	int ret;
-	union {
-		struct psb_validate_req req;
-		struct psb_validate_rep rep;
-	} d;
-};
-
-
-#define DRM_PSB_FENCE_NO_USER        (1 << 0)
-
-struct psb_ttm_fence_rep {
-	u32 handle;
-	u32 fence_class;
-	u32 fence_type;
-	u32 signaled_types;
-	u32 error;
-};
 
 /*
  * Feedback components:
@@ -328,17 +217,6 @@ struct drm_psb_register_rw_arg {
 
 	u32 subpicture_enable_mask;
 	u32 subpicture_disable_mask;
-};
-
-struct psb_gtt_mapping_arg {
-	void *hKernelMemInfo;
-	u32 offset_pages;
-};
-
-struct drm_psb_getpageaddrs_arg {
-	u32 handle;
-	unsigned long *page_addrs;
-	unsigned long gtt_offset;
 };
 
 /* Controlling the kernel modesetting buffers */

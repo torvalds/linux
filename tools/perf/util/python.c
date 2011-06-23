@@ -674,13 +674,14 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 	struct perf_evlist *evlist = &pevlist->evlist;
 	union perf_event *event;
 	int sample_id_all = 1, cpu;
-	static char *kwlist[] = {"sample_id_all", NULL, NULL};
+	static char *kwlist[] = {"cpu", "sample_id_all", NULL, NULL};
+	int err;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i|i", kwlist,
 					 &cpu, &sample_id_all))
 		return NULL;
 
-	event = perf_evlist__read_on_cpu(evlist, cpu);
+	event = perf_evlist__mmap_read(evlist, cpu);
 	if (event != NULL) {
 		struct perf_evsel *first;
 		PyObject *pyevent = pyrf_event__new(event);
@@ -690,8 +691,12 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 			return PyErr_NoMemory();
 
 		first = list_entry(evlist->entries.next, struct perf_evsel, node);
-		perf_event__parse_sample(event, first->attr.sample_type, sample_id_all,
-					 &pevent->sample);
+		err = perf_event__parse_sample(event, first->attr.sample_type,
+					       perf_evsel__sample_size(first),
+					       sample_id_all, &pevent->sample);
+		if (err)
+			return PyErr_Format(PyExc_OSError,
+					    "perf: can't parse sample, err=%d", err);
 		return pyevent;
 	}
 
@@ -809,6 +814,9 @@ static struct {
 	{ "COUNT_HW_CACHE_OP_PREFETCH",	  PERF_COUNT_HW_CACHE_OP_PREFETCH },
 	{ "COUNT_HW_CACHE_RESULT_ACCESS", PERF_COUNT_HW_CACHE_RESULT_ACCESS },
 	{ "COUNT_HW_CACHE_RESULT_MISS",   PERF_COUNT_HW_CACHE_RESULT_MISS },
+
+	{ "COUNT_HW_STALLED_CYCLES_FRONTEND",	  PERF_COUNT_HW_STALLED_CYCLES_FRONTEND },
+	{ "COUNT_HW_STALLED_CYCLES_BACKEND",	  PERF_COUNT_HW_STALLED_CYCLES_BACKEND },
 
 	{ "COUNT_SW_CPU_CLOCK",	       PERF_COUNT_SW_CPU_CLOCK },
 	{ "COUNT_SW_TASK_CLOCK",       PERF_COUNT_SW_TASK_CLOCK },
