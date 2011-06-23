@@ -125,7 +125,7 @@ nouveau_gpuobj_mthd_call2(struct drm_device *dev, int chid,
 	int ret = -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
-	if (chid > 0 && chid < dev_priv->engine.fifo.channels)
+	if (chid >= 0 && chid < dev_priv->engine.fifo.channels)
 		chan = dev_priv->channels.ptr[chid];
 	if (chan)
 		ret = nouveau_gpuobj_mthd_call(chan, class, mthd, data);
