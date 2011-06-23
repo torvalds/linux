@@ -3396,8 +3396,8 @@ static int perf_event_index(struct perf_event *event)
 }
 
 static void calc_timer_values(struct perf_event *event,
-				u64 *running,
-				u64 *enabled)
+				u64 *enabled,
+				u64 *running)
 {
 	u64 now, ctx_time;
 
