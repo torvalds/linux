@@ -409,7 +409,7 @@ gboolean process_comming_request(GIOChannel *gio, GIOCondition condition,
 
 		ret = recv_pdu(csock);
 		if (ret < 0)
-			err("process recieved pdu");
+			err("process received pdu");
 
 		close(csock);
 	}

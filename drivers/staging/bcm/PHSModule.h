@@ -9,7 +9,7 @@ int PHSTransmit(PMINI_ADAPTER Adapter,
 					 PUINT PacketLen,
 					 UCHAR bEthCSSupport);
 
-int PHSRecieve(PMINI_ADAPTER Adapter,
+int PHSReceive(PMINI_ADAPTER Adapter,
 					USHORT usVcid,
 					struct sk_buff *packet,
 					UINT *punPacketLen,
