@@ -27,6 +27,7 @@
 #ifndef _VMXNET3_INT_H
 #define _VMXNET3_INT_H
 
+#include <linux/bitops.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
@@ -315,7 +316,7 @@ struct vmxnet3_intr {
 struct vmxnet3_adapter {
 	struct vmxnet3_tx_queue		tx_queue[VMXNET3_DEVICE_MAX_TX_QUEUES];
 	struct vmxnet3_rx_queue		rx_queue[VMXNET3_DEVICE_MAX_RX_QUEUES];
-	struct vlan_group		*vlan_grp;
+	unsigned long			active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct vmxnet3_intr		intr;
 	spinlock_t			cmd_lock;
 	struct Vmxnet3_DriverShared	*shared;

@@ -918,7 +918,7 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 	count = VMXNET3_TXD_NEEDED(skb_headlen(skb)) +
 		skb_shinfo(skb)->nr_frags + 1;
 
-	ctx.ipv4 = (skb->protocol == cpu_to_be16(ETH_P_IP));
+	ctx.ipv4 = (vlan_get_protocol(skb) == cpu_to_be16(ETH_P_IP));
 
 	ctx.mss = skb_shinfo(skb)->gso_size;
 	if (ctx.mss) {
@@ -1231,12 +1231,10 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 					(union Vmxnet3_GenericDesc *)rcd);
 			skb->protocol = eth_type_trans(skb, adapter->netdev);
 
-			if (unlikely(adapter->vlan_grp && rcd->ts)) {
-				vlan_hwaccel_receive_skb(skb,
-						adapter->vlan_grp, rcd->tci);
-			} else {
-				netif_receive_skb(skb);
-			}
+			if (unlikely(rcd->ts))
+				__vlan_hwaccel_put_tag(skb, rcd->tci);
+
+			netif_receive_skb(skb);
 
 			ctx->skb = NULL;
 		}
@@ -1856,79 +1854,18 @@ vmxnet3_free_irqs(struct vmxnet3_adapter *adapter)
 	}
 }
 
-static void
-vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
-{
-	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
-	struct Vmxnet3_DriverShared *shared = adapter->shared;
-	u32 *vfTable = adapter->shared->devRead.rxFilterConf.vfTable;
-	unsigned long flags;
-
-	if (grp) {
-		/* add vlan rx stripping. */
-		if (adapter->netdev->features & NETIF_F_HW_VLAN_RX) {
-			int i;
-			adapter->vlan_grp = grp;
-
-			/*
-			 *  Clear entire vfTable; then enable untagged pkts.
-			 *  Note: setting one entry in vfTable to non-zero turns
-			 *  on VLAN rx filtering.
-			 */
-			for (i = 0; i < VMXNET3_VFT_SIZE; i++)
-				vfTable[i] = 0;
-
-			VMXNET3_SET_VFTABLE_ENTRY(vfTable, 0);
-			spin_lock_irqsave(&adapter->cmd_lock, flags);
-			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
-					       VMXNET3_CMD_UPDATE_VLAN_FILTERS);
-			spin_unlock_irqrestore(&adapter->cmd_lock, flags);
-		} else {
-			printk(KERN_ERR "%s: vlan_rx_register when device has "
-			       "no NETIF_F_HW_VLAN_RX\n", netdev->name);
-		}
-	} else {
-		/* remove vlan rx stripping. */
-		struct Vmxnet3_DSDevRead *devRead = &shared->devRead;
-		adapter->vlan_grp = NULL;
-
-		if (devRead->misc.uptFeatures & UPT1_F_RXVLAN) {
-			int i;
-
-			for (i = 0; i < VMXNET3_VFT_SIZE; i++) {
-				/* clear entire vfTable; this also disables
-				 * VLAN rx filtering
-				 */
-				vfTable[i] = 0;
-			}
-			spin_lock_irqsave(&adapter->cmd_lock, flags);
-			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
-					       VMXNET3_CMD_UPDATE_VLAN_FILTERS);
-			spin_unlock_irqrestore(&adapter->cmd_lock, flags);
-		}
-	}
-}
-
 
 static void
 vmxnet3_restore_vlan(struct vmxnet3_adapter *adapter)
 {
-	if (adapter->vlan_grp) {
-		u16 vid;
-		u32 *vfTable = adapter->shared->devRead.rxFilterConf.vfTable;
-		bool activeVlan = false;
+	u32 *vfTable = adapter->shared->devRead.rxFilterConf.vfTable;
+	u16 vid;
 
-		for (vid = 0; vid < VLAN_N_VID; vid++) {
-			if (vlan_group_get_device(adapter->vlan_grp, vid)) {
-				VMXNET3_SET_VFTABLE_ENTRY(vfTable, vid);
-				activeVlan = true;
-			}
-		}
-		if (activeVlan) {
-			/* continue to allow untagged pkts */
-			VMXNET3_SET_VFTABLE_ENTRY(vfTable, 0);
-		}
-	}
+	/* allow untagged pkts */
+	VMXNET3_SET_VFTABLE_ENTRY(vfTable, 0);
+
+	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
+		VMXNET3_SET_VFTABLE_ENTRY(vfTable, vid);
 }
 
 
@@ -1944,6 +1881,8 @@ vmxnet3_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_UPDATE_VLAN_FILTERS);
 	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+
+	set_bit(vid, adapter->active_vlans);
 }
 
 
@@ -1959,6 +1898,8 @@ vmxnet3_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 			       VMXNET3_CMD_UPDATE_VLAN_FILTERS);
 	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+
+	clear_bit(vid, adapter->active_vlans);
 }
 
 
@@ -1995,8 +1936,14 @@ vmxnet3_set_mc(struct net_device *netdev)
 	u8 *new_table = NULL;
 	u32 new_mode = VMXNET3_RXM_UCAST;
 
-	if (netdev->flags & IFF_PROMISC)
+	if (netdev->flags & IFF_PROMISC) {
+		u32 *vfTable = adapter->shared->devRead.rxFilterConf.vfTable;
+		memset(vfTable, 0, VMXNET3_VFT_SIZE * sizeof(*vfTable));
+
 		new_mode |= VMXNET3_RXM_PROMISC;
+	} else {
+		vmxnet3_restore_vlan(adapter);
+	}
 
 	if (netdev->flags & IFF_BROADCAST)
 		new_mode |= VMXNET3_RXM_BCAST;
@@ -2030,6 +1977,8 @@ vmxnet3_set_mc(struct net_device *netdev)
 		rxConf->rxMode = cpu_to_le32(new_mode);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 				       VMXNET3_CMD_UPDATE_RX_MODE);
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+				       VMXNET3_CMD_UPDATE_VLAN_FILTERS);
 	}
 
 	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
@@ -2639,12 +2588,13 @@ vmxnet3_declare_features(struct vmxnet3_adapter *adapter, bool dma64)
 
 	netdev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM |
 		NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_TX |
-		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_LRO;
+		NETIF_F_HW_VLAN_RX | NETIF_F_TSO | NETIF_F_TSO6 |
+		NETIF_F_LRO;
 	if (dma64)
 		netdev->features |= NETIF_F_HIGHDMA;
-	netdev->vlan_features = netdev->hw_features & ~NETIF_F_HW_VLAN_TX;
-	netdev->features = netdev->hw_features |
-		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
+	netdev->vlan_features = netdev->hw_features &
+				~(NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
+	netdev->features = netdev->hw_features | NETIF_F_HW_VLAN_FILTER;
 
 	netdev_info(adapter->netdev,
 		"features: sg csum vlan jf tso tsoIPv6 lro%s\n",
@@ -2865,7 +2815,6 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 		.ndo_get_stats64 = vmxnet3_get_stats64,
 		.ndo_tx_timeout = vmxnet3_tx_timeout,
 		.ndo_set_multicast_list = vmxnet3_set_mc,
-		.ndo_vlan_rx_register = vmxnet3_vlan_rx_register,
 		.ndo_vlan_rx_add_vid = vmxnet3_vlan_rx_add_vid,
 		.ndo_vlan_rx_kill_vid = vmxnet3_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER

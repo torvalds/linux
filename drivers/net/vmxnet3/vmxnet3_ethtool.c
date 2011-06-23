@@ -268,7 +268,7 @@ int vmxnet3_set_features(struct net_device *netdev, u32 features)
 	unsigned long flags;
 	u32 changed = features ^ netdev->features;
 
-	if (changed & (NETIF_F_RXCSUM|NETIF_F_LRO)) {
+	if (changed & (NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_HW_VLAN_RX)) {
 		if (features & NETIF_F_RXCSUM)
 			adapter->shared->devRead.misc.uptFeatures |=
 			UPT1_F_RXCSUM;
@@ -283,6 +283,13 @@ int vmxnet3_set_features(struct net_device *netdev, u32 features)
 		else
 			adapter->shared->devRead.misc.uptFeatures &=
 							~UPT1_F_LRO;
+
+		if (features & NETIF_F_HW_VLAN_RX)
+			adapter->shared->devRead.misc.uptFeatures |=
+			UPT1_F_RXVLAN;
+		else
+			adapter->shared->devRead.misc.uptFeatures &=
+			~UPT1_F_RXVLAN;
 
 		spin_lock_irqsave(&adapter->cmd_lock, flags);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
