@@ -28,7 +28,6 @@
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 #include <linux/string.h>
-#include <linux/version.h>
 #include <linux/proc_fs.h>
 #include <linux/vmalloc.h>
 #include <linux/debugfs.h>

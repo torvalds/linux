@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/string.h>
-#include <linux/version.h>
 #include <linux/backlight.h>
 
 #include "msm_fb.h"
