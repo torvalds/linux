@@ -459,6 +459,12 @@ struct usb_gadget_ops {
 	int	(*ioctl)(struct usb_gadget *,
 				unsigned code, unsigned long param);
 	void	(*get_config_params)(struct usb_dcd_config_params *);
+	int	(*udc_start)(struct usb_gadget *,
+			struct usb_gadget_driver *);
+	int	(*udc_stop)(struct usb_gadget *,
+			struct usb_gadget_driver *);
+
+	/* Those two are deprecated */
 	int	(*start)(struct usb_gadget_driver *,
 			int (*bind)(struct usb_gadget *));
 	int	(*stop)(struct usb_gadget_driver *);

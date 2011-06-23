@@ -73,6 +73,26 @@ static inline int usb_gadget_start(struct usb_gadget *gadget,
 }
 
 /**
+ * usb_gadget_udc_start - tells usb device controller to start up
+ * @gadget: The gadget we want to get started
+ * @driver: The driver we want to bind to @gadget
+ *
+ * This call is issued by the UDC Class driver when it's about
+ * to register a gadget driver to the device controller, before
+ * calling gadget driver's bind() method.
+ *
+ * It allows the controller to be powered off until strictly
+ * necessary to have it powered on.
+ *
+ * Returns zero on success, else negative errno.
+ */
+static inline int usb_gadget_udc_start(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
+{
+	return gadget->ops->udc_start(gadget, driver);
+}
+
+/**
  * usb_gadget_stop - tells usb device controller we don't need it anymore
  * @gadget: The device we want to stop activity
  * @driver: The driver to unbind from @gadget
@@ -88,6 +108,24 @@ static inline void usb_gadget_stop(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver)
 {
 	gadget->ops->stop(driver);
+}
+
+/**
+ * usb_gadget_udc_stop - tells usb device controller we don't need it anymore
+ * @gadget: The device we want to stop activity
+ * @driver: The driver to unbind from @gadget
+ *
+ * This call is issued by the UDC Class driver after calling
+ * gadget driver's unbind() method.
+ *
+ * The details are implementation specific, but it can go as
+ * far as powering off UDC completely and disable its data
+ * line pullups.
+ */
+static inline void usb_gadget_udc_stop(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
+{
+	gadget->ops->udc_stop(gadget, driver);
 }
 
 /**
@@ -155,6 +193,14 @@ err1:
 }
 EXPORT_SYMBOL_GPL(usb_add_gadget_udc);
 
+static int udc_is_newstyle(struct usb_udc *udc)
+{
+	if (udc->gadget->ops->udc_start && udc->gadget->ops->udc_stop)
+		return 1;
+	return 0;
+}
+
+
 static void usb_gadget_remove_driver(struct usb_udc *udc)
 {
 	dev_dbg(&udc->dev, "unregistering UDC driver [%s]\n",
@@ -162,7 +208,14 @@ static void usb_gadget_remove_driver(struct usb_udc *udc)
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 
-	usb_gadget_stop(udc->gadget, udc->driver);
+	if (udc_is_newstyle(udc)) {
+		usb_gadget_disconnect(udc->gadget);
+		udc->driver->unbind(udc->gadget);
+		usb_gadget_udc_stop(udc->gadget, udc->driver);
+
+	} else {
+		usb_gadget_stop(udc->gadget, udc->driver);
+	}
 
 	udc->driver = NULL;
 	udc->dev.driver = NULL;
@@ -232,9 +285,23 @@ found:
 	udc->driver = driver;
 	udc->dev.driver = &driver->driver;
 
-	ret = usb_gadget_start(udc->gadget, driver, bind);
-	if (ret)
-		goto err1;
+	if (udc_is_newstyle(udc)) {
+		ret = bind(udc->gadget);
+		if (ret)
+			goto err1;
+		ret = usb_gadget_udc_start(udc->gadget, driver);
+		if (ret) {
+			driver->unbind(udc->gadget);
+			goto err1;
+		}
+		usb_gadget_connect(udc->gadget);
+	} else {
+
+		ret = usb_gadget_start(udc->gadget, driver, bind);
+		if (ret)
+			goto err1;
+
+	}
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 	mutex_unlock(&udc_lock);
