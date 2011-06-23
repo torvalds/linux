@@ -118,7 +118,7 @@ struct ce_stats {
 	u32 norcvbuf;	/* # Rx packets discarded */
 	u32 noxmtbuf;	/* # Tx packets discarded */
 
-	/* Transciever state informations. */
+	/* Transceiver state informations. */
 	u8 xcvr_addr;
 	u32 xcvr_id;
 

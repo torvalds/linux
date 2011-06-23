@@ -99,7 +99,7 @@ static void et131x_xcvr_init(struct et131x_adapter *etdev);
 /**
  * PhyMiRead - Read from the PHY through the MII Interface on the MAC
  * @etdev: pointer to our private adapter structure
- * @xcvrAddr: the address of the transciever
+ * @xcvrAddr: the address of the transceiver
  * @xcvrReg: the register to read
  * @value: pointer to a 16-bit value in which the value will be stored
  *
