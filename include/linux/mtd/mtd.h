@@ -325,14 +325,13 @@ static inline uint32_t mtd_mod_by_ws(uint64_t sz, struct mtd_info *mtd)
 struct mtd_partition;
 struct mtd_part_parser_data;
 
-extern int mtd_device_register(struct mtd_info *master,
-			       const struct mtd_partition *parts,
-			       int nr_parts);
 extern int mtd_device_parse_register(struct mtd_info *mtd,
 			      const char **part_probe_types,
 			      struct mtd_part_parser_data *parser_data,
 			      const struct mtd_partition *defparts,
 			      int defnr_parts);
+#define mtd_device_register(master, parts, nr_parts)	\
+	mtd_device_parse_register(master, NULL, NULL, parts, nr_parts)
 extern int mtd_device_unregister(struct mtd_info *master);
 extern struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num);
 extern int __get_mtd_device(struct mtd_info *mtd);
