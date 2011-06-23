@@ -370,15 +370,17 @@ static int picodlp_panel_power_on(struct omap_dss_device *dssdev)
 	 * then only i2c commands can be successfully sent to dpp2600
 	 */
 	msleep(1000);
-	if (omapdss_dpi_display_enable(dssdev)) {
+	r = omapdss_dpi_display_enable(dssdev);
+	if (r) {
 		dev_err(&dssdev->dev, "failed to enable DPI\n");
 		goto err1;
 	}
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 	r = picodlp_i2c_init(picod->picodlp_i2c_client);
 	if (r)
 		goto err;
+
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 	return r;
 err:
