@@ -550,7 +550,7 @@ static void control_set_hardware(struct fb_info_control *p, struct fb_par_contro
 
 
 /*
- * Parse user speficied options (`video=controlfb:')
+ * Parse user specified options (`video=controlfb:')
  */
 static void __init control_setup(char *options)
 {

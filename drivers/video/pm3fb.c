@@ -1525,7 +1525,7 @@ static int __init pm3fb_setup(char *options)
 {
 	char *this_opt;
 
-	/* Parse user speficied options (`video=pm3fb:') */
+	/* Parse user specified options (`video=pm3fb:') */
 	if (!options || !*options)
 		return 0;
 

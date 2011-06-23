@@ -490,7 +490,7 @@ static int platinum_var_to_par(struct fb_var_screeninfo *var,
 
 
 /* 
- * Parse user speficied options (`video=platinumfb:')
+ * Parse user specified options (`video=platinumfb:')
  */
 static int __init platinumfb_setup(char *options)
 {
