@@ -30,7 +30,6 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/random.h>
-#include <linux/version.h>
 #include <linux/usb.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-ioctl.h>
