@@ -909,13 +909,6 @@ static int dummy_udc_start(struct usb_gadget_driver *driver,
 		dum->ep[0].ep.maxpacket = 64;
 	}
 
-	if (dum->gadget.speed == USB_SPEED_SUPER)
-		dum->gadget.is_otg =
-			(dummy_hcd_to_hcd(dum->ss_hcd)->self.otg_port != 0);
-	else
-		dum->gadget.is_otg =
-			(dummy_hcd_to_hcd(dum->hs_hcd)->self.otg_port != 0);
-
 	driver->driver.bus = NULL;
 	dum->driver = driver;
 	dum->gadget.dev.driver = &driver->driver;
@@ -990,6 +983,10 @@ static void init_dummy_udc_hw(struct dummy *dum)
 	dum->gadget.ep0 = &dum->ep[0].ep;
 	list_del_init(&dum->ep[0].ep.ep_list);
 	INIT_LIST_HEAD(&dum->fifo_req.queue);
+
+#ifdef CONFIG_USB_OTG
+	dum->gadget.is_otg = 1;
+#endif
 }
 
 static int dummy_udc_probe (struct platform_device *pdev)
