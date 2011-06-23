@@ -172,21 +172,14 @@ void bnx2i_start(void *handle)
 	struct bnx2i_hba *hba = handle;
 	int i = HZ;
 
-	if (!hba->cnic->max_iscsi_conn) {
-		printk(KERN_ALERT "bnx2i: dev %s does not support "
-			"iSCSI\n", hba->netdev->name);
+	/*
+	 * We should never register devices that don't support iSCSI
+	 * (see bnx2i_init_one), so something is wrong if we try to
+	 * start a iSCSI adapter on hardware with 0 supported iSCSI
+	 * connections
+	 */
+	BUG_ON(!hba->cnic->max_iscsi_conn);
 
-		if (test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
-			mutex_lock(&bnx2i_dev_lock);
-			list_del_init(&hba->link);
-			adapter_count--;
-			hba->cnic->unregister_device(hba->cnic, CNIC_ULP_ISCSI);
-			clear_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
-			mutex_unlock(&bnx2i_dev_lock);
-			bnx2i_free_hba(hba);
-		}
-		return;
-	}
 	bnx2i_send_fw_iscsi_init_msg(hba);
 	while (!test_bit(ADAPTER_STATE_UP, &hba->adapter_state) && i--)
 		msleep(BNX2I_INIT_POLL_TIME);
@@ -290,6 +283,13 @@ static int bnx2i_init_one(struct bnx2i_hba *hba, struct cnic_dev *cnic)
 	int rc;
 
 	mutex_lock(&bnx2i_dev_lock);
+	if (!cnic->max_iscsi_conn) {
+		printk(KERN_ALERT "bnx2i: dev %s does not support "
+			"iSCSI\n", hba->netdev->name);
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
+
 	hba->cnic = cnic;
 	rc = cnic->register_device(cnic, CNIC_ULP_ISCSI, hba);
 	if (!rc) {
@@ -307,6 +307,7 @@ static int bnx2i_init_one(struct bnx2i_hba *hba, struct cnic_dev *cnic)
 	else
 		printk(KERN_ERR "bnx2i dev reg, unknown error, %d\n", rc);
 
+out:
 	mutex_unlock(&bnx2i_dev_lock);
 
 	return rc;
