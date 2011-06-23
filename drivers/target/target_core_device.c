@@ -192,7 +192,7 @@ int transport_get_lun_for_tmr(
 			&SE_NODE_ACL(se_sess)->device_list[unpacked_lun];
 	if (deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS) {
 		se_lun = se_cmd->se_lun = se_tmr->tmr_lun = deve->se_lun;
-		dev = se_tmr->tmr_dev = se_lun->lun_se_dev;
+		dev = se_lun->lun_se_dev;
 		se_cmd->pr_res_key = deve->pr_res_key;
 		se_cmd->orig_fe_lun = unpacked_lun;
 		se_cmd->se_orig_obj_ptr = SE_LUN(se_cmd)->lun_se_dev;
@@ -216,6 +216,7 @@ int transport_get_lun_for_tmr(
 		se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		return -1;
 	}
+	se_tmr->tmr_dev = dev;
 
 	spin_lock(&dev->se_tmr_lock);
 	list_add_tail(&se_tmr->tmr_list, &dev->dev_tmr_list);
