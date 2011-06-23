@@ -573,7 +573,7 @@ static void device_qual(struct usb_composite_dev *cdev)
 	qual->bDeviceSubClass = cdev->desc.bDeviceSubClass;
 	qual->bDeviceProtocol = cdev->desc.bDeviceProtocol;
 	/* ASSUME same EP0 fifo size at both speeds */
-	qual->bMaxPacketSize0 = cdev->desc.bMaxPacketSize0;
+	qual->bMaxPacketSize0 = cdev->gadget->ep0->maxpacket;
 	qual->bNumConfigurations = count_configs(cdev, USB_DT_DEVICE_QUALIFIER);
 	qual->bRESERVED = 0;
 }
@@ -1450,7 +1450,6 @@ static int composite_bind(struct usb_gadget *gadget)
 		goto fail;
 
 	cdev->desc = *composite->dev;
-	cdev->desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 
 	/* standardized runtime overrides for device ID data */
 	if (idVendor)

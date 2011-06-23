@@ -695,6 +695,7 @@ static int gmidi_setup(struct usb_gadget *gadget,
 		switch (w_value >> 8) {
 
 		case USB_DT_DEVICE:
+			device_desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 			value = min(w_length, (u16) sizeof(device_desc));
 			memcpy(req->buf, &device_desc, value);
 			break;
@@ -1248,8 +1249,6 @@ autoconf_fail:
 	}
 
 	dev->req->complete = gmidi_setup_complete;
-
-	device_desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 
 	gadget->ep0->driver_data = dev;
 
