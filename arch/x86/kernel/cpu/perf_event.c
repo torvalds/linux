@@ -233,6 +233,7 @@ struct x86_pmu {
 	void		(*enable_all)(int added);
 	void		(*enable)(struct perf_event *);
 	void		(*disable)(struct perf_event *);
+	void		(*hw_watchdog_set_attr)(struct perf_event_attr *attr);
 	int		(*hw_config)(struct perf_event *event);
 	int		(*schedule_events)(struct cpu_hw_events *cpuc, int n, int *assign);
 	unsigned	eventsel;
@@ -314,6 +315,12 @@ static u64 __read_mostly hw_cache_extra_regs
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX];
+
+void hw_nmi_watchdog_set_attr(struct perf_event_attr *wd_attr)
+{
+	if (x86_pmu.hw_watchdog_set_attr)
+		x86_pmu.hw_watchdog_set_attr(wd_attr);
+}
 
 /*
  * Propagate event elapsed time into the generic event.
