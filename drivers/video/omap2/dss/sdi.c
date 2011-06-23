@@ -55,6 +55,11 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	unsigned long pck;
 	int r;
 
+	if (dssdev->manager == NULL) {
+		DSSERR("failed to enable display: no manager\n");
+		return -ENODEV;
+	}
+
 	r = omap_dss_start_device(dssdev);
 	if (r) {
 		DSSERR("failed to start device\n");
