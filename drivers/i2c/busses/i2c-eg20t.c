@@ -673,7 +673,7 @@ static s32 pch_i2c_xfer(struct i2c_adapter *i2c_adap,
 	/* transfer not completed */
 	adap->pch_i2c_xfer_in_progress = true;
 
-	for (i = 0; i < num; i++) {
+	for (i = 0; i < num && ret >= 0; i++) {
 		pmsg = &msgs[i];
 		pmsg->flags |= adap->pch_buff_mode_en;
 		status = pmsg->flags;
@@ -699,7 +699,7 @@ static s32 pch_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	mutex_unlock(&pch_mutex);
 
-	return ret;
+	return (ret < 0) ? ret : num;
 }
 
 /**
