@@ -74,46 +74,6 @@
  * API functions
  */
 
-/*
- * The "get_*restore_pointer" functions are used to provide a
- * physical restore address where the ROM code jumps while waking
- * up from MPU OFF/OSWR state.
- * The restore pointer is stored into the scratchpad.
- */
-
-	.text
-/* Function call to get the restore pointer for resume from OFF */
-ENTRY(get_restore_pointer)
-	stmfd	sp!, {lr}	@ save registers on stack
-	adr	r0, restore
-	ldmfd	sp!, {pc}	@ restore regs and return
-ENDPROC(get_restore_pointer)
-	.align
-ENTRY(get_restore_pointer_sz)
-	.word	. - get_restore_pointer
-
-	.text
-/* Function call to get the restore pointer for 3630 resume from OFF */
-ENTRY(get_omap3630_restore_pointer)
-	stmfd	sp!, {lr}	@ save registers on stack
-	adr	r0, restore_3630
-	ldmfd	sp!, {pc}	@ restore regs and return
-ENDPROC(get_omap3630_restore_pointer)
-	.align
-ENTRY(get_omap3630_restore_pointer_sz)
-	.word	. - get_omap3630_restore_pointer
-
-	.text
-/* Function call to get the restore pointer for ES3 to resume from OFF */
-ENTRY(get_es3_restore_pointer)
-	stmfd	sp!, {lr}	@ save registers on stack
-	adr	r0, restore_es3
-	ldmfd	sp!, {pc}	@ restore regs and return
-ENDPROC(get_es3_restore_pointer)
-	.align
-ENTRY(get_es3_restore_pointer_sz)
-	.word	. - get_es3_restore_pointer
-
 	.text
 /*
  * L2 cache needs to be toggled for stable OFF mode functionality on 3630.
@@ -316,12 +276,12 @@ omap3_do_wfi:
  *  restore_3630: applies to 36xx
  *  restore: common code for 3xxx
  */
-restore_es3:
+ENTRY(omap3_restore_es3)
 	ldr	r5, pm_prepwstst_core_p
 	ldr	r4, [r5]
 	and	r4, r4, #0x3
 	cmp	r4, #0x0	@ Check if previous power state of CORE is OFF
-	bne	restore
+	bne	omap3_restore
 	adr	r0, es3_sdrc_fix
 	ldr	r1, sram_base
 	ldr	r2, es3_sdrc_fix_sz
@@ -333,22 +293,24 @@ copy_to_sram:
 	bne	copy_to_sram
 	ldr	r1, sram_base
 	blx	r1
-	b	restore
+	b	omap3_restore
+ENDPROC(omap3_restore_es3)
 
-restore_3630:
+ENTRY(omap3_restore_3630)
 	ldr	r1, pm_prepwstst_core_p
 	ldr	r2, [r1]
 	and	r2, r2, #0x3
 	cmp	r2, #0x0	@ Check if previous power state of CORE is OFF
-	bne	restore
+	bne	omap3_restore
 	/* Disable RTA before giving control */
 	ldr	r1, control_mem_rta
 	mov	r2, #OMAP36XX_RTA_DISABLE
 	str	r2, [r1]
+ENDPROC(omap3_restore_3630)
 
 	/* Fall through to common code for the remaining logic */
 
-restore:
+ENTRY(omap3_restore)
 	/*
 	 * Read the pwstctrl register to check the reason for mpu reset.
 	 * This tells us what was lost.
@@ -438,6 +400,7 @@ skipl2reen:
 
 	/* Now branch to the common CPU resume function */
 	b	cpu_resume
+ENDPROC(omap3_restore)
 
 	.ltorg
 

@@ -286,14 +286,15 @@ void omap3_save_scratchpad_contents(void)
 	scratchpad_contents.boot_config_ptr = 0x0;
 	if (cpu_is_omap3630())
 		scratchpad_contents.public_restore_ptr =
-			virt_to_phys(get_omap3630_restore_pointer());
+			virt_to_phys(omap3_restore_3630);
 	else if (omap_rev() != OMAP3430_REV_ES3_0 &&
 					omap_rev() != OMAP3430_REV_ES3_1)
 		scratchpad_contents.public_restore_ptr =
-			virt_to_phys(get_restore_pointer());
+			virt_to_phys(omap3_restore);
 	else
 		scratchpad_contents.public_restore_ptr =
-			virt_to_phys(get_es3_restore_pointer());
+			virt_to_phys(omap3_restore_es3);
+
 	if (omap_type() == OMAP2_DEVICE_TYPE_GP)
 		scratchpad_contents.secure_ram_restore_ptr = 0x0;
 	else
