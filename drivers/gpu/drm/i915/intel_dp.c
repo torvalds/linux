@@ -179,12 +179,14 @@ intel_dp_link_clock(uint8_t link_bw)
 static int
 intel_dp_link_required(struct drm_device *dev, struct intel_dp *intel_dp, int pixel_clock)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = intel_dp->base.base.crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int bpp = 24;
 
-	if (is_edp(intel_dp))
-		return (pixel_clock * dev_priv->edp.bpp + 7) / 8;
-	else
-		return pixel_clock * 3;
+	if (intel_crtc)
+		bpp = intel_crtc->bpp;
+
+	return (pixel_clock * bpp + 7) / 8;
 }
 
 static int
