@@ -224,9 +224,9 @@ static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
 	sector_t blocknr;
 
 	/* fat_get_cluster() assumes the requested blocknr isn't truncated. */
-	down_read(&mapping->host->i_alloc_sem);
+	down_read(&MSDOS_I(mapping->host)->truncate_lock);
 	blocknr = generic_block_bmap(mapping, block, fat_get_block);
-	up_read(&mapping->host->i_alloc_sem);
+	up_read(&MSDOS_I(mapping->host)->truncate_lock);
 
 	return blocknr;
 }
@@ -510,6 +510,8 @@ static struct inode *fat_alloc_inode(struct super_block *sb)
 	ei = kmem_cache_alloc(fat_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
+
+	init_rwsem(&ei->truncate_lock);
 	return &ei->vfs_inode;
 }
 
