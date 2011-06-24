@@ -615,7 +615,7 @@ static int update_urb_state_xfer_comp(dwc_hc_t *_hc,
 						      DWC_OTG_HC_XFER_COMPLETE,
 						      &short_read);
 
-	if (short_read || (_urb->actual_length == _urb->transfer_buffer_length)) {
+	if (short_read || (_urb->actual_length >= _urb->transfer_buffer_length)) {
 		xfer_done = 1;
 		if (short_read && (_urb->transfer_flags & URB_SHORT_NOT_OK)) {
 			_urb->status = -EREMOTEIO;
