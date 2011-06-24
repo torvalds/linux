@@ -1019,22 +1019,17 @@ static uint32_t __sramlocalfunc ddr_set_pll(uint32_t nMHz, uint32_t set)
             clkr = 2;
             clkod = 2;
         }
-        else if (nMHz <= 300)
+        else if(nMHz <= 500)
         {
             clkr = 2;
             clkod = 1;
-        }
-        else if(nMHz <= 600)
-        {
-            clkr = 2;
-            clkod = 0;
         }
         else
         {
             clkr = 2;
             clkod = 0;
-            pllband = (0x01u<<16);
         }
+            pllband = (0x01u<<16);
         temp = nMHz*clkr*(1<<clkod);
         clkf = temp/24;
         //if(temp%24)
@@ -1120,7 +1115,7 @@ void __sramlocalfunc ddr_selfrefresh_exit(void)
     ddr_update_mr();
     delayus(1);
 
-//refresh:
+refresh:
     pDDR_Reg->CSR = 0x0;
     pDDR_Reg->DRR |= RD;
     delayus(1);
@@ -1131,6 +1126,12 @@ void __sramlocalfunc ddr_selfrefresh_exit(void)
     {
         delayus(1);
     }while(pGRF_Reg->GRF_MEM_STATUS[2] & 0x1);  //wait init ok
+    
+    if(pDDR_Reg->CSR & 0x100000)
+    {
+        pDDR_Reg->CSR &= ~0x100000;
+        goto refresh;
+    }
     pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(8);
     delayus(10);
     pDDR_Reg->DRR = TRFC(tRFC) | TRFPRD(tRFPRD) | RFBURST(1);

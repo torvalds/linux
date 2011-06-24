@@ -674,7 +674,6 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 		dev->coherent_dma_mask = 0;
 	}
 #endif
-	DWC_PRINT("dwc_otg_hcd_init everest\n");
 //	g_dbg_lvl = 0xff;
 	
 	/*
@@ -779,7 +778,6 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 		goto error3;
 	}
     
-	DWC_PRINT("%s end,everest\n",__func__);
 //	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD Initialized HCD, bus=%s, usbbus=%d\n", 
 //		    dev->bus_id, hcd->self.busnum);
         
@@ -859,7 +857,6 @@ int __devinit host11_hcd_init(struct device *dev)
 		dev->coherent_dma_mask = 0;
 	}
 #endif
-	DWC_PRINT("%s everest\n",__func__);
 //	g_dbg_lvl = 0xff;
 	
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD INIT\n");
@@ -966,7 +963,6 @@ int __devinit host11_hcd_init(struct device *dev)
 		goto error3;
 	}
 
-	DWC_PRINT("%s end,everest\n",__func__);
 //	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD Initialized HCD, bus=%s, usbbus=%d\n", 
 //		    dev->bus_id, hcd->self.busnum);
         
@@ -1055,7 +1051,6 @@ int __devinit host20_hcd_init(struct device *dev)
 		dev->coherent_dma_mask = 0;
 	}
 #endif
-	DWC_PRINT("%s everest\n",__func__);
 //	g_dbg_lvl = 0xff;
 	
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD INIT\n");
@@ -1162,7 +1157,6 @@ int __devinit host20_hcd_init(struct device *dev)
 		goto error3;
 	}
     
-	DWC_PRINT("%s end,everest\n",__func__);
         
 	return 0;
 
@@ -1258,7 +1252,6 @@ int dwc_otg_hcd_start(struct usb_hcd *_hcd)
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD START\n");
 	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 
-	DWC_PRINT("dwc_otg_hcd_start! everest\n");
 	bus = hcd_to_bus(_hcd);
 	_hcd->state = HC_STATE_RUNNING;
 

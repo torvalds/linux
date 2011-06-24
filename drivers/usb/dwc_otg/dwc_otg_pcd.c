@@ -1804,7 +1804,6 @@ int dwc_otg_pcd_init(struct device *dev)
     dwc_otg_core_if_t *core_if = otg_dev->core_if;
 	int retval = 0;
 	int irq;
-	DWC_PRINT("dwc_otg_pcd_init,everest\n");
 	 /*
 	 * Allocate PCD structure
 	 */

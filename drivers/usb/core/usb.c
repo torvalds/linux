@@ -1072,7 +1072,6 @@ static int __init usb_init(void)
 		pr_info("%s: USB support disabled\n", usbcore_name);
 		return 0;
 	}
-	printk("usb_init, usbcore,everest\n");
 	retval = usb_debugfs_init();
 	if (retval)
 		goto out;

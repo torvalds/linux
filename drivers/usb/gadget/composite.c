@@ -564,7 +564,6 @@ int __init usb_add_config(struct usb_composite_dev *cdev,
 			goto done;
 		}
 	}
-	printk("usb_add_config, add and bind,everest\n");
 	config->cdev = cdev;
 	list_add_tail(&config->list, &cdev->configs);
 

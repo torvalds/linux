@@ -1258,7 +1258,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
     dwc_modify_reg32((uint32_t *)(otgreg+0xc),0x20000000,0x20000000);
 	dwc_write_reg32((uint32_t *)(otgreg+0x440), 0x1000);
     #endif
-	DWC_PRINT("dwc_otg_driver_probe,everest\n");
 
 	dwc_otg_device = kmalloc(sizeof(dwc_otg_device_t), GFP_KERNEL);
 	
@@ -1487,7 +1486,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
         *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
     }
 #endif
-	DWC_PRINT("dwc_otg_driver_probe end, everest\n");
 	return 0;
  fail:
 	devm_kfree(&pdev->dev, dwc_otg_device);
@@ -1864,7 +1862,6 @@ static __devinit int host11_driver_probe(struct platform_device *pdev)
     clk_disable(phyclk);
     clk_disable(ahbclk);
 #endif
-	DWC_PRINT("host11_driver_probe end, everest\n");
 	return 0;
     
 fail2:
@@ -2151,7 +2148,6 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
     otgreg |= (0x01<<13);     // software control
     *otg_phy_con1 = otgreg;
 #endif
-	DWC_PRINT("host20_driver_probe end, everest\n");
 	return 0;
 
  fail:
@@ -2207,6 +2203,18 @@ static int __init dwc_otg_driver_init(void)
     if(driver_create_file(&dwc_otg_driver.driver, &driver_attr_force_usb_mode))
 		pr_warning("DWC_OTG: Failed to create driver force usb mode file\n");
 #endif
+    
+    /*
+     *  USB2.0 host controller
+     */
+#ifdef CONFIG_USB20_HOST
+    retval = platform_driver_register(&host20_driver);
+    if (retval < 0) 
+    {
+        DWC_ERROR("%s retval=%d\n", __func__, retval);
+        return retval;
+    }
+#endif
 
     /*
      *  USB1.1 host controller
@@ -2222,17 +2230,6 @@ static int __init dwc_otg_driver_init(void)
 //	retval = driver_create_file(&host11_driver.driver, &driver_attr_enable_usb11);
 #endif
 
-    /*
-     *  USB1.1 host controller
-     */
-#ifdef CONFIG_USB20_HOST
-	retval = platform_driver_register(&host20_driver);
-	if (retval < 0) 
-	{
-		DWC_ERROR("%s retval=%d\n", __func__, retval);
-		return retval;
-	}
-#endif
 	return retval;
 }
 module_init(dwc_otg_driver_init);

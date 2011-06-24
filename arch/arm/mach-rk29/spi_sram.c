@@ -285,6 +285,8 @@ static void __sramfunc sram_spi_init(void)
 	sram_spi_dis();// disable spi
 	
 	spi_data[SPI_CTRLR0] = spi_readl(SPIM_CTRLR0); 
+	spi_data[SPI_BAUDR] = spi_readl(SPIM_BAUDR);
+	
 	spi_writel((spi_data[SPI_CTRLR0]&~0x1fffc3)|0x1<<11|(SRAM_SPI_DATA_BYTE),SPIM_CTRLR0);//spi setting
 	spi_writel((spi_data[SPI_BAUDR]&(~0xffff))|SRAM_SPI_DIV,SPIM_BAUDR);//setting spi speed
 	spi_data[SPI_SER]=spi_readl(SPIM_SER);//spi cs
@@ -449,12 +451,15 @@ void __sramfunc rk29_suspend_voltage_resume(unsigned int vol)
 	sram_printch('G');
 	data_4003&=~(0x1<<14);
 	sram_spi_write(addr_4003,data_4003);// sleep
-
+	
+	
 	data_4003=sram_spi_read(addr_4003|wm831x_RD_MSK,wm831x_RD_VOID);
 	sram_printHX(data_4003);//sleep ctr
 
 	
 	sram_spi_deinit();
+	
+	sram_udelay(100000,24);
 	
 }
 
