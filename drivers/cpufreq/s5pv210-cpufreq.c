@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/cpufreq.h>
 #include <linux/regulator/consumer.h>
+#include <linux/suspend.h>
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
@@ -29,6 +30,9 @@ static struct cpufreq_freqs freqs;
 /* APLL M,P,S values for 1G/800Mhz */
 #define APLL_VAL_1000	((1 << 31) | (125 << 16) | (3 << 8) | 1)
 #define APLL_VAL_800	((1 << 31) | (100 << 16) | (3 << 8) | 1)
+
+/* Use 800MHz when entering sleep mode */
+#define SLEEP_FREQ	(800 * 1000)
 
 /*
  * relation has an additional symantics other than the standard of cpufreq
@@ -552,6 +556,30 @@ out_dmc0:
 	return ret;
 }
 
+static int s5pv210_cpufreq_notifier_event(struct notifier_block *this,
+					  unsigned long event, void *ptr)
+{
+	int ret;
+
+	switch (event) {
+	case PM_SUSPEND_PREPARE:
+		ret = cpufreq_driver_target(cpufreq_cpu_get(0), SLEEP_FREQ,
+					    DISABLE_FURTHER_CPUFREQ);
+		if (ret < 0)
+			return NOTIFY_BAD;
+
+		return NOTIFY_OK;
+	case PM_POST_RESTORE:
+	case PM_POST_SUSPEND:
+		cpufreq_driver_target(cpufreq_cpu_get(0), SLEEP_FREQ,
+				      ENABLE_FURTHER_CPUFREQ);
+
+		return NOTIFY_OK;
+	}
+
+	return NOTIFY_DONE;
+}
+
 static struct cpufreq_driver s5pv210_driver = {
 	.flags		= CPUFREQ_STICKY,
 	.verify		= s5pv210_verify_speed,
@@ -563,6 +591,10 @@ static struct cpufreq_driver s5pv210_driver = {
 	.suspend	= s5pv210_cpufreq_suspend,
 	.resume		= s5pv210_cpufreq_resume,
 #endif
+};
+
+static struct notifier_block s5pv210_cpufreq_notifier = {
+	.notifier_call = s5pv210_cpufreq_notifier_event,
 };
 
 static int __init s5pv210_cpufreq_init(void)
@@ -579,6 +611,8 @@ static int __init s5pv210_cpufreq_init(void)
 		regulator_put(arm_regulator);
 		return PTR_ERR(int_regulator);
 	}
+
+	register_pm_notifier(&s5pv210_cpufreq_notifier);
 
 	return cpufreq_register_driver(&s5pv210_driver);
 }
