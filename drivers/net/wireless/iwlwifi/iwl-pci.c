@@ -496,14 +496,11 @@ static void iwl_pci_down(void *bus)
 static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl_priv *priv = pci_get_drvdata(pdev);
-
-	/* This can happen if probe failed */
-	if (unlikely(!priv))
-		return;
+	void *bus_specific = priv->bus.bus_specific;
 
 	iwl_remove(priv);
 
-	iwl_pci_down(IWL_BUS_GET_PCI_BUS(&priv->bus));
+	iwl_pci_down(bus_specific);
 }
 
 #ifdef CONFIG_PM
