@@ -54,11 +54,10 @@ char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
 			      "Intel(R) 10 Gigabit PCI Express Network Driver";
 #define MAJ 3
-#define MIN 3
+#define MIN 4
 #define BUILD 8
-#define KFIX 2
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
-	__stringify(BUILD) "-k" __stringify(KFIX)
+	__stringify(BUILD) "-k"
 const char ixgbe_driver_version[] = DRV_VERSION;
 static const char ixgbe_copyright[] =
 				"Copyright (c) 1999-2011 Intel Corporation.";
@@ -1555,9 +1554,8 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 			q_vector->eitr = adapter->rx_eitr_param;
 
 		ixgbe_write_eitr(q_vector);
-		/* If Flow Director is enabled, set interrupt affinity */
-		if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
-		    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)) {
+		/* If ATR is enabled, set interrupt affinity */
+		if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
 			/*
 			 * Allocate the affinity_hint cpumask, assign the mask
 			 * for this vector, and set our affinity_hint for
@@ -2468,8 +2466,7 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 	default:
 		break;
 	}
-	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
-	    adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)
+	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)
 		mask |= IXGBE_EIMS_FLOW_DIR;
 
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, mask);
@@ -3743,6 +3740,30 @@ static void ixgbe_configure_pb(struct ixgbe_adapter *adapter)
 	hw->mac.ops.set_rxpba(&adapter->hw, num_tc, hdrm, PBA_STRATEGY_EQUAL);
 }
 
+static void ixgbe_fdir_filter_restore(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct hlist_node *node, *node2;
+	struct ixgbe_fdir_filter *filter;
+
+	spin_lock(&adapter->fdir_perfect_lock);
+
+	if (!hlist_empty(&adapter->fdir_filter_list))
+		ixgbe_fdir_set_input_mask_82599(hw, &adapter->fdir_mask);
+
+	hlist_for_each_entry_safe(filter, node, node2,
+				  &adapter->fdir_filter_list, fdir_node) {
+		ixgbe_fdir_write_perfect_filter_82599(hw,
+				&filter->filter,
+				filter->sw_idx,
+				(filter->action == IXGBE_FDIR_DROP_QUEUE) ?
+				IXGBE_FDIR_DROP_QUEUE :
+				adapter->rx_ring[filter->action]->reg_idx);
+	}
+
+	spin_unlock(&adapter->fdir_perfect_lock);
+}
+
 static void ixgbe_configure(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -3768,7 +3789,9 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 						       adapter->atr_sample_rate;
 		ixgbe_init_fdir_signature_82599(hw, adapter->fdir_pballoc);
 	} else if (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE) {
-		ixgbe_init_fdir_perfect_82599(hw, adapter->fdir_pballoc);
+		ixgbe_init_fdir_perfect_82599(&adapter->hw,
+					      adapter->fdir_pballoc);
+		ixgbe_fdir_filter_restore(adapter);
 	}
 	ixgbe_configure_virtualization(adapter);
 
@@ -4145,6 +4168,23 @@ static void ixgbe_clean_all_tx_rings(struct ixgbe_adapter *adapter)
 		ixgbe_clean_tx_ring(adapter->tx_ring[i]);
 }
 
+static void ixgbe_fdir_filter_exit(struct ixgbe_adapter *adapter)
+{
+	struct hlist_node *node, *node2;
+	struct ixgbe_fdir_filter *filter;
+
+	spin_lock(&adapter->fdir_perfect_lock);
+
+	hlist_for_each_entry_safe(filter, node, node2,
+				  &adapter->fdir_filter_list, fdir_node) {
+		hlist_del(&filter->fdir_node);
+		kfree(filter);
+	}
+	adapter->fdir_filter_count = 0;
+
+	spin_unlock(&adapter->fdir_perfect_lock);
+}
+
 void ixgbe_down(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -4334,15 +4374,13 @@ static inline bool ixgbe_set_fdir_queues(struct ixgbe_adapter *adapter)
 	f_fdir->mask = 0;
 
 	/* Flow Director must have RSS enabled */
-	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED &&
-	    ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
-	     (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)))) {
+	if ((adapter->flags & IXGBE_FLAG_RSS_ENABLED) &&
+	    (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)) {
 		adapter->num_tx_queues = f_fdir->indices;
 		adapter->num_rx_queues = f_fdir->indices;
 		ret = true;
 	} else {
 		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
-		adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
 	}
 	return ret;
 }
@@ -4372,12 +4410,12 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 
 	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
 		e_info(probe, "FCoE enabled with RSS\n");
-		if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
-		    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+		if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)
 			ixgbe_set_fdir_queues(adapter);
 		else
 			ixgbe_set_rss_queues(adapter);
 	}
+
 	/* adding FCoE rx rings to the end */
 	f->mask = adapter->num_rx_queues;
 	adapter->num_rx_queues += f->indices;
@@ -4670,9 +4708,8 @@ static inline bool ixgbe_cache_ring_fdir(struct ixgbe_adapter *adapter)
 	int i;
 	bool ret = false;
 
-	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED &&
-	    ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
-	     (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))) {
+	if ((adapter->flags & IXGBE_FLAG_RSS_ENABLED) &&
+	    (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)) {
 		for (i = 0; i < adapter->num_rx_queues; i++)
 			adapter->rx_ring[i]->reg_idx = i;
 		for (i = 0; i < adapter->num_tx_queues; i++)
@@ -4701,8 +4738,7 @@ static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
 		return false;
 
 	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-		if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
-		    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
+		if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)
 			ixgbe_cache_ring_fdir(adapter);
 		else
 			ixgbe_cache_ring_rss(adapter);
@@ -4882,14 +4918,12 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 
 	adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 	adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
-	if (adapter->flags & (IXGBE_FLAG_FDIR_HASH_CAPABLE |
-			      IXGBE_FLAG_FDIR_PERFECT_CAPABLE)) {
+	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
 		e_err(probe,
-		      "Flow Director is not supported while multiple "
+		      "ATR is not supported while multiple "
 		      "queues are disabled.  Disabling Flow Director\n");
 	}
 	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
-	adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
 	adapter->atr_sample_rate = 0;
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
 		ixgbe_disable_sriov(adapter);
@@ -5140,7 +5174,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->atr_sample_rate = 20;
 		adapter->ring_feature[RING_F_FDIR].indices =
 							 IXGBE_MAX_FDIR_INDICES;
-		adapter->fdir_pballoc = 0;
+		adapter->fdir_pballoc = IXGBE_FDIR_PBALLOC_64K;
 #ifdef IXGBE_FCOE
 		adapter->flags |= IXGBE_FLAG_FCOE_CAPABLE;
 		adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
@@ -5536,6 +5570,8 @@ static int ixgbe_close(struct net_device *netdev)
 
 	ixgbe_down(adapter);
 	ixgbe_free_irq(adapter);
+
+	ixgbe_fdir_filter_exit(adapter);
 
 	ixgbe_free_all_tx_resources(adapter);
 	ixgbe_free_all_rx_resources(adapter);
@@ -7676,7 +7712,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	/* Inform firmware of driver version */
 	if (hw->mac.ops.set_fw_drv_ver)
-		hw->mac.ops.set_fw_drv_ver(hw, MAJ, MIN, BUILD, KFIX);
+		hw->mac.ops.set_fw_drv_ver(hw, MAJ, MIN, BUILD,
+					   FW_CEM_UNUSED_VER);
 
 	/* add san mac addr to netdev */
 	ixgbe_add_sanmac_netdev(netdev);

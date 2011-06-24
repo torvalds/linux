@@ -2056,9 +2056,10 @@ enum {
 #define IXGBE_VFLREC(_i)                 (0x00700 + (_i * 4))
 
 enum ixgbe_fdir_pballoc_type {
-	IXGBE_FDIR_PBALLOC_64K = 0,
-	IXGBE_FDIR_PBALLOC_128K,
-	IXGBE_FDIR_PBALLOC_256K,
+	IXGBE_FDIR_PBALLOC_NONE = 0,
+	IXGBE_FDIR_PBALLOC_64K  = 1,
+	IXGBE_FDIR_PBALLOC_128K = 2,
+	IXGBE_FDIR_PBALLOC_256K = 3,
 };
 #define IXGBE_FDIR_PBALLOC_SIZE_SHIFT           16
 
@@ -2112,7 +2113,7 @@ enum ixgbe_fdir_pballoc_type {
 #define IXGBE_FDIRCMD_CMD_ADD_FLOW              0x00000001
 #define IXGBE_FDIRCMD_CMD_REMOVE_FLOW           0x00000002
 #define IXGBE_FDIRCMD_CMD_QUERY_REM_FILT        0x00000003
-#define IXGBE_FDIRCMD_CMD_QUERY_REM_HASH        0x00000007
+#define IXGBE_FDIRCMD_FILTER_VALID              0x00000004
 #define IXGBE_FDIRCMD_FILTER_UPDATE             0x00000008
 #define IXGBE_FDIRCMD_IPv6DMATCH                0x00000010
 #define IXGBE_FDIRCMD_L4TYPE_UDP                0x00000020
@@ -2131,6 +2132,8 @@ enum ixgbe_fdir_pballoc_type {
 #define IXGBE_FDIR_INIT_DONE_POLL               10
 #define IXGBE_FDIRCMD_CMD_POLL                  10
 
+#define IXGBE_FDIR_DROP_QUEUE                   127
+
 /* Manageablility Host Interface defines */
 #define IXGBE_HI_MAX_BLOCK_BYTE_LENGTH       1792 /* Num of bytes in range */
 #define IXGBE_HI_MAX_BLOCK_DWORD_LENGTH      448 /* Num of dwords in range */
@@ -2140,7 +2143,8 @@ enum ixgbe_fdir_pballoc_type {
 #define FW_CEM_HDR_LEN                0x4
 #define FW_CEM_CMD_DRIVER_INFO        0xDD
 #define FW_CEM_CMD_DRIVER_INFO_LEN    0x5
-#define FW_CEM_CMD_RESERVED           0X0
+#define FW_CEM_CMD_RESERVED           0x0
+#define FW_CEM_UNUSED_VER             0x0
 #define FW_CEM_MAX_RETRIES            3
 #define FW_CEM_RESP_STATUS_SUCCESS    0x1
 
@@ -2350,7 +2354,7 @@ union ixgbe_atr_input {
 	 * src_port   - 2 bytes
 	 * dst_port   - 2 bytes
 	 * flex_bytes - 2 bytes
-	 * rsvd0      - 2 bytes - space reserved must be 0.
+	 * bkt_hash   - 2 bytes
 	 */
 	struct {
 		u8     vm_pool;
@@ -2361,7 +2365,7 @@ union ixgbe_atr_input {
 		__be16 src_port;
 		__be16 dst_port;
 		__be16 flex_bytes;
-		__be16 rsvd0;
+		__be16 bkt_hash;
 	} formatted;
 	__be32 dword_stream[11];
 };
@@ -2380,16 +2384,6 @@ union ixgbe_atr_hash_dword {
 	} port;
 	__be16 flex_bytes;
 	__be32 dword;
-};
-
-struct ixgbe_atr_input_masks {
-	__be16 rsvd0;
-	__be16 vlan_id_mask;
-	__be32 dst_ip_mask[4];
-	__be32 src_ip_mask[4];
-	__be16 src_port_mask;
-	__be16 dst_port_mask;
-	__be16 flex_mask;
 };
 
 enum ixgbe_eeprom_type {
