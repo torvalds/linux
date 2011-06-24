@@ -35,6 +35,7 @@ foreach my $file (@files) {
 		$line =~ s/([\s(])__iomem\s/$1/g;
 		$line =~ s/\s__attribute_const__\s/ /g;
 		$line =~ s/\s__attribute_const__$//g;
+		$line =~ s/\b__packed\b/__attribute__((packed))/g;
 		$line =~ s/^#include <linux\/compiler.h>//;
 		$line =~ s/(^|\s)(inline)\b/$1__$2__/g;
 		$line =~ s/(^|\s)(asm)\b(\s|[(]|$)/$1__$2__$3/g;
