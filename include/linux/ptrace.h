@@ -136,7 +136,7 @@ extern bool ptrace_may_access(struct task_struct *task, unsigned int mode);
 
 static inline int ptrace_reparented(struct task_struct *child)
 {
-	return child->real_parent != child->parent;
+	return !same_thread_group(child->real_parent, child->parent);
 }
 
 static inline void ptrace_unlink(struct task_struct *child)
