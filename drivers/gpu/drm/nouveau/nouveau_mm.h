@@ -42,6 +42,7 @@ struct nouveau_mm {
 	struct mutex mutex;
 
 	u32 block_size;
+	int heap_nodes;
 };
 
 int  nouveau_mm_init(struct nouveau_mm *, u32 offset, u32 length, u32 block);

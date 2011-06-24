@@ -129,21 +129,25 @@ nouveau_mm_get(struct nouveau_mm *mm, int type, u32 size, u32 size_nc,
 int
 nouveau_mm_init(struct nouveau_mm *mm, u32 offset, u32 length, u32 block)
 {
-	struct nouveau_mm_node *heap;
+	struct nouveau_mm_node *node;
 
-	heap = kzalloc(sizeof(*heap), GFP_KERNEL);
-	if (!heap)
+	if (block) {
+		mutex_init(&mm->mutex);
+		INIT_LIST_HEAD(&mm->nodes);
+		INIT_LIST_HEAD(&mm->free);
+		mm->block_size = block;
+		mm->heap_nodes = 0;
+	}
+
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
 		return -ENOMEM;
-	heap->offset = roundup(offset, block);
-	heap->length = rounddown(offset + length, block) - heap->offset;
+	node->offset = roundup(offset, mm->block_size);
+	node->length = rounddown(offset + length, mm->block_size) - node->offset;
 
-	mutex_init(&mm->mutex);
-	mm->block_size = block;
-	INIT_LIST_HEAD(&mm->nodes);
-	INIT_LIST_HEAD(&mm->free);
-
-	list_add(&heap->nl_entry, &mm->nodes);
-	list_add(&heap->fl_entry, &mm->free);
+	list_add_tail(&node->nl_entry, &mm->nodes);
+	list_add_tail(&node->fl_entry, &mm->free);
+	mm->heap_nodes++;
 	return 0;
 }
 
@@ -152,15 +156,18 @@ nouveau_mm_fini(struct nouveau_mm *mm)
 {
 	struct nouveau_mm_node *node, *heap =
 		list_first_entry(&mm->nodes, struct nouveau_mm_node, nl_entry);
+	int nodes = 0;
 
-	if (!list_is_singular(&mm->nodes)) {
-		printk(KERN_ERR "nouveau_mm not empty at destroy time!\n");
-		list_for_each_entry(node, &mm->nodes, nl_entry) {
-			printk(KERN_ERR "0x%02x: 0x%08x 0x%08x\n",
-			       node->type, node->offset, node->length);
+	list_for_each_entry(node, &mm->nodes, nl_entry) {
+		if (nodes++ == mm->heap_nodes) {
+			printk(KERN_ERR "nouveau_mm in use at destroy time!\n");
+			list_for_each_entry(node, &mm->nodes, nl_entry) {
+				printk(KERN_ERR "0x%02x: 0x%08x 0x%08x\n",
+				       node->type, node->offset, node->length);
+			}
+			WARN_ON(1);
+			return -EBUSY;
 		}
-		WARN_ON(1);
-		return -EBUSY;
 	}
 
 	kfree(heap);
