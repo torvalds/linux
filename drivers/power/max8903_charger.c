@@ -388,4 +388,4 @@ module_exit(max8903_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MAX8903 Charger Driver");
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
-MODULE_ALIAS("max8903-charger");
+MODULE_ALIAS("platform:max8903-charger");
