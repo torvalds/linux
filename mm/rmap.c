@@ -21,7 +21,6 @@
  * Lock ordering in mm:
  *
  * inode->i_mutex	(while writing or truncating, not reading or faulting)
- *   inode->i_alloc_sem (vmtruncate_range)
  *   mm->mmap_sem
  *     page->flags PG_locked (lock_page)
  *       mapping->i_mmap_mutex

@@ -168,8 +168,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	mutex_init(&inode->i_mutex);
 	lockdep_set_class(&inode->i_mutex, &sb->s_type->i_mutex_key);
 
-	init_rwsem(&inode->i_alloc_sem);
-	lockdep_set_class(&inode->i_alloc_sem, &sb->s_type->i_alloc_sem_key);
+	atomic_set(&inode->i_dio_count, 0);
 
 	mapping->a_ops = &empty_aops;
 	mapping->host = inode;
