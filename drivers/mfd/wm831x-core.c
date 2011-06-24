@@ -732,6 +732,9 @@ static struct mfd_cell wm8310_devs[] = {
 		.resources = wm831x_dcdc4_resources,
 	},
 	{
+		.name = "wm831x-clk",
+	},
+	{
 		.name = "wm831x-epe",
 		.id = 1,
 	},
@@ -883,6 +886,9 @@ static struct mfd_cell wm8311_devs[] = {
 		.resources = wm831x_dcdc4_resources,
 	},
 	{
+		.name = "wm831x-clk",
+	},
+	{
 		.name = "wm831x-epe",
 		.id = 1,
 	},
@@ -1008,6 +1014,9 @@ static struct mfd_cell wm8312_devs[] = {
 		.id = 4,
 		.num_resources = ARRAY_SIZE(wm831x_dcdc4_resources),
 		.resources = wm831x_dcdc4_resources,
+	},
+	{
+		.name = "wm831x-clk",
 	},
 	{
 		.name = "wm831x-epe",
@@ -1159,6 +1168,9 @@ static struct mfd_cell wm8320_devs[] = {
 		.id = 4,
 		.num_resources = ARRAY_SIZE(wm8320_dcdc4_buck_resources),
 		.resources = wm8320_dcdc4_buck_resources,
+	},
+	{
+		.name = "wm831x-clk",
 	},
 	{
 		.name = "wm831x-gpio",
