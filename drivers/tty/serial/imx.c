@@ -45,6 +45,8 @@
 #include <linux/delay.h>
 #include <linux/rational.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -234,6 +236,13 @@ static struct platform_device_id imx_uart_devtype[] = {
 	}
 };
 MODULE_DEVICE_TABLE(platform, imx_uart_devtype);
+
+static struct of_device_id imx_uart_dt_ids[] = {
+	{ .compatible = "fsl,imx1-uart", .data = &imx_uart_devdata[IMX1_UART], },
+	{ .compatible = "fsl,imx21-uart", .data = &imx_uart_devdata[IMX21_UART], },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, imx_uart_dt_ids);
 
 static inline unsigned uts_reg(struct imx_port *sport)
 {
@@ -1273,6 +1282,63 @@ static int serial_imx_resume(struct platform_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static int serial_imx_probe_dt(struct imx_port *sport,
+		struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *of_id =
+			of_match_device(imx_uart_dt_ids, &pdev->dev);
+	int ret;
+
+	if (!np)
+		return -ENODEV;
+
+	ret = of_alias_get_id(np, "serial");
+	if (ret < 0) {
+		pr_err("%s: failed to get alias id, errno %d\n",
+			__func__, ret);
+		return -ENODEV;
+	} else {
+		sport->port.line = ret;
+	}
+
+	if (of_get_property(np, "fsl,uart-has-rtscts", NULL))
+		sport->have_rtscts = 1;
+
+	if (of_get_property(np, "fsl,irda-mode", NULL))
+		sport->use_irda = 1;
+
+	sport->devdata = of_id->data;
+
+	return 0;
+}
+#else
+static inline int serial_imx_probe_dt(struct imx_port *sport,
+		struct platform_device *pdev)
+{
+	return -ENODEV;
+}
+#endif
+
+static void serial_imx_probe_pdata(struct imx_port *sport,
+		struct platform_device *pdev)
+{
+	struct imxuart_platform_data *pdata = pdev->dev.platform_data;
+
+	sport->port.line = pdev->id;
+	sport->devdata = (struct imx_uart_data	*) pdev->id_entry->driver_data;
+
+	if (!pdata)
+		return;
+
+	if (pdata->flags & IMXUART_HAVE_RTSCTS)
+		sport->have_rtscts = 1;
+
+	if (pdata->flags & IMXUART_IRDA)
+		sport->use_irda = 1;
+}
+
 static int serial_imx_probe(struct platform_device *pdev)
 {
 	struct imx_port *sport;
@@ -1284,6 +1350,10 @@ static int serial_imx_probe(struct platform_device *pdev)
 	sport = kzalloc(sizeof(*sport), GFP_KERNEL);
 	if (!sport)
 		return -ENOMEM;
+
+	ret = serial_imx_probe_dt(sport, pdev);
+	if (ret == -ENODEV)
+		serial_imx_probe_pdata(sport, pdev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -1309,11 +1379,9 @@ static int serial_imx_probe(struct platform_device *pdev)
 	sport->port.fifosize = 32;
 	sport->port.ops = &imx_pops;
 	sport->port.flags = UPF_BOOT_AUTOCONF;
-	sport->port.line = pdev->id;
 	init_timer(&sport->timer);
 	sport->timer.function = imx_timeout;
 	sport->timer.data     = (unsigned long)sport;
-	sport->devdata = (struct imx_uart_data	*) pdev->id_entry->driver_data;
 
 	sport->clk = clk_get(&pdev->dev, "uart");
 	if (IS_ERR(sport->clk)) {
@@ -1324,17 +1392,9 @@ static int serial_imx_probe(struct platform_device *pdev)
 
 	sport->port.uartclk = clk_get_rate(sport->clk);
 
-	imx_ports[pdev->id] = sport;
+	imx_ports[sport->port.line] = sport;
 
 	pdata = pdev->dev.platform_data;
-	if (pdata && (pdata->flags & IMXUART_HAVE_RTSCTS))
-		sport->have_rtscts = 1;
-
-#ifdef CONFIG_IRDA
-	if (pdata && (pdata->flags & IMXUART_IRDA))
-		sport->use_irda = 1;
-#endif
-
 	if (pdata && pdata->init) {
 		ret = pdata->init(pdev);
 		if (ret)
@@ -1396,6 +1456,7 @@ static struct platform_driver serial_imx_driver = {
 	.driver		= {
 		.name	= "imx-uart",
 		.owner	= THIS_MODULE,
+		.of_match_table = imx_uart_dt_ids,
 	},
 };
 
