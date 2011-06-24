@@ -1599,8 +1599,7 @@ static int wait_consider_task(struct wait_opts *wo, int ptrace,
 		 * own children, it should create a separate process which
 		 * takes the role of real parent.
 		 */
-		if (likely(!ptrace) && p->ptrace &&
-		    same_thread_group(p->parent, p->real_parent))
+		if (likely(!ptrace) && p->ptrace && !ptrace_reparented(p))
 			return 0;
 
 		/*
