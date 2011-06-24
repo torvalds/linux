@@ -61,7 +61,7 @@ nvc0_vram_new(struct drm_device *dev, u64 size, u32 align, u32 ncmin,
 	      u32 type, struct nouveau_mem **pmem)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_mm *mm = dev_priv->engine.vram.mm;
+	struct nouveau_mm *mm = &dev_priv->engine.vram.mm;
 	struct nouveau_mm_node *r;
 	struct nouveau_mem *mem;
 	int ret;

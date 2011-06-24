@@ -518,7 +518,7 @@ struct nouveau_pm_engine {
 };
 
 struct nouveau_vram_engine {
-	struct nouveau_mm *mm;
+	struct nouveau_mm mm;
 
 	int  (*init)(struct drm_device *);
 	void (*takedown)(struct drm_device *dev);
