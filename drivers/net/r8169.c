@@ -742,7 +742,7 @@ static void rtl8168_oob_notify(struct rtl8169_private *tp, u8 cmd)
 	msleep(2);
 	for (i = 0; i < 5; i++) {
 		udelay(100);
-		if (!(RTL_R32(ERIDR) & ERIAR_FLAG))
+		if (!(RTL_R32(ERIAR) & ERIAR_FLAG))
 			break;
 	}
 
