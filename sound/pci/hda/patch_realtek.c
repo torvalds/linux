@@ -7184,12 +7184,8 @@ static int alc260_auto_create_multi_out_ctls(struct alc_spec *spec,
 	nid = cfg->line_out_pins[0];
 	if (nid) {
 		const char *pfx;
-		if (!cfg->speaker_pins[0] && !cfg->hp_pins[0])
-			pfx = "Master";
-		else if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
-			pfx = "Speaker";
-		else
-			pfx = "Front";
+		int index;
+		pfx = alc_get_line_out_pfx(spec, 0, true, &index);
 		err = alc260_add_playback_controls(spec, nid, pfx, &vols);
 		if (err < 0)
 			return err;
@@ -13639,10 +13635,8 @@ static int alc268_auto_create_multi_out_ctls(struct alc_spec *spec,
 	nid = cfg->line_out_pins[0];
 	if (nid) {
 		const char *name;
-		if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
-			name = "Speaker";
-		else
-			name = "Front";
+		int index;
+		name = alc_get_line_out_pfx(spec, 0, true, &index);
 		err = alc268_new_analog_output(spec, nid, name, 0);
 		if (err < 0)
 			return err;
@@ -19871,10 +19865,8 @@ static int alc680_auto_create_multi_out_ctls(struct alc_spec *spec,
 	nid = cfg->line_out_pins[0];
 	if (nid) {
 		const char *name;
-		if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
-			name = "Speaker";
-		else
-			name = "Front";
+		int index;
+		name = alc_get_line_out_pfx(spec, 0, true, &index);
 		err = alc680_new_analog_output(spec, nid, name, 0);
 		if (err < 0)
 			return err;
