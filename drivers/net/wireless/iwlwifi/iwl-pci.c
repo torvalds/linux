@@ -383,7 +383,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	struct iwl_pci_bus *bus;
-	u8 rev_id;
 	u16 pci_cmd;
 	int err;
 
@@ -440,8 +439,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		(unsigned long long) pci_resource_len(pdev, 0));
 	pr_info("pci_resource_base = %p\n", bus->hw_base);
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
-	pr_info("HW Revision ID = 0x%X\n", rev_id);
+	pr_info("HW Revision ID = 0x%X\n", pdev->revision);
 
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep
 	 * PCI Tx retries from interfering with C3 CPU state */
