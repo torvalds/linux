@@ -1049,7 +1049,7 @@ static void dma_transfer(struct rk29xx_spi *dws) //int cs_change)
 			burst = 4;
 		}
 		if (rk29_dma_config(dws->tx_dmach, burst)) {*/
-		if (rk29_dma_config(dws->tx_dmach, 1)) {//there is not dma burst but bitwide, set it 1 alwayss
+		if (rk29_dma_config(dws->tx_dmach, 1, 1)) {//there is not dma burst but bitwide, set it 1 alwayss
 			dev_err(&dws->master->dev, "function: %s, line: %d\n", __FUNCTION__, __LINE__);
 			goto err_out;
 		}
@@ -1074,7 +1074,7 @@ static void dma_transfer(struct rk29xx_spi *dws) //int cs_change)
 
 	if (transfer->rx_buf != NULL) {
 		dws->state |= RXBUSY;
-		if (rk29_dma_config(dws->rx_dmach, 1)) {
+		if (rk29_dma_config(dws->rx_dmach, 1, 1)) {
 			dev_err(&dws->master->dev, "function: %s, line: %d\n", __FUNCTION__, __LINE__);
 			goto err_out;
 		}
