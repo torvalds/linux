@@ -63,7 +63,7 @@ qla2100_intr_handler(int irq, void *dev_id)
 
 			/*
 			 * Issue a "HARD" reset in order for the RISC interrupt
-			 * bit to be cleared.  Schedule a big hammmer to get
+			 * bit to be cleared.  Schedule a big hammer to get
 			 * out of the RISC PAUSED state.
 			 */
 			WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
@@ -169,7 +169,7 @@ qla2300_intr_handler(int irq, void *dev_id)
 			/*
 			 * Issue a "HARD" reset in order for the RISC
 			 * interrupt bit to be cleared.  Schedule a big
-			 * hammmer to get out of the RISC PAUSED state.
+			 * hammer to get out of the RISC PAUSED state.
 			 */
 			WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
 			RD_REG_WORD(&reg->hccr);
