@@ -236,6 +236,11 @@ extern void ipfrag_init(void);
 
 extern void ip_static_sysctl_init(void);
 
+static inline bool ip_is_fragment(const struct iphdr *iph)
+{
+	return (iph->frag_off & htons(IP_MF | IP_OFFSET)) != 0;
+}
+
 #ifdef CONFIG_INET
 #include <net/dst.h>
 
@@ -248,11 +253,6 @@ int ip_decrease_ttl(struct iphdr *iph)
 	check += (__force u32)htons(0x0100);
 	iph->check = (__force __sum16)(check + (check>=0xFFFF));
 	return --iph->ttl;
-}
-
-static inline bool ip_is_fragment(const struct iphdr *iph)
-{
-	return (iph->frag_off & htons(IP_MF | IP_OFFSET)) != 0;
 }
 
 static inline
