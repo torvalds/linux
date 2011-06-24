@@ -893,6 +893,7 @@ enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
 	enum scic_sds_phy_states state = sci_phy->sm.current_state_id;
 	struct scic_sds_controller *scic = sci_phy->owning_port->owning_controller;
 	enum sci_status result;
+	unsigned long flags;
 
 	switch (state) {
 	case SCI_PHY_SUB_AWAIT_IAF_UF: {
@@ -911,7 +912,9 @@ enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
 		if (iaf.frame_type == 0) {
 			u32 state;
 
+			spin_lock_irqsave(&iphy->sas_phy.frame_rcvd_lock, flags);
 			memcpy(&iphy->frame_rcvd.iaf, &iaf, sizeof(iaf));
+			spin_unlock_irqrestore(&iphy->sas_phy.frame_rcvd_lock, flags);
 			if (iaf.smp_tport) {
 				/* We got the IAF for an expander PHY go to the final
 				 * state since there are no power requirements for
@@ -954,9 +957,11 @@ enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
 								      frame_index,
 								      (void **)&fis_frame_data);
 
+			spin_lock_irqsave(&iphy->sas_phy.frame_rcvd_lock, flags);
 			scic_sds_controller_copy_sata_response(&iphy->frame_rcvd.fis,
 							       frame_header,
 							       fis_frame_data);
+			spin_unlock_irqrestore(&iphy->sas_phy.frame_rcvd_lock, flags);
 
 			/* got IAF we can now go to the await spinup semaphore state */
 			sci_change_state(&sci_phy->sm, SCI_PHY_SUB_FINAL);
