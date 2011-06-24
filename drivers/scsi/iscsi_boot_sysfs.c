@@ -472,6 +472,9 @@ void iscsi_boot_destroy_kset(struct iscsi_boot_kset *boot_kset)
 {
 	struct iscsi_boot_kobj *boot_kobj, *tmp_kobj;
 
+	if (!boot_kset)
+		return;
+
 	list_for_each_entry_safe(boot_kobj, tmp_kobj,
 				 &boot_kset->kobj_list, list)
 		iscsi_boot_remove_kobj(boot_kobj);
