@@ -291,7 +291,7 @@ objlayout_read_done(struct objlayout_io_state *state, ssize_t status, bool sync)
 	struct nfs_read_data *rdata;
 
 	state->status = status;
-	dprintk("%s: Begin status=%ld eof=%d\n", __func__, status, eof);
+	dprintk("%s: Begin status=%zd eof=%d\n", __func__, status, eof);
 	rdata = state->rpcdata;
 	rdata->task.tk_status = status;
 	if (status >= 0) {

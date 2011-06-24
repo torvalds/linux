@@ -1233,8 +1233,12 @@ static int dlfb_setup_modes(struct dlfb_data *dev,
 			if (dlfb_is_valid_mode(&info->monspecs.modedb[i], info))
 				fb_add_videomode(&info->monspecs.modedb[i],
 					&info->modelist);
-			else /* if we've removed top/best mode */
-				info->monspecs.misc &= ~FB_MISC_1ST_DETAIL;
+			else {
+				if (i == 0)
+					/* if we've removed top/best mode */
+					info->monspecs.misc
+						&= ~FB_MISC_1ST_DETAIL;
+			}
 		}
 
 		default_vmode = fb_find_best_display(&info->monspecs,

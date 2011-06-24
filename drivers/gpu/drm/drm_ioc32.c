@@ -28,6 +28,7 @@
  * IN THE SOFTWARE.
  */
 #include <linux/compat.h>
+#include <linux/ratelimit.h>
 
 #include "drmP.h"
 #include "drm_core.h"
@@ -253,10 +254,10 @@ static int compat_drm_addmap(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	m32.handle = (unsigned long)handle;
-	if (m32.handle != (unsigned long)handle && printk_ratelimit())
-		printk(KERN_ERR "compat_drm_addmap truncated handle"
-		       " %p for type %d offset %x\n",
-		       handle, m32.type, m32.offset);
+	if (m32.handle != (unsigned long)handle)
+		printk_ratelimited(KERN_ERR "compat_drm_addmap truncated handle"
+				   " %p for type %d offset %x\n",
+				   handle, m32.type, m32.offset);
 
 	if (copy_to_user(argp, &m32, sizeof(m32)))
 		return -EFAULT;

@@ -3076,6 +3076,7 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	ret = btrfs_update_inode(trans, root, dir);
 	BUG_ON(ret);
 
+	btrfs_free_path(path);
 	return 0;
 }
 

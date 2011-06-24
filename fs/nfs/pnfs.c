@@ -634,14 +634,16 @@ _pnfs_return_layout(struct inode *ino)
 
 	spin_lock(&ino->i_lock);
 	lo = nfsi->layout;
-	if (!lo || !mark_matching_lsegs_invalid(lo, &tmp_list, NULL)) {
+	if (!lo) {
 		spin_unlock(&ino->i_lock);
-		dprintk("%s: no layout segments to return\n", __func__);
-		goto out;
+		dprintk("%s: no layout to return\n", __func__);
+		return status;
 	}
 	stateid = nfsi->layout->plh_stateid;
 	/* Reference matched in nfs4_layoutreturn_release */
 	get_layout_hdr(lo);
+	mark_matching_lsegs_invalid(lo, &tmp_list, NULL);
+	lo->plh_block_lgets++;
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&tmp_list);
 
@@ -650,6 +652,9 @@ _pnfs_return_layout(struct inode *ino)
 	lrp = kzalloc(sizeof(*lrp), GFP_KERNEL);
 	if (unlikely(lrp == NULL)) {
 		status = -ENOMEM;
+		set_bit(NFS_LAYOUT_RW_FAILED, &lo->plh_flags);
+		set_bit(NFS_LAYOUT_RO_FAILED, &lo->plh_flags);
+		put_layout_hdr(lo);
 		goto out;
 	}
 
@@ -887,7 +892,7 @@ pnfs_find_lseg(struct pnfs_layout_hdr *lo,
 			ret = get_lseg(lseg);
 			break;
 		}
-		if (cmp_layout(range, &lseg->pls_range) > 0)
+		if (lseg->pls_range.offset > range->offset)
 			break;
 	}
 
@@ -1059,23 +1064,36 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 		gfp_flags = GFP_NOFS;
 	}
 
-	if (pgio->pg_count == prev->wb_bytes) {
+	if (pgio->pg_lseg == NULL) {
+		if (pgio->pg_count != prev->wb_bytes)
+			return true;
 		/* This is first coelesce call for a series of nfs_pages */
 		pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 						   prev->wb_context,
-						   req_offset(req),
+						   req_offset(prev),
 						   pgio->pg_count,
 						   access_type,
 						   gfp_flags);
-		return true;
+		if (pgio->pg_lseg == NULL)
+			return true;
 	}
 
-	if (pgio->pg_lseg &&
-	    req_offset(req) > end_offset(pgio->pg_lseg->pls_range.offset,
-					 pgio->pg_lseg->pls_range.length))
-		return false;
-
-	return true;
+	/*
+	 * Test if a nfs_page is fully contained in the pnfs_layout_range.
+	 * Note that this test makes several assumptions:
+	 * - that the previous nfs_page in the struct nfs_pageio_descriptor
+	 *   is known to lie within the range.
+	 *   - that the nfs_page being tested is known to be contiguous with the
+	 *   previous nfs_page.
+	 *   - Layout ranges are page aligned, so we only have to test the
+	 *   start offset of the request.
+	 *
+	 * Please also note that 'end_offset' is actually the offset of the
+	 * first byte that lies outside the pnfs_layout_range. FIXME?
+	 *
+	 */
+	return req_offset(req) < end_offset(pgio->pg_lseg->pls_range.offset,
+					 pgio->pg_lseg->pls_range.length);
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_test);
 

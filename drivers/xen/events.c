@@ -395,9 +395,9 @@ static void unmask_evtchn(int port)
 static void xen_irq_init(unsigned irq)
 {
 	struct irq_info *info;
+#ifdef CONFIG_SMP
 	struct irq_desc *desc = irq_to_desc(irq);
 
-#ifdef CONFIG_SMP
 	/* By default all event channels notify CPU#0. */
 	cpumask_copy(desc->irq_data.affinity, cpumask_of(0));
 #endif

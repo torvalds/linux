@@ -24,12 +24,6 @@
  * See mpc8610fb_set_par(), map_video_memory(), and unmap_video_memory()
  */
 #define MEM_ALLOC_THRESHOLD (1024*768*4+32)
-/* Minimum value that the pixel clock can be set to in pico seconds
- * This is determined by platform clock/3 where the minimum platform
- * clock is 533MHz. This gives 5629 pico seconds.
- */
-#define MIN_PIX_CLK 5629
-#define MAX_PIX_CLK 96096
 
 #include <linux/types.h>
 
