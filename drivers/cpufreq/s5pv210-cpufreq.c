@@ -467,6 +467,8 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 		}
 	}
 
+	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+
 	if (freqs.new < freqs.old) {
 		regulator_set_voltage(int_regulator,
 				int_volt, int_volt_max);
@@ -474,8 +476,6 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 		regulator_set_voltage(arm_regulator,
 				arm_volt, arm_volt_max);
 	}
-
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
 	printk(KERN_DEBUG "Perf changed[L%d]\n", index);
 
