@@ -18983,6 +18983,7 @@ static int alc662_auto_fill_dac_nids(struct hda_codec *codec,
 	hda_nid_t dac;
 
 	spec->multiout.dac_nids = spec->private_dac_nids;
+	spec->multiout.num_dacs = 0;
 	for (i = 0; i < cfg->line_outs; i++) {
 		dac = alc_auto_look_for_dac(codec, cfg->line_out_pins[i]);
 		if (!dac)
@@ -19317,8 +19318,20 @@ static int alc_auto_add_multi_channel_mode(struct hda_codec *codec)
 	unsigned int location, defcfg;
 	int num_pins;
 
+	if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT && cfg->hp_outs == 1) {
+		/* use HP as primary out */
+		cfg->speaker_outs = cfg->line_outs;
+		memcpy(cfg->speaker_pins, cfg->line_out_pins,
+		       sizeof(cfg->speaker_pins));
+		cfg->line_outs = cfg->hp_outs;
+		memcpy(cfg->line_out_pins, cfg->hp_pins, sizeof(cfg->hp_pins));
+		cfg->hp_outs = 0;
+		memset(cfg->hp_pins, 0, sizeof(cfg->hp_pins));
+		cfg->line_out_type = AUTO_PIN_HP_OUT;
+		alc662_auto_fill_dac_nids(codec, cfg);
+	}
 	if (cfg->line_outs != 1 ||
-	    cfg->line_out_type != AUTO_PIN_LINE_OUT)
+	    cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
 		return 0;
 
 	defcfg = snd_hda_codec_get_pincfg(codec, cfg->line_out_pins[0]);
@@ -19339,6 +19352,8 @@ static int alc_auto_add_multi_channel_mode(struct hda_codec *codec)
 		spec->multi_ios = num_pins;
 		spec->ext_channel_count = 2;
 		spec->multiout.num_dacs = num_pins + 1;
+		/* for avoiding multi HP mixers */
+		cfg->line_out_type = AUTO_PIN_LINE_OUT;
 	}
 	return 0;
 }
