@@ -1422,9 +1422,10 @@ DEFINE_CLOCK(ipu_di1_clk, 0, MXC_CCM_CCGR6, MXC_CCM_CCGRx_CG6_OFFSET,
        },
 
 static struct clk_lookup mx51_lookups[] = {
-	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
-	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
-	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
+	/* i.mx51 has the i.mx21 type uart */
+	_REGISTER_CLOCK("imx21-uart.0", NULL, uart1_clk)
+	_REGISTER_CLOCK("imx21-uart.1", NULL, uart2_clk)
+	_REGISTER_CLOCK("imx21-uart.2", NULL, uart3_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
 	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK("mxc_pwm.0", "pwm", pwm1_clk)
@@ -1470,11 +1471,12 @@ static struct clk_lookup mx51_lookups[] = {
 };
 
 static struct clk_lookup mx53_lookups[] = {
-	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
-	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
-	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
-	_REGISTER_CLOCK("imx-uart.3", NULL, uart4_clk)
-	_REGISTER_CLOCK("imx-uart.4", NULL, uart5_clk)
+	/* i.mx53 has the i.mx21 type uart */
+	_REGISTER_CLOCK("imx21-uart.0", NULL, uart1_clk)
+	_REGISTER_CLOCK("imx21-uart.1", NULL, uart2_clk)
+	_REGISTER_CLOCK("imx21-uart.2", NULL, uart3_clk)
+	_REGISTER_CLOCK("imx21-uart.3", NULL, uart4_clk)
+	_REGISTER_CLOCK("imx21-uart.4", NULL, uart5_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
 	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK(NULL, "iim_clk", iim_clk)

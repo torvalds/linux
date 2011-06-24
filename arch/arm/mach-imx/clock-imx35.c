@@ -486,9 +486,10 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "spdif", spdif_clk)
 	_REGISTER_CLOCK("imx-ssi.0", NULL, ssi1_clk)
 	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
-	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
-	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
-	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
+	/* i.mx35 has the i.mx21 type uart */
+	_REGISTER_CLOCK("imx21-uart.0", NULL, uart1_clk)
+	_REGISTER_CLOCK("imx21-uart.1", NULL, uart2_clk)
+	_REGISTER_CLOCK("imx21-uart.2", NULL, uart3_clk)
 	_REGISTER_CLOCK("mxc-ehci.0", "usb", usbotg_clk)
 	_REGISTER_CLOCK("mxc-ehci.1", "usb", usbotg_clk)
 	_REGISTER_CLOCK("mxc-ehci.2", "usb", usbotg_clk)

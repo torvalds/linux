@@ -272,11 +272,12 @@ DEFINE_CLOCK(can2_clk,	 1, CCM_CGCR1,  3, get_rate_ipg, NULL, NULL);
 	},
 
 static struct clk_lookup lookups[] = {
-	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
-	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
-	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
-	_REGISTER_CLOCK("imx-uart.3", NULL, uart4_clk)
-	_REGISTER_CLOCK("imx-uart.4", NULL, uart5_clk)
+	/* i.mx25 has the i.mx21 type uart */
+	_REGISTER_CLOCK("imx21-uart.0", NULL, uart1_clk)
+	_REGISTER_CLOCK("imx21-uart.1", NULL, uart2_clk)
+	_REGISTER_CLOCK("imx21-uart.2", NULL, uart3_clk)
+	_REGISTER_CLOCK("imx21-uart.3", NULL, uart4_clk)
+	_REGISTER_CLOCK("imx21-uart.4", NULL, uart5_clk)
 	_REGISTER_CLOCK("mxc-ehci.0", "usb", usbotg_clk)
 	_REGISTER_CLOCK("mxc-ehci.1", "usb", usbotg_clk)
 	_REGISTER_CLOCK("mxc-ehci.2", "usb", usbotg_clk)
