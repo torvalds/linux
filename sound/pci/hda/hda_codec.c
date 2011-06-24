@@ -4590,7 +4590,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		unsigned int wid_caps = get_wcaps(codec, nid);
 		unsigned int wid_type = get_wcaps_type(wid_caps);
 		unsigned int def_conf;
-		short assoc, loc;
+		short assoc, loc, conn, dev;
 
 		/* read all default configuration for pin complex */
 		if (wid_type != AC_WID_PIN)
@@ -4600,10 +4600,19 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			continue;
 
 		def_conf = snd_hda_codec_get_pincfg(codec, nid);
-		if (get_defcfg_connect(def_conf) == AC_JACK_PORT_NONE)
+		conn = get_defcfg_connect(def_conf);
+		if (conn == AC_JACK_PORT_NONE)
 			continue;
 		loc = get_defcfg_location(def_conf);
-		switch (get_defcfg_device(def_conf)) {
+		dev = get_defcfg_device(def_conf);
+
+		/* workaround for buggy BIOS setups */
+		if (dev == AC_JACK_LINE_OUT) {
+			if (conn == AC_JACK_PORT_FIXED)
+				dev = AC_JACK_SPEAKER;
+		}
+
+		switch (dev) {
 		case AC_JACK_LINE_OUT:
 			seq = get_defcfg_sequence(def_conf);
 			assoc = get_defcfg_association(def_conf);
