@@ -54,6 +54,8 @@ config DEFAULT_OUT_HDMI
 	if you want set HDMI for default panel, android UI size is HDMI default resolution.
 config LCD_AT070TNA2
 	bool "RGB AT070TNA2"
+config LCD_AT070TN93
+	bool "RGB AT070TN93"
 endchoice
 
 
