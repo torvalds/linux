@@ -39,6 +39,7 @@ MODULE_AUTHOR("Jelle Foks <jelle@foks.us>");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(CX88_VERSION);
 
 static unsigned int debug;
 module_param(debug,int,0644);
@@ -890,14 +891,8 @@ static struct pci_driver cx8802_pci_driver = {
 
 static int __init cx8802_init(void)
 {
-	printk(KERN_INFO "cx88/2: cx2388x MPEG-TS Driver Manager version %d.%d.%d loaded\n",
-	       (CX88_VERSION_CODE >> 16) & 0xff,
-	       (CX88_VERSION_CODE >>  8) & 0xff,
-	       CX88_VERSION_CODE & 0xff);
-#ifdef SNAPSHOT
-	printk(KERN_INFO "cx2388x: snapshot date %04d-%02d-%02d\n",
-	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
-#endif
+	printk(KERN_INFO "cx88/2: cx2388x MPEG-TS Driver Manager version %s loaded\n",
+	       CX88_VERSION);
 	return pci_register_driver(&cx8802_pci_driver);
 }
 

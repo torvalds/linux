@@ -42,6 +42,7 @@
 MODULE_DESCRIPTION("Driver for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(CX23885_VERSION);
 
 static unsigned int debug;
 module_param(debug, int, 0644);
@@ -2147,14 +2148,8 @@ static struct pci_driver cx23885_pci_driver = {
 
 static int __init cx23885_init(void)
 {
-	printk(KERN_INFO "cx23885 driver version %d.%d.%d loaded\n",
-	       (CX23885_VERSION_CODE >> 16) & 0xff,
-	       (CX23885_VERSION_CODE >>  8) & 0xff,
-	       CX23885_VERSION_CODE & 0xff);
-#ifdef SNAPSHOT
-	printk(KERN_INFO "cx23885: snapshot date %04d-%02d-%02d\n",
-	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
-#endif
+	printk(KERN_INFO "cx23885 driver version %s loaded\n",
+		CX23885_VERSION);
 	return pci_register_driver(&cx23885_pci_driver);
 }
 
@@ -2165,5 +2160,3 @@ static void __exit cx23885_fini(void)
 
 module_init(cx23885_init);
 module_exit(cx23885_fini);
-
-/* ----------------------------------------------------------- */

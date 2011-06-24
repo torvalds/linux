@@ -36,10 +36,9 @@
 #include "cx23885-reg.h"
 #include "media/cx2341x.h"
 
-#include <linux/version.h>
 #include <linux/mutex.h>
 
-#define CX23885_VERSION_CODE KERNEL_VERSION(0, 0, 2)
+#define CX23885_VERSION "0.0.3"
 
 #define UNSET (-1U)
 

@@ -45,6 +45,7 @@
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(CX88_VERSION);
 
 /* ------------------------------------------------------------------ */
 
@@ -1161,7 +1162,6 @@ static int vidioc_querycap (struct file *file, void  *priv,
 	strcpy(cap->driver, "cx8800");
 	strlcpy(cap->card, core->board.name, sizeof(cap->card));
 	sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
-	cap->version = CX88_VERSION_CODE;
 	cap->capabilities =
 		V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_READWRITE     |
@@ -1480,7 +1480,6 @@ static int radio_querycap (struct file *file, void  *priv,
 	strcpy(cap->driver, "cx8800");
 	strlcpy(cap->card, core->board.name, sizeof(cap->card));
 	sprintf(cap->bus_info,"PCI:%s", pci_name(dev->pci));
-	cap->version = CX88_VERSION_CODE;
 	cap->capabilities = V4L2_CAP_TUNER;
 	return 0;
 }
@@ -2139,14 +2138,8 @@ static struct pci_driver cx8800_pci_driver = {
 
 static int __init cx8800_init(void)
 {
-	printk(KERN_INFO "cx88/0: cx2388x v4l2 driver version %d.%d.%d loaded\n",
-	       (CX88_VERSION_CODE >> 16) & 0xff,
-	       (CX88_VERSION_CODE >>  8) & 0xff,
-	       CX88_VERSION_CODE & 0xff);
-#ifdef SNAPSHOT
-	printk(KERN_INFO "cx2388x: snapshot date %04d-%02d-%02d\n",
-	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
-#endif
+	printk(KERN_INFO "cx88/0: cx2388x v4l2 driver version %s loaded\n",
+	       CX88_VERSION);
 	return pci_register_driver(&cx8800_pci_driver);
 }
 
@@ -2157,11 +2150,3 @@ static void __exit cx8800_fini(void)
 
 module_init(cx8800_init);
 module_exit(cx8800_fini);
-
-/* ----------------------------------------------------------- */
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- * kate: eol "unix"; indent-width 3; remove-trailing-space on; replace-trailing-space-save on; tab-width 8; replace-tabs off; space-indent off; mixed-indent off
- */

@@ -39,9 +39,9 @@
 #include "cx88-reg.h"
 #include "tuner-xc2028.h"
 
-#include <linux/version.h>
 #include <linux/mutex.h>
-#define CX88_VERSION_CODE KERNEL_VERSION(0, 0, 8)
+
+#define CX88_VERSION "0.0.9"
 
 #define UNSET (-1U)
 

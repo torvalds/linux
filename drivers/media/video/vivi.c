@@ -22,7 +22,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/font.h>
-#include <linux/version.h>
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
 #include <linux/kthread.h>
@@ -44,15 +43,12 @@
 #define MAX_WIDTH 1920
 #define MAX_HEIGHT 1200
 
-#define VIVI_MAJOR_VERSION 0
-#define VIVI_MINOR_VERSION 8
-#define VIVI_RELEASE 0
-#define VIVI_VERSION \
-	KERNEL_VERSION(VIVI_MAJOR_VERSION, VIVI_MINOR_VERSION, VIVI_RELEASE)
+#define VIVI_VERSION "0.8.1"
 
 MODULE_DESCRIPTION("Video Technology Magazine Virtual Video Capture Board");
 MODULE_AUTHOR("Mauro Carvalho Chehab, Ted Walther and John Sokol");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_VERSION(VIVI_VERSION);
 
 static unsigned video_nr = -1;
 module_param(video_nr, uint, 0644);
@@ -812,7 +808,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strcpy(cap->driver, "vivi");
 	strcpy(cap->card, "vivi");
 	strlcpy(cap->bus_info, dev->v4l2_dev.name, sizeof(cap->bus_info));
-	cap->version = VIVI_VERSION;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING | \
 			    V4L2_CAP_READWRITE;
 	return 0;
@@ -1325,9 +1320,8 @@ static int __init vivi_init(void)
 	}
 
 	printk(KERN_INFO "Video Technology Magazine Virtual Video "
-			"Capture Board ver %u.%u.%u successfully loaded.\n",
-			(VIVI_VERSION >> 16) & 0xFF, (VIVI_VERSION >> 8) & 0xFF,
-			VIVI_VERSION & 0xFF);
+			"Capture Board ver %s successfully loaded.\n",
+			VIVI_VERSION);
 
 	/* n_devs will reflect the actual number of allocated devices */
 	n_devs = i;

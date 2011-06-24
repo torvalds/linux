@@ -35,7 +35,6 @@
 #include <linux/sched.h>
 #include <linux/mutex.h>
 #include <linux/jiffies.h>
-#include <linux/version.h>
 #include <linux/videodev2.h>
 #include <asm/uaccess.h>
 #include <media/v4l2-device.h>
@@ -517,7 +516,6 @@ static int qcam_querycap(struct file *file, void  *priv,
 	strlcpy(vcap->driver, qcam->v4l2_dev.name, sizeof(vcap->driver));
 	strlcpy(vcap->card, "Color Quickcam", sizeof(vcap->card));
 	strlcpy(vcap->bus_info, "parport", sizeof(vcap->bus_info));
-	vcap->version = KERNEL_VERSION(0, 0, 3);
 	vcap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE;
 	return 0;
 }
@@ -886,6 +884,7 @@ static void __exit cqcam_cleanup(void)
 MODULE_AUTHOR("Philip Blundell <philb@gnu.org>");
 MODULE_DESCRIPTION(BANNER);
 MODULE_LICENSE("GPL");
+MODULE_VERSION("0.0.4");
 
 module_init(cqcam_init);
 module_exit(cqcam_cleanup);
