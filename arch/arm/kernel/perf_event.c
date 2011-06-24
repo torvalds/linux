@@ -42,13 +42,13 @@ struct cpu_hw_events {
 	/*
 	 * The events that are active on the CPU for the given index.
 	 */
-	struct perf_event	*events[ARMPMU_MAX_HWEVENTS];
+	struct perf_event	**events;
 
 	/*
 	 * A 1 bit for an index indicates that the counter is being used for
 	 * an event. A 0 means that the counter can be used.
 	 */
-	unsigned long		used_mask[BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)];
+	unsigned long           *used_mask;
 
 	/*
 	 * Hardware lock to serialize accesses to PMU registers. Needed for the
@@ -56,6 +56,9 @@ struct cpu_hw_events {
 	 */
 	raw_spinlock_t		pmu_lock;
 };
+
+static DEFINE_PER_CPU(struct perf_event * [ARMPMU_MAX_HWEVENTS], hw_events);
+static DEFINE_PER_CPU(unsigned long [BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)], used_mask);
 static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 
 struct arm_pmu {
@@ -714,6 +717,8 @@ static void __init cpu_pmu_init(struct arm_pmu *armpmu)
 	int cpu;
 	for_each_possible_cpu(cpu) {
 		struct cpu_hw_events *events = &per_cpu(cpu_hw_events, cpu);
+		events->events = per_cpu(hw_events, cpu);
+		events->used_mask = per_cpu(used_mask, cpu);
 		raw_spin_lock_init(&events->pmu_lock);
 	}
 	armpmu->get_hw_events = armpmu_get_cpu_events;
