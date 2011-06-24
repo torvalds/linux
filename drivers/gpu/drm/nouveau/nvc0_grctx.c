@@ -1678,7 +1678,10 @@ nvc0_grctx_generate_tp(struct drm_device *dev)
 	nv_wr32(dev, 0x419c04, 0x00000006);
 	nv_wr32(dev, 0x419c08, 0x00000002);
 	nv_wr32(dev, 0x419c20, 0x00000000);
-	nv_wr32(dev, 0x419cb0, 0x00060048); //XXX: 0xce 0x00020048
+	if (chipset == 0xce || chipset == 0xcf)
+		nv_wr32(dev, 0x419cb0, 0x00020048);
+	else
+		nv_wr32(dev, 0x419cb0, 0x00060048);
 	nv_wr32(dev, 0x419ce8, 0x00000000);
 	nv_wr32(dev, 0x419cf4, 0x00000183);
 	nv_wr32(dev, 0x419d20, chipset != 0xc1 ? 0x02180000 : 0x12180000);
@@ -1784,7 +1787,7 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 
 	if (1) {
 		const u8 chipset_tp_max[] = { 16, 4, 0, 4, 8, 0, 0, 0,
-					      16, 0, 0, 0, 0, 0, 8, 0 };
+					      16, 0, 0, 0, 0, 0, 8, 4 };
 		u8 max = chipset_tp_max[dev_priv->chipset & 0x0f];
 		u8 tpnr[GPC_MAX];
 		u8 data[TP_MAX];
