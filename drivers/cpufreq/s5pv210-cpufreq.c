@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/cpufreq.h>
+#include <linux/reboot.h>
 #include <linux/regulator/consumer.h>
 #include <linux/suspend.h>
 
@@ -590,6 +591,19 @@ static int s5pv210_cpufreq_notifier_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
+static int s5pv210_cpufreq_reboot_notifier_event(struct notifier_block *this,
+						 unsigned long event, void *ptr)
+{
+	int ret;
+
+	ret = cpufreq_driver_target(cpufreq_cpu_get(0), SLEEP_FREQ,
+				    DISABLE_FURTHER_CPUFREQ);
+	if (ret < 0)
+		return NOTIFY_BAD;
+
+	return NOTIFY_DONE;
+}
+
 static struct cpufreq_driver s5pv210_driver = {
 	.flags		= CPUFREQ_STICKY,
 	.verify		= s5pv210_verify_speed,
@@ -605,6 +619,10 @@ static struct cpufreq_driver s5pv210_driver = {
 
 static struct notifier_block s5pv210_cpufreq_notifier = {
 	.notifier_call = s5pv210_cpufreq_notifier_event,
+};
+
+static struct notifier_block s5pv210_cpufreq_reboot_notifier = {
+	.notifier_call = s5pv210_cpufreq_reboot_notifier_event,
 };
 
 static int __init s5pv210_cpufreq_init(void)
@@ -623,6 +641,7 @@ static int __init s5pv210_cpufreq_init(void)
 	}
 
 	register_pm_notifier(&s5pv210_cpufreq_notifier);
+	register_reboot_notifier(&s5pv210_cpufreq_reboot_notifier);
 
 	return cpufreq_register_driver(&s5pv210_driver);
 }
