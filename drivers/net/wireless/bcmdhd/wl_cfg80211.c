@@ -3446,7 +3446,6 @@ static void wl_free_wdev(struct wl_priv *wl)
 	wiphy_unregister(wdev->wiphy);
 	wiphy_free(wdev->wiphy);
 	kfree(wdev);
-	wl_to_wdev(wl) = NULL;
 }
 
 static s32 wl_inform_bss(struct wl_priv *wl)
