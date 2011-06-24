@@ -1099,7 +1099,7 @@ static u64 dma_get_required_mask_pSeriesLP(struct device *dev)
 			return DMA_BIT_MASK(64);
 	}
 
-	return dma_iommu_get_required_mask(dev);
+	return dma_iommu_ops.get_required_mask(dev);
 }
 
 #else  /* CONFIG_PCI */

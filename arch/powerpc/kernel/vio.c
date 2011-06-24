@@ -605,6 +605,11 @@ static int vio_dma_iommu_dma_supported(struct device *dev, u64 mask)
         return dma_iommu_ops.dma_supported(dev, mask);
 }
 
+static u64 vio_dma_get_required_mask(struct device *dev)
+{
+        return dma_iommu_ops.get_required_mask(dev);
+}
+
 struct dma_map_ops vio_dma_mapping_ops = {
 	.alloc_coherent = vio_dma_iommu_alloc_coherent,
 	.free_coherent  = vio_dma_iommu_free_coherent,
@@ -613,7 +618,7 @@ struct dma_map_ops vio_dma_mapping_ops = {
 	.map_page       = vio_dma_iommu_map_page,
 	.unmap_page     = vio_dma_iommu_unmap_page,
 	.dma_supported  = vio_dma_iommu_dma_supported,
-
+	.get_required_mask = vio_dma_get_required_mask,
 };
 
 /**

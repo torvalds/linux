@@ -90,7 +90,7 @@ static int dma_iommu_dma_supported(struct device *dev, u64 mask)
 		return 1;
 }
 
-u64 dma_iommu_get_required_mask(struct device *dev)
+static u64 dma_iommu_get_required_mask(struct device *dev)
 {
 	struct iommu_table *tbl = get_iommu_table_base(dev);
 	u64 mask;
@@ -111,5 +111,6 @@ struct dma_map_ops dma_iommu_ops = {
 	.dma_supported	= dma_iommu_dma_supported,
 	.map_page	= dma_iommu_map_page,
 	.unmap_page	= dma_iommu_unmap_page,
+	.get_required_mask	= dma_iommu_get_required_mask,
 };
 EXPORT_SYMBOL(dma_iommu_ops);

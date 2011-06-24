@@ -1161,11 +1161,20 @@ __setup("iommu_fixed=", setup_iommu_fixed);
 
 static u64 cell_dma_get_required_mask(struct device *dev)
 {
+	struct dma_map_ops *dma_ops;
+
 	if (!dev->dma_mask)
 		return 0;
 
-	if (iommu_fixed_disabled && get_dma_ops(dev) == &dma_iommu_ops)
-		return dma_iommu_get_required_mask(dev);
+	if (!iommu_fixed_disabled &&
+			cell_iommu_get_fixed_address(dev) != OF_BAD_ADDR)
+		return DMA_BIT_MASK(64);
+
+	dma_ops = get_dma_ops(dev);
+	if (dma_ops->get_required_mask)
+		return dma_ops->get_required_mask(dev);
+
+	WARN_ONCE(1, "no get_required_mask in %p ops", dma_ops);
 
 	return DMA_BIT_MASK(64);
 }

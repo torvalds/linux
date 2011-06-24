@@ -125,7 +125,12 @@ static void ibmebus_unmap_sg(struct device *dev,
 
 static int ibmebus_dma_supported(struct device *dev, u64 mask)
 {
-	return 1;
+	return mask == DMA_BIT_MASK(64);
+}
+
+static u64 ibmebus_dma_get_required_mask(struct device *dev)
+{
+	return DMA_BIT_MASK(64);
 }
 
 static struct dma_map_ops ibmebus_dma_ops = {
@@ -134,6 +139,7 @@ static struct dma_map_ops ibmebus_dma_ops = {
 	.map_sg         = ibmebus_map_sg,
 	.unmap_sg       = ibmebus_unmap_sg,
 	.dma_supported  = ibmebus_dma_supported,
+	.get_required_mask  = ibmebus_dma_get_required_mask,
 	.map_page       = ibmebus_map_page,
 	.unmap_page     = ibmebus_unmap_page,
 };
