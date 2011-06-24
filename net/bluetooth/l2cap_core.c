@@ -1960,8 +1960,6 @@ static void l2cap_ack_timeout(struct work_struct *work)
 
 static inline void l2cap_ertm_init(struct l2cap_chan *chan)
 {
-	struct sock *sk = chan->sk;
-
 	chan->expected_ack_seq = 0;
 	chan->unacked_frames = 0;
 	chan->buffer_seq = 0;
@@ -1975,9 +1973,6 @@ static inline void l2cap_ertm_init(struct l2cap_chan *chan)
 	skb_queue_head_init(&chan->srej_q);
 
 	INIT_LIST_HEAD(&chan->srej_l);
-
-
-	sk->sk_backlog_rcv = l2cap_ertm_data_rcv;
 }
 
 static inline __u8 l2cap_select_mode(__u8 mode, __u16 remote_feat_mask)
@@ -4203,12 +4198,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		break;
 
 	case L2CAP_MODE_ERTM:
-		if (!sock_owned_by_user(sk)) {
-			l2cap_ertm_data_rcv(sk, skb);
-		} else {
-			if (sk_add_backlog(sk, skb))
-				goto drop;
-		}
+		l2cap_ertm_data_rcv(sk, skb);
 
 		goto done;
 
