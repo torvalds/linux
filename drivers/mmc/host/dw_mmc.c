@@ -33,6 +33,7 @@
 #include <linux/mmc/dw_mmc.h>
 #include <linux/bitops.h>
 #include <linux/regulator/consumer.h>
+#include <linux/workqueue.h>
 
 #include "dw_mmc.h"
 
@@ -99,6 +100,8 @@ struct dw_mci_slot {
 	int			id;
 	int			last_detect_state;
 };
+
+static struct workqueue_struct *dw_mci_card_workqueue;
 
 #if defined(CONFIG_DEBUG_FS)
 static int dw_mci_req_show(struct seq_file *s, void *v)
@@ -1255,7 +1258,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 
 		if (pending & SDMMC_INT_CD) {
 			mci_writel(host, RINTSTS, SDMMC_INT_CD);
-			tasklet_schedule(&host->card_tasklet);
+			queue_work(dw_mci_card_workqueue, &host->card_work);
 		}
 
 	} while (pass_count++ < 5);
@@ -1274,9 +1277,9 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void dw_mci_tasklet_card(unsigned long data)
+static void dw_mci_work_routine_card(struct work_struct *work)
 {
-	struct dw_mci *host = (struct dw_mci *)data;
+	struct dw_mci *host = container_of(work, struct dw_mci, card_work);
 	int i;
 
 	for (i = 0; i < host->num_slots; i++) {
@@ -1288,22 +1291,21 @@ static void dw_mci_tasklet_card(unsigned long data)
 
 		present = dw_mci_get_cd(mmc);
 		while (present != slot->last_detect_state) {
-			spin_lock(&host->lock);
-
 			dev_dbg(&slot->mmc->class_dev, "card %s\n",
 				present ? "inserted" : "removed");
+
+			/* Power up slot (before spin_lock, may sleep) */
+			if (present != 0 && host->pdata->setpower)
+				host->pdata->setpower(slot->id, mmc->ocr_avail);
+
+			spin_lock_bh(&host->lock);
 
 			/* Card change detected */
 			slot->last_detect_state = present;
 
-			/* Power up slot */
-			if (present != 0) {
-				if (host->pdata->setpower)
-					host->pdata->setpower(slot->id,
-							      mmc->ocr_avail);
-
+			/* Mark card as present if applicable */
+			if (present != 0)
 				set_bit(DW_MMC_CARD_PRESENT, &slot->flags);
-			}
 
 			/* Clean up queue if present */
 			mrq = slot->mrq;
@@ -1353,8 +1355,6 @@ static void dw_mci_tasklet_card(unsigned long data)
 
 			/* Power down slot */
 			if (present == 0) {
-				if (host->pdata->setpower)
-					host->pdata->setpower(slot->id, 0);
 				clear_bit(DW_MMC_CARD_PRESENT, &slot->flags);
 
 				/*
@@ -1376,7 +1376,12 @@ static void dw_mci_tasklet_card(unsigned long data)
 
 			}
 
-			spin_unlock(&host->lock);
+			spin_unlock_bh(&host->lock);
+
+			/* Power down slot (after spin_unlock, may sleep) */
+			if (present == 0 && host->pdata->setpower)
+				host->pdata->setpower(slot->id, 0);
+
 			present = dw_mci_get_cd(mmc);
 		}
 
@@ -1476,7 +1481,7 @@ static int __init dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 	 * Card may have been plugged in prior to boot so we
 	 * need to run the detect tasklet
 	 */
-	tasklet_schedule(&host->card_tasklet);
+	queue_work(dw_mci_card_workqueue, &host->card_work);
 
 	return 0;
 }
@@ -1665,12 +1670,15 @@ static int dw_mci_probe(struct platform_device *pdev)
 	mci_writel(host, CLKSRC, 0);
 
 	tasklet_init(&host->tasklet, dw_mci_tasklet_func, (unsigned long)host);
-	tasklet_init(&host->card_tasklet,
-		     dw_mci_tasklet_card, (unsigned long)host);
+	dw_mci_card_workqueue = alloc_workqueue("dw-mci-card",
+			WQ_MEM_RECLAIM | WQ_NON_REENTRANT, 1);
+	if (!dw_mci_card_workqueue)
+		goto err_dmaunmap;
+	INIT_WORK(&host->card_work, dw_mci_work_routine_card);
 
 	ret = request_irq(irq, dw_mci_interrupt, 0, "dw-mci", host);
 	if (ret)
-		goto err_dmaunmap;
+		goto err_workqueue;
 
 	platform_set_drvdata(pdev, host);
 
@@ -1714,6 +1722,9 @@ err_init_slot:
 	}
 	free_irq(irq, host);
 
+err_workqueue:
+	destroy_workqueue(dw_mci_card_workqueue);
+
 err_dmaunmap:
 	if (host->use_dma && host->dma_ops->exit)
 		host->dma_ops->exit(host);
@@ -1753,6 +1764,7 @@ static int __exit dw_mci_remove(struct platform_device *pdev)
 	mci_writel(host, CLKSRC, 0);
 
 	free_irq(platform_get_irq(pdev, 0), host);
+	destroy_workqueue(dw_mci_card_workqueue);
 	dma_free_coherent(&pdev->dev, PAGE_SIZE, host->sg_cpu, host->sg_dma);
 
 	if (host->use_dma && host->dma_ops->exit)
