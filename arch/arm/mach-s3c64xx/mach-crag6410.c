@@ -65,7 +65,7 @@
 #include <plat/iic.h>
 #include <plat/pm.h>
 
-#include <sound/wm8915.h>
+#include <sound/wm8996.h>
 #include <sound/wm8962.h>
 #include <sound/wm9081.h>
 
@@ -614,7 +614,7 @@ static struct wm831x_pdata glenfarclas_pmic_pdata __initdata = {
 	.disable_touch = true,
 };
 
-static struct wm8915_retune_mobile_config wm8915_retune[] = {
+static struct wm8996_retune_mobile_config wm8996_retune[] = {
 	{
 		.name = "Sub LPF",
 		.rate = 48000,
@@ -635,12 +635,12 @@ static struct wm8915_retune_mobile_config wm8915_retune[] = {
 	},
 };
 
-static struct wm8915_pdata wm8915_pdata __initdata = {
+static struct wm8996_pdata wm8996_pdata __initdata = {
 	.ldo_ena = S3C64XX_GPN(7),
 	.gpio_base = CODEC_GPIO_BASE,
 	.micdet_def = 1,
-	.inl_mode = WM8915_DIFFERRENTIAL_1,
-	.inr_mode = WM8915_DIFFERRENTIAL_1,
+	.inl_mode = WM8996_DIFFERRENTIAL_1,
+	.inr_mode = WM8996_DIFFERRENTIAL_1,
 
 	.irq_flags = IRQF_TRIGGER_RISING,
 
@@ -652,8 +652,8 @@ static struct wm8915_pdata wm8915_pdata __initdata = {
 		0x020e, /* GPIO5 == CLKOUT */
 	},
 
-	.retune_mobile_cfgs = wm8915_retune,
-	.num_retune_mobile_cfgs = ARRAY_SIZE(wm8915_retune),
+	.retune_mobile_cfgs = wm8996_retune,
+	.num_retune_mobile_cfgs = ARRAY_SIZE(wm8996_retune),
 };
 
 static struct wm8962_pdata wm8962_pdata __initdata = {
@@ -679,8 +679,8 @@ static struct i2c_board_info i2c_devs1[] __initdata = {
 	  .platform_data = &glenfarclas_pmic_pdata },
 
 	{ I2C_BOARD_INFO("wm1250-ev1", 0x27) },
-	{ I2C_BOARD_INFO("wm8915", 0x1a),
-	  .platform_data = &wm8915_pdata,
+	{ I2C_BOARD_INFO("wm8996", 0x1a),
+	  .platform_data = &wm8996_pdata,
 	  .irq = GLENFARCLAS_PMIC_IRQ_BASE + WM831X_IRQ_GPIO_2,
 	},
 	{ I2C_BOARD_INFO("wm9081", 0x6c),
