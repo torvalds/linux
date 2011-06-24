@@ -625,13 +625,13 @@ static void dw_mci_start_request(struct dw_mci *host,
 		host->stop_cmdr = dw_mci_prepare_command(slot->mmc, mrq->stop);
 }
 
+/* must be called with host->lock held */
 static void dw_mci_queue_request(struct dw_mci *host, struct dw_mci_slot *slot,
 				 struct mmc_request *mrq)
 {
 	dev_vdbg(&slot->mmc->class_dev, "queue request: state=%d\n",
 		 host->state);
 
-	spin_lock_bh(&host->lock);
 	slot->mrq = mrq;
 
 	if (host->state == STATE_IDLE) {
@@ -640,8 +640,6 @@ static void dw_mci_queue_request(struct dw_mci *host, struct dw_mci_slot *slot,
 	} else {
 		list_add_tail(&slot->queue_node, &host->queue);
 	}
-
-	spin_unlock_bh(&host->lock);
 }
 
 static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
@@ -651,14 +649,23 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	WARN_ON(slot->mrq);
 
+	/*
+	 * The check for card presence and queueing of the request must be
+	 * atomic, otherwise the card could be removed in between and the
+	 * request wouldn't fail until another card was inserted.
+	 */
+	spin_lock_bh(&host->lock);
+
 	if (!test_bit(DW_MMC_CARD_PRESENT, &slot->flags)) {
+		spin_unlock_bh(&host->lock);
 		mrq->cmd->error = -ENOMEDIUM;
 		mmc_request_done(mmc, mrq);
 		return;
 	}
 
-	/* We don't support multiple blocks of weird lengths. */
 	dw_mci_queue_request(host, slot, mrq);
+
+	spin_unlock_bh(&host->lock);
 }
 
 static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
