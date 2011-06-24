@@ -4884,7 +4884,6 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0xe309, "ULI", ALC880_3ST_DIG),
 	SND_PCI_QUIRK(0x1025, 0xe310, "ULI", ALC880_3ST),
 	SND_PCI_QUIRK(0x1039, 0x1234, NULL, ALC880_6ST_DIG),
-	SND_PCI_QUIRK(0x103c, 0x2a09, "HP", ALC880_5ST),
 	SND_PCI_QUIRK(0x1043, 0x10b3, "ASUS W1V", ALC880_ASUS_W1V),
 	SND_PCI_QUIRK(0x1043, 0x10c2, "ASUS W6A", ALC880_ASUS_DIG),
 	SND_PCI_QUIRK(0x1043, 0x10c3, "ASUS Wxx", ALC880_ASUS_DIG),
@@ -12601,6 +12600,7 @@ static const struct hda_verb alc262_toshiba_rx1_unsol_verbs[] = {
  */
 enum {
 	PINFIX_FSC_H270,
+	PINFIX_HP_Z200,
 };
 
 static const struct alc_fixup alc262_fixups[] = {
@@ -12613,9 +12613,17 @@ static const struct alc_fixup alc262_fixups[] = {
 			{ }
 		}
 	},
+	[PINFIX_HP_Z200] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x16, 0x99130120 }, /* internal speaker */
+			{ }
+		}
+	},
 };
 
 static const struct snd_pci_quirk alc262_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x103c, 0x170b, "HP Z200", PINFIX_HP_Z200),
 	SND_PCI_QUIRK(0x1734, 0x1147, "FSC Celsius H270", PINFIX_FSC_H270),
 	{}
 };
@@ -12732,6 +12740,8 @@ static const struct snd_pci_quirk alc262_cfg_tbl[] = {
 			   ALC262_HP_BPC),
 	SND_PCI_QUIRK_MASK(0x103c, 0xff00, 0x1500, "HP z series",
 			   ALC262_HP_BPC),
+	SND_PCI_QUIRK(0x103c, 0x170b, "HP Z200",
+			   ALC262_AUTO),
 	SND_PCI_QUIRK_MASK(0x103c, 0xff00, 0x1700, "HP xw series",
 			   ALC262_HP_BPC),
 	SND_PCI_QUIRK(0x103c, 0x2800, "HP D7000", ALC262_HP_BPC_D7000_WL),
@@ -13873,7 +13883,6 @@ static const struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x1205, "ASUS W7J", ALC268_3ST),
 	SND_PCI_QUIRK(0x1170, 0x0040, "ZEPTO", ALC268_ZEPTO),
 	SND_PCI_QUIRK(0x14c0, 0x0025, "COMPAL IFL90/JFL-92", ALC268_TOSHIBA),
-	SND_PCI_QUIRK(0x152d, 0x0763, "Diverse (CPR2000)", ALC268_ACER),
 	SND_PCI_QUIRK(0x152d, 0x0771, "Quanta IL1", ALC267_QUANTA_IL1),
 	{}
 };
