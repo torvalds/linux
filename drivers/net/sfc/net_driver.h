@@ -645,7 +645,7 @@ struct efx_filter_state;
  * @irq_rx_moderation: IRQ moderation time for RX event queues
  * @msg_enable: Log message enable flags
  * @state: Device state flag. Serialised by the rtnl_lock.
- * @reset_pending: Pending reset method (normally RESET_TYPE_NONE)
+ * @reset_pending: Bitmask for pending resets
  * @tx_queue: TX DMA queues
  * @rx_queue: RX DMA queues
  * @channel: Channels
@@ -728,7 +728,7 @@ struct efx_nic {
 	u32 msg_enable;
 
 	enum nic_state state;
-	enum reset_type reset_pending;
+	unsigned long reset_pending;
 
 	struct efx_channel *channel[EFX_MAX_CHANNELS];
 	char channel_name[EFX_MAX_CHANNELS][IFNAMSIZ + 6];
