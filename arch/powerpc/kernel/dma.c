@@ -170,6 +170,45 @@ int dma_set_mask(struct device *dev, u64 dma_mask)
 }
 EXPORT_SYMBOL(dma_set_mask);
 
+u64 dma_get_required_mask(struct device *dev)
+{
+	struct dma_map_ops *dma_ops = get_dma_ops(dev);
+	u64 mask, end = 0;
+
+	if (ppc_md.dma_get_required_mask)
+		return ppc_md.dma_get_required_mask(dev);
+
+	if (unlikely(dma_ops == NULL))
+		return 0;
+
+#ifdef CONFIG_PPC64
+	else if (dma_ops == &dma_iommu_ops)
+		return dma_iommu_get_required_mask(dev);
+#endif
+#ifdef CONFIG_SWIOTLB
+	else if (dma_ops == &swiotlb_dma_ops) {
+		u64 max_direct_dma_addr = dev->archdata.max_direct_dma_addr;
+
+		end = memblock_end_of_DRAM();
+		if (max_direct_dma_addr && end > max_direct_dma_addr)
+			end = max_direct_dma_addr;
+		end += get_dma_offset(dev);
+	}
+#endif
+	else if (dma_ops == &dma_direct_ops)
+		end = memblock_end_of_DRAM() + get_dma_offset(dev);
+	else {
+		WARN_ONCE(1, "%s: unknown ops %p\n", __func__, dma_ops);
+		end = memblock_end_of_DRAM();
+	}
+
+	mask = 1ULL << (fls64(end) - 1);
+	mask += mask - 1;
+
+	return mask;
+}
+EXPORT_SYMBOL_GPL(dma_get_required_mask);
+
 static int __init dma_init(void)
 {
        dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);

@@ -90,6 +90,19 @@ static int dma_iommu_dma_supported(struct device *dev, u64 mask)
 		return 1;
 }
 
+u64 dma_iommu_get_required_mask(struct device *dev)
+{
+	struct iommu_table *tbl = get_iommu_table_base(dev);
+	u64 mask;
+	if (!tbl)
+		return 0;
+
+	mask = 1ULL < (fls_long(tbl->it_offset + tbl->it_size) - 1);
+	mask += mask - 1;
+
+	return mask;
+}
+
 struct dma_map_ops dma_iommu_ops = {
 	.alloc_coherent	= dma_iommu_alloc_coherent,
 	.free_coherent	= dma_iommu_free_coherent,

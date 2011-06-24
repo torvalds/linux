@@ -20,6 +20,8 @@
 
 #define DMA_ERROR_CODE		(~(dma_addr_t)0x0)
 
+#define ARCH_HAS_DMA_GET_REQUIRED_MASK
+
 /* Some dma direct funcs must be visible for use in other dma_ops */
 extern void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t *dma_handle, gfp_t flag);
@@ -69,6 +71,7 @@ static inline unsigned long device_to_mask(struct device *dev)
  */
 #ifdef CONFIG_PPC64
 extern struct dma_map_ops dma_iommu_ops;
+extern u64 dma_iommu_get_required_mask(struct device *dev);
 #endif
 extern struct dma_map_ops dma_direct_ops;
 
