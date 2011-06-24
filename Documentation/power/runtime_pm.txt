@@ -566,11 +566,6 @@ to do this is:
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
-The PM core always increments the run-time usage counter before calling the
-->prepare() callback and decrements it after calling the ->complete() callback.
-Hence disabling run-time PM temporarily like this will not cause any run-time
-suspend callbacks to be lost.
-
 7. Generic subsystem callbacks
 
 Subsystems may wish to conserve code space by using the set of generic power
