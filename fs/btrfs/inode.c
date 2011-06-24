@@ -4520,6 +4520,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	inode_tree_add(inode);
 
 	trace_btrfs_inode_new(inode);
+	btrfs_set_inode_last_trans(trans, inode);
 
 	return inode;
 fail:
