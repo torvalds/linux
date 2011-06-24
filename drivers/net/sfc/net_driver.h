@@ -17,7 +17,6 @@
 #define DEBUG
 #endif
 
-#include <linux/version.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>

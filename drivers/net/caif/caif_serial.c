@@ -6,7 +6,6 @@
 
 #include <linux/hardirq.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/types.h>

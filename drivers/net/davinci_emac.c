@@ -48,7 +48,6 @@
 #include <linux/highmem.h>
 #include <linux/proc_fs.h>
 #include <linux/ctype.h>
-#include <linux/version.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>

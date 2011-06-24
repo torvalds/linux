@@ -20,7 +20,6 @@
 
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
-#include <linux/version.h>
 #include <linux/delay.h>
 #include <net/tcp.h>
 #include <net/ip.h>

@@ -30,7 +30,6 @@
 #include <linux/ip.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
-#include <linux/version.h>
 #include <linux/rcupdate.h>
 #include <linux/spinlock.h>
 

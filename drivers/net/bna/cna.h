@@ -19,7 +19,6 @@
 #ifndef __CNA_H__
 #define __CNA_H__
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
