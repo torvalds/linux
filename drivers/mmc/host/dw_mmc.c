@@ -497,6 +497,7 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 		else
 			host->dir_status = DW_MCI_SEND_STATUS;
 
+		mci_writel(host, RINTSTS, SDMMC_INT_TXDR | SDMMC_INT_RXDR);
 		temp = mci_readl(host, INTMASK);
 		temp |= SDMMC_INT_TXDR | SDMMC_INT_RXDR;
 		mci_writel(host, INTMASK, temp);
@@ -1230,13 +1231,13 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 
 		if (pending & SDMMC_INT_RXDR) {
 			mci_writel(host, RINTSTS, SDMMC_INT_RXDR);
-			if (host->sg)
+			if (host->dir_status == DW_MCI_RECV_STATUS && host->sg)
 				dw_mci_read_data_pio(host);
 		}
 
 		if (pending & SDMMC_INT_TXDR) {
 			mci_writel(host, RINTSTS, SDMMC_INT_TXDR);
-			if (host->sg)
+			if (host->dir_status == DW_MCI_SEND_STATUS && host->sg)
 				dw_mci_write_data_pio(host);
 		}
 
