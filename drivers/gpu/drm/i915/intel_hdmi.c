@@ -124,7 +124,8 @@ static void intel_hdmi_mode_set(struct drm_encoder *encoder,
 	u32 sdvox;
 
 	sdvox = SDVO_ENCODING_HDMI | SDVO_BORDER_ENABLE;
-	sdvox |= intel_hdmi->color_range;
+	if (!HAS_PCH_SPLIT(dev))
+		sdvox |= intel_hdmi->color_range;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		sdvox |= SDVO_VSYNC_ACTIVE_HIGH;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
