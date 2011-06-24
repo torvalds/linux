@@ -21,8 +21,7 @@
 #define GT801_PLUS
 #define GT801_NUVOTON
 #define GUITAR_UPDATE_STATE 0x02
-//#define NO_DEFAULT_ID
-
+#define GT818_I2C_SCL 400*1000
 
 //define resolution of the touchscreen
 #define TOUCH_MAX_HEIGHT 	7168

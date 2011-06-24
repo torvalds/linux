@@ -1,10 +1,18 @@
 /* drivers/input/touchscreen/gt818_ts.c
  *
- * Copyright (C) 2011 Goodix, Inc.
+ * Copyright (C) 2011 Rockcip, Inc.
  * 
- * Author: Felix
- * Date: 2011.04.28
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
  *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * Author: hhb@rock-chips.com
+ * Date: 2011.06.20
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -79,14 +87,14 @@ static int i2c_read_bytes(struct i2c_client *client, u8 *buf, int len)
 	msgs[0].flags = client->flags;
 	msgs[0].len = 2;
 	msgs[0].buf = &buf[0];
-	msgs[0].scl_rate = 600*1000;
+	msgs[0].scl_rate = GT818_I2C_SCL;
 	msgs[0].udelay = client->udelay;
 
 	msgs[1].addr = client->addr;
 	msgs[1].flags = client->flags | I2C_M_RD;
 	msgs[1].len = len-2;
 	msgs[1].buf = &buf[2];
-	msgs[1].scl_rate = 600*1000;
+	msgs[1].scl_rate = GT818_I2C_SCL;
 	//msgs[1].udelay = client->udelay;
 
 	ret = i2c_transfer(client->adapter, msgs, 2);
@@ -95,11 +103,6 @@ static int i2c_read_bytes(struct i2c_client *client, u8 *buf, int len)
 	return ret;
 }
 
-/*******************************************************	
-鍔熻兘锛�	鍚戜粠鏈哄啓鏁版嵁
-鍙傛暟锛�	client:	i2c璁惧锛屽寘鍚澶囧湴鍧�	buf[0]锛�棣栧瓧鑺備负鍐欏湴鍧�	buf[1]~buf[len]锛氭暟鎹紦鍐插尯
-	len锛�鏁版嵁闀垮害
-return锛�	鎵ц娑堟伅鏁�*******************************************************/
 /*Function as i2c_master_send */
 static int i2c_write_bytes(struct i2c_client *client,u8 *data,int len)
 {
@@ -110,7 +113,7 @@ static int i2c_write_bytes(struct i2c_client *client,u8 *data,int len)
 	msg.flags = client->flags;   //鍐欐秷鎭�
 	msg.len = len;
 	msg.buf = data;
-	msg.scl_rate = 600*1000;
+	msg.scl_rate = GT818_I2C_SCL;
 	//msg.udelay = client->udelay;
 	ret = i2c_transfer(client->adapter, &msg, 1);
 	if(ret < 0)
@@ -118,12 +121,7 @@ static int i2c_write_bytes(struct i2c_client *client,u8 *data,int len)
 	return ret;
 }
 
-/*******************************************************
-鍔熻兘锛�	鍙戦�鍓嶇紑鍛戒护
 
-	ts:	client绉佹湁鏁版嵁缁撴瀯浣�return锛�
-	鎵ц缁撴灉鐮侊紝0琛ㄧず姝ｅ父鎵ц
-*******************************************************/
 static int i2c_pre_cmd(struct gt818_ts_data *ts)
 {
 	int ret;
@@ -135,12 +133,7 @@ static int i2c_pre_cmd(struct gt818_ts_data *ts)
 	return ret;
 }
 
-/*******************************************************
-鍔熻兘锛�	鍙戦�鍚庣紑鍛戒护
 
-	ts:	client绉佹湁鏁版嵁缁撴瀯浣�return锛�
-	鎵ц缁撴灉鐮侊紝0琛ㄧず姝ｅ父鎵ц
-*******************************************************/
 static int i2c_end_cmd(struct gt818_ts_data *ts)
 {
 	int ret;
@@ -153,16 +146,14 @@ static int i2c_end_cmd(struct gt818_ts_data *ts)
 }
 
 
-/*******************************************************
-鍔熻兘锛�	Guitar鍒濆鍖栧嚱鏁帮紝鐢ㄤ簬鍙戦�閰嶇疆淇℃伅锛岃幏鍙栫増鏈俊鎭�鍙傛暟锛�	ts:	client绉佹湁鏁版嵁缁撴瀯浣�return锛�	鎵ц缁撴灉鐮侊紝0琛ㄧず姝ｅ父鎵ц
-*******************************************************/
+
 static int goodix_init_panel(struct gt818_ts_data *ts)
 {
 	int ret = -1;
 //	unsigned char i2c_control_buf[3] = {0x06,0x92,0x03};
 
 	#if 1
-	u8 config_info[] = {		//Touch key devlop board
+	u8 config_info[] = {
 	0x06,0xA2,
 	0x00,0x02,0x04,0x06,0x08,0x0A,0x0C,0x0E,
 	0x10,0x12,0x00,0x00,0x10,0x00,0x20,0x00,
@@ -211,10 +202,7 @@ static int goodix_init_panel(struct gt818_ts_data *ts)
 }
 
 
-/*******************************************************
-鍔熻兘锛�	鑾峰彇鐗堟湰淇℃伅
-鍙傛暟锛�	ts:	client绉佹湁鏁版嵁缁撴瀯浣�return锛�	鎵ц缁撴灉鐮侊紝0琛ㄧず姝ｅ父鎵ц
-*******************************************************/
+
 static int  goodix_read_version(struct gt818_ts_data *ts)
 {
 	int ret;
@@ -261,7 +249,6 @@ static void goodix_ts_work_func(struct work_struct *work)
 	ret = i2c_read_bytes(ts->client, touch_status, sizeof(touch_status)/sizeof(touch_status[0]));
 
 	if(ret <= 0) {
-
 		for(retry = 0; retry < 3; retry++)
 		{
 			ret = i2c_pre_cmd(ts);
@@ -280,16 +267,15 @@ static void goodix_ts_work_func(struct work_struct *work)
 			i2c_read_bytes(ts->client, touch_status, sizeof(touch_status)/sizeof(touch_status[0]));
 		}
 	}
-
+	//judge whether the data is ready
 	if((touch_status[2] & 0x30) != 0x20)
 	{
 		printk("%s:DATA_NO_READY\n", __func__);
 		goto DATA_NO_READY;
 	}
-
+	//judge whether it is large area touch
 	if(touch_status[13] & 0x0f)
 	{
-		//printk("%s:touch area is too large\n", __func__);
 		goto DATA_NO_READY;
 	}
 
@@ -298,10 +284,8 @@ static void goodix_ts_work_func(struct work_struct *work)
 	key_value = touch_status + 15;
 	key = key_value[2] & 0x0f;
 
-//	printk("finger:%d\n", finger);
 	if(finger > 0)
 	{
-		//printk("e\n");
 		point_data = key_value + 3;
 
 		for(position = 0; position < (finger*8); position += 8)
@@ -337,7 +321,6 @@ static void goodix_ts_work_func(struct work_struct *work)
 
 	coor_point = (u16 *)coor_data;
 
-	//printk("%\n");
 	for(position = 1; position < MAX_FINGER_NUM + 1; position++)
 	{
 		//printk("%s:positon:%d\n", __func__, position);
@@ -356,8 +339,6 @@ static void goodix_ts_work_func(struct work_struct *work)
 			x = (*(coor_point+3*(position-1)))*SCREEN_MAX_WIDTH/(TOUCH_MAX_WIDTH);
 			y = (*(coor_point+3*(position-1)+1))*SCREEN_MAX_HEIGHT/(TOUCH_MAX_HEIGHT);
 			pressure = (*(coor_point+3*(position-1)+2));
-			//printk("pressure:%d\n", pressure);
-
 			if(x < SCREEN_MAX_WIDTH){
 				x = SCREEN_MAX_WIDTH - x;
 			}
@@ -372,8 +353,6 @@ static void goodix_ts_work_func(struct work_struct *work)
 			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, pressure);
 			input_mt_sync(ts->input_dev);
 			syn_flag = 1;
-			//printk("position%d: x:%d   y:%d\n",position, x, y);
-			//printk("$\n");
 		}
 	}
 
@@ -431,9 +410,7 @@ XFER_ERROR:
 
 }
 
-/*******************************************************	
-鍔熻兘锛�	璁℃椂鍣ㄥ搷搴斿嚱鏁�	鐢辫鏃跺櫒瑙﹀彂锛岃皟搴﹁Е鎽稿睆宸ヤ綔鍑芥暟杩愯锛涗箣鍚庨噸鏂拌鏃�鍙傛暟锛�	timer锛氬嚱鏁板叧鑱旂殑璁℃椂鍣�
-return锛�	璁℃椂鍣ㄥ伐浣滄ā寮忥紝HRTIMER_NORESTART琛ㄧず涓嶉渶瑕佽嚜鍔ㄩ噸鍚�********************************************************/
+
 static enum hrtimer_restart goodix_ts_timer_func(struct hrtimer *timer)
 {
 	struct gt818_ts_data *ts = container_of(timer, struct gt818_ts_data, timer);
@@ -442,10 +419,7 @@ static enum hrtimer_restart goodix_ts_timer_func(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-/*******************************************************	
-鍔熻兘锛�	涓柇鍝嶅簲鍑芥暟
-	鐢变腑鏂Е鍙戯紝璋冨害瑙︽懜灞忓鐞嗗嚱鏁拌繍琛�鍙傛暟锛�	timer锛氬嚱鏁板叧鑱旂殑璁℃椂鍣�
-return锛�	璁℃椂鍣ㄥ伐浣滄ā寮忥紝HRTIMER_NORESTART琛ㄧず涓嶉渶瑕佽嚜鍔ㄩ噸鍚�********************************************************/
+
 static irqreturn_t goodix_ts_irq_handler(int irq, void *dev_id)
 {
 	struct gt818_ts_data *ts = dev_id;
@@ -454,17 +428,12 @@ static irqreturn_t goodix_ts_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/*******************************************************	
-鍔熻兘锛�	绠＄悊GT801鐨勭數婧愶紝鍏佽GT801 PLUS杩涘叆鐫＄湢鎴栧皢鍏跺敜閱�鍙傛暟锛�
-on:	0琛ㄧず浣胯兘鐫＄湢锛�涓哄敜閱�return锛�	鏄惁璁剧疆鎴愬姛锛�涓烘垚鍔�
-閿欒鐮侊細-1涓篿2c閿欒锛�2涓篏PIO閿欒锛�EINVAL涓哄弬鏁皁n閿欒
-********************************************************/
-//#if defined(INT_PORT)
 static int goodix_ts_power(struct gt818_ts_data * ts, int on)
 {
 	int ret = -1;
 	struct gt818_platform_data	*pdata = ts->client->dev.platform_data;
 	unsigned char i2c_control_buf[3] = {0x06,0x92,0x01};		//suspend cmd
+	unsigned char i2c_config_buf[3] = {0x06,0x92,0x01};
 	
 	#ifdef INT_PORT	
 	if(ts != NULL && !ts->use_irq)
@@ -474,6 +443,10 @@ static int goodix_ts_power(struct gt818_ts_data * ts, int on)
 	{
 		case 0:
 			i2c_pre_cmd(ts);
+			// set the io port high level to avoid level change which might stop gt818 from sleeping
+			gpio_direction_output(pdata->gpio_reset, 1);
+			gpio_direction_output(pdata->gpio_pendown, 1);
+			msleep(5);
 			ret = i2c_write_bytes(ts->client, i2c_control_buf, 3);
 			if(ret < 0)
 			{
@@ -488,9 +461,13 @@ static int goodix_ts_power(struct gt818_ts_data * ts, int on)
 			return ret;
 			
 		case 1:
+			gpio_direction_input(pdata->gpio_pendown);
+			gpio_pull_updown(pdata->gpio_pendown, 0);
+			msleep(2);
 			gpio_direction_output(pdata->gpio_reset, 0);
 			msleep(2);
 			gpio_direction_input(pdata->gpio_reset);
+			gpio_pull_updown(pdata->gpio_reset, 0);
 			msleep(30);
 
 			ret = i2c_pre_cmd(ts);
@@ -500,6 +477,7 @@ static int goodix_ts_power(struct gt818_ts_data * ts, int on)
 			else{
 				printk(KERN_INFO"**gt818 resume fail**\n");
 			}
+
 			return ret;
 				
 		default:
@@ -508,12 +486,8 @@ static int goodix_ts_power(struct gt818_ts_data * ts, int on)
 	}
 
 }
-/*******************************************************	
-鍔熻兘锛�	瑙︽懜灞忔帰娴嬪嚱鏁�	鍦ㄦ敞鍐岄┍鍔ㄦ椂璋冪敤(瑕佹眰瀛樺湪瀵瑰簲鐨刢lient)锛�	鐢ㄤ簬IO,涓柇绛夎祫婧愮敵璇凤紱璁惧娉ㄥ唽锛涜Е鎽稿睆鍒濆鍖栫瓑宸ヤ綔
-鍙傛暟锛�	client锛氬緟椹卞姩鐨勮澶囩粨鏋勪綋
-	id锛氳澶嘔D
-return锛�	鎵ц缁撴灉鐮侊紝0琛ㄧず姝ｅ父鎵ц
-********************************************************/
+
+
 static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int ret = 0;
@@ -562,7 +536,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	}
 	rk29_mux_api_set(pdata->resetpin_iomux_name, pdata->resetpin_iomux_mode);
 #if 1
-	for(retry = 0; retry < 3; retry++)
+	for(retry = 0; retry < 4; retry++)
 	{
 		gpio_direction_output(pdata->gpio_reset, 0);
 		msleep(2);
@@ -587,13 +561,13 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		ret = goodix_init_panel(ts);
 		dev_info(&client->dev,"the config ret is :%d\n", ret);
 		msleep(20);
-		if(ret != 0)	//Initiall failed
+		if(ret < 0)	//Initiall failed
 			continue;
 		else
 			break;
 	}
 
-	if(ret != 0) {
+	if(ret < 0) {
 		ts->bad_data = 1;
 		goto err_init_godix_ts;
 	}
@@ -668,7 +642,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		#define GT801_PLUS_IRQ_TYPE IRQ_TYPE_LEVEL_HIGH
 	#endif
 
-		ret  = request_irq(client->irq, goodix_ts_irq_handler, GT801_PLUS_IRQ_TYPE,
+		ret = request_irq(client->irq, goodix_ts_irq_handler, GT801_PLUS_IRQ_TYPE,
 			client->name, ts);
 		if (ret != 0) {
 			dev_err(&client->dev,"Cannot allocate ts INT!ERRNO:%d\n", ret);
@@ -736,11 +710,6 @@ err_create_proc_entry:
 }
 
 
-/*******************************************************	
-鍔熻兘锛�	椹卞姩璧勬簮閲婃斁
-鍙傛暟锛�	client锛氳澶囩粨鏋勪綋
-return锛�	鎵ц缁撴灉鐮侊紝0琛ㄧず姝ｅ父鎵ц
-********************************************************/
 static int goodix_ts_remove(struct i2c_client *client)
 {
 	struct gt818_ts_data *ts = i2c_get_clientdata(client);
@@ -770,7 +739,7 @@ static int goodix_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
-//鍋滅敤璁惧
+
 static int goodix_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	int ret;
@@ -783,7 +752,7 @@ static int goodix_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	//ret = cancel_work_sync(&ts->work);
 	//if(ret && ts->use_irq)	
 		//enable_irq(client->irq);
-	if (ts->power) {	/* 蹇呴』鍦ㄥ彇娑坵ork鍚庡啀鎵ц锛岄伩鍏嶅洜GPIO瀵艰嚧鍧愭爣澶勭悊浠ｇ爜姝诲惊鐜�*/
+	if (ts->power) {
 		ret = ts->power(ts, 0);
 		if (ret < 0)
 			printk(KERN_ERR "goodix_ts_resume power off failed\n");
@@ -791,7 +760,7 @@ static int goodix_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	return 0;
 }
 
-//閲嶆柊鍞ら啋
+
 static int goodix_ts_resume(struct i2c_client *client)
 {
 	int ret;
@@ -828,14 +797,13 @@ static void goodix_ts_late_resume(struct early_suspend *h)
 #endif
 
 
-//鍙敤浜庤椹卞姩鐨�璁惧鍚嶁�璁惧ID 鍒楄〃
 //only one client
 static const struct i2c_device_id goodix_ts_id[] = {
 	{ GOODIX_I2C_NAME, 0 },
 	{ }
 };
 
-//璁惧椹卞姩缁撴瀯浣�
+
 static struct i2c_driver goodix_ts_driver = {
 	.probe		= goodix_ts_probe,
 	.remove		= goodix_ts_remove,
@@ -850,10 +818,7 @@ static struct i2c_driver goodix_ts_driver = {
 	},
 };
 
-/*******************************************************	
-鍔熻兘锛�	椹卞姩鍔犺浇鍑芥暟
-return锛�	鎵ц缁撴灉鐮侊紝0琛ㄧず姝ｅ父鎵ц
-********************************************************/
+
 static int __devinit goodix_ts_init(void)
 {
 	int ret;
@@ -866,10 +831,7 @@ static int __devinit goodix_ts_init(void)
 	return ret; 
 }
 
-/*******************************************************	
-鍔熻兘锛�	椹卞姩鍗歌浇鍑芥暟
-鍙傛暟锛�	client锛氳澶囩粨鏋勪綋
-********************************************************/
+
 static void __exit goodix_ts_exit(void)
 {
 	printk(KERN_ALERT "Touchscreen driver of guitar exited.\n");
@@ -882,5 +844,6 @@ late_initcall(goodix_ts_init);
 module_exit(goodix_ts_exit);
 
 MODULE_DESCRIPTION("Goodix Touchscreen Driver");
+MODULE_AUTHOR("hhb@rock-chips.com")
 MODULE_LICENSE("GPL");
 
