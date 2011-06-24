@@ -182,6 +182,22 @@ static inline int wl1271_tx_get_queue(int queue)
 	}
 }
 
+static inline int wl1271_tx_get_mac80211_queue(int queue)
+{
+	switch (queue) {
+	case CONF_TX_AC_VO:
+		return 0;
+	case CONF_TX_AC_VI:
+		return 1;
+	case CONF_TX_AC_BE:
+		return 2;
+	case CONF_TX_AC_BK:
+		return 3;
+	default:
+		return 2;
+	}
+}
+
 void wl1271_tx_work(struct work_struct *work);
 void wl1271_tx_work_locked(struct wl1271 *wl);
 void wl1271_tx_complete(struct wl1271 *wl);

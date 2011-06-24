@@ -1497,10 +1497,11 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct wl1271 *wl = hw->priv;
 	unsigned long flags;
-	int q;
+	int q, mapping;
 	u8 hlid = 0;
 
-	q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
+	mapping = skb_get_queue_mapping(skb);
+	q = wl1271_tx_get_queue(mapping);
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS)
 		hlid = wl1271_tx_get_hlid(skb);
@@ -1513,10 +1514,10 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * The workqueue is slow to process the tx_queue and we need stop
 	 * the queue here, otherwise the queue will get too long.
 	 */
-	if (wl->tx_queue_count >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
-		wl1271_debug(DEBUG_TX, "op_tx: stopping queues");
-		ieee80211_stop_queues(wl->hw);
-		set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
+	if (skb_queue_len(&wl->tx_queue[q]) >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
+		wl1271_debug(DEBUG_TX, "op_tx: stopping queues for q %d", q);
+		ieee80211_stop_queue(wl->hw, mapping);
+		set_bit(q, &wl->stopped_queues_map);
 	}
 
 	/* queue the packet */

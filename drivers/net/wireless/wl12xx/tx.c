@@ -444,14 +444,19 @@ u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set)
 void wl1271_handle_tx_low_watermark(struct wl1271 *wl)
 {
 	unsigned long flags;
+	int i;
 
-	if (test_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags) &&
-	    wl->tx_queue_count <= WL1271_TX_QUEUE_LOW_WATERMARK) {
-		/* firmware buffer has space, restart queues */
-		spin_lock_irqsave(&wl->wl_lock, flags);
-		ieee80211_wake_queues(wl->hw);
-		clear_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
-		spin_unlock_irqrestore(&wl->wl_lock, flags);
+	for (i = 0; i < NUM_TX_QUEUES; i++) {
+		if (test_bit(i, &wl->stopped_queues_map) &&
+		    skb_queue_len(&wl->tx_queue[i]) <=
+						WL1271_TX_QUEUE_LOW_WATERMARK) {
+			/* firmware buffer has space, restart queues */
+			spin_lock_irqsave(&wl->wl_lock, flags);
+			ieee80211_wake_queue(wl->hw,
+					     wl1271_tx_get_mac80211_queue(i));
+			clear_bit(i, &wl->stopped_queues_map);
+			spin_unlock_irqrestore(&wl->wl_lock, flags);
+		}
 	}
 }
 
@@ -863,6 +868,7 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 	}
 
 	wl->tx_queue_count = 0;
+	wl->stopped_queues_map = 0;
 
 	/*
 	 * Make sure the driver is at a consistent state, in case this
