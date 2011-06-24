@@ -177,6 +177,36 @@ static int siena_test_registers(struct efx_nic *efx)
  **************************************************************************
  */
 
+static enum reset_type siena_map_reset_reason(enum reset_type reason)
+{
+	return RESET_TYPE_ALL;
+}
+
+static int siena_map_reset_flags(u32 *flags)
+{
+	enum {
+		SIENA_RESET_PORT = (ETH_RESET_DMA | ETH_RESET_FILTER |
+				    ETH_RESET_OFFLOAD | ETH_RESET_MAC |
+				    ETH_RESET_PHY),
+		SIENA_RESET_MC = (SIENA_RESET_PORT |
+				  ETH_RESET_MGMT << ETH_RESET_SHARED_SHIFT),
+	};
+
+	if ((*flags & SIENA_RESET_MC) == SIENA_RESET_MC) {
+		*flags &= ~SIENA_RESET_MC;
+		return RESET_TYPE_WORLD;
+	}
+
+	if ((*flags & SIENA_RESET_PORT) == SIENA_RESET_PORT) {
+		*flags &= ~SIENA_RESET_PORT;
+		return RESET_TYPE_ALL;
+	}
+
+	/* no invisible reset implemented */
+
+	return -EINVAL;
+}
+
 static int siena_reset_hw(struct efx_nic *efx, enum reset_type method)
 {
 	int rc;
@@ -605,6 +635,8 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.init = siena_init_nic,
 	.fini = efx_port_dummy_op_void,
 	.monitor = NULL,
+	.map_reset_reason = siena_map_reset_reason,
+	.map_reset_flags = siena_map_reset_flags,
 	.reset = siena_reset_hw,
 	.probe_port = siena_probe_port,
 	.remove_port = siena_remove_port,
@@ -641,5 +673,4 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.rx_dc_base = 0x68000,
 	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			     NETIF_F_RXHASH | NETIF_F_NTUPLE),
-	.reset_world_flags = ETH_RESET_MGMT << ETH_RESET_SHARED_SHIFT,
 };

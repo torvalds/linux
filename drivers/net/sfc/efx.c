@@ -2183,26 +2183,16 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	case RESET_TYPE_WORLD:
 	case RESET_TYPE_DISABLE:
 		method = type;
+		netif_dbg(efx, drv, efx->net_dev, "scheduling %s reset\n",
+			  RESET_TYPE(method));
 		break;
-	case RESET_TYPE_RX_RECOVERY:
-	case RESET_TYPE_RX_DESC_FETCH:
-	case RESET_TYPE_TX_DESC_FETCH:
-	case RESET_TYPE_TX_SKIP:
-		method = RESET_TYPE_INVISIBLE;
-		break;
-	case RESET_TYPE_MC_FAILURE:
 	default:
-		method = RESET_TYPE_ALL;
-		break;
-	}
-
-	if (method != type)
+		method = efx->type->map_reset_reason(type);
 		netif_dbg(efx, drv, efx->net_dev,
 			  "scheduling %s reset for %s\n",
 			  RESET_TYPE(method), RESET_TYPE(type));
-	else
-		netif_dbg(efx, drv, efx->net_dev, "scheduling %s reset\n",
-			  RESET_TYPE(method));
+		break;
+	}
 
 	set_bit(method, &efx->reset_pending);
 

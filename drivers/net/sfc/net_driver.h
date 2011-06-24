@@ -828,6 +828,8 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @init: Initialise the controller
  * @fini: Shut down the controller
  * @monitor: Periodic function for polling link state and hardware monitor
+ * @map_reset_reason: Map ethtool reset reason to a reset method
+ * @map_reset_flags: Map ethtool reset flags to a reset method, if possible
  * @reset: Reset the controller hardware and possibly the PHY.  This will
  *	be called while the controller is uninitialised.
  * @probe_port: Probe the MAC and PHY
@@ -865,8 +867,6 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @rx_dc_base: Base address in SRAM of RX queue descriptor caches
  * @offload_features: net_device feature flags for protocol offload
  *	features implemented in hardware
- * @reset_world_flags: Flags for additional components covered by
- *	reset method RESET_TYPE_WORLD
  */
 struct efx_nic_type {
 	int (*probe)(struct efx_nic *efx);
@@ -874,6 +874,8 @@ struct efx_nic_type {
 	int (*init)(struct efx_nic *efx);
 	void (*fini)(struct efx_nic *efx);
 	void (*monitor)(struct efx_nic *efx);
+	enum reset_type (*map_reset_reason)(enum reset_type reason);
+	int (*map_reset_flags)(u32 *flags);
 	int (*reset)(struct efx_nic *efx, enum reset_type method);
 	int (*probe_port)(struct efx_nic *efx);
 	void (*remove_port)(struct efx_nic *efx);
@@ -908,7 +910,6 @@ struct efx_nic_type {
 	unsigned int tx_dc_base;
 	unsigned int rx_dc_base;
 	u32 offload_features;
-	u32 reset_world_flags;
 };
 
 /**************************************************************************
