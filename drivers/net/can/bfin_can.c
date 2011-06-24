@@ -243,21 +243,12 @@ static int bfin_can_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* fill id */
 	if (id & CAN_EFF_FLAG) {
 		bfin_write16(&reg->chl[TRANSMIT_CHL].id0, id);
-		if (id & CAN_RTR_FLAG)
-			writew(((id & 0x1FFF0000) >> 16) | IDE | AME | RTR,
-					&reg->chl[TRANSMIT_CHL].id1);
-		else
-			writew(((id & 0x1FFF0000) >> 16) | IDE | AME,
-					&reg->chl[TRANSMIT_CHL].id1);
-
-	} else {
-		if (id & CAN_RTR_FLAG)
-			writew((id << 2) | AME | RTR,
-				&reg->chl[TRANSMIT_CHL].id1);
-		else
-			bfin_write16(&reg->chl[TRANSMIT_CHL].id1,
-					(id << 2) | AME);
-	}
+		val = ((id & 0x1FFF0000) >> 16) | IDE;
+	} else
+		val = (id << 2);
+	if (id & CAN_RTR_FLAG)
+		val |= RTR;
+	bfin_write16(&reg->chl[TRANSMIT_CHL].id1, val | AME);
 
 	/* fill payload */
 	for (i = 0; i < 8; i += 2) {
