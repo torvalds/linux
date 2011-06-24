@@ -133,6 +133,15 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 	for (; num > 0; num--,\
 	     task = list_entry(task->list.next, struct sas_task, list))
 
+
+static inline int isci_device_io_ready(struct isci_remote_device *idev,
+				       struct sas_task *task)
+{
+	return idev ? test_bit(IDEV_IO_READY, &idev->flags) ||
+		      (test_bit(IDEV_IO_NCQERROR, &idev->flags) &&
+		       isci_task_is_ncq_recovery(task))
+		    : 0;
+}
 /**
  * isci_task_execute_task() - This function is one of the SAS Domain Template
  *    functions. This function is called by libsas to send a task down to
@@ -165,7 +174,7 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 	for_each_sas_task(num, task) {
 		spin_lock_irqsave(&ihost->scic_lock, flags);
 		idev = isci_lookup_device(task->dev);
-		io_ready = idev ? test_bit(IDEV_IO_READY, &idev->flags) : 0;
+		io_ready = isci_device_io_ready(idev, task);
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 		dev_dbg(&ihost->pdev->dev,
@@ -178,6 +187,7 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 					 SAS_DEVICE_UNKNOWN);
 			isci_host_can_dequeue(ihost, 1);
 		} else if (!io_ready) {
+
 			/* Indicate QUEUE_FULL so that the scsi midlayer
 			 * retries.
 			  */
@@ -299,7 +309,9 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 	/* sanity check, return TMF_RESP_FUNC_FAILED
 	 * if the device is not there and ready.
 	 */
-	if (!isci_device || !test_bit(IDEV_IO_READY, &isci_device->flags)) {
+	if (!isci_device ||
+	    (!test_bit(IDEV_IO_READY, &isci_device->flags) &&
+	     !test_bit(IDEV_IO_NCQERROR, &isci_device->flags))) {
 		dev_dbg(&ihost->pdev->dev,
 			"%s: isci_device = %p not ready (%#lx)\n",
 			__func__,

@@ -3587,9 +3587,30 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 
-	/* send the request, let the core assign the IO TAG.	*/
-	status = scic_controller_start_io(&ihost->sci, &idev->sci, &ireq->sci,
-					  SCI_CONTROLLER_INVALID_IO_TAG);
+	if (test_bit(IDEV_IO_NCQERROR, &idev->flags)) {
+
+		if (isci_task_is_ncq_recovery(task)) {
+
+			/* The device is in an NCQ recovery state.  Issue the
+			 * request on the task side.  Note that it will
+			 * complete on the I/O request side because the
+			 * request was built that way (ie.
+			 * ireq->is_task_management_request is false).
+			 */
+			status = scic_controller_start_task(&ihost->sci,
+							    &idev->sci,
+							    &ireq->sci,
+							    SCI_CONTROLLER_INVALID_IO_TAG);
+		} else {
+			status = SCI_FAILURE;
+		}
+	} else {
+
+		/* send the request, let the core assign the IO TAG.	*/
+		status = scic_controller_start_io(&ihost->sci, &idev->sci,
+						  &ireq->sci,
+						  SCI_CONTROLLER_INVALID_IO_TAG);
+	}
 	if (status != SCI_SUCCESS &&
 	    status != SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
 		dev_warn(&ihost->pdev->dev,

@@ -136,6 +136,7 @@ struct isci_remote_device {
 	#define IDEV_EH 3
 	#define IDEV_GONE 4
 	#define IDEV_IO_READY 5
+	#define IDEV_IO_NCQERROR 6
 	unsigned long flags;
 	struct kref kref;
 	struct isci_port *isci_port;

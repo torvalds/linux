@@ -68,17 +68,39 @@
  * @isci_host: This parameter specifies the isci host object.
  * @isci_device: This parameter specifies the remote device
  *
+ * scic_lock is held on entrance to this function.
  */
 static void isci_remote_device_not_ready(struct isci_host *ihost,
 				  struct isci_remote_device *idev, u32 reason)
 {
+	struct isci_request * ireq;
+
 	dev_dbg(&ihost->pdev->dev,
 		"%s: isci_device = %p\n", __func__, idev);
 
-	if (reason == SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED)
+	switch (reason) {
+	case SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED:
 		set_bit(IDEV_GONE, &idev->flags);
-	else
+		break;
+	case SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED:
+		set_bit(IDEV_IO_NCQERROR, &idev->flags);
+
+		/* Kill all outstanding requests for the device. */
+		list_for_each_entry(ireq, &idev->reqs_in_process, dev_node) {
+
+			dev_dbg(&ihost->pdev->dev,
+				"%s: isci_device = %p request = %p\n",
+				__func__, idev, ireq);
+
+			scic_controller_terminate_request(&ihost->sci,
+							  &idev->sci,
+							  &ireq->sci);
+		}
+		/* Fall through into the default case... */
+	default:
 		clear_bit(IDEV_IO_READY, &idev->flags);
+		break;
+	}
 }
 
 /**
@@ -94,6 +116,7 @@ static void isci_remote_device_ready(struct isci_host *ihost, struct isci_remote
 	dev_dbg(&ihost->pdev->dev,
 		"%s: idev = %p\n", __func__, idev);
 
+	clear_bit(IDEV_IO_NCQERROR, &idev->flags);
 	set_bit(IDEV_IO_READY, &idev->flags);
 	if (test_and_clear_bit(IDEV_START_PENDING, &idev->flags))
 		wake_up(&ihost->eventq);

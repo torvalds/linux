@@ -687,4 +687,13 @@ scic_task_request_construct_sata(struct scic_sds_request *sci_req);
 void
 scic_stp_io_request_set_ncq_tag(struct scic_sds_request *sci_req, u16 ncq_tag);
 void scic_sds_smp_request_copy_response(struct scic_sds_request *sci_req);
+
+static inline int isci_task_is_ncq_recovery(struct sas_task *task)
+{
+	return (sas_protocol_ata(task->task_proto) &&
+	        task->ata_task.fis.command == ATA_CMD_READ_LOG_EXT &&
+	        task->ata_task.fis.lbal == ATA_LOG_SATA_NCQ);
+
+}
+
 #endif /* !defined(_ISCI_REQUEST_H_) */
