@@ -1116,8 +1116,8 @@ static void dw_mci_write_data_pio(struct dw_mci *host)
 	unsigned int nbytes = 0, len;
 
 	do {
-		len = SDMMC_FIFO_SZ -
-			(SDMMC_GET_FCNT(mci_readl(host, STATUS)) << shift);
+		len = (host->fifo_depth -
+			SDMMC_GET_FCNT(mci_readl(host, STATUS))) << shift;
 		if (offset + len <= sg->length) {
 			host->push_data(host, (void *)(buf + offset), len);
 
@@ -1659,8 +1659,19 @@ static int dw_mci_probe(struct platform_device *pdev)
 	 * FIFO threshold settings  RxMark  = fifo_size / 2 - 1,
 	 *                          Tx Mark = fifo_size / 2 DMA Size = 8
 	 */
-	fifo_size = mci_readl(host, FIFOTH);
-	fifo_size = (fifo_size >> 16) & 0x7ff;
+	if (!host->pdata->fifo_depth) {
+		/*
+		 * Power-on value of RX_WMark is FIFO_DEPTH-1, but this may
+		 * have been overwritten by the bootloader, just like we're
+		 * about to do, so if you know the value for your hardware, you
+		 * should put it in the platform data.
+		 */
+		fifo_size = mci_readl(host, FIFOTH);
+		fifo_size = 1 + ((fifo_size >> 16) & 0x7ff);
+	} else {
+		fifo_size = host->pdata->fifo_depth;
+	}
+	host->fifo_depth = fifo_size;
 	host->fifoth_val = ((0x2 << 28) | ((fifo_size/2 - 1) << 16) |
 			((fifo_size/2) << 0));
 	mci_writel(host, FIFOTH, host->fifoth_val);
@@ -1707,7 +1718,9 @@ static int dw_mci_probe(struct platform_device *pdev)
 	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE); /* Enable mci interrupt */
 
 	dev_info(&pdev->dev, "DW MMC controller at irq %d, "
-		 "%d bit host data width\n", irq, width);
+		 "%d bit host data width, "
+		 "%u deep fifo\n",
+		 irq, width, fifo_size);
 	if (host->quirks & DW_MCI_QUIRK_IDMAC_DTO)
 		dev_info(&pdev->dev, "Internal DMAC interrupt fix enabled.\n");
 
