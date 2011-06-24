@@ -385,7 +385,9 @@ void ath_beacon_tasklet(unsigned long data)
 			ath_dbg(common, ATH_DBG_BSTUCK,
 				"beacon is officially stuck\n");
 			sc->sc_flags |= SC_OP_TSF_RESET;
+			spin_lock(&sc->sc_pcu_lock);
 			ath_reset(sc, true);
+			spin_unlock(&sc->sc_pcu_lock);
 		}
 
 		return;

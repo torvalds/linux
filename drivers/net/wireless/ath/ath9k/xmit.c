@@ -565,11 +565,8 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 	rcu_read_unlock();
 
-	if (needreset) {
-		spin_unlock_bh(&sc->sc_pcu_lock);
+	if (needreset)
 		ath_reset(sc, false);
-		spin_lock_bh(&sc->sc_pcu_lock);
-	}
 }
 
 static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
@@ -2169,7 +2166,9 @@ static void ath_tx_complete_poll_work(struct work_struct *work)
 	if (needreset) {
 		ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_RESET,
 			"tx hung, resetting the chip\n");
+		spin_lock_bh(&sc->sc_pcu_lock);
 		ath_reset(sc, true);
+		spin_unlock_bh(&sc->sc_pcu_lock);
 	}
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work,
