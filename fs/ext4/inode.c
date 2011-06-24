@@ -3501,10 +3501,8 @@ retry:
 				 offset, nr_segs,
 				 ext4_get_block, NULL, NULL, 0);
 	else {
-		ret = blockdev_direct_IO(rw, iocb, inode,
-				 inode->i_sb->s_bdev, iov,
-				 offset, nr_segs,
-				 ext4_get_block, NULL);
+		ret = blockdev_direct_IO(rw, iocb, inode, iov,
+				 offset, nr_segs, ext4_get_block);
 
 		if (unlikely((rw & WRITE) && ret < 0)) {
 			loff_t isize = i_size_read(inode);
@@ -3748,11 +3746,13 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 			EXT4_I(inode)->cur_aio_dio = iocb->private;
 		}
 
-		ret = blockdev_direct_IO(rw, iocb, inode,
+		ret = __blockdev_direct_IO(rw, iocb, inode,
 					 inode->i_sb->s_bdev, iov,
 					 offset, nr_segs,
 					 ext4_get_block_write,
-					 ext4_end_io_dio);
+					 ext4_end_io_dio,
+					 NULL,
+					 DIO_LOCKING | DIO_SKIP_HOLES);
 		if (iocb->private)
 			EXT4_I(inode)->cur_aio_dio = NULL;
 		/*
