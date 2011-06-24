@@ -214,6 +214,8 @@ struct drm_i915_display_funcs {
 	int (*queue_flip)(struct drm_device *dev, struct drm_crtc *crtc,
 			  struct drm_framebuffer *fb,
 			  struct drm_i915_gem_object *obj);
+	int (*update_plane)(struct drm_crtc *crtc, struct drm_framebuffer *fb,
+			    int x, int y);
 	/* clock updates for mode set */
 	/* cursor updates */
 	/* render clock increase/decrease */

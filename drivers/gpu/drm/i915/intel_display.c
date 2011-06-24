@@ -1841,10 +1841,8 @@ err_interruptible:
 	return ret;
 }
 
-/* Assume fb object is pinned & idle & fenced and just update base pointers */
-static int
-intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			   int x, int y, enum mode_set_atomic state)
+static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
+			     int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1887,7 +1885,7 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
 		break;
 	default:
-		DRM_ERROR("Unknown color depth\n");
+		DRM_ERROR("Unknown color depth %d\n", fb->bits_per_pixel);
 		return -EINVAL;
 	}
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -1896,10 +1894,6 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		else
 			dspcntr &= ~DISPPLANE_TILED;
 	}
-
-	if (HAS_PCH_SPLIT(dev))
-		/* must disable */
-		dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
 
 	I915_WRITE(reg, dspcntr);
 
@@ -1916,6 +1910,99 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	} else
 		I915_WRITE(DSPADDR(plane), Start + Offset);
 	POSTING_READ(reg);
+
+	return 0;
+}
+
+static int ironlake_update_plane(struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb, int x, int y)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_framebuffer *intel_fb;
+	struct drm_i915_gem_object *obj;
+	int plane = intel_crtc->plane;
+	unsigned long Start, Offset;
+	u32 dspcntr;
+	u32 reg;
+
+	switch (plane) {
+	case 0:
+	case 1:
+		break;
+	default:
+		DRM_ERROR("Can't update plane %d in SAREA\n", plane);
+		return -EINVAL;
+	}
+
+	intel_fb = to_intel_framebuffer(fb);
+	obj = intel_fb->obj;
+
+	reg = DSPCNTR(plane);
+	dspcntr = I915_READ(reg);
+	/* Mask out pixel format bits in case we change it */
+	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
+	switch (fb->bits_per_pixel) {
+	case 8:
+		dspcntr |= DISPPLANE_8BPP;
+		break;
+	case 16:
+		if (fb->depth != 16)
+			return -EINVAL;
+
+		dspcntr |= DISPPLANE_16BPP;
+		break;
+	case 24:
+	case 32:
+		if (fb->depth == 24)
+			dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
+		else if (fb->depth == 30)
+			dspcntr |= DISPPLANE_32BPP_30BIT_NO_ALPHA;
+		else
+			return -EINVAL;
+		break;
+	default:
+		DRM_ERROR("Unknown color depth %d\n", fb->bits_per_pixel);
+		return -EINVAL;
+	}
+
+	if (obj->tiling_mode != I915_TILING_NONE)
+		dspcntr |= DISPPLANE_TILED;
+	else
+		dspcntr &= ~DISPPLANE_TILED;
+
+	/* must disable */
+	dspcntr |= DISPPLANE_TRICKLE_FEED_DISABLE;
+
+	I915_WRITE(reg, dspcntr);
+
+	Start = obj->gtt_offset;
+	Offset = y * fb->pitch + x * (fb->bits_per_pixel / 8);
+
+	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
+		      Start, Offset, x, y, fb->pitch);
+	I915_WRITE(DSPSTRIDE(plane), fb->pitch);
+	I915_WRITE(DSPSURF(plane), Start);
+	I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
+	I915_WRITE(DSPADDR(plane), Offset);
+	POSTING_READ(reg);
+
+	return 0;
+}
+
+/* Assume fb object is pinned & idle & fenced and just update base pointers */
+static int
+intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
+			   int x, int y, enum mode_set_atomic state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	ret = dev_priv->display.update_plane(crtc, fb, x, y);
+	if (ret)
+		return ret;
 
 	intel_update_fbc(dev);
 	intel_increase_pllclock(crtc);
@@ -7797,9 +7884,11 @@ static void intel_init_display(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->display.dpms = ironlake_crtc_dpms;
 		dev_priv->display.crtc_mode_set = ironlake_crtc_mode_set;
+		dev_priv->display.update_plane = ironlake_update_plane;
 	} else {
 		dev_priv->display.dpms = i9xx_crtc_dpms;
 		dev_priv->display.crtc_mode_set = i9xx_crtc_mode_set;
+		dev_priv->display.update_plane = i9xx_update_plane;
 	}
 
 	if (I915_HAS_FBC(dev)) {
