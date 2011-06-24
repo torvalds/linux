@@ -533,7 +533,7 @@ static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv,
 					[valid_rate_count] = j;
 				ath_rc_priv->valid_phy_ratecnt[phy] += 1;
 				ath_rc_set_valid_rate_idx(ath_rc_priv, j, 1);
-				hi = A_MAX(hi, j);
+				hi = max(hi, j);
 			}
 		}
 	}
@@ -569,7 +569,7 @@ static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv,
 				[ath_rc_priv->valid_phy_ratecnt[phy]] = j;
 			ath_rc_priv->valid_phy_ratecnt[phy] += 1;
 			ath_rc_set_valid_rate_idx(ath_rc_priv, j, 1);
-			hi = A_MAX(hi, j);
+			hi = max(hi, j);
 		}
 	}
 
@@ -1228,7 +1228,7 @@ static void ath_rc_init(struct ath_softc *sc,
 						       ht_mcs,
 						       ath_rc_priv->ht_cap);
 		}
-		hi = A_MAX(hi, hthi);
+		hi = max(hi, hthi);
 	}
 
 	ath_rc_priv->rate_table_size = hi + 1;

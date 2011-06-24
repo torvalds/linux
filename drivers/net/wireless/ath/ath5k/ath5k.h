@@ -767,6 +767,7 @@ struct ath5k_athchan_2ghz {
  */
 
 #define AR5K_KEYCACHE_SIZE	8
+extern int ath5k_modparam_nohwcrypt;
 
 /***********************\
  HW RELATED DEFINITIONS
@@ -1180,8 +1181,8 @@ void ath5k_sysfs_unregister(struct ath5k_softc *sc);
 struct ath5k_buf;
 struct ath5k_txq;
 
-void set_beacon_filter(struct ieee80211_hw *hw, bool enable);
-bool ath_any_vif_assoc(struct ath5k_softc *sc);
+void ath5k_set_beacon_filter(struct ieee80211_hw *hw, bool enable);
+bool ath5k_any_vif_assoc(struct ath5k_softc *sc);
 void ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 		    struct ath5k_txq *txq);
 int ath5k_init_hw(struct ath5k_softc *sc);
@@ -1253,7 +1254,7 @@ int ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
 		int len, struct ieee80211_rate *rate, bool shortpre);
 unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah);
 unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah);
-extern int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype opmode);
+int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype opmode);
 void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class);
 /* RX filter control*/
 int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac);

@@ -83,7 +83,23 @@ static int ar9003_get_training_power_5g(struct ath_hw *ah)
 	if (delta > scale)
 		return -1;
 
-	power += 2 * get_streams(common->tx_chainmask);
+	switch (get_streams(common->tx_chainmask)) {
+	case 1:
+		delta = 6;
+		break;
+	case 2:
+		delta = 4;
+		break;
+	case 3:
+		delta = 2;
+		break;
+	default:
+		delta = 0;
+		ath_dbg(common, ATH_DBG_CALIBRATE,
+		"Invalid tx-chainmask: %u\n", common->tx_chainmask);
+	}
+
+	power += delta;
 	return power;
 }
 
@@ -785,7 +801,26 @@ EXPORT_SYMBOL(ar9003_paprd_init_table);
 
 bool ar9003_paprd_is_done(struct ath_hw *ah)
 {
-	return !!REG_READ_FIELD(ah, AR_PHY_PAPRD_TRAINER_STAT1,
+	int paprd_done, agc2_pwr;
+	paprd_done = REG_READ_FIELD(ah, AR_PHY_PAPRD_TRAINER_STAT1,
 				AR_PHY_PAPRD_TRAINER_STAT1_PAPRD_TRAIN_DONE);
+
+	if (paprd_done == 0x1) {
+		agc2_pwr = REG_READ_FIELD(ah, AR_PHY_PAPRD_TRAINER_STAT1,
+				AR_PHY_PAPRD_TRAINER_STAT1_PAPRD_AGC2_PWR);
+
+		ath_dbg(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
+			"AGC2_PWR = 0x%x training done = 0x%x\n",
+			agc2_pwr, paprd_done);
+	/*
+	 * agc2_pwr range should not be less than 'IDEAL_AGC2_PWR_CHANGE'
+	 * when the training is completely done, otherwise retraining is
+	 * done to make sure the value is in ideal range
+	 */
+		if (agc2_pwr <= PAPRD_IDEAL_AGC2_PWR_RANGE)
+			paprd_done = 0;
+	}
+
+	return !!paprd_done;
 }
 EXPORT_SYMBOL(ar9003_paprd_is_done);

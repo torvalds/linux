@@ -384,18 +384,6 @@ struct iwl_tx_ant_config_cmd {
 
 #define UCODE_VALID_OK	cpu_to_le32(0x1)
 
-enum iwlagn_ucode_subtype {
-	UCODE_SUBTYPE_REGULAR	= 0,
-	UCODE_SUBTYPE_REGULAR_NEW = 1,
-	UCODE_SUBTYPE_INIT	= 9,
-
-	/*
-	 * Not a valid subtype, the ucode has just a u8, so
-	 * we can use something > 0xff for this value.
-	 */
-	UCODE_SUBTYPE_NONE_LOADED = 0x100,
-};
-
 /**
  * REPLY_ALIVE = 0x1 (response only, not a command)
  *
@@ -984,15 +972,26 @@ struct iwl_rem_sta_cmd {
 	u8 reserved2[2];
 } __packed;
 
-#define IWL_TX_FIFO_BK_MSK		cpu_to_le32(BIT(0))
-#define IWL_TX_FIFO_BE_MSK		cpu_to_le32(BIT(1))
-#define IWL_TX_FIFO_VI_MSK		cpu_to_le32(BIT(2))
-#define IWL_TX_FIFO_VO_MSK		cpu_to_le32(BIT(3))
+
+/* WiFi queues mask */
+#define IWL_SCD_BK_MSK			cpu_to_le32(BIT(0))
+#define IWL_SCD_BE_MSK			cpu_to_le32(BIT(1))
+#define IWL_SCD_VI_MSK			cpu_to_le32(BIT(2))
+#define IWL_SCD_VO_MSK			cpu_to_le32(BIT(3))
+#define IWL_SCD_MGMT_MSK		cpu_to_le32(BIT(3))
+
+/* PAN queues mask */
+#define IWL_PAN_SCD_BK_MSK		cpu_to_le32(BIT(4))
+#define IWL_PAN_SCD_BE_MSK		cpu_to_le32(BIT(5))
+#define IWL_PAN_SCD_VI_MSK		cpu_to_le32(BIT(6))
+#define IWL_PAN_SCD_VO_MSK		cpu_to_le32(BIT(7))
+#define IWL_PAN_SCD_MGMT_MSK		cpu_to_le32(BIT(7))
+#define IWL_PAN_SCD_MULTICAST_MSK	cpu_to_le32(BIT(8))
+
 #define IWL_AGG_TX_QUEUE_MSK		cpu_to_le32(0xffc00)
 
 #define IWL_DROP_SINGLE		0
-#define IWL_DROP_SELECTED	1
-#define IWL_DROP_ALL		2
+#define IWL_DROP_ALL		(BIT(IWL_RXON_CTX_BSS) | BIT(IWL_RXON_CTX_PAN))
 
 /*
  * REPLY_TXFIFO_FLUSH = 0x1e(command and response)

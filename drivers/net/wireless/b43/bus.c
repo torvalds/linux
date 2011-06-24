@@ -25,7 +25,7 @@
 
 
 /* SSB */
-
+#ifdef CONFIG_B43_SSB
 static inline int b43_bus_ssb_bus_may_powerdown(struct b43_bus_dev *dev)
 {
 	return ssb_bus_may_powerdown(dev->sdev->bus);
@@ -83,7 +83,11 @@ void b43_bus_ssb_block_write(struct b43_bus_dev *dev, const void *buffer,
 
 struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev)
 {
-	struct b43_bus_dev *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	struct b43_bus_dev *dev;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return NULL;
 
 	dev->bus_type = B43_BUS_SSB;
 	dev->sdev = sdev;
@@ -120,3 +124,4 @@ struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev)
 
 	return dev;
 }
+#endif /* CONFIG_B43_SSB */

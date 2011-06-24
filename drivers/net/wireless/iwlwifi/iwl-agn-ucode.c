@@ -143,7 +143,7 @@ static int iwlagn_load_section(struct iwl_priv *priv, const char *name,
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
 		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 
-	IWL_DEBUG_INFO(priv, "%s uCode section being loaded...\n", name);
+	IWL_DEBUG_FW(priv, "%s uCode section being loaded...\n", name);
 	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
 					priv->ucode_write_complete, 5 * HZ);
 	if (ret == -ERESTARTSYS) {
@@ -183,10 +183,7 @@ static int iwlagn_set_Xtal_calib(struct iwl_priv *priv)
 	__le16 *xtal_calib =
 		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_XTAL);
 
-	cmd.hdr.op_code = IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD;
-	cmd.hdr.first_group = 0;
-	cmd.hdr.groups_num = 1;
-	cmd.hdr.data_valid = 1;
+	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD);
 	cmd.cap_pin1 = le16_to_cpu(xtal_calib[0]);
 	cmd.cap_pin2 = le16_to_cpu(xtal_calib[1]);
 	return iwl_calib_set(&priv->calib_results[IWL_CALIB_XTAL],
@@ -197,15 +194,14 @@ static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
 {
 	struct iwl_calib_temperature_offset_cmd cmd;
 	__le16 *offset_calib =
-		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_TEMPERATURE);
-	cmd.hdr.op_code = IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD;
-	cmd.hdr.first_group = 0;
-	cmd.hdr.groups_num = 1;
-	cmd.hdr.data_valid = 1;
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_TEMPERATURE);
+
+	memset(&cmd, 0, sizeof(cmd));
+	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
 	cmd.radio_sensor_offset = le16_to_cpu(offset_calib[1]);
 	if (!(cmd.radio_sensor_offset))
 		cmd.radio_sensor_offset = DEFAULT_RADIO_SENSOR_OFFSET;
-	cmd.reserved = 0;
+
 	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
 			cmd.radio_sensor_offset);
 	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],
@@ -508,7 +504,7 @@ static int iwlcore_verify_inst_sparse(struct iwl_priv *priv,
 	u32 val;
 	u32 i;
 
-	IWL_DEBUG_INFO(priv, "ucode inst image size is %u\n", len);
+	IWL_DEBUG_FW(priv, "ucode inst image size is %u\n", len);
 
 	for (i = 0; i < len; i += 100, image += 100/sizeof(u32)) {
 		/* read data comes through single port, auto-incr addr */
@@ -533,7 +529,7 @@ static void iwl_print_mismatch_inst(struct iwl_priv *priv,
 	u32 offs;
 	int errors = 0;
 
-	IWL_DEBUG_INFO(priv, "ucode inst image size is %u\n", len);
+	IWL_DEBUG_FW(priv, "ucode inst image size is %u\n", len);
 
 	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
 			   IWLAGN_RTC_INST_LOWER_BOUND);
@@ -559,7 +555,7 @@ static void iwl_print_mismatch_inst(struct iwl_priv *priv,
 static int iwl_verify_ucode(struct iwl_priv *priv, struct fw_img *img)
 {
 	if (!iwlcore_verify_inst_sparse(priv, &img->code)) {
-		IWL_DEBUG_INFO(priv, "uCode is good in inst SRAM\n");
+		IWL_DEBUG_FW(priv, "uCode is good in inst SRAM\n");
 		return 0;
 	}
 
@@ -583,7 +579,7 @@ static void iwlagn_alive_fn(struct iwl_priv *priv,
 
 	palive = &pkt->u.alive_frame;
 
-	IWL_DEBUG_INFO(priv, "Alive ucode status 0x%08X revision "
+	IWL_DEBUG_FW(priv, "Alive ucode status 0x%08X revision "
 		       "0x%01X 0x%01X\n",
 		       palive->is_valid, palive->ver_type,
 		       palive->ver_subtype);
@@ -602,12 +598,12 @@ static void iwlagn_alive_fn(struct iwl_priv *priv,
 
 int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 				 struct fw_img *image,
-				 int subtype, int alternate_subtype)
+				 enum iwlagn_ucode_type ucode_type)
 {
 	struct iwl_notification_wait alive_wait;
 	struct iwlagn_alive_data alive_data;
 	int ret;
-	enum iwlagn_ucode_subtype old_type;
+	enum iwlagn_ucode_type old_type;
 
 	ret = iwlagn_start_device(priv);
 	if (ret)
@@ -617,7 +613,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 				      iwlagn_alive_fn, &alive_data);
 
 	old_type = priv->ucode_type;
-	priv->ucode_type = subtype;
+	priv->ucode_type = ucode_type;
 
 	ret = iwlagn_load_given_ucode(priv, image);
 	if (ret) {
@@ -641,15 +637,6 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 
 	if (!alive_data.valid) {
 		IWL_ERR(priv, "Loaded ucode is not valid!\n");
-		priv->ucode_type = old_type;
-		return -EIO;
-	}
-
-	if (alive_data.subtype != subtype &&
-	    alive_data.subtype != alternate_subtype) {
-		IWL_ERR(priv,
-			"Loaded ucode is not expected type (got %d, expected %d)!\n",
-			alive_data.subtype, subtype);
 		priv->ucode_type = old_type;
 		return -EIO;
 	}
@@ -685,7 +672,7 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 	if (!priv->ucode_init.code.len)
 		return 0;
 
-	if (priv->ucode_type != UCODE_SUBTYPE_NONE_LOADED)
+	if (priv->ucode_type != IWL_UCODE_NONE)
 		return 0;
 
 	iwlagn_init_notification_wait(priv, &calib_wait,
@@ -694,7 +681,7 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 
 	/* Will also start the device */
 	ret = iwlagn_load_ucode_wait_alive(priv, &priv->ucode_init,
-					   UCODE_SUBTYPE_INIT, -1);
+					   IWL_UCODE_INIT);
 	if (ret)
 		goto error;
 

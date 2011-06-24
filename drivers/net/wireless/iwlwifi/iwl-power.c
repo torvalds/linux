@@ -36,6 +36,7 @@
 
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
+#include "iwl-agn.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-commands.h"
@@ -49,16 +50,6 @@
  * we get from mac80211. In order to handle thermal throttling, we can
  * also use pre-defined power levels.
  */
-
-/*
- * For now, keep using power level 1 instead of automatically
- * adjusting ...
- */
-bool no_sleep_autoadjust = true;
-module_param(no_sleep_autoadjust, bool, S_IRUGO);
-MODULE_PARM_DESC(no_sleep_autoadjust,
-		 "don't automatically adjust sleep level "
-		 "according to maximum network latency");
 
 /*
  * This defines the old power levels. They are still used by default
@@ -254,7 +245,7 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 		}
 	}
 
-	if (priv->power_data.pci_pm)
+	if (priv->power_data.bus_pm)
 		cmd->flags |= IWL_POWER_PCI_PM_MSK;
 	else
 		cmd->flags &= ~IWL_POWER_PCI_PM_MSK;
@@ -269,7 +260,7 @@ static void iwl_power_sleep_cam_cmd(struct iwl_priv *priv,
 {
 	memset(cmd, 0, sizeof(*cmd));
 
-	if (priv->power_data.pci_pm)
+	if (priv->power_data.bus_pm)
 		cmd->flags |= IWL_POWER_PCI_PM_MSK;
 
 	IWL_DEBUG_POWER(priv, "Sleep command for CAM\n");
@@ -305,7 +296,7 @@ static void iwl_power_fill_sleep_cmd(struct iwl_priv *priv,
 	cmd->flags = IWL_POWER_DRIVER_ALLOW_SLEEP_MSK |
 		     IWL_POWER_FAST_PD; /* no use seeing frames for others */
 
-	if (priv->power_data.pci_pm)
+	if (priv->power_data.bus_pm)
 		cmd->flags |= IWL_POWER_PCI_PM_MSK;
 
 	if (priv->cfg->base_params->shadow_reg_enable)
@@ -367,9 +358,15 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 		iwl_static_sleep_cmd(priv, cmd,
 				     priv->power_data.debug_sleep_level_override,
 				     dtimper);
-	else if (no_sleep_autoadjust)
-		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_1, dtimper);
-	else
+	else if (iwlagn_mod_params.no_sleep_autoadjust) {
+		if (iwlagn_mod_params.power_level > IWL_POWER_INDEX_1 &&
+		    iwlagn_mod_params.power_level <= IWL_POWER_INDEX_5)
+			iwl_static_sleep_cmd(priv, cmd,
+				iwlagn_mod_params.power_level, dtimper);
+		else
+			iwl_static_sleep_cmd(priv, cmd,
+				IWL_POWER_INDEX_1, dtimper);
+	} else
 		iwl_power_fill_sleep_cmd(priv, cmd,
 					 priv->hw->conf.dynamic_ps_timeout,
 					 priv->hw->conf.max_sleep_period);
@@ -434,9 +431,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 /* initialize to default */
 void iwl_power_initialize(struct iwl_priv *priv)
 {
-	u16 lctl = iwl_pcie_link_ctl(priv);
-
-	priv->power_data.pci_pm = !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
+	priv->power_data.bus_pm = priv->bus.ops->get_pm_support(&priv->bus);
 
 	priv->power_data.debug_sleep_level_override = -1;
 

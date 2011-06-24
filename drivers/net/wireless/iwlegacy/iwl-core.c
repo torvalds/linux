@@ -931,7 +931,6 @@ void iwl_legacy_irq_handle_error(struct iwl_priv *priv)
 	priv->cfg->ops->lib->dump_nic_error_log(priv);
 	if (priv->cfg->ops->lib->dump_fh)
 		priv->cfg->ops->lib->dump_fh(priv, NULL, false);
-	priv->cfg->ops->lib->dump_nic_event_log(priv, false, NULL, false);
 #ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
 	if (iwl_legacy_get_debug_level(priv) & IWL_DL_FW_ERRORS)
 		iwl_legacy_print_rx_config_cmd(priv,
@@ -1707,41 +1706,14 @@ iwl_legacy_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
 EXPORT_SYMBOL(iwl_legacy_update_stats);
 #endif
 
-static void _iwl_legacy_force_rf_reset(struct iwl_priv *priv)
-{
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	if (!iwl_legacy_is_any_associated(priv)) {
-		IWL_DEBUG_SCAN(priv, "force reset rejected: not associated\n");
-		return;
-	}
-	/*
-	 * There is no easy and better way to force reset the radio,
-	 * the only known method is switching channel which will force to
-	 * reset and tune the radio.
-	 * Use internal short scan (single channel) operation to should
-	 * achieve this objective.
-	 * Driver should reset the radio when number of consecutive missed
-	 * beacon, or any other uCode error condition detected.
-	 */
-	IWL_DEBUG_INFO(priv, "perform radio reset.\n");
-	iwl_legacy_internal_short_hw_scan(priv);
-}
-
-
-int iwl_legacy_force_reset(struct iwl_priv *priv, int mode, bool external)
+int iwl_legacy_force_reset(struct iwl_priv *priv, bool external)
 {
 	struct iwl_force_reset *force_reset;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EINVAL;
 
-	if (mode >= IWL_MAX_FORCE_RESET) {
-		IWL_DEBUG_INFO(priv, "invalid reset request.\n");
-		return -EINVAL;
-	}
-	force_reset = &priv->force_reset[mode];
+	force_reset = &priv->force_reset;
 	force_reset->reset_request_count++;
 	if (!external) {
 		if (force_reset->last_force_reset_jiffies &&
@@ -1754,37 +1726,34 @@ int iwl_legacy_force_reset(struct iwl_priv *priv, int mode, bool external)
 	}
 	force_reset->reset_success_count++;
 	force_reset->last_force_reset_jiffies = jiffies;
-	IWL_DEBUG_INFO(priv, "perform force reset (%d)\n", mode);
-	switch (mode) {
-	case IWL_RF_RESET:
-		_iwl_legacy_force_rf_reset(priv);
-		break;
-	case IWL_FW_RESET:
-		/*
-		 * if the request is from external(ex: debugfs),
-		 * then always perform the request in regardless the module
-		 * parameter setting
-		 * if the request is from internal (uCode error or driver
-		 * detect failure), then fw_restart module parameter
-		 * need to be check before performing firmware reload
-		 */
-		if (!external && !priv->cfg->mod_params->restart_fw) {
-			IWL_DEBUG_INFO(priv, "Cancel firmware reload based on "
-				       "module parameter setting\n");
-			break;
-		}
-		IWL_ERR(priv, "On demand firmware reload\n");
-		/* Set the FW error flag -- cleared on iwl_down */
-		set_bit(STATUS_FW_ERROR, &priv->status);
-		wake_up_interruptible(&priv->wait_command_queue);
-		/*
-		 * Keep the restart process from trying to send host
-		 * commands by clearing the INIT status bit
-		 */
-		clear_bit(STATUS_READY, &priv->status);
-		queue_work(priv->workqueue, &priv->restart);
-		break;
+
+	/*
+	 * if the request is from external(ex: debugfs),
+	 * then always perform the request in regardless the module
+	 * parameter setting
+	 * if the request is from internal (uCode error or driver
+	 * detect failure), then fw_restart module parameter
+	 * need to be check before performing firmware reload
+	 */
+
+	if (!external && !priv->cfg->mod_params->restart_fw) {
+		IWL_DEBUG_INFO(priv, "Cancel firmware reload based on "
+			       "module parameter setting\n");
+		return 0;
 	}
+
+	IWL_ERR(priv, "On demand firmware reload\n");
+
+	/* Set the FW error flag -- cleared on iwl_down */
+	set_bit(STATUS_FW_ERROR, &priv->status);
+	wake_up_interruptible(&priv->wait_command_queue);
+	/*
+	 * Keep the restart process from trying to send host
+	 * commands by clearing the INIT status bit
+	 */
+	clear_bit(STATUS_READY, &priv->status);
+	queue_work(priv->workqueue, &priv->restart);
+
 	return 0;
 }
 
@@ -1879,7 +1848,7 @@ static int iwl_legacy_check_stuck_queue(struct iwl_priv *priv, int cnt)
 	if (time_after(jiffies, timeout)) {
 		IWL_ERR(priv, "Queue %d stuck for %u ms.\n",
 				q->id, priv->cfg->base_params->wd_timeout);
-		ret = iwl_legacy_force_reset(priv, IWL_FW_RESET, false);
+		ret = iwl_legacy_force_reset(priv, false);
 		return (ret == -EAGAIN) ? 0 : 1;
 	}
 

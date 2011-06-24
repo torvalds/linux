@@ -88,8 +88,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 static int ath5k_init(struct ieee80211_hw *hw);
 static int ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 								bool skip_pcu);
-int ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-void ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf);
 
 /* Known SREVs */
 static const struct ath5k_srev_name srev_names[] = {
@@ -2162,7 +2160,7 @@ ath5k_schedule_tx(struct ath5k_softc *sc)
 	tasklet_schedule(&sc->txtq);
 }
 
-irqreturn_t
+static irqreturn_t
 ath5k_intr(int irq, void *dev_id)
 {
 	struct ath5k_softc *sc = dev_id;
@@ -2616,7 +2614,7 @@ done:
 	return ret;
 }
 
-static void stop_tasklets(struct ath5k_softc *sc)
+static void ath5k_stop_tasklets(struct ath5k_softc *sc)
 {
 	sc->rx_pending = false;
 	sc->tx_pending = false;
@@ -2670,7 +2668,7 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 	mmiowb();
 	mutex_unlock(&sc->lock);
 
-	stop_tasklets(sc);
+	ath5k_stop_tasklets(sc);
 
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 
@@ -2698,7 +2696,7 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 
 	ath5k_hw_set_imr(ah, 0);
 	synchronize_irq(sc->irq);
-	stop_tasklets(sc);
+	ath5k_stop_tasklets(sc);
 
 	/* Save ani mode and disable ANI during
 	 * reset. If we don't we might get false
@@ -2963,11 +2961,12 @@ ath5k_deinit_softc(struct ath5k_softc *sc)
 	 * state and potentially want to use them.
 	 */
 	ath5k_hw_deinit(sc->ah);
+	kfree(sc->ah);
 	free_irq(sc->irq, sc);
 }
 
 bool
-ath_any_vif_assoc(struct ath5k_softc *sc)
+ath5k_any_vif_assoc(struct ath5k_softc *sc)
 {
 	struct ath5k_vif_iter_data iter_data;
 	iter_data.hw_macaddr = NULL;
@@ -2981,7 +2980,7 @@ ath_any_vif_assoc(struct ath5k_softc *sc)
 }
 
 void
-set_beacon_filter(struct ieee80211_hw *hw, bool enable)
+ath5k_set_beacon_filter(struct ieee80211_hw *hw, bool enable)
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_hw *ah = sc->ah;
