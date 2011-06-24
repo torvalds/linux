@@ -7061,6 +7061,11 @@ int intel_framebuffer_init(struct drm_device *dev,
 	switch (mode_cmd->bpp) {
 	case 8:
 	case 16:
+		/* Only pre-ILK can handle 5:5:5 */
+		if (mode_cmd->depth == 15 && !HAS_PCH_SPLIT(dev))
+			return -EINVAL;
+		break;
+
 	case 24:
 	case 32:
 		break;
