@@ -396,7 +396,7 @@ int clk_register(struct clk *clk)
 {
 	int ret;
 
-	if (clk == NULL || IS_ERR(clk))
+	if (IS_ERR_OR_NULL(clk))
 		return -EINVAL;
 
 	/*
