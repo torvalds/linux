@@ -26,6 +26,7 @@ static struct clk *cpu_clk;
 static struct clk *dmc0_clk;
 static struct clk *dmc1_clk;
 static struct cpufreq_freqs freqs;
+static DEFINE_MUTEX(set_freq_lock);
 
 /* APLL M,P,S values for 1G/800Mhz */
 #define APLL_VAL_1000	((1 << 31) | (125 << 16) | (3 << 8) | 1)
@@ -199,6 +200,8 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 	int arm_volt, int_volt;
 	int ret = 0;
 
+	mutex_lock(&set_freq_lock);
+
 	if (relation & ENABLE_FURTHER_CPUFREQ)
 		no_cpufreq_access = false;
 
@@ -207,7 +210,8 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 		pr_err("%s:%d denied access to %s as it is disabled"
 				"temporarily\n", __FILE__, __LINE__, __func__);
 #endif
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit;
 	}
 
 	if (relation & DISABLE_FURTHER_CPUFREQ)
@@ -218,19 +222,23 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 	freqs.old = s5pv210_getspeed(0);
 
 	if (cpufreq_frequency_table_target(policy, s5pv210_freq_table,
-					   target_freq, relation, &index))
-		return -EINVAL;
+					   target_freq, relation, &index)) {
+		ret = -EINVAL;
+		goto exit;
+	}
 
 	freqs.new = s5pv210_freq_table[index].frequency;
 	freqs.cpu = 0;
 
 	if (freqs.new == freqs.old)
-		return 0;
+		goto exit;
 
 	/* Finding current running level index */
 	if (cpufreq_frequency_table_target(policy, s5pv210_freq_table,
-					   freqs.old, relation, &priv_index))
-		return -EINVAL;
+					   freqs.old, relation, &priv_index)) {
+		ret = -EINVAL;
+		goto exit;
+	}
 
 	arm_volt = dvs_conf[index].arm_volt;
 	int_volt = dvs_conf[index].int_volt;
@@ -239,12 +247,12 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 		ret = regulator_set_voltage(arm_regulator,
 				arm_volt, arm_volt_max);
 		if (ret)
-			return ret;
+			goto exit;
 
 		ret = regulator_set_voltage(int_regulator,
 				int_volt, int_volt_max);
 		if (ret)
-			return ret;
+			goto exit;
 	}
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
@@ -471,7 +479,9 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 
 	printk(KERN_DEBUG "Perf changed[L%d]\n", index);
 
-	return 0;
+exit:
+	mutex_unlock(&set_freq_lock);
+	return ret;
 }
 
 #ifdef CONFIG_PM
