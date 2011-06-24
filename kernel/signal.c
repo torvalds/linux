@@ -1760,15 +1760,6 @@ static int sigkill_pending(struct task_struct *tsk)
 }
 
 /*
- * Test whether the target task of the usual cldstop notification - the
- * real_parent of @child - is in the same group as the ptracer.
- */
-static bool real_parent_is_ptracer(struct task_struct *child)
-{
-	return same_thread_group(child->parent, child->real_parent);
-}
-
-/*
  * This must be called with current->sighand->siglock held.
  *
  * This should be the path for all ptrace stops.
@@ -1848,7 +1839,7 @@ static void ptrace_stop(int exit_code, int why, int clear_code, siginfo_t *info)
 		 * separately unless they're gonna be duplicates.
 		 */
 		do_notify_parent_cldstop(current, true, why);
-		if (gstop_done && !real_parent_is_ptracer(current))
+		if (gstop_done && ptrace_reparented(current))
 			do_notify_parent_cldstop(current, false, why);
 
 		/*
@@ -2154,7 +2145,6 @@ relock:
 	 * the CLD_ si_code into SIGNAL_CLD_MASK bits.
 	 */
 	if (unlikely(signal->flags & SIGNAL_CLD_MASK)) {
-		struct task_struct *leader;
 		int why;
 
 		if (signal->flags & SIGNAL_CLD_CONTINUED)
@@ -2175,13 +2165,11 @@ relock:
 		 * a duplicate.
 		 */
 		read_lock(&tasklist_lock);
-
 		do_notify_parent_cldstop(current, false, why);
 
-		leader = current->group_leader;
-		if (leader->ptrace && !real_parent_is_ptracer(leader))
-			do_notify_parent_cldstop(leader, true, why);
-
+		if (ptrace_reparented(current->group_leader))
+			do_notify_parent_cldstop(current->group_leader,
+						true, why);
 		read_unlock(&tasklist_lock);
 
 		goto relock;
