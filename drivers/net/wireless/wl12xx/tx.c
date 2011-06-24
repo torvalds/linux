@@ -168,7 +168,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 	u32 total_len = skb->len + sizeof(struct wl1271_tx_hw_descr) + extra;
 	u32 len;
 	u32 total_blocks;
-	int id, ret = -EBUSY;
+	int id, ret = -EBUSY, ac;
 	u32 spare_blocks;
 
 	if (unlikely(wl->quirks & WL12XX_QUIRK_USE_2_SPARE_BLOCKS))
@@ -206,7 +206,9 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra,
 		desc->id = id;
 
 		wl->tx_blocks_available -= total_blocks;
-		wl->tx_allocated_blocks += total_blocks;
+
+		ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
+		wl->tx_allocated_blocks[ac] += total_blocks;
 
 		if (wl->bss_type == BSS_TYPE_AP_BSS)
 			wl->links[hlid].allocated_blks += total_blocks;
@@ -453,21 +455,41 @@ void wl1271_handle_tx_low_watermark(struct wl1271 *wl)
 	}
 }
 
+static struct sk_buff_head *wl1271_select_queue(struct wl1271 *wl,
+						struct sk_buff_head *queues)
+{
+	int i, q = -1;
+	u32 min_blks = 0xffffffff;
+
+	/*
+	 * Find a non-empty ac where:
+	 * 1. There are packets to transmit
+	 * 2. The FW has the least allocated blocks
+	 */
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		if (!skb_queue_empty(&queues[i]) &&
+		    (wl->tx_allocated_blocks[i] < min_blks)) {
+			q = i;
+			min_blks = wl->tx_allocated_blocks[q];
+		}
+
+	if (q == -1)
+		return NULL;
+
+	return &queues[q];
+}
+
 static struct sk_buff *wl1271_sta_skb_dequeue(struct wl1271 *wl)
 {
 	struct sk_buff *skb = NULL;
 	unsigned long flags;
+	struct sk_buff_head *queue;
 
-	skb = skb_dequeue(&wl->tx_queue[CONF_TX_AC_VO]);
-	if (skb)
+	queue = wl1271_select_queue(wl, wl->tx_queue);
+	if (!queue)
 		goto out;
-	skb = skb_dequeue(&wl->tx_queue[CONF_TX_AC_VI]);
-	if (skb)
-		goto out;
-	skb = skb_dequeue(&wl->tx_queue[CONF_TX_AC_BE]);
-	if (skb)
-		goto out;
-	skb = skb_dequeue(&wl->tx_queue[CONF_TX_AC_BK]);
+
+	skb = skb_dequeue(queue);
 
 out:
 	if (skb) {
@@ -484,6 +506,7 @@ static struct sk_buff *wl1271_ap_skb_dequeue(struct wl1271 *wl)
 	struct sk_buff *skb = NULL;
 	unsigned long flags;
 	int i, h, start_hlid;
+	struct sk_buff_head *queue;
 
 	/* start from the link after the last one */
 	start_hlid = (wl->last_tx_hlid + 1) % AP_MAX_LINKS;
@@ -492,21 +515,20 @@ static struct sk_buff *wl1271_ap_skb_dequeue(struct wl1271 *wl)
 	for (i = 0; i < AP_MAX_LINKS; i++) {
 		h = (start_hlid + i) % AP_MAX_LINKS;
 
-		skb = skb_dequeue(&wl->links[h].tx_queue[CONF_TX_AC_VO]);
+		/* only consider connected stations */
+		if (h >= WL1271_AP_STA_HLID_START &&
+		    !test_bit(h - WL1271_AP_STA_HLID_START, wl->ap_hlid_map))
+			continue;
+
+		queue = wl1271_select_queue(wl, wl->links[h].tx_queue);
+		if (!queue)
+			continue;
+
+		skb = skb_dequeue(queue);
 		if (skb)
-			goto out;
-		skb = skb_dequeue(&wl->links[h].tx_queue[CONF_TX_AC_VI]);
-		if (skb)
-			goto out;
-		skb = skb_dequeue(&wl->links[h].tx_queue[CONF_TX_AC_BE]);
-		if (skb)
-			goto out;
-		skb = skb_dequeue(&wl->links[h].tx_queue[CONF_TX_AC_BK]);
-		if (skb)
-			goto out;
+			break;
 	}
 
-out:
 	if (skb) {
 		wl->last_tx_hlid = h;
 		spin_lock_irqsave(&wl->wl_lock, flags);
