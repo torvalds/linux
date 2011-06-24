@@ -293,11 +293,12 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret, bool is
 	if (dio->end_io && dio->result) {
 		dio->end_io(dio->iocb, offset, transferred,
 			    dio->map_bh.b_private, ret, is_async);
-	} else if (is_async) {
-		aio_complete(dio->iocb, ret, 0);
+	} else {
+		if (is_async)
+			aio_complete(dio->iocb, ret, 0);
+		inode_dio_done(dio->inode);
 	}
 
-	inode_dio_done(dio->inode);
 	return ret;
 }
 

@@ -577,6 +577,7 @@ static void ocfs2_dio_end_io(struct kiocb *iocb,
 
 	if (is_async)
 		aio_complete(iocb, ret, 0);
+	inode_dio_done(inode);
 }
 
 /*
