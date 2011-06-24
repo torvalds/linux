@@ -76,16 +76,7 @@ struct iwl_cmd;
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2011 Intel Corporation"
 #define DRV_AUTHOR     "<ilw@linux.intel.com>"
 
-#define IWL_PCI_DEVICE(dev, subdev, cfg) \
-	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
-	.subvendor = PCI_ANY_ID, .subdevice = (subdev), \
-	.driver_data = (kernel_ulong_t)&(cfg)
-
 #define TIME_UNIT		1024
-
-#define IWL_SKU_G       0x1
-#define IWL_SKU_A       0x2
-#define IWL_SKU_N       0x8
 
 #define IWL_CMD(x) case x: return #x
 
@@ -146,10 +137,6 @@ struct iwl_lib_ops {
 
 	/* temperature */
 	struct iwl_temp_ops temp_ops;
-
-	int (*txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
-	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
-
 };
 
 /* NIC specific ops */
@@ -173,6 +160,11 @@ struct iwl_mod_params {
 	int restart_fw;		/* def: 1 = restart firmware */
 	bool plcp_check;	/* def: true = enable plcp health check */
 	bool ack_check;		/* def: false = disable ack health check */
+	bool bt_coex_active;	/* def: true = enable bt coex */
+	int led_mode;		/* def: 0 = system default */
+	bool no_sleep_autoadjust; /* def: true = disable autoadjust */
+	bool power_save;	/* def: false = disable power save */
+	int power_level;	/* def: 1 = power level */
 };
 
 /*
@@ -289,7 +281,7 @@ struct iwl_cfg {
 	const unsigned int ucode_api_min;
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
-	unsigned int sku;
+	u16  sku;
 	u16  eeprom_ver;
 	u16  eeprom_calib_ver;
 	const struct iwl_ops *ops;
@@ -480,36 +472,14 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
 
 int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 
-
-/*****************************************************
- * PCI						     *
- *****************************************************/
-
-static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
-{
-	int pos;
-	u16 pci_lnk_ctl;
-	pos = pci_find_capability(priv->pci_dev, PCI_CAP_ID_EXP);
-	pci_read_config_word(priv->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
-	return pci_lnk_ctl;
-}
-
 void iwl_bg_watchdog(unsigned long data);
 u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval);
 __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval);
 
 #ifdef CONFIG_PM
-int iwl_pci_suspend(struct device *device);
-int iwl_pci_resume(struct device *device);
-extern const struct dev_pm_ops iwl_pm_ops;
-
-#define IWL_PM_OPS	(&iwl_pm_ops)
-
-#else /* !CONFIG_PM */
-
-#define IWL_PM_OPS	NULL
-
+int iwl_suspend(struct iwl_priv *priv);
+int iwl_resume(struct iwl_priv *priv);
 #endif /* !CONFIG_PM */
 
 /*****************************************************
@@ -624,7 +594,6 @@ static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 	       priv->cfg->bt_params->advanced_bt_coexist;
 }
 
-extern bool bt_coex_active;
 extern bool bt_siso_mode;
 
 

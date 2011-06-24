@@ -46,8 +46,6 @@
 #include "base.h"
 #include "reg.h"
 
-extern int ath5k_modparam_nohwcrypt;
-
 /********************\
 * Mac80211 functions *
 \********************/
@@ -296,10 +294,10 @@ ath5k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		if (bss_conf->assoc)
 			sc->assoc = bss_conf->assoc;
 		else
-			sc->assoc = ath_any_vif_assoc(sc);
+			sc->assoc = ath5k_any_vif_assoc(sc);
 
 		if (sc->opmode == NL80211_IFTYPE_STATION)
-			set_beacon_filter(hw, sc->assoc);
+			ath5k_set_beacon_filter(hw, sc->assoc);
 		ath5k_hw_set_ledstate(sc->ah, sc->assoc ?
 			AR5K_LED_ASSOC : AR5K_LED_INIT);
 		if (bss_conf->assoc) {

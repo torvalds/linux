@@ -41,7 +41,7 @@ struct pending_cmd {
 	void *user_data;
 };
 
-LIST_HEAD(cmd_list);
+static LIST_HEAD(cmd_list);
 
 static int cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 {
@@ -990,7 +990,7 @@ static int remove_key(struct sock *sk, u16 index, unsigned char *data, u16 len)
 
 		put_unaligned_le16(conn->handle, &dc.handle);
 		dc.reason = 0x13; /* Remote User Terminated Connection */
-		err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, 0, NULL);
+		err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, sizeof(dc), &dc);
 	}
 
 unlock:
@@ -1092,16 +1092,12 @@ static int get_connections(struct sock *sk, u16 index)
 
 	put_unaligned_le16(count, &rp->conn_count);
 
-	read_lock(&hci_dev_list_lock);
-
 	i = 0;
 	list_for_each(p, &hdev->conn_hash.list) {
 		struct hci_conn *c = list_entry(p, struct hci_conn, list);
 
 		bacpy(&rp->conn[i++], &c->dst);
 	}
-
-	read_unlock(&hci_dev_list_lock);
 
 	err = cmd_complete(sk, index, MGMT_OP_GET_CONNECTIONS, rp, rp_len);
 
@@ -1112,11 +1108,32 @@ unlock:
 	return err;
 }
 
+static int send_pin_code_neg_reply(struct sock *sk, u16 index,
+		struct hci_dev *hdev, struct mgmt_cp_pin_code_neg_reply *cp)
+{
+	struct pending_cmd *cmd;
+	int err;
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_PIN_CODE_NEG_REPLY, index, cp,
+								sizeof(*cp));
+	if (!cmd)
+		return -ENOMEM;
+
+	err = hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY, sizeof(cp->bdaddr),
+								&cp->bdaddr);
+	if (err < 0)
+		mgmt_pending_remove(cmd);
+
+	return err;
+}
+
 static int pin_code_reply(struct sock *sk, u16 index, unsigned char *data,
 									u16 len)
 {
 	struct hci_dev *hdev;
+	struct hci_conn *conn;
 	struct mgmt_cp_pin_code_reply *cp;
+	struct mgmt_cp_pin_code_neg_reply ncp;
 	struct hci_cp_pin_code_reply reply;
 	struct pending_cmd *cmd;
 	int err;
@@ -1139,6 +1156,25 @@ static int pin_code_reply(struct sock *sk, u16 index, unsigned char *data,
 		goto failed;
 	}
 
+	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
+	if (!conn) {
+		err = cmd_status(sk, index, MGMT_OP_PIN_CODE_REPLY, ENOTCONN);
+		goto failed;
+	}
+
+	if (conn->pending_sec_level == BT_SECURITY_HIGH && cp->pin_len != 16) {
+		bacpy(&ncp.bdaddr, &cp->bdaddr);
+
+		BT_ERR("PIN code is not 16 bytes long");
+
+		err = send_pin_code_neg_reply(sk, index, hdev, &ncp);
+		if (err >= 0)
+			err = cmd_status(sk, index, MGMT_OP_PIN_CODE_REPLY,
+								EINVAL);
+
+		goto failed;
+	}
+
 	cmd = mgmt_pending_add(sk, MGMT_OP_PIN_CODE_REPLY, index, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
@@ -1147,7 +1183,7 @@ static int pin_code_reply(struct sock *sk, u16 index, unsigned char *data,
 
 	bacpy(&reply.bdaddr, &cp->bdaddr);
 	reply.pin_len = cp->pin_len;
-	memcpy(reply.pin_code, cp->pin_code, 16);
+	memcpy(reply.pin_code, cp->pin_code, sizeof(reply.pin_code));
 
 	err = hci_send_cmd(hdev, HCI_OP_PIN_CODE_REPLY, sizeof(reply), &reply);
 	if (err < 0)
@@ -1165,7 +1201,6 @@ static int pin_code_neg_reply(struct sock *sk, u16 index, unsigned char *data,
 {
 	struct hci_dev *hdev;
 	struct mgmt_cp_pin_code_neg_reply *cp;
-	struct pending_cmd *cmd;
 	int err;
 
 	BT_DBG("");
@@ -1189,17 +1224,7 @@ static int pin_code_neg_reply(struct sock *sk, u16 index, unsigned char *data,
 		goto failed;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_PIN_CODE_NEG_REPLY, index,
-								data, len);
-	if (!cmd) {
-		err = -ENOMEM;
-		goto failed;
-	}
-
-	err = hci_send_cmd(hdev, HCI_OP_PIN_CODE_NEG_REPLY, sizeof(cp->bdaddr),
-								&cp->bdaddr);
-	if (err < 0)
-		mgmt_pending_remove(cmd);
+	err = send_pin_code_neg_reply(sk, index, hdev, cp);
 
 failed:
 	hci_dev_unlock(hdev);
@@ -1641,6 +1666,70 @@ failed:
 	return err;
 }
 
+static int block_device(struct sock *sk, u16 index, unsigned char *data,
+								u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_block_device *cp;
+	int err;
+
+	BT_DBG("hci%u", index);
+
+	cp = (void *) data;
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_BLOCK_DEVICE,
+							EINVAL);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_BLOCK_DEVICE,
+							ENODEV);
+
+	err = hci_blacklist_add(hdev, &cp->bdaddr);
+
+	if (err < 0)
+		err = cmd_status(sk, index, MGMT_OP_BLOCK_DEVICE, -err);
+	else
+		err = cmd_complete(sk, index, MGMT_OP_BLOCK_DEVICE,
+							NULL, 0);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
+static int unblock_device(struct sock *sk, u16 index, unsigned char *data,
+								u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_unblock_device *cp;
+	int err;
+
+	BT_DBG("hci%u", index);
+
+	cp = (void *) data;
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_UNBLOCK_DEVICE,
+								EINVAL);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_UNBLOCK_DEVICE,
+								ENODEV);
+
+	err = hci_blacklist_del(hdev, &cp->bdaddr);
+
+	if (err < 0)
+		err = cmd_status(sk, index, MGMT_OP_UNBLOCK_DEVICE, -err);
+	else
+		err = cmd_complete(sk, index, MGMT_OP_UNBLOCK_DEVICE,
+								NULL, 0);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	unsigned char *buf;
@@ -1754,6 +1843,12 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_STOP_DISCOVERY:
 		err = stop_discovery(sk, index);
+		break;
+	case MGMT_OP_BLOCK_DEVICE:
+		err = block_device(sk, index, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_UNBLOCK_DEVICE:
+		err = unblock_device(sk, index, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);

@@ -244,6 +244,7 @@ void bcma_awrite32(struct bcma_device *core, u16 offset, u32 value)
 }
 
 extern bool bcma_core_is_enabled(struct bcma_device *core);
+extern void bcma_core_disable(struct bcma_device *core, u32 flags);
 extern int bcma_core_enable(struct bcma_device *core, u32 flags);
 
 #endif /* LINUX_BCMA_H_ */

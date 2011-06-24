@@ -160,13 +160,11 @@ int bcma_bus_register(struct bcma_bus *bus)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(bcma_bus_register);
 
 void bcma_bus_unregister(struct bcma_bus *bus)
 {
 	bcma_unregister_cores(bus);
 }
-EXPORT_SYMBOL_GPL(bcma_bus_unregister);
 
 int __bcma_driver_register(struct bcma_driver *drv, struct module *owner)
 {

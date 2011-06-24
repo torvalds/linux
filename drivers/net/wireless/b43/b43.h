@@ -92,6 +92,8 @@
 #define B43_MMIO_PIO11_BASE4		0x300
 #define B43_MMIO_PIO11_BASE5		0x340
 
+#define B43_MMIO_RADIO24_CONTROL	0x3D8	/* core rev >= 24 only */
+#define B43_MMIO_RADIO24_DATA		0x3DA	/* core rev >= 24 only */
 #define B43_MMIO_PHY_VER		0x3E0
 #define B43_MMIO_PHY_RADIO		0x3E2
 #define B43_MMIO_PHY0			0x3E6
@@ -363,6 +365,10 @@ enum {
 #define B43_PHYTYPE_G			0x02
 #define B43_PHYTYPE_N			0x04
 #define B43_PHYTYPE_LP			0x05
+#define B43_PHYTYPE_SSLPN		0x06
+#define B43_PHYTYPE_HT			0x07
+#define B43_PHYTYPE_LCN			0x08
+#define B43_PHYTYPE_LCNXN		0x09
 
 /* PHYRegisters */
 #define B43_PHY_ILT_A_CTRL		0x0072

@@ -79,59 +79,18 @@ EXPORT_SYMBOL(rtl_ps_disable_nic);
 
 bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 			 enum rf_pwrstate state_toset,
-			 u32 changesource, bool protect_or_not)
+			 u32 changesource)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	bool actionallowed = false;
-	u16 rfwait_cnt = 0;
 
-	/*protect_or_not = true; */
-
-	if (protect_or_not)
-		goto no_protect;
-
-	/*
-	 *Only one thread can change
-	 *the RF state at one time, and others
-	 *should wait to be executed.
-	 */
-	while (true) {
-		spin_lock(&rtlpriv->locks.rf_ps_lock);
-		if (ppsc->rfchange_inprogress) {
-			spin_unlock(&rtlpriv->locks.rf_ps_lock);
-
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-				 ("RF Change in progress!"
-				  "Wait to set..state_toset(%d).\n",
-				  state_toset));
-
-			/* Set RF after the previous action is done.  */
-			while (ppsc->rfchange_inprogress) {
-				rfwait_cnt++;
-				mdelay(1);
-
-				/*
-				 *Wait too long, return false to avoid
-				 *to be stuck here.
-				 */
-				if (rfwait_cnt > 100)
-					return false;
-			}
-		} else {
-			ppsc->rfchange_inprogress = true;
-			spin_unlock(&rtlpriv->locks.rf_ps_lock);
-			break;
-		}
-	}
-
-no_protect:
 	switch (state_toset) {
 	case ERFON:
 		ppsc->rfoff_reason &= (~changesource);
 
 		if ((changesource == RF_CHANGE_BY_HW) &&
-		    (ppsc->hwradiooff == true)) {
+		    (ppsc->hwradiooff)) {
 			ppsc->hwradiooff = false;
 		}
 
@@ -167,12 +126,6 @@ no_protect:
 	if (actionallowed)
 		rtlpriv->cfg->ops->set_rf_power_state(hw, state_toset);
 
-	if (!protect_or_not) {
-		spin_lock(&rtlpriv->locks.rf_ps_lock);
-		ppsc->rfchange_inprogress = false;
-		spin_unlock(&rtlpriv->locks.rf_ps_lock);
-	}
-
 	return actionallowed;
 }
 EXPORT_SYMBOL(rtl_ps_set_rf_state);
@@ -195,8 +148,7 @@ static void _rtl_ps_inactive_ps(struct ieee80211_hw *hw)
 		}
 	}
 
-	rtl_ps_set_rf_state(hw, ppsc->inactive_pwrstate,
-			    RF_CHANGE_BY_IPS, false);
+	rtl_ps_set_rf_state(hw, ppsc->inactive_pwrstate, RF_CHANGE_BY_IPS);
 
 	if (ppsc->inactive_pwrstate == ERFOFF &&
 	    rtlhal->interface == INTF_PCI) {
@@ -587,7 +539,7 @@ void rtl_swlps_rf_awake(struct ieee80211_hw *hw)
 	}
 
 	spin_lock(&rtlpriv->locks.lps_lock);
-	rtl_ps_set_rf_state(hw, ERFON, RF_CHANGE_BY_PS, false);
+	rtl_ps_set_rf_state(hw, ERFON, RF_CHANGE_BY_PS);
 	spin_unlock(&rtlpriv->locks.lps_lock);
 }
 
@@ -621,15 +573,8 @@ void rtl_swlps_rf_sleep(struct ieee80211_hw *hw)
 	if (rtlpriv->link_info.busytraffic)
 		return;
 
-	spin_lock(&rtlpriv->locks.rf_ps_lock);
-	if (rtlpriv->psc.rfchange_inprogress) {
-		spin_unlock(&rtlpriv->locks.rf_ps_lock);
-		return;
-	}
-	spin_unlock(&rtlpriv->locks.rf_ps_lock);
-
 	spin_lock(&rtlpriv->locks.lps_lock);
-	rtl_ps_set_rf_state(hw, ERFSLEEP, RF_CHANGE_BY_PS, false);
+	rtl_ps_set_rf_state(hw, ERFSLEEP, RF_CHANGE_BY_PS);
 	spin_unlock(&rtlpriv->locks.lps_lock);
 
 	if (ppsc->reg_rfps_level & RT_RF_OFF_LEVL_ASPM &&

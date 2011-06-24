@@ -1696,6 +1696,8 @@ static int netlink_dump(struct sock *sk)
 	if (!nlh)
 		goto errout_skb;
 
+	nl_dump_check_consistent(cb, nlh);
+
 	memcpy(nlmsg_data(nlh), &len, sizeof(len));
 
 	if (sk_filter(sk, skb))

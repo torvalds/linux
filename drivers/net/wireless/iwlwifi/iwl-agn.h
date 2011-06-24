@@ -125,8 +125,16 @@ irqreturn_t iwl_isr_ict(int irq, void *data);
 static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 {
 	/* wait to make sure we flush pending tasklet*/
-	synchronize_irq(priv->pci_dev->irq);
+	synchronize_irq(priv->bus.irq);
 	tasklet_kill(&priv->irq_tasklet);
+}
+
+static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
+{
+	hdr->op_code = cmd;
+	hdr->first_group = 0;
+	hdr->groups_num = 1;
+	hdr->data_valid = 1;
 }
 
 int iwl_prepare_card_hw(struct iwl_priv *priv);
@@ -161,7 +169,7 @@ void iwlagn_send_prio_tbl(struct iwl_priv *priv);
 int iwlagn_run_init_ucode(struct iwl_priv *priv);
 int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 				 struct fw_img *image,
-				 int subtype, int alternate_subtype);
+				 enum iwlagn_ucode_type ucode_type);
 
 /* lib */
 void iwl_check_abort_status(struct iwl_priv *priv,
@@ -343,11 +351,21 @@ extern int iwl_alive_start(struct iwl_priv *priv);
 /* svtool */
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 extern int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len);
+extern int iwl_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
+			     struct netlink_callback *cb,
+			     void *data, int len);
 extern void iwl_testmode_init(struct iwl_priv *priv);
 extern void iwl_testmode_cleanup(struct iwl_priv *priv);
 #else
 static inline
 int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
+{
+	return -ENOSYS;
+}
+static inline
+int iwl_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
+		      struct netlink_callback *cb,
+		      void *data, int len)
 {
 	return -ENOSYS;
 }
@@ -360,5 +378,9 @@ void iwl_testmode_cleanup(struct iwl_priv *priv)
 {
 }
 #endif
+
+int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
+		struct iwl_cfg *cfg);
+void __devexit iwl_remove(struct iwl_priv * priv);
 
 #endif /* __iwl_agn_h__ */

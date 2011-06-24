@@ -1409,212 +1409,6 @@ void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
 	}
 }
 
-#define EVENT_START_OFFSET  (6 * sizeof(u32))
-
-/**
- * iwl3945_print_event_log - Dump error event log to syslog
- *
- */
-static int iwl3945_print_event_log(struct iwl_priv *priv, u32 start_idx,
-				  u32 num_events, u32 mode,
-				  int pos, char **buf, size_t bufsz)
-{
-	u32 i;
-	u32 base;       /* SRAM byte address of event log header */
-	u32 event_size;	/* 2 u32s, or 3 u32s if timestamp recorded */
-	u32 ptr;        /* SRAM byte address of log data */
-	u32 ev, time, data; /* event log data */
-	unsigned long reg_flags;
-
-	if (num_events == 0)
-		return pos;
-
-	base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
-
-	if (mode == 0)
-		event_size = 2 * sizeof(u32);
-	else
-		event_size = 3 * sizeof(u32);
-
-	ptr = base + EVENT_START_OFFSET + (start_idx * event_size);
-
-	/* Make sure device is powered up for SRAM reads */
-	spin_lock_irqsave(&priv->reg_lock, reg_flags);
-	iwl_grab_nic_access(priv);
-
-	/* Set starting address; reads will auto-increment */
-	_iwl_legacy_write_direct32(priv, HBUS_TARG_MEM_RADDR, ptr);
-	rmb();
-
-	/* "time" is actually "data" for mode 0 (no timestamp).
-	 * place event id # at far right for easier visual parsing. */
-	for (i = 0; i < num_events; i++) {
-		ev = _iwl_legacy_read_direct32(priv, HBUS_TARG_MEM_RDAT);
-		time = _iwl_legacy_read_direct32(priv, HBUS_TARG_MEM_RDAT);
-		if (mode == 0) {
-			/* data, ev */
-			if (bufsz) {
-				pos += scnprintf(*buf + pos, bufsz - pos,
-						"0x%08x:%04u\n",
-						time, ev);
-			} else {
-				IWL_ERR(priv, "0x%08x\t%04u\n", time, ev);
-				trace_iwlwifi_legacy_dev_ucode_event(priv, 0,
-							      time, ev);
-			}
-		} else {
-			data = _iwl_legacy_read_direct32(priv,
-							HBUS_TARG_MEM_RDAT);
-			if (bufsz) {
-				pos += scnprintf(*buf + pos, bufsz - pos,
-						"%010u:0x%08x:%04u\n",
-						 time, data, ev);
-			} else {
-				IWL_ERR(priv, "%010u\t0x%08x\t%04u\n",
-					time, data, ev);
-				trace_iwlwifi_legacy_dev_ucode_event(priv, time,
-							      data, ev);
-			}
-		}
-	}
-
-	/* Allow device to power down */
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
-	return pos;
-}
-
-/**
- * iwl3945_print_last_event_logs - Dump the newest # of event log to syslog
- */
-static int iwl3945_print_last_event_logs(struct iwl_priv *priv, u32 capacity,
-				      u32 num_wraps, u32 next_entry,
-				      u32 size, u32 mode,
-				      int pos, char **buf, size_t bufsz)
-{
-	/*
-	 * display the newest DEFAULT_LOG_ENTRIES entries
-	 * i.e the entries just before the next ont that uCode would fill.
-	 */
-	if (num_wraps) {
-		if (next_entry < size) {
-			pos = iwl3945_print_event_log(priv,
-					     capacity - (size - next_entry),
-					     size - next_entry, mode,
-					     pos, buf, bufsz);
-			pos = iwl3945_print_event_log(priv, 0,
-						      next_entry, mode,
-						      pos, buf, bufsz);
-		} else
-			pos = iwl3945_print_event_log(priv, next_entry - size,
-						      size, mode,
-						      pos, buf, bufsz);
-	} else {
-		if (next_entry < size)
-			pos = iwl3945_print_event_log(priv, 0,
-						      next_entry, mode,
-						      pos, buf, bufsz);
-		else
-			pos = iwl3945_print_event_log(priv, next_entry - size,
-						      size, mode,
-						      pos, buf, bufsz);
-	}
-	return pos;
-}
-
-#define DEFAULT_IWL3945_DUMP_EVENT_LOG_ENTRIES (20)
-
-int iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
-			    char **buf, bool display)
-{
-	u32 base;       /* SRAM byte address of event log header */
-	u32 capacity;   /* event log capacity in # entries */
-	u32 mode;       /* 0 - no timestamp, 1 - timestamp recorded */
-	u32 num_wraps;  /* # times uCode wrapped to top of log */
-	u32 next_entry; /* index of next entry to be written by uCode */
-	u32 size;       /* # entries that we'll print */
-	int pos = 0;
-	size_t bufsz = 0;
-
-	base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
-	if (!iwl3945_hw_valid_rtc_data_addr(base)) {
-		IWL_ERR(priv, "Invalid event log pointer 0x%08X\n", base);
-		return  -EINVAL;
-	}
-
-	/* event log header */
-	capacity = iwl_legacy_read_targ_mem(priv, base);
-	mode = iwl_legacy_read_targ_mem(priv, base + (1 * sizeof(u32)));
-	num_wraps = iwl_legacy_read_targ_mem(priv, base + (2 * sizeof(u32)));
-	next_entry = iwl_legacy_read_targ_mem(priv, base + (3 * sizeof(u32)));
-
-	if (capacity > priv->cfg->base_params->max_event_log_size) {
-		IWL_ERR(priv, "Log capacity %d is bogus, limit to %d entries\n",
-			capacity, priv->cfg->base_params->max_event_log_size);
-		capacity = priv->cfg->base_params->max_event_log_size;
-	}
-
-	if (next_entry > priv->cfg->base_params->max_event_log_size) {
-		IWL_ERR(priv, "Log write index %d is bogus, limit to %d\n",
-			next_entry, priv->cfg->base_params->max_event_log_size);
-		next_entry = priv->cfg->base_params->max_event_log_size;
-	}
-
-	size = num_wraps ? capacity : next_entry;
-
-	/* bail out if nothing in log */
-	if (size == 0) {
-		IWL_ERR(priv, "Start IWL Event Log Dump: nothing in log\n");
-		return pos;
-	}
-
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
-	if (!(iwl_legacy_get_debug_level(priv) & IWL_DL_FW_ERRORS) && !full_log)
-		size = (size > DEFAULT_IWL3945_DUMP_EVENT_LOG_ENTRIES)
-			? DEFAULT_IWL3945_DUMP_EVENT_LOG_ENTRIES : size;
-#else
-	size = (size > DEFAULT_IWL3945_DUMP_EVENT_LOG_ENTRIES)
-		? DEFAULT_IWL3945_DUMP_EVENT_LOG_ENTRIES : size;
-#endif
-
-	IWL_ERR(priv, "Start IWL Event Log Dump: display last %d count\n",
-		  size);
-
-#ifdef CONFIG_IWLWIFI_LEGACY_DEBUG
-	if (display) {
-		if (full_log)
-			bufsz = capacity * 48;
-		else
-			bufsz = size * 48;
-		*buf = kmalloc(bufsz, GFP_KERNEL);
-		if (!*buf)
-			return -ENOMEM;
-	}
-	if ((iwl_legacy_get_debug_level(priv) & IWL_DL_FW_ERRORS) || full_log) {
-		/* if uCode has wrapped back to top of log,
-		 * start at the oldest entry,
-		 * i.e the next one that uCode would fill.
-		 */
-		if (num_wraps)
-			pos = iwl3945_print_event_log(priv, next_entry,
-						capacity - next_entry, mode,
-						pos, buf, bufsz);
-
-		/* (then/else) start at top of log */
-		pos = iwl3945_print_event_log(priv, 0, next_entry, mode,
-					      pos, buf, bufsz);
-	} else
-		pos = iwl3945_print_last_event_logs(priv, capacity, num_wraps,
-						    next_entry, size, mode,
-						    pos, buf, bufsz);
-#else
-	pos = iwl3945_print_last_event_logs(priv, capacity, num_wraps,
-					    next_entry, size, mode,
-					    pos, buf, bufsz);
-#endif
-	return pos;
-}
-
 static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 {
 	u32 inta, handled = 0;
@@ -1760,49 +1554,6 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 			"flags 0x%08lx\n", inta, inta_mask, inta_fh, flags);
 	}
 #endif
-}
-
-static int iwl3945_get_single_channel_for_scan(struct iwl_priv *priv,
-					       struct ieee80211_vif *vif,
-					       enum ieee80211_band band,
-					       struct iwl3945_scan_channel *scan_ch)
-{
-	const struct ieee80211_supported_band *sband;
-	u16 passive_dwell = 0;
-	u16 active_dwell = 0;
-	int added = 0;
-	u8 channel = 0;
-
-	sband = iwl_get_hw_mode(priv, band);
-	if (!sband) {
-		IWL_ERR(priv, "invalid band\n");
-		return added;
-	}
-
-	active_dwell = iwl_legacy_get_active_dwell_time(priv, band, 0);
-	passive_dwell = iwl_legacy_get_passive_dwell_time(priv, band, vif);
-
-	if (passive_dwell <= active_dwell)
-		passive_dwell = active_dwell + 1;
-
-
-	channel = iwl_legacy_get_single_channel_number(priv, band);
-
-	if (channel) {
-		scan_ch->channel = channel;
-		scan_ch->type = 0;	/* passive */
-		scan_ch->active_dwell = cpu_to_le16(active_dwell);
-		scan_ch->passive_dwell = cpu_to_le16(passive_dwell);
-		/* Set txpower levels to defaults */
-		scan_ch->tpc.dsp_atten = 110;
-		if (band == IEEE80211_BAND_5GHZ)
-			scan_ch->tpc.tx_gain = ((1 << 5) | (3 << 3)) | 3;
-		else
-			scan_ch->tpc.tx_gain = ((1 << 5) | (5 << 3));
-		added++;
-	} else
-		IWL_ERR(priv, "no valid channel found\n");
-	return added;
 }
 
 static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
@@ -2816,6 +2567,7 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	enum ieee80211_band band;
 	bool is_active = false;
 	int ret;
+	u16 len;
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -2834,17 +2586,14 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->quiet_time = IWL_ACTIVE_QUIET_TIME;
 
 	if (iwl_legacy_is_associated(priv, IWL_RXON_CTX_BSS)) {
-		u16 interval = 0;
+		u16 interval;
 		u32 extra;
 		u32 suspend_time = 100;
 		u32 scan_suspend_time = 100;
 
 		IWL_DEBUG_INFO(priv, "Scanning while associated...\n");
 
-		if (priv->is_internal_short_scan)
-			interval = 0;
-		else
-			interval = vif->bss_conf.beacon_int;
+		interval = vif->bss_conf.beacon_int;
 
 		scan->suspend_time = 0;
 		scan->max_out_time = cpu_to_le32(200 * 1024);
@@ -2866,9 +2615,7 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			       scan_suspend_time, interval);
 	}
 
-	if (priv->is_internal_short_scan) {
-		IWL_DEBUG_SCAN(priv, "Start internal passive scan.\n");
-	} else if (priv->scan_request->n_ssids) {
+	if (priv->scan_request->n_ssids) {
 		int i, p = 0;
 		IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
 		for (i = 0; i < priv->scan_request->n_ssids; i++) {
@@ -2919,36 +2666,17 @@ int iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
 					IWL_GOOD_CRC_TH_DISABLED;
 
-	if (!priv->is_internal_short_scan) {
-		scan->tx_cmd.len = cpu_to_le16(
-			iwl_legacy_fill_probe_req(priv,
-				(struct ieee80211_mgmt *)scan->data,
-				vif->addr,
-				priv->scan_request->ie,
-				priv->scan_request->ie_len,
-				IWL_MAX_SCAN_SIZE - sizeof(*scan)));
-	} else {
-		/* use bcast addr, will not be transmitted but must be valid */
-		scan->tx_cmd.len = cpu_to_le16(
-			iwl_legacy_fill_probe_req(priv,
-				(struct ieee80211_mgmt *)scan->data,
-				iwlegacy_bcast_addr, NULL, 0,
-				IWL_MAX_SCAN_SIZE - sizeof(*scan)));
-	}
+	len = iwl_legacy_fill_probe_req(priv, (struct ieee80211_mgmt *)scan->data,
+					vif->addr, priv->scan_request->ie,
+					priv->scan_request->ie_len,
+					IWL_MAX_SCAN_SIZE - sizeof(*scan));
+	scan->tx_cmd.len = cpu_to_le16(len);
+
 	/* select Rx antennas */
 	scan->flags |= iwl3945_get_antenna_flags(priv);
 
-	if (priv->is_internal_short_scan) {
-		scan->channel_count =
-			iwl3945_get_single_channel_for_scan(priv, vif, band,
-				(void *)&scan->data[le16_to_cpu(
-				scan->tx_cmd.len)]);
-	} else {
-		scan->channel_count =
-			iwl3945_get_channels_for_scan(priv, band, is_active, n_probes,
-				(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)], vif);
-	}
-
+	scan->channel_count = iwl3945_get_channels_for_scan(priv, band, is_active, n_probes,
+							    (void *)&scan->data[len], vif);
 	if (scan->channel_count == 0) {
 		IWL_DEBUG_SCAN(priv, "channel count %d\n", scan->channel_count);
 		return -EIO;
@@ -3824,10 +3552,7 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	priv->missed_beacon_threshold = IWL_MISSED_BEACON_THRESHOLD_DEF;
 
 	/* initialize force reset */
-	priv->force_reset[IWL_RF_RESET].reset_duration =
-		IWL_DELAY_NEXT_FORCE_RF_RESET;
-	priv->force_reset[IWL_FW_RESET].reset_duration =
-		IWL_DELAY_NEXT_FORCE_FW_RELOAD;
+	priv->force_reset.reset_duration = IWL_DELAY_NEXT_FORCE_FW_RELOAD;
 
 	if (eeprom->version < EEPROM_3945_EEPROM_VERSION) {
 		IWL_WARN(priv, "Unsupported EEPROM version: 0x%04X\n",

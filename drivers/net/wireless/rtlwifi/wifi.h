@@ -937,7 +937,7 @@ struct rtl_mac {
 	int n_channels;
 	int n_bitrates;
 
-	bool offchan_deley;
+	bool offchan_delay;
 
 	/*filters */
 	u32 rx_conf;
@@ -1982,7 +1982,7 @@ static inline u16 rtl_get_tid(struct sk_buff *skb)
 
 static inline struct ieee80211_sta *get_sta(struct ieee80211_hw *hw,
 					    struct ieee80211_vif *vif,
-					    u8 *bssid)
+					    const u8 *bssid)
 {
 	return ieee80211_find_sta(vif, bssid);
 }

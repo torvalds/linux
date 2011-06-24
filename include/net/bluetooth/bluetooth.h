@@ -69,6 +69,13 @@ struct bt_security {
 #define BT_FLUSHABLE_OFF	0
 #define BT_FLUSHABLE_ON		1
 
+#define BT_POWER	9
+struct bt_power {
+	__u8 force_active;
+};
+#define BT_POWER_FORCE_ACTIVE_OFF 0
+#define BT_POWER_FORCE_ACTIVE_ON  1
+
 #define BT_INFO(fmt, arg...) printk(KERN_INFO "Bluetooth: " fmt "\n" , ## arg)
 #define BT_ERR(fmt, arg...)  printk(KERN_ERR "%s: " fmt "\n" , __func__ , ## arg)
 #define BT_DBG(fmt, arg...)  pr_debug("%s: " fmt "\n" , __func__ , ## arg)
@@ -130,7 +137,8 @@ int  bt_sock_register(int proto, const struct net_proto_family *ops);
 int  bt_sock_unregister(int proto);
 void bt_sock_link(struct bt_sock_list *l, struct sock *s);
 void bt_sock_unlink(struct bt_sock_list *l, struct sock *s);
-int  bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags);
+int  bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
+				struct msghdr *msg, size_t len, int flags);
 int  bt_sock_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 			struct msghdr *msg, size_t len, int flags);
 uint bt_sock_poll(struct file * file, struct socket *sock, poll_table *wait);
@@ -150,6 +158,7 @@ struct bt_skb_cb {
 	__u8 retries;
 	__u8 sar;
 	unsigned short channel;
+	__u8 force_active;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
@@ -164,8 +173,8 @@ static inline struct sk_buff *bt_skb_alloc(unsigned int len, gfp_t how)
 	return skb;
 }
 
-static inline struct sk_buff *bt_skb_send_alloc(struct sock *sk, unsigned long len, 
-							int nb, int *err)
+static inline struct sk_buff *bt_skb_send_alloc(struct sock *sk,
+					unsigned long len, int nb, int *err)
 {
 	struct sk_buff *skb;
 

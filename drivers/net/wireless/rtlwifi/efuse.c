@@ -382,7 +382,7 @@ bool efuse_shadow_update_chk(struct ieee80211_hw *hw)
 			}
 		}
 
-		if (wordchanged == true)
+		if (wordchanged)
 			hdr_num++;
 	}
 
@@ -453,7 +453,7 @@ bool efuse_shadow_update(struct ieee80211_hw *hw)
 		base = offset * 8;
 
 		for (i = 0; i < 8; i++) {
-			if (first_pg == true) {
+			if (first_pg) {
 
 				word_en &= ~(BIT(i / 2));
 
@@ -505,7 +505,7 @@ void rtl_efuse_shadow_map_update(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 
-	if (rtlefuse->autoload_failflag == true)
+	if (rtlefuse->autoload_failflag)
 		memset(&rtlefuse->efuse_map[EFUSE_INIT_MAP][0], 0xFF,
 			rtlpriv->cfg->maps[EFUSE_HWSET_MAX_SIZE]);
 	else
@@ -690,7 +690,7 @@ static void efuse_read_data_case1(struct ieee80211_hw *hw, u16 *efuse_addr,
 			}
 		}
 
-		if (dataempty == true) {
+		if (dataempty) {
 			*readstate = PG_STATE_DATA;
 		} else {
 			*efuse_addr = *efuse_addr + (word_cnts * 2) + 1;

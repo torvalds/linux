@@ -49,6 +49,7 @@ struct nlmsghdr {
 #define NLM_F_MULTI		2	/* Multipart message, terminated by NLMSG_DONE */
 #define NLM_F_ACK		4	/* Reply with ack, with zero or error code */
 #define NLM_F_ECHO		8	/* Echo this request 		*/
+#define NLM_F_DUMP_INTR		16	/* Dump was inconsistent due to sequence change */
 
 /* Modifiers to GET request */
 #define NLM_F_ROOT	0x100	/* specify tree	root	*/
@@ -223,6 +224,7 @@ struct netlink_callback {
 	int			(*done)(struct netlink_callback *cb);
 	u16			family;
 	u16			min_dump_alloc;
+	unsigned int		prev_seq, seq;
 	long			args[6];
 };
 

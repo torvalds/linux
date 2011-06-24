@@ -218,6 +218,16 @@ static inline int drv_hw_scan(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline void drv_cancel_hw_scan(struct ieee80211_local *local,
+				      struct ieee80211_sub_if_data *sdata)
+{
+	might_sleep();
+
+	trace_drv_cancel_hw_scan(local, sdata);
+	local->ops->cancel_hw_scan(&local->hw, &sdata->vif);
+	trace_drv_return_void(local);
+}
+
 static inline int
 drv_sched_scan_start(struct ieee80211_local *local,
 		     struct ieee80211_sub_if_data *sdata,

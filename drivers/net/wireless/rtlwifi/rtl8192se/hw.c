@@ -516,7 +516,7 @@ static u8 _rtl92se_rf_onoff_detect(struct ieee80211_hw *hw)
 	mdelay(10);
 
 	/* check GPIO3 */
-	u1tmp = rtl_read_byte(rtlpriv, GPIO_IN);
+	u1tmp = rtl_read_byte(rtlpriv, GPIO_IN_SE);
 	retval = (u1tmp & HAL_8192S_HW_GPIO_OFF_BIT) ? ERFON : ERFOFF;
 
 	return retval;
@@ -994,7 +994,8 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 
 		rtlpriv->psc.rfoff_reason = RF_CHANGE_BY_INIT;
 		rtlpriv->psc.rfpwr_state = ERFON;
-		rtl_ps_set_rf_state(hw, ERFOFF, rfoffreason, true);
+		/* FIXME: check spinlocks if this block is uncommented */
+		rtl_ps_set_rf_state(hw, ERFOFF, rfoffreason);
 	} else {
 		/* gpio radio on/off is out of adapter start */
 		if (rtlpriv->psc.hwradiooff == false) {
@@ -1105,7 +1106,7 @@ void rtl92se_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 	if (rtlpriv->psc.rfpwr_state != ERFON)
 		return;
 
-	if (check_bssid == true) {
+	if (check_bssid) {
 		reg_rcr |= (RCR_CBSSID);
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
 	} else if (check_bssid == false) {
@@ -1651,7 +1652,7 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 		rtlefuse->autoload_failflag = false;
 	}
 
-	if (rtlefuse->autoload_failflag == true)
+	if (rtlefuse->autoload_failflag)
 		return;
 
 	_rtl8192se_get_IC_Inferiority(hw);
@@ -2301,7 +2302,7 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 
 	rfpwr_toset = _rtl92se_rf_onoff_detect(hw);
 
-	if ((ppsc->hwradiooff == true) && (rfpwr_toset == ERFON)) {
+	if ((ppsc->hwradiooff) && (rfpwr_toset == ERFON)) {
 		RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
 			 ("RFKILL-HW Radio ON, RF ON\n"));
 

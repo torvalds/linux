@@ -821,10 +821,8 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
  */
 void ieee80211_scan_cancel(struct ieee80211_local *local)
 {
-	bool abortscan;
-
 	/*
-	 * We are only canceling software scan, or deferred scan that was not
+	 * We are canceling software scan, or deferred scan that was not
 	 * yet really started (see __ieee80211_start_scan ).
 	 *
 	 * Regarding hardware scan:
@@ -836,23 +834,30 @@ void ieee80211_scan_cancel(struct ieee80211_local *local)
 	 * - we can not cancel scan_work since driver can schedule it
 	 *   by ieee80211_scan_completed(..., true) to finish scan
 	 *
-	 * Hence low lever driver is responsible for canceling HW scan.
+	 * Hence we only call the cancel_hw_scan() callback, but the low-level
+	 * driver is still responsible for calling ieee80211_scan_completed()
+	 * after the scan was completed/aborted.
 	 */
 
 	mutex_lock(&local->mtx);
-	abortscan = local->scan_req && !test_bit(SCAN_HW_SCANNING, &local->scanning);
-	if (abortscan) {
-		/*
-		 * The scan is canceled, but stop work from being pending.
-		 *
-		 * If the work is currently running, it must be blocked on
-		 * the mutex, but we'll set scan_sdata = NULL and it'll
-		 * simply exit once it acquires the mutex.
-		 */
-		cancel_delayed_work(&local->scan_work);
-		/* and clean up */
-		__ieee80211_scan_completed(&local->hw, true, false);
+	if (!local->scan_req)
+		goto out;
+
+	if (test_bit(SCAN_HW_SCANNING, &local->scanning)) {
+		if (local->ops->cancel_hw_scan)
+			drv_cancel_hw_scan(local, local->scan_sdata);
+		goto out;
 	}
+
+	/*
+	 * If the work is currently running, it must be blocked on
+	 * the mutex, but we'll set scan_sdata = NULL and it'll
+	 * simply exit once it acquires the mutex.
+	 */
+	cancel_delayed_work(&local->scan_work);
+	/* and clean up */
+	__ieee80211_scan_completed(&local->hw, true, false);
+out:
 	mutex_unlock(&local->mtx);
 }
 

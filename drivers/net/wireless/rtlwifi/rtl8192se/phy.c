@@ -1416,7 +1416,7 @@ static void _rtl92s_phy_set_fwcmd_io(struct ieee80211_hw *hw)
 		break;
 	case FW_CMD_HIGH_PWR_ENABLE:
 		if ((rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) ||
-			(rtlpriv->dm.dynamic_txpower_enable == true))
+			rtlpriv->dm.dynamic_txpower_enable)
 			break;
 
 		/* CCA threshold */
@@ -1608,7 +1608,7 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 				fw_cmdmap &= ~FW_DIG_ENABLE_CTL;
 
 			if ((rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) ||
-			    (rtlpriv->dm.dynamic_txpower_enable == true))
+			    rtlpriv->dm.dynamic_txpower_enable)
 				fw_cmdmap &= ~FW_HIGH_PWR_ENABLE_CTL;
 
 			if ((digtable.dig_ext_port_stage ==
