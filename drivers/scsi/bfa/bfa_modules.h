@@ -38,6 +38,7 @@ struct bfa_modules_s {
 	struct bfa_sgpg_mod_s	sgpg_mod;	/*  SG page module	      */
 	struct bfa_port_s	port;		/*  Physical port module     */
 	struct bfa_ablk_s	ablk;		/*  ASIC block config module */
+	struct bfa_cee_s	cee;		/*  CEE Module	*/
 };
 
 /*

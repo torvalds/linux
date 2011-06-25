@@ -1142,4 +1142,77 @@ struct bfa_port_cfg_mode_s {
 	enum bfa_mode_s	mode;
 };
 
+#pragma pack(1)
+
+#define BFA_CEE_LLDP_MAX_STRING_LEN	(128)
+#define BFA_CEE_DCBX_MAX_PRIORITY	(8)
+#define BFA_CEE_DCBX_MAX_PGID		(8)
+
+struct bfa_cee_lldp_str_s {
+	u8	sub_type;
+	u8	len;
+	u8	rsvd[2];
+	u8	value[BFA_CEE_LLDP_MAX_STRING_LEN];
+};
+
+struct bfa_cee_lldp_cfg_s {
+	struct bfa_cee_lldp_str_s chassis_id;
+	struct bfa_cee_lldp_str_s port_id;
+	struct bfa_cee_lldp_str_s port_desc;
+	struct bfa_cee_lldp_str_s sys_name;
+	struct bfa_cee_lldp_str_s sys_desc;
+	struct bfa_cee_lldp_str_s mgmt_addr;
+	u16	time_to_live;
+	u16	enabled_system_cap;
+};
+
+/* CEE/DCBX parameters */
+struct bfa_cee_dcbx_cfg_s {
+	u8	pgid[BFA_CEE_DCBX_MAX_PRIORITY];
+	u8	pg_percentage[BFA_CEE_DCBX_MAX_PGID];
+	u8	pfc_primap; /* bitmap of priorties with PFC enabled */
+	u8	fcoe_primap; /* bitmap of priorities used for FcoE traffic */
+	u8	iscsi_primap; /* bitmap of priorities used for iSCSI traffic */
+	u8	dcbx_version; /* operating version:CEE or preCEE */
+	u8	lls_fcoe; /* FCoE Logical Link Status */
+	u8	lls_lan; /* LAN Logical Link Status */
+	u8	rsvd[2];
+};
+
+/* CEE Query */
+struct bfa_cee_attr_s {
+	u8	cee_status;
+	u8	error_reason;
+	struct bfa_cee_lldp_cfg_s lldp_remote;
+	struct bfa_cee_dcbx_cfg_s dcbx_remote;
+	mac_t src_mac;
+	u8	link_speed;
+	u8	nw_priority;
+	u8	filler[2];
+};
+
+/* LLDP/DCBX/CEE Statistics */
+struct bfa_cee_stats_s {
+	u32		lldp_tx_frames;		/* LLDP Tx Frames */
+	u32		lldp_rx_frames;		/* LLDP Rx Frames */
+	u32		lldp_rx_frames_invalid; /* LLDP Rx Frames invalid */
+	u32		lldp_rx_frames_new;     /* LLDP Rx Frames new */
+	u32		lldp_tlvs_unrecognized; /* LLDP Rx unrecog. TLVs */
+	u32		lldp_rx_shutdown_tlvs;  /* LLDP Rx shutdown TLVs */
+	u32		lldp_info_aged_out;     /* LLDP remote info aged */
+	u32		dcbx_phylink_ups;       /* DCBX phy link ups */
+	u32		dcbx_phylink_downs;     /* DCBX phy link downs */
+	u32		dcbx_rx_tlvs;           /* DCBX Rx TLVs */
+	u32		dcbx_rx_tlvs_invalid;   /* DCBX Rx TLVs invalid */
+	u32		dcbx_control_tlv_error; /* DCBX control TLV errors */
+	u32		dcbx_feature_tlv_error; /* DCBX feature TLV errors */
+	u32		dcbx_cee_cfg_new;       /* DCBX new CEE cfg rcvd */
+	u32		cee_status_down;        /* DCB status down */
+	u32		cee_status_up;          /* DCB status up */
+	u32		cee_hw_cfg_changed;     /* DCB hw cfg changed */
+	u32		cee_rx_invalid_cfg;     /* DCB invalid cfg */
+};
+
+#pragma pack()
+
 #endif /* __BFA_DEFS_SVC_H__ */

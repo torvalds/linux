@@ -979,6 +979,93 @@ out:
 	return 0;
 }
 
+int
+bfad_iocmd_cee_attr(struct bfad_s *bfad, void *cmd, unsigned int payload_len)
+{
+	struct bfa_bsg_cee_attr_s *iocmd =
+				(struct bfa_bsg_cee_attr_s *)cmd;
+	void	*iocmd_bufptr;
+	struct bfad_hal_comp	cee_comp;
+	unsigned long	flags;
+
+	if (bfad_chk_iocmd_sz(payload_len,
+			sizeof(struct bfa_bsg_cee_attr_s),
+			sizeof(struct bfa_cee_attr_s)) != BFA_STATUS_OK) {
+		iocmd->status = BFA_STATUS_VERSION_FAIL;
+		return 0;
+	}
+
+	iocmd_bufptr = (char *)iocmd + sizeof(struct bfa_bsg_cee_attr_s);
+
+	cee_comp.status = 0;
+	init_completion(&cee_comp.comp);
+	mutex_lock(&bfad_mutex);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_cee_get_attr(&bfad->bfa.modules.cee, iocmd_bufptr,
+					 bfad_hcb_comp, &cee_comp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK) {
+		mutex_unlock(&bfad_mutex);
+		bfa_trc(bfad, 0x5555);
+		goto out;
+	}
+	wait_for_completion(&cee_comp.comp);
+	mutex_unlock(&bfad_mutex);
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_cee_get_stats(struct bfad_s *bfad, void *cmd,
+			unsigned int payload_len)
+{
+	struct bfa_bsg_cee_stats_s *iocmd =
+				(struct bfa_bsg_cee_stats_s *)cmd;
+	void	*iocmd_bufptr;
+	struct bfad_hal_comp	cee_comp;
+	unsigned long	flags;
+
+	if (bfad_chk_iocmd_sz(payload_len,
+			sizeof(struct bfa_bsg_cee_stats_s),
+			sizeof(struct bfa_cee_stats_s)) != BFA_STATUS_OK) {
+		iocmd->status = BFA_STATUS_VERSION_FAIL;
+		return 0;
+	}
+
+	iocmd_bufptr = (char *)iocmd + sizeof(struct bfa_bsg_cee_stats_s);
+
+	cee_comp.status = 0;
+	init_completion(&cee_comp.comp);
+	mutex_lock(&bfad_mutex);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_cee_get_stats(&bfad->bfa.modules.cee, iocmd_bufptr,
+					bfad_hcb_comp, &cee_comp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK) {
+		mutex_unlock(&bfad_mutex);
+		bfa_trc(bfad, 0x5555);
+		goto out;
+	}
+	wait_for_completion(&cee_comp.comp);
+	mutex_unlock(&bfad_mutex);
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_cee_reset_stats(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_cee_reset_stats(&bfad->bfa.modules.cee, NULL, NULL);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK)
+		bfa_trc(bfad, 0x5555);
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -1097,6 +1184,15 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_FAA_QUERY:
 		rc = bfad_iocmd_faa_query(bfad, iocmd);
+		break;
+	case IOCMD_CEE_GET_ATTR:
+		rc = bfad_iocmd_cee_attr(bfad, iocmd, payload_len);
+		break;
+	case IOCMD_CEE_GET_STATS:
+		rc = bfad_iocmd_cee_get_stats(bfad, iocmd, payload_len);
+		break;
+	case IOCMD_CEE_RESET_STATS:
+		rc = bfad_iocmd_cee_reset_stats(bfad, iocmd);
 		break;
 	default:
 		rc = EINVAL;

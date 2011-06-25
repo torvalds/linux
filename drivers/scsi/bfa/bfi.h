@@ -190,6 +190,7 @@ enum bfi_pcifn_class {
  */
 enum bfi_mclass {
 	BFI_MC_IOC		= 1,	/*  IO Controller (IOC)	    */
+	BFI_MC_CEE		= 4,	/*  CEE	*/
 	BFI_MC_FCPORT		= 5,	/*  FC port			    */
 	BFI_MC_IOCFC		= 6,	/*  FC - IO Controller (IOC)	    */
 	BFI_MC_ABLK		= 7,	/*  ASIC block configuration	    */
@@ -704,6 +705,64 @@ struct bfi_ablk_i2h_rsp_s {
 	u8			status;
 	u8			pcifn;
 	u8			port_mode;
+};
+
+
+/*
+ *	CEE module specific messages
+ */
+
+/* Mailbox commands from host to firmware */
+enum bfi_cee_h2i_msgs_e {
+	BFI_CEE_H2I_GET_CFG_REQ = 1,
+	BFI_CEE_H2I_RESET_STATS = 2,
+	BFI_CEE_H2I_GET_STATS_REQ = 3,
+};
+
+enum bfi_cee_i2h_msgs_e {
+	BFI_CEE_I2H_GET_CFG_RSP = BFA_I2HM(1),
+	BFI_CEE_I2H_RESET_STATS_RSP = BFA_I2HM(2),
+	BFI_CEE_I2H_GET_STATS_RSP = BFA_I2HM(3),
+};
+
+/*
+ * H2I command structure for resetting the stats
+ */
+struct bfi_cee_reset_stats_s {
+	struct bfi_mhdr_s  mh;
+};
+
+/*
+ * Get configuration  command from host
+ */
+struct bfi_cee_get_req_s {
+	struct bfi_mhdr_s	mh;
+	union bfi_addr_u	dma_addr;
+};
+
+/*
+ * Reply message from firmware
+ */
+struct bfi_cee_get_rsp_s {
+	struct bfi_mhdr_s	mh;
+	u8			cmd_status;
+	u8			rsvd[3];
+};
+
+/*
+ * Reply message from firmware
+ */
+struct bfi_cee_stats_rsp_s {
+	struct bfi_mhdr_s	mh;
+	u8			cmd_status;
+	u8			rsvd[3];
+};
+
+/* Mailbox message structures from firmware to host	*/
+union bfi_cee_i2h_msg_u {
+	struct bfi_mhdr_s		mh;
+	struct bfi_cee_get_rsp_s	get_rsp;
+	struct bfi_cee_stats_rsp_s	stats_rsp;
 };
 
 #pragma pack()
