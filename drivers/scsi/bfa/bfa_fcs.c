@@ -192,11 +192,14 @@ bfa_fcs_exit(struct bfa_fcs_s *fcs)
 #define BFA_FCS_FABRIC_CLEANUP_DELAY	(10000)	/* Milliseconds */
 
 #define bfa_fcs_fabric_set_opertype(__fabric) do {			\
-		if (bfa_fcport_get_topology((__fabric)->fcs->bfa)	\
-		    == BFA_PORT_TOPOLOGY_P2P)				\
+	if (bfa_fcport_get_topology((__fabric)->fcs->bfa)		\
+				== BFA_PORT_TOPOLOGY_P2P) {		\
+		if (fabric->fab_type == BFA_FCS_FABRIC_SWITCHED)	\
 			(__fabric)->oper_type = BFA_PORT_TYPE_NPORT;	\
 		else							\
-			(__fabric)->oper_type = BFA_PORT_TYPE_NLPORT;	\
+			(__fabric)->oper_type = BFA_PORT_TYPE_P2P;	\
+	} else								\
+		(__fabric)->oper_type = BFA_PORT_TYPE_NLPORT;		\
 } while (0)
 
 /*
@@ -551,6 +554,9 @@ bfa_fcs_fabric_sm_nofabric(struct bfa_fcs_fabric_s *fabric,
 					   bfa_fcs_fabric_oper_bbscn(fabric));
 		break;
 
+	case BFA_FCS_FABRIC_SM_RETRY_OP:
+		break;
+
 	default:
 		bfa_sm_fault(fabric->fcs, event);
 	}
@@ -827,6 +833,7 @@ bfa_cb_lps_flogi_comp(void *bfad, void *uarg, bfa_status_t status)
 		 */
 		fabric->bport.port_topo.pn2n.rem_port_wwn =
 			fabric->lps->pr_pwwn;
+		fabric->fab_type = BFA_FCS_FABRIC_N2N;
 		bfa_sm_send_event(fabric, BFA_FCS_FABRIC_SM_NO_FABRIC);
 	}
 
@@ -917,8 +924,9 @@ static u8
 bfa_fcs_fabric_oper_bbscn(struct bfa_fcs_fabric_s *fabric)
 {
 	u8	pr_bbscn = fabric->lps->pr_bbscn;
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(fabric->fcs->bfa);
 
-	if (!(fabric->fcs->bbscn_enabled && pr_bbscn))
+	if (!(fcport->cfg.bb_scn_state && pr_bbscn))
 		return 0;
 
 	/* return max of local/remote bb_scn values */
@@ -932,8 +940,10 @@ bfa_fcs_fabric_oper_bbscn(struct bfa_fcs_fabric_s *fabric)
 static bfa_boolean_t
 bfa_fcs_fabric_is_bbscn_enabled(struct bfa_fcs_fabric_s *fabric)
 {
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(fabric->fcs->bfa);
+
 	if (bfa_ioc_get_fcmode(&fabric->fcs->bfa->ioc) &&
-			fabric->fcs->bbscn_enabled &&
+			fcport->cfg.bb_scn_state &&
 			!bfa_fcport_is_qos_enabled(fabric->fcs->bfa) &&
 			!bfa_fcport_is_trunk_enabled(fabric->fcs->bfa))
 		return BFA_TRUE;

@@ -3750,8 +3750,6 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr)
 	/* beacon attributes */
 	attr->beacon = fcport->beacon;
 	attr->link_e2e_beacon = fcport->link_e2e_beacon;
-	attr->plog_enabled = (bfa_boolean_t)fcport->bfa->plog->plog_enabled;
-	attr->io_profile = bfa_fcpim_get_io_profile(fcport->bfa);
 
 	attr->pport_cfg.path_tov  = bfa_fcpim_path_tov_get(bfa);
 	attr->pport_cfg.q_depth  = bfa_fcpim_qdepth_get(bfa);

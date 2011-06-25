@@ -328,6 +328,40 @@ bfa_fcs_lport_send_ls_rjt(struct bfa_fcs_lport_s *port, struct fchs_s *rx_fchs,
 }
 
 /*
+ * Send a FCCT Reject
+ */
+static void
+bfa_fcs_lport_send_fcgs_rjt(struct bfa_fcs_lport_s *port,
+	struct fchs_s *rx_fchs, u8 reason_code, u8 reason_code_expl)
+{
+	struct fchs_s   fchs;
+	struct bfa_fcxp_s *fcxp;
+	struct bfa_rport_s *bfa_rport = NULL;
+	int             len;
+	struct ct_hdr_s *rx_cthdr = (struct ct_hdr_s *)(rx_fchs + 1);
+	struct ct_hdr_s *ct_hdr;
+
+	bfa_trc(port->fcs, rx_fchs->d_id);
+	bfa_trc(port->fcs, rx_fchs->s_id);
+
+	fcxp = bfa_fcs_fcxp_alloc(port->fcs);
+	if (!fcxp)
+		return;
+
+	ct_hdr = bfa_fcxp_get_reqbuf(fcxp);
+	ct_hdr->gs_type = rx_cthdr->gs_type;
+	ct_hdr->gs_sub_type = rx_cthdr->gs_sub_type;
+
+	len = fc_gs_rjt_build(&fchs, ct_hdr, rx_fchs->s_id,
+			bfa_fcs_lport_get_fcid(port),
+			rx_fchs->ox_id, reason_code, reason_code_expl);
+
+	bfa_fcxp_send(fcxp, bfa_rport, port->fabric->vf_id, port->lp_tag,
+			BFA_FALSE, FC_CLASS_3, len, &fchs, NULL, NULL,
+			FC_MAX_PDUSZ, 0);
+}
+
+/*
  * Process incoming plogi from a remote port.
  */
 static void
@@ -710,6 +744,16 @@ bfa_fcs_lport_uf_recv(struct bfa_fcs_lport_s *lport,
 			bfa_fcs_lport_abts_acc(lport, fchs);
 		return;
 	}
+
+	if (fchs->type == FC_TYPE_SERVICES) {
+		/*
+		 * Unhandled FC-GS frames. Send a FC-CT Reject
+		 */
+		bfa_fcs_lport_send_fcgs_rjt(lport, fchs, CT_RSN_NOT_SUPP,
+				CT_NS_EXP_NOADDITIONAL);
+		return;
+	}
+
 	/*
 	 * look for a matching remote port ID
 	 */
@@ -1137,6 +1181,8 @@ static void	bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 				 struct bfa_fcs_fdmi_hba_attr_s *hba_attr);
 static void	bfa_fcs_fdmi_get_portattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 				  struct bfa_fcs_fdmi_port_attr_s *port_attr);
+u32	bfa_fcs_fdmi_convert_speed(enum bfa_port_speed pport_speed);
+
 /*
  *  fcs_fdmi_sm FCS FDMI state machine
  */
@@ -2223,12 +2269,36 @@ bfa_fcs_fdmi_get_portattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 	/*
 	 * Supported Speeds
 	 */
-	port_attr->supp_speed = cpu_to_be32(BFA_FCS_FDMI_SUPORTED_SPEEDS);
+	switch (pport_attr.speed_supported) {
+	case BFA_PORT_SPEED_16GBPS:
+		port_attr->supp_speed =
+			cpu_to_be32(BFA_FCS_FDMI_SUPP_SPEEDS_16G);
+		break;
+
+	case BFA_PORT_SPEED_10GBPS:
+		port_attr->supp_speed =
+			cpu_to_be32(BFA_FCS_FDMI_SUPP_SPEEDS_10G);
+		break;
+
+	case BFA_PORT_SPEED_8GBPS:
+		port_attr->supp_speed =
+			cpu_to_be32(BFA_FCS_FDMI_SUPP_SPEEDS_8G);
+		break;
+
+	case BFA_PORT_SPEED_4GBPS:
+		port_attr->supp_speed =
+			cpu_to_be32(BFA_FCS_FDMI_SUPP_SPEEDS_4G);
+		break;
+
+	default:
+		bfa_sm_fault(port->fcs, pport_attr.speed_supported);
+	}
 
 	/*
 	 * Current Speed
 	 */
-	port_attr->curr_speed = cpu_to_be32(pport_attr.speed);
+	port_attr->curr_speed = cpu_to_be32(
+				bfa_fcs_fdmi_convert_speed(pport_attr.speed));
 
 	/*
 	 * Max PDU Size.
@@ -2249,6 +2319,41 @@ bfa_fcs_fdmi_get_portattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 
 }
 
+/*
+ * Convert BFA speed to FDMI format.
+ */
+u32
+bfa_fcs_fdmi_convert_speed(bfa_port_speed_t pport_speed)
+{
+	u32	ret;
+
+	switch (pport_speed) {
+	case BFA_PORT_SPEED_1GBPS:
+	case BFA_PORT_SPEED_2GBPS:
+		ret = pport_speed;
+		break;
+
+	case BFA_PORT_SPEED_4GBPS:
+		ret = FDMI_TRANS_SPEED_4G;
+		break;
+
+	case BFA_PORT_SPEED_8GBPS:
+		ret = FDMI_TRANS_SPEED_8G;
+		break;
+
+	case BFA_PORT_SPEED_10GBPS:
+		ret = FDMI_TRANS_SPEED_10G;
+		break;
+
+	case BFA_PORT_SPEED_16GBPS:
+		ret = FDMI_TRANS_SPEED_16G;
+		break;
+
+	default:
+		ret = FDMI_TRANS_SPEED_UNKNOWN;
+	}
+	return ret;
+}
 
 void
 bfa_fcs_lport_fdmi_init(struct bfa_fcs_lport_ms_s *ms)
@@ -4827,8 +4932,8 @@ bfa_fcs_lport_get_rport_max_speed(bfa_fcs_lport_t *port)
 	while (qe != qh) {
 		rport = (struct bfa_fcs_rport_s *) qe;
 		if ((bfa_ntoh3b(rport->pid) > 0xFFF000) ||
-			(bfa_fcs_rport_get_state(rport) ==
-			  BFA_RPORT_OFFLINE)) {
+			(bfa_fcs_rport_get_state(rport) == BFA_RPORT_OFFLINE) ||
+			(rport->scsi_function != BFA_RPORT_TARGET)) {
 			qe = bfa_q_next(qe);
 			continue;
 		}
@@ -4841,16 +4946,14 @@ bfa_fcs_lport_get_rport_max_speed(bfa_fcs_lport_t *port)
 				bfa_fcport_get_ratelim_speed(port->fcs->bfa);
 		}
 
-		if	((rport_speed  == BFA_PORT_SPEED_8GBPS) ||
-			(rport_speed > port_speed)) {
+		if (rport_speed > max_speed)
 			max_speed = rport_speed;
-			break;
-		} else if (rport_speed > max_speed) {
-			max_speed = rport_speed;
-		}
 
 		qe = bfa_q_next(qe);
 	}
+
+	if (max_speed > port_speed)
+		max_speed = port_speed;
 
 	bfa_trc(fcs, max_speed);
 	return max_speed;
@@ -4996,6 +5099,8 @@ static void     bfa_fcs_vport_sm_fdisc(struct bfa_fcs_vport_s *vport,
 				       enum bfa_fcs_vport_event event);
 static void     bfa_fcs_vport_sm_fdisc_retry(struct bfa_fcs_vport_s *vport,
 					     enum bfa_fcs_vport_event event);
+static void	bfa_fcs_vport_sm_fdisc_rsp_wait(struct bfa_fcs_vport_s *vport,
+					enum bfa_fcs_vport_event event);
 static void     bfa_fcs_vport_sm_online(struct bfa_fcs_vport_s *vport,
 					enum bfa_fcs_vport_event event);
 static void     bfa_fcs_vport_sm_deleting(struct bfa_fcs_vport_s *vport,
@@ -5017,6 +5122,7 @@ static struct bfa_sm_table_s  vport_sm_table[] = {
 	{BFA_SM(bfa_fcs_vport_sm_offline), BFA_FCS_VPORT_OFFLINE},
 	{BFA_SM(bfa_fcs_vport_sm_fdisc), BFA_FCS_VPORT_FDISC},
 	{BFA_SM(bfa_fcs_vport_sm_fdisc_retry), BFA_FCS_VPORT_FDISC_RETRY},
+	{BFA_SM(bfa_fcs_vport_sm_fdisc_rsp_wait), BFA_FCS_VPORT_FDISC_RSP_WAIT},
 	{BFA_SM(bfa_fcs_vport_sm_online), BFA_FCS_VPORT_ONLINE},
 	{BFA_SM(bfa_fcs_vport_sm_deleting), BFA_FCS_VPORT_DELETING},
 	{BFA_SM(bfa_fcs_vport_sm_cleanup), BFA_FCS_VPORT_CLEANUP},
@@ -5145,9 +5251,7 @@ bfa_fcs_vport_sm_fdisc(struct bfa_fcs_vport_s *vport,
 
 	switch (event) {
 	case BFA_FCS_VPORT_SM_DELETE:
-		bfa_sm_set_state(vport, bfa_fcs_vport_sm_cleanup);
-		bfa_sm_send_event(vport->lps, BFA_LPS_SM_OFFLINE);
-		bfa_fcs_lport_delete(&vport->lport);
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_fdisc_rsp_wait);
 		break;
 
 	case BFA_FCS_VPORT_SM_OFFLINE:
@@ -5207,6 +5311,41 @@ bfa_fcs_vport_sm_fdisc_retry(struct bfa_fcs_vport_s *vport,
 		vport->vport_stats.fdisc_retries++;
 		vport->fdisc_retries++;
 		bfa_fcs_vport_do_fdisc(vport);
+		break;
+
+	default:
+		bfa_sm_fault(__vport_fcs(vport), event);
+	}
+}
+
+/*
+ * FDISC is in progress and we got a vport delete request -
+ * this is a wait state while we wait for fdisc response and
+ * we will transition to the appropriate state - on rsp status.
+ */
+static void
+bfa_fcs_vport_sm_fdisc_rsp_wait(struct bfa_fcs_vport_s *vport,
+				enum bfa_fcs_vport_event event)
+{
+	bfa_trc(__vport_fcs(vport), __vport_pwwn(vport));
+	bfa_trc(__vport_fcs(vport), event);
+
+	switch (event) {
+	case BFA_FCS_VPORT_SM_RSP_OK:
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_deleting);
+		bfa_fcs_lport_delete(&vport->lport);
+		break;
+
+	case BFA_FCS_VPORT_SM_DELETE:
+		break;
+
+	case BFA_FCS_VPORT_SM_OFFLINE:
+	case BFA_FCS_VPORT_SM_RSP_ERROR:
+	case BFA_FCS_VPORT_SM_RSP_FAILED:
+	case BFA_FCS_VPORT_SM_RSP_DUP_WWN:
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_cleanup);
+		bfa_sm_send_event(vport->lps, BFA_LPS_SM_OFFLINE);
+		bfa_fcs_lport_delete(&vport->lport);
 		break;
 
 	default:
@@ -5529,7 +5668,10 @@ void
 bfa_fcs_vport_online(struct bfa_fcs_vport_s *vport)
 {
 	vport->vport_stats.fab_online++;
-	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_ONLINE);
+	if (bfa_fcs_fabric_npiv_capable(__vport_fabric(vport)))
+		bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_ONLINE);
+	else
+		vport->vport_stats.fab_no_npiv++;
 }
 
 /*

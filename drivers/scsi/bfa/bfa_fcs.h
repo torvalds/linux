@@ -424,6 +424,7 @@ struct bfa_fcs_rport_s {
 	enum fc_cos	fc_cos;	/*  FC classes of service supp */
 	bfa_boolean_t	cisc;	/*  CISC capable device */
 	bfa_boolean_t	prlo;	/*  processing prlo or LOGO */
+	bfa_boolean_t	plogi_pending;	/* Rx Plogi Pending */
 	wwn_t	pwwn;	/*  port wwn of rport */
 	wwn_t	nwwn;	/*  node wwn of rport */
 	struct bfa_rport_symname_s psym_name; /*  port symbolic name  */
@@ -595,10 +596,21 @@ void bfa_fcs_itnim_is_initiator(struct bfa_fcs_itnim_s *itnim);
 void bfa_fcs_fcpim_uf_recv(struct bfa_fcs_itnim_s *itnim,
 			struct fchs_s *fchs, u16 len);
 
-#define	BFA_FCS_FDMI_SUPORTED_SPEEDS  (FDMI_TRANS_SPEED_1G  |	\
-				       FDMI_TRANS_SPEED_2G |	\
-				       FDMI_TRANS_SPEED_4G |	\
-				       FDMI_TRANS_SPEED_8G)
+#define BFA_FCS_FDMI_SUPP_SPEEDS_4G	(FDMI_TRANS_SPEED_1G  |	\
+				FDMI_TRANS_SPEED_2G |		\
+				FDMI_TRANS_SPEED_4G)
+
+#define BFA_FCS_FDMI_SUPP_SPEEDS_8G	(FDMI_TRANS_SPEED_1G  |	\
+				FDMI_TRANS_SPEED_2G |		\
+				FDMI_TRANS_SPEED_4G |		\
+				FDMI_TRANS_SPEED_8G)
+
+#define BFA_FCS_FDMI_SUPP_SPEEDS_16G	(FDMI_TRANS_SPEED_2G  |	\
+				FDMI_TRANS_SPEED_4G |		\
+				FDMI_TRANS_SPEED_8G |		\
+				FDMI_TRANS_SPEED_16G)
+
+#define BFA_FCS_FDMI_SUPP_SPEEDS_10G	FDMI_TRANS_SPEED_10G
 
 /*
  * HBA Attribute Block : BFA internal representation. Note : Some variable

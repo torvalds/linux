@@ -262,6 +262,7 @@ bfa_fcs_rport_sm_plogiacc_sending(struct bfa_fcs_rport_s *rport,
 		break;
 
 	case RPSM_EVENT_PLOGI_RCVD:
+	case RPSM_EVENT_PLOGI_COMP:
 	case RPSM_EVENT_SCN:
 		/*
 		 * Ignore, SCN is possibly online notification.
@@ -470,6 +471,7 @@ bfa_fcs_rport_sm_hal_online(struct bfa_fcs_rport_s *rport,
 		break;
 
 	case RPSM_EVENT_PRLO_RCVD:
+	case RPSM_EVENT_PLOGI_COMP:
 		break;
 
 	case RPSM_EVENT_LOGO_RCVD:
@@ -484,9 +486,9 @@ bfa_fcs_rport_sm_hal_online(struct bfa_fcs_rport_s *rport,
 		break;
 
 	case RPSM_EVENT_PLOGI_RCVD:
-		bfa_sm_set_state(rport, bfa_fcs_rport_sm_plogiacc_sending);
+		rport->plogi_pending = BFA_TRUE;
+		bfa_sm_set_state(rport, bfa_fcs_rport_sm_hcb_offline);
 		bfa_sm_send_event(rport->bfa_rport, BFA_RPORT_SM_OFFLINE);
-		bfa_fcs_rport_send_plogiacc(rport, NULL);
 		break;
 
 	case RPSM_EVENT_DELETE:
@@ -891,6 +893,18 @@ bfa_fcs_rport_sm_hcb_offline(struct bfa_fcs_rport_s *rport,
 
 	switch (event) {
 	case RPSM_EVENT_HCB_OFFLINE:
+		if (bfa_fcs_lport_is_online(rport->port) &&
+		    (rport->plogi_pending)) {
+			rport->plogi_pending = BFA_FALSE;
+			bfa_sm_set_state(rport,
+				bfa_fcs_rport_sm_plogiacc_sending);
+			bfa_fcs_rport_send_plogiacc(rport, NULL);
+			break;
+		}
+		/*
+		 * !! fall through !!
+		 */
+
 	case RPSM_EVENT_ADDRESS_CHANGE:
 		if (bfa_fcs_lport_is_online(rport->port)) {
 			if (bfa_fcs_fabric_is_switched(rport->port->fabric)) {
@@ -921,6 +935,8 @@ bfa_fcs_rport_sm_hcb_offline(struct bfa_fcs_rport_s *rport,
 	case RPSM_EVENT_SCN:
 	case RPSM_EVENT_LOGO_RCVD:
 	case RPSM_EVENT_PRLO_RCVD:
+	case RPSM_EVENT_PLOGI_RCVD:
+	case RPSM_EVENT_LOGO_IMP:
 		/*
 		 * Ignore, already offline.
 		 */
@@ -957,10 +973,18 @@ bfa_fcs_rport_sm_hcb_logorcv(struct bfa_fcs_rport_s *rport,
 		 */
 		if (bfa_fcs_lport_is_online(rport->port) &&
 			(!BFA_FCS_PID_IS_WKA(rport->pid))) {
-			bfa_sm_set_state(rport,
-				bfa_fcs_rport_sm_nsdisc_sending);
-			rport->ns_retries = 0;
-			bfa_fcs_rport_send_nsdisc(rport, NULL);
+			if (bfa_fcs_fabric_is_switched(rport->port->fabric)) {
+				bfa_sm_set_state(rport,
+					bfa_fcs_rport_sm_nsdisc_sending);
+				rport->ns_retries = 0;
+				bfa_fcs_rport_send_nsdisc(rport, NULL);
+			} else {
+				/* For N2N  Direct Attach, try to re-login */
+				bfa_sm_set_state(rport,
+					bfa_fcs_rport_sm_plogi_sending);
+				rport->plogi_retries = 0;
+				bfa_fcs_rport_send_plogi(rport, NULL);
+			}
 		} else {
 			/*
 			 * if it is not a well known address, reset the
@@ -2026,6 +2050,11 @@ bfa_fcs_rport_online_action(struct bfa_fcs_rport_s *rport)
 
 	rport->stats.onlines++;
 
+	if ((!rport->pid) || (!rport->pwwn)) {
+		bfa_trc(rport->fcs, rport->pid);
+		bfa_sm_fault(rport->fcs, rport->pid);
+	}
+
 	if (bfa_fcs_lport_is_initiator(port)) {
 		bfa_fcs_itnim_rport_online(rport->itnim);
 		if (!BFA_FCS_PID_IS_WKA(rport->pid))
@@ -2049,6 +2078,7 @@ bfa_fcs_rport_offline_action(struct bfa_fcs_rport_s *rport)
 	char	rpwwn_buf[BFA_STRING_32];
 
 	rport->stats.offlines++;
+	rport->plogi_pending = BFA_FALSE;
 
 	wwn2str(lpwwn_buf, bfa_fcs_lport_get_pwwn(port));
 	wwn2str(rpwwn_buf, rport->pwwn);
@@ -2251,6 +2281,9 @@ bfa_fcs_rport_plogi(struct bfa_fcs_rport_s *rport, struct fchs_s *rx_fchs,
 
 	rport->reply_oxid = rx_fchs->ox_id;
 	bfa_trc(rport->fcs, rport->reply_oxid);
+
+	rport->pid = rx_fchs->s_id;
+	bfa_trc(rport->fcs, rport->pid);
 
 	rport->stats.plogi_rcvd++;
 	bfa_sm_send_event(rport, RPSM_EVENT_PLOGI_RCVD);

@@ -155,6 +155,22 @@ fc_gs_fchdr_build(struct fchs_s *fchs, u32 d_id, u32 s_id, u32 ox_id)
 	 */
 }
 
+static void
+fc_gsresp_fchdr_build(struct fchs_s *fchs, u32 d_id, u32 s_id, u16 ox_id)
+{
+	memset(fchs, 0, sizeof(struct fchs_s));
+
+	fchs->routing = FC_RTG_FC4_DEV_DATA;
+	fchs->cat_info = FC_CAT_SOLICIT_CTRL;
+	fchs->type = FC_TYPE_SERVICES;
+	fchs->f_ctl =
+		bfa_hton3b(FCTL_EC_RESP | FCTL_SEQ_INI | FCTL_LS_EXCH |
+			   FCTL_END_SEQ | FCTL_SI_XFER);
+	fchs->d_id = d_id;
+	fchs->s_id = s_id;
+	fchs->ox_id = ox_id;
+}
+
 void
 fc_els_req_build(struct fchs_s *fchs, u32 d_id, u32 s_id, __be16 ox_id)
 {
@@ -1095,6 +1111,21 @@ fc_ct_rsp_parse(struct ct_hdr_s *cthdr)
 	}
 
 	return FC_PARSE_OK;
+}
+
+u16
+fc_gs_rjt_build(struct fchs_s *fchs,  struct ct_hdr_s *cthdr,
+		u32 d_id, u32 s_id, u16 ox_id, u8 reason_code,
+		u8 reason_code_expl)
+{
+	fc_gsresp_fchdr_build(fchs, d_id, s_id, ox_id);
+
+	cthdr->cmd_rsp_code = cpu_to_be16(CT_RSP_REJECT);
+	cthdr->rev_id = CT_GS3_REVISION;
+
+	cthdr->reason_code = reason_code;
+	cthdr->exp_code    = reason_code_expl;
+	return sizeof(struct ct_hdr_s);
 }
 
 u16

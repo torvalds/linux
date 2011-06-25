@@ -183,6 +183,10 @@ u16        fc_gidpn_build(struct fchs_s *fchs, void *pyld, u32 s_id,
 u16        fc_gpnid_build(struct fchs_s *fchs, void *pld, u32 s_id,
 			       u16 ox_id, u32 port_id);
 
+u16	fc_gs_rjt_build(struct fchs_s *fchs, struct ct_hdr_s *cthdr,
+			u32 d_id, u32 s_id, u16 ox_id,
+			u8 reason_code, u8 reason_code_expl);
+
 u16        fc_scr_build(struct fchs_s *fchs, struct fc_scr_s *scr,
 			u8 set_br_reg, u32 s_id, u16 ox_id);
 

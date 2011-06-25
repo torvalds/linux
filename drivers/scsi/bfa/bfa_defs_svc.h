@@ -748,9 +748,10 @@ struct bfa_port_cfg_s {
 	u8	 tx_bbcredit;	/*  transmit buffer credits	*/
 	u8	 ratelimit;	/*  ratelimit enabled or not	*/
 	u8	 trl_def_speed;	/*  ratelimit default speed	*/
-	u8	bb_scn;
+	u8	bb_scn;		/*  BB_SCN value from FLOGI Exchg */
+	u8	bb_scn_state;	/*  Config state of BB_SCN */
 	u8	faa_state;	/*  FAA enabled/disabled        */
-	u8	rsvd[2];
+	u8	rsvd[1];
 	u16 path_tov;	/*  device path timeout	*/
 	u16 q_depth;	/*  SCSI Queue depth		*/
 };
@@ -786,7 +787,6 @@ struct bfa_port_attr_s {
 	enum bfa_port_topology	topology;	/*  current topology */
 	bfa_boolean_t		beacon;		/*  current beacon status */
 	bfa_boolean_t		link_e2e_beacon; /*  link beacon is on */
-	bfa_boolean_t		plog_enabled;	/*  portlog is enabled */
 	bfa_boolean_t	bbsc_op_status;	/* fc credit recovery oper state */
 
 	/*
@@ -796,12 +796,10 @@ struct bfa_port_attr_s {
 	enum bfa_port_type	port_type;	/*  current topology */
 	u32		loopback;	/*  external loopback */
 	u32		authfail;	/*  auth fail state */
-	bfa_boolean_t		io_profile;	/*  get it from fcpim mod */
-	u8			pad[4];		/*  for 64-bit alignement */
 
 	/* FCoE specific  */
 	u16		fcoe_vlan;
-	u8			rsvd1[6];
+	u8			rsvd1[2];
 };
 
 /*
