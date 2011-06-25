@@ -2101,6 +2101,15 @@ config OLPC_XO1_SCI
 	   - AC adapter status updates
 	   - Battery status updates
 
+config OLPC_XO15_SCI
+	bool "OLPC XO-1.5 SCI extras"
+	depends on OLPC && ACPI && POWER_SUPPLY
+	---help---
+	  Add support for SCI-based features of the OLPC XO-1.5 laptop:
+	   - EC-driven system wakeups
+	   - AC adapter status updates
+	   - Battery status updates
+
 endif # X86_32
 
 config AMD_NB

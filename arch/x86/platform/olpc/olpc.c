@@ -222,6 +222,15 @@ bool olpc_ec_wakeup_available(void)
 		return true;
 #endif
 
+	/*
+	 * XO-1.5 EC wakeups are available when olpc-xo15-sci driver is
+	 * compiled in
+	 */
+#ifdef CONFIG_OLPC_XO15_SCI
+	if (olpc_platform_info.boardrev >= olpc_board_pre(0xd0)) /* XO-1.5 */
+		return true;
+#endif
+
 	return false;
 }
 EXPORT_SYMBOL_GPL(olpc_ec_wakeup_available);
