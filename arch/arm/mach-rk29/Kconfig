@@ -53,6 +53,11 @@ config MACH_RK29_PHONEPADSDK
         help
 	  Support for the ROCKCHIP Board For Rk29 Phone Pad Sdk.
 	  
+config MACH_RK29_newton
+		depends on ARCH_RK29
+		bool "ROCKCHIP Board Rk29 For project newton"
+		help
+		  Support for the ROCKCHIP Board For project newton.
 endchoice
 
 choice DDR_TYPE

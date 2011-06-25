@@ -222,6 +222,15 @@ struct ft5406_platform_data {
     void    (*exit_platform_hw)(void);
 };
 
+struct cs42l52_platform_data {
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*platform_sleep)(void);
+    int     (*platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+
+
 struct akm8975_platform_data {
 	char layouts[3][3];
 	char project_name[64];

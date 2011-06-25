@@ -528,7 +528,25 @@ struct ft5406_platform_data ft5406_info = {
 };
 #endif
 
+#if defined (CONFIG_SND_SOC_CS42L52)
 
+void cs42l52_init_platform_hw()
+{
+	printk("cs42l52_init_platform_hw\n");
+    if(gpio_request(RK29_PIN6_PB6,NULL) != 0){
+      gpio_free(RK29_PIN6_PB6);
+      printk("cs42l52_init_platform_hw gpio_request error\n");
+      return;
+    }
+    gpio_direction_output(RK29_PIN6_PB6, 0);
+	gpio_set_value(RK29_PIN6_PB6,GPIO_HIGH);
+}
+struct cs42l52_platform_data cs42l52_info = {
+
+  .init_platform_hw= cs42l52_init_platform_hw,
+
+};
+#endif
 
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
@@ -744,6 +762,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "cs42l52",
 		.addr           = 0x4A,
 		.flags			= 0,
+		.platform_data	= &cs42l52_info,
 	},
 #endif
 #if defined (CONFIG_BATTERY_STC3100)
@@ -770,12 +789,12 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 	},
 #endif
 #if defined (CONFIG_RTC_M41T66)
-{
-.type     = "rtc-M41T62",
-.addr           = 0xd0>>1,
-.flags = 0,
-.irq            = RK29_PIN0_PA1,
-},
+	{
+		.type           = "rtc-M41T62",
+		.addr           = 0xd0>>1,
+		.flags          = 0,
+		.irq            = RK29_PIN0_PA1,
+	},
 #endif
 #if defined (CONFIG_GS_MMA8452)
     {

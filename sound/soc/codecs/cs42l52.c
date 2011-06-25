@@ -36,6 +36,7 @@
 #include	<linux/device.h>
 #include	<asm/io.h>
 #include "cs42l52.h"
+#include <mach/board.h>
 //#include "cs42L52_control.h"
 #define DEBUG
 #ifdef DEBUG
@@ -789,6 +790,7 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id 
 {	
    struct snd_soc_codec *soc_codec;
 	struct soc_codec_cs42l52 * info;
+	struct cs42l52_platform_data *pdata = i2c->dev.platform_data;
 	unsigned int reg;
 	int i, ret = 0;
 	printk(KERN_INFO"cs42l52_i2c_probe\n");
@@ -840,6 +842,8 @@ static int cs42l52_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id 
 		ret = -ENOMEM;
 		goto err;
 	}
+	if (pdata->init_platform_hw)                              
+		pdata->init_platform_hw();
 
 	/*initialize codec*/
 	for(i = 0; i < soc_codec->num_dai; i++) //while(1) //

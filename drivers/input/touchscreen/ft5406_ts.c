@@ -88,40 +88,7 @@ static struct i2c_client *this_client;
 
 
 
-#define CONFIG_FT5X0X_MULTITOUCH  1
-
-#define CONFIG_TOUCH_PANEL_KEY     1 //harry 2011.03.15
-
-#define  M8_TP_KEY                0            // 1
-
-
-#if  0// M8_TP_KEY
-#define HOME_KEY_MIN	260
-#define HOME_KEY_MAX	330
-
-#define MENU_KEY_MIN	380
-#define MENU_KEY_MAX	460
-
-#define BACK_KEY_MIN	130
-#define BACK_KEY_MAX	210
-
-#else
-#define HOME_KEY_MIN	115
-#define HOME_KEY_MAX	185
-
-#define MENU_KEY_MIN	215
-#define MENU_KEY_MAX	295
-
-#define BACK_KEY_MIN	10
-#define BACK_KEY_MAX	85
-
-
-#endif
-#define CONFIG_TOUCH_PANEL_LED     1
- #if CONFIG_TOUCH_PANEL_LED
-#define RK29SDK_PANEL_LED_GPIO_SITCH   RK29_PIN6_PB4
- #endif
-
+#define CONFIG_FT5X0X_MULTITOUCH  0
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 
 struct ts_event {
@@ -452,12 +419,6 @@ static void ft5x0x_report_value(struct ft5x0x_ts_data *data )
 	//struct ft5x0x_ts_data *data = i2c_get_clientdata(&ft5x0x_client);
 	struct ts_event *event = &data->event;
 
-  #if CONFIG_TOUCH_PANEL_KEY
-        u8  key_flag=0;
-   //     static  u16 point_data=0;
-  #endif  
-
- 
 #if  CONFIG_FT5X0X_MULTITOUCH           //#ifdef
 	switch(event->touch_point) {
 		if (MAX_POINT == 5){
@@ -508,92 +469,6 @@ static void ft5x0x_report_value(struct ft5x0x_ts_data *data )
 			}
 		//	printk("===x2 = %d,y2 = %d ====\n",event->x2,event->y2);
 		case 1:
-#if CONFIG_TOUCH_PANEL_KEY
-		if(event->status==0)
-		{
-		              key_flag=1;
-		}
-			     
-            if(event->x1 >1024)
-            	{
-            	//  printk("point 1 key1\n");
-		//	printk("===x1 = %d,y1 = %d ====\n",event->x1,event->y1);			
-			if(key_flag)
-			{   
-				if((event->y1>BACK_KEY_MIN)&&(event->y1<BACK_KEY_MAX))                             // M6 10  - 90
-				{ 
-					input_report_key(data->input_dev,KEY_BACK,1);     //158	//MENU	
-					input_sync(data->input_dev);
-					input_report_key(data->input_dev,KEY_BACK,0);     //158	//MENU	
-					input_sync(data->input_dev);		  
-#if CONFIG_TOUCH_PANEL_LED                                                               //#ifdef
-					// if(gpio_request(RK29SDK_PANEL_LED_GPIO_SITCH,NULL) != 0){
-					// gpio_free(RK29SDK_PANEL_LED_GPIO_SITCH);
-					//     printk("panel Key LED error\n");
-					// return -EIO;
-					//  }	
-					gpio_direction_output(RK29SDK_PANEL_LED_GPIO_SITCH, 0);
-					gpio_set_value(RK29SDK_PANEL_LED_GPIO_SITCH,GPIO_HIGH);
-#endif
-					//		  printk("point 1 key2\n");
-				}	
-				else if((event->y1>HOME_KEY_MIN)&&(event->y1<HOME_KEY_MAX))		    //M6 110 - 190
-				{
-					input_report_key(data->input_dev,KEY_HOME,1);     //102	//Home
-					input_sync(data->input_dev);
-					input_report_key(data->input_dev,KEY_HOME,0);     //102	//Home
-					input_sync(data->input_dev);
-#if CONFIG_TOUCH_PANEL_LED                                                                     //  #ifdef
-					//  if(gpio_request(RK29SDK_PANEL_LED_GPIO_SITCH,NULL) != 0){
-					//  gpio_free(RK29SDK_PANEL_LED_GPIO_SITCH);
-					//         printk("panel Key LED error\n");
-					//   return -EIO;
-					//  }	
-					gpio_direction_output(RK29SDK_PANEL_LED_GPIO_SITCH, 0);
-					gpio_set_value(RK29SDK_PANEL_LED_GPIO_SITCH,GPIO_HIGH);
-#endif
-					//		    printk("point 1 key3\n");
-				}		
-				else  if((event->y1>MENU_KEY_MIN)&&(event->y1<MENU_KEY_MAX))				     // M6 210 -290
-  				{
-					input_report_key(data->input_dev,KEY_MENU,1);     //59	//esc	
-					input_sync(data->input_dev);
-					input_report_key(data->input_dev,KEY_MENU,0);     //59	//esc	
-					input_sync(data->input_dev);
-#if CONFIG_TOUCH_PANEL_LED                                                                     //   #ifdef
-					//   if(gpio_request(RK29SDK_PANEL_LED_GPIO_SITCH,NULL) != 0){
-					//  gpio_free(RK29SDK_PANEL_LED_GPIO_SITCH);
-					//      printk("panel Key LED error\n");
-					//   return -EIO;
-					//       }	
-					gpio_direction_output(RK29SDK_PANEL_LED_GPIO_SITCH, 0);
-					gpio_set_value(RK29SDK_PANEL_LED_GPIO_SITCH,GPIO_HIGH);
-#endif
-					//		    printk("point 1 key4\n");
-			  	}			
-				else
-				{
-					ft5x0x_ts_release(data);
-				}
-			
-			}
-			else
-			{
-				ft5x0x_ts_release(data);	
-			}
-				
-		}
-		else
-		{
-                    input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, event->touch_ID1);			
-			input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, event->pressure);
-			input_report_abs(data->input_dev, ABS_MT_POSITION_X, event->x1);
-			input_report_abs(data->input_dev, ABS_MT_POSITION_Y, event->y1);
-			input_report_abs(data->input_dev, ABS_MT_WIDTH_MAJOR, 1);
-			input_mt_sync(data->input_dev);
-	//		printk("===x1 = %d,y1 = %d ====\n",event->x1,event->y1);
-		}
-#else
 		input_report_abs(data->input_dev, ABS_MT_TRACKING_ID, event->touch_ID1);			
 		input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, event->pressure);
 		input_report_abs(data->input_dev, ABS_MT_POSITION_X, event->x1);
@@ -601,7 +476,6 @@ static void ft5x0x_report_value(struct ft5x0x_ts_data *data )
 		input_report_abs(data->input_dev, ABS_MT_WIDTH_MAJOR, 1);
 		input_mt_sync(data->input_dev);
 	//	printk("===x1 = %d,y1 = %d ====\n",event->x1,event->y1);
-#endif
 	default:
 	//	printk("==touch_point default =\n");
 	//	printk("read status0= %d\n",event->status); 
@@ -609,17 +483,15 @@ static void ft5x0x_report_value(struct ft5x0x_ts_data *data )
 	//		printk("point 0 release!\n");
 	//		ft5x0x_ts_release(data);
 	//	}
-#if CONFIG_TOUCH_PANEL_KEY
-		key_flag=0;
-#endif	   
 	break;
 	}
 #else	/* CONFIG_FT5X0X_MULTITOUCH*/
-	if (event->touch_point == 1) {
+	//if (event->touch_point == 1) {
 		input_report_abs(data->input_dev, ABS_X, event->x1);
 		input_report_abs(data->input_dev, ABS_Y, event->y1);
 		input_report_abs(data->input_dev, ABS_PRESSURE, event->pressure);
-	}
+	//}
+	//printk("x = %d,y = %d\n",event->x1,event->y1);
 	input_report_key(data->input_dev, BTN_TOUCH, 1);
 #endif	/* CONFIG_FT5X0X_MULTITOUCH*/
 	input_sync(data->input_dev);
@@ -748,16 +620,6 @@ int err = 0;
 
        #endif
 
-	   #if CONFIG_TOUCH_PANEL_LED                                                               
-            //  if(gpio_request(RK29SDK_PANEL_LED_GPIO_SITCH,NULL) != 0){
-             //        gpio_free(RK29SDK_PANEL_LED_GPIO_SITCH);
-            //          printk("panel Key LED error\n");
-           //          return -EIO;
-           //               }	
-	             gpio_direction_output(RK29SDK_PANEL_LED_GPIO_SITCH, 0);
-	             gpio_set_value(RK29SDK_PANEL_LED_GPIO_SITCH,GPIO_LOW);
-          //      printk("suspend led 2\n");
-          #endif	   
 		  
 	return 0;
 
@@ -902,10 +764,6 @@ static int  ft5406_probe(struct i2c_client *client ,const struct i2c_device_id *
 	set_bit(EV_ABS, input_dev->evbit);
 	set_bit(EV_KEY, input_dev->evbit);
 	
-     #if  CONFIG_TOUCH_PANEL_KEY
-	set_bit(EV_SYN, input_dev->evbit);              //harry 03.21
-    #endif	
-
 	input_dev->name		= FT5X0X_NAME;		//dev_name(&client->dev)
 	err = input_register_device(input_dev);
 	if (err) {
