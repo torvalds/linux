@@ -469,6 +469,7 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 	port->pbc_disabled = BFA_FALSE;
 
 	bfa_ioc_mbox_regisr(port->ioc, BFI_MC_PORT, bfa_port_isr, port);
+	bfa_q_qe_init(&port->ioc_notify);
 	bfa_ioc_notify_init(&port->ioc_notify, bfa_port_notify, port);
 	list_add_tail(&port->ioc_notify.qe, &port->ioc->notify_q);
 

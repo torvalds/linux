@@ -170,6 +170,7 @@ enum bfa_status {
 	BFA_STATUS_TRUNK_DISABLED  = 165, /* Trunking is disabled on
 					   * the adapter */
 	BFA_STATUS_IOPROFILE_OFF = 175, /* IO profile OFF */
+	BFA_STATUS_PHY_NOT_PRESENT = 183, /* PHY module not present */
 	BFA_STATUS_FEATURE_NOT_SUPPORTED = 192,	/* Feature not supported */
 	BFA_STATUS_FAA_ENABLED = 197,	/* FAA is already enabled */
 	BFA_STATUS_FAA_DISABLED = 198,	/* FAA is already disabled */
@@ -937,6 +938,42 @@ struct bfa_diag_loopback_s {
 	u8	lb_mode;    /* bfa_port_opmode_t */
 	u8	speed;      /* bfa_port_speed_t */
 	u8	rsvd[2];
+};
+
+/*
+ *	PHY module specific
+ */
+enum bfa_phy_status_e {
+	BFA_PHY_STATUS_GOOD	= 0, /* phy is good */
+	BFA_PHY_STATUS_NOT_PRESENT	= 1, /* phy does not exist */
+	BFA_PHY_STATUS_BAD	= 2, /* phy is bad */
+};
+
+/*
+ * phy attributes for phy query
+ */
+struct bfa_phy_attr_s {
+	u32	status;         /* phy present/absent status */
+	u32	length;         /* firmware length */
+	u32	fw_ver;         /* firmware version */
+	u32	an_status;      /* AN status */
+	u32	pma_pmd_status; /* PMA/PMD link status */
+	u32	pma_pmd_signal; /* PMA/PMD signal detect */
+	u32	pcs_status;     /* PCS link status */
+};
+
+/*
+ * phy stats
+ */
+struct bfa_phy_stats_s {
+	u32	status;         /* phy stats status */
+	u32	link_breaks;    /* Num of link breaks after linkup */
+	u32	pma_pmd_fault;  /* NPMA/PMD fault */
+	u32	pcs_fault;      /* PCS fault */
+	u32	speed_neg;      /* Num of speed negotiation */
+	u32	tx_eq_training; /* Num of TX EQ training */
+	u32	tx_eq_timeout;  /* Num of TX EQ timeout */
+	u32	crc_error;      /* Num of CRC errors */
 };
 
 #pragma pack()

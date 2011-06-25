@@ -209,6 +209,7 @@ enum bfi_mclass {
 	BFI_MC_TSKIM		= 18,	/*  Initiator Task management	    */
 	BFI_MC_PORT		= 21,	/*  Physical port		    */
 	BFI_MC_SFP		= 22,	/*  SFP module	*/
+	BFI_MC_PHY		= 25,   /*  External PHY message class	*/
 	BFI_MC_MAX		= 32
 };
 
@@ -1029,6 +1030,102 @@ struct bfi_diag_qtest_req_s {
 	u32	data[BFI_LMSG_PL_WSZ]; /* fill up tcm prefetch area */
 };
 #define bfi_diag_qtest_rsp_t struct bfi_diag_qtest_req_s
+
+/*
+ *	PHY module specific
+ */
+enum bfi_phy_h2i_msgs_e {
+	BFI_PHY_H2I_QUERY_REQ = 1,
+	BFI_PHY_H2I_STATS_REQ = 2,
+	BFI_PHY_H2I_WRITE_REQ = 3,
+	BFI_PHY_H2I_READ_REQ = 4,
+};
+
+enum bfi_phy_i2h_msgs_e {
+	BFI_PHY_I2H_QUERY_RSP = BFA_I2HM(1),
+	BFI_PHY_I2H_STATS_RSP = BFA_I2HM(2),
+	BFI_PHY_I2H_WRITE_RSP = BFA_I2HM(3),
+	BFI_PHY_I2H_READ_RSP = BFA_I2HM(4),
+};
+
+/*
+ * External PHY query request
+ */
+struct bfi_phy_query_req_s {
+	struct bfi_mhdr_s	mh;             /* Common msg header */
+	u8			instance;
+	u8			rsv[3];
+	struct bfi_alen_s	alen;
+};
+
+/*
+ * External PHY stats request
+ */
+struct bfi_phy_stats_req_s {
+	struct bfi_mhdr_s	mh;             /* Common msg header */
+	u8			instance;
+	u8			rsv[3];
+	struct bfi_alen_s	alen;
+};
+
+/*
+ * External PHY write request
+ */
+struct bfi_phy_write_req_s {
+	struct bfi_mhdr_s	mh;             /* Common msg header */
+	u8		instance;
+	u8		last;
+	u8		rsv[2];
+	u32		offset;
+	u32		length;
+	struct bfi_alen_s	alen;
+};
+
+/*
+ * External PHY read request
+ */
+struct bfi_phy_read_req_s {
+	struct bfi_mhdr_s	mh;	/* Common msg header */
+	u8		instance;
+	u8		rsv[3];
+	u32		offset;
+	u32		length;
+	struct bfi_alen_s	alen;
+};
+
+/*
+ * External PHY query response
+ */
+struct bfi_phy_query_rsp_s {
+	struct bfi_mhdr_s	mh;	/* Common msg header */
+	u32			status;
+};
+
+/*
+ * External PHY stats response
+ */
+struct bfi_phy_stats_rsp_s {
+	struct bfi_mhdr_s	mh;	/* Common msg header */
+	u32			status;
+};
+
+/*
+ * External PHY read response
+ */
+struct bfi_phy_read_rsp_s {
+	struct bfi_mhdr_s	mh;	/* Common msg header */
+	u32			status;
+	u32		length;
+};
+
+/*
+ * External PHY write response
+ */
+struct bfi_phy_write_rsp_s {
+	struct bfi_mhdr_s	mh;	/* Common msg header */
+	u32			status;
+	u32			length;
+};
 
 #pragma pack()
 

@@ -80,6 +80,10 @@ enum {
 	IOCMD_DIAG_LED,
 	IOCMD_DIAG_BEACON_LPORT,
 	IOCMD_DIAG_LB_STAT,
+	IOCMD_PHY_GET_ATTR,
+	IOCMD_PHY_GET_STATS,
+	IOCMD_PHY_UPDATE_FW,
+	IOCMD_PHY_READ_FW,
 };
 
 struct bfa_bsg_gen_s {
@@ -438,6 +442,28 @@ struct bfa_bsg_diag_lb_stat_s {
 	bfa_status_t	status;
 	u16		bfad_num;
 	u16		rsvd;
+};
+
+struct bfa_bsg_phy_attr_s {
+	bfa_status_t	status;
+	u16	bfad_num;
+	u16	instance;
+	struct bfa_phy_attr_s	attr;
+};
+
+struct bfa_bsg_phy_s {
+	bfa_status_t	status;
+	u16	bfad_num;
+	u16	instance;
+	u64	bufsz;
+	u64	buf_ptr;
+};
+
+struct bfa_bsg_phy_stats_s {
+	bfa_status_t	status;
+	u16	bfad_num;
+	u16	instance;
+	struct bfa_phy_stats_s	stats;
 };
 
 struct bfa_bsg_fcpt_s {

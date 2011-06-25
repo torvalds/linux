@@ -43,6 +43,7 @@ struct bfa_modules_s {
 	struct bfa_sfp_s	sfp;		/*  SFP module	*/
 	struct bfa_flash_s	flash;		/*  flash module */
 	struct bfa_diag_s	diag_mod;	/*  diagnostics module	*/
+	struct bfa_phy_s	phy;		/*  phy module		*/
 };
 
 /*

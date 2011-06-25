@@ -632,6 +632,60 @@ bfa_status_t	bfa_diag_beacon_port(struct bfa_diag_s *diag,
 			bfa_boolean_t beacon, bfa_boolean_t link_e2e_beacon,
 			u32 sec);
 
+/*
+ *	PHY module specific
+ */
+typedef void (*bfa_cb_phy_t) (void *cbarg, bfa_status_t status);
+
+struct bfa_phy_s {
+	struct bfa_ioc_s *ioc;          /* back pointer to ioc */
+	struct bfa_trc_mod_s *trcmod;   /* trace module */
+	u8	instance;       /* port instance */
+	u8	op_busy;        /* operation busy flag */
+	u8	rsv[2];
+	u32	residue;        /* residual length */
+	u32	offset;         /* offset */
+	bfa_status_t	status;         /* status */
+	u8	*dbuf_kva;      /* dma buf virtual address */
+	u64	dbuf_pa;        /* dma buf physical address */
+	struct bfa_reqq_wait_s reqq_wait; /* to wait for room in reqq */
+	bfa_cb_phy_t	cbfn;           /* user callback function */
+	void		*cbarg;         /* user callback arg */
+	u8		*ubuf;          /* user supplied buffer */
+	struct bfa_cb_qe_s	hcb_qe; /* comp: BFA callback qelem */
+	u32	addr_off;       /* phy address offset */
+	struct bfa_mbox_cmd_s	mb;       /* mailbox */
+	struct bfa_ioc_notify_s	ioc_notify; /* ioc event notify */
+	struct bfa_mem_dma_s	phy_dma;
+};
+
+#define BFA_PHY(__bfa)	(&(__bfa)->modules.phy)
+#define BFA_MEM_PHY_DMA(__bfa)	(&(BFA_PHY(__bfa)->phy_dma))
+
+bfa_boolean_t bfa_phy_busy(struct bfa_ioc_s *ioc);
+bfa_status_t bfa_phy_get_attr(struct bfa_phy_s *phy, u8 instance,
+			struct bfa_phy_attr_s *attr,
+			bfa_cb_phy_t cbfn, void *cbarg);
+bfa_status_t bfa_phy_get_stats(struct bfa_phy_s *phy, u8 instance,
+			struct bfa_phy_stats_s *stats,
+			bfa_cb_phy_t cbfn, void *cbarg);
+bfa_status_t bfa_phy_update(struct bfa_phy_s *phy, u8 instance,
+			void *buf, u32 len, u32 offset,
+			bfa_cb_phy_t cbfn, void *cbarg);
+bfa_status_t bfa_phy_read(struct bfa_phy_s *phy, u8 instance,
+			void *buf, u32 len, u32 offset,
+			bfa_cb_phy_t cbfn, void *cbarg);
+
+u32	bfa_phy_meminfo(bfa_boolean_t mincfg);
+void bfa_phy_attach(struct bfa_phy_s *phy, struct bfa_ioc_s *ioc,
+		void *dev, struct bfa_trc_mod_s *trcmod, bfa_boolean_t mincfg);
+void bfa_phy_memclaim(struct bfa_phy_s *phy,
+		u8 *dm_kva, u64 dm_pa, bfa_boolean_t mincfg);
+void bfa_phy_intr(void *phyarg, struct bfi_mbmsg_s *msg);
+
+/*
+ *	IOC specfic macros
+ */
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
 #define bfa_ioc_devid(__ioc)		((__ioc)->pcidev.device_id)
 #define bfa_ioc_bar0(__ioc)		((__ioc)->pcidev.pci_bar_kva)

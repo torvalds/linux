@@ -2159,6 +2159,7 @@ void
 bfa_ioc_detach(struct bfa_ioc_s *ioc)
 {
 	bfa_fsm_send_event(ioc, IOC_E_DETACH);
+	INIT_LIST_HEAD(&ioc->notify_q);
 }
 
 /*
@@ -3120,6 +3121,7 @@ bfa_ablk_attach(struct bfa_ablk_s *ablk, struct bfa_ioc_s *ioc)
 	ablk->ioc = ioc;
 
 	bfa_ioc_mbox_regisr(ablk->ioc, BFI_MC_ABLK, bfa_ablk_isr, ablk);
+	bfa_q_qe_init(&ablk->ioc_notify);
 	bfa_ioc_notify_init(&ablk->ioc_notify, bfa_ablk_notify, ablk);
 	list_add_tail(&ablk->ioc_notify.qe, &ablk->ioc->notify_q);
 }
@@ -4894,4 +4896,523 @@ bfa_diag_memclaim(struct bfa_diag_s *diag, u8 *dm_kva, u64 dm_pa)
 	diag->fwping.dbuf_kva = dm_kva;
 	diag->fwping.dbuf_pa = dm_pa;
 	memset(diag->fwping.dbuf_kva, 0, BFI_DIAG_DMA_BUF_SZ);
+}
+
+/*
+ *	PHY module specific
+ */
+#define BFA_PHY_DMA_BUF_SZ	0x02000         /* 8k dma buffer */
+#define BFA_PHY_LOCK_STATUS	0x018878        /* phy semaphore status reg */
+
+static void
+bfa_phy_ntoh32(u32 *obuf, u32 *ibuf, int sz)
+{
+	int i, m = sz >> 2;
+
+	for (i = 0; i < m; i++)
+		obuf[i] = be32_to_cpu(ibuf[i]);
+}
+
+static bfa_boolean_t
+bfa_phy_present(struct bfa_phy_s *phy)
+{
+	return (phy->ioc->attr->card_type == BFA_MFG_TYPE_LIGHTNING);
+}
+
+static void
+bfa_phy_notify(void *cbarg, enum bfa_ioc_event_e event)
+{
+	struct bfa_phy_s *phy = cbarg;
+
+	bfa_trc(phy, event);
+
+	switch (event) {
+	case BFA_IOC_E_DISABLED:
+	case BFA_IOC_E_FAILED:
+		if (phy->op_busy) {
+			phy->status = BFA_STATUS_IOC_FAILURE;
+			phy->cbfn(phy->cbarg, phy->status);
+			phy->op_busy = 0;
+		}
+		break;
+
+	default:
+		break;
+	}
+}
+
+/*
+ * Send phy attribute query request.
+ *
+ * @param[in] cbarg - callback argument
+ */
+static void
+bfa_phy_query_send(void *cbarg)
+{
+	struct bfa_phy_s *phy = cbarg;
+	struct bfi_phy_query_req_s *msg =
+			(struct bfi_phy_query_req_s *) phy->mb.msg;
+
+	msg->instance = phy->instance;
+	bfi_h2i_set(msg->mh, BFI_MC_PHY, BFI_PHY_H2I_QUERY_REQ,
+		bfa_ioc_portid(phy->ioc));
+	bfa_alen_set(&msg->alen, sizeof(struct bfa_phy_attr_s), phy->dbuf_pa);
+	bfa_ioc_mbox_queue(phy->ioc, &phy->mb);
+}
+
+/*
+ * Send phy write request.
+ *
+ * @param[in] cbarg - callback argument
+ */
+static void
+bfa_phy_write_send(void *cbarg)
+{
+	struct bfa_phy_s *phy = cbarg;
+	struct bfi_phy_write_req_s *msg =
+			(struct bfi_phy_write_req_s *) phy->mb.msg;
+	u32	len;
+	u16	*buf, *dbuf;
+	int	i, sz;
+
+	msg->instance = phy->instance;
+	msg->offset = cpu_to_be32(phy->addr_off + phy->offset);
+	len = (phy->residue < BFA_PHY_DMA_BUF_SZ) ?
+			phy->residue : BFA_PHY_DMA_BUF_SZ;
+	msg->length = cpu_to_be32(len);
+
+	/* indicate if it's the last msg of the whole write operation */
+	msg->last = (len == phy->residue) ? 1 : 0;
+
+	bfi_h2i_set(msg->mh, BFI_MC_PHY, BFI_PHY_H2I_WRITE_REQ,
+		bfa_ioc_portid(phy->ioc));
+	bfa_alen_set(&msg->alen, len, phy->dbuf_pa);
+
+	buf = (u16 *) (phy->ubuf + phy->offset);
+	dbuf = (u16 *)phy->dbuf_kva;
+	sz = len >> 1;
+	for (i = 0; i < sz; i++)
+		buf[i] = cpu_to_be16(dbuf[i]);
+
+	bfa_ioc_mbox_queue(phy->ioc, &phy->mb);
+
+	phy->residue -= len;
+	phy->offset += len;
+}
+
+/*
+ * Send phy read request.
+ *
+ * @param[in] cbarg - callback argument
+ */
+static void
+bfa_phy_read_send(void *cbarg)
+{
+	struct bfa_phy_s *phy = cbarg;
+	struct bfi_phy_read_req_s *msg =
+			(struct bfi_phy_read_req_s *) phy->mb.msg;
+	u32	len;
+
+	msg->instance = phy->instance;
+	msg->offset = cpu_to_be32(phy->addr_off + phy->offset);
+	len = (phy->residue < BFA_PHY_DMA_BUF_SZ) ?
+			phy->residue : BFA_PHY_DMA_BUF_SZ;
+	msg->length = cpu_to_be32(len);
+	bfi_h2i_set(msg->mh, BFI_MC_PHY, BFI_PHY_H2I_READ_REQ,
+		bfa_ioc_portid(phy->ioc));
+	bfa_alen_set(&msg->alen, len, phy->dbuf_pa);
+	bfa_ioc_mbox_queue(phy->ioc, &phy->mb);
+}
+
+/*
+ * Send phy stats request.
+ *
+ * @param[in] cbarg - callback argument
+ */
+static void
+bfa_phy_stats_send(void *cbarg)
+{
+	struct bfa_phy_s *phy = cbarg;
+	struct bfi_phy_stats_req_s *msg =
+			(struct bfi_phy_stats_req_s *) phy->mb.msg;
+
+	msg->instance = phy->instance;
+	bfi_h2i_set(msg->mh, BFI_MC_PHY, BFI_PHY_H2I_STATS_REQ,
+		bfa_ioc_portid(phy->ioc));
+	bfa_alen_set(&msg->alen, sizeof(struct bfa_phy_stats_s), phy->dbuf_pa);
+	bfa_ioc_mbox_queue(phy->ioc, &phy->mb);
+}
+
+/*
+ * Flash memory info API.
+ *
+ * @param[in] mincfg - minimal cfg variable
+ */
+u32
+bfa_phy_meminfo(bfa_boolean_t mincfg)
+{
+	/* min driver doesn't need phy */
+	if (mincfg)
+		return 0;
+
+	return BFA_ROUNDUP(BFA_PHY_DMA_BUF_SZ, BFA_DMA_ALIGN_SZ);
+}
+
+/*
+ * Flash attach API.
+ *
+ * @param[in] phy - phy structure
+ * @param[in] ioc  - ioc structure
+ * @param[in] dev  - device structure
+ * @param[in] trcmod - trace module
+ * @param[in] logmod - log module
+ */
+void
+bfa_phy_attach(struct bfa_phy_s *phy, struct bfa_ioc_s *ioc, void *dev,
+		struct bfa_trc_mod_s *trcmod, bfa_boolean_t mincfg)
+{
+	phy->ioc = ioc;
+	phy->trcmod = trcmod;
+	phy->cbfn = NULL;
+	phy->cbarg = NULL;
+	phy->op_busy = 0;
+
+	bfa_ioc_mbox_regisr(phy->ioc, BFI_MC_PHY, bfa_phy_intr, phy);
+	bfa_q_qe_init(&phy->ioc_notify);
+	bfa_ioc_notify_init(&phy->ioc_notify, bfa_phy_notify, phy);
+	list_add_tail(&phy->ioc_notify.qe, &phy->ioc->notify_q);
+
+	/* min driver doesn't need phy */
+	if (mincfg) {
+		phy->dbuf_kva = NULL;
+		phy->dbuf_pa = 0;
+	}
+}
+
+/*
+ * Claim memory for phy
+ *
+ * @param[in] phy - phy structure
+ * @param[in] dm_kva - pointer to virtual memory address
+ * @param[in] dm_pa - physical memory address
+ * @param[in] mincfg - minimal cfg variable
+ */
+void
+bfa_phy_memclaim(struct bfa_phy_s *phy, u8 *dm_kva, u64 dm_pa,
+		bfa_boolean_t mincfg)
+{
+	if (mincfg)
+		return;
+
+	phy->dbuf_kva = dm_kva;
+	phy->dbuf_pa = dm_pa;
+	memset(phy->dbuf_kva, 0, BFA_PHY_DMA_BUF_SZ);
+	dm_kva += BFA_ROUNDUP(BFA_PHY_DMA_BUF_SZ, BFA_DMA_ALIGN_SZ);
+	dm_pa += BFA_ROUNDUP(BFA_PHY_DMA_BUF_SZ, BFA_DMA_ALIGN_SZ);
+}
+
+bfa_boolean_t
+bfa_phy_busy(struct bfa_ioc_s *ioc)
+{
+	void __iomem	*rb;
+
+	rb = bfa_ioc_bar0(ioc);
+	return readl(rb + BFA_PHY_LOCK_STATUS);
+}
+
+/*
+ * Get phy attribute.
+ *
+ * @param[in] phy - phy structure
+ * @param[in] attr - phy attribute structure
+ * @param[in] cbfn - callback function
+ * @param[in] cbarg - callback argument
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_phy_get_attr(struct bfa_phy_s *phy, u8 instance,
+		struct bfa_phy_attr_s *attr, bfa_cb_phy_t cbfn, void *cbarg)
+{
+	bfa_trc(phy, BFI_PHY_H2I_QUERY_REQ);
+	bfa_trc(phy, instance);
+
+	if (!bfa_phy_present(phy))
+		return BFA_STATUS_PHY_NOT_PRESENT;
+
+	if (!bfa_ioc_is_operational(phy->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	if (phy->op_busy || bfa_phy_busy(phy->ioc)) {
+		bfa_trc(phy, phy->op_busy);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	phy->op_busy = 1;
+	phy->cbfn = cbfn;
+	phy->cbarg = cbarg;
+	phy->instance = instance;
+	phy->ubuf = (uint8_t *) attr;
+	bfa_phy_query_send(phy);
+
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Get phy stats.
+ *
+ * @param[in] phy - phy structure
+ * @param[in] instance - phy image instance
+ * @param[in] stats - pointer to phy stats
+ * @param[in] cbfn - callback function
+ * @param[in] cbarg - callback argument
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_phy_get_stats(struct bfa_phy_s *phy, u8 instance,
+		struct bfa_phy_stats_s *stats,
+		bfa_cb_phy_t cbfn, void *cbarg)
+{
+	bfa_trc(phy, BFI_PHY_H2I_STATS_REQ);
+	bfa_trc(phy, instance);
+
+	if (!bfa_phy_present(phy))
+		return BFA_STATUS_PHY_NOT_PRESENT;
+
+	if (!bfa_ioc_is_operational(phy->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	if (phy->op_busy || bfa_phy_busy(phy->ioc)) {
+		bfa_trc(phy, phy->op_busy);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	phy->op_busy = 1;
+	phy->cbfn = cbfn;
+	phy->cbarg = cbarg;
+	phy->instance = instance;
+	phy->ubuf = (u8 *) stats;
+	bfa_phy_stats_send(phy);
+
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Update phy image.
+ *
+ * @param[in] phy - phy structure
+ * @param[in] instance - phy image instance
+ * @param[in] buf - update data buffer
+ * @param[in] len - data buffer length
+ * @param[in] offset - offset relative to starting address
+ * @param[in] cbfn - callback function
+ * @param[in] cbarg - callback argument
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_phy_update(struct bfa_phy_s *phy, u8 instance,
+		void *buf, u32 len, u32 offset,
+		bfa_cb_phy_t cbfn, void *cbarg)
+{
+	bfa_trc(phy, BFI_PHY_H2I_WRITE_REQ);
+	bfa_trc(phy, instance);
+	bfa_trc(phy, len);
+	bfa_trc(phy, offset);
+
+	if (!bfa_phy_present(phy))
+		return BFA_STATUS_PHY_NOT_PRESENT;
+
+	if (!bfa_ioc_is_operational(phy->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	/* 'len' must be in word (4-byte) boundary */
+	if (!len || (len & 0x03))
+		return BFA_STATUS_FAILED;
+
+	if (phy->op_busy || bfa_phy_busy(phy->ioc)) {
+		bfa_trc(phy, phy->op_busy);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	phy->op_busy = 1;
+	phy->cbfn = cbfn;
+	phy->cbarg = cbarg;
+	phy->instance = instance;
+	phy->residue = len;
+	phy->offset = 0;
+	phy->addr_off = offset;
+	phy->ubuf = buf;
+
+	bfa_phy_write_send(phy);
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Read phy image.
+ *
+ * @param[in] phy - phy structure
+ * @param[in] instance - phy image instance
+ * @param[in] buf - read data buffer
+ * @param[in] len - data buffer length
+ * @param[in] offset - offset relative to starting address
+ * @param[in] cbfn - callback function
+ * @param[in] cbarg - callback argument
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_phy_read(struct bfa_phy_s *phy, u8 instance,
+		void *buf, u32 len, u32 offset,
+		bfa_cb_phy_t cbfn, void *cbarg)
+{
+	bfa_trc(phy, BFI_PHY_H2I_READ_REQ);
+	bfa_trc(phy, instance);
+	bfa_trc(phy, len);
+	bfa_trc(phy, offset);
+
+	if (!bfa_phy_present(phy))
+		return BFA_STATUS_PHY_NOT_PRESENT;
+
+	if (!bfa_ioc_is_operational(phy->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	/* 'len' must be in word (4-byte) boundary */
+	if (!len || (len & 0x03))
+		return BFA_STATUS_FAILED;
+
+	if (phy->op_busy || bfa_phy_busy(phy->ioc)) {
+		bfa_trc(phy, phy->op_busy);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	phy->op_busy = 1;
+	phy->cbfn = cbfn;
+	phy->cbarg = cbarg;
+	phy->instance = instance;
+	phy->residue = len;
+	phy->offset = 0;
+	phy->addr_off = offset;
+	phy->ubuf = buf;
+	bfa_phy_read_send(phy);
+
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Process phy response messages upon receiving interrupts.
+ *
+ * @param[in] phyarg - phy structure
+ * @param[in] msg - message structure
+ */
+void
+bfa_phy_intr(void *phyarg, struct bfi_mbmsg_s *msg)
+{
+	struct bfa_phy_s *phy = phyarg;
+	u32	status;
+
+	union {
+		struct bfi_phy_query_rsp_s *query;
+		struct bfi_phy_stats_rsp_s *stats;
+		struct bfi_phy_write_rsp_s *write;
+		struct bfi_phy_read_rsp_s *read;
+		struct bfi_mbmsg_s   *msg;
+	} m;
+
+	m.msg = msg;
+	bfa_trc(phy, msg->mh.msg_id);
+
+	if (!phy->op_busy) {
+		/* receiving response after ioc failure */
+		bfa_trc(phy, 0x9999);
+		return;
+	}
+
+	switch (msg->mh.msg_id) {
+	case BFI_PHY_I2H_QUERY_RSP:
+		status = be32_to_cpu(m.query->status);
+		bfa_trc(phy, status);
+
+		if (status == BFA_STATUS_OK) {
+			struct bfa_phy_attr_s *attr =
+				(struct bfa_phy_attr_s *) phy->ubuf;
+			bfa_phy_ntoh32((u32 *)attr, (u32 *)phy->dbuf_kva,
+					sizeof(struct bfa_phy_attr_s));
+			bfa_trc(phy, attr->status);
+			bfa_trc(phy, attr->length);
+		}
+
+		phy->status = status;
+		phy->op_busy = 0;
+		if (phy->cbfn)
+			phy->cbfn(phy->cbarg, phy->status);
+		break;
+	case BFI_PHY_I2H_STATS_RSP:
+		status = be32_to_cpu(m.stats->status);
+		bfa_trc(phy, status);
+
+		if (status == BFA_STATUS_OK) {
+			struct bfa_phy_stats_s *stats =
+				(struct bfa_phy_stats_s *) phy->ubuf;
+			bfa_phy_ntoh32((u32 *)stats, (u32 *)phy->dbuf_kva,
+				sizeof(struct bfa_phy_stats_s));
+				bfa_trc(phy, stats->status);
+		}
+
+		phy->status = status;
+		phy->op_busy = 0;
+		if (phy->cbfn)
+			phy->cbfn(phy->cbarg, phy->status);
+		break;
+	case BFI_PHY_I2H_WRITE_RSP:
+		status = be32_to_cpu(m.write->status);
+		bfa_trc(phy, status);
+
+		if (status != BFA_STATUS_OK || phy->residue == 0) {
+			phy->status = status;
+			phy->op_busy = 0;
+			if (phy->cbfn)
+				phy->cbfn(phy->cbarg, phy->status);
+		} else {
+			bfa_trc(phy, phy->offset);
+			bfa_phy_write_send(phy);
+		}
+		break;
+	case BFI_PHY_I2H_READ_RSP:
+		status = be32_to_cpu(m.read->status);
+		bfa_trc(phy, status);
+
+		if (status != BFA_STATUS_OK) {
+			phy->status = status;
+			phy->op_busy = 0;
+			if (phy->cbfn)
+				phy->cbfn(phy->cbarg, phy->status);
+		} else {
+			u32 len = be32_to_cpu(m.read->length);
+			u16 *buf = (u16 *)(phy->ubuf + phy->offset);
+			u16 *dbuf = (u16 *)phy->dbuf_kva;
+			int i, sz = len >> 1;
+
+			bfa_trc(phy, phy->offset);
+			bfa_trc(phy, len);
+
+			for (i = 0; i < sz; i++)
+				buf[i] = be16_to_cpu(dbuf[i]);
+
+			phy->residue -= len;
+			phy->offset += len;
+
+			if (phy->residue == 0) {
+				phy->status = status;
+				phy->op_busy = 0;
+				if (phy->cbfn)
+					phy->cbfn(phy->cbarg, phy->status);
+			} else
+				bfa_phy_read_send(phy);
+		}
+		break;
+	default:
+		WARN_ON(1);
+	}
 }
