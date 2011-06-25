@@ -241,6 +241,31 @@ struct bfa_hwif_s {
 };
 typedef void (*bfa_cb_iocfc_t) (void *cbarg, enum bfa_status status);
 
+struct bfa_faa_cbfn_s {
+	bfa_cb_iocfc_t	faa_cbfn;
+	void		*faa_cbarg;
+};
+
+#define BFA_FAA_ENABLED		1
+#define BFA_FAA_DISABLED	2
+
+/*
+ *	FAA attributes
+ */
+struct bfa_faa_attr_s {
+	wwn_t	faa;
+	u8	faa_state;
+	u8	pwwn_source;
+	u8	rsvd[6];
+};
+
+struct bfa_faa_args_s {
+	struct bfa_faa_attr_s	*faa_attr;
+	struct bfa_faa_cbfn_s	faa_cb;
+	u8			faa_state;
+	bfa_boolean_t		busy;
+};
+
 struct bfa_iocfc_s {
 	struct bfa_s		*bfa;
 	struct bfa_iocfc_cfg_s	cfg;
@@ -266,6 +291,7 @@ struct bfa_iocfc_s {
 	bfa_cb_iocfc_t		updateq_cbfn; /*  bios callback function */
 	void			*updateq_cbarg;	/*  bios callback arg */
 	u32	intr_mask;
+	struct bfa_faa_args_s	faa_args;
 };
 
 #define bfa_lpuid(__bfa)						\

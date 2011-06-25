@@ -3502,6 +3502,28 @@ bfa_fcport_cfg_speed(struct bfa_s *bfa, enum bfa_port_speed speed)
 		return BFA_STATUS_UNSUPP_SPEED;
 	}
 
+	/* For Mezz card, port speed entered needs to be checked */
+	if (bfa_mfg_is_mezz(fcport->bfa->ioc.attr->card_type)) {
+		if (bfa_ioc_get_type(&fcport->bfa->ioc) == BFA_IOC_TYPE_FC) {
+			/* For CT2, 1G is not supported */
+			if ((speed == BFA_PORT_SPEED_1GBPS) &&
+			    (bfa_asic_id_ct2(bfa->ioc.pcidev.device_id)))
+				return BFA_STATUS_UNSUPP_SPEED;
+
+			/* Already checked for Auto Speed and Max Speed supp */
+			if (!(speed == BFA_PORT_SPEED_1GBPS ||
+			      speed == BFA_PORT_SPEED_2GBPS ||
+			      speed == BFA_PORT_SPEED_4GBPS ||
+			      speed == BFA_PORT_SPEED_8GBPS ||
+			      speed == BFA_PORT_SPEED_16GBPS ||
+			      speed == BFA_PORT_SPEED_AUTO))
+				return BFA_STATUS_UNSUPP_SPEED;
+		} else {
+			if (speed != BFA_PORT_SPEED_10GBPS)
+				return BFA_STATUS_UNSUPP_SPEED;
+		}
+	}
+
 	fcport->cfg.speed = speed;
 
 	return BFA_STATUS_OK;
@@ -3705,6 +3727,8 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr)
 			attr->port_state = BFA_PORT_ST_IOCDIS;
 		else if (bfa_ioc_fw_mismatch(&fcport->bfa->ioc))
 			attr->port_state = BFA_PORT_ST_FWMISMATCH;
+		else if (bfa_ioc_is_acq_addr(&fcport->bfa->ioc))
+			attr->port_state = BFA_PORT_ST_ACQ_ADDR;
 	}
 
 	/* FCoE vlan */
@@ -3784,6 +3808,18 @@ bfa_fcport_is_ratelim(struct bfa_s *bfa)
 
 	return fcport->cfg.ratelimit ? BFA_TRUE : BFA_FALSE;
 
+}
+
+/*
+ *	Enable/Disable FAA feature in port config
+ */
+void
+bfa_fcport_cfg_faa(struct bfa_s *bfa, u8 state)
+{
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+
+	bfa_trc(bfa, state);
+	fcport->cfg.faa_state = state;
 }
 
 /*

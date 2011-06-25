@@ -635,6 +635,7 @@ enum bfa_port_states {
 	BFA_PORT_ST_FWMISMATCH		= 12,
 	BFA_PORT_ST_PREBOOT_DISABLED	= 13,
 	BFA_PORT_ST_TOGGLING_QWAIT	= 14,
+	BFA_PORT_ST_ACQ_ADDR		= 15,
 	BFA_PORT_ST_MAX_STATE,
 };
 
@@ -748,7 +749,8 @@ struct bfa_port_cfg_s {
 	u8	 ratelimit;	/*  ratelimit enabled or not	*/
 	u8	 trl_def_speed;	/*  ratelimit default speed	*/
 	u8	bb_scn;
-	u8	rsvd[3];
+	u8	faa_state;	/*  FAA enabled/disabled        */
+	u8	rsvd[2];
 	u16 path_tov;	/*  device path timeout	*/
 	u16 q_depth;	/*  SCSI Queue depth		*/
 };

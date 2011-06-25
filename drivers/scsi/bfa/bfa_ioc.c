@@ -113,6 +113,7 @@ enum ioc_event {
 	IOC_E_HWERROR		= 10,	/*  hardware error interrupt	*/
 	IOC_E_TIMEOUT		= 11,	/*  timeout			*/
 	IOC_E_HWFAILED		= 12,	/*  PCI mapping failure notice	*/
+	IOC_E_FWRSP_ACQ_ADDR	= 13,	/*  Acquiring address		*/
 };
 
 bfa_fsm_state_decl(bfa_ioc, uninit, struct bfa_ioc_s, enum ioc_event);
@@ -125,6 +126,7 @@ bfa_fsm_state_decl(bfa_ioc, fail, struct bfa_ioc_s, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, disabling, struct bfa_ioc_s, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, disabled, struct bfa_ioc_s, enum ioc_event);
 bfa_fsm_state_decl(bfa_ioc, hwfail, struct bfa_ioc_s, enum ioc_event);
+bfa_fsm_state_decl(bfa_ioc, acq_addr, struct bfa_ioc_s, enum ioc_event);
 
 static struct bfa_sm_table_s ioc_sm_table[] = {
 	{BFA_SM(bfa_ioc_sm_uninit), BFA_IOC_UNINIT},
@@ -137,6 +139,7 @@ static struct bfa_sm_table_s ioc_sm_table[] = {
 	{BFA_SM(bfa_ioc_sm_disabling), BFA_IOC_DISABLING},
 	{BFA_SM(bfa_ioc_sm_disabled), BFA_IOC_DISABLED},
 	{BFA_SM(bfa_ioc_sm_hwfail), BFA_IOC_HWFAIL},
+	{BFA_SM(bfa_ioc_sm_acq_addr), BFA_IOC_ACQ_ADDR},
 };
 
 /*
@@ -368,10 +371,16 @@ bfa_ioc_sm_getattr(struct bfa_ioc_s *ioc, enum ioc_event event)
 	case IOC_E_FWRSP_GETATTR:
 		bfa_ioc_timer_stop(ioc);
 		bfa_ioc_check_attr_wwns(ioc);
+		bfa_ioc_hb_monitor(ioc);
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_op);
 		break;
 
+	case IOC_E_FWRSP_ACQ_ADDR:
+		bfa_ioc_timer_stop(ioc);
+		bfa_ioc_hb_monitor(ioc);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_acq_addr);
 		break;
+
 	case IOC_E_PFFAILED:
 	case IOC_E_HWERROR:
 		bfa_ioc_timer_stop(ioc);
@@ -396,6 +405,50 @@ bfa_ioc_sm_getattr(struct bfa_ioc_s *ioc, enum ioc_event event)
 	}
 }
 
+/*
+ * Acquiring address from fabric (entry function)
+ */
+static void
+bfa_ioc_sm_acq_addr_entry(struct bfa_ioc_s *ioc)
+{
+}
+
+/*
+ *	Acquiring address from the fabric
+ */
+static void
+bfa_ioc_sm_acq_addr(struct bfa_ioc_s *ioc, enum ioc_event event)
+{
+	bfa_trc(ioc, event);
+
+	switch (event) {
+	case IOC_E_FWRSP_GETATTR:
+		bfa_ioc_check_attr_wwns(ioc);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_op);
+		break;
+
+	case IOC_E_PFFAILED:
+	case IOC_E_HWERROR:
+		bfa_hb_timer_stop(ioc);
+	case IOC_E_HBFAIL:
+		ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_fail);
+		if (event != IOC_E_PFFAILED)
+			bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_GETATTRFAIL);
+		break;
+
+	case IOC_E_DISABLE:
+		bfa_hb_timer_stop(ioc);
+		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabling);
+		break;
+
+	case IOC_E_ENABLE:
+		break;
+
+	default:
+		bfa_sm_fault(ioc, event);
+	}
+}
 
 static void
 bfa_ioc_sm_op_entry(struct bfa_ioc_s *ioc)
@@ -404,7 +457,6 @@ bfa_ioc_sm_op_entry(struct bfa_ioc_s *ioc)
 
 	ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_OK);
 	bfa_ioc_event_notify(ioc, BFA_IOC_E_ENABLED);
-	bfa_ioc_hb_monitor(ioc);
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level, "IOC enabled\n");
 }
 
@@ -2065,6 +2117,10 @@ bfa_ioc_isr(struct bfa_ioc_s *ioc, struct bfi_mbmsg_s *m)
 		bfa_ioc_getattr_reply(ioc);
 		break;
 
+	case BFI_IOC_I2H_ACQ_ADDR_REPLY:
+		bfa_fsm_send_event(ioc, IOC_E_FWRSP_ACQ_ADDR);
+		break;
+
 	default:
 		bfa_trc(ioc, msg->mh.msg_id);
 		WARN_ON(1);
@@ -2357,6 +2413,15 @@ bfa_ioc_is_disabled(struct bfa_ioc_s *ioc)
 {
 	return bfa_fsm_cmp_state(ioc, bfa_ioc_sm_disabling) ||
 		bfa_fsm_cmp_state(ioc, bfa_ioc_sm_disabled);
+}
+
+/*
+ * Return TRUE if IOC is in acquiring address state
+ */
+bfa_boolean_t
+bfa_ioc_is_acq_addr(struct bfa_ioc_s *ioc)
+{
+	return bfa_fsm_cmp_state(ioc, bfa_ioc_sm_acq_addr);
 }
 
 /*

@@ -39,6 +39,9 @@ enum {
 	IOCMD_PORT_CFG_MODE,
 	IOCMD_FLASH_ENABLE_OPTROM,
 	IOCMD_FLASH_DISABLE_OPTROM,
+	IOCMD_FAA_ENABLE,
+	IOCMD_FAA_DISABLE,
+	IOCMD_FAA_QUERY,
 };
 
 struct bfa_bsg_gen_s {
@@ -154,6 +157,13 @@ struct bfa_bsg_port_cfg_mode_s {
 	u16		bfad_num;
 	u16		instance;
 	struct bfa_port_cfg_mode_s cfg;
+};
+
+struct bfa_bsg_faa_attr_s {
+	bfa_status_t		status;
+	u16			bfad_num;
+	u16			rsvd;
+	struct bfa_faa_attr_s	faa_attr;
 };
 
 struct bfa_bsg_fcpt_s {

@@ -529,6 +529,7 @@ bfa_status_t bfa_fcport_clear_stats(struct bfa_s *bfa, bfa_cb_port_t cbfn,
 bfa_boolean_t bfa_fcport_is_qos_enabled(struct bfa_s *bfa);
 bfa_boolean_t bfa_fcport_is_trunk_enabled(struct bfa_s *bfa);
 bfa_status_t bfa_fcport_is_pbcdisabled(struct bfa_s *bfa);
+void bfa_fcport_cfg_faa(struct bfa_s *bfa, u8 state);
 
 /*
  * bfa rport API functions
@@ -622,5 +623,13 @@ void bfa_cb_lps_flogi_comp(void *bfad, void *uarg, bfa_status_t status);
 void bfa_cb_lps_fdisc_comp(void *bfad, void *uarg, bfa_status_t status);
 void bfa_cb_lps_fdisclogo_comp(void *bfad, void *uarg);
 void bfa_cb_lps_cvl_event(void *bfad, void *uarg);
+
+/* FAA specific APIs */
+bfa_status_t bfa_faa_enable(struct bfa_s *bfa,
+			bfa_cb_iocfc_t cbfn, void *cbarg);
+bfa_status_t bfa_faa_disable(struct bfa_s *bfa,
+			bfa_cb_iocfc_t cbfn, void *cbarg);
+bfa_status_t bfa_faa_query(struct bfa_s *bfa, struct bfa_faa_attr_s *attr,
+			bfa_cb_iocfc_t cbfn, void *cbarg);
 
 #endif /* __BFA_SVC_H__ */

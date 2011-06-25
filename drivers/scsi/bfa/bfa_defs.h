@@ -145,6 +145,7 @@ enum bfa_status {
 	BFA_STATUS_IOC_FAILURE	= 56,	/* IOC failure - Retry, if persists
 					 * contact support */
 	BFA_STATUS_INVALID_WWN	= 57,	/*  Invalid WWN */
+	BFA_STATUS_IOC_NON_OP   = 61,	/* IOC is not operational */
 	BFA_STATUS_VERSION_FAIL = 70, /* Application/Driver version mismatch */
 	BFA_STATUS_DIAG_BUSY	= 71,	/*  diag busy */
 	BFA_STATUS_ENOFSAVE	= 78,	/*  No saved firmware trace */
@@ -157,6 +158,12 @@ enum bfa_status {
 	BFA_STATUS_TRUNK_DISABLED  = 165, /* Trunking is disabled on
 					   * the adapter */
 	BFA_STATUS_IOPROFILE_OFF = 175, /* IO profile OFF */
+	BFA_STATUS_FEATURE_NOT_SUPPORTED = 192,	/* Feature not supported */
+	BFA_STATUS_FAA_ENABLED = 197,	/* FAA is already enabled */
+	BFA_STATUS_FAA_DISABLED = 198,	/* FAA is already disabled */
+	BFA_STATUS_FAA_ACQUIRED = 199,	/* FAA is already acquired */
+	BFA_STATUS_FAA_ACQ_ADDR = 200,	/* Acquiring addr */
+	BFA_STATUS_ERROR_TRUNK_ENABLED = 203,	/* Trunk enabled on adapter */
 	BFA_STATUS_MAX_VAL		/* Unknown error code */
 };
 #define bfa_status_t enum bfa_status
@@ -275,6 +282,7 @@ enum bfa_ioc_state {
 	BFA_IOC_FWMISMATCH	= 11,	/*  IOC f/w different from drivers */
 	BFA_IOC_ENABLING	= 12,	/*  IOC is being enabled */
 	BFA_IOC_HWFAIL		= 13,	/*  PCI mapping doesn't exist */
+	BFA_IOC_ACQ_ADDR	= 14,	/*  Acquiring addr from fabric */
 };
 
 /*
@@ -455,10 +463,7 @@ enum bfa_port_speed {
 	BFA_PORT_SPEED_8GBPS	= 8,
 	BFA_PORT_SPEED_10GBPS	= 10,
 	BFA_PORT_SPEED_16GBPS	= 16,
-	BFA_PORT_SPEED_AUTO =
-		(BFA_PORT_SPEED_1GBPS | BFA_PORT_SPEED_2GBPS |
-		 BFA_PORT_SPEED_4GBPS | BFA_PORT_SPEED_8GBPS |
-		 BFA_PORT_SPEED_16GBPS),
+	BFA_PORT_SPEED_AUTO	= 0xf,
 };
 #define bfa_port_speed_t enum bfa_port_speed
 

@@ -795,6 +795,181 @@ bfa_iocfc_reset_queues(struct bfa_s *bfa)
 	}
 }
 
+/* Fabric Assigned Address specific functions */
+
+/*
+ *	Check whether IOC is ready before sending command down
+ */
+static bfa_status_t
+bfa_faa_validate_request(struct bfa_s *bfa)
+{
+	enum bfa_ioc_type_e	ioc_type = bfa_get_type(bfa);
+	u32	card_type = bfa->ioc.attr->card_type;
+
+	if (bfa_ioc_is_operational(&bfa->ioc)) {
+		if ((ioc_type != BFA_IOC_TYPE_FC) || bfa_mfg_is_mezz(card_type))
+			return BFA_STATUS_FEATURE_NOT_SUPPORTED;
+	} else {
+		if (!bfa_ioc_is_acq_addr(&bfa->ioc))
+			return BFA_STATUS_IOC_NON_OP;
+	}
+
+	return BFA_STATUS_OK;
+}
+
+bfa_status_t
+bfa_faa_enable(struct bfa_s *bfa, bfa_cb_iocfc_t cbfn, void *cbarg)
+{
+	struct bfi_faa_en_dis_s faa_enable_req;
+	struct bfa_iocfc_s	*iocfc = &bfa->iocfc;
+	bfa_status_t		status;
+
+	iocfc->faa_args.faa_cb.faa_cbfn = cbfn;
+	iocfc->faa_args.faa_cb.faa_cbarg = cbarg;
+
+	status = bfa_faa_validate_request(bfa);
+	if (status != BFA_STATUS_OK)
+		return status;
+
+	if (iocfc->faa_args.busy == BFA_TRUE)
+		return BFA_STATUS_DEVBUSY;
+
+	if (iocfc->faa_args.faa_state == BFA_FAA_ENABLED)
+		return BFA_STATUS_FAA_ENABLED;
+
+	if (bfa_fcport_is_trunk_enabled(bfa))
+		return BFA_STATUS_ERROR_TRUNK_ENABLED;
+
+	bfa_fcport_cfg_faa(bfa, BFA_FAA_ENABLED);
+	iocfc->faa_args.busy = BFA_TRUE;
+
+	memset(&faa_enable_req, 0, sizeof(struct bfi_faa_en_dis_s));
+	bfi_h2i_set(faa_enable_req.mh, BFI_MC_IOCFC,
+		BFI_IOCFC_H2I_FAA_ENABLE_REQ, bfa_lpuid(bfa));
+
+	bfa_ioc_mbox_send(&bfa->ioc, &faa_enable_req,
+			sizeof(struct bfi_faa_en_dis_s));
+
+	return BFA_STATUS_OK;
+}
+
+bfa_status_t
+bfa_faa_disable(struct bfa_s *bfa, bfa_cb_iocfc_t cbfn,
+		void *cbarg)
+{
+	struct bfi_faa_en_dis_s faa_disable_req;
+	struct bfa_iocfc_s	*iocfc = &bfa->iocfc;
+	bfa_status_t		status;
+
+	iocfc->faa_args.faa_cb.faa_cbfn = cbfn;
+	iocfc->faa_args.faa_cb.faa_cbarg = cbarg;
+
+	status = bfa_faa_validate_request(bfa);
+	if (status != BFA_STATUS_OK)
+		return status;
+
+	if (iocfc->faa_args.busy == BFA_TRUE)
+		return BFA_STATUS_DEVBUSY;
+
+	if (iocfc->faa_args.faa_state == BFA_FAA_DISABLED)
+		return BFA_STATUS_FAA_DISABLED;
+
+	bfa_fcport_cfg_faa(bfa, BFA_FAA_DISABLED);
+	iocfc->faa_args.busy = BFA_TRUE;
+
+	memset(&faa_disable_req, 0, sizeof(struct bfi_faa_en_dis_s));
+	bfi_h2i_set(faa_disable_req.mh, BFI_MC_IOCFC,
+		BFI_IOCFC_H2I_FAA_DISABLE_REQ, bfa_lpuid(bfa));
+
+	bfa_ioc_mbox_send(&bfa->ioc, &faa_disable_req,
+		sizeof(struct bfi_faa_en_dis_s));
+
+	return BFA_STATUS_OK;
+}
+
+bfa_status_t
+bfa_faa_query(struct bfa_s *bfa, struct bfa_faa_attr_s *attr,
+		bfa_cb_iocfc_t cbfn, void *cbarg)
+{
+	struct bfi_faa_query_s  faa_attr_req;
+	struct bfa_iocfc_s      *iocfc = &bfa->iocfc;
+	bfa_status_t            status;
+
+	iocfc->faa_args.faa_attr = attr;
+	iocfc->faa_args.faa_cb.faa_cbfn = cbfn;
+	iocfc->faa_args.faa_cb.faa_cbarg = cbarg;
+
+	status = bfa_faa_validate_request(bfa);
+	if (status != BFA_STATUS_OK)
+		return status;
+
+	if (iocfc->faa_args.busy == BFA_TRUE)
+		return BFA_STATUS_DEVBUSY;
+
+	iocfc->faa_args.busy = BFA_TRUE;
+	memset(&faa_attr_req, 0, sizeof(struct bfi_faa_query_s));
+	bfi_h2i_set(faa_attr_req.mh, BFI_MC_IOCFC,
+		BFI_IOCFC_H2I_FAA_QUERY_REQ, bfa_lpuid(bfa));
+
+	bfa_ioc_mbox_send(&bfa->ioc, &faa_attr_req,
+		sizeof(struct bfi_faa_query_s));
+
+	return BFA_STATUS_OK;
+}
+
+/*
+ *	FAA enable response
+ */
+static void
+bfa_faa_enable_reply(struct bfa_iocfc_s *iocfc,
+		struct bfi_faa_en_dis_rsp_s *rsp)
+{
+	void	*cbarg = iocfc->faa_args.faa_cb.faa_cbarg;
+	bfa_status_t	status = rsp->status;
+
+	WARN_ON(!iocfc->faa_args.faa_cb.faa_cbfn);
+
+	iocfc->faa_args.faa_cb.faa_cbfn(cbarg, status);
+	iocfc->faa_args.busy = BFA_FALSE;
+}
+
+/*
+ *	FAA disable response
+ */
+static void
+bfa_faa_disable_reply(struct bfa_iocfc_s *iocfc,
+		struct bfi_faa_en_dis_rsp_s *rsp)
+{
+	void	*cbarg = iocfc->faa_args.faa_cb.faa_cbarg;
+	bfa_status_t	status = rsp->status;
+
+	WARN_ON(!iocfc->faa_args.faa_cb.faa_cbfn);
+
+	iocfc->faa_args.faa_cb.faa_cbfn(cbarg, status);
+	iocfc->faa_args.busy = BFA_FALSE;
+}
+
+/*
+ *	FAA query response
+ */
+static void
+bfa_faa_query_reply(struct bfa_iocfc_s *iocfc,
+		bfi_faa_query_rsp_t *rsp)
+{
+	void	*cbarg = iocfc->faa_args.faa_cb.faa_cbarg;
+
+	if (iocfc->faa_args.faa_attr) {
+		iocfc->faa_args.faa_attr->faa = rsp->faa;
+		iocfc->faa_args.faa_attr->faa_state = rsp->faa_status;
+		iocfc->faa_args.faa_attr->pwwn_source = rsp->addr_source;
+	}
+
+	WARN_ON(!iocfc->faa_args.faa_cb.faa_cbfn);
+
+	iocfc->faa_args.faa_cb.faa_cbfn(cbarg, BFA_STATUS_OK);
+	iocfc->faa_args.busy = BFA_FALSE;
+}
+
 /*
  * IOC enable request is complete
  */
@@ -802,6 +977,12 @@ static void
 bfa_iocfc_enable_cbfn(void *bfa_arg, enum bfa_status status)
 {
 	struct bfa_s	*bfa = bfa_arg;
+
+	if (status == BFA_STATUS_FAA_ACQ_ADDR) {
+		bfa_cb_queue(bfa, &bfa->iocfc.init_hcb_qe,
+				bfa_iocfc_init_cb, bfa);
+		return;
+	}
 
 	if (status != BFA_STATUS_OK) {
 		bfa_isr_disable(bfa);
@@ -967,6 +1148,17 @@ bfa_iocfc_isr(void *bfaarg, struct bfi_mbmsg_s *m)
 		break;
 	case BFI_IOCFC_I2H_UPDATEQ_RSP:
 		iocfc->updateq_cbfn(iocfc->updateq_cbarg, BFA_STATUS_OK);
+		break;
+	case BFI_IOCFC_I2H_FAA_ENABLE_RSP:
+		bfa_faa_enable_reply(iocfc,
+			(struct bfi_faa_en_dis_rsp_s *)msg);
+		break;
+	case BFI_IOCFC_I2H_FAA_DISABLE_RSP:
+		bfa_faa_disable_reply(iocfc,
+			(struct bfi_faa_en_dis_rsp_s *)msg);
+		break;
+	case BFI_IOCFC_I2H_FAA_QUERY_RSP:
+		bfa_faa_query_reply(iocfc, (bfi_faa_query_rsp_t *)msg);
 		break;
 	default:
 		WARN_ON(1);
