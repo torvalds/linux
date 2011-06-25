@@ -226,7 +226,7 @@ struct dentry *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
 	struct inode *parent_inode = get_dentry_parent_inode(file->f_dentry);
 	struct ceph_mds_request *req;
 	int err;
-	int flags = nd->intent.open.flags - 1;  /* silly vfs! */
+	int flags = nd->intent.open.flags;
 
 	dout("ceph_lookup_open dentry %p '%.*s' flags %d mode 0%o\n",
 	     dentry, dentry->d_name.len, dentry->d_name.name, flags, mode);

@@ -1338,16 +1338,26 @@ static int is_atomic_open(struct nameidata *nd)
 		return 0;
 	/* Are we trying to write to a read only partition? */
 	if (__mnt_is_readonly(nd->path.mnt) &&
-	    (nd->intent.open.flags & (O_CREAT|O_TRUNC|FMODE_WRITE)))
+	    (nd->intent.open.flags & (O_CREAT|O_TRUNC|O_ACCMODE)))
 		return 0;
 	return 1;
+}
+
+static fmode_t flags_to_mode(int flags)
+{
+	fmode_t res = (__force fmode_t)flags & FMODE_EXEC;
+	if ((flags & O_ACCMODE) != O_WRONLY)
+		res |= FMODE_READ;
+	if ((flags & O_ACCMODE) != O_RDONLY)
+		res |= FMODE_WRITE;
+	return res;
 }
 
 static struct nfs_open_context *create_nfs_open_context(struct dentry *dentry, int open_flags)
 {
 	struct nfs_open_context *ctx;
 	struct rpc_cred *cred;
-	fmode_t fmode = open_flags & (FMODE_READ | FMODE_WRITE | FMODE_EXEC);
+	fmode_t fmode = flags_to_mode(open_flags);
 
 	cred = rpc_lookup_cred();
 	if (IS_ERR(cred))
@@ -1567,7 +1577,7 @@ static int nfs_open_create(struct inode *dir, struct dentry *dentry, int mode,
 	struct nfs_open_context *ctx = NULL;
 	struct iattr attr;
 	int error;
-	int open_flags = O_CREAT|O_EXCL|FMODE_READ;
+	int open_flags = O_CREAT|O_EXCL;
 
 	dfprintk(VFS, "NFS: create(%s/%ld), %s\n",
 			dir->i_sb->s_id, dir->i_ino, dentry->d_name.name);
@@ -1657,7 +1667,7 @@ static int nfs_create(struct inode *dir, struct dentry *dentry, int mode,
 {
 	struct iattr attr;
 	int error;
-	int open_flags = O_CREAT|O_EXCL|FMODE_READ;
+	int open_flags = O_CREAT|O_EXCL;
 
 	dfprintk(VFS, "NFS: create(%s/%ld), %s\n",
 			dir->i_sb->s_id, dir->i_ino, dentry->d_name.name);
@@ -2256,11 +2266,11 @@ static int nfs_open_permission_mask(int openflags)
 {
 	int mask = 0;
 
-	if (openflags & FMODE_READ)
+	if ((openflags & O_ACCMODE) != O_WRONLY)
 		mask |= MAY_READ;
-	if (openflags & FMODE_WRITE)
+	if ((openflags & O_ACCMODE) != O_RDONLY)
 		mask |= MAY_WRITE;
-	if (openflags & FMODE_EXEC)
+	if (openflags & __FMODE_EXEC)
 		mask |= MAY_EXEC;
 	return mask;
 }
