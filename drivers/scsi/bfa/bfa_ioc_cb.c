@@ -69,21 +69,6 @@ bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc)
 static bfa_boolean_t
 bfa_ioc_cb_firmware_lock(struct bfa_ioc_s *ioc)
 {
-	struct bfi_ioc_image_hdr_s fwhdr;
-	uint32_t fwstate = readl(ioc->ioc_regs.ioc_fwstate);
-
-	if (fwstate == BFI_IOC_UNINIT)
-		return BFA_TRUE;
-
-	bfa_ioc_fwver_get(ioc, &fwhdr);
-
-	if (swab32(fwhdr.exec) == BFI_FWBOOT_TYPE_NORMAL)
-		return BFA_TRUE;
-
-	bfa_trc(ioc, fwstate);
-	bfa_trc(ioc, fwhdr.exec);
-	writel(BFI_IOC_UNINIT, ioc->ioc_regs.ioc_fwstate);
-
 	return BFA_TRUE;
 }
 

@@ -58,12 +58,6 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	struct bfi_ioc_image_hdr_s fwhdr;
 
 	/*
-	 * Firmware match check is relevant only for CNA.
-	 */
-	if (!bfa_ioc_is_cna(ioc))
-		return BFA_TRUE;
-
-	/*
 	 * If bios boot (flash based) -- do not increment usage count
 	 */
 	if (bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc)) <
@@ -78,6 +72,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	 */
 	if (usecnt == 0) {
 		writel(1, ioc->ioc_regs.ioc_usage_reg);
+		readl(ioc->ioc_regs.ioc_usage_sem_reg);
 		writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 		writel(0, ioc->ioc_regs.ioc_fail_sync);
 		bfa_trc(ioc, usecnt);
@@ -97,6 +92,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	 */
 	bfa_ioc_fwver_get(ioc, &fwhdr);
 	if (!bfa_ioc_fwver_cmp(ioc, &fwhdr)) {
+		readl(ioc->ioc_regs.ioc_usage_sem_reg);
 		writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 		bfa_trc(ioc, usecnt);
 		return BFA_FALSE;
@@ -107,6 +103,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	 */
 	usecnt++;
 	writel(usecnt, ioc->ioc_regs.ioc_usage_reg);
+	readl(ioc->ioc_regs.ioc_usage_sem_reg);
 	writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 	bfa_trc(ioc, usecnt);
 	return BFA_TRUE;
@@ -116,12 +113,6 @@ static void
 bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 {
 	u32 usecnt;
-
-	/*
-	 * Firmware lock is relevant only for CNA.
-	 */
-	if (!bfa_ioc_is_cna(ioc))
-		return;
 
 	/*
 	 * If bios boot (flash based) -- do not decrement usage count
@@ -141,6 +132,7 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 	writel(usecnt, ioc->ioc_regs.ioc_usage_reg);
 	bfa_trc(ioc, usecnt);
 
+	readl(ioc->ioc_regs.ioc_usage_sem_reg);
 	writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 }
 
@@ -344,7 +336,11 @@ bfa_ioc_ct_map_port(struct bfa_ioc_s *ioc)
 static void
 bfa_ioc_ct2_map_port(struct bfa_ioc_s *ioc)
 {
-	ioc->port_id = bfa_ioc_pcifn(ioc) % 2;
+	void __iomem	*rb = ioc->pcidev.pci_bar_kva;
+	u32	r32;
+
+	r32 = readl(rb + CT2_HOSTFN_PERSONALITY0);
+	ioc->port_id = ((r32 & __FC_LL_PORT_MAP__MK) >> __FC_LL_PORT_MAP__SH);
 
 	bfa_trc(ioc, bfa_ioc_pcifn(ioc));
 	bfa_trc(ioc, ioc->port_id);
@@ -407,6 +403,7 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc)
 	if (bfa_ioc_is_cna(ioc)) {
 		bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
 		writel(0, ioc->ioc_regs.ioc_usage_reg);
+		readl(ioc->ioc_regs.ioc_usage_sem_reg);
 		writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 	}
 

@@ -274,6 +274,7 @@ enum bfa_ioc_state {
 	BFA_IOC_DISABLED	= 10,	/*  IOC is disabled */
 	BFA_IOC_FWMISMATCH	= 11,	/*  IOC f/w different from drivers */
 	BFA_IOC_ENABLING	= 12,	/*  IOC is being enabled */
+	BFA_IOC_HWFAIL		= 13,	/*  PCI mapping doesn't exist */
 };
 
 /*
@@ -303,6 +304,7 @@ struct bfa_ioc_drv_stats_s {
 	u32	enable_reqs;
 	u32	disable_replies;
 	u32	enable_replies;
+	u32	rsvd;
 };
 
 /*

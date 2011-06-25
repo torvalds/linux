@@ -236,7 +236,8 @@ struct bfi_ioc_attr_s {
 	wwn_t		mfg_pwwn;	/*  Mfg port wwn	   */
 	wwn_t		mfg_nwwn;	/*  Mfg node wwn	   */
 	mac_t		mfg_mac;	/*  Mfg mac		   */
-	u16	rsvd_a;
+	u8		port_mode;	/* bfi_port_mode	   */
+	u8		rsvd_a;
 	wwn_t		pwwn;
 	wwn_t		nwwn;
 	mac_t		mac;		/*  PBC or Mfg mac	   */
