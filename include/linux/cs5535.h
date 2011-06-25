@@ -43,6 +43,10 @@
 #define MSR_GX_GLD_MSR_CONFIG	0xC0002001
 #define MSR_GX_MSR_PADSEL	0xC0002011
 
+/* PIC registers */
+#define CS5536_PIC_INT_SEL1	0x4d0
+#define CS5536_PIC_INT_SEL2	0x4d1
+
 /* resource sizes */
 #define LBAR_GPIO_SIZE		0xFF
 #define LBAR_MFGPT_SIZE		0x40
@@ -69,6 +73,10 @@
 #define CS5536_PM1_EN		0x02
 #define CS5536_PM1_CNT		0x08
 #define CS5536_PM_GPE0_STS	0x18
+
+/* CS5536_PM1_STS bits */
+#define CS5536_WAK_FLAG		(1 << 15)
+#define CS5536_PWRBTN_FLAG	(1 << 8)
 
 /* CS5536_PM1_EN bits */
 #define CS5536_PM_PWRBTN	(1 << 8)

@@ -2080,6 +2080,15 @@ config OLPC_XO1_PM
 	---help---
 	  Add support for poweroff and suspend of the OLPC XO-1 laptop.
 
+config OLPC_XO1_SCI
+	bool "OLPC XO-1 SCI extras"
+	depends on OLPC && OLPC_XO1_PM
+	select GPIO_CS5535
+	select MFD_CORE
+	---help---
+	  Add support for SCI-based features of the OLPC XO-1 laptop:
+	   - Power button
+
 endif # X86_32
 
 config AMD_NB
