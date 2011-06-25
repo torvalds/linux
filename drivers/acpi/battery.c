@@ -863,7 +863,7 @@ DECLARE_FILE_FUNCTIONS(alarm);
 		}, \
 	}
 
-static struct battery_file {
+static const struct battery_file {
 	struct file_operations ops;
 	mode_t mode;
 	const char *name;
