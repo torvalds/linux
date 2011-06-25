@@ -102,6 +102,7 @@ static inline int cs5535_pic_unreqz_select_high(unsigned int group,
 
 /* CS5536_PM_GPE0_EN bits */
 #define CS5536_GPIOM7_PME_EN	(1 << 31)
+#define CS5536_GPIOM6_PME_EN	(1 << 30)
 
 /* VSA2 magic values */
 #define VSA_VRC_INDEX		0xAC1C

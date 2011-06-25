@@ -2090,6 +2090,7 @@ config OLPC_XO1_SCI
 	   - EC-driven system wakeups
 	   - Power button
 	   - Ebook switch
+	   - Lid switch
 
 endif # X86_32
 
