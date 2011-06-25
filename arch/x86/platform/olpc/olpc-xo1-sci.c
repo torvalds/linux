@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/mfd/core.h>
+#include <linux/power_supply.h>
 #include <linux/suspend.h>
 #include <linux/workqueue.h>
 
@@ -51,6 +52,26 @@ static const char * const lid_wake_mode_names[] = {
 	[LID_WAKE_OPEN] = "open",
 	[LID_WAKE_CLOSE] = "close",
 };
+
+static void battery_status_changed(void)
+{
+	struct power_supply *psy = power_supply_get_by_name("olpc-battery");
+
+	if (psy) {
+		power_supply_changed(psy);
+		put_device(psy->dev);
+	}
+}
+
+static void ac_status_changed(void)
+{
+	struct power_supply *psy = power_supply_get_by_name("olpc-ac");
+
+	if (psy) {
+		power_supply_changed(psy);
+		put_device(psy->dev);
+	}
+}
 
 /* Report current ebook switch state through input layer */
 static void send_ebook_state(void)
@@ -151,6 +172,18 @@ static void process_sci_queue(bool propagate_events)
 
 		pr_debug(PFX "SCI 0x%x received\n", data);
 
+		switch (data) {
+		case EC_SCI_SRC_BATERR:
+		case EC_SCI_SRC_BATSOC:
+		case EC_SCI_SRC_BATTERY:
+		case EC_SCI_SRC_BATCRIT:
+			battery_status_changed();
+			break;
+		case EC_SCI_SRC_ACPWR:
+			ac_status_changed();
+			break;
+		}
+
 		if (data == EC_SCI_SRC_EBOOK && propagate_events)
 			send_ebook_state();
 	} while (data);
@@ -240,6 +273,10 @@ static int xo1_sci_resume(struct platform_device *pdev)
 
 	/* Enable all EC events */
 	olpc_ec_mask_write(EC_SCI_SRC_ALL);
+
+	/* Power/battery status might have changed too */
+	battery_status_changed();
+	ac_status_changed();
 	return 0;
 }
 

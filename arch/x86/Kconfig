@@ -2082,7 +2082,7 @@ config OLPC_XO1_PM
 
 config OLPC_XO1_SCI
 	bool "OLPC XO-1 SCI extras"
-	depends on OLPC && OLPC_XO1_PM
+	depends on OLPC && OLPC_XO1_PM && POWER_SUPPLY
 	select GPIO_CS5535
 	select MFD_CORE
 	---help---
@@ -2091,6 +2091,8 @@ config OLPC_XO1_SCI
 	   - Power button
 	   - Ebook switch
 	   - Lid switch
+	   - AC adapter status updates
+	   - Battery status updates
 
 endif # X86_32
 
