@@ -22,30 +22,6 @@
 
 BFA_TRC_FILE(LDRV, BSG);
 
-/* bfad_im_bsg_get_kobject - increment the bfa refcnt */
-static void
-bfad_im_bsg_get_kobject(struct fc_bsg_job *job)
-{
-	struct Scsi_Host *shost = job->shost;
-	unsigned long flags;
-
-	spin_lock_irqsave(shost->host_lock, flags);
-	__module_get(shost->dma_dev->driver->owner);
-	spin_unlock_irqrestore(shost->host_lock, flags);
-}
-
-/* bfad_im_bsg_put_kobject - decrement the bfa refcnt */
-static void
-bfad_im_bsg_put_kobject(struct fc_bsg_job *job)
-{
-	struct Scsi_Host *shost = job->shost;
-	unsigned long flags;
-
-	spin_lock_irqsave(shost->host_lock, flags);
-	module_put(shost->dma_dev->driver->owner);
-	spin_unlock_irqrestore(shost->host_lock, flags);
-}
-
 int
 bfad_iocmd_ioc_enable(struct bfad_s *bfad, void *cmd)
 {
@@ -1468,6 +1444,25 @@ out:
 }
 
 int
+bfad_iocmd_vhba_query(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_vhba_attr_s *iocmd =
+			(struct bfa_bsg_vhba_attr_s *)cmd;
+	struct bfa_vhba_attr_s *attr = &iocmd->attr;
+	unsigned long flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	attr->pwwn =  bfad->bfa.ioc.attr->pwwn;
+	attr->nwwn =  bfad->bfa.ioc.attr->nwwn;
+	attr->plog_enabled = (bfa_boolean_t)bfad->bfa.plog->plog_enabled;
+	attr->io_profile = bfa_fcpim_get_io_profile(&bfad->bfa);
+	attr->path_tov  = bfa_fcpim_path_tov_get(&bfad->bfa);
+	iocmd->status = BFA_STATUS_OK;
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	return 0;
+}
+
+int
 bfad_iocmd_phy_update(struct bfad_s *bfad, void *cmd, unsigned int payload_len)
 {
 	struct bfa_bsg_phy_s *iocmd = (struct bfa_bsg_phy_s *)cmd;
@@ -1493,6 +1488,25 @@ bfad_iocmd_phy_update(struct bfad_s *bfad, void *cmd, unsigned int payload_len)
 		goto out;
 	wait_for_completion(&fcomp.comp);
 	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_porglog_get(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_debug_s *iocmd = (struct bfa_bsg_debug_s *)cmd;
+	void *iocmd_bufptr;
+
+	if (iocmd->bufsz < sizeof(struct bfa_plog_s)) {
+		bfa_trc(bfad, sizeof(struct bfa_plog_s));
+		iocmd->status = BFA_STATUS_EINVAL;
+		goto out;
+	}
+
+	iocmd->status = BFA_STATUS_OK;
+	iocmd_bufptr = (char *)iocmd + sizeof(struct bfa_bsg_debug_s);
+	memcpy(iocmd_bufptr, (u8 *) &bfad->plog_buf, sizeof(struct bfa_plog_s));
 out:
 	return 0;
 }
@@ -1681,6 +1695,12 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_PHY_READ_FW:
 		rc = bfad_iocmd_phy_read(bfad, iocmd, payload_len);
+		break;
+	case IOCMD_VHBA_QUERY:
+		rc = bfad_iocmd_vhba_query(bfad, iocmd);
+		break;
+	case IOCMD_DEBUG_PORTLOG:
+		rc = bfad_iocmd_porglog_get(bfad, iocmd);
 		break;
 	default:
 		rc = EINVAL;
@@ -2111,9 +2131,6 @@ bfad_im_bsg_request(struct fc_bsg_job *job)
 {
 	uint32_t rc = BFA_STATUS_OK;
 
-	/* Increment the bfa module refcnt - if bsg request is in service */
-	bfad_im_bsg_get_kobject(job);
-
 	switch (job->request->msgcode) {
 	case FC_BSG_HST_VENDOR:
 		/* Process BSG HST Vendor requests */
@@ -2131,9 +2148,6 @@ bfad_im_bsg_request(struct fc_bsg_job *job)
 		job->reply->reply_payload_rcv_len = 0;
 		break;
 	}
-
-	/* Decrement the bfa module refcnt - on completion of bsg request */
-	bfad_im_bsg_put_kobject(job);
 
 	return rc;
 }

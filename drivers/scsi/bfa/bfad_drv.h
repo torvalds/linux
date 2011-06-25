@@ -80,7 +80,7 @@
 #define BFAD_HAL_INIT_FAIL			0x00000100
 #define BFAD_FC4_PROBE_DONE			0x00000200
 #define BFAD_PORT_DELETE			0x00000001
-
+#define BFAD_INTX_ON				0x00000400
 /*
  * BFAD related definition
  */
@@ -93,6 +93,8 @@
  */
 #define BFAD_LUN_QUEUE_DEPTH	32
 #define BFAD_IO_MAX_SGE		SG_ALL
+#define BFAD_MIN_SECTORS	128 /* 64k   */
+#define BFAD_MAX_SECTORS	0xFFFF  /* 32 MB */
 
 #define bfad_isr_t irq_handler_t
 
@@ -343,6 +345,7 @@ extern int      msix_disable_ct;
 extern int      fdmi_enable;
 extern int      supported_fc4s;
 extern int	pcie_max_read_reqsz;
+extern int	max_xfer_size;
 extern int bfa_debugfs_enable;
 extern struct mutex bfad_mutex;
 

@@ -84,6 +84,8 @@ enum {
 	IOCMD_PHY_GET_STATS,
 	IOCMD_PHY_UPDATE_FW,
 	IOCMD_PHY_READ_FW,
+	IOCMD_VHBA_QUERY,
+	IOCMD_DEBUG_PORTLOG,
 };
 
 struct bfa_bsg_gen_s {
@@ -459,11 +461,28 @@ struct bfa_bsg_phy_s {
 	u64	buf_ptr;
 };
 
+struct bfa_bsg_debug_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u32		bufsz;
+	int		inst_no;
+	u64		buf_ptr;
+	u64		offset;
+};
+
 struct bfa_bsg_phy_stats_s {
 	bfa_status_t	status;
 	u16	bfad_num;
 	u16	instance;
 	struct bfa_phy_stats_s	stats;
+};
+
+struct bfa_bsg_vhba_attr_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		pcifn_id;
+	struct bfa_vhba_attr_s	attr;
 };
 
 struct bfa_bsg_fcpt_s {

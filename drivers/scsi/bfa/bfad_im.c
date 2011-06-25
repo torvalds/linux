@@ -700,6 +700,9 @@ bfad_scsi_host_alloc(struct bfad_im_port_s *im_port, struct bfad_s *bfad)
 	else
 		sht = &bfad_im_vport_template;
 
+	if (max_xfer_size != BFAD_MAX_SECTORS >> 1)
+		sht->max_sectors = max_xfer_size << 1;
+
 	sht->sg_tablesize = bfad->cfg_data.io_max_sge;
 
 	return scsi_host_alloc(sht, sizeof(unsigned long));
@@ -777,7 +780,7 @@ struct scsi_host_template bfad_im_scsi_host_template = {
 	.cmd_per_lun = 3,
 	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = bfad_im_host_attrs,
-	.max_sectors = 0xFFFF,
+	.max_sectors = BFAD_MAX_SECTORS,
 	.vendor_id = BFA_PCI_VENDOR_ID_BROCADE,
 };
 
@@ -799,7 +802,7 @@ struct scsi_host_template bfad_im_vport_template = {
 	.cmd_per_lun = 3,
 	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = bfad_im_vport_attrs,
-	.max_sectors = 0xFFFF,
+	.max_sectors = BFAD_MAX_SECTORS,
 };
 
 bfa_status_t

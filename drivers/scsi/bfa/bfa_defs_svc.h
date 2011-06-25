@@ -1043,6 +1043,19 @@ struct bfa_itnim_ioprofile_s {
 };
 
 /*
+ *	vHBA port attribute values.
+ */
+struct bfa_vhba_attr_s {
+	wwn_t	nwwn;       /* node wwn */
+	wwn_t	pwwn;       /* port wwn */
+	u32	pid;        /* port ID */
+	bfa_boolean_t       io_profile; /* get it from fcpim mod */
+	bfa_boolean_t       plog_enabled;   /* portlog is enabled */
+	u16	path_tov;
+	u8	rsvd[2];
+};
+
+/*
  * FC physical port statistics.
  */
 struct bfa_port_fc_stats_s {

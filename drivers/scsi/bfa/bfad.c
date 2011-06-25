@@ -56,6 +56,7 @@ int		fdmi_enable = BFA_TRUE;
 int		pcie_max_read_reqsz;
 int		bfa_debugfs_enable = 1;
 int		msix_disable_cb = 0, msix_disable_ct = 0;
+int		max_xfer_size = BFAD_MAX_SECTORS >> 1;
 
 /* Firmware releated */
 u32	bfi_image_cb_size, bfi_image_ct_size, bfi_image_ct2_size;
@@ -144,6 +145,9 @@ MODULE_PARM_DESC(pcie_max_read_reqsz, "PCIe max read request size, default=0 "
 module_param(bfa_debugfs_enable, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(bfa_debugfs_enable, "Enables debugfs feature, default=1,"
 		" Range[false:0|true:1]");
+module_param(max_xfer_size, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(max_xfer_size, "default=32MB,"
+		" Range[64k|128k|256k|512k|1024k|2048k]");
 
 static void
 bfad_sm_uninit(struct bfad_s *bfad, enum bfad_sm_event event);
@@ -1015,6 +1019,12 @@ bfad_start_ops(struct bfad_s *bfad) {
 	struct bfad_vport_s *vport, *vport_new;
 	struct bfa_fcs_driver_info_s driver_info;
 
+	/* Limit min/max. xfer size to [64k-32MB] */
+	if (max_xfer_size < BFAD_MIN_SECTORS >> 1)
+		max_xfer_size = BFAD_MIN_SECTORS >> 1;
+	if (max_xfer_size > BFAD_MAX_SECTORS >> 1)
+		max_xfer_size = BFAD_MAX_SECTORS >> 1;
+
 	/* Fill the driver_info info to fcs*/
 	memset(&driver_info, 0, sizeof(driver_info));
 	strncpy(driver_info.version, BFAD_DRIVER_VERSION,
@@ -1231,6 +1241,9 @@ bfad_install_msix_handler(struct bfad_s *bfad)
 				free_irq(bfad->msix_tab[j].msix.vector,
 						&bfad->msix_tab[j]);
 
+			bfad->bfad_flags &= ~BFAD_MSIX_ON;
+			pci_disable_msix(bfad->pcidev);
+
 			return 1;
 		}
 	}
@@ -1306,6 +1319,7 @@ line_based:
 		/* Enable interrupt handler failed */
 		return 1;
 	}
+	bfad->bfad_flags |= BFAD_INTX_ON;
 
 	return error;
 }
@@ -1322,7 +1336,7 @@ bfad_remove_intr(struct bfad_s *bfad)
 
 		pci_disable_msix(bfad->pcidev);
 		bfad->bfad_flags &= ~BFAD_MSIX_ON;
-	} else {
+	} else if (bfad->bfad_flags & BFAD_INTX_ON) {
 		free_irq(bfad->pcidev->irq, bfad);
 	}
 }
