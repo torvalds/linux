@@ -69,15 +69,15 @@ static inline void debug_rcu_head_unqueue(struct rcu_head *head)
 
 extern void kfree(const void *);
 
-static inline void __rcu_reclaim(struct rcu_head *head)
+static inline void __rcu_reclaim(char *rn, struct rcu_head *head)
 {
 	unsigned long offset = (unsigned long)head->func;
 
 	if (__is_kfree_rcu_offset(offset)) {
-		RCU_TRACE(trace_rcu_invoke_kfree_callback(head, offset));
+		RCU_TRACE(trace_rcu_invoke_kfree_callback(rn, head, offset));
 		kfree((void *)head - offset);
 	} else {
-		RCU_TRACE(trace_rcu_invoke_callback(head));
+		RCU_TRACE(trace_rcu_invoke_callback(rn, head));
 		head->func(head);
 	}
 }
