@@ -2080,6 +2080,13 @@ config OLPC_XO1_PM
 	---help---
 	  Add support for poweroff and suspend of the OLPC XO-1 laptop.
 
+config OLPC_XO1_RTC
+	bool "OLPC XO-1 Real Time Clock"
+	depends on OLPC_XO1_PM && RTC_DRV_CMOS
+	---help---
+	  Add support for the XO-1 real time clock, which can be used as a
+	  programmable wakeup source.
+
 config OLPC_XO1_SCI
 	bool "OLPC XO-1 SCI extras"
 	depends on OLPC && OLPC_XO1_PM && POWER_SUPPLY

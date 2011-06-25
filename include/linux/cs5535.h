@@ -40,6 +40,10 @@
 #define MSR_MFGPT_NR		0x51400029
 #define MSR_MFGPT_SETUP		0x5140002B
 
+#define MSR_RTC_DOMA_OFFSET	0x51400055
+#define MSR_RTC_MONA_OFFSET	0x51400056
+#define MSR_RTC_CEN_OFFSET	0x51400057
+
 #define MSR_LX_SPARE_MSR	0x80000011	/* DC-specific */
 
 #define MSR_GX_GLD_MSR_CONFIG	0xC0002001
@@ -95,6 +99,7 @@ static inline int cs5535_pic_unreqz_select_high(unsigned int group,
 
 /* CS5536_PM1_EN bits */
 #define CS5536_PM_PWRBTN	(1 << 8)
+#define CS5536_PM_RTC		(1 << 10)
 
 /* CS5536_PM_GPE0_STS bits */
 #define CS5536_GPIOM7_PME_FLAG	(1 << 31)
