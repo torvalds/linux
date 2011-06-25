@@ -18,7 +18,6 @@ obj-$(CONFIG_ROADRUNNER) += rrunner.o
 
 obj-$(CONFIG_SKFP) += skfp/
 obj-$(CONFIG_RIONET) += rionet.o
-obj-$(CONFIG_SH_ETH) += sh_eth.o
 
 #
 # end link order section
