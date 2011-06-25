@@ -200,11 +200,14 @@ static int pmbus_remove(struct i2c_client *client)
  * Use driver_data to set the number of pages supported by the chip.
  */
 static const struct i2c_device_id pmbus_id[] = {
+	{"adp4000", 1},
 	{"bmr450", 1},
 	{"bmr451", 1},
 	{"bmr453", 1},
 	{"bmr454", 1},
 	{"ltc2978", 8},
+	{"ncp4200", 1},
+	{"ncp4208", 1},
 	{"pmbus", 0},
 	{}
 };

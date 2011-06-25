@@ -19,8 +19,8 @@ config SENSORS_PMBUS
 	default y
 	help
 	  If you say yes here you get hardware monitoring support for generic
-	  PMBus devices, including but not limited to BMR450, BMR451, BMR453,
-	  BMR454, and LTC2978.
+	  PMBus devices, including but not limited to ADP4000, BMR450, BMR451,
+	  BMR453, BMR454, LTC2978, NCP4200, and NCP4208.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called pmbus.
