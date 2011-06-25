@@ -194,6 +194,7 @@ struct bfad_s {
 	void __iomem   *pci_bar2_kva;
 	struct completion comp;
 	struct completion suspend;
+	struct completion enable_comp;
 	struct completion disable_comp;
 	bfa_boolean_t   disable_active;
 	struct bfad_port_s     pport;	/* physical port of the BFAD */

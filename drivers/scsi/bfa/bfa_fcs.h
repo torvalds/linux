@@ -452,6 +452,8 @@ bfa_fcs_rport_get_halrport(struct bfa_fcs_rport_s *rport)
 /*
  * bfa fcs rport API functions
  */
+void bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
+			struct bfa_rport_attr_s *attr);
 struct bfa_fcs_rport_s *bfa_fcs_rport_lookup(struct bfa_fcs_lport_s *port,
 					     wwn_t rpwwn);
 struct bfa_fcs_rport_s *bfa_fcs_rport_lookup_by_nwwn(

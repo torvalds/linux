@@ -2536,7 +2536,45 @@ bfa_fcs_rport_prlo(struct bfa_fcs_rport_s *rport, __be16 ox_id)
 	bfa_sm_send_event(rport, RPSM_EVENT_PRLO_RCVD);
 }
 
+void
+bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
+		struct bfa_rport_attr_s *rport_attr)
+{
+	struct bfa_rport_qos_attr_s qos_attr;
+	struct bfa_fcs_lport_s *port = rport->port;
+	bfa_port_speed_t rport_speed = rport->rpf.rpsc_speed;
 
+	memset(rport_attr, 0, sizeof(struct bfa_rport_attr_s));
+	memset(&qos_attr, 0, sizeof(struct bfa_rport_qos_attr_s));
+
+	rport_attr->pid = rport->pid;
+	rport_attr->pwwn = rport->pwwn;
+	rport_attr->nwwn = rport->nwwn;
+	rport_attr->cos_supported = rport->fc_cos;
+	rport_attr->df_sz = rport->maxfrsize;
+	rport_attr->state = bfa_fcs_rport_get_state(rport);
+	rport_attr->fc_cos = rport->fc_cos;
+	rport_attr->cisc = rport->cisc;
+	rport_attr->scsi_function = rport->scsi_function;
+	rport_attr->curr_speed  = rport->rpf.rpsc_speed;
+	rport_attr->assigned_speed  = rport->rpf.assigned_speed;
+
+	qos_attr.qos_priority = rport->bfa_rport->qos_attr.qos_priority;
+	qos_attr.qos_flow_id =
+		cpu_to_be32(rport->bfa_rport->qos_attr.qos_flow_id);
+	rport_attr->qos_attr = qos_attr;
+
+	rport_attr->trl_enforced = BFA_FALSE;
+	if (bfa_fcport_is_ratelim(port->fcs->bfa) &&
+	    (rport->scsi_function == BFA_RPORT_TARGET)) {
+		if (rport_speed == BFA_PORT_SPEED_UNKNOWN)
+			rport_speed =
+				bfa_fcport_get_ratelim_speed(rport->fcs->bfa);
+
+		if (rport_speed < bfa_fcs_lport_get_rport_max_speed(port))
+			rport_attr->trl_enforced = BFA_TRUE;
+	}
+}
 
 /*
  * Remote port implementation.

@@ -65,8 +65,12 @@ struct bfa_iocfc_drvcfg_s {
 	u16	    ioc_recover;	/*  IOC recovery mode		  */
 	u16	    min_cfg;	/*  minimum configuration	  */
 	u16        path_tov;	/*  device path timeout	  */
+	u16		num_tio_reqs;   /*!< number of TM IO reqs	*/
+	u8		port_mode;
+	u8		rsvd_a;
 	bfa_boolean_t   delay_comp; /*  delay completion of
 							failed inflight IOs */
+	u16		num_ttsk_reqs;	 /* TM task management requests */
 	u32		rsvd;
 };
 
@@ -81,7 +85,7 @@ struct bfa_iocfc_cfg_s {
 /*
  * IOC firmware IO stats
  */
-struct bfa_fw_io_stats_s {
+struct bfa_fw_ioim_stats_s {
 	u32	host_abort;		/*  IO aborted by host driver*/
 	u32	host_cleanup;		/*  IO clean up by host driver */
 
@@ -151,6 +155,54 @@ struct bfa_fw_io_stats_s {
 						 */
 };
 
+struct bfa_fw_tio_stats_s {
+	u32	tio_conf_proc;	/* TIO CONF processed */
+	u32	tio_conf_drop;      /* TIO CONF dropped */
+	u32	tio_cleanup_req;    /* TIO cleanup requested */
+	u32	tio_cleanup_comp;   /* TIO cleanup completed */
+	u32	tio_abort_rsp;      /* TIO abort response */
+	u32	tio_abort_rsp_comp; /* TIO abort rsp completed */
+	u32	tio_abts_req;       /* TIO ABTS requested */
+	u32	tio_abts_ack;       /* TIO ABTS ack-ed */
+	u32	tio_abts_ack_nocomp; /* TIO ABTS ack-ed but not completed */
+	u32	tio_abts_tmo;       /* TIO ABTS timeout */
+	u32	tio_snsdata_dma;    /* TIO sense data DMA */
+	u32	tio_rxwchan_wait; /* TIO waiting for RX wait channel */
+	u32	tio_rxwchan_avail; /* TIO RX wait channel available */
+	u32	tio_hit_bls;        /* TIO IOH BLS event */
+	u32	tio_uf_recv;        /* TIO received UF */
+	u32	tio_rd_invalid_sm; /* TIO read reqst in wrong state machine */
+	u32	tio_wr_invalid_sm;/* TIO write reqst in wrong state machine */
+
+	u32	ds_rxwchan_wait; /* DS waiting for RX wait channel */
+	u32	ds_rxwchan_avail; /* DS RX wait channel available */
+	u32	ds_unaligned_rd;    /* DS unaligned read */
+	u32	ds_rdcomp_invalid_sm; /* DS read completed in wrong state machine */
+	u32	ds_wrcomp_invalid_sm; /* DS write completed in wrong state machine */
+	u32	ds_flush_req;       /* DS flush requested */
+	u32	ds_flush_comp;      /* DS flush completed */
+	u32	ds_xfrdy_exp;       /* DS XFER_RDY expired */
+	u32	ds_seq_cnt_err;     /* DS seq cnt error */
+	u32	ds_seq_len_err;     /* DS seq len error */
+	u32	ds_data_oor;        /* DS data out of order */
+	u32	ds_hit_bls;     /* DS hit BLS */
+	u32	ds_edtov_timer_exp; /* DS edtov expired */
+	u32	ds_cpu_owned;       /* DS cpu owned */
+	u32	ds_hit_class2;      /* DS hit class2 */
+	u32	ds_length_err;      /* DS length error */
+	u32	ds_ro_ooo_err;      /* DS relative offset out-of-order error */
+	u32	ds_rectov_timer_exp;    /* DS rectov expired */
+	u32	ds_unexp_fr_err;    /* DS unexp frame error */
+};
+
+/*
+ * IOC firmware IO stats
+ */
+struct bfa_fw_io_stats_s {
+	struct bfa_fw_ioim_stats_s	ioim_stats;
+	struct bfa_fw_tio_stats_s	tio_stats;
+};
+
 /*
  * IOC port firmware stats
  */
@@ -204,6 +256,7 @@ struct bfa_fw_port_lksm_stats_s {
     u32    nos_tx;             /*  No. of times NOS tx started         */
     u32    hwsm_lrr_rx;        /*  No. of times LRR rx-ed by HWSM      */
     u32    hwsm_lr_rx;         /*  No. of times LR rx-ed by HWSM      */
+	u32	bbsc_lr;	/* LKSM LR tx for credit recovery	*/
 };
 
 struct bfa_fw_port_snsm_stats_s {

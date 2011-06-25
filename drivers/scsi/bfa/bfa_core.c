@@ -125,6 +125,7 @@ enum {
 	BFA_IOCFC_ACT_INIT	= 1,
 	BFA_IOCFC_ACT_STOP	= 2,
 	BFA_IOCFC_ACT_DISABLE	= 3,
+	BFA_IOCFC_ACT_ENABLE	= 4,
 };
 
 #define DEF_CFG_NUM_FABRICS		1
@@ -678,6 +679,16 @@ bfa_iocfc_stop_cb(void *bfa_arg, bfa_boolean_t compl)
 }
 
 static void
+bfa_iocfc_enable_cb(void *bfa_arg, bfa_boolean_t compl)
+{
+	struct bfa_s	*bfa = bfa_arg;
+	struct bfad_s *bfad = bfa->bfad;
+
+	if (compl)
+		complete(&bfad->enable_comp);
+}
+
+static void
 bfa_iocfc_disable_cb(void *bfa_arg, bfa_boolean_t compl)
 {
 	struct bfa_s  *bfa = bfa_arg;
@@ -760,8 +771,12 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 
 	if (iocfc->action == BFA_IOCFC_ACT_INIT)
 		bfa_cb_queue(bfa, &iocfc->init_hcb_qe, bfa_iocfc_init_cb, bfa);
-	else
+	else {
+		if (bfa->iocfc.action == BFA_IOCFC_ACT_ENABLE)
+			bfa_cb_queue(bfa, &bfa->iocfc.en_hcb_qe,
+					bfa_iocfc_enable_cb, bfa);
 		bfa_iocfc_start_submod(bfa);
+	}
 }
 void
 bfa_iocfc_reset_queues(struct bfa_s *bfa)
@@ -970,6 +985,9 @@ bfa_iocfc_enable_cbfn(void *bfa_arg, enum bfa_status status)
 		if (bfa->iocfc.action == BFA_IOCFC_ACT_INIT)
 			bfa_cb_queue(bfa, &bfa->iocfc.init_hcb_qe,
 				     bfa_iocfc_init_cb, bfa);
+		else if (bfa->iocfc.action == BFA_IOCFC_ACT_ENABLE)
+			bfa_cb_queue(bfa, &bfa->iocfc.en_hcb_qe,
+					bfa_iocfc_enable_cb, bfa);
 		return;
 	}
 
@@ -1236,6 +1254,7 @@ bfa_iocfc_enable(struct bfa_s *bfa)
 {
 	bfa_plog_str(bfa->plog, BFA_PL_MID_HAL, BFA_PL_EID_MISC, 0,
 		     "IOC Enable");
+	bfa->iocfc.action = BFA_IOCFC_ACT_ENABLE;
 	bfa_ioc_enable(&bfa->ioc);
 }
 

@@ -249,6 +249,7 @@ struct bfa_iocfc_s {
 	struct bfa_cb_qe_s	init_hcb_qe;
 	struct bfa_cb_qe_s	stop_hcb_qe;
 	struct bfa_cb_qe_s	dis_hcb_qe;
+	struct bfa_cb_qe_s	en_hcb_qe;
 	struct bfa_cb_qe_s	stats_hcb_qe;
 	bfa_boolean_t		cfgdone;
 

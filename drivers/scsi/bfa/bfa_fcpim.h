@@ -293,6 +293,10 @@ bfa_boolean_t   bfa_itnim_hold_io(struct bfa_itnim_s *itnim);
 void	bfa_fcpim_path_tov_set(struct bfa_s *bfa, u16 path_tov);
 u16	bfa_fcpim_path_tov_get(struct bfa_s *bfa);
 u16	bfa_fcpim_qdepth_get(struct bfa_s *bfa);
+bfa_status_t bfa_fcpim_port_iostats(struct bfa_s *bfa,
+			struct bfa_itnim_iostats_s *stats, u8 lp_tag);
+void bfa_fcpim_add_stats(struct bfa_itnim_iostats_s *fcpim_stats,
+			struct bfa_itnim_iostats_s *itnim_stats);
 
 #define bfa_fcpim_ioredirect_enabled(__bfa)				\
 	(((struct bfa_fcpim_s *)(BFA_FCPIM(__bfa)))->ioredirect)

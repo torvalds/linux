@@ -365,6 +365,78 @@ bfa_fcpim_path_tov_get(struct bfa_s *bfa)
 	return fcpim->path_tov / 1000;
 }
 
+#define bfa_fcpim_add_iostats(__l, __r, __stats)	\
+	(__l->__stats += __r->__stats)
+
+void
+bfa_fcpim_add_stats(struct bfa_itnim_iostats_s *lstats,
+		struct bfa_itnim_iostats_s *rstats)
+{
+	bfa_fcpim_add_iostats(lstats, rstats, total_ios);
+	bfa_fcpim_add_iostats(lstats, rstats, qresumes);
+	bfa_fcpim_add_iostats(lstats, rstats, no_iotags);
+	bfa_fcpim_add_iostats(lstats, rstats, io_aborts);
+	bfa_fcpim_add_iostats(lstats, rstats, no_tskims);
+	bfa_fcpim_add_iostats(lstats, rstats, iocomp_ok);
+	bfa_fcpim_add_iostats(lstats, rstats, iocomp_underrun);
+	bfa_fcpim_add_iostats(lstats, rstats, iocomp_overrun);
+	bfa_fcpim_add_iostats(lstats, rstats, iocomp_aborted);
+	bfa_fcpim_add_iostats(lstats, rstats, iocomp_timedout);
+	bfa_fcpim_add_iostats(lstats, rstats, iocom_nexus_abort);
+	bfa_fcpim_add_iostats(lstats, rstats, iocom_proto_err);
+	bfa_fcpim_add_iostats(lstats, rstats, iocom_dif_err);
+	bfa_fcpim_add_iostats(lstats, rstats, iocom_sqer_needed);
+	bfa_fcpim_add_iostats(lstats, rstats, iocom_res_free);
+	bfa_fcpim_add_iostats(lstats, rstats, iocom_hostabrts);
+	bfa_fcpim_add_iostats(lstats, rstats, iocom_utags);
+	bfa_fcpim_add_iostats(lstats, rstats, io_cleanups);
+	bfa_fcpim_add_iostats(lstats, rstats, io_tmaborts);
+	bfa_fcpim_add_iostats(lstats, rstats, onlines);
+	bfa_fcpim_add_iostats(lstats, rstats, offlines);
+	bfa_fcpim_add_iostats(lstats, rstats, creates);
+	bfa_fcpim_add_iostats(lstats, rstats, deletes);
+	bfa_fcpim_add_iostats(lstats, rstats, create_comps);
+	bfa_fcpim_add_iostats(lstats, rstats, delete_comps);
+	bfa_fcpim_add_iostats(lstats, rstats, sler_events);
+	bfa_fcpim_add_iostats(lstats, rstats, fw_create);
+	bfa_fcpim_add_iostats(lstats, rstats, fw_delete);
+	bfa_fcpim_add_iostats(lstats, rstats, ioc_disabled);
+	bfa_fcpim_add_iostats(lstats, rstats, cleanup_comps);
+	bfa_fcpim_add_iostats(lstats, rstats, tm_cmnds);
+	bfa_fcpim_add_iostats(lstats, rstats, tm_fw_rsps);
+	bfa_fcpim_add_iostats(lstats, rstats, tm_success);
+	bfa_fcpim_add_iostats(lstats, rstats, tm_failures);
+	bfa_fcpim_add_iostats(lstats, rstats, tm_io_comps);
+	bfa_fcpim_add_iostats(lstats, rstats, tm_qresumes);
+	bfa_fcpim_add_iostats(lstats, rstats, tm_iocdowns);
+	bfa_fcpim_add_iostats(lstats, rstats, tm_cleanups);
+	bfa_fcpim_add_iostats(lstats, rstats, tm_cleanup_comps);
+	bfa_fcpim_add_iostats(lstats, rstats, io_comps);
+	bfa_fcpim_add_iostats(lstats, rstats, input_reqs);
+	bfa_fcpim_add_iostats(lstats, rstats, output_reqs);
+	bfa_fcpim_add_iostats(lstats, rstats, rd_throughput);
+	bfa_fcpim_add_iostats(lstats, rstats, wr_throughput);
+}
+
+bfa_status_t
+bfa_fcpim_port_iostats(struct bfa_s *bfa,
+		struct bfa_itnim_iostats_s *stats, u8 lp_tag)
+{
+	struct bfa_fcpim_s *fcpim = BFA_FCPIM(bfa);
+	struct list_head *qe, *qen;
+	struct bfa_itnim_s *itnim;
+
+	/* accumulate IO stats from itnim */
+	memset(stats, 0, sizeof(struct bfa_itnim_iostats_s));
+	list_for_each_safe(qe, qen, &fcpim->itnim_q) {
+		itnim = (struct bfa_itnim_s *) qe;
+		if (itnim->rport->rport_info.lp_tag != lp_tag)
+			continue;
+		bfa_fcpim_add_stats(stats, &(itnim->stats));
+	}
+	return BFA_STATUS_OK;
+}
+
 u16
 bfa_fcpim_qdepth_get(struct bfa_s *bfa)
 {

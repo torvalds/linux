@@ -93,9 +93,11 @@ struct bfa_lport_cfg_s {
 	wwn_t	       pwwn;       /*  port wwn */
 	wwn_t	       nwwn;       /*  node wwn */
 	struct bfa_lport_symname_s  sym_name;   /*  vm port symbolic name */
-	bfa_boolean_t       preboot_vp;  /*  vport created from PBC */
-	enum bfa_lport_role     roles;      /*  FCS port roles */
-	u8	     tag[16];	/*  opaque tag from application */
+	enum bfa_lport_role roles;      /* FCS port roles */
+	u32     rsvd;
+	bfa_boolean_t   preboot_vp;  /*  vport created from PBC */
+	u8	tag[16];        /* opaque tag from application */
+	u8	padding[4];
 };
 
 /*
