@@ -185,20 +185,15 @@ ENDPROC(__und_invalid)
 __dabt_svc:
 	svc_entry
 
-	@
-	@ get ready to re-enable interrupts if appropriate
-	@
-	mrs	r9, cpsr
-	tst	r5, #PSR_I_BIT
-	biceq	r9, r9, #PSR_I_BIT
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	trace_hardirqs_off
+#endif
 
 	dabt_helper
 
 	@
-	@ set desired IRQ state, then call main handler
+	@ call main handler
 	@
-	debug_entry r1
-	msr	cpsr_c, r9
 	mov	r2, sp
 	bl	do_DataAbort
 
@@ -211,6 +206,12 @@ __dabt_svc:
 	@ restore SPSR and restart the instruction
 	@
 	ldr	r5, [sp, #S_PSR]
+#ifdef CONFIG_TRACE_IRQFLAGS
+	tst	r5, #PSR_I_BIT
+	bleq	trace_hardirqs_on
+	tst	r5, #PSR_I_BIT
+	blne	trace_hardirqs_off
+#endif
 	svc_exit r5				@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__dabt_svc)
@@ -307,16 +308,11 @@ ENDPROC(__und_svc)
 __pabt_svc:
 	svc_entry
 
-	@
-	@ re-enable interrupts if appropriate
-	@
-	mrs	r9, cpsr
-	tst	r5, #PSR_I_BIT
-	biceq	r9, r9, #PSR_I_BIT
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	trace_hardirqs_off
+#endif
 
 	pabt_helper
-	debug_entry r1
-	msr	cpsr_c, r9			@ Maybe enable interrupts
 	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
 
@@ -329,6 +325,12 @@ __pabt_svc:
 	@ restore SPSR and restart the instruction
 	@
 	ldr	r5, [sp, #S_PSR]
+#ifdef CONFIG_TRACE_IRQFLAGS
+	tst	r5, #PSR_I_BIT
+	bleq	trace_hardirqs_on
+	tst	r5, #PSR_I_BIT
+	blne	trace_hardirqs_off
+#endif
 	svc_exit r5				@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__pabt_svc)
@@ -412,11 +414,6 @@ __dabt_usr:
 	kuser_cmpxchg_check
 	dabt_helper
 
-	@
-	@ IRQs on, then call the main handler
-	@
-	debug_entry r1
-	enable_irq
 	mov	r2, sp
 	adr	lr, BSYM(ret_from_exception)
 	b	do_DataAbort
@@ -663,8 +660,6 @@ ENDPROC(__und_usr_unknown)
 __pabt_usr:
 	usr_entry
 	pabt_helper
-	debug_entry r1
-	enable_irq				@ Enable interrupts
 	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
  UNWIND(.fnend		)

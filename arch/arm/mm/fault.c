@@ -285,6 +285,10 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	tsk = current;
 	mm  = tsk->mm;
 
+	/* Enable interrupts if they were enabled in the parent context. */
+	if (interrupts_enabled(regs))
+		local_irq_enable();
+
 	/*
 	 * If we're in an interrupt or have no user
 	 * context, we must not take the fault..
