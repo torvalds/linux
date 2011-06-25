@@ -132,7 +132,9 @@ enum bfa_status {
 	BFA_STATUS_EPROTOCOL	= 6,	/*  Protocol error */
 	BFA_STATUS_SFP_UNSUPP	= 10,	/*  Unsupported SFP - Replace SFP */
 	BFA_STATUS_UNKNOWN_VFID = 11,	/*  VF_ID not found */
+	BFA_STATUS_DATACORRUPTED = 12,  /*  Diag returned data corrupted */
 	BFA_STATUS_DEVBUSY	= 13,	/*  Device busy - Retry operation */
+	BFA_STATUS_HDMA_FAILED  = 16,   /* Host dma failed contact support */
 	BFA_STATUS_FLASH_BAD_LEN = 17,	/*  Flash bad length */
 	BFA_STATUS_UNKNOWN_LWWN = 18,	/*  LPORT PWWN not found */
 	BFA_STATUS_UNKNOWN_RWWN = 19,	/*  RPORT PWWN not found */
@@ -140,19 +142,25 @@ enum bfa_status {
 	BFA_STATUS_VPORT_MAX	= 22,	/*  Reached max VPORT supported limit */
 	BFA_STATUS_UNSUPP_SPEED	= 23,	/*  Invalid Speed Check speed setting */
 	BFA_STATUS_INVLD_DFSZ	= 24,	/*  Invalid Max data field size */
+	BFA_STATUS_CMD_NOTSUPP  = 26,   /*  Command/API not supported */
 	BFA_STATUS_FABRIC_RJT	= 29,	/*  Reject from attached fabric */
 	BFA_STATUS_PORT_OFFLINE = 34,	/*  Port is not online */
 	BFA_STATUS_VPORT_WWN_BP	= 46,	/*  WWN is same as base port's WWN */
+	BFA_STATUS_PORT_NOT_DISABLED = 47, /* Port not disabled disable port */
 	BFA_STATUS_NO_FCPIM_NEXUS = 52,	/* No FCP Nexus exists with the rport */
 	BFA_STATUS_IOC_FAILURE	= 56,	/* IOC failure - Retry, if persists
 					 * contact support */
 	BFA_STATUS_INVALID_WWN	= 57,	/*  Invalid WWN */
+	BFA_STATUS_ADAPTER_ENABLED = 60, /* Adapter is not disabled */
 	BFA_STATUS_IOC_NON_OP   = 61,	/* IOC is not operational */
 	BFA_STATUS_VERSION_FAIL = 70, /* Application/Driver version mismatch */
 	BFA_STATUS_DIAG_BUSY	= 71,	/*  diag busy */
+	BFA_STATUS_BEACON_ON    = 72,   /* Port Beacon already on */
 	BFA_STATUS_ENOFSAVE	= 78,	/*  No saved firmware trace */
 	BFA_STATUS_IOC_DISABLED = 82,   /* IOC is already disabled */
 	BFA_STATUS_NO_SFP_DEV = 89,	/* No SFP device check or replace SFP */
+	BFA_STATUS_MEMTEST_FAILED = 90, /* Memory test failed contact support */
+	BFA_STATUS_LEDTEST_OP = 109, /* LED test is operating */
 	BFA_STATUS_INVALID_MAC  = 134, /*  Invalid MAC address */
 	BFA_STATUS_PBC		= 154, /*  Operation not allowed for pre-boot
 					*  configuration */
@@ -879,6 +887,56 @@ struct bfa_flash_attr_s {
 	u32	status; /* flash overall status */
 	u32	npart;  /* num of partitions */
 	struct bfa_flash_part_attr_s part[BFA_FLASH_PART_MAX];
+};
+
+/*
+ *	DIAG module specific
+ */
+#define LB_PATTERN_DEFAULT	0xB5B5B5B5
+#define QTEST_CNT_DEFAULT	10
+#define QTEST_PAT_DEFAULT	LB_PATTERN_DEFAULT
+
+struct bfa_diag_memtest_s {
+	u8	algo;
+	u8	rsvd[7];
+};
+
+struct bfa_diag_memtest_result {
+	u32	status;
+	u32	addr;
+	u32	exp; /* expect value read from reg */
+	u32	act; /* actually value read */
+	u32	err_status;             /* error status reg */
+	u32	err_status1;    /* extra error info reg */
+	u32	err_addr; /* error address reg */
+	u8	algo;
+	u8	rsv[3];
+};
+
+struct bfa_diag_loopback_result_s {
+	u32	numtxmfrm;      /* no. of transmit frame */
+	u32	numosffrm;      /* no. of outstanding frame */
+	u32	numrcvfrm;      /* no. of received good frame */
+	u32	badfrminf;      /* mis-match info */
+	u32	badfrmnum;      /* mis-match fram number */
+	u8	status;         /* loopback test result */
+	u8	rsvd[3];
+};
+
+struct bfa_diag_ledtest_s {
+	u32	cmd;    /* bfa_led_op_t */
+	u32	color;  /* bfa_led_color_t */
+	u16	freq;   /* no. of blinks every 10 secs */
+	u8	led;    /* bitmap of LEDs to be tested */
+	u8	rsvd[5];
+};
+
+struct bfa_diag_loopback_s {
+	u32	loopcnt;
+	u32	pattern;
+	u8	lb_mode;    /* bfa_port_opmode_t */
+	u8	speed;      /* bfa_port_speed_t */
+	u8	rsvd[2];
 };
 
 #pragma pack()

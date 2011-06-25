@@ -21,6 +21,7 @@
 #include "bfa_modules.h"
 
 BFA_TRC_FILE(HAL, FCXP);
+BFA_MODULE(fcdiag);
 BFA_MODULE(fcxp);
 BFA_MODULE(sgpg);
 BFA_MODULE(lps);
@@ -3872,6 +3873,22 @@ bfa_fcport_get_ratelim_speed(struct bfa_s *bfa)
 
 }
 
+void
+bfa_fcport_beacon(void *dev, bfa_boolean_t beacon,
+		  bfa_boolean_t link_e2e_beacon)
+{
+	struct bfa_s *bfa = dev;
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+
+	bfa_trc(bfa, beacon);
+	bfa_trc(bfa, link_e2e_beacon);
+	bfa_trc(bfa, fcport->beacon);
+	bfa_trc(bfa, fcport->link_e2e_beacon);
+
+	fcport->beacon = beacon;
+	fcport->link_e2e_beacon = link_e2e_beacon;
+}
+
 bfa_boolean_t
 bfa_fcport_is_linkup(struct bfa_s *bfa)
 {
@@ -5223,4 +5240,404 @@ bfa_uf_res_recfg(struct bfa_s *bfa, u16 num_uf_fw)
 		bfa_q_deq_tail(&mod->uf_free_q, &qe);
 		list_add_tail(qe, &mod->uf_unused_q);
 	}
+}
+
+/*
+ *	BFA fcdiag module
+ */
+#define BFA_DIAG_QTEST_TOV	1000    /* msec */
+
+/*
+ *	Set port status to busy
+ */
+static void
+bfa_fcdiag_set_busy_status(struct bfa_fcdiag_s *fcdiag)
+{
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(fcdiag->bfa);
+
+	if (fcdiag->lb.lock)
+		fcport->diag_busy = BFA_TRUE;
+	else
+		fcport->diag_busy = BFA_FALSE;
+}
+
+static void
+bfa_fcdiag_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
+		struct bfa_s *bfa)
+{
+}
+
+static void
+bfa_fcdiag_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
+		struct bfa_pcidev_s *pcidev)
+{
+	struct bfa_fcdiag_s *fcdiag = BFA_FCDIAG_MOD(bfa);
+	fcdiag->bfa             = bfa;
+	fcdiag->trcmod  = bfa->trcmod;
+	/* The common DIAG attach bfa_diag_attach() will do all memory claim */
+}
+
+static void
+bfa_fcdiag_iocdisable(struct bfa_s *bfa)
+{
+	struct bfa_fcdiag_s *fcdiag = BFA_FCDIAG_MOD(bfa);
+	bfa_trc(fcdiag, fcdiag->lb.lock);
+	if (fcdiag->lb.lock) {
+		fcdiag->lb.status = BFA_STATUS_IOC_FAILURE;
+		fcdiag->lb.cbfn(fcdiag->lb.cbarg, fcdiag->lb.status);
+		fcdiag->lb.lock = 0;
+		bfa_fcdiag_set_busy_status(fcdiag);
+	}
+}
+
+static void
+bfa_fcdiag_detach(struct bfa_s *bfa)
+{
+}
+
+static void
+bfa_fcdiag_start(struct bfa_s *bfa)
+{
+}
+
+static void
+bfa_fcdiag_stop(struct bfa_s *bfa)
+{
+}
+
+static void
+bfa_fcdiag_queuetest_timeout(void *cbarg)
+{
+	struct bfa_fcdiag_s       *fcdiag = cbarg;
+	struct bfa_diag_qtest_result_s *res = fcdiag->qtest.result;
+
+	bfa_trc(fcdiag, fcdiag->qtest.all);
+	bfa_trc(fcdiag, fcdiag->qtest.count);
+
+	fcdiag->qtest.timer_active = 0;
+
+	res->status = BFA_STATUS_ETIMER;
+	res->count  = QTEST_CNT_DEFAULT - fcdiag->qtest.count;
+	if (fcdiag->qtest.all)
+		res->queue  = fcdiag->qtest.all;
+
+	bfa_trc(fcdiag, BFA_STATUS_ETIMER);
+	fcdiag->qtest.status = BFA_STATUS_ETIMER;
+	fcdiag->qtest.cbfn(fcdiag->qtest.cbarg, fcdiag->qtest.status);
+	fcdiag->qtest.lock = 0;
+}
+
+static bfa_status_t
+bfa_fcdiag_queuetest_send(struct bfa_fcdiag_s *fcdiag)
+{
+	u32	i;
+	struct bfi_diag_qtest_req_s *req;
+
+	req = bfa_reqq_next(fcdiag->bfa, fcdiag->qtest.queue);
+	if (!req)
+		return BFA_STATUS_DEVBUSY;
+
+	/* build host command */
+	bfi_h2i_set(req->mh, BFI_MC_DIAG, BFI_DIAG_H2I_QTEST,
+		bfa_fn_lpu(fcdiag->bfa));
+
+	for (i = 0; i < BFI_LMSG_PL_WSZ; i++)
+		req->data[i] = QTEST_PAT_DEFAULT;
+
+	bfa_trc(fcdiag, fcdiag->qtest.queue);
+	/* ring door bell */
+	bfa_reqq_produce(fcdiag->bfa, fcdiag->qtest.queue, req->mh);
+	return BFA_STATUS_OK;
+}
+
+static void
+bfa_fcdiag_queuetest_comp(struct bfa_fcdiag_s *fcdiag,
+			bfi_diag_qtest_rsp_t *rsp)
+{
+	struct bfa_diag_qtest_result_s *res = fcdiag->qtest.result;
+	bfa_status_t status = BFA_STATUS_OK;
+	int i;
+
+	/* Check timer, should still be active   */
+	if (!fcdiag->qtest.timer_active) {
+		bfa_trc(fcdiag, fcdiag->qtest.timer_active);
+		return;
+	}
+
+	/* update count */
+	fcdiag->qtest.count--;
+
+	/* Check result */
+	for (i = 0; i < BFI_LMSG_PL_WSZ; i++) {
+		if (rsp->data[i] != ~(QTEST_PAT_DEFAULT)) {
+			res->status = BFA_STATUS_DATACORRUPTED;
+			break;
+		}
+	}
+
+	if (res->status == BFA_STATUS_OK) {
+		if (fcdiag->qtest.count > 0) {
+			status = bfa_fcdiag_queuetest_send(fcdiag);
+			if (status == BFA_STATUS_OK)
+				return;
+			else
+				res->status = status;
+		} else if (fcdiag->qtest.all > 0 &&
+			fcdiag->qtest.queue < (BFI_IOC_MAX_CQS - 1)) {
+			fcdiag->qtest.count = QTEST_CNT_DEFAULT;
+			fcdiag->qtest.queue++;
+			status = bfa_fcdiag_queuetest_send(fcdiag);
+			if (status == BFA_STATUS_OK)
+				return;
+			else
+				res->status = status;
+		}
+	}
+
+	/* Stop timer when we comp all queue */
+	if (fcdiag->qtest.timer_active) {
+		bfa_timer_stop(&fcdiag->qtest.timer);
+		fcdiag->qtest.timer_active = 0;
+	}
+	res->queue = fcdiag->qtest.queue;
+	res->count = QTEST_CNT_DEFAULT - fcdiag->qtest.count;
+	bfa_trc(fcdiag, res->count);
+	bfa_trc(fcdiag, res->status);
+	fcdiag->qtest.status = res->status;
+	fcdiag->qtest.cbfn(fcdiag->qtest.cbarg, fcdiag->qtest.status);
+	fcdiag->qtest.lock = 0;
+}
+
+static void
+bfa_fcdiag_loopback_comp(struct bfa_fcdiag_s *fcdiag,
+			struct bfi_diag_lb_rsp_s *rsp)
+{
+	struct bfa_diag_loopback_result_s *res = fcdiag->lb.result;
+
+	res->numtxmfrm  = be32_to_cpu(rsp->res.numtxmfrm);
+	res->numosffrm  = be32_to_cpu(rsp->res.numosffrm);
+	res->numrcvfrm  = be32_to_cpu(rsp->res.numrcvfrm);
+	res->badfrminf  = be32_to_cpu(rsp->res.badfrminf);
+	res->badfrmnum  = be32_to_cpu(rsp->res.badfrmnum);
+	res->status     = rsp->res.status;
+	fcdiag->lb.status = rsp->res.status;
+	bfa_trc(fcdiag, fcdiag->lb.status);
+	fcdiag->lb.cbfn(fcdiag->lb.cbarg, fcdiag->lb.status);
+	fcdiag->lb.lock = 0;
+	bfa_fcdiag_set_busy_status(fcdiag);
+}
+
+static bfa_status_t
+bfa_fcdiag_loopback_send(struct bfa_fcdiag_s *fcdiag,
+			struct bfa_diag_loopback_s *loopback)
+{
+	struct bfi_diag_lb_req_s *lb_req;
+
+	lb_req = bfa_reqq_next(fcdiag->bfa, BFA_REQQ_DIAG);
+	if (!lb_req)
+		return BFA_STATUS_DEVBUSY;
+
+	/* build host command */
+	bfi_h2i_set(lb_req->mh, BFI_MC_DIAG, BFI_DIAG_H2I_LOOPBACK,
+		bfa_fn_lpu(fcdiag->bfa));
+
+	lb_req->lb_mode = loopback->lb_mode;
+	lb_req->speed = loopback->speed;
+	lb_req->loopcnt = loopback->loopcnt;
+	lb_req->pattern = loopback->pattern;
+
+	/* ring door bell */
+	bfa_reqq_produce(fcdiag->bfa, BFA_REQQ_DIAG, lb_req->mh);
+
+	bfa_trc(fcdiag, loopback->lb_mode);
+	bfa_trc(fcdiag, loopback->speed);
+	bfa_trc(fcdiag, loopback->loopcnt);
+	bfa_trc(fcdiag, loopback->pattern);
+	return BFA_STATUS_OK;
+}
+
+/*
+ *	cpe/rme intr handler
+ */
+void
+bfa_fcdiag_intr(struct bfa_s *bfa, struct bfi_msg_s *msg)
+{
+	struct bfa_fcdiag_s *fcdiag = BFA_FCDIAG_MOD(bfa);
+
+	switch (msg->mhdr.msg_id) {
+	case BFI_DIAG_I2H_LOOPBACK:
+		bfa_fcdiag_loopback_comp(fcdiag,
+				(struct bfi_diag_lb_rsp_s *) msg);
+		break;
+	case BFI_DIAG_I2H_QTEST:
+		bfa_fcdiag_queuetest_comp(fcdiag, (bfi_diag_qtest_rsp_t *)msg);
+		break;
+	default:
+		bfa_trc(fcdiag, msg->mhdr.msg_id);
+		WARN_ON(1);
+	}
+}
+
+/*
+ *	Loopback test
+ *
+ *   @param[in] *bfa            - bfa data struct
+ *   @param[in] opmode          - port operation mode
+ *   @param[in] speed           - port speed
+ *   @param[in] lpcnt           - loop count
+ *   @param[in] pat                     - pattern to build packet
+ *   @param[in] *result         - pt to bfa_diag_loopback_result_t data struct
+ *   @param[in] cbfn            - callback function
+ *   @param[in] cbarg           - callback functioin arg
+ *
+ *   @param[out]
+ */
+bfa_status_t
+bfa_fcdiag_loopback(struct bfa_s *bfa, enum bfa_port_opmode opmode,
+		enum bfa_port_speed speed, u32 lpcnt, u32 pat,
+		struct bfa_diag_loopback_result_s *result, bfa_cb_diag_t cbfn,
+		void *cbarg)
+{
+	struct  bfa_diag_loopback_s loopback;
+	struct bfa_port_attr_s attr;
+	bfa_status_t status;
+	struct bfa_fcdiag_s *fcdiag = BFA_FCDIAG_MOD(bfa);
+
+	if (!bfa_iocfc_is_operational(bfa))
+		return BFA_STATUS_IOC_NON_OP;
+
+	/* if port is PBC disabled, return error */
+	if (bfa_fcport_is_pbcdisabled(bfa)) {
+		bfa_trc(fcdiag, BFA_STATUS_PBC);
+		return BFA_STATUS_PBC;
+	}
+
+	if (bfa_fcport_is_disabled(bfa) == BFA_FALSE) {
+		bfa_trc(fcdiag, opmode);
+		return BFA_STATUS_PORT_NOT_DISABLED;
+	}
+
+	/* Check if the speed is supported */
+	bfa_fcport_get_attr(bfa, &attr);
+	bfa_trc(fcdiag, attr.speed_supported);
+	if (speed > attr.speed_supported)
+		return BFA_STATUS_UNSUPP_SPEED;
+
+	/* For Mezz card, port speed entered needs to be checked */
+	if (bfa_mfg_is_mezz(bfa->ioc.attr->card_type)) {
+		if (bfa_ioc_get_type(&bfa->ioc) == BFA_IOC_TYPE_FC) {
+			if ((speed == BFA_PORT_SPEED_1GBPS) &&
+			    (bfa_asic_id_ct2(bfa->ioc.pcidev.device_id)))
+				return BFA_STATUS_UNSUPP_SPEED;
+			if (!(speed == BFA_PORT_SPEED_1GBPS ||
+			      speed == BFA_PORT_SPEED_2GBPS ||
+			      speed == BFA_PORT_SPEED_4GBPS ||
+			      speed == BFA_PORT_SPEED_8GBPS ||
+			      speed == BFA_PORT_SPEED_16GBPS ||
+			      speed == BFA_PORT_SPEED_AUTO))
+				return BFA_STATUS_UNSUPP_SPEED;
+		} else {
+			if (speed != BFA_PORT_SPEED_10GBPS)
+				return BFA_STATUS_UNSUPP_SPEED;
+		}
+	}
+
+	/* check to see if there is another destructive diag cmd running */
+	if (fcdiag->lb.lock) {
+		bfa_trc(fcdiag, fcdiag->lb.lock);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	fcdiag->lb.lock = 1;
+	loopback.lb_mode = opmode;
+	loopback.speed = speed;
+	loopback.loopcnt = lpcnt;
+	loopback.pattern = pat;
+	fcdiag->lb.result = result;
+	fcdiag->lb.cbfn = cbfn;
+	fcdiag->lb.cbarg = cbarg;
+	memset(result, 0, sizeof(struct bfa_diag_loopback_result_s));
+	bfa_fcdiag_set_busy_status(fcdiag);
+
+	/* Send msg to fw */
+	status = bfa_fcdiag_loopback_send(fcdiag, &loopback);
+	return status;
+}
+
+/*
+ *	DIAG queue test command
+ *
+ *   @param[in] *bfa            - bfa data struct
+ *   @param[in] force           - 1: don't do ioc op checking
+ *   @param[in] queue           - queue no. to test
+ *   @param[in] *result         - pt to bfa_diag_qtest_result_t data struct
+ *   @param[in] cbfn            - callback function
+ *   @param[in] *cbarg          - callback functioin arg
+ *
+ *   @param[out]
+ */
+bfa_status_t
+bfa_fcdiag_queuetest(struct bfa_s *bfa, u32 force, u32 queue,
+		struct bfa_diag_qtest_result_s *result, bfa_cb_diag_t cbfn,
+		void *cbarg)
+{
+	struct bfa_fcdiag_s *fcdiag = BFA_FCDIAG_MOD(bfa);
+	bfa_status_t status;
+	bfa_trc(fcdiag, force);
+	bfa_trc(fcdiag, queue);
+
+	if (!force && !bfa_iocfc_is_operational(bfa))
+		return BFA_STATUS_IOC_NON_OP;
+
+	/* check to see if there is another destructive diag cmd running */
+	if (fcdiag->qtest.lock) {
+		bfa_trc(fcdiag, fcdiag->qtest.lock);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	/* Initialization */
+	fcdiag->qtest.lock = 1;
+	fcdiag->qtest.cbfn = cbfn;
+	fcdiag->qtest.cbarg = cbarg;
+	fcdiag->qtest.result = result;
+	fcdiag->qtest.count = QTEST_CNT_DEFAULT;
+
+	/* Init test results */
+	fcdiag->qtest.result->status = BFA_STATUS_OK;
+	fcdiag->qtest.result->count  = 0;
+
+	/* send */
+	if (queue < BFI_IOC_MAX_CQS) {
+		fcdiag->qtest.result->queue  = (u8)queue;
+		fcdiag->qtest.queue = (u8)queue;
+		fcdiag->qtest.all   = 0;
+	} else {
+		fcdiag->qtest.result->queue  = 0;
+		fcdiag->qtest.queue = 0;
+		fcdiag->qtest.all   = 1;
+	}
+	status = bfa_fcdiag_queuetest_send(fcdiag);
+
+	/* Start a timer */
+	if (status == BFA_STATUS_OK) {
+		bfa_timer_start(bfa, &fcdiag->qtest.timer,
+				bfa_fcdiag_queuetest_timeout, fcdiag,
+				BFA_DIAG_QTEST_TOV);
+		fcdiag->qtest.timer_active = 1;
+	}
+	return status;
+}
+
+/*
+ * DIAG PLB is running
+ *
+ *   @param[in] *bfa    - bfa data struct
+ *
+ *   @param[out]
+ */
+bfa_status_t
+bfa_fcdiag_lb_is_running(struct bfa_s *bfa)
+{
+	struct bfa_fcdiag_s *fcdiag = BFA_FCDIAG_MOD(bfa);
+	return fcdiag->lb.lock ?  BFA_STATUS_DIAG_BUSY : BFA_STATUS_OK;
 }

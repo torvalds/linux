@@ -190,6 +190,7 @@ enum bfi_pcifn_class {
  */
 enum bfi_mclass {
 	BFI_MC_IOC		= 1,	/*  IO Controller (IOC)	    */
+	BFI_MC_DIAG		= 2,    /*  Diagnostic Msgs            */
 	BFI_MC_FLASH		= 3,	/*  Flash message class	*/
 	BFI_MC_CEE		= 4,	/*  CEE	*/
 	BFI_MC_FCPORT		= 5,	/*  FC port			    */
@@ -339,7 +340,7 @@ struct bfi_ioc_image_hdr_s {
 	 ((u32)(__p1_mode)))
 
 #define BFI_FWBOOT_TYPE_NORMAL	0
-#define BFI_FWBOOT_TYPE_MEMTEST	1
+#define BFI_FWBOOT_TYPE_MEMTEST	2
 #define BFI_FWBOOT_ENV_OS       0
 
 enum bfi_port_mode {
@@ -922,6 +923,112 @@ struct bfi_flash_erase_rsp_s {
 	u8	rsv[3];
 	u32	status;
 };
+
+/*
+ *----------------------------------------------------------------------
+ *				DIAG
+ *----------------------------------------------------------------------
+ */
+enum bfi_diag_h2i {
+	BFI_DIAG_H2I_PORTBEACON = 1,
+	BFI_DIAG_H2I_LOOPBACK = 2,
+	BFI_DIAG_H2I_FWPING = 3,
+	BFI_DIAG_H2I_TEMPSENSOR = 4,
+	BFI_DIAG_H2I_LEDTEST = 5,
+	BFI_DIAG_H2I_QTEST      = 6,
+};
+
+enum bfi_diag_i2h {
+	BFI_DIAG_I2H_PORTBEACON = BFA_I2HM(BFI_DIAG_H2I_PORTBEACON),
+	BFI_DIAG_I2H_LOOPBACK = BFA_I2HM(BFI_DIAG_H2I_LOOPBACK),
+	BFI_DIAG_I2H_FWPING = BFA_I2HM(BFI_DIAG_H2I_FWPING),
+	BFI_DIAG_I2H_TEMPSENSOR = BFA_I2HM(BFI_DIAG_H2I_TEMPSENSOR),
+	BFI_DIAG_I2H_LEDTEST = BFA_I2HM(BFI_DIAG_H2I_LEDTEST),
+	BFI_DIAG_I2H_QTEST      = BFA_I2HM(BFI_DIAG_H2I_QTEST),
+};
+
+#define BFI_DIAG_MAX_SGES	2
+#define BFI_DIAG_DMA_BUF_SZ	(2 * 1024)
+#define BFI_BOOT_MEMTEST_RES_ADDR 0x900
+#define BFI_BOOT_MEMTEST_RES_SIG  0xA0A1A2A3
+
+struct bfi_diag_lb_req_s {
+	struct bfi_mhdr_s mh;
+	u32	loopcnt;
+	u32	pattern;
+	u8	lb_mode;        /*!< bfa_port_opmode_t */
+	u8	speed;          /*!< bfa_port_speed_t */
+	u8	rsvd[2];
+};
+
+struct bfi_diag_lb_rsp_s {
+	struct bfi_mhdr_s  mh;          /* 4 bytes */
+	struct bfa_diag_loopback_result_s res; /* 16 bytes */
+};
+
+struct bfi_diag_fwping_req_s {
+	struct bfi_mhdr_s mh;	/* 4 bytes */
+	struct bfi_alen_s alen; /* 12 bytes */
+	u32	data;           /* user input data pattern */
+	u32	count;          /* user input dma count */
+	u8	qtag;           /* track CPE vc */
+	u8	rsv[3];
+};
+
+struct bfi_diag_fwping_rsp_s {
+	struct bfi_mhdr_s  mh;          /* 4 bytes */
+	u32	data;           /* user input data pattern    */
+	u8	qtag;           /* track CPE vc               */
+	u8	dma_status;     /* dma status                 */
+	u8	rsv[2];
+};
+
+/*
+ * Temperature Sensor
+ */
+struct bfi_diag_ts_req_s {
+	struct bfi_mhdr_s mh;	/* 4 bytes */
+	u16	temp;           /* 10-bit A/D value */
+	u16	brd_temp;       /* 9-bit board temp */
+	u8	status;
+	u8	ts_junc;        /* show junction tempsensor   */
+	u8	ts_brd;         /* show board tempsensor      */
+	u8	rsv;
+};
+#define bfi_diag_ts_rsp_t struct bfi_diag_ts_req_s
+
+struct bfi_diag_ledtest_req_s {
+	struct bfi_mhdr_s  mh;  /* 4 bytes */
+	u8	cmd;
+	u8	color;
+	u8	portid;
+	u8	led;    /* bitmap of LEDs to be tested */
+	u16	freq;   /* no. of blinks every 10 secs */
+	u8	rsv[2];
+};
+
+/* notify host led operation is done */
+struct bfi_diag_ledtest_rsp_s {
+	struct bfi_mhdr_s  mh;  /* 4 bytes */
+};
+
+struct bfi_diag_portbeacon_req_s {
+	struct bfi_mhdr_s  mh;  /* 4 bytes */
+	u32	period; /* beaconing period */
+	u8	beacon; /* 1: beacon on */
+	u8	rsvd[3];
+};
+
+/* notify host the beacon is off */
+struct bfi_diag_portbeacon_rsp_s {
+	struct bfi_mhdr_s  mh;  /* 4 bytes */
+};
+
+struct bfi_diag_qtest_req_s {
+	struct bfi_mhdr_s	mh;             /* 4 bytes */
+	u32	data[BFI_LMSG_PL_WSZ]; /* fill up tcm prefetch area */
+};
+#define bfi_diag_qtest_rsp_t struct bfi_diag_qtest_req_s
 
 #pragma pack()
 

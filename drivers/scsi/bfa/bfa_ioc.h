@@ -491,6 +491,147 @@ void bfa_flash_attach(struct bfa_flash_s *flash, struct bfa_ioc_s *ioc,
 void bfa_flash_memclaim(struct bfa_flash_s *flash,
 		u8 *dm_kva, u64 dm_pa, bfa_boolean_t mincfg);
 
+/*
+ *	DIAG module specific
+ */
+
+typedef void (*bfa_cb_diag_t) (void *cbarg, bfa_status_t status);
+typedef void (*bfa_cb_diag_beacon_t) (void *dev, bfa_boolean_t beacon,
+			bfa_boolean_t link_e2e_beacon);
+
+/*
+ *      Firmware ping test results
+ */
+struct bfa_diag_results_fwping {
+	u32     data;   /* store the corrupted data */
+	u32     status;
+	u32     dmastatus;
+	u8      rsvd[4];
+};
+
+struct bfa_diag_qtest_result_s {
+	u32	status;
+	u16	count;	/* sucessful queue test count */
+	u8	queue;
+	u8	rsvd;	/* 64-bit align */
+};
+
+/*
+ * Firmware ping test results
+ */
+struct bfa_diag_fwping_s {
+	struct bfa_diag_results_fwping *result;
+	bfa_cb_diag_t  cbfn;
+	void            *cbarg;
+	u32             data;
+	u8              lock;
+	u8              rsv[3];
+	u32             status;
+	u32             count;
+	struct bfa_mbox_cmd_s   mbcmd;
+	u8              *dbuf_kva;      /* dma buf virtual address */
+	u64             dbuf_pa;        /* dma buf physical address */
+};
+
+/*
+ *      Temperature sensor query results
+ */
+struct bfa_diag_results_tempsensor_s {
+	u32     status;
+	u16     temp;           /* 10-bit A/D value */
+	u16     brd_temp;       /* 9-bit board temp */
+	u8      ts_junc;        /* show junction tempsensor   */
+	u8      ts_brd;         /* show board tempsensor      */
+	u8      rsvd[6];        /* keep 8 bytes alignment     */
+};
+
+struct bfa_diag_tsensor_s {
+	bfa_cb_diag_t   cbfn;
+	void            *cbarg;
+	struct bfa_diag_results_tempsensor_s *temp;
+	u8              lock;
+	u8              rsv[3];
+	u32             status;
+	struct bfa_mbox_cmd_s   mbcmd;
+};
+
+struct bfa_diag_sfpshow_s {
+	struct sfp_mem_s        *sfpmem;
+	bfa_cb_diag_t           cbfn;
+	void                    *cbarg;
+	u8      lock;
+	u8      static_data;
+	u8      rsv[2];
+	u32     status;
+	struct bfa_mbox_cmd_s    mbcmd;
+	u8      *dbuf_kva;      /* dma buf virtual address */
+	u64     dbuf_pa;        /* dma buf physical address */
+};
+
+struct bfa_diag_led_s {
+	struct bfa_mbox_cmd_s   mbcmd;
+	bfa_boolean_t   lock;   /* 1: ledtest is operating */
+};
+
+struct bfa_diag_beacon_s {
+	struct bfa_mbox_cmd_s   mbcmd;
+	bfa_boolean_t   state;          /* port beacon state */
+	bfa_boolean_t   link_e2e;       /* link beacon state */
+};
+
+struct bfa_diag_s {
+	void	*dev;
+	struct bfa_ioc_s		*ioc;
+	struct bfa_trc_mod_s		*trcmod;
+	struct bfa_diag_fwping_s	fwping;
+	struct bfa_diag_tsensor_s	tsensor;
+	struct bfa_diag_sfpshow_s	sfpshow;
+	struct bfa_diag_led_s		ledtest;
+	struct bfa_diag_beacon_s	beacon;
+	void	*result;
+	struct bfa_timer_s timer;
+	bfa_cb_diag_beacon_t  cbfn_beacon;
+	bfa_cb_diag_t  cbfn;
+	void		*cbarg;
+	u8		block;
+	u8		timer_active;
+	u8		rsvd[2];
+	u32		status;
+	struct bfa_ioc_notify_s	ioc_notify;
+	struct bfa_mem_dma_s	diag_dma;
+};
+
+#define BFA_DIAG_MOD(__bfa)     (&(__bfa)->modules.diag_mod)
+#define BFA_MEM_DIAG_DMA(__bfa) (&(BFA_DIAG_MOD(__bfa)->diag_dma))
+
+u32	bfa_diag_meminfo(void);
+void bfa_diag_memclaim(struct bfa_diag_s *diag, u8 *dm_kva, u64 dm_pa);
+void bfa_diag_attach(struct bfa_diag_s *diag, struct bfa_ioc_s *ioc, void *dev,
+		     bfa_cb_diag_beacon_t cbfn_beacon,
+		     struct bfa_trc_mod_s *trcmod);
+bfa_status_t	bfa_diag_reg_read(struct bfa_diag_s *diag, u32 offset,
+			u32 len, u32 *buf, u32 force);
+bfa_status_t	bfa_diag_reg_write(struct bfa_diag_s *diag, u32 offset,
+			u32 len, u32 value, u32 force);
+bfa_status_t	bfa_diag_tsensor_query(struct bfa_diag_s *diag,
+			struct bfa_diag_results_tempsensor_s *result,
+			bfa_cb_diag_t cbfn, void *cbarg);
+bfa_status_t	bfa_diag_fwping(struct bfa_diag_s *diag, u32 cnt,
+			u32 pattern, struct bfa_diag_results_fwping *result,
+			bfa_cb_diag_t cbfn, void *cbarg);
+bfa_status_t	bfa_diag_sfpshow(struct bfa_diag_s *diag,
+			struct sfp_mem_s *sfpmem, u8 static_data,
+			bfa_cb_diag_t cbfn, void *cbarg);
+bfa_status_t	bfa_diag_memtest(struct bfa_diag_s *diag,
+			struct bfa_diag_memtest_s *memtest, u32 pattern,
+			struct bfa_diag_memtest_result *result,
+			bfa_cb_diag_t cbfn, void *cbarg);
+bfa_status_t	bfa_diag_ledtest(struct bfa_diag_s *diag,
+			struct bfa_diag_ledtest_s *ledtest);
+bfa_status_t	bfa_diag_beacon_port(struct bfa_diag_s *diag,
+			bfa_boolean_t beacon, bfa_boolean_t link_e2e_beacon,
+			u32 sec);
+
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
 #define bfa_ioc_devid(__ioc)		((__ioc)->pcidev.device_id)
 #define bfa_ioc_bar0(__ioc)		((__ioc)->pcidev.pci_bar_kva)

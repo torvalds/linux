@@ -25,6 +25,7 @@ BFA_TRC_FILE(HAL, CORE);
  * BFA module list terminated by NULL
  */
 static struct bfa_module_s *hal_mods[] = {
+	&hal_mod_fcdiag,
 	&hal_mod_sgpg,
 	&hal_mod_fcport,
 	&hal_mod_fcxp,
@@ -41,7 +42,7 @@ static struct bfa_module_s *hal_mods[] = {
 static bfa_isr_func_t  bfa_isrs[BFI_MC_MAX] = {
 	bfa_isr_unhandled,	/* NONE */
 	bfa_isr_unhandled,	/* BFI_MC_IOC */
-	bfa_isr_unhandled,	/* BFI_MC_DIAG */
+	bfa_fcdiag_intr,	/* BFI_MC_DIAG */
 	bfa_isr_unhandled,	/* BFI_MC_FLASH */
 	bfa_isr_unhandled,	/* BFI_MC_CEE */
 	bfa_fcport_isr,		/* BFI_MC_FCPORT */
@@ -141,6 +142,16 @@ bfa_com_flash_attach(struct bfa_s *bfa, bfa_boolean_t mincfg)
 	bfa_flash_attach(flash, &bfa->ioc, bfa, bfa->trcmod, mincfg);
 	bfa_flash_memclaim(flash, flash_dma->kva_curp,
 			   flash_dma->dma_curp, mincfg);
+}
+
+static void
+bfa_com_diag_attach(struct bfa_s *bfa)
+{
+	struct bfa_diag_s	*diag = BFA_DIAG_MOD(bfa);
+	struct bfa_mem_dma_s	*diag_dma = BFA_MEM_DIAG_DMA(bfa);
+
+	bfa_diag_attach(diag, &bfa->ioc, bfa, bfa_fcport_beacon, bfa->trcmod);
+	bfa_diag_memclaim(diag, diag_dma->kva_curp, diag_dma->dma_curp);
 }
 
 /*
@@ -1383,6 +1394,7 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 	struct bfa_mem_dma_s *cee_dma = BFA_MEM_CEE_DMA(bfa);
 	struct bfa_mem_dma_s *sfp_dma = BFA_MEM_SFP_DMA(bfa);
 	struct bfa_mem_dma_s *flash_dma = BFA_MEM_FLASH_DMA(bfa);
+	struct bfa_mem_dma_s *diag_dma = BFA_MEM_DIAG_DMA(bfa);
 
 	WARN_ON((cfg == NULL) || (meminfo == NULL));
 
@@ -1404,6 +1416,7 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 	bfa_mem_dma_setup(meminfo, sfp_dma, bfa_sfp_meminfo());
 	bfa_mem_dma_setup(meminfo, flash_dma,
 			  bfa_flash_meminfo(cfg->drvcfg.min_cfg));
+	bfa_mem_dma_setup(meminfo, diag_dma, bfa_diag_meminfo());
 }
 
 /*
@@ -1474,6 +1487,7 @@ bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	bfa_com_cee_attach(bfa);
 	bfa_com_sfp_attach(bfa);
 	bfa_com_flash_attach(bfa, cfg->drvcfg.min_cfg);
+	bfa_com_diag_attach(bfa);
 }
 
 /*

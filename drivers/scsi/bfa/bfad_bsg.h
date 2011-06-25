@@ -71,6 +71,15 @@ enum {
 	IOCMD_FLASH_ERASE_PART,
 	IOCMD_FLASH_UPDATE_PART,
 	IOCMD_FLASH_READ_PART,
+	IOCMD_DIAG_TEMP,
+	IOCMD_DIAG_MEMTEST,
+	IOCMD_DIAG_LOOPBACK,
+	IOCMD_DIAG_FWPING,
+	IOCMD_DIAG_QUEUETEST,
+	IOCMD_DIAG_SFP,
+	IOCMD_DIAG_LED,
+	IOCMD_DIAG_BEACON_LPORT,
+	IOCMD_DIAG_LB_STAT,
 };
 
 struct bfa_bsg_gen_s {
@@ -355,6 +364,80 @@ struct bfa_bsg_flash_s {
 	enum  bfa_flash_part_type type;
 	int		bufsz;
 	u64		buf_ptr;
+};
+
+struct bfa_bsg_diag_get_temp_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_diag_results_tempsensor_s result;
+};
+
+struct bfa_bsg_diag_memtest_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd[3];
+	u32		pat;
+	struct bfa_diag_memtest_result result;
+	struct bfa_diag_memtest_s memtest;
+};
+
+struct bfa_bsg_diag_loopback_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	enum bfa_port_opmode opmode;
+	enum bfa_port_speed speed;
+	u32		lpcnt;
+	u32		pat;
+	struct bfa_diag_loopback_result_s result;
+};
+
+struct bfa_bsg_diag_fwping_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u32		cnt;
+	u32		pattern;
+	struct bfa_diag_results_fwping result;
+};
+
+struct bfa_bsg_diag_qtest_s {
+	bfa_status_t	status;
+	u16	bfad_num;
+	u16	rsvd;
+	u32	force;
+	u32	queue;
+	struct bfa_diag_qtest_result_s result;
+};
+
+struct bfa_bsg_sfp_show_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct sfp_mem_s sfp;
+};
+
+struct bfa_bsg_diag_led_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_diag_ledtest_s ledtest;
+};
+
+struct bfa_bsg_diag_beacon_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	bfa_boolean_t   beacon;
+	bfa_boolean_t   link_e2e_beacon;
+	u32		second;
+};
+
+struct bfa_bsg_diag_lb_stat_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
 };
 
 struct bfa_bsg_fcpt_s {

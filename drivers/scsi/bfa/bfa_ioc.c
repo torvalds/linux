@@ -4315,3 +4315,583 @@ bfa_flash_read_part(struct bfa_flash_s *flash, enum bfa_flash_part_type type,
 
 	return BFA_STATUS_OK;
 }
+
+/*
+ *	DIAG module specific
+ */
+
+#define BFA_DIAG_MEMTEST_TOV	50000	/* memtest timeout in msec */
+#define BFA_DIAG_FWPING_TOV	1000	/* msec */
+
+/* IOC event handler */
+static void
+bfa_diag_notify(void *diag_arg, enum bfa_ioc_event_e event)
+{
+	struct bfa_diag_s *diag = diag_arg;
+
+	bfa_trc(diag, event);
+	bfa_trc(diag, diag->block);
+	bfa_trc(diag, diag->fwping.lock);
+	bfa_trc(diag, diag->tsensor.lock);
+
+	switch (event) {
+	case BFA_IOC_E_DISABLED:
+	case BFA_IOC_E_FAILED:
+		if (diag->fwping.lock) {
+			diag->fwping.status = BFA_STATUS_IOC_FAILURE;
+			diag->fwping.cbfn(diag->fwping.cbarg,
+					diag->fwping.status);
+			diag->fwping.lock = 0;
+		}
+
+		if (diag->tsensor.lock) {
+			diag->tsensor.status = BFA_STATUS_IOC_FAILURE;
+			diag->tsensor.cbfn(diag->tsensor.cbarg,
+					   diag->tsensor.status);
+			diag->tsensor.lock = 0;
+		}
+
+		if (diag->block) {
+			if (diag->timer_active) {
+				bfa_timer_stop(&diag->timer);
+				diag->timer_active = 0;
+			}
+
+			diag->status = BFA_STATUS_IOC_FAILURE;
+			diag->cbfn(diag->cbarg, diag->status);
+			diag->block = 0;
+		}
+		break;
+
+	default:
+		break;
+	}
+}
+
+static void
+bfa_diag_memtest_done(void *cbarg)
+{
+	struct bfa_diag_s *diag = cbarg;
+	struct bfa_ioc_s  *ioc = diag->ioc;
+	struct bfa_diag_memtest_result *res = diag->result;
+	u32	loff = BFI_BOOT_MEMTEST_RES_ADDR;
+	u32	pgnum, pgoff, i;
+
+	pgnum = PSS_SMEM_PGNUM(ioc->ioc_regs.smem_pg0, loff);
+	pgoff = PSS_SMEM_PGOFF(loff);
+
+	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
+
+	for (i = 0; i < (sizeof(struct bfa_diag_memtest_result) /
+			 sizeof(u32)); i++) {
+		/* read test result from smem */
+		*((u32 *) res + i) =
+			bfa_mem_read(ioc->ioc_regs.smem_page_start, loff);
+		loff += sizeof(u32);
+	}
+
+	/* Reset IOC fwstates to BFI_IOC_UNINIT */
+	bfa_ioc_reset_fwstate(ioc);
+
+	res->status = swab32(res->status);
+	bfa_trc(diag, res->status);
+
+	if (res->status == BFI_BOOT_MEMTEST_RES_SIG)
+		diag->status = BFA_STATUS_OK;
+	else {
+		diag->status = BFA_STATUS_MEMTEST_FAILED;
+		res->addr = swab32(res->addr);
+		res->exp = swab32(res->exp);
+		res->act = swab32(res->act);
+		res->err_status = swab32(res->err_status);
+		res->err_status1 = swab32(res->err_status1);
+		res->err_addr = swab32(res->err_addr);
+		bfa_trc(diag, res->addr);
+		bfa_trc(diag, res->exp);
+		bfa_trc(diag, res->act);
+		bfa_trc(diag, res->err_status);
+		bfa_trc(diag, res->err_status1);
+		bfa_trc(diag, res->err_addr);
+	}
+	diag->timer_active = 0;
+	diag->cbfn(diag->cbarg, diag->status);
+	diag->block = 0;
+}
+
+/*
+ * Firmware ping
+ */
+
+/*
+ * Perform DMA test directly
+ */
+static void
+diag_fwping_send(struct bfa_diag_s *diag)
+{
+	struct bfi_diag_fwping_req_s *fwping_req;
+	u32	i;
+
+	bfa_trc(diag, diag->fwping.dbuf_pa);
+
+	/* fill DMA area with pattern */
+	for (i = 0; i < (BFI_DIAG_DMA_BUF_SZ >> 2); i++)
+		*((u32 *)diag->fwping.dbuf_kva + i) = diag->fwping.data;
+
+	/* Fill mbox msg */
+	fwping_req = (struct bfi_diag_fwping_req_s *)diag->fwping.mbcmd.msg;
+
+	/* Setup SG list */
+	bfa_alen_set(&fwping_req->alen, BFI_DIAG_DMA_BUF_SZ,
+			diag->fwping.dbuf_pa);
+	/* Set up dma count */
+	fwping_req->count = cpu_to_be32(diag->fwping.count);
+	/* Set up data pattern */
+	fwping_req->data = diag->fwping.data;
+
+	/* build host command */
+	bfi_h2i_set(fwping_req->mh, BFI_MC_DIAG, BFI_DIAG_H2I_FWPING,
+		bfa_ioc_portid(diag->ioc));
+
+	/* send mbox cmd */
+	bfa_ioc_mbox_queue(diag->ioc, &diag->fwping.mbcmd);
+}
+
+static void
+diag_fwping_comp(struct bfa_diag_s *diag,
+		 struct bfi_diag_fwping_rsp_s *diag_rsp)
+{
+	u32	rsp_data = diag_rsp->data;
+	u8	rsp_dma_status = diag_rsp->dma_status;
+
+	bfa_trc(diag, rsp_data);
+	bfa_trc(diag, rsp_dma_status);
+
+	if (rsp_dma_status == BFA_STATUS_OK) {
+		u32	i, pat;
+		pat = (diag->fwping.count & 0x1) ? ~(diag->fwping.data) :
+			diag->fwping.data;
+		/* Check mbox data */
+		if (diag->fwping.data != rsp_data) {
+			bfa_trc(diag, rsp_data);
+			diag->fwping.result->dmastatus =
+					BFA_STATUS_DATACORRUPTED;
+			diag->fwping.status = BFA_STATUS_DATACORRUPTED;
+			diag->fwping.cbfn(diag->fwping.cbarg,
+					diag->fwping.status);
+			diag->fwping.lock = 0;
+			return;
+		}
+		/* Check dma pattern */
+		for (i = 0; i < (BFI_DIAG_DMA_BUF_SZ >> 2); i++) {
+			if (*((u32 *)diag->fwping.dbuf_kva + i) != pat) {
+				bfa_trc(diag, i);
+				bfa_trc(diag, pat);
+				bfa_trc(diag,
+					*((u32 *)diag->fwping.dbuf_kva + i));
+				diag->fwping.result->dmastatus =
+						BFA_STATUS_DATACORRUPTED;
+				diag->fwping.status = BFA_STATUS_DATACORRUPTED;
+				diag->fwping.cbfn(diag->fwping.cbarg,
+						diag->fwping.status);
+				diag->fwping.lock = 0;
+				return;
+			}
+		}
+		diag->fwping.result->dmastatus = BFA_STATUS_OK;
+		diag->fwping.status = BFA_STATUS_OK;
+		diag->fwping.cbfn(diag->fwping.cbarg, diag->fwping.status);
+		diag->fwping.lock = 0;
+	} else {
+		diag->fwping.status = BFA_STATUS_HDMA_FAILED;
+		diag->fwping.cbfn(diag->fwping.cbarg, diag->fwping.status);
+		diag->fwping.lock = 0;
+	}
+}
+
+/*
+ * Temperature Sensor
+ */
+
+static void
+diag_tempsensor_send(struct bfa_diag_s *diag)
+{
+	struct bfi_diag_ts_req_s *msg;
+
+	msg = (struct bfi_diag_ts_req_s *)diag->tsensor.mbcmd.msg;
+	bfa_trc(diag, msg->temp);
+	/* build host command */
+	bfi_h2i_set(msg->mh, BFI_MC_DIAG, BFI_DIAG_H2I_TEMPSENSOR,
+		bfa_ioc_portid(diag->ioc));
+	/* send mbox cmd */
+	bfa_ioc_mbox_queue(diag->ioc, &diag->tsensor.mbcmd);
+}
+
+static void
+diag_tempsensor_comp(struct bfa_diag_s *diag, bfi_diag_ts_rsp_t *rsp)
+{
+	if (!diag->tsensor.lock) {
+		/* receiving response after ioc failure */
+		bfa_trc(diag, diag->tsensor.lock);
+		return;
+	}
+
+	/*
+	 * ASIC junction tempsensor is a reg read operation
+	 * it will always return OK
+	 */
+	diag->tsensor.temp->temp = be16_to_cpu(rsp->temp);
+	diag->tsensor.temp->ts_junc = rsp->ts_junc;
+	diag->tsensor.temp->ts_brd = rsp->ts_brd;
+	diag->tsensor.temp->status = BFA_STATUS_OK;
+
+	if (rsp->ts_brd) {
+		if (rsp->status == BFA_STATUS_OK) {
+			diag->tsensor.temp->brd_temp =
+				be16_to_cpu(rsp->brd_temp);
+		} else {
+			bfa_trc(diag, rsp->status);
+			diag->tsensor.temp->brd_temp = 0;
+			diag->tsensor.temp->status = BFA_STATUS_DEVBUSY;
+		}
+	}
+	bfa_trc(diag, rsp->ts_junc);
+	bfa_trc(diag, rsp->temp);
+	bfa_trc(diag, rsp->ts_brd);
+	bfa_trc(diag, rsp->brd_temp);
+	diag->tsensor.cbfn(diag->tsensor.cbarg, diag->tsensor.status);
+	diag->tsensor.lock = 0;
+}
+
+/*
+ *	LED Test command
+ */
+static void
+diag_ledtest_send(struct bfa_diag_s *diag, struct bfa_diag_ledtest_s *ledtest)
+{
+	struct bfi_diag_ledtest_req_s  *msg;
+
+	msg = (struct bfi_diag_ledtest_req_s *)diag->ledtest.mbcmd.msg;
+	/* build host command */
+	bfi_h2i_set(msg->mh, BFI_MC_DIAG, BFI_DIAG_H2I_LEDTEST,
+			bfa_ioc_portid(diag->ioc));
+
+	/*
+	 * convert the freq from N blinks per 10 sec to
+	 * crossbow ontime value. We do it here because division is need
+	 */
+	if (ledtest->freq)
+		ledtest->freq = 500 / ledtest->freq;
+
+	if (ledtest->freq == 0)
+		ledtest->freq = 1;
+
+	bfa_trc(diag, ledtest->freq);
+	/* mcpy(&ledtest_req->req, ledtest, sizeof(bfa_diag_ledtest_t)); */
+	msg->cmd = (u8) ledtest->cmd;
+	msg->color = (u8) ledtest->color;
+	msg->portid = bfa_ioc_portid(diag->ioc);
+	msg->led = ledtest->led;
+	msg->freq = cpu_to_be16(ledtest->freq);
+
+	/* send mbox cmd */
+	bfa_ioc_mbox_queue(diag->ioc, &diag->ledtest.mbcmd);
+}
+
+static void
+diag_ledtest_comp(struct bfa_diag_s *diag, struct bfi_diag_ledtest_rsp_s * msg)
+{
+	bfa_trc(diag, diag->ledtest.lock);
+	diag->ledtest.lock = BFA_FALSE;
+	/* no bfa_cb_queue is needed because driver is not waiting */
+}
+
+/*
+ * Port beaconing
+ */
+static void
+diag_portbeacon_send(struct bfa_diag_s *diag, bfa_boolean_t beacon, u32 sec)
+{
+	struct bfi_diag_portbeacon_req_s *msg;
+
+	msg = (struct bfi_diag_portbeacon_req_s *)diag->beacon.mbcmd.msg;
+	/* build host command */
+	bfi_h2i_set(msg->mh, BFI_MC_DIAG, BFI_DIAG_H2I_PORTBEACON,
+		bfa_ioc_portid(diag->ioc));
+	msg->beacon = beacon;
+	msg->period = cpu_to_be32(sec);
+	/* send mbox cmd */
+	bfa_ioc_mbox_queue(diag->ioc, &diag->beacon.mbcmd);
+}
+
+static void
+diag_portbeacon_comp(struct bfa_diag_s *diag)
+{
+	bfa_trc(diag, diag->beacon.state);
+	diag->beacon.state = BFA_FALSE;
+	if (diag->cbfn_beacon)
+		diag->cbfn_beacon(diag->dev, BFA_FALSE, diag->beacon.link_e2e);
+}
+
+/*
+ *	Diag hmbox handler
+ */
+void
+bfa_diag_intr(void *diagarg, struct bfi_mbmsg_s *msg)
+{
+	struct bfa_diag_s *diag = diagarg;
+
+	switch (msg->mh.msg_id) {
+	case BFI_DIAG_I2H_PORTBEACON:
+		diag_portbeacon_comp(diag);
+		break;
+	case BFI_DIAG_I2H_FWPING:
+		diag_fwping_comp(diag, (struct bfi_diag_fwping_rsp_s *) msg);
+		break;
+	case BFI_DIAG_I2H_TEMPSENSOR:
+		diag_tempsensor_comp(diag, (bfi_diag_ts_rsp_t *) msg);
+		break;
+	case BFI_DIAG_I2H_LEDTEST:
+		diag_ledtest_comp(diag, (struct bfi_diag_ledtest_rsp_s *) msg);
+		break;
+	default:
+		bfa_trc(diag, msg->mh.msg_id);
+		WARN_ON(1);
+	}
+}
+
+/*
+ * Gen RAM Test
+ *
+ *   @param[in] *diag           - diag data struct
+ *   @param[in] *memtest        - mem test params input from upper layer,
+ *   @param[in] pattern         - mem test pattern
+ *   @param[in] *result         - mem test result
+ *   @param[in] cbfn            - mem test callback functioin
+ *   @param[in] cbarg           - callback functioin arg
+ *
+ *   @param[out]
+ */
+bfa_status_t
+bfa_diag_memtest(struct bfa_diag_s *diag, struct bfa_diag_memtest_s *memtest,
+		u32 pattern, struct bfa_diag_memtest_result *result,
+		bfa_cb_diag_t cbfn, void *cbarg)
+{
+	bfa_trc(diag, pattern);
+
+	if (!bfa_ioc_adapter_is_disabled(diag->ioc))
+		return BFA_STATUS_ADAPTER_ENABLED;
+
+	/* check to see if there is another destructive diag cmd running */
+	if (diag->block) {
+		bfa_trc(diag, diag->block);
+		return BFA_STATUS_DEVBUSY;
+	} else
+		diag->block = 1;
+
+	diag->result = result;
+	diag->cbfn = cbfn;
+	diag->cbarg = cbarg;
+
+	/* download memtest code and take LPU0 out of reset */
+	bfa_ioc_boot(diag->ioc, BFI_FWBOOT_TYPE_MEMTEST, BFI_FWBOOT_ENV_OS);
+
+	bfa_timer_begin(diag->ioc->timer_mod, &diag->timer,
+			bfa_diag_memtest_done, diag, BFA_DIAG_MEMTEST_TOV);
+	diag->timer_active = 1;
+	return BFA_STATUS_OK;
+}
+
+/*
+ * DIAG firmware ping command
+ *
+ *   @param[in] *diag           - diag data struct
+ *   @param[in] cnt             - dma loop count for testing PCIE
+ *   @param[in] data            - data pattern to pass in fw
+ *   @param[in] *result         - pt to bfa_diag_fwping_result_t data struct
+ *   @param[in] cbfn            - callback function
+ *   @param[in] *cbarg          - callback functioin arg
+ *
+ *   @param[out]
+ */
+bfa_status_t
+bfa_diag_fwping(struct bfa_diag_s *diag, u32 cnt, u32 data,
+		struct bfa_diag_results_fwping *result, bfa_cb_diag_t cbfn,
+		void *cbarg)
+{
+	bfa_trc(diag, cnt);
+	bfa_trc(diag, data);
+
+	if (!bfa_ioc_is_operational(diag->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	if (bfa_asic_id_ct2(bfa_ioc_devid((diag->ioc))) &&
+	    ((diag->ioc)->clscode == BFI_PCIFN_CLASS_ETH))
+		return BFA_STATUS_CMD_NOTSUPP;
+
+	/* check to see if there is another destructive diag cmd running */
+	if (diag->block || diag->fwping.lock) {
+		bfa_trc(diag, diag->block);
+		bfa_trc(diag, diag->fwping.lock);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	/* Initialization */
+	diag->fwping.lock = 1;
+	diag->fwping.cbfn = cbfn;
+	diag->fwping.cbarg = cbarg;
+	diag->fwping.result = result;
+	diag->fwping.data = data;
+	diag->fwping.count = cnt;
+
+	/* Init test results */
+	diag->fwping.result->data = 0;
+	diag->fwping.result->status = BFA_STATUS_OK;
+
+	/* kick off the first ping */
+	diag_fwping_send(diag);
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Read Temperature Sensor
+ *
+ *   @param[in] *diag           - diag data struct
+ *   @param[in] *result         - pt to bfa_diag_temp_t data struct
+ *   @param[in] cbfn            - callback function
+ *   @param[in] *cbarg          - callback functioin arg
+ *
+ *   @param[out]
+ */
+bfa_status_t
+bfa_diag_tsensor_query(struct bfa_diag_s *diag,
+		struct bfa_diag_results_tempsensor_s *result,
+		bfa_cb_diag_t cbfn, void *cbarg)
+{
+	/* check to see if there is a destructive diag cmd running */
+	if (diag->block || diag->tsensor.lock) {
+		bfa_trc(diag, diag->block);
+		bfa_trc(diag, diag->tsensor.lock);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	if (!bfa_ioc_is_operational(diag->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	/* Init diag mod params */
+	diag->tsensor.lock = 1;
+	diag->tsensor.temp = result;
+	diag->tsensor.cbfn = cbfn;
+	diag->tsensor.cbarg = cbarg;
+
+	/* Send msg to fw */
+	diag_tempsensor_send(diag);
+
+	return BFA_STATUS_OK;
+}
+
+/*
+ * LED Test command
+ *
+ *   @param[in] *diag           - diag data struct
+ *   @param[in] *ledtest        - pt to ledtest data structure
+ *
+ *   @param[out]
+ */
+bfa_status_t
+bfa_diag_ledtest(struct bfa_diag_s *diag, struct bfa_diag_ledtest_s *ledtest)
+{
+	bfa_trc(diag, ledtest->cmd);
+
+	if (!bfa_ioc_is_operational(diag->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	if (diag->beacon.state)
+		return BFA_STATUS_BEACON_ON;
+
+	if (diag->ledtest.lock)
+		return BFA_STATUS_LEDTEST_OP;
+
+	/* Send msg to fw */
+	diag->ledtest.lock = BFA_TRUE;
+	diag_ledtest_send(diag, ledtest);
+
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Port beaconing command
+ *
+ *   @param[in] *diag           - diag data struct
+ *   @param[in] beacon          - port beaconing 1:ON   0:OFF
+ *   @param[in] link_e2e_beacon - link beaconing 1:ON   0:OFF
+ *   @param[in] sec             - beaconing duration in seconds
+ *
+ *   @param[out]
+ */
+bfa_status_t
+bfa_diag_beacon_port(struct bfa_diag_s *diag, bfa_boolean_t beacon,
+		bfa_boolean_t link_e2e_beacon, uint32_t sec)
+{
+	bfa_trc(diag, beacon);
+	bfa_trc(diag, link_e2e_beacon);
+	bfa_trc(diag, sec);
+
+	if (!bfa_ioc_is_operational(diag->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	if (diag->ledtest.lock)
+		return BFA_STATUS_LEDTEST_OP;
+
+	if (diag->beacon.state && beacon)       /* beacon alread on */
+		return BFA_STATUS_BEACON_ON;
+
+	diag->beacon.state	= beacon;
+	diag->beacon.link_e2e	= link_e2e_beacon;
+	if (diag->cbfn_beacon)
+		diag->cbfn_beacon(diag->dev, beacon, link_e2e_beacon);
+
+	/* Send msg to fw */
+	diag_portbeacon_send(diag, beacon, sec);
+
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Return DMA memory needed by diag module.
+ */
+u32
+bfa_diag_meminfo(void)
+{
+	return BFA_ROUNDUP(BFI_DIAG_DMA_BUF_SZ, BFA_DMA_ALIGN_SZ);
+}
+
+/*
+ *	Attach virtual and physical memory for Diag.
+ */
+void
+bfa_diag_attach(struct bfa_diag_s *diag, struct bfa_ioc_s *ioc, void *dev,
+	bfa_cb_diag_beacon_t cbfn_beacon, struct bfa_trc_mod_s *trcmod)
+{
+	diag->dev = dev;
+	diag->ioc = ioc;
+	diag->trcmod = trcmod;
+
+	diag->block = 0;
+	diag->cbfn = NULL;
+	diag->cbarg = NULL;
+	diag->result = NULL;
+	diag->cbfn_beacon = cbfn_beacon;
+
+	bfa_ioc_mbox_regisr(diag->ioc, BFI_MC_DIAG, bfa_diag_intr, diag);
+	bfa_q_qe_init(&diag->ioc_notify);
+	bfa_ioc_notify_init(&diag->ioc_notify, bfa_diag_notify, diag);
+	list_add_tail(&diag->ioc_notify.qe, &diag->ioc->notify_q);
+}
+
+void
+bfa_diag_memclaim(struct bfa_diag_s *diag, u8 *dm_kva, u64 dm_pa)
+{
+	diag->fwping.dbuf_kva = dm_kva;
+	diag->fwping.dbuf_pa = dm_pa;
+	memset(diag->fwping.dbuf_kva, 0, BFI_DIAG_DMA_BUF_SZ);
+}

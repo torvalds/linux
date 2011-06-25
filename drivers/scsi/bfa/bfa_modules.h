@@ -29,6 +29,7 @@
 #include "bfa_port.h"
 
 struct bfa_modules_s {
+	struct bfa_fcdiag_s	fcdiag;		/* fcdiag module */
 	struct bfa_fcport_s	fcport;		/*  fc port module	      */
 	struct bfa_fcxp_mod_s	fcxp_mod;	/*  fcxp module	      */
 	struct bfa_lps_mod_s	lps_mod;	/*  fcxp module	      */
@@ -41,6 +42,7 @@ struct bfa_modules_s {
 	struct bfa_cee_s	cee;		/*  CEE Module	*/
 	struct bfa_sfp_s	sfp;		/*  SFP module	*/
 	struct bfa_flash_s	flash;		/*  flash module */
+	struct bfa_diag_s	diag_mod;	/*  diagnostics module	*/
 };
 
 /*
@@ -119,6 +121,7 @@ struct bfa_s {
 };
 
 extern bfa_boolean_t bfa_auto_recover;
+extern struct bfa_module_s hal_mod_fcdiag;
 extern struct bfa_module_s hal_mod_sgpg;
 extern struct bfa_module_s hal_mod_fcport;
 extern struct bfa_module_s hal_mod_fcxp;

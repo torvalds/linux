@@ -1214,6 +1214,185 @@ out:
 	return 0;
 }
 
+int
+bfad_iocmd_diag_temp(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_diag_get_temp_s *iocmd =
+			(struct bfa_bsg_diag_get_temp_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long	flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_diag_tsensor_query(BFA_DIAG_MOD(&bfad->bfa),
+				&iocmd->result, bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	bfa_trc(bfad, iocmd->status);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_diag_memtest(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_diag_memtest_s *iocmd =
+			(struct bfa_bsg_diag_memtest_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long   flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_diag_memtest(BFA_DIAG_MOD(&bfad->bfa),
+				&iocmd->memtest, iocmd->pat,
+				&iocmd->result, bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	bfa_trc(bfad, iocmd->status);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_diag_loopback(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_diag_loopback_s *iocmd =
+			(struct bfa_bsg_diag_loopback_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long   flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_fcdiag_loopback(&bfad->bfa, iocmd->opmode,
+				iocmd->speed, iocmd->lpcnt, iocmd->pat,
+				&iocmd->result, bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	bfa_trc(bfad, iocmd->status);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_diag_fwping(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_diag_fwping_s *iocmd =
+			(struct bfa_bsg_diag_fwping_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long   flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_diag_fwping(BFA_DIAG_MOD(&bfad->bfa), iocmd->cnt,
+				iocmd->pattern, &iocmd->result,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	bfa_trc(bfad, iocmd->status);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+	bfa_trc(bfad, 0x77771);
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_diag_queuetest(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_diag_qtest_s *iocmd = (struct bfa_bsg_diag_qtest_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long   flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_fcdiag_queuetest(&bfad->bfa, iocmd->force,
+				iocmd->queue, &iocmd->result,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_diag_sfp(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_sfp_show_s *iocmd =
+			(struct bfa_bsg_sfp_show_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long   flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_sfp_show(BFA_SFP_MOD(&bfad->bfa), &iocmd->sfp,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	bfa_trc(bfad, iocmd->status);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+	bfa_trc(bfad, iocmd->status);
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_diag_led(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_diag_led_s *iocmd = (struct bfa_bsg_diag_led_s *)cmd;
+	unsigned long   flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_diag_ledtest(BFA_DIAG_MOD(&bfad->bfa),
+				&iocmd->ledtest);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	return 0;
+}
+
+int
+bfad_iocmd_diag_beacon_lport(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_diag_beacon_s *iocmd =
+			(struct bfa_bsg_diag_beacon_s *)cmd;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_diag_beacon_port(BFA_DIAG_MOD(&bfad->bfa),
+				iocmd->beacon, iocmd->link_e2e_beacon,
+				iocmd->second);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	return 0;
+}
+
+int
+bfad_iocmd_diag_lb_stat(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_diag_lb_stat_s *iocmd =
+			(struct bfa_bsg_diag_lb_stat_s *)cmd;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_fcdiag_lb_is_running(&bfad->bfa);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	bfa_trc(bfad, iocmd->status);
+
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -1359,6 +1538,33 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_FLASH_READ_PART:
 		rc = bfad_iocmd_flash_read_part(bfad, iocmd, payload_len);
+		break;
+	case IOCMD_DIAG_TEMP:
+		rc = bfad_iocmd_diag_temp(bfad, iocmd);
+		break;
+	case IOCMD_DIAG_MEMTEST:
+		rc = bfad_iocmd_diag_memtest(bfad, iocmd);
+		break;
+	case IOCMD_DIAG_LOOPBACK:
+		rc = bfad_iocmd_diag_loopback(bfad, iocmd);
+		break;
+	case IOCMD_DIAG_FWPING:
+		rc = bfad_iocmd_diag_fwping(bfad, iocmd);
+		break;
+	case IOCMD_DIAG_QUEUETEST:
+		rc = bfad_iocmd_diag_queuetest(bfad, iocmd);
+		break;
+	case IOCMD_DIAG_SFP:
+		rc = bfad_iocmd_diag_sfp(bfad, iocmd);
+		break;
+	case IOCMD_DIAG_LED:
+		rc = bfad_iocmd_diag_led(bfad, iocmd);
+		break;
+	case IOCMD_DIAG_BEACON_LPORT:
+		rc = bfad_iocmd_diag_beacon_lport(bfad, iocmd);
+		break;
+	case IOCMD_DIAG_LB_STAT:
+		rc = bfad_iocmd_diag_lb_stat(bfad, iocmd);
 		break;
 	default:
 		rc = EINVAL;
