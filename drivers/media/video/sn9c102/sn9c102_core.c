@@ -33,6 +33,7 @@
 #include <linux/stat.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/version.h>
 #include <linux/page-flags.h>
 #include <asm/byteorder.h>
 #include <asm/page.h>
@@ -47,8 +48,7 @@
 #define SN9C102_MODULE_AUTHOR   "(C) 2004-2007 Luca Risolia"
 #define SN9C102_AUTHOR_EMAIL    "<luca.risolia@studio.unibo.it>"
 #define SN9C102_MODULE_LICENSE  "GPL"
-#define SN9C102_MODULE_VERSION  "1:1.47pre49"
-#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 1, 47)
+#define SN9C102_MODULE_VERSION  "1:1.48"
 
 /*****************************************************************************/
 
@@ -2158,7 +2158,7 @@ sn9c102_vidioc_querycap(struct sn9c102_device* cam, void __user * arg)
 {
 	struct v4l2_capability cap = {
 		.driver = "sn9c102",
-		.version = SN9C102_MODULE_VERSION_CODE,
+		.version = LINUX_VERSION_CODE,
 		.capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 				V4L2_CAP_STREAMING,
 	};
