@@ -421,6 +421,11 @@ ENDPROC(__pabt_svc)
 	.align	5
 __dabt_usr:
 	usr_entry
+
+#ifdef CONFIG_IRQSOFF_TRACER
+	bl	trace_hardirqs_off
+#endif
+
 	kuser_cmpxchg_check
 	dabt_helper
 
@@ -433,12 +438,12 @@ ENDPROC(__dabt_usr)
 	.align	5
 __irq_usr:
 	usr_entry
-	kuser_cmpxchg_check
 
 #ifdef CONFIG_IRQSOFF_TRACER
 	bl	trace_hardirqs_off
 #endif
 
+	kuser_cmpxchg_check
 	irq_handler
 	get_thread_info tsk
 	mov	why, #0
@@ -451,6 +456,11 @@ ENDPROC(__irq_usr)
 	.align	5
 __und_usr:
 	usr_entry
+
+#ifdef CONFIG_IRQSOFF_TRACER
+	bl	trace_hardirqs_off
+#endif
+
 	mov	r2, r4
 	mov	r3, r5
 
@@ -669,6 +679,11 @@ ENDPROC(__und_usr_unknown)
 	.align	5
 __pabt_usr:
 	usr_entry
+
+#ifdef CONFIG_IRQSOFF_TRACER
+	bl	trace_hardirqs_off
+#endif
+
 	pabt_helper
 	mov	r2, sp				@ regs
 	bl	do_PrefetchAbort		@ call abort handler
