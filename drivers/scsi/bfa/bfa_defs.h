@@ -130,6 +130,7 @@ enum bfa_status {
 	BFA_STATUS_ETIMER	= 5,	/*  Timer expired - Retry, if persists,
 					 *  contact support */
 	BFA_STATUS_EPROTOCOL	= 6,	/*  Protocol error */
+	BFA_STATUS_SFP_UNSUPP	= 10,	/*  Unsupported SFP - Replace SFP */
 	BFA_STATUS_UNKNOWN_VFID = 11,	/*  VF_ID not found */
 	BFA_STATUS_DEVBUSY	= 13,	/*  Device busy - Retry operation */
 	BFA_STATUS_UNKNOWN_LWWN = 18,	/*  LPORT PWWN not found */
@@ -150,9 +151,11 @@ enum bfa_status {
 	BFA_STATUS_DIAG_BUSY	= 71,	/*  diag busy */
 	BFA_STATUS_ENOFSAVE	= 78,	/*  No saved firmware trace */
 	BFA_STATUS_IOC_DISABLED = 82,   /* IOC is already disabled */
+	BFA_STATUS_NO_SFP_DEV = 89,	/* No SFP device check or replace SFP */
 	BFA_STATUS_INVALID_MAC  = 134, /*  Invalid MAC address */
 	BFA_STATUS_PBC		= 154, /*  Operation not allowed for pre-boot
 					*  configuration */
+	BFA_STATUS_SFP_NOT_READY = 159,	/* SFP info is not ready. Retry */
 	BFA_STATUS_TRUNK_ENABLED = 164, /* Trunk is already enabled on
 					 * this adapter */
 	BFA_STATUS_TRUNK_DISABLED  = 165, /* Trunking is disabled on
@@ -559,6 +562,269 @@ struct bfa_ablk_cfg_inst_s {
 struct bfa_ablk_cfg_s {
 	struct bfa_ablk_cfg_inst_s	inst[BFA_ABLK_MAX];
 };
+
+
+/*
+ *	SFP module specific
+ */
+#define SFP_DIAGMON_SIZE	10 /* num bytes of diag monitor data */
+
+enum bfa_defs_sfp_media_e {
+	BFA_SFP_MEDIA_UNKNOWN	= 0x00,
+	BFA_SFP_MEDIA_CU	= 0x01,
+	BFA_SFP_MEDIA_LW	= 0x02,
+	BFA_SFP_MEDIA_SW	= 0x03,
+	BFA_SFP_MEDIA_EL	= 0x04,
+	BFA_SFP_MEDIA_UNSUPPORT	= 0x05,
+};
+
+/*
+ * values for xmtr_tech above
+ */
+enum {
+	SFP_XMTR_TECH_CU = (1 << 0),	/* copper FC-BaseT */
+	SFP_XMTR_TECH_CP = (1 << 1),	/* copper passive */
+	SFP_XMTR_TECH_CA = (1 << 2),	/* copper active */
+	SFP_XMTR_TECH_LL = (1 << 3),	/* longwave laser */
+	SFP_XMTR_TECH_SL = (1 << 4),	/* shortwave laser w/ OFC */
+	SFP_XMTR_TECH_SN = (1 << 5),	/* shortwave laser w/o OFC */
+	SFP_XMTR_TECH_EL_INTRA = (1 << 6), /* elec intra-enclosure */
+	SFP_XMTR_TECH_EL_INTER = (1 << 7), /* elec inter-enclosure */
+	SFP_XMTR_TECH_LC = (1 << 8),	/* longwave laser */
+	SFP_XMTR_TECH_SA = (1 << 9)
+};
+
+/*
+ * Serial ID: Data Fields -- Address A0h
+ * Basic ID field total 64 bytes
+ */
+struct sfp_srlid_base_s {
+	u8	id;		/* 00: Identifier */
+	u8	extid;		/* 01: Extended Identifier */
+	u8	connector;	/* 02: Connector */
+	u8	xcvr[8];	/* 03-10: Transceiver */
+	u8	encoding;	/* 11: Encoding */
+	u8	br_norm;	/* 12: BR, Nominal */
+	u8	rate_id;	/* 13: Rate Identifier */
+	u8	len_km;		/* 14: Length single mode km */
+	u8	len_100m;	/* 15: Length single mode 100m */
+	u8	len_om2;	/* 16: Length om2 fiber 10m */
+	u8	len_om1;	/* 17: Length om1 fiber 10m */
+	u8	len_cu;		/* 18: Length copper 1m */
+	u8	len_om3;	/* 19: Length om3 fiber 10m */
+	u8	vendor_name[16];/* 20-35 */
+	u8	unalloc1;
+	u8	vendor_oui[3];	/* 37-39 */
+	u8	vendor_pn[16];	/* 40-55 */
+	u8	vendor_rev[4];	/* 56-59 */
+	u8	wavelen[2];	/* 60-61 */
+	u8	unalloc2;
+	u8	cc_base;	/* 63: check code for base id field */
+};
+
+/*
+ * Serial ID: Data Fields -- Address A0h
+ * Extended id field total 32 bytes
+ */
+struct sfp_srlid_ext_s {
+	u8	options[2];
+	u8	br_max;
+	u8	br_min;
+	u8	vendor_sn[16];
+	u8	date_code[8];
+	u8	diag_mon_type;  /* 92: Diagnostic Monitoring type */
+	u8	en_options;
+	u8	sff_8472;
+	u8	cc_ext;
+};
+
+/*
+ * Diagnostic: Data Fields -- Address A2h
+ * Diagnostic and control/status base field total 96 bytes
+ */
+struct sfp_diag_base_s {
+	/*
+	 * Alarm and warning Thresholds 40 bytes
+	 */
+	u8	temp_high_alarm[2]; /* 00-01 */
+	u8	temp_low_alarm[2];  /* 02-03 */
+	u8	temp_high_warning[2];   /* 04-05 */
+	u8	temp_low_warning[2];    /* 06-07 */
+
+	u8	volt_high_alarm[2]; /* 08-09 */
+	u8	volt_low_alarm[2];  /* 10-11 */
+	u8	volt_high_warning[2];   /* 12-13 */
+	u8	volt_low_warning[2];    /* 14-15 */
+
+	u8	bias_high_alarm[2]; /* 16-17 */
+	u8	bias_low_alarm[2];  /* 18-19 */
+	u8	bias_high_warning[2];   /* 20-21 */
+	u8	bias_low_warning[2];    /* 22-23 */
+
+	u8	tx_pwr_high_alarm[2];   /* 24-25 */
+	u8	tx_pwr_low_alarm[2];    /* 26-27 */
+	u8	tx_pwr_high_warning[2]; /* 28-29 */
+	u8	tx_pwr_low_warning[2];  /* 30-31 */
+
+	u8	rx_pwr_high_alarm[2];   /* 32-33 */
+	u8	rx_pwr_low_alarm[2];    /* 34-35 */
+	u8	rx_pwr_high_warning[2]; /* 36-37 */
+	u8	rx_pwr_low_warning[2];  /* 38-39 */
+
+	u8	unallocate_1[16];
+
+	/*
+	 * ext_cal_const[36]
+	 */
+	u8	rx_pwr[20];
+	u8	tx_i[4];
+	u8	tx_pwr[4];
+	u8	temp[4];
+	u8	volt[4];
+	u8	unallocate_2[3];
+	u8	cc_dmi;
+};
+
+/*
+ * Diagnostic: Data Fields -- Address A2h
+ * Diagnostic and control/status extended field total 24 bytes
+ */
+struct sfp_diag_ext_s {
+	u8	diag[SFP_DIAGMON_SIZE];
+	u8	unalloc1[4];
+	u8	status_ctl;
+	u8	rsvd;
+	u8	alarm_flags[2];
+	u8	unalloc2[2];
+	u8	warning_flags[2];
+	u8	ext_status_ctl[2];
+};
+
+struct sfp_mem_s {
+	struct sfp_srlid_base_s	srlid_base;
+	struct sfp_srlid_ext_s	srlid_ext;
+	struct sfp_diag_base_s	diag_base;
+	struct sfp_diag_ext_s	diag_ext;
+};
+
+/*
+ * transceiver codes (SFF-8472 Rev 10.2 Table 3.5)
+ */
+union sfp_xcvr_e10g_code_u {
+	u8		b;
+	struct {
+#ifdef __BIGENDIAN
+		u8	e10g_unall:1;   /* 10G Ethernet compliance */
+		u8	e10g_lrm:1;
+		u8	e10g_lr:1;
+		u8	e10g_sr:1;
+		u8	ib_sx:1;    /* Infiniband compliance */
+		u8	ib_lx:1;
+		u8	ib_cu_a:1;
+		u8	ib_cu_p:1;
+#else
+		u8	ib_cu_p:1;
+		u8	ib_cu_a:1;
+		u8	ib_lx:1;
+		u8	ib_sx:1;    /* Infiniband compliance */
+		u8	e10g_sr:1;
+		u8	e10g_lr:1;
+		u8	e10g_lrm:1;
+		u8	e10g_unall:1;   /* 10G Ethernet compliance */
+#endif
+	} r;
+};
+
+union sfp_xcvr_so1_code_u {
+	u8		b;
+	struct {
+		u8	escon:2;    /* ESCON compliance code */
+		u8	oc192_reach:1;  /* SONET compliance code */
+		u8	so_reach:2;
+		u8	oc48_reach:3;
+	} r;
+};
+
+union sfp_xcvr_so2_code_u {
+	u8		b;
+	struct {
+		u8	reserved:1;
+		u8	oc12_reach:3;   /* OC12 reach */
+		u8	reserved1:1;
+		u8	oc3_reach:3;    /* OC3 reach */
+	} r;
+};
+
+union sfp_xcvr_eth_code_u {
+	u8		b;
+	struct {
+		u8	base_px:1;
+		u8	base_bx10:1;
+		u8	e100base_fx:1;
+		u8	e100base_lx:1;
+		u8	e1000base_t:1;
+		u8	e1000base_cx:1;
+		u8	e1000base_lx:1;
+		u8	e1000base_sx:1;
+	} r;
+};
+
+struct sfp_xcvr_fc1_code_s {
+	u8	link_len:5; /* FC link length */
+	u8	xmtr_tech2:3;
+	u8	xmtr_tech1:7;   /* FC transmitter technology */
+	u8	reserved1:1;
+};
+
+union sfp_xcvr_fc2_code_u {
+	u8		b;
+	struct {
+		u8	tw_media:1; /* twin axial pair (tw) */
+		u8	tp_media:1; /* shielded twisted pair (sp) */
+		u8	mi_media:1; /* miniature coax (mi) */
+		u8	tv_media:1; /* video coax (tv) */
+		u8	m6_media:1; /* multimode, 62.5m (m6) */
+		u8	m5_media:1; /* multimode, 50m (m5) */
+		u8	reserved:1;
+		u8	sm_media:1; /* single mode (sm) */
+	} r;
+};
+
+union sfp_xcvr_fc3_code_u {
+	u8		b;
+	struct {
+#ifdef __BIGENDIAN
+		u8	rsv4:1;
+		u8	mb800:1;    /* 800 Mbytes/sec */
+		u8	mb1600:1;   /* 1600 Mbytes/sec */
+		u8	mb400:1;    /* 400 Mbytes/sec */
+		u8	rsv2:1;
+		u8	mb200:1;    /* 200 Mbytes/sec */
+		u8	rsv1:1;
+		u8	mb100:1;    /* 100 Mbytes/sec */
+#else
+		u8	mb100:1;    /* 100 Mbytes/sec */
+		u8	rsv1:1;
+		u8	mb200:1;    /* 200 Mbytes/sec */
+		u8	rsv2:1;
+		u8	mb400:1;    /* 400 Mbytes/sec */
+		u8	mb1600:1;   /* 1600 Mbytes/sec */
+		u8	mb800:1;    /* 800 Mbytes/sec */
+		u8	rsv4:1;
+#endif
+	} r;
+};
+
+struct sfp_xcvr_s {
+	union sfp_xcvr_e10g_code_u	e10g;
+	union sfp_xcvr_so1_code_u	so1;
+	union sfp_xcvr_so2_code_u	so2;
+	union sfp_xcvr_eth_code_u	eth;
+	struct sfp_xcvr_fc1_code_s	fc1;
+	union sfp_xcvr_fc2_code_u	fc2;
+	union sfp_xcvr_fc3_code_u	fc3;
+};
+
 #pragma pack()
 
 #endif /* __BFA_DEFS_H__ */

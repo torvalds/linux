@@ -65,6 +65,8 @@ enum {
 	IOCMD_CEE_GET_ATTR,
 	IOCMD_CEE_GET_STATS,
 	IOCMD_CEE_RESET_STATS,
+	IOCMD_SFP_MEDIA,
+	IOCMD_SFP_SPEED,
 };
 
 struct bfa_bsg_gen_s {
@@ -318,6 +320,20 @@ struct bfa_bsg_cee_stats_s {
 	u32		buf_size;
 	u32		rsvd1;
 	u64		buf_ptr;
+};
+
+struct bfa_bsg_sfp_media_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	enum bfa_defs_sfp_media_e media;
+};
+
+struct bfa_bsg_sfp_speed_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	enum bfa_port_speed speed;
 };
 
 struct bfa_bsg_fcpt_s {

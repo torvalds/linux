@@ -367,6 +367,58 @@ struct bfa_ablk_s {
 };
 #define BFA_MEM_ABLK_DMA(__bfa)		(&((__bfa)->modules.ablk.ablk_dma))
 
+/*
+ *	SFP module specific
+ */
+typedef void	(*bfa_cb_sfp_t) (void *cbarg, bfa_status_t status);
+
+struct bfa_sfp_s {
+	void	*dev;
+	struct bfa_ioc_s	*ioc;
+	struct bfa_trc_mod_s	*trcmod;
+	struct sfp_mem_s	*sfpmem;
+	bfa_cb_sfp_t		cbfn;
+	void			*cbarg;
+	enum bfi_sfp_mem_e	memtype; /* mem access type   */
+	u32			status;
+	struct bfa_mbox_cmd_s	mbcmd;
+	u8			*dbuf_kva; /* dma buf virtual address */
+	u64			dbuf_pa;   /* dma buf physical address */
+	struct bfa_ioc_notify_s	ioc_notify;
+	enum bfa_defs_sfp_media_e *media;
+	enum bfa_port_speed	portspeed;
+	bfa_cb_sfp_t		state_query_cbfn;
+	void			*state_query_cbarg;
+	u8			lock;
+	u8			data_valid; /* data in dbuf is valid */
+	u8			state;	    /* sfp state  */
+	u8			state_query_lock;
+	struct bfa_mem_dma_s	sfp_dma;
+	u8			is_elb;	    /* eloopback  */
+};
+
+#define BFA_SFP_MOD(__bfa)	(&(__bfa)->modules.sfp)
+#define BFA_MEM_SFP_DMA(__bfa)	(&(BFA_SFP_MOD(__bfa)->sfp_dma))
+
+u32	bfa_sfp_meminfo(void);
+
+void	bfa_sfp_attach(struct bfa_sfp_s *sfp, struct bfa_ioc_s *ioc,
+			void *dev, struct bfa_trc_mod_s *trcmod);
+
+void	bfa_sfp_memclaim(struct bfa_sfp_s *diag, u8 *dm_kva, u64 dm_pa);
+void	bfa_sfp_intr(void *bfaarg, struct bfi_mbmsg_s *msg);
+
+bfa_status_t	bfa_sfp_show(struct bfa_sfp_s *sfp, struct sfp_mem_s *sfpmem,
+			     bfa_cb_sfp_t cbfn, void *cbarg);
+
+bfa_status_t	bfa_sfp_media(struct bfa_sfp_s *sfp,
+			enum bfa_defs_sfp_media_e *media,
+			bfa_cb_sfp_t cbfn, void *cbarg);
+
+bfa_status_t	bfa_sfp_speed(struct bfa_sfp_s *sfp,
+			enum bfa_port_speed portspeed,
+			bfa_cb_sfp_t cbfn, void *cbarg);
+
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
 #define bfa_ioc_devid(__ioc)		((__ioc)->pcidev.device_id)
 #define bfa_ioc_bar0(__ioc)		((__ioc)->pcidev.pci_bar_kva)

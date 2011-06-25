@@ -1066,6 +1066,49 @@ bfad_iocmd_cee_reset_stats(struct bfad_s *bfad, void *cmd)
 	return 0;
 }
 
+int
+bfad_iocmd_sfp_media(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_sfp_media_s *iocmd = (struct bfa_bsg_sfp_media_s *)cmd;
+	struct bfad_hal_comp	fcomp;
+	unsigned long	flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_sfp_media(BFA_SFP_MOD(&bfad->bfa), &iocmd->media,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	bfa_trc(bfad, iocmd->status);
+	if (iocmd->status != BFA_STATUS_SFP_NOT_READY)
+		goto out;
+
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_sfp_speed(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_sfp_speed_s *iocmd = (struct bfa_bsg_sfp_speed_s *)cmd;
+	struct bfad_hal_comp	fcomp;
+	unsigned long	flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_sfp_speed(BFA_SFP_MOD(&bfad->bfa), iocmd->speed,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	bfa_trc(bfad, iocmd->status);
+	if (iocmd->status != BFA_STATUS_SFP_NOT_READY)
+		goto out;
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -1193,6 +1236,12 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_CEE_RESET_STATS:
 		rc = bfad_iocmd_cee_reset_stats(bfad, iocmd);
+		break;
+	case IOCMD_SFP_MEDIA:
+		rc = bfad_iocmd_sfp_media(bfad, iocmd);
+		 break;
+	case IOCMD_SFP_SPEED:
+		rc = bfad_iocmd_sfp_speed(bfad, iocmd);
 		break;
 	default:
 		rc = EINVAL;

@@ -206,6 +206,7 @@ enum bfi_mclass {
 	BFI_MC_IOIM_IOCOM	= 17,	/*  good IO completion		    */
 	BFI_MC_TSKIM		= 18,	/*  Initiator Task management	    */
 	BFI_MC_PORT		= 21,	/*  Physical port		    */
+	BFI_MC_SFP		= 22,	/*  SFP module	*/
 	BFI_MC_MAX		= 32
 };
 
@@ -763,6 +764,54 @@ union bfi_cee_i2h_msg_u {
 	struct bfi_mhdr_s		mh;
 	struct bfi_cee_get_rsp_s	get_rsp;
 	struct bfi_cee_stats_rsp_s	stats_rsp;
+};
+
+/*
+ * SFP related
+ */
+
+enum bfi_sfp_h2i_e {
+	BFI_SFP_H2I_SHOW	= 1,
+	BFI_SFP_H2I_SCN		= 2,
+};
+
+enum bfi_sfp_i2h_e {
+	BFI_SFP_I2H_SHOW = BFA_I2HM(BFI_SFP_H2I_SHOW),
+	BFI_SFP_I2H_SCN	 = BFA_I2HM(BFI_SFP_H2I_SCN),
+};
+
+/*
+ *	SFP state
+ */
+enum bfa_sfp_stat_e {
+	BFA_SFP_STATE_INIT	= 0,	/* SFP state is uninit	*/
+	BFA_SFP_STATE_REMOVED	= 1,	/* SFP is removed	*/
+	BFA_SFP_STATE_INSERTED	= 2,	/* SFP is inserted	*/
+	BFA_SFP_STATE_VALID	= 3,	/* SFP is valid		*/
+	BFA_SFP_STATE_UNSUPPORT	= 4,	/* SFP is unsupport	*/
+	BFA_SFP_STATE_FAILED	= 5,	/* SFP i2c read fail	*/
+};
+
+/*
+ *  SFP memory access type
+ */
+enum bfi_sfp_mem_e {
+	BFI_SFP_MEM_ALL		= 0x1,  /* access all data field */
+	BFI_SFP_MEM_DIAGEXT	= 0x2,  /* access diag ext data field only */
+};
+
+struct bfi_sfp_req_s {
+	struct bfi_mhdr_s	mh;
+	u8			memtype;
+	u8			rsvd[3];
+	struct bfi_alen_s	alen;
+};
+
+struct bfi_sfp_rsp_s {
+	struct bfi_mhdr_s	mh;
+	u8			status;
+	u8			state;
+	u8			rsvd[2];
 };
 
 #pragma pack()

@@ -3364,3 +3364,460 @@ bfa_ablk_optrom_dis(struct bfa_ablk_s *ablk, bfa_ablk_cbfn_t cbfn, void *cbarg)
 
 	return BFA_STATUS_OK;
 }
+
+/*
+ *	SFP module specific
+ */
+
+/* forward declarations */
+static void bfa_sfp_getdata_send(struct bfa_sfp_s *sfp);
+static void bfa_sfp_media_get(struct bfa_sfp_s *sfp);
+static bfa_status_t bfa_sfp_speed_valid(struct bfa_sfp_s *sfp,
+				enum bfa_port_speed portspeed);
+
+static void
+bfa_cb_sfp_show(struct bfa_sfp_s *sfp)
+{
+	bfa_trc(sfp, sfp->lock);
+	if (sfp->cbfn)
+		sfp->cbfn(sfp->cbarg, sfp->status);
+	sfp->lock = 0;
+	sfp->cbfn = NULL;
+}
+
+static void
+bfa_cb_sfp_state_query(struct bfa_sfp_s *sfp)
+{
+	bfa_trc(sfp, sfp->portspeed);
+	if (sfp->media) {
+		bfa_sfp_media_get(sfp);
+		if (sfp->state_query_cbfn)
+			sfp->state_query_cbfn(sfp->state_query_cbarg,
+					sfp->status);
+			sfp->media = NULL;
+		}
+
+		if (sfp->portspeed) {
+			sfp->status = bfa_sfp_speed_valid(sfp, sfp->portspeed);
+			if (sfp->state_query_cbfn)
+				sfp->state_query_cbfn(sfp->state_query_cbarg,
+						sfp->status);
+				sfp->portspeed = BFA_PORT_SPEED_UNKNOWN;
+		}
+
+		sfp->state_query_lock = 0;
+		sfp->state_query_cbfn = NULL;
+}
+
+/*
+ *	IOC event handler.
+ */
+static void
+bfa_sfp_notify(void *sfp_arg, enum bfa_ioc_event_e event)
+{
+	struct bfa_sfp_s *sfp = sfp_arg;
+
+	bfa_trc(sfp, event);
+	bfa_trc(sfp, sfp->lock);
+	bfa_trc(sfp, sfp->state_query_lock);
+
+	switch (event) {
+	case BFA_IOC_E_DISABLED:
+	case BFA_IOC_E_FAILED:
+		if (sfp->lock) {
+			sfp->status = BFA_STATUS_IOC_FAILURE;
+			bfa_cb_sfp_show(sfp);
+		}
+
+		if (sfp->state_query_lock) {
+			sfp->status = BFA_STATUS_IOC_FAILURE;
+			bfa_cb_sfp_state_query(sfp);
+		}
+		break;
+
+	default:
+		break;
+	}
+}
+
+/*
+ *	SFP get data send
+ */
+static void
+bfa_sfp_getdata_send(struct bfa_sfp_s *sfp)
+{
+	struct bfi_sfp_req_s *req = (struct bfi_sfp_req_s *)sfp->mbcmd.msg;
+
+	bfa_trc(sfp, req->memtype);
+
+	/* build host command */
+	bfi_h2i_set(req->mh, BFI_MC_SFP, BFI_SFP_H2I_SHOW,
+			bfa_ioc_portid(sfp->ioc));
+
+	/* send mbox cmd */
+	bfa_ioc_mbox_queue(sfp->ioc, &sfp->mbcmd);
+}
+
+/*
+ *	SFP is valid, read sfp data
+ */
+static void
+bfa_sfp_getdata(struct bfa_sfp_s *sfp, enum bfi_sfp_mem_e memtype)
+{
+	struct bfi_sfp_req_s *req = (struct bfi_sfp_req_s *)sfp->mbcmd.msg;
+
+	WARN_ON(sfp->lock != 0);
+	bfa_trc(sfp, sfp->state);
+
+	sfp->lock = 1;
+	sfp->memtype = memtype;
+	req->memtype = memtype;
+
+	/* Setup SG list */
+	bfa_alen_set(&req->alen, sizeof(struct sfp_mem_s), sfp->dbuf_pa);
+
+	bfa_sfp_getdata_send(sfp);
+}
+
+/*
+ * SFP show complete
+ */
+static void
+bfa_sfp_show_comp(struct bfa_sfp_s *sfp, struct bfi_mbmsg_s *msg)
+{
+	struct bfi_sfp_rsp_s *rsp = (struct bfi_sfp_rsp_s *) msg;
+
+	if (!sfp->lock) {
+		/*
+		 * receiving response after ioc failure
+		 */
+		bfa_trc(sfp, sfp->lock);
+		return;
+	}
+
+	bfa_trc(sfp, rsp->status);
+	if (rsp->status == BFA_STATUS_OK) {
+		sfp->data_valid = 1;
+		if (sfp->state == BFA_SFP_STATE_VALID)
+			sfp->status = BFA_STATUS_OK;
+		else if (sfp->state == BFA_SFP_STATE_UNSUPPORT)
+			sfp->status = BFA_STATUS_SFP_UNSUPP;
+		else
+			bfa_trc(sfp, sfp->state);
+	} else {
+		sfp->data_valid = 0;
+		sfp->status = rsp->status;
+		/* sfpshow shouldn't change sfp state */
+	}
+
+	bfa_trc(sfp, sfp->memtype);
+	if (sfp->memtype == BFI_SFP_MEM_DIAGEXT) {
+		bfa_trc(sfp, sfp->data_valid);
+		if (sfp->data_valid) {
+			u32	size = sizeof(struct sfp_mem_s);
+			u8 *des = (u8 *) &(sfp->sfpmem->srlid_base);
+			memcpy(des, sfp->dbuf_kva, size);
+		}
+		/*
+		 * Queue completion callback.
+		 */
+		bfa_cb_sfp_show(sfp);
+	} else
+		sfp->lock = 0;
+
+	bfa_trc(sfp, sfp->state_query_lock);
+	if (sfp->state_query_lock) {
+		sfp->state = rsp->state;
+		/* Complete callback */
+		bfa_cb_sfp_state_query(sfp);
+	}
+}
+
+/*
+ *	SFP query fw sfp state
+ */
+static void
+bfa_sfp_state_query(struct bfa_sfp_s *sfp)
+{
+	struct bfi_sfp_req_s *req = (struct bfi_sfp_req_s *)sfp->mbcmd.msg;
+
+	/* Should not be doing query if not in _INIT state */
+	WARN_ON(sfp->state != BFA_SFP_STATE_INIT);
+	WARN_ON(sfp->state_query_lock != 0);
+	bfa_trc(sfp, sfp->state);
+
+	sfp->state_query_lock = 1;
+	req->memtype = 0;
+
+	if (!sfp->lock)
+		bfa_sfp_getdata(sfp, BFI_SFP_MEM_ALL);
+}
+
+static void
+bfa_sfp_media_get(struct bfa_sfp_s *sfp)
+{
+	enum bfa_defs_sfp_media_e *media = sfp->media;
+
+	*media = BFA_SFP_MEDIA_UNKNOWN;
+
+	if (sfp->state == BFA_SFP_STATE_UNSUPPORT)
+		*media = BFA_SFP_MEDIA_UNSUPPORT;
+	else if (sfp->state == BFA_SFP_STATE_VALID) {
+		union sfp_xcvr_e10g_code_u e10g;
+		struct sfp_mem_s *sfpmem = (struct sfp_mem_s *)sfp->dbuf_kva;
+		u16 xmtr_tech = (sfpmem->srlid_base.xcvr[4] & 0x3) << 7 |
+				(sfpmem->srlid_base.xcvr[5] >> 1);
+
+		e10g.b = sfpmem->srlid_base.xcvr[0];
+		bfa_trc(sfp, e10g.b);
+		bfa_trc(sfp, xmtr_tech);
+		/* check fc transmitter tech */
+		if ((xmtr_tech & SFP_XMTR_TECH_CU) ||
+		    (xmtr_tech & SFP_XMTR_TECH_CP) ||
+		    (xmtr_tech & SFP_XMTR_TECH_CA))
+			*media = BFA_SFP_MEDIA_CU;
+		else if ((xmtr_tech & SFP_XMTR_TECH_EL_INTRA) ||
+			 (xmtr_tech & SFP_XMTR_TECH_EL_INTER))
+			*media = BFA_SFP_MEDIA_EL;
+		else if ((xmtr_tech & SFP_XMTR_TECH_LL) ||
+			 (xmtr_tech & SFP_XMTR_TECH_LC))
+			*media = BFA_SFP_MEDIA_LW;
+		else if ((xmtr_tech & SFP_XMTR_TECH_SL) ||
+			 (xmtr_tech & SFP_XMTR_TECH_SN) ||
+			 (xmtr_tech & SFP_XMTR_TECH_SA))
+			*media = BFA_SFP_MEDIA_SW;
+		/* Check 10G Ethernet Compilance code */
+		else if (e10g.b & 0x10)
+			*media = BFA_SFP_MEDIA_SW;
+		else if (e10g.b & 0x60)
+			*media = BFA_SFP_MEDIA_LW;
+		else if (e10g.r.e10g_unall & 0x80)
+			*media = BFA_SFP_MEDIA_UNKNOWN;
+		else
+			bfa_trc(sfp, 0);
+	} else
+		bfa_trc(sfp, sfp->state);
+}
+
+static bfa_status_t
+bfa_sfp_speed_valid(struct bfa_sfp_s *sfp, enum bfa_port_speed portspeed)
+{
+	struct sfp_mem_s *sfpmem = (struct sfp_mem_s *)sfp->dbuf_kva;
+	struct sfp_xcvr_s *xcvr = (struct sfp_xcvr_s *) sfpmem->srlid_base.xcvr;
+	union sfp_xcvr_fc3_code_u fc3 = xcvr->fc3;
+	union sfp_xcvr_e10g_code_u e10g = xcvr->e10g;
+
+	if (portspeed == BFA_PORT_SPEED_10GBPS) {
+		if (e10g.r.e10g_sr || e10g.r.e10g_lr)
+			return BFA_STATUS_OK;
+		else {
+			bfa_trc(sfp, e10g.b);
+			return BFA_STATUS_UNSUPP_SPEED;
+		}
+	}
+	if (((portspeed & BFA_PORT_SPEED_16GBPS) && fc3.r.mb1600) ||
+	    ((portspeed & BFA_PORT_SPEED_8GBPS) && fc3.r.mb800) ||
+	    ((portspeed & BFA_PORT_SPEED_4GBPS) && fc3.r.mb400) ||
+	    ((portspeed & BFA_PORT_SPEED_2GBPS) && fc3.r.mb200) ||
+	    ((portspeed & BFA_PORT_SPEED_1GBPS) && fc3.r.mb100))
+		return BFA_STATUS_OK;
+	else {
+		bfa_trc(sfp, portspeed);
+		bfa_trc(sfp, fc3.b);
+		bfa_trc(sfp, e10g.b);
+		return BFA_STATUS_UNSUPP_SPEED;
+	}
+}
+
+/*
+ *	SFP hmbox handler
+ */
+void
+bfa_sfp_intr(void *sfparg, struct bfi_mbmsg_s *msg)
+{
+	struct bfa_sfp_s *sfp = sfparg;
+
+	switch (msg->mh.msg_id) {
+	case BFI_SFP_I2H_SHOW:
+		bfa_sfp_show_comp(sfp, msg);
+		break;
+
+	case BFI_SFP_I2H_SCN:
+		bfa_trc(sfp, msg->mh.msg_id);
+		break;
+
+	default:
+		bfa_trc(sfp, msg->mh.msg_id);
+		WARN_ON(1);
+	}
+}
+
+/*
+ *	Return DMA memory needed by sfp module.
+ */
+u32
+bfa_sfp_meminfo(void)
+{
+	return BFA_ROUNDUP(sizeof(struct sfp_mem_s), BFA_DMA_ALIGN_SZ);
+}
+
+/*
+ *	Attach virtual and physical memory for SFP.
+ */
+void
+bfa_sfp_attach(struct bfa_sfp_s *sfp, struct bfa_ioc_s *ioc, void *dev,
+		struct bfa_trc_mod_s *trcmod)
+{
+	sfp->dev = dev;
+	sfp->ioc = ioc;
+	sfp->trcmod = trcmod;
+
+	sfp->cbfn = NULL;
+	sfp->cbarg = NULL;
+	sfp->sfpmem = NULL;
+	sfp->lock = 0;
+	sfp->data_valid = 0;
+	sfp->state = BFA_SFP_STATE_INIT;
+	sfp->state_query_lock = 0;
+	sfp->state_query_cbfn = NULL;
+	sfp->state_query_cbarg = NULL;
+	sfp->media = NULL;
+	sfp->portspeed = BFA_PORT_SPEED_UNKNOWN;
+	sfp->is_elb = BFA_FALSE;
+
+	bfa_ioc_mbox_regisr(sfp->ioc, BFI_MC_SFP, bfa_sfp_intr, sfp);
+	bfa_q_qe_init(&sfp->ioc_notify);
+	bfa_ioc_notify_init(&sfp->ioc_notify, bfa_sfp_notify, sfp);
+	list_add_tail(&sfp->ioc_notify.qe, &sfp->ioc->notify_q);
+}
+
+/*
+ *	Claim Memory for SFP
+ */
+void
+bfa_sfp_memclaim(struct bfa_sfp_s *sfp, u8 *dm_kva, u64 dm_pa)
+{
+	sfp->dbuf_kva   = dm_kva;
+	sfp->dbuf_pa    = dm_pa;
+	memset(sfp->dbuf_kva, 0, sizeof(struct sfp_mem_s));
+
+	dm_kva += BFA_ROUNDUP(sizeof(struct sfp_mem_s), BFA_DMA_ALIGN_SZ);
+	dm_pa += BFA_ROUNDUP(sizeof(struct sfp_mem_s), BFA_DMA_ALIGN_SZ);
+}
+
+/*
+ * Show SFP eeprom content
+ *
+ * @param[in] sfp   - bfa sfp module
+ *
+ * @param[out] sfpmem - sfp eeprom data
+ *
+ */
+bfa_status_t
+bfa_sfp_show(struct bfa_sfp_s *sfp, struct sfp_mem_s *sfpmem,
+		bfa_cb_sfp_t cbfn, void *cbarg)
+{
+
+	if (!bfa_ioc_is_operational(sfp->ioc)) {
+		bfa_trc(sfp, 0);
+		return BFA_STATUS_IOC_NON_OP;
+	}
+
+	if (sfp->lock) {
+		bfa_trc(sfp, 0);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	sfp->cbfn = cbfn;
+	sfp->cbarg = cbarg;
+	sfp->sfpmem = sfpmem;
+
+	bfa_sfp_getdata(sfp, BFI_SFP_MEM_DIAGEXT);
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Return SFP Media type
+ *
+ * @param[in] sfp   - bfa sfp module
+ *
+ * @param[out] media - port speed from user
+ *
+ */
+bfa_status_t
+bfa_sfp_media(struct bfa_sfp_s *sfp, enum bfa_defs_sfp_media_e *media,
+		bfa_cb_sfp_t cbfn, void *cbarg)
+{
+	if (!bfa_ioc_is_operational(sfp->ioc)) {
+		bfa_trc(sfp, 0);
+		return BFA_STATUS_IOC_NON_OP;
+	}
+
+	sfp->media = media;
+	if (sfp->state == BFA_SFP_STATE_INIT) {
+		if (sfp->state_query_lock) {
+			bfa_trc(sfp, 0);
+			return BFA_STATUS_DEVBUSY;
+		} else {
+			sfp->state_query_cbfn = cbfn;
+			sfp->state_query_cbarg = cbarg;
+			bfa_sfp_state_query(sfp);
+			return BFA_STATUS_SFP_NOT_READY;
+		}
+	}
+
+	bfa_sfp_media_get(sfp);
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Check if user set port speed is allowed by the SFP
+ *
+ * @param[in] sfp   - bfa sfp module
+ * @param[in] portspeed - port speed from user
+ *
+ */
+bfa_status_t
+bfa_sfp_speed(struct bfa_sfp_s *sfp, enum bfa_port_speed portspeed,
+		bfa_cb_sfp_t cbfn, void *cbarg)
+{
+	WARN_ON(portspeed == BFA_PORT_SPEED_UNKNOWN);
+
+	if (!bfa_ioc_is_operational(sfp->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	/* For Mezz card, all speed is allowed */
+	if (bfa_mfg_is_mezz(sfp->ioc->attr->card_type))
+		return BFA_STATUS_OK;
+
+	/* Check SFP state */
+	sfp->portspeed = portspeed;
+	if (sfp->state == BFA_SFP_STATE_INIT) {
+		if (sfp->state_query_lock) {
+			bfa_trc(sfp, 0);
+			return BFA_STATUS_DEVBUSY;
+		} else {
+			sfp->state_query_cbfn = cbfn;
+			sfp->state_query_cbarg = cbarg;
+			bfa_sfp_state_query(sfp);
+			return BFA_STATUS_SFP_NOT_READY;
+		}
+	}
+
+	if (sfp->state == BFA_SFP_STATE_REMOVED ||
+	    sfp->state == BFA_SFP_STATE_FAILED) {
+		bfa_trc(sfp, sfp->state);
+		return BFA_STATUS_NO_SFP_DEV;
+	}
+
+	if (sfp->state == BFA_SFP_STATE_INSERTED) {
+		bfa_trc(sfp, sfp->state);
+		return BFA_STATUS_DEVBUSY;  /* sfp is reading data */
+	}
+
+	/* For eloopback, all speed is allowed */
+	if (sfp->is_elb)
+		return BFA_STATUS_OK;
+
+	return bfa_sfp_speed_valid(sfp, portspeed);
+}
