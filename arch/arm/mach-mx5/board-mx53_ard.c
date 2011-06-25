@@ -38,6 +38,7 @@
 #define ARD_ETHERNET_INT_B	IMX_GPIO_NR(2, 31)
 #define ARD_SD1_CD		IMX_GPIO_NR(1, 1)
 #define ARD_SD1_WP		IMX_GPIO_NR(1, 9)
+#define ARD_I2CPORTEXP_B	IMX_GPIO_NR(2, 3)
 
 static iomux_v3_cfg_t mx53_ard_pads[] = {
 	/* UART1 */
