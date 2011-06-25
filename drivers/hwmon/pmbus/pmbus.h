@@ -266,11 +266,11 @@ enum pmbus_sensor_classes {
 #define PMBUS_HAVE_STATUS_FAN12	(1 << 16)
 #define PMBUS_HAVE_STATUS_FAN34	(1 << 17)
 
+enum pmbus_data_format { linear = 0, direct, vid };
+
 struct pmbus_driver_info {
 	int pages;		/* Total number of pages */
-	bool direct[PSC_NUM_CLASSES];
-				/* true if device uses direct data format
-				   for the given sensor class */
+	enum pmbus_data_format format[PSC_NUM_CLASSES];
 	/*
 	 * Support one set of coefficients for each sensor type
 	 * Used for chips providing data in direct mode.
@@ -299,6 +299,7 @@ struct pmbus_driver_info {
 
 int pmbus_set_page(struct i2c_client *client, u8 page);
 int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 reg);
+int pmbus_read_byte_data(struct i2c_client *client, u8 page, u8 reg);
 void pmbus_clear_faults(struct i2c_client *client);
 bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg);
 bool pmbus_check_word_register(struct i2c_client *client, int page, int reg);

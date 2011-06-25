@@ -72,10 +72,10 @@ static int max34440_read_byte_data(struct i2c_client *client, int page, int reg)
 static struct pmbus_driver_info max34440_info[] = {
 	[max34440] = {
 		.pages = 14,
-		.direct[PSC_VOLTAGE_IN] = true,
-		.direct[PSC_VOLTAGE_OUT] = true,
-		.direct[PSC_TEMPERATURE] = true,
-		.direct[PSC_CURRENT_OUT] = true,
+		.format[PSC_VOLTAGE_IN] = direct,
+		.format[PSC_VOLTAGE_OUT] = direct,
+		.format[PSC_TEMPERATURE] = direct,
+		.format[PSC_CURRENT_OUT] = direct,
 		.m[PSC_VOLTAGE_IN] = 1,
 		.b[PSC_VOLTAGE_IN] = 0,
 		.R[PSC_VOLTAGE_IN] = 3,	    /* R = 0 in datasheet reflects mV */
@@ -112,11 +112,11 @@ static struct pmbus_driver_info max34440_info[] = {
 	},
 	[max34441] = {
 		.pages = 12,
-		.direct[PSC_VOLTAGE_IN] = true,
-		.direct[PSC_VOLTAGE_OUT] = true,
-		.direct[PSC_TEMPERATURE] = true,
-		.direct[PSC_CURRENT_OUT] = true,
-		.direct[PSC_FAN] = true,
+		.format[PSC_VOLTAGE_IN] = direct,
+		.format[PSC_VOLTAGE_OUT] = direct,
+		.format[PSC_TEMPERATURE] = direct,
+		.format[PSC_CURRENT_OUT] = direct,
+		.format[PSC_FAN] = direct,
 		.m[PSC_VOLTAGE_IN] = 1,
 		.b[PSC_VOLTAGE_IN] = 0,
 		.R[PSC_VOLTAGE_IN] = 3,

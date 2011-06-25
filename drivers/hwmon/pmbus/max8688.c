@@ -91,10 +91,10 @@ static int max8688_read_byte_data(struct i2c_client *client, int page, int reg)
 
 static struct pmbus_driver_info max8688_info = {
 	.pages = 1,
-	.direct[PSC_VOLTAGE_IN] = true,
-	.direct[PSC_VOLTAGE_OUT] = true,
-	.direct[PSC_TEMPERATURE] = true,
-	.direct[PSC_CURRENT_OUT] = true,
+	.format[PSC_VOLTAGE_IN] = direct,
+	.format[PSC_VOLTAGE_OUT] = direct,
+	.format[PSC_TEMPERATURE] = direct,
+	.format[PSC_CURRENT_OUT] = direct,
 	.m[PSC_VOLTAGE_IN] = 19995,
 	.b[PSC_VOLTAGE_IN] = 0,
 	.R[PSC_VOLTAGE_IN] = -1,

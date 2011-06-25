@@ -197,7 +197,7 @@ int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 reg)
 }
 EXPORT_SYMBOL_GPL(pmbus_read_word_data);
 
-static int pmbus_read_byte_data(struct i2c_client *client, u8 page, u8 reg)
+int pmbus_read_byte_data(struct i2c_client *client, u8 page, u8 reg)
 {
 	int rv;
 
@@ -207,6 +207,7 @@ static int pmbus_read_byte_data(struct i2c_client *client, u8 page, u8 reg)
 
 	return i2c_smbus_read_byte_data(client, reg);
 }
+EXPORT_SYMBOL_GPL(pmbus_read_byte_data);
 
 static void pmbus_clear_fault_page(struct i2c_client *client, int page)
 {
@@ -443,15 +444,37 @@ static long pmbus_reg2data_direct(struct pmbus_data *data,
 	return (val - b) / m;
 }
 
+/*
+ * Convert VID sensor values to milli- or micro-units
+ * depending on sensor type.
+ * We currently only support VR11.
+ */
+static long pmbus_reg2data_vid(struct pmbus_data *data,
+			       struct pmbus_sensor *sensor)
+{
+	long val = sensor->data;
+
+	if (val < 0x02 || val > 0xb2)
+		return 0;
+	return DIV_ROUND_CLOSEST(160000 - (val - 2) * 625, 100);
+}
+
 static long pmbus_reg2data(struct pmbus_data *data, struct pmbus_sensor *sensor)
 {
 	long val;
 
-	if (data->info->direct[sensor->class])
+	switch (data->info->format[sensor->class]) {
+	case direct:
 		val = pmbus_reg2data_direct(data, sensor);
-	else
+		break;
+	case vid:
+		val = pmbus_reg2data_vid(data, sensor);
+		break;
+	case linear:
+	default:
 		val = pmbus_reg2data_linear(data, sensor);
-
+		break;
+	}
 	return val;
 }
 
@@ -561,16 +584,31 @@ static u16 pmbus_data2reg_direct(struct pmbus_data *data,
 	return val;
 }
 
+static u16 pmbus_data2reg_vid(struct pmbus_data *data,
+			      enum pmbus_sensor_classes class, long val)
+{
+	val = SENSORS_LIMIT(val, 500, 1600);
+
+	return 2 + DIV_ROUND_CLOSEST((1600 - val) * 100, 625);
+}
+
 static u16 pmbus_data2reg(struct pmbus_data *data,
 			  enum pmbus_sensor_classes class, long val)
 {
 	u16 regval;
 
-	if (data->info->direct[class])
+	switch (data->info->format[class]) {
+	case direct:
 		regval = pmbus_data2reg_direct(data, class, val);
-	else
+		break;
+	case vid:
+		regval = pmbus_data2reg_vid(data, class, val);
+		break;
+	case linear:
+	default:
 		regval = pmbus_data2reg_linear(data, class, val);
-
+		break;
+	}
 	return regval;
 }
 
@@ -1380,7 +1418,7 @@ static int pmbus_identify_common(struct i2c_client *client,
 		 */
 		switch (vout_mode >> 5) {
 		case 0:	/* linear mode      */
-			if (data->info->direct[PSC_VOLTAGE_OUT])
+			if (data->info->format[PSC_VOLTAGE_OUT] != linear)
 				return -ENODEV;
 
 			exponent = vout_mode & 0x1f;
@@ -1389,8 +1427,12 @@ static int pmbus_identify_common(struct i2c_client *client,
 				exponent |= ~0x1f;
 			data->exponent = exponent;
 			break;
+		case 1: /* VID mode         */
+			if (data->info->format[PSC_VOLTAGE_OUT] != vid)
+				return -ENODEV;
+			break;
 		case 2:	/* direct mode      */
-			if (!data->info->direct[PSC_VOLTAGE_OUT])
+			if (data->info->format[PSC_VOLTAGE_OUT] != direct)
 				return -ENODEV;
 			break;
 		default:

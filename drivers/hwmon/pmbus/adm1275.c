@@ -50,9 +50,9 @@ static int adm1275_probe(struct i2c_client *client,
 	}
 
 	info->pages = 1;
-	info->direct[PSC_VOLTAGE_IN] = true;
-	info->direct[PSC_VOLTAGE_OUT] = true;
-	info->direct[PSC_CURRENT_OUT] = true;
+	info->format[PSC_VOLTAGE_IN] = direct;
+	info->format[PSC_VOLTAGE_OUT] = direct;
+	info->format[PSC_CURRENT_OUT] = direct;
 	info->m[PSC_CURRENT_OUT] = 807;
 	info->b[PSC_CURRENT_OUT] = 20475;
 	info->R[PSC_CURRENT_OUT] = -1;
