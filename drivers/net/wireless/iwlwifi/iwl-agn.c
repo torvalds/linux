@@ -3820,6 +3820,10 @@ MODULE_PARM_DESC(plcp_check, "Check plcp health (default: 1 [enabled])");
 module_param_named(ack_check, iwlagn_mod_params.ack_check, bool, S_IRUGO);
 MODULE_PARM_DESC(ack_check, "Check ack health (default: 0 [disabled])");
 
+module_param_named(wd_disable, iwlagn_mod_params.wd_disable, bool, S_IRUGO);
+MODULE_PARM_DESC(wd_disable,
+		"Disable stuck queue watchdog timer (default: 0 [enabled])");
+
 /*
  * set bt_coex_active to true, uCode will do kill/defer
  * every time the priority line is asserted (BT is sending signals on the

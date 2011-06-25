@@ -1853,7 +1853,7 @@ void iwl_setup_watchdog(struct iwl_priv *priv)
 {
 	unsigned int timeout = priv->cfg->base_params->wd_timeout;
 
-	if (timeout)
+	if (timeout && !iwlagn_mod_params.wd_disable)
 		mod_timer(&priv->watchdog,
 			  jiffies + msecs_to_jiffies(IWL_WD_TICK(timeout)));
 	else
