@@ -1,5 +1,5 @@
 /*
- * Support for features of the OLPC XO-1 laptop
+ * Support for power management features of the OLPC XO-1 laptop
  *
  * Copyright (C) 2010 Andres Salomon <dilinger@queued.net>
  * Copyright (C) 2010 One Laptop per Child
@@ -13,7 +13,6 @@
  */
 
 #include <linux/cs5535.h>
-#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/mfd/core.h>
@@ -21,7 +20,7 @@
 #include <asm/io.h>
 #include <asm/olpc.h>
 
-#define DRV_NAME "olpc-xo1"
+#define DRV_NAME "olpc-xo1-pm"
 
 static unsigned long acpi_base;
 static unsigned long pms_base;
@@ -44,7 +43,7 @@ static void xo1_power_off(void)
 	outl(0x00002000, acpi_base + CS5536_PM1_CNT);
 }
 
-static int __devinit olpc_xo1_probe(struct platform_device *pdev)
+static int __devinit xo1_pm_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int err;
@@ -76,7 +75,7 @@ static int __devinit olpc_xo1_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit olpc_xo1_remove(struct platform_device *pdev)
+static int __devexit xo1_pm_remove(struct platform_device *pdev)
 {
 	mfd_cell_disable(pdev);
 
@@ -89,48 +88,36 @@ static int __devexit olpc_xo1_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver cs5535_pms_drv = {
+static struct platform_driver cs5535_pms_driver = {
 	.driver = {
 		.name = "cs5535-pms",
 		.owner = THIS_MODULE,
 	},
-	.probe = olpc_xo1_probe,
-	.remove = __devexit_p(olpc_xo1_remove),
+	.probe = xo1_pm_probe,
+	.remove = __devexit_p(xo1_pm_remove),
 };
 
-static struct platform_driver cs5535_acpi_drv = {
+static struct platform_driver cs5535_acpi_driver = {
 	.driver = {
 		.name = "olpc-xo1-pm-acpi",
 		.owner = THIS_MODULE,
 	},
-	.probe = olpc_xo1_probe,
-	.remove = __devexit_p(olpc_xo1_remove),
+	.probe = xo1_pm_probe,
+	.remove = __devexit_p(xo1_pm_remove),
 };
 
-static int __init olpc_xo1_init(void)
+static int __init xo1_pm_init(void)
 {
 	int r;
 
-	r = platform_driver_register(&cs5535_pms_drv);
+	r = platform_driver_register(&cs5535_pms_driver);
 	if (r)
 		return r;
 
-	r = platform_driver_register(&cs5535_acpi_drv);
+	r = platform_driver_register(&cs5535_acpi_driver);
 	if (r)
-		platform_driver_unregister(&cs5535_pms_drv);
+		platform_driver_unregister(&cs5535_pms_driver);
 
 	return r;
 }
-
-static void __exit olpc_xo1_exit(void)
-{
-	platform_driver_unregister(&cs5535_acpi_drv);
-	platform_driver_unregister(&cs5535_pms_drv);
-}
-
-MODULE_AUTHOR("Daniel Drake <dsd@laptop.org>");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:cs5535-pms");
-
-module_init(olpc_xo1_init);
-module_exit(olpc_xo1_exit);
+arch_initcall(xo1_pm_init);
