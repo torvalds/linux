@@ -4,7 +4,7 @@
 /*
  * Function: v6_pabort
  *
- * Params  : r0 = address of aborted instruction
+ * Params  : r4 = address of aborted instruction
  *
  * Returns : r0 = address of abort
  *	   : r1 = IFSR

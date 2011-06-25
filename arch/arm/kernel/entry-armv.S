@@ -45,7 +45,7 @@
 	.endm
 
 	.macro	pabt_helper
-	mov	r0, r4			@ pass address of aborted instruction.
+	@ PABORT handler takes fault address in r4
 #ifdef MULTI_PABORT
 	ldr	ip, .LCprocfns
 	mov	lr, pc

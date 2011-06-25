@@ -4,7 +4,7 @@
 /*
  * Function: legacy_pabort
  *
- * Params  : r0 = address of aborted instruction
+ * Params  : r4 = address of aborted instruction
  *
  * Returns : r0 = address of abort
  *	   : r1 = Simulated IFSR with section translation fault status
@@ -14,6 +14,7 @@
 
 	.align	5
 ENTRY(legacy_pabort)
+	mov	r0, r4
 	mov	r1, #5
 	mov	pc, lr
 ENDPROC(legacy_pabort)
