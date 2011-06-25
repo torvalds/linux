@@ -1219,11 +1219,11 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		ret = i915_gem_object_bind_to_gtt(obj, 0, true);
 		if (ret)
 			goto unlock;
-	}
 
-	ret = i915_gem_object_set_to_gtt_domain(obj, write);
-	if (ret)
-		goto unlock;
+		ret = i915_gem_object_set_to_gtt_domain(obj, write);
+		if (ret)
+			goto unlock;
+	}
 
 	if (obj->tiling_mode == I915_TILING_NONE)
 		ret = i915_gem_object_put_fence(obj);
@@ -2925,8 +2925,6 @@ i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj)
 	 * the GATT itself.
 	 */
 	wmb();
-
-	i915_gem_release_mmap(obj);
 
 	old_write_domain = obj->base.write_domain;
 	obj->base.write_domain = 0;
