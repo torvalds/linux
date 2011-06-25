@@ -268,6 +268,10 @@ __und_svc:
 	svc_entry
 #endif
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	trace_hardirqs_off
+#endif
+
 	@
 	@ call emulation code, which returns using r9 if it has emulated
 	@ the instruction, or the more conventional lr if we are to treat
@@ -300,6 +304,12 @@ __und_svc:
 	@ restore SPSR and restart the instruction
 	@
 	ldr	r5, [sp, #S_PSR]		@ Get SVC cpsr
+#ifdef CONFIG_TRACE_IRQFLAGS
+	tst	r5, #PSR_I_BIT
+	bleq	trace_hardirqs_on
+	tst	r5, #PSR_I_BIT
+	blne	trace_hardirqs_off
+#endif
 	svc_exit r5				@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__und_svc)
