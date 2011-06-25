@@ -10,12 +10,10 @@ driver writers to port or update their code.</para>
     <para>The Video For Linux API was first introduced in Linux 2.1 to
 unify and replace various TV and radio device related interfaces,
 developed independently by driver writers in prior years. Starting
-with Linux 2.5 the much improved V4L2 API replaces the V4L API,
-although existing drivers will continue to support V4L applications in
-the future, either directly or through the V4L2 compatibility layer in
-the <filename>videodev</filename> kernel module translating ioctls on
-the fly. For a transition period not all drivers will support the V4L2
-API.</para>
+with Linux 2.5 the much improved V4L2 API replaces the V4L API.
+The support for the old V4L calls were removed from Kernel, but the
+library <xref linkend="libv4l" /> supports the conversion of a V4L
+API system call into a V4L2 one.</para>
 
     <section>
       <title>Opening and Closing Devices</title>
@@ -84,12 +82,7 @@ not compatible with V4L or V4L2.</para> </footnote>,
 device file. V4L2 drivers <emphasis>may</emphasis> support multiple
 opens, see <xref linkend="open" /> for details and consequences.</para>
 
-      <para>V4L drivers respond to V4L2 ioctls with an &EINVAL;. The
-compatibility layer in the V4L2 <filename>videodev</filename> module
-can translate V4L ioctl requests to their V4L2 counterpart, however a
-V4L2 driver usually needs more preparation to become fully V4L
-compatible. This is covered in more detail in <xref
-	  linkend="driver" />.</para>
+      <para>V4L drivers respond to V4L2 ioctls with an &EINVAL;.</para>
     </section>
 
     <section>
