@@ -161,7 +161,6 @@ struct pwc_device
 	int release;		/* release number */
 	int features;		/* feature bits */
 	char serial[30];	/* serial number (string) */
-	int error_status;	/* set when something goes wrong */
 	int usb_init;		/* set when the cam has been initialized */
 
 	/*** Video data ***/
@@ -180,7 +179,6 @@ struct pwc_device
 	char vsnapshot;		/* snapshot mode */
 	char vsync;		/* used by isoc handler */
 	char vmirror;		/* for ToUCaM series */
-	char unplugged;
 
 	int cmd_len;
 	unsigned char cmd_buf[13];

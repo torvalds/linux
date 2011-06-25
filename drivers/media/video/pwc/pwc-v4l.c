@@ -288,6 +288,9 @@ static int pwc_vidioc_set_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 {
 	int ret, fps, snapshot, compression, pixelformat;
 
+	if (!pdev->udev)
+		return -ENODEV;
+
 	ret = pwc_vidioc_try_fmt(pdev, f);
 	if (ret<0)
 		return ret;
@@ -345,6 +348,9 @@ static int pwc_querycap(struct file *file, void *fh, struct v4l2_capability *cap
 {
 	struct video_device *vdev = video_devdata(file);
 	struct pwc_device *pdev = video_drvdata(file);
+
+	if (!pdev->udev)
+		return -ENODEV;
 
 	strcpy(cap->driver, PWC_NAME);
 	strlcpy(cap->card, vdev->name, sizeof(cap->card));
@@ -413,6 +419,9 @@ static int pwc_g_ctrl(struct file *file, void *fh, struct v4l2_control *c)
 {
 	struct pwc_device *pdev = video_drvdata(file);
 	int ret;
+
+	if (!pdev->udev)
+		return -ENODEV;
 
 	switch (c->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -516,6 +525,9 @@ static int pwc_s_ctrl(struct file *file, void *fh, struct v4l2_control *c)
 {
 	struct pwc_device *pdev = video_drvdata(file);
 	int ret;
+
+	if (!pdev->udev)
+		return -ENODEV;
 
 	switch (c->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -692,12 +704,18 @@ static int pwc_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
 	struct pwc_device *pdev = video_drvdata(file);
 
+	if (!pdev->udev)
+		return -ENODEV;
+
 	return vb2_qbuf(&pdev->vb_queue, buf);
 }
 
 static int pwc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+
+	if (!pdev->udev)
+		return -ENODEV;
 
 	return vb2_dqbuf(&pdev->vb_queue, buf, file->f_flags & O_NONBLOCK);
 }
@@ -706,12 +724,18 @@ static int pwc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 {
 	struct pwc_device *pdev = video_drvdata(file);
 
+	if (!pdev->udev)
+		return -ENODEV;
+
 	return vb2_streamon(&pdev->vb_queue, i);
 }
 
 static int pwc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+
+	if (!pdev->udev)
+		return -ENODEV;
 
 	return vb2_streamoff(&pdev->vb_queue, i);
 }

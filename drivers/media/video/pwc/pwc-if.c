@@ -570,14 +570,7 @@ static void pwc_isoc_cleanup(struct pwc_device *pdev)
 
 	pwc_iso_stop(pdev);
 	pwc_iso_free(pdev);
-
-	/* Stop camera, but only if we are sure the camera is still there (unplug
-	   is signalled by EPIPE)
-	 */
-	if (pdev->error_status != EPIPE) {
-		PWC_DEBUG_OPEN("Setting alternate interface 0.\n");
-		usb_set_interface(pdev->udev, 0, 0);
-	}
+	usb_set_interface(pdev->udev, 0, 0);
 
 	pdev->iso_init = 0;
 	PWC_DEBUG_OPEN("<< pwc_isoc_cleanup()\n");
@@ -719,6 +712,9 @@ static int pwc_video_open(struct file *file)
 	PWC_DEBUG_OPEN(">> video_open called(vdev = 0x%p).\n", vdev);
 
 	pdev = video_get_drvdata(vdev);
+	if (!pdev->udev)
+		return -ENODEV;
+
 	if (pdev->vopen) {
 		PWC_DEBUG_OPEN("I'm busy, someone is using the device.\n");
 		return -EBUSY;
@@ -760,7 +756,6 @@ static int pwc_video_open(struct file *file)
 
 	/* Reset buffers & parameters */
 	pdev->visoc_errors = 0;
-	pdev->error_status = 0;
 	pwc_construct(pdev); /* set min/max sizes correct */
 
 	/* Set some defaults */
@@ -837,7 +832,7 @@ static int pwc_video_close(struct file *file)
 	pwc_free_buffers(pdev);
 
 	/* Turn off LEDS and power down camera, but only when not unplugged */
-	if (!pdev->unplugged) {
+	if (pdev->udev) {
 		/* Turn LEDs off */
 		if (pwc_set_leds(pdev, 0, 0) < 0)
 			PWC_DEBUG_MODULE("Failed to set LED on/off time.\n");
@@ -859,8 +854,8 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 	struct video_device *vdev = file->private_data;
 	struct pwc_device *pdev = video_get_drvdata(vdev);
 
-	if (pdev->error_status)
-		return -pdev->error_status;
+	if (!pdev->udev)
+		return -ENODEV;
 
 	return vb2_read(&pdev->vb_queue, buf, count, ppos,
 			file->f_flags & O_NONBLOCK);
@@ -871,7 +866,7 @@ static unsigned int pwc_video_poll(struct file *file, poll_table *wait)
 	struct video_device *vdev = file->private_data;
 	struct pwc_device *pdev = video_get_drvdata(vdev);
 
-	if (pdev->error_status)
+	if (!pdev->udev)
 		return POLL_ERR;
 
 	return vb2_poll(&pdev->vb_queue, file, wait);
@@ -923,8 +918,8 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	struct pwc_device *pdev = vb2_get_drv_priv(vb->vb2_queue);
 
 	/* Don't allow queing new buffers after device disconnection */
-	if (pdev->error_status)
-		return -pdev->error_status;
+	if (!pdev->udev)
+		return -ENODEV;
 
 	return 0;
 }
@@ -964,6 +959,9 @@ static int start_streaming(struct vb2_queue *vq)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 
+	if (!pdev->udev)
+		return -ENODEV;
+
 	return pwc_isoc_init(pdev);
 }
 
@@ -971,7 +969,8 @@ static int stop_streaming(struct vb2_queue *vq)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 
-	pwc_isoc_cleanup(pdev);
+	if (pdev->udev)
+		pwc_isoc_cleanup(pdev);
 	pwc_cleanup_queued_bufs(pdev);
 
 	return 0;
@@ -1389,15 +1388,12 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 	struct pwc_device *pdev  = usb_get_intfdata(intf);
 
 	mutex_lock(&pdev->modlock);
-	usb_set_intfdata (intf, NULL);
 
-	/* We got unplugged; this is signalled by an EPIPE error code */
-	pdev->error_status = EPIPE;
-	pdev->unplugged = 1;
-
+	usb_set_intfdata(intf, NULL);
 	/* No need to keep the urbs around after disconnection */
 	pwc_isoc_cleanup(pdev);
 	pwc_cleanup_queued_bufs(pdev);
+	pdev->udev = NULL;
 
 	mutex_unlock(&pdev->modlock);
 
