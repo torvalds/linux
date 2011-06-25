@@ -46,10 +46,12 @@ struct bfi_iocfc_cfg_s {
 	u8	 sense_buf_len;	/*  SCSI sense length	    */
 	u16	rsvd_1;
 	u32	endian_sig;	/*  endian signature of host     */
+	u8	rsvd_2;
+	u8	single_msix_vec;
+	u8	rsvd[2];
 	__be16	num_ioim_reqs;
 	__be16	num_fwtio_reqs;
-	u8	single_msix_vec;
-	u8	rsvd[3];
+
 
 	/*
 	 * Request and response circular queue base addresses, size and
@@ -64,7 +66,8 @@ struct bfi_iocfc_cfg_s {
 
 	union bfi_addr_u  stats_addr;	/*  DMA-able address for stats	  */
 	union bfi_addr_u  cfgrsp_addr;	/*  config response dma address  */
-	union bfi_addr_u  ioim_snsbase;  /*  IO sense buffer base address */
+	union bfi_addr_u  ioim_snsbase[BFI_IOIM_SNSBUF_SEGS];
+					/*  IO sense buf base addr segments */
 	struct bfa_iocfc_intr_attr_s intr_attr; /*  IOC interrupt attributes */
 };
 
@@ -753,7 +756,6 @@ enum bfi_ioim_status {
 	BFI_IOIM_STS_PATHTOV = 8,
 };
 
-#define BFI_IOIM_SNSLEN	(256)
 /*
  * I/O response message
  */

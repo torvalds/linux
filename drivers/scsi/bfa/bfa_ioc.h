@@ -85,6 +85,68 @@ struct bfa_sge_s {
 #endif
 
 /*
+ * BFA memory resources
+ */
+struct bfa_mem_dma_s {
+	struct list_head qe;		/* Queue of DMA elements */
+	u32		mem_len;	/* Total Length in Bytes */
+	u8		*kva;		/* kernel virtual address */
+	u64		dma;		/* dma address if DMA memory */
+	u8		*kva_curp;	/* kva allocation cursor */
+	u64		dma_curp;	/* dma allocation cursor */
+};
+#define bfa_mem_dma_t struct bfa_mem_dma_s
+
+struct bfa_mem_kva_s {
+	struct list_head qe;		/* Queue of KVA elements */
+	u32		mem_len;	/* Total Length in Bytes */
+	u8		*kva;		/* kernel virtual address */
+	u8		*kva_curp;	/* kva allocation cursor */
+};
+#define bfa_mem_kva_t struct bfa_mem_kva_s
+
+struct bfa_meminfo_s {
+	struct bfa_mem_dma_s dma_info;
+	struct bfa_mem_kva_s kva_info;
+};
+
+/* BFA memory segment setup macros */
+#define bfa_mem_dma_setup(_meminfo, _dm_ptr, _seg_sz) do {	\
+	((bfa_mem_dma_t *)(_dm_ptr))->mem_len = (_seg_sz);	\
+	if (_seg_sz)						\
+		list_add_tail(&((bfa_mem_dma_t *)_dm_ptr)->qe,	\
+			      &(_meminfo)->dma_info.qe);	\
+} while (0)
+
+#define bfa_mem_kva_setup(_meminfo, _kva_ptr, _seg_sz) do {	\
+	((bfa_mem_kva_t *)(_kva_ptr))->mem_len = (_seg_sz);	\
+	if (_seg_sz)						\
+		list_add_tail(&((bfa_mem_kva_t *)_kva_ptr)->qe,	\
+			      &(_meminfo)->kva_info.qe);	\
+} while (0)
+
+/* BFA dma memory segments iterator */
+#define bfa_mem_dma_sptr(_mod, _i)	(&(_mod)->dma_seg[(_i)])
+#define bfa_mem_dma_seg_iter(_mod, _sptr, _nr, _i)			\
+	for (_i = 0, _sptr = bfa_mem_dma_sptr(_mod, _i); _i < (_nr);	\
+	     _i++, _sptr = bfa_mem_dma_sptr(_mod, _i))
+
+#define bfa_mem_kva_curp(_mod)	((_mod)->kva_seg.kva_curp)
+#define bfa_mem_dma_virt(_sptr)	((_sptr)->kva_curp)
+#define bfa_mem_dma_phys(_sptr)	((_sptr)->dma_curp)
+#define bfa_mem_dma_len(_sptr)	((_sptr)->mem_len)
+
+/* Get the corresponding dma buf kva for a req - from the tag */
+#define bfa_mem_get_dmabuf_kva(_mod, _tag, _rqsz)			      \
+	(((u8 *)(_mod)->dma_seg[BFI_MEM_SEG_FROM_TAG(_tag, _rqsz)].kva_curp) +\
+	 BFI_MEM_SEG_REQ_OFFSET(_tag, _rqsz) * (_rqsz))
+
+/* Get the corresponding dma buf pa for a req - from the tag */
+#define bfa_mem_get_dmabuf_pa(_mod, _tag, _rqsz)			\
+	((_mod)->dma_seg[BFI_MEM_SEG_FROM_TAG(_tag, _rqsz)].dma_curp +	\
+	 BFI_MEM_SEG_REQ_OFFSET(_tag, _rqsz) * (_rqsz))
+
+/*
  * PCI device information required by IOC
  */
 struct bfa_pcidev_s {
@@ -301,7 +363,9 @@ struct bfa_ablk_s {
 	bfa_ablk_cbfn_t		cbfn;
 	void			*cbarg;
 	struct bfa_ioc_notify_s	ioc_notify;
+	struct bfa_mem_dma_s	ablk_dma;
 };
+#define BFA_MEM_ABLK_DMA(__bfa)		(&((__bfa)->modules.ablk.ablk_dma))
 
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
 #define bfa_ioc_devid(__ioc)		((__ioc)->pcidev.device_id)

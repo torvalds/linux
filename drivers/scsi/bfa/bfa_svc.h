@@ -26,6 +26,7 @@
  * Scatter-gather DMA related defines
  */
 #define BFA_SGPG_MIN	(16)
+#define BFA_SGPG_MAX	(8192)
 
 /*
  * Alignment macro for SG page allocation
@@ -54,17 +55,21 @@ struct bfa_sgpg_s {
  */
 #define BFA_SGPG_NPAGE(_nsges)  (((_nsges) / BFI_SGPG_DATA_SGES) + 1)
 
+/* Max SGPG dma segs required */
+#define BFA_SGPG_DMA_SEGS	\
+	BFI_MEM_DMA_NSEGS(BFA_SGPG_MAX, (uint32_t)sizeof(struct bfi_sgpg_s))
+
 struct bfa_sgpg_mod_s {
 	struct bfa_s *bfa;
 	int		num_sgpgs;	/*  number of SG pages		*/
 	int		free_sgpgs;	/*  number of free SG pages	*/
-	struct bfa_sgpg_s	*hsgpg_arr;	/*  BFA SG page array	*/
-	struct bfi_sgpg_s *sgpg_arr;	/*  actual SG page array	*/
-	u64	sgpg_arr_pa;	/*  SG page array DMA addr	*/
 	struct list_head	sgpg_q;		/*  queue of free SG pages */
 	struct list_head	sgpg_wait_q;	/*  wait queue for SG pages */
+	struct bfa_mem_dma_s	dma_seg[BFA_SGPG_DMA_SEGS];
+	struct bfa_mem_kva_s	kva_seg;
 };
 #define BFA_SGPG_MOD(__bfa)	(&(__bfa)->modules.sgpg_mod)
+#define BFA_MEM_SGPG_KVA(__bfa) (&(BFA_SGPG_MOD(__bfa)->kva_seg))
 
 bfa_status_t bfa_sgpg_malloc(struct bfa_s *bfa, struct list_head *sgpg_q,
 			     int nsgpgs);
@@ -79,8 +84,14 @@ void bfa_sgpg_wcancel(struct bfa_s *bfa, struct bfa_sgpg_wqe_s *wqe);
  * FCXP related defines
  */
 #define BFA_FCXP_MIN		(1)
+#define BFA_FCXP_MAX		(256)
 #define BFA_FCXP_MAX_IBUF_SZ	(2 * 1024 + 256)
 #define BFA_FCXP_MAX_LBUF_SZ	(4 * 1024 + 256)
+
+/* Max FCXP dma segs required */
+#define BFA_FCXP_DMA_SEGS						\
+	BFI_MEM_DMA_NSEGS(BFA_FCXP_MAX,					\
+		(u32)BFA_FCXP_MAX_IBUF_SZ + BFA_FCXP_MAX_LBUF_SZ)
 
 struct bfa_fcxp_mod_s {
 	struct bfa_s      *bfa;		/* backpointer to BFA */
@@ -88,18 +99,17 @@ struct bfa_fcxp_mod_s {
 	u16	num_fcxps;	/* max num FCXP requests */
 	struct list_head  fcxp_free_q;	/* free FCXPs */
 	struct list_head  fcxp_active_q;	/* active FCXPs */
-	void		*req_pld_list_kva;	/* list of FCXP req pld */
-	u64	req_pld_list_pa;	/* list of FCXP req pld */
-	void		*rsp_pld_list_kva;	/* list of FCXP resp pld */
-	u64	rsp_pld_list_pa;	/* list of FCXP resp pld */
 	struct list_head  wait_q;		/* wait queue for free fcxp */
 	struct list_head fcxp_unused_q; /* unused fcxps */
 	u32	req_pld_sz;
 	u32	rsp_pld_sz;
+	struct bfa_mem_dma_s dma_seg[BFA_FCXP_DMA_SEGS];
+	struct bfa_mem_kva_s kva_seg;
 };
 
 #define BFA_FCXP_MOD(__bfa)		(&(__bfa)->modules.fcxp_mod)
 #define BFA_FCXP_FROM_TAG(__mod, __tag)	(&(__mod)->fcxp_list[__tag])
+#define BFA_MEM_FCXP_KVA(__bfa) (&(BFA_FCXP_MOD(__bfa)->kva_seg))
 
 typedef void    (*fcxp_send_cb_t) (struct bfa_s *ioc, struct bfa_fcxp_s *fcxp,
 				   void *cb_arg, bfa_status_t req_status,
@@ -207,13 +217,15 @@ struct bfa_fcxp_wqe_s {
 #define BFA_FCXP_RSP_FCHS(_fcxp)	(&((_fcxp)->rsp_info.fchs))
 #define BFA_FCXP_RSP_PLD(_fcxp)		(bfa_fcxp_get_rspbuf(_fcxp))
 
-#define BFA_FCXP_REQ_PLD_PA(_fcxp)				\
-	((_fcxp)->fcxp_mod->req_pld_list_pa +			\
-	 ((_fcxp)->fcxp_mod->req_pld_sz  * (_fcxp)->fcxp_tag))
+#define BFA_FCXP_REQ_PLD_PA(_fcxp)					      \
+	bfa_mem_get_dmabuf_pa((_fcxp)->fcxp_mod, (_fcxp)->fcxp_tag,	      \
+		(_fcxp)->fcxp_mod->req_pld_sz + (_fcxp)->fcxp_mod->rsp_pld_sz)
 
-#define BFA_FCXP_RSP_PLD_PA(_fcxp)				\
-	((_fcxp)->fcxp_mod->rsp_pld_list_pa +			\
-	 ((_fcxp)->fcxp_mod->rsp_pld_sz * (_fcxp)->fcxp_tag))
+/* fcxp_buf = req_buf + rsp_buf :- add req_buf_sz to get to rsp_buf */
+#define BFA_FCXP_RSP_PLD_PA(_fcxp)					       \
+	(bfa_mem_get_dmabuf_pa((_fcxp)->fcxp_mod, (_fcxp)->fcxp_tag,	       \
+	      (_fcxp)->fcxp_mod->req_pld_sz + (_fcxp)->fcxp_mod->rsp_pld_sz) + \
+	      (_fcxp)->fcxp_mod->req_pld_sz)
 
 void	bfa_fcxp_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 
@@ -241,9 +253,11 @@ struct bfa_rport_mod_s {
 	struct list_head	rp_active_q;	/*  free bfa_rports	*/
 	struct list_head	rp_unused_q;	/*  unused bfa rports  */
 	u16	num_rports;	/*  number of rports	*/
+	struct bfa_mem_kva_s	kva_seg;
 };
 
 #define BFA_RPORT_MOD(__bfa)	(&(__bfa)->modules.rport_mod)
+#define BFA_MEM_RPORT_KVA(__bfa) (&(BFA_RPORT_MOD(__bfa)->kva_seg))
 
 /*
  * Convert rport tag to RPORT
@@ -301,7 +315,7 @@ struct bfa_rport_s {
  */
 
 #define BFA_UF_MIN	(4)
-
+#define BFA_UF_MAX	(256)
 
 struct bfa_uf_s {
 	struct list_head	qe;	/*  queue element		*/
@@ -329,6 +343,18 @@ struct bfa_uf_s {
  */
 typedef void (*bfa_cb_uf_recv_t) (void *cbarg, struct bfa_uf_s *uf);
 
+#define BFA_UF_BUFSZ	(2 * 1024 + 256)
+
+struct bfa_uf_buf_s {
+	u8	d[BFA_UF_BUFSZ];
+};
+
+#define BFA_PER_UF_DMA_SZ	\
+	(u32)BFA_ROUNDUP(sizeof(struct bfa_uf_buf_s), BFA_DMA_ALIGN_SZ)
+
+/* Max UF dma segs required */
+#define BFA_UF_DMA_SEGS BFI_MEM_DMA_NSEGS(BFA_UF_MAX, BFA_PER_UF_DMA_SZ)
+
 struct bfa_uf_mod_s {
 	struct bfa_s *bfa;		/*  back pointer to BFA */
 	struct bfa_uf_s *uf_list;	/*  array of UFs */
@@ -336,31 +362,22 @@ struct bfa_uf_mod_s {
 	struct list_head	uf_free_q;	/*  free UFs */
 	struct list_head	uf_posted_q;	/*  UFs posted to IOC */
 	struct list_head	uf_unused_q;	/*  unused UF's */
-	struct bfa_uf_buf_s *uf_pbs_kva;	/*  list UF bufs request pld */
-	u64	uf_pbs_pa;	/*  phy addr for UF bufs */
 	struct bfi_uf_buf_post_s *uf_buf_posts;
 	/*  pre-built UF post msgs */
 	bfa_cb_uf_recv_t ufrecv;	/*  uf recv handler function */
 	void		*cbarg;		/*  uf receive handler arg */
+	struct bfa_mem_dma_s	dma_seg[BFA_UF_DMA_SEGS];
+	struct bfa_mem_kva_s	kva_seg;
 };
 
 #define BFA_UF_MOD(__bfa)	(&(__bfa)->modules.uf_mod)
+#define BFA_MEM_UF_KVA(__bfa)	(&(BFA_UF_MOD(__bfa)->kva_seg))
 
 #define ufm_pbs_pa(_ufmod, _uftag)					\
-	((_ufmod)->uf_pbs_pa + sizeof(struct bfa_uf_buf_s) * (_uftag))
+	bfa_mem_get_dmabuf_pa(_ufmod, _uftag, BFA_PER_UF_DMA_SZ)
 
 void	bfa_uf_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 void	bfa_uf_res_recfg(struct bfa_s *bfa, u16 num_uf_fw);
-
-#define BFA_UF_BUFSZ	(2 * 1024 + 256)
-
-/*
- * @todo private
- */
-struct bfa_uf_buf_s {
-	u8		d[BFA_UF_BUFSZ];
-};
-
 
 /*
  * LPS - bfa lport login/logout service interface
@@ -406,10 +423,12 @@ struct bfa_lps_mod_s {
 	struct list_head		lps_login_q;
 	struct bfa_lps_s	*lps_arr;
 	int			num_lps;
+	struct bfa_mem_kva_s	kva_seg;
 };
 
 #define BFA_LPS_MOD(__bfa)		(&(__bfa)->modules.lps_mod)
 #define BFA_LPS_FROM_TAG(__mod, __tag)	(&(__mod)->lps_arr[__tag])
+#define BFA_MEM_LPS_KVA(__bfa)	(&(BFA_LPS_MOD(__bfa)->kva_seg))
 
 /*
  * external functions
@@ -489,9 +508,11 @@ struct bfa_fcport_s {
 	bfa_boolean_t		bbsc_op_state;	/* Cred recov Oper State */
 	struct bfa_fcport_trunk_s trunk;
 	u16		fcoe_vlan;
+	struct bfa_mem_dma_s	fcport_dma;
 };
 
 #define BFA_FCPORT_MOD(__bfa)	(&(__bfa)->modules.fcport)
+#define BFA_MEM_FCPORT_DMA(__bfa) (&(BFA_FCPORT_MOD(__bfa)->fcport_dma))
 
 /*
  * protected functions

@@ -25,8 +25,8 @@
 #include "bfa_cs.h"
 
 /* FCP module related definitions */
-#define BFA_IO_MAX	2000
-#define BFA_FWTIO_MAX	0
+#define BFA_IO_MAX	BFI_IO_MAX
+#define BFA_FWTIO_MAX	2000
 
 struct bfa_fcp_mod_s;
 struct bfa_iotag_s {
@@ -41,16 +41,17 @@ struct bfa_itn_s {
 void bfa_itn_create(struct bfa_s *bfa, struct bfa_rport_s *rport,
 		void (*isr)(struct bfa_s *bfa, struct bfi_msg_s *m));
 void bfa_itn_isr(struct bfa_s *bfa, struct bfi_msg_s *m);
-void bfa_iotag_attach(struct bfa_fcp_mod_s *fcp, struct bfa_meminfo_s *minfo);
+void bfa_iotag_attach(struct bfa_fcp_mod_s *fcp);
 void bfa_fcp_res_recfg(struct bfa_s *bfa, u16 num_ioim_fw);
 
 #define BFA_FCP_MOD(_hal)	(&(_hal)->modules.fcp_mod)
+#define BFA_MEM_FCP_KVA(__bfa)	(&(BFA_FCP_MOD(__bfa)->kva_seg))
 #define BFA_IOTAG_FROM_TAG(_fcp, _tag)	\
 	(&(_fcp)->iotag_arr[(_tag & BFA_IOIM_IOTAG_MASK)])
 #define BFA_ITN_FROM_TAG(_fcp, _tag)	\
 	((_fcp)->itn_arr + ((_tag) & ((_fcp)->num_itns - 1)))
 #define BFA_SNSINFO_FROM_TAG(_fcp, _tag) \
-	(((u8 *)(_fcp)->snsbase.kva) + (_tag * BFI_IOIM_SNSLEN))
+	bfa_mem_get_dmabuf_kva(_fcp, _tag, BFI_IOIM_SNSLEN)
 
 #define BFA_ITNIM_MIN   32
 #define BFA_ITNIM_MAX   1024
@@ -130,6 +131,9 @@ struct bfa_fcpim_s {
 	bfa_fcpim_profile_t     profile_start;
 };
 
+/* Max FCP dma segs required */
+#define BFA_FCP_DMA_SEGS	BFI_IOIM_SNSBUF_SEGS
+
 struct bfa_fcp_mod_s {
 	struct bfa_s		*bfa;
 	struct list_head	iotag_ioim_free_q;	/* free IO resources */
@@ -140,8 +144,10 @@ struct bfa_fcp_mod_s {
 	int			num_ioim_reqs;
 	int			num_fwtio_reqs;
 	int			num_itns;
-	struct bfa_dma_s	snsbase;
+	struct bfa_dma_s	snsbase[BFA_FCP_DMA_SEGS];
 	struct bfa_fcpim_s	fcpim;
+	struct bfa_mem_dma_s	dma_seg[BFA_FCP_DMA_SEGS];
+	struct bfa_mem_kva_s	kva_seg;
 };
 
 /*
@@ -256,8 +262,7 @@ bfa_ioim_maxretry_reached(struct bfa_ioim_s *ioim)
 /*
  * function prototypes
  */
-void	bfa_ioim_attach(struct bfa_fcpim_s *fcpim,
-					struct bfa_meminfo_s *minfo);
+void	bfa_ioim_attach(struct bfa_fcpim_s *fcpim);
 void	bfa_ioim_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 void	bfa_ioim_good_comp_isr(struct bfa_s *bfa,
 					struct bfi_msg_s *msg);
@@ -267,18 +272,15 @@ void	bfa_ioim_cleanup_tm(struct bfa_ioim_s *ioim,
 void	bfa_ioim_iocdisable(struct bfa_ioim_s *ioim);
 void	bfa_ioim_tov(struct bfa_ioim_s *ioim);
 
-void	bfa_tskim_attach(struct bfa_fcpim_s *fcpim,
-					struct bfa_meminfo_s *minfo);
+void	bfa_tskim_attach(struct bfa_fcpim_s *fcpim);
 void	bfa_tskim_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 void	bfa_tskim_iodone(struct bfa_tskim_s *tskim);
 void	bfa_tskim_iocdisable(struct bfa_tskim_s *tskim);
 void	bfa_tskim_cleanup(struct bfa_tskim_s *tskim);
 void	bfa_tskim_res_recfg(struct bfa_s *bfa, u16 num_tskim_fw);
 
-void	bfa_itnim_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
-					u32 *dm_len);
-void	bfa_itnim_attach(struct bfa_fcpim_s *fcpim,
-					struct bfa_meminfo_s *minfo);
+void	bfa_itnim_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len);
+void	bfa_itnim_attach(struct bfa_fcpim_s *fcpim);
 void	bfa_itnim_iocdisable(struct bfa_itnim_s *itnim);
 void	bfa_itnim_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 void	bfa_itnim_iodone(struct bfa_itnim_s *itnim);

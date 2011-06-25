@@ -113,11 +113,10 @@ static void	bfa_fcxp_queue(struct bfa_fcxp_s *fcxp,
 /*
  * forward declarations for LPS functions
  */
-static void bfa_lps_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *ndm_len,
-				u32 *dm_len);
+static void bfa_lps_meminfo(struct bfa_iocfc_cfg_s *cfg,
+		struct bfa_meminfo_s *minfo, struct bfa_s *bfa);
 static void bfa_lps_attach(struct bfa_s *bfa, void *bfad,
 				struct bfa_iocfc_cfg_s *cfg,
-				struct bfa_meminfo_s *meminfo,
 				struct bfa_pcidev_s *pcidev);
 static void bfa_lps_detach(struct bfa_s *bfa);
 static void bfa_lps_start(struct bfa_s *bfa);
@@ -431,47 +430,12 @@ bfa_plog_fchdr_and_pl(struct bfa_plog_s *plog, enum bfa_plog_mid mid,
  */
 
 static void
-claim_fcxp_req_rsp_mem(struct bfa_fcxp_mod_s *mod, struct bfa_meminfo_s *mi)
-{
-	u8	       *dm_kva = NULL;
-	u64	dm_pa;
-	u32	buf_pool_sz;
-
-	dm_kva = bfa_meminfo_dma_virt(mi);
-	dm_pa = bfa_meminfo_dma_phys(mi);
-
-	buf_pool_sz = mod->req_pld_sz * mod->num_fcxps;
-
-	/*
-	 * Initialize the fcxp req payload list
-	 */
-	mod->req_pld_list_kva = dm_kva;
-	mod->req_pld_list_pa = dm_pa;
-	dm_kva += buf_pool_sz;
-	dm_pa += buf_pool_sz;
-	memset(mod->req_pld_list_kva, 0, buf_pool_sz);
-
-	/*
-	 * Initialize the fcxp rsp payload list
-	 */
-	buf_pool_sz = mod->rsp_pld_sz * mod->num_fcxps;
-	mod->rsp_pld_list_kva = dm_kva;
-	mod->rsp_pld_list_pa = dm_pa;
-	dm_kva += buf_pool_sz;
-	dm_pa += buf_pool_sz;
-	memset(mod->rsp_pld_list_kva, 0, buf_pool_sz);
-
-	bfa_meminfo_dma_virt(mi) = dm_kva;
-	bfa_meminfo_dma_phys(mi) = dm_pa;
-}
-
-static void
-claim_fcxps_mem(struct bfa_fcxp_mod_s *mod, struct bfa_meminfo_s *mi)
+claim_fcxps_mem(struct bfa_fcxp_mod_s *mod)
 {
 	u16	i;
 	struct bfa_fcxp_s *fcxp;
 
-	fcxp = (struct bfa_fcxp_s *) bfa_meminfo_kva(mi);
+	fcxp = (struct bfa_fcxp_s *) bfa_mem_kva_curp(mod);
 	memset(fcxp, 0, sizeof(struct bfa_fcxp_s) * mod->num_fcxps);
 
 	INIT_LIST_HEAD(&mod->fcxp_free_q);
@@ -491,40 +455,53 @@ claim_fcxps_mem(struct bfa_fcxp_mod_s *mod, struct bfa_meminfo_s *mi)
 		fcxp = fcxp + 1;
 	}
 
-	bfa_meminfo_kva(mi) = (void *)fcxp;
+	bfa_mem_kva_curp(mod) = (void *)fcxp;
 }
 
 static void
-bfa_fcxp_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *ndm_len,
-		 u32 *dm_len)
+bfa_fcxp_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
+		struct bfa_s *bfa)
 {
-	u16	num_fcxp_reqs = cfg->fwcfg.num_fcxp_reqs;
+	struct bfa_fcxp_mod_s *fcxp_mod = BFA_FCXP_MOD(bfa);
+	struct bfa_mem_kva_s *fcxp_kva = BFA_MEM_FCXP_KVA(bfa);
+	struct bfa_mem_dma_s *seg_ptr;
+	u16	nsegs, idx, per_seg_fcxp;
+	u16	num_fcxps = cfg->fwcfg.num_fcxp_reqs;
+	u32	per_fcxp_sz;
 
-	if (num_fcxp_reqs == 0)
+	if (num_fcxps == 0)
 		return;
 
-	/*
-	 * Account for req/rsp payload
-	 */
-	*dm_len += BFA_FCXP_MAX_IBUF_SZ * num_fcxp_reqs;
 	if (cfg->drvcfg.min_cfg)
-		*dm_len += BFA_FCXP_MAX_IBUF_SZ * num_fcxp_reqs;
+		per_fcxp_sz = 2 * BFA_FCXP_MAX_IBUF_SZ;
 	else
-		*dm_len += BFA_FCXP_MAX_LBUF_SZ * num_fcxp_reqs;
+		per_fcxp_sz = BFA_FCXP_MAX_IBUF_SZ + BFA_FCXP_MAX_LBUF_SZ;
 
-	/*
-	 * Account for fcxp structs
-	 */
-	*ndm_len += sizeof(struct bfa_fcxp_s) * num_fcxp_reqs;
+	/* dma memory */
+	nsegs = BFI_MEM_DMA_NSEGS(num_fcxps, per_fcxp_sz);
+	per_seg_fcxp = BFI_MEM_NREQS_SEG(per_fcxp_sz);
+
+	bfa_mem_dma_seg_iter(fcxp_mod, seg_ptr, nsegs, idx) {
+		if (num_fcxps >= per_seg_fcxp) {
+			num_fcxps -= per_seg_fcxp;
+			bfa_mem_dma_setup(minfo, seg_ptr,
+				per_seg_fcxp * per_fcxp_sz);
+		} else
+			bfa_mem_dma_setup(minfo, seg_ptr,
+				num_fcxps * per_fcxp_sz);
+	}
+
+	/* kva memory */
+	bfa_mem_kva_setup(minfo, fcxp_kva,
+		cfg->fwcfg.num_fcxp_reqs * sizeof(struct bfa_fcxp_s));
 }
 
 static void
 bfa_fcxp_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
-		struct bfa_meminfo_s *meminfo, struct bfa_pcidev_s *pcidev)
+		struct bfa_pcidev_s *pcidev)
 {
 	struct bfa_fcxp_mod_s *mod = BFA_FCXP_MOD(bfa);
 
-	memset(mod, 0, sizeof(struct bfa_fcxp_mod_s));
 	mod->bfa = bfa;
 	mod->num_fcxps = cfg->fwcfg.num_fcxp_reqs;
 
@@ -537,8 +514,7 @@ bfa_fcxp_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 
 	INIT_LIST_HEAD(&mod->wait_q);
 
-	claim_fcxp_req_rsp_mem(mod, meminfo);
-	claim_fcxps_mem(mod, meminfo);
+	claim_fcxps_mem(mod);
 }
 
 static void
@@ -962,8 +938,8 @@ bfa_fcxp_get_reqbuf(struct bfa_fcxp_s *fcxp)
 	void	*reqbuf;
 
 	WARN_ON(fcxp->use_ireqbuf != 1);
-	reqbuf = ((u8 *)mod->req_pld_list_kva) +
-		fcxp->fcxp_tag * mod->req_pld_sz;
+	reqbuf = bfa_mem_get_dmabuf_kva(mod, fcxp->fcxp_tag,
+				mod->req_pld_sz + mod->rsp_pld_sz);
 	return reqbuf;
 }
 
@@ -986,13 +962,15 @@ void *
 bfa_fcxp_get_rspbuf(struct bfa_fcxp_s *fcxp)
 {
 	struct bfa_fcxp_mod_s *mod = fcxp->fcxp_mod;
-	void	*rspbuf;
+	void	*fcxp_buf;
 
 	WARN_ON(fcxp->use_irspbuf != 1);
 
-	rspbuf = ((u8 *)mod->rsp_pld_list_kva) +
-		fcxp->fcxp_tag * mod->rsp_pld_sz;
-	return rspbuf;
+	fcxp_buf = bfa_mem_get_dmabuf_kva(mod, fcxp->fcxp_tag,
+				mod->req_pld_sz + mod->rsp_pld_sz);
+
+	/* fcxp_buf = req_buf + rsp_buf :- add req_buf_sz to get to rsp_buf */
+	return ((u8 *) fcxp_buf) + mod->req_pld_sz;
 }
 
 /*
@@ -1473,13 +1451,17 @@ bfa_lps_sm_logowait(struct bfa_lps_s *lps, enum bfa_lps_event event)
  * return memory requirement
  */
 static void
-bfa_lps_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *ndm_len,
-	u32 *dm_len)
+bfa_lps_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
+		struct bfa_s *bfa)
 {
+	struct bfa_mem_kva_s *lps_kva = BFA_MEM_LPS_KVA(bfa);
+
 	if (cfg->drvcfg.min_cfg)
-		*ndm_len += sizeof(struct bfa_lps_s) * BFA_LPS_MIN_LPORTS;
+		bfa_mem_kva_setup(minfo, lps_kva,
+			sizeof(struct bfa_lps_s) * BFA_LPS_MIN_LPORTS);
 	else
-		*ndm_len += sizeof(struct bfa_lps_s) * BFA_LPS_MAX_LPORTS;
+		bfa_mem_kva_setup(minfo, lps_kva,
+			sizeof(struct bfa_lps_s) * BFA_LPS_MAX_LPORTS);
 }
 
 /*
@@ -1487,21 +1469,20 @@ bfa_lps_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *ndm_len,
  */
 static void
 bfa_lps_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
-	struct bfa_meminfo_s *meminfo, struct bfa_pcidev_s *pcidev)
+	struct bfa_pcidev_s *pcidev)
 {
 	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(bfa);
 	struct bfa_lps_s	*lps;
 	int			i;
 
-	memset(mod, 0, sizeof(struct bfa_lps_mod_s));
 	mod->num_lps = BFA_LPS_MAX_LPORTS;
 	if (cfg->drvcfg.min_cfg)
 		mod->num_lps = BFA_LPS_MIN_LPORTS;
 	else
 		mod->num_lps = BFA_LPS_MAX_LPORTS;
-	mod->lps_arr = lps = (struct bfa_lps_s *) bfa_meminfo_kva(meminfo);
+	mod->lps_arr = lps = (struct bfa_lps_s *) bfa_mem_kva_curp(mod);
 
-	bfa_meminfo_kva(meminfo) += mod->num_lps * sizeof(struct bfa_lps_s);
+	bfa_mem_kva_curp(mod) += mod->num_lps * sizeof(struct bfa_lps_s);
 
 	INIT_LIST_HEAD(&mod->lps_free_q);
 	INIT_LIST_HEAD(&mod->lps_active_q);
@@ -2829,10 +2810,12 @@ bfa_fcport_queue_cb(struct bfa_fcport_ln_s *ln, enum bfa_port_linkstate event)
 							BFA_CACHELINE_SZ))
 
 static void
-bfa_fcport_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *ndm_len,
-		u32 *dm_len)
+bfa_fcport_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
+		   struct bfa_s *bfa)
 {
-	*dm_len += FCPORT_STATS_DMA_SZ;
+	struct bfa_mem_dma_s *fcport_dma = BFA_MEM_FCPORT_DMA(bfa);
+
+	bfa_mem_dma_setup(minfo, fcport_dma, FCPORT_STATS_DMA_SZ);
 }
 
 static void
@@ -2844,23 +2827,14 @@ bfa_fcport_qresume(void *cbarg)
 }
 
 static void
-bfa_fcport_mem_claim(struct bfa_fcport_s *fcport, struct bfa_meminfo_s *meminfo)
+bfa_fcport_mem_claim(struct bfa_fcport_s *fcport)
 {
-	u8		*dm_kva;
-	u64	dm_pa;
+	struct bfa_mem_dma_s *fcport_dma = &fcport->fcport_dma;
 
-	dm_kva = bfa_meminfo_dma_virt(meminfo);
-	dm_pa  = bfa_meminfo_dma_phys(meminfo);
-
-	fcport->stats_kva = dm_kva;
-	fcport->stats_pa  = dm_pa;
-	fcport->stats	  = (union bfa_fcport_stats_u *) dm_kva;
-
-	dm_kva += FCPORT_STATS_DMA_SZ;
-	dm_pa  += FCPORT_STATS_DMA_SZ;
-
-	bfa_meminfo_dma_virt(meminfo) = dm_kva;
-	bfa_meminfo_dma_phys(meminfo) = dm_pa;
+	fcport->stats_kva = bfa_mem_dma_virt(fcport_dma);
+	fcport->stats_pa  = bfa_mem_dma_phys(fcport_dma);
+	fcport->stats = (union bfa_fcport_stats_u *)
+				bfa_mem_dma_virt(fcport_dma);
 }
 
 /*
@@ -2868,18 +2842,17 @@ bfa_fcport_mem_claim(struct bfa_fcport_s *fcport, struct bfa_meminfo_s *meminfo)
  */
 static void
 bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
-		struct bfa_meminfo_s *meminfo, struct bfa_pcidev_s *pcidev)
+		struct bfa_pcidev_s *pcidev)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 	struct bfa_port_cfg_s *port_cfg = &fcport->cfg;
 	struct bfa_fcport_ln_s *ln = &fcport->ln;
 	struct timeval tv;
 
-	memset(fcport, 0, sizeof(struct bfa_fcport_s));
 	fcport->bfa = bfa;
 	ln->fcport = fcport;
 
-	bfa_fcport_mem_claim(fcport, meminfo);
+	bfa_fcport_mem_claim(fcport);
 
 	bfa_sm_set_state(fcport, bfa_fcport_sm_uninit);
 	bfa_sm_set_state(ln, bfa_fcport_ln_sm_dn);
@@ -4417,18 +4390,22 @@ bfa_rport_qresume(void *cbarg)
 }
 
 static void
-bfa_rport_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
-		u32 *dm_len)
+bfa_rport_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
+		struct bfa_s *bfa)
 {
+	struct bfa_mem_kva_s *rport_kva = BFA_MEM_RPORT_KVA(bfa);
+
 	if (cfg->fwcfg.num_rports < BFA_RPORT_MIN)
 		cfg->fwcfg.num_rports = BFA_RPORT_MIN;
 
-	*km_len += cfg->fwcfg.num_rports * sizeof(struct bfa_rport_s);
+	/* kva memory */
+	bfa_mem_kva_setup(minfo, rport_kva,
+		cfg->fwcfg.num_rports * sizeof(struct bfa_rport_s));
 }
 
 static void
 bfa_rport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
-		     struct bfa_meminfo_s *meminfo, struct bfa_pcidev_s *pcidev)
+		struct bfa_pcidev_s *pcidev)
 {
 	struct bfa_rport_mod_s *mod = BFA_RPORT_MOD(bfa);
 	struct bfa_rport_s *rp;
@@ -4438,7 +4415,7 @@ bfa_rport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	INIT_LIST_HEAD(&mod->rp_active_q);
 	INIT_LIST_HEAD(&mod->rp_unused_q);
 
-	rp = (struct bfa_rport_s *) bfa_meminfo_kva(meminfo);
+	rp = (struct bfa_rport_s *) bfa_mem_kva_curp(mod);
 	mod->rps_list = rp;
 	mod->num_rports = cfg->fwcfg.num_rports;
 
@@ -4463,7 +4440,7 @@ bfa_rport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	/*
 	 * consume memory
 	 */
-	bfa_meminfo_kva(meminfo) = (u8 *) rp;
+	bfa_mem_kva_curp(mod) = (u8 *) rp;
 }
 
 static void
@@ -4723,26 +4700,51 @@ bfa_rport_speed(struct bfa_rport_s *rport, enum bfa_port_speed speed)
  * Compute and return memory needed by FCP(im) module.
  */
 static void
-bfa_sgpg_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
-		u32 *dm_len)
+bfa_sgpg_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
+		struct bfa_s *bfa)
 {
+	struct bfa_sgpg_mod_s *sgpg_mod = BFA_SGPG_MOD(bfa);
+	struct bfa_mem_kva_s *sgpg_kva = BFA_MEM_SGPG_KVA(bfa);
+	struct bfa_mem_dma_s *seg_ptr;
+	u16	nsegs, idx, per_seg_sgpg, num_sgpg;
+	u32	sgpg_sz = sizeof(struct bfi_sgpg_s);
+
 	if (cfg->drvcfg.num_sgpgs < BFA_SGPG_MIN)
 		cfg->drvcfg.num_sgpgs = BFA_SGPG_MIN;
+	else if (cfg->drvcfg.num_sgpgs > BFA_SGPG_MAX)
+		cfg->drvcfg.num_sgpgs = BFA_SGPG_MAX;
 
-	*km_len += (cfg->drvcfg.num_sgpgs + 1) * sizeof(struct bfa_sgpg_s);
-	*dm_len += (cfg->drvcfg.num_sgpgs + 1) * sizeof(struct bfi_sgpg_s);
+	num_sgpg = cfg->drvcfg.num_sgpgs;
+
+	nsegs = BFI_MEM_DMA_NSEGS(num_sgpg, sgpg_sz);
+	per_seg_sgpg = BFI_MEM_NREQS_SEG(sgpg_sz);
+
+	bfa_mem_dma_seg_iter(sgpg_mod, seg_ptr, nsegs, idx) {
+		if (num_sgpg >= per_seg_sgpg) {
+			num_sgpg -= per_seg_sgpg;
+			bfa_mem_dma_setup(minfo, seg_ptr,
+					per_seg_sgpg * sgpg_sz);
+		} else
+			bfa_mem_dma_setup(minfo, seg_ptr,
+					num_sgpg * sgpg_sz);
+	}
+
+	/* kva memory */
+	bfa_mem_kva_setup(minfo, sgpg_kva,
+		cfg->drvcfg.num_sgpgs * sizeof(struct bfa_sgpg_s));
 }
-
 
 static void
 bfa_sgpg_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
-		    struct bfa_meminfo_s *minfo, struct bfa_pcidev_s *pcidev)
+		struct bfa_pcidev_s *pcidev)
 {
 	struct bfa_sgpg_mod_s *mod = BFA_SGPG_MOD(bfa);
-	int i;
 	struct bfa_sgpg_s *hsgpg;
 	struct bfi_sgpg_s *sgpg;
 	u64 align_len;
+	struct bfa_mem_dma_s *seg_ptr;
+	u32	sgpg_sz = sizeof(struct bfi_sgpg_s);
+	u16	i, idx, nsegs, per_seg_sgpg, num_sgpg;
 
 	union {
 		u64 pa;
@@ -4754,39 +4756,45 @@ bfa_sgpg_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 
 	bfa_trc(bfa, cfg->drvcfg.num_sgpgs);
 
-	mod->num_sgpgs = cfg->drvcfg.num_sgpgs;
-	mod->sgpg_arr_pa = bfa_meminfo_dma_phys(minfo);
-	align_len = (BFA_SGPG_ROUNDUP(mod->sgpg_arr_pa) - mod->sgpg_arr_pa);
-	mod->sgpg_arr_pa += align_len;
-	mod->hsgpg_arr = (struct bfa_sgpg_s *) (bfa_meminfo_kva(minfo) +
-						align_len);
-	mod->sgpg_arr = (struct bfi_sgpg_s *) (bfa_meminfo_dma_virt(minfo) +
-						align_len);
+	mod->free_sgpgs = mod->num_sgpgs = cfg->drvcfg.num_sgpgs;
 
-	hsgpg = mod->hsgpg_arr;
-	sgpg = mod->sgpg_arr;
-	sgpg_pa.pa = mod->sgpg_arr_pa;
-	mod->free_sgpgs = mod->num_sgpgs;
+	num_sgpg = cfg->drvcfg.num_sgpgs;
+	nsegs = BFI_MEM_DMA_NSEGS(num_sgpg, sgpg_sz);
 
-	WARN_ON(sgpg_pa.pa & (sizeof(struct bfi_sgpg_s) - 1));
+	/* dma/kva mem claim */
+	hsgpg = (struct bfa_sgpg_s *) bfa_mem_kva_curp(mod);
 
-	for (i = 0; i < mod->num_sgpgs; i++) {
-		memset(hsgpg, 0, sizeof(*hsgpg));
-		memset(sgpg, 0, sizeof(*sgpg));
+	bfa_mem_dma_seg_iter(mod, seg_ptr, nsegs, idx) {
 
-		hsgpg->sgpg = sgpg;
-		sgpg_pa_tmp.pa = bfa_sgaddr_le(sgpg_pa.pa);
-		hsgpg->sgpg_pa = sgpg_pa_tmp.addr;
-		list_add_tail(&hsgpg->qe, &mod->sgpg_q);
+		if (!bfa_mem_dma_virt(seg_ptr))
+			break;
 
-		hsgpg++;
-		sgpg++;
-		sgpg_pa.pa += sizeof(struct bfi_sgpg_s);
+		align_len = BFA_SGPG_ROUNDUP(bfa_mem_dma_phys(seg_ptr)) -
+					     bfa_mem_dma_phys(seg_ptr);
+
+		sgpg = (struct bfi_sgpg_s *)
+			(((u8 *) bfa_mem_dma_virt(seg_ptr)) + align_len);
+		sgpg_pa.pa = bfa_mem_dma_phys(seg_ptr) + align_len;
+		WARN_ON(sgpg_pa.pa & (sgpg_sz - 1));
+
+		per_seg_sgpg = (seg_ptr->mem_len - (u32)align_len) / sgpg_sz;
+
+		for (i = 0; num_sgpg > 0 && i < per_seg_sgpg; i++, num_sgpg--) {
+			memset(hsgpg, 0, sizeof(*hsgpg));
+			memset(sgpg, 0, sizeof(*sgpg));
+
+			hsgpg->sgpg = sgpg;
+			sgpg_pa_tmp.pa = bfa_sgaddr_le(sgpg_pa.pa);
+			hsgpg->sgpg_pa = sgpg_pa_tmp.addr;
+			list_add_tail(&hsgpg->qe, &mod->sgpg_q);
+
+			sgpg++;
+			hsgpg++;
+			sgpg_pa.pa += sgpg_sz;
+		}
 	}
 
-	bfa_meminfo_kva(minfo) = (u8 *) hsgpg;
-	bfa_meminfo_dma_virt(minfo) = (u8 *) sgpg;
-	bfa_meminfo_dma_phys(minfo) = sgpg_pa.pa;
+	bfa_mem_kva_curp(mod) = (u8 *) hsgpg;
 }
 
 static void
@@ -4928,29 +4936,13 @@ __bfa_cb_uf_recv(void *cbarg, bfa_boolean_t complete)
 }
 
 static void
-claim_uf_pbs(struct bfa_uf_mod_s *ufm, struct bfa_meminfo_s *mi)
-{
-	u32 uf_pb_tot_sz;
-
-	ufm->uf_pbs_kva = (struct bfa_uf_buf_s *) bfa_meminfo_dma_virt(mi);
-	ufm->uf_pbs_pa = bfa_meminfo_dma_phys(mi);
-	uf_pb_tot_sz = BFA_ROUNDUP((sizeof(struct bfa_uf_buf_s) * ufm->num_ufs),
-							BFA_DMA_ALIGN_SZ);
-
-	bfa_meminfo_dma_virt(mi) += uf_pb_tot_sz;
-	bfa_meminfo_dma_phys(mi) += uf_pb_tot_sz;
-
-	memset((void *)ufm->uf_pbs_kva, 0, uf_pb_tot_sz);
-}
-
-static void
-claim_uf_post_msgs(struct bfa_uf_mod_s *ufm, struct bfa_meminfo_s *mi)
+claim_uf_post_msgs(struct bfa_uf_mod_s *ufm)
 {
 	struct bfi_uf_buf_post_s *uf_bp_msg;
 	u16 i;
 	u16 buf_len;
 
-	ufm->uf_buf_posts = (struct bfi_uf_buf_post_s *) bfa_meminfo_kva(mi);
+	ufm->uf_buf_posts = (struct bfi_uf_buf_post_s *) bfa_mem_kva_curp(ufm);
 	uf_bp_msg = ufm->uf_buf_posts;
 
 	for (i = 0, uf_bp_msg = ufm->uf_buf_posts; i < ufm->num_ufs;
@@ -4968,11 +4960,11 @@ claim_uf_post_msgs(struct bfa_uf_mod_s *ufm, struct bfa_meminfo_s *mi)
 	/*
 	 * advance pointer beyond consumed memory
 	 */
-	bfa_meminfo_kva(mi) = (u8 *) uf_bp_msg;
+	bfa_mem_kva_curp(ufm) = (u8 *) uf_bp_msg;
 }
 
 static void
-claim_ufs(struct bfa_uf_mod_s *ufm, struct bfa_meminfo_s *mi)
+claim_ufs(struct bfa_uf_mod_s *ufm)
 {
 	u16 i;
 	struct bfa_uf_s   *uf;
@@ -4980,7 +4972,7 @@ claim_ufs(struct bfa_uf_mod_s *ufm, struct bfa_meminfo_s *mi)
 	/*
 	 * Claim block of memory for UF list
 	 */
-	ufm->uf_list = (struct bfa_uf_s *) bfa_meminfo_kva(mi);
+	ufm->uf_list = (struct bfa_uf_s *) bfa_mem_kva_curp(ufm);
 
 	/*
 	 * Initialize UFs and queue it in UF free queue
@@ -4989,8 +4981,8 @@ claim_ufs(struct bfa_uf_mod_s *ufm, struct bfa_meminfo_s *mi)
 		memset(uf, 0, sizeof(struct bfa_uf_s));
 		uf->bfa = ufm->bfa;
 		uf->uf_tag = i;
-		uf->pb_len = sizeof(struct bfa_uf_buf_s);
-		uf->buf_kva = (void *)&ufm->uf_pbs_kva[i];
+		uf->pb_len = BFA_PER_UF_DMA_SZ;
+		uf->buf_kva = bfa_mem_get_dmabuf_kva(ufm, i, BFA_PER_UF_DMA_SZ);
 		uf->buf_pa = ufm_pbs_pa(ufm, i);
 		list_add_tail(&uf->qe, &ufm->uf_free_q);
 	}
@@ -4998,49 +4990,57 @@ claim_ufs(struct bfa_uf_mod_s *ufm, struct bfa_meminfo_s *mi)
 	/*
 	 * advance memory pointer
 	 */
-	bfa_meminfo_kva(mi) = (u8 *) uf;
+	bfa_mem_kva_curp(ufm) = (u8 *) uf;
 }
 
 static void
-uf_mem_claim(struct bfa_uf_mod_s *ufm, struct bfa_meminfo_s *mi)
+uf_mem_claim(struct bfa_uf_mod_s *ufm)
 {
-	claim_uf_pbs(ufm, mi);
-	claim_ufs(ufm, mi);
-	claim_uf_post_msgs(ufm, mi);
+	claim_ufs(ufm);
+	claim_uf_post_msgs(ufm);
 }
 
 static void
-bfa_uf_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *ndm_len, u32 *dm_len)
+bfa_uf_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
+		struct bfa_s *bfa)
 {
-	u32 num_ufs = cfg->fwcfg.num_uf_bufs;
+	struct bfa_uf_mod_s *ufm = BFA_UF_MOD(bfa);
+	struct bfa_mem_kva_s *uf_kva = BFA_MEM_UF_KVA(bfa);
+	u32	num_ufs = cfg->fwcfg.num_uf_bufs;
+	struct bfa_mem_dma_s *seg_ptr;
+	u16	nsegs, idx, per_seg_uf = 0;
 
-	/*
-	 * dma-able memory for UF posted bufs
-	 */
-	*dm_len += BFA_ROUNDUP((sizeof(struct bfa_uf_buf_s) * num_ufs),
-							BFA_DMA_ALIGN_SZ);
+	nsegs = BFI_MEM_DMA_NSEGS(num_ufs, BFA_PER_UF_DMA_SZ);
+	per_seg_uf = BFI_MEM_NREQS_SEG(BFA_PER_UF_DMA_SZ);
 
-	/*
-	 * kernel Virtual memory for UFs and UF buf post msg copies
-	 */
-	*ndm_len += sizeof(struct bfa_uf_s) * num_ufs;
-	*ndm_len += sizeof(struct bfi_uf_buf_post_s) * num_ufs;
+	bfa_mem_dma_seg_iter(ufm, seg_ptr, nsegs, idx) {
+		if (num_ufs >= per_seg_uf) {
+			num_ufs -= per_seg_uf;
+			bfa_mem_dma_setup(minfo, seg_ptr,
+				per_seg_uf * BFA_PER_UF_DMA_SZ);
+		} else
+			bfa_mem_dma_setup(minfo, seg_ptr,
+				num_ufs * BFA_PER_UF_DMA_SZ);
+	}
+
+	/* kva memory */
+	bfa_mem_kva_setup(minfo, uf_kva, cfg->fwcfg.num_uf_bufs *
+		(sizeof(struct bfa_uf_s) + sizeof(struct bfi_uf_buf_post_s)));
 }
 
 static void
 bfa_uf_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
-		  struct bfa_meminfo_s *meminfo, struct bfa_pcidev_s *pcidev)
+		struct bfa_pcidev_s *pcidev)
 {
 	struct bfa_uf_mod_s *ufm = BFA_UF_MOD(bfa);
 
-	memset(ufm, 0, sizeof(struct bfa_uf_mod_s));
 	ufm->bfa = bfa;
 	ufm->num_ufs = cfg->fwcfg.num_uf_bufs;
 	INIT_LIST_HEAD(&ufm->uf_free_q);
 	INIT_LIST_HEAD(&ufm->uf_posted_q);
 	INIT_LIST_HEAD(&ufm->uf_unused_q);
 
-	uf_mem_claim(ufm, meminfo);
+	uf_mem_claim(ufm);
 }
 
 static void
@@ -5098,10 +5098,14 @@ uf_recv(struct bfa_s *bfa, struct bfi_uf_frm_rcvd_s *m)
 {
 	struct bfa_uf_mod_s *ufm = BFA_UF_MOD(bfa);
 	u16 uf_tag = m->buf_tag;
-	struct bfa_uf_buf_s *uf_buf = &ufm->uf_pbs_kva[uf_tag];
 	struct bfa_uf_s *uf = &ufm->uf_list[uf_tag];
-	u8 *buf = &uf_buf->d[0];
+	struct bfa_uf_buf_s *uf_buf;
+	uint8_t *buf;
 	struct fchs_s *fchs;
+
+	uf_buf = (struct bfa_uf_buf_s *)
+			bfa_mem_get_dmabuf_kva(ufm, uf_tag, uf->pb_len);
+	buf = &uf_buf->d[0];
 
 	m->frm_len = be16_to_cpu(m->frm_len);
 	m->xfr_len = be16_to_cpu(m->xfr_len);

@@ -276,21 +276,6 @@ struct bfad_hal_comp {
 	struct completion comp;
 };
 
-/*
- * Macro to obtain the immediate lower power
- * of two for the integer.
- */
-#define nextLowerInt(x)                         \
-do {                                            \
-	int __i;                                  \
-	(*x)--;					\
-	for (__i = 1; __i < (sizeof(int)*8); __i <<= 1) \
-		(*x) = (*x) | (*x) >> __i;	\
-	(*x)++;					\
-	(*x) = (*x) >> 1;			\
-} while (0)
-
-
 #define BFA_LOG(level, bfad, mask, fmt, arg...)				\
 do {									\
 	if (((mask) == 4) || (level[1] <= '4'))				\

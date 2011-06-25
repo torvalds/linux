@@ -531,28 +531,26 @@ bfa_fcb_pbc_vport_create(struct bfad_s *bfad, struct bfi_pbc_vport_s pbc_vport)
 void
 bfad_hal_mem_release(struct bfad_s *bfad)
 {
-	int		i;
 	struct bfa_meminfo_s *hal_meminfo = &bfad->meminfo;
-	struct bfa_mem_elem_s *meminfo_elem;
+	struct bfa_mem_dma_s *dma_info, *dma_elem;
+	struct bfa_mem_kva_s *kva_info, *kva_elem;
+	struct list_head *dm_qe, *km_qe;
 
-	for (i = 0; i < BFA_MEM_TYPE_MAX; i++) {
-		meminfo_elem = &hal_meminfo->meminfo[i];
-		if (meminfo_elem->kva != NULL) {
-			switch (meminfo_elem->mem_type) {
-			case BFA_MEM_TYPE_KVA:
-				vfree(meminfo_elem->kva);
-				break;
-			case BFA_MEM_TYPE_DMA:
-				dma_free_coherent(&bfad->pcidev->dev,
-					meminfo_elem->mem_len,
-					meminfo_elem->kva,
-					(dma_addr_t) meminfo_elem->dma);
-				break;
-			default:
-				WARN_ON(1);
-				break;
-			}
-		}
+	dma_info = &hal_meminfo->dma_info;
+	kva_info = &hal_meminfo->kva_info;
+
+	/* Iterate through the KVA meminfo queue */
+	list_for_each(km_qe, &kva_info->qe) {
+		kva_elem = (struct bfa_mem_kva_s *) km_qe;
+		vfree(kva_elem->kva);
+	}
+
+	/* Iterate through the DMA meminfo queue */
+	list_for_each(dm_qe, &dma_info->qe) {
+		dma_elem = (struct bfa_mem_dma_s *) dm_qe;
+		dma_free_coherent(&bfad->pcidev->dev,
+				dma_elem->mem_len, dma_elem->kva,
+				(dma_addr_t) dma_elem->dma);
 	}
 
 	memset(hal_meminfo, 0, sizeof(struct bfa_meminfo_s));
@@ -567,15 +565,15 @@ bfad_update_hal_cfg(struct bfa_iocfc_cfg_s *bfa_cfg)
 		bfa_cfg->fwcfg.num_ioim_reqs = num_ios;
 	if (num_tms > 0)
 		bfa_cfg->fwcfg.num_tskim_reqs = num_tms;
-	if (num_fcxps > 0)
+	if (num_fcxps > 0 && num_fcxps <= BFA_FCXP_MAX)
 		bfa_cfg->fwcfg.num_fcxp_reqs = num_fcxps;
-	if (num_ufbufs > 0)
+	if (num_ufbufs > 0 && num_ufbufs <= BFA_UF_MAX)
 		bfa_cfg->fwcfg.num_uf_bufs = num_ufbufs;
 	if (reqq_size > 0)
 		bfa_cfg->drvcfg.num_reqq_elems = reqq_size;
 	if (rspq_size > 0)
 		bfa_cfg->drvcfg.num_rspq_elems = rspq_size;
-	if (num_sgpgs > 0)
+	if (num_sgpgs > 0 && num_sgpgs <= BFA_SGPG_MAX)
 		bfa_cfg->drvcfg.num_sgpgs = num_sgpgs;
 
 	/*
@@ -595,85 +593,46 @@ bfad_update_hal_cfg(struct bfa_iocfc_cfg_s *bfa_cfg)
 bfa_status_t
 bfad_hal_mem_alloc(struct bfad_s *bfad)
 {
-	int		i;
 	struct bfa_meminfo_s *hal_meminfo = &bfad->meminfo;
-	struct bfa_mem_elem_s *meminfo_elem;
-	dma_addr_t	phys_addr;
-	void	       *kva;
+	struct bfa_mem_dma_s *dma_info, *dma_elem;
+	struct bfa_mem_kva_s *kva_info, *kva_elem;
+	struct list_head *dm_qe, *km_qe;
 	bfa_status_t	rc = BFA_STATUS_OK;
-	int retry_count = 0;
-	int reset_value = 1;
-	int min_num_sgpgs = 512;
+	dma_addr_t	phys_addr;
 
 	bfa_cfg_get_default(&bfad->ioc_cfg);
-
-retry:
 	bfad_update_hal_cfg(&bfad->ioc_cfg);
 	bfad->cfg_data.ioc_queue_depth = bfad->ioc_cfg.fwcfg.num_ioim_reqs;
-	bfa_cfg_get_meminfo(&bfad->ioc_cfg, hal_meminfo);
+	bfa_cfg_get_meminfo(&bfad->ioc_cfg, hal_meminfo, &bfad->bfa);
 
-	for (i = 0; i < BFA_MEM_TYPE_MAX; i++) {
-		meminfo_elem = &hal_meminfo->meminfo[i];
-		switch (meminfo_elem->mem_type) {
-		case BFA_MEM_TYPE_KVA:
-			kva = vmalloc(meminfo_elem->mem_len);
-			if (kva == NULL) {
-				bfad_hal_mem_release(bfad);
-				rc = BFA_STATUS_ENOMEM;
-				goto ext;
-			}
-			memset(kva, 0, meminfo_elem->mem_len);
-			meminfo_elem->kva = kva;
-			break;
-		case BFA_MEM_TYPE_DMA:
-			kva = dma_alloc_coherent(&bfad->pcidev->dev,
-				meminfo_elem->mem_len, &phys_addr, GFP_KERNEL);
-			if (kva == NULL) {
-				bfad_hal_mem_release(bfad);
-				/*
-				 * If we cannot allocate with default
-				 * num_sgpages try with half the value.
-				 */
-				if (num_sgpgs > min_num_sgpgs) {
-					printk(KERN_INFO
-					"bfad[%d]: memory allocation failed"
-					" with num_sgpgs: %d\n",
-						bfad->inst_no, num_sgpgs);
-					nextLowerInt(&num_sgpgs);
-					printk(KERN_INFO
-					"bfad[%d]: trying to allocate memory"
-					" with num_sgpgs: %d\n",
-						bfad->inst_no, num_sgpgs);
-					retry_count++;
-					goto retry;
-				} else {
-					if (num_sgpgs_parm > 0)
-						num_sgpgs = num_sgpgs_parm;
-					else {
-						reset_value =
-							(1 << retry_count);
-						num_sgpgs *= reset_value;
-					}
-					rc = BFA_STATUS_ENOMEM;
-					goto ext;
-				}
-			}
+	dma_info = &hal_meminfo->dma_info;
+	kva_info = &hal_meminfo->kva_info;
 
-			if (num_sgpgs_parm > 0)
-				num_sgpgs = num_sgpgs_parm;
-			else {
-				reset_value = (1 << retry_count);
-				num_sgpgs *= reset_value;
-			}
-
-			memset(kva, 0, meminfo_elem->mem_len);
-			meminfo_elem->kva = kva;
-			meminfo_elem->dma = phys_addr;
-			break;
-		default:
-			break;
-
+	/* Iterate through the KVA meminfo queue */
+	list_for_each(km_qe, &kva_info->qe) {
+		kva_elem = (struct bfa_mem_kva_s *) km_qe;
+		kva_elem->kva = vmalloc(kva_elem->mem_len);
+		if (kva_elem->kva == NULL) {
+			bfad_hal_mem_release(bfad);
+			rc = BFA_STATUS_ENOMEM;
+			goto ext;
 		}
+		memset(kva_elem->kva, 0, kva_elem->mem_len);
+	}
+
+	/* Iterate through the DMA meminfo queue */
+	list_for_each(dm_qe, &dma_info->qe) {
+		dma_elem = (struct bfa_mem_dma_s *) dm_qe;
+		dma_elem->kva = dma_alloc_coherent(&bfad->pcidev->dev,
+						dma_elem->mem_len,
+						&phys_addr, GFP_KERNEL);
+		if (dma_elem->kva == NULL) {
+			bfad_hal_mem_release(bfad);
+			rc = BFA_STATUS_ENOMEM;
+			goto ext;
+		}
+		dma_elem->dma = phys_addr;
+		memset(dma_elem->kva, 0, dma_elem->mem_len);
 	}
 ext:
 	return rc;

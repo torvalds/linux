@@ -286,10 +286,9 @@ static void     bfa_tskim_sm_hcb(struct bfa_tskim_s *tskim,
  * Compute and return memory needed by FCP(im) module.
  */
 static void
-bfa_fcpim_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
-		u32 *dm_len)
+bfa_fcpim_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len)
 {
-	bfa_itnim_meminfo(cfg, km_len, dm_len);
+	bfa_itnim_meminfo(cfg, km_len);
 
 	/*
 	 * IO memory
@@ -308,8 +307,7 @@ bfa_fcpim_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
 
 static void
 bfa_fcpim_attach(struct bfa_fcp_mod_s *fcp, void *bfad,
-		struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
-		struct bfa_pcidev_s *pcidev)
+		struct bfa_iocfc_cfg_s *cfg, struct bfa_pcidev_s *pcidev)
 {
 	struct bfa_fcpim_s *fcpim = &fcp->fcpim;
 	struct bfa_s *bfa = fcp->bfa;
@@ -328,9 +326,9 @@ bfa_fcpim_attach(struct bfa_fcp_mod_s *fcp, void *bfad,
 	fcpim->profile_comp = NULL;
 	fcpim->profile_start = NULL;
 
-	bfa_itnim_attach(fcpim, meminfo);
-	bfa_tskim_attach(fcpim, meminfo);
-	bfa_ioim_attach(fcpim, meminfo);
+	bfa_itnim_attach(fcpim);
+	bfa_tskim_attach(fcpim);
+	bfa_ioim_attach(fcpim);
 }
 
 static void
@@ -972,8 +970,7 @@ bfa_itnim_tskdone(struct bfa_itnim_s *itnim)
 }
 
 void
-bfa_itnim_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
-		u32 *dm_len)
+bfa_itnim_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len)
 {
 	/*
 	 * ITN memory
@@ -982,15 +979,16 @@ bfa_itnim_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
 }
 
 void
-bfa_itnim_attach(struct bfa_fcpim_s *fcpim, struct bfa_meminfo_s *minfo)
+bfa_itnim_attach(struct bfa_fcpim_s *fcpim)
 {
 	struct bfa_s	*bfa = fcpim->bfa;
+	struct bfa_fcp_mod_s	*fcp = fcpim->fcp;
 	struct bfa_itnim_s *itnim;
 	int	i, j;
 
 	INIT_LIST_HEAD(&fcpim->itnim_q);
 
-	itnim = (struct bfa_itnim_s *) bfa_meminfo_kva(minfo);
+	itnim = (struct bfa_itnim_s *) bfa_mem_kva_curp(fcp);
 	fcpim->itnim_arr = itnim;
 
 	for (i = 0; i < fcpim->num_itnims; i++, itnim++) {
@@ -1012,7 +1010,7 @@ bfa_itnim_attach(struct bfa_fcpim_s *fcpim, struct bfa_meminfo_s *minfo)
 		bfa_sm_set_state(itnim, bfa_itnim_sm_uninit);
 	}
 
-	bfa_meminfo_kva(minfo) = (u8 *) itnim;
+	bfa_mem_kva_curp(fcp) = (u8 *) itnim;
 }
 
 void
@@ -2345,22 +2343,23 @@ bfa_ioim_delayed_comp(struct bfa_ioim_s *ioim, bfa_boolean_t iotov)
  * Memory allocation and initialization.
  */
 void
-bfa_ioim_attach(struct bfa_fcpim_s *fcpim, struct bfa_meminfo_s *minfo)
+bfa_ioim_attach(struct bfa_fcpim_s *fcpim)
 {
 	struct bfa_ioim_s		*ioim;
+	struct bfa_fcp_mod_s	*fcp = fcpim->fcp;
 	struct bfa_ioim_sp_s	*iosp;
 	u16		i;
 
 	/*
 	 * claim memory first
 	 */
-	ioim = (struct bfa_ioim_s *) bfa_meminfo_kva(minfo);
+	ioim = (struct bfa_ioim_s *) bfa_mem_kva_curp(fcp);
 	fcpim->ioim_arr = ioim;
-	bfa_meminfo_kva(minfo) = (u8 *) (ioim + fcpim->fcp->num_ioim_reqs);
+	bfa_mem_kva_curp(fcp) = (u8 *) (ioim + fcpim->fcp->num_ioim_reqs);
 
-	iosp = (struct bfa_ioim_sp_s *) bfa_meminfo_kva(minfo);
+	iosp = (struct bfa_ioim_sp_s *) bfa_mem_kva_curp(fcp);
 	fcpim->ioim_sp_arr = iosp;
-	bfa_meminfo_kva(minfo) = (u8 *) (iosp + fcpim->fcp->num_ioim_reqs);
+	bfa_mem_kva_curp(fcp) = (u8 *) (iosp + fcpim->fcp->num_ioim_reqs);
 
 	/*
 	 * Initialize ioim free queues
@@ -3109,15 +3108,16 @@ bfa_tskim_cleanup(struct bfa_tskim_s *tskim)
  * Memory allocation and initialization.
  */
 void
-bfa_tskim_attach(struct bfa_fcpim_s *fcpim, struct bfa_meminfo_s *minfo)
+bfa_tskim_attach(struct bfa_fcpim_s *fcpim)
 {
 	struct bfa_tskim_s *tskim;
+	struct bfa_fcp_mod_s	*fcp = fcpim->fcp;
 	u16	i;
 
 	INIT_LIST_HEAD(&fcpim->tskim_free_q);
 	INIT_LIST_HEAD(&fcpim->tskim_unused_q);
 
-	tskim = (struct bfa_tskim_s *) bfa_meminfo_kva(minfo);
+	tskim = (struct bfa_tskim_s *) bfa_mem_kva_curp(fcp);
 	fcpim->tskim_arr = tskim;
 
 	for (i = 0; i < fcpim->num_tskim_reqs; i++, tskim++) {
@@ -3136,7 +3136,7 @@ bfa_tskim_attach(struct bfa_fcpim_s *fcpim, struct bfa_meminfo_s *minfo)
 		list_add_tail(&tskim->qe, &fcpim->tskim_free_q);
 	}
 
-	bfa_meminfo_kva(minfo) = (u8 *) tskim;
+	bfa_mem_kva_curp(fcp) = (u8 *) tskim;
 }
 
 void
@@ -3233,9 +3233,14 @@ bfa_tskim_res_recfg(struct bfa_s *bfa, u16 num_tskim_fw)
 BFA_MODULE(fcp);
 
 static void
-bfa_fcp_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len, u32 *dm_len)
+bfa_fcp_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
+		struct bfa_s *bfa)
 {
-	u16	num_io_req;
+	struct bfa_fcp_mod_s *fcp = BFA_FCP_MOD(bfa);
+	struct bfa_mem_kva_s *fcp_kva = BFA_MEM_FCP_KVA(bfa);
+	struct bfa_mem_dma_s *seg_ptr;
+	u16	nsegs, idx, per_seg_ios, num_io_req;
+	u32	km_len = 0;
 
 	/*
 	 * ZERO for num_ioim_reqs and num_fwtio_reqs is allowed config value.
@@ -3261,43 +3266,69 @@ bfa_fcp_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len, u32 *dm_len)
 			cfg->fwcfg.num_ioim_reqs = BFA_IOIM_MAX;
 	}
 
-	bfa_fcpim_meminfo(cfg, km_len, dm_len);
+	bfa_fcpim_meminfo(cfg, &km_len);
 
 	num_io_req = (cfg->fwcfg.num_ioim_reqs + cfg->fwcfg.num_fwtio_reqs);
-	*km_len += num_io_req * sizeof(struct bfa_iotag_s);
-	*km_len += cfg->fwcfg.num_rports * sizeof(struct bfa_itn_s);
-	*dm_len += num_io_req * BFI_IOIM_SNSLEN;
+	km_len += num_io_req * sizeof(struct bfa_iotag_s);
+	km_len += cfg->fwcfg.num_rports * sizeof(struct bfa_itn_s);
+
+	/* dma memory */
+	nsegs = BFI_MEM_DMA_NSEGS(num_io_req, BFI_IOIM_SNSLEN);
+	per_seg_ios = BFI_MEM_NREQS_SEG(BFI_IOIM_SNSLEN);
+
+	bfa_mem_dma_seg_iter(fcp, seg_ptr, nsegs, idx) {
+		if (num_io_req >= per_seg_ios) {
+			num_io_req -= per_seg_ios;
+			bfa_mem_dma_setup(minfo, seg_ptr,
+				per_seg_ios * BFI_IOIM_SNSLEN);
+		} else
+			bfa_mem_dma_setup(minfo, seg_ptr,
+				num_io_req * BFI_IOIM_SNSLEN);
+	}
+
+	/* kva memory */
+	bfa_mem_kva_setup(minfo, fcp_kva, km_len);
 }
 
 static void
 bfa_fcp_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
-		struct bfa_meminfo_s *meminfo, struct bfa_pcidev_s *pcidev)
+		struct bfa_pcidev_s *pcidev)
 {
 	struct bfa_fcp_mod_s *fcp = BFA_FCP_MOD(bfa);
-	u32	snsbufsz;
+	struct bfa_mem_dma_s *seg_ptr;
+	u16	idx, nsegs, num_io_req;
 
 	fcp->num_ioim_reqs = cfg->fwcfg.num_ioim_reqs;
 	fcp->num_fwtio_reqs  = cfg->fwcfg.num_fwtio_reqs;
-	fcp->num_itns	= cfg->fwcfg.num_rports;
+	fcp->num_itns   = cfg->fwcfg.num_rports;
 	fcp->bfa = bfa;
 
-	snsbufsz = (fcp->num_ioim_reqs + fcp->num_fwtio_reqs) * BFI_IOIM_SNSLEN;
-	fcp->snsbase.pa = bfa_meminfo_dma_phys(meminfo);
-	bfa_meminfo_dma_phys(meminfo) += snsbufsz;
+	/*
+	 * Setup the pool of snsbase addr's, that is passed to fw as
+	 * part of bfi_iocfc_cfg_s.
+	 */
+	num_io_req = (cfg->fwcfg.num_ioim_reqs + cfg->fwcfg.num_fwtio_reqs);
+	nsegs = BFI_MEM_DMA_NSEGS(num_io_req, BFI_IOIM_SNSLEN);
 
-	fcp->snsbase.kva = bfa_meminfo_dma_virt(meminfo);
-	bfa_meminfo_dma_virt(meminfo) += snsbufsz;
-	bfa_iocfc_set_snsbase(bfa, fcp->snsbase.pa);
+	bfa_mem_dma_seg_iter(fcp, seg_ptr, nsegs, idx) {
 
-	bfa_fcpim_attach(fcp, bfad, cfg, meminfo, pcidev);
+		if (!bfa_mem_dma_virt(seg_ptr))
+			break;
 
-	fcp->itn_arr = (struct bfa_itn_s *) bfa_meminfo_kva(meminfo);
-	bfa_meminfo_kva(meminfo) = (u8 *)fcp->itn_arr +
+		fcp->snsbase[idx].pa = bfa_mem_dma_phys(seg_ptr);
+		fcp->snsbase[idx].kva = bfa_mem_dma_virt(seg_ptr);
+		bfa_iocfc_set_snsbase(bfa, idx, fcp->snsbase[idx].pa);
+	}
+
+	bfa_fcpim_attach(fcp, bfad, cfg, pcidev);
+
+	bfa_iotag_attach(fcp);
+
+	fcp->itn_arr = (struct bfa_itn_s *) bfa_mem_kva_curp(fcp);
+	bfa_mem_kva_curp(fcp) = (u8 *)fcp->itn_arr +
 			(fcp->num_itns * sizeof(struct bfa_itn_s));
 	memset(fcp->itn_arr, 0,
 			(fcp->num_itns * sizeof(struct bfa_itn_s)));
-
-	bfa_iotag_attach(fcp, meminfo);
 }
 
 static void
@@ -3370,12 +3401,12 @@ bfa_itn_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 }
 
 void
-bfa_iotag_attach(struct bfa_fcp_mod_s *fcp, struct bfa_meminfo_s *minfo)
+bfa_iotag_attach(struct bfa_fcp_mod_s *fcp)
 {
 	struct bfa_iotag_s *iotag;
 	u16	num_io_req, i;
 
-	iotag = (struct bfa_iotag_s *) bfa_meminfo_kva(minfo);
+	iotag = (struct bfa_iotag_s *) bfa_mem_kva_curp(fcp);
 	fcp->iotag_arr = iotag;
 
 	INIT_LIST_HEAD(&fcp->iotag_ioim_free_q);
@@ -3392,5 +3423,5 @@ bfa_iotag_attach(struct bfa_fcp_mod_s *fcp, struct bfa_meminfo_s *minfo)
 			list_add_tail(&iotag->qe, &fcp->iotag_tio_free_q);
 	}
 
-	bfa_meminfo_kva(minfo) = (u8 *) iotag;
+	bfa_mem_kva_curp(fcp) = (u8 *) iotag;
 }

@@ -45,7 +45,10 @@ struct bfa_port_s {
 	bfa_status_t			endis_status;
 	struct bfa_ioc_notify_s		ioc_notify;
 	bfa_boolean_t			pbc_disabled;
+	struct bfa_mem_dma_s		port_dma;
 };
+
+#define BFA_MEM_PORT_DMA(__bfa)		(&((__bfa)->modules.port.port_dma))
 
 void	     bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 				void *dev, struct bfa_trc_mod_s *trcmod);

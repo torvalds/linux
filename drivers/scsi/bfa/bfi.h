@@ -23,6 +23,24 @@
 
 #pragma pack(1)
 
+/* Per dma segment max size */
+#define BFI_MEM_DMA_SEG_SZ	(131072)
+
+/* Get number of dma segments required */
+#define BFI_MEM_DMA_NSEGS(_num_reqs, _req_sz)				\
+	((u16)(((((_num_reqs) * (_req_sz)) + BFI_MEM_DMA_SEG_SZ - 1) &	\
+	 ~(BFI_MEM_DMA_SEG_SZ - 1)) / BFI_MEM_DMA_SEG_SZ))
+
+/* Get num dma reqs - that fit in a segment */
+#define BFI_MEM_NREQS_SEG(_rqsz) (BFI_MEM_DMA_SEG_SZ / (_rqsz))
+
+/* Get segment num from tag */
+#define BFI_MEM_SEG_FROM_TAG(_tag, _rqsz) ((_tag) / BFI_MEM_NREQS_SEG(_rqsz))
+
+/* Get dma req offset in a segment */
+#define BFI_MEM_SEG_REQ_OFFSET(_tag, _sz)	\
+	((_tag) - (BFI_MEM_SEG_FROM_TAG(_tag, _sz) * BFI_MEM_NREQS_SEG(_sz)))
+
 /*
  * BFI FW image type
  */
@@ -46,7 +64,6 @@ struct bfi_mhdr_s {
 
 #define bfi_fn_lpu(__fn, __lpu)	((__fn) << 1 | (__lpu))
 #define bfi_mhdr_2_fn(_mh)	((_mh)->mtag.h2i.fn_lpu >> 1)
-#define bfi_mhdr_2_qid(_m)	((_mh)->mtag.h2i.qid)
 
 #define bfi_h2i_set(_mh, _mc, _op, _fn_lpu) do {		\
 	(_mh).msg_class		= (_mc);      \
@@ -132,6 +149,12 @@ struct bfi_sgpg_s {
 	struct bfi_sge_s sges[BFI_SGPG_SGES_MAX];
 	u32	rsvd[BFI_SGPG_RSVD_WD_LEN];
 };
+
+/* FCP module definitions */
+#define BFI_IO_MAX	(2000)
+#define BFI_IOIM_SNSLEN	(256)
+#define BFI_IOIM_SNSBUF_SEGS	\
+	BFI_MEM_DMA_NSEGS(BFI_IO_MAX, BFI_IOIM_SNSLEN)
 
 /*
  * Large Message structure - 128 Bytes size Msgs

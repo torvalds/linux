@@ -172,34 +172,6 @@ struct bfa_pciid_s {
 
 extern char     bfa_version[];
 
-/*
- * BFA memory resources
- */
-enum bfa_mem_type {
-	BFA_MEM_TYPE_KVA = 1,	/*  Kernel Virtual Memory *(non-dma-able) */
-	BFA_MEM_TYPE_DMA = 2,	/*  DMA-able memory */
-	BFA_MEM_TYPE_MAX = BFA_MEM_TYPE_DMA,
-};
-
-struct bfa_mem_elem_s {
-	enum bfa_mem_type mem_type;	/* see enum bfa_mem_type */
-	u32	mem_len;	/*  Total Length in Bytes	*/
-	u8		*kva;		/*  kernel virtual address	*/
-	u64	dma;		/*  dma address if DMA memory	*/
-	u8		*kva_curp;	/*  kva allocation cursor	*/
-	u64	dma_curp;	/*  dma allocation cursor	*/
-};
-
-struct bfa_meminfo_s {
-	struct bfa_mem_elem_s meminfo[BFA_MEM_TYPE_MAX];
-};
-#define bfa_meminfo_kva(_m)				\
-	((_m)->meminfo[BFA_MEM_TYPE_KVA - 1].kva_curp)
-#define bfa_meminfo_dma_virt(_m)			\
-	((_m)->meminfo[BFA_MEM_TYPE_DMA - 1].kva_curp)
-#define bfa_meminfo_dma_phys(_m)			\
-	((_m)->meminfo[BFA_MEM_TYPE_DMA - 1].dma_curp)
-
 struct bfa_iocfc_regs_s {
 	void __iomem	*intr_status;
 	void __iomem	*intr_mask;
@@ -294,7 +266,18 @@ struct bfa_iocfc_s {
 	void			*updateq_cbarg;	/*  bios callback arg */
 	u32	intr_mask;
 	struct bfa_faa_args_s	faa_args;
+	struct bfa_mem_dma_s	ioc_dma;
+	struct bfa_mem_dma_s	iocfc_dma;
+	struct bfa_mem_dma_s	reqq_dma[BFI_IOC_MAX_CQS];
+	struct bfa_mem_dma_s	rspq_dma[BFI_IOC_MAX_CQS];
+	struct bfa_mem_kva_s	kva_seg;
 };
+
+#define BFA_MEM_IOC_DMA(_bfa)		(&((_bfa)->iocfc.ioc_dma))
+#define BFA_MEM_IOCFC_DMA(_bfa)		(&((_bfa)->iocfc.iocfc_dma))
+#define BFA_MEM_REQQ_DMA(_bfa, _qno)	(&((_bfa)->iocfc.reqq_dma[(_qno)]))
+#define BFA_MEM_RSPQ_DMA(_bfa, _qno)	(&((_bfa)->iocfc.rspq_dma[(_qno)]))
+#define BFA_MEM_IOCFC_KVA(_bfa)		(&((_bfa)->iocfc.kva_seg))
 
 #define bfa_fn_lpu(__bfa)	\
 	bfi_fn_lpu(bfa_ioc_pcifn(&(__bfa)->ioc), bfa_ioc_portid(&(__bfa)->ioc))
@@ -329,17 +312,17 @@ struct bfa_iocfc_s {
 /*
  * FC specific IOC functions.
  */
-void bfa_iocfc_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
-		       u32 *dm_len);
+void bfa_iocfc_meminfo(struct bfa_iocfc_cfg_s *cfg,
+			struct bfa_meminfo_s *meminfo,
+			struct bfa_s *bfa);
 void bfa_iocfc_attach(struct bfa_s *bfa, void *bfad,
 		      struct bfa_iocfc_cfg_s *cfg,
-		      struct bfa_meminfo_s *meminfo,
 		      struct bfa_pcidev_s *pcidev);
 void bfa_iocfc_init(struct bfa_s *bfa);
 void bfa_iocfc_start(struct bfa_s *bfa);
 void bfa_iocfc_stop(struct bfa_s *bfa);
 void bfa_iocfc_isr(void *bfa, struct bfi_mbmsg_s *msg);
-void bfa_iocfc_set_snsbase(struct bfa_s *bfa, u64 snsbase_pa);
+void bfa_iocfc_set_snsbase(struct bfa_s *bfa, int seg_no, u64 snsbase_pa);
 bfa_boolean_t bfa_iocfc_is_operational(struct bfa_s *bfa);
 void bfa_iocfc_reset_queues(struct bfa_s *bfa);
 
@@ -418,7 +401,8 @@ void bfa_get_pciids(struct bfa_pciid_s **pciids, int *npciids);
 void bfa_cfg_get_default(struct bfa_iocfc_cfg_s *cfg);
 void bfa_cfg_get_min(struct bfa_iocfc_cfg_s *cfg);
 void bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg,
-			 struct bfa_meminfo_s *meminfo);
+			struct bfa_meminfo_s *meminfo,
+			struct bfa_s *bfa);
 void bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		struct bfa_meminfo_s *meminfo,
 		struct bfa_pcidev_s *pcidev);

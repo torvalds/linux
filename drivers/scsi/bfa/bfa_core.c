@@ -89,46 +89,26 @@ static bfa_ioc_mbox_mcfunc_t  bfa_mbox_isrs[BFI_MC_MAX] = {
 
 
 static void
-bfa_com_port_attach(struct bfa_s *bfa, struct bfa_meminfo_s *mi)
+bfa_com_port_attach(struct bfa_s *bfa)
 {
 	struct bfa_port_s	*port = &bfa->modules.port;
-	u32			dm_len;
-	u8			*dm_kva;
-	u64			dm_pa;
+	struct bfa_mem_dma_s	*port_dma = BFA_MEM_PORT_DMA(bfa);
 
-	dm_len = bfa_port_meminfo();
-	dm_kva = bfa_meminfo_dma_virt(mi);
-	dm_pa  = bfa_meminfo_dma_phys(mi);
-
-	memset(port, 0, sizeof(struct bfa_port_s));
 	bfa_port_attach(port, &bfa->ioc, bfa, bfa->trcmod);
-	bfa_port_mem_claim(port, dm_kva, dm_pa);
-
-	bfa_meminfo_dma_virt(mi) = dm_kva + dm_len;
-	bfa_meminfo_dma_phys(mi) = dm_pa + dm_len;
+	bfa_port_mem_claim(port, port_dma->kva_curp, port_dma->dma_curp);
 }
 
 /*
  * ablk module attach
  */
 static void
-bfa_com_ablk_attach(struct bfa_s *bfa, struct bfa_meminfo_s *mi)
+bfa_com_ablk_attach(struct bfa_s *bfa)
 {
 	struct bfa_ablk_s	*ablk = &bfa->modules.ablk;
-	u32			dm_len;
-	u8			*dm_kva;
-	u64			dm_pa;
+	struct bfa_mem_dma_s	*ablk_dma = BFA_MEM_ABLK_DMA(bfa);
 
-	dm_len = bfa_ablk_meminfo();
-	dm_kva = bfa_meminfo_dma_virt(mi);
-	dm_pa  = bfa_meminfo_dma_phys(mi);
-
-	memset(ablk, 0, sizeof(struct bfa_ablk_s));
 	bfa_ablk_attach(ablk, &bfa->ioc);
-	bfa_ablk_memclaim(ablk, dm_kva, dm_pa);
-
-	bfa_meminfo_dma_virt(mi) = dm_kva + dm_len;
-	bfa_meminfo_dma_phys(mi) = dm_pa + dm_len;
+	bfa_ablk_memclaim(ablk, ablk_dma->kva_curp, ablk_dma->dma_curp);
 }
 
 /*
@@ -444,41 +424,6 @@ bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
  *  BFA IOC private functions
  */
 
-static void
-bfa_iocfc_cqs_sz(struct bfa_iocfc_cfg_s *cfg, u32 *dm_len)
-{
-	int		i, per_reqq_sz, per_rspq_sz;
-
-	per_reqq_sz = BFA_ROUNDUP((cfg->drvcfg.num_reqq_elems * BFI_LMSG_SZ),
-				  BFA_DMA_ALIGN_SZ);
-	per_rspq_sz = BFA_ROUNDUP((cfg->drvcfg.num_rspq_elems * BFI_LMSG_SZ),
-				  BFA_DMA_ALIGN_SZ);
-
-	/*
-	 * Calculate CQ size
-	 */
-	for (i = 0; i < cfg->fwcfg.num_cqs; i++) {
-		*dm_len = *dm_len + per_reqq_sz;
-		*dm_len = *dm_len + per_rspq_sz;
-	}
-
-	/*
-	 * Calculate Shadow CI/PI size
-	 */
-	for (i = 0; i < cfg->fwcfg.num_cqs; i++)
-		*dm_len += (2 * BFA_CACHELINE_SZ);
-}
-
-static void
-bfa_iocfc_fw_cfg_sz(struct bfa_iocfc_cfg_s *cfg, u32 *dm_len)
-{
-	*dm_len +=
-		BFA_ROUNDUP(sizeof(struct bfi_iocfc_cfg_s), BFA_CACHELINE_SZ);
-	*dm_len +=
-		BFA_ROUNDUP(sizeof(struct bfi_iocfc_cfgrsp_s),
-			    BFA_CACHELINE_SZ);
-}
-
 /*
  * Use the Mailbox interface to send BFI_IOCFC_H2I_CFG_REQ
  */
@@ -604,47 +549,41 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 }
 
 static void
-bfa_iocfc_mem_claim(struct bfa_s *bfa, struct bfa_iocfc_cfg_s *cfg,
-		    struct bfa_meminfo_s *meminfo)
+bfa_iocfc_mem_claim(struct bfa_s *bfa, struct bfa_iocfc_cfg_s *cfg)
 {
-	u8	       *dm_kva;
-	u64	dm_pa;
-	int		i, per_reqq_sz, per_rspq_sz;
+	u8	*dm_kva = NULL;
+	u64	dm_pa = 0;
+	int	i, per_reqq_sz, per_rspq_sz, dbgsz;
 	struct bfa_iocfc_s  *iocfc = &bfa->iocfc;
-	int		dbgsz;
+	struct bfa_mem_dma_s *ioc_dma = BFA_MEM_IOC_DMA(bfa);
+	struct bfa_mem_dma_s *iocfc_dma = BFA_MEM_IOCFC_DMA(bfa);
+	struct bfa_mem_dma_s *reqq_dma, *rspq_dma;
 
-	dm_kva = bfa_meminfo_dma_virt(meminfo);
-	dm_pa = bfa_meminfo_dma_phys(meminfo);
+	/* First allocate dma memory for IOC */
+	bfa_ioc_mem_claim(&bfa->ioc, bfa_mem_dma_virt(ioc_dma),
+			bfa_mem_dma_phys(ioc_dma));
 
-	/*
-	 * First allocate dma memory for IOC.
-	 */
-	bfa_ioc_mem_claim(&bfa->ioc, dm_kva, dm_pa);
-	dm_kva += BFA_ROUNDUP(sizeof(struct bfi_ioc_attr_s), BFA_DMA_ALIGN_SZ);
-	dm_pa  += BFA_ROUNDUP(sizeof(struct bfi_ioc_attr_s), BFA_DMA_ALIGN_SZ);
-
-	/*
-	 * Claim DMA-able memory for the request/response queues and for shadow
-	 * ci/pi registers
-	 */
+	/* Claim DMA-able memory for the request/response queues */
 	per_reqq_sz = BFA_ROUNDUP((cfg->drvcfg.num_reqq_elems * BFI_LMSG_SZ),
-				  BFA_DMA_ALIGN_SZ);
+				BFA_DMA_ALIGN_SZ);
 	per_rspq_sz = BFA_ROUNDUP((cfg->drvcfg.num_rspq_elems * BFI_LMSG_SZ),
-				  BFA_DMA_ALIGN_SZ);
+				BFA_DMA_ALIGN_SZ);
 
 	for (i = 0; i < cfg->fwcfg.num_cqs; i++) {
-		iocfc->req_cq_ba[i].kva = dm_kva;
-		iocfc->req_cq_ba[i].pa = dm_pa;
-		memset(dm_kva, 0, per_reqq_sz);
-		dm_kva += per_reqq_sz;
-		dm_pa += per_reqq_sz;
+		reqq_dma = BFA_MEM_REQQ_DMA(bfa, i);
+		iocfc->req_cq_ba[i].kva = bfa_mem_dma_virt(reqq_dma);
+		iocfc->req_cq_ba[i].pa = bfa_mem_dma_phys(reqq_dma);
+		memset(iocfc->req_cq_ba[i].kva, 0, per_reqq_sz);
 
-		iocfc->rsp_cq_ba[i].kva = dm_kva;
-		iocfc->rsp_cq_ba[i].pa = dm_pa;
-		memset(dm_kva, 0, per_rspq_sz);
-		dm_kva += per_rspq_sz;
-		dm_pa += per_rspq_sz;
+		rspq_dma = BFA_MEM_RSPQ_DMA(bfa, i);
+		iocfc->rsp_cq_ba[i].kva = bfa_mem_dma_virt(rspq_dma);
+		iocfc->rsp_cq_ba[i].pa = bfa_mem_dma_phys(rspq_dma);
+		memset(iocfc->rsp_cq_ba[i].kva, 0, per_rspq_sz);
 	}
+
+	/* Claim IOCFC dma memory - for shadow CI/PI */
+	dm_kva = bfa_mem_dma_virt(iocfc_dma);
+	dm_pa  = bfa_mem_dma_phys(iocfc_dma);
 
 	for (i = 0; i < cfg->fwcfg.num_cqs; i++) {
 		iocfc->req_cq_shadow_ci[i].kva = dm_kva;
@@ -658,36 +597,27 @@ bfa_iocfc_mem_claim(struct bfa_s *bfa, struct bfa_iocfc_cfg_s *cfg,
 		dm_pa += BFA_CACHELINE_SZ;
 	}
 
-	/*
-	 * Claim DMA-able memory for the config info page
-	 */
+	/* Claim IOCFC dma memory - for the config info page */
 	bfa->iocfc.cfg_info.kva = dm_kva;
 	bfa->iocfc.cfg_info.pa = dm_pa;
 	bfa->iocfc.cfginfo = (struct bfi_iocfc_cfg_s *) dm_kva;
 	dm_kva += BFA_ROUNDUP(sizeof(struct bfi_iocfc_cfg_s), BFA_CACHELINE_SZ);
 	dm_pa += BFA_ROUNDUP(sizeof(struct bfi_iocfc_cfg_s), BFA_CACHELINE_SZ);
 
-	/*
-	 * Claim DMA-able memory for the config response
-	 */
+	/* Claim IOCFC dma memory - for the config response */
 	bfa->iocfc.cfgrsp_dma.kva = dm_kva;
 	bfa->iocfc.cfgrsp_dma.pa = dm_pa;
 	bfa->iocfc.cfgrsp = (struct bfi_iocfc_cfgrsp_s *) dm_kva;
-
-	dm_kva +=
-		BFA_ROUNDUP(sizeof(struct bfi_iocfc_cfgrsp_s),
-			    BFA_CACHELINE_SZ);
+	dm_kva += BFA_ROUNDUP(sizeof(struct bfi_iocfc_cfgrsp_s),
+			BFA_CACHELINE_SZ);
 	dm_pa += BFA_ROUNDUP(sizeof(struct bfi_iocfc_cfgrsp_s),
-			     BFA_CACHELINE_SZ);
+			BFA_CACHELINE_SZ);
 
-
-	bfa_meminfo_dma_virt(meminfo) = dm_kva;
-	bfa_meminfo_dma_phys(meminfo) = dm_pa;
-
+	/* Claim IOCFC kva memory */
 	dbgsz = (bfa_auto_recover) ? BFA_DBG_FWTRC_LEN : 0;
 	if (dbgsz > 0) {
-		bfa_ioc_debug_memclaim(&bfa->ioc, bfa_meminfo_kva(meminfo));
-		bfa_meminfo_kva(meminfo) += dbgsz;
+		bfa_ioc_debug_memclaim(&bfa->ioc, bfa_mem_kva_curp(iocfc));
+		bfa_mem_kva_curp(iocfc) += dbgsz;
 	}
 }
 
@@ -1102,15 +1032,47 @@ bfa_iocfc_reset_cbfn(void *bfa_arg)
  * Query IOC memory requirement information.
  */
 void
-bfa_iocfc_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
-		  u32 *dm_len)
+bfa_iocfc_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
+		  struct bfa_s *bfa)
 {
-	/* dma memory for IOC */
-	*dm_len += BFA_ROUNDUP(sizeof(struct bfi_ioc_attr_s), BFA_DMA_ALIGN_SZ);
+	int q, per_reqq_sz, per_rspq_sz;
+	struct bfa_mem_dma_s *ioc_dma = BFA_MEM_IOC_DMA(bfa);
+	struct bfa_mem_dma_s *iocfc_dma = BFA_MEM_IOCFC_DMA(bfa);
+	struct bfa_mem_kva_s *iocfc_kva = BFA_MEM_IOCFC_KVA(bfa);
+	u32	dm_len = 0;
 
-	bfa_iocfc_fw_cfg_sz(cfg, dm_len);
-	bfa_iocfc_cqs_sz(cfg, dm_len);
-	*km_len += (bfa_auto_recover) ? BFA_DBG_FWTRC_LEN : 0;
+	/* dma memory setup for IOC */
+	bfa_mem_dma_setup(meminfo, ioc_dma,
+		BFA_ROUNDUP(sizeof(struct bfi_ioc_attr_s), BFA_DMA_ALIGN_SZ));
+
+	/* dma memory setup for REQ/RSP queues */
+	per_reqq_sz = BFA_ROUNDUP((cfg->drvcfg.num_reqq_elems * BFI_LMSG_SZ),
+				BFA_DMA_ALIGN_SZ);
+	per_rspq_sz = BFA_ROUNDUP((cfg->drvcfg.num_rspq_elems * BFI_LMSG_SZ),
+				BFA_DMA_ALIGN_SZ);
+
+	for (q = 0; q < cfg->fwcfg.num_cqs; q++) {
+		bfa_mem_dma_setup(meminfo, BFA_MEM_REQQ_DMA(bfa, q),
+				per_reqq_sz);
+		bfa_mem_dma_setup(meminfo, BFA_MEM_RSPQ_DMA(bfa, q),
+				per_rspq_sz);
+	}
+
+	/* IOCFC dma memory - calculate Shadow CI/PI size */
+	for (q = 0; q < cfg->fwcfg.num_cqs; q++)
+		dm_len += (2 * BFA_CACHELINE_SZ);
+
+	/* IOCFC dma memory - calculate config info / rsp size */
+	dm_len += BFA_ROUNDUP(sizeof(struct bfi_iocfc_cfg_s), BFA_CACHELINE_SZ);
+	dm_len += BFA_ROUNDUP(sizeof(struct bfi_iocfc_cfgrsp_s),
+			BFA_CACHELINE_SZ);
+
+	/* dma memory setup for IOCFC */
+	bfa_mem_dma_setup(meminfo, iocfc_dma, dm_len);
+
+	/* kva memory setup for IOCFC */
+	bfa_mem_kva_setup(meminfo, iocfc_kva,
+			((bfa_auto_recover) ? BFA_DBG_FWTRC_LEN : 0));
 }
 
 /*
@@ -1118,7 +1080,7 @@ bfa_iocfc_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
  */
 void
 bfa_iocfc_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
-		 struct bfa_meminfo_s *meminfo, struct bfa_pcidev_s *pcidev)
+		 struct bfa_pcidev_s *pcidev)
 {
 	int		i;
 	struct bfa_ioc_s *ioc = &bfa->ioc;
@@ -1135,7 +1097,7 @@ bfa_iocfc_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	bfa_ioc_mbox_register(&bfa->ioc, bfa_mbox_isrs);
 
 	bfa_iocfc_init_mem(bfa, bfad, cfg, pcidev);
-	bfa_iocfc_mem_claim(bfa, cfg, meminfo);
+	bfa_iocfc_mem_claim(bfa, cfg);
 	INIT_LIST_HEAD(&bfa->timer_mod.timer_q);
 
 	INIT_LIST_HEAD(&bfa->comp_q);
@@ -1259,12 +1221,12 @@ bfa_iocfc_israttr_set(struct bfa_s *bfa, struct bfa_iocfc_intr_attr_s *attr)
 }
 
 void
-bfa_iocfc_set_snsbase(struct bfa_s *bfa, u64 snsbase_pa)
+bfa_iocfc_set_snsbase(struct bfa_s *bfa, int seg_no, u64 snsbase_pa)
 {
 	struct bfa_iocfc_s	*iocfc = &bfa->iocfc;
 
 	iocfc->cfginfo->sense_buf_len = (BFI_IOIM_SNSLEN - 1);
-	bfa_dma_be_addr_set(iocfc->cfginfo->ioim_snsbase, snsbase_pa);
+	bfa_dma_be_addr_set(iocfc->cfginfo->ioim_snsbase[seg_no], snsbase_pa);
 }
 /*
  * Enable IOC after it is disabled.
@@ -1353,34 +1315,37 @@ bfa_iocfc_get_pbc_vports(struct bfa_s *bfa, struct bfi_pbc_vport_s *pbc_vport)
  *			starting address for each block and provide the same
  *			structure as input parameter to bfa_attach() call.
  *
+ * @param[in] bfa -	pointer to the bfa structure, used while fetching the
+ *			dma, kva memory information of the bfa sub-modules.
+ *
  * @return void
  *
  * Special Considerations: @note
  */
 void
-bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo)
+bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
+		struct bfa_s *bfa)
 {
 	int		i;
-	u32	km_len = 0, dm_len = 0;
+	struct bfa_mem_dma_s *port_dma = BFA_MEM_PORT_DMA(bfa);
+	struct bfa_mem_dma_s *ablk_dma = BFA_MEM_ABLK_DMA(bfa);
 
 	WARN_ON((cfg == NULL) || (meminfo == NULL));
 
 	memset((void *)meminfo, 0, sizeof(struct bfa_meminfo_s));
-	meminfo->meminfo[BFA_MEM_TYPE_KVA - 1].mem_type =
-		BFA_MEM_TYPE_KVA;
-	meminfo->meminfo[BFA_MEM_TYPE_DMA - 1].mem_type =
-		BFA_MEM_TYPE_DMA;
 
-	bfa_iocfc_meminfo(cfg, &km_len, &dm_len);
+	/* Initialize the DMA & KVA meminfo queues */
+	INIT_LIST_HEAD(&meminfo->dma_info.qe);
+	INIT_LIST_HEAD(&meminfo->kva_info.qe);
+
+	bfa_iocfc_meminfo(cfg, meminfo, bfa);
 
 	for (i = 0; hal_mods[i]; i++)
-		hal_mods[i]->meminfo(cfg, &km_len, &dm_len);
+		hal_mods[i]->meminfo(cfg, meminfo, bfa);
 
-	dm_len += bfa_port_meminfo();
-	dm_len += bfa_ablk_meminfo();
-
-	meminfo->meminfo[BFA_MEM_TYPE_KVA - 1].mem_len = km_len;
-	meminfo->meminfo[BFA_MEM_TYPE_DMA - 1].mem_len = dm_len;
+	/* dma info setup */
+	bfa_mem_dma_setup(meminfo, port_dma, bfa_port_meminfo());
+	bfa_mem_dma_setup(meminfo, ablk_dma, bfa_ablk_meminfo());
 }
 
 /*
@@ -1413,29 +1378,41 @@ void
 bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	       struct bfa_meminfo_s *meminfo, struct bfa_pcidev_s *pcidev)
 {
-	int			i;
-	struct bfa_mem_elem_s	*melem;
+	int	i;
+	struct bfa_mem_dma_s *dma_info, *dma_elem;
+	struct bfa_mem_kva_s *kva_info, *kva_elem;
+	struct list_head *dm_qe, *km_qe;
 
 	bfa->fcs = BFA_FALSE;
 
 	WARN_ON((cfg == NULL) || (meminfo == NULL));
 
-	/*
-	 * initialize all memory pointers for iterative allocation
-	 */
-	for (i = 0; i < BFA_MEM_TYPE_MAX; i++) {
-		melem = meminfo->meminfo + i;
-		melem->kva_curp = melem->kva;
-		melem->dma_curp = melem->dma;
+	/* Initialize memory pointers for iterative allocation */
+	dma_info = &meminfo->dma_info;
+	dma_info->kva_curp = dma_info->kva;
+	dma_info->dma_curp = dma_info->dma;
+
+	kva_info = &meminfo->kva_info;
+	kva_info->kva_curp = kva_info->kva;
+
+	list_for_each(dm_qe, &dma_info->qe) {
+		dma_elem = (struct bfa_mem_dma_s *) dm_qe;
+		dma_elem->kva_curp = dma_elem->kva;
+		dma_elem->dma_curp = dma_elem->dma;
 	}
 
-	bfa_iocfc_attach(bfa, bfad, cfg, meminfo, pcidev);
+	list_for_each(km_qe, &kva_info->qe) {
+		kva_elem = (struct bfa_mem_kva_s *) km_qe;
+		kva_elem->kva_curp = kva_elem->kva;
+	}
+
+	bfa_iocfc_attach(bfa, bfad, cfg, pcidev);
 
 	for (i = 0; hal_mods[i]; i++)
-		hal_mods[i]->attach(bfa, bfad, cfg, meminfo, pcidev);
+		hal_mods[i]->attach(bfa, bfad, cfg, pcidev);
 
-	bfa_com_port_attach(bfa, meminfo);
-	bfa_com_ablk_attach(bfa, meminfo);
+	bfa_com_port_attach(bfa);
+	bfa_com_ablk_attach(bfa);
 }
 
 /*

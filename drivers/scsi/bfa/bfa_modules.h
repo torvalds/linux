@@ -57,11 +57,11 @@ enum {
  */
 #define BFA_MODULE(__mod)						\
 	static void bfa_ ## __mod ## _meminfo(				\
-			struct bfa_iocfc_cfg_s *cfg, u32 *ndm_len,	\
-			u32 *dm_len);      \
+			struct bfa_iocfc_cfg_s *cfg,			\
+			struct bfa_meminfo_s *meminfo,			\
+			struct bfa_s *bfa);				\
 	static void bfa_ ## __mod ## _attach(struct bfa_s *bfa,		\
 			void *bfad, struct bfa_iocfc_cfg_s *cfg,	\
-			struct bfa_meminfo_s *meminfo,			\
 			struct bfa_pcidev_s *pcidev);      \
 	static void bfa_ ## __mod ## _detach(struct bfa_s *bfa);      \
 	static void bfa_ ## __mod ## _start(struct bfa_s *bfa);      \
@@ -87,11 +87,11 @@ enum {
  * can leave entry points as NULL)
  */
 struct bfa_module_s {
-	void (*meminfo) (struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
-			u32 *dm_len);
+	void (*meminfo) (struct bfa_iocfc_cfg_s *cfg,
+			 struct bfa_meminfo_s *meminfo,
+			 struct bfa_s *bfa);
 	void (*attach) (struct bfa_s *bfa, void *bfad,
 			struct bfa_iocfc_cfg_s *cfg,
-			struct bfa_meminfo_s *meminfo,
 			struct bfa_pcidev_s *pcidev);
 	void (*detach) (struct bfa_s *bfa);
 	void (*start) (struct bfa_s *bfa);
