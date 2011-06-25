@@ -67,9 +67,8 @@ driver is not compatible with this specification the ioctl returns an
 	    <entry><para>Name of the driver, a unique NUL-terminated
 ASCII string. For example: "bttv". Driver specific applications can
 use this information to verify the driver identity. It is also useful
-to work around known bugs, or to identify drivers in error reports.
-The driver version is stored in the <structfield>version</structfield>
-field.</para><para>Storing strings in fixed sized arrays is bad
+to work around known bugs, or to identify drivers in error reports.</para>
+<para>Storing strings in fixed sized arrays is bad
 practice but unavoidable here. Drivers and applications should take
 precautions to never read or write beyond the end of the array and to
 make sure the strings are properly NUL-terminated.</para></entry>
@@ -100,9 +99,13 @@ empty string (<structfield>bus_info</structfield>[0] = 0).<!-- XXX pci_dev->slot
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>version</structfield></entry>
-	    <entry><para>Version number of the driver. Together with
-the <structfield>driver</structfield> field this identifies a
-particular driver. The version number is formatted using the
+	    <entry><para>Version number of the driver.</para>
+<para>Starting on kernel 3.1, the version reported is provided per
+V4L2 subsystem, following the same Kernel numberation scheme. However, it
+should not always return the same version as the kernel, if, for example,
+an stable or distribution-modified kernel uses the V4L2 stack from a
+newer kernel.</para>
+<para>The version number is formatted using the
 <constant>KERNEL_VERSION()</constant> macro:</para></entry>
 	  </row>
 	  <row>
