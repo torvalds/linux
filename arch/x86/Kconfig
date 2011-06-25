@@ -2075,10 +2075,10 @@ config OLPC
 
 config OLPC_XO1_PM
 	bool "OLPC XO-1 Power Management"
-	depends on OLPC && MFD_CS5535
+	depends on OLPC && MFD_CS5535 && PM_SLEEP
 	select MFD_CORE
 	---help---
-	  Add support for poweroff of the OLPC XO-1 laptop.
+	  Add support for poweroff and suspend of the OLPC XO-1 laptop.
 
 endif # X86_32
 

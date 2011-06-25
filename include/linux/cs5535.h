@@ -70,6 +70,9 @@
 #define CS5536_PM1_CNT		0x08
 #define CS5536_PM_GPE0_STS	0x18
 
+/* CS5536_PM1_EN bits */
+#define CS5536_PM_PWRBTN	(1 << 8)
+
 /* VSA2 magic values */
 #define VSA_VRC_INDEX		0xAC1C
 #define VSA_VRC_DATA		0xAC1E

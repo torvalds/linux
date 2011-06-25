@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/mfd/core.h>
+#include <linux/suspend.h>
 
 #include <asm/io.h>
 #include <asm/olpc.h>
@@ -24,6 +25,85 @@
 
 static unsigned long acpi_base;
 static unsigned long pms_base;
+
+static u16 wakeup_mask = CS5536_PM_PWRBTN;
+
+static struct {
+	unsigned long address;
+	unsigned short segment;
+} ofw_bios_entry = { 0xF0000 + PAGE_OFFSET, __KERNEL_CS };
+
+/* Set bits in the wakeup mask */
+void olpc_xo1_pm_wakeup_set(u16 value)
+{
+	wakeup_mask |= value;
+}
+EXPORT_SYMBOL_GPL(olpc_xo1_pm_wakeup_set);
+
+/* Clear bits in the wakeup mask */
+void olpc_xo1_pm_wakeup_clear(u16 value)
+{
+	wakeup_mask &= ~value;
+}
+EXPORT_SYMBOL_GPL(olpc_xo1_pm_wakeup_clear);
+
+static int xo1_power_state_enter(suspend_state_t pm_state)
+{
+	unsigned long saved_sci_mask;
+	int r;
+
+	/* Only STR is supported */
+	if (pm_state != PM_SUSPEND_MEM)
+		return -EINVAL;
+
+	r = olpc_ec_cmd(EC_SET_SCI_INHIBIT, NULL, 0, NULL, 0);
+	if (r)
+		return r;
+
+	/*
+	 * Save SCI mask (this gets lost since PM1_EN is used as a mask for
+	 * wakeup events, which is not necessarily the same event set)
+	 */
+	saved_sci_mask = inl(acpi_base + CS5536_PM1_STS);
+	saved_sci_mask &= 0xffff0000;
+
+	/* Save CPU state */
+	do_olpc_suspend_lowlevel();
+
+	/* Resume path starts here */
+
+	/* Restore SCI mask (using dword access to CS5536_PM1_EN) */
+	outl(saved_sci_mask, acpi_base + CS5536_PM1_STS);
+
+	/* Tell the EC to stop inhibiting SCIs */
+	olpc_ec_cmd(EC_SET_SCI_INHIBIT_RELEASE, NULL, 0, NULL, 0);
+
+	/*
+	 * Tell the wireless module to restart USB communication.
+	 * Must be done twice.
+	 */
+	olpc_ec_cmd(EC_WAKE_UP_WLAN, NULL, 0, NULL, 0);
+	olpc_ec_cmd(EC_WAKE_UP_WLAN, NULL, 0, NULL, 0);
+
+	return 0;
+}
+
+asmlinkage int xo1_do_sleep(u8 sleep_state)
+{
+	void *pgd_addr = __va(read_cr3());
+
+	/* Program wakeup mask (using dword access to CS5536_PM1_EN) */
+	outl(wakeup_mask << 16, acpi_base + CS5536_PM1_STS);
+
+	__asm__("movl %0,%%eax" : : "r" (pgd_addr));
+	__asm__("call *(%%edi); cld"
+		: : "D" (&ofw_bios_entry));
+	__asm__("movb $0x34, %al\n\t"
+		"outb %al, $0x70\n\t"
+		"movb $0x30, %al\n\t"
+		"outb %al, $0x71\n\t");
+	return 0;
+}
 
 static void xo1_power_off(void)
 {
@@ -42,6 +122,17 @@ static void xo1_power_off(void)
 	/* Write SLP_EN bit to start the machinery */
 	outl(0x00002000, acpi_base + CS5536_PM1_CNT);
 }
+
+static int xo1_power_state_valid(suspend_state_t pm_state)
+{
+	/* suspend-to-RAM only */
+	return pm_state == PM_SUSPEND_MEM;
+}
+
+static const struct platform_suspend_ops xo1_suspend_ops = {
+	.valid = xo1_power_state_valid,
+	.enter = xo1_power_state_enter,
+};
 
 static int __devinit xo1_pm_probe(struct platform_device *pdev)
 {
@@ -68,6 +159,7 @@ static int __devinit xo1_pm_probe(struct platform_device *pdev)
 
 	/* If we have both addresses, we can override the poweroff hook */
 	if (pms_base && acpi_base) {
+		suspend_set_ops(&xo1_suspend_ops);
 		pm_power_off = xo1_power_off;
 		printk(KERN_INFO "OLPC XO-1 support registered\n");
 	}
