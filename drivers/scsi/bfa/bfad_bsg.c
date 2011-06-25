@@ -273,6 +273,170 @@ bfad_iocmd_itnim_get_attr(struct bfad_s *bfad, void *cmd)
 	return 0;
 }
 
+int
+bfad_iocmd_ioc_get_pcifn_cfg(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_pcifn_cfg_s *iocmd = (struct bfa_bsg_pcifn_cfg_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_ablk_query(&bfad->bfa.modules.ablk,
+				&iocmd->pcifn_cfg,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_pcifn_create(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_pcifn_s *iocmd = (struct bfa_bsg_pcifn_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_ablk_pf_create(&bfad->bfa.modules.ablk,
+				&iocmd->pcifn_id, iocmd->port,
+				iocmd->pcifn_class, iocmd->bandwidth,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_pcifn_delete(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_pcifn_s *iocmd = (struct bfa_bsg_pcifn_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_ablk_pf_delete(&bfad->bfa.modules.ablk,
+				iocmd->pcifn_id,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_pcifn_bw(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_pcifn_s *iocmd = (struct bfa_bsg_pcifn_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_ablk_pf_update(&bfad->bfa.modules.ablk,
+				iocmd->pcifn_id, iocmd->bandwidth,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	bfa_trc(bfad, iocmd->status);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+	bfa_trc(bfad, iocmd->status);
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_adapter_cfg_mode(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_adapter_cfg_mode_s *iocmd =
+			(struct bfa_bsg_adapter_cfg_mode_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long flags = 0;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_ablk_adapter_config(&bfad->bfa.modules.ablk,
+				iocmd->cfg.mode, iocmd->cfg.max_pf,
+				iocmd->cfg.max_vf, bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_port_cfg_mode(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_port_cfg_mode_s *iocmd =
+			(struct bfa_bsg_port_cfg_mode_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long flags = 0;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_ablk_port_config(&bfad->bfa.modules.ablk,
+				iocmd->instance, iocmd->cfg.mode,
+				iocmd->cfg.max_pf, iocmd->cfg.max_vf,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_ablk_optrom(struct bfad_s *bfad, unsigned int cmd, void *pcmd)
+{
+	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)pcmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long   flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	if (cmd == IOCMD_FLASH_ENABLE_OPTROM)
+		iocmd->status = bfa_ablk_optrom_en(&bfad->bfa.modules.ablk,
+					bfad_hcb_comp, &fcomp);
+	else
+		iocmd->status = bfa_ablk_optrom_dis(&bfad->bfa.modules.ablk,
+					bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -300,6 +464,28 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_ITNIM_GET_ATTR:
 		rc = bfad_iocmd_itnim_get_attr(bfad, iocmd);
+		break;
+	case IOCMD_IOC_PCIFN_CFG:
+		rc = bfad_iocmd_ioc_get_pcifn_cfg(bfad, iocmd);
+		break;
+	case IOCMD_PCIFN_CREATE:
+		rc = bfad_iocmd_pcifn_create(bfad, iocmd);
+		break;
+	case IOCMD_PCIFN_DELETE:
+		rc = bfad_iocmd_pcifn_delete(bfad, iocmd);
+		break;
+	case IOCMD_PCIFN_BW:
+		rc = bfad_iocmd_pcifn_bw(bfad, iocmd);
+		break;
+	case IOCMD_ADAPTER_CFG_MODE:
+		rc = bfad_iocmd_adapter_cfg_mode(bfad, iocmd);
+		break;
+	case IOCMD_PORT_CFG_MODE:
+		rc = bfad_iocmd_port_cfg_mode(bfad, iocmd);
+		break;
+	case IOCMD_FLASH_ENABLE_OPTROM:
+	case IOCMD_FLASH_DISABLE_OPTROM:
+		rc = bfad_iocmd_ablk_optrom(bfad, cmd, iocmd);
 		break;
 	default:
 		rc = EINVAL;

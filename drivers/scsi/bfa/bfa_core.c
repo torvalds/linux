@@ -109,6 +109,29 @@ bfa_com_port_attach(struct bfa_s *bfa, struct bfa_meminfo_s *mi)
 }
 
 /*
+ * ablk module attach
+ */
+static void
+bfa_com_ablk_attach(struct bfa_s *bfa, struct bfa_meminfo_s *mi)
+{
+	struct bfa_ablk_s	*ablk = &bfa->modules.ablk;
+	u32			dm_len;
+	u8			*dm_kva;
+	u64			dm_pa;
+
+	dm_len = bfa_ablk_meminfo();
+	dm_kva = bfa_meminfo_dma_virt(mi);
+	dm_pa  = bfa_meminfo_dma_phys(mi);
+
+	memset(ablk, 0, sizeof(struct bfa_ablk_s));
+	bfa_ablk_attach(ablk, &bfa->ioc);
+	bfa_ablk_memclaim(ablk, dm_kva, dm_pa);
+
+	bfa_meminfo_dma_virt(mi) = dm_kva + dm_len;
+	bfa_meminfo_dma_phys(mi) = dm_pa + dm_len;
+}
+
+/*
  * BFA IOC FC related definitions
  */
 
@@ -1117,6 +1140,7 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo)
 		hal_mods[i]->meminfo(cfg, &km_len, &dm_len);
 
 	dm_len += bfa_port_meminfo();
+	dm_len += bfa_ablk_meminfo();
 
 	meminfo->meminfo[BFA_MEM_TYPE_KVA - 1].mem_len = km_len;
 	meminfo->meminfo[BFA_MEM_TYPE_DMA - 1].mem_len = dm_len;
@@ -1174,6 +1198,7 @@ bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		hal_mods[i]->attach(bfa, bfad, cfg, meminfo, pcidev);
 
 	bfa_com_port_attach(bfa, meminfo);
+	bfa_com_ablk_attach(bfa, meminfo);
 }
 
 /*

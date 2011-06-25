@@ -802,6 +802,7 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 	bfad->hal_pcidev.pci_func = PCI_FUNC(pdev->devfn);
 	bfad->hal_pcidev.pci_bar_kva = bfad->pci_bar0_kva;
 	bfad->hal_pcidev.device_id = pdev->device;
+	bfad->hal_pcidev.ssid = pdev->subsystem_device;
 	bfad->pci_name = pci_name(pdev);
 
 	bfad->pci_attr.vendor_id = pdev->vendor;

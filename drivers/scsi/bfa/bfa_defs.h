@@ -329,7 +329,10 @@ struct bfa_ioc_attr_s {
 	struct bfa_ioc_driver_attr_s	driver_attr;	/*  driver attr    */
 	struct bfa_ioc_pci_attr_s	pci_attr;
 	u8				port_id;	/*  port number    */
-	u8				rsvd[7];	/*  64bit align    */
+	u8				port_mode;	/*  bfa_mode_s	*/
+	u8				cap_bm;		/*  capability	*/
+	u8				port_mode_cfg;	/*  bfa_mode_s	*/
+	u8				rsvd[4];	/*  64bit align	*/
 };
 
 /*
@@ -351,6 +354,16 @@ struct bfa_ioc_attr_s {
  */
 #define BFA_MFG_IC_FC	0x01
 #define BFA_MFG_IC_ETH	0x02
+
+/*
+ * Adapter capability mask definition
+ */
+#define BFA_CM_HBA	0x01
+#define BFA_CM_CNA	0x02
+#define BFA_CM_NIC	0x04
+#define BFA_CM_FC16G	0x08
+#define BFA_CM_SRIOV	0x10
+#define BFA_CM_MEZZ	0x20
 
 #pragma pack(1)
 
@@ -418,6 +431,9 @@ enum {
  */
 enum {
 	BFA_PCI_FCOE_SSDEVICE_ID	= 0x14,
+	BFA_PCI_CT2_SSID_FCoE		= 0x22,
+	BFA_PCI_CT2_SSID_ETH		= 0x23,
+	BFA_PCI_CT2_SSID_FC		= 0x24,
 };
 
 /*
@@ -484,5 +500,58 @@ struct bfa_boot_pbc_s {
 	u32     nbluns;         /*  number of boot luns */
 	struct bfa_boot_bootlun_s pblun[BFA_PREBOOT_BOOTLUN_MAX];
 };
+
+/*
+ * ASIC block configuration related structures
+ */
+#define BFA_ABLK_MAX_PORTS	2
+#define BFA_ABLK_MAX_PFS	16
+#define BFA_ABLK_MAX		2
+
+#pragma pack(1)
+enum bfa_mode_s {
+	BFA_MODE_HBA	= 1,
+	BFA_MODE_CNA	= 2,
+	BFA_MODE_NIC	= 3
+};
+
+struct bfa_adapter_cfg_mode_s {
+	u16	max_pf;
+	u16	max_vf;
+	enum bfa_mode_s	mode;
+};
+
+struct bfa_ablk_cfg_pf_s {
+	u16	pers;
+	u8	port_id;
+	u8	optrom;
+	u8	valid;
+	u8	sriov;
+	u8	max_vfs;
+	u8	rsvd[1];
+	u16	num_qpairs;
+	u16	num_vectors;
+	u32	bw;
+};
+
+struct bfa_ablk_cfg_port_s {
+	u8	mode;
+	u8	type;
+	u8	max_pfs;
+	u8	rsvd[5];
+};
+
+struct bfa_ablk_cfg_inst_s {
+	u8	nports;
+	u8	max_pfs;
+	u8	rsvd[6];
+	struct bfa_ablk_cfg_pf_s	pf_cfg[BFA_ABLK_MAX_PFS];
+	struct bfa_ablk_cfg_port_s	port_cfg[BFA_ABLK_MAX_PORTS];
+};
+
+struct bfa_ablk_cfg_s {
+	struct bfa_ablk_cfg_inst_s	inst[BFA_ABLK_MAX];
+};
+#pragma pack()
 
 #endif /* __BFA_DEFS_H__ */

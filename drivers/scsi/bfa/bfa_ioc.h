@@ -91,6 +91,7 @@ struct bfa_pcidev_s {
 	int		pci_slot;
 	u8		pci_func;
 	u16		device_id;
+	u16		ssid;
 	void __iomem	*pci_bar_kva;
 };
 
@@ -261,6 +262,9 @@ struct bfa_ioc_s {
 	enum bfi_asic_mode	asic_mode;
 	enum bfi_port_mode	port0_mode;
 	enum bfi_port_mode	port1_mode;
+	enum bfa_mode_s		port_mode;
+	u8			ad_cap_bm;	/* adapter cap bit mask */
+	u8			port_mode_cfg;	/* config port mode */
 };
 
 struct bfa_ioc_hwif_s {
@@ -279,6 +283,24 @@ struct bfa_ioc_hwif_s {
 	void		(*ioc_sync_ack)		(struct bfa_ioc_s *ioc);
 	bfa_boolean_t	(*ioc_sync_complete)	(struct bfa_ioc_s *ioc);
 	bfa_boolean_t	(*ioc_lpu_read_stat)	(struct bfa_ioc_s *ioc);
+};
+
+/*
+ * ASIC block configurtion related
+ */
+
+typedef void (*bfa_ablk_cbfn_t)(void *, enum bfa_status);
+
+struct bfa_ablk_s {
+	struct bfa_ioc_s	*ioc;
+	struct bfa_ablk_cfg_s	*cfg;
+	u16			*pcifn;
+	struct bfa_dma_s	dma_addr;
+	bfa_boolean_t		busy;
+	struct bfa_mbox_cmd_s	mb;
+	bfa_ablk_cbfn_t		cbfn;
+	void			*cbarg;
+	struct bfa_ioc_notify_s	ioc_notify;
 };
 
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
@@ -400,6 +422,33 @@ bfa_boolean_t bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc,
 			struct bfi_ioc_image_hdr_s *fwhdr);
 bfa_status_t bfa_ioc_fw_stats_get(struct bfa_ioc_s *ioc, void *stats);
 bfa_status_t bfa_ioc_fw_stats_clear(struct bfa_ioc_s *ioc);
+
+/*
+ * asic block configuration related APIs
+ */
+u32	bfa_ablk_meminfo(void);
+void bfa_ablk_memclaim(struct bfa_ablk_s *ablk, u8 *dma_kva, u64 dma_pa);
+void bfa_ablk_attach(struct bfa_ablk_s *ablk, struct bfa_ioc_s *ioc);
+bfa_status_t bfa_ablk_query(struct bfa_ablk_s *ablk,
+		struct bfa_ablk_cfg_s *ablk_cfg,
+		bfa_ablk_cbfn_t cbfn, void *cbarg);
+bfa_status_t bfa_ablk_adapter_config(struct bfa_ablk_s *ablk,
+		enum bfa_mode_s mode, int max_pf, int max_vf,
+		bfa_ablk_cbfn_t cbfn, void *cbarg);
+bfa_status_t bfa_ablk_port_config(struct bfa_ablk_s *ablk, int port,
+		enum bfa_mode_s mode, int max_pf, int max_vf,
+		bfa_ablk_cbfn_t cbfn, void *cbarg);
+bfa_status_t bfa_ablk_pf_create(struct bfa_ablk_s *ablk, u16 *pcifn,
+		u8 port, enum bfi_pcifn_class personality, int bw,
+		bfa_ablk_cbfn_t cbfn, void *cbarg);
+bfa_status_t bfa_ablk_pf_delete(struct bfa_ablk_s *ablk, int pcifn,
+		bfa_ablk_cbfn_t cbfn, void *cbarg);
+bfa_status_t bfa_ablk_pf_update(struct bfa_ablk_s *ablk, int pcifn, int bw,
+		bfa_ablk_cbfn_t cbfn, void *cbarg);
+bfa_status_t bfa_ablk_optrom_en(struct bfa_ablk_s *ablk,
+		bfa_ablk_cbfn_t cbfn, void *cbarg);
+bfa_status_t bfa_ablk_optrom_dis(struct bfa_ablk_s *ablk,
+		bfa_ablk_cbfn_t cbfn, void *cbarg);
 
 /*
  * bfa mfg wwn API functions

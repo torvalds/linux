@@ -31,6 +31,20 @@ enum {
 	IOCMD_RPORT_GET_ADDR,
 	IOCMD_FABRIC_GET_LPORTS,
 	IOCMD_ITNIM_GET_ATTR,
+	IOCMD_IOC_PCIFN_CFG,
+	IOCMD_PCIFN_CREATE,
+	IOCMD_PCIFN_DELETE,
+	IOCMD_PCIFN_BW,
+	IOCMD_ADAPTER_CFG_MODE,
+	IOCMD_PORT_CFG_MODE,
+	IOCMD_FLASH_ENABLE_OPTROM,
+	IOCMD_FLASH_DISABLE_OPTROM,
+};
+
+struct bfa_bsg_gen_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
 };
 
 struct bfa_bsg_ioc_info_s {
@@ -109,6 +123,37 @@ struct bfa_bsg_itnim_attr_s {
 	wwn_t		lpwwn;
 	wwn_t		rpwwn;
 	struct bfa_itnim_attr_s	attr;
+};
+
+struct bfa_bsg_pcifn_cfg_s {
+	bfa_status_t		status;
+	u16			bfad_num;
+	u16			rsvd;
+	struct bfa_ablk_cfg_s	pcifn_cfg;
+};
+
+struct bfa_bsg_pcifn_s {
+	bfa_status_t		status;
+	u16			bfad_num;
+	u16			pcifn_id;
+	u32			bandwidth;
+	u8			port;
+	enum bfi_pcifn_class	pcifn_class;
+	u8			rsvd[1];
+};
+
+struct bfa_bsg_adapter_cfg_mode_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_adapter_cfg_mode_s	cfg;
+};
+
+struct bfa_bsg_port_cfg_mode_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		instance;
+	struct bfa_port_cfg_mode_s cfg;
 };
 
 struct bfa_bsg_fcpt_s {

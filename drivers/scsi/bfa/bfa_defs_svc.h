@@ -265,8 +265,8 @@ struct bfa_fw_fcoe_stats_s {
  * IOC firmware FCoE port stats
  */
 struct bfa_fw_fcoe_port_stats_s {
-    struct bfa_fw_fcoe_stats_s  fcoe_stats;
-    struct bfa_fw_fip_stats_s   fip_stats;
+	struct bfa_fw_fcoe_stats_s  fcoe_stats;
+	struct bfa_fw_fip_stats_s   fip_stats;
 };
 
 /*
@@ -1081,6 +1081,12 @@ struct bfa_port_eth_stats_s {
 union bfa_port_stats_u {
 	struct bfa_port_fc_stats_s      fc;
 	struct bfa_port_eth_stats_s     eth;
+};
+
+struct bfa_port_cfg_mode_s {
+	u16		max_pf;
+	u16		max_vf;
+	enum bfa_mode_s	mode;
 };
 
 #endif /* __BFA_DEFS_SVC_H__ */

@@ -167,7 +167,7 @@ enum bfi_mclass {
 	BFI_MC_IOC		= 1,	/*  IO Controller (IOC)	    */
 	BFI_MC_FCPORT		= 5,	/*  FC port			    */
 	BFI_MC_IOCFC		= 6,	/*  FC - IO Controller (IOC)	    */
-	BFI_MC_LL               = 7,    /*  Link Layer                      */
+	BFI_MC_ABLK		= 7,	/*  ASIC block configuration	    */
 	BFI_MC_UF		= 8,	/*  Unsolicited frame receive	    */
 	BFI_MC_FCXP		= 9,	/*  FC Transport		    */
 	BFI_MC_LPS		= 10,	/*  lport fc login services	    */
@@ -386,7 +386,9 @@ struct bfi_ioc_ctrl_req_s {
 struct bfi_ioc_ctrl_reply_s {
 	struct bfi_mhdr_s	mh;		/*  Common msg header     */
 	u8			status;		/*  enable/disable status */
-	u8			rsvd[3];
+	u8			port_mode;	/*  bfa_mode_s	*/
+	u8			cap_bm;		/*  capability bit mask */
+	u8			rsvd;
 };
 #define bfi_ioc_enable_reply_t struct bfi_ioc_ctrl_reply_s;
 #define bfi_ioc_disable_reply_t struct bfi_ioc_ctrl_reply_s;
@@ -408,7 +410,7 @@ union bfi_ioc_h2i_msg_u {
  */
 union bfi_ioc_i2h_msg_u {
 	struct bfi_mhdr_s		mh;
-	struct bfi_ioc_ctrl_reply_s	rdy_event;
+	struct bfi_ioc_ctrl_reply_s	fw_event;
 	u32			mboxmsg[BFI_IOC_MSGSZ];
 };
 
@@ -601,6 +603,80 @@ union bfi_port_i2h_msg_u {
 	struct bfi_port_generic_rsp_s   disable_rsp;
 	struct bfi_port_generic_rsp_s   getstats_rsp;
 	struct bfi_port_generic_rsp_s   clearstats_rsp;
+};
+
+/*
+ *----------------------------------------------------------------------
+ *				ABLK
+ *----------------------------------------------------------------------
+ */
+enum bfi_ablk_h2i_msgs_e {
+	BFI_ABLK_H2I_QUERY		= 1,
+	BFI_ABLK_H2I_ADPT_CONFIG	= 2,
+	BFI_ABLK_H2I_PORT_CONFIG	= 3,
+	BFI_ABLK_H2I_PF_CREATE		= 4,
+	BFI_ABLK_H2I_PF_DELETE		= 5,
+	BFI_ABLK_H2I_PF_UPDATE		= 6,
+	BFI_ABLK_H2I_OPTROM_ENABLE	= 7,
+	BFI_ABLK_H2I_OPTROM_DISABLE	= 8,
+};
+
+enum bfi_ablk_i2h_msgs_e {
+	BFI_ABLK_I2H_QUERY		= BFA_I2HM(BFI_ABLK_H2I_QUERY),
+	BFI_ABLK_I2H_ADPT_CONFIG	= BFA_I2HM(BFI_ABLK_H2I_ADPT_CONFIG),
+	BFI_ABLK_I2H_PORT_CONFIG	= BFA_I2HM(BFI_ABLK_H2I_PORT_CONFIG),
+	BFI_ABLK_I2H_PF_CREATE		= BFA_I2HM(BFI_ABLK_H2I_PF_CREATE),
+	BFI_ABLK_I2H_PF_DELETE		= BFA_I2HM(BFI_ABLK_H2I_PF_DELETE),
+	BFI_ABLK_I2H_PF_UPDATE		= BFA_I2HM(BFI_ABLK_H2I_PF_UPDATE),
+	BFI_ABLK_I2H_OPTROM_ENABLE	= BFA_I2HM(BFI_ABLK_H2I_OPTROM_ENABLE),
+	BFI_ABLK_I2H_OPTROM_DISABLE	= BFA_I2HM(BFI_ABLK_H2I_OPTROM_DISABLE),
+};
+
+/* BFI_ABLK_H2I_QUERY */
+struct bfi_ablk_h2i_query_s {
+	struct bfi_mhdr_s	mh;
+	union bfi_addr_u	addr;
+};
+
+/* BFI_ABL_H2I_ADPT_CONFIG, BFI_ABLK_H2I_PORT_CONFIG */
+struct bfi_ablk_h2i_cfg_req_s {
+	struct bfi_mhdr_s	mh;
+	u8			mode;
+	u8			port;
+	u8			max_pf;
+	u8			max_vf;
+};
+
+/*
+ * BFI_ABLK_H2I_PF_CREATE, BFI_ABLK_H2I_PF_DELETE,
+ */
+struct bfi_ablk_h2i_pf_req_s {
+	struct bfi_mhdr_s	mh;
+	u8			pcifn;
+	u8			port;
+	u16			pers;
+	u32			bw;
+};
+
+/* BFI_ABLK_H2I_OPTROM_ENABLE, BFI_ABLK_H2I_OPTROM_DISABLE */
+struct bfi_ablk_h2i_optrom_s {
+	struct bfi_mhdr_s	mh;
+};
+
+/*
+ * BFI_ABLK_I2H_QUERY
+ * BFI_ABLK_I2H_PORT_CONFIG
+ * BFI_ABLK_I2H_PF_CREATE
+ * BFI_ABLK_I2H_PF_DELETE
+ * BFI_ABLK_I2H_PF_UPDATE
+ * BFI_ABLK_I2H_OPTROM_ENABLE
+ * BFI_ABLK_I2H_OPTROM_DISABLE
+ */
+struct bfi_ablk_i2h_rsp_s {
+	struct bfi_mhdr_s	mh;
+	u8			status;
+	u8			pcifn;
+	u8			port_mode;
 };
 
 #pragma pack()

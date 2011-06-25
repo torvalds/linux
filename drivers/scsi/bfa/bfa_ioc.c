@@ -1945,6 +1945,9 @@ bfa_ioc_isr(struct bfa_ioc_s *ioc, struct bfi_mbmsg_s *m)
 		break;
 
 	case BFI_IOC_I2H_ENABLE_REPLY:
+		ioc->port_mode = ioc->port_mode_cfg =
+				(enum bfa_mode_s)msg->fw_event.port_mode;
+		ioc->ad_cap_bm = msg->fw_event.cap_bm;
 		bfa_fsm_send_event(iocpf, IOCPF_E_FWRSP_ENABLE);
 		break;
 
@@ -2018,25 +2021,46 @@ bfa_ioc_pci_init(struct bfa_ioc_s *ioc, struct bfa_pcidev_s *pcidev,
 	case BFA_PCI_DEVICE_ID_FC_8G1P:
 	case BFA_PCI_DEVICE_ID_FC_8G2P:
 		ioc->asic_gen = BFI_ASIC_GEN_CB;
+		ioc->fcmode = BFA_TRUE;
+		ioc->port_mode = ioc->port_mode_cfg = BFA_MODE_HBA;
+		ioc->ad_cap_bm = BFA_CM_HBA;
 		break;
 
 	case BFA_PCI_DEVICE_ID_CT:
 		ioc->asic_gen = BFI_ASIC_GEN_CT;
 		ioc->port0_mode = ioc->port1_mode = BFI_PORT_MODE_ETH;
 		ioc->asic_mode  = BFI_ASIC_MODE_ETH;
+		ioc->port_mode = ioc->port_mode_cfg = BFA_MODE_CNA;
+		ioc->ad_cap_bm = BFA_CM_CNA;
 		break;
 
 	case BFA_PCI_DEVICE_ID_CT_FC:
 		ioc->asic_gen = BFI_ASIC_GEN_CT;
+		ioc->fcmode = BFA_TRUE;
+		ioc->port_mode = ioc->port_mode_cfg = BFA_MODE_HBA;
+		ioc->ad_cap_bm = BFA_CM_HBA;
 		break;
 
 	case BFA_PCI_DEVICE_ID_CT2:
 		ioc->asic_gen = BFI_ASIC_GEN_CT2;
-		if (clscode == BFI_PCIFN_CLASS_FC)
+		if (clscode == BFI_PCIFN_CLASS_FC &&
+		    pcidev->ssid == BFA_PCI_CT2_SSID_FC) {
 			ioc->asic_mode  = BFI_ASIC_MODE_FC16;
-		else {
+			ioc->fcmode = BFA_TRUE;
+			ioc->port_mode = ioc->port_mode_cfg = BFA_MODE_HBA;
+			ioc->ad_cap_bm = BFA_CM_HBA;
+		} else {
 			ioc->port0_mode = ioc->port1_mode = BFI_PORT_MODE_ETH;
-			ioc->asic_mode = BFI_ASIC_MODE_ETH;
+			ioc->asic_mode  = BFI_ASIC_MODE_ETH;
+			if (pcidev->ssid == BFA_PCI_CT2_SSID_FCoE) {
+				ioc->port_mode =
+				ioc->port_mode_cfg = BFA_MODE_CNA;
+				ioc->ad_cap_bm = BFA_CM_CNA;
+			} else {
+				ioc->port_mode =
+				ioc->port_mode_cfg = BFA_MODE_NIC;
+				ioc->ad_cap_bm = BFA_CM_NIC;
+			}
 		}
 		break;
 
@@ -2477,6 +2501,9 @@ bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr)
 
 	ioc_attr->state = bfa_ioc_get_state(ioc);
 	ioc_attr->port_id = ioc->port_id;
+	ioc_attr->port_mode = ioc->port_mode;
+	ioc_attr->port_mode_cfg = ioc->port_mode_cfg;
+	ioc_attr->cap_bm = ioc->ad_cap_bm;
 
 	ioc_attr->ioc_type = bfa_ioc_get_type(ioc);
 
@@ -2836,4 +2863,373 @@ bfa_timer_stop(struct bfa_timer_s *timer)
 	WARN_ON(list_empty(&timer->qe));
 
 	list_del(&timer->qe);
+}
+
+/*
+ *	ASIC block related
+ */
+static void
+bfa_ablk_config_swap(struct bfa_ablk_cfg_s *cfg)
+{
+	struct bfa_ablk_cfg_inst_s *cfg_inst;
+	int i, j;
+	u16	be16;
+	u32	be32;
+
+	for (i = 0; i < BFA_ABLK_MAX; i++) {
+		cfg_inst = &cfg->inst[i];
+		for (j = 0; j < BFA_ABLK_MAX_PFS; j++) {
+			be16 = cfg_inst->pf_cfg[j].pers;
+			cfg_inst->pf_cfg[j].pers = be16_to_cpu(be16);
+			be16 = cfg_inst->pf_cfg[j].num_qpairs;
+			cfg_inst->pf_cfg[j].num_qpairs = be16_to_cpu(be16);
+			be16 = cfg_inst->pf_cfg[j].num_vectors;
+			cfg_inst->pf_cfg[j].num_vectors = be16_to_cpu(be16);
+			be32 = cfg_inst->pf_cfg[j].bw;
+			cfg_inst->pf_cfg[j].bw = be16_to_cpu(be32);
+		}
+	}
+}
+
+static void
+bfa_ablk_isr(void *cbarg, struct bfi_mbmsg_s *msg)
+{
+	struct bfa_ablk_s *ablk = (struct bfa_ablk_s *)cbarg;
+	struct bfi_ablk_i2h_rsp_s *rsp = (struct bfi_ablk_i2h_rsp_s *)msg;
+	bfa_ablk_cbfn_t cbfn;
+
+	WARN_ON(msg->mh.msg_class != BFI_MC_ABLK);
+	bfa_trc(ablk->ioc, msg->mh.msg_id);
+
+	switch (msg->mh.msg_id) {
+	case BFI_ABLK_I2H_QUERY:
+		if (rsp->status == BFA_STATUS_OK) {
+			memcpy(ablk->cfg, ablk->dma_addr.kva,
+				sizeof(struct bfa_ablk_cfg_s));
+			bfa_ablk_config_swap(ablk->cfg);
+			ablk->cfg = NULL;
+		}
+		break;
+
+	case BFI_ABLK_I2H_ADPT_CONFIG:
+	case BFI_ABLK_I2H_PORT_CONFIG:
+		/* update config port mode */
+		ablk->ioc->port_mode_cfg = rsp->port_mode;
+
+	case BFI_ABLK_I2H_PF_DELETE:
+	case BFI_ABLK_I2H_PF_UPDATE:
+	case BFI_ABLK_I2H_OPTROM_ENABLE:
+	case BFI_ABLK_I2H_OPTROM_DISABLE:
+		/* No-op */
+		break;
+
+	case BFI_ABLK_I2H_PF_CREATE:
+		*(ablk->pcifn) = rsp->pcifn;
+		ablk->pcifn = NULL;
+		break;
+
+	default:
+		WARN_ON(1);
+	}
+
+	ablk->busy = BFA_FALSE;
+	if (ablk->cbfn) {
+		cbfn = ablk->cbfn;
+		ablk->cbfn = NULL;
+		cbfn(ablk->cbarg, rsp->status);
+	}
+}
+
+static void
+bfa_ablk_notify(void *cbarg, enum bfa_ioc_event_e event)
+{
+	struct bfa_ablk_s *ablk = (struct bfa_ablk_s *)cbarg;
+
+	bfa_trc(ablk->ioc, event);
+
+	switch (event) {
+	case BFA_IOC_E_ENABLED:
+		WARN_ON(ablk->busy != BFA_FALSE);
+		break;
+
+	case BFA_IOC_E_DISABLED:
+	case BFA_IOC_E_FAILED:
+		/* Fail any pending requests */
+		ablk->pcifn = NULL;
+		if (ablk->busy) {
+			if (ablk->cbfn)
+				ablk->cbfn(ablk->cbarg, BFA_STATUS_FAILED);
+			ablk->cbfn = NULL;
+			ablk->busy = BFA_FALSE;
+		}
+		break;
+
+	default:
+		WARN_ON(1);
+		break;
+	}
+}
+
+u32
+bfa_ablk_meminfo(void)
+{
+	return BFA_ROUNDUP(sizeof(struct bfa_ablk_cfg_s), BFA_DMA_ALIGN_SZ);
+}
+
+void
+bfa_ablk_memclaim(struct bfa_ablk_s *ablk, u8 *dma_kva, u64 dma_pa)
+{
+	ablk->dma_addr.kva = dma_kva;
+	ablk->dma_addr.pa  = dma_pa;
+}
+
+void
+bfa_ablk_attach(struct bfa_ablk_s *ablk, struct bfa_ioc_s *ioc)
+{
+	ablk->ioc = ioc;
+
+	bfa_ioc_mbox_regisr(ablk->ioc, BFI_MC_ABLK, bfa_ablk_isr, ablk);
+	bfa_ioc_notify_init(&ablk->ioc_notify, bfa_ablk_notify, ablk);
+	list_add_tail(&ablk->ioc_notify.qe, &ablk->ioc->notify_q);
+}
+
+bfa_status_t
+bfa_ablk_query(struct bfa_ablk_s *ablk, struct bfa_ablk_cfg_s *ablk_cfg,
+		bfa_ablk_cbfn_t cbfn, void *cbarg)
+{
+	struct bfi_ablk_h2i_query_s *m;
+
+	WARN_ON(!ablk_cfg);
+
+	if (!bfa_ioc_is_operational(ablk->ioc)) {
+		bfa_trc(ablk->ioc, BFA_STATUS_IOC_FAILURE);
+		return BFA_STATUS_IOC_FAILURE;
+	}
+
+	if (ablk->busy) {
+		bfa_trc(ablk->ioc, BFA_STATUS_DEVBUSY);
+		return  BFA_STATUS_DEVBUSY;
+	}
+
+	ablk->cfg = ablk_cfg;
+	ablk->cbfn  = cbfn;
+	ablk->cbarg = cbarg;
+	ablk->busy  = BFA_TRUE;
+
+	m = (struct bfi_ablk_h2i_query_s *)ablk->mb.msg;
+	bfi_h2i_set(m->mh, BFI_MC_ABLK, BFI_ABLK_H2I_QUERY,
+		    bfa_ioc_portid(ablk->ioc));
+	bfa_dma_be_addr_set(m->addr, ablk->dma_addr.pa);
+	bfa_ioc_mbox_queue(ablk->ioc, &ablk->mb);
+
+	return BFA_STATUS_OK;
+}
+
+bfa_status_t
+bfa_ablk_pf_create(struct bfa_ablk_s *ablk, u16 *pcifn,
+		u8 port, enum bfi_pcifn_class personality, int bw,
+		bfa_ablk_cbfn_t cbfn, void *cbarg)
+{
+	struct bfi_ablk_h2i_pf_req_s *m;
+
+	if (!bfa_ioc_is_operational(ablk->ioc)) {
+		bfa_trc(ablk->ioc, BFA_STATUS_IOC_FAILURE);
+		return BFA_STATUS_IOC_FAILURE;
+	}
+
+	if (ablk->busy) {
+		bfa_trc(ablk->ioc, BFA_STATUS_DEVBUSY);
+		return  BFA_STATUS_DEVBUSY;
+	}
+
+	ablk->pcifn = pcifn;
+	ablk->cbfn = cbfn;
+	ablk->cbarg = cbarg;
+	ablk->busy  = BFA_TRUE;
+
+	m = (struct bfi_ablk_h2i_pf_req_s *)ablk->mb.msg;
+	bfi_h2i_set(m->mh, BFI_MC_ABLK, BFI_ABLK_H2I_PF_CREATE,
+		    bfa_ioc_portid(ablk->ioc));
+	m->pers = cpu_to_be16((u16)personality);
+	m->bw = cpu_to_be32(bw);
+	m->port = port;
+	bfa_ioc_mbox_queue(ablk->ioc, &ablk->mb);
+
+	return BFA_STATUS_OK;
+}
+
+bfa_status_t
+bfa_ablk_pf_delete(struct bfa_ablk_s *ablk, int pcifn,
+		bfa_ablk_cbfn_t cbfn, void *cbarg)
+{
+	struct bfi_ablk_h2i_pf_req_s *m;
+
+	if (!bfa_ioc_is_operational(ablk->ioc)) {
+		bfa_trc(ablk->ioc, BFA_STATUS_IOC_FAILURE);
+		return BFA_STATUS_IOC_FAILURE;
+	}
+
+	if (ablk->busy) {
+		bfa_trc(ablk->ioc, BFA_STATUS_DEVBUSY);
+		return  BFA_STATUS_DEVBUSY;
+	}
+
+	ablk->cbfn  = cbfn;
+	ablk->cbarg = cbarg;
+	ablk->busy  = BFA_TRUE;
+
+	m = (struct bfi_ablk_h2i_pf_req_s *)ablk->mb.msg;
+	bfi_h2i_set(m->mh, BFI_MC_ABLK, BFI_ABLK_H2I_PF_DELETE,
+		    bfa_ioc_portid(ablk->ioc));
+	m->pcifn = (u8)pcifn;
+	bfa_ioc_mbox_queue(ablk->ioc, &ablk->mb);
+
+	return BFA_STATUS_OK;
+}
+
+bfa_status_t
+bfa_ablk_adapter_config(struct bfa_ablk_s *ablk, enum bfa_mode_s mode,
+		int max_pf, int max_vf, bfa_ablk_cbfn_t cbfn, void *cbarg)
+{
+	struct bfi_ablk_h2i_cfg_req_s *m;
+
+	if (!bfa_ioc_is_operational(ablk->ioc)) {
+		bfa_trc(ablk->ioc, BFA_STATUS_IOC_FAILURE);
+		return BFA_STATUS_IOC_FAILURE;
+	}
+
+	if (ablk->busy) {
+		bfa_trc(ablk->ioc, BFA_STATUS_DEVBUSY);
+		return  BFA_STATUS_DEVBUSY;
+	}
+
+	ablk->cbfn  = cbfn;
+	ablk->cbarg = cbarg;
+	ablk->busy  = BFA_TRUE;
+
+	m = (struct bfi_ablk_h2i_cfg_req_s *)ablk->mb.msg;
+	bfi_h2i_set(m->mh, BFI_MC_ABLK, BFI_ABLK_H2I_ADPT_CONFIG,
+		    bfa_ioc_portid(ablk->ioc));
+	m->mode = (u8)mode;
+	m->max_pf = (u8)max_pf;
+	m->max_vf = (u8)max_vf;
+	bfa_ioc_mbox_queue(ablk->ioc, &ablk->mb);
+
+	return BFA_STATUS_OK;
+}
+
+bfa_status_t
+bfa_ablk_port_config(struct bfa_ablk_s *ablk, int port, enum bfa_mode_s mode,
+		int max_pf, int max_vf, bfa_ablk_cbfn_t cbfn, void *cbarg)
+{
+	struct bfi_ablk_h2i_cfg_req_s *m;
+
+	if (!bfa_ioc_is_operational(ablk->ioc)) {
+		bfa_trc(ablk->ioc, BFA_STATUS_IOC_FAILURE);
+		return BFA_STATUS_IOC_FAILURE;
+	}
+
+	if (ablk->busy) {
+		bfa_trc(ablk->ioc, BFA_STATUS_DEVBUSY);
+		return  BFA_STATUS_DEVBUSY;
+	}
+
+	ablk->cbfn  = cbfn;
+	ablk->cbarg = cbarg;
+	ablk->busy  = BFA_TRUE;
+
+	m = (struct bfi_ablk_h2i_cfg_req_s *)ablk->mb.msg;
+	bfi_h2i_set(m->mh, BFI_MC_ABLK, BFI_ABLK_H2I_PORT_CONFIG,
+		bfa_ioc_portid(ablk->ioc));
+	m->port = (u8)port;
+	m->mode = (u8)mode;
+	m->max_pf = (u8)max_pf;
+	m->max_vf = (u8)max_vf;
+	bfa_ioc_mbox_queue(ablk->ioc, &ablk->mb);
+
+	return BFA_STATUS_OK;
+}
+
+bfa_status_t
+bfa_ablk_pf_update(struct bfa_ablk_s *ablk, int pcifn, int bw,
+		bfa_ablk_cbfn_t cbfn, void *cbarg)
+{
+	struct bfi_ablk_h2i_pf_req_s *m;
+
+	if (!bfa_ioc_is_operational(ablk->ioc)) {
+		bfa_trc(ablk->ioc, BFA_STATUS_IOC_FAILURE);
+		return BFA_STATUS_IOC_FAILURE;
+	}
+
+	if (ablk->busy) {
+		bfa_trc(ablk->ioc, BFA_STATUS_DEVBUSY);
+		return  BFA_STATUS_DEVBUSY;
+	}
+
+	ablk->cbfn  = cbfn;
+	ablk->cbarg = cbarg;
+	ablk->busy  = BFA_TRUE;
+
+	m = (struct bfi_ablk_h2i_pf_req_s *)ablk->mb.msg;
+	bfi_h2i_set(m->mh, BFI_MC_ABLK, BFI_ABLK_H2I_PF_UPDATE,
+		bfa_ioc_portid(ablk->ioc));
+	m->pcifn = (u8)pcifn;
+	m->bw = cpu_to_be32(bw);
+	bfa_ioc_mbox_queue(ablk->ioc, &ablk->mb);
+
+	return BFA_STATUS_OK;
+}
+
+bfa_status_t
+bfa_ablk_optrom_en(struct bfa_ablk_s *ablk, bfa_ablk_cbfn_t cbfn, void *cbarg)
+{
+	struct bfi_ablk_h2i_optrom_s *m;
+
+	if (!bfa_ioc_is_operational(ablk->ioc)) {
+		bfa_trc(ablk->ioc, BFA_STATUS_IOC_FAILURE);
+		return BFA_STATUS_IOC_FAILURE;
+	}
+
+	if (ablk->busy) {
+		bfa_trc(ablk->ioc, BFA_STATUS_DEVBUSY);
+		return  BFA_STATUS_DEVBUSY;
+	}
+
+	ablk->cbfn  = cbfn;
+	ablk->cbarg = cbarg;
+	ablk->busy  = BFA_TRUE;
+
+	m = (struct bfi_ablk_h2i_optrom_s *)ablk->mb.msg;
+	bfi_h2i_set(m->mh, BFI_MC_ABLK, BFI_ABLK_H2I_OPTROM_ENABLE,
+		bfa_ioc_portid(ablk->ioc));
+	bfa_ioc_mbox_queue(ablk->ioc, &ablk->mb);
+
+	return BFA_STATUS_OK;
+}
+
+bfa_status_t
+bfa_ablk_optrom_dis(struct bfa_ablk_s *ablk, bfa_ablk_cbfn_t cbfn, void *cbarg)
+{
+	struct bfi_ablk_h2i_optrom_s *m;
+
+	if (!bfa_ioc_is_operational(ablk->ioc)) {
+		bfa_trc(ablk->ioc, BFA_STATUS_IOC_FAILURE);
+		return BFA_STATUS_IOC_FAILURE;
+	}
+
+	if (ablk->busy) {
+		bfa_trc(ablk->ioc, BFA_STATUS_DEVBUSY);
+		return  BFA_STATUS_DEVBUSY;
+	}
+
+	ablk->cbfn  = cbfn;
+	ablk->cbarg = cbarg;
+	ablk->busy  = BFA_TRUE;
+
+	m = (struct bfi_ablk_h2i_optrom_s *)ablk->mb.msg;
+	bfi_h2i_set(m->mh, BFI_MC_ABLK, BFI_ABLK_H2I_OPTROM_DISABLE,
+		bfa_ioc_portid(ablk->ioc));
+	bfa_ioc_mbox_queue(ablk->ioc, &ablk->mb);
+
+	return BFA_STATUS_OK;
 }
