@@ -111,6 +111,7 @@ extern int olpc_ec_cmd(unsigned char cmd, unsigned char *inbuf, size_t inlen,
 #define EC_WRITE_SCI_MASK		0x1b
 #define EC_WAKE_UP_WLAN			0x24
 #define EC_WLAN_LEAVE_RESET		0x25
+#define EC_READ_EB_MODE			0x2a
 #define EC_SET_SCI_INHIBIT		0x32
 #define EC_SET_SCI_INHIBIT_RELEASE	0x34
 #define EC_WLAN_ENTER_RESET		0x35
@@ -144,7 +145,7 @@ extern int olpc_ec_cmd(unsigned char cmd, unsigned char *inbuf, size_t inlen,
 #define OLPC_GPIO_SMB_CLK      14
 #define OLPC_GPIO_SMB_DATA     15
 #define OLPC_GPIO_WORKAUX	geode_gpio(24)
-#define OLPC_GPIO_LID		geode_gpio(26)
-#define OLPC_GPIO_ECSCI		geode_gpio(27)
+#define OLPC_GPIO_LID		26
+#define OLPC_GPIO_ECSCI		27
 
 #endif /* _ASM_X86_OLPC_H */

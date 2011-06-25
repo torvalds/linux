@@ -2087,7 +2087,9 @@ config OLPC_XO1_SCI
 	select MFD_CORE
 	---help---
 	  Add support for SCI-based features of the OLPC XO-1 laptop:
+	   - EC-driven system wakeups
 	   - Power button
+	   - Ebook switch
 
 endif # X86_32
 

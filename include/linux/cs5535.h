@@ -11,6 +11,8 @@
 #ifndef _CS5535_H
 #define _CS5535_H
 
+#include <asm/msr.h>
+
 /* MSRs */
 #define MSR_GLIU_P2D_RO0	0x10000029
 
@@ -43,6 +45,18 @@
 #define MSR_GX_GLD_MSR_CONFIG	0xC0002001
 #define MSR_GX_MSR_PADSEL	0xC0002011
 
+static inline int cs5535_pic_unreqz_select_high(unsigned int group,
+						unsigned int irq)
+{
+	uint32_t lo, hi;
+
+	rdmsr(MSR_PIC_ZSEL_HIGH, lo, hi);
+	lo &= ~(0xF << (group * 4));
+	lo |= (irq & 0xF) << (group * 4);
+	wrmsr(MSR_PIC_ZSEL_HIGH, lo, hi);
+	return 0;
+}
+
 /* PIC registers */
 #define CS5536_PIC_INT_SEL1	0x4d0
 #define CS5536_PIC_INT_SEL2	0x4d1
@@ -73,6 +87,7 @@
 #define CS5536_PM1_EN		0x02
 #define CS5536_PM1_CNT		0x08
 #define CS5536_PM_GPE0_STS	0x18
+#define CS5536_PM_GPE0_EN	0x1c
 
 /* CS5536_PM1_STS bits */
 #define CS5536_WAK_FLAG		(1 << 15)
@@ -80,6 +95,13 @@
 
 /* CS5536_PM1_EN bits */
 #define CS5536_PM_PWRBTN	(1 << 8)
+
+/* CS5536_PM_GPE0_STS bits */
+#define CS5536_GPIOM7_PME_FLAG	(1 << 31)
+#define CS5536_GPIOM6_PME_FLAG	(1 << 30)
+
+/* CS5536_PM_GPE0_EN bits */
+#define CS5536_GPIOM7_PME_EN	(1 << 31)
 
 /* VSA2 magic values */
 #define VSA_VRC_INDEX		0xAC1C
