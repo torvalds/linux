@@ -22,6 +22,7 @@
 #include <linux/workqueue.h>
 #include <linux/mtk23d.h>
 #include <linux/wakelock.h>
+#include "../mtd/rknand/api_flash.h"
 
 MODULE_LICENSE("GPL");
 
@@ -220,13 +221,16 @@ static int mtk23d_release(struct inode *inode, struct file *file)
 }
 
 //extern char imei_value[16]; // phc, no find 'imei_value' in rk29 project
-char imei_value[16] = {0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5};
+//char imei_value[16] = {0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5};
 
 static int mtk23d_ioctl(struct inode *inode,struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct rk2818_23d_data *pdata = gpdata;
 	int i;
 	void __user *argp = (void __user *)arg;
+	
+	char SectorBuffer[512];
+	
 	printk("mtk23d_ioctl\n");
 	switch(cmd)
 	{
@@ -242,11 +246,15 @@ static int mtk23d_ioctl(struct inode *inode,struct file *file, unsigned int cmd,
 			break;
 		case MTK23D_IMEI_READ:
 			printk("MTK23D_IMEI_READ\n");
-			if(copy_to_user(argp, &(imei_value[0]), 16))
+			
+			GetSNSectorInfo(SectorBuffer); // phc,20110624
+			
+			if(copy_to_user(argp, &(SectorBuffer[451]), 16))  // IMEI后从451偏移开始的16bytes，第一个byte为长度固定为15
 			{
 				printk("ERROR: copy_to_user---%s\n", __FUNCTION__);
 				return -EFAULT;
 			}
+			//printk("IMEI:%d %d %d %d\n", SectorBuffer[451], SectorBuffer[452], SectorBuffer[453], SectorBuffer[454]);
 			break;
 		default:
 			break;
