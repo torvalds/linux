@@ -35,21 +35,11 @@ bfa_hwcb_reginit(struct bfa_s *bfa)
 	}
 }
 
-void
-bfa_hwcb_reqq_ack(struct bfa_s *bfa, int reqq)
-{
-}
-
 static void
 bfa_hwcb_reqq_ack_msix(struct bfa_s *bfa, int reqq)
 {
 	writel(__HFN_INT_CPE_Q0 << CPE_Q_NUM(bfa_ioc_pcifn(&bfa->ioc), reqq),
 			bfa->iocfc.bfa_regs.intr_status);
-}
-
-void
-bfa_hwcb_rspq_ack(struct bfa_s *bfa, int rspq)
-{
 }
 
 static void

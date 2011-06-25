@@ -42,6 +42,7 @@ void bfa_itn_create(struct bfa_s *bfa, struct bfa_rport_s *rport,
 		void (*isr)(struct bfa_s *bfa, struct bfi_msg_s *m));
 void bfa_itn_isr(struct bfa_s *bfa, struct bfi_msg_s *m);
 void bfa_iotag_attach(struct bfa_fcp_mod_s *fcp, struct bfa_meminfo_s *minfo);
+void bfa_fcp_res_recfg(struct bfa_s *bfa, u16 num_ioim_fw);
 
 #define BFA_FCP_MOD(_hal)	(&(_hal)->modules.fcp_mod)
 #define BFA_IOTAG_FROM_TAG(_fcp, _tag)	\
@@ -118,6 +119,7 @@ struct bfa_fcpim_s {
 	struct list_head	ioim_resfree_q; /*  IOs waiting for f/w */
 	struct list_head	ioim_comp_q;	/*  IO global comp Q	*/
 	struct list_head	tskim_free_q;
+	struct list_head	tskim_unused_q;	/* Unused tskim Q */
 	u32			ios_active;	/*  current active IOs	*/
 	u32			delay_comp;
 	struct bfa_fcpim_del_itn_stats_s del_itn_stats;
@@ -132,6 +134,7 @@ struct bfa_fcp_mod_s {
 	struct bfa_s		*bfa;
 	struct list_head	iotag_ioim_free_q;	/* free IO resources */
 	struct list_head	iotag_tio_free_q;	/* free IO resources */
+	struct list_head	iotag_unused_q;	/* unused IO resources*/
 	struct bfa_iotag_s	*iotag_arr;
 	struct bfa_itn_s	*itn_arr;
 	int			num_ioim_reqs;
@@ -270,6 +273,7 @@ void	bfa_tskim_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 void	bfa_tskim_iodone(struct bfa_tskim_s *tskim);
 void	bfa_tskim_iocdisable(struct bfa_tskim_s *tskim);
 void	bfa_tskim_cleanup(struct bfa_tskim_s *tskim);
+void	bfa_tskim_res_recfg(struct bfa_s *bfa, u16 num_tskim_fw);
 
 void	bfa_itnim_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
 					u32 *dm_len);

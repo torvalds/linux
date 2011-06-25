@@ -1298,7 +1298,7 @@ bfa_fcs_fabric_send_flogi_acc(struct bfa_fcs_fabric_s *fabric)
 				    bfa_fcport_get_rx_bbcredit(bfa),
 				    bfa_fcs_fabric_oper_bbscn(fabric));
 
-	bfa_fcxp_send(fcxp, NULL, fabric->vf_id, fabric->lps->lp_tag,
+	bfa_fcxp_send(fcxp, NULL, fabric->vf_id, fabric->lps->bfa_tag,
 		      BFA_FALSE, FC_CLASS_3,
 		      reqlen, &fchs, bfa_fcs_fabric_flogiacc_comp, fabric,
 		      FC_MAX_PDUSZ, 0);

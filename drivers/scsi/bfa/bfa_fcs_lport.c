@@ -898,8 +898,8 @@ bfa_fcs_lport_attach(struct bfa_fcs_lport_s *lport, struct bfa_fcs_s *fcs,
 	lport->fcs = fcs;
 	lport->fabric = bfa_fcs_vf_lookup(fcs, vf_id);
 	lport->vport = vport;
-	lport->lp_tag = (vport) ? vport->lps->lp_tag :
-				  lport->fabric->lps->lp_tag;
+	lport->lp_tag = (vport) ? vport->lps->bfa_tag :
+				  lport->fabric->lps->bfa_tag;
 
 	INIT_LIST_HEAD(&lport->rport_q);
 	lport->num_rports = 0;

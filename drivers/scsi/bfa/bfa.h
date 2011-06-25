@@ -54,7 +54,8 @@ void bfa_isr_unhandled(struct bfa_s *bfa, struct bfi_msg_s *m);
 	 ((void *)((struct bfi_msg_s *)((__bfa)->iocfc.req_cq_ba[__reqq].kva) \
 		   + bfa_reqq_pi((__bfa), (__reqq)))))
 
-#define bfa_reqq_produce(__bfa, __reqq)	do {				\
+#define bfa_reqq_produce(__bfa, __reqq, __mh)  do {			\
+		(__mh).mtag.h2i.qid     = (__bfa)->iocfc.hw_qid[__reqq];\
 		(__bfa)->iocfc.req_cq_pi[__reqq]++;			\
 		(__bfa)->iocfc.req_cq_pi[__reqq] &=			\
 			((__bfa)->iocfc.cfg.drvcfg.num_reqq_elems - 1); \
@@ -272,6 +273,7 @@ struct bfa_iocfc_s {
 	int			action;
 	u32		req_cq_pi[BFI_IOC_MAX_CQS];
 	u32		rsp_cq_ci[BFI_IOC_MAX_CQS];
+	u8		hw_qid[BFI_IOC_MAX_CQS];
 	struct bfa_cb_qe_s	init_hcb_qe;
 	struct bfa_cb_qe_s	stop_hcb_qe;
 	struct bfa_cb_qe_s	dis_hcb_qe;
@@ -294,8 +296,8 @@ struct bfa_iocfc_s {
 	struct bfa_faa_args_s	faa_args;
 };
 
-#define bfa_lpuid(__bfa)						\
-	bfa_ioc_portid(&(__bfa)->ioc)
+#define bfa_fn_lpu(__bfa)	\
+	bfi_fn_lpu(bfa_ioc_pcifn(&(__bfa)->ioc), bfa_ioc_portid(&(__bfa)->ioc))
 #define bfa_msix_init(__bfa, __nvecs)					\
 	((__bfa)->iocfc.hwif.hw_msix_init(__bfa, __nvecs))
 #define bfa_msix_ctrl_install(__bfa)					\
@@ -304,11 +306,18 @@ struct bfa_iocfc_s {
 	((__bfa)->iocfc.hwif.hw_msix_queue_install(__bfa))
 #define bfa_msix_uninstall(__bfa)					\
 	((__bfa)->iocfc.hwif.hw_msix_uninstall(__bfa))
+#define bfa_isr_rspq_ack(__bfa, __queue) do {				\
+	if ((__bfa)->iocfc.hwif.hw_rspq_ack)				\
+		(__bfa)->iocfc.hwif.hw_rspq_ack(__bfa, __queue);	\
+} while (0)
+#define bfa_isr_reqq_ack(__bfa, __queue) do {				\
+	if ((__bfa)->iocfc.hwif.hw_reqq_ack)				\
+		(__bfa)->iocfc.hwif.hw_reqq_ack(__bfa, __queue);	\
+} while (0)
 #define bfa_isr_mode_set(__bfa, __msix) do {				\
 	if ((__bfa)->iocfc.hwif.hw_isr_mode_set)			\
 		(__bfa)->iocfc.hwif.hw_isr_mode_set(__bfa, __msix);	\
 } while (0)
-
 #define bfa_msix_getvecs(__bfa, __vecmap, __nvecs, __maxvec)		\
 	((__bfa)->iocfc.hwif.hw_msix_getvecs(__bfa, __vecmap,		\
 					__nvecs, __maxvec))
@@ -340,7 +349,6 @@ void bfa_msix_rspq(struct bfa_s *bfa, int vec);
 void bfa_msix_lpu_err(struct bfa_s *bfa, int vec);
 
 void bfa_hwcb_reginit(struct bfa_s *bfa);
-void bfa_hwcb_reqq_ack(struct bfa_s *bfa, int rspq);
 void bfa_hwcb_rspq_ack(struct bfa_s *bfa, int rspq);
 void bfa_hwcb_msix_init(struct bfa_s *bfa, int nvecs);
 void bfa_hwcb_msix_ctrl_install(struct bfa_s *bfa);

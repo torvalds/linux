@@ -38,18 +38,20 @@ struct bfi_mhdr_s {
 	union {
 		struct {
 			u8	qid;
-			u8	lpu_id;	/*  msg destination		    */
+			u8	fn_lpu;	/*  msg destination		    */
 		} h2i;
 		u16	i2htok;	/*  token in msgs to host	    */
 	} mtag;
 };
 
-#define bfi_mhdr_2_qid(_mh)	((_mh)->mtag.h2i.qid)
+#define bfi_fn_lpu(__fn, __lpu)	((__fn) << 1 | (__lpu))
+#define bfi_mhdr_2_fn(_mh)	((_mh)->mtag.h2i.fn_lpu >> 1)
+#define bfi_mhdr_2_qid(_m)	((_mh)->mtag.h2i.qid)
 
-#define bfi_h2i_set(_mh, _mc, _op, _lpuid) do {		\
+#define bfi_h2i_set(_mh, _mc, _op, _fn_lpu) do {		\
 	(_mh).msg_class		= (_mc);      \
 	(_mh).msg_id		= (_op);      \
-	(_mh).mtag.h2i.lpu_id	= (_lpuid);      \
+	(_mh).mtag.h2i.fn_lpu	= (_fn_lpu);      \
 } while (0)
 
 #define bfi_i2h_set(_mh, _mc, _op, _i2htok) do {		\

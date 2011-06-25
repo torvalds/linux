@@ -125,6 +125,7 @@ static void bfa_lps_stop(struct bfa_s *bfa);
 static void bfa_lps_iocdisable(struct bfa_s *bfa);
 static void bfa_lps_login_rsp(struct bfa_s *bfa,
 				struct bfi_lps_login_rsp_s *rsp);
+static void bfa_lps_no_res(struct bfa_lps_s *first_lps, u8 count);
 static void bfa_lps_logout_rsp(struct bfa_s *bfa,
 				struct bfi_lps_logout_rsp_s *rsp);
 static void bfa_lps_reqq_resume(void *lps_arg);
@@ -475,6 +476,7 @@ claim_fcxps_mem(struct bfa_fcxp_mod_s *mod, struct bfa_meminfo_s *mi)
 
 	INIT_LIST_HEAD(&mod->fcxp_free_q);
 	INIT_LIST_HEAD(&mod->fcxp_active_q);
+	INIT_LIST_HEAD(&mod->fcxp_unused_q);
 
 	mod->fcxp_list = fcxp;
 
@@ -560,6 +562,9 @@ bfa_fcxp_iocdisable(struct bfa_s *bfa)
 	struct bfa_fcxp_mod_s *mod = BFA_FCXP_MOD(bfa);
 	struct bfa_fcxp_s *fcxp;
 	struct list_head	      *qe, *qen;
+
+	/* Enqueue unused fcxp resources to free_q */
+	list_splice_tail_init(&mod->fcxp_unused_q, &mod->fcxp_free_q);
 
 	list_for_each_safe(qe, qen, &mod->fcxp_active_q) {
 		fcxp = (struct bfa_fcxp_s *) qe;
@@ -829,7 +834,7 @@ bfa_fcxp_queue(struct bfa_fcxp_s *fcxp, struct bfi_fcxp_send_req_s *send_req)
 	struct bfa_rport_s		*rport = reqi->bfa_rport;
 
 	bfi_h2i_set(send_req->mh, BFI_MC_FCXP, BFI_FCXP_H2I_SEND_REQ,
-		    bfa_lpuid(bfa));
+		    bfa_fn_lpu(bfa));
 
 	send_req->fcxp_tag = cpu_to_be16(fcxp->fcxp_tag);
 	if (rport) {
@@ -843,7 +848,7 @@ bfa_fcxp_queue(struct bfa_fcxp_s *fcxp, struct bfi_fcxp_send_req_s *send_req)
 	}
 
 	send_req->vf_id = cpu_to_be16(reqi->vf_id);
-	send_req->lp_tag = reqi->lp_tag;
+	send_req->lp_fwtag = bfa_lps_get_fwtag(bfa, reqi->lp_tag);
 	send_req->class = reqi->class;
 	send_req->rsp_timeout = rspi->rsp_timeout;
 	send_req->cts = reqi->cts;
@@ -891,7 +896,7 @@ bfa_fcxp_queue(struct bfa_fcxp_s *fcxp, struct bfi_fcxp_send_req_s *send_req)
 
 	hal_fcxp_tx_plog(bfa, reqi->req_tot_len, fcxp, &reqi->fchs);
 
-	bfa_reqq_produce(bfa, BFA_REQQ_FCXP);
+	bfa_reqq_produce(bfa, BFA_REQQ_FCXP, send_req->mh);
 
 	bfa_trc(bfa, bfa_reqq_pi(bfa, BFA_REQQ_FCXP));
 	bfa_trc(bfa, bfa_reqq_ci(bfa, BFA_REQQ_FCXP));
@@ -1160,6 +1165,18 @@ bfa_fcxp_get_maxrsp(struct bfa_s *bfa)
 	return mod->rsp_pld_sz;
 }
 
+void
+bfa_fcxp_res_recfg(struct bfa_s *bfa, u16 num_fcxp_fw)
+{
+	struct bfa_fcxp_mod_s	*mod = BFA_FCXP_MOD(bfa);
+	struct list_head	*qe;
+	int	i;
+
+	for (i = 0; i < (mod->num_fcxps - num_fcxp_fw); i++) {
+		bfa_q_deq_tail(&mod->fcxp_free_q, &qe);
+		list_add_tail(qe, &mod->fcxp_unused_q);
+	}
+}
 
 /*
  *  BFA LPS state machine functions
@@ -1171,7 +1188,7 @@ bfa_fcxp_get_maxrsp(struct bfa_s *bfa)
 static void
 bfa_lps_sm_init(struct bfa_lps_s *lps, enum bfa_lps_event event)
 {
-	bfa_trc(lps->bfa, lps->lp_tag);
+	bfa_trc(lps->bfa, lps->bfa_tag);
 	bfa_trc(lps->bfa, event);
 
 	switch (event) {
@@ -1223,7 +1240,7 @@ bfa_lps_sm_init(struct bfa_lps_s *lps, enum bfa_lps_event event)
 static void
 bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event)
 {
-	bfa_trc(lps->bfa, lps->lp_tag);
+	bfa_trc(lps->bfa, lps->bfa_tag);
 	bfa_trc(lps->bfa, event);
 
 	switch (event) {
@@ -1277,7 +1294,7 @@ bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event)
 static void
 bfa_lps_sm_loginwait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 {
-	bfa_trc(lps->bfa, lps->lp_tag);
+	bfa_trc(lps->bfa, lps->bfa_tag);
 	bfa_trc(lps->bfa, event);
 
 	switch (event) {
@@ -1310,7 +1327,7 @@ bfa_lps_sm_loginwait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 static void
 bfa_lps_sm_online(struct bfa_lps_s *lps, enum bfa_lps_event event)
 {
-	bfa_trc(lps->bfa, lps->lp_tag);
+	bfa_trc(lps->bfa, lps->bfa_tag);
 	bfa_trc(lps->bfa, event);
 
 	switch (event) {
@@ -1359,7 +1376,7 @@ bfa_lps_sm_online(struct bfa_lps_s *lps, enum bfa_lps_event event)
 static void
 bfa_lps_sm_online_n2n_pid_wait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 {
-	bfa_trc(lps->bfa, lps->lp_tag);
+	bfa_trc(lps->bfa, lps->bfa_tag);
 	bfa_trc(lps->bfa, event);
 
 	switch (event) {
@@ -1401,7 +1418,7 @@ bfa_lps_sm_online_n2n_pid_wait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 static void
 bfa_lps_sm_logout(struct bfa_lps_s *lps, enum bfa_lps_event event)
 {
-	bfa_trc(lps->bfa, lps->lp_tag);
+	bfa_trc(lps->bfa, lps->bfa_tag);
 	bfa_trc(lps->bfa, event);
 
 	switch (event) {
@@ -1426,7 +1443,7 @@ bfa_lps_sm_logout(struct bfa_lps_s *lps, enum bfa_lps_event event)
 static void
 bfa_lps_sm_logowait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 {
-	bfa_trc(lps->bfa, lps->lp_tag);
+	bfa_trc(lps->bfa, lps->bfa_tag);
 	bfa_trc(lps->bfa, event);
 
 	switch (event) {
@@ -1488,10 +1505,11 @@ bfa_lps_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 
 	INIT_LIST_HEAD(&mod->lps_free_q);
 	INIT_LIST_HEAD(&mod->lps_active_q);
+	INIT_LIST_HEAD(&mod->lps_login_q);
 
 	for (i = 0; i < mod->num_lps; i++, lps++) {
 		lps->bfa	= bfa;
-		lps->lp_tag	= (u8) i;
+		lps->bfa_tag	= (u8) i;
 		lps->reqq	= BFA_REQQ_LPS;
 		bfa_reqq_winit(&lps->wqe, bfa_lps_reqq_resume, lps);
 		list_add_tail(&lps->qe, &mod->lps_free_q);
@@ -1527,6 +1545,11 @@ bfa_lps_iocdisable(struct bfa_s *bfa)
 		lps = (struct bfa_lps_s *) qe;
 		bfa_sm_send_event(lps, BFA_LPS_SM_OFFLINE);
 	}
+	list_for_each_safe(qe, qen, &mod->lps_login_q) {
+		lps = (struct bfa_lps_s *) qe;
+		bfa_sm_send_event(lps, BFA_LPS_SM_OFFLINE);
+	}
+	list_splice_tail_init(&mod->lps_login_q, &mod->lps_active_q);
 }
 
 /*
@@ -1538,12 +1561,13 @@ bfa_lps_login_rsp(struct bfa_s *bfa, struct bfi_lps_login_rsp_s *rsp)
 	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(bfa);
 	struct bfa_lps_s	*lps;
 
-	WARN_ON(rsp->lp_tag >= mod->num_lps);
-	lps = BFA_LPS_FROM_TAG(mod, rsp->lp_tag);
+	WARN_ON(rsp->bfa_tag >= mod->num_lps);
+	lps = BFA_LPS_FROM_TAG(mod, rsp->bfa_tag);
 
 	lps->status = rsp->status;
 	switch (rsp->status) {
 	case BFA_STATUS_OK:
+		lps->fw_tag	= rsp->fw_tag;
 		lps->fport	= rsp->f_port;
 		if (lps->fport)
 			lps->lp_pid = rsp->lp_pid;
@@ -1570,12 +1594,44 @@ bfa_lps_login_rsp(struct bfa_s *bfa, struct bfi_lps_login_rsp_s *rsp)
 
 		break;
 
+	case BFA_STATUS_VPORT_MAX:
+		if (!rsp->ext_status)
+			bfa_lps_no_res(lps, rsp->ext_status);
+		break;
+
 	default:
 		/* Nothing to do with other status */
 		break;
 	}
 
+	list_del(&lps->qe);
+	list_add_tail(&lps->qe, &mod->lps_active_q);
 	bfa_sm_send_event(lps, BFA_LPS_SM_FWRSP);
+}
+
+static void
+bfa_lps_no_res(struct bfa_lps_s *first_lps, u8 count)
+{
+	struct bfa_s		*bfa = first_lps->bfa;
+	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(bfa);
+	struct list_head	*qe, *qe_next;
+	struct bfa_lps_s	*lps;
+
+	bfa_trc(bfa, count);
+
+	qe = bfa_q_next(first_lps);
+
+	while (count && qe) {
+		qe_next = bfa_q_next(qe);
+		lps = (struct bfa_lps_s *)qe;
+		bfa_trc(bfa, lps->bfa_tag);
+		lps->status = first_lps->status;
+		list_del(&lps->qe);
+		list_add_tail(&lps->qe, &mod->lps_active_q);
+		bfa_sm_send_event(lps, BFA_LPS_SM_FWRSP);
+		qe = qe_next;
+		count--;
+	}
 }
 
 /*
@@ -1587,8 +1643,8 @@ bfa_lps_logout_rsp(struct bfa_s *bfa, struct bfi_lps_logout_rsp_s *rsp)
 	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(bfa);
 	struct bfa_lps_s	*lps;
 
-	WARN_ON(rsp->lp_tag >= mod->num_lps);
-	lps = BFA_LPS_FROM_TAG(mod, rsp->lp_tag);
+	WARN_ON(rsp->bfa_tag >= mod->num_lps);
+	lps = BFA_LPS_FROM_TAG(mod, rsp->bfa_tag);
 
 	bfa_sm_send_event(lps, BFA_LPS_SM_FWRSP);
 }
@@ -1602,7 +1658,7 @@ bfa_lps_rx_cvl_event(struct bfa_s *bfa, struct bfi_lps_cvl_event_s *cvl)
 	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(bfa);
 	struct bfa_lps_s	*lps;
 
-	lps = BFA_LPS_FROM_TAG(mod, cvl->lp_tag);
+	lps = BFA_LPS_FROM_TAG(mod, cvl->bfa_tag);
 
 	bfa_sm_send_event(lps, BFA_LPS_SM_RX_CVL);
 }
@@ -1637,15 +1693,16 @@ bfa_lps_free(struct bfa_lps_s *lps)
 static void
 bfa_lps_send_login(struct bfa_lps_s *lps)
 {
+	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(lps->bfa);
 	struct bfi_lps_login_req_s	*m;
 
 	m = bfa_reqq_next(lps->bfa, lps->reqq);
 	WARN_ON(!m);
 
 	bfi_h2i_set(m->mh, BFI_MC_LPS, BFI_LPS_H2I_LOGIN_REQ,
-		bfa_lpuid(lps->bfa));
+		bfa_fn_lpu(lps->bfa));
 
-	m->lp_tag	= lps->lp_tag;
+	m->bfa_tag	= lps->bfa_tag;
 	m->alpa		= lps->alpa;
 	m->pdu_size	= cpu_to_be16(lps->pdusz);
 	m->pwwn		= lps->pwwn;
@@ -1654,7 +1711,9 @@ bfa_lps_send_login(struct bfa_lps_s *lps)
 	m->auth_en	= lps->auth_en;
 	m->bb_scn	= lps->bb_scn;
 
-	bfa_reqq_produce(lps->bfa, lps->reqq);
+	bfa_reqq_produce(lps->bfa, lps->reqq, m->mh);
+	list_del(&lps->qe);
+	list_add_tail(&lps->qe, &mod->lps_login_q);
 }
 
 /*
@@ -1669,11 +1728,11 @@ bfa_lps_send_logout(struct bfa_lps_s *lps)
 	WARN_ON(!m);
 
 	bfi_h2i_set(m->mh, BFI_MC_LPS, BFI_LPS_H2I_LOGOUT_REQ,
-		bfa_lpuid(lps->bfa));
+		bfa_fn_lpu(lps->bfa));
 
-	m->lp_tag    = lps->lp_tag;
+	m->fw_tag = lps->fw_tag;
 	m->port_name = lps->pwwn;
-	bfa_reqq_produce(lps->bfa, lps->reqq);
+	bfa_reqq_produce(lps->bfa, lps->reqq, m->mh);
 }
 
 /*
@@ -1688,11 +1747,11 @@ bfa_lps_send_set_n2n_pid(struct bfa_lps_s *lps)
 	WARN_ON(!m);
 
 	bfi_h2i_set(m->mh, BFI_MC_LPS, BFI_LPS_H2I_N2N_PID_REQ,
-		bfa_lpuid(lps->bfa));
+		bfa_fn_lpu(lps->bfa));
 
-	m->lp_tag = lps->lp_tag;
+	m->fw_tag = lps->fw_tag;
 	m->lp_pid = lps->lp_pid;
-	bfa_reqq_produce(lps->bfa, lps->reqq);
+	bfa_reqq_produce(lps->bfa, lps->reqq, m->mh);
 }
 
 /*
@@ -1884,6 +1943,13 @@ bfa_lps_fdisclogo(struct bfa_lps_s *lps)
 	bfa_sm_send_event(lps, BFA_LPS_SM_LOGOUT);
 }
 
+u8
+bfa_lps_get_fwtag(struct bfa_s *bfa, u8 lp_tag)
+{
+	struct bfa_lps_mod_s    *mod = BFA_LPS_MOD(bfa);
+
+	return BFA_LPS_FROM_TAG(mod, lp_tag)->fw_tag;
+}
 
 /*
  * Return lport services tag given the pid
@@ -1897,7 +1963,7 @@ bfa_lps_get_tag_from_pid(struct bfa_s *bfa, u32 pid)
 
 	for (i = 0, lps = mod->lps_arr; i < mod->num_lps; i++, lps++) {
 		if (lps->lp_pid == pid)
-			return lps->lp_tag;
+			return lps->bfa_tag;
 	}
 
 	/* Return base port tag anyway */
@@ -1922,7 +1988,7 @@ bfa_lps_get_base_pid(struct bfa_s *bfa)
 void
 bfa_lps_set_n2n_pid(struct bfa_lps_s *lps, uint32_t n2n_pid)
 {
-	bfa_trc(lps->bfa, lps->lp_tag);
+	bfa_trc(lps->bfa, lps->bfa_tag);
 	bfa_trc(lps->bfa, n2n_pid);
 
 	lps->lp_pid = n2n_pid;
@@ -2935,7 +3001,7 @@ bfa_fcport_send_enable(struct bfa_fcport_s *fcport)
 	}
 
 	bfi_h2i_set(m->mh, BFI_MC_FCPORT, BFI_FCPORT_H2I_ENABLE_REQ,
-			bfa_lpuid(fcport->bfa));
+			bfa_fn_lpu(fcport->bfa));
 	m->nwwn = fcport->nwwn;
 	m->pwwn = fcport->pwwn;
 	m->port_cfg = fcport->cfg;
@@ -2949,7 +3015,7 @@ bfa_fcport_send_enable(struct bfa_fcport_s *fcport)
 	/*
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT);
+	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT, m->mh);
 	return BFA_TRUE;
 }
 
@@ -2978,13 +3044,13 @@ bfa_fcport_send_disable(struct bfa_fcport_s *fcport)
 	}
 
 	bfi_h2i_set(m->mh, BFI_MC_FCPORT, BFI_FCPORT_H2I_DISABLE_REQ,
-			bfa_lpuid(fcport->bfa));
+			bfa_fn_lpu(fcport->bfa));
 	m->msgtag = fcport->msgtag;
 
 	/*
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT);
+	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT, m->mh);
 
 	return BFA_TRUE;
 }
@@ -3016,14 +3082,14 @@ bfa_fcport_send_txcredit(void *port_cbarg)
 	}
 
 	bfi_h2i_set(m->mh, BFI_MC_FCPORT, BFI_FCPORT_H2I_SET_SVC_PARAMS_REQ,
-			bfa_lpuid(fcport->bfa));
+			bfa_fn_lpu(fcport->bfa));
 	m->tx_bbcredit = cpu_to_be16((u16)fcport->cfg.tx_bbcredit);
 	m->bb_scn = fcport->cfg.bb_scn;
 
 	/*
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT);
+	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT, m->mh);
 }
 
 static void
@@ -3127,8 +3193,8 @@ bfa_fcport_send_stats_get(void *cbarg)
 
 	memset(msg, 0, sizeof(struct bfi_fcport_req_s));
 	bfi_h2i_set(msg->mh, BFI_MC_FCPORT, BFI_FCPORT_H2I_STATS_GET_REQ,
-			bfa_lpuid(fcport->bfa));
-	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT);
+			bfa_fn_lpu(fcport->bfa));
+	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT, msg->mh);
 }
 
 static void
@@ -3189,8 +3255,8 @@ bfa_fcport_send_stats_clear(void *cbarg)
 
 	memset(msg, 0, sizeof(struct bfi_fcport_req_s));
 	bfi_h2i_set(msg->mh, BFI_MC_FCPORT, BFI_FCPORT_H2I_STATS_CLEAR_REQ,
-			bfa_lpuid(fcport->bfa));
-	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT);
+			bfa_fn_lpu(fcport->bfa));
+	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT, msg->mh);
 }
 
 /*
@@ -4370,6 +4436,7 @@ bfa_rport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 
 	INIT_LIST_HEAD(&mod->rp_free_q);
 	INIT_LIST_HEAD(&mod->rp_active_q);
+	INIT_LIST_HEAD(&mod->rp_unused_q);
 
 	rp = (struct bfa_rport_s *) bfa_meminfo_kva(meminfo);
 	mod->rps_list = rp;
@@ -4421,6 +4488,9 @@ bfa_rport_iocdisable(struct bfa_s *bfa)
 	struct bfa_rport_s *rport;
 	struct list_head *qe, *qen;
 
+	/* Enqueue unused rport resources to free_q */
+	list_splice_tail_init(&mod->rp_unused_q, &mod->rp_free_q);
+
 	list_for_each_safe(qe, qen, &mod->rp_active_q) {
 		rport = (struct bfa_rport_s *) qe;
 		bfa_sm_send_event(rport, BFA_RPORT_SM_HWFAIL);
@@ -4464,11 +4534,11 @@ bfa_rport_send_fwcreate(struct bfa_rport_s *rp)
 	}
 
 	bfi_h2i_set(m->mh, BFI_MC_RPORT, BFI_RPORT_H2I_CREATE_REQ,
-			bfa_lpuid(rp->bfa));
+			bfa_fn_lpu(rp->bfa));
 	m->bfa_handle = rp->rport_tag;
 	m->max_frmsz = cpu_to_be16(rp->rport_info.max_frmsz);
 	m->pid = rp->rport_info.pid;
-	m->lp_tag = rp->rport_info.lp_tag;
+	m->lp_fwtag = bfa_lps_get_fwtag(rp->bfa, (u8)rp->rport_info.lp_tag);
 	m->local_pid = rp->rport_info.local_pid;
 	m->fc_class = rp->rport_info.fc_class;
 	m->vf_en = rp->rport_info.vf_en;
@@ -4478,7 +4548,7 @@ bfa_rport_send_fwcreate(struct bfa_rport_s *rp)
 	/*
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(rp->bfa, BFA_REQQ_RPORT);
+	bfa_reqq_produce(rp->bfa, BFA_REQQ_RPORT, m->mh);
 	return BFA_TRUE;
 }
 
@@ -4497,13 +4567,13 @@ bfa_rport_send_fwdelete(struct bfa_rport_s *rp)
 	}
 
 	bfi_h2i_set(m->mh, BFI_MC_RPORT, BFI_RPORT_H2I_DELETE_REQ,
-			bfa_lpuid(rp->bfa));
+			bfa_fn_lpu(rp->bfa));
 	m->fw_handle = rp->fw_handle;
 
 	/*
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(rp->bfa, BFA_REQQ_RPORT);
+	bfa_reqq_produce(rp->bfa, BFA_REQQ_RPORT, m->mh);
 	return BFA_TRUE;
 }
 
@@ -4522,14 +4592,14 @@ bfa_rport_send_fwspeed(struct bfa_rport_s *rp)
 	}
 
 	bfi_h2i_set(m->mh, BFI_MC_RPORT, BFI_RPORT_H2I_SET_SPEED_REQ,
-			bfa_lpuid(rp->bfa));
+			bfa_fn_lpu(rp->bfa));
 	m->fw_handle = rp->fw_handle;
 	m->speed = (u8)rp->rport_info.speed;
 
 	/*
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(rp->bfa, BFA_REQQ_RPORT);
+	bfa_reqq_produce(rp->bfa, BFA_REQQ_RPORT, m->mh);
 	return BFA_TRUE;
 }
 
@@ -4579,7 +4649,18 @@ bfa_rport_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	}
 }
 
+void
+bfa_rport_res_recfg(struct bfa_s *bfa, u16 num_rport_fw)
+{
+	struct bfa_rport_mod_s	*mod = BFA_RPORT_MOD(bfa);
+	struct list_head	*qe;
+	int	i;
 
+	for (i = 0; i < (mod->num_rports - num_rport_fw); i++) {
+		bfa_q_deq_tail(&mod->rp_free_q, &qe);
+		list_add_tail(qe, &mod->rp_unused_q);
+	}
+}
 
 /*
  *  bfa_rport_api
@@ -4880,7 +4961,7 @@ claim_uf_post_msgs(struct bfa_uf_mod_s *ufm, struct bfa_meminfo_s *mi)
 		buf_len = sizeof(struct bfa_uf_buf_s);
 		uf_bp_msg->buf_len = cpu_to_be16(buf_len);
 		bfi_h2i_set(uf_bp_msg->mh, BFI_MC_UF, BFI_UF_H2I_BUF_POST,
-			    bfa_lpuid(ufm->bfa));
+			    bfa_fn_lpu(ufm->bfa));
 		bfa_alen_set(&uf_bp_msg->alen, buf_len, ufm_pbs_pa(ufm, i));
 	}
 
@@ -4957,6 +5038,7 @@ bfa_uf_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	ufm->num_ufs = cfg->fwcfg.num_uf_bufs;
 	INIT_LIST_HEAD(&ufm->uf_free_q);
 	INIT_LIST_HEAD(&ufm->uf_posted_q);
+	INIT_LIST_HEAD(&ufm->uf_unused_q);
 
 	uf_mem_claim(ufm, meminfo);
 }
@@ -4992,7 +5074,7 @@ bfa_uf_post(struct bfa_uf_mod_s *ufm, struct bfa_uf_s *uf)
 
 	memcpy(uf_post_msg, &ufm->uf_buf_posts[uf->uf_tag],
 		      sizeof(struct bfi_uf_buf_post_s));
-	bfa_reqq_produce(ufm->bfa, BFA_REQQ_FCXP);
+	bfa_reqq_produce(ufm->bfa, BFA_REQQ_FCXP, uf_post_msg->mh);
 
 	bfa_trc(ufm->bfa, uf->uf_tag);
 
@@ -5061,6 +5143,9 @@ bfa_uf_iocdisable(struct bfa_s *bfa)
 	struct bfa_uf_s *uf;
 	struct list_head *qe, *qen;
 
+	/* Enqueue unused uf resources to free_q */
+	list_splice_tail_init(&ufm->uf_unused_q, &ufm->uf_free_q);
+
 	list_for_each_safe(qe, qen, &ufm->uf_posted_q) {
 		uf = (struct bfa_uf_s *) qe;
 		list_del(&uf->qe);
@@ -5125,4 +5210,15 @@ bfa_uf_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 	}
 }
 
+void
+bfa_uf_res_recfg(struct bfa_s *bfa, u16 num_uf_fw)
+{
+	struct bfa_uf_mod_s	*mod = BFA_UF_MOD(bfa);
+	struct list_head	*qe;
+	int	i;
 
+	for (i = 0; i < (mod->num_ufs - num_uf_fw); i++) {
+		bfa_q_deq_tail(&mod->uf_free_q, &qe);
+		list_add_tail(qe, &mod->uf_unused_q);
+	}
+}

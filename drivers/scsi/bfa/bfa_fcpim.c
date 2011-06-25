@@ -340,6 +340,9 @@ bfa_fcpim_iocdisable(struct bfa_fcp_mod_s *fcp)
 	struct bfa_itnim_s *itnim;
 	struct list_head *qe, *qen;
 
+	/* Enqueue unused ioim resources to free_q */
+	list_splice_tail_init(&fcpim->tskim_unused_q, &fcpim->tskim_free_q);
+
 	list_for_each_safe(qe, qen, &fcpim->itnim_q) {
 		itnim = (struct bfa_itnim_s *) qe;
 		bfa_itnim_iocdisable(itnim);
@@ -1036,7 +1039,7 @@ bfa_itnim_send_fwcreate(struct bfa_itnim_s *itnim)
 	}
 
 	bfi_h2i_set(m->mh, BFI_MC_ITN, BFI_ITN_H2I_CREATE_REQ,
-			bfa_lpuid(itnim->bfa));
+			bfa_fn_lpu(itnim->bfa));
 	m->fw_handle = itnim->rport->fw_handle;
 	m->class = FC_CLASS_3;
 	m->seq_rec = itnim->seq_rec;
@@ -1046,7 +1049,7 @@ bfa_itnim_send_fwcreate(struct bfa_itnim_s *itnim)
 	/*
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(itnim->bfa, itnim->reqq);
+	bfa_reqq_produce(itnim->bfa, itnim->reqq, m->mh);
 	return BFA_TRUE;
 }
 
@@ -1065,14 +1068,14 @@ bfa_itnim_send_fwdelete(struct bfa_itnim_s *itnim)
 	}
 
 	bfi_h2i_set(m->mh, BFI_MC_ITN, BFI_ITN_H2I_DELETE_REQ,
-			bfa_lpuid(itnim->bfa));
+			bfa_fn_lpu(itnim->bfa));
 	m->fw_handle = itnim->rport->fw_handle;
 	bfa_stats(itnim, fw_delete);
 
 	/*
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(itnim->bfa, itnim->reqq);
+	bfa_reqq_produce(itnim->bfa, itnim->reqq, m->mh);
 	return BFA_TRUE;
 }
 
@@ -2171,12 +2174,12 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	 */
 	switch (m->cmnd.iodir) {
 	case FCP_IODIR_READ:
-		bfi_h2i_set(m->mh, BFI_MC_IOIM_READ, 0, bfa_lpuid(ioim->bfa));
+		bfi_h2i_set(m->mh, BFI_MC_IOIM_READ, 0, bfa_fn_lpu(ioim->bfa));
 		bfa_stats(itnim, input_reqs);
 		ioim->itnim->stats.rd_throughput += fcp_dl;
 		break;
 	case FCP_IODIR_WRITE:
-		bfi_h2i_set(m->mh, BFI_MC_IOIM_WRITE, 0, bfa_lpuid(ioim->bfa));
+		bfi_h2i_set(m->mh, BFI_MC_IOIM_WRITE, 0, bfa_fn_lpu(ioim->bfa));
 		bfa_stats(itnim, output_reqs);
 		ioim->itnim->stats.wr_throughput += fcp_dl;
 		break;
@@ -2184,16 +2187,16 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 		bfa_stats(itnim, input_reqs);
 		bfa_stats(itnim, output_reqs);
 	default:
-		bfi_h2i_set(m->mh, BFI_MC_IOIM_IO, 0, bfa_lpuid(ioim->bfa));
+		bfi_h2i_set(m->mh, BFI_MC_IOIM_IO, 0, bfa_fn_lpu(ioim->bfa));
 	}
 	if (itnim->seq_rec ||
 	    (scsi_bufflen(cmnd) & (sizeof(u32) - 1)))
-		bfi_h2i_set(m->mh, BFI_MC_IOIM_IO, 0, bfa_lpuid(ioim->bfa));
+		bfi_h2i_set(m->mh, BFI_MC_IOIM_IO, 0, bfa_fn_lpu(ioim->bfa));
 
 	/*
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(ioim->bfa, ioim->reqq);
+	bfa_reqq_produce(ioim->bfa, ioim->reqq, m->mh);
 	return BFA_TRUE;
 }
 
@@ -2251,14 +2254,14 @@ bfa_ioim_send_abort(struct bfa_ioim_s *ioim)
 	else
 		msgop = BFI_IOIM_H2I_IOCLEANUP_REQ;
 
-	bfi_h2i_set(m->mh, BFI_MC_IOIM, msgop, bfa_lpuid(ioim->bfa));
+	bfi_h2i_set(m->mh, BFI_MC_IOIM, msgop, bfa_fn_lpu(ioim->bfa));
 	m->io_tag    = cpu_to_be16(ioim->iotag);
 	m->abort_tag = ++ioim->abort_tag;
 
 	/*
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(ioim->bfa, ioim->reqq);
+	bfa_reqq_produce(ioim->bfa, ioim->reqq, m->mh);
 	return BFA_TRUE;
 }
 
@@ -2998,7 +3001,7 @@ bfa_tskim_send(struct bfa_tskim_s *tskim)
 	 * build i/o request message next
 	 */
 	bfi_h2i_set(m->mh, BFI_MC_TSKIM, BFI_TSKIM_H2I_TM_REQ,
-			bfa_lpuid(tskim->bfa));
+			bfa_fn_lpu(tskim->bfa));
 
 	m->tsk_tag = cpu_to_be16(tskim->tsk_tag);
 	m->itn_fhdl = tskim->itnim->rport->fw_handle;
@@ -3009,7 +3012,7 @@ bfa_tskim_send(struct bfa_tskim_s *tskim)
 	/*
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(tskim->bfa, itnim->reqq);
+	bfa_reqq_produce(tskim->bfa, itnim->reqq, m->mh);
 	return BFA_TRUE;
 }
 
@@ -3033,14 +3036,14 @@ bfa_tskim_send_abort(struct bfa_tskim_s *tskim)
 	 * build i/o request message next
 	 */
 	bfi_h2i_set(m->mh, BFI_MC_TSKIM, BFI_TSKIM_H2I_ABORT_REQ,
-			bfa_lpuid(tskim->bfa));
+			bfa_fn_lpu(tskim->bfa));
 
 	m->tsk_tag  = cpu_to_be16(tskim->tsk_tag);
 
 	/*
 	 * queue I/O message to firmware
 	 */
-	bfa_reqq_produce(tskim->bfa, itnim->reqq);
+	bfa_reqq_produce(tskim->bfa, itnim->reqq, m->mh);
 	return BFA_TRUE;
 }
 
@@ -3112,6 +3115,7 @@ bfa_tskim_attach(struct bfa_fcpim_s *fcpim, struct bfa_meminfo_s *minfo)
 	u16	i;
 
 	INIT_LIST_HEAD(&fcpim->tskim_free_q);
+	INIT_LIST_HEAD(&fcpim->tskim_unused_q);
 
 	tskim = (struct bfa_tskim_s *) bfa_meminfo_kva(minfo);
 	fcpim->tskim_arr = tskim;
@@ -3211,6 +3215,19 @@ bfa_tskim_start(struct bfa_tskim_s *tskim, struct bfa_itnim_s *itnim,
 	bfa_sm_send_event(tskim, BFA_TSKIM_SM_START);
 }
 
+void
+bfa_tskim_res_recfg(struct bfa_s *bfa, u16 num_tskim_fw)
+{
+	struct bfa_fcpim_s	*fcpim = BFA_FCPIM(bfa);
+	struct list_head	*qe;
+	int	i;
+
+	for (i = 0; i < (fcpim->num_tskim_reqs - num_tskim_fw); i++) {
+		bfa_q_deq_tail(&fcpim->tskim_free_q, &qe);
+		list_add_tail(qe, &fcpim->tskim_unused_q);
+	}
+}
+
 /* BFA FCP module - parent module for fcpim */
 
 BFA_MODULE(fcp);
@@ -3303,7 +3320,23 @@ bfa_fcp_iocdisable(struct bfa_s *bfa)
 {
 	struct bfa_fcp_mod_s *fcp = BFA_FCP_MOD(bfa);
 
+	/* Enqueue unused ioim resources to free_q */
+	list_splice_tail_init(&fcp->iotag_unused_q, &fcp->iotag_ioim_free_q);
+
 	bfa_fcpim_iocdisable(fcp);
+}
+
+void
+bfa_fcp_res_recfg(struct bfa_s *bfa, u16 num_ioim_fw)
+{
+	struct bfa_fcp_mod_s	*mod = BFA_FCP_MOD(bfa);
+	struct list_head	*qe;
+	int	i;
+
+	for (i = 0; i < (mod->num_ioim_reqs - num_ioim_fw); i++) {
+		bfa_q_deq_tail(&mod->iotag_ioim_free_q, &qe);
+		list_add_tail(qe, &mod->iotag_unused_q);
+	}
 }
 
 void
@@ -3347,6 +3380,7 @@ bfa_iotag_attach(struct bfa_fcp_mod_s *fcp, struct bfa_meminfo_s *minfo)
 
 	INIT_LIST_HEAD(&fcp->iotag_ioim_free_q);
 	INIT_LIST_HEAD(&fcp->iotag_tio_free_q);
+	INIT_LIST_HEAD(&fcp->iotag_unused_q);
 
 	num_io_req = fcp->num_ioim_reqs + fcp->num_fwtio_reqs;
 	for (i = 0; i < num_io_req; i++, iotag++) {

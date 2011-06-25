@@ -561,9 +561,9 @@ bfa_ioc_set_ct2_hwif(struct bfa_ioc_s *ioc)
 }
 
 /*
- * Temporary workaround for MSI-X resource allocation for catapult-2.
+ * Workaround for MSI-X resource allocation for catapult-2 with no asic block
  */
-#define HOSTFN_MSIX_DEFAULT		16
+#define HOSTFN_MSIX_DEFAULT		64
 #define HOSTFN_MSIX_VT_INDEX_MBOX_ERR	0x30138
 #define HOSTFN_MSIX_VT_OFST_NUMVT	0x3013c
 #define __MSIX_VT_NUMVT__MK		0x003ff800

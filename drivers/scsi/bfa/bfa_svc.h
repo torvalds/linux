@@ -93,6 +93,7 @@ struct bfa_fcxp_mod_s {
 	void		*rsp_pld_list_kva;	/* list of FCXP resp pld */
 	u64	rsp_pld_list_pa;	/* list of FCXP resp pld */
 	struct list_head  wait_q;		/* wait queue for free fcxp */
+	struct list_head fcxp_unused_q; /* unused fcxps */
 	u32	req_pld_sz;
 	u32	rsp_pld_sz;
 };
@@ -238,6 +239,7 @@ struct bfa_rport_mod_s {
 	struct bfa_rport_s *rps_list;	/*  list of rports	*/
 	struct list_head	rp_free_q;	/*  free bfa_rports	*/
 	struct list_head	rp_active_q;	/*  free bfa_rports	*/
+	struct list_head	rp_unused_q;	/*  unused bfa rports  */
 	u16	num_rports;	/*  number of rports	*/
 };
 
@@ -254,6 +256,7 @@ struct bfa_rport_mod_s {
  * protected functions
  */
 void	bfa_rport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
+void	bfa_rport_res_recfg(struct bfa_s *bfa, u16 num_rport_fw);
 
 /*
  *	BFA rport information.
@@ -332,6 +335,7 @@ struct bfa_uf_mod_s {
 	u16	num_ufs;	/*  num unsolicited rx frames */
 	struct list_head	uf_free_q;	/*  free UFs */
 	struct list_head	uf_posted_q;	/*  UFs posted to IOC */
+	struct list_head	uf_unused_q;	/*  unused UF's */
 	struct bfa_uf_buf_s *uf_pbs_kva;	/*  list UF bufs request pld */
 	u64	uf_pbs_pa;	/*  phy addr for UF bufs */
 	struct bfi_uf_buf_post_s *uf_buf_posts;
@@ -346,6 +350,7 @@ struct bfa_uf_mod_s {
 	((_ufmod)->uf_pbs_pa + sizeof(struct bfa_uf_buf_s) * (_uftag))
 
 void	bfa_uf_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
+void	bfa_uf_res_recfg(struct bfa_s *bfa, u16 num_uf_fw);
 
 #define BFA_UF_BUFSZ	(2 * 1024 + 256)
 
@@ -364,7 +369,8 @@ struct bfa_lps_s {
 	struct list_head	qe;	/*  queue element		*/
 	struct bfa_s	*bfa;		/*  parent bfa instance	*/
 	bfa_sm_t	sm;		/*  finite state machine	*/
-	u8		lp_tag;		/*  lport tag			*/
+	u8		bfa_tag;	/*  lport tag		*/
+	u8		fw_tag;		/*  lport fw tag                */
 	u8		reqq;		/*  lport request queue	*/
 	u8		alpa;		/*  ALPA for loop topologies	*/
 	u32	lp_pid;		/*  lport port ID		*/
@@ -397,6 +403,7 @@ struct bfa_lps_s {
 struct bfa_lps_mod_s {
 	struct list_head		lps_free_q;
 	struct list_head		lps_active_q;
+	struct list_head		lps_login_q;
 	struct bfa_lps_s	*lps_arr;
 	int			num_lps;
 };
@@ -583,6 +590,7 @@ void bfa_fcxp_send(struct bfa_fcxp_s *fcxp, struct bfa_rport_s *rport,
 bfa_status_t bfa_fcxp_abort(struct bfa_fcxp_s *fcxp);
 u32 bfa_fcxp_get_reqbufsz(struct bfa_fcxp_s *fcxp);
 u32 bfa_fcxp_get_maxrsp(struct bfa_s *bfa);
+void bfa_fcxp_res_recfg(struct bfa_s *bfa, u16 num_fcxp_fw);
 
 static inline void *
 bfa_uf_get_frmbuf(struct bfa_uf_s *uf)
@@ -617,6 +625,7 @@ void bfa_lps_fdisc(struct bfa_lps_s *lps, void *uarg, u16 pdusz,
 		   wwn_t pwwn, wwn_t nwwn);
 void bfa_lps_fdisclogo(struct bfa_lps_s *lps);
 void bfa_lps_set_n2n_pid(struct bfa_lps_s *lps, u32 n2n_pid);
+u8 bfa_lps_get_fwtag(struct bfa_s *bfa, u8 lp_tag);
 u32 bfa_lps_get_base_pid(struct bfa_s *bfa);
 u8 bfa_lps_get_tag_from_pid(struct bfa_s *bfa, u32 pid);
 void bfa_cb_lps_flogi_comp(void *bfad, void *uarg, bfa_status_t status);

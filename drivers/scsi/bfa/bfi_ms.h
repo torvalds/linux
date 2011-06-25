@@ -88,6 +88,7 @@ struct bfi_iocfc_qreg_s {
 	u32	rme_q_ci_off[BFI_IOC_MAX_CQS];
 	u32	rme_q_pi_off[BFI_IOC_MAX_CQS];
 	u32	rme_qctl_off[BFI_IOC_MAX_CQS];
+	u8	hw_qid[BFI_IOC_MAX_CQS];
 };
 
 struct bfi_iocfc_cfgrsp_s {
@@ -348,7 +349,7 @@ struct bfi_fcxp_send_req_s {
 	u8	 class;		/*  FC class used for req/rsp	    */
 	u8	 rsp_timeout;	/*  timeout in secs, 0-no response */
 	u8	 cts;		/*  continue sequence		    */
-	u8	 lp_tag;	/*  lport tag			    */
+	u8	 lp_fwtag;	/*  lport tag			    */
 	struct fchs_s	fchs;	/*  request FC header structure    */
 	__be32	req_len;	/*  request payload length	    */
 	__be32	rsp_maxlen;	/*  max response length expected   */
@@ -408,7 +409,7 @@ enum bfi_lps_i2h_msgs {
 
 struct bfi_lps_login_req_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		*/
-	u8		lp_tag;
+	u8		bfa_tag;
 	u8		alpa;
 	__be16		pdu_size;
 	wwn_t		pwwn;
@@ -421,7 +422,7 @@ struct bfi_lps_login_req_s {
 
 struct bfi_lps_login_rsp_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		*/
-	u8		lp_tag;
+	u8		fw_tag;
 	u8		status;
 	u8		lsrjt_rsn;
 	u8		lsrjt_expl;
@@ -437,32 +438,32 @@ struct bfi_lps_login_rsp_s {
 	u8		ext_status;
 	u8		brcd_switch;	/*  attached peer is brcd switch */
 	u8		bb_scn;		/* atatched port's bb_scn */
-	u8		resvd;
+	u8		bfa_tag;
 };
 
 struct bfi_lps_logout_req_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		*/
-	u8		lp_tag;
+	u8		fw_tag;
 	u8		rsvd[3];
 	wwn_t		port_name;
 };
 
 struct bfi_lps_logout_rsp_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		*/
-	u8		lp_tag;
+	u8		bfa_tag;
 	u8		status;
 	u8		rsvd[2];
 };
 
 struct bfi_lps_cvl_event_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		*/
-	u8		lp_tag;
+	u8		bfa_tag;
 	u8		rsvd[3];
 };
 
 struct bfi_lps_n2n_pid_req_s {
 	struct bfi_mhdr_s	mh;	/*  common msg header		*/
-	u8	lp_tag;
+	u8	fw_tag;
 	u32	lp_pid:24;
 };
 
@@ -497,7 +498,7 @@ struct bfi_rport_create_req_s {
 	u16	bfa_handle;	/*  host rport handle		*/
 	__be16	max_frmsz;	/*  max rcv pdu size		*/
 	u32	pid:24,	/*  remote port ID		*/
-		lp_tag:8;	/*  local port tag		*/
+		lp_fwtag:8;	/*  local port tag		*/
 	u32	local_pid:24,	/*  local port ID		*/
 		cisc:8;
 	u8	fc_class;	/*  supported FC classes	*/

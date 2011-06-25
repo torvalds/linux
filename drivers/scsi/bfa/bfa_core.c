@@ -203,7 +203,7 @@ bfa_isr_rspq(struct bfa_s *bfa, int qid)
 	u32	pi, ci;
 	struct list_head *waitq;
 
-	bfa->iocfc.hwif.hw_rspq_ack(bfa, qid);
+	bfa_isr_rspq_ack(bfa, qid);
 
 	ci = bfa_rspq_ci(bfa, qid);
 	pi = bfa_rspq_pi(bfa, qid);
@@ -236,9 +236,7 @@ bfa_isr_reqq(struct bfa_s *bfa, int qid)
 {
 	struct list_head *waitq;
 
-	qid &= (BFI_IOC_MAX_CQS - 1);
-
-	bfa->iocfc.hwif.hw_reqq_ack(bfa, qid);
+	bfa_isr_reqq_ack(bfa, qid);
 
 	/*
 	 * Resume any pending requests in the corresponding reqq.
@@ -296,16 +294,19 @@ bfa_intx(struct bfa_s *bfa)
 	if (!intr)
 		return BFA_FALSE;
 
+	qintr = intr & (__HFN_INT_RME_MASK | __HFN_INT_CPE_MASK);
+	if (qintr)
+		writel(qintr, bfa->iocfc.bfa_regs.intr_status);
+
 	/*
 	 * RME completion queue interrupt
 	 */
 	qintr = intr & __HFN_INT_RME_MASK;
-	writel(qintr, bfa->iocfc.bfa_regs.intr_status);
-
-	for (queue = 0; queue < BFI_IOC_MAX_CQS_ASIC; queue++) {
-		if ((intr & (__HFN_INT_RME_Q0 << queue)) && bfa->queue_process)
-			bfa_isr_rspq(bfa, queue & (BFI_IOC_MAX_CQS - 1));
+	if (qintr && bfa->queue_process) {
+		for (queue = 0; queue < BFI_IOC_MAX_CQS; queue++)
+			bfa_isr_rspq(bfa, queue);
 	}
+
 	intr &= ~qintr;
 	if (!intr)
 		return BFA_TRUE;
@@ -314,11 +315,9 @@ bfa_intx(struct bfa_s *bfa)
 	 * CPE completion queue interrupt
 	 */
 	qintr = intr & __HFN_INT_CPE_MASK;
-	writel(qintr, bfa->iocfc.bfa_regs.intr_status);
-
-	for (queue = 0; queue < BFI_IOC_MAX_CQS_ASIC; queue++) {
-		if ((intr & (__HFN_INT_CPE_Q0 << queue)) && bfa->queue_process)
-			bfa_isr_reqq(bfa, queue & (BFI_IOC_MAX_CQS - 1));
+	if (qintr && bfa->queue_process) {
+		for (queue = 0; queue < BFI_IOC_MAX_CQS; queue++)
+			bfa_isr_reqq(bfa, queue);
 	}
 	intr &= ~qintr;
 	if (!intr)
@@ -542,7 +541,7 @@ bfa_iocfc_send_cfg(void *bfa_arg)
 	 * dma map IOC configuration itself
 	 */
 	bfi_h2i_set(cfg_req.mh, BFI_MC_IOCFC, BFI_IOCFC_H2I_CFG_REQ,
-		    bfa_lpuid(bfa));
+		    bfa_fn_lpu(bfa));
 	bfa_dma_be_addr_set(cfg_req.ioc_cfg_dma_addr, iocfc->cfg_info.pa);
 
 	bfa_ioc_mbox_send(&bfa->ioc, &cfg_req,
@@ -579,8 +578,8 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		iocfc->hwif.cpe_vec_q0 = BFI_MSIX_CPE_QMIN_CT;
 	} else {
 		iocfc->hwif.hw_reginit = bfa_hwcb_reginit;
-		iocfc->hwif.hw_reqq_ack = bfa_hwcb_reqq_ack;
-		iocfc->hwif.hw_rspq_ack = bfa_hwcb_rspq_ack;
+		iocfc->hwif.hw_reqq_ack = NULL;
+		iocfc->hwif.hw_rspq_ack = NULL;
 		iocfc->hwif.hw_msix_init = bfa_hwcb_msix_init;
 		iocfc->hwif.hw_msix_ctrl_install = bfa_hwcb_msix_ctrl_install;
 		iocfc->hwif.hw_msix_queue_install = bfa_hwcb_msix_queue_install;
@@ -597,6 +596,7 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	if (bfa_asic_id_ct2(bfa_ioc_devid(&bfa->ioc))) {
 		iocfc->hwif.hw_reginit = bfa_hwct2_reginit;
 		iocfc->hwif.hw_isr_mode_set = NULL;
+		iocfc->hwif.hw_rspq_ack = NULL;
 	}
 
 	iocfc->hwif.hw_reginit(bfa);
@@ -701,7 +701,7 @@ bfa_iocfc_start_submod(struct bfa_s *bfa)
 
 	bfa->queue_process = BFA_TRUE;
 	for (i = 0; i < BFI_IOC_MAX_CQS; i++)
-		bfa->iocfc.hwif.hw_rspq_ack(bfa, i);
+		bfa_isr_rspq_ack(bfa, i);
 
 	for (i = 0; hal_mods[i]; i++)
 		hal_mods[i]->start(bfa);
@@ -768,6 +768,7 @@ bfa_iocfc_qreg(struct bfa_s *bfa, struct bfi_iocfc_qreg_s *qreg)
 	void __iomem *kva = bfa_ioc_bar0(&bfa->ioc);
 
 	for (i = 0; i < BFI_IOC_MAX_CQS; i++) {
+		bfa->iocfc.hw_qid[i] = qreg->hw_qid[i];
 		r->cpe_q_ci[i] = kva + be32_to_cpu(qreg->cpe_q_ci_off[i]);
 		r->cpe_q_pi[i] = kva + be32_to_cpu(qreg->cpe_q_pi_off[i]);
 		r->cpe_q_ctrl[i] = kva + be32_to_cpu(qreg->cpe_qctl_off[i]);
@@ -775,6 +776,16 @@ bfa_iocfc_qreg(struct bfa_s *bfa, struct bfi_iocfc_qreg_s *qreg)
 		r->rme_q_pi[i] = kva + be32_to_cpu(qreg->rme_q_pi_off[i]);
 		r->rme_q_ctrl[i] = kva + be32_to_cpu(qreg->rme_qctl_off[i]);
 	}
+}
+
+static void
+bfa_iocfc_res_recfg(struct bfa_s *bfa, struct bfa_iocfc_fwcfg_s *fwcfg)
+{
+	bfa_fcxp_res_recfg(bfa, fwcfg->num_fcxp_reqs);
+	bfa_uf_res_recfg(bfa, fwcfg->num_uf_bufs);
+	bfa_rport_res_recfg(bfa, fwcfg->num_rports);
+	bfa_fcp_res_recfg(bfa, fwcfg->num_ioim_reqs);
+	bfa_tskim_res_recfg(bfa, fwcfg->num_tskim_reqs);
 }
 
 /*
@@ -801,6 +812,11 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 	 * configure queue register offsets as learnt from firmware
 	 */
 	bfa_iocfc_qreg(bfa, &cfgrsp->qreg);
+
+	/*
+	 * Re-configure resources as learnt from Firmware
+	 */
+	bfa_iocfc_res_recfg(bfa, fwcfg);
 
 	/*
 	 * Install MSIX queue handlers
@@ -880,7 +896,7 @@ bfa_faa_enable(struct bfa_s *bfa, bfa_cb_iocfc_t cbfn, void *cbarg)
 
 	memset(&faa_enable_req, 0, sizeof(struct bfi_faa_en_dis_s));
 	bfi_h2i_set(faa_enable_req.mh, BFI_MC_IOCFC,
-		BFI_IOCFC_H2I_FAA_ENABLE_REQ, bfa_lpuid(bfa));
+		BFI_IOCFC_H2I_FAA_ENABLE_REQ, bfa_fn_lpu(bfa));
 
 	bfa_ioc_mbox_send(&bfa->ioc, &faa_enable_req,
 			sizeof(struct bfi_faa_en_dis_s));
@@ -914,7 +930,7 @@ bfa_faa_disable(struct bfa_s *bfa, bfa_cb_iocfc_t cbfn,
 
 	memset(&faa_disable_req, 0, sizeof(struct bfi_faa_en_dis_s));
 	bfi_h2i_set(faa_disable_req.mh, BFI_MC_IOCFC,
-		BFI_IOCFC_H2I_FAA_DISABLE_REQ, bfa_lpuid(bfa));
+		BFI_IOCFC_H2I_FAA_DISABLE_REQ, bfa_fn_lpu(bfa));
 
 	bfa_ioc_mbox_send(&bfa->ioc, &faa_disable_req,
 		sizeof(struct bfi_faa_en_dis_s));
@@ -944,7 +960,7 @@ bfa_faa_query(struct bfa_s *bfa, struct bfa_faa_attr_s *attr,
 	iocfc->faa_args.busy = BFA_TRUE;
 	memset(&faa_attr_req, 0, sizeof(struct bfi_faa_query_s));
 	bfi_h2i_set(faa_attr_req.mh, BFI_MC_IOCFC,
-		BFI_IOCFC_H2I_FAA_QUERY_REQ, bfa_lpuid(bfa));
+		BFI_IOCFC_H2I_FAA_QUERY_REQ, bfa_fn_lpu(bfa));
 
 	bfa_ioc_mbox_send(&bfa->ioc, &faa_attr_req,
 		sizeof(struct bfi_faa_query_s));
@@ -1230,7 +1246,7 @@ bfa_iocfc_israttr_set(struct bfa_s *bfa, struct bfa_iocfc_intr_attr_s *attr)
 		return BFA_STATUS_DEVBUSY;
 
 	bfi_h2i_set(m->mh, BFI_MC_IOCFC, BFI_IOCFC_H2I_SET_INTR_REQ,
-		    bfa_lpuid(bfa));
+		    bfa_fn_lpu(bfa));
 	m->coalesce = iocfc->cfginfo->intr_attr.coalesce;
 	m->delay    = iocfc->cfginfo->intr_attr.delay;
 	m->latency  = iocfc->cfginfo->intr_attr.latency;
@@ -1238,7 +1254,7 @@ bfa_iocfc_israttr_set(struct bfa_s *bfa, struct bfa_iocfc_intr_attr_s *attr)
 	bfa_trc(bfa, attr->delay);
 	bfa_trc(bfa, attr->latency);
 
-	bfa_reqq_produce(bfa, BFA_REQQ_IOC);
+	bfa_reqq_produce(bfa, BFA_REQQ_IOC, m->mh);
 	return BFA_STATUS_OK;
 }
 
