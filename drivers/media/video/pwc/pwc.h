@@ -106,9 +106,6 @@
 #define FEATURE_CODEC1			0x0002
 #define FEATURE_CODEC2			0x0004
 
-/* Turn certain features on/off */
-#define PWC_INT_PIPE 0
-
 /* Ignore errors in the first N frames, to allow for startup delays */
 #define FRAME_LOWMARK 5
 
@@ -231,11 +228,6 @@ struct pwc_device
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 	struct input_dev *button_dev;	/* webcam snapshot button input */
 	char button_phys[64];
-#endif
-
-	/*** Misc. data ***/
-#if PWC_INT_PIPE
-	void *usb_int_handler;		/* for the interrupt endpoint */
 #endif
 };
 
