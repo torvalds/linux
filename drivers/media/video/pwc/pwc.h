@@ -77,9 +77,9 @@
 #define PWC_DEBUG_LEVEL	(PWC_DEBUG_LEVEL_MODULE)
 
 #define PWC_DEBUG(level, fmt, args...) do {\
-	  if ((PWC_DEBUG_LEVEL_ ##level) & pwc_trace) \
-	     printk(KERN_DEBUG PFX fmt, ##args); \
-	  } while(0)
+	if ((PWC_DEBUG_LEVEL_ ##level) & pwc_trace) \
+		printk(KERN_DEBUG PFX fmt, ##args); \
+	} while (0)
 
 #define PWC_ERROR(fmt, args...) printk(KERN_ERR PFX fmt, ##args)
 #define PWC_WARNING(fmt, args...) printk(KERN_WARNING PFX fmt, ##args)
@@ -152,40 +152,41 @@ struct pwc_frame_buf
 struct pwc_device
 {
 	struct video_device vdev;
+	struct mutex modlock;
 
-   /* Pointer to our usb_device, may be NULL after unplug */
-   struct usb_device *udev;
+	/* Pointer to our usb_device, may be NULL after unplug */
+	struct usb_device *udev;
+	/* type of cam (645, 646, 675, 680, 690, 720, 730, 740, 750) */
+	int type;
+	int release;		/* release number */
+	int features;		/* feature bits */
+	char serial[30];	/* serial number (string) */
+	int error_status;	/* set when something goes wrong */
+	int usb_init;		/* set when the cam has been initialized */
 
-   int type;                    /* type of cam (645, 646, 675, 680, 690, 720, 730, 740, 750) */
-   int release;			/* release number */
-   int features;		/* feature bits */
-   char serial[30];		/* serial number (string) */
-   int error_status;		/* set when something goes wrong with the cam (unplugged, USB errors) */
-   int usb_init;		/* set when the cam has been initialized over USB */
-
-   /*** Video data ***/
-   int vopen;			/* flag */
-   int vendpoint;		/* video isoc endpoint */
-   int vcinterface;		/* video control interface */
-   int valternate;		/* alternate interface needed */
-   int vframes, vsize;		/* frames-per-second & size (see PSZ_*) */
-   int pixfmt;			/* pixelformat: V4L2_PIX_FMT_YUV420 or raw: _PWC1, _PWC2 */
-   int vframe_count;		/* received frames */
-   int vmax_packet_size;	/* USB maxpacket size */
-   int vlast_packet_size;	/* for frame synchronisation */
-   int visoc_errors;		/* number of contiguous ISOC errors */
-   int vcompression;		/* desired compression factor */
-   int vbandlength;		/* compressed band length; 0 is uncompressed */
-   char vsnapshot;		/* snapshot mode */
-   char vsync;			/* used by isoc handler */
-   char vmirror;		/* for ToUCaM series */
+	/*** Video data ***/
+	int vopen;		/* flag */
+	int vendpoint;		/* video isoc endpoint */
+	int vcinterface;	/* video control interface */
+	int valternate;		/* alternate interface needed */
+	int vframes, vsize;	/* frames-per-second & size (see PSZ_*) */
+	int pixfmt;		/* pixelformat: V4L2_PIX_FMT_YUV420 or _PWCX */
+	int vframe_count;	/* received frames */
+	int vmax_packet_size;	/* USB maxpacket size */
+	int vlast_packet_size;	/* for frame synchronisation */
+	int visoc_errors;	/* number of contiguous ISOC errors */
+	int vcompression;	/* desired compression factor */
+	int vbandlength;	/* compressed band length; 0 is uncompressed */
+	char vsnapshot;		/* snapshot mode */
+	char vsync;		/* used by isoc handler */
+	char vmirror;		/* for ToUCaM series */
 	char unplugged;
 
-   int cmd_len;
-   unsigned char cmd_buf[13];
+	int cmd_len;
+	unsigned char cmd_buf[13];
 
-   struct pwc_iso_buf sbuf[MAX_ISO_BUFS];
-   char iso_init;
+	struct pwc_iso_buf sbuf[MAX_ISO_BUFS];
+	char iso_init;
 
 	/* videobuf2 queue and queued buffers list */
 	struct vb2_queue vb_queue;
@@ -200,39 +201,43 @@ struct pwc_device
 	 */
 	struct pwc_frame_buf *fill_buf;
 
-   int frame_header_size, frame_trailer_size;
-   int frame_size;
-   int frame_total_size; /* including header & trailer */
-   int drop_frames;
+	int frame_header_size, frame_trailer_size;
+	int frame_size;
+	int frame_total_size;	/* including header & trailer */
+	int drop_frames;
 
-   void *decompress_data;		/* private data for decompression engine */
+	void *decompress_data;	/* private data for decompression engine */
 
-   /* We have an 'image' and a 'view', where 'image' is the fixed-size image
-      as delivered by the camera, and 'view' is the size requested by the
-      program. The camera image is centered in this viewport, laced with
-      a gray or black border. view_min <= image <= view <= view_max;
-    */
-   int image_mask;			/* bitmask of supported sizes */
-   struct pwc_coord view_min, view_max;	/* minimum and maximum viewable sizes */
-   struct pwc_coord abs_max;            /* maximum supported size with compression */
-   struct pwc_coord image, view;	/* image and viewport size */
-   struct pwc_coord offset;		/* offset within the viewport */
+	/*
+	 * We have an 'image' and a 'view', where 'image' is the fixed-size img
+	 * as delivered by the camera, and 'view' is the size requested by the
+	 * program. The camera image is centered in this viewport, laced with
+	 * a gray or black border. view_min <= image <= view <= view_max;
+	 */
+	int image_mask;				/* supported sizes */
+	struct pwc_coord view_min, view_max;	/* minimum and maximum view */
+	struct pwc_coord abs_max;		/* maximum supported size */
+	struct pwc_coord image, view;		/* image and viewport size */
+	struct pwc_coord offset;		/* offset of the viewport */
 
-   struct mutex modlock;		/* to prevent races in video_open(), etc */
+	/*** motorized pan/tilt feature */
+	struct pwc_mpt_range angle_range;
+	int pan_angle;			/* in degrees * 100 */
+	int tilt_angle;			/* absolute angle; 0,0 is home */
 
-   /*** motorized pan/tilt feature */
-   struct pwc_mpt_range angle_range;
-   int pan_angle;			/* in degrees * 100 */
-   int tilt_angle;			/* absolute angle; 0,0 is home position */
-   int snapshot_button_status;		/* set to 1 when the user push the button, reset to 0 when this value is read */
+	/*
+	 * Set to 1 when the user push the button, reset to 0
+	 * when this value is read from sysfs.
+	 */
+	int snapshot_button_status;
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
-   struct input_dev *button_dev;	/* webcam snapshot button input */
-   char button_phys[64];
+	struct input_dev *button_dev;	/* webcam snapshot button input */
+	char button_phys[64];
 #endif
 
-   /*** Misc. data ***/
+	/*** Misc. data ***/
 #if PWC_INT_PIPE
-   void *usb_int_handler;		/* for the interrupt endpoint */
+	void *usb_int_handler;		/* for the interrupt endpoint */
 #endif
 };
 
